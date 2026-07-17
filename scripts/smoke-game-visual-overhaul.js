@@ -83,12 +83,12 @@ const layout = vm.runInContext(`(() => {
   };
 })()`, context);
 
-assert.strictEqual(layout.count, 1101, 'radial rollback should preserve all passive nodes from main');
-assert.strictEqual(layout.edgeCount, 1353, 'radial rollback should preserve every passive connection from main');
-assert.strictEqual(layout.webNodeCount, 192, 'the central web should retain 16 spokes across 12 rings');
-assert.strictEqual(layout.spokeCount, 16, 'the passive tree should radiate through sixteen readable spokes');
+assert.strictEqual(layout.count, 1101, 'radial adaptation should preserve all passive nodes from main');
+assert.strictEqual(layout.edgeCount, 1353, 'radial adaptation should preserve every passive connection from main');
+assert.strictEqual(layout.webNodeCount, 144, 'the central web should use 12 sectors across 12 progression rings');
+assert.strictEqual(layout.spokeCount, 12, 'the passive tree should radiate through six axes and six pillars');
 assert.ok(layout.spokeCounts.every(count => count === 12), 'every web spoke should reach all twelve rings');
-assert.strictEqual(layout.rootLinks, 8, 'the center should expose eight distinct starting routes');
+assert.strictEqual(layout.rootLinks, 6, 'the center should expose the six primary axis routes');
 assert.strictEqual(layout.overlaps, 0, 'radial passive nodes should not overlap hit areas');
 assert.ok(layout.minimumClearance >= 18, 'passive nodes should retain comfortable visual spacing');
 assert.ok(layout.aspectRatio >= 0.9 && layout.aspectRatio <= 1.2, 'the full passive tree should keep a near-circular spiderweb silhouette');

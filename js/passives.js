@@ -291,6 +291,84 @@ function drawPassiveStarfield(ctx, bounds) {
     }
 }
 
+function getPassiveRadialWorldRadii() {
+    return PASSIVE_RADIAL_SCHEMA.worldDepths.map(depth => (
+        PASSIVE_RADIAL_SCHEMA.innerRadius + (depth - 1) * PASSIVE_RADIAL_SCHEMA.ringSpacing
+    ) * PASSIVE_WORLD_SCALE);
+}
+
+function drawPassiveRadialFramework(ctx, lightweightMode, zoomedOutMode) {
+    const root = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };
+    const radii = getPassiveRadialWorldRadii();
+    if (!radii.length) return;
+    const outerRadius = radii[radii.length - 1] + PASSIVE_RADIAL_SCHEMA.ringSpacing * PASSIVE_WORLD_SCALE * 0.34;
+    const sectorAngle = Math.PI * 2 / PASSIVE_RADIAL_SCHEMA.sectorCount;
+
+    ctx.save();
+    ctx.translate(root.x, root.y);
+
+    // Twelve alternating wedges echo the supplied schema without putting text
+    // behind nodes. The upper/light and lower/dark halves remain distinguishable.
+    if (!lightweightMode && !zoomedOutMode) {
+        for (let sector = 0; sector < PASSIVE_RADIAL_SCHEMA.sectorCount; sector++) {
+            const from = PASSIVE_RADIAL_SCHEMA.startAngle + sector * sectorAngle;
+            const to = from + sectorAngle;
+            const mid = from + sectorAngle * 0.5;
+            const lightHalf = Math.sin(mid) <= 0;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.arc(0, 0, outerRadius, from, to);
+            ctx.closePath();
+            ctx.fillStyle = lightHalf
+                ? `rgba(182,151,91,${sector % 2 === 0 ? 0.016 : 0.009})`
+                : `rgba(111,87,151,${sector % 2 === 0 ? 0.018 : 0.011})`;
+            ctx.fill();
+        }
+    }
+
+    for (let sector = 0; sector < PASSIVE_RADIAL_SCHEMA.sectorCount; sector++) {
+        const angle = PASSIVE_RADIAL_SCHEMA.startAngle + sector * sectorAngle;
+        const isAxis = sector % PASSIVE_RADIAL_SCHEMA.spokesPerTheme === 0;
+        ctx.save();
+        ctx.rotate(angle);
+        if (!isAxis) ctx.setLineDash([12, 16]);
+        ctx.beginPath();
+        ctx.moveTo(72, 0);
+        ctx.lineTo(outerRadius, 0);
+        ctx.strokeStyle = isAxis ? 'rgba(171,137,76,0.14)' : 'rgba(114,132,153,0.075)';
+        ctx.lineWidth = isAxis ? 2.2 : 1.15;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    radii.forEach((radius, index) => {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, Math.PI, Math.PI * 2);
+        ctx.strokeStyle = `rgba(188,153,87,${0.13 - index * 0.012})`;
+        ctx.lineWidth = index === radii.length - 1 ? 2.4 : 1.65;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI);
+        ctx.strokeStyle = `rgba(126,101,164,${0.14 - index * 0.012})`;
+        ctx.stroke();
+    });
+
+    ctx.setLineDash([7, 11]);
+    ctx.beginPath();
+    ctx.arc(0, 0, (radii[2] + radii[3]) * 0.5, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(150,118,176,0.11)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 82, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(225,193,119,0.25)';
+    ctx.lineWidth = 2.6;
+    ctx.stroke();
+    ctx.restore();
+}
+
 function drawPassiveEvolutionAura(ctx) {
     if (!game || !game.passiveStarEvolution) return;
     let tips = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'transcendent');
@@ -845,15 +923,15 @@ function generateOrganicTree() {
     }
 
 
-    // 거미줄형 기본 경로: 방사형 살(spoke) + 나이테형 고리(ring)를 먼저 만든다.
-    // 8방향의 큰 정체성은 유지하되 각 방향 사이에 중간 경로 노드를 추가해 최외곽까지 등고선처럼 연결한다.
-    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'marauder', 'marauder'];
+    // 제공된 스키마를 따라 6개 주축과 6개 기둥, 12개 부채꼴 및 4개 세계 고리를 만든다.
+    // 기존 스탯 풀과 특수 노드 규칙은 유지해 구조 변경이 빌드 정체성을 지우지 않게 한다.
+    const sectorThemes = PASSIVE_RADIAL_SCHEMA.themeOrder.slice();
     const sectorCount = sectorThemes.length;
-    const spokesPerSector = 2;
+    const spokesPerSector = PASSIVE_RADIAL_SCHEMA.spokesPerTheme;
     const webSpokeCount = sectorCount * spokesPerSector;
-    const maxDepth = 12;
-    const innerRadius = 285;
-    const ringSpacing = 142;
+    const maxDepth = PASSIVE_RADIAL_SCHEMA.maxDepth;
+    const innerRadius = PASSIVE_RADIAL_SCHEMA.innerRadius;
+    const ringSpacing = PASSIVE_RADIAL_SCHEMA.ringSpacing;
     const webYScale = 1;
     const angleStep = Math.PI * 2 / webSpokeCount;
 
@@ -871,7 +949,7 @@ function generateOrganicTree() {
         return (spoke % spokesPerSector) === 0 ? 0 : 1;
     }
     function getWebAngle(spoke) {
-        return -Math.PI / 2 + spoke * angleStep;
+        return PASSIVE_RADIAL_SCHEMA.startAngle + spoke * angleStep;
     }
     function getWebRadius(depth) {
         return innerRadius + (depth - 1) * ringSpacing;
@@ -917,6 +995,9 @@ function generateOrganicTree() {
             if (!node) break;
             node.webSpoke = spoke;
             node.webRing = depth;
+            node.radialRole = lane === 0 ? 'axis' : 'pillar';
+            node.radialWorld = Math.min(PASSIVE_RADIAL_SCHEMA.worldDepths.length - 1, Math.floor((depth - 1) / 3));
+            node.radialHemisphere = Math.sin(getWebAngle(spoke)) <= 0 ? 'light' : 'dark';
             specializePathNode(node, theme, depth, lane, getWebSectorIndex(spoke), shape);
             webNodes[spoke][depth - 1] = node;
             if (prev) connect(prev.id, node.id);
@@ -979,6 +1060,10 @@ function generateOrganicTree() {
         { role: 'mastery', label: '숙련', length: 5, spread: 0.58 },
         { role: 'survival', label: '생존', length: 4, spread: 0.38 }
     ];
+    // Twelve 30-degree sectors have fewer cells than the previous sixteen-spoke
+    // web, so each cell receives two more progression nodes. This keeps the
+    // existing build breadth and node count while giving every node more room.
+    webCellClusterBlueprints.forEach(blueprint => { blueprint.length += 2; });
 
     function getWebCellClusterPoint(cell, step, chainLength) {
         let t = step / Math.max(1, chainLength + 1);
@@ -1031,7 +1116,7 @@ function generateOrganicTree() {
     let retainedGlobalGemLevelCluster = false;
     function isTopChaosPenaltyCluster(spoke, depth) {
         let topArc = angleDistance(getWebAngle(spoke), -Math.PI / 2) <= Math.PI / 3;
-        return topArc && ((spoke === 15 && depth === 5) || (spoke === 1 && depth === 9));
+        return topArc && ((spoke === webSpokeCount - 1 && depth === 5) || (spoke === 1 && depth === 9));
     }
     function isOneOClockCluster(spoke) {
         return spoke === 1 || spoke === 2;
@@ -1047,6 +1132,7 @@ function generateOrganicTree() {
         return specs[(spoke + depth) % specs.length];
     }
     function getDirectionalClusterSpec(spoke, depth) {
+        let legacySpoke = Math.round(spoke * 16 / webSpokeCount) % 16;
         const fixedClusters = {
             '10:5': { stat: 'firePctDmg', title: '서녘 화염', length: 4 },
             '11:8': { stat: 'firePctDmg', title: '황혼 화염', length: 4 },
@@ -1057,9 +1143,10 @@ function generateOrganicTree() {
             '15:5': { stat: 'summonPctDmg', title: '별무리 사역', length: 5 },
             '15:8': { stat: 'summonHpPct', title: '사역 생명핵', length: 4 }
         };
-        return fixedClusters[`${spoke}:${depth}`] || null;
+        return fixedClusters[`${legacySpoke}:${depth}`] || null;
     }
     function getScatteredMaxResClusterSpec(spoke, depth) {
+        spoke = Math.round(spoke * 16 / webSpokeCount) % 16;
         if (spoke === 5 && depth % 4 === 1) return { stat: 'resF', endStat: 'maxResF', title: '화염 최대 저항', length: 4 };
         if (spoke === 9 && depth % 4 === 2) return { stat: 'resC', endStat: 'maxResC', title: '냉기 최대 저항', length: 4 };
         if (spoke === 13 && depth % 4 === 3) return { stat: 'resL', endStat: 'maxResL', title: '번개 최대 저항', length: 4 };
@@ -1116,6 +1203,7 @@ function generateOrganicTree() {
         if (composite && P_STATS[composite.stat] && (!composite.endStat || P_STATS[composite.endStat])) return composite;
         return { stat: themeSpec.stat, title: themeSpec.title, length: null };
     }
+    let radialClusterOrdinal = 0;
     function buildWebCellCluster(anchor, spoke, depth, clusterCellsById) {
         if (!anchor) return;
         if (depth <= 2 && ((spoke + depth) % 2 === 0)) return;
@@ -1126,7 +1214,12 @@ function generateOrganicTree() {
         if (!blueprint || !themeSpec || !P_STATS[themeSpec.stat]) return;
         themeSpec = getFinalClusterSpec(themeSpec, spoke, depth, theme);
         if (!themeSpec || !P_STATS[themeSpec.stat] || (themeSpec.endStat && !P_STATS[themeSpec.endStat])) return;
-        let chainLength = themeSpec.length || blueprint.length || 4;
+        // The previous live layout contains 1101 nodes. Spread the 87 nodes
+        // displaced by the 16->12 spoke conversion evenly across 120 valid
+        // cell clusters so existing build breadth is preserved exactly.
+        const clusterOrdinal = radialClusterOrdinal++;
+        const getsDistributedNode = Math.floor((clusterOrdinal + 1) * 87 / 120) > Math.floor(clusterOrdinal * 87 / 120);
+        let chainLength = (themeSpec.length || blueprint.length || 4) + 1 + (getsDistributedNode ? 1 : 0);
         let clusterId = `web_${spoke}_${depth}_${blueprint.role}`;
         let cell = {
             angle: getWebAngle(spoke),
@@ -1155,6 +1248,9 @@ function generateOrganicTree() {
             node.clusterEndStat = themeSpec.endStat || null;
             node.webCellSpoke = spoke;
             node.webCellRing = depth;
+            node.radialRole = 'cluster';
+            node.radialWorld = Math.min(PASSIVE_RADIAL_SCHEMA.worldDepths.length - 1, Math.floor((depth - 1) / 3));
+            node.radialHemisphere = Math.sin(getWebAngle(spoke)) <= 0 ? 'light' : 'dark';
             node.val = getTierValue(statForStep, tier);
             if (statForStep === 'slamPctDmg') node.val *= 2;
             if (statForStep === 'critDmg') {
@@ -1345,6 +1441,41 @@ function generateOrganicTree() {
         if (rightNode && tipNode) connect(rightNode.id, tipNode.id);
     });
 
+    function restoreRadialConnectionBudget(targetEdgeCount) {
+        let needed = Math.max(0, targetEdgeCount - PASSIVE_TREE.edges.length);
+        if (needed <= 0) return;
+        const initialNeed = needed;
+        const endpoints = Object.values(PASSIVE_TREE.nodes)
+            .filter(node => node && node.clusterId && String(node.clusterId).startsWith('web_'))
+            .filter(node => node.clusterStep === node.clusterLength);
+        const endpointByCell = new Map(endpoints.map(node => [`${node.webCellSpoke}:${node.webCellRing}`, node]));
+        const candidates = [];
+        endpoints.forEach(node => {
+            const nextSpoke = (node.webCellSpoke + 1) % webSpokeCount;
+            const peer = endpointByCell.get(`${nextSpoke}:${node.webCellRing}`);
+            if (peer) candidates.push([node, peer]);
+        });
+        candidates.sort((left, right) => {
+            const depthDelta = (left[0].webCellRing || 0) - (right[0].webCellRing || 0);
+            if (depthDelta !== 0) return depthDelta;
+            return (left[0].webCellSpoke || 0) - (right[0].webCellSpoke || 0);
+        });
+        candidates.forEach((pair, index) => {
+            if (needed <= 0) return;
+            const selected = Math.floor((index + 1) * initialNeed / candidates.length)
+                > Math.floor(index * initialNeed / candidates.length);
+            if (!selected) return;
+            const before = PASSIVE_TREE.edges.length;
+            connect(pair[0].id, pair[1].id);
+            if (PASSIVE_TREE.edges.length > before) needed -= 1;
+        });
+        for (let index = 0; index < candidates.length && needed > 0; index++) {
+            const before = PASSIVE_TREE.edges.length;
+            connect(candidates[index][0].id, candidates[index][1].id);
+            if (PASSIVE_TREE.edges.length > before) needed -= 1;
+        }
+    }
+
     buildDeflectCluster('deflect_chance_cluster', 0.34, getWebRadius(7) * PASSIVE_WORLD_SCALE, [4, 4, 4, 8], false);
     buildDeflectCluster('deflect_reduction_cluster', 0.72, getWebRadius(7.6) * PASSIVE_WORLD_SCALE, [3, 3, 3, 6], true);
     buildDeflectCluster('deflect_south_cluster', 1.30, getWebRadius(7.2) * PASSIVE_WORLD_SCALE, [4, 4, 4, 8], false);
@@ -1353,6 +1484,10 @@ function generateOrganicTree() {
     buildBlockCluster('block_base_pct_cluster', 3.02, getWebRadius(7.7) * PASSIVE_WORLD_SCALE, [20, 20, 20, 30], 'blockChancePct', '% 증가');
 
     ensureOuterHubNeighborConnections(4);
+    // Keep the live graph's 1353-connection budget. The restored links are
+    // same-band arcs between neighboring sector clusters, matching the supplied
+    // schema's dense 2172-edge philosophy without creating visual spaghetti.
+    restoreRadialConnectionBudget(1353);
 
     realignWebPathNodes();
     realignSpecializedClusters(clusterAnchorsById);

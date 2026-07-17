@@ -305,6 +305,7 @@ function drawPassiveTree() {
 
     // 월드 배경 성운/별
     if (!lightweightMode && !zoomedOutMode) drawPassiveStarfield(ctx, PASSIVE_BOUNDS);
+    drawPassiveRadialFramework(ctx, lightweightMode, zoomedOutMode);
 
     // 중심 오라
     const passiveRoot = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };

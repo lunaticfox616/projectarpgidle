@@ -187,6 +187,23 @@ const PASSIVE_TREE = { nodes: {}, edges: [] };
 
 const PASSIVE_TARGET_NODES = 1230;
 
+// Radial layout adapted from passive_tree.schema.json / passive_tree.json.
+// Existing node ids and effects remain authoritative so old saves keep working;
+// this schema only defines the four worlds, six axes and twelve sectors.
+const PASSIVE_RADIAL_SCHEMA = Object.freeze({
+    version: '2.1.0-radial-adapted',
+    themeOrder: Object.freeze(['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder']),
+    spokesPerTheme: 2,
+    sectorCount: 12,
+    axisCount: 6,
+    startAngle: -Math.PI / 2,
+    maxDepth: 12,
+    innerRadius: 285,
+    ringSpacing: 160,
+    worldDepths: Object.freeze([3, 6, 9, 12]),
+    worldNames: Object.freeze(['아시야 · 행동계', '예치라 · 형성계', '브리아 · 창조계', '아칠루트 · 발출계'])
+});
+
 const PASSIVE_DISCOVERY_RADIUS = 155;
 
 const PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH = 1;
@@ -313,4 +330,4 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'maxDmgRoll', val: 4, title: '상한 폭발', desc: '강타의 최고 피해를 끌어올립니다.' }
 ];
 
-safeExposeData({ GEM_SKY_ENHANCEMENTS, TALISMAN_SHAPES, TALISMAN_SHAPE_STYLE, TALISMAN_OPTION_POOL, HERO_SELECTION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_STYLE, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });
+safeExposeData({ GEM_SKY_ENHANCEMENTS, TALISMAN_SHAPES, TALISMAN_SHAPE_STYLE, TALISMAN_OPTION_POOL, HERO_SELECTION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_RADIAL_SCHEMA, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_STYLE, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });
