@@ -230,19 +230,27 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
         let enemyId = entry && entry.enemy ? entry.enemy.id : null;
         return enemyId == null ? null : enemyPosMap[enemyId];
     }).filter(Boolean);
+    let isPiercePath = skill.targetMode === 'pierce';
     if (skill.targetMode === 'chain') targets = targets.slice(0, 1);
-    else targets = targets.slice(0, 4);
+    else if (isPiercePath) {
+        // 관통은 대상 수만큼 탄환을 복제하지 않는다. 한 발이 같은 직선의 마지막 적까지 통과한다.
+        targets.sort((a, b) => Math.hypot(a.x - playerPos.x, a.y - playerPos.y) - Math.hypot(b.x - playerPos.x, b.y - playerPos.y));
+        targets = targets.length > 0 ? [targets[targets.length - 1]] : [];
+    } else targets = targets.slice(0, 4);
     if (targets.length <= 0) return;
     let imageKey = SKILL_GEM_VFX_IMAGE_KEYS.projectile;
-    let releaseAt = swingFx.start + Math.max(90, swingFx.duration * 0.42);
-    let arriveAt = Number(swingFx.impactAt) || (swingFx.start + swingFx.duration);
+    let baseImpactAt = Number(swingFx.impactAt) || (swingFx.start + swingFx.duration);
+    let piercedTargetCount = isPiercePath ? Math.max(1, Math.min(12, (targetEntries || []).length)) : 1;
+    let arriveAt = baseImpactAt + (isPiercePath ? (piercedTargetCount - 1) * 30 : 0);
+    // 공격 모션의 막바지에 빠르게 발사해 직선으로 꽂히며, 마지막 관통 피해와 도착 시점을 맞춘다.
+    let releaseAt = Math.max(swingFx.start + 80, baseImpactAt - 82);
     let scale = Math.max(0.45, Number(profile.scale) || 1) * clampNumber(Number(viewportScale) || 1, 0.7, 1.16);
     let repeats = Math.max(1, Math.min(3, Math.floor(Number(profile.repeats) || 1)));
     let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
     targets.forEach((target, targetIndex) => {
         for (let repeat = 0; repeat < repeats; repeat++) {
-            let stagger = repeat * 32;
-            let startAt = Math.min(arriveAt - 70, releaseAt + stagger);
+            let stagger = repeat * 20;
+            let startAt = Math.min(arriveAt - 58, releaseAt + stagger);
             let laneOffset = (repeat - (repeats - 1) / 2) * 4;
             list.push({
                 skillName: swingFx.skillName,
@@ -257,10 +265,11 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
                 toX: target.x,
                 toY: target.y - 9 + laneOffset,
                 travel: true,
+                piercePath: isPiercePath,
                 connector: false,
                 rotation: Math.atan2((target.y - 9 + laneOffset) - (playerPos.y - 20 + laneOffset), target.x - (playerPos.x + 13)),
                 size: getSkillGemVfxBaseSize('projectile', 'projectileTravel') * scale * (1 - targetIndex * 0.035),
-                alpha: 0.7,
+                alpha: isPiercePath ? 0.78 : 0.72,
                 filter: getSkillGemVfxFilter(normalizeSkillGemVfxElement(swingFx.element, profile.accent), imageKey),
                 seed: Math.max(1, Number(swingFx.id) || 1) + targetIndex * 19 + repeat * 7
             });
@@ -285,10 +294,10 @@ function drawSkillGemVfxLayer(ctx, now) {
         ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, 0.82);
         ctx.filter = effect.filter || 'none';
         if (effect.travel) {
-            let eased = t * t * (3 - 2 * t);
-            let arc = Math.sin(t * Math.PI) * Math.min(13, Math.hypot(effect.toX - effect.fromX, effect.toY - effect.fromY) * 0.09);
-            let x = effect.fromX + (effect.toX - effect.fromX) * eased;
-            let y = effect.fromY + (effect.toY - effect.fromY) * eased - arc;
+            // 모든 플레이어 투사체는 포물선 없이 실제 발사선 위를 빠르게 이동한다.
+            let travelProgress = t;
+            let x = effect.fromX + (effect.toX - effect.fromX) * travelProgress;
+            let y = effect.fromY + (effect.toY - effect.fromY) * travelProgress;
             let width = effect.size * 1.52;
             let height = effect.size * 0.52;
             ctx.translate(x, y);

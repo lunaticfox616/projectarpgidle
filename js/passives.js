@@ -1005,11 +1005,17 @@ function generateOrganicTree() {
     }
 
     function markVoidPassiveNodes() {
-        for (let spoke = 0; spoke < webSpokeCount; spoke++) {
+        // 공허 패시브는 한 구역에 하나만 둔다. 서로 이웃한 두 갈래에 연속으로
+        // 배치하면 공허 시너지를 거의 공짜로 모을 수 있으므로, 구역마다 갈래와
+        // 깊이를 번갈아 선택해 의도적인 투자 거리를 만든다.
+        for (let sectorIndex = 0; sectorIndex < PASSIVE_RADIAL_SCHEMA.themeOrder.length; sectorIndex++) {
+            let spoke = sectorIndex * PASSIVE_RADIAL_SCHEMA.spokesPerTheme + (sectorIndex % PASSIVE_RADIAL_SCHEMA.spokesPerTheme);
             let candidates = (webNodes[spoke] || [])
                 .filter(node => node && (node.webRing || 0) >= 3)
                 .filter(node => node.kind === 'path' || node.kind === 'major');
             if (candidates.length <= 0) continue;
+            // 기존 12개 배치 공식에서 해당 갈래의 노드를 그대로 선택해, 절반의
+            // 공허 노드 id와 제작 상태는 레이아웃 변경 뒤에도 자연스럽게 보존한다.
             let pick = candidates[(spoke * 7 + 3) % candidates.length];
             pick.legacyVoidStat = pick.stat;
             pick.legacyVoidVal = pick.val;
@@ -1544,6 +1550,20 @@ function setReferenceLayoutPosition(node, x, y, group, index) {
     if (!node) return;
     const angle = getReferenceLayoutAngle(x, y);
     const sectorIndex = Math.floor(((angle + 15) % 360) / 30) % PASSIVE_RADIAL_SCHEMA.sectorCount;
+    // 시계 방향 전문 구역: 10~2시 ES, 2~6시 회피, 6~10시 방어도.
+    // 두 직업 구역이 각각 하나의 방어 계열을 공유하되 공격 테마는 서로 다르다.
+    const sectorCenters = [
+        { sector: 'templar', angle: 120 },
+        { sector: 'witch', angle: 60 },
+        { sector: 'shadow', angle: 0 },
+        { sector: 'ranger', angle: 300 },
+        { sector: 'duelist', angle: 240 },
+        { sector: 'marauder', angle: 180 }
+    ];
+    const regionalSector = sectorCenters.reduce((best, entry) => {
+        const delta = Math.abs(((angle - entry.angle + 540) % 360) - 180);
+        return !best || delta < best.delta ? { sector: entry.sector, delta } : best;
+    }, null).sector;
     const radius = Math.hypot(x, y);
     node.x = x;
     node.y = y;
@@ -1553,7 +1573,7 @@ function setReferenceLayoutPosition(node, x, y, group, index) {
     node.radialRole = group;
     node.radialWorld = radius < 855 ? 0 : (radius < 1245 ? 1 : (radius < 1635 ? 2 : 3));
     node.radialHemisphere = y <= 0 ? 'light' : 'dark';
-    node.sector = PASSIVE_RADIAL_SCHEMA.themeOrder[Math.floor(sectorIndex / PASSIVE_RADIAL_SCHEMA.spokesPerTheme)];
+    node.sector = regionalSector;
 }
 
 function setReferenceLayoutPolar(node, radius, angle, group, index) {
@@ -1591,7 +1611,7 @@ function applySephirotQliphothReferenceLayout() {
     const heikhal = takeReferenceLayoutNodes(pool, 9, node => node.kind === 'core' || node.kind === 'path');
     const socketCount = pool.filter(node => node.kind === 'hub').length;
     const sockets = takeReferenceLayoutNodes(pool, socketCount, node => node.kind === 'hub');
-    const serpent = takeReferenceLayoutNodes(pool, 12, node => node.kind === 'void');
+    const serpent = takeReferenceLayoutNodes(pool, pool.filter(node => node.kind === 'void').length, node => node.kind === 'void');
     const majors = takeReferenceLayoutNodes(pool, 22, node => ['keystone', 'transcendent', 'apex', 'evolved', 'major'].includes(node.kind));
     const rim = takeReferenceLayoutNodes(pool, 72, node => ['apex', 'evolved', 'transcendent', 'keystone'].includes(node.kind));
     const axis = takeReferenceLayoutNodes(pool, 60, node => node.kind === 'path');
@@ -1729,10 +1749,16 @@ function applySephirotQliphothReferenceLayout() {
         connect(node, closestNode(node, rim));
     });
 
-    serpent.forEach((node, index) => setReferenceLayoutPolar(node, 360 + index * 145, 248 + index * 37, 'serpent', index));
-    connect(heikhal[8], serpent[0]);
-    connectChain(serpent, false);
-    connect(serpent[serpent.length - 1], closestNode(serpent[serpent.length - 1], rim));
+    serpent.forEach((node, index) => {
+        const sectorAngle = [120, 60, 0, 300, 240, 180][index % 6];
+        const radius = 900 + (index % 2) * 520;
+        setReferenceLayoutPolar(node, radius, sectorAngle, 'serpent', index);
+        // 공허 노드끼리는 직접 연결하지 않는다. 각 전문 구역의 일반 경로를
+        // 거쳐야만 다음 공허 노드로 이동할 수 있다.
+        const localPaths = sectorPaths.concat(axis, interworld)
+            .filter(candidate => candidate && candidate.kind !== 'void' && candidate.sector === node.sector);
+        connect(node, closestNode(node, localPaths.length ? localPaths : sectorPaths.concat(axis, interworld)));
+    });
 
     sockets.forEach((node, index) => {
         setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.bridgeRadius, index * 360 / Math.max(1, sockets.length) + 7, 'socket', index);
@@ -1769,6 +1795,63 @@ function applySephirotQliphothReferenceLayout() {
             }
         }
     }
+    // 레퍼런스 배치의 모든 고리/교차선을 그대로 남기면 1,800개가 넘는 선이
+    // 겹친다. 기존 연결에서 최소 연결 뼈대를 먼저 뽑은 뒤 짧은 지역 연결만
+    // 되돌려 구조는 유지하면서 화면의 선 밀도를 제한한다.
+    const parentById = new Map(allNodes.map(node => [node.id, node.id]));
+    const findRoot = id => {
+        let rootId = id;
+        while (parentById.get(rootId) !== rootId) rootId = parentById.get(rootId);
+        while (parentById.get(id) !== id) {
+            const next = parentById.get(id);
+            parentById.set(id, rootId);
+            id = next;
+        }
+        return rootId;
+    };
+    const joinRoots = (a, b) => {
+        const rootA = findRoot(a);
+        const rootB = findRoot(b);
+        if (rootA === rootB) return false;
+        parentById.set(rootB, rootA);
+        return true;
+    };
+    const weightedReferenceEdges = PASSIVE_TREE.edges.map(edge => ({
+        edge,
+        distance: Math.hypot(PASSIVE_TREE.nodes[edge.from].x - PASSIVE_TREE.nodes[edge.to].x, PASSIVE_TREE.nodes[edge.from].y - PASSIVE_TREE.nodes[edge.to].y)
+    })).sort((a, b) => a.distance - b.distance);
+    const prunedEdges = [];
+    weightedReferenceEdges.forEach(entry => {
+        if (joinRoots(entry.edge.from, entry.edge.to)) prunedEdges.push(entry.edge);
+    });
+    weightedReferenceEdges.forEach(entry => {
+        if (entry.edge.from !== root.id && entry.edge.to !== root.id) return;
+        if (!prunedEdges.includes(entry.edge)) prunedEdges.push(entry.edge);
+    });
+    const restoredDegree = new Map(allNodes.map(node => [node.id, 0]));
+    prunedEdges.forEach(edge => {
+        restoredDegree.set(edge.from, (restoredDegree.get(edge.from) || 0) + 1);
+        restoredDegree.set(edge.to, (restoredDegree.get(edge.to) || 0) + 1);
+    });
+    const earlyBudget = Math.round(allNodes.length * 1.08);
+    for (const entry of weightedReferenceEdges) {
+        if (prunedEdges.length >= earlyBudget) break;
+        const edge = entry.edge;
+        if (prunedEdges.includes(edge) || entry.distance > 340) continue;
+        const a = PASSIVE_TREE.nodes[edge.from];
+        const b = PASSIVE_TREE.nodes[edge.to];
+        if (!a || !b || (a.kind === 'void' && b.kind === 'void')) continue;
+        if (a.sector !== b.sector && !['hub', 'core'].includes(a.kind) && !['hub', 'core'].includes(b.kind)) continue;
+        if ((restoredDegree.get(a.id) || 0) >= 4 || (restoredDegree.get(b.id) || 0) >= 4) continue;
+        prunedEdges.push(edge);
+        restoredDegree.set(a.id, (restoredDegree.get(a.id) || 0) + 1);
+        restoredDegree.set(b.id, (restoredDegree.get(b.id) || 0) + 1);
+    }
+    PASSIVE_TREE.edges.length = 0;
+    PASSIVE_TREE.edges.push(...prunedEdges);
+    edgeKeys.clear();
+    prunedEdges.forEach(edge => edgeKeys.add(edge.from < edge.to ? `${edge.from}|${edge.to}` : `${edge.to}|${edge.from}`));
+
     const localCandidates = [];
     allNodes.forEach(node => {
         const nearest = [];
@@ -1784,8 +1867,24 @@ function applySephirotQliphothReferenceLayout() {
         localCandidates.push(...nearest);
     });
     localCandidates.sort((a, b) => a.distance - b.distance);
-    for (let index = 0; index < localCandidates.length && PASSIVE_TREE.edges.length < 2172; index++) {
-        connect(localCandidates[index].a, localCandidates[index].b);
+    const degree = new Map(allNodes.map(node => [node.id, 0]));
+    PASSIVE_TREE.edges.forEach(edge => {
+        degree.set(edge.from, (degree.get(edge.from) || 0) + 1);
+        degree.set(edge.to, (degree.get(edge.to) || 0) + 1);
+    });
+    const localEdgeBudget = Math.max(allNodes.length - 1, Math.round(allNodes.length * 1.16));
+    for (let index = 0; index < localCandidates.length && PASSIVE_TREE.edges.length < localEdgeBudget; index++) {
+        const candidate = localCandidates[index];
+        if (candidate.distance > 285) continue;
+        if (candidate.a.kind === 'void' && candidate.b.kind === 'void') continue;
+        if (candidate.a.sector !== candidate.b.sector && !['hub', 'core'].includes(candidate.a.kind) && !['hub', 'core'].includes(candidate.b.kind)) continue;
+        if ((degree.get(candidate.a.id) || 0) >= 4 || (degree.get(candidate.b.id) || 0) >= 4) continue;
+        const before = PASSIVE_TREE.edges.length;
+        connect(candidate.a, candidate.b);
+        if (PASSIVE_TREE.edges.length > before) {
+            degree.set(candidate.a.id, (degree.get(candidate.a.id) || 0) + 1);
+            degree.set(candidate.b.id, (degree.get(candidate.b.id) || 0) + 1);
+        }
     }
 
     PASSIVE_BOUNDS.minX = Math.min(...allNodes.map(node => node.x));
@@ -2127,6 +2226,79 @@ function getPassiveTierValueForLayout(statKey, tier) {
     return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
 }
 
+function enforcePassiveRegionalStatClusters() {
+    const regionalPools = {
+        templar: ['energyShield', 'energyShieldPct', 'spellFlatPct', 'aoePctDmg', 'resAll', 'firePctDmg'],
+        witch: ['energyShield', 'energyShieldPct', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'dotPctDmg', 'gemLevel'],
+        shadow: ['evasion', 'evasionPct', 'crit', 'critDmg', 'chaosPctDmg', 'poisonChance', 'leechRateCap'],
+        ranger: ['evasion', 'evasionPct', 'projectilePctDmg', 'projectileExtraShots', 'coldPctDmg', 'accuracy', 'move'],
+        duelist: ['armor', 'armorPct', 'meleePctDmg', 'physPctDmg', 'ds', 'aspd', 'leechInstanceCap'],
+        marauder: ['armor', 'armorPct', 'physPctDmg', 'slamPctDmg', 'pctHp', 'flatHp', 'regen', 'leechTotalCap']
+    };
+    const genericPool = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move', 'crit', 'regen'];
+    const counters = {};
+    const immutableKinds = new Set(['void', 'hub', 'apex', 'evolved', 'transcendent']);
+    Object.values(PASSIVE_TREE.nodes || {})
+        .filter(node => node && node.id !== 'n0' && !immutableKinds.has(node.kind) && !node.requiresEvolution)
+        .sort((a, b) => (Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y)) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
+        .forEach(node => {
+            const sector = regionalPools[node.sector] ? node.sector : 'templar';
+            const counter = counters[sector] || 0;
+            counters[sector] = counter + 1;
+            const tier = Math.max(1, Math.floor(node.tier || 1));
+            const specialized = regionalPools[sector].filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(tier));
+            const generic = genericPool.filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(tier));
+            const pool = counter % 5 === 0 && generic.length ? generic : specialized;
+            if (!pool.length) return;
+            const stat = pool[(counter + tier) % pool.length];
+            node.stat = stat;
+            node.val = getPassiveTierValueForLayout(stat, tier);
+            node.effectLabel = null;
+            if (node.kind === 'major') {
+                node.title = `${PASSIVE_SECTOR_TITLES[sector] || '전문 구역'} · ${getStatName(stat)}`;
+                node.desc = '같은 계열의 효과를 집중 투자할 수 있도록 배치된 전문 패시브입니다.';
+            }
+        });
+}
+
+function anchorPassiveKeystonesInsideSpecialtyClusters() {
+    const keystoneSpecs = {
+        templar: { stat: 'firePctDmg', title: '정화의 태양' },
+        witch: { stat: 'coldPctDmg', title: '영원의 서리핵' },
+        shadow: { stat: 'chaosPctDmg', title: '그림자 심연' },
+        ranger: { stat: 'projectilePctDmg', title: '궤도의 지배자' },
+        duelist: { stat: 'meleePctDmg', title: '결투의 절정' },
+        marauder: { stat: 'slamPctDmg', title: '대지의 심장' }
+    };
+    const edgeKeys = new Set(PASSIVE_TREE.edges.map(edge => edge.from < edge.to ? `${edge.from}|${edge.to}` : `${edge.to}|${edge.from}`));
+    Object.values(PASSIVE_TREE.nodes || {}).filter(node => node && node.kind === 'keystone').forEach(node => {
+        const spec = keystoneSpecs[node.sector];
+        if (!spec || !P_STATS[spec.stat]) return;
+        node.stat = spec.stat;
+        node.val = getPassiveTierValueForLayout(spec.stat, Math.max(3, Math.floor(node.tier || 3)));
+        node.title = spec.title;
+        node.desc = `${getStatName(spec.stat)} 전문 구역의 선행 노드를 거쳐 도달하는 핵심 패시브입니다.`;
+        node.effectLabel = null;
+        const radius = Math.hypot(node.x, node.y);
+        const predecessor = Object.values(PASSIVE_TREE.nodes || {})
+            .filter(candidate => candidate && candidate.id !== node.id && candidate.sector === node.sector)
+            .filter(candidate => !['void', 'hub', 'apex', 'evolved', 'transcendent', 'keystone'].includes(candidate.kind))
+            .filter(candidate => Math.hypot(candidate.x, candidate.y) < radius)
+            .sort((a, b) => Math.hypot(a.x - node.x, a.y - node.y) - Math.hypot(b.x - node.x, b.y - node.y))[0];
+        if (!predecessor) return;
+        predecessor.stat = spec.stat;
+        predecessor.val = getPassiveTierValueForLayout(spec.stat, Math.max(1, Math.floor(predecessor.tier || 1)));
+        predecessor.title = `${spec.title}의 선행 노드`;
+        predecessor.desc = `${getStatName(spec.stat)} 핵심 패시브로 이어지는 전문 경로입니다.`;
+        predecessor.effectLabel = null;
+        const key = predecessor.id < node.id ? `${predecessor.id}|${node.id}` : `${node.id}|${predecessor.id}`;
+        if (!edgeKeys.has(key)) {
+            PASSIVE_TREE.edges.push({ from: predecessor.id, to: node.id });
+            edgeKeys.add(key);
+        }
+    });
+}
+
 function rebalancePassiveStartingStats() {
     const root = PASSIVE_TREE.nodes.n0;
     if (!root) return;
@@ -2221,9 +2393,11 @@ function applyPassiveSpecializations() {
 }
 function bootstrapPassiveTreeOnceReady() {
     generateOrganicTree();
-    applyPassiveSpecializations();
     assignStarWedgeSockets();
     applySephirotQliphothReferenceLayout();
+    enforcePassiveRegionalStatClusters();
+    applyPassiveSpecializations();
+    anchorPassiveKeystonesInsideSpecialtyClusters();
     computePassiveDepths();
     rebalancePassiveStartingStats();
     polishPassiveLayout();
@@ -7419,24 +7593,35 @@ function normalizeItem(item) {
     } else item.encroached = null;
     item.rarity = item.rarity || 'magic';
     item.hiddenTier = Math.max(1, Math.floor(coerceFiniteNumber(item.hiddenTier, coerceFiniteNumber(item.itemTier, 1), 1)));
+    const existingHighAffixTier = item.stats.reduce((max, stat) => Math.max(max, Math.floor(coerceFiniteNumber(stat && stat.tier, 0))), 0);
+    const legacyCosmosProvenance = item.dropRealm === 'cosmos' || existingHighAffixTier >= 11;
+    item.dropRealm = typeof item.dropRealm === 'string' ? item.dropRealm : null;
+    item.affixTierCap = clampNumber(Math.floor(coerceFiniteNumber(
+        item.affixTierCap,
+        legacyCosmosProvenance ? item.hiddenTier : Math.min(10, item.hiddenTier)
+    )), 1, legacyCosmosProvenance ? 15 : 10);
     // 마이그레이션: 유틸리티 플라스크 슬롯 시스템(flaskUtilSlots) 도입 이전에 저장된 허리띠는
     // rollBaseStats()가 해당 옵션을 굴린 적이 없어 baseStats에 없다. 그대로 두면 숨겨진 티어
     // 5+/10+ 허리띠였어도 유틸리티 슬롯이 0개로 취급돼 저장된 유틸리티 플라스크가 멈춘다.
     // 여기서 아이템 로드/정규화 시 단 한 번, 신규 생성 시와 동일한 확률 범위로 굴려 채워 넣는다.
-    if (item.slot === '허리띠' && !item.baseStats.some(s => s && s.id === 'flaskUtilSlots')) {
+    if (item.slot === '허리띠') {
         let range = typeof getBeltFlaskUtilSlotRollRange === 'function' ? getBeltFlaskUtilSlotRollRange(item.hiddenTier) : null;
-        if (range) {
+        let flaskSlotStat = item.baseStats.find(s => s && s.id === 'flaskUtilSlots');
+        if (range && !flaskSlotStat) {
             let val = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
-            item.baseStats.push({
-                id: 'flaskUtilSlots',
-                val: val,
-                valMin: range.min,
-                valMax: range.max,
-                baseRollMin: range.min,
-                baseRollMax: range.max,
-                tier: 0,
-                statName: getStatName('flaskUtilSlots')
-            });
+            flaskSlotStat = { id: 'flaskUtilSlots', val: val, tier: 0, statName: getStatName('flaskUtilSlots') };
+            item.baseStats.push(flaskSlotStat);
+        }
+        // 구버전 허리띠에는 유틸리티 슬롯 범위가 0~1/0~2로 저장되어 있었다.
+        // 축복의 오브를 사용하기 전에도 현재 규칙(최소 1칸)이 즉시 반영되도록 로드 시 교정한다.
+        if (range && flaskSlotStat) {
+            flaskSlotStat.valMin = range.min;
+            flaskSlotStat.valMax = range.max;
+            flaskSlotStat.baseRollMin = range.min;
+            flaskSlotStat.baseRollMax = range.max;
+            flaskSlotStat.val = clampNumber(Math.floor(coerceFiniteNumber(flaskSlotStat.val, range.min, range.min)), range.min, range.max);
+            flaskSlotStat.tier = 0;
+            flaskSlotStat.statName = getStatName('flaskUtilSlots');
         }
     }
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
@@ -7448,15 +7633,23 @@ function normalizeItem(item) {
 
 function getItemCraftTier(item) {
     if (!item) return 1;
-    if (Number.isFinite(item.hiddenTier)) return clampNumber(Math.floor(item.hiddenTier), 1, 15);
-    if (Number.isFinite(item.itemTier)) return clampNumber(Math.floor(item.itemTier), 1, 15);
+    if (Number.isFinite(item.affixTierCap)) return clampNumber(Math.floor(item.affixTierCap), 1, item.dropRealm === 'cosmos' || item.affixTierCap >= 11 ? 15 : 10);
+    const existingHighAffixTier = (Array.isArray(item.stats) ? item.stats : []).reduce((max, stat) => Math.max(max, Math.floor(Number(stat && stat.tier) || 0)), 0);
+    if (existingHighAffixTier >= 11) return clampNumber(Math.max(existingHighAffixTier, Math.floor(Number(item.hiddenTier) || 1)), 11, 15);
+    if (Number.isFinite(item.hiddenTier)) return clampNumber(Math.floor(item.hiddenTier), 1, 10);
+    if (Number.isFinite(item.itemTier)) return clampNumber(Math.floor(item.itemTier), 1, 10);
     return 1;
 }
 
 function getRealmEquipmentHiddenTierCap(zone) {
-    if (!zone || zone.type !== 'cosmos') return Math.max(1, Math.floor(Number(zone && zone.tier) || 1));
+    if (!zone || zone.type !== 'cosmos') return Math.min(15, Math.max(1, Math.floor(Number(zone && zone.tier) || 1)));
     let cosmosTier = Math.max(1, Math.floor(Number(zone.tier) || 1));
     return Math.min(15, 11 + Math.floor((cosmosTier - 1) / 5));
+}
+
+function getRealmEquipmentAffixTierCap(zone, hiddenTierCap) {
+    const itemTier = Math.max(1, Math.floor(Number(hiddenTierCap) || 1));
+    return zone && zone.type === 'cosmos' ? Math.min(15, Math.max(11, itemTier)) : Math.min(10, itemTier);
 }
 
 function getCraftTierRangeForItem(item, source) {
@@ -7469,6 +7662,10 @@ function getTierVisualLevel(tierValue) {
     return clampNumber(Math.max(1, Math.floor(Number(tierValue) || 1)), 1, 10);
 }
 
+function getTierDisplayLevel(tierValue) {
+    return clampNumber(Math.max(1, Math.floor(Number(tierValue) || 1)), 1, 15);
+}
+
 function getTierClassName(tierValue) {
     return `tier-${getTierVisualLevel(tierValue)}`;
 }
@@ -7478,7 +7675,7 @@ function getTierBadgeHtml(tierValue, labelPrefix) {
     if (Math.floor(Number(tierValue)) === 0) {
         return `<span class="tier-badge tier-badge-unique" style="color:#ff9f43;">[U]</span>`;
     }
-    let tier = getTierVisualLevel(tierValue);
+    let tier = getTierDisplayLevel(tierValue);
     let label = labelPrefix || 'T';
     return `<span class="tier-badge ${getTierClassName(tier)}">[${label}${tier}]</span>`;
 }
@@ -7545,11 +7742,11 @@ function chooseItemBase(slot, zoneTier) {
 // 허리띠 전용: 숨겨진 티어에 따라 유틸리티 플라스크 슬롯 베이스 옵션을 굴린다.
 // 회복 플라스크 슬롯은 항상 1개 고정(별도 계산, ensureFlaskState 참고). 이 옵션은
 // 일반 베이스 옵션이라 축복의 오브로 valMin~valMax 범위 내에서 다시 굴릴 수 있다.
-// T5 미만: 없음(유틸 0개) / T5~9: 0~1개 / T10 이상: 0~2개.
+// T5 미만: 없음(유틸 0개) / T5~9: 1개 / T10 이상: 1~2개.
 function getBeltFlaskUtilSlotRollRange(zoneTier) {
     let tier = Math.max(1, Math.floor(Number(zoneTier) || 1));
-    if (tier >= 10) return { min: 0, max: 2 };
-    if (tier >= 5) return { min: 0, max: 1 };
+    if (tier >= 10) return { min: 1, max: 2 };
+    if (tier >= 5) return { min: 1, max: 1 };
     return null;
 }
 
@@ -8313,8 +8510,41 @@ function insertJewelIntoAbyssSocket(invIdx, socketIdx) { if (game.woodsmanBuildL
     if (jewel.noEquipSocket) return addLog(`[${jewel.name}]은(는) 장비 소켓에 사용할 수 없습니다. 주얼 슬롯에만 장착 가능합니다.`, 'attack-monster');
     item.abyssSockets[socketIdx].jewel = jewel;
     game.jewelInventory.splice(invIdx, 1);
+    closeAbyssSocketJewelOverlay();
     addLog(`💠 심연 소켓 #${socketIdx + 1}에 [${jewel.name}] 장착`, 'loot-magic');
     updateStaticUI();
+}
+
+function closeAbyssSocketJewelOverlay() {
+    if (typeof document === 'undefined') return;
+    let overlay = document.getElementById('abyss-socket-jewel-overlay');
+    if (overlay) overlay.remove();
+}
+
+function buildAbyssSocketJewelOverlayCards(socketIdx) {
+    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+    let cards = game.jewelInventory.map((jewel, idx) => {
+        if (!jewel || jewel.noEquipSocket) return '';
+        let stats = formatVoidSocketJewelStatLines(jewel);
+        let title = escapeHTML(jewel.name || '주얼');
+        return `<button class="item-card abyss-jewel-choice" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoAbyssSocket(${idx}, ${socketIdx})"><strong>${title}</strong><div class="abyss-jewel-choice-stats">${stats}</div><span>이 주얼 장착</span></button>`;
+    }).filter(Boolean).join('');
+    return cards || '<div class="abyss-jewel-choice-empty">장비 소켓에 장착 가능한 주얼이 없습니다.</div>';
+}
+
+function openAbyssSocketJewelOverlay(socketIdx) {
+    let item = getSelectedCraftItem();
+    ensureAbyssSockets(item);
+    let idx = Math.max(0, Math.floor(Number(socketIdx) || 0));
+    if (!item || !Array.isArray(item.abyssSockets) || !item.abyssSockets[idx]) return addLog('먼저 심연 소켓 장비를 선택하세요.', 'attack-monster');
+    if (item.abyssSockets[idx].jewel) return addLog('이미 주얼이 장착되어 있습니다.', 'attack-monster');
+    if (typeof document === 'undefined') return;
+    closeVoidSocketJewelOverlay();
+    closeAbyssSocketJewelOverlay();
+    document.body.insertAdjacentHTML('beforeend', '<div id="abyss-socket-jewel-overlay" class="jewel-picker-overlay" onclick="if(event.target===this) closeAbyssSocketJewelOverlay()"></div>');
+    let overlay = document.getElementById('abyss-socket-jewel-overlay');
+    let cards = buildAbyssSocketJewelOverlayCards(idx);
+    overlay.innerHTML = `<section class="jewel-picker-panel" role="dialog" aria-modal="true" aria-labelledby="abyss-jewel-picker-title"><header><div><small>심연 소켓 #${idx + 1}</small><strong id="abyss-jewel-picker-title">장착할 주얼 선택</strong></div><button onclick="closeAbyssSocketJewelOverlay()" aria-label="닫기">닫기</button></header><p>보유 주얼 중 이 장비에 넣을 주얼 하나를 선택하세요. 장착 전 옵션은 카드에 마우스를 올려 비교할 수 있습니다.</p><div class="jewel-picker-grid">${cards}</div><footer><button class="tutorial-secondary" onclick="closeAbyssSocketJewelOverlay()">취소</button></footer></section>`;
 }
 
 function removeJewelFromAbyssSocket(socketIdx) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
@@ -8331,10 +8561,13 @@ function removeJewelFromAbyssSocket(socketIdx) { if (game.woodsmanBuildLock) ret
     updateStaticUI();
 }
 
-safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, getSelectedJewelCraftTarget, selectJewelCraftTarget, useCurrencyOnJewel, getJewelCurrencyUseState, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
+safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, getSelectedJewelCraftTarget, selectJewelCraftTarget, useCurrencyOnJewel, getJewelCurrencyUseState, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, openAbyssSocketJewelOverlay, closeAbyssSocketJewelOverlay, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
 
-function createItemFromBase(base, rarity, zoneTier) {
+function createItemFromBase(base, rarity, zoneTier, origin) {
     itemIdCounter++;
+    origin = origin && typeof origin === 'object' ? origin : {};
+    const dropRealm = typeof origin.dropRealm === 'string' ? origin.dropRealm : null;
+    const affixTierCap = clampNumber(Math.floor(Number(origin.affixTierCap) || Math.min(10, Math.max(1, Number(zoneTier) || 1))), 1, dropRealm === 'cosmos' ? 15 : 10);
     let item = {
         id: itemIdCounter,
         slot: base.slot,
@@ -8344,10 +8577,12 @@ function createItemFromBase(base, rarity, zoneTier) {
         rarity: rarity,
         itemTier: zoneTier,
         hiddenTier: Math.max(1, Math.floor(Number(zoneTier) || 1)),
+        affixTierCap: affixTierCap,
+        dropRealm: dropRealm,
         baseStats: rollBaseStats(base, zoneTier),
         stats: []
     };
-    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, zoneTier);
+    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, affixTierCap);
     return item;
 }
 
@@ -8552,7 +8787,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
     if (!pool || pool.length <= 0) return item;
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     if (item.stats.length >= 6) item.stats.pop();
-    let roll = rollAffixValue(pickWeightedMod(pool), Math.max(1, Math.floor(zoneTier || item.itemTier || 1)));
+    let roll = rollAffixValue(pickWeightedMod(pool), getItemCraftTier(item));
     roll.fossilExclusiveDrop = true;
     item.stats.push(roll);
     if (item.rarity === 'normal') item.rarity = 'magic';
@@ -8563,6 +8798,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
 function generateEquipmentDrop(enemy) {
     let zone = getZone(game.currentZoneId) || {};
     let hiddenTierCap = getRealmEquipmentHiddenTierCap(zone);
+    let affixTierCap = getRealmEquipmentAffixTierCap(zone, hiddenTierCap);
     let slot = rndChoice(EQUIPMENT_DROP_SLOTS);
     let base = chooseItemBase(slot, hiddenTierCap);
     let rarity = 'normal';
@@ -8577,7 +8813,7 @@ function generateEquipmentDrop(enemy) {
         if (roll < 0.006) return generateUniqueItem(hiddenTierCap, slot);
         rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
-    let item = createItemFromBase(base, rarity, hiddenTierCap);
+    let item = createItemFromBase(base, rarity, hiddenTierCap, { dropRealm: zone.type || null, affixTierCap });
     maybeApplyExceptionalBase(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, hiddenTierCap);
     return maybeApplyChaosRealmEncroachment(item, enemy, getZone(game.currentZoneId));

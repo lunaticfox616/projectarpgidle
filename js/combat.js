@@ -2692,7 +2692,7 @@ function getPlayerStats() {
 
     let seasonNodeLevels = (game && game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object') ? game.seasonNodeLevels : {};
     safeSeasonNodes.forEach(id => {
-        let node = SEASON_NODES[id];
+        let node = getSeasonPassiveNodeDef(id);
         if (!node) return;
         let lv = Math.max(1, Math.floor(seasonNodeLevels[id] || 1));
         let scaled = Number((node.val * (1 + Math.max(0, lv - 1) * 0.2)).toFixed(4));
@@ -8482,6 +8482,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 color: getElementColor(hitElement),
                 crit: hitCrit,
                 projectile: (pStats.sSkill.tags || []).includes('projectile'),
+                pierce: pStats.sSkill.targetMode === 'pierce' || stageKind === 'piercePrimary' || stageKind === 'pierceThrough',
                 chain: pStats.sSkill.targetMode === 'chain' || stageKind === 'chainJump',
                 slam: stageKind === 'slamPrimary' || stageKind === 'slamAftershock',
                 stageKind: stageKind,

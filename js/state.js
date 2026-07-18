@@ -1042,6 +1042,31 @@ const SEASON_NODE_ROWS = [
     ['s_floor', 's_ceil']
 ];
 
+const SEASON_OUROBOROS_HEAD_NODES = ['s_root', 's_dmg', 's_hp', 's_crit'];
+const SEASON_OUROBOROS_BODY_NODES = SEASON_NODE_ROWS.flat().filter(id => !SEASON_OUROBOROS_HEAD_NODES.includes(id));
+const SEASON_INNER_NODES = {
+    si_worldheart: { name: '세계심장', desc: '완성된 순환이 생명력을 증폭합니다.', stat: 'pctHp', val: 36, req: null, inner: true },
+    si_cataclysm: { name: '내면의 대격변', desc: '마법진의 힘이 모든 피해를 증폭합니다.', stat: 'pctDmg', val: 45, req: null, inner: true },
+    si_aegis: { name: '영원의 방벽', desc: '순환의 비늘이 받는 충격을 줄입니다.', stat: 'dr', val: 10, req: null, inner: true },
+    si_convergence: { name: '운명의 수렴', desc: '되풀이된 전투가 치명타를 완성합니다.', stat: 'critDmg', val: 50, req: null, inner: true },
+    si_quicksilver: { name: '끝없는 박동', desc: '우로보로스의 맥동이 공격을 가속합니다.', stat: 'aspd', val: 14, req: null, inner: true },
+    si_origin: { name: '기원의 기억', desc: '모든 순환의 기억에서 경험을 얻습니다.', stat: 'expGain', val: 30, req: null, inner: true }
+};
+
+function getSeasonPassiveNodeDef(id) {
+    return SEASON_NODES[id] || SEASON_INNER_NODES[id] || null;
+}
+
+function getAllSeasonPassiveNodeIds() {
+    return Object.keys(SEASON_NODES).concat(Object.keys(SEASON_INNER_NODES));
+}
+
+function getSeasonPassiveUnlockLoop(id) {
+    if (SEASON_INNER_NODES[id]) return 1;
+    const rowIndex = SEASON_NODE_ROWS.findIndex(row => row.includes(id));
+    return rowIndex >= 4 ? 5 : 1;
+}
+
 const JEWEL_INVENTORY_LIMIT = 40;
 const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare', 'unique'];
 
@@ -1970,6 +1995,7 @@ const defaultGame = {
     summonSeq: 1,
     passives: [],
     voidPassives: {},
+    retiredVoidPassives: {},
     discoveredPassives: [],
     passiveLayoutVersion: PASSIVE_LAYOUT_VERSION,
     passiveStarEvolution: false,
