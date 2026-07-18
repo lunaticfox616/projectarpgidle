@@ -232,6 +232,48 @@ const PASSIVE_THEME_POOLS = {
     marauder: ['aspd', 'move', 'flatHp', 'crit', 'pctDmg', 'flatDmg', 'regen', 'armor', 'armorPct', 'physPctDmg', 'slamPctDmg', 'pctHp', 'leechTotalCap']
 };
 
+// 각 구역 안에서도 효과가 무작위로 섞이지 않도록, 안쪽에서 바깥쪽으로
+// 이어지는 네 개의 빌드 군집을 고정한다. 방어 계열뿐 아니라 공격 방식,
+// 상태 이상, 소환, 젬 운용, 흡혈까지 동일한 규칙으로 지역화한다.
+const PASSIVE_SECTOR_BUILD_BLUEPRINTS = Object.freeze({
+    templar: Object.freeze([
+        Object.freeze({ title: '성광 방벽', stats: Object.freeze(['energyShield', 'energyShieldPct', 'resAll', 'flatHp']) }),
+        Object.freeze({ title: '정화의 불꽃', stats: Object.freeze(['firePctDmg', 'igniteChance', 'aoePctDmg', 'elementalPctDmg']) }),
+        Object.freeze({ title: '주문 성소', stats: Object.freeze(['spellFlatPct', 'gemLevel', 'crit', 'critDmg']) }),
+        Object.freeze({ title: '불멸의 서약', stats: Object.freeze(['energyShieldPct', 'resAll', 'regen', 'pctHp']) })
+    ]),
+    witch: Object.freeze([
+        Object.freeze({ title: '서리 장막', stats: Object.freeze(['energyShield', 'energyShieldPct', 'coldPctDmg', 'freezeChance']) }),
+        Object.freeze({ title: '폭풍 학파', stats: Object.freeze(['lightPctDmg', 'shockChance', 'aspd', 'crit']) }),
+        Object.freeze({ title: '심연 주술', stats: Object.freeze(['chaosPctDmg', 'poisonChance', 'dotPctDmg', 'resPen']) }),
+        Object.freeze({ title: '혼령 군세', stats: Object.freeze(['summonPctDmg', 'summonAspd', 'summonHpPct', 'gemLevel']) })
+    ]),
+    shadow: Object.freeze([
+        Object.freeze({ title: '그림자 회피', stats: Object.freeze(['evasion', 'evasionPct', 'move', 'deflectChance']) }),
+        Object.freeze({ title: '암살 궤도', stats: Object.freeze(['crit', 'critDmg', 'aspd', 'accuracy']) }),
+        Object.freeze({ title: '맹독 상흔', stats: Object.freeze(['chaosPctDmg', 'poisonChance', 'dotPctDmg', 'resPen']) }),
+        Object.freeze({ title: '혈류 탈취', stats: Object.freeze(['leech', 'leechRateCap', 'move', 'pctDmg']) })
+    ]),
+    ranger: Object.freeze([
+        Object.freeze({ title: '바람걸음', stats: Object.freeze(['evasion', 'evasionPct', 'move', 'aspd']) }),
+        Object.freeze({ title: '관통 사격', stats: Object.freeze(['projectilePctDmg', 'projectileExtraShots', 'accuracy', 'crit']) }),
+        Object.freeze({ title: '빙결 탄도', stats: Object.freeze(['coldPctDmg', 'freezeChance', 'projectilePctDmg', 'elementalPctDmg']) }),
+        Object.freeze({ title: '매의 시야', stats: Object.freeze(['accuracy', 'critDmg', 'aspd', 'move']) })
+    ]),
+    duelist: Object.freeze([
+        Object.freeze({ title: '결투 갑주', stats: Object.freeze(['armor', 'armorPct', 'blockChance', 'deflectChance']) }),
+        Object.freeze({ title: '연속 검격', stats: Object.freeze(['meleePctDmg', 'physPctDmg', 'ds', 'aspd']) }),
+        Object.freeze({ title: '출혈 절단', stats: Object.freeze(['physPctDmg', 'bleedChance', 'dotPctDmg', 'crit']) }),
+        Object.freeze({ title: '전장의 흡혈', stats: Object.freeze(['leech', 'leechInstanceCap', 'pctHp', 'meleePctDmg']) })
+    ]),
+    marauder: Object.freeze([
+        Object.freeze({ title: '대지 갑주', stats: Object.freeze(['armor', 'armorPct', 'flatHp', 'dr']) }),
+        Object.freeze({ title: '거인의 생명', stats: Object.freeze(['flatHp', 'pctHp', 'regen', 'resAll']) }),
+        Object.freeze({ title: '대지 강타', stats: Object.freeze(['slamPctDmg', 'physPctDmg', 'aoePctDmg', 'maxDmgRoll']) }),
+        Object.freeze({ title: '피의 저수지', stats: Object.freeze(['bleedChance', 'dotPctDmg', 'leechTotalCap', 'regen']) })
+    ])
+});
+
 const PASSIVE_SECTOR_TITLES = {
     templar: '성직자의 회랑',
     witch: '마녀의 장막',
@@ -338,4 +380,4 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'maxDmgRoll', val: 4, title: '상한 폭발', desc: '강타의 최고 피해를 끌어올립니다.' }
 ];
 
-safeExposeData({ GEM_SKY_ENHANCEMENTS, TALISMAN_SHAPES, TALISMAN_SHAPE_STYLE, TALISMAN_OPTION_POOL, HERO_SELECTION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_FULL_DISCOVERY, PASSIVE_RADIAL_SCHEMA, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_STYLE, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });
+safeExposeData({ GEM_SKY_ENHANCEMENTS, TALISMAN_SHAPES, TALISMAN_SHAPE_STYLE, TALISMAN_OPTION_POOL, HERO_SELECTION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_FULL_DISCOVERY, PASSIVE_RADIAL_SCHEMA, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_BUILD_BLUEPRINTS, PASSIVE_SECTOR_TITLES, PASSIVE_STYLE, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });

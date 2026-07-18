@@ -1042,8 +1042,14 @@ const SEASON_NODE_ROWS = [
     ['s_floor', 's_ceil']
 ];
 
-const SEASON_OUROBOROS_HEAD_NODES = ['s_root', 's_dmg', 's_hp', 's_crit'];
-const SEASON_OUROBOROS_BODY_NODES = SEASON_NODE_ROWS.flat().filter(id => !SEASON_OUROBOROS_HEAD_NODES.includes(id));
+// 원점은 아래쪽에 두고 두 성장 축이 원의 양쪽으로 갈라졌다가 위쪽에서
+// 다시 합쳐지도록 배치한다. 데이터/선행 조건은 그대로 유지하고 시각 순서만 고정한다.
+const SEASON_OUROBOROS_RING_NODES = [
+    's_root', 's_hp', 's_guard', 's_vital', 's_blood', 's_leech',
+    's_skirmish', 's_fury', 's_momentum', 's_focus', 's_floor',
+    's_ceil', 's_cataclysm', 's_ruin', 's_prism', 's_breach',
+    's_king', 's_bruise', 's_rend', 's_crit', 's_dot', 's_speed', 's_dmg'
+];
 const SEASON_INNER_NODES = {
     si_worldheart: { name: '세계심장', desc: '완성된 순환이 생명력을 증폭합니다.', stat: 'pctHp', val: 36, req: null, inner: true },
     si_cataclysm: { name: '내면의 대격변', desc: '마법진의 힘이 모든 피해를 증폭합니다.', stat: 'pctDmg', val: 45, req: null, inner: true },
