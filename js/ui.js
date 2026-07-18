@@ -5783,13 +5783,18 @@ function getItemStatRollRangeHtml(stat, options) {
     return ` <span style="color:#888;">(${formatValue(statKey, range.min)}~${formatValue(statKey, range.max)})</span>`;
 }
 
+function getHoneyLockBadgeHtml(stat) {
+    return stat && stat.lockedByHoney
+        ? ' <span class="item-affix-lock item-affix-lock--honey" title="마력 깃든 벌꿀로 고정되어 재련·소멸되지 않는 옵션">🍯 벌꿀 고정</span>'
+        : '';
+}
+
 function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
     if (!item || item.rarity !== 'unique' || !item.uniqueEffectKey) return '';
     let key = String(item.uniqueEffectKey || '');
-    let statePrefix = isEquipped ? '현재 적용' : '장착 시 적용';
     if (key === 'rightRingSummonCap') {
         if (isEquipped && equipSlotKey !== '반지2') return '현재 조건 미충족 · 오른쪽 반지 슬롯에 장착해야 적용';
-        return `${statePrefix} · 오른쪽 반지 슬롯 전용`;
+        return '오른쪽 반지 슬롯 전용';
     }
     let triggerLabels = {
         summonDeathDamageBuff: '소환수 사망 시 발동',
@@ -5810,14 +5815,14 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
         meteorFootsteps: '이동 중 확률 발동',
         queenBeeSummonOnHit: '적중 시 확률 발동'
     };
-    if (triggerLabels[key]) return `${statePrefix} · ${triggerLabels[key]}`;
-    if (key === 'uniqueTakenReduceWhen1Enemy') return `${statePrefix} · 생존한 적이 1명일 때만 적용`;
-    if (key === 'uniqueTakenReduceWhen2Enemies') return `${statePrefix} · 생존한 적이 2명 이상일 때만 적용`;
-    if (key === 'crowdEvasionMore') return `${statePrefix} · 요구 적 수를 만족할 때만 적용`;
-    if (key === 'mirrorOppositeRing') return `${statePrefix} · 반대쪽 반지의 옵션을 복제`;
-    if (key === 'kaleidoscopeShield') return `${statePrefix} · 이 장비의 추가 옵션에 적용`;
-    if (/OnHit|onHit|OnKill|onKill|OnCrit|onCrit|OnBlock|onBlock/.test(key)) return `${statePrefix} · 전투 조건 충족 시 발동`;
-    return `${statePrefix} · 상시 효과`;
+    if (triggerLabels[key]) return triggerLabels[key];
+    if (key === 'uniqueTakenReduceWhen1Enemy') return '생존한 적이 1명일 때만 적용';
+    if (key === 'uniqueTakenReduceWhen2Enemies') return '생존한 적이 2명 이상일 때만 적용';
+    if (key === 'crowdEvasionMore') return '요구 적 수를 만족할 때만 적용';
+    if (key === 'mirrorOppositeRing') return '반대쪽 반지의 옵션을 복제';
+    if (key === 'kaleidoscopeShield') return '이 장비의 추가 옵션에 적용';
+    if (/OnHit|onHit|OnKill|onKill|OnCrit|onCrit|OnBlock|onBlock/.test(key)) return '전투 조건 충족 시 발동';
+    return '';
 }
 
 let itemTooltipHideTimer = null;
@@ -5936,6 +5941,7 @@ function showItemTooltip(event, idx, isEquip) {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
             let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
+            let honeyLockText = getHoneyLockBadgeHtml(stat);
             let label = stat.statName || getStatName(statKey) || statKey;
             // 복합 옵션은 한 줄에 두 스탯까지 표기하고, 듀얼+복합처럼 길어지는 경우 다음 줄로 넘긴다.
             if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {
@@ -5948,12 +5954,12 @@ function showItemTooltip(event, idx, isEquip) {
                     let chunk = parts.slice(i, i + 2).join(' <span style="color:#7f8c8d;">·</span> ');
                     let continuation = i > 0 ? ' compound-option-continuation' : '';
                     let indent = i > 0 ? 'padding-left:14px;' : '';
-                    let suffix = i === 0 ? rangeText : '';
+                    let suffix = i === 0 ? `${rangeText}${honeyLockText}` : '';
                     html += `<div class="tooltip-line${continuation}" style="${indent}">${chunk}${suffix}</div>`;
                 }
                 return;
             }
-            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}</div>`;
+            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}${honeyLockText}</div>`;
         });
     } else {
         html += `<div class="tooltip-line" style="margin-top:6px; color:#7f8c8d;">노멀 아이템: 추가 옵션 없음</div>`;
@@ -7912,6 +7918,7 @@ function performUpdateStaticUI() {
     let talismanTabActive = activeTabId === 'tab-talisman';
     const sf = getSearchFilterState();
     document.getElementById('ui-passive-points').innerText = game.passivePoints;
+    if (activeTabId === 'tab-char') renderPassiveInvestmentSummary();
     document.getElementById('ui-season-text-tab').innerText = game.season;
     document.getElementById('ui-season-pts').innerText = game.seasonPoints;
     document.getElementById('ui-ascend-pts').innerText = game.ascendPoints;
@@ -9202,7 +9209,7 @@ function buildCraftActionButtons(item) {
         if (selectedItem.chaosInfusion) selectedExplicitStats.push({ ...selectedItem.chaosInfusion, statName: `[주입] ${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)}` });
         selectedExplicitStats.forEach(stat => {
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
-            let honeyTag = stat.lockedByHoney ? ` <span style="color:#ffd166; font-weight:700;">[고정됨]</span>` : '';
+            let honeyTag = getHoneyLockBadgeHtml(stat);
             let stingerTag = stat.venomStingerBonus ? ` <span style="color:#9bff9e;">[독벌침]</span>` : '';
             let rangeText = getItemStatRollRangeHtml(stat);
             lines.push(`<div class="tooltip-line craft-option-line" style="color:${getItemStatToneColor(stat.id)}">${stat.statName} +${formatValue(stat.id, stat.val)}${rangeText}${tierText}${honeyTag}${stingerTag}</div>`);
@@ -9240,8 +9247,8 @@ function buildCraftActionButtons(item) {
                     let j = sock.jewel;
                     return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: <span class="${getJewelRarityClass(j.rarity || 'normal')}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'abyss',${sidx})" onmousemove="showSocketedJewelTooltip(event,'abyss',${sidx})" onmouseleave="hideInfoTooltip()">${j.name}</span> <button onclick="removeJewelFromAbyssSocket(${sidx})">제거</button></div>`;
                 }
-                let jewelBtns = (game.jewelInventory || []).map((j, i) => `<button data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${i})" onmousemove="showSocketedJewelTooltip(event,'inventory',${i})" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoAbyssSocket(${i}, ${sidx})">${j.name} 장착</button>`).join('');
-                return `<div style="margin-top:4px; color:#9fd6ff;">심연 소켓 #${sidx + 1}: 빈 슬롯</div>${jewelBtns || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>'}`;
+                let hasSocketJewelCandidates = (game.jewelInventory || []).some(j => j && !j.noEquipSocket);
+                return `<div class="abyss-socket-row"><span>심연 소켓 #${sidx + 1}: <b>빈 슬롯</b></span><button onclick="openAbyssSocketJewelOverlay(${sidx})" ${hasSocketJewelCandidates ? '' : 'disabled'}>주얼 장착</button>${hasSocketJewelCandidates ? '' : '<small>장착 가능한 주얼 없음</small>'}</div>`;
             }).join('');
             abyssSocketHtml = `<div class="craft-section-title">심연 소켓</div>${makeBtn}${rows}`;
         }
@@ -9255,8 +9262,11 @@ function buildCraftActionButtons(item) {
             <span>품질 <b>${Math.max(0, Math.floor(Number(selectedItem.quality) || 0))}%</b></span>
             <span>보호 옵션 <b>${protectedAffixCount}</b></span>
         </div>`;
+        let selectedUniqueEffectHint = selectedItem.rarity === 'unique' && selectedItem.uniqueEffect
+            ? getUniqueEffectApplicationHint(selectedItem, typeof isCraftSelectionEquip === 'function' && isCraftSelectionEquip(), typeof getCraftSelectionRef === 'function' ? getCraftSelectionRef() : null)
+            : '';
         let selectedUniqueEffectHtml = selectedItem.rarity === 'unique' && selectedItem.uniqueEffect
-            ? `<div class="craft-unique-effect"><strong>고유 효과</strong><span>${escapeHTML(selectedItem.uniqueEffect)}</span><small>${escapeHTML(getUniqueEffectApplicationHint(selectedItem, typeof isCraftSelectionEquip === 'function' && isCraftSelectionEquip(), typeof getCraftSelectionRef === 'function' ? getCraftSelectionRef() : null))}</small></div>`
+            ? `<div class="craft-unique-effect"><strong>고유 효과</strong><span>${escapeHTML(selectedItem.uniqueEffect)}</span>${selectedUniqueEffectHint ? `<small>${escapeHTML(selectedUniqueEffectHint)}</small>` : ''}</div>`
             : '';
         craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${exceptionalStars}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div>${craftMetrics}${selectedUniqueEffectHtml}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
@@ -9621,31 +9631,40 @@ function buildCraftActionButtons(item) {
             <div style="color:#a8bdd3; font-size:0.82em; line-height:1.5;">• ${reqText}<br>${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;
     }).join('') || `<div style="color:#7f8c8d;">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
-    let renderSeasonNode = id => {
-        let node = SEASON_NODES[id];
+    let renderSeasonNode = (id, placement, x, y) => {
+        let node = getSeasonPassiveNodeDef(id);
+        if (!node) return '';
         let lv = getSeasonNodeLevel(id);
         let active = lv > 0;
         let evolved = isSeasonTreeEvolved();
-        let cap = evolved ? 5 : 1;
-        let reqMet = isSeasonNodeRequirementMet(node);
-        let lockedHint = !!node.req && !reqMet ? `<br><span style="color:#d39ca7;">🔒 연결된 이전 노드를 먼저 활성화하세요</span>` : '';
+        let cap = node.inner ? 1 : (evolved ? 5 : 1);
+        let unlockLoop = getSeasonPassiveUnlockLoop(id);
+        let contentUnlocked = (game.season || 1) >= unlockLoop;
+        let reqMet = contentUnlocked && isSeasonNodeRequirementMet(node);
         let statInfo = P_STATS[node.stat] || {};
         let suffix = statInfo.isPct ? '%' : '';
         let scaled = Number((node.val * (1 + Math.max(0, lv - 1) * 0.2)).toFixed(2));
-        let levelText = active ? ` (${lv}/${cap})` : '';
-        let effectText = `${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}${levelText}`;
-        let stateText = !reqMet
-            ? '선행 노드 필요'
-            : (active ? (lv >= cap ? (evolved ? '최대 레벨' : '트리 진화 후 강화 가능') : '클릭하여 강화') : '클릭하여 활성화');
-        let refundLink = active ? `<br><span style=\"color:#e4b4b4; font-size:0.78em; text-decoration:underline; cursor:pointer;\" onclick=\"event.stopPropagation(); askRefundSeasonNode('${id}')\">환불</span>` : '';
-        return `<div class=\"trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}\" ${reqMet ? `onclick=\"buySeason('${id}')\"` : ''}><div class=\"trait-title\">${node.name}</div><div class=\"trait-desc\">${node.desc}${lockedHint}<br><span style=\"color:#9bb9d4;\">${effectText}</span><span class=\"trait-card-state\">${stateText}</span>${refundLink}</div></div>`;
+        let stateText = !contentUnlocked ? `루프 ${unlockLoop} 해금` : (!reqMet ? '선행 노드 필요' : (active ? (lv >= cap ? '최대' : '강화') : '활성화'));
+        let style = Number.isFinite(x) && Number.isFinite(y) ? ` style="--ouro-x:${x}%;--ouro-y:${y}%;"` : '';
+        return `<button type="button" class="ouro-node ${placement || ''} ${active ? 'active' : (!reqMet ? 'locked' : '')}"${style}${reqMet ? ` onclick="buySeason('${id}')"` : ''} aria-label="${node.name}: ${node.desc}"><span class="ouro-node-name">${node.name}</span><span class="ouro-node-level">${active ? `${lv}/${cap}` : stateText}</span><span class="ouro-node-tooltip"><strong>${node.name}</strong><small>${node.desc}</small><em>${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em>${active ? `<i onclick="event.stopPropagation(); askRefundSeasonNode('${id}')">정화의 오브로 반환</i>` : ''}</span></button>`;
     };
-    let visibleSeasonRows = SEASON_NODE_ROWS.filter((row, idx) => idx < 4 || (game.season || 1) >= 5);
     let seasonNodeIds = Object.keys(SEASON_NODES || {});
     let activeSeasonNodeCount = seasonNodeIds.filter(id => getSeasonNodeLevel(id) > 0).length;
     let seasonEvolved = isSeasonTreeEvolved();
     let seasonSummary = `<div class="trait-progress-summary"><div><strong>${seasonEvolved ? '진화 완료' : '기본 트리'}</strong><span>${activeSeasonNodeCount}/${seasonNodeIds.length} 노드 활성화</span></div><div><strong>${Math.max(0, Math.floor(game.seasonPoints || 0))} 포인트</strong><span>${seasonEvolved ? '각 노드를 5레벨까지 강화 가능' : `진화까지 ${Math.max(0, seasonNodeIds.length - activeSeasonNodeCount)}개 남음`}</span></div></div>`;
-    document.getElementById('ui-season-tree').innerHTML = seasonSummary + visibleSeasonRows.map(row => `<div class="trait-row">${row.map(renderSeasonNode).join('')}</div>`).join('');
+    let bodyNodes = SEASON_OUROBOROS_BODY_NODES.map((id, index) => {
+        let angle = (130 + index * (280 / Math.max(1, SEASON_OUROBOROS_BODY_NODES.length - 1))) * Math.PI / 180;
+        return renderSeasonNode(id, 'body-node', 50 + Math.cos(angle) * 42, 50 + Math.sin(angle) * 42);
+    }).join('');
+    let headPositions = [[50, 76], [41.5, 84.5], [58.5, 84.5], [50, 93]];
+    let headNodes = SEASON_OUROBOROS_HEAD_NODES.map((id, index) => renderSeasonNode(id, 'head-node', headPositions[index][0], headPositions[index][1])).join('');
+    let innerIds = Object.keys(SEASON_INNER_NODES || {});
+    let innerNodes = seasonEvolved ? innerIds.map((id, index) => {
+        let angle = (-90 + index * 360 / innerIds.length) * Math.PI / 180;
+        return renderSeasonNode(id, 'inner-node', 50 + Math.cos(angle) * 18, 50 + Math.sin(angle) * 18);
+    }).join('') : '';
+    let innerStatus = seasonEvolved ? '<span>내부 순환 해금</span>' : `<span>몸통 ${activeSeasonNodeCount}/${seasonNodeIds.length}</span><small>23개를 모두 활성화하면 마법진이 생성됩니다.</small>`;
+    document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="ouroboros-passive-tree ${seasonEvolved ? 'complete' : ''}"><svg class="ouroboros-sigil" viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="ouroboros-body-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d8c18a"/><stop offset=".48" stop-color="#628b82"/><stop offset="1" stop-color="#293f49"/></linearGradient></defs><circle class="ouroboros-shadow" cx="50" cy="50" r="42"/><circle class="ouroboros-body-ring" cx="50" cy="50" r="42"/><path class="ouroboros-scales" d="M50 8 A42 42 0 1 1 35.4 89.4"/><path class="ouroboros-head-shape" d="M35 88 C39 80 48 78 58 82 L68 87 L59 90 L67 95 C57 98 45 97 35 92 L29 89 Z"/><circle class="ouroboros-eye" cx="57.5" cy="87.1" r="1.35"/></svg><div class="ouroboros-head-label">머리 · 핵심 4</div>${bodyNodes}${headNodes}<div class="ouroboros-inner-circle ${seasonEvolved ? 'unlocked' : 'locked'}"><div class="ouroboros-rune-ring"></div><div class="ouroboros-inner-status">${innerStatus}</div></div>${innerNodes}</div>`;
 
     }
 
@@ -10282,6 +10301,69 @@ function syncPassiveTreeSearchControls() {
         btn.style.boxShadow = active ? '0 0 10px rgba(127,199,255,0.24)' : '';
     });
 }
+
+function getAllocatedPassiveStatSummary() {
+    const totals = {};
+    const specialEffects = [];
+    const mutations = (game.starWedge && game.starWedge.nodeMutations) || {};
+    const disabled = (game.starWedge && game.starWedge.disabledNodeEffects) || {};
+    const allocatedIds = Array.isArray(game.passives) ? game.passives : [];
+    let voidCount = 0;
+    const add = (stat, value) => {
+        if (!stat || !P_STATS[stat] || !Number.isFinite(Number(value))) return;
+        totals[stat] = (totals[stat] || 0) + Number(value);
+    };
+    allocatedIds.forEach(id => {
+        if (disabled[String(id)]) return;
+        const node = PASSIVE_TREE.nodes[id];
+        if (!node) return;
+        if (node.kind === 'void') {
+            voidCount++;
+            const entry = game.voidPassives && game.voidPassives[String(id)];
+            (entry && Array.isArray(entry.stats) ? entry.stats : []).forEach(line => add(line && line.id, line && line.val));
+            if (entry && entry.transcendent) {
+                const def = (typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' ? TRANSCENDENT_VOID_PASSIVE_DB : []).find(row => row.id === entry.transcendent.id);
+                specialEffects.push(def ? `초월 · ${def.name}` : '초월 공허 효과');
+            }
+            return;
+        }
+        const mutation = mutations[String(id)];
+        add(mutation && mutation.currentStat ? mutation.currentStat : node.stat, mutation && Number.isFinite(Number(mutation.currentVal)) ? mutation.currentVal : node.val);
+    });
+    return {
+        allocatedCount: allocatedIds.filter(id => id !== 'n0').length,
+        voidCount,
+        totals: Object.entries(totals).sort((a, b) => getStatName(a[0]).localeCompare(getStatName(b[0]), 'ko')),
+        specialEffects
+    };
+}
+
+function renderPassiveInvestmentSummary() {
+    const panel = document.getElementById('passive-investment-summary');
+    const body = document.getElementById('passive-investment-summary-body');
+    if (!panel || !body) return;
+    if (!game.settings || typeof game.settings !== 'object') game.settings = {};
+    const collapsed = !!game.settings.passiveInvestmentSummaryCollapsed;
+    panel.classList.toggle('collapsed', collapsed);
+    const toggle = panel.querySelector('.passive-investment-summary-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    const summary = getAllocatedPassiveStatSummary();
+    const rows = summary.totals.length
+        ? summary.totals.map(([stat, value]) => `<span>${getStatName(stat)}</span><strong>+${formatValue(stat, value)}${P_STATS[stat] && P_STATS[stat].isPct ? '%' : ''}</strong>`).join('')
+        : '<span>아직 투자한 효과가 없습니다.</span><strong>—</strong>';
+    const specials = summary.specialEffects.length
+        ? `<div class="passive-summary-specials">조건부 효과 · ${summary.specialEffects.join(' · ')}</div>`
+        : '';
+    body.innerHTML = `<div class="passive-summary-meta">투자 ${summary.allocatedCount}개${summary.voidCount ? ` · 공허 ${summary.voidCount}개` : ''}</div><div class="passive-summary-grid">${rows}</div>${specials}`;
+}
+
+function togglePassiveInvestmentSummary() {
+    if (!game.settings || typeof game.settings !== 'object') game.settings = {};
+    game.settings.passiveInvestmentSummaryCollapsed = !game.settings.passiveInvestmentSummaryCollapsed;
+    renderPassiveInvestmentSummary();
+}
+
+safeExposeGlobals({ togglePassiveInvestmentSummary, renderPassiveInvestmentSummary });
 
 function setupPassiveTreeSearchControls() {
     if (window.__passiveTreeSearchControlsBound) {
@@ -11186,10 +11268,10 @@ function mergeDefaults(save) {
     });
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
-        // Version 17 introduced generated topology ids whose meaning differs from
-        // sequential n### ids. Refund old allocations once instead of silently
-        // applying the player's points to unrelated nodes in the radial layout.
-        if (Number(merged.passiveLayoutVersion || 0) < 17) {
+        // Version 19 re-clustered node effects and replaced the dense reference
+        // graph with regional paths. Refund prior allocations once instead of
+        // silently applying points to a newly specialized node or broken route.
+        if (Number(merged.passiveLayoutVersion || 0) < 19) {
             const refundedForRadialLayout = (merged.passives || []).filter(id => id !== 'n0').length;
             merged.passivePoints = Math.max(0, Math.floor(Number(merged.passivePoints) || 0)) + refundedForRadialLayout;
             merged.autoRefundedPassivePoints = Math.max(0, Math.floor(Number(merged.autoRefundedPassivePoints) || 0)) + refundedForRadialLayout;
@@ -11224,7 +11306,7 @@ function mergeDefaults(save) {
     merged.supports = dedupeList(Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : []);
     merged.sealedSupports = dedupeList(Array.isArray(merged.sealedSupports) ? merged.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !merged.supports.includes(name)) : []);
     merged.equippedSupports = Array.isArray(merged.equippedSupports) ? dedupeList(merged.equippedSupports.filter(name => merged.supports.includes(name))) : [];
-    merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!SEASON_NODES[id]) : [];
+    merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!getSeasonPassiveNodeDef(id)) : [];
     merged.seasonNodeLevels = (merged.seasonNodeLevels && typeof merged.seasonNodeLevels === 'object') ? merged.seasonNodeLevels : {};
     merged.seasonNodes.forEach(id => {
         let lv = Math.max(1, Math.floor(merged.seasonNodeLevels[id] || 1));
@@ -11310,6 +11392,10 @@ function mergeDefaults(save) {
     let validVoidPassiveIds = new Set(typeof getVoidPassiveNodeIds === 'function' ? getVoidPassiveNodeIds() : []);
     let rawVoidPassives = (merged.voidPassives && typeof merged.voidPassives === 'object') ? merged.voidPassives : {};
     merged.voidPassives = {};
+    merged.retiredVoidPassives = (merged.retiredVoidPassives && typeof merged.retiredVoidPassives === 'object') ? merged.retiredVoidPassives : {};
+    Object.keys(rawVoidPassives).forEach(nodeId => {
+        if (!validVoidPassiveIds.has(String(nodeId))) merged.retiredVoidPassives[nodeId] = rawVoidPassives[nodeId];
+    });
     let legacyVoidMigration = !(save.voidPassives && typeof save.voidPassives === 'object');
     let allocatedVoidIds = legacyVoidMigration ? new Set((merged.passives || []).map(id => String(id))) : new Set();
     validVoidPassiveIds.forEach(nodeId => {
@@ -13993,6 +14079,7 @@ function checkUnlocks() {
 }
 
 function isSeasonNodeRequirementMet(node) {
+    if (node && node.inner && !isSeasonTreeEvolved()) return false;
     if (!node || !node.req) return true;
     if (Array.isArray(node.req)) return node.req.some(req => game.seasonNodes.includes(req));
     return game.seasonNodes.includes(node.req);
@@ -14062,9 +14149,12 @@ async function askRefundSeasonNode(id) { if (!assertBuildEditable()) return;
 function refundSeasonNode(id) { if (!assertBuildEditable()) return;
     game.seasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
     if (!game.seasonNodes.includes(id)) return;
-    let blockers = Object.keys(SEASON_NODES).filter(key => {
+    let nodeDef = getSeasonPassiveNodeDef(id);
+    let ownsInnerCircleNode = Object.keys(SEASON_INNER_NODES || {}).some(key => game.seasonNodes.includes(key));
+    if (nodeDef && !nodeDef.inner && ownsInnerCircleNode) return addLog('내부 마법진 패시브를 먼저 반환해야 우로보로스 몸통을 해제할 수 있습니다.', 'attack-monster');
+    let blockers = getAllSeasonPassiveNodeIds().filter(key => {
         if (key === id || !game.seasonNodes.includes(key)) return false;
-        let req = SEASON_NODES[key].req;
+        let req = (getSeasonPassiveNodeDef(key) || {}).req;
         if (!req) return false;
         if (Array.isArray(req)) return req.includes(id) && req.filter(v => v !== id).every(v => !game.seasonNodes.includes(v));
         return req === id;
@@ -14116,12 +14206,12 @@ function refundAscendNode(id) { if (!assertBuildEditable()) return;
 }
 
 async function buySeason(id) { if (!assertBuildEditable()) return;
-    let node = SEASON_NODES[id];
+    let node = getSeasonPassiveNodeDef(id);
     game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
-    if (!node || !isSeasonNodeRequirementMet(node)) return;
+    if (!node || (game.season || 1) < getSeasonPassiveUnlockLoop(id) || !isSeasonNodeRequirementMet(node)) return;
     let lv = getSeasonNodeLevel(id);
     let evolved = isSeasonTreeEvolved();
-    let cap = evolved ? 5 : 1;
+    let cap = node && node.inner ? 1 : (evolved ? 5 : 1);
     if (lv >= cap && lv > 0) {
         if (!await requestGameConfirmation('이미 최대 단계인 노드입니다.\n정화의 오브 1개를 사용해 반환하시겠습니까?', {
             title: '최대 단계 노드 반환',

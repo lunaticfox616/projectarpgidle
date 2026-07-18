@@ -195,7 +195,7 @@ assert.ok(!radiusOneCells.some(cell => cell.gx === 4 && cell.gy === 4), '반경 
     .map((enemy, idx) => ({ enemy, mult: idx === 0 ? 1 : 0.8 }));
   const whirl = context.buildSkillHitSequence('회오리바람', context.SKILL_DB['회오리바람'], targets);
   assert.strictEqual(whirl.length, 3, '회오리바람은 대상마다 독립 타격 단계가 있어야 한다');
-  assert.strictEqual(whirl.map(stage => stage.delayMs).join(','), '0,100,200', '회오리바람은 0.1초 간격으로 순차 타격해야 한다');
+  assert.strictEqual(whirl.map(stage => stage.delayMs).join(','), '0,80,160', '회오리바람은 0.08초 간격으로 순차 타격해야 한다');
   assert.ok(whirl.every(stage => stage.targets.length === 1), '회오리바람 단계 하나가 모든 대상에게 동시에 피해를 주면 안 된다');
 
   const chain = context.buildSkillHitSequence('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍'], targets);
@@ -203,6 +203,11 @@ assert.ok(!radiusOneCells.some(cell => cell.gx === 4 && cell.gy === 4), '반경 
   assert.strictEqual(chain.map(stage => stage.delayMs).join(','), '0,110,220', '연쇄 피해는 각 점프 시점에 따로 발생해야 한다');
   assert.strictEqual(chain[1].chainFromEnemyId, 31, '두 번째 연쇄는 최초 대상에서 출발해야 한다');
   assert.strictEqual(chain[2].chainFromEnemyId, 32, '세 번째 연쇄는 직전 연쇄 대상에서 출발해야 한다');
+
+  const pierce = context.buildSkillHitSequence('관통 사격', context.SKILL_DB['관통 사격'], targets);
+  assert.strictEqual(pierce.map(stage => stage.kind).join(','), 'piercePrimary,pierceThrough,pierceThrough', '관통은 한 발의 최초 직격과 후속 관통으로 구분돼야 한다');
+  assert.strictEqual(pierce.map(stage => stage.delayMs).join(','), '0,30,60', '관통 피해는 투사체가 직선을 통과하는 순서대로 발생해야 한다');
+  assert.ok(pierce.every(stage => stage.targets.length === 1), '관통 단계마다 지나친 적 하나만 피해를 받아야 한다');
 
   const slam = context.buildSkillHitSequence('묵직한 강타', context.SKILL_DB['묵직한 강타'], targets.slice(0, 1));
   assert.strictEqual(slam.length, 2, '강타는 본 타격과 여진으로 분리돼야 한다');

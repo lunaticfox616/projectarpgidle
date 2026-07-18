@@ -89,7 +89,7 @@ const layout = vm.runInContext(`(() => {
 })()`, context);
 
 assert.strictEqual(layout.count, 1101, 'radial adaptation should preserve all passive nodes from main');
-assert.strictEqual(layout.edgeCount, 2172, 'reference adaptation should use the supplied topology density');
+assert.ok(layout.edgeCount >= layout.count - 1 && layout.edgeCount <= 1600, `reference adaptation should keep a sparse readable topology (actual ${layout.edgeCount})`);
 assert.strictEqual(layout.groupCounts['major-anchor'], 22, 'light and dark hemispheres should use twenty-two separated major clusters');
 assert.strictEqual(layout.groupCounts['sector-path'], 288, 'twelve sector boundaries should remain structurally visible');
 assert.strictEqual(layout.groupCounts['mother-path'], 60, 'three horizontal mother-letter bridges should cross the worlds');
@@ -207,6 +207,10 @@ assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') > battlef
 assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') < battlefieldSource.lastIndexOf('drawBattlefieldEnemyHealthBars(ctx'), 'health bars and combat text should remain above skill VFX');
 assert.ok(battlefieldSource.includes('function queueSkillGemProjectileLaunch('), 'projectile gems should enqueue a pre-impact travelling projectile');
 assert.ok(battlefieldSource.includes('if (effect.travel)'), 'projectiles should travel as discrete images rather than stretching across the full distance');
+assert.ok(battlefieldSource.includes("let isPiercePath = skill.targetMode === 'pierce';"), 'piercing skills should resolve as one shared projectile path');
+assert.ok(battlefieldSource.includes('targets = targets.length > 0 ? [targets[targets.length - 1]] : []'), 'piercing target count must not spawn one projectile per enemy');
+assert.ok(battlefieldSource.includes('let travelProgress = t;'), 'projectiles should use a straight linear flight path');
+assert.ok(!battlefieldSource.includes('let arc = Math.sin(t * Math.PI)'), 'projectiles should not arc above the battlefield');
 assert.ok(!battlefieldSource.includes('let connector = family === \'projectile\''), 'projectile art should no longer use a full-distance connector');
 assert.ok(battlefieldSource.includes("stageKind === 'chainJump'"), 'secondary chain hits should use their connector image');
 assert.ok(battlefieldSource.includes("stageKind === 'slamAftershock'"), 'delayed slam aftershocks should use their own image');

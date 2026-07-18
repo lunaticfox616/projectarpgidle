@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="css/base.css?v=20260611-tab-drag4">
     <link rel="stylesheet" href="css/layout.css?v=20260715-visibility-fixes1">
     <link rel="stylesheet" href="css/theme.css">
-    <link rel="stylesheet" href="css/components.css?v=20260717-system-integrity1">
+    <link rel="stylesheet" href="css/components.css?v=20260718-regional-passive1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260707-belt-flask-slots1">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260707-community-ui1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260716-background-summary1">
@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260717-system-integrity1">
     <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260715-luxe1">
-    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260718-combat-readability3">
+    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260718-regional-passive1">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -548,6 +548,12 @@
             <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: none; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
                 <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
                 <div id="passive-tree-overlay" class="passive-tree-overlay" aria-hidden="true"><div class="passive-tree-overlay-world"></div></div>
+                <aside id="passive-investment-summary" class="passive-investment-summary" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
+                    <button type="button" class="passive-investment-summary-toggle" onclick="togglePassiveInvestmentSummary()" aria-expanded="true">
+                        <span>투자 효과 총합</span><span class="passive-summary-chevron">▴</span>
+                    </button>
+                    <div id="passive-investment-summary-body" class="passive-investment-summary-body"></div>
+                </aside>
             </div>
             <div id="ui-star-wedge-panel" style="background:#0f1018; border:1px solid #37274a; border-radius:10px; padding:10px;"></div>
         </div>
@@ -1271,7 +1277,7 @@
 <script src="js/bootstrap.js?v=20260603-runtime-coherent2"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
-<script defer src="data/constants.js?v=20260718-reference-passive1"></script>
+<script defer src="data/constants.js?v=20260718-regional-passive1"></script>
 <script defer src="data/maps.js?v=20260717-system-integrity1"></script>
 <script defer src="data/skills.js?v=20260718-combat-readability3"></script>
 <script defer src="data/items.js?v=20260717-gem-flask-mobile1"></script>
@@ -1281,19 +1287,19 @@
 <script defer src="data/talent-cards.js?v=20260708-projectile-uncap1"></script>
 <script defer src="js/utils.js?v=20260717-talent-coverage1"></script>
 <script defer src="js/ui-feedback.js?v=20260716-steam-ui1"></script>
-<script defer src="js/state.js?v=20260717-gem-flask-mobile1"></script>
+<script defer src="js/state.js?v=20260718-regional-passive1"></script>
 <script defer src="js/save.js?v=20260717-system-integrity1"></script>
 <script defer src="js/items.js?v=20260717-system-integrity1"></script>
 <script defer src="js/skills.js?v=20260717-gem-flask-mobile1"></script>
-<script defer src="js/passives.js?v=20260718-reference-passive1"></script>
+<script defer src="js/passives.js?v=20260718-regional-passive1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1"></script>
-<script defer src="js/combat-grid.js?v=20260718-combat-readability3"></script>
+<script defer src="js/combat-grid.js?v=20260718-regional-passive1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1"></script>
-<script defer src="js/combat.js?v=20260718-combat-readability3"></script>
-<script defer src="js/canvas-battlefield.js?v=20260718-combat-readability3"></script>
+<script defer src="js/combat.js?v=20260718-regional-passive1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260718-regional-passive1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260718-radial-passive1"></script>
-<script defer src="js/ui.js?v=20260718-radial-passive1"></script>
+<script defer src="js/ui.js?v=20260718-regional-passive1"></script>
 <script defer src="js/social.js?v=20260715-runtime-structure1"></script>
 <script defer src="js/ui-window-manager.js?v=20260717-system-integrity1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>

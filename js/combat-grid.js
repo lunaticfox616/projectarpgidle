@@ -321,6 +321,7 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies) {
 const SKILL_HIT_SEQUENCE_CONFIG = Object.freeze({
     whirlIntervalMs: 80,
     chainIntervalMs: 110,
+    pierceIntervalMs: 30,
     slamAftershockDelayMs: 360,
     slamAftershockDamagePct: 32
 });
@@ -330,6 +331,8 @@ function getSkillHitSequenceProfile(skillName, skill) {
     let mode = skill && skill.targetMode;
     if (mode === 'whirl') return { kind: 'whirl', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.whirlIntervalMs };
     if (mode === 'chain') return { kind: 'chain', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.chainIntervalMs };
+    let gridProfile = getSkillGridProfile(skillName, skill || {});
+    if (mode === 'pierce' || (gridProfile && gridProfile.kind === 'line')) return { kind: 'pierce', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.pierceIntervalMs };
     if (tags.includes('slam')) {
         return {
             kind: 'slam',
@@ -361,6 +364,22 @@ function buildSkillHitSequence(skillName, skill, targetEntries) {
             delayMs: idx * profile.intervalMs,
             damageMultiplier: 1,
             chainFromEnemyId: idx > 0 ? targets[idx - 1].enemy.id : null,
+            targets: [entry]
+        }));
+    }
+    if (profile.kind === 'pierce') {
+        let attacker = (typeof game !== 'undefined' && game.gridPlayer) ? game.gridPlayer : null;
+        let ordered = targets.slice().sort((a, b) => {
+            if (!attacker || !a.enemy || !b.enemy) return 0;
+            let da = gridChebyshevDist(attacker.gx, attacker.gy, a.enemy.gx, a.enemy.gy);
+            let db = gridChebyshevDist(attacker.gx, attacker.gy, b.enemy.gx, b.enemy.gy);
+            return da - db;
+        });
+        return ordered.map((entry, idx) => ({
+            kind: idx === 0 ? 'piercePrimary' : 'pierceThrough',
+            label: idx === 0 ? '관통 직격' : `${idx + 1}번째 관통`,
+            delayMs: idx * profile.intervalMs,
+            damageMultiplier: 1,
             targets: [entry]
         }));
     }

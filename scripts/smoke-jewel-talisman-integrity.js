@@ -142,6 +142,9 @@ assert(!tooltipBlock.includes("if (!item) return hideInfoTooltip();\n    let jew
 assert(uiSource.includes('function showTalismanPlacementTooltip'), 'talisman placement preview must be available');
 assert(uiSource.includes('옵션 평균 티어: T${tierSummary.toFixed(1)}'), 'jewel tooltip should show average option tier');
 assert(uiSource.includes('getTalismanRollQuality'), 'talisman roll quality should be visible');
+assert(passiveSource.includes('function openAbyssSocketJewelOverlay'), 'equipment abyss sockets need a dedicated jewel picker overlay');
+assert(uiSource.includes('openAbyssSocketJewelOverlay(${sidx})'), 'empty abyss sockets should open the picker instead of listing every jewel inline');
+assert(!uiSource.includes("insertJewelIntoAbyssSocket(${i}, ${sidx})"), 'owned abyss jewels must not be rendered as a long inline button list');
 assert(!uiSource.includes('onclick="bulkTalismanUnseal('), 'removed talisman bulk-unseal handler must not remain in the UI');
 assert(combatSource.includes('let protectOverflow = inventoryFull && !autoSalvage'), 'rare and unique jewel overflow must be protected unless explicitly auto-salvaged');
 assert(cosmosSource.includes("addItemToInventory(item, { guaranteedKeep: true })"), 'cosmos boss exclusive equipment must survive full inventory');
