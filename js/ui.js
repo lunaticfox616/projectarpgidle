@@ -5023,12 +5023,10 @@ function onHeroSelectionChanged() {
 // 일반 잡몹/정예가 사용하는 스프라이트 시트 프레임(아틀라스 enemies.frames)과
 // 보스 전용 이미지(BOSS_ASSET_MANIFEST)를 플레이어 외형으로 수집/적용한다.
 const MONSTER_SKIN_FRAME_DEFS = [
-    { id: 'slime', label: '슬라임' },
-    { id: 'bandit', label: '도적' },
-    { id: 'shadow', label: '그림자' },
-    { id: 'wraith', label: '망령' },
-    { id: 'knight', label: '기사' },
-    { id: 'skeleton', label: '해골' },
+    { id: 'woodSlime', label: '수액 응집체' },
+    { id: 'rootSpider', label: '뿌리 거미' },
+    { id: 'sapLeech', label: '수액 흡충' },
+    { id: 'woodPuppet', label: '목각 인형' },
     { id: 'boss', label: '마수 군주' }
 ];
 
@@ -5062,8 +5060,12 @@ function getMonsterSkinDefs() {
 function getEnemySkinId(enemy) {
     if (!enemy) return null;
     if (enemy.bossAssetKey) return enemy.bossAssetKey;
-    let normalPool = ['slime', 'bandit', 'shadow', 'wraith'];
-    let elitePool = ['knight', 'skeleton', 'shadow', 'wraith', 'bandit'];
+    if (battleAssets && battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
+        const renderedVariant = pickBattleEnemyVariant(enemy, battleAssets.atlas.enemies);
+        if (renderedVariant && renderedVariant.skinId) return renderedVariant.skinId;
+    }
+    let normalPool = ['woodSlime', 'rootSpider', 'sapLeech', 'woodPuppet'];
+    let elitePool = normalPool;
     let bossPool = ['boss'];
     let pool = enemy.isBoss ? bossPool : (enemy.isElite ? elitePool : normalPool);
     if (pool.length === 0) return null;
@@ -5085,6 +5087,13 @@ function resolveMonsterSkinSprite(id) {
     }
     let frame = (enemyAtlas.frames || {})[id];
     if (frame) return { type: 'frame', image: enemyAtlas.image, frame: frame };
+    let woodVariant = (enemyAtlas.skinVariants || {})[id];
+    if (woodVariant) return {
+        type: 'frame',
+        image: woodVariant.image,
+        frame: woodVariant.frame,
+        frames: woodVariant.frames
+    };
     return null;
 }
 
@@ -6750,12 +6759,22 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
     if (battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
         let enemyAtlas = battleAssets.atlas.enemies;
         let variantEntry = getBossAssetVariantEntry(enemy, enemyAtlas) || pickBattleEnemyVariant(enemy, enemyAtlas) || {};
-        let frame = variantEntry.frame || enemyAtlas.frames.bandit || enemyAtlas.frames.slime;
-        let frameImage = variantEntry.image || enemyAtlas.image;
-        let drawSize = enemy.isBoss ? 70 : (enemy.isElite ? 50 : 38);
+        let animationFrames = Array.isArray(variantEntry.frames) ? variantEntry.frames : [];
+        let animationIndex = animationFrames.length > 0
+            ? Math.floor(((Number(now) || 0) + Math.abs(Number(enemy.variantSeed || enemy.id || 0)) * 41) / 135) % animationFrames.length
+            : 0;
+        let animatedEntry = animationFrames[animationIndex] || {};
+        let frame = animatedEntry.frame || variantEntry.frame || enemyAtlas.frames.bandit || enemyAtlas.frames.slime;
+        let frameImage = animatedEntry.image || variantEntry.image || enemyAtlas.image;
+        let drawSize = enemy.isBoss ? 70 : (enemy.isElite ? 52 : 44);
         drawSize *= scale / (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95));
         drawPixelShadow(ctx, x, y + (enemy.isBoss ? 16 : 13), enemy.isBoss ? 15 : 9, enemy.isBoss ? 5 : 4, 0.17);
-        drawBattleSprite(ctx, frameImage, frame, x, y + 5, drawSize, { smoothing: enemy.bossAssetKey ? 'high' : 'low' });
+        drawBattleSprite(ctx, frameImage, frame, x, y + 5, drawSize, {
+            smoothing: enemy.bossAssetKey ? 'high' : 'low',
+            outlineColor: enemy.isBoss ? '#a84e49' : (enemy.isElite ? '#e2b94f' : null),
+            outlineThickness: 1,
+            outlineAlpha: enemy.isBoss ? 0.46 : (enemy.isElite ? 0.72 : 0)
+        });
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.16;
@@ -9631,6 +9650,13 @@ function buildCraftActionButtons(item) {
             <div style="color:#a8bdd3; font-size:0.82em; line-height:1.5;">• ${reqText}<br>${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;
     }).join('') || `<div style="color:#7f8c8d;">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
+    const seasonNodeGlyphs = {
+        expGain: '✦', pctDmg: '⚔', pctHp: '♥', crit: '✧', dotPctDmg: '◌',
+        move: '➤', dr: '◆', aspd: 'ϟ', physIgnore: '⟐', resPen: '◇', ds: '∞',
+        critDmg: '✵', flatHp: '✚', regen: '♨', projectilePctDmg: '➶',
+        meleePctDmg: '✣', physPctDmg: '⬙', elementalPctDmg: '✺', chaosPctDmg: '◉',
+        minDmgRoll: '⌊', maxDmgRoll: '⌈'
+    };
     let renderSeasonNode = (id, placement, x, y) => {
         let node = getSeasonPassiveNodeDef(id);
         if (!node) return '';
@@ -9645,26 +9671,32 @@ function buildCraftActionButtons(item) {
         let suffix = statInfo.isPct ? '%' : '';
         let scaled = Number((node.val * (1 + Math.max(0, lv - 1) * 0.2)).toFixed(2));
         let stateText = !contentUnlocked ? `루프 ${unlockLoop} 해금` : (!reqMet ? '선행 노드 필요' : (active ? (lv >= cap ? '최대' : '강화') : '활성화'));
-        let style = Number.isFinite(x) && Number.isFinite(y) ? ` style="--ouro-x:${x}%;--ouro-y:${y}%;"` : '';
-        return `<button type="button" class="ouro-node ${placement || ''} ${active ? 'active' : (!reqMet ? 'locked' : '')}"${style}${reqMet ? ` onclick="buySeason('${id}')"` : ''} aria-label="${node.name}: ${node.desc}"><span class="ouro-node-name">${node.name}</span><span class="ouro-node-level">${active ? `${lv}/${cap}` : stateText}</span><span class="ouro-node-tooltip"><strong>${node.name}</strong><small>${node.desc}</small><em>${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em>${active ? `<i onclick="event.stopPropagation(); askRefundSeasonNode('${id}')">정화의 오브로 반환</i>` : ''}</span></button>`;
+        let style = Number.isFinite(x) && Number.isFinite(y) ? ` style="--loop-node-x:${x}%;--loop-node-y:${y}%;"` : '';
+        let horizontalClass = x < 25 ? 'tooltip-right' : (x > 75 ? 'tooltip-left' : '');
+        let stateClass = active ? 'active' : (reqMet ? 'available' : 'locked');
+        let maxedClass = active && lv >= cap ? 'maxed' : '';
+        let actionAttrs = reqMet
+            ? ` role="button" tabindex="0" onclick="buySeason('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();buySeason('${id}');}"`
+            : ' aria-disabled="true"';
+        let glyph = seasonNodeGlyphs[node.stat] || '✦';
+        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core"><span class="loop-node-glyph" aria-hidden="true">${glyph}</span><span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${node.desc}</small><em>${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">정화의 오브로 반환</span>` : ''}</span></div>`;
     };
     let seasonNodeIds = Object.keys(SEASON_NODES || {});
     let activeSeasonNodeCount = seasonNodeIds.filter(id => getSeasonNodeLevel(id) > 0).length;
     let seasonEvolved = isSeasonTreeEvolved();
-    let seasonSummary = `<div class="trait-progress-summary"><div><strong>${seasonEvolved ? '진화 완료' : '기본 트리'}</strong><span>${activeSeasonNodeCount}/${seasonNodeIds.length} 노드 활성화</span></div><div><strong>${Math.max(0, Math.floor(game.seasonPoints || 0))} 포인트</strong><span>${seasonEvolved ? '각 노드를 5레벨까지 강화 가능' : `진화까지 ${Math.max(0, seasonNodeIds.length - activeSeasonNodeCount)}개 남음`}</span></div></div>`;
-    let bodyNodes = SEASON_OUROBOROS_BODY_NODES.map((id, index) => {
-        let angle = (130 + index * (280 / Math.max(1, SEASON_OUROBOROS_BODY_NODES.length - 1))) * Math.PI / 180;
-        return renderSeasonNode(id, 'body-node', 50 + Math.cos(angle) * 42, 50 + Math.sin(angle) * 42);
+    let seasonSummary = `<div class="trait-progress-summary"><div><strong>${seasonEvolved ? '순환 완성' : '우로보로스 원환'}</strong><span>${activeSeasonNodeCount}/${seasonNodeIds.length} 노드 활성화</span></div><div><strong>${Math.max(0, Math.floor(game.seasonPoints || 0))} 포인트</strong><span>${seasonEvolved ? '외곽 노드 강화 및 내부 노드 투자 가능' : `남은 원형 노드 ${Math.max(0, seasonNodeIds.length - activeSeasonNodeCount)}개`}</span></div></div>`;
+    let ringNodes = SEASON_OUROBOROS_RING_NODES.map((id, index) => {
+        const angle = (90 - index * 360 / SEASON_OUROBOROS_RING_NODES.length) * Math.PI / 180;
+        const radius = 40.7;
+        return renderSeasonNode(id, id === 's_root' ? 'origin-node' : 'ring-node', 50 + Math.cos(angle) * radius, 50 + Math.sin(angle) * radius);
     }).join('');
-    let headPositions = [[50, 76], [41.5, 84.5], [58.5, 84.5], [50, 93]];
-    let headNodes = SEASON_OUROBOROS_HEAD_NODES.map((id, index) => renderSeasonNode(id, 'head-node', headPositions[index][0], headPositions[index][1])).join('');
     let innerIds = Object.keys(SEASON_INNER_NODES || {});
     let innerNodes = seasonEvolved ? innerIds.map((id, index) => {
         let angle = (-90 + index * 360 / innerIds.length) * Math.PI / 180;
-        return renderSeasonNode(id, 'inner-node', 50 + Math.cos(angle) * 18, 50 + Math.sin(angle) * 18);
+        return renderSeasonNode(id, 'inner-node', 50 + Math.cos(angle) * 17.2, 50 + Math.sin(angle) * 17.2);
     }).join('') : '';
-    let innerStatus = seasonEvolved ? '<span>내부 순환 해금</span>' : `<span>몸통 ${activeSeasonNodeCount}/${seasonNodeIds.length}</span><small>23개를 모두 활성화하면 마법진이 생성됩니다.</small>`;
-    document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="ouroboros-passive-tree ${seasonEvolved ? 'complete' : ''}"><svg class="ouroboros-sigil" viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="ouroboros-body-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d8c18a"/><stop offset=".48" stop-color="#628b82"/><stop offset="1" stop-color="#293f49"/></linearGradient></defs><circle class="ouroboros-shadow" cx="50" cy="50" r="42"/><circle class="ouroboros-body-ring" cx="50" cy="50" r="42"/><path class="ouroboros-scales" d="M50 8 A42 42 0 1 1 35.4 89.4"/><path class="ouroboros-head-shape" d="M35 88 C39 80 48 78 58 82 L68 87 L59 90 L67 95 C57 98 45 97 35 92 L29 89 Z"/><circle class="ouroboros-eye" cx="57.5" cy="87.1" r="1.35"/></svg><div class="ouroboros-head-label">머리 · 핵심 4</div>${bodyNodes}${headNodes}<div class="ouroboros-inner-circle ${seasonEvolved ? 'unlocked' : 'locked'}"><div class="ouroboros-rune-ring"></div><div class="ouroboros-inner-status">${innerStatus}</div></div>${innerNodes}</div>`;
+    let innerCircle = seasonEvolved ? '<div class="loop-magic-circle" aria-hidden="true"><span class="loop-magic-runes"></span><span class="loop-magic-core"></span></div>' : '';
+    document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="loop-passive-orbit ${seasonEvolved ? 'complete' : ''}"><div class="loop-orbit-ambient" aria-hidden="true"></div><img class="loop-ouroboros-art" src="assets/ui/loop-passive-ouroboros-v3.png" alt="" draggable="false" aria-hidden="true">${innerCircle}${ringNodes}${innerNodes}</div>`;
 
     }
 
@@ -10695,15 +10727,29 @@ function setupCanvasEvents() {
         }
         if (canActivate || canPathActivate) {
             const attributeNodeCount = activationPath.filter(id => PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind === 'attribute').length;
-            const attributeStat = typeof getPassiveAttributePreference === 'function' ? getPassiveAttributePreference() : 'strength';
-            const attributeName = { strength: '힘', dexterity: '민첩', intelligence: '지능' }[attributeStat] || '힘';
-            const attributeNotice = attributeNodeCount > 0 ? ` 능력치 노드 ${attributeNodeCount}개에는 ${attributeName}이 저장됩니다.` : '';
-            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 패시브 포인트 ${pointCost}점을 소모합니다.${attributeNotice}`, {
+            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 패시브 포인트 ${pointCost}점을 소모합니다.${attributeNodeCount > 0 ? ` 경로의 능력치 노드 ${attributeNodeCount}개는 다음 단계에서 선택합니다.` : ''}`, {
                 title: '최단 경로 활성화',
                 confirmLabel: `${pointCost}포인트 사용`
             })) return;
+            let attributeStat = null;
+            if (attributeNodeCount > 0) {
+                attributeStat = await requestGameChoice({
+                    kicker: 'PASSIVE ATTRIBUTE',
+                    title: attributeNodeCount > 1 ? `능력치 노드 ${attributeNodeCount}개 선택` : '능력치 노드 선택',
+                    message: attributeNodeCount > 1
+                        ? '이번 최단 경로에 포함된 모든 능력치 노드에 같은 능력치를 적용합니다.'
+                        : '이 노드에 저장할 능력치를 선택하세요.',
+                    confirmLabel: '능력치 적용',
+                    choices: [
+                        { value: 'strength', label: '◆ 힘', detail: '생명력과 근접 계열 성장에 적합합니다.' },
+                        { value: 'dexterity', label: '● 민첩', detail: '회피·공격 속도·투사체 계열 성장에 적합합니다.' },
+                        { value: 'intelligence', label: '✦ 지능', detail: '에너지 보호막·주문·원소 계열 성장에 적합합니다.' }
+                    ]
+                });
+                if (!attributeStat) return;
+            }
             pendingTouchPassiveId = null;
-            let activationResult = activatePassivePath(targetNodeId, { forcePulseNodeId: targetNodeId });
+            let activationResult = activatePassivePath(targetNodeId, { forcePulseNodeId: targetNodeId, attributeStat });
             if (!activationResult.activated) {
                 calculateReachableNodes();
                 let reason = activationResult.reason === 'points'
@@ -11285,10 +11331,10 @@ function mergeDefaults(save) {
             && PASSIVE_TREE.nodes[nodeId].kind === 'attribute'
             && (merged.passives || []).includes(nodeId)));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
-        // Version 20 turns former path nodes into player-chosen attributes and
-        // relocates sockets/reward routes. Refund once rather than silently
-        // changing an existing build's stats or its connection path.
-        if (Number(merged.passiveLayoutVersion || 0) < 20) {
+        // Version 21 groups every sector into coherent build clusters, restores
+        // protected center-to-rim routes, and changes attribute choice timing.
+        // Refund once rather than silently moving an existing build's effects.
+        if (Number(merged.passiveLayoutVersion || 0) < 21) {
             const refundedForRadialLayout = (merged.passives || []).filter(id => id !== 'n0').length;
             merged.passivePoints = Math.max(0, Math.floor(Number(merged.passivePoints) || 0)) + refundedForRadialLayout;
             merged.autoRefundedPassivePoints = Math.max(0, Math.floor(Number(merged.autoRefundedPassivePoints) || 0)) + refundedForRadialLayout;

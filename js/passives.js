@@ -85,15 +85,18 @@ function getPassiveAttributeNodeStat(nodeOrId, targetGame) {
     if (!node || node.kind !== 'attribute') return node ? node.stat : null;
     const state = ensurePassiveAttributeChoiceState(targetGame);
     const saved = state && state.passiveAttributeChoices ? state.passiveAttributeChoices[String(node.id)] : null;
-    return normalizePassiveAttributeStat(saved || (state && state.passiveAttributePreference));
+    if (saved && PASSIVE_ATTRIBUTE_OPTIONS[saved]) return saved;
+    const isOwned = !!(state && Array.isArray(state.passives) && state.passives.includes(node.id));
+    return isOwned ? normalizePassiveAttributeStat(node.stat || (state && state.passiveAttributePreference)) : null;
 }
 
-function assignPassiveAttributeChoice(nodeId, targetGame) {
+function assignPassiveAttributeChoice(nodeId, targetGame, requestedStat) {
     const node = PASSIVE_TREE.nodes[nodeId];
     const state = ensurePassiveAttributeChoiceState(targetGame);
     if (!node || node.kind !== 'attribute' || !state) return null;
-    const stat = getPassiveAttributePreference(state);
+    const stat = normalizePassiveAttributeStat(requestedStat || getPassiveAttributePreference(state));
     state.passiveAttributeChoices[String(node.id)] = stat;
+    state.passiveAttributePreference = stat;
     return stat;
 }
 
@@ -123,7 +126,7 @@ function setPassiveAttributePreference(stat) {
 }
 
 function getPassiveNodeDisplayStat(node) {
-    return node && node.kind === 'attribute' ? getPassiveAttributeNodeStat(node) : (node && node.stat);
+    return node && node.kind === 'attribute' ? (getPassiveAttributeNodeStat(node) || node.stat) : (node && node.stat);
 }
 
 function getPassiveNodeDisplayName(node) {
@@ -142,6 +145,7 @@ function getPassiveEffectLabel(node) {
     }
     if (node.kind === 'attribute') {
         const stat = getPassiveAttributeNodeStat(node);
+        if (!stat) return `힘 / 민첩 / 지능 +${formatValue('strength', node.val)} 중 선택`;
         const option = PASSIVE_ATTRIBUTE_OPTIONS[stat];
         const isOwned = !!(game && Array.isArray(game.passives) && game.passives.includes(node.id));
         return `${option.name} +${formatValue(stat, node.val)} <span style="color:${option.color};">(${isOwned ? '선택됨' : '투자 시 적용'})</span>`;
@@ -168,7 +172,7 @@ function getPassiveKindLabel(node) {
     if (node.kind === 'hub') return node.socketType === 'star_wedge' ? '별쐐기 슬롯' : '별쐐기 슬롯 후보';
     if (node.tier >= 3 || node.kind === 'major') return '중심 노드';
     if (node.kind === 'gateway') return '전문 관문 노드';
-    if (node.kind === 'attribute') return '선택형 능력치 노드';
+    if (node.kind === 'attribute') return '능력치 노드';
     if (node.kind === 'path') return '경로 노드';
     return '보조 노드';
 }
@@ -555,18 +559,19 @@ function drawPassiveBranchUnderlay(ctx, edges, lightweightMode) {
         const depth = Math.max(0, Math.min(Number(a.depth) || 0, Number(b.depth) || 0));
         const crossBranch = Boolean(a.treeBranchRoot && b.treeBranchRoot && a.treeBranchRoot !== b.treeBranchRoot);
         const sameDepth = Number(a.depth) === Number(b.depth);
-        const structuralWeight = crossBranch ? 0.3 : (sameDepth ? 0.58 : 1);
+        const isBackbone = !!edge.backbone;
+        const structuralWeight = isBackbone ? 0.9 : (crossBranch ? 0.3 : (sameDepth ? 0.58 : 1));
         const width = Math.max(1.2, Math.max(2.1, 9.4 - depth * 0.42) * structuralWeight)
             * (hiddenBranch ? 0.62 : 1);
         drawPassiveLink(ctx, a, b, {
             stroke: hiddenBranch
                 ? 'rgba(19,17,16,0.22)'
-                : (crossBranch ? 'rgba(31,27,24,0.28)' : (sameDepth ? 'rgba(27,21,17,0.56)' : 'rgba(22,16,13,0.9)')),
+                : (isBackbone ? 'rgba(37,27,19,0.88)' : (crossBranch ? 'rgba(31,27,24,0.28)' : (sameDepth ? 'rgba(27,21,17,0.56)' : 'rgba(22,16,13,0.9)'))),
             innerStroke: hiddenBranch
                 ? 'rgba(91,68,46,0.09)'
-                : (crossBranch
+                : (isBackbone ? 'rgba(151,105,61,0.42)' : (crossBranch
                     ? 'rgba(117,87,58,0.08)'
-                    : (sameDepth ? 'rgba(110,76,49,0.2)' : (depth < 7 ? 'rgba(117,76,42,0.52)' : 'rgba(92,63,42,0.34)'))),
+                    : (sameDepth ? 'rgba(110,76,49,0.2)' : (depth < 7 ? 'rgba(117,76,42,0.52)' : 'rgba(92,63,42,0.34)')))),
             width: width,
             shadow: !lightweightMode && !hiddenBranch && !crossBranch && !sameDepth && depth < 5
                 ? 'rgba(213,151,72,0.12)'
@@ -741,7 +746,7 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
 
     if (node.kind === 'attribute' && !lightweightMode) {
         const stat = getPassiveAttributeNodeStat(node);
-        const option = PASSIVE_ATTRIBUTE_OPTIONS[stat];
+        const option = PASSIVE_ATTRIBUTE_OPTIONS[stat] || { glyph: '◇', color: '#afc1ce' };
         ctx.save();
         ctx.globalAlpha = revealAlpha * (active ? 1 : 0.82);
         ctx.font = `900 ${Math.max(7, radius * 0.95)}px sans-serif`;
@@ -1728,18 +1733,32 @@ function applySephirotQliphothReferenceLayout() {
     const sparks = takeReferenceLayoutNodes(pool, 36, node => node.kind === 'node' || node.kind === 'major');
     const clusters = pool.splice(0);
     const edgeKeys = new Set();
+    const edgeByKey = new Map();
     PASSIVE_TREE.edges.length = 0;
 
-    function connect(a, b) {
+    function connect(a, b, role) {
         if (!a || !b || a.id === b.id) return;
         const key = String(a.id) < String(b.id) ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
-        if (edgeKeys.has(key)) return;
+        if (edgeKeys.has(key)) {
+            const existing = edgeByKey.get(key);
+            if (existing && role) {
+                existing.structureRole = existing.structureRole || role;
+                existing.backbone = existing.backbone || role !== 'local';
+            }
+            return;
+        }
         edgeKeys.add(key);
-        PASSIVE_TREE.edges.push({ from: a.id, to: b.id });
+        const edge = { from: a.id, to: b.id };
+        if (role) {
+            edge.structureRole = role;
+            edge.backbone = role !== 'local';
+        }
+        PASSIVE_TREE.edges.push(edge);
+        edgeByKey.set(key, edge);
     }
-    function connectChain(nodes, cycle) {
-        for (let index = 1; index < nodes.length; index++) connect(nodes[index - 1], nodes[index]);
-        if (cycle && nodes.length > 2) connect(nodes[nodes.length - 1], nodes[0]);
+    function connectChain(nodes, cycle, role) {
+        for (let index = 1; index < nodes.length; index++) connect(nodes[index - 1], nodes[index], role);
+        if (cycle && nodes.length > 2) connect(nodes[nodes.length - 1], nodes[0], role);
     }
     function closestNode(node, candidates) {
         let closest = null;
@@ -1756,9 +1775,10 @@ function applySephirotQliphothReferenceLayout() {
     }
 
     setReferenceLayoutPosition(root, 0, 0, 'heikhal-origin', 0);
-    heikhal.forEach((node, index) => setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.heikhalRadius, index * 40, 'heikhal', index));
-    connectChain(heikhal, true);
-    [0, 1, 3, 4, 6, 7].forEach(index => connect(root, heikhal[index]));
+    const heikhalAngles = [0, 60, 90, 120, 180, 210, 240, 300, 330];
+    heikhal.forEach((node, index) => setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.heikhalRadius, heikhalAngles[index], 'heikhal', index));
+    connectChain(heikhal, true, 'inner-ring');
+    [0, 1, 3, 4, 6, 7].forEach(index => connect(root, heikhal[index], 'origin-spoke'));
 
     const interworldRings = [[], [], [], []];
     interworld.forEach((node, index) => {
@@ -1767,11 +1787,14 @@ function applySephirotQliphothReferenceLayout() {
         interworldRings[world].push(node);
         setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.worldRadii[world], slot * 12, 'interworld', index);
     });
-    interworldRings.forEach(nodes => connectChain(nodes, true));
+    interworldRings.forEach(nodes => connectChain(nodes, true, 'world-ring'));
     for (let world = 1; world < interworldRings.length; world++) {
-        for (let slot = 0; slot < 30; slot++) connect(interworldRings[world - 1][slot], interworldRings[world][slot]);
+        for (let slot = 0; slot < 30; slot++) connect(interworldRings[world - 1][slot], interworldRings[world][slot], 'world-spoke');
     }
-    for (let slot = 0; slot < 30; slot += 5) connect(heikhal[Math.floor(slot / 5)], interworldRings[0][slot]);
+    for (let slot = 0; slot < 30; slot += 5) {
+        const worldGate = interworldRings[0][slot];
+        connect(closestNode(worldGate, heikhal), worldGate, 'origin-spoke');
+    }
 
     const sectorGroups = Array.from({ length: 12 }, () => []);
     sectorPaths.forEach((node, index) => {
@@ -1783,8 +1806,8 @@ function applySephirotQliphothReferenceLayout() {
         setReferenceLayoutPolar(node, radius, angle, 'sector-path', index);
     });
     sectorGroups.forEach((nodes, sector) => {
-        connectChain(nodes, false);
-        connect(heikhal[Math.floor(sector * heikhal.length / 12)], nodes[0]);
+        connectChain(nodes, false, 'sector-spoke');
+        connect(heikhal[Math.floor(sector * heikhal.length / 12)], nodes[0], 'sector-spoke');
         [4, 9, 14, 19].forEach((slot, world) => connect(nodes[slot], closestNode(nodes[slot], interworldRings[world])));
         connect(nodes[nodes.length - 1], rim[Math.floor(sector * rim.length / 12)]);
     });
@@ -1798,8 +1821,8 @@ function applySephirotQliphothReferenceLayout() {
         setReferenceLayoutPolar(node, axisRadii[slot], spoke * 60, 'axis', index);
     });
     axisGroups.forEach((nodes, spoke) => {
-        connectChain(nodes, false);
-        connect(heikhal[Math.floor(spoke * heikhal.length / 6)], nodes[0]);
+        connectChain(nodes, false, 'axis-spoke');
+        connect(heikhal[Math.floor(spoke * heikhal.length / 6)], nodes[0], 'axis-spoke');
         [1, 3, 6, 8].forEach((slot, world) => connect(nodes[slot], closestNode(nodes[slot], interworldRings[world])));
     });
 
@@ -1809,12 +1832,17 @@ function applySephirotQliphothReferenceLayout() {
         const slot = index % 20;
         const x = -1520 + slot * 160;
         const yBase = [-1180, 0, 1180][band];
-        const y = yBase + Math.sin(slot / 19 * Math.PI) * (band === 1 ? 85 : 55) * (band === 0 ? 1 : -1);
+        let y = yBase + Math.sin(slot / 19 * Math.PI) * (band === 1 ? 85 : 55) * (band === 0 ? 1 : -1);
+        if (band === 1 && slot >= 8 && slot <= 11) {
+            // 중앙 시작 노드를 가로지르지 않고 양옆 가지가 위로 우회한다.
+            y = slot === 9 || slot === 10 ? -190 : -145;
+            node.centerBypass = true;
+        }
         motherGroups[band].push(node);
         setReferenceLayoutPosition(node, x, y, 'mother-path', index);
     });
     motherGroups.forEach(nodes => {
-        connectChain(nodes, false);
+        connectChain(nodes, false, 'mother-bridge');
         [0, 9, 19].forEach(slot => connect(nodes[slot], closestNode(nodes[slot], interworld)));
     });
 
@@ -1825,6 +1853,9 @@ function applySephirotQliphothReferenceLayout() {
     clustersByMajor.forEach((nodes, majorIndex) => {
         const anchor = majors[majorIndex];
         const spec = majorSpecs[majorIndex];
+        const buildClusterId = `major-${majorIndex}`;
+        anchor.buildClusterId = buildClusterId;
+        anchor.buildClusterRole = 'core';
         nodes.forEach((node, localIndex) => {
             const layer = localIndex < 6 ? 0 : (localIndex < 18 ? 1 : 2);
             const layerStart = layer === 0 ? 0 : (layer === 1 ? 6 : 18);
@@ -1834,6 +1865,9 @@ function applySephirotQliphothReferenceLayout() {
             const radians = localAngle * Math.PI / 180;
             setReferenceLayoutPosition(node, anchor.x + Math.cos(radians) * localRadius, anchor.y - Math.sin(radians) * localRadius, 'major-cluster', localIndex);
             node.referenceMajorAnchorId = anchor.id;
+            node.buildClusterId = buildClusterId;
+            node.buildClusterRole = 'support';
+            if (node.kind === 'path') node.kind = 'node';
         });
         connect(anchor, closestNode(anchor, interworld.concat(sectorPaths, axis)));
         nodes.forEach((node, localIndex) => {
@@ -1845,15 +1879,39 @@ function applySephirotQliphothReferenceLayout() {
     });
 
     rim.forEach((node, index) => setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.rimRadius, index * 5, 'rim', index));
-    connectChain(rim, true);
+    connectChain(rim, true, 'covenant-rim');
     sectorGroups.forEach((nodes, sector) => connect(nodes[nodes.length - 1], rim[sector * 6]));
     axisGroups.forEach((nodes, spoke) => connect(nodes[nodes.length - 1], rim[spoke * 12]));
 
+    const outerAngles = [120, 60, 0, 300, 240, 180];
+    const outerGroups = Array.from({ length: 6 }, () => []);
     sparks.forEach((node, index) => {
-        const angle = index < 18 ? 5 + index * 10 : 185 + (index - 18) * 10;
-        const radius = 2290 + (index % 3) * 65;
-        setReferenceLayoutPolar(node, radius, angle, 'nitzotz', index);
-        connect(node, closestNode(node, rim));
+        const clusterIndex = Math.floor(index / 6);
+        const slot = index % 6;
+        const centerAngle = outerAngles[clusterIndex];
+        const centerRadians = centerAngle * Math.PI / 180;
+        const centerX = Math.cos(centerRadians) * 2315;
+        const centerY = -Math.sin(centerRadians) * 2315;
+        if (slot === 0) {
+            setReferenceLayoutPosition(node, centerX, centerY, 'nitzotz', index);
+            node.outerClusterRole = 'core';
+        } else {
+            const localAngle = (centerAngle + 180 + (slot - 1) * 72) * Math.PI / 180;
+            setReferenceLayoutPosition(node, centerX + Math.cos(localAngle) * 112, centerY - Math.sin(localAngle) * 112, 'nitzotz', index);
+            node.outerClusterRole = 'support';
+        }
+        node.outerClusterId = `outer-${clusterIndex}`;
+        outerGroups[clusterIndex].push(node);
+    });
+    outerGroups.forEach(nodes => {
+        const core = nodes[0];
+        nodes.slice(1).forEach(node => connect(core, node, 'outer-cluster'));
+        connectChain(nodes.slice(1), true, 'outer-cluster');
+        connect(core, closestNode(core, rim), 'outer-bridge');
+        nodes.slice(1)
+            .sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y))
+            .slice(0, 2)
+            .forEach(node => connect(node, closestNode(node, rim), 'outer-bridge'));
     });
 
     serpent.forEach((node, index) => {
@@ -1952,7 +2010,15 @@ function applySephirotQliphothReferenceLayout() {
         distance: Math.hypot(PASSIVE_TREE.nodes[edge.from].x - PASSIVE_TREE.nodes[edge.to].x, PASSIVE_TREE.nodes[edge.from].y - PASSIVE_TREE.nodes[edge.to].y)
     })).sort((a, b) => a.distance - b.distance);
     const prunedEdges = [];
+    // 원점부터 외곽까지 읽히는 고리·줄기·교량은 최단 연결 트리가 순환선을
+    // 제거하더라도 반드시 남긴다. 이 선들이 패시브 트리의 시각적 뼈대다.
     weightedReferenceEdges.forEach(entry => {
+        if (!entry.edge.backbone) return;
+        prunedEdges.push(entry.edge);
+        joinRoots(entry.edge.from, entry.edge.to);
+    });
+    weightedReferenceEdges.forEach(entry => {
+        if (prunedEdges.includes(entry.edge)) return;
         if (joinRoots(entry.edge.from, entry.edge.to)) prunedEdges.push(entry.edge);
     });
     weightedReferenceEdges.forEach(entry => {
@@ -1981,7 +2047,12 @@ function applySephirotQliphothReferenceLayout() {
     PASSIVE_TREE.edges.length = 0;
     PASSIVE_TREE.edges.push(...prunedEdges);
     edgeKeys.clear();
-    prunedEdges.forEach(edge => edgeKeys.add(edge.from < edge.to ? `${edge.from}|${edge.to}` : `${edge.to}|${edge.from}`));
+    edgeByKey.clear();
+    prunedEdges.forEach(edge => {
+        const key = edge.from < edge.to ? `${edge.from}|${edge.to}` : `${edge.to}|${edge.from}`;
+        edgeKeys.add(key);
+        edgeByKey.set(key, edge);
+    });
 
     const localCandidates = [];
     allNodes.forEach(node => {
@@ -2004,9 +2075,17 @@ function applySephirotQliphothReferenceLayout() {
         degree.set(edge.to, (degree.get(edge.to) || 0) + 1);
     });
     const localEdgeBudget = Math.max(allNodes.length - 1, Math.round(allNodes.length * 1.16));
+    function segmentDistanceFromOrigin(a, b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const lengthSq = dx * dx + dy * dy || 1;
+        const t = Math.max(0, Math.min(1, -(a.x * dx + a.y * dy) / lengthSq));
+        return Math.hypot(a.x + dx * t, a.y + dy * t);
+    }
     for (let index = 0; index < localCandidates.length && PASSIVE_TREE.edges.length < localEdgeBudget; index++) {
         const candidate = localCandidates[index];
         if (candidate.distance > 285) continue;
+        if (candidate.a.id !== root.id && candidate.b.id !== root.id && segmentDistanceFromOrigin(candidate.a, candidate.b) < 135) continue;
         if (candidate.a.kind === 'void' && candidate.b.kind === 'void') continue;
         if (candidate.a.sector !== candidate.b.sector && !['hub', 'core'].includes(candidate.a.kind) && !['hub', 'core'].includes(candidate.b.kind)) continue;
         if ((degree.get(candidate.a.id) || 0) >= 4 || (degree.get(candidate.b.id) || 0) >= 4) continue;
@@ -2377,37 +2456,123 @@ function getPassiveTierValueForLayout(statKey, tier) {
     return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
 }
 
+function organizePassiveBuildClusters() {
+    const sectors = PASSIVE_RADIAL_SCHEMA.themeOrder || ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder'];
+    const nodes = Object.values(PASSIVE_TREE.nodes || {});
+    const edgeKeys = new Set(PASSIVE_TREE.edges.map(edge => edge.from < edge.to ? `${edge.from}|${edge.to}` : `${edge.to}|${edge.from}`));
+    function connect(a, b) {
+        if (!a || !b || a.id === b.id) return;
+        const key = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
+        if (edgeKeys.has(key)) return;
+        PASSIVE_TREE.edges.push({ from: a.id, to: b.id, structureRole: 'build-cluster' });
+        edgeKeys.add(key);
+    }
+    function clusterCandidates(sector, world) {
+        return nodes.filter(node => node && node.id !== 'n0' && node.sector === sector && Number(node.radialWorld) === world)
+            .filter(node => !node.buildClusterId && !node.outerClusterId && !node.specialtyGateway)
+            .filter(node => ['sector-path', 'interworld', 'axis', 'mother-path', 'rim'].includes(node.layoutGroup))
+            .filter(node => ['path', 'node'].includes(node.kind));
+    }
+
+    sectors.forEach((sector, sectorIndex) => {
+        for (let world = 0; world < PASSIVE_RADIAL_SCHEMA.worldRadii.length; world++) {
+            const targetRadius = PASSIVE_RADIAL_SCHEMA.worldRadii[world];
+            const available = clusterCandidates(sector, world)
+                .sort((a, b) => Math.abs(Math.hypot(a.x, a.y) - targetRadius) - Math.abs(Math.hypot(b.x, b.y) - targetRadius));
+            const core = available[0];
+            if (!core) continue;
+            const clusterId = `sector-${sector}-${world}`;
+            core.buildClusterId = clusterId;
+            core.buildClusterRole = 'core';
+            core.buildBlueprintIndex = world;
+            core.kind = 'major';
+            core.tier = world >= 3 ? 3 : 2;
+
+            const supports = available.slice(1)
+                .sort((a, b) => Math.hypot(a.x - core.x, a.y - core.y) - Math.hypot(b.x - core.x, b.y - core.y))
+                .filter(node => Math.hypot(node.x - core.x, node.y - core.y) <= 310)
+                .slice(0, 6);
+            supports.forEach(node => {
+                node.buildClusterId = clusterId;
+                node.buildClusterRole = 'support';
+                node.buildBlueprintIndex = world;
+                node.kind = 'node';
+                node.tier = Math.max(1, Math.min(2, Math.floor(node.tier || 1)));
+                connect(core, node);
+            });
+            supports
+                .slice()
+                .sort((a, b) => Math.atan2(a.y - core.y, a.x - core.x) - Math.atan2(b.y - core.y, b.x - core.x))
+                .forEach((node, index, list) => {
+                    if (index > 0) connect(list[index - 1], node);
+                });
+            core.buildSectorOrder = sectorIndex;
+        }
+    });
+}
+
+function relaxPassiveNodeSpacing(iterations, gap) {
+    const nodes = Object.values(PASSIVE_TREE.nodes || {});
+    const root = PASSIVE_TREE.nodes.n0;
+    for (let iteration = 0; iteration < Math.max(1, iterations || 1); iteration++) {
+        for (let left = 0; left < nodes.length; left++) {
+            for (let right = left + 1; right < nodes.length; right++) {
+                const a = nodes[left];
+                const b = nodes[right];
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const distance = Math.hypot(dx, dy) || 0.001;
+                const minimum = getPassiveNodeVisualRadius(a) + getPassiveNodeVisualRadius(b) + Math.max(0, gap || 0);
+                if (distance >= minimum) continue;
+                const push = minimum - distance;
+                const nx = dx / distance;
+                const ny = dy / distance;
+                if (root && a.id === root.id) {
+                    b.x += nx * push;
+                    b.y += ny * push;
+                } else if (root && b.id === root.id) {
+                    a.x -= nx * push;
+                    a.y -= ny * push;
+                } else {
+                    a.x -= nx * push * 0.5;
+                    a.y -= ny * push * 0.5;
+                    b.x += nx * push * 0.5;
+                    b.y += ny * push * 0.5;
+                }
+            }
+        }
+    }
+}
+
 function enforcePassiveRegionalStatClusters() {
-    const regionalPools = {
-        templar: ['energyShield', 'energyShieldPct', 'spellFlatPct', 'aoePctDmg', 'resAll', 'firePctDmg'],
-        witch: ['energyShield', 'energyShieldPct', 'coldPctDmg', 'lightPctDmg', 'chaosPctDmg', 'dotPctDmg', 'gemLevel'],
-        shadow: ['evasion', 'evasionPct', 'crit', 'critDmg', 'chaosPctDmg', 'poisonChance', 'leechRateCap'],
-        ranger: ['evasion', 'evasionPct', 'projectilePctDmg', 'projectileExtraShots', 'coldPctDmg', 'accuracy', 'move'],
-        duelist: ['armor', 'armorPct', 'meleePctDmg', 'physPctDmg', 'ds', 'aspd', 'leechInstanceCap'],
-        marauder: ['armor', 'armorPct', 'physPctDmg', 'slamPctDmg', 'pctHp', 'flatHp', 'regen', 'leechTotalCap']
-    };
-    const genericPool = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move', 'crit', 'regen'];
-    const counters = {};
+    const counters = new Map();
     const immutableKinds = new Set(['void', 'hub', 'apex', 'evolved', 'transcendent']);
     Object.values(PASSIVE_TREE.nodes || {})
         .filter(node => node && node.id !== 'n0' && !immutableKinds.has(node.kind) && !node.requiresEvolution)
         .sort((a, b) => (Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y)) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
         .forEach(node => {
-            const sector = regionalPools[node.sector] ? node.sector : 'templar';
-            const counter = counters[sector] || 0;
-            counters[sector] = counter + 1;
+            const sector = PASSIVE_SECTOR_BUILD_BLUEPRINTS[node.sector] ? node.sector : 'templar';
+            const blueprints = PASSIVE_SECTOR_BUILD_BLUEPRINTS[sector];
+            const blueprintIndex = Number.isFinite(node.buildBlueprintIndex)
+                ? node.buildBlueprintIndex
+                : Math.max(0, Math.min(blueprints.length - 1, Math.floor(Number(node.radialWorld) || 0)));
+            const blueprint = blueprints[blueprintIndex % blueprints.length];
+            const counterKey = node.buildClusterId || `${sector}-${blueprintIndex}-corridor`;
+            const counter = counters.get(counterKey) || 0;
+            counters.set(counterKey, counter + 1);
             const tier = Math.max(1, Math.floor(node.tier || 1));
-            const specialized = regionalPools[sector].filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(tier));
-            const generic = genericPool.filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(tier));
-            const pool = counter % 5 === 0 && generic.length ? generic : specialized;
+            const pool = blueprint.stats.filter(stat => P_STATS[stat] && (!(P_STATS[stat].tiers || []).length || P_STATS[stat].tiers.includes(tier)));
             if (!pool.length) return;
-            const stat = pool[(counter + tier) % pool.length];
+            const stat = pool[counter % pool.length];
             node.stat = stat;
             node.val = getPassiveTierValueForLayout(stat, tier);
             node.effectLabel = null;
             if (node.kind === 'major') {
-                node.title = `${PASSIVE_SECTOR_TITLES[sector] || '전문 구역'} · ${getStatName(stat)}`;
-                node.desc = '같은 계열의 효과를 집중 투자할 수 있도록 배치된 전문 패시브입니다.';
+                node.title = `${blueprint.title} · ${getStatName(stat)}`;
+                node.desc = `${PASSIVE_SECTOR_TITLES[sector] || '전문 구역'}의 ${blueprint.title} 빌드를 완성하는 핵심 패시브입니다.`;
+            } else if (node.buildClusterId) {
+                node.title = `${blueprint.title} 보조 노드`;
+                node.desc = `같은 ${blueprint.title} 핵심 노드와 묶여 있는 전문 보조 패시브입니다.`;
             }
         });
 }
@@ -2532,41 +2697,37 @@ function convertPassivePathNodesToAttributes() {
         node.stat = 'strength';
         node.val = valueByWorld[world];
         node.effectLabel = null;
-        node.title = node.outerAttributeNode ? '경계의 능력치 선택' : '능력치 선택';
+        node.title = node.outerAttributeNode ? '경계 능력치 노드' : '능력치 노드';
         node.desc = node.outerAttributeNode
-            ? '최외곽 빌드로 이어지는 강화 능력치 노드입니다. 투자할 때 선택한 힘·민첩·지능이 이 노드에 저장됩니다.'
-            : '투자할 때 선택한 힘·민첩·지능이 이 노드에 저장됩니다. 다른 가지를 투자하기 전에 선택을 바꿀 수 있습니다.';
+            ? '최외곽 빌드로 이어지는 강화 능력치 노드입니다. 투자하는 순간 힘·민첩·지능 중 하나를 선택합니다.'
+            : '투자하는 순간 힘·민첩·지능 중 하나를 선택하며, 선택한 능력치는 이 노드에 저장됩니다.';
     });
 }
 
 function strengthenPassiveOuterRewards() {
-    const outerPools = {
-        templar: ['energyShieldPct', 'spellFlatPct', 'resAll', 'firePctDmg'],
-        witch: ['energyShieldPct', 'coldPctDmg', 'lightPctDmg', 'gemLevel'],
-        shadow: ['evasionPct', 'critDmg', 'chaosPctDmg', 'poisonChance'],
-        ranger: ['evasionPct', 'projectilePctDmg', 'projectileExtraShots', 'accuracy'],
-        duelist: ['armorPct', 'meleePctDmg', 'physPctDmg', 'leechInstanceCap'],
-        marauder: ['armorPct', 'slamPctDmg', 'pctHp', 'leechTotalCap']
-    };
-    const counters = {};
+    const counters = new Map();
     Object.values(PASSIVE_TREE.nodes || {})
         .filter(node => node && node.layoutGroup === 'nitzotz')
         .sort((a, b) => (a.layoutGroupIndex || 0) - (b.layoutGroupIndex || 0))
         .forEach(node => {
-            const pool = (outerPools[node.sector] || outerPools.templar)
-                .filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(2));
+            const blueprints = PASSIVE_SECTOR_BUILD_BLUEPRINTS[node.sector] || PASSIVE_SECTOR_BUILD_BLUEPRINTS.templar;
+            const blueprint = blueprints[blueprints.length - 1];
+            const tier = node.outerClusterRole === 'core' ? 3 : 2;
+            const pool = blueprint.stats.filter(stat => P_STATS[stat] && (!(P_STATS[stat].tiers || []).length || P_STATS[stat].tiers.includes(tier)));
             if (!pool.length) return;
-            const counter = counters[node.sector] || 0;
-            counters[node.sector] = counter + 1;
+            const counter = counters.get(node.outerClusterId) || 0;
+            counters.set(node.outerClusterId, counter + 1);
             const stat = pool[counter % pool.length];
-            node.kind = 'major';
-            node.tier = 2;
+            node.kind = node.outerClusterRole === 'core' ? 'major' : 'node';
+            node.tier = tier;
             node.stat = stat;
-            node.val = getPassiveTierValueForLayout(stat, 2);
+            node.val = getPassiveTierValueForLayout(stat, tier);
             node.outerReward = true;
             node.effectLabel = null;
-            node.title = `${PASSIVE_SECTOR_TITLES[node.sector] || '전문 구역'} · 경계 보상`;
-            node.desc = '외곽까지 투자한 빌드가 분명한 보상을 얻도록 강화된 종착 패시브입니다.';
+            node.title = node.outerClusterRole === 'core' ? `${blueprint.title} · 외곽 핵심` : `${blueprint.title} · 외곽 보조`;
+            node.desc = node.outerClusterRole === 'core'
+                ? '외곽 군집의 중심입니다. 여러 보조 노드에 투자한 빌드가 강한 종착 보상을 얻습니다.'
+                : '외곽 핵심 노드를 둘러싼 전문 보조 패시브입니다.';
         });
 }
 
@@ -2600,6 +2761,7 @@ function bootstrapPassiveTreeOnceReady() {
     generateOrganicTree();
     assignStarWedgeSockets();
     applySephirotQliphothReferenceLayout();
+    organizePassiveBuildClusters();
     enforcePassiveRegionalStatClusters();
     applyPassiveSpecializations();
     anchorPassiveKeystonesInsideSpecialtyClusters();
@@ -2607,6 +2769,7 @@ function bootstrapPassiveTreeOnceReady() {
     rebalancePassiveStartingStats();
     convertPassivePathNodesToAttributes();
     strengthenPassiveOuterRewards();
+    relaxPassiveNodeSpacing(5, 10);
     polishPassiveLayout();
     return true;
 }
@@ -4078,7 +4241,7 @@ function activatePassivePath(targetNodeId, options) {
     }
     path.forEach(nodeId => {
         if (!(game.passives || []).includes(nodeId)) {
-            assignPassiveAttributeChoice(nodeId);
+            assignPassiveAttributeChoice(nodeId, null, options && options.attributeStat);
             game.passives.push(nodeId);
         }
         revealAroundNode(nodeId, { forcePulse: !options || options.forcePulseNodeId === nodeId });
@@ -6104,6 +6267,18 @@ function initBattleAssets() {
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
         enemies3: 'assets/battle-enemies-v3.png',
+        woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png',
+        woodEnemySpider: 'assets/enemies/wood/root-spider.png',
+        woodEnemyLeeches: 'assets/enemies/wood/sap-leeches.png',
+        woodEnemyPuppet0: 'assets/enemies/wood/wood-puppet/frame_000.png',
+        woodEnemyPuppet1: 'assets/enemies/wood/wood-puppet/frame_001.png',
+        woodEnemyPuppet2: 'assets/enemies/wood/wood-puppet/frame_002.png',
+        woodEnemyPuppet3: 'assets/enemies/wood/wood-puppet/frame_003.png',
+        woodEnemyPuppet4: 'assets/enemies/wood/wood-puppet/frame_004.png',
+        woodEnemyPuppet5: 'assets/enemies/wood/wood-puppet/frame_005.png',
+        woodEnemyPuppet6: 'assets/enemies/wood/wood-puppet/frame_006.png',
+        woodEnemyPuppet7: 'assets/enemies/wood/wood-puppet/frame_007.png',
+        woodEnemyPuppet8: 'assets/enemies/wood/wood-puppet/frame_008.png',
         effects: 'assets/battle-effects-v1.png',
         effectsV2: 'assets/battle-effects-v2.png',
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
@@ -6170,7 +6345,7 @@ function initBattleAssets() {
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
     const selectedHeroKeys = new Set(Object.values((HERO_SELECTION_DEFS[selectedHeroId] || HERO_SELECTION_DEFS.hero1 || {}).strips || {}));
-    const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', ...selectedHeroKeys]);
+    const criticalManifestKeys = new Set(['enemies', 'woodEnemySlimes', 'woodEnemySpider', 'woodEnemyLeeches', 'woodEnemyPuppet0', 'effects', 'summon1', ...selectedHeroKeys]);
     const manifestGroupsBySrc = new Map();
     Object.entries(manifest).forEach(([key, src]) => {
         if (!manifestGroupsBySrc.has(src)) manifestGroupsBySrc.set(src, { src: src, keys: [], priority: 3 });
@@ -6244,7 +6419,7 @@ function initBattleAssets() {
             if (key.startsWith('backdrop') || key.startsWith('bgAct') || key.startsWith('bgChaos')) {
                 battleAssets.backdrops[key] = image;
             } else {
-                let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
+                let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
                 battleAssets.images[key] = image;
                 if (!keepOriginalSheet) queueBattleSheetSanitization(key, image);
             }
@@ -7543,6 +7718,81 @@ function buildBattleAssetAtlas() {
     }
     const enemySpriteImage = buildEnemyTransparentImage(battleAssets.images.enemies);
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(enemySpriteImage, part, key === 'boss' ? 5 : 3)]));
+    function woodCellFrame(cellX, cellY, cellSize) {
+        return {
+            x: cellX * cellSize,
+            y: cellY * cellSize,
+            width: cellSize,
+            height: cellSize,
+            anchorX: cellSize * 0.5,
+            anchorY: cellSize,
+            basisHeight: cellSize
+        };
+    }
+    function buildNineFrameWoodSpecies(image, family, label, localCells) {
+        if (!image) return [];
+        return (localCells || []).map((cell, speciesIndex) => {
+            const frames = Array.from({ length: 9 }, (_, frameIndex) => ({
+                image,
+                frame: woodCellFrame((frameIndex % 3) * 4 + cell[0], Math.floor(frameIndex / 3) * 4 + cell[1], 64)
+            }));
+            return {
+                id: `${family}-${speciesIndex}`,
+                family,
+                skinId: family,
+                label,
+                image,
+                frame: frames[0].frame,
+                frames
+            };
+        });
+    }
+    function buildDirectionalWoodSpecies(image) {
+        if (!image) return [];
+        const directionBlocks = [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2]];
+        return directionBlocks.map((block, directionIndex) => {
+            const frames = Array.from({ length: 16 }, (_, frameIndex) => ({
+                image,
+                frame: woodCellFrame(block[0] * 4 + (frameIndex % 4), block[1] * 4 + Math.floor(frameIndex / 4), 64)
+            }));
+            return {
+                id: `rootSpider-${directionIndex}`,
+                family: 'rootSpider',
+                skinId: 'rootSpider',
+                label: '뿌리 거미',
+                image,
+                frame: frames[0].frame,
+                frames
+            };
+        });
+    }
+    function buildWoodPuppetSpecies() {
+        const images = Array.from({ length: 9 }, (_, index) => battleAssets.images[`woodEnemyPuppet${index}`]).filter(Boolean);
+        if (images.length !== 9) return [];
+        return Array.from({ length: 4 }, (_, variantIndex) => {
+            const cellX = variantIndex % 2;
+            const cellY = Math.floor(variantIndex / 2);
+            const frames = images.map(image => ({ image, frame: woodCellFrame(cellX, cellY, 128) }));
+            return {
+                id: `woodPuppet-${variantIndex}`,
+                family: 'woodPuppet',
+                skinId: 'woodPuppet',
+                label: '목각 인형',
+                image: frames[0].image,
+                frame: frames[0].frame,
+                frames
+            };
+        });
+    }
+    const woodEnemyVariants = []
+        .concat(buildNineFrameWoodSpecies(battleAssets.images.woodEnemySlimes, 'woodSlime', '수액 응집체', [
+            [0, 0], [1, 0], [2, 0], [3, 0], [0, 1], [3, 1], [0, 2], [1, 2], [2, 2], [3, 2], [0, 3], [2, 3]
+        ]))
+        .concat(buildDirectionalWoodSpecies(battleAssets.images.woodEnemySpider))
+        .concat(buildNineFrameWoodSpecies(battleAssets.images.woodEnemyLeeches, 'sapLeech', '수액 흡충', [
+            [0, 0], [2, 0], [3, 0], [0, 1], [2, 1], [3, 1], [0, 2], [1, 2], [2, 2], [3, 2], [0, 3], [1, 3], [2, 3], [3, 3]
+        ]))
+        .concat(buildWoodPuppetSpecies());
     function buildDetectedEnemyPools(image) {
         let pools = { normal: [], elite: [], boss: [] };
         if (!image) return pools;
@@ -7569,18 +7819,16 @@ function buildBattleAssetAtlas() {
         return base;
     }
     let enemyVariantPools = {
-        normal: [
+        // 일반과 정예는 같은 목재 생물군을 사용하고, 정예 여부는 렌더 외곽선과 크기로 구분한다.
+        normal: woodEnemyVariants.length ? woodEnemyVariants.slice() : [
             { image: enemySpriteImage, frame: enemyFrames.slime },
             { image: enemySpriteImage, frame: enemyFrames.bandit },
             { image: enemySpriteImage, frame: enemyFrames.shadow },
             { image: enemySpriteImage, frame: enemyFrames.wraith }
         ].filter(entry => hasUsableFrame(entry.frame)),
-        elite: [
+        elite: woodEnemyVariants.length ? woodEnemyVariants.slice() : [
             { image: enemySpriteImage, frame: enemyFrames.knight },
-            { image: enemySpriteImage, frame: enemyFrames.skeleton },
-            { image: enemySpriteImage, frame: enemyFrames.shadow },
-            { image: enemySpriteImage, frame: enemyFrames.wraith },
-            { image: enemySpriteImage, frame: enemyFrames.bandit }
+            { image: enemySpriteImage, frame: enemyFrames.skeleton }
         ].filter(entry => hasUsableFrame(entry.frame)),
         boss: [
             { image: enemySpriteImage, frame: enemyFrames.boss },
@@ -7608,6 +7856,7 @@ function buildBattleAssetAtlas() {
             image: enemySpriteImage,
             variants: enemyVariantPools,
             bossImages: bossImages,
+            skinVariants: Object.fromEntries(['woodSlime', 'rootSpider', 'sapLeech', 'woodPuppet'].map(family => [family, woodEnemyVariants.find(entry => entry.family === family)]).filter(entry => entry[1])),
             frames: {
                 slime: enemyFrames.slime,
                 wraith: enemyFrames.wraith,

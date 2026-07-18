@@ -137,6 +137,12 @@ for (let index = 0; index < 18; index++) {
   assert.ok(fs.existsSync(`assets/background/chaos/endgame-${index}.png`), `chaos backdrop ${index} should exist`);
 }
 assert.ok(fs.existsSync('assets/background/chaos/loop-final.png'), 'chaos loop-final backdrop should exist');
+[
+  'wood-slimes.png', 'root-spider.png', 'sap-leeches.png'
+].forEach(file => assert.ok(fs.existsSync(`assets/enemies/wood/${file}`), `wood monster sheet ${file} should exist`));
+for (let index = 0; index < 9; index++) {
+  assert.ok(fs.existsSync(`assets/enemies/wood/wood-puppet/frame_${String(index).padStart(3, '0')}.png`), `wood puppet frame ${index} should exist`);
+}
 assert.ok(fs.readFileSync('index.html', 'utf8').includes('id="chk-camera-shake"'), 'settings should expose the camera shake checkbox');
 assert.ok(fs.existsSync('assets/ui/passive-node-major-v1.png'), 'generated major passive frame should exist');
 assert.ok(fs.existsSync('assets/ui/passive-node-void-v1.png'), 'generated void socket frame should exist');
@@ -172,6 +178,10 @@ skillGemArtCoverage.paths.forEach(file => assert.ok(fs.existsSync(file), `skill 
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png'"), 'battle asset loader should preload skill VFX images');
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
+assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
+assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wood monster sheets should bypass legacy backdrop sanitization');
+assert.ok(passiveSource.includes('normal: woodEnemyVariants.length ? woodEnemyVariants.slice()'), 'normal monster variants should use the supplied wood roster');
+assert.ok(passiveSource.includes('boss: ['), 'boss variants should retain the dedicated legacy and act-boss pool');
 assert.ok(passiveSource.includes("const frameKey = getPassiveNodeFrameKey(node)"), 'passive nodes should select their dedicated frame assets');
 assert.ok(!passiveSource.includes('if (!lightweightMode && useMajorFrame'), 'drag optimization should not hide passive frame images');
 const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
@@ -188,6 +198,9 @@ assert.ok(!indexSource.includes('id="tutorial-progress-fill"'), 'tutorial notice
 assert.ok(!indexSource.includes('id="tutorial-visual"'), 'tutorial notice should keep the actual game screen visible');
 assert.ok(!passiveSource.includes('activeTutorial.steps = getTutorialGuide(activeTutorial)'), 'tutorial notices should not expand into illustrated multi-step lessons');
 assert.ok(windowCss.includes('#tutorial-overlay.active'), 'tutorial notice should use a compact live-screen presentation');
+const enemyUiSource = fs.readFileSync('js/ui.js', 'utf8');
+assert.ok(enemyUiSource.includes("outlineColor: enemy.isBoss ? '#a84e49' : (enemy.isElite ? '#e2b94f' : null)"), 'elite and boss monsters should have restrained yellow and red outlines');
+assert.ok(enemyUiSource.includes('let animationFrames = Array.isArray(variantEntry.frames)'), 'wood monster variants should animate instead of rendering a whole sheet or a frozen cell');
 const battlefieldSource = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
 assert.ok(battlefieldSource.includes('playerPos.y - 82'), 'the player overhead health bar should clear tall character sprites and head ornaments');
 assert.ok(battlefieldSource.includes('enemy.isBoss ? 78 : 56'), 'enemy overhead health bars should clear normal and boss sprites');
