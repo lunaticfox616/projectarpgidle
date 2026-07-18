@@ -60,6 +60,16 @@
         return state;
     }
 
+    function closePersistedSurfacesForBoot() {
+        Object.keys(layoutState.windows).forEach(tabId => {
+            let stored = layoutState.windows[tabId];
+            if (!stored || typeof stored !== 'object') return;
+            layoutState.windows[tabId] = { ...stored, open: false, minimized: false };
+        });
+        layoutState.community.open = false;
+        saveLayoutState();
+    }
+
     function saveLayoutState() {
         try {
             if (window.localStorage) window.localStorage.setItem(UI_LAYOUT_STORAGE_KEY, JSON.stringify(layoutState));
@@ -888,6 +898,7 @@
         if (initialized) return;
         initialized = true;
         layoutState = normalizeLayoutState(readStoredLayout());
+        closePersistedSurfacesForBoot();
         patchSwitchTab();
         patchCombatLogToggle();
         applyResponsiveMode();

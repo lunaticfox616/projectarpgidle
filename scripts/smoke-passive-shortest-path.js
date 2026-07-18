@@ -242,8 +242,11 @@ const activatedAttributeIds = path.filter(id => context.PASSIVE_TREE.nodes[id].k
 assert.ok(activatedAttributeIds.every(id => context.game.passiveAttributeChoices[id] === 'dexterity'), 'shortest-path activation should save the selected attribute on every new attribute node');
 
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const componentCss = fs.readFileSync('css/components.css', 'utf8');
 assert.ok(uiSource.includes('loop-passive-orbit'), 'loop passive UI should render the new circular ouroboros layout');
-assert.ok(uiSource.includes('assets/ui/loop-passive-ouroboros-v3.png'), 'loop passive UI should use its dedicated generated ouroboros artwork');
+assert.ok(uiSource.includes('loop-ouroboros-silhouette'), 'loop passive UI should render the ouroboros as a quiet silhouette layer');
+assert.ok(componentCss.includes("url('../assets/ui/loop-passive-ouroboros-v3.png')"), 'the ouroboros silhouette should use the dedicated generated artwork as an alpha mask');
+assert.ok(componentCss.includes('--loop-node-size: 46px'), 'desktop loop passive nodes should use the reduced readable size');
 assert.ok(uiSource.includes('class="loop-passive-node'), 'loop passives should render as circular nodes instead of text buttons');
 assert.ok(!uiSource.includes('class="ouro-node'), 'the previous button-shaped loop passive renderer should be removed');
 assert.ok(!uiSource.includes('모두 활성화하면 마법진이 생성됩니다'), 'the removed magic-circle instruction should not remain in the UI');

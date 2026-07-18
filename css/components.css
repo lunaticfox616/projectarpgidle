@@ -1123,7 +1123,7 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 
 /* Loop passive tree: circular nodes on a dedicated ouroboros backing asset. */
 .loop-passive-orbit {
-    --loop-node-size: 58px;
+    --loop-node-size: 46px;
     position: relative;
     width: min(840px, calc(100% - 34px));
     aspect-ratio: 1;
@@ -1142,19 +1142,22 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     box-shadow: inset 0 0 80px rgba(0, 0, 0, .38), 0 0 52px rgba(29, 68, 65, .12);
     pointer-events: none;
 }
-.loop-ouroboros-art {
+.loop-ouroboros-silhouette {
     position: absolute;
     z-index: 1;
     inset: 1.2%;
-    width: 97.6%;
-    height: 97.6%;
-    object-fit: contain;
-    opacity: .96;
-    filter: drop-shadow(0 13px 12px rgba(0, 0, 0, .58)) drop-shadow(0 0 11px rgba(69, 124, 111, .15));
+    display: block;
+    background: linear-gradient(135deg, rgba(235, 232, 219, .25), rgba(211, 181, 116, .16));
+    -webkit-mask: url('../assets/ui/loop-passive-ouroboros-v3.png') center / contain no-repeat;
+    mask: url('../assets/ui/loop-passive-ouroboros-v3.png') center / contain no-repeat;
+    filter: drop-shadow(0 9px 10px rgba(0, 0, 0, .42));
     pointer-events: none;
     user-select: none;
 }
-.loop-passive-orbit.complete .loop-ouroboros-art { filter: brightness(1.06) drop-shadow(0 13px 12px rgba(0, 0, 0, .58)) drop-shadow(0 0 17px rgba(209, 169, 82, .22)); }
+.loop-passive-orbit.complete .loop-ouroboros-silhouette {
+    background: linear-gradient(135deg, rgba(249, 241, 214, .34), rgba(225, 183, 92, .24));
+    filter: drop-shadow(0 9px 10px rgba(0, 0, 0, .42)) drop-shadow(0 0 12px rgba(209, 169, 82, .16));
+}
 .loop-passive-node {
     position: absolute;
     z-index: 5;
@@ -1212,17 +1215,17 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     box-shadow: 0 0 0 3px rgba(3, 6, 7, .95), inset 0 0 0 2px rgba(139, 157, 151, .08), inset 0 -8px 13px rgba(0, 0, 0, .5), 0 3px 9px rgba(0, 0, 0, .68);
     filter: grayscale(.62) brightness(.82);
 }
-.loop-passive-node.origin-node { --loop-node-size: 64px; z-index: 8; }
+.loop-passive-node.origin-node { --loop-node-size: 52px; z-index: 8; }
 .loop-passive-node.origin-node .loop-node-core { border-width: 3px; }
-.loop-passive-node.inner-node { --loop-node-size: 62px; z-index: 8; }
+.loop-passive-node.inner-node { --loop-node-size: 50px; z-index: 8; }
 .loop-passive-node.inner-node .loop-node-core { border-color: #a887c7; background: radial-gradient(circle at 36% 28%, #49335b, #21172c 48%, #0d0a12 78%); box-shadow: 0 0 0 3px rgba(13, 8, 17, .94), inset 0 0 0 2px rgba(216, 172, 246, .12), 0 0 19px rgba(157, 104, 201, .38); }
-.loop-node-glyph { font-family: Georgia, 'Times New Roman', serif; font-size: 1.28rem; font-weight: 800; line-height: 1; text-shadow: 0 2px 3px rgba(0, 0, 0, .8); }
+.loop-node-glyph { font-family: Georgia, 'Times New Roman', serif; font-size: 1rem; font-weight: 800; line-height: 1; text-shadow: 0 2px 3px rgba(0, 0, 0, .8); }
 .loop-node-rank {
     position: absolute;
     right: -5px;
     bottom: -3px;
-    min-width: 20px;
-    height: 20px;
+    min-width: 18px;
+    height: 18px;
     display: grid;
     place-items: center;
     padding: 0 4px;
@@ -1289,19 +1292,19 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 .loop-magic-core { position: absolute; inset: 42%; border: 1px solid rgba(244, 207, 255, .74); border-radius: 50%; box-shadow: 0 0 20px rgba(211, 154, 239, .5); }
 @keyframes loopMagicCirclePulse { 50% { filter: brightness(1.2); transform: translate(-50%, -50%) rotate(.65deg); } }
 @media (max-width: 720px) {
-    .loop-passive-orbit { --loop-node-size: 34px; width: calc(100% - 8px); margin: 18px auto 16px; }
-    .loop-passive-node.origin-node { --loop-node-size: 38px; }
-    .loop-passive-node.inner-node { --loop-node-size: 38px; }
+    .loop-passive-orbit { --loop-node-size: 28px; width: calc(100% - 8px); margin: 18px auto 16px; }
+    .loop-passive-node.origin-node { --loop-node-size: 32px; }
+    .loop-passive-node.inner-node { --loop-node-size: 32px; }
     .loop-node-core { border-width: 1px; box-shadow: 0 0 0 2px rgba(5, 8, 9, .94), 0 2px 5px rgba(0, 0, 0, .5); }
     .loop-node-core::before { inset: 4px; }
-    .loop-node-glyph { font-size: .82rem; }
-    .loop-node-rank { right: -4px; bottom: -4px; min-width: 15px; height: 15px; padding: 0 2px; font-size: .43rem; }
+    .loop-node-glyph { font-size: .7rem; }
+    .loop-node-rank { right: -4px; bottom: -4px; min-width: 13px; height: 13px; padding: 0 2px; font-size: .4rem; }
     .loop-node-tooltip { width: 182px; padding: 8px 9px; }
 }
 @media (max-width: 420px) {
-    .loop-passive-orbit { --loop-node-size: 30px; }
-    .loop-passive-node.origin-node, .loop-passive-node.inner-node { --loop-node-size: 34px; }
-    .loop-node-glyph { font-size: .72rem; }
+    .loop-passive-orbit { --loop-node-size: 26px; }
+    .loop-passive-node.origin-node, .loop-passive-node.inner-node { --loop-node-size: 30px; }
+    .loop-node-glyph { font-size: .65rem; }
 }
 
 .trait-progress-summary {

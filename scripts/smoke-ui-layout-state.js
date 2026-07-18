@@ -117,4 +117,19 @@ function bootManager(storedRaw, options = {}) {
     assert.strictEqual(state.goals.pinned, false);
 }
 
+// 7) 게임을 다시 열면 위치/크기는 유지하되 열린 창과 채팅 도크는 모두 닫힌다.
+{
+    const m = bootManager(JSON.stringify({
+        version: 1,
+        windows: { 'tab-items': { open: true, minimized: true, x: 410, y: 90, width: 880, height: 620 } },
+        community: { open: true, width: 420 }
+    }));
+    const bootState = m.lastSaved();
+    assert.strictEqual(bootState.windows['tab-items'].open, false, 'saved windows should start closed');
+    assert.strictEqual(bootState.windows['tab-items'].minimized, false, 'saved minimized windows should also start closed');
+    assert.strictEqual(bootState.windows['tab-items'].x, 410, 'window position should remain available for the next manual open');
+    assert.strictEqual(bootState.windows['tab-items'].width, 880, 'window size should remain available for the next manual open');
+    assert.strictEqual(bootState.community.open, false, 'chat dock should not reopen automatically');
+}
+
 console.log('smoke-ui-layout-state passed');
