@@ -46,6 +46,73 @@ vm.createContext(context);
 files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
 vm.runInContext('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;', context);
 
+const radialSummary = vm.runInContext(`(() => {
+  const nodes = Object.values(PASSIVE_TREE.nodes);
+  const axisSpokes = new Set(nodes.filter(node => node.radialRole === 'axis').map(node => node.webSpoke));
+  const pillarSpokes = new Set(nodes.filter(node => node.radialRole === 'pillar').map(node => node.webSpoke));
+  const worlds = nodes.reduce((counts, node) => {
+    if (Number.isFinite(node.radialWorld)) counts[node.radialWorld] = (counts[node.radialWorld] || 0) + 1;
+    return counts;
+  }, {});
+  const groups = nodes.reduce((counts, node) => {
+    counts[node.layoutGroup || 'legacy'] = (counts[node.layoutGroup || 'legacy'] || 0) + 1;
+    return counts;
+  }, {});
+  let minimumDistance = Number.POSITIVE_INFINITY;
+  let closestPair = null;
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const distance = Math.hypot(nodes[i].x - nodes[j].x, nodes[i].y - nodes[j].y);
+      if (distance < minimumDistance) {
+        minimumDistance = distance;
+        closestPair = [nodes[i].id, nodes[j].id, nodes[i].layoutGroup, nodes[j].layoutGroup];
+      }
+    }
+  }
+  return {
+    nodeCount: nodes.length,
+    edgeCount: PASSIVE_TREE.edges.length,
+    axisCount: axisSpokes.size,
+    pillarCount: pillarSpokes.size,
+    worlds,
+    groups,
+    minimumDistance,
+    closestPair,
+  };
+})()`, context);
+assert.strictEqual(context.PASSIVE_RADIAL_SCHEMA.sectorCount, 12, 'passive layout should use twelve 30-degree sectors');
+assert.strictEqual(context.PASSIVE_RADIAL_SCHEMA.axisCount, 6, 'passive layout should retain six primary axes');
+assert.strictEqual(context.PASSIVE_LAYOUT_VERSION, 18, 'reference topology should use a new save-layout version');
+assert.strictEqual(context.PASSIVE_FULL_DISCOVERY, true, 'radial layout play-test should begin with the full available tree explored');
+assert.deepStrictEqual(Array.from(context.PASSIVE_RADIAL_SCHEMA.worldDepths), [3, 6, 9, 12], 'passive layout should expose four concentric worlds');
+assert.strictEqual(radialSummary.nodeCount, 1101, 'radial adaptation should preserve the live passive node count');
+assert.strictEqual(radialSummary.edgeCount, 2172, 'reference topology should retain the supplied graph density');
+assert.strictEqual(radialSummary.groups.heikhal, 9, 'the central heikhal should contain nine surrounding gates');
+assert.strictEqual(radialSummary.groups['major-anchor'], 22, 'the light and dark trees should expose twenty-two major anchors');
+assert.strictEqual(radialSummary.groups.interworld, 120, 'four worlds should be joined by 120 interworld nodes');
+assert.strictEqual(radialSummary.groups['sector-path'], 288, 'twelve sectors should contain 288 boundary path nodes');
+assert.strictEqual(radialSummary.groups.axis, 60, 'six inversion axes should contain sixty nodes');
+assert.strictEqual(radialSummary.groups['mother-path'], 60, 'three mother-letter bridges should contain sixty nodes');
+assert.strictEqual(radialSummary.groups.rim, 72, 'the outer rim should contain seventy-two nodes');
+assert.strictEqual(radialSummary.groups.nitzotz, 36, 'the outer light and dark sparks should contain thirty-six nodes');
+assert.strictEqual(radialSummary.groups.serpent, 12, 'the winding serpent path should contain twelve nodes');
+assert.ok([0, 1, 2, 3].every(world => (radialSummary.worlds[world] || 0) >= 100), 'all four concentric worlds should contain meaningful node populations');
+assert.ok(radialSummary.minimumDistance >= 16, `reference layout nodes should retain readable separation (actual ${radialSummary.minimumDistance}, pair ${radialSummary.closestPair})`);
+const passiveCanvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
+assert.ok(passiveCanvasSource.includes('drawPassiveRadialFramework(ctx, lightweightMode, zoomedOutMode)'), 'canvas should render the four rings and twelve-sector framework');
+
+context.game.discoveredPassives = [];
+context.refreshPassiveVisibility();
+const discoverySummary = vm.runInContext(`({
+  available: Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node)).length,
+  discovered: discoveredPassiveNodes.size,
+  saved: game.discoveredPassives.length,
+  hiddenAvailable: Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node) && getPassiveVisibility(node.id) === 'hidden').length,
+})`, context);
+assert.strictEqual(discoverySummary.discovered, discoverySummary.available, 'every available passive should be explored on first refresh');
+assert.strictEqual(discoverySummary.saved, discoverySummary.available, 'full exploration should persist in the save state');
+assert.strictEqual(discoverySummary.hiddenAvailable, 0, 'no available passive should remain hidden during layout testing');
+
 const targetId = vm.runInContext(`
 (function findTarget() {
   const q = [{ id: 'n0', depth: 0 }];
@@ -84,6 +151,8 @@ assert.strictEqual(context.game.passivePoints, 0, 'activation should spend one p
 assert.deepStrictEqual(Array.from(context.game.passives.slice(1)), Array.from(path), 'activation should add exactly the shortest path in order');
 
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+assert.ok(uiSource.includes("const refundedForRadialLayout = (merged.passives || []).filter(id => id !== 'n0').length"), 'old passive allocations should be counted for a one-time radial-layout refund');
+assert.ok(uiSource.includes("merged.passives = ['n0']"), 'old layouts should reset to the root instead of remapping ids to unrelated effects');
 const activationHandler = uiSource.slice(uiSource.indexOf('async function activateHoveredPassive'), uiSource.indexOf("canvas.addEventListener('mousedown'", uiSource.indexOf('async function activateHoveredPassive')));
 assert.ok(activationHandler.includes('const targetNodeId = targetNode.id;'), 'passive UI should snapshot the target before awaiting confirmation');
 assert.ok(activationHandler.includes('activatePassivePath(targetNodeId'), 'confirmed activation should use the snapshotted target instead of the mutable hover node');
