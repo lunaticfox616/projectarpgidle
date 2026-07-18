@@ -4797,7 +4797,6 @@ function syncBattleTabLayout(forceTabSwitch) {
     } else {
         if (battleTabDocked || battleColumn.parentElement !== leftPane) leftPane.appendChild(battleColumn);
         battleTabDocked = false;
-        if (document.getElementById('tab-battle').classList.contains('active')) switchTab('tab-character');
     }
 }
 

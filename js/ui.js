@@ -9696,7 +9696,7 @@ function buildCraftActionButtons(item) {
         return renderSeasonNode(id, 'inner-node', 50 + Math.cos(angle) * 17.2, 50 + Math.sin(angle) * 17.2);
     }).join('') : '';
     let innerCircle = seasonEvolved ? '<div class="loop-magic-circle" aria-hidden="true"><span class="loop-magic-runes"></span><span class="loop-magic-core"></span></div>' : '';
-    document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="loop-passive-orbit ${seasonEvolved ? 'complete' : ''}"><div class="loop-orbit-ambient" aria-hidden="true"></div><img class="loop-ouroboros-art" src="assets/ui/loop-passive-ouroboros-v3.png" alt="" draggable="false" aria-hidden="true">${innerCircle}${ringNodes}${innerNodes}</div>`;
+    document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="loop-passive-orbit ${seasonEvolved ? 'complete' : ''}"><div class="loop-orbit-ambient" aria-hidden="true"></div><span class="loop-ouroboros-silhouette" aria-hidden="true"></span>${innerCircle}${ringNodes}${innerNodes}</div>`;
 
     }
 
@@ -12423,17 +12423,13 @@ async function enterGameWorld() {
     gameplayStarted = true;
     setStartupOverlayActive(false);
     try {
-        let settingsTab = document.getElementById('tab-settings');
-        if (settingsTab && settingsTab.classList.contains('active')) {
-            try {
-                switchTab('tab-character');
-            } catch (error) {
-                console.error('switchTab on enterGameWorld failed:', error);
-            }
-        }
+        if (typeof closeAllWindows === 'function') closeAllWindows();
+        if (typeof closeCommunityDock === 'function') closeCommunityDock();
+        if (typeof syncBattleTabLayout === 'function') syncBattleTabLayout(false);
+        switchTab('tab-battle');
         updateStaticUI();
     } catch (error) {
-        console.error('updateStaticUI on enterGameWorld failed:', error);
+        console.error('main battlefield setup on enterGameWorld failed:', error);
     }
     try {
         updateMobileBattlePipVisibility();

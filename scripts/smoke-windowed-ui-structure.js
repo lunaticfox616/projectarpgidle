@@ -4,9 +4,14 @@ const assert = require('assert');
 const html = fs.readFileSync('index.html', 'utf8');
 const manager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 const css = fs.readFileSync('css/ui-windows.css', 'utf8');
+const ui = fs.readFileSync('js/ui.js', 'utf8');
+const passives = fs.readFileSync('js/passives.js', 'utf8');
 
 assert(html.includes('css/ui-windows.css'), 'window CSS must be loaded');
 assert(html.includes('js/ui-window-manager.js'), 'window manager script must be loaded');
+assert(/id="btn-tab-battle"[^>]*class="[^"]*active|class="[^"]*active[^"]*"[^>]*id="btn-tab-battle"/.test(html), 'battle should be the initially selected main-page tab');
+assert(/id="tab-battle"[^>]*class="[^"]*active|class="[^"]*active[^"]*"[^>]*id="tab-battle"/.test(html), 'battle content should be the initial main page');
+assert(!/id="tab-settings"[^>]*class="[^"]*active|class="[^"]*active[^"]*"[^>]*id="tab-settings"/.test(html), 'settings must not replace the main page at startup');
 assert(html.indexOf('js/social.js') < html.indexOf('js/ui-window-manager.js'), 'window manager should load after social.js');
 assert(html.indexOf('js/ui-window-manager.js') < html.indexOf('js/main.js'), 'window manager should load before main.js');
 
@@ -36,6 +41,9 @@ assert(manager.includes("el.style.width = ''"), 'closing community should clear 
 assert(manager.includes("button.id = 'ui-community-toggle'"), 'desktop chat should have a dedicated floating toggle button');
 assert(css.includes('#btn-tab-social { display: none !important; }'), 'rail community tab should be hidden while the floating toggle owns chat');
 assert(manager.includes('closeAllWindows'), 'close-all-windows action must exist');
+assert(manager.includes('closePersistedSurfacesForBoot'), 'startup should close previously open windows without discarding their geometry');
+assert(ui.includes("switchTab('tab-battle')"), 'entering the game should focus the main battlefield');
+assert(!passives.includes("if (document.getElementById('tab-battle').classList.contains('active')) switchTab('tab-character')"), 'desktop layout sync must not open the character window over the main battlefield');
 assert(manager.includes("if (!desktop) {"), 'responsive mode should explicitly handle mobile fallback');
 assert(css.includes('body.desktop-windowed-ui #right-pane'), 'right pane should become window layer');
 assert(css.includes('#tab-social.ui-community-dock'), 'social tab should be a dock panel');
