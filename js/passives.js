@@ -40,7 +40,7 @@ function getPassiveNodeFrameKey(node) {
     if (!node) return null;
     if (node.kind === 'void') return 'void';
     if (node.socketType === 'star_wedge') return 'starWedge';
-    if (node.kind === 'path' || node.kind === 'attribute' || node.kind === 'gateway') return 'path';
+    if (node.kind === 'path') return 'path';
     if (node.kind === 'core' || node.kind === 'hub' || node.kind === 'apex'
         || node.kind === 'transcendent' || node.kind === 'keystone' || node.kind === 'major' || node.tier >= 3) return 'major';
     return null;
@@ -55,80 +55,6 @@ function getPassiveNodeFrameKey(node) {
 
 
 
-const PASSIVE_ATTRIBUTE_OPTIONS = Object.freeze({
-    strength: Object.freeze({ name: '힘', glyph: '◆', color: '#ef9a83' }),
-    dexterity: Object.freeze({ name: '민첩', glyph: '●', color: '#7ed1a5' }),
-    intelligence: Object.freeze({ name: '지능', glyph: '✦', color: '#80bce8' })
-});
-
-function normalizePassiveAttributeStat(stat) {
-    return Object.prototype.hasOwnProperty.call(PASSIVE_ATTRIBUTE_OPTIONS, stat) ? stat : 'strength';
-}
-
-function ensurePassiveAttributeChoiceState(targetGame) {
-    const state = targetGame || (typeof game !== 'undefined' ? game : null);
-    if (!state) return null;
-    state.passiveAttributePreference = normalizePassiveAttributeStat(state.passiveAttributePreference);
-    if (!state.passiveAttributeChoices || typeof state.passiveAttributeChoices !== 'object' || Array.isArray(state.passiveAttributeChoices)) {
-        state.passiveAttributeChoices = {};
-    }
-    return state;
-}
-
-function getPassiveAttributePreference(targetGame) {
-    const state = ensurePassiveAttributeChoiceState(targetGame);
-    return state ? state.passiveAttributePreference : 'strength';
-}
-
-function getPassiveAttributeNodeStat(nodeOrId, targetGame) {
-    const node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
-    if (!node || node.kind !== 'attribute') return node ? node.stat : null;
-    const state = ensurePassiveAttributeChoiceState(targetGame);
-    const saved = state && state.passiveAttributeChoices ? state.passiveAttributeChoices[String(node.id)] : null;
-    if (saved && PASSIVE_ATTRIBUTE_OPTIONS[saved]) return saved;
-    const isOwned = !!(state && Array.isArray(state.passives) && state.passives.includes(node.id));
-    return isOwned ? normalizePassiveAttributeStat(node.stat || (state && state.passiveAttributePreference)) : null;
-}
-
-function assignPassiveAttributeChoice(nodeId, targetGame, requestedStat) {
-    const node = PASSIVE_TREE.nodes[nodeId];
-    const state = ensurePassiveAttributeChoiceState(targetGame);
-    if (!node || node.kind !== 'attribute' || !state) return null;
-    const stat = normalizePassiveAttributeStat(requestedStat || getPassiveAttributePreference(state));
-    state.passiveAttributeChoices[String(node.id)] = stat;
-    state.passiveAttributePreference = stat;
-    return stat;
-}
-
-function clearPassiveAttributeChoice(nodeId, targetGame) {
-    const state = ensurePassiveAttributeChoiceState(targetGame);
-    if (state) delete state.passiveAttributeChoices[String(nodeId)];
-}
-
-function syncPassiveAttributePreferenceControls() {
-    if (typeof document === 'undefined') return;
-    const selected = getPassiveAttributePreference();
-    document.querySelectorAll('[data-passive-attribute]').forEach(button => {
-        const active = button.dataset.passiveAttribute === selected;
-        button.classList.toggle('active', active);
-        button.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
-}
-
-function setPassiveAttributePreference(stat) {
-    const state = ensurePassiveAttributeChoiceState();
-    if (!state) return false;
-    state.passiveAttributePreference = normalizePassiveAttributeStat(stat);
-    syncPassiveAttributePreferenceControls();
-    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
-    if (typeof drawPassiveTree === 'function') drawPassiveTree();
-    return true;
-}
-
-function getPassiveNodeDisplayStat(node) {
-    return node && node.kind === 'attribute' ? (getPassiveAttributeNodeStat(node) || node.stat) : (node && node.stat);
-}
-
 function getPassiveNodeDisplayName(node) {
     if (!node) return '미확인 성좌';
     if (node.title) return node.title;
@@ -142,13 +68,6 @@ function getPassiveEffectLabel(node) {
     if (mutation && mutation.currentStat) {
         let statMut = P_STATS[mutation.currentStat] || {};
         return `${statMut.name || mutation.currentStat} +${formatValue(mutation.currentStat, mutation.currentVal)}${statMut.isPct ? '%' : ''} <span style="color:#b8a7c7;">(변성)</span>`;
-    }
-    if (node.kind === 'attribute') {
-        const stat = getPassiveAttributeNodeStat(node);
-        if (!stat) return `힘 / 민첩 / 지능 +${formatValue('strength', node.val)} 중 선택`;
-        const option = PASSIVE_ATTRIBUTE_OPTIONS[stat];
-        const isOwned = !!(game && Array.isArray(game.passives) && game.passives.includes(node.id));
-        return `${option.name} +${formatValue(stat, node.val)} <span style="color:${option.color};">(${isOwned ? '선택됨' : '투자 시 적용'})</span>`;
     }
     if (node.effectLabel) return node.effectLabel;
     if (node.kind === 'void') return getVoidPassiveEffectLabel(node.id);
@@ -171,8 +90,6 @@ function getPassiveKindLabel(node) {
     if (node.kind === 'void') return '공허 패시브';
     if (node.kind === 'hub') return node.socketType === 'star_wedge' ? '별쐐기 슬롯' : '별쐐기 슬롯 후보';
     if (node.tier >= 3 || node.kind === 'major') return '중심 노드';
-    if (node.kind === 'gateway') return '전문 관문 노드';
-    if (node.kind === 'attribute') return '능력치 노드';
     if (node.kind === 'path') return '경로 노드';
     return '보조 노드';
 }
@@ -208,8 +125,6 @@ function getPassiveNodeVisualRadius(node) {
     if (node.kind === 'hub') return node.socketType === 'star_wedge' ? 22 : 20;
     if (node.tier === 3 || node.kind === 'major') return 15;
     if (node.tier === 2 || node.kind === 'ring' || node.kind === 'inner') return 10;
-    if (node.kind === 'attribute') return 8.5;
-    if (node.kind === 'gateway') return Number.isFinite(node.gatewayVisualRadius) ? node.gatewayVisualRadius : 8.5;
     if (node.kind === 'path') return 8.5;
     return 7;
 }
@@ -230,15 +145,6 @@ function getPassiveStatAccent(statId) {
         idleInner: 'rgba(85,105,126,0.95)',
         text: '#dce6f2'
     };
-    if (statId === 'strength') {
-        return { ...base, activeOuter: '#ef9a83', activeMid: '#8a493d', activeGlow: 'rgba(239,112,83,0.3)', reachOuter: '#c87967', reachMid: '#371d1a', previewOuter: 'rgba(157,85,70,0.56)', idleOuter: 'rgba(187,119,102,0.92)', text: '#ffd9cf' };
-    }
-    if (statId === 'dexterity') {
-        return { ...base, activeOuter: '#7ed1a5', activeMid: '#347857', activeGlow: 'rgba(91,207,145,0.28)', reachOuter: '#62b187', reachMid: '#173226', previewOuter: 'rgba(73,139,103,0.56)', idleOuter: 'rgba(107,174,139,0.92)', text: '#d4ffe7' };
-    }
-    if (statId === 'intelligence') {
-        return { ...base, activeOuter: '#80bce8', activeMid: '#3a6795', activeGlow: 'rgba(87,164,224,0.3)', reachOuter: '#669cc7', reachMid: '#172a3e', previewOuter: 'rgba(75,111,148,0.56)', idleOuter: 'rgba(109,151,188,0.92)', text: '#d8efff' };
-    }
     if (['flatHp', 'pctHp', 'regen', 'leech'].includes(statId)) {
         return { ...base, activeOuter: '#9be1b9', activeMid: '#327858', activeGlow: 'rgba(100,210,145,0.28)', reachOuter: '#6dc89b', reachMid: '#173127', previewOuter: 'rgba(88,155,124,0.56)', idleOuter: 'rgba(128,182,154,0.92)', text: '#c8ffe0' };
     }
@@ -293,7 +199,7 @@ function getPassiveNodePalette(node, active, reachable, visibility) {
             : { outer: '#b18bcc', mid: '#321f43', inner: '#151022', glow: 'rgba(167,111,204,0.24)', text: '#efd9ff' };
     }
     const special = node && (node.kind === 'apex' || node.kind === 'evolved' || node.kind === 'transcendent');
-    const accent = getPassiveStatAccent(getPassiveNodeDisplayStat(node));
+    const accent = getPassiveStatAccent(node && node.stat);
     if (special && active) {
         return {
             outer: node.kind === 'transcendent' ? '#fff1b2' : '#f4d788',
@@ -383,82 +289,6 @@ function drawPassiveStarfield(ctx, bounds) {
         ctx.arc(px, py, 100, 0, Math.PI * 2);
         ctx.fill();
     }
-}
-
-function getPassiveRadialWorldRadii() {
-    return PASSIVE_RADIAL_SCHEMA.worldRadii.slice();
-}
-
-function drawPassiveRadialFramework(ctx, lightweightMode, zoomedOutMode) {
-    const root = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };
-    const radii = getPassiveRadialWorldRadii();
-    if (!radii.length) return;
-    const outerRadius = PASSIVE_RADIAL_SCHEMA.rimRadius;
-    const sectorAngle = Math.PI * 2 / PASSIVE_RADIAL_SCHEMA.sectorCount;
-
-    ctx.save();
-    ctx.translate(root.x, root.y);
-
-    // Twelve alternating wedges echo the supplied schema without putting text
-    // behind nodes. The upper/light and lower/dark halves remain distinguishable.
-    if (!lightweightMode && !zoomedOutMode) {
-        for (let sector = 0; sector < PASSIVE_RADIAL_SCHEMA.sectorCount; sector++) {
-            const from = PASSIVE_RADIAL_SCHEMA.startAngle + sector * sectorAngle;
-            const to = from + sectorAngle;
-            const mid = from + sectorAngle * 0.5;
-            const lightHalf = Math.sin(mid) <= 0;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.arc(0, 0, outerRadius, from, to);
-            ctx.closePath();
-            ctx.fillStyle = lightHalf
-                ? `rgba(182,151,91,${sector % 2 === 0 ? 0.016 : 0.009})`
-                : `rgba(111,87,151,${sector % 2 === 0 ? 0.018 : 0.011})`;
-            ctx.fill();
-        }
-    }
-
-    for (let sector = 0; sector < PASSIVE_RADIAL_SCHEMA.sectorCount; sector++) {
-        const angle = PASSIVE_RADIAL_SCHEMA.startAngle + sector * sectorAngle;
-        const isAxis = sector % PASSIVE_RADIAL_SCHEMA.spokesPerTheme === 0;
-        ctx.save();
-        ctx.rotate(angle);
-        if (!isAxis) ctx.setLineDash([12, 16]);
-        ctx.beginPath();
-        ctx.moveTo(72, 0);
-        ctx.lineTo(outerRadius, 0);
-        ctx.strokeStyle = isAxis ? 'rgba(171,137,76,0.14)' : 'rgba(114,132,153,0.075)';
-        ctx.lineWidth = isAxis ? 2.2 : 1.15;
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    radii.forEach((radius, index) => {
-        ctx.beginPath();
-        ctx.arc(0, 0, radius, Math.PI, Math.PI * 2);
-        ctx.strokeStyle = `rgba(188,153,87,${0.13 - index * 0.012})`;
-        ctx.lineWidth = index === radii.length - 1 ? 2.4 : 1.65;
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(0, 0, radius, 0, Math.PI);
-        ctx.strokeStyle = `rgba(126,101,164,${0.14 - index * 0.012})`;
-        ctx.stroke();
-    });
-
-    ctx.setLineDash([7, 11]);
-    ctx.beginPath();
-    ctx.arc(0, 0, (radii[2] + radii[3]) * 0.5, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(150,118,176,0.11)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.beginPath();
-    ctx.arc(0, 0, 82, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(225,193,119,0.25)';
-    ctx.lineWidth = 2.6;
-    ctx.stroke();
-    ctx.restore();
 }
 
 function drawPassiveEvolutionAura(ctx) {
@@ -559,19 +389,18 @@ function drawPassiveBranchUnderlay(ctx, edges, lightweightMode) {
         const depth = Math.max(0, Math.min(Number(a.depth) || 0, Number(b.depth) || 0));
         const crossBranch = Boolean(a.treeBranchRoot && b.treeBranchRoot && a.treeBranchRoot !== b.treeBranchRoot);
         const sameDepth = Number(a.depth) === Number(b.depth);
-        const isBackbone = !!edge.backbone;
-        const structuralWeight = isBackbone ? 0.9 : (crossBranch ? 0.3 : (sameDepth ? 0.58 : 1));
+        const structuralWeight = crossBranch ? 0.3 : (sameDepth ? 0.58 : 1);
         const width = Math.max(1.2, Math.max(2.1, 9.4 - depth * 0.42) * structuralWeight)
             * (hiddenBranch ? 0.62 : 1);
         drawPassiveLink(ctx, a, b, {
             stroke: hiddenBranch
                 ? 'rgba(19,17,16,0.22)'
-                : (isBackbone ? 'rgba(37,27,19,0.88)' : (crossBranch ? 'rgba(31,27,24,0.28)' : (sameDepth ? 'rgba(27,21,17,0.56)' : 'rgba(22,16,13,0.9)'))),
+                : (crossBranch ? 'rgba(31,27,24,0.28)' : (sameDepth ? 'rgba(27,21,17,0.56)' : 'rgba(22,16,13,0.9)')),
             innerStroke: hiddenBranch
                 ? 'rgba(91,68,46,0.09)'
-                : (isBackbone ? 'rgba(151,105,61,0.42)' : (crossBranch
+                : (crossBranch
                     ? 'rgba(117,87,58,0.08)'
-                    : (sameDepth ? 'rgba(110,76,49,0.2)' : (depth < 7 ? 'rgba(117,76,42,0.52)' : 'rgba(92,63,42,0.34)')))),
+                    : (sameDepth ? 'rgba(110,76,49,0.2)' : (depth < 7 ? 'rgba(117,76,42,0.52)' : 'rgba(92,63,42,0.34)'))),
             width: width,
             shadow: !lightweightMode && !hiddenBranch && !crossBranch && !sameDepth && depth < 5
                 ? 'rgba(213,151,72,0.12)'
@@ -741,21 +570,6 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
         ctx.save();
         ctx.globalAlpha = revealAlpha * (active ? 0.98 : (reachable ? 0.9 : (frameKey === 'path' ? 0.82 : 0.76)));
         ctx.drawImage(frameImage, node.x - frameRadius, node.y - frameRadius, frameRadius * 2, frameRadius * 2);
-        ctx.restore();
-    }
-
-    if (node.kind === 'attribute' && !lightweightMode) {
-        const stat = getPassiveAttributeNodeStat(node);
-        const option = PASSIVE_ATTRIBUTE_OPTIONS[stat] || { glyph: '◇', color: '#afc1ce' };
-        ctx.save();
-        ctx.globalAlpha = revealAlpha * (active ? 1 : 0.82);
-        ctx.font = `900 ${Math.max(7, radius * 0.95)}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = active ? option.color : 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = active ? 6 : 2;
-        ctx.fillStyle = option.color;
-        ctx.fillText(option.glyph, node.x, node.y + 0.3);
         ctx.restore();
     }
 
@@ -1031,15 +845,15 @@ function generateOrganicTree() {
     }
 
 
-    // 제공된 스키마를 따라 6개 주축과 6개 기둥, 12개 부채꼴 및 4개 세계 고리를 만든다.
-    // 기존 스탯 풀과 특수 노드 규칙은 유지해 구조 변경이 빌드 정체성을 지우지 않게 한다.
-    const sectorThemes = PASSIVE_RADIAL_SCHEMA.themeOrder.slice();
+    // 거미줄형 기본 경로: 방사형 살(spoke) + 나이테형 고리(ring)를 먼저 만든다.
+    // 8방향의 큰 정체성은 유지하되 각 방향 사이에 중간 경로 노드를 추가해 최외곽까지 등고선처럼 연결한다.
+    const sectorThemes = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder', 'marauder', 'marauder'];
     const sectorCount = sectorThemes.length;
-    const spokesPerSector = PASSIVE_RADIAL_SCHEMA.spokesPerTheme;
+    const spokesPerSector = 2;
     const webSpokeCount = sectorCount * spokesPerSector;
-    const maxDepth = PASSIVE_RADIAL_SCHEMA.maxDepth;
-    const innerRadius = PASSIVE_RADIAL_SCHEMA.innerRadius;
-    const ringSpacing = PASSIVE_RADIAL_SCHEMA.ringSpacing;
+    const maxDepth = 12;
+    const innerRadius = 285;
+    const ringSpacing = 142;
     const webYScale = 1;
     const angleStep = Math.PI * 2 / webSpokeCount;
 
@@ -1057,7 +871,7 @@ function generateOrganicTree() {
         return (spoke % spokesPerSector) === 0 ? 0 : 1;
     }
     function getWebAngle(spoke) {
-        return PASSIVE_RADIAL_SCHEMA.startAngle + spoke * angleStep;
+        return -Math.PI / 2 + spoke * angleStep;
     }
     function getWebRadius(depth) {
         return innerRadius + (depth - 1) * ringSpacing;
@@ -1085,9 +899,7 @@ function generateOrganicTree() {
         let lane = getWebLane(spoke);
         let isPrimarySpoke = lane === 0;
         if (depth === 1 && isPrimarySpoke) return { tier: 2, kind: 'core' };
-        // 두 개의 별쐐기 선택지만 각 전문 구역의 안쪽/바깥쪽 경계에 남긴다.
-        // 슬롯이 지나치게 많으면 빌드 경로보다 보석함처럼 보이고 위치 선택의 의미도 약해진다.
-        if ((depth === 5 && lane === 1) || (depth === 9 && lane === 0)) return { tier: 2, kind: 'hub' };
+        if ((depth === 4 && lane === 1) || (depth === 7 && lane === 1) || (depth === 10 && lane === 0)) return { tier: 2, kind: 'hub' };
         if (depth === maxDepth && isPrimarySpoke) return { tier: 3, kind: 'keystone' };
         if (depth === maxDepth || depth % 3 === 0) return { tier: 2, kind: 'major' };
         return { tier: 1, kind: 'path' };
@@ -1105,9 +917,6 @@ function generateOrganicTree() {
             if (!node) break;
             node.webSpoke = spoke;
             node.webRing = depth;
-            node.radialRole = lane === 0 ? 'axis' : 'pillar';
-            node.radialWorld = Math.min(PASSIVE_RADIAL_SCHEMA.worldDepths.length - 1, Math.floor((depth - 1) / 3));
-            node.radialHemisphere = Math.sin(getWebAngle(spoke)) <= 0 ? 'light' : 'dark';
             specializePathNode(node, theme, depth, lane, getWebSectorIndex(spoke), shape);
             webNodes[spoke][depth - 1] = node;
             if (prev) connect(prev.id, node.id);
@@ -1117,17 +926,11 @@ function generateOrganicTree() {
     }
 
     function markVoidPassiveNodes() {
-        // 공허 패시브는 한 구역에 하나만 둔다. 서로 이웃한 두 갈래에 연속으로
-        // 배치하면 공허 시너지를 거의 공짜로 모을 수 있으므로, 구역마다 갈래와
-        // 깊이를 번갈아 선택해 의도적인 투자 거리를 만든다.
-        for (let sectorIndex = 0; sectorIndex < PASSIVE_RADIAL_SCHEMA.themeOrder.length; sectorIndex++) {
-            let spoke = sectorIndex * PASSIVE_RADIAL_SCHEMA.spokesPerTheme + (sectorIndex % PASSIVE_RADIAL_SCHEMA.spokesPerTheme);
+        for (let spoke = 0; spoke < webSpokeCount; spoke++) {
             let candidates = (webNodes[spoke] || [])
                 .filter(node => node && (node.webRing || 0) >= 3)
                 .filter(node => node.kind === 'path' || node.kind === 'major');
             if (candidates.length <= 0) continue;
-            // 기존 12개 배치 공식에서 해당 갈래의 노드를 그대로 선택해, 절반의
-            // 공허 노드 id와 제작 상태는 레이아웃 변경 뒤에도 자연스럽게 보존한다.
             let pick = candidates[(spoke * 7 + 3) % candidates.length];
             pick.legacyVoidStat = pick.stat;
             pick.legacyVoidVal = pick.val;
@@ -1176,10 +979,6 @@ function generateOrganicTree() {
         { role: 'mastery', label: '숙련', length: 5, spread: 0.58 },
         { role: 'survival', label: '생존', length: 4, spread: 0.38 }
     ];
-    // Twelve 30-degree sectors have fewer cells than the previous sixteen-spoke
-    // web, so each cell receives two more progression nodes. This keeps the
-    // existing build breadth and node count while giving every node more room.
-    webCellClusterBlueprints.forEach(blueprint => { blueprint.length += 2; });
 
     function getWebCellClusterPoint(cell, step, chainLength) {
         let t = step / Math.max(1, chainLength + 1);
@@ -1232,7 +1031,7 @@ function generateOrganicTree() {
     let retainedGlobalGemLevelCluster = false;
     function isTopChaosPenaltyCluster(spoke, depth) {
         let topArc = angleDistance(getWebAngle(spoke), -Math.PI / 2) <= Math.PI / 3;
-        return topArc && ((spoke === webSpokeCount - 1 && depth === 5) || (spoke === 1 && depth === 9));
+        return topArc && ((spoke === 15 && depth === 5) || (spoke === 1 && depth === 9));
     }
     function isOneOClockCluster(spoke) {
         return spoke === 1 || spoke === 2;
@@ -1248,7 +1047,6 @@ function generateOrganicTree() {
         return specs[(spoke + depth) % specs.length];
     }
     function getDirectionalClusterSpec(spoke, depth) {
-        let legacySpoke = Math.round(spoke * 16 / webSpokeCount) % 16;
         const fixedClusters = {
             '10:5': { stat: 'firePctDmg', title: '서녘 화염', length: 4 },
             '11:8': { stat: 'firePctDmg', title: '황혼 화염', length: 4 },
@@ -1259,10 +1057,9 @@ function generateOrganicTree() {
             '15:5': { stat: 'summonPctDmg', title: '별무리 사역', length: 5 },
             '15:8': { stat: 'summonHpPct', title: '사역 생명핵', length: 4 }
         };
-        return fixedClusters[`${legacySpoke}:${depth}`] || null;
+        return fixedClusters[`${spoke}:${depth}`] || null;
     }
     function getScatteredMaxResClusterSpec(spoke, depth) {
-        spoke = Math.round(spoke * 16 / webSpokeCount) % 16;
         if (spoke === 5 && depth % 4 === 1) return { stat: 'resF', endStat: 'maxResF', title: '화염 최대 저항', length: 4 };
         if (spoke === 9 && depth % 4 === 2) return { stat: 'resC', endStat: 'maxResC', title: '냉기 최대 저항', length: 4 };
         if (spoke === 13 && depth % 4 === 3) return { stat: 'resL', endStat: 'maxResL', title: '번개 최대 저항', length: 4 };
@@ -1319,7 +1116,6 @@ function generateOrganicTree() {
         if (composite && P_STATS[composite.stat] && (!composite.endStat || P_STATS[composite.endStat])) return composite;
         return { stat: themeSpec.stat, title: themeSpec.title, length: null };
     }
-    let radialClusterOrdinal = 0;
     function buildWebCellCluster(anchor, spoke, depth, clusterCellsById) {
         if (!anchor) return;
         if (depth <= 2 && ((spoke + depth) % 2 === 0)) return;
@@ -1330,12 +1126,7 @@ function generateOrganicTree() {
         if (!blueprint || !themeSpec || !P_STATS[themeSpec.stat]) return;
         themeSpec = getFinalClusterSpec(themeSpec, spoke, depth, theme);
         if (!themeSpec || !P_STATS[themeSpec.stat] || (themeSpec.endStat && !P_STATS[themeSpec.endStat])) return;
-        // The previous live layout contains 1101 nodes. Spread the 87 nodes
-        // displaced by the 16->12 spoke conversion evenly across 120 valid
-        // cell clusters so existing build breadth is preserved exactly.
-        const clusterOrdinal = radialClusterOrdinal++;
-        const getsDistributedNode = Math.floor((clusterOrdinal + 1) * 87 / 120) > Math.floor(clusterOrdinal * 87 / 120);
-        let chainLength = (themeSpec.length || blueprint.length || 4) + 1 + (getsDistributedNode ? 1 : 0);
+        let chainLength = themeSpec.length || blueprint.length || 4;
         let clusterId = `web_${spoke}_${depth}_${blueprint.role}`;
         let cell = {
             angle: getWebAngle(spoke),
@@ -1364,9 +1155,6 @@ function generateOrganicTree() {
             node.clusterEndStat = themeSpec.endStat || null;
             node.webCellSpoke = spoke;
             node.webCellRing = depth;
-            node.radialRole = 'cluster';
-            node.radialWorld = Math.min(PASSIVE_RADIAL_SCHEMA.worldDepths.length - 1, Math.floor((depth - 1) / 3));
-            node.radialHemisphere = Math.sin(getWebAngle(spoke)) <= 0 ? 'light' : 'dark';
             node.val = getTierValue(statForStep, tier);
             if (statForStep === 'slamPctDmg') node.val *= 2;
             if (statForStep === 'critDmg') {
@@ -1557,41 +1345,6 @@ function generateOrganicTree() {
         if (rightNode && tipNode) connect(rightNode.id, tipNode.id);
     });
 
-    function restoreRadialConnectionBudget(targetEdgeCount) {
-        let needed = Math.max(0, targetEdgeCount - PASSIVE_TREE.edges.length);
-        if (needed <= 0) return;
-        const initialNeed = needed;
-        const endpoints = Object.values(PASSIVE_TREE.nodes)
-            .filter(node => node && node.clusterId && String(node.clusterId).startsWith('web_'))
-            .filter(node => node.clusterStep === node.clusterLength);
-        const endpointByCell = new Map(endpoints.map(node => [`${node.webCellSpoke}:${node.webCellRing}`, node]));
-        const candidates = [];
-        endpoints.forEach(node => {
-            const nextSpoke = (node.webCellSpoke + 1) % webSpokeCount;
-            const peer = endpointByCell.get(`${nextSpoke}:${node.webCellRing}`);
-            if (peer) candidates.push([node, peer]);
-        });
-        candidates.sort((left, right) => {
-            const depthDelta = (left[0].webCellRing || 0) - (right[0].webCellRing || 0);
-            if (depthDelta !== 0) return depthDelta;
-            return (left[0].webCellSpoke || 0) - (right[0].webCellSpoke || 0);
-        });
-        candidates.forEach((pair, index) => {
-            if (needed <= 0) return;
-            const selected = Math.floor((index + 1) * initialNeed / candidates.length)
-                > Math.floor(index * initialNeed / candidates.length);
-            if (!selected) return;
-            const before = PASSIVE_TREE.edges.length;
-            connect(pair[0].id, pair[1].id);
-            if (PASSIVE_TREE.edges.length > before) needed -= 1;
-        });
-        for (let index = 0; index < candidates.length && needed > 0; index++) {
-            const before = PASSIVE_TREE.edges.length;
-            connect(candidates[index][0].id, candidates[index][1].id);
-            if (PASSIVE_TREE.edges.length > before) needed -= 1;
-        }
-    }
-
     buildDeflectCluster('deflect_chance_cluster', 0.34, getWebRadius(7) * PASSIVE_WORLD_SCALE, [4, 4, 4, 8], false);
     buildDeflectCluster('deflect_reduction_cluster', 0.72, getWebRadius(7.6) * PASSIVE_WORLD_SCALE, [3, 3, 3, 6], true);
     buildDeflectCluster('deflect_south_cluster', 1.30, getWebRadius(7.2) * PASSIVE_WORLD_SCALE, [4, 4, 4, 8], false);
@@ -1600,10 +1353,6 @@ function generateOrganicTree() {
     buildBlockCluster('block_base_pct_cluster', 3.02, getWebRadius(7.7) * PASSIVE_WORLD_SCALE, [20, 20, 20, 30], 'blockChancePct', '% 증가');
 
     ensureOuterHubNeighborConnections(4);
-    // Keep the live graph's 1353-connection budget. The restored links are
-    // same-band arcs between neighboring sector clusters, matching the supplied
-    // schema's dense 2172-edge philosophy without creating visual spaghetti.
-    restoreRadialConnectionBudget(1353);
 
     realignWebPathNodes();
     realignSpecializedClusters(clusterAnchorsById);
@@ -1642,486 +1391,6 @@ function generateOrganicTree() {
     PASSIVE_BOUNDS.maxY = Math.max(...nodes.map(node => node.y));
     // tree 구조가 바뀌면 렌더 캐시를 다시 생성해야 함
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('structure');
-}
-
-function getReferenceLayoutAngle(x, y) {
-    let degrees = Math.atan2(-y, x) * 180 / Math.PI;
-    return (degrees + 360) % 360;
-}
-
-function takeReferenceLayoutNodes(pool, count, predicate) {
-    const picked = [];
-    for (let index = pool.length - 1; index >= 0 && picked.length < count; index--) {
-        if (!predicate || predicate(pool[index])) picked.unshift(pool.splice(index, 1)[0]);
-    }
-    while (picked.length < count && pool.length) picked.push(pool.shift());
-    return picked;
-}
-
-function setReferenceLayoutPosition(node, x, y, group, index) {
-    if (!node) return;
-    const angle = getReferenceLayoutAngle(x, y);
-    const sectorIndex = Math.floor(((angle + 15) % 360) / 30) % PASSIVE_RADIAL_SCHEMA.sectorCount;
-    // 시계 방향 전문 구역: 10~2시 ES, 2~6시 회피, 6~10시 방어도.
-    // 두 직업 구역이 각각 하나의 방어 계열을 공유하되 공격 테마는 서로 다르다.
-    const sectorCenters = [
-        { sector: 'templar', angle: 120 },
-        { sector: 'witch', angle: 60 },
-        { sector: 'shadow', angle: 0 },
-        { sector: 'ranger', angle: 300 },
-        { sector: 'duelist', angle: 240 },
-        { sector: 'marauder', angle: 180 }
-    ];
-    const regionalSector = sectorCenters.reduce((best, entry) => {
-        const delta = Math.abs(((angle - entry.angle + 540) % 360) - 180);
-        return !best || delta < best.delta ? { sector: entry.sector, delta } : best;
-    }, null).sector;
-    const radius = Math.hypot(x, y);
-    node.x = x;
-    node.y = y;
-    node.layoutGroup = group;
-    node.layoutGroupIndex = index;
-    node.webSpoke = sectorIndex;
-    node.radialRole = group;
-    node.radialWorld = radius < 855 ? 0 : (radius < 1245 ? 1 : (radius < 1635 ? 2 : 3));
-    node.radialHemisphere = y <= 0 ? 'light' : 'dark';
-    node.sector = regionalSector;
-}
-
-function setReferenceLayoutPolar(node, radius, angle, group, index) {
-    const radians = angle * Math.PI / 180;
-    setReferenceLayoutPosition(node, radius * Math.cos(radians), -radius * Math.sin(radians), group, index);
-}
-
-function getReferenceMajorAnchors() {
-    const rings = PASSIVE_RADIAL_SCHEMA.worldRadii;
-    const bridge = PASSIVE_RADIAL_SCHEMA.bridgeRadius;
-    const specs = [];
-    [[90, 30, 150], [270, 330, 210]].forEach((angles, half) => {
-        const innerAngle = half === 0 ? 90 : 270;
-        specs.push({ radius: rings[3], angle: angles[0] });
-        specs.push({ radius: rings[3], angle: angles[1] });
-        specs.push({ radius: rings[3], angle: angles[2] });
-        specs.push({ radius: bridge, angle: innerAngle });
-        specs.push({ radius: rings[2], angle: angles[0] });
-        specs.push({ radius: rings[2], angle: angles[1] });
-        specs.push({ radius: rings[2], angle: angles[2] });
-        specs.push({ radius: rings[1], angle: angles[0] });
-        specs.push({ radius: rings[1], angle: angles[1] });
-        specs.push({ radius: rings[1], angle: angles[2] });
-        specs.push({ radius: rings[0], angle: innerAngle });
-    });
-    return specs;
-}
-
-function applySephirotQliphothReferenceLayout() {
-    const root = PASSIVE_TREE.nodes.n0;
-    if (!root) return;
-    const pool = Object.values(PASSIVE_TREE.nodes)
-        .filter(node => node.id !== root.id)
-        .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
-    const heikhal = takeReferenceLayoutNodes(pool, 9, node => node.kind === 'core' || node.kind === 'path');
-    const socketCount = pool.filter(node => node.kind === 'hub').length;
-    const sockets = takeReferenceLayoutNodes(pool, socketCount, node => node.kind === 'hub');
-    const serpent = takeReferenceLayoutNodes(pool, pool.filter(node => node.kind === 'void').length, node => node.kind === 'void');
-    const majors = takeReferenceLayoutNodes(pool, 22, node => ['keystone', 'transcendent', 'apex', 'evolved', 'major'].includes(node.kind));
-    const rim = takeReferenceLayoutNodes(pool, 72, node => ['apex', 'evolved', 'transcendent', 'keystone'].includes(node.kind));
-    const axis = takeReferenceLayoutNodes(pool, 60, node => node.kind === 'path');
-    const mother = takeReferenceLayoutNodes(pool, 60, node => node.kind === 'path');
-    const interworld = takeReferenceLayoutNodes(pool, 120, node => node.kind === 'path' || node.kind === 'node');
-    const sectorPaths = takeReferenceLayoutNodes(pool, 288, node => node.kind === 'path' || node.kind === 'node');
-    const sparks = takeReferenceLayoutNodes(pool, 36, node => node.kind === 'node' || node.kind === 'major');
-    const clusters = pool.splice(0);
-    const edgeKeys = new Set();
-    const edgeByKey = new Map();
-    PASSIVE_TREE.edges.length = 0;
-
-    function connect(a, b, role) {
-        if (!a || !b || a.id === b.id) return;
-        const key = String(a.id) < String(b.id) ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
-        if (edgeKeys.has(key)) {
-            const existing = edgeByKey.get(key);
-            if (existing && role) {
-                existing.structureRole = existing.structureRole || role;
-                existing.backbone = existing.backbone || role !== 'local';
-            }
-            return;
-        }
-        edgeKeys.add(key);
-        const edge = { from: a.id, to: b.id };
-        if (role) {
-            edge.structureRole = role;
-            edge.backbone = role !== 'local';
-        }
-        PASSIVE_TREE.edges.push(edge);
-        edgeByKey.set(key, edge);
-    }
-    function connectChain(nodes, cycle, role) {
-        for (let index = 1; index < nodes.length; index++) connect(nodes[index - 1], nodes[index], role);
-        if (cycle && nodes.length > 2) connect(nodes[nodes.length - 1], nodes[0], role);
-    }
-    function closestNode(node, candidates) {
-        let closest = null;
-        let bestDistance = Infinity;
-        candidates.forEach(candidate => {
-            if (!candidate || candidate.id === node.id) return;
-            const distance = Math.hypot(node.x - candidate.x, node.y - candidate.y);
-            if (distance < bestDistance) {
-                closest = candidate;
-                bestDistance = distance;
-            }
-        });
-        return closest;
-    }
-
-    setReferenceLayoutPosition(root, 0, 0, 'heikhal-origin', 0);
-    const heikhalAngles = [0, 60, 90, 120, 180, 210, 240, 300, 330];
-    heikhal.forEach((node, index) => setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.heikhalRadius, heikhalAngles[index], 'heikhal', index));
-    connectChain(heikhal, true, 'inner-ring');
-    [0, 1, 3, 4, 6, 7].forEach(index => connect(root, heikhal[index], 'origin-spoke'));
-
-    const interworldRings = [[], [], [], []];
-    interworld.forEach((node, index) => {
-        const world = Math.floor(index / 30);
-        const slot = index % 30;
-        interworldRings[world].push(node);
-        setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.worldRadii[world], slot * 12, 'interworld', index);
-    });
-    interworldRings.forEach(nodes => connectChain(nodes, true, 'world-ring'));
-    for (let world = 1; world < interworldRings.length; world++) {
-        for (let slot = 0; slot < 30; slot++) connect(interworldRings[world - 1][slot], interworldRings[world][slot], 'world-spoke');
-    }
-    for (let slot = 0; slot < 30; slot += 5) {
-        const worldGate = interworldRings[0][slot];
-        connect(closestNode(worldGate, heikhal), worldGate, 'origin-spoke');
-    }
-
-    const sectorGroups = Array.from({ length: 12 }, () => []);
-    sectorPaths.forEach((node, index) => {
-        const sector = Math.floor(index / 24);
-        const slot = index % 24;
-        const radius = 330 + slot * 76;
-        const angle = 15 + sector * 30 + (slot % 2 === 0 ? -2.2 : 2.2);
-        sectorGroups[sector].push(node);
-        setReferenceLayoutPolar(node, radius, angle, 'sector-path', index);
-    });
-    sectorGroups.forEach((nodes, sector) => {
-        connectChain(nodes, false, 'sector-spoke');
-        connect(heikhal[Math.floor(sector * heikhal.length / 12)], nodes[0], 'sector-spoke');
-        [4, 9, 14, 19].forEach((slot, world) => connect(nodes[slot], closestNode(nodes[slot], interworldRings[world])));
-        connect(nodes[nodes.length - 1], rim[Math.floor(sector * rim.length / 12)]);
-    });
-
-    const axisGroups = Array.from({ length: 6 }, () => []);
-    const axisRadii = [380, 500, 790, 910, 1180, 1300, 1570, 1690, 1960, 2040];
-    axis.forEach((node, index) => {
-        const spoke = Math.floor(index / 10);
-        const slot = index % 10;
-        axisGroups[spoke].push(node);
-        setReferenceLayoutPolar(node, axisRadii[slot], spoke * 60, 'axis', index);
-    });
-    axisGroups.forEach((nodes, spoke) => {
-        connectChain(nodes, false, 'axis-spoke');
-        connect(heikhal[Math.floor(spoke * heikhal.length / 6)], nodes[0], 'axis-spoke');
-        [1, 3, 6, 8].forEach((slot, world) => connect(nodes[slot], closestNode(nodes[slot], interworldRings[world])));
-    });
-
-    const motherGroups = [[], [], []];
-    mother.forEach((node, index) => {
-        const band = Math.floor(index / 20);
-        const slot = index % 20;
-        const x = -1520 + slot * 160;
-        const yBase = [-1180, 0, 1180][band];
-        let y = yBase + Math.sin(slot / 19 * Math.PI) * (band === 1 ? 85 : 55) * (band === 0 ? 1 : -1);
-        if (band === 1 && slot >= 8 && slot <= 11) {
-            // 중앙 시작 노드를 가로지르지 않고 양옆 가지가 위로 우회한다.
-            y = slot === 9 || slot === 10 ? -190 : -145;
-            node.centerBypass = true;
-        }
-        motherGroups[band].push(node);
-        setReferenceLayoutPosition(node, x, y, 'mother-path', index);
-    });
-    motherGroups.forEach(nodes => {
-        connectChain(nodes, false, 'mother-bridge');
-        [0, 9, 19].forEach(slot => connect(nodes[slot], closestNode(nodes[slot], interworld)));
-    });
-
-    const majorSpecs = getReferenceMajorAnchors();
-    majors.forEach((node, index) => setReferenceLayoutPolar(node, majorSpecs[index].radius, majorSpecs[index].angle, 'major-anchor', index));
-    const clustersByMajor = Array.from({ length: majors.length }, () => []);
-    clusters.forEach((node, index) => clustersByMajor[index % majors.length].push(node));
-    clustersByMajor.forEach((nodes, majorIndex) => {
-        const anchor = majors[majorIndex];
-        const spec = majorSpecs[majorIndex];
-        const buildClusterId = `major-${majorIndex}`;
-        anchor.buildClusterId = buildClusterId;
-        anchor.buildClusterRole = 'core';
-        nodes.forEach((node, localIndex) => {
-            const layer = localIndex < 6 ? 0 : (localIndex < 18 ? 1 : 2);
-            const layerStart = layer === 0 ? 0 : (layer === 1 ? 6 : 18);
-            const layerCount = Math.max(1, Math.min(layer === 0 ? 6 : (layer === 1 ? 12 : 18), nodes.length - layerStart));
-            const localAngle = spec.angle + 15 + (localIndex - layerStart) * 360 / layerCount;
-            const localRadius = [105, 190, 275][layer];
-            const radians = localAngle * Math.PI / 180;
-            setReferenceLayoutPosition(node, anchor.x + Math.cos(radians) * localRadius, anchor.y - Math.sin(radians) * localRadius, 'major-cluster', localIndex);
-            node.referenceMajorAnchorId = anchor.id;
-            node.buildClusterId = buildClusterId;
-            node.buildClusterRole = 'support';
-            if (node.kind === 'path') node.kind = 'node';
-        });
-        connect(anchor, closestNode(anchor, interworld.concat(sectorPaths, axis)));
-        nodes.forEach((node, localIndex) => {
-            if (localIndex < 6) connect(anchor, node);
-            else connect(nodes[(localIndex - 6) % 6], node);
-        });
-        connectChain(nodes.slice(0, Math.min(6, nodes.length)), true);
-        connectChain(nodes.slice(6, Math.min(18, nodes.length)), true);
-    });
-
-    rim.forEach((node, index) => setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.rimRadius, index * 5, 'rim', index));
-    connectChain(rim, true, 'covenant-rim');
-    sectorGroups.forEach((nodes, sector) => connect(nodes[nodes.length - 1], rim[sector * 6]));
-    axisGroups.forEach((nodes, spoke) => connect(nodes[nodes.length - 1], rim[spoke * 12]));
-
-    const outerAngles = [120, 60, 0, 300, 240, 180];
-    const outerGroups = Array.from({ length: 6 }, () => []);
-    sparks.forEach((node, index) => {
-        const clusterIndex = Math.floor(index / 6);
-        const slot = index % 6;
-        const centerAngle = outerAngles[clusterIndex];
-        const centerRadians = centerAngle * Math.PI / 180;
-        const centerX = Math.cos(centerRadians) * 2315;
-        const centerY = -Math.sin(centerRadians) * 2315;
-        if (slot === 0) {
-            setReferenceLayoutPosition(node, centerX, centerY, 'nitzotz', index);
-            node.outerClusterRole = 'core';
-        } else {
-            const localAngle = (centerAngle + 180 + (slot - 1) * 72) * Math.PI / 180;
-            setReferenceLayoutPosition(node, centerX + Math.cos(localAngle) * 112, centerY - Math.sin(localAngle) * 112, 'nitzotz', index);
-            node.outerClusterRole = 'support';
-        }
-        node.outerClusterId = `outer-${clusterIndex}`;
-        outerGroups[clusterIndex].push(node);
-    });
-    outerGroups.forEach(nodes => {
-        const core = nodes[0];
-        nodes.slice(1).forEach(node => connect(core, node, 'outer-cluster'));
-        connectChain(nodes.slice(1), true, 'outer-cluster');
-        connect(core, closestNode(core, rim), 'outer-bridge');
-        nodes.slice(1)
-            .sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y))
-            .slice(0, 2)
-            .forEach(node => connect(node, closestNode(node, rim), 'outer-bridge'));
-    });
-
-    serpent.forEach((node, index) => {
-        const sectorAngle = [120, 60, 0, 300, 240, 180][index % 6];
-        const radius = 1390;
-        setReferenceLayoutPolar(node, radius, sectorAngle, 'serpent', index);
-        // 공허 노드끼리는 직접 연결하지 않는다. 각 전문 구역의 일반 경로를
-        // 거쳐야만 다음 공허 노드로 이동할 수 있다.
-        const localPaths = sectorPaths.concat(axis, interworld)
-            .filter(candidate => candidate && candidate.kind !== 'void' && candidate.sector === node.sector);
-        const localCandidates = localPaths.length ? localPaths : sectorPaths.concat(axis, interworld);
-        const nodeRadius = Math.hypot(node.x, node.y);
-        const inward = localCandidates
-            .filter(candidate => Math.hypot(candidate.x, candidate.y) < nodeRadius)
-            .sort((a, b) => Math.hypot(a.x - node.x, a.y - node.y) - Math.hypot(b.x - node.x, b.y - node.y))[0];
-        const outward = localCandidates
-            .filter(candidate => Math.hypot(candidate.x, candidate.y) > nodeRadius)
-            .sort((a, b) => Math.hypot(a.x - node.x, a.y - node.y) - Math.hypot(b.x - node.x, b.y - node.y))[0];
-        connect(node, inward || closestNode(node, localCandidates));
-        connect(node, outward || closestNode(node, localCandidates));
-    });
-
-    sockets.forEach((node, index) => {
-        const sectorAngles = [120, 60, 0, 300, 240, 180];
-        const sectorNames = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder'];
-        const sectorIndex = Math.floor(index / 2) % sectorAngles.length;
-        const outerSocket = index % 2 === 1;
-        const angle = sectorAngles[sectorIndex] + (outerSocket ? 12 : -12);
-        const radius = outerSocket ? 1710 : 1080;
-        setReferenceLayoutPolar(node, radius, angle, 'socket', index);
-        node.sector = sectorNames[sectorIndex];
-        node.socketBand = outerSocket ? 'outer' : 'inner';
-        const localNodes = interworld.concat(sectorPaths, axis)
-            .filter(candidate => candidate && candidate.sector === node.sector && candidate.kind !== 'hub' && candidate.kind !== 'void');
-        const candidates = localNodes.length ? localNodes : interworld.concat(sectorPaths, axis);
-        const nodeRadius = Math.hypot(node.x, node.y);
-        const inward = candidates.filter(candidate => Math.hypot(candidate.x, candidate.y) < nodeRadius);
-        const outward = candidates.filter(candidate => Math.hypot(candidate.x, candidate.y) > nodeRadius);
-        connect(node, closestNode(node, inward));
-        connect(node, closestNode(node, outward));
-        connect(node, closestNode(node, candidates));
-    });
-
-    const allNodes = Object.values(PASSIVE_TREE.nodes);
-    for (let iteration = 0; iteration < 10; iteration++) {
-        for (let left = 0; left < allNodes.length; left++) {
-            for (let right = left + 1; right < allNodes.length; right++) {
-                const a = allNodes[left];
-                const b = allNodes[right];
-                const dx = b.x - a.x;
-                const dy = b.y - a.y;
-                const distance = Math.hypot(dx, dy) || 0.001;
-                const minimum = getPassiveNodeVisualRadius(a) + getPassiveNodeVisualRadius(b) + 10;
-                if (distance >= minimum) continue;
-                const push = minimum - distance;
-                const nx = dx / distance;
-                const ny = dy / distance;
-                if (a.id === root.id) {
-                    b.x += nx * push;
-                    b.y += ny * push;
-                } else if (b.id === root.id) {
-                    a.x -= nx * push;
-                    a.y -= ny * push;
-                } else {
-                    a.x -= nx * push * 0.5;
-                    a.y -= ny * push * 0.5;
-                    b.x += nx * push * 0.5;
-                    b.y += ny * push * 0.5;
-                }
-            }
-        }
-    }
-    // 레퍼런스 배치의 모든 고리/교차선을 그대로 남기면 1,800개가 넘는 선이
-    // 겹친다. 기존 연결에서 최소 연결 뼈대를 먼저 뽑은 뒤 짧은 지역 연결만
-    // 되돌려 구조는 유지하면서 화면의 선 밀도를 제한한다.
-    const parentById = new Map(allNodes.map(node => [node.id, node.id]));
-    const findRoot = id => {
-        let rootId = id;
-        while (parentById.get(rootId) !== rootId) rootId = parentById.get(rootId);
-        while (parentById.get(id) !== id) {
-            const next = parentById.get(id);
-            parentById.set(id, rootId);
-            id = next;
-        }
-        return rootId;
-    };
-    const joinRoots = (a, b) => {
-        const rootA = findRoot(a);
-        const rootB = findRoot(b);
-        if (rootA === rootB) return false;
-        parentById.set(rootB, rootA);
-        return true;
-    };
-    const weightedReferenceEdges = PASSIVE_TREE.edges.map(edge => ({
-        edge,
-        distance: Math.hypot(PASSIVE_TREE.nodes[edge.from].x - PASSIVE_TREE.nodes[edge.to].x, PASSIVE_TREE.nodes[edge.from].y - PASSIVE_TREE.nodes[edge.to].y)
-    })).sort((a, b) => a.distance - b.distance);
-    const prunedEdges = [];
-    // 원점부터 외곽까지 읽히는 고리·줄기·교량은 최단 연결 트리가 순환선을
-    // 제거하더라도 반드시 남긴다. 이 선들이 패시브 트리의 시각적 뼈대다.
-    weightedReferenceEdges.forEach(entry => {
-        if (!entry.edge.backbone) return;
-        prunedEdges.push(entry.edge);
-        joinRoots(entry.edge.from, entry.edge.to);
-    });
-    weightedReferenceEdges.forEach(entry => {
-        if (prunedEdges.includes(entry.edge)) return;
-        if (joinRoots(entry.edge.from, entry.edge.to)) prunedEdges.push(entry.edge);
-    });
-    weightedReferenceEdges.forEach(entry => {
-        if (entry.edge.from !== root.id && entry.edge.to !== root.id) return;
-        if (!prunedEdges.includes(entry.edge)) prunedEdges.push(entry.edge);
-    });
-    const restoredDegree = new Map(allNodes.map(node => [node.id, 0]));
-    prunedEdges.forEach(edge => {
-        restoredDegree.set(edge.from, (restoredDegree.get(edge.from) || 0) + 1);
-        restoredDegree.set(edge.to, (restoredDegree.get(edge.to) || 0) + 1);
-    });
-    const earlyBudget = Math.round(allNodes.length * 1.08);
-    for (const entry of weightedReferenceEdges) {
-        if (prunedEdges.length >= earlyBudget) break;
-        const edge = entry.edge;
-        if (prunedEdges.includes(edge) || entry.distance > 340) continue;
-        const a = PASSIVE_TREE.nodes[edge.from];
-        const b = PASSIVE_TREE.nodes[edge.to];
-        if (!a || !b || (a.kind === 'void' && b.kind === 'void')) continue;
-        if (a.sector !== b.sector && !['hub', 'core'].includes(a.kind) && !['hub', 'core'].includes(b.kind)) continue;
-        if ((restoredDegree.get(a.id) || 0) >= 4 || (restoredDegree.get(b.id) || 0) >= 4) continue;
-        prunedEdges.push(edge);
-        restoredDegree.set(a.id, (restoredDegree.get(a.id) || 0) + 1);
-        restoredDegree.set(b.id, (restoredDegree.get(b.id) || 0) + 1);
-    }
-    PASSIVE_TREE.edges.length = 0;
-    PASSIVE_TREE.edges.push(...prunedEdges);
-    edgeKeys.clear();
-    edgeByKey.clear();
-    prunedEdges.forEach(edge => {
-        const key = edge.from < edge.to ? `${edge.from}|${edge.to}` : `${edge.to}|${edge.from}`;
-        edgeKeys.add(key);
-        edgeByKey.set(key, edge);
-    });
-
-    const localCandidates = [];
-    allNodes.forEach(node => {
-        const nearest = [];
-        allNodes.forEach(other => {
-            if (node.id === other.id) return;
-            const distance = Math.hypot(node.x - other.x, node.y - other.y);
-            if (nearest.length < 10 || distance < nearest[nearest.length - 1].distance) {
-                nearest.push({ a: node, b: other, distance });
-                nearest.sort((a, b) => a.distance - b.distance);
-                if (nearest.length > 10) nearest.pop();
-            }
-        });
-        localCandidates.push(...nearest);
-    });
-    localCandidates.sort((a, b) => a.distance - b.distance);
-    const degree = new Map(allNodes.map(node => [node.id, 0]));
-    PASSIVE_TREE.edges.forEach(edge => {
-        degree.set(edge.from, (degree.get(edge.from) || 0) + 1);
-        degree.set(edge.to, (degree.get(edge.to) || 0) + 1);
-    });
-    const localEdgeBudget = Math.max(allNodes.length - 1, Math.round(allNodes.length * 1.16));
-    function segmentDistanceFromOrigin(a, b) {
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const lengthSq = dx * dx + dy * dy || 1;
-        const t = Math.max(0, Math.min(1, -(a.x * dx + a.y * dy) / lengthSq));
-        return Math.hypot(a.x + dx * t, a.y + dy * t);
-    }
-    for (let index = 0; index < localCandidates.length && PASSIVE_TREE.edges.length < localEdgeBudget; index++) {
-        const candidate = localCandidates[index];
-        if (candidate.distance > 285) continue;
-        if (candidate.a.id !== root.id && candidate.b.id !== root.id && segmentDistanceFromOrigin(candidate.a, candidate.b) < 135) continue;
-        if (candidate.a.kind === 'void' && candidate.b.kind === 'void') continue;
-        if (candidate.a.sector !== candidate.b.sector && !['hub', 'core'].includes(candidate.a.kind) && !['hub', 'core'].includes(candidate.b.kind)) continue;
-        if ((degree.get(candidate.a.id) || 0) >= 4 || (degree.get(candidate.b.id) || 0) >= 4) continue;
-        const before = PASSIVE_TREE.edges.length;
-        connect(candidate.a, candidate.b);
-        if (PASSIVE_TREE.edges.length > before) {
-            degree.set(candidate.a.id, (degree.get(candidate.a.id) || 0) + 1);
-            degree.set(candidate.b.id, (degree.get(candidate.b.id) || 0) + 1);
-        }
-    }
-
-    function ensureSpecialRoleDegree(nodes, minimumDegree) {
-        nodes.forEach(node => {
-            const currentDegree = () => PASSIVE_TREE.edges.reduce((count, edge) => count + (edge.from === node.id || edge.to === node.id ? 1 : 0), 0);
-            if (currentDegree() >= minimumDegree) return;
-            const candidates = allNodes
-                .filter(candidate => candidate && candidate.id !== node.id)
-                .filter(candidate => candidate.sector === node.sector)
-                .filter(candidate => !['void', 'hub'].includes(candidate.kind))
-                .sort((a, b) => Math.hypot(a.x - node.x, a.y - node.y) - Math.hypot(b.x - node.x, b.y - node.y));
-            for (const candidate of candidates) {
-                if (currentDegree() >= minimumDegree) break;
-                if (Math.hypot(candidate.x - node.x, candidate.y - node.y) > 430) break;
-                connect(node, candidate);
-            }
-        });
-    }
-    // 공허는 선택형 우회로, 별쐐기는 안쪽/바깥쪽 클러스터 사이의 변성 거점으로 읽혀야 한다.
-    ensureSpecialRoleDegree(serpent, 2);
-    ensureSpecialRoleDegree(sockets, 3);
-
-    PASSIVE_BOUNDS.minX = Math.min(...allNodes.map(node => node.x));
-    PASSIVE_BOUNDS.maxX = Math.max(...allNodes.map(node => node.x));
-    PASSIVE_BOUNDS.minY = Math.min(...allNodes.map(node => node.y));
-    PASSIVE_BOUNDS.maxY = Math.max(...allNodes.map(node => node.y));
-    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('reference-layout');
 }
 
 function computePassiveDepths() {
@@ -2456,168 +1725,6 @@ function getPassiveTierValueForLayout(statKey, tier) {
     return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
 }
 
-function organizePassiveBuildClusters() {
-    const sectors = PASSIVE_RADIAL_SCHEMA.themeOrder || ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder'];
-    const nodes = Object.values(PASSIVE_TREE.nodes || {});
-    const edgeKeys = new Set(PASSIVE_TREE.edges.map(edge => edge.from < edge.to ? `${edge.from}|${edge.to}` : `${edge.to}|${edge.from}`));
-    function connect(a, b) {
-        if (!a || !b || a.id === b.id) return;
-        const key = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
-        if (edgeKeys.has(key)) return;
-        PASSIVE_TREE.edges.push({ from: a.id, to: b.id, structureRole: 'build-cluster' });
-        edgeKeys.add(key);
-    }
-    function clusterCandidates(sector, world) {
-        return nodes.filter(node => node && node.id !== 'n0' && node.sector === sector && Number(node.radialWorld) === world)
-            .filter(node => !node.buildClusterId && !node.outerClusterId && !node.specialtyGateway)
-            .filter(node => ['sector-path', 'interworld', 'axis', 'mother-path', 'rim'].includes(node.layoutGroup))
-            .filter(node => ['path', 'node'].includes(node.kind));
-    }
-
-    sectors.forEach((sector, sectorIndex) => {
-        for (let world = 0; world < PASSIVE_RADIAL_SCHEMA.worldRadii.length; world++) {
-            const targetRadius = PASSIVE_RADIAL_SCHEMA.worldRadii[world];
-            const available = clusterCandidates(sector, world)
-                .sort((a, b) => Math.abs(Math.hypot(a.x, a.y) - targetRadius) - Math.abs(Math.hypot(b.x, b.y) - targetRadius));
-            const core = available[0];
-            if (!core) continue;
-            const clusterId = `sector-${sector}-${world}`;
-            core.buildClusterId = clusterId;
-            core.buildClusterRole = 'core';
-            core.buildBlueprintIndex = world;
-            core.kind = 'major';
-            core.tier = world >= 3 ? 3 : 2;
-
-            const supports = available.slice(1)
-                .sort((a, b) => Math.hypot(a.x - core.x, a.y - core.y) - Math.hypot(b.x - core.x, b.y - core.y))
-                .filter(node => Math.hypot(node.x - core.x, node.y - core.y) <= 310)
-                .slice(0, 6);
-            supports.forEach(node => {
-                node.buildClusterId = clusterId;
-                node.buildClusterRole = 'support';
-                node.buildBlueprintIndex = world;
-                node.kind = 'node';
-                node.tier = Math.max(1, Math.min(2, Math.floor(node.tier || 1)));
-                connect(core, node);
-            });
-            supports
-                .slice()
-                .sort((a, b) => Math.atan2(a.y - core.y, a.x - core.x) - Math.atan2(b.y - core.y, b.x - core.x))
-                .forEach((node, index, list) => {
-                    if (index > 0) connect(list[index - 1], node);
-                });
-            core.buildSectorOrder = sectorIndex;
-        }
-    });
-}
-
-function relaxPassiveNodeSpacing(iterations, gap) {
-    const nodes = Object.values(PASSIVE_TREE.nodes || {});
-    const root = PASSIVE_TREE.nodes.n0;
-    for (let iteration = 0; iteration < Math.max(1, iterations || 1); iteration++) {
-        for (let left = 0; left < nodes.length; left++) {
-            for (let right = left + 1; right < nodes.length; right++) {
-                const a = nodes[left];
-                const b = nodes[right];
-                const dx = b.x - a.x;
-                const dy = b.y - a.y;
-                const distance = Math.hypot(dx, dy) || 0.001;
-                const minimum = getPassiveNodeVisualRadius(a) + getPassiveNodeVisualRadius(b) + Math.max(0, gap || 0);
-                if (distance >= minimum) continue;
-                const push = minimum - distance;
-                const nx = dx / distance;
-                const ny = dy / distance;
-                if (root && a.id === root.id) {
-                    b.x += nx * push;
-                    b.y += ny * push;
-                } else if (root && b.id === root.id) {
-                    a.x -= nx * push;
-                    a.y -= ny * push;
-                } else {
-                    a.x -= nx * push * 0.5;
-                    a.y -= ny * push * 0.5;
-                    b.x += nx * push * 0.5;
-                    b.y += ny * push * 0.5;
-                }
-            }
-        }
-    }
-}
-
-function enforcePassiveRegionalStatClusters() {
-    const counters = new Map();
-    const immutableKinds = new Set(['void', 'hub', 'apex', 'evolved', 'transcendent']);
-    Object.values(PASSIVE_TREE.nodes || {})
-        .filter(node => node && node.id !== 'n0' && !immutableKinds.has(node.kind) && !node.requiresEvolution)
-        .sort((a, b) => (Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y)) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
-        .forEach(node => {
-            const sector = PASSIVE_SECTOR_BUILD_BLUEPRINTS[node.sector] ? node.sector : 'templar';
-            const blueprints = PASSIVE_SECTOR_BUILD_BLUEPRINTS[sector];
-            const blueprintIndex = Number.isFinite(node.buildBlueprintIndex)
-                ? node.buildBlueprintIndex
-                : Math.max(0, Math.min(blueprints.length - 1, Math.floor(Number(node.radialWorld) || 0)));
-            const blueprint = blueprints[blueprintIndex % blueprints.length];
-            const counterKey = node.buildClusterId || `${sector}-${blueprintIndex}-corridor`;
-            const counter = counters.get(counterKey) || 0;
-            counters.set(counterKey, counter + 1);
-            const tier = Math.max(1, Math.floor(node.tier || 1));
-            const pool = blueprint.stats.filter(stat => P_STATS[stat] && (!(P_STATS[stat].tiers || []).length || P_STATS[stat].tiers.includes(tier)));
-            if (!pool.length) return;
-            const stat = pool[counter % pool.length];
-            node.stat = stat;
-            node.val = getPassiveTierValueForLayout(stat, tier);
-            node.effectLabel = null;
-            if (node.kind === 'major') {
-                node.title = `${blueprint.title} · ${getStatName(stat)}`;
-                node.desc = `${PASSIVE_SECTOR_TITLES[sector] || '전문 구역'}의 ${blueprint.title} 빌드를 완성하는 핵심 패시브입니다.`;
-            } else if (node.buildClusterId) {
-                node.title = `${blueprint.title} 보조 노드`;
-                node.desc = `같은 ${blueprint.title} 핵심 노드와 묶여 있는 전문 보조 패시브입니다.`;
-            }
-        });
-}
-
-function anchorPassiveKeystonesInsideSpecialtyClusters() {
-    const keystoneSpecs = {
-        templar: { stat: 'firePctDmg', title: '정화의 태양' },
-        witch: { stat: 'coldPctDmg', title: '영원의 서리핵' },
-        shadow: { stat: 'chaosPctDmg', title: '그림자 심연' },
-        ranger: { stat: 'projectilePctDmg', title: '궤도의 지배자' },
-        duelist: { stat: 'meleePctDmg', title: '결투의 절정' },
-        marauder: { stat: 'slamPctDmg', title: '대지의 심장' }
-    };
-    const edgeKeys = new Set(PASSIVE_TREE.edges.map(edge => edge.from < edge.to ? `${edge.from}|${edge.to}` : `${edge.to}|${edge.from}`));
-    Object.values(PASSIVE_TREE.nodes || {}).filter(node => node && node.kind === 'keystone').forEach(node => {
-        const spec = keystoneSpecs[node.sector];
-        if (!spec || !P_STATS[spec.stat]) return;
-        node.stat = spec.stat;
-        node.val = getPassiveTierValueForLayout(spec.stat, Math.max(3, Math.floor(node.tier || 3)));
-        node.title = spec.title;
-        node.desc = `${getStatName(spec.stat)} 전문 구역의 선행 노드를 거쳐 도달하는 핵심 패시브입니다.`;
-        node.effectLabel = null;
-        const radius = Math.hypot(node.x, node.y);
-        const predecessor = Object.values(PASSIVE_TREE.nodes || {})
-            .filter(candidate => candidate && candidate.id !== node.id && candidate.sector === node.sector)
-            .filter(candidate => !['void', 'hub', 'apex', 'evolved', 'transcendent', 'keystone'].includes(candidate.kind))
-            .filter(candidate => Math.hypot(candidate.x, candidate.y) < radius)
-            .sort((a, b) => Math.hypot(a.x - node.x, a.y - node.y) - Math.hypot(b.x - node.x, b.y - node.y))[0];
-        if (!predecessor) return;
-        predecessor.stat = spec.stat;
-        predecessor.gatewayVisualRadius = getPassiveNodeVisualRadius(predecessor);
-        predecessor.kind = 'gateway';
-        predecessor.specialtyGateway = true;
-        predecessor.val = getPassiveTierValueForLayout(spec.stat, Math.max(1, Math.floor(predecessor.tier || 1)));
-        predecessor.title = `${spec.title}의 선행 노드`;
-        predecessor.desc = `${getStatName(spec.stat)} 핵심 패시브로 이어지는 전문 경로입니다.`;
-        predecessor.effectLabel = null;
-        const key = predecessor.id < node.id ? `${predecessor.id}|${node.id}` : `${node.id}|${predecessor.id}`;
-        if (!edgeKeys.has(key)) {
-            PASSIVE_TREE.edges.push({ from: predecessor.id, to: node.id });
-            edgeKeys.add(key);
-        }
-    });
-}
-
 function rebalancePassiveStartingStats() {
     const root = PASSIVE_TREE.nodes.n0;
     if (!root) return;
@@ -2684,53 +1791,6 @@ function rebalancePassiveStartingStats() {
         });
     });
 }
-
-function convertPassivePathNodesToAttributes() {
-    Object.values(PASSIVE_TREE.nodes || {}).forEach(node => {
-        if (!node || node.kind !== 'path' || node.specialtyGateway) return;
-        const world = Math.max(0, Math.min(3, Math.floor(Number(node.radialWorld) || 0)));
-        const valueByWorld = [6, 7, 8, 10];
-        node.originalPathStat = node.stat;
-        node.kind = 'attribute';
-        node.attributeSelectable = true;
-        node.outerAttributeNode = world >= 3 || Math.hypot(node.x, node.y) >= PASSIVE_RADIAL_SCHEMA.worldRadii[3];
-        node.stat = 'strength';
-        node.val = valueByWorld[world];
-        node.effectLabel = null;
-        node.title = node.outerAttributeNode ? '경계 능력치 노드' : '능력치 노드';
-        node.desc = node.outerAttributeNode
-            ? '최외곽 빌드로 이어지는 강화 능력치 노드입니다. 투자하는 순간 힘·민첩·지능 중 하나를 선택합니다.'
-            : '투자하는 순간 힘·민첩·지능 중 하나를 선택하며, 선택한 능력치는 이 노드에 저장됩니다.';
-    });
-}
-
-function strengthenPassiveOuterRewards() {
-    const counters = new Map();
-    Object.values(PASSIVE_TREE.nodes || {})
-        .filter(node => node && node.layoutGroup === 'nitzotz')
-        .sort((a, b) => (a.layoutGroupIndex || 0) - (b.layoutGroupIndex || 0))
-        .forEach(node => {
-            const blueprints = PASSIVE_SECTOR_BUILD_BLUEPRINTS[node.sector] || PASSIVE_SECTOR_BUILD_BLUEPRINTS.templar;
-            const blueprint = blueprints[blueprints.length - 1];
-            const tier = node.outerClusterRole === 'core' ? 3 : 2;
-            const pool = blueprint.stats.filter(stat => P_STATS[stat] && (!(P_STATS[stat].tiers || []).length || P_STATS[stat].tiers.includes(tier)));
-            if (!pool.length) return;
-            const counter = counters.get(node.outerClusterId) || 0;
-            counters.set(node.outerClusterId, counter + 1);
-            const stat = pool[counter % pool.length];
-            node.kind = node.outerClusterRole === 'core' ? 'major' : 'node';
-            node.tier = tier;
-            node.stat = stat;
-            node.val = getPassiveTierValueForLayout(stat, tier);
-            node.outerReward = true;
-            node.effectLabel = null;
-            node.title = node.outerClusterRole === 'core' ? `${blueprint.title} · 외곽 핵심` : `${blueprint.title} · 외곽 보조`;
-            node.desc = node.outerClusterRole === 'core'
-                ? '외곽 군집의 중심입니다. 여러 보조 노드에 투자한 빌드가 강한 종착 보상을 얻습니다.'
-                : '외곽 핵심 노드를 둘러싼 전문 보조 패시브입니다.';
-        });
-}
-
 function applyPassiveSpecializations() {
     const used = new Set();
     const kindPriority = { keystone: 0, deadend: 1, major: 2, hub: 3, core: 4, path: 5 };
@@ -2759,31 +1819,15 @@ function applyPassiveSpecializations() {
 }
 function bootstrapPassiveTreeOnceReady() {
     generateOrganicTree();
-    assignStarWedgeSockets();
-    applySephirotQliphothReferenceLayout();
-    organizePassiveBuildClusters();
-    enforcePassiveRegionalStatClusters();
     applyPassiveSpecializations();
-    anchorPassiveKeystonesInsideSpecialtyClusters();
+    assignStarWedgeSockets();
     computePassiveDepths();
     rebalancePassiveStartingStats();
-    convertPassivePathNodesToAttributes();
-    strengthenPassiveOuterRewards();
-    relaxPassiveNodeSpacing(5, 10);
     polishPassiveLayout();
     return true;
 }
 
 bootstrapPassiveTreeOnceReady();
-
-safeExposeGlobals({
-    setPassiveAttributePreference,
-    getPassiveAttributePreference,
-    getPassiveAttributeNodeStat,
-    assignPassiveAttributeChoice,
-    clearPassiveAttributeChoice,
-    syncPassiveAttributePreferenceControls
-});
 
 function isPassiveNodeAvailable(nodeOrId) {
     let node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
@@ -3341,7 +2385,7 @@ function recalculateStarWedgeMutations(force) {
                 const lineIndex = Math.min(2, Math.max(0, Math.floor((d / Math.max(1, r2)) * 3)));
                 const line = wedge.lines[lineIndex];
                 if (!line || !line.stat) return;
-                injectMutation(st, conflictNodes, String(n.id), { wedgeId:wedge.id, socketNodeId:center.id, lineIndex, originalStat:getPassiveNodeDisplayStat(n), originalVal:n.val, currentStat:line.stat, currentVal:line.val });
+                injectMutation(st, conflictNodes, String(n.id), { wedgeId:wedge.id, socketNodeId:center.id, lineIndex, originalStat:n.stat, originalVal:n.val, currentStat:line.stat, currentVal:line.val });
             });
             let coreLine = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
             if (coreLine && coreLine.stat && wedge.uniqueType !== 'satellite') injectMutation(st, conflictNodes, center.id, { wedgeId:wedge.id, socketNodeId:center.id, lineIndex:3, originalStat:center.stat, originalVal:center.val, currentStat:coreLine.stat, currentVal:coreLine.val });
@@ -3365,7 +2409,7 @@ function recalculateStarWedgeMutations(force) {
                     wedgeId: wedge.id,
                     socketNodeId: center.id,
                     lineIndex: nextDist - 1,
-                    originalStat: getPassiveNodeDisplayStat(node),
+                    originalStat: node.stat,
                     originalVal: node.val,
                     currentStat: line.stat,
                     currentVal: line.val
@@ -4240,10 +3284,7 @@ function activatePassivePath(targetNodeId, options) {
         return { activated: false, cost: path.length, path: path.slice(), reason: 'points' };
     }
     path.forEach(nodeId => {
-        if (!(game.passives || []).includes(nodeId)) {
-            assignPassiveAttributeChoice(nodeId, null, options && options.attributeStat);
-            game.passives.push(nodeId);
-        }
+        if (!(game.passives || []).includes(nodeId)) game.passives.push(nodeId);
         revealAroundNode(nodeId, { forcePulse: !options || options.forcePulseNodeId === nodeId });
     });
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) - path.length);
@@ -4302,15 +3343,6 @@ function isPassiveLocalReveal(origin, node, radius, maxDepthGap) {
 }
 
 function refreshPassiveVisibility() {
-    let allNodes = Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node));
-    if (PASSIVE_FULL_DISCOVERY) {
-        let allNodeIds = allNodes.map(node => node.id);
-        discoveredPassiveNodes = new Set(allNodeIds);
-        previewPassiveNodes = new Set(allNodeIds);
-        if (game) game.discoveredPassives = allNodeIds.slice();
-        if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
-        return;
-    }
     if (!game) {
         discoveredPassiveNodes = new Set(['n0']);
         previewPassiveNodes = new Set(['n0']);
@@ -4322,6 +3354,7 @@ function refreshPassiveVisibility() {
     connectionNodes.forEach(id => {
         if (isPassiveNodeAvailable(id)) discoveredPassiveNodes.add(id);
     });
+    let allNodes = Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node));
     if ((game.passives || []).includes('n0')) {
         getPassiveLinkedNodeIds('n0', PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH).forEach(id => discoveredPassiveNodes.add(id));
     }
