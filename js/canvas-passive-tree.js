@@ -143,7 +143,7 @@ function drawPassiveSearchHighlight(ctx, node, radius, accent) {
 
 function getPassiveNodeEffectShortLabel(node) {
     if (!node) return '';
-    const stat = typeof getPassiveNodeDisplayStat === 'function' ? (getPassiveNodeDisplayStat(node) || '') : (node.stat || '');
+    const stat = node.stat || '';
     const shortByStat = {
         flatHp: '생명력', pctHp: '생명(%)', regen: '재생', leech: '흡혈',
         flatDmg: '피해', pctDmg: '피해(%)', meleePctDmg: '근접(%)', physPctDmg: '물리피해(%)', aoePctDmg: '범위피해(%)', projectilePctDmg: '투사체피해(%)',
@@ -186,7 +186,7 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
 
     const label = getPassiveNodeEffectShortLabel(node);
     if (!label) return;
-    const accent = getPassiveStatAccent(typeof getPassiveNodeDisplayStat === 'function' ? getPassiveNodeDisplayStat(node) : node.stat);
+    const accent = getPassiveStatAccent(node.stat);
     const fontSize = Math.max(9, Math.min(15, 10.5 / Math.max(0.55, camZoom)));
     const padX = 4.5 / Math.max(0.6, camZoom);
     const padY = 2.5 / Math.max(0.6, camZoom);
@@ -305,7 +305,6 @@ function drawPassiveTree() {
 
     // 월드 배경 성운/별
     if (!lightweightMode && !zoomedOutMode) drawPassiveStarfield(ctx, PASSIVE_BOUNDS);
-    drawPassiveRadialFramework(ctx, lightweightMode, zoomedOutMode);
 
     // 중심 오라
     const passiveRoot = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };

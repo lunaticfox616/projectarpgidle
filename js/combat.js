@@ -1370,7 +1370,9 @@ const FLASK_AUTO_TRIGGER_LABELS = Object.freeze({
     lowHp: '생명력 50% 이하'
 });
 const FLASK_CRAFT_COSTS = Object.freeze([6, 16, 34, 60, 96, 145, 205, 280]);
-const FLASK_DISCOVERY_TIER_MULTIPLIERS = Object.freeze([1.25, 0.86, 0.58, 0.39, 0.25, 0.16, 0.10, 0.06]);
+// 1단계는 초반 운용을 위해 유지하되, 2단계부터는 단계가 오를수록 발견 확률이
+// 급격히 낮아진다. 상위 플라스크는 연금 유리 제작이 주된 확정 획득 경로다.
+const FLASK_DISCOVERY_TIER_MULTIPLIERS = Object.freeze([1.00, 0.45, 0.20, 0.09, 0.04, 0.018, 0.008, 0.0035]);
 
 function normalizeUtilityFlaskTrigger(trigger) {
     return FLASK_AUTO_TRIGGER_ORDER.includes(trigger) ? trigger : 'combat';
@@ -1502,8 +1504,6 @@ function rollFlaskAlchemyGlassDrop(enemy) {
     if (Math.random() >= chance) return 0;
     let amount = enemy && enemy.isBoss ? 5 + Math.floor(Math.random() * 4) : (enemy && enemy.isElite ? 2 : 1);
     st.alchemyGlass = Math.max(0, Math.floor(Number(st.alchemyGlass) || 0)) + amount;
-    game.noti = game.noti || {};
-    game.noti.flask = true;
     return amount;
 }
 
@@ -1635,6 +1635,28 @@ function syncUtilityFlaskChargeBank(st, utility) {
         charges: Math.max(0, Math.floor(Number(utility.charges) || 0)),
         progress: Math.max(0, Math.floor(Number(utility.chargeProgress) || 0))
     };
+}
+
+function refillAllFlaskCharges() {
+    let st = ensureFlaskState();
+    let healDef = getFlaskHealDef(st.healTier);
+    st.healCharges = healDef.maxCharges;
+    st.healChargeProgress = 0;
+
+    st.utilityChargeBank = (st.utilityChargeBank && typeof st.utilityChargeBank === 'object') ? st.utilityChargeBank : {};
+    ensureFlaskFoundKeys().forEach(key => {
+        let def = FLASK_UTILITY_POOL[key];
+        if (!def) return;
+        st.utilityChargeBank[key] = { charges: def.maxCharges, progress: 0 };
+    });
+    st.utils.forEach(utility => {
+        let def = utility && FLASK_UTILITY_POOL[utility.key];
+        if (!def) return;
+        utility.charges = def.maxCharges;
+        utility.chargeProgress = 0;
+        syncUtilityFlaskChargeBank(st, utility);
+    });
+    return st;
 }
 
 function selectHealFlaskTier(tierKey) {
@@ -6256,6 +6278,7 @@ function startMoving(isTown) {
     pTimer = 0;
     progressStallTicks = 0;
     expireActiveFlaskEffects();
+    if (isTown) refillAllFlaskCharges();
     resetBattleRuntimeVisuals();
     if (!isTown && game.ascendClass === 'assassin' && hasKeystone('a2')) game.assassinBlurred = true;
     let ms = getPlayerStats().moveSpeed;
@@ -8595,6 +8618,7 @@ function performPlayerAttack(pStats, attackOptions) {
 function handlePlayerDefeat(zone, pStats, message, options) {
     let opts = options || {};
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+    refillAllFlaskCharges();
     addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
     let expLost = 0;
     if (storyAct && storyAct.specialType === 'forced_defeat') {

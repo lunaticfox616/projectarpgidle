@@ -463,25 +463,25 @@ COSMOS_BOSS_UNIQUE_EQUIPMENT.forEach(unique => UNIQUE_DB.push(unique));
 //  - 유틸리티 플라스크는 durationMs 동안 스탯 버프(버킷 반영). 최대 2개 장착.
 //  - 모두 적 처치로 충전되고 전투 중 자동 사용된다.
 const FLASK_HEAL_TIERS = [
-    { key: 'h1', kind: 'heal', tier: 1, name: '생명력 플라스크 I', reqLevel: 1, healPct: 40, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h2', kind: 'heal', tier: 2, name: '생명력 플라스크 II', reqLevel: 5, healPct: 55, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h3', kind: 'heal', tier: 3, name: '생명력 플라스크 III', reqLevel: 10, healPct: 70, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h4', kind: 'heal', tier: 4, name: '생명력 플라스크 IV', reqLevel: 15, healPct: 85, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 62 },
-    { key: 'h5', kind: 'heal', tier: 5, name: '생명력 플라스크 V', reqLevel: 20, healPct: 100, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 62 },
-    { key: 'h6', kind: 'heal', tier: 6, name: '생명력 플라스크 VI', reqLevel: 25, healPct: 120, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 65 },
-    { key: 'h7', kind: 'heal', tier: 7, name: '생명력 플라스크 VII', reqLevel: 30, healPct: 140, durationMs: 5500, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 65 },
-    { key: 'h8', kind: 'heal', tier: 8, name: '생명력 플라스크 VIII', reqLevel: 35, healPct: 165, durationMs: 6000, maxCharges: 5, chargesPerKills: 8, autoBelowHpPct: 65 }
+    { key: 'h1', kind: 'heal', tier: 1, name: '생명력 플라스크 I', reqLevel: 1, healPct: 25, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
+    { key: 'h2', kind: 'heal', tier: 2, name: '생명력 플라스크 II', reqLevel: 5, healPct: 32, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
+    { key: 'h3', kind: 'heal', tier: 3, name: '생명력 플라스크 III', reqLevel: 10, healPct: 40, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
+    { key: 'h4', kind: 'heal', tier: 4, name: '생명력 플라스크 IV', reqLevel: 15, healPct: 49, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 57 },
+    { key: 'h5', kind: 'heal', tier: 5, name: '생명력 플라스크 V', reqLevel: 20, healPct: 59, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 57 },
+    { key: 'h6', kind: 'heal', tier: 6, name: '생명력 플라스크 VI', reqLevel: 25, healPct: 70, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 60 },
+    { key: 'h7', kind: 'heal', tier: 7, name: '생명력 플라스크 VII', reqLevel: 30, healPct: 82, durationMs: 5500, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 60 },
+    { key: 'h8', kind: 'heal', tier: 8, name: '생명력 플라스크 VIII', reqLevel: 35, healPct: 95, durationMs: 5500, maxCharges: 5, chargesPerKills: 8, autoBelowHpPct: 60 }
 ];
 
 // 유틸리티 플라스크도 회복 플라스크처럼 종류별 5단계(레벨 1/5/10/15/20)로 나뉘며,
 // 단계가 오를수록 효과와 충전 속도가 함께 좋아진다. 같은 종류의 플라스크는 슬롯 2개에 동시 장착할 수 없다.
 const FLASK_UTILITY_TIER_REQ_LEVELS = [1, 5, 10, 15, 20];
 const FLASK_UTILITY_CATEGORIES = [
-    { category: 'granite', label: '화강암', statKey: 'armorPct', statValues: [60, 75, 90, 105, 120], statSuffix: '방어도', chargesPerKillsBase: 10 },
-    { category: 'quicksilver', label: '수은', statValues: [14, 17, 20, 23, 26], statSuffix: '공격 속도', statKey: 'aspd', extraStatKey: 'move', extraStatValues: [22, 26, 30, 34, 38], extraStatSuffix: '이동 속도', chargesPerKillsBase: 10 },
-    { category: 'amethyst', label: '자수정', statKey: 'resAll', statValues: [22, 28, 34, 40, 46], statSuffix: '모든 저항', chargesPerKillsBase: 10 },
-    { category: 'bismuth', label: '창연', statKey: 'genericTakenReducePct', statValues: [12, 15, 18, 21, 24], statSuffix: '받는 피해 감소', chargesPerKillsBase: 12 },
-    { category: 'sulphur', label: '유황', statKey: 'pctDmg', statValues: [18, 23, 28, 33, 38], statSuffix: '피해', chargesPerKillsBase: 12 }
+    { category: 'granite', label: '화강암', statKey: 'armorPct', statValues: [30, 38, 46, 55, 65], statSuffix: '방어도', chargesPerKillsBase: 10 },
+    { category: 'quicksilver', label: '수은', statValues: [8, 10, 12, 14, 16], statSuffix: '공격 속도', statKey: 'aspd', extraStatKey: 'move', extraStatValues: [12, 15, 18, 21, 24], extraStatSuffix: '이동 속도', chargesPerKillsBase: 10 },
+    { category: 'amethyst', label: '자수정', statKey: 'resAll', statValues: [10, 13, 16, 20, 24], statSuffix: '모든 저항', chargesPerKillsBase: 10 },
+    { category: 'bismuth', label: '창연', statKey: 'genericTakenReducePct', statValues: [5, 6, 7, 9, 11], statSuffix: '받는 피해 감소', chargesPerKillsBase: 12 },
+    { category: 'sulphur', label: '유황', statKey: 'pctDmg', statValues: [10, 13, 16, 19, 22], statSuffix: '피해', chargesPerKillsBase: 12 }
 ];
 const FLASK_UTILITY_POOL = {};
 FLASK_UTILITY_CATEGORIES.forEach(cat => {
@@ -497,7 +497,7 @@ FLASK_UTILITY_CATEGORIES.forEach(cat => {
             tier,
             name: `${cat.label} 플라스크 ${['I', 'II', 'III', 'IV', 'V'][idx]}`,
             reqLevel,
-            durationMs: 6000,
+            durationMs: 5000,
             maxCharges: 3 + Math.floor(idx / 2),
             chargesPerKills: Math.max(6, cat.chargesPerKillsBase - idx)
         };

@@ -66,10 +66,6 @@ const layout = vm.runInContext(`(() => {
   const actualMinY = Math.min(...nodes.map(node => node.y));
   const actualMaxY = Math.max(...nodes.map(node => node.y));
   const rootLinks = PASSIVE_TREE.edges.filter(edge => edge.from === root.id || edge.to === root.id).length;
-  const groupCounts = nodes.reduce((counts, node) => {
-    counts[node.layoutGroup || 'legacy'] = (counts[node.layoutGroup || 'legacy'] || 0) + 1;
-    return counts;
-  }, {});
   return {
     count: nodes.length,
     edgeCount: PASSIVE_TREE.edges.length,
@@ -80,27 +76,27 @@ const layout = vm.runInContext(`(() => {
     spokeCounts,
     ringMeans,
     rootLinks,
-    groupCounts,
     aspectRatio: (actualMaxX - actualMinX) / (actualMaxY - actualMinY),
     rootOffsetRatio: Math.hypot(root.x - (actualMinX + actualMaxX) / 2, root.y - (actualMinY + actualMaxY) / 2) / Math.max(actualMaxX - actualMinX, actualMaxY - actualMinY),
     starterCount: starters.length,
     uniqueStartingStats: uniqueStartingStats.size,
-    attributeStarterCount: starters.filter(node => node.kind === 'attribute' && node.attributeSelectable).length,
   };
 })()`, context);
 
-assert.strictEqual(layout.count, 1101, 'radial adaptation should preserve all passive nodes from main');
-assert.ok(layout.edgeCount >= layout.count - 1 && layout.edgeCount <= 1600, `reference adaptation should keep a sparse readable topology (actual ${layout.edgeCount})`);
-assert.strictEqual(layout.groupCounts['major-anchor'], 22, 'light and dark hemispheres should use twenty-two separated major clusters');
-assert.strictEqual(layout.groupCounts['sector-path'], 288, 'twelve sector boundaries should remain structurally visible');
-assert.strictEqual(layout.groupCounts['mother-path'], 60, 'three horizontal mother-letter bridges should cross the worlds');
-assert.strictEqual(layout.groupCounts.rim, 72, 'the outer covenant rim should contain seventy-two nodes');
-assert.strictEqual(layout.rootLinks, 6, 'the center should expose the six primary axis routes');
+assert.strictEqual(layout.count, 1101, 'radial rollback should preserve all passive nodes from main');
+assert.strictEqual(layout.edgeCount, 1353, 'radial rollback should preserve every passive connection from main');
+assert.strictEqual(layout.webNodeCount, 192, 'the central web should retain 16 spokes across 12 rings');
+assert.strictEqual(layout.spokeCount, 16, 'the passive tree should radiate through sixteen readable spokes');
+assert.ok(layout.spokeCounts.every(count => count === 12), 'every web spoke should reach all twelve rings');
+assert.strictEqual(layout.rootLinks, 8, 'the center should expose eight distinct starting routes');
 assert.strictEqual(layout.overlaps, 0, 'radial passive nodes should not overlap hit areas');
-assert.ok(layout.minimumClearance >= 9.5, `passive nodes should retain comfortable visual spacing (actual ${layout.minimumClearance})`);
+assert.ok(layout.minimumClearance >= 18, 'passive nodes should retain comfortable visual spacing');
 assert.ok(layout.aspectRatio >= 0.9 && layout.aspectRatio <= 1.2, 'the full passive tree should keep a near-circular spiderweb silhouette');
 assert.ok(layout.rootOffsetRatio <= 0.08, 'the starting root should remain near the visual center');
-assert.strictEqual(layout.attributeStarterCount, layout.starterCount, 'every root-adjacent route should let the player choose strength, dexterity, or intelligence');
+assert.strictEqual(layout.uniqueStartingStats, layout.starterCount, 'every root-adjacent starting node should provide a distinct stat');
+for (let index = 1; index < layout.ringMeans.length; index++) {
+  assert.ok(layout.ringMeans[index] > layout.ringMeans[index - 1], 'each successive web ring should expand away from the center');
+}
 
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
 const shake = vm.runInContext(`(() => { game.settings.cameraShake = false; battleFx = [{ type: 'hit', start: 900, crit: true }]; return getBattleCameraShake(1000); })()`, context);
