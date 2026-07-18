@@ -85,6 +85,7 @@ const layout = vm.runInContext(`(() => {
     rootOffsetRatio: Math.hypot(root.x - (actualMinX + actualMaxX) / 2, root.y - (actualMinY + actualMaxY) / 2) / Math.max(actualMaxX - actualMinX, actualMaxY - actualMinY),
     starterCount: starters.length,
     uniqueStartingStats: uniqueStartingStats.size,
+    attributeStarterCount: starters.filter(node => node.kind === 'attribute' && node.attributeSelectable).length,
   };
 })()`, context);
 
@@ -99,7 +100,7 @@ assert.strictEqual(layout.overlaps, 0, 'radial passive nodes should not overlap 
 assert.ok(layout.minimumClearance >= 9.5, `passive nodes should retain comfortable visual spacing (actual ${layout.minimumClearance})`);
 assert.ok(layout.aspectRatio >= 0.9 && layout.aspectRatio <= 1.2, 'the full passive tree should keep a near-circular spiderweb silhouette');
 assert.ok(layout.rootOffsetRatio <= 0.08, 'the starting root should remain near the visual center');
-assert.strictEqual(layout.uniqueStartingStats, layout.starterCount, 'every root-adjacent starting node should provide a distinct stat');
+assert.strictEqual(layout.attributeStarterCount, layout.starterCount, 'every root-adjacent route should let the player choose strength, dexterity, or intelligence');
 
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
 const shake = vm.runInContext(`(() => { game.settings.cameraShake = false; battleFx = [{ type: 'hit', start: 900, crit: true }]; return getBattleCameraShake(1000); })()`, context);

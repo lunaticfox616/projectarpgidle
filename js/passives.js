@@ -40,7 +40,7 @@ function getPassiveNodeFrameKey(node) {
     if (!node) return null;
     if (node.kind === 'void') return 'void';
     if (node.socketType === 'star_wedge') return 'starWedge';
-    if (node.kind === 'path') return 'path';
+    if (node.kind === 'path' || node.kind === 'attribute' || node.kind === 'gateway') return 'path';
     if (node.kind === 'core' || node.kind === 'hub' || node.kind === 'apex'
         || node.kind === 'transcendent' || node.kind === 'keystone' || node.kind === 'major' || node.tier >= 3) return 'major';
     return null;
@@ -55,6 +55,77 @@ function getPassiveNodeFrameKey(node) {
 
 
 
+const PASSIVE_ATTRIBUTE_OPTIONS = Object.freeze({
+    strength: Object.freeze({ name: '힘', glyph: '◆', color: '#ef9a83' }),
+    dexterity: Object.freeze({ name: '민첩', glyph: '●', color: '#7ed1a5' }),
+    intelligence: Object.freeze({ name: '지능', glyph: '✦', color: '#80bce8' })
+});
+
+function normalizePassiveAttributeStat(stat) {
+    return Object.prototype.hasOwnProperty.call(PASSIVE_ATTRIBUTE_OPTIONS, stat) ? stat : 'strength';
+}
+
+function ensurePassiveAttributeChoiceState(targetGame) {
+    const state = targetGame || (typeof game !== 'undefined' ? game : null);
+    if (!state) return null;
+    state.passiveAttributePreference = normalizePassiveAttributeStat(state.passiveAttributePreference);
+    if (!state.passiveAttributeChoices || typeof state.passiveAttributeChoices !== 'object' || Array.isArray(state.passiveAttributeChoices)) {
+        state.passiveAttributeChoices = {};
+    }
+    return state;
+}
+
+function getPassiveAttributePreference(targetGame) {
+    const state = ensurePassiveAttributeChoiceState(targetGame);
+    return state ? state.passiveAttributePreference : 'strength';
+}
+
+function getPassiveAttributeNodeStat(nodeOrId, targetGame) {
+    const node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
+    if (!node || node.kind !== 'attribute') return node ? node.stat : null;
+    const state = ensurePassiveAttributeChoiceState(targetGame);
+    const saved = state && state.passiveAttributeChoices ? state.passiveAttributeChoices[String(node.id)] : null;
+    return normalizePassiveAttributeStat(saved || (state && state.passiveAttributePreference));
+}
+
+function assignPassiveAttributeChoice(nodeId, targetGame) {
+    const node = PASSIVE_TREE.nodes[nodeId];
+    const state = ensurePassiveAttributeChoiceState(targetGame);
+    if (!node || node.kind !== 'attribute' || !state) return null;
+    const stat = getPassiveAttributePreference(state);
+    state.passiveAttributeChoices[String(node.id)] = stat;
+    return stat;
+}
+
+function clearPassiveAttributeChoice(nodeId, targetGame) {
+    const state = ensurePassiveAttributeChoiceState(targetGame);
+    if (state) delete state.passiveAttributeChoices[String(nodeId)];
+}
+
+function syncPassiveAttributePreferenceControls() {
+    if (typeof document === 'undefined') return;
+    const selected = getPassiveAttributePreference();
+    document.querySelectorAll('[data-passive-attribute]').forEach(button => {
+        const active = button.dataset.passiveAttribute === selected;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+}
+
+function setPassiveAttributePreference(stat) {
+    const state = ensurePassiveAttributeChoiceState();
+    if (!state) return false;
+    state.passiveAttributePreference = normalizePassiveAttributeStat(stat);
+    syncPassiveAttributePreferenceControls();
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
+    if (typeof drawPassiveTree === 'function') drawPassiveTree();
+    return true;
+}
+
+function getPassiveNodeDisplayStat(node) {
+    return node && node.kind === 'attribute' ? getPassiveAttributeNodeStat(node) : (node && node.stat);
+}
+
 function getPassiveNodeDisplayName(node) {
     if (!node) return '미확인 성좌';
     if (node.title) return node.title;
@@ -68,6 +139,12 @@ function getPassiveEffectLabel(node) {
     if (mutation && mutation.currentStat) {
         let statMut = P_STATS[mutation.currentStat] || {};
         return `${statMut.name || mutation.currentStat} +${formatValue(mutation.currentStat, mutation.currentVal)}${statMut.isPct ? '%' : ''} <span style="color:#b8a7c7;">(변성)</span>`;
+    }
+    if (node.kind === 'attribute') {
+        const stat = getPassiveAttributeNodeStat(node);
+        const option = PASSIVE_ATTRIBUTE_OPTIONS[stat];
+        const isOwned = !!(game && Array.isArray(game.passives) && game.passives.includes(node.id));
+        return `${option.name} +${formatValue(stat, node.val)} <span style="color:${option.color};">(${isOwned ? '선택됨' : '투자 시 적용'})</span>`;
     }
     if (node.effectLabel) return node.effectLabel;
     if (node.kind === 'void') return getVoidPassiveEffectLabel(node.id);
@@ -90,6 +167,8 @@ function getPassiveKindLabel(node) {
     if (node.kind === 'void') return '공허 패시브';
     if (node.kind === 'hub') return node.socketType === 'star_wedge' ? '별쐐기 슬롯' : '별쐐기 슬롯 후보';
     if (node.tier >= 3 || node.kind === 'major') return '중심 노드';
+    if (node.kind === 'gateway') return '전문 관문 노드';
+    if (node.kind === 'attribute') return '선택형 능력치 노드';
     if (node.kind === 'path') return '경로 노드';
     return '보조 노드';
 }
@@ -125,6 +204,8 @@ function getPassiveNodeVisualRadius(node) {
     if (node.kind === 'hub') return node.socketType === 'star_wedge' ? 22 : 20;
     if (node.tier === 3 || node.kind === 'major') return 15;
     if (node.tier === 2 || node.kind === 'ring' || node.kind === 'inner') return 10;
+    if (node.kind === 'attribute') return 8.5;
+    if (node.kind === 'gateway') return Number.isFinite(node.gatewayVisualRadius) ? node.gatewayVisualRadius : 8.5;
     if (node.kind === 'path') return 8.5;
     return 7;
 }
@@ -145,6 +226,15 @@ function getPassiveStatAccent(statId) {
         idleInner: 'rgba(85,105,126,0.95)',
         text: '#dce6f2'
     };
+    if (statId === 'strength') {
+        return { ...base, activeOuter: '#ef9a83', activeMid: '#8a493d', activeGlow: 'rgba(239,112,83,0.3)', reachOuter: '#c87967', reachMid: '#371d1a', previewOuter: 'rgba(157,85,70,0.56)', idleOuter: 'rgba(187,119,102,0.92)', text: '#ffd9cf' };
+    }
+    if (statId === 'dexterity') {
+        return { ...base, activeOuter: '#7ed1a5', activeMid: '#347857', activeGlow: 'rgba(91,207,145,0.28)', reachOuter: '#62b187', reachMid: '#173226', previewOuter: 'rgba(73,139,103,0.56)', idleOuter: 'rgba(107,174,139,0.92)', text: '#d4ffe7' };
+    }
+    if (statId === 'intelligence') {
+        return { ...base, activeOuter: '#80bce8', activeMid: '#3a6795', activeGlow: 'rgba(87,164,224,0.3)', reachOuter: '#669cc7', reachMid: '#172a3e', previewOuter: 'rgba(75,111,148,0.56)', idleOuter: 'rgba(109,151,188,0.92)', text: '#d8efff' };
+    }
     if (['flatHp', 'pctHp', 'regen', 'leech'].includes(statId)) {
         return { ...base, activeOuter: '#9be1b9', activeMid: '#327858', activeGlow: 'rgba(100,210,145,0.28)', reachOuter: '#6dc89b', reachMid: '#173127', previewOuter: 'rgba(88,155,124,0.56)', idleOuter: 'rgba(128,182,154,0.92)', text: '#c8ffe0' };
     }
@@ -199,7 +289,7 @@ function getPassiveNodePalette(node, active, reachable, visibility) {
             : { outer: '#b18bcc', mid: '#321f43', inner: '#151022', glow: 'rgba(167,111,204,0.24)', text: '#efd9ff' };
     }
     const special = node && (node.kind === 'apex' || node.kind === 'evolved' || node.kind === 'transcendent');
-    const accent = getPassiveStatAccent(node && node.stat);
+    const accent = getPassiveStatAccent(getPassiveNodeDisplayStat(node));
     if (special && active) {
         return {
             outer: node.kind === 'transcendent' ? '#fff1b2' : '#f4d788',
@@ -649,6 +739,21 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
         ctx.restore();
     }
 
+    if (node.kind === 'attribute' && !lightweightMode) {
+        const stat = getPassiveAttributeNodeStat(node);
+        const option = PASSIVE_ATTRIBUTE_OPTIONS[stat];
+        ctx.save();
+        ctx.globalAlpha = revealAlpha * (active ? 1 : 0.82);
+        ctx.font = `900 ${Math.max(7, radius * 0.95)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = active ? option.color : 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = active ? 6 : 2;
+        ctx.fillStyle = option.color;
+        ctx.fillText(option.glyph, node.x, node.y + 0.3);
+        ctx.restore();
+    }
+
     if (hoverNode && hoverNode.id === node.id) {
         ctx.beginPath();
         ctx.arc(node.x, node.y, radius + 8, 0, Math.PI * 2);
@@ -975,7 +1080,9 @@ function generateOrganicTree() {
         let lane = getWebLane(spoke);
         let isPrimarySpoke = lane === 0;
         if (depth === 1 && isPrimarySpoke) return { tier: 2, kind: 'core' };
-        if ((depth === 4 && lane === 1) || (depth === 7 && lane === 1) || (depth === 10 && lane === 0)) return { tier: 2, kind: 'hub' };
+        // 두 개의 별쐐기 선택지만 각 전문 구역의 안쪽/바깥쪽 경계에 남긴다.
+        // 슬롯이 지나치게 많으면 빌드 경로보다 보석함처럼 보이고 위치 선택의 의미도 약해진다.
+        if ((depth === 5 && lane === 1) || (depth === 9 && lane === 0)) return { tier: 2, kind: 'hub' };
         if (depth === maxDepth && isPrimarySpoke) return { tier: 3, kind: 'keystone' };
         if (depth === maxDepth || depth % 3 === 0) return { tier: 2, kind: 'major' };
         return { tier: 1, kind: 'path' };
@@ -1751,19 +1858,43 @@ function applySephirotQliphothReferenceLayout() {
 
     serpent.forEach((node, index) => {
         const sectorAngle = [120, 60, 0, 300, 240, 180][index % 6];
-        const radius = 900 + (index % 2) * 520;
+        const radius = 1390;
         setReferenceLayoutPolar(node, radius, sectorAngle, 'serpent', index);
         // 공허 노드끼리는 직접 연결하지 않는다. 각 전문 구역의 일반 경로를
         // 거쳐야만 다음 공허 노드로 이동할 수 있다.
         const localPaths = sectorPaths.concat(axis, interworld)
             .filter(candidate => candidate && candidate.kind !== 'void' && candidate.sector === node.sector);
-        connect(node, closestNode(node, localPaths.length ? localPaths : sectorPaths.concat(axis, interworld)));
+        const localCandidates = localPaths.length ? localPaths : sectorPaths.concat(axis, interworld);
+        const nodeRadius = Math.hypot(node.x, node.y);
+        const inward = localCandidates
+            .filter(candidate => Math.hypot(candidate.x, candidate.y) < nodeRadius)
+            .sort((a, b) => Math.hypot(a.x - node.x, a.y - node.y) - Math.hypot(b.x - node.x, b.y - node.y))[0];
+        const outward = localCandidates
+            .filter(candidate => Math.hypot(candidate.x, candidate.y) > nodeRadius)
+            .sort((a, b) => Math.hypot(a.x - node.x, a.y - node.y) - Math.hypot(b.x - node.x, b.y - node.y))[0];
+        connect(node, inward || closestNode(node, localCandidates));
+        connect(node, outward || closestNode(node, localCandidates));
     });
 
     sockets.forEach((node, index) => {
-        setReferenceLayoutPolar(node, PASSIVE_RADIAL_SCHEMA.bridgeRadius, index * 360 / Math.max(1, sockets.length) + 7, 'socket', index);
-        connect(node, closestNode(node, interworld));
-        connect(node, closestNode(node, sectorPaths.concat(axis)));
+        const sectorAngles = [120, 60, 0, 300, 240, 180];
+        const sectorNames = ['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder'];
+        const sectorIndex = Math.floor(index / 2) % sectorAngles.length;
+        const outerSocket = index % 2 === 1;
+        const angle = sectorAngles[sectorIndex] + (outerSocket ? 12 : -12);
+        const radius = outerSocket ? 1710 : 1080;
+        setReferenceLayoutPolar(node, radius, angle, 'socket', index);
+        node.sector = sectorNames[sectorIndex];
+        node.socketBand = outerSocket ? 'outer' : 'inner';
+        const localNodes = interworld.concat(sectorPaths, axis)
+            .filter(candidate => candidate && candidate.sector === node.sector && candidate.kind !== 'hub' && candidate.kind !== 'void');
+        const candidates = localNodes.length ? localNodes : interworld.concat(sectorPaths, axis);
+        const nodeRadius = Math.hypot(node.x, node.y);
+        const inward = candidates.filter(candidate => Math.hypot(candidate.x, candidate.y) < nodeRadius);
+        const outward = candidates.filter(candidate => Math.hypot(candidate.x, candidate.y) > nodeRadius);
+        connect(node, closestNode(node, inward));
+        connect(node, closestNode(node, outward));
+        connect(node, closestNode(node, candidates));
     });
 
     const allNodes = Object.values(PASSIVE_TREE.nodes);
@@ -1886,6 +2017,26 @@ function applySephirotQliphothReferenceLayout() {
             degree.set(candidate.b.id, (degree.get(candidate.b.id) || 0) + 1);
         }
     }
+
+    function ensureSpecialRoleDegree(nodes, minimumDegree) {
+        nodes.forEach(node => {
+            const currentDegree = () => PASSIVE_TREE.edges.reduce((count, edge) => count + (edge.from === node.id || edge.to === node.id ? 1 : 0), 0);
+            if (currentDegree() >= minimumDegree) return;
+            const candidates = allNodes
+                .filter(candidate => candidate && candidate.id !== node.id)
+                .filter(candidate => candidate.sector === node.sector)
+                .filter(candidate => !['void', 'hub'].includes(candidate.kind))
+                .sort((a, b) => Math.hypot(a.x - node.x, a.y - node.y) - Math.hypot(b.x - node.x, b.y - node.y));
+            for (const candidate of candidates) {
+                if (currentDegree() >= minimumDegree) break;
+                if (Math.hypot(candidate.x - node.x, candidate.y - node.y) > 430) break;
+                connect(node, candidate);
+            }
+        });
+    }
+    // 공허는 선택형 우회로, 별쐐기는 안쪽/바깥쪽 클러스터 사이의 변성 거점으로 읽혀야 한다.
+    ensureSpecialRoleDegree(serpent, 2);
+    ensureSpecialRoleDegree(sockets, 3);
 
     PASSIVE_BOUNDS.minX = Math.min(...allNodes.map(node => node.x));
     PASSIVE_BOUNDS.maxX = Math.max(...allNodes.map(node => node.x));
@@ -2287,6 +2438,9 @@ function anchorPassiveKeystonesInsideSpecialtyClusters() {
             .sort((a, b) => Math.hypot(a.x - node.x, a.y - node.y) - Math.hypot(b.x - node.x, b.y - node.y))[0];
         if (!predecessor) return;
         predecessor.stat = spec.stat;
+        predecessor.gatewayVisualRadius = getPassiveNodeVisualRadius(predecessor);
+        predecessor.kind = 'gateway';
+        predecessor.specialtyGateway = true;
         predecessor.val = getPassiveTierValueForLayout(spec.stat, Math.max(1, Math.floor(predecessor.tier || 1)));
         predecessor.title = `${spec.title}의 선행 노드`;
         predecessor.desc = `${getStatName(spec.stat)} 핵심 패시브로 이어지는 전문 경로입니다.`;
@@ -2365,6 +2519,57 @@ function rebalancePassiveStartingStats() {
         });
     });
 }
+
+function convertPassivePathNodesToAttributes() {
+    Object.values(PASSIVE_TREE.nodes || {}).forEach(node => {
+        if (!node || node.kind !== 'path' || node.specialtyGateway) return;
+        const world = Math.max(0, Math.min(3, Math.floor(Number(node.radialWorld) || 0)));
+        const valueByWorld = [6, 7, 8, 10];
+        node.originalPathStat = node.stat;
+        node.kind = 'attribute';
+        node.attributeSelectable = true;
+        node.outerAttributeNode = world >= 3 || Math.hypot(node.x, node.y) >= PASSIVE_RADIAL_SCHEMA.worldRadii[3];
+        node.stat = 'strength';
+        node.val = valueByWorld[world];
+        node.effectLabel = null;
+        node.title = node.outerAttributeNode ? '경계의 능력치 선택' : '능력치 선택';
+        node.desc = node.outerAttributeNode
+            ? '최외곽 빌드로 이어지는 강화 능력치 노드입니다. 투자할 때 선택한 힘·민첩·지능이 이 노드에 저장됩니다.'
+            : '투자할 때 선택한 힘·민첩·지능이 이 노드에 저장됩니다. 다른 가지를 투자하기 전에 선택을 바꿀 수 있습니다.';
+    });
+}
+
+function strengthenPassiveOuterRewards() {
+    const outerPools = {
+        templar: ['energyShieldPct', 'spellFlatPct', 'resAll', 'firePctDmg'],
+        witch: ['energyShieldPct', 'coldPctDmg', 'lightPctDmg', 'gemLevel'],
+        shadow: ['evasionPct', 'critDmg', 'chaosPctDmg', 'poisonChance'],
+        ranger: ['evasionPct', 'projectilePctDmg', 'projectileExtraShots', 'accuracy'],
+        duelist: ['armorPct', 'meleePctDmg', 'physPctDmg', 'leechInstanceCap'],
+        marauder: ['armorPct', 'slamPctDmg', 'pctHp', 'leechTotalCap']
+    };
+    const counters = {};
+    Object.values(PASSIVE_TREE.nodes || {})
+        .filter(node => node && node.layoutGroup === 'nitzotz')
+        .sort((a, b) => (a.layoutGroupIndex || 0) - (b.layoutGroupIndex || 0))
+        .forEach(node => {
+            const pool = (outerPools[node.sector] || outerPools.templar)
+                .filter(stat => P_STATS[stat] && (P_STATS[stat].tiers || []).includes(2));
+            if (!pool.length) return;
+            const counter = counters[node.sector] || 0;
+            counters[node.sector] = counter + 1;
+            const stat = pool[counter % pool.length];
+            node.kind = 'major';
+            node.tier = 2;
+            node.stat = stat;
+            node.val = getPassiveTierValueForLayout(stat, 2);
+            node.outerReward = true;
+            node.effectLabel = null;
+            node.title = `${PASSIVE_SECTOR_TITLES[node.sector] || '전문 구역'} · 경계 보상`;
+            node.desc = '외곽까지 투자한 빌드가 분명한 보상을 얻도록 강화된 종착 패시브입니다.';
+        });
+}
+
 function applyPassiveSpecializations() {
     const used = new Set();
     const kindPriority = { keystone: 0, deadend: 1, major: 2, hub: 3, core: 4, path: 5 };
@@ -2400,11 +2605,22 @@ function bootstrapPassiveTreeOnceReady() {
     anchorPassiveKeystonesInsideSpecialtyClusters();
     computePassiveDepths();
     rebalancePassiveStartingStats();
+    convertPassivePathNodesToAttributes();
+    strengthenPassiveOuterRewards();
     polishPassiveLayout();
     return true;
 }
 
 bootstrapPassiveTreeOnceReady();
+
+safeExposeGlobals({
+    setPassiveAttributePreference,
+    getPassiveAttributePreference,
+    getPassiveAttributeNodeStat,
+    assignPassiveAttributeChoice,
+    clearPassiveAttributeChoice,
+    syncPassiveAttributePreferenceControls
+});
 
 function isPassiveNodeAvailable(nodeOrId) {
     let node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
@@ -2962,7 +3178,7 @@ function recalculateStarWedgeMutations(force) {
                 const lineIndex = Math.min(2, Math.max(0, Math.floor((d / Math.max(1, r2)) * 3)));
                 const line = wedge.lines[lineIndex];
                 if (!line || !line.stat) return;
-                injectMutation(st, conflictNodes, String(n.id), { wedgeId:wedge.id, socketNodeId:center.id, lineIndex, originalStat:n.stat, originalVal:n.val, currentStat:line.stat, currentVal:line.val });
+                injectMutation(st, conflictNodes, String(n.id), { wedgeId:wedge.id, socketNodeId:center.id, lineIndex, originalStat:getPassiveNodeDisplayStat(n), originalVal:n.val, currentStat:line.stat, currentVal:line.val });
             });
             let coreLine = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
             if (coreLine && coreLine.stat && wedge.uniqueType !== 'satellite') injectMutation(st, conflictNodes, center.id, { wedgeId:wedge.id, socketNodeId:center.id, lineIndex:3, originalStat:center.stat, originalVal:center.val, currentStat:coreLine.stat, currentVal:coreLine.val });
@@ -2986,7 +3202,7 @@ function recalculateStarWedgeMutations(force) {
                     wedgeId: wedge.id,
                     socketNodeId: center.id,
                     lineIndex: nextDist - 1,
-                    originalStat: node.stat,
+                    originalStat: getPassiveNodeDisplayStat(node),
                     originalVal: node.val,
                     currentStat: line.stat,
                     currentVal: line.val
@@ -3861,7 +4077,10 @@ function activatePassivePath(targetNodeId, options) {
         return { activated: false, cost: path.length, path: path.slice(), reason: 'points' };
     }
     path.forEach(nodeId => {
-        if (!(game.passives || []).includes(nodeId)) game.passives.push(nodeId);
+        if (!(game.passives || []).includes(nodeId)) {
+            assignPassiveAttributeChoice(nodeId);
+            game.passives.push(nodeId);
+        }
         revealAroundNode(nodeId, { forcePulse: !options || options.forcePulseNodeId === nodeId });
     });
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) - path.length);

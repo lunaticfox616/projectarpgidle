@@ -10328,7 +10328,8 @@ function getAllocatedPassiveStatSummary() {
             return;
         }
         const mutation = mutations[String(id)];
-        add(mutation && mutation.currentStat ? mutation.currentStat : node.stat, mutation && Number.isFinite(Number(mutation.currentVal)) ? mutation.currentVal : node.val);
+        const nodeStat = node.kind === 'attribute' && typeof getPassiveAttributeNodeStat === 'function' ? getPassiveAttributeNodeStat(node) : node.stat;
+        add(mutation && mutation.currentStat ? mutation.currentStat : nodeStat, mutation && Number.isFinite(Number(mutation.currentVal)) ? mutation.currentVal : node.val);
     });
     return {
         allocatedCount: allocatedIds.filter(id => id !== 'n0').length,
@@ -10342,6 +10343,7 @@ function renderPassiveInvestmentSummary() {
     const panel = document.getElementById('passive-investment-summary');
     const body = document.getElementById('passive-investment-summary-body');
     if (!panel || !body) return;
+    if (typeof syncPassiveAttributePreferenceControls === 'function') syncPassiveAttributePreferenceControls();
     if (!game.settings || typeof game.settings !== 'object') game.settings = {};
     const collapsed = !!game.settings.passiveInvestmentSummaryCollapsed;
     panel.classList.toggle('collapsed', collapsed);
@@ -10366,6 +10368,7 @@ function togglePassiveInvestmentSummary() {
 safeExposeGlobals({ togglePassiveInvestmentSummary, renderPassiveInvestmentSummary });
 
 function setupPassiveTreeSearchControls() {
+    if (typeof syncPassiveAttributePreferenceControls === 'function') syncPassiveAttributePreferenceControls();
     if (window.__passiveTreeSearchControlsBound) {
         syncPassiveTreeSearchControls();
         return;
@@ -10537,7 +10540,7 @@ function setupCanvasEvents() {
         let virtualLearned = !!((starState.virtualLearnNodes || {})[node.id]);
         let effectDisabled = !!((starState.disabledNodeEffects || {})[node.id]);
         let mutationConflict = (starState.mutationConflictSources || {})[node.id];
-        let passiveAccent = getPassiveStatAccent(node.stat);
+        let passiveAccent = getPassiveStatAccent(typeof getPassiveNodeDisplayStat === 'function' ? getPassiveNodeDisplayStat(node) : node.stat);
         let state = getPassiveVisibility(node.id);
         let ownedApexCount = getPassiveApexNodeIds().filter(id => (game.passives || []).includes(id)).length;
         let msg = virtualLearned
@@ -10691,7 +10694,11 @@ function setupCanvasEvents() {
             }
         }
         if (canActivate || canPathActivate) {
-            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 패시브 포인트 ${pointCost}점을 소모합니다.`, {
+            const attributeNodeCount = activationPath.filter(id => PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind === 'attribute').length;
+            const attributeStat = typeof getPassiveAttributePreference === 'function' ? getPassiveAttributePreference() : 'strength';
+            const attributeName = { strength: '힘', dexterity: '민첩', intelligence: '지능' }[attributeStat] || '힘';
+            const attributeNotice = attributeNodeCount > 0 ? ` 능력치 노드 ${attributeNodeCount}개에는 ${attributeName}이 저장됩니다.` : '';
+            if (canPathActivate && !await requestGameConfirmation(`최단 경로에 있는 노드를 함께 활성화하며 패시브 포인트 ${pointCost}점을 소모합니다.${attributeNotice}`, {
                 title: '최단 경로 활성화',
                 confirmLabel: `${pointCost}포인트 사용`
             })) return;
@@ -11267,15 +11274,26 @@ function mergeDefaults(save) {
         node.val = getPassiveTierValueForLoad('critDmg', Math.max(0, Math.floor(node.tier || 1)));
     });
     merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
+    const passiveAttributeStats = new Set(['strength', 'dexterity', 'intelligence']);
+    merged.passiveAttributePreference = passiveAttributeStats.has(merged.passiveAttributePreference) ? merged.passiveAttributePreference : 'strength';
+    const rawPassiveAttributeChoices = merged.passiveAttributeChoices && typeof merged.passiveAttributeChoices === 'object' && !Array.isArray(merged.passiveAttributeChoices)
+        ? merged.passiveAttributeChoices
+        : {};
+    merged.passiveAttributeChoices = Object.fromEntries(Object.entries(rawPassiveAttributeChoices)
+        .filter(([nodeId, stat]) => passiveAttributeStats.has(stat)
+            && PASSIVE_TREE.nodes[nodeId]
+            && PASSIVE_TREE.nodes[nodeId].kind === 'attribute'
+            && (merged.passives || []).includes(nodeId)));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
-        // Version 19 re-clustered node effects and replaced the dense reference
-        // graph with regional paths. Refund prior allocations once instead of
-        // silently applying points to a newly specialized node or broken route.
-        if (Number(merged.passiveLayoutVersion || 0) < 19) {
+        // Version 20 turns former path nodes into player-chosen attributes and
+        // relocates sockets/reward routes. Refund once rather than silently
+        // changing an existing build's stats or its connection path.
+        if (Number(merged.passiveLayoutVersion || 0) < 20) {
             const refundedForRadialLayout = (merged.passives || []).filter(id => id !== 'n0').length;
             merged.passivePoints = Math.max(0, Math.floor(Number(merged.passivePoints) || 0)) + refundedForRadialLayout;
             merged.autoRefundedPassivePoints = Math.max(0, Math.floor(Number(merged.autoRefundedPassivePoints) || 0)) + refundedForRadialLayout;
             merged.passives = ['n0'];
+            merged.passiveAttributeChoices = {};
         }
         merged.discoveredPassives = Array.from(new Set(['n0'].concat(merged.passives || [])));
         merged.passiveLayoutVersion = PASSIVE_LAYOUT_VERSION;
@@ -14131,6 +14149,7 @@ function refundPassiveNode(id) { if (!assertBuildEditable()) return;
     if (!canRefundPassiveNode(id)) return addLog('연결 유지에 필요한 노드는 반환할 수 없습니다.', 'attack-monster');
     game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
     game.passives = game.passives.filter(nodeId => nodeId !== id);
+    if (typeof clearPassiveAttributeChoice === 'function') clearPassiveAttributeChoice(id);
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + 1;
     calculateReachableNodes();
     addLog(`♻️ 패시브 노드 반환: ${id} (정화의 오브 1개 소모)`, 'season-up');

@@ -675,6 +675,8 @@ function runConditionGemAutoRules(pStats) {
 function snapshotWoodsmanBuildState() {
     return JSON.parse(JSON.stringify({
         passives: game.passives || [],
+        passiveAttributePreference: game.passiveAttributePreference || 'strength',
+        passiveAttributeChoices: game.passiveAttributeChoices || {},
         ascendNodes: game.ascendNodes || [],
         ascendKeystones: game.ascendKeystones || [],
         passivePoints: game.passivePoints || 0,
@@ -706,6 +708,8 @@ function enforceWoodsmanBuildLock() {
     if (!game.woodsmanBuildLock || !game.woodsmanBuildSnapshot) return;
     let snap = game.woodsmanBuildSnapshot;
     game.passives = JSON.parse(JSON.stringify(snap.passives));
+    game.passiveAttributePreference = snap.passiveAttributePreference || 'strength';
+    game.passiveAttributeChoices = JSON.parse(JSON.stringify(snap.passiveAttributeChoices || {}));
     game.ascendNodes = JSON.parse(JSON.stringify(snap.ascendNodes));
     game.ascendKeystones = JSON.parse(JSON.stringify(snap.ascendKeystones));
     game.passivePoints = Math.floor(snap.passivePoints || 0);
@@ -2681,7 +2685,7 @@ function getPlayerStats() {
         }
         let mut = mutationMap[id];
         if (mut && mut.currentStat) addStatToBucket(passive, mut.currentStat, mut.currentVal);
-        else addStatToBucket(passive, node.stat, node.val);
+        else addStatToBucket(passive, node.kind === 'attribute' && typeof getPassiveAttributeNodeStat === 'function' ? getPassiveAttributeNodeStat(node) : node.stat, node.val);
     });
     let ownedPassiveSet = new Set(safePassives);
     Object.keys(mutationMap).forEach(nodeId => {
@@ -9689,6 +9693,7 @@ function triggerSeasonReset(options) {
     game.combatHalted = false;
     game.passivePoints = typeof getClaimedJournalPassivePointTotal === 'function' ? getClaimedJournalPassivePointTotal(game) : 0;
     game.passives = ['n0'];
+    game.passiveAttributeChoices = {};
     game.voidPassives = {};
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
