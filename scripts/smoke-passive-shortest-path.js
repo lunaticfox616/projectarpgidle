@@ -69,6 +69,20 @@ const radialSummary = vm.runInContext(`(() => {
       }
     }
   }
+  const adjacency = new Map(nodes.map(node => [node.id, []]));
+  PASSIVE_TREE.edges.forEach(edge => {
+    adjacency.get(edge.from).push(edge.to);
+    adjacency.get(edge.to).push(edge.from);
+  });
+  const connected = new Set(['n0']);
+  const connectionQueue = ['n0'];
+  while (connectionQueue.length) {
+    (adjacency.get(connectionQueue.shift()) || []).forEach(next => {
+      if (connected.has(next)) return;
+      connected.add(next);
+      connectionQueue.push(next);
+    });
+  }
   return {
     nodeCount: nodes.length,
     edgeCount: PASSIVE_TREE.edges.length,
@@ -80,6 +94,19 @@ const radialSummary = vm.runInContext(`(() => {
     closestPair,
     voidNodes: nodes.filter(node => node.kind === 'void').map(node => ({ id: node.id, sector: node.sector })),
     voidToVoidEdges: PASSIVE_TREE.edges.filter(edge => PASSIVE_TREE.nodes[edge.from].kind === 'void' && PASSIVE_TREE.nodes[edge.to].kind === 'void').length,
+    attributeNodes: nodes.filter(node => node.kind === 'attribute').map(node => node.id),
+    legacyPathCount: nodes.filter(node => node.kind === 'path').length,
+    outerRewards: nodes.filter(node => node.outerReward).map(node => node.id),
+    sockets: nodes.filter(node => node.kind === 'hub').map(node => ({
+      id: node.id,
+      sector: node.sector,
+      band: node.socketBand,
+      radius: Math.round(Math.hypot(node.x, node.y)),
+      degree: PASSIVE_TREE.edges.filter(edge => edge.from === node.id || edge.to === node.id).length,
+    })),
+    voidDegrees: nodes.filter(node => node.kind === 'void').map(node => PASSIVE_TREE.edges.filter(edge => edge.from === node.id || edge.to === node.id).length),
+    maximumEdgeDistance: PASSIVE_TREE.edges.reduce((maximum, edge) => Math.max(maximum, Math.hypot(PASSIVE_TREE.nodes[edge.from].x - PASSIVE_TREE.nodes[edge.to].x, PASSIVE_TREE.nodes[edge.from].y - PASSIVE_TREE.nodes[edge.to].y)), 0),
+    connectedNodeCount: connected.size,
     defenseBySector: nodes.reduce((out, node) => {
       if (!out[node.sector]) out[node.sector] = { energyShield: 0, evasion: 0, armor: 0 };
       if (['energyShield', 'energyShieldPct'].includes(node.stat)) out[node.sector].energyShield++;
@@ -91,11 +118,12 @@ const radialSummary = vm.runInContext(`(() => {
 })()`, context);
 assert.strictEqual(context.PASSIVE_RADIAL_SCHEMA.sectorCount, 12, 'passive layout should use twelve 30-degree sectors');
 assert.strictEqual(context.PASSIVE_RADIAL_SCHEMA.axisCount, 6, 'passive layout should retain six primary axes');
-assert.strictEqual(context.PASSIVE_LAYOUT_VERSION, 19, 'regional topology should use a new save-layout version');
+assert.strictEqual(context.PASSIVE_LAYOUT_VERSION, 20, 'attribute topology should use a new save-layout version');
 assert.strictEqual(context.PASSIVE_FULL_DISCOVERY, true, 'radial layout play-test should begin with the full available tree explored');
 assert.deepStrictEqual(Array.from(context.PASSIVE_RADIAL_SCHEMA.worldDepths), [3, 6, 9, 12], 'passive layout should expose four concentric worlds');
 assert.strictEqual(radialSummary.nodeCount, 1101, 'radial adaptation should preserve the live passive node count');
 assert.ok(radialSummary.edgeCount >= radialSummary.nodeCount - 1 && radialSummary.edgeCount <= 1600, `regional topology should remain connected without visual spaghetti (actual ${radialSummary.edgeCount})`);
+assert.strictEqual(radialSummary.connectedNodeCount, radialSummary.nodeCount, 'every passive node should remain reachable from the central root');
 assert.strictEqual(radialSummary.groups.heikhal, 9, 'the central heikhal should contain nine surrounding gates');
 assert.strictEqual(radialSummary.groups['major-anchor'], 22, 'the light and dark trees should expose twenty-two major anchors');
 assert.strictEqual(radialSummary.groups.interworld, 120, 'four worlds should be joined by 120 interworld nodes');
@@ -107,6 +135,18 @@ assert.strictEqual(radialSummary.groups.nitzotz, 36, 'the outer light and dark s
 assert.strictEqual(radialSummary.groups.serpent, 6, 'each specialty sector should contain exactly one separated void node');
 assert.strictEqual(new Set(radialSummary.voidNodes.map(node => node.sector)).size, 6, 'void nodes should be distributed one per specialty sector');
 assert.strictEqual(radialSummary.voidToVoidEdges, 0, 'void nodes should never connect directly to one another');
+assert.strictEqual(radialSummary.legacyPathCount, 0, 'legacy path nodes should be replaced by selectable attribute nodes');
+assert.ok(radialSummary.attributeNodes.length >= 150, 'the tree should expose meaningful strength/dexterity/intelligence routing choices');
+assert.strictEqual(radialSummary.sockets.length, 12, 'each specialty sector should have one inner and one outer star-wedge socket');
+assert.ok(radialSummary.sockets.every(node => node.degree >= 3), 'star-wedge sockets should sit inside a real route instead of hanging off one line');
+assert.ok(radialSummary.sockets.every(node => node.band === 'inner' ? node.radius >= 900 && node.radius <= 1250 : node.radius >= 1550 && node.radius <= 1850), 'star-wedge sockets should occupy readable inner and outer cluster bands');
+assert.ok(radialSummary.voidDegrees.every(degree => degree >= 2), 'void passives should form optional detours with an entrance and exit');
+assert.ok(['templar', 'witch', 'shadow', 'ranger', 'duelist', 'marauder'].every(sector => {
+  const sectorSockets = radialSummary.sockets.filter(node => node.sector === sector);
+  return sectorSockets.length === 2 && new Set(sectorSockets.map(node => node.band)).size === 2;
+}), 'star-wedge sockets should be distributed as inner/outer choices in all six specialties');
+assert.strictEqual(radialSummary.outerRewards.length, 36, 'every far-edge spark should provide a worthwhile specialty reward');
+assert.ok(radialSummary.maximumEdgeDistance <= 430, `visual routes should avoid detached long-distance links (actual ${radialSummary.maximumEdgeDistance})`);
 assert.ok(radialSummary.defenseBySector.templar.energyShield > radialSummary.defenseBySector.templar.evasion, 'templar sector should favor energy shield over evasion');
 assert.ok(radialSummary.defenseBySector.witch.energyShield > radialSummary.defenseBySector.witch.armor, 'witch sector should favor energy shield over armor');
 assert.ok(radialSummary.defenseBySector.shadow.evasion > radialSummary.defenseBySector.shadow.armor, `shadow sector should favor evasion over armor: ${JSON.stringify(radialSummary.defenseBySector.shadow)}`);
@@ -175,18 +215,22 @@ assert.strictEqual(blocked.activated, false, 'activation should fail when points
 assert.deepStrictEqual(context.game.passives, ['n0'], 'failed activation must not partially add nodes');
 
 context.game.passivePoints = path.length;
+context.setPassiveAttributePreference('dexterity');
 const activated = context.activatePassivePath(targetId, { forcePulseNodeId: targetId });
 assert.strictEqual(activated.activated, true, 'activation should spend points and add the shortest path');
 assert.strictEqual(context.game.passivePoints, 0, 'activation should spend one point per inactive path node');
 assert.deepStrictEqual(Array.from(context.game.passives.slice(1)), Array.from(path), 'activation should add exactly the shortest path in order');
+const activatedAttributeIds = path.filter(id => context.PASSIVE_TREE.nodes[id].kind === 'attribute');
+assert.ok(activatedAttributeIds.every(id => context.game.passiveAttributeChoices[id] === 'dexterity'), 'shortest-path activation should save the selected attribute on every new attribute node');
 
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 assert.ok(uiSource.includes('ouroboros-passive-tree'), 'loop passive UI should render the ouroboros layout');
 assert.ok(uiSource.includes("getSeasonPassiveNodeDef(id)"), 'loop passive UI should share definitions between body and inner nodes');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert.ok(combatSource.includes('getSeasonPassiveNodeDef(id)'), 'inner magic-circle passives must contribute to combat stats');
+assert.ok(combatSource.includes("node.kind === 'attribute' && typeof getPassiveAttributeNodeStat === 'function'"), 'combat stats should apply each attribute node saved choice');
 assert.ok(uiSource.includes("const refundedForRadialLayout = (merged.passives || []).filter(id => id !== 'n0').length"), 'old passive allocations should be counted for a one-time radial-layout refund');
-assert.ok(uiSource.includes("Number(merged.passiveLayoutVersion || 0) < 19"), 'the regional topology migration should refund allocations from the previous dense layout');
+assert.ok(uiSource.includes("Number(merged.passiveLayoutVersion || 0) < 20"), 'the attribute topology migration should refund allocations from the previous layout');
 assert.ok(uiSource.includes("merged.passives = ['n0']"), 'old layouts should reset to the root instead of remapping ids to unrelated effects');
 const activationHandler = uiSource.slice(uiSource.indexOf('async function activateHoveredPassive'), uiSource.indexOf("canvas.addEventListener('mousedown'", uiSource.indexOf('async function activateHoveredPassive')));
 assert.ok(activationHandler.includes('const targetNodeId = targetNode.id;'), 'passive UI should snapshot the target before awaiting confirmation');

@@ -604,6 +604,7 @@ async function marketResetPassiveTreeByDivine() {
     }
     game.currencies.divine -= 1;
     game.passives = [];
+    game.passiveAttributeChoices = {};
     game.passivePoints += spentNodes;
     calculateReachableNodes();
     refreshPassiveVisibility();

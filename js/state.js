@@ -1994,6 +1994,8 @@ const defaultGame = {
     summons: [],
     summonSeq: 1,
     passives: [],
+    passiveAttributePreference: 'strength',
+    passiveAttributeChoices: {},
     voidPassives: {},
     retiredVoidPassives: {},
     discoveredPassives: [],
