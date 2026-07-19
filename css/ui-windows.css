@@ -194,7 +194,7 @@
     border: 1px solid rgba(92, 119, 151, .72); border-radius: 14px;
     box-shadow: 0 24px 76px rgba(0,0,0,.58), inset 0 0 0 1px rgba(92, 116, 148, .24);
     pointer-events: auto; overflow: hidden; min-width: 280px; min-height: 220px;
-    color: #d8e2ef; font-family: "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+    color: #d8e2ef; font-family: var(--game-font-body, "Galmuri14", "Malgun Gothic", sans-serif);
     isolation: isolate;
   }
   body.desktop-windowed-ui .tab-content.ui-window.ui-window-open { display: flex; }

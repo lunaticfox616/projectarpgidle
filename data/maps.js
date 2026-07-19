@@ -73,6 +73,8 @@ const TIME_RIFT_UNLOCK_LOOP = 13;
 const TIME_RIFT_PAST_ZONE_ID = 'time_rift_past';
 const TIME_RIFT_FUTURE_ZONE_ID = 'time_rift_future';
 const TIME_RIFT_MAX_PRESSURE = 10;
+// 시간압별 혼돈 환산 깊이. 초반은 약 5단계씩 오르며, 9→10은 의도적으로 큰 벽이다.
+const TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS = Object.freeze([1, 6, 11, 16, 22, 29, 37, 47, 62, 90]);
 // 완벽(유실 0) = perfectBase + perfectPerPressure×(시간압-1) — 기본은 매우 낮게.
 // 불안정(유실 2) = max(unstableMin, unstableBase - unstablePerPressure×(시간압-1)). 나머지는 보통(유실 1).
 const TIME_RIFT_FUSION_ODDS = { perfectBase: 0.03, perfectPerPressure: 0.045, unstableBase: 0.42, unstablePerPressure: 0.035, unstableMin: 0.08 };

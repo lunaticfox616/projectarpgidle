@@ -45,7 +45,8 @@ assert(!windowCss.includes('border-image-source:'), 'window frame artwork must r
 assert(!html.includes('combat-feed-sub'), 'combat log must not render a LIVE badge container');
 assert(!gameShell.includes("sub.textContent = 'LIVE'"), 'game shell must not restore the LIVE badge');
 assert(passives.includes("text.impactTier === 'annihilate' ? 27"), 'damage number hierarchy should use the compact font scale');
-assert(passives.includes('const DAMAGE_TEXT_LANES'), 'simultaneous damage numbers should use separate display lanes');
+assert(passives.includes('const DAMAGE_TEXT_STACK_SPACING'), 'rapid damage numbers should use a vertical stack');
+assert(passives.includes('queueDamageTextStackShift(activeTexts'), 'new damage numbers should push earlier labels upward');
 assert(windowCss.includes('.ui-management-mode .combat-feed'), 'management screens must reduce combat HUD density');
 assert(windowCss.includes('(max-height: 760px)'), '720p-class layouts need a dedicated compact mode');
 assert(windowCss.includes('(min-aspect-ratio: 21/9)'), 'ultrawide layouts need a dedicated composition');

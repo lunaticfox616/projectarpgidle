@@ -122,11 +122,13 @@ const damageTextLayout = vm.runInContext(`(() => {
   return battleVisualState.damageTexts.map(text => ({
     start: text.start,
     offsetX: text.offsetX,
+    stackShiftTo: text.stackShiftTo,
     duration: text.duration,
   }));
 })()`, context);
 assert.ok(damageTextLayout.every(text => text.start === 1200), 'damage labels should share the battlefield visual clock instead of wall-clock time');
-assert.strictEqual(new Set(damageTextLayout.map(text => text.offsetX)).size, damageTextLayout.length, 'same-frame damage labels should spread across separate lanes');
+assert.ok(damageTextLayout.every(text => text.offsetX === 0), 'rapid damage labels should stay on one readable anchor');
+assert.deepStrictEqual(Array.from(damageTextLayout, text => text.stackShiftTo), [-36, -18, 0], 'older damage labels should be pushed upward in arrival order');
 assert.ok(damageTextLayout.every(text => text.duration <= 760), 'ordinary damage labels should clear quickly instead of lingering over combat');
 
 for (let index = 0; index < 18; index++) {

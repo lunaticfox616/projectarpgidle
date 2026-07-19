@@ -4113,7 +4113,37 @@ function formatDamageNumberForDisplay(value, format) {
 }
 
 const MAX_BATTLE_DAMAGE_TEXTS = 72;
-const DAMAGE_TEXT_LANES = [0, -12, 12, -22, 22, -31, 31];
+const DAMAGE_TEXT_STACK_WINDOW_MS = 520;
+const DAMAGE_TEXT_STACK_SPACING = 18;
+const DAMAGE_TEXT_STACK_SHIFT_MS = 90;
+const DAMAGE_TEXT_MAX_STACK = 9;
+
+function getDamageTextStackShift(text, now) {
+    let from = Number(text && text.stackShiftFrom) || 0;
+    let to = Number(text && text.stackShiftTo) || 0;
+    let startedAt = Number(text && text.stackShiftStart);
+    if (!Number.isFinite(startedAt) || from === to) return to;
+    let t = clampNumber((now - startedAt) / DAMAGE_TEXT_STACK_SHIFT_MS, 0, 1);
+    let eased = 1 - Math.pow(1 - t, 3);
+    return from + (to - from) * eased;
+}
+
+function queueDamageTextStackShift(activeTexts, start, x, y, enemyHit) {
+    activeTexts.forEach(text => {
+        let age = start - Number(text && text.start);
+        if (!Number.isFinite(age)
+            || age < 0
+            || age > DAMAGE_TEXT_STACK_WINDOW_MS
+            || !!text.enemyHit !== !!enemyHit
+            || Math.abs(Number(text.x) - x) > 34
+            || Math.abs(Number(text.y) - y) > 40) return;
+        let currentShift = getDamageTextStackShift(text, start);
+        let priorTarget = Math.min(currentShift, Number(text.stackShiftTo) || 0);
+        text.stackShiftFrom = currentShift;
+        text.stackShiftTo = Math.max(-DAMAGE_TEXT_STACK_SPACING * DAMAGE_TEXT_MAX_STACK, priorTarget - DAMAGE_TEXT_STACK_SPACING);
+        text.stackShiftStart = start;
+    });
+}
 
 function spawnDamageText(config) {
     config = config || {};
@@ -4126,24 +4156,18 @@ function spawnDamageText(config) {
     let x = Number.isFinite(Number(config.x)) ? Number(config.x) : 0;
     let y = Number.isFinite(Number(config.y)) ? Number(config.y) : 0;
     let activeTexts = battleVisualState.damageTexts || (battleVisualState.damageTexts = []);
-    let nearbyCount = activeTexts.filter(text => {
-        let age = start - Number(text && text.start);
-        return Number.isFinite(age)
-            && age >= 0
-            && age <= 220
-            && Math.abs(Number(text.x) - x) <= 34
-            && Math.abs(Number(text.y) - y) <= 40;
-    }).length;
-    let lane = DAMAGE_TEXT_LANES[nearbyCount % DAMAGE_TEXT_LANES.length];
-    let row = Math.floor(nearbyCount / DAMAGE_TEXT_LANES.length);
+    queueDamageTextStackShift(activeTexts, start, x, y, config.enemyHit);
     activeTexts.push({
         start: start,
         duration: config.duration || (config.impactTier === 'annihilate' ? 940 : (config.impactTier === 'heavy' ? 860 : (config.enemyHit ? 820 : (config.crit ? 840 : 760)))),
         x: x,
         y: y,
-        offsetX: lane,
-        offsetY: -row * 9,
-        driftX: lane * 0.12,
+        offsetX: 0,
+        offsetY: 0,
+        driftX: 0,
+        stackShiftFrom: 0,
+        stackShiftTo: 0,
+        stackShiftStart: start,
         value: config.value || 0,
         crit: !!config.crit,
         enemyHit: !!config.enemyHit,
@@ -4183,13 +4207,13 @@ function drawDamageTexts(ctx, now) {
         let t = clampNumber(elapsed / text.duration, 0, 1);
         let easedRise = 1 - Math.pow(1 - t, 2);
         let rise = (text.dot ? 13 : 19) + (text.crit ? 5 : 0);
-        let x = text.x + (text.offsetX || 0) + (text.driftX || 0) * easedRise;
-        let y = text.y + (text.offsetY || 0) - rise * easedRise;
+        let x = text.x;
+        let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
         ctx.globalAlpha = t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38);
         const tierSize = text.impactTier === 'annihilate' ? 27 : (text.impactTier === 'heavy' ? 22 : 0);
         const fontSize = tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16))));
-        ctx.font = `800 ${fontSize}px "Malgun Gothic", "Noto Sans KR", sans-serif`;
+        ctx.font = `800 ${fontSize}px "Galmuri14", "Malgun Gothic", sans-serif`;
         ctx.textAlign = 'center';
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
         ctx.lineWidth = text.impactTier === 'annihilate' ? 2.8 : (text.crit || text.impactTier === 'heavy' ? 2.4 : 1.8);
@@ -7094,12 +7118,13 @@ function normalizeItem(item) {
     item.rarity = item.rarity || 'magic';
     item.hiddenTier = Math.max(1, Math.floor(coerceFiniteNumber(item.hiddenTier, coerceFiniteNumber(item.itemTier, 1), 1)));
     const existingHighAffixTier = item.stats.reduce((max, stat) => Math.max(max, Math.floor(coerceFiniteNumber(stat && stat.tier, 0))), 0);
-    const legacyCosmosProvenance = item.dropRealm === 'cosmos' || existingHighAffixTier >= 11;
+    const storedHighAffixCap = Number.isFinite(Number(item.affixTierCap)) && Number(item.affixTierCap) >= 11;
+    const legacyProgressionProvenance = item.dropRealm === 'cosmos' || storedHighAffixCap || existingHighAffixTier >= 11;
     item.dropRealm = typeof item.dropRealm === 'string' ? item.dropRealm : null;
     item.affixTierCap = clampNumber(Math.floor(coerceFiniteNumber(
         item.affixTierCap,
-        legacyCosmosProvenance ? item.hiddenTier : Math.min(10, item.hiddenTier)
-    )), 1, legacyCosmosProvenance ? 15 : 10);
+        legacyProgressionProvenance ? item.hiddenTier : Math.min(10, item.hiddenTier)
+    )), 1, legacyProgressionProvenance ? 20 : 10);
     // 마이그레이션: 유틸리티 플라스크 슬롯 시스템(flaskUtilSlots) 도입 이전에 저장된 허리띠는
     // rollBaseStats()가 해당 옵션을 굴린 적이 없어 baseStats에 없다. 그대로 두면 숨겨진 티어
     // 5+/10+ 허리띠였어도 유틸리티 슬롯이 0개로 취급돼 저장된 유틸리티 플라스크가 멈춘다.
@@ -7133,23 +7158,38 @@ function normalizeItem(item) {
 
 function getItemCraftTier(item) {
     if (!item) return 1;
-    if (Number.isFinite(item.affixTierCap)) return clampNumber(Math.floor(item.affixTierCap), 1, item.dropRealm === 'cosmos' || item.affixTierCap >= 11 ? 15 : 10);
+    if (Number.isFinite(item.affixTierCap)) return clampNumber(Math.floor(item.affixTierCap), 1, item.affixTierCap >= 11 ? 20 : 10);
     const existingHighAffixTier = (Array.isArray(item.stats) ? item.stats : []).reduce((max, stat) => Math.max(max, Math.floor(Number(stat && stat.tier) || 0)), 0);
-    if (existingHighAffixTier >= 11) return clampNumber(Math.max(existingHighAffixTier, Math.floor(Number(item.hiddenTier) || 1)), 11, 15);
+    if (existingHighAffixTier >= 11) return clampNumber(Math.max(existingHighAffixTier, Math.floor(Number(item.hiddenTier) || 1)), 11, 20);
     if (Number.isFinite(item.hiddenTier)) return clampNumber(Math.floor(item.hiddenTier), 1, 10);
     if (Number.isFinite(item.itemTier)) return clampNumber(Math.floor(item.itemTier), 1, 10);
     return 1;
 }
 
 function getRealmEquipmentHiddenTierCap(zone) {
-    if (!zone || zone.type !== 'cosmos') return Math.min(15, Math.max(1, Math.floor(Number(zone && zone.tier) || 1)));
-    let cosmosTier = Math.max(1, Math.floor(Number(zone.tier) || 1));
-    return Math.min(15, 11 + Math.floor((cosmosTier - 1) / 5));
+    if (!zone) return 1;
+    if (zone.type === 'act') {
+        let actOrder = Math.max(1, Math.floor(Number(zone.storyOrder) || Number(zone.id) + 1 || 1));
+        return Math.min(9, actOrder);
+    }
+    if (zone.type === 'abyss') {
+        let depth = Math.max(1, Math.floor(Number(zone.depth) || 1));
+        return Math.min(15, 10 + Math.floor((depth - 1) / 5));
+    }
+    if (zone.type === 'timeRift') {
+        let depth = Math.max(1, Math.floor(Number(zone.equivalentChaosDepth) || 1));
+        return Math.min(15, 10 + Math.floor((depth - 1) / 5));
+    }
+    if (zone.type === 'cosmos') {
+        let cosmosTier = Math.max(1, Math.floor(Number(zone.tier) || 1));
+        return Math.min(20, 16 + Math.floor((cosmosTier - 1) / 5));
+    }
+    return Math.min(15, Math.max(1, Math.floor(Number(zone.tier) || 1)));
 }
 
 function getRealmEquipmentAffixTierCap(zone, hiddenTierCap) {
     const itemTier = Math.max(1, Math.floor(Number(hiddenTierCap) || 1));
-    return zone && zone.type === 'cosmos' ? Math.min(15, Math.max(11, itemTier)) : Math.min(10, itemTier);
+    return Math.min(zone && zone.type === 'cosmos' ? 20 : 15, itemTier);
 }
 
 function getCraftTierRangeForItem(item, source) {
@@ -7163,7 +7203,7 @@ function getTierVisualLevel(tierValue) {
 }
 
 function getTierDisplayLevel(tierValue) {
-    return clampNumber(Math.max(1, Math.floor(Number(tierValue) || 1)), 1, 15);
+    return clampNumber(Math.max(1, Math.floor(Number(tierValue) || 1)), 1, 20);
 }
 
 function getTierClassName(tierValue) {
@@ -7313,14 +7353,15 @@ function rollBaseStats(base, zoneTier) {
 
 
 function rollTierValueAffix(mod, statId, tier) {
-    let range = mod.tierValues[Math.max(0, Math.min(mod.tierValues.length - 1, tier - 1))];
+    let effectiveTier = Math.max(1, Math.min(mod.tierValues.length, Math.floor(Number(tier) || 1)));
+    let range = mod.tierValues[effectiveTier - 1];
     let min = Array.isArray(range) ? Number(range[0]) : Number(range);
     let max = Array.isArray(range) ? Number(range[1]) : min;
     if (!Number.isFinite(min)) min = Number(mod.base) || 0;
     if (!Number.isFinite(max)) max = min;
     if (max < min) { let tmp = min; min = max; max = tmp; }
     let val = min + Math.floor(Math.random() * (Math.floor(max) - Math.floor(min) + 1));
-    return { id: statId, val: val, valMin: Math.floor(min), valMax: Math.floor(max), tier: tier, statName: mod.statName };
+    return { id: statId, val: val, valMin: Math.floor(min), valMax: Math.floor(max), tier: effectiveTier, statName: mod.statName };
 }
 
 function rerollStoredAffixValue(stat) {
@@ -7369,7 +7410,8 @@ function rollAffixValue(mod, maxTier, opts) {
     let roundInteger = !!(opts && opts.roundInteger);
     let statId = mod.statId || mod.id;
     let tier = 1;
-    maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 15);
+    maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 20);
+    if (Array.isArray(mod.tierValues)) maxTier = Math.min(maxTier, mod.tierValues.length);
     while (tier < maxTier && Math.random() < 0.58) tier++;
     let result;
     if (Array.isArray(mod.tierValues)) {
@@ -7418,8 +7460,12 @@ function pickTierInRangeWeighted(minTier, maxTier) {
 
 function rollAffixValueInTierRange(mod, minTier, maxTier) {
     let statId = mod.statId || mod.id;
-    minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 15);
-    maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 15);
+    minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 20);
+    maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 20);
+    if (Array.isArray(mod.tierValues)) {
+        maxTier = Math.min(maxTier, mod.tierValues.length);
+        minTier = Math.min(minTier, maxTier);
+    }
     let tier = pickTierInRangeWeighted(minTier, maxTier);
     let result;
     if (Array.isArray(mod.tierValues)) {
@@ -8067,7 +8113,7 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
     itemIdCounter++;
     origin = origin && typeof origin === 'object' ? origin : {};
     const dropRealm = typeof origin.dropRealm === 'string' ? origin.dropRealm : null;
-    const affixTierCap = clampNumber(Math.floor(Number(origin.affixTierCap) || Math.min(10, Math.max(1, Number(zoneTier) || 1))), 1, dropRealm === 'cosmos' ? 15 : 10);
+    const affixTierCap = clampNumber(Math.floor(Number(origin.affixTierCap) || Math.min(15, Math.max(1, Number(zoneTier) || 1))), 1, 20);
     let item = {
         id: itemIdCounter,
         slot: base.slot,
