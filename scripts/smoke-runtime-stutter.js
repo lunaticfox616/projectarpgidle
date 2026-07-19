@@ -4,30 +4,43 @@ const vm = require('vm');
 
 const saveSource = fs.readFileSync('js/save.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 const windowCss = fs.readFileSync('css/ui-windows.css', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 
-assert(saveSource.includes('function serializeSaveState(sourceGame)'), 'local saves should have a single-pass serializer');
-assert(saveSource.includes('localStorage.setItem(LOCAL_SAVE_KEY, serializeSaveState(game))'), 'autosave must not deep-clone and then re-stringify the entire game');
-assert(!saveSource.includes('localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(createSaveSnapshot(game)))'), 'the previous double serialization path must stay removed');
-
-const serializerStart = saveSource.indexOf('function serializeSaveState');
-const serializerEnd = saveSource.indexOf('function createCloudSavePayload', serializerStart);
-const serializerContext = { JSON, game: null };
-vm.createContext(serializerContext);
-vm.runInContext(saveSource.slice(serializerStart, serializerEnd), serializerContext, { filename: 'save-single-pass.js' });
-const sample = { inventory: [{ id: 1, stats: [{ id: 'flatHp', val: 42 }] }], runtime: undefined };
-assert.deepStrictEqual(JSON.parse(serializerContext.serializeSaveState(sample)), JSON.parse(JSON.stringify(sample)), 'single-pass save output must preserve JSON save semantics');
-
-const cloudContext = {
-  JSON, Math, Number, Date, Set, WeakSet, console,
-  game: {},
-  defaultGame: { saveMeta: {} },
-  safeExposeGlobals(map) { Object.assign(cloudContext, map); }
+const storageWrites = [];
+let scheduledCloudSyncs = 0;
+const savedGame = {
+  saveMeta: { lastModifiedAt: 10, lastCloudSyncAt: 20, lastCloudUploadProfile: null },
+  inventory: [{ id: 1, stats: [{ id: 'flatHp', val: 42 }] }],
+  equipment: {},
+  timeRift: {},
+  runtime: undefined
 };
-vm.createContext(cloudContext);
-vm.runInContext(saveSource, cloudContext, { filename: 'save-cloud-fast-path.js' });
+const saveContext = {
+  JSON, Math, Number, Date, Set, WeakSet, console,
+  LOCAL_SAVE_KEY: 'project-arpg-save',
+  LEGACY_SAVE_KEYS: [],
+  game: savedGame,
+  defaultGame: { saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null } },
+  itemIdCounter: 0,
+  cloudState: { configured: false, user: null },
+  localStorage: {
+    getItem() { return null; },
+    setItem(key, value) { storageWrites.push({ key, value }); }
+  },
+  scheduleCloudAutoSync() { scheduledCloudSyncs += 1; },
+  updateCloudSaveUI() {},
+  safeExposeGlobals(map) { Object.assign(saveContext, map); }
+};
+vm.createContext(saveContext);
+vm.runInContext(saveSource, saveContext, { filename: 'save-runtime.js' });
+
+assert.strictEqual(saveContext.saveGame({ touchModifiedAt: false }), true, 'autosave should report successful persistence');
+assert.strictEqual(storageWrites.length, 1, 'one autosave should perform one storage write');
+assert.strictEqual(storageWrites[0].key, 'project-arpg-save');
+assert.deepStrictEqual(JSON.parse(storageWrites[0].value), JSON.parse(JSON.stringify(savedGame)), 'persisted JSON should preserve the save state');
+assert.strictEqual(scheduledCloudSyncs, 1, 'successful autosave should schedule one cloud sync');
+
 const cloudSample = {
   enemies: [{ id: 10 }], encounterPlan: [{ id: 10 }], encounterIndex: 2, nextEnemyId: 12,
   inventory: [{ id: 4 }], combatLog: ['hit'], recentDamageEvents: [{ value: 1 }],
@@ -35,17 +48,81 @@ const cloudSample = {
   playerLeechInstances: Array.from({ length: 90 }, (_, index) => ({ index })),
   enemyConditionDebuffs: { 10: [{ id: 'shock' }] }, realmDeathWard: { amount: 100 }, realmInvulnerableBarrierUntil: 999
 };
-const legacyCloudPayload = cloudContext.createCloudSavePayload(cloudSample);
-const fastCloudBody = JSON.parse(cloudContext.createCloudSaveRequestBody('user-1', cloudSample));
+const cloudRequestBody = saveContext.createCloudSaveRequestBody('user-1', cloudSample);
+assert.strictEqual(typeof cloudRequestBody, 'string', 'cloud upload should produce a serialized request body');
+const fastCloudBody = JSON.parse(cloudRequestBody);
 assert.strictEqual(fastCloudBody.user_id, 'user-1');
-assert.strictEqual(JSON.stringify(fastCloudBody.save_data), JSON.stringify(legacyCloudPayload), 'single-pass cloud body must preserve the existing sanitized payload contract');
-assert(uiSource.includes("if (typeof createCloudSaveRequestBody === 'function')"), 'cloud autosave should use the single-pass request body fast path');
-assert(uiSource.includes('body: requestBody'), 'cloud transport should not stringify the full payload again');
+assert.deepStrictEqual(fastCloudBody.save_data.inventory, [{ id: 4 }], 'cloud upload should preserve persistent inventory data');
+assert.deepStrictEqual(fastCloudBody.save_data.enemies, [], 'cloud upload should omit transient enemies');
+assert.deepStrictEqual(fastCloudBody.save_data.combatLog, [], 'cloud upload should omit transient combat logs');
+assert.strictEqual(fastCloudBody.save_data.playerAilments.length, 40, 'cloud upload should bound player ailments');
+assert.strictEqual(fastCloudBody.save_data.playerLeechInstances.length, 80, 'cloud upload should bound leech instances');
+assert.strictEqual(fastCloudBody.save_data.realmDeathWard, null, 'cloud upload should clear transient realm wards');
+assert.strictEqual(fastCloudBody.save_data.realmInvulnerableBarrierUntil, 0, 'cloud upload should clear transient realm barriers');
+assert.strictEqual(cloudSample.enemies.length, 1, 'building a cloud upload must not mutate the live game state');
 
-assert(passiveSource.includes('let autoSaveIdleHandle = null;'), 'autosave scheduling should track one pending idle job');
-assert(uiSource.includes('function scheduleAutoSaveWhenIdle()'), 'periodic autosaves should be deferred to an idle window');
-assert(uiSource.includes("requestIdleCallback(run, { timeout: 4000 })"), 'idle autosaves should retain a bounded fallback deadline');
-assert(uiSource.includes('autoSaveHandle = setInterval(() => {\n            scheduleAutoSaveWhenIdle();'), 'the periodic timer should schedule instead of serializing immediately');
+const schedulerStart = uiSource.indexOf('function cancelScheduledAutoSave()');
+const schedulerEnd = uiSource.indexOf('function renderBattlefieldThrottled', schedulerStart);
+const idleJobs = [];
+let autosaveRuns = 0;
+const schedulerContext = {
+  autoSaveIdleHandle: null,
+  isStartupOverlayOpen() { return false; },
+  isLoadingOverlayOpen() { return false; },
+  saveGame() { autosaveRuns += 1; },
+  requestIdleCallback(callback, options) {
+    idleJobs.push({ callback, options });
+    return idleJobs.length;
+  },
+  cancelIdleCallback() {},
+  setTimeout,
+  clearTimeout
+};
+vm.createContext(schedulerContext);
+vm.runInContext(uiSource.slice(schedulerStart, schedulerEnd), schedulerContext, { filename: 'autosave-scheduler.js' });
+vm.runInContext('scheduleAutoSaveWhenIdle(); scheduleAutoSaveWhenIdle();', schedulerContext);
+assert.strictEqual(idleJobs.length, 1, 'repeated timer ticks should coalesce into one pending idle autosave');
+assert.strictEqual(autosaveRuns, 0, 'periodic autosave should not serialize during the active timer tick');
+assert.strictEqual(idleJobs[0].options.timeout, 4000, 'idle autosave should retain a bounded deadline');
+idleJobs[0].callback();
+assert.strictEqual(autosaveRuns, 1, 'the pending autosave should run when the browser becomes idle');
+assert.strictEqual(schedulerContext.autoSaveIdleHandle, null, 'the idle slot should be released after saving');
+
+async function exerciseCloudUpload() {
+  let capturedRequest = null;
+  let localPersistCalls = 0;
+  const uploadGame = { ...cloudSample, saveMeta: {}, loopCount: 3 };
+  const uploadContext = {
+    JSON, Math, Date, console,
+    game: uploadGame,
+    cloudState: { user: { id: 'user-1' }, lastRemoteUpdatedAt: 0, lastRemoteLoop: 0 },
+    canPersistLocalSave() { return true; },
+    getLocalSaveStatus() { return { message: '' }; },
+    fetchCloudSaveRecord: async () => null,
+    shouldBlockLocalPushForRemoteLoop() { return { blocked: false }; },
+    persistLocalSave() { localPersistCalls += 1; return true; },
+    createCloudSaveRequestBody(userId, sourceGame) { return saveContext.createCloudSaveRequestBody(userId, sourceGame); },
+    async cloudJsonRequest(path, options) { capturedRequest = { path, options }; return [{ updated_at: '2026-07-19T00:00:00Z' }]; },
+    ensureSaveMeta() { if (!uploadGame.saveMeta) uploadGame.saveMeta = {}; },
+    getSaveLoopNumber() { return 3; },
+    rememberCloudUploadProfile() {},
+    updateCloudSaveUI() {},
+    setCloudMessage() {}
+  };
+  vm.createContext(uploadContext);
+  const uploadStart = uiSource.indexOf('async function pushCloudSave(options = {})');
+  const uploadEnd = uiSource.indexOf('async function pullCloudSave', uploadStart);
+  vm.runInContext(uiSource.slice(uploadStart, uploadEnd), uploadContext, { filename: 'cloud-upload.js' });
+
+  const uploadedRow = await vm.runInContext('pushCloudSave({ touchModifiedAt: false })', uploadContext);
+  assert.strictEqual(uploadedRow.updated_at, '2026-07-19T00:00:00Z');
+  assert.strictEqual(capturedRequest.path, '/rest/v1/cloud_saves');
+  assert.strictEqual(capturedRequest.options.method, 'POST');
+  assert.strictEqual(capturedRequest.options.headers['Content-Type'], 'application/json');
+  assert.strictEqual(typeof capturedRequest.options.body, 'string', 'cloud transport should receive the serialized body');
+  assert.strictEqual(JSON.parse(capturedRequest.options.body).user_id, 'user-1');
+  assert.strictEqual(localPersistCalls, 3, 'cloud upload should persist before upload and after sync metadata updates');
+}
 
 assert(windowCss.includes('max-height: none'), 'trait enemy cards should grow with their status rows');
 assert(windowCss.includes('.enemy-traits { display: block') && windowCss.includes('white-space: normal'), 'enemy traits should wrap instead of being clipped to one line');
@@ -61,4 +138,9 @@ assert(html.includes('css/ui-game-overhaul.css?v=20260719-enemy-hud2'), 'the fin
 assert(html.includes('js/ui.js?v=20260719-enemy-hud2'), 'the progress label runtime cache must refresh');
 assert(html.includes('js/save.js?v=20260719-stutter-fix1'), 'save runtime cache must refresh');
 
-console.log('smoke-runtime-stutter passed');
+exerciseCloudUpload()
+  .then(() => console.log('smoke-runtime-stutter passed'))
+  .catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+  });
