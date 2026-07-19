@@ -3620,6 +3620,7 @@ let itemIdCounter = 0;
 let lastTime = Date.now();
 let gameTickHandle = null;
 let autoSaveHandle = null;
+let autoSaveIdleHandle = null;
 let hoverNode = null;
 let mouseX = 0;
 let mouseY = 0;

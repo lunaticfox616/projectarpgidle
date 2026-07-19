@@ -78,6 +78,12 @@ function createSaveSnapshot(sourceGame) {
     return snapshot;
 }
 
+function serializeSaveState(sourceGame) {
+    // 로컬 저장은 직렬화된 문자열만 필요하다. 깊은 복제 후 다시 문자열화하면 큰 인벤토리에서
+    // 같은 상태를 두 번 순회하고 대량의 임시 객체를 만들어 주기적인 GC 끊김을 유발한다.
+    return JSON.stringify(sourceGame || game || {});
+}
+
 function createCloudSavePayload(sourceGame) {
     let payload = createSaveSnapshot(sourceGame || game || {});
     payload.enemies = [];
@@ -100,6 +106,36 @@ function createCloudSavePayload(sourceGame) {
     payload.realmDeathWard = null;
     payload.realmInvulnerableBarrierUntil = 0;
     return payload;
+}
+
+function createCloudSaveRequestBody(userId, sourceGame) {
+    let root = sourceGame || game || {};
+    // 최상위만 얕게 복사하고 런타임 필드를 덮어쓴 뒤 한 번만 문자열화한다.
+    // 중첩 인벤토리/장비를 깊은 복제하지 않으므로 클라우드 자동 저장 순간의 GC 부하도 줄어든다.
+    let payload = {
+        ...root,
+        saveMeta: root.saveMeta && typeof root.saveMeta === 'object' ? root.saveMeta : {},
+        enemies: [],
+        encounterPlan: [],
+        encounterIndex: Math.max(0, Math.floor(Number(root.encounterIndex) || 0)),
+        nextEnemyId: Math.max(1, Math.floor(Number(root.nextEnemyId) || 1)),
+        combatLog: [],
+        recentDamageEvents: [],
+        pendingSlamEchoHits: [],
+        dotFxThrottle: {},
+        battlefieldEnemySprites: {},
+        enemyConditionDebuffs: {},
+        enemyKeystoneDebuffs: {},
+        rangerWeakpointMarks: {},
+        enemyUniqueChaosResDown: {},
+        enemyUniqueElementalResDown: {},
+        enemyCurseExpirePayloads: {},
+        playerAilments: Array.isArray(root.playerAilments) ? root.playerAilments.slice(0, 40) : [],
+        playerLeechInstances: Array.isArray(root.playerLeechInstances) ? root.playerLeechInstances.slice(0, 80) : [],
+        realmDeathWard: null,
+        realmInvulnerableBarrierUntil: 0
+    };
+    return JSON.stringify({ user_id: userId, save_data: payload });
 }
 
 function sanitizeForSave(value, seen = new WeakSet()) {
@@ -129,7 +165,7 @@ function persistLocalSave(options = {}) {
     ensureSaveMeta();
     if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = Date.now();
     try {
-        localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(createSaveSnapshot(game)));
+        localStorage.setItem(LOCAL_SAVE_KEY, serializeSaveState(game));
     } catch (error) {
         try {
             let sanitized = sanitizeForSave(game || {});
@@ -251,4 +287,4 @@ function setCloudMessage(message) {
 }
 
 
-safeExposeGlobals({ readLocalSaveString, readLocalSaveResult, getLocalSaveStatus, canPersistLocalSave, ensureSaveMeta, createSaveSnapshot, createCloudSavePayload, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });
+safeExposeGlobals({ readLocalSaveString, readLocalSaveResult, getLocalSaveStatus, canPersistLocalSave, ensureSaveMeta, createSaveSnapshot, serializeSaveState, createCloudSavePayload, createCloudSaveRequestBody, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });

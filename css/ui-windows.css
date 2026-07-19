@@ -102,21 +102,21 @@
   body.desktop-windowed-ui .map-progress-row .hp-text { font-size: 0; }
   body.desktop-windowed-ui #ui-shrine-box { top: 58px !important; right: 10px !important; }
 
-  body.desktop-windowed-ui #enemy-area { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); top: 58px; z-index: 8; width: clamp(420px, 48vw, 680px); transform: translateX(-50%); pointer-events: none; }
+  body.desktop-windowed-ui #enemy-area { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); top: 44px; z-index: 8; width: clamp(420px, 48vw, 680px); transform: translateX(-50%); pointer-events: none; }
   body.desktop-windowed-ui #ui-enemy-list { display: grid; gap: 3px; min-height: 0; pointer-events: none; }
   body.desktop-windowed-ui #ui-enemy-list:empty, body.desktop-windowed-ui .enemy-empty { display: none; }
-  body.desktop-windowed-ui .enemy-card.targeted { min-height: 76px; max-height: 104px; padding: 7px 12px; border-radius: 8px; background: #101722; border: 1px solid rgba(232, 194, 106, 0.58); box-shadow: none; pointer-events: auto; overflow: hidden; }
+  body.desktop-windowed-ui .enemy-card.targeted { min-height: 76px; height: auto; max-height: none; padding: 7px 12px; border-radius: 8px; background: #101722; border: 1px solid rgba(232, 194, 106, 0.58); box-shadow: none; pointer-events: auto; overflow: visible; }
   body.desktop-windowed-ui #enemy-area:has(.enemy-boss) { width: clamp(560px, 65vw, 900px); }
-  body.desktop-windowed-ui .enemy-card.enemy-boss { min-height: 92px; max-height: 126px; padding: 8px 12px; }
+  body.desktop-windowed-ui .enemy-card.enemy-boss { min-height: 92px; height: auto; max-height: none; padding: 8px 12px; }
   body.desktop-windowed-ui .enemy-card.targeted .enemy-name { font-size: 15px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   body.desktop-windowed-ui .enemy-card.targeted .hp-bar-bg { height: 26px; margin-top: 5px; }
   body.desktop-windowed-ui .enemy-card.targeted .hp-text { font-size: 14px; line-height: 26px; }
   body.desktop-windowed-ui .enemy-card.enemy-boss .hp-bar-bg { height: 34px; }
   body.desktop-windowed-ui .enemy-card.enemy-boss .hp-text { font-size: 16px; line-height: 34px; }
-  body.desktop-windowed-ui .enemy-card.targeted .enemy-traits { display: block; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; font-size: 11px; line-height: 1.2; color: #ffd58e; }
+  body.desktop-windowed-ui .enemy-card.targeted .enemy-traits { display: block; margin-top: 3px; padding: 1px 4px; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; text-align: center; font-size: 11px; line-height: 1.35; color: #ffd58e; }
   body.desktop-windowed-ui .enemy-card.targeted .enemy-traits:empty { display: none; }
   /* 일반 적에게도 상태이상(점화/냉각/감전 등)을 표기한다. 없으면 공간을 차지하지 않는다. */
-  body.desktop-windowed-ui .enemy-card.targeted .enemy-ailments { display: block; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; font-size: 11px; line-height: 1.2; }
+  body.desktop-windowed-ui .enemy-card.targeted .enemy-ailments { display: block; margin-top: 2px; padding: 1px 4px; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; text-align: center; font-size: 11px; line-height: 1.35; }
   body.desktop-windowed-ui .enemy-card.targeted .enemy-ailments:empty { display: none; }
   body.desktop-windowed-ui .enemy-card.enemy-boss .enemy-ailments,
   body.desktop-windowed-ui .enemy-card.enemy-boss .enemy-traits { font-size: 12px; }

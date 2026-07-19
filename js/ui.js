@@ -7362,7 +7362,7 @@ function updateCombatUI(pStats) {
         document.getElementById('ui-move-bar').style.width = readyPct + '%';
     } else if (game.moveTimer > 0) {
         let readyPct = Math.min(100, (1 - game.moveTimer / game.moveTotalTime) * 100);
-        setTextById('ui-progress-label', game.isTownReturning ? '🏕️ 재정비 중...' : '🚶 다음 구간 준비');
+        setTextById('ui-progress-label', game.isTownReturning ? '🏕️ 재정비 중...' : '다음 구간 준비');
         setTextById('ui-move-time-text', `${Math.max(0, game.moveTimer).toFixed(1)}초`);
         document.getElementById('ui-move-bar').style.width = readyPct + '%';
     } else if (zone && zone.type === 'oceanDepth') {
@@ -7380,7 +7380,7 @@ function updateCombatUI(pStats) {
         setTextById('ui-move-time-text', `적 ${getUiCrowdPauseLimit()}기 이상`);
         document.getElementById('ui-move-bar').style.width = game.runProgress + '%';
     } else {
-        setTextById('ui-progress-label', '🧭 진행도');
+        setTextById('ui-progress-label', '진행도');
         setTextById('ui-move-time-text', `${game.runProgress.toFixed(0)}%`);
         document.getElementById('ui-move-bar').style.width = game.runProgress + '%';
     }
@@ -12965,14 +12965,20 @@ async function pushCloudSave(options = {}) {
     if (!persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true })) {
         throw new Error('로컬 저장에 실패하여 클라우드 업로드를 중단했습니다.');
     }
-    let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
-    let payloadSize = JSON.stringify(payload).length;
+    let requestBody;
+    if (typeof createCloudSaveRequestBody === 'function') {
+        requestBody = createCloudSaveRequestBody(cloudState.user.id, game);
+    } else {
+        let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
+        requestBody = JSON.stringify({ user_id: cloudState.user.id, save_data: payload });
+    }
+    let payloadSize = requestBody.length;
     if (payloadSize > 900000 && typeof addLog === 'function') addLog(`☁️ 클라우드 저장 데이터 최적화 적용 (${Math.round(payloadSize / 1024)}KB)`, 'attack-monster', { noToast: true });
     let tSerialize = Date.now();
     let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
         method: 'POST',
-        headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-        body: { user_id: cloudState.user.id, save_data: payload }
+        headers: { Prefer: 'resolution=merge-duplicates,return=representation', 'Content-Type': 'application/json' },
+        body: requestBody
     });
     let tUpload = Date.now();
     let row = Array.isArray(rows) ? rows[0] : null;
@@ -13801,10 +13807,31 @@ function init() {
         }, 100);
         requestAnimationFrame(gameLoop);
         if (autoSaveHandle) clearInterval(autoSaveHandle);
+        cancelScheduledAutoSave();
         autoSaveHandle = setInterval(() => {
-            if (isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
-            saveGame();
+            scheduleAutoSaveWhenIdle();
         }, 15000);
+    }
+}
+
+function cancelScheduledAutoSave() {
+    if (!autoSaveIdleHandle) return;
+    if (autoSaveIdleHandle.type === 'idle' && typeof cancelIdleCallback === 'function') cancelIdleCallback(autoSaveIdleHandle.id);
+    else clearTimeout(autoSaveIdleHandle.id);
+    autoSaveIdleHandle = null;
+}
+
+function scheduleAutoSaveWhenIdle() {
+    if (autoSaveIdleHandle || isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
+    let run = () => {
+        autoSaveIdleHandle = null;
+        if (isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
+        saveGame();
+    };
+    if (typeof requestIdleCallback === 'function') {
+        autoSaveIdleHandle = { type: 'idle', id: requestIdleCallback(run, { timeout: 4000 }) };
+    } else {
+        autoSaveIdleHandle = { type: 'timeout', id: setTimeout(run, 120) };
     }
 }
 
