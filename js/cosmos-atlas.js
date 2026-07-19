@@ -953,7 +953,7 @@
         const current = getCosmosTierFloor();
         const baseFloors = COSMOS_STONE_TIER_FLOORS.slice(1, 6);
         const floorText = baseFloors.map(tier => {
-            const style = tier === current ? 'color:#ffd98a;font-weight:800;text-shadow:0 0 8px rgba(255,217,138,.65);' : 'color:#b9c7dd;';
+            const style = tier === current ? 'color:#ffd98a;font-weight:800;text-shadow:0 0 8px rgba(255,217,138,.65);' : 'color:var(--copy-bright);';
             return `<span style="${style}">${tier}</span>`;
         }).join(' / ');
         return `<div class="tooltip-line">우주계 최소 티어 보정 ${floorText}</div>`;
@@ -1197,7 +1197,7 @@
         const acquired = isCosmosStoneAcquired(state, g);
         const options = acquired ? ensureCosmosStoneOptions(state, g) : [];
         const lines = options.map(option => `<div class="tooltip-line">${escapeHtml(getCosmosStoneOptionText(option))}</div>`).join('') || '<div class="tooltip-line">아직 획득하지 않았습니다.</div>';
-        return `<div class="tooltip-title">${escapeHtml(getCosmosStoneNameByGalaxy(g))}</div>${getCosmosTierFloorTooltipHtml()}<div class="tooltip-line" style="color:#9fb4d1;">보스 유물 사용: 무작위 1줄을 해당 우주석의 보스 옵션으로 리롤</div>${lines}`;
+        return `<div class="tooltip-title">${escapeHtml(getCosmosStoneNameByGalaxy(g))}</div>${getCosmosTierFloorTooltipHtml()}<div class="tooltip-line" style="color:var(--copy-bright);">보스 유물 사용: 무작위 1줄을 해당 우주석의 보스 옵션으로 리롤</div>${lines}`;
     }
 
     function showCosmosStoneTooltip(event, galaxy) {
@@ -2019,10 +2019,10 @@
             const equipped = !!(state.equippedStones && state.equippedStones[String(g)]);
             const usableRelic = Array.isArray(state.bossRelics) && findCosmosBossRelicIndexForStone(state.bossRelics, g) >= 0;
             const options = acquired ? ensureCosmosStoneOptions(state, g) : [];
-            const optionHtml = options.map(option => `<div style="font-size:11px;color:${option.boss ? '#ffd98a' : '#b9c7dd'};">${escapeHtml(getCosmosStoneOptionText(option))}</div>`).join('') || '<div style="font-size:11px;color:#6f8094;">미획득</div>';
+            const optionHtml = options.map(option => `<div style="font-size:11px;color:${option.boss ? '#ffd98a' : '#b9c7dd'};">${escapeHtml(getCosmosStoneOptionText(option))}</div>`).join('') || '<div style="font-size:11px;color:var(--copy-muted);">미획득</div>';
             return `<div class="cosmos-stone-card" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()" style="border:1px solid ${equipped ? '#8fd4ff' : '#31445c'};border-radius:8px;padding:8px;background:${acquired ? 'rgba(23,38,58,.78)' : 'rgba(18,24,34,.62)'};"><div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><b>${escapeHtml(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착' : (acquired ? '보유' : '미획득')}</span></div><div style="font-size:11px;color:#9fd6ff;">우주계 최소 티어 보정: ${getCosmosTierFloor()}</div>${optionHtml}<div style="display:flex;gap:4px;margin-top:6px;"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && usableRelic ? '' : 'disabled'} title="${usableRelic ? '이 우주석 전용 보스 유물 사용' : '이 우주석에 맞는 보스 유물이 없습니다'}">보스 유물 사용</button></div></div>`;
         }).join('');
-        return `<div style="grid-column:1/-1;margin-top:8px;"><div style="font-weight:700;color:#d7ebff;margin-bottom:6px;">우주석 장착 UI · 보스 유물 ${relicCount}개</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;">${cards}</div></div>`;
+        return `<div style="grid-column:1/-1;margin-top:8px;"><div style="font-weight:700;color:var(--copy-bright);margin-bottom:6px;">우주석 장착 UI · 보스 유물 ${relicCount}개</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;">${cards}</div></div>`;
     }
 
     function renderSummary() {
@@ -2122,7 +2122,7 @@
                 <div class="cosmos-section-label">행성 정보</div>
                 <div>소속: G${node.orbit} · 은하 내 슬롯 ${Math.max(1, Math.floor((node.localSlot || 0) + 1))}/${NODES_PER_GALAXY}</div>
                 <div>크기 등급: ${Math.max(1, Math.floor(node.sizeClass || 1))} · 중력: ${Number(node.gravity || 1).toFixed(1)}g</div>
-                <div style="margin-top:4px; color:#a9bdd3;">진행도 요구치: +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 패널티 강도: +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</div>
+                <div style="margin-top:4px; color:var(--copy-bright);">진행도 요구치: +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 패널티 강도: +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</div>
             </div>
             <!-- mastery moved -->
             <div style='display:none'><div class="cosmos-section-label">성도술 (탐사 1회당 1포인트)</div>
@@ -2136,7 +2136,7 @@
                         const r = COSMOS_MASTERY_NODES.find(row => row.key === k);
                         return `${r ? r.name : k} ${Math.max(1, Math.floor(Number(lv || 1)))}Lv`;
                     }).join(' · ')}` : '연결 조건: 시작 노드';
-                    return `<div style="margin-bottom:6px;"><button onclick="allocateCosmosMastery('${n.key}')" ${canSpend ? '' : 'disabled'}>+</button> <b>${n.name}</b> ${getCosmosMasteryValue(n.key)}/${n.max}<div style="font-size:11px;color:#9cb2ca;">${n.desc}</div><div style="font-size:11px;color:${lockReason ? '#ffb3b3' : '#86a9d2'};">${lockReason || linkLine}</div></div>`;
+                    return `<div style="margin-bottom:6px;"><button onclick="allocateCosmosMastery('${n.key}')" ${canSpend ? '' : 'disabled'}>+</button> <b>${n.name}</b> ${getCosmosMasteryValue(n.key)}/${n.max}<div style="font-size:11px;color:var(--copy-bright);">${n.desc}</div><div style="font-size:11px;color:${lockReason ? '#ffb3b3' : '#86a9d2'};">${lockReason || linkLine}</div></div>`;
                 }).join('')}
             </div>
             <div class="cosmos-actions">
@@ -2290,7 +2290,7 @@
     
     function renderMasteryPanel() {
         const el = document.getElementById('cosmos-inner-mastery'); if (!el) return;
-        el.innerHTML = `<div class="cosmos-detail-title">성도술</div><div style="margin-bottom:6px;">가용 포인트: <b>${getCosmosMasteryFreePoints()}</b> / 누적 <b>${getCosmosMasteryTotalPoints()}</b></div>` + COSMOS_MASTERY_NODES.map(n=>{const lockReason=getCosmosMasteryLockReason(n.key);const canSpend=getCosmosMasteryFreePoints()>=n.cost&&getCosmosMasteryValue(n.key)<n.max&&!lockReason;return `<div style="margin-bottom:8px;"><button onclick="allocateCosmosMastery('${n.key}')" ${canSpend?'':'disabled'}>+</button> <b>${n.name}</b> ${getCosmosMasteryValue(n.key)}/${n.max} <span style="color:#ffd08a;">(비용 ${n.cost})</span><div style="font-size:11px;color:#9cb2ca;">${n.desc}</div></div>`;}).join('');
+        el.innerHTML = `<div class="cosmos-detail-title">성도술</div><div style="margin-bottom:6px;">가용 포인트: <b>${getCosmosMasteryFreePoints()}</b> / 누적 <b>${getCosmosMasteryTotalPoints()}</b></div>` + COSMOS_MASTERY_NODES.map(n=>{const lockReason=getCosmosMasteryLockReason(n.key);const canSpend=getCosmosMasteryFreePoints()>=n.cost&&getCosmosMasteryValue(n.key)<n.max&&!lockReason;return `<div style="margin-bottom:8px;"><button onclick="allocateCosmosMastery('${n.key}')" ${canSpend?'':'disabled'}>+</button> <b>${n.name}</b> ${getCosmosMasteryValue(n.key)}/${n.max} <span style="color:#ffd08a;">(비용 ${n.cost})</span><div style="font-size:11px;color:var(--copy-bright);">${n.desc}</div></div>`;}).join('');
     }
     function switchCosmosInnerTab(tab) {
       const a=document.getElementById('cosmos-inner-atlas'), m=document.getElementById('cosmos-inner-mastery');

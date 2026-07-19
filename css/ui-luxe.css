@@ -12,8 +12,8 @@
   --luxe-blue-glow: rgba(76, 176, 255, 0.24);
   --luxe-gold: #f0c86f;
   --luxe-gold-soft: rgba(240, 200, 111, 0.2);
-  --luxe-copy: #d9e5f2;
-  --luxe-muted: #8298b2;
+  --luxe-copy: #ffffff;
+  --luxe-muted: #eef2f6;
   --luxe-shadow: 0 24px 64px rgba(0, 0, 0, 0.56);
 }
 
@@ -120,7 +120,7 @@ body:not(.light-mode) .startup-form input,
 body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']),
 body:not(.light-mode) select,
 body:not(.light-mode) textarea {
-  color: #edf6ff;
+  color: #ffffff;
   border: 1px solid rgba(83, 119, 158, 0.56);
   background: linear-gradient(180deg, rgba(8, 14, 22, 0.96), rgba(13, 21, 32, 0.96));
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.42), 0 1px 0 rgba(255, 255, 255, 0.025);
@@ -260,7 +260,7 @@ body:not(.light-mode).desktop-windowed-ui .combat-zone-row {
 }
 
 body:not(.light-mode).desktop-windowed-ui .combat-zone-row-title {
-  color: #e5f1fc;
+  color: #ffffff;
   letter-spacing: 0.025em;
   text-shadow: 0 2px 8px #000;
 }
@@ -382,7 +382,7 @@ body:not(.light-mode).desktop-windowed-ui .combat-feed {
 
 body:not(.light-mode).desktop-windowed-ui .combat-feed-title {
   min-height: 26px;
-  color: #c4d7e9;
+  color: #ffffff;
   letter-spacing: 0.07em;
   text-transform: uppercase;
 }
@@ -404,7 +404,7 @@ body:not(.light-mode).desktop-windowed-ui .tab-header {
 }
 
 body:not(.light-mode).desktop-windowed-ui .ui-rail-group-label {
-  color: #718aa6;
+  color: #eef2f6;
   letter-spacing: 0.13em;
 }
 
@@ -485,7 +485,7 @@ body:not(.light-mode).desktop-windowed-ui .ui-window-actions button:hover {
 }
 
 body:not(.light-mode).desktop-windowed-ui .ui-window-body h2 {
-  color: #e7f2fc;
+  color: #ffffff;
   border-bottom-color: rgba(75, 108, 143, 0.46);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.44);
 }

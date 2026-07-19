@@ -62,7 +62,7 @@ body:not(.light-mode) .tab-btn {
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #9eb6cb;
+  color: #ffffff;
   font-weight: 800;
   font-size: 0.86em;
   letter-spacing: 0.04em;
@@ -90,7 +90,7 @@ body:not(.light-mode) .tab-btn::after {
 
 body:not(.light-mode) .tab-btn:hover {
   background: rgba(180,200,230,0.05);
-  color: #e0ecf7;
+  color: #ffffff;
 }
 body:not(.light-mode) .tab-btn:hover::after {
   background: rgba(180,200,230,0.2);
@@ -116,7 +116,7 @@ body:not(.light-mode) .subtab-btn {
   border: 1px solid #25374e;
   border-radius: 6px;
   background: linear-gradient(180deg, #141f2e 0%, #0f1825 100%);
-  color: #8aa0b8;
+  color: #eef2f6;
   font-weight: 600;
   font-size: 0.82em;
   letter-spacing: 0.03em;
@@ -139,7 +139,7 @@ body:not(.light-mode) .subtab-btn::before {
 body:not(.light-mode) .subtab-btn:hover {
   border-color: #3a5570;
   background: linear-gradient(180deg, #1a2a3d 0%, #131f30 100%);
-  color: #c0d4e8;
+  color: #ffffff;
 }
 
 body:not(.light-mode) .subtab-btn.active {
@@ -207,8 +207,8 @@ body:not(.light-mode) .item-compare-tooltip .item-compare-grid {
 body:not(.light-mode) #item-tooltip-box { border-color: #4d6584; }
 body:not(.light-mode) #canvas-tooltip { border-color: #6b578d; }
 body:not(.light-mode) #info-tooltip { border-color: #3f6a63; }
-body:not(.light-mode) .tooltip-title { color: #e7f2ff; margin-bottom: 6px; }
-body:not(.light-mode) .tooltip-line { color: #bfd1e6; line-height: 1.55; margin-top: 2px; }
+body:not(.light-mode) .tooltip-title { color: #ffffff; margin-bottom: 6px; }
+body:not(.light-mode) .tooltip-line { color: #ffffff; line-height: 1.55; margin-top: 2px; }
 body:not(.light-mode) .tooltip-final { color: #ffcc7a; line-height: 1.5; }
 
 body:not(.light-mode) .forge-panel,
@@ -335,12 +335,12 @@ input[data-search-key]:focus {
 }
 .sky-tower-title {
   font-weight: 800;
-  color: #bfe8ff;
+  color: #ffffff;
   font-size: 1.05em;
 }
 .sky-tower-sub {
   margin-top: 4px;
-  color: #9fc6dd;
+  color: #ffffff;
   font-size: 0.86em;
   line-height: 1.5;
   max-width: 560px;
@@ -366,7 +366,7 @@ input[data-search-key]:focus {
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.82em;
-  color: #cfe6f7;
+  color: #ffffff;
   white-space: nowrap;
 }
 .sky-tower-chip b {
@@ -440,7 +440,7 @@ input[data-search-key]:focus {
   border: 1px solid #2a4058;
   border-radius: 10px;
   background: linear-gradient(180deg, #142033 0%, #0f1827 100%);
-  color: #9db4cc;
+  color: #ffffff;
   text-align: left;
   display: grid;
   gap: 3px;
@@ -449,12 +449,12 @@ input[data-search-key]:focus {
 
 .vertical-tab-btn span {
   font-weight: 800;
-  color: #c9d9ea;
+  color: #ffffff;
   line-height: 1.2;
 }
 
 .vertical-tab-btn small {
-  color: #7790a9;
+  color: #eef2f6;
   font-size: 0.75em;
   line-height: 1.25;
 }
@@ -556,8 +556,8 @@ input[data-search-key]:focus {
 .map-explore-layout #btn-map-explore-meteor:not(.active) span     { color: #d9b89e; }
 .map-explore-layout #btn-map-explore-beehive:not(.active) span    { color: #ddd3a2; }
 .map-explore-layout #btn-map-explore-colony:not(.active) span     { color: #a6cfbb; }
-.map-explore-layout #btn-map-explore-voidrift:not(.active) span   { color: #b1cad9; }
-.map-explore-layout #btn-map-explore-trials:not(.active) span     { color: #bcc6e0; }
+.map-explore-layout #btn-map-explore-voidrift:not(.active) span   { color: #ffffff; }
+.map-explore-layout #btn-map-explore-trials:not(.active) span     { color: #ffffff; }
 
 /* 비활성 탭은 채도 높은 청색 대신 중성 그래파이트 톤으로 정돈해 금색 활성 탭과 조화시킨다. */
 .map-explore-layout .vertical-tab-btn:not(.active) {
@@ -713,7 +713,7 @@ body:not(.light-mode) .tab-category-btn {
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #9eb6cb;
+  color: #ffffff;
   font-weight: 800;
   font-size: 0.86em;
   letter-spacing: 0.04em;
@@ -736,7 +736,7 @@ body:not(.light-mode) .tab-category-btn::after {
 }
 body:not(.light-mode) .tab-category-btn:hover {
   background: rgba(180,200,230,0.05);
-  color: #e0ecf7;
+  color: #ffffff;
 }
 body:not(.light-mode) .tab-category-btn:hover::after {
   background: rgba(180,200,230,0.2);
@@ -789,21 +789,21 @@ body.light-mode .tab-category-btn.active {
 .flask-slot-box.heal { border-color: #4f7b65; }
 .flask-slot-box.heal.active { border-color: #74c79d; }
 .flask-slot-label {
-  color: #8fa7be;
+  color: #eef2f6;
   font-size: 0.72em;
   font-weight: 800;
   letter-spacing: 0.04em;
   margin-bottom: 4px;
 }
 .flask-slot-name {
-  color: #e7f1ff;
+  color: #ffffff;
   font-weight: 900;
   font-size: 0.86em;
   min-height: 32px;
   line-height: 1.25;
 }
 .flask-slot-status {
-  color: #9fc0df;
+  color: #ffffff;
   font-size: 0.74em;
   min-height: 18px;
   margin: 5px 0;
@@ -813,7 +813,7 @@ body.light-mode .tab-category-btn.active {
   font-size: 0.76em;
 }
 .flask-help-text {
-  color: #8fa7be;
+  color: #eef2f6;
   font-size: 0.76em;
   margin-top: 6px;
   line-height: 1.35;

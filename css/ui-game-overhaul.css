@@ -101,7 +101,7 @@ body:not(.light-mode) .startup-wordmark-bar {
 body:not(.light-mode) .startup-game-tagline {
   max-width: 550px;
   margin-top: 13px;
-  color: #d1dfed;
+  color: #ffffff;
   font-size: clamp(0.92rem, 1.35vw, 1.18rem);
   letter-spacing: 0.055em;
 }
@@ -112,7 +112,7 @@ body:not(.light-mode) .startup-season-mark {
   margin-top: 18px;
   padding: 8px 13px 8px 16px;
   border-left: 2px solid var(--game-gold);
-  color: #b7c9da;
+  color: #ffffff;
   background: linear-gradient(90deg, rgba(5, 11, 18, 0.72), transparent);
 }
 
@@ -159,12 +159,12 @@ body:not(.light-mode) .startup-panel.auth::after { right: -5px; bottom: -5px; bo
 
 body:not(.light-mode) .startup-auth-title {
   margin-top: 5px;
-  color: #f2f7fc;
+  color: #ffffff;
   font-size: 1.65rem;
   letter-spacing: 0.05em;
 }
 
-body:not(.light-mode) .startup-auth-sub { margin-top: 5px; color: #829bb4; font-size: 0.78rem; }
+body:not(.light-mode) .startup-auth-sub { margin-top: 5px; color: #eef2f6; font-size: 0.78rem; }
 body:not(.light-mode) .startup-form input { min-height: 46px; padding-inline: 14px; border-radius: 2px 9px 2px 9px; }
 body:not(.light-mode) .startup-primary,
 body:not(.light-mode) .startup-secondary,
@@ -258,7 +258,7 @@ body:not(.light-mode) .hero-choice strong small {
   display:block;
   margin-top:4px;
   overflow:hidden;
-  color:#9fb8cc;
+  color:#ffffff;
   font-size:.61rem;
   font-weight:600;
   letter-spacing:0;
@@ -299,11 +299,11 @@ body:not(.light-mode).desktop-windowed-ui .tab-header {
 }
 
 body:not(.light-mode).desktop-windowed-ui .ui-rail-group + .ui-rail-group { border-top-color: rgba(118, 151, 183, 0.17); }
-body:not(.light-mode).desktop-windowed-ui .ui-rail-group-label { color: #5f7892; font-size: 9px; }
+body:not(.light-mode).desktop-windowed-ui .ui-rail-group-label { color: #eef2f6; font-size: 9px; }
 body:not(.light-mode).desktop-windowed-ui .tab-btn {
   min-height: 50px;
   border-radius: 2px 10px 2px 10px;
-  color: #8da3b9;
+  color: #eef2f6;
   background: linear-gradient(180deg, rgba(20, 34, 51, 0.62), rgba(6, 12, 20, 0.7));
 }
 
@@ -344,7 +344,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  color: #e8f2ff;
+  color: #ffffff;
 }
 
 .journal-summary-main div {
@@ -353,7 +353,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 }
 
 .journal-summary-main span {
-  color: #91a9c2;
+  color: #eef2f6;
   font-size: .78rem;
 }
 
@@ -389,13 +389,13 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
   padding: 4px 7px;
   border: 1px solid rgba(109, 137, 170, .25);
   border-radius: 99px;
-  color: #9fb4ca;
+  color: #ffffff;
   background: rgba(7, 12, 19, .55);
   font-size: .74rem;
 }
 
 .journal-category-strip b {
-    color: #d9e6f5;
+    color: #ffffff;
 }
 
 .journal-next-target {
@@ -432,7 +432,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 }
 
 .journal-next-target small {
-    color: #9fb1c5;
+    color: #eef2f6;
     font-size: .72rem;
 }
 
@@ -467,14 +467,14 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
   align-items: center;
   justify-content: space-between;
   padding: 0 2px;
-  color: #cbd9e9;
+  color: #ffffff;
   font-size: .82rem;
   font-weight: 800;
   letter-spacing: .04em;
 }
 
 .journal-section-title span {
-  color: #788da4;
+  color: #eef2f6;
   font-size: .72rem;
 }
 
@@ -518,7 +518,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
   flex: none;
   padding: 2px 5px;
   border-radius: 4px;
-  color: #8398ae;
+  color: #eef2f6;
   background: rgba(5, 9, 14, .65);
   font-size: .65rem;
 }
@@ -529,7 +529,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 
 .journal-card-body {
   margin-top: 7px;
-  color: #b9c9da;
+  color: #ffffff;
   font-size: .78rem;
   line-height: 1.55;
 }
@@ -543,7 +543,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 }
 
 .journal-hint {
-  color: #8fa5bc;
+  color: #eef2f6;
 }
 
 .journal-reward {
@@ -555,7 +555,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 }
 
 .journal-reward.is-preview {
-    color: #92a7bd;
+    color: #eef2f6;
 }
 
 .journal-card-action {
@@ -576,13 +576,13 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
   padding: 5px 6px;
   border: 1px solid rgba(92, 121, 153, .28);
   border-radius: 6px;
-  color: #879db5;
+  color: #eef2f6;
   background: rgba(7, 13, 21, .46);
   font-size: .68rem;
 }
 
 .craft-target-metrics b {
-  color: #d8e6f5;
+  color: #ffffff;
   font-size: .78rem;
 }
 
@@ -635,7 +635,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 
 .challenge-contract-head span,
 .challenge-contract-desc {
-  color: #9faec1;
+  color: #eef2f6;
   font-size: 0.78em;
 }
 
@@ -651,7 +651,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 
 .challenge-contract-status {
   margin-top: 7px;
-  color: #a8b1c0;
+  color: #ffffff;
   font-size: 0.78em;
   font-weight: 700;
 }
@@ -682,7 +682,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 }
 
 .challenge-contract-options button span {
-  color: #9fa7b2;
+  color: #eef2f6;
   font-size: 0.76em;
 }
 
@@ -737,19 +737,19 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
   padding: 7px 9px;
   border: 1px solid rgba(96, 132, 165, .3);
   border-radius: 7px;
-  color: #849bb2;
+  color: #eef2f6;
   background: rgba(7, 14, 23, .55);
   font-size: .7rem;
 }
 
 .flask-overview strong {
-  color: #dbeaff;
+  color: #ffffff;
   font-size: .78rem;
 }
 
 .flask-slot-effect {
   min-height: 2.4em;
-  color: #b4c7da;
+  color: #ffffff;
   font-size: .7rem;
   line-height: 1.35;
 }
@@ -759,7 +759,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
   justify-content: space-between;
   gap: 7px;
   margin-top: 7px;
-  color: #7fa2c2;
+  color: #eef2f6;
   font-size: .64rem;
 }
 
@@ -798,7 +798,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 }
 
 .jewel-cap-summary strong {
-  color: #d9edff;
+  color: #ffffff;
 }
 
 .jewel-cap-summary.is-overflow {
@@ -813,7 +813,7 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 
 .jewel-quality-line {
   margin: 3px 0 5px;
-  color: #8eabc7;
+  color: #eef2f6;
   font-size: .7rem;
 }
 
@@ -836,12 +836,12 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: '�
 
 .talisman-quality-badge.low {
   border-color: rgba(120, 140, 161, .34);
-  color: #90a4b9;
+  color: #eef2f6;
   background: rgba(29, 39, 50, .5);
 }
 
 .flask-trigger-select {
-  color: #b9d8f5;
+  color: #ffffff;
   border-color: rgba(95, 143, 184, .55);
   background: rgba(24, 52, 75, .75);
   font-size: .7rem;
@@ -999,7 +999,7 @@ body:not(.light-mode).desktop-windowed-ui .combat-feed {
   background: linear-gradient(180deg, rgba(14, 25, 38, .91), rgba(4, 9, 15, .93));
 }
 
-body:not(.light-mode).desktop-windowed-ui .combat-feed-title { color: #d7e6f3; font-size: 10px; letter-spacing: .15em; }
+body:not(.light-mode).desktop-windowed-ui .combat-feed-title { color: #ffffff; font-size: 10px; letter-spacing: .15em; }
 
 body:not(.light-mode) .battlefield-caption {
   z-index: 16;
@@ -1066,11 +1066,11 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
 .equipment-section-heading h2 {
   margin: 1px 0 0 !important;
   font-size: 18px;
-  color: #edf4fc !important;
+  color: #ffffff !important;
 }
 
 .equipment-section-kicker {
-  color: #6f93b5;
+  color: #eef2f6;
   font-size: 9px;
   font-weight: 900;
   letter-spacing: .18em;
@@ -1104,8 +1104,8 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
 
 .equipment-summary-stat span,
 .equipment-summary-stat strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.equipment-summary-stat span { color: #718da9; font-size: 9px; }
-.equipment-summary-stat strong { margin-top: 2px; color: #d9e8f8; font-size: 12px; }
+.equipment-summary-stat span { color: #eef2f6; font-size: 9px; }
+.equipment-summary-stat strong { margin-top: 2px; color: #ffffff; font-size: 12px; }
 
 body:not(.light-mode) #item-tab-equip .equipment-paperdoll {
   position: relative;
@@ -1147,7 +1147,7 @@ body:not(.light-mode) #item-tab-equip .equipment-slot::after {
   display: flex;
   align-items: center;
   gap: 5px;
-  color: #7791aa;
+  color: #eef2f6;
   font-size: 9px;
   font-weight: 900;
   letter-spacing: .06em;
@@ -1159,7 +1159,7 @@ body:not(.light-mode) #item-tab-equip .equipment-slot::after {
   place-items: center;
   width: 17px;
   height: 17px;
-  color: #a8bfd6;
+  color: #ffffff;
   border: 1px solid rgba(93, 119, 147, .42);
   border-radius: 50%;
   font-size: 10px;
@@ -1178,7 +1178,7 @@ body:not(.light-mode) #item-tab-equip .equipment-slot::after {
 .equipment-slot-stats {
   min-height: 2.5em;
   overflow: hidden;
-  color: #91a9bf;
+  color: #eef2f6;
   font-size: 9px !important;
   line-height: 1.25;
 }
@@ -1190,19 +1190,19 @@ body:not(.light-mode) #item-tab-equip .equipment-slot::after {
   padding: 2px 5px;
   border-color: rgba(71, 102, 133, .62);
   border-radius: 5px;
-  color: #a8bed3;
+  color: #ffffff;
   background: rgba(28, 44, 62, .78);
   font-size: 9px;
 }
 
 .equipment-slot-action:hover { color: #f0d79e; border-color: rgba(211, 176, 97, .62); }
 .equipment-slot-empty { justify-content: flex-start !important; border-style: dashed !important; opacity: .66; }
-.equipment-empty-mark { margin: auto auto 0; color: #536b83; font-size: 22px; line-height: 1; }
-.equipment-empty-label { margin: 3px auto auto; color: #536b83; font-size: 9px; }
+.equipment-empty-mark { margin: auto auto 0; color: #eef2f6; font-size: 22px; line-height: 1; }
+.equipment-empty-label { margin: 3px auto auto; color: #eef2f6; font-size: 9px; }
 
 .equipment-panel-hint {
   margin-top: 9px;
-  color: #698097;
+  color: #eef2f6;
   font-size: 10px;
   line-height: 1.45;
   text-align: center;
@@ -1210,8 +1210,8 @@ body:not(.light-mode) #item-tab-equip .equipment-slot::after {
 
 .equipment-inventory-heading { align-items: center; }
 .equipment-capacity { min-width: 108px; text-align: right; }
-.equipment-capacity > strong { display: block; color: #e5edf6; font-size: 13px; }
-.equipment-capacity > span { color: #6d879f; font-size: 9px; }
+.equipment-capacity > strong { display: block; color: #ffffff; font-size: 13px; }
+.equipment-capacity > span { color: #eef2f6; font-size: 9px; }
 .equipment-capacity-track { width: 108px; height: 3px; margin-top: 5px; overflow: hidden; border-radius: 999px; background: #07101a; }
 .equipment-capacity-track > span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #4b8cbd, #75cbed); transition: width .2s ease; }
 .equipment-capacity-track > span.near-capacity { background: linear-gradient(90deg, #d49d42, #ff765e); }
@@ -1256,16 +1256,16 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .equipment-item-card.rarity-rare { --equipment-rarity: #e9c355; }
 .equipment-item-card.rarity-unique { --equipment-rarity: #ff9f43; }
 .equipment-card-main { min-width: 0; }
-.equipment-card-topline { display: flex; align-items: center; gap: 6px; color: #738ca4; font-size: 9px; font-weight: 800; }
-.equipment-card-slot { padding: 2px 6px; border: 1px solid rgba(78, 105, 132, .55); border-radius: 999px; color: #9db4ca; }
+.equipment-card-topline { display: flex; align-items: center; gap: 6px; color: #eef2f6; font-size: 9px; font-weight: 800; }
+.equipment-card-slot { padding: 2px 6px; border: 1px solid rgba(78, 105, 132, .55); border-radius: 999px; color: #ffffff; }
 .equipment-card-rarity { margin-left: auto; color: var(--equipment-rarity, #9db0c2); }
 .equipment-card-name { margin: 5px 0 2px; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.equipment-card-base { color: #71869b; font-size: 9px; }
+.equipment-card-base { color: #eef2f6; font-size: 9px; }
 .equipment-card-meta { display: flex; align-items: center; gap: 4px; margin-top: 5px; overflow: hidden; }
-.equipment-meta-chip { padding: 2px 5px; border: 1px solid rgba(66, 91, 117, .52); border-radius: 4px; color: #8fa8bf; background: rgba(11, 20, 30, .72); font-size: 8px; white-space: nowrap; }
+.equipment-meta-chip { padding: 2px 5px; border: 1px solid rgba(66, 91, 117, .52); border-radius: 4px; color: #eef2f6; background: rgba(11, 20, 30, .72); font-size: 8px; white-space: nowrap; }
 .equipment-card-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px !important; margin-top: 7px; }
 .equipment-card-actions button { min-width: 0; min-height: 25px; padding: 3px 4px; border-radius: 5px; font-size: 9px; }
-.equipment-card-actions .equipment-card-primary { color: #edf7ff; border-color: #4b83ad; background: linear-gradient(180deg, #285b7d, #173c56); }
+.equipment-card-actions .equipment-card-primary { color: #ffffff; border-color: #4b83ad; background: linear-gradient(180deg, #285b7d, #173c56); }
 .equipment-card-actions .equipment-card-danger { color: #d8b2b2; border-color: #684143; background: #3f282c; }
 .equipment-card-actions .is-locked { color: #f0d59a; border-color: #7d6330; background: #4a3b1d; }
 
@@ -1452,10 +1452,10 @@ body:not(.light-mode) #info-tooltip {
 #tab-skills .skill-subtab-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
 #tab-skills .skill-subtab-row .subtab-btn { display: grid; gap: 2px; min-width: 0; text-align: left; }
 #tab-skills .skill-subtab-row .subtab-btn strong { font-size: 11px; letter-spacing: .05em; }
-#tab-skills .skill-subtab-row .subtab-btn small { color: #71879e; font-size: 8px; letter-spacing: 0; text-transform: none; }
+#tab-skills .skill-subtab-row .subtab-btn small { color: #eef2f6; font-size: 8px; letter-spacing: 0; text-transform: none; }
 #tab-skills .skill-subtab-row .subtab-btn.active small { color: #c9ad70; }
 
-.skill-panel-kicker { display: block; color: #6d88a3; font-size: 8px; font-weight: 900; letter-spacing: .16em; }
+.skill-panel-kicker { display: block; color: #eef2f6; font-size: 8px; font-weight: 900; letter-spacing: .16em; }
 .skill-loadout-overview,
 .gem-forge-heading,
 .condition-gem-heading {
@@ -1467,10 +1467,10 @@ body:not(.light-mode) #info-tooltip {
 }
 .skill-loadout-overview h2,
 .gem-forge-heading h2,
-.condition-gem-heading h2 { margin: 3px 0 0; color: #e7edf5; font-size: 17px; }
+.condition-gem-heading h2 { margin: 3px 0 0; color: #ffffff; font-size: 17px; }
 .skill-loadout-overview p,
 .gem-forge-heading p,
-.condition-gem-heading p { max-width: 470px; margin: 0; color: #7f96ad; font-size: 10px; line-height: 1.5; }
+.condition-gem-heading p { max-width: 470px; margin: 0; color: #eef2f6; font-size: 10px; line-height: 1.5; }
 
 .skill-loadout-summary {
   display: grid;
@@ -1486,9 +1486,9 @@ body:not(.light-mode) #info-tooltip {
 .skill-loadout-summary span,
 .skill-loadout-summary strong,
 .skill-loadout-summary small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.skill-loadout-summary span { color: #688198; font-size: 8px; }
-.skill-loadout-summary strong { margin-top: 2px; color: #e5edf5; font-size: 11px; }
-.skill-loadout-summary small { margin-top: 1px; color: #587088; font-size: 8px; }
+.skill-loadout-summary span { color: #eef2f6; font-size: 8px; }
+.skill-loadout-summary strong { margin-top: 2px; color: #ffffff; font-size: 11px; }
+.skill-loadout-summary small { margin-top: 1px; color: #eef2f6; font-size: 8px; }
 
 .gem-research-panel {
   margin-bottom: 9px;
@@ -1498,8 +1498,8 @@ body:not(.light-mode) #info-tooltip {
   background: linear-gradient(155deg, rgba(22, 25, 47, .9), rgba(7, 13, 24, .95));
 }
 .gem-research-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; }
-.gem-research-summary h3 { margin: 2px 0 0; color: #e2e8f6; font-size: 12px; }
-.gem-research-summary p { margin: 3px 0 0; color: #788ba5; font-size: 8px; line-height: 1.45; }
+.gem-research-summary h3 { margin: 2px 0 0; color: #ffffff; font-size: 12px; }
+.gem-research-summary p { margin: 3px 0 0; color: #eef2f6; font-size: 8px; line-height: 1.45; }
 .gem-research-resource { min-width: 84px; padding: 6px 10px; text-align: center; border: 1px solid rgba(111, 91, 158, .62); border-radius: 8px; background: rgba(30, 22, 52, .7); }
 .gem-research-resource span,
 .gem-research-resource strong,
@@ -1508,11 +1508,11 @@ body:not(.light-mode) #info-tooltip {
 .gem-research-resource strong { margin: 1px 0; color: #e2c9ff; font-size: 15px; }
 .gem-research-resource small { color: #75658e; font-size: 7px; }
 .gem-research-progress { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-.gem-research-progress span { padding: 5px 7px; color: #778ca2; border: 1px solid rgba(53, 75, 99, .58); border-radius: 6px; background: rgba(7, 14, 23, .62); font-size: 8px; white-space: nowrap; }
-.gem-research-progress b { color: #d9e5f1; }
+.gem-research-progress span { padding: 5px 7px; color: #eef2f6; border: 1px solid rgba(53, 75, 99, .58); border-radius: 6px; background: rgba(7, 14, 23, .62); font-size: 8px; white-space: nowrap; }
+.gem-research-progress b { color: #ffffff; }
 .gem-research-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 8px; }
 .gem-research-columns details { min-width: 0; border: 1px solid rgba(53, 72, 97, .58); border-radius: 7px; background: rgba(6, 12, 21, .58); }
-.gem-research-columns summary { padding: 7px 9px; color: #8fa2b9; cursor: pointer; font-size: 8px; font-weight: 800; }
+.gem-research-columns summary { padding: 7px 9px; color: #eef2f6; cursor: pointer; font-size: 8px; font-weight: 800; }
 .gem-research-columns summary b { color: #d9c4ef; }
 .gem-research-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; max-height: 280px; padding: 0 7px 7px; overflow-y: auto; }
 .gem-research-card { --gem-accent: #8395aa; display: flex; flex-direction: column; min-width: 0; min-height: 128px; padding: 7px; border: 1px solid rgba(54, 75, 99, .72); border-left: 2px solid var(--gem-accent); border-radius: 2px 8px 2px 8px; background: rgba(12, 22, 34, .92); }
@@ -1522,9 +1522,9 @@ body:not(.light-mode) #info-tooltip {
 .gem-research-card-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .gem-research-card-head small,
 .gem-research-card-head strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gem-research-card-head small { color: #71869d; font-size: 7px; }
-.gem-research-card-head strong { margin-top: 1px; color: #dce7f2; font-size: 9px; }
-.gem-research-card > p { display: -webkit-box; min-height: 2.5em; margin: 6px 0; overflow: hidden; color: #75899d; font-size: 8px; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.gem-research-card-head small { color: #eef2f6; font-size: 7px; }
+.gem-research-card-head strong { margin-top: 1px; color: #ffffff; font-size: 9px; }
+.gem-research-card > p { display: -webkit-box; min-height: 2.5em; margin: 6px 0; overflow: hidden; color: #eef2f6; font-size: 8px; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .gem-research-card > button { min-height: 27px; margin-top: auto; padding: 4px 6px; color: #d9c4ef; border-color: #635080; background: #2b2140; font-size: 8px; }
 .gem-research-card > button:disabled { color: #69778a; border-color: #364657; background: #111c28; }
 .gem-research-complete { margin-top: 8px; padding: 9px; color: #91c6a5; border: 1px dashed #47715a; border-radius: 7px; background: rgba(14, 45, 29, .45); font-size: 9px; text-align: center; }
@@ -1539,8 +1539,8 @@ body:not(.light-mode) #info-tooltip {
   border-radius: 8px;
   background: rgba(8, 15, 24, .74);
 }
-.skill-library-toolbar > span { margin-right: auto; color: #71889f; font-size: 9px; font-weight: 800; }
-.skill-library-toolbar button { min-height: 27px; padding: 3px 8px; color: #8299af; border-color: #30465d; background: #121e2c; font-size: 9px; }
+.skill-library-toolbar > span { margin-right: auto; color: #eef2f6; font-size: 9px; font-weight: 800; }
+.skill-library-toolbar button { min-height: 27px; padding: 3px 8px; color: #eef2f6; border-color: #30465d; background: #121e2c; font-size: 9px; }
 .skill-library-toolbar button.active { color: #f0d89f; border-color: #8c7040; background: #302610; }
 
 .skill-loadout-workspace { display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(0, .98fr); gap: 10px; align-items: start; }
@@ -1553,14 +1553,14 @@ body:not(.light-mode) #info-tooltip {
 }
 .skill-library-panel.support-library { border-color: rgba(48, 91, 85, .68); }
 .skill-library-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.skill-library-heading h3 { margin: 2px 0 0; color: #dce8f3; font-size: 13px; }
-.skill-library-note { color: #6f879e; font-size: 8px; text-align: right; }
-.skill-library-note strong { color: #d7e6f5; }
+.skill-library-heading h3 { margin: 2px 0 0; color: #ffffff; font-size: 13px; }
+.skill-library-note { color: #eef2f6; font-size: 8px; text-align: right; }
+.skill-library-note strong { color: #ffffff; }
 
 #tab-skills .skill-gem-library { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 #tab-skills .search-filter-panel { padding: 8px; border: 1px solid rgba(47, 70, 94, .64); border-radius: 8px; background: rgba(5, 11, 18, .64); }
 #tab-skills .search-filter-input { min-height: 30px; font-size: 10px; }
-#tab-skills .search-action-row button { min-height: 25px; color: #879db2; border-color: #31485e; background: #152231; }
+#tab-skills .search-action-row button { min-height: 25px; color: #eef2f6; border-color: #31485e; background: #152231; }
 
 #tab-skills .gem-library-card {
   --gem-accent: #7790a8;
@@ -1573,14 +1573,14 @@ body:not(.light-mode) #info-tooltip {
   border: 1px solid rgba(49, 72, 96, .86);
   border-left: 3px solid var(--gem-accent);
   border-radius: 2px 10px 2px 10px;
-  color: #cbd9e7;
+  color: #ffffff;
   background: linear-gradient(150deg, rgba(21, 34, 49, .98), rgba(7, 14, 23, .98));
   box-shadow: inset 0 1px rgba(255,255,255,.025);
   transition: border-color .14s ease, background .14s ease, transform .14s ease;
 }
 #tab-skills .gem-library-card:hover { filter: none; transform: translateY(-1px); border-color: color-mix(in srgb, var(--gem-accent) 72%, #49627b); }
 #tab-skills .gem-library-card.active {
-  color: #edf7ff;
+  color: #ffffff;
   border-color: var(--gem-accent);
   background: linear-gradient(150deg, color-mix(in srgb, var(--gem-accent) 19%, #132033), rgba(8, 16, 26, .98));
   box-shadow: inset 0 0 18px color-mix(in srgb, var(--gem-accent) 10%, transparent), 0 0 0 1px color-mix(in srgb, var(--gem-accent) 20%, transparent);
@@ -1608,21 +1608,21 @@ body:not(.light-mode) #info-tooltip {
 .gem-card-head > div { min-width: 0; }
 .gem-card-head small,
 .gem-card-head strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gem-card-head small { color: #6e879e; font-size: 8px; }
-.gem-card-head strong { margin-top: 2px; color: #e3edf6; font-size: 11px; }
-#tab-skills .gem-level-badge { position: static; align-self: start; padding: 2px 5px; color: #b9cbe0; border-color: #40546a; background: #09111b; font-size: 8px; }
+.gem-card-head small { color: #eef2f6; font-size: 8px; }
+.gem-card-head strong { margin-top: 2px; color: #ffffff; font-size: 11px; }
+#tab-skills .gem-level-badge { position: static; align-self: start; padding: 2px 5px; color: #ffffff; border-color: #40546a; background: #09111b; font-size: 8px; }
 #tab-skills .gem-level-badge.effective { color: #85d5aa; border-color: #3e765a; }
-.gem-library-card > p { display: -webkit-box; min-height: 2.65em; margin: 8px 0 6px; overflow: hidden; color: #8197aa; font-size: 9px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.gem-library-card > p { display: -webkit-box; min-height: 2.65em; margin: 8px 0 6px; overflow: hidden; color: #eef2f6; font-size: 9px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .gem-card-tags { display: flex; gap: 3px; min-height: 18px; overflow: hidden; }
-.gem-card-tags span { flex: 0 0 auto; padding: 2px 5px; color: #748da5; border: 1px solid rgba(54, 79, 103, .62); border-radius: 999px; background: rgba(5, 12, 20, .56); font-size: 7px; white-space: nowrap; }
+.gem-card-tags span { flex: 0 0 auto; padding: 2px 5px; color: #eef2f6; border: 1px solid rgba(54, 79, 103, .62); border-radius: 999px; background: rgba(5, 12, 20, .56); font-size: 7px; white-space: nowrap; }
 .gem-card-tags .gem-tag--fire { color: #ffb08d; border-color: rgba(218, 92, 50, .66); background: rgba(73, 24, 12, .72); }
 .gem-card-tags .gem-tag--cold { color: #a9e7ff; border-color: rgba(78, 163, 207, .68); background: rgba(12, 42, 66, .72); }
 .gem-card-tags .gem-tag--lightning { color: #fff099; border-color: rgba(211, 180, 48, .68); background: rgba(62, 50, 8, .72); }
 .gem-card-tags .gem-tag--chaos { color: #d8adff; border-color: rgba(139, 79, 190, .68); background: rgba(49, 19, 69, .72); }
-.gem-card-tags .gem-tag--physical { color: #d7dce3; border-color: rgba(127, 139, 151, .68); background: rgba(35, 40, 47, .72); }
+.gem-card-tags .gem-tag--physical { color: #ffffff; border-color: rgba(127, 139, 151, .68); background: rgba(35, 40, 47, .72); }
 .gem-card-tags .gem-tag--summon { color: #9fe2b1; border-color: rgba(72, 151, 95, .68); background: rgba(15, 55, 28, .72); }
 .gem-card-tags .gem-tag--spell,
-.gem-card-tags .gem-tag--utility { color: #b9c7ff; border-color: rgba(91, 108, 189, .68); background: rgba(24, 30, 74, .72); }
+.gem-card-tags .gem-tag--utility { color: #ffffff; border-color: rgba(91, 108, 189, .68); background: rgba(24, 30, 74, .72); }
 .gem-card-tags .gem-tag--projectile,
 .gem-card-tags .gem-tag--pierce { color: #9be2d8; border-color: rgba(61, 148, 136, .68); background: rgba(12, 55, 50, .72); }
 .gem-card-tags .gem-tag--melee,
@@ -1633,17 +1633,17 @@ body:not(.light-mode) #info-tooltip {
 .gem-card-tags .gem-tag--support { color: #a9ead2; border-color: rgba(69, 157, 126, .68); background: rgba(13, 55, 43, .72); }
 .gem-card-tags .gem-tag--resonance { color: #e6d69b; border-color: rgba(162, 137, 66, .66); background: rgba(59, 47, 15, .72); }
 .gem-card-footer { display: flex; align-items: center; gap: 4px; min-height: 25px; margin-top: auto; padding-top: 7px; border-top: 1px solid rgba(51, 72, 94, .46); }
-.gem-usage-state { min-width: 0; margin-right: auto; overflow: hidden; color: #6f879e; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.gem-usage-state { min-width: 0; margin-right: auto; overflow: hidden; color: #eef2f6; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .gem-library-card.active .gem-usage-state { color: #d7bd76; }
 .gem-card-utility,
 .support-tier-switch button,
 .summon-gem-count-btn { min-width: 23px; min-height: 22px; padding: 2px 5px; border-radius: 5px !important; font-size: 8px; }
-.gem-card-utility { color: #9caec0; border-color: #3b5065; background: #172434; }
+.gem-card-utility { color: #eef2f6; border-color: #3b5065; background: #172434; }
 .support-tier-switch,
 .summon-gem-controls { display: inline-flex; align-items: center; gap: 2px; }
-.support-tier-switch button { color: #667b8e; border-color: #31485b; background: #111d28; }
+.support-tier-switch button { color: #eef2f6; border-color: #31485b; background: #111d28; }
 .support-tier-switch button.active { color: #e7d49d; border-color: #846c3b; background: #352a12; }
-.summon-gem-count { min-width: 21px; color: #bacddd; font-size: 8px; text-align: center; }
+.summon-gem-count { min-width: 21px; color: #ffffff; font-size: 8px; text-align: center; }
 
 .gem-forge-workspace { display: grid; grid-template-columns: minmax(220px, .68fr) minmax(430px, 1.45fr); gap: 10px; align-items: start; }
 .gem-target-rail,
@@ -1655,9 +1655,9 @@ body:not(.light-mode) #info-tooltip {
   background: linear-gradient(155deg, rgba(14, 25, 38, .9), rgba(5, 11, 18, .95));
 }
 .gem-target-rail-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 8px; padding-bottom: 7px; border-bottom: 1px solid rgba(51, 75, 99, .58); }
-.gem-target-rail-heading span { color: #dce7f2; font-size: 11px; font-weight: 900; }
-.gem-target-rail-heading small { color: #687f95; font-size: 8px; }
-.gem-enhance-target { margin: 0; color: #c8dcf1; }
+.gem-target-rail-heading span { color: #ffffff; font-size: 11px; font-weight: 900; }
+.gem-target-rail-heading small { color: #eef2f6; font-size: 8px; }
+.gem-enhance-target { margin: 0; color: #ffffff; }
 .gem-target-list { display: grid; gap: 5px; max-height: 330px; padding-right: 3px; overflow-y: auto; }
 .gem-target-card {
   --gem-accent: #8295a9;
@@ -1677,41 +1677,41 @@ body:not(.light-mode) #info-tooltip {
 .gem-target-card > span:nth-child(2) { min-width: 0; }
 .gem-target-card strong,
 .gem-target-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gem-target-card strong { color: #d8e5f1; font-size: 9px; }
-.gem-target-card small { margin-top: 2px; color: #657e94; font-size: 7px; }
+.gem-target-card strong { color: #ffffff; font-size: 9px; }
+.gem-target-card small { margin-top: 2px; color: #eef2f6; font-size: 7px; }
 .gem-target-card b { color: #d7bf83; font-size: 7px; }
 .gem-target-profile { --gem-accent: #8295a9; display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 9px; margin-top: 9px; padding: 9px; border: 1px solid color-mix(in srgb, var(--gem-accent) 42%, #31475c); border-radius: 8px; background: color-mix(in srgb, var(--gem-accent) 8%, #09121c); }
 .gem-target-profile-icon { display: grid; place-items: center; width: 56px; height: 56px; overflow: hidden; color: var(--gem-accent); border: 0; border-radius: 50%; font-size: 18px; }
-.gem-target-profile small { color: #708aa0; font-size: 8px; }
-.gem-target-profile strong { display: block; margin-top: 2px; color: #e5eef7; font-size: 11px; }
-.gem-target-profile p { display: -webkit-box; margin: 4px 0 0; overflow: hidden; color: #758ba0; font-size: 8px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.gem-target-profile small { color: #eef2f6; font-size: 8px; }
+.gem-target-profile strong { display: block; margin-top: 2px; color: #ffffff; font-size: 11px; }
+.gem-target-profile p { display: -webkit-box; margin: 4px 0 0; overflow: hidden; color: #eef2f6; font-size: 8px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .gem-current-inscriptions { margin-top: 7px; padding: 7px; border: 1px solid rgba(56, 77, 100, .54); border-radius: 7px; background: rgba(5, 11, 18, .62); }
 .gem-current-inscriptions span,
 .gem-current-inscriptions strong { display: block; }
-.gem-current-inscriptions span { color: #657d94; font-size: 7px; }
-.gem-current-inscriptions strong { margin-top: 2px; color: #c9d7e5; font-size: 8px; line-height: 1.4; }
+.gem-current-inscriptions span { color: #eef2f6; font-size: 7px; }
+.gem-current-inscriptions strong { margin-top: 2px; color: #ffffff; font-size: 8px; line-height: 1.4; }
 .gem-growth-breakdown { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 7px; overflow: hidden; border: 1px solid rgba(55, 78, 101, .58); border-radius: 7px; background: rgba(5, 11, 18, .58); }
-.gem-growth-breakdown span { min-width: 0; padding: 5px; color: #6f8498; border-left: 1px solid rgba(54, 75, 96, .48); font-size: 7px; text-align: center; }
+.gem-growth-breakdown span { min-width: 0; padding: 5px; color: #eef2f6; border-left: 1px solid rgba(54, 75, 96, .48); font-size: 7px; text-align: center; }
 .gem-growth-breakdown span:first-child { border-left: 0; }
-.gem-growth-breakdown b { display: block; margin-top: 1px; color: #d7e3ee; font-size: 8px; }
-.gem-growth-output { padding: 5px 7px; color: #b8cbe0; border: 1px solid rgba(55, 78, 101, .52); border-top: 0; background: rgba(9, 18, 29, .72); font-size: 8px; text-align: center; }
+.gem-growth-breakdown b { display: block; margin-top: 1px; color: #ffffff; font-size: 8px; }
+.gem-growth-output { padding: 5px 7px; color: #ffffff; border: 1px solid rgba(55, 78, 101, .52); border-top: 0; background: rgba(9, 18, 29, .72); font-size: 8px; text-align: center; }
 
 .gem-resource-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; border: 1px solid rgba(51, 75, 100, .7); border-radius: 8px; background: rgba(5, 12, 20, .76); }
 .gem-resource-strip > div { min-width: 0; padding: 7px; border-left: 1px solid rgba(48, 70, 93, .52); text-align: center; }
 .gem-resource-strip > div:first-child { border-left: 0; }
 .gem-resource-strip span,
 .gem-resource-strip strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gem-resource-strip span { color: #647d94; font-size: 7px; }
-.gem-resource-strip strong { margin-top: 2px; color: #dce7f2; font-size: 10px; }
+.gem-resource-strip span { color: #eef2f6; font-size: 7px; }
+.gem-resource-strip strong { margin-top: 2px; color: #ffffff; font-size: 10px; }
 
 #tab-skills .gem-enhance-section { margin-top: 9px; padding: 10px; border-radius: 2px 11px 2px 11px; background: linear-gradient(155deg, rgba(17, 29, 43, .9), rgba(7, 13, 21, .94)); }
 #tab-skills .gem-inscription-section { border-color: rgba(88, 69, 120, .74); background: linear-gradient(155deg, rgba(29, 23, 43, .92), rgba(10, 10, 21, .96)); }
 #tab-skills .gem-support-process-section { border-color: rgba(48, 91, 85, .68); }
 .gem-enhance-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .gem-enhance-section-head > div:first-child { display: flex; align-items: center; gap: 8px; }
-.gem-section-index { display: grid; place-items: center; width: 26px; height: 26px; color: #718ca5; border: 1px solid #36516a; border-radius: 50%; font-size: 8px; font-weight: 900; }
-#tab-skills .gem-enhance-section-title { margin: 0; color: #dbe8f4; font-size: 11px; }
-#tab-skills .gem-enhance-section-desc { margin: 2px 0 0; color: #6e8499; font-size: 8px; }
+.gem-section-index { display: grid; place-items: center; width: 26px; height: 26px; color: #eef2f6; border: 1px solid #36516a; border-radius: 50%; font-size: 8px; font-weight: 900; }
+#tab-skills .gem-enhance-section-title { margin: 0; color: #ffffff; font-size: 11px; }
+#tab-skills .gem-enhance-section-desc { margin: 2px 0 0; color: #eef2f6; font-size: 8px; }
 .gem-engrave-orbit { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 7px; margin: 8px 0 12px; padding: 12px 12px 9px; border: 1px solid rgba(107, 82, 145, .6); border-radius: 10px; background: radial-gradient(circle at 50% 44%, rgba(101, 68, 146, .2), transparent 39%), linear-gradient(180deg, rgba(10, 10, 22, .92), rgba(5, 7, 14, .82)); overflow: hidden; }
 .gem-orbit-stage { --gem-orbit-slot-size: 58px; position: relative; isolation: isolate; width: min(100%, 328px); aspect-ratio: 1; margin: 0 auto; }
 .gem-orbit-rings { position: absolute; inset: 35px; border: 1px solid rgba(155, 119, 203, .38); border-radius: 50%; box-shadow: inset 0 0 34px rgba(105, 64, 154, .13), 0 0 24px rgba(85, 55, 126, .1); pointer-events: none; }
@@ -1765,14 +1765,14 @@ body:not(.light-mode) #info-tooltip {
 
 #tab-skills .gem-enhance-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 #tab-skills .gem-upgrade-btn { min-height: 62px; padding: 8px; border-color: #38536c; background: linear-gradient(150deg, #1a2a3a, #101a27); }
-#tab-skills .gem-upgrade-btn strong { color: #dbe8f4; font-size: 9px; }
-#tab-skills .gem-upgrade-btn small { display: block; margin-top: 3px; color: #758ba0; font-size: 8px; line-height: 1.35; }
+#tab-skills .gem-upgrade-btn strong { color: #ffffff; font-size: 9px; }
+#tab-skills .gem-upgrade-btn small { display: block; margin-top: 3px; color: #eef2f6; font-size: 8px; line-height: 1.35; }
 #tab-skills .gem-upgrade-btn.done { border-color: #47765e; background: linear-gradient(150deg, #18352a, #10231c); }
 
 #tab-skills .gem-engrave-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .gem-engrave-slot-guide { grid-column: 1 / -1; display: flex; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid rgba(92, 126, 158, .58); background: rgba(10, 22, 34, .82); }
 .gem-engrave-slot-guide strong { color: #f0d58c; font-size: 9px; }
-.gem-engrave-slot-guide span { color: #8197aa; font-size: 8px; }
+.gem-engrave-slot-guide span { color: #eef2f6; font-size: 8px; }
 #tab-skills .gem-engrave-option,
 .gem-engrave-slot-dialog .gem-engrave-option,
 #tab-skills .gem-engrave-cap-card { min-height: 75px; padding: 8px; text-align: left; border-radius: 2px 9px 2px 9px; }
@@ -1787,16 +1787,16 @@ body:not(.light-mode) #info-tooltip {
 #tab-skills .gem-engrave-option.applied,
 .gem-engrave-slot-dialog .gem-engrave-option.applied { border-color: #b49145; background: linear-gradient(150deg, #3a2e12, #1e190e); box-shadow: inset 0 0 16px rgba(241, 196, 15, .08); }
 .gem-engrave-top { display: flex; align-items: center; justify-content: space-between; gap: 5px; margin-bottom: 5px; }
-.gem-engrave-top em { padding: 2px 5px; color: #8ba2ba; border: 1px solid #435972; border-radius: 999px; font-size: 7px; font-style: normal; }
+.gem-engrave-top em { padding: 2px 5px; color: #eef2f6; border: 1px solid #435972; border-radius: 999px; font-size: 7px; font-style: normal; }
 .group-crafted .gem-engrave-top em { color: #b8a1df; border-color: #665285; }
 .group-awakened .gem-engrave-top em { color: #e0b867; border-color: #80642f; }
-.gem-engrave-top b { color: #6f879e; font-size: 7px; font-weight: 700; }
+.gem-engrave-top b { color: #eef2f6; font-size: 7px; font-weight: 700; }
 #tab-skills .gem-engrave-option.applied .gem-engrave-top b,
 .gem-engrave-slot-dialog .gem-engrave-option.applied .gem-engrave-top b { color: #e0c16d; }
 #tab-skills .gem-engrave-option > strong,
-.gem-engrave-slot-dialog .gem-engrave-option > strong { display: block; color: #dbe6f1; font-size: 9px; }
+.gem-engrave-slot-dialog .gem-engrave-option > strong { display: block; color: #ffffff; font-size: 9px; }
 #tab-skills .gem-engrave-option > small,
-.gem-engrave-slot-dialog .gem-engrave-option > small { display: block; margin-top: 4px; color: #75899e; font-size: 8px; line-height: 1.35; }
+.gem-engrave-slot-dialog .gem-engrave-option > small { display: block; margin-top: 4px; color: #eef2f6; font-size: 8px; line-height: 1.35; }
 #tab-skills .gem-engrave-cap-card { display: grid; grid-template-columns: 1fr auto; align-content: center; border-color: #715d36; background: linear-gradient(150deg, #2e2615, #17130d); }
 #tab-skills .gem-engrave-cap-card span { color: #a58c59; font-size: 8px; }
 #tab-skills .gem-engrave-cap-card strong { grid-row: 1 / 3; grid-column: 2; align-self: center; color: #f0d58c; font-size: 19px; }
@@ -1812,7 +1812,7 @@ body:not(.light-mode) #info-tooltip {
 .gem-support-process-card strong { margin-top: 2px; color: #d1e8e1; font-size: 9px; }
 .gem-support-process-card span { margin-top: 2px; color: #648079; font-size: 7px; }
 .gem-support-process-card button { min-height: 29px; max-width: 120px; padding: 4px 7px; color: #b8dacf; border-color: #3e6d61; background: #173b34; font-size: 8px; }
-.gem-process-empty { grid-column: 1 / -1; padding: 12px; color: #71879d; border: 1px dashed #3b5065; border-radius: 8px; background: rgba(7, 13, 21, .5); font-size: 9px; text-align: center; }
+.gem-process-empty { grid-column: 1 / -1; padding: 12px; color: #eef2f6; border: 1px dashed #3b5065; border-radius: 8px; background: rgba(7, 13, 21, .5); font-size: 9px; text-align: center; }
 
 .condition-gem-rule-list { display: grid; gap: 7px; }
 .condition-gem-rule-list > div { border-radius: 2px 10px 2px 10px !important; background: linear-gradient(150deg, rgba(17, 29, 43, .94), rgba(7, 13, 21, .96)) !important; }
@@ -1821,52 +1821,52 @@ body:not(.light-mode) #info-tooltip {
 /* 스킬 젬 탭은 축소된 정보표가 아니라 반복해서 읽는 빌드 화면이다.
    작은 고정 px 글꼴과 낮은 대비를 한 단계 올려 장시간 플레이에서도 판독 가능하게 한다. */
 #tab-skills .skill-library-toolbar > span,
-#tab-skills .skill-library-note { color: #9db2c6; font-size: 10px; }
+#tab-skills .skill-library-note { color: #eef2f6; font-size: 10px; }
 #tab-skills .skill-library-toolbar button { font-size: 10px; }
-#tab-skills .gem-library-card { min-height: 158px; color: #d9e5f0; }
-#tab-skills .gem-card-head small { color: #9bb0c4; font-size: 10px; }
-#tab-skills .gem-card-head strong { color: #f1f6fb; font-size: 13px; }
-#tab-skills .gem-level-badge { padding: 3px 6px; color: #d3e0ed; font-size: 10px; }
-#tab-skills .gem-library-card > p { color: #a9bbcc; font-size: 10.5px; line-height: 1.45; }
-#tab-skills .gem-card-tags span { color: #aabed0; font-size: 9px; }
-#tab-skills .gem-usage-state { color: #9db1c4; font-size: 9.5px; }
+#tab-skills .gem-library-card { min-height: 158px; color: #ffffff; }
+#tab-skills .gem-card-head small { color: #eef2f6; font-size: 10px; }
+#tab-skills .gem-card-head strong { color: #ffffff; font-size: 13px; }
+#tab-skills .gem-level-badge { padding: 3px 6px; color: #ffffff; font-size: 10px; }
+#tab-skills .gem-library-card > p { color: #ffffff; font-size: 10.5px; line-height: 1.45; }
+#tab-skills .gem-card-tags span { color: #ffffff; font-size: 9px; }
+#tab-skills .gem-usage-state { color: #eef2f6; font-size: 9.5px; }
 #tab-skills .gem-card-utility,
 #tab-skills .support-tier-switch button,
 #tab-skills .summon-gem-count-btn,
 #tab-skills .summon-gem-count { font-size: 9.5px; }
 #tab-skills .gem-target-rail-heading span { font-size: 13px; }
-#tab-skills .gem-target-rail-heading small { color: #98aec2; font-size: 9.5px; }
-#tab-skills .gem-target-card strong { color: #eef5fb; font-size: 11px; }
+#tab-skills .gem-target-rail-heading small { color: #eef2f6; font-size: 9.5px; }
+#tab-skills .gem-target-card strong { color: #ffffff; font-size: 11px; }
 #tab-skills .gem-target-card small,
-#tab-skills .gem-target-card b { color: #91a8bd; font-size: 9px; }
-#tab-skills .gem-target-profile small { color: #9bb0c4; font-size: 9.5px; }
-#tab-skills .gem-target-profile strong { color: #f1f6fb; font-size: 13px; }
-#tab-skills .gem-target-profile p { color: #a2b5c7; font-size: 10px; }
-#tab-skills .gem-current-inscriptions span { color: #94aac0; font-size: 9px; }
-#tab-skills .gem-current-inscriptions strong { color: #e0e9f2; font-size: 10px; }
-#tab-skills .gem-growth-breakdown span { color: #9aadc0; font-size: 8.5px; }
+#tab-skills .gem-target-card b { color: #eef2f6; font-size: 9px; }
+#tab-skills .gem-target-profile small { color: #eef2f6; font-size: 9.5px; }
+#tab-skills .gem-target-profile strong { color: #ffffff; font-size: 13px; }
+#tab-skills .gem-target-profile p { color: #ffffff; font-size: 10px; }
+#tab-skills .gem-current-inscriptions span { color: #eef2f6; font-size: 9px; }
+#tab-skills .gem-current-inscriptions strong { color: #ffffff; font-size: 10px; }
+#tab-skills .gem-growth-breakdown span { color: #eef2f6; font-size: 8.5px; }
 #tab-skills .gem-growth-breakdown b,
-#tab-skills .gem-growth-output { color: #e2ebf4; font-size: 9.5px; }
-#tab-skills .gem-resource-strip span { color: #93a9be; font-size: 8.5px; }
-#tab-skills .gem-resource-strip strong { color: #eef4fa; font-size: 11px; }
-#tab-skills .gem-enhance-section-title { color: #eef4fa; font-size: 13px; }
-#tab-skills .gem-enhance-section-desc { color: #9bafc2; font-size: 10px; line-height: 1.45; }
+#tab-skills .gem-growth-output { color: #ffffff; font-size: 9.5px; }
+#tab-skills .gem-resource-strip span { color: #eef2f6; font-size: 8.5px; }
+#tab-skills .gem-resource-strip strong { color: #ffffff; font-size: 11px; }
+#tab-skills .gem-enhance-section-title { color: #ffffff; font-size: 13px; }
+#tab-skills .gem-enhance-section-desc { color: #eef2f6; font-size: 10px; line-height: 1.45; }
 #tab-skills .gem-orbit-copy strong { color: #f0e6fa; font-size: 11px; }
 #tab-skills .gem-orbit-copy span { color: #b1a3c1; font-size: 9.5px; }
 #tab-skills .gem-orbit-legend b { font-size: 8.5px; }
 #tab-skills .gem-upgrade-btn strong,
 #tab-skills .gem-engrave-option > strong,
-#tab-skills .gem-support-process-card strong { color: #edf4fa; font-size: 11px; }
+#tab-skills .gem-support-process-card strong { color: #ffffff; font-size: 11px; }
 #tab-skills .gem-upgrade-btn small,
 #tab-skills .gem-engrave-option > small,
-#tab-skills .gem-support-process-card span { color: #9fb2c4; font-size: 9.5px; }
+#tab-skills .gem-support-process-card span { color: #eef2f6; font-size: 9.5px; }
 #tab-skills .gem-engrave-slot-guide strong { font-size: 10px; }
-#tab-skills .gem-engrave-slot-guide span { color: #a6b8c9; font-size: 9.5px; }
+#tab-skills .gem-engrave-slot-guide span { color: #ffffff; font-size: 9.5px; }
 #tab-skills .gem-engrave-top em,
 #tab-skills .gem-engrave-top b,
 #tab-skills .gem-support-process-card small { font-size: 8.5px; }
 #tab-skills .gem-support-process-card button { font-size: 9.5px; }
-#tab-skills .gem-process-empty { color: #9eb1c4; font-size: 10px; }
+#tab-skills .gem-process-empty { color: #eef2f6; font-size: 10px; }
 
 @container (max-width: 860px) {
   .skill-loadout-overview,
@@ -1944,7 +1944,7 @@ body:not(.light-mode) #info-tooltip {
   padding: 0 !important;
   border: 1px solid rgba(86, 127, 157, .72) !important;
   border-radius: 6px !important;
-  color: #bfe8ff;
+  color: #ffffff;
   background: linear-gradient(180deg, rgba(25, 58, 78, .94), rgba(8, 19, 29, .96)) !important;
 }
 .combat-flask-mini.heal { color: #a7f0c8; border-color: rgba(71, 155, 112, .78) !important; }
@@ -1963,7 +1963,7 @@ body:not(.light-mode) #info-tooltip {
   padding: 0 2px;
   border: 1px solid #55718c;
   border-radius: 999px;
-  color: #f4f8fc;
+  color: #ffffff;
   background: #07101a;
   font-size: 8px;
 }
@@ -2026,20 +2026,20 @@ body:not(.light-mode) #info-tooltip {
 .flask-workbench-head span,
 .flask-workbench-head strong,
 .flask-workbench-head small { display: block; }
-.flask-workbench-head > div:first-child > span { color: #6f91a9; font-size: 7px; font-weight: 900; letter-spacing: .14em; }
-.flask-workbench-head > div:first-child > strong { margin-top: 2px; color: #d9e9f5; font-size: 12px; }
-.flask-workbench-head > div:first-child > small { margin-top: 2px; color: #758ea2; font-size: 8px; }
+.flask-workbench-head > div:first-child > span { color: #eef2f6; font-size: 7px; font-weight: 900; letter-spacing: .14em; }
+.flask-workbench-head > div:first-child > strong { margin-top: 2px; color: #ffffff; font-size: 12px; }
+.flask-workbench-head > div:first-child > small { margin-top: 2px; color: #eef2f6; font-size: 8px; }
 .flask-glass-balance { flex: 0 0 auto; padding: 6px 10px; border: 1px solid rgba(91, 158, 183, .52); border-radius: 7px; text-align: center; background: rgba(16, 44, 57, .72); }
-.flask-glass-balance span { color: #7baabe; font-size: 7px; }
-.flask-glass-balance b { color: #bdefff; font-size: 15px; }
+.flask-glass-balance span { color: #eef2f6; font-size: 7px; }
+.flask-glass-balance b { color: #ffffff; font-size: 15px; }
 .flask-craft-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .flask-craft-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid rgba(72, 106, 132, .52); border-radius: 7px; background: rgba(8, 18, 28, .74); }
 .flask-craft-card span,
 .flask-craft-card strong,
 .flask-craft-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.flask-craft-card span { color: #67859d; font-size: 7px; }
-.flask-craft-card strong { margin-top: 2px; color: #d6e5f1; font-size: 9px; }
-.flask-craft-card small { margin-top: 2px; color: #72889a; font-size: 7px; }
+.flask-craft-card span { color: #eef2f6; font-size: 7px; }
+.flask-craft-card strong { margin-top: 2px; color: #ffffff; font-size: 9px; }
+.flask-craft-card small { margin-top: 2px; color: #eef2f6; font-size: 7px; }
 .flask-craft-card button { min-width: 76px; min-height: 31px; padding: 4px 7px; font-size: 8px; }
 
 @media (max-width: 720px) {
