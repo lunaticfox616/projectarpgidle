@@ -102,7 +102,7 @@
   body.desktop-windowed-ui .map-progress-row .hp-text { font-size: 0; }
   body.desktop-windowed-ui #ui-shrine-box { top: 58px !important; right: 10px !important; }
 
-  body.desktop-windowed-ui #enemy-area { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); top: 44px; z-index: 8; width: clamp(420px, 48vw, 680px); transform: translateX(-50%); pointer-events: none; }
+  body.desktop-windowed-ui #enemy-area { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); top: 24px; z-index: 24; width: clamp(420px, 48vw, 680px); transform: translateX(-50%); pointer-events: none; }
   body.desktop-windowed-ui #ui-enemy-list { display: grid; gap: 3px; min-height: 0; pointer-events: none; }
   body.desktop-windowed-ui #ui-enemy-list:empty, body.desktop-windowed-ui .enemy-empty { display: none; }
   body.desktop-windowed-ui .enemy-card.targeted { min-height: 76px; height: auto; max-height: none; padding: 7px 12px; border-radius: 8px; background: #101722; border: 1px solid rgba(232, 194, 106, 0.58); box-shadow: none; pointer-events: auto; overflow: visible; }
