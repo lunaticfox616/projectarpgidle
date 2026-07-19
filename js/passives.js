@@ -4214,7 +4214,7 @@ function drawDamageTexts(ctx, now) {
         ctx.globalAlpha = t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38);
         const tierSize = text.impactTier === 'annihilate' ? 27 : (text.impactTier === 'heavy' ? 22 : 0);
         const fontSize = tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16))));
-        ctx.font = `800 ${fontSize}px "Galmuri14", "Malgun Gothic", sans-serif`;
+        ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
         ctx.textAlign = 'center';
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
         ctx.lineWidth = text.impactTier === 'annihilate' ? 2.8 : (text.crit || text.impactTier === 'heavy' ? 2.4 : 1.8);
