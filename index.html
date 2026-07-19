@@ -5,37 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#05080e">
     <title>PROJECT IDLE — Rootbound ARPG</title>
-    <link rel="stylesheet" href="css/base.css?v=20260719-dossaemmul-1">
-    <link rel="stylesheet" href="css/layout.css?v=20260715-visibility-fixes1">
-    <link rel="stylesheet" href="css/theme.css">
-    <link rel="stylesheet" href="css/components.css?v=20260718-loop-silhouette1">
-    <link rel="stylesheet" href="css/ui-polish.css?v=20260707-belt-flask-slots1">
-    <link rel="stylesheet" href="css/ui-premium.css?v=20260707-community-ui1">
-    <link rel="stylesheet" href="css/ui-windows.css?v=20260719-dossaemmul-1">
-    <link rel="stylesheet" href="css/ui-feedback.css?v=20260719-dossaemmul-1">
+    <link rel="stylesheet" href="css/base.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/layout.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/theme.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/components.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/ui-polish.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/ui-windows.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/ui-feedback.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1">
-    <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260717-system-integrity1">
-    <link rel="stylesheet" href="css/core-cube.css?v=20260604-core-cube-visual1">
-    <link rel="stylesheet" href="css/ui-luxe.css?v=20260715-luxe1">
-    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260719-enemy-hud3">
+    <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/ui-luxe.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260719-white-copy1">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
     .talent-card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .talent-card-title { font-weight: bold; color: #e7eefc; }
-    .talent-card-sub { font-size: 0.76em; color: #8aa0bd; margin: -4px 0 8px; }
+    .talent-card-title { font-weight: bold; color: var(--copy-bright); }
+    .talent-card-sub { font-size: 0.76em; color: var(--copy-muted); margin: -4px 0 8px; }
     .talent-card-level { color: #f1c40f; font-weight: bold; font-size: 0.9em; }
     .talent-card-effects { font-size: 0.86em; line-height: 1.55; }
-    .talent-card-foot { margin-top: 8px; font-size: 0.78em; color: #8aa0bd; }
+    .talent-card-foot { margin-top: 8px; font-size: 0.78em; color: var(--copy-muted); }
     .talent-card { cursor: pointer; transition: border-color 0.12s; }
     .talent-card:hover { border-color: #4f6f99; }
     .talent-card.equipped { border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241,196,15,0.4) inset; }
     .talent-slot-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-    .talent-slot { min-height: 56px; border-radius: 10px; border: 1px dashed #2e4361; background: #0f1825; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 0.8em; color: #c7d4e8; padding: 6px; }
-    .talent-slot span { color: #8aa0bd; font-size: 0.92em; }
+    .talent-slot { min-height: 56px; border-radius: 10px; border: 1px dashed #2e4361; background: #0f1825; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 0.8em; color: #ffffff; padding: 6px; }
+    .talent-slot span { color: var(--copy-muted); font-size: 0.92em; }
     .talent-slot.filled { border-style: solid; border-color: #f1c40f; background: #1a2433; cursor: pointer; }
     .talent-slot.empty { border-style: dashed; }
-    .talent-slot.locked { color: #6b7c93; }
+    .talent-slot.locked { color: var(--copy-muted); }
     @media (max-width: 720px) { .talent-slot-row { grid-template-columns: repeat(3, 1fr); } }
     </style>
 </head>
@@ -242,7 +242,7 @@
 
     <div class="panel combat-panel" style="position: relative;">
         <h2 style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #3d3d5c; padding-bottom: 5px;">
-            <span style="font-size: 0.75em; font-weight: normal; color: #a5b1c2; flex: 1; text-align: center;" id="ui-combat-zone">액트 1: 뿌리끝 성소</span>
+            <span style="font-size: 0.75em; font-weight: normal; color: var(--copy-bright); flex: 1; text-align: center;" id="ui-combat-zone">액트 1: 뿌리끝 성소</span>
         </h2>
         <div class="combat-zone-row">
             <div class="combat-zone-row-title" id="ui-combat-zone-inline">Lv.1 재능명</div>
@@ -347,7 +347,7 @@
 
     <div id="tab-character" class="tab-content">
         <h2>🧬 캐릭터 정보</h2>
-        <div style="color:#8fa7be; margin-bottom:10px;">현재 전투 성능과 방어 수치를 한눈에 확인할 수 있습니다.</div>
+        <div style="color:var(--copy-muted); margin-bottom:10px;">현재 전투 성능과 방어 수치를 한눈에 확인할 수 있습니다.</div>
         <div class="stat-grid">
             <div class="stat-item tip full" onmouseenter="showStatTooltip(event,'dps')" onmouseleave="hideInfoTooltip()">
                 <span class="stat-label">⚔️ 총 DPS</span>
@@ -474,7 +474,7 @@
                 <div class="ailment-stat-title">상태이상 저항 확률</div>
                 <div class="ailment-stat-inline-row">
                     <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistIgniteChance')" onmousemove="showStatTooltip(event,'ailmentResistIgniteChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffb16a;">🔥점화</span> <span class="ailment-chip-value" id="ui-ail-res-ignite">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistChillChance')" onmousemove="showStatTooltip(event,'ailmentResistChillChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#b9f0ff;">❄️냉각</span> <span class="ailment-chip-value" id="ui-ail-res-chill">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistChillChance')" onmousemove="showStatTooltip(event,'ailmentResistChillChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:var(--copy-bright);">❄️냉각</span> <span class="ailment-chip-value" id="ui-ail-res-chill">0</span>%</span>
                     <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistFreezeChance')" onmousemove="showStatTooltip(event,'ailmentResistFreezeChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#75bbff;">🧊동결</span> <span class="ailment-chip-value" id="ui-ail-res-freeze">0</span>%</span>
                     <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistShockChance')" onmousemove="showStatTooltip(event,'ailmentResistShockChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffe083;">⚡감전</span> <span class="ailment-chip-value" id="ui-ail-res-shock">0</span>%</span>
                     <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistPoisonChance')" onmousemove="showStatTooltip(event,'ailmentResistPoisonChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#d28bff;">☠️중독</span> <span class="ailment-chip-value" id="ui-ail-res-poison">0</span>%</span>
@@ -527,15 +527,15 @@
                 <span class="stat-unit"></span>
             </div>
         </div>
-        <div id="ui-unique-special-summary" style="margin-top:10px; color:#9fc0de; font-size:0.83em;"></div>
+        <div id="ui-unique-special-summary" style="margin-top:10px; color:var(--copy-bright); font-size:0.83em;"></div>
     </div>
 
     <div id="tab-char" class="tab-content">
         <div style="display: flex; flex-direction: column; height: 100%;">
             <h2><span>🌌 패시브 스킬 트리</span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold; font-size: 1.3em;">0</span></span></h2>
-            <div style="font-size: 0.85em; color: #a5b1c2; text-align: center; margin-bottom: 8px;">🖱️ 드래그 / 📱 터치 드래그: 이동 | 휠 / 🤏 핀치: 줌 </div>
+            <div style="font-size: 0.85em; color: var(--copy-bright); text-align: center; margin-bottom: 8px;">🖱️ 드래그 / 📱 터치 드래그: 이동 | 휠 / 🤏 핀치: 줌 </div>
             <div id="passive-search-panel" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 10px; padding:8px 10px; border:1px solid rgba(118,155,190,0.22); border-radius:10px; background:rgba(8,12,20,0.58);">
-                <input id="passive-search-input" type="search" placeholder="패시브 이름/효과/스탯 검색" autocomplete="off" style="flex:1 1 220px; min-width:180px; padding:7px 9px; border-radius:8px; border:1px solid #2a4056; background:#08101a; color:#dceeff;">
+                <input id="passive-search-input" type="search" placeholder="패시브 이름/효과/스탯 검색" autocomplete="off" style="flex:1 1 220px; min-width:180px; padding:7px 9px; border-radius:8px; border:1px solid #2a4056; background:#08101a; color:#ffffff;">
                 <div id="passive-filter-row" style="display:flex; gap:5px; flex-wrap:wrap;">
                     <button type="button" data-passive-filter="all">전체</button>
                     <button type="button" data-passive-filter="offense">공격</button>
@@ -561,7 +561,7 @@
 
     <div id="tab-talent" class="tab-content">
         <h2>🌸 재능 개화 <span class="h2-right" id="ui-talent-summary" style="font-weight:normal; font-size:0.7em;"></span></h2>
-        <p style="color:#9fb4d1; font-size:0.85em; margin:4px 0 12px;">재능 × 직업 조합으로 개화 시련을 클리어하면 카드를 얻습니다. 카드 점수(계정 진행도)가 레벨을, 레벨이 표면(직업)·이면(재능) 효과 수치를 결정합니다. 카드는 루프로 초기화되지 않습니다.</p>
+        <p style="color:var(--copy-bright); font-size:0.85em; margin:4px 0 12px;">재능 × 직업 조합으로 개화 시련을 클리어하면 카드를 얻습니다. 카드 점수(계정 진행도)가 레벨을, 레벨이 표면(직업)·이면(재능) 효과 수치를 결정합니다. 카드는 루프로 초기화되지 않습니다.</p>
         <div id="ui-talent-card-grid" class="talent-card-grid"></div>
     </div>
 
@@ -700,7 +700,7 @@
                         <div class="craft-actions" id="ui-fossil-actions"></div>
                     </div>
                     <div>
-                        <div id="ui-fossil-info" style="background:#101923; border:1px solid #29415a; border-radius:8px; padding:10px; color:#b9cde2; font-size:0.83em;"></div>
+                        <div id="ui-fossil-info" style="background:#101923; border:1px solid #29415a; border-radius:8px; padding:10px; color:#ffffff; font-size:0.83em;"></div>
                     </div>
                 </div>
             </div>
@@ -738,7 +738,7 @@
         <div id="item-tab-market" class="subtab-content">
             <div class="forge-panel" style="border-color:#4b5f86;">
                 <h3>🏦 거래소</h3>
-                <div id="ui-market-locked" style="color:#8fb6d9; font-size:0.9em;">액트 5 클리어 시 거래소가 해금됩니다.</div>
+                <div id="ui-market-locked" style="color:var(--copy-bright); font-size:0.9em;">액트 5 클리어 시 거래소가 해금됩니다.</div>
                 <div id="ui-market-panel" style="display:none;">
                     <div id="ui-market-exchange-list" style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px;"></div>
                     <div id="ui-market-black" style="margin-top:10px; background:#101722; border:1px solid #2b3f59; border-radius:8px; padding:8px;"></div>
@@ -757,7 +757,7 @@
 
     <div id="tab-flask" class="tab-content">
         <h2>🧪 플라스크</h2>
-        <div style="color:#8fa7be; margin-bottom:10px;">전투 중 몬스터를 처치하면 낮은 확률로 새 플라스크를 발견합니다. 발견한 플라스크만 슬롯에 장착할 수 있습니다.</div>
+        <div style="color:var(--copy-muted); margin-bottom:10px;">전투 중 몬스터를 처치하면 낮은 확률로 새 플라스크를 발견합니다. 발견한 플라스크만 슬롯에 장착할 수 있습니다.</div>
         <div id="ui-flask-panel" style="background:#101826; border:1px solid #33507c; border-radius:10px; padding:8px 10px; margin-bottom:10px;"></div>
     </div>
 
@@ -871,7 +871,7 @@
 
         <div id="map-tab-sky" class="subtab-content">
             <h2>☁️ 창공</h2>
-            <div id="ui-sky-tower-panel" style="background:#0f1820; border:1px solid #35546b; border-radius:12px; padding:12px; margin-bottom:10px; color:#d6eaff;"></div>
+            <div id="ui-sky-tower-panel" style="background:#0f1820; border:1px solid #35546b; border-radius:12px; padding:12px; margin-bottom:10px; color:#ffffff;"></div>
             <div class="map-grid" id="ui-sky-tower-list"></div>
         </div>
 
@@ -883,20 +883,20 @@
 
         <div id="map-tab-ocean" class="subtab-content">
             <h2>🌊 심해</h2>
-            <div id="ui-ocean-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; margin-bottom:10px; color:#cdeefc;"></div>
+            <div id="ui-ocean-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; margin-bottom:10px; color:#ffffff;"></div>
             <div class="map-grid" id="ui-ocean-list"></div>
         </div>
 
         <div id="map-tab-fishing" class="subtab-content">
             <h2>🎣 낚시</h2>
-            <div id="ui-fishing-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; margin-bottom:10px; color:#cdeefc;"></div>
+            <div id="ui-fishing-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; margin-bottom:10px; color:#ffffff;"></div>
             <h3 style="margin-top:16px; color:#8fe3ff;">🎁 바다의 선물</h3>
-            <div id="ui-sea-gift-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; color:#cdeefc;"></div>
+            <div id="ui-sea-gift-panel" style="background:#0a1722; border:1px solid #1f5b73; border-radius:12px; padding:12px; color:#ffffff;"></div>
         </div>
 
         <div id="map-tab-abyss" class="subtab-content">
             <h2>🌌 혼돈 패시브</h2>
-            <div id="ui-abyss-passive-summary" style="color:#a9c6e4; font-size:0.86em; margin-bottom:10px;"></div>
+            <div id="ui-abyss-passive-summary" style="color:var(--copy-bright); font-size:0.86em; margin-bottom:10px;"></div>
             <div id="ui-abyss-passive-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;"></div>
         </div>
     </div>
@@ -995,14 +995,14 @@
             <button class="subtab-btn" id="btn-talisman-sub-colony-ward" onclick="switchTalismanSubtab('talisman-sub-colony-ward')">🛡️ 군락지 액막이</button>
         </div>
         <div id="talisman-sub-board" class="subtab-content active">
-            <div id="ui-talisman-currency" style="margin-bottom:10px; color:#b9d7ff;"></div>
+            <div id="ui-talisman-currency" style="margin-bottom:10px; color:var(--copy-bright);"></div>
             <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
             <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
             <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
             <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (해금 <span id="ui-talisman-board-size">16</span>/<span id="ui-talisman-board-size2">44</span>칸)</h3>
             <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
                 <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(8, 42px); gap:4px;"></div>
-                <div id="ui-talisman-total" style="min-width:240px; color:#d7e6ff; background:#101722; border:1px solid #35506b; border-radius:8px; padding:10px;"></div>
+                <div id="ui-talisman-total" style="min-width:240px; color:#ffffff; background:#101722; border:1px solid #35506b; border-radius:8px; padding:10px;"></div>
             </div>
         </div>
         <div id="talisman-sub-colony-ward" class="subtab-content">
@@ -1018,14 +1018,14 @@
                 <button class="vertical-tab-btn" id="btn-codex-realm" onclick="setCodexSubtab('realm')"><span>계(Realm) 도감</span><small>계 전용 고유 기록</small></button>
             </div>
             <div class="vertical-tab-panels">
-                <div id="ui-codex-summary" style="margin-bottom:10px; color:#c3d9ef;"></div>
+                <div id="ui-codex-summary" style="margin-bottom:10px; color:var(--copy-bright);"></div>
                 <div id="ui-codex-list" class="inventory-grid"></div>
             </div>
         </div>
     </div>
     <div id="tab-cube" class="tab-content">
         <h2>🧊 코어 큐브</h2>
-        <div style="color:#9fb6d8; margin-bottom:10px;">흐릿한 45면체를 해석해 1~45번 동력원을 얻고, 큐브 6면에 붙여 옵션 4줄을 발현합니다.</div>
+        <div style="color:var(--copy-bright); margin-bottom:10px;">흐릿한 45면체를 해석해 1~45번 동력원을 얻고, 큐브 6면에 붙여 옵션 4줄을 발현합니다.</div>
         <div id="ui-core-cube-panel"></div>
     </div>
 
@@ -1035,7 +1035,7 @@
 
     <div id="tab-journal" class="tab-content">
         <h2>📓 저널</h2>
-        <div style="color:#8fa7be; margin-bottom:10px;">액트와 특수 콘텐츠의 기록을 모아 세계의 단서와 영구 보너스를 해금합니다.</div>
+        <div style="color:var(--copy-muted); margin-bottom:10px;">액트와 특수 콘텐츠의 기록을 모아 세계의 단서와 영구 보너스를 해금합니다.</div>
         <div id="ui-journal-list" class="journal-archive"></div>
     </div>
 
@@ -1289,23 +1289,23 @@
 <script defer src="js/ui-feedback.js?v=20260716-steam-ui1"></script>
 <script defer src="js/state.js?v=20260719-tier-rift-stack1"></script>
 <script defer src="js/save.js?v=20260719-stutter-fix1"></script>
-<script defer src="js/items.js?v=20260717-system-integrity1"></script>
+<script defer src="js/items.js?v=20260719-white-copy1"></script>
 <script defer src="js/skills.js?v=20260717-gem-flask-mobile1"></script>
-<script defer src="js/passives.js?v=20260719-dossaemmul-1"></script>
+<script defer src="js/passives.js?v=20260719-white-copy1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1"></script>
 <script defer src="js/combat-grid.js?v=20260718-regional-passive1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1"></script>
-<script defer src="js/combat.js?v=20260719-flask-balance1"></script>
+<script defer src="js/combat.js?v=20260719-white-copy1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260718-regional-passive1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260719-enemy-hud2"></script>
-<script defer src="js/social.js?v=20260715-runtime-structure1"></script>
+<script defer src="js/ui.js?v=20260719-white-copy1"></script>
+<script defer src="js/social.js?v=20260719-white-copy1"></script>
 <script defer src="js/ui-window-manager.js?v=20260718-main-page1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
 <script defer src="js/goal-system.js?v=20260717-system-integrity1"></script>
-<script defer src="js/talent-cards.js?v=20260717-talent-coverage1"></script>
-<script defer src="js/cosmos-atlas.js?v=20260717-system-integrity1"></script>
+<script defer src="js/talent-cards.js?v=20260719-white-copy1"></script>
+<script defer src="js/cosmos-atlas.js?v=20260719-white-copy1"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
 <script defer src="js/main.js?v=20260513-gemfix1"></script>
 </body>

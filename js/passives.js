@@ -1984,7 +1984,7 @@ function formatVoidPassiveStatLine(line) {
 function getVoidPassiveEffectLabel(nodeId) {
     let entry = getVoidPassiveCraft(nodeId);
     if (entry.transcendent) return formatTranscendentVoidPassive(entry.transcendent);
-    if (!entry.stats.length) return '공허 옵션 없음 <span style="color:#8ca6b8;">(오브로 최대 2줄 부여)</span>';
+    if (!entry.stats.length) return '공허 옵션 없음 <span style="color:var(--copy-muted);">(오브로 최대 2줄 부여)</span>';
     return entry.stats.map(formatVoidPassiveStatLine).filter(Boolean).join(' / ');
 }
 
@@ -7989,7 +7989,7 @@ function formatVoidSocketJewelStatLines(jewel) {
         let name = typeof getStatName === 'function' ? getStatName(stat.id) : stat.id;
         return `<div>• <span style="color:${tone};">${escapeHTML(`${name} +${value}`)}</span></div>`;
     });
-    return lines.join('') || '<div style="color:#7f8c8d;">옵션 없음</div>';
+    return lines.join('') || '<div style="color:var(--copy-muted);">옵션 없음</div>';
 }
 
 function buildVoidSocketJewelOverlayCards() {
@@ -7999,7 +7999,7 @@ function buildVoidSocketJewelOverlayCards() {
         let stats = formatVoidSocketJewelStatLines(jewel);
         let title = escapeHTML(jewel.name || '주얼');
         return `<button class="item-card" style="text-align:left;min-height:92px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoVoidSocket(${idx})"><strong>${idx + 1}. ${title}</strong><div style="font-size:.8em;line-height:1.35;margin-top:4px;">${stats}</div><div style="margin-top:6px;color:#9fd6ff;font-size:.78em;">장착</div></button>`;
-    }).join('') || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>';
+    }).join('') || '<div style="color:var(--copy-muted);">장착 가능한 주얼 없음</div>';
 }
 
 function openVoidSocketJewelOverlay() {
@@ -8012,7 +8012,7 @@ function openVoidSocketJewelOverlay() {
         overlay = document.getElementById('void-socket-jewel-overlay');
     }
     let cards = buildVoidSocketJewelOverlayCards();
-    overlay.innerHTML = `<div style="width:min(980px,95vw);max-height:92vh;overflow:auto;background:#0f1520;border:1px solid #4b86bd;border-radius:12px;padding:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;"><strong style="color:#9fd6ff;font-size:18px;">공허 소켓 주얼 장착</strong><button onclick="closeVoidSocketJewelOverlay()">닫기</button></div><div style="color:#d7e9ff;margin-bottom:8px;line-height:1.45;">빈 공허 소켓에 장착할 주얼을 선택하세요.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${cards}</div><div style="display:flex;justify-content:flex-end;margin-top:10px;"><button class="tutorial-secondary" onclick="closeVoidSocketJewelOverlay()">취소</button></div></div>`;
+    overlay.innerHTML = `<div style="width:min(980px,95vw);max-height:92vh;overflow:auto;background:#0f1520;border:1px solid #4b86bd;border-radius:12px;padding:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;"><strong style="color:#9fd6ff;font-size:18px;">공허 소켓 주얼 장착</strong><button onclick="closeVoidSocketJewelOverlay()">닫기</button></div><div style="color:#ffffff;margin-bottom:8px;line-height:1.45;">빈 공허 소켓에 장착할 주얼을 선택하세요.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${cards}</div><div style="display:flex;justify-content:flex-end;margin-top:10px;"><button class="tutorial-secondary" onclick="closeVoidSocketJewelOverlay()">취소</button></div></div>`;
 }
 
 function removeJewelFromVoidSocket() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
@@ -9215,7 +9215,7 @@ function formatJewelOverlayStatLines(stats, extraLineText) {
         return `<div>• <span class="jewel-overlay-stat-line" style="color:${tone} !important;">${escapeHTML(label)}</span></div>`;
     });
     if (extraLineText) lines.push(`<div>• ${escapeHTML(extraLineText)}</div>`);
-    return lines.length > 0 ? lines.join('') : '<div style="color:#7f8c8d;">선택한 주얼의 유효 옵션이 없습니다.</div>';
+    return lines.length > 0 ? lines.join('') : '<div style="color:var(--copy-muted);">선택한 주얼의 유효 옵션이 없습니다.</div>';
 }
 
 function getVoidJewelOverlaySelectedIndices(mode) {
@@ -9263,8 +9263,8 @@ function buildVoidJewelOverlayCards(mode) {
         let badge = jewel.isVoid ? '공허 · ' : '';
         let button = disabled ? 'disabled' : `onclick="toggleVoidJewelOverlaySelection('${mode}',${idx})"`;
         let disabledText = zeroVoidUnique ? '합성 가능 수가 없습니다' : '잠금/밀랍 재료 제외';
-        return `<button class="item-card ${selectedClass}" ${button} style="text-align:left;min-height:92px;"><strong>${idx + 1}. ${badge}${escapeHTML(jewel.name || '주얼')}</strong><div style="font-size:.8em;color:#b9d7ff;line-height:1.35;margin-top:4px;">${stats}</div>${charges}${disabled ? `<div style="color:#e07b7b;font-size:.78em;">${disabledText}</div>` : ''}</button>`;
-    }).join('') || '<div style="color:#7f8c8d;">보유 주얼이 없습니다.</div>';
+        return `<button class="item-card ${selectedClass}" ${button} style="text-align:left;min-height:92px;"><strong>${idx + 1}. ${badge}${escapeHTML(jewel.name || '주얼')}</strong><div style="font-size:.8em;color:var(--copy-bright);line-height:1.35;margin-top:4px;">${stats}</div>${charges}${disabled ? `<div style="color:#e07b7b;font-size:.78em;">${disabledText}</div>` : ''}</button>`;
+    }).join('') || '<div style="color:var(--copy-muted);">보유 주얼이 없습니다.</div>';
 }
 
 function getJewelFusionOverlayShellHtml(title, bodyHtml, actionHtml, borderColor) {
@@ -9286,7 +9286,7 @@ function renderVoidJewelOverlay(mode) {
     let hasUniqueTargetSpace = !uniquePair || getJewelCoreStats(game.jewelInventory[uniquePair.targetIndex]).length < 4;
     let canCraft = selected.length === 2 && chiselReady && hasUniqueTargetSpace && (!isFusion || hasVoidMaterial);
     let costLine = uniquePair ? `공허 합성 가능 수: <strong>${getVoidUniqueFusionCharges(game.jewelInventory[uniquePair.voidIndex])}</strong>회 · 필요: <strong>1</strong>회` : `보유 공허의 끌: <strong>${game.currencies.voidChisel || 0}</strong> · 필요: <strong>1</strong>`;
-    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">${costLine}<br>${rule}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildVoidJewelOverlayCards(mode)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#d7e9ff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
+    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">${costLine}<br>${rule}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildVoidJewelOverlayCards(mode)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#ffffff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
     overlay.innerHTML = getJewelFusionOverlayShellHtml(title, body, `<button onclick="${isFusion ? 'confirmVoidJewelFusion' : 'confirmVoidJewelCraft'}()" ${canCraft ? '' : 'disabled'}>제작</button>`, '#6e57a8');
 }
 
@@ -9369,7 +9369,7 @@ function renderJewelFusionOverlay(indices) {
     let stats = indices.flatMap(idx => getJewelCoreStats(game.jewelInventory[idx]).slice(0, 1)).map(cloneJewelStat).filter(Boolean);
     let extra = useAmplified ? '랜덤 패널티 1줄 + 랜덤 추가옵션 1줄' : '';
     let cost = useAmplified ? 14 : 6;
-    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">보유 주얼 결정: <strong>${game.currencies.jewelShard || 0}</strong> · 필요: <strong>${cost}</strong><br>일반 주얼 융합은 1줄 옵션 주얼 2개를 2줄 레어 주얼로 합성합니다. 공허 주얼이 포함되면 공허 융합 오버레이를 사용합니다.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildJewelFusionOverlayCards(indices)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#d7e9ff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
+    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">보유 주얼 결정: <strong>${game.currencies.jewelShard || 0}</strong> · 필요: <strong>${cost}</strong><br>일반 주얼 융합은 1줄 옵션 주얼 2개를 2줄 레어 주얼로 합성합니다. 공허 주얼이 포함되면 공허 융합 오버레이를 사용합니다.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildJewelFusionOverlayCards(indices)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#ffffff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
     overlay.innerHTML = getJewelFusionOverlayShellHtml('선택한 주얼 융합', body, '<button onclick="confirmJewelFusion()">융합</button>', '#4b86bd');
 }
 

@@ -21,9 +21,9 @@ assert(feedbackCss.includes('--game-font-body: "DOSSaemmul"'), 'body font token 
 assert(feedbackCss.includes('--game-font-title: "DOSSaemmul"'), 'title font token must use DOSSaemmul');
 assert(windowCss.includes('font-family: var(--game-font-body'), 'desktop windows must use the shared game font');
 assert(baseCss.includes("#log { flex") && baseCss.includes("font-family: var(--game-font-body"), 'combat log must use the shared game font');
-assert(html.includes('css/base.css?v=20260719-dossaemmul-1'), 'font CSS cache version must be refreshed');
-assert(html.includes('css/ui-feedback.css?v=20260719-dossaemmul-1'), 'shared font token cache must be refreshed');
-assert(html.includes('css/ui-windows.css?v=20260719-dossaemmul-1'), 'desktop font fallback cache must be refreshed');
-assert(html.includes('js/passives.js?v=20260719-dossaemmul-1'), 'canvas passive font cache must be refreshed');
+assert(html.includes('css/base.css?v=20260719-white-copy1'), 'font CSS cache version must be refreshed');
+assert(html.includes('css/ui-feedback.css?v=20260719-white-copy1'), 'shared font token cache must be refreshed');
+assert(html.includes('css/ui-windows.css?v=20260719-white-copy1'), 'desktop font fallback cache must be refreshed');
+assert(html.includes('js/passives.js?v=20260719-white-copy1'), 'canvas passive font cache must be refreshed');
 
 console.log('smoke-font-assets passed');

@@ -816,7 +816,7 @@ function upgradeSelectedItemBase() {
     if (bodyEl) {
         let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
         let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
-        bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:#9bb2c9;">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 카오스 오브 ${costChaos}${costDivine > 0 ? ` + 신성한 오브 ${costDivine}` : ''}`;
+        bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:var(--copy-muted);">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 카오스 오브 ${costChaos}${costDivine > 0 ? ` + 신성한 오브 ${costDivine}` : ''}`;
     }
     let overlay = document.getElementById('base-upgrade-overlay');
     if (overlay) overlay.classList.add('active');
@@ -1041,7 +1041,7 @@ function getBlackMarketOfferTooltipHtml(offer) {
         let codexLine = registered ? '<span style="color:#8dffb1;">등록됨</span>' : '<span style="color:#ffb0b0;">미등록</span>';
         let optionLines = getBlackMarketUniqueTooltipOptionLines(offer, uniq);
         let baseLines = getBlackMarketBaseTooltipOptionLines(offer.baseStats);
-        let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:#b9d7ff;">베이스: ${escapeHTML(offer.baseName)} · 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
+        let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:var(--copy-bright);">베이스: ${escapeHTML(offer.baseName)} · 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
         let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">🌠 체이싱 유니크 암거래 품목</div>' : '';
         let featuredLine = offer.featured ? '<div class="tooltip-line" style="color:#93e7c1; font-weight:800;">🎯 시장 정보로 확보한 표적 고유</div>' : '';
         return `<div class="tooltip-title">도감 고유 정보 · ${escapeHTML(offer.name)} (숨겨진 티어 ${offer.hiddenTier || offer.reqTier})</div>${featuredLine}${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
@@ -1321,7 +1321,7 @@ function renderMarketUI() {
         let options = removable.map((row, order) => `<option value="${row.index}">${order + 1}. ${row.stat.statName || getStatName(row.stat.id)} +${formatValue(row.stat.id, row.stat.val)}</option>`).join('');
         annulEl.innerHTML = `<div class="market-service-title">신성한 오브 2개 → 선택 장비의 원하는 옵션 1줄 소멸</div>
         <div class="market-row">
-            <select id="sel-market-annul-stat" ${removable.length <= 0 ? 'disabled' : ''} style="min-width:260px; background:#0e141d; color:#dbe9ff; border:1px solid #35506b; border-radius:6px; padding:5px 8px;">${options || '<option>제거 가능한 옵션 없음</option>'}</select>
+            <select id="sel-market-annul-stat" ${removable.length <= 0 ? 'disabled' : ''} style="min-width:260px; background:#0e141d; color:#ffffff; border:1px solid #35506b; border-radius:6px; padding:5px 8px;">${options || '<option>제거 가능한 옵션 없음</option>'}</select>
             <button onclick="marketAnnulSelectedStat(Number(document.getElementById('sel-market-annul-stat').value))" ${removable.length <= 0 || (game.currencies.divine || 0) < 2 ? 'disabled' : ''}>옵션 1줄 소멸</button>
         </div>
         <div class="market-meta">대상: ${item ? `[${item.name}] · 제거 가능 ${removable.length}줄${protectedCount > 0 ? ` · 보호 ${protectedCount}줄 유지` : ''}` : '제작 대상 장비를 먼저 선택하세요.'}</div>`;

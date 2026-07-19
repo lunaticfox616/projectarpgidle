@@ -4,7 +4,7 @@ body:not(.light-mode) .cosmos-tab-btn {
 }
 
 body:not(.light-mode) .cosmos-tab-btn.active {
-  color: #dff3ff;
+  color: var(--copy-bright);
   border-color: #7fc9ff;
   box-shadow: 0 0 14px rgba(127, 201, 255, .20);
 }
@@ -17,7 +17,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   border: 1px solid #29445c;
   border-radius: 14px;
   padding: 12px;
-  color: #dce8f5;
+  color: #ffffff;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 18px 50px rgba(0,0,0,.30);
 }
 
@@ -42,14 +42,14 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 }
 
 .cosmos-title {
-  color: #f5f8fb;
+  color: var(--copy-bright);
   font-size: 1.12em;
   font-weight: 800;
 }
 
 .cosmos-desc {
   margin-top: 5px;
-  color: #8daccc;
+  color: var(--copy-muted);
   font-size: .82em;
   line-height: 1.55;
 }
@@ -58,7 +58,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   min-width: 210px;
   display: grid;
   gap: 4px;
-  color: #9fb9d1;
+  color: #ffffff;
   font-size: .82em;
   padding: 10px 12px;
   border-radius: 10px;
@@ -110,7 +110,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 }
 
 .cosmos-capstone-head span {
-  color: #8299b2;
+  color: var(--copy-muted);
   font-size: .76em;
 }
 
@@ -133,19 +133,19 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   padding: 4px 5px;
   border: 1px solid #34485e;
   border-radius: 6px;
-  color: #9eb2c7;
+  color: #ffffff;
   background: rgba(15, 23, 34, .86);
   font-size: 9px;
   text-align: left;
 }
 
 .cosmos-capstone-boss span {
-  color: #708aa4;
+  color: var(--copy-muted);
   font-size: 8px;
 }
 
 .cosmos-capstone-boss b {
-  color: #72869c;
+  color: var(--copy-muted);
 }
 
 .cosmos-capstone-boss.cleared {
@@ -160,13 +160,13 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 
 .cosmos-capstone-card p {
   margin: 0;
-  color: #91a8bf;
+  color: var(--copy-muted);
   font-size: 10px;
   line-height: 1.45;
 }
 
 .cosmos-capstone-footer > span {
-  color: #a9bbcd;
+  color: var(--copy-bright);
   font-size: 10px;
 }
 
@@ -236,7 +236,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   justify-content: space-between;
   margin-bottom: 8px;
   font-weight: 800;
-  color: #d7ebff;
+  color: var(--copy-bright);
 }
 
 .cosmos-stone-overlay-close {
@@ -245,7 +245,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   border: 1px solid rgba(127, 201, 255, .5);
   border-radius: 8px;
   background: rgba(20, 32, 48, .9);
-  color: #cfe6ff;
+  color: #ffffff;
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
@@ -264,7 +264,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   border: 1px solid rgba(127, 201, 255, .68);
   border-radius: 8px;
   background: rgba(8, 12, 19, .94);
-  color: #dce8f5;
+  color: #ffffff;
   font-size: .78em;
   line-height: 1.45;
   pointer-events: none;
@@ -289,7 +289,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   border-radius: 14px;
   padding: 12px;
   background: linear-gradient(180deg, #171f2c 0%, #10151d 100%);
-  color: #dce8f5;
+  color: #ffffff;
   min-height: 580px;
 }
 
@@ -301,7 +301,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 }
 
 .cosmos-detail-source {
-  color: #8daccc;
+  color: var(--copy-muted);
   font-size: .8em;
   margin-bottom: 8px;
 }
@@ -317,12 +317,12 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   margin-bottom: 10px;
   border: 1px solid #31465d;
   background: #111923;
-  color: #9fb9d1;
+  color: #ffffff;
 }
 
 .cosmos-status.available {
   border-color: #5ca7e8;
-  color: #dff3ff;
+  color: #ffffff;
   background: #112236;
 }
 
@@ -346,7 +346,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   border: 1px solid #24384a;
   border-radius: 10px;
   background: #0b111a;
-  color: #cfe0ee;
+  color: #ffffff;
   line-height: 1.55;
 }
 
@@ -372,7 +372,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 .cosmos-actions button:first-child:not(:disabled) {
   background: linear-gradient(180deg, #226492 0%, #153c5a 100%);
   border-color: #6dbdf2;
-  color: #eaf7ff;
+  color: #ffffff;
   box-shadow: 0 0 16px rgba(109, 189, 242, .16);
 }
 
@@ -381,7 +381,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   padding: 10px;
   border-radius: 10px;
   border: 1px dashed #35516a;
-  color: #8daccc;
+  color: #eef2f6;
   background: rgba(9, 15, 24, .65);
   font-size: .8em;
   line-height: 1.55;

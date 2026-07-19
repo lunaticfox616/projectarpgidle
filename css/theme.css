@@ -1,8 +1,8 @@
         .map-item-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
         .map-item-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
         .map-reward-btn { background: linear-gradient(180deg, #6e5420 0%, #4a3815 100%); border-color: #b88a2b; color: #ffe7a2; font-size: 0.78em; padding: 5px 10px; }
-        .map-reward-btn.claimed { background: #263544; border-color: #3a536c; color: #9fb9d1; }
-        .map-zone-status { color: #8ca5be; font-size: 0.78em; font-weight: normal; }
+        .map-reward-btn.claimed { background: #263544; border-color: #3a536c; color: #ffffff; }
+        .map-zone-status { color: var(--copy-muted); font-size: 0.78em; font-weight: normal; }
 
         .subtab-row { display: flex; gap: 8px; margin-bottom: 15px; }
         .subtab-btn { flex: 1; padding: 10px 0; background: #1a1a24; color: #888; border: 1px solid #2a2a35; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
@@ -14,7 +14,7 @@
         .currency-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 12px; }
         .currency-card { background: #16161d; border: 1px solid #3d3d5c; padding: 10px; border-radius: 6px; }
         .currency-name { color: #f1c40f; font-weight: bold; margin-bottom: 4px; }
-        .currency-desc { color: #95a5a6; font-size: 0.78em; min-height: 34px; }
+        .currency-desc { color: var(--copy-muted); font-size: 0.78em; min-height: 34px; }
         .currency-count { color: #3498db; margin-top: 6px; }
         .divine-drop-banner { position: fixed; top: 82px; left: 50%; transform: translateX(-50%) scale(0.92); z-index: 14000; padding: 12px 18px; border-radius: 12px; border: 1px solid #f7d66a; background: linear-gradient(180deg, rgba(120,91,22,0.96) 0%, rgba(63,45,10,0.96) 100%); color: #fff7d1; font-weight: bold; font-size: 1.05em; letter-spacing: 0.02em; box-shadow: 0 0 0 1px rgba(255,228,130,0.35), 0 0 26px rgba(247,214,106,0.62); opacity: 0; pointer-events: none; transition: opacity 180ms ease, transform 180ms ease; }
         .divine-drop-banner.show { opacity: 1; transform: translateX(-50%) scale(1); }
@@ -42,31 +42,31 @@
         .enemy-top { display: flex; justify-content: space-between; align-items: center; gap: 4px; margin-bottom: 1px; }
         .enemy-name { font-weight: bold; color: #f0b45d; font-size: 0.8em; line-height: 1.15; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .enemy-tags { font-size: 0.7em; color: #f1c40f; text-align: center; line-height: 1.25; }
-        .enemy-tags.muted { color: #91a9c3; }
+        .enemy-tags.muted { color: var(--copy-muted); }
         .enemy-card.targeted { border-color: #f39c12; box-shadow: 0 0 8px rgba(243,156,18,0.3); }
-        .enemy-empty { color: #7f8c8d; text-align: center; padding: 10px; background: #0d0d12; border-radius: 10px; border: 1px dashed #333; grid-column: 1 / -1; font-size: 0.8em; min-height: 92px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
+        .enemy-empty { color: #eef2f6; text-align: center; padding: 10px; background: #0d0d12; border-radius: 10px; border: 1px dashed #333; grid-column: 1 / -1; font-size: 0.8em; min-height: 92px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
         .battlefield-wrap { position: relative; margin-top: 10px; height: 185px; box-sizing: border-box; border: 1px solid #233346; border-radius: 14px; overflow: hidden; background: linear-gradient(180deg, #172434 0%, #0d1520 60%, #11161b 100%); box-shadow: inset 0 0 30px rgba(0,0,0,0.35); }
         .battlefield-wrap.compressed { height: 0; min-height: 0; margin-top: 0; border-width: 0; display: flex; align-items: center; justify-content: center; background: transparent; box-shadow: none; }
         .battlefield-wrap.compressed .battlefield-caption { display: none; }
         #battlefield-canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
         .battlefield-caption { position: absolute; top: 8px; left: 12px; font-size: 0.78em; color: rgba(205, 228, 255, 0.82); letter-spacing: 0.03em; text-shadow: 0 1px 2px rgba(0,0,0,0.45); pointer-events: none; }
         .bulk-salvage-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; padding: 10px 12px; background: #11151c; border: 1px solid #26384a; border-radius: 10px; }
-        .bulk-salvage-filters { display: flex; flex-wrap: wrap; gap: 12px; color: #c9d7e5; }
+        .bulk-salvage-filters { display: flex; flex-wrap: wrap; gap: 12px; color: var(--copy-bright); }
         .bulk-salvage-filters label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.86em; }
         .bulk-salvage-action { background: linear-gradient(180deg, #596b7d 0%, #44515f 100%); border-color: #7d8d9e; }
         .cloud-panel { margin-top: 14px; padding: 14px; border-radius: 10px; border: 1px solid #29445c; background: linear-gradient(180deg, #101720 0%, #0b1118 100%); }
         .cloud-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
         .cloud-title { color: #7fc9ff; font-size: 0.98em; font-weight: bold; }
-        .cloud-subtitle { color: #89a3bd; font-size: 0.82em; line-height: 1.45; margin-top: 4px; }
-        .cloud-status-pill { display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; border-radius: 999px; font-size: 0.78em; font-weight: bold; background: #24313f; color: #b2c7da; border: 1px solid #35516a; white-space: nowrap; }
+        .cloud-subtitle { color: var(--copy-muted); font-size: 0.82em; line-height: 1.45; margin-top: 4px; }
+        .cloud-status-pill { display: inline-flex; align-items: center; justify-content: center; padding: 5px 10px; border-radius: 999px; font-size: 0.78em; font-weight: bold; background: #24313f; color: #ffffff; border: 1px solid #35516a; white-space: nowrap; }
         .cloud-status-pill.online { background: #173625; border-color: #2e8b57; color: #9ef0bf; }
         .cloud-status-pill.syncing { background: #2d240f; border-color: #9f7b1c; color: #ffe28a; }
         .cloud-status-pill.error { background: #351717; border-color: #8f3838; color: #ffb0b0; }
         .cloud-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
         .cloud-actions.secondary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .cloud-meta { margin-top: 12px; padding: 10px 12px; background: #0d131b; border: 1px solid #1f3346; border-radius: 8px; color: #c1d0df; font-size: 0.84em; line-height: 1.55; }
-        .cloud-meta strong { color: #f1f7fd; }
-        .cloud-note { margin-top: 10px; color: #7ea0be; font-size: 0.8em; line-height: 1.55; }
+        .cloud-meta { margin-top: 12px; padding: 10px 12px; background: #0d131b; border: 1px solid #1f3346; border-radius: 8px; color: #ffffff; font-size: 0.84em; line-height: 1.55; }
+        .cloud-meta strong { color: var(--copy-bright); }
+        .cloud-note { margin-top: 10px; color: var(--copy-muted); font-size: 0.8em; line-height: 1.55; }
         .startup-overlay { display: none; position: fixed; inset: 0; z-index: 14000; padding: 28px; background:
             radial-gradient(circle at 12% 14%, rgba(86, 147, 212, 0.24), transparent 26%),
             radial-gradient(circle at 84% 16%, rgba(236, 166, 60, 0.16), transparent 24%),
