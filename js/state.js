@@ -382,6 +382,16 @@ function getAbyssZoneTier(depth) {
     return abyssTiers[Math.min(20, safeDepth) - 1] || abyssTiers[abyssTiers.length - 1] || 20;
 }
 
+function getTimeRiftEquivalentChaosDepth(pressure) {
+    let safePressure = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, Math.floor(Number(pressure) || 1)));
+    return TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS[safePressure - 1];
+}
+
+function getTimeRiftDifficultyTier(pressure) {
+    let equivalentDepth = getTimeRiftEquivalentChaosDepth(pressure);
+    return getAbyssZoneTier(1) + equivalentDepth - 1;
+}
+
 
 
 
@@ -448,8 +458,11 @@ function getZone(id) {
         let rift = ensureTimeRiftState();
         let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
         // 시간압이 유일한 난이도 손잡이 — 루프 인플레이션 대신 fixedDifficultyMul로만 세진다.
-        let pressureMul = (phase === 'past' ? 1.6 : 2.1) * (1 + (rift.pressure - 1) * 0.45);
-        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${rift.pressure})`, type: 'timeRift', riftPhase: phase, tier: 15 + rift.pressure, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: rift.pressure };
+        let equivalentChaosDepth = getTimeRiftEquivalentChaosDepth(rift.pressure);
+        let difficultyTier = getTimeRiftDifficultyTier(rift.pressure);
+        // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
+        let pressureMul = phase === 'past' ? 1 : 1.18;
+        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${rift.pressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: rift.pressure, equivalentChaosDepth: equivalentChaosDepth };
     }
     if (id === UNDERWORLD_ZONE_ID) {
         let uw = (game && game.underworldProgress) || {};

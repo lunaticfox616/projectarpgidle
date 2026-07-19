@@ -8714,6 +8714,8 @@ function renderTimeRiftPanel() {
     host.style.display = 'block';
     let rift = ensureTimeRiftState();
     let odds = getTimeRiftFusionOdds(rift.pressure);
+    let equivalentChaosDepth = getTimeRiftEquivalentChaosDepth(rift.pressure);
+    let riftDifficultyTier = getTimeRiftDifficultyTier(rift.pressure);
     let pct = v => `${Math.round(v * 100)}%`;
     let altarFull = !!(rift.altarUnique && rift.altarRare);
     let altarLine = slotItem => slotItem ? `<strong>${slotItem.name}</strong> <span style="color:#9fb4d1;">[${slotItem.slot}]</span>` : '<span style="color:#7f8c8d;">비어 있음</span>';
@@ -8728,6 +8730,7 @@ function renderTimeRiftPanel() {
             <button onclick="setTimeRiftPressure(1)" ${rift.pressure >= TIME_RIFT_MAX_PRESSURE ? 'disabled' : ''}>+</button>
             <span style="color:#9fb4d1; font-size:0.83em;">완벽 ${pct(odds.perfect)} · 보통 ${pct(odds.normal)} · 불안정 ${pct(odds.unstable)}</span>
         </div>
+        <div style="margin:-2px 0 8px; color:#d8bd78; font-size:0.8em;">혼돈 ${equivalentChaosDepth} 상당 · 전투 난이도 ${riftDifficultyTier}</div>
         <div class="map-grid" style="margin-bottom:8px;">
             <div class="map-item ${game.currentZoneId === TIME_RIFT_PAST_ZONE_ID ? 'current' : ''}" onclick="changeZone('time_rift_past')">
                 <div class="map-item-main"><span>⏳</span><span>과거 (제단 개방)</span></div>
