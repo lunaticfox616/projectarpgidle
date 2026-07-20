@@ -202,11 +202,13 @@ function getUiPlayerClassLabel() {
 
 const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;
 const BACKGROUND_PROGRESS_RATE = 0.1;
-const BACKGROUND_PROGRESS_MAX_SIMULATED_MS = 30 * 60 * 1000;
+const BACKGROUND_PROGRESS_MAX_REAL_MS = 3 * 60 * 60 * 1000;
+const BACKGROUND_PROGRESS_MAX_SIMULATED_MS = BACKGROUND_PROGRESS_MAX_REAL_MS * BACKGROUND_PROGRESS_RATE;
 const BACKGROUND_COMBAT_STEP_MS = 100;
 const BACKGROUND_COMBAT_CHUNK_BUDGET_MS = 10;
+const BACKGROUND_COMBAT_FAST_CHUNK_BUDGET_MS = 50;
 const BACKGROUND_COMBAT_SYNC_CHUNK_STEPS = 500;
-let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false };
+let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, fastMode: false, offlineConsumed: false };
 
 function calculateBackgroundProgressMs(actualElapsedMs, minRealMs, rate, maxProgressMs) {
     let elapsed = Math.max(0, Number.isFinite(actualElapsedMs) ? actualElapsedMs : 0);
@@ -243,6 +245,13 @@ function isBackgroundCombatEligible(state) {
     return Array.isArray(state.encounterPlan) && state.encounterPlan.length > 0;
 }
 
+function isOfflineCombatEligible(state) {
+    if (!state || typeof state !== 'object') return false;
+    if (state.pendingLoopDecision || state.pendingLoopReady || state.combatHalted) return false;
+    if ((Number(state.playerHp) || 0) <= 0) return false;
+    return state.currentZoneId !== undefined && state.currentZoneId !== null;
+}
+
 function cloneBackgroundCombatState(state) {
     return JSON.parse(JSON.stringify(state));
 }
@@ -252,6 +261,17 @@ function recordBackgroundCombatEntry(nowMs) {
     backgroundCombatRuntime.hiddenAtMs = now;
     backgroundCombatRuntime.signature = getBackgroundCombatSignature(game);
     backgroundCombatRuntime.snapshot = isBackgroundCombatEligible(game) ? cloneBackgroundCombatState(game) : null;
+}
+
+function recordOfflineCombatEntry(nowMs) {
+    let savedAt = Math.max(0, Math.floor(Number(game && game.saveMeta && game.saveMeta.lastModifiedAt) || 0));
+    let now = Number.isFinite(nowMs) ? nowMs : Date.now();
+    if (backgroundCombatRuntime.offlineConsumed || savedAt <= 0 || now <= savedAt) return false;
+    backgroundCombatRuntime.offlineConsumed = true;
+    backgroundCombatRuntime.hiddenAtMs = savedAt;
+    backgroundCombatRuntime.signature = getBackgroundCombatSignature(game);
+    backgroundCombatRuntime.snapshot = isOfflineCombatEligible(game) ? cloneBackgroundCombatState(game) : null;
+    return !!backgroundCombatRuntime.snapshot;
 }
 
 function consumeBackgroundElapsedTime(nowMs) {
@@ -387,9 +407,17 @@ function getBackgroundProgressOverlay() {
     overlay = document.createElement('div');
     overlay.id = 'background-combat-progress-overlay';
     overlay.className = 'background-combat-progress-overlay';
-    overlay.innerHTML = '<div class="background-combat-progress-card"><strong>백그라운드 전투 계산 중</strong><div id="background-combat-progress-percent">계산 진행 0%</div><div class="background-combat-progress-track" role="progressbar" aria-label="백그라운드 전투 계산 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="background-combat-progress-bar-fill"></div></div><div id="background-combat-progress-duration"></div></div>';
+    overlay.innerHTML = '<div class="background-combat-progress-card"><strong>백그라운드 전투 계산 중</strong><div id="background-combat-progress-percent">계산 진행 0%</div><div class="background-combat-progress-track" role="progressbar" aria-label="백그라운드 전투 계산 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="background-combat-progress-bar-fill"></div></div><div id="background-combat-progress-duration"></div><button type="button" id="background-combat-fast-button" onclick="requestFasterBackgroundCombat()">빠른 계산</button></div>';
     document.body.appendChild(overlay);
     return overlay;
+}
+
+function requestFasterBackgroundCombat() {
+    backgroundCombatRuntime.fastMode = true;
+    let button = typeof document !== 'undefined' ? document.getElementById('background-combat-fast-button') : null;
+    if (!button) return;
+    button.disabled = true;
+    button.textContent = '빠른 계산 적용 중';
 }
 
 function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs) {
@@ -441,7 +469,7 @@ function showBackgroundCombatResult(result) {
         `아이템: ${itemHtml}${uniqueLine}`,
         `재화: ${currencyHtml}`
     ].join('<br>');
-    overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>적용된 전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p><p>${rewards}</p>${result.capped ? '<p class="background-combat-capped">백그라운드 진행 최대치에 도달했습니다.</p>' : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">닫기</button></div>`;
+    overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>적용된 전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p><p>${rewards}</p>${result.capped ? '<p class="background-combat-capped">백그라운드 누적 최대치 3시간에 도달했습니다.</p>' : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">닫기</button></div>`;
     document.body.appendChild(overlay);
 }
 
@@ -520,7 +548,7 @@ async function simulateBackgroundCombatChunked(options) {
                 simulatedNow += BACKGROUND_COMBAT_STEP_MS;
                 processed++;
                 updateBackgroundCombatMetrics(metrics, game);
-            } while (processed < stepCount && !shouldStopBackgroundReplay(game) && (((typeof performance !== 'undefined' && performance.now) ? performance.now() : originalDateNow()) - chunkStart) < BACKGROUND_COMBAT_CHUNK_BUDGET_MS);
+            } while (processed < stepCount && !shouldStopBackgroundReplay(game) && (((typeof performance !== 'undefined' && performance.now) ? performance.now() : originalDateNow()) - chunkStart) < (backgroundCombatRuntime.fastMode ? BACKGROUND_COMBAT_FAST_CHUNK_BUDGET_MS : BACKGROUND_COMBAT_CHUNK_BUDGET_MS));
             if (typeof options.onProgress === 'function') options.onProgress(processed * BACKGROUND_COMBAT_STEP_MS, elapsedMs);
             if (processed < stepCount && !shouldStopBackgroundReplay(game)) await waitBackgroundReplayFrame();
         }
@@ -570,6 +598,7 @@ async function startBackgroundCombatReturn(nowMs) {
         return false;
     }
     backgroundCombatRuntime.processing = true;
+    backgroundCombatRuntime.fastMode = false;
     restoreBattlefieldBeforeBackgroundReplay();
     updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
     await waitBackgroundReplayFrame();
@@ -593,11 +622,20 @@ async function startBackgroundCombatReturn(nowMs) {
     }
 }
 
+async function startOfflineCombatReturn(nowMs) {
+    if (!recordOfflineCombatEntry(nowMs)) return false;
+    let applied = await startBackgroundCombatReturn(nowMs);
+    if (applied && typeof saveGame === 'function') saveGame({ skipCloudSync: true });
+    return applied;
+}
+
 function handleBackgroundVisibilityChange() {
     if (typeof document === 'undefined') return;
     if (document.hidden) recordBackgroundCombatEntry(Date.now());
     else startBackgroundCombatReturn(Date.now());
 }
+
+safeExposeGlobals({ requestFasterBackgroundCombat });
 
 function getUiConditionGemStatDelta(name, type) {
     let provider = getUiGlobalFunction('getConditionGemStatDelta');
@@ -12448,6 +12486,11 @@ async function enterGameWorld() {
             console.error('finishLoadingOverlay on enterGameWorld failed:', error);
         }
         setLoadingOverlayState(false);
+    }
+    try {
+        await startOfflineCombatReturn(Date.now());
+    } catch (error) {
+        console.error('offline combat replay failed:', error);
     }
 }
 
