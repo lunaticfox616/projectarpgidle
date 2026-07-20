@@ -126,6 +126,7 @@ const TAGGED_DAMAGE_STAT_BY_TAG = {
 };
 const COMPARE_STAT_META = {
     dps: { label: 'DPS', format: value => `${Math.floor(value)}` },
+    summonDps: { label: '소환 DPS', format: value => `${Math.floor(value)}` },
     baseDmg: { label: '공격력', format: value => `${Math.floor(value)}` },
     aspd: { label: '공속', format: value => value.toFixed(2) },
     crit: { label: '치명타', format: value => `${value.toFixed(1)}%` },

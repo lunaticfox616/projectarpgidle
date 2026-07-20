@@ -599,16 +599,6 @@ function handleBackgroundVisibilityChange() {
     else startBackgroundCombatReturn(Date.now());
 }
 
-function syncLoop10PanelCopies() {
-    let panels = Array.from(document.querySelectorAll('[data-loop10-panel]'));
-    if (panels.length <= 1) return;
-    let source = panels[0];
-    panels.slice(1).forEach(panel => {
-        panel.style.display = source.style.display;
-        panel.innerHTML = source.innerHTML;
-    });
-}
-
 function getUiConditionGemStatDelta(name, type) {
     let provider = getUiGlobalFunction('getConditionGemStatDelta');
     return provider ? (callUiProvider('getConditionGemStatDelta', provider, [name, type]) || {}) : {};
@@ -4601,40 +4591,8 @@ function getEquippedSummonCount() {
 }
 
 function getSummonEquipCapFromStats(stats) {
-    return Math.max(1, Math.min(8, Math.floor((stats && stats.summonCap) || 1)));
-}
-
-function normalizeSummonLoadout(logChange, stats) {
-    normalizeEquippedSummonAttackSkills();
-    let cap = getSummonEquipCapFromStats(stats || getUiPlayerStats(null));
-    let guardSupports = getEquippedSummonGuardSupports();
-    let changed = false;
-    if (guardSupports.length > cap) {
-        let keepGuards = new Set(guardSupports.slice(0, cap));
-        game.equippedSupports = (game.equippedSupports || []).filter(name => !isSummonGuardSupport(name) || keepGuards.has(name));
-        guardSupports = getEquippedSummonGuardSupports();
-        changed = true;
-    }
-    let guardCount = guardSupports.length;
-    let attackCap = Math.max(0, cap - guardCount);
-    let used = 0;
-    game.equippedSummonSkills.slice().forEach(name => {
-        let current = getSummonSkillCount(name);
-        let allowed = Math.max(0, Math.min(current, attackCap - used));
-        if (allowed <= 0) {
-            game.equippedSummonSkills = game.equippedSummonSkills.filter(gemName => gemName !== name);
-            delete game.summonSkillCounts[name];
-            changed = true;
-            return;
-        }
-        if (allowed !== current) {
-            game.summonSkillCounts[name] = allowed;
-            changed = true;
-        }
-        used += allowed;
-    });
-    if (changed && logChange) addLog(`🐾 소환수 한도(${cap})에 맞춰 초과 소환수가 자동 해제되었습니다.`, 'attack-monster');
-    return changed;
+    let expanded = game.ascendClass === 'soulbinder' && typeof hasKeystone === 'function' && hasKeystone('sb9');
+    return Math.max(1, Math.min(expanded ? 12 : 8, Math.floor((stats && stats.summonCap) || 1)));
 }
 
 function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) return;
@@ -5195,6 +5153,12 @@ window.addEventListener('project-idle:talent-tab-refresh-requested', () => {
     if (typeof renderTalentTab === 'function' && talentTab && talentTab.classList.contains('active')) renderTalentTab();
 });
 
+function togglePastLoopMilestones() {
+    game.settings.collapsePastLoopMilestones = game.settings.collapsePastLoopMilestones === false;
+    updateStaticUI();
+}
+safeExposeGlobals({ togglePastLoopMilestones });
+
 function updateSettings() {
     let previousSocialChatNotifications = game.settings.socialChatNotifications !== false;
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
@@ -5221,6 +5185,8 @@ function updateSettings() {
     lastTabHeaderUiSignature = null;
     let pauseOverlayCheckbox = document.getElementById('chk-pause-overlay');
     game.settings.pauseGameOnOverlay = !!(pauseOverlayCheckbox && pauseOverlayCheckbox.checked);
+    let autoEquipCheckbox = document.getElementById('chk-auto-equip-empty');
+    game.settings.autoEquipEmptySlots = !autoEquipCheckbox || autoEquipCheckbox.checked;
     let damageFormatSelect = document.getElementById('sel-damage-number-format');
     let damageFormat = damageFormatSelect ? damageFormatSelect.value : game.settings.damageNumberFormat;
     game.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(damageFormat) ? damageFormat : 'comma';
@@ -7850,7 +7816,6 @@ function performUpdateStaticUI() {
     }
     normalizeSupportLoadout(true);
     let pStats = getUiPlayerStats();
-    if (typeof normalizeSummonLoadout === 'function' && normalizeSummonLoadout(true, pStats)) pStats = getUiPlayerStats();
     __mark('stats');
     cachedTooltipStats = pStats;
     updateCombatUI(pStats);
@@ -8571,14 +8536,17 @@ function renderFlaskPanel() {
         let active = cur && (cur.until || 0) > now;
         let status = cur ? `${active ? `발동 중 · ${Math.ceil((cur.until - now) / 1000)}초` : '대기 중'}` : '비어 있음';
         let triggerLabel = cur && typeof getUtilityFlaskTriggerLabel === 'function' ? getUtilityFlaskTriggerLabel(cur.trigger) : '전투 시작';
+        let quality = def && typeof getFlaskQuality === 'function' ? getFlaskQuality(def.key) : 0;
+        let qualityCost = def && typeof getFlaskQualityUpgradeCost === 'function' ? getFlaskQualityUpgradeCost(def.key) : 0;
         return `<div class="flask-slot-box utility ${active ? 'active' : ''}">
             <div class="flask-slot-label">유틸리티 ${idx + 1}</div>
             <div class="flask-slot-name">${def ? def.name : '빈 플라스크 슬롯'}</div>
             <div class="flask-slot-status">${status}</div>
-            ${def ? `<div class="flask-slot-effect">${def.desc}</div>${renderFlaskChargeMeter(cur.charges, def.maxCharges, cur.chargeProgress, getFlaskEffectiveChargesPerKills(def.chargesPerKills))}` : ''}
+            ${def ? `<div class="flask-slot-effect">${def.desc} · 품질 +${quality}%</div>${renderFlaskChargeMeter(cur.charges, def.maxCharges, cur.chargeProgress, getFlaskEffectiveChargesPerKills(def.chargesPerKills))}` : ''}
             <div class="flask-slot-actions">
                 <button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('utility', ${idx})" title="${def ? def.desc : '유틸리티 플라스크 선택'}">변경</button>
                 <button type="button" class="flask-trigger-select" onclick="cycleUtilityFlaskTrigger(${idx})" ${cur ? '' : 'disabled'}>자동: ${triggerLabel}</button>
+                ${def ? `<button type="button" onclick="upgradeFlaskQuality('${def.key}')" ${quality >= 20 || st.alchemyGlass < qualityCost ? 'disabled' : ''}>품질 +1 · 유리 ${qualityCost}</button>` : ''}
             </div>
         </div>`;
     }).join('');
@@ -8594,8 +8562,10 @@ function renderFlaskPanel() {
         let def = FLASK_DB[key];
         let cost = typeof getFlaskCraftCost === 'function' ? getFlaskCraftCost(key) : 0;
         let affordable = st.alchemyGlass >= cost;
-        return `<div class="flask-craft-card"><div><span>${def.kind === 'heal' ? '회복' : '유틸리티'} · ${def.tier}단계</span><strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(def.desc || `최대 생명력의 ${def.healPct}% 회복`)}</small></div><button type="button" onclick="craftFlask('${key}')" ${affordable ? '' : 'disabled'}>${affordable ? '제작' : '재료 부족'} · ${cost}</button></div>`;
+        return `<div class="flask-craft-card"><div><span>${def.kind === 'heal' ? '회복' : '유틸리티'} · ${def.tier}단계 · 요구 Lv.${def.reqLevel}</span><strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(def.desc || `최대 생명력의 ${def.healPct}% 회복`)}</small></div><button type="button" onclick="craftFlask('${key}')" ${affordable ? '' : 'disabled'}>${affordable ? '제작' : '재료 부족'} · ${cost}</button></div>`;
     }).join('');
+    let healQuality = typeof getFlaskQuality === 'function' ? getFlaskQuality(healDef.key) : 0;
+    let healQualityCost = typeof getFlaskQualityUpgradeCost === 'function' ? getFlaskQualityUpgradeCost(healDef.key) : 0;
     host.innerHTML = `<div class="flask-overview">
         <div><span>발견</span><strong>${found.length}/${totalFlasks}</strong></div>
         <div><span>장착</span><strong>${activeSlots}/${1 + maxUtilSlots}</strong></div>
@@ -8605,13 +8575,13 @@ function renderFlaskPanel() {
             <div class="flask-slot-label">회복</div>
             <div class="flask-slot-name">${healDef.name}</div>
             <div class="flask-slot-status">${healActive ? `회복 중 · ${Math.ceil((st.healOverTimeUntil - now) / 1000)}초` : `생명력 ${healDef.autoBelowHpPct}% 이하 자동 사용`}</div>
-            <div class="flask-slot-effect">최대 생명력의 ${healDef.healPct}%를 ${Math.round(healDef.durationMs / 1000)}초에 걸쳐 회복</div>
+            <div class="flask-slot-effect">최대 생명력의 ${(typeof getFlaskEffectiveHealPct === 'function' ? getFlaskEffectiveHealPct(healDef) : healDef.healPct).toFixed(1)}%를 ${Math.round(healDef.durationMs / 1000)}초에 걸쳐 회복 · 품질 +${healQuality}%</div>
             ${renderFlaskChargeMeter(st.healCharges, healDef.maxCharges, st.healChargeProgress, getFlaskEffectiveChargesPerKills(healDef.chargesPerKills))}
-            <button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('heal')">변경</button>
+            <div class="flask-slot-actions"><button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('heal')">변경</button><button type="button" onclick="upgradeFlaskQuality('${healDef.key}')" ${healQuality >= 20 || st.alchemyGlass < healQualityCost ? 'disabled' : ''}>품질 +1 · 유리 ${healQualityCost}</button></div>
         </div>
         ${utilSlots}${beltHint}
     </div>
-    <section class="flask-workbench"><div class="flask-workbench-head"><div><span>ALCHEMY BENCH</span><strong>플라스크 제작</strong><small>처치로 모은 연금 유리로 각 계열의 다음 단계를 확정 제작합니다.</small></div><div class="flask-glass-balance"><span>연금 유리</span><b>${st.alchemyGlass}</b></div></div><div class="flask-craft-grid">${craftCards || '<div class="gem-process-empty">현재 레벨에서 제작 가능한 다음 단계가 없습니다.</div>'}</div></section>
+    <section class="flask-workbench"><div class="flask-workbench-head"><div><span>ALCHEMY BENCH</span><strong>플라스크 제작·품질</strong><small>연금 유리로 다음 단계를 제작하거나 장착 플라스크 품질을 최대 20%까지 올립니다. 회복 품질은 총 회복량, 유틸리티 품질은 지속시간을 높입니다.</small></div><div class="flask-glass-balance"><span>연금 유리</span><b>${st.alchemyGlass}</b></div></div><div class="flask-craft-grid">${craftCards || '<div class="gem-process-empty">현재 레벨에서 제작 가능한 다음 단계가 없습니다.</div>'}</div></section>
     <div class="flask-help-text"><strong>운용 안내</strong> 낮은 단계는 전투에서 비교적 쉽게 발견되지만 높은 단계일수록 드랍 확률이 낮아집니다. 제작은 무작위 발견을 보완하며, 같은 계열은 앞 단계부터 순서대로 진행합니다(미발견 ${undiscoveredCount}종).</div>`;
 }
 
@@ -9636,9 +9606,15 @@ function buildCraftActionButtons(item) {
             }
         }
     }
-    syncLoop10PanelCopies();
     let seasonRoadmapKeys = (game.unlockedSeasonContents || []).map(id => parseInt(String(id).replace('season_', ''), 10)).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
-    document.getElementById('ui-season-content-roadmap').innerHTML = seasonRoadmapKeys.map(seasonNum => {
+    let collapsePast = game.settings.collapsePastLoopMilestones !== false;
+    let roadmapToggle = document.getElementById('btn-toggle-past-loop-milestones');
+    if (roadmapToggle) roadmapToggle.innerText = collapsePast ? '지난 루프 펼치기' : '지난 루프 접기';
+    let pastRoadmapCount = seasonRoadmapKeys.filter(seasonNum => seasonNum < game.season).length;
+    let collapsedRoadmapSummary = collapsePast && pastRoadmapCount > 0
+        ? `<div style="color:#78d99a; border:1px dashed rgba(46,204,113,.55); border-radius:8px; padding:8px 12px;">완료한 지난 루프 이정표 ${pastRoadmapCount}개가 접혀 있습니다.</div>`
+        : '';
+    let roadmapCards = seasonRoadmapKeys.map(seasonNum => {
         let def = SEASON_CONTENT_ROADMAP[seasonNum];
         if (!def) return '';
         let unlocked = seasonNum <= game.season;
@@ -9646,13 +9622,16 @@ function buildCraftActionButtons(item) {
         let stateColor = current ? '#f1c40f' : (unlocked ? '#2ecc71' : '#7f8c8d');
         let stateText = current ? '진행 중' : (unlocked ? '해금됨' : '잠김');
         let reqText = getLoopAbyssRequirementText(seasonNum);
-        return `<div style="background:#121822; border:1px solid ${stateColor}; border-radius:8px; padding:10px 12px;">
+        let hiddenStyle = collapsePast && unlocked && !current ? 'display:none;' : '';
+        return `<div style="${hiddenStyle}background:#121822; border:1px solid ${stateColor}; border-radius:8px; padding:10px 12px;">
             <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;">
                 <strong style="color:${stateColor};">루프 ${seasonNum} - ${def.title}</strong><span style="color:${stateColor}; font-size:0.8em;">${stateText}</span>
             </div>
             <div style="color:var(--copy-bright); font-size:0.82em; line-height:1.5;">• ${reqText}<br>${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;
-    }).join('') || `<div style="color:var(--copy-muted);">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
+    }).join('');
+    document.getElementById('ui-season-content-roadmap').innerHTML = collapsedRoadmapSummary + roadmapCards
+        || `<div style="color:var(--copy-muted);">루프 1을 클리어하면 루프 이정표가 열립니다.</div>`;
     const seasonNodeGlyphs = {
         expGain: '✦', pctDmg: '⚔', pctHp: '♥', crit: '✧', dotPctDmg: '◌',
         move: '➤', dr: '◆', aspd: 'ϟ', physIgnore: '⟐', resPen: '◇', ds: '∞',
@@ -11208,11 +11187,13 @@ function mergeDefaults(save) {
             if (Number.isFinite(stat.base)) return stat.base;
             return 0;
         }
-        Object.values((state && state.equipment) || {}).forEach(item => {
+        Object.entries((state && state.equipment) || {}).forEach(([slot, item]) => {
             if (!item) return;
             [...(item.baseStats || []), ...(item.stats || []), ...(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [])].forEach(stat => {
                 if (stat && stat.id === 'summonCap') bonus += statValue(stat);
             });
+            if (item.uniqueEffectKey === 'summonCapBonus') bonus += Number((item.uniqueEffectParams || {}).cap) || 1;
+            if (item.uniqueEffectKey === 'rightRingSummonCap' && slot === '반지2') bonus += Number((item.uniqueEffectParams || {}).cap) || 1;
         });
         (state && Array.isArray(state.passives) ? state.passives : []).forEach(id => {
             if (state.starWedge && state.starWedge.disabledNodeEffects && state.starWedge.disabledNodeEffects[String(id)]) return;
@@ -11236,7 +11217,19 @@ function mergeDefaults(save) {
             if (keystones.includes('sb4')) bonus += 1;
             if (keystones.includes('sb8')) bonus += 3;
         }
-        return Math.max(1, Math.min(8, Math.floor(1 + bonus)));
+        let ownedCards = Object.keys((state && state.talentCards) || {});
+        let unlockedSlots = (typeof TALENT_CARD_SLOT_UNLOCKS !== 'undefined' ? TALENT_CARD_SLOT_UNLOCKS : [])
+            .filter(requirement => ownedCards.length >= requirement).length;
+        (state && Array.isArray(state.talentCardLoadout) ? state.talentCardLoadout.slice(0, unlockedSlots) : []).forEach(comboKey => {
+            let def = typeof TALENT_CARD_DEFS !== 'undefined' ? TALENT_CARD_DEFS[comboKey] : null;
+            ((def && def.surface && def.surface.uniq) || []).forEach(effect => {
+                if (effect && effect.key === 'summonCapBonus') bonus += Number((effect.params || {}).cap) || 1;
+            });
+        });
+        let cap = Math.max(1, Math.floor(1 + bonus));
+        let expandedCap = state && state.ascendClass === 'soulbinder' && keystones.includes('sb9');
+        if (expandedCap) cap = Math.floor(cap * 1.5);
+        return Math.min(expandedCap ? 12 : 8, cap);
     }
 
     let savedColony = (save && save.colony && typeof save.colony === 'object') ? save.colony : null;
@@ -11784,18 +11777,6 @@ function mergeDefaults(save) {
         }
         merged.summonSkillCounts = legacySummonCounts;
     }
-    let saveSummonUsed = 0;
-    merged.equippedSummonSkills.slice().forEach(name => {
-        let current = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1));
-        let allowed = Math.max(0, Math.min(current, saveSummonCap - saveSummonUsed));
-        if (allowed <= 0) {
-            merged.equippedSummonSkills = merged.equippedSummonSkills.filter(gemName => gemName !== name);
-            delete merged.summonSkillCounts[name];
-            return;
-        }
-        merged.summonSkillCounts[name] = allowed;
-        saveSummonUsed += allowed;
-    });
     merged.summonLoadoutInitialized = true;
     let equippedEnhanceTargets = [];
     if (SKILL_DB[merged.activeSkill] && SKILL_DB[merged.activeSkill].isGem) equippedEnhanceTargets.push(merged.activeSkill);
@@ -13664,6 +13645,7 @@ function init() {
     let socialChatNotiCheckboxInit = document.getElementById('chk-social-chat-noti');
     if (socialChatNotiCheckboxInit) socialChatNotiCheckboxInit.checked = game.settings.socialChatNotifications !== false;
     document.getElementById('chk-pause-overlay').checked = !!game.settings.pauseGameOnOverlay;
+    document.getElementById('chk-auto-equip-empty').checked = game.settings.autoEquipEmptySlots !== false;
     document.getElementById('chk-two-row-tabs').checked = !!game.settings.twoRowTabs;
     document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';
     document.getElementById('chk-exp-comma').checked = game.settings.showExpComma !== false;

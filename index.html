@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#05080e">
     <title>PROJECT IDLE — Rootbound ARPG</title>
-    <link rel="stylesheet" href="css/base.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/base.css?v=20260720-body-font1">
     <link rel="stylesheet" href="css/layout.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/theme.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/components.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260719-white-copy1">
-    <link rel="stylesheet" href="css/ui-feedback.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/ui-feedback.css?v=20260720-body-font1">
     <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1">
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1">
@@ -590,10 +590,9 @@
         </div>
         <div id="ui-loop10-panel" data-loop10-panel="1" style="display:none; margin-bottom:20px; background:#151226; border:1px solid #4d3c7a; border-radius:12px; padding:12px;"></div>
         <div id="season-content-section" style="display: none; margin-bottom: 20px;">
-            <h2>📦 루프 이정표</h2>
+            <h2 class="loop-roadmap-heading">📦 루프 이정표 <button id="btn-toggle-past-loop-milestones" type="button" onclick="togglePastLoopMilestones()">지난 루프 펼치기</button></h2>
             <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
         </div>
-        <div id="ui-loop10-season-panel" data-loop10-panel="1" style="display:none; margin-top:12px; background:#151226; border:1px solid #4d3c7a; border-radius:10px; padding:10px;"></div>
     </div>
 
     
@@ -1104,6 +1103,7 @@
             <div class="cfg-group">
                 <div class="cfg-group-title">전투 동작</div>
                 <div class="cfg-rows">
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-auto-equip-empty" onchange="updateSettings()" checked><span class="cfg-label">빈 장비 슬롯 자동 장착</span></label>
                     <div class="cfg-select-row">
                         <span class="cfg-label">맵 완료 시</span>
                         <select id="sel-map-complete-action" onchange="updateSettings()" class="cfg-select">

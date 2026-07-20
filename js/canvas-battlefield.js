@@ -529,10 +529,6 @@ function drawBattlefieldPlayerHealthBar(ctx, playerPos, hpPct, ghostPct, esPct) 
     let y = Math.round(playerPos.y - 82);
     ctx.save();
     ctx.globalAlpha = 0.97;
-    ctx.fillStyle = 'rgba(7, 10, 16, 0.9)';
-    ctx.fillRect(x - 2, y - 2, width + 4, 12);
-    ctx.fillStyle = 'rgba(36, 48, 62, 0.95)';
-    ctx.fillRect(x, y, width, 8);
     if (ghostPct > hpPct + 0.003) {
         ctx.fillStyle = 'rgba(255, 126, 76, 0.58)';
         ctx.fillRect(x, y, Math.max(1, Math.round(width * ghostPct)), 8);
@@ -559,10 +555,6 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
         let targeted = targetIds.includes(enemy.id);
         ctx.save();
         ctx.globalAlpha = 0.96;
-        ctx.fillStyle = 'rgba(7, 10, 16, 0.88)';
-        ctx.fillRect(x - 2, y - 2, width + 4, 10);
-        ctx.fillStyle = 'rgba(42, 48, 58, 0.95)';
-        ctx.fillRect(x, y, width, 6);
         let ghostPct = typeof updateEnemyHpDamageGhost === 'function' ? updateEnemyHpDamageGhost(enemy.id, pct * 100) / 100 : pct;
         if (ghostPct > pct + 0.002) {
             ctx.fillStyle = 'rgba(255, 138, 80, 0.58)';
@@ -1398,6 +1390,7 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
         const cellPos = (proj && hasGridCell(summon)) ? proj.cellToScreen(summon.gx, summon.gy) : null;
         const x = cellPos ? cellPos.x : playerPos.x + Math.cos(angle) * radius;
         const y = cellPos ? cellPos.y : playerPos.y - 18 + Math.sin(angle) * 12;
+        let drewImage = false;
         if (image) {
             const frame = getSummonSpriteFrameRectByName(summon.gemName, image);
             if (frame) {
@@ -1405,14 +1398,30 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
                 const drawW = size;
                 const drawH = Math.max(18, Math.round(size * (frame.sh / Math.max(1, frame.sw))));
                 ctx.drawImage(image, frame.sx, frame.sy, frame.sw, frame.sh, Math.round(x - drawW / 2), Math.round(y - drawH + 3), drawW, drawH);
-                return;
+                drewImage = true;
             }
         }
+        if (!drewImage) {
+            ctx.save();
+            ctx.fillStyle = summon.role === 'guard' ? 'rgba(132, 205, 167, 0.8)' : 'rgba(159, 212, 255, 0.8)';
+            ctx.beginPath();
+            ctx.arc(x, y, summon.role === 'guard' ? 8 : 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        const hpPct = clampNumber(summon.hp / Math.max(1, summon.maxHp || summon.hp), 0, 1);
+        const hpWidth = summon.role === 'guard' ? 38 : 32;
+        const hpX = Math.round(x - hpWidth / 2);
+        const hpY = Math.round(y - (summon.role === 'guard' ? 48 : 40));
         ctx.save();
-        ctx.fillStyle = summon.role === 'guard' ? 'rgba(132, 205, 167, 0.8)' : 'rgba(159, 212, 255, 0.8)';
-        ctx.beginPath();
-        ctx.arc(x, y, summon.role === 'guard' ? 8 : 6, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillStyle = summon.role === 'guard' ? '#59d98e' : '#78d9ff';
+        ctx.fillRect(hpX, hpY, Math.max(1, Math.round(hpWidth * hpPct)), 4);
+        ctx.strokeStyle = 'rgba(220, 248, 255, 0.72)';
+        ctx.strokeRect(hpX - 0.5, hpY - 0.5, hpWidth + 1, 5);
+        ctx.font = '700 8px "Noto Sans KR", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#eefcff';
+        ctx.fillText(`${Math.round(hpPct * 100)}%`, x, hpY - 2);
         ctx.restore();
     });
 }

@@ -8549,6 +8549,13 @@ function addItemToInventory(item, options) {
     let guaranteedKeep = !!(options && options.guaranteedKeep);
     let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
     let ignoreAutoSalvage = guaranteedKeep || !!(options && options.ignoreAutoSalvage);
+    let autoEquipSlot = typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
+    if (autoEquipSlot) {
+        if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
+        if (game.settings.showLootLog) addLog(`🛡️ 빈 ${autoEquipSlot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-rare');
+        checkUnlocks();
+        return true;
+    }
     if (!ignoreFilter && !passesItemPickupFilter(item)) {
         if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;

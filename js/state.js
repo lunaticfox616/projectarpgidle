@@ -1957,6 +1957,8 @@ const defaultGame = {
         themeMode: 'dark',
         leftPaneCollapsed: false,
         combatLogCollapsed: false,
+        autoEquipEmptySlots: true,
+        collapsePastLoopMilestones: true,
         autoSalvageEnabled: false,
         autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false },
         inventoryViewRarities: { normal: true, magic: true, rare: true, unique: true },
@@ -2047,7 +2049,7 @@ const defaultGame = {
         healTier: 'h1', healCharges: 3, healChargeProgress: 0,
         healOverTimeUntil: 0, healOverTimePerSec: 0, healOverTimeTotal: 0,
         healOverTimeApplied: 0, healOverTimeStartedAt: 0,
-        alchemyGlass: 0,
+        alchemyGlass: 0, qualityByKey: {},
         utils: [], utilityChargeBank: {}, killCounter: 0,
         encounterSerial: 0, wasInCombat: false, foundKeys: ['h1']
     },

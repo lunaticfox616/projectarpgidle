@@ -573,4 +573,46 @@ assert.ok(!radiusOneCells.some(cell => cell.gx === 4 && cell.gy === 4), '반경 
   assert.strictEqual(context.getSkillTargets(pStats).length, 1, '교전 상태에서는 대상이 잡혀야 한다');
 }
 
+// ── 10. 더 가까운 소환수 우선 공격, 같은 거리면 플레이어 우선 ──
+{
+  resetGame();
+  context.game.gridPlayer = { gx: 1, gy: 6 };
+  const summon = { id: 1, gx: 4, gy: 6, alive: true, hp: 100, maxHp: 100, armor: 0, evasion: 0, role: 'attack', respawnMs: 2000 };
+  const enemy = makeEnemy(1, 5, 6, { attackTimer: 1 });
+  context.game.summons = [summon];
+  context.game.enemies = [enemy];
+  const pStats = {
+    maxHp: 1000, energyShield: 0, dr: 0, armor: 0, evasion: 0, evadeChance: 0,
+    resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
+  };
+  context.game.playerHp = 1000;
+  context.performMonsterAttacks(pStats);
+  assert.ok(summon.hp < 100, '플레이어보다 가까운 소환수가 공격받아야 한다');
+  assert.strictEqual(context.game.playerHp, 1000, '소환수 대상 공격은 플레이어에게 피해를 주지 않아야 한다');
+
+  context.game.gridPlayer = { gx: 1, gy: 6 };
+  summon.gx = 5; summon.gy = 6; summon.hp = 100; summon.alive = true;
+  enemy.gx = 3; enemy.gy = 6; enemy.attackRange = 2; enemy.attackTimer = 1;
+  context.game.playerHp = 1000;
+  context.performMonsterAttacks(pStats);
+  assert.strictEqual(summon.hp, 100, '같은 거리에서는 소환수가 아니라 플레이어를 우선해야 한다');
+  assert.ok(context.game.playerHp < 1000, '같은 거리에서는 플레이어가 피해를 받아야 한다');
+}
+
+// ── 11. 빈 슬롯 자동 장착 설정 ──
+{
+  resetGame();
+  context.game.settings.autoEquipEmptySlots = true;
+  const helmet = { id: 9001, slot: '투구', name: '시험 투구', baseName: '시험 투구', rarity: 'normal', baseStats: [], stats: [] };
+  assert.strictEqual(context.addItemToInventory(helmet), true);
+  assert.strictEqual(context.game.equipment['투구'], helmet, '빈 슬롯에는 습득 즉시 자동 장착해야 한다');
+  assert.ok(!context.game.inventory.includes(helmet), '자동 장착한 아이템은 인벤토리에 중복 보관하지 않는다');
+
+  context.game.settings.autoEquipEmptySlots = false;
+  const armor = { id: 9002, slot: '갑옷', name: '시험 갑옷', baseName: '시험 갑옷', rarity: 'normal', baseStats: [], stats: [] };
+  assert.strictEqual(context.addItemToInventory(armor), true);
+  assert.strictEqual(context.game.equipment['갑옷'], null, '설정 OFF에서는 자동 장착하지 않아야 한다');
+  assert.ok(context.game.inventory.includes(armor), '설정 OFF 아이템은 인벤토리에 들어가야 한다');
+}
+
 console.log('smoke-grid-combat passed');

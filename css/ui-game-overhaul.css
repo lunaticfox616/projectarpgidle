@@ -972,8 +972,8 @@ body:not(.light-mode).desktop-windowed-ui .combat-hp-bar {
   isolation: isolate;
   overflow: hidden;
   border: 1px solid rgba(144, 174, 198, .72);
-  background: linear-gradient(180deg, #111a24, #03070b);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, .88), inset 0 2px 5px rgba(0, 0, 0, .82), 0 4px 12px rgba(0, 0, 0, .28);
+  background: transparent;
+  box-shadow: none;
 }
 
 body:not(.light-mode).desktop-windowed-ui .enemy-card.targeted .hp-bar-bg::after,
@@ -983,9 +983,32 @@ body:not(.light-mode).desktop-windowed-ui .combat-hp-bar::after {
   inset: 1px;
   z-index: 7;
   pointer-events: none;
-  border: 1px solid rgba(255, 255, 255, .12);
+  border: 0;
   border-radius: 5px;
-  box-shadow: inset 0 1px rgba(255, 255, 255, .08), inset 0 -1px rgba(0, 0, 0, .5);
+  box-shadow: none;
+}
+
+.loop-roadmap-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.loop-roadmap-heading button {
+  font-size: .72em;
+}
+
+.enemy-card .hp-bar-bg,
+.combat-hp-bar {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.enemy-card .hp-bar-bg::after,
+.combat-hp-bar::after {
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 body:not(.light-mode).desktop-windowed-ui .combat-feed {
