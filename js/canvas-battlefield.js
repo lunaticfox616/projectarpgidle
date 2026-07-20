@@ -370,37 +370,6 @@ function getEnemyTelegraphColor(enemy) {
     return { edge: '#ffb26b', fill: 'rgba(255,135,59,0.16)' };
 }
 
-function getBossTelegraphDecalImage(kind) {
-    if (!battleAssets || !battleAssets.images) return null;
-    if (kind === 'ring') return battleAssets.images.bossTelegraphRing || null;
-    if (kind === 'fan') return battleAssets.images.bossTelegraphFan || null;
-    if (kind === 'pulse') return battleAssets.images.bossTelegraphPulse || null;
-    return null;
-}
-
-function drawBossTelegraphDecal(ctx, kind, x, y, width, height, rotation, progress, pulse, palette, anchorY) {
-    let image = getBossTelegraphDecalImage(kind);
-    if (!image || !image.complete || !image.naturalWidth) return false;
-    let charge = clampNumber(Number(progress) || 0, 0, 1);
-    let flicker = clampNumber(Number(pulse) || 1, 0.68, 1.2);
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(Number(rotation) || 0);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = (0.18 + charge * 0.42) * flicker;
-    ctx.shadowColor = palette.edge;
-    ctx.shadowBlur = 5 + charge * 9;
-    ctx.filter = `saturate(${0.72 + charge * 0.4}) brightness(${0.78 + charge * 0.36})`;
-    let top = -(Number(anchorY) || 0.5) * height;
-    ctx.drawImage(image, -width / 2, top, width, height);
-    ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 0.06 + charge * 0.15;
-    ctx.shadowBlur = 10 + charge * 12;
-    ctx.drawImage(image, -width / 2, top, width, height);
-    ctx.restore();
-    return true;
-}
-
 function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
@@ -469,39 +438,29 @@ function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
             }
             if (pattern && pattern.telegraphKind === 'ring' && playerPos) {
                 let ringRadius = (30 + progress * 18) * gridUnitScale;
-                let drawn = drawBossTelegraphDecal(ctx, 'ring', playerPos.x, playerPos.y + 5, ringRadius * 2.35, ringRadius * 1.68, now / 6200, progress, pulse, palette, 0.5);
-                if (!drawn) {
-                    ctx.globalAlpha = 0.25 + progress * 0.58;
-                    ctx.lineWidth = 2.2 + progress * 1.4;
-                    ctx.beginPath();
-                    ctx.arc(playerPos.x, playerPos.y + 5, ringRadius, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
+                ctx.globalAlpha = 0.25 + progress * 0.58;
+                ctx.lineWidth = 2.2 + progress * 1.4;
+                ctx.beginPath();
+                ctx.arc(playerPos.x, playerPos.y + 5, ringRadius, 0, Math.PI * 2);
+                ctx.stroke();
             } else if (pattern && pattern.telegraphKind === 'fan' && playerPos) {
                 let baseAngle = Math.atan2(playerPos.y - entry.y, playerPos.x - entry.x);
                 let length = (48 + progress * 26) * gridUnitScale;
-                let drawn = drawBossTelegraphDecal(ctx, 'fan', entry.x, entry.y - 4, length * 1.55, length * 1.22, baseAngle + Math.PI / 2, progress, pulse, palette, 1);
-                if (!drawn) {
-                    ctx.globalAlpha = 0.26 + progress * 0.5;
-                    ctx.lineWidth = 2 + progress * 1.4;
-                    [-0.16, 0, 0.16].forEach(offset => {
-                        let angle = baseAngle + offset;
-                        ctx.beginPath();
-                        ctx.moveTo(entry.x, entry.y - 4);
-                        ctx.lineTo(entry.x + Math.cos(angle) * length, entry.y - 4 + Math.sin(angle) * length);
-                        ctx.stroke();
-                    });
-                }
-            } else if (pattern && pattern.telegraphKind === 'pulse') {
-                let decalWidth = radiusX * (2.45 + progress * 0.75);
-                let drawn = drawBossTelegraphDecal(ctx, 'pulse', entry.x, entry.y + 8, decalWidth, decalWidth * 0.58, -now / 8500, progress, pulse, palette, 0.5);
-                if (!drawn) {
-                    ctx.globalAlpha = 0.18 + progress * 0.42;
-                    ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.26 + progress * 0.5;
+                ctx.lineWidth = 2 + progress * 1.4;
+                [-0.16, 0, 0.16].forEach(offset => {
+                    let angle = baseAngle + offset;
                     ctx.beginPath();
-                    ctx.ellipse(entry.x, entry.y + 8, radiusX * (1.15 + progress * 0.35), radiusY * (1.35 + progress * 0.25), 0, 0, Math.PI * 2);
+                    ctx.moveTo(entry.x, entry.y - 4);
+                    ctx.lineTo(entry.x + Math.cos(angle) * length, entry.y - 4 + Math.sin(angle) * length);
                     ctx.stroke();
-                }
+                });
+            } else if (pattern && pattern.telegraphKind === 'pulse') {
+                ctx.globalAlpha = 0.18 + progress * 0.42;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(entry.x, entry.y + 8, radiusX * (1.15 + progress * 0.35), radiusY * (1.35 + progress * 0.25), 0, 0, Math.PI * 2);
+                ctx.stroke();
             }
             if (pattern && pattern.isSpecial && pattern.label) {
                 let label = String(pattern.label);
@@ -855,6 +814,21 @@ function renderBattlefield(forceWhenHidden) {
                     value: fx.damage,
                     enemyHit: true,
                     deflected: !!fx.deflected
+                });
+            }
+            handled = true;
+        } else if (fx.type === 'summonHit') {
+            let summon = (game.summons || []).find(row => row && row.id === fx.summonId);
+            let summonPos = summon && gridProj && hasGridCell(summon)
+                ? gridProj.cellToScreen(summon.gx, summon.gy)
+                : playerPos;
+            if (typeof fx.damage === 'number') {
+                spawnDamageText({
+                    start: now,
+                    x: summonPos.x,
+                    y: summonPos.y - 34,
+                    value: fx.damage,
+                    enemyHit: true
                 });
             }
             handled = true;
@@ -1418,10 +1392,6 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
         ctx.fillRect(hpX, hpY, Math.max(1, Math.round(hpWidth * hpPct)), 4);
         ctx.strokeStyle = 'rgba(220, 248, 255, 0.72)';
         ctx.strokeRect(hpX - 0.5, hpY - 0.5, hpWidth + 1, 5);
-        ctx.font = '700 8px "Noto Sans KR", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#eefcff';
-        ctx.fillText(`${Math.round(hpPct * 100)}%`, x, hpY - 2);
         ctx.restore();
     });
 }

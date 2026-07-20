@@ -958,18 +958,29 @@ function getRepresentativeSummonAttackPower(summonStats) {
     return Math.max(0, best);
 }
 
+const SUMMON_MAX_HP_MULTIPLIER = 0.7;
+const SUMMON_REGEN_PCT_PER_SEC = 1.5;
+
+function getSummonMaxHp(profile, gemLevel, pStats) {
+    let levelSteps = getSummonLevelGrowthSteps(profile, gemLevel);
+    let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
+    let hpMul = 1 + ((pStats.summonHpPct || 0) / 100);
+    let effMul = 1 + ((pStats.summonEfficiency || 0) / 100);
+    return Math.max(1, Math.floor(profile.baseHp * hpGrowth * hpMul * effMul * SUMMON_MAX_HP_MULTIPLIER));
+}
+
+function getSummonRegenPerSec(maxHp) {
+    return Math.max(1, Math.floor(Math.max(1, maxHp) * SUMMON_REGEN_PCT_PER_SEC / 100));
+}
+
 function buildSummonRuntimeStats(row, pStats, now) {
     let profile = getSummonProfile(row.name);
     let isGuard = profile.role === 'guard';
     let gemLv = getSummonGemLevel(row.name, row.source, pStats);
     let levelSteps = getSummonLevelGrowthSteps(profile, gemLv);
-    let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
     let armorGrowth = 1 + (Math.pow(levelSteps, profile.armorScaleExp || 1.1) * (profile.armorScaleBase || 0.015));
     let evasionGrowth = 1 + (Math.pow(levelSteps, profile.evasionScaleExp || 1.1) * (profile.evasionScaleBase || 0.015));
-    let baseHp = profile.baseHp * hpGrowth;
-    let hpMul = 1 + ((pStats.summonHpPct || 0) / 100);
-    let effMul = 1 + ((pStats.summonEfficiency || 0) / 100);
-    let maxHp = Math.max(1, Math.floor(baseHp * hpMul * effMul));
+    let maxHp = getSummonMaxHp(profile, gemLv, pStats);
     return {
         gemName: row.name,
         slotIdx: row.slotIdx,
@@ -979,6 +990,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
         trait: profile.trait || '',
         hp: maxHp,
         maxHp: maxHp,
+        regenPerSec: getSummonRegenPerSec(maxHp),
         armor: Math.max(0, Math.floor((profile.baseArmor || 0) * armorGrowth)),
         evasion: Math.max(0, Math.floor((profile.baseEvasion || 0) * evasionGrowth)),
         resFire: Math.max(-60, Math.min(90, profile.baseRes.fire || 0)),
@@ -1243,15 +1255,14 @@ function getSummonTooltipPreview(gemName, pStats) {
         critDmg: Math.max(100, profile.baseCritDmg || 140)
     };
     let hit = getSummonHitDamageInfo(hitProfile, stats, null, { expected: true });
-    let levelSteps = getSummonLevelGrowthSteps(profile, gemLv);
-    let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
-    let maxHp = Math.max(1, Math.floor((profile.baseHp || 1) * hpGrowth * (1 + ((stats.summonHpPct || 0) / 100)) * (1 + ((stats.summonEfficiency || 0) / 100))));
+    let maxHp = getSummonMaxHp(profile, gemLv, stats);
     let critChance = Math.max(0, Math.min(0.95, ((profile.baseCrit || 0) + (stats.summonCrit || 0)) / 100));
     return {
         roleLabel: profile.role === 'guard' ? '방어 소환수' : '공격 소환수',
         trait: profile.trait || '',
         gemLevel: gemLv,
         maxHp: maxHp,
+        regenPerSec: getSummonRegenPerSec(maxHp),
         hitDamageMin: hitProfile.baseDamage,
         hitDamageMax: Math.max(hitProfile.baseDamage, Math.floor(hit.damage || hitProfile.baseDamage)),
         attackPerSecond: profile.role === 'guard' ? 0 : (Math.round((1000 / getSummonAttackIntervalMs(stats, hitProfile)) * 100) / 100),
@@ -1298,6 +1309,28 @@ function ensureSummonRuntime(pStats) {
     });
 }
 
+function restoreAndRecallSummons(pStats) {
+    ensureSummonRuntime(pStats);
+    (game.summons || []).forEach(summon => {
+        if (!summon) return;
+        summon.alive = true;
+        summon.hp = Math.max(1, summon.maxHp || 1);
+        summon.respawnAt = 0;
+        summon.nextAttackAt = Date.now() + 300;
+        delete summon.gx;
+        delete summon.gy;
+    });
+    ensureCombatGridRuntime();
+}
+
+function tickSummonRecovery() {
+    (game.summons || []).forEach(summon => {
+        if (!summon || !summon.alive || summon.hp >= summon.maxHp) return;
+        let regen = Math.max(1, Number(summon.regenPerSec) || 0) * 0.1;
+        summon.hp = Math.min(summon.maxHp, summon.hp + regen);
+    });
+}
+
 function runSummonAttackTick(pStats) {
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb5')) return;
     let now = Date.now();
@@ -1318,6 +1351,8 @@ function runSummonAttackTick(pStats) {
         let hit = getSummonHitDamageInfo(s, pStats, target);
         let dmg = Math.max(0, hit.damage || 0);
         let dealt = applyDamageToEnemyResource(target, dmg);
+        let leech = Math.max(0, Number(pStats.leech) || 0);
+        if (dealt > 0 && leech > 0) s.hp = Math.min(s.maxHp || 1, s.hp + (dealt * leech / 100));
         if (hit.crit && pStats.uniqueSummonCritAspdStacks) {
             let cfg = pStats.uniqueSummonCritAspdStacks || {};
             let maxStacks = Math.max(1, Math.floor(cfg.maxStacks || 3));
@@ -1868,6 +1903,7 @@ function coreLoop() {
     game.lastCombatStats = pStats;
     game.lastCombatStatsAt = Date.now();
     ensureSummonRuntime(pStats);
+    tickSummonRecovery();
     tickFlaskAutoUse(pStats);
     // Guard against malformed stat payloads from legacy saves/runtime merges.
     // If ASPD becomes NaN/<=0, pTimer never advances and combat appears frozen.
@@ -5197,6 +5233,14 @@ function getLoopHpScale(loopCount) {
     return scale;
 }
 
+function getChaosBossVisual(zone, variantSeed) {
+    if (!zone || !['abyss', 'chaosRealm'].includes(zone.type) || typeof getBossAssetKeyForZone !== 'function') return null;
+    let actId = Math.abs(Math.floor(variantSeed || 0)) % 10;
+    let assetKey = getBossAssetKeyForZone({ type: 'act', id: actId }, variantSeed);
+    let hues = [286, 318, 202, 266, 334, 178, 244, 302, 222, 274];
+    return { assetKey: assetKey, tint: hues[actId] };
+}
+
 function createEnemy(zone, marker, groupIndex) {
     let loopInputs = getLoopDifficultyInputs(zone);
     let loopScaleExempt = loopInputs.exempt;
@@ -5266,7 +5310,8 @@ function createEnemy(zone, marker, groupIndex) {
     }
     let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
     let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
-    let bossAssetKey = isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null;
+    let chaosBossVisual = isBoss ? getChaosBossVisual(zone, variantSeed) : null;
+    let bossAssetKey = chaosBossVisual ? chaosBossVisual.assetKey : (isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null);
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
     const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss) || getZoneStaticBossMods(zone, isBoss);
     const cosmosExclusiveTrait = getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, variantSeed);
@@ -5305,6 +5350,7 @@ function createEnemy(zone, marker, groupIndex) {
         isElite: isElite,
         isBoss: isBoss,
         bossAssetKey: bossAssetKey,
+        bossVisualTint: chaosBossVisual ? chaosBossVisual.tint : null,
         attackTimer: (((zoneSeed + 1) * 13 + (marker.at || 0) * 3 + groupIndex * 7) % 10) / 20,
         spawnAt: marker.at,
         groupIndex: groupIndex,
@@ -6305,6 +6351,7 @@ function startEncounterRun() {
     let zone = getZone(game.currentZoneId) || getZone(0);
     resetBattleRuntimeVisuals();
     resetPlayerGridPosition();
+    restoreAndRecallSummons(getPlayerStats());
     primeTrialHazardTimer(zone);
     game.encounterPlan = generateEncounterPlan(zone);
     game.enemies = [];
@@ -6318,6 +6365,7 @@ function startMoving(isTown) {
     expireActiveFlaskEffects();
     if (isTown) refillAllFlaskCharges();
     resetBattleRuntimeVisuals();
+    restoreAndRecallSummons(getPlayerStats());
     if (!isTown && game.ascendClass === 'assassin' && hasKeystone('a2')) game.assassinBlurred = true;
     let ms = getPlayerStats().moveSpeed;
     if (!Number.isFinite(ms) || ms <= 0) ms = 100;
@@ -8987,6 +9035,14 @@ function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
     }
     damage = Math.min(damage, summon.hp);
     summon.hp = Math.max(0, summon.hp - damage);
+    if (damage > 0) {
+        addBattleFx('summonHit', {
+            summonId: summon.id,
+            damage: damage,
+            element: enemy && enemy.ele ? enemy.ele : 'phys',
+            duration: 260
+        });
+    }
     if (summon.hp > 0) return damage;
     summon.alive = false;
     summon.respawnAt = Date.now() + Math.max(2000, Math.floor(summon.respawnMs || 4000));
@@ -9988,4 +10044,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });

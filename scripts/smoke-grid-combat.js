@@ -615,4 +615,30 @@ assert.ok(!radiusOneCells.some(cell => cell.gx === 4 && cell.gy === 4), '반경 
   assert.ok(context.game.inventory.includes(armor), '설정 OFF 아이템은 인벤토리에 들어가야 한다');
 }
 
+// ── 12. 소환수 회복/재배치와 장착 소환수 젬 봉인 보호 ──
+{
+  resetGame();
+  context.game.skills = ['기본 공격', '서리늑대 소환', '연속 베기'];
+  context.game.activeSkill = '기본 공격';
+  context.game.equippedSummonSkills = ['서리늑대 소환'];
+  context.game.summonSkillCounts = { '서리늑대 소환': 1 };
+  context.sealAllInactiveSkillGems();
+  assert.ok(context.game.skills.includes('서리늑대 소환'), '장착 중인 소환수 젬은 일괄 봉인에서 제외해야 한다');
+  assert.ok(context.game.skills.includes('기본 공격'), '활성 스킬은 일괄 봉인에서 유지해야 한다');
+  assert.ok(!context.game.skills.includes('연속 베기'), '미사용 일반 스킬 젬은 일괄 봉인해야 한다');
+
+  const pStats = context.getPlayerStats();
+  context.ensureSummonRuntime(pStats);
+  const summon = context.game.summons[0];
+  summon.hp = 1;
+  summon.gx = 7;
+  summon.gy = 0;
+  context.restoreAndRecallSummons(pStats);
+  assert.strictEqual(summon.hp, summon.maxHp, '플레이어 회복 경계에서는 소환수 체력도 전부 회복해야 한다');
+  assert.ok(context.gridChebyshevDist(summon.gx, summon.gy, context.game.gridPlayer.gx, context.game.gridPlayer.gy) <= 1, '회복 경계에서는 소환수를 플레이어 주변으로 재배치해야 한다');
+
+  const preview = context.getSummonTooltipPreview('서리늑대 소환', pStats);
+  assert.ok(preview.maxHp > 0 && preview.regenPerSec > 0, '소환수 젬 툴팁에는 체력과 자체 재생 수치가 있어야 한다');
+}
+
 console.log('smoke-grid-combat passed');
