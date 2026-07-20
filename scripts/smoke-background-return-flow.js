@@ -52,6 +52,7 @@ const context = {
   getExpReq: () => 10,
   mergeDefaults: state => state,
   updateStaticUI: () => { context.updated = (context.updated || 0) + 1; },
+  safeExposeGlobals: entries => Object.assign(context, entries),
   renderBattlefield: force => { context.rendered.push(force); },
   scheduleStableResize: () => { context.resized = (context.resized || 0) + 1; },
   syncBattleTabLayout: () => { context.synced = (context.synced || 0) + 1; },

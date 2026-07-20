@@ -5,6 +5,8 @@ const assert = require('assert');
 const source = fs.readFileSync('js/ui.js', 'utf8');
 assert(!source.includes('10)}% 속도로 전투가 진행됩니다'), 'background speed message should be removed');
 assert(source.includes('background-combat-progress-bar-fill'), 'background calculation gauge should be present');
+assert(source.includes('background-combat-fast-button'), 'background calculation needs a user-selectable fast mode');
+assert(source.includes('BACKGROUND_PROGRESS_MAX_REAL_MS = 3 * 60 * 60 * 1000'), 'background accumulation must cap at three real hours');
 assert(source.includes('총 처치') && source.includes('총 경험치') && source.includes('잃은 경험치') && source.includes('사망 횟수'), 'background result metrics should be present');
 const start = source.indexOf('const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;');
 const end = source.indexOf('function getUiConditionGemStatDelta', start);
@@ -17,6 +19,7 @@ const context = {
   getExpReq: () => 10,
   mergeDefaults: state => state,
   updateStaticUI: () => { context.updated = (context.updated || 0) + 1; },
+  safeExposeGlobals: entries => Object.assign(context, entries),
   runUiCoreLoop: () => {
     context.observedNow.push(context.Date.now());
     context.game.exp += 3;
@@ -41,9 +44,17 @@ assert.strictEqual(calc(60 * 1000), 6 * 1000);
 assert.strictEqual(calc(60001), 6000);
 assert.strictEqual(calc(10 * 60 * 1000), 60 * 1000);
 assert.strictEqual(calc(60 * 60 * 1000), 6 * 60 * 1000);
-assert.strictEqual(calc(5 * 60 * 60 * 1000), 30 * 60 * 1000);
-assert.strictEqual(calc(24 * 60 * 60 * 1000), 30 * 60 * 1000);
+assert.strictEqual(calc(3 * 60 * 60 * 1000), 18 * 60 * 1000);
+assert.strictEqual(calc(5 * 60 * 60 * 1000), 18 * 60 * 1000);
+assert.strictEqual(calc(24 * 60 * 60 * 1000), 18 * 60 * 1000);
 assert.strictEqual(calc(-1000), 0);
+vm.runInContext('requestFasterBackgroundCombat()', context);
+assert.strictEqual(vm.runInContext('backgroundCombatRuntime.fastMode', context), true, 'fast calculation button should increase the replay chunk budget');
+
+context.game = { saveMeta: { lastModifiedAt: 1000 }, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+assert.strictEqual(vm.runInContext('recordOfflineCombatEntry(11 * 60 * 1000)', context), true, 'saved timestamp should stage offline progress after a full disconnect');
+assert.strictEqual(vm.runInContext('backgroundCombatRuntime.hiddenAtMs', context), 1000);
+assert.strictEqual(vm.runInContext('recordOfflineCombatEntry(12 * 60 * 1000)', context), false, 'offline progress should only be staged once per session');
 
 context.game = { currentZoneId: 1, playerHp: 100, combatHalted: true, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
 vm.runInContext('recordBackgroundCombatEntry(1000)', context);
