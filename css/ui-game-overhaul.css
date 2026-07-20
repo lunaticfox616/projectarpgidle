@@ -1011,6 +1011,22 @@ body:not(.light-mode).desktop-windowed-ui .combat-hp-bar::after {
   box-shadow: none !important;
 }
 
+/* 체력 HUD 카드는 배경을 비치게 하되, 게이지 트랙은 기존 대비를 유지한다. */
+#enemy-area .enemy-card.targeted,
+.player-hud {
+  background: rgba(7, 12, 19, 0.48) !important;
+  border-color: rgba(174, 204, 226, 0.3) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22) !important;
+  backdrop-filter: none !important;
+}
+
+#enemy-area .enemy-card.targeted .enemy-name,
+#enemy-area .enemy-card.targeted .enemy-tags,
+.player-hud .combat-hud-label,
+.player-hud .combat-hud-note {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+}
+
 body:not(.light-mode).desktop-windowed-ui .combat-feed {
   z-index: 20;
   top: 9px;

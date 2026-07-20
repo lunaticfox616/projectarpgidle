@@ -10,7 +10,8 @@ const utils = fs.readFileSync('js/utils.js', 'utf8');
 
 assert.strictEqual((html.match(/data-loop10-panel=/g) || []).length, 1, 'deep-climb panel must only exist once');
 assert.ok(html.includes('btn-toggle-past-loop-milestones') && ui.includes('collapsePastLoopMilestones'), 'past loop milestones need a collapse control');
-assert.ok(css.includes('.enemy-card .hp-bar-bg') && css.includes('background: transparent !important'), 'combat health boxes need transparent styling');
+assert.ok(css.includes('.enemy-card .hp-bar-bg') && css.includes('background: transparent !important'), 'the existing enemy health gauge track styling must remain intact');
+assert.ok(css.includes('#enemy-area .enemy-card.targeted,') && css.includes('.player-hud {') && css.includes('background: rgba(7, 12, 19, 0.48) !important'), 'enemy and player health HUD cards must use a readable translucent background');
 assert.ok(!canvas.includes("ctx.fillStyle = 'rgba(36, 48, 62, 0.95)'"), 'player canvas health track must be transparent');
 assert.ok(combat.includes('전장 이동: 칸당') && combat.includes('지도 진행도: 기본 대비'), 'movement tooltip needs grid and progress impact');
 assert.ok(utils.includes("summonDps: { label: '소환 DPS'"), 'equipment comparison needs summon DPS');
