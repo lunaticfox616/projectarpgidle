@@ -4678,8 +4678,10 @@ function getEquippedSummonCount() {
 }
 
 function getSummonEquipCapFromStats(stats) {
-    let expanded = game.ascendClass === 'soulbinder' && typeof hasKeystone === 'function' && hasKeystone('sb9');
-    return Math.max(1, Math.min(expanded ? 12 : 8, Math.floor((stats && stats.summonCap) || 1)));
+    let maximum = typeof getSummonCapMaximum === 'function'
+        ? getSummonCapMaximum()
+        : (game.ascendClass === 'soulbinder' && typeof hasKeystone === 'function' && hasKeystone('sb9') ? 12 : 8);
+    return Math.max(1, Math.min(maximum, Math.floor((stats && stats.summonCap) || 1)));
 }
 
 function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) return;
@@ -7445,6 +7447,11 @@ function updateCombatUI(pStats) {
     setTextById('ui-total-dps', formatSettingNumber(pStats.totalDps || ((pStats.dps || 0) + (pStats.summonDps || 0)), 'showCharacterComma'));
     setTextById('ui-dps', formatSettingNumber(pStats.directDps || pStats.dps || 0, 'showCharacterComma'));
     setTextById('ui-summon-dps', formatSettingNumber(pStats.summonDps || 0, 'showCharacterComma'));
+    let summonCap = getSummonEquipCapFromStats(pStats);
+    let summonCapMaximum = typeof getSummonCapMaximum === 'function' ? getSummonCapMaximum() : 8;
+    let summonCapRow = document.getElementById('row-summon-cap');
+    if (summonCapRow) summonCapRow.style.display = summonCap > 1 || summonCapMaximum > 8 ? '' : 'none';
+    setTextById('ui-summon-cap', `${summonCap} / 최대 ${summonCapMaximum}`);
     document.getElementById('ui-atk').innerText = formatSettingNumber(pStats.baseDmg, 'showCharacterComma');
     document.getElementById('ui-aps').innerText = pStats.aspd.toFixed(2);
     document.getElementById('ui-crit').innerText = pStats.crit.toFixed(1);
