@@ -100,6 +100,15 @@ async function flushTimers() {
   assert.strictEqual(await vm.runInContext('startBackgroundCombatReturn(12 * 60 * 1000)', context), false, 'same elapsed time should not apply twice');
   assert.strictEqual(context.game.exp, onceExp, 'duplicate return should not grant rewards');
 
+  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+  vm.runInContext('recordBackgroundCombatEntry(1000)', context);
+  const ultraPromise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
+  vm.runInContext('requestFasterBackgroundCombat(); requestFasterBackgroundCombat();', context);
+  await flushTimers();
+  assert.strictEqual(await ultraPromise, true, 'ultra calculation should complete');
+  assert(context.game.exp > 0, 'ultra calculation should still grant rewards');
+  assert(context.game.exp <= Math.ceil(onceExp * 0.65), 'ultra calculation rewards should not exceed 65% of full calculation');
+
   context.killAfter = 3;
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);

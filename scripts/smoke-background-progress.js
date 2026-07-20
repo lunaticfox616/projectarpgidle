@@ -49,7 +49,10 @@ assert.strictEqual(calc(5 * 60 * 60 * 1000), 18 * 60 * 1000);
 assert.strictEqual(calc(24 * 60 * 60 * 1000), 18 * 60 * 1000);
 assert.strictEqual(calc(-1000), 0);
 vm.runInContext('requestFasterBackgroundCombat()', context);
-assert.strictEqual(vm.runInContext('backgroundCombatRuntime.fastMode', context), true, 'fast calculation button should increase the replay chunk budget');
+assert.strictEqual(vm.runInContext('backgroundCombatRuntime.accelerationTier', context), 1, 'first click should select 85% fast calculation');
+vm.runInContext('requestFasterBackgroundCombat()', context);
+assert.strictEqual(vm.runInContext('backgroundCombatRuntime.accelerationTier', context), 2, 'second click should select 65% ultra calculation');
+assert.strictEqual(vm.runInContext('BACKGROUND_COMBAT_ULTRA_DEADLINE_MS', context), 4500, 'ultra calculation should leave time to finish UI work within five seconds');
 
 context.game = { saveMeta: { lastModifiedAt: 1000 }, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
 assert.strictEqual(vm.runInContext('recordOfflineCombatEntry(11 * 60 * 1000)', context), true, 'saved timestamp should stage offline progress after a full disconnect');
