@@ -16,8 +16,8 @@ const context = {
   console,
   Math,
   game: {
-    level: 10,
-    flasks: { foundKeys: ['h1', 'granite1'], alchemyGlass: 16 },
+    level: 13,
+    flasks: { foundKeys: ['h1', 'granite1'], alchemyGlass: 16, qualityByKey: {} },
     noti: {},
     settings: { showLootLog: false }
   },
@@ -27,6 +27,7 @@ const context = {
   remapLegacyFlaskKey(key) { return key; },
   ensureFlaskState() {
     context.game.flasks.alchemyGlass = Math.max(0, Math.floor(Number(context.game.flasks.alchemyGlass) || 0));
+    context.game.flasks.qualityByKey = context.game.flasks.qualityByKey || {};
     return context.game.flasks;
   }
 };
@@ -41,5 +42,9 @@ assert.ok(context.game.flasks.foundKeys.includes('h2'));
 assert.strictEqual(context.game.flasks.alchemyGlass, 0);
 assert.strictEqual(context.craftFlask('h3'), false, 'crafting should fail when alchemy glass is insufficient');
 assert.ok(logs.some(message => message.includes('연금 유리가 부족')));
+context.game.flasks.alchemyGlass = 2;
+assert.strictEqual(context.upgradeFlaskQuality('h2'), true, 'found flask quality should be craftable with glass');
+assert.strictEqual(context.getFlaskQuality('h2'), 1);
+assert.ok(vm.runInContext('getFlaskEffectiveHealPct(FLASK_DB.h2) > FLASK_DB.h2.healPct', context));
 
 console.log('smoke-flask-progression passed');

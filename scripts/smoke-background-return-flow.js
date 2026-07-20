@@ -4,7 +4,7 @@ const vm = require('vm');
 
 const source = fs.readFileSync('js/ui.js', 'utf8');
 const start = source.indexOf('const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;');
-const end = source.indexOf('function syncLoop10PanelCopies', start);
+const end = source.indexOf('function getUiConditionGemStatDelta', start);
 assert(start >= 0 && end > start, 'background progress block not found');
 let timeouts = [];
 const body = {

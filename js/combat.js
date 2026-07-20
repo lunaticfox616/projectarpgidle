@@ -1440,6 +1440,35 @@ function getFlaskCraftCost(flaskKey) {
     return FLASK_CRAFT_COSTS[getFlaskProgressionTier(flaskKey) - 1];
 }
 
+function getFlaskQuality(flaskKey) {
+    let qualities = game.flasks && game.flasks.qualityByKey;
+    return Math.max(0, Math.min(20, Math.floor(Number(qualities && qualities[flaskKey]) || 0)));
+}
+
+function getFlaskQualityUpgradeCost(flaskKey) {
+    return 1 + Math.floor((getFlaskProgressionTier(flaskKey) - 1) / 2);
+}
+
+function getFlaskEffectiveHealPct(def) {
+    return Math.max(0, Number(def.healPct) || 0) * (1 + getFlaskQuality(def.key) / 100);
+}
+
+function getFlaskEffectiveDurationMs(def) {
+    return Math.floor(Math.max(500, Number(def.durationMs) || 500) * (1 + getFlaskQuality(def.key) / 100));
+}
+
+function upgradeFlaskQuality(flaskKey) {
+    let def = FLASK_DB[flaskKey];
+    let st = ensureFlaskState();
+    if (!def || !ensureFlaskFoundKeys().includes(flaskKey) || getFlaskQuality(flaskKey) >= 20) return false;
+    let cost = getFlaskQualityUpgradeCost(flaskKey);
+    if (st.alchemyGlass < cost) return false;
+    st.alchemyGlass -= cost;
+    st.qualityByKey[flaskKey] = getFlaskQuality(flaskKey) + 1;
+    updateStaticUI();
+    return true;
+}
+
 function getFlaskDiscoveryTierMultiplier(flaskKey) {
     return FLASK_DISCOVERY_TIER_MULTIPLIERS[getFlaskProgressionTier(flaskKey) - 1];
 }
@@ -1500,9 +1529,9 @@ function discoverFlask(flaskKey) {
 
 function rollFlaskAlchemyGlassDrop(enemy) {
     let st = ensureFlaskState();
-    let chance = enemy && enemy.isBoss ? 0.70 : (enemy && enemy.isElite ? 0.18 : 0.025);
+    let chance = enemy && enemy.isBoss ? 0.32 : (enemy && enemy.isElite ? 0.07 : 0.006);
     if (Math.random() >= chance) return 0;
-    let amount = enemy && enemy.isBoss ? 5 + Math.floor(Math.random() * 4) : (enemy && enemy.isElite ? 2 : 1);
+    let amount = enemy && enemy.isBoss ? 2 + Math.floor(Math.random() * 3) : 1;
     st.alchemyGlass = Math.max(0, Math.floor(Number(st.alchemyGlass) || 0)) + amount;
     return amount;
 }
@@ -1560,6 +1589,11 @@ function ensureFlaskState() {
     let st = game.flasks;
     ensureFlaskFoundKeys();
     st.alchemyGlass = Math.max(0, Math.floor(Number(st.alchemyGlass) || 0));
+    st.qualityByKey = (st.qualityByKey && typeof st.qualityByKey === 'object') ? st.qualityByKey : {};
+    Object.keys(st.qualityByKey).forEach(key => {
+        if (!FLASK_DB[key]) delete st.qualityByKey[key];
+        else st.qualityByKey[key] = Math.max(0, Math.min(20, Math.floor(Number(st.qualityByKey[key]) || 0)));
+    });
     // 회복 슬롯: 선택 티어가 없거나 레벨 미달이면 해금된 최고 티어로 보정.
     if (!getFlaskHealDef(st.healTier) || getFlaskHealDef(st.healTier).reqLevel > Math.max(1, Math.floor(game.level || 1))) {
         st.healTier = getHighestUnlockedHealTier().key;
@@ -1785,13 +1819,14 @@ function tickFlaskAutoUse(pStats) {
     // 아이콘으로 표시하고 상세 정보는 그 커스텀 툴팁(showPlayerFlaskTooltip)에서 보여준다.
     if (inCombat && st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
         st.healCharges--;
-        let durSec = Math.max(0.5, (healDef.durationMs || 4000) / 1000);
-        let totalHeal = Math.max(1, Math.floor(hpCap * healDef.healPct / 100));
+        let healDurationMs = Math.max(500, Math.floor(healDef.durationMs || 4000));
+        let durSec = Math.max(0.5, healDurationMs / 1000);
+        let totalHeal = Math.max(1, Math.floor(hpCap * getFlaskEffectiveHealPct(healDef) / 100));
         st.healOverTimePerSec = totalHeal / durSec;
         st.healOverTimeTotal = totalHeal;
         st.healOverTimeApplied = 0;
         st.healOverTimeStartedAt = now;
-        st.healOverTimeUntil = now + Math.floor(healDef.durationMs || 4000);
+        st.healOverTimeUntil = now + healDurationMs;
     }
     // 유틸리티 자동 발동: 충전이 있고 버프가 꺼져 있으며 전투 중이면. (마찬가지로 로그 대신 효과 줄에 표시)
     // 현재 허리띠가 지원하는 슬롯 수만큼만 발동한다(초과분은 배열엔 남아있지만 비활성).
@@ -1803,7 +1838,7 @@ function tickFlaskAutoUse(pStats) {
         let alreadyUsedThisEncounter = trigger !== 'lowHp' && u.lastAutoEncounter === st.encounterSerial;
         if (!alreadyUsedThisEncounter && u.charges > 0 && u.until <= now && shouldAutoUseUtilityFlask(trigger, aliveEnemies, hpPct)) {
             u.charges--;
-            u.until = now + Math.max(1000, Math.floor(def.durationMs || 6000));
+            u.until = now + getFlaskEffectiveDurationMs(def);
             if (trigger !== 'lowHp') u.lastAutoEncounter = st.encounterSerial;
             syncUtilityFlaskChargeBank(st, u);
         }
@@ -4020,7 +4055,10 @@ function getPlayerStats() {
                 makeSourceLine('패시브', passive.move + season.move + ascend.move + reward.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('성좌 각성', starBlessing.move, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.move, '%', value => `${Math.floor(value)}%`),
-                talentLine('move')
+                talentLine('move'),
+                `전장 이동: 칸당 ${(COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100 / finalMove).toFixed(2)}초 · 초당 ${(finalMove / (COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100)).toFixed(2)}칸`,
+                `지도 진행도: 기본 대비 ${(finalMove / 100).toFixed(2)}배 (${finalMove >= 100 ? '+' : ''}${Math.floor(finalMove - 100)}%)`,
+                `구간 이동: ${Math.max(0.5, 1.2 * 100 / finalMove).toFixed(2)}초`
             ].filter(Boolean),
             final: `${Math.floor(finalMove)}%`
         },
@@ -6669,7 +6707,7 @@ function rollLootForEnemy(enemy) {
         }
     }
     let gemDropMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('gemGainPct')) : 0) / 100;
-    if (Math.random() < (enemy.isBoss ? 0.15 : enemy.isElite ? 0.03 : 0.005) * gemDropMul * challengeRewardMul) {
+    if (Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * gemDropMul * challengeRewardMul) {
         let baseGemShardGain = typeof grantGemResearchFragments === 'function'
             ? grantGemResearchFragments(1)
             : (awardCurrency('gemShard', 1), 1);
@@ -8897,21 +8935,67 @@ function getCosmosEqualSplitDamageBreakdown(rawDamage, pStats, enemy) {
     }).filter(row => row.amount > 0);
 }
 
-/** 적이 자기 사거리(근접 1칸/원거리 3~5칸/보스 무제한) 안에 플레이어를 두고 있는지 판정한다. */
-function isEnemyInGridAttackRange(enemy) {
+function getEnemyPreferredGridTarget(enemy) {
+    let player = game.gridPlayer;
+    if (Number.isFinite(enemy.colonyDist) || !hasGridCell(enemy) || !hasGridCell(player)) return player;
+    let bestTarget = player;
+    let bestDistance = gridChebyshevDist(enemy.gx, enemy.gy, player.gx, player.gy);
+    (game.summons || []).forEach(summon => {
+        if (!summon || !summon.alive || summon.hp <= 0 || !hasGridCell(summon)) return;
+        let distance = gridChebyshevDist(enemy.gx, enemy.gy, summon.gx, summon.gy);
+        if (distance >= bestDistance) return;
+        bestTarget = summon;
+        bestDistance = distance;
+    });
+    return bestTarget;
+}
+
+/** 적이 자기 사거리(근접 1칸/원거리 3~5칸/보스 무제한) 안에 선택한 목표를 두고 있는지 판정한다. */
+function isEnemyInGridAttackRange(enemy, target) {
     // 식민지 방어전은 자체 접근 거리(colonyDist) 모델을 쓰므로 그리드 사거리를 적용하지 않는다.
     if (Number.isFinite(enemy.colonyDist)) return true;
     // 칸 미배정 상태(레거시 저장 복원 직후 등)에서는 다음 틱의 그리드 복구 전까지 기존 동작을 유지한다.
-    if (!hasGridCell(enemy) || !hasGridCell(game.gridPlayer)) return true;
+    target = target || game.gridPlayer;
+    if (!hasGridCell(enemy) || !hasGridCell(target)) return true;
     let range = Number.isFinite(enemy.attackRange) ? enemy.attackRange : COMBAT_GRID_CONFIG.bossAttackRange;
-    return gridChebyshevDist(enemy.gx, enemy.gy, game.gridPlayer.gx, game.gridPlayer.gy) <= range;
+    return gridChebyshevDist(enemy.gx, enemy.gy, target.gx, target.gy) <= range;
 }
 
-/** 사거리 밖의 적을 플레이어 쪽으로 한 칸씩 접근시킨다. slowPct(0~1)만큼 이동 주기가 길어진다. */
-function advanceEnemyGridApproach(enemy, slowPct) {
+/** 사거리 밖의 적을 선택한 목표 쪽으로 한 칸씩 접근시킨다. slowPct(0~1)만큼 이동 주기가 길어진다. */
+function advanceEnemyGridApproach(enemy, target, slowPct) {
+    if (typeof target === 'number') {
+        slowPct = target;
+        target = game.gridPlayer;
+    }
+    target = target || game.gridPlayer;
     let slow = Math.max(0, Math.min(0.9, slowPct || 0));
     let interval = COMBAT_GRID_CONFIG.enemyMoveIntervalSec / (1 - slow);
-    advanceGridUnitMovement(enemy, game.gridPlayer, 0.1, interval);
+    advanceGridUnitMovement(enemy, target, 0.1, interval);
+}
+
+function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
+    let evade = Math.max(0, Math.min(85, (summon.evasion || 0) / ((summon.evasion || 0) + 300) * 100));
+    if (Math.random() * 100 < evade) return 0;
+    let damage = Math.max(1, Math.floor(rawDamage || 1));
+    if (enemy.ele === 'phys') {
+        let armorReduction = Math.min(85, (summon.armor || 0) / ((summon.armor || 0) + damage * 8) * 100);
+        damage = Math.max(1, Math.floor(damage * (1 - armorReduction / 100)));
+    } else {
+        let resKey = { fire: 'resFire', cold: 'resCold', light: 'resLight', chaos: 'resChaos' }[enemy.ele];
+        let resistance = resKey ? Math.max(-60, Math.min(85, Number(summon[resKey]) || 0)) : 0;
+        damage = Math.max(1, Math.floor(damage * (1 - resistance / 100)));
+    }
+    damage = Math.min(damage, summon.hp);
+    summon.hp = Math.max(0, summon.hp - damage);
+    if (summon.hp > 0) return damage;
+    summon.alive = false;
+    summon.respawnAt = Date.now() + Math.max(2000, Math.floor(summon.respawnMs || 4000));
+    if (pStats.uniqueSummonDeathDamageBuff) {
+        let config = pStats.uniqueSummonDeathDamageBuff;
+        game.summonDeathDamageBuffPct = Math.max(Number(game.summonDeathDamageBuffPct || 0), Math.max(0, Number(config.pct || 40)));
+        game.summonDeathDamageBuffExpiresAt = Date.now() + Math.max(1, Number(config.duration || 4)) * 1000;
+    }
+    return damage;
 }
 
 function performMonsterAttacks(pStats) {
@@ -8979,10 +9063,11 @@ function performMonsterAttacks(pStats) {
         chillSlow += Math.max(0, Math.min(0.5, Number(enemy.skillSlowPct || 0) / 100));
         chillSlow *= Math.max(0, 1 - Math.max(0, Math.min(0.95, (pStats.chillEffectReducePct || 0) / 100)));
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
-        // 그리드 사거리 밖이면 공격 대신 플레이어에게 접근한다(냉각/둔화는 이동도 늦춘다).
+        let attackTarget = getEnemyPreferredGridTarget(enemy);
+        // 그리드 사거리 밖이면 공격 대신 선택한 목표에게 접근한다(냉각/둔화는 이동도 늦춘다).
         // 공격 게이지는 1회분까지만 유지해 도착 직후 바로 공격하게 한다.
-        if (!isEnemyInGridAttackRange(enemy)) {
-            advanceEnemyGridApproach(enemy, chillSlow);
+        if (!isEnemyInGridAttackRange(enemy, attackTarget)) {
+            advanceEnemyGridApproach(enemy, attackTarget, chillSlow);
             enemy.attackTimer = Math.min(Number(enemy.attackTimer) || 0, 1);
             continue;
         }
@@ -9019,7 +9104,7 @@ function performMonsterAttacks(pStats) {
                 }
             }
             enemy.attackTimer -= 1;
-            if (Date.now() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) {
+            if (attackTarget === game.gridPlayer && Date.now() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) {
                 addBattleFx('statusText', { text: '균열 장막', color: '#c49bff', duration: 220 });
                 continue;
             }
@@ -9039,6 +9124,10 @@ function performMonsterAttacks(pStats) {
             }
             if (!enemy.isBoss) dmg = Math.floor(dmg * crowdPenalty);
             dmg = Math.floor(dmg * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (enemy.isBoss ? (abyssScale.bossMul || 1) : 1));
+            if (attackTarget !== game.gridPlayer) {
+                applyMonsterDamageToSummon(attackTarget, dmg, enemy, pStats);
+                break;
+            }
             // 몬스터 혼합 타격은 '원본 피해'를 먼저 50:50으로 분할한 뒤,
             // 물리/속성을 각각 별도로 방어 계산한다. (한쪽 감소 후 재분할 금지)
             let physicalPortion = Math.floor(dmg * 0.5);
@@ -9899,4 +9988,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });

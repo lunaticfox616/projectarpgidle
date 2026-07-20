@@ -7,7 +7,7 @@ assert(!source.includes('10)}% 속도로 전투가 진행됩니다'), 'backgroun
 assert(source.includes('background-combat-progress-bar-fill'), 'background calculation gauge should be present');
 assert(source.includes('총 처치') && source.includes('총 경험치') && source.includes('잃은 경험치') && source.includes('사망 횟수'), 'background result metrics should be present');
 const start = source.indexOf('const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;');
-const end = source.indexOf('function syncLoop10PanelCopies', start);
+const end = source.indexOf('function getUiConditionGemStatDelta', start);
 assert(start >= 0 && end > start, 'background progress block not found');
 const context = {
   console,

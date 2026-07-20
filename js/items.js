@@ -247,6 +247,15 @@ function getEquipCandidateSlots(item) {
     return [item.slot];
 }
 
+function tryAutoEquipEmptySlot(item) {
+    if (!item || !game.settings || game.settings.autoEquipEmptySlots === false) return null;
+    let slot = getEquipCandidateSlots(item).find(candidate => candidate && Object.prototype.hasOwnProperty.call(game.equipment, candidate) && !game.equipment[candidate]);
+    if (!slot) return null;
+    game.equipment[slot] = item;
+    if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(true);
+    return slot;
+}
+
 function pickEquipSlot(item, preferredSlot) {
     let candidates = getEquipCandidateSlots(item);
     if (candidates.length === 0) return null;
@@ -583,7 +592,7 @@ function changeZone(id) {
 }
 
 
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
 
 // Phase-3 extracted market/crafting service handlers.
 async function marketResetPassiveTreeByDivine() {
