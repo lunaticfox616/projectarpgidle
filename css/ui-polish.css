@@ -76,6 +76,19 @@ body:not(.light-mode) .tab-btn {
   align-items: center;
   justify-content: center;
 }
+
+.inventory-full-warning {
+  display: none;
+  margin-left: 5px;
+  padding: 1px 5px;
+  border: 1px solid rgba(255, 126, 108, .82);
+  border-radius: 999px;
+  color: #ffd0c8;
+  background: rgba(154, 47, 36, .38);
+  font-size: .68em;
+  font-weight: 800;
+  line-height: 1.35;
+}
 body:not(.light-mode) .tab-btn::after {
   content: '';
   position: absolute;

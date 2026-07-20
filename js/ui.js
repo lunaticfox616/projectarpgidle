@@ -5664,6 +5664,7 @@ function showGemTooltip(event, type, name) {
                 html += `<div class="tooltip-line" style="margin-top:6px;color:#9fd4ff;">소환수 유형: ${preview.roleLabel}${preview.trait ? ` · 특징: ${preview.trait}` : ''}</div>`;
                 html += `<div class="tooltip-line">소환수 레벨: ${preview.gemLevel}</div>`;
                 html += `<div class="tooltip-line">예상 1타 피해: ${preview.hitDamageMin} ~ ${preview.hitDamageMax}${preview.attackPerSecond > 0 ? ` · 공속 ${preview.attackPerSecond}/s` : ''}</div>`;
+                html += `<div class="tooltip-line">소환수 생명력: ${Math.floor(preview.maxHp).toLocaleString()} · 자체 재생 ${Math.floor(preview.regenPerSec).toLocaleString()}/s</div>`;
                 if (preview.critChancePct > 0) html += `<div class="tooltip-line">치명타: ${preview.critChancePct}% · 치명 피해 ${Math.floor(preview.critDmgPct)}%</div>`;
                 if (preview.resPenBonus > 0) html += `<div class="tooltip-line">소환수 자체 저항 관통 +${preview.resPenBonus}%</div>`;
                 if (preview.physIgnoreBonus > 0) html += `<div class="tooltip-line">소환수 자체 물리 피해 감소 무시 +${preview.physIgnoreBonus}%</div>`;
@@ -6735,12 +6736,15 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
         let drawSize = enemy.isBoss ? 70 : (enemy.isElite ? 52 : 44);
         drawSize *= scale / (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95));
         drawPixelShadow(ctx, x, y + (enemy.isBoss ? 16 : 13), enemy.isBoss ? 15 : 9, enemy.isBoss ? 5 : 4, 0.17);
+        ctx.save();
+        if (enemy.bossVisualTint != null) ctx.filter = `hue-rotate(${enemy.bossVisualTint}deg) saturate(1.28) brightness(1.08)`;
         drawBattleSprite(ctx, frameImage, frame, x, y + 5, drawSize, {
             smoothing: enemy.bossAssetKey ? 'high' : 'low',
             outlineColor: enemy.isBoss ? '#a84e49' : (enemy.isElite ? '#e2b94f' : null),
-            outlineThickness: 1,
+            outlineThickness: 1.35,
             outlineAlpha: enemy.isBoss ? 0.46 : (enemy.isElite ? 0.72 : 0)
         });
+        ctx.restore();
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.16;
@@ -7783,7 +7787,22 @@ function renderEquipmentLoadoutSummary(pStats) {
     }
 }
 
+function updateInventoryFullWarnings() {
+    let warnings = [
+        ['inventory-full-warning', game.inventory || [], getInventoryLimit()],
+        ['jewel-inventory-full-warning', game.jewelInventory || [], getJewelInventoryLimit()]
+    ];
+    warnings.forEach(([id, entries, limit]) => {
+        let element = document.getElementById(id);
+        if (!element) return;
+        let isFull = entries.length >= limit;
+        element.style.display = isFull ? 'inline-block' : 'none';
+        element.title = isFull ? `${entries.length}/${limit}칸 · 공간을 확보하세요` : '';
+    });
+}
+
 function performUpdateStaticUI() {
+    updateInventoryFullWarnings();
     // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
     // 있으면) 어느 단계가 느린지 콘솔에 한 줄 남긴다. 정상 갱신에는 거의 영향이 없다.
     const __perfNow = (typeof performance !== 'undefined' && performance.now) ? () => performance.now() : () => Date.now();

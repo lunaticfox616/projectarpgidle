@@ -210,9 +210,9 @@ assert.ok(!battlefieldSource.includes('let glow = ctx.createRadialGradient(cx, c
 assert.ok(battlefieldSource.includes("const dissolveFade = Math.pow(1 - dissolve, 1.62);"), 'enemy death sprites should fade through a restrained dissolve curve');
 assert.ok(battlefieldSource.includes('ctx.translate(enemy.x, enemy.y + dissolve *'), 'enemy deaths should settle in place rather than floating upward');
 assert.ok(!battlefieldSource.includes('ctx.translate(enemy.x, enemy.y - t *'), 'enemy deaths should not use the previous upward exit motion');
-assert.ok(battlefieldSource.includes("drawBossTelegraphDecal(ctx, 'ring'"), 'boss ring patterns should use the generated ground decal');
-assert.ok(battlefieldSource.includes("drawBossTelegraphDecal(ctx, 'fan'"), 'boss fan patterns should use the generated ground decal');
-assert.ok(battlefieldSource.includes("drawBossTelegraphDecal(ctx, 'pulse'"), 'boss pulse patterns should use the generated ground decal');
+assert.ok(!battlefieldSource.includes('drawBossTelegraphDecal'), 'boss telegraphs should not use the coarse generated decal assets');
+assert.ok(battlefieldSource.includes('ctx.arc(playerPos.x, playerPos.y + 5, ringRadius'), 'boss ring patterns should retain a clean vector warning');
+assert.ok(battlefieldSource.includes('[-0.16, 0, 0.16].forEach'), 'boss fan patterns should retain a clean vector warning');
 assert.ok(battlefieldSource.includes('function queueSkillGemVfx('), 'resolved skill hits should enqueue generated image effects');
 assert.ok(battlefieldSource.includes('drawSkillGemVfxLayer(ctx, now);'), 'skill VFX should render through the battlefield effect layer');
 assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') > battlefieldSource.indexOf('drawEnemySprite(ctx, enemy, entry.x'), 'translucent skill VFX should remain visible over monster sprites');

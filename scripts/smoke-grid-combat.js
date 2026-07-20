@@ -615,4 +615,65 @@ assert.ok(!radiusOneCells.some(cell => cell.gx === 4 && cell.gy === 4), '반경 
   assert.ok(context.game.inventory.includes(armor), '설정 OFF 아이템은 인벤토리에 들어가야 한다');
 }
 
+// ── 12. 소환수 회복/재배치와 장착 소환수 젬 봉인 보호 ──
+{
+  resetGame();
+  context.game.skills = ['기본 공격', '서리늑대 소환', '연속 베기'];
+  context.game.activeSkill = '기본 공격';
+  context.game.equippedSummonSkills = ['서리늑대 소환'];
+  context.game.summonSkillCounts = { '서리늑대 소환': 1 };
+  context.sealAllInactiveSkillGems();
+  assert.ok(context.game.skills.includes('서리늑대 소환'), '장착 중인 소환수 젬은 일괄 봉인에서 제외해야 한다');
+  assert.ok(context.game.skills.includes('기본 공격'), '활성 스킬은 일괄 봉인에서 유지해야 한다');
+  assert.ok(!context.game.skills.includes('연속 베기'), '미사용 일반 스킬 젬은 일괄 봉인해야 한다');
+
+  const pStats = context.getPlayerStats();
+  context.ensureSummonRuntime(pStats);
+  const summon = context.game.summons[0];
+  summon.hp = 1;
+  summon.gx = 7;
+  summon.gy = 0;
+  context.restoreAndRecallSummons(pStats);
+  assert.strictEqual(summon.hp, summon.maxHp, '플레이어 회복 경계에서는 소환수 체력도 전부 회복해야 한다');
+  assert.ok(context.gridChebyshevDist(summon.gx, summon.gy, context.game.gridPlayer.gx, context.game.gridPlayer.gy) <= 1, '회복 경계에서는 소환수를 플레이어 주변으로 재배치해야 한다');
+
+  const preview = context.getSummonTooltipPreview('서리늑대 소환', pStats);
+  assert.ok(preview.maxHp > 0 && preview.regenPerSec > 0, '소환수 젬 툴팁에는 체력과 자체 재생 수치가 있어야 한다');
+}
+
+// ── 13. 소울바인더 소환수 키스톤: 흡혈/가까운 피해 공유/주변 관통 ──
+{
+  resetGame();
+  context.game.ascendClass = 'soulbinder';
+  context.game.ascendKeystones = ['sb3'];
+  let pStats = context.getPlayerStats();
+  assert.ok(pStats.leech >= 3.5, '야생성은 플레이어와 소환수에 공유하는 흡혈 +3.5%를 제공해야 한다');
+
+  context.game.skills = ['기본 공격', '서리늑대 소환'];
+  context.game.equippedSummonSkills = ['서리늑대 소환'];
+  context.game.summonSkillCounts = { '서리늑대 소환': 1 };
+  context.ensureSummonRuntime(pStats);
+  assert.strictEqual(context.game.summons[0].respawnMs, 4000, '기본 공격 소환수의 실제 부활 시간은 4초여야 한다');
+
+  context.game.gridPlayer = { gx: 1, gy: 6 };
+  context.game.summons = [
+    { id: 80, alive: true, hp: 100, maxHp: 100, gx: 2, gy: 6, respawnMs: 4000 },
+    { id: 81, alive: true, hp: 100, maxHp: 100, gx: 6, gy: 1, respawnMs: 4000 }
+  ];
+  assert.strictEqual(context.getClosestLivingSummonToPlayer().id, 80, '나눠갖기는 플레이어와 가장 가까운 소환수 하나를 선택해야 한다');
+  const now = Date.now();
+  assert.ok(context.getSummonRespawnAt(context.game.summons[0], true) - now < 3000, '나눠갖기 전달 피해로 사망한 소환수는 부활 시간이 30% 단축되어야 한다');
+
+  context.game.ascendKeystones = ['sb6'];
+  context.ensureSummonRuntime(context.getPlayerStats());
+  context.game.gridPlayer = { gx: 1, gy: 6 };
+  const attacker = context.game.summons[0];
+  attacker.gx = 1; attacker.gy = 5; attacker.nextAttackAt = 0;
+  const primary = makeEnemy(70, 2, 5);
+  const adjacent = makeEnemy(71, 2, 4);
+  context.game.enemies = [primary, adjacent];
+  context.runSummonAttackTick(context.getPlayerStats());
+  assert.ok(primary.hp < primary.maxHp && adjacent.hp < adjacent.maxHp, '꿰뚫는 이는 주 대상 주변 1칸의 적도 소환수 공격으로 맞춰야 한다');
+}
+
 console.log('smoke-grid-combat passed');

@@ -812,15 +812,15 @@ function getActiveSummonGemDefs() {
 
 function getSummonProfile(gemName) {
     let table = {
-        '서리늑대 소환': { role: 'attack', ele: 'cold', gridRange: 1, trait: '빠른 공속', baseHp: 330, baseArmor: 36, baseEvasion: 63, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 54, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 2000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
-        '불곰 소환': { role: 'attack', ele: 'fire', gridRange: 1, trait: '강한 1타', baseHp: 473, baseArmor: 66, baseEvasion: 24, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 86, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 2000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
-        '벼락멧돼지 소환': { role: 'attack', ele: 'light', gridRange: 1, trait: '높은 저항 관통', baseHp: 368, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 62, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
-        '칼날까마귀 소환': { role: 'attack', ele: 'phys', gridRange: 2, trait: '치명타 특화', baseHp: 315, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 2000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
-        '공허 유충 소환': { role: 'attack', ele: 'chaos', gridRange: 3, trait: '카오스 관통', baseHp: 405, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 2000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
-        '벌떼 소환': { role: 'attack', ele: 'chaos', gridRange: 2, trait: '매우 빠른 공속', baseHp: 285, baseArmor: 24, baseEvasion: 75, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 36, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 2000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
-        '수액 골렘 소환': { role: 'guard', ele: 'phys', gridRange: 1, trait: '피해 대리', baseHp: 630, baseArmor: 90, baseEvasion: 18, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 15, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 4000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
+        '서리늑대 소환': { role: 'attack', ele: 'cold', gridRange: 1, trait: '빠른 공속', baseHp: 330, baseArmor: 36, baseEvasion: 63, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 54, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 4000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '불곰 소환': { role: 'attack', ele: 'fire', gridRange: 1, trait: '강한 1타', baseHp: 473, baseArmor: 66, baseEvasion: 24, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 86, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 4000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
+        '벼락멧돼지 소환': { role: 'attack', ele: 'light', gridRange: 1, trait: '높은 저항 관통', baseHp: 368, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 62, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
+        '칼날까마귀 소환': { role: 'attack', ele: 'phys', gridRange: 2, trait: '치명타 특화', baseHp: 315, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 4000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
+        '공허 유충 소환': { role: 'attack', ele: 'chaos', gridRange: 3, trait: '카오스 관통', baseHp: 405, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 4000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
+        '벌떼 소환': { role: 'attack', ele: 'chaos', gridRange: 2, trait: '매우 빠른 공속', baseHp: 285, baseArmor: 24, baseEvasion: 75, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 36, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 4000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '수액 골렘 소환': { role: 'guard', ele: 'phys', gridRange: 1, trait: '피해 대리', baseHp: 630, baseArmor: 90, baseEvasion: 18, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 15, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 8000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
     };
-    return table[gemName] || { role: 'attack', ele: 'phys', gridRange: 1, trait: '균형형', baseHp: 330, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 45, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 2000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
+    return table[gemName] || { role: 'attack', ele: 'phys', gridRange: 1, trait: '균형형', baseHp: 330, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 45, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
 }
 
 function getSummonRuntimeCap(pStats) {
@@ -958,18 +958,29 @@ function getRepresentativeSummonAttackPower(summonStats) {
     return Math.max(0, best);
 }
 
+const SUMMON_MAX_HP_MULTIPLIER = 0.7;
+const SUMMON_REGEN_PCT_PER_SEC = 1.5;
+
+function getSummonMaxHp(profile, gemLevel, pStats) {
+    let levelSteps = getSummonLevelGrowthSteps(profile, gemLevel);
+    let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
+    let hpMul = 1 + ((pStats.summonHpPct || 0) / 100);
+    let effMul = 1 + ((pStats.summonEfficiency || 0) / 100);
+    return Math.max(1, Math.floor(profile.baseHp * hpGrowth * hpMul * effMul * SUMMON_MAX_HP_MULTIPLIER));
+}
+
+function getSummonRegenPerSec(maxHp) {
+    return Math.max(1, Math.floor(Math.max(1, maxHp) * SUMMON_REGEN_PCT_PER_SEC / 100));
+}
+
 function buildSummonRuntimeStats(row, pStats, now) {
     let profile = getSummonProfile(row.name);
     let isGuard = profile.role === 'guard';
     let gemLv = getSummonGemLevel(row.name, row.source, pStats);
     let levelSteps = getSummonLevelGrowthSteps(profile, gemLv);
-    let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
     let armorGrowth = 1 + (Math.pow(levelSteps, profile.armorScaleExp || 1.1) * (profile.armorScaleBase || 0.015));
     let evasionGrowth = 1 + (Math.pow(levelSteps, profile.evasionScaleExp || 1.1) * (profile.evasionScaleBase || 0.015));
-    let baseHp = profile.baseHp * hpGrowth;
-    let hpMul = 1 + ((pStats.summonHpPct || 0) / 100);
-    let effMul = 1 + ((pStats.summonEfficiency || 0) / 100);
-    let maxHp = Math.max(1, Math.floor(baseHp * hpMul * effMul));
+    let maxHp = getSummonMaxHp(profile, gemLv, pStats);
     return {
         gemName: row.name,
         slotIdx: row.slotIdx,
@@ -979,6 +990,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
         trait: profile.trait || '',
         hp: maxHp,
         maxHp: maxHp,
+        regenPerSec: getSummonRegenPerSec(maxHp),
         armor: Math.max(0, Math.floor((profile.baseArmor || 0) * armorGrowth)),
         evasion: Math.max(0, Math.floor((profile.baseEvasion || 0) * evasionGrowth)),
         resFire: Math.max(-60, Math.min(90, profile.baseRes.fire || 0)),
@@ -986,7 +998,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
         resLight: Math.max(-60, Math.min(90, profile.baseRes.light || 0)),
         resChaos: Math.max(-60, Math.min(90, profile.baseRes.chaos || 0)),
         redirectPct: isGuard ? 100 : Math.max(0, Math.min(100, profile.redirectPct || 0)),
-        respawnMs: isGuard ? 4000 : 2000,
+        respawnMs: Math.max(4000, Math.floor(profile.respawnMs || (isGuard ? 8000 : 4000))),
         baseDamage: getSummonScaledBaseDamage(profile, gemLv, pStats),
         ele: profile.ele || 'phys',
         attackSpeedMul: Math.max(0, Number(profile.attackSpeedMul || 1)),
@@ -1243,15 +1255,14 @@ function getSummonTooltipPreview(gemName, pStats) {
         critDmg: Math.max(100, profile.baseCritDmg || 140)
     };
     let hit = getSummonHitDamageInfo(hitProfile, stats, null, { expected: true });
-    let levelSteps = getSummonLevelGrowthSteps(profile, gemLv);
-    let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
-    let maxHp = Math.max(1, Math.floor((profile.baseHp || 1) * hpGrowth * (1 + ((stats.summonHpPct || 0) / 100)) * (1 + ((stats.summonEfficiency || 0) / 100))));
+    let maxHp = getSummonMaxHp(profile, gemLv, stats);
     let critChance = Math.max(0, Math.min(0.95, ((profile.baseCrit || 0) + (stats.summonCrit || 0)) / 100));
     return {
         roleLabel: profile.role === 'guard' ? '방어 소환수' : '공격 소환수',
         trait: profile.trait || '',
         gemLevel: gemLv,
         maxHp: maxHp,
+        regenPerSec: getSummonRegenPerSec(maxHp),
         hitDamageMin: hitProfile.baseDamage,
         hitDamageMax: Math.max(hitProfile.baseDamage, Math.floor(hit.damage || hitProfile.baseDamage)),
         attackPerSecond: profile.role === 'guard' ? 0 : (Math.round((1000 / getSummonAttackIntervalMs(stats, hitProfile)) * 100) / 100),
@@ -1298,6 +1309,54 @@ function ensureSummonRuntime(pStats) {
     });
 }
 
+function restoreAndRecallSummons(pStats) {
+    ensureSummonRuntime(pStats);
+    (game.summons || []).forEach(summon => {
+        if (!summon) return;
+        summon.alive = true;
+        summon.hp = Math.max(1, summon.maxHp || 1);
+        summon.respawnAt = 0;
+        summon.nextAttackAt = Date.now() + 300;
+        delete summon.gx;
+        delete summon.gy;
+    });
+    ensureCombatGridRuntime();
+}
+
+function tickSummonRecovery() {
+    (game.summons || []).forEach(summon => {
+        if (!summon || !summon.alive || summon.hp >= summon.maxHp) return;
+        let regen = Math.max(1, Number(summon.regenPerSec) || 0) * 0.1;
+        summon.hp = Math.min(summon.maxHp, summon.hp + regen);
+    });
+}
+
+function resolveSummonHit(summon, pStats, target, canGrantCritStack) {
+    let hit = getSummonHitDamageInfo(summon, pStats, target);
+    let damage = Math.max(0, hit.damage || 0);
+    let dealt = applyDamageToEnemyResource(target, damage);
+    let leech = Math.max(0, Number(pStats.leech) || 0);
+    if (dealt > 0 && leech > 0) summon.hp = Math.min(summon.maxHp || 1, summon.hp + (dealt * leech / 100));
+    if (canGrantCritStack && hit.crit && pStats.uniqueSummonCritAspdStacks) {
+        let cfg = pStats.uniqueSummonCritAspdStacks || {};
+        let maxStacks = Math.max(1, Math.floor(cfg.maxStacks || 3));
+        let now = Date.now();
+        let current = (game.summonCritAspdExpiresAt || 0) > now ? Math.max(0, Math.floor(game.summonCritAspdStacks || 0)) : 0;
+        game.summonCritAspdStacks = Math.min(maxStacks, current + 1);
+        game.summonCritAspdPerStack = Math.max(0, Number(cfg.aspd || 10));
+        game.summonCritAspdExpiresAt = now + Math.max(1, Number(cfg.duration || 4)) * 1000;
+    }
+    applySummonAilmentFromHit(target, pStats, hit.element, damage, hit.crit, hit.ailmentSourceDamage);
+    addBattleFx('hit', { enemyId: target.id, color: getElementColor(hit.element), damage: damage, crit: hit.crit, duration: 220, element: hit.element, skillName: summon.gemName, summon: true, syncToSwing: false });
+    if (target.hp <= 0) handleEnemyDeath(target, pStats);
+}
+
+function getSummonPierceTargets(target, enemies) {
+    if (!hasGridCell(target)) return [];
+    return enemies.filter(enemy => enemy && enemy !== target && enemy.hp > 0 && hasGridCell(enemy)
+        && gridChebyshevDist(target.gx, target.gy, enemy.gx, enemy.gy) <= 1);
+}
+
 function runSummonAttackTick(pStats) {
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb5')) return;
     let now = Date.now();
@@ -1315,40 +1374,11 @@ function runSummonAttackTick(pStats) {
         }
         if (now < (s.nextAttackAt || 0)) return;
         s.nextAttackAt = now + getSummonAttackIntervalMs(pStats, s);
-        let hit = getSummonHitDamageInfo(s, pStats, target);
-        let dmg = Math.max(0, hit.damage || 0);
-        let dealt = applyDamageToEnemyResource(target, dmg);
-        if (hit.crit && pStats.uniqueSummonCritAspdStacks) {
-            let cfg = pStats.uniqueSummonCritAspdStacks || {};
-            let maxStacks = Math.max(1, Math.floor(cfg.maxStacks || 3));
-            let nowForCritBuff = Date.now();
-            let currentStacks = (game.summonCritAspdExpiresAt || 0) > nowForCritBuff ? Math.max(0, Math.floor(game.summonCritAspdStacks || 0)) : 0;
-            game.summonCritAspdStacks = Math.min(maxStacks, currentStacks + 1);
-            game.summonCritAspdPerStack = Math.max(0, Number(cfg.aspd || 10));
-            game.summonCritAspdExpiresAt = nowForCritBuff + Math.max(1, Number(cfg.duration || 4)) * 1000;
-        }
-        applySummonAilmentFromHit(target, pStats, hit.element, dmg, hit.crit, hit.ailmentSourceDamage);
-        if (game.ascendClass === 'soulbinder' && hasKeystone('sb3')) {
-            let heal = Math.max(0, Math.floor(dealt * 0.03));
-            if (heal > 0) s.hp = Math.min(s.maxHp || s.hp || 1, (s.hp || 0) + heal);
-            if (heal > 0) {
-                let maxHp = Math.max(1, Math.floor((pStats && pStats.maxHp) || game.playerHp || 1));
-                let playerHeal = Math.floor(heal * getChallengeContractRecoveryMultiplier());
-                game.playerHp = Math.min(maxHp, Math.max(0, Math.floor((game.playerHp || 0) + playerHeal)));
-            }
-        }
-        addBattleFx('hit', {
-            enemyId: target.id,
-            color: getElementColor(hit.element),
-            damage: dmg,
-            crit: hit.crit,
-            duration: 220,
-            element: hit.element,
-            skillName: s.gemName,
-            summon: true,
-            syncToSwing: false
-        });
-        if (target.hp <= 0) handleEnemyDeath(target, pStats);
+        let pierceTargets = game.ascendClass === 'soulbinder' && hasKeystone('sb6')
+            ? getSummonPierceTargets(target, aliveEnemies)
+            : [];
+        resolveSummonHit(s, pStats, target, true);
+        pierceTargets.forEach(enemy => resolveSummonHit(s, pStats, enemy, false));
     });
 }
 
@@ -1868,6 +1898,7 @@ function coreLoop() {
     game.lastCombatStats = pStats;
     game.lastCombatStatsAt = Date.now();
     ensureSummonRuntime(pStats);
+    tickSummonRecovery();
     tickFlaskAutoUse(pStats);
     // Guard against malformed stat payloads from legacy saves/runtime merges.
     // If ASPD becomes NaN/<=0, pTimer never advances and combat appears frozen.
@@ -3151,7 +3182,9 @@ function getPlayerStats() {
 
     let finalCritDmg = CRIT_DAMAGE_BASE_MULTIPLIER + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0) + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.critDmg || 20)) : 0);
     let rawLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
-    let finalLeech = applyLeechSoftcap(rawLeech);
+    let wildnessLeech = game.ascendClass === 'soulbinder' && hasKeystone('sb3') ? 3.5 : 0;
+    rawLeech += wildnessLeech;
+    let finalLeech = applyLeechSoftcap(rawLeech - wildnessLeech) + wildnessLeech;
     if (uniqueLeechEfficiencyOnKill && game.uniqueLeechEfficiencyUntil && Date.now() < game.uniqueLeechEfficiencyUntil) {
         finalLeech *= (1 + Math.max(0, uniqueLeechEfficiencyOnKill.efficiencyPct || 0) / 100);
     }
@@ -5197,6 +5230,14 @@ function getLoopHpScale(loopCount) {
     return scale;
 }
 
+function getChaosBossVisual(zone, variantSeed) {
+    if (!zone || !['abyss', 'chaosRealm'].includes(zone.type) || typeof getBossAssetKeyForZone !== 'function') return null;
+    let actId = Math.abs(Math.floor(variantSeed || 0)) % 10;
+    let assetKey = getBossAssetKeyForZone({ type: 'act', id: actId }, variantSeed);
+    let hues = [286, 318, 202, 266, 334, 178, 244, 302, 222, 274];
+    return { assetKey: assetKey, tint: hues[actId] };
+}
+
 function createEnemy(zone, marker, groupIndex) {
     let loopInputs = getLoopDifficultyInputs(zone);
     let loopScaleExempt = loopInputs.exempt;
@@ -5266,7 +5307,8 @@ function createEnemy(zone, marker, groupIndex) {
     }
     let zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
     let variantSeed = ((zoneSeed + 1) * 37 + (marker.at || 0) * 13 + groupIndex * 17) % 997;
-    let bossAssetKey = isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null;
+    let chaosBossVisual = isBoss ? getChaosBossVisual(zone, variantSeed) : null;
+    let bossAssetKey = chaosBossVisual ? chaosBossVisual.assetKey : (isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null);
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
     const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss) || getZoneStaticBossMods(zone, isBoss);
     const cosmosExclusiveTrait = getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, variantSeed);
@@ -5305,6 +5347,7 @@ function createEnemy(zone, marker, groupIndex) {
         isElite: isElite,
         isBoss: isBoss,
         bossAssetKey: bossAssetKey,
+        bossVisualTint: chaosBossVisual ? chaosBossVisual.tint : null,
         attackTimer: (((zoneSeed + 1) * 13 + (marker.at || 0) * 3 + groupIndex * 7) % 10) / 20,
         spawnAt: marker.at,
         groupIndex: groupIndex,
@@ -6305,6 +6348,7 @@ function startEncounterRun() {
     let zone = getZone(game.currentZoneId) || getZone(0);
     resetBattleRuntimeVisuals();
     resetPlayerGridPosition();
+    restoreAndRecallSummons(getPlayerStats());
     primeTrialHazardTimer(zone);
     game.encounterPlan = generateEncounterPlan(zone);
     game.enemies = [];
@@ -6318,6 +6362,7 @@ function startMoving(isTown) {
     expireActiveFlaskEffects();
     if (isTown) refillAllFlaskCharges();
     resetBattleRuntimeVisuals();
+    restoreAndRecallSummons(getPlayerStats());
     if (!isTown && game.ascendClass === 'assassin' && hasKeystone('a2')) game.assassinBlurred = true;
     let ms = getPlayerStats().moveSpeed;
     if (!Number.isFinite(ms) || ms <= 0) ms = 100;
@@ -8973,6 +9018,21 @@ function advanceEnemyGridApproach(enemy, target, slowPct) {
     advanceGridUnitMovement(enemy, target, 0.1, interval);
 }
 
+function getSummonRespawnAt(summon, shortened) {
+    let baseMs = Math.max(4000, Math.floor((summon && summon.respawnMs) || 8000));
+    let delayMs = shortened ? Math.floor(baseMs * 0.7) : baseMs;
+    return Date.now() + delayMs;
+}
+
+function getClosestLivingSummonToPlayer() {
+    let player = game.gridPlayer;
+    return (game.summons || []).filter(summon => summon && summon.alive && summon.hp > 0).sort((a, b) => {
+        let aDist = hasGridCell(player) && hasGridCell(a) ? gridChebyshevDist(player.gx, player.gy, a.gx, a.gy) : Infinity;
+        let bDist = hasGridCell(player) && hasGridCell(b) ? gridChebyshevDist(player.gx, player.gy, b.gx, b.gy) : Infinity;
+        return aDist - bDist || a.id - b.id;
+    })[0] || null;
+}
+
 function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
     let evade = Math.max(0, Math.min(85, (summon.evasion || 0) / ((summon.evasion || 0) + 300) * 100));
     if (Math.random() * 100 < evade) return 0;
@@ -8987,9 +9047,17 @@ function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
     }
     damage = Math.min(damage, summon.hp);
     summon.hp = Math.max(0, summon.hp - damage);
+    if (damage > 0) {
+        addBattleFx('summonHit', {
+            summonId: summon.id,
+            damage: damage,
+            element: enemy && enemy.ele ? enemy.ele : 'phys',
+            duration: 260
+        });
+    }
     if (summon.hp > 0) return damage;
     summon.alive = false;
-    summon.respawnAt = Date.now() + Math.max(2000, Math.floor(summon.respawnMs || 4000));
+    summon.respawnAt = getSummonRespawnAt(summon, false);
     if (pStats.uniqueSummonDeathDamageBuff) {
         let config = pStats.uniqueSummonDeathDamageBuff;
         game.summonDeathDamageBuffPct = Math.max(Number(game.summonDeathDamageBuffPct || 0), Math.max(0, Number(config.pct || 40)));
@@ -9385,8 +9453,12 @@ function performMonsterAttacks(pStats) {
 
             let remaining = dmg;
             let guardRedirectPct = Math.max(0, Math.min(100, Math.floor(pStats.summonGuardRedirectPct || 0)));
-            if (game.ascendClass === 'soulbinder' && hasKeystone('sb2')) guardRedirectPct = Math.max(guardRedirectPct, 50);
-            let aliveGuards = (game.summons || []).filter(s => s && s.alive && s.hp > 0 && (s.role === 'guard' || (game.ascendClass === 'soulbinder' && hasKeystone('sb2'))));
+            let soulbinderShare = game.ascendClass === 'soulbinder' && hasKeystone('sb2');
+            if (soulbinderShare) guardRedirectPct = Math.max(guardRedirectPct, 50);
+            let closestSummon = soulbinderShare ? getClosestLivingSummonToPlayer() : null;
+            let aliveGuards = soulbinderShare
+                ? (closestSummon ? [closestSummon] : [])
+                : (game.summons || []).filter(s => s && s.alive && s.hp > 0 && s.role === 'guard');
             if (guardRedirectPct > 0 && aliveGuards.length > 0) {
                 let redirect = Math.min(remaining, Math.floor(remaining * (guardRedirectPct / 100)));
                 if (redirect > 0) {
@@ -9395,7 +9467,7 @@ function performMonsterAttacks(pStats) {
                     aliveGuards.forEach((guard, idx) => {
                         if (!guard.alive || guard.hp <= 0) return;
                         let share = idx === (aliveGuards.length - 1) ? Math.max(0, redirect - redirectedTotal) : each;
-                        let local = Math.max(0, Math.min(100, Number(guard.redirectPct || 0)));
+                        let local = soulbinderShare ? 100 : Math.max(0, Math.min(100, Number(guard.redirectPct || 0)));
                         if (local > 0) share = Math.floor(share * (local / 100));
                         let evade = Math.max(0, Math.min(85, (guard.evasion || 0) / ((guard.evasion || 0) + 300) * 100));
                         if (Math.random() * 100 < evade) share = 0;
@@ -9413,7 +9485,7 @@ function performMonsterAttacks(pStats) {
                         redirectedTotal += reduced;
                         if (guard.hp <= 0) {
                             guard.alive = false;
-                            guard.respawnAt = Date.now() + Math.max(2000, Math.floor(guard.respawnMs || 4000));
+                            guard.respawnAt = getSummonRespawnAt(guard, soulbinderShare);
                             if (pStats.uniqueSummonDeathDamageBuff) {
                                 let cfg = pStats.uniqueSummonDeathDamageBuff || {};
                                 game.summonDeathDamageBuffPct = Math.max(Number(game.summonDeathDamageBuffPct || 0), Math.max(0, Number(cfg.pct || 40)));
@@ -9988,4 +10060,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });
