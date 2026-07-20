@@ -1329,7 +1329,7 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
         if (enemy && enemy.hp > 0) fillCell(enemy, 'rgba(255, 87, 87, 0.28)', 'rgba(255, 140, 120, 0.8)', 0.34);
     });
     (game.summons || []).forEach(summon => {
-        if (summon && summon.alive && (summon.hp || 0) > 0) fillCell(summon, 'rgba(126, 255, 173, 0.26)', 'rgba(154, 255, 192, 0.76)', 0.32);
+        if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) fillCell(summon, 'rgba(126, 255, 173, 0.26)', 'rgba(154, 255, 192, 0.76)', 0.32);
     });
     (skillAreaCells || []).forEach(cell => fillCell(cell, 'rgba(124, 255, 214, 0.2)', 'rgba(124, 255, 214, 0.72)', 0.26));
     (skillTargets || []).forEach(hit => fillCell(hit && hit.enemy, 'rgba(255, 211, 91, 0.5)', 'rgba(255, 238, 153, 0.95)', 0.54));
@@ -1365,6 +1365,8 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
         const x = cellPos ? cellPos.x : playerPos.x + Math.cos(angle) * radius;
         const y = cellPos ? cellPos.y : playerPos.y - 18 + Math.sin(angle) * 12;
         let drewImage = false;
+        ctx.save();
+        if (summon.isGhost) ctx.globalAlpha = 0.46;
         if (image) {
             const frame = getSummonSpriteFrameRectByName(summon.gemName, image);
             if (frame) {
@@ -1383,12 +1385,20 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
             ctx.fill();
             ctx.restore();
         }
+        if (summon.isGhost) {
+            ctx.strokeStyle = 'rgba(204, 174, 255, 0.94)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(x, y - 10, summon.role === 'guard' ? 15 : 12, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        ctx.restore();
         const hpPct = clampNumber(summon.hp / Math.max(1, summon.maxHp || summon.hp), 0, 1);
         const hpWidth = summon.role === 'guard' ? 38 : 32;
         const hpX = Math.round(x - hpWidth / 2);
         const hpY = Math.round(y - (summon.role === 'guard' ? 48 : 40));
         ctx.save();
-        ctx.fillStyle = summon.role === 'guard' ? '#59d98e' : '#78d9ff';
+        ctx.fillStyle = summon.isGhost ? '#c9a8ff' : (summon.role === 'guard' ? '#59d98e' : '#78d9ff');
         ctx.fillRect(hpX, hpY, Math.max(1, Math.round(hpWidth * hpPct)), 4);
         ctx.strokeStyle = 'rgba(220, 248, 255, 0.72)';
         ctx.strokeRect(hpX - 0.5, hpY - 0.5, hpWidth + 1, 5);

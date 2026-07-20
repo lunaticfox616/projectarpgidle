@@ -35,7 +35,7 @@ function getGridBlockedCells(excludeUnit) {
     };
     addUnit(game.gridPlayer);
     (game.enemies || []).forEach(enemy => { if (enemy && enemy.hp > 0) addUnit(enemy); });
-    (game.summons || []).forEach(summon => { if (summon && summon.alive && (summon.hp || 0) > 0) addUnit(summon); });
+    (game.summons || []).forEach(summon => { if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) addUnit(summon); });
     return blocked;
 }
 

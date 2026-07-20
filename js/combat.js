@@ -824,9 +824,27 @@ function getSummonProfile(gemName) {
 }
 
 function getSummonRuntimeCap(pStats) {
-    // 대군 소환(소울바인더 sb9): 소환수 한도 1.5배를 수용하기 위해 상한을 12까지 확장
-    let hardCap = (game.ascendClass === 'soulbinder' && hasKeystone('sb9')) ? 12 : 8;
-    return Math.max(1, Math.min(hardCap, Math.floor((pStats && pStats.summonCap) || 1)));
+    return Math.max(1, Math.min(getSummonCapMaximum(), Math.floor((pStats && pStats.summonCap) || 1)));
+}
+
+function getSummonCapMaximum() {
+    return game.ascendClass === 'soulbinder' && hasKeystone('sb9') ? 12 : 8;
+}
+
+function applyGrandlordGhostState() {
+    let grandlordActive = game.ascendClass === 'soulbinder' && hasKeystone('sb9');
+    let livingSummons = (game.summons || []).filter(summon => summon && summon.alive && summon.hp > 0);
+    if (!grandlordActive) {
+        livingSummons.forEach(summon => { summon.isGhost = false; });
+        return;
+    }
+    let ghostCount = Math.min(4, Math.floor(livingSummons.length / 3));
+    let ghostIds = new Set(livingSummons
+        .slice()
+        .sort((left, right) => left.hp - right.hp || left.id - right.id)
+        .slice(0, ghostCount)
+        .map(summon => summon.id));
+    livingSummons.forEach(summon => { summon.isGhost = ghostIds.has(summon.id); });
 }
 
 function buildActiveSummonRuntimeDefs(pStats) {
@@ -1306,6 +1324,7 @@ function ensureSummonRuntime(pStats) {
         s.respawnAt = 0;
         s.nextAttackAt = now + 300;
     });
+    applyGrandlordGhostState();
 }
 
 function restoreAndRecallSummons(pStats) {
@@ -1319,6 +1338,7 @@ function restoreAndRecallSummons(pStats) {
         delete summon.gx;
         delete summon.gy;
     });
+    applyGrandlordGhostState();
     ensureCombatGridRuntime();
 }
 
@@ -4596,7 +4616,7 @@ function getPlayerStats() {
         summonHpPct: Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0)),
         summonCrit: Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0)),
         summonCritDmg: Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0)),
-        summonCap: Math.max(1, Math.floor((1 + Math.floor((gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0) + sbSummonCapBonus)) * ((game.ascendClass === 'soulbinder' && hasKeystone('sb9')) ? 1.5 : 1))),
+        summonCap: Math.max(1, Math.min(getSummonCapMaximum(), Math.floor((1 + Math.floor((gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0) + sbSummonCapBonus)) * ((game.ascendClass === 'soulbinder' && hasKeystone('sb9')) ? 1.5 : 1)))),
         curseCap: 1 + sumStatAcrossBuckets('curseCap') + ((game.ascendClass === 'warlock' && hasKeystone('wlk9')) ? 1 : 0),
         summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
         summonResPen: Math.max(0, (gearBase.summonResPen || 0) + (gearExplicit.summonResPen || 0) + (passive.summonResPen || 0) + (season.summonResPen || 0) + (ascend.summonResPen || 0) + (support.summonResPen || 0) + (reward.summonResPen || 0)),
@@ -4629,6 +4649,15 @@ function getPlayerStats() {
         title: '소환 DPS',
         lines: summonEstimate.lines || [],
         final: `${Math.floor(enemy.summonDps)}`
+    };
+    enemy.breakdowns.summonCap = {
+        title: '소환수 한도',
+        lines: [
+            `현재 소환 한도 ${enemy.summonCap}`,
+            `최대 소환 한도 ${getSummonCapMaximum()}`,
+            game.ascendClass === 'soulbinder' && hasKeystone('sb9') ? '대군주: 현재 생명력이 가장 낮은 하위 1/3(최대 4기)이 유령 상태' : '기본 최대 한도 8'
+        ],
+        final: `${enemy.summonCap} / 최대 ${getSummonCapMaximum()}`
     };
     enemy.breakdowns.dps = {
         title: '총 DPS',
@@ -6506,6 +6535,10 @@ function spawnEncounterMarker(marker) {
     }
 }
 
+function getMapProgressGainMultiplier(zone) {
+    return zone && zone.type === 'seasonBoss' ? 2 : 1;
+}
+
 function advanceMapProgress(pStats) {
     if (game.moveTimer > 0) return;
     let zone = getZone(game.currentZoneId) || getZone(0);
@@ -6529,7 +6562,7 @@ function advanceMapProgress(pStats) {
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let chaosRealmActRush = zone && zone.type === 'act' && ensureChaosRealmState().highestFloor >= 10 ? 2 : 1;
-    let gain = baseGain * 0.5 * (moveSpeed / 100) * crowdPenalty * (abyssScale.mapProgressMul || 1) * chaosRealmActRush;
+    let gain = baseGain * 0.5 * (moveSpeed / 100) * crowdPenalty * (abyssScale.mapProgressMul || 1) * chaosRealmActRush * getMapProgressGainMultiplier(zone);
     game.runProgress = Math.min(100, game.runProgress + gain);
     while (game.encounterIndex < game.encounterPlan.length && game.runProgress >= game.encounterPlan[game.encounterIndex].at) {
         spawnEncounterMarker(game.encounterPlan[game.encounterIndex]);
@@ -8985,7 +9018,7 @@ function getEnemyPreferredGridTarget(enemy) {
     let bestTarget = player;
     let bestDistance = gridChebyshevDist(enemy.gx, enemy.gy, player.gx, player.gy);
     (game.summons || []).forEach(summon => {
-        if (!summon || !summon.alive || summon.hp <= 0 || !hasGridCell(summon)) return;
+        if (!summon || summon.isGhost || !summon.alive || summon.hp <= 0 || !hasGridCell(summon)) return;
         let distance = gridChebyshevDist(enemy.gx, enemy.gy, summon.gx, summon.gy);
         if (distance >= bestDistance) return;
         bestTarget = summon;
@@ -9025,7 +9058,7 @@ function getSummonRespawnAt(summon, shortened) {
 
 function getClosestLivingSummonToPlayer() {
     let player = game.gridPlayer;
-    return (game.summons || []).filter(summon => summon && summon.alive && summon.hp > 0).sort((a, b) => {
+    return (game.summons || []).filter(summon => summon && !summon.isGhost && summon.alive && summon.hp > 0).sort((a, b) => {
         let aDist = hasGridCell(player) && hasGridCell(a) ? gridChebyshevDist(player.gx, player.gy, a.gx, a.gy) : Infinity;
         let bDist = hasGridCell(player) && hasGridCell(b) ? gridChebyshevDist(player.gx, player.gy, b.gx, b.gy) : Infinity;
         return aDist - bDist || a.id - b.id;
@@ -9033,6 +9066,7 @@ function getClosestLivingSummonToPlayer() {
 }
 
 function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
+    if (summon && summon.isGhost) return 0;
     let evade = Math.max(0, Math.min(85, (summon.evasion || 0) / ((summon.evasion || 0) + 300) * 100));
     if (Math.random() * 100 < evade) return 0;
     let damage = Math.max(1, Math.floor(rawDamage || 1));
@@ -9457,7 +9491,7 @@ function performMonsterAttacks(pStats) {
             let closestSummon = soulbinderShare ? getClosestLivingSummonToPlayer() : null;
             let aliveGuards = soulbinderShare
                 ? (closestSummon ? [closestSummon] : [])
-                : (game.summons || []).filter(s => s && s.alive && s.hp > 0 && s.role === 'guard');
+                : (game.summons || []).filter(s => s && !s.isGhost && s.alive && s.hp > 0 && s.role === 'guard');
             if (guardRedirectPct > 0 && aliveGuards.length > 0) {
                 let redirect = Math.min(remaining, Math.floor(remaining * (guardRedirectPct / 100)));
                 if (redirect > 0) {
@@ -10059,4 +10093,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });
