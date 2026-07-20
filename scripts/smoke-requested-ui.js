@@ -16,5 +16,7 @@ assert.ok(combat.includes('전장 이동: 칸당') && combat.includes('지도 �
 assert.ok(utils.includes("summonDps: { label: '소환 DPS'"), 'equipment comparison needs summon DPS');
 assert.ok(canvas.includes('Math.round(hpWidth * hpPct)'), 'summon overhead health bar must be rendered');
 assert.ok(!canvas.includes('fillText(`${Math.round(hpPct * 100)}%`'), 'summon overhead health percentage text must not be rendered');
+assert.ok(html.includes('id="inventory-full-warning"') && html.includes('id="jewel-inventory-full-warning"'), 'equipment and jewel tabs need full-inventory warning badges');
+assert.ok(ui.includes('function updateInventoryFullWarnings()'), 'UI refresh needs to evaluate inventory capacity warnings');
 
 console.log('smoke-requested-ui passed');

@@ -7787,7 +7787,22 @@ function renderEquipmentLoadoutSummary(pStats) {
     }
 }
 
+function updateInventoryFullWarnings() {
+    let warnings = [
+        ['inventory-full-warning', game.inventory || [], getInventoryLimit()],
+        ['jewel-inventory-full-warning', game.jewelInventory || [], getJewelInventoryLimit()]
+    ];
+    warnings.forEach(([id, entries, limit]) => {
+        let element = document.getElementById(id);
+        if (!element) return;
+        let isFull = entries.length >= limit;
+        element.style.display = isFull ? 'inline-block' : 'none';
+        element.title = isFull ? `${entries.length}/${limit}칸 · 공간을 확보하세요` : '';
+    });
+}
+
 function performUpdateStaticUI() {
+    updateInventoryFullWarnings();
     // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
     // 있으면) 어느 단계가 느린지 콘솔에 한 줄 남긴다. 정상 갱신에는 거의 영향이 없다.
     const __perfNow = (typeof performance !== 'undefined' && performance.now) ? () => performance.now() : () => Date.now();
