@@ -1498,8 +1498,23 @@ body:not(.light-mode) #info-tooltip {
 
 @media (min-width: 1081px) and (max-height: 720px) {
   body:not(.light-mode).desktop-windowed-ui #enemy-area { top: 20px; transform: translateX(-50%) scale(.9); transform-origin: top center; }
-  body:not(.light-mode).desktop-windowed-ui .player-hud { bottom: 10px; min-height: 76px; transform: translateX(-50%) scale(.88); transform-origin: bottom center; }
+  body:not(.light-mode).desktop-windowed-ui .player-hud {
+    left: calc((100% - var(--combat-log-width) - 24px) / 2 + clamp(105px, calc(393px - 22.5vw), 150px));
+    bottom: 19px;
+    min-height: 76px;
+    transform: translateX(-50%) scale(.88);
+    transform-origin: bottom center;
+  }
+  body.desktop-windowed-ui .ui-goal-panel { width: 235px; }
   body:not(.light-mode).desktop-windowed-ui .battlefield-caption { bottom: 104px; }
+}
+
+@media (min-width: 1081px) and (max-width: 1199px) and (max-height: 720px) {
+  body:not(.light-mode).desktop-windowed-ui .player-hud {
+    left: calc((100% - var(--combat-log-width) - 24px) / 2 + 100px);
+    transform: translateX(-50%) scale(.78);
+  }
+  body.desktop-windowed-ui .ui-goal-panel { width: 210px; }
 }
 
 @media (max-width: 760px) {
@@ -1660,6 +1675,25 @@ body:not(.light-mode) #info-tooltip {
   background: linear-gradient(150deg, color-mix(in srgb, var(--gem-accent) 19%, #132033), rgba(8, 16, 26, .98));
   box-shadow: inset 0 0 18px color-mix(in srgb, var(--gem-accent) 10%, transparent), 0 0 0 1px color-mix(in srgb, var(--gem-accent) 20%, transparent);
 }
+#btn-tab-skills.starter-gem-tutorial-pending {
+  border-color: #70d8ff !important;
+  box-shadow: inset 3px 0 #70d8ff, 0 0 14px rgba(79, 203, 255, .4);
+  animation: starterGemTabPulse 1.15s ease-in-out infinite;
+}
+#tab-skills .gem-library-card.starter-gem-tutorial-target {
+  border-color: #78dcff;
+  box-shadow: 0 0 0 2px rgba(83, 205, 255, .24), 0 0 24px rgba(83, 205, 255, .35);
+  animation: starterGemCardPulse 1.15s ease-in-out infinite;
+}
+.starter-gem-equip-guide {
+  margin: -2px 0 7px;
+  color: #b9edff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+@keyframes starterGemTabPulse { 50% { filter: brightness(1.28); } }
+@keyframes starterGemCardPulse { 50% { box-shadow: 0 0 0 2px rgba(111, 221, 255, .5), 0 0 30px rgba(83, 205, 255, .52); } }
 #tab-skills .element-fire { --gem-accent: #d77a45; }
 #tab-skills .element-cold { --gem-accent: #6db9df; }
 #tab-skills .element-lightning { --gem-accent: #b8a15a; }
