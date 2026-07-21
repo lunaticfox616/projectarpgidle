@@ -19,7 +19,10 @@
         'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-codex': { title: '도감', x: 280, y: 100, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-map': { title: '지도 및 콘텐츠', x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
-        'tab-cube': { title: '코어 큐브', x: 320, y: 120, width: 720, height: 640, minWidth: 480, minHeight: 380 },
+        // .core-cube-shell(css/core-cube.css)의 2열 그리드는 minmax(420px,..)+minmax(310px,..)+gap 14px로
+        // 열 최소 합이 744px다. 창 본문 좌우 패딩(26px*2)을 더하면 약 796px가 있어야 오른쪽 열이
+        // 창 밖으로 밀려나지 않는다. 기존 720/480은 이 최소치보다 좁아 오른쪽 카드가 항상 잘렸다.
+        'tab-cube': { title: '코어 큐브', x: 300, y: 110, width: 820, height: 640, minWidth: 800, minHeight: 380 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-season': { title: '루프', x: 300, y: 90, width: 740, height: 640, minWidth: 500, minHeight: 380 },
         'tab-talisman': { title: '부적', x: 260, y: 120, width: 740, height: 620, minWidth: 500, minHeight: 380 },
