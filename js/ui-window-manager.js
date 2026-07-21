@@ -10,6 +10,19 @@
     const DESKTOP_RAIL_WIDTH = 140;
     const WORKSPACE_GAP = 10;
     const COMMUNITY_OVERLAY_THRESHOLD = 700;
+    const RAIL_ART_SRC = 'assets/ui/menu-rail-v1.png';
+    const RAIL_CATEGORY_SLOTS = [
+        { x: '50%', y: '14%' },
+        { x: '50%', y: '36%' },
+        { x: '50%', y: '56%' },
+        { x: '50%', y: '77%' },
+        { x: '50%', y: '92%' }
+    ];
+    const RAIL_TAB_SLOTS = [
+        { x: '12.5%', y: '24%' }, { x: '88%', y: '24%' },
+        { x: '12.5%', y: '46%' }, { x: '88%', y: '46%' },
+        { x: '12.5%', y: '67%' }, { x: '88%', y: '67%' }
+    ];
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
         'tab-items': { title: '장비 및 인벤토리', x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
@@ -87,13 +100,21 @@
         return Math.max(min, Math.min(max, Math.round(num)));
     }
 
-    // 좌측 그룹 레일(128px + 여백)과 우측 도킹 폭을 제외한, 창이 배치될 수 있는 영역.
+    function getDesktopRailInset() {
+        let rail = document.querySelector('.tab-header');
+        let rect = rail && typeof rail.getBoundingClientRect === 'function' ? rail.getBoundingClientRect() : null;
+        if (!rect || !Number.isFinite(rect.right) || rect.right <= 0) return DESKTOP_RAIL_WIDTH;
+        return Math.ceil(rect.right + WORKSPACE_GAP / 2);
+    }
+
+    // 좌측 그룹 레일과 우측 도킹 폭을 제외한, 창이 배치될 수 있는 영역.
     // css/ui-windows.css의 .tab-header / #left-pane 오프셋과 함께 맞춰야 한다.
     function getWorkspaceRect() {
         let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
         let height = Math.max(260, window.innerHeight || document.documentElement.clientHeight || 720);
         let dockWidth = document.body.classList.contains('community-dock-open') ? (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH) : 0;
-        return { left: DESKTOP_RAIL_WIDTH, top: 8, width: Math.max(240, width - DESKTOP_RAIL_WIDTH - WORKSPACE_GAP - dockWidth), height: Math.max(260, height - 16) };
+        let railInset = getDesktopRailInset();
+        return { left: railInset, top: 8, width: Math.max(240, width - railInset - WORKSPACE_GAP - dockWidth), height: Math.max(260, height - 16) };
     }
 
     function getWindowState(tabId) {
@@ -332,7 +353,7 @@
 
     function shouldUseCommunityOverlay() {
         let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
-        let available = width - DESKTOP_RAIL_WIDTH - WORKSPACE_GAP - (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH);
+        let available = width - getDesktopRailInset() - WORKSPACE_GAP - (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH);
         return available < COMMUNITY_OVERLAY_THRESHOLD;
     }
 
@@ -444,48 +465,139 @@
     }
 
 
-    // 상위탭(그룹) 섹션 아래에 모든 탭 버튼을 항상 노출하는 레일 구성.
-    // 그룹 정의(TAB_GROUPS)는 ui.js가 소유한 SSOT를 그대로 사용한다.
+    // 중앙 5개 소켓은 그룹, 좌우 6개 소켓은 선택 그룹의 탭으로 사용한다.
+    // 그룹 정의(TAB_GROUPS)와 선택 상태(game.settings.activeTabGroup)는 ui.js의 SSOT를 재사용한다.
     function getRailGroups() {
         let groups = (typeof TAB_GROUPS !== 'undefined' && Array.isArray(TAB_GROUPS)) ? TAB_GROUPS : [];
-        // 전투 탭은 데스크톱에서 상시 표시되고, 커뮤니티는 전용 토글 버튼이 담당한다.
         return groups.map(group => ({
             key: group.key,
             label: group.label,
-            tabs: group.tabs.filter(id => id !== 'tab-battle' && id !== 'tab-social')
-        })).filter(group => group.tabs.length > 0);
+            icon: group.icon || '',
+            buttonIds: group.tabs
+                .filter(id => id !== 'tab-battle' && id !== 'tab-social')
+                .map(id => 'btn-' + id)
+                .concat(group.key === 'etc' ? ['btn-map-complete-action-picker'] : [])
+        })).filter(group => group.buttonIds.length > 0);
+    }
+
+    function setRailSlot(element, slot, slotNumber) {
+        if (!element || !slot) return;
+        element.dataset.railSlot = String(slotNumber);
+        element.style.setProperty('--rail-socket-x', slot.x);
+        element.style.setProperty('--rail-socket-y', slot.y);
+    }
+
+    function clearRailSlot(element) {
+        if (!element) return;
+        delete element.dataset.railSlot;
+        element.style.removeProperty('--rail-socket-x');
+        element.style.removeProperty('--rail-socket-y');
+    }
+
+    function createRailCategoryButton(group, index) {
+        let button = document.createElement('button');
+        button.id = 'btn-ui-rail-category-' + group.key;
+        button.type = 'button';
+        button.className = 'ui-rail-category-btn tab-category-btn';
+        button.dataset.railGroupTarget = group.key;
+        button.setAttribute('aria-label', group.label + ' 메뉴');
+        button.setAttribute('aria-controls', 'ui-rail-group-' + group.key);
+        button.innerHTML = `<span class="ui-rail-category-icon" aria-hidden="true">${group.icon}</span><span class="ui-rail-category-label">${group.label}</span><span id="noti-ui-rail-${group.key}" class="noti-dot ui-rail-category-noti"></span>`;
+        button.addEventListener('click', () => selectDesktopRailGroup(group.key));
+        setRailSlot(button, RAIL_CATEGORY_SLOTS[index], index + 1);
+        return button;
+    }
+
+    function installRailArtwork(header, groups) {
+        let art = document.createElement('img');
+        art.className = 'ui-rail-art';
+        art.src = RAIL_ART_SRC;
+        art.alt = '';
+        art.draggable = false;
+        art.setAttribute('aria-hidden', 'true');
+        header.prepend(art);
+        let categories = document.createElement('div');
+        categories.className = 'ui-rail-category-layer';
+        categories.setAttribute('aria-label', '메뉴 그룹');
+        groups.forEach((group, index) => categories.appendChild(createRailCategoryButton(group, index)));
+        header.appendChild(categories);
     }
 
     function installDesktopRailGroups() {
         let header = document.querySelector('.tab-header');
-        if (!header || header.querySelector(':scope > .ui-rail-group')) return;
-        getRailGroups().forEach(group => {
+        if (!header || header.querySelector(':scope > .ui-rail-group')) return syncDesktopRailGroups();
+        let groups = getRailGroups();
+        installRailArtwork(header, groups);
+        groups.forEach(group => {
             let section = document.createElement('div');
+            section.id = 'ui-rail-group-' + group.key;
             section.className = 'ui-rail-group';
             section.dataset.railGroup = group.key;
-            let label = document.createElement('div');
-            label.className = 'ui-rail-group-label';
-            label.textContent = group.label;
             let grid = document.createElement('div');
             grid.className = 'ui-rail-group-grid';
-            group.tabs.forEach(id => {
-                let btn = document.getElementById('btn-' + id);
+            group.buttonIds.forEach(id => {
+                let btn = document.getElementById(id);
                 if (btn) grid.appendChild(btn);
             });
-            section.appendChild(label);
             section.appendChild(grid);
             header.appendChild(section);
         });
         syncDesktopRailGroups();
     }
 
-    // 해금 상태가 바뀔 때(ui.js updateTabUnlockButtons) 함께 호출되어,
-    // 표시할 탭이 하나도 없는 그룹 섹션을 통째로 숨긴다.
+    function isRailButtonVisible(button) {
+        if (button.id === 'btn-map-complete-action-picker') return true;
+        return button.style.display !== 'none' && !button.hidden;
+    }
+
+    function getSelectedDesktopRailGroup(groups) {
+        if (!groups.length) return '';
+        let selected = (typeof game !== 'undefined' && game.settings) ? game.settings.activeTabGroup : '';
+        return groups.some(group => group.key === selected) ? selected : groups[0].key;
+    }
+
+    function selectDesktopRailGroup(groupKey) {
+        let groups = getRailGroups();
+        if (!groups.some(group => group.key === groupKey)) return;
+        if (typeof game !== 'undefined') {
+            game.settings = game.settings || {};
+            game.settings.activeTabGroup = groupKey;
+        }
+        syncDesktopRailGroups();
+        if (typeof queueImportantSave === 'function') queueImportantSave(300);
+    }
+
+    function hasVisibleRailNotice(button) {
+        return Array.from(button.querySelectorAll('.noti-dot, .inventory-full-warning'))
+            .some(notice => notice.style.display !== 'none');
+    }
+
+    // 잠긴 탭은 제외하고 남은 탭을 좌우 6개 소켓 앞으로 압축한다.
     function syncDesktopRailGroups() {
-        document.querySelectorAll('.tab-header > .ui-rail-group').forEach(section => {
-            let hasVisible = Array.from(section.querySelectorAll('.tab-btn'))
-                .some(btn => btn.style.display !== 'none');
-            section.style.display = hasVisible ? '' : 'none';
+        let sections = Array.from(document.querySelectorAll('.tab-header > .ui-rail-group'));
+        if (!sections.length) return;
+        let groups = getRailGroups();
+        let selected = getSelectedDesktopRailGroup(groups);
+        let visibleSections = sections.filter(section => Array.from(section.querySelectorAll('.tab-btn')).some(isRailButtonVisible));
+        if (!visibleSections.some(section => section.dataset.railGroup === selected) && visibleSections[0]) {
+            selected = visibleSections[0].dataset.railGroup;
+        }
+        sections.forEach(section => {
+            let buttons = Array.from(section.querySelectorAll('.tab-btn'));
+            let visible = buttons.filter(isRailButtonVisible);
+            let active = section.dataset.railGroup === selected;
+            let category = document.getElementById('btn-ui-rail-category-' + section.dataset.railGroup);
+            let categoryNotice = document.getElementById('noti-ui-rail-' + section.dataset.railGroup);
+            buttons.forEach(clearRailSlot);
+            if (active) visible.slice(0, RAIL_TAB_SLOTS.length)
+                .forEach((button, index) => setRailSlot(button, RAIL_TAB_SLOTS[index], index + 6));
+            section.hidden = !active;
+            section.dataset.railOverflow = String(Math.max(0, visible.length - RAIL_TAB_SLOTS.length));
+            if (!category) return;
+            category.hidden = visible.length === 0;
+            category.classList.toggle('active', active);
+            category.setAttribute('aria-pressed', active ? 'true' : 'false');
+            if (categoryNotice) categoryNotice.style.display = !active && visible.some(hasVisibleRailNotice) ? 'block' : 'none';
         });
     }
 
@@ -814,9 +926,14 @@
     function restoreDesktopMenuForMobile() {
         let header = document.querySelector('.tab-header');
         if (!header) return;
-        // 그룹 섹션 안의 탭 버튼들을 헤더 루트로 되돌리고 섹션 래퍼를 제거한다.
+        // 생성한 소켓 메타데이터를 제거한 뒤 원래 탭 버튼만 헤더 루트로 되돌린다.
+        header.querySelectorAll('[data-rail-slot]').forEach(clearRailSlot);
         header.querySelectorAll(':scope > .ui-rail-group .tab-btn').forEach(btn => header.appendChild(btn));
         header.querySelectorAll(':scope > .ui-rail-group').forEach(section => section.remove());
+        let categoryLayer = header.querySelector(':scope > .ui-rail-category-layer');
+        if (categoryLayer) categoryLayer.remove();
+        let art = header.querySelector(':scope > .ui-rail-art');
+        if (art) art.remove();
         let closeAllBtn = document.getElementById('btn-close-all-windows');
         if (closeAllBtn) closeAllBtn.remove();
         let toggle = document.getElementById('ui-community-toggle');

@@ -23,20 +23,29 @@ for (const [file, expectedSize] of expectedSkins) {
 const html = fs.readFileSync('index.html', 'utf8');
 const ui = fs.readFileSync('js/ui.js', 'utf8');
 const css = fs.readFileSync('css/ui-asset-skins.css', 'utf8');
+const menuCss = fs.readFileSync('css/ui-menu-sockets.css', 'utf8');
+const windowManager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 
-assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-health-menu-skin1'), 'asset skin CSS must be cache-versioned');
+assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-health-menu-skin2'), 'asset skin CSS must be cache-versioned');
+assert.ok(html.includes('css/ui-menu-sockets.css?v=20260722-health-menu-skin2'), 'menu socket CSS must be cache-versioned');
 assert.ok(html.indexOf('css/ui-asset-skins.css') > html.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
-assert.ok(html.includes('<div class="player-health-frame">'), 'the player HUD must expose one integrated art frame');
+assert.ok(html.includes('<img class="player-health-frame-art" src="assets/ui/health-player-v1.png"'), 'the player HUD must use one real frame image');
 assert.ok(html.indexOf('player-health-frame') < html.indexOf('id="ui-hp-bar"'), 'the live player HP bar must remain inside its art frame');
 assert.ok(ui.includes('<div class="health-skin-track">'), 'enemy fills must be clipped separately from their art');
-assert.ok(ui.includes("focusedEnemy.isElite ? ' enemy-elite'"), 'elite enemies must retain their dedicated skin class');
-assert.ok(css.includes("url('../assets/ui/health-boss-v1.png')"), 'boss health art must be wired');
-assert.ok(css.includes("url('../assets/ui/health-elite-v1.png')"), 'elite health art must be wired');
-assert.ok(css.includes("url('../assets/ui/health-mob-v1.png')"), 'normal monster health art must be wired');
-assert.ok(css.includes("url('../assets/ui/health-player-v1.png')"), 'player health art must be wired');
-assert.ok(css.includes("url('../assets/ui/menu-rail-v1.png')"), 'menu rail art must be wired');
-assert.ok(css.includes('.desktop-windowed-ui .tab-header:not(.tab-header-bottom)'), 'menu art must be limited to the desktop rail');
+assert.ok(ui.includes("? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob')"), 'boss, elite, and normal enemies must select distinct art tiers');
+assert.ok(ui.includes('src="assets/ui/health-${enemyHudTier}-v1.png"'), 'enemy frames must use one real image selected by tier');
+assert.ok(ui.indexOf('<div class="hp-text"></div>') < ui.indexOf('</div>\n                        </div>\n                        <div class="enemy-tags muted enemy-traits">'), 'enemy HP text must remain inside the live gauge track');
+assert.ok(css.includes('.player-health-frame #ui-hp-bar'), 'player HP must have its own green live fill');
+assert.ok(css.includes('.player-health-frame #ui-es-bar'), 'player energy shield must have its own blue live fill');
+assert.ok(css.includes('.player-health-frame #ui-exp-bar'), 'player experience must have its own live fill');
+assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('--health-track-left:'), 'baked health colors must be covered by a live clipped track');
 assert.ok(css.includes('@media (max-width: 1080px)'), 'the integrated player frame must retain a mobile layout');
+assert.ok(windowManager.includes("art.src = RAIL_ART_SRC"), 'the menu rail must be connected as a real image');
+assert.ok(menuCss.includes('.ui-rail-art'), 'the real menu image must be sized by its own element');
+assert.ok(menuCss.includes('--menu-rail-width:'), 'the menu image size must stay adjustable from one CSS variable');
+assert.ok(menuCss.includes('width: var(--menu-rail-width)'), 'the menu image frame must consume the adjustable width');
+assert.ok(!menuCss.includes("url('../assets/ui/menu-rail-v1.png')"), 'the menu image must not be painted as a CSS background');
+assert.ok(!menuCss.includes('background-repeat'), 'the menu art must not be tiled or copied');
 
 console.log('smoke-ui-asset-skins passed');

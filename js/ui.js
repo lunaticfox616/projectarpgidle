@@ -190,15 +190,16 @@ function runUiCoreLoop() {
     return runUiGlobalFunction('coreLoop');
 }
 
-// HUD에 표시할 플레이어 직업(전직 후) 또는 재능 라벨.
-function getUiPlayerClassLabel() {
-    let classLabel = (game.ascendClass && typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[game.ascendClass]) ? CLASS_TEMPLATES[game.ascendClass].name : '';
-    if (classLabel) return classLabel;
+function getUiPlayerHudIdentity() {
     let heroDef = typeof getHeroSelectionDef === 'function' ? getHeroSelectionDef(game.selectedHeroId) : null;
-    return heroDef ? heroDef.label : '재능';
+    let classDef = game.ascendClass && typeof CLASS_TEMPLATES !== 'undefined'
+        ? CLASS_TEMPLATES[game.ascendClass]
+        : null;
+    return {
+        name: heroDef ? heroDef.label : '플레이어',
+        className: classDef ? classDef.name : '미전직'
+    };
 }
-
-
 
 const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;
 const BACKGROUND_PROGRESS_RATE = 0.1;
@@ -7512,20 +7513,20 @@ function updateCombatUI(pStats) {
     }
     let esPct = (pStats.energyShield || 0) > 0 ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
     let esInlineEl = document.getElementById('ui-es-inline');
-    if (esInlineEl) esInlineEl.innerText = (pStats.energyShield || 0) > 0 ? ` · ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : '';
+    if (esInlineEl) esInlineEl.innerText = (pStats.energyShield || 0) > 0 ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0';
     let esBar = document.getElementById('ui-es-bar');
     if (!esBar) {
-        let hpWrap = document.querySelector('#ui-hp-bar').parentElement;
+        let esWrap = document.getElementById('ui-es-track') || hpWrap;
         esBar = document.createElement('div');
         esBar.id = 'ui-es-bar';
-        esBar.className = 'hp-bar-fill';
+        esBar.className = 'hp-bar-fill player-es';
         esBar.style.backgroundColor = '#55c1ff';
         esBar.style.opacity = '0.75';
         esBar.style.position = 'absolute';
         esBar.style.left = '0';
         esBar.style.top = '0';
         esBar.style.zIndex = '5';
-        hpWrap.insertBefore(esBar, document.getElementById('ui-hp-bar'));
+        esWrap.insertBefore(esBar, esWrap.firstChild);
     }
     esBar.style.zIndex = '5';
     esBar.style.width = esPct + '%';
@@ -7534,10 +7535,12 @@ function updateCombatUI(pStats) {
     setTextById('ui-maxexp', formatSettingNumber(getExpReq(game.level), 'showExpComma'));
     document.getElementById('ui-exp-bar').style.width = ((game.exp / getExpReq(game.level)) * 100) + '%';
     setTextById('ui-player-level', 'Lv.' + game.level);
-    // 경험치바 왼쪽에 레벨·직업(또는 재능)을, 오른쪽에 진행률과 남은 경험치를 표기한다.
+    let playerHudIdentity = getUiPlayerHudIdentity();
+    setTextById('ui-player-name-label', playerHudIdentity.name);
+    setTextById('ui-player-class-label', playerHudIdentity.className);
     let expLevelEl = document.getElementById('ui-exp-level-label');
     if (expLevelEl) {
-        let levelText = `Lv.${game.level} ${getUiPlayerClassLabel()}`;
+        let levelText = `Lv.${game.level}`;
         if (expLevelEl.innerText !== levelText) expLevelEl.innerText = levelText;
     }
     let expNoteEl = document.getElementById('ui-exp-note');
@@ -7827,23 +7830,27 @@ function updateCombatUI(pStats) {
         let pendingStartPct = Math.max(0, pct - pendingPct);
         let ghostPct = updateEnemyHpDamageGhost(focusedEnemy.id, pct);
         let ghostDisplay = ghostPct > pct + 0.2 ? 'block' : 'none';
-        let focusedKey = String(focusedEnemy.id) + '|' + enemies.length;
+        let enemyHudTier = (focusedEnemy.isBoss || focusedEnemy.bossPhase) ? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob');
+        let focusedKey = String(focusedEnemy.id) + '|' + enemies.length + '|' + enemyHudTier;
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             enemyListEl.dataset.enemyId = focusedKey;
             enemyListEl.innerHTML = `
-                <div class="enemy-card targeted${focusedEnemy.isBoss || focusedEnemy.bossPhase ? ' enemy-boss' : (focusedEnemy.isElite ? ' enemy-elite' : '')}">
-                    <div class="enemy-name"></div>
-                    <div class="hp-bar-bg">
-                        <div class="health-skin-track">
-                            <div class="hp-bar-fill enemy-damage-ghost"></div>
-                            <div class="hp-bar-fill enemy-es"></div>
-                            <div class="hp-bar-fill enemy"></div>
-                            <div class="hp-bar-fill enemy-pending"></div>
+                <div class="enemy-card targeted enemy-${enemyHudTier}">
+                    <div class="enemy-nameplate"><div class="enemy-name"></div></div>
+                    <div class="enemy-health-frame">
+                        <img class="health-skin-frame" src="assets/ui/health-${enemyHudTier}-v1.png" alt="" aria-hidden="true">
+                        <div class="hp-bar-bg">
+                            <div class="health-skin-track">
+                                <div class="hp-bar-fill enemy-damage-ghost"></div>
+                                <div class="hp-bar-fill enemy-es"></div>
+                                <div class="hp-bar-fill enemy"></div>
+                                <div class="hp-bar-fill enemy-pending"></div>
+                                <div class="hp-text"></div>
+                            </div>
                         </div>
-                        <div class="hp-text"></div>
+                        <div class="enemy-tags muted enemy-traits"></div>
                     </div>
                     <div class="enemy-tags muted enemy-ailments"></div>
-                    <div class="enemy-tags muted enemy-traits"></div>
                 </div>
             `;
         }
@@ -7874,10 +7881,11 @@ function updateCombatUI(pStats) {
         if (ailmentEl) ailmentEl.innerHTML = ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음';
         if (traitEl) {
             let showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase);
-            traitEl.innerText = showTraits ? `특성: ${tags.join(' · ') || (focusedEnemy.isBoss || focusedEnemy.bossPhase ? '보스' : '정예')}` : '';
-            traitEl.title = focusedEnemy.patternMode && typeof getBossPatternDescription === 'function'
-                ? getBossPatternDescription(focusedEnemy.patternMode)
-                : '';
+            let traitText = showTraits ? `특성: ${tags.join(' · ') || (focusedEnemy.isBoss || focusedEnemy.bossPhase ? '보스' : '정예')}` : '';
+            let patternText = focusedEnemy.patternMode && typeof getBossPatternDescription === 'function'
+                ? getBossPatternDescription(focusedEnemy.patternMode) : '';
+            traitEl.innerText = traitText;
+            traitEl.title = [traitText, patternText].filter(Boolean).join(' · ');
             traitEl.style.display = showTraits ? '' : 'none';
         }
     }

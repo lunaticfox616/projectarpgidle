@@ -19,7 +19,8 @@
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-combat-polish1">
     <link rel="stylesheet" href="css/typography-readability.css?v=20260721-galmuri-item-names1">
-    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-health-menu-skin1">
+    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-health-menu-skin2">
+    <link rel="stylesheet" href="css/ui-menu-sockets.css?v=20260722-health-menu-skin2">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -264,22 +265,42 @@
             </div>
         </div>
         <div class="combat-top-status player-hud">
-            <div class="player-health-frame">
-            <div class="combat-hud-row combat-hud-row-exp player-hud-exp">
-            <div class="combat-hud-label combat-hud-label-exp" id="ui-exp-level-label">경험치</div>
-            <div class="hp-bar-bg combat-exp-bar">
-                <div id="ui-exp-bar" class="hp-bar-fill exp" style="width: 0%;"></div>
-                <div class="hp-text"><span id="ui-exp">0</span> / <span id="ui-maxexp">100</span></div>
-            </div>
-            <div class="combat-hud-note" id="ui-exp-note"></div>
-            </div>
-            <div class="combat-hud-row combat-hud-row-hp player-hud-vitals">
-            <div id="ui-combat-flasks" class="combat-flask-strip" aria-label="장착 플라스크와 남은 충전"></div>
-            <div class="hp-bar-bg combat-hp-bar">
-                <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
-                <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span><span id="ui-es-inline"></span></div>
-            </div>
-            </div>
+            <div class="player-hud-shell">
+                <div class="player-hud-info-box" aria-label="플레이어 전투 정보">
+                    <div class="player-hud-identity-row">
+                        <strong id="ui-player-name-label">궁수</strong>
+                        <span id="ui-player-class-label">미전직</span>
+                        <span id="ui-exp-level-label">Lv.1</span>
+                    </div>
+                    <div class="player-hud-experience-text">
+                        <span class="player-hud-info-key">경험치</span>
+                        <span><span id="ui-exp">0</span> / <span id="ui-maxexp">100</span></span>
+                        <span class="combat-hud-note" id="ui-exp-note">0.0%</span>
+                    </div>
+                    <div class="player-hud-effects-row">
+                        <span class="player-hud-info-key">효과</span>
+                        <div id="ui-player-ailments-under" class="player-hud-ailments"></div>
+                    </div>
+                </div>
+                <div class="player-health-frame">
+                    <img class="player-health-frame-art" src="assets/ui/health-player-v1.png" width="512" height="84" alt="" aria-hidden="true" draggable="false">
+                    <div class="combat-hud-row combat-hud-row-hp player-hud-vitals">
+                        <div id="ui-combat-flasks" class="combat-flask-strip" aria-label="장착 플라스크와 남은 충전"></div>
+                        <div class="hp-bar-bg combat-hp-bar" aria-label="생명력">
+                            <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
+                            <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span></div>
+                        </div>
+                        <div class="hp-bar-bg combat-es-bar" id="ui-es-track" aria-label="에너지 보호막">
+                            <div id="ui-es-bar" class="hp-bar-fill player-es" style="width: 0%; display: none;"></div>
+                            <div class="hp-text" id="ui-es-inline">ES 0</div>
+                        </div>
+                    </div>
+                    <div class="combat-hud-row combat-hud-row-exp player-hud-exp">
+                        <div class="hp-bar-bg combat-exp-bar" aria-label="경험치 진행도">
+                            <div id="ui-exp-bar" class="hp-bar-fill exp" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div id="ui-ocean-oxygen-box" class="combat-hud-row combat-hud-row-oxygen player-hud-oxygen" style="display:none;">
                 <div class="combat-hud-label combat-hud-label-oxygen">🫧 산소</div>
@@ -288,7 +309,6 @@
                     <div class="hp-text" id="ui-ocean-oxygen-text">100 / 100</div>
                 </div>
             </div>
-            <div id="ui-player-ailments-under" class="player-hud-ailments" style="font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
             <div id="ui-player-ailments-mobile" style="display:none; font-size:0.76em; color:#ffb4b4; min-height:16px; margin-top:4px;"></div>
         </div>
 
@@ -1316,9 +1336,9 @@
 <script defer src="js/canvas-battlefield.js?v=20260722-boss-pattern-clean1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260722-health-menu-skin1"></script>
+<script defer src="js/ui.js?v=20260722-health-menu-skin2"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
-<script defer src="js/ui-window-manager.js?v=20260721-core-cube-width1"></script>
+<script defer src="js/ui-window-manager.js?v=20260722-health-menu-skin2"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
 <script defer src="js/goal-system.js?v=20260717-system-integrity1"></script>
 <script defer src="js/talent-cards.js?v=20260722-templar-overheal1"></script>

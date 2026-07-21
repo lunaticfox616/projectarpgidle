@@ -1,0 +1,133 @@
+/* One supplied menu image, with one actionable tab per illustrated socket. */
+
+body.desktop-windowed-ui { --menu-rail-width: clamp(170px, 29.2vh, 216px); }
+
+body.desktop-windowed-ui #left-pane {
+  padding-left: calc(var(--menu-rail-width) + 12px) !important;
+}
+
+body.desktop-windowed-ui .player-panel,
+body.desktop-windowed-ui .ui-goal-drawer {
+  left: calc(var(--menu-rail-width) + 12px) !important;
+}
+
+body.desktop-windowed-ui .tab-header:not(.tab-header-bottom) {
+  position: fixed;
+  top: 8px;
+  bottom: auto;
+  left: 6px;
+  width: var(--menu-rail-width);
+  height: auto;
+  aspect-ratio: 216 / 532;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+body.desktop-windowed-ui .ui-rail-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  filter: drop-shadow(8px 10px 14px rgba(0, 0, 0, .55));
+  pointer-events: none;
+  user-select: none;
+}
+
+body.desktop-windowed-ui .ui-rail-category-layer,
+body.desktop-windowed-ui .ui-rail-group,
+body.desktop-windowed-ui .ui-rail-group-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  pointer-events: none;
+}
+
+body.desktop-windowed-ui .ui-rail-group[hidden] { display: none !important; }
+
+body.desktop-windowed-ui .ui-rail-category-btn,
+body.desktop-windowed-ui .ui-rail-group .tab-btn {
+  position: absolute;
+  top: var(--rail-socket-y);
+  left: var(--rail-socket-x);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 24.5%;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 1;
+  padding: 4px 2px;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  border: 1px solid transparent !important;
+  border-radius: 50% !important;
+  color: #f7e8e2;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: clamp(7px, .62vw, 10px);
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  text-shadow: 0 1px 3px #000;
+  white-space: normal;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+body.desktop-windowed-ui .ui-rail-category-btn:hover,
+body.desktop-windowed-ui .ui-rail-group .tab-btn:hover,
+body.desktop-windowed-ui .ui-rail-category-btn.active,
+body.desktop-windowed-ui .ui-rail-group .tab-btn.ui-window-open {
+  border-color: rgba(255, 198, 184, .88) !important;
+  color: #fff7f2;
+  background: radial-gradient(circle, rgba(112, 53, 59, .68), rgba(20, 10, 13, .18) 68%, transparent 72%) !important;
+  box-shadow: 0 0 12px rgba(217, 100, 107, .34), inset 0 0 8px rgba(255, 208, 194, .12) !important;
+}
+
+body.desktop-windowed-ui .ui-rail-category-icon,
+body.desktop-windowed-ui .ui-rail-group .tab-btn::before {
+  width: auto;
+  height: auto;
+  font-size: clamp(12px, 1.18vw, 18px);
+  line-height: 1;
+}
+
+body.desktop-windowed-ui .ui-rail-category-label { font-size: inherit; }
+body.desktop-windowed-ui .ui-rail-group .tab-btn::after { display: none; }
+body.desktop-windowed-ui .ui-rail-group .tab-btn .inventory-full-warning { position: absolute; top: 1px; right: 1px; }
+body.desktop-windowed-ui .ui-rail-group #btn-map-complete-action-picker { font-size: clamp(6px, .52vw, 8px); }
+
+body.desktop-windowed-ui .ui-close-all-btn {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  z-index: 4;
+  width: 72px;
+  min-height: 26px;
+  margin: 0;
+  padding: 4px 7px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(129, 87, 84, .58);
+  border-radius: 5px;
+  color: #d9bbb5;
+  background: rgba(13, 9, 11, .92);
+  font-size: 9px;
+  pointer-events: auto;
+}
+
+body.desktop-windowed-ui .ui-close-all-btn::before { content: none !important; }

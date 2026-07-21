@@ -30,10 +30,12 @@ assert(manager.includes('originalSwitchTab'), 'switchTab compatibility adapter m
 assert(manager.includes('setPointerCapture'), 'window dragging/resizing must use pointer capture');
 assert(manager.includes('restoreWindowMarkupForMobile'), 'window manager should restore tab markup when leaving desktop mode');
 assert(manager.includes('restoreDesktopMenuForMobile'), 'window manager should restore menu markup when leaving desktop mode');
-// 상위탭(그룹) 섹션 레일: 더보기 팝업 대신 모든 탭을 그룹 아래 상시 노출한다.
+// 상위탭 레일: 중앙 그룹 소켓을 고르면 해당 그룹의 탭만 좌우 소켓에 노출한다.
 assert(manager.includes('installDesktopRailGroups'), 'grouped rail installer must exist');
 assert(manager.includes('syncDesktopRailGroups'), 'empty rail groups must be hidden on unlock changes');
 assert(manager.includes('TAB_GROUPS'), 'rail groups must reuse the ui.js TAB_GROUPS SSOT');
+assert(manager.includes("art.className = 'ui-rail-art'"), 'rail artwork must be one real image element');
+assert(manager.includes("button.className = 'ui-rail-category-btn tab-category-btn'"), 'rail group selectors must own the center sockets without generic button chrome');
 assert(manager.includes('COMMUNITY_OVERLAY_THRESHOLD'), 'community mode should use workspace threshold');
 assert(manager.includes("document.body.style.removeProperty('--community-dock-width')"), 'closing community should clear dock width variable');
 assert(manager.includes("el.style.width = ''"), 'closing community should clear inline panel width');
