@@ -639,7 +639,7 @@ assert.ok(!radiusOneCells.some(cell => cell.gx === 4 && cell.gy === 4), '반경 
 
   const preview = context.getSummonTooltipPreview('서리늑대 소환', pStats);
   assert.ok(preview.maxHp > 0 && preview.regenPerSec > 0, '소환수 젬 툴팁에는 체력과 자체 재생 수치가 있어야 한다');
-  assert.strictEqual(context.getSummonProfile('서리늑대 소환').baseHp, 116, '소환수 생명력 너프는 후처리 배율이 아닌 기초 생명력에 반영해야 한다');
+  assert.strictEqual(context.getSummonProfile('서리늑대 소환').baseHp, 58, '소환수 생명력 너프는 후처리 배율이 아닌 기초 생명력에 반영해야 한다(기존 116의 50% 수준)');
   assert.strictEqual(vm.runInContext('SUMMON_REGEN_PCT_PER_SEC', context), 0.75, '소환수 재생 너프는 기초 재생률에 반영해야 한다');
 }
 
