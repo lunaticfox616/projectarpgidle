@@ -107,7 +107,7 @@ async function flushTimers() {
   await flushTimers();
   assert.strictEqual(await ultraPromise, true, 'ultra calculation should complete');
   assert(context.game.exp > 0, 'ultra calculation should still grant rewards');
-  assert(context.game.exp <= Math.ceil(onceExp * 0.65), 'ultra calculation rewards should not exceed 65% of full calculation');
+  assert.strictEqual(context.game.exp, onceExp, 'ultra calculation should keep full rewards with no penalty');
 
   context.killAfter = 3;
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
