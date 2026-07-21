@@ -106,7 +106,7 @@
         .tab-category-btn.active { background: #2c2416; color: #f5d178; border-color: #b8893a; }
         .tab-etc-combat-action { display: flex; position: relative; flex: 1 0 auto; align-items: stretch; border-right: 1px solid #2a2a35; }
         .tab-etc-combat-action[hidden] { display: none; }
-        .tab-etc-combat-action > button { width: 100%; min-height: 100%; padding: 12px 10px; border: 0; border-radius: 0; background: transparent; color: #888; font: inherit; font-weight: bold; line-height: 1; white-space: nowrap; cursor: pointer; transition: .2s; }
+        .tab-etc-combat-action > button { display: inline-flex; align-items: center; justify-content: center; width: 100%; min-height: 100%; padding: 12px 10px; border: 0; border-radius: 0; background: transparent; color: #888; font: inherit; font-weight: bold; line-height: 1; text-align: center; white-space: nowrap; word-break: keep-all; cursor: pointer; transition: .2s; }
         .tab-etc-combat-action > button:hover { background: #222230; color: #fff; }
         body.light-mode .tab-category-bar { background-color: #eef2f8; border-bottom-color: #d3deec; }
         body.light-mode .tab-category-btn { background: #dde5f0; color: #55647a; border-color: #c4d0e0; }

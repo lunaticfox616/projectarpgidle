@@ -5383,7 +5383,7 @@ function syncMapCompleteActionQuickControl() {
     row.hidden = !show;
     if (!show) return;
     let option = getMapCompleteActionOption((game.settings || {}).mapCompleteAction);
-    button.textContent = '전투 후';
+    button.textContent = `전투 완료: ${option.label}`;
     button.title = `현재: ${option.label} · ${option.detail}`;
 }
 
@@ -5413,8 +5413,8 @@ async function openMapCompleteActionPicker(event) {
         let selected = await requestGameChoice({
             title: '전투 완료 후 행동',
             kicker: 'AUTOMATION',
-            message: '전투를 완료했을 때 이어서 수행할 행동을 선택하세요.',
-            confirmLabel: '적용',
+            message: '항목을 누르면 즉시 적용됩니다.',
+            submitOnChoice: true,
             dismissOnBackdrop: true,
             choices
         });

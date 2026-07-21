@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#05080e">
     <title>PROJECT IDLE — Rootbound ARPG</title>
-    <link rel="stylesheet" href="css/base.css?v=20260722-map-complete-dialog1">
+    <link rel="stylesheet" href="css/base.css?v=20260722-map-action-integrated1">
     <link rel="stylesheet" href="css/layout.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/theme.css?v=20260721-contract-header1">
     <link rel="stylesheet" href="css/components.css?v=20260719-white-copy1">
@@ -345,7 +345,7 @@
         <div class="tab-btn" id="btn-tab-social" onclick="switchTab('tab-social')" style="display: flex;">커뮤니티 <span id="noti-social" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: flex;">설정</div>
         <div id="tab-etc-combat-action" class="tab-etc-combat-action" hidden>
-            <button id="btn-map-complete-action-picker" type="button" onclick="openMapCompleteActionPicker(event)" aria-label="전투 완료 후 행동 선택">전투 후</button>
+            <button id="btn-map-complete-action-picker" type="button" onclick="openMapCompleteActionPicker(event)" aria-label="전투 완료 후 행동 선택">전투 완료: 다음 지역</button>
         </div>
     </div>
     <div class="tab-header tab-header-bottom" id="tab-header-bottom"></div>
@@ -1302,7 +1302,7 @@
 <script defer src="data/rewards.js?v=20260721-act2-support-reward1"></script>
 <script defer src="data/talent-cards.js?v=20260708-projectile-uncap1"></script>
 <script defer src="js/utils.js?v=20260717-talent-coverage1"></script>
-<script defer src="js/ui-feedback.js?v=20260721-number-typing1"></script>
+<script defer src="js/ui-feedback.js?v=20260722-instant-choice1"></script>
 <script defer src="js/state.js?v=20260722-cloud-account-isolation1"></script>
 <script defer src="js/save.js?v=20260719-stutter-fix1"></script>
 <script defer src="js/items.js?v=20260719-white-copy1"></script>
@@ -1315,7 +1315,7 @@
 <script defer src="js/canvas-battlefield.js?v=20260721-grandlord-root-boss1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260722-inventory-expansion1"></script>
+<script defer src="js/ui.js?v=20260722-map-action-instant1"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
 <script defer src="js/ui-window-manager.js?v=20260721-core-cube-width1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
