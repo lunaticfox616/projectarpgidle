@@ -31,6 +31,9 @@
         .combat-feed-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; color: #7fc9ff; font-weight: bold; font-size: 0.84em; letter-spacing: 0.05em; text-transform: uppercase; }
         .combat-zone-actions { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: auto; }
         .combat-zone-actions button { margin-left: 0; }
+        .combat-zone-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+        .combat-zone-row-title > #ui-combat-zone-inline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .combat-zone-row-title .combat-contract-status { flex: 0 0 auto; }
         .combat-action-btn { background-color: #8e44ad; border: 1px solid #b57ad4; color: #f3e8ff; font-size: 0.7em; padding: 4px 8px; border-radius: 6px; font-weight: 700; min-height: 30px; }
         #btn-combat-loop-advance { display: none; background: linear-gradient(180deg, #6e57c9 0%, #4b3a91 100%); border-color: #d7c36a; box-shadow: 0 0 0 1px rgba(255, 221, 106, 0.22), 0 0 12px rgba(215, 195, 106, 0.18); color: #fff4c4; }
         .combat-log-toggle { font-size: 0.72em; padding: 3px 8px; min-height: 26px; }

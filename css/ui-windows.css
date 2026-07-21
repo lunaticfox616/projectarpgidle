@@ -93,7 +93,9 @@
     display: grid; grid-template-columns: minmax(160px, 1fr) minmax(220px, 420px) auto; align-items: center; gap: 12px;
     padding: 6px 8px; border-bottom: 1px solid rgba(70, 98, 130, 0.36); background: linear-gradient(180deg, rgba(7, 11, 18, 0.88), rgba(7, 11, 18, 0.42)); pointer-events: none;
   }
-  body.desktop-windowed-ui .combat-zone-row-title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #ffffff; font-weight: 800; font-size: 15px; }
+  body.desktop-windowed-ui .combat-zone-row-title { display: flex; align-items: center; gap: 6px; min-width: 0; color: #ffffff; font-weight: 800; font-size: 15px; }
+  body.desktop-windowed-ui #ui-combat-zone-inline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body.desktop-windowed-ui .combat-zone-row-title .combat-contract-status { flex: 0 0 auto; }
   body.desktop-windowed-ui .combat-zone-actions { display: flex; justify-content: flex-end; gap: 6px; pointer-events: auto; }
   body.desktop-windowed-ui .combat-zone-actions .combat-action-btn { min-height: 26px; padding: 4px 9px; font-size: 11px; }
   body.desktop-windowed-ui .map-progress-row { display: grid; grid-template-columns: auto minmax(150px, 1fr); align-items: center; gap: 8px; pointer-events: none; }

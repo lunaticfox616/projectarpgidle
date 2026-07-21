@@ -58,6 +58,8 @@ assert(css.includes('.player-hud-vitals'), 'player HUD should use semantic row c
 assert(css.includes('.background-combat-progress-overlay'), 'background replay should have a non-inline progress overlay style');
 assert(html.indexOf('<div class="combat-zone-row">') < html.indexOf('<div class="combat-dashboard">'), 'combat header should be before battlefield dashboard');
 assert(html.indexOf('<div class="map-progress-row">') < html.indexOf('<div class="combat-zone-actions">'), 'progress should live in the single combat header row');
+assert(/class="combat-zone-row-title">\s*<span id="ui-combat-zone-inline"/.test(html), 'contract status must stay inside the zone-title cell');
+assert(css.includes('#ui-combat-zone-inline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }'), 'zone title should shrink before action buttons wrap');
 assert(html.includes('class="combat-top-status player-hud"'), 'player HUD should have a semantic player-hud wrapper');
 assert(css.includes('width: clamp(420px, 48vw, 680px)'), 'normal enemy HUD should keep requested readable width');
 assert(css.includes('width: clamp(560px, 65vw, 900px)'), 'boss HUD should keep requested readable width');

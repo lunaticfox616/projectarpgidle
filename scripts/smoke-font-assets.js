@@ -46,7 +46,7 @@ assert(baseCss.includes("#log { flex") && baseCss.includes("font-family: var(--g
 assert(html.includes('css/base.css?v=20260721-galmuri-body1'), 'font CSS cache version must be refreshed');
 assert(html.includes('css/ui-feedback.css?v=20260721-galmuri-body1'), 'shared font token cache must be refreshed');
 assert(html.includes('css/typography-readability.css?v=20260721-galmuri-item-names1'), 'readability stylesheet must load after the UI styles');
-assert(html.includes('css/ui-windows.css?v=20260719-white-copy1'), 'desktop font fallback cache must be refreshed');
+assert(html.includes('css/ui-windows.css?v=20260721-contract-header1'), 'desktop font fallback cache must be refreshed');
 assert(html.includes('js/passives.js?v=20260721-tree-initial-view1'), 'canvas passive font cache must be refreshed');
 
 console.log('smoke-font-assets passed');
