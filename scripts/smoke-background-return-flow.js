@@ -105,9 +105,13 @@ async function flushTimers() {
   const ultraPromise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
   vm.runInContext('requestFasterBackgroundCombat(); requestFasterBackgroundCombat();', context);
   await flushTimers();
-  assert.strictEqual(await ultraPromise, true, 'ultra calculation should complete');
-  assert(context.game.exp > 0, 'ultra calculation should still grant rewards');
-  assert.strictEqual(context.game.exp, onceExp, 'ultra calculation should keep full rewards with no penalty');
+  assert.strictEqual(await ultraPromise, true, 'fast calculation should complete');
+  // 빠른 계산은 표본 이후 구간을 예상 정산한다. 정산된 경험치는 레벨 업에
+  // 쓰이므로 (레벨 업 소모 + 잔여 경험치)의 총량이 전체 계산과 같아야 한다.
+  const settledTotalExp = context.game.exp + (context.game.level - 1) * 10;
+  assert(context.game.level > 1, 'estimated settlement should apply pending level-ups');
+  assert.strictEqual(settledTotalExp, onceExp, 'estimated settlement should preserve the full expected experience');
+  assert.strictEqual(context.game.loopKills, 659, 'estimated settlement should scale kills to the full duration');
 
   context.killAfter = 3;
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };

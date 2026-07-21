@@ -49,11 +49,27 @@ assert.strictEqual(calc(5 * 60 * 60 * 1000), 18 * 60 * 1000);
 assert.strictEqual(calc(24 * 60 * 60 * 1000), 18 * 60 * 1000);
 assert.strictEqual(calc(-1000), 0);
 vm.runInContext('requestFasterBackgroundCombat()', context);
-assert.strictEqual(vm.runInContext('backgroundCombatRuntime.accelerationTier', context), 1, 'first click should select fast calculation');
+assert.strictEqual(vm.runInContext('backgroundCombatRuntime.accelerationTier', context), 1, 'clicking fast calculation should request estimated settlement');
 vm.runInContext('requestFasterBackgroundCombat()', context);
-assert.strictEqual(vm.runInContext('backgroundCombatRuntime.accelerationTier', context), 2, 'second click should select ultra calculation');
-assert(vm.runInContext('BACKGROUND_COMBAT_ULTRA_CHUNK_BUDGET_MS', context) <= 16, 'ultra calculation must stay within a single frame budget so the UI keeps rendering smoothly');
+assert.strictEqual(vm.runInContext('backgroundCombatRuntime.accelerationTier', context), 1, 'repeated clicks should stay in the single fast mode');
+assert(vm.runInContext('BACKGROUND_COMBAT_FAST_CHUNK_BUDGET_MS', context) <= 16, 'fast calculation must stay within a single frame budget so the UI keeps rendering smoothly');
+assert(vm.runInContext('BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS', context) <= 60 * 1000, 'normal calculation must settle the 3-hour cap within one minute of real time');
 assert(!source.includes('보상 85%') && !source.includes('보상 65%'), 'acceleration must not advertise a reward penalty');
+
+// 예상 정산: 표본 구간의 획득 속도를 남은 구간에 비례 반영한다.
+const extraState = vm.runInContext(`(function () {
+    let state = { level: 1, exp: 5, loopKills: 10, loopDeaths: 1, currencies: { chaos: 2 } };
+    let metrics = { kills: 10, deaths: 1, exp: 35, expLost: 5, previousKills: 10, previousDeaths: 1, previousExp: 5, previousLevel: 1 };
+    let applied = extrapolateBackgroundRemainder(state, metrics, { currencies: { chaos: 0 } }, 60000, 120000);
+    return { applied, state, metrics };
+})()`, context);
+assert.strictEqual(extraState.applied, true, 'extrapolation should apply with a valid sample');
+assert.strictEqual(extraState.state.loopKills, 30, 'kills should scale with the remaining duration');
+assert.strictEqual(extraState.state.level, 7, 'estimated experience should include level-ups');
+assert.strictEqual(extraState.state.exp, 5, 'leftover experience should carry the level-up remainder');
+assert.strictEqual(extraState.state.currencies.chaos, 6, 'currency gains should scale with the remaining duration');
+assert.strictEqual(extraState.metrics.kills, 30, 'metrics should include the estimated kills for the result summary');
+assert.strictEqual(vm.runInContext('extrapolateBackgroundRemainder({ level: 1, exp: 0 }, null, null, 0, 1000)', context), false, 'extrapolation requires a simulated sample');
 
 context.game = { saveMeta: { lastModifiedAt: 1000 }, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
 assert.strictEqual(vm.runInContext('recordOfflineCombatEntry(11 * 60 * 1000)', context), true, 'saved timestamp should stage offline progress after a full disconnect');
