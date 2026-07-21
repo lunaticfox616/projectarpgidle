@@ -2166,7 +2166,7 @@ const defaultGame = {
         nodeMutations: {},
         selectedWedgeId: null
     },
-    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null },
+    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, expertise: false, jewel: false },
     noti: { char: false, season: false, items: false, skills: false, flask: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
     mapAlarmSeen: {},

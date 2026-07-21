@@ -11533,6 +11533,9 @@ function mergeDefaults(save) {
         : legacyAtlasStarDust;
     delete merged.cosmosAtlas.starDust;
     merged.saveMeta.lastCloudUploadProfile = normalizeCloudUploadProfile(merged.saveMeta.lastCloudUploadProfile);
+    merged.saveMeta.cloudUserId = typeof merged.saveMeta.cloudUserId === 'string' && merged.saveMeta.cloudUserId.trim()
+        ? merged.saveMeta.cloudUserId
+        : null;
     merged.ocean = (merged.ocean && typeof merged.ocean === 'object') ? { ...createDefaultOceanState(), ...merged.ocean } : createDefaultOceanState();
     merged.ocean.permanentUpgrades = { ...(createDefaultOceanState().permanentUpgrades || {}), ...(merged.ocean.permanentUpgrades || {}) };
     Object.keys(merged.ocean.permanentUpgrades).forEach(key => {
@@ -12553,6 +12556,14 @@ function refreshSocialAfterCloudStateChange() {
 
 function applyCloudSession(session) {
     let previousUserId = cloudState.user && cloudState.user.id;
+    let nextUserId = session && session.user && session.user.id;
+    if (previousUserId !== nextUserId) {
+        cloudState.lastSyncedLocalModifiedAt = 0;
+        cloudState.pendingAutoSyncDirty = false;
+        cloudState.pendingForcedSyncOptions = null;
+        if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+        cloudSyncTimer = null;
+    }
     if (!session || !session.access_token) {
         cloudState.session = null;
         cloudState.user = null;
@@ -13009,10 +13020,50 @@ function rememberCloudUploadProfile(profile) {
     return normalized;
 }
 
+function getCloudSaveOwnerId(snapshot = game) {
+    let ownerId = snapshot && snapshot.saveMeta && snapshot.saveMeta.cloudUserId;
+    return typeof ownerId === 'string' && ownerId.trim() ? ownerId : null;
+}
+
+function getActiveCloudUserId() {
+    let userId = cloudState.user && cloudState.user.id;
+    return typeof userId === 'string' && userId.trim() ? userId : null;
+}
+
+function markCurrentSaveCloudOwner() {
+    let userId = getActiveCloudUserId();
+    if (!userId) return false;
+    ensureSaveMeta();
+    game.saveMeta.cloudUserId = userId;
+    return true;
+}
+
+function replaceLocalSaveForCloudUser() {
+    game = cloneDefaultGame();
+    if (!markCurrentSaveCloudOwner()) throw new Error('로그인한 클라우드 계정을 확인하지 못했습니다.');
+    if (!persistLocalSave({ touchModifiedAt: false, allowRecoveryWrite: true })) {
+        throw new Error('계정 전환용 로컬 저장을 기록하지 못했습니다.');
+    }
+}
+
+function prepareLocalSaveForCloudSession(options = {}) {
+    let userId = getActiveCloudUserId();
+    if (!userId) throw new Error('로그인이 필요합니다.');
+    let ownerId = getCloudSaveOwnerId();
+    if (ownerId === userId) return { replaced: false, adoptedUnowned: false };
+    if (!ownerId && options.allowUnownedLocal === true) {
+        markCurrentSaveCloudOwner();
+        return { replaced: false, adoptedUnowned: true };
+    }
+    replaceLocalSaveForCloudUser();
+    return { replaced: true, adoptedUnowned: false };
+}
+
 function applyExternalSave(snapshot, sourceStamp) {
     game = mergeDefaults(snapshot || {});
     applySeasonContentProgression({ silent: true });
     ensureSaveMeta();
+    markCurrentSaveCloudOwner();
     if (sourceStamp) {
         cloudState.lastRemoteUpdatedAt = sourceStamp;
         cloudState.lastRemoteLoop = getSaveLoopNumber(game);
@@ -13229,6 +13280,7 @@ async function pushCloudSave(options = {}) {
         setCloudMessage(guardMessage);
         throw new Error(guardMessage);
     }
+    markCurrentSaveCloudOwner();
     if (!persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true })) {
         throw new Error('로컬 저장에 실패하여 클라우드 업로드를 중단했습니다.');
     }
@@ -13281,9 +13333,12 @@ async function pullCloudSave(options = {}) {
 
 async function reconcileCloudSaveState(options = {}) {
     let preferRemoteOnResume = options.preferRemoteOnResume === true;
+    let localPreparation = prepareLocalSaveForCloudSession({
+        allowUnownedLocal: options.allowLocalBootstrap === true
+    });
     let record = await fetchCloudSaveRecord();
     if (!record || !record.save_data) {
-        if (options.createRemoteFromLocal) {
+        if (options.createRemoteFromLocal && (!localPreparation.replaced || localPreparation.adoptedUnowned)) {
             await pushCloudSave({ touchModifiedAt: false });
             setCloudMessage('클라우드에 저장이 없어 현재 로컬 세이브를 업로드했습니다.');
             return 'pushed-local';
@@ -13295,6 +13350,12 @@ async function reconcileCloudSaveState(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
+    if (options.strictRemoteResume === true) {
+        applyExternalSave(record.save_data, remoteStamp);
+        setCloudMessage('계정에 연결된 클라우드 저장을 로컬에 적용했습니다.');
+        if (!options.silent) addLog('계정 전환 시 클라우드 저장을 우선 적용했습니다.', 'loot-magic');
+        return 'pulled-remote-strict-resume';
+    }
     let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
     if (loopGuard.blocked) {
         applyExternalSave(record.save_data, remoteStamp);
@@ -13467,7 +13528,7 @@ async function initializeCloudSave() {
             if (isStartupOverlayOpen()) setCloudMessage('이전 로그인 세션을 복원했습니다. 클라우드 세이브로 계속할 수 있습니다.');
             else {
                 setCloudMessage('이전 로그인 세션을 복원했습니다.');
-                await reconcileCloudSaveState({ silent: true, createRemoteFromLocal: true });
+                await reconcileCloudSaveState({ silent: true, strictRemoteResume: true });
             }
         } else {
             setCloudMessage('로그인하면 클라우드 저장을 사용할 수 있습니다.');
@@ -13515,7 +13576,7 @@ async function cloudSignUp(options = {}) {
                 caption: 'Binding Save Data',
                 progress: 54
             });
-            await reconcileCloudSaveState({ createRemoteFromLocal: true });
+            await reconcileCloudSaveState({ createRemoteFromLocal: true, allowLocalBootstrap: true });
             addLog('클라우드 계정을 만들고 저장을 연결했습니다.', 'loot-magic');
             if (options.enterGame) await enterGameWorld();
         } else {
@@ -13563,9 +13624,8 @@ async function cloudLogin(options = {}) {
             progress: 58
         });
         await reconcileCloudSaveState({
-            createRemoteFromLocal: true,
-            preferRemoteOnResume: options.enterGame === true,
-            strictRemoteResume: options.enterGame === true
+            preferRemoteOnResume: true,
+            strictRemoteResume: true
         });
         addLog('클라우드 세이브 계정에 로그인했습니다.', 'loot-magic');
         if (options.enterGame) await enterGameWorld();
@@ -13624,6 +13684,7 @@ function pushCloudSaveOnPageExit(reason) {
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;
     if (!gameplayStarted) return false;
+    if (getCloudSaveOwnerId() !== getActiveCloudUserId()) return false;
     let localLoop = getSaveLoopNumber(game);
     if ((cloudState.lastRemoteLoop || 0) > localLoop) {
         setCloudMessage(`클라우드 루프(${cloudState.lastRemoteLoop})가 로컬 루프(${localLoop})보다 높아 종료 전 업로드를 차단했습니다.`);
@@ -13636,6 +13697,7 @@ function pushCloudSaveOnPageExit(reason) {
     let exitPushStartedAt = Date.now();
     if (exitPushStartedAt - lastPageExitCloudPushAt < 1500) return false;
     try {
+        markCurrentSaveCloudOwner();
         if (!persistLocalSave({ touchModifiedAt: true })) return false;
         ensureSaveMeta();
         let optimisticSyncAt = Date.now();
@@ -13700,6 +13762,7 @@ async function cloudCompactAndPushNow() {
     updateCloudSaveUI();
     try {
         ensureSaveMeta();
+        markCurrentSaveCloudOwner();
         game.saveMeta.lastModifiedAt = Date.now();
         persistLocalSave({ touchModifiedAt: false });
         let t0 = Date.now();
