@@ -538,6 +538,7 @@ async function checkSocialChatNotification() {
         game.noti.social = true;
         refreshSocialNotificationDots();
         let incomingId = Number(incoming.id);
+        // 채팅 메시지 id는 로컬 저장소에 남기지 않고 세션 메모리에서만 중복 토스트를 막는다.
         if (socialState.lastNotifiedChatId !== incomingId && typeof showGameToast === 'function') {
             socialState.lastNotifiedChatId = incomingId;
             let nickname = String(incoming.nickname || '플레이어');

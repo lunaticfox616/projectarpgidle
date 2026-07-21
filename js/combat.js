@@ -656,7 +656,12 @@ function runConditionGemAutoRules(pStats) {
             }
         } else {
             let durMul=1+Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.durationPct)||0)/100;
-            game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: now + Math.floor((entry.duration || 4) * 1000 * durMul) });
+            let nextExpire = now + Math.floor((entry.duration || 4) * 1000 * durMul);
+            // 저주와 동일하게, 같은 함성/가드/유틸 젬이 이미 걸려 있으면 중복으로 쌓지 않고
+            // 지속시간만 갱신한다(서로 다른 종류는 그대로 함께 유지되어 공명 등 보너스에 반영됨).
+            let existingBuff = game.playerConditionBuffs.find(b => b && b.name === gemName);
+            if (existingBuff) existingBuff.expiresAt = nextExpire;
+            else game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: nextExpire });
             let castDelta = getConditionGemStatDelta(gemName, entry.type);
             if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
         }
@@ -811,16 +816,19 @@ function getActiveSummonGemDefs() {
 }
 
 function getSummonProfile(gemName) {
+    // baseHp는 기존 수치의 50% 수준으로 너프됨(성장 배율 hpScaleBase/Exp는 그대로라 모든
+    // 레벨에서 균일하게 50% 낮은 생명력이 됨). dmgRollMinPct는 일격 편차의 하한(%) —
+    // 버스트형(불곰)은 편차가 크고, 연사형(서리늑대/벌떼)은 편차가 작음.
     let table = {
-        '서리늑대 소환': { role: 'attack', ele: 'cold', gridRange: 1, trait: '빠른 공속', baseHp: 116, baseArmor: 36, baseEvasion: 63, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 54, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 4000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
-        '불곰 소환': { role: 'attack', ele: 'fire', gridRange: 1, trait: '강한 1타', baseHp: 166, baseArmor: 66, baseEvasion: 24, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 86, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 4000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
-        '벼락멧돼지 소환': { role: 'attack', ele: 'light', gridRange: 1, trait: '높은 저항 관통', baseHp: 129, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 62, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
-        '칼날까마귀 소환': { role: 'attack', ele: 'phys', gridRange: 2, trait: '치명타 특화', baseHp: 110, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 4000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
-        '공허 유충 소환': { role: 'attack', ele: 'chaos', gridRange: 3, trait: '카오스 관통', baseHp: 142, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 4000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
-        '벌떼 소환': { role: 'attack', ele: 'chaos', gridRange: 2, trait: '매우 빠른 공속', baseHp: 100, baseArmor: 24, baseEvasion: 75, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 36, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 4000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
-        '수액 골렘 소환': { role: 'guard', ele: 'phys', gridRange: 1, trait: '피해 대리', baseHp: 221, baseArmor: 90, baseEvasion: 18, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 15, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 8000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
+        '서리늑대 소환': { role: 'attack', ele: 'cold', gridRange: 1, trait: '빠른 공속', baseHp: 58, baseArmor: 36, baseEvasion: 63, baseRes: { fire: 10, cold: 24, light: 10, chaos: 0 }, baseDamage: 54, dmgRollMinPct: 50, attackSpeedMul: 1.35, baseCrit: 8, baseCritDmg: 150, resPenBonus: 4, respawnMs: 4000, hpScaleBase: 0.038, hpScaleExp: 1.12, dmgPerLevelPct: 0.105, armorScaleBase: 0.018, armorScaleExp: 1.1, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '불곰 소환': { role: 'attack', ele: 'fire', gridRange: 1, trait: '강한 1타', baseHp: 83, baseArmor: 66, baseEvasion: 24, baseRes: { fire: 28, cold: 8, light: 10, chaos: 0 }, baseDamage: 86, dmgRollMinPct: 30, attackSpeedMul: 0.78, baseCrit: 5, baseCritDmg: 145, resPenBonus: 2, respawnMs: 4000, hpScaleBase: 0.045, hpScaleExp: 1.14, dmgPerLevelPct: 0.135, armorScaleBase: 0.026, armorScaleExp: 1.12, evasionScaleBase: 0.012, evasionScaleExp: 1.08 },
+        '벼락멧돼지 소환': { role: 'attack', ele: 'light', gridRange: 1, trait: '높은 저항 관통', baseHp: 65, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 62, dmgRollMinPct: 40, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
+        '칼날까마귀 소환': { role: 'attack', ele: 'phys', gridRange: 2, trait: '치명타 특화', baseHp: 55, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, dmgRollMinPct: 35, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 4000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
+        '공허 유충 소환': { role: 'attack', ele: 'chaos', gridRange: 3, trait: '카오스 관통', baseHp: 71, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, dmgRollMinPct: 45, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 4000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
+        '벌떼 소환': { role: 'attack', ele: 'chaos', gridRange: 2, trait: '매우 빠른 공속', baseHp: 50, baseArmor: 24, baseEvasion: 75, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 36, dmgRollMinPct: 50, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 4000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '수액 골렘 소환': { role: 'guard', ele: 'phys', gridRange: 1, trait: '피해 대리', baseHp: 111, baseArmor: 90, baseEvasion: 18, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 15, dmgRollMinPct: 45, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 8000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
     };
-    return table[gemName] || { role: 'attack', ele: 'phys', gridRange: 1, trait: '균형형', baseHp: 116, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 45, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
+    return table[gemName] || { role: 'attack', ele: 'phys', gridRange: 1, trait: '균형형', baseHp: 58, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 45, dmgRollMinPct: 40, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
 }
 
 function getSummonRuntimeCap(pStats) {
@@ -948,8 +956,11 @@ function getAttackSummonGrowthSteps(gemLv) {
     let levelSteps = Math.max(0, Math.floor(Number(gemLv || 1)) - 1);
     let pre10Steps = Math.min(8, levelSteps);
     let level10Steps = Math.min(11, Math.max(0, levelSteps - 8));
-    let post20Steps = Math.max(0, levelSteps - 19);
-    return 9 + (pre10Steps * 6) + (level10Steps * 29) + (post20Steps * 80);
+    // 레벨 21~30 구간(80 → 130으로 상향)과 레벨 31+ 구간(신설, 스텝당 260)을 분리해
+    // 20레벨 이상 스케일링을 전반적으로 올리고, 30레벨을 넘기면 훨씬 더 가파르게 오르게 함.
+    let level20Steps = Math.min(10, Math.max(0, levelSteps - 19));
+    let post30Steps = Math.max(0, levelSteps - 29);
+    return 9 + (pre10Steps * 6) + (level10Steps * 29) + (level20Steps * 130) + (post30Steps * 260);
 }
 
 function getSummonLevelGrowthSteps(profile, gemLv) {
@@ -1031,6 +1042,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
         physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
         crit: Math.max(0, profile.baseCrit || 0),
         critDmg: Math.max(100, profile.baseCritDmg || 140),
+        dmgRollMinPct: Math.max(1, Math.min(100, Math.floor(profile.dmgRollMinPct || 40))),
         gridRange: Math.max(1, Math.floor(profile.gridRange || 1)),
         alive: true,
         respawnAt: 0,
@@ -1095,6 +1107,14 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let crit = false;
     let dmg = Math.max(1, base * dmgMul);
     let ailmentSourceDmg = Math.max(1, base * dmgMul);
+    // 소환수마다 다른 일격 편차(dmgRollMinPct~100%)를 적용. 버스트형(불곰 등)은 편차가 크고
+    // 연사형(서리늑대/벌떼 등)은 편차가 작아, "최소 피해"가 최대 피해 대비 지나치게 미미해지지 않게 함.
+    let rollMinPct = Math.max(1, Math.min(100, Math.floor(s.dmgRollMinPct || 40)));
+    let rollPct = Number.isFinite(options && options.rollOverridePct)
+        ? Math.max(1, Math.min(100, options.rollOverridePct))
+        : (expected ? ((rollMinPct + 100) / 2) : (rollMinPct + Math.random() * (100 - rollMinPct)));
+    dmg *= rollPct / 100;
+    ailmentSourceDmg *= rollPct / 100;
     // 상호 보완(sb7): 플레이어 공격력(타격당 기본 피해)의 75%를 소환수 타격에 가산(치명타 적용 전).
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb7')) {
         let sbPlayerShare = 0.75 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0));
@@ -1105,6 +1125,14 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     }
     if (expected) {
         dmg *= pStats.uniqueSummonNonCritNoDamage ? (critChance * critMul) : ((1 - critChance) + (critChance * critMul));
+    } else if (typeof (options && options.forceCrit) === 'boolean') {
+        if (options.forceCrit) {
+            dmg *= critMul;
+            crit = true;
+        } else if (pStats.uniqueSummonNonCritNoDamage) {
+            dmg = 0;
+            ailmentSourceDmg = 0;
+        }
     } else if (Math.random() < critChance) {
         dmg *= critMul;
         crit = true;
@@ -1227,7 +1255,8 @@ function estimateSummonDps(pStats) {
             resPenBonus: Math.max(0, Number(profile.resPenBonus || 0)),
             physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
             crit: Math.max(0, profile.baseCrit || 0),
-            critDmg: Math.max(100, profile.baseCritDmg || 140)
+            critDmg: Math.max(100, profile.baseCritDmg || 140),
+            dmgRollMinPct: Math.max(1, Math.min(100, Math.floor(profile.dmgRollMinPct || 40)))
         };
         let intervalSec = getSummonAttackIntervalMs(pStats, s) / 1000;
         let hit = getSummonHitDamageInfo(s, pStats, target, { expected: true });
@@ -1277,9 +1306,13 @@ function getSummonTooltipPreview(gemName, pStats) {
         resPenBonus: Math.max(0, Number(profile.resPenBonus || 0)),
         physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
         crit: Math.max(0, profile.baseCrit || 0),
-        critDmg: Math.max(100, profile.baseCritDmg || 140)
+        critDmg: Math.max(100, profile.baseCritDmg || 140),
+        dmgRollMinPct: Math.max(1, Math.min(100, Math.floor(profile.dmgRollMinPct || 40)))
     };
-    let hit = getSummonHitDamageInfo(hitProfile, stats, null, { expected: true });
+    // 실제 전투에서 나올 수 있는 진짜 최소(편차 하한 · 비치명타)~최대(편차 상한 · 치명타) 피해를
+    // 그대로 보여준다(이전에는 배율 적용 전 원시 기본값을 "최소"로 잘못 표시했음).
+    let minHit = getSummonHitDamageInfo(hitProfile, stats, null, { rollOverridePct: hitProfile.dmgRollMinPct, forceCrit: false });
+    let maxHit = getSummonHitDamageInfo(hitProfile, stats, null, { rollOverridePct: 100, forceCrit: true });
     let maxHp = getSummonMaxHp(profile, gemLv, stats);
     let critChance = Math.max(0, Math.min(0.95, ((profile.baseCrit || 0) + (stats.summonCrit || 0)) / 100));
     return {
@@ -1288,8 +1321,8 @@ function getSummonTooltipPreview(gemName, pStats) {
         gemLevel: gemLv,
         maxHp: maxHp,
         regenPerSec: getSummonRegenPerSec(maxHp),
-        hitDamageMin: hitProfile.baseDamage,
-        hitDamageMax: Math.max(hitProfile.baseDamage, Math.floor(hit.damage || hitProfile.baseDamage)),
+        hitDamageMin: Math.max(1, Math.floor(minHit.damage || 1)),
+        hitDamageMax: Math.max(1, Math.floor(maxHit.damage || 1)),
         attackPerSecond: profile.role === 'guard' ? 0 : (Math.round((1000 / getSummonAttackIntervalMs(stats, hitProfile)) * 100) / 100),
         critChancePct: Math.round(critChance * 1000) / 10,
         critDmgPct: Math.max(100, (profile.baseCritDmg || 140) + (stats.summonCritDmg || 0)),
