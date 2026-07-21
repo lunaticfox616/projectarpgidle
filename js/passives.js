@@ -5102,7 +5102,7 @@ function grantActRewardEntry(zoneId, choice) {
         }
         let item = createItemFromBase(base, choice.rarity || 'magic', zoneId + 1);
         let added = addItemToInventory(item, { ignoreFilter: true });
-        if (added) addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic');
+        if (added) addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic', { item });
         else addLog(`⚠️ 인벤토리 공간 부족으로 액트 보상 아이템이 자동 해체되었습니다.`, 'attack-monster');
         return;
     }
@@ -8576,7 +8576,7 @@ function addItemToInventory(item, options) {
     let autoEquipSlot = typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
     if (autoEquipSlot) {
         if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
-        if (game.settings.showLootLog) addLog(`🛡️ 빈 ${autoEquipSlot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-rare');
+        if (game.settings.showLootLog) addLog(`🛡️ 빈 ${autoEquipSlot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-rare', { item });
         checkUnlocks();
         return true;
     }

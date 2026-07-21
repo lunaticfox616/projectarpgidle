@@ -523,21 +523,38 @@ function getZone(id) {
 }
 
 const CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT = 8;
+const CHALLENGE_CONTRACT_KEYS = ['enemyPower', 'fragileArmor', 'shortHunt', 'greedPact'];
 
-function getChallengeContractState() {
-    if (!game.challengeContract || typeof game.challengeContract !== 'object') game.challengeContract = {};
-    let contract = game.challengeContract;
-    contract.enemyPower = !!contract.enemyPower;
-    contract.fragileArmor = !!contract.fragileArmor;
-    contract.shortHunt = !!contract.shortHunt;
-    contract.greedPact = !!contract.greedPact;
-    contract.enabled = contract.enemyPower || contract.fragileArmor || contract.shortHunt || contract.greedPact;
-    return contract;
+function normalizeChallengeContract(contract) {
+    let source = contract && typeof contract === 'object' ? contract : {};
+    let normalized = {};
+    CHALLENGE_CONTRACT_KEYS.forEach(key => { normalized[key] = !!source[key]; });
+    normalized.enabled = CHALLENGE_CONTRACT_KEYS.some(key => normalized[key]);
+    return normalized;
 }
 
-function getChallengeContractScore() {
-    let contract = getChallengeContractState();
-    return ['enemyPower', 'fragileArmor', 'shortHunt', 'greedPact'].reduce((sum, key) => sum + (contract[key] ? 1 : 0), 0);
+function getChallengeContractState() {
+    game.challengeContract = normalizeChallengeContract(game.challengeContract);
+    return game.challengeContract;
+}
+
+function getActiveChallengeContractState() {
+    if (!game.activeChallengeContract || typeof game.activeChallengeContract !== 'object') {
+        game.activeChallengeContract = normalizeChallengeContract(getChallengeContractState());
+    } else {
+        game.activeChallengeContract = normalizeChallengeContract(game.activeChallengeContract);
+    }
+    return game.activeChallengeContract;
+}
+
+function applyPendingChallengeContract() {
+    game.activeChallengeContract = normalizeChallengeContract(getChallengeContractState());
+    return game.activeChallengeContract;
+}
+
+function getChallengeContractScore(contract) {
+    let target = contract ? normalizeChallengeContract(contract) : getActiveChallengeContractState();
+    return CHALLENGE_CONTRACT_KEYS.reduce((sum, key) => sum + (target[key] ? 1 : 0), 0);
 }
 
 function isChallengeContractEligibleZone(zone) {
@@ -545,28 +562,28 @@ function isChallengeContractEligibleZone(zone) {
     return !!(target && target.type === 'act');
 }
 
-function getChallengeContractRewardMultiplier(zone) {
+function getChallengeContractRewardMultiplier(zone, contract) {
     if (!isChallengeContractEligibleZone(zone)) return 1;
-    return 1 + (getChallengeContractScore() * CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT) / 100;
+    return 1 + (getChallengeContractScore(contract) * CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT) / 100;
 }
 
 function getChallengeContractEnemyDamageMultiplier(zone) {
-    let contract = getChallengeContractState();
+    let contract = getActiveChallengeContractState();
     return isChallengeContractEligibleZone(zone) && contract.enemyPower ? 1.25 : 1;
 }
 
 function getChallengeContractEnemyHealthMultiplier(zone) {
-    let contract = getChallengeContractState();
+    let contract = getActiveChallengeContractState();
     return isChallengeContractEligibleZone(zone) && contract.shortHunt ? 1.30 : 1;
 }
 
 function getChallengeContractPhysicalReductionPenalty(zone) {
-    let contract = getChallengeContractState();
+    let contract = getActiveChallengeContractState();
     return isChallengeContractEligibleZone(zone) && contract.fragileArmor ? 12 : 0;
 }
 
 function getChallengeContractRecoveryMultiplier(zone) {
-    let contract = getChallengeContractState();
+    let contract = getActiveChallengeContractState();
     return isChallengeContractEligibleZone(zone) && contract.greedPact ? 0.65 : 1;
 }
 
@@ -1936,6 +1953,7 @@ const defaultGame = {
     loopDeaths: 0,
     loopKills: 0,
     loopStarterGemGranted: false,
+    starterGemTutorialPending: null,
     settings: {
         showCombatScene: true,
         cameraShake: true,
@@ -2105,6 +2123,7 @@ const defaultGame = {
     shrineState: { active: null, nextRollAt: 0 },
     shrineBuff: null,
     challengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
+    activeChallengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },

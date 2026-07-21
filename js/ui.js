@@ -1453,6 +1453,8 @@ function updateTabNotificationDots() {
     // 도킹 토글 버튼(💬)의 미읽음 점은 커뮤니티 탭 알림과 동일한 상태를 미러링한다.
     let dockDot = document.getElementById('noti-social-dock');
     if (dockDot) dockDot.style.display = (game.noti.social && isNotiEnabled('social')) ? 'block' : 'none';
+    let skillTabButton = document.getElementById('btn-tab-skills');
+    if (skillTabButton) skillTabButton.classList.toggle('starter-gem-tutorial-pending', !!getStarterGemTutorialTarget());
 }
 
 function updateTabUnlockButtons() {
@@ -3420,20 +3422,10 @@ function toggleChallengeContract(key) {
     let c = getChallengeContractState();
     if (!(key in c)) return;
     c[key] = !c[key];
-    c.enabled = getChallengeContractScore() > 0;
-    let bonus = Math.round((getChallengeContractRewardMultiplier({ type: 'act' }) - 1) * 100);
-    let zone = getZone(game.currentZoneId);
-    let restarted = false;
-    if (isChallengeContractEligibleZone(zone)) {
-        game.killsInZone = 0;
-        game.enemies = [];
-        game.encounterPlan = [];
-        game.encounterIndex = 0;
-        game.runProgress = 0;
-        if (typeof startMoving === 'function') startMoving(false);
-        restarted = true;
-    }
-    addLog(`📜 도전 계약 변경: 활성 계약 ${getChallengeContractScore()}개 · 일반 액트 보상 +${bonus}%${restarted ? ' · 현재 사냥 재시작' : ''}`, 'season-up', { noToast: true });
+    c.enabled = getChallengeContractScore(c) > 0;
+    let pendingScore = getChallengeContractScore(c);
+    let bonus = Math.round((getChallengeContractRewardMultiplier({ type: 'act' }, c) - 1) * 100);
+    addLog(`📜 도전 계약 예약: ${pendingScore}개 · 다음 일반 액트 사냥부터 보상 +${bonus}%`, 'season-up', { noToast: true });
     updateStaticUI();
 }
 
@@ -3444,14 +3436,19 @@ function renderChallengeContractPanel() {
     panel.style.display = unlocked ? 'block' : 'none';
     if (!unlocked) return;
     let c = getChallengeContractState();
-    let score = getChallengeContractScore();
-    let bonus = Math.round((getChallengeContractRewardMultiplier({ type: 'act' }) - 1) * 100);
+    let active = getActiveChallengeContractState();
+    let score = getChallengeContractScore(c);
+    let activeScore = getChallengeContractScore(active);
+    let bonus = Math.round((getChallengeContractRewardMultiplier({ type: 'act' }, c) - 1) * 100);
     let zone = getZone(game.currentZoneId);
-    let activeHere = isChallengeContractEligibleZone(zone) && score > 0;
+    let activeHere = isChallengeContractEligibleZone(zone) && activeScore > 0;
+    let queued = CHALLENGE_CONTRACT_KEYS.some(key => c[key] !== active[key]);
+    let statusText = activeHere ? `현재 ${activeScore}개 적용 중` : '현재 사냥에는 계약 없음';
+    if (queued) statusText += ` · 다음 사냥 ${score}개`;
     panel.innerHTML = `
         <div class="challenge-contract-head"><div><strong>📜 도전 계약</strong><span>일반 액트 사냥터 전용</span></div><div class="challenge-contract-reward">보상 +${bonus}%</div></div>
-        <div class="challenge-contract-desc">불리한 조건 1개마다 경험치와 주요 드랍 확률이 8% 증가합니다. 혼돈·뿌리 보스·특수 콘텐츠에는 적용되지 않으며, 일반 액트에서 변경하면 현재 사냥을 다시 시작합니다.</div>
-        <div class="challenge-contract-status ${activeHere ? 'active' : ''}">${score <= 0 ? '계약 없음' : (activeHere ? `현재 사냥터에 ${score}개 적용 중` : `계약 ${score}개 준비됨 · 일반 액트에서 적용`)}</div>
+        <div class="challenge-contract-desc">불리한 조건 1개마다 경험치와 주요 드랍 확률이 8% 증가합니다. 변경해도 현재 진행도는 유지되며 다음 일반 액트 사냥부터 적용됩니다.</div>
+        <div class="challenge-contract-status ${activeHere ? 'active' : ''}">${statusText}</div>
         <div class="challenge-contract-options">
             <button class="${c.enemyPower ? 'active' : ''}" onclick="toggleChallengeContract('enemyPower')"><b>맹공</b><span>적 공격력 +25%</span></button>
             <button class="${c.fragileArmor ? 'active' : ''}" onclick="toggleChallengeContract('fragileArmor')"><b>취약한 갑주</b><span>물리 피해 감소 -12%p</span></button>
@@ -4197,10 +4194,13 @@ function renderAttackGemCard(name, highlightedName) {
     let isSummon = Array.isArray(def.tags) && def.tags.includes('summon_attack');
     let summonEquipped = isSummon && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name);
     let active = name === game.activeSkill || summonEquipped;
+    let tutorialTarget = getStarterGemTutorialTarget() === name && !active;
     let usageLabel = active ? '클릭하여 강화 · 각인' : '클릭하여 장착';
     let summonControls = summonEquipped ? `<span class="summon-gem-controls"><button class="summon-gem-count-btn" title="소환 해제" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', -1)">−</button><span class="summon-gem-count">${getSummonSkillCount(name)}기</span><button class="summon-gem-count-btn" title="추가 소환" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', 1)">+</button></span>` : '';
     let sealButton = active || name === '기본 공격' ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
-    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''}" onclick="${active ? `openEquippedGemManagement('${name}')` : `changeSkill('${name}')`}" aria-pressed="${active}" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
+    let tutorialGuide = tutorialTarget ? '<div class="starter-gem-equip-guide">첫 스킬 젬 · 클릭하여 장착</div>' : '';
+    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" onclick="${active ? `openEquippedGemManagement('${name}')` : `changeSkill('${name}')`}" aria-pressed="${active}" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
+        ${tutorialGuide}
         <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${escapeHTML(def.desc || '공격 스킬 젬')}</p>
         <div class="gem-card-tags">${renderGemTagChips(def, 4)}</div>
@@ -4733,6 +4733,18 @@ function getEquippedSummonGuardSupports() {
     return supports.filter(name => isSummonGuardSupport(name));
 }
 
+function getStarterGemTutorialTarget() {
+    let name = typeof game.starterGemTutorialPending === 'string' ? game.starterGemTutorialPending : '';
+    if (!name || !Array.isArray(game.skills) || !game.skills.includes(name)) return null;
+    let equipped = name === game.activeSkill
+        || (Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
+    return equipped ? null : name;
+}
+
+function completeStarterGemTutorial(name) {
+    if (name && game.starterGemTutorialPending === name) game.starterGemTutorialPending = null;
+}
+
 function isSummonAttackSkillGem(name) {
     let gemDef = SKILL_DB[name] || {};
     return !!(gemDef && Array.isArray(gemDef.tags) && gemDef.tags.includes('summon_attack'));
@@ -4783,6 +4795,7 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
         if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]을(를) 추가 소환할 수 없습니다.`, 'attack-monster');
         if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
         game.summonSkillCounts[name] = current + 1;
+        completeStarterGemTutorial(name);
         if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
         if (game.activeSkill === name) game.activeSkill = '기본 공격';
         updateStaticUI();
@@ -4814,6 +4827,7 @@ function changeSkill(name) { if (!assertBuildEditable()) return;
         return;
     }
     game.activeSkill = name;
+    completeStarterGemTutorial(name);
     if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
     updateStaticUI();
 }
@@ -5025,6 +5039,21 @@ let logQueue = [];
 let logFlushRaf = 0;
 let combatLogRateState = {};
 let combatLogAggregateState = {};
+let combatLogItemSequence = 0;
+let combatLogItemSnapshots = new Map();
+let pinnedCombatLogItemToken = null;
+
+function decorateCombatLogItemMessage(msg, item) {
+    if (!item || typeof item !== 'object' || !item.name) return msg;
+    let token = ++combatLogItemSequence;
+    let snapshot = JSON.parse(JSON.stringify(item));
+    combatLogItemSnapshots.set(token, snapshot);
+    while (combatLogItemSnapshots.size > 80) combatLogItemSnapshots.delete(combatLogItemSnapshots.keys().next().value);
+    let label = `[${item.name}]`;
+    let link = `<span class="combat-log-item-link" role="button" tabindex="0" data-item-tooltip-anchor="1" data-log-item-token="${token}" onmouseenter="showCombatLogItemTooltip(event,${token})" onmousemove="showCombatLogItemTooltip(event,${token})" onmouseleave="hideCombatLogItemTooltip(event,${token})" onclick="toggleCombatLogItemTooltip(event,${token})" onkeydown="if(event.key==='Enter'||event.key===' '){toggleCombatLogItemTooltip(event,${token})}">${escapeHTML(label)}</span>`;
+    return String(msg).replace(label, link);
+}
+
 function flushLogQueue() {
     logFlushRaf = 0;
     const log = document.getElementById('log');
@@ -5053,6 +5082,7 @@ function addLog(msg, cls, opts = {}) {
         if (now < nextAt) return;
         combatLogRateState[opts.rateKey] = now + interval;
     }
+    if (opts.item) msg = decorateCombatLogItemMessage(msg, opts.item);
     if (opts.aggregateKey && settings.combatLogAggregate !== false) {
         let key = `${opts.aggregateKey}:${cls || ''}`;
         let state = combatLogAggregateState[key];
@@ -6070,15 +6100,15 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
 
 let itemTooltipHideTimer = null;
 
-function showItemTooltip(event, idx, isEquip) {
-    let item = isEquip ? game.equipment[idx] : game.inventory[idx];
+function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
+    let item = itemOverride || (isEquip ? game.equipment[idx] : game.inventory[idx]);
     let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
     if (!item) return;
     if (itemTooltipHideTimer) {
         clearTimeout(itemTooltipHideTimer);
         itemTooltipHideTimer = null;
     }
-    let nextTooltipToken = isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`;
+    let nextTooltipToken = tokenOverride || (isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`);
     let tt = document.getElementById('item-tooltip-box');
     if (activeItemTooltipToken === nextTooltipToken && tt.style.display === 'block' && tt.innerHTML) {
         positionTooltipElement(tt, event.clientX, event.clientY);
@@ -6269,7 +6299,36 @@ function showItemTooltip(event, idx, isEquip) {
     positionTooltipElement(tt, event.clientX, event.clientY);
     setActiveTooltip('item-tooltip-box');
 }
+
+function showCombatLogItemTooltip(event, token) {
+    if (pinnedCombatLogItemToken !== null && pinnedCombatLogItemToken !== token) return;
+    let item = combatLogItemSnapshots.get(Number(token));
+    if (!item) return;
+    showItemTooltip(event, null, false, item, `log:${token}:snapshot`);
+}
+
+function toggleCombatLogItemTooltip(event, token) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    let numericToken = Number(token);
+    if (pinnedCombatLogItemToken === numericToken) {
+        pinnedCombatLogItemToken = null;
+        dismissItemTooltipNow();
+        return;
+    }
+    pinnedCombatLogItemToken = numericToken;
+    showCombatLogItemTooltip(event, numericToken);
+}
+
+function hideCombatLogItemTooltip(event, token) {
+    if (pinnedCombatLogItemToken === Number(token)) return;
+    hideItemTooltip(event);
+}
+
 function dismissItemTooltipNow() {
+    if (String(activeItemTooltipToken || '').startsWith('log:')) pinnedCombatLogItemToken = null;
     activeItemTooltipToken = null;
     clearActiveTooltip('item-tooltip-box');
     document.getElementById('item-tooltip-box').style.display = 'none';
@@ -6295,6 +6354,10 @@ function hideItemTooltip(event) {
 function validateItemTooltipAnchor() {
     if (!activeItemTooltipToken) return;
     let [scope, key, idText] = String(activeItemTooltipToken).split(':');
+    if (scope === 'log') {
+        if (!combatLogItemSnapshots.has(Number(key))) hideItemTooltip();
+        return;
+    }
     let expectedId = Number(idText);
     if (!Number.isFinite(expectedId)) return hideItemTooltip();
     let valid = false;
@@ -9424,7 +9487,10 @@ function exposeUiRenderHelpersOnce() {
         equipUnderworldRuneToSlot,
         unequipUnderworldRuneSlot,
         showUnderworldRuneTooltip,
-        handleCombatLoopAdvanceButton
+        handleCombatLoopAdvanceButton,
+        showCombatLogItemTooltip,
+        toggleCombatLogItemTooltip,
+        hideCombatLogItemTooltip
     };
     let pending = {};
     Object.keys(helpers).forEach(key => {
@@ -9673,8 +9739,9 @@ function buildCraftActionButtons(item) {
     let seasonMapCap = typeof getVisibleHuntingMapCapZoneId === 'function' ? getVisibleHuntingMapCapZoneId() : Math.min(getCurrentSeasonFinalZoneId(), getAbyssZoneIdForDepth(20));
     let highestMapZone = Math.min(Math.max(0, Math.floor(game.maxZoneId || 0)), seasonMapCap);
     let mapZones = Array.from({ length: highestMapZone + 1 }, (_, idx) => getZone(idx)).filter(Boolean);
-    let contractScore = getChallengeContractScore();
-    let contractBonusPct = Math.round((getChallengeContractRewardMultiplier({ type: 'act' }) - 1) * 100);
+    let pendingContract = getChallengeContractState();
+    let contractScore = getChallengeContractScore(pendingContract);
+    let contractBonusPct = Math.round((getChallengeContractRewardMultiplier({ type: 'act' }, pendingContract) - 1) * 100);
     let mapCards = mapZones.map(zone => {
         let idx = Number(zone.id);
         let isChaosMap = zone.type === 'abyss';
@@ -11566,6 +11633,9 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
+    if (!save.activeChallengeContract || typeof save.activeChallengeContract !== 'object') {
+        merged.activeChallengeContract = { ...(merged.challengeContract || defaultGame.challengeContract) };
+    }
     const legacyHiveTrace = Math.max(0, Math.floor(Number(merged.currencies.hiveTrace) || 0));
     if (legacyHiveTrace > 0) {
         merged.currencies.colonyTrace = Math.max(0, Math.floor(Number(merged.currencies.colonyTrace) || 0)) + legacyHiveTrace;
@@ -11898,6 +11968,10 @@ function mergeDefaults(save) {
         merged.combatHalted = !!merged.combatHalted;
     }
     merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
+    merged.starterGemTutorialPending = typeof merged.starterGemTutorialPending === 'string'
+        && Array.isArray(merged.skills) && merged.skills.includes(merged.starterGemTutorialPending)
+        ? merged.starterGemTutorialPending
+        : null;
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     merged.voidRift = (merged.voidRift && typeof merged.voidRift === 'object') ? merged.voidRift : {};
     merged.voidRift.grandBreachCleared = !!merged.voidRift.grandBreachCleared;
@@ -14462,6 +14536,7 @@ function syncDerivedTabUnlock(tabId) {
 
 function checkUnlocks() {
     let u = game.unlocks;
+    let starterTutorialGem = getStarterGemTutorialTarget();
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
         queueTutorialNotice('tutorial_battle_basics', '전투 기본 가이드', '전투 화면, 피해 숫자, 스킬 범위와 성장 순서를 차례로 알아봅니다.', 'tab-character');
     }
@@ -14480,7 +14555,17 @@ function checkUnlocks() {
         game.noti.jewel = true;
         queueTutorialNotice('unlock_jewel', '주얼 탭 개방', '주얼과 주얼 결정을 사용할 수 있게 되었습니다.', 'tab-jewel');
     }
-    if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills) {
+    if (starterTutorialGem && !(game.seenTutorials || []).includes('tutorial_starter_gem_equip')) {
+        u.skills = true;
+        game.noti.skills = true;
+        queueTutorialNotice(
+            'tutorial_starter_gem_equip',
+            '첫 스킬 젬 장착',
+            `[${starterTutorialGem}] 젬을 획득했습니다.\n스킬 젬 탭을 열고 빛나는 젬 카드를 클릭해 장착하세요.`,
+            'tab-skills'
+        );
+    }
+    if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills && !starterTutorialGem) {
         u.skills = true;
         game.noti.skills = true;
         queueTutorialNotice('unlock_skills', '스킬 젬 개방', '새로운 젬을 얻었습니다.\n공격 스킬을 교체하거나 보조 젬을 연결해 전투 스타일을 바꿔보세요.', 'tab-skills');

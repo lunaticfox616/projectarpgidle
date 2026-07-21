@@ -6434,6 +6434,7 @@ function startEncounterRun() {
     // 재능 개화 미궁 보스 실제 처치 여부(이번 런 기준). 보스 처치 없이 런이 완료 처리되는 경우 개화를 막는다.
     game.bloomBossDefeated = false;
     let zone = getZone(game.currentZoneId) || getZone(0);
+    if (isChallengeContractEligibleZone(zone)) applyPendingChallengeContract();
     resetBattleRuntimeVisuals();
     resetPlayerGridPosition();
     restoreAndRecallSummons(getPlayerStats());
@@ -6968,7 +6969,7 @@ function rollLootForEnemy(enemy) {
             const rareItem = item.rarity === 'rare' || item.exceptionalBase || item.encroached;
             addBattleFx('lootPickup', { enemyId: enemy.id, color: highItem ? '#ffb05a' : (rareItem ? '#ffd36b' : '#9ed6ff'), tier: highItem ? 'unique' : (rareItem ? 'rare' : item.rarity), duration: highItem ? 1040 : 780 });
             if (highItem || rareItem) addBattleFx('lootCelebration', { enemyId: enemy.id, color: highItem ? '#ff9f43' : '#ffd36b', tier: highItem ? 'unique' : 'rare', duration: highItem ? 1420 : 980 });
-            if (game.settings.showLootLog) addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
+            if (game.settings.showLootLog) addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`, '', { item });
         }
     }
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * challengeRewardMul) {
@@ -7071,6 +7072,7 @@ function grantLoopStarterGemOnFirstKill() {
     game.skills.push(gemName);
     game.gemData[gemName] = game.gemData[gemName] || { level: 1, exp: 0 };
     game.noti.skills = true;
+    if (!(game.seenTutorials || []).includes('tutorial_starter_gem_equip')) game.starterGemTutorialPending = gemName;
     addLog(`🎁 재능에 맞는 스킬 젬 [${gemName}] 획득! (스킬 탭에서 장착하세요)`, 'loot-rare');
 }
 
