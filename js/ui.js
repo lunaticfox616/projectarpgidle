@@ -5372,15 +5372,14 @@ function getMapCompleteActionOption(action) {
 }
 
 function syncMapCompleteActionQuickControl() {
-    let row = document.getElementById('tab-etc-combat-action');
     let button = document.getElementById('btn-map-complete-action-picker');
-    if (!row || !button) return;
+    if (!button) return;
     let settingsButton = document.getElementById('btn-tab-settings');
-    if (settingsButton && settingsButton.parentElement && settingsButton.nextElementSibling !== row) {
-        settingsButton.parentElement.insertBefore(row, settingsButton.nextElementSibling);
+    if (settingsButton && settingsButton.parentElement && settingsButton.nextElementSibling !== button) {
+        settingsButton.parentElement.insertBefore(button, settingsButton.nextElementSibling);
     }
     let show = !isTabGroupingActive() || getActiveTabGroup() === 'etc';
-    row.hidden = !show;
+    button.hidden = !show;
     if (!show) return;
     let option = getMapCompleteActionOption((game.settings || {}).mapCompleteAction);
     button.textContent = `전투 완료: ${option.label}`;
