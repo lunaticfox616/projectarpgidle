@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260719-white-copy1">
-    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260720-transparent-health-cards1">
+    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-inventory-expansion1">
     <link rel="stylesheet" href="css/typography-readability.css?v=20260721-galmuri-item-names1">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
@@ -645,10 +645,13 @@
                             <span class="equipment-section-kicker">STASH</span>
                             <h2>인벤토리</h2>
                         </div>
-                        <div class="equipment-capacity">
-                            <strong><span id="ui-inv-count">0</span> / <span id="ui-inv-limit">30</span></strong>
-                            <span>보관 슬롯</span>
-                            <div class="equipment-capacity-track"><span id="ui-inventory-capacity-fill"></span></div>
+                        <div class="inventory-capacity-actions">
+                            <div class="equipment-capacity">
+                                <strong><span id="ui-inv-count">0</span> / <span id="ui-inv-limit">30</span></strong>
+                                <span>보관 슬롯</span>
+                                <div class="equipment-capacity-track"><span id="ui-inventory-capacity-fill"></span></div>
+                            </div>
+                            <button id="btn-equipment-inventory-expand" class="inventory-expand-shortcut" type="button" onclick="marketExpandInventoryByDivine()" hidden>+5칸 확장</button>
                         </div>
                     </div>
                     <div class="bulk-salvage-bar equipment-inventory-toolbar">
@@ -773,7 +776,10 @@
     <div id="tab-jewel" class="tab-content">
         <h2 style="margin-top: 20px; color: #8fd3ff;" id="ui-jewel-header">💠 주얼</h2>
         <div id="ui-jewel-panel" style="background:#11151c; border:1px solid #2b3a4d; border-radius:10px; padding:10px;">
-            <div id="ui-jewel-cap" style="color:#9ac5ec; font-size:0.84em; margin-bottom:6px;"></div>
+            <div class="jewel-cap-toolbar">
+                <div id="ui-jewel-cap" style="color:#9ac5ec; font-size:0.84em;"></div>
+                <button id="btn-jewel-inventory-expand" class="inventory-expand-shortcut" type="button" onclick="marketExpandJewelInventoryByDivine()" hidden>+5칸 확장</button>
+            </div>
             <div id="ui-jewel-core-craft" style="background:#0f1620; border:1px solid #35536b; border-radius:8px; padding:8px; margin-bottom:8px;"></div>
             <div class="jewel-salvage-bar">
                 <div class="jewel-salvage-filters">
@@ -1309,7 +1315,7 @@
 <script defer src="js/canvas-battlefield.js?v=20260721-grandlord-root-boss1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260722-map-complete-dialog1"></script>
+<script defer src="js/ui.js?v=20260722-inventory-expansion1"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
 <script defer src="js/ui-window-manager.js?v=20260721-core-cube-width1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>

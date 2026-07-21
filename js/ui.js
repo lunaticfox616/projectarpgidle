@@ -8074,8 +8074,36 @@ function updateInventoryFullWarnings() {
     });
 }
 
+function syncInventoryExpansionShortcuts() {
+    let divine = Math.max(0, Math.floor((game.currencies && game.currencies.divine) || 0));
+    let controls = [
+        {
+            id: 'btn-equipment-inventory-expand',
+            unlocked: isMarketUnlocked(),
+            cost: getMarketInventoryExpandCost(),
+            currentLimit: getInventoryLimit()
+        },
+        {
+            id: 'btn-jewel-inventory-expand',
+            unlocked: isMarketUnlocked() && (game.season || 1) >= 5,
+            cost: getJewelMarketExpandCost(),
+            currentLimit: getJewelInventoryLimit()
+        }
+    ];
+    controls.forEach(control => {
+        let button = document.getElementById(control.id);
+        if (!button) return;
+        button.hidden = !control.unlocked;
+        if (!control.unlocked) return;
+        button.disabled = divine < control.cost;
+        button.textContent = `+5칸 · 신성한 ${control.cost}`;
+        button.title = `현재 ${control.currentLimit}칸 · 신성한 오브 ${control.cost}개로 영구 확장`;
+    });
+}
+
 function performUpdateStaticUI() {
     updateInventoryFullWarnings();
+    syncInventoryExpansionShortcuts();
     // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
     // 있으면) 어느 단계가 느린지 콘솔에 한 줄 남긴다. 정상 갱신에는 거의 영향이 없다.
     const __perfNow = (typeof performance !== 'undefined' && performance.now) ? () => performance.now() : () => Date.now();
