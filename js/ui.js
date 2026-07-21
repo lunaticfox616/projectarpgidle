@@ -1144,7 +1144,11 @@ function renderTabCategoryBar() {
     let bar = document.getElementById('tab-category-bar');
     if (!bar) return;
     ensureTabCategoryBarPlacement(bar);
-    if (!isTabGroupingActive()) { bar.style.display = 'none'; return; }
+    if (!isTabGroupingActive()) {
+        bar.style.display = 'none';
+        syncMapCompleteActionQuickControl();
+        return;
+    }
     bar.style.display = 'inline-flex';
     let active = getActiveTabGroup();
     let unlocks = game.unlocks || {};
@@ -1159,6 +1163,7 @@ function renderTabCategoryBar() {
         });
         return `<button class="tab-category-btn${group.key === active ? ' active' : ''}" draggable="true" ondragstart="onTabGroupDragStart(event,'${group.key}')" ondragover="event.preventDefault()" ondrop="onTabGroupDrop(event,'${group.key}')" onclick="selectTabGroup('${group.key}')">${group.label}${hasNoti ? ' <span class="noti-dot" style="display:inline-block; position:static; margin-left:2px;"></span>' : ''}</button>`;
     }).join('');
+    syncMapCompleteActionQuickControl();
 }
 
 function getTabButtonFromTarget(target) {
@@ -4270,15 +4275,25 @@ function renderGemResearchPanel() {
     let attackCards = state.attack.missing.map(name => renderGemResearchCandidate('attack', name, attackCost, fragments)).join('');
     let supportCards = state.support.missing.map(name => renderGemResearchCandidate('support', name, supportCost, fragments)).join('');
     let allComplete = state.attack.missing.length === 0 && state.support.missing.length === 0;
+    let expanded = game.gemResearchExpanded && typeof game.gemResearchExpanded === 'object' && !Array.isArray(game.gemResearchExpanded) ? game.gemResearchExpanded : {};
+    let attackOpen = typeof expanded.attack === 'boolean' ? expanded.attack : fragments >= attackCost && state.attack.missing.length > 0;
+    let supportOpen = typeof expanded.support === 'boolean' ? expanded.support : fragments >= supportCost && state.attack.missing.length === 0 && state.support.missing.length > 0;
     root.innerHTML = `<div class="gem-research-summary">
         <div><span class="skill-panel-kicker">DETERMINISTIC ACQUISITION</span><h3>젬 연구</h3><p>젬 드랍마다 잔향을 모읍니다. 무작위 드랍을 기다리지 않고 원하는 미보유 젬을 확정 해금할 수 있습니다.</p></div>
         <div class="gem-research-resource"><span>젬 잔향</span><strong>${fragments}</strong><small>공격 ${attackCost} · 보조 ${supportCost}</small></div>
         <div class="gem-research-progress"><span>공격 <b>${state.attack.owned}/${state.attack.total}</b></span><span>보조 <b>${state.support.owned}/${state.support.total}</b></span></div>
     </div>
     ${allComplete ? '<div class="gem-research-complete">모든 젬 연구 완료 · 이후 젬 드랍은 추가 젬 잔향으로 환원됩니다.</div>' : `<div class="gem-research-columns">
-        <details ${fragments >= attackCost && state.attack.missing.length > 0 ? 'open' : ''}><summary>미보유 공격 젬 <b>${state.attack.missing.length}</b></summary><div class="gem-research-grid">${attackCards || '<div class="gem-process-empty">공격 젬 수집 완료</div>'}</div></details>
-        <details ${fragments >= supportCost && state.attack.missing.length === 0 && state.support.missing.length > 0 ? 'open' : ''}><summary>미보유 보조 젬 <b>${state.support.missing.length}</b></summary><div class="gem-research-grid">${supportCards || '<div class="gem-process-empty">보조 젬 수집 완료</div>'}</div></details>
+        <details data-gem-research-section="attack" ${attackOpen ? 'open' : ''}><summary>미보유 공격 젬 <b>${state.attack.missing.length}</b></summary><div class="gem-research-grid">${attackCards || '<div class="gem-process-empty">공격 젬 수집 완료</div>'}</div></details>
+        <details data-gem-research-section="support" ${supportOpen ? 'open' : ''}><summary>미보유 보조 젬 <b>${state.support.missing.length}</b></summary><div class="gem-research-grid">${supportCards || '<div class="gem-process-empty">보조 젬 수집 완료</div>'}</div></details>
     </div>`}`;
+    root.querySelectorAll('details[data-gem-research-section]').forEach(details => {
+        details.addEventListener('toggle', () => {
+            game.gemResearchExpanded = game.gemResearchExpanded && typeof game.gemResearchExpanded === 'object' && !Array.isArray(game.gemResearchExpanded) ? game.gemResearchExpanded : {};
+            game.gemResearchExpanded[details.dataset.gemResearchSection] = details.open;
+            if (typeof queueImportantSave === 'function') queueImportantSave(500);
+        });
+    });
 }
 
 function getGemGrowthSummaryHtml(name, presentation) {
@@ -4941,7 +4956,7 @@ function getMobileToastRoot() {
     root.style.left = '50%';
     root.style.bottom = '84px';
     root.style.transform = 'translateX(-50%)';
-    root.style.zIndex = '9999';
+    root.style.zIndex = '22000';
     root.style.pointerEvents = 'none';
     root.style.display = 'flex';
     root.style.flexDirection = 'column';
@@ -5342,6 +5357,59 @@ function togglePastLoopMilestones() {
 }
 safeExposeGlobals({ togglePastLoopMilestones });
 
+function getMapCompleteActionOptions() {
+    return [
+        { value: 'repeatZone', label: '반복', detail: '현재 지역 또는 층을 다시 진행합니다.' },
+        { value: 'nextZone', label: '다음 지역', detail: '일반 자동 진행 규칙에 따라 다음 지역으로 이동합니다.' },
+        { value: 'nextLoopBestPlusOne', label: '최고층', detail: '이번 루프의 최고 심화·미궁 기록 다음 층으로 이동합니다.' },
+        { value: 'stop', label: '중단', detail: '전투를 멈추고 현재 위치에서 대기합니다.' }
+    ];
+}
+
+function getMapCompleteActionOption(action) {
+    return getMapCompleteActionOptions().find(option => option.value === action)
+        || getMapCompleteActionOptions().find(option => option.value === 'nextZone');
+}
+
+function syncMapCompleteActionQuickControl() {
+    let row = document.getElementById('tab-etc-combat-action');
+    let button = document.getElementById('btn-map-complete-action-picker');
+    if (!row || !button) return;
+    let show = isTabGroupingActive() && getActiveTabGroup() === 'etc';
+    row.hidden = !show;
+    if (!show) return;
+    let option = getMapCompleteActionOption((game.settings || {}).mapCompleteAction);
+    button.textContent = `전투 완료 후: ${option.label}`;
+    button.title = option.detail;
+}
+
+function applyMapCompleteAction(action) {
+    let option = getMapCompleteActionOption(action);
+    game.settings = game.settings || {};
+    game.settings.mapCompleteAction = option.value;
+    let select = document.getElementById('sel-map-complete-action');
+    if (select) select.value = option.value;
+    syncMapCompleteActionQuickControl();
+    if (typeof queueImportantSave === 'function') queueImportantSave(180);
+    if (typeof showGameToast === 'function') showGameToast(`전투 완료 후 행동: ${option.label}`, { tone: 'success' });
+    updateStaticUI();
+}
+
+async function openMapCompleteActionPicker() {
+    let current = getMapCompleteActionOption((game.settings || {}).mapCompleteAction).value;
+    let choices = getMapCompleteActionOptions().slice().sort((left, right) => (right.value === current) - (left.value === current));
+    let selected = await requestGameChoice({
+        title: '전투 완료 후 행동',
+        kicker: 'AUTOMATION',
+        message: '맵 또는 층 전투를 완료했을 때 이어서 수행할 행동을 선택하세요.',
+        confirmLabel: '적용',
+        choices: choices
+    });
+    if (selected !== null) applyMapCompleteAction(selected);
+}
+
+safeExposeGlobals({ openMapCompleteActionPicker });
+
 function updateSettings() {
     let previousSocialChatNotifications = game.settings.socialChatNotifications !== false;
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
@@ -5387,12 +5455,13 @@ function updateSettings() {
     game.settings.itemFilterMinTierCount = Math.max(0, Math.floor(Number(document.getElementById('inp-item-filter-tier-count').value) || 0));
     game.settings.itemFilterMinHiddenTier = Math.max(1, Math.floor(Number(document.getElementById('inp-item-filter-hidden-tier').value) || 1));
     game.settings.itemFilterOnlyNewCodexUnique = document.getElementById('chk-item-filter-unique-new-codex').checked;
-    game.settings.mapCompleteAction = (document.getElementById('sel-map-complete-action') || {}).value || 'nextZone';
+    game.settings.mapCompleteAction = getMapCompleteActionOption((document.getElementById('sel-map-complete-action') || {}).value).value;
     game.settings.townReturnAction = (document.getElementById('sel-town-return-action') || {}).value || 'retry';
     let themeSelect = document.getElementById('sel-theme-mode');
     game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
     applyThemeMode(game.settings.themeMode);
     toggleDeathNoticeSetting(game.settings.showDeathNotice);
+    syncMapCompleteActionQuickControl();
     updateStaticUI();
 }
 
@@ -11464,6 +11533,9 @@ function mergeDefaults(save) {
         : legacyAtlasStarDust;
     delete merged.cosmosAtlas.starDust;
     merged.saveMeta.lastCloudUploadProfile = normalizeCloudUploadProfile(merged.saveMeta.lastCloudUploadProfile);
+    merged.saveMeta.cloudUserId = typeof merged.saveMeta.cloudUserId === 'string' && merged.saveMeta.cloudUserId.trim()
+        ? merged.saveMeta.cloudUserId
+        : null;
     merged.ocean = (merged.ocean && typeof merged.ocean === 'object') ? { ...createDefaultOceanState(), ...merged.ocean } : createDefaultOceanState();
     merged.ocean.permanentUpgrades = { ...(createDefaultOceanState().permanentUpgrades || {}), ...(merged.ocean.permanentUpgrades || {}) };
     Object.keys(merged.ocean.permanentUpgrades).forEach(key => {
@@ -11696,6 +11768,11 @@ function mergeDefaults(save) {
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
     merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;
+    let gemResearchExpanded = merged.gemResearchExpanded && typeof merged.gemResearchExpanded === 'object' && !Array.isArray(merged.gemResearchExpanded) ? merged.gemResearchExpanded : {};
+    merged.gemResearchExpanded = {};
+    ['attack', 'support'].forEach(section => {
+        if (typeof gemResearchExpanded[section] === 'boolean') merged.gemResearchExpanded[section] = gemResearchExpanded[section];
+    });
     if (merged.gemFoldInactive) {
         merged.gemFoldInactiveAttack = true;
         merged.gemFoldInactiveSupport = true;
@@ -12479,6 +12556,14 @@ function refreshSocialAfterCloudStateChange() {
 
 function applyCloudSession(session) {
     let previousUserId = cloudState.user && cloudState.user.id;
+    let nextUserId = session && session.user && session.user.id;
+    if (previousUserId !== nextUserId) {
+        cloudState.lastSyncedLocalModifiedAt = 0;
+        cloudState.pendingAutoSyncDirty = false;
+        cloudState.pendingForcedSyncOptions = null;
+        if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+        cloudSyncTimer = null;
+    }
     if (!session || !session.access_token) {
         cloudState.session = null;
         cloudState.user = null;
@@ -12935,10 +13020,50 @@ function rememberCloudUploadProfile(profile) {
     return normalized;
 }
 
+function getCloudSaveOwnerId(snapshot = game) {
+    let ownerId = snapshot && snapshot.saveMeta && snapshot.saveMeta.cloudUserId;
+    return typeof ownerId === 'string' && ownerId.trim() ? ownerId : null;
+}
+
+function getActiveCloudUserId() {
+    let userId = cloudState.user && cloudState.user.id;
+    return typeof userId === 'string' && userId.trim() ? userId : null;
+}
+
+function markCurrentSaveCloudOwner() {
+    let userId = getActiveCloudUserId();
+    if (!userId) return false;
+    ensureSaveMeta();
+    game.saveMeta.cloudUserId = userId;
+    return true;
+}
+
+function replaceLocalSaveForCloudUser() {
+    game = cloneDefaultGame();
+    if (!markCurrentSaveCloudOwner()) throw new Error('로그인한 클라우드 계정을 확인하지 못했습니다.');
+    if (!persistLocalSave({ touchModifiedAt: false, allowRecoveryWrite: true })) {
+        throw new Error('계정 전환용 로컬 저장을 기록하지 못했습니다.');
+    }
+}
+
+function prepareLocalSaveForCloudSession(options = {}) {
+    let userId = getActiveCloudUserId();
+    if (!userId) throw new Error('로그인이 필요합니다.');
+    let ownerId = getCloudSaveOwnerId();
+    if (ownerId === userId) return { replaced: false, adoptedUnowned: false };
+    if (!ownerId && options.allowUnownedLocal === true) {
+        markCurrentSaveCloudOwner();
+        return { replaced: false, adoptedUnowned: true };
+    }
+    replaceLocalSaveForCloudUser();
+    return { replaced: true, adoptedUnowned: false };
+}
+
 function applyExternalSave(snapshot, sourceStamp) {
     game = mergeDefaults(snapshot || {});
     applySeasonContentProgression({ silent: true });
     ensureSaveMeta();
+    markCurrentSaveCloudOwner();
     if (sourceStamp) {
         cloudState.lastRemoteUpdatedAt = sourceStamp;
         cloudState.lastRemoteLoop = getSaveLoopNumber(game);
@@ -13155,6 +13280,7 @@ async function pushCloudSave(options = {}) {
         setCloudMessage(guardMessage);
         throw new Error(guardMessage);
     }
+    markCurrentSaveCloudOwner();
     if (!persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true })) {
         throw new Error('로컬 저장에 실패하여 클라우드 업로드를 중단했습니다.');
     }
@@ -13207,9 +13333,14 @@ async function pullCloudSave(options = {}) {
 
 async function reconcileCloudSaveState(options = {}) {
     let preferRemoteOnResume = options.preferRemoteOnResume === true;
+    // Keep the previous local cache intact until the active account's remote row is confirmed.
+    // A temporary network failure must not erase an otherwise recoverable local cache.
     let record = await fetchCloudSaveRecord();
+    let localPreparation = prepareLocalSaveForCloudSession({
+        allowUnownedLocal: options.allowLocalBootstrap === true
+    });
     if (!record || !record.save_data) {
-        if (options.createRemoteFromLocal) {
+        if (options.createRemoteFromLocal && (!localPreparation.replaced || localPreparation.adoptedUnowned)) {
             await pushCloudSave({ touchModifiedAt: false });
             setCloudMessage('클라우드에 저장이 없어 현재 로컬 세이브를 업로드했습니다.');
             return 'pushed-local';
@@ -13221,6 +13352,12 @@ async function reconcileCloudSaveState(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
+    if (options.strictRemoteResume === true) {
+        applyExternalSave(record.save_data, remoteStamp);
+        setCloudMessage('계정에 연결된 클라우드 저장을 로컬에 적용했습니다.');
+        if (!options.silent) addLog('계정 전환 시 클라우드 저장을 우선 적용했습니다.', 'loot-magic');
+        return 'pulled-remote-strict-resume';
+    }
     let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
     if (loopGuard.blocked) {
         applyExternalSave(record.save_data, remoteStamp);
@@ -13393,7 +13530,7 @@ async function initializeCloudSave() {
             if (isStartupOverlayOpen()) setCloudMessage('이전 로그인 세션을 복원했습니다. 클라우드 세이브로 계속할 수 있습니다.');
             else {
                 setCloudMessage('이전 로그인 세션을 복원했습니다.');
-                await reconcileCloudSaveState({ silent: true, createRemoteFromLocal: true });
+                await reconcileCloudSaveState({ silent: true, strictRemoteResume: true });
             }
         } else {
             setCloudMessage('로그인하면 클라우드 저장을 사용할 수 있습니다.');
@@ -13441,7 +13578,7 @@ async function cloudSignUp(options = {}) {
                 caption: 'Binding Save Data',
                 progress: 54
             });
-            await reconcileCloudSaveState({ createRemoteFromLocal: true });
+            await reconcileCloudSaveState({ createRemoteFromLocal: true, allowLocalBootstrap: true });
             addLog('클라우드 계정을 만들고 저장을 연결했습니다.', 'loot-magic');
             if (options.enterGame) await enterGameWorld();
         } else {
@@ -13489,9 +13626,8 @@ async function cloudLogin(options = {}) {
             progress: 58
         });
         await reconcileCloudSaveState({
-            createRemoteFromLocal: true,
-            preferRemoteOnResume: options.enterGame === true,
-            strictRemoteResume: options.enterGame === true
+            preferRemoteOnResume: true,
+            strictRemoteResume: true
         });
         addLog('클라우드 세이브 계정에 로그인했습니다.', 'loot-magic');
         if (options.enterGame) await enterGameWorld();
@@ -13550,6 +13686,7 @@ function pushCloudSaveOnPageExit(reason) {
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;
     if (!gameplayStarted) return false;
+    if (getCloudSaveOwnerId() !== getActiveCloudUserId()) return false;
     let localLoop = getSaveLoopNumber(game);
     if ((cloudState.lastRemoteLoop || 0) > localLoop) {
         setCloudMessage(`클라우드 루프(${cloudState.lastRemoteLoop})가 로컬 루프(${localLoop})보다 높아 종료 전 업로드를 차단했습니다.`);
@@ -13562,6 +13699,7 @@ function pushCloudSaveOnPageExit(reason) {
     let exitPushStartedAt = Date.now();
     if (exitPushStartedAt - lastPageExitCloudPushAt < 1500) return false;
     try {
+        markCurrentSaveCloudOwner();
         if (!persistLocalSave({ touchModifiedAt: true })) return false;
         ensureSaveMeta();
         let optimisticSyncAt = Date.now();
@@ -13626,6 +13764,7 @@ async function cloudCompactAndPushNow() {
     updateCloudSaveUI();
     try {
         ensureSaveMeta();
+        markCurrentSaveCloudOwner();
         game.saveMeta.lastModifiedAt = Date.now();
         persistLocalSave({ touchModifiedAt: false });
         let t0 = Date.now();
@@ -13874,10 +14013,11 @@ function init() {
     document.getElementById('inp-item-filter-tier-count').value = Math.max(0, Math.floor(game.settings.itemFilterMinTierCount || 0));
     document.getElementById('inp-item-filter-hidden-tier').value = Math.max(1, Math.floor(game.settings.itemFilterMinHiddenTier || 1));
     document.getElementById('chk-item-filter-unique-new-codex').checked = !!game.settings.itemFilterOnlyNewCodexUnique;
-    document.getElementById('sel-map-complete-action').value = game.settings.mapCompleteAction || 'nextZone';
+    document.getElementById('sel-map-complete-action').value = getMapCompleteActionOption(game.settings.mapCompleteAction).value;
     document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
     document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
     applyThemeMode(game.settings.themeMode);
+    syncMapCompleteActionQuickControl();
     ensureInitialHeroSelection();
     renderHeroSelectionControls();
     renderMonsterSkinControls();

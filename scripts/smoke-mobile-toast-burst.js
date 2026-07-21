@@ -24,11 +24,16 @@ const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 // setTimeout/requestAnimationFrame을 수동으로 제어할 수 있는 가짜 타이머로 교체한다.
 let pendingTimeouts = [];
 let rafQueue = [];
+let createdElements = [];
 const context = {
     console,
     document: {
-        getElementById() { return null; },
-        createElement() { return { style: {}, appendChild() {}, remove() {}, parentNode: { removeChild() {} } }; },
+        getElementById(id) { return createdElements.find(element => element.id === id) || null; },
+        createElement() {
+            let element = { style: {}, appendChild() {}, remove() {}, parentNode: { removeChild() {} } };
+            createdElements.push(element);
+            return element;
+        },
         body: { appendChild() {} }
     },
     setTimeout(fn, ms) { let entry = { fn, ms }; pendingTimeouts.push(entry); return entry; },
@@ -57,6 +62,8 @@ function flushAllTimeouts() {
 // 6개의 실패 알림을 한꺼번에 쌓는다.
 for (let i = 1; i <= 6; i++) context.enqueueMobileToast(`실패 알림 ${i}`, 'attack-monster');
 
+const toastRoot = context.document.getElementById('mobile-toast-root');
+assert.strictEqual(toastRoot.style.zIndex, '22000', '오류 알림은 루프 재작성 오버레이보다 위에 표시되어야 한다');
 assert.strictEqual(context.getMobileToastActiveCount(), 3, '밀린 알림이 많아도 동시에는 최대 3개까지만 떠야 한다');
 assert.strictEqual(context.getMobileToastQueue().length, 3, '나머지는 큐에 남아 다음 자리가 빌 때 순서대로 떠야 한다');
 

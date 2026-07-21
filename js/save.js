@@ -62,6 +62,9 @@ function ensureSaveMeta() {
     if (!game.saveMeta.lastCloudUploadProfile || typeof game.saveMeta.lastCloudUploadProfile !== 'object') {
         game.saveMeta.lastCloudUploadProfile = null;
     }
+    if (typeof game.saveMeta.cloudUserId !== 'string' || !game.saveMeta.cloudUserId.trim()) {
+        game.saveMeta.cloudUserId = null;
+    }
 }
 
 function refreshItemIdCounter() {
