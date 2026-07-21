@@ -19,9 +19,9 @@ function readFunctionSource(source, name) {
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('css/base.css', 'utf8');
+const windowCss = fs.readFileSync('css/ui-windows.css', 'utf8');
 const select = { value: '' };
-const quickButton = { textContent: '', title: '' };
-const quickRow = { hidden: true };
+const quickButton = { textContent: '', title: '', hidden: true };
 let saved = 0;
 let refreshed = 0;
 let toast = null;
@@ -32,7 +32,6 @@ const context = {
     document: {
         getElementById(id) {
             if (id === 'sel-map-complete-action') return select;
-            if (id === 'tab-etc-combat-action') return quickRow;
             if (id === 'btn-map-complete-action-picker') return quickButton;
             return null;
         }
@@ -62,12 +61,12 @@ const functionNames = [
 vm.runInContext(functionNames.map(name => readFunctionSource(uiSource, name)).join('\n'), context, { filename: 'map-complete-action.js' });
 
 context.syncMapCompleteActionQuickControl();
-assert.strictEqual(quickRow.hidden, false, '기타 그룹에서는 설정 탭 옆 빠른 버튼이 보여야 한다');
+assert.strictEqual(quickButton.hidden, false, '기타 그룹에서는 설정 탭 옆 빠른 버튼이 보여야 한다');
 assert.strictEqual(quickButton.textContent, '전투 완료: 다음 지역', '빠른 버튼에서 현재 설정을 바로 확인할 수 있어야 한다');
 assert(quickButton.title.includes('현재: 다음 지역'));
 groupingActive = false;
 context.syncMapCompleteActionQuickControl();
-assert.strictEqual(quickRow.hidden, false, '그룹을 쓰지 않는 창 UI에서도 빠른 버튼이 보여야 한다');
+assert.strictEqual(quickButton.hidden, false, '그룹을 쓰지 않는 창 UI에서도 빠른 버튼이 보여야 한다');
 
 let prevented = 0;
 context.openMapCompleteActionPicker({ preventDefault() { prevented++; }, stopPropagation() { prevented++; } }).then(() => {
@@ -89,13 +88,14 @@ context.openMapCompleteActionPicker({ preventDefault() { prevented++; }, stopPro
 
     const headerStart = html.indexOf('<div class="tab-header">');
     const settingsIndex = html.indexOf('id="btn-tab-settings"', headerStart);
-    const quickControlIndex = html.indexOf('id="tab-etc-combat-action"', headerStart);
+    const quickControlIndex = html.indexOf('id="btn-map-complete-action-picker"', headerStart);
     assert(settingsIndex > headerStart && quickControlIndex > settingsIndex, '빠른 버튼은 설정 탭 바로 옆에 있어야 한다');
     assert(!html.includes('id="map-complete-action-menu"'), '별도 팝업 메뉴는 남기지 않아야 한다');
-    assert(css.includes('.tab-etc-combat-action { display: flex; position: relative; flex: 1 0 auto;'), '빠른 버튼은 일반 탭과 같은 flex 크기를 사용해야 한다');
-    assert(css.includes('padding: 12px 10px;'), '빠른 버튼은 일반 탭과 같은 안쪽 여백을 사용해야 한다');
-    assert(css.includes('align-items: center; justify-content: center;'), '빠른 버튼의 글자는 일반 탭처럼 가운데 정렬되어야 한다');
-    assert(css.includes('.tab-etc-combat-action[hidden] { display: none; }'), '숨긴 버튼이 빈 영역으로 화면을 가리면 안 된다');
+    assert(html.includes('class="tab-btn" id="btn-map-complete-action-picker"'), '빠른 버튼 자체가 별도 래퍼 없이 일반 탭 요소여야 한다');
+    assert(!html.includes('id="tab-etc-combat-action"'), '일반 탭 바깥에 별도 버튼 래퍼를 두면 안 된다');
+    assert(!css.includes('.tab-etc-combat-action'), '전투 완료 버튼만을 위한 별도 시각 규칙을 남기면 안 된다');
+    assert(windowCss.includes("#btn-map-complete-action-picker::before { content: '↻';"), '데스크톱 탭에 의미 있는 전투 반복 아이콘이 보여야 한다');
+    assert(windowCss.includes('#btn-map-complete-action-picker { white-space: normal;'), '현재 설정 문구가 탭 안에서 두 줄로 보여야 한다');
     assert(html.includes('<option value="repeatZone">반복</option>'));
     assert(html.includes('<option value="nextZone">다음 지역</option>'));
     assert(html.includes('<option value="nextLoopBestPlusOne">최고층</option>'));

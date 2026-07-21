@@ -65,6 +65,8 @@
   body.desktop-windowed-ui #btn-tab-cube::before { content: '🧊'; }
   body.desktop-windowed-ui #btn-tab-social::before { content: '💬'; }
   body.desktop-windowed-ui #btn-tab-settings::before { content: '⚙️'; }
+  body.desktop-windowed-ui #btn-map-complete-action-picker { white-space: normal; line-height: 1.05; text-align: center; }
+  body.desktop-windowed-ui #btn-map-complete-action-picker::before { content: '↻'; height: 14px; font-size: 15px; }
   /* 채팅은 레일 탭이 아니라 우상단 말풍선 버튼으로만 켜고 끈다. */
   body.desktop-windowed-ui #btn-tab-social { display: none !important; }
   body.desktop-windowed-ui .ui-close-all-btn { margin-top: auto; color: #b98c8c; }
