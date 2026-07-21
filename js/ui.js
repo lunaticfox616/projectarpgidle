@@ -7610,7 +7610,15 @@ function updateCombatUI(pStats) {
             realmBuffParts.push(`<span style="color:#c49bff;font-weight:700;">균열 장막 ${Math.ceil((game.realmInvulnerableBarrierUntil - realmNow) / 1000)}s</span>`);
         }
         let realmBuffText = realmBuffParts.join(' · ');
-        let effectGroupText = [guardWarcryText, flaskBuffText, realmBuffText].filter(Boolean).join(' · ');
+        let warriorRageText = '';
+        if (game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w5')) {
+            let rageStacks = typeof getWarriorRageStacks === 'function' ? getWarriorRageStacks(realmNow) : 0;
+            if (rageStacks > 0) {
+                let rageSeconds = Math.ceil(Math.max(0, (game.warriorRageExpiresAt - realmNow) / 1000));
+                warriorRageText = `<span style="color:#ff9f43;font-weight:700;">격노 순환 ${rageStacks}/5 · ${rageSeconds}s</span>`;
+            }
+        }
+        let effectGroupText = [warriorRageText, guardWarcryText, flaskBuffText, realmBuffText].filter(Boolean).join(' · ');
         let ailmentText = [text, effectGroupText].filter(Boolean).join(' · ');
         // 데스크톱에서 터치 디바이스 플래그가 잡히더라도 상태 표시를 숨기지 않도록
         // 화면 너비 기준으로만 모바일 UI 분기를 판단한다.
