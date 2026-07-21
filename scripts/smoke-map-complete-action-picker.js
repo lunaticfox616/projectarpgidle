@@ -63,7 +63,7 @@ vm.runInContext(functionNames.map(name => readFunctionSource(uiSource, name)).jo
 
 context.syncMapCompleteActionQuickControl();
 assert.strictEqual(quickRow.hidden, false, '기타 그룹에서는 설정 탭 옆 빠른 버튼이 보여야 한다');
-assert.strictEqual(quickButton.textContent, '전투 후', '빠른 버튼은 탭 하나 크기에 맞는 짧은 이름이어야 한다');
+assert.strictEqual(quickButton.textContent, '전투 완료: 다음 지역', '빠른 버튼에서 현재 설정을 바로 확인할 수 있어야 한다');
 assert(quickButton.title.includes('현재: 다음 지역'));
 groupingActive = false;
 context.syncMapCompleteActionQuickControl();
@@ -78,10 +78,10 @@ context.openMapCompleteActionPicker({ preventDefault() { prevented++; }, stopPro
         '오버레이는 네 가지 전투 완료 행동을 모두 제공해야 한다'
     );
     assert.strictEqual(choiceOptions.choices[0].value, 'nextZone', '현재 행동이 오버레이의 기본 선택이어야 한다');
-    assert.strictEqual(choiceOptions.confirmLabel, '적용');
+    assert.strictEqual(choiceOptions.submitOnChoice, true, '항목을 누르면 적용 버튼 없이 즉시 확정되어야 한다');
     assert.strictEqual(context.game.settings.mapCompleteAction, 'nextLoopBestPlusOne');
     assert.strictEqual(select.value, 'nextLoopBestPlusOne');
-    assert.strictEqual(quickButton.textContent, '전투 후');
+    assert.strictEqual(quickButton.textContent, '전투 완료: 최고층');
     assert(quickButton.title.includes('현재: 최고층'));
     assert.strictEqual(saved, 1);
     assert.strictEqual(refreshed, 1);
@@ -94,6 +94,7 @@ context.openMapCompleteActionPicker({ preventDefault() { prevented++; }, stopPro
     assert(!html.includes('id="map-complete-action-menu"'), '별도 팝업 메뉴는 남기지 않아야 한다');
     assert(css.includes('.tab-etc-combat-action { display: flex; position: relative; flex: 1 0 auto;'), '빠른 버튼은 일반 탭과 같은 flex 크기를 사용해야 한다');
     assert(css.includes('padding: 12px 10px;'), '빠른 버튼은 일반 탭과 같은 안쪽 여백을 사용해야 한다');
+    assert(css.includes('align-items: center; justify-content: center;'), '빠른 버튼의 글자는 일반 탭처럼 가운데 정렬되어야 한다');
     assert(css.includes('.tab-etc-combat-action[hidden] { display: none; }'), '숨긴 버튼이 빈 영역으로 화면을 가리면 안 된다');
     assert(html.includes('<option value="repeatZone">반복</option>'));
     assert(html.includes('<option value="nextZone">다음 지역</option>'));

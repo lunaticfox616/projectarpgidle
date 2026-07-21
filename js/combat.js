@@ -128,13 +128,13 @@ function applyInstantPlayerLeech(rawAmount, pStats, target) {
     if (caps.instanceCap <= 0) return 0;
     instantAmount = Math.min(instantAmount, caps.instanceCap);
     if (leechTarget === 'energyShield') {
-        let esCap = Math.max(0, Number(pStats && pStats.energyShield) || 0);
+        let esCap = getPlayerEnergyShieldRecoveryCap(pStats);
         if (esCap <= 0) return 0;
         let before = Math.max(0, Number(game.playerEnergyShield) || 0);
         game.playerEnergyShield = Math.min(esCap, before + instantAmount);
         return Math.max(0, game.playerEnergyShield - before);
     }
-    let hpCap = getPlayerHpCap(pStats);
+    let hpCap = getPlayerRecoveryHpCap(pStats);
     let before = Math.max(0, Number(game.playerHp) || 0);
     game.playerHp = Math.min(hpCap, before + instantAmount);
     return Math.max(0, game.playerHp - before);
@@ -142,8 +142,8 @@ function applyInstantPlayerLeech(rawAmount, pStats, target) {
 function tickPlayerLeech(pStats, dt) {
     let instances = getActiveLeechInstances();
     if (instances.length === 0 || dt <= 0) return 0;
-    let hpCap = getPlayerHpCap(pStats);
-    let esCap = Math.max(0, Number(pStats && pStats.energyShield) || 0);
+    let hpCap = getPlayerRecoveryHpCap(pStats);
+    let esCap = getPlayerEnergyShieldRecoveryCap(pStats);
     let healed = 0;
     let next = [];
     instances.forEach(inst => {
@@ -192,7 +192,7 @@ function addPlayerRecoupInstance(rawAmount, durationSec) {
 function tickPlayerRecoup(pStats, dt) {
     let instances = getActiveRecoupInstances();
     if (instances.length === 0 || dt <= 0) return 0;
-    let hpCap = getPlayerHpCap(pStats);
+    let hpCap = getPlayerRecoveryHpCap(pStats);
     let healed = 0;
     let next = [];
     instances.forEach(inst => {
@@ -403,6 +403,19 @@ function getPlayerHpCap(pStats) {
     if (!pStats) return 0;
     let maxHp = Math.max(0, pStats.maxHp || 0);
     return (game.ascendClass === 'warrior' && hasKeystone('w8')) ? (maxHp * 0.5) : maxHp;
+}
+
+function getPlayerRecoveryHpCap(pStats) {
+    let baseCap = getPlayerHpCap(pStats);
+    if (game.ascendClass === 'warrior' && hasKeystone('w8')) return baseCap;
+    let overhealPct = Math.max(0, Number(pStats && pStats.uniqueOverhealCapPct) || 0);
+    return baseCap * (100 + overhealPct) / 100;
+}
+
+function getPlayerEnergyShieldRecoveryCap(pStats) {
+    let baseCap = Math.max(0, Number(pStats && pStats.energyShield) || 0);
+    let overhealPct = Math.max(0, Number(pStats && pStats.uniqueOverhealCapPct) || 0);
+    return baseCap * (100 + overhealPct) / 100;
 }
 
 function isDualWielding() {
@@ -1897,13 +1910,14 @@ function applyFlaskHealProgress(st, hpCap, now) {
 function tickFlaskAutoUse(pStats) {
     let st = ensureFlaskState();
     let hpCap = Math.max(1, Math.floor(pStats.maxHp || 1));
+    let recoveryHpCap = getPlayerRecoveryHpCap(pStats);
     let now = Date.now();
     let healDef = getFlaskHealDef(st.healTier);
     let aliveEnemies = (game.enemies || []).filter(e => e && e.hp > 0);
     let inCombat = aliveEnemies.length > 0;
     if (inCombat && !st.wasInCombat) st.encounterSerial++;
     st.wasInCombat = inCombat;
-    applyFlaskHealProgress(st, hpCap, now);
+    applyFlaskHealProgress(st, recoveryHpCap, now);
     // 회복 발동: 전투 중이고 HP가 임계 이하이고 현재 지속 회복이 없을 때, durationMs 동안 총 healPct%를 나눠 회복.
     // 전투 중 자주 반복되어 로그로 띄우면 스팸이 되므로, 발동 여부는 캐릭터 효과 줄(HP 바 아래)에
     // 아이콘으로 표시하고 상세 정보는 그 커스텀 툴팁(showPlayerFlaskTooltip)에서 보여준다.
@@ -2070,38 +2084,40 @@ function coreLoop() {
         if (beehivePause || game.inTicketBossFight || manualStopState) return;
         game.combatHalted = false;
     }
-    if (game.playerHp > 0 && game.playerHp < pStats.maxHp) {
-        let hpCap = getPlayerHpCap(pStats);
+    let recoveryHpCap = getPlayerRecoveryHpCap(pStats);
+    if (game.playerHp > 0 && game.playerHp < recoveryHpCap) {
+        let hpCap = recoveryHpCap;
         let bloomRegenMul = Math.max(0.05, 1 - Math.max(0, Math.min(0.95, game.bloomTrialRegenSuppress || 0)));
         game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1 * bloomRegenMul * getChallengeContractRecoveryMultiplier());
     }
     if ((game.delayedGuardHealPool || 0) > 0) {
         let tickHeal = Math.max(0, (game.delayedGuardHealPool / 4) * 0.1);
-        let hpCap = getPlayerHpCap(pStats);
+        let hpCap = recoveryHpCap;
         game.playerHp = Math.min(hpCap, game.playerHp + tickHeal * getChallengeContractRecoveryMultiplier());
         game.delayedGuardHealPool = Math.max(0, game.delayedGuardHealPool - tickHeal);
     }
     tickPlayerLeech(pStats, 0.1);
     tickPlayerRecoup(pStats, 0.1);
+    let energyShieldRecoveryCap = getPlayerEnergyShieldRecoveryCap(pStats);
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
-    game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, Math.floor(pStats.energyShield || 0)));
+    game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, energyShieldRecoveryCap));
     if (!Number.isFinite(game.playerEsLastHitAt)) game.playerEsLastHitAt = 0;
-    if ((pStats.energyShield || 0) > 0 && game.playerEnergyShield < (pStats.energyShield || 0)) {
+    if ((pStats.energyShield || 0) > 0 && game.playerEnergyShield < energyShieldRecoveryCap) {
         let challengeRecoveryMul = getChallengeContractRecoveryMultiplier();
         if (game.ascendClass === 'crusader' && hasKeystone('cr5')) {
             let lifeRegenToEs = (pStats.maxHp || 0) * ((pStats.regen || 0) / 100);
-            game.playerEnergyShield = Math.min((pStats.energyShield || 0), game.playerEnergyShield + lifeRegenToEs * 0.1 * challengeRecoveryMul);
+            game.playerEnergyShield = Math.min(energyShieldRecoveryCap, game.playerEnergyShield + lifeRegenToEs * 0.1 * challengeRecoveryMul);
         }
         if ((game.crusaderEsRegenUntil || 0) > Date.now()) {
             let regenPerSec = (pStats.energyShield || 0) * 0.25;
-            game.playerEnergyShield = Math.min((pStats.energyShield || 0), game.playerEnergyShield + regenPerSec * 0.1 * challengeRecoveryMul);
+            game.playerEnergyShield = Math.min(energyShieldRecoveryCap, game.playerEnergyShield + regenPerSec * 0.1 * challengeRecoveryMul);
         }
         let sinceHit = (Date.now() - (game.playerEsLastHitAt || 0)) / 1000;
         let noInterruptEsRegen = game.ascendClass === 'elementalist' && hasKeystone('e3');
         let allowRechargeWhileMoving = (game.moveTimer || 0) > 0 && (pStats.energyShieldRechargeDelay || 0) <= 0;
         if (noInterruptEsRegen || allowRechargeWhileMoving || sinceHit >= (pStats.energyShieldRechargeDelay || 3)) {
             let regenPerSec = (pStats.energyShield || 0) * ((pStats.energyShieldRegenRate || 12.5) / 100);
-            game.playerEnergyShield = Math.min((pStats.energyShield || 0), game.playerEnergyShield + regenPerSec * 0.1 * challengeRecoveryMul);
+            game.playerEnergyShield = Math.min(energyShieldRecoveryCap, game.playerEnergyShield + regenPerSec * 0.1 * challengeRecoveryMul);
         }
     }
 
@@ -2653,7 +2669,7 @@ function getPlayerStats() {
     }
     if (activeUniqueIds.has('uj_condensed_curse')) uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, 10);
     let uniqueSummonDeathDamageBuff=null, uniqueSummonCritAspdStacks=null, uniqueSummonNonCritNoDamage=false;
-    let uniqueBlockRecoverEnergyShieldPct=0, uniqueDeflectStealth=null, uniqueChaosTakenDamageReducePct=0, uniqueLifeRecoupTakenDamage=null;
+    let uniqueBlockRecoverEnergyShieldPct=0, uniqueDeflectStealth=null, uniqueChaosTakenDamageReducePct=0, uniqueLifeRecoupTakenDamage=null, uniqueOverhealCapPct=0;
     // 재능 개화 표면 키스톤: 장착된 카드가 부여하는 고유 효과를 동일 파이프라인에 주입
     if (typeof getActiveTalentKeystoneUniqueEffects === 'function') {
         getActiveTalentKeystoneUniqueEffects().forEach(e => { if (e && e.key) equippedUniqueEffects.push(e); });
@@ -2747,6 +2763,7 @@ function getPlayerStats() {
         else if (effect.key === 'immuneBleed') uniqueImmuneBleed = true;
         else if (effect.key === 'immuneFreeze') uniqueImmuneFreeze = true;
         else if (effect.key === 'lifePctAsEnergyShield') addStatToBucket(reward, 'energyShield', Math.floor(Math.max(0, baseHp) * Math.max(0, Number(ep.pct || 10)) / 100));
+        else if (effect.key === 'overhealCapPct') uniqueOverhealCapPct = Math.max(uniqueOverhealCapPct, Number(ep.pct || 0));
         else if (effect.key === 'dsAndTargetAnyBonus') { addStatToBucket(reward, 'ds', Number(ep.ds || 8)); addStatToBucket(reward, 'targetAny', Number(ep.target || 1)); }
         else if (effect.key === 'poisonDamageMorePct') addStatToBucket(reward, 'poisonDamageMultiplierPct', Number(ep.pct || 25));
         else if (effect.key === 'uniqueMinDmgRoll') addStatToBucket(reward, 'minDmgRoll', Number(ep.pct || 5));
@@ -4457,6 +4474,7 @@ function getPlayerStats() {
     let enemy = {
         baseDmg: finalBaseDmg,
         maxHp: finalMaxHp,
+        lifeRecoveryCap: getPlayerRecoveryHpCap({ maxHp: finalMaxHp, uniqueOverhealCapPct: uniqueOverhealCapPct }),
         aspd: finalAspd || 1.0,
         crit: finalCrit,
         moveSpeed: finalMove,
@@ -4625,6 +4643,7 @@ function getPlayerStats() {
         uniqueDeflectStealth: uniqueDeflectStealth,
         uniqueChaosTakenDamageReducePct: uniqueChaosTakenDamageReducePct,
         uniqueLifeRecoupTakenDamage: uniqueLifeRecoupTakenDamage,
+        uniqueOverhealCapPct: uniqueOverhealCapPct,
         cosmosAlwaysFirstHit: cosmosAlwaysFirstHit,
         cosmosEnergyShieldBypassPct: cosmosEnergyShieldBypassPct,
         cosmosOrbitCycle: cosmosOrbitCycle,
@@ -8750,7 +8769,7 @@ function performPlayerAttack(pStats, attackOptions) {
 
     if (!isStageReplay && isCrit && (pStats.uniqueEsRecoverOnCritPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
         let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * ((pStats.uniqueEsRecoverOnCritPct || 0) / 100) * getChallengeContractRecoveryMultiplier()));
-        game.playerEnergyShield = Math.min((pStats.energyShield || 0), Math.max(0, (game.playerEnergyShield || 0) + recover));
+        game.playerEnergyShield = Math.min(getPlayerEnergyShieldRecoveryCap(pStats), Math.max(0, (game.playerEnergyShield || 0) + recover));
     }
 
     if (game.settings.showCombatLog) {
@@ -8988,7 +9007,7 @@ function tickAilments(pStats, dt) {
                 poison = Math.max(1, Math.floor(poison * dt * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100))) * getWoodsmanCurseDamageTakenMul()));
                 poison = Math.max(0, Math.floor(poison * (1 - Math.max(0, Math.min(0.9, (pStats.dotTakenDamageReducePct || 0) / 100)))));
                 poison = Math.max(0, Math.floor(poison * (1 - Math.max(0, Math.min(0.9, (pStats.poisonDamageReducePct || 0) / 100)))));
-                if (pStats.poisonToHeal) game.playerHp = Math.min(getPlayerHpCap(pStats), game.playerHp + poison * getChallengeContractRecoveryMultiplier());
+                if (pStats.poisonToHeal) game.playerHp = Math.min(getPlayerRecoveryHpCap(pStats), game.playerHp + poison * getChallengeContractRecoveryMultiplier());
                 else {
                     if (Date.now() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) poison = 0;
                     poison = absorbDamageWithRealmDeathWard(poison, pStats);
@@ -9164,7 +9183,7 @@ function performMonsterAttacks(pStats) {
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
-    game.playerEnergyShield = Math.max(0, Math.min(Math.floor(Number(game.playerEnergyShield) || 0), Math.floor(pStats.energyShield || 0)));
+    game.playerEnergyShield = Math.max(0, Math.min(Math.floor(Number(game.playerEnergyShield) || 0), getPlayerEnergyShieldRecoveryCap(pStats)));
     let aliveCount = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
     let crowdPenalty = Math.max(0.34, 1 - Math.max(0, aliveCount - 1) * 0.055);
     for (let enemy of (game.enemies || [])) {
@@ -9498,7 +9517,7 @@ function performMonsterAttacks(pStats) {
                 if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisEvadeAmp = true; }
                 if ((pStats.uniqueBlockRecoverEnergyShieldPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
                     let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * Math.max(0, Number(pStats.uniqueBlockRecoverEnergyShieldPct || 0)) / 100 * getChallengeContractRecoveryMultiplier()));
-                    game.playerEnergyShield = Math.min((pStats.energyShield || 0), Math.max(0, Number(game.playerEnergyShield) || 0) + recover);
+                    game.playerEnergyShield = Math.min(getPlayerEnergyShieldRecoveryCap(pStats), Math.max(0, Number(game.playerEnergyShield) || 0) + recover);
                 }
                 addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260 });
                 if (game.settings.showCombatLog) addLog(`🛡️ 막아냄!`, "loot-magic");

@@ -5383,7 +5383,7 @@ function syncMapCompleteActionQuickControl() {
     row.hidden = !show;
     if (!show) return;
     let option = getMapCompleteActionOption((game.settings || {}).mapCompleteAction);
-    button.textContent = '전투 후';
+    button.textContent = `전투 완료: ${option.label}`;
     button.title = `현재: ${option.label} · ${option.detail}`;
 }
 
@@ -5413,8 +5413,8 @@ async function openMapCompleteActionPicker(event) {
         let selected = await requestGameChoice({
             title: '전투 완료 후 행동',
             kicker: 'AUTOMATION',
-            message: '전투를 완료했을 때 이어서 수행할 행동을 선택하세요.',
-            confirmLabel: '적용',
+            message: '항목을 누르면 즉시 적용됩니다.',
+            submitOnChoice: true,
             dismissOnBackdrop: true,
             choices
         });
@@ -7403,7 +7403,10 @@ function updateCombatUI(pStats) {
     pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats.__uiFallbackStats) pStats.maxHp = Math.max(pStats.maxHp, Math.max(1, Number(game.playerHp) || 1));
     if (pStats && pStats.breakdowns && !pStats.__uiFallbackStats) cachedTooltipStats = pStats;
-    if (!pStats.__uiFallbackStats) game.playerHp = Math.min(game.playerHp, pStats.maxHp);
+    if (!pStats.__uiFallbackStats) {
+        let recoveryHpCap = Number.isFinite(Number(pStats.lifeRecoveryCap)) ? Number(pStats.lifeRecoveryCap) : pStats.maxHp;
+        game.playerHp = Math.min(game.playerHp, recoveryHpCap);
+    }
     let safeHp = Math.max(0, Number(game.playerHp) || 0);
     setTextById('ui-hp', formatSettingNumber(safeHp, 'showHpComma', safeHp >= 100 ? {} : { decimals: 1 }));
     setTextById('ui-maxhp', formatSettingNumber(pStats.maxHp, 'showHpComma'));

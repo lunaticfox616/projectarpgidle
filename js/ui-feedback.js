@@ -93,6 +93,7 @@
             maxLength: Number.isFinite(Number(source.maxLength)) ? Number(source.maxLength) : 120,
             choices: Array.isArray(source.choices) ? source.choices : [],
             validate: typeof source.validate === 'function' ? source.validate : null,
+            submitOnChoice: source.submitOnChoice === true,
             dismissOnBackdrop: source.dismissOnBackdrop !== false,
             resolve: source.resolve
         };
@@ -137,6 +138,7 @@
         document.getElementById('game-dialog-message').innerHTML = escapeFeedbackHtml(activeDialog.message).replace(/\n/g, '<br>');
         cancel.textContent = activeDialog.cancelLabel;
         confirm.textContent = activeDialog.confirmLabel;
+        confirm.style.display = activeDialog.type === 'choice' && activeDialog.submitOnChoice ? 'none' : '';
         control.innerHTML = buildDialogControl(activeDialog);
         bindDialogControl(activeDialog, control);
         overlay.classList.add('active');
@@ -200,6 +202,7 @@
                 control.querySelectorAll('.game-choice-option').forEach(row => row.setAttribute('aria-pressed', 'false'));
                 button.setAttribute('aria-pressed', 'true');
                 playUiFeedbackSound('open');
+                if (dialog.submitOnChoice) submitActiveDialog();
             }));
         }
     }

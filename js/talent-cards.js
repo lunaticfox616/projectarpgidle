@@ -222,6 +222,7 @@ function getTalentUniqLabel(key, p) {
         projectileDoubleStrikePct: () => `투사체 연속타격 확률 +${p.pct}%`,
         projectileExtraShotBonus: () => `투사체 추가 발사 +${p.shots}`,
         lifePctAsEnergyShield: () => `최대 생명력의 ${p.pct}%를 에너지 보호막으로`,
+        overhealCapPct: () => `생명력·에너지 보호막 초과 회복 +${p.pct}%`,
         hpToPhysPct: () => `최대 생명력이 물리 피해를 강화`,
         labyrinthShackles: () => `이동 속도가 피해로 전환`,
         grandBreachCrown: () => `에너지 보호막 +${p.esPct}% · ES의 ${p.spellFromEsPct}%를 주문 피해로`,
