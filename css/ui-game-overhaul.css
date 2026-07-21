@@ -806,6 +806,42 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: 'â
   background: rgba(55, 31, 18, .58);
 }
 
+.jewel-cap-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.jewel-cap-toolbar #ui-jewel-cap { flex: 1 1 auto; min-width: 0; }
+
+.inventory-capacity-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inventory-expand-shortcut {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid #a88348;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #3a2f1d, #211c14);
+  color: #ffe1a0;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.inventory-expand-shortcut:hover:not(:disabled) { border-color: #e0b86b; color: #fff3ce; }
+.inventory-expand-shortcut:disabled { opacity: .48; cursor: not-allowed; }
+.inventory-expand-shortcut[hidden] { display: none; }
+body.light-mode .inventory-expand-shortcut { border-color: #caa85f; background: #fff7e4; color: #765616; }
+
 .jewel-overflow-warning {
   color: #ffbd7e;
   font-weight: 800;
