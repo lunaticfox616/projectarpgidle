@@ -4941,7 +4941,7 @@ function getMobileToastRoot() {
     root.style.left = '50%';
     root.style.bottom = '84px';
     root.style.transform = 'translateX(-50%)';
-    root.style.zIndex = '9999';
+    root.style.zIndex = '22000';
     root.style.pointerEvents = 'none';
     root.style.display = 'flex';
     root.style.flexDirection = 'column';
