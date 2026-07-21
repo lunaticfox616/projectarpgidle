@@ -928,12 +928,20 @@ function getTargetGemBonusSources(target, fallbackSources) {
 }
 
 function getSummonGemLevel(gemName, source, pStats) {
-    let records = source === 'support' ? (game.supportGemData || {}) : (game.gemData || {});
-    let baseLevel = Math.max(1, (records[gemName] || {}).level || 1);
+    let isSupport = source === 'support';
+    let records = isSupport ? (game.supportGemData || {}) : (game.gemData || {});
+    let record = records[gemName] || {};
+    let baseLevel = Math.max(1, record.level || 1);
     let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources);
     let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
     let engraveBonus = typeof getGemSkyEnhanceGemLevelBonus === 'function' ? getGemSkyEnhanceGemLevelBonus(gemName) : 0;
-    return Math.max(1, baseLevel + bonus + engraveBonus);
+    // getGemPresentation()의 활성 스킬 젬 totalLevel/finalLevel과 동일한 materialBonus 구성
+    // (군주의핵 + 창공의힘 + 각성 + 응축창공). 이게 빠져 있으면 소환 공격 젬에 이 재료들을
+    // 투자해도 젬 자체의 "총 레벨" 표시만 오르고 실제 소환수 전투력은 그대로였다.
+    let isGem = !isSupport && typeof SKILL_DB !== 'undefined' && SKILL_DB[gemName] && SKILL_DB[gemName].isGem;
+    let permanentSkyBonus = isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(gemName) : 0;
+    let materialBonus = isGem ? Number(record.bossCoreLevel || 0) + Number(record.skyCoreLevel || 0) + (record.awakened ? 2 : 0) + permanentSkyBonus : 0;
+    return Math.max(1, baseLevel + bonus + engraveBonus + materialBonus);
 }
 
 function getAttackSummonGrowthSteps(gemLv) {
@@ -6996,6 +7004,24 @@ function clearDotFxThrottleForEnemy(enemyId) {
     });
 }
 
+// 루프 시작 시 스킬이 "기본 공격"만 남는 공백을 메우기 위해, 루프 첫 처치 때
+// 선택한 재능(시작 캐릭터)의 주력 태그에 맞는 하위권 화력 스킬 젬을 확정 지급한다.
+// (좋은 젬을 직접 찾는 재미는 유지하도록 일부러 강한 젬은 고르지 않는다.)
+function grantLoopStarterGemOnFirstKill() {
+    if (game.loopStarterGemGranted) return;
+    game.loopStarterGemGranted = true;
+    // 마이그레이션 가드: 기존 저장 데이터는 이 플래그가 없어 false로 채워진다.
+    // 이미 기본 공격 외의 스킬을 보유한 진행 중인 루프에는 소급 지급하지 않는다.
+    if (!Array.isArray(game.skills) || game.skills.length > 1) return;
+    let heroId = (typeof HERO_SELECTION_DEFS !== 'undefined' && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1';
+    let gemName = (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '연속 베기';
+    if (!SKILL_DB[gemName] || hasSkillGemOwned(gemName)) return;
+    game.skills.push(gemName);
+    game.gemData[gemName] = game.gemData[gemName] || { level: 1, exp: 0 };
+    game.noti.skills = true;
+    addLog(`🎁 재능에 맞는 스킬 젬 [${gemName}] 획득! (스킬 탭에서 장착하세요)`, 'loot-rare');
+}
+
 function handleEnemyDeath(enemy, pStats) {
     if (!enemy || !Number.isFinite(enemy.id)) return;
     let liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
@@ -7011,6 +7037,7 @@ function handleEnemyDeath(enemy, pStats) {
         grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
     }
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
+    grantLoopStarterGemOnFirstKill();
     tickFlaskChargesOnKill();
     // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
     if (game.talentDawnHits) delete game.talentDawnHits[enemy.id];
@@ -7388,7 +7415,7 @@ function finishEncounterRun() {
         }
         st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
         st.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(st.highestFloor, floor + 1);
-        addLog(`🌌 혼돈계 ${floor}층 돌파! ${st.currentFloor}층까지 입장 가능합니다.`, 'season-up');
+        addLog(`🌌 혼돈계 ${floor}층 돌파!`, 'season-up');
         if (mapAction === 'nextLoopBestPlusOne') {
             let nextZone = resolveNextLoopBestPlusOneZone(zone);
             game.currentZoneId = nextZone !== null ? nextZone : CHAOS_REALM_ZONE_ID;
@@ -9915,6 +9942,7 @@ function triggerSeasonReset(options) {
     game.voidPassives = {};
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
+    game.loopStarterGemGranted = false;
     game.flasks = {};
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
     game.skyGemEnhancements = {};

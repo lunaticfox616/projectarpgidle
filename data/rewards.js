@@ -12,13 +12,16 @@ const ACT_REWARD_DB = {
         ]
     },
     1: {
+        // 루프 첫 처치 확정 지급(LOOP_STARTER_GEM_BY_HERO)으로 이미 공격 스킬 젬 하나를
+        // 들고 있는 시점이라, 여기서 또 공격 젬을 고르게 하면 선택이 겹치거나 무의미해진다.
+        // 대신 방금 얻은 공격 스킬을 살려줄 보조 젬을 고르게 한다.
         title: '액트 2 클리어 보상',
-        body: '떨어진 곳에서 당신이 찾아낸 젬은, 아직 이름을 부르지 못한 힘을 품고 있었다. 하나를 골라 다음 액트의 전투 방식을 정하세요.',
+        body: '떨어진 곳에서 당신이 찾아낸 젬은, 아직 이름을 부르지 못한 힘을 품고 있었다. 하나를 골라 지금 쓰는 스킬을 벼리세요.',
         choices: [
-            { kind: 'skill', skill: '연속 베기', fallbackKind: 'points', fallbackValue: 1, label: '근접 - 연속 베기', desc: '전방을 빠르게 가르는 근접 기술입니다.' },
-            { kind: 'skill', skill: '흡혈 타격', fallbackKind: 'points', fallbackValue: 1, label: '근접 - 흡혈 타격', desc: '카오스 피해와 흡혈이 붙은 근접 일격입니다.' },
-            { kind: 'skill', skill: '관통 사격', fallbackKind: 'points', fallbackValue: 1, label: '투사체 - 관통 사격', desc: '처치 후 남은 피해가 다른 적에게 이어지는 사격입니다.' },
-            { kind: 'skill', skill: '얼음 창', fallbackKind: 'points', fallbackValue: 1, label: '마법 - 얼음 창', desc: '젬 레벨에 따라 치명타가 성장하는 냉기 투사체를 발사합니다.' }
+            { kind: 'support', gem: '가벼운 발걸음', fallbackKind: 'points', fallbackValue: 1, label: '보조 젬 - 가벼운 발걸음', desc: '이동 속도를 높여 맵 진행을 빠르게 합니다.' },
+            { kind: 'support', gem: '날카로움', fallbackKind: 'points', fallbackValue: 1, label: '보조 젬 - 날카로움', desc: '치명타 확률을 높이는 보조 젬을 얻습니다.' },
+            { kind: 'support', gem: '정밀 하한', fallbackKind: 'points', fallbackValue: 1, label: '보조 젬 - 정밀 하한', desc: '피해 하한을 올려 딜 편차를 줄입니다.' },
+            { kind: 'support', gem: '방어 상승', fallbackKind: 'points', fallbackValue: 1, label: '보조 젬 - 방어 상승', desc: '물리 피해 감소를 올려 생존력을 보탭니다.' }
         ]
     },
     2: {

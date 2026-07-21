@@ -66,4 +66,21 @@ assert(css.includes('height: 34px'), 'boss and player HP bars should remain read
 assert(css.includes('width: clamp(460px, 45vw, 640px)'), 'player HUD should keep requested readable width');
 assert(css.includes('height: 7px'), 'desktop EXP bar should be 6-8px tall');
 assert(css.includes('min-width: 320px'), 'mobile enemy HUD should not shrink below 320px');
+
+// 코어 큐브 창: .core-cube-shell(css/core-cube.css)이 2열 그리드
+// minmax(420px,..) + minmax(310px,..) + gap 14px를 쓴다. 창 본문 좌우 패딩(26px*2)을 더한
+// 최소 필요 폭보다 창 기본/최소 폭이 좁으면 오른쪽 카드(동력원 보관함 등)가 창 밖으로 밀려
+// 잘려 보인다(회귀: 720/480이었을 때 실측으로 재현됨).
+const coreCubeCss = fs.readFileSync('css/core-cube.css', 'utf8');
+const shellMatch = coreCubeCss.match(/\.core-cube-shell\s*{[^}]*grid-template-columns:\s*minmax\((\d+)px[^)]*\)\s*minmax\((\d+)px[^)]*\)[^}]*gap:\s*(\d+)px/);
+assert(shellMatch, 'core-cube-shell grid definition must be parseable for the width regression check');
+const [colAMin, colBMin, gridGap] = [Number(shellMatch[1]), Number(shellMatch[2]), Number(shellMatch[3])];
+const windowBodyPadding = 26 * 2; // css/ui-windows.css .ui-window-body: padding: 20px 26px 26px
+const requiredCubeWidth = colAMin + colBMin + gridGap + windowBodyPadding;
+const cubeDefMatch = manager.match(/'tab-cube':\s*{[^}]*width:\s*(\d+)[^}]*minWidth:\s*(\d+)/);
+assert(cubeDefMatch, 'tab-cube window definition must be parseable for the width regression check');
+const [cubeWidth, cubeMinWidth] = [Number(cubeDefMatch[1]), Number(cubeDefMatch[2])];
+assert(cubeWidth >= requiredCubeWidth, `tab-cube default width (${cubeWidth}) must fit the core-cube-shell grid minimum (${requiredCubeWidth}) or the right column overflows the window`);
+assert(cubeMinWidth >= requiredCubeWidth, `tab-cube minWidth (${cubeMinWidth}) must not let users resize below the core-cube-shell grid minimum (${requiredCubeWidth})`);
+
 console.log('smoke-windowed-ui-structure passed');

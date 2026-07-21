@@ -1935,6 +1935,7 @@ const defaultGame = {
     killsInZone: 0,
     loopDeaths: 0,
     loopKills: 0,
+    loopStarterGemGranted: false,
     settings: {
         showCombatScene: true,
         cameraShake: true,
