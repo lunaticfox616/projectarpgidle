@@ -7834,10 +7834,12 @@ function updateCombatUI(pStats) {
                 <div class="enemy-card targeted${focusedEnemy.isBoss || focusedEnemy.bossPhase ? ' enemy-boss' : (focusedEnemy.isElite ? ' enemy-elite' : '')}">
                     <div class="enemy-name"></div>
                     <div class="hp-bar-bg">
-                        <div class="hp-bar-fill enemy-damage-ghost"></div>
-                        <div class="hp-bar-fill enemy-es"></div>
-                        <div class="hp-bar-fill enemy"></div>
-                        <div class="hp-bar-fill enemy-pending"></div>
+                        <div class="health-skin-track">
+                            <div class="hp-bar-fill enemy-damage-ghost"></div>
+                            <div class="hp-bar-fill enemy-es"></div>
+                            <div class="hp-bar-fill enemy"></div>
+                            <div class="hp-bar-fill enemy-pending"></div>
+                        </div>
                         <div class="hp-text"></div>
                     </div>
                     <div class="enemy-tags muted enemy-ailments"></div>

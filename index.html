@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-combat-polish1">
     <link rel="stylesheet" href="css/typography-readability.css?v=20260721-galmuri-item-names1">
+    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-health-menu-skin1">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -263,6 +264,7 @@
             </div>
         </div>
         <div class="combat-top-status player-hud">
+            <div class="player-health-frame">
             <div class="combat-hud-row combat-hud-row-exp player-hud-exp">
             <div class="combat-hud-label combat-hud-label-exp" id="ui-exp-level-label">경험치</div>
             <div class="hp-bar-bg combat-exp-bar">
@@ -276,6 +278,7 @@
             <div class="hp-bar-bg combat-hp-bar">
                 <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
                 <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span><span id="ui-es-inline"></span></div>
+            </div>
             </div>
             </div>
             <div id="ui-ocean-oxygen-box" class="combat-hud-row combat-hud-row-oxygen player-hud-oxygen" style="display:none;">
@@ -1313,7 +1316,7 @@
 <script defer src="js/canvas-battlefield.js?v=20260722-boss-pattern-clean1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260722-warrior-rage1"></script>
+<script defer src="js/ui.js?v=20260722-health-menu-skin1"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
 <script defer src="js/ui-window-manager.js?v=20260721-core-cube-width1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
