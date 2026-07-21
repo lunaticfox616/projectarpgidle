@@ -211,8 +211,8 @@ assert.ok(battlefieldSource.includes("const dissolveFade = Math.pow(1 - dissolve
 assert.ok(battlefieldSource.includes('ctx.translate(enemy.x, enemy.y + dissolve *'), 'enemy deaths should settle in place rather than floating upward');
 assert.ok(!battlefieldSource.includes('ctx.translate(enemy.x, enemy.y - t *'), 'enemy deaths should not use the previous upward exit motion');
 assert.ok(!battlefieldSource.includes('drawBossTelegraphDecal'), 'boss telegraphs should not use the coarse generated decal assets');
-assert.ok(battlefieldSource.includes('ctx.arc(playerPos.x, playerPos.y + 5, ringRadius'), 'boss ring patterns should retain a clean vector warning');
-assert.ok(battlefieldSource.includes('[-0.16, 0, 0.16].forEach'), 'boss fan patterns should retain a clean vector warning');
+assert.ok(!battlefieldSource.includes('ctx.arc(playerPos.x, playerPos.y + 5, ringRadius'), 'boss patterns should not scatter ring warnings across the battlefield');
+assert.ok(!battlefieldSource.includes('[-0.16, 0, 0.16].forEach'), 'boss patterns should not scatter fan lines across the battlefield');
 assert.ok(battlefieldSource.includes('function queueSkillGemVfx('), 'resolved skill hits should enqueue generated image effects');
 assert.ok(battlefieldSource.includes('drawSkillGemVfxLayer(ctx, now);'), 'skill VFX should render through the battlefield effect layer');
 assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') > battlefieldSource.indexOf('drawEnemySprite(ctx, enemy, entry.x'), 'translucent skill VFX should remain visible over monster sprites');
@@ -280,9 +280,9 @@ assert.ok(combatSource.includes('rawDamage: dmg'), 'one-shot damage labels shoul
 assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage'), 'damage labels should show damage beyond the target remaining life');
 assert.strictEqual(context.SKILL_DB['회오리바람'].targets, 8, 'whirlwind should cover all eight adjacent directions');
 assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['번개 타격'].primaryFamily, 'slash', 'lightning strike should begin with a melee lightning slash before chain arcs');
-assert.ok(battlefieldSource.includes('if (!enemy.isElite && !enemy.isBoss) return;'), 'ordinary monsters should not render ground aura telegraphs');
-assert.ok(battlefieldSource.includes('if (!enemy || fx.boss) return;'), 'boss spawns should skip the line-and-ring spawn effect');
-assert.ok(!combatSource.includes("addBattleFx('enemySpawn', { enemyId: bossEnemy.id"), 'boss encounters should not enqueue the removed spawn effect');
+assert.ok(battlefieldSource.includes('if (!enemy.isElite) return;'), 'ordinary monsters should not render ground aura telegraphs');
+assert.ok(battlefieldSource.includes('drawBossPatternLabel(ctx, entry, enemy, gridUnitScale);'), 'boss pattern names should remain readable after removing their geometric effects');
+assert.ok(combatSource.includes("addBattleFx('enemySpawn', { enemyId: bossEnemy.id"), 'boss entrance feedback should remain separate from pattern telegraphs');
 assert.ok(battlefieldSource.includes("fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32)"), 'enemy hits should use restrained camera feedback');
 assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups should create a battlefield effect');
 assert.ok(combatSource.includes("duration: 560, color: '#ffe59a'"), 'level-up feedback should end quickly');
