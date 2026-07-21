@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#05080e">
     <title>PROJECT IDLE — Rootbound ARPG</title>
-    <link rel="stylesheet" href="css/base.css?v=20260721-galmuri-body1">
+    <link rel="stylesheet" href="css/base.css?v=20260722-map-complete-action1">
     <link rel="stylesheet" href="css/layout.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/theme.css?v=20260721-contract-header1">
     <link rel="stylesheet" href="css/components.css?v=20260719-white-copy1">
@@ -344,6 +344,9 @@
         <div class="tab-btn" id="btn-tab-cube" onclick="switchTab('tab-cube')" style="display:none;">큐브 <span id="noti-cube" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-social" onclick="switchTab('tab-social')" style="display: flex;">커뮤니티 <span id="noti-social" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: flex;">설정</div>
+    </div>
+    <div id="tab-etc-combat-action" class="tab-etc-combat-action" hidden>
+        <button id="btn-map-complete-action-picker" type="button" onclick="openMapCompleteActionPicker()">전투 완료 후: 다음 지역</button>
     </div>
     <div class="tab-header tab-header-bottom" id="tab-header-bottom"></div>
     <div id="tab-battle" class="tab-content active"></div>
@@ -1114,10 +1117,10 @@
                     <div class="cfg-select-row">
                         <span class="cfg-label">맵 완료 시</span>
                         <select id="sel-map-complete-action" onchange="updateSettings()" class="cfg-select">
-                            <option value="nextZone">다음 지역으로 이동</option>
-                            <option value="repeatZone">같은 지역 반복</option>
-                            <option value="nextLoopBestPlusOne">현재 루프 기준 다음 지역</option>
-                            <option value="stop">전투 중단</option>
+                            <option value="repeatZone">반복</option>
+                            <option value="nextZone">다음 지역</option>
+                            <option value="nextLoopBestPlusOne">최고층</option>
+                            <option value="stop">중단</option>
                         </select>
                     </div>
                     <div class="cfg-select-row">
@@ -1306,7 +1309,7 @@
 <script defer src="js/canvas-battlefield.js?v=20260721-grandlord-root-boss1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260721-gem-research-fold1"></script>
+<script defer src="js/ui.js?v=20260722-map-complete-action1"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
 <script defer src="js/ui-window-manager.js?v=20260721-core-cube-width1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
