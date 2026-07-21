@@ -928,12 +928,20 @@ function getTargetGemBonusSources(target, fallbackSources) {
 }
 
 function getSummonGemLevel(gemName, source, pStats) {
-    let records = source === 'support' ? (game.supportGemData || {}) : (game.gemData || {});
-    let baseLevel = Math.max(1, (records[gemName] || {}).level || 1);
+    let isSupport = source === 'support';
+    let records = isSupport ? (game.supportGemData || {}) : (game.gemData || {});
+    let record = records[gemName] || {};
+    let baseLevel = Math.max(1, record.level || 1);
     let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources);
     let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
     let engraveBonus = typeof getGemSkyEnhanceGemLevelBonus === 'function' ? getGemSkyEnhanceGemLevelBonus(gemName) : 0;
-    return Math.max(1, baseLevel + bonus + engraveBonus);
+    // getGemPresentation()의 활성 스킬 젬 totalLevel/finalLevel과 동일한 materialBonus 구성
+    // (군주의핵 + 창공의힘 + 각성 + 응축창공). 이게 빠져 있으면 소환 공격 젬에 이 재료들을
+    // 투자해도 젬 자체의 "총 레벨" 표시만 오르고 실제 소환수 전투력은 그대로였다.
+    let isGem = !isSupport && typeof SKILL_DB !== 'undefined' && SKILL_DB[gemName] && SKILL_DB[gemName].isGem;
+    let permanentSkyBonus = isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(gemName) : 0;
+    let materialBonus = isGem ? Number(record.bossCoreLevel || 0) + Number(record.skyCoreLevel || 0) + (record.awakened ? 2 : 0) + permanentSkyBonus : 0;
+    return Math.max(1, baseLevel + bonus + engraveBonus + materialBonus);
 }
 
 function getAttackSummonGrowthSteps(gemLv) {
@@ -7407,7 +7415,7 @@ function finishEncounterRun() {
         }
         st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
         st.currentFloor = mapAction === 'repeatZone' ? floor : Math.min(st.highestFloor, floor + 1);
-        addLog(`🌌 혼돈계 ${floor}층 돌파! ${st.currentFloor}층까지 입장 가능합니다.`, 'season-up');
+        addLog(`🌌 혼돈계 ${floor}층 돌파!`, 'season-up');
         if (mapAction === 'nextLoopBestPlusOne') {
             let nextZone = resolveNextLoopBestPlusOneZone(zone);
             game.currentZoneId = nextZone !== null ? nextZone : CHAOS_REALM_ZONE_ID;
