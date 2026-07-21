@@ -2058,6 +2058,7 @@ const defaultGame = {
     mapExploreSubtab: 'map-explore-hunting',
     gemFoldInactiveAttack: false,
     gemFoldInactiveSupport: false,
+    gemResearchExpanded: {},
     autoRepeatSeasonBoss: false,
     talismanUnlocked: false,
     talismanBoardUnlock: 3,

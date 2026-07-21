@@ -4270,15 +4270,25 @@ function renderGemResearchPanel() {
     let attackCards = state.attack.missing.map(name => renderGemResearchCandidate('attack', name, attackCost, fragments)).join('');
     let supportCards = state.support.missing.map(name => renderGemResearchCandidate('support', name, supportCost, fragments)).join('');
     let allComplete = state.attack.missing.length === 0 && state.support.missing.length === 0;
+    let expanded = game.gemResearchExpanded && typeof game.gemResearchExpanded === 'object' && !Array.isArray(game.gemResearchExpanded) ? game.gemResearchExpanded : {};
+    let attackOpen = typeof expanded.attack === 'boolean' ? expanded.attack : fragments >= attackCost && state.attack.missing.length > 0;
+    let supportOpen = typeof expanded.support === 'boolean' ? expanded.support : fragments >= supportCost && state.attack.missing.length === 0 && state.support.missing.length > 0;
     root.innerHTML = `<div class="gem-research-summary">
         <div><span class="skill-panel-kicker">DETERMINISTIC ACQUISITION</span><h3>젬 연구</h3><p>젬 드랍마다 잔향을 모읍니다. 무작위 드랍을 기다리지 않고 원하는 미보유 젬을 확정 해금할 수 있습니다.</p></div>
         <div class="gem-research-resource"><span>젬 잔향</span><strong>${fragments}</strong><small>공격 ${attackCost} · 보조 ${supportCost}</small></div>
         <div class="gem-research-progress"><span>공격 <b>${state.attack.owned}/${state.attack.total}</b></span><span>보조 <b>${state.support.owned}/${state.support.total}</b></span></div>
     </div>
     ${allComplete ? '<div class="gem-research-complete">모든 젬 연구 완료 · 이후 젬 드랍은 추가 젬 잔향으로 환원됩니다.</div>' : `<div class="gem-research-columns">
-        <details ${fragments >= attackCost && state.attack.missing.length > 0 ? 'open' : ''}><summary>미보유 공격 젬 <b>${state.attack.missing.length}</b></summary><div class="gem-research-grid">${attackCards || '<div class="gem-process-empty">공격 젬 수집 완료</div>'}</div></details>
-        <details ${fragments >= supportCost && state.attack.missing.length === 0 && state.support.missing.length > 0 ? 'open' : ''}><summary>미보유 보조 젬 <b>${state.support.missing.length}</b></summary><div class="gem-research-grid">${supportCards || '<div class="gem-process-empty">보조 젬 수집 완료</div>'}</div></details>
+        <details data-gem-research-section="attack" ${attackOpen ? 'open' : ''}><summary>미보유 공격 젬 <b>${state.attack.missing.length}</b></summary><div class="gem-research-grid">${attackCards || '<div class="gem-process-empty">공격 젬 수집 완료</div>'}</div></details>
+        <details data-gem-research-section="support" ${supportOpen ? 'open' : ''}><summary>미보유 보조 젬 <b>${state.support.missing.length}</b></summary><div class="gem-research-grid">${supportCards || '<div class="gem-process-empty">보조 젬 수집 완료</div>'}</div></details>
     </div>`}`;
+    root.querySelectorAll('details[data-gem-research-section]').forEach(details => {
+        details.addEventListener('toggle', () => {
+            game.gemResearchExpanded = game.gemResearchExpanded && typeof game.gemResearchExpanded === 'object' && !Array.isArray(game.gemResearchExpanded) ? game.gemResearchExpanded : {};
+            game.gemResearchExpanded[details.dataset.gemResearchSection] = details.open;
+            if (typeof queueImportantSave === 'function') queueImportantSave(500);
+        });
+    });
 }
 
 function getGemGrowthSummaryHtml(name, presentation) {
@@ -11696,6 +11706,11 @@ function mergeDefaults(save) {
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
     merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;
+    let gemResearchExpanded = merged.gemResearchExpanded && typeof merged.gemResearchExpanded === 'object' && !Array.isArray(merged.gemResearchExpanded) ? merged.gemResearchExpanded : {};
+    merged.gemResearchExpanded = {};
+    ['attack', 'support'].forEach(section => {
+        if (typeof gemResearchExpanded[section] === 'boolean') merged.gemResearchExpanded[section] = gemResearchExpanded[section];
+    });
     if (merged.gemFoldInactive) {
         merged.gemFoldInactiveAttack = true;
         merged.gemFoldInactiveSupport = true;
