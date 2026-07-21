@@ -6996,6 +6996,24 @@ function clearDotFxThrottleForEnemy(enemyId) {
     });
 }
 
+// 루프 시작 시 스킬이 "기본 공격"만 남는 공백을 메우기 위해, 루프 첫 처치 때
+// 선택한 재능(시작 캐릭터)의 주력 태그에 맞는 하위권 화력 스킬 젬을 확정 지급한다.
+// (좋은 젬을 직접 찾는 재미는 유지하도록 일부러 강한 젬은 고르지 않는다.)
+function grantLoopStarterGemOnFirstKill() {
+    if (game.loopStarterGemGranted) return;
+    game.loopStarterGemGranted = true;
+    // 마이그레이션 가드: 기존 저장 데이터는 이 플래그가 없어 false로 채워진다.
+    // 이미 기본 공격 외의 스킬을 보유한 진행 중인 루프에는 소급 지급하지 않는다.
+    if (!Array.isArray(game.skills) || game.skills.length > 1) return;
+    let heroId = (typeof HERO_SELECTION_DEFS !== 'undefined' && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1';
+    let gemName = (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '연속 베기';
+    if (!SKILL_DB[gemName] || hasSkillGemOwned(gemName)) return;
+    game.skills.push(gemName);
+    game.gemData[gemName] = game.gemData[gemName] || { level: 1, exp: 0 };
+    game.noti.skills = true;
+    addLog(`🎁 재능에 맞는 스킬 젬 [${gemName}] 획득! (스킬 탭에서 장착하세요)`, 'loot-rare');
+}
+
 function handleEnemyDeath(enemy, pStats) {
     if (!enemy || !Number.isFinite(enemy.id)) return;
     let liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
@@ -7011,6 +7029,7 @@ function handleEnemyDeath(enemy, pStats) {
         grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
     }
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
+    grantLoopStarterGemOnFirstKill();
     tickFlaskChargesOnKill();
     // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)
     if (game.talentDawnHits) delete game.talentDawnHits[enemy.id];
@@ -9915,6 +9934,7 @@ function triggerSeasonReset(options) {
     game.voidPassives = {};
     game.skills = ['기본 공격'];
     game.activeSkill = '기본 공격';
+    game.loopStarterGemGranted = false;
     game.flasks = {};
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
     game.skyGemEnhancements = {};
