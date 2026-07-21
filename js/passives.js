@@ -3839,18 +3839,42 @@ function clampPassiveCamera() {
     camY = clampNumber(camY, -7800, 7800);
 }
 
+// 첫 진입 시 전체 트리(1000개+ 노드, 우주계까지 포함하는 광대한 범위)를
+// 한 화면에 맞추면 배율이 극단적으로 작아져 노드가 사실상 보이지 않는다.
+// 실제로 지금 다룰 수 있는 범위(투자한 노드 + 바로 다음 구매 가능한 노드)만
+// 화면에 맞춰, 열자마자 무엇을 누를 수 있는지 보이게 한다.
+function getPassiveActiveViewBoundsIds() {
+    let ids = new Set(['n0']);
+    (Array.isArray(game && game.passives) ? game.passives : []).forEach(id => ids.add(id));
+    reachableNodes.forEach(id => ids.add(id));
+    return ids;
+}
+
 function fitPassiveCameraToBounds(force) {
     if (passiveCameraInitialized && !force) return;
     let container = document.getElementById('tree-container');
     if (!container || container.offsetParent === null) return;
     let width = Math.max(1, container.clientWidth);
     let height = Math.max(1, container.clientHeight);
-    const spanX = Math.max(1, PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX);
-    const spanY = Math.max(1, PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY);
+    let viewIds = getPassiveActiveViewBoundsIds();
+    let viewNodes = Array.from(viewIds).map(id => PASSIVE_TREE.nodes[id]).filter(Boolean);
+    let minX, maxX, minY, maxY;
+    if (viewNodes.length > 0) {
+        minX = Math.min(...viewNodes.map(n => n.x));
+        maxX = Math.max(...viewNodes.map(n => n.x));
+        minY = Math.min(...viewNodes.map(n => n.y));
+        maxY = Math.max(...viewNodes.map(n => n.y));
+    } else {
+        minX = maxX = PASSIVE_TREE.nodes.n0.x;
+        minY = maxY = PASSIVE_TREE.nodes.n0.y;
+    }
+    const viewPadding = 220;
+    const spanX = Math.max(1, (maxX - minX) + viewPadding * 2);
+    const spanY = Math.max(1, (maxY - minY) + viewPadding * 2);
     const defaultZoom = Math.min((width - 64) / spanX, (height - 72) / spanY);
     camZoom = clampNumber(defaultZoom, 0.14, 0.72);
-    const boundsCenterX = (PASSIVE_BOUNDS.minX + PASSIVE_BOUNDS.maxX) * 0.5;
-    const boundsCenterY = (PASSIVE_BOUNDS.minY + PASSIVE_BOUNDS.maxY) * 0.5;
+    const boundsCenterX = (minX + maxX) * 0.5;
+    const boundsCenterY = (minY + maxY) * 0.5;
     camX = -boundsCenterX * camZoom;
     camY = -boundsCenterY * camZoom;
     passiveCameraInitialized = true;
