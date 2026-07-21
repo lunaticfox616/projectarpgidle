@@ -180,13 +180,16 @@
             let input = control.querySelector('#game-dialog-number');
             let range = control.querySelector('#game-dialog-range');
             let preview = control.querySelector('#game-dialog-number-preview');
-            let sync = value => {
+            let sync = (value, keepInputText) => {
                 let next = clampDialogNumber(value, dialog);
-                input.value = String(next);
+                // 타이핑 중에는 입력 칸을 강제로 고치지 않는다. min이 21일 때
+                // "2"를 치는 순간 21로 덮어써 버리면 숫자를 직접 입력할 수 없다.
+                if (!keepInputText) input.value = String(next);
                 range.value = String(next);
                 preview.textContent = String(next);
             };
-            input.addEventListener('input', () => sync(input.value));
+            input.addEventListener('input', () => sync(input.value, true));
+            input.addEventListener('change', () => sync(input.value));
             range.addEventListener('input', () => sync(range.value));
             control.querySelectorAll('[data-step-direction]').forEach(button => button.addEventListener('click', () => {
                 sync(Number(input.value) + Number(button.dataset.stepDirection || 0) * dialog.step);
