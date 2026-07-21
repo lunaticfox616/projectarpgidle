@@ -7403,7 +7403,10 @@ function updateCombatUI(pStats) {
     pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats.__uiFallbackStats) pStats.maxHp = Math.max(pStats.maxHp, Math.max(1, Number(game.playerHp) || 1));
     if (pStats && pStats.breakdowns && !pStats.__uiFallbackStats) cachedTooltipStats = pStats;
-    if (!pStats.__uiFallbackStats) game.playerHp = Math.min(game.playerHp, pStats.maxHp);
+    if (!pStats.__uiFallbackStats) {
+        let recoveryHpCap = Number.isFinite(Number(pStats.lifeRecoveryCap)) ? Number(pStats.lifeRecoveryCap) : pStats.maxHp;
+        game.playerHp = Math.min(game.playerHp, recoveryHpCap);
+    }
     let safeHp = Math.max(0, Number(game.playerHp) || 0);
     setTextById('ui-hp', formatSettingNumber(safeHp, 'showHpComma', safeHp >= 100 ? {} : { decimals: 1 }));
     setTextById('ui-maxhp', formatSettingNumber(pStats.maxHp, 'showHpComma'));
