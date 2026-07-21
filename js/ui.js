@@ -1062,6 +1062,7 @@ function moveTabGroup(groupKey, dir) {
     game.settings.tabGroupOrder = moved.map(group => group.key);
     lastTabHeaderUiSignature = null;
     renderTabCategoryBar();
+    if (typeof syncDesktopRailGroups === 'function' && document.body.classList.contains('desktop-windowed-ui')) syncDesktopRailGroups();
     renderTabOrderSettings();
     queueImportantSave(300);
 }
@@ -1079,6 +1080,7 @@ function moveTabGroupBefore(sourceKey, targetKey) {
     game.settings.tabGroupOrder = moved.map(group => group.key);
     lastTabHeaderUiSignature = null;
     renderTabCategoryBar();
+    if (typeof syncDesktopRailGroups === 'function' && document.body.classList.contains('desktop-windowed-ui')) syncDesktopRailGroups();
     renderTabOrderSettings();
     queueImportantSave(300);
 }
@@ -1262,6 +1264,7 @@ function clearTabHeaderDragState(saveOrder) {
 }
 
 function onTabHeaderPointerDown(event) {
+    if (document.body && document.body.classList.contains('desktop-windowed-ui')) return;
     if (tabHeaderDragState) return;
     let button = getTabButtonFromTarget(event.target);
     if (!button || (event.pointerType === 'mouse' && event.button !== 0)) return;
@@ -1361,6 +1364,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
     // 데스크톱 창형 레일의 버튼 배치(고정 탭 + 더보기 메뉴)는 창 관리자가 소유한다.
     // 여기서 버튼을 다시 헤더 루트로 옮기면 더보기 메뉴가 비워져 레일이 깨진다.
     if (document.body.classList.contains('desktop-windowed-ui')) {
+        if (typeof syncDesktopRailGroups === 'function') syncDesktopRailGroups();
         if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
         return;
     }
@@ -1401,9 +1405,17 @@ function updateBottomTabSpacing(){
     let height = visible ? Math.ceil(bottomHeader.getBoundingClientRect().height) : 0;
     document.body.style.setProperty('--bottom-tab-height', height + 'px');
 }
+function scheduleTabHeaderViewportSync() {
+    clearTabHeaderDragState(false);
+    requestAnimationFrame(() => {
+        updateBottomTabSpacing();
+        lastTabHeaderUiSignature = null;
+        refreshTabHeaderUiIfNeeded();
+    });
+}
 if (typeof window !== 'undefined') {
-    window.addEventListener('resize', () => { updateBottomTabSpacing(); lastTabHeaderUiSignature = null; refreshTabHeaderUiIfNeeded(); });
-    window.addEventListener('orientationchange', () => { updateBottomTabSpacing(); lastTabHeaderUiSignature = null; refreshTabHeaderUiIfNeeded(); });
+    window.addEventListener('resize', scheduleTabHeaderViewportSync);
+    window.addEventListener('orientationchange', scheduleTabHeaderViewportSync);
 }
 function setTabPlacement(tabId, placement){
     game.settings = game.settings || {};
@@ -7471,7 +7483,14 @@ function renderCombatFlaskHud() {
     let signature = entries.map(entry => `${entry.key}:${entry.charges}:${entry.active ? 1 : 0}`).join('|');
     if (host.dataset.signature === signature) return;
     host.dataset.signature = signature;
-    host.innerHTML = entries.map(entry => `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="switchTab('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`).join('');
+    let visibleEntries = entries.slice(0, 3);
+    let buttons = visibleEntries.map(entry => `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="switchTab('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`);
+    let overflowEntries = entries.slice(3);
+    if (overflowEntries.length > 0) {
+        let overflowTitle = overflowEntries.map(entry => `${entry.name} · ${entry.charges}/${entry.maxCharges}회`).join(' / ');
+        buttons.push(`<button type="button" class="combat-flask-mini overflow" title="${escapeHTML(overflowTitle)}" onclick="switchTab('tab-flask')"><span>+${overflowEntries.length}</span></button>`);
+    }
+    host.innerHTML = buttons.join('');
 }
 
 function updateCombatUI(pStats) {
@@ -7633,9 +7652,9 @@ function updateCombatUI(pStats) {
         // 이 블록은 100ms마다 호출되므로, 내용이 같으면 innerHTML 재작성(리플로우)을 생략해
         // 상시 스터터링을 줄인다.
         let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
-        if (ailmentUnderEl) { let v = isMobile ? '' : desktopText; if (ailmentUnderEl.__lastHtml !== v) { ailmentUnderEl.innerHTML = v; ailmentUnderEl.__lastHtml = v; } }
+        if (ailmentUnderEl) { let v = isMobile ? '' : desktopText; if (ailmentUnderEl.__lastHtml !== v) { ailmentUnderEl.innerHTML = v; ailmentUnderEl.title = stripHtmlMessage(v); ailmentUnderEl.__lastHtml = v; } }
         let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
-        if (mobileAilmentEl) { let v = isMobile ? desktopText : ''; if (mobileAilmentEl.__lastHtml !== v) { mobileAilmentEl.innerHTML = v; mobileAilmentEl.__lastHtml = v; } }
+        if (mobileAilmentEl) { let v = isMobile ? desktopText : ''; if (mobileAilmentEl.__lastHtml !== v) { mobileAilmentEl.innerHTML = v; mobileAilmentEl.title = stripHtmlMessage(v); mobileAilmentEl.__lastHtml = v; } }
         let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (!isUiDamageAilmentType(ail.type)) return sum;
@@ -7834,6 +7853,7 @@ function updateCombatUI(pStats) {
         let focusedKey = String(focusedEnemy.id) + '|' + enemies.length + '|' + enemyHudTier;
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             enemyListEl.dataset.enemyId = focusedKey;
+            let traitMarkup = '<div class="enemy-tags muted enemy-traits"></div>';
             enemyListEl.innerHTML = `
                 <div class="enemy-card targeted enemy-${enemyHudTier}">
                     <div class="enemy-nameplate"><div class="enemy-name"></div></div>
@@ -7848,8 +7868,9 @@ function updateCombatUI(pStats) {
                                 <div class="hp-text"></div>
                             </div>
                         </div>
-                        <div class="enemy-tags muted enemy-traits"></div>
+                        ${enemyHudTier === 'boss' ? traitMarkup : ''}
                     </div>
+                    ${enemyHudTier === 'boss' ? '' : traitMarkup}
                     <div class="enemy-tags muted enemy-ailments"></div>
                 </div>
             `;
@@ -8156,6 +8177,7 @@ function renderEquipmentLoadoutSummary(pStats) {
 }
 
 function updateInventoryFullWarnings() {
+    let changed = false;
     let warnings = [
         ['inventory-full-warning', game.inventory || [], getInventoryLimit()],
         ['jewel-inventory-full-warning', game.jewelInventory || [], getJewelInventoryLimit()]
@@ -8164,9 +8186,14 @@ function updateInventoryFullWarnings() {
         let element = document.getElementById(id);
         if (!element) return;
         let isFull = entries.length >= limit;
-        element.style.display = isFull ? 'inline-block' : 'none';
+        let nextDisplay = isFull ? 'inline-block' : 'none';
+        if (element.style.display !== nextDisplay) changed = true;
+        element.style.display = nextDisplay;
         element.title = isFull ? `${entries.length}/${limit}칸 · 공간을 확보하세요` : '';
     });
+    if (changed && document.body.classList.contains('desktop-windowed-ui') && typeof syncDesktopRailGroups === 'function') {
+        syncDesktopRailGroups();
+    }
 }
 
 function syncInventoryExpansionShortcuts() {

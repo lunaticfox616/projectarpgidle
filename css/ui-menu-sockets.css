@@ -1,6 +1,6 @@
 /* One supplied menu image, with one actionable tab per illustrated socket. */
 
-body.desktop-windowed-ui { --menu-rail-width: clamp(170px, 29.2vh, 216px); }
+body.desktop-windowed-ui { --menu-rail-width: clamp(80px, min(29.2svh, 18vw), 216px); }
 
 body.desktop-windowed-ui #left-pane {
   padding-left: calc(var(--menu-rail-width) + 12px) !important;

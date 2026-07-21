@@ -87,7 +87,8 @@ const flaskContext = {
 vm.createContext(flaskContext);
 vm.runInContext(uiSource.slice(flaskStart, flaskEnd), flaskContext, { filename: 'player-hud-flasks.js' });
 flaskContext.renderCombatFlaskHud();
-assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini/g) || []).length, 5, 'all five available flask buttons must remain in the HUD DOM');
-assert(flaskHost.innerHTML.includes('유틸리티 4'), 'the fifth flask must remain interactive instead of being discarded by the three-orb art');
+assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini/g) || []).length, 4, 'three art sockets plus one overflow control must represent five flasks without leaving the frame');
+assert(flaskHost.innerHTML.includes('class="combat-flask-mini overflow"'), 'extra flasks must share a compact control inside the third orb');
+assert(flaskHost.innerHTML.includes('유틸리티 4 · 4/5회'), 'the overflow tooltip must preserve the fifth flask charge information');
 
 console.log('smoke-player-hud-structure passed');

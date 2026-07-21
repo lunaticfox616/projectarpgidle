@@ -468,7 +468,16 @@
     // 중앙 5개 소켓은 그룹, 좌우 6개 소켓은 선택 그룹의 탭으로 사용한다.
     // 그룹 정의(TAB_GROUPS)와 선택 상태(game.settings.activeTabGroup)는 ui.js의 SSOT를 재사용한다.
     function getRailGroups() {
-        let groups = (typeof TAB_GROUPS !== 'undefined' && Array.isArray(TAB_GROUPS)) ? TAB_GROUPS : [];
+        let groups = typeof getOrderedTabGroups === 'function'
+            ? getOrderedTabGroups()
+            : ((typeof TAB_GROUPS !== 'undefined' && Array.isArray(TAB_GROUPS)) ? TAB_GROUPS : []);
+        let savedTabOrder = (typeof game !== 'undefined' && game.settings && Array.isArray(game.settings.tabOrder))
+            ? game.settings.tabOrder
+            : [];
+        let rank = id => {
+            let index = savedTabOrder.indexOf(id);
+            return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
+        };
         return groups.map(group => ({
             key: group.key,
             label: group.label,
@@ -477,6 +486,7 @@
                 .filter(id => id !== 'tab-battle' && id !== 'tab-social')
                 .map(id => 'btn-' + id)
                 .concat(group.key === 'etc' ? ['btn-map-complete-action-picker'] : [])
+                .sort((a, b) => rank(a) - rank(b))
         })).filter(group => group.buttonIds.length > 0);
     }
 
@@ -568,8 +578,12 @@
     }
 
     function hasVisibleRailNotice(button) {
+        if (button.classList.contains('starter-gem-tutorial-pending')) return true;
         return Array.from(button.querySelectorAll('.noti-dot, .inventory-full-warning'))
-            .some(notice => notice.style.display !== 'none');
+            .some(notice => {
+                let style = window.getComputedStyle ? window.getComputedStyle(notice) : notice.style;
+                return style.display !== 'none' && style.visibility !== 'hidden';
+            });
     }
 
     // 잠긴 탭은 제외하고 남은 탭을 좌우 6개 소켓 앞으로 압축한다.
@@ -578,12 +592,19 @@
         if (!sections.length) return;
         let groups = getRailGroups();
         let selected = getSelectedDesktopRailGroup(groups);
+        groups.forEach((group, index) => {
+            let category = document.getElementById('btn-ui-rail-category-' + group.key);
+            setRailSlot(category, RAIL_CATEGORY_SLOTS[index], index + 1);
+        });
         let visibleSections = sections.filter(section => Array.from(section.querySelectorAll('.tab-btn')).some(isRailButtonVisible));
         if (!visibleSections.some(section => section.dataset.railGroup === selected) && visibleSections[0]) {
             selected = visibleSections[0].dataset.railGroup;
         }
         sections.forEach(section => {
-            let buttons = Array.from(section.querySelectorAll('.tab-btn'));
+            let group = groups.find(item => item.key === section.dataset.railGroup);
+            let buttons = group
+                ? group.buttonIds.map(id => document.getElementById(id)).filter(button => button && section.contains(button))
+                : Array.from(section.querySelectorAll('.tab-btn'));
             let visible = buttons.filter(isRailButtonVisible);
             let active = section.dataset.railGroup === selected;
             let category = document.getElementById('btn-ui-rail-category-' + section.dataset.railGroup);

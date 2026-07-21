@@ -3,6 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const source = fs.readFileSync('js/ui-window-manager.js', 'utf8');
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 
 function createStyle() {
     const values = {};
@@ -170,6 +171,13 @@ function bootMenu() {
         console, JSON, Math, Number, Object, Array, String, document, game,
         TAB_UNLOCK_GATES: {},
         TAB_GROUPS: TEST_TAB_GROUPS,
+        getOrderedTabGroups() {
+            const order = Array.isArray(game.settings.tabGroupOrder) ? game.settings.tabGroupOrder : [];
+            const byKey = Object.fromEntries(TEST_TAB_GROUPS.map(group => [group.key, group]));
+            return order.concat(TEST_TAB_GROUPS.map(group => group.key))
+                .filter((key, index, keys) => byKey[key] && keys.indexOf(key) === index)
+                .map(key => byKey[key]);
+        },
         requestAnimationFrame: () => 0,
         queueImportantSave() {},
         safeExposeGlobals: functions => Object.assign(exposed, functions)
@@ -178,6 +186,10 @@ function bootMenu() {
         innerWidth: 1600, innerHeight: 900, game,
         localStorage: { getItem: () => null, setItem() {} },
         matchMedia: () => ({ matches: desktop }),
+        getComputedStyle: element => ({
+            display: element.style.display || (element.classList.contains('noti-dot') || element.classList.contains('inventory-full-warning') ? 'none' : 'block'),
+            visibility: 'visible'
+        }),
         addEventListener: (type, handler) => { windowHandlers[type] = handler; },
         switchTab() {}
     };
@@ -199,6 +211,12 @@ assert.strictEqual(categories.length, 5, 'five group buttons must occupy the cen
 assert(categories.every(element => element.classList.contains('tab-category-btn')), 'group controls must opt out of generic rectangular button chrome');
 assert.deepStrictEqual(slots(categories), ['1', '2', '3', '4', '5']);
 
+menu.game.settings.tabGroupOrder = ['gear', 'character', 'growth', 'content', 'etc'];
+menu.exposed.syncDesktopRailGroups();
+assert.strictEqual(menu.findById('btn-ui-rail-category-gear').dataset.railSlot, '1', 'saved group order must reposition the center sockets');
+menu.game.settings.tabGroupOrder = [];
+menu.exposed.syncDesktopRailGroups();
+
 const growth = menu.findById('ui-rail-group-growth');
 assert.strictEqual(growth.hidden, false, 'saved active group must be shown');
 assert.deepStrictEqual(slots(growth.querySelectorAll('.tab-btn')), ['6', '7', '8', '9', '10', '11']);
@@ -206,10 +224,19 @@ assert.strictEqual(menu.findById('ui-rail-group-character').hidden, true, 'non-s
 
 const gearNotice = createElement('span');
 gearNotice.className = 'noti-dot';
-gearNotice.style.display = 'block';
 menu.findById('btn-tab-items').appendChild(gearNotice);
 menu.exposed.syncDesktopRailGroups();
+assert.strictEqual(menu.findById('noti-ui-rail-gear').style.display, 'none', 'CSS-hidden notices must not light an inactive group');
+gearNotice.style.display = 'block';
+menu.exposed.syncDesktopRailGroups();
 assert.strictEqual(menu.findById('noti-ui-rail-gear').style.display, 'block', 'hidden group notifications must be aggregated');
+
+gearNotice.style.display = 'none';
+menu.findById('btn-tab-skills').classList.add('starter-gem-tutorial-pending');
+menu.findById('btn-ui-rail-category-character').handlers.click();
+assert.strictEqual(menu.findById('noti-ui-rail-growth').style.display, 'block', 'starter gem guidance must reach the hidden growth group');
+menu.findById('btn-tab-skills').classList.remove('starter-gem-tutorial-pending');
+menu.findById('btn-ui-rail-category-growth').handlers.click();
 
 menu.findById('btn-ui-rail-category-gear').handlers.click();
 const gear = menu.findById('ui-rail-group-gear');
@@ -217,6 +244,13 @@ assert.strictEqual(menu.game.settings.activeTabGroup, 'gear', 'group selection m
 assert.strictEqual(gear.hidden, false);
 assert.strictEqual(menu.findById('noti-ui-rail-gear').style.display, 'none', 'active group does not need a duplicate notification');
 assert.deepStrictEqual(slots(gear.querySelectorAll('.tab-btn')), ['6', '7', '8', '9', '10']);
+
+menu.game.settings.tabOrder = ['btn-tab-cube', 'btn-tab-items', 'btn-tab-jewel', 'btn-tab-flask', 'btn-tab-talisman'];
+menu.exposed.syncDesktopRailGroups();
+assert.strictEqual(menu.findById('btn-tab-cube').dataset.railSlot, '6', 'saved tab order must reposition side sockets');
+assert.strictEqual(menu.findById('btn-tab-items').dataset.railSlot, '7');
+menu.game.settings.tabOrder = [];
+menu.exposed.syncDesktopRailGroups();
 
 menu.findById('btn-tab-jewel').style.display = 'none';
 menu.exposed.syncDesktopRailGroups();
@@ -240,5 +274,82 @@ menu.setDesktop(true);
 menu.windowHandlers.resize();
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 1, 'desktop restore must create only one art image');
 assert.strictEqual(descendants(menu.header).filter(element => element.classList.contains('ui-rail-category-btn')).length, 5, 'desktop restore must not duplicate categories');
+
+const inventoryStart = uiSource.indexOf('function updateInventoryFullWarnings()');
+const inventoryEnd = uiSource.indexOf('function syncInventoryExpansionShortcuts()', inventoryStart);
+const inventoryElements = {
+    'inventory-full-warning': { style: { display: 'none' }, title: '' },
+    'jewel-inventory-full-warning': { style: { display: 'none' }, title: '' }
+};
+let railSyncs = 0;
+const inventoryContext = {
+    game: { inventory: [], jewelInventory: [] },
+    document: {
+        body: { classList: { contains: name => name === 'desktop-windowed-ui' } },
+        getElementById: id => inventoryElements[id] || null
+    },
+    getInventoryLimit: () => 2,
+    getJewelInventoryLimit: () => 1,
+    syncDesktopRailGroups: () => { railSyncs += 1; }
+};
+vm.createContext(inventoryContext);
+vm.runInContext(uiSource.slice(inventoryStart, inventoryEnd), inventoryContext, { filename: 'inventory-rail-warning.js' });
+inventoryContext.updateInventoryFullWarnings();
+assert.strictEqual(railSyncs, 0, 'unchanged capacity warnings must not rescan the rail');
+inventoryContext.game.inventory = [{}, {}];
+inventoryContext.updateInventoryFullWarnings();
+assert.strictEqual(inventoryElements['inventory-full-warning'].style.display, 'inline-block');
+assert.strictEqual(railSyncs, 1, 'becoming full must refresh the hidden group warning');
+inventoryContext.game.inventory = [];
+inventoryContext.updateInventoryFullWarnings();
+assert.strictEqual(inventoryElements['inventory-full-warning'].style.display, 'none');
+assert.strictEqual(railSyncs, 2, 'freeing capacity must clear the hidden group warning');
+
+const pointerStart = uiSource.indexOf('function onTabHeaderPointerDown(event)');
+const pointerEnd = uiSource.indexOf('function onTabHeaderPointerMove(event)', pointerStart);
+let desktopMode = true;
+let pointerCaptures = 0;
+const dragButton = {
+    closest: () => ({ scrollLeft: 0 }),
+    setPointerCapture: () => { pointerCaptures += 1; }
+};
+const dragContext = {
+    tabHeaderDragState: null,
+    document: { body: { classList: { contains: name => name === 'desktop-windowed-ui' && desktopMode } } },
+    getTabButtonFromTarget: () => dragButton,
+    setTimeout: () => 1,
+    beginTabHeaderDrag() {},
+    TAB_DRAG_LONG_PRESS_MS: 180
+};
+vm.createContext(dragContext);
+vm.runInContext(uiSource.slice(pointerStart, pointerEnd), dragContext, { filename: 'tab-pointer-guard.js' });
+const pointerEvent = { target: {}, pointerType: 'touch', button: 0, pointerId: 4, clientX: 10, clientY: 20 };
+dragContext.onTabHeaderPointerDown(pointerEvent);
+assert.strictEqual(dragContext.tabHeaderDragState, null, 'desktop socket tabs must reject long-press reordering');
+desktopMode = false;
+dragContext.onTabHeaderPointerDown(pointerEvent);
+assert.strictEqual(dragContext.tabHeaderDragState.button, dragButton, 'mobile tabs must retain long-press reordering');
+assert.strictEqual(pointerCaptures, 1);
+
+const viewportStart = uiSource.indexOf('function scheduleTabHeaderViewportSync()');
+const viewportEnd = uiSource.indexOf("if (typeof window !== 'undefined')", viewportStart);
+let deferredViewportSync = null;
+let clearedDrag = 0;
+let refreshedHeader = 0;
+const viewportContext = {
+    lastTabHeaderUiSignature: 'cached',
+    clearTabHeaderDragState: () => { clearedDrag += 1; },
+    requestAnimationFrame: callback => { deferredViewportSync = callback; },
+    updateBottomTabSpacing() {},
+    refreshTabHeaderUiIfNeeded: () => { refreshedHeader += 1; }
+};
+vm.createContext(viewportContext);
+vm.runInContext(uiSource.slice(viewportStart, viewportEnd), viewportContext, { filename: 'tab-viewport-sync.js' });
+viewportContext.scheduleTabHeaderViewportSync();
+assert.strictEqual(clearedDrag, 1, 'viewport changes must cancel an in-flight mobile drag');
+assert.strictEqual(refreshedHeader, 0, 'tab placement must wait until the window manager changes responsive mode');
+deferredViewportSync();
+assert.strictEqual(viewportContext.lastTabHeaderUiSignature, null);
+assert.strictEqual(refreshedHeader, 1, 'saved mobile placement must be restored after responsive mode changes');
 
 console.log('smoke-menu-rail-sockets passed');
