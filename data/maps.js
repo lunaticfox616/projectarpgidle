@@ -53,8 +53,7 @@ const OCEAN_UNLOCK_LOOP = 11;
 const OCEAN_ZONE_ID = 'ocean_depth';
 
 // 루프 조건 상한·세분화 (state.js: getSeasonAbyssDepthCap / hasCurrentLoopAbyssRequirementClear):
-//  - 요구 혼돈 심도는 루프 30(심화 40)까지는 기존 곡선을 따르고, 루프 31+부터는
-//    기존 혼돈 루프를 고르면 루프당 심화 요구가 5씩 증가한다.
+//  - 요구 혼돈 심도는 루프 30(심화 40) 이후에도 기존처럼 루프당 1층씩 증가한다.
 //  - 루프 31+에서는 에니프론 행성을 이번 루프에 돌파하면 우주계 루프를 선택할 수 있다.
 const LOOP_GATE_ABYSS_DEPTH_CAP = 40;
 const LOOP_GATE_ALT_START_SEASON = 31;

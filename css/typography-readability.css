@@ -1,0 +1,47 @@
+/* Long-form game copy uses a readable font and spacing; headings remain DOSSaemmul. */
+:root {
+  --game-text: #d9e0e8;
+  --game-muted: #afbac8;
+}
+
+:is(
+  .tutorial-body,
+  .trait-desc,
+  .gem-enhance-section-desc,
+  .journal-card-body,
+  .challenge-contract-desc,
+  .cosmos-desc,
+  .cosmos-detail,
+  .cloud-note,
+  .currency-desc,
+  .craft-picker-desc,
+  .colony-ward-desc,
+  .underworld-rune-overlay-desc,
+  .patch-note-body,
+  .ui-goal-desc,
+  .background-combat-speed-guide,
+  .tooltip-line,
+  .tooltip-final,
+  .game-dialog-message,
+  .game-choice-option span,
+  .gem-library-card > p,
+  .gem-orbit-copy span
+) {
+  font-family: var(--game-font-body);
+  font-size: max(0.86em, 12px);
+  line-height: 1.65;
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+#tab-skills .gem-enhance-section-desc,
+#tab-skills .skill-library-note,
+#tab-skills .gem-orbit-copy span {
+  color: var(--game-text);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+body.light-mode :is(.tutorial-body, .trait-desc, .gem-enhance-section-desc, .journal-card-body, .challenge-contract-desc, .cosmos-desc, .cosmos-detail, .cloud-note, .currency-desc, .craft-picker-desc, .colony-ward-desc, .underworld-rune-overlay-desc, .patch-note-body, .ui-goal-desc, .background-combat-speed-guide, .tooltip-line, .tooltip-final, .game-dialog-message, .game-choice-option span, .gem-library-card > p, .gem-orbit-copy span) {
+  color: #3f5268;
+}

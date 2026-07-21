@@ -600,7 +600,7 @@ function getTimeRiftFusionOdds(pressure) {
 
 function getSeasonAbyssDepthCap(seasonValue) {
     let season = Math.max(1, Math.floor(seasonValue || 1));
-    if (season > 30) return LOOP_GATE_ABYSS_DEPTH_CAP + ((season - 30) * 5);
+    if (season > 30) return LOOP_GATE_ABYSS_DEPTH_CAP + (season - 30);
     let uncapped = season <= 9 ? (10 + (season - 1)) : (20 + (season - 10));
     return Math.min(LOOP_GATE_ABYSS_DEPTH_CAP, uncapped);
 }
