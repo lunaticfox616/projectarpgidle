@@ -21,7 +21,8 @@ const item = { id: 17, name: '가시 <검>', rarity: 'rare', slot: '무기', sta
 const html = context.decorateCombatLogItemMessage(`획득: [${item.name}]`, item);
 assert(html.includes('class="combat-log-item-link"'), 'equipment names in the combat log should become tooltip anchors');
 assert(html.includes('[가시 &lt;검&gt;]'), 'combat-log item labels must be HTML escaped');
-assert(html.includes('onclick="toggleCombatLogItemTooltip'), 'the same anchor should support tap/click pinning');
+assert(html.includes('onclick="openCombatLogItemEquipment(event)"'), 'clicking the item name should open the equipment window');
+assert(html.includes('onmouseleave="hideCombatLogItemTooltip(event)"'), 'leaving the item name should always dismiss the tooltip');
 
 item.stats[0].val = 999;
 const snapshotValue = vm.runInContext('combatLogItemSnapshots.get(1).stats[0].val', context);
@@ -32,5 +33,18 @@ for (let index = 0; index < 81; index++) {
 }
 assert.strictEqual(vm.runInContext('combatLogItemSnapshots.size', context), 80, 'combat-log snapshots should have a bounded memory footprint');
 assert.strictEqual(vm.runInContext('combatLogItemSnapshots.has(1)', context), false, 'snapshots older than the visible log history should be discarded');
+
+const openStart = uiSource.indexOf('function openCombatLogItemEquipment');
+const openEnd = uiSource.indexOf('function hideCombatLogItemTooltip', openStart);
+assert(openStart >= 0 && openEnd > openStart, 'combat-log equipment navigation should be executable in isolation');
+const calls = [];
+context.dismissItemTooltipNow = () => calls.push('dismiss');
+context.switchTab = tabId => calls.push(`tab:${tabId}`);
+context.switchItemSubtab = subtabId => calls.push(`subtab:${subtabId}`);
+context.openWindow = tabId => calls.push(`window:${tabId}`);
+context.document = { body: { classList: { contains: name => name === 'desktop-windowed-ui' } } };
+vm.runInContext(uiSource.slice(openStart, openEnd), context, { filename: 'combat-log-item-navigation.js' });
+context.openCombatLogItemEquipment({ preventDefault() {}, stopPropagation() {} });
+assert.deepStrictEqual(calls, ['dismiss', 'tab:tab-items', 'window:tab-items', 'subtab:item-tab-equip']);
 
 console.log('smoke-combat-log-item-tooltip passed');

@@ -5041,7 +5041,6 @@ let combatLogRateState = {};
 let combatLogAggregateState = {};
 let combatLogItemSequence = 0;
 let combatLogItemSnapshots = new Map();
-let pinnedCombatLogItemToken = null;
 
 function decorateCombatLogItemMessage(msg, item) {
     if (!item || typeof item !== 'object' || !item.name) return msg;
@@ -5050,14 +5049,34 @@ function decorateCombatLogItemMessage(msg, item) {
     combatLogItemSnapshots.set(token, snapshot);
     while (combatLogItemSnapshots.size > 80) combatLogItemSnapshots.delete(combatLogItemSnapshots.keys().next().value);
     let label = `[${item.name}]`;
-    let link = `<span class="combat-log-item-link" role="button" tabindex="0" data-item-tooltip-anchor="1" data-log-item-token="${token}" onmouseenter="showCombatLogItemTooltip(event,${token})" onmousemove="showCombatLogItemTooltip(event,${token})" onmouseleave="hideCombatLogItemTooltip(event,${token})" onclick="toggleCombatLogItemTooltip(event,${token})" onkeydown="if(event.key==='Enter'||event.key===' '){toggleCombatLogItemTooltip(event,${token})}">${escapeHTML(label)}</span>`;
+    let link = `<span class="combat-log-item-link" role="button" tabindex="0" title="장비창 열기" data-item-tooltip-anchor="1" data-log-item-token="${token}" onmouseenter="showCombatLogItemTooltip(event,${token})" onmousemove="showCombatLogItemTooltip(event,${token})" onmouseleave="hideCombatLogItemTooltip(event)" onclick="openCombatLogItemEquipment(event)" onkeydown="if(event.key==='Enter'||event.key===' '){openCombatLogItemEquipment(event)}">${escapeHTML(label)}</span>`;
     return String(msg).replace(label, link);
+}
+
+function captureCombatLogScroll(log) {
+    let bottomGap = log.scrollHeight - log.scrollTop - log.clientHeight;
+    return {
+        followsLatest: bottomGap <= 24,
+        scrollTop: log.scrollTop,
+        scrollHeight: log.scrollHeight
+    };
+}
+
+function restoreCombatLogScroll(log, scrollState) {
+    if (scrollState.followsLatest) {
+        log.scrollTop = log.scrollHeight;
+        return;
+    }
+    let heightDelta = log.scrollHeight - scrollState.scrollHeight;
+    let maxScrollTop = Math.max(0, log.scrollHeight - log.clientHeight);
+    log.scrollTop = Math.min(maxScrollTop, Math.max(0, scrollState.scrollTop + heightDelta));
 }
 
 function flushLogQueue() {
     logFlushRaf = 0;
     const log = document.getElementById('log');
     if (!log || logQueue.length === 0) return;
+    let scrollState = captureCombatLogScroll(log);
     // 백그라운드 재계산처럼 로그가 폭주하면 어차피 60줄만 남으므로,
     // DOM에 만들 필요가 없는 초과분은 만들기 전에 버린다.
     if (logQueue.length > 60) logQueue = logQueue.slice(-60);
@@ -5071,7 +5090,7 @@ function flushLogQueue() {
     logQueue = [];
     log.appendChild(frag);
     while (log.childElementCount > 60) log.removeChild(log.firstChild);
-    log.scrollTop = log.scrollHeight;
+    restoreCombatLogScroll(log, scrollState);
 }
 function addLog(msg, cls, opts = {}) {
     let now = performance.now();
@@ -6301,34 +6320,27 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
 }
 
 function showCombatLogItemTooltip(event, token) {
-    if (pinnedCombatLogItemToken !== null && pinnedCombatLogItemToken !== token) return;
     let item = combatLogItemSnapshots.get(Number(token));
     if (!item) return;
     showItemTooltip(event, null, false, item, `log:${token}:snapshot`);
 }
 
-function toggleCombatLogItemTooltip(event, token) {
+function openCombatLogItemEquipment(event) {
     if (event) {
         event.preventDefault();
         event.stopPropagation();
     }
-    let numericToken = Number(token);
-    if (pinnedCombatLogItemToken === numericToken) {
-        pinnedCombatLogItemToken = null;
-        dismissItemTooltipNow();
-        return;
-    }
-    pinnedCombatLogItemToken = numericToken;
-    showCombatLogItemTooltip(event, numericToken);
+    dismissItemTooltipNow();
+    switchTab('tab-items');
+    if (document.body.classList.contains('desktop-windowed-ui') && typeof openWindow === 'function') openWindow('tab-items');
+    switchItemSubtab('item-tab-equip');
 }
 
-function hideCombatLogItemTooltip(event, token) {
-    if (pinnedCombatLogItemToken === Number(token)) return;
+function hideCombatLogItemTooltip(event) {
     hideItemTooltip(event);
 }
 
 function dismissItemTooltipNow() {
-    if (String(activeItemTooltipToken || '').startsWith('log:')) pinnedCombatLogItemToken = null;
     activeItemTooltipToken = null;
     clearActiveTooltip('item-tooltip-box');
     document.getElementById('item-tooltip-box').style.display = 'none';
@@ -9489,7 +9501,7 @@ function exposeUiRenderHelpersOnce() {
         showUnderworldRuneTooltip,
         handleCombatLoopAdvanceButton,
         showCombatLogItemTooltip,
-        toggleCombatLogItemTooltip,
+        openCombatLogItemEquipment,
         hideCombatLogItemTooltip
     };
     let pending = {};

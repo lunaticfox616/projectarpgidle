@@ -959,32 +959,21 @@ function renderBattlefield(forceWhenHidden) {
             return;
         } else if (fx.type === 'enemySpawn') {
             let enemy = enemyPosMap[fx.enemyId];
-            if (!enemy) return;
+            if (!enemy || fx.boss) return;
             ctx.save();
-            ctx.globalAlpha = (1 - t) * (fx.boss ? 0.72 : 0.5);
+            ctx.globalAlpha = (1 - t) * 0.5;
             ctx.strokeStyle = fx.color || '#9ed6ff';
-            ctx.lineWidth = fx.boss ? 4 : 3;
-            const ringCount = fx.boss ? 3 : 2;
-            for (let ring = 0; ring < ringCount; ring++) {
+            ctx.lineWidth = 3;
+            for (let ring = 0; ring < 2; ring++) {
                 ctx.beginPath();
-                ctx.arc(enemy.x, enemy.y - 4, (fx.boss ? 15 : 10) + t * (fx.boss ? 34 : 22) + ring * 6, 0, Math.PI * 2);
+                ctx.arc(enemy.x, enemy.y - 4, 10 + t * 22 + ring * 6, 0, Math.PI * 2);
                 ctx.stroke();
             }
             ctx.fillStyle = fx.color || '#9ed6ff';
-            ctx.globalAlpha = (1 - t) * (fx.boss ? 0.28 : 0.18);
+            ctx.globalAlpha = (1 - t) * 0.18;
             ctx.beginPath();
-            ctx.ellipse(enemy.x, enemy.y + 8, fx.boss ? 28 : 18, fx.boss ? 12 : 8, 0, 0, Math.PI * 2);
+            ctx.ellipse(enemy.x, enemy.y + 8, 18, 8, 0, 0, Math.PI * 2);
             ctx.fill();
-            if (fx.boss) {
-                ctx.globalAlpha = (1 - t) * 0.5;
-                for (let ray = 0; ray < 8; ray++) {
-                    const angle = ray * Math.PI / 4 + t * 0.6;
-                    ctx.beginPath();
-                    ctx.moveTo(enemy.x + Math.cos(angle) * 24, enemy.y - 5 + Math.sin(angle) * 12);
-                    ctx.lineTo(enemy.x + Math.cos(angle) * (46 + t * 18), enemy.y - 5 + Math.sin(angle) * (24 + t * 10));
-                    ctx.stroke();
-                }
-            }
             ctx.restore();
         } else if (fx.type === 'enemyDeath') {
             let enemy = enemyPosMap[fx.enemyId];

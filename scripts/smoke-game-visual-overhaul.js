@@ -281,6 +281,8 @@ assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Nu
 assert.strictEqual(context.SKILL_DB['회오리바람'].targets, 8, 'whirlwind should cover all eight adjacent directions');
 assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['번개 타격'].primaryFamily, 'slash', 'lightning strike should begin with a melee lightning slash before chain arcs');
 assert.ok(battlefieldSource.includes('if (!enemy.isElite && !enemy.isBoss) return;'), 'ordinary monsters should not render ground aura telegraphs');
+assert.ok(battlefieldSource.includes('if (!enemy || fx.boss) return;'), 'boss spawns should skip the line-and-ring spawn effect');
+assert.ok(!combatSource.includes("addBattleFx('enemySpawn', { enemyId: bossEnemy.id"), 'boss encounters should not enqueue the removed spawn effect');
 assert.ok(battlefieldSource.includes("fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32)"), 'enemy hits should use restrained camera feedback');
 assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups should create a battlefield effect');
 assert.ok(combatSource.includes("duration: 560, color: '#ffe59a'"), 'level-up feedback should end quickly');

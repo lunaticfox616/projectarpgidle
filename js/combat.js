@@ -6577,7 +6577,6 @@ function spawnEncounterMarker(marker) {
         assignEnemyGridSpawn(bossEnemy, blockedCells);
         bossEnemy.spawnStamp = performance.now();
         game.enemies.push(bossEnemy);
-        addBattleFx('enemySpawn', { enemyId: bossEnemy.id, color: getElementColor(bossEnemy.ele), duration: 460, boss: true });
         if (game.settings.showSpawnLog !== false) {
             addLog(`👑 '${bossEnemy.name.replace(/^👿\s*/, '')}' 등장.`, "loot-unique");
             if (isCerberus && marker.phase === 1) addLog('🐺 케르베로스 1페이즈: 냉기/화염/번개 머리 3개', 'attack-monster');
