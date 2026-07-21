@@ -207,9 +207,12 @@ const BACKGROUND_PROGRESS_MAX_SIMULATED_MS = BACKGROUND_PROGRESS_MAX_REAL_MS * B
 const BACKGROUND_COMBAT_STEP_MS = 100;
 const BACKGROUND_COMBAT_CHUNK_BUDGET_MS = 8;
 const BACKGROUND_COMBAT_FAST_CHUNK_BUDGET_MS = 12;
-const BACKGROUND_COMBAT_ULTRA_CHUNK_BUDGET_MS = 16;
 const BACKGROUND_COMBAT_STATS_REFRESH_STEPS = 10;
 const BACKGROUND_COMBAT_SYNC_CHUNK_STEPS = 500;
+// 예상 정산으로 전환하기 전에 확보해야 하는 최소 시뮬레이션 표본(게임 시간 ms).
+const BACKGROUND_COMBAT_MIN_SAMPLE_MS = 60 * 1000;
+// 일반 계산도 이 실제 시간을 넘기면 남은 구간을 예상 정산해 1분 안에 끝낸다.
+const BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS = 45 * 1000;
 let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, accelerationTier: 0, offlineConsumed: false };
 
 function calculateBackgroundProgressMs(actualElapsedMs, minRealMs, rate, maxProgressMs) {
@@ -436,19 +439,58 @@ function getBackgroundProgressOverlay() {
     overlay = document.createElement('div');
     overlay.id = 'background-combat-progress-overlay';
     overlay.className = 'background-combat-progress-overlay';
-    overlay.innerHTML = '<div class="background-combat-progress-card"><strong>백그라운드 전투 계산 중</strong><div id="background-combat-progress-percent">계산 진행 0%</div><div class="background-combat-progress-track" role="progressbar" aria-label="백그라운드 전투 계산 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="background-combat-progress-bar-fill"></div></div><div id="background-combat-progress-duration"></div><div class="background-combat-speed-guide">1회: 빠른 계산 · 2회: 초고속 계산 · 진행은 최대 3시간까지 반영</div><button type="button" id="background-combat-fast-button" onclick="requestFasterBackgroundCombat()">빠른 계산</button></div>';
+    overlay.innerHTML = '<div class="background-combat-progress-card"><strong>백그라운드 전투 계산 중</strong><div id="background-combat-progress-percent">계산 진행 0%</div><div class="background-combat-progress-track" role="progressbar" aria-label="백그라운드 전투 계산 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="background-combat-progress-bar-fill"></div></div><div id="background-combat-progress-duration"></div><div class="background-combat-speed-guide">진행 반영 한도: 3시간 · 빠른 계산은 남은 구간을 예상 보상으로 즉시 정산합니다</div><button type="button" id="background-combat-fast-button" onclick="requestFasterBackgroundCombat()">빠른 계산</button></div>';
     document.body.appendChild(overlay);
     return overlay;
 }
 
 function requestFasterBackgroundCombat() {
-    backgroundCombatRuntime.accelerationTier = Math.min(2, Math.max(0, backgroundCombatRuntime.accelerationTier) + 1);
+    backgroundCombatRuntime.accelerationTier = 1;
     let button = typeof document !== 'undefined' ? document.getElementById('background-combat-fast-button') : null;
     if (!button) return;
-    button.disabled = backgroundCombatRuntime.accelerationTier >= 2;
-    button.textContent = backgroundCombatRuntime.accelerationTier >= 2
-        ? '초고속 계산 중'
-        : '한 번 더: 초고속 계산';
+    button.disabled = true;
+    button.textContent = '남은 진행 예상 정산 중...';
+}
+
+// 시뮬레이션된 표본 구간의 획득 속도를 기준으로 남은 구간의 보상을 예상 정산한다.
+// 경험치(레벨 업 포함)·처치·사망·재화는 비례 반영하고, 아이템 드랍과 지역 진행은
+// 실제로 시뮬레이션된 구간의 결과만 유지한다.
+function extrapolateBackgroundRemainder(state, metrics, snapshot, processedMs, remainingMs) {
+    if (!state || !(processedMs > 0) || !(remainingMs > 0)) return false;
+    let ratio = remainingMs / processedMs;
+    let estKills = Math.max(0, Math.round((metrics ? metrics.kills : 0) * ratio));
+    let estDeaths = Math.max(0, Math.round((metrics ? metrics.deaths : 0) * ratio));
+    let estExp = Math.max(0, Math.round((metrics ? metrics.exp : 0) * ratio));
+    let estLost = Math.min(estExp, Math.max(0, Math.round((metrics ? metrics.expLost : 0) * ratio)));
+    state.loopKills = Math.max(0, Math.floor(Number(state.loopKills) || 0)) + estKills;
+    state.loopDeaths = Math.max(0, Math.floor(Number(state.loopDeaths) || 0)) + estDeaths;
+    state.exp = Math.max(0, Math.floor(Number(state.exp) || 0)) + Math.max(0, estExp - estLost);
+    if (typeof getExpReq === 'function') {
+        let guard = 0;
+        let required = Math.max(1, Math.floor(Number(getExpReq(state.level)) || 0));
+        while (state.exp >= required && guard++ < 5000) {
+            state.exp -= required;
+            state.level = Math.max(1, Math.floor(Number(state.level) || 1)) + 1;
+            required = Math.max(1, Math.floor(Number(getExpReq(state.level)) || 0));
+        }
+    }
+    let startCurrencies = (snapshot && snapshot.currencies) || {};
+    let currencies = state.currencies || {};
+    Object.keys(currencies).forEach(key => {
+        let gain = (Number(currencies[key]) || 0) - (Number(startCurrencies[key]) || 0);
+        if (gain > 0) currencies[key] = (Number(currencies[key]) || 0) + Math.round(gain * ratio);
+    });
+    if (metrics) {
+        metrics.kills += estKills;
+        metrics.deaths += estDeaths;
+        metrics.exp += estExp;
+        metrics.expLost += estLost;
+        metrics.previousKills = Math.max(0, Math.floor(Number(state.loopKills) || 0));
+        metrics.previousDeaths = Math.max(0, Math.floor(Number(state.loopDeaths) || 0));
+        metrics.previousExp = Math.max(0, Math.floor(Number(state.exp) || 0));
+        metrics.previousLevel = Math.max(1, Math.floor(Number(state.level) || 1));
+    }
+    return true;
 }
 
 function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs) {
@@ -500,7 +542,7 @@ function showBackgroundCombatResult(result) {
         `아이템: ${itemHtml}${uniqueLine}`,
         `재화: ${currencyHtml}`
     ].join('<br>');
-    overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p><p>${rewards}</p>${result.capped ? '<p class="background-combat-capped">백그라운드 누적 최대치 3시간에 도달했습니다.</p>' : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">닫기</button></div>`;
+    overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p><p>${rewards}</p>${result.estimated ? '<p class="background-combat-capped">남은 구간은 표본 구간의 획득 속도로 예상 정산했습니다.</p>' : ''}${result.capped ? '<p class="background-combat-capped">백그라운드 누적 한도 3시간에 도달했습니다.</p>' : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">닫기</button></div>`;
     document.body.appendChild(overlay);
 }
 
@@ -580,18 +622,22 @@ async function simulateBackgroundCombatChunked(options) {
     let simulatedNow = Math.max(0, Math.floor(Number(options && options.startNowMs) || originalDateNow()));
     let processedMs = 0;
     let processedSteps = 0;
+    let estimated = false;
     let metrics = createBackgroundCombatMetrics(simGame);
     let statsCache = createBackgroundStatsCache(BACKGROUND_COMBAT_STATS_REFRESH_STEPS);
+    let wallNow = () => ((typeof performance !== 'undefined' && performance.now) ? performance.now() : originalDateNow());
+    let replayStartWallMs = wallNow();
+    // 예상 정산에 쓸 표본은 전체의 10% 이상, 최소 1분(게임 시간)을 확보한다.
+    let sampleReadyMs = Math.min(elapsedMs, Math.max(BACKGROUND_COMBAT_MIN_SAMPLE_MS, Math.floor(elapsedMs * 0.1)));
     try {
         Date.now = () => simulatedNow;
         game = simGame;
         statsCache.install();
         while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) {
-            let tier = Math.min(2, Math.max(0, backgroundCombatRuntime.accelerationTier));
-            let chunkBudgetMs = tier === 2
-                ? BACKGROUND_COMBAT_ULTRA_CHUNK_BUDGET_MS
-                : (tier === 1 ? BACKGROUND_COMBAT_FAST_CHUNK_BUDGET_MS : BACKGROUND_COMBAT_CHUNK_BUDGET_MS);
-            let chunkStart = (typeof performance !== 'undefined' && performance.now) ? performance.now() : originalDateNow();
+            let chunkBudgetMs = backgroundCombatRuntime.accelerationTier > 0
+                ? BACKGROUND_COMBAT_FAST_CHUNK_BUDGET_MS
+                : BACKGROUND_COMBAT_CHUNK_BUDGET_MS;
+            let chunkStart = wallNow();
             do {
                 stepFn();
                 statsCache.step();
@@ -599,8 +645,20 @@ async function simulateBackgroundCombatChunked(options) {
                 processedMs += BACKGROUND_COMBAT_STEP_MS;
                 processedSteps++;
                 updateBackgroundCombatMetrics(metrics, game);
-            } while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game) && (((typeof performance !== 'undefined' && performance.now) ? performance.now() : originalDateNow()) - chunkStart) < chunkBudgetMs);
+            } while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game) && (wallNow() - chunkStart) < chunkBudgetMs);
             if (typeof options.onProgress === 'function') options.onProgress(processedMs, elapsedMs);
+            // 빠른 계산을 눌렀거나 일반 계산이 실제 시간 상한을 넘기면,
+            // 표본이 모인 시점에 남은 구간을 예상 보상으로 즉시 정산한다.
+            let settleRequested = backgroundCombatRuntime.accelerationTier > 0
+                || (wallNow() - replayStartWallMs) >= BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS;
+            if (settleRequested && processedMs >= sampleReadyMs && processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) {
+                estimated = extrapolateBackgroundRemainder(game, metrics, options.snapshot, processedMs, elapsedMs - processedMs);
+                if (estimated) {
+                    processedMs = elapsedMs;
+                    if (typeof options.onProgress === 'function') options.onProgress(processedMs, elapsedMs);
+                    break;
+                }
+            }
             if (processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) await waitBackgroundReplayFrame();
         }
         simGame = game;
@@ -614,6 +672,7 @@ async function simulateBackgroundCombatChunked(options) {
         steps: processedSteps,
         simulatedNow,
         stopped: processedMs < elapsedMs,
+        estimated,
         metrics
     };
 }
@@ -673,6 +732,7 @@ async function startBackgroundCombatReturn(nowMs) {
         showBackgroundCombatResult({
             actualElapsedMs,
             effectiveProgressMs,
+            estimated: result.estimated,
             summary,
             capped: effectiveProgressMs >= BACKGROUND_PROGRESS_MAX_SIMULATED_MS
         });
