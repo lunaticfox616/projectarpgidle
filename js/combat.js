@@ -656,7 +656,12 @@ function runConditionGemAutoRules(pStats) {
             }
         } else {
             let durMul=1+Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.durationPct)||0)/100;
-            game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: now + Math.floor((entry.duration || 4) * 1000 * durMul) });
+            let nextExpire = now + Math.floor((entry.duration || 4) * 1000 * durMul);
+            // 저주와 동일하게, 같은 함성/가드/유틸 젬이 이미 걸려 있으면 중복으로 쌓지 않고
+            // 지속시간만 갱신한다(서로 다른 종류는 그대로 함께 유지되어 공명 등 보너스에 반영됨).
+            let existingBuff = game.playerConditionBuffs.find(b => b && b.name === gemName);
+            if (existingBuff) existingBuff.expiresAt = nextExpire;
+            else game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: nextExpire });
             let castDelta = getConditionGemStatDelta(gemName, entry.type);
             if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
         }

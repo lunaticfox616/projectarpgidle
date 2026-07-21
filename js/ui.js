@@ -4911,7 +4911,8 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
 
 
 let mobileToastQueue = [];
-let mobileToastActive = false;
+let mobileToastActiveCount = 0;
+const MOBILE_TOAST_MAX_CONCURRENT = 3;
 
 function shouldShowMobileToast(msg, cls, opts = {}) {
     if (opts && opts.noToast) return false;
@@ -4958,13 +4959,27 @@ function stripHtmlMessage(raw) {
 
 function enqueueMobileToast(msg, cls) {
     mobileToastQueue.push({ msg: stripHtmlMessage(msg), cls: cls || '' });
-    if (!mobileToastActive) showNextMobileToast();
+    pumpMobileToastQueue();
+}
+
+// 알림이 많이 밀려 있을수록: (1) 동시에 최대 3개까지 보여주고, (2) 쌓인 개수가 많을수록
+// 표시 시간을 점점 줄여 더 빨리 다음 알림이 나오게 한다(밀린 알림이 한 줄씩 느긋하게
+// 빠지는 대신, 밀린 만큼 더 빠르게 소화됨).
+function pumpMobileToastQueue() {
+    while (mobileToastActiveCount < MOBILE_TOAST_MAX_CONCURRENT && mobileToastQueue.length > 0) {
+        showNextMobileToast();
+    }
+}
+
+function getMobileToastDisplayDurationMs() {
+    let backlog = mobileToastQueue.length;
+    return Math.max(650, 1700 - (backlog * 180));
 }
 
 function showNextMobileToast() {
-    if (mobileToastQueue.length <= 0) { mobileToastActive = false; return; }
-    mobileToastActive = true;
+    if (mobileToastQueue.length <= 0) return;
     let entry = mobileToastQueue.shift();
+    mobileToastActiveCount++;
     let root = getMobileToastRoot();
     let toast = document.createElement('div');
     toast.textContent = entry.msg;
@@ -4980,13 +4995,15 @@ function showNextMobileToast() {
     toast.style.transition = 'opacity .2s ease';
     root.appendChild(toast);
     requestAnimationFrame(() => { toast.style.opacity = '1'; });
+    let duration = getMobileToastDisplayDurationMs();
     setTimeout(() => {
         toast.style.opacity = '0';
         setTimeout(() => {
             if (toast.parentNode) toast.parentNode.removeChild(toast);
-            showNextMobileToast();
+            mobileToastActiveCount = Math.max(0, mobileToastActiveCount - 1);
+            pumpMobileToastQueue();
         }, 220);
-    }, 1700);
+    }, duration);
 }
 
 let logQueue = [];

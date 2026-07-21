@@ -9,6 +9,9 @@
 
 const SOCIAL_NICK_KEY = 'arpg_social_nickname';
 const SOCIAL_LAST_SEEN_CHAT_KEY = 'arpg_social_last_seen_chat_id';
+// 토스트로 이미 알려준 채팅 id도 기기별로 영구 기억한다(세션 메모리에만 있으면 새로고침
+// 시 아직 탭을 열어 "읽음" 처리하지 않은 메시지가 또 토스트로 뜬다).
+const SOCIAL_LAST_NOTIFIED_CHAT_KEY = 'arpg_social_last_notified_chat_id';
 const SOCIAL_CHAT_LIMIT = 50;
 const SOCIAL_CHAT_POLL_MS = 4000;
 // 커뮤니티 탭이 비활성일 때 새 채팅 여부만 가볍게 확인하는 주기(활성 탭 폴링보다 훨씬 느리게).
@@ -485,6 +488,22 @@ function setLastSeenChatId(id) {
     if (cur != null && n <= cur) return;
     try { localStorage.setItem(SOCIAL_LAST_SEEN_CHAT_KEY, String(n)); } catch (e) { /* 무시 */ }
 }
+function getLastNotifiedChatId() {
+    try {
+        let v = localStorage.getItem(SOCIAL_LAST_NOTIFIED_CHAT_KEY);
+        if (v == null || v === '') return null;
+        let n = Number(v);
+        return Number.isFinite(n) ? n : null;
+    } catch (e) { return null; }
+}
+function setLastNotifiedChatId(id) {
+    let n = Number(id);
+    if (!Number.isFinite(n)) return;
+    socialState.lastNotifiedChatId = n;
+    let cur = getLastNotifiedChatId();
+    if (cur != null && n <= cur) return;
+    try { localStorage.setItem(SOCIAL_LAST_NOTIFIED_CHAT_KEY, String(n)); } catch (e) { /* 무시 */ }
+}
 function isSocialTabActive() {
     let tabEl = document.getElementById('tab-social');
     return !!(tabEl && (
@@ -538,8 +557,8 @@ async function checkSocialChatNotification() {
         game.noti.social = true;
         refreshSocialNotificationDots();
         let incomingId = Number(incoming.id);
-        if (socialState.lastNotifiedChatId !== incomingId && typeof showGameToast === 'function') {
-            socialState.lastNotifiedChatId = incomingId;
+        if (getLastNotifiedChatId() !== incomingId && typeof showGameToast === 'function') {
+            setLastNotifiedChatId(incomingId);
             let nickname = String(incoming.nickname || '플레이어');
             showGameToast(`새 채팅 · ${nickname}: ${getSocialChatNotificationPreview(incoming)}`, { tone: 'info', duration: 3600 });
         }
