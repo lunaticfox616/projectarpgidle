@@ -13333,10 +13333,12 @@ async function pullCloudSave(options = {}) {
 
 async function reconcileCloudSaveState(options = {}) {
     let preferRemoteOnResume = options.preferRemoteOnResume === true;
+    // Keep the previous local cache intact until the active account's remote row is confirmed.
+    // A temporary network failure must not erase an otherwise recoverable local cache.
+    let record = await fetchCloudSaveRecord();
     let localPreparation = prepareLocalSaveForCloudSession({
         allowUnownedLocal: options.allowLocalBootstrap === true
     });
-    let record = await fetchCloudSaveRecord();
     if (!record || !record.save_data) {
         if (options.createRemoteFromLocal && (!localPreparation.replaced || localPreparation.adoptedUnowned)) {
             await pushCloudSave({ touchModifiedAt: false });

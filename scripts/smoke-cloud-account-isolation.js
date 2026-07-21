@@ -66,6 +66,16 @@ async function run() {
   assert.strictEqual(remoteCase.getPushes(), 0, 'foreign high-progress local data must never be uploaded during account login');
   assert.strictEqual(remoteCase.writes.at(-1).level, 7, 'the local cache must finish with the connected account save');
 
+  const fetchFailureCase = createContext(foreignLocal, remoteRecord);
+  fetchFailureCase.context.fetchCloudSaveRecord = async () => { throw new Error('network unavailable'); };
+  await assert.rejects(
+    vm.runInContext('reconcileCloudSaveState({ strictRemoteResume: true })', fetchFailureCase.context),
+    /network unavailable/
+  );
+  assert.strictEqual(fetchFailureCase.context.game.level, 99, 'a failed cloud lookup must leave the previous local cache untouched');
+  assert.strictEqual(fetchFailureCase.context.game.saveMeta.cloudUserId, 'account-a');
+  assert.strictEqual(fetchFailureCase.writes.length, 0, 'a failed cloud lookup must not write a blank replacement cache');
+
   const noRemoteCase = createContext(foreignLocal, null);
   const noRemoteStatus = await vm.runInContext('reconcileCloudSaveState({ createRemoteFromLocal: true })', noRemoteCase.context);
   assert.strictEqual(noRemoteStatus, 'no-remote');
