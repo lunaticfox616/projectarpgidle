@@ -4,6 +4,11 @@
   --game-muted: #afbac8;
 }
 
+/* Equipment names should match the readable item-copy font without affecting page headings. */
+:is(.item-title, .tooltip-title, .equipment-slot-name, .equipment-card-name) {
+  font-family: var(--game-font-body);
+}
+
 :is(
   .tutorial-body,
   .trait-desc,

@@ -12,6 +12,7 @@ const bodyFont = fs.readFileSync(bodyFontPath);
 const copyFont = fs.readFileSync(copyFontPath);
 const baseCss = fs.readFileSync('css/base.css', 'utf8');
 const feedbackCss = fs.readFileSync('css/ui-feedback.css', 'utf8');
+const typographyCss = fs.readFileSync('css/typography-readability.css', 'utf8');
 const windowCss = fs.readFileSync('css/ui-windows.css', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 
@@ -38,12 +39,13 @@ assert(baseCss.includes("font-family: 'Galmuri14'"), 'Galmuri14 @font-face must 
 assert(baseCss.includes("url('../assets/fonts/Galmuri14.woff2')"), 'copy font face must load the bundled asset');
 assert(feedbackCss.includes('--game-font-body: "Galmuri14"'), 'body font token must use Galmuri14');
 assert(feedbackCss.includes('--game-font-title: "DOSSaemmul"'), 'title font token must use DOSSaemmul');
+assert(typographyCss.includes('.item-title') && typographyCss.includes('font-family: var(--game-font-body)'), 'equipment names must use the readable body font');
 assert(feedbackCss.includes('[class$="-title"]'), 'semantic title classes must keep the title font');
 assert(windowCss.includes('font-family: var(--game-font-body'), 'desktop windows must use the shared game font');
 assert(baseCss.includes("#log { flex") && baseCss.includes("font-family: var(--game-font-body"), 'combat log must use the shared game font');
 assert(html.includes('css/base.css?v=20260721-galmuri-body1'), 'font CSS cache version must be refreshed');
 assert(html.includes('css/ui-feedback.css?v=20260721-galmuri-body1'), 'shared font token cache must be refreshed');
-assert(html.includes('css/typography-readability.css?v=20260721-galmuri-copy1'), 'readability stylesheet must load after the UI styles');
+assert(html.includes('css/typography-readability.css?v=20260721-galmuri-item-names1'), 'readability stylesheet must load after the UI styles');
 assert(html.includes('css/ui-windows.css?v=20260719-white-copy1'), 'desktop font fallback cache must be refreshed');
 assert(html.includes('js/passives.js?v=20260719-white-copy1'), 'canvas passive font cache must be refreshed');
 
