@@ -34,7 +34,7 @@ const context = {
             insight: 4,
             manualRefreshes: 0
         },
-        currencies: { chaos: 100, divine: 100 }
+        currencies: { formlessDew: 100, goldenRule: 100 }
     },
     isMarketUnlocked: () => true,
     normalizeBlackMarketState() { return context.game.blackMarket; },
@@ -78,7 +78,7 @@ vm.runInContext(runtimeBlock, context, { filename: 'black-market-progression-run
     const beforeExpandRefreshAt = context.game.blackMarket.nextRefreshAt;
     await context.expandBlackMarketSlotsByDivine();
     assert.strictEqual(context.game.blackMarket.extraSlots, 1);
-    assert.strictEqual(context.game.currencies.divine, 99);
+    assert.strictEqual(context.game.currencies.goldenRule, 99);
     assert.deepStrictEqual(
         context.game.blackMarket.offers.slice(0, 6).map(offer => offer && offer.name),
         beforeExpandOffers.map(offer => offer && offer.name),
@@ -90,9 +90,9 @@ vm.runInContext(runtimeBlock, context, { filename: 'black-market-progression-run
     context.game.blackMarket.lockedOffers = {};
     context.game.blackMarket.insight = 0;
     context.game.blackMarket.manualRefreshes = 0;
-    const beforeManualChaos = context.game.currencies.chaos;
+    const beforeManualChaos = context.game.currencies.formlessDew;
     await context.refreshBlackMarketNow();
-    assert.strictEqual(context.game.currencies.chaos, beforeManualChaos - 3);
+    assert.strictEqual(context.game.currencies.formlessDew, beforeManualChaos - 3);
     assert.strictEqual(context.game.blackMarket.manualRefreshes, 1);
     assert.strictEqual(context.game.blackMarket.insight, 1);
 

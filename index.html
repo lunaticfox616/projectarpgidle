@@ -19,8 +19,8 @@
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260722-health-menu-skin4">
     <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-health-menu-skin4">
     <link rel="stylesheet" href="css/typography-readability.css?v=20260721-galmuri-item-names1">
-    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-hud-meta3">
-    <link rel="stylesheet" href="css/ui-menu-sockets.css?v=20260722-combat-icons2">
+    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-merged-tabs-timers1">
+    <link rel="stylesheet" href="css/ui-menu-sockets.css?v=20260722-merged-tabs-timers1">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -345,19 +345,19 @@
     <div class="tab-header">
         <div class="tab-btn active" id="btn-tab-battle" onclick="switchTab('tab-battle')">전투 <span id="noti-battle" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: flex;">캐릭터</div>
-        <div class="tab-btn" id="btn-tab-char" onclick="switchTab('tab-char')">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-char" data-merged-tab-launcher="growth" onclick="openMergedTabPicker(event,'growth')" style="display:none;">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-season" onclick="switchTab('tab-season')">루프 <span id="noti-season" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-expertise" onclick="switchTab('tab-expertise')">전문가 <span id="noti-expertise" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-traits" onclick="switchTab('tab-traits')">직업전직 <span id="noti-traits" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-traits" data-merged-tab-member="1" onclick="switchTab('tab-traits')">직업전직 <span id="noti-traits" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talent" onclick="switchTab('tab-talent')" style="display:none;">재능 <span id="noti-talent" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-items" onclick="switchTab('tab-items')">장비/제작 <span id="inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-items" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-jewel" onclick="switchTab('tab-jewel')" style="display:none;">주얼 <span id="jewel-inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-jewel" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-flask" onclick="switchTab('tab-flask')" style="display: flex;">플라스크 <span id="noti-flask" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-jewel" data-merged-tab-member="1" onclick="switchTab('tab-jewel')" style="display:none;">주얼 <span id="noti-jewel" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-flask" data-merged-tab-launcher="utility" onclick="openMergedTabPicker(event,'utility')" style="display:none;">보조장비 <span id="jewel-inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-flask" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-map" onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-skills" onclick="switchTab('tab-skills')">스킬 젬 <span id="noti-skills" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-journal" onclick="switchTab('tab-journal')" style="display: flex;">저널 <span id="noti-journal" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-codex" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-talisman" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-journal" data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;">기록 <span id="noti-journal" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-codex" data-merged-tab-member="1" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-talisman" data-merged-tab-member="1" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-cube" onclick="switchTab('tab-cube')" style="display:none;">큐브 <span id="noti-cube" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-social" onclick="switchTab('tab-social')" style="display: flex;">커뮤니티 <span id="noti-social" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: flex;">설정</div>
@@ -1326,13 +1326,13 @@
 <script defer src="js/core-cube.js?v=20260707-community-ui1"></script>
 <script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1"></script>
-<script defer src="js/combat.js?v=20260722-combat-icons2"></script>
+<script defer src="js/combat.js?v=20260722-merged-tabs-timers1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260722-hud-meta2"></script>
+<script defer src="js/ui.js?v=20260722-menu-unlock1"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
-<script defer src="js/ui-window-manager.js?v=20260722-combat-icons2"></script>
+<script defer src="js/ui-window-manager.js?v=20260722-menu-unlock1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
 <script defer src="js/goal-system.js?v=20260717-system-integrity1"></script>
 <script defer src="js/talent-cards.js?v=20260722-templar-overheal1"></script>
