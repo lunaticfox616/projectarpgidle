@@ -669,10 +669,12 @@ function runConditionGemAutoRules(pStats) {
             let existingIdx = list.findIndex(row => row && row.name === gemName);
             let durMul=1+Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.durationPct)||0)/100;
             let nextExpire = now + Math.floor((entry.duration || 6) * 1000 * durMul);
+            let durationMs = nextExpire - now;
             if (existingIdx >= 0) {
                 list[existingIdx].expiresAt = nextExpire;
+                list[existingIdx].durationMs = durationMs;
             } else {
-                list.push({ name: gemName, expiresAt: nextExpire });
+                list.push({ name: gemName, expiresAt: nextExpire, durationMs });
             }
             // 저주 최대치는 "서로 다른 저주 종류" 기준으로 제한
             let seen = new Set();
@@ -692,11 +694,12 @@ function runConditionGemAutoRules(pStats) {
         } else {
             let durMul=1+Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.durationPct)||0)/100;
             let nextExpire = now + Math.floor((entry.duration || 4) * 1000 * durMul);
+            let durationMs = nextExpire - now;
             // 저주와 동일하게, 같은 함성/가드/유틸 젬이 이미 걸려 있으면 중복으로 쌓지 않고
             // 지속시간만 갱신한다(서로 다른 종류는 그대로 함께 유지되어 공명 등 보너스에 반영됨).
             let existingBuff = game.playerConditionBuffs.find(b => b && b.name === gemName);
-            if (existingBuff) existingBuff.expiresAt = nextExpire;
-            else game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: nextExpire });
+            if (existingBuff) { existingBuff.expiresAt = nextExpire; existingBuff.durationMs = durationMs; }
+            else game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: nextExpire, durationMs });
             let castDelta = getConditionGemStatDelta(gemName, entry.type);
             if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
         }
@@ -5164,9 +5167,10 @@ function applyCosmosBossPlayerDebuff(enemy) {
     if (!spec) return;
     game.cosmosPlayerDebuffs = Array.isArray(game.cosmosPlayerDebuffs) ? game.cosmosPlayerDebuffs : [];
     let row = game.cosmosPlayerDebuffs.find(d => d && d.type === spec.type);
-    if (!row) { row = { type: spec.type, label: spec.label, value: 0, expiresAt: 0 }; game.cosmosPlayerDebuffs.push(row); }
+    if (!row) { row = { type: spec.type, label: spec.label, value: 0, expiresAt: 0, durationMs: 0 }; game.cosmosPlayerDebuffs.push(row); }
     row.label = spec.label;
     row.value = Math.max(Number(row.value || 0), spec.value);
+    row.durationMs = Math.floor(spec.duration * 1000);
     row.expiresAt = Math.max(Number(row.expiresAt || 0), now + Math.floor(spec.duration * 1000));
     if (game.settings && game.settings.showCombatLog) addLog(`🌌 ${enemy.name}의 우주계 보스 디버프: ${spec.label} -${spec.value}%`, 'attack-monster', { noToast: true });
 }
@@ -6196,7 +6200,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
             durationMul *= 1 + Math.max(0, Number(pStats.uniquePoisonDurationPct) || 0) / 100;
         }
         let dur = (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10))) * durationMul;
-        let payload = { type: type, time: dur, power: power, stacks: 1 };
+        let payload = { type: type, time: dur, duration: dur, power: power, stacks: 1 };
         if (damageAilment) {
             payload.sourceHitDamage = ailmentPowerSourceDamage;
             payload.critDotBonusPct = critDotBonusPct;
@@ -6204,6 +6208,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
         }
         if (row) {
             row.time = Math.max(row.time || 0, dur);
+            row.duration = row.time;
             row.power = Math.max(row.power || 0, power);
             if (damageAilment) {
                 let rowScore = Math.max(0, Number(row.ailmentDotScore) || getStoredAilmentHitDamage(row));
@@ -8994,6 +8999,7 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, opti
     }
     if (existing) {
         existing.time = Math.max(existing.time || 0, duration);
+        existing.duration = existing.time;
         existing.power = Math.max(existing.power || 0, power || 0.1);
         if (damageAilment) {
             let existingScore = Math.max(0, Number(existing.ailmentDotScore) || getStoredAilmentHitDamage(existing));
@@ -9005,7 +9011,7 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, opti
             }
         }
     } else {
-        let row = { type: type, time: duration, power: Math.max(0.1, power || 0.1) };
+        let row = { type: type, time: duration, duration: duration, power: Math.max(0.1, power || 0.1) };
         if (damageAilment) {
             row.sourceHitDamage = hitSource;
             row.critDotBonusPct = critDotBonusPct;

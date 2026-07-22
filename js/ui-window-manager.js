@@ -557,7 +557,7 @@
     }
 
     function isRailButtonVisible(button) {
-        return button.style.display !== 'none' && !button.hidden;
+        return button.style.display !== 'none' && !button.hidden && button.dataset.mergedTabMember !== '1';
     }
 
     function toggleRailMiscPanel() {

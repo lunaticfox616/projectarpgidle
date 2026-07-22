@@ -1030,6 +1030,11 @@ let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
 const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'];
+const MERGED_TAB_GROUPS = Object.freeze({
+    growth: { launcher: 'tab-char', title: '스킬트리 / 직업전직', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
+    utility: { launcher: 'tab-flask', title: '주얼 / 부적 / 플라스크', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }] },
+    records: { launcher: 'tab-journal', title: '저널 / 도감', tabs: [{ id: 'tab-journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
+});
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
 // 넓은 화면(데스크톱)에서만 활성화되고, 좁은 화면에서는 기존 방식(전체 탭 + 스와이프)을 유지한다.
@@ -1468,6 +1473,7 @@ function updateTabNotificationDots() {
     // 도킹 토글 버튼(💬)의 미읽음 점은 커뮤니티 탭 알림과 동일한 상태를 미러링한다.
     let dockDot = document.getElementById('noti-social-dock');
     if (dockDot) dockDot.style.display = (game.noti.social && isNotiEnabled('social')) ? 'block' : 'none';
+    syncMergedTabLauncherState();
     let skillTabButton = document.getElementById('btn-tab-skills');
     if (skillTabButton) skillTabButton.classList.toggle('starter-gem-tutorial-pending', !!getStarterGemTutorialTarget());
 }
@@ -1483,6 +1489,7 @@ function updateTabUnlockButtons() {
     if (cubeTabBtn) cubeTabBtn.style.display = cubeOpen ? 'flex' : 'none';
     let battleBtn = document.getElementById('btn-tab-battle');
     if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
+    syncMergedTabLauncherVisibility();
     // 2단 그룹핑이 활성이면 해금 판정 직후 활성 그룹 외 탭을 숨긴다(단일 권위 지점).
     hideOutOfGroupTabButtons();
     // 데스크톱 창형 레일은 그룹 섹션 단위로 표시되므로, 해금 변경 시 빈 그룹을 함께 숨긴다.
@@ -1527,6 +1534,59 @@ function refreshTabHeaderUiIfNeeded() {
 function isNotiEnabled(key){ game.settings=game.settings||{}; if (game.settings.tabNotiEnabled === false) return false; game.settings.notiFilters=game.settings.notiFilters||{}; return game.settings.notiFilters[key] !== false; }
 function toggleNotiFilter(key){ game.settings=game.settings||{}; game.settings.notiFilters=game.settings.notiFilters||{}; game.settings.notiFilters[key]=!(game.settings.notiFilters[key] !== false); updateStaticUI(); }
 
+function isMergedTabAvailable(tabId) {
+    let gateKey = TAB_UNLOCK_GATES[tabId];
+    return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
+}
+
+function syncMergedTabLauncherVisibility() {
+    Object.values(MERGED_TAB_GROUPS).forEach(group => {
+        let launcher = document.getElementById('btn-' + group.launcher);
+        if (launcher) launcher.style.display = group.tabs.some(tab => isMergedTabAvailable(tab.id)) ? 'flex' : 'none';
+    });
+}
+
+function syncMergedTabLauncherState() {
+    Object.values(MERGED_TAB_GROUPS).forEach(group => {
+        let launcher = document.getElementById('btn-' + group.launcher);
+        if (!launcher) return;
+        launcher.classList.toggle('active', group.tabs.some(tab => {
+            let content = document.getElementById(tab.id);
+            return content && content.classList.contains('active');
+        }));
+        let sourceKeys = group.tabs.map(tab => tab.id.replace(/^tab-/, ''));
+        let dot = launcher.querySelector('.noti-dot');
+        if (dot) dot.style.display = sourceKeys.some(key => game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none';
+    });
+}
+
+let mergedTabPickerOpen = false;
+async function openMergedTabPicker(event, groupKey) {
+    if (event) { event.preventDefault(); event.stopPropagation(); }
+    if (mergedTabPickerOpen) return;
+    let group = MERGED_TAB_GROUPS[groupKey];
+    if (!group) return;
+    let available = group.tabs.filter(tab => isMergedTabAvailable(tab.id));
+    if (available.length === 0) return;
+    if (available.length === 1) { switchTab(available[0].id); return; }
+    mergedTabPickerOpen = true;
+    try {
+        let selected = await requestGameChoice({
+            title: group.title,
+            kicker: 'MENU',
+            message: '열 기능을 선택하세요.',
+            submitOnChoice: true,
+            dismissOnBackdrop: true,
+            choices: available.map(tab => ({ value: tab.id, label: tab.label, detail: tab.detail }))
+        });
+        if (selected) switchTab(selected);
+    } finally {
+        mergedTabPickerOpen = false;
+    }
+}
+
+safeExposeGlobals({ openMergedTabPicker });
+
 function switchTab(tabId) {
     hideInfoTooltip();
     hideItemTooltip();
@@ -1550,6 +1610,7 @@ function switchTab(tabId) {
     document.getElementById(tabId).classList.add('active');
     let activeBtn = document.getElementById('btn-' + tabId);
     activeBtn.classList.add('active');
+    syncMergedTabLauncherState();
     if (activeBtn && activeBtn.scrollIntoView && window.matchMedia('(max-width: 1080px)').matches) {
         try {
             activeBtn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
@@ -7624,7 +7685,7 @@ const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
     shrineBuff: { sprite: 44, label: '성소 축복', color: '#f0d18a' },
     eliteTraitBuff: { sprite: 45, label: '무한한 허기', color: '#d98f88' },
     enemyWither: { sprite: 46, label: '위축', color: '#b58be0' },
-    talentInquisitorMark: { sprite: 47, label: '심판 표식', color: '#efb16e' },
+    talentInquisitorMark: { sprite: 9, label: '심판 표식', color: '#efb16e' },
     talentButcherMark: { sprite: 47, label: '도살자 표식', color: '#e58a7d' },
     rangerWeakpointMark: { sprite: 7, label: '급소 표식', color: '#efbd7a' },
     enemyChaosResDown: { sprite: 13, label: '카오스 저항 약화', color: '#b58be0' },
@@ -7633,11 +7694,11 @@ const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
     regenSuppress: { sprite: 11, label: '생명력 재생 억제', color: '#c99b9b' },
     bloomRegenSuppress: { sprite: 11, label: '혹독한 한기', color: '#9fc9e8' },
     delayedGuardHeal: { sprite: 30, label: '지연 회복', color: '#8fdaa8' },
-    riderCompassReady: { sprite: 20, label: '기수의 나침반', color: '#d5b778' },
-    fletcherCharge: { sprite: 31, label: '플레쳐', color: '#d9ae76' },
+    riderCompassReady: { sprite: 33, label: '기수의 나침반', color: '#d5b778' },
+    fletcherCharge: { sprite: 34, label: '플레쳐', color: '#d9ae76' },
     colosseumCharge: { sprite: 41, label: '관중의 함성', color: '#e0ad78' },
-    queenBeeSwarm: { sprite: 42, label: '여왕벌', color: '#e4c45f' },
-    dawnSeal: { sprite: 47, label: '새벽의 기사', color: '#e4cf87' },
+    queenBeeSwarm: { sprite: 43, label: '여왕벌', color: '#e4c45f' },
+    dawnSeal: { sprite: 44, label: '새벽의 기사', color: '#e4cf87' },
     enemySkillDot: { sprite: 46, label: '지속 피해', color: '#a4c7df' }
 });
 
@@ -7699,8 +7760,13 @@ function renderCombatEffectIcon(options) {
     let tooltipAttrs = tooltip
         ? ` data-info-tooltip-anchor="1" onmouseenter="${tooltip}" onmousemove="${tooltip}" onmouseleave="hideInfoTooltip()"`
         : '';
+    let remainingSec = Math.max(0, Number(options.remainingSec) || 0);
+    let durationSec = Math.max(0, Number(options.durationSec) || 0);
+    let timedClass = remainingSec > 0 ? ' timed' : '';
+    let remainingAngle = durationSec > 0 ? Math.max(0, Math.min(360, remainingSec / durationSec * 360)) : 360;
+    let time = remainingSec > 0 ? `<span class="combat-effect-time">${remainingSec >= 100 ? '99+' : Math.ceil(remainingSec)}</span>` : '';
     let badge = options.badge ? `<span class="combat-effect-badge">${escapeHTML(options.badge)}</span>` : '';
-    return `<span class="combat-effect-icon effect-${safeKey}" role="img" aria-label="${escapeHTML(label)}" style="--effect-color:${visual.color};--effect-sprite-x:${spriteX}%;--effect-sprite-y:${spriteY}%;"${tooltipAttrs}><span class="combat-effect-art" aria-hidden="true"></span>${badge}</span>`;
+    return `<span class="combat-effect-icon effect-${safeKey}${timedClass}" role="img" aria-label="${escapeHTML(label)}" style="--effect-color:${visual.color};--effect-sprite-x:${spriteX}%;--effect-sprite-y:${spriteY}%;--effect-remaining-angle:${remainingAngle.toFixed(2)}deg;"${tooltipAttrs}><span class="combat-effect-art" aria-hidden="true"></span>${time}${badge}</span>`;
 }
 
 function getUiRuntimeEffectDetail(type, value, maxValue) {
@@ -7731,7 +7797,7 @@ function renderUiRuntimeEffectIcon(options, now) {
         ? Math.max(0, Math.ceil(options.remainSec))
         : getUiEffectRemainingSeconds(options.expiresAt, now);
     let tooltip = `showPlayerRuntimeEffectTooltip(event,${keyArg},${value},${maxValue},${remain})`;
-    return renderCombatEffectIcon({ key: options.key, label: options.label, tooltip, badge: options.badge || '' });
+    return renderCombatEffectIcon({ key: options.key, label: options.label, tooltip, badge: options.badge || '', remainingSec: remain, durationSec: options.durationSec });
 }
 
 function renderUiNamedEffectIcon(options, now) {
@@ -7742,7 +7808,7 @@ function renderUiNamedEffectIcon(options, now) {
         ? Math.max(0, Math.ceil(options.remainSec))
         : getUiEffectRemainingSeconds(options.expiresAt, now);
     let tooltip = `showPlayerNamedEffectTooltip(event,${keyArg},${nameArg},${detailArg},${remain})`;
-    return renderCombatEffectIcon({ key: options.key, label: options.name, tooltip, badge: options.badge || '' });
+    return renderCombatEffectIcon({ key: options.key, label: options.name, tooltip, badge: options.badge || '', remainingSec: remain, durationSec: options.durationSec });
 }
 
 function getUiRecoveryEffectSummary(instances, target) {
@@ -7783,7 +7849,7 @@ function buildPlayerAilmentEffectIcons() {
         let visual = getUiCombatEffectPresentation(type);
         let stacks = Math.max(1, Math.floor(ail.stacks || 1));
         let tooltip = `showPlayerAilmentTooltip(event,${typeArg},${remain},${Number(ail.power || 0.1).toFixed(3)},${Math.floor(getUiStoredAilmentHitDamage(ail))})`;
-        return renderCombatEffectIcon({ key: type, label: visual.label, tooltip, badge: stacks > 1 ? `${stacks}` : '' });
+        return renderCombatEffectIcon({ key: type, label: visual.label, tooltip, badge: stacks > 1 ? `${stacks}` : '', remainingSec: remain, durationSec: ail.duration });
     }).join('');
 }
 
@@ -7800,7 +7866,7 @@ function buildPlayerConditionEffectIcons(now) {
         let typeArg = escapeHTML(JSON.stringify(String(buff.type || 'buff')));
         let tooltip = `showPlayerBuffTooltip(event,${nameArg},${typeArg},${remain})`;
         let key = ['guard', 'warcry'].includes(buff.type) ? buff.type : 'buff';
-        icons.push(renderCombatEffectIcon({ key, label: buff.name, tooltip }));
+        icons.push(renderCombatEffectIcon({ key, label: buff.name, tooltip, remainingSec: remain, durationSec: Number(buff.durationMs) / 1000 }));
     });
     (game.cosmosPlayerDebuffs || []).filter(row => row && (row.expiresAt || 0) > now).forEach(row => {
         let remain = Math.ceil(Math.max(0, ((row.expiresAt || 0) - now) / 1000));
@@ -7808,7 +7874,7 @@ function buildPlayerConditionEffectIcons(now) {
         let typeArg = escapeHTML(JSON.stringify(type));
         let labelArg = escapeHTML(JSON.stringify(String(row.label || '')));
         let tooltip = `showPlayerCosmosDebuffTooltip(event,${typeArg},${Number(row.value || 0).toFixed(2)},${remain},${labelArg})`;
-        icons.push(renderCombatEffectIcon({ key: type, label: row.label, tooltip }));
+        icons.push(renderCombatEffectIcon({ key: type, label: row.label, tooltip, remainingSec: remain, durationSec: Number(row.durationMs) / 1000 }));
     });
     return icons.join('');
 }
@@ -7819,13 +7885,13 @@ function buildPlayerFlaskEffectIcons(now) {
     let icons = [];
     let healDef = getFlaskHealDef(st.healTier);
     if ((st.healOverTimeUntil || 0) > now) {
-        icons.push(renderCombatEffectIcon({ key: 'healFlask', label: healDef.name, tooltip: `showPlayerFlaskTooltip(event,'heal','${healDef.key}')` }));
+        icons.push(renderCombatEffectIcon({ key: 'healFlask', label: healDef.name, tooltip: `showPlayerFlaskTooltip(event,'heal','${healDef.key}')`, remainingSec: (st.healOverTimeUntil - now) / 1000, durationSec: Number(healDef.durationMs) / 1000 }));
     }
     let maxSlots = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : (st.utils || []).length;
     (st.utils || []).slice(0, maxSlots).forEach(entry => {
         let def = entry && FLASK_UTILITY_POOL[entry.key];
         if (!def || (entry.until || 0) <= now) return;
-        icons.push(renderCombatEffectIcon({ key: 'utilityFlask', label: def.name, tooltip: `showPlayerFlaskTooltip(event,'util','${entry.key}')` }));
+        icons.push(renderCombatEffectIcon({ key: 'utilityFlask', label: def.name, tooltip: `showPlayerFlaskTooltip(event,'util','${entry.key}')`, remainingSec: (entry.until - now) / 1000, durationSec: Number(def.durationMs) / 1000 }));
     });
     return icons.join('');
 }
@@ -7979,13 +8045,13 @@ function buildPlayerRealmEffectIcons(pStats, now) {
     }
     if ((game.realmInvulnerableBarrierUntil || 0) > now) {
         let remain = Math.ceil((game.realmInvulnerableBarrierUntil - now) / 1000);
-        icons.push(renderCombatEffectIcon({ key: 'invulnerableBarrier', tooltip: `showPlayerRuntimeEffectTooltip(event,'invulnerableBarrier',0,0,${remain})` }));
+        icons.push(renderCombatEffectIcon({ key: 'invulnerableBarrier', tooltip: `showPlayerRuntimeEffectTooltip(event,'invulnerableBarrier',0,0,${remain})`, remainingSec: remain, durationSec: 1.5 }));
     }
     if (game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w5')) {
         let stacks = typeof getWarriorRageStacks === 'function' ? getWarriorRageStacks(now) : 0;
         if (stacks > 0) {
             let remain = Math.ceil(Math.max(0, (game.warriorRageExpiresAt - now) / 1000));
-            icons.push(renderCombatEffectIcon({ key: 'warriorRage', tooltip: `showPlayerRuntimeEffectTooltip(event,'warriorRage',${stacks},5,${remain})`, badge: `${stacks}` }));
+            icons.push(renderCombatEffectIcon({ key: 'warriorRage', tooltip: `showPlayerRuntimeEffectTooltip(event,'warriorRage',${stacks},5,${remain})`, badge: `${stacks}`, remainingSec: remain, durationSec: 5 }));
         }
     }
     return icons.join('');
@@ -8053,13 +8119,13 @@ function buildEnemyCombatEffectIcons(activeAilments, enemyDebuffs, now, enemy) {
             igniteTakenMultiplier: Number(ail.igniteTakenMultiplier || 1)
         };
         let tooltip = `showEnemyAilmentTooltip(event,${escapeHTML(JSON.stringify(tooltipPayload))})`;
-        return renderCombatEffectIcon({ key: type, tooltip, badge });
+        return renderCombatEffectIcon({ key: type, tooltip, badge, remainingSec: remain, durationSec: ail.duration });
     });
     let curseIcons = (enemyDebuffs || []).filter(row => row && (row.expiresAt || 0) > now).map(row => {
         let remain = Math.ceil(Math.max(0, ((row.expiresAt || 0) - now) / 1000));
         let nameArg = escapeHTML(JSON.stringify(String(row.name || '')));
         let tooltip = `showPlayerBuffTooltip(event,${nameArg},'curse',${remain})`;
-        return renderCombatEffectIcon({ key: 'curse', label: row.name || '저주', tooltip });
+        return renderCombatEffectIcon({ key: 'curse', label: row.name || '저주', tooltip, remainingSec: remain, durationSec: Number(row.durationMs) / 1000 });
     });
     return ailmentIcons.concat(curseIcons).join('') + buildEnemyRuntimeEffectIcons(enemy, now);
 }

@@ -13,7 +13,7 @@ const now = 10000;
 const ownedKeystones = new Set(['w2', 'w5']);
 const context = {
   game: {
-    playerAilments: [{ type: 'ignite', time: 2, power: 0.2 }, { type: 'shock', time: 0, power: 0.1 }],
+    playerAilments: [{ type: 'ignite', time: 2, duration: 4, power: 0.2 }, { type: 'shock', time: 0, power: 0.1 }],
     woodsmanCurseActive: true,
     woodsmanCurseDamageTakenStacks: 125,
     playerConditionBuffs: [
@@ -106,6 +106,11 @@ assert(playerMarkup.includes('combat-effect-art') && !playerMarkup.includes('com
   'status effects must use the generated image atlas instead of text glyphs');
 const firstSpriteMarkup = context.renderCombatEffectIcon({ key: 'ignite' });
 const lastSpriteMarkup = context.renderCombatEffectIcon({ key: 'unmapped-effect' });
+const timedMarkup = context.renderCombatEffectIcon({ key: 'ignite', remainingSec: 3, durationSec: 6 });
+assert(timedMarkup.includes('class="combat-effect-icon effect-ignite timed"')
+  && timedMarkup.includes('--effect-remaining-angle:180.00deg')
+  && timedMarkup.includes('class="combat-effect-time">3</span>'),
+  'timed effects must expose a clockwise half-duration sweep and readable seconds');
 assert(firstSpriteMarkup.includes('--effect-sprite-x:0.0000%') && firstSpriteMarkup.includes('--effect-sprite-y:0.0000%'),
   'the first effect must address the first atlas cell');
 assert(lastSpriteMarkup.includes('--effect-sprite-x:100.0000%') && lastSpriteMarkup.includes('--effect-sprite-y:100.0000%'),
@@ -169,7 +174,7 @@ context.game.talentInquisitorMarks = { 7: { accumulated: 500, explodeAt: 13000 }
 context.game.talentButcherMarks = { 7: { hits: 2 } };
 context.game.rangerWeakpointMarks = { 7: { hits: 1 } };
 const enemyMarkup = context.buildEnemyCombatEffectIcons([
-  { type: 'ignite', time: 3, power: 0.2 },
+  { type: 'ignite', time: 3, duration: 6, power: 0.2 },
   { type: 'assassinWeakness', time: 5, power: 4 },
   { type: 'freeze', time: 0, power: 0 }
 ], [{ name: '쇠약', expiresAt: 13000 }, { name: '만료', expiresAt: 9000 }], now, enemy);
