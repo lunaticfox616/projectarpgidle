@@ -23,12 +23,13 @@ assert(html.includes('class="player-health-frame-art" src="assets/ui/health-play
   'ui-combat-flasks'
 ].forEach(id => assert.strictEqual(countHtmlId(id), 1, `${id} must have exactly one DOM owner`));
 
-const identityStartInFrame = html.indexOf('class="player-hud-identity-row"', frameStart);
+const identityStartInShell = html.indexOf('class="player-hud-identity-row"', shellStart);
 const hpTrackStart = html.indexOf('class="hp-bar-bg combat-hp-bar"', frameStart);
 const expTrackStart = html.indexOf('class="hp-bar-bg combat-exp-bar"', frameStart);
 const esTrackStart = html.indexOf('id="ui-es-track"', hpTrackStart);
 const esBarStart = html.indexOf('id="ui-es-bar"', hpTrackStart);
-assert(identityStartInFrame > frameStart && identityStartInFrame < hpTrackStart, 'name, class, and level must occupy the frame space left of health');
+assert(identityStartInShell > shellStart && identityStartInShell < frameStart,
+  'name, class, and level must occupy the dedicated shell space beside the health frame');
 assert(html.indexOf('id="ui-player-ailments-under"', frameStart) < hpTrackStart, 'active effects must share the supplied player frame');
 assert(hpTrackStart >= 0 && expTrackStart > hpTrackStart, 'the player frame must retain health and experience tracks');
 assert(esTrackStart > hpTrackStart && esTrackStart < expTrackStart, 'energy shield must overlay the health track instead of occupying a separate segment');
