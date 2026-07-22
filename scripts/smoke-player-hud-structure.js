@@ -25,8 +25,14 @@ assert(html.includes('class="player-health-frame-art" src="assets/ui/health-play
 ].forEach(id => assert.strictEqual(countHtmlId(id), 1, `${id} must have exactly one DOM owner`));
 
 assert(html.indexOf('id="ui-player-ailments-under"', infoStart) < frameStart, 'desktop effects must live inside the information box');
-assert(html.indexOf('id="ui-hp-bar"', frameStart) < html.indexOf('id="ui-es-track"', frameStart), 'HP and energy shield must use separate tracks');
-assert(html.indexOf('id="ui-es-bar"', frameStart) < html.indexOf('id="ui-exp-bar"', frameStart), 'energy shield and experience must use separate live fills');
+const hpTrackStart = html.indexOf('class="hp-bar-bg combat-hp-bar"', frameStart);
+const expTrackStart = html.indexOf('class="hp-bar-bg combat-exp-bar"', frameStart);
+const esTrackStart = html.indexOf('id="ui-es-track"', hpTrackStart);
+const esBarStart = html.indexOf('id="ui-es-bar"', hpTrackStart);
+assert(hpTrackStart >= 0 && expTrackStart > hpTrackStart, 'the player frame must retain health and experience tracks');
+assert(esTrackStart > hpTrackStart && esTrackStart < expTrackStart, 'energy shield must overlay the health track instead of occupying a separate segment');
+assert(esBarStart > esTrackStart && esBarStart < expTrackStart, 'the shared health track must retain a live energy-shield fill');
+assert(!html.includes('combat-es-bar'), 'the old separate energy-shield segment must be removed');
 
 const identityStart = uiSource.indexOf('function getUiPlayerHudIdentity()');
 const identityEnd = uiSource.indexOf('const BACKGROUND_PROGRESS_MIN_REAL_MS', identityStart);
@@ -61,21 +67,23 @@ const flaskHost = { dataset: {}, innerHTML: '' };
 const flaskContext = {
   Date,
   document: { getElementById(id) { return id === 'ui-combat-flasks' ? flaskHost : null; } },
+  utilitySlotCount: 4,
+  flaskState: {
+    healTier: 1,
+    healCharges: 3,
+    healOverTimeUntil: 0,
+    utils: [
+      { key: 'u1', charges: 1, until: 0 },
+      { key: 'u2', charges: 2, until: 0 },
+      { key: 'u3', charges: 3, until: 0 },
+      { key: 'u4', charges: 4, until: 0 }
+    ]
+  },
   ensureFlaskState() {
-    return {
-      healTier: 1,
-      healCharges: 3,
-      healOverTimeUntil: 0,
-      utils: [
-        { key: 'u1', charges: 1, until: 0 },
-        { key: 'u2', charges: 2, until: 0 },
-        { key: 'u3', charges: 3, until: 0 },
-        { key: 'u4', charges: 4, until: 0 }
-      ]
-    };
+    return flaskContext.flaskState;
   },
   getFlaskHealDef() { return { key: 'heal', name: '생명력 플라스크', maxCharges: 5 }; },
-  getMaxFlaskUtilitySlotCount() { return 4; },
+  getMaxFlaskUtilitySlotCount() { return flaskContext.utilitySlotCount; },
   FLASK_UTILITY_POOL: {
     u1: { key: 'u1', name: '유틸리티 1', maxCharges: 5 },
     u2: { key: 'u2', name: '유틸리티 2', maxCharges: 5 },
@@ -90,5 +98,38 @@ flaskContext.renderCombatFlaskHud();
 assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini/g) || []).length, 4, 'three art sockets plus one overflow control must represent five flasks without leaving the frame');
 assert(flaskHost.innerHTML.includes('class="combat-flask-mini overflow"'), 'extra flasks must share a compact control inside the third orb');
 assert(flaskHost.innerHTML.includes('유틸리티 4 · 4/5회'), 'the overflow tooltip must preserve the fifth flask charge information');
+
+flaskContext.flaskState = { healTier: 1, healCharges: 3, healOverTimeUntil: 0, utils: [] };
+flaskContext.utilitySlotCount = 2;
+flaskHost.dataset = {};
+flaskHost.innerHTML = '';
+flaskContext.renderCombatFlaskHud();
+assert.strictEqual((flaskHost.innerHTML.match(/<button/g) || []).length, 1, 'only the health flask may be interactive before utility flasks are equipped');
+assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini empty/g) || []).length, 2, 'unequipped green and blue art sockets must be visibly masked as empty');
+assert(!flaskHost.innerHTML.includes('class="combat-flask-mini utility'), 'an empty utility slot must not look like an equipped potion');
+
+flaskContext.flaskState = {
+  healTier: 1,
+  healCharges: 3,
+  healOverTimeUntil: 0,
+  utils: [{ key: 'u1', charges: 1, until: 0 }]
+};
+flaskHost.dataset = {};
+flaskContext.renderCombatFlaskHud();
+assert.strictEqual((flaskHost.innerHTML.match(/<button/g) || []).length, 2, 'equipping one utility flask must reveal only one utility art socket');
+assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini empty/g) || []).length, 1, 'the remaining utility art socket must stay empty');
+
+const gaugeStyle = {
+  width: '',
+  values: {},
+  setProperty(name, value) { this.values[name] = value; }
+};
+flaskContext.setUiImageGaugePercent({ style: gaugeStyle }, 42.5);
+assert.strictEqual(gaugeStyle.width, '100%', 'image gauges must preserve the source texture width');
+assert.strictEqual(gaugeStyle.values['--gauge-fill'], '42.5%', 'image gauges must clip the source texture to the live percentage');
+flaskContext.setUiImageGaugePercent({ style: gaugeStyle }, -1);
+assert.strictEqual(gaugeStyle.values['--gauge-fill'], '0%', 'image gauges must clamp underflow');
+flaskContext.setUiImageGaugePercent({ style: gaugeStyle }, 101);
+assert.strictEqual(gaugeStyle.values['--gauge-fill'], '100%', 'image gauges must clamp overflow');
 
 console.log('smoke-player-hud-structure passed');

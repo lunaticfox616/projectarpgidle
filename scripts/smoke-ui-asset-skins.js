@@ -13,6 +13,12 @@ const expectedSkins = new Map([
   ['assets/ui/health-mob-v1.png', [153, 51]],
   ['assets/ui/health-player-v1.png', [512, 84]],
   ['assets/ui/menu-rail-v1.png', [216, 532]],
+  ['assets/ui/gauge-player-hp-v1.png', [120, 23]],
+  ['assets/ui/gauge-player-es-v1.png', [35, 24]],
+  ['assets/ui/gauge-player-exp-v1.png', [83, 4]],
+  ['assets/ui/gauge-mob-hp-v1.png', [111, 6]],
+  ['assets/ui/gauge-elite-hp-v1.png', [145, 10]],
+  ['assets/ui/gauge-boss-hp-v1.png', [204, 8]],
 ]);
 
 for (const [file, expectedSize] of expectedSkins) {
@@ -26,13 +32,18 @@ const css = fs.readFileSync('css/ui-asset-skins.css', 'utf8');
 const menuCss = fs.readFileSync('css/ui-menu-sockets.css', 'utf8');
 const windowManager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 
-assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-health-menu-skin3'), 'asset skin CSS must be cache-versioned');
-assert.ok(html.includes('css/ui-menu-sockets.css?v=20260722-health-menu-skin3'), 'menu socket CSS must be cache-versioned');
-assert.ok(html.includes('js/ui.js?v=20260722-health-menu-skin3'), 'combat HUD JavaScript must be cache-versioned');
-assert.ok(html.includes('js/ui-window-manager.js?v=20260722-health-menu-skin3'), 'menu socket JavaScript must be cache-versioned');
+assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-health-menu-skin4'), 'asset skin CSS must be cache-versioned');
+assert.ok(html.includes('css/ui-menu-sockets.css?v=20260722-health-menu-skin4'), 'menu socket CSS must be cache-versioned');
+assert.ok(html.includes('js/ui.js?v=20260722-health-menu-skin4'), 'combat HUD JavaScript must be cache-versioned');
+assert.ok(html.includes('js/ui-window-manager.js?v=20260722-health-menu-skin4'), 'menu socket JavaScript must be cache-versioned');
 assert.ok(html.indexOf('css/ui-asset-skins.css') > html.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
 assert.ok(html.includes('<img class="player-health-frame-art" src="assets/ui/health-player-v1.png"'), 'the player HUD must use one real frame image');
 assert.ok(html.indexOf('player-health-frame') < html.indexOf('id="ui-hp-bar"'), 'the live player HP bar must remain inside its art frame');
+const hpTrackStart = html.indexOf('class="hp-bar-bg combat-hp-bar"');
+const expTrackStart = html.indexOf('class="hp-bar-bg combat-exp-bar"', hpTrackStart);
+const esTrackStart = html.indexOf('id="ui-es-track"', hpTrackStart);
+assert.ok(hpTrackStart >= 0 && esTrackStart > hpTrackStart && esTrackStart < expTrackStart, 'energy shield must overlay the shared health track');
+assert.ok(!html.includes('combat-es-bar'), 'energy shield must not reserve a separate horizontal segment');
 assert.ok(ui.includes('<div class="health-skin-track">'), 'enemy fills must be clipped separately from their art');
 assert.ok(ui.includes("? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob')"), 'boss, elite, and normal enemies must select distinct art tiers');
 assert.ok(ui.includes('src="assets/ui/health-${enemyHudTier}-v1.png"'), 'enemy frames must use one real image selected by tier');
@@ -42,9 +53,15 @@ assert.ok(ui.includes("${enemyHudTier === 'boss' ? '' : traitMarkup}"), 'elite t
 assert.ok(css.includes('.player-health-frame #ui-hp-bar'), 'player HP must have its own green live fill');
 assert.ok(css.includes('.player-health-frame #ui-es-bar'), 'player energy shield must have its own blue live fill');
 assert.ok(css.includes('.player-health-frame #ui-exp-bar'), 'player experience must have its own live fill');
-assert.ok(css.includes('left: 29.88%') && css.includes('right: 18.16%'), 'player HP must stay within the supplied art track');
+assert.ok(css.includes('left: 29.88%') && css.includes('right: 9.77%'), 'health and energy shield must share the complete supplied art track');
 assert.ok(css.includes('left: 14.45%') && css.includes('right: 14.45%'), 'player experience must cover only the supplied art track');
+[
+  'gauge-player-hp-v1.png', 'gauge-player-es-v1.png', 'gauge-player-exp-v1.png',
+  'gauge-mob-hp-v1.png', 'gauge-elite-hp-v1.png', 'gauge-boss-hp-v1.png'
+].forEach(file => assert.ok(css.includes(file), `${file} must provide a live gauge texture`));
+assert.ok(css.includes('clip-path: inset(0 calc(100% - var(--gauge-fill, 0%)) 0 0)'), 'live gauge percentages must clip rather than rescale the extracted textures');
 assert.ok(css.includes('.combat-flask-mini.overflow'), 'extra flask status must stay inside the three-orb art');
+assert.ok(css.includes('.combat-flask-mini.empty'), 'unequipped utility art sockets must be masked');
 assert.ok(/\.player-health-frame \.combat-flask-mini \{[\s\S]*?position: absolute !important;/.test(css), 'dark theme button chrome must not displace flask sockets');
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('-webkit-line-clamp: 2'), 'the boss trait panel must use both available text rows');
@@ -52,8 +69,15 @@ assert.ok(css.includes('.enemy-card.enemy-boss .health-skin-track { min-height: 
 assert.ok(css.includes('--health-track-left:'), 'baked health colors must be covered by a live clipped track');
 assert.ok(/\.enemy-card\.targeted \.hp-bar-bg \{[\s\S]*?z-index: 2;/.test(css), 'the live enemy gauge layer must render above the frame artwork');
 assert.ok(css.includes('@media (max-width: 1080px)'), 'the integrated player frame must retain a mobile layout');
+assert.ok(css.includes('.enemy-card.targeted.enemy-mob { margin-top: 34px; }'), 'normal enemy names must clear the progress row');
+assert.ok(css.includes('.enemy-card.targeted.enemy-elite { margin-top: 32px; }'), 'elite enemy names must use their own frame-aware spacing');
+assert.ok(css.includes('.enemy-card.targeted.enemy-boss { margin-top: 30px; }'), 'boss enemy names must use their own frame-aware spacing');
 assert.ok(windowManager.includes("art.src = RAIL_ART_SRC"), 'the menu rail must be connected as a real image');
+assert.ok(windowManager.includes('RAIL_TAB_SLOTS'), 'the menu artwork must expose one flat set of direct tab sockets');
+assert.ok(!windowManager.includes('RAIL_CATEGORY_SLOTS'), 'the menu must not retain upper-category sockets');
 assert.ok(menuCss.includes('.ui-rail-art'), 'the real menu image must be sized by its own element');
+assert.ok(menuCss.includes('.ui-rail-tab-layer'), 'all illustrated circles must belong to one direct tab layer');
+assert.ok(menuCss.includes('.ui-rail-external-controls'), 'misc and window cleanup controls must live outside the artwork');
 assert.ok(menuCss.includes('--menu-rail-width:'), 'the menu image size must stay adjustable from one CSS variable');
 assert.ok(menuCss.includes('29.2svh'), 'short desktop viewports must shrink the complete menu rail');
 assert.ok(menuCss.includes('width: var(--menu-rail-width)'), 'the menu image frame must consume the adjustable width');

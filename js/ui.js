@@ -1013,12 +1013,14 @@ function renderTabOrderSettings() {
     if (!tabOrderEl) return;
     if (!(document.getElementById('tab-settings') || {}).classList.contains('active')) return;
     let tabs = Array.from(document.querySelectorAll('.tab-header .tab-btn'));
-    let groupRows = getOrderedTabGroups().map(group => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${group.label}</span><span style="display:flex;gap:4px;"><button onclick="moveTabGroup('${group.key}',-1)">▲</button><button onclick="moveTabGroup('${group.key}',1)">▼</button></span></div>`).join('');
+    let usesFlatDesktopRail = document.body.classList.contains('desktop-windowed-ui');
+    let groupRows = usesFlatDesktopRail ? '' : getOrderedTabGroups().map(group => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${group.label}</span><span style="display:flex;gap:4px;"><button onclick="moveTabGroup('${group.key}',-1)">▲</button><button onclick="moveTabGroup('${group.key}',1)">▼</button></span></div>`).join('');
     let tabRows = tabs.map(el => {
         let place = (game.settings.tabPlacement[el.id] === 'bottom') ? 'bottom' : 'top';
         return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
     }).join('');
-    tabOrderEl.innerHTML = `<div style="font-weight:800;color:#f1c40f;margin-bottom:2px;">상위 그룹 탭</div>${groupRows}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
+    let groupSection = usesFlatDesktopRail ? '' : `<div style="font-weight:800;color:#f1c40f;margin-bottom:2px;">상위 그룹 탭</div>${groupRows}`;
+    tabOrderEl.innerHTML = `${groupSection}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
@@ -7471,26 +7473,37 @@ function renderCombatFlaskHud() {
     let st = ensureFlaskState();
     let now = Date.now();
     let healDef = getFlaskHealDef(st.healTier);
-    let entries = [{ key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal' }];
+    let healEntry = { key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal' };
     let maxUtility = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
+    let utilityEntries = [];
     for (let index = 0; index < maxUtility; index++) {
         let runtime = st.utils[index];
         let def = runtime && FLASK_UTILITY_POOL[runtime.key];
-        entries.push(def
+        utilityEntries.push(def
             ? { key: def.key, name: def.name, charges: runtime.charges, maxCharges: def.maxCharges, active: runtime.until > now, type: 'utility' }
-            : { key: '', name: `빈 유틸리티 슬롯 ${index + 1}`, charges: 0, maxCharges: 0, active: false, type: 'empty' });
+            : null);
     }
-    let signature = entries.map(entry => `${entry.key}:${entry.charges}:${entry.active ? 1 : 0}`).join('|');
+    let entries = [healEntry].concat(utilityEntries);
+    let signature = `${maxUtility}|${entries.map(entry => entry ? `${entry.key}:${entry.charges}:${entry.active ? 1 : 0}` : '-').join('|')}`;
     if (host.dataset.signature === signature) return;
     host.dataset.signature = signature;
-    let visibleEntries = entries.slice(0, 3);
-    let buttons = visibleEntries.map(entry => `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="switchTab('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`);
-    let overflowEntries = entries.slice(3);
+    let socketEntries = [healEntry, utilityEntries[0] || null, utilityEntries[1] || null];
+    let buttons = socketEntries.map(entry => entry
+        ? `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="switchTab('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`
+        : '<span class="combat-flask-mini empty" aria-hidden="true"></span>');
+    let overflowEntries = utilityEntries.slice(2).filter(Boolean);
     if (overflowEntries.length > 0) {
         let overflowTitle = overflowEntries.map(entry => `${entry.name} · ${entry.charges}/${entry.maxCharges}회`).join(' / ');
         buttons.push(`<button type="button" class="combat-flask-mini overflow" title="${escapeHTML(overflowTitle)}" onclick="switchTab('tab-flask')"><span>+${overflowEntries.length}</span></button>`);
     }
     host.innerHTML = buttons.join('');
+}
+
+function setUiImageGaugePercent(element, percent) {
+    if (!element) return;
+    let safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+    element.style.width = '100%';
+    element.style.setProperty('--gauge-fill', `${safePercent}%`);
 }
 
 function updateCombatUI(pStats) {
@@ -7507,7 +7520,7 @@ function updateCombatUI(pStats) {
     setTextById('ui-maxhp-stat', formatSettingNumber(pStats.maxHp, 'showCharacterComma'));
     let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
     let hpBar = document.getElementById('ui-hp-bar');
-    hpBar.style.width = hpPct + '%';
+    setUiImageGaugePercent(hpBar, hpPct);
     hpBar.classList.toggle('player-danger', hpPct > 0 && hpPct <= 25);
     renderCombatFlaskHud();
     let hpWrap = hpBar.parentElement;
@@ -7532,7 +7545,10 @@ function updateCombatUI(pStats) {
     }
     let esPct = (pStats.energyShield || 0) > 0 ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
     let esInlineEl = document.getElementById('ui-es-inline');
-    if (esInlineEl) esInlineEl.innerText = (pStats.energyShield || 0) > 0 ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0';
+    if (esInlineEl) {
+        esInlineEl.innerText = (pStats.energyShield || 0) > 0 ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0';
+        esInlineEl.style.display = (pStats.energyShield || 0) > 0 ? '' : 'none';
+    }
     let esBar = document.getElementById('ui-es-bar');
     if (!esBar) {
         let esWrap = document.getElementById('ui-es-track') || hpWrap;
@@ -7548,11 +7564,12 @@ function updateCombatUI(pStats) {
         esWrap.insertBefore(esBar, esWrap.firstChild);
     }
     esBar.style.zIndex = '5';
-    esBar.style.width = esPct + '%';
+    setUiImageGaugePercent(esBar, esPct);
     esBar.style.display = (pStats.energyShield || 0) > 0 ? 'block' : 'none';
     setTextById('ui-exp', formatSettingNumber(game.exp, 'showExpComma'));
     setTextById('ui-maxexp', formatSettingNumber(getExpReq(game.level), 'showExpComma'));
-    document.getElementById('ui-exp-bar').style.width = ((game.exp / getExpReq(game.level)) * 100) + '%';
+    let expPct = Math.max(0, Math.min(100, (game.exp / Math.max(1, getExpReq(game.level))) * 100));
+    setUiImageGaugePercent(document.getElementById('ui-exp-bar'), expPct);
     setTextById('ui-player-level', 'Lv.' + game.level);
     let playerHudIdentity = getUiPlayerHudIdentity();
     setTextById('ui-player-name-label', playerHudIdentity.name);
@@ -7576,9 +7593,9 @@ function updateCombatUI(pStats) {
         if (sourceEl && targetEl) targetEl.innerText = sourceEl.innerText;
     });
     let hpBarMobile = document.getElementById('ui-hp-bar-mobile');
-    if (hpBarMobile) hpBarMobile.style.width = document.getElementById('ui-hp-bar').style.width;
+    if (hpBarMobile) hpBarMobile.style.width = hpPct + '%';
     let expBarMobile = document.getElementById('ui-exp-bar-mobile');
-    if (expBarMobile) expBarMobile.style.width = document.getElementById('ui-exp-bar').style.width;
+    if (expBarMobile) expBarMobile.style.width = expPct + '%';
     let ailmentEl = document.getElementById('ui-player-ailments');
     if (ailmentEl) {
         let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
@@ -7890,7 +7907,7 @@ function updateCombatUI(pStats) {
             esEl.style.width = `${esPct}%`;
             esEl.style.display = esPct > 0 ? 'block' : 'none';
         }
-        if (hpEl) hpEl.style.width = `${pct}%`;
+        if (hpEl) setUiImageGaugePercent(hpEl, pct);
         if (pendingEl) { pendingEl.style.left = `${pendingStartPct}%`; pendingEl.style.width = `${pendingPct}%`; }
         if (hpTextEl) {
             let zoneNow = getZone(game.currentZoneId);

@@ -11,18 +11,19 @@
     const WORKSPACE_GAP = 10;
     const COMMUNITY_OVERLAY_THRESHOLD = 700;
     const RAIL_ART_SRC = 'assets/ui/menu-rail-v1.png';
-    const RAIL_CATEGORY_SLOTS = [
+    const RAIL_TAB_SLOTS = [
         { x: '50%', y: '14%' },
+        { x: '12.5%', y: '24%' }, { x: '88%', y: '24%' },
         { x: '50%', y: '36%' },
+        { x: '12.5%', y: '46%' }, { x: '88%', y: '46%' },
         { x: '50%', y: '56%' },
+        { x: '12.5%', y: '67%' }, { x: '88%', y: '67%' },
         { x: '50%', y: '77%' },
         { x: '50%', y: '92%' }
     ];
-    const RAIL_TAB_SLOTS = [
-        { x: '12.5%', y: '24%' }, { x: '88%', y: '24%' },
-        { x: '12.5%', y: '46%' }, { x: '88%', y: '46%' },
-        { x: '12.5%', y: '67%' }, { x: '88%', y: '67%' }
-    ];
+    const RAIL_EXTERNAL_TAB_IDS = new Set([
+        'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
+    ]);
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
         'tab-items': { title: '장비 및 인벤토리', x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
@@ -465,29 +466,26 @@
     }
 
 
-    // 중앙 5개 소켓은 그룹, 좌우 6개 소켓은 선택 그룹의 탭으로 사용한다.
-    // 그룹 정의(TAB_GROUPS)와 선택 상태(game.settings.activeTabGroup)는 ui.js의 SSOT를 재사용한다.
-    function getRailGroups() {
-        let groups = typeof getOrderedTabGroups === 'function'
-            ? getOrderedTabGroups()
-            : ((typeof TAB_GROUPS !== 'undefined' && Array.isArray(TAB_GROUPS)) ? TAB_GROUPS : []);
+    // 저장된 일반 탭 순서를 그대로 사용하되, 그림 속 11개 원에는 실제 창 버튼만 배치한다.
+    function getOrderedRailButtons(header) {
+        let buttons = Array.from(header.querySelectorAll('.tab-btn'))
+            .filter(button => !RAIL_EXTERNAL_TAB_IDS.has(button.id));
         let savedTabOrder = (typeof game !== 'undefined' && game.settings && Array.isArray(game.settings.tabOrder))
             ? game.settings.tabOrder
             : [];
-        let rank = id => {
-            let index = savedTabOrder.indexOf(id);
-            return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
-        };
-        return groups.map(group => ({
-            key: group.key,
-            label: group.label,
-            icon: group.icon || '',
-            buttonIds: group.tabs
-                .filter(id => id !== 'tab-battle' && id !== 'tab-social')
-                .map(id => 'btn-' + id)
-                .concat(group.key === 'etc' ? ['btn-map-complete-action-picker'] : [])
-                .sort((a, b) => rank(a) - rank(b))
-        })).filter(group => group.buttonIds.length > 0);
+        let originalRank = new Map(buttons.map((button, index) => [
+            button.id, Number(button.dataset.railOriginalOrder ?? index)
+        ]));
+        return buttons.sort((left, right) => {
+            let leftSaved = savedTabOrder.indexOf(left.id);
+            let rightSaved = savedTabOrder.indexOf(right.id);
+            if (leftSaved >= 0 || rightSaved >= 0) {
+                if (leftSaved < 0) return 1;
+                if (rightSaved < 0) return -1;
+                return leftSaved - rightSaved;
+            }
+            return originalRank.get(left.id) - originalRank.get(right.id);
+        });
     }
 
     function setRailSlot(element, slot, slotNumber) {
@@ -504,21 +502,20 @@
         element.style.removeProperty('--rail-socket-y');
     }
 
-    function createRailCategoryButton(group, index) {
+    function createRailMiscButton() {
         let button = document.createElement('button');
-        button.id = 'btn-ui-rail-category-' + group.key;
+        button.id = 'btn-ui-rail-misc';
         button.type = 'button';
-        button.className = 'ui-rail-category-btn tab-category-btn';
-        button.dataset.railGroupTarget = group.key;
-        button.setAttribute('aria-label', group.label + ' 메뉴');
-        button.setAttribute('aria-controls', 'ui-rail-group-' + group.key);
-        button.innerHTML = `<span class="ui-rail-category-icon" aria-hidden="true">${group.icon}</span><span class="ui-rail-category-label">${group.label}</span><span id="noti-ui-rail-${group.key}" class="noti-dot ui-rail-category-noti"></span>`;
-        button.addEventListener('click', () => selectDesktopRailGroup(group.key));
-        setRailSlot(button, RAIL_CATEGORY_SLOTS[index], index + 1);
+        button.className = 'ui-rail-external-btn ui-rail-misc-btn';
+        button.setAttribute('aria-label', '기타 메뉴 열기');
+        button.setAttribute('aria-controls', 'ui-rail-misc-panel');
+        button.setAttribute('aria-expanded', 'false');
+        button.innerHTML = '기타<span id="noti-ui-rail-misc" class="noti-dot"></span>';
+        button.addEventListener('click', toggleRailMiscPanel);
         return button;
     }
 
-    function installRailArtwork(header, groups) {
+    function installRailArtwork(header) {
         let art = document.createElement('img');
         art.className = 'ui-rail-art';
         art.src = RAIL_ART_SRC;
@@ -526,55 +523,43 @@
         art.draggable = false;
         art.setAttribute('aria-hidden', 'true');
         header.prepend(art);
-        let categories = document.createElement('div');
-        categories.className = 'ui-rail-category-layer';
-        categories.setAttribute('aria-label', '메뉴 그룹');
-        groups.forEach((group, index) => categories.appendChild(createRailCategoryButton(group, index)));
-        header.appendChild(categories);
     }
 
-    function installDesktopRailGroups() {
-        let header = document.querySelector('.tab-header');
-        if (!header || header.querySelector(':scope > .ui-rail-group')) return syncDesktopRailGroups();
-        let groups = getRailGroups();
-        installRailArtwork(header, groups);
-        groups.forEach(group => {
-            let section = document.createElement('div');
-            section.id = 'ui-rail-group-' + group.key;
-            section.className = 'ui-rail-group';
-            section.dataset.railGroup = group.key;
-            let grid = document.createElement('div');
-            grid.className = 'ui-rail-group-grid';
-            group.buttonIds.forEach(id => {
-                let btn = document.getElementById(id);
-                if (btn) grid.appendChild(btn);
-            });
-            section.appendChild(grid);
-            header.appendChild(section);
-        });
-        syncDesktopRailGroups();
+    function installRailLayers(header) {
+        let tabLayer = document.createElement('div');
+        tabLayer.className = 'ui-rail-tab-layer';
+        tabLayer.setAttribute('aria-label', '메뉴');
+        header.appendChild(tabLayer);
+        let controls = document.createElement('div');
+        controls.className = 'ui-rail-external-controls';
+        controls.appendChild(createRailMiscButton());
+        header.appendChild(controls);
+        let miscPanel = document.createElement('div');
+        miscPanel.id = 'ui-rail-misc-panel';
+        miscPanel.className = 'ui-rail-misc-panel';
+        miscPanel.hidden = true;
+        miscPanel.addEventListener('click', closeRailMiscPanelAfterSelection);
+        header.appendChild(miscPanel);
     }
 
     function isRailButtonVisible(button) {
-        if (button.id === 'btn-map-complete-action-picker') return true;
         return button.style.display !== 'none' && !button.hidden;
     }
 
-    function getSelectedDesktopRailGroup(groups) {
-        if (!groups.length) return '';
-        let selected = (typeof game !== 'undefined' && game.settings) ? game.settings.activeTabGroup : '';
-        return groups.some(group => group.key === selected) ? selected : groups[0].key;
+    function toggleRailMiscPanel() {
+        let panel = document.getElementById('ui-rail-misc-panel');
+        let trigger = document.getElementById('btn-ui-rail-misc');
+        if (!panel || !trigger) return;
+        panel.hidden = !panel.hidden;
+        trigger.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
     }
 
-    function selectDesktopRailGroup(groupKey) {
-        let groups = getRailGroups();
-        if (!groups.some(group => group.key === groupKey)) return;
-        if (typeof game !== 'undefined') {
-            game.settings = game.settings || {};
-            game.settings.activeTabGroup = groupKey;
-        }
-        syncDesktopRailGroups();
-        if (typeof queueImportantSave === 'function') queueImportantSave(300);
+    function closeRailMiscPanelAfterSelection(event) {
+        if (!event.target.closest || !event.target.closest('.tab-btn')) return;
+        let panel = document.getElementById('ui-rail-misc-panel');
+        let trigger = document.getElementById('btn-ui-rail-misc');
+        if (panel) panel.hidden = true;
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
     }
 
     function hasVisibleRailNotice(button) {
@@ -586,40 +571,49 @@
             });
     }
 
-    // 잠긴 탭은 제외하고 남은 탭을 좌우 6개 소켓 앞으로 압축한다.
-    function syncDesktopRailGroups() {
-        let sections = Array.from(document.querySelectorAll('.tab-header > .ui-rail-group'));
-        if (!sections.length) return;
-        let groups = getRailGroups();
-        let selected = getSelectedDesktopRailGroup(groups);
-        groups.forEach((group, index) => {
-            let category = document.getElementById('btn-ui-rail-category-' + group.key);
-            setRailSlot(category, RAIL_CATEGORY_SLOTS[index], index + 1);
+    function moveRailAuxiliaryTabs(miscPanel) {
+        ['btn-tab-settings', 'btn-map-complete-action-picker'].forEach(id => {
+            let button = document.getElementById(id);
+            if (button) miscPanel.appendChild(button);
         });
-        let visibleSections = sections.filter(section => Array.from(section.querySelectorAll('.tab-btn')).some(isRailButtonVisible));
-        if (!visibleSections.some(section => section.dataset.railGroup === selected) && visibleSections[0]) {
-            selected = visibleSections[0].dataset.railGroup;
+    }
+
+    function updateRailMiscNotice(miscPanel) {
+        let notice = document.getElementById('noti-ui-rail-misc');
+        if (!notice) return;
+        let visible = Array.from(miscPanel.querySelectorAll('.tab-btn')).filter(isRailButtonVisible);
+        notice.style.display = visible.some(hasVisibleRailNotice) ? 'block' : 'none';
+    }
+
+    function installDesktopRailMenu() {
+        let header = document.querySelector('.tab-header');
+        if (!header) return;
+        if (!header.querySelector(':scope > .ui-rail-tab-layer')) {
+            Array.from(header.querySelectorAll('.tab-btn')).forEach((button, index) => {
+                button.dataset.railOriginalOrder = String(index);
+            });
+            installRailArtwork(header);
+            installRailLayers(header);
         }
-        sections.forEach(section => {
-            let group = groups.find(item => item.key === section.dataset.railGroup);
-            let buttons = group
-                ? group.buttonIds.map(id => document.getElementById(id)).filter(button => button && section.contains(button))
-                : Array.from(section.querySelectorAll('.tab-btn'));
-            let visible = buttons.filter(isRailButtonVisible);
-            let active = section.dataset.railGroup === selected;
-            let category = document.getElementById('btn-ui-rail-category-' + section.dataset.railGroup);
-            let categoryNotice = document.getElementById('noti-ui-rail-' + section.dataset.railGroup);
-            buttons.forEach(clearRailSlot);
-            if (active) visible.slice(0, RAIL_TAB_SLOTS.length)
-                .forEach((button, index) => setRailSlot(button, RAIL_TAB_SLOTS[index], index + 6));
-            section.hidden = !active;
-            section.dataset.railOverflow = String(Math.max(0, visible.length - RAIL_TAB_SLOTS.length));
-            if (!category) return;
-            category.hidden = visible.length === 0;
-            category.classList.toggle('active', active);
-            category.setAttribute('aria-pressed', active ? 'true' : 'false');
-            if (categoryNotice) categoryNotice.style.display = !active && visible.some(hasVisibleRailNotice) ? 'block' : 'none';
+        syncDesktopRailGroups();
+    }
+
+    // 공개 함수명은 기존 ui.js 호출 계약을 유지하지만, 실제 배치는 상위 그룹 없는 단일 레일이다.
+    function syncDesktopRailGroups() {
+        let header = document.querySelector('.tab-header');
+        let tabLayer = header && header.querySelector(':scope > .ui-rail-tab-layer');
+        let miscPanel = header && header.querySelector(':scope > .ui-rail-misc-panel');
+        if (!tabLayer || !miscPanel) return;
+        let buttons = getOrderedRailButtons(header);
+        let visible = buttons.filter(isRailButtonVisible);
+        buttons.forEach(button => { clearRailSlot(button); tabLayer.appendChild(button); });
+        visible.slice(0, RAIL_TAB_SLOTS.length).forEach((button, index) => {
+            setRailSlot(button, RAIL_TAB_SLOTS[index], index + 1);
         });
+        visible.slice(RAIL_TAB_SLOTS.length).forEach(button => miscPanel.appendChild(button));
+        moveRailAuxiliaryTabs(miscPanel);
+        miscPanel.dataset.railOverflow = String(Math.max(0, visible.length - RAIL_TAB_SLOTS.length));
+        updateRailMiscNotice(miscPanel);
     }
 
     function installCloseAllButton() {
@@ -628,11 +622,12 @@
         let btn = document.createElement('button');
         btn.id = 'btn-close-all-windows';
         btn.type = 'button';
-        btn.className = 'tab-btn ui-close-all-btn';
+        btn.className = 'ui-rail-external-btn ui-close-all-btn';
         btn.textContent = '창정리';
         btn.setAttribute('aria-label', '열린 창 모두 닫기');
         btn.addEventListener('click', closeAllWindows);
-        header.appendChild(btn);
+        let controls = header.querySelector(':scope > .ui-rail-external-controls');
+        (controls || header).appendChild(btn);
     }
 
     const GOAL_AUTO_COLLAPSE_MS = 7000;
@@ -949,12 +944,19 @@
         if (!header) return;
         // 생성한 소켓 메타데이터를 제거한 뒤 원래 탭 버튼만 헤더 루트로 되돌린다.
         header.querySelectorAll('[data-rail-slot]').forEach(clearRailSlot);
-        header.querySelectorAll(':scope > .ui-rail-group .tab-btn').forEach(btn => header.appendChild(btn));
-        header.querySelectorAll(':scope > .ui-rail-group').forEach(section => section.remove());
-        let categoryLayer = header.querySelector(':scope > .ui-rail-category-layer');
-        if (categoryLayer) categoryLayer.remove();
+        header.querySelectorAll(':scope > .ui-rail-tab-layer .tab-btn, :scope > .ui-rail-misc-panel .tab-btn')
+            .forEach(btn => header.appendChild(btn));
+        let tabLayer = header.querySelector(':scope > .ui-rail-tab-layer');
+        if (tabLayer) tabLayer.remove();
+        let miscPanel = header.querySelector(':scope > .ui-rail-misc-panel');
+        if (miscPanel) miscPanel.remove();
+        let externalControls = header.querySelector(':scope > .ui-rail-external-controls');
+        if (externalControls) externalControls.remove();
         let art = header.querySelector(':scope > .ui-rail-art');
         if (art) art.remove();
+        Array.from(header.querySelectorAll('.tab-btn'))
+            .sort((left, right) => Number(left.dataset.railOriginalOrder) - Number(right.dataset.railOriginalOrder))
+            .forEach(button => { delete button.dataset.railOriginalOrder; header.appendChild(button); });
         let closeAllBtn = document.getElementById('btn-close-all-windows');
         if (closeAllBtn) closeAllBtn.remove();
         let toggle = document.getElementById('ui-community-toggle');
@@ -1007,7 +1009,7 @@
         installGoalDrawer();
         installSettingsReset();
         if (layoutState.community.open) openCommunityDock();
-        installDesktopRailGroups();
+        installDesktopRailMenu();
         installCloseAllButton();
         if (layoutState.goals.expanded) toggleGoalDrawer(true);
         requestCanvasResize();

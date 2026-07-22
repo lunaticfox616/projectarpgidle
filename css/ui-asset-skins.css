@@ -94,7 +94,6 @@
 .player-health-frame .player-hud-vitals { position: static !important; display: block !important; }
 
 .player-health-frame .combat-hp-bar,
-.player-health-frame .combat-es-bar,
 .player-health-frame .combat-exp-bar {
   position: absolute;
   z-index: 2;
@@ -110,18 +109,10 @@
 
 .player-health-frame .combat-hp-bar {
   top: 25%;
-  right: 18.16%;
+  right: 9.77%;
   left: 29.88%;
   height: 32.15% !important;
   background: #07130d !important;
-}
-
-.player-health-frame .combat-es-bar {
-  top: 25%;
-  right: 9.77%;
-  left: 82.42%;
-  height: 32.15% !important;
-  background: #07101b !important;
 }
 
 .player-health-frame .combat-exp-bar {
@@ -134,25 +125,46 @@
 }
 
 .player-health-frame .combat-hp-bar::after,
-.player-health-frame .combat-es-bar::after,
 .player-health-frame .combat-exp-bar::after { content: none !important; }
 
 .player-health-frame .hp-bar-fill { height: 100%; }
+.player-health-frame #ui-hp-bar,
+.player-health-frame #ui-es-bar,
+.player-health-frame #ui-exp-bar {
+  width: 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 100% 100% !important;
+  clip-path: inset(0 calc(100% - var(--gauge-fill, 0%)) 0 0);
+  image-rendering: pixelated;
+  transition: clip-path .16s linear !important;
+}
 .player-health-frame #ui-hp-bar {
-  background: linear-gradient(90deg, #08753f, #18b760 68%, #55dc8a) !important;
+  background-color: #08753f !important;
+  background-image: url('../assets/ui/gauge-player-hp-v1.png') !important;
   box-shadow: inset 0 1px rgba(183, 255, 213, .2), 0 0 9px rgba(32, 208, 112, .24);
 }
+.player-health-frame .combat-es-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
 .player-health-frame #ui-es-bar {
-  background: linear-gradient(90deg, #087f99, #1bb4d1 60%, #63d9ed) !important;
+  position: absolute;
+  inset: 0;
+  background-color: #087f99 !important;
+  background-image: url('../assets/ui/gauge-player-es-v1.png') !important;
   box-shadow: inset 0 1px rgba(205, 249, 255, .26), 0 0 8px rgba(48, 190, 224, .28);
-  opacity: 1 !important;
+  opacity: .78 !important;
 }
 .player-health-frame #ui-exp-bar {
-  background: linear-gradient(90deg, #643184, #a850cb 70%, #d68bea) !important;
+  background-color: #643184 !important;
+  background-image: url('../assets/ui/gauge-player-exp-v1.png') !important;
 }
 
-.player-health-frame .combat-hp-bar .hp-text,
-.player-health-frame .combat-es-bar .hp-text {
+.player-health-frame .combat-hp-bar .hp-text {
   inset: 0;
   z-index: 7;
   display: flex;
@@ -165,7 +177,18 @@
 }
 
 .player-health-frame .combat-hp-bar .hp-text { font-size: clamp(12px, 1.2vw, 16px); }
-.player-health-frame .combat-es-bar .hp-text { font-size: clamp(7px, .72vw, 10px); }
+.player-health-frame .combat-es-text {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  z-index: 8;
+  color: #d9f7ff;
+  font-size: clamp(7px, .72vw, 10px);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
+  pointer-events: none;
+}
 
 .player-health-frame .combat-flask-strip {
   position: absolute;
@@ -222,6 +245,14 @@
   font-weight: 900;
 }
 .player-health-frame .combat-flask-mini.overflow > b { display: none; }
+.player-health-frame .combat-flask-mini.empty {
+  border: 0 !important;
+  background: radial-gradient(circle, #090b0f 0 58%, rgba(2, 4, 7, .96) 64%, rgba(2, 4, 7, .5) 72%, transparent 74%) !important;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, .95) !important;
+  opacity: 1 !important;
+  pointer-events: none;
+}
+.player-health-frame .combat-flask-mini.boot-heal { pointer-events: none; }
 .player-health-frame .combat-flask-mini > b {
   right: -1px;
   bottom: -3px;
@@ -357,6 +388,31 @@
   height: 100%;
 }
 
+#enemy-area .enemy-card.targeted .health-skin-track > .hp-bar-fill.enemy {
+  width: 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 100% 100% !important;
+  clip-path: inset(0 calc(100% - var(--gauge-fill, 0%)) 0 0);
+  image-rendering: pixelated;
+  transition: clip-path .16s linear !important;
+}
+
+#enemy-area .enemy-card.enemy-mob .health-skin-track > .hp-bar-fill.enemy {
+  background-color: #d41f32 !important;
+  background-image: url('../assets/ui/gauge-mob-hp-v1.png') !important;
+}
+
+#enemy-area .enemy-card.enemy-elite .health-skin-track > .hp-bar-fill.enemy {
+  background-color: #d41f32 !important;
+  background-image: url('../assets/ui/gauge-elite-hp-v1.png') !important;
+}
+
+#enemy-area .enemy-card.enemy-boss .health-skin-track > .hp-bar-fill.enemy {
+  background-color: #d41f32 !important;
+  background-image: url('../assets/ui/gauge-boss-hp-v1.png') !important;
+}
+
 #enemy-area .enemy-card.targeted .health-skin-track > .enemy-es { height: 38%; }
 
 #enemy-area .enemy-card.targeted .health-skin-track > .hp-text {
@@ -387,6 +443,21 @@
   color: #f0c9b8;
   background: rgba(15, 10, 12, .88);
   text-align: center;
+}
+
+@media (min-width: 1081px) {
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-mob { margin-top: 34px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-elite { margin-top: 32px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-boss { margin-top: 30px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-mob .enemy-health-frame { margin-top: -8px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-elite .enemy-health-frame { margin-top: -9px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-boss .enemy-health-frame { margin-top: -26px; }
+}
+
+@media (min-width: 1081px) and (max-height: 720px) {
+  body:not(.light-mode).desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-mob { margin-top: 44px; }
+  body:not(.light-mode).desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-elite { margin-top: 42px; }
+  body:not(.light-mode).desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-boss { margin-top: 41px; }
 }
 
 #enemy-area .enemy-traits {
@@ -450,7 +521,7 @@
     font-size: clamp(9px, 3vw, 13px);
     line-height: 1;
   }
-  body.mobile-battle-tab #tab-battle .player-health-frame .combat-es-bar .hp-text { font-size: clamp(6px, 2vw, 9px); }
+  body.mobile-battle-tab #tab-battle .player-health-frame .combat-es-text { font-size: clamp(6px, 2vw, 9px); }
   body.mobile-battle-tab #tab-battle #ui-player-ailments-mobile {
     padding: 3px 6px;
     border: 1px solid rgba(153, 105, 101, .42);

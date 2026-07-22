@@ -134,9 +134,9 @@ assert(overhaulCss.includes('#enemy-area { top: 24px; z-index: 24'), 'the final 
 assert(!html.includes('\u{1F9ED} 진행도'), 'the initial progress label should not show a compass emoji');
 assert(!uiSource.includes('\u{1F6B6} 다음 구간 준비'), 'the next-area preparation label should not show a walking emoji');
 assert(!uiSource.includes('\u{1F9ED} 진행도'), 'the live progress label should not restore a compass emoji');
-assert(html.includes('css/ui-windows.css?v=20260722-map-action-native-tab1'), 'enemy HUD and shared font CSS cache must refresh');
-assert(html.includes('css/ui-game-overhaul.css?v=20260722-combat-polish1'), 'the combat layout CSS cache must refresh');
-assert(html.includes('js/ui.js?v=20260722-health-menu-skin3'), 'the combat UI runtime cache must refresh');
+assert(html.includes('css/ui-windows.css?v=20260722-health-menu-skin4'), 'enemy HUD and shared font CSS cache must refresh');
+assert(html.includes('css/ui-game-overhaul.css?v=20260722-health-menu-skin4'), 'the combat layout CSS cache must refresh');
+assert(html.includes('js/ui.js?v=20260722-health-menu-skin4'), 'the combat UI runtime cache must refresh');
 assert(html.includes('js/state.js?v=20260722-warrior-rage1'), 'the shared game state cache must refresh');
 assert(html.includes('js/save.js?v=20260719-stutter-fix1'), 'save runtime cache must refresh');
 

@@ -4,6 +4,20 @@ const vm = require('vm');
 
 const source = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const menuCss = fs.readFileSync('css/ui-menu-sockets.css', 'utf8');
+
+function readFunctionSource(sourceText, name) {
+    const start = sourceText.indexOf(`function ${name}(`);
+    assert(start >= 0, `${name} must exist`);
+    let depth = 0;
+    for (let index = sourceText.indexOf('{', start); index < sourceText.length; index++) {
+        if (sourceText[index] === '{') depth++;
+        if (sourceText[index] !== '}') continue;
+        depth--;
+        if (depth === 0) return sourceText.slice(start, index + 1);
+    }
+    throw new Error(`${name} must have a closing brace`);
+}
 
 function createStyle() {
     const values = {};
@@ -31,21 +45,32 @@ function descendants(element) {
     return element.children.flatMap(child => [child, ...descendants(child)]);
 }
 
+function directClass(element, className) {
+    return element.children.filter(child => child.classList.contains(className));
+}
+
 function selectAll(element, selector) {
-    if (selector === ':scope > .ui-rail-group') return element.children.filter(child => child.classList.contains('ui-rail-group'));
-    if (selector === ':scope > .ui-rail-group .tab-btn') {
-        return element.children.filter(child => child.classList.contains('ui-rail-group'))
-            .flatMap(section => descendants(section).filter(child => child.classList.contains('tab-btn')));
+    if (selector.includes(',')) {
+        const results = selector.split(',').flatMap(part => selectAll(element, part.trim()));
+        return results.filter((item, index) => results.indexOf(item) === index);
+    }
+    if (selector === ':scope > .ui-rail-tab-layer .tab-btn') {
+        return directClass(element, 'ui-rail-tab-layer')
+            .flatMap(layer => descendants(layer).filter(child => child.classList.contains('tab-btn')));
+    }
+    if (selector === ':scope > .ui-rail-misc-panel .tab-btn') {
+        return directClass(element, 'ui-rail-misc-panel')
+            .flatMap(panel => descendants(panel).filter(child => child.classList.contains('tab-btn')));
     }
     if (selector === '[data-rail-slot]') return descendants(element).filter(child => child.dataset.railSlot);
     if (selector.startsWith(':scope > .')) {
-        const className = selector.slice(':scope > .'.length);
-        return element.children.filter(child => child.classList.contains(className));
+        return directClass(element, selector.slice(':scope > .'.length));
     }
     if (selector === '.noti-dot, .inventory-full-warning') {
         return descendants(element).filter(child => child.classList.contains('noti-dot') || child.classList.contains('inventory-full-warning'));
     }
     if (selector === '.tab-btn') return descendants(element).filter(child => child.classList.contains('tab-btn'));
+    if (/^\.[\w-]+$/.test(selector)) return descendants(element).filter(child => child.classList.contains(selector.slice(1)));
     if (selector.startsWith('#')) return descendants(element).filter(child => child.id === selector.slice(1));
     return [];
 }
@@ -109,6 +134,14 @@ function createElement(tagName) {
         querySelectorAll(selector) { return selectAll(this, selector); },
         querySelector(selector) { return this.querySelectorAll(selector)[0] || null; },
         contains(node) { return node === this || descendants(this).includes(node); },
+        closest(selector) {
+            let current = this;
+            while (current) {
+                if (selector === '.tab-btn' && current.classList.contains('tab-btn')) return current;
+                current = current.parentElement;
+            }
+            return null;
+        },
         matches() { return false; },
         focus() {},
         getBoundingClientRect() { return { right: this.classList.contains('tab-header') ? 222 : 0 }; }
@@ -118,51 +151,45 @@ function createElement(tagName) {
     return element;
 }
 
-const TEST_TAB_GROUPS = [
-    { key: 'character', label: '캐릭터', icon: 'C', tabs: ['tab-character'] },
-    { key: 'growth', label: '성장', icon: 'G', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season', 'tab-skills'] },
-    { key: 'content', label: '콘텐츠', icon: 'N', tabs: ['tab-map', 'tab-codex', 'tab-journal'] },
-    { key: 'gear', label: '장비', icon: 'E', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube'] },
-    { key: 'etc', label: '기타', icon: 'S', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
+const PRIMARY_TAB_IDS = [
+    'character', 'char', 'season', 'expertise', 'traits', 'talent', 'items', 'jewel',
+    'flask', 'map', 'skills', 'journal', 'codex', 'talisman', 'cube'
 ];
 
-function createTabHeader(body) {
+function createTabHeader(body, openedTabs) {
     const header = createElement('div');
     header.className = 'tab-header';
     body.appendChild(header);
-    const tabIds = [
-        'battle', 'character', 'char', 'season', 'expertise', 'traits', 'talent', 'items', 'jewel',
-        'flask', 'map', 'skills', 'journal', 'codex', 'talisman', 'cube', 'social', 'settings'
-    ];
-    tabIds.forEach(id => {
+    ['battle', ...PRIMARY_TAB_IDS, 'social', 'settings'].forEach(id => {
         const button = createElement('div');
         button.id = 'btn-tab-' + id;
         button.className = 'tab-btn';
-        button.style.display = 'flex';
+        button.style.display = id === 'battle' ? 'none' : 'flex';
+        button.handlers.click = () => { openedTabs.push('tab-' + id); };
         header.appendChild(button);
     });
     const action = createElement('div');
     action.id = 'btn-map-complete-action-picker';
     action.className = 'tab-btn';
-    action.hidden = true;
+    action.style.display = 'flex';
     header.appendChild(action);
     return header;
 }
 
 function bootMenu() {
     const body = createElement('body');
-    const header = createTabHeader(body);
+    const openedTabs = [];
+    const header = createTabHeader(body, openedTabs);
     const windowHandlers = {};
     const exposed = {};
     let desktop = true;
-    const game = { settings: { activeTabGroup: 'growth' }, unlocks: {} };
+    const game = { settings: {}, unlocks: {} };
     const findById = id => [body, ...descendants(body)].find(element => element.id === id) || null;
     const document = {
         readyState: 'complete', body, documentElement: { clientWidth: 1600, clientHeight: 900 },
         getElementById: findById,
         querySelector: selector => selector === '.tab-header' ? header : null,
-        querySelectorAll: selector => selector === '.tab-header > .ui-rail-group'
-            ? header.children.filter(child => child.classList.contains('ui-rail-group')) : [],
+        querySelectorAll: selector => selector === '.tab-header .tab-btn' ? header.querySelectorAll('.tab-btn') : [],
         createElement,
         addEventListener() {},
         activeElement: null
@@ -170,14 +197,6 @@ function bootMenu() {
     const context = {
         console, JSON, Math, Number, Object, Array, String, document, game,
         TAB_UNLOCK_GATES: {},
-        TAB_GROUPS: TEST_TAB_GROUPS,
-        getOrderedTabGroups() {
-            const order = Array.isArray(game.settings.tabGroupOrder) ? game.settings.tabGroupOrder : [];
-            const byKey = Object.fromEntries(TEST_TAB_GROUPS.map(group => [group.key, group]));
-            return order.concat(TEST_TAB_GROUPS.map(group => group.key))
-                .filter((key, index, keys) => byKey[key] && keys.indexOf(key) === index)
-                .map(key => byKey[key]);
-        },
         requestAnimationFrame: () => 0,
         queueImportantSave() {},
         safeExposeGlobals: functions => Object.assign(exposed, functions)
@@ -195,85 +214,116 @@ function bootMenu() {
     };
     vm.createContext(context);
     vm.runInContext(source, context, { filename: 'js/ui-window-manager.js' });
-    return { body, header, game, exposed, findById, setDesktop: value => { desktop = value; }, windowHandlers };
+    return { body, header, game, openedTabs, exposed, findById, setDesktop: value => { desktop = value; }, windowHandlers };
 }
 
-function slots(elements) {
-    return elements.map(element => element.dataset.railSlot).filter(Boolean);
+function socketButtons(menu) {
+    return menu.header.querySelectorAll('[data-rail-slot]');
 }
 
 const menu = bootMenu();
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 1, 'menu art must be one real image');
 assert.strictEqual(menu.header.querySelector(':scope > .ui-rail-art').src, 'assets/ui/menu-rail-v1.png');
+assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-category-btn')), false, 'group buttons must be removed');
+assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-group')), false, 'group layers must be removed');
+assert.deepStrictEqual(socketButtons(menu).map(button => button.dataset.railSlot), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
+assert(socketButtons(menu).every(button => button.classList.contains('tab-btn')), 'every illustrated circle must contain a real tab');
 
-const categories = descendants(menu.header).filter(element => element.classList.contains('ui-rail-category-btn'));
-assert.strictEqual(categories.length, 5, 'five group buttons must occupy the center sockets');
-assert(categories.every(element => element.classList.contains('tab-category-btn')), 'group controls must opt out of generic rectangular button chrome');
-assert.deepStrictEqual(slots(categories), ['1', '2', '3', '4', '5']);
+const characterButton = menu.findById('btn-tab-character');
+characterButton.handlers.click();
+assert.deepStrictEqual(menu.openedTabs, ['tab-character'], 'a socket click must open its tab directly without a group selection');
 
-menu.game.settings.tabGroupOrder = ['gear', 'character', 'growth', 'content', 'etc'];
+const miscPanel = menu.findById('ui-rail-misc-panel');
+const miscTrigger = menu.findById('btn-ui-rail-misc');
+const closeAll = menu.findById('btn-close-all-windows');
+assert.strictEqual(menu.findById('btn-tab-settings').parentElement, miscPanel, 'settings must stay outside the artwork');
+assert.strictEqual(menu.findById('btn-map-complete-action-picker').parentElement, miscPanel, 'combat-complete control must stay outside the artwork');
+assert.strictEqual(miscTrigger.parentElement, closeAll.parentElement, 'misc and window cleanup must share the outside control row');
+assert.strictEqual(miscTrigger.dataset.railSlot, undefined);
+assert.strictEqual(closeAll.dataset.railSlot, undefined);
+assert.strictEqual(miscPanel.dataset.railOverflow, '4', 'tabs beyond the eleven real circles must remain directly accessible from misc');
+
+assert.strictEqual(miscPanel.hidden, true);
+miscTrigger.handlers.click();
+assert.strictEqual(miscPanel.hidden, false, 'misc control must open its external list');
+assert.strictEqual(miscTrigger.getAttribute('aria-expanded'), 'true');
+const overflowTab = miscPanel.querySelectorAll('.tab-btn').find(button => PRIMARY_TAB_IDS.some(id => button.id === 'btn-tab-' + id));
+overflowTab.handlers.click();
+miscPanel.handlers.click({ target: overflowTab });
+assert.strictEqual(miscPanel.hidden, true, 'choosing a direct overflow tab must close misc');
+assert(menu.openedTabs.includes(overflowTab.id.replace(/^btn-/, '')), 'overflow entries must remain real tab buttons');
+
+menu.game.settings.tabOrder = ['btn-tab-cube', 'btn-tab-character'];
 menu.exposed.syncDesktopRailGroups();
-assert.strictEqual(menu.findById('btn-ui-rail-category-gear').dataset.railSlot, '1', 'saved group order must reposition the center sockets');
-menu.game.settings.tabGroupOrder = [];
-menu.exposed.syncDesktopRailGroups();
+assert.strictEqual(menu.findById('btn-tab-cube').dataset.railSlot, '1', 'saved tab order must choose the first illustrated circle');
+assert.strictEqual(menu.findById('btn-tab-character').dataset.railSlot, '2');
 
-const growth = menu.findById('ui-rail-group-growth');
-assert.strictEqual(growth.hidden, false, 'saved active group must be shown');
-assert.deepStrictEqual(slots(growth.querySelectorAll('.tab-btn')), ['6', '7', '8', '9', '10', '11']);
-assert.strictEqual(menu.findById('ui-rail-group-character').hidden, true, 'non-selected group must stay hidden');
-
-const gearNotice = createElement('span');
-gearNotice.className = 'noti-dot';
-menu.findById('btn-tab-items').appendChild(gearNotice);
-menu.exposed.syncDesktopRailGroups();
-assert.strictEqual(menu.findById('noti-ui-rail-gear').style.display, 'none', 'CSS-hidden notices must not light an inactive group');
-gearNotice.style.display = 'block';
-menu.exposed.syncDesktopRailGroups();
-assert.strictEqual(menu.findById('noti-ui-rail-gear').style.display, 'block', 'hidden group notifications must be aggregated');
-
-gearNotice.style.display = 'none';
-menu.findById('btn-tab-skills').classList.add('starter-gem-tutorial-pending');
-menu.findById('btn-ui-rail-category-character').handlers.click();
-assert.strictEqual(menu.findById('noti-ui-rail-growth').style.display, 'block', 'starter gem guidance must reach the hidden growth group');
-menu.findById('btn-tab-skills').classList.remove('starter-gem-tutorial-pending');
-menu.findById('btn-ui-rail-category-growth').handlers.click();
-
-menu.findById('btn-ui-rail-category-gear').handlers.click();
-const gear = menu.findById('ui-rail-group-gear');
-assert.strictEqual(menu.game.settings.activeTabGroup, 'gear', 'group selection must reuse activeTabGroup');
-assert.strictEqual(gear.hidden, false);
-assert.strictEqual(menu.findById('noti-ui-rail-gear').style.display, 'none', 'active group does not need a duplicate notification');
-assert.deepStrictEqual(slots(gear.querySelectorAll('.tab-btn')), ['6', '7', '8', '9', '10']);
-
-menu.game.settings.tabOrder = ['btn-tab-cube', 'btn-tab-items', 'btn-tab-jewel', 'btn-tab-flask', 'btn-tab-talisman'];
-menu.exposed.syncDesktopRailGroups();
-assert.strictEqual(menu.findById('btn-tab-cube').dataset.railSlot, '6', 'saved tab order must reposition side sockets');
-assert.strictEqual(menu.findById('btn-tab-items').dataset.railSlot, '7');
 menu.game.settings.tabOrder = [];
 menu.exposed.syncDesktopRailGroups();
-
-menu.findById('btn-tab-jewel').style.display = 'none';
+const promotedButton = miscPanel.querySelectorAll('.tab-btn')
+    .find(button => PRIMARY_TAB_IDS.some(id => button.id === 'btn-tab-' + id));
+const firstSocket = socketButtons(menu)[0];
+firstSocket.style.display = 'none';
 menu.exposed.syncDesktopRailGroups();
-assert.strictEqual(menu.findById('btn-tab-jewel').dataset.railSlot, undefined, 'locked tab must not own a socket');
-assert.deepStrictEqual(slots(gear.querySelectorAll('.tab-btn')), ['6', '7', '8', '9'], 'visible tabs must compact without a hole');
+assert.strictEqual(firstSocket.dataset.railSlot, undefined, 'a locked tab must not retain a circle');
+assert.strictEqual(promotedButton.dataset.railSlot, '11', 'the next unlocked tab must fill the vacated circle without a group click');
+assert.strictEqual(socketButtons(menu).length, 11);
 
-menu.findById('btn-ui-rail-category-etc').handlers.click();
-const etc = menu.findById('ui-rail-group-etc');
-assert.strictEqual(menu.findById('btn-map-complete-action-picker').parentElement.parentElement, etc, 'combat-complete control must belong to etc');
-assert.deepStrictEqual(slots(etc.querySelectorAll('.tab-btn')), ['6', '7'], 'settings and combat-complete control must use separate sockets');
-assert.strictEqual(menu.findById('btn-close-all-windows').dataset.railSlot, undefined, 'close-all must stay outside the art sockets');
+const overflowNotice = createElement('span');
+overflowNotice.className = 'noti-dot';
+overflowNotice.style.display = 'block';
+menu.findById('btn-tab-settings').appendChild(overflowNotice);
+menu.exposed.syncDesktopRailGroups();
+assert.strictEqual(menu.findById('noti-ui-rail-misc').style.display, 'block', 'misc must surface notifications from external tabs');
+overflowNotice.style.display = 'none';
+menu.exposed.syncDesktopRailGroups();
+assert.strictEqual(menu.findById('noti-ui-rail-misc').style.display, 'none');
 
 menu.setDesktop(false);
 menu.windowHandlers.resize();
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 0, 'mobile restore must remove the art');
-assert.strictEqual(descendants(menu.header).filter(element => element.classList.contains('ui-rail-category-btn')).length, 0, 'mobile restore must remove categories');
-assert(menu.header.querySelectorAll('.tab-btn').every(button => button.parentElement === menu.header), 'mobile restore must return tabs to the header');
-assert.strictEqual(slots(menu.header.querySelectorAll('.tab-btn')).length, 0, 'mobile tabs must not retain desktop socket metadata');
+assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 0, 'mobile restore must remove the socket layer');
+assert.strictEqual(menu.findById('btn-ui-rail-misc'), null, 'mobile restore must remove desktop-only misc');
+assert(menu.header.querySelectorAll('.tab-btn').every(button => button.parentElement === menu.header), 'mobile restore must return actual tabs to the header');
+assert.strictEqual(socketButtons(menu).length, 0, 'mobile tabs must not retain desktop socket metadata');
+assert.deepStrictEqual(
+    menu.header.querySelectorAll('.tab-btn').map(button => button.id),
+    ['btn-tab-battle', ...PRIMARY_TAB_IDS.map(id => 'btn-tab-' + id), 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'],
+    'mobile restore must preserve the original flat tab order when no saved order replaces it'
+);
 
 menu.setDesktop(true);
 menu.windowHandlers.resize();
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 1, 'desktop restore must create only one art image');
-assert.strictEqual(descendants(menu.header).filter(element => element.classList.contains('ui-rail-category-btn')).length, 5, 'desktop restore must not duplicate categories');
+assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 1, 'desktop restore must create only one flat layer');
+assert.strictEqual(descendants(menu.header).filter(element => element.id === 'btn-ui-rail-misc').length, 1, 'desktop restore must not duplicate misc');
+
+assert(menuCss.includes('transform: translate(-50%, -50%) !important;'), 'socket position must override inherited hover transforms');
+assert(menuCss.includes('.ui-rail-external-btn:hover'), 'external controls must have an explicit stable hover state');
+assert(menuCss.includes('transform: none !important;'), 'external controls must not move away from the pointer');
+assert(menuCss.includes('min(29.2svh, 18vw)'), 'the single artwork must remain resizable for short and narrow desktops');
+
+const orderSettingsHost = { innerHTML: '' };
+let orderedGroupReads = 0;
+const orderSettingsContext = {
+    game: { settings: { tabPlacement: {} } },
+    document: {
+        body: { classList: { contains: name => name === 'desktop-windowed-ui' } },
+        getElementById(id) {
+            if (id === 'ui-tab-order-settings') return orderSettingsHost;
+            if (id === 'tab-settings') return { classList: { contains: name => name === 'active' } };
+            return null;
+        },
+        querySelectorAll: () => [{ id: 'btn-tab-character', innerText: '캐릭터' }]
+    },
+    getOrderedTabGroups() { orderedGroupReads++; return [{ key: 'character', label: '캐릭터' }]; }
+};
+vm.createContext(orderSettingsContext);
+vm.runInContext(readFunctionSource(uiSource, 'renderTabOrderSettings'), orderSettingsContext, { filename: 'flat-tab-order-settings.js' });
+orderSettingsContext.renderTabOrderSettings();
+assert.strictEqual(orderedGroupReads, 0, 'flat desktop settings must not build obsolete upper-group controls');
+assert(!orderSettingsHost.innerHTML.includes('상위 그룹 탭'), 'flat desktop settings must only present real tab ordering');
+assert(orderSettingsHost.innerHTML.includes('일반 탭'));
 
 const inventoryStart = uiSource.indexOf('function updateInventoryFullWarnings()');
 const inventoryEnd = uiSource.indexOf('function syncInventoryExpansionShortcuts()', inventoryStart);
@@ -299,11 +349,11 @@ assert.strictEqual(railSyncs, 0, 'unchanged capacity warnings must not rescan th
 inventoryContext.game.inventory = [{}, {}];
 inventoryContext.updateInventoryFullWarnings();
 assert.strictEqual(inventoryElements['inventory-full-warning'].style.display, 'inline-block');
-assert.strictEqual(railSyncs, 1, 'becoming full must refresh the hidden group warning');
+assert.strictEqual(railSyncs, 1, 'becoming full must refresh the rail notice');
 inventoryContext.game.inventory = [];
 inventoryContext.updateInventoryFullWarnings();
 assert.strictEqual(inventoryElements['inventory-full-warning'].style.display, 'none');
-assert.strictEqual(railSyncs, 2, 'freeing capacity must clear the hidden group warning');
+assert.strictEqual(railSyncs, 2, 'freeing capacity must clear the rail notice');
 
 const pointerStart = uiSource.indexOf('function onTabHeaderPointerDown(event)');
 const pointerEnd = uiSource.indexOf('function onTabHeaderPointerMove(event)', pointerStart);

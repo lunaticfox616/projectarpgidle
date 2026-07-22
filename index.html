@@ -11,16 +11,16 @@
     <link rel="stylesheet" href="css/components.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1">
-    <link rel="stylesheet" href="css/ui-windows.css?v=20260722-map-action-native-tab1">
+    <link rel="stylesheet" href="css/ui-windows.css?v=20260722-health-menu-skin4">
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260721-galmuri-body1">
     <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1">
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1">
-    <link rel="stylesheet" href="css/ui-luxe.css?v=20260719-white-copy1">
-    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-combat-polish1">
+    <link rel="stylesheet" href="css/ui-luxe.css?v=20260722-health-menu-skin4">
+    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-health-menu-skin4">
     <link rel="stylesheet" href="css/typography-readability.css?v=20260721-galmuri-item-names1">
-    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-health-menu-skin3">
-    <link rel="stylesheet" href="css/ui-menu-sockets.css?v=20260722-health-menu-skin3">
+    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-health-menu-skin4">
+    <link rel="stylesheet" href="css/ui-menu-sockets.css?v=20260722-health-menu-skin4">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -285,19 +285,23 @@
                 <div class="player-health-frame">
                     <img class="player-health-frame-art" src="assets/ui/health-player-v1.png" width="512" height="84" alt="" aria-hidden="true" draggable="false">
                     <div class="combat-hud-row combat-hud-row-hp player-hud-vitals">
-                        <div id="ui-combat-flasks" class="combat-flask-strip" aria-label="장착 플라스크와 남은 충전"></div>
-                        <div class="hp-bar-bg combat-hp-bar" aria-label="생명력">
-                            <div id="ui-hp-bar" class="hp-bar-fill player" style="width: 100%;"></div>
-                            <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span></div>
+                        <div id="ui-combat-flasks" class="combat-flask-strip" aria-label="장착 플라스크와 남은 충전">
+                            <span class="combat-flask-mini boot-heal" aria-hidden="true"></span>
+                            <span class="combat-flask-mini empty" aria-hidden="true"></span>
+                            <span class="combat-flask-mini empty" aria-hidden="true"></span>
                         </div>
-                        <div class="hp-bar-bg combat-es-bar" id="ui-es-track" aria-label="에너지 보호막">
-                            <div id="ui-es-bar" class="hp-bar-fill player-es" style="width: 0%; display: none;"></div>
-                            <div class="hp-text" id="ui-es-inline">ES 0</div>
+                        <div class="hp-bar-bg combat-hp-bar" aria-label="생명력">
+                            <div id="ui-hp-bar" class="hp-bar-fill player" style="--gauge-fill: 100%;"></div>
+                            <div class="combat-es-overlay" id="ui-es-track" aria-label="에너지 보호막">
+                                <div id="ui-es-bar" class="hp-bar-fill player-es" style="--gauge-fill: 0%; display: none;"></div>
+                            </div>
+                            <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span></div>
+                            <div class="combat-es-text" id="ui-es-inline">ES 0</div>
                         </div>
                     </div>
                     <div class="combat-hud-row combat-hud-row-exp player-hud-exp">
                         <div class="hp-bar-bg combat-exp-bar" aria-label="경험치 진행도">
-                            <div id="ui-exp-bar" class="hp-bar-fill exp" style="width: 0%;"></div>
+                            <div id="ui-exp-bar" class="hp-bar-fill exp" style="--gauge-fill: 0%;"></div>
                         </div>
                     </div>
                 </div>
@@ -1336,9 +1340,9 @@
 <script defer src="js/canvas-battlefield.js?v=20260722-boss-pattern-clean1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260722-health-menu-skin3"></script>
+<script defer src="js/ui.js?v=20260722-health-menu-skin4"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
-<script defer src="js/ui-window-manager.js?v=20260722-health-menu-skin3"></script>
+<script defer src="js/ui-window-manager.js?v=20260722-health-menu-skin4"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
 <script defer src="js/goal-system.js?v=20260717-system-integrity1"></script>
 <script defer src="js/talent-cards.js?v=20260722-templar-overheal1"></script>
