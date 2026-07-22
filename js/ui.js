@@ -1031,9 +1031,9 @@ let lastActiveTabId = null;
 const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'];
 const MERGED_TAB_GROUPS = Object.freeze({
-    growth: { launcher: 'tab-char', title: '스킬트리 / 직업전직', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
-    utility: { launcher: 'tab-flask', title: '주얼 / 부적 / 플라스크', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }] },
-    records: { launcher: 'tab-journal', title: '저널 / 도감', tabs: [{ id: 'tab-journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
+    growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
+    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }] },
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'codex', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -1497,7 +1497,7 @@ function updateTabUnlockButtons() {
 }
 
 function isUngatedPersistentTabButton(btn) {
-    return btn && (btn.id === 'btn-tab-social' || btn.id === 'btn-tab-settings' || btn.id === 'btn-tab-character' || btn.id === 'btn-tab-journal' || btn.id === 'btn-tab-flask');
+    return btn && (btn.id === 'btn-tab-social' || btn.id === 'btn-tab-settings' || btn.id === 'btn-tab-character');
 }
 // updateTabUnlockButtons 뒤에서 호출되는 그룹 가시성 적용부. 재진입 없이 display만 조정한다.
 function hideOutOfGroupTabButtons() {
@@ -1534,15 +1534,16 @@ function refreshTabHeaderUiIfNeeded() {
 function isNotiEnabled(key){ game.settings=game.settings||{}; if (game.settings.tabNotiEnabled === false) return false; game.settings.notiFilters=game.settings.notiFilters||{}; return game.settings.notiFilters[key] !== false; }
 function toggleNotiFilter(key){ game.settings=game.settings||{}; game.settings.notiFilters=game.settings.notiFilters||{}; game.settings.notiFilters[key]=!(game.settings.notiFilters[key] !== false); updateStaticUI(); }
 
-function isMergedTabAvailable(tabId) {
-    let gateKey = TAB_UNLOCK_GATES[tabId];
+function isMergedTabAvailable(tab) {
+    let tabId = typeof tab === 'string' ? tab : tab.id;
+    let gateKey = (tab && typeof tab === 'object' && tab.gate) || TAB_UNLOCK_GATES[tabId];
     return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
 }
 
 function syncMergedTabLauncherVisibility() {
     Object.values(MERGED_TAB_GROUPS).forEach(group => {
         let launcher = document.getElementById('btn-' + group.launcher);
-        if (launcher) launcher.style.display = group.tabs.some(tab => isMergedTabAvailable(tab.id)) ? 'flex' : 'none';
+        if (launcher) launcher.style.display = group.tabs.some(isMergedTabAvailable) ? 'flex' : 'none';
     });
 }
 
@@ -1566,7 +1567,7 @@ async function openMergedTabPicker(event, groupKey) {
     if (mergedTabPickerOpen) return;
     let group = MERGED_TAB_GROUPS[groupKey];
     if (!group) return;
-    let available = group.tabs.filter(tab => isMergedTabAvailable(tab.id));
+    let available = group.tabs.filter(isMergedTabAvailable);
     if (available.length === 0) return;
     if (available.length === 1) { switchTab(available[0].id); return; }
     mergedTabPickerOpen = true;
@@ -8905,6 +8906,7 @@ function performUpdateStaticUI() {
     if (cubeTabBtn) cubeTabBtn.style.display = (game.unlocks && game.unlocks.cube) || (typeof isCoreCubeUnlocked === 'function' && isCoreCubeUnlocked()) ? 'flex' : 'none';
     let battleBtn = document.getElementById('btn-tab-battle');
     if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
+    syncMergedTabLauncherVisibility();
     // 매 프레임 해금 판정으로 재노출된 탭에 2단 그룹 필터를 다시 적용한다.
     if (typeof hideOutOfGroupTabButtons === 'function') hideOutOfGroupTabButtons();
     let summarySkillTreeBtn = document.getElementById('btn-summary-tab-char');

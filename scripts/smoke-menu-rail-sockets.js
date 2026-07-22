@@ -237,6 +237,7 @@ assert.strictEqual(menu.header.querySelector(':scope > .ui-rail-art').src, 'asse
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-category-btn')), false, 'group buttons must be removed');
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-group')), false, 'group layers must be removed');
 assert.deepStrictEqual(socketButtons(menu).map(button => button.dataset.railSlot), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
+assert.strictEqual(socketButtons(menu)[0].style.getPropertyValue('--rail-socket-y'), '92%', 'the first unlocked menu must occupy the bottom circle');
 assert(socketButtons(menu).every(button => button.classList.contains('tab-btn')), 'every illustrated circle must contain a real tab');
 assert(socketButtons(menu).every(button => button.querySelector(':scope > .ui-rail-label')), 'each circle must keep its text inside a dedicated clipped label');
 
@@ -273,8 +274,8 @@ assert(menu.openedTabs.includes(overflowTab.id.replace(/^btn-/, '')), 'overflow 
 
 menu.game.settings.tabOrder = ['btn-tab-cube', 'btn-tab-character'];
 menu.exposed.syncDesktopRailGroups();
-assert.strictEqual(menu.findById('btn-tab-cube').dataset.railSlot, '1', 'saved tab order must choose the first illustrated circle');
-assert.strictEqual(menu.findById('btn-tab-character').dataset.railSlot, '2');
+assert.strictEqual(menu.findById('btn-tab-character').dataset.railSlot, '1', 'character must stay anchored to the first bottom circle');
+assert.strictEqual(menu.findById('btn-tab-cube').dataset.railSlot, '2', 'saved order must apply above the anchored character circle');
 
 menu.game.settings.tabOrder = [];
 menu.exposed.syncDesktopRailGroups();

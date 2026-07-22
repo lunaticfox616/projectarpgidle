@@ -48,7 +48,7 @@ let pickerOptions = null;
 let pickerSelection = 'tab-traits';
 const context = {
     game: {
-        unlocks: { char: true, traits: true, jewel: false, talisman: true, codex: true },
+        unlocks: { char: true, traits: true, items: true, jewel: false, talisman: true, codex: true },
         noti: { char: false, traits: true, flask: false, jewel: true, talisman: false, journal: false, codex: true }
     },
     TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
@@ -70,9 +70,16 @@ vm.runInContext([
 ].join('\n'), context, { filename: 'merged-tab-launchers.js' });
 
 (async () => {
+    const unlockedState = context.game.unlocks;
+    context.game.unlocks = {};
+    context.syncMergedTabLauncherVisibility();
+    assert.strictEqual(elements['btn-tab-char'].style.display, 'none');
+    assert.strictEqual(elements['btn-tab-flask'].style.display, 'none');
+    assert.strictEqual(elements['btn-tab-journal'].style.display, 'none', 'a new game must start without later combined menus');
+    context.game.unlocks = unlockedState;
     context.syncMergedTabLauncherVisibility();
     assert.strictEqual(elements['btn-tab-char'].style.display, 'flex');
-    assert.strictEqual(elements['btn-tab-flask'].style.display, 'flex', 'a persistent flask entry must keep the utility launcher visible');
+    assert.strictEqual(elements['btn-tab-flask'].style.display, 'flex', 'unlocking equipment must surface the utility launcher');
 
     elements['tab-traits'].classList.toggle('active', true);
     context.syncMergedTabLauncherState();
@@ -92,6 +99,8 @@ vm.runInContext([
 
     assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="utility"')
         && html.includes('data-merged-tab-launcher="records"'), 'the three combined menu circles must be wired in HTML');
+    assert(html.includes('>스킬트리 <span id="noti-char"') && html.includes('>보조장비 <span id="jewel-inventory-full-warning"')
+        && html.includes('>기록 <span id="noti-journal"'), 'combined circles must use their concise progression labels');
     assert(menuCss.includes('[data-merged-tab-member="1"] { display: none !important; }'), 'secondary menu circles must stay hidden on desktop and mobile');
     console.log('smoke-merged-tab-launchers passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

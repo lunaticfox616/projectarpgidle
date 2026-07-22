@@ -38,9 +38,9 @@ const windowManager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 
 assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-merged-tabs-timers1'), 'asset skin CSS must be cache-versioned');
 assert.ok(html.includes('css/ui-menu-sockets.css?v=20260722-merged-tabs-timers1'), 'menu socket CSS must be cache-versioned');
-assert.ok(html.includes('js/ui.js?v=20260722-merged-tabs-timers1'), 'combat HUD JavaScript must be cache-versioned');
+assert.ok(html.includes('js/ui.js?v=20260722-menu-unlock1'), 'combat HUD JavaScript must be cache-versioned');
 assert.ok(html.includes('js/combat.js?v=20260722-merged-tabs-timers1'), 'combat effect state fixes must be cache-versioned');
-assert.ok(html.includes('js/ui-window-manager.js?v=20260722-merged-tabs-timers1'), 'menu socket JavaScript must be cache-versioned');
+assert.ok(html.includes('js/ui-window-manager.js?v=20260722-menu-unlock1'), 'menu socket JavaScript must be cache-versioned');
 assert.ok(html.indexOf('css/ui-asset-skins.css') > html.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
 assert.ok(html.includes('<img class="player-health-frame-art" src="assets/ui/health-player-v1.png"'), 'the player HUD must use one real frame image');
 assert.ok(html.indexOf('player-health-frame') < html.indexOf('id="ui-hp-bar"'), 'the live player HP bar must remain inside its art frame');

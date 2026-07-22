@@ -11,15 +11,16 @@
     const WORKSPACE_GAP = 10;
     const COMMUNITY_OVERLAY_THRESHOLD = 700;
     const RAIL_ART_SRC = 'assets/ui/menu-rail-v1.png';
+    // 해금된 메뉴가 캐릭터를 시작점으로 아래에서 위로 한 칸씩 채워지도록 정렬한다.
     const RAIL_TAB_SLOTS = [
-        { x: '50%', y: '14%' },
-        { x: '12.5%', y: '24%' }, { x: '88%', y: '24%' },
-        { x: '50%', y: '36%' },
-        { x: '12.5%', y: '46%' }, { x: '88%', y: '46%' },
-        { x: '50%', y: '56%' },
-        { x: '12.5%', y: '67%' }, { x: '88%', y: '67%' },
+        { x: '50%', y: '92%' },
         { x: '50%', y: '77%' },
-        { x: '50%', y: '92%' }
+        { x: '12.5%', y: '67%' }, { x: '88%', y: '67%' },
+        { x: '50%', y: '56%' },
+        { x: '12.5%', y: '46%' }, { x: '88%', y: '46%' },
+        { x: '50%', y: '36%' },
+        { x: '12.5%', y: '24%' }, { x: '88%', y: '24%' },
+        { x: '50%', y: '14%' }
     ];
     const RAIL_EXTERNAL_TAB_IDS = new Set([
         'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
@@ -476,7 +477,7 @@
         let originalRank = new Map(buttons.map((button, index) => [
             button.id, Number(button.dataset.railOriginalOrder ?? index)
         ]));
-        return buttons.sort((left, right) => {
+        let ordered = buttons.sort((left, right) => {
             let leftSaved = savedTabOrder.indexOf(left.id);
             let rightSaved = savedTabOrder.indexOf(right.id);
             if (leftSaved >= 0 || rightSaved >= 0) {
@@ -486,6 +487,8 @@
             }
             return originalRank.get(left.id) - originalRank.get(right.id);
         });
+        let character = ordered.find(button => button.id === 'btn-tab-character');
+        return character ? [character].concat(ordered.filter(button => button !== character)) : ordered;
     }
 
     function setRailSlot(element, slot, slotNumber) {
