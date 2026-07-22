@@ -260,6 +260,28 @@ function hasKeystone(id) {
     return false;
 }
 
+const WARRIOR_RAGE_STACK_MAX = 5;
+const WARRIOR_RAGE_STACK_DAMAGE_PCT = 10;
+const WARRIOR_RAGE_DURATION_MS = 5000;
+
+function getWarriorRageStacks(now) {
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    if ((game.warriorRageExpiresAt || 0) <= timestamp) return 0;
+    return Math.max(0, Math.min(WARRIOR_RAGE_STACK_MAX, Math.floor(game.warriorRageStacks || 0)));
+}
+
+function getWarriorRagePhysicalDamageMultiplier(now) {
+    return 1 + getWarriorRageStacks(now) * WARRIOR_RAGE_STACK_DAMAGE_PCT / 100;
+}
+
+function grantWarriorRageOnHit(now) {
+    if (game.ascendClass !== 'warrior' || !hasKeystone('w5')) return 0;
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    game.warriorRageStacks = Math.min(WARRIOR_RAGE_STACK_MAX, getWarriorRageStacks(timestamp) + 1);
+    game.warriorRageExpiresAt = timestamp + WARRIOR_RAGE_DURATION_MS;
+    return game.warriorRageStacks;
+}
+
 function clearAscendKeystoneRuntimeState(removedIds, options) {
     let opts = options && typeof options === 'object' ? options : {};
     let ids = Array.isArray(removedIds) ? removedIds.filter(Boolean) : [];
@@ -2367,7 +2389,7 @@ function processTalentInquisitorMarks() {
     Object.keys(store).forEach(id => {
         let mk = store[id];
         if (!mk) { delete store[id]; return; }
-        let enemy = (game.enemies || []).find(e => e && e.id === id && e.hp > 0);
+        let enemy = getAliveEnemyByRuntimeKey(id);
         if (!enemy) { delete store[id]; return; }
         if (mk.explodeAt && now >= mk.explodeAt) {
             let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
@@ -3474,9 +3496,7 @@ function getPlayerStats() {
         if (hasKeystone('w3')) finalBaseDmg = Math.floor(finalBaseDmg * (isDualWielding() ? 1.08 : 1));
         if (hasKeystone('w4')) { finalPhysIgnore += 15; allowNegativePhysIgnore = true; }
         if (hasKeystone('w5')) {
-            let now = Date.now();
-            let stacks = (game.warriorRageExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.warriorRageStacks || 0))) : 0;
-            if (stacks > 0) warriorPhysDamageMultiplier *= (1 + stacks * 0.05);
+            warriorPhysDamageMultiplier *= getWarriorRagePhysicalDamageMultiplier(Date.now());
         }
         if (hasKeystone('w7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             finalBaseDmg = Math.floor(finalBaseDmg * 1.15);
@@ -3883,7 +3903,8 @@ function getPlayerStats() {
     let expectedAddedDamageMultiplier = 1 + coreCubeAddedDamageTotalPct / 100;
     if (expectedAddedDamageMultiplier > 1) damageScales.coreCubeAddedDamageMultiplier = expectedAddedDamageMultiplier;
     // Soulbinder sb7 player gain is now baked into finalBaseDmg as flat attack power, so no separate multiplier here.
-    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
+    let warriorPhysicalDpsMultiplier = skill.ele === 'phys' ? warriorPhysDamageMultiplier : 1;
+    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * warriorPhysicalDpsMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
     let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier * expectedAddedDamageMultiplier;
     let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
     let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.floor(totalProjectileExtraShots || 0)) : 0;
@@ -3897,7 +3918,7 @@ function getPlayerStats() {
         let expectedDotStackRate = finalAspd * expectedDoubleStrikeMultiplier;
         let expectedDotStacks = Math.max(1, Math.min(DOT_STACK_MAX, Math.floor(expectedDotStackRate * dotDuration)));
         let expectedDotStackMultiplier = getDotStackMultiplier(expectedDotStacks);
-        let expectedDotSourceHit = avgHit * avgRollMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
+        let expectedDotSourceHit = avgHit * avgRollMultiplier * warriorPhysicalDpsMultiplier * (skill.ele === 'chaos' ? chaosDamageMultiplier : 1);
         estimatedSkillDotDps = Math.max(0, expectedDotSourceHit * DOT_TICK_FROM_HIT_RATIO * totalDotDamageMultiplier * expectedDotStackMultiplier / Math.max(0.02, dotTickInterval));
         damageScales.estimatedDotStackRate = expectedDotStackRate;
         damageScales.estimatedDotStacks = expectedDotStacks;
@@ -4455,6 +4476,7 @@ function getPlayerStats() {
                 skillSequenceDpsMultiplier > 1 ? `강타 여진 기대값 x${skillSequenceDpsMultiplier.toFixed(2)} (본 타격 후 독립 여진)` : null,
                 estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
                 talentDpsSummary.alwaysMul !== 1 ? `🌸 재능 개화 키스톤(상시) x${talentDpsSummary.alwaysMul.toFixed(2)}` : null,
+                warriorPhysicalDpsMultiplier > 1 ? `격노 순환 x${warriorPhysicalDpsMultiplier.toFixed(2)} (${getWarriorRageStacks(Date.now())}/${WARRIOR_RAGE_STACK_MAX}중첩)` : null,
                 (talentDpsSummary.conditional && talentDpsSummary.conditional.length) ? `🌸 재능 개화 키스톤(조건부): ${talentDpsSummary.conditional.map(c => `${(typeof getTalentKeystoneConditionText === 'function' ? getTalentKeystoneConditionText(c.when, c.threshold) : '')}+${Math.floor(c.moreMul)}%`).join(', ')} (상황별 추가 적용)` : null,
                 (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 공유로 기본 피해 +${Math.floor(sbSummonShareToPlayer)} 반영 (DPS 포함)` : null
             ].concat(flameDecayDpsLines).filter(Boolean),
@@ -6323,6 +6345,7 @@ function tickEnemyDotEffects(pStats, dt) {
         if (dotState.timeLeft <= 0 || enemy.hp <= 0) {
             enemy.dotState = null;
             enemy.dotStacks = 0;
+            enemy.skillSlowPct = 0;
             enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments.filter(ail => ail && ail.type !== 'flameDecay') : [];
         }
     });
@@ -8364,7 +8387,10 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (addEle === 'chaos') addRes -= (curseFx.resChaosShred || 0);
                 if (addEle === 'phys') addRes -= (curseFx.physDrShred || 0);
                 let mitigatedAdded = Math.floor(rawAdded * (1 - (addRes / 100)));
-                if (addEle === 'phys') mitigatedAdded = Math.floor(mitigatedAdded * (targetEnemy.physicalDamageTakenMul || 1));
+                if (addEle === 'phys') {
+                    if (hitElement !== 'phys') mitigatedAdded = Math.floor(mitigatedAdded * Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1));
+                    mitigatedAdded = Math.floor(mitigatedAdded * (targetEnemy.physicalDamageTakenMul || 1));
+                }
                 if (addEle === 'light') mitigatedAdded = Math.floor(mitigatedAdded * (curseFx.lightTakenMul || 1));
                 if (addEle === 'chaos') mitigatedAdded = Math.floor(mitigatedAdded * (curseFx.chaosTakenMul || 1));
                 if (mitigatedAdded > 0) dmg += mitigatedAdded;
@@ -8383,7 +8409,10 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (addEle === 'chaos') addRes -= (curseFx.resChaosShred || 0);
                 if (addEle === 'phys') addRes -= (curseFx.physDrShred || 0);
                 let mitigatedFlat = Math.floor(flatPortion * (1 - (addRes / 100)));
-                if (addEle === 'phys') mitigatedFlat = Math.floor(mitigatedFlat * (targetEnemy.physicalDamageTakenMul || 1));
+                if (addEle === 'phys') {
+                    mitigatedFlat = Math.floor(mitigatedFlat * Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1));
+                    mitigatedFlat = Math.floor(mitigatedFlat * (targetEnemy.physicalDamageTakenMul || 1));
+                }
                 if (addEle === 'light') mitigatedFlat = Math.floor(mitigatedFlat * (curseFx.lightTakenMul || 1));
                 if (addEle === 'chaos') mitigatedFlat = Math.floor(mitigatedFlat * (curseFx.chaosTakenMul || 1));
                 if (mitigatedFlat > 0) dmg += mitigatedFlat;
@@ -9565,6 +9594,7 @@ function performMonsterAttacks(pStats) {
                 if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각' : ail === 'shock' ? '감전' : '중독'} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster');
             }
 
+            grantWarriorRageOnHit(Date.now());
             let remaining = dmg;
             let guardRedirectPct = Math.max(0, Math.min(100, Math.floor(pStats.summonGuardRedirectPct || 0)));
             let soulbinderShare = game.ascendClass === 'soulbinder' && hasKeystone('sb2');
@@ -9656,13 +9686,6 @@ function performMonsterAttacks(pStats) {
                     stacks = 2;
                 }
                 game.guardianEnduranceStacks = Math.max(0, Math.min(5, stacks));
-            }
-            if (remaining > 0 && game.ascendClass === 'warrior' && hasKeystone('w5')) {
-                let now = Date.now();
-                let active = (game.warriorRageExpiresAt || 0) > now;
-                let stacks = active ? Math.max(0, Math.min(5, Math.floor(game.warriorRageStacks || 0))) : 0;
-                game.warriorRageStacks = Math.min(5, stacks + 1);
-                game.warriorRageExpiresAt = now + 5000;
             }
             if ((enemy.leechPct || 0) > 0 && remaining > 0) {
                 let leeched = Math.max(1, Math.floor(remaining * (enemy.leechPct || 0) / 100));
@@ -10175,4 +10198,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });

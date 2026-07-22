@@ -298,8 +298,6 @@ body:not(.light-mode).desktop-windowed-ui .tab-header {
   box-shadow: 16px 0 48px rgba(0,0,0,.38), inset -1px 0 rgba(255,255,255,.035);
 }
 
-body:not(.light-mode).desktop-windowed-ui .ui-rail-group + .ui-rail-group { border-top-color: rgba(118, 151, 183, 0.17); }
-body:not(.light-mode).desktop-windowed-ui .ui-rail-group-label { color: #eef2f6; font-size: 9px; }
 body:not(.light-mode).desktop-windowed-ui .tab-btn {
   min-height: 50px;
   border-radius: 2px 10px 2px 10px;

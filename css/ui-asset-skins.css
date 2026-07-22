@@ -1,0 +1,713 @@
+/* Supplied pixel-art UI. Artwork, live gauges, and text are separate layers. */
+
+.player-hud {
+  max-height: none !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.player-hud-shell {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: 100%;
+  pointer-events: none;
+}
+
+.player-hud-shell > .player-hud-identity-row {
+  position: absolute;
+  top: 2%;
+  left: 7.5%;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 21.5%;
+  height: 19%;
+  min-width: 0;
+  overflow: hidden;
+  color: #f4e9e4;
+  font-size: clamp(6px, .62vw, 9px);
+  line-height: 1;
+  text-shadow: 0 1px 2px #000;
+  pointer-events: auto;
+}
+
+.player-hud-shell > .player-hud-identity-row strong,
+.player-hud-shell > .player-hud-identity-row span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: inherit;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-hud-shell > .player-hud-identity-row strong {
+  flex: 1 1 auto;
+  color: #ffd7cc;
+}
+
+.player-hud-shell > .player-hud-identity-row span {
+  flex: 0 1 auto;
+  padding-left: 3px;
+  border-left: 1px solid rgba(196, 143, 132, .35);
+  color: #f0ded8;
+}
+
+.combat-effect-strip {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.combat-effect-strip:empty { display: none !important; }
+
+.combat-effect-icon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: clamp(20px, 1.65vw, 24px);
+  height: clamp(20px, 1.65vw, 24px);
+  padding: 2px;
+  box-sizing: border-box;
+  overflow: visible;
+  border: 1px solid var(--effect-color, #b9a8a3);
+  border-radius: 5px;
+  background: radial-gradient(circle at 50% 42%, rgba(45, 35, 42, .94), rgba(6, 8, 12, .98));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 0 7px color-mix(in srgb, var(--effect-color, #b9a8a3) 48%, transparent);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .92));
+  cursor: help;
+}
+
+.combat-effect-icon:hover {
+  z-index: 6;
+  transform: scale(1.12);
+  filter: brightness(1.12) drop-shadow(0 2px 3px rgba(0, 0, 0, .94));
+}
+
+.combat-effect-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-image: url('../assets/ui/status-effects-atlas-v1.png');
+  background-repeat: no-repeat;
+  background-position: var(--effect-sprite-x) var(--effect-sprite-y);
+  background-size: 700% 700%;
+  border-radius: 3px;
+  image-rendering: pixelated;
+  filter: brightness(1.22) saturate(1.18) contrast(1.08);
+}
+
+.combat-effect-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  z-index: 4;
+  min-width: 9px;
+  height: 9px;
+  padding: 0 1px;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 220, 196, .72);
+  border-radius: 7px;
+  color: #fff7ef;
+  background: rgba(27, 12, 16, .96);
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 7px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.player-health-frame .player-combat-effect-strip {
+  position: absolute;
+  top: 2.5%;
+  right: 9.77%;
+  left: 29.88%;
+  z-index: 9;
+  height: 20%;
+  gap: 0;
+  justify-content: flex-start;
+}
+
+.player-health-frame .player-combat-effect-strip .combat-effect-icon {
+  flex: 1 1 22px;
+  min-width: 0;
+  max-width: 22px;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.player-exp-percent {
+  position: absolute;
+  top: 58%;
+  right: 14.45%;
+  z-index: 8;
+  color: #e5c5fa;
+  font-size: clamp(7px, .72vw, 10px);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
+  pointer-events: none;
+}
+
+.player-exp-values { display: none; }
+
+.player-health-frame {
+  position: relative;
+  width: min(100%, 650px);
+  aspect-ratio: 512 / 84;
+  margin: 2px auto 0;
+  overflow: visible !important;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .54));
+  pointer-events: none;
+}
+
+.player-health-frame-art {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+}
+
+.player-health-frame .player-hud-exp,
+.player-health-frame .player-hud-vitals { position: static !important; display: block !important; }
+
+.player-health-frame .combat-hp-bar,
+.player-health-frame .combat-exp-bar {
+  position: absolute;
+  z-index: 2;
+  width: auto;
+  min-height: 0 !important;
+  margin: 0;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-radius: 2px !important;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, .88) !important;
+  pointer-events: auto;
+}
+
+.player-health-frame .combat-hp-bar {
+  top: 25%;
+  right: 9.77%;
+  left: 29.88%;
+  height: 32.15% !important;
+  background: #07130d !important;
+}
+
+.player-health-frame .combat-exp-bar {
+  top: 72.62%;
+  right: 14.45%;
+  left: 14.45%;
+  height: 4.76% !important;
+  min-height: 2px !important;
+  background: #16091c !important;
+}
+
+.player-health-frame .combat-hp-bar::after,
+.player-health-frame .combat-exp-bar::after { content: none !important; }
+
+.player-health-frame .hp-bar-fill { height: 100%; }
+.player-health-frame #ui-hp-bar,
+.player-health-frame #ui-es-bar,
+.player-health-frame #ui-exp-bar {
+  width: 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 100% 100% !important;
+  clip-path: inset(0 calc(100% - var(--gauge-fill, 0%)) 0 0);
+  image-rendering: pixelated;
+  transition: clip-path .16s linear !important;
+}
+.player-health-frame #ui-hp-bar {
+  background-color: #08753f !important;
+  background-image: url('../assets/ui/gauge-player-hp-v1.png') !important;
+  box-shadow: inset 0 1px rgba(183, 255, 213, .2), 0 0 9px rgba(32, 208, 112, .24);
+}
+.player-health-frame .combat-es-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
+.player-health-frame #ui-es-bar {
+  position: absolute;
+  inset: 0;
+  background-color: #087f99 !important;
+  background-image: url('../assets/ui/gauge-player-es-v1.png') !important;
+  box-shadow: inset 0 1px rgba(205, 249, 255, .26), 0 0 8px rgba(48, 190, 224, .28);
+  opacity: .78 !important;
+}
+.player-health-frame #ui-exp-bar {
+  background-color: #643184 !important;
+  background-image: url('../assets/ui/gauge-player-exp-v1.png') !important;
+}
+
+.player-health-frame .combat-hp-bar .hp-text {
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: 100%;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.player-health-frame .combat-hp-bar .hp-text { font-size: clamp(12px, 1.2vw, 16px); }
+.player-health-frame .combat-es-text {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  z-index: 8;
+  color: #d9f7ff;
+  font-size: clamp(7px, .72vw, 10px);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
+  pointer-events: none;
+}
+
+.player-health-frame .combat-flask-strip {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none;
+  overflow: visible !important;
+  pointer-events: none;
+}
+
+.player-health-frame .combat-flask-mini {
+  position: absolute !important;
+  top: 23%;
+  width: 6.3%;
+  min-width: 0 !important;
+  height: 38%;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  color: #fff;
+  background: rgba(3, 7, 10, .08) !important;
+  overflow: visible !important;
+  pointer-events: auto;
+}
+
+.player-health-frame .combat-flask-mini:nth-child(1) { left: 9.1%; }
+.player-health-frame .combat-flask-mini:nth-child(2) { left: 15.4%; }
+.player-health-frame .combat-flask-mini:nth-child(3) { left: 21.7%; }
+.player-health-frame .combat-flask-mini.overflow {
+  top: 13%;
+  left: 24.7%;
+  z-index: 5;
+  width: clamp(16px, 3.2%, 21px);
+  height: clamp(16px, 19%, 20px);
+  border: 1px solid rgba(153, 105, 101, .72) !important;
+  border-radius: 50% !important;
+  background: rgba(15, 11, 14, .94) !important;
+}
+
+.player-health-frame .combat-flask-mini:hover,
+.player-health-frame .combat-flask-mini:focus-visible {
+  outline: 1px solid rgba(255, 220, 164, .9);
+  outline-offset: -2px;
+  background: rgba(255, 255, 255, .12) !important;
+}
+
+.player-health-frame .combat-flask-mini > span { opacity: 0; }
+.player-health-frame .combat-flask-mini.overflow > span {
+  opacity: 1;
+  font-size: 8px;
+  font-weight: 900;
+}
+.player-health-frame .combat-flask-mini.overflow > b { display: none; }
+.player-health-frame .combat-flask-mini.empty {
+  border: 0 !important;
+  background: radial-gradient(circle, #090b0f 0 58%, rgba(2, 4, 7, .96) 64%, rgba(2, 4, 7, .5) 72%, transparent 74%) !important;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, .95) !important;
+  opacity: 1 !important;
+  pointer-events: none;
+}
+.player-health-frame .combat-flask-mini.boot-heal { pointer-events: none; }
+.player-health-frame .combat-flask-mini > b {
+  right: -4px;
+  bottom: -5px;
+  z-index: 9;
+  min-width: 13px;
+  height: 13px;
+  font-size: 8px;
+  pointer-events: none;
+}
+
+.enemy-card.targeted {
+  --health-frame-width: 420px;
+  --health-frame-ratio: 153 / 23;
+  --health-art-height: 221.739%;
+  --health-art-top: -65.217%;
+  --health-track-left: 11.76%;
+  --health-track-right: 11.11%;
+  --health-track-top: 30.43%;
+  --health-track-height: 26.09%;
+}
+
+.enemy-card.targeted.enemy-elite {
+  --health-frame-width: 470px;
+  --health-frame-ratio: 236 / 48;
+  --health-art-height: 162.5%;
+  --health-art-top: -35.417%;
+  --health-track-left: 18.22%;
+  --health-track-right: 18.22%;
+  --health-track-top: 20.83%;
+  --health-track-height: 20.83%;
+}
+
+.enemy-card.targeted.enemy-boss {
+  --health-frame-width: 520px;
+  --health-frame-ratio: 309 / 86;
+  --health-art-height: 122.093%;
+  --health-art-top: -12.791%;
+  --health-track-left: 14.89%;
+  --health-track-right: 15.21%;
+  --health-track-top: 20.93%;
+  --health-track-height: 9.3%;
+}
+
+#enemy-area .enemy-card.targeted {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  padding: 4px 10px 6px;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#enemy-area .enemy-nameplate {
+  position: relative;
+  z-index: 5;
+  display: inline-flex;
+  min-width: 150px;
+  max-width: min(90%, 430px);
+  padding: 3px 12px;
+  box-sizing: border-box;
+  border: 1px solid rgba(159, 111, 103, .72);
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, rgba(28, 19, 21, .95), rgba(8, 8, 10, .95));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .42), inset 0 1px rgba(255, 231, 218, .06);
+}
+
+#enemy-area .enemy-nameplate .enemy-name {
+  width: 100%;
+  overflow: hidden;
+  color: #ffe3d5;
+  font-size: 13px;
+  line-height: 17px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#enemy-area .enemy-health-frame {
+  position: relative;
+  width: min(100%, var(--health-frame-width));
+  aspect-ratio: var(--health-frame-ratio);
+  overflow: hidden;
+  isolation: isolate;
+  filter: drop-shadow(0 7px 10px rgba(0, 0, 0, .48));
+}
+
+#enemy-area .health-skin-frame {
+  position: absolute;
+  top: var(--health-art-top);
+  left: 0;
+  z-index: 1;
+  width: 100%;
+  height: var(--health-art-height);
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+}
+
+#enemy-area .enemy-card.targeted .hp-bar-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100% !important;
+  margin: 0;
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#enemy-area .enemy-card.targeted .hp-bar-bg::after { content: none !important; }
+
+#enemy-area .enemy-card.targeted .health-skin-track {
+  position: absolute;
+  top: var(--health-track-top);
+  right: var(--health-track-right);
+  left: var(--health-track-left);
+  z-index: 2;
+  height: var(--health-track-height);
+  min-height: 14px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #170709;
+  box-shadow: inset 0 0 6px #000;
+}
+
+#enemy-area .enemy-card.targeted .health-skin-track > .hp-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+}
+
+#enemy-area .enemy-card.targeted .health-skin-track > .hp-bar-fill.enemy {
+  width: 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 100% 100% !important;
+  clip-path: inset(0 calc(100% - var(--gauge-fill, 0%)) 0 0);
+  image-rendering: pixelated;
+  transition: clip-path .16s linear !important;
+}
+
+#enemy-area .enemy-card.enemy-mob .health-skin-track > .hp-bar-fill.enemy {
+  background-color: #d41f32 !important;
+  background-image: url('../assets/ui/gauge-mob-hp-v1.png') !important;
+}
+
+#enemy-area .enemy-card.enemy-elite .health-skin-track > .hp-bar-fill.enemy {
+  background-color: #d41f32 !important;
+  background-image: url('../assets/ui/gauge-elite-hp-v1.png') !important;
+}
+
+#enemy-area .enemy-card.enemy-boss .health-skin-track > .hp-bar-fill.enemy {
+  background-color: #d41f32 !important;
+  background-image: url('../assets/ui/gauge-boss-hp-v1.png') !important;
+}
+
+#enemy-area .enemy-card.targeted .health-skin-track > .enemy-es { height: 38%; }
+
+#enemy-area .enemy-card.targeted .health-skin-track > .hp-text {
+  position: absolute !important;
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: 100%;
+  color: #fff !important;
+  font-size: clamp(12px, 1vw, 14px) !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 1 !important;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000, 0 0 8px rgba(0, 0, 0, .9) !important;
+  -webkit-text-stroke: .55px rgba(0, 0, 0, .96);
+  white-space: nowrap;
+}
+
+#enemy-area .enemy-traits {
+  box-sizing: border-box;
+  border: 1px solid rgba(153, 105, 101, .48);
+  border-radius: 4px;
+  color: #f0c9b8;
+  background: rgba(15, 10, 12, .55);
+  text-align: center;
+}
+
+@media (min-width: 1081px) {
+  body.desktop-windowed-ui .combat-panel { overflow: visible; }
+  body.desktop-windowed-ui .player-hud { bottom: -2px !important; }
+  body.desktop-windowed-ui .player-hud-shell > .player-hud-identity-row {
+    top: auto;
+    right: calc(100% + 6px);
+    bottom: 24%;
+    left: auto;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-content: center;
+    gap: 3px 5px;
+    width: clamp(128px, 10.5vw, 144px);
+    height: auto;
+    min-height: 44px;
+    padding: 5px 8px;
+    box-sizing: border-box;
+    overflow: visible;
+    border: 1px solid rgba(141, 102, 99, .72);
+    border-radius: 6px;
+    color: #f4e9e4;
+    background: linear-gradient(180deg, rgba(25, 19, 23, .94), rgba(7, 9, 13, .96));
+    box-shadow: inset 0 0 0 1px rgba(255, 220, 196, .05), 0 5px 14px rgba(0, 0, 0, .52);
+    font-size: 10px;
+    line-height: 1.1;
+  }
+  body.desktop-windowed-ui .player-hud-shell > .player-hud-identity-row strong {
+    color: #ffd7cc;
+    font-size: 11px;
+  }
+  body.desktop-windowed-ui .player-hud-shell > .player-hud-identity-row span {
+    padding-left: 5px;
+  }
+  body.desktop-windowed-ui .player-hud-shell > .player-hud-identity-row #ui-exp-level-label {
+    grid-column: 1 / -1;
+    padding: 3px 0 0;
+    border-top: 1px solid rgba(196, 143, 132, .28);
+    border-left: 0;
+    color: #e8c5eb;
+    font-size: 9px;
+    letter-spacing: .04em;
+  }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-mob { margin-top: 34px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-elite { margin-top: 32px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-boss { margin-top: 30px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-mob .enemy-health-frame { margin-top: -8px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-elite .enemy-health-frame { margin-top: -9px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-boss .enemy-health-frame { margin-top: -26px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-mob .enemy-health-frame { margin-bottom: -2px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-elite .enemy-health-frame { margin-bottom: -18px; }
+  body.desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-boss .enemy-health-frame { margin-bottom: -34px; }
+}
+
+@media (min-width: 1081px) and (max-height: 720px) {
+  body:not(.light-mode).desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-mob { margin-top: 44px; }
+  body:not(.light-mode).desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-elite { margin-top: 42px; }
+  body:not(.light-mode).desktop-windowed-ui #enemy-area .enemy-card.targeted.enemy-boss { margin-top: 41px; }
+}
+
+#enemy-area .enemy-traits {
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: min(92%, 470px);
+  min-height: 0;
+  margin: 0;
+  padding: 2px 7px;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#enemy-area .enemy-traits:empty { display: none !important; }
+
+#enemy-area .enemy-card.enemy-elite .enemy-traits {
+  width: fit-content;
+  max-width: 92%;
+  min-height: 0;
+  margin: 0;
+  padding: 2px 7px;
+  background: rgba(15, 10, 12, .55);
+  white-space: normal;
+}
+
+#enemy-area .enemy-card.enemy-boss .enemy-traits {
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52%;
+  max-width: 52%;
+  height: auto;
+  min-height: 16px;
+  margin: 0;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: clamp(8px, .72vw, 10px) !important;
+  line-height: 1.15 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#enemy-area .enemy-hud-meta {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 0;
+  pointer-events: auto;
+}
+
+#enemy-area .enemy-card.enemy-mob .enemy-hud-meta { top: 58%; right: 5%; left: 5%; }
+#enemy-area .enemy-card.enemy-elite .enemy-hud-meta { top: 45%; right: 12%; left: 12%; }
+#enemy-area .enemy-card.enemy-boss .enemy-hud-meta { top: 40%; right: 18%; left: 18%; }
+
+#enemy-area .enemy-ailments {
+  flex: 0 1 auto;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: min(92%, 470px);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+@media (max-width: 1080px) {
+  body.mobile-battle-tab #tab-battle .player-hud > .player-hud-shell { display: grid !important; }
+  body.mobile-battle-tab #tab-battle .player-hud { margin: 0 0 5px; padding: 0; }
+  body.mobile-battle-tab #tab-battle .player-health-frame { width: min(100%, 560px); }
+  body.mobile-battle-tab #tab-battle .player-hud-vitals { display: block !important; }
+  body.mobile-battle-tab #tab-battle .player-health-frame .combat-hp-bar { height: 32.15% !important; }
+  body.mobile-battle-tab #tab-battle .player-health-frame .combat-hp-bar .hp-text {
+    font-size: clamp(9px, 3vw, 13px);
+    line-height: 1;
+  }
+  body.mobile-battle-tab #tab-battle .player-health-frame .combat-es-text { font-size: clamp(6px, 2vw, 9px); }
+  body.mobile-battle-tab #tab-battle .player-hud-shell > .player-hud-identity-row { font-size: clamp(6px, 1.75vw, 9px); }
+  body.mobile-battle-tab #tab-battle .combat-effect-icon { width: clamp(17px, 4.8vw, 21px); height: clamp(17px, 4.8vw, 21px); }
+  body.mobile-battle-tab #tab-battle .player-combat-effect-strip .combat-effect-icon { width: auto; max-width: 20px; height: auto; }
+  body.mobile-battle-tab #tab-battle .enemy-card.targeted { padding: 3px 4px 5px; }
+  body.mobile-battle-tab #tab-battle .enemy-card.targeted .health-skin-track { min-height: 12px; }
+  body.mobile-battle-tab #tab-battle .enemy-card.enemy-boss .health-skin-track { min-height: 0; }
+  body.mobile-battle-tab #tab-battle .enemy-card.enemy-boss .health-skin-track > .hp-text {
+    font-size: clamp(8px, 2.5vw, 11px) !important;
+  }
+  body.mobile-battle-tab #tab-battle .enemy-card.enemy-boss .enemy-traits {
+    display: block;
+    padding: 1px 3px;
+    font-size: clamp(7px, 2.15vw, 9px) !important;
+    line-height: 1.15 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-health-frame .hp-bar-fill,
+  #enemy-area .enemy-card.targeted .hp-bar-fill { transition: none !important; }
+}

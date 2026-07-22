@@ -190,15 +190,16 @@ function runUiCoreLoop() {
     return runUiGlobalFunction('coreLoop');
 }
 
-// HUD에 표시할 플레이어 직업(전직 후) 또는 재능 라벨.
-function getUiPlayerClassLabel() {
-    let classLabel = (game.ascendClass && typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[game.ascendClass]) ? CLASS_TEMPLATES[game.ascendClass].name : '';
-    if (classLabel) return classLabel;
+function getUiPlayerHudIdentity() {
     let heroDef = typeof getHeroSelectionDef === 'function' ? getHeroSelectionDef(game.selectedHeroId) : null;
-    return heroDef ? heroDef.label : '재능';
+    let classDef = game.ascendClass && typeof CLASS_TEMPLATES !== 'undefined'
+        ? CLASS_TEMPLATES[game.ascendClass]
+        : null;
+    return {
+        name: heroDef ? heroDef.label : '플레이어',
+        className: classDef ? classDef.name : '미전직'
+    };
 }
-
-
 
 const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;
 const BACKGROUND_PROGRESS_RATE = 0.1;
@@ -1012,12 +1013,14 @@ function renderTabOrderSettings() {
     if (!tabOrderEl) return;
     if (!(document.getElementById('tab-settings') || {}).classList.contains('active')) return;
     let tabs = Array.from(document.querySelectorAll('.tab-header .tab-btn'));
-    let groupRows = getOrderedTabGroups().map(group => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${group.label}</span><span style="display:flex;gap:4px;"><button onclick="moveTabGroup('${group.key}',-1)">▲</button><button onclick="moveTabGroup('${group.key}',1)">▼</button></span></div>`).join('');
+    let usesFlatDesktopRail = document.body.classList.contains('desktop-windowed-ui');
+    let groupRows = usesFlatDesktopRail ? '' : getOrderedTabGroups().map(group => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${group.label}</span><span style="display:flex;gap:4px;"><button onclick="moveTabGroup('${group.key}',-1)">▲</button><button onclick="moveTabGroup('${group.key}',1)">▼</button></span></div>`).join('');
     let tabRows = tabs.map(el => {
         let place = (game.settings.tabPlacement[el.id] === 'bottom') ? 'bottom' : 'top';
         return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
     }).join('');
-    tabOrderEl.innerHTML = `<div style="font-weight:800;color:#f1c40f;margin-bottom:2px;">상위 그룹 탭</div>${groupRows}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
+    let groupSection = usesFlatDesktopRail ? '' : `<div style="font-weight:800;color:#f1c40f;margin-bottom:2px;">상위 그룹 탭</div>${groupRows}`;
+    tabOrderEl.innerHTML = `${groupSection}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
@@ -1061,6 +1064,7 @@ function moveTabGroup(groupKey, dir) {
     game.settings.tabGroupOrder = moved.map(group => group.key);
     lastTabHeaderUiSignature = null;
     renderTabCategoryBar();
+    if (typeof syncDesktopRailGroups === 'function' && document.body.classList.contains('desktop-windowed-ui')) syncDesktopRailGroups();
     renderTabOrderSettings();
     queueImportantSave(300);
 }
@@ -1078,6 +1082,7 @@ function moveTabGroupBefore(sourceKey, targetKey) {
     game.settings.tabGroupOrder = moved.map(group => group.key);
     lastTabHeaderUiSignature = null;
     renderTabCategoryBar();
+    if (typeof syncDesktopRailGroups === 'function' && document.body.classList.contains('desktop-windowed-ui')) syncDesktopRailGroups();
     renderTabOrderSettings();
     queueImportantSave(300);
 }
@@ -1261,6 +1266,7 @@ function clearTabHeaderDragState(saveOrder) {
 }
 
 function onTabHeaderPointerDown(event) {
+    if (document.body && document.body.classList.contains('desktop-windowed-ui')) return;
     if (tabHeaderDragState) return;
     let button = getTabButtonFromTarget(event.target);
     if (!button || (event.pointerType === 'mouse' && event.button !== 0)) return;
@@ -1360,6 +1366,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
     // 데스크톱 창형 레일의 버튼 배치(고정 탭 + 더보기 메뉴)는 창 관리자가 소유한다.
     // 여기서 버튼을 다시 헤더 루트로 옮기면 더보기 메뉴가 비워져 레일이 깨진다.
     if (document.body.classList.contains('desktop-windowed-ui')) {
+        if (typeof syncDesktopRailGroups === 'function') syncDesktopRailGroups();
         if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
         return;
     }
@@ -1400,9 +1407,17 @@ function updateBottomTabSpacing(){
     let height = visible ? Math.ceil(bottomHeader.getBoundingClientRect().height) : 0;
     document.body.style.setProperty('--bottom-tab-height', height + 'px');
 }
+function scheduleTabHeaderViewportSync() {
+    clearTabHeaderDragState(false);
+    requestAnimationFrame(() => {
+        updateBottomTabSpacing();
+        lastTabHeaderUiSignature = null;
+        refreshTabHeaderUiIfNeeded();
+    });
+}
 if (typeof window !== 'undefined') {
-    window.addEventListener('resize', () => { updateBottomTabSpacing(); lastTabHeaderUiSignature = null; refreshTabHeaderUiIfNeeded(); });
-    window.addEventListener('orientationchange', () => { updateBottomTabSpacing(); lastTabHeaderUiSignature = null; refreshTabHeaderUiIfNeeded(); });
+    window.addEventListener('resize', scheduleTabHeaderViewportSync);
+    window.addEventListener('orientationchange', scheduleTabHeaderViewportSync);
 }
 function setTabPlacement(tabId, placement){
     game.settings = game.settings || {};
@@ -5041,7 +5056,6 @@ let combatLogRateState = {};
 let combatLogAggregateState = {};
 let combatLogItemSequence = 0;
 let combatLogItemSnapshots = new Map();
-let pinnedCombatLogItemToken = null;
 
 function decorateCombatLogItemMessage(msg, item) {
     if (!item || typeof item !== 'object' || !item.name) return msg;
@@ -5050,14 +5064,34 @@ function decorateCombatLogItemMessage(msg, item) {
     combatLogItemSnapshots.set(token, snapshot);
     while (combatLogItemSnapshots.size > 80) combatLogItemSnapshots.delete(combatLogItemSnapshots.keys().next().value);
     let label = `[${item.name}]`;
-    let link = `<span class="combat-log-item-link" role="button" tabindex="0" data-item-tooltip-anchor="1" data-log-item-token="${token}" onmouseenter="showCombatLogItemTooltip(event,${token})" onmousemove="showCombatLogItemTooltip(event,${token})" onmouseleave="hideCombatLogItemTooltip(event,${token})" onclick="toggleCombatLogItemTooltip(event,${token})" onkeydown="if(event.key==='Enter'||event.key===' '){toggleCombatLogItemTooltip(event,${token})}">${escapeHTML(label)}</span>`;
+    let link = `<span class="combat-log-item-link" role="button" tabindex="0" title="장비창 열기" data-item-tooltip-anchor="1" data-log-item-token="${token}" onmouseenter="showCombatLogItemTooltip(event,${token})" onmousemove="showCombatLogItemTooltip(event,${token})" onmouseleave="hideCombatLogItemTooltip(event)" onclick="openCombatLogItemEquipment(event)" onkeydown="if(event.key==='Enter'||event.key===' '){openCombatLogItemEquipment(event)}">${escapeHTML(label)}</span>`;
     return String(msg).replace(label, link);
+}
+
+function captureCombatLogScroll(log) {
+    let bottomGap = log.scrollHeight - log.scrollTop - log.clientHeight;
+    return {
+        followsLatest: bottomGap <= 24,
+        scrollTop: log.scrollTop,
+        scrollHeight: log.scrollHeight
+    };
+}
+
+function restoreCombatLogScroll(log, scrollState) {
+    if (scrollState.followsLatest) {
+        log.scrollTop = log.scrollHeight;
+        return;
+    }
+    let heightDelta = log.scrollHeight - scrollState.scrollHeight;
+    let maxScrollTop = Math.max(0, log.scrollHeight - log.clientHeight);
+    log.scrollTop = Math.min(maxScrollTop, Math.max(0, scrollState.scrollTop + heightDelta));
 }
 
 function flushLogQueue() {
     logFlushRaf = 0;
     const log = document.getElementById('log');
     if (!log || logQueue.length === 0) return;
+    let scrollState = captureCombatLogScroll(log);
     // 백그라운드 재계산처럼 로그가 폭주하면 어차피 60줄만 남으므로,
     // DOM에 만들 필요가 없는 초과분은 만들기 전에 버린다.
     if (logQueue.length > 60) logQueue = logQueue.slice(-60);
@@ -5071,7 +5105,7 @@ function flushLogQueue() {
     logQueue = [];
     log.appendChild(frag);
     while (log.childElementCount > 60) log.removeChild(log.firstChild);
-    log.scrollTop = log.scrollHeight;
+    restoreCombatLogScroll(log, scrollState);
 }
 function addLog(msg, cls, opts = {}) {
     let now = performance.now();
@@ -5763,7 +5797,7 @@ function showStatTooltip(event, key) {
 
 
 function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage) {
-    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
+    let visual = getUiCombatEffectPresentation(type);
     let p = Math.max(0.1, Number(power || 0.1));
     let source = Math.max(0, Number(sourceHitDamage || 0));
     let detail = '';
@@ -5779,13 +5813,52 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
         detail = formatUiTakenDamageShockLine(shockTakenIncrease);
     }
     else if (type === 'freeze') detail = '행동 불가';
-    let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
+    let html = `<div class="tooltip-title">${escapeHTML(visual.label)}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
+}
+
+function showPlayerExperienceTooltip(event) {
+    let progress = getUiExperienceProgress(game.level, game.exp);
+    let current = formatSettingNumber(progress.current, 'showExpComma');
+    let required = formatSettingNumber(progress.required, 'showExpComma');
+    let remaining = formatSettingNumber(progress.remaining, 'showExpComma');
+    let html = '<div class="tooltip-title">경험치</div>'
+        + `<div class="tooltip-line">현재: ${current} / ${required}</div>`
+        + `<div class="tooltip-line">다음 레벨까지: ${remaining}</div>`
+        + `<div class="tooltip-line">진행도: ${progress.percent.toFixed(1)}%</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#c89be8');
+}
+
+function showPlayerRuntimeEffectTooltip(event, type, value, maxValue, remainSec) {
+    let visual = getUiCombatEffectPresentation(type);
+    let detail = getUiRuntimeEffectDetail(type, value, maxValue);
+    let duration = Number(remainSec || 0) > 0
+        ? `<div class="tooltip-line">남은 시간: ${Math.ceil(remainSec)}초</div>` : '';
+    let html = `<div class="tooltip-title">${escapeHTML(visual.label)}</div>${duration}<div class="tooltip-line">${escapeHTML(detail)}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, visual.color);
+}
+
+function showPlayerNamedEffectTooltip(event, type, name, detail, remainSec) {
+    let visual = getUiCombatEffectPresentation(type);
+    let duration = Number(remainSec || 0) > 0
+        ? `<div class="tooltip-line">남은 시간: ${Math.ceil(remainSec)}초</div>` : '';
+    let html = `<div class="tooltip-title">${escapeHTML(name || visual.label)}</div>${duration}`
+        + `<div class="tooltip-line">${escapeHTML(detail || '효과가 적용 중입니다.')}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, visual.color);
+}
+
+function showPlayerCosmosDebuffTooltip(event, type, value, remainSec, label) {
+    let visual = getUiCombatEffectPresentation(type);
+    let safeLabel = escapeHTML(label || visual.label);
+    let html = `<div class="tooltip-title">${safeLabel}</div>`
+        + `<div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec || 0)))}초</div>`
+        + `<div class="tooltip-line">${safeLabel} -${Math.max(0, Number(value || 0)).toFixed(0)}%</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, visual.color);
 }
 function showPlayerBuffTooltip(event, name, type, remainSec) {
     let entry = getAllConditionGemEntries().find(row => row && row.name === name) || { name, type: type || 'buff' };
     let typeLabel = { curse: '저주', warcry: '함성', guard: '가드', buff: '버프' }[type || entry.type] || (type || entry.type || '버프');
-    let html = `<div class="tooltip-title">${name}</div><div class="tooltip-line">분류: ${typeLabel}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">효과: ${getConditionGemDetail(entry)}</div>`;
+    let html = `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">분류: ${escapeHTML(typeLabel)}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">효과: ${escapeHTML(getConditionGemDetail(entry))}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
 // 플라스크 발동은 전투 중 자주 반복되어 전투 로그에 띄우면 스팸이 되므로, 캐릭터 효과
@@ -5815,42 +5888,71 @@ function showPlayerFlaskTooltip(event, kind, key) {
     }
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#9ed6ff');
 }
-function showEnemyAilmentTooltip(event, type, timeLeft, power, sourceHitDamage, specialDps, critDotBonusPct, stackCount, rawTickDamage, tickInterval, enemyRes, abyssPlayerMul, igniteTakenMultiplier) {
-    let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈', flameDecay: '화염 부패', hunterExpose: '약점 노출' };
-    let p = Math.max(0, Number(power || 0));
-    let source = Math.max(0, Number(sourceHitDamage || 0));
-    let remainSec = Math.max(0, Number(timeLeft || 0));
-    let stacks = Math.max(1, Math.floor(Number(stackCount || 1)));
-    let detail = '';
-    if (isUiDamageAilmentType(type)) {
+const UI_ENEMY_AILMENT_DETAIL_FORMATTERS = Object.freeze({
+    chill: () => '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)',
+    freeze: () => '행동 불가 (최대 생명력 대비 타격 비율 반영)',
+    hunterExpose: () => '헌터 전직 키스톤 효과로 받는 모든 피해가 20% 증가합니다.',
+    assassinWeakness: state => `${Math.floor(state.power)}중첩 · 중첩당 받는 피해 6% 증가`,
+    cosmosJudgment: state => `모든 저항 ${state.power.toFixed(0)}% 감소`,
+    realmAllResDown: state => `모든 저항 약화 ${state.stacks}중첩`
+});
+
+function getUiEnemyDamageAilmentTooltipDetail(state) {
+    let tooltipStats = cachedTooltipStats || getUiPlayerStats(null);
+    let ailmentDps = getUiEnemyDamageAilmentDps({
+        type: state.type,
+        power: state.power,
+        sourceHitDamage: state.sourceHitDamage,
+        critDotBonusPct: state.critDotBonusPct
+    }, tooltipStats);
+    let totalDamage = Math.max(0, Math.floor(ailmentDps * state.stacks * state.timeLeft));
+    let stackText = state.stacks > 1 ? ` · ${state.stacks}중첩` : '';
+    return `총 피해량: 약 ${totalDamage} <span style="color:var(--copy-bright);">(원천피해: ${Math.floor(state.sourceHitDamage)} / 초당 피해: 약 ${ailmentDps}${stackText})</span>`;
+}
+
+function getUiFlameDecayTooltipDetail(state) {
+    let dps = Math.max(0, Math.floor(state.specialDps));
+    let totalDamage = Math.max(0, Math.floor(dps * state.timeLeft));
+    let rawTick = Math.max(0, Math.floor(state.rawTickDamage));
+    let interval = Math.max(0.02, state.tickInterval);
+    let rawDps = rawTick > 0 ? Math.floor(rawTick / interval) : 0;
+    let resistText = Number.isFinite(state.enemyRes) ? ` · 적 화염 저항/관통 후 ${state.enemyRes.toFixed(1)}%` : '';
+    let abyssText = Math.abs(state.abyssPlayerMul - 1) > 0.001 ? ` · 심연/지역 배율 ${state.abyssPlayerMul.toFixed(2)}x` : '';
+    return `총 피해량: 약 ${totalDamage} <span style="color:var(--copy-bright);">(최종 초당 피해: 약 ${dps}, 원시 ${rawDps}/s${resistText}${abyssText})</span><br><span style="color:#ffb48a;">점화 피해 증폭: ${state.igniteTakenMultiplier.toFixed(2)}x (생명력 기반 시너지)</span>`;
+}
+
+function getUiEnemyAilmentTooltipDetail(state) {
+    if (isUiDamageAilmentType(state.type)) return getUiEnemyDamageAilmentTooltipDetail(state);
+    if (state.type === 'flameDecay') return getUiFlameDecayTooltipDetail(state);
+    if (state.type === 'shock') {
         let tooltipStats = cachedTooltipStats || getUiPlayerStats(null);
-        let ailmentDps = getUiEnemyDamageAilmentDps({ type: type, power: p, sourceHitDamage: source, critDotBonusPct: critDotBonusPct }, tooltipStats);
-        let totalDamage = Math.max(0, Math.floor(ailmentDps * stacks * remainSec));
-        let stackText = stacks > 1 ? ` · ${stacks}중첩` : '';
-        detail = `총 피해량: 약 ${totalDamage} <span style="color:var(--copy-bright);">(원천피해: ${Math.floor(source)} / 초당 피해: 약 ${ailmentDps}${stackText})</span>`;
-    } else if (type === 'flameDecay') {
-        let dps = Math.max(0, Math.floor(Number(specialDps || 0)));
-        let totalDamage = Math.max(0, Math.floor(dps * remainSec));
-        let rawTick = Math.max(0, Math.floor(Number(rawTickDamage || 0)));
-        let interval = Math.max(0.02, Number(tickInterval || 0));
-        let rawDps = rawTick > 0 ? Math.floor(rawTick / interval) : 0;
-        let res = Number.isFinite(Number(enemyRes)) ? Number(enemyRes) : null;
-        let abyss = Number.isFinite(Number(abyssPlayerMul)) ? Number(abyssPlayerMul) : 1;
-        let igniteMul = Math.max(1, Number(igniteTakenMultiplier || 1));
-        let resistText = res !== null ? ` · 적 화염 저항/관통 후 ${res.toFixed(1)}%` : '';
-        let abyssText = Math.abs(abyss - 1) > 0.001 ? ` · 심연/지역 배율 ${abyss.toFixed(2)}x` : '';
-        detail = `총 피해량: 약 ${totalDamage} <span style="color:var(--copy-bright);">(최종 초당 피해: 약 ${dps}, 원시 ${rawDps}/s${resistText}${abyssText})</span><br><span style="color:#ffb48a;">점화 피해 증폭: ${igniteMul.toFixed(2)}x (생명력 기반 시너지)</span>`;
+        let increase = getUiEnemyShockTakenDamageIncreasePct(state.power, tooltipStats);
+        return `${formatUiTakenDamageShockLine(increase)} <span style="color:var(--copy-bright);">(최대 생명력 대비 타격 비율 반영)</span>`;
     }
-    else if (type === 'chill') detail = '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)';
-    else if (type === 'shock') {
-        let tooltipStats = cachedTooltipStats || getUiPlayerStats(null);
-        let shockTakenIncrease = getUiEnemyShockTakenDamageIncreasePct(p, tooltipStats);
-        detail = `${formatUiTakenDamageShockLine(shockTakenIncrease)} <span style="color:var(--copy-bright);">(최대 생명력 대비 타격 비율 반영)</span>`;
-    }
-    else if (type === 'freeze') detail = '행동 불가 (최대 생명력 대비 타격 비율 반영)';
-    else if (type === 'hunterExpose') detail = '헌터 전직 키스톤 효과로 받는 모든 피해가 20% 증가합니다.';
-    let powerLine = isUiDamageAilmentType(type) || type === 'hunterExpose' ? '' : `<div class="tooltip-line">위력: ${p.toFixed(2)}</div>`;
-    let html = `<div class="tooltip-title">${labels[type] || type}</div><div class="tooltip-line">남은 시간: ${Math.ceil(remainSec)}초</div>${powerLine}<div class="tooltip-line">${detail}</div>`;
+    let formatter = UI_ENEMY_AILMENT_DETAIL_FORMATTERS[state.type];
+    return formatter ? formatter(state) : '효과가 적용 중입니다.';
+}
+
+function showEnemyAilmentTooltip(event, payload) {
+    let source = payload && typeof payload === 'object' ? payload : {};
+    let state = {
+        type: String(source.type || 'unknown'),
+        timeLeft: Math.max(0, Number(source.timeLeft) || 0),
+        power: Math.max(0, Number(source.power) || 0),
+        sourceHitDamage: Math.max(0, Number(source.sourceHitDamage) || 0),
+        specialDps: Math.max(0, Number(source.specialDps) || 0),
+        critDotBonusPct: Number(source.critDotBonusPct) || 0,
+        stacks: Math.max(1, Math.floor(Number(source.stacks) || 1)),
+        rawTickDamage: Math.max(0, Number(source.rawTickDamage) || 0),
+        tickInterval: Math.max(0.02, Number(source.tickInterval) || 0.02),
+        enemyRes: Number.isFinite(Number(source.enemyRes)) ? Number(source.enemyRes) : NaN,
+        abyssPlayerMul: Number.isFinite(Number(source.abyssPlayerMul)) ? Number(source.abyssPlayerMul) : 1,
+        igniteTakenMultiplier: Math.max(1, Number(source.igniteTakenMultiplier) || 1)
+    };
+    let visual = getUiCombatEffectPresentation(state.type);
+    let powerLine = isUiDamageAilmentType(state.type) || state.type === 'hunterExpose'
+        ? '' : `<div class="tooltip-line">위력: ${state.power.toFixed(2)}</div>`;
+    let html = `<div class="tooltip-title">${escapeHTML(visual.label)}</div><div class="tooltip-line">남은 시간: ${Math.ceil(state.timeLeft)}초</div>${powerLine}<div class="tooltip-line">${getUiEnemyAilmentTooltipDetail(state)}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ffcf88');
 }
 
@@ -6301,34 +6403,27 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
 }
 
 function showCombatLogItemTooltip(event, token) {
-    if (pinnedCombatLogItemToken !== null && pinnedCombatLogItemToken !== token) return;
     let item = combatLogItemSnapshots.get(Number(token));
     if (!item) return;
     showItemTooltip(event, null, false, item, `log:${token}:snapshot`);
 }
 
-function toggleCombatLogItemTooltip(event, token) {
+function openCombatLogItemEquipment(event) {
     if (event) {
         event.preventDefault();
         event.stopPropagation();
     }
-    let numericToken = Number(token);
-    if (pinnedCombatLogItemToken === numericToken) {
-        pinnedCombatLogItemToken = null;
-        dismissItemTooltipNow();
-        return;
-    }
-    pinnedCombatLogItemToken = numericToken;
-    showCombatLogItemTooltip(event, numericToken);
+    dismissItemTooltipNow();
+    switchTab('tab-items');
+    if (document.body.classList.contains('desktop-windowed-ui') && typeof openWindow === 'function') openWindow('tab-items');
+    switchItemSubtab('item-tab-equip');
 }
 
-function hideCombatLogItemTooltip(event, token) {
-    if (pinnedCombatLogItemToken === Number(token)) return;
+function hideCombatLogItemTooltip(event) {
     hideItemTooltip(event);
 }
 
 function dismissItemTooltipNow() {
-    if (String(activeItemTooltipToken || '').startsWith('log:')) pinnedCombatLogItemToken = null;
     activeItemTooltipToken = null;
     clearActiveTooltip('item-tooltip-box');
     document.getElementById('item-tooltip-box').style.display = 'none';
@@ -7446,19 +7541,569 @@ function renderCombatFlaskHud() {
     let st = ensureFlaskState();
     let now = Date.now();
     let healDef = getFlaskHealDef(st.healTier);
-    let entries = [{ key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal' }];
+    let healEntry = { key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal' };
     let maxUtility = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
+    let utilityEntries = [];
     for (let index = 0; index < maxUtility; index++) {
         let runtime = st.utils[index];
         let def = runtime && FLASK_UTILITY_POOL[runtime.key];
-        entries.push(def
+        utilityEntries.push(def
             ? { key: def.key, name: def.name, charges: runtime.charges, maxCharges: def.maxCharges, active: runtime.until > now, type: 'utility' }
-            : { key: '', name: `빈 유틸리티 슬롯 ${index + 1}`, charges: 0, maxCharges: 0, active: false, type: 'empty' });
+            : null);
     }
-    let signature = entries.map(entry => `${entry.key}:${entry.charges}:${entry.active ? 1 : 0}`).join('|');
+    let entries = [healEntry].concat(utilityEntries);
+    let signature = `${maxUtility}|${entries.map(entry => entry ? `${entry.key}:${entry.charges}:${entry.active ? 1 : 0}` : '-').join('|')}`;
     if (host.dataset.signature === signature) return;
     host.dataset.signature = signature;
-    host.innerHTML = entries.map(entry => `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="switchTab('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`).join('');
+    let socketEntries = [healEntry, utilityEntries[0] || null, utilityEntries[1] || null];
+    let buttons = socketEntries.map(entry => entry
+        ? `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="switchTab('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`
+        : '<span class="combat-flask-mini empty" aria-hidden="true"></span>');
+    let overflowEntries = utilityEntries.slice(2).filter(Boolean);
+    if (overflowEntries.length > 0) {
+        let overflowTitle = overflowEntries.map(entry => `${entry.name} · ${entry.charges}/${entry.maxCharges}회`).join(' / ');
+        buttons.push(`<button type="button" class="combat-flask-mini overflow" title="${escapeHTML(overflowTitle)}" onclick="switchTab('tab-flask')"><span>+${overflowEntries.length}</span></button>`);
+    }
+    host.innerHTML = buttons.join('');
+}
+
+function setUiImageGaugePercent(element, percent) {
+    if (!element) return;
+    let safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+    element.style.width = '100%';
+    element.style.setProperty('--gauge-fill', `${safePercent}%`);
+}
+
+const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
+    ignite: { sprite: 0, label: '점화', color: '#ff9f43' },
+    chill: { sprite: 1, label: '냉각', color: '#9be7ff' },
+    freeze: { sprite: 2, label: '동결', color: '#4da3ff' },
+    shock: { sprite: 3, label: '감전', color: '#ffe66d' },
+    poison: { sprite: 4, label: '중독', color: '#c56cff' },
+    bleed: { sprite: 5, label: '출혈', color: '#ff6b6b' },
+    flameDecay: { sprite: 6, label: '화염 부패', color: '#ff7a3d' },
+    assassinWeakness: { sprite: 7, label: '독점 약점', color: '#ff9bd1' },
+    hunterExpose: { sprite: 8, label: '약점 노출', color: '#ffd36b' },
+    cosmosJudgment: { sprite: 9, label: '우주 심판', color: '#b6a2ff' },
+    realmAllResDown: { sprite: 10, label: '모든 저항 약화', color: '#d89cff' },
+    cosmos_regen_down: { sprite: 11, label: '재생 효율 감소', color: '#d89cff' },
+    cosmos_leech_down: { sprite: 12, label: '흡혈 효율 감소', color: '#d89cff' },
+    cosmos_res_down: { sprite: 13, label: '저항 감소', color: '#d89cff' },
+    cosmos_aspd_down: { sprite: 14, label: '공격 속도 감소', color: '#d89cff' },
+    curse: { sprite: 15, label: '저주', color: '#d0a8ff' },
+    guard: { sprite: 16, label: '가드', color: '#9be7ff' },
+    warcry: { sprite: 17, label: '함성', color: '#ffd36b' },
+    buff: { sprite: 18, label: '강화 효과', color: '#8fe3b0' },
+    healFlask: { sprite: 19, label: '생명력 플라스크', color: '#7fd99a' },
+    utilityFlask: { sprite: 20, label: '유틸리티 플라스크', color: '#ffd27a' },
+    woodsmanCurse: { sprite: 21, label: '나무꾼의 저주', color: '#d0a8ff' },
+    deathWard: { sprite: 22, label: '감시 보호막', color: '#b9d9ff' },
+    invulnerableBarrier: { sprite: 23, label: '균열 장막', color: '#c49bff' },
+    warriorRage: { sprite: 24, label: '격노 순환', color: '#ff9f43' },
+    playerUniqueGuard: { sprite: 25, label: '용맥의 수호', color: '#b9d9ff' },
+    shadowStealth: { sprite: 26, label: '그림자 은신', color: '#c9a8ff' },
+    leechEfficiency: { sprite: 27, label: '흡혈 효율 강화', color: '#d989a2' },
+    lifeLeech: { sprite: 27, label: '생명력 흡혈', color: '#df8396' },
+    energyShieldLeech: { sprite: 27, label: '에너지 보호막 흡혈', color: '#8fcbe8' },
+    meleeArmorAmp: { sprite: 28, label: '깨지지 않는 비늘', color: '#c9b59a' },
+    killMoveStacks: { sprite: 29, label: '질주의 발자국', color: '#e1c58a' },
+    lifeRecoup: { sprite: 30, label: '생명력 회생', color: '#e58f9a' },
+    warriorRhythm: { sprite: 31, label: '전장의 리듬', color: '#d9ad7d' },
+    gladiatorFlurry: { sprite: 32, label: '연참 호흡', color: '#e0c9a8' },
+    gladiatorVeteran: { sprite: 33, label: '노련함', color: '#e2b88d' },
+    gladiatorSwift: { sprite: 34, label: '속공 전개', color: '#e7d1aa' },
+    assassinBlurred: { sprite: 35, label: '그림자 질주', color: '#a8b6c8' },
+    elementalistOverload: { sprite: 36, label: '원소 과부하', color: '#c9a2ff' },
+    catalystEvade: { sprite: 37, label: '연막 포션', color: '#b8c3ca' },
+    crusaderLightningAegis: { sprite: 38, label: '번개 불사', color: '#ffe08a' },
+    guardianEndurance: { sprite: 39, label: '인내 장전', color: '#d1bd9d' },
+    talentAegis: { sprite: 40, label: '에이기스', color: '#c8d5ee' },
+    colosseumReady: { sprite: 41, label: '투기장 일격 준비', color: '#e0ad78' },
+    summonDeathDamageBuff: { sprite: 42, label: '소환수 사망 피해 강화', color: '#b7d8e5' },
+    summonCritAspd: { sprite: 43, label: '소환수 치명타 공속', color: '#c4a7e8' },
+    shrineBuff: { sprite: 44, label: '성소 축복', color: '#f0d18a' },
+    eliteTraitBuff: { sprite: 45, label: '무한한 허기', color: '#d98f88' },
+    enemyWither: { sprite: 46, label: '위축', color: '#b58be0' },
+    talentInquisitorMark: { sprite: 47, label: '심판 표식', color: '#efb16e' },
+    talentButcherMark: { sprite: 47, label: '도살자 표식', color: '#e58a7d' },
+    rangerWeakpointMark: { sprite: 7, label: '급소 표식', color: '#efbd7a' },
+    enemyChaosResDown: { sprite: 13, label: '카오스 저항 약화', color: '#b58be0' },
+    enemyElementalResDown: { sprite: 13, label: '원소 저항 약화', color: '#9bcbe8' },
+    chaosErosion: { sprite: 13, label: '카오스 침식', color: '#b58be0' },
+    regenSuppress: { sprite: 11, label: '생명력 재생 억제', color: '#c99b9b' },
+    bloomRegenSuppress: { sprite: 11, label: '혹독한 한기', color: '#9fc9e8' },
+    delayedGuardHeal: { sprite: 30, label: '지연 회복', color: '#8fdaa8' },
+    riderCompassReady: { sprite: 20, label: '기수의 나침반', color: '#d5b778' },
+    fletcherCharge: { sprite: 31, label: '플레쳐', color: '#d9ae76' },
+    colosseumCharge: { sprite: 41, label: '관중의 함성', color: '#e0ad78' },
+    queenBeeSwarm: { sprite: 42, label: '여왕벌', color: '#e4c45f' },
+    dawnSeal: { sprite: 47, label: '새벽의 기사', color: '#e4cf87' },
+    enemySkillDot: { sprite: 46, label: '지속 피해', color: '#a4c7df' }
+});
+
+const UI_RUNTIME_EFFECT_DETAILS = Object.freeze({
+    woodsmanCurse: value => `받는 피해 +${Number(value || 0).toFixed(2)}%`,
+    deathWard: (value, maximum) => `남은 피해 흡수량: ${Math.floor(value || 0)} / ${Math.floor(maximum || 0)}`,
+    invulnerableBarrier: () => '모든 피해를 받지 않습니다.',
+    warriorRage: (value, maximum) => `${Math.floor(value || 0)} / ${Math.floor(maximum || 0)}중첩 · 물리 피해 +${Math.floor(value || 0) * (typeof WARRIOR_RAGE_STACK_DAMAGE_PCT === 'number' ? WARRIOR_RAGE_STACK_DAMAGE_PCT : 10)}%`,
+    playerUniqueGuard: (value, maximum) => `남은 피해 흡수량: ${Math.floor(value || 0)} / ${Math.floor(maximum || 0)}`,
+    shadowStealth: value => `이동 속도·회피·치명타 피해 +${Number(value || 0).toFixed(0)}%`,
+    leechEfficiency: value => `모든 흡혈 효율 +${Number(value || 0).toFixed(0)}%`,
+    lifeLeech: (value, rate) => `남은 회복 ${Math.floor(value || 0)} · 초당 ${Math.floor(rate || 0)}`,
+    energyShieldLeech: (value, rate) => `남은 ES 회복 ${Math.floor(value || 0)} · 초당 ${Math.floor(rate || 0)}`,
+    lifeRecoup: (value, rate) => `남은 회생 ${Math.floor(value || 0)} · 초당 ${Math.floor(rate || 0)}`,
+    meleeArmorAmp: (stacks, perStack) => `방어도 ${Math.floor(stacks || 0)}중첩 · 중첩당 ${Number(perStack || 0).toFixed(0)}% 증폭`,
+    killMoveStacks: (stacks, perStack) => `${Math.floor(stacks || 0)}중첩 · 이동 속도 +${Math.floor(stacks || 0) * Number(perStack || 0)}%`,
+    warriorRhythm: (critStacks, doubleStacks) => `치명타 ${Math.floor(critStacks || 0)}/5 · 연속 공격 ${Math.floor(doubleStacks || 0)}/5`,
+    gladiatorFlurry: stacks => `${Math.floor(stacks || 0)}/12중첩 · 공격 속도와 회피 +${Math.floor(stacks || 0) * 3}%`,
+    gladiatorVeteran: value => `다음 타격 치명타 확률 +${Math.floor(value || 0)}%p`,
+    gladiatorSwift: (attackReady, guardReady) => `다음 타격 강화 ${attackReady ? '준비' : '소모'} · 다음 피격 경감 ${guardReady ? '준비' : '소모'}`,
+    assassinBlurred: () => '이동 속도·회피 +20% · 치명타 피해 +25%',
+    elementalistOverload: stacks => `${Math.floor(stacks || 0)}중첩 · 원소 피해 +${Math.floor(stacks || 0) * 4}% · 치명타 확률 -${Math.floor(stacks || 0)}%p`,
+    catalystEvade: () => '다음 회피 판정이 30% 증폭됩니다.',
+    crusaderLightningAegis: () => '초당 최대 ES 25% 회복 · 번개 피해 +75%',
+    guardianEndurance: stacks => `${Math.floor(stacks || 0)}/5중첩 · 방어도 +${Math.floor(stacks || 0) * 11}%`,
+    talentAegis: (evadeReady, blockBonus) => `다음 회피 +${evadeReady ? '10%' : '0%'} · 다음 막기 +${Math.floor(blockBonus || 0)}%p`,
+    colosseumReady: () => '다음 공격이 투기장 일격으로 강화됩니다.',
+    summonDeathDamageBuff: value => `소환수 피해 +${Number(value || 0).toFixed(0)}%`,
+    summonCritAspd: (stacks, perStack) => `${Math.floor(stacks || 0)}중첩 · 소환수 공격 속도 +${Math.floor(stacks || 0) * Number(perStack || 0)}%`,
+    enemyWither: stacks => `${Math.floor(stacks || 0)}/10중첩 · 받는 카오스 피해 +${Math.floor(stacks || 0) * 8}%`,
+    enemyChaosResDown: (stacks, perStack) => `${Math.floor(stacks || 0)}중첩 · 카오스 저항 -${Math.floor(stacks || 0) * Number(perStack || 0)}%`,
+    enemyElementalResDown: (stacks, perStack) => `${Math.floor(stacks || 0)}중첩 · 원소 저항 -${Math.floor(stacks || 0) * Number(perStack || 0)}%`,
+    chaosErosion: value => `카오스 저항 -${Number(value || 0).toFixed(0)}%`,
+    regenSuppress: value => `생명력 재생 -${Number(value || 0).toFixed(0)}%`,
+    talentInquisitorMark: value => `폭발 예정 누적 피해 ${Math.floor(value || 0)}`,
+    talentButcherMark: value => `${Math.floor(value || 0)}/4회 적중`,
+    rangerWeakpointMark: value => `${Math.floor(value || 0)}/3회 적중`,
+    bloomRegenSuppress: value => `생명력 재생 ${Number(value || 0).toFixed(0)}% 억제`,
+    delayedGuardHeal: value => `남은 회복량 ${Math.floor(value || 0)}`,
+    riderCompassReady: () => '이동 후 첫 타격 피해 +100%',
+    fletcherCharge: value => `${Math.floor(value || 0)}/3회 공격 · 3번째 공격 피해 +33%`,
+    colosseumCharge: value => `${Math.floor(value || 0)}/5중첩 · 5중첩 시 다음 공격 강화`,
+    queenBeeSwarm: (count, attacksLeft) => `${Math.floor(count || 0)}마리 · 남은 공격 ${Math.floor(attacksLeft || 0)}회`,
+    dawnSeal: value => `첫 3타 제약 ${Math.floor(value || 0)}/3회 소모`
+});
+
+function getUiCombatEffectPresentation(key) {
+    return UI_COMBAT_EFFECT_PRESENTATION[key] || { sprite: 48, label: String(key || '알 수 없는 효과'), color: '#d8d8d8' };
+}
+
+function renderCombatEffectIcon(options) {
+    let visual = getUiCombatEffectPresentation(options.key);
+    let label = options.label || visual.label;
+    let safeKey = String(options.key || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '') || 'unknown';
+    let sprite = Math.max(0, Math.min(48, Math.floor(Number(visual.sprite) || 0)));
+    let spriteX = ((sprite % 7) / 6 * 100).toFixed(4);
+    let spriteY = (Math.floor(sprite / 7) / 6 * 100).toFixed(4);
+    let tooltip = options.tooltip || '';
+    let tooltipAttrs = tooltip
+        ? ` data-info-tooltip-anchor="1" onmouseenter="${tooltip}" onmousemove="${tooltip}" onmouseleave="hideInfoTooltip()"`
+        : '';
+    let badge = options.badge ? `<span class="combat-effect-badge">${escapeHTML(options.badge)}</span>` : '';
+    return `<span class="combat-effect-icon effect-${safeKey}" role="img" aria-label="${escapeHTML(label)}" style="--effect-color:${visual.color};--effect-sprite-x:${spriteX}%;--effect-sprite-y:${spriteY}%;"${tooltipAttrs}><span class="combat-effect-art" aria-hidden="true"></span>${badge}</span>`;
+}
+
+function getUiRuntimeEffectDetail(type, value, maxValue) {
+    let formatter = UI_RUNTIME_EFFECT_DETAILS[type];
+    return formatter ? formatter(value, maxValue) : '효과가 적용 중입니다.';
+}
+
+function getUiExperienceProgress(level, experience) {
+    let required = Math.max(1, Number(getExpReq(level)) || 1);
+    let current = Math.max(0, Number(experience) || 0);
+    return {
+        current,
+        required,
+        remaining: Math.max(0, Math.floor(required - current)),
+        percent: Math.max(0, Math.min(100, current / required * 100))
+    };
+}
+
+function getUiEffectRemainingSeconds(expiresAt, now) {
+    return Math.ceil(Math.max(0, (Number(expiresAt || 0) - now) / 1000));
+}
+
+function renderUiRuntimeEffectIcon(options, now) {
+    let keyArg = escapeHTML(JSON.stringify(String(options.key || '')));
+    let value = Number(options.value || 0);
+    let maxValue = Number(options.maxValue || 0);
+    let remain = Number.isFinite(options.remainSec)
+        ? Math.max(0, Math.ceil(options.remainSec))
+        : getUiEffectRemainingSeconds(options.expiresAt, now);
+    let tooltip = `showPlayerRuntimeEffectTooltip(event,${keyArg},${value},${maxValue},${remain})`;
+    return renderCombatEffectIcon({ key: options.key, label: options.label, tooltip, badge: options.badge || '' });
+}
+
+function renderUiNamedEffectIcon(options, now) {
+    let keyArg = escapeHTML(JSON.stringify(String(options.key || '')));
+    let nameArg = escapeHTML(JSON.stringify(String(options.name || '')));
+    let detailArg = escapeHTML(JSON.stringify(String(options.detail || '')));
+    let remain = Number.isFinite(options.remainSec)
+        ? Math.max(0, Math.ceil(options.remainSec))
+        : getUiEffectRemainingSeconds(options.expiresAt, now);
+    let tooltip = `showPlayerNamedEffectTooltip(event,${keyArg},${nameArg},${detailArg},${remain})`;
+    return renderCombatEffectIcon({ key: options.key, label: options.name, tooltip, badge: options.badge || '' });
+}
+
+function getUiRecoveryEffectSummary(instances, target) {
+    let active = (Array.isArray(instances) ? instances : []).filter(row => {
+        if (!row || Number(row.remaining) <= 0 || Number(row.rate) <= 0) return false;
+        return !target || (row.target === 'energyShield' ? 'energyShield' : 'life') === target;
+    });
+    if (active.length === 0) return null;
+    return active.reduce((summary, row) => {
+        let remaining = Math.max(0, Number(row.remaining) || 0);
+        let rate = Math.max(0, Number(row.rate) || 0);
+        summary.remaining += remaining;
+        summary.rate += rate;
+        summary.remainSec = Math.max(summary.remainSec, rate > 0 ? remaining / rate : 0);
+        return summary;
+    }, { remaining: 0, rate: 0, remainSec: 0 });
+}
+
+function getUiEliteTraitBuffDetail(trait) {
+    let source = trait && typeof trait === 'object' ? trait : {};
+    let parts = [];
+    if (Number(source.atkMul) > 1) parts.push(`피해 +${Math.round((source.atkMul - 1) * 100)}%`);
+    if (Number(source.attackSpeedVarMul) > 1) parts.push(`공격 속도 +${Math.round((source.attackSpeedVarMul - 1) * 100)}%`);
+    if (Number(source.hpMul) > 1) parts.push(`최대 생명력 +${Math.round((source.hpMul - 1) * 100)}%`);
+    if (Number(source.critChanceBonus)) parts.push(`치명타 확률 +${Number(source.critChanceBonus)}%p`);
+    if (Number(source.dr)) parts.push(`피해 감소 +${Number(source.dr)}%`);
+    let resistance = ['resF', 'resC', 'resL', 'resChaos'].reduce((sum, stat) => sum + Math.max(0, Number(source[stat]) || 0), 0);
+    if (resistance > 0) parts.push(`저항 보너스 합계 +${resistance}%`);
+    if (Number(source.hitRateGuard)) parts.push(`회피 +${Math.round(Number(source.hitRateGuard) * 100)}%`);
+    return parts.join(' · ') || '훔친 정예 특성이 적용됩니다.';
+}
+
+function buildPlayerAilmentEffectIcons() {
+    return (game.playerAilments || []).filter(ail => ail && (ail.time || 0) > 0).map(ail => {
+        let remain = Math.ceil(Math.max(0, ail.time || 0));
+        let type = String(ail.type || 'unknown');
+        let typeArg = escapeHTML(JSON.stringify(type));
+        let visual = getUiCombatEffectPresentation(type);
+        let stacks = Math.max(1, Math.floor(ail.stacks || 1));
+        let tooltip = `showPlayerAilmentTooltip(event,${typeArg},${remain},${Number(ail.power || 0.1).toFixed(3)},${Math.floor(getUiStoredAilmentHitDamage(ail))})`;
+        return renderCombatEffectIcon({ key: type, label: visual.label, tooltip, badge: stacks > 1 ? `${stacks}` : '' });
+    }).join('');
+}
+
+function buildPlayerConditionEffectIcons(now) {
+    let icons = [];
+    if (game.woodsmanCurseActive) {
+        let taken = Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.01;
+        let tooltip = `showPlayerRuntimeEffectTooltip(event,'woodsmanCurse',${taken.toFixed(2)},0,0)`;
+        icons.push(renderCombatEffectIcon({ key: 'woodsmanCurse', tooltip }));
+    }
+    (game.playerConditionBuffs || []).filter(buff => buff && (buff.expiresAt || 0) > now).forEach(buff => {
+        let remain = Math.ceil(Math.max(0, ((buff.expiresAt || 0) - now) / 1000));
+        let nameArg = escapeHTML(JSON.stringify(String(buff.name || '')));
+        let typeArg = escapeHTML(JSON.stringify(String(buff.type || 'buff')));
+        let tooltip = `showPlayerBuffTooltip(event,${nameArg},${typeArg},${remain})`;
+        let key = ['guard', 'warcry'].includes(buff.type) ? buff.type : 'buff';
+        icons.push(renderCombatEffectIcon({ key, label: buff.name, tooltip }));
+    });
+    (game.cosmosPlayerDebuffs || []).filter(row => row && (row.expiresAt || 0) > now).forEach(row => {
+        let remain = Math.ceil(Math.max(0, ((row.expiresAt || 0) - now) / 1000));
+        let type = String(row.type || 'unknown');
+        let typeArg = escapeHTML(JSON.stringify(type));
+        let labelArg = escapeHTML(JSON.stringify(String(row.label || '')));
+        let tooltip = `showPlayerCosmosDebuffTooltip(event,${typeArg},${Number(row.value || 0).toFixed(2)},${remain},${labelArg})`;
+        icons.push(renderCombatEffectIcon({ key: type, label: row.label, tooltip }));
+    });
+    return icons.join('');
+}
+
+function buildPlayerFlaskEffectIcons(now) {
+    if (typeof ensureFlaskState !== 'function') return '';
+    let st = ensureFlaskState();
+    let icons = [];
+    let healDef = getFlaskHealDef(st.healTier);
+    if ((st.healOverTimeUntil || 0) > now) {
+        icons.push(renderCombatEffectIcon({ key: 'healFlask', label: healDef.name, tooltip: `showPlayerFlaskTooltip(event,'heal','${healDef.key}')` }));
+    }
+    let maxSlots = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : (st.utils || []).length;
+    (st.utils || []).slice(0, maxSlots).forEach(entry => {
+        let def = entry && FLASK_UTILITY_POOL[entry.key];
+        if (!def || (entry.until || 0) <= now) return;
+        icons.push(renderCombatEffectIcon({ key: 'utilityFlask', label: def.name, tooltip: `showPlayerFlaskTooltip(event,'util','${entry.key}')` }));
+    });
+    return icons.join('');
+}
+
+function buildPlayerUniqueEffectIcons(pStats, now) {
+    let icons = [];
+    let guard = game.playerUniqueGuard;
+    if (guard && Number(guard.amount) > 0 && Number(guard.expiresAt) > now) {
+        let hpPct = Number((pStats.uniqueDragonVeinGuard || {}).hpPct || 8);
+        let maximum = Math.max(Number(guard.amount) || 0, Math.floor(Number(pStats.maxHp || 0) * hpPct / 100));
+        icons.push(renderUiRuntimeEffectIcon({ key: 'playerUniqueGuard', value: guard.amount, maxValue: maximum, expiresAt: guard.expiresAt }, now));
+    }
+    let stealth = pStats.uniqueDeflectStealth;
+    if (stealth && Number(game.shadowStealthExpiresAt) > now) {
+        let detail = `이동 속도 +${Number(stealth.move || 20)}% · 회피 +${Number(stealth.evasionPct || 20)}% · 치명타 피해 +${Number(stealth.critDmg || 20)}%`;
+        icons.push(renderUiNamedEffectIcon({ key: 'shadowStealth', name: '그림자 은신', detail, expiresAt: game.shadowStealthExpiresAt }, now));
+    }
+    let leech = pStats.uniqueLeechEfficiencyOnKill;
+    if (leech && Number(game.uniqueLeechEfficiencyUntil) > now) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'leechEfficiency', value: leech.efficiencyPct, expiresAt: game.uniqueLeechEfficiencyUntil }, now));
+    }
+    let armorAmp = pStats.uniqueMeleeArmorAmp;
+    let armorStacks = Math.max(0, Math.floor(Number(game.uniqueMeleeArmorAmpStacks) || 0));
+    if (armorAmp && armorStacks > 0 && Number(game.uniqueMeleeArmorAmpExpiresAt) > now) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'meleeArmorAmp', value: armorStacks, maxValue: armorAmp.ampPct, expiresAt: game.uniqueMeleeArmorAmpExpiresAt, badge: `${armorStacks}` }, now));
+    }
+    let moveState = game.uniqueKillMoveStacksState;
+    if (pStats.uniqueKillMoveStacks && moveState && Number(moveState.stacks) > 0 && Number(moveState.expiresAt) > now) {
+        let stacks = Math.floor(moveState.stacks);
+        icons.push(renderUiRuntimeEffectIcon({ key: 'killMoveStacks', value: stacks, maxValue: pStats.uniqueKillMoveStacks.movePerStack, expiresAt: moveState.expiresAt, badge: `${stacks}` }, now));
+    }
+    if (pStats.uniqueRiderCompass && Number(game.lastMoveEndedAt) > 0 && !game.uniqueRiderCompassConsumed) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'riderCompassReady' }, now));
+    }
+    let shrine = game.shrineBuff;
+    if (shrine && Number(shrine.expiresAt) > now) {
+        let statLabel = typeof getStatName === 'function' ? getStatName(shrine.stat) : String(shrine.stat || '능력치');
+        icons.push(renderUiNamedEffectIcon({ key: 'shrineBuff', name: shrine.name || '성소 축복', detail: `${statLabel} +${Number(shrine.value || 0)}%`, expiresAt: shrine.expiresAt }, now));
+    }
+    let elite = game.uniqueEliteTraitBuff;
+    if (elite && Number(elite.expiresAt) > now) {
+        icons.push(renderUiNamedEffectIcon({ key: 'eliteTraitBuff', name: (elite.trait || {}).name || '무한한 허기', detail: getUiEliteTraitBuffDetail(elite.trait), expiresAt: elite.expiresAt }, now));
+    }
+    return icons.join('');
+}
+
+function buildPlayerRecoveryEffectIcons() {
+    let icons = [];
+    let lifeLeech = getUiRecoveryEffectSummary(game.playerLeechInstances, 'life');
+    let esLeech = getUiRecoveryEffectSummary(game.playerLeechInstances, 'energyShield');
+    let recoup = getUiRecoveryEffectSummary(game.playerRecoupInstances);
+    if (lifeLeech) icons.push(renderUiRuntimeEffectIcon({ key: 'lifeLeech', value: lifeLeech.remaining, maxValue: lifeLeech.rate, remainSec: lifeLeech.remainSec }, 0));
+    if (esLeech) icons.push(renderUiRuntimeEffectIcon({ key: 'energyShieldLeech', value: esLeech.remaining, maxValue: esLeech.rate, remainSec: esLeech.remainSec }, 0));
+    if (recoup) icons.push(renderUiRuntimeEffectIcon({ key: 'lifeRecoup', value: recoup.remaining, maxValue: recoup.rate, remainSec: recoup.remainSec }, 0));
+    if (Number(game.delayedGuardHealPool) >= 1) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'delayedGuardHeal', value: game.delayedGuardHealPool }, 0));
+    }
+    return icons.join('');
+}
+
+function buildPlayerAscendStackEffectIcons(now) {
+    let icons = [];
+    let owns = id => typeof hasKeystone === 'function' && hasKeystone(id);
+    if (game.ascendClass === 'warrior' && owns('w2')) {
+        let crit = Number(game.warriorRhythmExpiresAt) > now ? Math.min(5, Math.floor(game.warriorRhythmStacks || 0)) : 0;
+        let chain = Number(game.warriorRhythmDoubleExpiresAt) > now ? Math.min(5, Math.floor(game.warriorRhythmDoubleStacks || 0)) : 0;
+        if (crit + chain > 0) {
+            let expiresAt = Math.max(Number(game.warriorRhythmExpiresAt) || 0, Number(game.warriorRhythmDoubleExpiresAt) || 0);
+            icons.push(renderUiRuntimeEffectIcon({ key: 'warriorRhythm', value: crit, maxValue: chain, expiresAt, badge: `${crit + chain}` }, now));
+        }
+    }
+    if (game.ascendClass === 'gladiator' && owns('g2') && Number(game.gladiatorFlurryExpiresAt) > now) {
+        let stacks = Math.min(12, Math.floor(game.gladiatorFlurryStacks || 0));
+        if (stacks > 0) icons.push(renderUiRuntimeEffectIcon({ key: 'gladiatorFlurry', value: stacks, expiresAt: game.gladiatorFlurryExpiresAt, badge: `${stacks}` }, now));
+    }
+    if (game.ascendClass === 'gladiator' && owns('g3') && Number(game.gladiatorVeteranCritBonus) > 0) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'gladiatorVeteran', value: game.gladiatorVeteranCritBonus, badge: `${Math.floor(game.gladiatorVeteranCritBonus)}` }, now));
+    }
+    if (game.ascendClass === 'elementalist' && owns('e8') && Number(game.elementalistOverloadStacks) > 0) {
+        let stacks = Math.floor(game.elementalistOverloadStacks);
+        icons.push(renderUiRuntimeEffectIcon({ key: 'elementalistOverload', value: stacks, badge: `${stacks}` }, now));
+    }
+    if (game.ascendClass === 'guardian' && owns('gd6') && Number(game.guardianEnduranceExpiresAt) > now) {
+        let stacks = Math.min(5, Math.floor(game.guardianEnduranceStacks || 0));
+        if (stacks > 0) icons.push(renderUiRuntimeEffectIcon({ key: 'guardianEndurance', value: stacks, expiresAt: game.guardianEnduranceExpiresAt, badge: `${stacks}` }, now));
+    }
+    return icons.join('');
+}
+
+function buildPlayerAscendReadyEffectIcons(now) {
+    let icons = [];
+    let owns = id => typeof hasKeystone === 'function' && hasKeystone(id);
+    if (game.ascendClass === 'gladiator' && owns('g5') && (game.gladiatorSwiftOpeningReady || game.gladiatorSwiftGuardReady)) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'gladiatorSwift', value: game.gladiatorSwiftOpeningReady ? 1 : 0, maxValue: game.gladiatorSwiftGuardReady ? 1 : 0 }, now));
+    }
+    if (game.ascendClass === 'assassin' && owns('a2') && game.assassinBlurred) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'assassinBlurred' }, now));
+    }
+    if (game.ascendClass === 'catalyst' && owns('ct4') && game.catalystEvadeBoostReady) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'catalystEvade' }, now));
+    }
+    if (game.ascendClass === 'crusader' && owns('cr8') && Number(game.crusaderLightningAegisUntil) > now) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'crusaderLightningAegis', expiresAt: game.crusaderLightningAegisUntil }, now));
+    }
+    return icons.join('');
+}
+
+function buildPlayerTalentAndSummonEffectIcons(now) {
+    let icons = [];
+    let talent = game.talentRuntime && typeof game.talentRuntime === 'object' ? game.talentRuntime : {};
+    let talentActive = id => typeof isTalentCardActive !== 'function' || isTalentCardActive(id);
+    if (talentActive('hero1__guardian') && (talent.aegisEvadeAmp || Number(talent.aegisBlockBonus) > 0)) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'talentAegis', value: talent.aegisEvadeAmp ? 1 : 0, maxValue: talent.aegisBlockBonus }, now));
+    }
+    let fletcherCount = Math.max(0, Math.min(3, Math.floor(talent.fletcherCount || 0)));
+    if (talentActive('hero1__gladiator') && fletcherCount > 0) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'fletcherCharge', value: fletcherCount, badge: `${fletcherCount}` }, now));
+    }
+    if (talentActive('hero2__gladiator') && talent.colosseumReady) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'colosseumReady' }, now));
+    } else if (talentActive('hero2__gladiator') && Number(talent.colosseumKills) > 0) {
+        let kills = Math.min(4, Math.floor(talent.colosseumKills));
+        icons.push(renderUiRuntimeEffectIcon({ key: 'colosseumCharge', value: kills, badge: `${kills}` }, now));
+    }
+    if (Number(game.bloomTrialRegenSuppress) > 0) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'bloomRegenSuppress', value: game.bloomTrialRegenSuppress * 100 }, now));
+    }
+    let bees = (Array.isArray(game.queenBees) ? game.queenBees : [])
+        .filter(bee => bee && Number(bee.expiresAt) > now && Number(bee.attacksLeft) > 0);
+    if (bees.length > 0) {
+        let attacksLeft = bees.reduce((sum, bee) => sum + Math.floor(bee.attacksLeft), 0);
+        let expiresAt = Math.max(...bees.map(bee => Number(bee.expiresAt) || 0));
+        icons.push(renderUiRuntimeEffectIcon({ key: 'queenBeeSwarm', value: bees.length, maxValue: attacksLeft, expiresAt, badge: `${bees.length}` }, now));
+    }
+    if (Number(game.summonDeathDamageBuffExpiresAt) > now && Number(game.summonDeathDamageBuffPct) > 0) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'summonDeathDamageBuff', value: game.summonDeathDamageBuffPct, expiresAt: game.summonDeathDamageBuffExpiresAt }, now));
+    }
+    if (Number(game.summonCritAspdExpiresAt) > now && Number(game.summonCritAspdStacks) > 0) {
+        let stacks = Math.floor(game.summonCritAspdStacks);
+        icons.push(renderUiRuntimeEffectIcon({ key: 'summonCritAspd', value: stacks, maxValue: game.summonCritAspdPerStack, expiresAt: game.summonCritAspdExpiresAt, badge: `${stacks}` }, now));
+    }
+    return icons.join('');
+}
+
+function buildPlayerRealmEffectIcons(pStats, now) {
+    let icons = [];
+    if (pStats.uniqueDeathWard && game.realmDeathWard && Number(game.realmDeathWard.amount) > 0) {
+        let amount = Math.max(0, Math.floor(Number(game.realmDeathWard.amount) || 0));
+        let maximum = Math.max(amount, Math.floor(Number(game.realmDeathWard.maxAmount) || 0));
+        icons.push(renderCombatEffectIcon({ key: 'deathWard', tooltip: `showPlayerRuntimeEffectTooltip(event,'deathWard',${amount},${maximum},0)` }));
+    }
+    if ((game.realmInvulnerableBarrierUntil || 0) > now) {
+        let remain = Math.ceil((game.realmInvulnerableBarrierUntil - now) / 1000);
+        icons.push(renderCombatEffectIcon({ key: 'invulnerableBarrier', tooltip: `showPlayerRuntimeEffectTooltip(event,'invulnerableBarrier',0,0,${remain})` }));
+    }
+    if (game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w5')) {
+        let stacks = typeof getWarriorRageStacks === 'function' ? getWarriorRageStacks(now) : 0;
+        if (stacks > 0) {
+            let remain = Math.ceil(Math.max(0, (game.warriorRageExpiresAt - now) / 1000));
+            icons.push(renderCombatEffectIcon({ key: 'warriorRage', tooltip: `showPlayerRuntimeEffectTooltip(event,'warriorRage',${stacks},5,${remain})`, badge: `${stacks}` }));
+        }
+    }
+    return icons.join('');
+}
+
+function buildPlayerCombatEffectIcons(pStats, now) {
+    return buildPlayerAilmentEffectIcons()
+        + buildPlayerConditionEffectIcons(now)
+        + buildPlayerFlaskEffectIcons(now)
+        + buildPlayerUniqueEffectIcons(pStats, now)
+        + buildPlayerRecoveryEffectIcons()
+        + buildPlayerAscendStackEffectIcons(now)
+        + buildPlayerAscendReadyEffectIcons(now)
+        + buildPlayerTalentAndSummonEffectIcons(now)
+        + buildPlayerRealmEffectIcons(pStats, now);
+}
+
+function updatePlayerCombatEffectHud(pStats, hpAilBar) {
+    let markup = buildPlayerCombatEffectIcons(pStats, Date.now());
+    let effectHost = document.getElementById('ui-player-ailments-under');
+    if (effectHost && effectHost.__lastHtml !== markup) {
+        effectHost.innerHTML = markup;
+        effectHost.__lastHtml = markup;
+    }
+    let projectedDamage = (game.playerAilments || []).reduce((sum, ail) => {
+        if (!ail || (ail.time || 0) <= 0 || !isUiDamageAilmentType(ail.type)) return sum;
+        return sum + Math.floor(getUiPlayerDamageAilmentDps(ail, pStats) * Math.max(0, ail.time || 0));
+    }, 0);
+    let playerHpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
+    let pendingPct = Math.max(0, Math.min(playerHpPct, projectedDamage / Math.max(1, pStats.maxHp) * 100));
+    if (!hpAilBar) return;
+    hpAilBar.style.width = `${pendingPct}%`;
+    hpAilBar.style.left = 'auto';
+    hpAilBar.style.right = `${Math.max(0, 100 - playerHpPct)}%`;
+    hpAilBar.style.display = pendingPct > 0.05 ? 'block' : 'none';
+}
+
+function getUiEnemyTraitLabels(tags) {
+    return (Array.isArray(tags) ? tags : []).filter(tag => {
+        let label = String(tag || '').trim();
+        return label && label !== '보스' && label !== '정예';
+    });
+}
+
+function buildEnemyCombatEffectIcons(activeAilments, enemyDebuffs, now, enemy) {
+    let ailmentIcons = (activeAilments || []).filter(ail => ail && (ail.time || 0) > 0).map(ail => {
+        let remain = Math.ceil(Math.max(0, ail.time || 0));
+        let type = String(ail.type || 'unknown');
+        let stacks = type === 'assassinWeakness'
+            ? Math.max(1, Math.floor(ail.power || 1))
+            : Math.max(1, Math.floor(ail.stacks || 1));
+        let badge = stacks > 1 ? `${stacks}` : '';
+        let tooltipPayload = {
+            type,
+            timeLeft: remain,
+            power: Number(ail.power || 0),
+            sourceHitDamage: Math.floor(getUiStoredAilmentHitDamage(ail)),
+            specialDps: Math.floor(ail.flameDecayDps || 0),
+            critDotBonusPct: Number(ail.critDotBonusPct || 0),
+            stacks,
+            rawTickDamage: Math.floor(ail.rawTickDamage || 0),
+            tickInterval: Number(ail.tickInterval || 0),
+            enemyRes: Number(ail.enemyRes || 0),
+            abyssPlayerMul: Number(ail.abyssPlayerMul || 1),
+            igniteTakenMultiplier: Number(ail.igniteTakenMultiplier || 1)
+        };
+        let tooltip = `showEnemyAilmentTooltip(event,${escapeHTML(JSON.stringify(tooltipPayload))})`;
+        return renderCombatEffectIcon({ key: type, tooltip, badge });
+    });
+    let curseIcons = (enemyDebuffs || []).filter(row => row && (row.expiresAt || 0) > now).map(row => {
+        let remain = Math.ceil(Math.max(0, ((row.expiresAt || 0) - now) / 1000));
+        let nameArg = escapeHTML(JSON.stringify(String(row.name || '')));
+        let tooltip = `showPlayerBuffTooltip(event,${nameArg},'curse',${remain})`;
+        return renderCombatEffectIcon({ key: 'curse', label: row.name || '저주', tooltip });
+    });
+    return ailmentIcons.concat(curseIcons).join('') + buildEnemyRuntimeEffectIcons(enemy, now);
+}
+
+function buildEnemyRuntimeEffectIcons(enemy, now) {
+    if (!enemy || enemy.id == null) return '';
+    let icons = [];
+    let id = enemy.id;
+    let dawnHits = Math.max(0, Math.min(3, Math.floor(Number((game.talentDawnHits || {})[id]) || 0)));
+    let dawnActive = typeof isTalentCardActive !== 'function' || isTalentCardActive('hero5__warrior');
+    if (dawnActive && dawnHits > 0 && dawnHits < 3) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'dawnSeal', value: dawnHits, badge: `${3 - dawnHits}` }, now));
+    }
+    let dot = enemy.dotState && typeof enemy.dotState === 'object' ? enemy.dotState : null;
+    if (dot && Number(dot.timeLeft) > 0 && dot.skillName !== '화염 부패') {
+        let stacks = Math.max(1, Math.floor(Number(dot.stacks) || Number(enemy.dotStacks) || 1));
+        let slow = Math.max(0, Number(enemy.skillSlowPct) || 0);
+        let name = dot.skillName && dot.skillName !== 'dot' ? dot.skillName : '지속 피해';
+        let detail = `${stacks}중첩 · 틱 피해 ${Math.floor(Number(dot.rawTickDamage) || 0)}${slow > 0 ? ` · 둔화 ${slow.toFixed(0)}%` : ''}`;
+        icons.push(renderUiNamedEffectIcon({ key: 'enemySkillDot', name, detail, remainSec: dot.timeLeft, badge: `${stacks}` }, now));
+    }
+    let witherStacks = Math.max(0, Math.floor(Number((game.enemyWitherStacks || {})[id]) || 0));
+    if (witherStacks > 0) icons.push(renderUiRuntimeEffectIcon({ key: 'enemyWither', value: witherStacks, badge: `${witherStacks}` }, now));
+    let chaosRow = (game.enemyUniqueChaosResDown || {})[id];
+    if (chaosRow && Number(chaosRow.stacks) > 0) {
+        let stacks = Math.floor(chaosRow.stacks);
+        icons.push(renderUiRuntimeEffectIcon({ key: 'enemyChaosResDown', value: stacks, maxValue: chaosRow.perHit, badge: `${stacks}` }, now));
+    }
+    let elementalRow = (game.enemyUniqueElementalResDown || {})[id];
+    if (elementalRow && Number(elementalRow.stacks) > 0) {
+        let stacks = Math.floor(elementalRow.stacks);
+        icons.push(renderUiRuntimeEffectIcon({ key: 'enemyElementalResDown', value: stacks, maxValue: elementalRow.perHit, badge: `${stacks}` }, now));
+    }
+    let judgment = (game.talentInquisitorMarks || {})[id];
+    if (judgment && Number(judgment.accumulated) > 0 && Number(judgment.explodeAt) > now) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'talentInquisitorMark', value: judgment.accumulated, expiresAt: judgment.explodeAt }, now));
+    }
+    let butcherHits = Math.max(0, Math.floor(Number(((game.talentButcherMarks || {})[id] || {}).hits) || 0));
+    if (butcherHits > 0) icons.push(renderUiRuntimeEffectIcon({ key: 'talentButcherMark', value: butcherHits, badge: `${butcherHits}` }, now));
+    let weakpointHits = Math.max(0, Math.floor(Number(((game.rangerWeakpointMarks || {})[id] || {}).hits) || 0));
+    if (weakpointHits > 0) icons.push(renderUiRuntimeEffectIcon({ key: 'rangerWeakpointMark', value: weakpointHits, badge: `${weakpointHits}` }, now));
+    if (Number(enemy.chaosErosionShred) > 0) icons.push(renderUiRuntimeEffectIcon({ key: 'chaosErosion', value: enemy.chaosErosionShred }, now));
+    if (Number(enemy.regenSuppressPct) > 0) icons.push(renderUiRuntimeEffectIcon({ key: 'regenSuppress', value: enemy.regenSuppressPct }, now));
+    return icons.join('');
 }
 
 function updateCombatUI(pStats) {
@@ -7475,7 +8120,7 @@ function updateCombatUI(pStats) {
     setTextById('ui-maxhp-stat', formatSettingNumber(pStats.maxHp, 'showCharacterComma'));
     let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
     let hpBar = document.getElementById('ui-hp-bar');
-    hpBar.style.width = hpPct + '%';
+    setUiImageGaugePercent(hpBar, hpPct);
     hpBar.classList.toggle('player-danger', hpPct > 0 && hpPct <= 25);
     renderCombatFlaskHud();
     let hpWrap = hpBar.parentElement;
@@ -7500,131 +8145,46 @@ function updateCombatUI(pStats) {
     }
     let esPct = (pStats.energyShield || 0) > 0 ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
     let esInlineEl = document.getElementById('ui-es-inline');
-    if (esInlineEl) esInlineEl.innerText = (pStats.energyShield || 0) > 0 ? ` · ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : '';
+    if (esInlineEl) {
+        esInlineEl.innerText = (pStats.energyShield || 0) > 0 ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0';
+        esInlineEl.style.display = (pStats.energyShield || 0) > 0 ? '' : 'none';
+    }
     let esBar = document.getElementById('ui-es-bar');
     if (!esBar) {
-        let hpWrap = document.querySelector('#ui-hp-bar').parentElement;
+        let esWrap = document.getElementById('ui-es-track') || hpWrap;
         esBar = document.createElement('div');
         esBar.id = 'ui-es-bar';
-        esBar.className = 'hp-bar-fill';
+        esBar.className = 'hp-bar-fill player-es';
         esBar.style.backgroundColor = '#55c1ff';
         esBar.style.opacity = '0.75';
         esBar.style.position = 'absolute';
         esBar.style.left = '0';
         esBar.style.top = '0';
         esBar.style.zIndex = '5';
-        hpWrap.insertBefore(esBar, document.getElementById('ui-hp-bar'));
+        esWrap.insertBefore(esBar, esWrap.firstChild);
     }
     esBar.style.zIndex = '5';
-    esBar.style.width = esPct + '%';
+    setUiImageGaugePercent(esBar, esPct);
     esBar.style.display = (pStats.energyShield || 0) > 0 ? 'block' : 'none';
-    setTextById('ui-exp', formatSettingNumber(game.exp, 'showExpComma'));
-    setTextById('ui-maxexp', formatSettingNumber(getExpReq(game.level), 'showExpComma'));
-    document.getElementById('ui-exp-bar').style.width = ((game.exp / getExpReq(game.level)) * 100) + '%';
-    setTextById('ui-player-level', 'Lv.' + game.level);
-    // 경험치바 왼쪽에 레벨·직업(또는 재능)을, 오른쪽에 진행률과 남은 경험치를 표기한다.
+    let expProgress = getUiExperienceProgress(game.level, game.exp);
+    setTextById('ui-exp', formatSettingNumber(expProgress.current, 'showExpComma'));
+    setTextById('ui-maxexp', formatSettingNumber(expProgress.required, 'showExpComma'));
+    let expPct = expProgress.percent;
+    setUiImageGaugePercent(document.getElementById('ui-exp-bar'), expPct);
+    let playerHudIdentity = getUiPlayerHudIdentity();
+    setTextById('ui-player-name-label', playerHudIdentity.name);
+    setTextById('ui-player-class-label', playerHudIdentity.className);
     let expLevelEl = document.getElementById('ui-exp-level-label');
     if (expLevelEl) {
-        let levelText = `Lv.${game.level} ${getUiPlayerClassLabel()}`;
+        let levelText = `Lv.${game.level}`;
         if (expLevelEl.innerText !== levelText) expLevelEl.innerText = levelText;
     }
     let expNoteEl = document.getElementById('ui-exp-note');
     if (expNoteEl) {
-        let expReq = Math.max(1, getExpReq(game.level));
-        let expPct = Math.max(0, Math.min(100, (game.exp / expReq) * 100));
-        let expRemain = Math.max(0, Math.floor(expReq - game.exp));
-        let noteText = `${expPct.toFixed(1)}% · 남은 ${formatSettingNumber(expRemain, 'showExpComma')}`;
+        let noteText = `${expPct.toFixed(1)}%`;
         if (expNoteEl.innerText !== noteText) expNoteEl.innerText = noteText;
     }
-    [['ui-hp', 'ui-hp-mobile'], ['ui-maxhp', 'ui-maxhp-mobile'], ['ui-exp', 'ui-exp-mobile'], ['ui-maxexp', 'ui-maxexp-mobile'], ['ui-player-level', 'ui-player-level-mobile']].forEach(([src, dst]) => {
-        let sourceEl = document.getElementById(src);
-        let targetEl = document.getElementById(dst);
-        if (sourceEl && targetEl) targetEl.innerText = sourceEl.innerText;
-    });
-    let hpBarMobile = document.getElementById('ui-hp-bar-mobile');
-    if (hpBarMobile) hpBarMobile.style.width = document.getElementById('ui-hp-bar').style.width;
-    let expBarMobile = document.getElementById('ui-exp-bar-mobile');
-    if (expBarMobile) expBarMobile.style.width = document.getElementById('ui-exp-bar').style.width;
-    let ailmentEl = document.getElementById('ui-player-ailments');
-    if (ailmentEl) {
-        let labels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
-        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d', assassinWeakness: '#ff9bd1' };
-        let text = (game.playerAilments || []).map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showPlayerAilmentTooltip(event,'${ail.type}',${Math.ceil(Math.max(0,(ail.time||0)))},${Number(ail.power||0.1).toFixed(3)},${Math.floor(getUiStoredAilmentHitDamage(ail))})\" onmouseleave=\"hideInfoTooltip()\">${labels[ail.type] || ail.type} ${Math.ceil(Math.max(0, (ail.time || 0)))}s</span>`).join(' · ');
-        if (game.woodsmanCurseActive) {
-            let curseTaken = (Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.01).toFixed(2);
-            let curseText = `<span style=\"color:#d0a8ff;font-weight:700;\">나무꾼의 저주 +${curseTaken}%</span>`;
-            text = text ? `${text} · ${curseText}` : curseText;
-        }
-        let activeBuffs = (game.playerConditionBuffs || []).filter(buff => (buff.expiresAt || 0) > Date.now());
-        let guardWarcryText = activeBuffs.filter(buff => ['guard', 'warcry'].includes(buff.type)).map(buff => `<span data-info-tooltip-anchor=\"1\" style=\"color:#9be7ff;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${buff.name}','${buff.type || ''}',${Math.ceil(Math.max(0,((buff.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">${buff.name} ${Math.ceil(Math.max(0, ((buff.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
-        // 플라스크 발동은 전투 로그에 띄우지 않고(자주 반복돼 스팸이 됨) 이 효과 줄에만 표시한다.
-        let flaskBuffText = '';
-        if (typeof ensureFlaskState === 'function') {
-            let flaskNow = Date.now();
-            let flaskSt = ensureFlaskState();
-            let flaskParts = [];
-            // 효과 줄은 공간이 좁으므로 '플라스크' 단어를 빼고 짧게 표시한다(예: '생명력 플라스크 I' → '생명력 I').
-            let healDef = getFlaskHealDef(flaskSt.healTier);
-            if ((flaskSt.healOverTimeUntil || 0) > flaskNow) {
-                let remain = Math.ceil((flaskSt.healOverTimeUntil - flaskNow) / 1000);
-                let shortName = healDef.name.replace(' 플라스크', '');
-                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#7fd99a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'heal','${healDef.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${shortName} ${remain}s</span>`);
-            }
-            // 현재 허리띠가 지원하는 슬롯 수만큼만 표시(초과분은 배열엔 남아있지만 비활성).
-            let maxUtilSlotsForDisplay = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : (flaskSt.utils || []).length;
-            (flaskSt.utils || []).slice(0, maxUtilSlotsForDisplay).forEach(u => {
-                if (!u || (u.until || 0) <= flaskNow) return;
-                let def = FLASK_UTILITY_POOL[u.key];
-                if (!def) return;
-                let remain = Math.ceil((u.until - flaskNow) / 1000);
-                let shortName = def.name.replace(' 플라스크', '');
-                flaskParts.push(`<span data-info-tooltip-anchor=\"1\" style=\"color:#ffd27a;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerFlaskTooltip(event,'util','${u.key}')\" onmouseleave=\"hideInfoTooltip()\">🧪${shortName} ${remain}s</span>`);
-            });
-            flaskBuffText = flaskParts.join(' · ');
-        }
-        let realmBuffParts = [];
-        let realmNow = Date.now();
-        if (pStats.uniqueDeathWard && game.realmDeathWard) {
-            let wardAmount = Math.max(0, Math.floor(Number(game.realmDeathWard.amount) || 0));
-            let wardMax = Math.max(0, Math.floor(Number(game.realmDeathWard.maxAmount) || 0));
-            let wardReadyAt = Math.max(0, Number(game.realmDeathWard.readyAt) || 0);
-            if (wardAmount > 0) {
-                realmBuffParts.push(`<span style="color:var(--copy-bright);font-weight:700;">감시 보호막 ${wardAmount}/${Math.max(wardAmount, wardMax)}</span>`);
-            } else if (wardReadyAt > realmNow) {
-                realmBuffParts.push(`<span style="color:var(--copy-muted);font-weight:700;">감시 보호막 ${Math.ceil((wardReadyAt - realmNow) / 1000)}s</span>`);
-            }
-        }
-        if ((game.realmInvulnerableBarrierUntil || 0) > realmNow) {
-            realmBuffParts.push(`<span style="color:#c49bff;font-weight:700;">균열 장막 ${Math.ceil((game.realmInvulnerableBarrierUntil - realmNow) / 1000)}s</span>`);
-        }
-        let realmBuffText = realmBuffParts.join(' · ');
-        let effectGroupText = [guardWarcryText, flaskBuffText, realmBuffText].filter(Boolean).join(' · ');
-        let ailmentText = [text, effectGroupText].filter(Boolean).join(' · ');
-        // 데스크톱에서 터치 디바이스 플래그가 잡히더라도 상태 표시를 숨기지 않도록
-        // 화면 너비 기준으로만 모바일 UI 분기를 판단한다.
-        let isMobile = !!(window.matchMedia && window.matchMedia('(max-width: 1080px)').matches);
-        let fallbackText = '<span style="color:var(--copy-muted);">효과 없음</span>';
-        let desktopText = ailmentText || fallbackText;
-        // 데스크톱에서는 생명력 바 "아래"에 효과를 고정 노출한다.
-        if (ailmentEl.__lastHtml !== '') { ailmentEl.innerHTML = ''; ailmentEl.__lastHtml = ''; }
-        // 이 블록은 100ms마다 호출되므로, 내용이 같으면 innerHTML 재작성(리플로우)을 생략해
-        // 상시 스터터링을 줄인다.
-        let ailmentUnderEl = document.getElementById('ui-player-ailments-under');
-        if (ailmentUnderEl) { let v = isMobile ? '' : desktopText; if (ailmentUnderEl.__lastHtml !== v) { ailmentUnderEl.innerHTML = v; ailmentUnderEl.__lastHtml = v; } }
-        let mobileAilmentEl = document.getElementById('ui-player-ailments-mobile');
-        if (mobileAilmentEl) { let v = isMobile ? desktopText : ''; if (mobileAilmentEl.__lastHtml !== v) { mobileAilmentEl.innerHTML = v; mobileAilmentEl.__lastHtml = v; } }
-        let projectedPlayerAilDmg = (game.playerAilments || []).reduce((sum, ail) => {
-            if (!ail || (ail.time || 0) <= 0) return sum;
-            if (!isUiDamageAilmentType(ail.type)) return sum;
-            return sum + Math.floor(getUiPlayerDamageAilmentDps(ail, pStats) * Math.max(0, ail.time || 0));
-        }, 0);
-        let playerHpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
-        let pendingPlayerPct = Math.max(0, Math.min(playerHpPct, (projectedPlayerAilDmg / Math.max(1, pStats.maxHp)) * 100));
-        hpAilBar.style.width = `${pendingPlayerPct}%`;
-        hpAilBar.style.left = 'auto';
-        hpAilBar.style.right = `${Math.max(0, 100 - playerHpPct)}%`;
-        hpAilBar.style.display = pendingPlayerPct > 0.05 ? 'block' : 'none';
-    }
+    updatePlayerCombatEffectHud(pStats, hpAilBar);
     let hpCombatBar = document.getElementById('ui-player-hp-combat');
     if (hpCombatBar) hpCombatBar.style.width = `${Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100))}%`;
     let esCombatBar = document.getElementById('ui-player-es-combat');
@@ -7788,13 +8348,11 @@ function updateCombatUI(pStats) {
         let pct = Math.max(0, focusedEnemy.hp / focusedEnemy.maxHp * 100);
         let tags = getEnemyTraitSummary(focusedEnemy);
         if (Array.isArray(focusedEnemy.chaosRealmAffixes) && focusedEnemy.chaosRealmAffixes.length > 0) tags = tags.concat(focusedEnemy.chaosRealmAffixes.map(a => a.name));
-        let ailmentLabels = { ignite: '🔥 점화', chill: '❄ 냉각', freeze: '🧊 동결', shock: '⚡ 감전', poison: '☠ 중독', bleed: '🩸 출혈', flameDecay: '🔥 화염 부패', assassinWeakness: '🗡 독점 약점', hunterExpose: '🎯 약점 노출' };
+        tags = Array.from(new Set(getUiEnemyTraitLabels(tags)));
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
-        let enemyDebuffs = (((game.enemyConditionDebuffs || {})[focusedEnemy.id]) || []).filter(row => row && (row.expiresAt || 0) > Date.now());
-        let ailmentColors = { ignite: '#ff9f43', chill: '#9be7ff', freeze: '#4da3ff', shock: '#ffe66d', poison: '#c56cff', bleed: '#ff6b6b', flameDecay: '#ff7a3d', assassinWeakness: '#ff9bd1', hunterExpose: '#ffd36b' };
-        let ailmentText = activeAilments.map(ail => `<span data-info-tooltip-anchor=\"1\" style=\"color:${ailmentColors[ail.type] || '#ffffff'};font-weight:700;cursor:help;\" onmouseenter=\"showEnemyAilmentTooltip(event,'${ail.type}',${Math.ceil(ail.time || 0)},${Number(ail.power || 0).toFixed(3)},${Math.floor(getUiStoredAilmentHitDamage(ail))},${Math.floor(ail.flameDecayDps || 0)},${Number(ail.critDotBonusPct || 0).toFixed(3)},${Math.max(1, Math.floor(ail.stacks || 1))},${Math.floor(ail.rawTickDamage || 0)},${Number(ail.tickInterval || 0).toFixed(3)},${Number(ail.enemyRes || 0).toFixed(3)},${Number(ail.abyssPlayerMul || 1).toFixed(3)},${Number(ail.igniteTakenMultiplier || 1).toFixed(3)})\" onmouseleave=\"hideInfoTooltip()\">${ailmentLabels[ail.type] || ail.type}${ail.type === 'assassinWeakness' ? ` ${Math.floor(ail.power || 0)}중첩` : ''} ${Math.ceil(ail.time || 0)}s</span>`).join(' · ');
-        let curseText = enemyDebuffs.map(row => `<span data-info-tooltip-anchor=\"1\" style=\"color:#ff9bd1;font-weight:700;cursor:help;\" onmouseenter=\"showPlayerBuffTooltip(event,'${row.name}','curse',${Math.ceil(Math.max(0,((row.expiresAt||0)-Date.now())/1000))})\" onmouseleave=\"hideInfoTooltip()\">🕯 저주:${row.name} ${Math.ceil(Math.max(0, ((row.expiresAt || 0) - Date.now()) / 1000))}s</span>`).join(' · ');
-        ailmentText = [ailmentText, curseText].filter(Boolean).join(' · ');
+        let effectNow = Date.now();
+        let enemyDebuffs = (((game.enemyConditionDebuffs || {})[focusedEnemy.id]) || []).filter(row => row && (row.expiresAt || 0) > effectNow);
+        let effectMarkup = buildEnemyCombatEffectIcons(activeAilments, enemyDebuffs, effectNow, focusedEnemy);
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (ail.type === 'flameDecay') return sum + Math.floor(Math.max(0, ail.flameDecayDps || 0) * Math.max(0, ail.time || 0));
@@ -7807,21 +8365,29 @@ function updateCombatUI(pStats) {
         let pendingStartPct = Math.max(0, pct - pendingPct);
         let ghostPct = updateEnemyHpDamageGhost(focusedEnemy.id, pct);
         let ghostDisplay = ghostPct > pct + 0.2 ? 'block' : 'none';
-        let focusedKey = String(focusedEnemy.id) + '|' + enemies.length;
+        let enemyHudTier = (focusedEnemy.isBoss || focusedEnemy.bossPhase) ? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob');
+        let focusedKey = String(focusedEnemy.id) + '|' + enemies.length + '|' + enemyHudTier;
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             enemyListEl.dataset.enemyId = focusedKey;
+            let traitMarkup = '<div class="enemy-tags muted enemy-traits"></div>';
+            let effectMarkup = '<div class="enemy-tags muted enemy-ailments combat-effect-strip enemy-combat-effect-strip" aria-label="활성 상태이상 및 효과"></div>';
+            let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}${effectMarkup}</div>`;
             enemyListEl.innerHTML = `
-                <div class="enemy-card targeted${focusedEnemy.isBoss || focusedEnemy.bossPhase ? ' enemy-boss' : (focusedEnemy.isElite ? ' enemy-elite' : '')}">
-                    <div class="enemy-name"></div>
-                    <div class="hp-bar-bg">
-                        <div class="hp-bar-fill enemy-damage-ghost"></div>
-                        <div class="hp-bar-fill enemy-es"></div>
-                        <div class="hp-bar-fill enemy"></div>
-                        <div class="hp-bar-fill enemy-pending"></div>
-                        <div class="hp-text"></div>
+                <div class="enemy-card targeted enemy-${enemyHudTier}">
+                    <div class="enemy-nameplate"><div class="enemy-name"></div></div>
+                    <div class="enemy-health-frame">
+                        <img class="health-skin-frame" src="assets/ui/health-${enemyHudTier}-v1.png" alt="" aria-hidden="true">
+                        <div class="hp-bar-bg">
+                            <div class="health-skin-track">
+                                <div class="hp-bar-fill enemy-damage-ghost"></div>
+                                <div class="hp-bar-fill enemy-es"></div>
+                                <div class="hp-bar-fill enemy"></div>
+                                <div class="hp-bar-fill enemy-pending"></div>
+                                <div class="hp-text"></div>
+                            </div>
+                        </div>
+                        ${metaMarkup}
                     </div>
-                    <div class="enemy-tags muted enemy-ailments"></div>
-                    <div class="enemy-tags muted enemy-traits"></div>
                 </div>
             `;
         }
@@ -7840,7 +8406,7 @@ function updateCombatUI(pStats) {
             esEl.style.width = `${esPct}%`;
             esEl.style.display = esPct > 0 ? 'block' : 'none';
         }
-        if (hpEl) hpEl.style.width = `${pct}%`;
+        if (hpEl) setUiImageGaugePercent(hpEl, pct);
         if (pendingEl) { pendingEl.style.left = `${pendingStartPct}%`; pendingEl.style.width = `${pendingPct}%`; }
         if (hpTextEl) {
             let zoneNow = getZone(game.currentZoneId);
@@ -7849,14 +8415,18 @@ function updateCombatUI(pStats) {
                 hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(totalDealt, 'showEnemyHpComma')} / ?`;
             } else hpTextEl.innerText = `${focusedEnemy.energyShield > 0 ? `ES ${formatSettingNumber(focusedEnemy.energyShield, 'showEnemyHpComma')} · ` : ''}${formatSettingNumber(Math.max(0, focusedEnemy.hp), 'showEnemyHpComma')}/${formatSettingNumber(focusedEnemy.maxHp, 'showEnemyHpComma')}`;
         }
-        if (ailmentEl) ailmentEl.innerHTML = ailmentText ? `상태이상: ${ailmentText}` : '상태이상: 없음';
+        if (ailmentEl && ailmentEl.__lastHtml !== effectMarkup) {
+            ailmentEl.innerHTML = effectMarkup;
+            ailmentEl.__lastHtml = effectMarkup;
+        }
         if (traitEl) {
             let showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase);
-            traitEl.innerText = showTraits ? `특성: ${tags.join(' · ') || (focusedEnemy.isBoss || focusedEnemy.bossPhase ? '보스' : '정예')}` : '';
-            traitEl.title = focusedEnemy.patternMode && typeof getBossPatternDescription === 'function'
-                ? getBossPatternDescription(focusedEnemy.patternMode)
-                : '';
-            traitEl.style.display = showTraits ? '' : 'none';
+            let traitText = showTraits ? tags.join(' · ') : '';
+            let patternText = focusedEnemy.patternMode && typeof getBossPatternDescription === 'function'
+                ? getBossPatternDescription(focusedEnemy.patternMode) : '';
+            traitEl.innerText = traitText;
+            traitEl.title = [traitText, patternText].filter(Boolean).join(' · ');
+            traitEl.style.display = showTraits && traitText ? '' : 'none';
         }
     }
 }
@@ -8126,6 +8696,7 @@ function renderEquipmentLoadoutSummary(pStats) {
 }
 
 function updateInventoryFullWarnings() {
+    let changed = false;
     let warnings = [
         ['inventory-full-warning', game.inventory || [], getInventoryLimit()],
         ['jewel-inventory-full-warning', game.jewelInventory || [], getJewelInventoryLimit()]
@@ -8134,9 +8705,14 @@ function updateInventoryFullWarnings() {
         let element = document.getElementById(id);
         if (!element) return;
         let isFull = entries.length >= limit;
-        element.style.display = isFull ? 'inline-block' : 'none';
+        let nextDisplay = isFull ? 'inline-block' : 'none';
+        if (element.style.display !== nextDisplay) changed = true;
+        element.style.display = nextDisplay;
         element.title = isFull ? `${entries.length}/${limit}칸 · 공간을 확보하세요` : '';
     });
+    if (changed && document.body.classList.contains('desktop-windowed-ui') && typeof syncDesktopRailGroups === 'function') {
+        syncDesktopRailGroups();
+    }
 }
 
 function syncInventoryExpansionShortcuts() {
@@ -9489,8 +10065,12 @@ function exposeUiRenderHelpersOnce() {
         showUnderworldRuneTooltip,
         handleCombatLoopAdvanceButton,
         showCombatLogItemTooltip,
-        toggleCombatLogItemTooltip,
-        hideCombatLogItemTooltip
+        openCombatLogItemEquipment,
+        hideCombatLogItemTooltip,
+        showPlayerExperienceTooltip,
+        showPlayerRuntimeEffectTooltip,
+        showPlayerNamedEffectTooltip,
+        showPlayerCosmosDebuffTooltip
     };
     let pending = {};
     Object.keys(helpers).forEach(key => {

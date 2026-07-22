@@ -99,8 +99,10 @@ assert(combatSource.includes('75 + sharedElementalMaxRes + gearBase.maxResF'), '
 assert(combatSource.includes('75 + sharedElementalMaxRes + gearBase.maxResC'), 'shared maximum elemental resistance must affect cold resistance cap');
 assert(combatSource.includes('75 + sharedElementalMaxRes + gearBase.maxResL'), 'shared maximum elemental resistance must affect lightning resistance cap');
 assert(!combatSource.includes('75 + sharedElementalMaxRes + gearBase.maxResChaos'), 'maximum elemental resistance must not affect chaos resistance cap');
-assert(uiSource.includes('감시 보호막 ${wardAmount}/'), 'death ward should be visible in the player HUD');
-assert(uiSource.includes('균열 장막 ${Math.ceil'), 'realm invulnerability should be visible in the player HUD');
+assert(uiSource.includes("deathWard: { sprite: 22, label: '감시 보호막'"), 'death ward should have a player HUD icon presentation');
+assert(uiSource.includes("renderCombatEffectIcon({ key: 'deathWard'"), 'active death ward should be rendered in the player HUD');
+assert(uiSource.includes("invulnerableBarrier: { sprite: 23, label: '균열 장막'"), 'realm invulnerability should have a player HUD icon presentation');
+assert(uiSource.includes("renderCombatEffectIcon({ key: 'invulnerableBarrier'"), 'active realm invulnerability should be rendered in the player HUD');
 assert(uiSource.includes('getUniqueEffectApplicationHint'), 'equipment tooltips should explain how unique effects become active');
 assert(uiSource.includes('◆ 획득: ${escapeHTML(item.uniqueEffect)}'), 'equipment comparison should disclose gained unique effects');
 assert(uiSource.includes('◇ 상실: ${escapeHTML(backup.uniqueEffect)}'), 'equipment comparison should disclose lost unique effects');

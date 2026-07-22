@@ -33,11 +33,6 @@
     pointer-events: auto; overflow: hidden auto; overflow-x: hidden;
   }
   body.desktop-windowed-ui .tab-header-bottom, body.desktop-windowed-ui #tab-category-bar { display: none !important; }
-  /* 상위탭(그룹) 섹션: 라벨 아래 2열 그리드로 그룹의 모든 탭을 항상 노출한다. */
-  body.desktop-windowed-ui .ui-rail-group { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; }
-  body.desktop-windowed-ui .ui-rail-group + .ui-rail-group { margin-top: 2px; padding-top: 6px; border-top: 1px solid rgba(96, 128, 168, 0.22); }
-  body.desktop-windowed-ui .ui-rail-group-label { padding: 0 4px; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; color: #eef2f6; }
-  body.desktop-windowed-ui .ui-rail-group-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
   body.desktop-windowed-ui .tab-btn {
     flex: 0 0 auto; width: 100%; min-width: 0; max-width: none; min-height: 46px; padding: 4px 1px 3px; box-sizing: border-box;
     border-radius: 10px; border-right: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -119,18 +114,12 @@
   body.desktop-windowed-ui .enemy-card.enemy-boss .hp-text { font-size: 16px; line-height: 34px; }
   body.desktop-windowed-ui .enemy-card.targeted .enemy-traits { display: block; margin-top: 3px; padding: 1px 4px; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; text-align: center; font-size: 11px; line-height: 1.35; color: #ffd58e; }
   body.desktop-windowed-ui .enemy-card.targeted .enemy-traits:empty { display: none; }
-  /* 일반 적에게도 상태이상(점화/냉각/감전 등)을 표기한다. 없으면 공간을 차지하지 않는다. */
-  body.desktop-windowed-ui .enemy-card.targeted .enemy-ailments { display: block; margin-top: 2px; padding: 1px 4px; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; text-align: center; font-size: 11px; line-height: 1.35; }
-  body.desktop-windowed-ui .enemy-card.targeted .enemy-ailments:empty { display: none; }
-  body.desktop-windowed-ui .enemy-card.enemy-boss .enemy-ailments,
   body.desktop-windowed-ui .enemy-card.enemy-boss .enemy-traits { font-size: 12px; }
 
   body.desktop-windowed-ui .player-hud { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); bottom: 14px; z-index: 8; width: clamp(460px, 45vw, 640px); min-height: 82px; max-height: 105px; transform: translateX(-50%); padding: 0; border: 0; border-radius: 0; background: transparent; display: flex; flex-direction: column; gap: 2px; pointer-events: none; }
   body.desktop-windowed-ui .player-hud .hp-bar-bg, body.desktop-windowed-ui .player-hud [data-info-tooltip-anchor] { pointer-events: auto; }
-  /* 플레이어에게 걸린 효과는 생명력 게이지 바로 아래에 표시한다. */
   body.desktop-windowed-ui .player-hud-oxygen { order: 1; }
   body.desktop-windowed-ui .player-hud-vitals { order: 2; }
-  body.desktop-windowed-ui .player-hud-ailments { order: 3; min-height: 20px !important; margin: 0 !important; text-align: center; font-size: 12px !important; line-height: 20px; text-shadow: 0 1px 2px #000; }
   body.desktop-windowed-ui .player-hud-exp { order: 4; }
   body.desktop-windowed-ui .combat-hud-row { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 5px; }
   body.desktop-windowed-ui .combat-hud-label { margin: 0; font-size: 10px; line-height: 1; font-weight: 800; text-align: right; text-shadow: 0 1px 2px #000; }
@@ -310,8 +299,14 @@
   .ui-goal-handle-progress { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: #ffd36b; }
   .ui-goal-handle-bar { height: 3px; background: rgba(58, 82, 112, 0.5); }
   .ui-goal-handle-fill { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #4f8fd0, #7fd0ff); }
+  .ui-goal-drawer:not(.expanded) { top: calc(env(safe-area-inset-top, 0px) + 48px); right: auto; width: 38px; }
+  .ui-goal-drawer:not(.expanded) .ui-goal-panel { width: 38px; border-radius: 9px; }
+  .ui-goal-drawer:not(.expanded) #ui-goal-toggle { justify-content: center; width: 38px; min-height: 38px; padding: 0; }
+  .ui-goal-drawer:not(.expanded) .ui-goal-handle-title,
+  .ui-goal-drawer:not(.expanded) .ui-goal-handle-progress,
+  .ui-goal-drawer:not(.expanded) .ui-goal-handle-bar { display: none; }
   .ui-goal-drawer:not(.expanded) #ui-goal-body { display: none; }
-  .ui-goal-drawer.expanded { top: auto; left: 0; right: 0; bottom: 0; z-index: 1210; }
+  .ui-goal-drawer.expanded { top: auto; left: 0; right: 0; bottom: 0; z-index: 1210; width: auto; }
   .ui-goal-drawer.expanded .ui-goal-panel { border-radius: 14px 14px 0 0; border-bottom: 0; max-height: 70vh; }
   .ui-goal-drawer #ui-goal-body { order: -1; padding: 14px 14px calc(env(safe-area-inset-bottom, 0px) + 10px); overflow-y: auto; color: #ffffff; }
   .ui-goal-head-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }

@@ -370,114 +370,59 @@ function getEnemyTelegraphColor(enemy) {
     return { edge: '#ffb26b', fill: 'rgba(255,135,59,0.16)' };
 }
 
-function drawEnemyAttackTelegraphs(ctx, layout, playerPos, now, gridUnitScale) {
+function drawBossPatternLabel(ctx, entry, enemy, gridUnitScale) {
+    let pattern = enemy.nextPatternState
+        || (typeof getBossPatternPreview === 'function' ? getBossPatternPreview(enemy) : null);
+    if (!pattern || !pattern.isSpecial || !pattern.label) return;
+    let palette = getEnemyTelegraphColor(enemy);
+    let label = String(pattern.label);
+    let labelY = entry.y - 102 * gridUnitScale;
+    ctx.save();
+    ctx.font = '700 11px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let textWidth = Math.ceil(ctx.measureText(label).width);
+    ctx.globalAlpha = 0.88;
+    ctx.fillStyle = 'rgba(7, 10, 16, 0.82)';
+    ctx.fillRect(entry.x - textWidth / 2 - 6, labelY - 9, textWidth + 12, 18);
+    ctx.globalAlpha = 0.98;
+    ctx.fillStyle = palette.edge;
+    ctx.fillText(label, entry.x, labelY);
+    ctx.restore();
+}
+
+function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale) {
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
         let frozen = (enemy.ailments || []).some(ailment => ailment && ailment.type === 'freeze' && (ailment.time || 0) > 0);
         if (frozen) return;
-        // Ordinary monsters no longer carry a ground aura/charge ring. Their attack
-        // remains readable through motion, player damage feedback, and the health UI.
-        if (!enemy.isElite && !enemy.isBoss) return;
-        let pattern = enemy.isBoss
-            ? (enemy.nextPatternState || (typeof getBossPatternPreview === 'function' ? getBossPatternPreview(enemy) : null))
-            : null;
-        let threshold = pattern && pattern.isSpecial ? 0.56 : (enemy.isBoss ? 0.68 : 0.84);
+        if (enemy.isBoss) {
+            drawBossPatternLabel(ctx, entry, enemy, gridUnitScale);
+            return;
+        }
+        if (!enemy.isElite) return;
+        let threshold = 0.84;
         let charge = Number(enemy.attackTimer) || 0;
         if (charge < threshold) return;
         let progress = clampNumber((charge - threshold) / Math.max(0.001, 1 - threshold), 0, 1);
-        let pulse = 0.9 + Math.sin(now / (enemy.isBoss ? 105 : 125)) * 0.1;
         let palette = getEnemyTelegraphColor(enemy);
-        let ranged = enemy.attackKind === 'ranged';
-        let radiusX = (enemy.isBoss ? 38 : (enemy.isElite ? 29 : 22)) * gridUnitScale;
+        let radiusX = 29 * gridUnitScale;
         let radiusY = radiusX * 0.43;
         ctx.save();
         ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = palette.fill;
         ctx.strokeStyle = palette.edge;
-        ctx.lineWidth = (enemy.isBoss ? 2.4 : 1.35) * pulse;
-        ctx.globalAlpha = enemy.isBoss ? (0.24 + progress * 0.48) : (0.18 + progress * 0.28);
+        ctx.lineWidth = 1.35;
+        ctx.globalAlpha = 0.18 + progress * 0.28;
         ctx.beginPath();
         ctx.ellipse(entry.x, entry.y + 8, radiusX * (0.84 + progress * 0.16), radiusY, 0, 0, Math.PI * 2);
-        if (enemy.isBoss) ctx.fill();
         ctx.stroke();
-        if (enemy.isElite) {
-            ctx.globalAlpha = 0.08 + progress * 0.18;
-            ctx.setLineDash([3, 5]);
-            ctx.beginPath();
-            ctx.ellipse(entry.x, entry.y + 8, radiusX * 0.68, radiusY * 0.68, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
-        if (enemy.isBoss && ranged && playerPos) {
-            let dx = playerPos.x - entry.x;
-            let dy = (playerPos.y - 10) - (entry.y - 8);
-            let length = Math.max(1, Math.hypot(dx, dy));
-            let nx = -dy / length;
-            let ny = dx / length;
-            let halfWidth = (enemy.isBoss ? 7 : 4) * (0.7 + progress * 0.3);
-            ctx.globalAlpha = 0.08 + progress * 0.22;
-            ctx.beginPath();
-            ctx.moveTo(entry.x + nx * halfWidth, entry.y - 8 + ny * halfWidth);
-            ctx.lineTo(playerPos.x + nx * halfWidth, playerPos.y - 10 + ny * halfWidth);
-            ctx.lineTo(playerPos.x - nx * halfWidth, playerPos.y - 10 - ny * halfWidth);
-            ctx.lineTo(entry.x - nx * halfWidth, entry.y - 8 - ny * halfWidth);
-            ctx.closePath();
-            ctx.fill();
-        }
-        if (enemy.isBoss) {
-            ctx.globalAlpha = 0.24 + progress * 0.38;
-            for (let bossRay = 0; bossRay < 4; bossRay++) {
-                let angle = bossRay * Math.PI / 2 - Math.PI / 2;
-                let inner = radiusX * 0.72;
-                let outer = radiusX * (0.95 + progress * 0.28);
-                ctx.beginPath();
-                ctx.moveTo(entry.x + Math.cos(angle) * inner, entry.y + 8 + Math.sin(angle) * inner * 0.43);
-                ctx.lineTo(entry.x + Math.cos(angle) * outer, entry.y + 8 + Math.sin(angle) * outer * 0.43);
-                ctx.stroke();
-            }
-            if (pattern && pattern.telegraphKind === 'ring' && playerPos) {
-                let ringRadius = (30 + progress * 18) * gridUnitScale;
-                ctx.globalAlpha = 0.25 + progress * 0.58;
-                ctx.lineWidth = 2.2 + progress * 1.4;
-                ctx.beginPath();
-                ctx.arc(playerPos.x, playerPos.y + 5, ringRadius, 0, Math.PI * 2);
-                ctx.stroke();
-            } else if (pattern && pattern.telegraphKind === 'fan' && playerPos) {
-                let baseAngle = Math.atan2(playerPos.y - entry.y, playerPos.x - entry.x);
-                let length = (48 + progress * 26) * gridUnitScale;
-                ctx.globalAlpha = 0.26 + progress * 0.5;
-                ctx.lineWidth = 2 + progress * 1.4;
-                [-0.16, 0, 0.16].forEach(offset => {
-                    let angle = baseAngle + offset;
-                    ctx.beginPath();
-                    ctx.moveTo(entry.x, entry.y - 4);
-                    ctx.lineTo(entry.x + Math.cos(angle) * length, entry.y - 4 + Math.sin(angle) * length);
-                    ctx.stroke();
-                });
-            } else if (pattern && pattern.telegraphKind === 'pulse') {
-                ctx.globalAlpha = 0.18 + progress * 0.42;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.ellipse(entry.x, entry.y + 8, radiusX * (1.15 + progress * 0.35), radiusY * (1.35 + progress * 0.25), 0, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-            if (pattern && pattern.isSpecial && pattern.label) {
-                let label = String(pattern.label);
-                ctx.font = '700 11px "Noto Sans KR", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                let textWidth = Math.ceil(ctx.measureText(label).width);
-                let labelX = entry.x;
-                let labelY = entry.y - 102 * gridUnitScale;
-                ctx.globalAlpha = 0.88;
-                ctx.fillStyle = 'rgba(7, 10, 16, 0.82)';
-                ctx.fillRect(labelX - textWidth / 2 - 6, labelY - 9, textWidth + 12, 18);
-                ctx.globalAlpha = 0.98;
-                ctx.fillStyle = palette.edge;
-                ctx.fillText(label, labelX, labelY);
-            }
-        }
+        ctx.globalAlpha = 0.08 + progress * 0.18;
+        ctx.setLineDash([3, 5]);
+        ctx.beginPath();
+        ctx.ellipse(entry.x, entry.y + 8, radiusX * 0.68, radiusY * 0.68, 0, 0, Math.PI * 2);
+        ctx.stroke();
         ctx.restore();
     });
 }
@@ -860,7 +805,7 @@ function renderBattlefield(forceWhenHidden) {
     });
     cleanupBattleVisualState(now);
     (battleVisualState.projectiles || []).forEach(projectile => drawVisualProjectile(ctx, projectile, now));
-    drawEnemyAttackTelegraphs(ctx, dynamicLayout, playerPos, now, gridUnitScale);
+    drawEnemyAttackTelegraphs(ctx, dynamicLayout, gridUnitScale);
 
     dynamicLayout.forEach(entry => {
         let enemy = entry.enemy;
@@ -1198,8 +1143,6 @@ function getEnemyDisplayName(enemy) {
 function getEnemyTraitSummary(enemy) {
     let tags = [];
     if (!enemy) return ['일반'];
-    if (enemy.isBoss) tags.push('보스');
-    else if (enemy.isElite) tags.push('정예');
     tags.push(getElementLabel(enemy.ele));
     if (enemy.traitName) tags.push(enemy.traitName);
     if (enemy.patternMode && typeof getBossPatternModeLabel === 'function') {
