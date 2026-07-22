@@ -127,16 +127,16 @@ async function exerciseCloudUpload() {
 
 assert(windowCss.includes('max-height: none'), 'trait enemy cards should grow with their status rows');
 assert(windowCss.includes('.enemy-traits { display: block') && windowCss.includes('white-space: normal'), 'enemy traits should wrap instead of being clipped to one line');
-assert(windowCss.includes('.enemy-ailments { display: block') && windowCss.includes('overflow-wrap: anywhere'), 'enemy status effects should remain readable with long labels');
+assert(!windowCss.includes('.enemy-ailments { display: block'), 'legacy enemy status text wrapping must not override the icon strip');
 assert(windowCss.includes('#enemy-area') && windowCss.includes('top: 24px') && windowCss.includes('z-index: 24'), 'the enemy health card should sit above the progress panel');
 const overhaulCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 assert(overhaulCss.includes('#enemy-area { top: 24px; z-index: 24'), 'the final dark-mode override must keep the enemy HUD above progress');
 assert(!html.includes('\u{1F9ED} 진행도'), 'the initial progress label should not show a compass emoji');
 assert(!uiSource.includes('\u{1F6B6} 다음 구간 준비'), 'the next-area preparation label should not show a walking emoji');
 assert(!uiSource.includes('\u{1F9ED} 진행도'), 'the live progress label should not restore a compass emoji');
-assert(html.includes('css/ui-windows.css?v=20260722-health-menu-skin4'), 'enemy HUD and shared font CSS cache must refresh');
+assert(html.includes('css/ui-windows.css?v=20260722-combat-icons2'), 'enemy HUD and shared font CSS cache must refresh');
 assert(html.includes('css/ui-game-overhaul.css?v=20260722-health-menu-skin4'), 'the combat layout CSS cache must refresh');
-assert(html.includes('js/ui.js?v=20260722-health-menu-skin4'), 'the combat UI runtime cache must refresh');
+assert(html.includes('js/ui.js?v=20260722-combat-icons2'), 'the combat UI runtime cache must refresh');
 assert(html.includes('js/state.js?v=20260722-warrior-rage1'), 'the shared game state cache must refresh');
 assert(html.includes('js/save.js?v=20260719-stutter-fix1'), 'save runtime cache must refresh');
 

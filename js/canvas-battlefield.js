@@ -1143,8 +1143,6 @@ function getEnemyDisplayName(enemy) {
 function getEnemyTraitSummary(enemy) {
     let tags = [];
     if (!enemy) return ['일반'];
-    if (enemy.isBoss) tags.push('보스');
-    else if (enemy.isElite) tags.push('정예');
     tags.push(getElementLabel(enemy.ele));
     if (enemy.traitName) tags.push(enemy.traitName);
     if (enemy.patternMode && typeof getBossPatternModeLabel === 'function') {

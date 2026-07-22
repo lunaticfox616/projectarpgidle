@@ -93,6 +93,7 @@ function defineElementAccessors(element) {
         }
     });
     Object.defineProperty(element, 'firstChild', { get: () => element.children[0] || null });
+    Object.defineProperty(element, 'childNodes', { get: () => element.children });
     Object.defineProperty(element, 'nextElementSibling', {
         get: () => {
             if (!element.parentElement) return null;
@@ -126,6 +127,11 @@ function createElement(tagName) {
             child.parentElement = this;
             const index = this.children.indexOf(before);
             this.children.splice(index < 0 ? this.children.length : index, 0, child);
+        },
+        removeChild(child) {
+            this.children = this.children.filter(item => item !== child);
+            child.parentElement = null;
+            return child;
         },
         remove() {
             if (this.parentElement) this.parentElement.children = this.parentElement.children.filter(item => item !== this);
@@ -166,6 +172,10 @@ function createTabHeader(body, openedTabs) {
         button.className = 'tab-btn';
         button.style.display = id === 'battle' ? 'none' : 'flex';
         button.handlers.click = () => { openedTabs.push('tab-' + id); };
+        const label = createElement('#text');
+        label.nodeType = 3;
+        label.textContent = id;
+        button.appendChild(label);
         header.appendChild(button);
     });
     const action = createElement('div');
@@ -228,6 +238,7 @@ assert.strictEqual(descendants(menu.header).some(element => element.classList.co
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-group')), false, 'group layers must be removed');
 assert.deepStrictEqual(socketButtons(menu).map(button => button.dataset.railSlot), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
 assert(socketButtons(menu).every(button => button.classList.contains('tab-btn')), 'every illustrated circle must contain a real tab');
+assert(socketButtons(menu).every(button => button.querySelector(':scope > .ui-rail-label')), 'each circle must keep its text inside a dedicated clipped label');
 
 const characterButton = menu.findById('btn-tab-character');
 characterButton.handlers.click();
@@ -242,11 +253,18 @@ assert.strictEqual(miscTrigger.parentElement, closeAll.parentElement, 'misc and 
 assert.strictEqual(miscTrigger.dataset.railSlot, undefined);
 assert.strictEqual(closeAll.dataset.railSlot, undefined);
 assert.strictEqual(miscPanel.dataset.railOverflow, '4', 'tabs beyond the eleven real circles must remain directly accessible from misc');
+assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.header, 'desktop goal handle must share the rail coordinate space below outside controls');
 
 assert.strictEqual(miscPanel.hidden, true);
+menu.exposed.toggleGoalDrawer(true);
 miscTrigger.handlers.click();
 assert.strictEqual(miscPanel.hidden, false, 'misc control must open its external list');
+assert.strictEqual(menu.findById('ui-goal-drawer').classList.contains('expanded'), false, 'opening misc must collapse an overlapping goal detail panel');
 assert.strictEqual(miscTrigger.getAttribute('aria-expanded'), 'true');
+menu.exposed.toggleGoalDrawer(true);
+assert.strictEqual(miscPanel.hidden, true, 'opening goal details must close misc so the two rail popouts never overlap');
+menu.exposed.toggleGoalDrawer(false);
+miscTrigger.handlers.click();
 const overflowTab = miscPanel.querySelectorAll('.tab-btn').find(button => PRIMARY_TAB_IDS.some(id => button.id === 'btn-tab-' + id));
 overflowTab.handlers.click();
 miscPanel.handlers.click({ target: overflowTab });
@@ -284,6 +302,7 @@ menu.windowHandlers.resize();
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 0, 'mobile restore must remove the art');
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 0, 'mobile restore must remove the socket layer');
 assert.strictEqual(menu.findById('btn-ui-rail-misc'), null, 'mobile restore must remove desktop-only misc');
+assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.body, 'mobile goal drawer must return to the document body');
 assert(menu.header.querySelectorAll('.tab-btn').every(button => button.parentElement === menu.header), 'mobile restore must return actual tabs to the header');
 assert.strictEqual(socketButtons(menu).length, 0, 'mobile tabs must not retain desktop socket metadata');
 assert.deepStrictEqual(
@@ -297,11 +316,15 @@ menu.windowHandlers.resize();
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 1, 'desktop restore must create only one art image');
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 1, 'desktop restore must create only one flat layer');
 assert.strictEqual(descendants(menu.header).filter(element => element.id === 'btn-ui-rail-misc').length, 1, 'desktop restore must not duplicate misc');
+assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.header, 'desktop restore must remount goals below the rail controls');
 
 assert(menuCss.includes('transform: translate(-50%, -50%) !important;'), 'socket position must override inherited hover transforms');
 assert(menuCss.includes('.ui-rail-external-btn:hover'), 'external controls must have an explicit stable hover state');
 assert(menuCss.includes('transform: none !important;'), 'external controls must not move away from the pointer');
 assert(menuCss.includes('min(29.2svh, 18vw)'), 'the single artwork must remain resizable for short and narrow desktops');
+assert(menuCss.includes('.ui-rail-tab-layer .ui-rail-label') && menuCss.includes('overflow-wrap: anywhere'), 'circle labels must stay clipped independently of notice badges');
+assert(menuCss.includes('.ui-rail-tab-layer .noti-dot') && menuCss.includes('top: -3px !important'), 'tab notices must remain visible beyond the circle edge');
+assert(menuCss.includes('.tab-header > .ui-goal-drawer') && menuCss.includes('top: calc(100% + 47px) !important'), 'goal handle must occupy the space below misc and cleanup controls');
 
 const orderSettingsHost = { innerHTML: '' };
 let orderedGroupReads = 0;

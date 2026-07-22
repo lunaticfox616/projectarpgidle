@@ -6,9 +6,16 @@ body.desktop-windowed-ui #left-pane {
   padding-left: calc(var(--menu-rail-width) + 12px) !important;
 }
 
-body.desktop-windowed-ui .player-panel,
-body.desktop-windowed-ui .ui-goal-drawer {
+body.desktop-windowed-ui .player-panel {
   left: calc(var(--menu-rail-width) + 12px) !important;
+}
+
+.ui-rail-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1em;
+  line-height: 1;
 }
 
 body.desktop-windowed-ui .tab-header:not(.tab-header-bottom) {
@@ -79,10 +86,20 @@ body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn {
   text-align: center;
   text-shadow: 0 1px 3px #000;
   white-space: normal;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: auto;
   transform: translate(-50%, -50%) !important;
   transition: color .13s ease, background .13s ease, border-color .13s ease, box-shadow .13s ease !important;
+}
+
+body.desktop-windowed-ui .ui-rail-tab-layer .ui-rail-label {
+  display: block;
+  width: 100%;
+  max-height: 2.1em;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.05;
+  text-align: center;
 }
 
 body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn:hover,
@@ -103,17 +120,39 @@ body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn::before {
 }
 
 body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn::after { display: none; }
-body.desktop-windowed-ui .ui-rail-tab-layer .inventory-full-warning { position: absolute; top: 1px; right: 1px; }
+body.desktop-windowed-ui .ui-rail-tab-layer .noti-dot {
+  top: -3px !important;
+  right: -3px !important;
+  z-index: 9;
+}
+body.desktop-windowed-ui .ui-rail-tab-layer .inventory-full-warning {
+  position: absolute;
+  top: -5px;
+  right: -13px;
+  z-index: 9;
+  margin: 0;
+  white-space: nowrap;
+}
 
 body.desktop-windowed-ui .ui-rail-external-controls {
   position: absolute;
-  top: calc(100% + 5px);
+  top: calc(100% + 6px);
   left: 50%;
   z-index: 5;
-  display: flex;
-  justify-content: center;
-  gap: 4px;
-  width: max-content;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  width: calc(100% - 12px);
+  padding: 4px;
+  box-sizing: border-box;
+  border: 1px solid rgba(108, 76, 73, .72);
+  border-radius: 2px 10px 2px 10px;
+  background:
+    radial-gradient(circle at 50% 0, rgba(128, 60, 65, .18), transparent 62%),
+    linear-gradient(180deg, rgba(32, 22, 25, .98), rgba(9, 7, 9, .98));
+  box-shadow:
+    0 5px 14px rgba(0, 0, 0, .5),
+    inset 0 0 0 1px rgba(225, 167, 153, .07);
   transform: translateX(-50%);
   pointer-events: auto;
 }
@@ -123,27 +162,41 @@ body.desktop-windowed-ui .ui-rail-external-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 58px;
+  width: auto;
   min-width: 0;
-  min-height: 26px;
+  min-height: 27px;
   margin: 0;
-  padding: 4px 7px;
-  border: 1px solid rgba(129, 87, 84, .58);
-  border-radius: 5px;
-  color: #d9bbb5;
-  background: rgba(13, 9, 11, .92);
-  box-shadow: none;
-  font-size: 9px;
+  padding: 4px 5px;
+  border: 1px solid rgba(118, 76, 77, .72);
+  border-radius: 1px 7px 1px 7px;
+  color: #e6c9c3;
+  background:
+    linear-gradient(180deg, rgba(70, 39, 44, .7), rgba(24, 15, 18, .96) 58%, rgba(10, 8, 10, .98));
+  box-shadow:
+    inset 0 1px rgba(255, 213, 202, .09),
+    inset 0 -1px rgba(0, 0, 0, .7);
+  font-family: var(--game-font-display, 'MulmaruMono', 'Malgun Gothic', sans-serif);
+  font-size: clamp(7px, .58vw, 9px);
+  font-weight: 800;
+  letter-spacing: .04em;
   line-height: 1;
+  text-shadow: 0 1px 2px #000;
   transform: none !important;
-  transition: color .13s ease, background .13s ease, border-color .13s ease !important;
+  transition: color .13s ease, background .13s ease, border-color .13s ease, box-shadow .13s ease !important;
 }
 
 body.desktop-windowed-ui .ui-rail-external-btn:hover {
-  border-color: rgba(255, 198, 184, .72);
+  border-color: rgba(234, 160, 150, .9);
   color: #fff7f2;
-  background: rgba(72, 35, 40, .94);
+  background: linear-gradient(180deg, rgba(111, 53, 60, .82), rgba(37, 20, 24, .98));
+  box-shadow: inset 0 0 9px rgba(255, 183, 169, .12), 0 0 8px rgba(172, 76, 84, .16);
   transform: none !important;
+}
+
+body.desktop-windowed-ui .ui-rail-misc-btn[aria-expanded="true"] {
+  border-color: rgba(234, 160, 150, .9);
+  color: #fff7f2;
+  background: linear-gradient(180deg, rgba(105, 49, 56, .9), rgba(31, 17, 21, .98));
 }
 
 body.desktop-windowed-ui .ui-rail-external-btn::before { content: none !important; }
@@ -151,16 +204,17 @@ body.desktop-windowed-ui .ui-rail-external-btn::before { content: none !importan
 body.desktop-windowed-ui .ui-rail-misc-panel {
   position: absolute;
   left: calc(100% + 7px);
-  bottom: 0;
+  top: calc(100% + 6px);
+  bottom: auto;
   z-index: 6;
   display: grid;
   grid-template-columns: repeat(2, 76px);
   gap: 4px;
   padding: 6px;
-  border: 1px solid rgba(129, 87, 84, .58);
-  border-radius: 7px;
-  background: rgba(13, 9, 11, .96);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, .48);
+  border: 1px solid rgba(118, 76, 77, .72);
+  border-radius: 2px 9px 2px 9px;
+  background: linear-gradient(155deg, rgba(37, 23, 27, .98), rgba(9, 7, 9, .98));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .58), inset 0 0 0 1px rgba(225, 167, 153, .06);
   pointer-events: auto;
 }
 
@@ -199,3 +253,52 @@ body.desktop-windowed-ui .ui-rail-misc-panel .tab-btn::before {
 
 body.desktop-windowed-ui .ui-rail-misc-panel .tab-btn::after { display: none; }
 body.desktop-windowed-ui .ui-rail-misc-panel #btn-map-complete-action-picker { font-size: 7px; }
+
+/* 접힌 목표 손잡이는 외부 제어 바로 아래에 두고, 상세 내용만 오른쪽으로 펼친다. */
+body.desktop-windowed-ui .tab-header > .ui-goal-drawer {
+  position: absolute !important;
+  top: calc(100% + 47px) !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 6px !important;
+  z-index: 7;
+  width: calc(100% - 12px);
+  max-width: none;
+}
+
+body.desktop-windowed-ui .tab-header > .ui-goal-drawer .ui-goal-panel {
+  position: relative;
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box;
+  overflow: visible !important;
+  border-color: rgba(108, 76, 73, .72);
+  border-radius: 2px 10px 2px 10px;
+  background: linear-gradient(180deg, rgba(29, 20, 23, .97), rgba(9, 7, 9, .97));
+  box-shadow: 0 7px 18px rgba(0, 0, 0, .52), inset 0 0 0 1px rgba(225, 167, 153, .06);
+}
+
+body.desktop-windowed-ui .tab-header > .ui-goal-drawer #ui-goal-toggle {
+  min-height: 34px;
+  padding: 0 8px;
+}
+
+body.desktop-windowed-ui .tab-header > .ui-goal-drawer #ui-goal-toggle:hover {
+  color: #fff7f2;
+  background: rgba(95, 44, 51, .42);
+}
+
+body.desktop-windowed-ui .tab-header > .ui-goal-drawer.expanded #ui-goal-body {
+  position: absolute;
+  right: auto;
+  bottom: 0;
+  left: calc(100% + 8px);
+  width: min(284px, calc(100vw - var(--menu-rail-width) - 32px));
+  max-height: calc(100vh - 24px);
+  box-sizing: border-box;
+  overflow-y: auto;
+  border: 1px solid rgba(118, 76, 77, .72);
+  border-radius: 2px 10px 2px 10px;
+  background: linear-gradient(155deg, rgba(37, 23, 27, .98), rgba(9, 7, 9, .98));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .62), inset 0 0 0 1px rgba(225, 167, 153, .06);
+}

@@ -502,6 +502,20 @@
         element.style.removeProperty('--rail-socket-y');
     }
 
+    // 원형 버튼 자체는 배지가 바깥으로 나갈 수 있게 열어 두고,
+    // 라벨 텍스트만 별도 요소 안에서 원의 크기에 맞춰 자른다.
+    function wrapRailButtonLabel(button) {
+        if (!button || !button.childNodes || button.querySelector(':scope > .ui-rail-label')) return;
+        let textNodes = Array.from(button.childNodes)
+            .filter(node => node.nodeType === 3 && node.textContent.trim());
+        if (textNodes.length === 0) return;
+        let label = document.createElement('span');
+        label.className = 'ui-rail-label';
+        label.textContent = textNodes.map(node => node.textContent.trim()).join(' ');
+        textNodes.forEach(node => button.removeChild(node));
+        button.insertBefore(label, button.firstChild);
+    }
+
     function createRailMiscButton() {
         let button = document.createElement('button');
         button.id = 'btn-ui-rail-misc';
@@ -552,14 +566,20 @@
         if (!panel || !trigger) return;
         panel.hidden = !panel.hidden;
         trigger.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+        let drawer = document.getElementById('ui-goal-drawer');
+        if (!panel.hidden && drawer && drawer.classList.contains('expanded')) toggleGoalDrawer(false);
     }
 
-    function closeRailMiscPanelAfterSelection(event) {
-        if (!event.target.closest || !event.target.closest('.tab-btn')) return;
+    function closeRailMiscPanel() {
         let panel = document.getElementById('ui-rail-misc-panel');
         let trigger = document.getElementById('btn-ui-rail-misc');
         if (panel) panel.hidden = true;
         if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    }
+
+    function closeRailMiscPanelAfterSelection(event) {
+        if (!event.target.closest || !event.target.closest('.tab-btn')) return;
+        closeRailMiscPanel();
     }
 
     function hasVisibleRailNotice(button) {
@@ -606,7 +626,11 @@
         if (!tabLayer || !miscPanel) return;
         let buttons = getOrderedRailButtons(header);
         let visible = buttons.filter(isRailButtonVisible);
-        buttons.forEach(button => { clearRailSlot(button); tabLayer.appendChild(button); });
+        buttons.forEach(button => {
+            wrapRailButtonLabel(button);
+            clearRailSlot(button);
+            tabLayer.appendChild(button);
+        });
         visible.slice(0, RAIL_TAB_SLOTS.length).forEach((button, index) => {
             setRailSlot(button, RAIL_TAB_SLOTS[index], index + 1);
         });
@@ -633,8 +657,17 @@
     const GOAL_AUTO_COLLAPSE_MS = 7000;
     let goalRuntime = { signature: '', collapseTimer: null, currentGoal: null, pendingAutoExpand: false };
 
+    function mountGoalDrawer(drawer) {
+        let desktopHeader = isDesktopWindowed() ? document.querySelector('.tab-header') : null;
+        (desktopHeader || document.body).appendChild(drawer);
+    }
+
     function installGoalDrawer() {
-        if (document.getElementById('ui-goal-drawer')) return;
+        let existing = document.getElementById('ui-goal-drawer');
+        if (existing) {
+            mountGoalDrawer(existing);
+            return;
+        }
         let drawer = document.createElement('div');
         drawer.id = 'ui-goal-drawer';
         drawer.className = 'ui-goal-drawer';
@@ -660,7 +693,7 @@
             + '</button>'
             + '<div id="ui-goal-handle-bar" class="ui-goal-handle-bar"><span id="ui-goal-handle-fill" class="ui-goal-handle-fill"></span></div>'
             + '</div>';
-        document.body.appendChild(drawer);
+        mountGoalDrawer(drawer);
         drawer.querySelector('#ui-goal-toggle').addEventListener('click', () => toggleGoalDrawer());
         drawer.querySelector('#ui-goal-pin').addEventListener('click', toggleGoalPin);
         drawer.querySelector('#ui-goal-pin').setAttribute('aria-pressed', layoutState.goals.pinned ? 'true' : 'false');
@@ -672,6 +705,7 @@
         let drawer = document.getElementById('ui-goal-drawer');
         if (!drawer) return;
         let expanded = force === undefined ? !drawer.classList.contains('expanded') : !!force;
+        if (expanded) closeRailMiscPanel();
         drawer.classList.toggle('expanded', expanded);
         let toggle = drawer.querySelector('#ui-goal-toggle');
         if (toggle) toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');

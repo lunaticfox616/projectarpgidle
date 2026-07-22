@@ -2389,7 +2389,7 @@ function processTalentInquisitorMarks() {
     Object.keys(store).forEach(id => {
         let mk = store[id];
         if (!mk) { delete store[id]; return; }
-        let enemy = (game.enemies || []).find(e => e && e.id === id && e.hp > 0);
+        let enemy = getAliveEnemyByRuntimeKey(id);
         if (!enemy) { delete store[id]; return; }
         if (mk.explodeAt && now >= mk.explodeAt) {
             let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
@@ -6345,6 +6345,7 @@ function tickEnemyDotEffects(pStats, dt) {
         if (dotState.timeLeft <= 0 || enemy.hp <= 0) {
             enemy.dotState = null;
             enemy.dotStacks = 0;
+            enemy.skillSlowPct = 0;
             enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments.filter(ail => ail && ail.type !== 'flameDecay') : [];
         }
     });

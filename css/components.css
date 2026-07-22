@@ -220,9 +220,7 @@
             body.mobile-battle-tab #tab-battle .combat-top-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 6px; margin: 0 0 4px; }
             body.mobile-battle-tab #tab-battle .combat-top-status > div:nth-child(1),
             body.mobile-battle-tab #tab-battle .combat-top-status > div:nth-child(3) { display: none; }
-            body.mobile-battle-tab #tab-battle .combat-top-status #ui-ocean-oxygen-box,
-            body.mobile-battle-tab #tab-battle .combat-top-status #ui-player-ailments-under,
-            body.mobile-battle-tab #tab-battle .combat-top-status #ui-player-ailments-mobile { grid-column: 1 / -1; }
+            body.mobile-battle-tab #tab-battle .combat-top-status #ui-ocean-oxygen-box { grid-column: 1 / -1; }
             body.mobile-battle-tab #tab-battle .combat-panel > h2 #ui-combat-zone { display:none; }
             .combat-zone-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin: 0 0 6px; flex-wrap: nowrap; }
             .combat-zone-row-title { font-size: 0.75em; color: var(--copy-bright); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -261,8 +259,6 @@
             body.has-bottom-tabs .tab-content { padding-bottom: calc(24px + var(--bottom-tab-height, 52px) + env(safe-area-inset-bottom)) !important; scroll-padding-bottom: calc(24px + var(--bottom-tab-height, 52px) + env(safe-area-inset-bottom)); }
             .tab-btn { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; min-width: 96px; padding: 8px 6px; white-space: nowrap; text-align:center; font-size:0.86em; }
             .combat-top-status { margin: 4px 0 8px; }
-            body.mobile-battle-tab #tab-battle .combat-top-status #ui-player-ailments-mobile { display:block !important; }
-            body.mobile-battle-tab #tab-battle .player-panel #ui-player-ailments { display:none !important; }
             #tab-char > div { height: auto !important; min-height: 0; }
             #tree-container { min-height: clamp(360px, 62vh, 520px) !important; }
             .craft-layout { grid-template-columns: 1fr; }

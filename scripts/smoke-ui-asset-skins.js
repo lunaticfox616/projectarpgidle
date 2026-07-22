@@ -7,6 +7,10 @@ function readPngSize(file) {
   return [bytes.readUInt32BE(16), bytes.readUInt32BE(20)];
 }
 
+function readPngColorType(file) {
+  return fs.readFileSync(file).readUInt8(25);
+}
+
 const expectedSkins = new Map([
   ['assets/ui/health-boss-v1.png', [309, 105]],
   ['assets/ui/health-elite-v1.png', [236, 78]],
@@ -32,10 +36,11 @@ const css = fs.readFileSync('css/ui-asset-skins.css', 'utf8');
 const menuCss = fs.readFileSync('css/ui-menu-sockets.css', 'utf8');
 const windowManager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 
-assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-health-menu-skin4'), 'asset skin CSS must be cache-versioned');
-assert.ok(html.includes('css/ui-menu-sockets.css?v=20260722-health-menu-skin4'), 'menu socket CSS must be cache-versioned');
-assert.ok(html.includes('js/ui.js?v=20260722-health-menu-skin4'), 'combat HUD JavaScript must be cache-versioned');
-assert.ok(html.includes('js/ui-window-manager.js?v=20260722-health-menu-skin4'), 'menu socket JavaScript must be cache-versioned');
+assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-combat-icons2'), 'asset skin CSS must be cache-versioned');
+assert.ok(html.includes('css/ui-menu-sockets.css?v=20260722-combat-icons2'), 'menu socket CSS must be cache-versioned');
+assert.ok(html.includes('js/ui.js?v=20260722-combat-icons2'), 'combat HUD JavaScript must be cache-versioned');
+assert.ok(html.includes('js/combat.js?v=20260722-combat-icons2'), 'combat effect state fixes must be cache-versioned');
+assert.ok(html.includes('js/ui-window-manager.js?v=20260722-combat-icons2'), 'menu socket JavaScript must be cache-versioned');
 assert.ok(html.indexOf('css/ui-asset-skins.css') > html.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
 assert.ok(html.includes('<img class="player-health-frame-art" src="assets/ui/health-player-v1.png"'), 'the player HUD must use one real frame image');
 assert.ok(html.indexOf('player-health-frame') < html.indexOf('id="ui-hp-bar"'), 'the live player HP bar must remain inside its art frame');
@@ -63,8 +68,22 @@ assert.ok(css.includes('clip-path: inset(0 calc(100% - var(--gauge-fill, 0%)) 0 
 assert.ok(css.includes('.combat-flask-mini.overflow'), 'extra flask status must stay inside the three-orb art');
 assert.ok(css.includes('.combat-flask-mini.empty'), 'unequipped utility art sockets must be masked');
 assert.ok(/\.player-health-frame \.combat-flask-mini \{[\s\S]*?position: absolute !important;/.test(css), 'dark theme button chrome must not displace flask sockets');
+assert.ok(/\.player-health-frame \.combat-flask-mini \{[\s\S]*?overflow: visible !important;/.test(css), 'flask charge badges must not be clipped by their circular sockets');
+assert.ok(css.includes('.player-health-frame .player-hud-identity-row') && css.includes('width: 21.5%'), 'identity text must occupy the framed space left of health');
+assert.ok(css.includes('.player-exp-percent') && css.includes('.player-exp-values { display: none; }'), 'experience percent must sit above the art while exact values remain hover-only');
+assert.ok(css.includes('.combat-effect-icon') && css.includes('.combat-effect-strip:empty'), 'active effects must render as collapsible icon strips');
+assert.ok(css.includes("status-effects-atlas-v1.png") && fs.existsSync('assets/ui/status-effects-atlas-v1.png'), 'active effects must use the generated raster icon atlas');
+const effectAtlasSize = readPngSize('assets/ui/status-effects-atlas-v1.png');
+assert.strictEqual(effectAtlasSize[0], effectAtlasSize[1], 'effect atlas must remain square');
+assert.strictEqual(effectAtlasSize[0] % 7, 0, 'effect atlas must retain seven equal sprite columns and rows');
+assert.strictEqual(readPngColorType('assets/ui/status-effects-atlas-v1.png'), 6, 'effect atlas must retain RGBA transparency');
+assert.ok(css.includes('background-size: 700% 700%'), 'effect art must expose exactly one cell from the 7x7 atlas');
+assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 0;/.test(css),
+  'dense player effects must shrink inside the framed strip instead of overflowing on mobile');
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('-webkit-line-clamp: 2'), 'the boss trait panel must use both available text rows');
+assert.ok(css.includes('.enemy-card.enemy-elite .enemy-traits') && css.includes('background: rgba(15, 10, 12, .55)'), 'elite traits must use a content-sized translucent panel');
+assert.ok(/#enemy-area \.enemy-ailments \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/.test(css), 'enemy effects must no longer use a text box');
 assert.ok(css.includes('.enemy-card.enemy-boss .health-skin-track { min-height: 0; }'), 'the mobile boss gauge must not expand over its frame');
 assert.ok(css.includes('--health-track-left:'), 'baked health colors must be covered by a live clipped track');
 assert.ok(/\.enemy-card\.targeted \.hp-bar-bg \{[\s\S]*?z-index: 2;/.test(css), 'the live enemy gauge layer must render above the frame artwork');

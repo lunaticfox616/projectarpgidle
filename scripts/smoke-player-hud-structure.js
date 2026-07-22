@@ -10,29 +10,32 @@ function countHtmlId(id) {
 }
 
 const shellStart = html.indexOf('<div class="player-hud-shell">');
-const infoStart = html.indexOf('<div class="player-hud-info-box"', shellStart);
-const frameStart = html.indexOf('<div class="player-health-frame">', shellStart);
+const frameStart = html.indexOf('<div class="player-health-frame"', shellStart);
 const oxygenStart = html.indexOf('id="ui-ocean-oxygen-box"', shellStart);
-assert(shellStart >= 0 && infoStart > shellStart, 'the player HUD must have a boxed information section');
-assert(frameStart > infoStart && oxygenStart > frameStart, 'the information box and health frame must share one HUD shell');
+assert(shellStart >= 0 && frameStart > shellStart && oxygenStart > frameStart, 'the supplied frame and oxygen row must share one HUD shell');
+assert(!html.includes('player-hud-info-box'), 'identity and experience must not float in a separate box');
 assert(html.includes('class="player-health-frame-art" src="assets/ui/health-player-v1.png" width="512" height="84"'), 'the player frame must be a real image with stable dimensions');
 
 [
   'ui-player-name-label', 'ui-player-class-label', 'ui-exp-level-label',
   'ui-exp', 'ui-maxexp', 'ui-exp-note', 'ui-player-ailments-under',
   'ui-hp-bar', 'ui-es-track', 'ui-es-bar', 'ui-es-inline', 'ui-exp-bar',
-  'ui-combat-flasks', 'ui-player-ailments-mobile'
+  'ui-combat-flasks'
 ].forEach(id => assert.strictEqual(countHtmlId(id), 1, `${id} must have exactly one DOM owner`));
 
-assert(html.indexOf('id="ui-player-ailments-under"', infoStart) < frameStart, 'desktop effects must live inside the information box');
+const identityStartInFrame = html.indexOf('class="player-hud-identity-row"', frameStart);
 const hpTrackStart = html.indexOf('class="hp-bar-bg combat-hp-bar"', frameStart);
 const expTrackStart = html.indexOf('class="hp-bar-bg combat-exp-bar"', frameStart);
 const esTrackStart = html.indexOf('id="ui-es-track"', hpTrackStart);
 const esBarStart = html.indexOf('id="ui-es-bar"', hpTrackStart);
+assert(identityStartInFrame > frameStart && identityStartInFrame < hpTrackStart, 'name, class, and level must occupy the frame space left of health');
+assert(html.indexOf('id="ui-player-ailments-under"', frameStart) < hpTrackStart, 'active effects must share the supplied player frame');
 assert(hpTrackStart >= 0 && expTrackStart > hpTrackStart, 'the player frame must retain health and experience tracks');
 assert(esTrackStart > hpTrackStart && esTrackStart < expTrackStart, 'energy shield must overlay the health track instead of occupying a separate segment');
 assert(esBarStart > esTrackStart && esBarStart < expTrackStart, 'the shared health track must retain a live energy-shield fill');
 assert(!html.includes('combat-es-bar'), 'the old separate energy-shield segment must be removed');
+assert(html.includes('onmouseenter="showPlayerExperienceTooltip(event)"'), 'the experience track must expose its exact values on hover');
+assert(!html.includes('id="ui-player-ailments-mobile"') && !html.includes('id="ui-player-ailments"'), 'legacy text status boxes must be removed');
 
 const identityStart = uiSource.indexOf('function getUiPlayerHudIdentity()');
 const identityEnd = uiSource.indexOf('const BACKGROUND_PROGRESS_MIN_REAL_MS', identityStart);
@@ -84,6 +87,7 @@ const flaskContext = {
   },
   getFlaskHealDef() { return { key: 'heal', name: '생명력 플라스크', maxCharges: 5 }; },
   getMaxFlaskUtilitySlotCount() { return flaskContext.utilitySlotCount; },
+  getExpReq() { return 100; },
   FLASK_UTILITY_POOL: {
     u1: { key: 'u1', name: '유틸리티 1', maxCharges: 5 },
     u2: { key: 'u2', name: '유틸리티 2', maxCharges: 5 },
@@ -131,5 +135,17 @@ flaskContext.setUiImageGaugePercent({ style: gaugeStyle }, -1);
 assert.strictEqual(gaugeStyle.values['--gauge-fill'], '0%', 'image gauges must clamp underflow');
 flaskContext.setUiImageGaugePercent({ style: gaugeStyle }, 101);
 assert.strictEqual(gaugeStyle.values['--gauge-fill'], '100%', 'image gauges must clamp overflow');
+
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(flaskContext.getUiExperienceProgress(7, 42.5))),
+  { current: 42.5, required: 100, remaining: 57, percent: 42.5 },
+  'experience presentation must derive the bar, percent, and exact remaining value from one calculation'
+);
+assert.strictEqual(flaskContext.getUiExperienceProgress(7, 150).percent, 100, 'experience presentation must clamp visual overflow');
+const igniteIcon = flaskContext.renderCombatEffectIcon({ key: 'ignite', tooltip: 'tip()', badge: '3' });
+assert(igniteIcon.includes('effect-ignite') && igniteIcon.includes('combat-effect-art'),
+  'ailment icons must use the shared raster presentation');
+assert(igniteIcon.includes('combat-effect-badge">3'), 'stacked effects must keep a compact count badge');
+assert(igniteIcon.includes('onmouseenter="tip()"'), 'effect icons must retain custom tooltip behavior');
 
 console.log('smoke-player-hud-structure passed');

@@ -31,6 +31,8 @@ assert(triggerIndex >= 0 && absorbIndex > triggerIndex, 'a successful hit should
 assert(combatSource.includes("skill.ele === 'phys' ? warriorPhysDamageMultiplier : 1"), 'displayed physical DPS should include rage');
 assert(combatSource.includes('getWarriorRageStacks, clearAscendKeystoneRuntimeState'), 'the HUD rage reader should be exposed explicitly');
 assert(stateSource.includes('물리 피해 +10% (최대 5중첩, 곱연산)'), 'the keystone description should advertise ten percent per stack');
-assert(uiSource.includes('격노 순환 ${rageStacks}/5 · ${rageSeconds}s'), 'the combat HUD should expose rage stacks and remaining duration');
+assert(uiSource.includes("warriorRage: { sprite: 24, label: '격노 순환'"), 'the combat HUD should expose a rage icon');
+assert(uiSource.includes("showPlayerRuntimeEffectTooltip(event,'warriorRage'"), 'the rage icon tooltip should expose stacks and remaining duration');
+assert(uiSource.includes("badge: `${stacks}`"), 'the rage icon should expose its current stack count');
 
 console.log('smoke-warrior-rage-cycle passed');
