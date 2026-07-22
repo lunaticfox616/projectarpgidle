@@ -8972,7 +8972,7 @@ function performUpdateStaticUI() {
         game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
         jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
         let jewelCraftTarget = typeof getSelectedJewelCraftTarget === 'function' ? getSelectedJewelCraftTarget() : null;
-        let jewelCraftKeys = ['transmute', 'augment', 'alteration', 'regal', 'exalted', 'chaos', 'divine', 'annulment'];
+        let jewelCraftKeys = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'pruningShears'];
         let jewelCraftButtons = jewelCraftKeys.map(key => {
             let state = typeof getJewelCurrencyUseState === 'function' ? getJewelCurrencyUseState(key, jewelCraftTarget) : { enabled: false, reason: '사용 불가' };
             let count = (game.currencies || {})[key] || 0;
@@ -9375,12 +9375,12 @@ function bulkSalvageTalismansBySearch(salvageUnmatched) {
 
 function getStyledOrbName(orbKey) {
     let name = (ORB_DB[orbKey] && ORB_DB[orbKey].name) ? ORB_DB[orbKey].name : String(orbKey || '');
-    if (orbKey === 'transmute' || orbKey === 'augment' || orbKey === 'alteration') return `<span style="color:#9fd3ff;">${name}</span>`;
-    if (orbKey === 'alchemy' || orbKey === 'regal' || orbKey === 'scour' || orbKey === 'blessing') return `<span style="color:#ffe07a;">${name}</span>`;
-    if (orbKey === 'chaos' || orbKey === 'exalted') return `<span style="color:#ffbc8a;">${name}</span>`;
-    if (orbKey === 'divine') return `<span style="color:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
-    if (orbKey === 'woodsmanTouch') return `<span class="woodsman-touch-name">${name}</span>`;
-    if (orbKey === 'tainted') return `<span style="color:#8a2f3f;">${name}</span>`;
+    if (orbKey === 'magicBud') return `<span style="color:#9fd3ff;">${name}</span>`;
+    if (orbKey === 'sapBud' || orbKey === 'blightSpore' || orbKey === 'blessing') return `<span style="color:#ffe07a;">${name}</span>`;
+    if (orbKey === 'formlessDew' || orbKey === 'pruningShears') return `<span style="color:#ffbc8a;">${name}</span>`;
+    if (orbKey === 'goldenRule') return `<span style="color:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
+    if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;
+    if (orbKey === 'emberBranch') return `<span style="color:#8a2f3f;">${name}</span>`;
     return name;
 }
 
@@ -9505,26 +9505,34 @@ function getCraftActionValidators(item) {
 function getCraftOrbUseState(key, item) {
     if (!item) return { enabled: false, reason: '아이템 미선택' };
     if ((game.currencies[key] || 0) <= 0) return { enabled: false, reason: '재화 부족' };
-    if (item.corrupted && key !== 'tainted') return { enabled: false, reason: '타락 아이템은 일반 제작 불가' };
-    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(key)) return { enabled: false, reason: '융합 유물: 신성한/타락/축복만 사용 가능' };
+    let actionKey = key;
+    if (key === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'augment';
+    if (key === 'sapBud') actionKey = item.rarity === 'magic' ? 'regal' : 'exalted';
+    if (key === 'formlessDew') actionKey = item.rarity === 'normal' ? 'alchemy' : 'chaos';
+    if (key === 'goldenRule') actionKey = 'divine';
+    if (key === 'fairyRing') actionKey = 'chance';
+    if (key === 'pruningShears') actionKey = 'annulment';
+    if (key === 'blightSpore') actionKey = 'scour';
+    if (key === 'emberBranch') actionKey = 'tainted';
+    if (item.corrupted && actionKey !== 'tainted') return { enabled: false, reason: '타락 아이템은 일반 제작 불가' };
+    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return { enabled: false, reason: '융합 유물: 황금률/잿불가지/축복만 사용 가능' };
     let ok = false;
-    if (key === 'transmute') ok = item.rarity === 'normal';
-    else if (key === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
-    else if (key === 'alteration') ok = item.rarity === 'magic';
-    else if (key === 'alchemy') ok = item.rarity === 'normal';
-    else if (key === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
-    else if (key === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
-    else if (key === 'chaos') ok = item.rarity === 'rare';
-    else if (key === 'divine') ok = item.rarity !== 'normal';
-    else if (key === 'chance') ok = item.rarity === 'normal';
-    else if (key === 'annulment') ok = Array.isArray(item.stats) && item.stats.some(stat => stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
-    else if (key === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (key === 'tainted') ok = !item.corrupted || (typeof isKaleidoscopeShieldItem === 'function' && isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
+    if (actionKey === 'transmute') ok = item.rarity === 'normal';
+    else if (actionKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
+    else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
+    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
+    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
+    else if (actionKey === 'chaos') ok = item.rarity === 'rare';
+    else if (actionKey === 'divine') ok = item.rarity !== 'normal';
+    else if (actionKey === 'chance') ok = item.rarity === 'normal';
+    else if (actionKey === 'annulment') ok = Array.isArray(item.stats) && item.stats.some(stat => stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
+    else if (actionKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
+    else if (actionKey === 'tainted') ok = !item.corrupted || (typeof isKaleidoscopeShieldItem === 'function' && isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
     else if (key === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (key === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     if (!ok) return { enabled: false, reason: '현재 아이템 조건 불일치' };
     let sporeMode = game.sporeCraftModes && game.sporeCraftModes[key] || 'none';
-    if (['transmute','augment','alteration','alchemy','exalted','regal','chaos'].includes(key)
+    if (['magicBud','sapBud','formlessDew'].includes(key)
         && sporeMode !== 'none'
         && typeof hasSporeCraftCost === 'function'
         && !hasSporeCraftCost(sporeMode)) {
@@ -9866,14 +9874,14 @@ window.showCurrencyCardTooltip = showCurrencyCardTooltip;
 window.showOrbTooltip = showCurrencyCardTooltip;
 
 
-const MOBILE_CRAFT_CURRENCY_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'chance', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'enchantedHoney', 'venomStinger', 'voidChisel'];
-const MOBILE_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos', 'divine', 'chance', 'annulment', 'scour', 'tainted', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst'];
+const MOBILE_CRAFT_CURRENCY_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'fairyRing', 'pruningShears', 'blightSpore', 'emberBranch', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'enchantedHoney', 'venomStinger', 'voidChisel'];
+const MOBILE_CRAFT_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'fairyRing', 'pruningShears', 'blightSpore', 'emberBranch', 'blessing', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst'];
 
 function getMobileCraftCurrencyOptions() {
     return MOBILE_CRAFT_CURRENCY_KEYS.filter(key => {
         if (!ORB_DB[key]) return false;
         if ((game.currencies[key] || 0) <= 0) return false;
-        if (key === 'tainted' && (game.season || 1) < 5) return false;
+        if (key === 'emberBranch' && (game.season || 1) < 5) return false;
         return true;
     });
 }
@@ -10315,23 +10323,23 @@ function buildCraftActionButtons(item) {
     hiddenCurrencyKeys.add('condensedSkyPower');
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
-        if (key === 'tainted') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
+        if (key === 'emberBranch') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
         if (key === 'enchantedHoney' || key === 'venomStinger' || key === 'voidChisel') return (game.currencies[key] || 0) > 0;
         if (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish' || key === 'abyssCatalyst') return (game.currencies[key] || 0) > 0;
         if (key === 'sporeFire' || key === 'sporeCold' || key === 'sporeLight') return false;
         // 나무꾼의 손길: 한 번이라도 획득(또는 보유)한 적이 있을 때만 재화 탭에 노출.
-        if (key === 'woodsmanTouch') return !!game.woodsmanTouchSeen || (game.currencies[key] || 0) > 0;
+        if (key === 'ouroboros') return !!game.woodsmanTouchSeen || (game.currencies[key] || 0) > 0;
         return true;
     }).map(key => {
         let useBtn = '';
         if (key === 'enchantedHoney') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyEnchantedHoneyToSelectedItem()">사용</button></div>`;
-        if (key === 'woodsmanTouch') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyWoodsmanTouchToSelectedItem()">봉인</button></div>`;
+        if (key === 'ouroboros') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyWoodsmanTouchToSelectedItem()">봉인</button></div>`;
         if (key === 'venomStinger') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVenomStingerToSelectedItem()">사용</button></div>`;
         if (key === 'voidChisel') useBtn = `<div style="display:flex; justify-content:flex-end; margin-top:6px;"><button onclick="applyVoidChiselToSelectedItem()">사용</button></div>`;
         let sporeModes = game.sporeCraftModes || {};
         let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
-        let isCraftOrb = ['transmute','augment','alteration','alchemy','exalted','regal','chaos','divine','chance','annulment','scour','tainted','blessing','deepWhetstone','rootIron','jewelPolish','abyssCatalyst'].includes(key);
-        let canUseSporeMode = ['transmute','augment','alteration','alchemy','exalted','regal','chaos'].includes(key);
+        let isCraftOrb = ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','emberBranch','blessing','deepWhetstone','rootIron','jewelPolish','abyssCatalyst'].includes(key);
+        let canUseSporeMode = ['magicBud','sapBud','formlessDew'].includes(key);
         let mode = sporeModes[key] || 'none';
         let useState = key === 'voidChisel' ? getMobileCraftCurrencyUseState(key, getSelectedCraftItem()) : getCraftOrbUseState(key, getSelectedCraftItem());
         let reason = useState.reason;
@@ -10342,7 +10350,7 @@ function buildCraftActionButtons(item) {
             useBtn += `<div style="display:flex; justify-content:flex-end; margin-top:4px;"><div style="display:flex; flex-wrap:nowrap; align-items:center; gap:4px;">${rightButtons}</div></div>`;
         }
         let premiumGray = (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish' || key === 'abyssCatalyst') ? 'style="background:linear-gradient(180deg,#656d78,#4f5660); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 6px rgba(220,225,235,.2);"' : '';
-        let rareCurrencyClass = key === 'woodsmanTouch' ? ' woodsman-touch-currency' : '';
+        let rareCurrencyClass = key === 'ouroboros' ? ' woodsman-touch-currency' : '';
         return `<div class="currency-card${rareCurrencyClass}" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name" ${premiumGray}>${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
     }).join('');
     let sporeHtml = buildSporeSummaryHtml();
@@ -11449,7 +11457,7 @@ function closeVoidPassiveCraftOverlay() {
 
 function getVoidPassiveRefundState(nodeId) {
     let active = (game.passives || []).includes(nodeId);
-    let hasScour = (game.currencies.scour || 0) >= 1;
+    let hasScour = (game.currencies.blightSpore || 0) >= 1;
     let connected = typeof canRefundPassiveNode === 'function' && canRefundPassiveNode(nodeId);
     return {
         enabled: active && hasScour && connected,
@@ -11503,11 +11511,9 @@ function openVoidPassiveCraftOverlay(nodeId) {
         <div style="border:1px solid rgba(114,184,208,0.45);background:rgba(8,18,28,0.72);border-radius:10px;padding:10px;margin-bottom:10px;color:#ffffff;line-height:1.45;">${effectLabel}</div>
         <div style="color:${active ? '#b9d7e8' : '#ffcf8a'};margin-bottom:10px;">${active ? '진화/확장/변화의 오브로 최대 2줄까지 옵션을 조율합니다.' : '먼저 패시브 트리에서 이 공허 패시브를 활성화해야 제작할 수 있습니다.'}</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px;">
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','transmute')" ${active && !hasStats && (game.currencies.transmute || 0) > 0 ? '' : 'disabled'}>진화의 오브<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.transmute || 0}</span></button>
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','augment')" ${active && canAugment && (game.currencies.augment || 0) > 0 ? '' : 'disabled'}>확장의 오브<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.augment || 0}</span></button>
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','alteration')" ${active && hasStats && (game.currencies.alteration || 0) > 0 ? '' : 'disabled'}>변화의 오브<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.alteration || 0}</span></button>
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','chance')" ${active && (game.currencies.chance || 0) > 0 ? '' : 'disabled'}>기회의 오브<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.chance || 0}</span></button>
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','divine')" ${active && entry.transcendent && typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' && TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min))) && (game.currencies.divine || 0) > 0 ? '' : 'disabled'}>신성한 오브<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.divine || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','magicBud')" ${active && !entry.transcendent && (game.currencies.magicBud || 0) > 0 && entry.stats.length < 2 ? '' : 'disabled'}>마법의 새싹<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.magicBud || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','fairyRing')" ${active && (game.currencies.fairyRing || 0) > 0 ? '' : 'disabled'}>요정의 고리<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.fairyRing || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','goldenRule')" ${active && entry.transcendent && typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' && TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min))) && (game.currencies.goldenRule || 0) > 0 ? '' : 'disabled'}>황금률<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.goldenRule || 0}</span></button>
         </div>
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(143,183,202,0.25);padding-top:10px;">
             <div style="color:${refundState.enabled ? '#c8f7d5' : '#8fa0ad'};font-size:13px;">${refundState.reason}</div>
@@ -12281,6 +12287,19 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
+    Object.entries(typeof CURRENCY_LEGACY_MERGE === 'object' ? CURRENCY_LEGACY_MERGE : {}).forEach(([currentKey, legacyKeys]) => {
+        let legacyAmount = (legacyKeys || []).reduce((sum, legacyKey) => sum + Math.max(0, Math.floor(Number(merged.currencies[legacyKey]) || 0)), 0);
+        merged.currencies[currentKey] = Math.max(0, Math.floor(Number(merged.currencies[currentKey]) || 0)) + legacyAmount;
+        (legacyKeys || []).forEach(legacyKey => delete merged.currencies[legacyKey]);
+    });
+    Object.entries(typeof CURRENCY_LEGACY_MERGE === 'object' ? CURRENCY_LEGACY_MERGE : {}).forEach(([currentKey, legacyKeys]) => {
+        (legacyKeys || []).forEach(legacyKey => Object.defineProperty(merged.currencies, legacyKey, {
+            configurable: true,
+            enumerable: false,
+            get() { return this[currentKey] || 0; },
+            set(value) { this[currentKey] = Math.max(0, Math.floor(Number(value) || 0)); }
+        }));
+    });
     if (!save.activeChallengeContract || typeof save.activeChallengeContract !== 'object') {
         merged.activeChallengeContract = { ...(merged.challengeContract || defaultGame.challengeContract) };
     }
@@ -12310,9 +12329,8 @@ function mergeDefaults(save) {
     merged.unlocks.cube = !!merged.unlocks.cube;
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(merged);
     if (!save.currencies && save.materials) {
-        merged.currencies.transmute += Math.floor(save.materials / 2);
-        merged.currencies.augment += Math.floor(save.materials / 4);
-        merged.currencies.alchemy += Math.floor(save.materials / 10);
+        merged.currencies.magicBud += Math.floor(save.materials / 2) + Math.floor(save.materials / 4);
+        merged.currencies.formlessDew += Math.floor(save.materials / 10);
     }
     let normalizedEquipment = { ...defaultGame.equipment };
     Object.keys(normalizedEquipment).forEach(slot => {
@@ -12882,7 +12900,7 @@ function mergeDefaults(save) {
 }
 
 function cloneDefaultGame() {
-    return JSON.parse(JSON.stringify(defaultGame));
+    return mergeDefaults({});
 }
 
 function isStartupOverlayOpen() {

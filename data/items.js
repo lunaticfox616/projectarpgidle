@@ -514,18 +514,26 @@ FLASK_UTILITY_CATEGORIES.forEach(cat => {
 // 하위호환: 과거 저장의 utilKey 등에서 참조할 수 있도록 통합 조회 맵.
 const FLASK_DB = Object.assign({}, FLASK_UTILITY_POOL, Object.fromEntries(FLASK_HEAL_TIERS.map(t => [t.key, t])));
 
+const CURRENCY_LEGACY_MERGE = Object.freeze({
+    magicBud: ['transmute', 'augment', 'alteration'],
+    sapBud: ['regal', 'exalted'],
+    formlessDew: ['alchemy', 'chaos'],
+    goldenRule: ['divine'],
+    emberBranch: ['tainted'],
+    ouroboros: ['woodsmanTouch'],
+    blightSpore: ['scour'],
+    pruningShears: ['annulment'],
+    fairyRing: ['chance']
+});
+
 const ORB_DB = {
-    transmute: { name: '진화의 오브', desc: '노멀 아이템을 매직으로 바꿉니다.' },
-    augment: { name: '확장의 오브', desc: '매직 아이템의 빈 옵션 칸을 하나 채웁니다.' },
-    alteration: { name: '변화의 오브', desc: '매직 아이템의 옵션을 다시 굴립니다.' },
-    alchemy: { name: '연금술의 오브', desc: '노멀 아이템을 희귀 아이템으로 바꿉니다.' },
-    exalted: { name: '엑잘티드 오브', desc: '희귀 아이템에 새 옵션을 하나 추가합니다.' },
-    regal: { name: '제왕의 오브', desc: '매직 아이템에 옵션을 1줄 추가하고 희귀 아이템으로 만듭니다.' },
-    chaos: { name: '카오스 오브', desc: '희귀 아이템의 옵션을 모두 다시 굴립니다.' },
-    divine: { name: '신성한 오브', desc: '아이템 옵션 수치를 다시 굴립니다.' },
-    chance: { name: '기회의 오브', desc: '일반 장비를 25% 확률로 파괴하거나 같은 부위의 고유 장비로 진화시킵니다. 공허 패시브에는 초월 시도에 사용합니다.' },
-    annulment: { name: '소멸의 오브', desc: '우주계 전용 희귀 재화. 제거할 수 없는 옵션을 제외한 추가 옵션 1개를 무작위로 제거합니다.' },
-    scour: { name: '정화의 오브', desc: '유니크를 제외한 아이템을 노멀 상태로 되돌립니다.' },
+    magicBud: { name: '마법의 새싹', desc: '일반 아이템을 매직으로 만들고 옵션을 부여합니다. 매직 아이템에는 무작위 옵션을 1~2줄 추가합니다.' },
+    sapBud: { name: '수액 봉오리', desc: '매직 아이템을 희귀로 승급하며 옵션 1줄을 추가합니다. 희귀 아이템에는 옵션 1줄을 추가합니다.' },
+    formlessDew: { name: '형체 없는 이슬', desc: '일반 아이템을 희귀로 만들거나, 희귀 아이템의 옵션을 모두 다시 굴립니다.' },
+    goldenRule: { name: '황금률', desc: '아이템 옵션 수치를 다시 굴립니다.' },
+    fairyRing: { name: '요정의 고리', desc: '일반 장비를 25% 확률로 파괴하거나 같은 부위의 고유 장비로 진화시킵니다. 공허 패시브에는 초월 시도에 사용합니다.' },
+    pruningShears: { name: '전정 가위', desc: '우주계 전용 희귀 재화. 제거할 수 없는 옵션을 제외한 추가 옵션 1개를 무작위로 제거합니다.' },
+    blightSpore: { name: '마름병 포자', desc: '유니크를 제외한 아이템을 일반 상태로 되돌립니다.' },
     bossKeyFlame: { name: '열쇠: 화염 군주', desc: '루프2 뿌리 보스 [이그니스] 도전권입니다.' },
     bossKeyFrost: { name: '열쇠: 서리 여제', desc: '루프2 뿌리 보스 [글라시아] 도전권입니다.' },
     bossKeyStorm: { name: '열쇠: 폭풍 군단장', desc: '루프2 뿌리 보스 [볼타] 도전권입니다.' },
@@ -533,7 +541,7 @@ const ORB_DB = {
     trialKey3: { name: '시련의 증표', desc: '3차/4차 전직 시련 재도전권입니다.' },
     chaosKey: { name: '카오스 키', desc: '혼돈계에서 드물게 드랍됩니다. 코어 키와 함께 재능 개화 시련을 여는 열쇠입니다.' },
     coreKey: { name: '코어 키', desc: '지하계에서 드물게 드랍됩니다. 카오스 키와 함께 재능 개화 시련을 여는 열쇠입니다.' },
-    woodsmanTouch: { name: '나무꾼의 손길', desc: '극히 드물게 발견되는 신비한 재화입니다. 장비 하나를 봉인하여 루프(환생)가 진행되어도 초기화되지 않게 합니다.' },
+    ouroboros: { name: '우로보로스', desc: '극히 드물게 발견되는 신비한 재화입니다. 장비 하나를 봉인하여 루프(환생)가 진행되어도 초기화되지 않게 합니다.' },
     rivalKey: { name: '표식: 버려진 날', desc: '루프31+ 심층(혼돈 심화 21+·혼돈계·지하계·창공의 탑) 보스가 드랍합니다. 버려진 날붙이 결투 도전권입니다.' },
     cosmosSovereignKey: { name: '표식: 잔향', desc: '루프31+ 우주계 은하 보스가 드물게 드랍합니다. 잔향체 아스트라 도전권입니다.' },
     blessing: { name: '축복의 오브', desc: '장비의 베이스 옵션 값을 80%~120% 구간에서 다시 굴립니다.' },
@@ -566,7 +574,7 @@ const ORB_DB = {
     skyEssence: { name: '창공의 힘', desc: '루프4 창공 몬스터에게서 얻는 젬 강화 재료입니다. 스킬 탭의 젬 강화에서 특수 옵션을 부여합니다.' },
     gemShard: { name: '젬 잔향', desc: '스킬 젬 드랍과 중복 젬 환원으로 얻습니다. 스킬 젬 탭의 젬 연구에서 원하는 미보유 공격 젬이나 보조 젬을 확정 해금합니다.' },
     condensedSkyPower: { name: '응축된 창공의 힘', desc: '창공의 탑에서 얻는 영구 재료입니다. 재화 목록에는 표시되지 않으며 창공석과 영구 젬 강화에 사용됩니다.' },
-    tainted: { name: '타락의 오브', desc: '아이템을 타락시켜 추가 옵션을 시도합니다. 옵션이 가득 차 있어도 성공 시 초과 부여됩니다. 타락 후 제작 불가.' },
+    emberBranch: { name: '잿불가지', desc: '아이템을 타락시켜 추가 옵션을 시도합니다. 옵션이 가득 차 있어도 성공 시 초과 부여됩니다. 타락 후 제작 불가.' },
     jewelCore: { name: '주얼 핵(구)', desc: '이전 버전 재화입니다. 로드 시 주얼 결정으로 자동 통합됩니다.' },
     jewelShard: { name: '주얼 결정', desc: '주얼 해체/제작/슬롯 증폭에 사용하는 통합 재화입니다.' },
     hiveKey: { name: '벌집 열쇠', desc: '루프8 이후 맵핑에서 낮은 확률로 발견되는 벌집 입장권입니다.' },
@@ -600,19 +608,14 @@ const OCEAN_FISH_DB = {
     kingLeviathan: { name: '리바이어던 본체', desc: '새끼가 아닌 리바이어던의 본체. 가장 깊은 곳에서도 낚일 확률이 극히 낮은 최상위 어종입니다.', depthTier: 16, rareWeight: 0.012 }
 };
 const MARKET_EXCHANGES = [
-    { id: 'm1', from: 'transmute', to: 'augment', need: 8, gain: 1 },
-    { id: 'm2', from: 'augment', to: 'alteration', need: 8, gain: 1 },
-    { id: 'm3', from: 'alteration', to: 'alchemy', need: 8, gain: 1 },
-    { id: 'm4', from: 'alchemy', to: 'chaos', need: 20, gain: 1 },
-    { id: 'm5', from: 'chaos', to: 'exalted', need: 15, gain: 1 },
-    { id: 'm6', from: 'chaos', to: 'divine', need: 100, gain: 1 },
-    { id: 'm7', from: 'chaos', to: 'regal', need: 3, gain: 1 },
-    { id: 'm8', from: 'regal', to: 'chaos', need: 8, gain: 1 },
-    { id: 'm9', from: 'chaos', to: 'scour', need: 4, gain: 1 },
-    { id: 'm10', from: 'exalted', to: 'divine', need: 5, gain: 1 },
-    { id: 'm11', from: 'divine', to: 'chaos', need: 1, gain: 30 }
-    ,{ id: 'm12', from: 'chaos', to: 'blessing', need: 5, gain: 1 }
-    ,{ id: 'm13', from: 'blessing', to: 'chaos', need: 3, gain: 1 }
+    { id: 'm1', from: 'magicBud', to: 'formlessDew', need: 8, gain: 1 },
+    { id: 'm2', from: 'formlessDew', to: 'sapBud', need: 15, gain: 1 },
+    { id: 'm3', from: 'formlessDew', to: 'goldenRule', need: 100, gain: 1 },
+    { id: 'm4', from: 'formlessDew', to: 'blightSpore', need: 4, gain: 1 },
+    { id: 'm5', from: 'sapBud', to: 'goldenRule', need: 5, gain: 1 },
+    { id: 'm6', from: 'goldenRule', to: 'formlessDew', need: 1, gain: 30 },
+    { id: 'm7', from: 'formlessDew', to: 'blessing', need: 5, gain: 1 },
+    { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
+safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });

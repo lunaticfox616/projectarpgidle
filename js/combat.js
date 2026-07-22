@@ -6963,12 +6963,12 @@ function rollLootForEnemy(enemy) {
             return;
         }
         awardCurrency(drop[0], drop[1]);
-        const premiumCurrency = ['divine', 'exalted', 'woodsmanTouch', 'annulment', 'abyssCatalyst'].includes(drop[0]);
-        const rareCurrency = premiumCurrency || ['regal', 'chaos', 'chance', 'blessing', 'skyEssence', 'tainted'].includes(drop[0]);
+        const premiumCurrency = ['goldenRule', 'sapBud', 'ouroboros', 'pruningShears', 'abyssCatalyst'].includes(drop[0]);
+        const rareCurrency = premiumCurrency || ['formlessDew', 'fairyRing', 'blessing', 'skyEssence', 'emberBranch'].includes(drop[0]);
         addBattleFx('lootPickup', { enemyId: enemy.id, color: premiumCurrency ? '#ffd166' : (rareCurrency ? '#d8a8ff' : '#9ad1ff'), tier: premiumCurrency ? 'unique' : (rareCurrency ? 'rare' : 'normal'), duration: premiumCurrency ? 980 : 760 });
         if (rareCurrency) addBattleFx('lootCelebration', { enemyId: enemy.id, color: premiumCurrency ? '#ffcf6b' : '#caa2ff', tier: premiumCurrency ? 'unique' : 'rare', duration: premiumCurrency ? 1320 : 960 });
         let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ((ORB_DB[drop[0]] && ORB_DB[drop[0]].name) || drop[0]);
-        if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${drop[1]}`, drop[0] === 'divine' || drop[0] === 'exalted' ? 'loot-unique' : 'loot-magic');
+        if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${drop[1]}`, drop[0] === 'goldenRule' || drop[0] === 'sapBud' ? 'loot-unique' : 'loot-magic');
     });
 
     rollFlaskDiscoveryDrop(enemy);
@@ -9978,7 +9978,7 @@ function triggerSeasonReset(options) {
         if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
     });
     let preservedSealedInventory = (game.inventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
-    let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.woodsmanTouch) || 0));
+    let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.ouroboros) || 0));
     let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
     let loopReward = awardLoopProgressPoints();
@@ -10065,7 +10065,7 @@ function triggerSeasonReset(options) {
     // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
     Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = preservedSealedEquipment[slot]; });
     if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory);
-    if (preservedWoodsmanTouch > 0) game.currencies.woodsmanTouch = preservedWoodsmanTouch;
+    if (preservedWoodsmanTouch > 0) game.currencies.ouroboros = preservedWoodsmanTouch;
     game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;
     game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));

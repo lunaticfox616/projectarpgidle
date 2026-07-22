@@ -78,7 +78,7 @@ const protectedItem = {
 };
 const annulLogs = [];
 const annulContext = {
-    game: { currencies: { divine: 2 } },
+    game: { currencies: { goldenRule: 2 } },
     isMarketUnlocked: () => true,
     getSelectedCraftItem: () => protectedItem,
     getAnnulmentRemovableStats: item => item.stats.map((stat, index) => ({ stat, index })).filter(row => !row.stat.lockedByHoney && !row.stat.lockedByRift && !row.stat.encroachedFinal && !row.stat.unremovable),
@@ -94,11 +94,11 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
 (async () => {
     await annulContext.marketAnnulSelectedStat(0);
     assert.strictEqual(protectedItem.stats.length, 2, 'market service must preserve a honey-locked affix');
-    assert.strictEqual(annulContext.game.currencies.divine, 2, 'rejected protected removal must not spend currency');
+    assert.strictEqual(annulContext.game.currencies.goldenRule, 2, 'rejected protected removal must not spend currency');
 
     await annulContext.marketAnnulSelectedStat(1);
     assert.deepStrictEqual(Array.from(protectedItem.stats, stat => stat.id), ['flatHp'], 'market service should remove the selected removable affix');
-    assert.strictEqual(annulContext.game.currencies.divine, 0);
+    assert.strictEqual(annulContext.game.currencies.goldenRule, 0);
 
     const originalJewel = { name: '확인 대상', rarity: 'rare', locked: false };
     const newlyDroppedJewel = { name: '확인 후 드랍', rarity: 'rare', locked: false };

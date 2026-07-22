@@ -2098,11 +2098,11 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
     let node = PASSIVE_TREE.nodes[nodeId];
     if (!node || node.kind !== 'void') return addLog('공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
     if (!(game.passives || []).includes(node.id)) return addLog('먼저 공허 패시브를 활성화해야 합니다.', 'attack-monster');
-    if (!['transmute', 'augment', 'alteration', 'chance', 'divine'].includes(currencyKey)) return addLog('공허 패시브에는 진화/확장/변화/기회/신성의 오브만 사용할 수 있습니다.', 'attack-monster');
+    if (!['magicBud', 'fairyRing', 'goldenRule'].includes(currencyKey)) return addLog('공허 패시브에는 마법의 새싹, 요정의 고리, 황금률만 사용할 수 있습니다.', 'attack-monster');
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
     let entry = getVoidPassiveCraft(node.id);
-    if (currencyKey === 'chance') {
-        game.currencies.chance--;
+    if (currencyKey === 'fairyRing') {
+        game.currencies.fairyRing--;
         let previousTranscendent = entry.transcendent;
         entry.stats = [];
         entry.transcendent = Math.random() < 0.75 ? null : rollTranscendentVoidPassive(node.id);
@@ -2112,9 +2112,9 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
         updateStaticUI();
         return;
     }
-    if (currencyKey === 'divine') {
+    if (currencyKey === 'goldenRule') {
         if (!entry.transcendent || !TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min)))) return addLog('신성한 오브는 수치가 있는 초월 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
-        game.currencies.divine--;
+        game.currencies.goldenRule--;
         let previousTranscendent = entry.transcendent;
         entry.transcendent = rerollTranscendentVoidPassive(entry.transcendent);
         syncPaleBlueDotPassivePoints(previousTranscendent, entry.transcendent);
@@ -2122,22 +2122,12 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
         updateStaticUI();
         return;
     }
-    if (entry.transcendent) return addLog('초월 공허 패시브에는 진화/확장/변화의 오브를 사용할 수 없습니다.', 'attack-monster');
-    if (currencyKey === 'transmute' && entry.stats.length > 0) return addLog('이미 매직 공허 패시브입니다.', 'attack-monster');
-    if (currencyKey === 'augment' && (entry.stats.length <= 0 || entry.stats.length >= 2)) return addLog('확장의 오브는 1줄 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
-    if (currencyKey === 'alteration' && entry.stats.length <= 0) return addLog('변화의 오브는 매직 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
+    if (entry.transcendent) return addLog('초월 공허 패시브에는 마법의 새싹을 사용할 수 없습니다.', 'attack-monster');
+    if (currencyKey === 'magicBud' && entry.stats.length >= 2) return addLog('공허 패시브의 옵션이 가득 찼습니다.', 'attack-monster');
     game.currencies[currencyKey]--;
-    if (currencyKey === 'transmute') entry.stats = [rollVoidPassiveOption([])].filter(Boolean);
-    else if (currencyKey === 'augment') {
+    if (currencyKey === 'magicBud') {
         let next = rollVoidPassiveOption(entry.stats);
         if (next) entry.stats.push(next);
-    } else if (currencyKey === 'alteration') {
-        let lineCount = Math.max(1, Math.min(2, entry.stats.length));
-        entry.stats = [];
-        for (let i = 0; i < lineCount; i++) {
-            let next = rollVoidPassiveOption(entry.stats);
-            if (next) entry.stats.push(next);
-        }
     }
     entry.rarity = entry.stats.length > 0 ? 'magic' : 'normal';
     addLog(`🕳️ 공허 패시브에 ${ORB_DB[currencyKey].name} 사용: ${getVoidPassiveEffectLabel(node.id).replace(/<[^>]*>/g, '')}`, 'loot-magic');
@@ -7975,9 +7965,9 @@ function applyVoidChiselToSelectedItem() { if (game.woodsmanBuildLock) return ad
 function applyWoodsmanTouchToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 봉인할 장비를 선택하세요.', 'attack-monster');
-    if ((game.currencies.woodsmanTouch || 0) < 1) return addLog('나무꾼의 손길이 부족합니다.', 'attack-monster');
+    if ((game.currencies.ouroboros || 0) < 1) return addLog('우로보로스가 부족합니다.', 'attack-monster');
     if (item.loopSealed) return addLog('이미 봉인된 장비입니다.', 'attack-monster');
-    game.currencies.woodsmanTouch--;
+    game.currencies.ouroboros--;
     item.loopSealed = true;
     addLog(`🌿 [${item.name}]을(를) 나무꾼의 손길로 봉인했습니다. 루프(환생)가 진행되어도 사라지지 않습니다.`, 'loot-unique');
     updateStaticUI();
@@ -8443,7 +8433,7 @@ function awardCurrency(currencyKey, amount) {
     }
     game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + gain;
     game.currencyDropVersion = Math.max(0, Math.floor(game.currencyDropVersion || 0)) + 1;
-    if (currencyKey === 'divine' && gain > 0) {
+    if (currencyKey === 'goldenRule' && gain > 0) {
         showDivineDropBanner(gain);
         addLog(`✨✨ <strong>신성한 오브 +${gain}</strong> 획득!`, 'loot-unique');
     }
@@ -8453,7 +8443,7 @@ function awardCurrency(currencyKey, amount) {
         let keyName = (ORB_DB[currencyKey] && ORB_DB[currencyKey].name) || currencyKey;
         addLog(`🗝️ <strong>${keyName} +${gain}</strong> 획득! 5차 미궁 시련(재능 개화)을 지도에서 확인하세요.`, 'loot-unique');
     }
-    if (currencyKey === 'woodsmanTouch' && gain > 0) {
+    if (currencyKey === 'ouroboros' && gain > 0) {
         game.woodsmanTouchSeen = true;
         addLog(`🌿✨ <strong>나무꾼의 손길 +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`, 'loot-unique');
     }
@@ -8499,33 +8489,30 @@ function getCurrencyDrops(enemy) {
     let bonusRoll = chance => Math.random() < Math.min(0.95, chance * (1 + dropBonus) * (abyssScale.dropMul || 1) * (enemy && enemy.dropMul ? enemy.dropMul : 1) * challengeRewardMul);
     let drops = [];
     if (enemy.isBoss) {
-        if (bonusRoll(0.30)) drops.push([Math.random() < 0.55 ? 'transmute' : 'augment', 1]);
-        if (bonusRoll(0.17)) drops.push(['alteration', 1]);
-        if (bonusRoll(0.31)) drops.push(['alchemy', 1]);
-        if (bonusRoll(0.08)) drops.push(['regal', 1]);
-        if (bonusRoll(0.17)) drops.push(['chaos', 1]);
+        if (bonusRoll(0.47)) drops.push(['magicBud', 1]);
+        if (bonusRoll(0.31)) drops.push(['formlessDew', 1]);
+        if (bonusRoll(0.08)) drops.push(['sapBud', 1]);
     } else if (enemy.isElite) {
         if (bonusRoll(0.18)) {
-            let roll = Math.random();
-            drops.push([roll < 0.34 ? 'transmute' : (roll < 0.66 ? 'augment' : (roll < 0.9 ? 'alteration' : 'alchemy')), 1]);
+            drops.push([Math.random() < 0.9 ? 'magicBud' : 'formlessDew', 1]);
         }
-        if (bonusRoll(0.015)) drops.push(['regal', 1]);
-        if (bonusRoll(0.03)) drops.push(['chaos', 1]);
+        if (bonusRoll(0.015)) drops.push(['sapBud', 1]);
+        if (bonusRoll(0.03)) drops.push(['formlessDew', 1]);
     } else if (bonusRoll(0.02)) {
-        drops.push([[ 'transmute', 'transmute', 'augment', 'alteration', 'scour' ][Math.floor(Math.random() * 5)], 1]);
+        drops.push([[ 'magicBud', 'magicBud', 'magicBud', 'magicBud', 'blightSpore' ][Math.floor(Math.random() * 5)], 1]);
     }
     // 신성한 오브: 일반 0.01375% / 정예 0.0825% / 보스 1.25%. 엑잘티드는 신성의 2배. 나무꾼의 손길은 신성 확률의 1/1200(극악).
     let divineChance = enemy.isBoss ? 0.0125 : (enemy.isElite ? 0.000825 : 0.0001375);
-    if (bonusRoll(divineChance)) drops.push(['divine', 1]);
-    if (bonusRoll(divineChance / 20)) drops.push(['chance', 1]);
-    if (bonusRoll(divineChance * 2)) drops.push(['exalted', 1]);
-    if (bonusRoll(divineChance / 1200)) drops.push(['woodsmanTouch', 1]);
+    if (bonusRoll(divineChance)) drops.push(['goldenRule', 1]);
+    if (bonusRoll(divineChance / 20)) drops.push(['fairyRing', 1]);
+    if (bonusRoll(divineChance * 2)) drops.push(['sapBud', 1]);
+    if (bonusRoll(divineChance / 1200)) drops.push(['ouroboros', 1]);
     let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     drops.push(...getMappingTicketDrops(enemy, zone, mappingOpened));
-    if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['annulment', 1]);
+    if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['pruningShears', 1]);
     if (zone.type === 'cosmos' && enemy.isBoss && bonusRoll(0.012)) drops.push(['abyssCatalyst', 1]);
     if ((game.season || 1) >= 4 && enemy.isSky && Math.random() < 0.35) drops.push(['skyEssence', 1]);
-    if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['tainted', 1]);
+    if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['emberBranch', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03) drops.push(['jewelShard', 3]);
     if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008) drops.push(['jewelShard', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.018) drops.push(['sealShard', 1]);
@@ -8881,7 +8868,7 @@ function rollRandomJewelStat(excludeIds) {
     return rollJewelStat(resolveJewelRollOption(rndChoice(pool), excludeIds));
 }
 
-const JEWEL_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'regal', 'exalted', 'chaos', 'divine', 'annulment'];
+const JEWEL_CRAFT_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'pruningShears'];
 
 function getSelectedJewelCraftIndex() {
     let index = Math.floor(Number(selectedJewelCraftIndex));
@@ -9140,14 +9127,11 @@ function getJewelCurrencyUseState(currencyKey, jewel) {
     if (jewel.rarity === 'unique') return { enabled: false, reason: '고유 주얼 제작 불가' };
     let count = getJewelCoreStats(jewel).length;
     let rarity = jewel.rarity || 'normal';
-    if (currencyKey === 'transmute') return { enabled: rarity === 'normal', reason: rarity === 'normal' ? '사용 가능' : '일반 주얼 필요' };
-    if (currencyKey === 'augment') return { enabled: rarity === 'magic' && count < 2, reason: rarity === 'magic' && count < 2 ? '사용 가능' : '매직 1줄 주얼 필요' };
-    if (currencyKey === 'alteration') return { enabled: rarity === 'magic', reason: rarity === 'magic' ? '사용 가능' : '매직 주얼 필요' };
-    if (currencyKey === 'regal') return { enabled: rarity === 'magic' && count < 4, reason: rarity === 'magic' && count < 4 ? '사용 가능' : '매직 주얼 필요' };
-    if (currencyKey === 'exalted') return { enabled: rarity === 'rare' && count < 4, reason: rarity === 'rare' && count < 4 ? '사용 가능' : '레어 빈 옵션 필요' };
-    if (currencyKey === 'chaos') return { enabled: rarity === 'rare', reason: rarity === 'rare' ? '사용 가능' : '레어 주얼 필요' };
-    if (currencyKey === 'divine') return { enabled: count > 0, reason: count > 0 ? '사용 가능' : '옵션 없음' };
-    if (currencyKey === 'annulment') return { enabled: count > 0, reason: count > 0 ? '사용 가능' : '제거할 옵션 없음' };
+    if (currencyKey === 'magicBud') return { enabled: rarity === 'normal' || (rarity === 'magic' && count < 2), reason: rarity === 'normal' || (rarity === 'magic' && count < 2) ? '사용 가능' : '일반 또는 빈 옵션이 있는 매직 주얼 필요' };
+    if (currencyKey === 'sapBud') return { enabled: (rarity === 'magic' || rarity === 'rare') && count < 4, reason: (rarity === 'magic' || rarity === 'rare') && count < 4 ? '사용 가능' : '빈 옵션이 있는 매직 또는 희귀 주얼 필요' };
+    if (currencyKey === 'formlessDew') return { enabled: rarity === 'normal' || rarity === 'rare', reason: rarity === 'normal' || rarity === 'rare' ? '사용 가능' : '일반 또는 희귀 주얼 필요' };
+    if (currencyKey === 'goldenRule') return { enabled: count > 0, reason: count > 0 ? '사용 가능' : '옵션 없음' };
+    if (currencyKey === 'pruningShears') return { enabled: count > 0, reason: count > 0 ? '사용 가능' : '제거할 옵션 없음' };
     return { enabled: rarity !== 'normal', reason: rarity !== 'normal' ? '사용 가능' : '일반 주얼에는 사용 불가' };
 }
 
@@ -9158,7 +9142,7 @@ async function useCurrencyOnJewel(currencyKey, idx) {
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
     let state = getJewelCurrencyUseState(currencyKey, jewel);
     if (!state.enabled) return addLog(state.reason, 'attack-monster');
-    if (currencyKey === 'divine' && !await requestGameConfirmation('선택한 주얼에 신성한 오브를 사용합니다.', {
+    if (currencyKey === 'goldenRule' && !await requestGameConfirmation('선택한 주얼에 황금률을 사용합니다.', {
         title: '희귀 재화 사용',
         tone: 'danger',
         confirmLabel: '사용'
@@ -9171,20 +9155,21 @@ async function useCurrencyOnJewel(currencyKey, idx) {
     game.currencies[currencyKey]--;
     applyCurrencyToJewel(currencyKey, jewel);
     selectedJewelCraftIndex = index;
-    addLog(`💠 주얼에 ${ORB_DB[currencyKey].name} 사용: [${jewel.name || '주얼'}]`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
+    addLog(`💠 주얼에 ${ORB_DB[currencyKey].name} 사용: [${jewel.name || '주얼'}]`, currencyKey === 'sapBud' || currencyKey === 'goldenRule' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }
 
 function applyCurrencyToJewel(currencyKey, jewel) {
     let stats = getJewelCoreStats(jewel).map(cloneJewelStat).filter(Boolean);
-    if (currencyKey === 'transmute') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(1));
-    if (currencyKey === 'alteration') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(Math.random() < 0.5 ? 1 : 2));
-    if (currencyKey === 'chaos') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.random() < 0.35 ? 3 : 2));
-    if (currencyKey === 'augment') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(Math.min(2, stats.length + 1), stats));
-    if (currencyKey === 'regal') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
-    if (currencyKey === 'exalted') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
-    if (currencyKey === 'divine') return rerollJewelStatValues(jewel);
-    if (currencyKey === 'annulment') {
+    if (currencyKey === 'magicBud') return jewel.rarity === 'normal'
+        ? setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(1))
+        : setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(Math.min(2, stats.length + 1 + Math.floor(Math.random() * 2)), stats));
+    if (currencyKey === 'sapBud') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
+    if (currencyKey === 'formlessDew') return jewel.rarity === 'normal'
+        ? setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.random() < 0.35 ? 3 : 2))
+        : setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.random() < 0.35 ? 3 : 2));
+    if (currencyKey === 'goldenRule') return rerollJewelStatValues(jewel);
+    if (currencyKey === 'pruningShears') {
         let removeIdx = Math.floor(Math.random() * Math.max(1, stats.length));
         stats.splice(removeIdx, 1);
         return setJewelStatsAndRarity(jewel, stats.length > 0 ? jewel.rarity : 'normal', stats);
@@ -10251,23 +10236,31 @@ async function useCurrency(currencyKey) {
     let item = getSelectedCraftItem();
     if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog("오브가 부족합니다.", "attack-monster");
-    if (item.corrupted && currencyKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
+    let actionKey = currencyKey;
+    if (currencyKey === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'augment';
+    if (currencyKey === 'sapBud') actionKey = item.rarity === 'magic' ? 'regal' : 'exalted';
+    if (currencyKey === 'formlessDew') actionKey = item.rarity === 'normal' ? 'alchemy' : 'chaos';
+    if (currencyKey === 'goldenRule') actionKey = 'divine';
+    if (currencyKey === 'fairyRing') actionKey = 'chance';
+    if (currencyKey === 'pruningShears') actionKey = 'annulment';
+    if (currencyKey === 'blightSpore') actionKey = 'scour';
+    if (currencyKey === 'emberBranch') actionKey = 'tainted';
+    if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(currencyKey)) return addLog("융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.", "attack-monster");
 
     let ok = false;
-    if (currencyKey === 'transmute') ok = item.rarity === 'normal';
-    else if (currencyKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
-    else if (currencyKey === 'alteration') ok = item.rarity === 'magic';
-    else if (currencyKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (currencyKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
-    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
-    else if (currencyKey === 'chaos') ok = item.rarity === 'rare';
-    else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
-    else if (currencyKey === 'chance') ok = item.rarity === 'normal';
-    else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (currencyKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
+    if (actionKey === 'transmute') ok = item.rarity === 'normal';
+    else if (actionKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
+    else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
+    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
+    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
+    else if (actionKey === 'chaos') ok = item.rarity === 'rare';
+    else if (actionKey === 'divine') ok = item.rarity !== 'normal';
+    else if (actionKey === 'chance') ok = item.rarity === 'normal';
+    else if (actionKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
+    else if (actionKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
     else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
-    else if (currencyKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
+    else if (actionKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
     else if (currencyKey === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     else if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
         let slot = String(item.slot || '');
@@ -10341,10 +10334,10 @@ async function useCurrency(currencyKey) {
     }
     let guaranteedMod = getSporeGuaranteedMod();
     let consumedSpore = false;
-    let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];
-    let rerollSporeCurrencies = ['transmute', 'alteration', 'alchemy', 'chaos'];
-    let usesSporeAffix = sporeAffixCurrencies.includes(currencyKey);
-    let isRerollSporeCurrency = rerollSporeCurrencies.includes(currencyKey);
+    let sporeAffixCurrencies = ['transmute', 'augment', 'alchemy', 'exalted', 'regal', 'chaos'];
+    let rerollSporeCurrencies = ['transmute', 'alchemy', 'chaos'];
+    let usesSporeAffix = sporeAffixCurrencies.includes(actionKey);
+    let isRerollSporeCurrency = rerollSporeCurrencies.includes(actionKey);
     let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
     if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) {
         return addLog('선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다. 홀씨 모드를 미사용으로 바꾸거나 해당 계열의 기존 옵션을 제거하세요.', 'attack-monster');
@@ -10358,7 +10351,7 @@ async function useCurrency(currencyKey) {
         }
     }
     let exaltedMod = null;
-    if (currencyKey === 'exalted') {
+    if (actionKey === 'exalted') {
         exaltedMod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
         if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
     }
@@ -10370,7 +10363,7 @@ async function useCurrency(currencyKey) {
     if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
         item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
         addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
-    } else if (currencyKey === 'transmute') {
+    } else if (actionKey === 'transmute') {
         item.rarity = 'magic';
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
@@ -10378,7 +10371,7 @@ async function useCurrency(currencyKey) {
                 applyGuaranteedToNonLocked(guaranteedMod);
             } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
-    } else if (currencyKey === 'augment') {
+    } else if (actionKey === 'augment') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
         if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         updateItemName(item);
@@ -10389,7 +10382,7 @@ async function useCurrency(currencyKey) {
                 applyGuaranteedToNonLocked(guaranteedMod);
             } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
-    } else if (currencyKey === 'alchemy') {
+    } else if (actionKey === 'alchemy') {
         item.rarity = 'rare';
         rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
@@ -10397,22 +10390,22 @@ async function useCurrency(currencyKey) {
                 applyGuaranteedToNonLocked(guaranteedMod);
             } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
-    } else if (currencyKey === 'exalted') {
+    } else if (actionKey === 'exalted') {
         item.stats.push((exaltedMod === guaranteedMod) ? rollSporeGuaranteedValue(exaltedMod) : rollAffixValue(exaltedMod, getItemCraftTier(item)));
         updateItemName(item);
-    } else if (currencyKey === 'regal') {
+    } else if (actionKey === 'regal') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
         if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         item.rarity = 'rare';
         updateItemName(item);
-    } else if (currencyKey === 'chaos') {
+    } else if (actionKey === 'chaos') {
         rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
             if (guaranteedMod) {
                 applyGuaranteedToNonLocked(guaranteedMod);
             } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
-    } else if (currencyKey === 'divine') {
+    } else if (actionKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney || stat.lockedByRift) return;
             rerollStoredAffixValue(stat);
@@ -10429,7 +10422,7 @@ async function useCurrency(currencyKey) {
             let socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
             item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
         }
-    } else if (currencyKey === 'chance') {
+    } else if (actionKey === 'chance') {
         if (Math.random() < 0.25) {
             destroySelectedCraftItem(item);
             addLog('💥 기회의 오브: 장비가 파괴되었습니다.', 'attack-monster');
@@ -10439,19 +10432,19 @@ async function useCurrency(currencyKey) {
             Object.assign(item, unique);
             addLog(`🌟 기회의 오브: [${item.name}] 고유 장비로 진화했습니다.`, 'loot-unique');
         }
-    } else if (currencyKey === 'annulment') {
+    } else if (actionKey === 'annulment') {
         let removable = getAnnulmentRemovableStats(item);
         if (removable.length <= 0) return addLog('제거할 수 있는 추가 옵션이 없습니다.', 'attack-monster');
         let picked = rndChoice(removable);
         let removed = item.stats.splice(picked.index, 1)[0];
         updateItemName(item);
         addLog(`🕳️ 소멸의 오브: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique');
-    } else if (currencyKey === 'scour') {
+    } else if (actionKey === 'scour') {
         item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
         item.chaosInfusion = null;
         item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
-    } else if (currencyKey === 'tainted') {
+    } else if (actionKey === 'tainted') {
         item.corrupted = true;
         if (Math.random() < 0.35) {
             let mod = pickWeightedMod(getAvailableMods(item));

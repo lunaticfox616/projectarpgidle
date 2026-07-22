@@ -598,7 +598,7 @@ safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCr
 async function marketResetPassiveTreeByDivine() {
     if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 패시브를 초기화할 수 없습니다.', 'attack-monster');
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
-    if ((game.currencies.divine || 0) < 1) return addLog('신성한 오브가 부족합니다.', 'attack-monster');
+    if ((game.currencies.goldenRule || 0) < 1) return addLog('황금률이 부족합니다.', 'attack-monster');
     let spentNodes = Array.isArray(game.passives) ? game.passives.length : 0;
     if (spentNodes <= 0) return addLog('초기화할 패시브 노드가 없습니다.', 'attack-monster');
     let passiveSnapshot = game.passives.slice();
@@ -607,11 +607,11 @@ async function marketResetPassiveTreeByDivine() {
         tone: 'danger',
         confirmLabel: '초기화'
     })) return;
-    if (game.woodsmanBuildLock || (game.currencies.divine || 0) < 1 || !Array.isArray(game.passives)
+    if (game.woodsmanBuildLock || (game.currencies.goldenRule || 0) < 1 || !Array.isArray(game.passives)
         || game.passives.length !== passiveSnapshot.length || game.passives.some((nodeId, index) => nodeId !== passiveSnapshot[index])) {
         return addLog('확인 중 패시브 또는 재화 상태가 변경되어 초기화를 취소했습니다.', 'attack-monster');
     }
-    game.currencies.divine -= 1;
+    game.currencies.goldenRule -= 1;
     game.passives = [];
     game.passiveAttributeChoices = {};
     game.passivePoints += spentNodes;
@@ -630,7 +630,7 @@ async function marketAnnulSelectedStat(statIdx) {
         ? getAnnulmentRemovableStats(item)
         : (Array.isArray(item.stats) ? item.stats.map((stat, index) => ({ stat, index })).filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift && !row.stat.encroachedFinal && !row.stat.unremovable) : []);
     if (item.rarity === 'normal' || removable.length <= 0) return addLog('소멸시킬 수 있는 옵션이 없습니다. 보호된 옵션은 제거할 수 없습니다.', 'attack-monster');
-    if ((game.currencies.divine || 0) < 2) return addLog('신성한 오브가 부족합니다. (필요: 2)', 'attack-monster');
+    if ((game.currencies.goldenRule || 0) < 2) return addLog('황금률이 부족합니다. (필요: 2)', 'attack-monster');
     let idx = Math.floor(Number(statIdx));
     let selected = removable.find(row => row.index === idx);
     if (!selected) return addLog('제거할 수 있는 옵션을 선택하세요. 밀랍·균열·잠식으로 보호된 옵션은 유지됩니다.', 'attack-monster');
@@ -641,10 +641,10 @@ async function marketAnnulSelectedStat(statIdx) {
         tone: 'danger',
         confirmLabel: '옵션 제거'
     })) return;
-    if (game.woodsmanBuildLock || getSelectedCraftItem() !== item || !Array.isArray(item.stats) || item.stats[idx] !== target || (game.currencies.divine || 0) < 2) {
+    if (game.woodsmanBuildLock || getSelectedCraftItem() !== item || !Array.isArray(item.stats) || item.stats[idx] !== target || (game.currencies.goldenRule || 0) < 2) {
         return addLog('확인 중 장비 또는 재화 상태가 변경되어 옵션 소멸을 취소했습니다.', 'attack-monster');
     }
-    game.currencies.divine -= 2;
+    game.currencies.goldenRule -= 2;
     item.stats.splice(idx, 1);
     updateItemName(item);
     addLog(`💥 옵션 소멸 완료: [${item.name}] - ${targetName}`, 'loot-unique');
@@ -654,13 +654,13 @@ async function marketAnnulSelectedStat(statIdx) {
 async function marketExpandInventoryByDivine() {
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     let cost = getMarketInventoryExpandCost();
-    if ((game.currencies.divine || 0) < cost) return addLog(`신성한 오브가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if ((game.currencies.goldenRule || 0) < cost) return addLog(`황금률이 부족합니다. (필요: ${cost})`, 'attack-monster');
     if (!await requestGameConfirmation(`신성한 오브 ${cost}개를 소모하여 인벤토리를 영구히 5칸 확장합니다.`, {
         title: '인벤토리 영구 확장',
         confirmLabel: '확장'
     })) return;
-    if (getMarketInventoryExpandCost() !== cost || (game.currencies.divine || 0) < cost) return addLog('확인 중 확장 비용 또는 재화가 변경되어 취소했습니다.', 'attack-monster');
-    game.currencies.divine -= cost;
+    if (getMarketInventoryExpandCost() !== cost || (game.currencies.goldenRule || 0) < cost) return addLog('확인 중 확장 비용 또는 재화가 변경되어 취소했습니다.', 'attack-monster');
+    game.currencies.goldenRule -= cost;
     game.inventoryExpandLevel = Math.max(0, Math.floor(game.inventoryExpandLevel || 0)) + 1;
     addLog(`🎒 인벤토리 영구 확장 완료! 현재 최대 칸: ${getInventoryLimit()}`, 'loot-unique');
     updateStaticUI();
@@ -670,13 +670,13 @@ async function marketExpandJewelInventoryByDivine() {
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     if ((game.season || 1) < 5) return addLog('주얼 해금 후 이용할 수 있습니다.', 'attack-monster');
     let cost = getJewelMarketExpandCost();
-    if ((game.currencies.divine || 0) < cost) return addLog(`신성한 오브가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if ((game.currencies.goldenRule || 0) < cost) return addLog(`황금률이 부족합니다. (필요: ${cost})`, 'attack-monster');
     if (!await requestGameConfirmation(`신성한 오브 ${cost}개를 소모하여 주얼 인벤토리를 영구히 5칸 확장합니다.\n이 확장은 루프 종료 후에도 유지됩니다.`, {
         title: '주얼 인벤토리 영구 확장',
         confirmLabel: '확장'
     })) return;
-    if (getJewelMarketExpandCost() !== cost || (game.currencies.divine || 0) < cost) return addLog('확인 중 확장 비용 또는 재화가 변경되어 취소했습니다.', 'attack-monster');
-    game.currencies.divine -= cost;
+    if (getJewelMarketExpandCost() !== cost || (game.currencies.goldenRule || 0) < cost) return addLog('확인 중 확장 비용 또는 재화가 변경되어 취소했습니다.', 'attack-monster');
+    game.currencies.goldenRule -= cost;
     game.jewelInventoryExpandLevel = Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)) + 1;
     addLog(`💠 주얼 인벤토리 영구 확장 완료! 현재 최대 칸: ${getJewelInventoryLimit()}`, 'loot-unique');
     updateStaticUI();
@@ -846,10 +846,10 @@ function confirmSelectedItemBaseUpgrade() {
         if (equipMatch) item = equipMatch[1];
     }
     if (!item) { closeBaseUpgradeOverlay(); return addLog('대상 장비를 찾을 수 없습니다.', 'attack-monster'); }
-    if ((game.currencies.chaos || 0) < (pending.costChaos || 0)) return addLog(`카오스 오브가 부족합니다. (필요: ${pending.costChaos})`, 'attack-monster');
-    if ((game.currencies.divine || 0) < (pending.costDivine || 0)) return addLog(`신성한 오브가 부족합니다. (필요: ${pending.costDivine})`, 'attack-monster');
-    game.currencies.chaos -= (pending.costChaos || 0);
-    game.currencies.divine = Math.max(0, (game.currencies.divine || 0) - (pending.costDivine || 0));
+    if ((game.currencies.formlessDew || 0) < (pending.costChaos || 0)) return addLog(`형체 없는 이슬이 부족합니다. (필요: ${pending.costChaos})`, 'attack-monster');
+    if ((game.currencies.goldenRule || 0) < (pending.costDivine || 0)) return addLog(`황금률이 부족합니다. (필요: ${pending.costDivine})`, 'attack-monster');
+    game.currencies.formlessDew -= (pending.costChaos || 0);
+    game.currencies.goldenRule = Math.max(0, (game.currencies.goldenRule || 0) - (pending.costDivine || 0));
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || null;
     let nextBase = BASE_ITEM_DB.find(base => base && base.id === pending.nextBaseId);
     if (!nextBase) return closeBaseUpgradeOverlay();
@@ -883,7 +883,7 @@ function createBlackMarketUniqueOffer(unique, tier, options) {
         hiddenTier:req,
         baseId: uniqueBase ? uniqueBase.id : '',
         baseName: uniqueBase ? uniqueBase.name : '',
-        priceKey:'divine',
+        priceKey:'goldenRule',
         price:price,
         chase: !!unique.ultraRare,
         featured: !!(options && options.featured),
@@ -937,11 +937,11 @@ function buildBlackMarketOffer(index) {
         // 아니라 실제 제공 티어를 기준으로 계산한다. 저티어 베이스를 고단계 제작대로 헐값에
         // 구매하는 경제 우회를 막되, 직접 드랍보다 접근성은 유지한다.
         let price = Math.max(2, Math.ceil(hiddenTier * 0.45) + 2 + (rolledBase.exceptionalBase ? 4 : 0));
-        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, priceKey:'chaos', price:price, baseStats: rolledBase.baseStats, exceptionalBase: rolledBase.exceptionalBase, exceptionalStatNames: rolledBase.names, rareT20Base: (base.reqTier || 1) >= 20, baseChainStep: chainInfo && chainInfo.step, baseChainTotal: chainInfo && chainInfo.total };
+        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, priceKey:'formlessDew', price:price, baseStats: rolledBase.baseStats, exceptionalBase: rolledBase.exceptionalBase, exceptionalStatNames: rolledBase.names, rareT20Base: (base.reqTier || 1) >= 20, baseChainStep: chainInfo && chainInfo.step, baseChainTotal: chainInfo && chainInfo.total };
     }
     if (roll < 0.9) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
-        if (missing.length>0) return { type:'skillGem', name:rndChoice(missing), priceKey:'chaos', price:5 };
+        if (missing.length>0) return { type:'skillGem', name:rndChoice(missing), priceKey:'formlessDew', price:5 };
     }
     let preferredUniqueSlot = bm.preferredSlot !== 'any' && Math.random() < 0.35 ? bm.preferredSlot : 'any';
     let uniqPool = getBlackMarketUniquePool(tier, preferredUniqueSlot, { includeChase: true });
@@ -1130,15 +1130,15 @@ async function refreshBlackMarketNow() {
     if (!isMarketUnlocked()) return;
     let bm = normalizeBlackMarketState();
     let cost = getBlackMarketManualRefreshCost();
-    if ((game.currencies.chaos || 0) < cost) return addLog(`즉시 갱신에 필요한 카오스 오브가 부족합니다. (필요 ${cost})`, 'attack-monster');
+    if ((game.currencies.formlessDew || 0) < cost) return addLog(`즉시 갱신에 필요한 형체 없는 이슬이 부족합니다. (필요 ${cost})`, 'attack-monster');
     let lockCount = getBlackMarketLockCount();
     let accepted = await requestGameConfirmation(
         `잠그지 않은 암거래 품목을 즉시 갱신합니다.\n카오스 오브 ${cost}개를 사용하며 잠금 ${lockCount}개는 유지됩니다.`,
         { title: '암거래 즉시 갱신', confirmLabel: '갱신', danger: false }
     );
     if (!accepted) return;
-    if ((game.currencies.chaos || 0) < cost) return addLog('갱신 도중 재화가 변경되어 취소되었습니다.', 'attack-monster');
-    game.currencies.chaos -= cost;
+    if ((game.currencies.formlessDew || 0) < cost) return addLog('갱신 도중 재화가 변경되어 취소되었습니다.', 'attack-monster');
+    game.currencies.formlessDew -= cost;
     bm.manualRefreshes = Math.min(20, Math.max(0, Math.floor(bm.manualRefreshes || 0)) + 1);
     refreshBlackMarket(true);
     addLog(`🕶️ 암거래 즉시 갱신 완료 (카오스 ${cost} 소모)`, 'loot-magic');
@@ -1149,7 +1149,7 @@ async function expandBlackMarketSlotsByDivine(){
     let bm = normalizeBlackMarketState();
     if (isBlackMarketSlotCapReached()) return addLog(`암거래상 품목 한도는 최대 ${BLACK_MARKET_MAX_SLOT_COUNT}개입니다.`, 'attack-monster');
     let cost = getBlackMarketSlotExpandCost();
-    if ((game.currencies.divine||0) < cost) return addLog(`신성한 오브가 부족합니다. (필요 ${cost})`, 'attack-monster');
+    if ((game.currencies.goldenRule||0) < cost) return addLog(`황금률이 부족합니다. (필요 ${cost})`, 'attack-monster');
     if (!await requestGameConfirmation(`신성한 오브 ${cost}개를 소모해 암거래 품목 슬롯을 영구히 1칸 확장합니다.\n현재 상품과 잠금 상태는 그대로 유지됩니다.`, {
         title: '암거래 품목 확장',
         tone: cost >= 5 ? 'danger' : 'warning',
@@ -1157,9 +1157,9 @@ async function expandBlackMarketSlotsByDivine(){
     })) return;
     bm = normalizeBlackMarketState();
     if (isBlackMarketSlotCapReached() || getBlackMarketSlotExpandCost() !== cost) return addLog('확장 대기 중 거래소 상태가 변경되어 취소되었습니다.', 'attack-monster');
-    if ((game.currencies.divine||0) < cost) return addLog('확장 대기 중 재화가 변경되어 취소되었습니다.', 'attack-monster');
+    if ((game.currencies.goldenRule||0) < cost) return addLog('확장 대기 중 재화가 변경되어 취소되었습니다.', 'attack-monster');
     let previousCount = getBlackMarketSlotCount();
-    game.currencies.divine -= cost;
+    game.currencies.goldenRule -= cost;
     bm.extraSlots = Math.min(BLACK_MARKET_MAX_EXTRA_SLOTS, Math.max(0, Math.floor(bm.extraSlots||0)) + 1);
     bm.offers = Array.isArray(bm.offers) ? bm.offers : [];
     bm.offers[previousCount] = buildBlackMarketOffer(previousCount);
