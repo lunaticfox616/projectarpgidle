@@ -8371,6 +8371,7 @@ function updateCombatUI(pStats) {
             enemyListEl.dataset.enemyId = focusedKey;
             let traitMarkup = '<div class="enemy-tags muted enemy-traits"></div>';
             let effectMarkup = '<div class="enemy-tags muted enemy-ailments combat-effect-strip enemy-combat-effect-strip" aria-label="활성 상태이상 및 효과"></div>';
+            let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}${effectMarkup}</div>`;
             enemyListEl.innerHTML = `
                 <div class="enemy-card targeted enemy-${enemyHudTier}">
                     <div class="enemy-nameplate"><div class="enemy-name"></div></div>
@@ -8385,10 +8386,8 @@ function updateCombatUI(pStats) {
                                 <div class="hp-text"></div>
                             </div>
                         </div>
-                        ${enemyHudTier === 'boss' ? traitMarkup + effectMarkup : ''}
+                        ${metaMarkup}
                     </div>
-                    ${enemyHudTier === 'boss' ? '' : traitMarkup}
-                    ${enemyHudTier === 'boss' ? '' : effectMarkup}
                 </div>
             `;
         }

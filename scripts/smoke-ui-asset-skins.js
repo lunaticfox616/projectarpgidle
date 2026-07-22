@@ -36,9 +36,9 @@ const css = fs.readFileSync('css/ui-asset-skins.css', 'utf8');
 const menuCss = fs.readFileSync('css/ui-menu-sockets.css', 'utf8');
 const windowManager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 
-assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-hud-spacing1'), 'asset skin CSS must be cache-versioned');
+assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-hud-meta2'), 'asset skin CSS must be cache-versioned');
 assert.ok(html.includes('css/ui-menu-sockets.css?v=20260722-combat-icons2'), 'menu socket CSS must be cache-versioned');
-assert.ok(html.includes('js/ui.js?v=20260722-hud-spacing1'), 'combat HUD JavaScript must be cache-versioned');
+assert.ok(html.includes('js/ui.js?v=20260722-hud-meta2'), 'combat HUD JavaScript must be cache-versioned');
 assert.ok(html.includes('js/combat.js?v=20260722-combat-icons2'), 'combat effect state fixes must be cache-versioned');
 assert.ok(html.includes('js/ui-window-manager.js?v=20260722-combat-icons2'), 'menu socket JavaScript must be cache-versioned');
 assert.ok(html.indexOf('css/ui-asset-skins.css') > html.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
@@ -55,10 +55,9 @@ assert.ok(ui.includes('src="assets/ui/health-${enemyHudTier}-v1.png"'), 'enemy f
 assert.ok(ui.includes("let traitMarkup = '<div class=\"enemy-tags muted enemy-traits\"></div>'"), 'enemy traits must have one DOM owner per tier');
 assert.ok(ui.includes("let effectMarkup = '<div class=\"enemy-tags muted enemy-ailments combat-effect-strip enemy-combat-effect-strip\""),
   'enemy effects must have one DOM owner per tier');
-assert.ok(ui.includes("${enemyHudTier === 'boss' ? traitMarkup + effectMarkup : ''}"),
-  'boss traits and effects must render together inside the ornate frame');
-assert.ok(ui.includes("${enemyHudTier === 'boss' ? '' : traitMarkup}"), 'elite traits must render outside the frame ornaments');
-assert.ok(ui.includes("${enemyHudTier === 'boss' ? '' : effectMarkup}"), 'non-boss effects must remain below their compact frames');
+assert.ok(ui.includes('let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}${effectMarkup}</div>`'),
+  'enemy traits and effects must share one compact row');
+assert.ok(ui.includes('${metaMarkup}'), 'every enemy tier must render its metadata row inside its health frame');
 assert.ok(css.includes('.player-health-frame #ui-hp-bar'), 'player HP must have its own green live fill');
 assert.ok(css.includes('.player-health-frame #ui-es-bar'), 'player energy shield must have its own blue live fill');
 assert.ok(css.includes('.player-health-frame #ui-exp-bar'), 'player experience must have its own live fill');
@@ -73,7 +72,7 @@ assert.ok(css.includes('.combat-flask-mini.overflow'), 'extra flask status must 
 assert.ok(css.includes('.combat-flask-mini.empty'), 'unequipped utility art sockets must be masked');
 assert.ok(/\.player-health-frame \.combat-flask-mini \{[\s\S]*?position: absolute !important;/.test(css), 'dark theme button chrome must not displace flask sockets');
 assert.ok(/\.player-health-frame \.combat-flask-mini \{[\s\S]*?overflow: visible !important;/.test(css), 'flask charge badges must not be clipped by their circular sockets');
-assert.ok(css.includes('.player-hud-shell > .player-hud-identity-row') && css.includes('right: calc(100% + 12px)'),
+assert.ok(css.includes('.player-hud-shell > .player-hud-identity-row') && css.includes('right: calc(100% + 6px)') && css.includes('bottom: 24%'),
   'desktop identity text must occupy the dedicated lower-left panel beside health');
 assert.ok(css.includes('body.desktop-windowed-ui .combat-panel { overflow: visible; }'),
   'desktop identity panel must remain visible outside the combat panel padding box');
@@ -90,8 +89,10 @@ assert.ok(css.includes('background-size: 700% 700%'), 'effect art must expose ex
 assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 0;/.test(css),
   'dense player effects must shrink inside the framed strip instead of overflowing on mobile');
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
-assert.ok(css.includes('--health-frame-width: 520px') && css.includes('.enemy-card.enemy-boss .enemy-ailments'),
+assert.ok(css.includes('--health-frame-width: 520px') && css.includes('.enemy-card.enemy-boss .enemy-hud-meta'),
   'boss health, traits, and effects must use the compact integrated frame');
+['mob', 'elite', 'boss'].forEach(tier => assert.ok(css.includes(`.enemy-card.enemy-${tier} .enemy-hud-meta`),
+  `${tier} traits and effects must have their own health-frame position`));
 assert.ok(css.includes('-webkit-line-clamp: 2'), 'the boss trait panel must use both available text rows');
 assert.ok(css.includes('.enemy-card.enemy-elite .enemy-traits') && css.includes('background: rgba(15, 10, 12, .55)'), 'elite traits must use a content-sized translucent panel');
 assert.ok(/#enemy-area \.enemy-ailments \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/.test(css), 'enemy effects must no longer use a text box');
