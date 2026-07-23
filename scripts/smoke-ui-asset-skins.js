@@ -93,7 +93,7 @@ assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-ic
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('--health-frame-width: 520px') && css.includes('.enemy-card.enemy-boss .enemy-hud-meta'),
   'boss health, traits, and effects must use the compact integrated frame');
-assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?width: 52%;[\s\S]*?min-height: 16px;/.test(css),
+assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?width: 44%;[\s\S]*?min-height: 16px;/.test(css),
   'boss traits must stay centered within the supplied pink trait panel');
 ['mob', 'elite', 'boss'].forEach(tier => assert.ok(css.includes(`.enemy-card.enemy-${tier} .enemy-hud-meta`),
   `${tier} traits and effects must have their own health-frame position`));

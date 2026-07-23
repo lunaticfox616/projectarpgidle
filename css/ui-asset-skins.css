@@ -654,11 +654,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52%;
-  max-width: 52%;
+  width: 44%;
+  max-width: 44%;
   height: auto;
   min-height: 16px;
-  margin: 0;
+  margin: -1px 0 0;
   padding: 0 4px;
   box-sizing: border-box;
   border: 0;
