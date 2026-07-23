@@ -1,5 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
+const vm = require('vm');
 
 function readPngSize(file) {
   const bytes = fs.readFileSync(file);
@@ -9,6 +10,19 @@ function readPngSize(file) {
 
 function readPngColorType(file) {
   return fs.readFileSync(file).readUInt8(25);
+}
+
+function readFunctionSource(sourceText, name) {
+  const start = sourceText.indexOf(`function ${name}(`);
+  assert(start >= 0, `${name} must exist`);
+  let depth = 0;
+  for (let index = sourceText.indexOf('{', start); index < sourceText.length; index++) {
+    if (sourceText[index] === '{') depth++;
+    if (sourceText[index] !== '}') continue;
+    depth--;
+    if (depth === 0) return sourceText.slice(start, index + 1);
+  }
+  throw new Error(`${name} must have a closing brace`);
 }
 
 const expectedSkins = new Map([
@@ -23,6 +37,11 @@ const expectedSkins = new Map([
   ['assets/ui/gauge-mob-hp-v1.png', [111, 6]],
   ['assets/ui/gauge-elite-hp-v1.png', [145, 10]],
   ['assets/ui/gauge-boss-hp-v1.png', [204, 8]],
+  ['assets/ui/menu-tab-default-v1.png', [384, 384]],
+  ['assets/ui/menu-tab-hover-v1.png', [384, 384]],
+  ['assets/ui/menu-tab-active-v1.png', [384, 384]],
+  ['assets/ui/menu-tab-pressed-v1.png', [384, 384]],
+  ['assets/ui/menu-tab-disabled-v1.png', [384, 384]],
 ]);
 
 for (const [file, expectedSize] of expectedSkins) {
@@ -32,13 +51,17 @@ for (const [file, expectedSize] of expectedSkins) {
 
 const html = fs.readFileSync('index.html', 'utf8');
 const ui = fs.readFileSync('js/ui.js', 'utf8');
+const items = fs.readFileSync('data/items.js', 'utf8');
 const css = fs.readFileSync('css/ui-asset-skins.css', 'utf8');
 const menuCss = fs.readFileSync('css/ui-menu-sockets.css', 'utf8');
+const polishCss = fs.readFileSync('css/ui-polish.css', 'utf8');
 const windowManager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 
 assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-merged-tabs-timers1'), 'asset skin CSS must be cache-versioned');
-assert.ok(html.includes('css/ui-menu-sockets.css?v=20260722-merged-tabs-timers1'), 'menu socket CSS must be cache-versioned');
-assert.ok(html.includes('js/ui.js?v=20260722-menu-unlock1'), 'combat HUD JavaScript must be cache-versioned');
+assert.ok(html.includes('css/ui-menu-sockets.css?v=20260723-menu-button-states1'), 'menu socket CSS must be cache-versioned');
+assert.ok(html.includes('css/ui-polish.css?v=20260723-currency-icons1'), 'currency card CSS must be cache-versioned');
+assert.ok(html.includes('data/items.js?v=20260723-currency-icons1'), 'currency item data must be cache-versioned');
+assert.ok(html.includes('js/ui.js?v=20260723-currency-icons1'), 'combat HUD JavaScript must be cache-versioned');
 assert.ok(html.includes('js/combat.js?v=20260722-merged-tabs-timers1'), 'combat effect state fixes must be cache-versioned');
 assert.ok(html.includes('js/ui-window-manager.js?v=20260722-menu-unlock1'), 'menu socket JavaScript must be cache-versioned');
 assert.ok(html.indexOf('css/ui-asset-skins.css') > html.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
@@ -117,5 +140,39 @@ assert.ok(menuCss.includes('29.2svh'), 'short desktop viewports must shrink the 
 assert.ok(menuCss.includes('width: var(--menu-rail-width)'), 'the menu image frame must consume the adjustable width');
 assert.ok(!menuCss.includes("url('../assets/ui/menu-rail-v1.png')"), 'the menu image must not be painted as a CSS background');
 assert.ok(!menuCss.includes('background-repeat'), 'the menu art must not be tiled or copied');
+[
+  'menu-tab-default-v1.png', 'menu-tab-hover-v1.png', 'menu-tab-active-v1.png',
+  'menu-tab-pressed-v1.png', 'menu-tab-disabled-v1.png'
+].forEach(file => assert.ok(menuCss.includes(file), `${file} must skin one menu button state`));
+assert.ok(menuCss.includes(':hover:not(:disabled):not([aria-disabled="true"])'), 'enabled menu tabs must show a supplied hover state');
+assert.ok(menuCss.includes(':active:not(:disabled):not([aria-disabled="true"])'), 'enabled menu tabs must show a supplied pressed state');
+assert.ok(menuCss.includes('.tab-btn:disabled'), 'locked menu tabs must show a supplied disabled state');
+
+const expectedCurrencyIcons = new Map([
+  ['magicBud', 'magic-bud.png'], ['sapBud', 'sap-bud.png'], ['formlessDew', 'formless-dew.png'],
+  ['goldenRule', 'golden-rule.png'], ['emberBranch', 'ember-branch.png'], ['ouroboros', 'ouroboros.png'],
+  ['blightSpore', 'blight-spore.png'], ['pruningShears', 'pruning-shears.png'], ['fairyRing', 'fairy-ring.png'],
+  ['blessing', 'blessing-petal.png']
+]);
+for (const [currencyKey, filename] of expectedCurrencyIcons) {
+  const file = `assets/ui/currency/${filename}`;
+  assert.ok(fs.existsSync(file), `${currencyKey} currency art must exist`);
+  assert.deepStrictEqual(readPngSize(file), [64, 64], `${currencyKey} currency art must preserve its square source size`);
+  assert.ok(items.includes(`${currencyKey}: 'assets/ui/currency/${filename}'`), `${currencyKey} must use its renamed currency art`);
+}
+assert.ok(items.includes('if (ORB_DB[key]) ORB_DB[key].icon = icon;'), 'the canonical orb database must own currency icon assignments');
+assert.ok(ui.includes('function getCurrencyIconHtml('), 'currency cards must render icons through one shared helper');
+assert.ok(ui.includes('currency-card-name-wrap') && ui.includes('currency-tooltip-icon'), 'currency cards and their tooltips must both render icon art');
+assert.ok(polishCss.includes('.currency-icon') && polishCss.includes('.currency-tooltip-icon'), 'currency icon sizing must be owned by the UI polish stylesheet');
+
+const currencyIconContext = { ORB_DB: { magicBud: { icon: 'assets/ui/currency/magic-bud.png' }, fossil: {} } };
+vm.createContext(currencyIconContext);
+vm.runInContext(`${readFunctionSource(ui, 'getCurrencyIconHtml')}; this.getCurrencyIconHtml = getCurrencyIconHtml;`, currencyIconContext);
+assert.strictEqual(
+  currencyIconContext.getCurrencyIconHtml('magicBud'),
+  '<img class="currency-icon" src="assets/ui/currency/magic-bud.png" alt="" aria-hidden="true">',
+  'currency card helper must render the canonical item art'
+);
+assert.strictEqual(currencyIconContext.getCurrencyIconHtml('fossil'), '', 'currencies without artwork must retain a text-only fallback');
 
 console.log('smoke-ui-asset-skins passed');

@@ -9442,6 +9442,11 @@ function bulkSalvageTalismansBySearch(salvageUnmatched) {
     openTalismanDismantleOverlay(targets.map(t => t.id), `${targetLabel} 부적 해체`, `${targetLabel}에 해당하는 부적만 해체합니다.${lockedSkipped > 0 ? ` 잠금 ${lockedSkipped}개는 보호됩니다.` : ''}`, `${targetLabel} 부적 해체`);
 }
 
+function getCurrencyIconHtml(orbKey, className = 'currency-icon') {
+    let icon = ORB_DB[orbKey] && ORB_DB[orbKey].icon;
+    return icon ? `<img class="${className}" src="${icon}" alt="" aria-hidden="true">` : '';
+}
+
 function getStyledOrbName(orbKey) {
     let name = (ORB_DB[orbKey] && ORB_DB[orbKey].name) ? ORB_DB[orbKey].name : String(orbKey || '');
     if (orbKey === 'magicBud') return `<span style="color:#9fd3ff;">${name}</span>`;
@@ -9938,7 +9943,7 @@ window.openSporeModeOverlay = openSporeModeOverlay;
 function showCurrencyCardTooltip(event, key, reason) {
     let orb = ORB_DB[key];
     if (!orb) return;
-    let html = `<div class="tooltip-title">${orb.name}</div><div class="tooltip-line">${orb.desc || ''}</div><div class="tooltip-line" style="margin-top:6px; color:var(--copy-bright);">상태: ${reason || '-'}</div>`;
+    let html = `<div class="tooltip-title currency-tooltip-title">${getCurrencyIconHtml(key, 'currency-tooltip-icon')}<span>${orb.name}</span></div><div class="tooltip-line">${orb.desc || ''}</div><div class="tooltip-line" style="margin-top:6px; color:var(--copy-bright);">상태: ${reason || '-'}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#f1c40f');
 }
 window.showCurrencyCardTooltip = showCurrencyCardTooltip;
@@ -10422,7 +10427,7 @@ function buildCraftActionButtons(item) {
         }
         let premiumGray = (key === 'deepWhetstone' || key === 'rootIron' || key === 'jewelPolish' || key === 'abyssCatalyst') ? 'style="background:linear-gradient(180deg,#656d78,#4f5660); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:0 0 6px rgba(220,225,235,.2);"' : '';
         let rareCurrencyClass = key === 'ouroboros' ? ' woodsman-touch-currency' : '';
-        return `<div class="currency-card${rareCurrencyClass}" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div style="display:flex; justify-content:space-between; align-items:center; gap:8px;"><div class="currency-name" ${premiumGray}>${getStyledOrbName(key)}</div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
+        return `<div class="currency-card${rareCurrencyClass}" onmouseenter="showCurrencyCardTooltip(event,'${key}','${reason.replace(/'/g, "\\'")}')" onmouseleave="hideInfoTooltip()"><div class="currency-card-header"><div class="currency-card-name-wrap">${getCurrencyIconHtml(key)}<div class="currency-name" ${premiumGray}>${getStyledOrbName(key)}</div></div><div class="currency-count" style="margin:0; white-space:nowrap;">x <strong>${game.currencies[key] || 0}</strong></div></div>${useBtn}</div>`;
     }).join('');
     let sporeHtml = buildSporeSummaryHtml();
     ['ui-spore-summary', 'ui-spore-summary-mobile'].forEach(id => {

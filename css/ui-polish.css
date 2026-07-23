@@ -246,6 +246,30 @@ body:not(.light-mode) .currency-card:hover {
   box-shadow: 0 8px 18px rgba(0,0,0,.26);
 }
 
+.currency-card-header,
+.currency-card-name-wrap,
+.currency-tooltip-title {
+  display: flex;
+  align-items: center;
+}
+.currency-card-header { justify-content: space-between; gap: 8px; }
+.currency-card-name-wrap,
+.currency-tooltip-title { gap: 7px; min-width: 0; }
+.currency-icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.currency-tooltip-icon {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
 body:not(.light-mode) .loot-unique, body:not(.light-mode) .reward, body:not(.light-mode) .text-reward { color: var(--ui-gold); }
 body:not(.light-mode) .attack-monster, body:not(.light-mode) .text-danger { color: var(--ui-danger); }
 body:not(.light-mode) .season-up, body:not(.light-mode) .text-success { color: var(--ui-ok); }

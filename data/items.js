@@ -597,6 +597,21 @@ const ORB_DB = {
     reefFragment: { name: '암초 조각', desc: '심해에서 발견되는 암초 조각입니다. 심해 거점에 설치하면 낚시 게이지 충전 속도가 증가합니다.' },
     oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' }
 };
+const CURRENCY_ICON_PATHS = Object.freeze({
+    magicBud: 'assets/ui/currency/magic-bud.png',
+    sapBud: 'assets/ui/currency/sap-bud.png',
+    formlessDew: 'assets/ui/currency/formless-dew.png',
+    goldenRule: 'assets/ui/currency/golden-rule.png',
+    emberBranch: 'assets/ui/currency/ember-branch.png',
+    ouroboros: 'assets/ui/currency/ouroboros.png',
+    blightSpore: 'assets/ui/currency/blight-spore.png',
+    pruningShears: 'assets/ui/currency/pruning-shears.png',
+    fairyRing: 'assets/ui/currency/fairy-ring.png',
+    blessing: 'assets/ui/currency/blessing-petal.png'
+});
+Object.entries(CURRENCY_ICON_PATHS).forEach(([key, icon]) => {
+    if (ORB_DB[key]) ORB_DB[key].icon = icon;
+});
 const OCEAN_FISH_DB = {
     shallowSilverfin: { name: '은빛 비늘치', desc: '얕은 바다에서 흔히 잡히는 물고기입니다.', depthTier: 0 },
     tidalEel: { name: '조류 장어', desc: '조류가 흐르는 100m 안팎에서 자주 보입니다.', depthTier: 1 },

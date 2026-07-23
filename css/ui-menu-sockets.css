@@ -134,6 +134,36 @@ body.desktop-windowed-ui .ui-rail-tab-layer .inventory-full-warning {
   white-space: nowrap;
 }
 
+/* Supplied six-by-six button sheet, sliced into the five menu interaction states. */
+body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn {
+  border-color: transparent !important;
+  background: url('../assets/ui/menu-tab-default-v1.png') center / 100% 100% no-repeat !important;
+  box-shadow: none !important;
+  transition: transform .1s ease, filter .1s ease !important;
+}
+body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn:hover:not(:disabled):not([aria-disabled="true"]) {
+  background-image: url('../assets/ui/menu-tab-hover-v1.png') !important;
+  filter: brightness(1.05) drop-shadow(0 0 5px rgba(255, 222, 151, .48));
+}
+body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.active,
+body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.ui-window-open {
+  background-image: url('../assets/ui/menu-tab-active-v1.png') !important;
+  color: #fff9e9;
+  filter: drop-shadow(0 0 4px rgba(255, 218, 140, .34));
+}
+body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn:active:not(:disabled):not([aria-disabled="true"]) {
+  background-image: url('../assets/ui/menu-tab-pressed-v1.png') !important;
+  filter: brightness(.94);
+  transform: translate(-50%, -50%) scale(.94) !important;
+}
+body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn:disabled,
+body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn[aria-disabled="true"] {
+  background-image: url('../assets/ui/menu-tab-disabled-v1.png') !important;
+  color: #85818a;
+  cursor: not-allowed;
+  filter: grayscale(.24);
+}
+
 .tab-header .tab-btn[data-merged-tab-member="1"] { display: none !important; }
 
 .merged-tab-shell > .merged-tab-subtabs {
