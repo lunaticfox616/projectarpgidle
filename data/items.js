@@ -526,6 +526,12 @@ const CURRENCY_LEGACY_MERGE = Object.freeze({
     fairyRing: ['chance']
 });
 
+function getCanonicalCurrencyKey(currencyKey) {
+    let key = String(currencyKey || '');
+    let merged = Object.entries(CURRENCY_LEGACY_MERGE).find(([, legacyKeys]) => legacyKeys.includes(key));
+    return merged ? merged[0] : key;
+}
+
 const ORB_DB = {
     magicBud: { name: '마법의 새싹', desc: '일반 아이템을 매직으로 만들고 옵션을 부여합니다. 매직 아이템에는 무작위 옵션을 1~2줄 추가합니다.' },
     sapBud: { name: '수액 봉오리', desc: '매직 아이템을 희귀로 승급하며 옵션 1줄을 추가합니다. 희귀 아이템에는 옵션 1줄을 추가합니다.' },
@@ -633,4 +639,4 @@ const MARKET_EXCHANGES = [
     { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
+safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });

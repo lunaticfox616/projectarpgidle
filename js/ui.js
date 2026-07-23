@@ -1615,7 +1615,7 @@ function switchMergedTabSubtab(groupKey, tabId) {
     let wasCodexNotified = !!(game.noti && game.noti.codex);
     if (game.noti) game.noti[tabId.replace(/^tab-/, '')] = false;
     if (tabId === 'tab-codex' && wasCodexNotified) game.codexFocusNewOnOpen = true;
-    switchTab(group.launcher, { keepWindowOpen: true });
+    window.switchTab(group.launcher, { keepWindowOpen: true });
 }
 
 function syncMergedTabLauncherVisibility() {

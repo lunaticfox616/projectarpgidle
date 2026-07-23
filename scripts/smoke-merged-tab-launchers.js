@@ -79,6 +79,7 @@ const context = {
     isNotiEnabled: () => true,
     getSelectedMergedTabId: groupKey => ({ growth: 'tab-char', utility: 'tab-talisman', records: 'tab-journal' })[groupKey],
     switchMergedTabSubtab: (groupKey, tabId) => opened.push([groupKey, tabId]),
+    window: {},
     safeExposeGlobals() {},
     Object
 };
@@ -122,7 +123,7 @@ const lockedTabContext = {
     game: { unlocks: { codex: true }, settings: {}, inventory: [], equipment: {}, uniqueCodex: {} },
     TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
     addLog: () => { lockedTabLogs += 1; },
-    switchTab: tabId => lockedTabTransitions.push(tabId),
+    window: { switchTab: tabId => lockedTabTransitions.push(tabId) },
     Object,
     Array
 };
@@ -139,7 +140,25 @@ lockedTabContext.openMergedTabPicker(null, 'records');
 lockedTabContext.switchMergedTabSubtab('records', 'tab-codex');
 assert.deepStrictEqual(lockedTabTransitions, [], 'locked merged tabs must not open an empty host panel');
 assert.strictEqual(lockedTabLogs, 0, 'locked merged tabs must remain silent when no inner panel is available');
-assert(source.includes("switchTab(group.launcher, { keepWindowOpen: true })"), 'inner merged tabs must preserve their already-open window');
+assert(source.includes("window.switchTab(group.launcher, { keepWindowOpen: true })"), 'inner merged tabs must pass through the desktop window manager and preserve the open host');
+
+const routedCalls = [];
+const routedContext = {
+    game: { unlocks: { char: true, traits: true }, settings: {}, noti: {} },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits' },
+    window: { switchTab: (tabId, options) => routedCalls.push([tabId, options]) },
+    Object,
+    Array
+};
+vm.createContext(routedContext);
+vm.runInContext([
+    source.slice(groupStart, groupEnd),
+    readFunctionSource('isCodexTabUnlockReady'),
+    readFunctionSource('isMergedTabAvailable'),
+    readFunctionSource('switchMergedTabSubtab')
+].join('\n'), routedContext, { filename: 'routed-merged-tab.js' });
+routedContext.switchMergedTabSubtab('growth', 'tab-traits');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(routedCalls)), [['tab-char', { keepWindowOpen: true }]], 'inner tabs must switch content without closing their host window');
 
 (async () => {
     const unlockedState = context.game.unlocks;
