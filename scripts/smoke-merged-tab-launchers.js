@@ -25,8 +25,33 @@ function makeClassList() {
     return {
         contains: name => values.has(name),
         toggle(name, force) { if (force) values.add(name); else values.delete(name); },
+        add: name => values.add(name),
         values
     };
+}
+
+function makePanelNode(name, className = '') {
+    const node = { name, childNodes: [], dataset: {}, classList: makeClassList(), parentElement: null };
+    node.className = className;
+    className.split(/\s+/).filter(Boolean).forEach(classNamePart => node.classList.add(classNamePart));
+    node.appendChild = child => {
+        if (child.parentElement) child.parentElement.childNodes = child.parentElement.childNodes.filter(item => item !== child);
+        child.parentElement = node;
+        node.childNodes.push(child);
+        return child;
+    };
+    node.append = (...children) => children.forEach(child => node.appendChild(child));
+    node.replaceChildren = (...children) => {
+        node.childNodes.forEach(child => { child.parentElement = null; });
+        node.childNodes = [];
+        children.forEach(child => node.appendChild(child));
+    };
+    node.querySelector = selector => {
+        if (!selector.startsWith(':scope > .')) return null;
+        const classNamePart = selector.slice(':scope > .'.length);
+        return node.childNodes.find(child => child.classList.contains(classNamePart)) || null;
+    };
+    return node;
 }
 
 const groupStart = source.indexOf('const MERGED_TAB_GROUPS');
@@ -65,6 +90,30 @@ vm.runInContext([
     readFunctionSource('syncMergedTabLauncherState'),
     readFunctionSource('openMergedTabPicker')
 ].join('\n'), context, { filename: 'merged-tab-launchers.js' });
+
+const windowRoot = makePanelNode('window-root');
+const windowTitlebar = makePanelNode('titlebar', 'ui-window-titlebar');
+const windowBody = makePanelNode('body', 'ui-window-body');
+const windowResize = makePanelNode('resize', 'ui-window-resize');
+const passiveContent = makePanelNode('passive-content');
+const traitPanel = makePanelNode('trait-panel');
+windowRoot.append(windowTitlebar, windowBody, windowResize);
+windowBody.appendChild(passiveContent);
+const panelContext = {
+    document: {
+        createElement: name => makePanelNode(name),
+        getElementById: id => ({ 'tab-char': windowRoot, 'tab-traits': traitPanel })[id] || null
+    },
+    Object,
+    Array
+};
+vm.createContext(panelContext);
+vm.runInContext([source.slice(groupStart, groupEnd), readFunctionSource('mountMergedTabGroup')].join('\n'), panelContext, { filename: 'merged-tab-window-host.js' });
+const mergedShell = panelContext.mountMergedTabGroup('growth');
+assert.deepStrictEqual(windowRoot.childNodes, [windowTitlebar, windowBody, windowResize], 'merged tabs must not move the desktop window titlebar or resize handle');
+assert.strictEqual(windowBody.childNodes[0], mergedShell, 'merged tabs must render inside the desktop window body');
+assert.strictEqual(mergedShell.childNodes[1].childNodes[0].childNodes[0], passiveContent, 'the launcher content must stay below the inner subtab row');
+assert.strictEqual(mergedShell.childNodes[1].childNodes[1], traitPanel, 'secondary content must become a sibling pane inside the same window body');
 
 (async () => {
     const unlockedState = context.game.unlocks;

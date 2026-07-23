@@ -1561,8 +1561,9 @@ function getSelectedMergedTabId(groupKey) {
 
 function mountMergedTabGroup(groupKey) {
     let group = MERGED_TAB_GROUPS[groupKey];
-    let host = group && document.getElementById(group.launcher);
-    if (!host) return null;
+    let root = group && document.getElementById(group.launcher);
+    if (!root) return null;
+    let host = root.querySelector(':scope > .ui-window-body') || root;
     let shell = host.querySelector(':scope > .merged-tab-shell');
     if (shell) return shell;
 
