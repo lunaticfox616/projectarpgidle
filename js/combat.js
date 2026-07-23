@@ -7009,7 +7009,7 @@ function rollLootForEnemy(enemy) {
         let protectOverflow = inventoryFull && !autoSalvage && (jewelRarity === 'rare' || jewelRarity === 'unique');
         if ((inventoryFull && !protectOverflow) || autoSalvage) {
             let shardGain = salvageJewelObject(jewel, true);
-            if (game.settings.showLootLog) addLog(`💠 ${inventoryFull ? '주얼 인벤토리 초과' : '주얼 자동해체'}: [${jewel.name}] · 주얼 결정 +${shardGain}`, inventoryFull ? 'attack-monster' : 'loot-normal');
+            if (game.settings.showLootLog && !game.isBackgroundCalculation) addLog(`💠 ${inventoryFull ? '주얼 인벤토리 초과' : '주얼 자동해체'}: [${jewel.name}] · 주얼 결정 +${shardGain}`, inventoryFull ? 'attack-monster' : 'loot-normal');
         } else {
             game.jewelInventory.push(jewel);
             game.noti = game.noti || {};

@@ -825,7 +825,7 @@ function upgradeSelectedItemBase() {
     if (bodyEl) {
         let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
         let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
-        bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:var(--copy-muted);">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 카오스 오브 ${costChaos}${costDivine > 0 ? ` + 신성한 오브 ${costDivine}` : ''}`;
+        bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:var(--copy-muted);">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 형체 없는 이슬 ${costChaos}${costDivine > 0 ? ` + 황금률 ${costDivine}` : ''}`;
     }
     let overlay = document.getElementById('base-upgrade-overlay');
     if (overlay) overlay.classList.add('active');
@@ -1133,7 +1133,7 @@ async function refreshBlackMarketNow() {
     if ((game.currencies.formlessDew || 0) < cost) return addLog(`즉시 갱신에 필요한 형체 없는 이슬이 부족합니다. (필요 ${cost})`, 'attack-monster');
     let lockCount = getBlackMarketLockCount();
     let accepted = await requestGameConfirmation(
-        `잠그지 않은 암거래 품목을 즉시 갱신합니다.\n카오스 오브 ${cost}개를 사용하며 잠금 ${lockCount}개는 유지됩니다.`,
+        `잠그지 않은 암거래 품목을 즉시 갱신합니다.\n형체 없는 이슬 ${cost}개를 사용하며 잠금 ${lockCount}개는 유지됩니다.`,
         { title: '암거래 즉시 갱신', confirmLabel: '갱신', danger: false }
     );
     if (!accepted) return;
@@ -1431,7 +1431,7 @@ function renderMarketUI() {
             <div><div class="market-title">암거래상 · 다음 갱신 ${mm}:${ss}</div><div class="market-meta"><span class="market-ready-count">구매 가능 ${buyableOfferCount}/${activeOfferCount}</span> · 잠금 ${lockCount}/${BLACK_MARKET_MAX_LOCKED_OFFERS} · 잠그지 않은 ${rerollOfferCount}개가 갱신됩니다.</div></div>
             <div class="market-black-controls">
                 <label>추적 부위(35%) <select onchange="setBlackMarketPreferredSlot(this.value)">${preferenceOptions}</select></label>
-                <button onclick="refreshBlackMarketNow()" ${(game.currencies.chaos || 0) < refreshCost ? 'disabled' : ''}>${rerollOfferCount}개 즉시 갱신 · 카오스 ${refreshCost}</button>
+        <button onclick="refreshBlackMarketNow()" ${(game.currencies.formlessDew || 0) < refreshCost ? 'disabled' : ''}>${rerollOfferCount}개 즉시 갱신 · 형체 없는 이슬 ${refreshCost}</button>
             </div>
         </div>
         <div class="market-insight"><div><span>시장 정보</span><strong>${refreshesLeft <= 0 ? '다음 갱신에 표적 고유 확정' : `표적 고유까지 ${refreshesLeft}회`}</strong></div><div class="market-insight-cells">${insightCells}</div><small>추적 부위의 도감 미등록 일반 고유를 우선 제시합니다. 체이싱 고유는 기존 희귀 확률을 유지합니다.</small></div>

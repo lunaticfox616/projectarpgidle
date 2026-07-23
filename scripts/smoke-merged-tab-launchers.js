@@ -88,13 +88,9 @@ vm.runInContext([
     assert.strictEqual(dots['tab-journal'].style.display, 'block', 'codex notices must surface on the records launcher');
 
     await context.openMergedTabPicker(null, 'growth');
-    assert.strictEqual(pickerOptions.submitOnChoice, true);
-    assert.deepStrictEqual(Array.from(pickerOptions.choices, choice => choice.value), ['tab-char', 'tab-traits']);
-    assert.deepStrictEqual(opened, ['tab-traits'], 'a picker choice must open the original content window directly');
+    assert.deepStrictEqual(opened, ['tab-char'], 'a combined launcher must open its first subtab directly');
 
-    pickerSelection = 'tab-talisman';
     await context.openMergedTabPicker(null, 'utility');
-    assert.deepStrictEqual(Array.from(pickerOptions.choices, choice => choice.value), ['tab-talisman', 'tab-flask'], 'locked members must not appear in the picker');
     assert.strictEqual(opened.at(-1), 'tab-talisman');
 
     assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="utility"')

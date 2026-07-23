@@ -523,7 +523,7 @@ function showBackgroundCombatResult(result) {
     let summary = result.summary || {};
     let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
     let rarityColor = rarity => (typeof getRarityColor === 'function' ? getRarityColor(rarity) : '#e4eefb');
-    let currencyHtml = (summary.currencies || []).slice(0, 6)
+    let currencyHtml = (summary.currencies || []).sort((a, b) => (a && a.key === 'goldenRule' ? -1 : 0) - (b && b.key === 'goldenRule' ? -1 : 0)).slice(0, 8)
         .map(entry => (entry && typeof entry === 'object')
             ? `<span style="color:#ffd36b;">${entry.name}</span> <strong>+${entry.gain}</strong>`
             : String(entry))
@@ -565,6 +565,7 @@ function simulateBackgroundCombat(options) {
     try {
         Date.now = () => simulatedNow;
         game = simGame;
+        game.isBackgroundCalculation = true;
         statsCache.install();
         let processed = 0;
         while (processed < stepCount) {
@@ -579,6 +580,7 @@ function simulateBackgroundCombat(options) {
             if (game.pendingLoopDecision || game.pendingLoopReady) break;
         }
         simGame = game;
+        delete simGame.isBackgroundCalculation;
     } finally {
         statsCache.uninstall();
         Date.now = originalDateNow;
@@ -633,6 +635,7 @@ async function simulateBackgroundCombatChunked(options) {
     try {
         Date.now = () => simulatedNow;
         game = simGame;
+        game.isBackgroundCalculation = true;
         statsCache.install();
         while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) {
             let chunkBudgetMs = backgroundCombatRuntime.accelerationTier > 0
@@ -663,6 +666,7 @@ async function simulateBackgroundCombatChunked(options) {
             if (processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) await waitBackgroundReplayFrame();
         }
         simGame = game;
+        delete simGame.isBackgroundCalculation;
     } finally {
         statsCache.uninstall();
         Date.now = originalDateNow;
@@ -1569,6 +1573,8 @@ async function openMergedTabPicker(event, groupKey) {
     if (!group) return;
     let available = group.tabs.filter(isMergedTabAvailable);
     if (available.length === 0) return;
+    switchTab(available[0].id);
+    return;
     if (available.length === 1) { switchTab(available[0].id); return; }
     mergedTabPickerOpen = true;
     try {
@@ -1587,6 +1593,19 @@ async function openMergedTabPicker(event, groupKey) {
 }
 
 safeExposeGlobals({ openMergedTabPicker });
+
+function renderMergedTabSubtabs(tabId) {
+    let group = Object.values(MERGED_TAB_GROUPS).find(entry => entry.tabs.some(tab => tab.id === tabId));
+    let host = document.getElementById(tabId);
+    if (!group || !host) return;
+    let nav = host.querySelector('.merged-tab-subtabs');
+    if (!nav) {
+        nav = document.createElement('div');
+        nav.className = 'subtab-row merged-tab-subtabs';
+        host.insertBefore(nav, host.firstChild);
+    }
+    nav.innerHTML = group.tabs.filter(isMergedTabAvailable).map(tab => `<button type="button" class="subtab-btn${tab.id === tabId ? ' active' : ''}" onclick="switchTab('${tab.id}')">${tab.label}</button>`).join('');
+}
 
 function switchTab(tabId) {
     hideInfoTooltip();
@@ -1611,6 +1630,7 @@ function switchTab(tabId) {
     document.getElementById(tabId).classList.add('active');
     let activeBtn = document.getElementById('btn-' + tabId);
     activeBtn.classList.add('active');
+    renderMergedTabSubtabs(tabId);
     syncMergedTabLauncherState();
     if (activeBtn && activeBtn.scrollIntoView && window.matchMedia('(max-width: 1080px)').matches) {
         try {
@@ -9381,6 +9401,8 @@ function getStyledOrbName(orbKey) {
     if (orbKey === 'goldenRule') return `<span style="color:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
     if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;
     if (orbKey === 'emberBranch') return `<span style="color:#8a2f3f;">${name}</span>`;
+    if (orbKey === 'fairyRing') return `<span style="color:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);">${name}</span>`;
+    if (orbKey === 'voidChisel') return `<span style="color:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);">${name}</span>`;
     return name;
 }
 
@@ -9812,7 +9834,7 @@ function renderCraftOrbActions(selectedItem) {
 }
 
 function openSporeModeOverlay(currencyKey) {
-    let allowed = ['transmute','augment','alteration','alchemy','regal','chaos','exalted'];
+    let allowed = ['magicBud','sapBud','formlessDew'];
     if (!allowed.includes(currencyKey)) return;
     let modeOptions = [
         { id: 'none', label: '미사용' },
