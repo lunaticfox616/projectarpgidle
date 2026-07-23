@@ -85,6 +85,7 @@ const context = {
 vm.createContext(context);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
+    readFunctionSource('isCodexTabUnlockReady'),
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('syncMergedTabLauncherVisibility'),
     readFunctionSource('syncMergedTabLauncherState'),
@@ -118,7 +119,7 @@ assert.strictEqual(mergedShell.childNodes[1].childNodes[1], traitPanel, 'seconda
 const lockedTabTransitions = [];
 let lockedTabLogs = 0;
 const lockedTabContext = {
-    game: { unlocks: {}, settings: {} },
+    game: { unlocks: { codex: true }, settings: {}, inventory: [], equipment: {}, uniqueCodex: {} },
     TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
     addLog: () => { lockedTabLogs += 1; },
     switchTab: tabId => lockedTabTransitions.push(tabId),
@@ -128,6 +129,7 @@ const lockedTabContext = {
 vm.createContext(lockedTabContext);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
+    readFunctionSource('isCodexTabUnlockReady'),
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('getSelectedMergedTabId'),
     readFunctionSource('switchMergedTabSubtab'),
@@ -137,6 +139,7 @@ lockedTabContext.openMergedTabPicker(null, 'records');
 lockedTabContext.switchMergedTabSubtab('records', 'tab-codex');
 assert.deepStrictEqual(lockedTabTransitions, [], 'locked merged tabs must not open an empty host panel');
 assert.strictEqual(lockedTabLogs, 0, 'locked merged tabs must remain silent when no inner panel is available');
+assert(source.includes("switchTab(group.launcher, { keepWindowOpen: true })"), 'inner merged tabs must preserve their already-open window');
 
 (async () => {
     const unlockedState = context.game.unlocks;

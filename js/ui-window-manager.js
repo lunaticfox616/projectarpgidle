@@ -941,7 +941,7 @@
     function patchSwitchTab() {
         if (originalSwitchTab || typeof window.switchTab !== 'function') return;
         originalSwitchTab = window.switchTab;
-        window.switchTab = function windowedSwitchTab(tabId) {
+        window.switchTab = function windowedSwitchTab(tabId, options = {}) {
             if (!isDesktopWindowed() || tabId === 'tab-battle') return originalSwitchTab(tabId);
             if (tabId === 'tab-social') {
                 openCommunityDock();
@@ -956,7 +956,7 @@
             // 열려 있지만 포커스가 없으면 기존처럼 최상단으로 가져온다.
             let el = document.getElementById(tabId);
             let st = layoutState.windows[tabId];
-            if (WINDOW_DEFS[tabId] && st && st.open && !st.minimized && el && el.classList.contains('ui-window-active')) {
+            if (!options.keepWindowOpen && WINDOW_DEFS[tabId] && st && st.open && !st.minimized && el && el.classList.contains('ui-window-active')) {
                 closeWindow(tabId);
                 return;
             }

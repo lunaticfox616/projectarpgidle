@@ -61,9 +61,9 @@ assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-merged-tabs-timers1')
 assert.ok(html.includes('css/ui-menu-sockets.css?v=20260723-menu-button-states2'), 'menu socket CSS must be cache-versioned');
 assert.ok(html.includes('css/ui-polish.css?v=20260723-currency-icons1'), 'currency card CSS must be cache-versioned');
 assert.ok(html.includes('data/items.js?v=20260723-currency-icons1'), 'currency item data must be cache-versioned');
-assert.ok(html.includes('js/ui.js?v=20260723-startup-first-paint1'), 'combat HUD JavaScript must be cache-versioned');
+assert.ok(html.includes('js/ui.js?v=20260723-merged-tab-window-fix1'), 'combat HUD JavaScript must be cache-versioned');
 assert.ok(html.includes('js/combat.js?v=20260722-merged-tabs-timers1'), 'combat effect state fixes must be cache-versioned');
-assert.ok(html.includes('js/ui-window-manager.js?v=20260723-merged-window-hosts1'), 'menu socket JavaScript must be cache-versioned');
+assert.ok(html.includes('js/ui-window-manager.js?v=20260723-merged-tab-window-fix1'), 'menu socket JavaScript must be cache-versioned');
 assert.ok(html.indexOf('css/ui-asset-skins.css') > html.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
 assert.ok(html.includes('<img class="player-health-frame-art" src="assets/ui/health-player-v1.png"'), 'the player HUD must use one real frame image');
 assert.ok(html.indexOf('player-health-frame') < html.indexOf('id="ui-hp-bar"'), 'the live player HP bar must remain inside its art frame');

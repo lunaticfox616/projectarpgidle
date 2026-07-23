@@ -34,6 +34,7 @@ assert(manager.includes("'tab-journal': { title: '기록'"), 'the records host m
 
 assert(manager.includes('UI_LAYOUT_STORAGE_KEY'), 'UI layout must use separate local storage');
 assert(manager.includes('originalSwitchTab'), 'switchTab compatibility adapter must be installed');
+assert(manager.includes('options = {}') && manager.includes('!options.keepWindowOpen'), 'inner tabs must refresh their shared window without closing it');
 assert(manager.includes('setPointerCapture'), 'window dragging/resizing must use pointer capture');
 assert(manager.includes('restoreWindowMarkupForMobile'), 'window manager should restore tab markup when leaving desktop mode');
 assert(manager.includes('restoreDesktopMenuForMobile'), 'window manager should restore menu markup when leaving desktop mode');

@@ -1037,7 +1037,7 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 't
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
     utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }] },
-    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'codex', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'codex', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -1541,6 +1541,7 @@ function toggleNotiFilter(key){ game.settings=game.settings||{}; game.settings.n
 function isMergedTabAvailable(tab) {
     let tabId = typeof tab === 'string' ? tab : tab.id;
     let gateKey = (tab && typeof tab === 'object' && tab.gate) || TAB_UNLOCK_GATES[tabId];
+    if (gateKey === 'codex' && !isCodexTabUnlockReady()) return false;
     return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
 }
 
@@ -1614,7 +1615,7 @@ function switchMergedTabSubtab(groupKey, tabId) {
     let wasCodexNotified = !!(game.noti && game.noti.codex);
     if (game.noti) game.noti[tabId.replace(/^tab-/, '')] = false;
     if (tabId === 'tab-codex' && wasCodexNotified) game.codexFocusNewOnOpen = true;
-    switchTab(group.launcher);
+    switchTab(group.launcher, { keepWindowOpen: true });
 }
 
 function syncMergedTabLauncherVisibility() {
@@ -15272,6 +15273,12 @@ function isJewelTabUnlockReady() {
         || ((game.currencies || {}).jewelShard || 0) > 0;
 }
 
+function isCodexTabUnlockReady() {
+    return (game.inventory || []).some(item => item && item.rarity === 'unique')
+        || Object.values(game.equipment || {}).some(item => item && item.rarity === 'unique')
+        || Object.keys(game.uniqueCodex || {}).length > 0;
+}
+
 function syncDerivedTabUnlock(tabId) {
     if (tabId === 'tab-jewel' && game.unlocks && !game.unlocks.jewel && isJewelTabUnlockReady()) {
         game.unlocks.jewel = true;
@@ -15319,10 +15326,7 @@ function checkUnlocks() {
     // 도감이 잠겨 있을 때만 인벤토리 전체를 훑는다. (이미 해금된 뒤에도 매 드랍마다
     // O(인벤토리) 스캔을 돌면 대량 처치/드랍 시 스파이크가 생긴다.)
     if (!u.codex) {
-        let hasUniqueForCodex = (game.inventory || []).some(item => item && item.rarity === 'unique')
-            || Object.values(game.equipment || {}).some(item => item && item.rarity === 'unique')
-            || Object.keys(game.uniqueCodex || {}).length > 0;
-        if (hasUniqueForCodex) {
+        if (isCodexTabUnlockReady()) {
             u.codex = true;
             game.noti.codex = true;
             queueTutorialNotice('unlock_codex', '도감 탭 개방', '첫 고유 아이템을 획득해 도감이 열렸습니다.\n고유 아이템을 등록/보관하고 도감 보너스를 받을 수 있습니다.', 'tab-codex');
