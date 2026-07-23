@@ -191,6 +191,9 @@ assert.ok(windowCss.includes('padding: clamp(12px, 1.15vw, 18px);'), 'window con
 assert.ok(windowCss.includes('clip-path: none;'), 'combat health panels should use clean rectangular silhouettes');
 assert.ok(windowCss.includes('align-items: center;'), 'health text should remain vertically centered when monster traits are shown');
 const indexSource = fs.readFileSync('index.html', 'utf8');
+assert.ok(indexSource.includes('<body class="startup-active">'), 'the game body must begin in its startup state before any gameplay UI can paint');
+assert.ok(indexSource.includes('id="startup-overlay" class="startup-overlay active"'), 'the startup screen must be visible in the initial HTML paint');
+assert.ok(indexSource.includes('body.startup-active #left-pane') && indexSource.includes('body.startup-active #right-pane'), 'startup paint must hide legacy gameplay panes instead of briefly showing them behind the title screen');
 assert.ok(indexSource.includes('id="tutorial-dismiss-btn"'), 'tutorial notice should expose a single acknowledgement action');
 assert.ok(!indexSource.includes('id="tutorial-progress-fill"'), 'tutorial notice should not use multi-step progress');
 assert.ok(!indexSource.includes('id="tutorial-visual"'), 'tutorial notice should keep the actual game screen visible');

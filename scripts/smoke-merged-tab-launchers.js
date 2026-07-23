@@ -115,6 +115,29 @@ assert.strictEqual(windowBody.childNodes[0], mergedShell, 'merged tabs must rend
 assert.strictEqual(mergedShell.childNodes[1].childNodes[0].childNodes[0], passiveContent, 'the launcher content must stay below the inner subtab row');
 assert.strictEqual(mergedShell.childNodes[1].childNodes[1], traitPanel, 'secondary content must become a sibling pane inside the same window body');
 
+const lockedTabTransitions = [];
+let lockedTabLogs = 0;
+const lockedTabContext = {
+    game: { unlocks: {}, settings: {} },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
+    addLog: () => { lockedTabLogs += 1; },
+    switchTab: tabId => lockedTabTransitions.push(tabId),
+    Object,
+    Array
+};
+vm.createContext(lockedTabContext);
+vm.runInContext([
+    source.slice(groupStart, groupEnd),
+    readFunctionSource('isMergedTabAvailable'),
+    readFunctionSource('getSelectedMergedTabId'),
+    readFunctionSource('switchMergedTabSubtab'),
+    readFunctionSource('openMergedTabPicker')
+].join('\n'), lockedTabContext, { filename: 'locked-merged-tab.js' });
+lockedTabContext.openMergedTabPicker(null, 'records');
+lockedTabContext.switchMergedTabSubtab('records', 'tab-codex');
+assert.deepStrictEqual(lockedTabTransitions, [], 'locked merged tabs must not open an empty host panel');
+assert.strictEqual(lockedTabLogs, 0, 'locked merged tabs must remain silent when no inner panel is available');
+
 (async () => {
     const unlockedState = context.game.unlocks;
     context.game.unlocks = {};

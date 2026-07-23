@@ -1640,7 +1640,9 @@ function openMergedTabPicker(event, groupKey) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     let group = MERGED_TAB_GROUPS[groupKey];
     if (!group) return;
-    switchMergedTabSubtab(groupKey, getSelectedMergedTabId(groupKey) || group.launcher);
+    let selectedTabId = getSelectedMergedTabId(groupKey);
+    if (!selectedTabId) return;
+    switchMergedTabSubtab(groupKey, selectedTabId);
 }
 
 safeExposeGlobals({ openMergedTabPicker, switchMergedTabSubtab });
@@ -1658,6 +1660,7 @@ function switchTab(tabId) {
         switchMergedTabSubtab(mergedEntry[0], tabId);
         return;
     }
+    if (mergedEntry && !getSelectedMergedTabId(mergedEntry[0])) return;
     syncDerivedTabUnlock(tabId);
     let gateKey = TAB_UNLOCK_GATES[tabId];
     if (gateKey && !game.unlocks[gateKey]) {

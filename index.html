@@ -39,15 +39,19 @@
     .talent-slot.filled { border-style: solid; border-color: #f1c40f; background: #1a2433; cursor: pointer; }
     .talent-slot.empty { border-style: dashed; }
     .talent-slot.locked { color: var(--copy-muted); }
+    body.startup-active #left-pane,
+    body.startup-active #right-pane,
+    body.startup-active #left-pane-floating-toggle,
+    body.startup-active #left-pane-expand-fab { visibility: hidden; }
     @media (max-width: 720px) { .talent-slot-row { grid-template-columns: repeat(3, 1fr); } }
     </style>
 </head>
-<body>
+<body class="startup-active">
 
 <div id="item-tooltip-box"></div>
 <div id="canvas-tooltip"></div>
 <div id="info-tooltip"></div>
-<div id="startup-overlay" class="startup-overlay">
+<div id="startup-overlay" class="startup-overlay active">
     <div class="startup-shell">
         <div class="startup-panel hero">
             <div class="startup-hero-grid">
@@ -1330,7 +1334,7 @@
 <script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260723-merged-window-body1"></script>
+<script defer src="js/ui.js?v=20260723-startup-first-paint1"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
 <script defer src="js/ui-window-manager.js?v=20260723-merged-window-hosts1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
