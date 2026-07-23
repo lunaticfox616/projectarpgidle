@@ -54,11 +54,11 @@ const ACT_REWARD_DB = {
         title: '액트 6 클리어 보상',
         body: '가져갈 보조 스킬 젬 하나를 선택하세요.',
         choices: [
-            { kind: 'support', gem: '가속', fallbackKind: 'currency', currency: 'augment', fallbackValue: 2, label: '보조 젬 - 가속', desc: '공격 속도를 높이는 보조 젬을 얻습니다.' },
-            { kind: 'support', gem: '무자비', fallbackKind: 'currency', currency: 'augment', fallbackValue: 2, label: '보조 젬 - 무자비', desc: '치명타 피해를 높이는 보조 젬을 얻습니다.' },
-            { kind: 'support', gem: '활력', fallbackKind: 'currency', currency: 'augment', fallbackValue: 2, label: '보조 젬 - 활력', desc: '생명력 재생을 제공하는 보조 젬을 얻습니다.' },
-            { kind: 'support', gem: '갑주 파쇄', fallbackKind: 'currency', currency: 'augment', fallbackValue: 2, label: '보조 젬 - 갑주 파쇄', desc: '물리 빌드가 적의 물리 피해 감소를 파고들 수 있게 합니다.' },
-            { kind: 'support', gem: '저항 침식', fallbackKind: 'currency', currency: 'augment', fallbackValue: 2, label: '보조 젬 - 저항 침식', desc: '원소/카오스 빌드가 적 저항을 음수까지 깎아낼 수 있게 합니다.' }
+            { kind: 'support', gem: '가속', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조 젬 - 가속', desc: '공격 속도를 높이는 보조 젬을 얻습니다.' },
+            { kind: 'support', gem: '무자비', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조 젬 - 무자비', desc: '치명타 피해를 높이는 보조 젬을 얻습니다.' },
+            { kind: 'support', gem: '활력', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조 젬 - 활력', desc: '생명력 재생을 제공하는 보조 젬을 얻습니다.' },
+            { kind: 'support', gem: '갑주 파쇄', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조 젬 - 갑주 파쇄', desc: '물리 빌드가 적의 물리 피해 감소를 파고들 수 있게 합니다.' },
+            { kind: 'support', gem: '저항 침식', fallbackKind: 'currency', currency: 'magicBud', fallbackValue: 2, label: '보조 젬 - 저항 침식', desc: '원소/카오스 빌드가 적 저항을 음수까지 깎아낼 수 있게 합니다.' }
         ]
     },
     6: {

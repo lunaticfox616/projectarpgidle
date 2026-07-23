@@ -2826,7 +2826,7 @@ function getOceanWorkbenchOption(optionId, topTierOnly) {
     return OCEAN_WORKBENCH_OPTIONS.find(opt => opt.id === optionId) || OCEAN_WORKBENCH_OPTIONS[Math.floor(Math.random() * (OCEAN_WORKBENCH_OPTIONS.length - 1))];
 }
 
-const SEA_GIFT_RANDOM_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'regal', 'chaos', 'divine', 'blessing', 'tainted', 'annulment'];
+const SEA_GIFT_RANDOM_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'blessing', 'emberBranch', 'pruningShears'];
 const SEA_GIFT_RECIPES = [
     // --- 일반 레시피 ---
     { id: 'reefBundle', desc: '【재화 획득: 암초 조각 ×2】 얕은 바다 어종을 모아 암초 조각으로 가공합니다.', requires: { shallowSilverfin: 5 }, effect: { type: 'currency', key: 'reefFragment', amount: 2 } },
@@ -5117,9 +5117,9 @@ function grantActRewardEntry(zoneId, choice) {
             addLog(`🎁 액트 보상 보조 젬 [${choice.gem}] 획득!`, 'loot-rare');
         } else {
             let amount = choice.fallbackValue || 1;
-            awardCurrency(choice.currency || 'augment', amount);
+            awardCurrency(choice.currency || 'magicBud', amount);
             let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(3) : (awardCurrency('gemShard', 3), 3);
-            addLog(`🎁 중복 보조 젬 대신 ${ORB_DB[choice.currency || 'augment'].name} +${amount} · 젬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 중복 보조 젬 대신 ${ORB_DB[choice.currency || 'magicBud'].name} +${amount} · 젬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -7803,6 +7803,10 @@ const CHAOS_INFUSER_OPTIONS = [
     { optionId: 'shield_chaos_res', id: 'resChaos', min: 8, max: 12, currency: 'chaos', cost: 6, label: '방패 카오스 저항', slots: ['방패'] },
     { optionId: 'shield_block_pct', id: 'blockChancePct', min: 16, max: 24, currency: 'augment', cost: 12, label: '방패 막기 확률 증가', slots: ['방패'] }
 ];
+CHAOS_INFUSER_OPTIONS.forEach(option => {
+    let merged = Object.entries(CURRENCY_LEGACY_MERGE || {}).find(([, legacyKeys]) => legacyKeys.includes(option.currency));
+    if (merged) option.currency = merged[0];
+});
 function getChaosInfuserOptionsForItem(item) {
     let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
     let occupied = getItemOccupiedExplicitModIds(item);
@@ -8407,6 +8411,8 @@ function maybeApplyExceptionalBase(item) {
 }
 
 function awardCurrency(currencyKey, amount) {
+    let mergedCurrency = Object.entries(CURRENCY_LEGACY_MERGE || {}).find(([, legacyKeys]) => legacyKeys.includes(currencyKey));
+    if (mergedCurrency) currencyKey = mergedCurrency[0];
     let gain = Number(amount || 0);
     if (gain > 0 && typeof getExpertNodeEffectValue === 'function') {
         let commonPct = Math.max(0, getExpertNodeEffectValue('expertCurrencyGainPct'));

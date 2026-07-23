@@ -1544,6 +1544,78 @@ function isMergedTabAvailable(tab) {
     return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
 }
 
+function getMergedTabGroup(tabId) {
+    return Object.entries(MERGED_TAB_GROUPS).find(([, group]) => group.tabs.some(tab => tab.id === tabId)) || null;
+}
+
+function getSelectedMergedTabId(groupKey) {
+    let group = MERGED_TAB_GROUPS[groupKey];
+    if (!group) return null;
+    game.settings = game.settings || {};
+    game.settings.mergedTabSelection = game.settings.mergedTabSelection || {};
+    let selected = game.settings.mergedTabSelection[groupKey];
+    if (group.tabs.some(tab => tab.id === selected && isMergedTabAvailable(tab))) return selected;
+    let firstAvailable = group.tabs.find(isMergedTabAvailable);
+    return firstAvailable ? firstAvailable.id : null;
+}
+
+function mountMergedTabGroup(groupKey) {
+    let group = MERGED_TAB_GROUPS[groupKey];
+    let host = group && document.getElementById(group.launcher);
+    if (!host) return null;
+    let shell = host.querySelector(':scope > .merged-tab-shell');
+    if (shell) return shell;
+
+    shell = document.createElement('div');
+    shell.className = 'merged-tab-shell';
+    let nav = document.createElement('div');
+    nav.className = 'subtab-row merged-tab-subtabs';
+    let panels = document.createElement('div');
+    panels.className = 'merged-tab-panels';
+    let hostPane = document.createElement('div');
+    hostPane.className = 'merged-subtab-pane';
+    hostPane.dataset.tabId = group.launcher;
+    Array.from(host.childNodes).forEach(node => hostPane.appendChild(node));
+    panels.appendChild(hostPane);
+    group.tabs.filter(tab => tab.id !== group.launcher).forEach(tab => {
+        let source = document.getElementById(tab.id);
+        if (!source) return;
+        source.classList.add('merged-subtab-pane');
+        source.dataset.tabId = tab.id;
+        panels.appendChild(source);
+    });
+    shell.append(nav, panels);
+    host.replaceChildren(shell);
+    return shell;
+}
+
+function renderMergedTabPanels(groupKey) {
+    let group = MERGED_TAB_GROUPS[groupKey];
+    let shell = mountMergedTabGroup(groupKey);
+    if (!group || !shell) return;
+    let selectedId = getSelectedMergedTabId(groupKey);
+    let nav = shell.querySelector('.merged-tab-subtabs');
+    nav.innerHTML = group.tabs.filter(isMergedTabAvailable).map(tab =>
+        `<button type="button" class="subtab-btn${tab.id === selectedId ? ' active' : ''}" onclick="switchMergedTabSubtab('${groupKey}','${tab.id}')">${tab.label}</button>`
+    ).join('');
+    shell.querySelectorAll('.merged-subtab-pane').forEach(pane => {
+        pane.classList.toggle('active', pane.dataset.tabId === selectedId);
+    });
+}
+
+function switchMergedTabSubtab(groupKey, tabId) {
+    let group = MERGED_TAB_GROUPS[groupKey];
+    let tab = group && group.tabs.find(entry => entry.id === tabId);
+    if (!tab || !isMergedTabAvailable(tab)) return;
+    game.settings = game.settings || {};
+    game.settings.mergedTabSelection = game.settings.mergedTabSelection || {};
+    game.settings.mergedTabSelection[groupKey] = tabId;
+    let wasCodexNotified = !!(game.noti && game.noti.codex);
+    if (game.noti) game.noti[tabId.replace(/^tab-/, '')] = false;
+    if (tabId === 'tab-codex' && wasCodexNotified) game.codexFocusNewOnOpen = true;
+    switchTab(group.launcher);
+}
+
 function syncMergedTabLauncherVisibility() {
     Object.values(MERGED_TAB_GROUPS).forEach(group => {
         let launcher = document.getElementById('btn-' + group.launcher);
@@ -1555,62 +1627,36 @@ function syncMergedTabLauncherState() {
     Object.values(MERGED_TAB_GROUPS).forEach(group => {
         let launcher = document.getElementById('btn-' + group.launcher);
         if (!launcher) return;
-        launcher.classList.toggle('active', group.tabs.some(tab => {
-            let content = document.getElementById(tab.id);
-            return content && content.classList.contains('active');
-        }));
+        let root = document.getElementById(group.launcher);
+        launcher.classList.toggle('active', !!(root && root.classList.contains('active')));
         let sourceKeys = group.tabs.map(tab => tab.id.replace(/^tab-/, ''));
         let dot = launcher.querySelector('.noti-dot');
         if (dot) dot.style.display = sourceKeys.some(key => game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none';
     });
 }
 
-let mergedTabPickerOpen = false;
-async function openMergedTabPicker(event, groupKey) {
+function openMergedTabPicker(event, groupKey) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
-    if (mergedTabPickerOpen) return;
     let group = MERGED_TAB_GROUPS[groupKey];
     if (!group) return;
-    let available = group.tabs.filter(isMergedTabAvailable);
-    if (available.length === 0) return;
-    switchTab(available[0].id);
-    return;
-    if (available.length === 1) { switchTab(available[0].id); return; }
-    mergedTabPickerOpen = true;
-    try {
-        let selected = await requestGameChoice({
-            title: group.title,
-            kicker: 'MENU',
-            message: '열 기능을 선택하세요.',
-            submitOnChoice: true,
-            dismissOnBackdrop: true,
-            choices: available.map(tab => ({ value: tab.id, label: tab.label, detail: tab.detail }))
-        });
-        if (selected) switchTab(selected);
-    } finally {
-        mergedTabPickerOpen = false;
-    }
+    switchMergedTabSubtab(groupKey, getSelectedMergedTabId(groupKey) || group.launcher);
 }
 
-safeExposeGlobals({ openMergedTabPicker });
+safeExposeGlobals({ openMergedTabPicker, switchMergedTabSubtab });
 
 function renderMergedTabSubtabs(tabId) {
-    let group = Object.values(MERGED_TAB_GROUPS).find(entry => entry.tabs.some(tab => tab.id === tabId));
-    let host = document.getElementById(tabId);
-    if (!group || !host) return;
-    let nav = host.querySelector('.merged-tab-subtabs');
-    if (!nav) {
-        nav = document.createElement('div');
-        nav.className = 'subtab-row merged-tab-subtabs';
-        host.insertBefore(nav, host.firstChild);
-    }
-    nav.innerHTML = group.tabs.filter(isMergedTabAvailable).map(tab => `<button type="button" class="subtab-btn${tab.id === tabId ? ' active' : ''}" onclick="switchTab('${tab.id}')">${tab.label}</button>`).join('');
+    renderMergedTabPanels(tabId);
 }
 
 function switchTab(tabId) {
     hideInfoTooltip();
     hideItemTooltip();
     if (typeof window.hidePassiveNodeTooltip === 'function') window.hidePassiveNodeTooltip();
+    let mergedEntry = getMergedTabGroup(tabId);
+    if (mergedEntry && mergedEntry[1].launcher !== tabId) {
+        switchMergedTabSubtab(mergedEntry[0], tabId);
+        return;
+    }
     syncDerivedTabUnlock(tabId);
     let gateKey = TAB_UNLOCK_GATES[tabId];
     if (gateKey && !game.unlocks[gateKey]) {
@@ -1623,6 +1669,7 @@ function switchTab(tabId) {
     if (tabId === 'tab-items' && game.noti) game.noti.items = false;
     let tabEl = document.getElementById(tabId);
     if (lastActiveTabId === tabId && tabEl && tabEl.classList.contains('active')) {
+        if (mergedEntry) renderMergedTabSubtabs(mergedEntry[0]);
         updateTabNotificationDots();
         return;
     }
@@ -1630,7 +1677,7 @@ function switchTab(tabId) {
     document.getElementById(tabId).classList.add('active');
     let activeBtn = document.getElementById('btn-' + tabId);
     activeBtn.classList.add('active');
-    renderMergedTabSubtabs(tabId);
+    if (mergedEntry) renderMergedTabSubtabs(mergedEntry[0]);
     syncMergedTabLauncherState();
     if (activeBtn && activeBtn.scrollIntoView && window.matchMedia('(max-width: 1080px)').matches) {
         try {
@@ -2487,13 +2534,13 @@ function getBeehiveRewardPool(expertLevel, branchStep) {
         { type: 'honey', weight: expertLevel >= 2 ? 18 : 8 },
         { type: 'stinger', weight: expertLevel >= 4 ? 16 : 6 }
     ];
-    if (expertLevel >= 3) pool.push({ type: 'chaos', weight: 14 + Math.min(8, depth) });
-    if (expertLevel >= 5) pool.push({ type: 'divine', weight: 2 + Math.floor(depth / 4) + (expertLevel >= 13 ? 2 : 0) });
+    if (expertLevel >= 3) pool.push({ type: 'formlessDew', weight: 14 + Math.min(8, depth) });
+    if (expertLevel >= 5) pool.push({ type: 'goldenRule', weight: 2 + Math.floor(depth / 4) + (expertLevel >= 13 ? 2 : 0) });
     if (expertLevel >= 7 || depth >= 6) pool.push({ type: 'jewelShard', weight: 10 }, { type: 'meteorShard', weight: 5 });
     if (expertLevel >= 8) pool.push({ type: 'spore', weight: 8 }, { type: 'beeswax', weight: 10 });
     if (expertLevel >= 15) pool.push({ type: 'bundle', weight: 4 });
     let rarePct = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('expertRareChancePct')) : 0;
-    if (rarePct > 0) pool.forEach(row => { if (row.type === 'divine' || row.type === 'bundle') row.weight = Math.max(0, (row.weight || 0) * (1 + rarePct / 100)); });
+    if (rarePct > 0) pool.forEach(row => { if (row.type === 'goldenRule' || row.type === 'bundle') row.weight = Math.max(0, (row.weight || 0) * (1 + rarePct / 100)); });
     return pool;
 }
 function pickWeightedBeehiveReward(expertLevel, branchStep, usedTypes) {
@@ -2560,8 +2607,8 @@ function buildBeehiveChoiceOption(type, expertLevel, branchStep, timing = 'wave'
     if (type === 'pollen') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(12 + Math.floor(Math.random() * 7), step, lv), timing); return mk(`꽃가루 +${amount}`, 'pollen', amount); }
     if (type === 'honey') { let chance = scaleBeehiveRewardChance(lv >= 2 ? 0.30 : 0.12, timing); return mk(`벌꿀 획득 확률 ${Math.floor(chance * 100)}%`, 'honey', 1, chance); }
     if (type === 'stinger') { let chance = scaleBeehiveRewardChance(lv >= 4 ? 0.38 : 0.14, timing); return mk(`독벌침 획득 확률 ${Math.floor(chance * 100)}%`, 'stinger', 1, chance); }
-    if (type === 'chaos') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(1 + (step >= 7 ? 1 : 0), step, lv), timing); return mk(`카오스 오브 +${amount}`, 'chaos', amount); }
-    if (type === 'divine') { let chance = scaleBeehiveRewardChance(lv >= 13 || step >= 8 ? 1 : 0.35, timing); return mk(chance >= 1 ? '신성한 오브 +1' : `신성한 오브 획득 확률 ${Math.floor(chance * 100)}%`, 'divine', 1, chance); }
+    if (type === 'formlessDew') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(1 + (step >= 7 ? 1 : 0), step, lv), timing); return mk(`형체 없는 이슬 +${amount}`, 'formlessDew', amount); }
+    if (type === 'goldenRule') { let chance = scaleBeehiveRewardChance(lv >= 13 || step >= 8 ? 1 : 0.35, timing); return mk(chance >= 1 ? '황금률 +1' : `황금률 획득 확률 ${Math.floor(chance * 100)}%`, 'goldenRule', 1, chance); }
     if (type === 'jewelShard') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step, lv), timing); return mk(`주얼 파편 +${amount}`, 'jewelShard', amount); }
     if (type === 'meteorShard') { let amount = scaleBeehiveRewardAmount(step >= 8 ? 2 : 1, timing); return mk(`운석 파편 +${amount}`, 'meteorShard', amount); }
     if (type === 'beeswax') { let amount = scaleBeehiveRewardAmount(step >= 8 ? 2 : 1, timing); return mk(`밀랍 +${amount}`, 'beeswax', amount); }
@@ -2598,12 +2645,14 @@ function applyBeehiveChoiceReward(pick) {
     if (pick.effect === 'bundle') {
         game.currencies.pollen = (game.currencies.pollen || 0) + (20 * amount);
         game.currencies.venomStinger = (game.currencies.venomStinger || 0) + amount;
-        game.currencies.chaos = (game.currencies.chaos || 0) + amount;
+        game.currencies.formlessDew = (game.currencies.formlessDew || 0) + amount;
         return `꽃가루 +${20 * amount} / 독벌침 +${amount} / 카오스 +${amount}`;
     }
     if (pick.effect) {
-        game.currencies[pick.effect] = (game.currencies[pick.effect] || 0) + amount;
-        return `${ORB_DB[pick.effect] ? ORB_DB[pick.effect].name : pick.effect} +${amount}`;
+        let merged = Object.entries(CURRENCY_LEGACY_MERGE || {}).find(([, legacyKeys]) => legacyKeys.includes(pick.effect));
+        let currencyKey = merged ? merged[0] : pick.effect;
+        game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + amount;
+        return `${ORB_DB[currencyKey] ? ORB_DB[currencyKey].name : currencyKey} +${amount}`;
     }
     return '';
 }
@@ -8803,7 +8852,7 @@ function updateInventoryFullWarnings() {
 }
 
 function syncInventoryExpansionShortcuts() {
-    let divine = Math.max(0, Math.floor((game.currencies && game.currencies.divine) || 0));
+    let divine = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
     let controls = [
         {
             id: 'btn-equipment-inventory-expand',

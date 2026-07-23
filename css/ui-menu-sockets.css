@@ -136,6 +136,13 @@ body.desktop-windowed-ui .ui-rail-tab-layer .inventory-full-warning {
 
 .tab-header .tab-btn[data-merged-tab-member="1"] { display: none !important; }
 
+.merged-tab-shell > .merged-tab-subtabs {
+    margin: 0 0 15px;
+}
+
+.merged-subtab-pane { display: none; }
+.merged-subtab-pane.active { display: block; }
+
 body.desktop-windowed-ui .ui-rail-external-controls {
   position: absolute;
   top: calc(100% + 6px);

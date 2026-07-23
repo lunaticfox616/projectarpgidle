@@ -7245,7 +7245,7 @@ function handleEnemyDeath(enemy, pStats) {
         game.colony.kills = Math.max(0, Math.floor((game.colony.kills || 0) + 1));
         if ((game.colony.kills || 0) >= Math.max(1, Math.floor(game.colony.requiredKills || 1))) {
             if (Math.random() < 0.6) awardCurrency('colonyShard', 1 + Math.floor((game.colony.wave || 1) / 3));
-            if (Math.random() < 0.35) awardCurrency('chaos', 1);
+            if (Math.random() < 0.35) awardCurrency('formlessDew', 1);
 
             if (Math.random() < 0.42) {
                 let c = game.colony || (game.colony = {});
@@ -7634,7 +7634,7 @@ function finishEncounterRun() {
         if (zone.cosmosCapstone) {
             if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
             addLog('🌌 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.', 'loot-unique');
-            awardCurrency(zone.reward || 'divine', 2);
+            awardCurrency(zone.reward || 'goldenRule', 2);
             let astraUnique = generateUniqueItem(zone.tier || 34, null, '아스트라의 파편');
             addItemToInventory(astraUnique);
             addLog(`👑 [${astraUnique.name}] 획득!`, 'loot-unique');

@@ -601,22 +601,22 @@ function restorePrimalFossil(kind) {
     }
     let currencyRoll = Math.random();
     if (isAncient) {
-        if (currencyRoll < 0.08) { awardCurrency('divine', 1); rewardLines.push('신성한 오브 +1'); }
-        else if (currencyRoll < 0.30) { awardCurrency('exalted', 1); rewardLines.push('엑잘티드 오브 +1'); }
-        else { awardCurrency('chaos', 2); rewardLines.push('카오스 오브 +2'); }
+        if (currencyRoll < 0.08) { awardCurrency('goldenRule', 1); rewardLines.push('황금률 +1'); }
+        else if (currencyRoll < 0.30) { awardCurrency('sapBud', 1); rewardLines.push('수액 봉우리 +1'); }
+        else { awardCurrency('formlessDew', 2); rewardLines.push('형체 없는 이슬 +2'); }
     } else {
-        if (currencyRoll < 0.04) { awardCurrency('exalted', 1); rewardLines.push('엑잘티드 오브 +1'); }
-        else if (currencyRoll < 0.24) { awardCurrency('chaos', 1); rewardLines.push('카오스 오브 +1'); }
-        else { awardCurrency('alteration', 2); rewardLines.push('변화의 오브 +2'); }
+        if (currencyRoll < 0.04) { awardCurrency('sapBud', 1); rewardLines.push('수액 봉우리 +1'); }
+        else if (currencyRoll < 0.24) { awardCurrency('formlessDew', 1); rewardLines.push('형체 없는 이슬 +1'); }
+        else { awardCurrency('magicBud', 2); rewardLines.push('마법의 새싹 +2'); }
     }
     let restoreBonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('fossilRestoreRewardPct') || 0) : 0;
     let greatChance = (isAncient ? 0.16 : 0.07) + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('fossilRestoreGreatChancePct') || 0) / 100 : 0);
     if (restoreBonus > 0 && Math.random() < Math.min(0.75, restoreBonus / 100)) {
-        awardCurrency('chaos', 1);
-        rewardLines.push('복원 보너스: 카오스 +1');
+        awardCurrency('formlessDew', 1);
+        rewardLines.push('복원 보너스: 형체 없는 이슬 +1');
     }
     if (Math.random() < greatChance) {
-        let bonus = isAncient ? 'divine' : 'regal';
+        let bonus = isAncient ? 'goldenRule' : 'sapBud';
         awardCurrency(bonus, 1);
         rewardLines.push(`대성공: ${ORB_DB[bonus].name} +1`);
     }

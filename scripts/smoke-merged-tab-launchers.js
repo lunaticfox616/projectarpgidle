@@ -44,8 +44,6 @@ const elements = {};
 });
 
 const opened = [];
-let pickerOptions = null;
-let pickerSelection = 'tab-traits';
 const context = {
     game: {
         unlocks: { char: true, traits: true, items: true, jewel: false, talisman: true, codex: true },
@@ -54,8 +52,8 @@ const context = {
     TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
     document: { getElementById: id => elements[id] || null },
     isNotiEnabled: () => true,
-    requestGameChoice: async options => { pickerOptions = options; return pickerSelection; },
-    switchTab: tabId => opened.push(tabId),
+    getSelectedMergedTabId: groupKey => ({ growth: 'tab-char', utility: 'tab-talisman', records: 'tab-journal' })[groupKey],
+    switchMergedTabSubtab: (groupKey, tabId) => opened.push([groupKey, tabId]),
     safeExposeGlobals() {},
     Object
 };
@@ -65,7 +63,6 @@ vm.runInContext([
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('syncMergedTabLauncherVisibility'),
     readFunctionSource('syncMergedTabLauncherState'),
-    'let mergedTabPickerOpen = false;',
     readFunctionSource('openMergedTabPicker')
 ].join('\n'), context, { filename: 'merged-tab-launchers.js' });
 
@@ -81,17 +78,17 @@ vm.runInContext([
     assert.strictEqual(elements['btn-tab-char'].style.display, 'flex');
     assert.strictEqual(elements['btn-tab-flask'].style.display, 'flex', 'unlocking equipment must surface the utility launcher');
 
-    elements['tab-traits'].classList.toggle('active', true);
-    context.syncMergedTabLauncherState();
-    assert(elements['btn-tab-char'].classList.contains('active'), 'opening a member must highlight its combined launcher');
+elements['tab-char'].classList.toggle('active', true);
+context.syncMergedTabLauncherState();
+assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged root must highlight its combined launcher');
     assert.strictEqual(dots['tab-char'].style.display, 'block', 'member notifications must surface on the combined launcher');
     assert.strictEqual(dots['tab-journal'].style.display, 'block', 'codex notices must surface on the records launcher');
 
     await context.openMergedTabPicker(null, 'growth');
-    assert.deepStrictEqual(opened, ['tab-char'], 'a combined launcher must open its first subtab directly');
+    assert.deepStrictEqual(opened, [['growth', 'tab-char']], 'a combined launcher must open its saved inner subtab directly');
 
     await context.openMergedTabPicker(null, 'utility');
-    assert.strictEqual(opened.at(-1), 'tab-talisman');
+    assert.deepStrictEqual(opened.at(-1), ['utility', 'tab-talisman']);
 
     assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="utility"')
         && html.includes('data-merged-tab-launcher="records"'), 'the three combined menu circles must be wired in HTML');
