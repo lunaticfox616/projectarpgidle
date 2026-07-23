@@ -58,12 +58,12 @@ const polishCss = fs.readFileSync('css/ui-polish.css', 'utf8');
 const windowManager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 
 assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-merged-tabs-timers1'), 'asset skin CSS must be cache-versioned');
-assert.ok(html.includes('css/ui-menu-sockets.css?v=20260723-menu-button-states1'), 'menu socket CSS must be cache-versioned');
+assert.ok(html.includes('css/ui-menu-sockets.css?v=20260723-menu-button-states2'), 'menu socket CSS must be cache-versioned');
 assert.ok(html.includes('css/ui-polish.css?v=20260723-currency-icons1'), 'currency card CSS must be cache-versioned');
 assert.ok(html.includes('data/items.js?v=20260723-currency-icons1'), 'currency item data must be cache-versioned');
 assert.ok(html.includes('js/ui.js?v=20260723-currency-icons1'), 'combat HUD JavaScript must be cache-versioned');
 assert.ok(html.includes('js/combat.js?v=20260722-merged-tabs-timers1'), 'combat effect state fixes must be cache-versioned');
-assert.ok(html.includes('js/ui-window-manager.js?v=20260722-menu-unlock1'), 'menu socket JavaScript must be cache-versioned');
+assert.ok(html.includes('js/ui-window-manager.js?v=20260723-merged-window-hosts1'), 'menu socket JavaScript must be cache-versioned');
 assert.ok(html.indexOf('css/ui-asset-skins.css') > html.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
 assert.ok(html.includes('<img class="player-health-frame-art" src="assets/ui/health-player-v1.png"'), 'the player HUD must use one real frame image');
 assert.ok(html.indexOf('player-health-frame') < html.indexOf('id="ui-hp-bar"'), 'the live player HP bar must remain inside its art frame');
@@ -147,6 +147,7 @@ assert.ok(!menuCss.includes('background-repeat'), 'the menu art must not be tile
 assert.ok(menuCss.includes(':hover:not(:disabled):not([aria-disabled="true"])'), 'enabled menu tabs must show a supplied hover state');
 assert.ok(menuCss.includes(':active:not(:disabled):not([aria-disabled="true"])'), 'enabled menu tabs must show a supplied pressed state');
 assert.ok(menuCss.includes('.tab-btn:disabled'), 'locked menu tabs must show a supplied disabled state');
+assert.ok(menuCss.includes('[aria-pressed="true"]'), 'opened desktop menu tabs must keep the supplied active frame');
 
 const expectedCurrencyIcons = new Map([
   ['magicBud', 'magic-bud.png'], ['sapBud', 'sap-bud.png'], ['formlessDew', 'formless-dew.png'],

@@ -29,10 +29,8 @@
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
         'tab-items': { title: '장비 및 인벤토리', x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
         'tab-skills': { title: '스킬 및 스킬 젬', x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
-        'tab-char': { title: '패시브 트리', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460 },
-        'tab-traits': { title: '전직', x: 230, y: 110, width: 620, height: 560, minWidth: 420, minHeight: 340 },
+        'tab-char': { title: '스킬 / 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460 },
         'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },
-        'tab-codex': { title: '도감', x: 280, y: 100, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-map': { title: '지도 및 콘텐츠', x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
         // .core-cube-shell(css/core-cube.css)의 2열 그리드는 minmax(420px,..)+minmax(310px,..)+gap 14px로
         // 열 최소 합이 744px다. 창 본문 좌우 패딩(26px*2)을 더하면 약 796px가 있어야 오른쪽 열이
@@ -40,10 +38,8 @@
         'tab-cube': { title: '코어 큐브', x: 300, y: 110, width: 820, height: 640, minWidth: 800, minHeight: 380 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-season': { title: '루프', x: 300, y: 90, width: 740, height: 640, minWidth: 500, minHeight: 380 },
-        'tab-talisman': { title: '부적', x: 260, y: 120, width: 740, height: 620, minWidth: 500, minHeight: 380 },
-        'tab-jewel': { title: '주얼', x: 300, y: 120, width: 700, height: 600, minWidth: 460, minHeight: 360 },
-        'tab-flask': { title: '플라스크', x: 340, y: 140, width: 600, height: 520, minWidth: 420, minHeight: 320 },
-        'tab-journal': { title: '저널', x: 340, y: 140, width: 620, height: 560, minWidth: 420, minHeight: 320 },
+        'tab-flask': { title: '보조장비', x: 260, y: 100, width: 760, height: 620, minWidth: 500, minHeight: 380 },
+        'tab-journal': { title: '기록', x: 300, y: 110, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 }
     };
 
