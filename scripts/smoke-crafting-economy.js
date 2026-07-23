@@ -19,12 +19,14 @@ const awarded = {};
 const salvageContext = {
     UNIQUE_DB: [],
     ORB_DB: {
-        transmute: { name: '진화의 오브' },
-        alteration: { name: '변화의 오브' },
-        alchemy: { name: '연금술의 오브' },
-        chaos: { name: '카오스 오브' },
-        exalted: { name: '엑잘티드 오브' },
-        divine: { name: '신성한 오브' }
+        magicBud: { name: '마법의 새싹' },
+        formlessDew: { name: '형체 없는 이슬' },
+        sapBud: { name: '수액 봉오리' },
+        goldenRule: { name: '황금률' }
+    },
+    getCanonicalCurrencyKey(key) {
+        const aliases = { transmute: 'magicBud', alteration: 'magicBud', alchemy: 'formlessDew', chaos: 'formlessDew', exalted: 'sapBud', divine: 'goldenRule' };
+        return aliases[key] || key;
     },
     getItemCraftTier(item) { return item.hiddenTier || 1; },
     getItemExplicitOptionCount(item) { return (item.stats || []).length; },
@@ -37,21 +39,21 @@ vm.createContext(salvageContext);
 vm.runInContext(salvageBlock, salvageContext, { filename: 'salvage-economy.js' });
 
 let rewards = salvageContext.salvageItemObject({ rarity: 'magic', name: '매직', stats: [], hiddenTier: 1 }, true);
-assert.deepStrictEqual(JSON.parse(JSON.stringify(rewards)), { alteration: 1 }, 'magic salvage should return alteration, not the old augment reward');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(rewards)), { magicBud: 1 }, 'magic salvage must return the consolidated magic currency');
 
 rewards = salvageContext.salvageItemObject({ rarity: 'rare', name: '레어', stats: [{}, {}, {}, {}, {}, {}], hiddenTier: 20 }, true);
-assert.deepStrictEqual(JSON.parse(JSON.stringify(rewards)), { alchemy: 1 }, 'rare salvage must not guarantee chaos and bypass the market economy');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(rewards)), { formlessDew: 1 }, 'rare salvage must return the consolidated rare reroll currency');
 
 salvageContext.Math.random = () => 0;
 rewards = salvageContext.salvageItemObject({ rarity: 'rare', name: '고티어 레어', stats: [{}, {}, {}, {}, {}, {}], hiddenTier: 20 }, true);
-assert.strictEqual(rewards.alchemy, 1);
-assert.strictEqual(rewards.chaos, 1, 'high-value rare salvage may still roll a visible chaos bonus');
+assert.strictEqual(rewards.formlessDew, 2, 'guaranteed and bonus rewards must merge under one consolidated key');
 
 rewards = salvageContext.salvageItemObject({ rarity: 'unique', name: '고유', stats: [], hiddenTier: 20 }, true, { noDivine: true });
-assert.strictEqual(rewards.alchemy, 2, 'unique salvage should always return a baseline reward');
-assert.strictEqual(rewards.exalted, 1);
-assert.strictEqual(rewards.divine, undefined, 'inventory overflow salvage must not roll divine currency');
-assert(salvageContext.getItemSalvagePreviewText({ rarity: 'rare', stats: [], hiddenTier: 10 }, true).includes('카오스'), 'salvage preview should disclose the rare chaos chance');
+assert.strictEqual(rewards.formlessDew, 2, 'unique salvage should always return a baseline reward');
+assert.strictEqual(rewards.sapBud, 1);
+assert.strictEqual(rewards.goldenRule, undefined, 'inventory overflow salvage must not roll golden rule currency');
+assert(salvageContext.getItemSalvagePreviewText({ rarity: 'rare', stats: [], hiddenTier: 10 }, true).includes('형체 없는 이슬'), 'salvage preview must use the consolidated currency name');
+assert.strictEqual(salvageContext.formatSalvageRewardSummary({ alteration: 1, transmute: 2 }), '마법의 새싹 +3', 'legacy reward keys must be consolidated before display');
 
 const useCurrencyBlock = extract(passiveSource, 'async function useCurrency(currencyKey) {', 'function isMarketUnlocked');
 const rerollPrecheck = useCurrencyBlock.indexOf("if (sporeMode !== 'none' && usesSporeAffix && isRerollSporeCurrency)");

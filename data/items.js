@@ -526,6 +526,12 @@ const CURRENCY_LEGACY_MERGE = Object.freeze({
     fairyRing: ['chance']
 });
 
+function getCanonicalCurrencyKey(currencyKey) {
+    let key = String(currencyKey || '');
+    let merged = Object.entries(CURRENCY_LEGACY_MERGE).find(([, legacyKeys]) => legacyKeys.includes(key));
+    return merged ? merged[0] : key;
+}
+
 const ORB_DB = {
     magicBud: { name: '마법의 새싹', desc: '일반 아이템을 매직으로 만들고 옵션을 부여합니다. 매직 아이템에는 무작위 옵션을 1~2줄 추가합니다.' },
     sapBud: { name: '수액 봉오리', desc: '매직 아이템을 희귀로 승급하며 옵션 1줄을 추가합니다. 희귀 아이템에는 옵션 1줄을 추가합니다.' },
@@ -597,6 +603,21 @@ const ORB_DB = {
     reefFragment: { name: '암초 조각', desc: '심해에서 발견되는 암초 조각입니다. 심해 거점에 설치하면 낚시 게이지 충전 속도가 증가합니다.' },
     oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' }
 };
+const CURRENCY_ICON_PATHS = Object.freeze({
+    magicBud: 'assets/ui/currency/magic-bud.png',
+    sapBud: 'assets/ui/currency/sap-bud.png',
+    formlessDew: 'assets/ui/currency/formless-dew.png',
+    goldenRule: 'assets/ui/currency/golden-rule.png',
+    emberBranch: 'assets/ui/currency/ember-branch.png',
+    ouroboros: 'assets/ui/currency/ouroboros.png',
+    blightSpore: 'assets/ui/currency/blight-spore.png',
+    pruningShears: 'assets/ui/currency/pruning-shears.png',
+    fairyRing: 'assets/ui/currency/fairy-ring.png',
+    blessing: 'assets/ui/currency/blessing-petal.png'
+});
+Object.entries(CURRENCY_ICON_PATHS).forEach(([key, icon]) => {
+    if (ORB_DB[key]) ORB_DB[key].icon = icon;
+});
 const OCEAN_FISH_DB = {
     shallowSilverfin: { name: '은빛 비늘치', desc: '얕은 바다에서 흔히 잡히는 물고기입니다.', depthTier: 0 },
     tidalEel: { name: '조류 장어', desc: '조류가 흐르는 100m 안팎에서 자주 보입니다.', depthTier: 1 },
@@ -618,4 +639,4 @@ const MARKET_EXCHANGES = [
     { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
+safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
