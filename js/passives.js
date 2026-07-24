@@ -2826,7 +2826,7 @@ function getOceanWorkbenchOption(optionId, topTierOnly) {
     return OCEAN_WORKBENCH_OPTIONS.find(opt => opt.id === optionId) || OCEAN_WORKBENCH_OPTIONS[Math.floor(Math.random() * (OCEAN_WORKBENCH_OPTIONS.length - 1))];
 }
 
-const SEA_GIFT_RANDOM_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'regal', 'chaos', 'divine', 'blessing', 'tainted', 'annulment'];
+const SEA_GIFT_RANDOM_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'blessing', 'emberBranch', 'pruningShears'];
 const SEA_GIFT_RECIPES = [
     // --- 일반 레시피 ---
     { id: 'reefBundle', desc: '【재화 획득: 암초 조각 ×2】 얕은 바다 어종을 모아 암초 조각으로 가공합니다.', requires: { shallowSilverfin: 5 }, effect: { type: 'currency', key: 'reefFragment', amount: 2 } },
@@ -4600,7 +4600,7 @@ function dismissTutorial(openTarget) {
 function showDivineDropBanner(amount) {
     let el = document.getElementById('divine-drop-banner');
     if (!el) return;
-    el.innerText = `✨ 신성한 오브 획득! +${amount} ✨`;
+    el.innerText = `✨ ${ORB_DB.goldenRule.name} 획득! +${amount} ✨`;
     el.classList.add('show');
     if (divineBannerTimer) clearTimeout(divineBannerTimer);
     divineBannerTimer = setTimeout(() => {
@@ -5117,9 +5117,9 @@ function grantActRewardEntry(zoneId, choice) {
             addLog(`🎁 액트 보상 보조 젬 [${choice.gem}] 획득!`, 'loot-rare');
         } else {
             let amount = choice.fallbackValue || 1;
-            awardCurrency(choice.currency || 'augment', amount);
+            awardCurrency(choice.currency || 'magicBud', amount);
             let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(3) : (awardCurrency('gemShard', 3), 3);
-            addLog(`🎁 중복 보조 젬 대신 ${ORB_DB[choice.currency || 'augment'].name} +${amount} · 젬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 중복 보조 젬 대신 ${ORB_DB[choice.currency || 'magicBud'].name} +${amount} · 젬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -7803,6 +7803,10 @@ const CHAOS_INFUSER_OPTIONS = [
     { optionId: 'shield_chaos_res', id: 'resChaos', min: 8, max: 12, currency: 'chaos', cost: 6, label: '방패 카오스 저항', slots: ['방패'] },
     { optionId: 'shield_block_pct', id: 'blockChancePct', min: 16, max: 24, currency: 'augment', cost: 12, label: '방패 막기 확률 증가', slots: ['방패'] }
 ];
+CHAOS_INFUSER_OPTIONS.forEach(option => {
+    let merged = Object.entries(CURRENCY_LEGACY_MERGE || {}).find(([, legacyKeys]) => legacyKeys.includes(option.currency));
+    if (merged) option.currency = merged[0];
+});
 function getChaosInfuserOptionsForItem(item) {
     let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
     let occupied = getItemOccupiedExplicitModIds(item);
@@ -8407,6 +8411,7 @@ function maybeApplyExceptionalBase(item) {
 }
 
 function awardCurrency(currencyKey, amount) {
+    currencyKey = getCanonicalCurrencyKey(currencyKey);
     let gain = Number(amount || 0);
     if (gain > 0 && typeof getExpertNodeEffectValue === 'function') {
         let commonPct = Math.max(0, getExpertNodeEffectValue('expertCurrencyGainPct'));
@@ -8435,7 +8440,7 @@ function awardCurrency(currencyKey, amount) {
     game.currencyDropVersion = Math.max(0, Math.floor(game.currencyDropVersion || 0)) + 1;
     if (currencyKey === 'goldenRule' && gain > 0) {
         showDivineDropBanner(gain);
-        addLog(`✨✨ <strong>신성한 오브 +${gain}</strong> 획득!`, 'loot-unique');
+        addLog(`✨✨ <strong>${ORB_DB.goldenRule.name} +${gain}</strong> 획득!`, 'loot-unique');
     }
     if ((currencyKey === 'chaosKey' || currencyKey === 'coreKey') && gain > 0) {
         // 둘 중 하나라도 습득하면 지도 알람을 띄운다(5차 미궁 시련/재능 개화 도전 알림).
@@ -8445,7 +8450,7 @@ function awardCurrency(currencyKey, amount) {
     }
     if (currencyKey === 'ouroboros' && gain > 0) {
         game.woodsmanTouchSeen = true;
-        addLog(`🌿✨ <strong>나무꾼의 손길 +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`, 'loot-unique');
+        addLog(`🌿✨ <strong>${ORB_DB.ouroboros.name} +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`, 'loot-unique');
     }
     if (!game.gemEnhanceUnlocked && (currencyKey === 'bossCore' || currencyKey === 'skyEssence')) {
         game.gemEnhanceUnlocked = true;
@@ -9777,18 +9782,18 @@ function getItemSalvageRewardProfile(item, options) {
     let guaranteed = {};
     let chances = [];
     if (rarity === 'normal') {
-        guaranteed.transmute = 1;
+        guaranteed.magicBud = 1;
     } else if (rarity === 'magic') {
-        guaranteed.alteration = 1;
+        guaranteed.magicBud = 1;
     } else if (rarity === 'rare') {
-        guaranteed.alchemy = 1;
+        guaranteed.formlessDew = 1;
         let tier = Math.max(1, getItemCraftTier(item));
         let explicitCount = Math.max(0, getItemExplicitOptionCount(item));
-        chances.push({ key: 'chaos', amount: 1, chance: Math.min(0.35, 0.04 + tier * 0.01 + explicitCount * 0.02) });
+        chances.push({ key: 'formlessDew', amount: 1, chance: Math.min(0.35, 0.04 + tier * 0.01 + explicitCount * 0.02) });
     } else if (rarity === 'unique') {
-        guaranteed.alchemy = 2;
-        chances.push({ key: 'exalted', amount: 1, chance: 0.55 });
-        if (!noDivine) chances.push({ key: 'divine', amount: 1, chance: getUniqueDismantleDivineChance(item) });
+        guaranteed.formlessDew = 2;
+        chances.push({ key: 'sapBud', amount: 1, chance: 0.55 });
+        if (!noDivine) chances.push({ key: 'goldenRule', amount: 1, chance: getUniqueDismantleDivineChance(item) });
     }
     return { guaranteed, chances };
 }
@@ -9796,7 +9801,8 @@ function getItemSalvageRewardProfile(item, options) {
 function addSalvageRewardAmount(rewards, key, amount) {
     let gain = Math.max(0, Math.floor(Number(amount) || 0));
     if (!key || gain <= 0) return rewards;
-    rewards[key] = Math.max(0, Math.floor(Number(rewards[key]) || 0)) + gain;
+    let currencyKey = getCanonicalCurrencyKey(key);
+    rewards[currencyKey] = Math.max(0, Math.floor(Number(rewards[currencyKey]) || 0)) + gain;
     return rewards;
 }
 
@@ -9807,7 +9813,8 @@ function mergeSalvageRewards(target, source) {
 }
 
 function formatSalvageRewardSummary(rewards) {
-    let entries = Object.entries(rewards || {}).filter(([, amount]) => Number(amount) > 0);
+    let normalized = mergeSalvageRewards({}, rewards);
+    let entries = Object.entries(normalized).filter(([, amount]) => Number(amount) > 0);
     if (entries.length <= 0) return '회수 재화 없음';
     return entries.map(([key, amount]) => `${(ORB_DB[key] && ORB_DB[key].name) || key} +${Math.floor(amount)}`).join(' · ');
 }

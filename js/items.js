@@ -50,7 +50,7 @@ function rollBlackMarketExchangeOffer(recipe, index) {
     let needVariance = 0.9 + Math.random() * 0.2;
     let gainVariance = 0.9 + Math.random() * 0.2;
     let baseGain = recipe.gain;
-    if (recipe.id === 'm11' && recipe.from === 'divine' && recipe.to === 'chaos') baseGain = 70;
+    if (recipe.id === 'm11' && recipe.from === 'goldenRule' && recipe.to === 'formlessDew') baseGain = 70;
     let need = Math.max(1, Math.floor(recipe.need * 0.8 * needVariance * bulkMultiplier));
     let gain = Math.max(1, Math.floor(baseGain * gainVariance * bulkMultiplier));
     let standardRate = Math.max(0.0001, recipe.gain / Math.max(1, recipe.need));
@@ -1201,7 +1201,7 @@ async function buyBlackMarketOffer(idx){
     }
     let purchaseState = getBlackMarketOfferPurchaseState(offer);
     if (!purchaseState.canBuy) return addLog(purchaseState.reason, 'attack-monster');
-    let needsConfirmation = !!(offer.chase || offer.featured || (offer.priceKey === 'divine' && Number(offer.price) >= 5));
+    let needsConfirmation = !!(offer.chase || offer.featured || (offer.priceKey === 'goldenRule' && Number(offer.price) >= 5));
     if (needsConfirmation) {
         let priceName = offer.priceKey && ORB_DB[offer.priceKey] ? ORB_DB[offer.priceKey].name : offer.priceKey;
         let accepted = await requestGameConfirmation(`[${offer.name || '암거래 상품'}]을 구매합니다.\n${priceName} ${offer.price}개를 소모하며 구매 후 되돌릴 수 없습니다.`, {
@@ -1301,7 +1301,7 @@ function renderMarketUI() {
             let maxTimes = Math.floor(have / recipe.need);
             let spendAll = maxTimes * recipe.need;
             let gainAll = maxTimes * recipe.gain;
-            let tone = (recipe.to === 'divine' || recipe.from === 'divine') ? 'divine' : (recipe.to === 'chaos' ? 'chaos' : 'basic');
+            let tone = (recipe.to === 'goldenRule' || recipe.from === 'goldenRule') ? 'divine' : (recipe.to === 'formlessDew' ? 'chaos' : 'basic');
             return `<div class="market-card market-tone-${tone}">
                 <div class="market-title">${typeof getStyledOrbName === 'function' ? getStyledOrbName(recipe.from) : ORB_DB[recipe.from].name} ${recipe.need}개 → ${typeof getStyledOrbName === 'function' ? getStyledOrbName(recipe.to) : ORB_DB[recipe.to].name} ${recipe.gain}개</div>
                 <div class="market-row">

@@ -25,8 +25,33 @@ function makeClassList() {
     return {
         contains: name => values.has(name),
         toggle(name, force) { if (force) values.add(name); else values.delete(name); },
+        add: name => values.add(name),
         values
     };
+}
+
+function makePanelNode(name, className = '') {
+    const node = { name, childNodes: [], dataset: {}, classList: makeClassList(), parentElement: null };
+    node.className = className;
+    className.split(/\s+/).filter(Boolean).forEach(classNamePart => node.classList.add(classNamePart));
+    node.appendChild = child => {
+        if (child.parentElement) child.parentElement.childNodes = child.parentElement.childNodes.filter(item => item !== child);
+        child.parentElement = node;
+        node.childNodes.push(child);
+        return child;
+    };
+    node.append = (...children) => children.forEach(child => node.appendChild(child));
+    node.replaceChildren = (...children) => {
+        node.childNodes.forEach(child => { child.parentElement = null; });
+        node.childNodes = [];
+        children.forEach(child => node.appendChild(child));
+    };
+    node.querySelector = selector => {
+        if (!selector.startsWith(':scope > .')) return null;
+        const classNamePart = selector.slice(':scope > .'.length);
+        return node.childNodes.find(child => child.classList.contains(classNamePart)) || null;
+    };
+    return node;
 }
 
 const groupStart = source.indexOf('const MERGED_TAB_GROUPS');
@@ -44,8 +69,6 @@ const elements = {};
 });
 
 const opened = [];
-let pickerOptions = null;
-let pickerSelection = 'tab-traits';
 const context = {
     game: {
         unlocks: { char: true, traits: true, items: true, jewel: false, talisman: true, codex: true },
@@ -54,20 +77,88 @@ const context = {
     TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
     document: { getElementById: id => elements[id] || null },
     isNotiEnabled: () => true,
-    requestGameChoice: async options => { pickerOptions = options; return pickerSelection; },
-    switchTab: tabId => opened.push(tabId),
+    getSelectedMergedTabId: groupKey => ({ growth: 'tab-char', utility: 'tab-talisman', records: 'tab-journal' })[groupKey],
+    switchMergedTabSubtab: (groupKey, tabId) => opened.push([groupKey, tabId]),
+    window: {},
     safeExposeGlobals() {},
     Object
 };
 vm.createContext(context);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
+    readFunctionSource('isCodexTabUnlockReady'),
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('syncMergedTabLauncherVisibility'),
     readFunctionSource('syncMergedTabLauncherState'),
-    'let mergedTabPickerOpen = false;',
     readFunctionSource('openMergedTabPicker')
 ].join('\n'), context, { filename: 'merged-tab-launchers.js' });
+
+const windowRoot = makePanelNode('window-root');
+const windowTitlebar = makePanelNode('titlebar', 'ui-window-titlebar');
+const windowBody = makePanelNode('body', 'ui-window-body');
+const windowResize = makePanelNode('resize', 'ui-window-resize');
+const passiveContent = makePanelNode('passive-content');
+const traitPanel = makePanelNode('trait-panel');
+windowRoot.append(windowTitlebar, windowBody, windowResize);
+windowBody.appendChild(passiveContent);
+const panelContext = {
+    document: {
+        createElement: name => makePanelNode(name),
+        getElementById: id => ({ 'tab-char': windowRoot, 'tab-traits': traitPanel })[id] || null
+    },
+    Object,
+    Array
+};
+vm.createContext(panelContext);
+vm.runInContext([source.slice(groupStart, groupEnd), readFunctionSource('mountMergedTabGroup')].join('\n'), panelContext, { filename: 'merged-tab-window-host.js' });
+const mergedShell = panelContext.mountMergedTabGroup('growth');
+assert.deepStrictEqual(windowRoot.childNodes, [windowTitlebar, windowBody, windowResize], 'merged tabs must not move the desktop window titlebar or resize handle');
+assert.strictEqual(windowBody.childNodes[0], mergedShell, 'merged tabs must render inside the desktop window body');
+assert.strictEqual(mergedShell.childNodes[1].childNodes[0].childNodes[0], passiveContent, 'the launcher content must stay below the inner subtab row');
+assert.strictEqual(mergedShell.childNodes[1].childNodes[1], traitPanel, 'secondary content must become a sibling pane inside the same window body');
+
+const lockedTabTransitions = [];
+let lockedTabLogs = 0;
+const lockedTabContext = {
+    game: { unlocks: { codex: true }, settings: {}, inventory: [], equipment: {}, uniqueCodex: {} },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
+    addLog: () => { lockedTabLogs += 1; },
+    window: { switchTab: tabId => lockedTabTransitions.push(tabId) },
+    Object,
+    Array
+};
+vm.createContext(lockedTabContext);
+vm.runInContext([
+    source.slice(groupStart, groupEnd),
+    readFunctionSource('isCodexTabUnlockReady'),
+    readFunctionSource('isMergedTabAvailable'),
+    readFunctionSource('getSelectedMergedTabId'),
+    readFunctionSource('switchMergedTabSubtab'),
+    readFunctionSource('openMergedTabPicker')
+].join('\n'), lockedTabContext, { filename: 'locked-merged-tab.js' });
+lockedTabContext.openMergedTabPicker(null, 'records');
+lockedTabContext.switchMergedTabSubtab('records', 'tab-codex');
+assert.deepStrictEqual(lockedTabTransitions, [], 'locked merged tabs must not open an empty host panel');
+assert.strictEqual(lockedTabLogs, 0, 'locked merged tabs must remain silent when no inner panel is available');
+assert(source.includes("window.switchTab(group.launcher, { keepWindowOpen: true })"), 'inner merged tabs must pass through the desktop window manager and preserve the open host');
+
+const routedCalls = [];
+const routedContext = {
+    game: { unlocks: { char: true, traits: true }, settings: {}, noti: {} },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits' },
+    window: { switchTab: (tabId, options) => routedCalls.push([tabId, options]) },
+    Object,
+    Array
+};
+vm.createContext(routedContext);
+vm.runInContext([
+    source.slice(groupStart, groupEnd),
+    readFunctionSource('isCodexTabUnlockReady'),
+    readFunctionSource('isMergedTabAvailable'),
+    readFunctionSource('switchMergedTabSubtab')
+].join('\n'), routedContext, { filename: 'routed-merged-tab.js' });
+routedContext.switchMergedTabSubtab('growth', 'tab-traits');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(routedCalls)), [['tab-char', { keepWindowOpen: true }]], 'inner tabs must switch content without closing their host window');
 
 (async () => {
     const unlockedState = context.game.unlocks;
@@ -81,17 +172,17 @@ vm.runInContext([
     assert.strictEqual(elements['btn-tab-char'].style.display, 'flex');
     assert.strictEqual(elements['btn-tab-flask'].style.display, 'flex', 'unlocking equipment must surface the utility launcher');
 
-    elements['tab-traits'].classList.toggle('active', true);
-    context.syncMergedTabLauncherState();
-    assert(elements['btn-tab-char'].classList.contains('active'), 'opening a member must highlight its combined launcher');
+elements['tab-char'].classList.toggle('active', true);
+context.syncMergedTabLauncherState();
+assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged root must highlight its combined launcher');
     assert.strictEqual(dots['tab-char'].style.display, 'block', 'member notifications must surface on the combined launcher');
     assert.strictEqual(dots['tab-journal'].style.display, 'block', 'codex notices must surface on the records launcher');
 
     await context.openMergedTabPicker(null, 'growth');
-    assert.deepStrictEqual(opened, ['tab-char'], 'a combined launcher must open its first subtab directly');
+    assert.deepStrictEqual(opened, [['growth', 'tab-char']], 'a combined launcher must open its saved inner subtab directly');
 
     await context.openMergedTabPicker(null, 'utility');
-    assert.strictEqual(opened.at(-1), 'tab-talisman');
+    assert.deepStrictEqual(opened.at(-1), ['utility', 'tab-talisman']);
 
     assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="utility"')
         && html.includes('data-merged-tab-launcher="records"'), 'the three combined menu circles must be wired in HTML');

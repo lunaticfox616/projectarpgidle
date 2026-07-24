@@ -21,7 +21,7 @@ const equipmentButton = { hidden: true, disabled: false, textContent: '', title:
 const jewelButton = { hidden: true, disabled: false, textContent: '', title: '' };
 const context = {
   Math,
-  game: { maxZoneId: 5, season: 5, currencies: { divine: 2 } },
+  game: { maxZoneId: 5, season: 5, currencies: { goldenRule: 2 } },
   document: {
     getElementById(id) {
       if (id === 'btn-equipment-inventory-expand') return equipmentButton;
@@ -48,7 +48,7 @@ assert.strictEqual(jewelButton.disabled, false);
 assert.strictEqual(jewelButton.textContent, '+5칸 · 신성한 1');
 assert(jewelButton.title.includes('현재 20칸'));
 
-context.game.currencies.divine = 0;
+context.game.currencies.goldenRule = 0;
 context.syncInventoryExpansionShortcuts();
 assert.strictEqual(equipmentButton.disabled, true, '재화가 부족하면 장비 한도 확장을 누를 수 없어야 한다');
 assert.strictEqual(jewelButton.disabled, true, '재화가 부족하면 주얼 한도 확장을 누를 수 없어야 한다');

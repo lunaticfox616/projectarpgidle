@@ -77,7 +77,7 @@ vm.runInContext(source.slice(buyStart, buyEnd), buyContext, { filename: 'market-
     assert.strictEqual(buyContext.game.blackMarket.offers[0], replacementOffer);
     assert(purchaseLogs.some(message => message.includes('판매 시간이 끝나')));
     assert(source.includes('Math.ceil(hiddenTier * 0.45)'), 'base offer prices must scale with their actual crafting tier');
-    assert(source.includes("offer.chase || offer.featured || (offer.priceKey === 'divine'"), 'high-value black-market purchases need confirmation');
+    assert(source.includes("offer.chase || offer.featured || (offer.priceKey === 'goldenRule'"), 'high-value black-market purchases need confirmation');
 
     const exchangeStart = passiveSource.indexOf('async function exchangeAtMarket(exchangeId, exchangeAll)');
     const exchangeEnd = passiveSource.indexOf('safeExposeGlobals({', exchangeStart);

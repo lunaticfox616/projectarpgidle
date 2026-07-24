@@ -47,6 +47,6 @@ assert(html.includes('css/base.css?v=20260722-map-action-native-tab1'), 'base UI
 assert(html.includes('css/ui-feedback.css?v=20260721-galmuri-body1'), 'shared font token cache must be refreshed');
 assert(html.includes('css/typography-readability.css?v=20260721-galmuri-item-names1'), 'readability stylesheet must load after the UI styles');
 assert(html.includes('css/ui-windows.css?v=20260722-combat-icons2'), 'desktop font fallback cache must be refreshed');
-assert(html.includes('js/passives.js?v=20260722-combat-polish1'), 'passive runtime cache must be refreshed');
+assert(html.includes('js/passives.js?v=20260723-currency-salvage1'), 'passive runtime cache must be refreshed');
 
 console.log('smoke-font-assets passed');

@@ -16,9 +16,16 @@ assert(html.indexOf('js/social.js') < html.indexOf('js/ui-window-manager.js'), '
 assert(html.indexOf('js/ui-window-manager.js') < html.indexOf('js/main.js'), 'window manager should load before main.js');
 
 [
-  'tab-character', 'tab-items', 'tab-skills', 'tab-char', 'tab-traits',
-  'tab-expertise', 'tab-codex', 'tab-map', 'tab-cube', 'tab-settings'
+  'tab-character', 'tab-items', 'tab-skills', 'tab-char', 'tab-flask',
+  'tab-journal', 'tab-expertise', 'tab-map', 'tab-cube', 'tab-settings'
 ].forEach(id => assert(manager.includes(`'${id}'`), `${id} must be registered as a window`));
+
+[
+  'tab-traits', 'tab-jewel', 'tab-talisman', 'tab-codex'
+].forEach(id => assert(!new RegExp(`'${id}'\\s*:`).test(manager), `${id} must remain a panel inside its merged host window`));
+assert(manager.includes("'tab-char': { title: '스킬 / 전직'"), 'the skill and advancement host must use one shared window title');
+assert(manager.includes("'tab-flask': { title: '보조장비'"), 'the utility host must use one shared window title');
+assert(manager.includes("'tab-journal': { title: '기록'"), 'the records host must use one shared window title');
 
 [
   'openWindow', 'closeWindow', 'minimizeWindow', 'resetWindowLayout',
@@ -27,6 +34,7 @@ assert(html.indexOf('js/ui-window-manager.js') < html.indexOf('js/main.js'), 'wi
 
 assert(manager.includes('UI_LAYOUT_STORAGE_KEY'), 'UI layout must use separate local storage');
 assert(manager.includes('originalSwitchTab'), 'switchTab compatibility adapter must be installed');
+assert(manager.includes('options = {}') && manager.includes('!options.keepWindowOpen'), 'inner tabs must refresh their shared window without closing it');
 assert(manager.includes('setPointerCapture'), 'window dragging/resizing must use pointer capture');
 assert(manager.includes('restoreWindowMarkupForMobile'), 'window manager should restore tab markup when leaving desktop mode');
 assert(manager.includes('restoreDesktopMenuForMobile'), 'window manager should restore menu markup when leaving desktop mode');
