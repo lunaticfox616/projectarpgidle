@@ -383,7 +383,7 @@ function updateBackgroundCombatMetrics(metrics, state) {
     metrics.previousExp = exp;
 }
 
-function getBackgroundRewardSummary(beforeState, afterState, combatMetrics) {
+function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, overflowSalvaged) {
     let currencies = [];
     let beforeCurrencies = (beforeState && beforeState.currencies) || {};
     let afterCurrencies = (afterState && afterState.currencies) || {};
@@ -419,7 +419,8 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics) {
         currencies,
         items: Math.max(0, afterInv - beforeInv),
         rarityGains,
-        uniqueNames
+        uniqueNames,
+        overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0))
     };
 }
 
@@ -536,11 +537,14 @@ function showBackgroundCombatResult(result) {
     let uniqueLine = (summary.uniqueNames || []).length > 0
         ? `<br>고유 획득: <span style="color:${rarityColor('unique')};font-weight:700;">${summary.uniqueNames.slice(0, 5).join(', ')}</span>`
         : '';
+    let overflowLine = summary.overflowSalvaged > 0
+        ? `<br>공간 부족 자동해체: <strong>${summary.overflowSalvaged}개</strong> <span class="background-combat-exp-lost">(해체 보상은 재화에 포함)</span>`
+        : '';
     let rewards = [
         `총 처치: <strong>${summary.kills || 0}</strong>`,
         `총 경험치: <strong>+${summary.exp || 0}</strong> <span class="background-combat-exp-lost">(잃은 경험치 -${summary.expLost || 0})</span>`,
         `사망 횟수: <strong>${summary.deaths || 0}</strong>`,
-        `아이템: ${itemHtml}${uniqueLine}`,
+        `아이템: ${itemHtml}${uniqueLine}${overflowLine}`,
         `재화: ${currencyHtml}`
     ].join('<br>');
     overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p><p>${rewards}</p>${result.estimated ? '<p class="background-combat-capped">남은 구간은 표본 구간의 획득 속도로 예상 정산했습니다.</p>' : ''}${result.capped ? '<p class="background-combat-capped">백그라운드 누적 한도 3시간에 도달했습니다.</p>' : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">닫기</button></div>`;
@@ -566,6 +570,7 @@ function simulateBackgroundCombat(options) {
         Date.now = () => simulatedNow;
         game = simGame;
         game.isBackgroundCalculation = true;
+        game.backgroundOverflowSalvageCount = 0;
         statsCache.install();
         let processed = 0;
         while (processed < stepCount) {
@@ -586,7 +591,9 @@ function simulateBackgroundCombat(options) {
         Date.now = originalDateNow;
         game = previousGame;
     }
-    return { game: simGame, steps: stepCount, simulatedNow, metrics };
+    let overflowSalvaged = Math.max(0, Math.floor(Number(simGame.backgroundOverflowSalvageCount) || 0));
+    delete simGame.backgroundOverflowSalvageCount;
+    return { game: simGame, steps: stepCount, simulatedNow, metrics, overflowSalvaged };
 }
 
 function shouldStopBackgroundReplay(state) {
@@ -636,6 +643,7 @@ async function simulateBackgroundCombatChunked(options) {
         Date.now = () => simulatedNow;
         game = simGame;
         game.isBackgroundCalculation = true;
+        game.backgroundOverflowSalvageCount = 0;
         statsCache.install();
         while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) {
             let chunkBudgetMs = backgroundCombatRuntime.accelerationTier > 0
@@ -672,13 +680,16 @@ async function simulateBackgroundCombatChunked(options) {
         Date.now = originalDateNow;
         game = previousGame;
     }
+    let overflowSalvaged = Math.max(0, Math.floor(Number(simGame.backgroundOverflowSalvageCount) || 0));
+    delete simGame.backgroundOverflowSalvageCount;
     return {
         game: simGame,
         steps: processedSteps,
         simulatedNow,
         stopped: processedMs < elapsedMs,
         estimated,
-        metrics
+        metrics,
+        overflowSalvaged
     };
 }
 
@@ -696,7 +707,7 @@ function handleBackgroundCombatReturn(nowMs) {
     try {
         let result = simulateBackgroundCombat({ elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs });
         if (!shouldApplyBackgroundCombatResult(signature)) return false;
-        let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics);
+        let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
         game = mergeDefaults(result.game || game);
         showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= BACKGROUND_PROGRESS_MAX_SIMULATED_MS });
         updateStaticUI();
@@ -732,7 +743,7 @@ async function startBackgroundCombatReturn(nowMs) {
             onProgress: (done, total) => updateBackgroundProgressOverlay(done, total, actualElapsedMs)
         });
         if (!shouldApplyBackgroundCombatResult(signature)) return false;
-        let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics);
+        let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
         game = mergeDefaults(result.game || game);
         showBackgroundCombatResult({
             actualElapsedMs,

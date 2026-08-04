@@ -107,6 +107,11 @@ const deathMetricResult = vm.runInContext(`simulateBackgroundCombat({ elapsedMs:
 assert.strictEqual(deathMetricResult.metrics.exp, 5, 'gross experience should include experience earned before a death penalty');
 assert.strictEqual(deathMetricResult.metrics.expLost, 3, 'lost experience should be tracked separately');
 assert.strictEqual(deathMetricResult.metrics.deaths, 1, 'background deaths should be counted');
+const overflowMetricResult = vm.runInContext(`simulateBackgroundCombat({ elapsedMs: 300, snapshot: { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 }, startNowMs: 1000, stepFn: () => { game.backgroundOverflowSalvageCount += 1; } })`, context);
+assert.strictEqual(overflowMetricResult.overflowSalvaged, 3, 'background simulation must return one overflow salvage count');
+assert.strictEqual(overflowMetricResult.game.backgroundOverflowSalvageCount, undefined, 'transient overflow count must not leak into the saved game state');
+const overflowSummary = vm.runInContext(`getBackgroundRewardSummary({ currencies: {}, inventory: [] }, { currencies: {}, inventory: [] }, null, 3)`, context);
+assert.strictEqual(overflowSummary.overflowSalvaged, 3, 'background result summary must retain the overflow salvage total');
 
 context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0, pendingLoopReady: true };
 vm.runInContext('recordBackgroundCombatEntry(1000)', context);
