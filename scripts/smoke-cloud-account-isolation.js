@@ -90,6 +90,30 @@ async function run() {
   assert.strictEqual(signupCase.context.game.level, 42, 'a newly created account may explicitly adopt an unlinked guest save');
   assert.strictEqual(signupCase.context.game.saveMeta.cloudUserId, 'account-b');
   assert.strictEqual(signupCase.getPushes(), 1);
+
+  const remoteStamp = new Date(remoteRecord.updated_at).getTime();
+  const newerOwnedLocal = { level: 42, season: 3, saveMeta: { lastModifiedAt: remoteStamp + 1000, cloudUserId: 'account-b' } };
+  const newerOwnedCase = createContext(newerOwnedLocal, remoteRecord);
+  newerOwnedCase.context.shouldBlockLocalPushForRemoteLoop = () => ({ blocked: false });
+  newerOwnedCase.context.getLoopCompareSummary = () => ({ localLoop: 3, remoteLoop: 1, safeToPush: true });
+  const newerOwnedStatus = await vm.runInContext(
+    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
+    newerOwnedCase.context
+  );
+  assert.strictEqual(newerOwnedStatus, 'pushed-local-newer-than-remote-resume');
+  assert.strictEqual(newerOwnedCase.context.game.level, 42, 're-login must keep a newer local save owned by the same account');
+  assert.strictEqual(newerOwnedCase.getPushes(), 1, 'newer same-account local progress must update the cloud save');
+
+  const olderOwnedLocal = { level: 5, saveMeta: { lastModifiedAt: remoteStamp - 1000, cloudUserId: 'account-b' } };
+  const olderOwnedCase = createContext(olderOwnedLocal, remoteRecord);
+  olderOwnedCase.context.shouldBlockLocalPushForRemoteLoop = () => ({ blocked: false });
+  const olderOwnedStatus = await vm.runInContext(
+    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
+    olderOwnedCase.context
+  );
+  assert.strictEqual(olderOwnedStatus, 'pulled-remote-resume-preferred');
+  assert.strictEqual(olderOwnedCase.context.game.level, 7, 're-login must still apply a newer cloud save for the same account');
+  assert.strictEqual(olderOwnedCase.getPushes(), 0);
 }
 
 run()
