@@ -1624,7 +1624,7 @@ function renderMergedTabPanels(groupKey) {
     });
 }
 
-function switchMergedTabSubtab(groupKey, tabId) {
+function switchMergedTabSubtab(groupKey, tabId, options = {}) {
     let group = MERGED_TAB_GROUPS[groupKey];
     let tab = group && group.tabs.find(entry => entry.id === tabId);
     if (!tab || !isMergedTabAvailable(tab)) return;
@@ -1634,7 +1634,7 @@ function switchMergedTabSubtab(groupKey, tabId) {
     let wasCodexNotified = !!(game.noti && game.noti.codex);
     if (game.noti) game.noti[tabId.replace(/^tab-/, '')] = false;
     if (tabId === 'tab-codex' && wasCodexNotified) game.codexFocusNewOnOpen = true;
-    window.switchTab(group.launcher, { keepWindowOpen: true });
+    window.switchTab(group.launcher, { keepWindowOpen: options.keepWindowOpen !== false });
     updateStaticUI();
 }
 
@@ -1663,7 +1663,7 @@ function openMergedTabPicker(event, groupKey) {
     if (!group) return;
     let selectedTabId = getSelectedMergedTabId(groupKey);
     if (!selectedTabId) return;
-    switchMergedTabSubtab(groupKey, selectedTabId);
+    switchMergedTabSubtab(groupKey, selectedTabId, { keepWindowOpen: false });
 }
 
 safeExposeGlobals({ openMergedTabPicker, switchMergedTabSubtab });
@@ -8877,7 +8877,7 @@ function updateInventoryFullWarnings() {
 }
 
 function syncInventoryExpansionShortcuts() {
-    let divine = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
+    let goldenRule = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
     let controls = [
         {
             id: 'btn-equipment-inventory-expand',
@@ -8897,9 +8897,9 @@ function syncInventoryExpansionShortcuts() {
         if (!button) return;
         button.hidden = !control.unlocked;
         if (!control.unlocked) return;
-        button.disabled = divine < control.cost;
-        button.textContent = `+5칸 · 신성한 ${control.cost}`;
-        button.title = `현재 ${control.currentLimit}칸 · 신성한 오브 ${control.cost}개로 영구 확장`;
+        button.disabled = goldenRule < control.cost;
+        button.textContent = `+5칸 · 황금률 ${control.cost}`;
+        button.title = `현재 ${control.currentLimit}칸 · 황금률 ${control.cost}개로 영구 확장`;
     });
 }
 

@@ -79,12 +79,13 @@ const protectedItem = {
     ]
 };
 const annulLogs = [];
+let annulPrompt = '';
 const annulContext = {
     game: { currencies: { goldenRule: 2 } },
     isMarketUnlocked: () => true,
     getSelectedCraftItem: () => protectedItem,
     getAnnulmentRemovableStats: item => item.stats.map((stat, index) => ({ stat, index })).filter(row => !row.stat.lockedByHoney && !row.stat.lockedByRift && !row.stat.encroachedFinal && !row.stat.unremovable),
-    requestGameConfirmation: async () => true,
+    requestGameConfirmation: async message => { annulPrompt = message; return true; },
     getStatName: id => id,
     updateItemName() {},
     updateStaticUI() {},
@@ -101,6 +102,7 @@ vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
     await annulContext.marketAnnulSelectedStat(1);
     assert.deepStrictEqual(Array.from(protectedItem.stats, stat => stat.id), ['flatHp'], 'market service should remove the selected removable affix');
     assert.strictEqual(annulContext.game.currencies.goldenRule, 0);
+    assert(annulPrompt.includes('황금률 2개') && !annulPrompt.includes('신성한 오브'), 'market confirmation must name the currency that is actually spent');
 
     const originalJewel = { name: '확인 대상', rarity: 'rare', locked: false };
     const newlyDroppedJewel = { name: '확인 후 드랍', rarity: 'rare', locked: false };

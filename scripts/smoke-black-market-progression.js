@@ -15,6 +15,7 @@ function extract(startNeedle, endNeedle) {
 
 const runtimeBlock = extract('function refreshBlackMarket(force)', 'function canStoreBlackMarketEquipmentOffer');
 const logs = [];
+let confirmationPrompt = '';
 let rollSeq = 0;
 const oldOffers = Array.from({ length: 6 }, (_, index) => ({ type: 'baseItem', name: `old ${index}` }));
 const context = {
@@ -47,7 +48,7 @@ const context = {
     getBlackMarketManualRefreshCost() { return 3 + context.game.blackMarket.manualRefreshes * 2; },
     buildBlackMarketFeaturedOffer: () => ({ type: 'unique', name: '표적 고유', featured: true }),
     buildBlackMarketOffer: index => ({ type: 'baseItem', name: `roll ${index}-${++rollSeq}` }),
-    requestGameConfirmation: async () => true,
+    requestGameConfirmation: async message => { confirmationPrompt = message; return true; },
     addLog(message) { logs.push(message); },
     updateStaticUI() {}
 };
@@ -79,6 +80,7 @@ vm.runInContext(runtimeBlock, context, { filename: 'black-market-progression-run
     await context.expandBlackMarketSlotsByDivine();
     assert.strictEqual(context.game.blackMarket.extraSlots, 1);
     assert.strictEqual(context.game.currencies.goldenRule, 99);
+    assert(confirmationPrompt.includes('황금률 1개') && !confirmationPrompt.includes('신성한 오브'), 'slot expansion must disclose its actual currency');
     assert.deepStrictEqual(
         context.game.blackMarket.offers.slice(0, 6).map(offer => offer && offer.name),
         beforeExpandOffers.map(offer => offer && offer.name),

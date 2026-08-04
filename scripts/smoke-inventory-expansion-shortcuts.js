@@ -41,11 +41,11 @@ vm.runInContext(readFunctionSource(source, 'syncInventoryExpansionShortcuts'), c
 context.syncInventoryExpansionShortcuts();
 assert.strictEqual(equipmentButton.hidden, false);
 assert.strictEqual(equipmentButton.disabled, false);
-assert.strictEqual(equipmentButton.textContent, '+5칸 · 신성한 2');
+assert.strictEqual(equipmentButton.textContent, '+5칸 · 황금률 2');
 assert(equipmentButton.title.includes('현재 30칸'));
 assert.strictEqual(jewelButton.hidden, false);
 assert.strictEqual(jewelButton.disabled, false);
-assert.strictEqual(jewelButton.textContent, '+5칸 · 신성한 1');
+assert.strictEqual(jewelButton.textContent, '+5칸 · 황금률 1');
 assert(jewelButton.title.includes('현재 20칸'));
 
 context.game.currencies.goldenRule = 0;

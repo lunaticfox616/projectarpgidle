@@ -10,8 +10,20 @@ function readFunctionSource(name) {
     let start = source.indexOf(`function ${name}(`);
     assert(start >= 0, `${name} must exist`);
     if (source.slice(Math.max(0, start - 6), start) === 'async ') start -= 6;
+    let parameterDepth = 0;
+    let bodyStart = -1;
+    for (let index = source.indexOf('(', start); index < source.length; index++) {
+        if (source[index] === '(') parameterDepth++;
+        if (source[index] !== ')') continue;
+        parameterDepth--;
+        if (parameterDepth === 0) {
+            bodyStart = source.indexOf('{', index);
+            break;
+        }
+    }
+    assert(bodyStart >= 0, `${name} must have a function body`);
     let depth = 0;
-    for (let index = source.indexOf('{', start); index < source.length; index++) {
+    for (let index = bodyStart; index < source.length; index++) {
         if (source[index] === '{') depth++;
         if (source[index] !== '}') continue;
         depth--;
@@ -78,7 +90,7 @@ const context = {
     document: { getElementById: id => elements[id] || null },
     isNotiEnabled: () => true,
     getSelectedMergedTabId: groupKey => ({ growth: 'tab-char', utility: 'tab-talisman', records: 'tab-journal' })[groupKey],
-    switchMergedTabSubtab: (groupKey, tabId) => opened.push([groupKey, tabId]),
+    switchMergedTabSubtab: (groupKey, tabId, options) => opened.push([groupKey, tabId, options]),
     window: {},
     safeExposeGlobals() {},
     Object
@@ -175,7 +187,7 @@ lockedTabContext.openMergedTabPicker(null, 'records');
 lockedTabContext.switchMergedTabSubtab('records', 'tab-codex');
 assert.deepStrictEqual(lockedTabTransitions, [], 'locked merged tabs must not open an empty host panel');
 assert.strictEqual(lockedTabLogs, 0, 'locked merged tabs must remain silent when no inner panel is available');
-assert(source.includes("window.switchTab(group.launcher, { keepWindowOpen: true })"), 'inner merged tabs must pass through the desktop window manager and preserve the open host');
+assert(source.includes("keepWindowOpen: options.keepWindowOpen !== false"), 'merged tabs must tell the window manager whether to preserve or toggle the host');
 
 const routedCalls = [];
 let routedRefreshes = 0;
@@ -231,10 +243,10 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
     assert.strictEqual(dots['tab-journal'].style.display, 'block', 'codex notices must surface on the records launcher');
 
     await context.openMergedTabPicker(null, 'growth');
-    assert.deepStrictEqual(opened, [['growth', 'tab-char']], 'a combined launcher must open its saved inner subtab directly');
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened)), [['growth', 'tab-char', { keepWindowOpen: false }]], 'a combined launcher must toggle its saved inner subtab host');
 
     await context.openMergedTabPicker(null, 'utility');
-    assert.deepStrictEqual(opened.at(-1), ['utility', 'tab-talisman']);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))), ['utility', 'tab-talisman', { keepWindowOpen: false }]);
 
     assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="utility"')
         && html.includes('data-merged-tab-launcher="records"'), 'the three combined menu circles must be wired in HTML');
