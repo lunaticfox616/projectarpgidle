@@ -178,10 +178,12 @@ assert.strictEqual(lockedTabLogs, 0, 'locked merged tabs must remain silent when
 assert(source.includes("window.switchTab(group.launcher, { keepWindowOpen: true })"), 'inner merged tabs must pass through the desktop window manager and preserve the open host');
 
 const routedCalls = [];
+let routedRefreshes = 0;
 const routedContext = {
-    game: { unlocks: { char: true, traits: true }, settings: {}, noti: {} },
-    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits' },
+    game: { unlocks: { char: true, traits: true, items: true, jewel: true, talisman: true }, settings: {}, noti: {} },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman' },
     window: { switchTab: (tabId, options) => routedCalls.push([tabId, options]) },
+    updateStaticUI: () => { routedRefreshes += 1; },
     Object,
     Array
 };
@@ -192,8 +194,17 @@ vm.runInContext([
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('switchMergedTabSubtab')
 ].join('\n'), routedContext, { filename: 'routed-merged-tab.js' });
-routedContext.switchMergedTabSubtab('growth', 'tab-traits');
-assert.deepStrictEqual(JSON.parse(JSON.stringify(routedCalls)), [['tab-char', { keepWindowOpen: true }]], 'inner tabs must switch content without closing their host window');
+[
+    ['growth', 'tab-traits'],
+    ['utility', 'tab-jewel'],
+    ['utility', 'tab-talisman']
+].forEach(([groupKey, tabId]) => routedContext.switchMergedTabSubtab(groupKey, tabId));
+assert.deepStrictEqual(JSON.parse(JSON.stringify(routedCalls)), [
+    ['tab-char', { keepWindowOpen: true }],
+    ['tab-flask', { keepWindowOpen: true }],
+    ['tab-flask', { keepWindowOpen: true }]
+], 'inner tabs must switch content without closing their host window');
+assert.strictEqual(routedRefreshes, 3, 'each affected inner tab must request its content renderer in an already-open host');
 
 (async () => {
     const unlockedState = context.game.unlocks;

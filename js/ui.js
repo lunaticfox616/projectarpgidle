@@ -1624,6 +1624,7 @@ function switchMergedTabSubtab(groupKey, tabId) {
     if (game.noti) game.noti[tabId.replace(/^tab-/, '')] = false;
     if (tabId === 'tab-codex' && wasCodexNotified) game.codexFocusNewOnOpen = true;
     window.switchTab(group.launcher, { keepWindowOpen: true });
+    updateStaticUI();
 }
 
 function syncMergedTabLauncherVisibility() {
@@ -13617,7 +13618,7 @@ async function continueWithCloudSession() {
     try {
         advanceLoadingOverlay({
             title: '클라우드 저장을 불러오는 중...',
-            detail: '클라우드 저장 전체를 로컬에 적용할 준비를 하고 있습니다.',
+            detail: '같은 계정의 로컬과 클라우드 저장을 비교해 더 앞선 진행도를 적용합니다.',
             caption: 'Comparing Timelines',
             progress: 48
         });
@@ -14226,7 +14227,7 @@ async function reconcileCloudSaveState(options = {}) {
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     cloudState.lastRemoteUpdatedAt = remoteStamp;
-    if (options.strictRemoteResume === true) {
+    if (options.strictRemoteResume === true && localPreparation.replaced) {
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage('계정에 연결된 클라우드 저장을 로컬에 적용했습니다.');
         if (!options.silent) addLog('계정 전환 시 클라우드 저장을 우선 적용했습니다.', 'loot-magic');
@@ -14495,7 +14496,7 @@ async function cloudLogin(options = {}) {
         clearCloudPasswordInput();
         advanceLoadingOverlay({
             title: '저장 데이터를 불러오는 중...',
-            detail: '계정에 저장된 클라우드 세이브가 있으면 전체 데이터를 우선 적용합니다.',
+            detail: '같은 계정의 로컬과 클라우드 저장을 비교해 더 앞선 진행도를 적용합니다.',
             caption: 'Syncing Save Data',
             progress: 58
         });
