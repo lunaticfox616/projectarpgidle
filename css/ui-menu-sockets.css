@@ -173,7 +173,27 @@ body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn[aria-disabled="true"] {
 
 .merged-subtab-pane { display: none; }
 .merged-subtab-pane.active { display: block; }
-body.desktop-windowed-ui .merged-tab-panels > .tab-content.merged-subtab-pane.active { display: block; }
+body.desktop-windowed-ui .ui-window-body > .merged-tab-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+body.desktop-windowed-ui .merged-tab-shell > .merged-tab-subtabs { flex: 0 0 auto; }
+body.desktop-windowed-ui .merged-tab-shell > .merged-tab-panels {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+body.desktop-windowed-ui .merged-tab-panels > .merged-subtab-pane.active {
+  display: block;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
 
 body.desktop-windowed-ui .ui-rail-external-controls {
   position: absolute;

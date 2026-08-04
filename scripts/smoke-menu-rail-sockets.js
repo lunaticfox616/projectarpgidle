@@ -19,6 +19,14 @@ function readFunctionSource(sourceText, name) {
     throw new Error(`${name} must have a closing brace`);
 }
 
+function readConstSource(sourceText, name) {
+    const start = sourceText.indexOf(`const ${name} =`);
+    assert(start >= 0, `${name} must exist`);
+    const end = sourceText.indexOf(';', start);
+    assert(end >= 0, `${name} must end with a semicolon`);
+    return sourceText.slice(start, end + 1);
+}
+
 function createStyle() {
     const values = {};
     return {
@@ -224,7 +232,7 @@ function bootMenu() {
     };
     vm.createContext(context);
     vm.runInContext(source, context, { filename: 'js/ui-window-manager.js' });
-    return { body, header, game, openedTabs, exposed, findById, setDesktop: value => { desktop = value; }, windowHandlers };
+    return { body, header, game, openedTabs, exposed, findById, context, setDesktop: value => { desktop = value; }, windowHandlers };
 }
 
 function socketButtons(menu) {
@@ -287,6 +295,44 @@ menu.exposed.syncDesktopRailGroups();
 assert.strictEqual(firstSocket.dataset.railSlot, undefined, 'a locked tab must not retain a circle');
 assert.strictEqual(promotedButton.dataset.railSlot, '11', 'the next unlocked tab must fill the vacated circle without a group click');
 assert.strictEqual(socketButtons(menu).length, 11);
+
+const talentMenu = bootMenu();
+const talentButton = talentMenu.findById('btn-tab-talent');
+talentButton.style.display = 'none';
+talentMenu.exposed.syncDesktopRailGroups();
+assert.strictEqual(talentButton.dataset.railSlot, undefined, 'a locked talent tab must not occupy a socket');
+Object.assign(talentMenu.game, {
+    unlocks: Object.fromEntries(PRIMARY_TAB_IDS.map(id => [id, false])),
+    inventory: [], equipment: {}, uniqueCodex: {}, settings: {}, season: 1
+});
+talentMenu.context.syncDesktopRailGroups = talentMenu.exposed.syncDesktopRailGroups;
+talentMenu.context.MOBILE_BATTLE_BREAKPOINT = 720;
+vm.runInContext([
+    readConstSource(uiSource, 'TAB_HEADER_NOTI_KEYS'),
+    readConstSource(uiSource, 'TAB_UNLOCK_BUTTON_KEYS'),
+    readConstSource(uiSource, 'MERGED_TAB_GROUPS'),
+    readConstSource(uiSource, 'TAB_GROUPS'),
+    readFunctionSource(uiSource, 'isCodexTabUnlockReady'),
+    readFunctionSource(uiSource, 'isMergedTabAvailable'),
+    readFunctionSource(uiSource, 'syncMergedTabLauncherVisibility'),
+    readFunctionSource(uiSource, 'isUngatedPersistentTabButton'),
+    readFunctionSource(uiSource, 'isTabGroupingActive'),
+    readFunctionSource(uiSource, 'getActiveTabGroup'),
+    readFunctionSource(uiSource, 'getTabHeaderUiSignature'),
+    readFunctionSource(uiSource, 'hideOutOfGroupTabButtons'),
+    readFunctionSource(uiSource, 'updateTabUnlockButtons')
+].join('\n'), talentMenu.context, { filename: 'talent-tab-unlock-rail.js' });
+const lockedTalentSignature = talentMenu.context.getTabHeaderUiSignature();
+talentMenu.game.unlocks.talent = true;
+assert.notStrictEqual(
+    talentMenu.context.getTabHeaderUiSignature(),
+    lockedTalentSignature,
+    'unlocking talent must invalidate the cached tab header state'
+);
+talentMenu.context.updateTabUnlockButtons();
+assert.strictEqual(talentButton.style.display, 'flex', 'unlocking talent must reveal its tab through the shared unlock path');
+assert(talentButton.dataset.railSlot, 'unlocking talent must assign a rail socket in the same update');
+assert(talentButton.style.getPropertyValue('--rail-socket-x'), 'an unlocked talent tab must not render at the unpositioned top-left fallback');
 
 const overflowNotice = createElement('span');
 overflowNotice.className = 'noti-dot';

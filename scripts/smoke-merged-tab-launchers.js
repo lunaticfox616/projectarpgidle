@@ -220,8 +220,20 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(routedCalls)), [
 ], 'inner tabs must switch content without closing their host window');
 assert.strictEqual(routedRefreshes, 4, 'each affected inner tab must request its content renderer in an already-open host');
 assert.ok(
-    menuCss.includes('body.desktop-windowed-ui .merged-tab-panels > .tab-content.merged-subtab-pane.active'),
+    menuCss.includes('body.desktop-windowed-ui .merged-tab-panels > .merged-subtab-pane.active'),
     'desktop window mode must override the generic hidden tab-content rule for the selected merged inner panel'
+);
+assert.ok(
+    /\.ui-window-body > \.merged-tab-shell \{[\s\S]*?display: flex;[\s\S]*?height: 100%;[\s\S]*?min-height: 0;/.test(menuCss),
+    'a merged window must constrain its shell to the available window body height'
+);
+assert.ok(
+    /\.merged-tab-shell > \.merged-tab-panels \{[\s\S]*?flex: 1 1 auto;[\s\S]*?min-height: 0;[\s\S]*?overflow: hidden;/.test(menuCss),
+    'merged panels must provide a bounded scroll viewport below their subtab buttons'
+);
+assert.ok(
+    /\.merged-tab-panels > \.merged-subtab-pane\.active \{[\s\S]*?height: 100%;[\s\S]*?overflow-y: auto;[\s\S]*?overscroll-behavior: contain;/.test(menuCss),
+    'each selected merged panel must accept mouse-wheel scrolling inside its host window'
 );
 
 (async () => {
