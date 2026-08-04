@@ -1560,6 +1560,14 @@ function getSelectedMergedTabId(groupKey) {
     return firstAvailable ? firstAvailable.id : null;
 }
 
+function getActiveUiTabId() {
+    let activeContent = document.querySelector('.tab-content.active');
+    if (!activeContent) return '';
+    let mergedEntry = getMergedTabGroup(activeContent.id);
+    if (!mergedEntry || mergedEntry[1].launcher !== activeContent.id) return activeContent.id;
+    return getSelectedMergedTabId(mergedEntry[0]) || activeContent.id;
+}
+
 function mountMergedTabGroup(groupKey) {
     let group = MERGED_TAB_GROUPS[groupKey];
     let root = group && document.getElementById(group.launcher);
@@ -8957,7 +8965,7 @@ function performUpdateStaticUI() {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
     }
-    let charTabActive = document.getElementById('tab-char') && document.getElementById('tab-char').classList.contains('active');
+    let charTabActive = getActiveUiTabId() === 'tab-char';
     if (charTabActive) {
         let drawNow = Date.now();
         if (shouldRedrawPassiveTree(drawNow)) {
@@ -8988,9 +8996,9 @@ function performUpdateStaticUI() {
         summarySkillTreeBtn.disabled = !game.unlocks.char;
         summarySkillTreeBtn.innerText = game.unlocks.char ? '스킬트리' : '스킬트리 (Lv.2)';
     }
-    let activeContent = document.querySelector('.tab-content.active');
-    if (activeContent) syncDerivedTabUnlock(activeContent.id);
-    let activeGate = activeContent ? TAB_UNLOCK_GATES[activeContent.id] : null;
+    let activeTabId = getActiveUiTabId();
+    if (activeTabId) syncDerivedTabUnlock(activeTabId);
+    let activeGate = activeTabId ? TAB_UNLOCK_GATES[activeTabId] : null;
     if (activeGate && !game.unlocks[activeGate]) {
         switchTab('tab-character');
         return;
@@ -8999,7 +9007,6 @@ function performUpdateStaticUI() {
     // 보이지 않는 탭의 무거운 패널(인벤토리/주얼/부적)을 매 갱신마다 innerHTML로
     // 재구성하면 탭 전환·주기적 갱신마다 큰 렉이 발생한다. 활성 탭의 패널만 재구성한다.
     // (탭 전환 시 switchTab이 updateStaticUI를 다시 호출하므로 진입 시 정상 갱신된다.)
-    let activeTabId = activeContent ? activeContent.id : '';
     let itemsTabActive = activeTabId === 'tab-items';
     let jewelTabActive = activeTabId === 'tab-jewel';
     let talismanTabActive = activeTabId === 'tab-talisman';
