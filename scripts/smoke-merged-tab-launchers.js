@@ -180,8 +180,8 @@ assert(source.includes("window.switchTab(group.launcher, { keepWindowOpen: true 
 const routedCalls = [];
 let routedRefreshes = 0;
 const routedContext = {
-    game: { unlocks: { char: true, traits: true, items: true, jewel: true, talisman: true }, settings: {}, noti: {} },
-    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman' },
+    game: { unlocks: { char: true, traits: true, items: true, jewel: true, talisman: true, codex: true }, inventory: [{ rarity: 'unique' }], settings: {}, noti: {} },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
     window: { switchTab: (tabId, options) => routedCalls.push([tabId, options]) },
     updateStaticUI: () => { routedRefreshes += 1; },
     Object,
@@ -197,14 +197,20 @@ vm.runInContext([
 [
     ['growth', 'tab-traits'],
     ['utility', 'tab-jewel'],
-    ['utility', 'tab-talisman']
+    ['utility', 'tab-talisman'],
+    ['records', 'tab-codex']
 ].forEach(([groupKey, tabId]) => routedContext.switchMergedTabSubtab(groupKey, tabId));
 assert.deepStrictEqual(JSON.parse(JSON.stringify(routedCalls)), [
     ['tab-char', { keepWindowOpen: true }],
     ['tab-flask', { keepWindowOpen: true }],
-    ['tab-flask', { keepWindowOpen: true }]
+    ['tab-flask', { keepWindowOpen: true }],
+    ['tab-journal', { keepWindowOpen: true }]
 ], 'inner tabs must switch content without closing their host window');
-assert.strictEqual(routedRefreshes, 3, 'each affected inner tab must request its content renderer in an already-open host');
+assert.strictEqual(routedRefreshes, 4, 'each affected inner tab must request its content renderer in an already-open host');
+assert.ok(
+    menuCss.includes('body.desktop-windowed-ui .merged-tab-panels > .tab-content.merged-subtab-pane.active'),
+    'desktop window mode must override the generic hidden tab-content rule for the selected merged inner panel'
+);
 
 (async () => {
     const unlockedState = context.game.unlocks;
