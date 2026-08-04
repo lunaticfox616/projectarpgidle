@@ -93,6 +93,41 @@ vm.runInContext([
     readFunctionSource('openMergedTabPicker')
 ].join('\n'), context, { filename: 'merged-tab-launchers.js' });
 
+const activeTabContext = {
+    game: {
+        unlocks: { char: true, traits: true, items: true, jewel: true, talisman: true },
+        settings: { mergedTabSelection: {} }
+    },
+    TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman' },
+    document: { querySelector: () => activeTabContext.activeContent },
+    activeContent: { id: 'tab-char' }
+};
+vm.createContext(activeTabContext);
+vm.runInContext([
+    source.slice(groupStart, groupEnd),
+    readFunctionSource('isMergedTabAvailable'),
+    readFunctionSource('getMergedTabGroup'),
+    readFunctionSource('getSelectedMergedTabId'),
+    readFunctionSource('getActiveUiTabId')
+].join('\n'), activeTabContext, { filename: 'merged-active-tab.js' });
+
+[
+    ['growth', 'tab-char', 'tab-traits'],
+    ['utility', 'tab-flask', 'tab-jewel'],
+    ['utility', 'tab-flask', 'tab-talisman']
+].forEach(([groupKey, launcherId, selectedId]) => {
+    activeTabContext.activeContent = { id: launcherId };
+    activeTabContext.game.settings.mergedTabSelection[groupKey] = selectedId;
+    assert.strictEqual(activeTabContext.getActiveUiTabId(), selectedId, `${selectedId} must drive the active panel renderer inside ${launcherId}`);
+});
+activeTabContext.activeContent = { id: 'tab-items' };
+assert.strictEqual(activeTabContext.getActiveUiTabId(), 'tab-items', 'a standalone active tab must keep its own renderer');
+activeTabContext.activeContent = { id: 'tab-char' };
+activeTabContext.game.unlocks.traits = false;
+assert.strictEqual(activeTabContext.getActiveUiTabId(), 'tab-char', 'a stale locked inner selection must fall back to its available launcher');
+activeTabContext.activeContent = null;
+assert.strictEqual(activeTabContext.getActiveUiTabId(), '', 'no active content must not select a renderer');
+
 const windowRoot = makePanelNode('window-root');
 const windowTitlebar = makePanelNode('titlebar', 'ui-window-titlebar');
 const windowBody = makePanelNode('body', 'ui-window-body');
