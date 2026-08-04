@@ -173,6 +173,7 @@ body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn[aria-disabled="true"] {
 
 .merged-subtab-pane { display: none; }
 .merged-subtab-pane.active { display: block; }
+body.desktop-windowed-ui .merged-tab-panels > .tab-content.merged-subtab-pane.active { display: block; }
 
 body.desktop-windowed-ui .ui-rail-external-controls {
   position: absolute;

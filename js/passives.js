@@ -8579,7 +8579,11 @@ function addItemToInventory(item, options) {
     if ((game.inventory || []).length >= getInventoryLimit()) {
         if (!guaranteedKeep) {
             let overflowRewards = salvageItemObject(item, true, { noDivine: true });
-            if (game.settings.showLootLog) addLog(`🎒 공간 부족 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span> · ${formatSalvageRewardSummary(overflowRewards)}`, 'loot-normal');
+            if (game.isBackgroundCalculation) {
+                game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
+            } else if (game.settings.showLootLog) {
+                addLog(`🎒 공간 부족 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span> · ${formatSalvageRewardSummary(overflowRewards)}`, 'loot-normal');
+            }
             return false;
         }
         addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');

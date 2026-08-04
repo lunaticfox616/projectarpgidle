@@ -78,6 +78,9 @@ async function flushTimers() {
 }
 (async () => {
 
+  vm.runInContext(`showBackgroundCombatResult({ actualElapsedMs: 60000, effectiveProgressMs: 6000, summary: { overflowSalvaged: 7 } })`, context);
+  assert(nodes['background-combat-result-overlay'].innerHTML.includes('공간 부족 자동해체: <strong>7개</strong>'), 'background result must summarize overflow salvage in one result panel');
+
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const shortResult = await vm.runInContext('startBackgroundCombatReturn(1000 + 59999)', context);

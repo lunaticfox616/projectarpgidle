@@ -531,6 +531,25 @@ function drawLevelUpFx(ctx, fx, t, playerPos) {
     ctx.restore();
 }
 
+function selectPlayerSwingEffects(effects, now) {
+    let latest = null;
+    let frame = null;
+    let frameProgress = -1;
+    for (let index = effects.length - 1; index >= 0; index--) {
+        let fx = effects[index];
+        if (!fx || fx.type !== 'playerSwing') continue;
+        let duration = Math.max(1, Number(fx.duration) || 1);
+        let age = now - Number(fx.start);
+        if (!Number.isFinite(age) || age < 0 || age > duration) continue;
+        if (!latest) latest = fx;
+        let progress = age / duration;
+        if (progress <= frameProgress) continue;
+        frame = fx;
+        frameProgress = progress;
+    }
+    return { latest, frame };
+}
+
 // Phase-2 extracted battlefield canvas renderer block.
 function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
@@ -575,7 +594,9 @@ function renderBattlefield(forceWhenHidden) {
     let backdropActive = drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone, gridProj);
     let framePlayerStats = getCanvasPlayerStats();
     let currentTargets = getCanvasSkillTargets(framePlayerStats);
-    let swingFx = null;
+    let swingEffects = selectPlayerSwingEffects(battleFx, now);
+    let latestSwingFx = swingEffects.latest;
+    let swingFx = swingEffects.frame;
     let playerFlash = false;
     let playerDownActive = false;
     let flashingEnemyIds = new Set();
@@ -583,7 +604,6 @@ function renderBattlefield(forceWhenHidden) {
         let fx = battleFx[i];
         if (!fx) continue;
         let age = now - fx.start;
-        if (!swingFx && fx.type === 'playerSwing') swingFx = fx;
         if (age < 0 || age > fx.duration) continue;
         if (fx.type === 'playerHit') playerFlash = true;
         else if (fx.type === 'playerDown') playerDownActive = true;
@@ -690,15 +710,15 @@ function renderBattlefield(forceWhenHidden) {
 
     // getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운 함수다.
     // 한 프레임 안에서는 결과가 동일하므로 프레임당 1회만 계산해 재사용한다.
-    if (swingFx && swingFx.id !== battleVisualState.lastAutoSwingId && now >= (battleVisualState.lastAutoSkillAt || 0)) {
+    if (latestSwingFx && latestSwingFx.id !== battleVisualState.lastAutoSwingId && now >= (battleVisualState.lastAutoSkillAt || 0)) {
         playSkillFromActiveGem(game.activeSkill || '기본 공격');
-        battleVisualState.lastAutoSwingId = swingFx.id;
+        battleVisualState.lastAutoSwingId = latestSwingFx.id;
         const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, framePlayerStats.aspd)) * 100));
         battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
-    if (swingFx && swingFx.projectile) {
+    if (latestSwingFx && latestSwingFx.projectile) {
         const viewportProjectileFxScale = Math.min(width / 960, height / 540);
-        queueSkillGemProjectileLaunch(swingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
+        queueSkillGemProjectileLaunch(latestSwingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
     drawActiveSummons(ctx, playerPos, now, gridProj);

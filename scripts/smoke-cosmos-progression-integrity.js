@@ -39,7 +39,7 @@ assert.deepStrictEqual(
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert(cosmosSource.includes("state.bossExclusiveMisses[node.id] = granted ? 0"), 'successful exclusive drops must reset pity');
-assert(cosmosSource.includes("state.cleared.includes(n.id)).length}/${ATLAS.nodes.filter(n => n.orbit === g).length}"), 'galaxy summary must count clears, not total nodes twice');
+assert(cosmosSource.includes("node.orbit === galaxy && state.cleared.includes(node.id)).length"), 'galaxy summary must count clears, not total nodes twice');
 assert(combatSource.includes("window.getCosmosMasteryValue('resonanceDrive')"), 'resonance mastery must affect combat damage');
 assert(combatSource.includes('cosmosMasteryTakenLessPct'), 'rift guard mastery must reduce incoming cosmos damage');
 assert(combatSource.includes("window.getCosmosMasteryValue('gravityHarness')"), 'gravity mastery must reduce gravity pressure');

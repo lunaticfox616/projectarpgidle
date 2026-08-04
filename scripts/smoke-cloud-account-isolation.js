@@ -12,6 +12,7 @@ function sourceBetween(startMarker, endMarker) {
 }
 
 const ownershipSource = sourceBetween('function getCloudSaveOwnerId', 'function applyExternalSave');
+const loopGuardSource = sourceBetween('function getSaveLoopNumber', 'function shouldPreferRemoteOverBootstrapLocal');
 const reconcileSource = sourceBetween('async function reconcileCloudSaveState', 'let cloudSyncTimer');
 
 function createContext(localSave, remoteRecord) {
@@ -41,13 +42,11 @@ function createContext(localSave, remoteRecord) {
     pushCloudSave: async () => { pushes += 1; },
     setCloudMessage() {},
     addLog() {},
-    shouldBlockLocalPushForRemoteLoop() { throw new Error('strict account login must not compare foreign local progress'); },
-    isLikelyBootstrapLocalSave() { return false; },
-    getLoopCompareSummary() { throw new Error('strict account login must not upload foreign local progress'); },
     CLOUD_REMOTE_TIME_SKEW_MS: 0
   };
   vm.createContext(context);
   vm.runInContext(ownershipSource, context, { filename: 'cloud-ownership.js' });
+  vm.runInContext(loopGuardSource, context, { filename: 'cloud-loop-guards.js' });
   vm.runInContext(reconcileSource, context, { filename: 'cloud-reconcile.js' });
   return { context, writes, getPushes: () => pushes };
 }
@@ -55,7 +54,7 @@ function createContext(localSave, remoteRecord) {
 async function run() {
   const remoteRecord = {
     updated_at: '2026-07-22T00:00:00Z',
-    save_data: { level: 7, saveMeta: { lastModifiedAt: 100 } }
+    save_data: { level: 7, season: 1, loopCount: 0, maxZoneId: 5, saveMeta: { lastModifiedAt: 100 } }
   };
   const foreignLocal = { level: 99, saveMeta: { lastModifiedAt: 999999, cloudUserId: 'account-a' } };
   const remoteCase = createContext(foreignLocal, remoteRecord);
@@ -94,8 +93,6 @@ async function run() {
   const remoteStamp = new Date(remoteRecord.updated_at).getTime();
   const newerOwnedLocal = { level: 42, season: 3, saveMeta: { lastModifiedAt: remoteStamp + 1000, cloudUserId: 'account-b' } };
   const newerOwnedCase = createContext(newerOwnedLocal, remoteRecord);
-  newerOwnedCase.context.shouldBlockLocalPushForRemoteLoop = () => ({ blocked: false });
-  newerOwnedCase.context.getLoopCompareSummary = () => ({ localLoop: 3, remoteLoop: 1, safeToPush: true });
   const newerOwnedStatus = await vm.runInContext(
     'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
     newerOwnedCase.context
@@ -104,9 +101,8 @@ async function run() {
   assert.strictEqual(newerOwnedCase.context.game.level, 42, 're-login must keep a newer local save owned by the same account');
   assert.strictEqual(newerOwnedCase.getPushes(), 1, 'newer same-account local progress must update the cloud save');
 
-  const olderOwnedLocal = { level: 5, saveMeta: { lastModifiedAt: remoteStamp - 1000, cloudUserId: 'account-b' } };
+  const olderOwnedLocal = { level: 5, season: 1, saveMeta: { lastModifiedAt: remoteStamp - 1000, cloudUserId: 'account-b' } };
   const olderOwnedCase = createContext(olderOwnedLocal, remoteRecord);
-  olderOwnedCase.context.shouldBlockLocalPushForRemoteLoop = () => ({ blocked: false });
   const olderOwnedStatus = await vm.runInContext(
     'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
     olderOwnedCase.context
@@ -114,6 +110,30 @@ async function run() {
   assert.strictEqual(olderOwnedStatus, 'pulled-remote-resume-preferred');
   assert.strictEqual(olderOwnedCase.context.game.level, 7, 're-login must still apply a newer cloud save for the same account');
   assert.strictEqual(olderOwnedCase.getPushes(), 0);
+
+  const higherLoopRemote = {
+    updated_at: '2026-07-21T00:00:00Z',
+    save_data: { level: 30, season: 4, loopCount: 3, maxZoneId: 10, saveMeta: { lastModifiedAt: 200 } }
+  };
+  const newerLowerLoopLocal = { level: 50, season: 3, loopCount: 2, saveMeta: { lastModifiedAt: remoteStamp + 2000, cloudUserId: 'account-b' } };
+  const lowerLoopCase = createContext(newerLowerLoopLocal, higherLoopRemote);
+  const lowerLoopStatus = await vm.runInContext(
+    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
+    lowerLoopCase.context
+  );
+  assert.strictEqual(lowerLoopStatus, 'pulled-remote-higher-loop');
+  assert.strictEqual(lowerLoopCase.context.game.season, 4, 'a newer timestamp must not let a lower-loop local save replace higher-loop cloud progress');
+  assert.strictEqual(lowerLoopCase.getPushes(), 0, 'the real loop guard must block lower-loop local uploads');
+
+  const bootstrapOwnedLocal = { level: 1, season: 1, loopCount: 0, saveMeta: { lastModifiedAt: remoteStamp + 3000, cloudUserId: 'account-b' } };
+  const bootstrapOwnedCase = createContext(bootstrapOwnedLocal, remoteRecord);
+  const bootstrapOwnedStatus = await vm.runInContext(
+    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
+    bootstrapOwnedCase.context
+  );
+  assert.strictEqual(bootstrapOwnedStatus, 'pulled-remote-higher-loop');
+  assert.strictEqual(bootstrapOwnedCase.context.game.level, 7, 'a bootstrap local save must yield to the existing same-account cloud save');
+  assert.strictEqual(bootstrapOwnedCase.getPushes(), 0, 'the real bootstrap guard must block cloud overwrite');
 }
 
 run()

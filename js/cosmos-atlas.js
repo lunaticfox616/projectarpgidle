@@ -1489,21 +1489,41 @@
                 <h2>🌠 우주계 아틀라스 <span class="h2-right">5개 은하 × 25개 노드 · 행성 50개 · 소행성 75개</span></h2>
                 <div id="ui-cosmos-panel" class="cosmos-panel">
                     <div class="cosmos-header">
-                        <div>
+                        <div class="cosmos-brand">
                             <div class="cosmos-kicker">Cosmic Atlas</div>
                             <div class="cosmos-title">별을 잇는 우주계 탐험 지도</div>
-                            <div class="cosmos-desc">마우스 드래그: 이동 · 휠/지도 버튼: 확대·축소 · 노드 클릭: 행성/소행성 선택 · 시리온 아래 오각형 슬롯: 우주석 장착 · 탐사 완료 시 연결된 별길이 열린다.</div>
+                            <div class="cosmos-desc">별길을 개척하고 은하 보스를 추적하세요. 완료한 탐사마다 성도술 포인트를 얻습니다.</div>
+                            <div class="cosmos-legend" aria-label="노드 상태 안내">
+                                <span><i class="available"></i>탐사 가능</span>
+                                <span><i class="cleared"></i>완료</span>
+                                <span><i class="locked"></i>미연결</span>
+                            </div>
                         </div>
                         <div class="cosmos-summary" id="ui-cosmos-summary"></div>
                     </div>
-                    <div style="display:flex; gap:6px; margin:8px 0;"><button class="subtab-btn active" id="btn-cosmos-sub-atlas" onclick="switchCosmosInnerTab('atlas')">아틀라스</button><button class="subtab-btn" id="btn-cosmos-sub-mastery" onclick="switchCosmosInnerTab('mastery')">성도술</button></div><div id="cosmos-inner-atlas" class="cosmos-layout">
-                        <div class="cosmos-canvas-wrap">
-                            <canvas id="cosmos-atlas-canvas" width="2400" height="1520"></canvas>
-                            <div id="cosmos-atlas-tooltip" class="cosmos-atlas-tooltip"></div>
-                            <div id="cosmos-stone-overlay" class="cosmos-stone-overlay" style="display:none;"></div>
+                    <nav class="cosmos-mode-tabs" aria-label="우주계 화면 선택">
+                        <button type="button" class="cosmos-mode-tab active" id="btn-cosmos-sub-atlas" onclick="switchCosmosInnerTab('atlas')"><span class="cosmos-mode-icon">✦</span><span><strong>아틀라스</strong><small>별길 탐사와 은하 보스</small></span></button>
+                        <button type="button" class="cosmos-mode-tab" id="btn-cosmos-sub-mastery" onclick="switchCosmosInnerTab('mastery')"><span class="cosmos-mode-icon">⌘</span><span><strong>성도술</strong><small>탐사 포인트로 능력 강화</small></span></button>
+                    </nav>
+                    <div id="cosmos-inner-atlas" class="cosmos-layout">
+                        <div class="cosmos-map-column">
+                            <div class="cosmos-map-toolbar">
+                                <div><strong>성도 지도</strong><span>드래그로 이동 · 노드를 눌러 상세 확인</span></div>
+                                <div class="cosmos-map-controls">
+                                    <button type="button" onclick="zoomCosmosAtlas(0.88)" title="축소">−</button>
+                                    <button type="button" onclick="resetCosmosAtlasCamera()">전체 보기</button>
+                                    <button type="button" onclick="zoomCosmosAtlas(1.14)" title="확대">＋</button>
+                                </div>
+                            </div>
+                            <div class="cosmos-canvas-wrap">
+                                <canvas id="cosmos-atlas-canvas" width="2400" height="1520"></canvas>
+                                <div id="cosmos-atlas-tooltip" class="cosmos-atlas-tooltip"></div>
+                                <div id="cosmos-stone-overlay" class="cosmos-stone-overlay" style="display:none;"></div>
+                            </div>
                         </div>
                         <div class="cosmos-detail" id="ui-cosmos-detail"></div>
-                    </div><div id="cosmos-inner-mastery" class="cosmos-detail" style="display:none; margin-top:8px;"></div>
+                    </div>
+                    <div id="cosmos-inner-mastery" class="cosmos-mastery-shell" style="display:none;"></div>
                 </div>`;
             const abyssTab = document.getElementById('map-tab-abyss');
             if (abyssTab && abyssTab.parentNode) abyssTab.parentNode.insertBefore(panel, abyssTab);
@@ -2034,9 +2054,11 @@
         const asteroidsCleared = ATLAS.nodes.filter(n => n.kind === 'asteroid' && state.cleared.includes(n.id)).length;
         const unlocked = isCosmosUnlocked();
         const capstone = getCosmosCapstoneProgress(state);
-        const galaxyCounts = GALAXY_SEQUENCE
-            .map(g => `G${g} ${ATLAS.nodes.filter(n => n.orbit === g && state.cleared.includes(n.id)).length}/${ATLAS.nodes.filter(n => n.orbit === g).length}`)
-            .join(' · ');
+        const galaxyProgress = GALAXY_SEQUENCE.map(galaxy => {
+            const total = ATLAS.nodes.filter(node => node.orbit === galaxy).length;
+            const complete = ATLAS.nodes.filter(node => node.orbit === galaxy && state.cleared.includes(node.id)).length;
+            return `<span><b>G${galaxy}</b><i><em style="width:${total > 0 ? Math.floor(complete / total * 100) : 0}%"></em></i><small>${complete}/${total}</small></span>`;
+        }).join('');
         const capstoneState = !capstone.eligibleSeason
             ? 'locked'
             : (capstone.canChallenge ? 'ready' : (capstone.ready ? 'key-needed' : 'progress'));
@@ -2057,22 +2079,21 @@
             ? `<button type="button" class="cosmos-capstone-action" onclick="openCosmosCapstoneBossPanel()">잔향체 아스트라 위치 열기</button>`
             : '';
         ATLAS.summary.innerHTML = `
-            <div><b>${cleared}</b> / ${ATLAS.nodes.length} 탐사 완료</div>
-            <div>행성 ${planetsCleared} / 50 · 소행성 ${asteroidsCleared} / 75</div>
-            <div>${galaxyCounts}</div>
-            <div>탐사 가능 노드: <b>${unlocked ? available : 0}</b></div>
-            <div>성도술 포인트: <b>${getCosmosMasteryFreePoints()}</b> / ${getCosmosMasteryTotalPoints()}</div>
-            <div>별가루: <b>${getCosmosStarDustBalance()}</b></div>
-            <div>보스 유물: <b>${(state.bossRelics || []).length}</b></div>
-            <div>장착 우주석: <b>${getEquippedCosmosStoneCount(state)}</b> / ${hasSixthCosmosStoneUnlock() ? 6 : 5}</div>
+            <div class="cosmos-summary-metrics">
+                <div><span>탐사 완료</span><strong>${cleared}<small> / ${ATLAS.nodes.length}</small></strong></div>
+                <div><span>탐사 가능</span><strong>${unlocked ? available : 0}<small>개</small></strong></div>
+                <div><span>성도술</span><strong>${getCosmosMasteryFreePoints()}<small> / ${getCosmosMasteryTotalPoints()}</small></strong></div>
+                <div><span>별가루</span><strong>${getCosmosStarDustBalance()}</strong></div>
+            </div>
+            <div class="cosmos-galaxy-progress">${galaxyProgress}</div>
+            <div class="cosmos-resource-line"><span>행성 ${planetsCleared}/50 · 소행성 ${asteroidsCleared}/75</span><span>보스 유물 ${(state.bossRelics || []).length} · 우주석 ${getEquippedCosmosStoneCount(state)}/${hasSixthCosmosStoneUnlock() ? 6 : 5}</span></div>
             <div class="cosmos-capstone-card ${capstoneState}">
                 <div class="cosmos-capstone-head"><span>이번 루프 최종 관문</span><strong>잔향체 아스트라 ${capstone.clearedCount}/${capstone.total}</strong></div>
                 <div class="cosmos-capstone-bosses">${capstoneBosses}</div>
                 <p>${escapeHtml(capstoneMessage)}</p>
                 <div class="cosmos-capstone-footer"><span>표식: 잔향 <b>${capstone.keyCount}</b></span>${capstoneAction}</div>
             </div>
-            <div class="cosmos-summary-tip">별가루는 우주계 탐사·이상 현상에서 얻고, 별쐐기 영원 고정 등 천문 제작에 사용합니다.</div>
-            <div class="cosmos-summary-tip">시리온 아래 오각형 슬롯을 눌러 우주석을 장착하세요.</div>`;
+            <div class="cosmos-summary-tip">별가루는 우주계 탐사·이상 현상에서 얻고 천문 제작에 사용합니다 · 시리온 아래 오각형 슬롯에서 우주석을 장착할 수 있습니다.</div>`;
     }
 
     function focusCosmosCapstoneBoss(nodeId) {
@@ -2107,42 +2128,28 @@
                 ? `행성 보상: ${node.theme} 계열 보정 · 별가루 +${5 + node.orbit * 2}`
                 : `소행성 보상: 별가루 +${2 + node.orbit} · 제작 재료 소량`);
         ATLAS.detail.innerHTML = `
-            <div class="cosmos-detail-title">${node.kind === 'planet' ? '🪐' : '☄️'} ${escapeHtml(node.name)}</div>
-            <div class="cosmos-detail-source">원본: ${escapeHtml(node.source)} · 은하 G${node.orbit} · Tier ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · 은하 보스' : ''}${window.game && window.game.cosmosLoopCount ? ` · 우주계 루프 난이도 +${Math.max(0, Math.floor(window.game.cosmosLoopCount || 0)) * 2}` : ''}</div>
-            <div class="cosmos-status ${status}">${getStatusLabel(status)}</div>
+            <div class="cosmos-detail-hero">
+                <div><div class="cosmos-detail-eyebrow">G${node.orbit} · TIER ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · GALAXY BOSS' : ''}</div><div class="cosmos-detail-title">${node.kind === 'planet' ? '🪐' : '☄️'} ${escapeHtml(node.name)}</div></div>
+                <div class="cosmos-status ${status}">${getStatusLabel(status)}</div>
+            </div>
+            <div class="cosmos-detail-source">관측명 ${escapeHtml(node.source)}${window.game && window.game.cosmosLoopCount ? ` · 우주계 루프 난이도 +${Math.max(0, Math.floor(window.game.cosmosLoopCount || 0)) * 2}` : ''}</div>
             <div class="cosmos-detail-section">
-                <div class="cosmos-section-label">Theme</div>
+                <div class="cosmos-section-label">천체 테마</div>
                 <div>${escapeHtml(node.theme)}</div>
             </div>
             <div class="cosmos-detail-section">
-                <div class="cosmos-section-label">Reward</div>
+                <div class="cosmos-section-label">탐사 보상</div>
                 <div>${escapeHtml(rewardLine)}</div>
             </div>
             <div class="cosmos-detail-section">
                 <div class="cosmos-section-label">행성 정보</div>
                 <div>소속: G${node.orbit} · 은하 내 슬롯 ${Math.max(1, Math.floor((node.localSlot || 0) + 1))}/${NODES_PER_GALAXY}</div>
                 <div>크기 등급: ${Math.max(1, Math.floor(node.sizeClass || 1))} · 중력: ${Number(node.gravity || 1).toFixed(1)}g</div>
-                <div style="margin-top:4px; color:var(--copy-bright);">진행도 요구치: +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 패널티 강도: +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</div>
-            </div>
-            <!-- mastery moved -->
-            <div style='display:none'><div class="cosmos-section-label">성도술 (탐사 1회당 1포인트)</div>
-                <div style="margin-bottom:6px;">가용 포인트: <b>${getCosmosMasteryFreePoints()}</b> / 누적 획득 <b>${getCosmosMasteryTotalPoints()}</b></div>
-                ${COSMOS_MASTERY_NODES.map(n => {
-                    const lockReason = getCosmosMasteryLockReason(n.key);
-                    const canSpend = getCosmosMasteryFreePoints() >= n.cost && getCosmosMasteryValue(n.key) < n.max && !lockReason;
-                    const links = COSMOS_MASTERY_LINKS[n.key] || [];
-                    const linkLine = links.length ? `연결 조건: ${links.map(v => {
-                        const [k, lv] = String(v).split(':');
-                        const r = COSMOS_MASTERY_NODES.find(row => row.key === k);
-                        return `${r ? r.name : k} ${Math.max(1, Math.floor(Number(lv || 1)))}Lv`;
-                    }).join(' · ')}` : '연결 조건: 시작 노드';
-                    return `<div style="margin-bottom:6px;"><button onclick="allocateCosmosMastery('${n.key}')" ${canSpend ? '' : 'disabled'}>+</button> <b>${n.name}</b> ${getCosmosMasteryValue(n.key)}/${n.max}<div style="font-size:11px;color:var(--copy-bright);">${n.desc}</div><div style="font-size:11px;color:${lockReason ? '#ffb3b3' : '#86a9d2'};">${lockReason || linkLine}</div></div>`;
-                }).join('')}
+                <div class="cosmos-detail-pressure">진행도 요구 +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 패널티 +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</div>
             </div>
             <div class="cosmos-actions">
-                <button onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '보스 도전' : '전투 도전'}</button>
-                ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 장착</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">초점 이동</button>
-                <button onclick="resetCosmosAtlasCamera()">지도 초기화</button>
+                <button class="primary" onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '은하 보스 도전' : '전투 도전'}</button>
+                ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 관리</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">지도에서 초점</button>
             </div>
             <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 지하계 30층 도달 시 해금된다.'}</div>`;
     }
@@ -2289,8 +2296,29 @@
     window.grantCosmosStarDust = grantCosmosStarDust;
     
     function renderMasteryPanel() {
-        const el = document.getElementById('cosmos-inner-mastery'); if (!el) return;
-        el.innerHTML = `<div class="cosmos-detail-title">성도술</div><div style="margin-bottom:6px;">가용 포인트: <b>${getCosmosMasteryFreePoints()}</b> / 누적 <b>${getCosmosMasteryTotalPoints()}</b></div>` + COSMOS_MASTERY_NODES.map(n=>{const lockReason=getCosmosMasteryLockReason(n.key);const canSpend=getCosmosMasteryFreePoints()>=n.cost&&getCosmosMasteryValue(n.key)<n.max&&!lockReason;return `<div style="margin-bottom:8px;"><button onclick="allocateCosmosMastery('${n.key}')" ${canSpend?'':'disabled'}>+</button> <b>${n.name}</b> ${getCosmosMasteryValue(n.key)}/${n.max} <span style="color:#ffd08a;">(비용 ${n.cost})</span><div style="font-size:11px;color:var(--copy-bright);">${n.desc}</div></div>`;}).join('');
+        const el = document.getElementById('cosmos-inner-mastery');
+        if (!el) return;
+        const freePoints = getCosmosMasteryFreePoints();
+        const totalPoints = getCosmosMasteryTotalPoints();
+        const cards = COSMOS_MASTERY_NODES.map(node => {
+            const value = getCosmosMasteryValue(node.key);
+            const lockReason = getCosmosMasteryLockReason(node.key);
+            const canSpend = freePoints >= node.cost && value < node.max && !lockReason;
+            const stateClass = lockReason ? 'locked' : (value >= node.max ? 'maxed' : (canSpend ? 'available' : ''));
+            const links = COSMOS_MASTERY_LINKS[node.key] || [];
+            const linkLine = links.length ? links.map(link => {
+                const [key, level] = String(link).split(':');
+                const required = COSMOS_MASTERY_NODES.find(row => row.key === key);
+                return `${required ? required.name : key} ${Math.max(1, Math.floor(Number(level || 1)))}Lv`;
+            }).join(' · ') : '시작 노드';
+            return `<article class="cosmos-mastery-card ${stateClass}">
+                <div class="cosmos-mastery-card-head"><div><span>${lockReason ? 'LOCKED' : (value >= node.max ? 'MASTERED' : 'STAR PATH')}</span><strong>${node.name}</strong></div><b>${value}/${node.max}</b></div>
+                <div class="cosmos-mastery-progress"><i style="width:${Math.floor(value / node.max * 100)}%"></i></div>
+                <p>${node.desc}</p>
+                <div class="cosmos-mastery-card-foot"><small>${lockReason || linkLine}</small><button type="button" onclick="allocateCosmosMastery('${node.key}')" ${canSpend ? '' : 'disabled'}>+1</button></div>
+            </article>`;
+        }).join('');
+        el.innerHTML = `<div class="cosmos-mastery-header"><div><div class="cosmos-kicker">Stellar Mastery</div><div class="cosmos-detail-title">성도술 항로</div><p>탐사 완료로 얻은 포인트를 연결된 항로에 투자하세요.</p></div><div class="cosmos-mastery-points"><span>사용 가능<strong>${freePoints}</strong></span><span>누적 획득<strong>${totalPoints}</strong></span></div></div><div class="cosmos-mastery-grid">${cards}</div>`;
     }
     function switchCosmosInnerTab(tab) {
       const a=document.getElementById('cosmos-inner-atlas'), m=document.getElementById('cosmos-inner-mastery');
