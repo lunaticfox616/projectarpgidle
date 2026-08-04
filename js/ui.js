@@ -1043,8 +1043,8 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
-const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'expertise'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
+const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
     utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }] },
@@ -1722,7 +1722,7 @@ function switchTab(tabId) {
     // 알림 키 전체(TAB_HEADER_NOTI_KEYS)를 대상으로 해제한다. 과거에 하드코딩 목록에서
     // 'jewel'이 빠져 있어 주얼 탭을 방문해도 알림이 꺼지지 않았고, 저장 데이터에 true로
     // 남아 장비 상위탭 그룹 점이 영구히 켜져 있는 문제가 있었다.
-    TAB_HEADER_NOTI_KEYS.concat(['talent']).forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
+    TAB_HEADER_NOTI_KEYS.forEach(key => { if (tabId === 'tab-' + key) game.noti[key] = false; });
     if (tabId === 'tab-map') acknowledgeMapMainAlarm();
     // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
@@ -8993,7 +8993,7 @@ function performUpdateStaticUI() {
     if (cubeTabActive && typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
 
     TAB_HEADER_NOTI_KEYS.forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
-    ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'].forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
+    TAB_UNLOCK_BUTTON_KEYS.forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
     let jewelTabBtn = document.getElementById('btn-tab-jewel');
     if (jewelTabBtn) jewelTabBtn.style.display = game.unlocks.jewel ? 'flex' : 'none';
     let cubeTabBtn = document.getElementById('btn-tab-cube');
