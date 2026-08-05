@@ -8985,8 +8985,12 @@ function performUpdateStaticUI() {
         calculateReachableNodes();
         refreshPassiveVisibility();
     }
-    normalizeSupportLoadout(true);
+    // 한 번 계산한 스탯을 보조 젬 정리에 그대로 넘긴다. 정리가 실제로 젬을 내렸을 때만
+    // (한도가 줄어든 드문 프레임) 다시 계산한다.
+    // 폴백 스탯(아직 전투 모듈이 준비되지 않은 초기 부팅)은 suppCap이 0이라 넘기면 안 된다.
+    // 넘기면 부팅 한 프레임 만에 장착한 보조 젬이 전부 해제된다.
     let pStats = getUiPlayerStats();
+    if (normalizeSupportLoadout(true, pStats.__uiFallbackStats ? null : pStats)) pStats = getUiPlayerStats();
     __mark('stats');
     cachedTooltipStats = pStats;
     updateCombatUI(pStats);

@@ -634,12 +634,18 @@ function getItemTotalStats(item) {
     return bucket;
 }
 
-function normalizeSupportLoadout(logChange) {
-    let statsProvider = (typeof getPlayerStats === 'function')
-        ? getPlayerStats
-        : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
-    if (!statsProvider) return false;
-    let cap = Math.max(0, Math.floor((statsProvider() || {}).suppCap || 0));
+// knownStats: 이미 계산해 둔 스탯이 있으면 넘긴다. getPlayerStats는 한 번에 2.7ms가
+// 드는데, 화면 갱신마다 여기서 한 번, 바로 뒤에서 또 한 번 부르고 있었다.
+function normalizeSupportLoadout(logChange, knownStats) {
+    let stats = knownStats;
+    if (!stats) {
+        let statsProvider = (typeof getPlayerStats === 'function')
+            ? getPlayerStats
+            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
+        if (!statsProvider) return false;
+        stats = statsProvider();
+    }
+    let cap = Math.max(0, Math.floor((stats || {}).suppCap || 0));
     if ((game.equippedSupports || []).length <= cap) return false;
     let removed = game.equippedSupports.splice(cap);
     if (logChange && removed.length > 0) addLog("🟢 장착 한도가 줄어 보조 젬 일부가 자동 해제되었습니다.", "attack-monster");
