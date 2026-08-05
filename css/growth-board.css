@@ -119,3 +119,4 @@
 body.growth-dragging { cursor: grabbing; user-select: none; }
 body.growth-dragging .growth-item-card,
 body.growth-dragging .growth-cell { cursor: grabbing; }
+.growth-filter-label { font-size: 0.76em; color: #7f93a8; align-self: center; margin-right: 2px; }

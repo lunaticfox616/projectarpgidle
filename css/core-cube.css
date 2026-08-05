@@ -154,3 +154,18 @@
 .core-cube-preset-row:last-of-type { border-bottom: none; }
 .core-cube-preset-row.locked { color: #7f8c8d; }
 .core-cube-preset-row button { font-size: 0.82em; padding: 3px 8px; margin-left: 4px; }
+
+/* 미각인 동력원 안내 */
+.core-cube-missing { font-size: 0.8em; color: #9db4cc; line-height: 1.9; margin-top: 6px; }
+.core-cube-missing-no {
+    display: inline-block;
+    min-width: 22px;
+    text-align: center;
+    padding: 1px 4px;
+    margin: 0 2px 2px 0;
+    border-radius: 4px;
+    border: 1px solid #34506b;
+    background: rgba(12, 20, 30, 0.6);
+    color: #7f93a8;
+}
+.core-cube-missing-no.owned { border-color: #4d8f6d; color: #a8e6c0; background: rgba(18, 40, 30, 0.7); font-weight: 700; }

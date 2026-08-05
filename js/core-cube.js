@@ -469,6 +469,21 @@ function clearCoreCubePreset(slot) {
     updateStaticUI();
 }
 
+// 2번 칸 해금이 목표인데 "몇 종 남았다"만 알려 주면 무엇을 노려야 할지 알 수 없다.
+// 아직 한 번도 각인하지 않은 번호를 직접 보여 준다.
+function renderCoreCubeMissingPowers(st, usedCount) {
+    if (st.presetSlot2Unlocked) {
+        return `<p class="core-cube-muted">2번 저장칸이 영구 해금되어 있습니다. (동력원 ${usedCount}/${CORE_CUBE_POWER_MAX}종 각인)</p>`;
+    }
+    let used = st.powersUsedEver || {};
+    let missing = [];
+    for (let n = CORE_CUBE_POWER_MIN; n <= CORE_CUBE_POWER_MAX; n++) if (!used[n]) missing.push(n);
+    let owned = st.powers || {};
+    let missingHtml = missing.map(n => `<span class="core-cube-missing-no${owned[n] > 0 ? ' owned' : ''}">${n}</span>`).join('');
+    return `<p class="core-cube-muted">2번 칸은 1~45 동력원을 모두 한 번씩 각인하면 열리고, 그 뒤로는 영구히 열려 있습니다. (현재 ${usedCount}/${CORE_CUBE_POWER_MAX}종)</p>
+        <div class="core-cube-missing">아직 각인하지 않은 번호 ${missing.length}종: ${missingHtml || '없음'}<br><span class="core-cube-muted">밝게 표시된 번호는 지금 보유 중이라 바로 각인할 수 있습니다.</span></div>`;
+}
+
 function renderCoreCubePresetCard(st, unlocked) {
     let usedCount = getCoreCubeUsedPowerCount(st);
     let canSave = unlocked && st.faces.every(value => value !== null);
@@ -492,7 +507,7 @@ function renderCoreCubePresetCard(st, unlocked) {
     }).join('');
     return `<div class="core-cube-card"><h3>조합 저장</h3>${rows}
         <p>6면이 채워진 조합을 저장해 두면, 루프가 지나 큐브가 다시 열렸을 때 <strong>동력원을 쓰지 않고</strong> 그대로 되살릴 수 있습니다. 각인된 큐브가 있으면 불러오면서 함께 재구성됩니다.</p>
-        <p class="core-cube-muted">2번 칸은 1~45 동력원을 모두 한 번씩 각인하면 열리고, 그 뒤로는 영구히 열려 있습니다. (현재 ${usedCount}/${CORE_CUBE_POWER_MAX}종)</p></div>`;
+        ${renderCoreCubeMissingPowers(st, usedCount)}</div>`;
 }
 
 function hashCoreCubeCombo(combo) {
@@ -1089,4 +1104,4 @@ function renderCoreCubePanel() {
 
 safeExposeGlobals({ getCoreCubeDefaultState, normalizeCoreCubeState, ensureCoreCubeState, getCoreCubeUnlockInfo, isCoreCubeUnlocked, maybeUnlockCoreCube, relockCoreCubeForLoop, canDropCoreCubeBlurred45, addCoreCubeBlurred45, addCoreCubePower, useCoreCubeBlurred45, selectCoreCubeFace, socketCoreCubePower, socketRandomCoreCubePower, resetCoreCube, completeCoreCube,
     saveCoreCubePreset, applyCoreCubePreset, clearCoreCubePreset, isCoreCubePresetSlotUnlocked, getCoreCubeUsedPowerCount,
-    markCoreCubePowerUsed, syncCoreCubePresetSlotUnlock, generateCoreCubeOptions, getCoreCubeActiveStats, renderCoreCubePanel });
+    markCoreCubePowerUsed, syncCoreCubePresetSlotUnlock, renderCoreCubeMissingPowers, generateCoreCubeOptions, getCoreCubeActiveStats, renderCoreCubePanel });

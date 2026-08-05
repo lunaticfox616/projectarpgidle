@@ -324,6 +324,8 @@ function toggleGrowthInventoryUnplacedOnly() {
     updateStaticUI();
 }
 
+const GROWTH_SORT_LABELS = { recent: '최신', rarity: '등급', tier: '티어', category: '종류' };
+
 function renderGrowthInventoryFilterChips() {
     let filter = getGrowthInventoryFilter();
     let chips = GROWTH_INVENTORY_CATEGORIES.map(key => {
@@ -331,8 +333,23 @@ function renderGrowthInventoryFilterChips() {
         let count = (game.growthInventory || []).filter(item => isGrowthItem(item) && item.growthCategory === key).length;
         return `<button type="button" class="growth-filter-chip${filter.categories[key] ? ' on' : ''}" onclick="toggleGrowthInventoryCategory('${key}')">${info.icon} ${info.label} ${count}</button>`;
     }).join('');
+    let sortMode = (game.settings && game.settings.growthSortMode) || 'recent';
+    let sortChips = GROWTH_SORT_MODES.map(mode =>
+        `<button type="button" class="growth-filter-chip${sortMode === mode ? ' on' : ''}" onclick="sortGrowthInventory('${mode}')">${GROWTH_SORT_LABELS[mode]}순</button>`).join('');
+    let autoClaim = !!(game.settings && game.settings.growthAutoClaim);
     return `<div class="growth-filter-row">${chips}
-        <button type="button" class="growth-filter-chip${filter.unplacedOnly ? ' on' : ''}" onclick="toggleGrowthInventoryUnplacedOnly()">미배치만</button></div>`;
+        <button type="button" class="growth-filter-chip${filter.unplacedOnly ? ' on' : ''}" onclick="toggleGrowthInventoryUnplacedOnly()">미배치만</button></div>
+        <div class="growth-filter-row"><span class="growth-filter-label">정렬</span>${sortChips}
+        <button type="button" class="growth-filter-chip${autoClaim ? ' on' : ''}" onclick="toggleGrowthAutoClaim()" title="드랍을 최근 획득함을 거치지 않고 바로 보관함으로 보냅니다.">자동 보관</button></div>`;
+}
+
+function toggleGrowthAutoClaim() {
+    game.settings = game.settings || {};
+    game.settings.growthAutoClaim = !game.settings.growthAutoClaim;
+    addLog(game.settings.growthAutoClaim
+        ? '🌱 생장 드랍을 최근 획득함을 건너뛰고 바로 보관함으로 보냅니다. (보관함이 가득 차면 다시 최근 획득함에 쌓입니다)'
+        : '🌱 생장 드랍이 최근 획득함을 거칩니다.', 'loot-normal');
+    updateStaticUI();
 }
 
 function renderGrowthInventorySection() {
@@ -667,7 +684,7 @@ safeExposeGlobals({
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, buildGrowthComparison,
     renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
-    toggleGrowthInventoryCategory, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter,
+    toggleGrowthInventoryCategory, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, toggleGrowthAutoClaim,
     renderGrowthHoverHint, bindGrowthDragOnce,
     getSelectedSlabInfluenceCells, renderGrowthLevelLine
 });

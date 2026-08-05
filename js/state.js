@@ -1963,6 +1963,9 @@ const defaultGame = {
         showSpawnLog: true,
         showExpLog: true,
         showLootLog: true,
+        // 생장 드랍을 최근 획득함을 거치지 않고 바로 보관함으로 보낼지.
+        growthAutoClaim: false,
+        growthSortMode: 'recent',
         showCrowdPauseLog: true,
         showDeathNotice: true,
         showMobileBattlePip: true,

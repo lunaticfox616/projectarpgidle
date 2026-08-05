@@ -354,6 +354,14 @@ function addDroppedGrowthItem(item, options) {
     }
     ensureGrowthBoardState();
     if (item.rarity === 'unique' && typeof registerUniqueToCodexOnAcquire === 'function') registerUniqueToCodexOnAcquire(item);
+    // 자동 이송을 켜면 최근 획득함을 거치지 않고 바로 보관함으로 간다.
+    // 최근 획득함은 "쓸모없는 것을 걸러내는 대기실"이라 기본은 꺼 두되,
+    // 매 전투마다 [전부 보관함으로]를 누르는 반복이 싫은 사람에게 선택지를 준다.
+    if (game.settings.growthAutoClaim && game.growthInventory.length < getGrowthInventoryLimit()) {
+        game.growthInventory.push(item);
+        if (game.noti) game.noti.items = true;
+        return true;
+    }
     game.recentGrowthDrops.push(item);
     while (game.recentGrowthDrops.length > RECENT_GROWTH_DROPS_CAP) {
         let victimIdx = game.recentGrowthDrops.findIndex(row => !isProtectedRecentGrowthDrop(row));
@@ -405,6 +413,30 @@ function claimAllRecentGrowthDrops() {
     }
     updateStaticUI();
     return moved;
+}
+
+/**
+ * 보관함 정렬. 40칸에서 쓸 만한 것을 찾으려면 등급/티어 기준이 필요하다.
+ * 정렬은 배열 자체를 바꾸므로 배치(아이템 id 참조)에는 영향이 없다.
+ */
+const GROWTH_SORT_MODES = ['recent', 'rarity', 'tier', 'category'];
+
+function sortGrowthInventory(mode) {
+    ensureGrowthBoardState();
+    let key = GROWTH_SORT_MODES.includes(mode) ? mode : 'recent';
+    let rarityRank = { unique: 3, rare: 2, magic: 1, normal: 0 };
+    let categoryRank = { flower: 0, branch: 1, leaf: 2, slab: 3 };
+    let compare = {
+        recent: (a, b) => (b.id || 0) - (a.id || 0),
+        rarity: (a, b) => (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0) || (b.itemTier || 0) - (a.itemTier || 0),
+        tier: (a, b) => (b.itemTier || 0) - (a.itemTier || 0) || (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0),
+        category: (a, b) => (categoryRank[a.growthCategory] ?? 9) - (categoryRank[b.growthCategory] ?? 9)
+            || (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0)
+    }[key];
+    game.growthInventory.sort(compare);
+    game.settings.growthSortMode = key;
+    updateStaticUI();
+    return key;
 }
 
 /** 생장 보관함 해체. 배치 중인 아이템은 먼저 내려야 한다. */
@@ -527,5 +559,6 @@ safeExposeGlobals({
     addDroppedGrowthItem, claimRecentGrowthDrop, claimAllRecentGrowthDrops, salvageRecentGrowthDrop,
     isProtectedRecentGrowthDrop, isGrowthBoardUnlocked, getGrowthInventoryLimit, findAnyGrowthItemById,
     salvageGrowthInventoryItem, bulkSalvageGrowthInventory, tryAutoPlaceGrowthItem,
-    autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout
+    autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout,
+    sortGrowthInventory, GROWTH_SORT_MODES
 });
