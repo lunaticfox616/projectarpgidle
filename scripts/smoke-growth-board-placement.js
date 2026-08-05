@@ -66,7 +66,7 @@ assert.strictEqual(json('Object.keys(GROWTH_SHAPE_DB)'), '["dot1"]', '형태는 
 });
 // 예전 저장에 남은 폴리오미노 id도 1칸으로 해석되어야 한다(마이그레이션 없이 호환).
 assert.strictEqual(json('getGrowthItemCells({ growthShapeId: "ring8" }, 0)'), '[[0,0]]', '알 수 없는 형태 id는 1칸으로 되돌아야 한다');
-assert.strictEqual(run('getGrowthItemSize({ growthShapeId: "block9" })'), 1, '모든 아이템의 크기는 1이어야 한다');
+assert.strictEqual(run('getGrowthItemCells({ growthShapeId: "block9" }, 0).length'), 1, '모든 아이템의 크기는 1이어야 한다');
 
 // ── 해금 게이트: 생장판은 루프 25 전에는 존재하지 않는다 ──────────────────
 run('ensureGrowthBoardState()');

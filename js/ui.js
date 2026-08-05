@@ -1505,6 +1505,13 @@ function updateTabUnlockButtons() {
     let battleBtn = document.getElementById('btn-tab-battle');
     if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
     syncMergedTabLauncherVisibility();
+    // 해금 상태가 바뀌면 "열려 있는" 병합 창의 내부 탭 목록과 표시 중인 화면도 다시 맞춘다.
+    // 이게 없으면 루프 정산으로 큐브가 잠긴 뒤에도 큐브 화면이 그대로 남고,
+    // 내부 탭 버튼에 잠긴 탭이 계속 보인다(선택 상태만 조용히 다른 탭으로 바뀐다).
+    Object.entries(MERGED_TAB_GROUPS).forEach(([groupKey, group]) => {
+        let root = document.getElementById(group.launcher);
+        if (root && root.classList.contains('active')) renderMergedTabPanels(groupKey);
+    });
     // 2단 그룹핑이 활성이면 해금 판정 직후 활성 그룹 외 탭을 숨긴다(단일 권위 지점).
     hideOutOfGroupTabButtons();
     // 데스크톱 창형 레일은 그룹 섹션 단위로 표시되므로, 해금 변경 시 빈 그룹을 함께 숨긴다.

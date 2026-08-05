@@ -475,9 +475,10 @@ function getTimeRiftFusionMismatchReason(altarItem, candidate) {
         return null;
     }
     if (altarItem.growthBaseId && altarItem.growthBaseId === candidate.growthBaseId) return null;
-    if (altarItem.growthCategory === candidate.growthCategory && altarItem.growthShapeId === candidate.growthShapeId) return null;
+    // 생장 아이템이 전부 1칸이 되면서 형태는 더 이상 구분 축이 아니다. 종류(꽃/가지/잎)만 본다.
+    if (altarItem.growthCategory === candidate.growthCategory) return null;
     let categoryLabel = key => (GROWTH_CATEGORY_INFO[key] || {}).label || key;
-    return `같은 베이스이거나, 같은 종류이면서 같은 형태여야 융합됩니다. (제단: ${categoryLabel(altarItem.growthCategory)}/${altarItem.growthShapeId} / 선택: ${categoryLabel(candidate.growthCategory)}/${candidate.growthShapeId})`;
+    return `같은 베이스이거나 같은 종류여야 융합됩니다. (제단: ${categoryLabel(altarItem.growthCategory)} / 선택: ${categoryLabel(candidate.growthCategory)})`;
 }
 
 function placeItemOnTimeAltar() {

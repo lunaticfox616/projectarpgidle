@@ -47,9 +47,6 @@ function getGrowthItemCells(item, rotation) {
     return rotateGrowthCells(cells, rot);
 }
 
-function getGrowthItemSize(item) {
-    return getGrowthItemCells(item, 0).length;
-}
 
 // ── 보드 상태 ────────────────────────────────────────────────────────────
 /** 생장판은 기존 장비를 대체하지 않는 추가 시스템이며 루프 25부터 열린다. */
@@ -117,8 +114,9 @@ function syncGrowthBoardUnlocks(options) {
     let gained = target - board.unlockedCellCount;
     board.unlockedCellCount = target;
     if (!options || options.silent !== true) {
-        if (firstAwakening) addLog(`🌱 생장판이 각성했습니다! 루프 ${GROWTH_UNLOCK_LOOP} 달성 — 장비와 별개로 자라나는 판이 열렸습니다. (활성 칸 ${target}/60)`, 'season-up');
-        else addLog(`🌱 생장판이 자라났습니다! 활성 칸 +${gained} (현재 ${target}/60)`, 'season-up');
+        let total = GROWTH_BOARD_W * GROWTH_BOARD_H;
+        if (firstAwakening) addLog(`🌱 생장판이 각성했습니다! 루프 ${GROWTH_UNLOCK_LOOP} 달성 — 장비와 별개로 자라나는 판이 열렸습니다. (활성 칸 ${target}/${total})`, 'season-up');
+        else addLog(`🌱 생장판이 자라났습니다! 활성 칸 +${gained} (현재 ${target}/${total})`, 'season-up');
     }
     invalidateGrowthEffects();
     return true;
@@ -463,7 +461,7 @@ function salvageRecentGrowthDrop(itemId) {
 
 safeExposeGlobals({
     rotateGrowthCells, normalizeGrowthCells, getGrowthShapeDef, getGrowthBaseDef, isGrowthItem,
-    getGrowthItemCells, getGrowthItemSize,
+    getGrowthItemCells,
     ensureGrowthBoardState, getGrowthCellUnlockOrder, getGrowthStageUnlockedCellCount,
     syncGrowthBoardUnlocks, isGrowthCellUnlocked, getActiveGrowthLoadout, findGrowthItemById,
     getPlacedGrowthEntries, buildGrowthOccupancyMap, canPlaceGrowthItem, placeGrowthItem,

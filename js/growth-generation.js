@@ -1,6 +1,6 @@
 // 생장 아이템 생성: 드랍, 고유, 타락 결과.
 // 기존 옵션 풀(MOD_DB)·베이스 롤(rollBaseStats)·등급 규칙을 그대로 재사용하고,
-// 생장판 고유 요소(종류/형태/크기/태그)만 추가한다.
+// 생장판 고유 요소(종류/태그)만 추가한다. 모든 아이템은 1칸이다.
 
 // 종류별 옵션 풀 매핑 (spec 15: 무기 전용 → 꽃, 방어구/방패 → 가지, 장신구 → 잎).
 const GROWTH_CATEGORY_MOD_SLOTS = {
@@ -16,7 +16,7 @@ function getGrowthCategoryModSlots(category) {
 }
 
 // 제작 계열 판정을 위한 내부 슬롯 매핑 (화석 풀·혼돈 주입기·방어 타입 제한이 이 값을 읽는다).
-// 사용자에게는 노출하지 않는다 — 표시용 라벨은 getItemSlotDisplayLabel이 종류/크기로 만든다.
+// 사용자에게는 노출하지 않는다 — 표시용 라벨은 getItemSlotDisplayLabel이 종류로 만든다.
 function getGrowthCraftSlot(category) {
     return (GROWTH_CATEGORY_INFO[category] || {}).craftSlot || '목걸이';
 }

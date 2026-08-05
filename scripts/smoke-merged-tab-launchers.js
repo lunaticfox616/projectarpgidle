@@ -272,6 +272,12 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
     assert(source.includes("onclick=\"openTabPane('tab-flask')\""),
         'the combat flask strip must open the flask pane directly');
 
+    // 해금 상태가 바뀌면 열려 있는 병합 창의 내부 탭도 다시 그려야 한다.
+    // 회귀: 루프 정산으로 큐브가 잠긴 뒤에도 큐브 화면이 그대로 남고, 내부 탭 버튼에
+    // 잠긴 탭이 계속 보였다(선택 상태만 조용히 다른 탭으로 바뀜).
+    assert(readFunctionSource('updateTabUnlockButtons').includes('renderMergedTabPanels'),
+        'unlock changes must re-render the open merged window so locked tabs disappear');
+
     assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="utility"')
         && html.includes('data-merged-tab-launcher="records"'), 'the three combined menu circles must be wired in HTML');
     assert(html.includes('>스킬트리 <span id="noti-char"') && html.includes('>보조장비 <span id="jewel-inventory-full-warning"')

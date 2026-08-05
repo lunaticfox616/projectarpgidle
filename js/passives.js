@@ -10366,8 +10366,11 @@ async function useCurrency(currencyKey) {
     }
     let guaranteedMod = getSporeGuaranteedMod();
     let consumedSpore = false;
-    let sporeAffixCurrencies = ['transmute', 'augment', 'alchemy', 'exalted', 'regal', 'chaos'];
-    let rerollSporeCurrencies = ['transmute', 'alchemy', 'chaos'];
+    // alteration은 transmute처럼 옵션을 통째로 다시 굴린다. 마법의 새싹이 매직
+    // 아이템에서 이 경로를 타게 되면서, 두 목록에 함께 넣지 않으면 홀씨 모드를
+    // 켜도 아무 일 없이 지나가 버린다(소모도 보장도 없음).
+    let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];
+    let rerollSporeCurrencies = ['transmute', 'alteration', 'alchemy', 'chaos'];
     let usesSporeAffix = sporeAffixCurrencies.includes(actionKey);
     let isRerollSporeCurrency = rerollSporeCurrencies.includes(actionKey);
     let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
