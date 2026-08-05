@@ -387,10 +387,22 @@ function trimRecentGrowthDrops() {
 }
 
 let _growthFullLogAt = 0;
+const GROWTH_FULL_LOG_INTERVAL_MS = 60000;
 
+/**
+ * 보관함이 가득 차 드랍을 거절했음을 알린다. 1분에 한 줄로 제한한다.
+ *
+ * 백그라운드 재생(오프라인 복귀 정산)은 Date.now를 시뮬레이션 시각으로 갈아끼우고
+ * 그 구간을 몇 초 만에 돌린다. 그래서 실시간 기준 스로틀이 통하지 않고 시뮬레이션
+ * 1분마다 한 줄씩 쌓인다. 현재 상한(실제 3시간 × rate 0.1 = 시뮬레이션 18분)에서
+ * 실측 17줄이 한꺼번에 밀려들어 복귀 후 전투 로그를 덮는다.
+ * 플레이어가 보고 있지 않은 구간이므로 아예 남기지 않는다. 가득 찼다는 사실은
+ * 복귀 후 목표 안내("생장 보관함 40/40 · ...")가 계속 보여 준다.
+ */
 function logGrowthStorageFull() {
+    if (game.isBackgroundCalculation) return;
     let now = Date.now();
-    if (now - _growthFullLogAt < 60000) return;
+    if (now - _growthFullLogAt < GROWTH_FULL_LOG_INTERVAL_MS) return;
     _growthFullLogAt = now;
     addLog(`🌱 최근 획득함과 생장 보관함이 잠금/고유 아이템으로 가득 차 새 생장 아이템을 받지 못했습니다. (보관함 ${game.growthInventory.length}/${getGrowthInventoryLimit()})`, 'attack-monster');
 }

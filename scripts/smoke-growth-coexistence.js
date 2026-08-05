@@ -217,6 +217,72 @@ function loadStatSourceContract(gameState) {
     assert.ok(context.game.growthInventory.length <= limit, '섞인 드랍에서도 보관함 상한을 지켜야 한다');
 }
 
+// ── 가득 참 알림은 백그라운드 정산을 덮지 않아야 한다 ────────────────────
+// 오프라인 복귀 정산은 Date.now를 시뮬레이션 시각으로 갈아끼우고 그 구간을 몇 초
+// 만에 돌린다. 실시간 기준 스로틀만 걸면 시뮬레이션 1분마다 한 줄씩 쌓인다
+// (현재 상한 시뮬레이션 18분에서 실측 17줄). 복귀 후 전투 로그가 묻힌다.
+// 아래는 상한이 늘어나도 깨지지 않도록 더 긴 구간으로 계약을 건다.
+{
+    const logs = [];
+    let clock = 1000000;
+    const context = {
+        console,
+        window: {},
+        Date: { now: () => clock },
+        game: {
+            season: 30,
+            growthInventory: [], recentGrowthDrops: [], growthBoard: null,
+            noti: {}, settings: { showLootLog: false, growthAutoSalvageEnabled: false, growthUseItemFilter: false }
+        },
+        addLog: text => logs.push(String(text)),
+        updateStaticUI: () => {},
+        queueImportantSave: () => {},
+        normalizeItem: item => item,
+        salvageItemObject: () => {},
+        registerUniqueToCodexOnAcquire: () => {},
+        passesItemPickupFilter: () => true
+    };
+    context.safeExposeData = map => Object.keys(map || {}).forEach(key => {
+        if (typeof context[key] === 'undefined') context[key] = map[key];
+    });
+    context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
+    vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
+    vm.runInContext('function invalidateGrowthEffects() {}', context);
+    const run = code => vm.runInContext(code, context);
+    run('syncGrowthBoardUnlocks({ silent: true })');
+
+    const locked = id => JSON.stringify({
+        id, rarity: 'normal', growthShapeId: 'dot1', growthCategory: 'flower',
+        growthBaseId: 'gf_spark_seed', name: `잠금${id}`, locked: true, baseStats: [], stats: []
+    });
+    const refusedLines = () => logs.filter(text => /받지 못했습니다/.test(text)).length;
+
+    // 실시간: 포화된 뒤에도 1분에 한 줄까지만.
+    for (let i = 0; i < 300; i++) { clock += 1000; run(`addDroppedGrowthItem(${locked(i)})`); }
+    const realTime = refusedLines();
+    assert.ok(realTime >= 1, '실시간에는 거절 사실을 한 번은 알려야 한다');
+    assert.ok(realTime <= 6, `실시간 알림은 1분에 한 줄이어야 한다 (300초 동안 ${realTime}줄)`);
+
+    // 백그라운드 정산: 시뮬레이션 시각이 8시간 전진해도 한 줄도 남기지 않는다.
+    logs.length = 0;
+    context.game.isBackgroundCalculation = true;
+    for (let i = 0; i < 300; i++) { clock += 96000; run(`addDroppedGrowthItem(${locked(1000 + i)})`); }
+    assert.strictEqual(refusedLines(), 0,
+        '백그라운드 정산 중에는 가득 참 알림을 남기지 않아야 한다(복귀 로그가 묻힌다)');
+    delete context.game.isBackgroundCalculation;
+
+    // 정산이 끝난 뒤 실시간 알림이 다시 살아나야 한다.
+    // (현재 rate가 0.1이라 시뮬레이션 시각은 항상 실제보다 뒤에서 끝나지만,
+    //  rate가 바뀌어 시뮬레이션 시각이 앞서게 되면 스로틀 기준값이 미래로 밀려
+    //  복귀 후 실제 알림이 막힐 수 있다. 그 경로를 미리 막아 둔다.)
+    logs.length = 0;
+    clock += 61000;
+    run(`addDroppedGrowthItem(${locked(9000)})`);
+    assert.strictEqual(refusedLines(), 1, '정산 뒤에는 실시간 알림이 다시 나와야 한다');
+}
+
 // ── 생장 보관함 확장 경로 ────────────────────────────────────────────────
 // growthInventoryExpandLevel은 한도 계산에만 쓰이고 올릴 방법이 없어, 40칸이
 // 사실상 고정 상한이었다(장비·주얼에는 황금률 확장이 있다).
