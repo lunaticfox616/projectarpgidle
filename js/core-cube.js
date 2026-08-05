@@ -388,7 +388,7 @@ function isCoreCubePresetSlotUnlocked(slot) {
     return getCoreCubeUsedPowerCount(ensureCoreCubeState()) >= (CORE_CUBE_POWER_MAX - CORE_CUBE_POWER_MIN + 1);
 }
 
-function saveCoreCubePreset(slot) {
+async function saveCoreCubePreset(slot) {
     let idx = Math.max(0, Math.min(CORE_CUBE_PRESET_SLOTS - 1, Math.floor(Number(slot) || 0)));
     if (!isCoreCubePresetSlotUnlocked(idx)) {
         let used = getCoreCubeUsedPowerCount(ensureCoreCubeState());
@@ -396,6 +396,17 @@ function saveCoreCubePreset(slot) {
     }
     let st = ensureCoreCubeState();
     if (!st.faces.every(value => value !== null)) return addLog('6면이 모두 각인된 큐브만 저장할 수 있습니다.', 'attack-monster');
+    // 저장칸을 덮으면 이전 조합은 되돌릴 수 없다. 45종을 다 모아야 열리는 칸이라
+    // 실수 한 번의 대가가 크므로 덮어쓸 때만 확인을 받는다.
+    let existing = normalizeCoreCubePreset(st.presets[idx]);
+    if (existing && typeof requestGameConfirmation === 'function') {
+        let ok = await requestGameConfirmation(
+            `${idx + 1}번 칸의 저장 조합을 덮어씁니다.\n기존: ${existing.faces.slice().sort((a, b) => a - b).join(' / ')}\n새로: ${st.faces.slice().sort((a, b) => a - b).join(' / ')}`,
+            { title: '큐브 조합 덮어쓰기', tone: 'danger', confirmLabel: '덮어쓰기' });
+        if (!ok) return;
+        st = ensureCoreCubeState();
+        if (!st.faces.every(value => value !== null)) return addLog('확인 중 큐브가 바뀌어 저장을 취소했습니다.', 'attack-monster');
+    }
     st.presets[idx] = { faces: st.faces.slice(), savedAtLoop: Math.max(1, Math.floor(Number(game.season) || 1)) };
     addLog(`🧊 큐브 조합을 ${idx + 1}번 칸에 저장했습니다. (${st.faces.slice().sort((a, b) => a - b).join(' / ')})`, 'season-up');
     renderCoreCubePanel();
@@ -409,8 +420,15 @@ function applyCoreCubePreset(slot) {
     let st = ensureCoreCubeState();
     let preset = normalizeCoreCubePreset(st.presets[idx]);
     if (!preset) return addLog('저장된 조합이 없습니다.', 'attack-monster');
+    // 이미 각인된 큐브가 있으면 재구성을 따로 누르게 하지 않고 여기서 비운다.
+    // 각인된 동력원은 어차피 회수되지 않으므로, 두 번 누르게 해서 얻는 것이 없다.
     if (st.completed || st.faces.some(value => value !== null)) {
-        return addLog('먼저 큐브를 재구성해 비운 뒤 불러올 수 있습니다.', 'attack-monster');
+        st.faces = Array(CORE_CUBE_FACE_COUNT).fill(null);
+        st.completed = false;
+        st.isCompleting = false;
+        st.revealedOptions = [];
+        st.optionMechanism = null;
+        st.selectedFace = 0;
     }
     // 동력원을 소모하지 않는다 — 저장해 둔 조합을 그대로 복원하는 것이 이 기능의 목적이다.
     st.faces = preset.faces.slice();
@@ -436,7 +454,6 @@ function clearCoreCubePreset(slot) {
 
 function renderCoreCubePresetCard(st, unlocked) {
     let usedCount = getCoreCubeUsedPowerCount(st);
-    let boardEmpty = !st.completed && st.faces.every(value => value === null);
     let canSave = unlocked && st.faces.every(value => value !== null);
     let rows = Array.from({ length: CORE_CUBE_PRESET_SLOTS }, (_, idx) => {
         let slotOpen = isCoreCubePresetSlotUnlocked(idx);
@@ -451,13 +468,13 @@ function renderCoreCubePresetCard(st, unlocked) {
             <span>${idx + 1}번 칸: ${label}</span>
             <span>
                 <button type="button" onclick="saveCoreCubePreset(${idx})" ${canSave ? '' : 'disabled'}>저장</button>
-                <button type="button" onclick="applyCoreCubePreset(${idx})" ${unlocked && preset && boardEmpty ? '' : 'disabled'}>불러오기</button>
+                <button type="button" onclick="applyCoreCubePreset(${idx})" ${unlocked && preset ? '' : 'disabled'}>불러오기</button>
                 <button type="button" onclick="clearCoreCubePreset(${idx})" ${preset ? '' : 'disabled'}>비우기</button>
             </span>
         </div>`;
     }).join('');
     return `<div class="core-cube-card"><h3>조합 저장</h3>${rows}
-        <p>6면이 채워진 조합을 저장해 두면, 루프가 지나 큐브가 다시 열렸을 때 <strong>동력원을 쓰지 않고</strong> 그대로 되살릴 수 있습니다. 불러오려면 큐브가 비어 있어야 합니다.</p>
+        <p>6면이 채워진 조합을 저장해 두면, 루프가 지나 큐브가 다시 열렸을 때 <strong>동력원을 쓰지 않고</strong> 그대로 되살릴 수 있습니다. 각인된 큐브가 있으면 불러오면서 함께 재구성됩니다.</p>
         <p class="core-cube-muted">2번 칸은 1~45 동력원을 모두 한 번씩 각인하면 열립니다. (현재 ${usedCount}/${CORE_CUBE_POWER_MAX}종)</p></div>`;
 }
 

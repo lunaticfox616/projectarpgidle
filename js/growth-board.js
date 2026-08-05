@@ -447,6 +447,52 @@ function tryAutoPlaceGrowthItem(item) {
     return false;
 }
 
+/**
+ * 빈 칸을 미배치 아이템으로 한 번에 채운다.
+ * 판이 32칸이라 손으로 채우면 아이템 선택 + 칸 클릭을 수십 번 반복해야 한다.
+ * 배치의 "정답"을 대신 찾아 주지는 않는다 — 일단 채워 두고 다듬는 출발점을 만든다.
+ * 석판을 먼저 놓아 레벨을 뿌린 뒤, 좋은 아이템이 그 칸을 차지할 확률을 높인다.
+ * @returns {number} 새로 배치한 개수
+ */
+function autoFillGrowthBoard() {
+    if (game.woodsmanBuildLock) { addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster'); return 0; }
+    ensureGrowthBoardState();
+    if (!isGrowthBoardUnlocked()) { addLog('생장판이 아직 열리지 않았습니다.', 'attack-monster'); return 0; }
+    let rarityRank = { unique: 3, rare: 2, magic: 1, normal: 0 };
+    let candidates = (game.growthInventory || [])
+        .filter(item => isGrowthItem(item) && !isGrowthItemPlacedInLoadout(item.id))
+        .sort((a, b) => {
+            let slabDelta = (isGrowthSlab(b) ? 1 : 0) - (isGrowthSlab(a) ? 1 : 0);
+            if (slabDelta !== 0) return slabDelta;
+            return (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0);
+        });
+    let placed = 0;
+    candidates.forEach(item => { if (tryAutoPlaceGrowthItem(item)) placed++; });
+    if (placed > 0) addLog(`🌱 빈 칸에 ${placed}개를 자동 배치했습니다.`, 'loot-normal');
+    else addLog('배치할 수 있는 빈 칸이나 미배치 아이템이 없습니다.', 'attack-monster');
+    updateStaticUI();
+    return placed;
+}
+
+/** 현재 세팅에서만 배치 여부를 본다(자동 배치·필터용). */
+function isGrowthItemPlacedInLoadout(itemId) {
+    return !!(getActiveGrowthLoadout().placements || {})[itemId];
+}
+
+/** 현재 세팅의 배치를 모두 내린다. 하나씩 내리려면 수십 번 눌러야 한다. */
+function unplaceAllGrowthItems() {
+    if (game.woodsmanBuildLock) { addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster'); return 0; }
+    let loadout = getActiveGrowthLoadout();
+    let count = Object.keys(loadout.placements || {}).length;
+    if (count <= 0) { addLog('내릴 배치가 없습니다.', 'attack-monster'); return 0; }
+    loadout.placements = {};
+    invalidateGrowthEffects();
+    if (typeof queueImportantSave === 'function') queueImportantSave(300);
+    addLog(`🌱 배치 ${count}개를 모두 내렸습니다.`, 'loot-normal');
+    updateStaticUI();
+    return count;
+}
+
 function salvageRecentGrowthDrop(itemId) {
     ensureGrowthBoardState();
     let idx = game.recentGrowthDrops.findIndex(row => row && row.id === itemId);
@@ -470,5 +516,6 @@ safeExposeGlobals({
     resetGrowthBoardForLoop,
     addDroppedGrowthItem, claimRecentGrowthDrop, claimAllRecentGrowthDrops, salvageRecentGrowthDrop,
     isProtectedRecentGrowthDrop, isGrowthBoardUnlocked, getGrowthInventoryLimit, findAnyGrowthItemById,
-    salvageGrowthInventoryItem, bulkSalvageGrowthInventory, tryAutoPlaceGrowthItem
+    salvageGrowthInventoryItem, bulkSalvageGrowthInventory, tryAutoPlaceGrowthItem,
+    autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout
 });

@@ -249,10 +249,59 @@ function renderGrowthItemCard(item, mode) {
     </div>`;
 }
 
+// 보관함이 40칸이라 필터가 없으면 원하는 아이템을 눈으로 훑어야 한다.
+// 종류 칩과 "미배치만"으로 후보를 좁힌다.
+const GROWTH_INVENTORY_CATEGORIES = ['flower', 'branch', 'leaf', 'slab'];
+
+function getGrowthInventoryFilter() {
+    game.settings = game.settings || {};
+    let saved = game.settings.growthInventoryFilter;
+    if (!saved || typeof saved !== 'object') saved = {};
+    let categories = {};
+    GROWTH_INVENTORY_CATEGORIES.forEach(key => {
+        categories[key] = saved.categories && key in saved.categories ? !!saved.categories[key] : true;
+    });
+    // 전부 꺼 두면 목록이 통째로 사라져 고장난 것처럼 보인다. 그럴 땐 전체 표시로 되돌린다.
+    if (GROWTH_INVENTORY_CATEGORIES.every(key => !categories[key])) {
+        GROWTH_INVENTORY_CATEGORIES.forEach(key => { categories[key] = true; });
+    }
+    let filter = { categories, unplacedOnly: !!saved.unplacedOnly };
+    game.settings.growthInventoryFilter = filter;
+    return filter;
+}
+
+function toggleGrowthInventoryCategory(category) {
+    let filter = getGrowthInventoryFilter();
+    filter.categories[category] = !filter.categories[category];
+    updateStaticUI();
+}
+
+function toggleGrowthInventoryUnplacedOnly() {
+    let filter = getGrowthInventoryFilter();
+    filter.unplacedOnly = !filter.unplacedOnly;
+    updateStaticUI();
+}
+
+function renderGrowthInventoryFilterChips() {
+    let filter = getGrowthInventoryFilter();
+    let chips = GROWTH_INVENTORY_CATEGORIES.map(key => {
+        let info = getGrowthCategoryInfo(key);
+        let count = (game.growthInventory || []).filter(item => isGrowthItem(item) && item.growthCategory === key).length;
+        return `<button type="button" class="growth-filter-chip${filter.categories[key] ? ' on' : ''}" onclick="toggleGrowthInventoryCategory('${key}')">${info.icon} ${info.label} ${count}</button>`;
+    }).join('');
+    return `<div class="growth-filter-row">${chips}
+        <button type="button" class="growth-filter-chip${filter.unplacedOnly ? ' on' : ''}" onclick="toggleGrowthInventoryUnplacedOnly()">미배치만</button></div>`;
+}
+
 function renderGrowthInventorySection() {
-    let items = (game.growthInventory || []).filter(isGrowthItem);
-    if (items.length === 0) return '<div class="growth-synergy-empty">보관 중인 생장 아이템이 없습니다. 루프 ' + GROWTH_UNLOCK_LOOP + ' 이후 전투에서 드랍됩니다.</div>';
-    return items.map(item => renderGrowthItemCard(item, 'inventory')).join('');
+    let all = (game.growthInventory || []).filter(isGrowthItem);
+    if (all.length === 0) return '<div class="growth-synergy-empty">보관 중인 생장 아이템이 없습니다. 루프 ' + GROWTH_UNLOCK_LOOP + ' 이후 전투에서 드랍됩니다.</div>';
+    let filter = getGrowthInventoryFilter();
+    let items = all.filter(item => filter.categories[item.growthCategory] !== false
+        && (!filter.unplacedOnly || !isGrowthItemPlacedInLoadout(item.id)));
+    let chips = renderGrowthInventoryFilterChips();
+    if (items.length === 0) return `${chips}<div class="growth-synergy-empty">조건에 맞는 아이템이 없습니다. (전체 ${all.length}개)</div>`;
+    return chips + items.map(item => renderGrowthItemCard(item, 'inventory')).join('');
 }
 
 function renderGrowthRecentSection() {
@@ -389,7 +438,11 @@ function renderGrowthBoardPanel() {
         ${renderGrowthLoadoutBar()}
         <div class="growth-controls">
             <span>${selectedItem ? `선택: <strong>${escapeHTML(selectedItem.name)}</strong>` : '아이템을 선택한 뒤 칸을 클릭해 배치하세요.'}</span>
-            <button type="button" onclick="rotateGrowthSelection()" ${selectedItem ? '' : 'disabled'}>회전 (${growthSelection.rotation * 90}°)</button>
+            <span class="growth-control-actions">
+                <button type="button" onclick="rotateGrowthSelection()" ${selectedItem ? '' : 'disabled'}>회전 (${growthSelection.rotation * 90}°)</button>
+                <button type="button" onclick="autoFillGrowthBoard()">빈 칸 자동 배치</button>
+                <button type="button" onclick="unplaceAllGrowthItems()" ${Object.keys(getActiveGrowthLoadout().placements || {}).length > 0 ? '' : 'disabled'}>전부 내리기</button>
+            </span>
         </div>
         ${renderGrowthBoardGrid()}
         <div class="growth-columns">
@@ -476,5 +529,6 @@ safeExposeGlobals({
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, buildGrowthComparison,
     renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
+    toggleGrowthInventoryCategory, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter,
     getSelectedSlabInfluenceCells, renderGrowthLevelLine
 });

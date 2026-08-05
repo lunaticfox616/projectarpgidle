@@ -80,15 +80,17 @@ async function main() {
     {
         const ctx = loadCubeContext();
         run(ctx, 'ensureCoreCubeState().faces = [3,9,14,22,31,44];');
-        run(ctx, 'saveCoreCubePreset(0)');
+        await vm.runInContext('saveCoreCubePreset(0)', ctx);
         assert.strictEqual(run(ctx, 'JSON.stringify(ensureCoreCubeState().presets[0].faces)'), '[3,9,14,22,31,44]',
             '6면이 채워진 조합은 저장되어야 한다');
 
-        // 판이 비어 있지 않으면 불러올 수 없다.
+        // 각인된 큐브가 있어도 한 번에 불러온다(재구성을 따로 누르지 않는다).
+        run(ctx, 'let st0 = ensureCoreCubeState(); st0.faces = [1,1,1,1,1,1]; st0.completed = true; st0.powers = {};');
         run(ctx, 'applyCoreCubePreset(0)');
-        assert.ok(ctx.logs.some(line => line.includes('재구성해 비운 뒤')), '판이 차 있으면 불러오기를 거부해야 한다');
+        assert.strictEqual(run(ctx, 'JSON.stringify(ensureCoreCubeState().faces)'), '[3,9,14,22,31,44]',
+            '각인된 큐브 위에도 프리셋이 곧바로 덮여야 한다');
 
-        // 비운 뒤 불러오면 동력원을 쓰지 않고 완성 상태가 된다.
+        // 비어 있는 큐브에서도 동일하게 동작한다.
         run(ctx, 'let st = ensureCoreCubeState(); st.faces = [null,null,null,null,null,null]; st.completed = false; st.powers = {};');
         run(ctx, 'applyCoreCubePreset(0)');
         assert.strictEqual(run(ctx, 'JSON.stringify(ensureCoreCubeState().faces)'), '[3,9,14,22,31,44]',
@@ -117,7 +119,7 @@ async function main() {
         run(ctx, 'let st = ensureCoreCubeState(); for (let n = 1; n <= 44; n++) markCoreCubePowerUsed(st, n);');
         assert.strictEqual(run(ctx, 'getCoreCubeUsedPowerCount(ensureCoreCubeState())'), 44, '사용 이력이 집계되어야 한다');
         assert.strictEqual(run(ctx, 'isCoreCubePresetSlotUnlocked(1)'), false, '한 종류라도 빠지면 잠겨 있어야 한다');
-        run(ctx, 'saveCoreCubePreset(1)');
+        await vm.runInContext('saveCoreCubePreset(1)', ctx);
         assert.strictEqual(run(ctx, 'ensureCoreCubeState().presets[1]'), null, '잠긴 칸에는 저장되면 안 된다');
 
         run(ctx, 'markCoreCubePowerUsed(ensureCoreCubeState(), 45);');
@@ -143,9 +145,9 @@ async function main() {
             st.completed = true;
             st.powers = { 5: 3 };
             for (let n = 1; n <= 45; n++) markCoreCubePowerUsed(st, n);
-            saveCoreCubePreset(0);
-            relockCoreCubeForLoop();
         `);
+        await vm.runInContext('saveCoreCubePreset(0)', ctx);
+        run(ctx, 'relockCoreCubeForLoop()');
         assert.strictEqual(run(ctx, 'JSON.stringify(ensureCoreCubeState().presets[0].faces)'), '[1,2,3,4,5,6]',
             '프리셋은 루프를 건너 유지되어야 한다');
         assert.strictEqual(run(ctx, 'getCoreCubeUsedPowerCount(ensureCoreCubeState())'), 45,
@@ -162,6 +164,19 @@ async function main() {
             '루프가 지나도 동력원 없이 프리셋을 복원할 수 있어야 한다');
         assert.strictEqual(run(ctx, 'Object.keys(ensureCoreCubeState().powers).length'), 0,
             '복원에 동력원이 들어가면 안 된다');
+    }
+
+    // 저장칸 덮어쓰기는 확인을 받아야 한다. 취소하면 기존 조합이 그대로 남는다.
+    {
+        const ctx = loadCubeContext({ confirm: false });
+        run(ctx, 'let st = ensureCoreCubeState(); st.faces = [1,2,3,4,5,6];');
+        await vm.runInContext('saveCoreCubePreset(0)', ctx);
+        assert.strictEqual(run(ctx, 'JSON.stringify(ensureCoreCubeState().presets[0].faces)'), '[1,2,3,4,5,6]',
+            '빈 칸에 처음 저장할 때는 확인 없이 저장되어야 한다');
+        run(ctx, 'ensureCoreCubeState().faces = [7,8,9,10,11,12];');
+        await vm.runInContext('saveCoreCubePreset(0)', ctx);
+        assert.strictEqual(run(ctx, 'JSON.stringify(ensureCoreCubeState().presets[0].faces)'), '[1,2,3,4,5,6]',
+            '덮어쓰기를 취소하면 기존 조합이 남아야 한다');
     }
 
     console.log('smoke-core-cube-presets passed');

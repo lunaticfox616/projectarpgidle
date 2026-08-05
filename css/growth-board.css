@@ -93,3 +93,17 @@
     .growth-board { gap: 2px; padding: 5px; }
     .growth-cell { min-width: 22px; }
 }
+
+/* 보관함 필터 / 보드 조작 버튼 */
+.growth-filter-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; grid-column: 1 / -1; }
+.growth-filter-chip {
+    font-size: 0.76em;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid #34506b;
+    background: rgba(12, 20, 30, 0.6);
+    color: #7f93a8;
+    cursor: pointer;
+}
+.growth-filter-chip.on { border-color: #4d8f6d; color: #a8e6c0; background: rgba(18, 40, 30, 0.6); }
+.growth-control-actions { display: flex; gap: 5px; flex-wrap: wrap; }
