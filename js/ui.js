@@ -8895,18 +8895,24 @@ function renderEquipmentLoadoutSummary(pStats) {
 
 function updateInventoryFullWarnings() {
     let changed = false;
+    // 보조장비 탭 하나가 주얼과 생장 보관함을 함께 품는다. 배지는 하나뿐이므로
+    // 둘 중 하나라도 가득 차면 켜고, 어느 쪽이 찼는지는 툴팁으로 알린다.
     let warnings = [
-        ['inventory-full-warning', game.inventory || [], getInventoryLimit()],
-        ['jewel-inventory-full-warning', game.jewelInventory || [], getJewelInventoryLimit()]
+        ['inventory-full-warning', [['장비', game.inventory || [], getInventoryLimit()]]],
+        ['jewel-inventory-full-warning', [
+            ['주얼', game.jewelInventory || [], getJewelInventoryLimit()],
+            ['생장', game.growthInventory || [], typeof getGrowthInventoryLimit === 'function' ? getGrowthInventoryLimit() : Infinity]
+        ]]
     ];
-    warnings.forEach(([id, entries, limit]) => {
+    warnings.forEach(([id, sources]) => {
         let element = document.getElementById(id);
         if (!element) return;
-        let isFull = entries.length >= limit;
-        let nextDisplay = isFull ? 'inline-block' : 'none';
+        let full = sources.filter(([, entries, limit]) => entries.length >= limit);
+        let nextDisplay = full.length ? 'inline-block' : 'none';
         if (element.style.display !== nextDisplay) changed = true;
         element.style.display = nextDisplay;
-        element.title = isFull ? `${entries.length}/${limit}칸 · 공간을 확보하세요` : '';
+        element.title = full.map(([label, entries, limit]) => `${label} ${entries.length}/${limit}칸`).join(' · ');
+        if (element.title) element.title += ' · 공간을 확보하세요';
     });
     if (changed && document.body.classList.contains('desktop-windowed-ui') && typeof syncDesktopRailGroups === 'function') {
         syncDesktopRailGroups();
@@ -8927,6 +8933,12 @@ function syncInventoryExpansionShortcuts() {
             unlocked: isMarketUnlocked() && (game.season || 1) >= 5,
             cost: getJewelMarketExpandCost(),
             currentLimit: getJewelInventoryLimit()
+        },
+        {
+            id: 'btn-growth-inventory-expand',
+            unlocked: isMarketUnlocked() && typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked(),
+            cost: getGrowthMarketExpandCost(),
+            currentLimit: getGrowthInventoryLimit()
         }
     ];
     controls.forEach(control => {
@@ -12862,6 +12874,7 @@ function mergeDefaults(save) {
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0)) + pendingJournalPassivePoints;
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
+    merged.growthInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.growthInventoryExpandLevel, defaultGame.growthInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
     merged.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(merged.settings.damageNumberFormat) ? merged.settings.damageNumberFormat : 'comma';
     merged.settings.showExpComma = merged.settings.showExpComma !== false;

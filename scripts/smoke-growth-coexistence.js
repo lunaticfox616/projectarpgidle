@@ -217,4 +217,30 @@ function loadStatSourceContract(gameState) {
     assert.ok(context.game.growthInventory.length <= limit, '섞인 드랍에서도 보관함 상한을 지켜야 한다');
 }
 
+// ── 생장 보관함 확장 경로 ────────────────────────────────────────────────
+// growthInventoryExpandLevel은 한도 계산에만 쓰이고 올릴 방법이 없어, 40칸이
+// 사실상 고정 상한이었다(장비·주얼에는 황금률 확장이 있다).
+{
+    const utils = fs.readFileSync('js/utils.js', 'utf8');
+    const items = fs.readFileSync('js/items.js', 'utf8');
+    const html = fs.readFileSync('index.html', 'utf8');
+    const ui = fs.readFileSync('js/ui.js', 'utf8');
+
+    assert.ok(/function getGrowthMarketExpandCost\(/.test(utils), '생장 보관함 확장 비용 함수가 있어야 한다');
+    const action = items.slice(items.indexOf('async function marketExpandGrowthInventoryByDivine'),
+        items.indexOf('function getBaseDefenseProfile'));
+    assert.ok(action.length > 0, '생장 보관함 확장 동작이 있어야 한다');
+    assert.ok(/growthInventoryExpandLevel[^\n]*\+ 1/.test(action), '확장은 growthInventoryExpandLevel을 올려야 한다');
+    assert.ok(/goldenRule -= cost/.test(action), '확장은 황금률을 소모해야 한다');
+    assert.ok(/requestGameConfirmation/.test(action), '확장은 확인을 받아야 한다');
+    assert.ok(/getGrowthMarketExpandCost\(\) !== cost/.test(action), '확인 도중 비용이 바뀌면 취소해야 한다');
+    assert.ok(/isGrowthBoardUnlocked/.test(action), '생장판 해금 전에는 확장을 막아야 한다');
+
+    assert.ok(/marketExpandGrowthInventoryByDivine\(\)/.test(html), '확장 버튼이 화면에 있어야 한다');
+    assert.ok(/id="ui-market-service-growth-inv"/.test(html), '거래소에 생장 보관함 확장 항목이 있어야 한다');
+    assert.ok(/btn-growth-inventory-expand/.test(ui), '보관함이 가득 찰 때 쓰는 단축 버튼을 갱신해야 한다');
+    // 확장 레벨은 저장 왕복에서 살아남아야 한다(영구 확장이라고 안내한다).
+    assert.ok(/merged\.growthInventoryExpandLevel\s*=/.test(ui), '확장 레벨은 저장 정규화 대상이어야 한다');
+}
+
 console.log('smoke-growth-coexistence passed');

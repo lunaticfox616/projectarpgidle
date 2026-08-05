@@ -806,6 +806,7 @@
                         <div id="ui-market-service-annul" style="margin-bottom:8px;"></div>
                         <div id="ui-market-service-inv" style="margin-bottom:4px;"></div>
                         <div id="ui-market-service-jewel-inv" style="margin-bottom:4px;"></div>
+                        <div id="ui-market-service-growth-inv" style="margin-bottom:4px;"></div>
                         <div id="ui-market-service-pollen" style="margin-bottom:4px;"></div>
                     </div>
                 </div>
@@ -1097,7 +1098,7 @@
 
         <h2 style="margin-top: 18px;">
             <span>🌿 생장 보관함 (<span id="ui-growth-inv-count">0</span> / <span id="ui-growth-inv-limit">40</span>)</span>
-            <span class="h2-right"><button onclick="bulkSalvageGrowthInventory()">일괄 해체</button></span>
+            <span class="h2-right"><button id="btn-growth-inventory-expand" class="inventory-expand-shortcut" type="button" onclick="marketExpandGrowthInventoryByDivine()" hidden>+5칸 확장</button><button onclick="bulkSalvageGrowthInventory()">일괄 해체</button></span>
         </h2>
         <div class="growth-card-grid" id="ui-growth-inventory"></div>
     </div>

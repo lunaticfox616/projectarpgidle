@@ -722,6 +722,22 @@ async function marketExpandJewelInventoryByDivine() {
     updateStaticUI();
 }
 
+async function marketExpandGrowthInventoryByDivine() {
+    if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
+    if (typeof isGrowthBoardUnlocked !== 'function' || !isGrowthBoardUnlocked()) return addLog('생장판 해금 후 이용할 수 있습니다.', 'attack-monster');
+    let cost = getGrowthMarketExpandCost();
+    if ((game.currencies.goldenRule || 0) < cost) return addLog(`황금률이 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if (!await requestGameConfirmation(`황금률 ${cost}개를 소모하여 생장 보관함을 영구히 5칸 확장합니다.\n이 확장은 루프 종료 후에도 유지됩니다.`, {
+        title: '생장 보관함 영구 확장',
+        confirmLabel: '확장'
+    })) return;
+    if (getGrowthMarketExpandCost() !== cost || (game.currencies.goldenRule || 0) < cost) return addLog('확인 중 확장 비용 또는 재화가 변경되어 취소했습니다.', 'attack-monster');
+    game.currencies.goldenRule -= cost;
+    game.growthInventoryExpandLevel = Math.max(0, Math.floor(game.growthInventoryExpandLevel || 0)) + 1;
+    addLog(`🌱 생장 보관함 영구 확장 완료! 현재 최대 칸: ${getGrowthInventoryLimit()}`, 'loot-unique');
+    updateStaticUI();
+}
+
 function getBaseDefenseProfile(base) {
     let ids = new Set((base.baseStats || []).map(stat => stat.id));
     return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
@@ -1393,6 +1409,16 @@ function renderMarketUI() {
             <button onclick="marketExpandJewelInventoryByDivine()" ${(game.currencies.goldenRule || 0) < cost ? 'disabled' : ''}>주얼 인벤토리 확장</button>`;
         }
     }
+    let growthInvEl = document.getElementById('ui-market-service-growth-inv');
+    if (growthInvEl) {
+        let open = typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked();
+        growthInvEl.style.display = open ? 'block' : 'none';
+        if (open) {
+            let cost = getGrowthMarketExpandCost();
+            growthInvEl.innerHTML = `<div class="market-service-title">황금률 ${cost}개 → 생장 보관함 영구 5칸 확장 (현재: ${getGrowthInventoryLimit()}칸)</div>
+            <button onclick="marketExpandGrowthInventoryByDivine()" ${(game.currencies.goldenRule || 0) < cost ? 'disabled' : ''}>생장 보관함 확장</button>`;
+        }
+    }
     let pollenEl = document.getElementById('ui-market-service-pollen');
     if (pollenEl) {
         let open = (game.season || 1) >= 8;
@@ -1483,4 +1509,4 @@ function renderMarketUI() {
 }
 
 
-safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, renderMarketUI, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, marketExpandGrowthInventoryByDivine, renderMarketUI, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
