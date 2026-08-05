@@ -67,7 +67,7 @@ const itemLevel = (ctx, id) => vm.runInContext(`getGrowthItemLevel(${id})`, ctx)
     const ctx = loadContext();
     placeSlab(ctx, 1, 'gs_base', 5, 2);   // 같은 행 +1
     assert.strictEqual(cellLevel(ctx, 0, 2), 1, '같은 행의 다른 칸은 레벨 +1이어야 한다');
-    assert.strictEqual(cellLevel(ctx, 11, 2), 1, '행 끝까지 레벨이 닿아야 한다');
+    assert.strictEqual(cellLevel(ctx, ctx.GROWTH_BOARD_W - 1, 2), 1, '행 끝까지 레벨이 닿아야 한다');
     assert.strictEqual(cellLevel(ctx, 5, 2), 0, '석판 자기 칸은 올리지 않는다');
     assert.strictEqual(cellLevel(ctx, 5, 1), 0, '다른 행은 영향을 받지 않아야 한다');
 }
@@ -125,20 +125,25 @@ const itemLevel = (ctx, id) => vm.runInContext(`getGrowthItemLevel(${id})`, ctx)
     assert.strictEqual(cellLevel(ctx2, 5, 1), -1, '행 밖의 상하좌우 칸은 페널티만 받아 -1이어야 한다');
 }
 
-// ── 아이템 레벨 = 점유 칸의 최댓값 ───────────────────────────────────────
+// ── 아이템 레벨 = 자기 칸의 레벨 (모든 아이템이 1칸) ─────────────────────
 {
     const ctx = loadContext();
-    // 화로의 석판(상하좌우 +2)을 (5,2)에 두고, 그 위에 가로 4칸 아이템을 (4,1)에 놓는다.
-    // 점유 칸 (4,1)(5,1)(6,1)(7,1) 중 (5,1)만 +2 → 아이템 레벨 2.
+    // 화로의 석판(상하좌우 +2)을 (5,2)에 두고, 바로 위 칸에 아이템을 놓는다.
     placeSlab(ctx, 1, 'gs_hearth', 5, 2);
-    placeBase(ctx, 2, 'gb_null_lattice', 4, 1);   // line4
-    assert.strictEqual(itemLevel(ctx, 2), 2, '아이템은 점유 칸 중 최댓값 레벨을 받아야 한다');
+    placeBase(ctx, 2, 'gb_null_lattice', 5, 1);
+    assert.strictEqual(itemLevel(ctx, 2), 2, '아이템은 자신이 선 칸의 레벨을 받아야 한다');
 
-    // 1칸 아이템을 같은 +2 칸에 정확히 놓아도 레벨은 동일하다 — 크기가 유리함을 주지 않는다.
+    // 종류가 달라도 같은 칸이면 같은 레벨이다 — 레벨은 위치만 본다.
     const ctx2 = loadContext();
     placeSlab(ctx2, 1, 'gs_hearth', 5, 2);
-    placeBase(ctx2, 2, 'gf_spark_seed', 5, 1);    // dot1
-    assert.strictEqual(itemLevel(ctx2, 2), 2, '1칸 아이템도 같은 칸에서 같은 레벨을 받아야 한다');
+    placeBase(ctx2, 2, 'gf_spark_seed', 5, 1);
+    assert.strictEqual(itemLevel(ctx2, 2), 2, '다른 종류의 아이템도 같은 칸에서 같은 레벨을 받아야 한다');
+
+    // 영향권 밖 칸은 레벨 0이다.
+    const ctx3 = loadContext();
+    placeSlab(ctx3, 1, 'gs_hearth', 5, 2);
+    placeBase(ctx3, 2, 'gf_spark_seed', 5, 0);
+    assert.strictEqual(itemLevel(ctx3, 2), 0, '영향권 밖 칸의 아이템은 레벨 0이어야 한다');
 }
 
 // ── 석판 자신은 레벨을 받지 않는다 ───────────────────────────────────────
@@ -159,12 +164,14 @@ const itemLevel = (ctx, id) => vm.runInContext(`getGrowthItemLevel(${id})`, ctx)
 
     // 상한: 석판을 잔뜩 겹쳐도 아이템 레벨이 cap을 넘지 않는다.
     const ctx2 = loadContext();
+    // 반항의 석판(행 +3) 4장을 한 행에 몰면 원래 +12지만 상한에서 잘린다.
+    // 대상 칸은 어느 석판과도 상하좌우로 붙지 않아 -1 페널티를 받지 않는다.
     let slabId = 1;
-    for (let x = 0; x < 10; x += 2) placeSlab(ctx2, slabId++, 'gs_base', x, 2);
-    placeBase(ctx2, 100, 'gf_spark_seed', 11, 2);
+    for (let x = 0; x < 4; x++) placeSlab(ctx2, slabId++, 'gs_defiance', x, 2);
+    placeBase(ctx2, 100, 'gf_spark_seed', ctx2.GROWTH_BOARD_W - 1, 2);
+    assert.strictEqual(cellLevel(ctx2, ctx2.GROWTH_BOARD_W - 1, 2), 12, '칸 레벨 자체는 중첩 합계 그대로여야 한다');
     const level = itemLevel(ctx2, 100);
-    assert.ok(level <= cap, `아이템 레벨은 상한(${cap})을 넘지 않아야 한다 (현재 ${level})`);
-    assert.ok(level > 0, '중첩된 석판이 실제로 레벨을 올려야 한다');
+    assert.strictEqual(level, cap, `아이템 레벨은 상한(${cap})에서 잘려야 한다 (현재 ${level})`);
 }
 
 // ── 배치가 스탯 배율로 이어진다 ──────────────────────────────────────────

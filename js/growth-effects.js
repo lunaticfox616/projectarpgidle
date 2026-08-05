@@ -113,11 +113,13 @@ const GROWTH_CONDITION_HANDLERS = {
         facts.adjacentEntries.forEach(other => GROWTH_ELEMENT_TAGS.forEach(tag => { if (getGrowthItemTags(other.item).has(tag)) found.add(tag); }));
         return found.size;
     },
-    adjMinSize: (facts, when, ctx) => facts.adjacentEntries.filter(other => {
-        if (when.category && other.item.growthCategory !== when.category) return false;
-        return (ctx.facts.get(other.item.id) || { size: 0 }).size >= Math.floor(when.size || 1);
-    }).length,
-    adjExactSize: (facts, when, ctx) => facts.adjacentEntries.filter(other => (ctx.facts.get(other.item.id) || { size: 0 }).size === Math.floor(when.size || 1)).length,
+    // 모든 아이템이 1칸이라 "거리"가 크기를 대신하는 배치 축이 된다.
+    atDistance: (facts, when, ctx) => {
+        let want = Math.max(1, Math.floor(when.distance || 2));
+        return ctx.entries.filter(other => other.item.id !== facts.entry.item.id
+            && (!when.category || other.item.growthCategory === when.category)
+            && getGrowthEntryDistance(facts.entry, other) === want).length;
+    },
     isolated: (facts) => facts.adjacentEntries.length === 0 ? 1 : 0,
     // 판정기는 "충족 규모"를 그대로 돌려주고, min/per 해석은 evaluateGrowthCondition이 단독으로 맡는다.
     wallTouch: (facts) => facts.wallDirs.size,
@@ -141,16 +143,6 @@ const GROWTH_CONDITION_HANDLERS = {
         return facts.cells.some(([x, y]) => {
             let ownerId = ctx.owner.get(`${GROWTH_BOARD_W - 1 - x},${y}`);
             return ownerId !== undefined && ownerId !== selfId;
-        }) ? 1 : 0;
-    },
-    splitGapFilled: (facts, when, ctx) => {
-        let placement = facts.entry.placement;
-        let gaps = getGrowthItemGapCells(facts.entry.item, placement.rotation).map(([x, y]) => `${x + placement.x},${y + placement.y}`);
-        return gaps.some(key => {
-            let ownerId = ctx.owner.get(key);
-            if (ownerId === undefined) return false;
-            let other = ctx.byId.get(ownerId);
-            return !!other && (!when.category || other.item.growthCategory === when.category);
         }) ? 1 : 0;
     },
     rowCategoryCount: (facts, when, ctx) => countGrowthLineMatches(facts, when, ctx, 'rows'),
@@ -270,16 +262,20 @@ const GROWTH_GLOBAL_HANDLERS = {
         return found.size >= Math.max(1, Math.floor(rule.min || 1)) ? 1 : 0;
     },
     tagItemCount: (ctx, rule) => ctx.entries.filter(entry => getGrowthItemTags(entry.item).has(rule.tag)).length >= Math.max(1, Math.floor(rule.min || 1)) ? 1 : 0,
-    exactSizeCount: (ctx, rule) => {
-        let count = ctx.entries.filter(entry => entry.cells.length === Math.floor(rule.size || 1)).length;
-        return count === Math.floor(rule.exact || 0) ? 1 : 0;
+    cornersOccupied: (ctx) => {
+        let corners = [[0, 0], [GROWTH_BOARD_W - 1, 0], [0, GROWTH_BOARD_H - 1], [GROWTH_BOARD_W - 1, GROWTH_BOARD_H - 1]];
+        return corners.every(([x, y]) => ctx.owner.has(`${x},${y}`)) ? 1 : 0;
     },
     allUniqueBases: (ctx, rule) => {
         if (ctx.entries.length < Math.max(1, Math.floor(rule.min || 1))) return 0;
         let seen = new Set(ctx.entries.map(entry => entry.item.growthBaseId));
         return seen.size === ctx.entries.length ? 1 : 0;
     },
-    sizeKindCount: (ctx, rule) => new Set(ctx.entries.map(entry => entry.cells.length)).size >= Math.max(1, Math.floor(rule.min || 1)) ? 1 : 0,
+    categoryBalance: (ctx, rule) => {
+        let min = Math.max(1, Math.floor(rule.min || 1));
+        return ['flower', 'branch', 'leaf'].every(category =>
+            ctx.entries.filter(entry => entry.item.growthCategory === category).length >= min) ? 1 : 0;
+    },
     emptyUnlockedCells: (ctx, rule) => {
         let board = ensureGrowthBoardState();
         let empty = board.unlockedCellCount - ctx.owner.size;
@@ -312,7 +308,7 @@ const GROWTH_UNIQUE_EFFECT_HANDLERS = {
     worldTreeHeart: (entry, facts, ctx, out) => {
         ctx.entries.forEach(other => {
             if (other.item.id === entry.item.id || other.item.growthCategory !== 'flower') return;
-            if (getGrowthEntryDistance(entry, other) < 6) return;
+            if (getGrowthEntryDistance(entry, other) < 5) return;
             multiplyGrowthItemStats(out, other.item.id, 1.25);
         });
     },
@@ -320,23 +316,14 @@ const GROWTH_UNIQUE_EFFECT_HANDLERS = {
         if (facts.adjacentEntries.length > 0) pushGrowthGrant(out, entry, 'dr', facts.adjacentEntries.length, '요람 가지: 인접 수만큼 물리 피해 감소');
     },
     voidRing: (entry, facts, ctx, out) => {
-        let placement = entry.placement;
-        getGrowthItemGapCells(entry.item, placement.rotation).forEach(([x, y]) => {
-            let ownerId = ctx.owner.get(`${x + placement.x},${y + placement.y}`);
-            if (ownerId === undefined) return;
-            let inner = ctx.byId.get(ownerId);
-            if (inner && inner.cells.length === 1) multiplyGrowthItemStats(out, ownerId, 2);
-        });
+        getGrowthSurroundingEntries(entry, ctx).forEach(other => multiplyGrowthItemStats(out, other.item.id, 1.35));
     },
     twinSpore: (entry, facts, ctx, out) => {
-        let placement = entry.placement;
-        getGrowthItemGapCells(entry.item, placement.rotation).forEach(([x, y]) => {
-            let ownerId = ctx.owner.get(`${x + placement.x},${y + placement.y}`);
-            let inner = ownerId === undefined ? null : ctx.byId.get(ownerId);
-            if (!inner) return;
-            (Array.isArray(inner.item.stats) ? inner.item.stats : []).forEach(stat => {
+        ctx.entries.forEach(other => {
+            if (other.item.id === entry.item.id || getGrowthEntryDistance(entry, other) !== 2) return;
+            (Array.isArray(other.item.stats) ? other.item.stats : []).forEach(stat => {
                 if (!stat || !stat.id || !Number.isFinite(Number(stat.val))) return;
-                pushGrowthGrant(out, entry, stat.id, Number(stat.val) * 0.2, '쌍둥이 홀씨: 사이 아이템 옵션 복사');
+                pushGrowthGrant(out, entry, stat.id, Number(stat.val) * 0.2, '쌍둥이 홀씨: 2칸 거리 옵션 복사');
             });
         });
     },
@@ -357,6 +344,20 @@ const GROWTH_UNIQUE_EFFECT_HANDLERS = {
         if (vertical && horizontal) pushGrowthGrant(out, entry, 'pctHp', 10, '경계석: 모서리');
     }
 };
+
+/** 주변 8칸(대각선 포함)에 놓인 다른 아이템들. 인접 판정(상하좌우)보다 넓다. */
+function getGrowthSurroundingEntries(entry, ctx) {
+    let [ox, oy] = entry.cells[0] || [0, 0];
+    let found = new Set();
+    for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            let ownerId = ctx.owner.get(`${ox + dx},${oy + dy}`);
+            if (ownerId !== undefined && ownerId !== entry.item.id) found.add(ownerId);
+        }
+    }
+    return Array.from(found).map(id => ctx.byId.get(id)).filter(Boolean);
+}
 
 function getGrowthEntryDistance(a, b) {
     let best = Infinity;

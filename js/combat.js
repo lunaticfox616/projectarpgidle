@@ -472,7 +472,6 @@ function rollGrowthItemDrop(enemy, equipmentDropChance) {
     if (Math.random() >= Math.max(0, Number(equipmentDropChance) || 0) * 0.5) return;
     let item = generateGrowthDrop(enemy);
     if (!item || !addDroppedGrowthItem(item)) return;
-    notifyFirstSmallGrowthBase(item);
     if (!game.settings.showLootLog) return;
     addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#8fe6a8', duration: 780 });
     if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#7fd99a', duration: 1200 });
@@ -10029,7 +10028,6 @@ function triggerSeasonReset(options) {
     // 생장판: 해금된 칸 수와 소형 베이스 도감은 영구 성장이라 루프를 건너 유지한다 (spec 20).
     // 봉인된 생장 아이템은 최근 획득함에 남아 있어도 보존한다.
     let preservedGrowthUnlockedCells = Math.max(0, Math.floor(((game.growthBoard || {}).unlockedCellCount) || 0));
-    let preservedGrowthSmallBaseSeen = JSON.parse(JSON.stringify(game.growthSmallBaseSeen || {}));
     let preservedSealedRecentDrops = (game.recentGrowthDrops || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
     let preservedSealedGrowthInventory = (game.growthInventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
     let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.ouroboros) || 0));
@@ -10123,7 +10121,6 @@ function triggerSeasonReset(options) {
     if (typeof resetGrowthBoardForLoop === 'function') resetGrowthBoardForLoop(preservedGrowthUnlockedCells);
     game.recentGrowthDrops = preservedSealedRecentDrops;
     game.growthInventory = preservedSealedGrowthInventory;
-    game.growthSmallBaseSeen = preservedGrowthSmallBaseSeen;
     if (preservedWoodsmanTouch > 0) game.currencies.ouroboros = preservedWoodsmanTouch;
     game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;

@@ -21,11 +21,11 @@ function getGrowthCraftSlot(category) {
     return (GROWTH_CATEGORY_INFO[category] || {}).craftSlot || '목걸이';
 }
 
-/** 크기에 따른 추가 옵션 상한 (spec 9). 마법은 항상 최대 2줄. */
+/** 종류별 추가 옵션 상한. 모든 아이템이 1칸이라 크기가 아닌 종류가 옵션 폭을 정한다. */
 function getGrowthItemAffixCap(item) {
     if (!isGrowthItem(item)) return 6;
-    if (item.growthCategory === 'slab') return 0;
-    let cap = getGrowthSizeAffixCap(getGrowthItemSize(item));
+    let cap = getGrowthCategoryAffixCap(item.growthCategory);
+    if (cap <= 0) return 0;
     if (item.rarity === 'magic') return Math.min(2, cap);
     if (item.rarity === 'normal') return 0;
     return cap;
@@ -33,12 +33,7 @@ function getGrowthItemAffixCap(item) {
 
 function isGrowthBaseUnlockedAtTier(base, tier) {
     if (!base) return false;
-    let reqTier = Math.max(1, Math.floor(base.reqTier || 1));
-    if (tier < reqTier) return false;
-    let shape = getGrowthShapeDef(base.shapeId);
-    let size = shape ? shape.cells.length : 9;
-    let sizeGate = GROWTH_SIZE_TIER_GATES[size];
-    return !Number.isFinite(sizeGate) || tier >= sizeGate;
+    return tier >= Math.max(1, Math.floor(base.reqTier || 1));
 }
 
 // 콘텐츠별 드랍 성향 (spec 23): 지역 종류에 따라 선호 종류/태그 가중치를 준다.
@@ -122,7 +117,7 @@ function generateGrowthUniqueItem(tier, forcedName) {
     if (!unique) return null;
     let base = unique.baseId ? GROWTH_BASE_DB.find(row => row && row.id === unique.baseId) : null;
     let category = unique.category || (base ? base.category : 'flower');
-    let shapeId = unique.shapeId || (base ? base.shapeId : 'block9');
+    let shapeId = unique.shapeId || (base ? base.shapeId : 'dot1');
     itemIdCounter++;
     let item = {
         id: itemIdCounter,
@@ -233,25 +228,8 @@ function generateGrowthDrop(enemy) {
     return item;
 }
 
-// 소형 베이스 첫 획득 안내 (spec 23).
-function notifyFirstSmallGrowthBase(item) {
-    if (!isGrowthItem(item)) return;
-    let size = getGrowthItemSize(item);
-    if (size > 3) return;
-    game.growthSmallBaseSeen = (game.growthSmallBaseSeen && typeof game.growthSmallBaseSeen === 'object') ? game.growthSmallBaseSeen : {};
-    let key = String(size);
-    if (game.growthSmallBaseSeen[key]) return;
-    game.growthSmallBaseSeen[key] = true;
-    addLog(`✨ 처음으로 ${size}칸 소형 베이스를 획득했습니다! 작은 아이템은 같은 공간에 더 많이 배치해 시너지를 조립할 수 있습니다.`, 'loot-unique');
-    if (typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice(`growth_small_base_${size}`, `${size}칸 베이스 해금`,
-            `작은 생장 아이템은 옵션 수가 적은 대신 같은 공간에 더 많이 배치됩니다.\n인접·행/열·태그 조건을 조립해 대형 아이템의 중심축을 강화하세요.`, 'tab-items', 'item-tab-growth');
-    }
-}
-
 // ── 타락 (spec 18) ───────────────────────────────────────────────────────
-// 크기 감소는 매우 희귀하며, 무작위 칸을 지우지 않고 베이스 형태의 사전 정의된 축소 규칙을 쓴다
-// (getGrowthItemCells의 growthShrunk 처리: 형태 정의 순서상 마지막 칸 제거).
+// 모든 아이템이 1칸이라 크기 변화 결과는 없다. 대신 태그·옵션·회전 봉인으로 갈린다.
 const GROWTH_CORRUPTION_OUTCOMES = [
     { weight: 22, key: 'addAffix' },
     { weight: 16, key: 'empowerAffix' },
@@ -260,15 +238,13 @@ const GROWTH_CORRUPTION_OUTCOMES = [
     { weight: 10, key: 'lockRotation' },
     { weight: 22, key: 'nothing' },
     { weight: 6, key: 'destroy' },
-    { weight: 3, key: 'shrink' },
-    { weight: 1, key: 'grow' }
+    { weight: 4, key: 'grow' }
 ];
 
 const GROWTH_CORRUPTION_TAG_POOL = ['폭발', '연쇄', '반복', '충전', '보호막', '반격', '이동', '상태이상', '회복', '변환'];
 
 function pickGrowthCorruptionOutcome(item) {
     let pool = GROWTH_CORRUPTION_OUTCOMES.filter(row => {
-        if (row.key === 'shrink') return getGrowthItemSize(item) > 1 && !item.growthShrunk;
         if (row.key === 'lockRotation') return !item.rotationLocked;
         if (row.key === 'removeTag') return getGrowthItemTags(item).size > 1;
         return true;
@@ -311,16 +287,12 @@ function applyGrowthCorruptionOutcome(item) {
         });
         return addLog('🩸 타락: 회전이 봉인된 대신 베이스 옵션이 25% 강해졌습니다.', 'loot-unique');
     }
-    if (outcome === 'shrink') {
-        item.growthShrunk = true;
-        return addLog('🩸 타락: 아이템이 한 칸 줄어들었습니다! (매우 희귀)', 'loot-unique');
-    }
     if (outcome === 'grow') {
-        item.growthTags = (Array.isArray(item.growthTags) ? item.growthTags : []).concat(['장형']);
+        item.growthTags = (Array.isArray(item.growthTags) ? item.growthTags : []).concat(['만개']);
         (item.baseStats || []).forEach(stat => {
             if (stat && Number.isFinite(Number(stat.val))) stat.val = Number((Number(stat.val) * 1.4).toFixed(2));
         });
-        return addLog('🩸 타락: 아이템이 크게 자라나 베이스 옵션이 40% 강해졌습니다! (매우 희귀)', 'loot-unique');
+        return addLog('🩸 타락: 아이템이 만개해 베이스 옵션이 40% 강해졌습니다! (매우 희귀)', 'loot-unique');
     }
     return addLog('🩸 타락: 아이템에 변화가 생기지 않았습니다.', 'attack-monster');
 }
@@ -337,12 +309,12 @@ function applyGrowthCorruptionAffix(item, empowerExisting) {
     if (!mod) return addLog('🩸 타락: 부여 가능한 추가 옵션이 없습니다.', 'attack-monster');
     item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
     updateItemName(item);
-    return addLog('🩸 타락: 추가 옵션이 부여되었습니다. (크기 상한 초과 가능)', 'loot-unique');
+    return addLog('🩸 타락: 추가 옵션이 부여되었습니다. (옵션 상한 초과 가능)', 'loot-unique');
 }
 
 safeExposeGlobals({
     getGrowthCategoryModSlots, getGrowthCraftSlot, getGrowthItemAffixCap, isGrowthBaseUnlockedAtTier,
     pickGrowthBaseForDrop, createGrowthItemFromBase, generateGrowthUniqueItem, generateGrowthDrop,
-    notifyFirstSmallGrowthBase, applyGrowthCorruptionOutcome, pickGrowthCorruptionOutcome,
+    applyGrowthCorruptionOutcome, pickGrowthCorruptionOutcome,
     createGrowthSlabItem, pickGrowthSlabDef
 });

@@ -224,25 +224,9 @@ function renderActiveGrowthSynergies() {
 }
 
 // ── 아이템 카드 / 보관함 / 최근 획득함 ───────────────────────────────────
-function renderGrowthShapePreview(item, rotation) {
-    let cells = getGrowthItemCells(item, rotation || 0);
-    if (cells.length === 0) return '';
-    let maxX = Math.max(...cells.map(c => c[0]));
-    let maxY = Math.max(...cells.map(c => c[1]));
-    let owned = new Set(cells.map(([x, y]) => `${x},${y}`));
-    let out = [];
-    for (let y = 0; y <= maxY; y++) {
-        for (let x = 0; x <= maxX; x++) {
-            out.push(`<span class="growth-mini-cell${owned.has(`${x},${y}`) ? ' on' : ''}"></span>`);
-        }
-    }
-    return `<div class="growth-mini-grid" style="grid-template-columns:repeat(${maxX + 1}, 8px);">${out.join('')}</div>`;
-}
-
 function renderGrowthItemCard(item, mode) {
     let info = getGrowthCategoryInfo(item.growthCategory);
     let placement = (getActiveGrowthLoadout().placements || {})[item.id];
-    let size = getGrowthItemSize(item);
     let selected = growthSelection.itemId === item.id;
     let itemLevel = placement && !isGrowthSlab(item) ? getGrowthItemLevel(item.id) : 0;
     let levelBadge = itemLevel !== 0
@@ -259,9 +243,8 @@ function renderGrowthItemCard(item, mode) {
         onmouseenter="showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="hideInfoTooltip()">
         <div class="growth-item-head">
             <span class="item-title loot-${item.rarity || 'normal'}">${info.icon} ${escapeHTML(item.name || '')}</span>
-            <span class="growth-item-size">${isGrowthSlab(item) ? '석판' : `${size}칸`}${levelBadge}</span>
+            <span class="growth-item-size">${isGrowthSlab(item) ? '석판' : info.label}${levelBadge}</span>
         </div>
-        ${isGrowthSlab(item) ? '' : renderGrowthShapePreview(item, placement ? placement.rotation : 0)}
         <div class="growth-item-actions">${actions}</div>
     </div>`;
 }
@@ -310,9 +293,8 @@ function buildGrowthTooltipHtml(item) {
         item.rotationLocked ? '<span style="color:#f39c12;">회전 불가</span>' : ''
     ].filter(Boolean).join(' · ');
     return `<div class="tooltip-title" style="color:${getRarityColor(item.rarity || 'normal')}">${info.icon} ${escapeHTML(item.name || '')}</div>
-        <div class="tooltip-line">${info.label} · ${getGrowthItemSize(item)}칸 · 요구 티어 ${Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1))}</div>
+        <div class="tooltip-line">${info.label} · 1칸 · 요구 티어 ${Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1))}</div>
         ${flags ? `<div class="tooltip-line">${flags}</div>` : ''}
-        ${renderGrowthShapePreview(item, placement ? placement.rotation : 0)}
         ${Math.floor(item.quality || 0) > 0 ? `<div class="tooltip-line" style="color:#8fd4ff;">품질 +${Math.floor(item.quality)}%</div>` : ''}
         ${placement ? renderGrowthLevelLine(item.id) : ''}
         <div class="tooltip-line" style="color:#f6c461;margin-top:6px;">베이스 옵션</div>
@@ -367,7 +349,6 @@ function buildGrowthComparison(candidateId, placedId) {
     let candidateTags = getGrowthItemTags(candidate);
     return {
         statDiff: statDiff,
-        sizeDelta: getGrowthItemSize(candidate) - getGrowthItemSize(placed),
         lostTags: Array.from(placedTags).filter(tag => !candidateTags.has(tag)),
         gainedTags: Array.from(candidateTags).filter(tag => !placedTags.has(tag)),
         lostSynergies: getGrowthItemConditionReport(placedId).met.map(row => row.label),
@@ -393,7 +374,7 @@ function renderGrowthComparisonPanel() {
         return `<div class="growth-compare-row">
             <div><strong>${escapeHTML(entry.item.name)}</strong> 자리와 비교 ${cmp.fits ? '<span style="color:#7fd99a;">배치 가능</span>' : '<span style="color:#e07a7a;">배치 불가</span>'}</div>
             <div>${diff || '옵션 변화 없음'}</div>
-            <div style="color:#8fb7ca;">칸 변화 ${cmp.sizeDelta > 0 ? '+' : ''}${cmp.sizeDelta} · 잃는 시너지 ${cmp.lostSynergies.length}개 · 태그 -${cmp.lostTags.length}/+${cmp.gainedTags.length}</div>
+            <div style="color:#8fb7ca;">잃는 시너지 ${cmp.lostSynergies.length}개 · 태그 -${cmp.lostTags.length}/+${cmp.gainedTags.length}</div>
         </div>`;
     }).join('');
 }
@@ -443,7 +424,7 @@ function renderGrowthCraftTargets(targetId) {
             onclick="selectForCrafting(${item.id}, false)">
             <div class="growth-item-head">
                 <span class="item-title loot-${item.rarity || 'normal'}">${info.icon} ${escapeHTML(item.name || '')}</span>
-                <span class="growth-item-size">${getGrowthItemSize(item)}칸</span>
+                <span class="growth-item-size">${getGrowthCategoryInfo(item.growthCategory).label}</span>
             </div>
             <div class="growth-item-actions"><button onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">제작 대상</button></div>
         </div>`;
@@ -494,6 +475,6 @@ safeExposeGlobals({
     selectGrowthItem, rotateGrowthSelection, handleGrowthCellClick, unplaceGrowthItem,
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, buildGrowthComparison,
-    renderGrowthShapePreview, renderGrowthCraftTargets, toggleGrowthItemLock, syncGrowthSubtabVisibility,
+    renderGrowthCraftTargets, toggleGrowthItemLock, syncGrowthSubtabVisibility,
     getSelectedSlabInfluenceCells, renderGrowthLevelLine
 });

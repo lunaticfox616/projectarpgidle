@@ -6283,12 +6283,11 @@ function getItemStatToneColor(statId) {
 }
 
 function getItemSlotDisplayLabel(item, fallbackLabel) {
-    // 생장 아이템은 부위가 아니라 종류(꽃/가지/잎)와 크기로 식별한다.
+    // 생장 아이템은 부위가 아니라 종류(꽃/가지/잎/석판)로 식별한다. 모두 1칸이라 크기는 표기하지 않는다.
     // item.slot은 옵션 풀·화석 계열 판정을 위한 내부 매핑일 뿐이라 사용자에게 노출하지 않는다.
     if (typeof isGrowthItem === 'function' && isGrowthItem(item)) {
         let info = (typeof GROWTH_CATEGORY_INFO !== 'undefined' && GROWTH_CATEGORY_INFO[item.growthCategory]) || null;
-        let size = typeof getGrowthItemSize === 'function' ? getGrowthItemSize(item) : 0;
-        return `${info ? info.label : '생장'}${size > 0 ? ` ${size}칸` : ''}`;
+        return info ? info.label : '생장';
     }
     let rawSlot = item && item.slot !== undefined && item.slot !== null ? item.slot : null;
     if (rawSlot === null && item && Array.isArray(item.slots) && item.slots.length > 0) rawSlot = item.slots[0];

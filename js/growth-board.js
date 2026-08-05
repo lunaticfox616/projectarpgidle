@@ -21,8 +21,10 @@ function normalizeGrowthCells(cells) {
     return cells.map(([x, y]) => [x - minX, y - minY]).sort((a, b) => (a[1] - b[1]) || (a[0] - b[0]));
 }
 
+// 모든 생장 아이템은 1칸이다. 예전 저장에 남은 폴리오미노 형태 id도 1칸으로 해석한다.
 function getGrowthShapeDef(shapeId) {
-    return (typeof GROWTH_SHAPE_DB !== 'undefined' && GROWTH_SHAPE_DB[shapeId]) || null;
+    if (typeof GROWTH_SHAPE_DB === 'undefined') return null;
+    return GROWTH_SHAPE_DB[shapeId] || GROWTH_SHAPE_DB.dot1 || null;
 }
 
 function getGrowthBaseDef(item) {
@@ -34,12 +36,12 @@ function isGrowthItem(item) {
     return !!(item && item.growthCategory && item.growthShapeId);
 }
 
-// 아이템의 회전 반영 점유 좌표(정규화 기준). 타락 축소(shrunk)는 형태 끝 칸 제거로 처리한다.
+// 아이템의 점유 좌표. 모든 아이템이 1칸이므로 회전은 점유 칸을 바꾸지 않지만,
+// 방향 조건(왼쪽이 외벽 등)은 회전과 함께 돌아가므로 회전 값 자체는 계속 의미가 있다.
 function getGrowthItemCells(item, rotation) {
     let shape = item ? getGrowthShapeDef(item.growthShapeId) : null;
     if (!shape) return [];
     let cells = shape.cells.map(c => [c[0], c[1]]);
-    if (item.growthShrunk && cells.length > 1) cells = normalizeGrowthCells(cells.slice(0, cells.length - 1));
     let rot = Number.isFinite(Number(rotation)) ? Number(rotation) : (item.placementRotationPreview || 0);
     if (item.rotationLocked) rot = 0;
     return rotateGrowthCells(cells, rot);
@@ -47,38 +49,6 @@ function getGrowthItemCells(item, rotation) {
 
 function getGrowthItemSize(item) {
     return getGrowthItemCells(item, 0).length;
-}
-
-// 아이템 내부의 빈칸(고리형 중앙, 분리형 사이 칸). 다른 아이템을 배치할 수 있는 좌표다.
-// 선언된 좌표를 회전시키는 대신 회전된 점유 좌표에서 직접 계산해 회전 정합성을 보장한다.
-// 판정: 경계 상자 안의 비점유 칸 중, 자신의 칸이 좌우 양쪽 또는 상하 양쪽에 있는 칸.
-function getGrowthItemGapCells(item, rotation) {
-    let cells = getGrowthItemCells(item, rotation);
-    if (cells.length <= 1) return [];
-    let owned = new Set(cells.map(([x, y]) => `${x},${y}`));
-    let maxX = Math.max(...cells.map(c => c[0]));
-    let maxY = Math.max(...cells.map(c => c[1]));
-    let gaps = [];
-    for (let y = 0; y <= maxY; y++) {
-        for (let x = 0; x <= maxX; x++) {
-            if (owned.has(`${x},${y}`)) continue;
-            let horizontal = hasOwnedCellAlong(owned, x, y, -1, 0, maxX, maxY) && hasOwnedCellAlong(owned, x, y, 1, 0, maxX, maxY);
-            let vertical = hasOwnedCellAlong(owned, x, y, 0, -1, maxX, maxY) && hasOwnedCellAlong(owned, x, y, 0, 1, maxX, maxY);
-            if (horizontal || vertical) gaps.push([x, y]);
-        }
-    }
-    return gaps;
-}
-
-function hasOwnedCellAlong(owned, x, y, dx, dy, maxX, maxY) {
-    let cx = x + dx;
-    let cy = y + dy;
-    while (cx >= 0 && cy >= 0 && cx <= maxX && cy <= maxY) {
-        if (owned.has(`${cx},${cy}`)) return true;
-        cx += dx;
-        cy += dy;
-    }
-    return false;
 }
 
 // ── 보드 상태 ────────────────────────────────────────────────────────────
@@ -493,7 +463,7 @@ function salvageRecentGrowthDrop(itemId) {
 
 safeExposeGlobals({
     rotateGrowthCells, normalizeGrowthCells, getGrowthShapeDef, getGrowthBaseDef, isGrowthItem,
-    getGrowthItemCells, getGrowthItemSize, getGrowthItemGapCells,
+    getGrowthItemCells, getGrowthItemSize,
     ensureGrowthBoardState, getGrowthCellUnlockOrder, getGrowthStageUnlockedCellCount,
     syncGrowthBoardUnlocks, isGrowthCellUnlocked, getActiveGrowthLoadout, findGrowthItemById,
     getPlacedGrowthEntries, buildGrowthOccupancyMap, canPlaceGrowthItem, placeGrowthItem,

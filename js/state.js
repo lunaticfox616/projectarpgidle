@@ -2095,7 +2095,6 @@ const defaultGame = {
     growthInventory: [],
     growthInventoryExpandLevel: 0,
     recentGrowthDrops: [],
-    growthSmallBaseSeen: {},
     jewelInventoryExpandLevel: 0,
     chaosInfuserUnlocked: false,
     abyssPassivePoints: 0,

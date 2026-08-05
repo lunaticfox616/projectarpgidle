@@ -59,16 +59,16 @@ function grantTotals(ctx) {
 // ── 인접 조건: per 조건은 충족 횟수만큼 반복 적용된다 ──────────────────────
 {
     const ctx = loadContext();
-    // 무쇠 밑동(가지, block8 4x2): 인접한 꽃 1개당 방어도 +14
+    // 무쇠 밑동(가지, 1칸): 인접한 꽃 1개당 방어도 +12
     placeBase(ctx, 1, 'gb_iron_trunk', 4, 1, 0);
     let totals = grantTotals(ctx);
     assert.ok(!totals.armor, '인접한 꽃이 없으면 인접 보너스가 없어야 한다');
 
-    // 밑동 위쪽에 꽃 두 개를 붙인다.
+    // 밑동의 위·왼쪽에 꽃 두 개를 붙인다(1칸이므로 상하좌우만 인접).
     placeBase(ctx, 2, 'gf_spark_seed', 4, 0, 0);
-    placeBase(ctx, 3, 'gf_spark_seed', 5, 0, 0);
+    placeBase(ctx, 3, 'gf_spark_seed', 3, 1, 0);
     totals = grantTotals(ctx);
-    assert.strictEqual(totals.armor, 28, '인접한 꽃 2개면 방어도 +28이어야 한다 (per 조건 2회)');
+    assert.strictEqual(totals.armor, 24, '인접한 꽃 2개면 방어도 +24여야 한다 (per 조건 2회)');
 
     // 꽃(불꽃 씨앗)은 고립 시 피해 +14% — 이제 인접했으므로 발동하지 않아야 한다.
     assert.ok(!totals.pctDmg, '인접한 상태에서는 고립 조건이 발동하면 안 된다');
@@ -79,13 +79,13 @@ function grantTotals(ctx) {
     const ctx = loadContext();
     placeBase(ctx, 1, 'gf_spark_seed', 5, 2, 0);
     const totals = grantTotals(ctx);
-    assert.strictEqual(totals.pctDmg, 14, '고립된 불꽃 씨앗은 피해 +14%를 받아야 한다');
+    assert.strictEqual(totals.pctDmg, 6, '고립된 불꽃 씨앗은 피해 +6%를 받아야 한다');
 }
 
 // ── 벽/방향 조건은 회전과 함께 돈다 ───────────────────────────────────────
 {
     const ctx = loadContext();
-    // 서리 가시꽃(zig4): 왼쪽이 외벽이면 냉각 확률 +14
+    // 서리 가시꽃(1칸): 왼쪽(회전 반영)이 외벽이면 냉각 확률 +14
     placeBase(ctx, 1, 'gf_frost_thorn', 0, 1, 0);
     let totals = grantTotals(ctx);
     assert.strictEqual(totals.chillChance, 14, '왼쪽 외벽에 붙으면 냉각 확률 조건이 충족되어야 한다');
@@ -103,12 +103,12 @@ function grantTotals(ctx) {
 // ── 행/열 조건 ───────────────────────────────────────────────────────────
 {
     const ctx = loadContext();
-    // 방벽 옹이(가지 2x2): 같은 열에 가지가 3개 이상이면 막기 +3%p
+    // 방벽 옹이(가지 1칸): 같은 열에 가지가 3개 이상이면 막기 +3%p
     placeBase(ctx, 1, 'gb_bulwark_knot', 4, 0, 0);
     let totals = grantTotals(ctx);
     assert.ok(!totals.blockChance, '같은 열의 가지가 부족하면 조건이 충족되지 않아야 한다');
 
-    placeBase(ctx, 2, 'gb_thorn_stud', 4, 2, 0);
+    placeBase(ctx, 2, 'gb_thorn_stud', 4, 1, 0);
     placeBase(ctx, 3, 'gb_thorn_stud', 4, 3, 0);
     totals = grantTotals(ctx);
     // 아이템 조건(방벽 옹이 +3)과 전역 시너지(가지 기둥 +1)가 함께 발동한다.
@@ -128,8 +128,8 @@ function grantTotals(ctx) {
     let totals = grantTotals(ctx);
     assert.ok(!totals.igniteDamageMultiplierPct, '화염 태그 이웃이 없으면 태그 조건이 충족되지 않아야 한다');
 
-    // 잉걸불 왕관화(꽃, cross5, 화염 태그)를 옆에 붙인다.
-    placeBase(ctx, 2, 'gf_ember_crown', 6, 1, 0);
+    // 잉걸불 왕관화(꽃, 화염 태그)를 바로 옆에 붙인다.
+    placeBase(ctx, 2, 'gf_ember_crown', 5, 2, 0);
     totals = grantTotals(ctx);
     assert.strictEqual(totals.igniteDamageMultiplierPct, 8, '화염 태그와 인접하면 점화 피해 증가가 부여되어야 한다');
 }
@@ -155,16 +155,19 @@ function grantTotals(ctx) {
 // ── 전역 시너지 ──────────────────────────────────────────────────────────
 {
     const ctx = loadContext();
-    // 1칸 아이템 정확히 4개 → 공격/이동 속도 +6
-    [[4, 1], [6, 1], [4, 3], [6, 3]].forEach((pos, idx) => placeBase(ctx, idx + 1, 'gf_spark_seed', pos[0], pos[1], 0));
+    // 사방의 주춧돌: 판의 네 모서리가 모두 채워지면 공격/이동 속도 +6
+    const W = ctx.GROWTH_BOARD_W;
+    const H = ctx.GROWTH_BOARD_H;
+    placeBase(ctx, 1, 'gf_spark_seed', 0, 0, 0);
+    placeBase(ctx, 2, 'gf_spark_seed', W - 1, 0, 0);
+    placeBase(ctx, 3, 'gf_spark_seed', 0, H - 1, 0);
     let totals = grantTotals(ctx);
-    assert.strictEqual(totals.aspd, 6, '1칸 아이템이 정확히 4개면 전역 시너지가 발동해야 한다');
-    assert.strictEqual(totals.move, 6, '전역 시너지의 두 번째 스탯도 적용되어야 한다');
+    assert.ok(!totals.move, '모서리가 하나라도 비면 조건이 충족되지 않아야 한다');
 
-    // 5개가 되면 "정확히 4개" 조건은 풀린다.
-    placeBase(ctx, 5, 'gf_spark_seed', 5, 2, 0);
+    placeBase(ctx, 4, 'gf_spark_seed', W - 1, H - 1, 0);
     totals = grantTotals(ctx);
-    assert.ok(!totals.aspd, '정확히 4개 조건은 5개가 되면 풀려야 한다');
+    assert.strictEqual(totals.aspd, 6, '네 모서리가 모두 채워지면 전역 시너지가 발동해야 한다');
+    assert.strictEqual(totals.move, 6, '전역 시너지의 두 번째 스탯도 적용되어야 한다');
 }
 
 // ── 캐시: 배치가 그대로면 재계산하지 않는다 ───────────────────────────────
@@ -188,7 +191,7 @@ function grantTotals(ctx) {
     placeBase(ctx, 2, 'gf_spark_seed', 4, 0, 0);
     const a = grantTotals(ctx);
     const b = grantTotals(ctx);
-    assert.strictEqual(a.armor, 14, '상호 인접이어도 방어도 보너스는 1회만 적용되어야 한다');
+    assert.strictEqual(a.armor, 12, '상호 인접이어도 방어도 보너스는 1회만 적용되어야 한다');
     assert.strictEqual(JSON.stringify(a), JSON.stringify(b), '같은 배치를 반복 계산해도 결과가 누적되면 안 된다');
 }
 
