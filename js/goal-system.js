@@ -55,6 +55,24 @@
         });
     }
 
+    // 생장판은 루프 25에 조용히 열린다. 드랍은 최근 획득함에 쌓이고, 배치하지 않으면
+    // 아무 효과도 없다. 장비에는 "장착 가능한 장비가 있습니다" 안내가 있는데 생장판에는
+    // 아무 신호가 없어, 판이 빈 채로 계속 굴러가기 쉬웠다.
+    function isGrowthGoalReady() {
+        return typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked();
+    }
+
+    function getGrowthFreeCellCount(g) {
+        if (typeof getPlacedGrowthEntries !== 'function') return 0;
+        let unlocked = Math.max(0, Math.floor((g.growthBoard && g.growthBoard.unlockedCellCount) || 0));
+        return Math.max(0, unlocked - getPlacedGrowthEntries().length);
+    }
+
+    function getUnplacedGrowthItemCount(g) {
+        if (typeof isGrowthItemPlacedInLoadout !== 'function' || !Array.isArray(g.growthInventory)) return 0;
+        return g.growthInventory.filter(item => item && !isGrowthItemPlacedInLoadout(item.id)).length;
+    }
+
     function hasAffordableGemUpgrade(g) {
         if (!g || !g.gemEnhanceUnlocked || Math.max(1, Math.floor(Number(g.season) || 1)) < 2) return false;
         if (typeof SKILL_DB === 'undefined' || !SKILL_DB || !Array.isArray(g.skills)) return false;
@@ -370,6 +388,31 @@
                 return g.inventory.length >= Math.floor(limit * INVENTORY_NOTICE_RATIO);
             },
             build(g) { return buildNotice(`인벤토리 ${g.inventory.length}/${Math.floor(getInventoryLimit())}`, 'tab-items', 'item-tab-equip'); }
+        },
+        {
+            id: 'growth-placeable',
+            matches(g) {
+                if (!isGrowthGoalReady()) return false;
+                return getGrowthFreeCellCount(g) > 0 && getUnplacedGrowthItemCount(g) > 0;
+            },
+            build(g) {
+                return buildNotice(`생장판 빈 칸 ${getGrowthFreeCellCount(g)}개에 놓을 아이템이 있습니다`, 'tab-growthboard');
+            }
+        },
+        {
+            id: 'growth-storage',
+            matches(g) {
+                if (!isGrowthGoalReady() || typeof getGrowthInventoryLimit !== 'function') return false;
+                let stored = Array.isArray(g.growthInventory) ? g.growthInventory.length : 0;
+                return stored >= Math.floor(getGrowthInventoryLimit()) || (g.recentGrowthDrops || []).length > 0;
+            },
+            build(g) {
+                // 보관함이 가득 차면 새 드랍이 거절되므로 그쪽을 먼저 알린다.
+                let stored = Array.isArray(g.growthInventory) ? g.growthInventory.length : 0;
+                let limit = Math.floor(getGrowthInventoryLimit());
+                if (stored >= limit) return buildNotice(`생장 보관함 ${stored}/${limit} · 비우지 않으면 새 드랍을 받지 못합니다`, 'tab-growthboard');
+                return buildNotice(`최근 획득함에 생장 아이템 ${(g.recentGrowthDrops || []).length}개 대기`, 'tab-growthboard');
+            }
         }
     ];
 
