@@ -180,6 +180,34 @@ assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋
     assert.strictEqual(reach, 8, `석판은 주변 8칸이 모두 살아 있는 안쪽 칸에 놓여야 한다 (현재 ${reach}칸)`);
 }
 
+// ── 렌더 지문 계약 (js/growth-ui.js) ─────────────────────────────────────
+// renderGrowthTab은 updateStaticUI마다 불린다. 매번 전부 다시 그리면 25ms가 나와
+// 전투 중 프레임이 튄다. 대신 지문으로 걸러 내는데, 화면에 영향을 주는 값이
+// 지문에서 빠지면 반대로 화면이 낡은 채로 굳는다. 빠지기 쉬운 항목을 고정한다.
+{
+    const ui = fs.readFileSync('js/growth-ui.js', 'utf8');
+    const sig = ui.slice(ui.indexOf('function getGrowthTabSignature'), ui.indexOf('function renderGrowthTab'));
+    assert.ok(sig.length > 0, '렌더 지문 함수가 있어야 한다');
+    [
+        ['activeLoadout', '세팅 전환'],
+        ['unlockedCellCount', '칸 해금'],
+        ['placements', '배치'],
+        ['rarity', '제작으로 바뀐 등급'],
+        ['stats', '제작으로 바뀐 옵션 수'],
+        ['locked', '잠금 토글'],
+        ['recentGrowthDrops', '최근 획득함'],
+        ['growthSelection.itemId', '선택'],
+        ['growthInventoryFilter', '보관함 필터'],
+        ['growthSortMode', '정렬']
+    ].forEach(([token, why]) => {
+        assert.ok(sig.includes(token), `렌더 지문에 ${token}(${why})이 빠지면 화면이 낡은 채로 굳는다`);
+    });
+    // 지문이 같아도 강제로 다시 그릴 수 있어야 한다(첫 렌더·DOM 교체 대비).
+    const render = ui.slice(ui.indexOf('function renderGrowthTab'), ui.indexOf('function renderGrowthTab') + 700);
+    assert.ok(/options\s*&&\s*options\.force/.test(render), '강제 렌더 경로가 있어야 한다');
+    assert.ok(/!host\s*\|\|\s*!host\.firstChild/.test(render), '비어 있는 화면은 지문과 무관하게 그려야 한다');
+}
+
 // ── 레이아웃 계약 (css/growth-board.css) ─────────────────────────────────
 // 이 프로젝트는 전역 border-box를 쓰지 않는다. 패딩·테두리가 있는 컨테이너에
 // width:100%만 주면 좁은 화면에서 부모 밖으로 삐져나간다(390px에서 12px 넘침).

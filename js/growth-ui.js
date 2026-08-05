@@ -667,9 +667,36 @@ function renderGrowthCraftTargetLists() {
     ['ui-craft-growth-list', 'ui-fossil-growth-list', 'ui-infuser-growth-list'].forEach(renderGrowthCraftTargets);
 }
 
-function renderGrowthTab() {
+// 이 탭은 updateStaticUI마다 불린다. 판 32칸 + 보관함 40장 + 시너지/비교 목록을
+// 매번 새로 만들면 25ms가 나와 전투 중 프레임이 눈에 띄게 튄다.
+// 화면에 영향을 주는 값만 모아 지문을 만들고, 바뀌지 않았으면 통째로 건너뛴다.
+// (시간에 따라 변하는 표시가 없어서 지문만으로 충분하다.)
+let _growthTabSignature = null;
+
+function getGrowthTabSignature() {
+    let board = ensureGrowthBoardState();
+    let loadout = getActiveGrowthLoadout();
+    let placements = Object.keys(loadout.placements || {}).sort()
+        .map(id => { let p = loadout.placements[id]; return `${id}:${p.x},${p.y},${p.rotation}`; }).join('|');
+    let items = (game.growthInventory || [])
+        .map(item => `${item.id}:${item.rarity}:${(item.stats || []).length}:${item.locked ? 1 : 0}`).join(',');
+    let recent = (game.recentGrowthDrops || []).map(item => item.id).join(',');
+    let filter = JSON.stringify((game.settings || {}).growthInventoryFilter || {});
+    let flags = [(game.settings || {}).growthSortMode, (game.settings || {}).growthAutoClaim,
+        (game.settings || {}).growthAutoSalvageEnabled, (game.settings || {}).growthUseItemFilter,
+        JSON.stringify((game.settings || {}).growthAutoSalvageRarities || {})].join('|');
+    return [board.activeLoadout, board.unlockedCellCount, game.season, game.maxZoneId,
+        growthSelection.itemId, growthSelection.rotation, placements, items, recent, filter, flags].join('#');
+}
+
+function renderGrowthTab(options) {
     syncGrowthTabVisibility();
     if (!isGrowthBoardUnlocked()) return;
+    let host = document.getElementById('ui-growth-panel');
+    let signature = getGrowthTabSignature();
+    let force = !!(options && options.force) || !host || !host.firstChild;
+    if (!force && signature === _growthTabSignature) return;
+    _growthTabSignature = signature;
     renderGrowthBoardPanel();
     let recentHost = document.getElementById('ui-growth-recent');
     if (recentHost) {
