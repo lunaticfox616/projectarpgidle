@@ -145,6 +145,41 @@ run('resetGrowthBoardForLoop(game.growthBoard.unlockedCellCount)');
 assert.strictEqual(run('Object.keys(getActiveGrowthLoadout().placements).length'), 0, '루프 리셋은 배치를 비워야 한다');
 assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋 후에도 해금 칸은 유지되어야 한다');
 
+// ── 자동 배치: 석판은 영향 범위가 넓게 닿는 칸에 놓아야 한다 ──────────────
+// 회귀: 앞칸부터 채우면 석판이 (0,0) 모서리에 박혀 상하좌우·주변 8칸 패턴이
+// 절반 넘게 판 밖으로 새어 나간다 — 석판을 먼저 놓는 의미가 사라진다.
+{
+    const ctx2 = loadGrowthContext();
+    ctx2.game.season = 60;
+    vm.runInContext('ensureGrowthBoardState(); syncGrowthBoardUnlocks({ silent: true });', ctx2);
+    const mk = (id, category, slabId) => {
+        ctx2.game.growthInventory.push({
+            id, growthShapeId: 'dot1', growthCategory: category, growthSlabId: slabId || null,
+            growthBaseId: category === 'slab' ? null : 'test_base', name: `it${id}`, rarity: 'normal', baseStats: [], stats: []
+        });
+    };
+    mk(1, 'slab', 'gs_hearth');
+    for (let i = 2; i <= 10; i++) mk(i, 'flower');
+    vm.runInContext('autoFillGrowthBoard()', ctx2);
+
+    const slabCell = vm.runInContext(`(function () {
+        var entry = getPlacedGrowthEntries().find(function (e) { return isGrowthSlab(e.item); });
+        return entry ? entry.cells[0] : null;
+    })()`, ctx2);
+    assert.ok(slabCell, '석판이 배치되어야 한다');
+
+    const reach = vm.runInContext(`(function () {
+        var c = getPlacedGrowthEntries().find(function (e) { return isGrowthSlab(e.item); }).cells[0];
+        var r = 0;
+        for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            if (isGrowthCellUnlocked(c[0] + dx, c[1] + dy)) r++;
+        }
+        return r;
+    })()`, ctx2);
+    assert.strictEqual(reach, 8, `석판은 주변 8칸이 모두 살아 있는 안쪽 칸에 놓여야 한다 (현재 ${reach}칸)`);
+}
+
 // ── 드래그 배치 계약 (js/growth-ui.js) ───────────────────────────────────
 {
     const ui = fs.readFileSync('js/growth-ui.js', 'utf8');

@@ -36,6 +36,11 @@ function isGrowthItem(item) {
     return !!(item && item.growthCategory && item.growthShapeId);
 }
 
+/** 석판 판정. 아이템 정체성이라 효과 계층이 아니라 도메인이 소유한다. */
+function isGrowthSlab(item) {
+    return !!(item && item.growthCategory === 'slab');
+}
+
 // 아이템의 점유 좌표. 모든 아이템이 1칸이므로 회전은 점유 칸을 바꾸지 않지만,
 // 방향 조건(왼쪽이 외벽 등)은 회전과 함께 돌아가므로 회전 값 자체는 계속 의미가 있다.
 function getGrowthItemCells(item, rotation) {
@@ -531,6 +536,32 @@ function tryAutoPlaceGrowthItem(item) {
 }
 
 /**
+ * 석판은 영향 범위가 넓게 닿는 칸에 놓는다.
+ * 그냥 앞칸부터 채우면 (0,0) 모서리에 박혀서 상하좌우·주변 8칸 패턴이 절반 넘게
+ * 판 밖으로 새어 나간다 — 석판을 먼저 놓는 의미가 사라진다.
+ * @returns {boolean} 배치 성공 여부
+ */
+function tryPlaceSlabAtBestCell(item) {
+    let occupancy = buildGrowthOccupancyMap();
+    let best = null;
+    for (let y = 0; y < GROWTH_BOARD_H; y++) {
+        for (let x = 0; x < GROWTH_BOARD_W; x++) {
+            if (!isGrowthCellUnlocked(x, y) || occupancy.has(`${x},${y}`)) continue;
+            let reach = 0;
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    if (isGrowthCellUnlocked(x + dx, y + dy)) reach++;
+                }
+            }
+            if (!best || reach > best.reach) best = { x, y, reach };
+        }
+    }
+    if (!best) return false;
+    return placeGrowthItem(item.id, best.x, best.y, 0).ok;
+}
+
+/**
  * 빈 칸을 미배치 아이템으로 한 번에 채운다.
  * 판이 32칸이라 손으로 채우면 아이템 선택 + 칸 클릭을 수십 번 반복해야 한다.
  * 배치의 "정답"을 대신 찾아 주지는 않는다 — 일단 채워 두고 다듬는 출발점을 만든다.
@@ -550,7 +581,10 @@ function autoFillGrowthBoard() {
             return (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0);
         });
     let placed = 0;
-    candidates.forEach(item => { if (tryAutoPlaceGrowthItem(item)) placed++; });
+    candidates.forEach(item => {
+        let ok = isGrowthSlab(item) ? tryPlaceSlabAtBestCell(item) : tryAutoPlaceGrowthItem(item);
+        if (ok) placed++;
+    });
     if (placed > 0) addLog(`🌱 빈 칸에 ${placed}개를 자동 배치했습니다.`, 'loot-normal');
     else addLog('배치할 수 있는 빈 칸이나 미배치 아이템이 없습니다.', 'attack-monster');
     updateStaticUI();
@@ -589,7 +623,7 @@ function salvageRecentGrowthDrop(itemId) {
 }
 
 safeExposeGlobals({
-    rotateGrowthCells, normalizeGrowthCells, getGrowthShapeDef, getGrowthBaseDef, isGrowthItem,
+    rotateGrowthCells, normalizeGrowthCells, getGrowthShapeDef, getGrowthBaseDef, isGrowthItem, isGrowthSlab,
     getGrowthItemCells,
     ensureGrowthBoardState, getGrowthCellUnlockOrder, getGrowthStageUnlockedCellCount,
     syncGrowthBoardUnlocks, isGrowthCellUnlocked, getActiveGrowthLoadout, findGrowthItemById,
@@ -600,7 +634,7 @@ safeExposeGlobals({
     addDroppedGrowthItem, claimRecentGrowthDrop, claimAllRecentGrowthDrops, salvageRecentGrowthDrop,
     isProtectedRecentGrowthDrop, isGrowthBoardUnlocked, getGrowthInventoryLimit, findAnyGrowthItemById,
     salvageGrowthInventoryItem, bulkSalvageGrowthInventory, tryAutoPlaceGrowthItem,
-    autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout,
+    autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout, tryPlaceSlabAtBestCell,
     sortGrowthInventory, GROWTH_SORT_MODES, getGrowthAutoSalvageRarities, toggleGrowthAutoSalvageRarity,
     toggleGrowthAutoSalvageEnabled, toggleGrowthUseItemFilter
 });

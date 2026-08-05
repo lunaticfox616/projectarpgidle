@@ -381,10 +381,6 @@ function multiplyGrowthItemStats(out, itemId, multiplier) {
 // 최댓값을 쓰는 이유: 합계로 하면 칸이 많은 대형 아이템이 자동으로 유리해져
 // "정밀 배치"라는 소형 아이템의 정체성이 사라진다.
 
-function isGrowthSlab(item) {
-    return !!(item && item.growthCategory === 'slab');
-}
-
 function getGrowthSlabDef(item) {
     if (!isGrowthSlab(item) || typeof GROWTH_SLAB_DB === 'undefined') return null;
     return GROWTH_SLAB_DB.find(row => row && row.id === item.growthSlabId) || null;
@@ -570,6 +566,6 @@ safeExposeGlobals({
     invalidateGrowthEffects, isGrowthSynergyStageUnlocked, getGrowthItemTags, resolveGrowthDirection,
     evaluateGrowthCondition, getGrowthEffectSnapshot, applyGrowthSpatialStats,
     getGrowthItemStatMultiplier, getGrowthItemBaseMultiplier, getGrowthItemConditionReport,
-    getActiveGrowthGlobalSynergies, isGrowthSlab, getGrowthSlabDef, getGrowthSlabPatternCells,
+    getActiveGrowthGlobalSynergies, getGrowthSlabDef, getGrowthSlabPatternCells,
     getGrowthItemLevel, getGrowthCellLevel, getGrowthLevelMultiplier
 });
