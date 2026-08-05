@@ -265,14 +265,14 @@ function useCoreCubeBlurred45(count = 1) {
     st.lastPower = lastRolled;
     let summary = Object.keys(gained).map(Number).sort((a, b) => a - b).map(no => `${no}×${gained[no]}`).join(', ');
     addLog(`🧊 흐릿한 45면체 ${useCount}개 해석: ${summary} 동력원 획득`, 'loot-unique');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
 function selectCoreCubeFace(faceIndex) {
     let st = ensureCoreCubeState();
     st.selectedFace = Math.max(0, Math.min(CORE_CUBE_FACE_COUNT - 1, Math.floor(Number(faceIndex) || 0)));
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
 }
 
 function socketCoreCubePower(powerNo) {
@@ -286,7 +286,7 @@ function socketCoreCubePower(powerNo) {
     st.faces[faceIndex] = n;
     markCoreCubePowerUsed(st, n);
     addLog(`🧊 코어 큐브 ${faceIndex + 1}번 면에 ${n}의 동력원 각인`, 'loot-magic');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
@@ -306,7 +306,7 @@ function socketRandomCoreCubePower(allRemaining = false) {
             markCoreCubePowerUsed(st, picked);
         }
     });
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
@@ -349,7 +349,7 @@ async function resetCoreCube() {
     st.optionMechanism = null;
     st.selectedFace = 0;
     addLog('🧊 코어 큐브를 재구성했습니다.', 'season-up');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
@@ -366,7 +366,7 @@ function completeCoreCube() {
     st.isCompleting = false;
     if (game.noti) game.noti.cube = true;
     addLog(`✨ 코어 큐브 완성: ${generated.options.map(o => o.text).join(' / ')}`, 'loot-unique');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
@@ -426,7 +426,7 @@ async function saveCoreCubePreset(slot) {
     }
     st.presets[idx] = { faces: st.faces.slice(), savedAtLoop: Math.max(1, Math.floor(Number(game.season) || 1)) };
     addLog(`🧊 큐브 조합을 ${idx + 1}번 칸에 저장했습니다. (${st.faces.slice().sort((a, b) => a - b).join(' / ')})`, 'season-up');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
@@ -455,7 +455,7 @@ function applyCoreCubePreset(slot) {
     st.completed = true;
     st.isCompleting = false;
     addLog(`🧊 ${idx + 1}번 저장 조합을 불러왔습니다: ${generated.options.map(o => o.text).join(' / ')}`, 'loot-unique');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
@@ -465,7 +465,7 @@ function clearCoreCubePreset(slot) {
     if (!st.presets[idx]) return addLog('비어 있는 저장칸입니다.', 'attack-monster');
     st.presets[idx] = null;
     addLog(`🧊 ${idx + 1}번 저장칸을 비웠습니다.`, 'loot-normal');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
@@ -1054,14 +1054,37 @@ function initCoreCubeCanvas() {
 }
 
 
-function renderCoreCubePanel() {
+function getCoreCubePanelSignature(st, info, unlocked) {
+    let powers = st.powers || {};
+    let powerSig = Object.keys(powers).map(Number).sort((a, b) => a - b).map(no => `${no}x${powers[no]}`).join(',');
+    let usedSig = Object.keys(st.powersUsedEver || {}).map(Number).sort((a, b) => a - b).join(',');
+    let presetSig = (st.presets || []).map(preset => {
+        let row = normalizeCoreCubePreset(preset);
+        return row ? `${row.faces.join('-')}@${row.savedAtLoop}` : '-';
+    }).join('|');
+    let optionSig = (st.revealedOptions || []).map(row => row.text || formatCoreCubeOption(row)).join('|');
+    return [
+        unlocked ? 1 : 0, st.completed ? 1 : 0, st.selectedFace, st.blurred45, st.lastPower === undefined ? '' : st.lastPower,
+        st.faces.map(value => value === null ? '-' : value).join('-'),
+        powerSig, usedSig, presetSig, optionSig,
+        st.presetSlot2Unlocked ? 1 : 0,
+        info.highestFloor, info.currentLoop, info.underworld10Cleared ? 1 : 0, info.loopReady ? 1 : 0
+    ].join('#');
+}
+
+let _coreCubePanelSignature = null;
+
+function renderCoreCubePanel(options) {
     if (typeof document === 'undefined') return;
     let host = document.getElementById('ui-core-cube-panel');
     if (!host || !game) return;
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
     let unlocked = isCoreCubeUnlocked();
-    st = ensureCoreCubeState();
+    let signature = getCoreCubePanelSignature(st, info, unlocked);
+    let force = !!(options && options.force) || !host.firstChild;
+    if (!force && signature === _coreCubePanelSignature) return;
+    _coreCubePanelSignature = signature;
     let faceHtml = st.faces.map((value, idx) => {
         let cls = ['core-cube-face'];
         if (idx === st.selectedFace) cls.push('selected');

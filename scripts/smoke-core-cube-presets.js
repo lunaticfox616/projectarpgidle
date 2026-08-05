@@ -199,6 +199,40 @@ async function main() {
         assert.strictEqual(run(ctx, 'ensureCoreCubeState().presetSlot2Unlocked'), true, '해금이 상태에 기록되어야 한다');
     }
 
+    // ── 렌더 지문 계약 (js/core-cube.js) ─────────────────────────────────
+    // renderCoreCubePanel은 큐브 탭이 열려 있는 동안 updateStaticUI마다 불린다.
+    // 매번 45개 동력원 버튼과 캔버스를 다시 만들면 10~26ms가 나와 프레임이 튄다.
+    // 지문으로 걸러 내되, 화면에 나오는 값이 지문에서 빠지면 반대로 화면이 굳는다.
+    {
+        const src = fs.readFileSync('js/core-cube.js', 'utf8');
+        const sig = src.slice(src.indexOf('function getCoreCubePanelSignature'), src.indexOf('function renderCoreCubePanel'));
+        assert.ok(sig.length > 0, '렌더 지문 함수가 있어야 한다');
+        [
+            ['st.faces', '각인된 면'],
+            ['selectedFace', '선택한 면'],
+            ['completed', '완성 여부'],
+            ['blurred45', '흐릿한 45면체 보유량'],
+            ['lastPower', '최근 획득 동력원'],
+            ['powers', '보관함 동력원'],
+            ['powersUsedEver', '각인 이력(2번 칸 진행도)'],
+            ['presets', '저장된 조합'],
+            ['revealedOptions', '발현된 옵션'],
+            ['presetSlot2Unlocked', '2번 칸 영구 해금'],
+            ['unlocked', '큐브 해금'],
+            ['highestFloor', '잠김 안내의 지하계 진행도'],
+            ['currentLoop', '잠김 안내의 루프 진행도']
+        ].forEach(([token, why]) => {
+            assert.ok(sig.includes(token), `렌더 지문에 ${token}(${why})이 빠지면 화면이 낡은 채로 굳는다`);
+        });
+        const render = src.slice(src.indexOf('function renderCoreCubePanel'), src.indexOf('function renderCoreCubePanel') + 700);
+        assert.ok(/options\s*&&\s*options\.force/.test(render), '강제 렌더 경로가 있어야 한다');
+        assert.ok(/!host\.firstChild/.test(render), '비어 있는 화면은 지문과 무관하게 그려야 한다');
+        // 상태를 바꾸는 쪽은 지문을 믿지 않고 강제로 다시 그린다.
+        const mutators = src.slice(0, src.indexOf('function getCoreCubePanelSignature'));
+        assert.ok(!/(^|\n)\s*renderCoreCubePanel\(\);/.test(mutators),
+            '상태 변경 후의 renderCoreCubePanel 호출은 { force: true }여야 한다');
+    }
+
     console.log('smoke-core-cube-presets passed');
 }
 
