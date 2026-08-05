@@ -103,7 +103,9 @@ vm.runInContext([
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('syncMergedTabLauncherVisibility'),
     readFunctionSource('syncMergedTabLauncherState'),
-    readFunctionSource('openMergedTabPicker')
+    readFunctionSource('openMergedTabPicker'),
+    readFunctionSource('openTabPane'),
+    readFunctionSource('getMergedTabGroup')
 ].join('\n'), context, { filename: 'merged-tab-launchers.js' });
 
 const activeTabContext = {
@@ -258,13 +260,17 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
     await context.openMergedTabPicker(null, 'growth');
     assert.deepStrictEqual(JSON.parse(JSON.stringify(opened)), [['growth', 'tab-char', { keepWindowOpen: false }]], 'a combined launcher must toggle its saved inner subtab host');
 
-    // defaultTab이 지정된 그룹은 저장된 선택(여기서는 tab-talisman)을 무시하고 항상 그 탭으로 연다.
-    // 보조장비 런처는 플라스크 버튼이라, 누른 버튼과 열리는 창이 어긋나면 안 된다.
     await context.openMergedTabPicker(null, 'utility');
-    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))), ['utility', 'tab-flask', { keepWindowOpen: false }],
-        'a launcher with a defaultTab must always open that tab');
-    assert.strictEqual(MERGED_TAB_GROUPS_SOURCE.match(/utility:[^\n]*defaultTab:\s*'tab-flask'/) !== null, true,
-        'the utility group must pin its default to the flask tab');
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))), ['utility', 'tab-talisman', { keepWindowOpen: false }],
+        'a launcher must reopen the inner subtab the player last used');
+
+    // 전투 화면 플라스크처럼 특정 화면을 콕 집어 여는 경로는 그 탭이 실제로 보여야 한다.
+    // switchTab만 쓰면 tab-flask는 그룹 런처라 창만 열리고 안쪽은 마지막에 보던 탭이 남는다.
+    context.openTabPane('tab-flask');
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))).slice(0, 2), ['utility', 'tab-flask'],
+        'openTabPane must surface the requested pane, not just its window');
+    assert(source.includes("onclick=\"openTabPane('tab-flask')\""),
+        'the combat flask strip must open the flask pane directly');
 
     assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="utility"')
         && html.includes('data-merged-tab-launcher="records"'), 'the three combined menu circles must be wired in HTML');

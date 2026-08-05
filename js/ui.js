@@ -1047,7 +1047,7 @@ const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'cod
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
-    utility: { launcher: 'tab-flask', title: '보조장비', defaultTab: 'tab-flask', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '꽃·가지·잎·석판을 판에 배치합니다.' }] },
+    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '꽃·가지·잎·석판을 판에 배치합니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'codex', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
 });
 
@@ -1669,16 +1669,24 @@ function openMergedTabPicker(event, groupKey) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     let group = MERGED_TAB_GROUPS[groupKey];
     if (!group) return;
-    // defaultTab이 있으면 런처를 누를 때 항상 그 탭으로 연다.
-    // 보조장비 런처는 플라스크 버튼이라, 눌렀을 때 주얼이 뜨면 누른 것과 다른 창이 열린 셈이 된다.
-    // (그룹 안에서 고른 탭은 getSelectedMergedTabId가 계속 기억한다.)
-    let defaultTab = group.tabs.find(tab => tab.id === group.defaultTab && isMergedTabAvailable(tab));
-    let selectedTabId = defaultTab ? defaultTab.id : getSelectedMergedTabId(groupKey);
+    let selectedTabId = getSelectedMergedTabId(groupKey);
     if (!selectedTabId) return;
     switchMergedTabSubtab(groupKey, selectedTabId, { keepWindowOpen: false });
 }
 
-safeExposeGlobals({ openMergedTabPicker, switchMergedTabSubtab });
+// 특정 탭을 "그 탭이 실제로 보이는 상태"로 연다.
+// tab-flask처럼 병합 그룹의 런처인 탭은 switchTab만으로는 창만 열리고 안쪽 화면은
+// 마지막에 보던 탭(주얼 등)이 그대로여서, 누른 것과 다른 화면이 뜬다.
+function openTabPane(tabId) {
+    let mergedEntry = getMergedTabGroup(tabId);
+    if (mergedEntry) {
+        switchMergedTabSubtab(mergedEntry[0], tabId);
+        return;
+    }
+    switchTab(tabId);
+}
+
+safeExposeGlobals({ openMergedTabPicker, switchMergedTabSubtab, openTabPane });
 
 function renderMergedTabSubtabs(tabId) {
     renderMergedTabPanels(tabId);
@@ -7732,12 +7740,12 @@ function renderCombatFlaskHud() {
     host.dataset.signature = signature;
     let socketEntries = [healEntry, utilityEntries[0] || null, utilityEntries[1] || null];
     let buttons = socketEntries.map(entry => entry
-        ? `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="switchTab('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`
+        ? `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="openTabPane('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`
         : '<span class="combat-flask-mini empty" aria-hidden="true"></span>');
     let overflowEntries = utilityEntries.slice(2).filter(Boolean);
     if (overflowEntries.length > 0) {
         let overflowTitle = overflowEntries.map(entry => `${entry.name} · ${entry.charges}/${entry.maxCharges}회`).join(' / ');
-        buttons.push(`<button type="button" class="combat-flask-mini overflow" title="${escapeHTML(overflowTitle)}" onclick="switchTab('tab-flask')"><span>+${overflowEntries.length}</span></button>`);
+        buttons.push(`<button type="button" class="combat-flask-mini overflow" title="${escapeHTML(overflowTitle)}" onclick="openTabPane('tab-flask')"><span>+${overflowEntries.length}</span></button>`);
     }
     host.innerHTML = buttons.join('');
 }
