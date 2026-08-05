@@ -31,4 +31,23 @@ assert.ok(ui.indexOf('function renderCombatFlaskHud()') < ui.indexOf('function u
     '빈 칸과 실제 칸 모두 같은 변수를 써야 격자가 어긋나지 않는다');
 }
 
+// @container 규칙은 container-type을 선언한 조상이 있어야 켜진다. 이 프로젝트에서
+// 그 선언은 데스크톱 창 UI(.ui-window-body) 한 곳뿐이라, 휴대폰에서는 @container로만
+// 쓴 좁은 화면 레이아웃이 통째로 죽는다. 360px에서 스킬 요약 4칸 중 2칸(공명력·
+// 소환 한도)이 잘려 보이지 않았던 원인이다. 화면 폭 기준 대체 규칙이 있어야 한다.
+{
+  const overhaul = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
+  const windows = fs.readFileSync('css/ui-windows.css', 'utf8');
+  const containerHosts = (overhaul + windows).match(/container-type:\s*inline-size/g) || [];
+  assert.ok(containerHosts.length >= 1, 'container-type 선언이 사라지면 창 UI의 @container가 죽는다');
+  assert.ok(/body:not\(\.desktop-windowed-ui\)\s*\.skill-loadout-summary/.test(overhaul),
+    '창 UI가 아닌 화면에도 스킬 요약 좁은 레이아웃이 걸려야 한다');
+  // 좁은 화면에서 4열을 유지하면 최소 폭 76px×4 때문에 뒤쪽 칸이 잘린다.
+  const narrow = overhaul.slice(overhaul.indexOf('@media (max-width: 480px)'));
+  assert.ok(/body:not\(\.desktop-windowed-ui\)[^{]*\.skill-loadout-summary[^{]*{[^}]*grid-template-columns:\s*1fr 1fr/.test(narrow),
+    '480px 이하에서는 스킬 요약이 2열로 접혀야 한다');
+  assert.ok(!/^\s*\.skill-loadout-summary\s*{[^}]*min-width:\s*min\(430px[^}]*}\s*$/m.test(narrow),
+    '좁은 화면 블록이 min-width를 다시 강제하면 안 된다');
+}
+
 console.log('smoke-mobile-playability passed');

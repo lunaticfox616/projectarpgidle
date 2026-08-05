@@ -2028,6 +2028,37 @@ body:not(.light-mode) #info-tooltip {
   .gem-orbit-slot.open .gem-orbit-slot-glyph { width: 22px; height: 22px; }
 }
 
+/* 위 @container 규칙은 container-type을 선언한 조상이 있어야 켜진다. 그 선언은
+   body.desktop-windowed-ui .ui-window-body 한 곳뿐이라, 휴대폰에서는 스킬 탭의
+   좁은 화면 레이아웃이 통째로 적용되지 않았다. 그 결과 360px 기기에서
+   .skill-loadout-summary가 4열(각 최소 76px)을 그대로 유지해 3·4번째 칸
+   (공명력·소환 한도)이 잘려 보이지 않았다. 창 UI가 아닌 경우에만 같은 규칙을
+   화면 폭 기준으로 다시 건다(창 UI의 기존 동작은 그대로 둔다).
+   화면 폭 ≈ 패널 폭 + 50px 기준으로 대응시켰다. */
+@media (max-width: 1080px) {
+  body:not(.desktop-windowed-ui) .skill-loadout-overview,
+  body:not(.desktop-windowed-ui) .gem-forge-heading,
+  body:not(.desktop-windowed-ui) .condition-gem-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+  body:not(.desktop-windowed-ui) .skill-loadout-summary { width: 100%; min-width: 0; }
+}
+
+@media (max-width: 700px) {
+  body:not(.desktop-windowed-ui) .skill-loadout-summary,
+  body:not(.desktop-windowed-ui) .gem-resource-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body:not(.desktop-windowed-ui) .skill-loadout-summary > div:nth-child(4),
+  body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(4),
+  body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(7) { border-left: 0; }
+}
+
+@media (max-width: 480px) {
+  body:not(.desktop-windowed-ui) .skill-loadout-summary,
+  body:not(.desktop-windowed-ui) .gem-resource-strip { grid-template-columns: 1fr 1fr; }
+  body:not(.desktop-windowed-ui) .skill-loadout-summary > div,
+  body:not(.desktop-windowed-ui) .gem-resource-strip > div { border-left: 1px solid rgba(48, 70, 93, .52); }
+  body:not(.desktop-windowed-ui) .skill-loadout-summary > div:nth-child(odd),
+  body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(odd) { border-left: 0; }
+}
+
 /* Combat flask HUD: charge count stays readable without covering the health bar. */
 .player-hud-vitals { grid-template-columns: auto minmax(0, 1fr) !important; }
 .combat-flask-strip {
