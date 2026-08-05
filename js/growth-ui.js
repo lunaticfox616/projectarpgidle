@@ -340,7 +340,24 @@ function renderGrowthInventoryFilterChips() {
     return `<div class="growth-filter-row">${chips}
         <button type="button" class="growth-filter-chip${filter.unplacedOnly ? ' on' : ''}" onclick="toggleGrowthInventoryUnplacedOnly()">미배치만</button></div>
         <div class="growth-filter-row"><span class="growth-filter-label">정렬</span>${sortChips}
-        <button type="button" class="growth-filter-chip${autoClaim ? ' on' : ''}" onclick="toggleGrowthAutoClaim()" title="드랍을 최근 획득함을 거치지 않고 바로 보관함으로 보냅니다.">자동 보관</button></div>`;
+        <button type="button" class="growth-filter-chip${autoClaim ? ' on' : ''}" onclick="toggleGrowthAutoClaim()" title="드랍을 최근 획득함을 거치지 않고 바로 보관함으로 보냅니다.">자동 보관</button></div>
+        ${renderGrowthDropSettings()}`;
+}
+
+// 생장 드랍의 필터/자동해체는 장비와 따로 둔다. 여기가 그 설정을 만지는 유일한 자리다.
+function renderGrowthDropSettings() {
+    let enabled = !!(game.settings && game.settings.growthAutoSalvageEnabled);
+    let useFilter = !!(game.settings && game.settings.growthUseItemFilter);
+    let rarities = getGrowthAutoSalvageRarities();
+    let labels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
+    let rarityChips = Object.keys(labels).map(key =>
+        `<button type="button" class="growth-filter-chip loot-${key}${rarities[key] ? ' on' : ''}" onclick="toggleGrowthAutoSalvageRarity('${key}')" ${enabled ? '' : 'disabled'}>${labels[key]}</button>`).join('');
+    return `<div class="growth-filter-row">
+        <span class="growth-filter-label">드랍 처리</span>
+        <button type="button" class="growth-filter-chip${enabled ? ' on' : ''}" onclick="toggleGrowthAutoSalvageEnabled()" title="선택한 등급의 생장 드랍을 획득 즉시 해체합니다. 장비 자동해체와는 별개 설정입니다.">자동해체</button>
+        ${rarityChips}
+        <button type="button" class="growth-filter-chip${useFilter ? ' on' : ''}" onclick="toggleGrowthUseItemFilter()" title="켜면 장비용 아이템 필터를 생장 드랍에도 적용합니다. 기본은 꺼짐(모두 획득).">장비 필터 적용</button>
+    </div>`;
 }
 
 function toggleGrowthAutoClaim() {
@@ -684,7 +701,7 @@ safeExposeGlobals({
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, buildGrowthComparison,
     renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
-    toggleGrowthInventoryCategory, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, toggleGrowthAutoClaim,
+    toggleGrowthInventoryCategory, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, toggleGrowthAutoClaim, renderGrowthDropSettings,
     renderGrowthHoverHint, bindGrowthDragOnce,
     getSelectedSlabInfluenceCells, renderGrowthLevelLine
 });

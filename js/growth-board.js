@@ -341,15 +341,20 @@ function addDroppedGrowthItem(item, options) {
     if (!item) return false;
     if (!isGrowthBoardUnlocked()) return false;
     normalizeItem(item);
+    // 필터·자동해체는 생장 전용 설정을 쓴다. 장비 설정을 물려받으면 루프 25에 판이
+    // 열리자마자 일반/매직 드랍이 전부 녹아, 8칸조차 채우지 못하고 "드랍이 안 나온다"고
+    // 느끼게 된다. 기본값은 전부 보관이고, 원하면 아래 설정으로 좁힌다.
     let ignoreFilter = !!(options && (options.ignoreFilter || options.guaranteedKeep));
-    if (!ignoreFilter && typeof passesItemPickupFilter === 'function' && !passesItemPickupFilter(item)) {
+    if (!ignoreFilter && game.settings.growthUseItemFilter
+        && typeof passesItemPickupFilter === 'function' && !passesItemPickupFilter(item)) {
         if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
     }
     let ignoreAutoSalvage = !!(options && (options.ignoreAutoSalvage || options.guaranteedKeep));
-    if (!ignoreAutoSalvage && game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities && game.settings.autoSalvageRarities[item.rarity]) {
+    let growthSalvage = game.settings.growthAutoSalvageRarities || {};
+    if (!ignoreAutoSalvage && game.settings.growthAutoSalvageEnabled && growthSalvage[item.rarity]) {
         salvageItemObject(item, true);
-        if (game.settings.showLootLog) addLog(`🧪 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
+        if (game.settings.showLootLog) addLog(`🧪 생장 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
         return false;
     }
     ensureGrowthBoardState();
@@ -437,6 +442,42 @@ function sortGrowthInventory(mode) {
     game.settings.growthSortMode = key;
     updateStaticUI();
     return key;
+}
+
+// ── 생장 전용 드랍 설정 ──────────────────────────────────────────────────
+function getGrowthAutoSalvageRarities() {
+    game.settings = game.settings || {};
+    let saved = game.settings.growthAutoSalvageRarities;
+    if (!saved || typeof saved !== 'object') saved = {};
+    let out = {};
+    ['normal', 'magic', 'rare', 'unique'].forEach(key => { out[key] = !!saved[key]; });
+    game.settings.growthAutoSalvageRarities = out;
+    return out;
+}
+
+function toggleGrowthAutoSalvageRarity(rarity) {
+    let map = getGrowthAutoSalvageRarities();
+    if (!(rarity in map)) return;
+    map[rarity] = !map[rarity];
+    updateStaticUI();
+}
+
+function toggleGrowthAutoSalvageEnabled() {
+    game.settings = game.settings || {};
+    game.settings.growthAutoSalvageEnabled = !game.settings.growthAutoSalvageEnabled;
+    addLog(game.settings.growthAutoSalvageEnabled
+        ? '🧪 생장 자동해체를 켰습니다. 선택한 등급의 드랍은 획득 즉시 해체됩니다.'
+        : '🧪 생장 자동해체를 껐습니다.', 'loot-normal');
+    updateStaticUI();
+}
+
+function toggleGrowthUseItemFilter() {
+    game.settings = game.settings || {};
+    game.settings.growthUseItemFilter = !game.settings.growthUseItemFilter;
+    addLog(game.settings.growthUseItemFilter
+        ? '🚫 생장 드랍에도 장비 아이템 필터를 적용합니다.'
+        : '🌱 생장 드랍은 장비 아이템 필터를 무시하고 모두 획득합니다.', 'loot-normal');
+    updateStaticUI();
 }
 
 /** 생장 보관함 해체. 배치 중인 아이템은 먼저 내려야 한다. */
@@ -560,5 +601,6 @@ safeExposeGlobals({
     isProtectedRecentGrowthDrop, isGrowthBoardUnlocked, getGrowthInventoryLimit, findAnyGrowthItemById,
     salvageGrowthInventoryItem, bulkSalvageGrowthInventory, tryAutoPlaceGrowthItem,
     autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout,
-    sortGrowthInventory, GROWTH_SORT_MODES
+    sortGrowthInventory, GROWTH_SORT_MODES, getGrowthAutoSalvageRarities, toggleGrowthAutoSalvageRarity,
+    toggleGrowthAutoSalvageEnabled, toggleGrowthUseItemFilter
 });

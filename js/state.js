@@ -1966,6 +1966,12 @@ const defaultGame = {
         // 생장 드랍을 최근 획득함을 거치지 않고 바로 보관함으로 보낼지.
         growthAutoClaim: false,
         growthSortMode: 'recent',
+        // 생장 아이템은 장비와 별개 시스템이라 필터/자동해체도 따로 둔다.
+        // 기본은 "전부 보관" — 루프 25에 판이 열리는데 장비 설정을 물려받으면
+        // 일반/매직이 전부 녹아 8칸조차 채우지 못한다.
+        growthAutoSalvageEnabled: false,
+        growthAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
+        growthUseItemFilter: false,
         showCrowdPauseLog: true,
         showDeathNotice: true,
         showMobileBattlePip: true,

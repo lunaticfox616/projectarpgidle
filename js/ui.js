@@ -12800,6 +12800,7 @@ function mergeDefaults(save) {
     merged.settings.autoSalvageEnabled = !!merged.settings.autoSalvageEnabled;
     merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
     merged.settings.autoSalvageRarities = { ...(defaultGame.settings.autoSalvageRarities || {}), ...(merged.settings.autoSalvageRarities || {}) };
+    merged.settings.growthAutoSalvageRarities = { ...(defaultGame.settings.growthAutoSalvageRarities || {}), ...(merged.settings.growthAutoSalvageRarities || {}) };
     merged.settings.inventoryViewRarities = { ...(defaultGame.settings.inventoryViewRarities || {}), ...(merged.settings.inventoryViewRarities || {}) };
     merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };

@@ -121,4 +121,28 @@ function loadStatSourceContract(gameState) {
     assert.strictEqual(context.game.growthInventory.length, 0, '해체된 아이템은 보관함에서 빠져야 한다');
 }
 
+// ── 생장 드랍은 장비용 필터/자동해체에 끌려가면 안 된다 ──────────────────
+// 회귀: 루프 25에 판이 열리는 시점이면 장비 자동해체(기본 일반+매직)를 켜 둔
+// 플레이어가 많다. 설정을 공유하면 생장 드랍이 전부 녹아 8칸도 못 채운다.
+{
+    const source = fs.readFileSync('js/growth-board.js', 'utf8');
+    const state = fs.readFileSync('js/state.js', 'utf8');
+    const intake = source.slice(source.indexOf('function addDroppedGrowthItem'), source.indexOf('function claimRecentGrowthDrop'));
+
+    assert.ok(!/settings\.autoSalvageEnabled/.test(intake),
+        '생장 드랍 진입점이 장비 자동해체 설정을 읽으면 안 된다');
+    assert.ok(!/settings\.autoSalvageRarities/.test(intake),
+        '생장 드랍 진입점이 장비 자동해체 등급을 읽으면 안 된다');
+    assert.ok(/growthAutoSalvageEnabled/.test(intake) && /growthAutoSalvageRarities/.test(intake),
+        '생장 전용 자동해체 설정을 써야 한다');
+    assert.ok(/growthUseItemFilter/.test(intake),
+        '장비 아이템 필터 적용은 생장 전용 옵션 뒤에 있어야 한다');
+
+    // 기본값은 "전부 보관"이어야 한다.
+    assert.ok(/growthAutoSalvageEnabled:\s*false/.test(state), '생장 자동해체 기본값은 꺼짐이어야 한다');
+    assert.ok(/growthUseItemFilter:\s*false/.test(state), '장비 필터 적용 기본값은 꺼짐이어야 한다');
+    const defaults = state.slice(state.indexOf('growthAutoSalvageRarities:'), state.indexOf('growthAutoSalvageRarities:') + 140);
+    assert.ok(!/:\s*true/.test(defaults), '생장 자동해체 등급 기본값은 모두 꺼짐이어야 한다');
+}
+
 console.log('smoke-growth-coexistence passed');
