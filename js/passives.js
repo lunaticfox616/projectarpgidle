@@ -10266,7 +10266,7 @@ async function useCurrency(currencyKey) {
     // 석판은 정체성이 곧 효과라 제작 재화를 받지 않는다.
     if (item.growthCategory === 'slab') return addLog("석판은 제작할 수 없습니다.", "attack-monster");
     let actionKey = currencyKey;
-    if (currencyKey === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'augment';
+    if (currencyKey === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'alteration';
     if (currencyKey === 'sapBud') actionKey = item.rarity === 'magic' ? 'regal' : 'exalted';
     if (currencyKey === 'formlessDew') actionKey = item.rarity === 'normal' ? 'alchemy' : 'chaos';
     if (currencyKey === 'goldenRule') actionKey = 'divine';
@@ -10282,7 +10282,7 @@ async function useCurrency(currencyKey) {
     let magicCap = (typeof isGrowthItem === 'function' && isGrowthItem(item)) ? Math.min(2, explicitCap) : 2;
     let ok = false;
     if (actionKey === 'transmute') ok = item.rarity === 'normal';
-    else if (actionKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < magicCap;
+    else if (actionKey === 'alteration') ok = item.rarity === 'magic';
     else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
     else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < explicitCap;
     else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < explicitCap;
@@ -10403,11 +10403,7 @@ async function useCurrency(currencyKey) {
                 applyGuaranteedToNonLocked(guaranteedMod);
             } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
-    } else if (actionKey === 'augment') {
-        let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
-        if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
-        updateItemName(item);
-    } else if (currencyKey === 'alteration') {
+    } else if (actionKey === 'alteration') {
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
             if (guaranteedMod) {

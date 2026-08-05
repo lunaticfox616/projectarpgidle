@@ -139,3 +139,18 @@
   .core-cube-stage { min-height:420px; }
   .core-cube-canvas-wrap { inset:0 118px 62px 0; }
 }
+
+/* 조합 저장(프리셋) */
+.core-cube-preset-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(120, 150, 185, 0.18);
+    font-size: 0.86em;
+}
+.core-cube-preset-row:last-of-type { border-bottom: none; }
+.core-cube-preset-row.locked { color: #7f8c8d; }
+.core-cube-preset-row button { font-size: 0.82em; padding: 3px 8px; margin-left: 4px; }

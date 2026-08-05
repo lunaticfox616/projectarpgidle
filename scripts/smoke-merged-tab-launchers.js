@@ -69,6 +69,7 @@ function makePanelNode(name, className = '') {
 const groupStart = source.indexOf('const MERGED_TAB_GROUPS');
 const groupEnd = source.indexOf('\n});', groupStart) + 4;
 assert(groupStart >= 0 && groupEnd > groupStart, 'merged tab groups must have one shared definition');
+const MERGED_TAB_GROUPS_SOURCE = source.slice(groupStart, groupEnd);
 
 const dots = {};
 const elements = {};
@@ -257,8 +258,13 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
     await context.openMergedTabPicker(null, 'growth');
     assert.deepStrictEqual(JSON.parse(JSON.stringify(opened)), [['growth', 'tab-char', { keepWindowOpen: false }]], 'a combined launcher must toggle its saved inner subtab host');
 
+    // defaultTab이 지정된 그룹은 저장된 선택(여기서는 tab-talisman)을 무시하고 항상 그 탭으로 연다.
+    // 보조장비 런처는 플라스크 버튼이라, 누른 버튼과 열리는 창이 어긋나면 안 된다.
     await context.openMergedTabPicker(null, 'utility');
-    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))), ['utility', 'tab-talisman', { keepWindowOpen: false }]);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))), ['utility', 'tab-flask', { keepWindowOpen: false }],
+        'a launcher with a defaultTab must always open that tab');
+    assert.strictEqual(MERGED_TAB_GROUPS_SOURCE.match(/utility:[^\n]*defaultTab:\s*'tab-flask'/) !== null, true,
+        'the utility group must pin its default to the flask tab');
 
     assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="utility"')
         && html.includes('data-merged-tab-launcher="records"'), 'the three combined menu circles must be wired in HTML');

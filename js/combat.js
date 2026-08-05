@@ -2070,7 +2070,12 @@ function coreLoop() {
         let delta = getConditionGemStatDelta(buff.name, buff.type);
         if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
         if (delta.aspd) pStats.aspd *= (1 + delta.aspd / 100);
-        if (delta.dr) pStats.dr = Math.min(90, (pStats.dr || 0) + delta.dr);
+        if (delta.dr) {
+            // 컨디션 젬 버프는 상한 90까지 올린다. 캐릭터 탭 표기가 "적용값 (비-제한값)"을
+            // 유지하도록 상한 전 합계도 같이 밀어 준다.
+            pStats.rawDr = (pStats.rawDr || pStats.dr || 0) + delta.dr;
+            pStats.dr = Math.min(90, (pStats.dr || 0) + delta.dr);
+        }
         if (delta.regen) pStats.regen += delta.regen;
         if (delta.crit) pStats.crit += delta.crit;
         if (delta.critDmg) pStats.critDmg += delta.critDmg;
@@ -3346,7 +3351,11 @@ function getPlayerStats() {
         finalLeechTotalCap += LEECH_BASE_TOTAL_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
         finalLeechInstanceCap += LEECH_BASE_INSTANCE_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
     }
-    let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
+    // 저항과 같은 방식으로 상한 적용 전 합계(rawDr)를 함께 들고 다닌다.
+    // 캐릭터 탭이 "적용값 (비-제한값)"으로 표기하려면 잘리기 전 값이 필요하다.
+    const DR_CAP_PCT = 75;
+    let rawDr = gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr;
+    let finalDr = Math.min(DR_CAP_PCT, rawDr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
     let allowNegativePhysIgnore = false;
     let warriorPhysDamageMultiplier = 1;
@@ -3583,7 +3592,8 @@ function getPlayerStats() {
             let crowdCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
             if (crowdCount >= 3) {
                 finalBaseDmg = Math.floor(finalBaseDmg * 1.20);
-                finalDr = Math.min(75, finalDr + 20);
+                rawDr += 20;
+                finalDr = Math.min(DR_CAP_PCT, rawDr);
             }
         }
         if (hasKeystone('g5')) {
@@ -4047,7 +4057,8 @@ function getPlayerStats() {
     armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
     evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
     finalEnergyShield += (colonyWardBonus.energyShield || 0);
-    finalDr = Math.min(75, finalDr + (colonyWardBonus.dr || 0));
+    rawDr += (colonyWardBonus.dr || 0);
+    finalDr = Math.min(DR_CAP_PCT, rawDr);
     finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
     finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
     finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
@@ -4308,7 +4319,7 @@ function getPlayerStats() {
                 makeSourceLine('패시브', passive.dr + season.dr + ascend.dr + reward.dr, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.dr, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
-            final: `${Math.floor(finalDr)}%`
+            final: rawDr > finalDr ? `${Math.floor(finalDr)}% (상한 ${DR_CAP_PCT}% 적용 · 합계 ${Math.floor(rawDr)}%)` : `${Math.floor(finalDr)}%`
         },
         armor: {
             title: '방어도',
@@ -4576,6 +4587,7 @@ function getPlayerStats() {
         leechInstanceCap: finalLeechInstanceCap,
         leechKeepFullLife: finalLeechKeepFullLife,
         dr: finalDr,
+        rawDr: rawDr,
         physIgnore: finalPhysIgnore,
         allowNegativePhysIgnore: allowNegativePhysIgnore,
         warriorPhysDamageMultiplier: warriorPhysDamageMultiplier,

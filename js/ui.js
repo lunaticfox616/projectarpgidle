@@ -1047,7 +1047,7 @@ const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'cod
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
-    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '꽃·가지·잎·석판을 판에 배치합니다.' }] },
+    utility: { launcher: 'tab-flask', title: '보조장비', defaultTab: 'tab-flask', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '꽃·가지·잎·석판을 판에 배치합니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'codex', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
 });
 
@@ -1669,7 +1669,11 @@ function openMergedTabPicker(event, groupKey) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     let group = MERGED_TAB_GROUPS[groupKey];
     if (!group) return;
-    let selectedTabId = getSelectedMergedTabId(groupKey);
+    // defaultTab이 있으면 런처를 누를 때 항상 그 탭으로 연다.
+    // 보조장비 런처는 플라스크 버튼이라, 눌렀을 때 주얼이 뜨면 누른 것과 다른 창이 열린 셈이 된다.
+    // (그룹 안에서 고른 탭은 getSelectedMergedTabId가 계속 기억한다.)
+    let defaultTab = group.tabs.find(tab => tab.id === group.defaultTab && isMergedTabAvailable(tab));
+    let selectedTabId = defaultTab ? defaultTab.id : getSelectedMergedTabId(groupKey);
     if (!selectedTabId) return;
     switchMergedTabSubtab(groupKey, selectedTabId, { keepWindowOpen: false });
 }
@@ -8444,7 +8448,7 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-poison-chance').innerText = Math.max(0, pStats.poisonChance || 0).toFixed(1);
     document.getElementById('ui-bleed-chance').innerText = Math.max(0, pStats.bleedChance || 0).toFixed(1);
     document.getElementById('ui-move-spd').innerText = Math.floor(pStats.moveSpeed);
-    document.getElementById('ui-dr').innerText = Math.floor(pStats.dr);
+    document.getElementById('ui-dr').innerText = formatCappedResistanceValue(pStats.dr, pStats.rawDr);
     let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = formatSettingNumber(pStats.armor || 0, 'showCharacterComma');
     let evasionEl = document.getElementById('ui-evasion'); if (evasionEl) evasionEl.innerText = formatSettingNumber(pStats.evasion || 0, 'showCharacterComma');
     let esEl = document.getElementById('ui-es'); if (esEl) esEl.innerText = formatSettingNumber(pStats.energyShield || 0, 'showCharacterComma');
