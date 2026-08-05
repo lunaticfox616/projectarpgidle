@@ -107,3 +107,6 @@
 }
 .growth-filter-chip.on { border-color: #4d8f6d; color: #a8e6c0; background: rgba(18, 40, 30, 0.6); }
 .growth-control-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+.growth-synergy-summary { font-size: 0.8em; color: #a8c4dd; padding: 4px 2px 7px; border-bottom: 1px solid rgba(120, 150, 185, 0.2); margin-bottom: 6px; }
+.growth-synergy-row.item { border-color: #2b4a3c; }
+.growth-synergy-row.item strong { color: #a8e6c0; }

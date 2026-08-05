@@ -217,10 +217,28 @@ async function renameGrowthLoadoutFromUi() {
     updateStaticUI();
 }
 
+// 판에서 "지금 무엇이 터지고 있나"를 한자리에 모은다.
+// 전역 시너지만 보여 주면 아이템별 공간 조건이 툴팁에 갇혀, 배치를 바꿔도
+// 무엇이 켜지고 꺼졌는지 알 수 없다.
 function renderActiveGrowthSynergies() {
     let globals = getActiveGrowthGlobalSynergies();
-    if (globals.length === 0) return '<div class="growth-synergy-empty">활성화된 전역 시너지가 없습니다.</div>';
-    return globals.map(row => `<div class="growth-synergy-row"><strong>${escapeHTML(row.label)}</strong>${row.times > 1 ? ` ×${row.times}` : ''}<div>${escapeHTML(row.desc || '')}</div></div>`).join('');
+    let entries = getPlacedGrowthEntries();
+    let met = [];
+    let unmetCount = 0;
+    entries.forEach(entry => {
+        let report = getGrowthItemConditionReport(entry.item.id);
+        report.met.forEach(row => met.push({ name: entry.item.name, label: row.label, times: row.times || 1 }));
+        unmetCount += report.unmet.length;
+    });
+    if (globals.length === 0 && met.length === 0) {
+        return `<div class="growth-synergy-empty">발동 중인 시너지가 없습니다.${unmetCount > 0 ? ` (조건 미충족 ${unmetCount}개 — 아이템에 마우스를 올리면 이유가 보입니다)` : ''}</div>`;
+    }
+    let globalHtml = globals.map(row =>
+        `<div class="growth-synergy-row"><strong>🌐 ${escapeHTML(row.label)}</strong>${row.times > 1 ? ` ×${row.times}` : ''}<div>${escapeHTML(row.desc || '')}</div></div>`).join('');
+    let itemHtml = met.map(row =>
+        `<div class="growth-synergy-row item"><strong>${escapeHTML(row.name)}</strong>${row.times > 1 ? ` ×${row.times}` : ''}<div>${escapeHTML(row.label)}</div></div>`).join('');
+    let summary = `<div class="growth-synergy-summary">전역 ${globals.length}개 · 아이템 조건 ${met.length}개 발동${unmetCount > 0 ? ` · 미충족 ${unmetCount}개` : ''}</div>`;
+    return summary + globalHtml + itemHtml;
 }
 
 // ── 아이템 카드 / 보관함 / 최근 획득함 ───────────────────────────────────
@@ -510,10 +528,17 @@ function renderGrowthTab() {
     }
     let invHost = document.getElementById('ui-growth-inventory');
     if (invHost) invHost.innerHTML = renderGrowthInventorySection();
+    let count = (game.growthInventory || []).length;
+    let limit = getGrowthInventoryLimit();
     let invCount = document.getElementById('ui-growth-inv-count');
-    if (invCount) invCount.innerText = String((game.growthInventory || []).length);
+    if (invCount) {
+        invCount.innerText = String(count);
+        // 가득 차면 최근 획득함의 새 드랍이 밀려 자동 해체된다. 숫자만으로는 놓치기 쉬워 색을 준다.
+        invCount.style.color = count >= limit ? '#e07a7a' : '';
+        invCount.style.fontWeight = count >= limit ? '900' : '';
+    }
     let invLimit = document.getElementById('ui-growth-inv-limit');
-    if (invLimit) invLimit.innerText = String(getGrowthInventoryLimit());
+    if (invLimit) invLimit.innerText = String(limit);
 }
 
 // 생장판은 루프 25 전에는 존재 자체를 노출하지 않는다.

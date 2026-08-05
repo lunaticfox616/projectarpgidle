@@ -124,6 +124,15 @@ async function main() {
 
         run(ctx, 'markCoreCubePowerUsed(ensureCoreCubeState(), 45);');
         assert.strictEqual(run(ctx, 'isCoreCubePresetSlotUnlocked(1)'), true, '45종을 모두 채우면 2번 칸이 열려야 한다');
+
+        // 한 번 열리면 영구다. 사용 이력이 어떤 이유로든 사라져도 다시 잠기면 안 된다.
+        run(ctx, 'ensureCoreCubeState().powersUsedEver = {};');
+        assert.strictEqual(run(ctx, 'getCoreCubeUsedPowerCount(ensureCoreCubeState())'), 0, '사전 조건: 사용 이력이 비워졌다');
+        assert.strictEqual(run(ctx, 'isCoreCubePresetSlotUnlocked(1)'), true, '2번 칸 해금은 한 번 걸리면 영구여야 한다');
+
+        // 루프 리셋을 거쳐도 유지된다.
+        run(ctx, 'let st2 = ensureCoreCubeState(); st2.everUnlocked = true; relockCoreCubeForLoop();');
+        assert.strictEqual(run(ctx, 'isCoreCubePresetSlotUnlocked(1)'), true, '루프 리셋 후에도 2번 칸은 열려 있어야 한다');
     }
 
     // ── 실제 각인이 사용 이력을 남겨야 한다 ──────────────────────────────
@@ -177,6 +186,17 @@ async function main() {
         await vm.runInContext('saveCoreCubePreset(0)', ctx);
         assert.strictEqual(run(ctx, 'JSON.stringify(ensureCoreCubeState().presets[0].faces)'), '[1,2,3,4,5,6]',
             '덮어쓰기를 취소하면 기존 조합이 남아야 한다');
+    }
+
+    // 플래그가 없던 예전 저장도 불러오는 순간 해금이 걸려야 한다.
+    {
+        const ctx = loadCubeContext();
+        let used = {};
+        for (let n = 1; n <= 45; n++) used[n] = true;
+        ctx.game.coreCube = { unlocked: true, everUnlocked: true, powersUsedEver: used };
+        assert.strictEqual(run(ctx, 'isCoreCubePresetSlotUnlocked(1)'), true,
+            '45종을 이미 채운 예전 저장은 불러올 때 2번 칸이 열려야 한다');
+        assert.strictEqual(run(ctx, 'ensureCoreCubeState().presetSlot2Unlocked'), true, '해금이 상태에 기록되어야 한다');
     }
 
     console.log('smoke-core-cube-presets passed');

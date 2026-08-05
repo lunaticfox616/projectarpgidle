@@ -391,8 +391,18 @@ function claimAllRecentGrowthDrops() {
         game.growthInventory.push(game.recentGrowthDrops.shift());
         moved++;
     }
-    if (moved > 0) addLog(`🌱 최근 획득함에서 ${moved}개를 생장 보관함으로 옮겼습니다.`, 'loot-normal');
-    else addLog('옮길 아이템이 없거나 생장 보관함이 가득 찼습니다.', 'attack-monster');
+    let left = game.recentGrowthDrops.length;
+    // 보관함이 꽉 차 일부만 옮겨진 경우를 분명히 알린다. 예전에는 "가득 찼습니다" 한 줄뿐이라
+    // 최근 획득함에 남은 것이 계속 자동 해체로 사라져도 이유를 알기 어려웠다.
+    if (moved > 0 && left > 0) {
+        addLog(`🌱 ${moved}개를 옮겼지만 생장 보관함이 가득 차 ${left}개가 남았습니다. 보관함을 정리하세요. (남은 아이템은 새 드랍에 밀려 자동 해체됩니다)`, 'attack-monster');
+    } else if (moved > 0) {
+        addLog(`🌱 최근 획득함에서 ${moved}개를 생장 보관함으로 옮겼습니다.`, 'loot-normal');
+    } else if (left > 0) {
+        addLog(`🌱 생장 보관함이 가득 찼습니다 (${game.growthInventory.length}/${getGrowthInventoryLimit()}). 해체하거나 배치해 자리를 비우세요.`, 'attack-monster');
+    } else {
+        addLog('옮길 아이템이 없습니다.', 'attack-monster');
+    }
     updateStaticUI();
     return moved;
 }
