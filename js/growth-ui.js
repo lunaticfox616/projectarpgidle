@@ -444,6 +444,9 @@ function renderGrowthLevelLine(itemId) {
 }
 
 function showGrowthItemTooltip(event, itemId) {
+    // 드래그 중에는 툴팁을 띄우지 않는다. 커서를 따라다니며 판을 가려서,
+    // 정작 보고 판단해야 할 배치 미리보기와 칸 레벨이 안 보인다.
+    if (growthDrag && growthDrag.active) return;
     let item = findGrowthItemById(itemId)
         || (game.recentGrowthDrops || []).find(row => row && row.id === itemId);
     if (!item || typeof showInfoTooltipHtml !== 'function') return;
@@ -558,6 +561,7 @@ function onGrowthPointerMove(event) {
         // 선택 상태로 만들어 기존 배치 미리보기와 회전 값을 그대로 재사용한다.
         selectGrowthItem(growthDrag.itemId, 'inventory');
         document.body.classList.add('growth-dragging');
+        if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
     }
     // 터치에서 드래그 중 화면이 스크롤되지 않게 막는다(비수동 리스너로 등록).
     if (event.cancelable) event.preventDefault();

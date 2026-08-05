@@ -180,6 +180,22 @@ assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋
     assert.strictEqual(reach, 8, `석판은 주변 8칸이 모두 살아 있는 안쪽 칸에 놓여야 한다 (현재 ${reach}칸)`);
 }
 
+// ── 레이아웃 계약 (css/growth-board.css) ─────────────────────────────────
+// 이 프로젝트는 전역 border-box를 쓰지 않는다. 패딩·테두리가 있는 컨테이너에
+// width:100%만 주면 좁은 화면에서 부모 밖으로 삐져나간다(390px에서 12px 넘침).
+{
+    const css = fs.readFileSync('css/growth-board.css', 'utf8');
+    const boardRule = css.slice(css.indexOf('.growth-board {'), css.indexOf('.growth-cell {'));
+    assert.ok(/box-sizing:\s*border-box/.test(boardRule),
+        '패딩·테두리를 가진 생장판 격자는 border-box여야 부모 폭을 넘지 않는다');
+    ['.growth-item-card', '.growth-synergy-row', '.growth-compare-row'].forEach(selector => {
+        const idx = css.indexOf(selector + ' {');
+        assert.ok(idx >= 0, `${selector} 규칙이 있어야 한다`);
+        assert.ok(/box-sizing:\s*border-box/.test(css.slice(idx, idx + 220)),
+            `${selector}도 border-box여야 한다`);
+    });
+}
+
 // ── 드래그 배치 계약 (js/growth-ui.js) ───────────────────────────────────
 {
     const ui = fs.readFileSync('js/growth-ui.js', 'utf8');
@@ -204,6 +220,10 @@ assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋
     // 카드 안 버튼(배치/해체/잠금)에서 시작한 입력은 드래그로 가로채면 안 된다.
     assert.ok(/onGrowthPointerDown[\s\S]{0,500}closest\('button'\)/.test(ui),
         '카드 내부 버튼은 드래그 시작에서 제외해야 한다');
+
+    // 드래그 중 툴팁이 커서를 따라다니면 정작 봐야 할 미리보기와 칸 레벨을 가린다.
+    assert.ok(/function showGrowthItemTooltip[\s\S]{0,300}growthDrag[\s\S]{0,80}return;/.test(ui),
+        '드래그 중에는 아이템 툴팁을 띄우지 않아야 한다');
 }
 
 console.log('smoke-growth-board-placement passed');

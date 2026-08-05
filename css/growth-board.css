@@ -13,6 +13,9 @@
     display: grid;
     gap: 3px;
     width: 100%;
+    /* 이 프로젝트는 전역 border-box를 쓰지 않는다. content-box로 두면 width:100%에
+       패딩과 테두리가 더해져 좁은 화면에서 부모 밖으로 12px 삐져나간다. */
+    box-sizing: border-box;
     max-width: 760px;
     margin: 0 auto 12px;
     padding: 8px;
@@ -70,11 +73,11 @@
 .growth-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .growth-columns h3 { margin: 0 0 6px; font-size: 0.92em; color: #d7e9ff; }
 .growth-synergy-list { max-height: 220px; overflow-y: auto; }
-.growth-synergy-row { border: 1px solid #2b4258; border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; background: rgba(12, 20, 30, 0.6); color: #cfe2f3; font-size: 0.82em; line-height: 1.45; }
+.growth-synergy-row { box-sizing: border-box; border: 1px solid #2b4258; border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; background: rgba(12, 20, 30, 0.6); color: #cfe2f3; font-size: 0.82em; line-height: 1.45; }
 .growth-synergy-empty { color: #7f8c8d; font-size: 0.82em; padding: 6px 0; }
-.growth-compare-row { border: 1px solid #33475e; border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; background: rgba(12, 20, 30, 0.6); font-size: 0.8em; line-height: 1.5; }
+.growth-compare-row { box-sizing: border-box; border: 1px solid #33475e; border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; background: rgba(12, 20, 30, 0.6); font-size: 0.8em; line-height: 1.5; }
 
-.growth-item-card { border: 1px solid #2b4258; border-radius: 9px; padding: 8px; background: rgba(14, 22, 32, 0.8); display: flex; flex-direction: column; gap: 6px; }
+.growth-item-card { box-sizing: border-box; border: 1px solid #2b4258; border-radius: 9px; padding: 8px; background: rgba(14, 22, 32, 0.8); display: flex; flex-direction: column; gap: 6px; }
 .growth-item-card.selected { border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241, 196, 15, 0.45) inset; }
 .growth-item-card.placed { border-left: 3px solid #4fd1a5; }
 .growth-item-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
@@ -121,3 +124,6 @@ body.growth-dragging .growth-item-card,
 body.growth-dragging .growth-cell { cursor: grabbing; }
 .growth-filter-label { font-size: 0.76em; color: #7f93a8; align-self: center; margin-right: 2px; }
 .growth-filter-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+/* 드래그 중에는 툴팁이 포인터를 가로채지 않도록 한다(히트 테스트와 무관하게 안전장치). */
+body.growth-dragging .info-tooltip,
+body.growth-dragging #info-tooltip { pointer-events: none; }
