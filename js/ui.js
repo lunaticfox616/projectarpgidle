@@ -11240,7 +11240,7 @@ function buildCraftActionButtons(item) {
         let shapeStyle = shape ? getTalismanShapeStyle(shape) : null;
         let valid = isTalismanBoardCellValid(x,y);
         let coreOpen = isTalismanCellInitiallyUnlocked(x, y);
-        if (!valid) return `<div style="width:42px; height:42px; border:0; background:transparent; border-radius:8px; opacity:0; pointer-events:none;"></div>`;
+        if (!valid) return `<div style="width:var(--talisman-cell); height:var(--talisman-cell); border:0; background:transparent; border-radius:8px; opacity:0; pointer-events:none;"></div>`;
         let cellColor = coreOpen ? 'radial-gradient(circle at 30% 25%, #595f69 0%, #3a3f48 52%, #1f2329 100%)' : (!unlocked ? 'linear-gradient(180deg, #05070c 0%, #0b0e14 100%)' : 'radial-gradient(circle at 30% 25%, #666c76 0%, #434a54 58%, #252b32 100%)');
         if (id) cellColor = (shapeStyle ? `linear-gradient(145deg, rgba(255,255,255,0.3) 0%, ${shapeStyle.color} 42%, rgba(10,12,17,0.22) 100%)` : '#355d46');
         let label = '';
@@ -11268,7 +11268,7 @@ function buildCraftActionButtons(item) {
                 ? ' talisman-placement-valid'
                 : ' talisman-placement-invalid';
         }
-        return `<button class="talisman-board-cell${placementClass}" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
+        return `<button class="talisman-board-cell${placementClass}" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:var(--talisman-cell); height:var(--talisman-cell); border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     }
     let talismanTotalEl = talismanTabActive ? document.getElementById('ui-talisman-total') : null;
