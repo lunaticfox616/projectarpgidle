@@ -444,15 +444,23 @@ function salvageGrowthInventoryItem(itemId) {
 }
 
 /** 배치되지 않은 비잠금 생장 아이템 일괄 해체. */
-function bulkSalvageGrowthInventory() {
+async function bulkSalvageGrowthInventory() {
     ensureGrowthBoardState();
     let targets = game.growthInventory.filter(item => item && !item.locked && !isGrowthItemPlacedAnywhere(item.id));
     if (targets.length <= 0) return addLog('해체할 수 있는 생장 아이템이 없습니다. (잠금/배치 중인 아이템은 보호됩니다)', 'attack-monster');
-    if (!confirm(`생장 보관함 아이템 ${targets.length}개를 해체할까요? (잠금·배치 중인 아이템은 보호됩니다)`)) return;
+    if (!await requestGameConfirmation(`생장 보관함 아이템 ${targets.length}개를 해체합니다.\n잠금·배치 중인 아이템은 보호됩니다.`, {
+        title: '생장 보관함 일괄 해체',
+        tone: 'danger',
+        confirmLabel: `${targets.length}개 해체`
+    })) return;
+    // 확인창이 열린 동안 배치/잠금이 바뀌었을 수 있으므로 대상을 다시 추린다.
+    targets = game.growthInventory.filter(item => item && !item.locked && !isGrowthItemPlacedAnywhere(item.id));
+    if (targets.length <= 0) return addLog('확인 중 대상이 모두 보호 상태가 되어 해체를 취소했습니다.', 'attack-monster');
     let protectedCount = game.growthInventory.length - targets.length;
-    targets.forEach(item => salvageItemObject(item, true));
+    let rewards = {};
+    targets.forEach(item => mergeSalvageRewards(rewards, salvageItemObject(item, true)));
     game.growthInventory = game.growthInventory.filter(item => item && (item.locked || isGrowthItemPlacedAnywhere(item.id)));
-    addLog(`🧪 생장 아이템 ${targets.length}개 해체${protectedCount > 0 ? ` (보호 ${protectedCount}개)` : ''}`, 'loot-normal');
+    addLog(`🧪 생장 아이템 ${targets.length}개 해체 · ${formatSalvageRewardSummary(rewards)}${protectedCount > 0 ? ` (보호 ${protectedCount}개)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 

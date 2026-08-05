@@ -382,6 +382,16 @@ function getAbyssZoneTier(depth) {
     return abyssTiers[Math.min(20, safeDepth) - 1] || abyssTiers[abyssTiers.length - 1] || 20;
 }
 
+function getTimeRiftEquivalentChaosDepth(pressure) {
+    let safePressure = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, Math.floor(Number(pressure) || 1)));
+    return TIME_RIFT_EQUIVALENT_CHAOS_DEPTHS[safePressure - 1];
+}
+
+function getTimeRiftDifficultyTier(pressure) {
+    let equivalentDepth = getTimeRiftEquivalentChaosDepth(pressure);
+    return getAbyssZoneTier(1) + equivalentDepth - 1;
+}
+
 
 
 
@@ -448,8 +458,11 @@ function getZone(id) {
         let rift = ensureTimeRiftState();
         let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
         // 시간압이 유일한 난이도 손잡이 — 루프 인플레이션 대신 fixedDifficultyMul로만 세진다.
-        let pressureMul = (phase === 'past' ? 1.6 : 2.1) * (1 + (rift.pressure - 1) * 0.45);
-        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${rift.pressure})`, type: 'timeRift', riftPhase: phase, tier: 15 + rift.pressure, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: rift.pressure };
+        let equivalentChaosDepth = getTimeRiftEquivalentChaosDepth(rift.pressure);
+        let difficultyTier = getTimeRiftDifficultyTier(rift.pressure);
+        // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
+        let pressureMul = phase === 'past' ? 1 : 1.18;
+        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${rift.pressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: rift.pressure, equivalentChaosDepth: equivalentChaosDepth };
     }
     if (id === UNDERWORLD_ZONE_ID) {
         let uw = (game && game.underworldProgress) || {};
@@ -509,6 +522,72 @@ function getZone(id) {
     return MAP_ZONES[id];
 }
 
+const CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT = 8;
+const CHALLENGE_CONTRACT_KEYS = ['enemyPower', 'fragileArmor', 'shortHunt', 'greedPact'];
+
+function normalizeChallengeContract(contract) {
+    let source = contract && typeof contract === 'object' ? contract : {};
+    let normalized = {};
+    CHALLENGE_CONTRACT_KEYS.forEach(key => { normalized[key] = !!source[key]; });
+    normalized.enabled = CHALLENGE_CONTRACT_KEYS.some(key => normalized[key]);
+    return normalized;
+}
+
+function getChallengeContractState() {
+    game.challengeContract = normalizeChallengeContract(game.challengeContract);
+    return game.challengeContract;
+}
+
+function getActiveChallengeContractState() {
+    if (!game.activeChallengeContract || typeof game.activeChallengeContract !== 'object') {
+        game.activeChallengeContract = normalizeChallengeContract(getChallengeContractState());
+    } else {
+        game.activeChallengeContract = normalizeChallengeContract(game.activeChallengeContract);
+    }
+    return game.activeChallengeContract;
+}
+
+function applyPendingChallengeContract() {
+    game.activeChallengeContract = normalizeChallengeContract(getChallengeContractState());
+    return game.activeChallengeContract;
+}
+
+function getChallengeContractScore(contract) {
+    let target = contract ? normalizeChallengeContract(contract) : getActiveChallengeContractState();
+    return CHALLENGE_CONTRACT_KEYS.reduce((sum, key) => sum + (target[key] ? 1 : 0), 0);
+}
+
+function isChallengeContractEligibleZone(zone) {
+    let target = zone || getZone(game.currentZoneId);
+    return !!(target && target.type === 'act');
+}
+
+function getChallengeContractRewardMultiplier(zone, contract) {
+    if (!isChallengeContractEligibleZone(zone)) return 1;
+    return 1 + (getChallengeContractScore(contract) * CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT) / 100;
+}
+
+function getChallengeContractEnemyDamageMultiplier(zone) {
+    let contract = getActiveChallengeContractState();
+    return isChallengeContractEligibleZone(zone) && contract.enemyPower ? 1.25 : 1;
+}
+
+function getChallengeContractEnemyHealthMultiplier(zone) {
+    let contract = getActiveChallengeContractState();
+    return isChallengeContractEligibleZone(zone) && contract.shortHunt ? 1.30 : 1;
+}
+
+function getChallengeContractPhysicalReductionPenalty(zone) {
+    let contract = getActiveChallengeContractState();
+    return isChallengeContractEligibleZone(zone) && contract.fragileArmor ? 12 : 0;
+}
+
+function getChallengeContractRecoveryMultiplier(zone) {
+    let contract = getActiveChallengeContractState();
+    return isChallengeContractEligibleZone(zone) && contract.greedPact ? 0.65 : 1;
+}
+
+
 
 
 
@@ -523,6 +602,7 @@ function ensureTimeRiftState() {
     st.altarOpen = !!st.altarOpen;
     st.altarUnique = (st.altarUnique && typeof st.altarUnique === 'object') ? st.altarUnique : null;
     st.altarRare = (st.altarRare && typeof st.altarRare === 'object') ? st.altarRare : null;
+    st.fusionCount = Math.max(0, Math.floor(st.fusionCount || 0));
     return st;
 }
 
@@ -537,7 +617,7 @@ function getTimeRiftFusionOdds(pressure) {
 
 function getSeasonAbyssDepthCap(seasonValue) {
     let season = Math.max(1, Math.floor(seasonValue || 1));
-    if (season > 30) return LOOP_GATE_ABYSS_DEPTH_CAP + ((season - 30) * 5);
+    if (season > 30) return LOOP_GATE_ABYSS_DEPTH_CAP + (season - 30);
     let uncapped = season <= 9 ? (10 + (season - 1)) : (20 + (season - 10));
     return Math.min(LOOP_GATE_ABYSS_DEPTH_CAP, uncapped);
 }
@@ -803,7 +883,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'w2', name: '전장의 리듬', desc: '치명타 및 연속 공격 발생 시 각각 2초간 공격속도 +8% (각각 최대 5중첩)', req: null },
         { id: 'w3', name: '쌍수 훈련', desc: '방패 슬롯에 무기 장착 가능', req: null },
         { id: 'w4', name: '갑주 분쇄', desc: '물리 피해 감소 무시가 마이너스까지 적용될 수 있음', req: 'w1' },
-        { id: 'w5', name: '격노 순환', desc: '피격 시 5초간 물리 피해 +5% (최대 5중첩, 곱연산)', req: 'w2' },
+        { id: 'w5', name: '격노 순환', desc: '피격 시 5초간 물리 피해 +10% (최대 5중첩, 곱연산)', req: 'w2' },
         { id: 'w6', name: '거인의 힘', desc: '쌍수 상태에서, 각 무기의 효과 50% 증가', req: 'w3' },
         { id: 'w7', name: '불굴의 진군', desc: '생명력 50% 이하 시 받는 피해 15% 감폭, 주는 피해 15% 증폭', reqAny: ['w2', 'w4'] },
         { id: 'w8', name: '파괴 본능', desc: '생명력이 50% 이상으로 회복/흡수되지 않음, 치명타 확률/치명타 피해 배율/연속타격/공격 속도/이동 속도 +15%, 최종 피해 +15%', req: 'w7' },
@@ -867,14 +947,14 @@ const CLASS_KEYSTONE_DEFS = {
 
     soulbinder: [
         { id: 'sb1', name: '영혼 결속', desc: '소환수 기본 피해 30% 증폭', req: null },
-        { id: 'sb2', name: '나눠갖기', desc: '소환수가 플레이어가 받는 피해의 50%를 대신 받음', req: null },
-        { id: 'sb3', name: '야생성', desc: '소환수 흡혈 +3%', req: null },
+        { id: 'sb2', name: '나눠갖기', desc: '가장 가까운 소환수에게 플레이어가 받는 피해의 50%를 전달. 해당 피해로 소환수 사망 시 부활 시간 30% 단축', req: null },
+        { id: 'sb3', name: '야생성', desc: '플레이어와 소환수 생명력 흡수 +3.5%', req: null },
         { id: 'sb4', name: '무리', desc: '소환수 한도 +1, 소환수 공격 속도 25% 증폭', req: 'sb1' },
         { id: 'sb5', name: '홀로서기', desc: '소환수의 기본 공격력과 공격적인 추가 스탯만 플레이어가 가짐, 소환수 생명력 등 방어적인 소환 옵션은 전이되지 않으며 소환수는 공격하지 않음', req: 'sb2' },
-        { id: 'sb6', name: '꿰뚫는 이', desc: '저항 관통 +25%, 플레이어 저항 관통이 소환수 공격에도 100% 적용', req: 'sb3' },
+        { id: 'sb6', name: '꿰뚫는 이', desc: '저항 관통 +25%, 플레이어 저항 관통이 소환수 공격에도 100% 적용. 소환수 공격이 대상 주변 1칸의 적도 관통', req: 'sb3' },
         { id: 'sb7', name: '상호 보완', desc: '플레이어 공격력(타격당 기본 피해)의 75%를 소환수 타격에 더하고, 소환수 공격력의 75%를 플레이어 타격에 더함', reqAny: ['sb4', 'sb3'] },
         { id: 'sb8', name: '군주', desc: '소환수 한도 +3', req: 'sb7' },
-        { id: 'sb9', name: '대군 소환', desc: '소환수 한도가 1.5배가 됩니다(내림)', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
+        { id: 'sb9', name: '대군주', desc: '소환수 한도가 1.5배가 되고 최대 한도가 12로 증가합니다. 살아 있는 소환수 중 현재 생명력이 가장 낮은 하위 1/3(최대 4기)은 유령이 되어 피해를 받지 않고 칸을 점유하지 않습니다.', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
     catalyst: [
         { id: 'ct1', name: '과잉 촉매', desc: '상태이상 지속 피해 유발 기준 피해가 실제 타격의 2배로 계산', req: null },
@@ -991,6 +1071,37 @@ const SEASON_NODE_ROWS = [
     ['s_king', 's_cataclysm'],
     ['s_floor', 's_ceil']
 ];
+
+// 원점은 아래쪽에 두고 두 성장 축이 원의 양쪽으로 갈라졌다가 위쪽에서
+// 다시 합쳐지도록 배치한다. 데이터/선행 조건은 그대로 유지하고 시각 순서만 고정한다.
+const SEASON_OUROBOROS_RING_NODES = [
+    's_root', 's_hp', 's_guard', 's_vital', 's_blood', 's_leech',
+    's_skirmish', 's_fury', 's_momentum', 's_focus', 's_floor',
+    's_ceil', 's_cataclysm', 's_ruin', 's_prism', 's_breach',
+    's_king', 's_bruise', 's_rend', 's_crit', 's_dot', 's_speed', 's_dmg'
+];
+const SEASON_INNER_NODES = {
+    si_worldheart: { name: '세계심장', desc: '완성된 순환이 생명력을 증폭합니다.', stat: 'pctHp', val: 36, req: null, inner: true },
+    si_cataclysm: { name: '내면의 대격변', desc: '마법진의 힘이 모든 피해를 증폭합니다.', stat: 'pctDmg', val: 45, req: null, inner: true },
+    si_aegis: { name: '영원의 방벽', desc: '순환의 비늘이 받는 충격을 줄입니다.', stat: 'dr', val: 10, req: null, inner: true },
+    si_convergence: { name: '운명의 수렴', desc: '되풀이된 전투가 치명타를 완성합니다.', stat: 'critDmg', val: 50, req: null, inner: true },
+    si_quicksilver: { name: '끝없는 박동', desc: '우로보로스의 맥동이 공격을 가속합니다.', stat: 'aspd', val: 14, req: null, inner: true },
+    si_origin: { name: '기원의 기억', desc: '모든 순환의 기억에서 경험을 얻습니다.', stat: 'expGain', val: 30, req: null, inner: true }
+};
+
+function getSeasonPassiveNodeDef(id) {
+    return SEASON_NODES[id] || SEASON_INNER_NODES[id] || null;
+}
+
+function getAllSeasonPassiveNodeIds() {
+    return Object.keys(SEASON_NODES).concat(Object.keys(SEASON_INNER_NODES));
+}
+
+function getSeasonPassiveUnlockLoop(id) {
+    if (SEASON_INNER_NODES[id]) return 1;
+    const rowIndex = SEASON_NODE_ROWS.findIndex(row => row.includes(id));
+    return rowIndex >= 4 ? 5 : 1;
+}
 
 const JEWEL_INVENTORY_LIMIT = 40;
 const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare', 'unique'];
@@ -1661,7 +1772,7 @@ function getExpertFavorEffectTotals(){ let st=ensureExpertiseState(); st.favors=
 
 const EXPERT_EXP_RULES = {
   mycologist: { loopCap: 250, actions: { spore_craft: { exp: 2, cap: 80 }, fossil_refine: { exp: 3, cap: 80 }, fossil_craft: { exp: 3, cap: 80 }, fossil_restore: { exp: 5, cap: 80 }, labyrinth_new_floor: { exp: 10, cap: 60 }, loop_base: { exp: 60 } } },
-  gemEngraver: { loopCap: 250, actions: { boss_core_upgrade: { exp: 3, cap: 80 }, sky_core_upgrade: { exp: 3, cap: 80 }, engrave_slot_expand: { exp: 5, cap: 60 }, engrave_apply: { exp: 1, cap: 100 }, support_gem_upgrade: { exp: 1, cap: 100 }, loop_base: { exp: 60 } } },
+  gemEngraver: { loopCap: 250, actions: { boss_core_upgrade: { exp: 3, cap: 80 }, sky_core_upgrade: { exp: 3, cap: 80 }, engrave_slot_expand: { exp: 5, cap: 60 }, engrave_apply: { exp: 1, cap: 100 }, support_gem_upgrade: { exp: 1, cap: 100 }, gem_research: { exp: 2, cap: 60 }, loop_base: { exp: 60 } } },
   astronomer: { loopCap: 250, actions: { meteor_clear: { exp: 5, cap: 80 }, starwedge_craft: { exp: 5, cap: 80 }, starwedge_reroll: { exp: 1, cap: 100 }, anomaly_observe: { exp: 5, cap: 80 }, loop_base: { exp: 60 } } },
   beekeeper: { loopCap: 250, actions: { bee_branch_choice: { exp: 1, cap: 100 }, bee_clear: { exp: 10, cap: 80 }, bee_currency_craft: { exp: 3, cap: 80 }, bee_resource_use: { exp: 2, cap: 80 }, loop_base: { exp: 60 } } }
 };
@@ -1841,8 +1952,11 @@ const defaultGame = {
     killsInZone: 0,
     loopDeaths: 0,
     loopKills: 0,
+    loopStarterGemGranted: false,
+    starterGemTutorialPending: null,
     settings: {
         showCombatScene: true,
+        cameraShake: true,
         showCombatLog: true,
         combatLogAggregate: true,
         combatLogRateLimit: true,
@@ -1862,6 +1976,8 @@ const defaultGame = {
         themeMode: 'dark',
         leftPaneCollapsed: false,
         combatLogCollapsed: false,
+        autoEquipEmptySlots: true,
+        collapsePastLoopMilestones: true,
         autoSalvageEnabled: false,
         autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false },
         inventoryViewRarities: { normal: true, magic: true, rare: true, unique: true },
@@ -1878,7 +1994,8 @@ const defaultGame = {
         mapCompleteAction: 'nextZone',
         townReturnAction: 'retry',
         tabNotiEnabled: true,
-        notiFilters: { char: true, season: true, items: true, skills: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
+        socialChatNotifications: true,
+        notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
     },
     selectedHeroId: 'hero1',
     appearanceHeroId: null,
@@ -1911,11 +2028,16 @@ const defaultGame = {
     enemies: [],
     playerAilments: [],
     playerLeechInstances: [],
+    realmDeathWard: null,
+    realmInvulnerableBarrierUntil: 0,
     nextEnemyId: 1,
     summons: [],
     summonSeq: 1,
     passives: [],
+    passiveAttributePreference: 'strength',
+    passiveAttributeChoices: {},
     voidPassives: {},
+    retiredVoidPassives: {},
     discoveredPassives: [],
     passiveLayoutVersion: PASSIVE_LAYOUT_VERSION,
     passiveStarEvolution: false,
@@ -1939,14 +2061,22 @@ const defaultGame = {
     conditionGemLevels: {},
     pendingConditionGemChoices: null,
     clearedRootBosses: [],
-    timeRift: { pressure: 1, altarOpen: false, altarUnique: null, altarRare: null },
+    timeRift: { pressure: 1, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
     // 유틸리티 슬롯은 이제 허리띠(숨겨진 티어/고유 효과)가 결정하므로 기본은 회복 슬롯 1개뿐이다.
     // getMaxFlaskUtilitySlotCount 참고.
-    flasks: { healTier: 'h1', healCharges: 3, healOverTimeUntil: 0, healOverTimePerSec: 0, utils: [], killCounter: 0, foundKeys: ['h1'] },
+    flasks: {
+        healTier: 'h1', healCharges: 3, healChargeProgress: 0,
+        healOverTimeUntil: 0, healOverTimePerSec: 0, healOverTimeTotal: 0,
+        healOverTimeApplied: 0, healOverTimeStartedAt: 0,
+        alchemyGlass: 0, qualityByKey: {},
+        utils: [], utilityChargeBank: {}, killCounter: 0,
+        encounterSerial: 0, wasInCombat: false, foundKeys: ['h1']
+    },
     mapSubtab: 'map-tab-zones',
     mapExploreSubtab: 'map-explore-hunting',
     gemFoldInactiveAttack: false,
     gemFoldInactiveSupport: false,
+    gemResearchExpanded: {},
     autoRepeatSeasonBoss: false,
     talismanUnlocked: false,
     talismanBoardUnlock: 3,
@@ -1971,7 +2101,7 @@ const defaultGame = {
     abyssPassivePoints: 0,
     abyssClearedDepths: [],
     abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
-    currencies: { transmute: 0, augment: 0, alteration: 0, alchemy: 0, exalted: 0, regal: 0, chaos: 0, divine: 0, chance: 0, scour: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, tainted: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, hiveTrace: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0, condensedSkyPower: 0 },
+    currencies: { magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
     ascendClass: null,
     ascendPoints: 0,
     ascendKeystonePoints: 0,
@@ -1993,13 +2123,14 @@ const defaultGame = {
     jewelSlots: [null, null],
     jewelSlotAmplify: [0, 0],
     beehive: { unlockedPermanent: false, inRun: false, branchStep: 0, cleared: false, routeSeed: 0 },
-    colony: { inRun: false, wave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
-    voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 },
+    colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
+    voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, grandBreachCleared: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},
     shrineState: { active: null, nextRollAt: 0 },
     shrineBuff: null,
     challengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
-    blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [] },
+    activeChallengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
+    blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
     abyssEndlessDepth: 20,
@@ -2034,6 +2165,7 @@ const defaultGame = {
     seasonChaseUniqueDrops: [],
     gemEnhanceUnlocked: false,
     gemEnhanceTargetSkill: null,
+    gemEngraveSelectedSlot: 0,
     uniqueCodex: {},
     codexNewlyRegistered: {},
     codexCollapsedSlots: {},
@@ -2059,9 +2191,9 @@ const defaultGame = {
         nodeMutations: {},
         selectedWedgeId: null
     },
-    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null },
+    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, expertise: false, jewel: false },
-    noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
+    noti: { char: false, season: false, items: false, skills: false, flask: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }

@@ -4,7 +4,7 @@ const vm = require('vm');
 
 const source = fs.readFileSync('js/ui.js', 'utf8');
 const start = source.indexOf('const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;');
-const end = source.indexOf('function syncLoop10PanelCopies', start);
+const end = source.indexOf('function getUiConditionGemStatDelta', start);
 assert(start >= 0 && end > start, 'background progress block not found');
 let timeouts = [];
 const body = {
@@ -19,6 +19,9 @@ function makeNode(tag) {
     className: '',
     innerHTML: '',
     textContent: '',
+    style: {},
+    attributes: {},
+    setAttribute(name, value) { this.attributes[name] = String(value); },
     removed: false,
     remove() { this.removed = true; if (this.id) delete nodes[this.id]; },
   };
@@ -35,6 +38,7 @@ const context = {
   document: {
     body,
     getElementById(id) { return nodes[id] || null; },
+    querySelector() { return null; },
     createElement(tag) {
       const node = makeNode(tag);
       Object.defineProperty(node, 'id', {
@@ -45,8 +49,10 @@ const context = {
     },
   },
   game: {},
+  getExpReq: () => 10,
   mergeDefaults: state => state,
   updateStaticUI: () => { context.updated = (context.updated || 0) + 1; },
+  safeExposeGlobals: entries => Object.assign(context, entries),
   renderBattlefield: force => { context.rendered.push(force); },
   scheduleStableResize: () => { context.resized = (context.resized || 0) + 1; },
   syncBattleTabLayout: () => { context.synced = (context.synced || 0) + 1; },
@@ -54,6 +60,7 @@ const context = {
     context.observedNow.push(context.Date.now());
     context.game.exp += 1;
     context.game.killsInZone += 1;
+    context.game.loopKills += 1;
     if (context.killAfter && context.game.exp >= context.killAfter) context.game.playerHp = 0;
   },
   observedNow: [],
@@ -71,7 +78,10 @@ async function flushTimers() {
 }
 (async () => {
 
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0 };
+  vm.runInContext(`showBackgroundCombatResult({ actualElapsedMs: 60000, effectiveProgressMs: 6000, summary: { overflowSalvaged: 7 } })`, context);
+  assert(nodes['background-combat-result-overlay'].innerHTML.includes('공간 부족 자동해체: <strong>7개</strong>'), 'background result must summarize overflow salvage in one result panel');
+
+  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const shortResult = await vm.runInContext('startBackgroundCombatReturn(1000 + 59999)', context);
   assert.strictEqual(shortResult, false, 'short return should not run background combat');
@@ -80,7 +90,7 @@ async function flushTimers() {
   assert(context.rendered.includes(true), 'short return should still force-render the battlefield');
   context.rendered = [];
 
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0 };
+  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const promise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
   await flushTimers();
@@ -93,8 +103,21 @@ async function flushTimers() {
   assert.strictEqual(await vm.runInContext('startBackgroundCombatReturn(12 * 60 * 1000)', context), false, 'same elapsed time should not apply twice');
   assert.strictEqual(context.game.exp, onceExp, 'duplicate return should not grant rewards');
 
+  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+  vm.runInContext('recordBackgroundCombatEntry(1000)', context);
+  const ultraPromise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
+  vm.runInContext('requestFasterBackgroundCombat(); requestFasterBackgroundCombat();', context);
+  await flushTimers();
+  assert.strictEqual(await ultraPromise, true, 'fast calculation should complete');
+  // 빠른 계산은 표본 이후 구간을 예상 정산한다. 정산된 경험치는 레벨 업에
+  // 쓰이므로 (레벨 업 소모 + 잔여 경험치)의 총량이 전체 계산과 같아야 한다.
+  const settledTotalExp = context.game.exp + (context.game.level - 1) * 10;
+  assert(context.game.level > 1, 'estimated settlement should apply pending level-ups');
+  assert.strictEqual(settledTotalExp, onceExp, 'estimated settlement should preserve the full expected experience');
+  assert.strictEqual(context.game.loopKills, 659, 'estimated settlement should scale kills to the full duration');
+
   context.killAfter = 3;
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], exp: 0, killsInZone: 0 };
+  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const deathPromise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
   await flushTimers();

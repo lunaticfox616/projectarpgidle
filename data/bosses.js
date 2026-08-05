@@ -1,8 +1,4 @@
-function safeExposeData(map) {
-  Object.keys(map || {}).forEach(function (key) {
-    if (typeof window[key] === "undefined") window[key] = map[key];
-  });
-}
+if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/bosses.js');
 
 // Phase-1 extracted data block.
 const ACT_BOSS_NAMES = Object.fromEntries(STORY_ACTS.map((act, idx) => [idx, act.bossName]));

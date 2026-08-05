@@ -65,6 +65,7 @@ const context = {
   clearInterval() {},
   requestAnimationFrame() {},
   cancelAnimationFrame() {},
+  performance: { now() { return Date.now(); } },
   Image: function Image() {},
   Date,
   Math,
@@ -113,8 +114,14 @@ Object.keys(context.SKILL_DB).forEach(name => {
   assert.ok(validKinds.has(profile.kind), `스킬 '${name}'의 kind가 유효하지 않다: ${profile.kind}`);
   assert.ok(Number.isFinite(profile.range) && profile.range >= 1, `스킬 '${name}'의 range가 유효하지 않다`);
 });
-assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발 · 사거리 5칸 · 반경 2칸');
-assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 2칸');
+assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발 · 사거리 4칸 · 반경 2칸');
+assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄 · 사거리 4칸 · 연쇄 2칸');
+assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= 6, '보수적으로 조정된 스킬 최대 사거리는 6칸을 넘지 않아야 한다');
+const radiusOneCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 1 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
+const radiusTwoCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 2 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
+assert.strictEqual(radiusOneCells.length, 5, '반경 1은 중심과 상하좌우 4칸만 덮어야 한다');
+assert.strictEqual(radiusTwoCells.length, 13, '반경 2는 맨해튼 거리 2의 다이아몬드 13칸이어야 한다');
+assert.ok(!radiusOneCells.some(cell => cell.gx === 4 && cell.gy === 4), '반경 1은 대각선 칸을 포함하지 않아야 한다');
 
 // ── 2. 직선 칸 계산(브레젠험) ──
 {
@@ -182,7 +189,80 @@ assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKI
   assert.strictEqual(hits.length, 1, '인접하지 않은 적으로는 전이되지 않아야 한다');
 }
 
-// ── 3-1. 플라스크 수명주기: 조우 사이 유지, 지역 완료/이동 시 종료, 루프 시 획득 리셋 ──
+// ── 3-1. 스킬 공격 단계: 회전 순차 타격 / 최초·연쇄 분리 / 강타 여진 ──
+{
+  const targets = [makeEnemy(31, 2, 6), makeEnemy(32, 2, 5), makeEnemy(33, 1, 5)]
+    .map((enemy, idx) => ({ enemy, mult: idx === 0 ? 1 : 0.8 }));
+  const whirl = context.buildSkillHitSequence('회오리바람', context.SKILL_DB['회오리바람'], targets);
+  assert.strictEqual(whirl.length, 3, '회오리바람은 대상마다 독립 타격 단계가 있어야 한다');
+  assert.strictEqual(whirl.map(stage => stage.delayMs).join(','), '0,80,160', '회오리바람은 0.08초 간격으로 순차 타격해야 한다');
+  assert.ok(whirl.every(stage => stage.targets.length === 1), '회오리바람 단계 하나가 모든 대상에게 동시에 피해를 주면 안 된다');
+
+  const chain = context.buildSkillHitSequence('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍'], targets);
+  assert.strictEqual(chain.map(stage => stage.kind).join(','), 'chainPrimary,chainJump,chainJump', '연쇄는 최초 공격과 후속 점프로 구분돼야 한다');
+  assert.strictEqual(chain.map(stage => stage.delayMs).join(','), '0,110,220', '연쇄 피해는 각 점프 시점에 따로 발생해야 한다');
+  assert.strictEqual(chain[1].chainFromEnemyId, 31, '두 번째 연쇄는 최초 대상에서 출발해야 한다');
+  assert.strictEqual(chain[2].chainFromEnemyId, 32, '세 번째 연쇄는 직전 연쇄 대상에서 출발해야 한다');
+
+  const pierce = context.buildSkillHitSequence('관통 사격', context.SKILL_DB['관통 사격'], targets);
+  assert.strictEqual(pierce.map(stage => stage.kind).join(','), 'piercePrimary,pierceThrough,pierceThrough', '관통은 한 발의 최초 직격과 후속 관통으로 구분돼야 한다');
+  assert.strictEqual(pierce.map(stage => stage.delayMs).join(','), '0,30,60', '관통 피해는 투사체가 직선을 통과하는 순서대로 발생해야 한다');
+  assert.ok(pierce.every(stage => stage.targets.length === 1), '관통 단계마다 지나친 적 하나만 피해를 받아야 한다');
+
+  const slam = context.buildSkillHitSequence('묵직한 강타', context.SKILL_DB['묵직한 강타'], targets.slice(0, 1));
+  assert.strictEqual(slam.length, 2, '강타는 본 타격과 여진으로 분리돼야 한다');
+  assert.strictEqual(slam[1].kind, 'slamAftershock');
+  assert.strictEqual(slam[1].delayMs, 420, '묵직한 강타의 개별 여진 지연시간을 사용해야 한다');
+  assert.strictEqual(slam[0].damageMultiplier, 0.62, '강타 본 타격과 여진의 합이 기존 총 피해를 유지해야 한다');
+  assert.strictEqual(slam[1].damageMultiplier, 0.38, '묵직한 강타의 여진 피해 배율을 사용해야 한다');
+  assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('묵직한 강타', context.SKILL_DB['묵직한 강타']), 1, '판정 세분화만으로 표시 DPS가 증가하면 안 된다');
+}
+
+// ── 3-2. 실제 피해도 첫 단계와 후속 단계의 시점에 나뉘어 적용돼야 한다 ──
+{
+  resetGame();
+  context.game.activeSkill = '회오리바람';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '회오리바람']));
+  context.game.gemData['회오리바람'] = { level: 1, exp: 0, quality: 0 };
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const enemies = [makeEnemy(41, 2, 6), makeEnemy(42, 1, 7), makeEnemy(43, 1, 5)];
+  enemies.forEach(enemy => { enemy.hp = 1000000; enemy.maxHp = 1000000; });
+  context.game.enemies = enemies;
+  const stats = context.getPlayerStats();
+  stats.baseDmg = 1000;
+  stats.minDmgRoll = 100;
+  stats.maxDmgRoll = 100;
+  stats.accuracy = 1000000;
+  context.performPlayerAttack(stats);
+  assert.ok(enemies.every(enemy => enemy.hp === enemy.maxHp), '공격 모션이 끝나기 전에 회오리바람 피해가 적용되면 안 된다');
+  vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  assert.ok(enemies[0].hp < enemies[0].maxHp, '회오리바람 첫 대상은 첫 단계에서 피해를 받아야 한다');
+  assert.strictEqual(enemies[1].hp, enemies[1].maxHp, '회오리바람 두 번째 대상 피해가 첫 단계와 동시에 들어가면 안 된다');
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.ok(enemies[1].hp < enemies[1].maxHp && enemies[2].hp < enemies[2].maxHp, `회오리바람 후속 대상은 예약된 순차 단계에서 피해를 받아야 한다 (${enemies.map(enemy => enemy.hp).join(',')})`);
+
+  resetGame();
+  context.game.activeSkill = '묵직한 강타';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '묵직한 강타']));
+  context.game.gemData['묵직한 강타'] = { level: 1, exp: 0, quality: 0 };
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const slamTarget = makeEnemy(51, 2, 6);
+  slamTarget.hp = 1000000; slamTarget.maxHp = 1000000;
+  context.game.enemies = [slamTarget];
+  const slamStats = context.getPlayerStats();
+  slamStats.baseDmg = 1000;
+  slamStats.minDmgRoll = 100;
+  slamStats.maxDmgRoll = 100;
+  slamStats.accuracy = 1000000;
+  context.performPlayerAttack(slamStats);
+  assert.strictEqual(slamTarget.hp, slamTarget.maxHp, '강타 피해는 공격 모션이 끝난 뒤 적용돼야 한다');
+  vm.runInContext('pendingSkillStageHits.sort((a, b) => a.at - b.at); pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  const hpAfterPrimary = slamTarget.hp;
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.ok(slamTarget.hp < hpAfterPrimary, '강타 여진은 본 타격 이후 별도의 실제 피해를 적용해야 한다');
+}
+
+// ── 3-3. 플라스크 수명주기: 조우 사이 유지, 지역 완료/이동 시 종료, 루프 시 획득 리셋 ──
 {
   resetGame();
   const st = context.ensureFlaskState();
@@ -210,6 +290,127 @@ assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKI
   context.triggerSeasonReset();
   const afterFound = context.ensureFlaskFoundKeys();
   assert.ok(afterFound.length < beforeFound, '루프 시 발견한 플라스크가 기본 지급분으로 리셋되어야 한다');
+}
+
+// ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──
+// ── 3-2. 플라스크 무결성: 순차 발견, 교체 충전 보존, 독립 충전, 조우별 자동 사용 ──
+{
+  resetGame();
+  context.updateStaticUI = () => {};
+  context.game.level = 100;
+  context.game.equipment['허리띠'] = { baseStats: [{ id: 'flaskUtilSlots', val: 1 }] };
+  context.game.flasks.foundKeys = ['h1', 'granite1', 'quicksilver1'];
+
+  const frontier = context.getFlaskDiscoveryCandidates(100, ['h1', 'granite1']);
+  assert.ok(frontier.includes('h2'), '회복 플라스크는 다음 단계부터 발견되어야 한다');
+  assert.ok(!frontier.includes('h3'), '회복 플라스크의 중간 단계를 건너뛰면 안 된다');
+  assert.ok(frontier.includes('granite2'), '발견한 유틸 종류는 다음 단계가 후보여야 한다');
+  assert.ok(!frontier.includes('granite3'), '유틸 플라스크의 중간 단계를 건너뛰면 안 된다');
+  assert.ok(frontier.includes('quicksilver1'), '미발견 유틸 종류는 1단계부터 시작해야 한다');
+  assert.strictEqual(context.getFlaskDiscoveryTierMultiplier('h1'), 1, '1단계 플라스크 발견 확률은 기준 배율이어야 한다');
+  assert.ok(context.getFlaskDiscoveryTierMultiplier('h2') <= 0.45, '2단계부터 발견 확률이 크게 감소해야 한다');
+  for (let tier = 3; tier <= 8; tier++) {
+    assert.ok(
+      context.getFlaskDiscoveryTierMultiplier(`h${tier}`) < context.getFlaskDiscoveryTierMultiplier(`h${tier - 1}`) * 0.5,
+      `${tier}단계 플라스크는 직전 단계보다 절반 미만의 발견 배율이어야 한다`
+    );
+  }
+  assert.ok(context.getFlaskHealDef('h8').healPct < 100, '최상위 회복 플라스크도 최대 생명력 전체를 초과 회복하면 안 된다');
+  assert.ok(vm.runInContext('FLASK_UTILITY_POOL.granite5.armorPct <= 65', context), '최상위 방어 플라스크 효과가 완화되어야 한다');
+  assert.ok(vm.runInContext('FLASK_UTILITY_POOL.bismuth5.genericTakenReducePct <= 11', context), '최상위 피해 감소 플라스크 효과가 완화되어야 한다');
+
+  context.game.noti.flask = false;
+  const originalRandom = context.Math.random;
+  context.Math.random = () => 0;
+  assert.strictEqual(context.rollFlaskAlchemyGlassDrop({ isElite: false, isBoss: false }), 1, '연금 유리 드롭을 강제로 재현해야 한다');
+  context.Math.random = originalRandom;
+  assert.strictEqual(context.game.noti.flask, false, '연금 유리 획득만으로 플라스크 탭 알림이 켜지면 안 된다');
+
+  let st = context.ensureFlaskState();
+  context.equipUtilityFlask(0, 'granite1');
+  assert.strictEqual(st.utils[0].charges, 0, '처음 장착한 유틸 플라스크는 빈 충전으로 시작해야 한다');
+  st.utils[0].charges = 1;
+  st.utils[0].chargeProgress = 3;
+  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
+  context.equipUtilityFlask(0, 'quicksilver1');
+  assert.strictEqual(st.utils[0].charges, 0, '교체 장착으로 새 플라스크 충전을 생성하면 안 된다');
+  context.equipUtilityFlask(0, 'granite1');
+  assert.strictEqual(st.utils[0].charges, 1, '다시 장착한 플라스크는 보관된 충전을 복원해야 한다');
+  assert.strictEqual(st.utils[0].chargeProgress, 3, '다시 장착한 플라스크는 보관된 처치 진행도를 복원해야 한다');
+
+  st.healCharges = 0;
+  st.healChargeProgress = 0;
+  st.utils[0].charges = 0;
+  st.utils[0].chargeProgress = 0;
+  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
+  const healNeed = context.getFlaskEffectiveChargesPerKills(context.getFlaskHealDef('h1').chargesPerKills);
+  for (let i = 0; i < healNeed - 1; i++) context.tickFlaskChargesOnKill();
+  assert.strictEqual(st.healCharges, 0, '필요 처치 전에는 회복 플라스크가 충전되면 안 된다');
+  context.tickFlaskChargesOnKill();
+  assert.strictEqual(st.healCharges, 1, '필요 처치를 채우면 회복 플라스크가 1회 충전되어야 한다');
+
+  st.healCharges = context.getFlaskHealDef('h1').maxCharges;
+  st.utils[0].charges = 2;
+  st.utils[0].chargeProgress = 0;
+  st.utils[0].trigger = 'combat';
+  st.utils[0].until = 0;
+  st.utils[0].lastAutoEncounter = 0;
+  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
+  context.game.playerHp = 100;
+  context.game.enemies = [{ hp: 10, isElite: false, isBoss: false }];
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  assert.strictEqual(st.utils[0].charges, 1, '전투 시작 시 유틸 플라스크를 1회 사용해야 한다');
+  st.utils[0].until = 0;
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  assert.strictEqual(st.utils[0].charges, 1, '같은 조우에서 전투 시작 조건이 반복 소비되면 안 된다');
+  context.game.enemies = [];
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  context.game.enemies = [{ hp: 10, isElite: false, isBoss: false }];
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  assert.strictEqual(st.utils[0].charges, 0, '새 조우에서는 전투 시작 조건을 다시 사용할 수 있어야 한다');
+
+  st.healCharges = 0;
+  st.healChargeProgress = 4;
+  st.utils[0].charges = 0;
+  st.utils[0].chargeProgress = 4;
+  st.utilityChargeBank.quicksilver1 = { charges: 0, progress: 3 };
+  context.refillAllFlaskCharges();
+  assert.strictEqual(st.healCharges, context.getFlaskHealDef(st.healTier).maxCharges, '귀환·사망 회복은 회복 플라스크를 최대로 채워야 한다');
+  assert.strictEqual(st.healChargeProgress, 0, '완전 충전 시 회복 플라스크 진행도를 초기화해야 한다');
+  assert.strictEqual(st.utils[0].charges, vm.runInContext('FLASK_UTILITY_POOL[game.flasks.utils[0].key].maxCharges', context), '장착 유틸리티 플라스크를 최대로 채워야 한다');
+  assert.strictEqual(st.utilityChargeBank.quicksilver1.charges, vm.runInContext('FLASK_UTILITY_POOL.quicksilver1.maxCharges', context), '보관 중인 발견 플라스크도 최대로 채워야 한다');
+  assert.strictEqual(st.utilityChargeBank.quicksilver1.progress, 0, '보관 플라스크 충전 진행도도 초기화해야 한다');
+
+  const glassBeforeRecovery = st.alchemyGlass;
+  st.healCharges = 0;
+  st.utils[0].charges = 0;
+  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
+  context.startMoving(true);
+  assert.strictEqual(st.healCharges, context.getFlaskHealDef(st.healTier).maxCharges, '귀환을 시작하면 회복 플라스크 충전이 즉시 회복되어야 한다');
+  assert.strictEqual(st.utils[0].charges, vm.runInContext('FLASK_UTILITY_POOL[game.flasks.utils[0].key].maxCharges', context), '귀환을 시작하면 유틸리티 플라스크 충전도 즉시 회복되어야 한다');
+  assert.strictEqual(st.alchemyGlass, glassBeforeRecovery, '충전 회복이 연금 유리 보유량을 바꾸면 안 된다');
+
+  st.healCharges = 0;
+  st.utils[0].charges = 0;
+  context.syncUtilityFlaskChargeBank(st, st.utils[0]);
+  context.game.settings.showDeathNotice = false;
+  context.handlePlayerDefeat({ id: 'flask_test', type: 'abyss', name: '플라스크 테스트' }, { maxHp: 100, energyShield: 0, moveSpeed: 100 });
+  assert.strictEqual(st.healCharges, context.getFlaskHealDef(st.healTier).maxCharges, '사망하면 회복 플라스크 충전이 즉시 회복되어야 한다');
+  assert.strictEqual(st.utils[0].charges, vm.runInContext('FLASK_UTILITY_POOL[game.flasks.utils[0].key].maxCharges', context), '사망하면 유틸리티 플라스크 충전도 즉시 회복되어야 한다');
+  assert.strictEqual(st.alchemyGlass, glassBeforeRecovery, '사망 충전 회복이 연금 유리 보유량을 바꾸면 안 된다');
+
+  resetGame();
+  st = context.ensureFlaskState();
+  const now = Date.now();
+  context.game.playerHp = 10;
+  context.game.enemies = [];
+  st.healOverTimeStartedAt = now - 2000;
+  st.healOverTimeUntil = now + 2000;
+  st.healOverTimeTotal = 40;
+  st.healOverTimeApplied = 0;
+  st.healOverTimePerSec = 10;
+  context.tickFlaskAutoUse({ maxHp: 100 });
+  assert.ok(context.game.playerHp >= 29 && context.game.playerHp <= 31, '지속 회복은 고정 틱이 아니라 실제 경과 시간 비율로 적용되어야 한다');
 }
 
 // ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──
@@ -370,6 +571,111 @@ assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKI
   const moved = context.gridChebyshevDist(start.gx, start.gy, context.game.gridPlayer.gx, context.game.gridPlayer.gy);
   assert.ok(moved > 0, '플레이어가 실제로 이동했어야 한다');
   assert.strictEqual(context.getSkillTargets(pStats).length, 1, '교전 상태에서는 대상이 잡혀야 한다');
+}
+
+// ── 10. 더 가까운 소환수 우선 공격, 같은 거리면 플레이어 우선 ──
+{
+  resetGame();
+  context.game.gridPlayer = { gx: 1, gy: 6 };
+  const summon = { id: 1, gx: 4, gy: 6, alive: true, hp: 100, maxHp: 100, armor: 0, evasion: 0, role: 'attack', respawnMs: 2000 };
+  const enemy = makeEnemy(1, 5, 6, { attackTimer: 1 });
+  context.game.summons = [summon];
+  context.game.enemies = [enemy];
+  const pStats = {
+    maxHp: 1000, energyShield: 0, dr: 0, armor: 0, evasion: 0, evadeChance: 0,
+    resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
+  };
+  context.game.playerHp = 1000;
+  context.performMonsterAttacks(pStats);
+  assert.ok(summon.hp < 100, '플레이어보다 가까운 소환수가 공격받아야 한다');
+  assert.strictEqual(context.game.playerHp, 1000, '소환수 대상 공격은 플레이어에게 피해를 주지 않아야 한다');
+
+  context.game.gridPlayer = { gx: 1, gy: 6 };
+  summon.gx = 5; summon.gy = 6; summon.hp = 100; summon.alive = true;
+  enemy.gx = 3; enemy.gy = 6; enemy.attackRange = 2; enemy.attackTimer = 1;
+  context.game.playerHp = 1000;
+  context.performMonsterAttacks(pStats);
+  assert.strictEqual(summon.hp, 100, '같은 거리에서는 소환수가 아니라 플레이어를 우선해야 한다');
+  assert.ok(context.game.playerHp < 1000, '같은 거리에서는 플레이어가 피해를 받아야 한다');
+}
+
+// ── 11. 빈 슬롯 자동 장착 설정 ──
+{
+  resetGame();
+  context.game.settings.autoEquipEmptySlots = true;
+  const helmet = { id: 9001, slot: '투구', name: '시험 투구', baseName: '시험 투구', rarity: 'normal', baseStats: [], stats: [] };
+  assert.strictEqual(context.addItemToInventory(helmet), true);
+  assert.strictEqual(context.game.equipment['투구'], helmet, '빈 슬롯에는 습득 즉시 자동 장착해야 한다');
+  assert.ok(!context.game.inventory.includes(helmet), '자동 장착한 아이템은 인벤토리에 중복 보관하지 않는다');
+
+  context.game.settings.autoEquipEmptySlots = false;
+  const armor = { id: 9002, slot: '갑옷', name: '시험 갑옷', baseName: '시험 갑옷', rarity: 'normal', baseStats: [], stats: [] };
+  assert.strictEqual(context.addItemToInventory(armor), true);
+  assert.strictEqual(context.game.equipment['갑옷'], null, '설정 OFF에서는 자동 장착하지 않아야 한다');
+  assert.ok(context.game.inventory.includes(armor), '설정 OFF 아이템은 인벤토리에 들어가야 한다');
+}
+
+// ── 12. 소환수 회복/재배치와 장착 소환수 젬 봉인 보호 ──
+{
+  resetGame();
+  context.game.skills = ['기본 공격', '서리늑대 소환', '연속 베기'];
+  context.game.activeSkill = '기본 공격';
+  context.game.equippedSummonSkills = ['서리늑대 소환'];
+  context.game.summonSkillCounts = { '서리늑대 소환': 1 };
+  context.sealAllInactiveSkillGems();
+  assert.ok(context.game.skills.includes('서리늑대 소환'), '장착 중인 소환수 젬은 일괄 봉인에서 제외해야 한다');
+  assert.ok(context.game.skills.includes('기본 공격'), '활성 스킬은 일괄 봉인에서 유지해야 한다');
+  assert.ok(!context.game.skills.includes('연속 베기'), '미사용 일반 스킬 젬은 일괄 봉인해야 한다');
+
+  const pStats = context.getPlayerStats();
+  context.ensureSummonRuntime(pStats);
+  const summon = context.game.summons[0];
+  summon.hp = 1;
+  summon.gx = 7;
+  summon.gy = 0;
+  context.restoreAndRecallSummons(pStats);
+  assert.strictEqual(summon.hp, summon.maxHp, '플레이어 회복 경계에서는 소환수 체력도 전부 회복해야 한다');
+  assert.ok(context.gridChebyshevDist(summon.gx, summon.gy, context.game.gridPlayer.gx, context.game.gridPlayer.gy) <= 1, '회복 경계에서는 소환수를 플레이어 주변으로 재배치해야 한다');
+
+  const preview = context.getSummonTooltipPreview('서리늑대 소환', pStats);
+  assert.ok(preview.maxHp > 0 && preview.regenPerSec > 0, '소환수 젬 툴팁에는 체력과 자체 재생 수치가 있어야 한다');
+  assert.strictEqual(context.getSummonProfile('서리늑대 소환').baseHp, 58, '소환수 생명력 너프는 후처리 배율이 아닌 기초 생명력에 반영해야 한다(기존 116의 50% 수준)');
+  assert.strictEqual(vm.runInContext('SUMMON_REGEN_PCT_PER_SEC', context), 0.75, '소환수 재생 너프는 기초 재생률에 반영해야 한다');
+}
+
+// ── 13. 소울바인더 소환수 키스톤: 흡혈/가까운 피해 공유/주변 관통 ──
+{
+  resetGame();
+  context.game.ascendClass = 'soulbinder';
+  context.game.ascendKeystones = ['sb3'];
+  let pStats = context.getPlayerStats();
+  assert.ok(pStats.leech >= 3.5, '야생성은 플레이어와 소환수에 공유하는 흡혈 +3.5%를 제공해야 한다');
+
+  context.game.skills = ['기본 공격', '서리늑대 소환'];
+  context.game.equippedSummonSkills = ['서리늑대 소환'];
+  context.game.summonSkillCounts = { '서리늑대 소환': 1 };
+  context.ensureSummonRuntime(pStats);
+  assert.strictEqual(context.game.summons[0].respawnMs, 4000, '기본 공격 소환수의 실제 부활 시간은 4초여야 한다');
+
+  context.game.gridPlayer = { gx: 1, gy: 6 };
+  context.game.summons = [
+    { id: 80, alive: true, hp: 100, maxHp: 100, gx: 2, gy: 6, respawnMs: 4000 },
+    { id: 81, alive: true, hp: 100, maxHp: 100, gx: 6, gy: 1, respawnMs: 4000 }
+  ];
+  assert.strictEqual(context.getClosestLivingSummonToPlayer().id, 80, '나눠갖기는 플레이어와 가장 가까운 소환수 하나를 선택해야 한다');
+  const now = Date.now();
+  assert.ok(context.getSummonRespawnAt(context.game.summons[0], true) - now < 3000, '나눠갖기 전달 피해로 사망한 소환수는 부활 시간이 30% 단축되어야 한다');
+
+  context.game.ascendKeystones = ['sb6'];
+  context.ensureSummonRuntime(context.getPlayerStats());
+  context.game.gridPlayer = { gx: 1, gy: 6 };
+  const attacker = context.game.summons[0];
+  attacker.gx = 1; attacker.gy = 5; attacker.nextAttackAt = 0;
+  const primary = makeEnemy(70, 2, 5);
+  const adjacent = makeEnemy(71, 2, 4);
+  context.game.enemies = [primary, adjacent];
+  context.runSummonAttackTick(context.getPlayerStats());
+  assert.ok(primary.hp < primary.maxHp && adjacent.hp < adjacent.maxHp, '꿰뚫는 이는 주 대상 주변 1칸의 적도 소환수 공격으로 맞춰야 한다');
 }
 
 console.log('smoke-grid-combat passed');

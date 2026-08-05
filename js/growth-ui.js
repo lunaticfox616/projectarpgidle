@@ -201,12 +201,19 @@ function switchGrowthLoadoutFromUi(idx) {
     if (switchGrowthLoadout(idx)) updateStaticUI();
 }
 
-function renameGrowthLoadoutFromUi() {
+async function renameGrowthLoadoutFromUi() {
     let board = ensureGrowthBoardState();
-    let current = board.loadouts[board.activeLoadout];
-    let name = prompt('세팅 이름을 입력하세요. (최대 12자)', current.name);
-    if (name === null) return;
-    if (!renameGrowthLoadout(board.activeLoadout, name)) return addLog('이름이 비어 있습니다.', 'attack-monster');
+    let slotIdx = board.activeLoadout;
+    let name = await requestGameText({
+        title: '생장 세팅 이름',
+        message: '세팅 이름을 입력하세요. (최대 12자)',
+        value: board.loadouts[slotIdx].name || '',
+        maxLength: 12,
+        placeholder: '세팅 이름',
+        confirmLabel: '이름 적용'
+    });
+    if (name == null) return;
+    if (!renameGrowthLoadout(slotIdx, name)) return addLog('이름이 비어 있습니다.', 'attack-monster');
     updateStaticUI();
 }
 

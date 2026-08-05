@@ -96,6 +96,20 @@ context.game.equipment = {
 
 assert.strictEqual(context.getPlayerStats().ds, 400, '연속 타격 확률은 250%로 소프트캡되지 않아야 한다');
 
+context.game.talentCards = { hero1__gladiator: { level: 1, score: 0, count: 1 } };
+context.game.talentCardLoadout = ['hero1__gladiator', null, null, null, null, null];
+context.game.talentRuntime = { fletcherBoost: 1 };
+const summon = { ele: 'phys', baseDamage: 100, crit: 0, critDmg: 140, resPenBonus: 0, physIgnoreBonus: 0 };
+const summonPlayerStats = {
+  summonPctDmg: 0, summonEfficiency: 0, summonCrit: 0, summonCritDmg: 0,
+  summonSharedPctDmg: 0, summonSharedTaggedPctDmg: {}, resPen: 0, physIgnore: 0,
+  finalDamageMultiplier: 1, damageScales: {}, sSkill: { tags: [], ele: 'phys' }, maxHp: 100,
+};
+const neutralSummonHit = context.getSummonHitDamageInfo(summon, summonPlayerStats, null, { expected: true }).damage;
+context.game.talentRuntime.fletcherBoost = 1.33;
+const boostedPlayerSummonHit = context.getSummonHitDamageInfo(summon, summonPlayerStats, null, { expected: true }).damage;
+assert.strictEqual(boostedPlayerSummonHit, neutralSummonHit, '플레쳐의 플레이어 3타 배율이 소환수 피해와 DPS에 남아 있으면 안 된다');
+
 context.addLog = () => {};
 context.game.season = 31;
 context.game.loopProgressCurrent = { bestAbyssDepth: 45, cosmosPlanets: ['planet-45'] };

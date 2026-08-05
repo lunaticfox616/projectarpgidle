@@ -46,6 +46,35 @@ vm.createContext(context);
 files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
 vm.runInContext('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;', context);
 
+const webShape = vm.runInContext(`
+(function inspectSpiderWeb() {
+  const nodes = Object.values(PASSIVE_TREE.nodes);
+  const webNodes = nodes.filter(node => Number.isFinite(node.webSpoke) && Number.isFinite(node.webRing));
+  const spokes = new Set(webNodes.map(node => node.webSpoke));
+  const rings = new Set(webNodes.map(node => node.webRing));
+  const rootLinks = PASSIVE_TREE.edges.filter(edge => edge.from === 'n0' || edge.to === 'n0');
+  const ringLinks = PASSIVE_TREE.edges.filter(edge => {
+    const a = PASSIVE_TREE.nodes[edge.from];
+    const b = PASSIVE_TREE.nodes[edge.to];
+    return a && b && Number.isFinite(a.webRing) && a.webRing === b.webRing && a.webSpoke !== b.webSpoke;
+  });
+  return {
+    spokeCount: spokes.size,
+    ringCount: rings.size,
+    completeSpokes: Array.from(spokes).filter(spoke => webNodes.filter(node => node.webSpoke === spoke).length >= 12).length,
+    rootLinkCount: rootLinks.length,
+    ringLinkCount: ringLinks.length,
+    hasReferenceLayout: nodes.some(node => !!node.layoutGroup)
+  };
+})()
+`, context);
+assert.strictEqual(webShape.spokeCount, 16, '거미줄 트리는 중심에서 16개 방사 경로로 뻗어야 한다');
+assert.strictEqual(webShape.ringCount, 12, '거미줄 트리는 12단계 원형 고리를 유지해야 한다');
+assert.strictEqual(webShape.completeSpokes, 16, '모든 방사 경로가 중심부터 외곽까지 이어져야 한다');
+assert.strictEqual(webShape.rootLinkCount, 8, '중앙 루트는 여덟 주축에 연결되어야 한다');
+assert.ok(webShape.ringLinkCount >= 100, '인접 방사 경로 사이에 충분한 원형 고리 연결이 있어야 한다');
+assert.strictEqual(webShape.hasReferenceLayout, false, '참조 스키마 배치가 거미줄 구조를 다시 덮어쓰면 안 된다');
+
 const targetId = vm.runInContext(`
 (function findTarget() {
   const q = [{ id: 'n0', depth: 0 }];
@@ -82,4 +111,9 @@ const activated = context.activatePassivePath(targetId, { forcePulseNodeId: targ
 assert.strictEqual(activated.activated, true, 'activation should spend points and add the shortest path');
 assert.strictEqual(context.game.passivePoints, 0, 'activation should spend one point per inactive path node');
 assert.deepStrictEqual(Array.from(context.game.passives.slice(1)), Array.from(path), 'activation should add exactly the shortest path in order');
+
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const activationHandler = uiSource.slice(uiSource.indexOf('async function activateHoveredPassive'), uiSource.indexOf("canvas.addEventListener('mousedown'", uiSource.indexOf('async function activateHoveredPassive')));
+assert.ok(activationHandler.includes('const targetNodeId = targetNode.id;'), 'passive UI should snapshot the target before awaiting confirmation');
+assert.ok(activationHandler.includes('activatePassivePath(targetNodeId'), 'confirmed activation should use the snapshotted target instead of the mutable hover node');
 console.log('smoke-passive-shortest-path passed');

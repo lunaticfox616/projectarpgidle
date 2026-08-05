@@ -1,5 +1,7 @@
 // Phase-2 extracted passive tree canvas draw block.
 
+let passiveEffectLabelRects = [];
+
 function isCraftSelectionEquipAvailableLocal() {
     return typeof isCraftSelectionEquip === 'function' && isCraftSelectionEquip();
 }
@@ -180,8 +182,7 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     if (!node || visibility === 'hidden' || zoomedOutMode || camZoom < 0.46) return;
     const important = node.kind === 'major' || node.kind === 'hub' || node.kind === 'apex' || node.kind === 'transcendent';
     const hovered = !!(hoverNode && hoverNode.id === node.id);
-    if (active && !important) return;
-    if (!important && !reachable && !hovered) return;
+    if (!hovered && !reachable && !(active && important)) return;
 
     const label = getPassiveNodeEffectShortLabel(node);
     if (!label) return;
@@ -189,15 +190,28 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     const fontSize = Math.max(9, Math.min(15, 10.5 / Math.max(0.55, camZoom)));
     const padX = 4.5 / Math.max(0.6, camZoom);
     const padY = 2.5 / Math.max(0.6, camZoom);
-    const x = node.x + radius + 6 / Math.max(0.7, camZoom);
+    const placeLeft = node.x < -80;
+    const gap = 6 / Math.max(0.7, camZoom);
+    const anchorX = node.x + (placeLeft ? -(radius + gap) : (radius + gap));
     const y = node.y + fontSize * 0.38;
 
     ctx.save();
     ctx.font = `700 ${fontSize}px sans-serif`;
-    ctx.textAlign = 'left';
+    ctx.textAlign = placeLeft ? 'right' : 'left';
     ctx.textBaseline = 'middle';
     const w = ctx.measureText(label).width + padX * 2;
     const h = fontSize + padY * 2;
+    const x = placeLeft ? anchorX - w : anchorX;
+    const rect = { x: x - 2, y: y - h / 2 - 2, w: w + 4, h: h + 4 };
+    const collides = passiveEffectLabelRects.some(other => !(
+        rect.x + rect.w < other.x || other.x + other.w < rect.x
+        || rect.y + rect.h < other.y || other.y + other.h < rect.y
+    ));
+    if (collides && !hovered) {
+        ctx.restore();
+        return;
+    }
+    passiveEffectLabelRects.push(rect);
     ctx.globalAlpha = active ? 0.98 : (reachable ? 0.9 : 0.76);
     ctx.fillStyle = 'rgba(5,9,15,0.78)';
     ctx.strokeStyle = active ? accent.activeOuter : (reachable ? accent.reachOuter : 'rgba(150,175,200,0.5)');
@@ -208,7 +222,7 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = accent.text || '#dce6f2';
-    ctx.fillText(label, x + padX, y);
+    ctx.fillText(label, placeLeft ? x + w - padX : x + padX, y);
     ctx.restore();
 }
 
@@ -223,7 +237,9 @@ function getHoveredPassivePathNodeIds(hoveredNodeId) {
         adj.get(edge.from).push(edge.to);
         adj.get(edge.to).push(edge.from);
     });
-    let owned = new Set((game.passives || []).filter(Boolean));
+    let owned = typeof getPassiveConnectionNodeIds === 'function'
+        ? getPassiveConnectionNodeIds()
+        : new Set((game.passives || []).filter(Boolean));
     owned.add('n0');
     let queue = [hoveredNodeId];
     let prev = new Map([[hoveredNodeId, null]]);
@@ -291,13 +307,14 @@ function drawPassiveTree() {
     if (!lightweightMode && !zoomedOutMode) drawPassiveStarfield(ctx, PASSIVE_BOUNDS);
 
     // 중심 오라
-    const rootGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 520);
+    const passiveRoot = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };
+    const rootGlow = ctx.createRadialGradient(passiveRoot.x, passiveRoot.y, 0, passiveRoot.x, passiveRoot.y, 520);
     rootGlow.addColorStop(0, 'rgba(182,148,83,0.12)');
     rootGlow.addColorStop(0.35, 'rgba(67,89,126,0.08)');
     rootGlow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = rootGlow;
     ctx.beginPath();
-    ctx.arc(0, 0, 560, 0, Math.PI * 2);
+    ctx.arc(passiveRoot.x, passiveRoot.y, 560, 0, Math.PI * 2);
     ctx.fill();
 
     if (!lightweightMode && !zoomedOutMode) drawPassiveEvolutionAura(ctx);
@@ -315,6 +332,8 @@ function drawPassiveTree() {
     }
 
     // 링크
+    drawPassiveBranchUnderlay(ctx, visibleEdges, lightweightMode);
+
     visibleEdges.forEach(edge => {
         const a = edge.a;
         const b = edge.b;
@@ -329,20 +348,22 @@ function drawPassiveTree() {
         const visibleB = getPassiveVisibility(b.id);
         if ((visibleA === 'hidden' || visibleB === 'hidden') && !hoverRelatedEdge) return;
         const alpha = Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
-        const activeA = (game.passives || []).includes(a.id);
-        const activeB = (game.passives || []).includes(b.id);
+        const activeA = (game.passives || []).includes(a.id) || (typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(a.id));
+        const activeB = (game.passives || []).includes(b.id) || (typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(b.id));
         const activeLink = activeA && activeB;
         const reachableLink = reachableNodes.has(a.id) || reachableNodes.has(b.id);
         const previewLink = visibleA === 'preview' || visibleB === 'preview';
+        const crossBranchLink = Boolean(a.treeBranchRoot && b.treeBranchRoot && a.treeBranchRoot !== b.treeBranchRoot);
+        const sameDepthLink = Number(a.depth) === Number(b.depth);
 
         ctx.save();
         ctx.globalAlpha = alpha;
 
         if (ultraZoomedOutMode) {
             drawPassiveLink(ctx, a, b, {
-                stroke: activeLink ? 'rgba(160,130,82,0.78)' : 'rgba(80,98,115,0.5)',
-                innerStroke: activeLink ? 'rgba(240,220,170,0.32)' : 'rgba(130,150,168,0.12)',
-                width: activeLink ? 3.2 : 1.6
+                stroke: activeLink ? 'rgba(160,130,82,0.78)' : (crossBranchLink ? 'rgba(80,98,115,0.2)' : 'rgba(80,98,115,0.5)'),
+                innerStroke: activeLink ? 'rgba(240,220,170,0.32)' : (crossBranchLink ? 'rgba(130,150,168,0.05)' : 'rgba(130,150,168,0.12)'),
+                width: activeLink ? 3.2 : (crossBranchLink ? 1 : (sameDepthLink ? 1.25 : 1.6))
             });
         } else if (hoveredLink || linkedHoverChain || onHoveredPath) {
             drawPassiveLink(ctx, a, b, {
@@ -362,29 +383,31 @@ function drawPassiveTree() {
             });
         } else if (reachableLink) {
             drawPassiveLink(ctx, a, b, {
-                stroke: 'rgba(79,109,130,0.72)',
-                innerStroke: 'rgba(145,186,214,0.28)',
-                width: 2.4,
+                stroke: crossBranchLink ? 'rgba(79,109,130,0.38)' : 'rgba(79,109,130,0.72)',
+                innerStroke: crossBranchLink ? 'rgba(145,186,214,0.12)' : 'rgba(145,186,214,0.28)',
+                width: crossBranchLink ? 1.5 : (sameDepthLink ? 1.9 : 2.4),
                 shadow: lightweightMode ? 'transparent' : 'rgba(118,165,194,0.12)',
                 blur: lightweightMode ? 0 : 7
             });
         } else if (previewLink) {
             drawPassiveLink(ctx, a, b, {
-                stroke: 'rgba(67,85,98,0.24)',
-                innerStroke: 'rgba(108,130,145,0.10)',
-                width: 1.5
+                stroke: crossBranchLink ? 'rgba(67,85,98,0.1)' : 'rgba(67,85,98,0.24)',
+                innerStroke: crossBranchLink ? 'rgba(108,130,145,0.04)' : 'rgba(108,130,145,0.10)',
+                width: crossBranchLink ? 0.9 : (sameDepthLink ? 1.15 : 1.5)
             });
         } else {
             drawPassiveLink(ctx, a, b, {
-                stroke: 'rgba(43,53,63,0.55)',
-                innerStroke: 'rgba(92,107,120,0.10)',
-                width: 1.6
+                stroke: crossBranchLink ? 'rgba(43,53,63,0.2)' : (sameDepthLink ? 'rgba(43,53,63,0.36)' : 'rgba(43,53,63,0.55)'),
+                innerStroke: crossBranchLink ? 'rgba(92,107,120,0.03)' : (sameDepthLink ? 'rgba(92,107,120,0.06)' : 'rgba(92,107,120,0.10)'),
+                width: crossBranchLink ? 0.9 : (sameDepthLink ? 1.2 : 1.6)
             });
         }
 
         ctx.restore();
     });
 
+    // 노드 효과 라벨은 화면 좌표상 서로 겹치지 않는 것만 그린다.
+    passiveEffectLabelRects = [];
     // 노드
     visibleNodes.forEach(node => {
         const visibility = getPassiveVisibility(node.id);
@@ -392,7 +415,9 @@ function drawPassiveTree() {
         if (visibility === 'hidden' && !hiddenSilhouette) return;
         const searchInfo = (typeof getPassiveNodeSearchMatch === 'function') ? getPassiveNodeSearchMatch(node) : { active: false, matches: true };
         const revealAlpha = hiddenSilhouette ? (searchInfo.active && searchInfo.matches ? 0.18 : 0.12) : getNodeRevealAmount(node);
-        const active = !hiddenSilhouette && (game.passives || []).includes(node.id);
+        const virtualActive = !hiddenSilhouette && typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(node.id);
+        const active = !hiddenSilhouette && ((game.passives || []).includes(node.id) || virtualActive);
+        const effectDisabled = !hiddenSilhouette && typeof isPassiveNodeEffectDisabled === 'function' && isPassiveNodeEffectDisabled(node.id);
         const reachable = !hiddenSilhouette && reachableNodes.has(node.id);
         const radius = getPassiveNodeVisualRadius(node) + ((hoverNode && hoverNode.id === node.id) ? 1.5 : 0);
         const palette = getPassiveNodePalette(node, active, reachable, visibility);
@@ -400,6 +425,17 @@ function drawPassiveTree() {
         const nodeAlpha = revealAlpha * (searchDimmed ? 0.28 : 1);
 
         drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, nodeAlpha, lightweightMode || hiddenSilhouette || searchDimmed);
+        if (!searchDimmed && (virtualActive || effectDisabled)) {
+            ctx.save();
+            ctx.globalAlpha = nodeAlpha;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius + (virtualActive ? 7 : 5), 0, Math.PI * 2);
+            ctx.setLineDash(virtualActive ? [5, 4] : [2, 4]);
+            ctx.strokeStyle = virtualActive ? 'rgba(188,132,255,0.95)' : 'rgba(255,122,122,0.88)';
+            ctx.lineWidth = virtualActive ? 2.2 : 1.7;
+            ctx.stroke();
+            ctx.restore();
+        }
         if (!searchDimmed) drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility, zoomedOutMode);
         if (searchInfo.active && searchInfo.matches) drawPassiveSearchHighlight(ctx, node, radius, palette);
 
@@ -510,6 +546,7 @@ function highlightEquipTextLocal(text, query) {
 function renderPaperdoll(targetId, forCrafting) {
     let html = '';
     let query = getEquipSearchQueryLocal();
+    const slotIcons = { '무기': '⚔', '투구': '♜', '목걸이': '◇', '장갑1': '✦', '장갑2': '✦', '갑옷': '🛡', '방패': '◈', '반지1': '○', '반지2': '○', '반지3': '○', '허리띠': '▬', '신발': '♟' };
     let hi = (text) => {
         try {
             if (typeof highlightSearchText === 'function') return highlightSearchText(text, query);
@@ -550,14 +587,25 @@ function renderPaperdoll(targetId, forCrafting) {
             let canSelectFromEquipTab = !forCrafting && targetId === 'ui-equip-list';
             let click = (forCrafting || canSelectFromEquipTab) ? `selectForCrafting('${slot}', true)` : '';
             let doubleClick = `event.stopPropagation(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
-            let footer = forCrafting ? `<button style="font-size:0.7em; padding:2px;" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">선택</button>` : `<button style="font-size:0.7em; padding:2px;" onclick="event.stopPropagation(); unequipItem('${slot}')">해제</button>`;
+            let footer = forCrafting
+                ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">제작 선택</button>`
+                : `<button class="equipment-slot-action" onclick="event.stopPropagation(); unequipItem('${slot}')">장착 해제</button>`;
             let sourceMeta = getDropOnlyItemSourceMeta(item);
             let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
             let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
             let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-            html += `<div class="slot-box slot-${slot} ${selected ? 'selected' : ''} ${sourceTone}" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip()"><div class="item-title ${item.rarity}" style="font-size:0.9em; margin-bottom:2px;">[${displaySlot}] ${item.name}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${sourceBadge}</div><div class="item-stats" style="font-size:0.74em; margin-bottom:4px;">${statsHtml}</div>${footer}</div>`;
+            html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmousemove="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip(event)">
+                <div class="equipment-slot-head"><span class="equipment-slot-icon">${slotIcons[slot] || '◆'}</span><span>${displaySlot}</span></div>
+                <div class="item-title equipment-slot-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${sourceBadge}</div>
+                <div class="item-stats equipment-slot-stats">${statsHtml || '<span>옵션 정보 없음</span>'}</div>
+                ${footer}
+            </div>`;
         } else {
-            html += `<div class="slot-box slot-${slot}" style="color:#3d3d5c; text-align:center; font-size:0.8em;">[${displaySlot}]<br>비어있음</div>`;
+            html += `<div class="slot-box equipment-slot equipment-slot-empty slot-${slot}" data-slot="${slot}">
+                <div class="equipment-slot-head"><span class="equipment-slot-icon">${slotIcons[slot] || '◆'}</span><span>${displaySlot}</span></div>
+                <div class="equipment-empty-mark">＋</div>
+                <div class="equipment-empty-label">비어 있음</div>
+            </div>`;
         }
     });
     document.getElementById(targetId).innerHTML = html;
@@ -581,18 +629,13 @@ function renderInventoryCard(item, idx, mode) {
     let explicitCount = typeof getItemExplicitOptionCount === 'function'
         ? getItemExplicitOptionCount(item)
         : ((item.stats || []).length + (item.chaosInfusion ? 1 : 0));
-    let metaBits = [];
-    if (explicitCount > 0) metaBits.push(`추가 옵션 ${explicitCount}`);
-    if (item.underEnchant) metaBits.push('인챈트');
-    if (item.chaosInfusion) metaBits.push('혼돈 주입');
-    if (item.encroached && !item.encroached.liberated) metaBits.push('잠식 · 해방 전');
-    if (item.fusedRelic) metaBits.push('융합 유물');
-    let metaLine = `<span style="color:#8fa7be;">${metaBits.length ? metaBits.join(' · ') : '추가 옵션 없음'} · <span style="color:#7f96ad;">호버 시 상세</span></span>`;
-    let lockBtn = `<button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button>`;
+    let optionSummary = explicitCount > 0 ? `추가 옵션 ${explicitCount}` : '추가 옵션 없음';
+    let metaChips = `<span class="equipment-meta-chip">${optionSummary}</span>`;
+    let salvageTitle = typeof getItemSalvagePreviewText === 'function' ? getItemSalvagePreviewText(item, false) : '장비를 해체합니다.';
     let actions = '';
-    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button style="background:#35506a; border-color:#3f6486;" onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button>${lockBtn}<button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
-    else if (mode === 'fossil') actions = `<div class="item-actions"><button style="flex:1; background:#35506a;" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button>${lockBtn}</div>`;
-    else actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button style="background:#35506a;" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button>${lockBtn}<button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
+    if (mode === 'equip') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${item.locked ? 'disabled' : ''}>해체</button></div>`;
+    else if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
+    else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${item.locked ? 'disabled' : ''}>해체</button></div>`;
     let doubleClick = mode === 'equip' ? ` ondblclick="event.stopPropagation(); handleInventoryCardDoubleClick(${item.id}, 'equip')"` : '';
     let recordedTag = '';
     if (item.rarity === 'unique') {
@@ -604,8 +647,16 @@ function renderInventoryCard(item, idx, mode) {
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    let slotLabel = typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(item) : item.slot;
-    return `<div class="item-card ${selected ? 'selected' : ''} ${sourceTone}" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip()"><div><div class="item-title ${item.rarity}">[${hi(slotLabel)}] ${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${lockIcon}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div><div class="item-base-line">${hi(item.baseName)}</div><div class="item-stats">${metaLine}</div></div>${actions}</div>`;
+    let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || item.rarity || '일반';
+    return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-item-tooltip-anchor="1" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
+        <div class="equipment-card-main">
+            <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(item) : item.slot)}</span><span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>
+            <div class="item-title equipment-card-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>
+            <div class="item-base-line equipment-card-base">${hi(item.baseName)}</div>
+            <div class="item-stats equipment-card-meta">${metaChips}</div>
+        </div>
+        ${actions}
+    </div>`;
 }
 
 function triggerMapUnlockReveal(zoneId) {

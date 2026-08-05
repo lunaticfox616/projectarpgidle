@@ -15,6 +15,37 @@ window.GameModules.passives = {
 // Phase-3 extracted passive runtime block.
 let passiveRevealBursts = [];
 
+const PASSIVE_NODE_FRAME_SOURCES = Object.freeze({
+    major: 'assets/ui/passive-node-major-v1.png',
+    void: 'assets/ui/passive-node-void-v1.png',
+    starWedge: 'assets/ui/passive-node-star-wedge-v1.png',
+    path: 'assets/ui/passive-node-path-v1.png'
+});
+const passiveNodeFrameImages = {};
+const passiveNodeFrameReady = {};
+if (typeof Image !== 'undefined') {
+    Object.entries(PASSIVE_NODE_FRAME_SOURCES).forEach(([key, src]) => {
+        const image = new Image();
+        passiveNodeFrameImages[key] = image;
+        passiveNodeFrameReady[key] = false;
+        image.onload = function() {
+            passiveNodeFrameReady[key] = true;
+            if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty(`${key}-frame-ready`);
+        };
+        image.src = src;
+    });
+}
+
+function getPassiveNodeFrameKey(node) {
+    if (!node) return null;
+    if (node.kind === 'void') return 'void';
+    if (node.socketType === 'star_wedge') return 'starWedge';
+    if (node.kind === 'path') return 'path';
+    if (node.kind === 'core' || node.kind === 'hub' || node.kind === 'apex'
+        || node.kind === 'transcendent' || node.kind === 'keystone' || node.kind === 'major' || node.tier >= 3) return 'major';
+    return null;
+}
+
 
 
 
@@ -32,6 +63,7 @@ function getPassiveNodeDisplayName(node) {
 
 function getPassiveEffectLabel(node) {
     if (!node) return '';
+    if (game && game.starWedge && game.starWedge.disabledNodeEffects && game.starWedge.disabledNodeEffects[String(node.id)]) return '효과 비활성';
     let mutation = game && game.starWedge && game.starWedge.nodeMutations ? game.starWedge.nodeMutations[node.id] : null;
     if (mutation && mutation.currentStat) {
         let statMut = P_STATS[mutation.currentStat] || {};
@@ -88,11 +120,12 @@ function getPassiveNodeVisualRadius(node) {
     if (node.kind === 'apex') return 18;
     if (node.kind === 'evolved') return 13;
     if (node.kind === 'core') return 18;
-    if (node.kind === 'void') return 20;
+    if (node.kind === 'void') return 22;
     if (node.kind === 'deadend') return 16;
-    if (node.kind === 'hub') return 20;
+    if (node.kind === 'hub') return node.socketType === 'star_wedge' ? 22 : 20;
     if (node.tier === 3 || node.kind === 'major') return 15;
     if (node.tier === 2 || node.kind === 'ring' || node.kind === 'inner') return 10;
+    if (node.kind === 'path') return 8.5;
     return 7;
 }
 
@@ -263,12 +296,13 @@ function drawPassiveEvolutionAura(ctx) {
     let tips = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'transcendent');
     if (tips.length === 0) return;
 
+    const root = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };
     ctx.save();
     ctx.globalAlpha = 0.88;
     tips.forEach(node => {
         ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(node.x * 0.42, node.y * 0.42, node.x, node.y);
+        ctx.moveTo(root.x, root.y);
+        ctx.quadraticCurveTo(root.x + (node.x - root.x) * 0.42, root.y + (node.y - root.y) * 0.42, node.x, node.y);
         ctx.strokeStyle = 'rgba(120,151,205,0.08)';
         ctx.lineWidth = 11;
         ctx.shadowColor = 'rgba(238,222,172,0.15)';
@@ -340,8 +374,70 @@ function drawPassiveLink(ctx, a, b, style) {
     }
 }
 
+function drawPassiveBranchUnderlay(ctx, edges, lightweightMode) {
+    if (!Array.isArray(edges) || edges.length === 0) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    edges.forEach(edge => {
+        const a = edge.a;
+        const b = edge.b;
+        if (!a || !b || !isPassiveNodeAvailable(a) || !isPassiveNodeAvailable(b)) return;
+        const visibleA = getPassiveVisibility(a.id);
+        const visibleB = getPassiveVisibility(b.id);
+        const hiddenBranch = visibleA === 'hidden' || visibleB === 'hidden';
+        const depth = Math.max(0, Math.min(Number(a.depth) || 0, Number(b.depth) || 0));
+        const crossBranch = Boolean(a.treeBranchRoot && b.treeBranchRoot && a.treeBranchRoot !== b.treeBranchRoot);
+        const sameDepth = Number(a.depth) === Number(b.depth);
+        const structuralWeight = crossBranch ? 0.3 : (sameDepth ? 0.58 : 1);
+        const width = Math.max(1.2, Math.max(2.1, 9.4 - depth * 0.42) * structuralWeight)
+            * (hiddenBranch ? 0.62 : 1);
+        drawPassiveLink(ctx, a, b, {
+            stroke: hiddenBranch
+                ? 'rgba(19,17,16,0.22)'
+                : (crossBranch ? 'rgba(31,27,24,0.28)' : (sameDepth ? 'rgba(27,21,17,0.56)' : 'rgba(22,16,13,0.9)')),
+            innerStroke: hiddenBranch
+                ? 'rgba(91,68,46,0.09)'
+                : (crossBranch
+                    ? 'rgba(117,87,58,0.08)'
+                    : (sameDepth ? 'rgba(110,76,49,0.2)' : (depth < 7 ? 'rgba(117,76,42,0.52)' : 'rgba(92,63,42,0.34)'))),
+            width: width,
+            shadow: !lightweightMode && !hiddenBranch && !crossBranch && !sameDepth && depth < 5
+                ? 'rgba(213,151,72,0.12)'
+                : 'transparent',
+            blur: !lightweightMode && !hiddenBranch && !crossBranch && !sameDepth && depth < 5 ? 8 : 0
+        });
+    });
+    ctx.restore();
+}
+
+function tracePassiveNodeFramePath(ctx, node, radius) {
+    const x = node.x;
+    const y = node.y;
+    let sides = 0;
+    let rotation = -Math.PI / 2;
+    if (node.kind === 'hub') { sides = 4; rotation = Math.PI / 4; }
+    else if (node.kind === 'apex' || node.kind === 'transcendent' || node.kind === 'void') sides = 8;
+    else if (node.kind === 'major' || node.kind === 'core' || node.kind === 'keystone' || node.tier >= 3) sides = 6;
+    ctx.beginPath();
+    if (!sides) {
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        return;
+    }
+    for (let i = 0; i < sides; i++) {
+        const angle = rotation + i * Math.PI * 2 / sides;
+        const px = x + Math.cos(angle) * radius;
+        const py = y + Math.sin(angle) * radius;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+}
+
 function drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode) {
     if (lightweightMode) return;
+    const dedicatedFrame = getPassiveNodeFrameKey(node);
+    if (dedicatedFrame && dedicatedFrame !== 'major' && passiveNodeFrameReady[dedicatedFrame]) return;
     ctx.save();
     ctx.translate(node.x, node.y);
 
@@ -439,21 +535,18 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
     const midR = Math.max(2, radius - 2.8);
     const innerR = Math.max(1.5, radius - 5.4);
 
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, outerR, 0, Math.PI * 2);
+    tracePassiveNodeFramePath(ctx, node, outerR);
     ctx.fillStyle = palette.outer;
     ctx.fill();
 
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, midR, 0, Math.PI * 2);
+    tracePassiveNodeFramePath(ctx, node, midR);
     ctx.fillStyle = palette.mid;
     ctx.fill();
 
     const core = ctx.createRadialGradient(node.x - radius * 0.28, node.y - radius * 0.35, 1, node.x, node.y, innerR + 1);
     core.addColorStop(0, active ? '#fff6de' : (reachable ? '#344454' : '#1f2730'));
     core.addColorStop(1, palette.inner);
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, innerR, 0, Math.PI * 2);
+    tracePassiveNodeFramePath(ctx, node, innerR);
     ctx.fillStyle = core;
     ctx.fill();
 
@@ -465,6 +558,20 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
     }
 
     drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode);
+
+    const frameKey = getPassiveNodeFrameKey(node);
+    const frameImage = frameKey ? passiveNodeFrameImages[frameKey] : null;
+    if (frameKey && passiveNodeFrameReady[frameKey] && frameImage) {
+        const frameScale = frameKey === 'path' ? 1.48
+            : (frameKey === 'void' ? 1.58
+                : (frameKey === 'starWedge' ? 1.62
+                    : (node.kind === 'apex' || node.kind === 'transcendent' ? 1.72 : 1.55)));
+        const frameRadius = radius * frameScale;
+        ctx.save();
+        ctx.globalAlpha = revealAlpha * (active ? 0.98 : (reachable ? 0.9 : (frameKey === 'path' ? 0.82 : 0.76)));
+        ctx.drawImage(frameImage, node.x - frameRadius, node.y - frameRadius, frameRadius * 2, frameRadius * 2);
+        ctx.restore();
+    }
 
     if (hoverNode && hoverNode.id === node.id) {
         ctx.beginPath();
@@ -1325,6 +1432,365 @@ function polishPassiveLayout() {
         node.y -= centerY;
     });
 }
+
+function shapePassiveTreeAsLifeTree() {
+    const nodes = Object.values(PASSIVE_TREE.nodes || {});
+    const root = PASSIVE_TREE.nodes.n0;
+    if (!root || nodes.length < 2) return;
+    const finiteDepths = nodes.map(node => Number(node.depth)).filter(Number.isFinite);
+    const maxDepth = Math.max(1, ...finiteDepths);
+    const sectorOrder = {
+        marauder: 0,
+        duelist: 1,
+        block: 1.35,
+        ranger: 2,
+        deflect: 2.35,
+        center: 2.5,
+        shadow: 3,
+        witch: 4,
+        templar: 5
+    };
+    const originalPosition = new Map(nodes.map(node => [node.id, { x: node.x, y: node.y }]));
+    const adjacency = new Map(nodes.map(node => [node.id, []]));
+    PASSIVE_TREE.edges.forEach(edge => {
+        if (adjacency.has(edge.from) && adjacency.has(edge.to)) {
+            adjacency.get(edge.from).push(edge.to);
+            adjacency.get(edge.to).push(edge.from);
+        }
+    });
+
+    function getTreeSectorOrder(node) {
+        if (Number.isFinite(sectorOrder[node.sector])) return sectorOrder[node.sector];
+        if (String(node.sector || '').startsWith('star_')) {
+            const starIndex = Number(String(node.sector).split('_')[1]);
+            return Number.isFinite(starIndex) ? starIndex * (5 / Math.max(1, PASSIVE_APEX_CONFIGS.length - 1)) : 2.5;
+        }
+        return 2.5;
+    }
+    function getTreeSpoke(node) {
+        if (Number.isFinite(node.webSpoke)) return node.webSpoke;
+        if (Number.isFinite(node.webCellSpoke)) return node.webCellSpoke;
+        return Number.isFinite(node.lane) ? node.lane : 0;
+    }
+
+    const starters = nodes.filter(node => node.id !== root.id && node.depth === 1)
+        .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+    const canopyPriority = { ranger: 0, shadow: 1, witch: 2, templar: 3, duelist: 4 };
+    const branches = starters.map(starter => ({
+        id: starter.id,
+        sector: starter.sector,
+        direction: starter.sector === 'marauder' ? 'root' : 'canopy',
+        order: 0,
+        targetX: 0,
+        maxBlockWidth: 0
+    }));
+    const directionBranches = {
+        canopy: branches.filter(branch => branch.direction === 'canopy')
+            .sort((a, b) => (canopyPriority[a.sector] ?? 99) - (canopyPriority[b.sector] ?? 99)),
+        root: branches.filter(branch => branch.direction === 'root')
+            .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
+    };
+    directionBranches.canopy.forEach((branch, index) => { branch.order = index; });
+    directionBranches.root.forEach((branch, index) => { branch.order = index; });
+
+    const branchByNodeId = new Map();
+    branches.forEach(branch => branchByNodeId.set(branch.id, branch));
+
+    for (let depth = 2; depth <= maxDepth; depth++) {
+        nodes.filter(node => node.depth === depth).forEach(node => {
+            const candidates = (adjacency.get(node.id) || [])
+                .map(id => PASSIVE_TREE.nodes[id])
+                .filter(parent => parent && parent.depth === depth - 1 && branchByNodeId.has(parent.id))
+                .sort((a, b) => {
+                    const branchA = branchByNodeId.get(a.id);
+                    const branchB = branchByNodeId.get(b.id);
+                    const sectorMatchA = branchA.sector === node.sector ? 0 : 1;
+                    const sectorMatchB = branchB.sector === node.sector ? 0 : 1;
+                    if (sectorMatchA !== sectorMatchB) return sectorMatchA - sectorMatchB;
+                    const sectorDeltaA = Math.abs(getTreeSectorOrder(node) - getTreeSectorOrder(a));
+                    const sectorDeltaB = Math.abs(getTreeSectorOrder(node) - getTreeSectorOrder(b));
+                    if (sectorDeltaA !== sectorDeltaB) return sectorDeltaA - sectorDeltaB;
+                    const originalA = originalPosition.get(a.id) || { x: 0, y: 0 };
+                    const originalB = originalPosition.get(b.id) || { x: 0, y: 0 };
+                    const nodeOriginal = originalPosition.get(node.id) || { x: 0, y: 0 };
+                    const distanceA = Math.hypot(originalA.x - nodeOriginal.x, originalA.y - nodeOriginal.y);
+                    const distanceB = Math.hypot(originalB.x - nodeOriginal.x, originalB.y - nodeOriginal.y);
+                    if (distanceA !== distanceB) return distanceA - distanceB;
+                    return branchA.order - branchB.order;
+                });
+            if (candidates.length) branchByNodeId.set(node.id, branchByNodeId.get(candidates[0].id));
+        });
+    }
+
+    const rows = new Map();
+    nodes.forEach(node => {
+        if (node.id === root.id) return;
+        const depth = Number.isFinite(node.depth) ? Math.max(1, Math.floor(node.depth)) : maxDepth;
+        let branch = branchByNodeId.get(node.id);
+        if (!branch) {
+            const direction = node.sector === 'marauder' ? 'root' : 'canopy';
+            const candidates = directionBranches[direction];
+            branch = candidates[Math.abs(Math.floor(getTreeSectorOrder(node))) % Math.max(1, candidates.length)] || branches[0];
+            branchByNodeId.set(node.id, branch);
+        }
+        const rowKey = `${branch.id}:${depth}`;
+        if (!rows.has(rowKey)) rows.set(rowKey, []);
+        rows.get(rowKey).push(node);
+    });
+
+    function sortBranchRow(row) {
+        row.sort((a, b) => {
+            const spokeDelta = getTreeSpoke(a) - getTreeSpoke(b);
+            if (spokeDelta !== 0) return spokeDelta;
+            const clusterDelta = String(a.clusterId || '').localeCompare(String(b.clusterId || ''));
+            if (clusterDelta !== 0) return clusterDelta;
+            const originalDelta = (originalPosition.get(a.id).x || 0) - (originalPosition.get(b.id).x || 0);
+            if (originalDelta !== 0) return originalDelta;
+            return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+        });
+        return row;
+    }
+
+    function buildRowBlock(row, direction) {
+        const ordered = sortBranchRow(row.slice());
+        const maxColumns = direction === 'canopy' ? 11 : 5;
+        const horizontalGap = direction === 'canopy' ? 28 : 30;
+        const verticalGap = direction === 'canopy' ? 28 : 34;
+        const lines = [];
+        for (let index = 0; index < ordered.length; index += maxColumns) {
+            let line = ordered.slice(index, index + maxColumns);
+            if (lines.length % 2 === 1) line = line.reverse();
+            let cursor = 0;
+            let maxRadius = 0;
+            const entries = line.map((node, nodeIndex) => {
+                const radius = getPassiveNodeVisualRadius(node);
+                if (nodeIndex > 0) cursor += horizontalGap;
+                cursor += radius;
+                const entry = { node, x: cursor, radius };
+                cursor += radius;
+                maxRadius = Math.max(maxRadius, radius);
+                return entry;
+            });
+            lines.push({ entries, width: cursor, height: maxRadius * 2 });
+        }
+
+        let heightCursor = 0;
+        const placements = [];
+        let blockWidth = 0;
+        lines.forEach((line, lineIndex) => {
+            if (lineIndex > 0) heightCursor += verticalGap;
+            const centerY = heightCursor + line.height * 0.5;
+            const stagger = lines.length > 1
+                ? (lineIndex % 2 === 0 ? -1 : 1) * horizontalGap * 0.38
+                : 0;
+            line.entries.forEach(entry => {
+                const localX = entry.x - line.width * 0.5 + stagger;
+                const normalizedX = line.width > 0 ? Math.min(1, Math.abs(localX) / (line.width * 0.5)) : 0;
+                const arc = Math.pow(normalizedX, 1.45) * (direction === 'canopy' ? 12 : -8);
+                placements.push({
+                    node: entry.node,
+                    x: localX,
+                    y: centerY + arc
+                });
+            });
+            heightCursor += line.height;
+            blockWidth = Math.max(blockWidth, line.width + Math.abs(stagger) * 2);
+        });
+        const blockHeight = Math.max(1, heightCursor);
+        placements.forEach(placement => { placement.y -= blockHeight * 0.5; });
+        return { width: Math.max(1, blockWidth), height: blockHeight, placements };
+    }
+
+    const blocks = new Map();
+    rows.forEach((row, key) => {
+        const branchId = key.split(':')[0];
+        const branch = branchByNodeId.get(branchId) || branches.find(item => item.id === branchId);
+        if (!branch) return;
+        const block = buildRowBlock(row, branch.direction);
+        blocks.set(key, block);
+        branch.maxBlockWidth = Math.max(branch.maxBlockWidth, block.width);
+    });
+
+    function assignBranchTargets(direction) {
+        const list = directionBranches[direction];
+        const branchGap = direction === 'canopy' ? 72 : 88;
+        let cursor = 0;
+        list.forEach((branch, index) => {
+            if (index > 0) cursor += branchGap;
+            cursor += branch.maxBlockWidth * 0.5;
+            branch.targetX = cursor;
+            cursor += branch.maxBlockWidth * 0.5;
+        });
+        const center = cursor * 0.5;
+        list.forEach(branch => { branch.targetX -= center; });
+    }
+    assignBranchTargets('canopy');
+    assignBranchTargets('root');
+
+    function smoothStep(value) {
+        const t = Math.max(0, Math.min(1, value));
+        return t * t * (3 - 2 * t);
+    }
+
+    function layoutDirection(direction) {
+        const list = directionBranches[direction];
+        const verticalBandGap = direction === 'canopy' ? 72 : 82;
+        const liveBranchGap = direction === 'canopy' ? 42 : 50;
+        let verticalCursor = getPassiveNodeVisualRadius(root) + 58;
+
+        for (let depth = 1; depth <= maxDepth; depth++) {
+            const depthBlocks = list
+                .map(branch => ({ branch, block: blocks.get(`${branch.id}:${depth}`) }))
+                .filter(entry => entry.block);
+            if (!depthBlocks.length) continue;
+            const bandHeight = Math.max(...depthBlocks.map(entry => entry.block.height));
+            verticalCursor += bandHeight * 0.5;
+            const bandCenter = direction === 'canopy' ? -verticalCursor : verticalCursor;
+            const progress = depth / maxDepth;
+            const canopyFan = 0.16 + 0.84 * smoothStep(progress);
+            const rootOutward = 0.18 + 0.82 * smoothStep(Math.min(1, progress / 0.58));
+            const rootReturn = 1 - 0.5 * smoothStep((progress - 0.58) / 0.42);
+            const fan = direction === 'canopy' ? canopyFan : rootOutward * rootReturn;
+            const placedBlocks = depthBlocks.map(({ branch, block }) => {
+                const waveAmplitude = direction === 'canopy'
+                    ? 32 + 68 * progress
+                    : 60 + 110 * progress;
+                const wave = Math.sin(depth * (direction === 'canopy' ? 0.64 : 0.82) + branch.order * 1.9)
+                    * waveAmplitude * Math.pow(progress, 0.72);
+                return { branch, block, centerX: branch.targetX * fan + wave };
+            });
+
+            for (let index = 1; index < placedBlocks.length; index++) {
+                const previous = placedBlocks[index - 1];
+                const current = placedBlocks[index];
+                const minimumCenter = previous.centerX + previous.block.width * 0.5 + current.block.width * 0.5 + liveBranchGap;
+                current.centerX = Math.max(current.centerX, minimumCenter);
+            }
+            if (placedBlocks.length) {
+                const leftEdge = placedBlocks[0].centerX - placedBlocks[0].block.width * 0.5;
+                const last = placedBlocks[placedBlocks.length - 1];
+                const rightEdge = last.centerX + last.block.width * 0.5;
+                const centerShift = (leftEdge + rightEdge) * 0.5;
+                placedBlocks.forEach(entry => { entry.centerX -= centerShift; });
+            }
+
+            placedBlocks.forEach(({ branch, block, centerX }) => {
+                const halfSlots = Math.max(1, (list.length - 1) * 0.5);
+                const slotDistance = Math.abs(branch.order - (list.length - 1) * 0.5) / halfSlots;
+                const crownCurve = Math.pow(slotDistance, 1.55) * (direction === 'canopy' ? 88 : 64) * Math.pow(progress, 1.2);
+                const verticalCoil = direction === 'root'
+                    ? Math.cos(depth * 0.78 + branch.order * 2.15) * 14 * progress
+                    : Math.sin(depth * 0.42 + branch.order * 1.35) * 6 * progress;
+                const centerY = direction === 'canopy'
+                    ? bandCenter + crownCurve + verticalCoil
+                    : bandCenter - crownCurve * 0.72 + verticalCoil;
+
+                block.placements.forEach(placement => {
+                    const node = placement.node;
+                    node.x = centerX + placement.x;
+                    node.y = centerY + placement.y;
+                    node.treeDepth = depth;
+                    node.treeDirection = direction;
+                    node.treeBranchRoot = branch.id;
+                    node.treeBranchOrder = branch.order;
+                });
+            });
+            verticalCursor += bandHeight * 0.5 + verticalBandGap;
+        }
+    }
+
+    layoutDirection('canopy');
+    layoutDirection('root');
+
+    root.x = 0;
+    root.y = 0;
+    root.treeDepth = 0;
+    root.treeDirection = 'trunk';
+    root.treeBranchRoot = root.id;
+    root.treeBranchOrder = 0;
+
+    PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.minY = Math.min(...nodes.map(node => node.y));
+    PASSIVE_BOUNDS.maxY = Math.max(...nodes.map(node => node.y));
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('life-tree-layout');
+}
+
+function getPassiveTierValueForLayout(statKey, tier) {
+    const statDef = P_STATS[statKey];
+    if (!statDef) return tier >= 3 ? 8 : (tier === 2 ? 4 : 2);
+    if (tier === 0) return 10;
+    if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
+    if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
+    return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
+}
+
+function rebalancePassiveStartingStats() {
+    const root = PASSIVE_TREE.nodes.n0;
+    if (!root) return;
+    const startPlans = {
+        templar: ['energyShieldPct'],
+        witch: ['chaosPctDmg'],
+        shadow: ['evasionPct'],
+        ranger: ['projectilePctDmg'],
+        duelist: ['armorPct'],
+        marauder: ['physPctDmg', 'pctHp', 'slamPctDmg']
+    };
+    const sectorUseCount = {};
+    const usedStartStats = new Set([root.stat]);
+    const starters = Object.values(PASSIVE_TREE.nodes)
+        .filter(node => node && node.depth === 1)
+        .sort((a, b) => (sectorOrderForStartingNode(a) - sectorOrderForStartingNode(b)) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+
+    function sectorOrderForStartingNode(node) {
+        const order = { templar: 0, witch: 1, shadow: 2, ranger: 3, duelist: 4, marauder: 5 };
+        return order[node.sector] ?? 99;
+    }
+    function setStat(node, statKey) {
+        if (!node || !P_STATS[statKey]) return;
+        node.stat = statKey;
+        node.val = getPassiveTierValueForLayout(statKey, node.tier);
+        node.effectLabel = null;
+    }
+
+    starters.forEach(node => {
+        const useIndex = sectorUseCount[node.sector] || 0;
+        sectorUseCount[node.sector] = useIndex + 1;
+        let candidates = (startPlans[node.sector] || []).concat(PASSIVE_THEME_POOLS[node.sector] || [], PASSIVE_THEME_POOLS.center || []);
+        let preferred = candidates[useIndex] || candidates.find(stat => !usedStartStats.has(stat));
+        if (!preferred || usedStartStats.has(preferred)) preferred = candidates.find(stat => P_STATS[stat] && !usedStartStats.has(stat));
+        if (preferred) {
+            setStat(node, preferred);
+            usedStartStats.add(preferred);
+        }
+        node.title = `${PASSIVE_SECTOR_TITLES[node.sector] || '성좌'} 시작점`;
+        node.desc = '루트에서 처음 선택하는 성장 축입니다. 다른 시작점과 겹치지 않는 고유한 기초 효과를 제공합니다.';
+    });
+
+    const adjacency = new Map();
+    PASSIVE_TREE.edges.forEach(edge => {
+        if (!adjacency.has(edge.from)) adjacency.set(edge.from, []);
+        if (!adjacency.has(edge.to)) adjacency.set(edge.to, []);
+        adjacency.get(edge.from).push(edge.to);
+        adjacency.get(edge.to).push(edge.from);
+    });
+    starters.forEach(starter => {
+        const used = new Set([starter.stat]);
+        const children = (adjacency.get(starter.id) || [])
+            .map(id => PASSIVE_TREE.nodes[id])
+            .filter(node => node && node.depth === 2 && (node.kind === 'path' || node.kind === 'node'))
+            .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }));
+        children.forEach((node, index) => {
+            if (!used.has(node.stat)) { used.add(node.stat); return; }
+            const pool = (PASSIVE_THEME_POOLS[node.sector] || PASSIVE_THEME_POOLS.center || []).filter(stat => P_STATS[stat]);
+            const replacement = pool.slice(index).concat(pool.slice(0, index)).find(stat => !used.has(stat));
+            if (replacement) {
+                setStat(node, replacement);
+                used.add(replacement);
+            }
+        });
+    });
+}
 function applyPassiveSpecializations() {
     const used = new Set();
     const kindPriority = { keystone: 0, deadend: 1, major: 2, hub: 3, core: 4, path: 5 };
@@ -1355,8 +1821,9 @@ function bootstrapPassiveTreeOnceReady() {
     generateOrganicTree();
     applyPassiveSpecializations();
     assignStarWedgeSockets();
-    polishPassiveLayout();
     computePassiveDepths();
+    rebalancePassiveStartingStats();
+    polishPassiveLayout();
     return true;
 }
 
@@ -1407,20 +1874,33 @@ function ensureStarWedgeState() {
     game.starWedge = (game.starWedge && typeof game.starWedge === 'object') ? game.starWedge : {};
     if (!Array.isArray(game.starWedge.wedges)) game.starWedge.wedges = [];
     if (!Array.isArray(game.starWedge.sockets)) game.starWedge.sockets = [];
+    let seenWedgeIds = new Set();
     game.starWedge.wedges = game.starWedge.wedges
         .map(wedge => {
             if (!wedge || typeof wedge !== 'object') return null;
             let normalizedId = Number(wedge.id);
-            if (!Number.isFinite(normalizedId)) return null;
+            if (!Number.isFinite(normalizedId) || seenWedgeIds.has(normalizedId)) return null;
+            seenWedgeIds.add(normalizedId);
             wedge.id = normalizedId;
+            normalizeUniqueStarWedgeItem(wedge);
             return wedge;
         })
         .filter(Boolean);
+    let seenSocketNodes = new Set();
+    let seenSocketWedges = new Set();
+    let knownWedges = new Set(game.starWedge.wedges.map(wedge => wedge.id));
     game.starWedge.sockets = game.starWedge.sockets
         .map(socket => {
             if (!socket || typeof socket !== 'object' || typeof socket.nodeId !== 'string') return null;
             let normalizedWedgeId = Number(socket.wedgeId);
-            if (!Number.isFinite(normalizedWedgeId)) return null;
+            let nodeId = String(socket.nodeId);
+            if (!Number.isFinite(normalizedWedgeId) || !knownWedges.has(normalizedWedgeId)) return null;
+            if (seenSocketNodes.has(nodeId) || seenSocketWedges.has(normalizedWedgeId)) return null;
+            if (typeof PASSIVE_TREE !== 'undefined' && PASSIVE_TREE.nodes && Object.keys(PASSIVE_TREE.nodes).length > 0
+                && (!PASSIVE_TREE.nodes[nodeId] || PASSIVE_TREE.nodes[nodeId].socketType !== 'star_wedge')) return null;
+            seenSocketNodes.add(nodeId);
+            seenSocketWedges.add(normalizedWedgeId);
+            socket.nodeId = nodeId;
             socket.wedgeId = normalizedWedgeId;
             return socket;
         })
@@ -1504,7 +1984,7 @@ function formatVoidPassiveStatLine(line) {
 function getVoidPassiveEffectLabel(nodeId) {
     let entry = getVoidPassiveCraft(nodeId);
     if (entry.transcendent) return formatTranscendentVoidPassive(entry.transcendent);
-    if (!entry.stats.length) return '공허 옵션 없음 <span style="color:#8ca6b8;">(오브로 최대 2줄 부여)</span>';
+    if (!entry.stats.length) return '공허 옵션 없음 <span style="color:var(--copy-muted);">(오브로 최대 2줄 부여)</span>';
     return entry.stats.map(formatVoidPassiveStatLine).filter(Boolean).join(' / ');
 }
 
@@ -1618,11 +2098,11 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
     let node = PASSIVE_TREE.nodes[nodeId];
     if (!node || node.kind !== 'void') return addLog('공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
     if (!(game.passives || []).includes(node.id)) return addLog('먼저 공허 패시브를 활성화해야 합니다.', 'attack-monster');
-    if (!['transmute', 'augment', 'alteration', 'chance', 'divine'].includes(currencyKey)) return addLog('공허 패시브에는 진화/확장/변화/기회/신성의 오브만 사용할 수 있습니다.', 'attack-monster');
+    if (!['magicBud', 'fairyRing', 'goldenRule'].includes(currencyKey)) return addLog('공허 패시브에는 마법의 새싹, 요정의 고리, 황금률만 사용할 수 있습니다.', 'attack-monster');
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
     let entry = getVoidPassiveCraft(node.id);
-    if (currencyKey === 'chance') {
-        game.currencies.chance--;
+    if (currencyKey === 'fairyRing') {
+        game.currencies.fairyRing--;
         let previousTranscendent = entry.transcendent;
         entry.stats = [];
         entry.transcendent = Math.random() < 0.75 ? null : rollTranscendentVoidPassive(node.id);
@@ -1632,9 +2112,9 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
         updateStaticUI();
         return;
     }
-    if (currencyKey === 'divine') {
+    if (currencyKey === 'goldenRule') {
         if (!entry.transcendent || !TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min)))) return addLog('신성한 오브는 수치가 있는 초월 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
-        game.currencies.divine--;
+        game.currencies.goldenRule--;
         let previousTranscendent = entry.transcendent;
         entry.transcendent = rerollTranscendentVoidPassive(entry.transcendent);
         syncPaleBlueDotPassivePoints(previousTranscendent, entry.transcendent);
@@ -1642,22 +2122,12 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
         updateStaticUI();
         return;
     }
-    if (entry.transcendent) return addLog('초월 공허 패시브에는 진화/확장/변화의 오브를 사용할 수 없습니다.', 'attack-monster');
-    if (currencyKey === 'transmute' && entry.stats.length > 0) return addLog('이미 매직 공허 패시브입니다.', 'attack-monster');
-    if (currencyKey === 'augment' && (entry.stats.length <= 0 || entry.stats.length >= 2)) return addLog('확장의 오브는 1줄 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
-    if (currencyKey === 'alteration' && entry.stats.length <= 0) return addLog('변화의 오브는 매직 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
+    if (entry.transcendent) return addLog('초월 공허 패시브에는 마법의 새싹을 사용할 수 없습니다.', 'attack-monster');
+    if (currencyKey === 'magicBud' && entry.stats.length >= 2) return addLog('공허 패시브의 옵션이 가득 찼습니다.', 'attack-monster');
     game.currencies[currencyKey]--;
-    if (currencyKey === 'transmute') entry.stats = [rollVoidPassiveOption([])].filter(Boolean);
-    else if (currencyKey === 'augment') {
+    if (currencyKey === 'magicBud') {
         let next = rollVoidPassiveOption(entry.stats);
         if (next) entry.stats.push(next);
-    } else if (currencyKey === 'alteration') {
-        let lineCount = Math.max(1, Math.min(2, entry.stats.length));
-        entry.stats = [];
-        for (let i = 0; i < lineCount; i++) {
-            let next = rollVoidPassiveOption(entry.stats);
-            if (next) entry.stats.push(next);
-        }
     }
     entry.rarity = entry.stats.length > 0 ? 'magic' : 'normal';
     addLog(`🕳️ 공허 패시브에 ${ORB_DB[currencyKey].name} 사용: ${getVoidPassiveEffectLabel(node.id).replace(/<[^>]*>/g, '')}`, 'loot-magic');
@@ -1735,6 +2205,40 @@ function createStarWedgeItem() {
     return { id: Date.now() + Math.floor(Math.random() * 100000), lines: [createRandomStarWedgeLine(), createRandomStarWedgeLine(), createRandomStarWedgeLine(), coreLine] };
 }
 
+const STAR_WEDGE_UNIQUE_DEFS = {
+    asteroid_belt: { name: '소행성대', desc: '슬롯에서 120~300 거리의 노드를 세 경로 옵션으로 변성합니다. 가까운 중심부는 보존됩니다.' },
+    sun: { name: '태양', desc: '경로 변성은 사라지지만 슬롯의 핵심 옵션이 3배로 적용됩니다.' },
+    zero_gravity: { name: '무중력', desc: '슬롯 반경 220 안의 변성 가능한 노드를 거리별 경로 옵션으로 변성합니다.' },
+    black_hole: { name: '블랙홀', desc: '기록된 별쐐기 슬롯을 무료 연결 거점으로 사용합니다. 장착 슬롯과 기록 슬롯 자체 효과는 비활성화됩니다.' },
+    satellite: { name: '위성', desc: '슬롯 반경 260 안의 노드를 변성하지만, 범위 안 핵심 노드 효과와 슬롯 핵심 옵션은 비활성화됩니다.' },
+    comet: { name: '혜성', desc: '경로가 멀어질수록 이동 속도 변성이 강해지고 슬롯에도 가장 강한 이동 속도가 적용됩니다.' },
+    resonant_star: { name: '공명별', desc: '일반 경로 변성과 함께 슬롯에서 보조 젬 공명 한도 +1을 얻습니다.' }
+};
+
+function getStarWedgeUniqueDef(type) {
+    return STAR_WEDGE_UNIQUE_DEFS[String(type || '')] || null;
+}
+
+function normalizeUniqueStarWedgeItem(wedge) {
+    if (!wedge || !wedge.unique || !getStarWedgeUniqueDef(wedge.uniqueType)) return wedge;
+    let lines = Array.isArray(wedge.lines) ? wedge.lines.slice(0, 4) : [];
+    while (lines.length < 4) lines.push({ stat: 'flatHp', val: 0, boosted: false });
+    if (wedge.uniqueType === 'sun') {
+        let alreadyStructured = lines.slice(0, 3).every(line => line && line.disabled);
+        let core = lines[3] && lines[3].stat ? { ...lines[3] } : { stat: 'flatHp', val: 1, boosted: true };
+        if (!alreadyStructured && Number.isFinite(Number(core.val))) core.val = Math.round(Number(core.val) * 3 * 10) / 10;
+        core.boosted = true;
+        lines = [0, 1, 2].map(() => ({ stat: 'flatHp', val: 0, boosted: false, disabled: true })).concat(core);
+    } else if (wedge.uniqueType === 'comet') {
+        lines = [12, 16, 20, 24].map(val => ({ stat: 'move', val, boosted: true }));
+    } else if (wedge.uniqueType === 'resonant_star') {
+        lines[3] = { stat: 'suppCap', val: 1, boosted: true };
+    }
+    wedge.lines = lines;
+    wedge.uniqueSchemaVersion = 1;
+    return wedge;
+}
+
 
 
 function createUniqueStarWedgeItem() {
@@ -1765,13 +2269,33 @@ function createUniqueStarWedgeItem() {
         const hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(n => n && n.kind === 'hub').map(n => String(n.id));
         wedge.recordedHubNodeId = hubs.length ? rndChoice(hubs) : null;
     }
-    return wedge;
+    return normalizeUniqueStarWedgeItem(wedge);
 }
 
 function injectMutation(st, conflictNodes, nodeId, payload) {
-    if (conflictNodes.has(nodeId)) return;
-    if (st.nodeMutations[nodeId]) { delete st.nodeMutations[nodeId]; conflictNodes.add(nodeId); return; }
-    st.nodeMutations[nodeId] = payload;
+    let key = String(nodeId);
+    if (conflictNodes.has(key)) {
+        let sources = Array.isArray(st.mutationConflictSources[key]) ? st.mutationConflictSources[key] : [];
+        if (Number.isFinite(payload.wedgeId) && !sources.includes(payload.wedgeId)) sources.push(payload.wedgeId);
+        st.mutationConflictSources[key] = sources;
+        return;
+    }
+    if (st.nodeMutations[key]) {
+        let previous = st.nodeMutations[key];
+        delete st.nodeMutations[key];
+        conflictNodes.add(key);
+        st.mutationConflictSources[key] = Array.from(new Set([previous.wedgeId, payload.wedgeId].filter(Number.isFinite)));
+        return;
+    }
+    st.nodeMutations[key] = payload;
+}
+
+function markStarWedgeNodeEffectDisabled(st, nodeId, wedgeId) {
+    let key = String(nodeId);
+    st.disabledNodeEffects[key] = true;
+    let sources = Array.isArray(st.disabledNodeEffectSources[key]) ? st.disabledNodeEffectSources[key] : [];
+    if (!sources.includes(wedgeId)) sources.push(wedgeId);
+    st.disabledNodeEffectSources[key] = sources;
 }
 
 function getStarWedgeById(wedgeId) {
@@ -1781,24 +2305,53 @@ function getStarWedgeById(wedgeId) {
     return (st.wedges || []).find(w => w.id === normalizedWedgeId) || null;
 }
 
-function recalculateStarWedgeMutations() {
+function recalculateStarWedgeMutations(force) {
     let st = ensureStarWedgeState();
+    let wedgeMap = new Map((st.wedges || []).map(wedge => [wedge.id, wedge]));
+    let activeInputs = (st.sockets || []).map(socket => {
+        let wedge = wedgeMap.get(socket.wedgeId);
+        return wedge ? {
+            nodeId: String(socket.nodeId), wedgeId: wedge.id, unique: !!wedge.unique,
+            uniqueType: wedge.uniqueType || '', recordedHubNodeId: wedge.recordedHubNodeId || '',
+            lines: (wedge.lines || []).map(line => line ? [line.stat || '', Number(line.val) || 0, !!line.disabled] : null)
+        } : null;
+    }).filter(Boolean).sort((a, b) => a.nodeId.localeCompare(b.nodeId) || a.wedgeId - b.wedgeId);
+    let mutationSignature = `star-wedge-v2:${JSON.stringify(activeInputs)}`;
+    if (!force && st._mutationSignature === mutationSignature && st.nodeMutations && st.virtualLearnNodes && st.disabledNodeEffects && st.mutationConflictSources) return st;
+    st._mutationSignature = mutationSignature;
     st.nodeMutations = {};
+    st.virtualLearnNodes = {};
+    st.virtualLearnSources = {};
+    st.disabledNodeEffects = {};
+    st.disabledNodeEffectSources = {};
+    st.mutationConflictSources = {};
     let conflictNodes = new Set();
+    const allNodes = Object.values(PASSIVE_TREE.nodes || {}).filter(Boolean);
+    const radialNodes = allNodes.filter(n => Number.isFinite(Number(n.x)) && Number.isFinite(Number(n.y)));
+    const adjacency = new Map();
+    allNodes.forEach(node => adjacency.set(String(node.id), []));
+    (PASSIVE_TREE.edges || []).forEach(edge => {
+        let from = String(edge.from), to = String(edge.to);
+        if (!adjacency.has(from)) adjacency.set(from, []);
+        if (!adjacency.has(to)) adjacency.set(to, []);
+        adjacency.get(from).push(to);
+        adjacency.get(to).push(from);
+    });
     (st.sockets || []).forEach(socket => {
-        let wedge = getStarWedgeById(socket.wedgeId);
+        let wedge = wedgeMap.get(socket.wedgeId);
         let center = PASSIVE_TREE.nodes[socket.nodeId];
         if (!wedge || !center) return;
         const centerX = Number(center.x || 0), centerY = Number(center.y || 0);
-        const radialNodes = Object.values(PASSIVE_TREE.nodes || {}).filter(n => n && Number.isFinite(Number(n.x)) && Number.isFinite(Number(n.y)));
         const radialDist = (n) => Math.hypot(Number(n.x||0)-centerX, Number(n.y||0)-centerY);
 
         if (wedge.unique && wedge.uniqueType === 'black_hole' && wedge.recordedHubNodeId) {
-            st.virtualLearnNodes = st.virtualLearnNodes || {};
-            st.virtualLearnNodes[String(wedge.recordedHubNodeId)] = true;
-            st.disabledNodeEffects = st.disabledNodeEffects || {};
-            st.disabledNodeEffects[String(center.id)] = true;
-            st.disabledNodeEffects[String(wedge.recordedHubNodeId)] = true;
+            let recordedId = String(wedge.recordedHubNodeId);
+            if (PASSIVE_TREE.nodes[recordedId] && PASSIVE_TREE.nodes[recordedId].kind === 'hub') {
+                st.virtualLearnNodes[recordedId] = true;
+                st.virtualLearnSources[recordedId] = wedge.id;
+                markStarWedgeNodeEffectDisabled(st, center.id, wedge.id);
+                markStarWedgeNodeEffectDisabled(st, recordedId, wedge.id);
+            }
         }
         if (wedge.unique && wedge.uniqueType === 'sun') {
             let coreLineSun = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
@@ -1815,15 +2368,14 @@ function recalculateStarWedgeMutations() {
                 if (d < r1 || d > r2 || String(n.id)===String(center.id) || n.kind === 'void') return;
                 const nodeKind = String(n.kind || '');
                 if (wedge.uniqueType === 'satellite' && nodeKind === 'core') {
-                    st.disabledNodeEffects = st.disabledNodeEffects || {};
-                    st.disabledNodeEffects[String(n.id)] = true;
+                    markStarWedgeNodeEffectDisabled(st, n.id, wedge.id);
                     return;
                 }
-                if (wedge.uniqueType === 'satellite' && nodeKind === 'core') return;
                 if (!isStarWedgeNodeMutable(n) && wedge.uniqueType !== 'satellite') return;
-                const line = wedge.lines[Math.min(2, Math.max(0, Math.floor((d / Math.max(1, r2)) * 3)))];
+                const lineIndex = Math.min(2, Math.max(0, Math.floor((d / Math.max(1, r2)) * 3)));
+                const line = wedge.lines[lineIndex];
                 if (!line || !line.stat) return;
-                injectMutation(st, conflictNodes, String(n.id), { wedgeId:wedge.id, socketNodeId:center.id, lineIndex:0, originalStat:n.stat, originalVal:n.val, currentStat:line.stat, currentVal:line.val });
+                injectMutation(st, conflictNodes, String(n.id), { wedgeId:wedge.id, socketNodeId:center.id, lineIndex, originalStat:n.stat, originalVal:n.val, currentStat:line.stat, currentVal:line.val });
             });
             let coreLine = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
             if (coreLine && coreLine.stat && wedge.uniqueType !== 'satellite') injectMutation(st, conflictNodes, center.id, { wedgeId:wedge.id, socketNodeId:center.id, lineIndex:3, originalStat:center.stat, originalVal:center.val, currentStat:coreLine.stat, currentVal:coreLine.val });
@@ -1834,10 +2386,7 @@ function recalculateStarWedgeMutations() {
         let seen = new Set([center.id]);
         while (queue.length) {
             let cur = queue.shift();
-            PASSIVE_TREE.edges.forEach(edge => {
-                let next = null;
-                if (edge.from === cur.id) next = edge.to;
-                else if (edge.to === cur.id) next = edge.from;
+            (adjacency.get(String(cur.id)) || []).forEach(next => {
                 if (!next || seen.has(next)) return;
                 let nextDist = cur.dist + 1;
                 if (nextDist > STAR_WEDGE_RADIUS) return;
@@ -1846,13 +2395,7 @@ function recalculateStarWedgeMutations() {
                 let line = wedge.lines[nextDist - 1];
                 let node = PASSIVE_TREE.nodes[next];
                 if (!line || !isStarWedgeNodeMutable(node)) return;
-                if (conflictNodes.has(next)) return;
-                if (st.nodeMutations[next]) {
-                    delete st.nodeMutations[next];
-                    conflictNodes.add(next);
-                    return;
-                }
-                st.nodeMutations[next] = {
+                injectMutation(st, conflictNodes, next, {
                     wedgeId: wedge.id,
                     socketNodeId: center.id,
                     lineIndex: nextDist - 1,
@@ -1860,18 +2403,12 @@ function recalculateStarWedgeMutations() {
                     originalVal: node.val,
                     currentStat: line.stat,
                     currentVal: line.val
-                };
+                });
             });
         }
         let coreLine = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
         if (coreLine && coreLine.stat) {
-            if (conflictNodes.has(center.id)) return;
-            if (st.nodeMutations[center.id]) {
-                delete st.nodeMutations[center.id];
-                conflictNodes.add(center.id);
-                return;
-            }
-            st.nodeMutations[center.id] = {
+            injectMutation(st, conflictNodes, center.id, {
                 wedgeId: wedge.id,
                 socketNodeId: center.id,
                 lineIndex: 3,
@@ -1879,9 +2416,37 @@ function recalculateStarWedgeMutations() {
                 originalVal: center.val,
                 currentStat: coreLine.stat,
                 currentVal: coreLine.val
-            };
+            });
         }
     });
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
+    return st;
+}
+
+function isPassiveNodeVirtuallyLearned(nodeId) {
+    let st = game && game.starWedge;
+    return !!(st && st.virtualLearnNodes && st.virtualLearnNodes[String(nodeId)]);
+}
+
+function isPassiveNodeEffectDisabled(nodeId) {
+    let st = game && game.starWedge;
+    return !!(st && st.disabledNodeEffects && st.disabledNodeEffects[String(nodeId)]);
+}
+
+function getPassiveConnectionNodeIds() {
+    recalculateStarWedgeMutations();
+    let result = new Set((game && Array.isArray(game.passives) ? game.passives : []).filter(id => isPassiveNodeAvailable(id)).map(String));
+    Object.keys((game.starWedge && game.starWedge.virtualLearnNodes) || {}).forEach(id => {
+        if (isPassiveNodeAvailable(id)) result.add(String(id));
+    });
+    return result;
+}
+
+function refreshStarWedgePassiveState() {
+    recalculateStarWedgeMutations(true);
+    if (typeof calculateReachableNodes === 'function') calculateReachableNodes();
+    if (typeof refreshPassiveVisibility === 'function') refreshPassiveVisibility();
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
 }
 
 function tryUnlockMeteorContentByProgress() {
@@ -2261,7 +2826,7 @@ function getOceanWorkbenchOption(optionId, topTierOnly) {
     return OCEAN_WORKBENCH_OPTIONS.find(opt => opt.id === optionId) || OCEAN_WORKBENCH_OPTIONS[Math.floor(Math.random() * (OCEAN_WORKBENCH_OPTIONS.length - 1))];
 }
 
-const SEA_GIFT_RANDOM_ORB_KEYS = ['transmute', 'augment', 'alteration', 'alchemy', 'regal', 'chaos', 'divine', 'blessing', 'tainted', 'annulment'];
+const SEA_GIFT_RANDOM_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'blessing', 'emberBranch', 'pruningShears'];
 const SEA_GIFT_RECIPES = [
     // --- 일반 레시피 ---
     { id: 'reefBundle', desc: '【재화 획득: 암초 조각 ×2】 얕은 바다 어종을 모아 암초 조각으로 가공합니다.', requires: { shallowSilverfin: 5 }, effect: { type: 'currency', key: 'reefFragment', amount: 2 } },
@@ -2525,7 +3090,8 @@ function craftCompleteStarWedge() { if (game.woodsmanBuildLock) return addLog('�
     let wedge = Math.random() < uniqueChance ? createUniqueStarWedgeItem() : createStarWedgeItem();
     st.wedges.push(wedge);
     awardCurrency('starWedge', 1);
-    addLog(wedge.unique ? `🌌 고유 별쐐기 완성! [${wedge.uniqueType}]` : '🔧 별쐐기를 완성했습니다.', 'loot-unique');
+    let uniqueDef = wedge.unique ? getStarWedgeUniqueDef(wedge.uniqueType) : null;
+    addLog(wedge.unique ? `🌌 고유 별쐐기 완성! [${uniqueDef ? uniqueDef.name : wedge.uniqueType}]` : '🔧 별쐐기를 완성했습니다.', 'loot-unique');
     updateStaticUI();
 }
 
@@ -2534,6 +3100,8 @@ function rerollStarWedge(wedgeId, keepIndex) { if (game.woodsmanBuildLock) retur
     if (astroLv < 5) return addLog('별쐐기 리롤은 천문학자 Lv.5에 해금됩니다.', 'attack-monster');
     let wedge = getStarWedgeById(wedgeId);
     if (!wedge) return;
+    if (wedge.eternal) return addLog('영원 고정된 별쐐기는 리롤할 수 없습니다.', 'attack-monster');
+    if (wedge.unique && wedge.uniqueType === 'comet') return addLog('혜성의 고정된 이동 속도 궤적은 리롤할 수 없습니다.', 'attack-monster');
     let keepIndexes = [];
     let meteorCost = 23;
     let rerollDiscount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('starWedgeRerollCostReducePct') : 0;
@@ -2547,10 +3115,21 @@ function rerollStarWedge(wedgeId, keepIndex) { if (game.woodsmanBuildLock) retur
     if (keepIndexes.length > 0 && (game.currencies.incompleteStarWedge || 0) <= 0) return addLog('옵션 고정 리롤에는 불완전한 별쐐기가 필요합니다.', 'attack-monster');
     game.currencies.meteorShard -= meteorCost; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'starwedge_reroll');
     if (keepIndexes.length > 0) game.currencies.incompleteStarWedge--;
-    wedge.lines = wedge.lines.map((line, idx) => keepIndexes.includes(idx) ? line : createRandomStarWedgeLine(idx === 3 ? STAR_WEDGE_CORE_OPTION_POOL : STAR_WEDGE_OPTION_POOL));
+    wedge.lines = wedge.lines.map((line, idx) => {
+        if (keepIndexes.includes(idx)) return line;
+        if (wedge.unique && wedge.uniqueType === 'sun' && idx < 3) return { stat: 'flatHp', val: 0, boosted: false, disabled: true };
+        if (wedge.unique && wedge.uniqueType === 'resonant_star' && idx === 3) return { stat: 'suppCap', val: 1, boosted: true };
+        let next = createRandomStarWedgeLine(idx === 3 ? STAR_WEDGE_CORE_OPTION_POOL : STAR_WEDGE_OPTION_POOL);
+        if (wedge.unique && wedge.uniqueType === 'sun' && idx === 3 && Number.isFinite(Number(next.val))) {
+            next.val = Math.round(Number(next.val) * 3 * 10) / 10;
+            next.boosted = true;
+        }
+        return next;
+    });
+    normalizeUniqueStarWedgeItem(wedge);
     addLog('☄️ 나무의 결이 끊어지고, 새로운 효과가 혼돈 속에서 벼려졌다.', 'loot-unique');
     if (!((game.journalEntries || []).includes('star_wedge'))) unlockJournalEntry('star_wedge');
-    recalculateStarWedgeMutations();
+    refreshStarWedgePassiveState();
     updateStaticUI();
 }
 
@@ -2570,17 +3149,26 @@ function stabilizeStarWedge(wedgeId) { if (game.woodsmanBuildLock) return addLog
     updateStaticUI();
 }
 
-function destroyStarWedge(wedgeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+async function destroyStarWedge(wedgeId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let st = ensureStarWedgeState();
     let target = getStarWedgeById(wedgeId);
     if (!target) return addLog('파괴할 별쐐기를 찾을 수 없습니다.', 'attack-monster');
     if (target.eternal) return addLog('영원 고정된 별쐐기는 파괴할 수 없습니다.', 'attack-monster');
-    if (!confirm(`별쐐기 #${wedgeId % 10000} 를 파괴할까요?`)) return;
+    if (!await requestGameConfirmation(`별쐐기 #${wedgeId % 10000}을 파괴하면 장착 상태도 함께 해제됩니다.`, {
+        title: '별쐐기 파괴',
+        tone: 'danger',
+        confirmLabel: '파괴'
+    })) return;
+    if (game.woodsmanBuildLock) return addLog('확인 중 전투가 시작되어 파괴를 취소했습니다.', 'attack-monster');
+    st = ensureStarWedgeState();
+    target = getStarWedgeById(wedgeId);
+    if (!target) return addLog('확인 중 별쐐기 상태가 변경되어 파괴를 취소했습니다.', 'attack-monster');
+    if (target.eternal) return addLog('확인 중 영원 고정되어 파괴를 취소했습니다.', 'attack-monster');
     st.wedges = (st.wedges || []).filter(w => w.id !== wedgeId);
     st.sockets = (st.sockets || []).filter(entry => entry.wedgeId !== wedgeId);
     if (st.selectedWedgeId === wedgeId) st.selectedWedgeId = null;
     game.currencies.starWedge = Math.max(0, (game.currencies.starWedge || 0) - 1);
-    recalculateStarWedgeMutations();
+    refreshStarWedgePassiveState();
     addLog('💥 별쐐기를 파괴했습니다.', 'attack-monster');
     updateStaticUI();
 }
@@ -2603,7 +3191,7 @@ function socketStarWedgeOnNode(nodeId, wedgeId) { if (game.woodsmanBuildLock) re
     if (remainingSockets.length >= maxEquipped) return addLog(`별쐐기는 현재 최대 ${maxEquipped}개까지 장착할 수 있습니다. (천문학자 레벨 상승 시 최대 ${MAX_STAR_WEDGES_HARD_CAP}개)`, 'attack-monster');
     st.sockets = remainingSockets;
     st.sockets.push({ nodeId: String(lookupId), wedgeId: wedgeId });
-    recalculateStarWedgeMutations();
+    refreshStarWedgePassiveState();
     addLog('☄️ 나무의 결이 끊어지고, 새로운 효과가 혼돈 속에서 벼려졌다.', 'loot-unique');
     if (!((game.journalEntries || []).includes('star_wedge'))) unlockJournalEntry('star_wedge');
     updateStaticUI();
@@ -2615,7 +3203,7 @@ function unsocketStarWedge(nodeId) { if (game.woodsmanBuildLock) return addLog('
     let targetNodeId = String(nodeId);
     st.sockets = (st.sockets || []).filter(v => String(v.nodeId) !== targetNodeId);
     if (st.sockets.length === before) return;
-    recalculateStarWedgeMutations();
+    refreshStarWedgePassiveState();
     addLog('☄️ 별쐐기를 슬롯에서 분리했습니다.', 'attack-monster');
     updateStaticUI();
 }
@@ -2644,13 +3232,14 @@ function beginStarWedgeSocketSelection(wedgeId) {
 function getPassiveActivationPath(targetNodeId) {
     if (!game || !targetNodeId || !isPassiveNodeAvailable(targetNodeId)) return [];
     let owned = new Set((game.passives || []).filter(id => isPassiveNodeAvailable(id)));
-    if (owned.has(targetNodeId)) return [];
+    let connectionNodes = getPassiveConnectionNodeIds();
+    if (connectionNodes.has(String(targetNodeId))) return [];
     // BFS는 n0에서부터 시작해야 하지만(트리의 유일한 진입점), n0을 아직 실제로 소유하지
     // 않았다면 그 1포인트 비용도 경로에 포함되어야 한다. 그래서 "탐색 시작점"과 "이미 소유해
     // 비용이 없는 경계(owned)"를 분리한다 — n0을 owned에 넣지 않고 시작 노드로만 쓴다.
     // (owned에 넣으면 n1~타깃까지는 정상 과금되지만 n0 자체가 무료로 활성화 없이 건너뛰어져,
     // 소유하지 않은 n0에 인접한 노드들이 소유된 상태가 되는 트리 정합성 버그가 생긴다.)
-    let startNodes = owned.size > 0 ? Array.from(owned) : (isPassiveNodeAvailable('n0') ? ['n0'] : []);
+    let startNodes = connectionNodes.size > 0 ? Array.from(connectionNodes) : (isPassiveNodeAvailable('n0') ? ['n0'] : []);
     if (startNodes.length === 0) return [];
 
     let queue = startNodes.slice();
@@ -2671,7 +3260,7 @@ function getPassiveActivationPath(targetNodeId) {
 
     let path = [];
     let current = targetNodeId;
-    while (current && !owned.has(current)) {
+    while (current && !connectionNodes.has(String(current))) {
         path.push(current);
         current = previous.get(current);
     }
@@ -2696,13 +3285,14 @@ function calculateReachableNodes() {
     reachableNodes.clear();
     if (isPassiveNodeAvailable('n0')) reachableNodes.add('n0');
     if (!game) return;
-    (game.passives || []).forEach(id => {
+    let connectionNodes = getPassiveConnectionNodeIds();
+    connectionNodes.forEach(id => {
         if (isPassiveNodeAvailable(id)) reachableNodes.add(id);
     });
     PASSIVE_TREE.edges.forEach(edge => {
         if (!isPassiveNodeAvailable(edge.from) || !isPassiveNodeAvailable(edge.to)) return;
-        if ((game.passives || []).includes(edge.from)) reachableNodes.add(edge.to);
-        if ((game.passives || []).includes(edge.to)) reachableNodes.add(edge.from);
+        if (connectionNodes.has(String(edge.from))) reachableNodes.add(edge.to);
+        if (connectionNodes.has(String(edge.to))) reachableNodes.add(edge.from);
     });
     // reachable 집합이 바뀌면 링크/후광 상태 캐시 갱신
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
@@ -2750,7 +3340,8 @@ function refreshPassiveVisibility() {
     }
     discoveredPassiveNodes = new Set((game.discoveredPassives || []).filter(id => isPassiveNodeAvailable(id)));
     discoveredPassiveNodes.add('n0');
-    (game.passives || []).forEach(id => {
+    let connectionNodes = getPassiveConnectionNodeIds();
+    connectionNodes.forEach(id => {
         if (isPassiveNodeAvailable(id)) discoveredPassiveNodes.add(id);
     });
     let allNodes = Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node));
@@ -2758,7 +3349,7 @@ function refreshPassiveVisibility() {
         getPassiveLinkedNodeIds('n0', PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH).forEach(id => discoveredPassiveNodes.add(id));
     }
     previewPassiveNodes = new Set(discoveredPassiveNodes);
-    let previewSeeds = Array.from(new Set((game.passives || []).filter(id => isPassiveNodeAvailable(id))));
+    let previewSeeds = Array.from(connectionNodes).filter(id => isPassiveNodeAvailable(id));
     previewSeeds.forEach(id => {
         let src = PASSIVE_TREE.nodes[id];
         if (!src) return;
@@ -2987,7 +3578,7 @@ function getClassTreeDef(clsKey) {
         tree.n12 = { stat: cores[1].stat, val: cores[1].val, req: 'n10', exclusive: 'n11' };
     }
     // 5차 재능 개화 노드: 이번 루프에 해당 직업으로 재능 개화에 성공하면 열린다(영구 아님, 루프마다 초기화).
-    // 4차 핵심을 모두 찍으면 진입 가능. 재능특화 2개(n13a/n13b) 중 1개, 전직특화 2개(n13c/n13d) 중 1개를 선택.
+    // 선택한 4차 핵심을 찍으면 진입 가능. 재능특화 2개(n13a/n13b) 중 1개, 전직특화 2개(n13c/n13d) 중 1개를 선택.
     if (game.bloomedClassThisLoop === clsKey) {
         const jobByClass = {
             warrior: [{ stat: 'aspd', val: 16 }, { stat: 'dr', val: 12 }],
@@ -3019,6 +3610,7 @@ let itemIdCounter = 0;
 let lastTime = Date.now();
 let gameTickHandle = null;
 let autoSaveHandle = null;
+let autoSaveIdleHandle = null;
 let hoverNode = null;
 let mouseX = 0;
 let mouseY = 0;
@@ -3063,6 +3655,10 @@ let battleVisualState = {
     playerHurtBlend: 0,
     playerDownBlend: 0,
     lastNow: 0,
+    visualNow: 0,
+    lastWallNow: 0,
+    hitStopRemainingMs: 0,
+    lastHitStopFxId: 0,
     advanceDesired: false,
     advanceChangedAt: 0
 };
@@ -3150,11 +3746,13 @@ let crowdPauseActive = false;
 let trialHazardTimer = 0;
 let tutorialQueue = [];
 let activeTutorial = null;
+let activeTutorialStep = 0;
 let activeRewardZoneId = null;
 let divineBannerTimer = null;
 let jewelFusionSelection = [];
 let selectedJewelCraftIndex = null;
 let voidJewelOverlayState = { mode: null, selected: [] };
+let latestPlayerSwingImpactAt = 0;
 let pendingRingEquipItemId = null;
 let pendingGloveEquipItemId = null;
 let pendingWeaponEquipItemId = null;
@@ -3223,7 +3821,6 @@ function syncBattleTabLayout(forceTabSwitch) {
     } else {
         if (battleTabDocked || battleColumn.parentElement !== leftPane) leftPane.appendChild(battleColumn);
         battleTabDocked = false;
-        if (document.getElementById('tab-battle').classList.contains('active')) switchTab('tab-character');
     }
 }
 
@@ -3232,16 +3829,44 @@ function clampPassiveCamera() {
     camY = clampNumber(camY, -7800, 7800);
 }
 
+// 첫 진입 시 전체 트리(1000개+ 노드, 우주계까지 포함하는 광대한 범위)를
+// 한 화면에 맞추면 배율이 극단적으로 작아져 노드가 사실상 보이지 않는다.
+// 실제로 지금 다룰 수 있는 범위(투자한 노드 + 바로 다음 구매 가능한 노드)만
+// 화면에 맞춰, 열자마자 무엇을 누를 수 있는지 보이게 한다.
+function getPassiveActiveViewBoundsIds() {
+    let ids = new Set(['n0']);
+    (Array.isArray(game && game.passives) ? game.passives : []).forEach(id => ids.add(id));
+    reachableNodes.forEach(id => ids.add(id));
+    return ids;
+}
+
 function fitPassiveCameraToBounds(force) {
     if (passiveCameraInitialized && !force) return;
     let container = document.getElementById('tree-container');
     if (!container || container.offsetParent === null) return;
     let width = Math.max(1, container.clientWidth);
     let height = Math.max(1, container.clientHeight);
-    let defaultZoom = Math.min(width, height) / 780;
-    camZoom = clampNumber(defaultZoom, 0.42, 0.72);
-    camX = 0;
-    camY = 0;
+    let viewIds = getPassiveActiveViewBoundsIds();
+    let viewNodes = Array.from(viewIds).map(id => PASSIVE_TREE.nodes[id]).filter(Boolean);
+    let minX, maxX, minY, maxY;
+    if (viewNodes.length > 0) {
+        minX = Math.min(...viewNodes.map(n => n.x));
+        maxX = Math.max(...viewNodes.map(n => n.x));
+        minY = Math.min(...viewNodes.map(n => n.y));
+        maxY = Math.max(...viewNodes.map(n => n.y));
+    } else {
+        minX = maxX = PASSIVE_TREE.nodes.n0.x;
+        minY = maxY = PASSIVE_TREE.nodes.n0.y;
+    }
+    const viewPadding = 220;
+    const spanX = Math.max(1, (maxX - minX) + viewPadding * 2);
+    const spanY = Math.max(1, (maxY - minY) + viewPadding * 2);
+    const defaultZoom = Math.min((width - 64) / spanX, (height - 72) / spanY);
+    camZoom = clampNumber(defaultZoom, 0.14, 0.72);
+    const boundsCenterX = (minX + maxX) * 0.5;
+    const boundsCenterY = (minY + maxY) * 0.5;
+    camX = -boundsCenterX * camZoom;
+    camY = -boundsCenterY * camZoom;
     passiveCameraInitialized = true;
 }
 
@@ -3264,13 +3889,71 @@ document.addEventListener('keydown', function(event) {
     playSkill(skillId);
 });
 
+function getBattleHitFeedback(data) {
+    if (!data || data.dot || !Number.isFinite(Number(data.damage))) return {};
+    let enemy = (game.enemies || []).find(row => row && row.id === data.enemyId);
+    let maxHp = Math.max(0, Number(data.targetMaxHp) || Number(enemy && enemy.maxHp) || 0);
+    if (maxHp <= 0) return {};
+    let overkill = enemy && enemy.hp <= 0 ? Math.max(0, Number(enemy.lastOverkillDamage) || 0) : 0;
+    let feedbackDamage = Math.max(0, Number(data.rawDamage) || (Number(data.damage) + overkill));
+    let damageRatio = feedbackDamage / maxHp;
+    let impactTier = damageRatio >= 1 ? 'annihilate' : (damageRatio >= 0.3 ? 'heavy' : 'normal');
+    return { damageRatio, impactTier, targetMaxHp: maxHp };
+}
+
+const BATTLE_FEEDBACK_PROFILES = Object.freeze({
+    normal: Object.freeze({ hitStopMs: 0, shake: 0, duration: 110 }),
+    crit: Object.freeze({ hitStopMs: 24, shake: 2.5, duration: 155 }),
+    heavy: Object.freeze({ hitStopMs: 40, shake: 4.8, duration: 205 }),
+    annihilate: Object.freeze({ hitStopMs: 34, shake: 3.8, duration: 170 })
+});
+
+function getBattleFeedbackProfile(fx) {
+    if (!fx || fx.dot) return BATTLE_FEEDBACK_PROFILES.normal;
+    if (fx.impactTier === 'annihilate') return BATTLE_FEEDBACK_PROFILES.annihilate;
+    if (fx.impactTier === 'heavy') return BATTLE_FEEDBACK_PROFILES.heavy;
+    if (fx.crit) return BATTLE_FEEDBACK_PROFILES.crit;
+    return BATTLE_FEEDBACK_PROFILES.normal;
+}
+
+function getBattleFxStart(type, data, now) {
+    if (!data) return now;
+    if (type === 'hit' && data.syncToSwing === true && !data.dot && latestPlayerSwingImpactAt >= now && latestPlayerSwingImpactAt - now <= 340) {
+        return latestPlayerSwingImpactAt;
+    }
+    if (['enemyDeath', 'lootPickup', 'lootCelebration'].includes(type) && data.enemyId) {
+        let pendingHit = [...battleFx].reverse().find(fx => fx && fx.type === 'hit' && fx.enemyId === data.enemyId && fx.start >= now);
+        if (pendingHit) return pendingHit.start;
+    }
+    if (type === 'levelUp' && latestPlayerSwingImpactAt >= now && latestPlayerSwingImpactAt - now <= 340) {
+        return latestPlayerSwingImpactAt;
+    }
+    return now;
+}
+
 function addBattleFx(type, data) {
+    let payload = data || {};
+    let wallNow = performance.now();
+    let now = battleVisualState
+        && Number.isFinite(battleVisualState.visualNow)
+        && battleVisualState.visualNow > 0
+        && wallNow - (battleVisualState.lastWallNow || 0) < 250
+        ? battleVisualState.visualNow
+        : wallNow;
+    if (type === 'playerSwing') {
+        let requestedDelay = Number(payload.impactDelayMs);
+        let delay = Number.isFinite(requestedDelay) ? Math.max(0, requestedDelay) : (payload.projectile ? 260 : 205);
+        latestPlayerSwingImpactAt = now + delay;
+        payload = { ...payload, impactAt: latestPlayerSwingImpactAt };
+    }
     battleFx.push({
         id: ++battleFxId,
         type: type,
-        start: performance.now(),
-        duration: (data && data.duration) || 260,
-        ...(data || {})
+        start: getBattleFxStart(type, payload, now),
+        queuedAt: now,
+        duration: payload.duration || 260,
+        ...getBattleHitFeedback(payload),
+        ...payload
     });
 }
 
@@ -3335,7 +4018,16 @@ function cleanupBattleFx(now) {
 }
 function cleanupBattleVisualState(now) {
     battleVisualState.projectiles = (battleVisualState.projectiles || []).filter(projectile => now - projectile.start <= projectile.duration + 60);
-    battleVisualState.damageTexts = (battleVisualState.damageTexts || []).filter(text => now - text.start <= text.duration);
+    battleVisualState.skillEffects = (battleVisualState.skillEffects || []).filter(effect => {
+        let elapsed = now - Number(effect && effect.startAt);
+        let duration = Math.max(1, Number(effect && effect.duration) || 1);
+        return Number.isFinite(elapsed) && elapsed >= -160 && elapsed <= duration + 80;
+    });
+    battleVisualState.damageTexts = (battleVisualState.damageTexts || []).filter(text => {
+        let elapsed = now - Number(text && text.start);
+        let duration = Number(text && text.duration);
+        return Number.isFinite(elapsed) && Number.isFinite(duration) && elapsed >= -80 && elapsed <= duration;
+    });
     Object.keys(battleVisualState.enemyGhostPos || {}).forEach(enemyId => {
         if (now - (battleVisualState.enemyGhostPos[enemyId].stamp || 0) > 1200) delete battleVisualState.enemyGhostPos[enemyId];
     });
@@ -3435,12 +4127,62 @@ function formatDamageNumberForDisplay(value, format) {
     return amount.toLocaleString();
 }
 
+const MAX_BATTLE_DAMAGE_TEXTS = 72;
+const DAMAGE_TEXT_STACK_WINDOW_MS = 520;
+const DAMAGE_TEXT_STACK_SPACING = 18;
+const DAMAGE_TEXT_STACK_SHIFT_MS = 90;
+const DAMAGE_TEXT_MAX_STACK = 9;
+
+function getDamageTextStackShift(text, now) {
+    let from = Number(text && text.stackShiftFrom) || 0;
+    let to = Number(text && text.stackShiftTo) || 0;
+    let startedAt = Number(text && text.stackShiftStart);
+    if (!Number.isFinite(startedAt) || from === to) return to;
+    let t = clampNumber((now - startedAt) / DAMAGE_TEXT_STACK_SHIFT_MS, 0, 1);
+    let eased = 1 - Math.pow(1 - t, 3);
+    return from + (to - from) * eased;
+}
+
+function queueDamageTextStackShift(activeTexts, start, x, y, enemyHit) {
+    activeTexts.forEach(text => {
+        let age = start - Number(text && text.start);
+        if (!Number.isFinite(age)
+            || age < 0
+            || age > DAMAGE_TEXT_STACK_WINDOW_MS
+            || !!text.enemyHit !== !!enemyHit
+            || Math.abs(Number(text.x) - x) > 34
+            || Math.abs(Number(text.y) - y) > 40) return;
+        let currentShift = getDamageTextStackShift(text, start);
+        let priorTarget = Math.min(currentShift, Number(text.stackShiftTo) || 0);
+        text.stackShiftFrom = currentShift;
+        text.stackShiftTo = Math.max(-DAMAGE_TEXT_STACK_SPACING * DAMAGE_TEXT_MAX_STACK, priorTarget - DAMAGE_TEXT_STACK_SPACING);
+        text.stackShiftStart = start;
+    });
+}
+
 function spawnDamageText(config) {
-    battleVisualState.damageTexts.push({
-        start: performance.now(),
-        duration: config.duration || 650,
-        x: config.x || 0,
-        y: config.y || 0,
+    config = config || {};
+    let wallNow = performance.now();
+    let requestedStart = Number(config.start);
+    let visualNow = Number(battleVisualState && battleVisualState.visualNow);
+    let start = Number.isFinite(requestedStart)
+        ? requestedStart
+        : (Number.isFinite(visualNow) && visualNow > 0 ? visualNow : wallNow);
+    let x = Number.isFinite(Number(config.x)) ? Number(config.x) : 0;
+    let y = Number.isFinite(Number(config.y)) ? Number(config.y) : 0;
+    let activeTexts = battleVisualState.damageTexts || (battleVisualState.damageTexts = []);
+    queueDamageTextStackShift(activeTexts, start, x, y, config.enemyHit);
+    activeTexts.push({
+        start: start,
+        duration: config.duration || (config.impactTier === 'annihilate' ? 940 : (config.impactTier === 'heavy' ? 860 : (config.enemyHit ? 820 : (config.crit ? 840 : 760)))),
+        x: x,
+        y: y,
+        offsetX: 0,
+        offsetY: 0,
+        driftX: 0,
+        stackShiftFrom: 0,
+        stackShiftTo: 0,
+        stackShiftStart: start,
         value: config.value || 0,
         crit: !!config.crit,
         enemyHit: !!config.enemyHit,
@@ -3448,8 +4190,13 @@ function spawnDamageText(config) {
         dotType: config.dotType || '',
         miss: !!config.miss,
         color: config.color || '',
-        deflected: !!config.deflected
+        deflected: !!config.deflected,
+        impactTier: config.impactTier || 'normal',
+        damageRatio: Math.max(0, Number(config.damageRatio) || 0)
     });
+    if (activeTexts.length > MAX_BATTLE_DAMAGE_TEXTS) {
+        activeTexts.splice(0, activeTexts.length - MAX_BATTLE_DAMAGE_TEXTS);
+    }
 }
 function drawVisualProjectile(ctx, projectile, now) {
     let t = clampNumber((now - projectile.start) / projectile.duration, 0, 1);
@@ -3470,20 +4217,27 @@ function drawVisualProjectile(ctx, projectile, now) {
 }
 function drawDamageTexts(ctx, now) {
     (battleVisualState.damageTexts || []).forEach(text => {
-        let t = clampNumber((now - text.start) / text.duration, 0, 1);
-        let rise = (text.dot ? 14 : 20) + (text.crit ? 7 : 0);
-        let x = text.x + Math.sin((text.start % 1000) * 0.01) * 4;
-        let y = text.y - rise * t;
+        let elapsed = now - Number(text.start);
+        if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return;
+        let t = clampNumber(elapsed / text.duration, 0, 1);
+        let easedRise = 1 - Math.pow(1 - t, 2);
+        let rise = (text.dot ? 13 : 19) + (text.crit ? 5 : 0);
+        let x = text.x;
+        let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
-        ctx.globalAlpha = 1 - t;
-        ctx.font = text.miss ? 'bold 13px Consolas' : (text.dot ? 'bold 10px Consolas' : (text.crit ? 'bold 14px Consolas' : 'bold 12px Consolas'));
+        ctx.globalAlpha = t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38);
+        const tierSize = text.impactTier === 'annihilate' ? 27 : (text.impactTier === 'heavy' ? 22 : 0);
+        const fontSize = tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16))));
+        ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
         ctx.textAlign = 'center';
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-        let textValue = text.miss ? String(text.value) : formatDamageNumberForDisplay(text.value);
+        let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
+        ctx.lineWidth = text.impactTier === 'annihilate' ? 2.8 : (text.crit || text.impactTier === 'heavy' ? 2.4 : 1.8);
+        ctx.strokeStyle = 'rgba(2,5,9,0.92)';
+        ctx.shadowColor = text.enemyHit ? 'rgba(255,76,88,0.42)' : (text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(255,211,102,0.38)' : 'transparent'));
+        ctx.shadowBlur = text.impactTier === 'annihilate' ? 7 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 4 : 0);
         ctx.strokeText(textValue, x, y);
         let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
-        ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff8e8e' : (text.crit ? '#ffd36f' : '#f3f6ff'))));
+        ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff9a9a' : (text.impactTier === 'annihilate' ? '#fff1b0' : (text.crit || text.impactTier === 'heavy' ? '#ffdc75' : '#ffffff')))));
         ctx.fillText(textValue, x, y);
         ctx.restore();
     });
@@ -3647,14 +4401,8 @@ function updateSkillPlayback(now, playerPos, width, enemyPosMap) {
     }
     let chosenEffectIndex = Number.isFinite(state.overrideEffectIndex) ? state.overrideEffectIndex : skillCfg.effectIndex;
     if (!state.effectSpawned && Number.isFinite(chosenEffectIndex) && state.frameLocalIndex >= hitFrame) {
-        battleVisualState.skillEffects.push({
-            skillId: state.skillId,
-            effectIndex: chosenEffectIndex,
-            startAt: now,
-            duration: 520,
-            x: targetX,
-            y: targetY
-        });
+        // 실제 피해 이벤트가 이미지 VFX를 생성한다. 애니메이션 예상 프레임에서 별도
+        // 효과를 쌓으면 빗나간 공격에도 효과가 나오고 동일 배열이 중복 사용된다.
         battleVisualState.skillPlayback.effectSpawned = true;
     }
 }
@@ -3678,6 +4426,141 @@ function isTutorialOpen() {
     let overlay = document.getElementById('tutorial-overlay');
     return !!activeTutorial && !!overlay && overlay.classList.contains('active');
 }
+const TUTORIAL_GUIDES = {
+    tutorial_battle_basics: [
+        { title: '전투 화면 읽기', body: '전투는 자동으로 진행되지만, 화면은 현재 전투가 왜 막히는지 판단할 수 있도록 구성되어 있습니다.', bullets: ['파란 칸은 내 위치, 붉은 칸은 적 위치입니다.', '노란 강조는 현재 공격 대상, 청록 강조는 스킬이 닿는 범위입니다.', '적이 사거리 밖이면 캐릭터가 먼저 이동한 뒤 공격합니다.'], tip: '처음에는 피해량보다 생명력 막대와 적의 밀집도를 먼저 보세요.' },
+        { title: '공격과 피해 구분', body: '밝은 흰색·금색 숫자는 내가 준 피해, 붉은 숫자는 내가 받은 피해입니다.', bullets: ['금색 숫자는 치명타입니다.', '작게 반복되는 원소색 숫자는 지속 피해입니다.', '체력 막대 뒤에 남는 주황색은 방금 잃은 피해량입니다.'], tip: '붉은 숫자가 연속으로 크게 뜨면 장비 방어와 저항을 점검할 때입니다.' },
+        { title: '스킬 범위와 태그', body: '젬의 태그에 따라 공격 방식과 연출, 유효 범위가 달라집니다.', bullets: ['강타는 가까운 범위에 큰 충격을 줍니다.', '관통은 직선, 연쇄는 적 사이, 시체 폭발은 처치 지점을 활용합니다.', '공격 범위는 스킬 툴팁의 격자 설명에서 확인할 수 있습니다.'], tip: '넓은 범위가 항상 강한 것은 아닙니다. 단일 보스에는 집중형 스킬이 유리합니다.' },
+        { title: '다음 성장 순서', body: '막히면 패시브, 장비, 스킬 젬을 순서대로 확인하면 원인을 찾기 쉽습니다.', bullets: ['패시브: 부족한 생존·화력 축을 보완', '장비: 방어도·회피·보호막과 저항 점검', '스킬: 공격 태그와 보조 젬 연결 확인'], tip: '새 콘텐츠가 열릴 때마다 이와 같은 단계형 설명이 표시됩니다.' }
+    ],
+    unlock_char: [
+        { title: '패시브 나무란?', body: '패시브 포인트를 사용해 루트에서 가지를 타고 성장 방향을 선택하는 장기 빌드 시스템입니다.', bullets: ['루트 주변의 시작점은 서로 다른 기초 효과를 가집니다.', '활성화한 노드와 연결된 노드만 다음에 선택할 수 있습니다.', '작은 노드는 경로, 큰 장식 노드는 핵심 효과입니다.'], tip: '처음부터 모든 방향을 섞기보다 한 가지 공격 축과 한 가지 방어 축을 정하세요.' },
+        { title: '나무 구조 읽기', body: '아래의 루트에서 위쪽 수관으로 갈수록 전문 효과와 큰 보상이 등장합니다.', bullets: ['가지별 색과 배치는 테마를 구분합니다.', '노드에 마우스를 올리면 현재 경로가 강조됩니다.', '검색을 사용하면 원하는 스탯이 있는 가지를 찾을 수 있습니다.'], tip: '화면을 확대하면 선택 가능한 노드의 짧은 효과만 표시되어 글이 겹치지 않습니다.' },
+        { title: '첫 포인트 사용', body: '원하는 시작점을 고르고 연결된 경로 노드를 차례로 활성화하세요.', bullets: ['현재 부족한 생존 수단을 먼저 확인합니다.', '사용 중인 스킬 태그와 맞는 공격 효과를 고릅니다.', '큰 노드까지 필요한 포인트 수를 경로로 계산합니다.'], tip: '마지막 단계에서 패시브 화면을 바로 열 수 있습니다.' }
+    ],
+    unlock_items: [
+        { title: '장비와 제작', body: '획득한 장비를 비교·장착하고, 제작 재화로 옵션을 단계적으로 다듬는 콘텐츠입니다.', bullets: ['장비 등급: 일반 → 마법 → 희귀 → 고유', '기본 옵션과 추가 옵션은 서로 다른 역할을 합니다.', '아이템 필터와 자동 해체는 원치 않는 드랍을 정리합니다.'], tip: '처음에는 공격력 한 줄보다 생명력·방어·저항의 균형이 중요합니다.' },
+        { title: '오브 사용 순서', body: '오브마다 사용할 수 있는 장비 등급과 역할이 다릅니다.', bullets: ['진화/확장 계열로 일반·마법 장비를 성장시킵니다.', '변화 계열은 옵션을 다시 굴립니다.', '희귀 장비는 빈 옵션과 현재 티어를 확인한 뒤 투자합니다.'], tip: '좋은 베이스가 아닌 장비에 희귀 재화를 너무 일찍 쓰지 마세요.' },
+        { title: '드랍 연출 읽기', body: '좋은 아이템일수록 전장에서 더 강한 색과 빛기둥으로 표시됩니다.', bullets: ['파랑: 일반적인 획득', '금색·보라색 기둥: 희귀 재화 또는 희귀 장비', '굵고 긴 빛기둥: 고유 장비나 최상급 재화'], tip: '로그를 꺼도 중요한 드랍 연출은 계속 표시됩니다.' }
+    ],
+    unlock_skills: [
+        { title: '스킬 젬 구성', body: '공격 젬 하나를 중심으로 보조 젬을 연결해 공격 방식과 성능을 바꿉니다.', bullets: ['공격 젬은 기본 행동과 피해 태그를 정합니다.', '보조 젬은 연결 한도 안에서 효과를 추가합니다.', '젬 레벨과 강화 단계가 기본 성능을 높입니다.'], tip: '보조 젬 설명에 현재 공격 젬과 맞지 않는 태그가 없는지 확인하세요.' },
+        { title: '태그와 전투 방식', body: '강타·관통·연쇄·범위·지속 피해 같은 태그는 실제 격자 범위와 이펙트에 반영됩니다.', bullets: ['관통: 한 방향의 여러 적을 노림', '연쇄: 떨어진 적 사이를 순서대로 타격', '범위: 대상 주변 또는 자신 주변을 공격'], tip: '스킬 툴팁의 사거리와 반경을 함께 보세요.' },
+        { title: '교체 전 확인', body: '새 스킬을 장착하면 보조 젬 호환과 공격 범위도 함께 달라집니다.', bullets: ['현재 장비가 새 태그를 강화하는지 확인', '단일 대상과 다수 대상 중 필요한 역할 선택', '실전에서 대미지 숫자와 이동 빈도 비교'], tip: '사거리가 짧으면 공격 전 이동이 많아질 수 있습니다.' }
+    ],
+    unlock_map: [
+        { title: '지도는 무엇인가?', body: '현재 갈 수 있는 지역, 예상 난이도, 주요 드랍을 보고 다음 사냥터를 선택하는 콘텐츠입니다.', bullets: ['지역마다 몬스터 속성과 보상이 다릅니다.', '보스 지역은 일반 지역보다 위험하지만 보상이 큽니다.', '해금 조건이 표시된 지역은 요구 콘텐츠를 먼저 완료해야 합니다.'], tip: '막힌 지역을 반복하기보다 필요한 장비가 나오는 이전 지역을 활용하세요.' },
+        { title: '지역 선택 기준', body: '내 빌드가 버틸 수 있는 난이도와 필요한 보상을 함께 비교합니다.', bullets: ['받는 피해가 급증하면 한 단계 낮춤', '원하는 재화·장비·열쇠의 드랍 지역 확인', '보스 전에 저항과 회복 수단 점검'], tip: '클리어 속도가 너무 느리면 높은 지역이 항상 효율적인 것은 아닙니다.' },
+        { title: '후반 지도 콘텐츠', body: '루프가 진행되면 균열, 혼돈계, 심층 보스 같은 별도 등반 콘텐츠가 지도에 추가됩니다.', bullets: ['각 콘텐츠는 고유 입장 조건과 진행도를 가집니다.', '루프에 귀속되는 보상과 영구 보상을 구분하세요.', '특수 열쇠는 해당 보스 목록에서 사용합니다.'], tip: '새 콘텐츠가 열리면 지도 탭의 알림 표시를 먼저 확인하세요.' }
+    ],
+    unlock_jewel: [
+        { title: '주얼의 역할', body: '주얼은 장비와 별도로 세밀한 스탯을 보완하고 특수 조합을 만드는 성장 수단입니다.', bullets: ['등급과 옵션 줄 수를 확인합니다.', '주얼 결정은 가공과 강화에 사용합니다.', '고유 주얼은 일반 주얼과 다른 전용 효과를 가집니다.'], tip: '현재 빌드에 없는 방어·저항 한 줄을 채우는 용도로도 좋습니다.' },
+        { title: '가공과 장착', body: '주얼을 가공한 뒤 사용 가능한 슬롯에 장착하고 최종 스탯 변화를 비교하세요.', bullets: ['잠금된 주얼은 자동 해체에서 보호됩니다.', '희귀도별 자동 해체 설정을 확인합니다.', '공허 소켓과 융합은 후반 전용 기능입니다.'], tip: '비싼 가공 전에 주얼을 잠가 실수로 해체하지 않도록 하세요.' }
+    ],
+    unlock_codex: [
+        { title: '고유 아이템 도감', body: '획득한 고유 아이템을 기록하고 수집 진행도에 따른 보너스를 받는 콘텐츠입니다.', bullets: ['새 고유는 처음 획득할 때 도감에 등록됩니다.', '등록 여부와 보유 여부는 서로 다를 수 있습니다.', '수집 보너스는 전체 성장에 누적됩니다.'], tip: '새 도감 전용 필터를 켜면 이미 등록한 고유를 걸러낼 수 있습니다.' },
+        { title: '무엇을 확인하나?', body: '도감에서 미등록 항목, 고유 효과, 획득 경로를 확인하세요.', bullets: ['빌드 핵심 고유의 획득 지역 확인', '중복 고유의 보관·해체 판단', '도감 보너스 달성 구간 확인'], tip: '고유 등급이라고 항상 현재 빌드에 강한 것은 아닙니다.' }
+    ],
+    unlock_market: [
+        { title: '거래소의 역할', body: '남는 재화를 필요한 재화로 교환하거나 특수 서비스를 이용하는 보조 성장 콘텐츠입니다.', bullets: ['교환 비율과 보유량을 먼저 확인합니다.', '제작 계획에 필요한 수량만 교환합니다.', '시장 기능은 장비/제작 탭의 하위 메뉴에 있습니다.'], tip: '주력 제작 재화를 전부 다른 재화로 바꾸지 마세요.' },
+        { title: '안전한 사용 순서', body: '목표 장비와 필요한 제작 단계를 정한 뒤 부족한 재화만 보충하세요.', bullets: ['목표 옵션과 베이스 결정', '현재 재고 확인', '부족분만 교환 후 제작'], tip: '마지막 버튼으로 거래소 화면을 바로 엽니다.' }
+    ],
+    unlock_season_tab: [
+        { title: '루프와 영구 성장', body: '루프는 일부 진행을 다시 시작하는 대신 새로운 보너스와 콘텐츠를 여는 장기 진행 시스템입니다.', bullets: ['초기화되는 요소와 유지되는 요소가 다릅니다.', '루프 이정표에서 다음 해금 조건을 확인합니다.', '영구 노드는 이후 모든 루프에 영향을 줍니다.'], tip: '루프 직전에는 유지되는 장비·재화를 반드시 확인하세요.' },
+        { title: '다음 루프 준비', body: '현재 루프에서 얻을 수 있는 핵심 보상을 챙긴 뒤 전환하는 것이 좋습니다.', bullets: ['미완료 시련과 보스 확인', '보존 가능한 장비와 자원 정리', '다음 루프 목표 빌드 결정'], tip: '무조건 빠른 루프보다 필요한 영구 보상을 챙기는 편이 유리할 수 있습니다.' }
+    ],
+    unlock_traits: [
+        { title: '직업전직', body: '시련으로 얻은 포인트를 사용해 캐릭터의 전문 직업과 고유 규칙을 선택하는 시스템입니다.', bullets: ['전직 클래스는 빌드 방향을 크게 바꿉니다.', '일반 전직 노드와 핵심 노드의 포인트가 다릅니다.', '요구 노드를 만족해야 다음 단계가 열립니다.'], tip: '현재 스킬 태그와 전직 핵심 효과가 맞는지 먼저 확인하세요.' },
+        { title: '노드 선택 순서', body: '핵심 효과를 먼저 정하고 그 효과까지 이어지는 필수 경로를 계산합니다.', bullets: ['주력 공격과 맞는 클래스 선택', '생존 보완 노드 확인', '남은 포인트로 보조 효과 확보'], tip: '되돌리기 비용이 있다면 미리 전체 경로를 확인하세요.' }
+    ],
+    unlock_expertise: [
+        { title: '전문가 시스템', body: '특정 콘텐츠에서 만난 전문가를 성장시켜 제작·수집·전투 보조 기능을 여는 시스템입니다.', bullets: ['전문가마다 경험치를 얻는 콘텐츠가 다릅니다.', '중앙 공용 노드와 전문가 전용 가지가 있습니다.', '해금 효과는 관련 콘텐츠 화면에도 반영됩니다.'], tip: '현재 가장 자주 플레이하는 콘텐츠의 전문가부터 성장시키세요.' },
+        { title: '전문가 노드 읽기', body: '각 가지의 요구 레벨과 선행 노드를 확인하고 포인트를 배분합니다.', bullets: ['상단: 천문·별쐐기', '좌우: 균류 제작·젬 각인', '하단: 양봉과 지도 보조'], tip: '여러 전문가를 얕게 올리기보다 필요한 기능까지 한 가지를 먼저 여는 편이 명확합니다.' }
+    ],
+    unlock_core_cube: [
+        { title: '코어 큐브', body: '지하계에서 얻는 면체 재료를 조합해 장기 보너스를 만드는 후반 성장 시스템입니다.', bullets: ['흐릿한 면체는 지하계 드랍으로 획득합니다.', '면과 연결 규칙에 따라 효과가 달라집니다.', '완성 전 미리보기로 결과를 확인할 수 있습니다.'], tip: '희귀 재료는 목표 조합을 정한 뒤 사용하세요.' },
+        { title: '첫 조합', body: '보유 면체와 활성 가능한 면을 확인한 뒤 작은 조합부터 시작하세요.', bullets: ['재료 수량 확인', '연결 조건 확인', '적용 전 최종 효과 비교'], tip: '마지막 단계에서 큐브 탭을 바로 엽니다.' }
+    ],
+    unlock_chaos_realm: [
+        { title: '혼돈계', body: '루프 밖에서 계속 이어지는 별도 등반 지역으로, 층이 오를수록 적과 보상이 함께 강해집니다.', bullets: ['혼돈 구간은 전용 배경과 진행도를 사용합니다.', '일반 액트와 다른 특수 재화가 드랍됩니다.', '현재 빌드의 생존 한계를 넘으면 이전 층을 반복할 수 있습니다.'], tip: '빛기둥이 뜨는 희귀 드랍은 혼돈계 후반 성장의 핵심 재료일 수 있습니다.' },
+        { title: '등반 기준', body: '처치 속도와 받는 피해를 함께 보며 안정적으로 반복 가능한 구간을 찾으세요.', bullets: ['보스에서 급사하면 방어·저항 보강', '일반 적 처치가 느리면 공격 태그 점검', '필요 재화의 드랍 층 확인'], tip: '최고층보다 안정적인 반복층이 실제 성장 속도는 더 빠를 수 있습니다.' }
+    ]
+};
+
+function escapeTutorialText(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+}
+
+function getTutorialGuide(notice) {
+    if (!notice) return [];
+    if (TUTORIAL_GUIDES[notice.key]) return TUTORIAL_GUIDES[notice.key];
+    if (String(notice.key).startsWith('unlock_expert_')) return TUTORIAL_GUIDES.unlock_expertise;
+    if (String(notice.key).startsWith('unlock_talent')) return TUTORIAL_GUIDES.unlock_traits;
+    return [{ title: notice.title, body: notice.body, bullets: [], tip: '마지막 단계에서 관련 화면을 바로 열 수 있습니다.' }];
+}
+
+function getTutorialVisualKind(key, stepIndex) {
+    if (key === 'tutorial_battle_basics') return ['battle', 'damage', 'skills', 'growth'][stepIndex] || 'battle';
+    if (key === 'unlock_char') return 'passive';
+    if (['unlock_items', 'unlock_jewel', 'unlock_codex', 'unlock_market'].includes(key)) return 'items';
+    if (key === 'unlock_skills') return 'skills-panel';
+    if (['unlock_map', 'unlock_season_tab'].includes(key)) return 'map';
+    if (['unlock_traits', 'unlock_expertise'].includes(key) || String(key).startsWith('unlock_expert_')) return 'class';
+    if (String(key).startsWith('unlock_talent')) return 'class';
+    return 'system';
+}
+
+function buildTutorialBattlePreview(kind) {
+    let grid = new Array(18).fill('<i></i>').join('');
+    let status = kind === 'growth' ? '방어가 부족합니다' : (kind === 'skills' ? '스킬 범위 확인' : '교전 중 · 3기');
+    return `<div class="tutorial-game-preview is-${kind}">
+        <div class="tutorial-mini-status"><span>${status}</span><span class="tutorial-mini-hp"><i></i></span></div>
+        <div class="tutorial-mini-field"><div class="tutorial-mini-grid">${grid}</div><div class="tutorial-mini-hero">🏹</div><div class="tutorial-mini-enemy">👹</div><div class="tutorial-mini-target"></div><div class="tutorial-mini-damage">12,480</div></div>
+        <div class="tutorial-mini-skillbar"><span>사용 중</span><i class="tutorial-mini-skill">1</i><i class="tutorial-mini-skill">2</i><i class="tutorial-mini-skill">3</i><span>${kind === 'skills' ? '청록 칸 = 유효 범위' : '자동 공격'}</span></div>
+    </div>`;
+}
+
+function getTutorialPanelModel(kind) {
+    const models = {
+        passive: { icon: '🌳', tabs: ['캐릭터', '패시브'], rows: ['생명력 가지', '공격 속도 노드', '다음 연결 노드'] },
+        items: { icon: '🛡️', tabs: ['장비 창', '제작실'], rows: ['장착 장비 비교', '아이템 등급과 옵션', '필요 재화 확인'] },
+        'skills-panel': { icon: '💎', tabs: ['공격 젬', '보조 젬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그 · 범위 확인'] },
+        map: { icon: '🗺️', tabs: ['현재 지역', '다음 지역'], rows: ['몬스터 속성', '주요 보상', '보스 위험도'] },
+        class: { icon: '🌸', tabs: ['전직', '재능'], rows: ['빌드 방향 선택', '핵심 노드 경로', '개화 효과 확인'] },
+        system: { icon: '✦', tabs: ['새 콘텐츠', '가이드'], rows: ['해금 조건 확인', '관련 화면 열기', '진행 목표 추적'] }
+    };
+    return models[kind] || models.system;
+}
+
+function buildTutorialPanelPreview(kind, stepIndex) {
+    let model = getTutorialPanelModel(kind);
+    let tabs = model.tabs.map((label, index) => `<span class="${index === Math.min(1, stepIndex) ? 'active' : ''}">${label}</span>`).join('');
+    let rows = model.rows.map((label, index) => `<div class="tutorial-panel-row ${index === Math.min(2, stepIndex) ? 'active' : ''}"><span>${label}</span><b>${index === Math.min(2, stepIndex) ? '◀ 지금 확인' : '·'}</b></div>`).join('');
+    return `<div class="tutorial-panel-preview"><div class="tutorial-panel-tabs">${tabs}</div><div class="tutorial-panel-body"><div class="tutorial-panel-focus">${model.icon}</div><div class="tutorial-panel-list">${rows}</div></div></div>`;
+}
+
+function renderTutorialVisual() {
+    let visual = document.getElementById('tutorial-visual');
+    if (!visual || !activeTutorial) return;
+    let kind = getTutorialVisualKind(activeTutorial.key, activeTutorialStep);
+    visual.innerHTML = ['battle', 'damage', 'skills', 'growth'].includes(kind)
+        ? buildTutorialBattlePreview(kind)
+        : buildTutorialPanelPreview(kind, activeTutorialStep);
+}
+
+function renderTutorialStep() {
+    if (!activeTutorial) return;
+    document.getElementById('tutorial-kicker').innerText = '새 콘텐츠';
+    document.getElementById('tutorial-title').innerText = activeTutorial.title;
+    document.getElementById('tutorial-body').innerHTML = `<p class="tutorial-summary">${escapeTutorialText(activeTutorial.body)}</p>`;
+    const hasShortcut = !!activeTutorial.tabId || !!activeTutorial.itemSubtabId;
+    const openButton = document.getElementById('tutorial-open-btn');
+    const dismissButton = document.getElementById('tutorial-dismiss-btn');
+    openButton.style.display = hasShortcut ? 'inline-block' : 'none';
+    openButton.innerText = '화면 열기';
+    dismissButton.innerText = '확인';
+}
+
 function queueTutorialNotice(key, title, body, tabId, itemSubtabId) {
     game.seenTutorials = game.seenTutorials || [];
     if (game.seenTutorials.includes(key)) return;
@@ -3688,13 +4571,19 @@ function queueTutorialNotice(key, title, body, tabId, itemSubtabId) {
 function showNextTutorial() {
     if (activeTutorial || tutorialQueue.length === 0) return;
     activeTutorial = tutorialQueue.shift();
-    document.getElementById('tutorial-title').innerText = activeTutorial.title;
-    document.getElementById('tutorial-body').innerText = activeTutorial.body;
-    let hasShortcut = !!activeTutorial.tabId || !!activeTutorial.itemSubtabId;
-    document.getElementById('tutorial-open-btn').innerText = hasShortcut ? '열어보기' : '확인';
-    document.getElementById('tutorial-open-btn').style.display = 'inline-block';
+    activeTutorialStep = 0;
+    renderTutorialStep();
     document.getElementById('tutorial-overlay').classList.add('active');
     lastTime = Date.now();
+}
+function advanceTutorial() {
+    if (!activeTutorial) return;
+    dismissTutorial(true);
+}
+function goBackTutorialStep() {
+    if (!activeTutorial || activeTutorialStep <= 0) return;
+    activeTutorialStep -= 1;
+    renderTutorialStep();
 }
 function dismissTutorial(openTarget) {
     if (!activeTutorial) return;
@@ -3702,6 +4591,7 @@ function dismissTutorial(openTarget) {
     let itemSubtabId = openTarget ? activeTutorial.itemSubtabId : null;
     document.getElementById('tutorial-overlay').classList.remove('active');
     activeTutorial = null;
+    activeTutorialStep = 0;
     lastTime = Date.now();
     if (tabId) switchTab(tabId);
     if (itemSubtabId && tabId === 'tab-items') switchItemSubtab(itemSubtabId);
@@ -3710,7 +4600,7 @@ function dismissTutorial(openTarget) {
 function showDivineDropBanner(amount) {
     let el = document.getElementById('divine-drop-banner');
     if (!el) return;
-    el.innerText = `✨ 신성한 오브 획득! +${amount} ✨`;
+    el.innerText = `✨ ${ORB_DB.goldenRule.name} 획득! +${amount} ✨`;
     el.classList.add('show');
     if (divineBannerTimer) clearTimeout(divineBannerTimer);
     divineBannerTimer = setTimeout(() => {
@@ -3772,7 +4662,9 @@ function openLoopHeroSelection(onSelect, options = {}) {
     grid.innerHTML = HERO_SELECTION_ORDER.map(id => {
         let def = HERO_SELECTION_DEFS[id];
         let experienced = experiencedSet.has(id);
-        return `<button class="reward-choice hero-choice" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')"><strong>${escapeHTML(def.label)}</strong></button>`;
+        let summary = String(def.talentsText || '').split(',').slice(0, 2).join(' ·');
+        let badge = experienced ? '<span class="hero-choice-badge">경험함</span>' : '';
+        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-hero-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
     }).join('');
     overlay.classList.add('active');
 }
@@ -4057,6 +4949,68 @@ function getClaimedJournalPassivePointTotal(state) {
         return sum + Math.max(0, Math.floor(entry.bonus.value || 0));
     }, 0);
 }
+function repairJournalEntriesFromProgress(state) {
+    let runtimeState = state && typeof state === 'object' ? state : {};
+    let recovered = new Set(Array.isArray(runtimeState.journalEntries) ? runtimeState.journalEntries.filter(id => JOURNAL_DB[id]) : []);
+    recovered.add('prologue');
+    let loopStage = Math.max(Math.floor(runtimeState.season || 1), Math.floor(runtimeState.loopCount || 0));
+    if (loopStage >= 2) Object.keys(JOURNAL_DB).filter(id => /^act_/.test(id)).forEach(id => recovered.add(id));
+    if (runtimeState.passiveStarEvolution) recovered.add('passive_star_evolution');
+    let star = runtimeState.starWedge || {};
+    if ((Array.isArray(star.wedges) && star.wedges.length > 0) || (Array.isArray(star.sockets) && star.sockets.length > 0) || Math.floor(star.entriesCleared || 0) > 0) recovered.add('star_wedge');
+    if (runtimeState.chaosInfuserUnlocked || runtimeState.woodsmanSimulatorSeenLoop || Math.floor(runtimeState.woodsmanDefeatAttempts || 0) > 0) recovered.add('woodsman');
+    if (runtimeState.beehive && runtimeState.beehive.cleared) recovered.add('beehive_queen');
+    if (runtimeState.voidRift && runtimeState.voidRift.grandBreachCleared) recovered.add('void_grand_breach');
+    if (Math.max(Math.floor(runtimeState.labyrinthUnlockedMaxFloor || 1), Math.floor(runtimeState.labyrinthFloor || 1)) >= 11) recovered.add('labyrinth_10');
+    if (runtimeState.ocean && Math.floor(runtimeState.ocean.bossClearM || 0) >= 500) recovered.add('ocean_500');
+    if (runtimeState.skyTower && (Math.floor(runtimeState.skyTower.highestFloor || 1) >= 11 || (runtimeState.skyTower.clearedFloors || []).some(floor => Math.floor(floor || 0) >= 10))) recovered.add('sky_tower_10');
+    let hasFusedRelic = (runtimeState.inventory || []).some(item => item && item.fusedRelic)
+        || Object.values(runtimeState.equipment || {}).some(item => item && item.fusedRelic);
+    if ((runtimeState.timeRift && Math.floor(runtimeState.timeRift.fusionCount || 0) > 0) || hasFusedRelic) recovered.add('time_rift_fusion');
+    let colony = runtimeState.colony || {};
+    if (Math.max(Math.floor(colony.highestWave || 0), Math.floor(colony.wave || 0)) >= 11) recovered.add('colony_wave_10');
+    let rootBossIds = new Set(Array.isArray(runtimeState.clearedRootBosses) ? runtimeState.clearedRootBosses : []);
+    if (typeof SEASON_BOSS_ZONES !== 'undefined' && Array.isArray(SEASON_BOSS_ZONES)) {
+        SEASON_BOSS_ZONES.forEach(zone => {
+            if (zone && zone.journalId && rootBossIds.has(zone.id) && JOURNAL_DB[zone.journalId]) recovered.add(zone.journalId);
+        });
+    }
+    runtimeState.journalEntries = Array.from(recovered).filter(id => JOURNAL_DB[id]);
+    return runtimeState.journalEntries;
+}
+function rebuildJournalBonusStateForLoad(state) {
+    let runtimeState = state && typeof state === 'object' ? state : {};
+    let savedBonuses = Array.isArray(runtimeState.journalBonuses)
+        ? runtimeState.journalBonuses.filter(entry => entry && typeof entry.stat === 'string' && Number.isFinite(entry.value))
+        : [];
+    let hadLegacyImmortalHpBonus = savedBonuses.some(entry => entry.entryId === 'immortal' && entry.stat === 'flatHp');
+    let legacyPassivePointBonusIds = new Set(savedBonuses
+        .filter(entry => entry.stat === 'passivePoint' && typeof entry.entryId === 'string')
+        .map(entry => entry.entryId));
+    runtimeState.journalBonusClaims = (runtimeState.journalBonusClaims && typeof runtimeState.journalBonusClaims === 'object')
+        ? runtimeState.journalBonusClaims
+        : {};
+    if (hadLegacyImmortalHpBonus) runtimeState.journalBonusClaims.immortal = false;
+    legacyPassivePointBonusIds.forEach(id => { runtimeState.journalBonusClaims[id] = false; });
+
+    let pendingPassivePoints = 0;
+    runtimeState.journalBonuses = [];
+    let entries = Array.isArray(runtimeState.journalEntries) ? runtimeState.journalEntries : [];
+    entries.forEach(id => {
+        let entry = JOURNAL_DB[id];
+        if (!entry || !entry.bonus) return;
+        if (!runtimeState.journalBonusClaims[id]) {
+            runtimeState.journalBonusClaims[id] = true;
+            if (entry.bonus.stat === 'passivePoint') {
+                pendingPassivePoints += Math.max(0, Math.floor(entry.bonus.value || 0));
+            }
+        }
+        if (entry.bonus.stat !== 'passivePoint' && runtimeState.journalBonusClaims[id]) {
+            runtimeState.journalBonuses.push({ entryId: id, stat: entry.bonus.stat, value: entry.bonus.value });
+        }
+    });
+    return { pendingPassivePoints, hadLegacyImmortalHpBonus, legacyPassivePointBonusIds: Array.from(legacyPassivePointBonusIds) };
+}
 function grantJournalBonus(entryId) {
     let entry = JOURNAL_DB[entryId];
     if (!entry || !entry.bonus) return;
@@ -4064,7 +5018,7 @@ function grantJournalBonus(entryId) {
     if (game.journalBonusClaims[entryId]) return;
     game.journalBonuses = Array.isArray(game.journalBonuses) ? game.journalBonuses : [];
     if (entry.bonus.stat === 'passivePoint') game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + Math.max(0, Math.floor(entry.bonus.value || 0));
-    else game.journalBonuses.push({ entryId: entryId, stat: entry.bonus.stat, value: entry.bonus.value });
+    else if (!game.journalBonuses.some(row => row && row.entryId === entryId)) game.journalBonuses.push({ entryId: entryId, stat: entry.bonus.stat, value: entry.bonus.value });
     game.journalBonusClaims[entryId] = true;
     addLog(`🕮 저널 영구 보너스 획득: ${entry.bonus.label}`, 'season-up');
 }
@@ -4073,7 +5027,10 @@ function unlockJournalEntry(entryId) {
     game.journalEntries = Array.isArray(game.journalEntries) ? game.journalEntries : ['prologue'];
     if (!game.journalEntries.includes(entryId)) {
         game.journalEntries.push(entryId);
+        game.noti = game.noti && typeof game.noti === 'object' ? game.noti : {};
+        game.noti.journal = true;
         addLog(`📓 저널 해금: ${JOURNAL_DB[entryId].title}`, 'loot-rare');
+        if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
     }
     grantJournalBonus(entryId);
 }
@@ -4135,7 +5092,7 @@ function grantActRewardEntry(zoneId, choice) {
         }
         let item = createItemFromBase(base, choice.rarity || 'magic', zoneId + 1);
         let added = addItemToInventory(item, { ignoreFilter: true });
-        if (added) addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic');
+        if (added) addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic', { item });
         else addLog(`⚠️ 인벤토리 공간 부족으로 액트 보상 아이템이 자동 해체되었습니다.`, 'attack-monster');
         return;
     }
@@ -4147,7 +5104,8 @@ function grantActRewardEntry(zoneId, choice) {
             addLog(`🎁 액트 보상 젬 [${choice.skill}] 획득!`, 'loot-rare');
         } else {
             game.passivePoints += choice.fallbackValue || 1;
-            addLog(`🎁 이미 보유한 젬 대신 패시브 포인트 +${choice.fallbackValue || 1}`, 'loot-magic');
+            let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(4) : (awardCurrency('gemShard', 4), 4);
+            addLog(`🎁 이미 보유한 젬 대신 패시브 포인트 +${choice.fallbackValue || 1} · 젬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -4159,8 +5117,9 @@ function grantActRewardEntry(zoneId, choice) {
             addLog(`🎁 액트 보상 보조 젬 [${choice.gem}] 획득!`, 'loot-rare');
         } else {
             let amount = choice.fallbackValue || 1;
-            awardCurrency(choice.currency || 'augment', amount);
-            addLog(`🎁 중복 보조 젬 대신 ${ORB_DB[choice.currency || 'augment'].name} +${amount}`, 'loot-magic');
+            awardCurrency(choice.currency || 'magicBud', amount);
+            let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(3) : (awardCurrency('gemShard', 3), 3);
+            addLog(`🎁 중복 보조 젬 대신 ${ORB_DB[choice.currency || 'magicBud'].name} +${amount} · 젬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
@@ -4325,52 +5284,87 @@ function initBattleAssets() {
     const customHeroSrc = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = customHeroSrc || null;
     const manifest = {
-        hero1Idle: 'assets/hero1/ElfIdle001Sheet-export.png',
-        hero1Walk: 'assets/hero1/ElfWalk001-Sheet-export.png',
-        hero1Attack: 'assets/hero1/ElfBasicAtk001BGR-Sheet-export.png',
-        hero1Hurt: 'assets/hero1/ElfHurt001-Sheet-export.png',
-        hero1Death: 'assets/hero1/ElfDeath001-Sheet-export.png',
-        hero2Idle: 'assets/hero2/hero2_walk.png',
-        hero2Walk: 'assets/hero2/hero2_walk.png',
-        hero2Attack: 'assets/hero2/hero2_attack.png',
-        hero2Hurt: 'assets/hero2/hero2_walk.png',
-        hero2Death: 'assets/hero2/hero2_walk.png',
-        hero3Idle: 'assets/hero3/hero3_walk.png',
-        hero3Walk: 'assets/hero3/hero3_walk.png',
-        hero3Attack: 'assets/hero3/hero3_attack.png',
-        hero3Hurt: 'assets/hero3/hero3_walk.png',
-        hero3Death: 'assets/hero3/hero3_walk.png',
-        hero4Idle: 'assets/hero4/SeveredFangIdle001-Sheet.png',
-        hero4Walk: 'assets/hero4/SeveredFangWalk001-Sheet.png',
-        hero4Attack: 'assets/hero4/SeveredFangBasicAtk001-Sheet.png',
-        hero4Hurt: 'assets/hero4/SeveredFangHurt001-Sheet.png',
-        hero4Death: 'assets/hero4/SeveredFangDeath001-Sheet.png',
-        hero5Idle: 'assets/hero5/hero5_walk.png',
-        hero5Walk: 'assets/hero5/hero5_walk.png',
-        hero5Attack: 'assets/hero5/hero5_attack.png',
-        hero5Hurt: 'assets/hero5/hero5_walk.png',
-        hero5Death: 'assets/hero5/hero5_walk.png',
-        hero6Idle: 'assets/hero6/hero6_walk.png',
-        hero6Walk: 'assets/hero6/hero6_walk.png',
-        hero6Attack: 'assets/hero6/hero6_attack.png',
-        hero6Hurt: 'assets/hero6/hero6_walk.png',
-        hero6Death: 'assets/hero6/hero6_walk.png',
-        hero9Idle: 'assets/hero9/hero9_walk.png',
-        hero9Walk: 'assets/hero9/hero9_walk.png',
-        hero9Attack: 'assets/hero9/hero9_attack.png',
-        hero9Hurt: 'assets/hero9/hero9_walk.png',
-        hero9Death: 'assets/hero9/hero9_walk.png',
-        hero10Idle: 'assets/hero10/hero10_walk.png',
-        hero10Walk: 'assets/hero10/hero10_walk.png',
-        hero10Attack: 'assets/hero10/hero10_attack.png',
-        hero10Hurt: 'assets/hero10/hero10_walk.png',
-        hero10Death: 'assets/hero10/hero10_walk.png',
+        hero1Idle: 'assets/playable/hero1/idle.png',
+        hero1Walk: 'assets/playable/hero1/walk.png',
+        hero1Attack: 'assets/playable/hero1/attack.png',
+        hero1Hurt: 'assets/playable/hero1/idle.png',
+        hero1Death: 'assets/playable/hero1/idle.png',
+        hero2Idle: 'assets/playable/hero2/idle.png',
+        hero2Walk: 'assets/playable/hero2/walk.png',
+        hero2Attack: 'assets/playable/hero2/attack.png',
+        hero2Hurt: 'assets/playable/hero2/idle.png',
+        hero2Death: 'assets/playable/hero2/idle.png',
+        hero3Idle: 'assets/playable/hero3/idle.png',
+        hero3Walk: 'assets/playable/hero3/walk.png',
+        hero3Attack: 'assets/playable/hero3/attack.png',
+        hero3Hurt: 'assets/playable/hero3/idle.png',
+        hero3Death: 'assets/playable/hero3/idle.png',
+        hero4Idle: 'assets/playable/hero4/idle.png',
+        hero4Walk: 'assets/playable/hero4/walk.png',
+        hero4Attack: 'assets/playable/hero4/attack.png',
+        hero4Hurt: 'assets/playable/hero4/idle.png',
+        hero4Death: 'assets/playable/hero4/idle.png',
+        hero5Idle: 'assets/playable/hero5/idle.png',
+        hero5Walk: 'assets/playable/hero5/walk.png',
+        hero5Attack: 'assets/playable/hero5/attack.png',
+        hero5Hurt: 'assets/playable/hero5/idle.png',
+        hero5Death: 'assets/playable/hero5/idle.png',
+        hero6Idle: 'assets/playable/hero6/idle.png',
+        hero6Walk: 'assets/playable/hero6/walk.png',
+        hero6Attack: 'assets/playable/hero6/attack.png',
+        hero6Hurt: 'assets/playable/hero6/idle.png',
+        hero6Death: 'assets/playable/hero6/idle.png',
+        hero7Idle: 'assets/playable/hero7/idle.png',
+        hero7Walk: 'assets/playable/hero7/walk.png',
+        hero7Attack: 'assets/playable/hero7/attack.png',
+        hero7Hurt: 'assets/playable/hero7/idle.png',
+        hero7Death: 'assets/playable/hero7/idle.png',
+        hero8Idle: 'assets/playable/hero8/idle.png',
+        hero8Walk: 'assets/playable/hero8/walk.png',
+        hero8Attack: 'assets/playable/hero8/attack.png',
+        hero8Hurt: 'assets/playable/hero8/idle.png',
+        hero8Death: 'assets/playable/hero8/idle.png',
+        hero9Idle: 'assets/playable/hero9/idle.png',
+        hero9Walk: 'assets/playable/hero9/walk.png',
+        hero9Attack: 'assets/playable/hero9/attack.png',
+        hero9Hurt: 'assets/playable/hero9/idle.png',
+        hero9Death: 'assets/playable/hero9/idle.png',
+        hero10Idle: 'assets/playable/hero10/idle.png',
+        hero10Walk: 'assets/playable/hero10/walk.png',
+        hero10Attack: 'assets/playable/hero10/attack.png',
+        hero10Hurt: 'assets/playable/hero10/idle.png',
+        hero10Death: 'assets/playable/hero10/idle.png',
         ...(defaultHeroSrc ? { heroLegacy: defaultHeroSrc } : {}),
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
         enemies3: 'assets/battle-enemies-v3.png',
+        woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png',
+        woodEnemySpider: 'assets/enemies/wood/root-spider.png',
+        woodEnemyLeeches: 'assets/enemies/wood/sap-leeches.png',
+        woodEnemyPuppet0: 'assets/enemies/wood/wood-puppet/frame_000.png',
+        woodEnemyPuppet1: 'assets/enemies/wood/wood-puppet/frame_001.png',
+        woodEnemyPuppet2: 'assets/enemies/wood/wood-puppet/frame_002.png',
+        woodEnemyPuppet3: 'assets/enemies/wood/wood-puppet/frame_003.png',
+        woodEnemyPuppet4: 'assets/enemies/wood/wood-puppet/frame_004.png',
+        woodEnemyPuppet5: 'assets/enemies/wood/wood-puppet/frame_005.png',
+        woodEnemyPuppet6: 'assets/enemies/wood/wood-puppet/frame_006.png',
+        woodEnemyPuppet7: 'assets/enemies/wood/wood-puppet/frame_007.png',
+        woodEnemyPuppet8: 'assets/enemies/wood/wood-puppet/frame_008.png',
         effects: 'assets/battle-effects-v1.png',
         effectsV2: 'assets/battle-effects-v2.png',
+        bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
+        bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
+        bossTelegraphPulse: 'assets/effects/boss-telegraph-pulse-v1.png',
+        skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png',
+        skillFxChainPrimary: 'assets/effects/skill-chain-primary-v1.png',
+        skillFxChainJump: 'assets/effects/skill-chain-jump-v1.png',
+        skillFxSlamPrimary: 'assets/effects/skill-slam-primary-v1.png',
+        skillFxSlamAftershock: 'assets/effects/skill-slam-aftershock-v1.png',
+        skillFxSlash: 'assets/effects/skill-slash-v1.png',
+        skillFxProjectile: 'assets/effects/skill-projectile-v1.png',
+        skillFxBurst: 'assets/effects/skill-burst-v1.png',
+        skillFxDotField: 'assets/effects/skill-dot-field-v1.png',
+        skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
         weapons: 'assets/battle-weapon.png',
         tiles: 'assets/battle-tiles-v1.png',
         backdropAct1: 'assets/battlefield-act1.png',
@@ -4390,15 +5384,39 @@ function initBattleAssets() {
         bgAct8: 'assets/background/act8.png',
         bgAct9: 'assets/background/act9.png',
         bgAct10: 'assets/background/act10.png',
+        bgChaos0: 'assets/background/chaos/endgame-0.png',
+        bgChaos1: 'assets/background/chaos/endgame-1.png',
+        bgChaos2: 'assets/background/chaos/endgame-2.png',
+        bgChaos3: 'assets/background/chaos/endgame-3.png',
+        bgChaos4: 'assets/background/chaos/endgame-4.png',
+        bgChaos5: 'assets/background/chaos/endgame-5.png',
+        bgChaos6: 'assets/background/chaos/endgame-6.png',
+        bgChaos7: 'assets/background/chaos/endgame-7.png',
+        bgChaos8: 'assets/background/chaos/endgame-8.png',
+        bgChaos9: 'assets/background/chaos/endgame-9.png',
+        bgChaos10: 'assets/background/chaos/endgame-10.png',
+        bgChaos11: 'assets/background/chaos/endgame-11.png',
+        bgChaos12: 'assets/background/chaos/endgame-12.png',
+        bgChaos13: 'assets/background/chaos/endgame-13.png',
+        bgChaos14: 'assets/background/chaos/endgame-14.png',
+        bgChaos15: 'assets/background/chaos/endgame-15.png',
+        bgChaos16: 'assets/background/chaos/endgame-16.png',
+        bgChaos17: 'assets/background/chaos/endgame-17.png',
+        bgChaos18: 'assets/background/chaos/loop-final.png',
         summon1: 'assets/summon/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct')).concat(['effectsV2', 'weapons', 'tiles']));
+    Object.keys(manifest).forEach(key => {
+        if (key.startsWith('hero') && typeof manifest[key] === 'string' && manifest[key].startsWith('assets/playable/')) {
+            manifest[key] += '?v=20260718-motion2';
+        }
+    });
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos') || key.startsWith('bossTelegraph') || key.startsWith('skillFx')).concat(['effectsV2', 'weapons', 'tiles']));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
     const selectedHeroKeys = new Set(Object.values((HERO_SELECTION_DEFS[selectedHeroId] || HERO_SELECTION_DEFS.hero1 || {}).strips || {}));
-    const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', ...selectedHeroKeys]);
+    const criticalManifestKeys = new Set(['enemies', 'woodEnemySlimes', 'woodEnemySpider', 'woodEnemyLeeches', 'woodEnemyPuppet0', 'effects', 'summon1', ...selectedHeroKeys]);
     const manifestGroupsBySrc = new Map();
     Object.entries(manifest).forEach(([key, src]) => {
         if (!manifestGroupsBySrc.has(src)) manifestGroupsBySrc.set(src, { src: src, keys: [], priority: 3 });
@@ -4469,10 +5487,10 @@ function initBattleAssets() {
 
     function storeLoadedBattleImage(key, image) {
         try {
-            if (key.startsWith('backdrop') || key.startsWith('bgAct')) {
+            if (key.startsWith('backdrop') || key.startsWith('bgAct') || key.startsWith('bgChaos')) {
                 battleAssets.backdrops[key] = image;
             } else {
-                let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
+                let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
                 battleAssets.images[key] = image;
                 if (!keepOriginalSheet) queueBattleSheetSanitization(key, image);
             }
@@ -5105,14 +6123,16 @@ function buildBattleAssetAtlas() {
         return Math.max(1, Math.round(width / 80));
     }
     const heroStripFrameCounts = {
-        hero1Idle: 6, hero1Walk: 8, hero1Attack: 7, hero1Hurt: 4, hero1Death: 8,
-        hero2Idle: 13, hero2Walk: 13, hero2Attack: 18, hero2Hurt: 13, hero2Death: 13,
-        hero3Idle: 9, hero3Walk: 9, hero3Attack: 11, hero3Hurt: 9, hero3Death: 9,
-        hero4Idle: 6, hero4Walk: 8, hero4Attack: 24, hero4Hurt: 4, hero4Death: 7,
-        hero5Idle: 11, hero5Walk: 11, hero5Attack: 9, hero5Hurt: 11, hero5Death: 11,
-        hero6Idle: 13, hero6Walk: 13, hero6Attack: 13, hero6Hurt: 13, hero6Death: 13,
-        hero9Idle: 9, hero9Walk: 9, hero9Attack: 8, hero9Hurt: 9, hero9Death: 9,
-        hero10Idle: 12, hero10Walk: 12, hero10Attack: 10, hero10Hurt: 12, hero10Death: 12
+        hero1Idle: 1, hero1Walk: 15, hero1Attack: 7, hero1Hurt: 1, hero1Death: 1,
+        hero2Idle: 1, hero2Walk: 17, hero2Attack: 7, hero2Hurt: 1, hero2Death: 1,
+        hero3Idle: 1, hero3Walk: 17, hero3Attack: 7, hero3Hurt: 1, hero3Death: 1,
+        hero4Idle: 1, hero4Walk: 13, hero4Attack: 7, hero4Hurt: 1, hero4Death: 1,
+        hero5Idle: 1, hero5Walk: 17, hero5Attack: 7, hero5Hurt: 1, hero5Death: 1,
+        hero6Idle: 1, hero6Walk: 10, hero6Attack: 7, hero6Hurt: 1, hero6Death: 1,
+        hero7Idle: 1, hero7Walk: 17, hero7Attack: 7, hero7Hurt: 1, hero7Death: 1,
+        hero8Idle: 1, hero8Walk: 15, hero8Attack: 7, hero8Hurt: 1, hero8Death: 1,
+        hero9Idle: 1, hero9Walk: 13, hero9Attack: 7, hero9Hurt: 1, hero9Death: 1,
+        hero10Idle: 1, hero10Walk: 11, hero10Attack: 7, hero10Hurt: 1, hero10Death: 1
     };
     function buildFixedStripFramesFromImage(image, frameCount) {
         if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return [];
@@ -5142,45 +6162,44 @@ function buildBattleAssetAtlas() {
         let fallbackCols = inferStripFallbackColumns(image);
         return buildFixedStripFramesFromImage(image, fallbackCols);
     }
-    function normalizeFrameSetBasisHeight(frames) {
-        let list = (frames || []).filter(Boolean);
-        if (list.length <= 0) return [];
-        let heights = list.map(frame => Math.max(1, Math.round(frame.height || 1))).sort((a, b) => a - b);
-        let mid = Math.floor(heights.length / 2);
-        let basisHeight = heights[mid] || heights[0] || 1;
-        return list.map(frame => ({ ...frame, basisHeight: basisHeight }));
+    function getHeroStripAnchor(image, frameCount) {
+        if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return null;
+        let frameWidth = Math.max(1, Math.round(image.width / frameCount));
+        let raw = { x: 0, y: 0, width: frameWidth, height: image.height };
+        let content = trimRectToContent(image, raw, 1) || raw;
+        return {
+            xRatio: 0.5,
+            yRatio: clampNumber((content.y + content.height - raw.y) / raw.height, 0.1, 1),
+            basisHeightRatio: clampNumber(content.height / raw.height, 0.1, 1)
+        };
     }
-    function sanitizeHero3AttackFrames(frames) {
-        let list = (frames || []).filter(Boolean);
-        return list.map(frame => {
-            let width = Math.max(1, Math.round(frame.width || 1));
-            let sourceRightBiasPx = 4;
-            let maxShift = Math.max(0, Math.min(sourceRightBiasPx, Math.floor(width * 0.1)));
-            if (maxShift <= 0) return frame;
-            let nextX = Math.round((frame.x || 0) + maxShift);
-            return {
-                ...frame,
-                x: nextX,
-                width: Math.max(1, width - maxShift)
-            };
-        });
+    function buildAnchoredHeroStripFrames(image, frameCount, anchor) {
+        if (!image || !anchor || !Number.isFinite(frameCount) || frameCount <= 0) return [];
+        let frames = [];
+        for (let i = 0; i < frameCount; i++) {
+            let x = Math.round(i * image.width / frameCount);
+            let nextX = i === frameCount - 1 ? image.width : Math.round((i + 1) * image.width / frameCount);
+            let raw = { x: x, y: 0, width: Math.max(1, nextX - x), height: image.height };
+            frames.push(withImageRef(image, {
+                ...raw,
+                anchorX: raw.width * anchor.xRatio,
+                anchorY: raw.height * anchor.yRatio,
+                basisHeight: raw.height * anchor.basisHeightRatio
+            }));
+        }
+        return frames.filter(Boolean);
     }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
-        let idleFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.idle], 210, heroStripFrameCounts[stripKeys.idle]));
-        let walkFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.walk], 210, heroStripFrameCounts[stripKeys.walk]));
-        let attackFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.attack], 220, heroStripFrameCounts[stripKeys.attack]));
-        if (heroId === 'hero3') attackFrames = normalizeFrameSetBasisHeight(sanitizeHero3AttackFrames(attackFrames));
-        let hurtFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.hurt], 200, heroStripFrameCounts[stripKeys.hurt]));
-        let downFrames = normalizeFrameSetBasisHeight(buildStripFramesFromImage(battleAssets.images[stripKeys.death], 200, heroStripFrameCounts[stripKeys.death]));
+        let idleImage = battleAssets.images[stripKeys.idle];
+        let idleCount = heroStripFrameCounts[stripKeys.idle];
+        let anchor = getHeroStripAnchor(idleImage, idleCount);
+        let idleFrames = buildAnchoredHeroStripFrames(idleImage, idleCount, anchor);
+        let walkFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.walk], heroStripFrameCounts[stripKeys.walk], anchor);
+        let attackFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.attack], heroStripFrameCounts[stripKeys.attack], anchor);
+        let hurtFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.hurt], heroStripFrameCounts[stripKeys.hurt], anchor);
+        let downFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.death], heroStripFrameCounts[stripKeys.death], anchor);
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
-        const walkFallbackHeroIds = new Set(['hero2', 'hero6', 'hero10']);
-        if (walkFallbackHeroIds.has(heroId)) {
-            let restingFrame = walkFrames[0] || idleFrames[0];
-            idleFrames = [restingFrame].filter(Boolean);
-            hurtFrames = [restingFrame].filter(Boolean);
-            downFrames = [restingFrame].filter(Boolean);
-        }
         let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
         return {
             characterAnimations: {
@@ -5195,7 +6214,7 @@ function buildBattleAssetAtlas() {
             clipLoop: {
                 idle: true,
                 walk_or_run: true,
-                sword_attack_body: heroId === 'hero3' || heroId === 'hero4' || heroId === 'hero5' || heroId === 'hero9',
+                sword_attack_body: false,
                 cast_body: false,
                 hurt: false,
                 down_or_knockdown: false,
@@ -5770,6 +6789,81 @@ function buildBattleAssetAtlas() {
     }
     const enemySpriteImage = buildEnemyTransparentImage(battleAssets.images.enemies);
     const enemyFrames = Object.fromEntries(Object.entries(enemyParts).map(([key, part]) => [key, trimRectToContent(enemySpriteImage, part, key === 'boss' ? 5 : 3)]));
+    function woodCellFrame(cellX, cellY, cellSize) {
+        return {
+            x: cellX * cellSize,
+            y: cellY * cellSize,
+            width: cellSize,
+            height: cellSize,
+            anchorX: cellSize * 0.5,
+            anchorY: cellSize,
+            basisHeight: cellSize
+        };
+    }
+    function buildNineFrameWoodSpecies(image, family, label, localCells) {
+        if (!image) return [];
+        return (localCells || []).map((cell, speciesIndex) => {
+            const frames = Array.from({ length: 9 }, (_, frameIndex) => ({
+                image,
+                frame: woodCellFrame((frameIndex % 3) * 4 + cell[0], Math.floor(frameIndex / 3) * 4 + cell[1], 64)
+            }));
+            return {
+                id: `${family}-${speciesIndex}`,
+                family,
+                skinId: family,
+                label,
+                image,
+                frame: frames[0].frame,
+                frames
+            };
+        });
+    }
+    function buildDirectionalWoodSpecies(image) {
+        if (!image) return [];
+        const directionBlocks = [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1], [0, 2], [1, 2]];
+        return directionBlocks.map((block, directionIndex) => {
+            const frames = Array.from({ length: 16 }, (_, frameIndex) => ({
+                image,
+                frame: woodCellFrame(block[0] * 4 + (frameIndex % 4), block[1] * 4 + Math.floor(frameIndex / 4), 64)
+            }));
+            return {
+                id: `rootSpider-${directionIndex}`,
+                family: 'rootSpider',
+                skinId: 'rootSpider',
+                label: '뿌리 거미',
+                image,
+                frame: frames[0].frame,
+                frames
+            };
+        });
+    }
+    function buildWoodPuppetSpecies() {
+        const images = Array.from({ length: 9 }, (_, index) => battleAssets.images[`woodEnemyPuppet${index}`]).filter(Boolean);
+        if (images.length !== 9) return [];
+        return Array.from({ length: 4 }, (_, variantIndex) => {
+            const cellX = variantIndex % 2;
+            const cellY = Math.floor(variantIndex / 2);
+            const frames = images.map(image => ({ image, frame: woodCellFrame(cellX, cellY, 128) }));
+            return {
+                id: `woodPuppet-${variantIndex}`,
+                family: 'woodPuppet',
+                skinId: 'woodPuppet',
+                label: '목각 인형',
+                image: frames[0].image,
+                frame: frames[0].frame,
+                frames
+            };
+        });
+    }
+    const woodEnemyVariants = []
+        .concat(buildNineFrameWoodSpecies(battleAssets.images.woodEnemySlimes, 'woodSlime', '수액 응집체', [
+            [0, 0], [1, 0], [2, 0], [3, 0], [0, 1], [3, 1], [0, 2], [1, 2], [2, 2], [3, 2], [0, 3], [2, 3]
+        ]))
+        .concat(buildDirectionalWoodSpecies(battleAssets.images.woodEnemySpider))
+        .concat(buildNineFrameWoodSpecies(battleAssets.images.woodEnemyLeeches, 'sapLeech', '수액 흡충', [
+            [0, 0], [2, 0], [3, 0], [0, 1], [2, 1], [3, 1], [0, 2], [1, 2], [2, 2], [3, 2], [0, 3], [1, 3], [2, 3], [3, 3]
+        ]))
+        .concat(buildWoodPuppetSpecies());
     function buildDetectedEnemyPools(image) {
         let pools = { normal: [], elite: [], boss: [] };
         if (!image) return pools;
@@ -5796,18 +6890,16 @@ function buildBattleAssetAtlas() {
         return base;
     }
     let enemyVariantPools = {
-        normal: [
+        // 일반과 정예는 같은 목재 생물군을 사용하고, 정예 여부는 렌더 외곽선과 크기로 구분한다.
+        normal: woodEnemyVariants.length ? woodEnemyVariants.slice() : [
             { image: enemySpriteImage, frame: enemyFrames.slime },
             { image: enemySpriteImage, frame: enemyFrames.bandit },
             { image: enemySpriteImage, frame: enemyFrames.shadow },
             { image: enemySpriteImage, frame: enemyFrames.wraith }
         ].filter(entry => hasUsableFrame(entry.frame)),
-        elite: [
+        elite: woodEnemyVariants.length ? woodEnemyVariants.slice() : [
             { image: enemySpriteImage, frame: enemyFrames.knight },
-            { image: enemySpriteImage, frame: enemyFrames.skeleton },
-            { image: enemySpriteImage, frame: enemyFrames.shadow },
-            { image: enemySpriteImage, frame: enemyFrames.wraith },
-            { image: enemySpriteImage, frame: enemyFrames.bandit }
+            { image: enemySpriteImage, frame: enemyFrames.skeleton }
         ].filter(entry => hasUsableFrame(entry.frame)),
         boss: [
             { image: enemySpriteImage, frame: enemyFrames.boss },
@@ -5835,6 +6927,7 @@ function buildBattleAssetAtlas() {
             image: enemySpriteImage,
             variants: enemyVariantPools,
             bossImages: bossImages,
+            skinVariants: Object.fromEntries(['woodSlime', 'rootSpider', 'sapLeech', 'woodPuppet'].map(family => [family, woodEnemyVariants.find(entry => entry.family === family)]).filter(entry => entry[1])),
             frames: {
                 slime: enemyFrames.slime,
                 wraith: enemyFrames.wraith,
@@ -5916,8 +7009,14 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     let srcH = Math.max(1, rect.height - cropTop - cropBottom);
     let drawWidth = Math.max(1, Math.round(srcW * scale));
     let drawHeight = Math.max(1, Math.round(srcH * scale));
-    let dx = Math.round(x - drawWidth / 2 + (options.offsetX || rect.offsetX || 0));
-    let dy = Math.round(y - drawHeight + (options.offsetY || rect.offsetY || 0));
+    let rawAnchorX = Number.isFinite(options.anchorX) ? options.anchorX : (Number.isFinite(rect.anchorX) ? rect.anchorX : rect.width / 2);
+    let rawAnchorY = Number.isFinite(options.anchorY) ? options.anchorY : (Number.isFinite(rect.anchorY) ? rect.anchorY : rect.height);
+    let sourceAnchorX = clampNumber(rawAnchorX - cropLeft, 0, srcW);
+    let sourceAnchorY = clampNumber(rawAnchorY - cropTop, 0, srcH);
+    let drawOffsetX = Number(options.offsetX !== undefined ? options.offsetX : rect.offsetX) || 0;
+    let drawOffsetY = Number(options.offsetY !== undefined ? options.offsetY : rect.offsetY) || 0;
+    let dx = Math.round(x - sourceAnchorX * scale + drawOffsetX);
+    let dy = Math.round(y - sourceAnchorY * scale + drawOffsetY);
     ctx.save();
     ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
     if (options.smoothing === 'high') {
@@ -6033,24 +7132,36 @@ function normalizeItem(item) {
     } else item.encroached = null;
     item.rarity = item.rarity || 'magic';
     item.hiddenTier = Math.max(1, Math.floor(coerceFiniteNumber(item.hiddenTier, coerceFiniteNumber(item.itemTier, 1), 1)));
+    const existingHighAffixTier = item.stats.reduce((max, stat) => Math.max(max, Math.floor(coerceFiniteNumber(stat && stat.tier, 0))), 0);
+    const storedHighAffixCap = Number.isFinite(Number(item.affixTierCap)) && Number(item.affixTierCap) >= 11;
+    const legacyProgressionProvenance = item.dropRealm === 'cosmos' || storedHighAffixCap || existingHighAffixTier >= 11;
+    item.dropRealm = typeof item.dropRealm === 'string' ? item.dropRealm : null;
+    item.affixTierCap = clampNumber(Math.floor(coerceFiniteNumber(
+        item.affixTierCap,
+        legacyProgressionProvenance ? item.hiddenTier : Math.min(10, item.hiddenTier)
+    )), 1, legacyProgressionProvenance ? 20 : 10);
     // 마이그레이션: 유틸리티 플라스크 슬롯 시스템(flaskUtilSlots) 도입 이전에 저장된 허리띠는
     // rollBaseStats()가 해당 옵션을 굴린 적이 없어 baseStats에 없다. 그대로 두면 숨겨진 티어
     // 5+/10+ 허리띠였어도 유틸리티 슬롯이 0개로 취급돼 저장된 유틸리티 플라스크가 멈춘다.
     // 여기서 아이템 로드/정규화 시 단 한 번, 신규 생성 시와 동일한 확률 범위로 굴려 채워 넣는다.
-    if (item.slot === '허리띠' && !item.baseStats.some(s => s && s.id === 'flaskUtilSlots')) {
+    if (item.slot === '허리띠') {
         let range = typeof getBeltFlaskUtilSlotRollRange === 'function' ? getBeltFlaskUtilSlotRollRange(item.hiddenTier) : null;
-        if (range) {
+        let flaskSlotStat = item.baseStats.find(s => s && s.id === 'flaskUtilSlots');
+        if (range && !flaskSlotStat) {
             let val = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
-            item.baseStats.push({
-                id: 'flaskUtilSlots',
-                val: val,
-                valMin: range.min,
-                valMax: range.max,
-                baseRollMin: range.min,
-                baseRollMax: range.max,
-                tier: 0,
-                statName: getStatName('flaskUtilSlots')
-            });
+            flaskSlotStat = { id: 'flaskUtilSlots', val: val, tier: 0, statName: getStatName('flaskUtilSlots') };
+            item.baseStats.push(flaskSlotStat);
+        }
+        // 구버전 허리띠에는 유틸리티 슬롯 범위가 0~1/0~2로 저장되어 있었다.
+        // 축복의 오브를 사용하기 전에도 현재 규칙(최소 1칸)이 즉시 반영되도록 로드 시 교정한다.
+        if (range && flaskSlotStat) {
+            flaskSlotStat.valMin = range.min;
+            flaskSlotStat.valMax = range.max;
+            flaskSlotStat.baseRollMin = range.min;
+            flaskSlotStat.baseRollMax = range.max;
+            flaskSlotStat.val = clampNumber(Math.floor(coerceFiniteNumber(flaskSlotStat.val, range.min, range.min)), range.min, range.max);
+            flaskSlotStat.tier = 0;
+            flaskSlotStat.statName = getStatName('flaskUtilSlots');
         }
     }
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
@@ -6062,15 +7173,38 @@ function normalizeItem(item) {
 
 function getItemCraftTier(item) {
     if (!item) return 1;
-    if (Number.isFinite(item.hiddenTier)) return clampNumber(Math.floor(item.hiddenTier), 1, 15);
-    if (Number.isFinite(item.itemTier)) return clampNumber(Math.floor(item.itemTier), 1, 15);
+    if (Number.isFinite(item.affixTierCap)) return clampNumber(Math.floor(item.affixTierCap), 1, item.affixTierCap >= 11 ? 20 : 10);
+    const existingHighAffixTier = (Array.isArray(item.stats) ? item.stats : []).reduce((max, stat) => Math.max(max, Math.floor(Number(stat && stat.tier) || 0)), 0);
+    if (existingHighAffixTier >= 11) return clampNumber(Math.max(existingHighAffixTier, Math.floor(Number(item.hiddenTier) || 1)), 11, 20);
+    if (Number.isFinite(item.hiddenTier)) return clampNumber(Math.floor(item.hiddenTier), 1, 10);
+    if (Number.isFinite(item.itemTier)) return clampNumber(Math.floor(item.itemTier), 1, 10);
     return 1;
 }
 
 function getRealmEquipmentHiddenTierCap(zone) {
-    if (!zone || zone.type !== 'cosmos') return Math.max(1, Math.floor(Number(zone && zone.tier) || 1));
-    let cosmosTier = Math.max(1, Math.floor(Number(zone.tier) || 1));
-    return Math.min(15, 11 + Math.floor((cosmosTier - 1) / 5));
+    if (!zone) return 1;
+    if (zone.type === 'act') {
+        let actOrder = Math.max(1, Math.floor(Number(zone.storyOrder) || Number(zone.id) + 1 || 1));
+        return Math.min(9, actOrder);
+    }
+    if (zone.type === 'abyss') {
+        let depth = Math.max(1, Math.floor(Number(zone.depth) || 1));
+        return Math.min(15, 10 + Math.floor((depth - 1) / 5));
+    }
+    if (zone.type === 'timeRift') {
+        let depth = Math.max(1, Math.floor(Number(zone.equivalentChaosDepth) || 1));
+        return Math.min(15, 10 + Math.floor((depth - 1) / 5));
+    }
+    if (zone.type === 'cosmos') {
+        let cosmosTier = Math.max(1, Math.floor(Number(zone.tier) || 1));
+        return Math.min(20, 16 + Math.floor((cosmosTier - 1) / 5));
+    }
+    return Math.min(15, Math.max(1, Math.floor(Number(zone.tier) || 1)));
+}
+
+function getRealmEquipmentAffixTierCap(zone, hiddenTierCap) {
+    const itemTier = Math.max(1, Math.floor(Number(hiddenTierCap) || 1));
+    return Math.min(zone && zone.type === 'cosmos' ? 20 : 15, itemTier);
 }
 
 function getCraftTierRangeForItem(item, source) {
@@ -6083,6 +7217,10 @@ function getTierVisualLevel(tierValue) {
     return clampNumber(Math.max(1, Math.floor(Number(tierValue) || 1)), 1, 10);
 }
 
+function getTierDisplayLevel(tierValue) {
+    return clampNumber(Math.max(1, Math.floor(Number(tierValue) || 1)), 1, 20);
+}
+
 function getTierClassName(tierValue) {
     return `tier-${getTierVisualLevel(tierValue)}`;
 }
@@ -6092,7 +7230,7 @@ function getTierBadgeHtml(tierValue, labelPrefix) {
     if (Math.floor(Number(tierValue)) === 0) {
         return `<span class="tier-badge tier-badge-unique" style="color:#ff9f43;">[U]</span>`;
     }
-    let tier = getTierVisualLevel(tierValue);
+    let tier = getTierDisplayLevel(tierValue);
     let label = labelPrefix || 'T';
     return `<span class="tier-badge ${getTierClassName(tier)}">[${label}${tier}]</span>`;
 }
@@ -6159,11 +7297,11 @@ function chooseItemBase(slot, zoneTier) {
 // 허리띠 전용: 숨겨진 티어에 따라 유틸리티 플라스크 슬롯 베이스 옵션을 굴린다.
 // 회복 플라스크 슬롯은 항상 1개 고정(별도 계산, ensureFlaskState 참고). 이 옵션은
 // 일반 베이스 옵션이라 축복의 오브로 valMin~valMax 범위 내에서 다시 굴릴 수 있다.
-// T5 미만: 없음(유틸 0개) / T5~9: 0~1개 / T10 이상: 0~2개.
+// T5 미만: 없음(유틸 0개) / T5~9: 1개 / T10 이상: 1~2개.
 function getBeltFlaskUtilSlotRollRange(zoneTier) {
     let tier = Math.max(1, Math.floor(Number(zoneTier) || 1));
-    if (tier >= 10) return { min: 0, max: 2 };
-    if (tier >= 5) return { min: 0, max: 1 };
+    if (tier >= 10) return { min: 1, max: 2 };
+    if (tier >= 5) return { min: 1, max: 1 };
     return null;
 }
 
@@ -6230,14 +7368,15 @@ function rollBaseStats(base, zoneTier) {
 
 
 function rollTierValueAffix(mod, statId, tier) {
-    let range = mod.tierValues[Math.max(0, Math.min(mod.tierValues.length - 1, tier - 1))];
+    let effectiveTier = Math.max(1, Math.min(mod.tierValues.length, Math.floor(Number(tier) || 1)));
+    let range = mod.tierValues[effectiveTier - 1];
     let min = Array.isArray(range) ? Number(range[0]) : Number(range);
     let max = Array.isArray(range) ? Number(range[1]) : min;
     if (!Number.isFinite(min)) min = Number(mod.base) || 0;
     if (!Number.isFinite(max)) max = min;
     if (max < min) { let tmp = min; min = max; max = tmp; }
     let val = min + Math.floor(Math.random() * (Math.floor(max) - Math.floor(min) + 1));
-    return { id: statId, val: val, valMin: Math.floor(min), valMax: Math.floor(max), tier: tier, statName: mod.statName };
+    return { id: statId, val: val, valMin: Math.floor(min), valMax: Math.floor(max), tier: effectiveTier, statName: mod.statName };
 }
 
 function rerollStoredAffixValue(stat) {
@@ -6286,7 +7425,8 @@ function rollAffixValue(mod, maxTier, opts) {
     let roundInteger = !!(opts && opts.roundInteger);
     let statId = mod.statId || mod.id;
     let tier = 1;
-    maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 15);
+    maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 20);
+    if (Array.isArray(mod.tierValues)) maxTier = Math.min(maxTier, mod.tierValues.length);
     while (tier < maxTier && Math.random() < 0.58) tier++;
     let result;
     if (Array.isArray(mod.tierValues)) {
@@ -6335,8 +7475,12 @@ function pickTierInRangeWeighted(minTier, maxTier) {
 
 function rollAffixValueInTierRange(mod, minTier, maxTier) {
     let statId = mod.statId || mod.id;
-    minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 15);
-    maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 15);
+    minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 20);
+    maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 20);
+    if (Array.isArray(mod.tierValues)) {
+        maxTier = Math.min(maxTier, mod.tierValues.length);
+        minTier = Math.min(minTier, maxTier);
+    }
     let tier = pickTierInRangeWeighted(minTier, maxTier);
     let result;
     if (Array.isArray(mod.tierValues)) {
@@ -6663,6 +7807,10 @@ const CHAOS_INFUSER_OPTIONS = [
     { optionId: 'shield_chaos_res', id: 'resChaos', min: 8, max: 12, currency: 'chaos', cost: 6, label: '방패 카오스 저항', slots: ['방패'] },
     { optionId: 'shield_block_pct', id: 'blockChancePct', min: 16, max: 24, currency: 'augment', cost: 12, label: '방패 막기 확률 증가', slots: ['방패'] }
 ];
+CHAOS_INFUSER_OPTIONS.forEach(option => {
+    let merged = Object.entries(CURRENCY_LEGACY_MERGE || {}).find(([, legacyKeys]) => legacyKeys.includes(option.currency));
+    if (merged) option.currency = merged[0];
+});
 function getChaosInfuserOptionsForItem(item) {
     let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
     let occupied = getItemOccupiedExplicitModIds(item);
@@ -6825,9 +7973,9 @@ function applyVoidChiselToSelectedItem() { if (game.woodsmanBuildLock) return ad
 function applyWoodsmanTouchToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 봉인할 장비를 선택하세요.', 'attack-monster');
-    if ((game.currencies.woodsmanTouch || 0) < 1) return addLog('나무꾼의 손길이 부족합니다.', 'attack-monster');
+    if ((game.currencies.ouroboros || 0) < 1) return addLog('우로보로스가 부족합니다.', 'attack-monster');
     if (item.loopSealed) return addLog('이미 봉인된 장비입니다.', 'attack-monster');
-    game.currencies.woodsmanTouch--;
+    game.currencies.ouroboros--;
     item.loopSealed = true;
     addLog(`🌿 [${item.name}]을(를) 나무꾼의 손길로 봉인했습니다. 루프(환생)가 진행되어도 사라지지 않습니다.`, 'loot-unique');
     updateStaticUI();
@@ -6863,7 +8011,7 @@ function formatVoidSocketJewelStatLines(jewel) {
         let name = typeof getStatName === 'function' ? getStatName(stat.id) : stat.id;
         return `<div>• <span style="color:${tone};">${escapeHTML(`${name} +${value}`)}</span></div>`;
     });
-    return lines.join('') || '<div style="color:#7f8c8d;">옵션 없음</div>';
+    return lines.join('') || '<div style="color:var(--copy-muted);">옵션 없음</div>';
 }
 
 function buildVoidSocketJewelOverlayCards() {
@@ -6873,7 +8021,7 @@ function buildVoidSocketJewelOverlayCards() {
         let stats = formatVoidSocketJewelStatLines(jewel);
         let title = escapeHTML(jewel.name || '주얼');
         return `<button class="item-card" style="text-align:left;min-height:92px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoVoidSocket(${idx})"><strong>${idx + 1}. ${title}</strong><div style="font-size:.8em;line-height:1.35;margin-top:4px;">${stats}</div><div style="margin-top:6px;color:#9fd6ff;font-size:.78em;">장착</div></button>`;
-    }).join('') || '<div style="color:#7f8c8d;">장착 가능한 주얼 없음</div>';
+    }).join('') || '<div style="color:var(--copy-muted);">장착 가능한 주얼 없음</div>';
 }
 
 function openVoidSocketJewelOverlay() {
@@ -6886,7 +8034,7 @@ function openVoidSocketJewelOverlay() {
         overlay = document.getElementById('void-socket-jewel-overlay');
     }
     let cards = buildVoidSocketJewelOverlayCards();
-    overlay.innerHTML = `<div style="width:min(980px,95vw);max-height:92vh;overflow:auto;background:#0f1520;border:1px solid #4b86bd;border-radius:12px;padding:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;"><strong style="color:#9fd6ff;font-size:18px;">공허 소켓 주얼 장착</strong><button onclick="closeVoidSocketJewelOverlay()">닫기</button></div><div style="color:#d7e9ff;margin-bottom:8px;line-height:1.45;">빈 공허 소켓에 장착할 주얼을 선택하세요.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${cards}</div><div style="display:flex;justify-content:flex-end;margin-top:10px;"><button class="tutorial-secondary" onclick="closeVoidSocketJewelOverlay()">취소</button></div></div>`;
+    overlay.innerHTML = `<div style="width:min(980px,95vw);max-height:92vh;overflow:auto;background:#0f1520;border:1px solid #4b86bd;border-radius:12px;padding:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;"><strong style="color:#9fd6ff;font-size:18px;">공허 소켓 주얼 장착</strong><button onclick="closeVoidSocketJewelOverlay()">닫기</button></div><div style="color:#ffffff;margin-bottom:8px;line-height:1.45;">빈 공허 소켓에 장착할 주얼을 선택하세요.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${cards}</div><div style="display:flex;justify-content:flex-end;margin-top:10px;"><button class="tutorial-secondary" onclick="closeVoidSocketJewelOverlay()">취소</button></div></div>`;
 }
 
 function removeJewelFromVoidSocket() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
@@ -6931,8 +8079,41 @@ function insertJewelIntoAbyssSocket(invIdx, socketIdx) { if (game.woodsmanBuildL
     if (jewel.noEquipSocket) return addLog(`[${jewel.name}]은(는) 장비 소켓에 사용할 수 없습니다. 주얼 슬롯에만 장착 가능합니다.`, 'attack-monster');
     item.abyssSockets[socketIdx].jewel = jewel;
     game.jewelInventory.splice(invIdx, 1);
+    closeAbyssSocketJewelOverlay();
     addLog(`💠 심연 소켓 #${socketIdx + 1}에 [${jewel.name}] 장착`, 'loot-magic');
     updateStaticUI();
+}
+
+function closeAbyssSocketJewelOverlay() {
+    if (typeof document === 'undefined') return;
+    let overlay = document.getElementById('abyss-socket-jewel-overlay');
+    if (overlay) overlay.remove();
+}
+
+function buildAbyssSocketJewelOverlayCards(socketIdx) {
+    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+    let cards = game.jewelInventory.map((jewel, idx) => {
+        if (!jewel || jewel.noEquipSocket) return '';
+        let stats = formatVoidSocketJewelStatLines(jewel);
+        let title = escapeHTML(jewel.name || '주얼');
+        return `<button class="item-card abyss-jewel-choice" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()" onclick="insertJewelIntoAbyssSocket(${idx}, ${socketIdx})"><strong>${title}</strong><div class="abyss-jewel-choice-stats">${stats}</div><span>이 주얼 장착</span></button>`;
+    }).filter(Boolean).join('');
+    return cards || '<div class="abyss-jewel-choice-empty">장비 소켓에 장착 가능한 주얼이 없습니다.</div>';
+}
+
+function openAbyssSocketJewelOverlay(socketIdx) {
+    let item = getSelectedCraftItem();
+    ensureAbyssSockets(item);
+    let idx = Math.max(0, Math.floor(Number(socketIdx) || 0));
+    if (!item || !Array.isArray(item.abyssSockets) || !item.abyssSockets[idx]) return addLog('먼저 심연 소켓 장비를 선택하세요.', 'attack-monster');
+    if (item.abyssSockets[idx].jewel) return addLog('이미 주얼이 장착되어 있습니다.', 'attack-monster');
+    if (typeof document === 'undefined') return;
+    closeVoidSocketJewelOverlay();
+    closeAbyssSocketJewelOverlay();
+    document.body.insertAdjacentHTML('beforeend', '<div id="abyss-socket-jewel-overlay" class="jewel-picker-overlay" onclick="if(event.target===this) closeAbyssSocketJewelOverlay()"></div>');
+    let overlay = document.getElementById('abyss-socket-jewel-overlay');
+    let cards = buildAbyssSocketJewelOverlayCards(idx);
+    overlay.innerHTML = `<section class="jewel-picker-panel" role="dialog" aria-modal="true" aria-labelledby="abyss-jewel-picker-title"><header><div><small>심연 소켓 #${idx + 1}</small><strong id="abyss-jewel-picker-title">장착할 주얼 선택</strong></div><button onclick="closeAbyssSocketJewelOverlay()" aria-label="닫기">닫기</button></header><p>보유 주얼 중 이 장비에 넣을 주얼 하나를 선택하세요. 장착 전 옵션은 카드에 마우스를 올려 비교할 수 있습니다.</p><div class="jewel-picker-grid">${cards}</div><footer><button class="tutorial-secondary" onclick="closeAbyssSocketJewelOverlay()">취소</button></footer></section>`;
 }
 
 function removeJewelFromAbyssSocket(socketIdx) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
@@ -6949,10 +8130,13 @@ function removeJewelFromAbyssSocket(socketIdx) { if (game.woodsmanBuildLock) ret
     updateStaticUI();
 }
 
-safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, getSelectedJewelCraftTarget, selectJewelCraftTarget, useCurrencyOnJewel, getJewelCurrencyUseState, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
+safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, getSelectedJewelCraftTarget, selectJewelCraftTarget, useCurrencyOnJewel, getJewelCurrencyUseState, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, openAbyssSocketJewelOverlay, closeAbyssSocketJewelOverlay, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
 
-function createItemFromBase(base, rarity, zoneTier) {
+function createItemFromBase(base, rarity, zoneTier, origin) {
     itemIdCounter++;
+    origin = origin && typeof origin === 'object' ? origin : {};
+    const dropRealm = typeof origin.dropRealm === 'string' ? origin.dropRealm : null;
+    const affixTierCap = clampNumber(Math.floor(Number(origin.affixTierCap) || Math.min(15, Math.max(1, Number(zoneTier) || 1))), 1, 20);
     let item = {
         id: itemIdCounter,
         slot: base.slot,
@@ -6962,10 +8146,12 @@ function createItemFromBase(base, rarity, zoneTier) {
         rarity: rarity,
         itemTier: zoneTier,
         hiddenTier: Math.max(1, Math.floor(Number(zoneTier) || 1)),
+        affixTierCap: affixTierCap,
+        dropRealm: dropRealm,
         baseStats: rollBaseStats(base, zoneTier),
         stats: []
     };
-    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, zoneTier);
+    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, affixTierCap);
     return item;
 }
 
@@ -7170,7 +8356,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
     if (!pool || pool.length <= 0) return item;
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     if (item.stats.length >= 6) item.stats.pop();
-    let roll = rollAffixValue(pickWeightedMod(pool), Math.max(1, Math.floor(zoneTier || item.itemTier || 1)));
+    let roll = rollAffixValue(pickWeightedMod(pool), getItemCraftTier(item));
     roll.fossilExclusiveDrop = true;
     item.stats.push(roll);
     if (item.rarity === 'normal') item.rarity = 'magic';
@@ -7181,6 +8367,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
 function generateEquipmentDrop(enemy) {
     let zone = getZone(game.currentZoneId) || {};
     let hiddenTierCap = getRealmEquipmentHiddenTierCap(zone);
+    let affixTierCap = getRealmEquipmentAffixTierCap(zone, hiddenTierCap);
     let slot = rndChoice(EQUIPMENT_DROP_SLOTS);
     let base = chooseItemBase(slot, hiddenTierCap);
     let rarity = 'normal';
@@ -7195,7 +8382,7 @@ function generateEquipmentDrop(enemy) {
         if (roll < 0.006) return generateUniqueItem(hiddenTierCap, slot);
         rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
-    let item = createItemFromBase(base, rarity, hiddenTierCap);
+    let item = createItemFromBase(base, rarity, hiddenTierCap, { dropRealm: zone.type || null, affixTierCap });
     maybeApplyExceptionalBase(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, hiddenTierCap);
     return maybeApplyChaosRealmEncroachment(item, enemy, getZone(game.currentZoneId));
@@ -7228,6 +8415,7 @@ function maybeApplyExceptionalBase(item) {
 }
 
 function awardCurrency(currencyKey, amount) {
+    currencyKey = getCanonicalCurrencyKey(currencyKey);
     let gain = Number(amount || 0);
     if (gain > 0 && typeof getExpertNodeEffectValue === 'function') {
         let commonPct = Math.max(0, getExpertNodeEffectValue('expertCurrencyGainPct'));
@@ -7254,9 +8442,9 @@ function awardCurrency(currencyKey, amount) {
     }
     game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + gain;
     game.currencyDropVersion = Math.max(0, Math.floor(game.currencyDropVersion || 0)) + 1;
-    if (currencyKey === 'divine' && gain > 0) {
+    if (currencyKey === 'goldenRule' && gain > 0) {
         showDivineDropBanner(gain);
-        addLog(`✨✨ <strong>신성한 오브 +${gain}</strong> 획득!`, 'loot-unique');
+        addLog(`✨✨ <strong>${ORB_DB.goldenRule.name} +${gain}</strong> 획득!`, 'loot-unique');
     }
     if ((currencyKey === 'chaosKey' || currencyKey === 'coreKey') && gain > 0) {
         // 둘 중 하나라도 습득하면 지도 알람을 띄운다(5차 미궁 시련/재능 개화 도전 알림).
@@ -7264,9 +8452,9 @@ function awardCurrency(currencyKey, amount) {
         let keyName = (ORB_DB[currencyKey] && ORB_DB[currencyKey].name) || currencyKey;
         addLog(`🗝️ <strong>${keyName} +${gain}</strong> 획득! 5차 미궁 시련(재능 개화)을 지도에서 확인하세요.`, 'loot-unique');
     }
-    if (currencyKey === 'woodsmanTouch' && gain > 0) {
+    if (currencyKey === 'ouroboros' && gain > 0) {
         game.woodsmanTouchSeen = true;
-        addLog(`🌿✨ <strong>나무꾼의 손길 +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`, 'loot-unique');
+        addLog(`🌿✨ <strong>${ORB_DB.ouroboros.name} +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`, 'loot-unique');
     }
     if (!game.gemEnhanceUnlocked && (currencyKey === 'bossCore' || currencyKey === 'skyEssence')) {
         game.gemEnhanceUnlocked = true;
@@ -7306,36 +8494,34 @@ function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let dropBonus = getCodexBonusPct() / 100;
     let abyssScale = getAbyssMonsterScales(zone);
-    let bonusRoll = chance => Math.random() < Math.min(0.95, chance * (1 + dropBonus) * (abyssScale.dropMul || 1) * (enemy && enemy.dropMul ? enemy.dropMul : 1));
+    let challengeRewardMul = typeof getChallengeContractRewardMultiplier === 'function' ? getChallengeContractRewardMultiplier(zone) : 1;
+    let bonusRoll = chance => Math.random() < Math.min(0.95, chance * (1 + dropBonus) * (abyssScale.dropMul || 1) * (enemy && enemy.dropMul ? enemy.dropMul : 1) * challengeRewardMul);
     let drops = [];
     if (enemy.isBoss) {
-        if (bonusRoll(0.30)) drops.push([Math.random() < 0.55 ? 'transmute' : 'augment', 1]);
-        if (bonusRoll(0.17)) drops.push(['alteration', 1]);
-        if (bonusRoll(0.31)) drops.push(['alchemy', 1]);
-        if (bonusRoll(0.08)) drops.push(['regal', 1]);
-        if (bonusRoll(0.17)) drops.push(['chaos', 1]);
+        if (bonusRoll(0.47)) drops.push(['magicBud', 1]);
+        if (bonusRoll(0.31)) drops.push(['formlessDew', 1]);
+        if (bonusRoll(0.08)) drops.push(['sapBud', 1]);
     } else if (enemy.isElite) {
         if (bonusRoll(0.18)) {
-            let roll = Math.random();
-            drops.push([roll < 0.34 ? 'transmute' : (roll < 0.66 ? 'augment' : (roll < 0.9 ? 'alteration' : 'alchemy')), 1]);
+            drops.push([Math.random() < 0.9 ? 'magicBud' : 'formlessDew', 1]);
         }
-        if (bonusRoll(0.015)) drops.push(['regal', 1]);
-        if (bonusRoll(0.03)) drops.push(['chaos', 1]);
+        if (bonusRoll(0.015)) drops.push(['sapBud', 1]);
+        if (bonusRoll(0.03)) drops.push(['formlessDew', 1]);
     } else if (bonusRoll(0.02)) {
-        drops.push([[ 'transmute', 'transmute', 'augment', 'alteration', 'scour' ][Math.floor(Math.random() * 5)], 1]);
+        drops.push([[ 'magicBud', 'magicBud', 'magicBud', 'magicBud', 'blightSpore' ][Math.floor(Math.random() * 5)], 1]);
     }
     // 신성한 오브: 일반 0.01375% / 정예 0.0825% / 보스 1.25%. 엑잘티드는 신성의 2배. 나무꾼의 손길은 신성 확률의 1/1200(극악).
     let divineChance = enemy.isBoss ? 0.0125 : (enemy.isElite ? 0.000825 : 0.0001375);
-    if (bonusRoll(divineChance)) drops.push(['divine', 1]);
-    if (bonusRoll(divineChance / 20)) drops.push(['chance', 1]);
-    if (bonusRoll(divineChance * 2)) drops.push(['exalted', 1]);
-    if (bonusRoll(divineChance / 1200)) drops.push(['woodsmanTouch', 1]);
+    if (bonusRoll(divineChance)) drops.push(['goldenRule', 1]);
+    if (bonusRoll(divineChance / 20)) drops.push(['fairyRing', 1]);
+    if (bonusRoll(divineChance * 2)) drops.push(['sapBud', 1]);
+    if (bonusRoll(divineChance / 1200)) drops.push(['ouroboros', 1]);
     let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     drops.push(...getMappingTicketDrops(enemy, zone, mappingOpened));
-    if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['annulment', 1]);
+    if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['pruningShears', 1]);
     if (zone.type === 'cosmos' && enemy.isBoss && bonusRoll(0.012)) drops.push(['abyssCatalyst', 1]);
     if ((game.season || 1) >= 4 && enemy.isSky && Math.random() < 0.35) drops.push(['skyEssence', 1]);
-    if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['tainted', 1]);
+    if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['emberBranch', 1]);
     if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03) drops.push(['jewelShard', 3]);
     if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008) drops.push(['jewelShard', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.018) drops.push(['sealShard', 1]);
@@ -7383,20 +8569,32 @@ function addItemToInventory(item, options) {
     let guaranteedKeep = !!(options && options.guaranteedKeep);
     let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
     let ignoreAutoSalvage = guaranteedKeep || !!(options && options.ignoreAutoSalvage);
+    let autoEquipSlot = typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
+    if (autoEquipSlot) {
+        if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
+        if (game.settings.showLootLog) addLog(`🛡️ 빈 ${autoEquipSlot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-rare', { item });
+        checkUnlocks();
+        return true;
+    }
     if (!ignoreFilter && !passesItemPickupFilter(item)) {
         if (game.settings.showLootLog) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
         return false;
     }
     if ((game.inventory || []).length >= getInventoryLimit()) {
         if (!guaranteedKeep) {
-            salvageItemObject(item, true, { noDivine: true });
+            let overflowRewards = salvageItemObject(item, true, { noDivine: true });
+            if (game.isBackgroundCalculation) {
+                game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
+            } else if (game.settings.showLootLog) {
+                addLog(`🎒 공간 부족 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span> · ${formatSalvageRewardSummary(overflowRewards)}`, 'loot-normal');
+            }
             return false;
         }
         addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]은(는) 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
     }
     if (!ignoreAutoSalvage && game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities && game.settings.autoSalvageRarities[item.rarity]) {
-        salvageItemObject(item, true);
-        if (game.settings.showLootLog) addLog(`🧪 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
+        let autoRewards = salvageItemObject(item, true);
+        if (game.settings.showLootLog) addLog(`🧪 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span> · ${formatSalvageRewardSummary(autoRewards)}`, 'loot-normal');
         return false;
     }
     // 도감은 실제로 인벤토리에 수집했을 때만 등록한다. (인벤토리가 가득 차 해체된 고유는 도감 미등록)
@@ -7427,6 +8625,156 @@ function passesItemPickupFilter(item) {
     }
     return true;
 }
+
+function getTalismanEffectAnchorCell(talisman) {
+    if (!talisman || !Array.isArray(talisman.cells) || talisman.cells.length <= 0) return { x: 0, y: 0 };
+    let cells = talisman.cells.map(cell => ({ x: Number(cell.x) || 0, y: Number(cell.y) || 0 }));
+    let filled = new Set(cells.map(cell => `${cell.x},${cell.y}`));
+    let centerX = cells.reduce((sum, cell) => sum + cell.x, 0) / cells.length;
+    let centerY = cells.reduce((sum, cell) => sum + cell.y, 0) / cells.length;
+    return cells.map(cell => {
+        let neighbors = 0;
+        if (filled.has(`${cell.x - 1},${cell.y}`)) neighbors++;
+        if (filled.has(`${cell.x + 1},${cell.y}`)) neighbors++;
+        if (filled.has(`${cell.x},${cell.y - 1}`)) neighbors++;
+        if (filled.has(`${cell.x},${cell.y + 1}`)) neighbors++;
+        return { cell, neighbors, dist: Math.hypot(cell.x - centerX, cell.y - centerY) };
+    }).sort((a, b) => {
+        if (b.neighbors !== a.neighbors) return b.neighbors - a.neighbors;
+        if (a.dist !== b.dist) return a.dist - b.dist;
+        if (a.cell.y !== b.cell.y) return a.cell.y - b.cell.y;
+        return a.cell.x - b.cell.x;
+    })[0].cell;
+}
+
+function calculateTalismanBoardEffects(placementsInput, boardInput) {
+    let entries = Array.isArray(placementsInput)
+        ? placementsInput.filter(entry => entry && entry.talisman)
+        : Object.values((placementsInput && typeof placementsInput === 'object') ? placementsInput : {}).filter(entry => entry && entry.talisman);
+    let board = Array.isArray(boardInput) ? boardInput : [];
+    let idPos = {};
+    entries.forEach(entry => {
+        let id = entry && entry.talisman && entry.talisman.id;
+        if (id !== undefined && id !== null) idPos[id] = entry;
+    });
+    let stats = {};
+    let suppressedIds = new Set();
+    let amplifiedIds = new Set();
+    let bossFinalDmgBonusPct = 0;
+    let addStat = (stat, value) => {
+        let amount = Number(value);
+        if (!stat || !Number.isFinite(amount) || amount === 0) return;
+        stats[stat] = (stats[stat] || 0) + amount;
+    };
+    let getStats = talisman => {
+        if (!talisman) return [];
+        if (Array.isArray(talisman.stats) && talisman.stats.length > 0) return talisman.stats.filter(stat => stat && stat.stat);
+        return talisman.stat ? [{ stat: talisman.stat, value: Number(talisman.value) || 0 }] : [];
+    };
+    let adjIds = talismanId => {
+        let entry = idPos[talismanId];
+        if (!entry || !entry.talisman) return [];
+        let adjacent = new Set();
+        (entry.talisman.cells || []).forEach(cell => {
+            let x = (Number(entry.x) || 0) + (Number(cell.x) || 0);
+            let y = (Number(entry.y) || 0) + (Number(cell.y) || 0);
+            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(offset => {
+                let nx = x + offset[0];
+                let ny = y + offset[1];
+                if (nx < 0 || ny < 0 || nx >= 8 || ny >= 8) return;
+                let neighborId = board[(ny * 8) + nx];
+                if (neighborId !== undefined && neighborId !== null && neighborId !== talismanId) adjacent.add(neighborId);
+            });
+        });
+        return Array.from(adjacent);
+    };
+    let hasRepulsion = entries.some(entry => entry.talisman && entry.talisman.special === 'cosmosRepulsion');
+    let hasAdjacentRepulsion = entry => {
+        let talisman = entry && entry.talisman;
+        if (!talisman || talisman.special === 'cosmosRepulsion') return false;
+        return adjIds(talisman.id).some(id => idPos[id] && idPos[id].talisman && idPos[id].talisman.special === 'cosmosRepulsion');
+    };
+    entries.forEach(entry => {
+        if (hasAdjacentRepulsion(entry)) suppressedIds.add(entry.talisman.id);
+    });
+    entries.forEach(entry => {
+        let talisman = entry.talisman;
+        if (!talisman || suppressedIds.has(talisman.id)) return;
+        let multiplier = hasRepulsion && talisman.special !== 'cosmosRepulsion' ? 1.25 : 1;
+        if (multiplier > 1) amplifiedIds.add(talisman.id);
+        getStats(talisman).forEach(stat => addStat(stat.stat, (Number(stat.value) || 0) * multiplier));
+    });
+    let findMarkedNeighborId = entry => {
+        let talisman = entry && entry.talisman;
+        if (!talisman || !talisman.markDir) return null;
+        let anchor = getTalismanEffectAnchorCell(talisman);
+        let x = (Number(entry.x) || 0) + anchor.x;
+        let y = (Number(entry.y) || 0) + anchor.y;
+        let offset = talisman.markDir === 'up' ? [0, -1]
+            : talisman.markDir === 'right' ? [1, 0]
+            : talisman.markDir === 'down' ? [0, 1]
+            : [-1, 0];
+        let nx = x + offset[0];
+        let ny = y + offset[1];
+        if (nx < 0 || ny < 0 || nx >= 8 || ny >= 8) return null;
+        return board[(ny * 8) + nx] || null;
+    };
+    entries.forEach(entry => {
+        let talisman = entry.talisman;
+        if (!talisman || !talisman.special || suppressedIds.has(talisman.id)) return;
+        if (talisman.special === 'gravity') {
+            adjIds(talisman.id).forEach(id => {
+                let neighbor = idPos[id] && idPos[id].talisman;
+                if (!neighbor || suppressedIds.has(neighbor.id)) return;
+                getStats(neighbor).forEach(stat => addStat(stat.stat, (Number(stat.value) || 0) * 0.25));
+            });
+        } else if (talisman.special === 'simpleCopy') {
+            let id = findMarkedNeighborId(entry);
+            let neighbor = id && idPos[id] && !suppressedIds.has(id) ? idPos[id].talisman : null;
+            getStats(neighbor).forEach(stat => addStat(stat.stat, Number(stat.value) || 0));
+        } else if (talisman.special === 'cosmosChoice') {
+            let cells = (talisman.cells || []).map(cell => ({ x: Number(cell.x) || 0, y: Number(cell.y) || 0 }));
+            let horizontal = cells.length >= 2 && cells.every(cell => cell.y === cells[0].y);
+            if (horizontal) addStat('gemLevel', 2);
+            else {
+                addStat('gemLevel', -2);
+                addStat('suppCap', 2);
+            }
+        } else if (talisman.special === 'cosmosLightningVariance') {
+            addStat('cosmosLightningVariance', 1);
+        } else if (talisman.special === 'pride') {
+            let count = adjIds(talisman.id).length;
+            if (count === 0) {
+                addStat('gemLevel', 1);
+                addStat('suppCap', 1);
+            } else if (count === 1) {
+                addStat('suppCap', 1);
+            } else if (count <= 4) {
+                addStat('pctDmg', 15);
+                addStat('aspd', 10);
+            } else {
+                addStat('crit', 5);
+                addStat('critDmg', 25);
+                addStat('pctDmg', 15);
+                addStat('aspd', 10);
+            }
+        } else if (talisman.special === 'moment') {
+            let roll = Number(talisman.bossFinalDmgRoll || talisman.bossFinalDmgValue || talisman.bossFinalDmgMin || 5);
+            if (typeof getTalismanMomentRoll === 'function') roll = Number(getTalismanMomentRoll(talisman)) || roll;
+            bossFinalDmgBonusPct = Math.max(bossFinalDmgBonusPct, roll);
+        }
+    });
+    return {
+        entries,
+        stats,
+        bossFinalDmgBonusPct,
+        suppressedIds: Array.from(suppressedIds),
+        amplifiedIds: Array.from(amplifiedIds),
+        adjacency: Object.fromEntries(entries.map(entry => [entry.talisman.id, adjIds(entry.talisman.id)]))
+    };
+}
+
+safeExposeGlobals({ getTalismanEffectAnchorCell, calculateTalismanBoardEffects });
 
 
 const UNIQUE_JEWEL_DB = [
@@ -7533,7 +8881,7 @@ function rollRandomJewelStat(excludeIds) {
     return rollJewelStat(resolveJewelRollOption(rndChoice(pool), excludeIds));
 }
 
-const JEWEL_CRAFT_ORB_KEYS = ['transmute', 'augment', 'alteration', 'regal', 'exalted', 'chaos', 'divine', 'annulment'];
+const JEWEL_CRAFT_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'pruningShears'];
 
 function getSelectedJewelCraftIndex() {
     let index = Math.floor(Number(selectedJewelCraftIndex));
@@ -7572,7 +8920,11 @@ function rollJewelCraftStats(count, keepStats) {
 }
 
 function rerollJewelStatValues(jewel) {
-    getJewelStats(jewel).forEach(stat => {
+    if (!jewel) return;
+    let stats = Array.isArray(jewel.stats) && jewel.stats.length > 0
+        ? jewel.stats
+        : getJewelStats(jewel);
+    stats.forEach(stat => {
         let option = getJewelOptionDef(stat.id);
         if (!option) return;
         let rerolled = rollJewelStat(option);
@@ -7582,6 +8934,8 @@ function rerollJewelStatValues(jewel) {
         stat.valMax = rerolled.valMax;
         stat.tier = rerolled.tier;
     });
+    jewel.stats = stats;
+    jewel.hiddenTier = Math.max(1, ...stats.filter(stat => !isJewelPetiteStat(stat)).map(stat => stat.tier || 1));
 }
 
 function isJewelPetiteStat(stat) {
@@ -7590,6 +8944,20 @@ function isJewelPetiteStat(stat) {
 
 function getJewelCoreStats(jewel) {
     return getJewelStats(jewel).filter(stat => !isJewelPetiteStat(stat));
+}
+
+function getJewelQualityProfile(jewel) {
+    let stats = getJewelCoreStats(jewel);
+    if (!jewel || jewel.rarity === 'unique') return { optionCount: stats.length, averageTier: null, highestTier: null, qualityPct: null };
+    let tiers = stats.map(stat => Math.max(1, Math.min(JEWEL_HIDDEN_TIER_COUNT, Math.floor(Number(stat.tier) || 1))));
+    if (tiers.length <= 0) return { optionCount: 0, averageTier: null, highestTier: null, qualityPct: null };
+    let averageTier = tiers.reduce((sum, tier) => sum + tier, 0) / tiers.length;
+    return {
+        optionCount: tiers.length,
+        averageTier,
+        highestTier: Math.max(...tiers),
+        qualityPct: Math.round(((averageTier - 1) / Math.max(1, JEWEL_HIDDEN_TIER_COUNT - 1)) * 100)
+    };
 }
 
 function formatJewelStatValue(statId, value) {
@@ -7722,12 +9090,18 @@ function getJewelRarityClass(rarity) {
     return 'normal';
 }
 
-function salvageJewelObject(jewel, silent) {
-    if (!jewel || getJewelStats(jewel).length === 0) return;
+function getJewelSalvageShardGain(jewel) {
+    if (!jewel) return 0;
     let rarity = jewel.rarity || 'normal';
-    let shardGain = rarity === 'unique' ? 18 : (rarity === 'rare' ? 9 : (rarity === 'magic' ? 5 : 2));
+    return rarity === 'unique' ? 18 : (rarity === 'rare' ? 9 : (rarity === 'magic' ? 5 : 2));
+}
+
+function salvageJewelObject(jewel, silent) {
+    let shardGain = getJewelSalvageShardGain(jewel);
+    if (shardGain <= 0) return 0;
     awardCurrency('jewelShard', shardGain);
     if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (+주얼 결정 ${shardGain})`, 'loot-normal');
+    return shardGain;
 }
 
 function showWaxedJewelCraftRestriction(jewel, actionLabel) {
@@ -7766,42 +9140,49 @@ function getJewelCurrencyUseState(currencyKey, jewel) {
     if (jewel.rarity === 'unique') return { enabled: false, reason: '고유 주얼 제작 불가' };
     let count = getJewelCoreStats(jewel).length;
     let rarity = jewel.rarity || 'normal';
-    if (currencyKey === 'transmute') return { enabled: rarity === 'normal', reason: rarity === 'normal' ? '사용 가능' : '일반 주얼 필요' };
-    if (currencyKey === 'augment') return { enabled: rarity === 'magic' && count < 2, reason: rarity === 'magic' && count < 2 ? '사용 가능' : '매직 1줄 주얼 필요' };
-    if (currencyKey === 'alteration') return { enabled: rarity === 'magic', reason: rarity === 'magic' ? '사용 가능' : '매직 주얼 필요' };
-    if (currencyKey === 'regal') return { enabled: rarity === 'magic' && count < 4, reason: rarity === 'magic' && count < 4 ? '사용 가능' : '매직 주얼 필요' };
-    if (currencyKey === 'exalted') return { enabled: rarity === 'rare' && count < 4, reason: rarity === 'rare' && count < 4 ? '사용 가능' : '레어 빈 옵션 필요' };
-    if (currencyKey === 'chaos') return { enabled: rarity === 'rare', reason: rarity === 'rare' ? '사용 가능' : '레어 주얼 필요' };
-    if (currencyKey === 'divine') return { enabled: count > 0, reason: count > 0 ? '사용 가능' : '옵션 없음' };
-    if (currencyKey === 'annulment') return { enabled: count > 0, reason: count > 0 ? '사용 가능' : '제거할 옵션 없음' };
+    if (currencyKey === 'magicBud') return { enabled: rarity === 'normal' || (rarity === 'magic' && count < 2), reason: rarity === 'normal' || (rarity === 'magic' && count < 2) ? '사용 가능' : '일반 또는 빈 옵션이 있는 매직 주얼 필요' };
+    if (currencyKey === 'sapBud') return { enabled: (rarity === 'magic' || rarity === 'rare') && count < 4, reason: (rarity === 'magic' || rarity === 'rare') && count < 4 ? '사용 가능' : '빈 옵션이 있는 매직 또는 희귀 주얼 필요' };
+    if (currencyKey === 'formlessDew') return { enabled: rarity === 'normal' || rarity === 'rare', reason: rarity === 'normal' || rarity === 'rare' ? '사용 가능' : '일반 또는 희귀 주얼 필요' };
+    if (currencyKey === 'goldenRule') return { enabled: count > 0, reason: count > 0 ? '사용 가능' : '옵션 없음' };
+    if (currencyKey === 'pruningShears') return { enabled: count > 0, reason: count > 0 ? '사용 가능' : '제거할 옵션 없음' };
     return { enabled: rarity !== 'normal', reason: rarity !== 'normal' ? '사용 가능' : '일반 주얼에는 사용 불가' };
 }
 
-function useCurrencyOnJewel(currencyKey, idx) {
+async function useCurrencyOnJewel(currencyKey, idx) {
     game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
     let index = idx === undefined ? getSelectedJewelCraftIndex() : getValidJewelInventoryIndex(idx);
     let jewel = index >= 0 ? game.jewelInventory[index] : null;
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
     let state = getJewelCurrencyUseState(currencyKey, jewel);
     if (!state.enabled) return addLog(state.reason, 'attack-monster');
-    if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
+    if (currencyKey === 'goldenRule' && !await requestGameConfirmation('선택한 주얼에 황금률을 사용합니다.', {
+        title: '희귀 재화 사용',
+        tone: 'danger',
+        confirmLabel: '사용'
+    })) return;
+    if ((game.jewelInventory || [])[index] !== jewel || (game.currencies[currencyKey] || 0) <= 0) {
+        return addLog('확인 중 제작 대상 또는 재화가 변경되어 사용을 취소했습니다.', 'attack-monster');
+    }
+    state = getJewelCurrencyUseState(currencyKey, jewel);
+    if (!state.enabled) return addLog(`확인 중 주얼 상태가 변경되어 사용을 취소했습니다. (${state.reason})`, 'attack-monster');
     game.currencies[currencyKey]--;
     applyCurrencyToJewel(currencyKey, jewel);
     selectedJewelCraftIndex = index;
-    addLog(`💠 주얼에 ${ORB_DB[currencyKey].name} 사용: [${jewel.name || '주얼'}]`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
+    addLog(`💠 주얼에 ${ORB_DB[currencyKey].name} 사용: [${jewel.name || '주얼'}]`, currencyKey === 'sapBud' || currencyKey === 'goldenRule' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }
 
 function applyCurrencyToJewel(currencyKey, jewel) {
     let stats = getJewelCoreStats(jewel).map(cloneJewelStat).filter(Boolean);
-    if (currencyKey === 'transmute') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(1));
-    if (currencyKey === 'alteration') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(Math.random() < 0.5 ? 1 : 2));
-    if (currencyKey === 'chaos') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.random() < 0.35 ? 3 : 2));
-    if (currencyKey === 'augment') return setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(Math.min(2, stats.length + 1), stats));
-    if (currencyKey === 'regal') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
-    if (currencyKey === 'exalted') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
-    if (currencyKey === 'divine') return rerollJewelStatValues(jewel);
-    if (currencyKey === 'annulment') {
+    if (currencyKey === 'magicBud') return jewel.rarity === 'normal'
+        ? setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(1))
+        : setJewelStatsAndRarity(jewel, 'magic', rollJewelCraftStats(Math.min(2, stats.length + 1 + Math.floor(Math.random() * 2)), stats));
+    if (currencyKey === 'sapBud') return setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.min(4, stats.length + 1), stats));
+    if (currencyKey === 'formlessDew') return jewel.rarity === 'normal'
+        ? setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.random() < 0.35 ? 3 : 2))
+        : setJewelStatsAndRarity(jewel, 'rare', rollJewelCraftStats(Math.random() < 0.35 ? 3 : 2));
+    if (currencyKey === 'goldenRule') return rerollJewelStatValues(jewel);
+    if (currencyKey === 'pruningShears') {
         let removeIdx = Math.floor(Math.random() * Math.max(1, stats.length));
         stats.splice(removeIdx, 1);
         return setJewelStatsAndRarity(jewel, stats.length > 0 ? jewel.rarity : 'normal', stats);
@@ -7868,7 +9249,7 @@ function formatJewelOverlayStatLines(stats, extraLineText) {
         return `<div>• <span class="jewel-overlay-stat-line" style="color:${tone} !important;">${escapeHTML(label)}</span></div>`;
     });
     if (extraLineText) lines.push(`<div>• ${escapeHTML(extraLineText)}</div>`);
-    return lines.length > 0 ? lines.join('') : '<div style="color:#7f8c8d;">선택한 주얼의 유효 옵션이 없습니다.</div>';
+    return lines.length > 0 ? lines.join('') : '<div style="color:var(--copy-muted);">선택한 주얼의 유효 옵션이 없습니다.</div>';
 }
 
 function getVoidJewelOverlaySelectedIndices(mode) {
@@ -7916,8 +9297,8 @@ function buildVoidJewelOverlayCards(mode) {
         let badge = jewel.isVoid ? '공허 · ' : '';
         let button = disabled ? 'disabled' : `onclick="toggleVoidJewelOverlaySelection('${mode}',${idx})"`;
         let disabledText = zeroVoidUnique ? '합성 가능 수가 없습니다' : '잠금/밀랍 재료 제외';
-        return `<button class="item-card ${selectedClass}" ${button} style="text-align:left;min-height:92px;"><strong>${idx + 1}. ${badge}${escapeHTML(jewel.name || '주얼')}</strong><div style="font-size:.8em;color:#b9d7ff;line-height:1.35;margin-top:4px;">${stats}</div>${charges}${disabled ? `<div style="color:#e07b7b;font-size:.78em;">${disabledText}</div>` : ''}</button>`;
-    }).join('') || '<div style="color:#7f8c8d;">보유 주얼이 없습니다.</div>';
+        return `<button class="item-card ${selectedClass}" ${button} style="text-align:left;min-height:92px;"><strong>${idx + 1}. ${badge}${escapeHTML(jewel.name || '주얼')}</strong><div style="font-size:.8em;color:var(--copy-bright);line-height:1.35;margin-top:4px;">${stats}</div>${charges}${disabled ? `<div style="color:#e07b7b;font-size:.78em;">${disabledText}</div>` : ''}</button>`;
+    }).join('') || '<div style="color:var(--copy-muted);">보유 주얼이 없습니다.</div>';
 }
 
 function getJewelFusionOverlayShellHtml(title, bodyHtml, actionHtml, borderColor) {
@@ -7939,7 +9320,7 @@ function renderVoidJewelOverlay(mode) {
     let hasUniqueTargetSpace = !uniquePair || getJewelCoreStats(game.jewelInventory[uniquePair.targetIndex]).length < 4;
     let canCraft = selected.length === 2 && chiselReady && hasUniqueTargetSpace && (!isFusion || hasVoidMaterial);
     let costLine = uniquePair ? `공허 합성 가능 수: <strong>${getVoidUniqueFusionCharges(game.jewelInventory[uniquePair.voidIndex])}</strong>회 · 필요: <strong>1</strong>회` : `보유 공허의 끌: <strong>${game.currencies.voidChisel || 0}</strong> · 필요: <strong>1</strong>`;
-    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">${costLine}<br>${rule}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildVoidJewelOverlayCards(mode)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#d7e9ff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
+    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">${costLine}<br>${rule}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildVoidJewelOverlayCards(mode)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#ffffff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
     overlay.innerHTML = getJewelFusionOverlayShellHtml(title, body, `<button onclick="${isFusion ? 'confirmVoidJewelFusion' : 'confirmVoidJewelCraft'}()" ${canCraft ? '' : 'disabled'}>제작</button>`, '#6e57a8');
 }
 
@@ -8022,7 +9403,7 @@ function renderJewelFusionOverlay(indices) {
     let stats = indices.flatMap(idx => getJewelCoreStats(game.jewelInventory[idx]).slice(0, 1)).map(cloneJewelStat).filter(Boolean);
     let extra = useAmplified ? '랜덤 패널티 1줄 + 랜덤 추가옵션 1줄' : '';
     let cost = useAmplified ? 14 : 6;
-    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">보유 주얼 결정: <strong>${game.currencies.jewelShard || 0}</strong> · 필요: <strong>${cost}</strong><br>일반 주얼 융합은 1줄 옵션 주얼 2개를 2줄 레어 주얼로 합성합니다. 공허 주얼이 포함되면 공허 융합 오버레이를 사용합니다.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildJewelFusionOverlayCards(indices)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#d7e9ff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
+    let body = `<div style="color:#d7caff;margin-bottom:8px;line-height:1.45;">보유 주얼 결정: <strong>${game.currencies.jewelShard || 0}</strong> · 필요: <strong>${cost}</strong><br>일반 주얼 융합은 1줄 옵션 주얼 2개를 2줄 레어 주얼로 합성합니다. 공허 주얼이 포함되면 공허 융합 오버레이를 사용합니다.</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto;padding-right:4px;">${buildJewelFusionOverlayCards(indices)}</div><div style="margin-top:10px;border:1px solid #334769;border-radius:8px;padding:10px;background:#101722;"><strong>예상 결과</strong><div style="margin-top:6px;color:#ffffff;line-height:1.45;">${formatJewelOverlayStatLines(stats, extra)}</div></div>`;
     overlay.innerHTML = getJewelFusionOverlayShellHtml('선택한 주얼 융합', body, '<button onclick="confirmJewelFusion()">융합</button>', '#4b86bd');
 }
 
@@ -8259,6 +9640,10 @@ function playJewelAmplifyFeedback(slotIndex, success) {
 }
 
 function tryAmplifyJewelSlot(slotIndex) {
+    let maxSlots = typeof getMaxJewelSlotCount === 'function' ? getMaxJewelSlotCount() : 2;
+    let normalizedSlot = Math.floor(Number(slotIndex));
+    if (!Number.isInteger(normalizedSlot) || normalizedSlot < 0 || normalizedSlot >= maxSlots) return addLog('유효하지 않은 주얼 슬롯입니다.', 'attack-monster');
+    slotIndex = normalizedSlot;
     game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0];
     let level = Math.max(0, Math.floor(game.jewelSlotAmplify[slotIndex] || 0));
     if (level >= 20) return addLog(`주얼 슬롯 ${slotIndex + 1}은 이미 최대 증폭(20강)입니다.`, 'attack-monster');
@@ -8286,31 +9671,50 @@ function toggleJewelLock(idx) {
     updateStaticUI();
 }
 
-function salvageJewel(idx) {
+async function salvageJewel(idx) {
     let jewel = (game.jewelInventory || [])[idx];
     if (!jewel) return;
     if (jewel.locked) return addLog('잠금된 주얼은 해체할 수 없습니다.', 'attack-monster');
+    if (jewel.rarity === 'unique' && !await requestGameConfirmation(`[${jewel.name || '고유 주얼'}]을 해체합니다.\n주얼 결정 ${getJewelSalvageShardGain(jewel)}개를 획득하며 되돌릴 수 없습니다.`, {
+        title: '고유 주얼 해체',
+        tone: 'danger',
+        confirmLabel: '해체'
+    })) return;
+    if ((game.jewelInventory || [])[idx] !== jewel || jewel.locked) {
+        return addLog('확인 중 주얼 위치 또는 잠금 상태가 변경되어 해체를 취소했습니다.', 'attack-monster');
+    }
     salvageJewelObject(jewel, false);
     game.jewelInventory.splice(idx, 1);
     jewelFusionSelection = [];
     updateStaticUI();
 }
 
-function bulkSalvageJewels() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+async function bulkSalvageJewels() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     game.jewelInventory = game.jewelInventory || [];
     let selectedRarities = JEWEL_RARITY_ORDER.filter(rarity => {
         let el = document.getElementById(`chk-jewel-salvage-${rarity}`);
         return el && el.checked;
     });
     if (selectedRarities.length === 0) return addLog('주얼 해체 등급을 선택하세요.', 'attack-monster');
+    let targetJewels = game.jewelInventory.filter(jewel => jewel && !jewel.locked && selectedRarities.includes(jewel.rarity || 'normal'));
+    if (targetJewels.length === 0) return addLog('선택한 등급의 해체 가능한 주얼이 없습니다.', 'attack-monster');
+    let targetShardGain = targetJewels.reduce((sum, jewel) => sum + getJewelSalvageShardGain(jewel), 0);
+    let uniqueCount = targetJewels.filter(jewel => jewel.rarity === 'unique').length;
+    if (!await requestGameConfirmation(`주얼 ${targetJewels.length}개를 해체합니다.${uniqueCount > 0 ? `\n고유 주얼 ${uniqueCount}개가 포함되어 있습니다.` : ''}\n예상 획득: 주얼 결정 ${targetShardGain}개`, {
+        title: '주얼 일괄 해체',
+        tone: uniqueCount > 0 ? 'danger' : 'warning',
+        confirmLabel: `${targetJewels.length}개 해체`
+    })) return;
+    let targetSet = new Set(targetJewels);
     let kept = [];
     let removed = 0;
+    let shardGain = 0;
     let lockedSkipped = 0;
     game.jewelInventory.forEach(jewel => {
         let rarity = jewel.rarity || 'normal';
-        if (selectedRarities.includes(rarity)) {
+        if (targetSet.has(jewel) && selectedRarities.includes(rarity)) {
             if (jewel.locked) { lockedSkipped++; kept.push(jewel); return; }
-            salvageJewelObject(jewel, true);
+            shardGain += salvageJewelObject(jewel, true);
             removed++;
         } else {
             kept.push(jewel);
@@ -8319,29 +9723,35 @@ function bulkSalvageJewels() { if (game.woodsmanBuildLock) return addLog('☠️
     if (removed === 0) return addLog(`선택한 등급의 주얼이 없습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'attack-monster');
     game.jewelInventory = kept;
     jewelFusionSelection = [];
-    addLog(`💠 주얼 ${removed}개를 해체해 주얼 결정을 회수했습니다.${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`💠 주얼 ${removed}개 해체 · 주얼 결정 +${shardGain}${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 
 function equipJewel(idx, slotIndex) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let maxSlots = typeof getMaxJewelSlotCount === 'function' ? getMaxJewelSlotCount() : 2;
+    let targetSlot = Math.floor(Number(slotIndex));
+    if (!Number.isInteger(targetSlot) || targetSlot < 0 || targetSlot >= maxSlots) return addLog('유효하지 않은 주얼 슬롯입니다.', 'attack-monster');
     let jewel = (game.jewelInventory || [])[idx];
     if (!jewel) return;
     if (!Array.isArray(game.jewelSlots)) game.jewelSlots = [null, null];
-    let old = game.jewelSlots[slotIndex];
-    game.jewelSlots[slotIndex] = jewel;
+    let old = game.jewelSlots[targetSlot];
+    game.jewelSlots[targetSlot] = jewel;
     if (old) game.jewelInventory[idx] = old;
     else game.jewelInventory.splice(idx, 1);
     updateStaticUI();
 }
 
 function unequipJewel(slotIndex) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    let maxSlots = typeof getMaxJewelSlotCount === 'function' ? getMaxJewelSlotCount() : 2;
+    let targetSlot = Math.floor(Number(slotIndex));
+    if (!Number.isInteger(targetSlot) || targetSlot < 0 || targetSlot >= maxSlots) return addLog('유효하지 않은 주얼 슬롯입니다.', 'attack-monster');
     if (!Array.isArray(game.jewelSlots)) game.jewelSlots = [null, null];
-    let jewel = game.jewelSlots[slotIndex];
+    let jewel = game.jewelSlots[targetSlot];
     if (!jewel) return;
     game.jewelInventory = game.jewelInventory || [];
     if (game.jewelInventory.length >= getJewelInventoryLimit()) return addLog(`주얼 인벤토리가 가득 찼습니다. (최대 ${getJewelInventoryLimit()})`, 'attack-monster');
     game.jewelInventory.push(jewel);
-    game.jewelSlots[slotIndex] = null;
+    game.jewelSlots[targetSlot] = null;
     updateStaticUI();
 }
 
@@ -8378,17 +9788,87 @@ function getUniqueDismantleDivineChance(item) {
     let tier = getItemCraftTier(item);
     return Math.min(0.12, 0.01 + ((tier - 1) / 14) * 0.11);
 }
-function salvageItemObject(item, silent, options) {
-    if (!item) return;
+
+function getItemSalvageRewardProfile(item, options) {
     let noDivine = !!(options && options.noDivine);
-    if (item.rarity === 'normal') awardCurrency('transmute', 1);
-    else if (item.rarity === 'magic') awardCurrency('augment', 1);
-    else if (item.rarity === 'rare') awardCurrency('chaos', 1);
-    else if (item.rarity === 'unique') {
-        if (!noDivine && Math.random() < getUniqueDismantleDivineChance(item)) awardCurrency('divine', 1);
-        if (Math.random() < 0.55) awardCurrency('exalted', 1);
+    let rarity = item && item.rarity || 'normal';
+    let guaranteed = {};
+    let chances = [];
+    if (rarity === 'normal') {
+        guaranteed.magicBud = 1;
+    } else if (rarity === 'magic') {
+        guaranteed.magicBud = 1;
+    } else if (rarity === 'rare') {
+        guaranteed.formlessDew = 1;
+        let tier = Math.max(1, getItemCraftTier(item));
+        let explicitCount = Math.max(0, getItemExplicitOptionCount(item));
+        chances.push({ key: 'formlessDew', amount: 1, chance: Math.min(0.35, 0.04 + tier * 0.01 + explicitCount * 0.02) });
+    } else if (rarity === 'unique') {
+        guaranteed.formlessDew = 2;
+        chances.push({ key: 'sapBud', amount: 1, chance: 0.55 });
+        if (!noDivine) chances.push({ key: 'goldenRule', amount: 1, chance: getUniqueDismantleDivineChance(item) });
     }
-    if (!silent) addLog(`🧪 [${item.name}] 해체`, "loot-normal");
+    return { guaranteed, chances };
+}
+
+function addSalvageRewardAmount(rewards, key, amount) {
+    let gain = Math.max(0, Math.floor(Number(amount) || 0));
+    if (!key || gain <= 0) return rewards;
+    let currencyKey = getCanonicalCurrencyKey(key);
+    rewards[currencyKey] = Math.max(0, Math.floor(Number(rewards[currencyKey]) || 0)) + gain;
+    return rewards;
+}
+
+function mergeSalvageRewards(target, source) {
+    let result = target && typeof target === 'object' ? target : {};
+    Object.entries(source || {}).forEach(([key, amount]) => addSalvageRewardAmount(result, key, amount));
+    return result;
+}
+
+function formatSalvageRewardSummary(rewards) {
+    let normalized = mergeSalvageRewards({}, rewards);
+    let entries = Object.entries(normalized).filter(([, amount]) => Number(amount) > 0);
+    if (entries.length <= 0) return '회수 재화 없음';
+    return entries.map(([key, amount]) => `${(ORB_DB[key] && ORB_DB[key].name) || key} +${Math.floor(amount)}`).join(' · ');
+}
+
+function getItemSalvagePreviewText(item, compact) {
+    let profile = getItemSalvageRewardProfile(item);
+    let guaranteed = Object.entries(profile.guaranteed)
+        .filter(([, amount]) => amount > 0)
+        .map(([key, amount]) => {
+            let label = (ORB_DB[key] && ORB_DB[key].name) || key;
+            if (compact) label = label.replace('의 오브', '');
+            return `${label} ${amount}`;
+        });
+    let chances = profile.chances
+        .filter(row => row && row.chance > 0)
+        .map(row => compact && item && item.rarity === 'unique'
+            ? null
+            : `${(ORB_DB[row.key] && ORB_DB[row.key].name) || row.key} ${Math.round(row.chance * 100)}%`)
+        .filter(Boolean);
+    if (compact && item && item.rarity === 'unique' && profile.chances.length > 0) chances.push('고급 재화 확률');
+    return `해체 ${guaranteed.concat(chances).join(' · ') || '보상 없음'}`;
+}
+
+function rollItemSalvageRewards(item, options) {
+    let profile = getItemSalvageRewardProfile(item, options);
+    let rewards = {};
+    mergeSalvageRewards(rewards, profile.guaranteed);
+    profile.chances.forEach(row => {
+        if (row && Math.random() < Math.max(0, Math.min(1, Number(row.chance) || 0))) {
+            addSalvageRewardAmount(rewards, row.key, row.amount);
+        }
+    });
+    return rewards;
+}
+
+function salvageItemObject(item, silent, options) {
+    if (!item) return {};
+    let rewards = rollItemSalvageRewards(item, options);
+    Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount));
+    if (!silent) addLog(`🧪 [${item.name}] 해체 · ${formatSalvageRewardSummary(rewards)}`, "loot-normal");
+    return rewards;
 }
 
 function salvageItem(idx) {
@@ -8454,9 +9934,21 @@ function updateJewelSalvageSettingsFromUI() {
     });
 }
 
-function toggleJewelAutoSalvage() {
-    game.settings.jewelAutoSalvageEnabled = !game.settings.jewelAutoSalvageEnabled;
+async function toggleJewelAutoSalvage() {
     updateJewelSalvageSettingsFromUI();
+    let nextEnabled = !game.settings.jewelAutoSalvageEnabled;
+    let rarities = game.settings.jewelAutoSalvageRarities || {};
+    let active = JEWEL_RARITY_ORDER.filter(rarity => !!rarities[rarity]);
+    if (nextEnabled && active.length === 0) return addLog('자동해체할 주얼 등급을 먼저 선택하세요.', 'attack-monster');
+    if (nextEnabled && (rarities.rare || rarities.unique)) {
+        let labels = [rarities.rare ? '레어' : '', rarities.unique ? '고유' : ''].filter(Boolean).join('·');
+        if (!await requestGameConfirmation(`${labels} 주얼 자동해체가 포함되어 있습니다.\n드랍 즉시 주얼 결정으로 바뀌며 복구할 수 없습니다.`, {
+            title: '고급 주얼 자동해체',
+            tone: 'danger',
+            confirmLabel: '자동해체 활성화'
+        })) return;
+    }
+    game.settings.jewelAutoSalvageEnabled = nextEnabled;
     syncJewelSalvageControlsFromSettings();
     addLog(`💠 주얼 자동해체 ${game.settings.jewelAutoSalvageEnabled ? '활성화' : '비활성화'}`, 'loot-normal');
 }
@@ -8471,13 +9963,19 @@ function isBulkSalvageProtectedItem(item) {
 function bulkSalvage(maxRarity) {
     let targetRank = maxRarity === 'normal' ? 0 : 1;
     let kept = [];
+    let removed = 0;
+    let rewards = {};
     game.inventory.forEach(item => {
         if (isBulkSalvageProtectedItem(item)) kept.push(item);
-        else if (getRarityRank(item.rarity) <= targetRank) salvageItemObject(item, true);
+        else if (getRarityRank(item.rarity) <= targetRank) {
+            mergeSalvageRewards(rewards, salvageItemObject(item, true));
+            removed++;
+        }
         else kept.push(item);
     });
     game.inventory = kept;
     ensureCraftSelectionValid();
+    if (removed > 0) addLog(`🧪 장비 ${removed}개 해체 · ${formatSalvageRewardSummary(rewards)}`, 'loot-normal');
     updateStaticUI();
 }
 function getActiveRarityFilterSet() {
@@ -8487,24 +9985,30 @@ function getActiveRarityFilterSet() {
     return ['normal', 'magic', 'rare', 'unique'].filter(rarity => !!f[rarity]);
 }
 
-function bulkSalvageSelected() {
+async function bulkSalvageSelected() {
     let selectedRarities = getActiveRarityFilterSet();
     if (selectedRarities.length === 0) return addLog('해체할 등급을 먼저 선택하세요. (등급 필터에서 선택)', 'attack-monster');
     let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
-    let targetCount = (game.inventory || []).filter(item => item && !isBulkSalvageProtectedItem(item) && selectedRarities.includes(item.rarity)).length;
+    let targetItems = (game.inventory || []).filter(item => item && !isBulkSalvageProtectedItem(item) && selectedRarities.includes(item.rarity));
+    let targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('선택한 등급의 해체 가능한 장비가 없습니다.', 'attack-monster');
     let labelText = selectedRarities.map(r => rarityLabels[r] || r).join('/');
-    if (!confirm(`[${labelText}] 등급 장비 ${targetCount}개를 해체할까요?`)) return;
+    if (!await requestGameConfirmation(`[${labelText}] 등급 장비 ${targetCount}개를 해체합니다.\n잠긴 장비는 보호됩니다.`, {
+        title: '등급 일괄 해체',
+        tone: 'danger',
+        confirmLabel: `${targetCount}개 해체`
+    })) return;
     let kept = [];
     let removed = 0;
     let lockedSkipped = 0;
+    let rewards = {};
     game.inventory.forEach(item => {
         if (selectedRarities.includes(item.rarity)) {
             if (isBulkSalvageProtectedItem(item)) {
                 kept.push(item);
                 lockedSkipped++;
             } else {
-                salvageItemObject(item, true);
+                mergeSalvageRewards(rewards, salvageItemObject(item, true));
                 removed++;
             }
         } else {
@@ -8517,23 +10021,30 @@ function bulkSalvageSelected() {
     }
     game.inventory = kept;
     ensureCraftSelectionValid();
-    addLog(`🧪 선택한 등급 장비 ${removed}개 해체${lockedSkipped > 0 ? ` (잠금/배치 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 선택한 등급 장비 ${removed}개 해체 · ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
-function bulkSalvageAllInventory() {
+async function bulkSalvageAllInventory() {
     if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog('해체할 장비가 없습니다.', 'attack-monster');
     let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
-    let salvageCount = game.inventory.length - lockedCount;
+    let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
+    let salvageCount = targetItems.length;
     if (salvageCount <= 0) return addLog('🔒 잠금/배치되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
-    if (!confirm(`보관함 아이템 ${salvageCount}개를 모두 해체할까요?${lockedCount > 0 ? ` (잠금/배치 ${lockedCount}개는 보호됨)` : ''}`)) return;
+    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${lockedCount > 0 ? `\n잠금/배치 장비 ${lockedCount}개는 보호됩니다.` : ''}`, {
+        title: '인벤토리 전체 해체',
+        tone: 'danger',
+        confirmLabel: `${salvageCount}개 해체`
+    })) return;
+    let targetSet = new Set(targetItems);
     let kept = [];
+    let rewards = {};
     game.inventory.forEach(item => {
-        if (isBulkSalvageProtectedItem(item)) kept.push(item);
-        else salvageItemObject(item, true);
+        if (!targetSet.has(item) || isBulkSalvageProtectedItem(item)) kept.push(item);
+        else mergeSalvageRewards(rewards, salvageItemObject(item, true));
     });
     game.inventory = kept;
     if (!isCraftSelectionEquip()) clearCraftSelection();
-    addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개)${lockedCount > 0 ? ` · 잠금 ${lockedCount}개 보호` : ''}`, 'loot-normal');
+    addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개) · ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? ` · 잠금/배치 ${lockedCount}개 보호` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 
@@ -8726,32 +10237,62 @@ function getAnnulmentRemovableStats(item) {
         .filter(row => isRemovableExplicitStat(row.stat));
 }
 
-function useCurrency(currencyKey) {
+function getSporeCraftCost() {
+    let cost = 10;
+    if (typeof getExpertCombinedCostReduction === 'function') {
+        cost = Math.max(1, Math.floor(cost * (1 - getExpertCombinedCostReduction('sporeCostReducePct'))));
+    }
+    return cost;
+}
+
+function hasSporeCraftCost(mode) {
+    if (!mode || mode === 'none') return true;
+    let cost = getSporeCraftCost();
+    if (mode === 'fire') return (game.currencies.sporeFire || 0) >= cost;
+    if (mode === 'cold') return (game.currencies.sporeCold || 0) >= cost;
+    if (mode === 'light') return (game.currencies.sporeLight || 0) >= cost;
+    if (mode === 'chaos' || mode === 'damage') {
+        return (game.currencies.sporeFire || 0) >= cost
+            && (game.currencies.sporeCold || 0) >= cost
+            && (game.currencies.sporeLight || 0) >= cost;
+    }
+    return true;
+}
+
+async function useCurrency(currencyKey) {
     let item = getSelectedCraftItem();
     if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog("오브가 부족합니다.", "attack-monster");
-    if (item.corrupted && currencyKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     // 석판은 정체성이 곧 효과라 제작 재화를 받지 않는다.
     if (item.growthCategory === 'slab') return addLog("석판은 제작할 수 없습니다.", "attack-monster");
+    let actionKey = currencyKey;
+    if (currencyKey === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'augment';
+    if (currencyKey === 'sapBud') actionKey = item.rarity === 'magic' ? 'regal' : 'exalted';
+    if (currencyKey === 'formlessDew') actionKey = item.rarity === 'normal' ? 'alchemy' : 'chaos';
+    if (currencyKey === 'goldenRule') actionKey = 'divine';
+    if (currencyKey === 'fairyRing') actionKey = 'chance';
+    if (currencyKey === 'pruningShears') actionKey = 'annulment';
+    if (currencyKey === 'blightSpore') actionKey = 'scour';
+    if (currencyKey === 'emberBranch') actionKey = 'tainted';
+    if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(currencyKey)) return addLog("융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.", "attack-monster");
 
     // 생장 아이템은 크기가 옵션 상한을 결정하므로 6줄 대신 크기 상한을 쓴다 (spec 9).
     let explicitCap = (typeof isGrowthItem === 'function' && isGrowthItem(item)) ? getGrowthItemAffixCap(item) : 6;
     let magicCap = (typeof isGrowthItem === 'function' && isGrowthItem(item)) ? Math.min(2, explicitCap) : 2;
     let ok = false;
-    if (currencyKey === 'transmute') ok = item.rarity === 'normal';
-    else if (currencyKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < magicCap;
-    else if (currencyKey === 'alteration') ok = item.rarity === 'magic';
-    else if (currencyKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (currencyKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < explicitCap;
-    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < explicitCap;
-    else if (currencyKey === 'chaos') ok = item.rarity === 'rare';
-    else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
-    else if (currencyKey === 'chance') ok = item.rarity === 'normal';
-    else if (currencyKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
-    else if (currencyKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
+    if (actionKey === 'transmute') ok = item.rarity === 'normal';
+    else if (actionKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < magicCap;
+    else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
+    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < explicitCap;
+    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < explicitCap;
+    else if (actionKey === 'chaos') ok = item.rarity === 'rare';
+    else if (actionKey === 'divine') ok = item.rarity !== 'normal';
+    else if (actionKey === 'chance') ok = item.rarity === 'normal';
+    else if (actionKey === 'scour') ok = item.rarity !== 'normal' && item.rarity !== 'unique';
+    else if (actionKey === 'tainted') ok = !item.corrupted || (isKaleidoscopeShieldItem(item) && getItemExplicitOptionCount(item) <= 6);
     else if (currencyKey === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
-    else if (currencyKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
+    else if (actionKey === 'annulment') ok = getAnnulmentRemovableStats(item).length > 0;
     else if (currencyKey === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     else if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
         let slot = String(item.slot || '');
@@ -8764,16 +10305,24 @@ function useCurrency(currencyKey) {
         ok = ok && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
     }
     if (!ok) return addLog("지금 선택한 아이템에는 사용할 수 없습니다.", "attack-monster");
-    if (currencyKey === 'divine' && !confirm('정말 신성한 오브를 사용하시겠습니까?')) return;
+    if (currencyKey === 'divine' && !await requestGameConfirmation('선택한 장비에 신성한 오브를 사용합니다.', {
+        title: '희귀 재화 사용',
+        tone: 'danger',
+        confirmLabel: '사용'
+    })) return;
+    // 확인창이 열린 동안 제작 대상을 바꾸거나 장비를 이동한 경우, 이전 객체에 오브가
+    // 적용되는 것을 막는다. 확인 전의 잔여 수량·제작 가능 상태도 다시 검증한다.
+    if (getSelectedCraftItem() !== item || (game.currencies[currencyKey] || 0) <= 0) {
+        return addLog('확인 중 제작 대상 또는 재화가 변경되어 사용을 취소했습니다.', 'attack-monster');
+    }
+    if (item.corrupted && currencyKey !== 'tainted') return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
+    if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(currencyKey)) return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
 
     game.sporeCraftModes = game.sporeCraftModes || {};
     let sporeMode = game.sporeCraftModes[currencyKey] || 'none';
     function consumeSpore(mode) {
         if (mode === 'none') return true;
-        let baseCost = 10;
-        if (typeof getExpertCombinedCostReduction === 'function') {
-            baseCost = Math.max(1, Math.floor(baseCost * (1 - getExpertCombinedCostReduction('sporeCostReducePct'))));
-        }
+        let baseCost = getSporeCraftCost();
         if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < baseCost) return false; game.currencies.sporeFire -= baseCost; return true; }
         if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < baseCost) return false; game.currencies.sporeCold -= baseCost; return true; }
         if (mode === 'light') { if ((game.currencies.sporeLight || 0) < baseCost) return false; game.currencies.sporeLight -= baseCost; return true; }
@@ -8817,16 +10366,24 @@ function useCurrency(currencyKey) {
     }
     let guaranteedMod = getSporeGuaranteedMod();
     let consumedSpore = false;
-    let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];
-    let rerollSporeCurrencies = ['transmute', 'alteration', 'alchemy', 'chaos'];
-    let usesSporeAffix = sporeAffixCurrencies.includes(currencyKey);
-    let isRerollSporeCurrency = rerollSporeCurrencies.includes(currencyKey);
+    let sporeAffixCurrencies = ['transmute', 'augment', 'alchemy', 'exalted', 'regal', 'chaos'];
+    let rerollSporeCurrencies = ['transmute', 'alchemy', 'chaos'];
+    let usesSporeAffix = sporeAffixCurrencies.includes(actionKey);
+    let isRerollSporeCurrency = rerollSporeCurrencies.includes(actionKey);
     let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
     if (sporeMode !== 'none' && needsPrecheck && !guaranteedMod) {
         return addLog('선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다. 홀씨 모드를 미사용으로 바꾸거나 해당 계열의 기존 옵션을 제거하세요.', 'attack-monster');
     }
+    if (sporeMode !== 'none' && usesSporeAffix && isRerollSporeCurrency) {
+        guaranteedMod = getSporeGuaranteedMod(true);
+        if (guaranteedMod) {
+            if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족해 제작을 시작하지 않았습니다.', 'attack-monster');
+            if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
+            consumedSpore = true;
+        }
+    }
     let exaltedMod = null;
-    if (currencyKey === 'exalted') {
+    if (actionKey === 'exalted') {
         exaltedMod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
         if (!exaltedMod) return addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster');
     }
@@ -8838,61 +10395,49 @@ function useCurrency(currencyKey) {
     if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
         item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
         addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
-    } else if (currencyKey === 'transmute') {
+    } else if (actionKey === 'transmute') {
         item.rarity = 'magic';
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
-            guaranteedMod = getSporeGuaranteedMod(true);
             if (guaranteedMod) {
-                if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
-                consumedSpore = true;
                 applyGuaranteedToNonLocked(guaranteedMod);
             } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
-    } else if (currencyKey === 'augment') {
+    } else if (actionKey === 'augment') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
         if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         updateItemName(item);
     } else if (currencyKey === 'alteration') {
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
-            guaranteedMod = getSporeGuaranteedMod(true);
             if (guaranteedMod) {
-                if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
-                consumedSpore = true;
                 applyGuaranteedToNonLocked(guaranteedMod);
             } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
-    } else if (currencyKey === 'alchemy') {
+    } else if (actionKey === 'alchemy') {
         item.rarity = 'rare';
         rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
-            guaranteedMod = getSporeGuaranteedMod(true);
             if (guaranteedMod) {
-                if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
-                consumedSpore = true;
                 applyGuaranteedToNonLocked(guaranteedMod);
             } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
-    } else if (currencyKey === 'exalted') {
+    } else if (actionKey === 'exalted') {
         item.stats.push((exaltedMod === guaranteedMod) ? rollSporeGuaranteedValue(exaltedMod) : rollAffixValue(exaltedMod, getItemCraftTier(item)));
         updateItemName(item);
-    } else if (currencyKey === 'regal') {
+    } else if (actionKey === 'regal') {
         let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
         if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
         item.rarity = 'rare';
         updateItemName(item);
-    } else if (currencyKey === 'chaos') {
+    } else if (actionKey === 'chaos') {
         rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
-            guaranteedMod = getSporeGuaranteedMod(true);
             if (guaranteedMod) {
-                if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
-                consumedSpore = true;
                 applyGuaranteedToNonLocked(guaranteedMod);
             } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
-    } else if (currencyKey === 'divine') {
+    } else if (actionKey === 'divine') {
         item.stats.forEach(stat => {
             if (stat.lockedByHoney || stat.lockedByRift) return;
             rerollStoredAffixValue(stat);
@@ -8909,7 +10454,7 @@ function useCurrency(currencyKey) {
             let socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
             item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
         }
-    } else if (currencyKey === 'chance') {
+    } else if (actionKey === 'chance') {
         if (Math.random() < 0.25) {
             destroySelectedCraftItem(item);
             addLog('💥 기회의 오브: 아이템이 파괴되었습니다.', 'attack-monster');
@@ -8925,19 +10470,19 @@ function useCurrency(currencyKey) {
             item.id = previousId;
             addLog(`🌟 기회의 오브: [${item.name}] 고유로 진화했습니다.`, 'loot-unique');
         }
-    } else if (currencyKey === 'annulment') {
+    } else if (actionKey === 'annulment') {
         let removable = getAnnulmentRemovableStats(item);
         if (removable.length <= 0) return addLog('제거할 수 있는 추가 옵션이 없습니다.', 'attack-monster');
         let picked = rndChoice(removable);
         let removed = item.stats.splice(picked.index, 1)[0];
         updateItemName(item);
         addLog(`🕳️ 소멸의 오브: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique');
-    } else if (currencyKey === 'scour') {
+    } else if (actionKey === 'scour') {
         item.stats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
         item.chaosInfusion = null;
         item.rarity = item.stats.length > 0 ? 'magic' : 'normal';
         updateItemName(item);
-    } else if (currencyKey === 'tainted') {
+    } else if (actionKey === 'tainted') {
         item.corrupted = true;
         if (typeof isGrowthItem === 'function' && isGrowthItem(item)) applyGrowthCorruptionOutcome(item);
         else if (Math.random() < 0.35) {
@@ -9001,7 +10546,7 @@ function getMarketInventoryExpandCost() {
     return 2 + Math.max(0, Math.floor(game.inventoryExpandLevel || 0));
 }
 
-function exchangeAtMarket(exchangeId, exchangeAll) {
+async function exchangeAtMarket(exchangeId, exchangeAll) {
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     let recipe = MARKET_EXCHANGES.find(row => row.id === exchangeId);
     if (!recipe) return;
@@ -9013,7 +10558,12 @@ function exchangeAtMarket(exchangeId, exchangeAll) {
     let gain = times * recipe.gain;
     if (exchangeAll) {
         let question = `정말 ${ORB_DB[recipe.from].name} ${spend}개를 ${ORB_DB[recipe.to].name} ${gain}개로 모두 교환하시겠습니까?`;
-        if (!confirm(question)) return;
+        if (!await requestGameConfirmation(question, {
+            title: '재화 전체 교환',
+            tone: 'danger',
+            confirmLabel: '전체 교환'
+        })) return;
+        if ((game.currencies[recipe.from] || 0) < spend) return addLog('교환 확인 중 재화가 변경되어 거래를 취소했습니다.', 'attack-monster');
     }
     game.currencies[recipe.from] = Math.max(0, (game.currencies[recipe.from] || 0) - spend);
     awardCurrency(recipe.to, gain);
@@ -9021,3 +10571,14 @@ function exchangeAtMarket(exchangeId, exchangeAll) {
     checkUnlocks();
     updateStaticUI();
 }
+
+safeExposeGlobals({
+    getAnnulmentRemovableStats,
+    getSporeCraftCost,
+    hasSporeCraftCost,
+    getItemSalvageRewardProfile,
+    getItemSalvagePreviewText,
+    rollItemSalvageRewards,
+    mergeSalvageRewards,
+    formatSalvageRewardSummary
+});

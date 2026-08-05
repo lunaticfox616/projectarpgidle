@@ -10,22 +10,36 @@
     const DESKTOP_RAIL_WIDTH = 140;
     const WORKSPACE_GAP = 10;
     const COMMUNITY_OVERLAY_THRESHOLD = 700;
+    const RAIL_ART_SRC = 'assets/ui/menu-rail-v1.png';
+    // 해금된 메뉴가 캐릭터를 시작점으로 아래에서 위로 한 칸씩 채워지도록 정렬한다.
+    const RAIL_TAB_SLOTS = [
+        { x: '50%', y: '92%' },
+        { x: '50%', y: '77%' },
+        { x: '12.5%', y: '67%' }, { x: '88%', y: '67%' },
+        { x: '50%', y: '56%' },
+        { x: '12.5%', y: '46%' }, { x: '88%', y: '46%' },
+        { x: '50%', y: '36%' },
+        { x: '12.5%', y: '24%' }, { x: '88%', y: '24%' },
+        { x: '50%', y: '14%' }
+    ];
+    const RAIL_EXTERNAL_TAB_IDS = new Set([
+        'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
+    ]);
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
-        'tab-items': { title: '장비 및 인벤토리', x: 130, y: 90, width: 720, height: 700, minWidth: 480, minHeight: 420 },
-        'tab-skills': { title: '스킬 및 스킬 젬', x: 170, y: 110, width: 680, height: 640, minWidth: 460, minHeight: 380 },
-        'tab-char': { title: '패시브 트리', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460 },
-        'tab-traits': { title: '전직', x: 230, y: 110, width: 620, height: 560, minWidth: 420, minHeight: 340 },
+        'tab-items': { title: '장비 및 인벤토리', x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
+        'tab-skills': { title: '스킬 및 스킬 젬', x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
+        'tab-char': { title: '스킬 / 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460 },
         'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },
-        'tab-codex': { title: '도감', x: 280, y: 100, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-map': { title: '지도 및 콘텐츠', x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
-        'tab-cube': { title: '코어 큐브', x: 320, y: 120, width: 720, height: 640, minWidth: 480, minHeight: 380 },
+        // .core-cube-shell(css/core-cube.css)의 2열 그리드는 minmax(420px,..)+minmax(310px,..)+gap 14px로
+        // 열 최소 합이 744px다. 창 본문 좌우 패딩(26px*2)을 더하면 약 796px가 있어야 오른쪽 열이
+        // 창 밖으로 밀려나지 않는다. 기존 720/480은 이 최소치보다 좁아 오른쪽 카드가 항상 잘렸다.
+        'tab-cube': { title: '코어 큐브', x: 300, y: 110, width: 820, height: 640, minWidth: 800, minHeight: 380 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-season': { title: '루프', x: 300, y: 90, width: 740, height: 640, minWidth: 500, minHeight: 380 },
-        'tab-talisman': { title: '부적', x: 260, y: 120, width: 740, height: 620, minWidth: 500, minHeight: 380 },
-        'tab-jewel': { title: '주얼', x: 300, y: 120, width: 700, height: 600, minWidth: 460, minHeight: 360 },
-        'tab-flask': { title: '플라스크', x: 340, y: 140, width: 600, height: 520, minWidth: 420, minHeight: 320 },
-        'tab-journal': { title: '저널', x: 340, y: 140, width: 620, height: 560, minWidth: 420, minHeight: 320 },
+        'tab-flask': { title: '보조장비', x: 260, y: 100, width: 760, height: 620, minWidth: 500, minHeight: 380 },
+        'tab-journal': { title: '기록', x: 300, y: 110, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 }
     };
 
@@ -60,6 +74,16 @@
         return state;
     }
 
+    function closePersistedSurfacesForBoot() {
+        Object.keys(layoutState.windows).forEach(tabId => {
+            let stored = layoutState.windows[tabId];
+            if (!stored || typeof stored !== 'object') return;
+            layoutState.windows[tabId] = { ...stored, open: false, minimized: false };
+        });
+        layoutState.community.open = false;
+        saveLayoutState();
+    }
+
     function saveLayoutState() {
         try {
             if (window.localStorage) window.localStorage.setItem(UI_LAYOUT_STORAGE_KEY, JSON.stringify(layoutState));
@@ -74,13 +98,21 @@
         return Math.max(min, Math.min(max, Math.round(num)));
     }
 
-    // 좌측 그룹 레일(128px + 여백)과 우측 도킹 폭을 제외한, 창이 배치될 수 있는 영역.
+    function getDesktopRailInset() {
+        let rail = document.querySelector('.tab-header');
+        let rect = rail && typeof rail.getBoundingClientRect === 'function' ? rail.getBoundingClientRect() : null;
+        if (!rect || !Number.isFinite(rect.right) || rect.right <= 0) return DESKTOP_RAIL_WIDTH;
+        return Math.ceil(rect.right + WORKSPACE_GAP / 2);
+    }
+
+    // 좌측 그룹 레일과 우측 도킹 폭을 제외한, 창이 배치될 수 있는 영역.
     // css/ui-windows.css의 .tab-header / #left-pane 오프셋과 함께 맞춰야 한다.
     function getWorkspaceRect() {
         let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
         let height = Math.max(260, window.innerHeight || document.documentElement.clientHeight || 720);
         let dockWidth = document.body.classList.contains('community-dock-open') ? (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH) : 0;
-        return { left: DESKTOP_RAIL_WIDTH, top: 8, width: Math.max(240, width - DESKTOP_RAIL_WIDTH - WORKSPACE_GAP - dockWidth), height: Math.max(260, height - 16) };
+        let railInset = getDesktopRailInset();
+        return { left: railInset, top: 8, width: Math.max(240, width - railInset - WORKSPACE_GAP - dockWidth), height: Math.max(260, height - 16) };
     }
 
     function getWindowState(tabId) {
@@ -148,6 +180,20 @@
         }
     }
 
+    function syncWorkspacePresentation() {
+        let activeWindowId = zOrder.slice().reverse().find(id => {
+            let state = layoutState.windows[id];
+            return state && state.open && !state.minimized;
+        }) || '';
+        let managementMode = isDesktopWindowed() && (!!activeWindowId || !!layoutState.community.open);
+        document.body.classList.toggle('ui-management-mode', managementMode);
+        document.body.classList.toggle('ui-combat-mode', isDesktopWindowed() && !managementMode);
+        if (document.body.dataset) {
+            if (activeWindowId) document.body.dataset.activeGameWindow = activeWindowId;
+            else delete document.body.dataset.activeGameWindow;
+        }
+    }
+
     function focusWindow(tabId) {
         zOrder = zOrder.filter(id => id !== tabId).concat(tabId);
         zOrder.forEach((id, index) => {
@@ -160,6 +206,7 @@
             el.classList.add('ui-window-active');
             el.focus && el.focus({ preventScroll: true });
         }
+        syncWorkspacePresentation();
     }
 
     function openWindow(tabId) {
@@ -169,6 +216,7 @@
         applyWindowState(tabId);
         focusWindow(tabId);
         requestCanvasResize();
+        syncWorkspacePresentation();
         return true;
     }
 
@@ -184,6 +232,7 @@
         });
         if (nextTop) focusWindow(nextTop);
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
     function closeAllWindows() {
@@ -197,11 +246,13 @@
         });
         saveLayoutState();
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
     function minimizeWindow(tabId) {
         persistWindowState(tabId, { open: true, minimized: true });
         applyWindowState(tabId);
+        syncWorkspacePresentation();
     }
 
     function toggleMaximizeWindow(tabId) {
@@ -300,7 +351,7 @@
 
     function shouldUseCommunityOverlay() {
         let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
-        let available = width - DESKTOP_RAIL_WIDTH - WORKSPACE_GAP - (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH);
+        let available = width - getDesktopRailInset() - WORKSPACE_GAP - (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH);
         return available < COMMUNITY_OVERLAY_THRESHOLD;
     }
 
@@ -324,6 +375,7 @@
         applyCommunityMode(el);
         if (typeof renderSocialTab === 'function') renderSocialTab();
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
     function installCommunityDockChrome(panel) {
@@ -357,6 +409,7 @@
             if (handle) handle.remove();
         }
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
     // 채팅은 레일의 커뮤니티 탭이 아니라 전용 말풍선 버튼으로 켜고 끈다.
@@ -410,49 +463,180 @@
     }
 
 
-    // 상위탭(그룹) 섹션 아래에 모든 탭 버튼을 항상 노출하는 레일 구성.
-    // 그룹 정의(TAB_GROUPS)는 ui.js가 소유한 SSOT를 그대로 사용한다.
-    function getRailGroups() {
-        let groups = (typeof TAB_GROUPS !== 'undefined' && Array.isArray(TAB_GROUPS)) ? TAB_GROUPS : [];
-        // 전투 탭은 데스크톱에서 상시 표시되고, 커뮤니티는 전용 토글 버튼이 담당한다.
-        return groups.map(group => ({
-            key: group.key,
-            label: group.label,
-            tabs: group.tabs.filter(id => id !== 'tab-battle' && id !== 'tab-social')
-        })).filter(group => group.tabs.length > 0);
+    // 저장된 일반 탭 순서를 그대로 사용하되, 그림 속 11개 원에는 실제 창 버튼만 배치한다.
+    function getOrderedRailButtons(header) {
+        let buttons = Array.from(header.querySelectorAll('.tab-btn'))
+            .filter(button => !RAIL_EXTERNAL_TAB_IDS.has(button.id));
+        let savedTabOrder = (typeof game !== 'undefined' && game.settings && Array.isArray(game.settings.tabOrder))
+            ? game.settings.tabOrder
+            : [];
+        let originalRank = new Map(buttons.map((button, index) => [
+            button.id, Number(button.dataset.railOriginalOrder ?? index)
+        ]));
+        let ordered = buttons.sort((left, right) => {
+            let leftSaved = savedTabOrder.indexOf(left.id);
+            let rightSaved = savedTabOrder.indexOf(right.id);
+            if (leftSaved >= 0 || rightSaved >= 0) {
+                if (leftSaved < 0) return 1;
+                if (rightSaved < 0) return -1;
+                return leftSaved - rightSaved;
+            }
+            return originalRank.get(left.id) - originalRank.get(right.id);
+        });
+        let character = ordered.find(button => button.id === 'btn-tab-character');
+        return character ? [character].concat(ordered.filter(button => button !== character)) : ordered;
     }
 
-    function installDesktopRailGroups() {
-        let header = document.querySelector('.tab-header');
-        if (!header || header.querySelector(':scope > .ui-rail-group')) return;
-        getRailGroups().forEach(group => {
-            let section = document.createElement('div');
-            section.className = 'ui-rail-group';
-            section.dataset.railGroup = group.key;
-            let label = document.createElement('div');
-            label.className = 'ui-rail-group-label';
-            label.textContent = group.label;
-            let grid = document.createElement('div');
-            grid.className = 'ui-rail-group-grid';
-            group.tabs.forEach(id => {
-                let btn = document.getElementById('btn-' + id);
-                if (btn) grid.appendChild(btn);
+    function setRailSlot(element, slot, slotNumber) {
+        if (!element || !slot) return;
+        element.dataset.railSlot = String(slotNumber);
+        element.style.setProperty('--rail-socket-x', slot.x);
+        element.style.setProperty('--rail-socket-y', slot.y);
+    }
+
+    function clearRailSlot(element) {
+        if (!element) return;
+        delete element.dataset.railSlot;
+        element.style.removeProperty('--rail-socket-x');
+        element.style.removeProperty('--rail-socket-y');
+    }
+
+    // 원형 버튼 자체는 배지가 바깥으로 나갈 수 있게 열어 두고,
+    // 라벨 텍스트만 별도 요소 안에서 원의 크기에 맞춰 자른다.
+    function wrapRailButtonLabel(button) {
+        if (!button || !button.childNodes || button.querySelector(':scope > .ui-rail-label')) return;
+        let textNodes = Array.from(button.childNodes)
+            .filter(node => node.nodeType === 3 && node.textContent.trim());
+        if (textNodes.length === 0) return;
+        let label = document.createElement('span');
+        label.className = 'ui-rail-label';
+        label.textContent = textNodes.map(node => node.textContent.trim()).join(' ');
+        textNodes.forEach(node => button.removeChild(node));
+        button.insertBefore(label, button.firstChild);
+    }
+
+    function createRailMiscButton() {
+        let button = document.createElement('button');
+        button.id = 'btn-ui-rail-misc';
+        button.type = 'button';
+        button.className = 'ui-rail-external-btn ui-rail-misc-btn';
+        button.setAttribute('aria-label', '기타 메뉴 열기');
+        button.setAttribute('aria-controls', 'ui-rail-misc-panel');
+        button.setAttribute('aria-expanded', 'false');
+        button.innerHTML = '기타<span id="noti-ui-rail-misc" class="noti-dot"></span>';
+        button.addEventListener('click', toggleRailMiscPanel);
+        return button;
+    }
+
+    function installRailArtwork(header) {
+        let art = document.createElement('img');
+        art.className = 'ui-rail-art';
+        art.src = RAIL_ART_SRC;
+        art.alt = '';
+        art.draggable = false;
+        art.setAttribute('aria-hidden', 'true');
+        header.prepend(art);
+    }
+
+    function installRailLayers(header) {
+        let tabLayer = document.createElement('div');
+        tabLayer.className = 'ui-rail-tab-layer';
+        tabLayer.setAttribute('aria-label', '메뉴');
+        header.appendChild(tabLayer);
+        let controls = document.createElement('div');
+        controls.className = 'ui-rail-external-controls';
+        controls.appendChild(createRailMiscButton());
+        header.appendChild(controls);
+        let miscPanel = document.createElement('div');
+        miscPanel.id = 'ui-rail-misc-panel';
+        miscPanel.className = 'ui-rail-misc-panel';
+        miscPanel.hidden = true;
+        miscPanel.addEventListener('click', closeRailMiscPanelAfterSelection);
+        header.appendChild(miscPanel);
+    }
+
+    function isRailButtonVisible(button) {
+        return button.style.display !== 'none' && !button.hidden && button.dataset.mergedTabMember !== '1';
+    }
+
+    function toggleRailMiscPanel() {
+        let panel = document.getElementById('ui-rail-misc-panel');
+        let trigger = document.getElementById('btn-ui-rail-misc');
+        if (!panel || !trigger) return;
+        panel.hidden = !panel.hidden;
+        trigger.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+        let drawer = document.getElementById('ui-goal-drawer');
+        if (!panel.hidden && drawer && drawer.classList.contains('expanded')) toggleGoalDrawer(false);
+    }
+
+    function closeRailMiscPanel() {
+        let panel = document.getElementById('ui-rail-misc-panel');
+        let trigger = document.getElementById('btn-ui-rail-misc');
+        if (panel) panel.hidden = true;
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    }
+
+    function closeRailMiscPanelAfterSelection(event) {
+        if (!event.target.closest || !event.target.closest('.tab-btn')) return;
+        closeRailMiscPanel();
+    }
+
+    function hasVisibleRailNotice(button) {
+        if (button.classList.contains('starter-gem-tutorial-pending')) return true;
+        return Array.from(button.querySelectorAll('.noti-dot, .inventory-full-warning'))
+            .some(notice => {
+                let style = window.getComputedStyle ? window.getComputedStyle(notice) : notice.style;
+                return style.display !== 'none' && style.visibility !== 'hidden';
             });
-            section.appendChild(label);
-            section.appendChild(grid);
-            header.appendChild(section);
+    }
+
+    function moveRailAuxiliaryTabs(miscPanel) {
+        ['btn-tab-settings', 'btn-map-complete-action-picker'].forEach(id => {
+            let button = document.getElementById(id);
+            if (button) miscPanel.appendChild(button);
         });
+    }
+
+    function updateRailMiscNotice(miscPanel) {
+        let notice = document.getElementById('noti-ui-rail-misc');
+        if (!notice) return;
+        let visible = Array.from(miscPanel.querySelectorAll('.tab-btn')).filter(isRailButtonVisible);
+        notice.style.display = visible.some(hasVisibleRailNotice) ? 'block' : 'none';
+    }
+
+    function installDesktopRailMenu() {
+        let header = document.querySelector('.tab-header');
+        if (!header) return;
+        if (!header.querySelector(':scope > .ui-rail-tab-layer')) {
+            Array.from(header.querySelectorAll('.tab-btn')).forEach((button, index) => {
+                button.dataset.railOriginalOrder = String(index);
+            });
+            installRailArtwork(header);
+            installRailLayers(header);
+        }
         syncDesktopRailGroups();
     }
 
-    // 해금 상태가 바뀔 때(ui.js updateTabUnlockButtons) 함께 호출되어,
-    // 표시할 탭이 하나도 없는 그룹 섹션을 통째로 숨긴다.
+    // 공개 함수명은 기존 ui.js 호출 계약을 유지하지만, 실제 배치는 상위 그룹 없는 단일 레일이다.
     function syncDesktopRailGroups() {
-        document.querySelectorAll('.tab-header > .ui-rail-group').forEach(section => {
-            let hasVisible = Array.from(section.querySelectorAll('.tab-btn'))
-                .some(btn => btn.style.display !== 'none');
-            section.style.display = hasVisible ? '' : 'none';
+        let header = document.querySelector('.tab-header');
+        let tabLayer = header && header.querySelector(':scope > .ui-rail-tab-layer');
+        let miscPanel = header && header.querySelector(':scope > .ui-rail-misc-panel');
+        if (!tabLayer || !miscPanel) return;
+        let buttons = getOrderedRailButtons(header);
+        let visible = buttons.filter(isRailButtonVisible);
+        buttons.forEach(button => {
+            wrapRailButtonLabel(button);
+            clearRailSlot(button);
+            tabLayer.appendChild(button);
         });
+        visible.slice(0, RAIL_TAB_SLOTS.length).forEach((button, index) => {
+            setRailSlot(button, RAIL_TAB_SLOTS[index], index + 1);
+        });
+        visible.slice(RAIL_TAB_SLOTS.length).forEach(button => miscPanel.appendChild(button));
+        moveRailAuxiliaryTabs(miscPanel);
+        miscPanel.dataset.railOverflow = String(Math.max(0, visible.length - RAIL_TAB_SLOTS.length));
+        updateRailMiscNotice(miscPanel);
     }
 
     function installCloseAllButton() {
@@ -461,18 +645,28 @@
         let btn = document.createElement('button');
         btn.id = 'btn-close-all-windows';
         btn.type = 'button';
-        btn.className = 'tab-btn ui-close-all-btn';
+        btn.className = 'ui-rail-external-btn ui-close-all-btn';
         btn.textContent = '창정리';
         btn.setAttribute('aria-label', '열린 창 모두 닫기');
         btn.addEventListener('click', closeAllWindows);
-        header.appendChild(btn);
+        let controls = header.querySelector(':scope > .ui-rail-external-controls');
+        (controls || header).appendChild(btn);
     }
 
     const GOAL_AUTO_COLLAPSE_MS = 7000;
     let goalRuntime = { signature: '', collapseTimer: null, currentGoal: null, pendingAutoExpand: false };
 
+    function mountGoalDrawer(drawer) {
+        let desktopHeader = isDesktopWindowed() ? document.querySelector('.tab-header') : null;
+        (desktopHeader || document.body).appendChild(drawer);
+    }
+
     function installGoalDrawer() {
-        if (document.getElementById('ui-goal-drawer')) return;
+        let existing = document.getElementById('ui-goal-drawer');
+        if (existing) {
+            mountGoalDrawer(existing);
+            return;
+        }
         let drawer = document.createElement('div');
         drawer.id = 'ui-goal-drawer';
         drawer.className = 'ui-goal-drawer';
@@ -498,7 +692,7 @@
             + '</button>'
             + '<div id="ui-goal-handle-bar" class="ui-goal-handle-bar"><span id="ui-goal-handle-fill" class="ui-goal-handle-fill"></span></div>'
             + '</div>';
-        document.body.appendChild(drawer);
+        mountGoalDrawer(drawer);
         drawer.querySelector('#ui-goal-toggle').addEventListener('click', () => toggleGoalDrawer());
         drawer.querySelector('#ui-goal-pin').addEventListener('click', toggleGoalPin);
         drawer.querySelector('#ui-goal-pin').setAttribute('aria-pressed', layoutState.goals.pinned ? 'true' : 'false');
@@ -510,6 +704,7 @@
         let drawer = document.getElementById('ui-goal-drawer');
         if (!drawer) return;
         let expanded = force === undefined ? !drawer.classList.contains('expanded') : !!force;
+        if (expanded) closeRailMiscPanel();
         drawer.classList.toggle('expanded', expanded);
         let toggle = drawer.querySelector('#ui-goal-toggle');
         if (toggle) toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
@@ -540,7 +735,7 @@
     // 차단형 오버레이(선택 모달, 백그라운드 복귀 진행)가 떠 있는 동안에는
     // 같은 내용을 중복 안내하지 않도록 서랍을 자동으로 펼치지 않는다.
     function isBlockingOverlayVisible() {
-        return !!document.querySelector('.tutorial-overlay.active, .background-combat-progress-overlay');
+        return !!document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay), .background-combat-progress-overlay');
     }
 
     function scheduleGoalAutoCollapse() {
@@ -567,11 +762,42 @@
         toggleGoalDrawer(false);
     }
 
+    function openGoalTarget(target) {
+        if (!target || !target.actionTabId) return;
+        // 데스크톱 창 모드에서는 탭 재클릭이 창 닫기로 동작하므로, 목표 바로가기는
+        // 원본 탭 갱신 뒤 항상 창을 열고 포커스하는 단방향 동작으로 처리한다.
+        if (isDesktopWindowed() && originalSwitchTab && WINDOW_DEFS[target.actionTabId]) {
+            originalSwitchTab(target.actionTabId);
+            openWindow(target.actionTabId);
+        } else if (typeof window.switchTab === 'function') {
+            window.switchTab(target.actionTabId);
+        } else {
+            return;
+        }
+        if (!target.actionSubtabId) return;
+        if (target.actionSubtabId.startsWith('item-tab-') && typeof window.switchItemSubtab === 'function') window.switchItemSubtab(target.actionSubtabId);
+        if (target.actionSubtabId.startsWith('skill-tab-') && typeof window.switchSkillSubtab === 'function') window.switchSkillSubtab(target.actionSubtabId);
+        if (target.actionSubtabId.startsWith('map-tab-') && typeof window.switchMapSubtab === 'function') window.switchMapSubtab(target.actionSubtabId);
+        if (target.actionSubtabId.startsWith('map-explore-')) {
+            if (typeof window.switchMapSubtab === 'function') window.switchMapSubtab('map-tab-zones');
+            if (typeof window.switchMapExploreSubtab === 'function') window.switchMapExploreSubtab(target.actionSubtabId);
+        }
+    }
+
     function openGoalDrawerTarget() {
-        let goal = goalRuntime.currentGoal;
-        if (!goal || !goal.actionTabId || typeof window.switchTab !== 'function') return;
         // 목표 버튼은 관련 화면을 열기만 한다. 재화 소비/입장/실행은 하지 않는다.
-        window.switchTab(goal.actionTabId);
+        openGoalTarget(goalRuntime.currentGoal);
+    }
+
+    function openGoalNoticeTarget(index) {
+        let goal = goalRuntime.currentGoal;
+        let notices = goal && Array.isArray(goal.notices) ? goal.notices : [];
+        let notice = notices[Math.max(0, Math.floor(Number(index) || 0))];
+        if (notice && typeof notice === 'object') openGoalTarget(notice);
+    }
+
+    function escapeGoalText(value) {
+        return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     }
 
     function setGoalDrawerText(id, text) {
@@ -614,8 +840,16 @@
         }
         let notices = document.getElementById('ui-goal-notices');
         if (notices) {
-            notices.textContent = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 2).join('\n');
-            notices.style.display = notices.textContent ? '' : 'none';
+            let rows = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 4);
+            notices.innerHTML = rows.map((notice, index) => {
+                let normalized = typeof notice === 'string' ? { text: notice } : (notice || {});
+                let label = escapeGoalText(normalized.text || normalized.label || '');
+                if (!label) return '';
+                return normalized.actionTabId
+                    ? `<button type="button" class="ui-goal-notice-action" onclick="openGoalNoticeTarget(${index})"><span>${label}</span><strong>바로가기 ›</strong></button>`
+                    : `<div class="ui-goal-notice-text">${label}</div>`;
+            }).join('');
+            notices.style.display = notices.innerHTML ? '' : 'none';
         }
         // 접힌 상태 손잡이: 아이콘 + 제목 + 현재/목표 한 줄과 하단 미니 진행도 바.
         setGoalDrawerText('ui-goal-handle-icon', goal.icon || '🎯');
@@ -630,7 +864,7 @@
      * 목표 안내 서랍의 단일 진입점. 목표 선정 로직(후속 PR)이 결과를 전달하는 마운트 지점이다.
      * @param {?{id: string, title: string, description?: string, current?: number, target?: number,
      *           actionLabel?: string, actionTabId?: string, mandatory?: boolean, stage?: string,
-     *           notices?: string[]}} goal null/불완전 값이면 서랍 전체를 숨긴다.
+     *           notices?: Array<string|{text: string, actionTabId?: string, actionSubtabId?: string}>}} goal null/불완전 값이면 서랍 전체를 숨긴다.
      */
     function presentGoalDrawer(goal) {
         let drawer = document.getElementById('ui-goal-drawer');
@@ -678,6 +912,7 @@
         closeCommunityDock();
         toggleGoalDrawer(false);
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
     function requestCanvasResize() {
@@ -706,7 +941,7 @@
     function patchSwitchTab() {
         if (originalSwitchTab || typeof window.switchTab !== 'function') return;
         originalSwitchTab = window.switchTab;
-        window.switchTab = function windowedSwitchTab(tabId) {
+        window.switchTab = function windowedSwitchTab(tabId, options = {}) {
             if (!isDesktopWindowed() || tabId === 'tab-battle') return originalSwitchTab(tabId);
             if (tabId === 'tab-social') {
                 openCommunityDock();
@@ -721,7 +956,7 @@
             // 열려 있지만 포커스가 없으면 기존처럼 최상단으로 가져온다.
             let el = document.getElementById(tabId);
             let st = layoutState.windows[tabId];
-            if (WINDOW_DEFS[tabId] && st && st.open && !st.minimized && el && el.classList.contains('ui-window-active')) {
+            if (!options.keepWindowOpen && WINDOW_DEFS[tabId] && st && st.open && !st.minimized && el && el.classList.contains('ui-window-active')) {
                 closeWindow(tabId);
                 return;
             }
@@ -740,9 +975,21 @@
     function restoreDesktopMenuForMobile() {
         let header = document.querySelector('.tab-header');
         if (!header) return;
-        // 그룹 섹션 안의 탭 버튼들을 헤더 루트로 되돌리고 섹션 래퍼를 제거한다.
-        header.querySelectorAll(':scope > .ui-rail-group .tab-btn').forEach(btn => header.appendChild(btn));
-        header.querySelectorAll(':scope > .ui-rail-group').forEach(section => section.remove());
+        // 생성한 소켓 메타데이터를 제거한 뒤 원래 탭 버튼만 헤더 루트로 되돌린다.
+        header.querySelectorAll('[data-rail-slot]').forEach(clearRailSlot);
+        header.querySelectorAll(':scope > .ui-rail-tab-layer .tab-btn, :scope > .ui-rail-misc-panel .tab-btn')
+            .forEach(btn => header.appendChild(btn));
+        let tabLayer = header.querySelector(':scope > .ui-rail-tab-layer');
+        if (tabLayer) tabLayer.remove();
+        let miscPanel = header.querySelector(':scope > .ui-rail-misc-panel');
+        if (miscPanel) miscPanel.remove();
+        let externalControls = header.querySelector(':scope > .ui-rail-external-controls');
+        if (externalControls) externalControls.remove();
+        let art = header.querySelector(':scope > .ui-rail-art');
+        if (art) art.remove();
+        Array.from(header.querySelectorAll('.tab-btn'))
+            .sort((left, right) => Number(left.dataset.railOriginalOrder) - Number(right.dataset.railOriginalOrder))
+            .forEach(button => { delete button.dataset.railOriginalOrder; header.appendChild(button); });
         let closeAllBtn = document.getElementById('btn-close-all-windows');
         if (closeAllBtn) closeAllBtn.remove();
         let toggle = document.getElementById('ui-community-toggle');
@@ -777,6 +1024,7 @@
             if (dockHeader) dockHeader.remove();
         }
         document.body.classList.remove('community-dock-open', 'community-overlay-open');
+        syncWorkspacePresentation();
     }
 
     function applyResponsiveMode() {
@@ -784,6 +1032,7 @@
         document.body.classList.toggle('desktop-windowed-ui', desktop);
         if (!desktop) {
             restoreWindowMarkupForMobile();
+            syncWorkspacePresentation();
             // 목표 서랍은 모바일에서도 같은 선정 로직을 공유하고 표시(배너/하단 시트)만 다르다.
             installGoalDrawer();
             return;
@@ -793,10 +1042,11 @@
         installGoalDrawer();
         installSettingsReset();
         if (layoutState.community.open) openCommunityDock();
-        installDesktopRailGroups();
+        installDesktopRailMenu();
         installCloseAllButton();
         if (layoutState.goals.expanded) toggleGoalDrawer(true);
         requestCanvasResize();
+        syncWorkspacePresentation();
     }
 
 
@@ -811,7 +1061,7 @@
 
     function closeTopWindowOnEscape(event) {
         if (event.key !== 'Escape' || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
-        if (document.querySelector('.tutorial-overlay.active,.social-modal-overlay[style*="display: block"]')) return;
+        if (document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay),.social-modal-overlay[style*="display: block"]')) return;
         if (document.body.classList.contains('community-overlay-open')) { closeCommunityDock(); return; }
         let open = zOrder.slice().reverse().find(id => {
             let st = layoutState.windows[id];
@@ -824,6 +1074,7 @@
         if (initialized) return;
         initialized = true;
         layoutState = normalizeLayoutState(readStoredLayout());
+        closePersistedSurfacesForBoot();
         patchSwitchTab();
         patchCombatLogToggle();
         applyResponsiveMode();
@@ -835,5 +1086,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
     else initWindowManager();
 
-    safeExposeGlobals({ openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, syncDesktopRailGroups });
+    safeExposeGlobals({ openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups, syncWorkspacePresentation });
 }());

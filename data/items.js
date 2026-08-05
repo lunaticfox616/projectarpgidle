@@ -1,8 +1,4 @@
-function safeExposeData(map) {
-  Object.keys(map || {}).forEach(function (key) {
-    if (typeof window[key] === "undefined") window[key] = map[key];
-  });
-}
+if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');
 
 // Phase-1 extracted data (global compatibility).
 const UNIQUE_DB = [
@@ -39,31 +35,31 @@ const UNIQUE_DB = [
     { name: "추적자", slots: ["신발"], reqTier: 4, uniqueEffect: "적 한도에 의해 이동이 막히지 않음", uniqueEffectKey: "noCollisionBlock", stats: [{ id: "move", min: 14, max: 20 }, { id: "evasion", min: 70, max: 110 }, { id: "energyShield", min: 60, max: 100 }, { id: "resPen", min: 3, max: 5 }, { id: 'evasionPct', min: 30.7, max: 34.9 }, { id: 'flatHp', min: 76.7, max: 87.3 }] },
     { name: "명사수의 경보", slots: ["신발"], reqTier: 8, uniqueEffect: "투사체 스킬 타겟 수 +1", uniqueEffectKey: "projectileTargetBonus", uniqueEffectParams: { target: 1 }, stats: [{ id: "move", min: 16, max: 22 }, { id: "evasion", min: 100, max: 160 }, { id: "crit", min: 5, max: 8 }, { id: "projectilePctDmg", min: 18, max: 28 }, { id: "projectileExtraShots", min: 1, max: 1 }] },
     { name: "태양의 불길", slots: ["신발"], reqTier: 10, uniqueEffect: "점화 피해 25% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 25 }, stats: [{ id: "move", min: 18, max: 24 }, { id: "resF", min: 14, max: 22 }, { id: "firePctDmg", min: 20, max: 32 }, { id: "igniteChance", min: 10, max: 18 }, { id: "aspd", min: 8, max: 12 }] },
-    { name: "핏빛 톱날", slots: ["무기"], reqTier: 1, stats: [{ id: "flatDmg", min: 12, max: 18 }, { id: "leech", min: 0.8, max: 1.2 }, { id: "minDmgRoll", min: 4, max: 7 }, { id: "aspd", min: 4, max: 7 }, { id: 'elementalPctDmg', min: 30, max: 34.3 }, { id: 'physPctDmg', min: 30, max: 34.3 }] },
-    { name: "순풍의 장화", slots: ["신발"], reqTier: 1, stats: [{ id: "move", min: 14, max: 18 }, { id: "projectilePctDmg", min: 8, max: 12 }, { id: "aspd", min: 3, max: 6 }, { id: "evasionPct", min: 6, max: 10 }, { id: 'resPen', min: 6, max: 6.9 }, { id: 'energyShieldPct', min: 30.7, max: 34.9 }] },
-    { name: "도둑의 반지", slots: ["반지"], reqTier: 2, stats: [{ id: "leech", min: 1.4, max: 2.0 }, { id: "chaosPctDmg", min: 14, max: 22 }, { id: "resAll", min: 5, max: 9 }, { id: "move", min: 4, max: 7 }, { id: "crit", min: 1, max: 3 }] },
-    { name: "군단 지휘관의 투구", slots: ["투구"], reqTier: 3, stats: [{ id: "flatHp", min: 38, max: 50 }, { id: "aoePctDmg", min: 10, max: 16 }, { id: "dr", min: 3, max: 5 }, { id: "resAll", min: 5, max: 8 }, { id: 'regen', min: 0.73, max: 0.84 }, { id: 'crit', min: 3.7, max: 4.2 }] },
-    { name: "사냥개의 발톱", slots: ["장갑"], reqTier: 4, stats: [{ id: "aspd", min: 12, max: 18 }, { id: "ds", min: 8, max: 12 }, { id: "minDmgRoll", min: 3, max: 6 }, { id: "crit", min: 2, max: 4 }, { id: 'flatHp', min: 76.7, max: 87.3 }, { id: 'meleePctDmg', min: 30, max: 34.3 }] },
-    { name: "현자의 시선", slots: ["목걸이"], reqTier: 5, stats: [{ id: "gemLevel", min: 1, max: 1 }, { id: "suppCap", min: 1, max: 1 }, { id: "elementalPctDmg", min: 12, max: 18 }, { id: "resAll", min: 6, max: 10 }, { id: 'resPen', min: 6, max: 6.9 }, { id: 'firePctDmg', min: 22.7, max: 25.9 }] },
-    { name: "분광 고리", slots: ["반지"], reqTier: 6, stats: [{ id: "resAll", min: 10, max: 14 }, { id: "crit", min: 4, max: 6 }, { id: "elementalPctDmg", min: 10, max: 16 }, { id: "resPen", min: 3, max: 5 }, { id: 'flatHp', min: 76.7, max: 87.3 }, { id: 'chaosPctDmg', min: 22.7, max: 25.9 }] },
-    { name: "카옴의 심장", slots: ["갑옷"], reqTier: 7, stats: [{ id: "flatHp", min: 150, max: 205 }, { id: "pctHp", min: 14, max: 22 }, { id: "regen", min: 1.0, max: 1.5 }, { id: "dr", min: 4, max: 6 }, { id: "resF", min: 10, max: 16 }] },
-    { name: "절단자의 송곳니", slots: ["무기"], reqTier: 7, stats: [{ id: "flatDmg", min: 22, max: 30 }, { id: "physIgnore", min: 8, max: 12 }, { id: "physPctDmg", min: 18, max: 26 }, { id: "critDmg", min: 14, max: 20 }, { id: 'elementalPctDmg', min: 30, max: 34.3 }, { id: 'maxDmgRoll', min: 16, max: 18.1 }] },
-    { name: "불멸의 띠", slots: ["허리띠"], reqTier: 8, stats: [{ id: "dr", min: 6, max: 9 }, { id: "flatHp", min: 70, max: 95 }, { id: "resChaos", min: 8, max: 12 }, { id: "regen", min: 0.7, max: 1.2 }, { id: 'evasionPct', min: 30.7, max: 34.9 }, { id: 'resAll', min: 15.3, max: 17.5 }] },
-    { name: "분광 천칭", slots: ["목걸이"], reqTier: 8, stats: [{ id: "resPen", min: 8, max: 12 }, { id: "elementalPctDmg", min: 18, max: 26 }, { id: "resAll", min: 8, max: 12 }, { id: "crit", min: 3, max: 5 }, { id: 'flatHp', min: 76.7, max: 87.3 }, { id: 'critDmg', min: 46.7, max: 53.1 }] },
-    { name: "광전사의 손길", slots: ["장갑"], reqTier: 9, stats: [{ id: "aspd", min: 14, max: 20 }, { id: "ds", min: 10, max: 14 }, { id: "meleePctDmg", min: 18, max: 26 }, { id: "flatHp", min: 40, max: 65 }, { id: 'armorPct', min: 30.7, max: 34.9 }, { id: 'pctHp', min: 22.7, max: 25.9 }] },
-    { name: "별의 파괴자", slots: ["무기"], reqTier: 10, stats: [{ id: "flatDmg", min: 40, max: 56 }, { id: "physPctDmg", min: 46, max: 62 }, { id: "critDmg", min: 36, max: 48 }, { id: "physIgnore", min: 8, max: 12 }, { id: "maxDmgRoll", min: 6, max: 10 }] },
-    { name: "균열 사냥꾼", slots: ["장갑"], reqTier: 11, stats: [{ id: "physIgnore", min: 8, max: 12 }, { id: "aspd", min: 12, max: 18 }, { id: "meleePctDmg", min: 20, max: 30 }, { id: "maxDmgRoll", min: 4, max: 8 }, { id: 'flatHp', min: 83.3, max: 94 }, { id: 'crit', min: 4, max: 4.5 }] },
-    { name: "폭군의 왕관", slots: ["투구"], reqTier: 11, stats: [{ id: "aoePctDmg", min: 24, max: 34 }, { id: "critDmg", min: 30, max: 45 }, { id: "flatHp", min: 60, max: 82 }, { id: 'evasionPct', min: 33.3, max: 37.6 }, { id: 'dr', min: 16, max: 18.1 }] },
-    { name: "심연의 굴레", slots: ["목걸이"], reqTier: 12, stats: [{ id: "chaosPctDmg", min: 24, max: 34 }, { id: "resChaos", min: 12, max: 18 }, { id: "leech", min: 1.0, max: 1.4 }, { id: 'dotPctDmg', min: 26.7, max: 29.9 }, { id: 'resAll', min: 18, max: 20.1 }] },
-    { name: "공허의 첨탑", slots: ["반지"], reqTier: 12, stats: [{ id: "resPen", min: 7, max: 11 }, { id: "chaosPctDmg", min: 18, max: 28 }, { id: "crit", min: 4, max: 7 }, { id: 'dotPctDmg', min: 26.7, max: 29.9 }, { id: 'resChaos', min: 22.7, max: 25.3 }] },
-    { name: "무명의 맹세", slots: ["갑옷"], reqTier: 13, stats: [{ id: "flatHp", min: 185, max: 250 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 10, max: 14 }, { id: "regen", min: 1.2, max: 2.0 }, { id: "resChaos", min: 10, max: 16 }] },
-    { name: "균열추", slots: ["무기"], reqTier: 14, stats: [{ id: "flatDmg", min: 34, max: 44 }, { id: "aoePctDmg", min: 24, max: 32 }, { id: "crit", min: 6, max: 10 }, { id: 'resPen', min: 7.1, max: 7.9 }, { id: 'elementalPctDmg', min: 35.3, max: 39.6 }] },
-    { name: "여명의 결속", slots: ["허리띠"], reqTier: 15, stats: [{ id: "pctHp", min: 16, max: 24 }, { id: "regen", min: 1.0, max: 1.6 }, { id: "resAll", min: 8, max: 12 }, { id: 'evasionPct', min: 36, max: 40.3 }, { id: 'dr', min: 17.3, max: 19.5 }] },
-    { name: "화염 군주의 숨결", slots: ["목걸이"], reqTier: 12, stats: [{ id: "firePctDmg", min: 20, max: 30 }, { id: "resF", min: 18, max: 26 }] },
-    { name: "서리 여제의 인장", slots: ["반지"], reqTier: 12, stats: [{ id: "coldPctDmg", min: 20, max: 30 }, { id: "resC", min: 18, max: 26 }] },
-    { name: "폭풍 군단장의 창끝", slots: ["무기"], reqTier: 13, stats: [{ id: "lightPctDmg", min: 24, max: 34 }, { id: "crit", min: 8, max: 12 }] },
-    { name: "창공의 사슬", slots: ["허리띠"], reqTier: 14, stats: [{ id: "move", min: 14, max: 20 }, { id: "elementalPctDmg", min: 20, max: 30 }] },
-    { name: "타락한 심장석", slots: ["갑옷"], reqTier: 15, stats: [{ id: "pctHp", min: 20, max: 30 }, { id: "chaosPctDmg", min: 28, max: 40 }, { id: "resChaos", min: 18, max: 26 }, { id: "flatHp", min: 90, max: 130 }, { id: 'resPen', min: 7.1, max: 7.9 }, { id: 'resAll', min: 18, max: 20.1 }] },
+    { name: "핏빛 톱날", slots: ["무기"], reqTier: 1, uniqueEffect: "출혈 중인 적에게 주는 피해 +10%", uniqueEffectKey: "realmBleedingEnemyDamageMore", uniqueEffectParams: { morePct: 10 }, stats: [{ id: "flatDmg", min: 12, max: 18 }, { id: "leech", min: 0.8, max: 1.2 }, { id: "minDmgRoll", min: 4, max: 7 }, { id: "aspd", min: 4, max: 7 }, { id: 'elementalPctDmg', min: 30, max: 34.3 }, { id: 'physPctDmg', min: 30, max: 34.3 }] },
+    { name: "순풍의 장화", slots: ["신발"], reqTier: 1, uniqueEffect: "투사체 공격 시 8% 확률로 투사체 +1", uniqueEffectKey: "projectileExtraShotChance", uniqueEffectParams: { chance: 8, shots: 1 }, stats: [{ id: "move", min: 14, max: 18 }, { id: "projectilePctDmg", min: 8, max: 12 }, { id: "aspd", min: 3, max: 6 }, { id: "evasionPct", min: 6, max: 10 }, { id: 'resPen', min: 6, max: 6.9 }, { id: 'energyShieldPct', min: 30.7, max: 34.9 }] },
+    { name: "도둑의 반지", slots: ["반지"], reqTier: 2, uniqueEffect: "카오스 피해의 4%를 즉시 생명력으로 흡수", uniqueEffectKey: "realmChaosDamageInstantLeech", uniqueEffectParams: { pct: 4 }, stats: [{ id: "leech", min: 1.4, max: 2.0 }, { id: "chaosPctDmg", min: 14, max: 22 }, { id: "resAll", min: 5, max: 9 }, { id: "move", min: 4, max: 7 }, { id: "crit", min: 1, max: 3 }] },
+    { name: "군단 지휘관의 투구", slots: ["투구"], reqTier: 3, uniqueEffect: "연속 타격 +3%, 스킬 대상 수 +1", uniqueEffectKey: "dsAndTargetAnyBonus", uniqueEffectParams: { ds: 3, target: 1 }, stats: [{ id: "flatHp", min: 38, max: 50 }, { id: "aoePctDmg", min: 10, max: 16 }, { id: "dr", min: 3, max: 5 }, { id: "resAll", min: 5, max: 8 }, { id: 'regen', min: 0.73, max: 0.84 }, { id: 'crit', min: 3.7, max: 4.2 }] },
+    { name: "사냥개의 발톱", slots: ["장갑"], reqTier: 4, uniqueEffect: "최소 피해 보정 +5%", uniqueEffectKey: "uniqueMinDmgRoll", uniqueEffectParams: { pct: 5 }, stats: [{ id: "aspd", min: 12, max: 18 }, { id: "ds", min: 8, max: 12 }, { id: "minDmgRoll", min: 3, max: 6 }, { id: "crit", min: 2, max: 4 }, { id: 'flatHp', min: 76.7, max: 87.3 }, { id: 'meleePctDmg', min: 30, max: 34.3 }] },
+    { name: "현자의 시선", slots: ["목걸이"], reqTier: 5, uniqueEffect: "컨디션 젬 지속시간 +25%, 재사용 대기시간 회복 +5%", uniqueEffectKey: "conditionManual", uniqueEffectParams: { durationPct: 25, cdrPct: 5 }, stats: [{ id: "gemLevel", min: 1, max: 1 }, { id: "suppCap", min: 1, max: 1 }, { id: "elementalPctDmg", min: 12, max: 18 }, { id: "resAll", min: 6, max: 10 }, { id: 'resPen', min: 6, max: 6.9 }, { id: 'firePctDmg', min: 22.7, max: 25.9 }] },
+    { name: "분광 고리", slots: ["반지"], reqTier: 6, uniqueEffect: "연속 타격 시 적 원소 저항 -1% (최대 -8%)", uniqueEffectKey: "stackingElementalResDownOnHit", uniqueEffectParams: { perHit: 1, max: 8 }, stats: [{ id: "resAll", min: 10, max: 14 }, { id: "crit", min: 4, max: 6 }, { id: "elementalPctDmg", min: 10, max: 16 }, { id: "resPen", min: 3, max: 5 }, { id: 'flatHp', min: 76.7, max: 87.3 }, { id: 'chaosPctDmg', min: 22.7, max: 25.9 }] },
+    { name: "카옴의 심장", slots: ["갑옷"], reqTier: 7, uniqueEffect: "최대 생명력 +10%", uniqueEffectKey: "realmMaxHpPct", uniqueEffectParams: { pctHp: 10 }, stats: [{ id: "flatHp", min: 150, max: 205 }, { id: "pctHp", min: 14, max: 22 }, { id: "regen", min: 1.0, max: 1.5 }, { id: "dr", min: 4, max: 6 }, { id: "resF", min: 10, max: 16 }] },
+    { name: "절단자의 송곳니", slots: ["무기"], reqTier: 7, uniqueEffect: "최대 피해 롤 130% 이상 타격 시 피해 50% 추가 타격 1회", uniqueEffectKey: "maxRollBonusHit", stats: [{ id: "flatDmg", min: 22, max: 30 }, { id: "physIgnore", min: 8, max: 12 }, { id: "physPctDmg", min: 18, max: 26 }, { id: "critDmg", min: 14, max: 20 }, { id: 'elementalPctDmg', min: 30, max: 34.3 }, { id: 'maxDmgRoll', min: 16, max: 18.1 }] },
+    { name: "불멸의 띠", slots: ["허리띠"], reqTier: 8, uniqueEffect: "받은 피해의 15%를 4초에 걸쳐 생명력으로 회생", uniqueEffectKey: "lifeRecoupTakenDamage", uniqueEffectParams: { pct: 15, duration: 4 }, stats: [{ id: "dr", min: 6, max: 9 }, { id: "flatHp", min: 70, max: 95 }, { id: "resChaos", min: 8, max: 12 }, { id: "regen", min: 0.7, max: 1.2 }, { id: 'evasionPct', min: 30.7, max: 34.9 }, { id: 'resAll', min: 15.3, max: 17.5 }] },
+    { name: "분광 천칭", slots: ["목걸이"], reqTier: 8, uniqueEffect: "최소·최대 피해 보정 차이만큼 피해 증가", uniqueEffectKey: "rollGapDamagePct", stats: [{ id: "resPen", min: 8, max: 12 }, { id: "elementalPctDmg", min: 18, max: 26 }, { id: "resAll", min: 8, max: 12 }, { id: "crit", min: 3, max: 5 }, { id: 'flatHp', min: 76.7, max: 87.3 }, { id: 'critDmg', min: 46.7, max: 53.1 }] },
+    { name: "광전사의 손길", slots: ["장갑"], reqTier: 9, uniqueEffect: "최대 피해가 아닌 공격의 피해 +12%", uniqueEffectKey: "underdogNonMaxRollMorePct", uniqueEffectParams: { pct: 12 }, stats: [{ id: "aspd", min: 14, max: 20 }, { id: "ds", min: 10, max: 14 }, { id: "meleePctDmg", min: 18, max: 26 }, { id: "flatHp", min: 40, max: 65 }, { id: 'armorPct', min: 30.7, max: 34.9 }, { id: 'pctHp', min: 22.7, max: 25.9 }] },
+    { name: "별의 파괴자", slots: ["무기"], reqTier: 10, uniqueEffect: "최대 피해 롤 140% 이상 시 15% 확률로 2배 피해", uniqueEffectKey: "ceilingSmashDouble", stats: [{ id: "flatDmg", min: 40, max: 56 }, { id: "physPctDmg", min: 46, max: 62 }, { id: "critDmg", min: 36, max: 48 }, { id: "physIgnore", min: 8, max: 12 }, { id: "maxDmgRoll", min: 6, max: 10 }] },
+    { name: "균열 사냥꾼", slots: ["장갑"], reqTier: 11, uniqueEffect: "최소·최대 피해 보정 차이만큼 치명타 피해와 연속 타격 증가", uniqueEffectKey: "rollGapCritAndDs", stats: [{ id: "physIgnore", min: 8, max: 12 }, { id: "aspd", min: 12, max: 18 }, { id: "meleePctDmg", min: 20, max: 30 }, { id: "maxDmgRoll", min: 4, max: 8 }, { id: 'flatHp', min: 83.3, max: 94 }, { id: 'crit', min: 4, max: 4.5 }] },
+    { name: "폭군의 왕관", slots: ["투구"], reqTier: 11, uniqueEffect: "적 처치 시 8% 확률로 생명력 12% 시체 폭발", uniqueEffectKey: "corpseExplodeOnKill", uniqueEffectParams: { chance: 8, lifePct: 12 }, stats: [{ id: "aoePctDmg", min: 24, max: 34 }, { id: "critDmg", min: 30, max: 45 }, { id: "flatHp", min: 60, max: 82 }, { id: 'evasionPct', min: 33.3, max: 37.6 }, { id: 'dr', min: 16, max: 18.1 }] },
+    { name: "심연의 굴레", slots: ["목걸이"], reqTier: 12, uniqueEffect: "적 처치 후 6초간 흡혈 효율 +60%", uniqueEffectKey: "leechEfficiencyOnKill", uniqueEffectParams: { duration: 6, efficiencyPct: 60 }, stats: [{ id: "chaosPctDmg", min: 24, max: 34 }, { id: "resChaos", min: 12, max: 18 }, { id: "leech", min: 1.0, max: 1.4 }, { id: 'dotPctDmg', min: 26.7, max: 29.9 }, { id: 'resAll', min: 18, max: 20.1 }] },
+    { name: "공허의 첨탑", slots: ["반지"], reqTier: 12, uniqueEffect: "타격 시 적 카오스 저항 -1% (최대 10중첩)", uniqueEffectKey: "hitApplyChaosResDown", uniqueEffectParams: { perHit: 1, maxStacks: 10 }, stats: [{ id: "resPen", min: 7, max: 11 }, { id: "chaosPctDmg", min: 18, max: 28 }, { id: "crit", min: 4, max: 7 }, { id: 'dotPctDmg', min: 26.7, max: 29.9 }, { id: 'resChaos', min: 22.7, max: 25.3 }] },
+    { name: "무명의 맹세", slots: ["갑옷"], reqTier: 13, uniqueEffect: "받는 피해 5% 감소 (보스에게는 8%)", uniqueEffectKey: "guardianArmor", uniqueEffectParams: { takenLessPct: 5, bossTakenLessPct: 8 }, stats: [{ id: "flatHp", min: 185, max: 250 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 10, max: 14 }, { id: "regen", min: 1.2, max: 2.0 }, { id: "resChaos", min: 10, max: 16 }] },
+    { name: "균열추", slots: ["무기"], reqTier: 14, uniqueEffect: "적 처치 시 초과 피해를 주변 적에게 전달", uniqueEffectKey: "overkillSplash", stats: [{ id: "flatDmg", min: 34, max: 44 }, { id: "aoePctDmg", min: 24, max: 32 }, { id: "crit", min: 6, max: 10 }, { id: 'resPen', min: 7.1, max: 7.9 }, { id: 'elementalPctDmg', min: 35.3, max: 39.6 }] },
+    { name: "여명의 결속", slots: ["허리띠"], reqTier: 15, uniqueEffect: "생명력 재생 속도 +15%, 생명력 재생 +1%", uniqueEffectKey: "realmRegenRateAndRegen", uniqueEffectParams: { regenRatePct: 15, regen: 1 }, stats: [{ id: "pctHp", min: 16, max: 24 }, { id: "regen", min: 1.0, max: 1.6 }, { id: "resAll", min: 8, max: 12 }, { id: 'evasionPct', min: 36, max: 40.3 }, { id: 'dr', min: 17.3, max: 19.5 }] },
+    { name: "화염 군주의 숨결", slots: ["목걸이"], reqTier: 12, uniqueEffect: "점화 피해 20% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 20 }, stats: [{ id: "firePctDmg", min: 20, max: 30 }, { id: "resF", min: 18, max: 26 }] },
+    { name: "서리 여제의 인장", slots: ["반지"], reqTier: 12, uniqueEffect: "동결에 면역", uniqueEffectKey: "immuneFreeze", stats: [{ id: "coldPctDmg", min: 20, max: 30 }, { id: "resC", min: 18, max: 26 }] },
+    { name: "폭풍 군단장의 창끝", slots: ["무기"], reqTier: 13, uniqueEffect: "타격이 항상 감전을 부여", uniqueEffectKey: "alwaysShock", stats: [{ id: "lightPctDmg", min: 24, max: 34 }, { id: "crit", min: 8, max: 12 }] },
+    { name: "창공의 사슬", slots: ["허리띠"], reqTier: 14, uniqueEffect: "이동 속도 +8%, 공격·시전 속도 +6%", uniqueEffectKey: "cosmosSpeedBurst", uniqueEffectParams: { move: 8, aspd: 6 }, stats: [{ id: "move", min: 14, max: 20 }, { id: "elementalPctDmg", min: 20, max: 30 }] },
+    { name: "타락한 심장석", slots: ["갑옷"], reqTier: 15, uniqueEffect: "받는 카오스 피해 10% 감소", uniqueEffectKey: "chaosTakenDamageReducePct", uniqueEffectParams: { pct: 10 }, stats: [{ id: "pctHp", min: 20, max: 30 }, { id: "chaosPctDmg", min: 28, max: 40 }, { id: "resChaos", min: 18, max: 26 }, { id: "flatHp", min: 90, max: 130 }, { id: 'resPen', min: 7.1, max: 7.9 }, { id: 'resAll', min: 18, max: 20.1 }] },
     { name: "초월자 파쇄검", slots: ["무기"], reqTier: 1, ultraRare: true, uniqueEffect: "플레이어 레벨 1당 기본 피해 +10", uniqueEffectKey: "flatDmgPerLevel", uniqueEffectParams: { perLevel: 10 }, stats: [{ id: "flatDmg", min: 32, max: 42 }, { id: "critDmg", min: 55, max: 75 }, { id: "aspd", min: 11, max: 15 }, { id: 'maxDmgRoll', min: 16, max: 18.1 }, { id: 'minDmgRoll', min: 16, max: 18.1 }] },
     { name: "새벽의 약속", slots: ["투구"], reqTier: 6, ultraRare: true, uniqueEffect: "경험치 획득량 +10%", uniqueEffectKey: "xpGainPct", uniqueEffectParams: { pct: 10 }, stats: [{ id: "flatHp", min: 90, max: 120 }, { id: "resAll", min: 12, max: 17 }, { id: "resChaos", min: 12, max: 17 }, { id: "regen", min: 1.0, max: 1.5 }, { id: 'critDmg', min: 46.7, max: 53.1 }, { id: 'evasionPct', min: 30.7, max: 34.9 }] },
     { name: "심연 군주갑", slots: ["갑옷"], reqTier: 6, uniqueEffect: "심연 주얼 슬롯 (1~2)개", uniqueEffectKey: "abyssSocketOnItem", uniqueEffectParams: { min: 1, max: 2 }, stats: [{ id: "flatHp", min: 260, max: 340 }, { id: "dr", min: 12, max: 18 }, { id: "resChaos", min: 20, max: 28 }, { id: 'dotPctDmg', min: 22.7, max: 25.9 }, { id: 'armorPct', min: 30.7, max: 34.9 }] },
@@ -71,20 +67,20 @@ const UNIQUE_DB = [
     { name: "종말의 논리", slots: ["목걸이"], reqTier: 10, ultraRare: true, uniqueEffect: "적 처치 시 15% 확률로 생명력 25% 시체 폭발", uniqueEffectKey: "corpseExplodeOnKill", uniqueEffectParams: { chance: 15, lifePct: 25 }, stats: [{ id: "gemLevel", min: 3, max: 3 }, { id: "suppCap", min: 2, max: 2 }, { id: "elementalPctDmg", min: 50, max: 70 }, { id: "resPen", min: 12, max: 20 }, { id: "crit", min: 10, max: 16 }] },
     { name: "공허 제국의 인장", slots: ["반지"], reqTier: 10, ultraRare: true, uniqueEffect: "타격 시 적 카오스 저항 -3% (최대 10중첩)", uniqueEffectKey: "hitApplyChaosResDown", uniqueEffectParams: { perHit: 3, maxStacks: 10 }, stats: [{ id: "resAll", min: 8, max: 11 }, { id: "crit", min: 4, max: 6 }, { id: "chaosPctDmg", min: 22, max: 32 }, { id: "leech", min: 0.45, max: 0.7 }, { id: "resPen", min: 4, max: 7 }] },
     { name: "황제의 심연띠", slots: ["허리띠"], reqTier: 10, uniqueEffect: "심연 주얼 슬롯 (1~2)개, 장착 심연 주얼 효과 (1~100)% 증가", uniqueEffectKey: "abyssSocketAndJewelAmp", uniqueEffectParams: { socketsMin: 1, socketsMax: 2, ampMin: 1, ampMax: 100 }, stats: [{ id: "flatHp", min: 130, max: 175 }, { id: "pctHp", min: 14, max: 19 }, { id: "dr", min: 6, max: 9 }, { id: "resAll", min: 7, max: 10 }, { id: 'elementalPctDmg', min: 30, max: 34.3 }, { id: 'dotPctDmg', min: 22.7, max: 25.9 }] },
-    { name: "세계파쇄자", slots: ["무기"], reqTier: 10, ultraRare: true, stats: [{ id: "physIgnore", min: 9, max: 13 }, { id: "flatDmg", min: 45, max: 60 }, { id: "critDmg", min: 45, max: 65 }, { id: "targetCount", min: 1, max: 1 }, { id: "aspd", min: 7, max: 7 }] },
-    { name: "만상 관통석", slots: ["목걸이"], reqTier: 10, ultraRare: true, stats: [{ id: "resPen", min: 9, max: 13 }, { id: "elementalPctDmg", min: 20, max: 29 }, { id: "resAll", min: 10, max: 10 }, { id: "gemLevel", min: 1, max: 2 }, { id: 'critDmg', min: 46.7, max: 53.1 }, { id: 'chaosPctDmg', min: 22.7, max: 25.9 }] },
+    { name: "세계파쇄자", slots: ["무기"], reqTier: 10, ultraRare: true, uniqueEffect: "적 처치 시 초과 피해를 주변 적에게 전달", uniqueEffectKey: "overkillSplash", stats: [{ id: "physIgnore", min: 9, max: 13 }, { id: "flatDmg", min: 45, max: 60 }, { id: "critDmg", min: 45, max: 65 }, { id: "targetCount", min: 1, max: 1 }, { id: "aspd", min: 7, max: 7 }] },
+    { name: "만상 관통석", slots: ["목걸이"], reqTier: 10, ultraRare: true, uniqueEffect: "연속 타격 시 적 원소 저항 -2% (최대 -12%)", uniqueEffectKey: "stackingElementalResDownOnHit", uniqueEffectParams: { perHit: 2, max: 12 }, stats: [{ id: "resPen", min: 9, max: 13 }, { id: "elementalPctDmg", min: 20, max: 29 }, { id: "resAll", min: 10, max: 10 }, { id: "gemLevel", min: 1, max: 2 }, { id: 'critDmg', min: 46.7, max: 53.1 }, { id: 'chaosPctDmg', min: 22.7, max: 25.9 }] },
     { name: "천공 붕괴자", slots: ["무기"], reqTier: 10, ultraRare: true, uniqueEffect: "이 무기는 항상 감전 부여", uniqueEffectKey: "alwaysShock", stats: [{ id: "flatDmg", min: 55, max: 72 }, { id: "lightPctDmg", min: 24, max: 33 }, { id: "critDmg", min: 60, max: 80 }, { id: "shockEffect", min: 50, max: 50 }, { id: 'elementalPctDmg', min: 30, max: 34.3 }, { id: 'resAll', min: 15.3, max: 17.5 }] },
-    { name: "폭우의 석궁", slots: ["무기"], reqTier: 11, ultraRare: true, stats: [{ id: "flatDmg", min: 44, max: 59 }, { id: "projectilePctDmg", min: 31, max: 43 }, { id: "projectileExtraShots", min: 1, max: 2 }, { id: "projectileExtraShots", min: 1, max: 2 }, { id: 'critDmg', min: 50.7, max: 57.1 }, { id: 'minDmgRoll', min: 17.3, max: 19.5 }] },
+    { name: "폭우의 석궁", slots: ["무기"], reqTier: 11, ultraRare: true, uniqueEffect: "투사체 공격 시 20% 확률로 투사체 +1", uniqueEffectKey: "projectileExtraShotChance", uniqueEffectParams: { chance: 20, shots: 1 }, stats: [{ id: "flatDmg", min: 44, max: 59 }, { id: "projectilePctDmg", min: 31, max: 43 }, { id: "projectileExtraShots", min: 2, max: 4 }, { id: 'critDmg', min: 50.7, max: 57.1 }, { id: 'minDmgRoll', min: 17.3, max: 19.5 }] },
     { name: "칠흑의 연사기", slots: ["무기"], reqTier: 14, ultraRare: true, uniqueEffect: "투사체 스킬 연속타격 +100%", uniqueEffectKey: "projectileDoubleStrikePct", uniqueEffectParams: { pct: 100 }, stats: [{ id: "flatDmg", min: 120, max: 155 }, { id: "projectilePctDmg", min: 74, max: 98 }, { id: "projectileExtraShots", min: 3, max: 5 }, { id: 'critDmg', min: 54.7, max: 61.1 }, { id: 'minDmgRoll', min: 18.7, max: 20.8 }] },
-    { name: "성좌의 주문핵", slots: ["무기"], reqTier: 11, ultraRare: true, stats: [{ id: "spellFlatDmg", min: 36, max: 54 }, { id: "spellFlatPct", min: 14, max: 21 }, { id: "spellCritDmg", min: 35, max: 35 }, { id: "gemLevel", min: 1, max: 1 }, { id: 'physPctDmg', min: 32.7, max: 36.9 }, { id: 'maxDmgRoll', min: 17.3, max: 19.5 }] },
-    { name: "영겁의 마도서", slots: ["무기"], reqTier: 14, ultraRare: true, stats: [{ id: "spellFlatDmg", min: 96, max: 138 }, { id: "spellFlatPct", min: 36, max: 54 }, { id: "gemLevel", min: 1, max: 5 }, { id: "spellLeech", min: 1.0, max: 2.5 }, { id: 'aspd', min: 17.3, max: 19.5 }, { id: 'resPen', min: 7.1, max: 7.9 }] },
-    { name: "영겁의 손아귀", slots: ["장갑"], reqTier: 10, ultraRare: true, stats: [{ id: "aspd", min: 12, max: 16 }, { id: "ds", min: 12, max: 17 }, { id: "meleePctDmg", min: 22, max: 30 }, { id: "leech", min: 0.6, max: 1.2 }, { id: "leechRateCap", min: 20, max: 40 }] },
+    { name: "성좌의 주문핵", slots: ["무기"], reqTier: 11, ultraRare: true, uniqueEffect: "모든 피해 +10%", uniqueEffectKey: "cosmosFinalDmg", uniqueEffectParams: { pct: 10 }, stats: [{ id: "spellFlatDmg", min: 36, max: 54 }, { id: "spellFlatPct", min: 14, max: 21 }, { id: "spellCritDmg", min: 35, max: 35 }, { id: "gemLevel", min: 1, max: 1 }, { id: 'physPctDmg', min: 32.7, max: 36.9 }, { id: 'maxDmgRoll', min: 17.3, max: 19.5 }] },
+    { name: "영겁의 마도서", slots: ["무기"], reqTier: 14, ultraRare: true, uniqueEffect: "컨디션 젬 지속시간 +60%, 재사용 대기시간 회복 +12%", uniqueEffectKey: "conditionManual", uniqueEffectParams: { durationPct: 60, cdrPct: 12 }, stats: [{ id: "spellFlatDmg", min: 96, max: 138 }, { id: "spellFlatPct", min: 36, max: 54 }, { id: "gemLevel", min: 1, max: 5 }, { id: "spellLeech", min: 1.0, max: 2.5 }, { id: 'aspd', min: 17.3, max: 19.5 }, { id: 'resPen', min: 7.1, max: 7.9 }] },
+    { name: "영겁의 손아귀", slots: ["장갑"], reqTier: 10, ultraRare: true, uniqueEffect: "흡혈의 10% 즉시 적용, 5% 확률로 2배 피해", uniqueEffectKey: "instantLeechAndDoubleDamage", uniqueEffectParams: { instantLeechPct: 10, doubleDamageChance: 5 }, stats: [{ id: "aspd", min: 12, max: 16 }, { id: "ds", min: 12, max: 17 }, { id: "meleePctDmg", min: 22, max: 30 }, { id: "leech", min: 0.6, max: 1.2 }, { id: "leechRateCap", min: 20, max: 40 }] },
     { name: "황혼의 왕관", slots: ["투구"], reqTier: 10, ultraRare: true, uniqueEffect: "에너지 보호막 50% 전역 증폭, 치명타 시 최대 ES의 2% 즉시 회복", uniqueEffectKey: "esAmpAndRecoverOnCrit", uniqueEffectParams: { ampPct: 50, recoverPctOnCrit: 2 }, stats: [{ id: "crit", min: 10, max: 14 }, { id: "critDmg", min: 45, max: 62 }, { id: "resAll", min: 10, max: 14 }, { id: 'armorPct', min: 30.7, max: 34.9 }, { id: 'dr', min: 14.7, max: 16.8 }] },
     { name: "기수의 나침반", slots: ["목걸이"], reqTier: 9, uniqueEffect: "이동 후 첫 타격 피해 +100%, 이동 속도 200% 이상 시 회피 20% 증폭", uniqueEffectKey: "riderCompass", stats: [{ id: "move", min: 12, max: 18 }, { id: "minDmgRoll", min: 5, max: 9 }, { id: "aspd", min: 8, max: 12 }, { id: 'resAll', min: 15.3, max: 17.5 }, { id: 'chaosPctDmg', min: 22.7, max: 25.9 }] },
     { name: "쐐기 파편", slots: ["무기"], reqTier: 9, uniqueEffect: "최대 피해 롤 130% 이상 타격 시 피해 50% 추가 타격 1회", uniqueEffectKey: "maxRollBonusHit", stats: [{ id: "maxDmgRoll", min: 8, max: 14 }, { id: "flatDmg", min: 28, max: 40 }] },
     { name: "절대 하한", slots: ["장갑"], reqTier: 10, uniqueEffect: "최대 피해 보정 15% 감폭, 최소 피해 보정이 최대 피해 보정과 동일", uniqueEffectKey: "minRollEqualsMaxRoll", stats: [{ id: "minDmgRoll", min: 10, max: 16 }, { id: "aspd", min: 10, max: 14 }, { id: "flatHp", min: 55, max: 80 }, { id: 'resAll', min: 15.3, max: 17.5 }, { id: 'meleePctDmg', min: 30, max: 34.3 }] },
     { name: "천정 파쇄", slots: ["무기"], reqTier: 11, uniqueEffect: "최대 피해 롤 140% 이상 시 15% 확률 2배 피해", uniqueEffectKey: "ceilingSmashDouble", stats: [{ id: "maxDmgRoll", min: 12, max: 18 }, { id: "critDmg", min: 30, max: 44 }, { id: "physPctDmg", min: 24, max: 34 }, { id: 'resPen', min: 6.5, max: 7.4 }, { id: 'aspd', min: 16, max: 18.1 }] },
-    { name: "가호의 갑피", slots: ["갑옷"], reqTier: 11, stats: [{ id: "armor", min: 500, max: 500 }, { id: "armorPct", min: 20, max: 20 }, { id: "dr", min: 6, max: 6 }, { id: 'evasionPct', min: 33.3, max: 37.6 }, { id: 'regen', min: 0.8, max: 0.91 }] },
+    { name: "가호의 갑피", slots: ["갑옷"], reqTier: 11, uniqueEffect: "받는 피해 6% 감소 (보스에게는 10%)", uniqueEffectKey: "guardianArmor", uniqueEffectParams: { takenLessPct: 6, bossTakenLessPct: 10 }, stats: [{ id: "armor", min: 500, max: 500 }, { id: "armorPct", min: 20, max: 20 }, { id: "dr", min: 6, max: 6 }, { id: 'evasionPct', min: 33.3, max: 37.6 }, { id: 'regen', min: 0.8, max: 0.91 }] },
     { name: "굶주린 톱니", slots: ["반지"], reqTier: 12, uniqueEffect: "적 처치 시 8초간 모든 흡혈 효율 +100% (중첩 불가, 갱신형)", uniqueEffectKey: "leechEfficiencyOnKill", uniqueEffectParams: { duration: 8, efficiencyPct: 100 }, stats: [{ id: "leech", min: 1.2, max: 1.8 }, { id: "minDmgRoll", min: 4, max: 7 }, { id: "chaosPctDmg", min: 20, max: 30 }, { id: 'crit', min: 4.3, max: 4.9 }, { id: 'resChaos', min: 22.7, max: 25.3 }] },
     { name: "거인의 지지대", slots: ["허리띠"], reqTier: 12, uniqueEffect: "최대 생명력 100당 물리 피해 +1%", uniqueEffectKey: "hpToPhysPct", stats: [{ id: "flatHp", min: 100, max: 145 }, { id: "regenFlat", min: 50, max: 200 }, { id: "maxDmgRoll", min: 3, max: 6 }, { id: 'elementalPctDmg', min: 35.3, max: 39.6 }, { id: 'resAll', min: 18, max: 20.1 }] },
     { name: "지평선 분할자", slots: ["무기"], reqTier: 13, uniqueEffect: "적 처치 시 초과 피해를 주변 적에게 전달", uniqueEffectKey: "overkillSplash", stats: [{ id: "flatDmg", min: 44, max: 60 }, { id: "minDmgRoll", min: 8, max: 12 }, { id: "maxDmgRoll", min: 8, max: 12 }, { id: 'resPen', min: 7.1, max: 7.9 }, { id: 'aspd', min: 17.3, max: 19.5 }] },
@@ -121,8 +117,8 @@ const UNIQUE_DB = [
 const REALM_UNIQUE_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
 const CHAOS_REALM_ENTRIES = [
     { name: '파열의 언약', effect: '출혈 중인 적에게 주는 피해 22% 증폭' },
-    { name: '균열의 정수', effect: '타격 시 12% 확률로 균열파 발동' },
-    { name: '공허의 갈고리', effect: '카오스 피해의 8%를 즉시 흡수' },
+    { name: '균열의 정수', effect: '타격 시 12% 확률로 공격 피해 80%의 균열파 발동' },
+    { name: '공허의 갈고리', effect: '카오스 피해의 8%를 즉시 생명력으로 흡수' },
     { name: '타락각 투구', effect: '중독 최대 중첩 +1' },
     { name: '균열군주의 피부', effect: '피격 시 10% 확률로 1.5초 무적 장막' },
     { name: '독성 심연갑', effect: '중독 지속시간 +35%' },
@@ -187,7 +183,7 @@ const COSMOS_CODEX = [
     { name: '사냥개의 송곳니', key: 'summonCritAspdStacks', params: { aspd: 10, maxStacks: 6, duration: 4 }, desc: '소환수가 치명타 적중 시 공격 속도 +10%(최대 6중첩, 4초)' },
     { name: '마르지 않는 샘', key: 'realmRegenRateAndRegen', params: { regenRatePct: 25, regen: 2.5 }, desc: '생명력 재생 속도 +25%, 생명력 재생 +2.5%' },
     { name: '비껴내는 손목', key: 'uniqueDeflectDamageReduce', params: { pct: 10 }, desc: '비껴내기 시 받는 피해 −10%' },
-    { name: '독보의 자취', key: 'venomStride', params: {}, desc: '중독 피해 +25%, 중독 중첩 +1' },
+    { name: '독보의 자취', key: 'venomStride', params: { poisonMorePct: 25, poisonExtraStack: 1 }, desc: '중독 피해 +25%, 중독 중첩 +1' },
     { name: '깨지지 않는 비늘', key: 'realmMeleeArmorAmp', params: { ampPct: 5, maxStacks: 3, duration: 2 }, desc: '근접 타격 시 방어도 +5% 증폭(최대 3중첩, 2초)' },
     { name: '스쳐가는 그림자', key: 'crowdEvasionMore', params: { minEnemies: 10, morePct: 100 }, desc: '적이 10명 이상인 경우 회피 100% 증폭' },
     { name: '신성한 맹세', key: 'esToLightPct', params: {}, desc: '번개 스킬의 기본 피해가 최대 에너지 보호막 100당 +1% 증가' },
@@ -227,11 +223,19 @@ function pushRealmUniqueSet(realm, entries, tierStart) {
     entries.forEach((entry, i) => {
         let cosmosEffect = (realm === 'cosmos' && entry.uniqueEffectKey) ? { key: entry.uniqueEffectKey, params: entry.uniqueEffectParams } : null;
         let realmEffectMap = {
+            '파열의 언약': { key: 'realmBleedingEnemyDamageMore', params: { morePct: 22 } },
+            '균열의 정수': { key: 'realmRiftWaveOnHit', params: { chance: 12, damagePct: 80 } },
+            '공허의 갈고리': { key: 'realmChaosDamageInstantLeech', params: { pct: 8 } },
+            '타락각 투구': { key: 'venomStride', params: { poisonMorePct: 0, poisonExtraStack: 1 } },
+            '균열군주의 피부': { key: 'realmInvulnerableBarrierOnHit', params: { chance: 10, duration: 1.5 } },
+            '독성 심연갑': { key: 'realmPoisonDuration', params: { durationPct: 35 } },
             '침식 장갑': { key: 'realmAllResDownOnHit', params: { perHit: 5, max: 4, duration: 5 } },
             '망각 추적화': { key: 'realmKillMoveStacks', params: { movePerStack: 10, maxStacks: 20, duration: 20, cooldownSec: 1 } },
             '잠식 목걸이': { key: 'realmCursedTakenAndRefresh', params: { takenMul: 1.10, refreshSec: 4 } },
             '절단 반지': { key: 'realmEnemyRegenCutAndMinRoll', params: { enemyRegenRateMul: 0.5, minRoll: 10 } },
+            '심층 제련검': { key: 'realmArmorToPhysicalDamage', params: { pctPer1000: 3 } },
             '암반 분쇄기': { key: 'realmPhysDrHalfTakenAsMore', params: { ratio: 0.5 } },
+            '망자 감시투구': { key: 'realmDeathWard', params: { hpPct: 12, cooldown: 20 } },
             '지하 성채갑': { key: 'realmArmorAppliesToDot', params: {} },
             '대지 구속장갑': { key: 'realmMeleeArmorAmp', params: { ampPct: 5, maxStacks: 3, duration: 2 } },
             '철벽 척력화': { key: 'realmNoCollisionBlock', params: {} },
@@ -459,25 +463,25 @@ COSMOS_BOSS_UNIQUE_EQUIPMENT.forEach(unique => UNIQUE_DB.push(unique));
 //  - 유틸리티 플라스크는 durationMs 동안 스탯 버프(버킷 반영). 최대 2개 장착.
 //  - 모두 적 처치로 충전되고 전투 중 자동 사용된다.
 const FLASK_HEAL_TIERS = [
-    { key: 'h1', name: '생명력 플라스크 I', reqLevel: 1, healPct: 40, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h2', name: '생명력 플라스크 II', reqLevel: 5, healPct: 55, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h3', name: '생명력 플라스크 III', reqLevel: 10, healPct: 70, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 60 },
-    { key: 'h4', name: '생명력 플라스크 IV', reqLevel: 15, healPct: 85, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 62 },
-    { key: 'h5', name: '생명력 플라스크 V', reqLevel: 20, healPct: 100, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 62 },
-    { key: 'h6', name: '생명력 플라스크 VI', reqLevel: 25, healPct: 120, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 65 },
-    { key: 'h7', name: '생명력 플라스크 VII', reqLevel: 30, healPct: 140, durationMs: 5500, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 65 },
-    { key: 'h8', name: '생명력 플라스크 VIII', reqLevel: 35, healPct: 165, durationMs: 6000, maxCharges: 5, chargesPerKills: 8, autoBelowHpPct: 65 }
+    { key: 'h1', kind: 'heal', tier: 1, name: '생명력 플라스크 I', reqLevel: 1, healPct: 25, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
+    { key: 'h2', kind: 'heal', tier: 2, name: '생명력 플라스크 II', reqLevel: 7, healPct: 32, durationMs: 4000, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
+    { key: 'h3', kind: 'heal', tier: 3, name: '생명력 플라스크 III', reqLevel: 13, healPct: 40, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 55 },
+    { key: 'h4', kind: 'heal', tier: 4, name: '생명력 플라스크 IV', reqLevel: 19, healPct: 49, durationMs: 4500, maxCharges: 3, chargesPerKills: 8, autoBelowHpPct: 57 },
+    { key: 'h5', kind: 'heal', tier: 5, name: '생명력 플라스크 V', reqLevel: 25, healPct: 59, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 57 },
+    { key: 'h6', kind: 'heal', tier: 6, name: '생명력 플라스크 VI', reqLevel: 31, healPct: 70, durationMs: 5000, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 60 },
+    { key: 'h7', kind: 'heal', tier: 7, name: '생명력 플라스크 VII', reqLevel: 37, healPct: 82, durationMs: 5500, maxCharges: 4, chargesPerKills: 8, autoBelowHpPct: 60 },
+    { key: 'h8', kind: 'heal', tier: 8, name: '생명력 플라스크 VIII', reqLevel: 43, healPct: 95, durationMs: 5500, maxCharges: 5, chargesPerKills: 8, autoBelowHpPct: 60 }
 ];
 
 // 유틸리티 플라스크도 회복 플라스크처럼 종류별 5단계(레벨 1/5/10/15/20)로 나뉘며,
 // 단계가 오를수록 효과와 충전 속도가 함께 좋아진다. 같은 종류의 플라스크는 슬롯 2개에 동시 장착할 수 없다.
-const FLASK_UTILITY_TIER_REQ_LEVELS = [1, 5, 10, 15, 20];
+const FLASK_UTILITY_TIER_REQ_LEVELS = [1, 8, 16, 24, 32];
 const FLASK_UTILITY_CATEGORIES = [
-    { category: 'granite', label: '화강암', statKey: 'armorPct', statValues: [60, 75, 90, 105, 120], statSuffix: '방어도', chargesPerKillsBase: 10 },
-    { category: 'quicksilver', label: '수은', statValues: [14, 17, 20, 23, 26], statSuffix: '공격 속도', statKey: 'aspd', extraStatKey: 'move', extraStatValues: [22, 26, 30, 34, 38], extraStatSuffix: '이동 속도', chargesPerKillsBase: 10 },
-    { category: 'amethyst', label: '자수정', statKey: 'resAll', statValues: [22, 28, 34, 40, 46], statSuffix: '모든 저항', chargesPerKillsBase: 10 },
-    { category: 'bismuth', label: '창연', statKey: 'genericTakenReducePct', statValues: [12, 15, 18, 21, 24], statSuffix: '받는 피해 감소', chargesPerKillsBase: 12 },
-    { category: 'sulphur', label: '유황', statKey: 'pctDmg', statValues: [18, 23, 28, 33, 38], statSuffix: '피해', chargesPerKillsBase: 12 }
+    { category: 'granite', label: '화강암', statKey: 'armorPct', statValues: [30, 38, 46, 55, 65], statSuffix: '방어도', chargesPerKillsBase: 10 },
+    { category: 'quicksilver', label: '수은', statValues: [8, 10, 12, 14, 16], statSuffix: '공격 속도', statKey: 'aspd', extraStatKey: 'move', extraStatValues: [12, 15, 18, 21, 24], extraStatSuffix: '이동 속도', chargesPerKillsBase: 10 },
+    { category: 'amethyst', label: '자수정', statKey: 'resAll', statValues: [10, 13, 16, 20, 24], statSuffix: '모든 저항', chargesPerKillsBase: 10 },
+    { category: 'bismuth', label: '창연', statKey: 'genericTakenReducePct', statValues: [5, 6, 7, 9, 11], statSuffix: '받는 피해 감소', chargesPerKillsBase: 12 },
+    { category: 'sulphur', label: '유황', statKey: 'pctDmg', statValues: [10, 13, 16, 19, 22], statSuffix: '피해', chargesPerKillsBase: 12 }
 ];
 const FLASK_UTILITY_POOL = {};
 FLASK_UTILITY_CATEGORIES.forEach(cat => {
@@ -488,11 +492,12 @@ FLASK_UTILITY_CATEGORIES.forEach(cat => {
         let descParts = [`${cat.statSuffix} +${statValue}%`];
         let def = {
             key,
+            kind: 'utility',
             category: cat.category,
             tier,
             name: `${cat.label} 플라스크 ${['I', 'II', 'III', 'IV', 'V'][idx]}`,
             reqLevel,
-            durationMs: 6000,
+            durationMs: 5000,
             maxCharges: 3 + Math.floor(idx / 2),
             chargesPerKills: Math.max(6, cat.chargesPerKillsBase - idx)
         };
@@ -509,18 +514,32 @@ FLASK_UTILITY_CATEGORIES.forEach(cat => {
 // 하위호환: 과거 저장의 utilKey 등에서 참조할 수 있도록 통합 조회 맵.
 const FLASK_DB = Object.assign({}, FLASK_UTILITY_POOL, Object.fromEntries(FLASK_HEAL_TIERS.map(t => [t.key, t])));
 
+const CURRENCY_LEGACY_MERGE = Object.freeze({
+    magicBud: ['transmute', 'augment', 'alteration'],
+    sapBud: ['regal', 'exalted'],
+    formlessDew: ['alchemy', 'chaos'],
+    goldenRule: ['divine'],
+    emberBranch: ['tainted'],
+    ouroboros: ['woodsmanTouch'],
+    blightSpore: ['scour'],
+    pruningShears: ['annulment'],
+    fairyRing: ['chance']
+});
+
+function getCanonicalCurrencyKey(currencyKey) {
+    let key = String(currencyKey || '');
+    let merged = Object.entries(CURRENCY_LEGACY_MERGE).find(([, legacyKeys]) => legacyKeys.includes(key));
+    return merged ? merged[0] : key;
+}
+
 const ORB_DB = {
-    transmute: { name: '진화의 오브', desc: '노멀 아이템을 매직으로 바꿉니다.' },
-    augment: { name: '확장의 오브', desc: '매직 아이템의 빈 옵션 칸을 하나 채웁니다.' },
-    alteration: { name: '변화의 오브', desc: '매직 아이템의 옵션을 다시 굴립니다.' },
-    alchemy: { name: '연금술의 오브', desc: '노멀 아이템을 희귀 아이템으로 바꿉니다.' },
-    exalted: { name: '엑잘티드 오브', desc: '희귀 아이템에 새 옵션을 하나 추가합니다.' },
-    regal: { name: '제왕의 오브', desc: '매직 아이템에 옵션을 1줄 추가하고 희귀 아이템으로 만듭니다.' },
-    chaos: { name: '카오스 오브', desc: '희귀 아이템의 옵션을 모두 다시 굴립니다.' },
-    divine: { name: '신성한 오브', desc: '아이템 옵션 수치를 다시 굴립니다.' },
-    chance: { name: '기회의 오브', desc: '일반 장비를 25% 확률로 파괴하거나 같은 부위의 고유 장비로 진화시킵니다. 공허 패시브에는 초월 시도에 사용합니다.' },
-    annulment: { name: '소멸의 오브', desc: '우주계 전용 희귀 재화. 제거할 수 없는 옵션을 제외한 추가 옵션 1개를 무작위로 제거합니다.' },
-    scour: { name: '정화의 오브', desc: '유니크를 제외한 아이템을 노멀 상태로 되돌립니다.' },
+    magicBud: { name: '마법의 새싹', desc: '일반 아이템을 매직으로 만들고 옵션을 부여합니다. 매직 아이템에는 무작위 옵션을 1~2줄 추가합니다.' },
+    sapBud: { name: '수액 봉오리', desc: '매직 아이템을 희귀로 승급하며 옵션 1줄을 추가합니다. 희귀 아이템에는 옵션 1줄을 추가합니다.' },
+    formlessDew: { name: '형체 없는 이슬', desc: '일반 아이템을 희귀로 만들거나, 희귀 아이템의 옵션을 모두 다시 굴립니다.' },
+    goldenRule: { name: '황금률', desc: '아이템 옵션 수치를 다시 굴립니다.' },
+    fairyRing: { name: '요정의 고리', desc: '일반 장비를 25% 확률로 파괴하거나 같은 부위의 고유 장비로 진화시킵니다. 공허 패시브에는 초월 시도에 사용합니다.' },
+    pruningShears: { name: '전정 가위', desc: '우주계 전용 희귀 재화. 제거할 수 없는 옵션을 제외한 추가 옵션 1개를 무작위로 제거합니다.' },
+    blightSpore: { name: '마름병 포자', desc: '유니크를 제외한 아이템을 일반 상태로 되돌립니다.' },
     bossKeyFlame: { name: '열쇠: 화염 군주', desc: '루프2 뿌리 보스 [이그니스] 도전권입니다.' },
     bossKeyFrost: { name: '열쇠: 서리 여제', desc: '루프2 뿌리 보스 [글라시아] 도전권입니다.' },
     bossKeyStorm: { name: '열쇠: 폭풍 군단장', desc: '루프2 뿌리 보스 [볼타] 도전권입니다.' },
@@ -528,10 +547,10 @@ const ORB_DB = {
     trialKey3: { name: '시련의 증표', desc: '3차/4차 전직 시련 재도전권입니다.' },
     chaosKey: { name: '카오스 키', desc: '혼돈계에서 드물게 드랍됩니다. 코어 키와 함께 재능 개화 시련을 여는 열쇠입니다.' },
     coreKey: { name: '코어 키', desc: '지하계에서 드물게 드랍됩니다. 카오스 키와 함께 재능 개화 시련을 여는 열쇠입니다.' },
-    woodsmanTouch: { name: '나무꾼의 손길', desc: '극히 드물게 발견되는 신비한 재화입니다. 장비 하나를 봉인하여 루프(환생)가 진행되어도 초기화되지 않게 합니다.' },
+    ouroboros: { name: '우로보로스', desc: '극히 드물게 발견되는 신비한 재화입니다. 장비 하나를 봉인하여 루프(환생)가 진행되어도 초기화되지 않게 합니다.' },
     rivalKey: { name: '표식: 버려진 날', desc: '루프31+ 심층(혼돈 심화 21+·혼돈계·지하계·창공의 탑) 보스가 드랍합니다. 버려진 날붙이 결투 도전권입니다.' },
     cosmosSovereignKey: { name: '표식: 잔향', desc: '루프31+ 우주계 은하 보스가 드물게 드랍합니다. 잔향체 아스트라 도전권입니다.' },
-    blessing: { name: '축복의 오브', desc: '장비의 베이스 옵션 값을 80%~120% 구간에서 다시 굴립니다.' },
+    blessing: { name: '축복의 꽃잎', desc: '장비의 베이스 옵션 값을 80%~120% 구간에서 다시 굴립니다.' },
     bossCore: { name: '군주의 핵', desc: '루프2 뿌리 보스를 처치하면 얻는 젬 강화 재료입니다.' },
     fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },
     fossilPrimal: { name: '원시 화석', desc: '균사학자 Lv.4부터 미궁에서 발견되는 복원 전용 화석입니다. 복원하면 화석과 재화를 얻습니다.' },
@@ -559,8 +578,9 @@ const ORB_DB = {
     underSilver: { name: '지하계 은', desc: '지하계 전용 희귀 재화. 중~고급 인챈트 및 한계돌파에 사용됩니다.' },
     underGold: { name: '지하계 금', desc: '지하계 전용 초희귀 재화. 강력한 인챈트, 고급 한계돌파, 룬 강화에 사용됩니다.' },
     skyEssence: { name: '창공의 힘', desc: '루프4 창공 몬스터에게서 얻는 젬 강화 재료입니다. 스킬 탭의 젬 강화에서 특수 옵션을 부여합니다.' },
+    gemShard: { name: '젬 잔향', desc: '스킬 젬 드랍과 중복 젬 환원으로 얻습니다. 스킬 젬 탭의 젬 연구에서 원하는 미보유 공격 젬이나 보조 젬을 확정 해금합니다.' },
     condensedSkyPower: { name: '응축된 창공의 힘', desc: '창공의 탑에서 얻는 영구 재료입니다. 재화 목록에는 표시되지 않으며 창공석과 영구 젬 강화에 사용됩니다.' },
-    tainted: { name: '타락의 오브', desc: '아이템을 타락시켜 추가 옵션을 시도합니다. 옵션이 가득 차 있어도 성공 시 초과 부여됩니다. 타락 후 제작 불가.' },
+    emberBranch: { name: '잿불가지', desc: '아이템을 타락시켜 추가 옵션을 시도합니다. 옵션이 가득 차 있어도 성공 시 초과 부여됩니다. 타락 후 제작 불가.' },
     jewelCore: { name: '주얼 핵(구)', desc: '이전 버전 재화입니다. 로드 시 주얼 결정으로 자동 통합됩니다.' },
     jewelShard: { name: '주얼 결정', desc: '주얼 해체/제작/슬롯 증폭에 사용하는 통합 재화입니다.' },
     hiveKey: { name: '벌집 열쇠', desc: '루프8 이후 맵핑에서 낮은 확률로 발견되는 벌집 입장권입니다.' },
@@ -583,6 +603,21 @@ const ORB_DB = {
     reefFragment: { name: '암초 조각', desc: '심해에서 발견되는 암초 조각입니다. 심해 거점에 설치하면 낚시 게이지 충전 속도가 증가합니다.' },
     oceanRerollShard: { name: '심해의 파편', desc: '장비의 베이스 옵션 한 줄을 다시 굴리는 데 사용하는 심해 전용 재화입니다.' }
 };
+const CURRENCY_ICON_PATHS = Object.freeze({
+    magicBud: 'assets/ui/currency/magic-bud.png',
+    sapBud: 'assets/ui/currency/sap-bud.png',
+    formlessDew: 'assets/ui/currency/formless-dew.png',
+    goldenRule: 'assets/ui/currency/golden-rule.png',
+    emberBranch: 'assets/ui/currency/ember-branch.png',
+    ouroboros: 'assets/ui/currency/ouroboros.png',
+    blightSpore: 'assets/ui/currency/blight-spore.png',
+    pruningShears: 'assets/ui/currency/pruning-shears.png',
+    fairyRing: 'assets/ui/currency/fairy-ring.png',
+    blessing: 'assets/ui/currency/blessing-petal.png'
+});
+Object.entries(CURRENCY_ICON_PATHS).forEach(([key, icon]) => {
+    if (ORB_DB[key]) ORB_DB[key].icon = icon;
+});
 const OCEAN_FISH_DB = {
     shallowSilverfin: { name: '은빛 비늘치', desc: '얕은 바다에서 흔히 잡히는 물고기입니다.', depthTier: 0 },
     tidalEel: { name: '조류 장어', desc: '조류가 흐르는 100m 안팎에서 자주 보입니다.', depthTier: 1 },
@@ -594,19 +629,14 @@ const OCEAN_FISH_DB = {
     kingLeviathan: { name: '리바이어던 본체', desc: '새끼가 아닌 리바이어던의 본체. 가장 깊은 곳에서도 낚일 확률이 극히 낮은 최상위 어종입니다.', depthTier: 16, rareWeight: 0.012 }
 };
 const MARKET_EXCHANGES = [
-    { id: 'm1', from: 'transmute', to: 'augment', need: 8, gain: 1 },
-    { id: 'm2', from: 'augment', to: 'alteration', need: 8, gain: 1 },
-    { id: 'm3', from: 'alteration', to: 'alchemy', need: 8, gain: 1 },
-    { id: 'm4', from: 'alchemy', to: 'chaos', need: 20, gain: 1 },
-    { id: 'm5', from: 'chaos', to: 'exalted', need: 15, gain: 1 },
-    { id: 'm6', from: 'chaos', to: 'divine', need: 100, gain: 1 },
-    { id: 'm7', from: 'chaos', to: 'regal', need: 3, gain: 1 },
-    { id: 'm8', from: 'regal', to: 'chaos', need: 8, gain: 1 },
-    { id: 'm9', from: 'chaos', to: 'scour', need: 4, gain: 1 },
-    { id: 'm10', from: 'exalted', to: 'divine', need: 5, gain: 1 },
-    { id: 'm11', from: 'divine', to: 'chaos', need: 1, gain: 30 }
-    ,{ id: 'm12', from: 'chaos', to: 'blessing', need: 5, gain: 1 }
-    ,{ id: 'm13', from: 'blessing', to: 'chaos', need: 3, gain: 1 }
+    { id: 'm1', from: 'magicBud', to: 'formlessDew', need: 8, gain: 1 },
+    { id: 'm2', from: 'formlessDew', to: 'sapBud', need: 15, gain: 1 },
+    { id: 'm3', from: 'formlessDew', to: 'goldenRule', need: 100, gain: 1 },
+    { id: 'm4', from: 'formlessDew', to: 'blightSpore', need: 4, gain: 1 },
+    { id: 'm5', from: 'sapBud', to: 'goldenRule', need: 5, gain: 1 },
+    { id: 'm6', from: 'goldenRule', to: 'formlessDew', need: 1, gain: 30 },
+    { id: 'm7', from: 'formlessDew', to: 'blessing', need: 5, gain: 1 },
+    { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
+safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });

@@ -35,7 +35,7 @@ function getGridBlockedCells(excludeUnit) {
     };
     addUnit(game.gridPlayer);
     (game.enemies || []).forEach(enemy => { if (enemy && enemy.hp > 0) addUnit(enemy); });
-    (game.summons || []).forEach(summon => { if (summon && summon.alive && (summon.hp || 0) > 0) addUnit(summon); });
+    (game.summons || []).forEach(summon => { if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) addUnit(summon); });
     return blocked;
 }
 
@@ -209,11 +209,11 @@ function getSkillGridProfile(skillName, skillDef) {
     let mode = skillDef && skillDef.targetMode;
     let isMeleeTag = !!(skillDef && Array.isArray(skillDef.tags) && skillDef.tags.includes('melee'));
     if (mode === 'whirl') return { kind: 'nova', range: 1, radius: 1 };
-    if (mode === 'cleave') return isMeleeTag ? { kind: 'arc', range: 1 } : { kind: 'blast', range: 5, radius: 1 };
-    if (mode === 'pierce') return { kind: 'line', range: 7 };
-    if (mode === 'chain') return { kind: 'chain', range: 5, jump: COMBAT_GRID_CONFIG.chainJumpRange };
-    if (mode === 'all') return { kind: 'blast', range: 6, radius: 2 };
-    return isMeleeTag ? { kind: 'melee', range: 1 } : { kind: 'blast', range: 6, radius: 0 };
+    if (mode === 'cleave') return isMeleeTag ? { kind: 'arc', range: 1 } : { kind: 'blast', range: 4, radius: 1 };
+    if (mode === 'pierce') return { kind: 'line', range: 6 };
+    if (mode === 'chain') return { kind: 'chain', range: 4, jump: COMBAT_GRID_CONFIG.chainJumpRange };
+    if (mode === 'all') return { kind: 'blast', range: 5, radius: 2 };
+    return isMeleeTag ? { kind: 'melee', range: 1 } : { kind: 'blast', range: 5, radius: 0 };
 }
 
 /** 기존 targetMode별 부가 타격 감쇄 배율(1타는 항상 1.0). */
@@ -241,6 +241,7 @@ function getGridAttackAreaCells(profile, attacker, target) {
             for (let dy = -radius; dy <= radius; dy++) {
                 let gx = center.gx + dx, gy = center.gy + dy;
                 if (excludeSelf && gx === center.gx && gy === center.gy) continue;
+                if (Math.abs(dx) + Math.abs(dy) > radius) continue;
                 if (gx === target.gx && gy === target.gy) continue;
                 if (isGridCellInBounds(gx, gy)) cells.push({ gx, gy });
             }
@@ -311,8 +312,89 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies) {
             if (areaKeys.has(gridCellKey(row.enemy.gx, row.enemy.gy))) hits.push(row.enemy);
         });
     }
-    extendGridTargetsBySpill(hits, targetCount, candidates.map(row => row.enemy));
+    if (profile.kind === 'melee' || profile.kind === 'arc') {
+        extendGridTargetsBySpill(hits, targetCount, candidates.map(row => row.enemy));
+    }
     return hits.map((enemy, idx) => ({ enemy, mult: getGridSkillTargetMult(mode, idx) }));
+}
+
+const SKILL_HIT_SEQUENCE_CONFIG = Object.freeze({
+    whirlIntervalMs: 80,
+    chainIntervalMs: 110,
+    pierceIntervalMs: 30,
+    slamAftershockDelayMs: 360,
+    slamAftershockDamagePct: 32
+});
+
+function getSkillHitSequenceProfile(skillName, skill) {
+    let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
+    let mode = skill && skill.targetMode;
+    if (mode === 'whirl') return { kind: 'whirl', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.whirlIntervalMs };
+    if (mode === 'chain') return { kind: 'chain', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.chainIntervalMs };
+    let gridProfile = getSkillGridProfile(skillName, skill || {});
+    if (mode === 'pierce' || (gridProfile && gridProfile.kind === 'line')) return { kind: 'pierce', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.pierceIntervalMs };
+    if (tags.includes('slam')) {
+        return {
+            kind: 'slam',
+            delayMs: Math.max(120, Math.floor(Number(skill.aftershockDelayMs) || SKILL_HIT_SEQUENCE_CONFIG.slamAftershockDelayMs)),
+            damageMultiplier: Math.max(0, Number(skill.aftershockDamagePct) || SKILL_HIT_SEQUENCE_CONFIG.slamAftershockDamagePct) / 100
+        };
+    }
+    return { kind: 'instant' };
+}
+
+/** 한 번의 스킬 사용을 실제 시간차가 있는 타격 단계로 분해한다. */
+function buildSkillHitSequence(skillName, skill, targetEntries) {
+    let targets = (targetEntries || []).filter(entry => entry && entry.enemy && entry.enemy.hp > 0);
+    if (targets.length <= 0) return [];
+    let profile = getSkillHitSequenceProfile(skillName, skill || {});
+    if (profile.kind === 'whirl') {
+        return targets.map((entry, idx) => ({
+            kind: idx === 0 ? 'whirlPrimary' : 'whirlSweep',
+            label: idx === 0 ? '회전 시작' : `회전 ${idx + 1}타`,
+            delayMs: idx * profile.intervalMs,
+            damageMultiplier: 1,
+            targets: [entry]
+        }));
+    }
+    if (profile.kind === 'chain') {
+        return targets.map((entry, idx) => ({
+            kind: idx === 0 ? 'chainPrimary' : 'chainJump',
+            label: idx === 0 ? '1차 공격' : `${idx + 1}차 연쇄`,
+            delayMs: idx * profile.intervalMs,
+            damageMultiplier: 1,
+            chainFromEnemyId: idx > 0 ? targets[idx - 1].enemy.id : null,
+            targets: [entry]
+        }));
+    }
+    if (profile.kind === 'pierce') {
+        let attacker = (typeof game !== 'undefined' && game.gridPlayer) ? game.gridPlayer : null;
+        let ordered = targets.slice().sort((a, b) => {
+            if (!attacker || !a.enemy || !b.enemy) return 0;
+            let da = gridChebyshevDist(attacker.gx, attacker.gy, a.enemy.gx, a.enemy.gy);
+            let db = gridChebyshevDist(attacker.gx, attacker.gy, b.enemy.gx, b.enemy.gy);
+            return da - db;
+        });
+        return ordered.map((entry, idx) => ({
+            kind: idx === 0 ? 'piercePrimary' : 'pierceThrough',
+            label: idx === 0 ? '관통 직격' : `${idx + 1}번째 관통`,
+            delayMs: idx * profile.intervalMs,
+            damageMultiplier: 1,
+            targets: [entry]
+        }));
+    }
+    if (profile.kind === 'slam') {
+        return [
+            { kind: 'slamPrimary', label: '강타', delayMs: 0, damageMultiplier: Math.max(0, 1 - profile.damageMultiplier), targets },
+            { kind: 'slamAftershock', label: '여진', delayMs: profile.delayMs, damageMultiplier: profile.damageMultiplier, targets }
+        ];
+    }
+    return [{ kind: 'primary', label: '직격', delayMs: 0, damageMultiplier: 1, targets }];
+}
+
+function getSkillHitSequenceDpsMultiplier(skillName, skill) {
+    let profile = getSkillHitSequenceProfile(skillName, skill || {});
+    return profile.kind === 'slam' ? Math.max(0, 1 - profile.damageMultiplier) + profile.damageMultiplier : 1;
 }
 
 
@@ -377,5 +459,6 @@ safeExposeGlobals({
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
     gridStepToward, advanceGridUnitMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
     describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,
-    selectGridSkillTargets, findNearestGridEnemy, extendGridTargetsBySpill
+    selectGridSkillTargets, findNearestGridEnemy, extendGridTargetsBySpill,
+    getSkillHitSequenceProfile, buildSkillHitSequence, getSkillHitSequenceDpsMultiplier
 });

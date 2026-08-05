@@ -4,7 +4,7 @@ const assert = require('assert');
 
 const source = fs.readFileSync('js/passives.js', 'utf8');
 const start = source.indexOf('function addItemToInventory(item, options)');
-const end = source.indexOf('const UNIQUE_JEWEL_DB', start);
+const end = source.indexOf('function getTalismanEffectAnchorCell', start);
 assert(start >= 0 && end > start, 'inventory acquisition functions not found');
 const context = {
   game: {
@@ -20,7 +20,11 @@ const context = {
   normalizeItem: item => item,
   addLog: () => {},
   getInventoryLimit: () => 10,
-  salvageItemObject: item => { context.salvaged.push(item.name); },
+  salvageItemObject: item => {
+    context.salvaged.push(item.name);
+    return { transmute: 1 };
+  },
+  formatSalvageRewardSummary: rewards => Object.keys(rewards || {}).join(', '),
   registerUniqueToCodexOnAcquire: item => { context.registered = item.name; },
   getUniqueCodexKeyByItem: item => `${item.slot || 'weapon'}|${item.name}`,
   checkUnlocks: () => { context.checked = true; },

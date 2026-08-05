@@ -166,6 +166,23 @@ function getTalentCardEffectLines(heroId, classKey, level) {
     // 표면효과: 설명 표시(기획 텍스트)
     if (def.surface && def.surface.desc) {
         lines.push(`<span style="color:#ffd36b;">⭐ [표면] ${escapeTalentHtml(def.surface.desc)}</span>`);
+        let applied = [];
+        (def.surface.ops || []).forEach(op => {
+            if (!op || !op.stat) return;
+            let value = Math.round(((Number(op.perLevel) || 0) * lv) * 100) / 100;
+            applied.push(`${getTalentStatLabel(op.stat)} ${value >= 0 ? '+' : ''}${value}%`);
+        });
+        (def.surface.uniq || []).forEach(u => {
+            if (!u || !u.key) return;
+            let params = Object.assign({}, u.params || {});
+            if (u.perLevelParams) Object.keys(u.perLevelParams).forEach(key => { params[key] = (Number(u.perLevelParams[key]) || 0) * lv; });
+            applied.push(getTalentUniqLabel(u.key, params));
+        });
+        if (def.surface.dmg) {
+            let more = Math.round(((Number(def.surface.dmg.perLevel) || 0) * lv) * 100) / 100;
+            applied.push(`${getTalentKeystoneConditionText(def.surface.dmg.when, def.surface.dmg.threshold)}피해 ${more >= 0 ? '+' : ''}${more}%`);
+        }
+        if (applied.length) lines.push(`<span style="color:#d6c8a3;">[현재 적용] ${applied.map(escapeTalentHtml).join(' · ')}</span>`);
     } else if (def.surface) {
         // 구버전(uniq/dmg/ops) 호환 표시
         let pos = [];
@@ -205,6 +222,7 @@ function getTalentUniqLabel(key, p) {
         projectileDoubleStrikePct: () => `투사체 연속타격 확률 +${p.pct}%`,
         projectileExtraShotBonus: () => `투사체 추가 발사 +${p.shots}`,
         lifePctAsEnergyShield: () => `최대 생명력의 ${p.pct}%를 에너지 보호막으로`,
+        overhealCapPct: () => `생명력·에너지 보호막 초과 회복 +${p.pct}%`,
         hpToPhysPct: () => `최대 생명력이 물리 피해를 강화`,
         labyrinthShackles: () => `이동 속도가 피해로 전환`,
         grandBreachCrown: () => `에너지 보호막 +${p.esPct}% · ES의 ${p.spellFromEsPct}%를 주문 피해로`,
@@ -474,7 +492,15 @@ function getTalentCardUniqEffects(heroId, classKey, level) {
         if (!u || !u.key) return null;
         let params = Object.assign({}, u.params || {});
         if (u.perLevelParams) Object.keys(u.perLevelParams).forEach(p => { params[p] = (u.perLevelParams[p] || 0) * lv; });
-        return { key: u.key, params: params, itemName: '개화 키스톤: ' + cardName, sourceSlot: 'talentKeystone' };
+        let cardId = makeTalentComboKey(heroId, classKey);
+        return {
+            key: u.key,
+            params: params,
+            itemName: '개화 키스톤: ' + cardName,
+            sourceSlot: 'talentKeystone',
+            cardId: cardId,
+            talentCardId: cardId
+        };
     }).filter(Boolean);
 }
 
@@ -503,7 +529,7 @@ function renderTalentTab() {
     let bd = getTalentBloomScoreBreakdown();
     let curScore = getTalentBloomScore();
     summaryEl.innerHTML = `보유 카드 <strong>${ownedKeys.length}</strong> / ${TALENT_BLOOM_TOTAL_CARDS} · 총 개화 ${Math.max(0, Math.floor(game.talentBloomClears || 0))}회`
-        + `<br><span style="font-size:0.85em; color:#9fb4d1;">현재 개화 점수 <strong>${curScore}</strong> = 혼돈심화 ${bd.deepChaos} + 미궁 ${bd.labyrinth} + 혼돈계 ${bd.chaosFloor} + 지하계 ${bd.underFloor} + 우주계 ${bd.cosmos} + 전투력 ${bd.dpsTerm}</span>`
+        + `<br><span style="font-size:0.85em; color:var(--copy-bright);">현재 개화 점수 <strong>${curScore}</strong> = 혼돈심화 ${bd.deepChaos} + 미궁 ${bd.labyrinth} + 혼돈계 ${bd.chaosFloor} + 지하계 ${bd.underFloor} + 우주계 ${bd.cosmos} + 전투력 ${bd.dpsTerm}</span>`
         + `<br><span style="font-size:0.82em; color:#9fe2b1;">🌸 한 번 획득한 개화 카드는 루프가 진행되어도 사라지지 않고 영구히 보유 · 적용됩니다.</span>`;
 
     // 장착 슬롯 영역
@@ -524,7 +550,7 @@ function renderTalentTab() {
             slotHtml += `<div class="talent-slot empty">빈 슬롯<br><span>카드를 눌러 장착</span></div>`;
         }
     }
-    let nextSlot = unlockedSlots < TALENT_CARD_SLOT_COUNT ? `<span style="color:#9fb4d1;"> · 다음 슬롯: 보유 ${TALENT_CARD_SLOT_UNLOCKS[unlockedSlots]}장</span>` : '';
+    let nextSlot = unlockedSlots < TALENT_CARD_SLOT_COUNT ? `<span style="color:var(--copy-bright);"> · 다음 슬롯: 보유 ${TALENT_CARD_SLOT_UNLOCKS[unlockedSlots]}장</span>` : '';
     let loadoutHtml = `<div style="grid-column:1/-1;">
         <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
             <strong>장착 슬롯</strong><span style="font-size:0.82em;">열린 슬롯 ${unlockedSlots}/${TALENT_CARD_SLOT_COUNT}${nextSlot}</span>
@@ -533,7 +559,7 @@ function renderTalentTab() {
     </div>`;
 
     if (ownedKeys.length === 0) {
-        gridEl.innerHTML = loadoutHtml + `<div style="grid-column:1/-1; color:#9fb4d1; padding:18px; text-align:center;">아직 개화한 카드가 없습니다. 지도 탭의 🌸 <strong>혹독한 겨울의 미궁</strong>(재능 개화 시련)을 클리어하면 현재 재능 × 직업 조합의 카드를 얻습니다.</div>`;
+        gridEl.innerHTML = loadoutHtml + `<div style="grid-column:1/-1; color:var(--copy-bright); padding:18px; text-align:center;">아직 개화한 카드가 없습니다. 지도 탭의 🌸 <strong>혹독한 겨울의 미궁</strong>(재능 개화 시련)을 클리어하면 현재 재능 × 직업 조합의 카드를 얻습니다.</div>`;
         return;
     }
     // 레벨 내림차순 정렬

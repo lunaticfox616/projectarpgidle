@@ -1,0 +1,242 @@
+{
+  "hero1": {
+    "source": "Archer",
+    "portraitSource": "Archer Portrait.png",
+    "combatDirection": "east",
+    "walkAnimation": "The_character_walks_forward_with_a_steady_alert_ga",
+    "attackAnimation": "The_character_shifts_their_weight_slightly_raising",
+    "walkSourceFrames": 15,
+    "attackSourceFrames": 15,
+    "idle": {
+      "frames": 1,
+      "frameWidth": 184,
+      "frameHeight": 184
+    },
+    "walk": {
+      "frames": 15,
+      "frameWidth": 184,
+      "frameHeight": 184
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 184,
+      "frameHeight": 184
+    }
+  },
+  "hero2": {
+    "source": "warrior",
+    "portraitSource": "worror Portrait.png",
+    "combatDirection": "east",
+    "walkAnimation": "The_character_maintains_a_guarded_stance_holding_h",
+    "attackAnimation": "The_warrior_takes_a_brief_focused_stance_then_shif",
+    "walkSourceFrames": 17,
+    "attackSourceFrames": 17,
+    "idle": {
+      "frames": 1,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "walk": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 180,
+      "frameHeight": 180
+    }
+  },
+  "hero3": {
+    "source": "Druid",
+    "portraitSource": "Druid Portrait.png",
+    "combatDirection": "east",
+    "walkAnimation": "The_character_performs_a_light_rhythmic_walking_mo",
+    "attackAnimation": "The_character_gently_raises_their_right_hand_causi",
+    "walkSourceFrames": 17,
+    "attackSourceFrames": 17,
+    "idle": {
+      "frames": 1,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "walk": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 180,
+      "frameHeight": 180
+    }
+  },
+  "hero4": {
+    "source": "Blade",
+    "portraitSource": "Blade Portrait.png",
+    "combatDirection": "east",
+    "walkAnimation": "The_ninja_walks_forward_with_a_steady_rhythmic_gai",
+    "attackAnimation": "The_ninja_lunges_forward_pulling_both_swords_inwar",
+    "walkSourceFrames": 13,
+    "attackSourceFrames": 17,
+    "idle": {
+      "frames": 1,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "walk": {
+      "frames": 13,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 180,
+      "frameHeight": 180
+    }
+  },
+  "hero5": {
+    "source": "Paladin",
+    "portraitSource": "Paladin Portrait.png",
+    "combatDirection": "east",
+    "walkAnimation": "The_armored_warrior_walks_forward_with_a_steady_rh",
+    "attackAnimation": "The_warrior_shifts_her_weight_forward_planting_her",
+    "walkSourceFrames": 17,
+    "attackSourceFrames": 9,
+    "idle": {
+      "frames": 1,
+      "frameWidth": 176,
+      "frameHeight": 176
+    },
+    "walk": {
+      "frames": 17,
+      "frameWidth": 176,
+      "frameHeight": 176
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 176,
+      "frameHeight": 176
+    }
+  },
+  "hero6": {
+    "source": "Sniper",
+    "portraitSource": "Sniper Portrait.png",
+    "combatDirection": "east",
+    "walkAnimation": "animation",
+    "attackAnimation": "The_character_lifts_the_crossbow_to_eye_level_squi",
+    "walkSourceFrames": 13,
+    "attackSourceFrames": 17,
+    "idle": {
+      "frames": 1,
+      "frameWidth": 176,
+      "frameHeight": 176
+    },
+    "walk": {
+      "frames": 10,
+      "frameWidth": 176,
+      "frameHeight": 176
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 176,
+      "frameHeight": 176
+    }
+  },
+  "hero7": {
+    "source": "summoner",
+    "portraitSource": "Summoner Portrait.png",
+    "combatDirection": "east",
+    "walkAnimation": "The_character_walks_forward_with_a_gentle_rhythmic",
+    "attackAnimation": "The_character_stands_in_place_lifting_the_bell_in",
+    "walkSourceFrames": 17,
+    "attackSourceFrames": 17,
+    "idle": {
+      "frames": 1,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "walk": {
+      "frames": 17,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 180,
+      "frameHeight": 180
+    }
+  },
+  "hero8": {
+    "source": "Guardian",
+    "portraitSource": "Guardian Portrait.png",
+    "combatDirection": "east",
+    "walkAnimation": "The_armored_cat-like_warrior_begins_to_walk_forwar",
+    "attackAnimation": "The_armored_cat-like_warrior_shifts_its_weight_pla",
+    "walkSourceFrames": 15,
+    "attackSourceFrames": 15,
+    "idle": {
+      "frames": 1,
+      "frameWidth": 188,
+      "frameHeight": 188
+    },
+    "walk": {
+      "frames": 15,
+      "frameWidth": 188,
+      "frameHeight": 188
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 188,
+      "frameHeight": 188
+    }
+  },
+  "hero9": {
+    "source": "Sorcerer",
+    "portraitSource": "Corcerer Portrait.png",
+    "combatDirection": "east",
+    "walkAnimation": "The_character_holds_the_staff_firmly_with_both_han",
+    "attackAnimation": "The_character_holds_their_staff_steady_as_they_beg",
+    "walkSourceFrames": 13,
+    "attackSourceFrames": 17,
+    "idle": {
+      "frames": 1,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "walk": {
+      "frames": 13,
+      "frameWidth": 180,
+      "frameHeight": 180
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 180,
+      "frameHeight": 180
+    }
+  },
+  "hero10": {
+    "source": "alchemist",
+    "portraitSource": "Alchemist Portrait.png",
+    "combatDirection": "east",
+    "walkAnimation": "The_character_walks_forward_with_a_haughty_rhythmi",
+    "attackAnimation": "Attack",
+    "walkSourceFrames": 11,
+    "attackSourceFrames": 15,
+    "idle": {
+      "frames": 1,
+      "frameWidth": 184,
+      "frameHeight": 184
+    },
+    "walk": {
+      "frames": 11,
+      "frameWidth": 184,
+      "frameHeight": 184
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 184,
+      "frameHeight": 184
+    }
+  }
+}

@@ -12,7 +12,7 @@ const SOCIAL_LAST_SEEN_CHAT_KEY = 'arpg_social_last_seen_chat_id';
 const SOCIAL_CHAT_LIMIT = 50;
 const SOCIAL_CHAT_POLL_MS = 4000;
 // 커뮤니티 탭이 비활성일 때 새 채팅 여부만 가볍게 확인하는 주기(활성 탭 폴링보다 훨씬 느리게).
-const SOCIAL_BG_NOTI_POLL_MS = 60000;
+const SOCIAL_BG_NOTI_POLL_MS = 15000;
 const SOCIAL_MSG_MAX = 300;
 const SOCIAL_NICK_MIN = 2;
 const SOCIAL_NICK_MAX = 16;
@@ -27,18 +27,25 @@ const SOCIAL_EQUIP_SLOTS = ['무기', '투구', '목걸이', '장갑1', '갑옷'
 
 let socialState = {
     nickname: '',
+    nicknameUserId: null,
+    identityCheckedUserId: null,
+    identityCheckPromise: null,
     chatPollTimer: null,
     heartbeatTimer: null,
+    bgNotificationTimer: null,
     chatLoading: false,
     onlineLoading: false,
     lastChatRenderKey: '',
     lastOnlineRenderKey: '',
-    profileUploadInFlight: false,
+    profileUploadPromise: null,
+    profileUploadUserId: null,
     lastProfileUploadAt: 0,
     onlineSupported: true,
     pendingChatItems: [],
     sendTimestamps: [],
     lastSentBody: '',
+    scrollChatToLatestOnNextRender: true,
+    lastNotifiedChatId: null,
     chatTips: {},
     profileTips: {},
     pickTips: {},
@@ -59,14 +66,47 @@ function socialEscape(text) {
     return String(text == null ? '' : text).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 }
 function socialComma(n) { return (Math.floor(Number(n) || 0)).toLocaleString('en-US'); }
+function getSocialNicknameStorageKey(userId) {
+    return userId ? `${SOCIAL_NICK_KEY}:${userId}` : '';
+}
+function syncSocialIdentityUser() {
+    let userId = socialLoggedInUserId();
+    if (socialState.nicknameUserId === userId) return userId;
+    socialState.nickname = '';
+    socialState.nicknameUserId = userId || null;
+    socialState.identityCheckedUserId = null;
+    socialState.identityCheckPromise = null;
+    try {
+        if (typeof localStorage !== 'undefined' && typeof localStorage.removeItem === 'function') localStorage.removeItem(SOCIAL_NICK_KEY);
+    } catch (error) {
+        console.warn('이전 소셜 닉네임 캐시 정리 실패:', error);
+    }
+    return userId;
+}
 function getMyNickname() {
+    let userId = syncSocialIdentityUser();
+    if (!userId) return '';
     if (socialState.nickname) return socialState.nickname;
-    try { let s = localStorage.getItem(SOCIAL_NICK_KEY); if (s) socialState.nickname = s; } catch (e) { /* 무시 */ }
+    try {
+        let key = getSocialNicknameStorageKey(userId);
+        let stored = key && localStorage.getItem(key);
+        if (stored) socialState.nickname = stored;
+    } catch (error) {
+        console.warn('소셜 닉네임 캐시 읽기 실패:', error);
+    }
     return socialState.nickname || '';
 }
 function setMyNicknameLocal(name) {
-    socialState.nickname = name || '';
-    try { localStorage.setItem(SOCIAL_NICK_KEY, socialState.nickname); } catch (e) { /* 무시 */ }
+    let userId = syncSocialIdentityUser();
+    socialState.nickname = userId ? (name || '') : '';
+    if (!userId) return;
+    try {
+        let key = getSocialNicknameStorageKey(userId);
+        if (socialState.nickname) localStorage.setItem(key, socialState.nickname);
+        else if (typeof localStorage.removeItem === 'function') localStorage.removeItem(key);
+    } catch (error) {
+        console.warn('소셜 닉네임 캐시 저장 실패:', error);
+    }
 }
 function socialClassLabel(ascendClass) {
     if (ascendClass && typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[ascendClass]) return CLASS_TEMPLATES[ascendClass].name;
@@ -232,38 +272,79 @@ function buildProfileSnapshot() {
     };
 }
 
-async function uploadPlayerProfile(options = {}) {
-    if (!socialCloudReady()) return false;
-    let nickname = getMyNickname();
-    if (!nickname) return false;
-    if (socialState.profileUploadInFlight && !options.fromNicknameChange) return false;
-    socialState.profileUploadInFlight = true;
+function getProfileUploadError(error) {
+    let message = String(error && error.message || error);
+    let translated = error instanceof Error ? error : new Error(message);
+    if (/NICK_COOLDOWN/.test(message)) translated = new Error('닉네임은 하루에 한 번만 변경할 수 있습니다.');
+    if (/duplicate|unique|nickname/i.test(message)) {
+        translated = new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
+        translated.socialCode = 'nickname_conflict';
+    }
+    return translated;
+}
+async function performPlayerProfileUpload(options, userId, nickname) {
     try {
         let snapshot = buildProfileSnapshot();
         await cloudJsonRequest('/rest/v1/player_profiles', {
             method: 'POST',
             headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
             // last_seen / nickname_updated_at 은 DB 기본값·트리거·하트비트가 관리한다.
-            body: { user_id: socialLoggedInUserId(), nickname, profile_data: snapshot }
+            body: { user_id: userId, nickname, profile_data: snapshot }
         });
         socialState.lastProfileUploadAt = Date.now();
         return true;
-    } catch (e) {
-        let msg = String(e && e.message || e);
-        if (options.fromNicknameChange) {
-            if (/NICK_COOLDOWN/.test(msg)) throw new Error('닉네임은 하루에 한 번만 변경할 수 있습니다.');
-            if (/duplicate|unique|nickname/i.test(msg)) throw new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
-            throw e;
-        }
-        if (!options.silent) console.warn('프로필 업로드 실패:', e);
+    } catch (error) {
+        let translated = getProfileUploadError(error);
+        if (options.fromNicknameChange || options.required) throw translated;
+        if (!options.silent) console.warn('프로필 업로드 실패:', error);
         return false;
+    }
+}
+async function uploadPlayerProfile(options = {}) {
+    if (!socialCloudReady()) {
+        if (options.required) throw new Error('클라우드 로그인 상태를 확인할 수 없습니다.');
+        return false;
+    }
+    let userId = syncSocialIdentityUser();
+    let nickname = getMyNickname();
+    if (!nickname) {
+        if (options.required) throw new Error('먼저 닉네임을 설정해주세요.');
+        return false;
+    }
+    let inFlight = socialState.profileUploadPromise;
+    if (inFlight && socialState.profileUploadUserId === userId) {
+        if (!options.fromNicknameChange) return inFlight;
+        try { await inFlight; } catch (error) { console.warn('이전 프로필 갱신 실패:', error); }
+    }
+    let task = performPlayerProfileUpload(options, userId, nickname);
+    socialState.profileUploadPromise = task;
+    socialState.profileUploadUserId = userId;
+    try {
+        return await task;
     } finally {
-        socialState.profileUploadInFlight = false;
+        if (socialState.profileUploadPromise === task) {
+            socialState.profileUploadPromise = null;
+            socialState.profileUploadUserId = null;
+        }
     }
 }
 function syncPlayerProfileQuiet() {
     if (!socialCloudReady() || !getMyNickname()) return;
     Promise.resolve(uploadPlayerProfile({ silent: true })).catch(() => {});
+}
+async function syncPlayerProfile() {
+    if (!socialCloudReady()) return showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning');
+    await restoreNicknameFromServer();
+    if (!getMyNickname()) await promptAndSetNickname();
+    if (!getMyNickname()) return;
+    try {
+        await uploadPlayerProfile({ required: true });
+        showGameToast('공개 프로필을 최신 상태로 갱신했습니다.', 'success');
+    } catch (error) {
+        if (error && error.socialCode === 'nickname_conflict') setMyNicknameLocal('');
+        showGameToast('프로필 갱신 실패: ' + String(error && error.message || error), 'danger');
+        renderSocialTab();
+    }
 }
 
 // ============================================================================
@@ -278,14 +359,21 @@ async function updatePastChatNicknames(name) {
 }
 
 async function promptAndSetNickname() {
-    if (!socialCloudReady()) { alert('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)'); return; }
+    if (!socialCloudReady()) { showGameToast('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)', 'warning'); return; }
     let current = getMyNickname();
-    let input = prompt(`사용할 닉네임을 입력하세요 (${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자, 한글/영문/숫자/-/_).\n※ 닉네임은 하루에 한 번만 변경할 수 있습니다.`, current || '');
+    let input = await requestGameText({
+        title: '닉네임 설정',
+        message: `사용할 닉네임을 입력하세요. (${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자, 한글/영문/숫자/-/_)\n닉네임은 하루에 한 번만 변경할 수 있습니다.`,
+        value: current || '',
+        maxLength: SOCIAL_NICK_MAX,
+        placeholder: '닉네임',
+        confirmLabel: '닉네임 적용'
+    });
     if (input == null) return;
     let name = String(input).trim();
     if (name === current) return;
-    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) { alert(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자여야 합니다.`); return; }
-    if (!SOCIAL_NICK_RE.test(name)) { alert('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.'); return; }
+    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) { showGameToast(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자여야 합니다.`, 'warning'); return; }
+    if (!SOCIAL_NICK_RE.test(name)) { showGameToast('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.', 'warning'); return; }
 
     let prev = getMyNickname();
     setMyNicknameLocal(name);
@@ -298,16 +386,34 @@ async function promptAndSetNickname() {
         refreshChatPanel(false);
     } catch (e) {
         setMyNicknameLocal(prev);
-        alert(String(e && e.message || e));
+        showGameToast(String(e && e.message || e), 'danger');
         renderSocialTab();
     }
 }
 async function restoreNicknameFromServer() {
-    if (!socialCloudReady() || getMyNickname()) return;
+    if (!socialCloudReady()) return '';
+    let userId = syncSocialIdentityUser();
+    if (socialState.identityCheckedUserId === userId) return getMyNickname();
+    if (socialState.identityCheckPromise) return socialState.identityCheckPromise;
+    let task = (async () => {
+        try {
+            let rows = await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(userId)}&select=nickname`, {});
+            let serverNickname = Array.isArray(rows) && rows[0] ? String(rows[0].nickname || '') : '';
+            if (socialLoggedInUserId() !== userId) return '';
+            if (serverNickname) setMyNicknameLocal(serverNickname);
+            socialState.identityCheckedUserId = userId;
+            return getMyNickname();
+        } catch (error) {
+            console.warn('서버 닉네임 복원 실패:', error);
+            return getMyNickname();
+        }
+    })();
+    socialState.identityCheckPromise = task;
     try {
-        let rows = await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(socialLoggedInUserId())}&select=nickname`, {});
-        if (Array.isArray(rows) && rows[0] && rows[0].nickname) setMyNicknameLocal(rows[0].nickname);
-    } catch (e) { /* 무시 */ }
+        return await task;
+    } finally {
+        if (socialState.identityCheckPromise === task) socialState.identityCheckPromise = null;
+    }
 }
 
 // ============================================================================
@@ -322,9 +428,15 @@ async function sendPresenceHeartbeat() {
     } catch (e) { if (/last_seen/i.test(String(e && e.message || e))) socialState.onlineSupported = false; }
 }
 function ensureHeartbeat() {
+    if (!socialCloudReady() || !getMyNickname()) return;
     if (socialState.heartbeatTimer) return;
     socialState.heartbeatTimer = setInterval(() => { if (socialCloudReady() && getMyNickname()) sendPresenceHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
     sendPresenceHeartbeat();
+}
+function stopHeartbeat() {
+    if (!socialState.heartbeatTimer) return;
+    clearInterval(socialState.heartbeatTimer);
+    socialState.heartbeatTimer = null;
 }
 async function loadOnlineUsers() {
     if (!socialCloudReady() || !socialState.onlineSupported) return [];
@@ -383,7 +495,24 @@ function setLastSeenChatId(id) {
 }
 function isSocialTabActive() {
     let tabEl = document.getElementById('tab-social');
-    return !!(tabEl && tabEl.classList.contains('active'));
+    return !!(tabEl && (
+        tabEl.classList.contains('active')
+        || tabEl.classList.contains('ui-community-dock')
+        || tabEl.classList.contains('ui-community-overlay')
+        || document.body.classList.contains('community-dock-open')
+        || document.body.classList.contains('community-overlay-open')
+    ));
+}
+function isSocialChatNotificationEnabled() {
+    return !(typeof game !== 'undefined' && game && game.settings && game.settings.socialChatNotifications === false);
+}
+function refreshSocialNotificationDots() {
+    if (typeof updateTabNotificationDots === 'function') updateTabNotificationDots();
+}
+function getSocialChatNotificationPreview(row) {
+    let body = String(row && row.body || '').replace(new RegExp(SOCIAL_ITEM_TOKEN_RE.source, 'g'), '[아이템]').replace(/\s+/g, ' ').trim();
+    if (!body) body = row && row.payload ? '아이템을 공유했습니다.' : '새 메시지가 도착했습니다.';
+    return body.length > 54 ? `${body.slice(0, 54)}…` : body;
 }
 async function checkSocialChatNotification() {
     if (!socialCloudReady() || socialState.bgNotiLoading) return;
@@ -392,17 +521,76 @@ async function checkSocialChatNotification() {
     if (typeof game === 'undefined' || !game || !game.noti) return;
     socialState.bgNotiLoading = true;
     try {
-        let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id&order=id.desc&limit=1`, {});
-        let row = Array.isArray(rows) ? rows[0] : null;
-        if (!row || row.id == null) return;
-        let latest = Number(row.id);
-        if (!Number.isFinite(latest)) return;
         let seen = getLastSeenChatId();
+        let query = seen == null
+            ? '/rest/v1/chat_messages?select=id,user_id,nickname,body,payload&order=id.desc&limit=1'
+            : `/rest/v1/chat_messages?select=id,user_id,nickname,body,payload&id=gt.${encodeURIComponent(String(seen))}&order=id.desc&limit=20`;
+        let rows = await cloudJsonRequest(query, {});
+        rows = Array.isArray(rows) ? rows : [];
+        if (!rows.length) return;
+        let latest = rows.reduce((max, row) => Math.max(max, Number(row && row.id) || 0), 0);
+        if (!Number.isFinite(latest) || latest <= 0) return;
         // 첫 확인(이 기기에서 채팅을 한 번도 안 봄)에는 과거 메시지로 알림하지 않고 기준점만 잡는다.
         if (seen == null) { setLastSeenChatId(latest); return; }
-        if (latest > seen && row.user_id !== socialLoggedInUserId()) game.noti.social = true;
+        if (!isSocialChatNotificationEnabled()) {
+            setLastSeenChatId(latest);
+            game.noti.social = false;
+            refreshSocialNotificationDots();
+            return;
+        }
+        let incoming = rows.find(row => row && row.user_id !== socialLoggedInUserId());
+        if (!incoming) {
+            setLastSeenChatId(latest);
+            return;
+        }
+        game.noti.social = true;
+        refreshSocialNotificationDots();
+        let incomingId = Number(incoming.id);
+        // 채팅 메시지 id는 로컬 저장소에 남기지 않고 세션 메모리에서만 중복 토스트를 막는다.
+        if (socialState.lastNotifiedChatId !== incomingId && typeof showGameToast === 'function') {
+            socialState.lastNotifiedChatId = incomingId;
+            let nickname = String(incoming.nickname || '플레이어');
+            showGameToast(`새 채팅 · ${nickname}: ${getSocialChatNotificationPreview(incoming)}`, { tone: 'info', duration: 3600 });
+        }
     } catch (e) { /* 무시: 네트워크 실패 시 다음 주기에 재시도 */ } finally {
         socialState.bgNotiLoading = false;
+    }
+}
+
+function syncSocialChatNotificationSetting() {
+    if (typeof game !== 'undefined' && game && game.noti && !isSocialChatNotificationEnabled()) {
+        game.noti.social = false;
+        refreshSocialNotificationDots();
+    }
+    Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification setting sync failed:', error));
+}
+
+function ensureSocialNotificationPolling() {
+    if (!socialCloudReady() || socialState.bgNotificationTimer) return;
+    socialState.bgNotificationTimer = setInterval(checkSocialChatNotification, SOCIAL_BG_NOTI_POLL_MS);
+    Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification refresh failed:', error));
+}
+
+function stopSocialNotificationPolling() {
+    if (!socialState.bgNotificationTimer) return;
+    clearInterval(socialState.bgNotificationTimer);
+    socialState.bgNotificationTimer = null;
+}
+
+function syncSocialBackgroundTasks() {
+    if (!socialCloudReady()) {
+        stopHeartbeat();
+        stopSocialNotificationPolling();
+        stopChatPolling();
+        return;
+    }
+    ensureSocialNotificationPolling();
+    if (getMyNickname()) ensureHeartbeat();
+    else stopHeartbeat();
+    if (socialState.identityCheckedUserId !== socialLoggedInUserId()) {
+        Promise.resolve(restoreNicknameFromServer()).then(nickname => {
+            if (nickname && socialCloudReady()) ensureHeartbeat();
+        }).catch(error => console.warn('소셜 계정 정보 동기화 실패:', error));
     }
 }
 
@@ -427,7 +615,8 @@ function translateSpamError(msg) {
     return msg;
 }
 async function sendChatMessage() {
-    if (!socialCloudReady()) { alert('먼저 클라우드 로그인이 필요합니다.'); return; }
+    if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+    await restoreNicknameFromServer();
     let nickname = getMyNickname();
     if (!nickname) { await promptAndSetNickname(); if (!getMyNickname()) return; nickname = getMyNickname(); }
     let inputEl = document.getElementById('social-chat-input');
@@ -435,19 +624,20 @@ async function sendChatMessage() {
     let body = String(inputEl.value || '').trim();
     let items = socialState.pendingChatItems.slice(0, SOCIAL_MAX_ITEMS_PER_MSG);
     if (!body && !items.length) return;
-    if (body.length > SOCIAL_MSG_MAX) { alert(`메시지는 최대 ${SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.`); return; }
-    if (body && body === socialState.lastSentBody && !items.length) { alert('같은 메시지를 연속으로 보낼 수 없습니다.'); return; }
+    if (body.length > SOCIAL_MSG_MAX) { showGameToast(`메시지는 최대 ${SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.`, 'warning'); return; }
+    if (body && body === socialState.lastSentBody && !items.length) { showGameToast('같은 메시지를 연속으로 보낼 수 없습니다.', 'warning'); return; }
     let rate = checkSendRateLimit();
-    if (rate !== true) { alert(rate); return; }
+    if (rate !== true) { showGameToast(rate, 'warning'); return; }
 
     let payload = items.length ? { items } : null;
     let prevPending = socialState.pendingChatItems.slice();
-    inputEl.value = '';
-    socialState.pendingChatItems = [];
-    renderPendingChatItems();
-    updateChatCounter();
     try {
-        syncPlayerProfileQuiet();
+        await uploadPlayerProfile({ required: true });
+        nickname = getMyNickname();
+        inputEl.value = '';
+        socialState.pendingChatItems = [];
+        renderPendingChatItems();
+        updateChatCounter();
         await cloudJsonRequest('/rest/v1/chat_messages', {
             method: 'POST', headers: { Prefer: 'return=minimal' },
             body: { user_id: socialLoggedInUserId(), nickname, body: body || '🔗', payload }
@@ -456,11 +646,12 @@ async function sendChatMessage() {
         socialState.lastSentBody = body;
         await refreshChatPanel(true);
     } catch (e) {
+        if (e && e.socialCode === 'nickname_conflict') setMyNicknameLocal('');
         inputEl.value = body;
         socialState.pendingChatItems = prevPending;
         renderPendingChatItems();
         updateChatCounter();
-        alert('메시지 전송 실패: ' + translateSpamError(String(e && e.message || e)));
+        showGameToast('메시지 전송 실패: ' + translateSpamError(String(e && e.message || e)), 'danger');
     }
 }
 
@@ -471,7 +662,7 @@ function attachChatItem(source, idx) {
     else { let inv = (typeof game !== 'undefined' && Array.isArray(game.inventory)) ? game.inventory : []; item = inv[idx]; }
     let snap = buildItemSnapshot(item, source === 'equip' ? idx : (item && item.slot));
     if (!snap) return;
-    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { alert(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`); return; }
+    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`, 'warning'); return; }
     let tokenIndex = socialState.pendingChatItems.length;
     socialState.pendingChatItems.push(snap);
     let inputEl = document.getElementById('social-chat-input');
@@ -507,10 +698,10 @@ function updateChatCounter() {
     if (!inputEl || !counterEl) return;
     let len = String(inputEl.value || '').length;
     counterEl.textContent = `${len}/${SOCIAL_MSG_MAX}`;
-    counterEl.style.color = len > SOCIAL_MSG_MAX ? '#e88' : '#67809c';
+    counterEl.style.color = len > SOCIAL_MSG_MAX ? '#e88' : 'var(--copy-muted)';
 }
 function openItemPicker() {
-    if (!socialCloudReady()) { alert('먼저 클라우드 로그인이 필요합니다.'); return; }
+    if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     let modal = document.getElementById('social-item-picker-modal');
     if (!modal) {
         modal = document.createElement('div');
@@ -539,7 +730,7 @@ function openItemPicker() {
     }).join('') || `<div class="social-profile-empty">인벤토리 비어 있음</div>`;
     modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closeItemPicker()" aria-label="닫기">✕</button>
         <div class="social-modal-content">
-        <h3 style="color:#cfe0f5;margin-top:0;">🔗 첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개) · 마우스를 올리면 옵션 표시</h3>
+        <h3 style="color:var(--copy-bright);margin-top:0;">🔗 첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개) · 마우스를 올리면 옵션 표시</h3>
         <h4 class="social-pick-sub">장착 중</h4><div class="social-pick-grid">${equipCards}</div>
         <h4 class="social-pick-sub">인벤토리${inv.length > 300 ? ' (상위 300개)' : ''}</h4><div class="social-pick-grid">${invCards}</div>
         </div></div>`;
@@ -576,7 +767,17 @@ function formatChatTime(iso) {
     let hh = String(d.getHours()).padStart(2, '0'), mi = String(d.getMinutes()).padStart(2, '0');
     return `${mm}/${dd} ${hh}:${mi}`;
 }
-function renderChatMessages(messages) {
+function scrollSocialChatToLatest(listEl) {
+    if (!listEl) return;
+    let apply = () => {
+        if (listEl.isConnected === false) return;
+        listEl.scrollTop = listEl.scrollHeight;
+    };
+    apply();
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply);
+    if (typeof setTimeout === 'function') setTimeout(apply, 50);
+}
+function renderChatMessages(messages, forceScroll) {
     let listEl = document.getElementById('social-chat-list');
     if (!listEl) return;
     let myId = socialLoggedInUserId();
@@ -585,11 +786,21 @@ function renderChatMessages(messages) {
     let maxId = messages.reduce((acc, m) => Math.max(acc, Number(m.id) || 0), 0);
     if (maxId > 0) setLastSeenChatId(maxId);
     if (typeof game !== 'undefined' && game && game.noti) game.noti.social = false;
-    let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
-    if (key === socialState.lastChatRenderKey) return;
-    socialState.lastChatRenderKey = key;
-    if (!messages.length) { listEl.innerHTML = `<div class="social-chat-empty">아직 메시지가 없습니다. 첫 메시지를 남겨보세요!</div>`; return; }
+    refreshSocialNotificationDots();
     let nearBottom = (listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight) < 60;
+    let shouldScroll = !!forceScroll || socialState.scrollChatToLatestOnNextRender || nearBottom;
+    let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
+    if (key === socialState.lastChatRenderKey) {
+        if (shouldScroll) scrollSocialChatToLatest(listEl);
+        socialState.scrollChatToLatestOnNextRender = false;
+        return;
+    }
+    socialState.lastChatRenderKey = key;
+    if (!messages.length) {
+        listEl.innerHTML = `<div class="social-chat-empty">아직 메시지가 없습니다. 첫 메시지를 남겨보세요!</div>`;
+        socialState.scrollChatToLatestOnNextRender = false;
+        return;
+    }
     socialState.chatTips = {};
     listEl.innerHTML = messages.map(m => {
         let mine = m.user_id === myId;
@@ -598,14 +809,14 @@ function renderChatMessages(messages) {
             + `<span class="social-chat-time">${formatChatTime(m.created_at)}</span>`
             + `<div class="social-chat-body">${renderChatBody(m)}</div></div>`;
     }).join('');
-    if (nearBottom) listEl.scrollTop = listEl.scrollHeight;
+    if (shouldScroll) scrollSocialChatToLatest(listEl);
+    socialState.scrollChatToLatestOnNextRender = false;
 }
 async function refreshChatPanel(forceScroll) {
     if (socialState.chatLoading) return;
     socialState.chatLoading = true;
     try {
-        renderChatMessages(await loadChatMessages());
-        if (forceScroll) { let l = document.getElementById('social-chat-list'); if (l) l.scrollTop = l.scrollHeight; }
+        renderChatMessages(await loadChatMessages(), forceScroll);
     } catch (e) { console.warn('채팅 로드 실패:', e); } finally { socialState.chatLoading = false; }
 }
 function startChatPolling() {
@@ -614,8 +825,7 @@ function startChatPolling() {
     refreshChatPanel(true);
     refreshOnlineUsers();
     socialState.chatPollTimer = setInterval(() => {
-        let tabEl = document.getElementById('tab-social');
-        if (!tabEl || !tabEl.classList.contains('active')) { stopChatPolling(); return; }
+        if (!isSocialTabActive()) { stopChatPolling(); return; }
         refreshChatPanel(false);
         refreshOnlineUsers();
     }, SOCIAL_CHAT_POLL_MS);
@@ -745,7 +955,7 @@ function renderSimpleCard(snap) {
     (snap.effects || []).forEach(e => { lines += `<div class="social-item-stat" style="color:#d7b8ff;">${socialEscape(e)}</div>`; });
     return `<div class="social-item-card" style="border-color:${color};">`
         + `<div class="social-item-title" style="color:${color};">${socialEscape(snap.name)}</div>`
-        + (lines || `<div class="social-item-stat" style="color:#7c90ab;">옵션 없음</div>`) + `</div>`;
+        + (lines || `<div class="social-item-stat" style="color:var(--copy-muted);">옵션 없음</div>`) + `</div>`;
 }
 
 // ============================================================================
@@ -766,9 +976,16 @@ function closePlayerProfile() { hideSocialTip(); let m = document.getElementById
 // 방금 장착한 주얼/부적/장비가 빠진 옛 데이터가 보인다. 미리보기 전에 현재 상태를
 // 업로드해 남들이 보게 될 것과 동일한 최신 프로필을 보여준다.
 async function openMyProfilePreview() {
-    if (!socialCloudReady()) { alert('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'); return; }
-    if (getMyNickname()) {
-        try { await uploadPlayerProfile({ silent: true }); } catch (e) { /* 실패해도 기존 프로필로 열기 */ }
+    if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+    await restoreNicknameFromServer();
+    if (!getMyNickname()) await promptAndSetNickname();
+    if (!getMyNickname()) return;
+    try {
+        await uploadPlayerProfile({ required: true });
+    } catch (error) {
+        if (error && error.socialCode === 'nickname_conflict') setMyNicknameLocal('');
+        showGameToast('프로필 갱신 실패: ' + String(error && error.message || error), 'danger');
+        return;
     }
     openPlayerProfile(socialLoggedInUserId());
 }
@@ -800,7 +1017,7 @@ function renderProfileLegacyPaperdoll(equipment) {
     return `<div class="paperdoll social-paperdoll">` + slots.map(slot => {
         let it = bySlot[slot];
         let baseLabel = slot.replace(/[123]$/, '');
-        if (!it) return `<div class="slot-box slot-${slot} social-slot empty"><div class="social-slot-tag">[${socialEscape(baseLabel)}]</div><div class="social-slot-name" style="color:#7f8c8d;">비어있음</div></div>`;
+        if (!it) return `<div class="slot-box slot-${slot} social-slot empty"><div class="social-slot-tag">[${socialEscape(baseLabel)}]</div><div class="social-slot-name" style="color:var(--copy-muted);">비어있음</div></div>`;
         let color = socialRarityColor(it.rarity);
         let key = `eq:${slot}`;
         socialState.profileTips[key] = renderProfileItemCard(it);
@@ -868,7 +1085,7 @@ function switchProfileTab(cat) {
 function renderProfileData(profile) {
     let body = document.getElementById('social-profile-body');
     if (!body) return;
-    if (!profile) { body.innerHTML = `<div class="social-profile-empty">프로필을 찾을 수 없습니다.<br>상대가 아직 게임을 클라우드에 저장하지 않았을 수 있어요.</div>`; return; }
+    if (!profile) { body.innerHTML = `<div class="social-profile-empty">공개 프로필을 찾을 수 없습니다.<br>프로필 생성 또는 동기화가 완료되지 않았을 수 있어요.</div>`; return; }
     socialState.currentProfile = profile;
     socialState.profileTab = 'equipment';
     let p = profile;
@@ -902,7 +1119,7 @@ function renderProfileData(profile) {
 }
 async function openPlayerProfile(userId) {
     if (!userId) return;
-    if (!socialCloudReady()) { alert('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'); return; }
+    if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     let modal = ensureProfileModal();
     modal.style.display = 'flex';
     let body = document.getElementById('social-profile-body');
@@ -940,8 +1157,13 @@ function renderSocialTab() {
     let root = getSocialRenderRoot(host);
     let loggedIn = socialCloudReady();
     let nickname = getMyNickname();
+    syncSocialBackgroundTasks();
     if (!loggedIn) {
-        root.innerHTML = `<h2>💬 커뮤니티</h2><div class="social-notice">채팅·접속자·프로필 구경 기능은 <strong>클라우드 로그인</strong>이 필요합니다.<br>설정 탭에서 로그인 후 다시 열어주세요.</div>`;
+        let checkingCloud = typeof cloudState !== 'undefined' && cloudState
+            && (cloudState.busy || cloudState.initialized === false);
+        root.innerHTML = checkingCloud
+            ? `<h2>💬 커뮤니티</h2><div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
+            : `<h2>💬 커뮤니티</h2><div class="social-notice">채팅·접속자·프로필 구경 기능은 <strong>클라우드 로그인</strong>이 필요합니다.<br>설정 탭에서 로그인하면 이 화면이 자동으로 갱신됩니다.</div>`;
         stopChatPolling();
         return;
     }
@@ -951,27 +1173,29 @@ function renderSocialTab() {
             <span class="social-mynick">내 닉네임: <strong>${nickname ? socialEscape(nickname) : '<span style="color:#e88;">미설정</span>'}</strong></span>
             <button onclick="promptAndSetNickname()">${nickname ? '닉네임 변경' : '닉네임 설정'}</button>
             <button onclick="openMyProfilePreview()">내 프로필 미리보기</button>
-            <button onclick="syncPlayerProfileQuiet()" title="현재 장비/스탯을 공개 프로필에 반영">프로필 갱신</button>
+            <button onclick="syncPlayerProfile()" title="현재 장비/스탯을 공개 프로필에 반영">프로필 갱신</button>
         </div>
         <div id="social-online" class="social-online" style="display:none;"></div>
         <div class="social-chat-wrap">
             <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty">불러오는 중…</div></div>
             <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
             <div class="social-chat-inputbar">
-                <button class="social-attach-btn" onclick="openItemPicker()" title="아이템 첨부" ${nickname ? '' : 'disabled'}>🔗</button>
-                <input id="social-chat-input" type="text" maxlength="${SOCIAL_MSG_MAX}" placeholder="${nickname ? '메시지를 입력하세요…' : '먼저 닉네임을 설정하세요'}" onkeydown="onSocialChatKeydown(event)" oninput="updateChatCounter()" ${nickname ? '' : 'disabled'}>
-                <span id="social-chat-counter" class="social-chat-counter">0/${SOCIAL_MSG_MAX}</span>
-                <button onclick="sendChatMessage()" ${nickname ? '' : 'disabled'}>전송</button>
+                <button class="social-attach-btn" onclick="openItemPicker()" title="아이템 첨부" aria-label="아이템 첨부" ${nickname ? '' : 'disabled'}><span aria-hidden="true">＋</span> 첨부</button>
+                <div class="social-chat-input-shell">
+                    <input id="social-chat-input" name="social-chat-message" type="text" maxlength="${SOCIAL_MSG_MAX}" placeholder="${nickname ? '메시지를 입력하세요…' : '먼저 닉네임을 설정하세요'}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" onkeydown="onSocialChatKeydown(event)" oninput="updateChatCounter()" ${nickname ? '' : 'disabled'}>
+                    <span id="social-chat-counter" class="social-chat-counter">0/${SOCIAL_MSG_MAX}</span>
+                </div>
+                <button class="social-send-btn" onclick="sendChatMessage()" ${nickname ? '' : 'disabled'}>전송</button>
             </div>
-            <div class="social-hint">닉네임 클릭 → 장비/주얼/부적·스탯, 🔗 링크/아이템에 마우스를 올리면 옵션을 볼 수 있습니다. (닉네임은 하루 1회 변경)</div>
         </div>`;
     socialState.lastChatRenderKey = '';
     socialState.lastOnlineRenderKey = '';
+    socialState.scrollChatToLatestOnNextRender = true;
     renderPendingChatItems();
     updateChatCounter();
     ensureHeartbeat();
     startChatPolling();
-    if (!nickname) restoreNicknameFromServer().then(() => { if (getMyNickname()) renderSocialTab(); });
+    restoreNicknameFromServer().then(restored => { if (restored !== nickname) renderSocialTab(); });
 }
 
 // ============================================================================
@@ -982,30 +1206,35 @@ function injectSocialStyles() {
     let style = document.createElement('style');
     style.id = 'social-styles';
     style.textContent = `
-    .social-notice,.social-hint{color:#9fb4d1;font-size:0.86em;line-height:1.5;}
+    .social-notice{color:var(--copy-bright);font-size:0.86em;line-height:1.5;}
     .social-notice{background:rgba(20,34,56,0.6);border:1px solid #24344f;border-radius:8px;padding:12px;margin-top:8px;}
+    .social-notice-loading{border-color:#386383;background:linear-gradient(110deg,rgba(20,46,67,.72),rgba(17,29,48,.72));box-shadow:inset 3px 0 #64b5e5;}
     .social-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0;}
-    .social-toolbar .social-mynick{margin-right:auto;color:#cfe0f5;}
+    .social-toolbar .social-mynick{margin-right:auto;color:var(--copy-bright);}
     .social-online{background:rgba(16,28,46,0.6);border:1px solid #24344f;border-radius:8px;padding:8px 10px;margin-bottom:8px;}
     .social-online-title{color:#7fd99a;font-size:0.82em;font-weight:700;margin-bottom:6px;}
     .social-online-list{display:flex;flex-wrap:wrap;gap:6px;}
-    .social-online-chip{font-size:0.8em;background:#13202f;border:1px solid #285038;border-radius:14px;padding:2px 9px;color:#cfe0f5;cursor:pointer;}
+    .social-online-chip{font-size:0.8em;background:#13202f;border:1px solid #285038;border-radius:14px;padding:2px 9px;color:#ffffff;cursor:pointer;}
     .social-online-chip:hover{background:#1b3327;}
     .social-online-chip.me{border-color:#3a6ea5;}
-    .social-online-empty{color:#7c90ab;font-size:0.82em;}
+    .social-online-empty{color:var(--copy-muted);font-size:0.82em;}
     .social-chat-wrap{display:flex;flex-direction:column;gap:8px;}
     .social-chat-list{height:46vh;min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
-    .social-chat-empty{color:#7c90ab;text-align:center;margin:auto;font-size:0.9em;}
+    .social-chat-empty{color:var(--copy-muted);text-align:center;margin:auto;font-size:0.9em;}
     .social-chat-msg{max-width:82%;align-self:flex-start;background:#16243a;border:1px solid #233957;border-radius:10px;padding:6px 10px;}
     .social-chat-msg.mine{align-self:flex-end;background:#1d3350;border-color:#2f5180;}
     .social-chat-nick{color:#7fc1ff;font-weight:700;font-size:0.86em;cursor:pointer;}
     .social-chat-nick:hover{text-decoration:underline;}
-    .social-chat-time{color:#6b7e98;font-size:0.72em;margin-left:6px;}
-    .social-chat-body{color:#e4eefb;margin-top:3px;white-space:pre-wrap;word-break:break-word;}
-    .social-chat-inputbar{display:flex;gap:8px;align-items:center;}
-    .social-chat-inputbar input{flex:1;padding:9px 12px;background:#0e1726;border:1px solid #2a3e5c;border-radius:8px;color:#eaf2ff;}
-    .social-attach-btn{padding:9px 11px;background:#16243a;border:1px solid #2f5180;border-radius:8px;color:#cfe0f5;cursor:pointer;}
-    .social-chat-counter{font-size:0.74em;color:#67809c;min-width:46px;text-align:right;}
+    .social-chat-time{color:var(--copy-muted);font-size:0.72em;margin-left:6px;}
+    .social-chat-body{color:var(--copy-bright);margin-top:3px;white-space:pre-wrap;word-break:break-word;}
+    .social-chat-inputbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:stretch;}
+    .social-chat-input-shell{position:relative;min-width:0;}
+    .social-chat-input-shell input{box-sizing:border-box;width:100%;height:100%;min-height:38px;padding:8px 52px 8px 11px;background:#0e1726;border:1px solid #2a3e5c;border-radius:7px;color:#ffffff;}
+    .social-chat-inputbar button{box-sizing:border-box;min-width:0;min-height:38px;margin:0;padding:7px 11px;white-space:nowrap;line-height:1;}
+    .social-attach-btn{background:#16243a;border:1px solid #2f5180;color:#ffffff;cursor:pointer;}
+    .social-attach-btn span{font-size:1.12em;line-height:0;}
+    .social-send-btn{min-width:58px!important;background:linear-gradient(180deg,#315b7c,#203d58)!important;border-color:#4d7898!important;color:var(--copy-bright)!important;}
+    .social-chat-counter{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:0.7em;color:var(--copy-muted);pointer-events:none;text-align:right;}
     .social-pending-items{display:flex;flex-wrap:wrap;gap:6px;}
     .social-pending-chip{display:inline-flex;align-items:center;gap:4px;font-size:0.78em;background:#0f1a28;border:1px solid;border-radius:14px;padding:2px 6px 2px 9px;}
     .social-pending-chip button{background:none;border:none;color:inherit;cursor:pointer;padding:0 2px;font-size:0.9em;}
@@ -1016,22 +1245,29 @@ function injectSocialStyles() {
     .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:18px 56px 20px 20px;}
     /* position 계열에 !important: ui-premium.css 의 고특이도 전역 버튼 규칙(position:relative)이
        덮어쓰면 X버튼이 왼쪽 위 일반 흐름으로 배치되어 한 줄을 차지하는 문제가 재발한다. */
-    .social-modal-close{position:absolute !important;top:10px !important;right:12px !important;left:auto !important;z-index:3;box-sizing:border-box;width:30px;height:30px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:rgba(28,44,68,0.55);border:1px solid rgba(90,120,160,0.4);color:#cfe0f5;border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
+    .social-modal-close{position:absolute !important;top:10px !important;right:12px !important;left:auto !important;z-index:3;box-sizing:border-box;width:30px;height:30px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:rgba(28,44,68,0.55);border:1px solid rgba(90,120,160,0.4);color:#ffffff;border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
     .social-modal-close:hover{background:rgba(44,64,96,0.9);}
-    .social-profile-empty{color:#8094ad;text-align:center;padding:24px;}
+    .social-profile-empty{color:var(--copy-muted);text-align:center;padding:24px;}
     .social-profile-header{border-bottom:1px solid #233a59;padding-bottom:12px;margin-bottom:14px;padding-right:34px;}
     .social-profile-name{font-size:1.4em;font-weight:800;color:#f0d7a6;}
-    .social-profile-sub{color:#a8c0da;margin-top:4px;}
-    .social-profile-updated{color:#67809c;font-size:0.78em;margin-top:4px;}
+    .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
+    .social-profile-updated{color:var(--copy-muted);font-size:0.78em;margin-top:4px;}
     .social-profile-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
     @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
-    .social-profile-col h3{color:#cfe0f5;font-size:1em;margin:0 0 8px;}
+    .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}
     .social-profile-tabs{display:flex;gap:6px;margin-bottom:8px;}
-    .social-profile-tabs button{flex:1;padding:6px 4px;background:#13202f;border:1px solid #20324b;border-radius:7px;color:#9fb4d1;cursor:pointer;font-size:0.84em;}
-    .social-profile-tabs button.active{background:#1d3350;border-color:#3a6ea5;color:#eaf2ff;font-weight:700;}
+    .social-profile-tabs button{flex:1;padding:6px 4px;background:#13202f;border:1px solid #20324b;border-radius:7px;color:#ffffff;cursor:pointer;font-size:0.84em;}
+    .social-profile-tabs button.active{background:#1d3350;border-color:#3a6ea5;color:#ffffff;font-weight:700;}
+    @media(max-width:420px){
+        .social-chat-inputbar{grid-template-columns:42px minmax(0,1fr) 52px;gap:5px;}
+        .social-chat-inputbar button{padding:7px 8px;font-size:0.78em;}
+        .social-attach-btn{font-size:0!important;}
+        .social-attach-btn span{font-size:16px!important;}
+        .social-send-btn{min-width:52px!important;}
+    }
     .social-stat-grid{display:grid;grid-template-columns:1fr;gap:4px;}
     .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:#13202f;border:1px solid #20324b;border-radius:6px;padding:5px 9px;}
-    .social-stat-label{color:#9fb4d1;font-size:0.86em;}
+    .social-stat-label{color:var(--copy-bright);font-size:0.86em;}
     .social-stat-value{font-weight:700;font-size:0.9em;}
     .social-mini-grid{display:flex;flex-direction:column;gap:6px;}
     .social-mini-card{background:#0f1a28;border:1px solid;border-left-width:3px;border-radius:7px;padding:8px 10px;font-size:0.86em;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -1039,7 +1275,7 @@ function injectSocialStyles() {
     .social-paperdoll{margin:0;}
     .social-paperdoll .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;cursor:pointer;background:linear-gradient(170deg,#101722,#152238);}
     .social-paperdoll .social-slot.empty{cursor:default;border:1px dashed #3a4d6e;}
-    .social-paperdoll .social-slot-tag{font-size:0.66em;color:#8aa0bd;font-weight:700;}
+    .social-paperdoll .social-slot-tag{font-size:0.66em;color:var(--copy-muted);font-weight:700;}
     .social-paperdoll .social-slot-name{font-size:0.74em;font-weight:700;line-height:1.15;word-break:break-all;}
     .social-growth-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;}
     .social-growth-list .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;border:1px solid #3a4d6e;cursor:pointer;background:linear-gradient(170deg,#101722,#152238);}
@@ -1054,12 +1290,12 @@ function injectSocialStyles() {
     .social-equip-grid{display:flex;flex-direction:column;gap:8px;}
     .social-item-card{background:#0f1a28;border:1px solid #2c4063;border-left-width:3px;border-radius:8px;padding:8px 10px;}
     .social-item-title{font-weight:700;font-size:0.92em;}
-    .social-item-base{color:#95a5a6;font-size:0.78em;margin:2px 0 4px;}
+    .social-item-base{color:var(--copy-muted);font-size:0.78em;margin:2px 0 4px;}
     .social-item-unique{color:#d7b8ff;font-size:0.82em;margin:3px 0;}
-    .social-item-stat{color:#cfe0f5;font-size:0.82em;line-height:1.4;}
+    .social-item-stat{color:var(--copy-bright);font-size:0.82em;line-height:1.4;}
     .social-item-stat.base{color:#f1c40f;}
-    .social-roll{color:#7f93ad;font-size:0.92em;}
-    .social-pick-sub{color:#9fb4d1;margin:14px 0 6px;font-size:0.9em;}
+    .social-roll{color:var(--copy-muted);font-size:0.92em;}
+    .social-pick-sub{color:var(--copy-bright);margin:14px 0 6px;font-size:0.9em;}
     .social-pick-grid{display:flex;flex-direction:column;gap:6px;max-height:30vh;overflow-y:auto;}
     .social-pick-item{background:#0f1a28;border:1px solid;border-left-width:3px;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:0.86em;}
     .social-pick-item:hover{background:#16243a;}
@@ -1072,20 +1308,17 @@ function injectSocialStyles() {
 if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { injectSocialStyles(); ensureSocialTooltip(); });
     else { injectSocialStyles(); ensureSocialTooltip(); }
-    setInterval(() => { if (socialCloudReady() && getMyNickname()) ensureHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
-    // 커뮤니티 탭이 비활성일 때도 새 채팅을 감지해 탭 알림 점을 켠다.
-    setInterval(checkSocialChatNotification, SOCIAL_BG_NOTI_POLL_MS);
-    // 접속 직후 한 번(클라우드 로그인 복원을 기다린 뒤). setTimeout 가드는 스모크 테스트 샌드박스용.
-    if (typeof setTimeout === 'function') setTimeout(checkSocialChatNotification, 15000);
+    // 클라우드 복원이 늦어지는 환경을 위한 1회성 보조 동기화. 이후 수명주기는 세션 변경 이벤트가 관리한다.
+    if (typeof setTimeout === 'function') setTimeout(syncSocialBackgroundTasks, 15000);
 }
 
 if (typeof safeExposeGlobals === 'function') {
     safeExposeGlobals({
-        socialState, getMyNickname, promptAndSetNickname, uploadPlayerProfile, syncPlayerProfileQuiet,
+        socialState, getMyNickname, promptAndSetNickname, uploadPlayerProfile, syncPlayerProfileQuiet, syncPlayerProfile,
         sendChatMessage, onSocialChatKeydown, refreshChatPanel, startChatPolling, stopChatPolling,
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        socialTalEnter, socialTalLeave, socialTalHighlight, checkSocialChatNotification
+        socialTalEnter, socialTalLeave, socialTalHighlight, checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks
     });
 }
