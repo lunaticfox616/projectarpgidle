@@ -110,3 +110,12 @@
 .growth-synergy-summary { font-size: 0.8em; color: #a8c4dd; padding: 4px 2px 7px; border-bottom: 1px solid rgba(120, 150, 185, 0.2); margin-bottom: 6px; }
 .growth-synergy-row.item { border-color: #2b4a3c; }
 .growth-synergy-row.item strong { color: #a8e6c0; }
+.growth-hover-hint { font-size: 0.82em; color: #a8c4dd; min-height: 1.2em; }
+.growth-hover-hint .growth-hover-good { color: #ffd98a; font-weight: 700; }
+.growth-hover-hint .growth-hover-bad { color: #e07a7a; }
+
+/* 드래그 배치 */
+.growth-item-card[data-growth-drag-id] { cursor: grab; touch-action: manipulation; }
+body.growth-dragging { cursor: grabbing; user-select: none; }
+body.growth-dragging .growth-item-card,
+body.growth-dragging .growth-cell { cursor: grabbing; }

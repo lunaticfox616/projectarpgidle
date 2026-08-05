@@ -34,6 +34,8 @@ function rotateGrowthSelection() {
 }
 
 function handleGrowthCellClick(x, y) {
+    // 드래그로 배치한 직후 따라오는 합성 클릭이 한 번 더 동작하지 않게 막는다.
+    if (Date.now() < growthSuppressClickUntil) return;
     if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let occupantId = getGrowthOccupantIdAt(x, y);
     if (growthSelection.itemId === null) {
@@ -82,14 +84,36 @@ function paintGrowthPlacementPreview() {
     if (!host) return;
     host.querySelectorAll('.growth-cell').forEach(cell => cell.classList.remove('preview-ok', 'preview-bad'));
     let hover = growthSelection.hoverCell;
-    if (growthSelection.itemId === null || !hover) return;
-    let item = findGrowthItemById(growthSelection.itemId);
-    if (!item) return;
+    let item = growthSelection.itemId === null ? null : findGrowthItemById(growthSelection.itemId);
+    if (!item || !hover) return renderGrowthHoverHint(null, null, null);
     let check = canPlaceGrowthItem(item, hover.x, hover.y, growthSelection.rotation);
     getGrowthItemCells(item, growthSelection.rotation).forEach(([dx, dy]) => {
         let cell = host.querySelector(`.growth-cell[data-x="${dx + hover.x}"][data-y="${dy + hover.y}"]`);
         if (cell) cell.classList.add(check.ok ? 'preview-ok' : 'preview-bad');
     });
+    renderGrowthHoverHint(item, hover, check);
+}
+
+// 놓기 전에 "이 칸이 나에게 얼마짜리인가"를 알려준다.
+// 칸마다 레벨 배지는 있지만, 그 레벨이 내 아이템 옵션을 몇 % 올리는지는 놓아 봐야 알 수 있었다.
+function renderGrowthHoverHint(item, hover, check) {
+    let host = document.getElementById('ui-growth-hover-hint');
+    if (!host) return;
+    if (!item || !hover) { host.innerHTML = ''; return; }
+    if (check && !check.ok) {
+        host.innerHTML = `<span class="growth-hover-bad">${escapeHTML(check.reason || '배치할 수 없습니다.')}</span>`;
+        return;
+    }
+    let level = getGrowthCellLevel(hover.x, hover.y);
+    let capped = Math.max(-GROWTH_LEVEL_CAP, Math.min(GROWTH_LEVEL_CAP, level));
+    let pct = Math.round((getGrowthLevelMultiplier(capped) - 1) * 100);
+    if (isGrowthSlab(item)) {
+        host.innerHTML = `<span>(${hover.x + 1}, ${hover.y + 1}) — 석판은 레벨을 받지 않고 <strong>주변에 뿌립니다</strong></span>`;
+        return;
+    }
+    let tone = capped > 0 ? 'growth-hover-good' : (capped < 0 ? 'growth-hover-bad' : '');
+    let levelText = capped === 0 ? '석판 레벨 없음' : `석판 레벨 ${capped > 0 ? '+' : ''}${capped} → 옵션 ${pct > 0 ? '+' : ''}${pct}%`;
+    host.innerHTML = `<span class="${tone}">(${hover.x + 1}, ${hover.y + 1}) — ${levelText}</span>`;
 }
 
 function renderGrowthBoardGrid() {
@@ -257,7 +281,7 @@ function renderGrowthItemCard(item, mode) {
           + (isGrowthSlab(item) ? '' : `<button onclick="selectForCrafting(${item.id}, false)">제작</button>`)
           + `<button onclick="toggleGrowthItemLock(${item.id})">${item.locked ? '🔒' : '🔓'}</button>`
           + `<button onclick="salvageGrowthInventoryItem(${item.id})">해체</button>`;
-    return `<div class="growth-item-card${selected ? ' selected' : ''}${placement ? ' placed' : ''}" data-info-tooltip-anchor="1"
+    return `<div class="growth-item-card${selected ? ' selected' : ''}${placement ? ' placed' : ''}" data-info-tooltip-anchor="1" data-growth-drag-id="${item.id}"
         onmouseenter="showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="hideInfoTooltip()">
         <div class="growth-item-head">
             <span class="item-title loot-${item.rarity || 'normal'}">${info.icon} ${escapeHTML(item.name || '')}</span>
@@ -398,7 +422,6 @@ function buildGrowthComparison(candidateId, placedId) {
     let candidate = findGrowthItemById(candidateId);
     let placed = findGrowthItemById(placedId);
     if (!candidate || !placed) return null;
-    let placement = (getActiveGrowthLoadout().placements || {})[placedId];
     let sumStats = item => {
         let totals = {};
         [].concat(item.baseStats || [], item.stats || []).forEach(stat => {
@@ -418,32 +441,120 @@ function buildGrowthComparison(candidateId, placedId) {
         statDiff: statDiff,
         lostTags: Array.from(placedTags).filter(tag => !candidateTags.has(tag)),
         gainedTags: Array.from(candidateTags).filter(tag => !placedTags.has(tag)),
-        lostSynergies: getGrowthItemConditionReport(placedId).met.map(row => row.label),
-        fits: placement ? canPlaceGrowthItemIgnoring(candidate, placement, placedId) : false
+        lostSynergies: getGrowthItemConditionReport(placedId).met.map(row => row.label)
     };
-}
-
-// 대상 아이템을 내렸다고 가정하고 후보가 그 자리에 들어갈 수 있는지 본다.
-function canPlaceGrowthItemIgnoring(candidate, placement, ignoreItemId) {
-    let cells = getGrowthItemCells(candidate, placement.rotation).map(([x, y]) => [x + placement.x, y + placement.y]);
-    let occupancy = buildGrowthOccupancyMap(ignoreItemId);
-    return cells.every(([x, y]) => isGrowthCellUnlocked(x, y) && !occupancy.has(`${x},${y}`));
 }
 
 function renderGrowthComparisonPanel() {
     if (growthSelection.itemId === null) return '<div class="growth-synergy-empty">보관함에서 아이템을 선택하면 교체 비교가 표시됩니다.</div>';
+    let candidate = findGrowthItemById(growthSelection.itemId);
     let entries = getPlacedGrowthEntries().filter(entry => entry.item.id !== growthSelection.itemId);
     if (entries.length === 0) return '<div class="growth-synergy-empty">배치된 아이템이 없어 비교할 대상이 없습니다.</div>';
-    return entries.slice(0, 4).map(entry => {
-        let cmp = buildGrowthComparison(growthSelection.itemId, entry.item.id);
+    let ranked = entries
+        .map(entry => {
+            let [cx, cy] = entry.cells[0] || [0, 0];
+            return { entry, cx, cy, level: getGrowthCellLevel(cx, cy) };
+        })
+        .sort((a, b) => b.level - a.level);
+    return ranked.slice(0, 6).map(row => {
+        let cmp = buildGrowthComparison(growthSelection.itemId, row.entry.item.id);
         if (!cmp) return '';
-        let diff = cmp.statDiff.slice(0, 5).map(row => `<span style="color:${row.delta > 0 ? '#7fd99a' : '#e07a7a'};">${escapeHTML(getStatName(row.id))} ${row.delta > 0 ? '+' : ''}${formatValue(row.id, row.delta)}</span>`).join(', ');
+        let diff = cmp.statDiff.slice(0, 5).map(stat => `<span style="color:${stat.delta > 0 ? '#7fd99a' : '#e07a7a'};">${escapeHTML(getStatName(stat.id))} ${stat.delta > 0 ? '+' : ''}${formatValue(stat.id, stat.delta)}</span>`).join(', ');
+        let capped = Math.max(-GROWTH_LEVEL_CAP, Math.min(GROWTH_LEVEL_CAP, row.level));
+        let pct = Math.round((getGrowthLevelMultiplier(capped) - 1) * 100);
+        let cellText = candidate && isGrowthSlab(candidate)
+            ? `(${row.cx + 1}, ${row.cy + 1})`
+            : `(${row.cx + 1}, ${row.cy + 1}) · 레벨 ${capped > 0 ? '+' : ''}${capped}${capped !== 0 ? ` → 옵션 ${pct > 0 ? '+' : ''}${pct}%` : ''}`;
         return `<div class="growth-compare-row">
-            <div><strong>${escapeHTML(entry.item.name)}</strong> 자리와 비교 ${cmp.fits ? '<span style="color:#7fd99a;">배치 가능</span>' : '<span style="color:#e07a7a;">배치 불가</span>'}</div>
+            <div><strong>${escapeHTML(row.entry.item.name)}</strong> 자리 ${cellText}</div>
             <div>${diff || '옵션 변화 없음'}</div>
             <div style="color:#8fb7ca;">잃는 시너지 ${cmp.lostSynergies.length}개 · 태그 -${cmp.lostTags.length}/+${cmp.gainedTags.length}</div>
         </div>`;
     }).join('');
+}
+
+
+// ── 드래그 배치 ──────────────────────────────────────────────────────────
+// 클릭 2번(아이템 선택 → 칸 클릭)은 판을 짤 때 계속 반복된다.
+// 마우스와 터치를 한 경로로 처리하려고 HTML5 드래그 대신 포인터 이벤트를 쓴다
+// (HTML5 드래그는 터치에서 동작하지 않는다).
+let growthDrag = null;
+let growthSuppressClickUntil = 0;
+let growthDragBound = false;
+
+const GROWTH_DRAG_THRESHOLD_PX = 8;
+
+// 칸 요소를 직접 히트 테스트한다. elementFromPoint는 드래그 중 커서를 따라다니는
+// 툴팁이나 그 위에 겹친 레이어를 먼저 집어 버려서, 정작 판 위에 있는데도 놓지 못한다.
+// 칸이 32개뿐이라 읽기만 하는 이 반복은 레이아웃 한 번으로 끝난다.
+function growthCellFromPoint(clientX, clientY) {
+    let board = document.getElementById('ui-growth-board');
+    if (!board) return null;
+    let found = null;
+    board.querySelectorAll('.growth-cell:not(.sealed)').forEach(cell => {
+        if (found) return;
+        let rect = cell.getBoundingClientRect();
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+            found = { x: Number(cell.dataset.x), y: Number(cell.dataset.y) };
+        }
+    });
+    return found;
+}
+
+function onGrowthPointerDown(event) {
+    if (event.button !== undefined && event.button !== 0) return;
+    if (!event.target || !event.target.closest) return;
+    // 카드 안의 버튼(배치/해체/잠금)은 원래 동작을 유지한다.
+    if (event.target.closest('button')) return;
+    let card = event.target.closest('.growth-item-card[data-growth-drag-id]');
+    let cell = event.target.closest('#ui-growth-board .growth-cell');
+    let itemId = null;
+    if (card) itemId = Number(card.dataset.growthDragId);
+    else if (cell && !cell.classList.contains('sealed')) itemId = getGrowthOccupantIdAt(Number(cell.dataset.x), Number(cell.dataset.y));
+    if (itemId === null || !Number.isFinite(itemId)) return;
+    growthDrag = { itemId, startX: event.clientX, startY: event.clientY, active: false };
+}
+
+function onGrowthPointerMove(event) {
+    if (!growthDrag) return;
+    if (!growthDrag.active) {
+        let moved = Math.abs(event.clientX - growthDrag.startX) + Math.abs(event.clientY - growthDrag.startY);
+        if (moved < GROWTH_DRAG_THRESHOLD_PX) return;
+        growthDrag.active = true;
+        // 선택 상태로 만들어 기존 배치 미리보기와 회전 값을 그대로 재사용한다.
+        selectGrowthItem(growthDrag.itemId, 'inventory');
+        document.body.classList.add('growth-dragging');
+    }
+    // 터치에서 드래그 중 화면이 스크롤되지 않게 막는다(비수동 리스너로 등록).
+    if (event.cancelable) event.preventDefault();
+    let target = growthCellFromPoint(event.clientX, event.clientY);
+    if (target) setGrowthHoverCell(target.x, target.y);
+    else clearGrowthHoverCell();
+}
+
+function onGrowthPointerUp(event) {
+    if (!growthDrag) return;
+    let drag = growthDrag;
+    growthDrag = null;
+    document.body.classList.remove('growth-dragging');
+    if (!drag.active) return;   // 움직이지 않았으면 평범한 클릭 — 기존 경로가 처리한다.
+    let target = growthCellFromPoint(event.clientX, event.clientY);
+    clearGrowthHoverCell();
+    if (target) handleGrowthCellClick(target.x, target.y);
+    growthSuppressClickUntil = Date.now() + 400;
+}
+
+function bindGrowthDragOnce() {
+    if (growthDragBound || typeof document === 'undefined') return;
+    growthDragBound = true;
+    document.addEventListener('pointerdown', onGrowthPointerDown);
+    document.addEventListener('pointermove', onGrowthPointerMove, { passive: false });
+    document.addEventListener('pointerup', onGrowthPointerUp);
+    document.addEventListener('pointercancel', () => {
+        growthDrag = null;
+        document.body.classList.remove('growth-dragging');
+        clearGrowthHoverCell();
+    });
 }
 
 // ── 패널 조립 ────────────────────────────────────────────────────────────
@@ -456,6 +567,7 @@ function renderGrowthBoardPanel() {
         ${renderGrowthLoadoutBar()}
         <div class="growth-controls">
             <span>${selectedItem ? `선택: <strong>${escapeHTML(selectedItem.name)}</strong>` : '아이템을 선택한 뒤 칸을 클릭해 배치하세요.'}</span>
+            <span id="ui-growth-hover-hint" class="growth-hover-hint"></span>
             <span class="growth-control-actions">
                 <button type="button" onclick="rotateGrowthSelection()" ${selectedItem ? '' : 'disabled'}>회전 (${growthSelection.rotation * 90}°)</button>
                 <button type="button" onclick="autoFillGrowthBoard()">빈 칸 자동 배치</button>
@@ -474,6 +586,7 @@ function renderGrowthBoardPanel() {
             </div>
         </div>`;
     paintGrowthPlacementPreview();
+    bindGrowthDragOnce();
 }
 
 // 제작/화석/주입 탭의 "대상 선택"에 생장 아이템(전용 보관함)도 노출한다.
@@ -555,5 +668,6 @@ safeExposeGlobals({
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, buildGrowthComparison,
     renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
     toggleGrowthInventoryCategory, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter,
+    renderGrowthHoverHint, bindGrowthDragOnce,
     getSelectedSlabInfluenceCells, renderGrowthLevelLine
 });

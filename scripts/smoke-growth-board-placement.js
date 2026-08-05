@@ -145,4 +145,30 @@ run('resetGrowthBoardForLoop(game.growthBoard.unlockedCellCount)');
 assert.strictEqual(run('Object.keys(getActiveGrowthLoadout().placements).length'), 0, '루프 리셋은 배치를 비워야 한다');
 assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋 후에도 해금 칸은 유지되어야 한다');
 
+// ── 드래그 배치 계약 (js/growth-ui.js) ───────────────────────────────────
+{
+    const ui = fs.readFileSync('js/growth-ui.js', 'utf8');
+
+    // 회귀: elementFromPoint를 쓰면 드래그 중 커서를 따라다니는 툴팁이 먼저 잡혀
+    // 판 위에 있는데도 놓지 못한다. 칸 rect를 직접 히트 테스트해야 한다.
+    assert.ok(!/growthCellFromPoint[\s\S]{0,400}elementFromPoint/.test(ui),
+        '드롭 대상 판정은 elementFromPoint에 의존하면 안 된다');
+    assert.ok(/growthCellFromPoint[\s\S]{0,600}getBoundingClientRect/.test(ui),
+        '드롭 대상은 칸 rect로 직접 판정해야 한다');
+
+    // 짧은 탭이 드래그로 오해되면 기존 선택 동작이 망가진다.
+    assert.ok(/GROWTH_DRAG_THRESHOLD_PX\s*=\s*\d+/.test(ui), '드래그 임계값이 있어야 한다');
+
+    // 터치에서 드래그 중 페이지가 스크롤되지 않으려면 pointermove가 비수동이어야 한다.
+    assert.ok(/addEventListener\('pointermove',\s*onGrowthPointerMove,\s*\{\s*passive:\s*false\s*\}\)/.test(ui),
+        'pointermove는 preventDefault가 가능하도록 비수동으로 등록해야 한다');
+
+    // 드래그 직후 따라오는 합성 클릭이 한 번 더 배치하면 안 된다.
+    assert.ok(/growthSuppressClickUntil/.test(ui), '드래그 직후 클릭 억제가 있어야 한다');
+
+    // 카드 안 버튼(배치/해체/잠금)에서 시작한 입력은 드래그로 가로채면 안 된다.
+    assert.ok(/onGrowthPointerDown[\s\S]{0,500}closest\('button'\)/.test(ui),
+        '카드 내부 버튼은 드래그 시작에서 제외해야 한다');
+}
+
 console.log('smoke-growth-board-placement passed');
