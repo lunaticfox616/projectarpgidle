@@ -4882,14 +4882,28 @@ function getSkillTargets(pStats) {
  */
 function updatePlayerGridEngagement(pStats) {
     let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
-    if (alive.length === 0) return false;
-    if (getSkillTargets(pStats).length > 0) return true;
+    if (alive.length === 0) { game.gridPlayerPursuing = false; return false; }
+    if (getSkillTargets(pStats).length > 0) { game.gridPlayerPursuing = false; return true; }
     let nearest = findNearestGridEnemy(game.gridPlayer, alive);
-    if (!nearest) return false;
+    if (!nearest) { game.gridPlayerPursuing = false; return false; }
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
     advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, interval);
+    // 칸 이동은 주기마다 뚝뚝 끊기지만 "접근 중"이라는 상태는 연속이라, 걷기 모션은
+    // 이 플래그로 판단한다. 다만 이미 붙어 있어 더 좁힐 칸이 없으면(체비쇼프 1)
+    // 제자리걸음이 되므로 걷는 것으로 치지 않는다.
+    game.gridPlayerPursuing = gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, nearest.gx, nearest.gy) > 1;
     return false;
+}
+
+/**
+ * 걷기 모션을 써야 하는 상태인지. 지역 이동(적 없음)과 전투 중 칸 이동을 함께 본다.
+ * 전장 캔버스와 스프라이트 선택이 같은 판단을 쓰도록 한 곳에 둔다.
+ */
+function isPlayerWalkingForAnimation() {
+    let enemiesAlive = (game.enemies || []).some(enemy => enemy && enemy.hp > 0);
+    if (!enemiesAlive) return game.moveTimer <= 0 && game.runProgress < 100;
+    return !!game.gridPlayerPursuing;
 }
 
 
@@ -10272,4 +10286,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ isPlayerWalkingForAnimation, getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });

@@ -7101,14 +7101,17 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let bodyClips = frames.characterAnimations || {};
         let clipLoop = frames.clipLoop || {};
         let activeEnemies = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
-        let isAdvancing = activeEnemies === 0 && game.moveTimer <= 0 && game.runProgress < 100;
+        // 지역 이동(적 없음)과 전투 중 칸 이동을 구분해서 쓴다. 걷기 프레임은 둘 다,
+        // 공격 모션 억제는 지역 이동일 때만 — 칸을 좁히다가 남은 스윙 이펙트가 잘리지 않게 한다.
+        let isMapAdvancing = activeEnemies === 0 && game.moveTimer <= 0 && game.runProgress < 100;
+        let isAdvancing = typeof isPlayerWalkingForAnimation === 'function' ? isPlayerWalkingForAnimation() : isMapAdvancing;
         let advanceBlend = clampNumber(Number.isFinite(motionState.advanceBlend) ? motionState.advanceBlend : (isAdvancing ? 1 : 0), 0, 1);
         let attackBlend = clampNumber(Number.isFinite(motionState.attackBlend) ? motionState.attackBlend : 0, 0, 1);
         let hurtBlend = clampNumber(Number.isFinite(motionState.hurtBlend) ? motionState.hurtBlend : (flash ? 1 : 0), 0, 1);
         let downFx = battleFx.filter(fx => fx.type === 'playerDown' && now - fx.start <= fx.duration).slice(-1)[0];
         let downPhase = downFx ? clampNumber((now - downFx.start) / downFx.duration, 0, 0.999) : null;
         let downBlend = clampNumber(Number.isFinite(motionState.downBlend) ? motionState.downBlend : (downPhase !== null ? 1 : 0), 0, 1);
-        let isAttacking = !isAdvancing && (attackBlend > 0.12 || Math.abs(swingPower) > 0.14);
+        let isAttacking = !isMapAdvancing && (attackBlend > 0.12 || Math.abs(swingPower) > 0.14);
         let idleCycle = Array.isArray(bodyClips.idle) && bodyClips.idle.length > 0 ? bodyClips.idle : (Array.isArray(frames.idle) && frames.idle.length > 0 ? frames.idle : [frames.sideIdle, frames.frontIdle, frames.frontGuard].filter(Boolean));
         let walkCycle = Array.isArray(bodyClips.walk_or_run) && bodyClips.walk_or_run.length > 0 ? bodyClips.walk_or_run : (Array.isArray(frames.walk) && frames.walk.length > 0 ? frames.walk : [frames.sideWalk, frames.sideIdle, frames.frontGuard].filter(Boolean));
         let runCycle = walkCycle;

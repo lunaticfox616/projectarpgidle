@@ -630,7 +630,10 @@ function renderBattlefield(forceWhenHidden) {
     let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
     let swingPower = swingFx ? Math.sin(((now - swingFx.start) / swingFx.duration) * Math.PI) : 0;
     let currentSkillVisual = getBattleSkillVisual(game.activeSkill, currentSkill);
-    let desiredAdvancing = enemies.length === 0 && game.moveTimer <= 0 && game.runProgress < 100;
+    // 지역 이동뿐 아니라 전투 중 칸 이동(사거리 밖 적에게 접근)도 걷기 모션을 쓴다.
+    let desiredAdvancing = typeof isPlayerWalkingForAnimation === 'function'
+        ? isPlayerWalkingForAnimation()
+        : (enemies.length === 0 && game.moveTimer <= 0 && game.runProgress < 100);
     if (battleVisualState.advanceDesired !== desiredAdvancing) {
         battleVisualState.advanceDesired = desiredAdvancing;
         battleVisualState.advanceChangedAt = now;
