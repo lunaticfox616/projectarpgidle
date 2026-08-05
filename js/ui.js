@@ -13040,6 +13040,10 @@ function mergeDefaults(save) {
         merged.starWedge.unlocked = true;
     }
     merged.saveVersion = defaultGame.saveVersion;
+    // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
+    // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
+    // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.
+    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     return merged;
 }
 
