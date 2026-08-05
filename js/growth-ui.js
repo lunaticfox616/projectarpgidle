@@ -440,9 +440,13 @@ function toggleGrowthItemLock(itemId) {
     updateStaticUI();
 }
 
-function renderGrowthTab() {
-    syncGrowthSubtabVisibility();
+// 제작 대상 목록은 장비/제작 탭에 남아 있어, 생장판 탭과 별개로 갱신된다.
+function renderGrowthCraftTargetLists() {
     ['ui-craft-growth-list', 'ui-fossil-growth-list', 'ui-infuser-growth-list'].forEach(renderGrowthCraftTargets);
+}
+
+function renderGrowthTab() {
+    syncGrowthTabVisibility();
     if (!isGrowthBoardUnlocked()) return;
     renderGrowthBoardPanel();
     let recentHost = document.getElementById('ui-growth-recent');
@@ -460,21 +464,17 @@ function renderGrowthTab() {
 }
 
 // 생장판은 루프 25 전에는 존재 자체를 노출하지 않는다.
-function syncGrowthSubtabVisibility() {
-    let unlocked = isGrowthBoardUnlocked();
-    let btn = document.getElementById('btn-item-tab-growth');
-    if (btn) btn.style.display = unlocked ? '' : 'none';
+// 탭 자체의 노출은 보조장비 그룹(MERGED_TAB_RUNTIME_GATES)이 isGrowthBoardUnlocked를
+// 그대로 읽어 처리하므로, 여기서는 안내 문구만 맞춘다.
+function syncGrowthTabVisibility() {
     let note = document.getElementById('ui-growth-unlock-note');
-    if (note) note.innerText = unlocked ? '' : `루프 ${GROWTH_UNLOCK_LOOP}에 해금`;
-    if (!unlocked && game.itemSubtab === 'item-tab-growth' && typeof switchItemSubtab === 'function') {
-        switchItemSubtab('item-tab-equip');
-    }
+    if (note) note.innerText = isGrowthBoardUnlocked() ? '' : `루프 ${GROWTH_UNLOCK_LOOP}에 해금`;
 }
 
 safeExposeGlobals({
     selectGrowthItem, rotateGrowthSelection, handleGrowthCellClick, unplaceGrowthItem,
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, buildGrowthComparison,
-    renderGrowthCraftTargets, toggleGrowthItemLock, syncGrowthSubtabVisibility,
+    renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
     getSelectedSlabInfluenceCells, renderGrowthLevelLine
 });

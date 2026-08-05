@@ -38,7 +38,9 @@
         'tab-cube': { title: '코어 큐브', x: 300, y: 110, width: 820, height: 640, minWidth: 800, minHeight: 380 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-season': { title: '루프', x: 300, y: 90, width: 740, height: 640, minWidth: 500, minHeight: 380 },
-        'tab-flask': { title: '보조장비', x: 260, y: 100, width: 760, height: 620, minWidth: 500, minHeight: 380 },
+        // 보조장비 창은 주얼·부적·플라스크뿐 아니라 코어 큐브와 생장판까지 담는다.
+        // 큐브의 2열 그리드가 약 796px를 요구하므로 최소 폭을 그 기준에 맞춘다.
+        'tab-flask': { title: '보조장비', x: 260, y: 100, width: 860, height: 660, minWidth: 800, minHeight: 380 },
         'tab-journal': { title: '기록', x: 300, y: 110, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 }
     };

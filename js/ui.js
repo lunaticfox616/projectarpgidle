@@ -1043,11 +1043,11 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'growthboard', 'map', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
-    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }] },
+    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '꽃·가지·잎·석판을 판에 배치합니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'codex', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
 });
 
@@ -1058,7 +1058,7 @@ const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal'] },
-    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube'] },
+    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube', 'tab-growthboard'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
 function getOrderedTabGroups() {
@@ -1551,6 +1551,14 @@ function toggleNotiFilter(key){ game.settings=game.settings||{}; game.settings.n
 
 function isMergedTabAvailable(tab) {
     let tabId = typeof tab === 'string' ? tab : tab.id;
+    // 큐브·생장판은 game.unlocks 플래그가 아니라 각 시스템의 런타임 판정으로 열린다.
+    // 해금 권위를 그 시스템에 두고 탭 노출은 판정을 그대로 읽는다.
+    if (tabId === 'tab-cube') {
+        return !!(game.unlocks && game.unlocks.cube) || (typeof isCoreCubeUnlocked === 'function' && isCoreCubeUnlocked());
+    }
+    if (tabId === 'tab-growthboard') {
+        return typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked();
+    }
     let gateKey = (tab && typeof tab === 'object' && tab.gate) || TAB_UNLOCK_GATES[tabId];
     if (gateKey === 'codex' && !isCodexTabUnlockReady()) return false;
     return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
@@ -9027,6 +9035,7 @@ function performUpdateStaticUI() {
     // 재구성하면 탭 전환·주기적 갱신마다 큰 렉이 발생한다. 활성 탭의 패널만 재구성한다.
     // (탭 전환 시 switchTab이 updateStaticUI를 다시 호출하므로 진입 시 정상 갱신된다.)
     let itemsTabActive = activeTabId === 'tab-items';
+    if (activeTabId === 'tab-growthboard' && typeof renderGrowthTab === 'function') renderGrowthTab();
     let jewelTabActive = activeTabId === 'tab-jewel';
     let talismanTabActive = activeTabId === 'tab-talisman';
     const sf = getSearchFilterState();
@@ -9043,7 +9052,7 @@ function performUpdateStaticUI() {
     renderPaperdoll('ui-craft-equip-list', true);
     renderPaperdoll('ui-fossil-equip-list', true);
     if (document.getElementById('ui-infuser-equip-list')) renderPaperdoll('ui-infuser-equip-list', true);
-    if (typeof renderGrowthTab === 'function') renderGrowthTab();
+    if (typeof renderGrowthCraftTargetLists === 'function') renderGrowthCraftTargetLists();
     document.getElementById('ui-inv-count').innerText = game.inventory.length;
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
@@ -12646,7 +12655,7 @@ function mergeDefaults(save) {
     });
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
-    merged.itemSubtab = ['item-tab-equip', 'item-tab-growth', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
+    merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
     merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
     merged.skillAutoRules = Array.isArray(merged.skillAutoRules) ? merged.skillAutoRules : [];
     merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
@@ -15332,10 +15341,10 @@ function checkUnlocks() {
     let starterTutorialGem = getStarterGemTutorialTarget();
     if (typeof syncGrowthBoardUnlocks === 'function') syncGrowthBoardUnlocks();
     if (typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked() && !(game.seenTutorials || []).includes('unlock_growth_board')) {
-        game.noti.items = true;
+        game.noti.growthboard = true;
         queueTutorialNotice('unlock_growth_board', '생장판 개방',
-            `루프 ${GROWTH_UNLOCK_LOOP} 달성! 장비와 별개로 자라나는 생장판이 열렸습니다.\n꽃·가지·잎을 12×5 판에 배치하면 형태와 위치에 따라 공간 시너지가 발동합니다.\n생장 아이템은 전투에서 별도로 드랍되어 최근 획득함에 쌓입니다.`,
-            'tab-items', 'item-tab-growth');
+            `루프 ${GROWTH_UNLOCK_LOOP} 달성! 장비와 별개로 자라나는 생장판이 열렸습니다.\n보조장비 탭에서 꽃·가지·잎을 8×4 판에 배치하면 위치와 인접 관계에 따라 공간 시너지가 발동합니다.\n생장 아이템은 전투에서 별도로 드랍되어 최근 획득함에 쌓입니다.`,
+            'tab-flask');
     }
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
         queueTutorialNotice('tutorial_battle_basics', '전투 기본 가이드', '전투 화면, 피해 숫자, 스킬 범위와 성장 순서를 차례로 알아봅니다.', 'tab-character');

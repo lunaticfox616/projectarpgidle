@@ -382,7 +382,8 @@
         <div class="tab-btn" id="btn-tab-journal" data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;">기록 <span id="noti-journal" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-codex" data-merged-tab-member="1" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-talisman" data-merged-tab-member="1" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-cube" onclick="switchTab('tab-cube')" style="display:none;">큐브 <span id="noti-cube" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-cube" data-merged-tab-member="1" onclick="switchTab('tab-cube')" style="display:none;">큐브 <span id="noti-cube" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-growthboard" data-merged-tab-member="1" onclick="switchTab('tab-growthboard')" style="display:none;">생장판 <span id="noti-growthboard" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-social" onclick="switchTab('tab-social')" style="display: flex;">커뮤니티 <span id="noti-social" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-settings" onclick="switchTab('tab-settings')" style="display: flex;">설정</div>
         <div class="tab-btn" id="btn-map-complete-action-picker" onclick="openMapCompleteActionPicker(event)" style="display: flex;" role="button" aria-label="전투 완료 후 행동 선택" hidden>전투 완료: 다음 지역</div>
@@ -657,7 +658,6 @@
     <div id="tab-items" class="tab-content">
         <div class="subtab-row">
             <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')">장비 창</button>
-            <button class="subtab-btn" id="btn-item-tab-growth" onclick="switchItemSubtab('item-tab-growth')" style="display:none;">생장판</button>
             <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')">제작실</button>
             <button class="subtab-btn" id="btn-item-tab-fossil" onclick="switchItemSubtab('item-tab-fossil')">화석 제작대</button>
             <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;">거래소</button>
@@ -708,24 +708,6 @@
                     <div class="inventory-grid equipment-inventory-grid" id="ui-inventory-list"></div>
                 </section>
             </div>
-        </div>
-
-        <div id="item-tab-growth" class="subtab-content">
-            <h2>🌱 생장판 <span class="h2-right" id="ui-growth-unlock-note" style="font-weight:normal; font-size:0.7em;"></span></h2>
-            <p style="color:#9fb4d1; font-size:0.85em; margin:4px 0 12px;">장비와 별개로 자라나는 판입니다. 꽃(공격)·가지(방어)·잎(연결)을 배치하면 형태·위치·인접 관계에 따라 공간 시너지가 발동합니다.</p>
-            <div id="ui-growth-panel"></div>
-
-            <h2 style="margin-top: 18px;">
-                <span>📥 최근 획득함 (<span id="ui-growth-recent-count">0</span> / 24)</span>
-                <span class="h2-right"><button onclick="claimAllRecentGrowthDrops()">전부 보관함으로</button></span>
-            </h2>
-            <div class="growth-card-grid" id="ui-growth-recent"></div>
-
-            <h2 style="margin-top: 18px;">
-                <span>🌿 생장 보관함 (<span id="ui-growth-inv-count">0</span> / <span id="ui-growth-inv-limit">40</span>)</span>
-                <span class="h2-right"><button onclick="bulkSalvageGrowthInventory()">일괄 해체</button></span>
-            </h2>
-            <div class="growth-card-grid" id="ui-growth-inventory"></div>
         </div>
 
         <div id="item-tab-craft" class="subtab-content">
@@ -1101,6 +1083,23 @@
                 <div id="ui-codex-list" class="inventory-grid"></div>
             </div>
         </div>
+    </div>
+    <div id="tab-growthboard" class="tab-content">
+        <h2>🌱 생장판 <span class="h2-right" id="ui-growth-unlock-note" style="font-weight:normal; font-size:0.7em;"></span></h2>
+        <p style="color:#9fb4d1; font-size:0.85em; margin:4px 0 12px;">장비와 별개로 자라나는 판입니다. 꽃(공격)·가지(방어)·잎(연결)을 배치하면 형태·위치·인접 관계에 따라 공간 시너지가 발동합니다.</p>
+        <div id="ui-growth-panel"></div>
+
+        <h2 style="margin-top: 18px;">
+            <span>📥 최근 획득함 (<span id="ui-growth-recent-count">0</span> / 24)</span>
+            <span class="h2-right"><button onclick="claimAllRecentGrowthDrops()">전부 보관함으로</button></span>
+        </h2>
+        <div class="growth-card-grid" id="ui-growth-recent"></div>
+
+        <h2 style="margin-top: 18px;">
+            <span>🌿 생장 보관함 (<span id="ui-growth-inv-count">0</span> / <span id="ui-growth-inv-limit">40</span>)</span>
+            <span class="h2-right"><button onclick="bulkSalvageGrowthInventory()">일괄 해체</button></span>
+        </h2>
+        <div class="growth-card-grid" id="ui-growth-inventory"></div>
     </div>
     <div id="tab-cube" class="tab-content">
         <h2>🧊 코어 큐브</h2>
