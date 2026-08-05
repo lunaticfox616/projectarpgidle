@@ -57,24 +57,27 @@ function getGrowthSizeAffixCap(size) {
     return 2;
 }
 
-// 칸 해금 단계: 진행 조건 → 누적 활성 칸 수. maxZoneId는 액트 진행, season은 루프 수.
+// 생장판은 기존 고정 슬롯 장비를 대체하지 않는 별도 시스템이며 루프 25에 열린다.
+const GROWTH_UNLOCK_LOOP = 25;
+
+// 칸 해금 단계: 루프 진행 → 누적 활성 칸 수. 해금 시점(12칸)부터 루프를 거듭하며 60칸까지 자란다.
 const GROWTH_UNLOCK_STAGES = [
-    { cells: 12, label: '튜토리얼',   req: {} },
-    { cells: 15, label: '초반 액트',  req: { maxZoneId: 2 } },
-    { cells: 24, label: '중반 액트',  req: { maxZoneId: 4 } },
-    { cells: 32, label: '스토리 후반', req: { maxZoneId: 7 } },
-    { cells: 40, label: '스토리 완료', req: { maxZoneId: 10 } },
-    { cells: 50, label: '초기 루프',  req: { season: 2 } },
-    { cells: 60, label: '최종 해금',  req: { season: 4 } }
+    { cells: 12, label: '생장판 각성', req: { season: GROWTH_UNLOCK_LOOP } },
+    { cells: 15, label: '첫 확장',     req: { season: 28 } },
+    { cells: 24, label: '뿌리 내림',   req: { season: 32 } },
+    { cells: 32, label: '가지 뻗음',   req: { season: 36 } },
+    { cells: 40, label: '무성해짐',    req: { season: 40 } },
+    { cells: 50, label: '만개',        req: { season: 45 } },
+    { cells: 60, label: '완전한 수관', req: { season: 50 } }
 ];
 
-// 공간 시너지 규칙 해금 단계 (게임 진행에 따라 판정 계층이 열린다).
+// 공간 시너지 규칙 해금 단계 (루프를 거듭하며 판정 계층이 열린다).
 const GROWTH_SYNERGY_STAGES = [
-    { key: 'adjacency', label: '기본 인접',   req: {} },
-    { key: 'wall',      label: '벽과 방향',   req: { maxZoneId: 4 } },
-    { key: 'rowcol',    label: '행과 열',     req: { maxZoneId: 8 } },
-    { key: 'tags',      label: '태그 공명',   req: { season: 2 } },
-    { key: 'complex',   label: '복합 시너지', req: { season: 4 } }
+    { key: 'adjacency', label: '기본 인접',   req: { season: GROWTH_UNLOCK_LOOP } },
+    { key: 'wall',      label: '벽과 방향',   req: { season: 28 } },
+    { key: 'rowcol',    label: '행과 열',     req: { season: 32 } },
+    { key: 'tags',      label: '태그 공명',   req: { season: 38 } },
+    { key: 'complex',   label: '복합 시너지', req: { season: 45 } }
 ];
 
 // ── 베이스 정의 ──────────────────────────────────────────────────────────
@@ -282,24 +285,9 @@ const GROWTH_GLOBAL_SYNERGY_DB = [
       type: 'colCategoryCountPer', category: 'branch', min: 3, grant: [{ id: 'blockChance', val: 1 }] }
 ];
 
-// 기존(레거시) 장비 슬롯 → 생장 종류 매핑 (마이그레이션·레거시 고유 변환용).
-const GROWTH_LEGACY_SLOT_CATEGORY = {
-    '무기': 'flower', '방패': 'branch', '투구': 'branch', '갑옷': 'branch',
-    '장갑': 'flower', '신발': 'leaf', '목걸이': 'leaf', '반지': 'leaf', '허리띠': 'leaf'
-};
-
-// 레거시 변환 시 티어별 형태 풀: 낮은 티어는 큰 형태, 높은 티어는 작은 형태를 받는다.
-const GROWTH_LEGACY_SHAPE_POOLS = [
-    { minTier: 18, shapes: ['dot1', 'duo2', 'tri3', 'corner3'] },
-    { minTier: 14, shapes: ['duo2', 'tri3', 'corner3', 'zig4', 'square4'] },
-    { minTier: 10, shapes: ['tri3', 'corner3', 'line4', 'tee4', 'square4', 'cross5'] },
-    { minTier: 6,  shapes: ['line4', 'square4', 'cross5', 'u5', 'stairs5', 'vee5', 'rect6'] },
-    { minTier: 1,  shapes: ['cross5', 'line5', 'u5', 'rect6', 'tee6', 'u7', 'block8', 'block9'] }
-];
-
 safeExposeData({
     GROWTH_BOARD_W, GROWTH_BOARD_H, GROWTH_SHAPE_DB, GROWTH_CATEGORY_INFO,
-    GROWTH_SIZE_TIER_GATES, getGrowthSizeAffixCap, GROWTH_UNLOCK_STAGES,
+    GROWTH_SIZE_TIER_GATES, getGrowthSizeAffixCap, GROWTH_UNLOCK_LOOP, GROWTH_UNLOCK_STAGES,
     GROWTH_SYNERGY_STAGES, GROWTH_BASE_DB, GROWTH_UNIQUE_DB,
-    GROWTH_GLOBAL_SYNERGY_DB, GROWTH_LEGACY_SLOT_CATEGORY, GROWTH_LEGACY_SHAPE_POOLS
+    GROWTH_GLOBAL_SYNERGY_DB
 });

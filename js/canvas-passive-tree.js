@@ -588,15 +588,11 @@ function renderInventoryCard(item, idx, mode) {
     if (item.encroached && !item.encroached.liberated) metaBits.push('잠식 · 해방 전');
     if (item.fusedRelic) metaBits.push('융합 유물');
     let metaLine = `<span style="color:#8fa7be;">${metaBits.length ? metaBits.join(' · ') : '추가 옵션 없음'} · <span style="color:#7f96ad;">호버 시 상세</span></span>`;
-    // 생장 아이템은 슬롯에 "장착"하지 않고 생장판에 "배치"한다.
-    let isGrowth = typeof isGrowthItem === 'function' && isGrowthItem(item);
-    let placeLabel = isGrowth ? '배치' : '장착';
-    let placeCall = isGrowth ? `selectGrowthItem(${item.id}, 'inventory')` : `equipItemById(${item.id})`;
     let lockBtn = `<button style="background:${item.locked ? '#7a5d1f' : '#4f6277'}; border-color:${item.locked ? '#b8893a' : '#465664'};" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button>`;
     let actions = '';
-    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); ${placeCall}">${placeLabel}</button><button style="background:#35506a; border-color:#3f6486;" onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button>${lockBtn}<button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
+    if (mode === 'equip') actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button style="background:#35506a; border-color:#3f6486;" onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button>${lockBtn}<button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
     else if (mode === 'fossil') actions = `<div class="item-actions"><button style="flex:1; background:#35506a;" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button>${lockBtn}</div>`;
-    else actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button style="background:#35506a;" onclick="event.stopPropagation(); ${placeCall}">${placeLabel}</button>${lockBtn}<button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
+    else actions = `<div class="item-actions"><button style="flex:1" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button style="background:#35506a;" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button>${lockBtn}<button style="background:#7f8c8d; border-color:#555;" onclick="event.stopPropagation(); salvageItemById(${item.id})">해체</button></div>`;
     let doubleClick = mode === 'equip' ? ` ondblclick="event.stopPropagation(); handleInventoryCardDoubleClick(${item.id}, 'equip')"` : '';
     let recordedTag = '';
     if (item.rarity === 'unique') {

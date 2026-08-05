@@ -7073,12 +7073,11 @@ function performUpdateStaticUI() {
 
     if (itemsTabActive) {
     syncSalvageControlsFromSettings();
+    renderPaperdoll('ui-equip-list', false);
+    renderPaperdoll('ui-craft-equip-list', true);
+    renderPaperdoll('ui-fossil-equip-list', true);
+    if (document.getElementById('ui-infuser-equip-list')) renderPaperdoll('ui-infuser-equip-list', true);
     if (typeof renderGrowthTab === 'function') renderGrowthTab();
-    if (typeof renderGrowthCraftTargets === 'function') {
-        renderGrowthCraftTargets('ui-craft-equip-list');
-        renderGrowthCraftTargets('ui-fossil-equip-list');
-        renderGrowthCraftTargets('ui-infuser-equip-list');
-    }
     document.getElementById('ui-inv-count').innerText = game.inventory.length;
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
@@ -10244,7 +10243,7 @@ function mergeDefaults(save) {
     });
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
-    merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
+    merged.itemSubtab = ['item-tab-equip', 'item-tab-growth', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
     merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
     merged.skillAutoRules = Array.isArray(merged.skillAutoRules) ? merged.skillAutoRules : [];
     merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
@@ -12359,14 +12358,14 @@ function init() {
     }
     applySeasonContentProgression({ silent: true });
     recoverRuntimeState();
-    // 생장판 전환: 저장 로드 직후 한 번만 실행된다. 실패해도 게임 부팅을 막지 않되 원인을 남긴다.
+    // 생장판(추가 시스템) 상태 정규화. 실패해도 게임 부팅을 막지 않되 원인을 남긴다.
     try {
-        runGrowthBoardMigration();
+        ensureGrowthBoardState();
         syncGrowthBoardUnlocks({ silent: true });
         validateGrowthPlacements();
     } catch (error) {
-        console.error('growth board migration failed:', error);
-        addLog('⚠️ 생장판 전환 중 오류가 발생했습니다. 콘솔 로그를 확인해 주세요.', 'loot-rare');
+        console.error('growth board init failed:', error);
+        addLog('⚠️ 생장판 초기화 중 오류가 발생했습니다. 콘솔 로그를 확인해 주세요.', 'loot-rare');
     }
     unlockPassiveStarEvolution({ silent: true });
     window.__battleAssetAutoloadEnabled = false;
@@ -12775,15 +12774,21 @@ function syncDerivedTabUnlock(tabId) {
 function checkUnlocks() {
     let u = game.unlocks;
     if (typeof syncGrowthBoardUnlocks === 'function') syncGrowthBoardUnlocks();
+    if (typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked() && !(game.seenTutorials || []).includes('unlock_growth_board')) {
+        game.noti.items = true;
+        queueTutorialNotice('unlock_growth_board', '생장판 개방',
+            `루프 ${GROWTH_UNLOCK_LOOP} 달성! 장비와 별개로 자라나는 생장판이 열렸습니다.\n꽃·가지·잎을 12×5 판에 배치하면 형태와 위치에 따라 공간 시너지가 발동합니다.\n생장 아이템은 전투에서 별도로 드랍되어 최근 획득함에 쌓입니다.`,
+            'tab-items', 'item-tab-growth');
+    }
     if (game.level >= 2 && !u.char) {
         u.char = true;
         game.noti.char = true;
         queueTutorialNotice('unlock_char', '스킬트리 개방', '레벨 2에 도달해 성좌를 찍을 수 있게 되었습니다.\n패시브 포인트를 사용해 성장 방향을 정해보세요.', 'tab-char');
     }
-    if ((game.inventory.length > 0 || (game.recentGrowthDrops || []).length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items) {
+    if ((game.inventory.length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items) {
         u.items = true;
         game.noti.items = true;
-        queueTutorialNotice('unlock_items', '생장판/제작 개방', '첫 생장 아이템 또는 제작 재화를 얻었습니다.\n생장판에 아이템을 배치해 능력치를 얻고, 오브로 강화할 수 있습니다.', 'tab-items');
+        queueTutorialNotice('unlock_items', '장비/제작 개방', '첫 장비 또는 제작 재화를 얻었습니다.\n아이템을 장착하고, 오브를 사용해 장비를 강화할 수 있습니다.', 'tab-items');
     }
     if (isJewelTabUnlockReady() && !u.jewel) {
         u.jewel = true;

@@ -595,6 +595,7 @@
     <div id="tab-items" class="tab-content">
         <div class="subtab-row">
             <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')">장비 창</button>
+            <button class="subtab-btn" id="btn-item-tab-growth" onclick="switchItemSubtab('item-tab-growth')" style="display:none;">생장판</button>
             <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')">제작실</button>
             <button class="subtab-btn" id="btn-item-tab-fossil" onclick="switchItemSubtab('item-tab-fossil')">화석 제작대</button>
             <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;">거래소</button>
@@ -602,22 +603,11 @@
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
-            <h2>🌱 생장판</h2>
-            <div id="ui-growth-panel"></div>
+            <h2>🛡️ 장착 중인 장비</h2>
+            <div class="paperdoll" id="ui-equip-list"></div>
 
-            <h2 style="margin-top: 18px;">
-                <span>📥 최근 획득함 (<span id="ui-growth-recent-count">0</span> / 24)</span>
-                <span class="h2-right"><button onclick="claimAllRecentGrowthDrops()">전부 보관함으로</button></span>
-            </h2>
-            <div class="growth-card-grid" id="ui-growth-recent"></div>
-
-            <h2 style="margin-top: 18px;">
-                <span>🎒 보관함 (<span id="ui-inv-count">0</span> / <span id="ui-inv-limit">30</span>)</span>
-            </h2>
-            <div class="growth-card-grid" id="ui-growth-inventory"></div>
-
-            <h2 style="margin-top: 18px;">
-                <span>🗂️ 보관함 상세</span>
+            <h2 style="margin-top: 20px;">
+                <span>🎒 인벤토리 (<span id="ui-inv-count">0</span> / <span id="ui-inv-limit">30</span>)</span>
             </h2>
             <div class="bulk-salvage-bar">
                 <div class="bulk-salvage-filters">
@@ -628,6 +618,24 @@
             </div>
             <div class="inventory-grid" id="ui-inventory-list"></div>
 
+        </div>
+
+        <div id="item-tab-growth" class="subtab-content">
+            <h2>🌱 생장판 <span class="h2-right" id="ui-growth-unlock-note" style="font-weight:normal; font-size:0.7em;"></span></h2>
+            <p style="color:#9fb4d1; font-size:0.85em; margin:4px 0 12px;">장비와 별개로 자라나는 판입니다. 꽃(공격)·가지(방어)·잎(연결)을 배치하면 형태·위치·인접 관계에 따라 공간 시너지가 발동합니다.</p>
+            <div id="ui-growth-panel"></div>
+
+            <h2 style="margin-top: 18px;">
+                <span>📥 최근 획득함 (<span id="ui-growth-recent-count">0</span> / 24)</span>
+                <span class="h2-right"><button onclick="claimAllRecentGrowthDrops()">전부 보관함으로</button></span>
+            </h2>
+            <div class="growth-card-grid" id="ui-growth-recent"></div>
+
+            <h2 style="margin-top: 18px;">
+                <span>🌿 생장 보관함 (<span id="ui-growth-inv-count">0</span> / <span id="ui-growth-inv-limit">40</span>)</span>
+                <span class="h2-right"><button onclick="bulkSalvageGrowthInventory()">일괄 해체</button></span>
+            </h2>
+            <div class="growth-card-grid" id="ui-growth-inventory"></div>
         </div>
 
         <div id="item-tab-craft" class="subtab-content">
@@ -653,12 +661,14 @@
             <h2>🛠️ 제작 대상 선택</h2>
             <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
-                    <h3>배치된 생장 아이템</h3>
+                    <h3>장착 장비</h3>
                     <div class="paperdoll" id="ui-craft-equip-list"></div>
                 </div>
                 <div>
-                    <h3>보관함</h3>
+                    <h3>인벤토리</h3>
                     <div class="inventory-grid" id="ui-craft-inventory-list"></div>
+                    <h3 class="growth-craft-heading" id="ui-craft-growth-list-heading" style="display:none; margin-top:12px;">생장 아이템</h3>
+                    <div class="growth-card-grid" id="ui-craft-growth-list"></div>
                 </div>
             </div>
         </div>
@@ -679,12 +689,14 @@
             <h2>🛠️ 화석 제작 대상 선택</h2>
             <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
-                    <h3>배치된 생장 아이템</h3>
+                    <h3>장착 장비</h3>
                     <div class="paperdoll" id="ui-fossil-equip-list"></div>
                 </div>
                 <div>
-                    <h3>보관함</h3>
+                    <h3>인벤토리</h3>
                     <div class="inventory-grid" id="ui-fossil-inventory-list"></div>
+                    <h3 class="growth-craft-heading" id="ui-fossil-growth-list-heading" style="display:none; margin-top:12px;">생장 아이템</h3>
+                    <div class="growth-card-grid" id="ui-fossil-growth-list"></div>
                 </div>
             </div>
         </div>
@@ -697,12 +709,14 @@
             <h2>🧪 주입 대상 선택</h2>
             <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
-                    <h3>배치된 생장 아이템</h3>
+                    <h3>장착 장비</h3>
                     <div class="paperdoll" id="ui-infuser-equip-list"></div>
                 </div>
                 <div>
-                    <h3>보관함</h3>
+                    <h3>인벤토리</h3>
                     <div class="inventory-grid" id="ui-infuser-inventory-list"></div>
+                    <h3 class="growth-craft-heading" id="ui-infuser-growth-list-heading" style="display:none; margin-top:12px;">생장 아이템</h3>
+                    <div class="growth-card-grid" id="ui-infuser-growth-list"></div>
                 </div>
             </div>
         </div>
@@ -1222,7 +1236,6 @@
 <script defer src="js/growth-board.js?v=20260713-growth-board1"></script>
 <script defer src="js/growth-effects.js?v=20260713-growth-board1"></script>
 <script defer src="js/growth-generation.js?v=20260713-growth-board1"></script>
-<script defer src="js/growth-migration.js?v=20260713-growth-board1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1"></script>
 <script defer src="js/combat-grid.js?v=20260710-grid-feedback3"></script>
 <script defer src="js/combat.js?v=20260710-grid-feedback3"></script>

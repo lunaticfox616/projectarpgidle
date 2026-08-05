@@ -319,8 +319,8 @@ function isDualWielding() {
 }
 
 /**
- * 스탯을 제공하는 아이템 목록. 생장판 교체 이후 유효 장비는 "생장판에 배치된 아이템"이다.
- * 마이그레이션이 끝나지 않은 저장(구 고정 슬롯)도 손실 없이 계산되도록 남은 장비를 함께 넘긴다.
+ * 스탯을 제공하는 아이템 목록 = 고정 슬롯 장비 + 생장판에 배치된 아이템.
+ * 생장판은 장비를 대체하지 않는 추가 시스템이므로 두 출처가 함께 합산된다.
  * @returns {Array<[string, object]>} [소스 키, 아이템]
  */
 function getStatSourceItemEntries() {
@@ -334,16 +334,21 @@ function getStatSourceItemEntries() {
     return entries;
 }
 
-/** 생장판에 배치된 아이템들의 특정 베이스 옵션 합계 (플라스크 슬롯 등 슬롯 유래 기능의 계승 경로). */
-function sumGrowthPlacedBaseStat(statId) {
-    if (typeof getPlacedGrowthEntries !== 'function') return 0;
-    let total = 0;
-    getPlacedGrowthEntries().forEach(entry => {
-        (Array.isArray(entry.item.baseStats) ? entry.item.baseStats : []).forEach(stat => {
-            if (stat && stat.id === statId) total += Math.max(0, Number(stat.val) || 0);
-        });
-    });
-    return total;
+/**
+ * 생장 아이템 드랍. 기존 장비 드랍과 독립된 별도 굴림이라 장비 파밍 리듬을 바꾸지 않는다.
+ * 루프 25(생장판 해금) 전에는 아무것도 굴리지 않는다.
+ */
+function rollGrowthItemDrop(enemy, equipmentDropChance) {
+    if (typeof isGrowthBoardUnlocked !== 'function' || !isGrowthBoardUnlocked()) return;
+    // 장비 드랍 확률의 절반 수준으로, 별도 재화처럼 천천히 쌓이게 한다.
+    if (Math.random() >= Math.max(0, Number(equipmentDropChance) || 0) * 0.5) return;
+    let item = generateGrowthDrop(enemy);
+    if (!item || !addDroppedGrowthItem(item)) return;
+    notifyFirstSmallGrowthBase(item);
+    if (!game.settings.showLootLog) return;
+    addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#8fe6a8', duration: 780 });
+    if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#7fd99a', duration: 1200 });
+    addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득! (최근 획득함)`);
 }
 
 
@@ -634,6 +639,7 @@ function snapshotWoodsmanBuildState() {
         talismanBoard: game.talismanBoard || [],
         talismanPlacements: game.talismanPlacements || {},
         growthBoard: game.growthBoard || {},
+        growthInventory: game.growthInventory || [],
         recentGrowthDrops: game.recentGrowthDrops || [],
         starWedge: game.starWedge || {}
     }));
@@ -667,6 +673,7 @@ function enforceWoodsmanBuildLock() {
     game.talismanBoard = JSON.parse(JSON.stringify(snap.talismanBoard));
     game.talismanPlacements = JSON.parse(JSON.stringify(snap.talismanPlacements));
     if (snap.growthBoard) game.growthBoard = JSON.parse(JSON.stringify(snap.growthBoard));
+    if (snap.growthInventory) game.growthInventory = JSON.parse(JSON.stringify(snap.growthInventory));
     if (snap.recentGrowthDrops) game.recentGrowthDrops = JSON.parse(JSON.stringify(snap.recentGrowthDrops));
     if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     game.starWedge = JSON.parse(JSON.stringify(snap.starWedge));
@@ -1287,18 +1294,17 @@ function markPlayerMovementCompleted() {
 // flaskUtilSlots 베이스 옵션 롤) / T10 이상 0~2개 / '천 개의 유리병'(고유) 장착 시 +3(고정, 다른 보너스와 합산).
 // 전역 상한은 유틸리티 4개(=총 5슬롯: 회복 1 + 유틸 4)로, 향후 다른 출처가 추가되어도 폭주하지 않게 막는다.
 const FLASK_UTILITY_SLOT_HARD_CAP = 4;
-// 생장판 교체 이후 유틸리티 슬롯은 "배치된 잎"이 제공한다(기존 허리띠 역할 계승).
-// 마이그레이션 전 저장의 허리띠도 계속 인정해 슬롯이 갑자기 사라지지 않게 한다.
+// 유틸리티 슬롯은 여전히 허리띠가 결정한다. 생장판은 별도 시스템이므로 이 계약을 건드리지 않는다.
 function getMaxFlaskUtilitySlotCount() {
-    let bonus = Math.floor(sumGrowthPlacedBaseStat('flaskUtilSlots'));
-    getStatSourceItemEntries().forEach(([, item]) => {
-        if (item.rarity === 'unique' && item.uniqueEffectKey === 'extraFlaskUtilitySlots') {
-            bonus += Math.max(0, Math.floor(Number((item.uniqueEffectParams || {}).slots) || 0));
-        }
-    });
     let belt = (game && game.equipment) ? game.equipment['허리띠'] : null;
-    let beltStat = belt ? (belt.baseStats || []).find(s => s && s.id === 'flaskUtilSlots') : null;
-    if (beltStat) bonus += Math.max(0, Math.floor(Number(beltStat.val) || 0));
+    if (!belt) return 0;
+    let bonus = 0;
+    let stat = (belt.baseStats || []).find(s => s && s.id === 'flaskUtilSlots');
+    if (stat) bonus += Math.max(0, Math.floor(Number(stat.val) || 0));
+    if (belt.rarity === 'unique' && belt.uniqueEffectKey === 'extraFlaskUtilitySlots') {
+        let ep = belt.uniqueEffectParams || {};
+        bonus += Math.max(0, Math.floor(Number(ep.slots) || 0));
+    }
     return Math.max(0, Math.min(FLASK_UTILITY_SLOT_HARD_CAP, bonus));
 }
 function getMaxFlaskSlotCount() {
@@ -1306,12 +1312,10 @@ function getMaxFlaskSlotCount() {
 }
 // 허리띠의 특수 효과(예: '천 개의 유리병')로 얻는 플라스크 충전 속도 보너스(%).
 function getFlaskChargeRateBonusPct() {
-    let bonus = 0;
-    getStatSourceItemEntries().forEach(([, item]) => {
-        if (item.rarity !== 'unique' || item.uniqueEffectKey !== 'extraFlaskUtilitySlots') return;
-        bonus = Math.max(bonus, Number((item.uniqueEffectParams || {}).chargeRatePct) || 0);
-    });
-    return Math.max(0, bonus);
+    let belt = (game && game.equipment) ? game.equipment['허리띠'] : null;
+    if (!belt || belt.rarity !== 'unique' || belt.uniqueEffectKey !== 'extraFlaskUtilitySlots') return 0;
+    let ep = belt.uniqueEffectParams || {};
+    return Math.max(0, Number(ep.chargeRatePct) || 0);
 }
 function getFlaskEffectiveChargesPerKills(baseChargesPerKills) {
     let bonusPct = getFlaskChargeRateBonusPct();
@@ -6441,17 +6445,14 @@ function rollLootForEnemy(enemy) {
         }
     }
     if (Math.random() < itemChance) {
-        // 생장 아이템은 최근 획득함으로 들어간다(전투를 멈추지 않는 방치형 수집 경로).
-        let item = generateGrowthDrop(enemy);
-        if (item && addDroppedGrowthItem(item)) {
-            notifyFirstSmallGrowthBase(item);
-            if (game.settings.showLootLog) {
-                addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#9ed6ff', duration: 780 });
-                if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ff9f43', duration: 1200 });
-                addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
-            }
+        let item = generateEquipmentDrop(enemy);
+        if (addItemToInventory(item) && game.settings.showLootLog) {
+            addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#9ed6ff', duration: 780 });
+            if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ff9f43', duration: 1200 });
+            addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
         }
     }
+    rollGrowthItemDrop(enemy, itemChance);
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056) {
         let jewel = generateJewelDrop((getZone(game.currentZoneId) || { tier: 1 }).tier || 1);
         game.jewelInventory = game.jewelInventory || [];
@@ -9181,6 +9182,7 @@ function triggerSeasonReset(options) {
     let preservedGrowthUnlockedCells = Math.max(0, Math.floor(((game.growthBoard || {}).unlockedCellCount) || 0));
     let preservedGrowthSmallBaseSeen = JSON.parse(JSON.stringify(game.growthSmallBaseSeen || {}));
     let preservedSealedRecentDrops = (game.recentGrowthDrops || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
+    let preservedSealedGrowthInventory = (game.growthInventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
     let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.woodsmanTouch) || 0));
     let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -9262,6 +9264,7 @@ function triggerSeasonReset(options) {
     // 생장판 초기화: 배치는 비우되 해금 칸(영구 성장)과 봉인 아이템은 유지한다.
     if (typeof resetGrowthBoardForLoop === 'function') resetGrowthBoardForLoop(preservedGrowthUnlockedCells);
     game.recentGrowthDrops = preservedSealedRecentDrops;
+    game.growthInventory = preservedSealedGrowthInventory;
     game.growthSmallBaseSeen = preservedGrowthSmallBaseSeen;
     if (preservedWoodsmanTouch > 0) game.currencies.woodsmanTouch = preservedWoodsmanTouch;
     game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;

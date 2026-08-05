@@ -82,12 +82,22 @@ function hasOwnedCellAlong(owned, x, y, dx, dy, maxX, maxY) {
 }
 
 // ── 보드 상태 ────────────────────────────────────────────────────────────
+/** 생장판은 기존 장비를 대체하지 않는 추가 시스템이며 루프 25부터 열린다. */
+function isGrowthBoardUnlocked() {
+    return Math.floor(Number(game.season) || 1) >= GROWTH_UNLOCK_LOOP;
+}
+
+/** 생장 전용 보관함 한도. 기존 장비 보관함과 칸을 나눠 쓰지 않는다. */
+function getGrowthInventoryLimit() {
+    return 40 + (Math.max(0, Math.floor(game.growthInventoryExpandLevel || 0)) * 5);
+}
+
 function ensureGrowthBoardState() {
     if (!game.growthBoard || typeof game.growthBoard !== 'object') game.growthBoard = {};
     let board = game.growthBoard;
     board.width = GROWTH_BOARD_W;
     board.height = GROWTH_BOARD_H;
-    board.unlockedCellCount = Math.max(GROWTH_UNLOCK_STAGES[0].cells,
+    board.unlockedCellCount = Math.max(0,
         Math.min(GROWTH_BOARD_W * GROWTH_BOARD_H, Math.floor(Number(board.unlockedCellCount) || 0)));
     if (!Array.isArray(board.loadouts) || board.loadouts.length === 0) board.loadouts = [];
     while (board.loadouts.length < 3) board.loadouts.push({ name: `세팅 ${board.loadouts.length + 1}`, placements: {} });
@@ -97,6 +107,7 @@ function ensureGrowthBoardState() {
     }));
     board.activeLoadout = Math.max(0, Math.min(2, Math.floor(Number(board.activeLoadout) || 0)));
     if (!Array.isArray(game.recentGrowthDrops)) game.recentGrowthDrops = [];
+    if (!Array.isArray(game.growthInventory)) game.growthInventory = [];
     return board;
 }
 
@@ -116,7 +127,8 @@ function getGrowthCellUnlockOrder() {
 }
 
 function getGrowthStageUnlockedCellCount() {
-    let unlocked = GROWTH_UNLOCK_STAGES[0].cells;
+    if (!isGrowthBoardUnlocked()) return 0;
+    let unlocked = 0;
     GROWTH_UNLOCK_STAGES.forEach(stage => {
         let req = stage.req || {};
         if (Number.isFinite(req.maxZoneId) && Math.floor(game.maxZoneId || 0) < req.maxZoneId) return;
@@ -131,9 +143,13 @@ function syncGrowthBoardUnlocks(options) {
     let board = ensureGrowthBoardState();
     let target = getGrowthStageUnlockedCellCount();
     if (target <= board.unlockedCellCount) return false;
+    let firstAwakening = board.unlockedCellCount <= 0;
     let gained = target - board.unlockedCellCount;
     board.unlockedCellCount = target;
-    if (!options || options.silent !== true) addLog(`🌱 생장판이 자라났습니다! 활성 칸 +${gained} (현재 ${target}/60)`, 'season-up');
+    if (!options || options.silent !== true) {
+        if (firstAwakening) addLog(`🌱 생장판이 각성했습니다! 루프 ${GROWTH_UNLOCK_LOOP} 달성 — 장비와 별개로 자라나는 판이 열렸습니다. (활성 칸 ${target}/60)`, 'season-up');
+        else addLog(`🌱 생장판이 자라났습니다! 활성 칸 +${gained} (현재 ${target}/60)`, 'season-up');
+    }
     invalidateGrowthEffects();
     return true;
 }
@@ -153,7 +169,14 @@ function getActiveGrowthLoadout() {
 }
 
 function findGrowthItemById(itemId) {
-    return (game.inventory || []).find(item => item && item.id === itemId && isGrowthItem(item)) || null;
+    return (game.growthInventory || []).find(item => item && item.id === itemId && isGrowthItem(item)) || null;
+}
+
+/** 제작 선택 등에서 쓰는 조회: 보관함과 최근 획득함을 모두 본다. */
+function findAnyGrowthItemById(itemId) {
+    return findGrowthItemById(itemId)
+        || (game.recentGrowthDrops || []).find(item => item && item.id === itemId && isGrowthItem(item))
+        || null;
 }
 
 /** 활성 세팅의 배치 목록: [{ item, placement:{x,y,rotation}, cells:[[x,y]...] }] (유효한 것만) */
@@ -273,7 +296,7 @@ function resetGrowthBoardForLoop(preservedUnlockedCellCount) {
     game.growthBoard = {
         width: GROWTH_BOARD_W,
         height: GROWTH_BOARD_H,
-        unlockedCellCount: Math.max(GROWTH_UNLOCK_STAGES[0].cells, Math.floor(Number(preservedUnlockedCellCount) || 0)),
+        unlockedCellCount: Math.max(0, Math.floor(Number(preservedUnlockedCellCount) || 0)),
         activeLoadout: 0,
         loadouts: []
     };
@@ -340,7 +363,7 @@ function isProtectedRecentGrowthDrop(item) {
     // 새로운 베이스: 보관함/배치/최근함 어디에도 같은 베이스가 없으면 보호.
     let baseId = item.growthBaseId;
     if (!baseId) return false;
-    let ownedSame = (game.inventory || []).some(row => row && row.growthBaseId === baseId)
+    let ownedSame = (game.growthInventory || []).some(row => row && row.growthBaseId === baseId)
         || (game.recentGrowthDrops || []).some(row => row && row !== item && row.growthBaseId === baseId);
     return !ownedSame;
 }
@@ -348,6 +371,7 @@ function isProtectedRecentGrowthDrop(item) {
 // 전투/백그라운드 드랍 진입점. 가득 차도 전투를 멈추지 않는다(오래된 비보호 아이템 자동 해체).
 function addDroppedGrowthItem(item, options) {
     if (!item) return false;
+    if (!isGrowthBoardUnlocked()) return false;
     normalizeItem(item);
     let ignoreFilter = !!(options && (options.ignoreFilter || options.guaranteedKeep));
     if (!ignoreFilter && typeof passesItemPickupFilter === 'function' && !passesItemPickupFilter(item)) {
@@ -366,9 +390,9 @@ function addDroppedGrowthItem(item, options) {
     while (game.recentGrowthDrops.length > RECENT_GROWTH_DROPS_CAP) {
         let victimIdx = game.recentGrowthDrops.findIndex(row => !isProtectedRecentGrowthDrop(row));
         if (victimIdx < 0) {
-            // 전부 보호 대상이면 가장 오래된 것을 보관함으로 밀어낸다(유실 방지).
+            // 전부 보호 대상이면 가장 오래된 것을 생장 보관함으로 밀어낸다(유실 방지).
             let overflow = game.recentGrowthDrops.shift();
-            if (overflow) addItemToInventory(overflow, { guaranteedKeep: true });
+            if (overflow) game.growthInventory.push(overflow);
             continue;
         }
         let victim = game.recentGrowthDrops.splice(victimIdx, 1)[0];
@@ -386,24 +410,65 @@ function claimRecentGrowthDrop(itemId) {
     ensureGrowthBoardState();
     let idx = game.recentGrowthDrops.findIndex(row => row && row.id === itemId);
     if (idx < 0) return false;
-    if ((game.inventory || []).length >= getInventoryLimit()) { addLog('보관함이 가득 찼습니다.', 'attack-monster'); return false; }
-    let item = game.recentGrowthDrops.splice(idx, 1)[0];
-    let accepted = addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true });
-    if (accepted) updateStaticUI();
-    return accepted;
+    if (game.growthInventory.length >= getGrowthInventoryLimit()) { addLog('생장 보관함이 가득 찼습니다.', 'attack-monster'); return false; }
+    game.growthInventory.push(game.recentGrowthDrops.splice(idx, 1)[0]);
+    updateStaticUI();
+    return true;
 }
 
 function claimAllRecentGrowthDrops() {
     ensureGrowthBoardState();
     let moved = 0;
-    while (game.recentGrowthDrops.length > 0 && (game.inventory || []).length < getInventoryLimit()) {
-        let item = game.recentGrowthDrops.shift();
-        if (item && addItemToInventory(item, { ignoreFilter: true, ignoreAutoSalvage: true })) moved++;
+    while (game.recentGrowthDrops.length > 0 && game.growthInventory.length < getGrowthInventoryLimit()) {
+        game.growthInventory.push(game.recentGrowthDrops.shift());
+        moved++;
     }
-    if (moved > 0) addLog(`🎒 최근 획득함에서 ${moved}개를 보관함으로 옮겼습니다.`, 'loot-normal');
-    else addLog('옮길 아이템이 없거나 보관함이 가득 찼습니다.', 'attack-monster');
+    if (moved > 0) addLog(`🌱 최근 획득함에서 ${moved}개를 생장 보관함으로 옮겼습니다.`, 'loot-normal');
+    else addLog('옮길 아이템이 없거나 생장 보관함이 가득 찼습니다.', 'attack-monster');
     updateStaticUI();
     return moved;
+}
+
+/** 생장 보관함 해체. 배치 중인 아이템은 먼저 내려야 한다. */
+function salvageGrowthInventoryItem(itemId) {
+    ensureGrowthBoardState();
+    let idx = game.growthInventory.findIndex(row => row && row.id === itemId);
+    if (idx < 0) return false;
+    let item = game.growthInventory[idx];
+    if (item.locked) { addLog('잠금된 아이템은 해체할 수 없습니다.', 'attack-monster'); return false; }
+    if (isGrowthItemPlacedAnywhere(item.id)) { addLog('생장판에 배치된 아이템은 먼저 내려야 해체할 수 있습니다.', 'attack-monster'); return false; }
+    game.growthInventory.splice(idx, 1);
+    salvageItemObject(item, false);
+    updateStaticUI();
+    return true;
+}
+
+/** 배치되지 않은 비잠금 생장 아이템 일괄 해체. */
+function bulkSalvageGrowthInventory() {
+    ensureGrowthBoardState();
+    let targets = game.growthInventory.filter(item => item && !item.locked && !isGrowthItemPlacedAnywhere(item.id));
+    if (targets.length <= 0) return addLog('해체할 수 있는 생장 아이템이 없습니다. (잠금/배치 중인 아이템은 보호됩니다)', 'attack-monster');
+    if (!confirm(`생장 보관함 아이템 ${targets.length}개를 해체할까요? (잠금·배치 중인 아이템은 보호됩니다)`)) return;
+    let protectedCount = game.growthInventory.length - targets.length;
+    targets.forEach(item => salvageItemObject(item, true));
+    game.growthInventory = game.growthInventory.filter(item => item && (item.locked || isGrowthItemPlacedAnywhere(item.id)));
+    addLog(`🧪 생장 아이템 ${targets.length}개 해체${protectedCount > 0 ? ` (보호 ${protectedCount}개)` : ''}`, 'loot-normal');
+    updateStaticUI();
+}
+
+/**
+ * 비어 있는 첫 자리에 배치한다. 모든 회전을 시도한다.
+ * @returns {boolean} 배치 성공 여부
+ */
+function tryAutoPlaceGrowthItem(item) {
+    for (let y = 0; y < GROWTH_BOARD_H; y++) {
+        for (let x = 0; x < GROWTH_BOARD_W; x++) {
+            for (let rotation = 0; rotation < 4; rotation++) {
+                if (canPlaceGrowthItem(item, x, y, rotation).ok) return placeGrowthItem(item.id, x, y, rotation).ok;
+            }
+        }
+    }
+    return false;
 }
 
 function salvageRecentGrowthDrop(itemId) {
@@ -428,5 +493,6 @@ safeExposeGlobals({
     switchGrowthLoadout, renameGrowthLoadout, purgeGrowthItemFromAllLoadouts, isGrowthItemPlacedAnywhere,
     resetGrowthBoardForLoop,
     addDroppedGrowthItem, claimRecentGrowthDrop, claimAllRecentGrowthDrops, salvageRecentGrowthDrop,
-    isProtectedRecentGrowthDrop
+    isProtectedRecentGrowthDrop, isGrowthBoardUnlocked, getGrowthInventoryLimit, findAnyGrowthItemById,
+    salvageGrowthInventoryItem, bulkSalvageGrowthInventory, tryAutoPlaceGrowthItem
 });

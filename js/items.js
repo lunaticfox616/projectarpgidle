@@ -180,7 +180,10 @@ function clearCraftSelection() { craftingSelectionState.ref = null; craftingSele
 function getSelectedCraftItem() {
     if (craftingSelectionState.ref === null) return null;
     if (craftingSelectionState.isEquip) return game.equipment[craftingSelectionState.ref] || null;
-    return (game.inventory || []).find(item => item.id === craftingSelectionState.ref) || null;
+    // 생장 아이템은 전용 보관함(game.growthInventory)에 있으므로 함께 조회한다.
+    return (game.inventory || []).find(item => item.id === craftingSelectionState.ref)
+        || (typeof findAnyGrowthItemById === 'function' ? findAnyGrowthItemById(craftingSelectionState.ref) : null)
+        || null;
 }
 
 function ensureCraftSelectionValid() {
@@ -189,7 +192,9 @@ function ensureCraftSelectionValid() {
         if (!game.equipment[craftingSelectionState.ref]) clearCraftSelection();
         return;
     }
-    if (!game.inventory.some(item => item.id === craftingSelectionState.ref)) clearCraftSelection();
+    let inShared = game.inventory.some(item => item.id === craftingSelectionState.ref);
+    let inGrowth = typeof findAnyGrowthItemById === 'function' && !!findAnyGrowthItemById(craftingSelectionState.ref);
+    if (!inShared && !inGrowth) clearCraftSelection();
 }
 
 function selectForCrafting(ref, isEquip) {

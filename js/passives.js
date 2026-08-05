@@ -7813,7 +7813,11 @@ function destroySelectedCraftItem(item) {
     if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return;
     let ref = getCraftSelectionRef();
     if (isCraftSelectionEquip()) game.equipment[ref] = null;
-    else game.inventory = (game.inventory || []).filter(entry => entry !== item);
+    else {
+        game.inventory = (game.inventory || []).filter(entry => entry !== item);
+        game.growthInventory = (game.growthInventory || []).filter(entry => entry !== item);
+        game.recentGrowthDrops = (game.recentGrowthDrops || []).filter(entry => entry !== item);
+    }
     if (item && typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     if (typeof clearCraftSelection === 'function') clearCraftSelection();
 }

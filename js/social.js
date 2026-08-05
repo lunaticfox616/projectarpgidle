@@ -184,9 +184,10 @@ function buildProfileSnapshot() {
         }
     } catch (e) { console.warn('프로필 스탯 계산 실패:', e); }
 
-    // 생장판 교체 이후 프로필의 "장비"는 생장판에 배치된 아이템이다.
-    // 마이그레이션 전 저장을 열람하는 경우를 위해 남은 고정 슬롯 장비도 함께 담는다.
     let equipment = [];
+    let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {};
+    Object.keys(eq).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
+    // 생장판에 배치된 아이템은 장비와 별개 시스템이므로 뒤에 이어 붙인다(프로필에서 함께 열람).
     if (typeof getPlacedGrowthEntries === 'function') {
         getPlacedGrowthEntries().forEach(entry => {
             let label = typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(entry.item) : '생장';
@@ -194,8 +195,6 @@ function buildProfileSnapshot() {
             if (snap) equipment.push(snap);
         });
     }
-    let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {};
-    Object.keys(eq).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
 
     let jewels = [];
     let jslots = (typeof game !== 'undefined' && Array.isArray(game.jewelSlots)) ? game.jewelSlots : [];
@@ -774,13 +773,14 @@ async function openMyProfilePreview() {
     openPlayerProfile(socialLoggedInUserId());
 }
 
-// 장비: 생장판에 배치된 아이템 목록(고정 슬롯 페이퍼돌은 마이그레이션 전 저장에만 남는다).
+// 장비: 고정 슬롯 페이퍼돌 + (있다면) 생장판 배치 목록을 함께 보여준다.
 function renderProfileEquipPaperdoll(equipment) {
     let rows = (equipment || []).filter(Boolean);
     let legacySlots = new Set(SOCIAL_EQUIP_SLOTS.concat(['반지3']));
     let growthRows = rows.filter(it => !legacySlots.has(it.slot));
-    if (growthRows.length > 0) return renderProfileGrowthList(growthRows);
-    return renderProfileLegacyPaperdoll(rows);
+    let html = renderProfileLegacyPaperdoll(rows.filter(it => legacySlots.has(it.slot)));
+    if (growthRows.length > 0) html += `<div style="margin-top:8px;color:#8aa0bd;font-size:0.76em;font-weight:700;">🌱 생장판</div>` + renderProfileGrowthList(growthRows);
+    return html;
 }
 
 function renderProfileGrowthList(rows) {

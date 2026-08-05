@@ -12,6 +12,7 @@ function loadGrowthContext() {
             maxZoneId: 0,
             season: 1,
             inventory: [],
+            growthInventory: [],
             recentGrowthDrops: [],
             growthBoard: null,
             settings: { showLootLog: false, autoSalvageEnabled: false, autoSalvageRarities: {} }
@@ -45,7 +46,7 @@ function loadGrowthContext() {
 
 function makeItem(ctx, id, shapeId, category) {
     const item = { id, growthShapeId: shapeId, growthCategory: category || 'flower', growthBaseId: 'test_base', name: `item${id}`, rarity: 'normal', baseStats: [], stats: [] };
-    ctx.game.inventory.push(item);
+    ctx.game.growthInventory.push(item);
     return item;
 }
 
@@ -71,16 +72,30 @@ shapeSizeReport.forEach(row => {
     row.sizes.forEach(size => assert.strictEqual(size, row.base, `${row.key} 형태는 회전해도 칸 수가 같아야 한다`));
 });
 
-// ── 보드 상태와 해금 ─────────────────────────────────────────────────────
+// ── 해금 게이트: 생장판은 루프 25 전에는 존재하지 않는다 ──────────────────
 run('ensureGrowthBoardState()');
-assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 12, '튜토리얼 단계는 12칸이어야 한다');
+assert.strictEqual(run('isGrowthBoardUnlocked()'), false, '루프 25 전에는 생장판이 잠겨 있어야 한다');
+run('syncGrowthBoardUnlocks({ silent: true })');
+assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 0, '해금 전에는 활성 칸이 0이어야 한다');
+assert.strictEqual(run('isGrowthCellUnlocked(5, 2)'), false, '해금 전에는 어떤 칸도 열려 있으면 안 된다');
 assert.strictEqual(run('game.growthBoard.loadouts.length'), 3, '세팅은 항상 3개여야 한다');
 
-// 진행하면 칸이 늘고, 되돌아가도 줄어들지 않는다(영구 성장).
-ctx.game.maxZoneId = 4;
+// 루프 24까지는 여전히 잠겨 있다(경계값).
+ctx.game.season = 24;
 run('syncGrowthBoardUnlocks({ silent: true })');
-assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 24, '중반 액트에서 24칸이어야 한다');
-ctx.game.maxZoneId = 0;
+assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 0, '루프 24에서도 아직 잠겨 있어야 한다');
+
+// 루프 25에 12칸으로 각성한다.
+ctx.game.season = 25;
+run('syncGrowthBoardUnlocks({ silent: true })');
+assert.strictEqual(run('isGrowthBoardUnlocked()'), true, '루프 25에 해금되어야 한다');
+assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 12, '해금 시점에는 12칸이어야 한다');
+
+// 루프가 진행되면 칸이 늘고, 되돌아가도 줄어들지 않는다(영구 성장).
+ctx.game.season = 32;
+run('syncGrowthBoardUnlocks({ silent: true })');
+assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 24, '루프 32에서 24칸이어야 한다');
+ctx.game.season = 25;
 run('syncGrowthBoardUnlocks({ silent: true })');
 assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 24, '해금 칸은 진행이 후퇴해도 줄지 않아야 한다');
 
@@ -116,7 +131,7 @@ assert.strictEqual(json('getGrowthItemGapCells({ growthShapeId: "block9" }, 0)')
 
 // 분리형 사이 칸에는 다른 아이템을 배치할 수 있어야 한다.
 const splitCtx = loadGrowthContext();
-splitCtx.game.maxZoneId = 10;
+splitCtx.game.season = 40;
 vm.runInContext('ensureGrowthBoardState(); syncGrowthBoardUnlocks({ silent: true });', splitCtx);
 makeItem(splitCtx, 10, 'split2', 'leaf');
 makeItem(splitCtx, 11, 'dot1', 'flower');
@@ -131,7 +146,7 @@ run('game.growthBoard.activeLoadout = 0');
 assert.strictEqual(run('getActiveGrowthLoadout().placements[1].rotation'), 1, '세팅을 오가도 원래 세팅의 배치가 보존되어야 한다');
 
 // ── 아이템 소실 후 정리 ──────────────────────────────────────────────────
-run('game.inventory = game.inventory.filter(function (item) { return item.id !== 3; })');
+run('game.growthInventory = game.growthInventory.filter(function (item) { return item.id !== 3; })');
 const removed = run('validateGrowthPlacements()');
 assert.ok(removed >= 1, '보관함에서 사라진 아이템의 배치는 제거되어야 한다');
 assert.strictEqual(run('getActiveGrowthLoadout().placements[3]'), undefined, '유효하지 않은 배치가 남아 있으면 안 된다');

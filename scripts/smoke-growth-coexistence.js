@@ -1,0 +1,124 @@
+// 생장판이 기존 고정 슬롯 장비를 대체하지 않는다는 계약을 고정한다.
+// - 스탯 소스는 "장비 + 배치된 생장 아이템"이며 두 출처가 함께 합산된다.
+// - 생장 아이템은 전용 보관함을 쓰고 장비 인벤토리 칸을 잠식하지 않는다.
+// - 루프 25 전에는 생장 드랍이 발생하지 않는다.
+const fs = require('fs');
+const vm = require('vm');
+const assert = require('assert');
+
+// combat.js에서 계약에 해당하는 함수만 떼어 실행한다(전체 로드는 다른 스모크가 담당).
+function loadStatSourceContract(gameState) {
+    const source = fs.readFileSync('js/combat.js', 'utf8');
+    const start = source.indexOf('function getStatSourceItemEntries()');
+    const end = source.indexOf('function rollGrowthItemDrop(');
+    assert(start >= 0 && end > start, 'stat source contract functions not found');
+    const context = {
+        console,
+        game: gameState,
+        getPlacedGrowthEntries: () => (gameState.__placed || []).map(item => ({ item }))
+    };
+    vm.createContext(context);
+    vm.runInContext(source.slice(start, end), context);
+    return context;
+}
+
+// ── 스탯 소스: 장비와 생장판이 함께 합산된다 ──────────────────────────────
+{
+    const weapon = { id: 1, slot: '무기', name: '검' };
+    const boots = { id: 2, slot: '신발', name: '장화' };
+    const flower = { id: 10, slot: '무기', name: '꽃', growthCategory: 'flower', growthShapeId: 'dot1' };
+    const state = {
+        equipment: { '무기': weapon, '신발': boots, '갑옷': null },
+        __placed: [flower]
+    };
+    const ctx = loadStatSourceContract(state);
+    // VM 컨텍스트의 배열은 프로토타입이 달라 deepStrictEqual이 실패한다. 직렬화해서 비교한다.
+    const entries = vm.runInContext('getStatSourceItemEntries()', ctx);
+    const names = Array.from(entries).map(row => row[1].name).sort();
+    assert.strictEqual(JSON.stringify(names), JSON.stringify(['검', '꽃', '장화']), '장비와 생장 배치가 모두 스탯 소스여야 한다');
+
+    const keys = Array.from(entries).map(row => row[0]);
+    assert.ok(keys.includes('무기'), '고정 슬롯 키가 유지되어야 한다');
+    assert.ok(keys.some(key => String(key).startsWith('growth:')), '생장 배치는 growth: 접두 키를 써야 한다');
+
+    // 생장판이 비어도 장비 스탯은 그대로 나온다(대체가 아니라 추가라는 계약).
+    state.__placed = [];
+    const equipOnly = Array.from(vm.runInContext('getStatSourceItemEntries()', ctx)).map(row => row[1].name).sort();
+    assert.strictEqual(JSON.stringify(equipOnly), JSON.stringify(['검', '장화']), '생장판이 비어도 장비 스탯 소스는 유지되어야 한다');
+
+    // 반대로 장비를 모두 벗어도 생장 배치는 계속 기여한다.
+    state.equipment = { '무기': null, '신발': null };
+    state.__placed = [flower];
+    const growthOnly = Array.from(vm.runInContext('getStatSourceItemEntries()', ctx)).map(row => row[1].name);
+    assert.strictEqual(JSON.stringify(growthOnly), JSON.stringify(['꽃']), '장비가 없어도 생장 배치는 스탯을 제공해야 한다');
+}
+
+// ── 보관함 분리 + 해금 게이트 ────────────────────────────────────────────
+{
+    const context = {
+        console,
+        window: {},
+        game: {
+            season: 1,
+            inventory: [{ id: 1, slot: '무기', name: '기존 장비' }],
+            growthInventory: [],
+            recentGrowthDrops: [],
+            growthBoard: null,
+            settings: { showLootLog: false, autoSalvageEnabled: false, autoSalvageRarities: {} }
+        },
+        addLog: () => {},
+        updateStaticUI: () => {},
+        queueImportantSave: () => {},
+        startMoving: () => {},
+        normalizeItem: item => item,
+        salvageItemObject: () => {},
+        addItemToInventory: () => { throw new Error('생장 아이템이 장비 인벤토리로 들어가면 안 된다'); },
+        getInventoryLimit: () => 30,
+        registerUniqueToCodexOnAcquire: () => {},
+        passesItemPickupFilter: () => true
+    };
+    context.safeExposeData = map => Object.keys(map || {}).forEach(key => {
+        if (typeof context[key] === 'undefined') context[key] = map[key];
+    });
+    context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
+    vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
+    vm.runInContext('function invalidateGrowthEffects() {}', context);
+    const run = code => vm.runInContext(code, context);
+
+    const makeDrop = id => ({ id, growthShapeId: 'dot1', growthCategory: 'flower', growthBaseId: 'gf_spark_seed', name: `드랍${id}`, rarity: 'normal', baseStats: [], stats: [] });
+
+    // 해금 전에는 드랍 자체를 받지 않는다.
+    context.game.season = 10;
+    assert.strictEqual(run(`addDroppedGrowthItem(${JSON.stringify(makeDrop(100))})`), false, '루프 25 전에는 생장 드랍을 받으면 안 된다');
+    assert.strictEqual(context.game.recentGrowthDrops.length, 0, '해금 전에는 최근 획득함이 비어 있어야 한다');
+
+    // 해금 후에는 최근 획득함으로 들어간다.
+    context.game.season = 25;
+    run('syncGrowthBoardUnlocks({ silent: true })');
+    assert.strictEqual(run(`addDroppedGrowthItem(${JSON.stringify(makeDrop(101))})`), true, '해금 후에는 생장 드랍을 받아야 한다');
+    assert.strictEqual(context.game.recentGrowthDrops.length, 1, '드랍은 최근 획득함으로 들어가야 한다');
+    assert.strictEqual(context.game.inventory.length, 1, '장비 인벤토리는 생장 드랍의 영향을 받지 않아야 한다');
+
+    // 보관은 전용 보관함으로 (addItemToInventory를 호출하면 위 throw로 실패한다).
+    assert.strictEqual(run('claimRecentGrowthDrop(101)'), true, '최근 획득함에서 생장 보관함으로 옮길 수 있어야 한다');
+    assert.strictEqual(context.game.growthInventory.length, 1, '생장 보관함으로 들어가야 한다');
+    assert.strictEqual(context.game.recentGrowthDrops.length, 0, '옮긴 뒤 최근 획득함에서 빠져야 한다');
+    assert.strictEqual(context.game.inventory.length, 1, '장비 인벤토리 칸을 잠식하면 안 된다');
+
+    // 전용 보관함 한도는 장비 한도와 별개다.
+    assert.strictEqual(run('getGrowthInventoryLimit()'), 40, '생장 보관함 한도는 장비 한도와 별개여야 한다');
+
+    // 배치된 아이템은 해체되지 않는다.
+    run('placeGrowthItem(101, 5, 2, 0)');
+    assert.strictEqual(run('salvageGrowthInventoryItem(101)'), false, '배치 중인 아이템은 해체를 거부해야 한다');
+    assert.strictEqual(context.game.growthInventory.length, 1, '거부된 해체로 아이템이 사라지면 안 된다');
+
+    // 내린 뒤에는 해체된다.
+    run('removeGrowthPlacement(101)');
+    assert.strictEqual(run('salvageGrowthInventoryItem(101)'), true, '배치를 내리면 해체할 수 있어야 한다');
+    assert.strictEqual(context.game.growthInventory.length, 0, '해체된 아이템은 보관함에서 빠져야 한다');
+}
+
+console.log('smoke-growth-coexistence passed');

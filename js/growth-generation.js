@@ -1,4 +1,4 @@
-// 생장 아이템 생성: 드랍, 고유, 레거시 변환.
+// 생장 아이템 생성: 드랍, 고유, 타락 결과.
 // 기존 옵션 풀(MOD_DB)·베이스 롤(rollBaseStats)·등급 규칙을 그대로 재사용하고,
 // 생장판 고유 요소(종류/형태/크기/태그)만 추가한다.
 
@@ -13,7 +13,8 @@ function getGrowthCategoryModSlots(category) {
     return GROWTH_CATEGORY_MOD_SLOTS[category] || ['목걸이'];
 }
 
-// 제작 계열 판정을 위한 레거시 슬롯 (화석 풀·혼돈 주입기·방어 타입 제한이 이 값을 읽는다).
+// 제작 계열 판정을 위한 내부 슬롯 매핑 (화석 풀·혼돈 주입기·방어 타입 제한이 이 값을 읽는다).
+// 사용자에게는 노출하지 않는다 — 표시용 라벨은 getItemSlotDisplayLabel이 종류/크기로 만든다.
 function getGrowthCraftSlot(category) {
     return (GROWTH_CATEGORY_INFO[category] || {}).craftSlot || '목걸이';
 }
@@ -193,7 +194,7 @@ function notifyFirstSmallGrowthBase(item) {
     addLog(`✨ 처음으로 ${size}칸 소형 베이스를 획득했습니다! 작은 아이템은 같은 공간에 더 많이 배치해 시너지를 조립할 수 있습니다.`, 'loot-unique');
     if (typeof queueTutorialNotice === 'function') {
         queueTutorialNotice(`growth_small_base_${size}`, `${size}칸 베이스 해금`,
-            `작은 생장 아이템은 옵션 수가 적은 대신 같은 공간에 더 많이 배치됩니다.\n인접·행/열·태그 조건을 조립해 대형 아이템의 중심축을 강화하세요.`, 'tab-growth');
+            `작은 생장 아이템은 옵션 수가 적은 대신 같은 공간에 더 많이 배치됩니다.\n인접·행/열·태그 조건을 조립해 대형 아이템의 중심축을 강화하세요.`, 'tab-items', 'item-tab-growth');
     }
 }
 
@@ -288,50 +289,8 @@ function applyGrowthCorruptionAffix(item, empowerExisting) {
     return addLog('🩸 타락: 추가 옵션이 부여되었습니다. (크기 상한 초과 가능)', 'loot-unique');
 }
 
-// ── 레거시 변환 (마이그레이션·보상 상자에서 공용으로 사용) ─────────────────
-function pickGrowthShapeForLegacy(item) {
-    let tier = Math.max(1, Math.floor(Number(item && (item.hiddenTier || item.itemTier)) || 1));
-    let pool = GROWTH_LEGACY_SHAPE_POOLS.find(row => tier >= row.minTier);
-    let shapes = (pool && pool.shapes) || ['cross5'];
-    // 같은 아이템은 항상 같은 형태를 받도록 id 기반 결정론적 선택을 쓴다.
-    let seed = Math.abs(Math.floor(Number(item && item.id) || 0));
-    return shapes[seed % shapes.length];
-}
-
-function findGrowthBaseForLegacy(category, shapeId, tier) {
-    let exact = GROWTH_BASE_DB.find(base => base.category === category && base.shapeId === shapeId && (base.reqTier || 1) <= tier);
-    if (exact) return exact;
-    let sameCategory = GROWTH_BASE_DB.filter(base => base.category === category && (base.reqTier || 1) <= tier);
-    if (sameCategory.length > 0) return sameCategory[0];
-    return GROWTH_BASE_DB.find(base => base.category === category) || GROWTH_BASE_DB[0];
-}
-
-/**
- * 기존 고정 슬롯 아이템을 생장 아이템으로 변환한다.
- * 옵션·품질·타락·봉인·융합 상태는 그대로 보존하고, 종류/형태/태그만 새로 부여한다.
- */
-function convertLegacyItemToGrowthItem(item) {
-    if (!item || isGrowthItem(item)) return item;
-    let legacySlot = String(item.slot || '').replace(/[123]$/, '');
-    let category = GROWTH_LEGACY_SLOT_CATEGORY[legacySlot] || 'leaf';
-    let tier = Math.max(1, Math.floor(Number(item.hiddenTier || item.itemTier) || 1));
-    let shapeId = pickGrowthShapeForLegacy(item);
-    let base = findGrowthBaseForLegacy(category, shapeId, tier);
-    item.growthLegacySlot = legacySlot;
-    item.growthCategory = category;
-    item.growthShapeId = shapeId;
-    item.growthBaseId = base ? base.id : null;
-    item.growthTags = Array.isArray(item.growthTags) ? item.growthTags : [];
-    item.growthRemovedTags = Array.isArray(item.growthRemovedTags) ? item.growthRemovedTags : [];
-    item.slot = getGrowthCraftSlot(category);
-    // 추가 옵션이 새 크기 상한을 넘으면 잘라내지 않고 유지한다(기존 아이템 손실 금지).
-    // 이후 제작으로 재설정할 때부터 상한이 적용된다.
-    return item;
-}
-
 safeExposeGlobals({
     getGrowthCategoryModSlots, getGrowthCraftSlot, getGrowthItemAffixCap, isGrowthBaseUnlockedAtTier,
     pickGrowthBaseForDrop, createGrowthItemFromBase, generateGrowthUniqueItem, generateGrowthDrop,
-    notifyFirstSmallGrowthBase, convertLegacyItemToGrowthItem, pickGrowthShapeForLegacy,
-    applyGrowthCorruptionOutcome, pickGrowthCorruptionOutcome
+    notifyFirstSmallGrowthBase, applyGrowthCorruptionOutcome, pickGrowthCorruptionOutcome
 });

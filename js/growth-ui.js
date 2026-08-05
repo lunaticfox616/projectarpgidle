@@ -215,7 +215,9 @@ function renderGrowthItemCard(item, mode) {
         ? `<button onclick="claimRecentGrowthDrop(${item.id})">보관</button><button onclick="salvageRecentGrowthDrop(${item.id})">해체</button>`
         : `<button onclick="selectGrowthItem(${item.id},'inventory')">${selected ? '선택 해제' : (placement ? '선택' : '배치')}</button>`
           + (placement ? `<button onclick="unplaceGrowthItem(${item.id})">내리기</button>` : '')
-          + `<button onclick="toggleItemLockById(${item.id})">${item.locked ? '🔒' : '🔓'}</button>`;
+          + `<button onclick="selectForCrafting(${item.id}, false)">제작</button>`
+          + `<button onclick="toggleGrowthItemLock(${item.id})">${item.locked ? '🔒' : '🔓'}</button>`
+          + `<button onclick="salvageGrowthInventoryItem(${item.id})">해체</button>`;
     return `<div class="growth-item-card${selected ? ' selected' : ''}${placement ? ' placed' : ''}" data-info-tooltip-anchor="1"
         onmouseenter="showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="hideInfoTooltip()">
         <div class="growth-item-head">
@@ -228,13 +230,9 @@ function renderGrowthItemCard(item, mode) {
 }
 
 function renderGrowthInventorySection() {
-    let sf = typeof getSearchFilterState === 'function' ? getSearchFilterState() : { equip: '' };
-    let items = (game.inventory || []).filter(item => isGrowthItem(item) && isItemRarityVisible(item)).filter(item => {
-        let hay = `${item.name || ''} ${getGrowthCategoryInfo(item.growthCategory).label} ${(item.stats || []).map(stat => stat && (stat.statName || '')).join(' ')}`;
-        return matchSearchQuery(hay, sf.equip);
-    });
-    let cards = items.map(item => renderGrowthItemCard(item, 'inventory')).join('') || '<div class="growth-synergy-empty">보관 중인 생장 아이템이 없습니다.</div>';
-    return cards;
+    let items = (game.growthInventory || []).filter(isGrowthItem);
+    if (items.length === 0) return '<div class="growth-synergy-empty">보관 중인 생장 아이템이 없습니다. 루프 ' + GROWTH_UNLOCK_LOOP + ' 이후 전투에서 드랍됩니다.</div>';
+    return items.map(item => renderGrowthItemCard(item, 'inventory')).join('');
 }
 
 function renderGrowthRecentSection() {
@@ -362,21 +360,20 @@ function renderGrowthBoardPanel() {
     paintGrowthPlacementPreview();
 }
 
-// 제작/화석/주입 탭의 "대상 선택" 영역: 배치된 생장 아이템 목록.
-// 생장 아이템은 보관함(game.inventory)에 있으므로 제작 선택은 인벤토리 참조(isEquip=false)를 쓴다.
+// 제작/화석/주입 탭의 "대상 선택"에 생장 아이템(전용 보관함)도 노출한다.
+// 생장 아이템은 game.inventory에 없으므로 이 목록이 없으면 제작 자체가 불가능하다.
 function renderGrowthCraftTargets(targetId) {
     let host = document.getElementById(targetId);
+    let heading = document.getElementById(`${targetId}-heading`);
     if (!host) return;
-    let entries = getPlacedGrowthEntries();
-    if (entries.length === 0) {
-        host.innerHTML = '<div class="growth-synergy-empty">생장판에 배치된 아이템이 없습니다.</div>';
-        return;
-    }
+    let items = (game.growthInventory || []).filter(isGrowthItem);
+    if (heading) heading.style.display = items.length > 0 ? '' : 'none';
+    if (items.length === 0) { host.innerHTML = ''; return; }
     let selectedRef = typeof getCraftSelectionRef === 'function' ? getCraftSelectionRef() : null;
-    host.innerHTML = entries.map(entry => {
-        let item = entry.item;
+    let isEquipRef = typeof isCraftSelectionEquip === 'function' ? isCraftSelectionEquip() : false;
+    host.innerHTML = items.map(item => {
         let info = getGrowthCategoryInfo(item.growthCategory);
-        let selected = selectedRef === item.id;
+        let selected = !isEquipRef && selectedRef === item.id;
         return `<div class="growth-item-card${selected ? ' selected' : ''}" data-info-tooltip-anchor="1"
             onmouseenter="showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="hideInfoTooltip()"
             onclick="selectForCrafting(${item.id}, false)">
@@ -389,7 +386,19 @@ function renderGrowthCraftTargets(targetId) {
     }).join('');
 }
 
+/** 생장 아이템 잠금 토글 (전용 보관함 대상). */
+function toggleGrowthItemLock(itemId) {
+    let item = findAnyGrowthItemById(itemId);
+    if (!item) return;
+    item.locked = !item.locked;
+    addLog(`${item.locked ? '🔒 잠금' : '🔓 잠금 해제'}: [${item.name}]`, 'loot-normal');
+    updateStaticUI();
+}
+
 function renderGrowthTab() {
+    syncGrowthSubtabVisibility();
+    ['ui-craft-growth-list', 'ui-fossil-growth-list', 'ui-infuser-growth-list'].forEach(renderGrowthCraftTargets);
+    if (!isGrowthBoardUnlocked()) return;
     renderGrowthBoardPanel();
     let recentHost = document.getElementById('ui-growth-recent');
     if (recentHost) {
@@ -399,11 +408,27 @@ function renderGrowthTab() {
     }
     let invHost = document.getElementById('ui-growth-inventory');
     if (invHost) invHost.innerHTML = renderGrowthInventorySection();
+    let invCount = document.getElementById('ui-growth-inv-count');
+    if (invCount) invCount.innerText = String((game.growthInventory || []).length);
+    let invLimit = document.getElementById('ui-growth-inv-limit');
+    if (invLimit) invLimit.innerText = String(getGrowthInventoryLimit());
+}
+
+// 생장판은 루프 25 전에는 존재 자체를 노출하지 않는다.
+function syncGrowthSubtabVisibility() {
+    let unlocked = isGrowthBoardUnlocked();
+    let btn = document.getElementById('btn-item-tab-growth');
+    if (btn) btn.style.display = unlocked ? '' : 'none';
+    let note = document.getElementById('ui-growth-unlock-note');
+    if (note) note.innerText = unlocked ? '' : `루프 ${GROWTH_UNLOCK_LOOP}에 해금`;
+    if (!unlocked && game.itemSubtab === 'item-tab-growth' && typeof switchItemSubtab === 'function') {
+        switchItemSubtab('item-tab-equip');
+    }
 }
 
 safeExposeGlobals({
     selectGrowthItem, rotateGrowthSelection, handleGrowthCellClick, unplaceGrowthItem,
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, buildGrowthComparison,
-    renderGrowthShapePreview, renderGrowthCraftTargets
+    renderGrowthShapePreview, renderGrowthCraftTargets, toggleGrowthItemLock, syncGrowthSubtabVisibility
 });

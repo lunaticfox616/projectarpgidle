@@ -8,7 +8,7 @@ function loadContext() {
     const context = {
         console,
         window: {},
-        game: { maxZoneId: 0, season: 1, inventory: [], recentGrowthDrops: [], growthBoard: null, settings: {} },
+        game: { maxZoneId: 0, season: 1, inventory: [], growthInventory: [], recentGrowthDrops: [], growthBoard: null, settings: {} },
         addLog: () => {},
         updateStaticUI: () => {},
         queueImportantSave: () => {},
@@ -35,7 +35,7 @@ function loadContext() {
     vm.runInContext(fs.readFileSync('js/growth-effects.js', 'utf8'), context);
     // 최대 진행도로 모든 시너지 계층을 열어 둔다(계층 게이팅은 별도로 검사).
     context.game.maxZoneId = 20;
-    context.game.season = 10;
+    context.game.season = 60;
     vm.runInContext('ensureGrowthBoardState(); syncGrowthBoardUnlocks({ silent: true });', context);
     return context;
 }
@@ -44,7 +44,7 @@ function loadContext() {
 function placeBase(ctx, id, baseId, x, y, rotation) {
     const base = vm.runInContext(`GROWTH_BASE_DB.find(function (b) { return b.id === ${JSON.stringify(baseId)}; })`, ctx);
     assert.ok(base, `${baseId} 베이스가 존재해야 한다`);
-    ctx.game.inventory.push({
+    ctx.game.growthInventory.push({
         id, growthBaseId: baseId, growthShapeId: base.shapeId, growthCategory: base.category,
         name: `${baseId}#${id}`, rarity: 'normal', baseStats: [], stats: [], growthTags: [], growthRemovedTags: []
     });
@@ -137,12 +137,12 @@ function grantTotals(ctx) {
 // ── 계층 해금 게이팅 ─────────────────────────────────────────────────────
 {
     const ctx = loadContext();
-    ctx.game.maxZoneId = 0;
-    ctx.game.season = 1;
+    // 해금 직후(루프 25)에는 기본 인접만 열려 있다.
+    ctx.game.season = 25;
     vm.runInContext('invalidateGrowthEffects()', ctx);
-    assert.strictEqual(vm.runInContext('isGrowthSynergyStageUnlocked("adjacency")', ctx), true, '기본 인접은 처음부터 열려 있어야 한다');
-    assert.strictEqual(vm.runInContext('isGrowthSynergyStageUnlocked("wall")', ctx), false, '벽/방향 계층은 초반에 잠겨 있어야 한다');
-    assert.strictEqual(vm.runInContext('isGrowthSynergyStageUnlocked("complex")', ctx), false, '복합 시너지는 초반에 잠겨 있어야 한다');
+    assert.strictEqual(vm.runInContext('isGrowthSynergyStageUnlocked("adjacency")', ctx), true, '해금 시점에 기본 인접은 열려 있어야 한다');
+    assert.strictEqual(vm.runInContext('isGrowthSynergyStageUnlocked("wall")', ctx), false, '벽/방향 계층은 해금 직후에는 잠겨 있어야 한다');
+    assert.strictEqual(vm.runInContext('isGrowthSynergyStageUnlocked("complex")', ctx), false, '복합 시너지는 해금 직후에는 잠겨 있어야 한다');
 
     placeBase(ctx, 1, 'gf_frost_thorn', 0, 1, 0);
     const totals = grantTotals(ctx);
