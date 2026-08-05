@@ -572,6 +572,11 @@ function applyFossilChaosCraft(fossilKey) {
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--; if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_craft');
     updateItemName(item);
+    // 생장 아이템도 화석 대상이 될 수 있다(제작/화석/주입 탭의 생장 목록).
+    // 공간 시너지 스냅샷은 배치가 바뀔 때만 비워지므로, 제작으로 아이템이 바뀌면
+    // 여기서 직접 비워야 판에 올라간 채로 재련한 결과가 낡은 값으로 남지 않는다.
+    // (오브 경로 useCurrency에는 같은 처리가 있고 화석 경로에만 빠져 있었다)
+    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     let line = guaranteed ? `확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})` : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '확정 옵션 2줄: [균열 표식] + [추가 옵션 효과 50% 증폭]');
     addLog(`🪨 ${fossil.name} 재련 성공! ${line}`, 'loot-magic');
     updateStaticUI();
