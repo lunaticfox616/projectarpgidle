@@ -48,6 +48,24 @@ assert.ok(ui.indexOf('function renderCombatFlaskHud()') < ui.indexOf('function u
     '480px 이하에서는 스킬 요약이 2열로 접혀야 한다');
   assert.ok(!/^\s*\.skill-loadout-summary\s*{[^}]*min-width:\s*min\(430px[^}]*}\s*$/m.test(narrow),
     '좁은 화면 블록이 min-width를 다시 강제하면 안 된다');
+  // 같은 원인으로 눌려 있던 나머지도 화면 폭 기준 규칙이 있어야 한다.
+  // (360px 측정: 장비 요약 4열×71px, 젬 연구 요약 3열 중 최소 58px, 연구 격자 2열×65px)
+  [
+    ['.equipment-loadout-summary', '장비 요약 4열'],
+    ['.gem-research-summary', '젬 연구 요약 3열'],
+    ['.gem-research-grid', '젬 연구 격자 2열'],
+    ['.gem-research-columns', '젬 연구 2단 배치']
+  ].forEach(([selector, why]) => {
+    const pattern = new RegExp(`body:not\\(\\.desktop-windowed-ui\\)\\s*${selector.replace('.', '\\.')}`);
+    assert.ok(pattern.test(overhaul), `${why}이 좁은 화면에서 접히지 않으면 글자가 읽히지 않는다`);
+  });
+  // mobile.css가 이미 !important로 덮은 것을 여기에 또 적으면 규칙이 갈라진다.
+  const mobileCovered = ['.gem-target-list', '.gem-support-process-list', '.skill-gem-library'];
+  mobileCovered.forEach(selector => {
+    assert.ok(mobileCss.includes(selector), `${selector}는 mobile.css가 담당한다`);
+    assert.ok(!overhaul.includes(`body:not(.desktop-windowed-ui) ${selector}`),
+      `${selector}는 mobile.css가 이미 덮으므로 여기서 중복 선언하면 안 된다`);
+  });
 }
 
 console.log('smoke-mobile-playability passed');

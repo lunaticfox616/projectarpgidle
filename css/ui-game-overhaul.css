@@ -2048,6 +2048,12 @@ body:not(.light-mode) #info-tooltip {
   body:not(.desktop-windowed-ui) .skill-loadout-summary > div:nth-child(4),
   body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(4),
   body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(7) { border-left: 0; }
+  /* 360px에서 2열 151px씩으로 눌려 있었다. (젬 보관함·각인·가공 격자는
+     mobile.css가 이미 1열로 덮고 있어 여기서 다시 적지 않는다) */
+  body:not(.desktop-windowed-ui) .gem-research-columns { grid-template-columns: 1fr; }
+  /* 장비 요약도 스킬 요약과 같은 모양의 문제다(4열 × 최소 폭 고정). */
+  body:not(.desktop-windowed-ui) .equipment-loadout-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body:not(.desktop-windowed-ui) .equipment-salvage-actions { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {
@@ -2057,6 +2063,12 @@ body:not(.light-mode) #info-tooltip {
   body:not(.desktop-windowed-ui) .gem-resource-strip > div { border-left: 1px solid rgba(48, 70, 93, .52); }
   body:not(.desktop-windowed-ui) .skill-loadout-summary > div:nth-child(odd),
   body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(odd) { border-left: 0; }
+  /* 젬 연구: 360px에서 요약이 3열(가장 좁은 칸 58px), 격자가 2열 65px씩이었다.
+     한글 한 글자도 온전히 못 담는 폭이다. */
+  body:not(.desktop-windowed-ui) .gem-research-summary,
+  body:not(.desktop-windowed-ui) .gem-research-grid { grid-template-columns: 1fr; }
+  body:not(.desktop-windowed-ui) .gem-research-resource,
+  body:not(.desktop-windowed-ui) .gem-research-progress { grid-column: auto; }
 }
 
 /* Combat flask HUD: charge count stays readable without covering the health bar. */
