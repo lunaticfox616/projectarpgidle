@@ -145,4 +145,76 @@ function loadStatSourceContract(gameState) {
     assert.ok(!/:\s*true/.test(defaults), '생장 자동해체 등급 기본값은 모두 꺼짐이어야 한다');
 }
 
+// ── 방치 중 최근 획득함이 넘칠 때 ────────────────────────────────────────
+// 회귀 1: 보호 대상만 남으면 보관함 상한을 무시하고 밀어 넣어, 2000회 드랍이면
+//         보관함이 40칸 제한을 넘어 376개까지 불어났다(상한·확장이 무의미해진다).
+// 회귀 2: 희귀는 "이미 가진 베이스"라는 이유로 방치 중 조용히 녹았다.
+//         자고 일어나면 쓸 만한 것이 하나도 남아 있지 않았다.
+{
+    const context = {
+        console,
+        window: {},
+        game: {
+            season: 30,
+            inventory: [],
+            growthInventory: [],
+            recentGrowthDrops: [],
+            growthBoard: null,
+            noti: {},
+            settings: { showLootLog: false, growthAutoSalvageEnabled: false, growthUseItemFilter: false }
+        },
+        addLog: () => {},
+        updateStaticUI: () => {},
+        queueImportantSave: () => {},
+        normalizeItem: item => item,
+        salvageItemObject: () => {},
+        registerUniqueToCodexOnAcquire: () => {},
+        passesItemPickupFilter: () => true
+    };
+    context.safeExposeData = map => Object.keys(map || {}).forEach(key => {
+        if (typeof context[key] === 'undefined') context[key] = map[key];
+    });
+    context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
+    vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
+    vm.runInContext('function invalidateGrowthEffects() {}', context);
+    const run = code => vm.runInContext(code, context);
+    run('syncGrowthBoardUnlocks({ silent: true })');
+
+    const drop = (id, rarity, baseId, locked) => JSON.stringify({
+        id, rarity, growthShapeId: 'dot1', growthCategory: 'flower',
+        growthBaseId: baseId, name: `드랍${id}`, locked: !!locked, baseStats: [], stats: []
+    });
+    const limit = run('getGrowthInventoryLimit()');
+
+    // 잠금 아이템만 2000번 쏟아부어도 보관함은 상한을 넘지 않는다.
+    for (let i = 0; i < 2000; i++) run(`addDroppedGrowthItem(${drop(i, 'normal', 'gf_spark_seed', true)})`);
+    assert.ok(context.game.growthInventory.length <= limit,
+        `보관함이 상한(${limit})을 넘으면 안 된다 (현재 ${context.game.growthInventory.length})`);
+    assert.ok(context.game.recentGrowthDrops.length <= 24, '최근 획득함도 상한을 지켜야 한다');
+    // 더 들어올 곳이 없으면 새 드랍을 거절하되, 이미 잠근 것을 녹이지는 않는다.
+    const lockedBefore = context.game.growthInventory.filter(row => row.locked).length
+        + context.game.recentGrowthDrops.filter(row => row.locked).length;
+    assert.strictEqual(run(`addDroppedGrowthItem(${drop(9999, 'normal', 'gf_spark_seed', true)})`), false,
+        '둘 다 가득 차면 새 드랍을 거절해야 한다');
+    assert.strictEqual(context.game.growthInventory.filter(row => row.locked).length
+        + context.game.recentGrowthDrops.filter(row => row.locked).length, lockedBefore,
+        '거절 과정에서 잠금 아이템이 사라지면 안 된다');
+
+    // 희귀는 이미 가진 베이스여도 방치 중에 녹지 않는다.
+    context.game.growthInventory = [];
+    context.game.recentGrowthDrops = [];
+    for (let i = 0; i < 600; i++) {
+        run(`addDroppedGrowthItem(${drop(10000 + i, i % 5 === 0 ? 'rare' : 'normal', 'gf_spark_seed', false)})`);
+    }
+    const keptRare = context.game.recentGrowthDrops.filter(row => row.rarity === 'rare').length
+        + context.game.growthInventory.filter(row => row.rarity === 'rare').length;
+    const keptNormal = context.game.recentGrowthDrops.filter(row => row.rarity === 'normal').length
+        + context.game.growthInventory.filter(row => row.rarity === 'normal').length;
+    assert.ok(keptRare > 0, '방치 중에도 희귀 생장 아이템은 남아 있어야 한다');
+    assert.ok(keptRare > keptNormal, `일반보다 희귀가 먼저 녹으면 안 된다 (희귀 ${keptRare} / 일반 ${keptNormal})`);
+    assert.ok(context.game.growthInventory.length <= limit, '섞인 드랍에서도 보관함 상한을 지켜야 한다');
+}
+
 console.log('smoke-growth-coexistence passed');

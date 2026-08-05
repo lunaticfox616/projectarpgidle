@@ -330,15 +330,69 @@ function renameGrowthLoadout(idx, name) {
 // ── 최근 획득함 ──────────────────────────────────────────────────────────
 const RECENT_GROWTH_DROPS_CAP = 24;
 
-function isProtectedRecentGrowthDrop(item) {
-    if (!item) return false;
-    if (item.locked || item.rarity === 'unique') return true;
+// 최근 획득함이 넘칠 때 무엇부터 녹일지 정하는 등급.
+// 2 = 자동 해체 금지(잠금·고유). 방치 중에 사라지면 안 되는 것들.
+// 1 = 최근함과 보관함이 둘 다 가득 찼을 때만 양보(희귀·처음 보는 베이스).
+// 0 = 가장 먼저 녹인다(이미 가진 베이스의 일반/매직).
+const GROWTH_KEEP_NONE = 0;
+const GROWTH_KEEP_SOFT = 1;
+const GROWTH_KEEP_HARD = 2;
+
+function getRecentGrowthDropKeepTier(item) {
+    if (!item) return GROWTH_KEEP_NONE;
+    if (item.locked || item.rarity === 'unique') return GROWTH_KEEP_HARD;
+    // 희귀는 생장판에서 가장 좋은 비고유 등급이다. 예전에는 이미 가진 베이스라는
+    // 이유만으로 방치 중에 조용히 녹아, 자고 일어나면 쓸 만한 것이 남지 않았다.
+    if (item.rarity === 'rare') return GROWTH_KEEP_SOFT;
     // 새로운 베이스: 보관함/배치/최근함 어디에도 같은 베이스가 없으면 보호.
     let baseId = item.growthBaseId;
-    if (!baseId) return false;
+    if (!baseId) return GROWTH_KEEP_NONE;
     let ownedSame = (game.growthInventory || []).some(row => row && row.growthBaseId === baseId)
         || (game.recentGrowthDrops || []).some(row => row && row !== item && row.growthBaseId === baseId);
-    return !ownedSame;
+    return ownedSame ? GROWTH_KEEP_NONE : GROWTH_KEEP_SOFT;
+}
+
+function isProtectedRecentGrowthDrop(item) {
+    return getRecentGrowthDropKeepTier(item) > GROWTH_KEEP_NONE;
+}
+
+// 지정한 등급의 가장 오래된 아이템 하나를 녹인다. 녹였으면 true.
+function meltOldestRecentGrowthDrop(tier) {
+    let idx = game.recentGrowthDrops.findIndex(row => getRecentGrowthDropKeepTier(row) === tier);
+    if (idx < 0) return false;
+    let victim = game.recentGrowthDrops.splice(idx, 1)[0];
+    salvageItemObject(victim, true, { noDivine: true });
+    if (game.settings.showLootLog) addLog(`🧪 최근 획득함 초과 자동해체: [${victim.name}]`, 'loot-normal');
+    return true;
+}
+
+/**
+ * 최근 획득함을 상한까지 줄인다.
+ * 예전에는 보호 대상만 남으면 보관함 상한을 무시하고 밀어 넣어, 방치하면 보관함이
+ * 40칸 제한을 넘어 수백 개까지 불어났다(상한·확장 아이템이 무의미해진다).
+ * 이제는 보관함이 가득 차면 약한 보호부터 양보하고, 잠금·고유만 남으면 새 드랍을 받지 않는다.
+ * @returns {boolean} 상한 안으로 줄였으면 true, 더 비울 곳이 없으면 false
+ */
+function trimRecentGrowthDrops() {
+    while (game.recentGrowthDrops.length > RECENT_GROWTH_DROPS_CAP) {
+        if (meltOldestRecentGrowthDrop(GROWTH_KEEP_NONE)) continue;
+        if (game.growthInventory.length < getGrowthInventoryLimit()) {
+            game.growthInventory.push(game.recentGrowthDrops.shift());
+            continue;
+        }
+        if (meltOldestRecentGrowthDrop(GROWTH_KEEP_SOFT)) continue;
+        return false;
+    }
+    return true;
+}
+
+let _growthFullLogAt = 0;
+
+function logGrowthStorageFull() {
+    let now = Date.now();
+    if (now - _growthFullLogAt < 60000) return;
+    _growthFullLogAt = now;
+    addLog(`🌱 최근 획득함과 생장 보관함이 잠금/고유 아이템으로 가득 차 새 생장 아이템을 받지 못했습니다. (보관함 ${game.growthInventory.length}/${getGrowthInventoryLimit()})`, 'attack-monster');
 }
 
 // 전투/백그라운드 드랍 진입점. 가득 차도 전투를 멈추지 않는다(오래된 비보호 아이템 자동 해체).
@@ -373,19 +427,11 @@ function addDroppedGrowthItem(item, options) {
         return true;
     }
     game.recentGrowthDrops.push(item);
-    while (game.recentGrowthDrops.length > RECENT_GROWTH_DROPS_CAP) {
-        let victimIdx = game.recentGrowthDrops.findIndex(row => !isProtectedRecentGrowthDrop(row));
-        if (victimIdx < 0) {
-            // 전부 보호 대상이면 가장 오래된 것을 생장 보관함으로 밀어낸다(유실 방지).
-            let overflow = game.recentGrowthDrops.shift();
-            if (overflow) game.growthInventory.push(overflow);
-            continue;
-        }
-        let victim = game.recentGrowthDrops.splice(victimIdx, 1)[0];
-        if (victim) {
-            salvageItemObject(victim, true, { noDivine: true });
-            if (game.settings.showLootLog) addLog(`🧪 최근 획득함 초과 자동해체: [${victim.name}]`, 'loot-normal');
-        }
+    if (!trimRecentGrowthDrops()) {
+        let idx = game.recentGrowthDrops.indexOf(item);
+        if (idx >= 0) game.recentGrowthDrops.splice(idx, 1);
+        logGrowthStorageFull();
+        return false;
     }
     if (game.noti) game.noti.items = true;
     return true;
@@ -632,7 +678,8 @@ safeExposeGlobals({
     switchGrowthLoadout, renameGrowthLoadout, purgeGrowthItemFromAllLoadouts, isGrowthItemPlacedAnywhere,
     resetGrowthBoardForLoop,
     addDroppedGrowthItem, claimRecentGrowthDrop, claimAllRecentGrowthDrops, salvageRecentGrowthDrop,
-    isProtectedRecentGrowthDrop, isGrowthBoardUnlocked, getGrowthInventoryLimit, findAnyGrowthItemById,
+    isProtectedRecentGrowthDrop, getRecentGrowthDropKeepTier, trimRecentGrowthDrops,
+    isGrowthBoardUnlocked, getGrowthInventoryLimit, findAnyGrowthItemById,
     salvageGrowthInventoryItem, bulkSalvageGrowthInventory, tryAutoPlaceGrowthItem,
     autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout, tryPlaceSlabAtBestCell,
     sortGrowthInventory, GROWTH_SORT_MODES, getGrowthAutoSalvageRarities, toggleGrowthAutoSalvageRarity,
