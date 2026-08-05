@@ -375,6 +375,71 @@ function multiplyGrowthItemStats(out, itemId, multiplier) {
     out.itemMultipliers.set(itemId, (out.itemMultipliers.get(itemId) || 1) * multiplier);
 }
 
+// ── 석판 레벨 레이어 ─────────────────────────────────────────────────────
+// 석판이 칸에 레벨을 뿌리고, 아이템은 자신이 점유한 칸 중 최댓값을 받는다.
+// 최댓값을 쓰는 이유: 합계로 하면 칸이 많은 대형 아이템이 자동으로 유리해져
+// "정밀 배치"라는 소형 아이템의 정체성이 사라진다.
+
+function isGrowthSlab(item) {
+    return !!(item && item.growthCategory === 'slab');
+}
+
+function getGrowthSlabDef(item) {
+    if (!isGrowthSlab(item) || typeof GROWTH_SLAB_DB === 'undefined') return null;
+    return GROWTH_SLAB_DB.find(row => row && row.id === item.growthSlabId) || null;
+}
+
+/** 석판 하나가 영향을 주는 칸 좌표들. 회전은 대칭 패턴이라 영향을 주지 않는다. */
+function getGrowthSlabPatternCells(patternKey, originX, originY) {
+    let pattern = (typeof GROWTH_SLAB_PATTERNS !== 'undefined' && GROWTH_SLAB_PATTERNS[patternKey]) || null;
+    if (!pattern) return [];
+    if (pattern.axis === 'row') {
+        let cells = [];
+        for (let x = 0; x < GROWTH_BOARD_W; x++) if (x !== originX) cells.push([x, originY]);
+        return cells;
+    }
+    if (pattern.axis === 'col') {
+        let cells = [];
+        for (let y = 0; y < GROWTH_BOARD_H; y++) if (y !== originY) cells.push([originX, y]);
+        return cells;
+    }
+    return (pattern.cells || []).map(([dx, dy]) => [originX + dx, originY + dy])
+        .filter(([x, y]) => x >= 0 && y >= 0 && x < GROWTH_BOARD_W && y < GROWTH_BOARD_H);
+}
+
+/** 배치된 석판들이 만드는 칸별 레벨 맵. @returns {Map<string, number>} 'x,y' → 레벨 */
+function buildGrowthCellLevelMap(entries) {
+    let levels = new Map();
+    entries.forEach(entry => {
+        let def = getGrowthSlabDef(entry.item);
+        if (!def) return;
+        let [originX, originY] = entry.cells[0] || [0, 0];
+        (def.grants || []).forEach(grant => {
+            getGrowthSlabPatternCells(grant.pattern, originX, originY).forEach(([x, y]) => {
+                let key = `${x},${y}`;
+                levels.set(key, (levels.get(key) || 0) + Number(grant.level || 0));
+            });
+        });
+    });
+    return levels;
+}
+
+/** 아이템이 받는 레벨 = 점유 칸 레벨의 최댓값. 음수는 0으로 깎지 않고 그대로 둔다(페널티 체감). */
+function computeGrowthItemLevel(entry, levelMap) {
+    if (isGrowthSlab(entry.item)) return 0;
+    let best = null;
+    entry.cells.forEach(([x, y]) => {
+        let level = levelMap.get(`${x},${y}`) || 0;
+        if (best === null || level > best) best = level;
+    });
+    let resolved = best === null ? 0 : best;
+    return Math.max(-GROWTH_LEVEL_CAP, Math.min(GROWTH_LEVEL_CAP, resolved));
+}
+
+function getGrowthLevelMultiplier(level) {
+    return Math.max(0.1, 1 + (Number(level) || 0) * (GROWTH_LEVEL_STAT_PCT / 100));
+}
+
 // ── 스냅샷 계산 + 캐시 ───────────────────────────────────────────────────
 function getGrowthEffectSignature(entries) {
     let board = ensureGrowthBoardState();
@@ -389,6 +454,7 @@ function computeGrowthEffectSnapshot() {
     let entries = getPlacedGrowthEntries();
     let geometry = buildGrowthGeometryFacts(entries);
     let ctx = { entries, owner: geometry.owner, byId: geometry.byId, facts: geometry.facts };
+    let levelMap = buildGrowthCellLevelMap(entries);
     let out = {
         signature: getGrowthEffectSignature(entries),
         grants: [],
@@ -396,8 +462,17 @@ function computeGrowthEffectSnapshot() {
         baseMultipliers: new Map(),
         conditions: new Map(),
         activeGlobals: [],
+        cellLevels: levelMap,
+        itemLevels: new Map(),
         entryCount: entries.length
     };
+    // 석판 레벨은 공간 조건과 독립적으로 먼저 확정된다 — 레벨이 조건 판정에 입력되지 않으므로
+    // "레벨이 조건을 바꾸고 조건이 다시 레벨을 바꾸는" 순환이 생기지 않는다.
+    entries.forEach(entry => {
+        let level = computeGrowthItemLevel(entry, levelMap);
+        out.itemLevels.set(entry.item.id, level);
+        if (level !== 0) multiplyGrowthItemStats(out, entry.item.id, getGrowthLevelMultiplier(level));
+    });
     entries.forEach(entry => {
         let facts = geometry.facts.get(entry.item.id);
         if (facts) evaluateGrowthEntryEffects(entry, facts, ctx, out);
@@ -480,9 +555,20 @@ function getActiveGrowthGlobalSynergies() {
     return getGrowthEffectSnapshot().activeGlobals;
 }
 
+/** 석판으로 아이템이 받은 레벨(음수 가능). */
+function getGrowthItemLevel(itemId) {
+    return getGrowthEffectSnapshot().itemLevels.get(itemId) || 0;
+}
+
+/** 칸이 받는 레벨. 보드 UI가 칸마다 표시한다. */
+function getGrowthCellLevel(x, y) {
+    return getGrowthEffectSnapshot().cellLevels.get(`${x},${y}`) || 0;
+}
+
 safeExposeGlobals({
     invalidateGrowthEffects, isGrowthSynergyStageUnlocked, getGrowthItemTags, resolveGrowthDirection,
     evaluateGrowthCondition, getGrowthEffectSnapshot, applyGrowthSpatialStats,
     getGrowthItemStatMultiplier, getGrowthItemBaseMultiplier, getGrowthItemConditionReport,
-    getActiveGrowthGlobalSynergies
+    getActiveGrowthGlobalSynergies, isGrowthSlab, getGrowthSlabDef, getGrowthSlabPatternCells,
+    getGrowthItemLevel, getGrowthCellLevel, getGrowthLevelMultiplier
 });

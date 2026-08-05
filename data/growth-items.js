@@ -40,11 +40,67 @@ const GROWTH_SHAPE_DB = {
 };
 
 // 종류 정의: 제작 슬롯(craftSlot)은 기존 MOD_DB/화석/오브 풀을 재사용하기 위한 매핑이다.
+// 석판(slab)은 자체 옵션이 없고 다른 아이템의 레벨만 올리므로 제작 대상이 아니다.
 const GROWTH_CATEGORY_INFO = {
     flower: { label: '꽃',   icon: '🌸', craftSlot: '무기',   qualityKind: 'weapon' },
     branch: { label: '가지', icon: '🌿', craftSlot: '갑옷',   qualityKind: 'armor' },
-    leaf:   { label: '잎',   icon: '🍃', craftSlot: '목걸이', qualityKind: 'accessory' }
+    leaf:   { label: '잎',   icon: '🍃', craftSlot: '목걸이', qualityKind: 'accessory' },
+    slab:   { label: '석판', icon: '🪨', craftSlot: null,     qualityKind: null, noCraft: true }
 };
+
+// ── 석판(레벨) 레이어 ────────────────────────────────────────────────────
+// 석판은 항상 1칸이며 자체 능력치가 없다. 대신 영향 범위 안의 칸에 "레벨"을 부여하고,
+// 아이템은 자신이 점유한 칸 중 가장 높은 레벨을 받는다(칸 수가 많다고 유리해지지 않는다).
+// 레벨은 여러 석판에서 중첩되며, 아이템 자신의 베이스·추가 옵션을 함께 증폭한다.
+const GROWTH_LEVEL_STAT_PCT = 12;   // 레벨 1당 아이템 옵션 +12%
+const GROWTH_LEVEL_CAP = 8;         // 레벨 상한(중첩 폭주 방지)
+
+// 영향 범위 패턴. dx/dy는 석판 자신을 원점으로 한 상대 좌표다.
+// row/col은 좌표 대신 같은 행·열 전체를 뜻한다.
+const GROWTH_SLAB_PATTERNS = {
+    orthogonal: { label: '상하좌우', cells: [[0, -1], [0, 1], [-1, 0], [1, 0]] },
+    diagonal:   { label: '대각선',   cells: [[-1, -1], [1, -1], [-1, 1], [1, 1]] },
+    around:     { label: '주변 8칸', cells: [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] },
+    row:        { label: '같은 행',  axis: 'row' },
+    col:        { label: '같은 열',  axis: 'col' },
+    self:       { label: '자기 칸',  cells: [[0, 0]] },
+    far:        { label: '2칸 거리', cells: [[0, -2], [0, 2], [-2, 0], [2, 0]] }
+};
+
+// grants: [{ pattern, level }] — level이 음수면 약화(페널티)다.
+// 강한 석판일수록 페널티를 함께 지녀 "어디에 두느냐"가 퍼즐이 되게 한다.
+const GROWTH_SLAB_DB = [
+    { id: 'gs_base', name: '기반의 석판', reqTier: 1, weight: 1.0,
+      desc: '같은 행의 아이템 레벨 +1',
+      grants: [{ pattern: 'row', level: 1 }] },
+    { id: 'gs_pillar', name: '기둥의 석판', reqTier: 1, weight: 1.0,
+      desc: '같은 열의 아이템 레벨 +1',
+      grants: [{ pattern: 'col', level: 1 }] },
+    { id: 'gs_hearth', name: '화로의 석판', reqTier: 3, weight: 0.9,
+      desc: '상하좌우 아이템 레벨 +2',
+      grants: [{ pattern: 'orthogonal', level: 2 }] },
+    { id: 'gs_cross', name: '엇갈림의 석판', reqTier: 3, weight: 0.9,
+      desc: '대각선 아이템 레벨 +2',
+      grants: [{ pattern: 'diagonal', level: 2 }] },
+    { id: 'gs_oath', name: '맹세의 석판', reqTier: 6, weight: 0.7,
+      desc: '주변 8칸 아이템 레벨 +1, 같은 행 레벨 +1',
+      grants: [{ pattern: 'around', level: 1 }, { pattern: 'row', level: 1 }] },
+    { id: 'gs_defiance', name: '반항의 석판', reqTier: 8, weight: 0.55,
+      desc: '같은 행 레벨 +3, 단 상하좌우 레벨 -1',
+      grants: [{ pattern: 'row', level: 3 }, { pattern: 'orthogonal', level: -1 }] },
+    { id: 'gs_radiance', name: '광휘의 석판', reqTier: 8, weight: 0.55,
+      desc: '대각선 레벨 +3, 단 같은 행 레벨 -1',
+      grants: [{ pattern: 'diagonal', level: 3 }, { pattern: 'row', level: -1 }] },
+    { id: 'gs_echo', name: '메아리의 석판', reqTier: 10, weight: 0.45,
+      desc: '2칸 거리 레벨 +3 (바로 옆은 올리지 않는다)',
+      grants: [{ pattern: 'far', level: 3 }] },
+    { id: 'gs_miracle', name: '기적의 석판', reqTier: 12, weight: 0.3,
+      desc: '같은 행·열 모두 레벨 +2, 단 주변 8칸 레벨 -1',
+      grants: [{ pattern: 'row', level: 2 }, { pattern: 'col', level: 2 }, { pattern: 'around', level: -1 }] },
+    { id: 'gs_sacrifice', name: '헌신의 석판', reqTier: 12, weight: 0.3,
+      desc: '주변 8칸 레벨 +3, 단 같은 행·열 레벨 -1',
+      grants: [{ pattern: 'around', level: 3 }, { pattern: 'row', level: -1 }, { pattern: 'col', level: -1 }] }
+];
 
 // 아이템 크기(칸 수)별 등장 최소 숨겨진 티어. 작은 베이스일수록 늦게 해금된다.
 const GROWTH_SIZE_TIER_GATES = { 4: 6, 3: 10, 2: 14, 1: 18 };
@@ -288,6 +344,7 @@ const GROWTH_GLOBAL_SYNERGY_DB = [
 safeExposeData({
     GROWTH_BOARD_W, GROWTH_BOARD_H, GROWTH_SHAPE_DB, GROWTH_CATEGORY_INFO,
     GROWTH_SIZE_TIER_GATES, getGrowthSizeAffixCap, GROWTH_UNLOCK_LOOP, GROWTH_UNLOCK_STAGES,
+    GROWTH_LEVEL_STAT_PCT, GROWTH_LEVEL_CAP, GROWTH_SLAB_PATTERNS, GROWTH_SLAB_DB,
     GROWTH_SYNERGY_STAGES, GROWTH_BASE_DB, GROWTH_UNIQUE_DB,
     GROWTH_GLOBAL_SYNERGY_DB
 });

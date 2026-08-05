@@ -10,6 +10,8 @@ const GROWTH_CATEGORY_MOD_SLOTS = {
 };
 
 function getGrowthCategoryModSlots(category) {
+    // 석판은 옵션 풀이 없다 — 정체성이 곧 효과라 제작으로 바뀌지 않는다.
+    if (category === 'slab') return [];
     return GROWTH_CATEGORY_MOD_SLOTS[category] || ['목걸이'];
 }
 
@@ -22,6 +24,7 @@ function getGrowthCraftSlot(category) {
 /** 크기에 따른 추가 옵션 상한 (spec 9). 마법은 항상 최대 2줄. */
 function getGrowthItemAffixCap(item) {
     if (!isGrowthItem(item)) return 6;
+    if (item.growthCategory === 'slab') return 0;
     let cap = getGrowthSizeAffixCap(getGrowthItemSize(item));
     if (item.rarity === 'magic') return Math.min(2, cap);
     if (item.rarity === 'normal') return 0;
@@ -149,6 +152,50 @@ function generateGrowthUniqueItem(tier, forcedName) {
     return item;
 }
 
+// ── 석판 생성 ────────────────────────────────────────────────────────────
+// 석판은 옵션·등급·품질이 없다. 정체성이 곧 효과이며 제작 대상이 아니다.
+function pickGrowthSlabDef(tier) {
+    let candidates = GROWTH_SLAB_DB.filter(def => (def.reqTier || 1) <= tier);
+    if (candidates.length === 0) candidates = GROWTH_SLAB_DB.filter(def => (def.reqTier || 1) <= 1);
+    if (candidates.length === 0) return null;
+    let weights = candidates.map(def => Math.max(0.01, Number(def.weight) || 1));
+    let total = weights.reduce((sum, value) => sum + value, 0);
+    let roll = Math.random() * total;
+    for (let i = 0; i < candidates.length; i++) {
+        roll -= weights[i];
+        if (roll <= 0) return candidates[i];
+    }
+    return candidates[candidates.length - 1];
+}
+
+function createGrowthSlabItem(tier) {
+    let zoneTier = Math.max(1, Math.floor(Number(tier) || 1));
+    let def = pickGrowthSlabDef(zoneTier);
+    if (!def) return null;
+    itemIdCounter++;
+    return {
+        id: itemIdCounter,
+        growthSlabId: def.id,
+        growthShapeId: 'dot1',
+        growthCategory: 'slab',
+        growthBaseId: null,
+        slot: null,
+        baseId: null,
+        baseName: def.name,
+        name: def.name,
+        rarity: 'magic',
+        itemTier: zoneTier,
+        hiddenTier: zoneTier,
+        baseStats: [],
+        stats: [],
+        growthTags: ['석판'],
+        growthRemovedTags: []
+    };
+}
+
+// 석판이 드랍에서 차지하는 비중. 너무 흔하면 레벨 인플레가, 너무 귀하면 시스템 체감이 사라진다.
+const GROWTH_SLAB_DROP_RATE = 0.25;
+
 function rollGrowthDropRarity(enemy) {
     let roll = Math.random();
     if (enemy && enemy.isBoss) {
@@ -166,6 +213,10 @@ function rollGrowthDropRarity(enemy) {
 function generateGrowthDrop(enemy) {
     let zone = (typeof getZone === 'function' ? getZone(game.currentZoneId) : null) || {};
     let tierCap = typeof getRealmEquipmentHiddenTierCap === 'function' ? getRealmEquipmentHiddenTierCap(zone) : Math.max(1, Math.floor(zone.tier || 1));
+    if (Math.random() < GROWTH_SLAB_DROP_RATE) {
+        let slab = createGrowthSlabItem(tierCap);
+        if (slab) return slab;
+    }
     let rarity = rollGrowthDropRarity(enemy);
     if (rarity === 'unique') {
         let unique = generateGrowthUniqueItem(tierCap);
@@ -292,5 +343,6 @@ function applyGrowthCorruptionAffix(item, empowerExisting) {
 safeExposeGlobals({
     getGrowthCategoryModSlots, getGrowthCraftSlot, getGrowthItemAffixCap, isGrowthBaseUnlockedAtTier,
     pickGrowthBaseForDrop, createGrowthItemFromBase, generateGrowthUniqueItem, generateGrowthDrop,
-    notifyFirstSmallGrowthBase, applyGrowthCorruptionOutcome, pickGrowthCorruptionOutcome
+    notifyFirstSmallGrowthBase, applyGrowthCorruptionOutcome, pickGrowthCorruptionOutcome,
+    createGrowthSlabItem, pickGrowthSlabDef
 });
