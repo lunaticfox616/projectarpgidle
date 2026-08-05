@@ -6571,13 +6571,15 @@ function isKaleidoscopeShieldItem(item) {
 
 function getAvailableModSlotsForItem(item) {
     if (isKaleidoscopeShieldItem(item)) return EQUIPMENT_DROP_SLOTS.slice();
+    // 생장 아이템은 종류(꽃/가지/잎)가 옵션 계열을 결정한다 (spec: 부위 전용 → 종류 전용).
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) return getGrowthCategoryModSlots(item.growthCategory);
     return [item && item.slot].filter(Boolean);
 }
 
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
     let isKaleidoscopeShield = !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
-    let allowedSlots = isKaleidoscopeShield ? EQUIPMENT_DROP_SLOTS.slice() : [item && item.slot].filter(Boolean);
+    let allowedSlots = getAvailableModSlotsForItem(item);
     let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
     let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonHpPct', 'summonAspd', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonCap', 'summonResPen', 'summonGemLevel']);
     let hasSummonBaseStat = item && Array.isArray(item.baseStats)
@@ -6627,6 +6629,8 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
+    // 생장 아이템은 크기가 옵션 수 상한을 결정한다 (spec 9).
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) count = Math.min(count, getGrowthItemAffixCap(item));
     count = Math.max(0, count - getItemExplicitOptionCount(item) - reservedInfusionCount);
     let mods = pickRandomMods(getAvailableMods(item), count);
     mods.forEach(mod => item.stats.push(rollAffixValue(mod, maxTier)));
@@ -7810,6 +7814,7 @@ function destroySelectedCraftItem(item) {
     let ref = getCraftSelectionRef();
     if (isCraftSelectionEquip()) game.equipment[ref] = null;
     else game.inventory = (game.inventory || []).filter(entry => entry !== item);
+    if (item && typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     if (typeof clearCraftSelection === 'function') clearCraftSelection();
 }
 
@@ -8387,6 +8392,7 @@ function salvageItem(idx) {
     if (!item) return;
     if (item.locked) return addLog(`🔒 잠금된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
     if (!isCraftSelectionEquip() && getCraftSelectionRef() === item.id) clearCraftSelection();
+    if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     salvageItemObject(item, false);
     game.inventory.splice(idx, 1);
     updateStaticUI();
@@ -8451,11 +8457,18 @@ function toggleJewelAutoSalvage() {
     addLog(`💠 주얼 자동해체 ${game.settings.jewelAutoSalvageEnabled ? '활성화' : '비활성화'}`, 'loot-normal');
 }
 
+// 일괄 해체 보호: 잠금 아이템과 생장판에 배치된 아이템은 대상에서 제외한다.
+function isBulkSalvageProtectedItem(item) {
+    if (!item) return true;
+    if (item.locked) return true;
+    return typeof isGrowthItemPlacedAnywhere === 'function' && isGrowthItemPlacedAnywhere(item.id);
+}
+
 function bulkSalvage(maxRarity) {
     let targetRank = maxRarity === 'normal' ? 0 : 1;
     let kept = [];
     game.inventory.forEach(item => {
-        if (item.locked) kept.push(item);
+        if (isBulkSalvageProtectedItem(item)) kept.push(item);
         else if (getRarityRank(item.rarity) <= targetRank) salvageItemObject(item, true);
         else kept.push(item);
     });
@@ -8474,7 +8487,7 @@ function bulkSalvageSelected() {
     let selectedRarities = getActiveRarityFilterSet();
     if (selectedRarities.length === 0) return addLog('해체할 등급을 먼저 선택하세요. (등급 필터에서 선택)', 'attack-monster');
     let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
-    let targetCount = (game.inventory || []).filter(item => item && !item.locked && selectedRarities.includes(item.rarity)).length;
+    let targetCount = (game.inventory || []).filter(item => item && !isBulkSalvageProtectedItem(item) && selectedRarities.includes(item.rarity)).length;
     if (targetCount <= 0) return addLog('선택한 등급의 해체 가능한 장비가 없습니다.', 'attack-monster');
     let labelText = selectedRarities.map(r => rarityLabels[r] || r).join('/');
     if (!confirm(`[${labelText}] 등급 장비 ${targetCount}개를 해체할까요?`)) return;
@@ -8483,7 +8496,7 @@ function bulkSalvageSelected() {
     let lockedSkipped = 0;
     game.inventory.forEach(item => {
         if (selectedRarities.includes(item.rarity)) {
-            if (item.locked) {
+            if (isBulkSalvageProtectedItem(item)) {
                 kept.push(item);
                 lockedSkipped++;
             } else {
@@ -8495,23 +8508,23 @@ function bulkSalvageSelected() {
         }
     });
     if (removed === 0) {
-        if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 잠금 상태입니다. (잠금 ${lockedSkipped}개)`, 'attack-monster');
+        if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 보호 상태입니다. (잠금/배치 ${lockedSkipped}개)`, 'attack-monster');
         return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
     }
     game.inventory = kept;
     ensureCraftSelectionValid();
-    addLog(`🧪 선택한 등급 장비 ${removed}개 해체${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 선택한 등급 장비 ${removed}개 해체${lockedSkipped > 0 ? ` (잠금/배치 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 function bulkSalvageAllInventory() {
     if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog('해체할 장비가 없습니다.', 'attack-monster');
-    let lockedCount = game.inventory.filter(item => item && item.locked).length;
+    let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
     let salvageCount = game.inventory.length - lockedCount;
-    if (salvageCount <= 0) return addLog('🔒 잠금되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
-    if (!confirm(`인벤토리 장비 ${salvageCount}개를 모두 해체할까요?${lockedCount > 0 ? ` (잠금 ${lockedCount}개는 보호됨)` : ''}`)) return;
+    if (salvageCount <= 0) return addLog('🔒 잠금/배치되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
+    if (!confirm(`보관함 아이템 ${salvageCount}개를 모두 해체할까요?${lockedCount > 0 ? ` (잠금/배치 ${lockedCount}개는 보호됨)` : ''}`)) return;
     let kept = [];
     game.inventory.forEach(item => {
-        if (item && item.locked) kept.push(item);
+        if (isBulkSalvageProtectedItem(item)) kept.push(item);
         else salvageItemObject(item, true);
     });
     game.inventory = kept;
@@ -8716,13 +8729,16 @@ function useCurrency(currencyKey) {
     if (item.corrupted && currencyKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(currencyKey)) return addLog("융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.", "attack-monster");
 
+    // 생장 아이템은 크기가 옵션 상한을 결정하므로 6줄 대신 크기 상한을 쓴다 (spec 9).
+    let explicitCap = (typeof isGrowthItem === 'function' && isGrowthItem(item)) ? getGrowthItemAffixCap(item) : 6;
+    let magicCap = (typeof isGrowthItem === 'function' && isGrowthItem(item)) ? Math.min(2, explicitCap) : 2;
     let ok = false;
     if (currencyKey === 'transmute') ok = item.rarity === 'normal';
-    else if (currencyKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
+    else if (currencyKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < magicCap;
     else if (currencyKey === 'alteration') ok = item.rarity === 'magic';
     else if (currencyKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (currencyKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
-    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
+    else if (currencyKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < explicitCap;
+    else if (currencyKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < explicitCap;
     else if (currencyKey === 'chaos') ok = item.rarity === 'rare';
     else if (currencyKey === 'divine') ok = item.rarity !== 'normal';
     else if (currencyKey === 'chance') ok = item.rarity === 'normal';
@@ -8890,12 +8906,18 @@ function useCurrency(currencyKey) {
     } else if (currencyKey === 'chance') {
         if (Math.random() < 0.25) {
             destroySelectedCraftItem(item);
-            addLog('💥 기회의 오브: 장비가 파괴되었습니다.', 'attack-monster');
+            addLog('💥 기회의 오브: 아이템이 파괴되었습니다.', 'attack-monster');
         } else {
-            let unique = generateUniqueItem(Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1)), item.slot);
+            let tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
+            let isGrowth = typeof isGrowthItem === 'function' && isGrowthItem(item);
+            let unique = isGrowth ? generateGrowthUniqueItem(tier) : generateUniqueItem(tier, item.slot);
+            if (!unique) return addLog('승급할 수 있는 고유가 없습니다.', 'attack-monster');
+            let previousId = item.id;
             Object.keys(item).forEach(key => delete item[key]);
             Object.assign(item, unique);
-            addLog(`🌟 기회의 오브: [${item.name}] 고유 장비로 진화했습니다.`, 'loot-unique');
+            // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
+            item.id = previousId;
+            addLog(`🌟 기회의 오브: [${item.name}] 고유로 진화했습니다.`, 'loot-unique');
         }
     } else if (currencyKey === 'annulment') {
         let removable = getAnnulmentRemovableStats(item);
@@ -8911,7 +8933,8 @@ function useCurrency(currencyKey) {
         updateItemName(item);
     } else if (currencyKey === 'tainted') {
         item.corrupted = true;
-        if (Math.random() < 0.35) {
+        if (typeof isGrowthItem === 'function' && isGrowthItem(item)) applyGrowthCorruptionOutcome(item);
+        else if (Math.random() < 0.35) {
             let mod = pickWeightedMod(getAvailableMods(item));
             if (mod) {
                 item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
@@ -8958,6 +8981,8 @@ function useCurrency(currencyKey) {
         });
     }
     let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
+    // 제작으로 태그/크기/옵션이 바뀔 수 있으므로 공간 시너지 캐시를 무효화한다.
+    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }

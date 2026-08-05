@@ -1,0 +1,74 @@
+/* 생장판 UI */
+.growth-summary-row { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; color: #d7e9ff; font-size: 0.88em; margin-bottom: 6px; }
+.growth-stage-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.growth-stage-chip { font-size: 0.74em; padding: 2px 8px; border-radius: 999px; border: 1px solid #34506b; background: rgba(12, 20, 30, 0.6); color: #7f93a8; }
+.growth-stage-chip.open { border-color: #4d8f6d; color: #a8e6c0; background: rgba(18, 40, 30, 0.6); }
+
+.growth-loadout-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.growth-loadout-btn.active { border-color: #f1c40f; color: #ffe9a8; }
+
+.growth-controls { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; color: #c7d9ea; font-size: 0.86em; }
+
+.growth-board {
+    display: grid;
+    gap: 3px;
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto 12px;
+    padding: 8px;
+    border: 1px solid #2f4a63;
+    border-radius: 10px;
+    background: radial-gradient(circle at 50% 40%, #14202e 0%, #0b111a 70%);
+    overflow-x: auto;
+}
+.growth-cell {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    min-width: 26px;
+    border: 1px solid #27384a;
+    border-radius: 5px;
+    background: rgba(12, 20, 30, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(10px, 2.2vw, 16px);
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s, transform 0.08s;
+}
+.growth-cell:hover { border-color: #5f86ad; }
+.growth-cell.sealed { background: repeating-linear-gradient(45deg, #10161f, #10161f 4px, #0b0f16 4px, #0b0f16 8px); border-color: #1c2733; cursor: not-allowed; opacity: 0.65; }
+.growth-cell.filled { background: rgba(30, 48, 68, 0.85); border-width: 2px; }
+.growth-cell.filled.cat-flower { background: linear-gradient(150deg, rgba(74, 30, 44, 0.9), rgba(30, 18, 26, 0.9)); }
+.growth-cell.filled.cat-branch { background: linear-gradient(150deg, rgba(28, 56, 42, 0.9), rgba(16, 28, 22, 0.9)); }
+.growth-cell.filled.cat-leaf { background: linear-gradient(150deg, rgba(30, 48, 70, 0.9), rgba(16, 24, 34, 0.9)); }
+.growth-cell.selected { box-shadow: 0 0 0 2px #f1c40f inset, 0 0 12px rgba(241, 196, 15, 0.4); transform: scale(1.04); z-index: 2; }
+.growth-cell.related { box-shadow: 0 0 0 1px #4fd1a5 inset; }
+.growth-cell.preview-ok { background: rgba(46, 204, 113, 0.35) !important; border-color: #2ecc71 !important; }
+.growth-cell.preview-bad { background: rgba(231, 76, 60, 0.35) !important; border-color: #e74c3c !important; }
+
+.growth-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.growth-columns h3 { margin: 0 0 6px; font-size: 0.92em; color: #d7e9ff; }
+.growth-synergy-list { max-height: 220px; overflow-y: auto; }
+.growth-synergy-row { border: 1px solid #2b4258; border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; background: rgba(12, 20, 30, 0.6); color: #cfe2f3; font-size: 0.82em; line-height: 1.45; }
+.growth-synergy-empty { color: #7f8c8d; font-size: 0.82em; padding: 6px 0; }
+.growth-compare-row { border: 1px solid #33475e; border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; background: rgba(12, 20, 30, 0.6); font-size: 0.8em; line-height: 1.5; }
+
+.growth-item-card { border: 1px solid #2b4258; border-radius: 9px; padding: 8px; background: rgba(14, 22, 32, 0.8); display: flex; flex-direction: column; gap: 6px; }
+.growth-item-card.selected { border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241, 196, 15, 0.45) inset; }
+.growth-item-card.placed { border-left: 3px solid #4fd1a5; }
+.growth-item-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.growth-item-size { font-size: 0.74em; color: #8fb7ca; white-space: nowrap; }
+.growth-item-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+.growth-item-actions button { font-size: 0.74em; padding: 3px 7px; }
+
+.growth-mini-grid { display: grid; gap: 1px; }
+.growth-mini-cell { width: 8px; height: 8px; border-radius: 2px; background: transparent; }
+.growth-mini-cell.on { background: #6fa8d6; }
+
+.growth-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+
+@media (max-width: 720px) {
+    .growth-columns { grid-template-columns: 1fr; }
+    .growth-board { gap: 2px; padding: 5px; }
+    .growth-cell { min-width: 22px; }
+}

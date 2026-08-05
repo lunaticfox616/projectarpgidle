@@ -407,6 +407,25 @@ function setTimeRiftPressure(delta) {
     updateStaticUI();
 }
 
+/**
+ * 시간의 균열 융합 조건 (spec 19). 생장 아이템은 부위 대신 다음 중 하나를 만족해야 한다:
+ * 같은 베이스 / 같은 종류이며 같은 형태.
+ * @returns {string|null} 융합 불가 사유. 가능하면 null.
+ */
+function getTimeRiftFusionMismatchReason(altarItem, candidate) {
+    let bothGrowth = typeof isGrowthItem === 'function' && isGrowthItem(altarItem) && isGrowthItem(candidate);
+    if (!bothGrowth) {
+        if (String(altarItem.slot || '') !== String(candidate.slot || '')) {
+            return `두 아이템은 같은 부위여야 융합됩니다. (제단: ${altarItem.slot} / 선택: ${candidate.slot})`;
+        }
+        return null;
+    }
+    if (altarItem.growthBaseId && altarItem.growthBaseId === candidate.growthBaseId) return null;
+    if (altarItem.growthCategory === candidate.growthCategory && altarItem.growthShapeId === candidate.growthShapeId) return null;
+    let categoryLabel = key => (GROWTH_CATEGORY_INFO[key] || {}).label || key;
+    return `같은 베이스이거나, 같은 종류이면서 같은 형태여야 융합됩니다. (제단: ${categoryLabel(altarItem.growthCategory)}/${altarItem.growthShapeId} / 선택: ${categoryLabel(candidate.growthCategory)}/${candidate.growthShapeId})`;
+}
+
 function placeItemOnTimeAltar() {
     let rift = ensureTimeRiftState();
     if (!rift.altarOpen) return addLog('먼저 시간의 균열(과거)을 클리어해 제단을 열어야 합니다.', 'attack-monster');
@@ -420,7 +439,9 @@ function placeItemOnTimeAltar() {
     let slotKey = item.rarity === 'unique' ? 'altarUnique' : 'altarRare';
     if (rift[slotKey]) return addLog(`제단의 ${item.rarity === 'unique' ? '고유' : '희귀'} 자리가 이미 차 있습니다. 회수 후 다시 올려주세요.`, 'attack-monster');
     let other = item.rarity === 'unique' ? rift.altarRare : rift.altarUnique;
-    if (other && String(other.slot || '') !== String(item.slot || '')) return addLog(`두 아이템은 같은 부위여야 융합됩니다. (제단: ${other.slot} / 선택: ${item.slot})`, 'attack-monster');
+    let mismatch = other ? getTimeRiftFusionMismatchReason(other, item) : null;
+    if (mismatch) return addLog(mismatch, 'attack-monster');
+    if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     game.inventory = (game.inventory || []).filter(row => row && row.id !== item.id);
     rift[slotKey] = item;
     clearCraftSelection();
@@ -466,6 +487,19 @@ function resolveTimeRiftFusion() {
     fused.fusedRelic = true;
     fused.fusionGrade = grade;
     fused.fusedRareName = rift.altarRare.name || '';
+    // 생장 융합: 고유의 형태·공간 효과를 유지한 채 희귀 쪽 태그 하나를 계승한다 (spec 19).
+    if (typeof isGrowthItem === 'function' && isGrowthItem(fused) && isGrowthItem(rift.altarRare)) {
+        let ownTags = getGrowthItemTags(fused);
+        let inheritable = Array.from(getGrowthItemTags(rift.altarRare)).filter(tag => !ownTags.has(tag));
+        if (inheritable.length > 0) {
+            fused.growthTags = (Array.isArray(fused.growthTags) ? fused.growthTags : []).concat([rndChoice(inheritable)]);
+        }
+        // 베이스 옵션은 두 아이템 중 높은 값을 취한다.
+        (fused.baseStats || []).forEach(stat => {
+            let match = (rift.altarRare.baseStats || []).find(row => row && row.id === stat.id);
+            if (match && Number(match.val) > Number(stat.val)) stat.val = Number(match.val);
+        });
+    }
     rift.altarUnique = null;
     rift.altarRare = null;
     rift.altarOpen = false;
@@ -543,7 +577,7 @@ function changeZone(id) {
 }
 
 
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason });
 
 // Phase-3 extracted market/crafting service handlers.
 function marketResetPassiveTreeByDivine() {
@@ -726,6 +760,8 @@ function getItemBaseChainInfo(item) {
 function upgradeSelectedItemBase() {
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
+    // 생장 아이템의 형태·크기는 베이스 정체성이므로 일반 제작으로 바꾸지 않는다 (spec 7).
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) return addLog('생장 아이템의 형태와 크기는 베이스 정체성이라 업그레이드로 바꿀 수 없습니다.', 'attack-monster');
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
     if (!currentBase) return addLog('현재 베이스 정보를 찾을 수 없습니다.', 'attack-monster');
     if (currentBase.realmBase) return addLog('계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.', 'attack-monster');

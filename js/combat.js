@@ -318,6 +318,34 @@ function isDualWielding() {
     return !!(mainWeapon && shieldWeapon && shieldWeapon.slot === '무기');
 }
 
+/**
+ * 스탯을 제공하는 아이템 목록. 생장판 교체 이후 유효 장비는 "생장판에 배치된 아이템"이다.
+ * 마이그레이션이 끝나지 않은 저장(구 고정 슬롯)도 손실 없이 계산되도록 남은 장비를 함께 넘긴다.
+ * @returns {Array<[string, object]>} [소스 키, 아이템]
+ */
+function getStatSourceItemEntries() {
+    let entries = [];
+    if (typeof getPlacedGrowthEntries === 'function') {
+        getPlacedGrowthEntries().forEach(entry => entries.push([`growth:${entry.item.id}`, entry.item]));
+    }
+    Object.entries(game.equipment || {}).forEach(([slotKey, item]) => {
+        if (item) entries.push([slotKey, item]);
+    });
+    return entries;
+}
+
+/** 생장판에 배치된 아이템들의 특정 베이스 옵션 합계 (플라스크 슬롯 등 슬롯 유래 기능의 계승 경로). */
+function sumGrowthPlacedBaseStat(statId) {
+    if (typeof getPlacedGrowthEntries !== 'function') return 0;
+    let total = 0;
+    getPlacedGrowthEntries().forEach(entry => {
+        (Array.isArray(entry.item.baseStats) ? entry.item.baseStats : []).forEach(stat => {
+            if (stat && stat.id === statId) total += Math.max(0, Number(stat.val) || 0);
+        });
+    });
+    return total;
+}
+
 
 
 function cleanupConditionGemStates(now) {
@@ -605,6 +633,8 @@ function snapshotWoodsmanBuildState() {
         talismanInventory: game.talismanInventory || [],
         talismanBoard: game.talismanBoard || [],
         talismanPlacements: game.talismanPlacements || {},
+        growthBoard: game.growthBoard || {},
+        recentGrowthDrops: game.recentGrowthDrops || [],
         starWedge: game.starWedge || {}
     }));
 }
@@ -636,6 +666,9 @@ function enforceWoodsmanBuildLock() {
     game.talismanInventory = JSON.parse(JSON.stringify(snap.talismanInventory));
     game.talismanBoard = JSON.parse(JSON.stringify(snap.talismanBoard));
     game.talismanPlacements = JSON.parse(JSON.stringify(snap.talismanPlacements));
+    if (snap.growthBoard) game.growthBoard = JSON.parse(JSON.stringify(snap.growthBoard));
+    if (snap.recentGrowthDrops) game.recentGrowthDrops = JSON.parse(JSON.stringify(snap.recentGrowthDrops));
+    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     game.starWedge = JSON.parse(JSON.stringify(snap.starWedge));
 }
 
@@ -1254,16 +1287,18 @@ function markPlayerMovementCompleted() {
 // flaskUtilSlots 베이스 옵션 롤) / T10 이상 0~2개 / '천 개의 유리병'(고유) 장착 시 +3(고정, 다른 보너스와 합산).
 // 전역 상한은 유틸리티 4개(=총 5슬롯: 회복 1 + 유틸 4)로, 향후 다른 출처가 추가되어도 폭주하지 않게 막는다.
 const FLASK_UTILITY_SLOT_HARD_CAP = 4;
+// 생장판 교체 이후 유틸리티 슬롯은 "배치된 잎"이 제공한다(기존 허리띠 역할 계승).
+// 마이그레이션 전 저장의 허리띠도 계속 인정해 슬롯이 갑자기 사라지지 않게 한다.
 function getMaxFlaskUtilitySlotCount() {
+    let bonus = Math.floor(sumGrowthPlacedBaseStat('flaskUtilSlots'));
+    getStatSourceItemEntries().forEach(([, item]) => {
+        if (item.rarity === 'unique' && item.uniqueEffectKey === 'extraFlaskUtilitySlots') {
+            bonus += Math.max(0, Math.floor(Number((item.uniqueEffectParams || {}).slots) || 0));
+        }
+    });
     let belt = (game && game.equipment) ? game.equipment['허리띠'] : null;
-    if (!belt) return 0;
-    let bonus = 0;
-    let stat = (belt.baseStats || []).find(s => s && s.id === 'flaskUtilSlots');
-    if (stat) bonus += Math.max(0, Math.floor(Number(stat.val) || 0));
-    if (belt.rarity === 'unique' && belt.uniqueEffectKey === 'extraFlaskUtilitySlots') {
-        let ep = belt.uniqueEffectParams || {};
-        bonus += Math.max(0, Math.floor(Number(ep.slots) || 0));
-    }
+    let beltStat = belt ? (belt.baseStats || []).find(s => s && s.id === 'flaskUtilSlots') : null;
+    if (beltStat) bonus += Math.max(0, Math.floor(Number(beltStat.val) || 0));
     return Math.max(0, Math.min(FLASK_UTILITY_SLOT_HARD_CAP, bonus));
 }
 function getMaxFlaskSlotCount() {
@@ -1271,10 +1306,12 @@ function getMaxFlaskSlotCount() {
 }
 // 허리띠의 특수 효과(예: '천 개의 유리병')로 얻는 플라스크 충전 속도 보너스(%).
 function getFlaskChargeRateBonusPct() {
-    let belt = (game && game.equipment) ? game.equipment['허리띠'] : null;
-    if (!belt || belt.rarity !== 'unique' || belt.uniqueEffectKey !== 'extraFlaskUtilitySlots') return 0;
-    let ep = belt.uniqueEffectParams || {};
-    return Math.max(0, Number(ep.chargeRatePct) || 0);
+    let bonus = 0;
+    getStatSourceItemEntries().forEach(([, item]) => {
+        if (item.rarity !== 'unique' || item.uniqueEffectKey !== 'extraFlaskUtilitySlots') return;
+        bonus = Math.max(bonus, Number((item.uniqueEffectParams || {}).chargeRatePct) || 0);
+    });
+    return Math.max(0, bonus);
 }
 function getFlaskEffectiveChargesPerKills(baseChargesPerKills) {
     let bonusPct = getFlaskChargeRateBonusPct();
@@ -1978,18 +2015,21 @@ function getPlayerStats() {
     let equippedUniqueEffects = [];
     let warriorDualWeaponEffectMultiplier = (game.ascendClass === 'warrior' && hasKeystone('w6') && isDualWielding()) ? 1.5 : 1;
     let scaleStatList = (stats, multiplier) => multiplier === 1 ? (stats || []) : (stats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number(stat.val) * multiplier } : stat);
-    Object.entries(game.equipment || {}).forEach(([equipSlotKey, item]) => {
+    getStatSourceItemEntries().forEach(([equipSlotKey, item]) => {
         if (!item) return;
         if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && item.slot === '무기') return;
         let mirrorSourceItem = getMirrorRingSourceItem(equipSlotKey, item);
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '', sourceSlot: equipSlotKey });
         if (mirrorSourceItem && mirrorSourceItem.rarity === 'unique' && mirrorSourceItem.uniqueEffectKey) equippedUniqueEffects.push({ key: mirrorSourceItem.uniqueEffectKey, params: mirrorSourceItem.uniqueEffectParams || null, itemName: mirrorSourceItem.name || '', sourceSlot: getOppositeRingSlotKey(equipSlotKey) });
-        let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
+        // 생장판: 공간 효과가 부여하는 아이템 단위 배율(공허 고리 2배 등)과 베이스 전용 배율(중계 덩굴손).
+        let growthStatMultiplier = (typeof getGrowthItemStatMultiplier === 'function' && isGrowthItem(item)) ? getGrowthItemStatMultiplier(item.id) : 1;
+        let growthBaseMultiplier = (typeof getGrowthItemBaseMultiplier === 'function' && isGrowthItem(item)) ? getGrowthItemBaseMultiplier(item.id) : 1;
+        let itemStatMultiplier = (item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1) * growthStatMultiplier;
         let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
         let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(item.quality || 0)));
         let qualityMul = 1 + (qualityValue / 100);
         let qualityMode = typeof getItemQualityAttributeMode === 'function' ? getItemQualityAttributeMode(item) : 'base';
-        let baseQualityMul = qualityMode === 'base' ? qualityMul : 1;
+        let baseQualityMul = (qualityMode === 'base' ? qualityMul : 1) * growthBaseMultiplier;
         let baseSourceStats = cloneItemStatList(item.baseStats).concat(mirrorSourceItem ? cloneItemStatList(mirrorSourceItem.baseStats) : []);
         let itemBaseStats = scaleStatList(baseSourceStats.map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * baseQualityMul).toFixed(2)) } : stat), itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
@@ -2057,6 +2097,9 @@ function getPlayerStats() {
             });
         }
     });
+    // 생장판 공간 시너지: 배치 기하로만 결정되는 정적 보너스를 한 번에 합산한다.
+    // reward 버킷은 평탄/증가 방어와 막기까지 모두 최종 합산식에 포함되므로 여기로 흘려보낸다.
+    if (typeof applyGrowthSpatialStats === 'function') applyGrowthSpatialStats(reward);
     getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
     game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0, 0, 0];
     (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
@@ -6398,11 +6441,15 @@ function rollLootForEnemy(enemy) {
         }
     }
     if (Math.random() < itemChance) {
-        let item = generateEquipmentDrop(enemy);
-        if (addItemToInventory(item) && game.settings.showLootLog) {
-            addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#9ed6ff', duration: 780 });
-            if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ff9f43', duration: 1200 });
-            addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
+        // 생장 아이템은 최근 획득함으로 들어간다(전투를 멈추지 않는 방치형 수집 경로).
+        let item = generateGrowthDrop(enemy);
+        if (item && addDroppedGrowthItem(item)) {
+            notifyFirstSmallGrowthBase(item);
+            if (game.settings.showLootLog) {
+                addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#9ed6ff', duration: 780 });
+                if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ff9f43', duration: 1200 });
+                addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
+            }
         }
     }
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056) {
@@ -9129,6 +9176,11 @@ function triggerSeasonReset(options) {
         if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
     });
     let preservedSealedInventory = (game.inventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
+    // 생장판: 해금된 칸 수와 소형 베이스 도감은 영구 성장이라 루프를 건너 유지한다 (spec 20).
+    // 봉인된 생장 아이템은 최근 획득함에 남아 있어도 보존한다.
+    let preservedGrowthUnlockedCells = Math.max(0, Math.floor(((game.growthBoard || {}).unlockedCellCount) || 0));
+    let preservedGrowthSmallBaseSeen = JSON.parse(JSON.stringify(game.growthSmallBaseSeen || {}));
+    let preservedSealedRecentDrops = (game.recentGrowthDrops || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
     let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.woodsmanTouch) || 0));
     let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -9207,6 +9259,10 @@ function triggerSeasonReset(options) {
     // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
     Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = preservedSealedEquipment[slot]; });
     if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory);
+    // 생장판 초기화: 배치는 비우되 해금 칸(영구 성장)과 봉인 아이템은 유지한다.
+    if (typeof resetGrowthBoardForLoop === 'function') resetGrowthBoardForLoop(preservedGrowthUnlockedCells);
+    game.recentGrowthDrops = preservedSealedRecentDrops;
+    game.growthSmallBaseSeen = preservedGrowthSmallBaseSeen;
     if (preservedWoodsmanTouch > 0) game.currencies.woodsmanTouch = preservedWoodsmanTouch;
     game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;

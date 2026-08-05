@@ -24,6 +24,11 @@ ES module이 아니라 `index.html`의 `<script>` 순서와 명시적으로 노�
 | `js/state.js` | 게임 상태의 기본 shape, 초기화, 상태 불변식 | 데이터와 유틸리티만 사용한다 |
 | `js/save.js` | 저장/복원 경계와 직렬화 | 상태 shape와 유틸리티를 사용한다 |
 | `js/items.js`, `js/skills.js`, `js/passives.js`, `js/core-cube.js` | 각 게임 도메인의 규칙 | 데이터·상태·유틸리티에 의존한다 |
+| `js/growth-board.js` | 생장판 형태 기하(회전/정규화/점유), 보드 상태, 배치 검증, 칸 해금, 세팅, 최근 획득함 | 데이터·상태·유틸리티에 의존하고 UI에 의존하지 않는다 |
+| `js/growth-effects.js` | 생장판 공간 시너지 판정과 정적 보너스 캐시 | `growth-board`의 배치 결과만 읽는다 |
+| `js/growth-generation.js` | 생장 아이템 생성(드랍/고유/타락 결과/레거시 변환) | 기존 옵션 풀·등급 규칙을 재사용한다 |
+| `js/growth-migration.js` | 고정 슬롯 저장 → 생장판 저장 1회 마이그레이션과 백업 | 저장 경계에서만 호출된다 |
+| `js/growth-ui.js` | 생장판 DOM 조립과 사용자 이벤트 경계 | 생장 도메인을 호출하되 도메인이 이를 호출하지 않는다 |
 | `js/combat-grid.js` | 8x8 그리드 전장 도메인(좌표·범위 패턴·이동·스폰 배치) | 데이터·상태에 의존하고 UI에 의존하지 않는다 |
 | `js/combat.js` | 전투 및 진행 규칙 | 도메인 규칙에 의존하되 UI에 의존하지 않는다 |
 | `js/canvas-*.js` | 캔버스 렌더링 어댑터 | 읽기 전용 도메인 결과를 받아 표현한다 |

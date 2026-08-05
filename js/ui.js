@@ -3875,6 +3875,7 @@ function storeUniqueToCodexByItemId(itemId) {
         game.inventory[idx] = swapped;
         addLog(`🔁 도감 교체: [${item.name}] 등록, [${swapped.name}] 인벤토리로 반환`, 'season-up');
     } else {
+        if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
         game.inventory.splice(idx, 1);
         addLog(`📚 도감 등록: [${item.name}]`, 'season-up');
     }
@@ -5139,6 +5140,13 @@ function getItemStatToneColor(statId) {
 }
 
 function getItemSlotDisplayLabel(item, fallbackLabel) {
+    // 생장 아이템은 부위가 아니라 종류(꽃/가지/잎)와 크기로 식별한다.
+    // item.slot은 옵션 풀·화석 계열 판정을 위한 내부 매핑일 뿐이라 사용자에게 노출하지 않는다.
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) {
+        let info = (typeof GROWTH_CATEGORY_INFO !== 'undefined' && GROWTH_CATEGORY_INFO[item.growthCategory]) || null;
+        let size = typeof getGrowthItemSize === 'function' ? getGrowthItemSize(item) : 0;
+        return `${info ? info.label : '생장'}${size > 0 ? ` ${size}칸` : ''}`;
+    }
     let rawSlot = item && item.slot !== undefined && item.slot !== null ? item.slot : null;
     if (rawSlot === null && item && Array.isArray(item.slots) && item.slots.length > 0) rawSlot = item.slots[0];
     let label = rawSlot !== null ? rawSlot : (fallbackLabel || '장비');
@@ -7065,10 +7073,12 @@ function performUpdateStaticUI() {
 
     if (itemsTabActive) {
     syncSalvageControlsFromSettings();
-    renderPaperdoll('ui-equip-list', false);
-    renderPaperdoll('ui-craft-equip-list', true);
-    renderPaperdoll('ui-fossil-equip-list', true);
-    if (document.getElementById('ui-infuser-equip-list')) renderPaperdoll('ui-infuser-equip-list', true);
+    if (typeof renderGrowthTab === 'function') renderGrowthTab();
+    if (typeof renderGrowthCraftTargets === 'function') {
+        renderGrowthCraftTargets('ui-craft-equip-list');
+        renderGrowthCraftTargets('ui-fossil-equip-list');
+        renderGrowthCraftTargets('ui-infuser-equip-list');
+    }
     document.getElementById('ui-inv-count').innerText = game.inventory.length;
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
@@ -7420,7 +7430,7 @@ function bulkSalvageEquipBySearch(salvageUnmatched) {
         const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
         const hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
         const matched = matchSearchQuery(hay, sf.equip);
-        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched) || item.locked) return count;
+        if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched) || isBulkSalvageProtectedItem(item)) return count;
         return count + 1;
     }, 0);
     if (targetCount <= 0) return addLog('해체 대상이 없습니다.', 'attack-monster');
@@ -7431,11 +7441,11 @@ function bulkSalvageEquipBySearch(salvageUnmatched) {
         const hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
         const matched = matchSearchQuery(hay, sf.equip);
         if (!shouldBulkSalvageBySearch(matched, !!salvageUnmatched)) return survivors.push(item);
-        if (item.locked) { lockedSkipped++; return survivors.push(item); }
+        if (isBulkSalvageProtectedItem(item)) { lockedSkipped++; return survivors.push(item); }
         salvageItemObject(item, true); removed++;
     });
     game.inventory = survivors;
-    addLog(`🧪 장비 ${removed}개 해체 완료${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 아이템 ${removed}개 해체 완료${lockedSkipped > 0 ? ` (잠금/배치 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 function bulkSalvageJewelsBySearch(salvageUnmatched) {
@@ -8134,7 +8144,11 @@ function exposeUiRenderHelpersOnce() {
         equipUnderworldRuneToSlot,
         unequipUnderworldRuneSlot,
         showUnderworldRuneTooltip,
-        handleCombatLoopAdvanceButton
+        handleCombatLoopAdvanceButton,
+        // 생장판 UI(js/growth-ui.js)가 보관함 필터/검색을 그대로 재사용한다.
+        isItemRarityVisible,
+        getSearchFilterState,
+        matchSearchQuery
     };
     let pending = {};
     Object.keys(helpers).forEach(key => {
@@ -12345,6 +12359,15 @@ function init() {
     }
     applySeasonContentProgression({ silent: true });
     recoverRuntimeState();
+    // 생장판 전환: 저장 로드 직후 한 번만 실행된다. 실패해도 게임 부팅을 막지 않되 원인을 남긴다.
+    try {
+        runGrowthBoardMigration();
+        syncGrowthBoardUnlocks({ silent: true });
+        validateGrowthPlacements();
+    } catch (error) {
+        console.error('growth board migration failed:', error);
+        addLog('⚠️ 생장판 전환 중 오류가 발생했습니다. 콘솔 로그를 확인해 주세요.', 'loot-rare');
+    }
     unlockPassiveStarEvolution({ silent: true });
     window.__battleAssetAutoloadEnabled = false;
     scheduleDeferredBattleAssetLoad();
@@ -12751,15 +12774,16 @@ function syncDerivedTabUnlock(tabId) {
 
 function checkUnlocks() {
     let u = game.unlocks;
+    if (typeof syncGrowthBoardUnlocks === 'function') syncGrowthBoardUnlocks();
     if (game.level >= 2 && !u.char) {
         u.char = true;
         game.noti.char = true;
         queueTutorialNotice('unlock_char', '스킬트리 개방', '레벨 2에 도달해 성좌를 찍을 수 있게 되었습니다.\n패시브 포인트를 사용해 성장 방향을 정해보세요.', 'tab-char');
     }
-    if ((game.inventory.length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items) {
+    if ((game.inventory.length > 0 || (game.recentGrowthDrops || []).length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items) {
         u.items = true;
         game.noti.items = true;
-        queueTutorialNotice('unlock_items', '장비/제작 개방', '첫 장비 또는 제작 재화를 얻었습니다.\n아이템을 장착하고, 오브를 사용해 장비를 강화할 수 있습니다.', 'tab-items');
+        queueTutorialNotice('unlock_items', '생장판/제작 개방', '첫 생장 아이템 또는 제작 재화를 얻었습니다.\n생장판에 아이템을 배치해 능력치를 얻고, 오브로 강화할 수 있습니다.', 'tab-items');
     }
     if (isJewelTabUnlockReady() && !u.jewel) {
         u.jewel = true;
@@ -12775,6 +12799,7 @@ function checkUnlocks() {
     // O(인벤토리) 스캔을 돌면 대량 처치/드랍 시 스파이크가 생긴다.)
     if (!u.codex) {
         let hasUniqueForCodex = (game.inventory || []).some(item => item && item.rarity === 'unique')
+            || (game.recentGrowthDrops || []).some(item => item && item.rarity === 'unique')
             || Object.values(game.equipment || {}).some(item => item && item.rarity === 'unique')
             || Object.keys(game.uniqueCodex || {}).length > 0;
         if (hasUniqueForCodex) {

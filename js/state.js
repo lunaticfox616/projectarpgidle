@@ -1957,9 +1957,15 @@ const defaultGame = {
     talismanSelectedId: null,
     talismanUnseal: null,
     talismanUnlockPickMode: false,
+    // 생장판 교체 이후 고정 슬롯 장비는 사용하지 않는다. 마이그레이션이 끝나지 않은 저장을 읽기 위해
+    // shape만 남겨 두며, 새 게임에서는 항상 비어 있다. (js/growth-migration.js 참고)
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
     inventory: [],
     inventoryExpandLevel: 0,
+    growthBoard: { width: 12, height: 5, unlockedCellCount: 12, activeLoadout: 0, loadouts: [] },
+    recentGrowthDrops: [],
+    growthSystemVersion: 0,
+    growthSmallBaseSeen: {},
     jewelInventoryExpandLevel: 0,
     chaosInfuserUnlocked: false,
     abyssPassivePoints: 0,
