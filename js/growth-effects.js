@@ -400,13 +400,66 @@ const GROWTH_UNIQUE_EFFECT_HANDLERS = {
         let horizontal = facts.wallDirs.has('left') || facts.wallDirs.has('right');
         if (vertical && horizontal) pushGrowthGrant(out, entry, 'pctHp', 10, '경계석: 모서리');
     },
+    ashenSun: (entry, facts, ctx, out) => {
+        let neighbors = facts.adjacentEntries.filter(other => !isGrowthSlab(other.item)
+            && other.item.growthCategory !== entry.item.growthCategory);
+        let distinct = new Set(neighbors.map(other => other.item.growthCategory)).size;
+        if (distinct <= 0) return;
+        pushGrowthGrant(out, entry, 'firePctDmg', distinct * 8, '재의 태양: 이종 인접');
+        if (distinct >= 3) pushGrowthGrant(out, entry, 'resPen', 5, '재의 태양: 삼색 연소');
+        neighbors.forEach(other => linkGrowthItems(out, entry.item.id, other.item.id));
+    },
+    firstHarvestChalice: (entry, facts, ctx, out) => {
+        let seeds = ctx.entries.filter(other => other.item.growthCategory === 'seed');
+        let multiplier = 1 + Math.min(3, seeds.length) * 0.1;
+        if (seeds.length === 0) return;
+        ctx.entries.filter(other => other.item.growthCategory === 'fruit').forEach(other => {
+            multiplyGrowthItemBaseStats(out, other.item.id, multiplier);
+            linkGrowthItems(out, entry.item.id, other.item.id);
+        });
+        seeds.forEach(other => linkGrowthItems(out, entry.item.id, other.item.id));
+    },
+    invertedRoot: (entry, facts, ctx, out) => {
+        let level = Math.min(GROWTH_LEVEL_CAP, Math.abs(Math.min(0, out.itemLevels.get(entry.item.id) || 0)));
+        if (level <= 0) return;
+        pushGrowthGrant(out, entry, 'pctHp', level * 5, '거꾸로 자란 뿌리: 역행 생장');
+        pushGrowthGrant(out, entry, 'armor', level * 25, '거꾸로 자란 뿌리: 역행 생장');
+    },
+    bloodTitheThorn: (entry, facts, ctx, out) => {
+        let neighbors = facts.adjacentEntries.filter(other => !isGrowthSlab(other.item));
+        if (neighbors.length === 0) return;
+        pushGrowthGrant(out, entry, 'physPctDmg', neighbors.length * 7, '피의 십일조');
+        pushGrowthGrant(out, entry, 'pctHp', neighbors.length * -2, '피의 십일조');
+        neighbors.forEach(other => linkGrowthItems(out, entry.item.id, other.item.id));
+    },
+    stormPiercingConduit: (entry, facts, ctx, out) => {
+        ctx.entries.forEach(other => {
+            if (other.item.id === entry.item.id || isGrowthSlab(other.item)) return;
+            let tags = getGrowthItemTags(other.item);
+            if (!['화염', '냉기', '번개'].some(tag => tags.has(tag))) return;
+            let targetFacts = ctx.facts.get(other.item.id);
+            let sharedRow = targetFacts && Array.from(targetFacts.rows).some(row => facts.rows.has(row));
+            let sharedCol = targetFacts && Array.from(targetFacts.cols).some(col => facts.cols.has(col));
+            if (!sharedRow && !sharedCol) return;
+            multiplyGrowthItemStats(out, other.item.id, 1.18);
+            linkGrowthItems(out, entry.item.id, other.item.id);
+        });
+    },
+    hiveUmbilical: (entry, facts, ctx, out) => {
+        let summons = ctx.entries.filter(other => other.item.id !== entry.item.id
+            && !isGrowthSlab(other.item) && getGrowthItemTags(other.item).has('소환수'));
+        summons.forEach(other => {
+            multiplyGrowthItemStats(out, other.item.id, 1.15);
+            linkGrowthItems(out, entry.item.id, other.item.id);
+        });
+        if (summons.length >= 4) pushGrowthGrant(out, entry, 'summonCap', 1, '군체의 탯줄');
+    },
     primordialBlueprint: (entry, facts, ctx, out) => {
         let organic = ctx.entries.filter(other => !isGrowthSlab(other.item));
         let categories = new Set(organic.map(other => other.item.growthCategory));
         if (organic.length < 6 || categories.size !== organic.length) return;
         organic.forEach(other => {
-            let current = out.baseMultipliers.get(other.item.id) || 1;
-            out.baseMultipliers.set(other.item.id, current * 1.4);
+            multiplyGrowthItemBaseStats(out, other.item.id, 1.4);
             linkGrowthItems(out, entry.item.id, other.item.id);
         });
     },
@@ -452,6 +505,10 @@ function pushGrowthGrant(out, entry, statId, val, label) {
 
 function multiplyGrowthItemStats(out, itemId, multiplier) {
     out.itemMultipliers.set(itemId, (out.itemMultipliers.get(itemId) || 1) * multiplier);
+}
+
+function multiplyGrowthItemBaseStats(out, itemId, multiplier) {
+    out.baseMultipliers.set(itemId, (out.baseMultipliers.get(itemId) || 1) * multiplier);
 }
 
 function linkGrowthItems(out, firstId, secondId) {
