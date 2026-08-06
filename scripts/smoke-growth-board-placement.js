@@ -254,4 +254,55 @@ assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋
         '드래그 중에는 아이템 툴팁을 띄우지 않아야 한다');
 }
 
+// ── 옛 판(폴리오미노 10x6) 저장을 불러올 때 ──────────────────────────────
+// 이 브랜치가 판을 10x6·60칸에서 8x4·32칸으로 줄이고 모든 아이템을 1칸으로 바꿨다.
+// 그 전에 저장한 사람이 돌아오면 판 밖을 가리키는 배치가 남아 있다. 아이템을
+// 잃지 않으면서 판 밖 배치만 정리되어야 한다.
+{
+    const legacy = loadGrowthContext();
+    const runLegacy = code => vm.runInContext(code, legacy);
+    legacy.game.season = 40;
+    legacy.game.maxZoneId = 40;
+    legacy.game.growthInventory = [
+        { id: 11, growthShapeId: 'L4', growthCategory: 'flower', growthBaseId: 'test_base', name: 'L4 꽃', rarity: 'rare', baseStats: [], stats: [] },
+        { id: 12, growthShapeId: 'T4', growthCategory: 'branch', growthBaseId: 'test_base', name: 'T4 가지', rarity: 'rare', baseStats: [], stats: [] },
+        { id: 13, growthShapeId: 'I3', growthCategory: 'leaf', growthBaseId: 'test_base', name: 'I3 잎', rarity: 'magic', baseStats: [], stats: [] }
+    ];
+    // 옛 저장 그대로: 10x6 판, 60칸 해금, 판 밖(9,5)을 가리키는 배치 포함
+    legacy.game.growthBoard = {
+        width: 10, height: 6, unlockedCellCount: 60, activeLoadout: 0,
+        loadouts: [{ name: '옛 세팅', placements: {
+            11: { x: 0, y: 0, rotation: 0 },
+            12: { x: 9, y: 5, rotation: 1 },
+            13: { x: 3, y: 1, rotation: 3 }
+        } }]
+    };
+    runLegacy('ensureGrowthBoardState()');
+    runLegacy('validateGrowthPlacements()');
+
+    assert.strictEqual(runLegacy('game.growthBoard.width'), 8, '옛 판 폭은 현재 폭으로 맞춰져야 한다');
+    assert.strictEqual(runLegacy('game.growthBoard.height'), 4, '옛 판 높이는 현재 높이로 맞춰져야 한다');
+    assert.strictEqual(runLegacy('game.growthBoard.unlockedCellCount'), 32,
+        '옛 60칸 해금은 현재 최대 칸수로 잘려야 한다(32칸을 넘으면 없는 칸이 열린 것으로 취급된다)');
+
+    // 아이템은 하나도 잃지 않는다.
+    assert.strictEqual(legacy.game.growthInventory.length, 3, '옛 아이템을 잃으면 안 된다');
+    [11, 12, 13].forEach(id => {
+        assert.strictEqual(runLegacy(`getGrowthItemCells(findGrowthItemById(${id}), 0).length`), 1,
+            `옛 폴리오미노 아이템 ${id}도 1칸으로 해석되어야 한다`);
+    });
+
+    // 판 밖 배치만 정리되고, 판 안 배치는 좌표 그대로 살아남는다.
+    const placedIds = JSON.parse(runLegacy('JSON.stringify(getPlacedGrowthEntries().map(e => e.item.id))'));
+    assert.strictEqual(JSON.stringify(placedIds.slice().sort((a, b) => a - b)), '[11,13]',
+        '판 밖(9,5) 배치만 정리되어야 한다');
+    assert.strictEqual(runLegacy('JSON.stringify(getPlacedGrowthEntries().map(e => [e.placement.x, e.placement.y]).sort())'),
+        JSON.stringify([[0, 0], [3, 1]]), '판 안 배치는 좌표를 그대로 유지해야 한다');
+    const inBounds = runLegacy('getPlacedGrowthEntries().every(e => e.cells.every(c => isGrowthCellUnlocked(c[0], c[1])))');
+    assert.strictEqual(inBounds, true, '살아남은 배치는 모두 열린 칸 위에 있어야 한다');
+
+    // 정리된 배치는 다시 놓을 수 있어야 한다(보관함에 그대로 있으므로).
+    assert.strictEqual(runLegacy('placeGrowthItem(12, 5, 2, 0).ok'), true, '정리된 아이템은 새 판에 다시 놓을 수 있어야 한다');
+}
+
 console.log('smoke-growth-board-placement passed');
