@@ -79,22 +79,40 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 }
 
 .cosmos-legend i {
-  width: 7px;
-  height: 7px;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
   border: 1px solid #536679;
-  border-radius: 50%;
-  background: #263341;
+  border-radius: 5px;
+  color: #8996a9;
+  background: #111923;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.cosmos-legend i.active {
+  border-color: #ffc157;
+  color: #ffc157;
+  box-shadow: 0 0 8px rgba(255, 193, 87, .42);
 }
 
 .cosmos-legend i.available {
   border-color: #75c9fb;
-  background: #3d9bd2;
+  color: #75c9fb;
   box-shadow: 0 0 6px rgba(90, 189, 240, .55);
 }
 
 .cosmos-legend i.cleared {
   border-color: #7bd89d;
-  background: #3b9a64;
+  color: #7bd89d;
+}
+
+.cosmos-legend i.locked {
+  border-color: #536679;
+  color: #728198;
 }
 
 .cosmos-summary {
@@ -367,6 +385,36 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   display: block;
 }
 
+.cosmos-map-heading {
+  flex: 1 1 auto;
+  min-width: 150px;
+}
+
+.cosmos-map-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 0 1 auto;
+}
+
+.cosmos-map-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 3px 6px;
+  border: 1px solid rgba(80, 105, 130, .5);
+  border-radius: 999px;
+  background: rgba(8, 14, 22, .52);
+  white-space: nowrap;
+}
+
+.cosmos-map-key b {
+  color: #8bd4ff;
+  font-size: 11px;
+}
+
 .cosmos-map-toolbar strong {
   color: var(--copy-bright);
   font-size: 12px;
@@ -489,6 +537,14 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   font-style: normal;
 }
 
+.cosmos-atlas-tooltip small {
+  display: block;
+  max-width: 220px;
+  margin-top: 3px;
+  color: #aab9ca;
+  line-height: 1.4;
+}
+
 .cosmos-detail {
   border: 1px solid #31465d;
   border-radius: 14px;
@@ -548,6 +604,13 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   background: #112236;
 }
 
+.cosmos-status.active {
+  border-color: #c78e31;
+  color: #ffd17b;
+  background: #2c2110;
+  box-shadow: 0 0 12px rgba(255, 193, 87, .12);
+}
+
 .cosmos-status.cleared {
   border-color: #2e8b57;
   color: #9ef0bf;
@@ -559,6 +622,56 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   color: #8795a8;
   background: #11151d;
 }
+
+.cosmos-region-state {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  margin: 10px 0;
+  padding: 9px;
+  border: 1px solid #3c4c61;
+  border-radius: 10px;
+  background: rgba(8, 14, 22, .68);
+}
+
+.cosmos-region-state > b {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid currentColor;
+  border-radius: 9px;
+  color: #8290a5;
+  font-size: 17px;
+}
+
+.cosmos-region-state strong,
+.cosmos-region-state small {
+  display: block;
+}
+
+.cosmos-region-state strong {
+  color: #f4f7fb;
+  font-size: 11px;
+}
+
+.cosmos-region-state small {
+  margin-top: 2px;
+  color: #aebdcd;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.cosmos-region-state.active {
+  border-color: rgba(255, 193, 87, .65);
+  background: rgba(54, 39, 14, .58);
+}
+
+.cosmos-region-state.active > b { color: #ffc157; }
+.cosmos-region-state.available > b { color: #72c9ff; }
+.cosmos-region-state.cleared > b { color: #6ce094; }
+.cosmos-region-state.locked > b { color: #728198; }
 
 .cosmos-detail-section {
   display: grid;
@@ -829,6 +942,13 @@ body.light-mode .cosmos-help {
   .cosmos-resource-line {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .cosmos-map-key {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .cosmos-map-controls {

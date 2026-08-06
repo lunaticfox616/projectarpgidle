@@ -356,7 +356,8 @@
     const COSMOS_ASTEROID_NUMBERS = [32, 60, 81, 111, 115, 127, 132, 140, 155, 156, 164, 166, 168, 170, 181, 183, 195, 198, 204, 208, 211, 214, 227, 234, 241, 261, 264, 291, 299, 308, 331, 343, 349, 358, 365, 394, 406, 430, 431, 442, 463, 477, 486, 511, 533, 550, 554, 599, 681, 693, 702, 715, 726, 737, 756, 757, 761, 767, 769, 778, 781, 786, 800, 813, 824, 843, 866, 886, 900, 944, 947, 964, 969, 985, 1000];
 
     const COSMOS_LAYOUT_VERSION = 20260601;
-    const DEFAULT_COSMOS_CAMERA_SCALE = 0.56;
+    const DEFAULT_COSMOS_CAMERA_SCALE = 0.34;
+    const COSMOS_CAMERA_VERSION = 20260806;
     const GALAXY_SEQUENCE = [1, 2, 3, 4, 5];
     const PLANETS_PER_GALAXY = 10;
     const ASTEROIDS_PER_GALAXY = 15;
@@ -775,6 +776,10 @@
             state.mastery[node.key] = Math.max(0, Math.min(node.max, Math.floor(state.mastery[node.key] || 0)));
         });
         if (!state.camera) state.camera = { x: 0, y: 0, scale: DEFAULT_COSMOS_CAMERA_SCALE };
+        if (state.cameraVersion !== COSMOS_CAMERA_VERSION) {
+            if (Math.abs(Number(state.camera.scale) - 0.56) < 0.001) state.camera.scale = DEFAULT_COSMOS_CAMERA_SCALE;
+            state.cameraVersion = COSMOS_CAMERA_VERSION;
+        }
         return state;
     }
 
@@ -863,10 +868,40 @@
     function getNodeStatus(node) {
         const state = getState();
         if (!isCosmosUnlocked()) return 'locked';
+        if (state.activeChallenge && state.activeChallenge.nodeId === node.id) return 'active';
         if (state.cleared.includes(node.id)) return 'cleared';
         if (node.id === 'planet-0') return 'available';
         const neighbors = getNeighbors(node.id);
         return neighbors.some(id => state.cleared.includes(id)) ? 'available' : 'locked';
+    }
+
+    function getCosmosNodeStatusMeta(status) {
+        if (status === 'active') return {
+            label: '전투 진행 중', glyph: '⚔', description: '현재 이 사냥 지역에서 전투하고 있습니다.'
+        };
+        if (status === 'available') return {
+            label: '미클리어 · 도전 가능', glyph: '!', description: '연결된 별길이 열렸습니다. 도전해 초회 보상과 다음 경로를 여세요.'
+        };
+        if (status === 'cleared') return {
+            label: '클리어 완료', glyph: '✓', description: '이 사냥 지역의 초회 클리어가 기록되었습니다.'
+        };
+        return {
+            label: '미클리어 · 경로 잠김', glyph: '◇', description: '인접한 사냥 지역을 먼저 클리어하면 도전할 수 있습니다.'
+        };
+    }
+
+    function getCosmosNodeActionState(node, status) {
+        if (status === 'active') return { enabled: false, label: '전투 진행 중' };
+        if (status === 'available') return { enabled: true, label: '이 지역 도전' };
+        if (status === 'cleared' && node && node.tag === 'boss') return { enabled: true, label: '보스 다시 도전' };
+        if (status === 'cleared') return { enabled: false, label: '클리어 완료' };
+        return { enabled: false, label: '연결 지역을 먼저 클리어' };
+    }
+
+    function canRecordCosmosExploration(status, node, completedChallenge) {
+        if (!completedChallenge) return false;
+        if (status === 'active' || status === 'available') return true;
+        return status === 'cleared' && node && node.tag === 'boss';
     }
 
 
@@ -1000,6 +1035,10 @@
         return Math.max(1, ATLAS.dpr || 1);
     }
 
+    function getAtlasPixelScale() {
+        return ATLAS.camera.scale * getCosmosUiScale();
+    }
+
     function hasEquippableCosmosStone(state) {
         const galaxies = hasSixthCosmosStoneUnlock() ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
         return galaxies.some(g => isCosmosStoneAcquired(state, g) && !(state.equippedStones && state.equippedStones[String(g)]));
@@ -1013,7 +1052,12 @@
     function shouldAnimateCosmos() {
         if (!isCosmosTabActive()) return false;
         if (ATLAS.stonePulse) return true;
-        try { return hasEquippableCosmosStone(getState()); } catch (error) { return false; }
+        try {
+            const state = getState();
+            return !!state.activeChallenge || hasEquippableCosmosStone(state);
+        } catch (error) {
+            return false;
+        }
     }
 
     function tracePentagon(ctx, cx, cy, r, rotation) {
@@ -1493,10 +1537,11 @@
                             <div class="cosmos-kicker">Cosmic Atlas</div>
                             <div class="cosmos-title">별을 잇는 우주계 탐험 지도</div>
                             <div class="cosmos-desc">별길을 개척하고 은하 보스를 추적하세요. 완료한 탐사마다 성도술 포인트를 얻습니다.</div>
-                            <div class="cosmos-legend" aria-label="노드 상태 안내">
-                                <span><i class="available"></i>탐사 가능</span>
-                                <span><i class="cleared"></i>완료</span>
-                                <span><i class="locked"></i>미연결</span>
+                            <div class="cosmos-legend" aria-label="사냥 지역 상태 안내">
+                                <span><i class="active">⚔</i>전투 중</span>
+                                <span><i class="available">!</i>도전 가능</span>
+                                <span><i class="cleared">✓</i>클리어</span>
+                                <span><i class="locked">◇</i>경로 잠김</span>
                             </div>
                         </div>
                         <div class="cosmos-summary" id="ui-cosmos-summary"></div>
@@ -1508,7 +1553,8 @@
                     <div id="cosmos-inner-atlas" class="cosmos-layout">
                         <div class="cosmos-map-column">
                             <div class="cosmos-map-toolbar">
-                                <div><strong>성도 지도</strong><span>드래그로 이동 · 노드를 눌러 상세 확인</span></div>
+                                <div class="cosmos-map-heading"><strong>성도 지도</strong><span>노드 1개 = 클리어할 사냥 지역 1곳</span></div>
+                                <div class="cosmos-map-key"><span><b>!</b> 미클리어</span><span><b>✓</b> 클리어</span><span><b>◇</b> 잠김</span></div>
                                 <div class="cosmos-map-controls">
                                     <button type="button" onclick="zoomCosmosAtlas(0.88)" title="축소">−</button>
                                     <button type="button" onclick="resetCosmosAtlasCamera()">전체 보기</button>
@@ -1710,18 +1756,20 @@
         const h = ATLAS.canvas.height;
         const sx = (event.clientX - rect.left) * (w / Math.max(1, rect.width));
         const sy = (event.clientY - rect.top) * (h / Math.max(1, rect.height));
+        const pixelScale = getAtlasPixelScale();
         return {
-            x: (sx - w / 2) / ATLAS.camera.scale - ATLAS.camera.x,
-            y: (sy - h / 2) / ATLAS.camera.scale - ATLAS.camera.y
+            x: (sx - w / 2) / pixelScale - ATLAS.camera.x,
+            y: (sy - h / 2) / pixelScale - ATLAS.camera.y
         };
     }
 
     function worldToScreen(node) {
         const w = ATLAS.canvas.width;
         const h = ATLAS.canvas.height;
+        const pixelScale = getAtlasPixelScale();
         return {
-            x: w / 2 + (node.x + ATLAS.camera.x) * ATLAS.camera.scale,
-            y: h / 2 + (node.y + ATLAS.camera.y) * ATLAS.camera.scale
+            x: w / 2 + (node.x + ATLAS.camera.x) * pixelScale,
+            y: h / 2 + (node.y + ATLAS.camera.y) * pixelScale
         };
     }
 
@@ -1730,11 +1778,14 @@
         const rect = ATLAS.canvas.getBoundingClientRect();
         const sx = (event.clientX - rect.left) * (ATLAS.canvas.width / Math.max(1, rect.width));
         const sy = (event.clientY - rect.top) * (ATLAS.canvas.height / Math.max(1, rect.height));
+        const ui = getCosmosUiScale();
+        const pixelScale = getAtlasPixelScale();
         let best = null;
         let bestDist = Infinity;
         ATLAS.nodes.forEach(node => {
             const p = worldToScreen(node);
-            const r = Math.max(8, node.radius * ATLAS.camera.scale + (node.kind === 'planet' ? 8 : 5));
+            const minRadius = node.kind === 'planet' ? 14 * ui : 11 * ui;
+            const r = Math.max(minRadius, node.radius * pixelScale + 5 * ui);
             const dx = sx - p.x;
             const dy = sy - p.y;
             const d = Math.sqrt(dx * dx + dy * dy);
@@ -1753,17 +1804,12 @@
             return;
         }
         const status = getNodeStatus(node);
-        ATLAS.tooltip.innerHTML = `<strong>${escapeHtml(node.name)}</strong><br><span>${escapeHtml(node.source)}</span><br>${escapeHtml(node.theme)}<br><em>${getStatusLabel(status)}</em>`;
+        const meta = getCosmosNodeStatusMeta(status);
+        ATLAS.tooltip.innerHTML = `<strong>${escapeHtml(node.name)}</strong><br><span>사냥 지역 · G${node.orbit} · T${getDisplayedNodeTier(node)}</span><br>${escapeHtml(node.theme)}<br><em>${meta.glyph} ${escapeHtml(meta.label)}</em><small>${escapeHtml(meta.description)}</small>`;
         const rect = ATLAS.host.getBoundingClientRect();
         ATLAS.tooltip.style.display = 'block';
         ATLAS.tooltip.style.left = `${event.clientX - rect.left + 14}px`;
         ATLAS.tooltip.style.top = `${event.clientY - rect.top + 14}px`;
-    }
-
-    function getStatusLabel(status) {
-        if (status === 'cleared') return '탐사 완료';
-        if (status === 'available') return '탐사 가능';
-        return '별길 잠김';
     }
 
     function getNodeColor(node, status) {
@@ -1861,8 +1907,9 @@
         ctx.restore();
 
         ctx.save();
-        ctx.translate(w / 2 + ATLAS.camera.x * ATLAS.camera.scale, h / 2 + ATLAS.camera.y * ATLAS.camera.scale);
-        ctx.scale(ATLAS.camera.scale, ATLAS.camera.scale);
+        const pixelScale = getAtlasPixelScale();
+        ctx.translate(w / 2 + ATLAS.camera.x * pixelScale, h / 2 + ATLAS.camera.y * pixelScale);
+        ctx.scale(pixelScale, pixelScale);
         const galaxyShells = [1, 2, 3, 4, 5].map(key => GALAXY_SPECS[key]).filter(Boolean);
         galaxyShells.forEach((g, idx) => {
             ctx.beginPath();
@@ -1887,6 +1934,7 @@
     }
 
     function drawEdges(ctx) {
+        const ui = getCosmosUiScale();
         ctx.save();
         ATLAS.edges.forEach(edge => {
             if (edge.type === 'transition') return;
@@ -1897,8 +1945,9 @@
             const pb = worldToScreen(b);
             const sa = getNodeStatus(a);
             const sb = getNodeStatus(b);
-            const open = sa !== 'locked' && sb !== 'locked';
-            const partial = sa !== 'locked' || sb !== 'locked';
+            const clearedPath = sa === 'cleared' && sb === 'cleared';
+            const activePath = sa === 'active' || sb === 'active';
+            const frontierPath = sa !== 'locked' || sb !== 'locked';
             const mx = (pa.x + pb.x) / 2;
             const my = (pa.y + pb.y) / 2;
             const bend = (hashSeed(edge.key) % 17 - 8) * 0.7;
@@ -1910,10 +1959,14 @@
             ctx.beginPath();
             ctx.moveTo(pa.x, pa.y);
             ctx.quadraticCurveTo(cx, cy, pb.x, pb.y);
-            ctx.strokeStyle = open ? 'rgba(127, 201, 255, 0.48)' : partial ? 'rgba(127, 201, 255, 0.22)' : 'rgba(80, 92, 120, 0.13)';
-            ctx.lineWidth = edge.type === 'spine' ? 2.6 : edge.type === 'asteroid' ? 0.85 : 1.25;
-            if (open) {
-                ctx.shadowColor = 'rgba(127, 201, 255, 0.25)';
+            ctx.strokeStyle = 'rgba(80, 92, 120, 0.13)';
+            if (frontierPath) ctx.strokeStyle = 'rgba(127, 201, 255, 0.35)';
+            if (activePath) ctx.strokeStyle = 'rgba(255, 193, 87, 0.78)';
+            if (clearedPath) ctx.strokeStyle = 'rgba(108, 224, 148, 0.7)';
+            const baseWidth = edge.type === 'spine' ? 2.6 : edge.type === 'asteroid' ? 0.85 : 1.25;
+            ctx.lineWidth = baseWidth * ui;
+            if (clearedPath || activePath) {
+                ctx.shadowColor = activePath ? 'rgba(255, 193, 87, 0.35)' : 'rgba(108, 224, 148, 0.25)';
                 ctx.shadowBlur = edge.type === 'spine' ? 8 : 4;
             }
             ctx.stroke();
@@ -1960,71 +2013,133 @@
         }
     }
 
+    function traceAtlasNodeShape(ctx, node, p, r) {
+        if (node.kind === 'planet') {
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+            return;
+        }
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = -Math.PI / 2 + i * Math.PI / 3;
+            const x = p.x + Math.cos(angle) * r;
+            const y = p.y + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+    }
+
+    function drawAsteroidSurface(ctx, node, p, r, status) {
+        traceAtlasNodeShape(ctx, node, p, r);
+        ctx.fillStyle = getNodeColor(node, status);
+        ctx.fill();
+        traceAtlasNodeShape(ctx, node, { x: p.x - r * 0.16, y: p.y - r * 0.2 }, r * 0.36);
+        ctx.fillStyle = status === 'locked' ? 'rgba(15,22,34,.35)' : 'rgba(255,255,255,.18)';
+        ctx.fill();
+    }
+
+    function getNodeStatusColor(status) {
+        if (status === 'active') return '#ffc157';
+        if (status === 'available') return '#72c9ff';
+        if (status === 'cleared') return '#6ce094';
+        return '#657389';
+    }
+
+    function drawNodeStatusMarker(ctx, node, p, r, status) {
+        const ui = getCosmosUiScale();
+        const meta = getCosmosNodeStatusMeta(status);
+        const markerR = (node.kind === 'planet' ? 7.5 : 6.5) * ui;
+        const mx = p.x + r * 0.72;
+        const my = p.y - r * 0.72;
+        ctx.beginPath();
+        ctx.arc(mx, my, markerR, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(5,10,17,.94)';
+        ctx.fill();
+        ctx.strokeStyle = getNodeStatusColor(status);
+        ctx.lineWidth = 1.8 * ui;
+        ctx.stroke();
+        ctx.fillStyle = getNodeStatusColor(status);
+        ctx.font = `800 ${Math.round((node.kind === 'planet' ? 10 : 8.5) * ui)}px Malgun Gothic, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(meta.glyph, mx, my + 0.4 * ui);
+    }
+
+    function drawNodeTierBadge(ctx, node, p, selected) {
+        if (node.kind !== 'planet') return;
+        const ui = getCosmosUiScale();
+        ctx.font = `800 ${Math.round(10.5 * ui * (selected ? 1.08 : 1))}px Malgun Gothic, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'rgba(6,10,18,0.88)';
+        ctx.fillRect(p.x - 14 * ui, p.y - 8 * ui, 28 * ui, 16 * ui);
+        ctx.fillStyle = '#ffd88a';
+        ctx.fillText(`T${getDisplayedNodeTier(node)}`, p.x, p.y + 0.5 * ui);
+    }
+
+    function drawNodeLabel(ctx, node, p, r, status, selected, hover) {
+        const ui = getCosmosUiScale();
+        const showPlanet = node.kind === 'planet'
+            && (selected || hover || status === 'active' || node.labelPriority >= 8 || ATLAS.camera.scale > 0.98);
+        const showAsteroid = node.kind === 'asteroid' && (hover || selected || status === 'active' || ATLAS.camera.scale > 1.35);
+        if (!showPlanet && !showAsteroid) return;
+        const label = node.kind === 'planet' ? node.name : `${node.name.replace('소행성', '#')} · T${getDisplayedNodeTier(node)}`;
+        ctx.globalAlpha = status === 'locked' ? 0.7 : 1;
+        ctx.font = `${Math.round((selected ? 15 : node.kind === 'planet' ? 12 : 9.5) * ui)}px Malgun Gothic, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.lineWidth = 3.5 * ui;
+        ctx.strokeStyle = 'rgba(0,0,0,.86)';
+        ctx.fillStyle = status === 'locked' ? '#8b99ad' : '#eef8ff';
+        ctx.strokeText(label, p.x, p.y + r + 7 * ui);
+        ctx.fillText(label, p.x, p.y + r + 7 * ui);
+    }
+
+    function drawNodeOutline(ctx, node, p, r, status, selected, hover) {
+        const ui = getCosmosUiScale();
+        traceAtlasNodeShape(ctx, node, p, r);
+        ctx.lineWidth = (selected ? 3 : hover ? 2.4 : 1.6) * ui;
+        ctx.strokeStyle = selected ? '#ffffff' : getNodeStatusColor(status);
+        if (status === 'available') ctx.setLineDash([4 * ui, 3 * ui]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    function drawNodeGlow(ctx, node, p, r, status, selected, hover) {
+        if (node.kind !== 'planet' && status !== 'active') return;
+        const color = status === 'active' ? '#ffc157' : getNodeColor(node, status);
+        const pulse = status === 'active' ? 1 + Math.sin(Date.now() / 220) * 0.12 : 1;
+        const size = r * (selected || hover ? 5.2 : status === 'active' ? 4.8 * pulse : 3.4);
+        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, size);
+        glow.addColorStop(0, color);
+        glow.addColorStop(0.28, color + '99');
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
     function drawNodes(ctx) {
+        const ui = getCosmosUiScale();
+        const pixelScale = getAtlasPixelScale();
         ctx.save();
         ATLAS.nodes.slice().sort((a, b) => (a.kind === b.kind ? a.orbit - b.orbit : a.kind === 'asteroid' ? -1 : 1)).forEach(node => {
             const status = getNodeStatus(node);
             const p = worldToScreen(node);
             const hover = ATLAS.hoverId === node.id;
             const selected = ATLAS.selectedId === node.id;
-            const r = Math.max(2.2, node.radius * ATLAS.camera.scale);
-            const color = getNodeColor(node, status);
-            const alpha = status === 'locked' ? 0.45 : 1;
-
-            ctx.globalAlpha = alpha;
-            if (node.kind === 'planet') {
-                const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * (selected || hover ? 5.2 : 3.8));
-                glow.addColorStop(0, color);
-                glow.addColorStop(0.28, color + '99');
-                glow.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = glow;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, r * (selected || hover ? 5.2 : 3.4), 0, Math.PI * 2);
-                ctx.fill();
-            }
-
+            const minRadius = node.kind === 'planet' ? 13 * ui : 9 * ui;
+            const r = Math.max(minRadius, node.radius * pixelScale);
+            ctx.globalAlpha = status === 'locked' ? 0.58 : 1;
+            drawNodeGlow(ctx, node, p, r, status, selected, hover);
             const drawR = r * (selected ? 1.28 : hover ? 1.18 : 1);
-            if (node.kind === 'planet') {
-                drawPlanetSurface(ctx, node, p, drawR, status);
-            } else {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.fill();
-            }
-            ctx.lineWidth = selected ? 3 : hover ? 2.4 : 1.4;
-            ctx.strokeStyle = selected ? '#ffffff' : status === 'available' ? getGalaxyAccent(node.orbit, 0.95) : status === 'cleared' ? '#9ef0bf' : getGalaxyAccent(node.orbit, 0.34);
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
-            ctx.stroke();
-
-            const tierText = `T${getDisplayedNodeTier(node)}`;
-            if (node.kind === 'planet') {
-                ctx.font = `${Math.max(10, 11 * (selected ? 1.12 : 1))}px Malgun Gothic, sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = 'rgba(6,10,18,0.88)';
-                ctx.fillRect(p.x - 14, p.y - 8, 28, 16);
-                ctx.fillStyle = '#ffd88a';
-                ctx.fillText(tierText, p.x, p.y);
-            }
-            if (node.kind === 'planet' && (selected || hover || node.labelPriority >= 5 || ATLAS.camera.scale > 0.98)) {
-                ctx.globalAlpha = status === 'locked' ? 0.62 : 1;
-                ctx.font = `${selected ? 17 : 13}px Malgun Gothic, sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = 'rgba(0,0,0,.82)';
-                ctx.fillStyle = status === 'locked' ? '#8190a5' : '#eaf6ff';
-                ctx.strokeText(node.name, p.x, p.y + r + 8);
-                ctx.fillText(node.name, p.x, p.y + r + 8);
-            } else if (node.kind === 'asteroid' && (hover || selected || ATLAS.camera.scale > 1.35)) {
-                ctx.font = '10px Malgun Gothic, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'top';
-                ctx.fillStyle = '#9fb9d1';
-                ctx.fillText(`${node.name.replace('소행성 ', '#')} · T${getDisplayedNodeTier(node)}`, p.x, p.y + r + 5);
-            }
+            if (node.kind === 'planet') drawPlanetSurface(ctx, node, p, drawR, status);
+            else drawAsteroidSurface(ctx, node, p, drawR, status);
+            drawNodeOutline(ctx, node, p, drawR, status, selected, hover);
+            drawNodeTierBadge(ctx, node, p, selected);
+            drawNodeStatusMarker(ctx, node, p, drawR, status);
+            drawNodeLabel(ctx, node, p, drawR, status, selected, hover);
         });
         ctx.globalAlpha = 1;
         ctx.restore();
@@ -2121,6 +2236,8 @@
         const node = ATLAS.byId.get(ATLAS.selectedId) || ATLAS.byId.get(state.selectedId) || ATLAS.byId.get('planet-0');
         if (!node) return;
         const status = getNodeStatus(node);
+        const statusMeta = getCosmosNodeStatusMeta(status);
+        const actionState = getCosmosNodeActionState(node, status);
         const pity = getCosmosBossPityProgress(node);
         const rewardLine = node.tag === 'boss'
             ? `은하 보스 보상: 첫 클리어 시 ${getBossStoneName(node)} 획득 · 현재 단계 ${getBossStage(node)} · 전용 보상 확정까지 최대 ${pity.remaining}회`
@@ -2129,10 +2246,11 @@
                 : `소행성 보상: 별가루 +${2 + node.orbit} · 제작 재료 소량`);
         ATLAS.detail.innerHTML = `
             <div class="cosmos-detail-hero">
-                <div><div class="cosmos-detail-eyebrow">G${node.orbit} · TIER ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · GALAXY BOSS' : ''}</div><div class="cosmos-detail-title">${node.kind === 'planet' ? '🪐' : '☄️'} ${escapeHtml(node.name)}</div></div>
-                <div class="cosmos-status ${status}">${getStatusLabel(status)}</div>
+                <div><div class="cosmos-detail-eyebrow">사냥 지역 · G${node.orbit} · TIER ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · GALAXY BOSS' : ''}</div><div class="cosmos-detail-title">${node.kind === 'planet' ? '🪐' : '⬡'} ${escapeHtml(node.name)}</div></div>
+                <div class="cosmos-status ${status}">${statusMeta.glyph} ${statusMeta.label}</div>
             </div>
             <div class="cosmos-detail-source">관측명 ${escapeHtml(node.source)}${window.game && window.game.cosmosLoopCount ? ` · 우주계 루프 난이도 +${Math.max(0, Math.floor(window.game.cosmosLoopCount || 0)) * 2}` : ''}</div>
+            <div class="cosmos-region-state ${status}"><b>${statusMeta.glyph}</b><span><strong>${statusMeta.label}</strong><small>${statusMeta.description}</small></span></div>
             <div class="cosmos-detail-section">
                 <div class="cosmos-section-label">천체 테마</div>
                 <div>${escapeHtml(node.theme)}</div>
@@ -2148,10 +2266,10 @@
                 <div class="cosmos-detail-pressure">진행도 요구 +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 패널티 +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</div>
             </div>
             <div class="cosmos-actions">
-                <button class="primary" onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '은하 보스 도전' : '전투 도전'}</button>
+                <button class="primary" onclick="challengeSelectedCosmosNode()" ${actionState.enabled ? '' : 'disabled'}>${actionState.label}</button>
                 ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 관리</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">지도에서 초점</button>
             </div>
-            <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 지하계 30층 도달 시 해금된다.'}</div>`;
+            <div class="cosmos-help">${isCosmosUnlocked() ? '체크 표시가 있는 지역은 초회 클리어 완료, 느낌표 지역은 지금 도전 가능, 빈 마름모 지역은 아직 경로가 잠긴 상태입니다.' : '우주계는 지하계 30층 도달 시 해금된다.'}</div>`;
     }
 
     function exploreSelectedCosmosNode(nodeIdOverride) {
@@ -2163,17 +2281,18 @@
         const status = getNodeStatus(node);
         const repeatBossRun = status === 'cleared' && node.tag === 'boss';
         const completedChallenge = state.activeChallenge && state.activeChallenge.nodeId === node.id;
+        const readyToRecord = status === 'available' || repeatBossRun;
         const firstClear = !state.cleared.includes(node.id);
         const defeatedBossStage = node.tag === 'boss' ? getBossStage(node) : 0;
-        if ((status === 'available' || repeatBossRun) && !completedChallenge) {
+        if (readyToRecord && !completedChallenge) {
             if (typeof window.addLog === 'function') window.addLog('우주계 전투 완료 후 탐사가 기록됩니다.', 'attack-monster');
             return;
         }
-        if (!(status === 'available' || repeatBossRun)) {
+        if (!canRecordCosmosExploration(status, node, completedChallenge)) {
             if (typeof window.addLog === 'function') window.addLog('아직 별길이 연결되지 않은 우주계 노드입니다.', 'attack-monster');
             return;
         }
-        if (status === 'available' && !state.cleared.includes(node.id)) state.cleared.push(node.id);
+        if (!state.cleared.includes(node.id)) state.cleared.push(node.id);
         if (node.kind === 'planet' && typeof window.markLoopCosmosPlanetClear === 'function') {
             const completedLoopGate = window.markLoopCosmosPlanetClear(node.id);
             if (completedLoopGate && typeof window.addLog === 'function') window.addLog('🪐 루프 대체 경로 달성: 우주계 에니프론 행성 돌파', 'season-up');
