@@ -87,6 +87,47 @@ async function main() {
         assert.ok(/game\.passives = \['n0'\]/.test(respec), '거래소 초기화도 뿌리를 남겨야 한다');
     }
 
+    // ── 나머지 초기화 경로도 같은 보존 계약을 지킨다 ────────────────────
+    // 패시브 트리와 달리 루프/전직/키스톤 목록에는 무료로 주어지는 뿌리가 없다.
+    // 그래서 "목록 길이(루프는 레벨 합)만큼 반환"이 맞다. 브라우저 실측으로도
+    // 셋 다 누수 0을 확인했고, 여기서 그 규칙이 유지되는지 고정한다.
+    {
+        const ui = fs.readFileSync('js/ui.js', 'utf8');
+        const bodyOf = name => {
+            const start = ui.search(new RegExp(`async function ${name}\\s*\\(`));
+            assert.ok(start >= 0, `${name}을 찾지 못했다`);
+            let open = ui.indexOf('{', start);
+            let depth = 0;
+            for (let i = open; i < ui.length; i++) {
+                if (ui[i] === '{') depth++;
+                else if (ui[i] === '}' && --depth === 0) return ui.slice(start, i + 1);
+            }
+            throw new Error(`${name}의 끝을 찾지 못했다`);
+        };
+
+        const season = bodyOf('resetSeasonNodes');
+        assert.ok(/seasonPoints \|\| 0\)\) \+ totalLv/.test(season),
+            '루프 패시브는 투자한 레벨 합만큼 돌려줘야 한다(노드 수가 아니다)');
+        assert.ok(/game\.seasonNodes = \[\]/.test(season) && /game\.seasonNodeLevels = \{\}/.test(season),
+            '루프 패시브 초기화는 노드와 레벨을 함께 비워야 한다(레벨이 남으면 다음 반환이 부풀려진다)');
+
+        const ascend = bodyOf('resetAscendNodes');
+        assert.ok(/ascendPoints \|\| 0\)\) \+ game\.ascendNodes\.length/.test(ascend),
+            '전직 패시브는 찍은 노드 수만큼 돌려줘야 한다');
+
+        const keystone = bodyOf('resetAscendKeystones');
+        assert.ok(/ascendKeystonePoints \|\| 0\)\) \+ game\.ascendKeystones\.length/.test(keystone),
+            '키스톤은 찍은 수만큼 돌려줘야 한다');
+
+        // 셋 다 빈 목록이면 아무 일도 하지 않는다(반복 악용 차단).
+        [['resetSeasonNodes', season, 'seasonNodes'],
+         ['resetAscendNodes', ascend, 'ascendNodes'],
+         ['resetAscendKeystones', keystone, 'ascendKeystones']].forEach(([name, body, field]) => {
+            assert.ok(new RegExp(`game\\.${field}\\.length <= 0\\) return`).test(body),
+                `${name}은 비어 있으면 즉시 돌아가야 한다(빈 상태 반복 초기화로 포인트가 생기면 안 된다)`);
+        });
+    }
+
     console.log('smoke-passive-respec-points passed');
 }
 
