@@ -466,10 +466,20 @@ function getStatSourceItemEntries() {
  * 생장 아이템 드랍. 기존 장비 드랍과 독립된 별도 굴림이라 장비 파밍 리듬을 바꾸지 않는다.
  * 루프 25(생장판 해금) 전에는 아무것도 굴리지 않는다.
  */
-function rollGrowthItemDrop(enemy, equipmentDropChance) {
+const GROWTH_ITEM_BASE_DROP_CHANCES = Object.freeze({
+    regular: 0.004666666666666667,
+    elite: 0.0175,
+    boss: 0.05366666666666667
+});
+
+function getGrowthItemBaseDropChance(enemy) {
+    if (enemy && enemy.isBoss) return GROWTH_ITEM_BASE_DROP_CHANCES.boss;
+    return enemy && enemy.isElite ? GROWTH_ITEM_BASE_DROP_CHANCES.elite : GROWTH_ITEM_BASE_DROP_CHANCES.regular;
+}
+
+function rollGrowthItemDrop(enemy, growthDropChance) {
     if (typeof isGrowthBoardUnlocked !== 'function' || !isGrowthBoardUnlocked()) return;
-    // 장비 드랍 확률의 절반 수준으로, 별도 재화처럼 천천히 쌓이게 한다.
-    if (Math.random() >= Math.max(0, Number(equipmentDropChance) || 0) * 0.5) return;
+    if (Math.random() >= Math.max(0, Number(growthDropChance) || 0)) return;
     let item = generateGrowthDrop(enemy);
     if (!item || !addDroppedGrowthItem(item)) return;
     if (!game.settings.showLootLog) return;
@@ -7050,10 +7060,17 @@ function rollLootForEnemy(enemy) {
     rollFlaskDiscoveryDrop(enemy);
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
+    // 생장판은 장비 확률에서 배율로 파생하지 않고, 독립된 원본 확률을 사용한다.
+    let growthItemChance = getGrowthItemBaseDropChance(enemy);
     itemChance *= 0.7; // 장비 드랍 확률 30% 감소
-    itemChance *= (1 + (getCodexBonusPct() / 100));
-    itemChance *= Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
+    let codexDropMul = 1 + (getCodexBonusPct() / 100);
+    let abyssDropMul = Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
+    itemChance *= codexDropMul;
+    growthItemChance *= codexDropMul;
+    itemChance *= abyssDropMul;
+    growthItemChance *= abyssDropMul;
     itemChance *= challengeRewardMul;
+    growthItemChance *= challengeRewardMul;
     if (zone.type === 'labyrinth') {
         let floor = Math.max(1, Math.floor(zone.floor || 1));
         let softCapFloor = 30;
@@ -7064,6 +7081,7 @@ function rollLootForEnemy(enemy) {
             let progress = Math.min(1, (floor - softCapFloor) / Math.max(1, hardCapFloor - softCapFloor));
             let labyrinthDropMul = softCapMul + (hardCapMul - softCapMul) * progress;
             itemChance *= labyrinthDropMul;
+            growthItemChance *= labyrinthDropMul;
         }
     }
     if (Math.random() < itemChance) {
@@ -7076,7 +7094,7 @@ function rollLootForEnemy(enemy) {
             if (game.settings.showLootLog) addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`, '', { item });
         }
     }
-    rollGrowthItemDrop(enemy, itemChance);
+    rollGrowthItemDrop(enemy, growthItemChance);
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * challengeRewardMul) {
         let jewel = generateJewelDrop(getZone(game.currentZoneId) || { type: 'act', storyOrder: 1 });
         game.jewelInventory = game.jewelInventory || [];
