@@ -4924,6 +4924,18 @@ function buildDeathDamageSummary(windowMs, opts) {
 function getActRewardConfig(zoneId) {
     return ACT_REWARD_DB[zoneId] || null;
 }
+
+function getSupportActRewardFallback(choice) {
+    let amount = Math.max(1, Math.floor(Number(choice && choice.fallbackValue) || 1));
+    if (choice && choice.fallbackKind === 'points') {
+        return { kind: 'points', amount, currency: null, label: `패시브 포인트 +${amount}` };
+    }
+    let currency = (choice && choice.currency) || 'magicBud';
+    let currencyDef = ORB_DB[currency];
+    if (!currencyDef) throw new Error(`Unknown support reward fallback currency: ${currency}`);
+    return { kind: 'currency', amount, currency, label: `${currencyDef.name} ${amount}개` };
+}
+
 function getActRewardChoices(zoneId) {
     let config = getActRewardConfig(zoneId);
     if (!config) return [];
@@ -4933,7 +4945,8 @@ function getActRewardChoices(zoneId) {
             enriched.desc = `${choice.desc} 이미 보유 중이면 패시브 포인트 +${choice.fallbackValue || 1}로 바뀝니다.`;
         }
         if (choice.kind === 'support' && hasSupportGemOwned(choice.gem)) {
-            enriched.desc = `${choice.desc} 이미 보유 중이면 ${ORB_DB[choice.currency || 'augment'].name} ${(choice.fallbackValue || 1)}개로 바뀝니다.`;
+            let fallback = getSupportActRewardFallback(choice);
+            enriched.desc = `${choice.desc} 이미 보유 중이면 ${fallback.label}로 바뀝니다.`;
         }
         return enriched;
     });
@@ -5116,10 +5129,11 @@ function grantActRewardEntry(zoneId, choice) {
             game.noti.skills = true;
             addLog(`🎁 액트 보상 보조 젬 [${choice.gem}] 획득!`, 'loot-rare');
         } else {
-            let amount = choice.fallbackValue || 1;
-            awardCurrency(choice.currency || 'magicBud', amount);
+            let fallback = getSupportActRewardFallback(choice);
+            if (fallback.kind === 'points') game.passivePoints += fallback.amount;
+            else awardCurrency(fallback.currency, fallback.amount);
             let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(3) : (awardCurrency('gemShard', 3), 3);
-            addLog(`🎁 중복 보조 젬 대신 ${ORB_DB[choice.currency || 'magicBud'].name} +${amount} · 젬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 중복 보조 젬 대신 ${fallback.label} · 젬 잔향 +${shardGain}`, 'loot-magic');
         }
         return;
     }
