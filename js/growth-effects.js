@@ -113,7 +113,7 @@ const GROWTH_CONDITION_HANDLERS = {
         facts.adjacentEntries.forEach(other => GROWTH_ELEMENT_TAGS.forEach(tag => { if (getGrowthItemTags(other.item).has(tag)) found.add(tag); }));
         return found.size;
     },
-    // 모든 아이템이 1칸이라 "거리"가 크기를 대신하는 배치 축이 된다.
+    // 가장 가까운 점유 칸 사이의 맨해튼 거리로 다칸 형태도 일관되게 판정한다.
     atDistance: (facts, when, ctx) => {
         let want = Math.max(1, Math.floor(when.distance || 2));
         return ctx.entries.filter(other => other.item.id !== facts.entry.item.id
@@ -296,6 +296,8 @@ const GROWTH_GLOBAL_HANDLERS = {
         return ['flower', 'branch', 'leaf'].every(category =>
             ctx.entries.filter(entry => entry.item.growthCategory === category).length >= min) ? 1 : 0;
     },
+    categorySet: (ctx, rule) => (rule.categories || []).every(category =>
+        ctx.entries.some(entry => entry.item.growthCategory === category)) ? 1 : 0,
     emptyUnlockedCells: (ctx, rule) => {
         let board = ensureGrowthBoardState();
         let empty = board.unlockedCellCount - ctx.owner.size;

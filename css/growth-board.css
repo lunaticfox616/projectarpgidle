@@ -3,6 +3,10 @@
 .growth-stage-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .growth-stage-chip { font-size: 0.74em; padding: 2px 8px; border-radius: 999px; border: 1px solid #34506b; background: rgba(12, 20, 30, 0.6); color: #7f93a8; }
 .growth-stage-chip.open { border-color: #4d8f6d; color: #a8e6c0; background: rgba(18, 40, 30, 0.6); }
+.growth-unlock-guide { margin: 0 0 10px; color: #91aac2; font-size: 0.8em; }
+.growth-unlock-guide summary { cursor: pointer; color: #b9d4eb; }
+.growth-unlock-guide ol { columns: 2; margin: 7px 0 0; padding-left: 22px; }
+.growth-unlock-guide li.open { color: #7fd99a; }
 
 .growth-loadout-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .growth-loadout-btn.active { border-color: #f1c40f; color: #ffe9a8; }
@@ -41,12 +45,22 @@
 .growth-cell:hover { border-color: #5f86ad; }
 .growth-cell.sealed { background: repeating-linear-gradient(45deg, #10161f, #10161f 4px, #0b0f16 4px, #0b0f16 8px); border-color: #1c2733; cursor: not-allowed; opacity: 0.65; }
 .growth-cell.filled { background: rgba(30, 48, 68, 0.85); border-width: 2px; }
+.growth-cell.growth-shape-part { color: rgba(255, 255, 255, 0.42); font-weight: 900; }
+.growth-cell.growth-shape-origin { z-index: 1; }
 .growth-cell.filled.cat-flower { background: linear-gradient(150deg, rgba(74, 30, 44, 0.9), rgba(30, 18, 26, 0.9)); }
 .growth-cell.filled.cat-branch { background: linear-gradient(150deg, rgba(28, 56, 42, 0.9), rgba(16, 28, 22, 0.9)); }
 .growth-cell.filled.cat-leaf { background: linear-gradient(150deg, rgba(30, 48, 70, 0.9), rgba(16, 24, 34, 0.9)); }
+.growth-cell.filled.cat-fruit { background: linear-gradient(150deg, rgba(86, 38, 35, 0.9), rgba(38, 20, 24, 0.9)); }
+.growth-cell.filled.cat-root { background: linear-gradient(150deg, rgba(74, 52, 31, 0.9), rgba(30, 24, 18, 0.9)); }
+.growth-cell.filled.cat-thorn { background: linear-gradient(150deg, rgba(42, 69, 39, 0.9), rgba(20, 32, 20, 0.9)); }
+.growth-cell.filled.cat-stem { background: linear-gradient(150deg, rgba(38, 74, 64, 0.9), rgba(18, 34, 30, 0.9)); }
+.growth-cell.filled.cat-spore { background: linear-gradient(150deg, rgba(72, 43, 83, 0.9), rgba(31, 21, 38, 0.9)); }
+.growth-cell.filled.cat-seed { background: linear-gradient(150deg, rgba(85, 64, 34, 0.9), rgba(36, 27, 17, 0.9)); }
+.growth-cell.filled.cat-vine { background: linear-gradient(150deg, rgba(35, 69, 63, 0.9), rgba(16, 31, 29, 0.9)); }
 .growth-cell.selected { box-shadow: 0 0 0 2px #f1c40f inset, 0 0 12px rgba(241, 196, 15, 0.4); transform: scale(1.04); z-index: 2; }
 .growth-cell.related { box-shadow: 0 0 0 1px #4fd1a5 inset; }
 .growth-cell.preview-ok { background: rgba(46, 204, 113, 0.35) !important; border-color: #2ecc71 !important; }
+.growth-cell.preview-swap { background: rgba(241, 196, 15, 0.34) !important; border-color: #f1c40f !important; }
 .growth-cell.preview-bad { background: rgba(231, 76, 60, 0.35) !important; border-color: #e74c3c !important; }
 .growth-cell.filled.cat-slab { background: linear-gradient(150deg, rgba(66, 58, 44, 0.95), rgba(30, 27, 22, 0.95)); }
 
@@ -71,6 +85,17 @@
 .growth-level-badge.negative { color: #e07a7a; }
 
 .growth-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.growth-workspace { display: grid; grid-template-columns: minmax(0, 3fr) minmax(210px, 1fr); gap: 12px; align-items: stretch; }
+.growth-board-column { min-width: 0; }
+.growth-placement-tray { box-sizing: border-box; min-width: 0; max-height: 430px; padding: 9px; border: 1px solid #2f4a63; border-radius: 10px; background: rgba(10, 17, 25, 0.72); }
+.growth-placement-tray h3 { margin: 0 0 3px; color: #d7e9ff; font-size: 0.92em; }
+.growth-placement-tray p { margin: 0 0 7px; color: #8fb7ca; font-size: 0.74em; }
+.growth-tray-list { display: flex; flex-direction: column; gap: 5px; max-height: 365px; overflow-y: auto; }
+.growth-tray-card { display: grid; grid-template-columns: auto 1fr; gap: 1px 6px; padding: 6px 7px; border: 1px solid #31485d; border-radius: 7px; background: rgba(18, 28, 40, 0.9); cursor: grab; touch-action: none; }
+.growth-tray-card strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78em; }
+.growth-tray-card small { grid-column: 2; color: #8fb7ca; font-size: 0.67em; }
+.growth-tray-card.placed { opacity: 0.62; border-left: 3px solid #4fd1a5; }
+.growth-tray-card.selected { opacity: 1; border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241, 196, 15, 0.35) inset; }
 .growth-columns h3 { margin: 0 0 6px; font-size: 0.92em; color: #d7e9ff; }
 .growth-synergy-list { max-height: 220px; overflow-y: auto; }
 .growth-synergy-row { box-sizing: border-box; border: 1px solid #2b4258; border-radius: 8px; padding: 7px 9px; margin-bottom: 6px; background: rgba(12, 20, 30, 0.6); color: #cfe2f3; font-size: 0.82em; line-height: 1.45; }
@@ -116,6 +141,16 @@
 .growth-hover-hint { font-size: 0.82em; color: #a8c4dd; min-height: 1.2em; }
 .growth-hover-hint .growth-hover-good { color: #ffd98a; font-weight: 700; }
 .growth-hover-hint .growth-hover-bad { color: #e07a7a; }
+.growth-hover-hint .growth-hover-swap { color: #f1c40f; font-weight: 700; }
+
+.growth-craft-bench { margin: 12px 0; padding: 10px; border: 1px solid #526b3c; border-radius: 10px; background: linear-gradient(135deg, rgba(23, 38, 25, 0.9), rgba(13, 22, 28, 0.9)); }
+.growth-bench-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.growth-bench-head h3 { margin: 0; color: #d9edbd; }
+.growth-bench-head strong { color: #b9e37f; }
+.growth-craft-target { margin: 8px 0; color: #b9c9d8; font-size: 0.84em; }
+.growth-craft-actions, .growth-exchange-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.growth-craft-bench details { margin-top: 9px; color: #91aac2; font-size: 0.8em; }
+.growth-craft-bench summary { cursor: pointer; color: #c7d9ea; }
 
 /* 드래그 배치 */
 .growth-item-card[data-growth-drag-id] { cursor: grab; touch-action: manipulation; }
@@ -127,3 +162,11 @@ body.growth-dragging .growth-cell { cursor: grabbing; }
 /* 드래그 중에는 툴팁이 포인터를 가로채지 않도록 한다(히트 테스트와 무관하게 안전장치). */
 body.growth-dragging .info-tooltip,
 body.growth-dragging #info-tooltip { pointer-events: none; }
+
+@media (max-width: 720px) {
+    .growth-workspace { grid-template-columns: 1fr; }
+    .growth-placement-tray { max-height: none; }
+    .growth-tray-list { flex-direction: row; max-height: none; overflow-x: auto; padding-bottom: 4px; }
+    .growth-tray-card { flex: 0 0 165px; }
+    .growth-unlock-guide ol { columns: 1; }
+}

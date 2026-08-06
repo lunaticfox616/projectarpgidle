@@ -533,6 +533,7 @@ function getCanonicalCurrencyKey(currencyKey) {
 }
 
 const ORB_DB = {
+    growthEssence: { name: '생장 정수', desc: '생장 아이템과 석판을 해체해 얻는 생장판 전용 제작 재화입니다.' },
     magicBud: { name: '마법의 새싹', desc: '일반 아이템을 매직으로 만들고 옵션을 부여합니다. 매직 아이템의 옵션은 1~2줄로 다시 굴립니다.' },
     sapBud: { name: '수액 봉오리', desc: '매직 아이템을 희귀로 승급하며 옵션 1줄을 추가합니다. 희귀 아이템에는 옵션 1줄을 추가합니다.' },
     formlessDew: { name: '형체 없는 이슬', desc: '일반 아이템을 희귀로 만들거나, 희귀 아이템의 옵션을 모두 다시 굴립니다.' },

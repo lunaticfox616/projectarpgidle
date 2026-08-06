@@ -125,7 +125,7 @@ const itemLevel = (ctx, id) => vm.runInContext(`getGrowthItemLevel(${id})`, ctx)
     assert.strictEqual(cellLevel(ctx2, 5, 1), -1, '행 밖의 상하좌우 칸은 페널티만 받아 -1이어야 한다');
 }
 
-// ── 아이템 레벨 = 자기 칸의 레벨 (모든 아이템이 1칸) ─────────────────────
+// ── 아이템 레벨 = 점유 칸 중 가장 높은 석판 레벨 ─────────────────────────
 {
     const ctx = loadContext();
     // 화로의 석판(상하좌우 +2)을 (5,2)에 두고, 바로 위 칸에 아이템을 놓는다.

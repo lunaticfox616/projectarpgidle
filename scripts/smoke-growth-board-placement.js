@@ -59,11 +59,10 @@ const json = code => run(`JSON.stringify(${code})`);
 
 assert.strictEqual(json('normalizeGrowthCells([[3,5]])'), '[[0,0]]', '정규화는 좌상단 원점 정렬이어야 한다');
 
-// 모든 생장 아이템은 1칸이다. 형태 정의도 dot1 하나뿐이어야 한다.
-assert.strictEqual(json('Object.keys(GROWTH_SHAPE_DB)'), '["dot1"]', '형태는 1칸(dot1) 하나만 있어야 한다');
-[0, 1, 2, 3].forEach(rot => {
-    assert.strictEqual(json(`getGrowthItemCells({ growthShapeId: "dot1" }, ${rot})`), '[[0,0]]', `회전 ${rot}에서도 1칸이어야 한다`);
-});
+// 1칸 호환 형태와 2~4칸 회전 형태가 모두 동작한다.
+assert.strictEqual(run('getGrowthItemCells({ growthShapeId: "dot1" }, 0).length'), 1, 'dot1은 1칸이어야 한다');
+assert.strictEqual(json('getGrowthItemCells({ growthShapeId: "line3" }, 1)'), '[[0,0],[0,1],[0,2]]', '3칸 직선은 세로로 회전해야 한다');
+assert.strictEqual(run('getGrowthItemCells({ growthShapeId: "square4" }, 0).length'), 4, '고급 형태는 최대 4칸을 지원해야 한다');
 // 예전 저장에 남은 폴리오미노 id도 1칸으로 해석되어야 한다(마이그레이션 없이 호환).
 assert.strictEqual(json('getGrowthItemCells({ growthShapeId: "ring8" }, 0)'), '[[0,0]]', '알 수 없는 형태 id는 1칸으로 되돌아야 한다');
 assert.strictEqual(run('getGrowthItemCells({ growthShapeId: "block9" }, 0).length'), 1, '모든 아이템의 크기는 1이어야 한다');
@@ -111,6 +110,13 @@ assert.strictEqual(run('canPlaceGrowthItem(findGrowthItemById(2), 0, 0, 0).ok'),
 makeItem(ctx, 3, 'dot1', 'branch');
 assert.strictEqual(run('canPlaceGrowthItem(findGrowthItemById(3), 4, 1, 0).ok'), false, '이미 점유된 칸에는 배치할 수 없어야 한다');
 assert.strictEqual(run('placeGrowthItem(3, 5, 1, 0).ok'), true, '비어 있는 칸에는 배치할 수 있어야 한다');
+
+// UI 배치 경로는 겹침 오류 대신 두 자리의 아이템을 원자적으로 교환한다.
+const swap = JSON.parse(run('JSON.stringify(placeGrowthItem(1, 5, 1, 0))'));
+assert.strictEqual(swap.mode, 'swap', '배치된 한 아이템 위로 옮기면 위치를 교환해야 한다');
+assert.strictEqual(run('getActiveGrowthLoadout().placements[1].x'), 5, '선택 아이템은 새 자리로 가야 한다');
+assert.strictEqual(run('getActiveGrowthLoadout().placements[3].x'), 4, '밀린 아이템은 선택 아이템의 이전 자리로 가야 한다');
+assert.strictEqual(run('placeGrowthItem(1, 4, 1, 0).mode'), 'swap', '반대로 옮겨 원래 자리로 되돌릴 수 있어야 한다');
 
 // 자기 자신과는 겹침 판정을 하지 않는다(같은 자리 회전/재배치).
 assert.strictEqual(run('canPlaceGrowthItem(findGrowthItemById(1), 4, 1, 0).ok'), true, '자기 자신이 있는 자리로의 재배치는 허용해야 한다');

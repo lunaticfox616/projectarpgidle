@@ -2,16 +2,19 @@
 // 베이스, 고유, 석판, 전역 공간 시너지, 칸 해금 단계 정의.
 // 실행 로직에 의존하지 않는다 (AGENTS.md: data/ 계층).
 //
-// 모든 생장 아이템은 1칸이다. 폴리오미노(모양 맞추기)를 쓰지 않는 대신,
-// "어느 칸에 두느냐"가 유일한 선택이 된다: 이웃, 외벽, 행·열, 석판 영향권.
+// 작은 생장판은 1칸, 고등급 베이스는 2~4칸을 차지한다.
+// 큰 형태는 더 강하지만 해금 칸과 인접 면을 많이 소비하는 선택지다.
 
 const GROWTH_BOARD_W = 8;
 const GROWTH_BOARD_H = 4;
 
-// 형태는 1칸 하나뿐이다. getGrowthShapeDef가 알 수 없는 id를 dot1로 되돌리므로
-// 예전 저장에 남은 폴리오미노 id도 1칸으로 해석된다.
 const GROWTH_SHAPE_DB = {
-    dot1: { label: '1칸', cells: [[0, 0]] }
+    dot1:    { label: '1칸', cells: [[0, 0]] },
+    domino2: { label: '2칸', cells: [[0, 0], [1, 0]] },
+    line3:   { label: '3칸 직선', cells: [[0, 0], [1, 0], [2, 0]] },
+    corner3: { label: '3칸 굽이', cells: [[0, 0], [1, 0], [0, 1]] },
+    square4: { label: '4칸 사각', cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
+    zig4:    { label: '4칸 지그재그', cells: [[0, 0], [1, 0], [1, 1], [2, 1]] }
 };
 
 // 종류 정의: 제작 슬롯(craftSlot)은 기존 MOD_DB/화석/오브 풀을 재사용하기 위한 매핑이다.
@@ -20,12 +23,21 @@ const GROWTH_CATEGORY_INFO = {
     flower: { label: '꽃',   icon: '🌸', craftSlot: '무기',   qualityKind: 'weapon' },
     branch: { label: '가지', icon: '🌿', craftSlot: '갑옷',   qualityKind: 'armor' },
     leaf:   { label: '잎',   icon: '🍃', craftSlot: '목걸이', qualityKind: 'accessory' },
+    fruit:  { label: '열매', icon: '🍎', craftSlot: '반지',   qualityKind: 'accessory' },
+    root:   { label: '뿌리', icon: '🥕', craftSlot: '갑옷',   qualityKind: 'armor' },
+    thorn:  { label: '가시', icon: '🌵', craftSlot: '장갑',   qualityKind: 'weapon' },
+    stem:   { label: '줄기', icon: '🎋', craftSlot: '신발',   qualityKind: 'accessory' },
+    spore:  { label: '포자', icon: '🍄', craftSlot: '목걸이', qualityKind: 'accessory' },
+    seed:   { label: '씨앗', icon: '🌰', craftSlot: '반지',   qualityKind: 'accessory' },
+    vine:   { label: '덩굴', icon: '🪴', craftSlot: '허리띠', qualityKind: 'accessory' },
     slab:   { label: '석판', icon: '🪨', craftSlot: null,     qualityKind: null, noCraft: true }
 };
 
-// 종류별 희귀 추가 옵션 상한. 모든 아이템이 1칸이라 크기로는 구분되지 않으므로
-// 종류가 옵션 폭을 정한다: 잎은 줄 수가 적은 대신 조건부 효과가 날카롭다.
-const GROWTH_AFFIX_CAP = { flower: 2, branch: 2, leaf: 2, slab: 0 };
+// 종류별 희귀 추가 옵션 상한. 형태는 공간 비용, 등급은 옵션 줄 수를 정한다.
+const GROWTH_AFFIX_CAP = {
+    flower: 2, branch: 2, leaf: 2, fruit: 2, root: 2, thorn: 2,
+    stem: 2, spore: 2, seed: 2, vine: 2, slab: 0
+};
 
 function getGrowthCategoryAffixCap(category) {
     let cap = GROWTH_AFFIX_CAP[category];
@@ -90,8 +102,7 @@ const GROWTH_SLAB_DB = [
 const GROWTH_UNLOCK_LOOP = 25;
 
 // 칸 해금 단계: 루프 진행 → 누적 활성 칸 수. 8칸에서 시작해 32칸(8×4)까지 자란다.
-// 아이템이 1칸이라 칸 수가 곧 배치 개수다 — 60칸이면 60개를 관리해야 해서
-// 판을 8×4로 줄이고, 대신 칸 하나의 무게를 키웠다.
+// 판을 8×4로 제한해 배치 관리량을 누르고, 고급 형태는 여러 칸을 소비하게 한다.
 const GROWTH_UNLOCK_STAGES = [
     { cells: 8,  label: '생장판 각성', req: { season: GROWTH_UNLOCK_LOOP } },
     { cells: 11, label: '첫 확장',     req: { season: 28 } },
@@ -260,7 +271,63 @@ const GROWTH_BASE_DB = [
     { id: 'gl_summon_whorl', name: '군락 소용돌이잎', category: 'leaf', shapeId: 'dot1', reqTier: 11,
       baseStats: [{ id: 'summonPctDmg', baseMin: 1, baseMax: 2 }, { id: 'summonHpPct', baseMin: 3, baseMax: 4 }],
       tags: ['소환수'],
-      spatial: { desc: '소환수 태그 아이템이 판 전체에 4개 이상이면 소환수 효율 +8%', effects: [{ stage: 'tags', when: { type: 'boardTagCount', tag: '소환수', min: 4 }, grant: [{ id: 'summonEfficiency', val: 8 }] }] } }
+      spatial: { desc: '소환수 태그 아이템이 판 전체에 4개 이상이면 소환수 효율 +8%', effects: [{ stage: 'tags', when: { type: 'boardTagCount', tag: '소환수', min: 4 }, grant: [{ id: 'summonEfficiency', val: 8 }] }] } },
+
+    // ── 열매: 치명타·수확 ──
+    { id: 'gfr_red_berry', name: '붉은 수확열매', category: 'fruit', shapeId: 'dot1', reqTier: 3,
+      baseStats: [{ id: 'crit', baseMin: 0.5, baseMax: 1 }, { id: 'critDmg', baseMin: 2, baseMax: 4 }], tags: ['수확', '치명타'],
+      spatial: { desc: '씨앗과 인접하면 치명타 피해 +7%', effects: [{ stage: 'adjacency', when: { type: 'adjCategory', category: 'seed' }, grant: [{ id: 'critDmg', val: 7 }] }] } },
+    { id: 'gfr_orchard_cluster', name: '별무리 과실송이', category: 'fruit', shapeId: 'square4', reqTier: 12,
+      baseStats: [{ id: 'pctDmg', baseMin: 5, baseMax: 7 }, { id: 'critDmg', baseMin: 8, baseMax: 12 }], tags: ['수확', '별빛'],
+      spatial: { desc: '외벽에 닿으면 치명타 확률 +4%', effects: [{ stage: 'wall', when: { type: 'wallTouch', min: 1 }, grant: [{ id: 'crit', val: 4 }] }] } },
+
+    // ── 뿌리: 생존·회복 ──
+    { id: 'gr_mender_root', name: '치유 수염뿌리', category: 'root', shapeId: 'dot1', reqTier: 2,
+      baseStats: [{ id: 'flatHp', baseMin: 7, baseMax: 11 }, { id: 'regen', baseMin: 0.15, baseMax: 0.25 }], tags: ['방어', '회복'],
+      spatial: { desc: '줄기와 인접하면 초당 재생 +0.35%', effects: [{ stage: 'adjacency', when: { type: 'adjCategory', category: 'stem' }, grant: [{ id: 'regen', val: 0.35 }] }] } },
+    { id: 'gr_ancient_buttress', name: '고목 버팀뿌리', category: 'root', shapeId: 'corner3', reqTier: 10,
+      baseStats: [{ id: 'flatHp', baseMin: 20, baseMax: 28 }, { id: 'armor', baseMin: 45, baseMax: 65 }], tags: ['방어', '고목'],
+      spatial: { desc: '모서리에 닿으면 받는 물리 피해 감소 +5%', effects: [{ stage: 'wall', when: { type: 'corner' }, grant: [{ id: 'dr', val: 5 }] }] } },
+
+    // ── 가시: 공격·방어 연결 ──
+    { id: 'gt_blood_thorn', name: '피먹는 가시', category: 'thorn', shapeId: 'dot1', reqTier: 4,
+      baseStats: [{ id: 'physPctDmg', baseMin: 2, baseMax: 4 }, { id: 'leech', baseMin: 0.12, baseMax: 0.22 }], tags: ['물리', '흡혈'],
+      spatial: { desc: '꽃과 인접하면 피해 +4%', effects: [{ stage: 'adjacency', when: { type: 'adjCategory', category: 'flower' }, grant: [{ id: 'pctDmg', val: 4 }] }] } },
+    { id: 'gt_crown_briar', name: '왕관 찔레', category: 'thorn', shapeId: 'domino2', reqTier: 11,
+      baseStats: [{ id: 'physPctDmg', baseMin: 5, baseMax: 8 }, { id: 'critDmg', baseMin: 6, baseMax: 10 }], tags: ['물리', '벽'],
+      spatial: { desc: '외벽에 닿으면 방어도 +45', effects: [{ stage: 'wall', when: { type: 'wallTouch', min: 1 }, grant: [{ id: 'armor', val: 45 }] }] } },
+
+    // ── 줄기: 속도·도관 ──
+    { id: 'gst_quick_reed', name: '빠른 물대', category: 'stem', shapeId: 'dot1', reqTier: 3,
+      baseStats: [{ id: 'aspd', baseMin: 2, baseMax: 3 }, { id: 'move', baseMin: 2, baseMax: 3 }], tags: ['연결', '이동'],
+      spatial: { desc: '잎과 인접할 때마다 공격 속도 +1%', effects: [{ stage: 'adjacency', when: { type: 'adjCategory', category: 'leaf', per: true }, grant: [{ id: 'aspd', val: 1 }] }] } },
+    { id: 'gst_hollow_conduit', name: '공명 속빈줄기', category: 'stem', shapeId: 'line3', reqTier: 10,
+      baseStats: [{ id: 'aspd', baseMin: 5, baseMax: 7 }, { id: 'move', baseMin: 5, baseMax: 7 }], tags: ['연결', '공명'],
+      spatial: { desc: '같은 행의 연결 태그 2개 이상이면 피해 +8%', effects: [{ stage: 'rowcol', when: { type: 'rowTagCount', tag: '연결', min: 2 }, grant: [{ id: 'pctDmg', val: 8 }] }] } },
+
+    // ── 포자: 카오스·지속 피해 ──
+    { id: 'gsp_dusk_spore', name: '해질녘 포자', category: 'spore', shapeId: 'dot1', reqTier: 4,
+      baseStats: [{ id: 'chaosPctDmg', baseMin: 2, baseMax: 4 }, { id: 'poisonChance', baseMin: 3, baseMax: 5 }], tags: ['카오스', '상태이상'],
+      spatial: { desc: '가시와 인접하면 지속 피해 +5%', effects: [{ stage: 'adjacency', when: { type: 'adjCategory', category: 'thorn' }, grant: [{ id: 'dotPctDmg', val: 5 }] }] } },
+    { id: 'gsp_mycelium_web', name: '심연 균사망', category: 'spore', shapeId: 'zig4', reqTier: 13,
+      baseStats: [{ id: 'chaosPctDmg', baseMin: 7, baseMax: 10 }, { id: 'dotPctDmg', baseMin: 8, baseMax: 12 }], tags: ['카오스', '군집'],
+      spatial: { desc: '카오스 태그 3개 이상이면 저항 관통 +5%', effects: [{ stage: 'tags', when: { type: 'boardTagCount', tag: '카오스', min: 3 }, grant: [{ id: 'resPen', val: 5 }] }] } },
+
+    // ── 씨앗: 성장·군락 ──
+    { id: 'gsd_patient_seed', name: '기다림의 씨앗', category: 'seed', shapeId: 'dot1', reqTier: 2,
+      baseStats: [{ id: 'pctHp', baseMin: 1, baseMax: 2 }, { id: 'pctDmg', baseMin: 1, baseMax: 2 }], tags: ['성장', '군집'],
+      spatial: { desc: '열매와 인접하면 생명력 +3%', effects: [{ stage: 'adjacency', when: { type: 'adjCategory', category: 'fruit' }, grant: [{ id: 'pctHp', val: 3 }] }] } },
+    { id: 'gsd_world_kernel', name: '작은 세계의 씨앗', category: 'seed', shapeId: 'square4', reqTier: 14,
+      baseStats: [{ id: 'pctHp', baseMin: 6, baseMax: 9 }, { id: 'pctDmg', baseMin: 6, baseMax: 9 }], tags: ['성장', '중심'],
+      spatial: { desc: '고립되어 있으면 모든 저항 +10%', effects: [{ stage: 'complex', when: { type: 'isolated' }, grant: [{ id: 'resAll', val: 10 }] }] } },
+
+    // ── 덩굴: 연결·소환 ──
+    { id: 'gv_binding_tendril', name: '결속 덩굴손', category: 'vine', shapeId: 'dot1', reqTier: 3,
+      baseStats: [{ id: 'summonPctDmg', baseMin: 2, baseMax: 3 }, { id: 'aspd', baseMin: 1, baseMax: 2 }], tags: ['연결', '소환수'],
+      spatial: { desc: '씨앗과 인접하면 소환수 효율 +5%', effects: [{ stage: 'adjacency', when: { type: 'adjCategory', category: 'seed' }, grant: [{ id: 'summonEfficiency', val: 5 }] }] } },
+    { id: 'gv_canopy_bridge', name: '수관 잇는덩굴', category: 'vine', shapeId: 'corner3', reqTier: 12,
+      baseStats: [{ id: 'summonPctDmg', baseMin: 6, baseMax: 9 }, { id: 'summonHpPct', baseMin: 8, baseMax: 12 }], tags: ['연결', '소환수'],
+      spatial: { desc: '소환수 태그가 4개 이상이면 소환수 효율 +10%', effects: [{ stage: 'tags', when: { type: 'boardTagCount', tag: '소환수', min: 4 }, grant: [{ id: 'summonEfficiency', val: 10 }] }] } }
 ];
 
 // ── 생장 고유 아이템 ─────────────────────────────────────────────────────
@@ -296,7 +363,28 @@ const GROWTH_UNIQUE_DB = [
       uniqueEffect: '닿은 외벽 면 1개당 모든 저항 +4%·받는 물리 피해 감소 +2%, 모서리 배치 시 생명력 +10%',
       uniqueEffectKey: null, growthEffectKey: 'boundaryStone',
       stats: [{ id: 'flatHp', min: 18, max: 16 }, { id: 'armor', min: 20, max: 18 }],
-      tags: ['방어', '벽'] }
+      tags: ['방어', '벽'] },
+    { name: '황금 과수원의 왕관', baseId: 'gfr_orchard_cluster', reqTier: 14,
+      uniqueEffect: '4칸을 차지하는 수확 특화 열매', uniqueEffectKey: null, growthEffectKey: null,
+      stats: [{ id: 'crit', min: 5, max: 5 }, { id: 'critDmg', min: 18, max: 18 }], tags: ['수확', '치명타', '별빛'] },
+    { name: '대지의 기억', baseId: 'gr_ancient_buttress', reqTier: 13,
+      uniqueEffect: '3칸을 차지하는 생존 특화 뿌리', uniqueEffectKey: null, growthEffectKey: null,
+      stats: [{ id: 'flatHp', min: 38, max: 38 }, { id: 'dr', min: 6, max: 6 }], tags: ['방어', '회복', '고목'] },
+    { name: '순교자의 가시관', baseId: 'gt_crown_briar', reqTier: 13,
+      uniqueEffect: '2칸을 차지하는 공격·방어 혼합 가시', uniqueEffectKey: null, growthEffectKey: null,
+      stats: [{ id: 'physPctDmg', min: 14, max: 14 }, { id: 'armor', min: 60, max: 60 }], tags: ['물리', '벽', '흡혈'] },
+    { name: '천공의 맥관', baseId: 'gst_hollow_conduit', reqTier: 13,
+      uniqueEffect: '3칸을 잇는 속도 특화 줄기', uniqueEffectKey: null, growthEffectKey: null,
+      stats: [{ id: 'aspd', min: 10, max: 10 }, { id: 'move', min: 10, max: 10 }], tags: ['연결', '공명', '이동'] },
+    { name: '검은 달의 균사', baseId: 'gsp_mycelium_web', reqTier: 15,
+      uniqueEffect: '4칸을 퍼지는 카오스·지속 피해 포자', uniqueEffectKey: null, growthEffectKey: null,
+      stats: [{ id: 'chaosPctDmg', min: 16, max: 16 }, { id: 'dotPctDmg', min: 18, max: 18 }], tags: ['카오스', '상태이상', '군집'] },
+    { name: '태초의 핵', baseId: 'gsd_world_kernel', reqTier: 16,
+      uniqueEffect: '4칸을 차지하는 생명력·피해 혼합 씨앗', uniqueEffectKey: null, growthEffectKey: null,
+      stats: [{ id: 'pctHp', min: 12, max: 12 }, { id: 'pctDmg', min: 12, max: 12 }], tags: ['성장', '중심', '군집'] },
+    { name: '만물결속 덩굴', baseId: 'gv_canopy_bridge', reqTier: 15,
+      uniqueEffect: '3칸을 잇는 소환수 특화 덩굴', uniqueEffectKey: null, growthEffectKey: null,
+      stats: [{ id: 'summonPctDmg', min: 16, max: 16 }, { id: 'summonEfficiency', min: 12, max: 12 }], tags: ['연결', '소환수', '군집'] }
 ];
 
 // ── 전역 시너지 규칙 (판 전체 판정) ───────────────────────────────────────
@@ -318,7 +406,11 @@ const GROWTH_GLOBAL_SYNERGY_DB = [
     { id: 'gs_open_space', stage: 'complex', label: '여백의 미', desc: '빈 해금 칸이 8개 이상이면 회피 +10%, 초당 재생 +0.4%',
       type: 'emptyUnlockedCells', min: 8, grant: [{ id: 'evasionPct', val: 10 }, { id: 'regen', val: 0.4 }] },
     { id: 'gs_branch_column', stage: 'rowcol', label: '가지 기둥', desc: '가지가 3개 이상인 열 1개당 막기 확률 +1%p',
-      type: 'colCategoryCountPer', category: 'branch', min: 3, grant: [{ id: 'blockChance', val: 1 }] }
+      type: 'colCategoryCountPer', category: 'branch', min: 3, grant: [{ id: 'blockChance', val: 1 }] },
+    { id: 'gs_harvest_cycle', stage: 'tags', label: '수확의 순환', desc: '씨앗·열매·뿌리를 각각 1개 이상 배치하면 피해와 생명력 +5%',
+      type: 'categorySet', categories: ['seed', 'fruit', 'root'], grant: [{ id: 'pctDmg', val: 5 }, { id: 'pctHp', val: 5 }] },
+    { id: 'gs_wild_colony', stage: 'complex', label: '야생 군락', desc: '포자·덩굴·가시를 각각 1개 이상 배치하면 지속 피해 +10%, 소환수 피해 +10%',
+      type: 'categorySet', categories: ['spore', 'vine', 'thorn'], grant: [{ id: 'dotPctDmg', val: 10 }, { id: 'summonPctDmg', val: 10 }] }
 ];
 
 safeExposeData({
