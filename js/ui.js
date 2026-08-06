@@ -12616,8 +12616,12 @@ function mergeDefaults(save) {
         return { ...jewel, rarity: ['normal', 'magic', 'rare', 'unique'].includes(jewel.rarity) ? jewel.rarity : 'normal', waxedByBeeswax: !!jewel.waxedByBeeswax || hasWaxBonus, hiddenTier: hiddenTier, stats: stats.slice(0, statLimit), locked: !!jewel.locked };
     }
     merged.jewelInventory = Array.isArray(merged.jewelInventory) ? merged.jewelInventory.map(normalizeJewelRecord).filter(Boolean) : [];
-    let jewelInventoryCap = JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0))) * 5);
-    merged.jewelInventory = merged.jewelInventory.slice(0, jewelInventoryCap);
+    // 한도를 넘은 주얼을 잘라내지 않는다. 전투 드랍은 보관함이 가득 차도 희귀·고유
+    // 주얼만은 유실 방지로 한도를 넘겨 보관하는데(combat.js의 protectOverflow),
+    // 여기서 잘라내면 바로 그 아껴 둔 주얼이 다음 불러오기에 조용히 사라졌다.
+    // 게다가 앞에서부터 40개를 남기므로 가장 최근에 지켜 낸 것이 먼저 지워진다.
+    // 장비 보관함도 같은 이유로 자르지 않고 초과 보관을 허용한다(유실 방지).
+    // 새로 넣는 쪽은 각 push 지점이 getJewelInventoryLimit()으로 계속 막는다.
     // 심연 군주(워록 wlk8)가 주얼 슬롯을 2칸 추가로 제공하므로 최대 4슬롯까지 보존한다.
     merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 4).map(normalizeJewelRecord) : [null, null];
     while (merged.jewelSlots.length < 2) merged.jewelSlots.push(null);
