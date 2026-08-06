@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
 // 액트 클리어 보상(ACT_REWARD_DB)의 데이터 무결성과, 액트 2 보상이 더 이상
 // 공격 스킬 젬을 주지 않는다는 것을 검증한다. 루프 첫 처치 확정 지급
@@ -24,13 +25,18 @@ const combinedSource = [
     + '\n;\nwindow.SUPPORT_GEM_DB = SUPPORT_GEM_DB;';
 vm.runInContext(combinedSource, context, { filename: 'combined.js' });
 
-const { ACT_REWARD_DB, SKILL_DB, SUPPORT_GEM_DB, LOOP_STARTER_GEM_BY_HERO } = context;
+const { ACT_REWARD_DB, SKILL_DB, SUPPORT_GEM_DB, LOOP_STARTER_GEM_BY_HERO, ORB_DB } = context;
 
 // 모든 액트 보상의 skill/support 선택지는 실존하는 젬을 가리켜야 한다.
 Object.entries(ACT_REWARD_DB).forEach(([zoneId, entry]) => {
     (entry.choices || []).forEach(choice => {
         if (choice.kind === 'skill') assert(SKILL_DB[choice.skill] && SKILL_DB[choice.skill].isGem, `ACT_REWARD_DB[${zoneId}]의 skill 선택지가 존재하지 않는 젬 [${choice.skill}]을 가리킨다`);
-        if (choice.kind === 'support') assert(SUPPORT_GEM_DB[choice.gem], `ACT_REWARD_DB[${zoneId}]의 support 선택지가 존재하지 않는 보조 젬 [${choice.gem}]을 가리킨다`);
+        if (choice.kind === 'support') {
+            assert(SUPPORT_GEM_DB[choice.gem], `ACT_REWARD_DB[${zoneId}]의 support 선택지가 존재하지 않는 보조 젬 [${choice.gem}]을 가리킨다`);
+            assert(['points', 'currency'].includes(choice.fallbackKind), `ACT_REWARD_DB[${zoneId}]의 support 대체 보상 종류가 잘못되었다`);
+            if (choice.fallbackKind === 'currency') assert(ORB_DB[choice.currency || 'magicBud'],
+                `ACT_REWARD_DB[${zoneId}]의 support 대체 재화 [${choice.currency}]가 존재하지 않는다`);
+        }
     });
 });
 
@@ -61,5 +67,35 @@ assert.strictEqual(meleePhysicalGems.size, meleePhysicalHeroes.length, '전사·
 assert.notStrictEqual(LOOP_STARTER_GEM_BY_HERO.hero1, undefined);
 assert.notStrictEqual(LOOP_STARTER_GEM_BY_HERO.hero1, LOOP_STARTER_GEM_BY_HERO.hero6, '궁수·저격수는 서로 다른 시작 투사체 젬을 받아야 한다');
 assert(SKILL_DB[LOOP_STARTER_GEM_BY_HERO.hero7].tags.includes('summon_attack') && (SKILL_DB[LOOP_STARTER_GEM_BY_HERO.hero7].ele === 'phys'), '소환사의 시작 소환수는 물리 속성이어야 한다');
+
+// 중복 보조 젬의 표시와 지급은 fallbackKind를 실제로 따라야 한다.
+// 액트 2는 포인트, 액트 6은 재화이며 두 경로 모두 실제 프로덕션 함수를 실행한다.
+const runtime = buildGameRuntime();
+const run = code => vm.runInContext(code, runtime);
+run(`
+    game.supports = ['가벼운 발걸음', '가속'];
+    game.supportGemData = {
+        '가벼운 발걸음': { level: 1, exp: 0 },
+        '가속': { level: 1, exp: 0 }
+    };
+    game.passivePoints = 0;
+    game.currencies.magicBud = 0;
+    game.currencies.gemShard = 0;
+`);
+const ownedAct2Choices = JSON.parse(run('JSON.stringify(getActRewardChoices(1))'));
+assert(ownedAct2Choices[0].desc.includes('패시브 포인트 +1'),
+    '액트 2 중복 보조 젬 설명은 존재하지 않는 오브가 아니라 패시브 포인트를 표시해야 한다');
+run('grantActRewardEntry(1, getActRewardChoices(1)[0])');
+assert.strictEqual(run('game.passivePoints'), 1, '액트 2 중복 보조 젬은 패시브 포인트를 지급해야 한다');
+assert.strictEqual(run('game.currencies.magicBud'), 0, '액트 2 포인트 대체 보상은 제작 재화를 잘못 지급하면 안 된다');
+assert.strictEqual(run('game.currencies.gemShard'), 3, '중복 보조 젬의 젬 잔향 보상은 유지되어야 한다');
+
+const ownedAct6Choices = JSON.parse(run('JSON.stringify(getActRewardChoices(5))'));
+assert(ownedAct6Choices[0].desc.includes('마법의 새싹 2개'),
+    '액트 6 중복 보조 젬 설명은 기존 제작 재화를 표시해야 한다');
+run('grantActRewardEntry(5, getActRewardChoices(5)[0])');
+assert.strictEqual(run('game.currencies.magicBud'), 2, '액트 6 중복 보조 젬은 기존 제작 재화를 지급해야 한다');
+assert.strictEqual(run('game.passivePoints'), 1, '액트 6 재화 대체 보상은 패시브 포인트를 잘못 지급하면 안 된다');
+assert.strictEqual(run('game.currencies.gemShard'), 6, '두 번째 중복 보조 젬도 젬 잔향을 지급해야 한다');
 
 console.log('smoke-act-reward-integrity passed');
