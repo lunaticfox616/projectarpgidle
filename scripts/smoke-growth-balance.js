@@ -4,10 +4,13 @@
 // 아이템 하나하나는 작아도 합계는 고정 슬롯 장비 한 세트를 쉽게 넘어설 수 있어,
 // "한 장이 얼마나 센가"가 아니라 "판 하나가 얼마나 센가"를 고정한다.
 //
-// 브라우저 실측(혼돈 심화 26 / 티어 15 레어 장비 10부위 대비, 12회 평균) 기준:
-//   생명력 0.8배 · 방어도 0.5배 · 회피 0.4배 · 보호막 0.4배 · DPS 2.2배
+// 브라우저 실측(혼돈 심화 26 / 티어 15 레어 장비 10부위 대비).
+// 장비도 판도 매번 무작위로 굴리므로 12회 평균을 한 표본으로 삼아 여러 표본의
+// 중앙값을 본다. 한 점의 값으로 읽으면 안 된다 — 표본 간 편차가 크다.
+//   생명력 0.77배(0.64~1.03) · 방어도 0.46 · 회피 0.44 · 보호막 0.42 · DPS 2.62(1.83~3.04)
 // 방어는 장비보다 낮고 공격은 높은 "공격 편중 보조 시스템"이 의도한 지점이다.
-// 아래 상한은 그 실측이 크게 흔들리지 않도록 데이터 수준에서 못을 박는다.
+// 생명력은 한때 중앙값 0.93까지 올라가 장비와 대등해졌던 적이 있다(베이스·공간
+// 시너지의 flatHp를 절반으로 낮춰 되돌렸다). 아래 상한이 그 회귀를 막는다.
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
@@ -74,7 +77,20 @@ assert.ok(pctBudget <= 100, `꽃 증가 피해 합계가 예산을 넘었다 (${
 
 // 방어는 장비보다 낮게 유지한다.
 assert.ok(worstCaseTotal('branch', 'armor') <= 350, '가지 방어도 합계가 예산을 넘었다');
-assert.ok(worstCaseTotal('branch', 'flatHp') <= 260, '가지 생명력 합계가 예산을 넘었다');
+// 생명력은 판이 커질수록 가장 빨리 장비를 따라잡는다. 상한 260이던 시절
+// 실측 중앙값이 0.93배까지 올라가 "방어가 낮다"는 전제가 깨졌다.
+// 베이스 flatHp를 절반으로 낮춘 현재 최악값은 110이다.
+const flatHpBudget = worstCaseTotal('branch', 'flatHp');
+assert.ok(flatHpBudget <= 130, `가지 생명력 합계가 예산을 넘었다 (${flatHpBudget}, 상한 130)`);
+
+// 공간 시너지가 주는 생명력도 함께 눌러야 한다(실측상 베이스와 비슷한 비중이다).
+const spatialFlatHp = bases.reduce((max, base) => {
+    const grants = ((base.spatial && base.spatial.effects) || [])
+        .flatMap(effect => effect.grant || [])
+        .filter(grant => grant && grant.id === 'flatHp');
+    return grants.reduce((inner, grant) => Math.max(inner, Number(grant.val) || 0), max);
+}, 0);
+assert.ok(spatialFlatHp <= 20, `공간 시너지 생명력 한 줄이 예산을 넘었다 (${spatialFlatHp}, 상한 20)`);
 assert.ok(worstCaseTotal('branch', 'evasion') <= 350, '가지 회피 합계가 예산을 넘었다');
 
 // 치명타·공격 속도는 곱셈으로 들어가 DPS를 빠르게 밀어 올린다.
