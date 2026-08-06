@@ -3,6 +3,7 @@
 
 let growthSelection = { itemId: null, source: null, rotation: 0, hoverCell: null };
 let growthCraftItemId = null;
+let growthHoverItemId = null;
 
 const GROWTH_CRAFT_ACTIONS = [
     { key: 'magicBud', label: '마법 부여/재련', cost: 1 },
@@ -160,6 +161,7 @@ function renderGrowthCell(x, y, entry, relatedIds, slabCells) {
     if (entry) {
         let item = entry.item;
         classes.push('filled', `cat-${item.growthCategory}`, `rarity-${item.rarity || 'normal'}`);
+        if (item.growthChase) classes.push('growth-chase');
         if (item.id === growthSelection.itemId) classes.push('selected');
         else if (relatedIds.has(item.id)) classes.push('related');
         let firstCell = entry.cells[0];
@@ -175,13 +177,16 @@ function renderGrowthCell(x, y, entry, relatedIds, slabCells) {
     let levelBadge = level !== 0
         ? `<span class="growth-cell-level${level < 0 ? ' negative' : ''}">${level > 0 ? '+' : ''}${level}</span>`
         : '';
+    let itemHover = entry ? `setGrowthBoardItemHover(${entry.item.id});` : '';
+    let itemLeave = entry ? 'clearGrowthBoardItemHover();hideInfoTooltip();' : '';
     let handlers = unlocked
-        ? ` onclick="handleGrowthCellClick(${x},${y})" onmouseenter="setGrowthHoverCell(${x},${y})" onmouseleave="clearGrowthHoverCell()"`
+        ? ` onclick="handleGrowthCellClick(${x},${y})" onmouseenter="${itemHover}setGrowthHoverCell(${x},${y})" onmouseleave="${itemLeave}clearGrowthHoverCell()"`
         : '';
     let tooltip = entry
         ? ` data-info-tooltip-anchor="1" onmousemove="showGrowthItemTooltip(event, ${entry.item.id})"`
         : '';
-    return `<div class="${classes.join(' ')}" data-x="${x}" data-y="${y}"${style}${handlers}${tooltip}>${label}${levelBadge}</div>`;
+    let itemData = entry ? ` data-growth-item-id="${entry.item.id}"` : '';
+    return `<div class="${classes.join(' ')}" data-x="${x}" data-y="${y}"${itemData}${style}${handlers}${tooltip}>${label}${levelBadge}</div>`;
 }
 
 // 선택된 석판이 영향을 주는 칸 → 부여 레벨(합계). 없으면 null.
@@ -204,16 +209,53 @@ function getSelectedSlabInfluenceCells() {
 
 // 선택 아이템과 실제로 효과를 주고받는 아이템만 강조한다(무관한 효과는 표시하지 않는다).
 function getGrowthRelatedItemIds(selectedEntry) {
-    let related = new Set();
-    if (!selectedEntry) return related;
-    let selfKeys = new Set(selectedEntry.cells.map(([x, y]) => `${x},${y}`));
-    getPlacedGrowthEntries().forEach(entry => {
-        if (entry.item.id === selectedEntry.item.id) return;
-        let touches = entry.cells.some(([x, y]) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => selfKeys.has(`${x + dx},${y + dy}`)));
-        let sharesLine = entry.cells.some(([x, y]) => selectedEntry.cells.some(([sx, sy]) => sx === x || sy === y));
-        if (touches || sharesLine) related.add(entry.item.id);
+    return new Set(selectedEntry ? getGrowthItemRelatedIds(selectedEntry.item.id) : []);
+}
+
+function paintGrowthBoardRelations(itemId) {
+    let board = document.getElementById('ui-growth-board');
+    if (!board) return;
+    board.querySelectorAll('.growth-cell').forEach(cell =>
+        cell.classList.remove('growth-hover-source', 'growth-hover-related', 'slab-hover-buff', 'slab-hover-debuff'));
+    let entry = getPlacedGrowthEntries().find(row => row.item.id === itemId);
+    let hint = document.getElementById('ui-growth-relation-hint');
+    if (!entry) { if (hint) hint.innerHTML = ''; return; }
+    board.querySelectorAll(`[data-growth-item-id="${itemId}"]`).forEach(cell => cell.classList.add('growth-hover-source'));
+    let relatedIds = getGrowthItemRelatedIds(itemId);
+    relatedIds.forEach(id => board.querySelectorAll(`[data-growth-item-id="${id}"]`)
+        .forEach(cell => cell.classList.add('growth-hover-related')));
+    if (isGrowthSlab(entry.item)) paintHoveredSlabCells(board, entry);
+    if (hint) hint.innerHTML = renderGrowthRelationHint(entry.item, relatedIds);
+}
+
+function paintHoveredSlabCells(board, entry) {
+    let def = getGrowthSlabDef(entry.item);
+    let [originX, originY] = entry.cells[0] || [0, 0];
+    let levels = new Map();
+    (def && def.grants ? def.grants : []).forEach(grant => getGrowthSlabPatternCells(grant.pattern, originX, originY)
+        .forEach(([x, y]) => levels.set(`${x},${y}`, (levels.get(`${x},${y}`) || 0) + Number(grant.level || 0))));
+    levels.forEach((level, key) => {
+        let [x, y] = key.split(',');
+        let cell = board.querySelector(`.growth-cell[data-x="${x}"][data-y="${y}"]`);
+        if (cell) cell.classList.add(level >= 0 ? 'slab-hover-buff' : 'slab-hover-debuff');
     });
-    return related;
+}
+
+function renderGrowthRelationHint(item, relatedIds) {
+    if (relatedIds.length === 0) return '<span>현재 연결된 대상이나 발동 시너지가 없습니다.</span>';
+    let names = relatedIds.map(id => findGrowthItemById(id)).filter(Boolean).map(row => row.name);
+    let verb = isGrowthSlab(item) ? '효과를 받는 생장판' : '시너지 연결';
+    return `<span><strong>${verb} ${names.length}개</strong> · ${names.slice(0, 4).map(escapeHTML).join(', ')}${names.length > 4 ? ' 외' : ''}</span>`;
+}
+
+function setGrowthBoardItemHover(itemId) {
+    growthHoverItemId = Number(itemId);
+    paintGrowthBoardRelations(growthHoverItemId);
+}
+
+function clearGrowthBoardItemHover() {
+    growthHoverItemId = null;
+    paintGrowthBoardRelations(null);
 }
 
 function renderGrowthUnlockSummary() {
@@ -300,14 +342,14 @@ function renderGrowthItemCard(item, mode) {
         ? `<button onclick="claimRecentGrowthDrop(${item.id})">보관</button><button onclick="salvageRecentGrowthDrop(${item.id})">해체</button>`
         : `<button onclick="selectGrowthItem(${item.id},'inventory')">${selected ? '선택 해제' : (placement ? '선택' : '배치')}</button>`
           + (placement ? `<button onclick="unplaceGrowthItem(${item.id})">내리기</button>` : '')
-          + (isGrowthSlab(item) ? '' : `<button onclick="openGrowthCrafting(${item.id})">제작</button>`)
+          + `<button onclick="openGrowthCrafting(${item.id})">${isGrowthSlab(item) ? '재각인' : '제작'}</button>`
           + `<button onclick="toggleGrowthItemLock(${item.id})">${item.locked ? '🔒' : '🔓'}</button>`
           + `<button onclick="salvageGrowthInventoryItem(${item.id})">해체</button>`;
-    return `<div class="growth-item-card${selected ? ' selected' : ''}${placement ? ' placed' : ''}" data-info-tooltip-anchor="1" data-growth-drag-id="${item.id}"
-        onmouseenter="showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="hideInfoTooltip()">
+    return `<div class="growth-item-card${selected ? ' selected' : ''}${placement ? ' placed' : ''}${item.growthChase ? ' growth-chase' : ''}" data-info-tooltip-anchor="1" data-growth-drag-id="${item.id}"
+        onmouseenter="setGrowthBoardItemHover(${item.id});showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="clearGrowthBoardItemHover();hideInfoTooltip()">
         <div class="growth-item-head">
-            <span class="item-title loot-${item.rarity || 'normal'}">${info.icon} ${escapeHTML(item.name || '')}</span>
-            <span class="growth-item-size">${isGrowthSlab(item) ? '석판' : `${info.label} · ${getGrowthItemCells(item, 0).length}칸`}${levelBadge}</span>
+            <span class="item-title loot-${item.rarity || 'normal'}">${item.growthChase ? '✦ ' : ''}${info.icon} ${escapeHTML(item.name || '')}</span>
+            <span class="growth-item-size">${isGrowthSlab(item) ? '석판' : `${info.label} · ${escapeHTML(getGrowthShapeDef(item.growthShapeId).label)}`}${levelBadge}</span>
         </div>
         <div class="growth-item-actions">${actions}</div>
     </div>`;
@@ -417,11 +459,13 @@ function buildGrowthSlabTooltipHtml(item) {
         let positive = Number(grant.level || 0) >= 0;
         return `<div class="tooltip-line" style="color:${positive ? '#7fd99a' : '#e07a7a'};">${escapeHTML(pattern)} 레벨 ${positive ? '+' : ''}${grant.level}</div>`;
     }).join('');
+    let chase = item.growthChase ? '<div class="tooltip-line growth-chase-label">✦ 체이싱 석판 · 극희귀 드랍</div>' : '';
     return `<div class="tooltip-title" style="color:#c9b28a">🪨 ${escapeHTML(item.name || '')}</div>
-        <div class="tooltip-line">석판 · 1칸 · 요구 티어 ${Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1))}</div>
+        ${chase}<div class="tooltip-line">석판 · 1칸 · 요구 티어 ${Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1))}</div>
         <div class="tooltip-line" style="color:#9fd6ff;margin-top:6px;">${escapeHTML((def && def.desc) || '')}</div>
         ${grants}
-        <div class="tooltip-line" style="color:#8fb7ca;margin-top:6px;">석판은 자체 능력치가 없고 제작되지 않습니다. 아이템은 자신이 점유한 칸 중 <strong>가장 높은 레벨</strong>을 받습니다. (레벨 1당 옵션 +${GROWTH_LEVEL_STAT_PCT}%)</div>
+        ${item.flavorText ? `<div class="tooltip-line growth-flavor">“${escapeHTML(item.flavorText)}”</div>` : ''}
+        <div class="tooltip-line" style="color:#8fb7ca;margin-top:6px;">석판은 추가 옵션 제작 대신 일반 문양만 재각인할 수 있습니다. 아이템은 자신이 점유한 칸 중 <strong>가장 높은 레벨</strong>을 받습니다. (레벨 1당 옵션 +${GROWTH_LEVEL_STAT_PCT}%)</div>
         <div class="tooltip-line" style="margin-top:6px;">${placement ? '<span style="color:#7fd99a;">배치됨 (영향 적용 중)</span>' : '<span style="color:#e08a5a;">미배치 (영향 없음)</span>'}</div>`;
 }
 
@@ -439,8 +483,10 @@ function buildGrowthTooltipHtml(item) {
         item.loopSealed ? '<span style="color:#7fd99a;">🌿봉인</span>' : '',
         item.rotationLocked ? '<span style="color:#f39c12;">회전 불가</span>' : ''
     ].filter(Boolean).join(' · ');
+    let chase = item.growthChase ? '<div class="tooltip-line growth-chase-label">✦ 체이싱 생장판 · 극희귀 드랍</div>' : '';
+    let shape = getGrowthShapeDef(item.growthShapeId);
     return `<div class="tooltip-title" style="color:${getRarityColor(item.rarity || 'normal')}">${info.icon} ${escapeHTML(item.name || '')}</div>
-        <div class="tooltip-line">${info.label} · ${getGrowthItemCells(item, 0).length}칸 · 요구 티어 ${Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1))}</div>
+        ${chase}<div class="tooltip-line">${info.label} · ${escapeHTML(shape.label)} · 요구 티어 ${Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1))}</div>
         ${flags ? `<div class="tooltip-line">${flags}</div>` : ''}
         ${Math.floor(item.quality || 0) > 0 ? `<div class="tooltip-line" style="color:#8fd4ff;">품질 +${Math.floor(item.quality)}%</div>` : ''}
         ${placement ? renderGrowthLevelLine(item.id) : ''}
@@ -449,6 +495,7 @@ function buildGrowthTooltipHtml(item) {
         <div class="tooltip-line" style="color:#f6c461;margin-top:6px;">추가 옵션 (${(item.stats || []).length}/${getGrowthItemAffixCap(item)})</div>
         ${(item.stats || []).map(statLine).join('') || '<div class="tooltip-line">없음</div>'}
         ${item.uniqueEffect ? `<div class="tooltip-line" style="color:#ffb05a;margin-top:6px;">${escapeHTML(item.uniqueEffect)}</div>` : ''}
+        ${item.flavorText ? `<div class="tooltip-line growth-flavor">“${escapeHTML(item.flavorText)}”</div>` : ''}
         ${base && base.spatial ? `<div class="tooltip-line" style="color:#9fd6ff;margin-top:6px;">공간 효과: ${escapeHTML(base.spatial.desc || '')}</div>` : ''}
         <div class="tooltip-line" style="color:#8fb7ca;margin-top:4px;">태그: ${tags.map(escapeHTML).join(', ') || '없음'}</div>
         <div class="tooltip-line" style="margin-top:6px;">${placement ? '<span style="color:#7fd99a;">배치됨 (효과 적용 중)</span>' : '<span style="color:#e08a5a;">미배치 (효과 없음)</span>'}</div>
@@ -628,16 +675,17 @@ function renderGrowthPlacementTray() {
         let info = getGrowthCategoryInfo(item.growthCategory);
         let placed = isGrowthItemPlacedInLoadout(item.id);
         let selected = growthSelection.itemId === item.id;
-        return `<div class="growth-tray-card loot-${item.rarity || 'normal'}${placed ? ' placed' : ''}${selected ? ' selected' : ''}"
+        return `<div class="growth-tray-card loot-${item.rarity || 'normal'}${placed ? ' placed' : ''}${selected ? ' selected' : ''}${item.growthChase ? ' growth-chase' : ''}"
             role="button" tabindex="0" data-growth-drag-id="${item.id}" onclick="selectGrowthItem(${item.id},'tray')"
-            onmouseenter="showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="hideInfoTooltip()">
-            <span>${info.icon}</span><strong>${escapeHTML(item.name || '')}</strong><small>${info.label} · ${getGrowthItemCells(item, 0).length}칸${placed ? ' · 배치됨' : ''}</small>
+            onmouseenter="setGrowthBoardItemHover(${item.id});showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="clearGrowthBoardItemHover();hideInfoTooltip()">
+            <span>${info.icon}</span><strong>${item.growthChase ? '✦ ' : ''}${escapeHTML(item.name || '')}</strong><small>${info.label} · ${escapeHTML(getGrowthShapeDef(item.growthShapeId).label)}${placed ? ' · 배치됨' : ''}</small>
         </div>`;
     }).join('');
 }
 
 function getGrowthCraftActionState(item, action) {
     if (!item) return { enabled: false, reason: '제작할 생장판을 선택하세요.' };
+    if (isGrowthSlab(item)) return { enabled: false, reason: '석판은 문양 재각인만 사용할 수 있습니다.' };
     if (item.corrupted || item.rarity === 'unique') return { enabled: false, reason: '타락/고유 생장판은 이 제작을 사용할 수 없습니다.' };
     let count = getItemExplicitOptionCount(item);
     let cap = getGrowthCategoryAffixCap(item.growthCategory);
@@ -654,9 +702,9 @@ function getGrowthCraftActionState(item, action) {
 
 function openGrowthCrafting(itemId) {
     let item = findGrowthItemById(itemId);
-    if (!item || isGrowthSlab(item)) return addLog('석판은 제작할 수 없습니다.', 'attack-monster');
+    if (!item) return addLog('생장 아이템을 찾을 수 없습니다.', 'attack-monster');
     growthCraftItemId = item.id;
-    selectForCrafting(item.id, false);
+    if (!isGrowthSlab(item)) selectForCrafting(item.id, false);
     renderGrowthTab({ force: true });
     let bench = document.getElementById('ui-growth-craft-bench');
     if (bench) bench.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -689,6 +737,42 @@ function exchangeGrowthCraftCurrency(actionKey) {
     updateStaticUI();
 }
 
+function reforgeGrowthShapeAtBench() {
+    let item = findGrowthItemById(growthCraftItemId);
+    let result = reforgeGrowthItemShape(item ? item.id : null);
+    if (!result.ok) return addLog(result.reason, 'attack-monster');
+    let shape = getGrowthShapeDef(result.shapeId);
+    addLog(`🧩 [${item.name}] 형태 재배열 → ${shape.label} (생장 정수 -${result.cost})`, 'loot-normal');
+    renderGrowthTab({ force: true });
+}
+
+function reforgeGrowthSlabAtBench() {
+    let item = findGrowthItemById(growthCraftItemId);
+    if (!item || !isGrowthSlab(item)) return addLog('재각인할 석판을 선택하세요.', 'attack-monster');
+    if (item.growthChase) return addLog('체이싱 석판의 문양은 다시 새길 수 없습니다.', 'attack-monster');
+    if ((game.currencies.growthEssence || 0) < GROWTH_SLAB_REFORGE_COST) return addLog('생장 정수가 부족합니다.', 'attack-monster');
+    let def = reforgeGrowthSlabDefinition(item);
+    if (!def) return addLog('현재 티어에서 다른 문양을 찾을 수 없습니다.', 'attack-monster');
+    game.currencies.growthEssence -= GROWTH_SLAB_REFORGE_COST;
+    invalidateGrowthEffects();
+    if (typeof queueImportantSave === 'function') queueImportantSave(300);
+    addLog(`🔨 석판 문양 재각인 → [${def.name}] (생장 정수 -${GROWTH_SLAB_REFORGE_COST})`, 'loot-normal');
+    renderGrowthTab({ force: true });
+}
+
+function renderGrowthReforgeAction(item) {
+    if (!item) return '';
+    if (isGrowthSlab(item)) {
+        let disabled = item.growthChase || (game.currencies.growthEssence || 0) < GROWTH_SLAB_REFORGE_COST;
+        let title = item.growthChase ? '체이싱 석판은 재각인할 수 없습니다.' : '같은 티어 이하의 다른 일반 석판 문양으로 바꿉니다.';
+        return `<button type="button" onclick="reforgeGrowthSlabAtBench()" ${disabled ? 'disabled' : ''} title="${title}">문양 재각인 · 정수 ${GROWTH_SLAB_REFORGE_COST}</button>`;
+    }
+    let cost = getGrowthShapeReforgeCost(item);
+    let alternatives = getGrowthShapeAlternatives(item);
+    let disabled = alternatives.length === 0 || (game.currencies.growthEssence || 0) < cost;
+    return `<button type="button" onclick="reforgeGrowthShapeAtBench()" ${disabled ? 'disabled' : ''} title="같은 칸 수의 다른 형태로 바꿉니다. 모든 세팅의 현재 배치가 유지되는 형태만 선택됩니다.">형태 재배열 · 정수 ${cost}</button>`;
+}
+
 function renderGrowthCraftBench() {
     let item = findGrowthItemById(growthCraftItemId);
     let essence = Math.max(0, Math.floor(game.currencies.growthEssence || 0));
@@ -700,9 +784,9 @@ function renderGrowthCraftBench() {
         let have = Math.max(0, Math.floor(game.currencies[action.key] || 0));
         return `<button type="button" onclick="exchangeGrowthCraftCurrency('${action.key}')" ${have >= 10 ? '' : 'disabled'}>${escapeHTML(ORB_DB[action.key].name)} 10 → 정수 ${action.cost} <small>(${have})</small></button>`;
     }).join('');
-    let target = item ? `<strong class="loot-${item.rarity || 'normal'}">${escapeHTML(item.name)}</strong> · ${getGrowthItemAffixCap(item)}줄 상한` : '보관함 카드의 제작 버튼을 누르세요.';
+    let target = item ? `<strong class="loot-${item.rarity || 'normal'}">${escapeHTML(item.name)}</strong> · ${isGrowthSlab(item) ? '석판 문양' : `${getGrowthItemAffixCap(item)}줄 상한`}` : '보관함 카드의 제작 버튼을 누르세요.';
     return `<section id="ui-growth-craft-bench" class="growth-craft-bench"><div class="growth-bench-head"><h3>🛠️ 생장판 제작대</h3><strong>생장 정수 ${essence}</strong></div>
-        <div class="growth-craft-target">${target}</div><div class="growth-craft-actions">${actions}</div>
+        <div class="growth-craft-target">${target}</div><div class="growth-craft-actions">${isGrowthSlab(item) ? '' : actions}${renderGrowthReforgeAction(item)}</div>
         <details><summary>기존 재화 교환 (10배 비용)</summary><p>각 재화 10개를 해당 제작 1회분의 생장 정수로 바꿉니다.</p><div class="growth-exchange-actions">${exchanges}</div></details></section>`;
 }
 
@@ -717,6 +801,7 @@ function renderGrowthBoardPanel() {
         <div class="growth-controls">
             <span>${selectedItem ? `선택: <strong>${escapeHTML(selectedItem.name)}</strong>` : '아이템을 선택한 뒤 칸을 클릭해 배치하세요.'}</span>
             <span id="ui-growth-hover-hint" class="growth-hover-hint"></span>
+            <span id="ui-growth-relation-hint" class="growth-relation-hint"></span>
             <span class="growth-control-actions">
                 <button type="button" onclick="rotateGrowthSelection()" ${selectedItem ? '' : 'disabled'}>회전 (${growthSelection.rotation * 90}°)</button>
                 <button type="button" onclick="autoFillGrowthBoard()">빈 칸 자동 배치</button>
@@ -740,6 +825,7 @@ function renderGrowthBoardPanel() {
         </div>`;
     paintGrowthPlacementPreview();
     bindGrowthDragOnce();
+    if (growthHoverItemId !== null) paintGrowthBoardRelations(growthHoverItemId);
 }
 
 // 제작/화석/주입 탭의 "대상 선택"에 생장 아이템(전용 보관함)도 노출한다.
@@ -801,7 +887,8 @@ function getGrowthTabSignature() {
         rotationLocked: item.rotationLocked, locked: item.locked, baseStats: item.baseStats,
         stats: item.stats, growthTags: item.growthTags, growthRemovedTags: item.growthRemovedTags,
         uniqueEffect: item.uniqueEffect, uniqueEffectKey: item.uniqueEffectKey,
-        uniqueEffectParams: item.uniqueEffectParams, slabDefId: item.slabDefId
+        uniqueEffectParams: item.uniqueEffectParams, growthEffectKey: item.growthEffectKey,
+        growthSlabId: item.growthSlabId, growthChase: item.growthChase, flavorText: item.flavorText
     });
     let items = (game.growthInventory || []).map(itemSignature).join(',');
     let recent = (game.recentGrowthDrops || []).map(itemSignature).join(',');
@@ -860,5 +947,6 @@ safeExposeGlobals({
     renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
     toggleGrowthInventoryCategory, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, toggleGrowthAutoClaim, renderGrowthDropSettings,
     renderGrowthHoverHint, bindGrowthDragOnce, openGrowthCrafting, craftGrowthItem, exchangeGrowthCraftCurrency,
-    getSelectedSlabInfluenceCells, renderGrowthLevelLine
+    getSelectedSlabInfluenceCells, renderGrowthLevelLine, setGrowthBoardItemHover, clearGrowthBoardItemHover,
+    reforgeGrowthShapeAtBench, reforgeGrowthSlabAtBench
 });

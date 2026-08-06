@@ -76,6 +76,17 @@ function pickGrowthBaseForDrop(tier, preferredCategory) {
     return candidates[candidates.length - 1];
 }
 
+function pickGrowthWeightedEntry(candidates) {
+    if (!Array.isArray(candidates) || candidates.length === 0) return null;
+    let weights = candidates.map(row => Math.max(0.001, Number(row.weight) || 1));
+    let roll = Math.random() * weights.reduce((sum, value) => sum + value, 0);
+    for (let i = 0; i < candidates.length; i++) {
+        roll -= weights[i];
+        if (roll <= 0) return candidates[i];
+    }
+    return candidates[candidates.length - 1];
+}
+
 function createGrowthItemFromBase(base, rarity, tier, options) {
     if (!base) return null;
     let zoneTier = Math.max(1, Math.floor(Number(tier) || 1));
@@ -108,7 +119,7 @@ function generateGrowthUniqueItem(tier, forcedName) {
     let zoneTier = Math.max(1, Math.floor(Number(tier) || 1));
     let pool = GROWTH_UNIQUE_DB.filter(unique => zoneTier >= (unique.reqTier || 1));
     let unique = forcedName ? GROWTH_UNIQUE_DB.find(row => row && row.name === forcedName) : null;
-    if (!unique) unique = pool.length > 0 ? rndChoice(pool) : GROWTH_UNIQUE_DB[0];
+    if (!unique) unique = pickGrowthWeightedEntry(pool.length > 0 ? pool : GROWTH_UNIQUE_DB.slice(0, 1));
     if (!unique) return null;
     let base = unique.baseId ? GROWTH_BASE_DB.find(row => row && row.id === unique.baseId) : null;
     let category = unique.category || (base ? base.category : 'flower');
@@ -133,7 +144,9 @@ function generateGrowthUniqueItem(tier, forcedName) {
         uniqueEffect: unique.uniqueEffect || '',
         uniqueEffectKey: unique.uniqueEffectKey || '',
         uniqueEffectParams: unique.uniqueEffectParams ? JSON.parse(JSON.stringify(unique.uniqueEffectParams)) : null,
-        growthEffectKey: unique.growthEffectKey || null
+        growthEffectKey: unique.growthEffectKey || null,
+        growthChase: !!unique.chase,
+        flavorText: unique.flavorText || ''
     };
     (unique.stats || []).forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
@@ -147,15 +160,7 @@ function generateGrowthUniqueItem(tier, forcedName) {
 function pickGrowthSlabDef(tier) {
     let candidates = GROWTH_SLAB_DB.filter(def => (def.reqTier || 1) <= tier);
     if (candidates.length === 0) candidates = GROWTH_SLAB_DB.filter(def => (def.reqTier || 1) <= 1);
-    if (candidates.length === 0) return null;
-    let weights = candidates.map(def => Math.max(0.01, Number(def.weight) || 1));
-    let total = weights.reduce((sum, value) => sum + value, 0);
-    let roll = Math.random() * total;
-    for (let i = 0; i < candidates.length; i++) {
-        roll -= weights[i];
-        if (roll <= 0) return candidates[i];
-    }
-    return candidates[candidates.length - 1];
+    return pickGrowthWeightedEntry(candidates);
 }
 
 function createGrowthSlabItem(tier) {
@@ -173,18 +178,35 @@ function createGrowthSlabItem(tier) {
         baseId: null,
         baseName: def.name,
         name: def.name,
-        rarity: 'magic',
+        rarity: def.chase ? 'unique' : 'magic',
         itemTier: zoneTier,
         hiddenTier: zoneTier,
         baseStats: [],
         stats: [],
         growthTags: ['석판'],
-        growthRemovedTags: []
+        growthRemovedTags: [],
+        growthChase: !!def.chase,
+        flavorText: def.flavorText || ''
     };
 }
 
+/** 일반 석판의 문양을 같은 티어 이하의 다른 일반 석판으로 재각인한다. */
+function reforgeGrowthSlabDefinition(item) {
+    if (!isGrowthSlab(item) || item.growthChase) return null;
+    let tier = Math.max(1, Math.floor(Number(item.hiddenTier || item.itemTier) || 1));
+    let pool = GROWTH_SLAB_DB.filter(def => !def.chase && def.id !== item.growthSlabId
+        && (def.reqTier || 1) <= tier);
+    let def = pickGrowthWeightedEntry(pool);
+    if (!def) return null;
+    item.growthSlabId = def.id;
+    item.baseName = def.name;
+    item.name = def.name;
+    item.flavorText = '';
+    return def;
+}
+
 // 석판이 드랍에서 차지하는 비중. 너무 흔하면 레벨 인플레가, 너무 귀하면 시스템 체감이 사라진다.
-const GROWTH_SLAB_DROP_RATE = 0.25;
+const GROWTH_SLAB_DROP_RATE = 0.10;
 
 function rollGrowthDropRarity(enemy) {
     let roll = Math.random();
@@ -315,5 +337,5 @@ safeExposeGlobals({
     getGrowthCategoryModSlots, getGrowthCraftSlot, getGrowthItemAffixCap, isGrowthBaseUnlockedAtTier,
     pickGrowthBaseForDrop, createGrowthItemFromBase, generateGrowthUniqueItem, generateGrowthDrop,
     applyGrowthCorruptionOutcome, pickGrowthCorruptionOutcome,
-    createGrowthSlabItem, pickGrowthSlabDef
+    createGrowthSlabItem, pickGrowthSlabDef, reforgeGrowthSlabDefinition
 });

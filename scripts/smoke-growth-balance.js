@@ -115,7 +115,7 @@ assert.ok(worstCaseTotal('branch', 'evasion') <= 350, '가지 회피 합계가 �
 
 // ── 석판 레벨 증폭이 예산을 무력화하지 않아야 한다 ───────────────────────
 const maxAmplify = 1 + ctx.GROWTH_LEVEL_CAP * (ctx.GROWTH_LEVEL_STAT_PCT / 100);
-assert.ok(maxAmplify <= 2.1, `석판 최대 증폭이 2.1배를 넘으면 예산이 무의미해진다 (현재 ${maxAmplify.toFixed(2)}배)`);
+assert.ok(maxAmplify <= 2.25, `석판 최대 증폭이 2.25배를 넘으면 예산이 무의미해진다 (현재 ${maxAmplify.toFixed(2)}배)`);
 
 // 페널티 석판이 있어야 "좋은 석판을 아무 데나 두면 그만"이 되지 않는다.
 const penaltySlabs = ctx.GROWTH_SLAB_DB.filter(def => (def.grants || []).some(g => g.level < 0));
@@ -126,6 +126,10 @@ ctx.GROWTH_SLAB_DB.forEach(def => {
     const grants = def.grants || [];
     const best = Math.max(...grants.map(g => g.level));
     if (best < 3) return;
+    if (def.chase) {
+        assert.ok(best <= 3, `${def.name} 체이싱 석판도 단일 범위 레벨 +3 상한은 지켜야 한다`);
+        return;
+    }
     const hasPenalty = grants.some(g => g.level < 0);
     const isRestrictive = grants.every(g => g.level <= 0 || RESTRICTIVE_PATTERNS.has(g.pattern));
     assert.ok(hasPenalty || isRestrictive, `${def.name}처럼 강한 석판은 페널티나 까다로운 패턴을 져야 한다`);

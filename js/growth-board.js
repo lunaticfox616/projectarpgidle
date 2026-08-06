@@ -166,12 +166,16 @@ function getPlacedGrowthEntries() {
 }
 
 /** 점유 맵: 'x,y' → itemId */
-function buildGrowthOccupancyMap(excludeItemIds) {
+function buildGrowthOccupancyMap(excludeItemIds, targetLoadout) {
     let excluded = new Set(Array.isArray(excludeItemIds) ? excludeItemIds : [excludeItemIds]);
     let map = new Map();
-    getPlacedGrowthEntries().forEach(entry => {
-        if (excluded.has(entry.item.id)) return;
-        entry.cells.forEach(([x, y]) => map.set(`${x},${y}`, entry.item.id));
+    let loadout = targetLoadout || getActiveGrowthLoadout();
+    Object.keys((loadout && loadout.placements) || {}).forEach(key => {
+        let item = findGrowthItemById(Number(key));
+        let placement = loadout.placements[key];
+        if (!item || !placement || excluded.has(item.id)) return;
+        getGrowthPlacementCells(item, placement.x, placement.y, placement.rotation)
+            .forEach(([x, y]) => map.set(`${x},${y}`, item.id));
     });
     return map;
 }
@@ -262,6 +266,44 @@ function rotatePlacedGrowthItem(itemId) {
     invalidateGrowthEffects();
     if (typeof queueImportantSave === 'function') queueImportantSave(300);
     return { ok: true, reason: '' };
+}
+
+function getGrowthShapeAlternatives(item) {
+    if (!isGrowthItem(item) || isGrowthSlab(item)) return [];
+    let size = getGrowthItemCells(item, 0).length;
+    return Object.keys(GROWTH_SHAPE_DB).filter(shapeId => shapeId !== item.growthShapeId
+        && (GROWTH_SHAPE_DB[shapeId].cells || []).length === size);
+}
+
+function getGrowthShapeReforgeCost(item) {
+    let size = isGrowthItem(item) ? getGrowthItemCells(item, 0).length : 0;
+    return size > 0 ? size * GROWTH_SHAPE_REFORGE_COST_PER_CELL : 0;
+}
+
+function canUseGrowthShapeInLoadout(item, shapeId, loadout) {
+    let placement = (loadout.placements || {})[item.id];
+    if (!placement) return true;
+    let shaped = Object.assign({}, item, { growthShapeId: shapeId });
+    let cells = getGrowthPlacementCells(shaped, placement.x, placement.y, placement.rotation);
+    return checkGrowthCells(cells, buildGrowthOccupancyMap(item.id, loadout)).ok;
+}
+
+/** 같은 칸 수의 다른 형태로 재배열한다. 어느 세팅의 기존 배치도 깨지지 않는 후보만 사용한다. */
+function reforgeGrowthItemShape(itemId) {
+    let item = findGrowthItemById(itemId);
+    if (!item || isGrowthSlab(item)) return { ok: false, reason: '형태를 바꿀 생장판이 아닙니다.' };
+    let board = ensureGrowthBoardState();
+    let candidates = getGrowthShapeAlternatives(item)
+        .filter(shapeId => board.loadouts.every(loadout => canUseGrowthShapeInLoadout(item, shapeId, loadout)));
+    if (candidates.length === 0) return { ok: false, reason: '같은 크기에서 바꿀 수 있는 형태가 없습니다.' };
+    let cost = getGrowthShapeReforgeCost(item);
+    if ((game.currencies.growthEssence || 0) < cost) return { ok: false, reason: '생장 정수가 부족합니다.' };
+    let previousShapeId = item.growthShapeId;
+    item.growthShapeId = rndChoice(candidates);
+    game.currencies.growthEssence -= cost;
+    invalidateGrowthEffects();
+    if (typeof queueImportantSave === 'function') queueImportantSave(300);
+    return { ok: true, previousShapeId, shapeId: item.growthShapeId, cost };
 }
 
 // 저장 로드/루프 리셋/아이템 소실 후: 사라진 아이템·겹침·봉인 칸 위반 배치를 제거한다.
@@ -766,6 +808,7 @@ safeExposeGlobals({
     salvageGrowthInventoryItem, bulkSalvageGrowthInventory, tryAutoPlaceGrowthItem,
     autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout, tryPlaceSlabAtBestCell,
     sortGrowthInventory, GROWTH_SORT_MODES, getGrowthSalvageEssenceYield, salvageGrowthItemObject,
+    getGrowthShapeAlternatives, getGrowthShapeReforgeCost, reforgeGrowthItemShape,
     getGrowthAutoSalvageRarities, toggleGrowthAutoSalvageRarity,
     toggleGrowthAutoSalvageEnabled, toggleGrowthUseItemFilter
 });

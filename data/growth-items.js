@@ -11,10 +11,13 @@ const GROWTH_BOARD_H = 4;
 const GROWTH_SHAPE_DB = {
     dot1:    { label: '1칸', cells: [[0, 0]] },
     domino2: { label: '2칸', cells: [[0, 0], [1, 0]] },
+    diagonal2: { label: '2칸 대각', cells: [[0, 0], [1, 1]] },
     line3:   { label: '3칸 직선', cells: [[0, 0], [1, 0], [2, 0]] },
     corner3: { label: '3칸 굽이', cells: [[0, 0], [1, 0], [0, 1]] },
     square4: { label: '4칸 사각', cells: [[0, 0], [1, 0], [0, 1], [1, 1]] },
-    zig4:    { label: '4칸 지그재그', cells: [[0, 0], [1, 0], [1, 1], [2, 1]] }
+    zig4:    { label: '4칸 지그재그', cells: [[0, 0], [1, 0], [1, 1], [2, 1]] },
+    tee4:    { label: '4칸 갈림', cells: [[0, 0], [1, 0], [2, 0], [1, 1]] },
+    line4:   { label: '4칸 장축', cells: [[0, 0], [1, 0], [2, 0], [3, 0]] }
 };
 
 // 종류 정의: 제작 슬롯(craftSlot)은 기존 MOD_DB/화석/오브 풀을 재사용하기 위한 매핑이다.
@@ -48,8 +51,10 @@ function getGrowthCategoryAffixCap(category) {
 // 석판도 1칸이며 자체 능력치가 없다. 대신 영향 범위 안의 칸에 "레벨"을 부여하고,
 // 그 칸에 놓인 아이템의 베이스·추가 옵션이 함께 증폭된다.
 // 레벨은 여러 석판에서 중첩된다.
-const GROWTH_LEVEL_STAT_PCT = 12;   // 레벨 1당 아이템 옵션 +12%
+const GROWTH_LEVEL_STAT_PCT = 15;   // 레벨 1당 아이템 옵션 +15%
 const GROWTH_LEVEL_CAP = 8;         // 레벨 상한(중첩 폭주 방지)
+const GROWTH_SHAPE_REFORGE_COST_PER_CELL = 3;
+const GROWTH_SLAB_REFORGE_COST = 10;
 
 // 영향 범위 패턴. dx/dy는 석판 자신을 원점으로 한 상대 좌표다.
 // row/col은 좌표 대신 같은 행·열 전체를 뜻한다.
@@ -59,6 +64,7 @@ const GROWTH_SLAB_PATTERNS = {
     around:     { label: '주변 8칸', cells: [[-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] },
     row:        { label: '같은 행',  axis: 'row' },
     col:        { label: '같은 열',  axis: 'col' },
+    board:      { label: '판 전체',  axis: 'board' },
     self:       { label: '자기 칸',  cells: [[0, 0]] },
     far:        { label: '2칸 거리', cells: [[0, -2], [0, 2], [-2, 0], [2, 0]] }
 };
@@ -95,7 +101,16 @@ const GROWTH_SLAB_DB = [
       grants: [{ pattern: 'row', level: 2 }, { pattern: 'col', level: 2 }, { pattern: 'around', level: -1 }] },
     { id: 'gs_sacrifice', name: '헌신의 석판', reqTier: 12, weight: 0.3,
       desc: '주변 8칸 레벨 +3, 단 같은 행·열 레벨 -1',
-      grants: [{ pattern: 'around', level: 3 }, { pattern: 'row', level: -1 }, { pattern: 'col', level: -1 }] }
+      grants: [{ pattern: 'around', level: 3 }, { pattern: 'row', level: -1 }, { pattern: 'col', level: -1 }] },
+    { id: 'gs_eclipse', name: '일식의 석판', reqTier: 18, weight: 0.012, chase: true,
+      flavorText: '빛이 사라진 자리에 모든 뿌리의 그림자가 겹친다.',
+      desc: '판 전체 레벨 +2, 단 주변 8칸 레벨 -1',
+      grants: [{ pattern: 'board', level: 2 }, { pattern: 'around', level: -1 }] },
+    { id: 'gs_constellation', name: '무명성좌의 석판', reqTier: 20, weight: 0.008, chase: true,
+      flavorText: '이 별자리를 읽은 자는 없었다. 살아 돌아온 자도 없었으므로.',
+      desc: '같은 행·열·대각선 레벨 +2, 2칸 거리 레벨 +3',
+      grants: [{ pattern: 'row', level: 2 }, { pattern: 'col', level: 2 },
+          { pattern: 'diagonal', level: 2 }, { pattern: 'far', level: 3 }] }
 ];
 
 // 생장판은 기존 고정 슬롯 장비를 대체하지 않는 별도 시스템이며 루프 25에 열린다.
@@ -384,7 +399,19 @@ const GROWTH_UNIQUE_DB = [
       stats: [{ id: 'pctHp', min: 12, max: 12 }, { id: 'pctDmg', min: 12, max: 12 }], tags: ['성장', '중심', '군집'] },
     { name: '만물결속 덩굴', baseId: 'gv_canopy_bridge', reqTier: 15,
       uniqueEffect: '3칸을 잇는 소환수 특화 덩굴', uniqueEffectKey: null, growthEffectKey: null,
-      stats: [{ id: 'summonPctDmg', min: 16, max: 16 }, { id: 'summonEfficiency', min: 12, max: 12 }], tags: ['연결', '소환수', '군집'] }
+      stats: [{ id: 'summonPctDmg', min: 16, max: 16 }, { id: 'summonEfficiency', min: 12, max: 12 }], tags: ['연결', '소환수', '군집'] },
+    { name: '태초의 설계도', baseId: 'gsd_world_kernel', shapeId: 'square4', reqTier: 18,
+      weight: 0.018, chase: true, flavorText: '숲은 자라난 것이 아니다. 누군가의 도면대로 완성되고 있었다.',
+      uniqueEffect: '비석판 생장판이 6종 이상이고 종류가 서로 겹치지 않으면 모든 비석판의 베이스 옵션 +40%',
+      uniqueEffectKey: null, growthEffectKey: 'primordialBlueprint',
+      stats: [{ id: 'pctHp', min: 16, max: 16 }, { id: 'pctDmg', min: 16, max: 16 }],
+      tags: ['성장', '중심', '설계'] },
+    { name: '죽은 별의 균사체', baseId: 'gsp_mycelium_web', shapeId: 'zig4', reqTier: 20,
+      weight: 0.012, chase: true, flavorText: '별빛을 먹은 포자는 주인의 피보다 먼저 새로운 하늘을 기억한다.',
+      uniqueEffect: '비석판이 받는 양의 석판 레벨 합계 1당 카오스·지속 피해 +4%(최대 80%), 생명력 -10%',
+      uniqueEffectKey: null, growthEffectKey: 'deadStarMycelium',
+      stats: [{ id: 'chaosPctDmg', min: 24, max: 24 }, { id: 'dotPctDmg', min: 24, max: 24 }],
+      tags: ['카오스', '상태이상', '별빛'] }
 ];
 
 // ── 전역 시너지 규칙 (판 전체 판정) ───────────────────────────────────────
@@ -416,7 +443,8 @@ const GROWTH_GLOBAL_SYNERGY_DB = [
 safeExposeData({
     GROWTH_BOARD_W, GROWTH_BOARD_H, GROWTH_SHAPE_DB, GROWTH_CATEGORY_INFO,
     GROWTH_AFFIX_CAP, getGrowthCategoryAffixCap, GROWTH_UNLOCK_LOOP, GROWTH_UNLOCK_STAGES,
-    GROWTH_LEVEL_STAT_PCT, GROWTH_LEVEL_CAP, GROWTH_SLAB_PATTERNS, GROWTH_SLAB_DB,
+    GROWTH_LEVEL_STAT_PCT, GROWTH_LEVEL_CAP, GROWTH_SHAPE_REFORGE_COST_PER_CELL,
+    GROWTH_SLAB_REFORGE_COST, GROWTH_SLAB_PATTERNS, GROWTH_SLAB_DB,
     GROWTH_SYNERGY_STAGES, GROWTH_BASE_DB, GROWTH_UNIQUE_DB,
     GROWTH_GLOBAL_SYNERGY_DB
 });

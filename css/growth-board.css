@@ -59,6 +59,8 @@
 .growth-cell.filled.cat-vine { background: linear-gradient(150deg, rgba(35, 69, 63, 0.9), rgba(16, 31, 29, 0.9)); }
 .growth-cell.selected { box-shadow: 0 0 0 2px #f1c40f inset, 0 0 12px rgba(241, 196, 15, 0.4); transform: scale(1.04); z-index: 2; }
 .growth-cell.related { box-shadow: 0 0 0 1px #4fd1a5 inset; }
+.growth-cell.growth-hover-source { box-shadow: 0 0 0 2px #fff0a8 inset, 0 0 15px rgba(255, 220, 120, 0.7); z-index: 3; }
+.growth-cell.growth-hover-related { box-shadow: 0 0 0 2px #58d9bd inset, 0 0 12px rgba(79, 209, 165, 0.55); z-index: 2; }
 .growth-cell.preview-ok { background: rgba(46, 204, 113, 0.35) !important; border-color: #2ecc71 !important; }
 .growth-cell.preview-swap { background: rgba(241, 196, 15, 0.34) !important; border-color: #f1c40f !important; }
 .growth-cell.preview-bad { background: rgba(231, 76, 60, 0.35) !important; border-color: #e74c3c !important; }
@@ -80,6 +82,8 @@
 /* 선택한 석판의 영향권 */
 .growth-cell.slab-buff { box-shadow: 0 0 0 2px rgba(255, 217, 138, 0.75) inset; }
 .growth-cell.slab-debuff { box-shadow: 0 0 0 2px rgba(224, 122, 122, 0.75) inset; }
+.growth-cell.slab-hover-buff { background-image: radial-gradient(circle, rgba(255, 226, 128, 0.35), transparent 70%); border-color: #ffe080 !important; }
+.growth-cell.slab-hover-debuff { background-image: radial-gradient(circle, rgba(224, 100, 120, 0.35), transparent 70%); border-color: #e36b80 !important; }
 
 .growth-level-badge { color: #ffd98a; font-weight: 900; }
 .growth-level-badge.negative { color: #e07a7a; }
@@ -142,6 +146,17 @@
 .growth-hover-hint .growth-hover-good { color: #ffd98a; font-weight: 700; }
 .growth-hover-hint .growth-hover-bad { color: #e07a7a; }
 .growth-hover-hint .growth-hover-swap { color: #f1c40f; font-weight: 700; }
+.growth-relation-hint { color: #75e0c2; font-size: 0.8em; min-height: 1.2em; }
+
+@keyframes growth-chase-pulse {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(188, 125, 255, 0.45), 0 0 8px rgba(70, 190, 255, 0.22); }
+    50% { box-shadow: 0 0 0 1px rgba(255, 221, 126, 0.75), 0 0 18px rgba(180, 92, 255, 0.5); }
+}
+.growth-chase { position: relative; border-color: #c88bff !important; animation: growth-chase-pulse 2.4s ease-in-out infinite; overflow: hidden; }
+.growth-chase::after { content: ''; position: absolute; inset: -50% -20%; pointer-events: none; background: linear-gradient(110deg, transparent 42%, rgba(255,255,255,0.22) 50%, transparent 58%); transform: translateX(-45%); animation: growth-chase-sheen 3.6s ease-in-out infinite; }
+@keyframes growth-chase-sheen { 0%, 60% { transform: translateX(-55%); } 100% { transform: translateX(55%); } }
+.growth-chase-label { margin-top: 4px; color: #d7a7ff; font-weight: 900; text-shadow: 0 0 6px rgba(181, 96, 255, 0.55); }
+.growth-flavor { margin-top: 7px; color: #a992bd; font-style: italic; }
 
 .growth-craft-bench { margin: 12px 0; padding: 10px; border: 1px solid #526b3c; border-radius: 10px; background: linear-gradient(135deg, rgba(23, 38, 25, 0.9), rgba(13, 22, 28, 0.9)); }
 .growth-bench-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
