@@ -7207,6 +7207,22 @@ function getRealmEquipmentAffixTierCap(zone, hiddenTierCap) {
     return Math.min(zone && zone.type === 'cosmos' ? 20 : 15, itemTier);
 }
 
+/**
+ * @param {{type?: string, storyOrder?: number, id?: number, depth?: number, equivalentChaosDepth?: number, tier?: number}|null} zone
+ * @param {{isBoss?: boolean, isElite?: boolean}|null} enemy
+ * @returns {{min: number, max: number}}
+ */
+function getRealmItemDropTierRange(zone, enemy) {
+    const maxTier = getRealmEquipmentHiddenTierCap(zone);
+    const width = enemy && enemy.isBoss ? 2 : (enemy && enemy.isElite ? 3 : 4);
+    return { min: Math.max(1, maxTier - width), max: maxTier };
+}
+
+function getDroppedAffixTierRange(itemTier) {
+    const maxTier = clampNumber(Math.floor(Number(itemTier) || 1), 1, 20);
+    return { min: Math.max(1, maxTier - 4), max: maxTier };
+}
+
 function getCraftTierRangeForItem(item, source) {
     let maxTier = getItemCraftTier(item);
     if (maxTier < 11) return { min: 1, max: maxTier };
@@ -7473,6 +7489,11 @@ function pickTierInRangeWeighted(minTier, maxTier) {
     return pool[pool.length - 1].tier;
 }
 
+function rollRealmItemDropTier(zone, enemy) {
+    const range = getRealmItemDropTierRange(zone, enemy);
+    return pickTierInRangeWeighted(range.min, range.max);
+}
+
 function rollAffixValueInTierRange(mod, minTier, maxTier) {
     let statId = mod.statId || mod.id;
     minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 20);
@@ -7715,13 +7736,15 @@ function isKaleidoscopeShieldItem(item) {
 
 function getAvailableModSlotsForItem(item) {
     if (isKaleidoscopeShieldItem(item)) return EQUIPMENT_DROP_SLOTS.slice();
+    // 생장 아이템은 종류(꽃/가지/잎)가 옵션 계열을 결정한다 (spec: 부위 전용 → 종류 전용).
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) return getGrowthCategoryModSlots(item.growthCategory);
     return [item && item.slot].filter(Boolean);
 }
 
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
     let isKaleidoscopeShield = !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
-    let allowedSlots = isKaleidoscopeShield ? EQUIPMENT_DROP_SLOTS.slice() : [item && item.slot].filter(Boolean);
+    let allowedSlots = getAvailableModSlotsForItem(item);
     let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
     let summonOnlyModIds = new Set(['summonFlatDmg', 'summonPctDmg', 'summonHpPct', 'summonAspd', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonCap', 'summonResPen', 'summonGemLevel']);
     let hasSummonBaseStat = item && Array.isArray(item.baseStats)
@@ -7762,6 +7785,7 @@ function rerollChaosInfusionForItem(item, previousInfusion) {
 
 function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let maxTier = Math.max(1, zoneTier);
+    let minTier = clampNumber(Math.floor(Number(options && options.minTier) || 1), 1, maxTier);
     let rerollChaosInfusion = !!(options && options.rerollChaosInfusion);
     let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
     if (rerollChaosInfusion) item.chaosInfusion = null;
@@ -7771,9 +7795,13 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
+    // 생장 아이템은 크기가 옵션 수 상한을 결정한다 (spec 9).
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) count = Math.min(count, getGrowthItemAffixCap(item));
     count = Math.max(0, count - getItemExplicitOptionCount(item) - reservedInfusionCount);
     let mods = pickRandomMods(getAvailableMods(item), count);
-    mods.forEach(mod => item.stats.push(rollAffixValue(mod, maxTier)));
+    mods.forEach(mod => item.stats.push(minTier > 1
+        ? rollAffixValueInTierRange(mod, minTier, maxTier)
+        : rollAffixValue(mod, maxTier)));
     if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
     updateItemName(item);
 }
@@ -8133,6 +8161,7 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
     origin = origin && typeof origin === 'object' ? origin : {};
     const dropRealm = typeof origin.dropRealm === 'string' ? origin.dropRealm : null;
     const affixTierCap = clampNumber(Math.floor(Number(origin.affixTierCap) || Math.min(15, Math.max(1, Number(zoneTier) || 1))), 1, 20);
+    const affixTierFloor = clampNumber(Math.floor(Number(origin.affixTierFloor) || 1), 1, affixTierCap);
     let item = {
         id: itemIdCounter,
         slot: base.slot,
@@ -8147,7 +8176,7 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
         baseStats: rollBaseStats(base, zoneTier),
         stats: []
     };
-    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, affixTierCap);
+    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, affixTierCap, { minTier: affixTierFloor });
     return item;
 }
 
@@ -8352,7 +8381,8 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
     if (!pool || pool.length <= 0) return item;
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     if (item.stats.length >= 6) item.stats.pop();
-    let roll = rollAffixValue(pickWeightedMod(pool), getItemCraftTier(item));
+    let tierRange = getDroppedAffixTierRange(zoneTier);
+    let roll = rollAffixValueInTierRange(pickWeightedMod(pool), tierRange.min, tierRange.max);
     roll.fossilExclusiveDrop = true;
     item.stats.push(roll);
     if (item.rarity === 'normal') item.rarity = 'magic';
@@ -8363,9 +8393,11 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
 function generateEquipmentDrop(enemy) {
     let zone = getZone(game.currentZoneId) || {};
     let hiddenTierCap = getRealmEquipmentHiddenTierCap(zone);
-    let affixTierCap = getRealmEquipmentAffixTierCap(zone, hiddenTierCap);
+    let dropTier = rollRealmItemDropTier(zone, enemy);
+    let affixTierCap = getRealmEquipmentAffixTierCap(zone, dropTier);
+    let affixTierRange = getDroppedAffixTierRange(affixTierCap);
     let slot = rndChoice(EQUIPMENT_DROP_SLOTS);
-    let base = chooseItemBase(slot, hiddenTierCap);
+    let base = chooseItemBase(slot, dropTier);
     let rarity = 'normal';
     let roll = Math.random();
     if (enemy.isBoss) {
@@ -8378,9 +8410,13 @@ function generateEquipmentDrop(enemy) {
         if (roll < 0.006) return generateUniqueItem(hiddenTierCap, slot);
         rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
-    let item = createItemFromBase(base, rarity, hiddenTierCap, { dropRealm: zone.type || null, affixTierCap });
+    let item = createItemFromBase(base, rarity, dropTier, {
+        dropRealm: zone.type || null,
+        affixTierCap,
+        affixTierFloor: affixTierRange.min
+    });
     maybeApplyExceptionalBase(item);
-    item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, hiddenTierCap);
+    item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
     return maybeApplyChaosRealmEncroachment(item, enemy, getZone(game.currentZoneId));
 }
 
@@ -8872,9 +8908,9 @@ function resolveJewelRollOption(option, excludeIds) {
     return rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL.filter(row => JEWEL_SUMMON_OPTION_IDS.has(row.id)));
 }
 
-function rollRandomJewelStat(excludeIds) {
+function rollRandomJewelStat(excludeIds, tierRange) {
     let pool = getJewelRollOptionPool(excludeIds);
-    return rollJewelStat(resolveJewelRollOption(rndChoice(pool), excludeIds));
+    return rollJewelStat(resolveJewelRollOption(rndChoice(pool), excludeIds), tierRange);
 }
 
 const JEWEL_CRAFT_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'pruningShears'];
@@ -8903,11 +8939,11 @@ function setJewelStatsAndRarity(jewel, rarity, stats) {
     jewel.name = `${getJewelRarityLabel(rarity)} 주얼`;
 }
 
-function rollJewelCraftStats(count, keepStats) {
+function rollJewelCraftStats(count, keepStats, tierRange) {
     let stats = (keepStats || []).map(cloneJewelStat).filter(Boolean);
     let usedIds = stats.map(stat => stat.id);
     while (stats.length < count) {
-        let stat = rollRandomJewelStat(usedIds);
+        let stat = rollRandomJewelStat(usedIds, tierRange);
         if (!stat) break;
         stats.push(stat);
         usedIds.push(stat.id);
@@ -8989,11 +9025,15 @@ function cloneJewelStat(stat) {
     return normalized ? { ...normalized } : null;
 }
 
-function rollJewelStat(option) {
+function rollJewelStat(option, tierRange) {
     if (!option) return null;
+    let requestedMinTier = tierRange ? Math.max(1, Math.min(JEWEL_HIDDEN_TIER_COUNT, Math.floor(Number(tierRange.min) || 1))) : 1;
+    let requestedMaxTier = tierRange ? Math.max(requestedMinTier, Math.min(JEWEL_HIDDEN_TIER_COUNT, Math.floor(Number(tierRange.max) || requestedMinTier))) : JEWEL_HIDDEN_TIER_COUNT;
     let ailResIds = new Set(['ailResIgnite','ailResShock','ailResFreeze','ailResPoison','ailResBleed']);
     if (ailResIds.has(option.id)) {
-        let tier = 1 + Math.floor(Math.random() * JEWEL_HIDDEN_TIER_COUNT);
+        let tier = tierRange
+            ? pickTierInRangeWeighted(requestedMinTier, requestedMaxTier)
+            : 1 + Math.floor(Math.random() * JEWEL_HIDDEN_TIER_COUNT);
         let tierRanges = { 1:[12.5,25], 2:[17,30], 3:[22,36], 4:[26,43], 5:[30,50] };
         let rng = tierRanges[tier] || [12.5,50];
         let step = 0.5;
@@ -9005,9 +9045,21 @@ function rollJewelStat(option) {
     let hasDecimalRange = !Number.isInteger(Number(option.min)) || !Number.isInteger(Number(option.max));
     let step = Number.isFinite(option.step) && option.step > 0 ? option.step : (hasDecimalRange ? 0.1 : 1);
     let slots = Math.max(0, Math.floor(((option.max - option.min) / step) + 0.000001));
-    let val = option.min + Math.floor(Math.random() * (slots + 1)) * step;
+    let selectedTier = slots > 0 && tierRange ? pickTierInRangeWeighted(requestedMinTier, requestedMaxTier) : 1;
+    let slotStart = tierRange ? Math.ceil(((selectedTier - 1) * (slots + 1)) / JEWEL_HIDDEN_TIER_COUNT) : 0;
+    let slotEnd = tierRange ? Math.max(slotStart + 1, Math.ceil((selectedTier * (slots + 1)) / JEWEL_HIDDEN_TIER_COUNT)) : slots + 1;
+    let slotIndex = slotStart + Math.floor(Math.random() * Math.max(1, slotEnd - slotStart));
+    let val = option.min + Math.min(slots, slotIndex) * step;
     val = (step < 1 || !Number.isInteger(Number(val))) ? Number(val.toFixed(2)) : Math.floor(val);
-    return normalizeJewelStat({ id: option.id, val: val, valMin: option.min, valMax: option.max });
+    let rolled = { id: option.id, val: val, valMin: option.min, valMax: option.max };
+    if (tierRange && slots > 0) rolled.tier = selectedTier;
+    return normalizeJewelStat(rolled);
+}
+
+function getJewelDropTierRange(zoneTier) {
+    let boundedZoneTier = Math.max(1, Math.min(20, Math.floor(Number(zoneTier) || 1)));
+    let maxTier = Math.max(1, Math.min(JEWEL_HIDDEN_TIER_COUNT, Math.ceil(boundedZoneTier / 4)));
+    return { min: Math.max(1, maxTier - 1), max: maxTier };
 }
 
 function makeFixedJewelStat(statId, val) {
@@ -9033,8 +9085,15 @@ function rollJewelPetiteStat(rarity, excludeIds) {
     return stat;
 }
 
-function generateJewelDrop(zoneTier) {
-    let tier = Math.max(1, Number(zoneTier) || 1);
+/**
+ * @param {number|{type?: string, storyOrder?: number, id?: number, depth?: number, equivalentChaosDepth?: number, tier?: number}} zoneOrTier
+ * @returns {{id: number, name: string, rarity: string, hiddenTier: number, stats: Array<{id: string, val: number, valMin: number, valMax: number, tier: number}>}}
+ */
+function generateJewelDrop(zoneOrTier) {
+    let tier = zoneOrTier && typeof zoneOrTier === 'object'
+        ? getRealmEquipmentHiddenTierCap(zoneOrTier)
+        : Math.max(1, Number(zoneOrTier) || 1);
+    let dropTierRange = getJewelDropTierRange(tier);
     let uniqueChance = Math.max(0.003, Math.min(0.03, 0.002 + (tier / 2000)));
     if (Math.random() < uniqueChance) {
         let pool = UNIQUE_JEWEL_DB.filter(v => !v.ultra);
@@ -9059,7 +9118,7 @@ function generateJewelDrop(zoneTier) {
     else if (rarityRoll > 0.55) rarity = 'magic';
     // 등급별 옵션 줄 수: 일반 0줄(진화의 오브로 제작), 매직 1~2줄, 레어 2~4줄
     let lineCount = rarity === 'rare' ? (2 + Math.floor(Math.random() * 3)) : (rarity === 'magic' ? (1 + Math.floor(Math.random() * 2)) : 0);
-    let stats = rollJewelCraftStats(lineCount);
+    let stats = rollJewelCraftStats(lineCount, null, dropTierRange);
     let hiddenTier = stats.length ? Math.max(1, ...stats.map(st => st.tier || 1)) : 1;
     let name = stats.length ? `${getStatName(stats[0].id)} 주얼` : '미가공 주얼';
     return { id: Date.now() + Math.floor(Math.random() * 100000), name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
@@ -9190,7 +9249,12 @@ function destroySelectedCraftItem(item) {
     if (typeof getCraftSelectionRef !== 'function' || typeof isCraftSelectionEquip !== 'function') return;
     let ref = getCraftSelectionRef();
     if (isCraftSelectionEquip()) game.equipment[ref] = null;
-    else game.inventory = (game.inventory || []).filter(entry => entry !== item);
+    else {
+        game.inventory = (game.inventory || []).filter(entry => entry !== item);
+        game.growthInventory = (game.growthInventory || []).filter(entry => entry !== item);
+        game.recentGrowthDrops = (game.recentGrowthDrops || []).filter(entry => entry !== item);
+    }
+    if (item && typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     if (typeof clearCraftSelection === 'function') clearCraftSelection();
 }
 
@@ -9867,6 +9931,7 @@ function salvageItem(idx) {
     if (!item) return;
     if (item.locked) return addLog(`🔒 잠금된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
     if (!isCraftSelectionEquip() && getCraftSelectionRef() === item.id) clearCraftSelection();
+    if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     salvageItemObject(item, false);
     game.inventory.splice(idx, 1);
     updateStaticUI();
@@ -9943,13 +10008,20 @@ async function toggleJewelAutoSalvage() {
     addLog(`💠 주얼 자동해체 ${game.settings.jewelAutoSalvageEnabled ? '활성화' : '비활성화'}`, 'loot-normal');
 }
 
+// 일괄 해체 보호: 잠금 아이템과 생장판에 배치된 아이템은 대상에서 제외한다.
+function isBulkSalvageProtectedItem(item) {
+    if (!item) return true;
+    if (item.locked) return true;
+    return typeof isGrowthItemPlacedAnywhere === 'function' && isGrowthItemPlacedAnywhere(item.id);
+}
+
 function bulkSalvage(maxRarity) {
     let targetRank = maxRarity === 'normal' ? 0 : 1;
     let kept = [];
     let removed = 0;
     let rewards = {};
     game.inventory.forEach(item => {
-        if (item.locked) kept.push(item);
+        if (isBulkSalvageProtectedItem(item)) kept.push(item);
         else if (getRarityRank(item.rarity) <= targetRank) {
             mergeSalvageRewards(rewards, salvageItemObject(item, true));
             removed++;
@@ -9972,7 +10044,7 @@ async function bulkSalvageSelected() {
     let selectedRarities = getActiveRarityFilterSet();
     if (selectedRarities.length === 0) return addLog('해체할 등급을 먼저 선택하세요. (등급 필터에서 선택)', 'attack-monster');
     let rarityLabels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
-    let targetItems = (game.inventory || []).filter(item => item && !item.locked && selectedRarities.includes(item.rarity));
+    let targetItems = (game.inventory || []).filter(item => item && !isBulkSalvageProtectedItem(item) && selectedRarities.includes(item.rarity));
     let targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('선택한 등급의 해체 가능한 장비가 없습니다.', 'attack-monster');
     let labelText = selectedRarities.map(r => rarityLabels[r] || r).join('/');
@@ -9981,14 +10053,13 @@ async function bulkSalvageSelected() {
         tone: 'danger',
         confirmLabel: `${targetCount}개 해체`
     })) return;
-    let targetSet = new Set(targetItems);
     let kept = [];
     let removed = 0;
     let lockedSkipped = 0;
     let rewards = {};
     game.inventory.forEach(item => {
-        if (targetSet.has(item) && selectedRarities.includes(item.rarity)) {
-            if (item.locked) {
+        if (selectedRarities.includes(item.rarity)) {
+            if (isBulkSalvageProtectedItem(item)) {
                 kept.push(item);
                 lockedSkipped++;
             } else {
@@ -10000,21 +10071,21 @@ async function bulkSalvageSelected() {
         }
     });
     if (removed === 0) {
-        if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 잠금 상태입니다. (잠금 ${lockedSkipped}개)`, 'attack-monster');
+        if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 보호 상태입니다. (잠금/배치 ${lockedSkipped}개)`, 'attack-monster');
         return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
     }
     game.inventory = kept;
     ensureCraftSelectionValid();
-    addLog(`🧪 선택한 등급 장비 ${removed}개 해체 · ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 선택한 등급 장비 ${removed}개 해체 · ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 async function bulkSalvageAllInventory() {
     if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog('해체할 장비가 없습니다.', 'attack-monster');
-    let lockedCount = game.inventory.filter(item => item && item.locked).length;
-    let targetItems = game.inventory.filter(item => item && !item.locked);
+    let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
+    let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
     let salvageCount = targetItems.length;
-    if (salvageCount <= 0) return addLog('🔒 잠금되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
-    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${lockedCount > 0 ? `\n잠금 장비 ${lockedCount}개는 보호됩니다.` : ''}`, {
+    if (salvageCount <= 0) return addLog('🔒 잠금/배치되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
+    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${lockedCount > 0 ? `\n잠금/배치 장비 ${lockedCount}개는 보호됩니다.` : ''}`, {
         title: '인벤토리 전체 해체',
         tone: 'danger',
         confirmLabel: `${salvageCount}개 해체`
@@ -10023,12 +10094,12 @@ async function bulkSalvageAllInventory() {
     let kept = [];
     let rewards = {};
     game.inventory.forEach(item => {
-        if (!targetSet.has(item) || (item && item.locked)) kept.push(item);
+        if (!targetSet.has(item) || isBulkSalvageProtectedItem(item)) kept.push(item);
         else mergeSalvageRewards(rewards, salvageItemObject(item, true));
     });
     game.inventory = kept;
     if (!isCraftSelectionEquip()) clearCraftSelection();
-    addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개) · ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? ` · 잠금 ${lockedCount}개 보호` : ''}`, 'loot-normal');
+    addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개) · ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? ` · 잠금/배치 ${lockedCount}개 보호` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 
@@ -10247,8 +10318,10 @@ async function useCurrency(currencyKey) {
     let item = getSelectedCraftItem();
     if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog("오브가 부족합니다.", "attack-monster");
+    // 석판은 정체성이 곧 효과라 제작 재화를 받지 않는다.
+    if (item.growthCategory === 'slab') return addLog("석판은 제작할 수 없습니다.", "attack-monster");
     let actionKey = currencyKey;
-    if (currencyKey === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'augment';
+    if (currencyKey === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'alteration';
     if (currencyKey === 'sapBud') actionKey = item.rarity === 'magic' ? 'regal' : 'exalted';
     if (currencyKey === 'formlessDew') actionKey = item.rarity === 'normal' ? 'alchemy' : 'chaos';
     if (currencyKey === 'goldenRule') actionKey = 'divine';
@@ -10259,12 +10332,15 @@ async function useCurrency(currencyKey) {
     if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(currencyKey)) return addLog("융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.", "attack-monster");
 
+    // 생장 아이템은 크기가 옵션 상한을 결정하므로 6줄 대신 크기 상한을 쓴다 (spec 9).
+    let explicitCap = (typeof isGrowthItem === 'function' && isGrowthItem(item)) ? getGrowthItemAffixCap(item) : 6;
+    let magicCap = (typeof isGrowthItem === 'function' && isGrowthItem(item)) ? Math.min(2, explicitCap) : 2;
     let ok = false;
     if (actionKey === 'transmute') ok = item.rarity === 'normal';
-    else if (actionKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
+    else if (actionKey === 'alteration') ok = item.rarity === 'magic';
     else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
-    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
-    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;
+    else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < explicitCap;
+    else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < explicitCap;
     else if (actionKey === 'chaos') ok = item.rarity === 'rare';
     else if (actionKey === 'divine') ok = item.rarity !== 'normal';
     else if (actionKey === 'chance') ok = item.rarity === 'normal';
@@ -10345,8 +10421,11 @@ async function useCurrency(currencyKey) {
     }
     let guaranteedMod = getSporeGuaranteedMod();
     let consumedSpore = false;
-    let sporeAffixCurrencies = ['transmute', 'augment', 'alchemy', 'exalted', 'regal', 'chaos'];
-    let rerollSporeCurrencies = ['transmute', 'alchemy', 'chaos'];
+    // alteration은 transmute처럼 옵션을 통째로 다시 굴린다. 마법의 새싹이 매직
+    // 아이템에서 이 경로를 타게 되면서, 두 목록에 함께 넣지 않으면 홀씨 모드를
+    // 켜도 아무 일 없이 지나가 버린다(소모도 보장도 없음).
+    let sporeAffixCurrencies = ['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos'];
+    let rerollSporeCurrencies = ['transmute', 'alteration', 'alchemy', 'chaos'];
     let usesSporeAffix = sporeAffixCurrencies.includes(actionKey);
     let isRerollSporeCurrency = rerollSporeCurrencies.includes(actionKey);
     let needsPrecheck = usesSporeAffix && !isRerollSporeCurrency;
@@ -10382,11 +10461,7 @@ async function useCurrency(currencyKey) {
                 applyGuaranteedToNonLocked(guaranteedMod);
             } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
         }
-    } else if (actionKey === 'augment') {
-        let mod = guaranteedMod || pickWeightedMod(getAvailableMods(item));
-        if (mod) item.stats.push((mod === guaranteedMod) ? rollSporeGuaranteedValue(mod) : rollAffixValue(mod, getItemCraftTier(item)));
-        updateItemName(item);
-    } else if (currencyKey === 'alteration') {
+    } else if (actionKey === 'alteration') {
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
             if (guaranteedMod) {
@@ -10436,12 +10511,18 @@ async function useCurrency(currencyKey) {
     } else if (actionKey === 'chance') {
         if (Math.random() < 0.25) {
             destroySelectedCraftItem(item);
-            addLog('💥 기회의 오브: 장비가 파괴되었습니다.', 'attack-monster');
+            addLog('💥 기회의 오브: 아이템이 파괴되었습니다.', 'attack-monster');
         } else {
-            let unique = generateUniqueItem(Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1)), item.slot);
+            let tier = Math.max(1, Math.floor(item.hiddenTier || item.itemTier || 1));
+            let isGrowth = typeof isGrowthItem === 'function' && isGrowthItem(item);
+            let unique = isGrowth ? generateGrowthUniqueItem(tier) : generateUniqueItem(tier, item.slot);
+            if (!unique) return addLog('승급할 수 있는 고유가 없습니다.', 'attack-monster');
+            let previousId = item.id;
             Object.keys(item).forEach(key => delete item[key]);
             Object.assign(item, unique);
-            addLog(`🌟 기회의 오브: [${item.name}] 고유 장비로 진화했습니다.`, 'loot-unique');
+            // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
+            item.id = previousId;
+            addLog(`🌟 기회의 오브: [${item.name}] 고유로 진화했습니다.`, 'loot-unique');
         }
     } else if (actionKey === 'annulment') {
         let removable = getAnnulmentRemovableStats(item);
@@ -10457,7 +10538,8 @@ async function useCurrency(currencyKey) {
         updateItemName(item);
     } else if (actionKey === 'tainted') {
         item.corrupted = true;
-        if (Math.random() < 0.35) {
+        if (typeof isGrowthItem === 'function' && isGrowthItem(item)) applyGrowthCorruptionOutcome(item);
+        else if (Math.random() < 0.35) {
             let mod = pickWeightedMod(getAvailableMods(item));
             if (mod) {
                 item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
@@ -10504,6 +10586,8 @@ async function useCurrency(currencyKey) {
         });
     }
     let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
+    // 제작으로 태그/크기/옵션이 바뀔 수 있으므로 공간 시너지 캐시를 무효화한다.
+    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }
@@ -10543,6 +10627,10 @@ async function exchangeAtMarket(exchangeId, exchangeAll) {
 }
 
 safeExposeGlobals({
+    getRealmEquipmentHiddenTierCap,
+    getRealmItemDropTierRange,
+    getDroppedAffixTierRange,
+    rollRealmItemDropTier,
     getAnnulmentRemovableStats,
     getSporeCraftCost,
     hasSporeCraftCost,

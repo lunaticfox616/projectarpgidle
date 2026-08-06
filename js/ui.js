@@ -1043,11 +1043,11 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'growthboard', 'map', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
-    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }] },
+    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '꽃·가지·잎·석판을 판에 배치합니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'codex', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
 });
 
@@ -1058,7 +1058,7 @@ const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal'] },
-    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube'] },
+    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube', 'tab-growthboard'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
 function getOrderedTabGroups() {
@@ -1505,6 +1505,13 @@ function updateTabUnlockButtons() {
     let battleBtn = document.getElementById('btn-tab-battle');
     if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
     syncMergedTabLauncherVisibility();
+    // 해금 상태가 바뀌면 "열려 있는" 병합 창의 내부 탭 목록과 표시 중인 화면도 다시 맞춘다.
+    // 이게 없으면 루프 정산으로 큐브가 잠긴 뒤에도 큐브 화면이 그대로 남고,
+    // 내부 탭 버튼에 잠긴 탭이 계속 보인다(선택 상태만 조용히 다른 탭으로 바뀐다).
+    Object.entries(MERGED_TAB_GROUPS).forEach(([groupKey, group]) => {
+        let root = document.getElementById(group.launcher);
+        if (root && root.classList.contains('active')) renderMergedTabPanels(groupKey);
+    });
     // 2단 그룹핑이 활성이면 해금 판정 직후 활성 그룹 외 탭을 숨긴다(단일 권위 지점).
     hideOutOfGroupTabButtons();
     // 데스크톱 창형 레일은 그룹 섹션 단위로 표시되므로, 해금 변경 시 빈 그룹을 함께 숨긴다.
@@ -1551,6 +1558,14 @@ function toggleNotiFilter(key){ game.settings=game.settings||{}; game.settings.n
 
 function isMergedTabAvailable(tab) {
     let tabId = typeof tab === 'string' ? tab : tab.id;
+    // 큐브·생장판은 game.unlocks 플래그가 아니라 각 시스템의 런타임 판정으로 열린다.
+    // 해금 권위를 그 시스템에 두고 탭 노출은 판정을 그대로 읽는다.
+    if (tabId === 'tab-cube') {
+        return !!(game.unlocks && game.unlocks.cube) || (typeof isCoreCubeUnlocked === 'function' && isCoreCubeUnlocked());
+    }
+    if (tabId === 'tab-growthboard') {
+        return typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked();
+    }
     let gateKey = (tab && typeof tab === 'object' && tab.gate) || TAB_UNLOCK_GATES[tabId];
     if (gateKey === 'codex' && !isCodexTabUnlockReady()) return false;
     return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
@@ -1666,7 +1681,19 @@ function openMergedTabPicker(event, groupKey) {
     switchMergedTabSubtab(groupKey, selectedTabId, { keepWindowOpen: false });
 }
 
-safeExposeGlobals({ openMergedTabPicker, switchMergedTabSubtab });
+// 특정 탭을 "그 탭이 실제로 보이는 상태"로 연다.
+// tab-flask처럼 병합 그룹의 런처인 탭은 switchTab만으로는 창만 열리고 안쪽 화면은
+// 마지막에 보던 탭(주얼 등)이 그대로여서, 누른 것과 다른 화면이 뜬다.
+function openTabPane(tabId) {
+    let mergedEntry = getMergedTabGroup(tabId);
+    if (mergedEntry) {
+        switchMergedTabSubtab(mergedEntry[0], tabId);
+        return;
+    }
+    switchTab(tabId);
+}
+
+safeExposeGlobals({ openMergedTabPicker, switchMergedTabSubtab, openTabPane });
 
 function renderMergedTabSubtabs(tabId) {
     renderMergedTabPanels(tabId);
@@ -4715,6 +4742,7 @@ function storeUniqueToCodexByItemId(itemId) {
         game.inventory[idx] = swapped;
         addLog(`🔁 도감 교체: [${item.name}] 등록, [${swapped.name}] 인벤토리로 반환`, 'season-up');
     } else {
+        if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
         game.inventory.splice(idx, 1);
         addLog(`📚 도감 등록: [${item.name}]`, 'season-up');
     }
@@ -6282,6 +6310,12 @@ function getItemStatToneColor(statId) {
 }
 
 function getItemSlotDisplayLabel(item, fallbackLabel) {
+    // 생장 아이템은 부위가 아니라 종류(꽃/가지/잎/석판)로 식별한다. 모두 1칸이라 크기는 표기하지 않는다.
+    // item.slot은 옵션 풀·화석 계열 판정을 위한 내부 매핑일 뿐이라 사용자에게 노출하지 않는다.
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) {
+        let info = (typeof GROWTH_CATEGORY_INFO !== 'undefined' && GROWTH_CATEGORY_INFO[item.growthCategory]) || null;
+        return info ? info.label : '생장';
+    }
     let rawSlot = item && item.slot !== undefined && item.slot !== null ? item.slot : null;
     if (rawSlot === null && item && Array.isArray(item.slots) && item.slots.length > 0) rawSlot = item.slots[0];
     let label = rawSlot !== null ? rawSlot : (fallbackLabel || '장비');
@@ -7067,14 +7101,17 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let bodyClips = frames.characterAnimations || {};
         let clipLoop = frames.clipLoop || {};
         let activeEnemies = (game.enemies || []).filter(enemy => enemy.hp > 0).length;
-        let isAdvancing = activeEnemies === 0 && game.moveTimer <= 0 && game.runProgress < 100;
+        // 지역 이동(적 없음)과 전투 중 칸 이동을 구분해서 쓴다. 걷기 프레임은 둘 다,
+        // 공격 모션 억제는 지역 이동일 때만 — 칸을 좁히다가 남은 스윙 이펙트가 잘리지 않게 한다.
+        let isMapAdvancing = activeEnemies === 0 && game.moveTimer <= 0 && game.runProgress < 100;
+        let isAdvancing = typeof isPlayerWalkingForAnimation === 'function' ? isPlayerWalkingForAnimation() : isMapAdvancing;
         let advanceBlend = clampNumber(Number.isFinite(motionState.advanceBlend) ? motionState.advanceBlend : (isAdvancing ? 1 : 0), 0, 1);
         let attackBlend = clampNumber(Number.isFinite(motionState.attackBlend) ? motionState.attackBlend : 0, 0, 1);
         let hurtBlend = clampNumber(Number.isFinite(motionState.hurtBlend) ? motionState.hurtBlend : (flash ? 1 : 0), 0, 1);
         let downFx = battleFx.filter(fx => fx.type === 'playerDown' && now - fx.start <= fx.duration).slice(-1)[0];
         let downPhase = downFx ? clampNumber((now - downFx.start) / downFx.duration, 0, 0.999) : null;
         let downBlend = clampNumber(Number.isFinite(motionState.downBlend) ? motionState.downBlend : (downPhase !== null ? 1 : 0), 0, 1);
-        let isAttacking = !isAdvancing && (attackBlend > 0.12 || Math.abs(swingPower) > 0.14);
+        let isAttacking = !isMapAdvancing && (attackBlend > 0.12 || Math.abs(swingPower) > 0.14);
         let idleCycle = Array.isArray(bodyClips.idle) && bodyClips.idle.length > 0 ? bodyClips.idle : (Array.isArray(frames.idle) && frames.idle.length > 0 ? frames.idle : [frames.sideIdle, frames.frontIdle, frames.frontGuard].filter(Boolean));
         let walkCycle = Array.isArray(bodyClips.walk_or_run) && bodyClips.walk_or_run.length > 0 ? bodyClips.walk_or_run : (Array.isArray(frames.walk) && frames.walk.length > 0 ? frames.walk : [frames.sideWalk, frames.sideIdle, frames.frontGuard].filter(Boolean));
         let runCycle = walkCycle;
@@ -7713,12 +7750,12 @@ function renderCombatFlaskHud() {
     host.dataset.signature = signature;
     let socketEntries = [healEntry, utilityEntries[0] || null, utilityEntries[1] || null];
     let buttons = socketEntries.map(entry => entry
-        ? `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="switchTab('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`
+        ? `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="openTabPane('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`
         : '<span class="combat-flask-mini empty" aria-hidden="true"></span>');
     let overflowEntries = utilityEntries.slice(2).filter(Boolean);
     if (overflowEntries.length > 0) {
         let overflowTitle = overflowEntries.map(entry => `${entry.name} · ${entry.charges}/${entry.maxCharges}회`).join(' / ');
-        buttons.push(`<button type="button" class="combat-flask-mini overflow" title="${escapeHTML(overflowTitle)}" onclick="switchTab('tab-flask')"><span>+${overflowEntries.length}</span></button>`);
+        buttons.push(`<button type="button" class="combat-flask-mini overflow" title="${escapeHTML(overflowTitle)}" onclick="openTabPane('tab-flask')"><span>+${overflowEntries.length}</span></button>`);
     }
     host.innerHTML = buttons.join('');
 }
@@ -8429,7 +8466,7 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-poison-chance').innerText = Math.max(0, pStats.poisonChance || 0).toFixed(1);
     document.getElementById('ui-bleed-chance').innerText = Math.max(0, pStats.bleedChance || 0).toFixed(1);
     document.getElementById('ui-move-spd').innerText = Math.floor(pStats.moveSpeed);
-    document.getElementById('ui-dr').innerText = Math.floor(pStats.dr);
+    document.getElementById('ui-dr').innerText = formatCappedResistanceValue(pStats.dr, pStats.rawDr);
     let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = formatSettingNumber(pStats.armor || 0, 'showCharacterComma');
     let evasionEl = document.getElementById('ui-evasion'); if (evasionEl) evasionEl.innerText = formatSettingNumber(pStats.evasion || 0, 'showCharacterComma');
     let esEl = document.getElementById('ui-es'); if (esEl) esEl.innerText = formatSettingNumber(pStats.energyShield || 0, 'showCharacterComma');
@@ -8858,18 +8895,24 @@ function renderEquipmentLoadoutSummary(pStats) {
 
 function updateInventoryFullWarnings() {
     let changed = false;
+    // 보조장비 탭 하나가 주얼과 생장 보관함을 함께 품는다. 배지는 하나뿐이므로
+    // 둘 중 하나라도 가득 차면 켜고, 어느 쪽이 찼는지는 툴팁으로 알린다.
     let warnings = [
-        ['inventory-full-warning', game.inventory || [], getInventoryLimit()],
-        ['jewel-inventory-full-warning', game.jewelInventory || [], getJewelInventoryLimit()]
+        ['inventory-full-warning', [['장비', game.inventory || [], getInventoryLimit()]]],
+        ['jewel-inventory-full-warning', [
+            ['주얼', game.jewelInventory || [], getJewelInventoryLimit()],
+            ['생장', game.growthInventory || [], typeof getGrowthInventoryLimit === 'function' ? getGrowthInventoryLimit() : Infinity]
+        ]]
     ];
-    warnings.forEach(([id, entries, limit]) => {
+    warnings.forEach(([id, sources]) => {
         let element = document.getElementById(id);
         if (!element) return;
-        let isFull = entries.length >= limit;
-        let nextDisplay = isFull ? 'inline-block' : 'none';
+        let full = sources.filter(([, entries, limit]) => entries.length >= limit);
+        let nextDisplay = full.length ? 'inline-block' : 'none';
         if (element.style.display !== nextDisplay) changed = true;
         element.style.display = nextDisplay;
-        element.title = isFull ? `${entries.length}/${limit}칸 · 공간을 확보하세요` : '';
+        element.title = full.map(([label, entries, limit]) => `${label} ${entries.length}/${limit}칸`).join(' · ');
+        if (element.title) element.title += ' · 공간을 확보하세요';
     });
     if (changed && document.body.classList.contains('desktop-windowed-ui') && typeof syncDesktopRailGroups === 'function') {
         syncDesktopRailGroups();
@@ -8890,6 +8933,12 @@ function syncInventoryExpansionShortcuts() {
             unlocked: isMarketUnlocked() && (game.season || 1) >= 5,
             cost: getJewelMarketExpandCost(),
             currentLimit: getJewelInventoryLimit()
+        },
+        {
+            id: 'btn-growth-inventory-expand',
+            unlocked: isMarketUnlocked() && typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked(),
+            cost: getGrowthMarketExpandCost(),
+            currentLimit: getGrowthInventoryLimit()
         }
     ];
     controls.forEach(control => {
@@ -8936,8 +8985,12 @@ function performUpdateStaticUI() {
         calculateReachableNodes();
         refreshPassiveVisibility();
     }
-    normalizeSupportLoadout(true);
+    // 한 번 계산한 스탯을 보조 젬 정리에 그대로 넘긴다. 정리가 실제로 젬을 내렸을 때만
+    // (한도가 줄어든 드문 프레임) 다시 계산한다.
+    // 폴백 스탯(아직 전투 모듈이 준비되지 않은 초기 부팅)은 suppCap이 0이라 넘기면 안 된다.
+    // 넘기면 부팅 한 프레임 만에 장착한 보조 젬이 전부 해제된다.
     let pStats = getUiPlayerStats();
+    if (normalizeSupportLoadout(true, pStats.__uiFallbackStats ? null : pStats)) pStats = getUiPlayerStats();
     __mark('stats');
     cachedTooltipStats = pStats;
     updateCombatUI(pStats);
@@ -9020,6 +9073,7 @@ function performUpdateStaticUI() {
     // 재구성하면 탭 전환·주기적 갱신마다 큰 렉이 발생한다. 활성 탭의 패널만 재구성한다.
     // (탭 전환 시 switchTab이 updateStaticUI를 다시 호출하므로 진입 시 정상 갱신된다.)
     let itemsTabActive = activeTabId === 'tab-items';
+    if (activeTabId === 'tab-growthboard' && typeof renderGrowthTab === 'function') renderGrowthTab();
     let jewelTabActive = activeTabId === 'tab-jewel';
     let talismanTabActive = activeTabId === 'tab-talisman';
     const sf = getSearchFilterState();
@@ -9036,6 +9090,7 @@ function performUpdateStaticUI() {
     renderPaperdoll('ui-craft-equip-list', true);
     renderPaperdoll('ui-fossil-equip-list', true);
     if (document.getElementById('ui-infuser-equip-list')) renderPaperdoll('ui-infuser-equip-list', true);
+    if (typeof renderGrowthCraftTargetLists === 'function') renderGrowthCraftTargetLists();
     document.getElementById('ui-inv-count').innerText = game.inventory.length;
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
@@ -9393,7 +9448,7 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
         const underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
         const hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
         const matched = matchSearchQuery(hay, sf.equip);
-        return shouldBulkSalvageBySearch(matched, !!salvageUnmatched) && !item.locked;
+        return shouldBulkSalvageBySearch(matched, !!salvageUnmatched) && !isBulkSalvageProtectedItem(item);
     });
     const targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('해체 대상이 없습니다.', 'attack-monster');
@@ -9407,14 +9462,14 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
     (game.inventory || []).forEach(item => {
         if (!item) return;
         if (!targetSet.has(item)) return survivors.push(item);
-        if (item.locked) { lockedSkipped++; return survivors.push(item); }
+        if (isBulkSalvageProtectedItem(item)) { lockedSkipped++; return survivors.push(item); }
         if (typeof mergeSalvageRewards === 'function') mergeSalvageRewards(rewards, salvageItemObject(item, true));
         else salvageItemObject(item, true);
         removed++;
     });
     game.inventory = survivors;
     let rewardText = typeof formatSalvageRewardSummary === 'function' ? ` · ${formatSalvageRewardSummary(rewards)}` : '';
-    addLog(`🧪 장비 ${removed}개 해체 완료${rewardText}${lockedSkipped > 0 ? ` (잠금 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 장비 ${removed}개 해체 완료${rewardText}${lockedSkipped > 0 ? ` (잠금/배치 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 async function bulkSalvageJewelsBySearch(salvageUnmatched) {
@@ -10246,7 +10301,11 @@ function exposeUiRenderHelpersOnce() {
         showPlayerExperienceTooltip,
         showPlayerRuntimeEffectTooltip,
         showPlayerNamedEffectTooltip,
-        showPlayerCosmosDebuffTooltip
+        showPlayerCosmosDebuffTooltip,
+        // 생장판 UI(js/growth-ui.js)가 보관함 필터/검색을 그대로 재사용한다.
+        isItemRarityVisible,
+        getSearchFilterState,
+        matchSearchQuery
     };
     let pending = {};
     Object.keys(helpers).forEach(key => {
@@ -11181,7 +11240,7 @@ function buildCraftActionButtons(item) {
         let shapeStyle = shape ? getTalismanShapeStyle(shape) : null;
         let valid = isTalismanBoardCellValid(x,y);
         let coreOpen = isTalismanCellInitiallyUnlocked(x, y);
-        if (!valid) return `<div style="width:42px; height:42px; border:0; background:transparent; border-radius:8px; opacity:0; pointer-events:none;"></div>`;
+        if (!valid) return `<div style="width:var(--talisman-cell); height:var(--talisman-cell); border:0; background:transparent; border-radius:8px; opacity:0; pointer-events:none;"></div>`;
         let cellColor = coreOpen ? 'radial-gradient(circle at 30% 25%, #595f69 0%, #3a3f48 52%, #1f2329 100%)' : (!unlocked ? 'linear-gradient(180deg, #05070c 0%, #0b0e14 100%)' : 'radial-gradient(circle at 30% 25%, #666c76 0%, #434a54 58%, #252b32 100%)');
         if (id) cellColor = (shapeStyle ? `linear-gradient(145deg, rgba(255,255,255,0.3) 0%, ${shapeStyle.color} 42%, rgba(10,12,17,0.22) 100%)` : '#355d46');
         let label = '';
@@ -11209,7 +11268,7 @@ function buildCraftActionButtons(item) {
                 ? ' talisman-placement-valid'
                 : ' talisman-placement-invalid';
         }
-        return `<button class="talisman-board-cell${placementClass}" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:42px; height:42px; border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
+        return `<button class="talisman-board-cell${placementClass}" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:var(--talisman-cell); height:var(--talisman-cell); border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     }
     let talismanTotalEl = talismanTabActive ? document.getElementById('ui-talisman-total') : null;
@@ -12557,8 +12616,12 @@ function mergeDefaults(save) {
         return { ...jewel, rarity: ['normal', 'magic', 'rare', 'unique'].includes(jewel.rarity) ? jewel.rarity : 'normal', waxedByBeeswax: !!jewel.waxedByBeeswax || hasWaxBonus, hiddenTier: hiddenTier, stats: stats.slice(0, statLimit), locked: !!jewel.locked };
     }
     merged.jewelInventory = Array.isArray(merged.jewelInventory) ? merged.jewelInventory.map(normalizeJewelRecord).filter(Boolean) : [];
-    let jewelInventoryCap = JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0))) * 5);
-    merged.jewelInventory = merged.jewelInventory.slice(0, jewelInventoryCap);
+    // 한도를 넘은 주얼을 잘라내지 않는다. 전투 드랍은 보관함이 가득 차도 희귀·고유
+    // 주얼만은 유실 방지로 한도를 넘겨 보관하는데(combat.js의 protectOverflow),
+    // 여기서 잘라내면 바로 그 아껴 둔 주얼이 다음 불러오기에 조용히 사라졌다.
+    // 게다가 앞에서부터 40개를 남기므로 가장 최근에 지켜 낸 것이 먼저 지워진다.
+    // 장비 보관함도 같은 이유로 자르지 않고 초과 보관을 허용한다(유실 방지).
+    // 새로 넣는 쪽은 각 push 지점이 getJewelInventoryLimit()으로 계속 막는다.
     // 심연 군주(워록 wlk8)가 주얼 슬롯을 2칸 추가로 제공하므로 최대 4슬롯까지 보존한다.
     merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 4).map(normalizeJewelRecord) : [null, null];
     while (merged.jewelSlots.length < 2) merged.jewelSlots.push(null);
@@ -12605,7 +12668,12 @@ function mergeDefaults(save) {
     merged.starWedge.entriesCleared = Math.max(0, Math.floor(clampFiniteNumber(merged.starWedge.entriesCleared, 0, 0)));
     merged.starWedge.firstClearDone = !!merged.starWedge.firstClearDone;
     merged.starWedge.selectedWedgeId = Number.isFinite(merged.starWedge.selectedWedgeId) ? merged.starWedge.selectedWedgeId : null;
-    merged.starWedge.wedges = Array.isArray(merged.starWedge.wedges) ? merged.starWedge.wedges.filter(w => w && Number.isFinite(w.id) && Array.isArray(w.lines)).slice(0, 60) : [];
+    // 보유 별쐐기는 잘라내지 않는다. 획득 경로(드랍·제작) 어디에도 보유 한도 검사가
+    // 없고 화면에도 한도 표시가 없는데, 여기서만 60개로 잘라 초과분이 조용히 사라졌다.
+    // 앞에서부터 남기므로 가장 최근에 얻은 것이 먼저 지워진다(별쐐기 하나가
+    // 운석 파편 77개 + 불완전한 별쐐기 1개다). 장비·주얼 보관함과 같이 그대로 둔다.
+    // 장착 수는 아래 sockets 상한(천문학자 레벨)이 계속 제한한다.
+    merged.starWedge.wedges = Array.isArray(merged.starWedge.wedges) ? merged.starWedge.wedges.filter(w => w && Number.isFinite(w.id) && Array.isArray(w.lines)) : [];
     let mergedAstronomerLevel = merged.expertise && merged.expertise.levels ? merged.expertise.levels.astronomer : 1;
     let starWedgeSocketCap = typeof getMaxEquippedStarWedgesForLevel === 'function' ? getMaxEquippedStarWedgesForLevel(mergedAstronomerLevel) : MAX_STAR_WEDGES;
     merged.starWedge.sockets = Array.isArray(merged.starWedge.sockets) ? merged.starWedge.sockets.filter(s => s && typeof s.nodeId === 'string' && Number.isFinite(s.wedgeId)).slice(0, starWedgeSocketCap) : [];
@@ -12757,6 +12825,7 @@ function mergeDefaults(save) {
     merged.settings.autoSalvageEnabled = !!merged.settings.autoSalvageEnabled;
     merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
     merged.settings.autoSalvageRarities = { ...(defaultGame.settings.autoSalvageRarities || {}), ...(merged.settings.autoSalvageRarities || {}) };
+    merged.settings.growthAutoSalvageRarities = { ...(defaultGame.settings.growthAutoSalvageRarities || {}), ...(merged.settings.growthAutoSalvageRarities || {}) };
     merged.settings.inventoryViewRarities = { ...(defaultGame.settings.inventoryViewRarities || {}), ...(merged.settings.inventoryViewRarities || {}) };
     merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
     merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
@@ -12818,6 +12887,7 @@ function mergeDefaults(save) {
     merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0)) + pendingJournalPassivePoints;
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
+    merged.growthInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.growthInventoryExpandLevel, defaultGame.growthInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
     merged.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(merged.settings.damageNumberFormat) ? merged.settings.damageNumberFormat : 'comma';
     merged.settings.showExpComma = merged.settings.showExpComma !== false;
@@ -12996,6 +13066,10 @@ function mergeDefaults(save) {
         merged.starWedge.unlocked = true;
     }
     merged.saveVersion = defaultGame.saveVersion;
+    // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
+    // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
+    // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.
+    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     return merged;
 }
 
@@ -14856,6 +14930,15 @@ function init() {
     }
     applySeasonContentProgression({ silent: true });
     recoverRuntimeState();
+    // 생장판(추가 시스템) 상태 정규화. 실패해도 게임 부팅을 막지 않되 원인을 남긴다.
+    try {
+        ensureGrowthBoardState();
+        syncGrowthBoardUnlocks({ silent: true });
+        validateGrowthPlacements();
+    } catch (error) {
+        console.error('growth board init failed:', error);
+        addLog('⚠️ 생장판 초기화 중 오류가 발생했습니다. 콘솔 로그를 확인해 주세요.', 'loot-rare');
+    }
     unlockPassiveStarEvolution({ silent: true });
     window.__battleAssetAutoloadEnabled = false;
     scheduleDeferredBattleAssetLoad();
@@ -15309,6 +15392,13 @@ function syncDerivedTabUnlock(tabId) {
 function checkUnlocks() {
     let u = game.unlocks;
     let starterTutorialGem = getStarterGemTutorialTarget();
+    if (typeof syncGrowthBoardUnlocks === 'function') syncGrowthBoardUnlocks();
+    if (typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked() && !(game.seenTutorials || []).includes('unlock_growth_board')) {
+        game.noti.growthboard = true;
+        queueTutorialNotice('unlock_growth_board', '생장판 개방',
+            `루프 ${GROWTH_UNLOCK_LOOP} 달성! 장비와 별개로 자라나는 생장판이 열렸습니다.\n보조장비 탭에서 꽃·가지·잎을 8×4 판에 배치하면 위치와 인접 관계에 따라 공간 시너지가 발동합니다.\n생장 아이템은 전투에서 별도로 드랍되어 최근 획득함에 쌓입니다.`,
+            'tab-flask');
+    }
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
         queueTutorialNotice('tutorial_battle_basics', '전투 기본 가이드', '전투 화면, 피해 숫자, 스킬 범위와 성장 순서를 차례로 알아봅니다.', 'tab-character');
     }
@@ -15345,7 +15435,9 @@ function checkUnlocks() {
     // 도감이 잠겨 있을 때만 인벤토리 전체를 훑는다. (이미 해금된 뒤에도 매 드랍마다
     // O(인벤토리) 스캔을 돌면 대량 처치/드랍 시 스파이크가 생긴다.)
     if (!u.codex) {
-        if (isCodexTabUnlockReady()) {
+        let growthUniqueSeen = (game.recentGrowthDrops || []).some(item => item && item.rarity === 'unique')
+            || (game.growthInventory || []).some(item => item && item.rarity === 'unique');
+        if (isCodexTabUnlockReady() || growthUniqueSeen) {
             u.codex = true;
             game.noti.codex = true;
             queueTutorialNotice('unlock_codex', '도감 탭 개방', '첫 고유 아이템을 획득해 도감이 열렸습니다.\n고유 아이템을 등록/보관하고 도감 보너스를 받을 수 있습니다.', 'tab-codex');

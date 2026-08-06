@@ -19,21 +19,26 @@ const html = fs.readFileSync('index.html', 'utf8');
 const source = fs.readFileSync('js/ui.js', 'utf8');
 const equipmentButton = { hidden: true, disabled: false, textContent: '', title: '' };
 const jewelButton = { hidden: true, disabled: false, textContent: '', title: '' };
+const growthButton = { hidden: true, disabled: false, textContent: '', title: '' };
 const context = {
   Math,
-  game: { maxZoneId: 5, season: 5, currencies: { goldenRule: 2 } },
+  game: { maxZoneId: 5, season: 30, currencies: { goldenRule: 2 } },
   document: {
     getElementById(id) {
       if (id === 'btn-equipment-inventory-expand') return equipmentButton;
       if (id === 'btn-jewel-inventory-expand') return jewelButton;
+      if (id === 'btn-growth-inventory-expand') return growthButton;
       return null;
     }
   },
   isMarketUnlocked() { return context.game.maxZoneId >= 5; },
   getMarketInventoryExpandCost() { return 2; },
   getJewelMarketExpandCost() { return 1; },
+  getGrowthMarketExpandCost() { return 2; },
   getInventoryLimit() { return 30; },
-  getJewelInventoryLimit() { return 20; }
+  getJewelInventoryLimit() { return 20; },
+  getGrowthInventoryLimit() { return 40; },
+  isGrowthBoardUnlocked() { return (context.game.season || 1) >= 25; }
 };
 vm.createContext(context);
 vm.runInContext(readFunctionSource(source, 'syncInventoryExpansionShortcuts'), context);
@@ -47,17 +52,28 @@ assert.strictEqual(jewelButton.hidden, false);
 assert.strictEqual(jewelButton.disabled, false);
 assert.strictEqual(jewelButton.textContent, '+5칸 · 황금률 1');
 assert(jewelButton.title.includes('현재 20칸'));
+assert.strictEqual(growthButton.hidden, false);
+assert.strictEqual(growthButton.textContent, '+5칸 · 황금률 2');
+assert(growthButton.title.includes('현재 40칸'));
 
 context.game.currencies.goldenRule = 0;
 context.syncInventoryExpansionShortcuts();
 assert.strictEqual(equipmentButton.disabled, true, '재화가 부족하면 장비 한도 확장을 누를 수 없어야 한다');
 assert.strictEqual(jewelButton.disabled, true, '재화가 부족하면 주얼 한도 확장을 누를 수 없어야 한다');
+assert.strictEqual(growthButton.disabled, true, '재화가 부족하면 생장 보관함 확장을 누를 수 없어야 한다');
+
+context.game.season = 10;
+context.syncInventoryExpansionShortcuts();
+assert.strictEqual(growthButton.hidden, true, '생장판 해금 전에는 생장 확장 바로가기를 숨겨야 한다');
+context.game.season = 30;
 
 context.game.maxZoneId = 4;
 context.syncInventoryExpansionShortcuts();
 assert.strictEqual(equipmentButton.hidden, true, '거래소 해금 전에는 장비 확장 바로가기를 숨겨야 한다');
 assert.strictEqual(jewelButton.hidden, true, '거래소 해금 전에는 주얼 확장 바로가기를 숨겨야 한다');
+assert.strictEqual(growthButton.hidden, true, '거래소 해금 전에는 생장 확장 바로가기를 숨겨야 한다');
 
 assert(html.includes('id="btn-equipment-inventory-expand"') && html.includes('onclick="marketExpandInventoryByDivine()"'));
 assert(html.includes('id="btn-jewel-inventory-expand"') && html.includes('onclick="marketExpandJewelInventoryByDivine()"'));
+assert(html.includes('id="btn-growth-inventory-expand"') && html.includes('onclick="marketExpandGrowthInventoryByDivine()"'));
 console.log('smoke-inventory-expansion-shortcuts passed');

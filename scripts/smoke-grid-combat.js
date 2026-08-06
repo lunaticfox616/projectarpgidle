@@ -9,6 +9,7 @@ const files = [
   'data/maps.js',
   'data/skills.js',
   'data/items.js',
+  'data/growth-items.js',
   'data/passives.js',
   'data/bosses.js',
   'data/rewards.js',
@@ -676,6 +677,57 @@ assert.ok(!radiusOneCells.some(cell => cell.gx === 4 && cell.gy === 4), '반경 
   context.game.enemies = [primary, adjacent];
   context.runSummonAttackTick(context.getPlayerStats());
   assert.ok(primary.hp < primary.maxHp && adjacent.hp < adjacent.maxHp, '꿰뚫는 이는 주 대상 주변 1칸의 적도 소환수 공격으로 맞춰야 한다');
+}
+
+// ── 걷기 모션 상태: 지역 이동뿐 아니라 전투 중 칸 이동에서도 걸어야 한다 ──
+{
+  const g = context.game;
+  // 적이 없고 지역 이동 중 → 걷기
+  g.enemies = [];
+  g.moveTimer = 0;
+  g.runProgress = 10;
+  assert.strictEqual(context.isPlayerWalkingForAnimation(), true, '적이 없고 지역 이동 중이면 걷는 상태여야 한다');
+
+  // 적이 없고 도착 → 정지
+  g.runProgress = 100;
+  assert.strictEqual(context.isPlayerWalkingForAnimation(), false, '지역 이동이 끝나면 걷는 상태가 아니어야 한다');
+
+  // 전투 중 멀리 있는 적에게 칸을 좁히는 동안 → 걷기
+  context.resetPlayerGridPosition();
+  g.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const chased = makeEnemy(90, 6, 6);
+  chased.hp = 10000;
+  g.enemies = [chased];
+  const pStats = context.getPlayerStats();
+  context.updatePlayerGridEngagement(pStats);
+  assert.strictEqual(context.isPlayerWalkingForAnimation(), true, '사거리 밖 적에게 접근하는 동안 걷는 상태여야 한다');
+
+  // 붙어 있어 더 좁힐 칸이 없으면 제자리걸음이므로 걷지 않는다
+  g.gridPlayer = { gx: 5, gy: 6, gridMoveTimer: 0 };
+  context.updatePlayerGridEngagement(context.getPlayerStats());
+  assert.strictEqual(context.isPlayerWalkingForAnimation(), false, '이미 붙어 있으면 걷는 상태가 아니어야 한다');
+
+  // 전투가 끝나고 지역 이동도 아니면 정지
+  chased.hp = 0;
+  g.runProgress = 100;
+  context.updatePlayerGridEngagement(context.getPlayerStats());
+  assert.strictEqual(context.isPlayerWalkingForAnimation(), false, '적이 전멸하고 이동도 없으면 걷는 상태가 아니어야 한다');
+
+  // 사망·지역 전환 경계에서 접근 플래그가 굳으면 걷기 모션이 그대로 남는다
+  g.enemies = [makeEnemy(91, 7, 7, { hp: 10000 })];
+  g.gridPlayer = { gx: 0, gy: 0, gridMoveTimer: 0 };
+  context.updatePlayerGridEngagement(context.getPlayerStats());
+  assert.strictEqual(g.gridPlayerPursuing, true, '사전 조건: 접근 플래그가 켜져 있어야 한다');
+  context.resetPlayerGridPosition();
+  assert.strictEqual(g.gridPlayerPursuing, false, '그리드 초기화는 접근 플래그를 내려야 한다');
+}
+
+// 두 렌더 경로가 같은 판단을 써야 한다(전장 캔버스 / 스프라이트 선택).
+{
+  const battlefield = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
+  const ui = fs.readFileSync('js/ui.js', 'utf8');
+  assert.ok(battlefield.includes('isPlayerWalkingForAnimation'), '전장 캔버스가 공용 걷기 판단을 써야 한다');
+  assert.ok(ui.includes('isPlayerWalkingForAnimation'), '스프라이트 선택이 공용 걷기 판단을 써야 한다');
 }
 
 console.log('smoke-grid-combat passed');

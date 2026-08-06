@@ -137,7 +137,7 @@ assert(!uiSource.includes('\u{1F9ED} 진행도'), 'the live progress label shoul
 assert(html.includes('css/ui-windows.css?v=20260722-combat-icons2'), 'enemy HUD and shared font CSS cache must refresh');
 assert(html.includes('css/ui-game-overhaul.css?v=20260722-health-menu-skin4'), 'the combat layout CSS cache must refresh');
 assert(html.includes('js/ui.js?v=20260723-merged-tab-window-fix2'), 'the combat UI runtime cache must refresh');
-assert(html.includes('js/state.js?v=20260722-warrior-rage1'), 'the shared game state cache must refresh');
+assert(html.includes('js/state.js?v=20260806-growth-boundaries1'), 'the shared game state cache must refresh');
 assert(html.includes('js/save.js?v=20260719-stutter-fix1'), 'save runtime cache must refresh');
 
 exerciseCloudUpload()

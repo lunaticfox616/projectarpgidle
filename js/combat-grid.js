@@ -99,6 +99,9 @@ function assignEnemyGridCombatProfile(enemy) {
 /** 플레이어를 스폰 칸으로 되돌린다(조우 시작/전장 리셋 시). */
 function resetPlayerGridPosition() {
     game.gridPlayer = { gx: COMBAT_GRID_CONFIG.playerSpawn.gx, gy: COMBAT_GRID_CONFIG.playerSpawn.gy, gridMoveTimer: 0 };
+    // 접근 중 플래그는 전투 틱이 매번 다시 정한다. 사망·지역 이동처럼 틱이 끊기는
+    // 경계에서 켜진 채로 남으면 걷기 모션이 그대로 굳으므로 여기서 내려 둔다.
+    game.gridPlayerPursuing = false;
 }
 
 /**

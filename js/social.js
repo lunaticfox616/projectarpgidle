@@ -227,6 +227,14 @@ function buildProfileSnapshot() {
     let equipment = [];
     let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {};
     Object.keys(eq).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
+    // 생장판에 배치된 아이템은 장비와 별개 시스템이므로 뒤에 이어 붙인다(프로필에서 함께 열람).
+    if (typeof getPlacedGrowthEntries === 'function') {
+        getPlacedGrowthEntries().forEach(entry => {
+            let label = typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(entry.item) : '생장';
+            let snap = buildItemSnapshot(entry.item, label);
+            if (snap) equipment.push(snap);
+        });
+    }
 
     let jewels = [];
     let jslots = (typeof game !== 'undefined' && Array.isArray(game.jewelSlots)) ? game.jewelSlots : [];
@@ -982,8 +990,26 @@ async function openMyProfilePreview() {
     openPlayerProfile(socialLoggedInUserId());
 }
 
-// 장비: 실제 장비창(페이퍼돌) 형태
+// 장비: 고정 슬롯 페이퍼돌 + (있다면) 생장판 배치 목록을 함께 보여준다.
 function renderProfileEquipPaperdoll(equipment) {
+    let rows = (equipment || []).filter(Boolean);
+    let legacySlots = new Set(SOCIAL_EQUIP_SLOTS.concat(['반지3']));
+    let growthRows = rows.filter(it => !legacySlots.has(it.slot));
+    let html = renderProfileLegacyPaperdoll(rows.filter(it => legacySlots.has(it.slot)));
+    if (growthRows.length > 0) html += `<div style="margin-top:8px;color:#8aa0bd;font-size:0.76em;font-weight:700;">🌱 생장판</div>` + renderProfileGrowthList(growthRows);
+    return html;
+}
+
+function renderProfileGrowthList(rows) {
+    return `<div class="social-growth-list">` + rows.map((it, idx) => {
+        let color = socialRarityColor(it.rarity);
+        let key = `gw:${idx}`;
+        socialState.profileTips[key] = renderProfileItemCard(it);
+        return `<div class="social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(it.slot || '생장')}]</div><div class="social-slot-name" style="color:${color};">${socialEscape(it.name)}</div></div>`;
+    }).join('') + `</div>`;
+}
+
+function renderProfileLegacyPaperdoll(equipment) {
     let bySlot = {};
     (equipment || []).forEach(it => { if (it && it.slot) bySlot[it.slot] = it; });
     let slots = SOCIAL_EQUIP_SLOTS.slice();
@@ -1251,6 +1277,10 @@ function injectSocialStyles() {
     .social-paperdoll .social-slot.empty{cursor:default;border:1px dashed #3a4d6e;}
     .social-paperdoll .social-slot-tag{font-size:0.66em;color:var(--copy-muted);font-weight:700;}
     .social-paperdoll .social-slot-name{font-size:0.74em;font-weight:700;line-height:1.15;word-break:break-all;}
+    .social-growth-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;}
+    .social-growth-list .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;border:1px solid #3a4d6e;cursor:pointer;background:linear-gradient(170deg,#101722,#152238);}
+    .social-growth-list .social-slot-tag{font-size:0.66em;color:#8aa0bd;font-weight:700;}
+    .social-growth-list .social-slot-name{font-size:0.74em;font-weight:700;line-height:1.15;word-break:break-all;}
     .social-tal-board{display:grid;gap:2px;justify-content:center;max-width:280px;margin:0 auto;}
     .social-tal-cell{width:100%;aspect-ratio:1/1;border-radius:3px;border:1px solid rgba(120,140,160,0.18);background:#0a0e14;}
     .social-tal-cell.void{border-color:transparent;background:transparent;}

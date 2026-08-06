@@ -446,6 +446,38 @@ function isDualWielding() {
     return !!(mainWeapon && shieldWeapon && shieldWeapon.slot === '무기');
 }
 
+/**
+ * 스탯을 제공하는 아이템 목록 = 고정 슬롯 장비 + 생장판에 배치된 아이템.
+ * 생장판은 장비를 대체하지 않는 추가 시스템이므로 두 출처가 함께 합산된다.
+ * @returns {Array<[string, object]>} [소스 키, 아이템]
+ */
+function getStatSourceItemEntries() {
+    let entries = [];
+    if (typeof getPlacedGrowthEntries === 'function') {
+        getPlacedGrowthEntries().forEach(entry => entries.push([`growth:${entry.item.id}`, entry.item]));
+    }
+    Object.entries(game.equipment || {}).forEach(([slotKey, item]) => {
+        if (item) entries.push([slotKey, item]);
+    });
+    return entries;
+}
+
+/**
+ * 생장 아이템 드랍. 기존 장비 드랍과 독립된 별도 굴림이라 장비 파밍 리듬을 바꾸지 않는다.
+ * 루프 25(생장판 해금) 전에는 아무것도 굴리지 않는다.
+ */
+function rollGrowthItemDrop(enemy, equipmentDropChance) {
+    if (typeof isGrowthBoardUnlocked !== 'function' || !isGrowthBoardUnlocked()) return;
+    // 장비 드랍 확률의 절반 수준으로, 별도 재화처럼 천천히 쌓이게 한다.
+    if (Math.random() >= Math.max(0, Number(equipmentDropChance) || 0) * 0.5) return;
+    let item = generateGrowthDrop(enemy);
+    if (!item || !addDroppedGrowthItem(item)) return;
+    if (!game.settings.showLootLog) return;
+    addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#8fe6a8', duration: 780 });
+    if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#7fd99a', duration: 1200 });
+    addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득! (최근 획득함)`);
+}
+
 
 
 function cleanupConditionGemStates(now) {
@@ -743,6 +775,9 @@ function snapshotWoodsmanBuildState() {
         talismanInventory: game.talismanInventory || [],
         talismanBoard: game.talismanBoard || [],
         talismanPlacements: game.talismanPlacements || {},
+        growthBoard: game.growthBoard || {},
+        growthInventory: game.growthInventory || [],
+        recentGrowthDrops: game.recentGrowthDrops || [],
         starWedge: game.starWedge || {}
     }));
 }
@@ -776,6 +811,10 @@ function enforceWoodsmanBuildLock() {
     game.talismanInventory = JSON.parse(JSON.stringify(snap.talismanInventory));
     game.talismanBoard = JSON.parse(JSON.stringify(snap.talismanBoard));
     game.talismanPlacements = JSON.parse(JSON.stringify(snap.talismanPlacements));
+    if (snap.growthBoard) game.growthBoard = JSON.parse(JSON.stringify(snap.growthBoard));
+    if (snap.growthInventory) game.growthInventory = JSON.parse(JSON.stringify(snap.growthInventory));
+    if (snap.recentGrowthDrops) game.recentGrowthDrops = JSON.parse(JSON.stringify(snap.recentGrowthDrops));
+    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     game.starWedge = JSON.parse(JSON.stringify(snap.starWedge));
 }
 
@@ -1490,7 +1529,8 @@ function markPlayerMovementCompleted() {
 // flaskUtilSlots 베이스 옵션 롤) / T10 이상 0~2개 / '천 개의 유리병'(고유) 장착 시 +3(고정, 다른 보너스와 합산).
 // 전역 상한은 유틸리티 4개(=총 5슬롯: 회복 1 + 유틸 4)로, 향후 다른 출처가 추가되어도 폭주하지 않게 막는다.
 const FLASK_UTILITY_SLOT_HARD_CAP = 4;
-const FLASK_AUTO_TRIGGER_ORDER = ['combat', 'elite', 'boss', 'lowHp'];
+// 유틸리티 슬롯은 여전히 허리띠가 결정한다. 생장판은 별도 시스템이므로 이 계약을 건드리지 않는다.
+const FLASK_AUTO_TRIGGER_ORDER =['combat', 'elite', 'boss', 'lowHp'];
 const FLASK_AUTO_TRIGGER_LABELS = Object.freeze({
     combat: '전투 시작',
     elite: '정예 이상',
@@ -2030,7 +2070,12 @@ function coreLoop() {
         let delta = getConditionGemStatDelta(buff.name, buff.type);
         if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
         if (delta.aspd) pStats.aspd *= (1 + delta.aspd / 100);
-        if (delta.dr) pStats.dr = Math.min(90, (pStats.dr || 0) + delta.dr);
+        if (delta.dr) {
+            // 컨디션 젬 버프는 상한 90까지 올린다. 캐릭터 탭 표기가 "적용값 (비-제한값)"을
+            // 유지하도록 상한 전 합계도 같이 밀어 준다.
+            pStats.rawDr = (pStats.rawDr || pStats.dr || 0) + delta.dr;
+            pStats.dr = Math.min(90, (pStats.dr || 0) + delta.dr);
+        }
         if (delta.regen) pStats.regen += delta.regen;
         if (delta.crit) pStats.crit += delta.crit;
         if (delta.critDmg) pStats.critDmg += delta.critDmg;
@@ -2568,18 +2613,23 @@ function getPlayerStats() {
     let equippedUniqueEffects = [];
     let warriorDualWeaponEffectMultiplier = (game.ascendClass === 'warrior' && hasKeystone('w6') && isDualWielding()) ? 1.5 : 1;
     let scaleStatList = (stats, multiplier) => multiplier === 1 ? (stats || []) : (stats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number(stat.val) * multiplier } : stat);
-    Object.entries(game.equipment || {}).forEach(([equipSlotKey, item]) => {
+    getStatSourceItemEntries().forEach(([equipSlotKey, item]) => {
         if (!item) return;
-        if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && item.slot === '무기') return;
+        let growthItem = typeof isGrowthItem === 'function' && isGrowthItem(item);
+        let isEquippedWeapon = !growthItem && item.slot === '무기';
+        if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && isEquippedWeapon) return;
         let mirrorSourceItem = getMirrorRingSourceItem(equipSlotKey, item);
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '', sourceSlot: equipSlotKey });
         if (mirrorSourceItem && mirrorSourceItem.rarity === 'unique' && mirrorSourceItem.uniqueEffectKey) equippedUniqueEffects.push({ key: mirrorSourceItem.uniqueEffectKey, params: mirrorSourceItem.uniqueEffectParams || null, itemName: mirrorSourceItem.name || '', sourceSlot: getOppositeRingSlotKey(equipSlotKey) });
-        let itemStatMultiplier = item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1;
+        // 생장판: 공간 효과가 부여하는 아이템 단위 배율(공허 고리 2배 등)과 베이스 전용 배율(중계 덩굴손).
+        let growthStatMultiplier = (typeof getGrowthItemStatMultiplier === 'function' && growthItem) ? getGrowthItemStatMultiplier(item.id) : 1;
+        let growthBaseMultiplier = (typeof getGrowthItemBaseMultiplier === 'function' && growthItem) ? getGrowthItemBaseMultiplier(item.id) : 1;
+        let itemStatMultiplier = (isEquippedWeapon ? warriorDualWeaponEffectMultiplier : 1) * growthStatMultiplier;
         let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
         let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(item.quality || 0)));
         let qualityMul = 1 + (qualityValue / 100);
         let qualityMode = typeof getItemQualityAttributeMode === 'function' ? getItemQualityAttributeMode(item) : 'base';
-        let baseQualityMul = qualityMode === 'base' ? qualityMul : 1;
+        let baseQualityMul = (qualityMode === 'base' ? qualityMul : 1) * growthBaseMultiplier;
         let baseSourceStats = cloneItemStatList(item.baseStats).concat(mirrorSourceItem ? cloneItemStatList(mirrorSourceItem.baseStats) : []);
         let itemBaseStats = scaleStatList(baseSourceStats.map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * baseQualityMul).toFixed(2)) } : stat), itemStatMultiplier);
         applyStatsToBucket(gearBase, itemBaseStats);
@@ -2647,6 +2697,9 @@ function getPlayerStats() {
             });
         }
     });
+    // 생장판 공간 시너지: 배치 기하로만 결정되는 정적 보너스를 한 번에 합산한다.
+    // reward 버킷은 평탄/증가 방어와 막기까지 모두 최종 합산식에 포함되므로 여기로 흘려보낸다.
+    if (typeof applyGrowthSpatialStats === 'function') applyGrowthSpatialStats(reward);
     getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
     game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0, 0, 0];
     (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
@@ -3300,7 +3353,11 @@ function getPlayerStats() {
         finalLeechTotalCap += LEECH_BASE_TOTAL_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
         finalLeechInstanceCap += LEECH_BASE_INSTANCE_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
     }
-    let finalDr = Math.min(75, gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr);
+    // 저항과 같은 방식으로 상한 적용 전 합계(rawDr)를 함께 들고 다닌다.
+    // 캐릭터 탭이 "적용값 (비-제한값)"으로 표기하려면 잘리기 전 값이 필요하다.
+    const DR_CAP_PCT = 75;
+    let rawDr = gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr;
+    let finalDr = Math.min(DR_CAP_PCT, rawDr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
     let allowNegativePhysIgnore = false;
     let warriorPhysDamageMultiplier = 1;
@@ -3537,7 +3594,8 @@ function getPlayerStats() {
             let crowdCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
             if (crowdCount >= 3) {
                 finalBaseDmg = Math.floor(finalBaseDmg * 1.20);
-                finalDr = Math.min(75, finalDr + 20);
+                rawDr += 20;
+                finalDr = Math.min(DR_CAP_PCT, rawDr);
             }
         }
         if (hasKeystone('g5')) {
@@ -4001,7 +4059,8 @@ function getPlayerStats() {
     armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
     evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
     finalEnergyShield += (colonyWardBonus.energyShield || 0);
-    finalDr = Math.min(75, finalDr + (colonyWardBonus.dr || 0));
+    rawDr += (colonyWardBonus.dr || 0);
+    finalDr = Math.min(DR_CAP_PCT, rawDr);
     finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
     finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
     finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
@@ -4262,7 +4321,7 @@ function getPlayerStats() {
                 makeSourceLine('패시브', passive.dr + season.dr + ascend.dr + reward.dr, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.dr, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
-            final: `${Math.floor(finalDr)}%`
+            final: rawDr > finalDr ? `${Math.floor(finalDr)}% (상한 ${DR_CAP_PCT}% 적용 · 합계 ${Math.floor(rawDr)}%)` : `${Math.floor(finalDr)}%`
         },
         armor: {
             title: '방어도',
@@ -4530,6 +4589,7 @@ function getPlayerStats() {
         leechInstanceCap: finalLeechInstanceCap,
         leechKeepFullLife: finalLeechKeepFullLife,
         dr: finalDr,
+        rawDr: rawDr,
         physIgnore: finalPhysIgnore,
         allowNegativePhysIgnore: allowNegativePhysIgnore,
         warriorPhysDamageMultiplier: warriorPhysDamageMultiplier,
@@ -4824,14 +4884,28 @@ function getSkillTargets(pStats) {
  */
 function updatePlayerGridEngagement(pStats) {
     let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
-    if (alive.length === 0) return false;
-    if (getSkillTargets(pStats).length > 0) return true;
+    if (alive.length === 0) { game.gridPlayerPursuing = false; return false; }
+    if (getSkillTargets(pStats).length > 0) { game.gridPlayerPursuing = false; return true; }
     let nearest = findNearestGridEnemy(game.gridPlayer, alive);
-    if (!nearest) return false;
+    if (!nearest) { game.gridPlayerPursuing = false; return false; }
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
     advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, interval);
+    // 칸 이동은 주기마다 뚝뚝 끊기지만 "접근 중"이라는 상태는 연속이라, 걷기 모션은
+    // 이 플래그로 판단한다. 다만 이미 붙어 있어 더 좁힐 칸이 없으면(체비쇼프 1)
+    // 제자리걸음이 되므로 걷는 것으로 치지 않는다.
+    game.gridPlayerPursuing = gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, nearest.gx, nearest.gy) > 1;
     return false;
+}
+
+/**
+ * 걷기 모션을 써야 하는 상태인지. 지역 이동(적 없음)과 전투 중 칸 이동을 함께 본다.
+ * 전장 캔버스와 스프라이트 선택이 같은 판단을 쓰도록 한 곳에 둔다.
+ */
+function isPlayerWalkingForAnimation() {
+    let enemiesAlive = (game.enemies || []).some(enemy => enemy && enemy.hp > 0);
+    if (!enemiesAlive) return game.moveTimer <= 0 && game.runProgress < 100;
+    return !!game.gridPlayerPursuing;
 }
 
 
@@ -7000,8 +7074,9 @@ function rollLootForEnemy(enemy) {
             if (game.settings.showLootLog) addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span>${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`, '', { item });
         }
     }
+    rollGrowthItemDrop(enemy, itemChance);
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * challengeRewardMul) {
-        let jewel = generateJewelDrop((getZone(game.currentZoneId) || { tier: 1 }).tier || 1);
+        let jewel = generateJewelDrop(getZone(game.currentZoneId) || { type: 'act', storyOrder: 1 });
         game.jewelInventory = game.jewelInventory || [];
         let jewelRarity = jewel.rarity || 'normal';
         let autoSalvage = !!(game.settings.jewelAutoSalvageEnabled && game.settings.jewelAutoSalvageRarities && game.settings.jewelAutoSalvageRarities[jewelRarity]);
@@ -9978,6 +10053,11 @@ function triggerSeasonReset(options) {
         if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
     });
     let preservedSealedInventory = (game.inventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
+    // 생장판: 해금된 칸 수와 소형 베이스 도감은 영구 성장이라 루프를 건너 유지한다 (spec 20).
+    // 봉인된 생장 아이템은 최근 획득함에 남아 있어도 보존한다.
+    let preservedGrowthUnlockedCells = Math.max(0, Math.floor(((game.growthBoard || {}).unlockedCellCount) || 0));
+    let preservedSealedRecentDrops = (game.recentGrowthDrops || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
+    let preservedSealedGrowthInventory = (game.growthInventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
     let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.ouroboros) || 0));
     let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
     let loopDeepBeforeReset = Math.max(0, Math.floor(game.loopDeepPoints || 0));
@@ -10065,6 +10145,10 @@ function triggerSeasonReset(options) {
     // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
     Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = preservedSealedEquipment[slot]; });
     if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory);
+    // 생장판 초기화: 배치는 비우되 해금 칸(영구 성장)과 봉인 아이템은 유지한다.
+    if (typeof resetGrowthBoardForLoop === 'function') resetGrowthBoardForLoop(preservedGrowthUnlockedCells);
+    game.recentGrowthDrops = preservedSealedRecentDrops;
+    game.growthInventory = preservedSealedGrowthInventory;
     if (preservedWoodsmanTouch > 0) game.currencies.ouroboros = preservedWoodsmanTouch;
     game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;
@@ -10204,4 +10288,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ isPlayerWalkingForAnimation, getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });

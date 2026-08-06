@@ -49,8 +49,25 @@ function getCoreCubeDefaultState() {
         isCompleting: false,
         revealedOptions: [],
         optionMechanism: null,
-        lastPower: null
+        lastPower: null,
+        // 프리셋은 루프를 건너 유지된다. 2번 칸은 1~45 동력원을 모두 한 번씩 써야 열리고,
+        // 한 번 열리면 영구다(사용 이력이 어떤 이유로든 줄어도 다시 잠기지 않는다).
+        presets: [null, null],
+        powersUsedEver: {},
+        presetSlot2Unlocked: false
     };
+}
+
+const CORE_CUBE_PRESET_SLOTS = 2;
+
+function normalizeCoreCubePreset(raw) {
+    if (!raw || typeof raw !== 'object' || !Array.isArray(raw.faces)) return null;
+    let faces = raw.faces.slice(0, CORE_CUBE_FACE_COUNT).map(value => {
+        let n = Math.floor(Number(value) || 0);
+        return n >= CORE_CUBE_POWER_MIN && n <= CORE_CUBE_POWER_MAX ? n : null;
+    });
+    if (faces.length !== CORE_CUBE_FACE_COUNT || faces.some(value => value === null)) return null;
+    return { faces, savedAtLoop: Math.max(0, Math.floor(Number(raw.savedAtLoop) || 0)) };
 }
 
 function normalizeCoreCubeState(raw) {
@@ -69,6 +86,11 @@ function normalizeCoreCubeState(raw) {
         if (n >= CORE_CUBE_POWER_MIN && n <= CORE_CUBE_POWER_MAX && count > 0) powers[n] = count;
     });
     let revealedOptions = Array.isArray(src.revealedOptions) ? src.revealedOptions.filter(row => row && typeof row === 'object') : [];
+    let powersUsedEver = {};
+    Object.keys(src.powersUsedEver || {}).forEach(key => {
+        let n = Math.floor(Number(key) || 0);
+        if (n >= CORE_CUBE_POWER_MIN && n <= CORE_CUBE_POWER_MAX && src.powersUsedEver[key]) powersUsedEver[n] = true;
+    });
     return {
         ...def,
         ...src,
@@ -84,13 +106,23 @@ function normalizeCoreCubeState(raw) {
         isCompleting: false,
         revealedOptions,
         optionMechanism: (src.optionMechanism && typeof src.optionMechanism === 'object') ? src.optionMechanism : null,
-        lastPower: Math.floor(Number(src.lastPower) || 0) || null
+        lastPower: Math.floor(Number(src.lastPower) || 0) || null,
+        presets: Array.from({ length: CORE_CUBE_PRESET_SLOTS }, (_, i) => normalizeCoreCubePreset((src.presets || [])[i])),
+        powersUsedEver: powersUsedEver,
+        presetSlot2Unlocked: !!src.presetSlot2Unlocked
     };
 }
 
+// 정규화 결과를 기존 객체에 덮어써서 참조 정체성을 유지한다.
+// 매번 새 객체로 갈아끼우면, await(확인창)를 사이에 두고 st를 붙들고 있던 코드가
+// 낡은 객체를 수정하게 되어 변경이 통째로 사라진다(재구성 버튼이 먹지 않던 원인).
 function ensureCoreCubeState() {
     if (!window.game) return getCoreCubeDefaultState();
-    game.coreCube = normalizeCoreCubeState(game.coreCube);
+    let normalized = normalizeCoreCubeState(game.coreCube);
+    if (game.coreCube && typeof game.coreCube === 'object') Object.assign(game.coreCube, normalized);
+    else game.coreCube = normalized;
+    // 이미 45종을 채운 예전 저장도 여기서 한 번 걸어 준다.
+    syncCoreCubePresetSlotUnlock(game.coreCube);
     return game.coreCube;
 }
 
@@ -158,7 +190,18 @@ function relockCoreCubeForLoop() {
     let st = ensureCoreCubeState();
     if (!st.everUnlocked) return;
     let keepEverUnlocked = !!st.everUnlocked;
-    game.coreCube = normalizeCoreCubeState({ ...getCoreCubeDefaultState(), everUnlocked: keepEverUnlocked, relockUntilDrop: true });
+    // 프리셋과 동력원 사용 이력은 영구 성장이라 루프를 건너 유지한다.
+    let keepPresets = (st.presets || []).map(normalizeCoreCubePreset);
+    let keepPowersUsedEver = { ...(st.powersUsedEver || {}) };
+    let keepPresetSlot2 = !!st.presetSlot2Unlocked;
+    Object.assign(game.coreCube, normalizeCoreCubeState({
+        ...getCoreCubeDefaultState(),
+        everUnlocked: keepEverUnlocked,
+        relockUntilDrop: true,
+        presets: keepPresets,
+        powersUsedEver: keepPowersUsedEver,
+        presetSlot2Unlocked: keepPresetSlot2
+    }));
     if (game.unlocks) game.unlocks.cube = false;
     if (game.noti) game.noti.cube = false;
 }
@@ -222,14 +265,14 @@ function useCoreCubeBlurred45(count = 1) {
     st.lastPower = lastRolled;
     let summary = Object.keys(gained).map(Number).sort((a, b) => a - b).map(no => `${no}×${gained[no]}`).join(', ');
     addLog(`🧊 흐릿한 45면체 ${useCount}개 해석: ${summary} 동력원 획득`, 'loot-unique');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
 function selectCoreCubeFace(faceIndex) {
     let st = ensureCoreCubeState();
     st.selectedFace = Math.max(0, Math.min(CORE_CUBE_FACE_COUNT - 1, Math.floor(Number(faceIndex) || 0)));
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
 }
 
 function socketCoreCubePower(powerNo) {
@@ -241,8 +284,9 @@ function socketCoreCubePower(powerNo) {
     let n = Math.floor(Number(powerNo) || 0);
     if (!consumeCoreCubePowerFromState(st, n, 1)) return addLog(`${n}의 동력원이 부족합니다.`, 'attack-monster');
     st.faces[faceIndex] = n;
+    markCoreCubePowerUsed(st, n);
     addLog(`🧊 코어 큐브 ${faceIndex + 1}번 면에 ${n}의 동력원 각인`, 'loot-magic');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
@@ -257,9 +301,12 @@ function socketRandomCoreCubePower(allRemaining = false) {
     if (total < targetFaces.length) return addLog('동력원이 부족합니다.', 'attack-monster');
     targetFaces.forEach(idx => {
         let picked = pickRandomCoreCubePowerFromState(st);
-        if (picked !== null && consumeCoreCubePowerFromState(st, picked, 1)) st.faces[idx] = picked;
+        if (picked !== null && consumeCoreCubePowerFromState(st, picked, 1)) {
+            st.faces[idx] = picked;
+            markCoreCubePowerUsed(st, picked);
+        }
     });
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
@@ -293,6 +340,8 @@ async function resetCoreCube() {
         tone: 'danger',
         confirmLabel: '재구성'
     })) return;
+    // 확인창이 열린 사이 다른 코드가 상태를 건드렸을 수 있어 다시 잡는다.
+    st = ensureCoreCubeState();
     st.faces = Array(CORE_CUBE_FACE_COUNT).fill(null);
     st.completed = false;
     st.isCompleting = false;
@@ -300,7 +349,7 @@ async function resetCoreCube() {
     st.optionMechanism = null;
     st.selectedFace = 0;
     addLog('🧊 코어 큐브를 재구성했습니다.', 'season-up');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
 
@@ -317,8 +366,148 @@ function completeCoreCube() {
     st.isCompleting = false;
     if (game.noti) game.noti.cube = true;
     addLog(`✨ 코어 큐브 완성: ${generated.options.map(o => o.text).join(' / ')}`, 'loot-unique');
-    renderCoreCubePanel();
+    renderCoreCubePanel({ force: true });
     updateStaticUI();
+}
+
+// ── 프리셋 ──────────────────────────────────────────────────────────────
+// 마음에 든 조합을 저장해 두면, 다음 루프에 큐브가 다시 열렸을 때 동력원을
+// 쓰지 않고 그대로 되살릴 수 있다. 발현 옵션은 조합에서 결정론적으로 나오므로
+// 6면 숫자만 저장하면 같은 옵션이 그대로 재현된다.
+
+function markCoreCubePowerUsed(st, powerNo) {
+    let n = Math.floor(Number(powerNo) || 0);
+    if (n < CORE_CUBE_POWER_MIN || n > CORE_CUBE_POWER_MAX) return;
+    st.powersUsedEver = (st.powersUsedEver && typeof st.powersUsedEver === 'object') ? st.powersUsedEver : {};
+    st.powersUsedEver[n] = true;
+    syncCoreCubePresetSlotUnlock(st);
+}
+
+/** 2번 저장칸 해금은 한 번 걸리면 영구다. 조건을 만족한 순간 상태에 못을 박는다. */
+function syncCoreCubePresetSlotUnlock(st) {
+    if (!st || st.presetSlot2Unlocked) return;
+    if (getCoreCubeUsedPowerCount(st) >= (CORE_CUBE_POWER_MAX - CORE_CUBE_POWER_MIN + 1)) {
+        st.presetSlot2Unlocked = true;
+        addLog('🧊 동력원 45종을 모두 각인했습니다! 큐브 조합 2번 저장칸이 영구 해금되었습니다.', 'season-up');
+    }
+}
+
+function getCoreCubeUsedPowerCount(st) {
+    let used = (st && st.powersUsedEver) || {};
+    let count = 0;
+    for (let n = CORE_CUBE_POWER_MIN; n <= CORE_CUBE_POWER_MAX; n++) if (used[n]) count++;
+    return count;
+}
+
+/** 2번 칸은 1~45 동력원을 모두 한 번씩 각인하면 열리고, 그 뒤로는 영구히 열려 있다. */
+function isCoreCubePresetSlotUnlocked(slot) {
+    if (Math.floor(Number(slot) || 0) === 0) return true;
+    return !!ensureCoreCubeState().presetSlot2Unlocked;
+}
+
+async function saveCoreCubePreset(slot) {
+    let idx = Math.max(0, Math.min(CORE_CUBE_PRESET_SLOTS - 1, Math.floor(Number(slot) || 0)));
+    if (!isCoreCubePresetSlotUnlocked(idx)) {
+        let used = getCoreCubeUsedPowerCount(ensureCoreCubeState());
+        return addLog(`🧊 2번 저장칸은 1~45 동력원을 모두 각인해야 열립니다. (${used}/${CORE_CUBE_POWER_MAX})`, 'attack-monster');
+    }
+    let st = ensureCoreCubeState();
+    if (!st.faces.every(value => value !== null)) return addLog('6면이 모두 각인된 큐브만 저장할 수 있습니다.', 'attack-monster');
+    // 저장칸을 덮으면 이전 조합은 되돌릴 수 없다. 45종을 다 모아야 열리는 칸이라
+    // 실수 한 번의 대가가 크므로 덮어쓸 때만 확인을 받는다.
+    let existing = normalizeCoreCubePreset(st.presets[idx]);
+    if (existing && typeof requestGameConfirmation === 'function') {
+        let ok = await requestGameConfirmation(
+            `${idx + 1}번 칸의 저장 조합을 덮어씁니다.\n기존: ${existing.faces.slice().sort((a, b) => a - b).join(' / ')}\n새로: ${st.faces.slice().sort((a, b) => a - b).join(' / ')}`,
+            { title: '큐브 조합 덮어쓰기', tone: 'danger', confirmLabel: '덮어쓰기' });
+        if (!ok) return;
+        st = ensureCoreCubeState();
+        if (!st.faces.every(value => value !== null)) return addLog('확인 중 큐브가 바뀌어 저장을 취소했습니다.', 'attack-monster');
+    }
+    st.presets[idx] = { faces: st.faces.slice(), savedAtLoop: Math.max(1, Math.floor(Number(game.season) || 1)) };
+    addLog(`🧊 큐브 조합을 ${idx + 1}번 칸에 저장했습니다. (${st.faces.slice().sort((a, b) => a - b).join(' / ')})`, 'season-up');
+    renderCoreCubePanel({ force: true });
+    updateStaticUI();
+}
+
+function applyCoreCubePreset(slot) {
+    if (!isCoreCubeUnlocked()) return addLog('코어 큐브가 아직 해금되지 않았습니다.', 'attack-monster');
+    let idx = Math.max(0, Math.min(CORE_CUBE_PRESET_SLOTS - 1, Math.floor(Number(slot) || 0)));
+    if (!isCoreCubePresetSlotUnlocked(idx)) return addLog('아직 열리지 않은 저장칸입니다.', 'attack-monster');
+    let st = ensureCoreCubeState();
+    let preset = normalizeCoreCubePreset(st.presets[idx]);
+    if (!preset) return addLog('저장된 조합이 없습니다.', 'attack-monster');
+    // 이미 각인된 큐브가 있으면 재구성을 따로 누르게 하지 않고 여기서 비운다.
+    // 각인된 동력원은 어차피 회수되지 않으므로, 두 번 누르게 해서 얻는 것이 없다.
+    if (st.completed || st.faces.some(value => value !== null)) {
+        st.faces = Array(CORE_CUBE_FACE_COUNT).fill(null);
+        st.completed = false;
+        st.isCompleting = false;
+        st.revealedOptions = [];
+        st.optionMechanism = null;
+        st.selectedFace = 0;
+    }
+    // 동력원을 소모하지 않는다 — 저장해 둔 조합을 그대로 복원하는 것이 이 기능의 목적이다.
+    st.faces = preset.faces.slice();
+    let generated = generateCoreCubeOptions(preset.faces.slice().sort((a, b) => a - b));
+    st.revealedOptions = generated.options;
+    st.optionMechanism = generated.mechanism;
+    st.completed = true;
+    st.isCompleting = false;
+    addLog(`🧊 ${idx + 1}번 저장 조합을 불러왔습니다: ${generated.options.map(o => o.text).join(' / ')}`, 'loot-unique');
+    renderCoreCubePanel({ force: true });
+    updateStaticUI();
+}
+
+function clearCoreCubePreset(slot) {
+    let idx = Math.max(0, Math.min(CORE_CUBE_PRESET_SLOTS - 1, Math.floor(Number(slot) || 0)));
+    let st = ensureCoreCubeState();
+    if (!st.presets[idx]) return addLog('비어 있는 저장칸입니다.', 'attack-monster');
+    st.presets[idx] = null;
+    addLog(`🧊 ${idx + 1}번 저장칸을 비웠습니다.`, 'loot-normal');
+    renderCoreCubePanel({ force: true });
+    updateStaticUI();
+}
+
+// 2번 칸 해금이 목표인데 "몇 종 남았다"만 알려 주면 무엇을 노려야 할지 알 수 없다.
+// 아직 한 번도 각인하지 않은 번호를 직접 보여 준다.
+function renderCoreCubeMissingPowers(st, usedCount) {
+    if (st.presetSlot2Unlocked) {
+        return `<p class="core-cube-muted">2번 저장칸이 영구 해금되어 있습니다. (동력원 ${usedCount}/${CORE_CUBE_POWER_MAX}종 각인)</p>`;
+    }
+    let used = st.powersUsedEver || {};
+    let missing = [];
+    for (let n = CORE_CUBE_POWER_MIN; n <= CORE_CUBE_POWER_MAX; n++) if (!used[n]) missing.push(n);
+    let owned = st.powers || {};
+    let missingHtml = missing.map(n => `<span class="core-cube-missing-no${owned[n] > 0 ? ' owned' : ''}">${n}</span>`).join('');
+    return `<p class="core-cube-muted">2번 칸은 1~45 동력원을 모두 한 번씩 각인하면 열리고, 그 뒤로는 영구히 열려 있습니다. (현재 ${usedCount}/${CORE_CUBE_POWER_MAX}종)</p>
+        <div class="core-cube-missing">아직 각인하지 않은 번호 ${missing.length}종: ${missingHtml || '없음'}<br><span class="core-cube-muted">밝게 표시된 번호는 지금 보유 중이라 바로 각인할 수 있습니다.</span></div>`;
+}
+
+function renderCoreCubePresetCard(st, unlocked) {
+    let usedCount = getCoreCubeUsedPowerCount(st);
+    let canSave = unlocked && st.faces.every(value => value !== null);
+    let rows = Array.from({ length: CORE_CUBE_PRESET_SLOTS }, (_, idx) => {
+        let slotOpen = isCoreCubePresetSlotUnlocked(idx);
+        let preset = normalizeCoreCubePreset(st.presets[idx]);
+        if (!slotOpen) {
+            return `<div class="core-cube-preset-row locked"><span>${idx + 1}번 칸 잠김 — 동력원 ${usedCount}/${CORE_CUBE_POWER_MAX}종 각인 (한 번 열리면 영구)</span></div>`;
+        }
+        let label = preset
+            ? `<strong>${preset.faces.slice().sort((a, b) => a - b).join(' / ')}</strong><span class="core-cube-muted"> · 루프 ${preset.savedAtLoop} 저장</span>`
+            : '<span class="core-cube-muted">비어 있음</span>';
+        return `<div class="core-cube-preset-row">
+            <span>${idx + 1}번 칸: ${label}</span>
+            <span>
+                <button type="button" onclick="saveCoreCubePreset(${idx})" ${canSave ? '' : 'disabled'}>저장</button>
+                <button type="button" onclick="applyCoreCubePreset(${idx})" ${unlocked && preset ? '' : 'disabled'}>불러오기</button>
+                <button type="button" onclick="clearCoreCubePreset(${idx})" ${preset ? '' : 'disabled'}>비우기</button>
+            </span>
+        </div>`;
+    }).join('');
+    return `<div class="core-cube-card"><h3>조합 저장</h3>${rows}
+        <p>6면이 채워진 조합을 저장해 두면, 루프가 지나 큐브가 다시 열렸을 때 <strong>동력원을 쓰지 않고</strong> 그대로 되살릴 수 있습니다. 각인된 큐브가 있으면 불러오면서 함께 재구성됩니다.</p>
+        ${renderCoreCubeMissingPowers(st, usedCount)}</div>`;
 }
 
 function hashCoreCubeCombo(combo) {
@@ -865,14 +1054,37 @@ function initCoreCubeCanvas() {
 }
 
 
-function renderCoreCubePanel() {
+function getCoreCubePanelSignature(st, info, unlocked) {
+    let powers = st.powers || {};
+    let powerSig = Object.keys(powers).map(Number).sort((a, b) => a - b).map(no => `${no}x${powers[no]}`).join(',');
+    let usedSig = Object.keys(st.powersUsedEver || {}).map(Number).sort((a, b) => a - b).join(',');
+    let presetSig = (st.presets || []).map(preset => {
+        let row = normalizeCoreCubePreset(preset);
+        return row ? `${row.faces.join('-')}@${row.savedAtLoop}` : '-';
+    }).join('|');
+    let optionSig = (st.revealedOptions || []).map(row => row.text || formatCoreCubeOption(row)).join('|');
+    return [
+        unlocked ? 1 : 0, st.completed ? 1 : 0, st.selectedFace, st.blurred45, st.lastPower === undefined ? '' : st.lastPower,
+        st.faces.map(value => value === null ? '-' : value).join('-'),
+        powerSig, usedSig, presetSig, optionSig,
+        st.presetSlot2Unlocked ? 1 : 0,
+        info.highestFloor, info.currentLoop, info.underworld10Cleared ? 1 : 0, info.loopReady ? 1 : 0
+    ].join('#');
+}
+
+let _coreCubePanelSignature = null;
+
+function renderCoreCubePanel(options) {
     if (typeof document === 'undefined') return;
     let host = document.getElementById('ui-core-cube-panel');
     if (!host || !game) return;
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
     let unlocked = isCoreCubeUnlocked();
-    st = ensureCoreCubeState();
+    let signature = getCoreCubePanelSignature(st, info, unlocked);
+    let force = !!(options && options.force) || !host.firstChild;
+    if (!force && signature === _coreCubePanelSignature) return;
+    _coreCubePanelSignature = signature;
     let faceHtml = st.faces.map((value, idx) => {
         let cls = ['core-cube-face'];
         if (idx === st.selectedFace) cls.push('selected');
@@ -907,9 +1119,12 @@ function renderCoreCubePanel() {
                 <div class="core-cube-card"><h3>흐릿한 45면체</h3><div class="core-cube-row"><span>보유 <strong>${st.blurred45}</strong></span>${blurredButtonsHtml}</div><p>사용 시 1~45 중 하나의 동력원을 획득합니다. 이 재료는 재화 목록에 표시되지 않습니다.</p>${st.lastPower ? `<p class="core-cube-good">최근 획득: ${st.lastPower}의 동력원</p>` : ''}</div>
                 <div class="core-cube-card"><h3>동력원 보관함</h3><div class="core-cube-row"><span>선택 면: <strong>${st.selectedFace + 1}번</strong> · ${selectedFilled ? '<strong class="core-cube-good">각인됨</strong>' : '비어 있음'}</span><button type="button" onclick="socketRandomCoreCubePower(false)" ${unlocked && !st.completed && st.faces[st.selectedFace] === null && getCoreCubePowerTotal() > 0 ? '' : 'disabled'}>선택 면 무작위</button><button type="button" onclick="socketRandomCoreCubePower(true)" ${unlocked && !st.completed && getCoreCubePowerTotal() >= st.faces.filter(v => v === null).length && st.faces.some(v => v === null) ? '' : 'disabled'}>전체 무작위</button></div><div class="core-cube-inventory">${inventoryHtml}</div><p>동력원 버튼을 누르면 선택된 면에 즉시 각인됩니다. 각인된 동력원은 재구성 전까지 회수할 수 없습니다.</p></div>
                 <div class="core-cube-card"><h3>큐브 완성</h3><div class="core-cube-row"><button type="button" class="core-cube-complete" onclick="completeCoreCube()" ${unlocked && !st.completed && st.faces.every(v => v !== null) ? '' : 'disabled'}>코어 큐브 완성</button><button type="button" onclick="resetCoreCube()" ${unlocked && (st.completed || st.faces.some(v => v !== null)) ? '' : 'disabled'}>재구성</button></div><p>현재 조합: <strong>${comboText}</strong></p><div class="core-cube-options">${optionsHtml}</div></div>
+                ${renderCoreCubePresetCard(st, unlocked)}
             </div>
         </div>`;
     initCoreCubeCanvas();
 }
 
-safeExposeGlobals({ getCoreCubeDefaultState, normalizeCoreCubeState, ensureCoreCubeState, getCoreCubeUnlockInfo, isCoreCubeUnlocked, maybeUnlockCoreCube, relockCoreCubeForLoop, canDropCoreCubeBlurred45, addCoreCubeBlurred45, addCoreCubePower, useCoreCubeBlurred45, selectCoreCubeFace, socketCoreCubePower, socketRandomCoreCubePower, resetCoreCube, completeCoreCube, generateCoreCubeOptions, getCoreCubeActiveStats, renderCoreCubePanel });
+safeExposeGlobals({ getCoreCubeDefaultState, normalizeCoreCubeState, ensureCoreCubeState, getCoreCubeUnlockInfo, isCoreCubeUnlocked, maybeUnlockCoreCube, relockCoreCubeForLoop, canDropCoreCubeBlurred45, addCoreCubeBlurred45, addCoreCubePower, useCoreCubeBlurred45, selectCoreCubeFace, socketCoreCubePower, socketRandomCoreCubePower, resetCoreCube, completeCoreCube,
+    saveCoreCubePreset, applyCoreCubePreset, clearCoreCubePreset, isCoreCubePresetSlotUnlocked, getCoreCubeUsedPowerCount,
+    markCoreCubePowerUsed, syncCoreCubePresetSlotUnlock, renderCoreCubeMissingPowers, generateCoreCubeOptions, getCoreCubeActiveStats, renderCoreCubePanel });

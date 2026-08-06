@@ -141,6 +141,11 @@
         }
         .jewel-salvage-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:8px 0; padding:8px 10px; background:#0f1620; border:1px solid #29415a; border-radius:8px; }
         .jewel-salvage-filters { display:flex; gap:10px; flex-wrap:wrap; font-size:0.82em; color:var(--copy-bright); }
+        /* 부적 보드는 8열 고정이라 칸 크기가 고정이면 좁은 화면에서 오른쪽 열이 잘린다.
+           360px 기기에서 보드 폭 364px이 화면 밖으로 29px 넘어가 8열째를 누를 수 없었다.
+           화면 폭에 맞춰 줄이되 42px을 넘지 않고, 손가락으로 누를 수 있는 26px 아래로는
+           내려가지 않는다. (8열 + 7×4px 간격이 들어갈 폭을 역산한다) */
+        #ui-talisman-board { --talisman-cell: clamp(26px, calc((100vw - 96px) / 8), 42px); }
         .talisman-board-cell { transition: box-shadow 0.12s ease, transform 0.12s ease, filter 0.12s ease; }
         .talisman-board-cell.talisman-hover-group { box-shadow: 0 0 0 2px rgba(255,230,140,.9), 0 0 18px rgba(255,210,110,.65), inset 0 1px 0 rgba(255,255,255,.38) !important; filter: brightness(1.16); transform: translateY(-1px); }
         .talisman-board-cell.talisman-placement-valid { box-shadow: inset 0 0 0 1px rgba(111,224,157,.52), 0 0 10px rgba(71,205,132,.2) !important; cursor: crosshair; }

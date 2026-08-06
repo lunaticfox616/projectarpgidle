@@ -83,10 +83,16 @@ assert(shellMatch, 'core-cube-shell grid definition must be parseable for the wi
 const [colAMin, colBMin, gridGap] = [Number(shellMatch[1]), Number(shellMatch[2]), Number(shellMatch[3])];
 const windowBodyPadding = 26 * 2; // css/ui-windows.css .ui-window-body: padding: 20px 26px 26px
 const requiredCubeWidth = colAMin + colBMin + gridGap + windowBodyPadding;
-const cubeDefMatch = manager.match(/'tab-cube':\s*{[^}]*width:\s*(\d+)[^}]*minWidth:\s*(\d+)/);
-assert(cubeDefMatch, 'tab-cube window definition must be parseable for the width regression check');
+// 큐브가 병합 탭 그룹의 멤버가 되면 실제로 열리는 창은 그 그룹의 런처다.
+// 폭 보증은 "큐브를 실제로 그리는 창"에 걸어야 의미가 있으므로 호스트를 따라간다.
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const groupsSource = uiSource.slice(uiSource.indexOf('const MERGED_TAB_GROUPS'), uiSource.indexOf("\n});", uiSource.indexOf('const MERGED_TAB_GROUPS')) + 4);
+const cubeGroupMatch = groupsSource.match(/launcher:\s*'([\w-]+)'[^\n]*'tab-cube'/);
+const cubeHostTab = cubeGroupMatch ? cubeGroupMatch[1] : 'tab-cube';
+const cubeDefMatch = manager.match(new RegExp(`'${cubeHostTab}':\\s*{[^}]*width:\\s*(\\d+)[^}]*minWidth:\\s*(\\d+)`));
+assert(cubeDefMatch, `${cubeHostTab} window definition must be parseable for the width regression check`);
 const [cubeWidth, cubeMinWidth] = [Number(cubeDefMatch[1]), Number(cubeDefMatch[2])];
-assert(cubeWidth >= requiredCubeWidth, `tab-cube default width (${cubeWidth}) must fit the core-cube-shell grid minimum (${requiredCubeWidth}) or the right column overflows the window`);
-assert(cubeMinWidth >= requiredCubeWidth, `tab-cube minWidth (${cubeMinWidth}) must not let users resize below the core-cube-shell grid minimum (${requiredCubeWidth})`);
+assert(cubeWidth >= requiredCubeWidth, `${cubeHostTab} default width (${cubeWidth}) must fit the core-cube-shell grid minimum (${requiredCubeWidth}) or the right column overflows the window`);
+assert(cubeMinWidth >= requiredCubeWidth, `${cubeHostTab} minWidth (${cubeMinWidth}) must not let users resize below the core-cube-shell grid minimum (${requiredCubeWidth})`);
 
 console.log('smoke-windowed-ui-structure passed');

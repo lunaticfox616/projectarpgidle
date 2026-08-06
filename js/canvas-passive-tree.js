@@ -178,8 +178,13 @@ function getPassiveNodeEffectShortLabel(node) {
     return label.length > 6 ? label.slice(0, 6) : label;
 }
 
-function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility, zoomedOutMode) {
-    if (!node || visibility === 'hidden' || zoomedOutMode || camZoom < 0.46) return;
+// 효과 텍스트를 볼 수 있는 최소 배율. 기존 0.46의 절반이라 두 배 멀리서도 읽힌다.
+// 간소화(zoomedOutMode) 구간에도 그리되, 아래 겹침 컬링과 도달/활성 필터가
+// 실제로 그려지는 개수를 제한하므로 먼 배율에서 라벨이 폭증하지는 않는다.
+const PASSIVE_EFFECT_LABEL_MIN_ZOOM = 0.23;
+
+function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility) {
+    if (!node || visibility === 'hidden' || camZoom < PASSIVE_EFFECT_LABEL_MIN_ZOOM) return;
     const important = node.kind === 'major' || node.kind === 'hub' || node.kind === 'apex' || node.kind === 'transcendent';
     const hovered = !!(hoverNode && hoverNode.id === node.id);
     if (!hovered && !reachable && !(active && important)) return;
@@ -187,11 +192,15 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     const label = getPassiveNodeEffectShortLabel(node);
     if (!label) return;
     const accent = getPassiveStatAccent(node.stat);
-    const fontSize = Math.max(9, Math.min(15, 10.5 / Math.max(0.55, camZoom)));
-    const padX = 4.5 / Math.max(0.6, camZoom);
-    const padY = 2.5 / Math.max(0.6, camZoom);
+    // 월드 좌표 크기 = 목표 화면 크기 / 배율. 나눗셈 하한을 표시 최소 배율까지 낮춰야
+    // 축소했을 때 글자가 화면에서 작아지지 않는다(예전에는 하한 0.55와 상한 15px이
+    // 서로 싸워서 0.46 근처에서 이미 읽기 힘들 만큼 작아졌다).
+    const zoomForScale = Math.max(PASSIVE_EFFECT_LABEL_MIN_ZOOM, camZoom);
+    const fontSize = Math.max(9, Math.min(46, 10.5 / zoomForScale));
+    const padX = 4.5 / zoomForScale;
+    const padY = 2.5 / zoomForScale;
     const placeLeft = node.x < -80;
-    const gap = 6 / Math.max(0.7, camZoom);
+    const gap = 6 / zoomForScale;
     const anchorX = node.x + (placeLeft ? -(radius + gap) : (radius + gap));
     const y = node.y + fontSize * 0.38;
 
@@ -215,9 +224,9 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     ctx.globalAlpha = active ? 0.98 : (reachable ? 0.9 : 0.76);
     ctx.fillStyle = 'rgba(5,9,15,0.78)';
     ctx.strokeStyle = active ? accent.activeOuter : (reachable ? accent.reachOuter : 'rgba(150,175,200,0.5)');
-    ctx.lineWidth = Math.max(0.7, 1 / Math.max(0.55, camZoom));
+    ctx.lineWidth = Math.max(0.7, 1 / zoomForScale);
     ctx.beginPath();
-    if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y - h / 2, w, h, 4 / Math.max(0.65, camZoom));
+    if (typeof ctx.roundRect === 'function') ctx.roundRect(x, y - h / 2, w, h, 4 / zoomForScale);
     else ctx.rect(x, y - h / 2, w, h);
     ctx.fill();
     ctx.stroke();
@@ -436,7 +445,7 @@ function drawPassiveTree() {
             ctx.stroke();
             ctx.restore();
         }
-        if (!searchDimmed) drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility, zoomedOutMode);
+        if (!searchDimmed) drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility);
         if (searchInfo.active && searchInfo.matches) drawPassiveSearchHighlight(ctx, node, radius, palette);
 
         // reachable/hover rings are maintained in the CSS overlay below.
@@ -650,7 +659,7 @@ function renderInventoryCard(item, idx, mode) {
     let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || item.rarity || '일반';
     return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-item-tooltip-anchor="1" onclick="selectForCrafting(${item.id}, false)"${doubleClick} onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
         <div class="equipment-card-main">
-            <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(item.slot)}</span><span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>
+            <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(item) : item.slot)}</span><span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>
             <div class="item-title equipment-card-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>
             <div class="item-base-line equipment-card-base">${hi(item.baseName)}</div>
             <div class="item-stats equipment-card-meta">${metaChips}</div>

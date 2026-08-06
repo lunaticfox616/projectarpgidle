@@ -69,6 +69,7 @@ function makePanelNode(name, className = '') {
 const groupStart = source.indexOf('const MERGED_TAB_GROUPS');
 const groupEnd = source.indexOf('\n});', groupStart) + 4;
 assert(groupStart >= 0 && groupEnd > groupStart, 'merged tab groups must have one shared definition');
+const MERGED_TAB_GROUPS_SOURCE = source.slice(groupStart, groupEnd);
 
 const dots = {};
 const elements = {};
@@ -102,7 +103,9 @@ vm.runInContext([
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('syncMergedTabLauncherVisibility'),
     readFunctionSource('syncMergedTabLauncherState'),
-    readFunctionSource('openMergedTabPicker')
+    readFunctionSource('openMergedTabPicker'),
+    readFunctionSource('openTabPane'),
+    readFunctionSource('getMergedTabGroup')
 ].join('\n'), context, { filename: 'merged-tab-launchers.js' });
 
 const activeTabContext = {
@@ -258,12 +261,80 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
     assert.deepStrictEqual(JSON.parse(JSON.stringify(opened)), [['growth', 'tab-char', { keepWindowOpen: false }]], 'a combined launcher must toggle its saved inner subtab host');
 
     await context.openMergedTabPicker(null, 'utility');
-    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))), ['utility', 'tab-talisman', { keepWindowOpen: false }]);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))), ['utility', 'tab-talisman', { keepWindowOpen: false }],
+        'a launcher must reopen the inner subtab the player last used');
+
+    // 전투 화면 플라스크처럼 특정 화면을 콕 집어 여는 경로는 그 탭이 실제로 보여야 한다.
+    // switchTab만 쓰면 tab-flask는 그룹 런처라 창만 열리고 안쪽은 마지막에 보던 탭이 남는다.
+    context.openTabPane('tab-flask');
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(opened.at(-1))).slice(0, 2), ['utility', 'tab-flask'],
+        'openTabPane must surface the requested pane, not just its window');
+    assert(source.includes("onclick=\"openTabPane('tab-flask')\""),
+        'the combat flask strip must open the flask pane directly');
+
+    // 해금 상태가 바뀌면 열려 있는 병합 창의 내부 탭도 다시 그려야 한다.
+    // 회귀: 루프 정산으로 큐브가 잠긴 뒤에도 큐브 화면이 그대로 남고, 내부 탭 버튼에
+    // 잠긴 탭이 계속 보였다(선택 상태만 조용히 다른 탭으로 바뀜).
+    assert(readFunctionSource('updateTabUnlockButtons').includes('renderMergedTabPanels'),
+        'unlock changes must re-render the open merged window so locked tabs disappear');
 
     assert(html.includes('data-merged-tab-launcher="growth"') && html.includes('data-merged-tab-launcher="utility"')
         && html.includes('data-merged-tab-launcher="records"'), 'the three combined menu circles must be wired in HTML');
     assert(html.includes('>스킬트리 <span id="noti-char"') && html.includes('>보조장비 <span id="jewel-inventory-full-warning"')
         && html.includes('>기록 <span id="noti-journal"'), 'combined circles must use their concise progression labels');
     assert(menuCss.includes('[data-merged-tab-member="1"] { display: none !important; }'), 'secondary menu circles must stay hidden on desktop and mobile');
+    // 큐브·생장판은 game.unlocks 플래그가 아니라 런타임 판정으로 열린다
+    // (isCoreCubeUnlocked / isGrowthBoardUnlocked). 루프가 넘어가 큐브가 다시 잠기면
+    // 저장된 보조장비 선택이 잠긴 탭을 가리킨 채로 남는데, 그때 빈 창이 열리면 안 된다.
+    {
+        const runtimeContext = {
+            game: {
+                unlocks: { jewel: true, talisman: true, cube: true },
+                settings: { mergedTabSelection: { utility: 'tab-cube' } },
+                inventory: [], equipment: {}, uniqueCodex: {}
+            },
+            TAB_UNLOCK_GATES: { 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-cube': 'cube' },
+            isCoreCubeUnlocked: () => runtimeContext.__cubeOpen,
+            isGrowthBoardUnlocked: () => runtimeContext.__growthOpen,
+            __cubeOpen: true,
+            __growthOpen: true,
+            addLog: () => {},
+            window: { switchTab: () => {} },
+            Object,
+            Array
+        };
+        vm.createContext(runtimeContext);
+        vm.runInContext([
+            source.slice(groupStart, groupEnd),
+            readFunctionSource('isCodexTabUnlockReady'),
+            readFunctionSource('isMergedTabAvailable'),
+            readFunctionSource('getSelectedMergedTabId')
+        ].join('\n'), runtimeContext, { filename: 'runtime-gated-merged-tab.js' });
+
+        assert.strictEqual(runtimeContext.getSelectedMergedTabId('utility'), 'tab-cube',
+            '열려 있는 동안에는 저장된 선택을 그대로 쓴다');
+        assert.strictEqual(runtimeContext.isMergedTabAvailable({ id: 'tab-growthboard' }), true,
+            '생장판은 런타임 판정으로 열린다');
+
+        // 루프 리셋: 큐브가 다시 잠기고 game.unlocks.cube도 내려간다.
+        runtimeContext.__cubeOpen = false;
+        runtimeContext.game.unlocks.cube = false;
+        assert.strictEqual(runtimeContext.isMergedTabAvailable({ id: 'tab-cube' }), false,
+            '재잠금된 큐브 탭은 열 수 없어야 한다');
+        assert.strictEqual(runtimeContext.getSelectedMergedTabId('utility'), 'tab-jewel',
+            '잠긴 선택이 남아 있어도 열 수 있는 첫 탭으로 되돌아가야 한다(빈 창 금지)');
+
+        // 루프 25 전: 생장판도 같은 방식으로 막힌다.
+        runtimeContext.__growthOpen = false;
+        assert.strictEqual(runtimeContext.isMergedTabAvailable({ id: 'tab-growthboard' }), false,
+            '해금 전 생장판 탭은 열 수 없어야 한다');
+
+        // 보조장비의 모든 구성원이 잠기면 선택 자체가 없어야 한다(런처도 숨는다).
+        runtimeContext.game.unlocks.jewel = false;
+        runtimeContext.game.unlocks.talisman = false;
+        assert.strictEqual(runtimeContext.getSelectedMergedTabId('utility'), null,
+            '열 수 있는 탭이 하나도 없으면 선택이 없어야 한다');
+    }
+
     console.log('smoke-merged-tab-launchers passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1963,6 +1963,15 @@ const defaultGame = {
         showSpawnLog: true,
         showExpLog: true,
         showLootLog: true,
+        // 생장 드랍을 최근 획득함을 거치지 않고 바로 보관함으로 보낼지.
+        growthAutoClaim: false,
+        growthSortMode: 'recent',
+        // 생장 아이템은 장비와 별개 시스템이라 필터/자동해체도 따로 둔다.
+        // 기본은 "전부 보관" — 루프 25에 판이 열리는데 장비 설정을 물려받으면
+        // 일반/매직이 전부 녹아 8칸조차 채우지 못한다.
+        growthAutoSalvageEnabled: false,
+        growthAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
+        growthUseItemFilter: false,
         showCrowdPauseLog: true,
         showDeathNotice: true,
         showMobileBattlePip: true,
@@ -2090,6 +2099,11 @@ const defaultGame = {
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
     inventory: [],
     inventoryExpandLevel: 0,
+    // 생장판: 기존 장비를 대체하지 않는 추가 시스템. 루프 25에 해금되며 그 전에는 활성 칸이 0이다.
+    growthBoard: { width: GROWTH_BOARD_W, height: GROWTH_BOARD_H, unlockedCellCount: 0, activeLoadout: 0, loadouts: [] },
+    growthInventory: [],
+    growthInventoryExpandLevel: 0,
+    recentGrowthDrops: [],
     jewelInventoryExpandLevel: 0,
     chaosInfuserUnlocked: false,
     abyssPassivePoints: 0,
@@ -2186,7 +2200,7 @@ const defaultGame = {
         selectedWedgeId: null
     },
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null },
-    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, expertise: false, jewel: false },
+    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false },
     noti: { char: false, season: false, items: false, skills: false, flask: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
