@@ -5,84 +5,13 @@
 // 넣어 보는 검사가 없었다. 예전 저장을 가진 사람이 돌아왔을 때 조용히 깨지는 것을
 // 막으려면 실제 저장 모양을 넣어 봐야 한다.
 //
-// index.html의 로드 순서대로 27개 파일을 vm에 올린다. DOM은 최소 shim만 준다
-// (파일들이 로드 시점에 document/window를 건드리기 때문). 무거워 보이지만
-// 이 관문을 실제로 실행해 보는 유일한 방법이고, 전체 실행이 몇 초로 끝난다.
+// 게임 전체를 vm에 올리는 로더는 scripts/lib/game-runtime.js가 소유한다.
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
-// index.html의 <script> 순서와 같아야 한다. 순서가 바뀌면 로드가 깨지므로
-// 이 목록 자체가 로드 순서 계약이기도 하다.
-const LOAD_ORDER = [
-    'data/constants.js', 'data/maps.js', 'data/skills.js', 'data/items.js',
-    'data/growth-items.js', 'data/passives.js', 'data/bosses.js', 'data/rewards.js',
-    'data/talent-cards.js',
-    'js/utils.js', 'js/ui-feedback.js', 'js/state.js', 'js/save.js', 'js/items.js',
-    'js/skills.js', 'js/passives.js', 'js/growth-board.js', 'js/growth-effects.js',
-    'js/growth-generation.js', 'js/core-cube.js', 'js/combat-grid.js',
-    'js/combat-patterns.js', 'js/combat.js', 'js/canvas-battlefield.js',
-    'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/ui.js'
-];
-
-function buildRuntime() {
-    const noop = () => {};
-    const stubCtx = {
-        fillRect: noop, clearRect: noop, drawImage: noop, save: noop, restore: noop,
-        beginPath: noop, arc: noop, fill: noop, stroke: noop, closePath: noop, clip: noop,
-        moveTo: noop, lineTo: noop, fillText: noop, translate: noop, rotate: noop,
-        scale: noop, setTransform: noop, putImageData: noop,
-        measureText: () => ({ width: 0 }), getImageData: () => ({ data: [] }),
-        createLinearGradient: () => ({ addColorStop: noop })
-    };
-    const makeEl = () => ({
-        style: {}, dataset: {}, children: [], childNodes: [],
-        classList: { add: noop, remove: noop, toggle: noop, contains: () => false },
-        innerHTML: '', innerText: '', textContent: '', value: '',
-        hidden: false, disabled: false, checked: false, offsetParent: null,
-        appendChild: noop, insertBefore: noop, removeChild: noop, remove: noop,
-        setAttribute: noop, getAttribute: () => null, removeAttribute: noop,
-        addEventListener: noop, removeEventListener: noop,
-        querySelector: () => null, querySelectorAll: () => [], closest: () => null,
-        getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }),
-        getContext: () => stubCtx
-    });
-    const context = {
-        console: { log: noop, warn: noop, error: noop, info: noop },
-        setTimeout: () => 0, clearTimeout: noop, setInterval: () => 0, clearInterval: noop,
-        requestAnimationFrame: () => 0, cancelAnimationFrame: noop,
-        Math, JSON, Date, Number, String, Boolean, Array, Object, Set, Map, WeakMap, Promise,
-        isNaN, parseInt, parseFloat, Infinity, NaN,
-        performance: { now: () => Date.now() },
-        localStorage: { getItem: () => null, setItem: noop, removeItem: noop, clear: noop, length: 0 },
-        navigator: { userAgent: 'node', language: 'ko' },
-        location: { href: 'http://localhost/', protocol: 'http:', search: '' },
-        fetch: () => Promise.reject(new Error('vm has no network')),
-        Image: function () { return makeEl(); },
-        matchMedia: () => ({ matches: false, addEventListener: noop, addListener: noop }),
-        addEventListener: noop, removeEventListener: noop, dispatchEvent: noop,
-        getComputedStyle: () => ({ getPropertyValue: () => '' }),
-        innerWidth: 1440, innerHeight: 900, devicePixelRatio: 1,
-        scrollTo: noop, alert: noop, confirm: () => false, prompt: () => null
-    };
-    context.window = context;
-    context.globalThis = context;
-    context.self = context;
-    context.document = {
-        readyState: 'complete', hidden: false, visibilityState: 'visible',
-        body: makeEl(), documentElement: makeEl(), head: makeEl(),
-        getElementById: () => null, querySelector: () => null, querySelectorAll: () => [],
-        createElement: makeEl, createTextNode: makeEl, createDocumentFragment: makeEl,
-        addEventListener: noop, removeEventListener: noop
-    };
-    vm.createContext(context);
-    LOAD_ORDER.forEach(file => {
-        vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
-    });
-    return context;
-}
-
-const ctx = buildRuntime();
+const ctx = buildGameRuntime();
 assert.strictEqual(typeof ctx.mergeDefaults, 'function', 'mergeDefaults를 불러오지 못했다');
 
 const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
