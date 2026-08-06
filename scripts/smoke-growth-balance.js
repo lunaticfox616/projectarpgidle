@@ -55,6 +55,11 @@ assert.strictEqual(ctx.getGrowthCategoryAffixCap('slab'), 0, '석판은 추가 �
     const cap = ctx.getGrowthCategoryAffixCap(category);
     assert.strictEqual(cap, 2, `${category}의 희귀 추가 옵션 상한은 2줄이어야 한다`);
     assert.ok(bases.some(base => base.category === category), `${category} 베이스가 있어야 한다`);
+    const uniqueCount = ctx.GROWTH_UNIQUE_DB.filter(unique => {
+        const base = bases.find(row => row.id === unique.baseId);
+        return base && base.category === category;
+    }).length;
+    assert.ok(uniqueCount >= 2, `${category} 고유 생장판은 최소 2개여야 한다 (현재 ${uniqueCount}개)`);
 });
 
 // 큰 형태의 고정 옵션이 면적을 무시하고 폭주하지 않도록 칸당 예산을 고정한다.
