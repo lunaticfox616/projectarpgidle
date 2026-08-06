@@ -639,7 +639,10 @@ async function marketResetPassiveTreeByDivine() {
     if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 패시브를 초기화할 수 없습니다.', 'attack-monster');
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     if ((game.currencies.goldenRule || 0) < 1) return addLog('황금률이 부족합니다.', 'attack-monster');
-    let spentNodes = Array.isArray(game.passives) ? game.passives.length : 0;
+    // n0(시작 노드)는 포인트를 쓰지 않고 주어지는 뿌리다. 반환 대상에서 빼지 않으면
+    // 초기화할 때마다 포인트가 1점씩 늘어난다(노드를 하나도 찍지 않고 반복해도 늘어난다).
+    // 레이아웃 마이그레이션 경로(js/ui.js의 refundedForRadialLayout)와 같은 규칙을 쓴다.
+    let spentNodes = Array.isArray(game.passives) ? game.passives.filter(nodeId => nodeId !== 'n0').length : 0;
     if (spentNodes <= 0) return addLog('초기화할 패시브 노드가 없습니다.', 'attack-monster');
     let passiveSnapshot = game.passives.slice();
     if (!await requestGameConfirmation(`황금률 1개를 사용해 패시브 트리를 초기화하고 포인트 ${spentNodes}점을 반환합니다.`, {
@@ -652,7 +655,9 @@ async function marketResetPassiveTreeByDivine() {
         return addLog('확인 중 패시브 또는 재화 상태가 변경되어 초기화를 취소했습니다.', 'attack-monster');
     }
     game.currencies.goldenRule -= 1;
-    game.passives = [];
+    // 뿌리는 남긴다. 통째로 비우면 무료로 주어지던 시작 노드가 사라져
+    // 다시 포인트를 내고 찍어야 한다.
+    game.passives = ['n0'];
     game.passiveAttributeChoices = {};
     game.passivePoints += spentNodes;
     calculateReachableNodes();
