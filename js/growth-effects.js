@@ -183,33 +183,53 @@ function countGrowthLineTagMatches(facts, when, ctx, axis) {
     return matched.size;
 }
 
-function isGrowthLineEdgeItem(facts, when, ctx) {
-    let wantRight = when.side !== 'left';
-    return Array.from(facts.rows).some(y => {
-        let best = null;
-        ctx.entries.forEach(entry => {
-            if (when.category && entry.item.growthCategory !== when.category) return;
-            entry.cells.forEach(([cx, cy]) => {
-                if (cy !== y) return;
-                if (best === null || (wantRight ? cx > best.x : cx < best.x)) best = { x: cx, id: entry.item.id };
-            });
-        });
-        return !!best && best.id === facts.entry.item.id;
+/**
+ * 한 줄(행 또는 열)에서 가장 끝에 있는 아이템의 id.
+ * @param {Array} entries 판 위 배치 목록
+ * @param {{axis:'row'|'col', line:number, wantMax:boolean, category?:string}} query
+ * @returns {number|null} 끝 아이템 id (그 줄에 아무것도 없으면 null)
+ */
+function findGrowthEdgeItemId(entries, query) {
+    let best = null;
+    entries.forEach(entry => {
+        if (query.category && entry.item.growthCategory !== query.category) return;
+        let extreme = getGrowthEntryExtremeOnLine(entry, query);
+        if (extreme === null) return;
+        if (best === null || (query.wantMax ? extreme > best.value : extreme < best.value)) {
+            best = { value: extreme, id: entry.item.id };
+        }
     });
+    return best ? best.id : null;
+}
+
+/** 아이템이 그 줄에서 차지한 가장 바깥 좌표. 그 줄에 없으면 null. */
+function getGrowthEntryExtremeOnLine(entry, query) {
+    let values = collectGrowthCellsOnLine(entry, query.axis, query.line);
+    if (values.length === 0) return null;
+    return query.wantMax ? Math.max(...values) : Math.min(...values);
+}
+
+/** 아이템이 지정한 행/열 위에 놓은 칸들의 좌표(행이면 x, 열이면 y). */
+function collectGrowthCellsOnLine(entry, axis, line) {
+    let values = [];
+    entry.cells.forEach(([cx, cy]) => {
+        if (axis === 'row' ? cy === line : cx === line) values.push(axis === 'row' ? cx : cy);
+    });
+    return values;
+}
+
+function isGrowthLineEdgeItem(facts, when, ctx) {
+    let wantMax = when.side !== 'left';
+    return Array.from(facts.rows).some(y =>
+        findGrowthEdgeItemId(ctx.entries, { axis: 'row', line: y, wantMax, category: when.category })
+            === facts.entry.item.id);
 }
 
 function isGrowthColumnEdgeItem(facts, when, ctx) {
-    let wantBottom = when.side !== 'top';
-    return Array.from(facts.cols).some(x => {
-        let best = null;
-        ctx.entries.forEach(entry => {
-            entry.cells.forEach(([cx, cy]) => {
-                if (cx !== x) return;
-                if (best === null || (wantBottom ? cy > best.y : cy < best.y)) best = { y: cy, id: entry.item.id };
-            });
-        });
-        return !!best && best.id === facts.entry.item.id;
-    });
+    let wantMax = when.side !== 'top';
+    return Array.from(facts.cols).some(x =>
+        findGrowthEdgeItemId(ctx.entries, { axis: 'col', line: x, wantMax })
+            === facts.entry.item.id);
 }
 
 function countGrowthRowEmptyCells(y, ctx) {
@@ -405,18 +425,23 @@ function getGrowthSlabPatternCells(patternKey, originX, originY) {
 }
 
 /** 배치된 석판들이 만드는 칸별 레벨 맵. @returns {Map<string, number>} 'x,y' → 레벨 */
+/** 석판 하나가 뿌리는 레벨을 칸 맵에 더한다. */
+function addGrowthSlabLevels(levels, entry, def) {
+    let [originX, originY] = entry.cells[0] || [0, 0];
+    (def.grants || []).forEach(grant => {
+        let cells = getGrowthSlabPatternCells(grant.pattern, originX, originY);
+        cells.forEach(([x, y]) => {
+            let key = `${x},${y}`;
+            levels.set(key, (levels.get(key) || 0) + Number(grant.level || 0));
+        });
+    });
+}
+
 function buildGrowthCellLevelMap(entries) {
     let levels = new Map();
     entries.forEach(entry => {
         let def = getGrowthSlabDef(entry.item);
-        if (!def) return;
-        let [originX, originY] = entry.cells[0] || [0, 0];
-        (def.grants || []).forEach(grant => {
-            getGrowthSlabPatternCells(grant.pattern, originX, originY).forEach(([x, y]) => {
-                let key = `${x},${y}`;
-                levels.set(key, (levels.get(key) || 0) + Number(grant.level || 0));
-            });
-        });
+        if (def) addGrowthSlabLevels(levels, entry, def);
     });
     return levels;
 }

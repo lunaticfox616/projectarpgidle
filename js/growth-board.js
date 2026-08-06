@@ -599,19 +599,25 @@ function tryAutoPlaceGrowthItem(item) {
  * 판 밖으로 새어 나간다 — 석판을 먼저 놓는 의미가 사라진다.
  * @returns {boolean} 배치 성공 여부
  */
+/** 주변 8칸 중 열려 있는 칸 수. 석판 효과가 판 밖으로 새지 않는 자리를 고르는 기준이다. */
+function countUnlockedGrowthNeighbours(x, y) {
+    let reach = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            if (isGrowthCellUnlocked(x + dx, y + dy)) reach++;
+        }
+    }
+    return reach;
+}
+
 function tryPlaceSlabAtBestCell(item) {
     let occupancy = buildGrowthOccupancyMap();
     let best = null;
     for (let y = 0; y < GROWTH_BOARD_H; y++) {
         for (let x = 0; x < GROWTH_BOARD_W; x++) {
             if (!isGrowthCellUnlocked(x, y) || occupancy.has(`${x},${y}`)) continue;
-            let reach = 0;
-            for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                    if (dx === 0 && dy === 0) continue;
-                    if (isGrowthCellUnlocked(x + dx, y + dy)) reach++;
-                }
-            }
+            let reach = countUnlockedGrowthNeighbours(x, y);
             if (!best || reach > best.reach) best = { x, y, reach };
         }
     }
