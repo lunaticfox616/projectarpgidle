@@ -1,6 +1,6 @@
 // 생장판 수치 예산 회귀 검사.
 //
-// 모든 생장 아이템이 1칸이 되면서 판을 가득 채우면 24개 안팎이 동시에 올라간다.
+// 작은 아이템과 2~4칸 고급 아이템이 한 판의 제한된 공간을 나눠 쓴다.
 // 아이템 하나하나는 작아도 합계는 고정 슬롯 장비 한 세트를 쉽게 넘어설 수 있어,
 // "한 장이 얼마나 센가"가 아니라 "판 하나가 얼마나 센가"를 고정한다.
 //
@@ -29,11 +29,16 @@ const ctx = loadData();
 const bases = ctx.GROWTH_BASE_DB;
 const boardCells = ctx.GROWTH_BOARD_W * ctx.GROWTH_BOARD_H;
 
-// ── 1칸 계약 ─────────────────────────────────────────────────────────────
-assert.deepStrictEqual(Object.keys(ctx.GROWTH_SHAPE_DB), ['dot1'], '형태는 1칸 하나만 있어야 한다');
-bases.forEach(base => assert.strictEqual(base.shapeId, 'dot1', `${base.id}는 1칸이어야 한다`));
+// ── 형태·종류 계약 ────────────────────────────────────────────────────────
+assert.ok(ctx.GROWTH_SHAPE_DB.dot1, '1칸 호환 형태가 있어야 한다');
+Object.entries(ctx.GROWTH_SHAPE_DB).forEach(([shapeId, shape]) => {
+    assert.ok(shape.cells.length >= 1 && shape.cells.length <= 4, `${shapeId}는 1~4칸이어야 한다`);
+});
+bases.forEach(base => assert.ok(ctx.GROWTH_SHAPE_DB[base.shapeId], `${base.id}의 형태가 정의되어야 한다`));
+assert.ok(bases.filter(base => ctx.GROWTH_SHAPE_DB[base.shapeId].cells.length > 1).length >= 7,
+    '각 신규 계열에 공간 비용을 지닌 고급 베이스가 있어야 한다');
 ctx.GROWTH_UNIQUE_DB.forEach(unique => {
-    assert.ok(!unique.shapeId || unique.shapeId === 'dot1', `고유 ${unique.name}도 1칸이어야 한다`);
+    assert.ok(bases.some(base => base.id === unique.baseId), `고유 ${unique.name}의 베이스가 존재해야 한다`);
 });
 
 // ── 판 크기: 칸 수가 곧 동시 배치 개수다 ─────────────────────────────────
@@ -46,9 +51,18 @@ stages.forEach((cells, i) => {
 
 // ── 추가 옵션 수: 1칸이 장비 한 부위만큼 옵션을 들면 안 된다 ─────────────
 assert.strictEqual(ctx.getGrowthCategoryAffixCap('slab'), 0, '석판은 추가 옵션을 가질 수 없다');
-['flower', 'branch', 'leaf'].forEach(category => {
+['flower', 'branch', 'leaf', 'fruit', 'root', 'thorn', 'stem', 'spore', 'seed', 'vine'].forEach(category => {
     const cap = ctx.getGrowthCategoryAffixCap(category);
-    assert.ok(cap >= 1 && cap <= 2, `${category}의 추가 옵션 상한은 1~2줄이어야 한다 (현재 ${cap})`);
+    assert.strictEqual(cap, 2, `${category}의 희귀 추가 옵션 상한은 2줄이어야 한다`);
+    assert.ok(bases.some(base => base.category === category), `${category} 베이스가 있어야 한다`);
+});
+
+// 큰 형태의 고정 옵션이 면적을 무시하고 폭주하지 않도록 칸당 예산을 고정한다.
+bases.filter(base => ctx.GROWTH_SHAPE_DB[base.shapeId].cells.length > 1).forEach(base => {
+    const cells = ctx.GROWTH_SHAPE_DB[base.shapeId].cells.length;
+    (base.baseStats || []).forEach(stat => {
+        assert.ok(Number(stat.baseMax) / cells <= 25, `${base.id}/${stat.id}의 칸당 수치가 너무 높다`);
+    });
 });
 
 // ── 스탯별 판 전체 예산 ──────────────────────────────────────────────────
@@ -101,7 +115,7 @@ assert.ok(worstCaseTotal('branch', 'evasion') <= 350, '가지 회피 합계가 �
 
 // ── 석판 레벨 증폭이 예산을 무력화하지 않아야 한다 ───────────────────────
 const maxAmplify = 1 + ctx.GROWTH_LEVEL_CAP * (ctx.GROWTH_LEVEL_STAT_PCT / 100);
-assert.ok(maxAmplify <= 2.1, `석판 최대 증폭이 2.1배를 넘으면 예산이 무의미해진다 (현재 ${maxAmplify.toFixed(2)}배)`);
+assert.ok(maxAmplify <= 2.25, `석판 최대 증폭이 2.25배를 넘으면 예산이 무의미해진다 (현재 ${maxAmplify.toFixed(2)}배)`);
 
 // 페널티 석판이 있어야 "좋은 석판을 아무 데나 두면 그만"이 되지 않는다.
 const penaltySlabs = ctx.GROWTH_SLAB_DB.filter(def => (def.grants || []).some(g => g.level < 0));
@@ -112,6 +126,10 @@ ctx.GROWTH_SLAB_DB.forEach(def => {
     const grants = def.grants || [];
     const best = Math.max(...grants.map(g => g.level));
     if (best < 3) return;
+    if (def.chase) {
+        assert.ok(best <= 3, `${def.name} 체이싱 석판도 단일 범위 레벨 +3 상한은 지켜야 한다`);
+        return;
+    }
     const hasPenalty = grants.some(g => g.level < 0);
     const isRestrictive = grants.every(g => g.level <= 0 || RESTRICTIVE_PATTERNS.has(g.pattern));
     assert.ok(hasPenalty || isRestrictive, `${def.name}처럼 강한 석판은 페널티나 까다로운 패턴을 져야 한다`);

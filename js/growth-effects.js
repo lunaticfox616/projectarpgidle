@@ -113,7 +113,7 @@ const GROWTH_CONDITION_HANDLERS = {
         facts.adjacentEntries.forEach(other => GROWTH_ELEMENT_TAGS.forEach(tag => { if (getGrowthItemTags(other.item).has(tag)) found.add(tag); }));
         return found.size;
     },
-    // 모든 아이템이 1칸이라 "거리"가 크기를 대신하는 배치 축이 된다.
+    // 가장 가까운 점유 칸 사이의 맨해튼 거리로 다칸 형태도 일관되게 판정한다.
     atDistance: (facts, when, ctx) => {
         let want = Math.max(1, Math.floor(when.distance || 2));
         return ctx.entries.filter(other => other.item.id !== facts.entry.item.id
@@ -252,6 +252,33 @@ function evaluateGrowthCondition(when, facts, ctx) {
     return when.per ? count : 1;
 }
 
+function getGrowthConditionRelatedEntries(when, facts, ctx) {
+    if (!when || !when.type) return [];
+    let adjacent = facts.adjacentEntries;
+    if (when.type === 'adjAny') return adjacent;
+    if (when.type === 'adjCategory') return adjacent.filter(entry => entry.item.growthCategory === when.category);
+    if (when.type === 'adjOtherCategory') return adjacent.filter(entry => entry.item.growthCategory !== facts.entry.item.growthCategory);
+    if (when.type === 'adjBothCategories') return adjacent.filter(entry => (when.categories || []).includes(entry.item.growthCategory));
+    if (when.type === 'adjTag') return adjacent.filter(entry => getGrowthItemTags(entry.item).has(when.tag));
+    if (when.type === 'adjDistinctElements') return adjacent.filter(entry =>
+        GROWTH_ELEMENT_TAGS.some(tag => getGrowthItemTags(entry.item).has(tag)));
+    if (when.type === 'atDistance') return ctx.entries.filter(entry => entry.item.id !== facts.entry.item.id
+        && (!when.category || entry.item.growthCategory === when.category)
+        && getGrowthEntryDistance(facts.entry, entry) === Math.max(1, Math.floor(when.distance || 2)));
+    if (['pinched', 'surroundedByCategory'].includes(when.type)) return adjacent;
+    if (when.type === 'boardTagCount') return ctx.entries.filter(entry => entry.item.id !== facts.entry.item.id
+        && getGrowthItemTags(entry.item).has(when.tag));
+    let axis = when.type.startsWith('row') ? 'rows' : (when.type.startsWith('col') ? 'cols' : null);
+    if (!axis) return [];
+    return ctx.entries.filter(entry => {
+        if (entry.item.id === facts.entry.item.id) return false;
+        if (when.category && entry.item.growthCategory !== when.category) return false;
+        if (when.tag && !getGrowthItemTags(entry.item).has(when.tag)) return false;
+        let otherFacts = ctx.facts.get(entry.item.id);
+        return otherFacts && Array.from(otherFacts[axis]).some(line => facts[axis].has(line));
+    });
+}
+
 // ── 전역 시너지 판정기 (판 전체 조건) ────────────────────────────────────
 const GROWTH_GLOBAL_HANDLERS = {
     rowFilled: (ctx) => {
@@ -296,6 +323,8 @@ const GROWTH_GLOBAL_HANDLERS = {
         return ['flower', 'branch', 'leaf'].every(category =>
             ctx.entries.filter(entry => entry.item.growthCategory === category).length >= min) ? 1 : 0;
     },
+    categorySet: (ctx, rule) => (rule.categories || []).every(category =>
+        ctx.entries.some(entry => entry.item.growthCategory === category)) ? 1 : 0,
     emptyUnlockedCells: (ctx, rule) => {
         let board = ensureGrowthBoardState();
         let empty = board.unlockedCellCount - ctx.owner.size;
@@ -330,13 +359,18 @@ const GROWTH_UNIQUE_EFFECT_HANDLERS = {
             if (other.item.id === entry.item.id || other.item.growthCategory !== 'flower') return;
             if (getGrowthEntryDistance(entry, other) < 5) return;
             multiplyGrowthItemStats(out, other.item.id, 1.25);
+            linkGrowthItems(out, entry.item.id, other.item.id);
         });
     },
     cradleBranch: (entry, facts, ctx, out) => {
         if (facts.adjacentEntries.length > 0) pushGrowthGrant(out, entry, 'dr', facts.adjacentEntries.length, '요람 가지: 인접 수만큼 물리 피해 감소');
+        facts.adjacentEntries.forEach(other => linkGrowthItems(out, entry.item.id, other.item.id));
     },
     voidRing: (entry, facts, ctx, out) => {
-        getGrowthSurroundingEntries(entry, ctx).forEach(other => multiplyGrowthItemStats(out, other.item.id, 1.35));
+        getGrowthSurroundingEntries(entry, ctx).forEach(other => {
+            multiplyGrowthItemStats(out, other.item.id, 1.35);
+            linkGrowthItems(out, entry.item.id, other.item.id);
+        });
     },
     twinSpore: (entry, facts, ctx, out) => {
         ctx.entries.forEach(other => {
@@ -345,6 +379,7 @@ const GROWTH_UNIQUE_EFFECT_HANDLERS = {
                 if (!stat || !stat.id || !Number.isFinite(Number(stat.val))) return;
                 pushGrowthGrant(out, entry, stat.id, Number(stat.val) * 0.2, '쌍둥이 홀씨: 2칸 거리 옵션 복사');
             });
+            linkGrowthItems(out, entry.item.id, other.item.id);
         });
     },
     triElementCore: (entry, facts, ctx, out) => {
@@ -353,6 +388,8 @@ const GROWTH_UNIQUE_EFFECT_HANDLERS = {
         if (found.size < 3) return;
         pushGrowthGrant(out, entry, 'elementalPctDmg', 30, '삼원소 공명핵');
         pushGrowthGrant(out, entry, 'resPen', 6, '삼원소 공명핵');
+        ctx.entries.filter(other => GROWTH_ELEMENT_TAGS.some(tag => getGrowthItemTags(other.item).has(tag)))
+            .forEach(other => linkGrowthItems(out, entry.item.id, other.item.id));
     },
     boundaryStone: (entry, facts, ctx, out) => {
         if (facts.wallDirs.size > 0) {
@@ -362,6 +399,27 @@ const GROWTH_UNIQUE_EFFECT_HANDLERS = {
         let vertical = facts.wallDirs.has('up') || facts.wallDirs.has('down');
         let horizontal = facts.wallDirs.has('left') || facts.wallDirs.has('right');
         if (vertical && horizontal) pushGrowthGrant(out, entry, 'pctHp', 10, '경계석: 모서리');
+    },
+    primordialBlueprint: (entry, facts, ctx, out) => {
+        let organic = ctx.entries.filter(other => !isGrowthSlab(other.item));
+        let categories = new Set(organic.map(other => other.item.growthCategory));
+        if (organic.length < 6 || categories.size !== organic.length) return;
+        organic.forEach(other => {
+            let current = out.baseMultipliers.get(other.item.id) || 1;
+            out.baseMultipliers.set(other.item.id, current * 1.4);
+            linkGrowthItems(out, entry.item.id, other.item.id);
+        });
+    },
+    deadStarMycelium: (entry, facts, ctx, out) => {
+        let organic = ctx.entries.filter(other => !isGrowthSlab(other.item));
+        let powered = organic.filter(other => (out.itemLevels.get(other.item.id) || 0) > 0);
+        let total = Math.min(20, powered.reduce((sum, other) => sum + out.itemLevels.get(other.item.id), 0));
+        if (total > 0) {
+            pushGrowthGrant(out, entry, 'chaosPctDmg', total * 4, '죽은 별: 석판 레벨 포식');
+            pushGrowthGrant(out, entry, 'dotPctDmg', total * 4, '죽은 별: 석판 레벨 포식');
+        }
+        pushGrowthGrant(out, entry, 'pctHp', -10, '죽은 별: 생명력 대가');
+        powered.forEach(other => linkGrowthItems(out, entry.item.id, other.item.id));
     }
 };
 
@@ -396,6 +454,14 @@ function multiplyGrowthItemStats(out, itemId, multiplier) {
     out.itemMultipliers.set(itemId, (out.itemMultipliers.get(itemId) || 1) * multiplier);
 }
 
+function linkGrowthItems(out, firstId, secondId) {
+    if (firstId === secondId) return;
+    if (!out.relations.has(firstId)) out.relations.set(firstId, new Set());
+    if (!out.relations.has(secondId)) out.relations.set(secondId, new Set());
+    out.relations.get(firstId).add(secondId);
+    out.relations.get(secondId).add(firstId);
+}
+
 // ── 석판 레벨 레이어 ─────────────────────────────────────────────────────
 // 석판이 칸에 레벨을 뿌리고, 아이템은 자신이 점유한 칸 중 최댓값을 받는다.
 // 최댓값을 쓰는 이유: 합계로 하면 칸이 많은 대형 아이템이 자동으로 유리해져
@@ -410,6 +476,13 @@ function getGrowthSlabDef(item) {
 function getGrowthSlabPatternCells(patternKey, originX, originY) {
     let pattern = (typeof GROWTH_SLAB_PATTERNS !== 'undefined' && GROWTH_SLAB_PATTERNS[patternKey]) || null;
     if (!pattern) return [];
+    if (pattern.axis === 'board') {
+        let cells = [];
+        for (let y = 0; y < GROWTH_BOARD_H; y++) {
+            for (let x = 0; x < GROWTH_BOARD_W; x++) if (x !== originX || y !== originY) cells.push([x, y]);
+        }
+        return cells;
+    }
     if (pattern.axis === 'row') {
         let cells = [];
         for (let x = 0; x < GROWTH_BOARD_W; x++) if (x !== originX) cells.push([x, originY]);
@@ -444,6 +517,23 @@ function buildGrowthCellLevelMap(entries) {
         if (def) addGrowthSlabLevels(levels, entry, def);
     });
     return levels;
+}
+
+function linkGrowthSlabTargets(entries, out) {
+    entries.forEach(source => {
+        let def = getGrowthSlabDef(source.item);
+        if (!def) return;
+        let [originX, originY] = source.cells[0] || [0, 0];
+        let affected = new Set();
+        (def.grants || []).forEach(grant => getGrowthSlabPatternCells(grant.pattern, originX, originY)
+            .forEach(([x, y]) => affected.add(`${x},${y}`)));
+        entries.forEach(target => {
+            if (isGrowthSlab(target.item)) return;
+            if (target.cells.some(([x, y]) => affected.has(`${x},${y}`))) {
+                linkGrowthItems(out, source.item.id, target.item.id);
+            }
+        });
+    });
 }
 
 /** 아이템이 받는 레벨 = 점유 칸 레벨의 최댓값. 음수는 0으로 깎지 않고 그대로 둔다(페널티 체감). */
@@ -484,10 +574,12 @@ function computeGrowthEffectSnapshot() {
         baseMultipliers: new Map(),
         conditions: new Map(),
         activeGlobals: [],
+        relations: new Map(),
         cellLevels: levelMap,
         itemLevels: new Map(),
         entryCount: entries.length
     };
+    linkGrowthSlabTargets(entries, out);
     // 석판 레벨은 공간 조건과 독립적으로 먼저 확정된다 — 레벨이 조건 판정에 입력되지 않으므로
     // "레벨이 조건을 바꾸고 조건이 다시 레벨을 바꾸는" 순환이 생기지 않는다.
     entries.forEach(entry => {
@@ -521,7 +613,9 @@ function evaluateGrowthEntryEffects(entry, facts, ctx, out) {
         let label = spatial.desc || '';
         if (!stageOpen) { unmet.push({ label, reason: '시너지 계층 미해금' }); return; }
         if (times <= 0) { unmet.push({ label, reason: '조건 미충족' }); return; }
-        met.push({ label, times });
+        let relatedItemIds = getGrowthConditionRelatedEntries(effect.when, facts, ctx).map(other => other.item.id);
+        met.push({ label, times, relatedItemIds });
+        relatedItemIds.forEach(itemId => linkGrowthItems(out, entry.item.id, itemId));
         (effect.grant || []).forEach(grant => pushGrowthGrant(out, entry, grant.id, Number(grant.val || 0) * times, label));
     });
     applyGrowthUniqueEffect(entry, facts, ctx, out);
@@ -573,6 +667,10 @@ function getGrowthItemConditionReport(itemId) {
     return getGrowthEffectSnapshot().conditions.get(itemId) || { met: [], unmet: [] };
 }
 
+function getGrowthItemRelatedIds(itemId) {
+    return Array.from(getGrowthEffectSnapshot().relations.get(itemId) || []);
+}
+
 function getActiveGrowthGlobalSynergies() {
     return getGrowthEffectSnapshot().activeGlobals;
 }
@@ -591,6 +689,7 @@ safeExposeGlobals({
     invalidateGrowthEffects, isGrowthSynergyStageUnlocked, getGrowthItemTags, resolveGrowthDirection,
     evaluateGrowthCondition, getGrowthEffectSnapshot, applyGrowthSpatialStats,
     getGrowthItemStatMultiplier, getGrowthItemBaseMultiplier, getGrowthItemConditionReport,
+    getGrowthItemRelatedIds,
     getActiveGrowthGlobalSynergies, getGrowthSlabDef, getGrowthSlabPatternCells,
     getGrowthItemLevel, getGrowthCellLevel, getGrowthLevelMultiplier
 });

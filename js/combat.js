@@ -473,9 +473,11 @@ function rollGrowthItemDrop(enemy, equipmentDropChance) {
     let item = generateGrowthDrop(enemy);
     if (!item || !addDroppedGrowthItem(item)) return;
     if (!game.settings.showLootLog) return;
-    addBattleFx('lootPickup', { enemyId: enemy.id, color: item.rarity === 'unique' ? '#ffb05a' : '#8fe6a8', duration: 780 });
-    if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#7fd99a', duration: 1200 });
-    addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득! (최근 획득함)`);
+    let growthDropColor = item.growthChase ? '#d7a7ff' : (item.rarity === 'unique' ? '#ffb05a' : '#8fe6a8');
+    addBattleFx('lootPickup', { enemyId: enemy.id, color: growthDropColor, duration: item.growthChase ? 1200 : 780 });
+    if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: growthDropColor, duration: item.growthChase ? 2200 : 1200 });
+    let chaseLabel = item.growthChase ? ' <span style="color:#d7a7ff;font-weight:900;">✦ 체이싱</span>' : '';
+    addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${chaseLabel}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득! (최근 획득함)`);
 }
 
 

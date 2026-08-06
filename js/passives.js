@@ -7795,7 +7795,7 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let count = 0;
     if (rarity === 'magic') count = Math.random() < 0.5 ? 1 : 2;
     if (rarity === 'rare') count = 4 + Math.floor(Math.random() * 2);
-    // 생장 아이템은 크기가 옵션 수 상한을 결정한다 (spec 9).
+    // 생장 아이템은 등급별 전용 옵션 상한을 적용한다.
     if (typeof isGrowthItem === 'function' && isGrowthItem(item)) count = Math.min(count, getGrowthItemAffixCap(item));
     count = Math.max(0, count - getItemExplicitOptionCount(item) - reservedInfusionCount);
     let mods = pickRandomMods(getAvailableMods(item), count);
@@ -10332,9 +10332,10 @@ async function useCurrency(currencyKey) {
     if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(currencyKey)) return addLog("융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.", "attack-monster");
 
-    // 생장 아이템은 크기가 옵션 상한을 결정하므로 6줄 대신 크기 상한을 쓴다 (spec 9).
-    let explicitCap = (typeof isGrowthItem === 'function' && isGrowthItem(item)) ? getGrowthItemAffixCap(item) : 6;
-    let magicCap = (typeof isGrowthItem === 'function' && isGrowthItem(item)) ? Math.min(2, explicitCap) : 2;
+    // 생장 아이템은 마법 1줄, 희귀 2줄이다. 승급 판정은 현재 마법 상한이 아니라
+    // 승급 후 희귀 상한을 써야 1줄짜리 마법 아이템을 희귀로 올릴 수 있다.
+    let growthCraft = typeof isGrowthItem === 'function' && isGrowthItem(item);
+    let explicitCap = growthCraft ? getGrowthCategoryAffixCap(item.growthCategory) : 6;
     let ok = false;
     if (actionKey === 'transmute') ok = item.rarity === 'normal';
     else if (actionKey === 'alteration') ok = item.rarity === 'magic';

@@ -1,12 +1,16 @@
 // 생장 아이템 생성: 드랍, 고유, 타락 결과.
 // 기존 옵션 풀(MOD_DB)·베이스 롤(rollBaseStats)·등급 규칙을 그대로 재사용하고,
-// 생장판 고유 요소(종류/태그)만 추가한다. 모든 아이템은 1칸이다.
+// 생장판 고유 요소(종류/태그/형태)만 추가한다.
 
 // 종류별 옵션 풀 매핑 (spec 15: 무기 전용 → 꽃, 방어구/방패 → 가지, 장신구 → 잎).
 const GROWTH_CATEGORY_MOD_SLOTS = {
     flower: ['무기', '장갑'],
     branch: ['갑옷', '방패', '투구'],
-    leaf: ['목걸이', '반지', '신발', '허리띠']
+    leaf: ['목걸이', '반지', '신발', '허리띠'],
+    fruit: ['반지', '목걸이'], root: ['갑옷', '방패', '투구'],
+    thorn: ['무기', '장갑'], stem: ['신발', '장갑'],
+    spore: ['목걸이', '반지'], seed: ['반지', '허리띠'],
+    vine: ['허리띠', '목걸이', '신발']
 };
 
 function getGrowthCategoryModSlots(category) {
@@ -21,12 +25,12 @@ function getGrowthCraftSlot(category) {
     return (GROWTH_CATEGORY_INFO[category] || {}).craftSlot || '목걸이';
 }
 
-/** 종류별 추가 옵션 상한. 모든 아이템이 1칸이라 크기가 아닌 종류가 옵션 폭을 정한다. */
+/** 마법은 1줄, 희귀는 2줄이다. 형태 크기는 베이스 성능과 공간 비용으로 보상한다. */
 function getGrowthItemAffixCap(item) {
     if (!isGrowthItem(item)) return 6;
     let cap = getGrowthCategoryAffixCap(item.growthCategory);
     if (cap <= 0) return 0;
-    if (item.rarity === 'magic') return Math.min(2, cap);
+    if (item.rarity === 'magic') return Math.min(1, cap);
     if (item.rarity === 'normal') return 0;
     return cap;
 }
@@ -38,12 +42,12 @@ function isGrowthBaseUnlockedAtTier(base, tier) {
 
 // 콘텐츠별 드랍 성향 (spec 23): 지역 종류에 따라 선호 종류/태그 가중치를 준다.
 const GROWTH_ZONE_DROP_BIAS = {
-    labyrinth: { tags: ['벽'], categories: ['branch'] },
-    beehive: { tags: ['소환수', '상태이상'], categories: ['leaf'] },
-    chaosRealm: { tags: ['카오스', '폭발'], categories: ['flower'] },
-    underworld: { tags: ['방어'], categories: ['branch'] },
-    cosmos: { tags: ['원소', '변환'], categories: ['leaf'] },
-    timeRift: { tags: [], categories: ['flower', 'branch', 'leaf'] }
+    labyrinth: { tags: ['벽', '방어'], categories: ['branch', 'root', 'thorn'] },
+    beehive: { tags: ['소환수', '상태이상', '군집'], categories: ['spore', 'seed', 'fruit'] },
+    chaosRealm: { tags: ['카오스', '폭발', '상태이상'], categories: ['flower', 'thorn', 'spore'] },
+    underworld: { tags: ['방어', '회복'], categories: ['root', 'stem'] },
+    cosmos: { tags: ['원소', '변환', '연결'], categories: ['leaf', 'fruit', 'vine'] },
+    timeRift: { tags: ['성장'], categories: ['flower', 'branch', 'leaf', 'seed', 'stem', 'vine'] }
 };
 
 function getGrowthDropWeight(base, zone) {
@@ -65,6 +69,17 @@ function pickGrowthBaseForDrop(tier, preferredCategory) {
     let weights = candidates.map(base => getGrowthDropWeight(base, zone));
     let total = weights.reduce((sum, value) => sum + value, 0);
     let roll = Math.random() * total;
+    for (let i = 0; i < candidates.length; i++) {
+        roll -= weights[i];
+        if (roll <= 0) return candidates[i];
+    }
+    return candidates[candidates.length - 1];
+}
+
+function pickGrowthWeightedEntry(candidates) {
+    if (!Array.isArray(candidates) || candidates.length === 0) return null;
+    let weights = candidates.map(row => Math.max(0.001, Number(row.weight) || 1));
+    let roll = Math.random() * weights.reduce((sum, value) => sum + value, 0);
     for (let i = 0; i < candidates.length; i++) {
         roll -= weights[i];
         if (roll <= 0) return candidates[i];
@@ -104,7 +119,7 @@ function generateGrowthUniqueItem(tier, forcedName) {
     let zoneTier = Math.max(1, Math.floor(Number(tier) || 1));
     let pool = GROWTH_UNIQUE_DB.filter(unique => zoneTier >= (unique.reqTier || 1));
     let unique = forcedName ? GROWTH_UNIQUE_DB.find(row => row && row.name === forcedName) : null;
-    if (!unique) unique = pool.length > 0 ? rndChoice(pool) : GROWTH_UNIQUE_DB[0];
+    if (!unique) unique = pickGrowthWeightedEntry(pool.length > 0 ? pool : GROWTH_UNIQUE_DB.slice(0, 1));
     if (!unique) return null;
     let base = unique.baseId ? GROWTH_BASE_DB.find(row => row && row.id === unique.baseId) : null;
     let category = unique.category || (base ? base.category : 'flower');
@@ -129,7 +144,9 @@ function generateGrowthUniqueItem(tier, forcedName) {
         uniqueEffect: unique.uniqueEffect || '',
         uniqueEffectKey: unique.uniqueEffectKey || '',
         uniqueEffectParams: unique.uniqueEffectParams ? JSON.parse(JSON.stringify(unique.uniqueEffectParams)) : null,
-        growthEffectKey: unique.growthEffectKey || null
+        growthEffectKey: unique.growthEffectKey || null,
+        growthChase: !!unique.chase,
+        flavorText: unique.flavorText || ''
     };
     (unique.stats || []).forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
@@ -143,15 +160,7 @@ function generateGrowthUniqueItem(tier, forcedName) {
 function pickGrowthSlabDef(tier) {
     let candidates = GROWTH_SLAB_DB.filter(def => (def.reqTier || 1) <= tier);
     if (candidates.length === 0) candidates = GROWTH_SLAB_DB.filter(def => (def.reqTier || 1) <= 1);
-    if (candidates.length === 0) return null;
-    let weights = candidates.map(def => Math.max(0.01, Number(def.weight) || 1));
-    let total = weights.reduce((sum, value) => sum + value, 0);
-    let roll = Math.random() * total;
-    for (let i = 0; i < candidates.length; i++) {
-        roll -= weights[i];
-        if (roll <= 0) return candidates[i];
-    }
-    return candidates[candidates.length - 1];
+    return pickGrowthWeightedEntry(candidates);
 }
 
 function createGrowthSlabItem(tier) {
@@ -169,18 +178,35 @@ function createGrowthSlabItem(tier) {
         baseId: null,
         baseName: def.name,
         name: def.name,
-        rarity: 'magic',
+        rarity: def.chase ? 'unique' : 'magic',
         itemTier: zoneTier,
         hiddenTier: zoneTier,
         baseStats: [],
         stats: [],
         growthTags: ['석판'],
-        growthRemovedTags: []
+        growthRemovedTags: [],
+        growthChase: !!def.chase,
+        flavorText: def.flavorText || ''
     };
 }
 
+/** 일반 석판의 문양을 같은 티어 이하의 다른 일반 석판으로 재각인한다. */
+function reforgeGrowthSlabDefinition(item) {
+    if (!isGrowthSlab(item) || item.growthChase) return null;
+    let tier = Math.max(1, Math.floor(Number(item.hiddenTier || item.itemTier) || 1));
+    let pool = GROWTH_SLAB_DB.filter(def => !def.chase && def.id !== item.growthSlabId
+        && (def.reqTier || 1) <= tier);
+    let def = pickGrowthWeightedEntry(pool);
+    if (!def) return null;
+    item.growthSlabId = def.id;
+    item.baseName = def.name;
+    item.name = def.name;
+    item.flavorText = '';
+    return def;
+}
+
 // 석판이 드랍에서 차지하는 비중. 너무 흔하면 레벨 인플레가, 너무 귀하면 시스템 체감이 사라진다.
-const GROWTH_SLAB_DROP_RATE = 0.25;
+const GROWTH_SLAB_DROP_RATE = 0.10;
 
 function rollGrowthDropRarity(enemy) {
     let roll = Math.random();
@@ -224,7 +250,7 @@ function generateGrowthDrop(enemy) {
 }
 
 // ── 타락 (spec 18) ───────────────────────────────────────────────────────
-// 모든 아이템이 1칸이라 크기 변화 결과는 없다. 대신 태그·옵션·회전 봉인으로 갈린다.
+// 타락은 저장 형태를 바꾸지 않고 태그·옵션·회전 봉인으로 갈린다.
 const GROWTH_CORRUPTION_OUTCOMES = [
     { weight: 22, key: 'addAffix' },
     { weight: 16, key: 'empowerAffix' },
@@ -311,5 +337,5 @@ safeExposeGlobals({
     getGrowthCategoryModSlots, getGrowthCraftSlot, getGrowthItemAffixCap, isGrowthBaseUnlockedAtTier,
     pickGrowthBaseForDrop, createGrowthItemFromBase, generateGrowthUniqueItem, generateGrowthDrop,
     applyGrowthCorruptionOutcome, pickGrowthCorruptionOutcome,
-    createGrowthSlabItem, pickGrowthSlabDef
+    createGrowthSlabItem, pickGrowthSlabDef, reforgeGrowthSlabDefinition
 });

@@ -1047,7 +1047,7 @@ const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'cod
 const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
-    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '꽃·가지·잎·석판을 판에 배치합니다.' }] },
+    utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '루프 25에 해금. 열 가지 생장판과 석판을 배치합니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'codex', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
 });
 
@@ -1631,8 +1631,8 @@ function renderMergedTabPanels(groupKey) {
     if (!group || !shell) return;
     let selectedId = getSelectedMergedTabId(groupKey);
     let nav = shell.querySelector('.merged-tab-subtabs');
-    nav.innerHTML = group.tabs.filter(isMergedTabAvailable).map(tab =>
-        `<button type="button" class="subtab-btn${tab.id === selectedId ? ' active' : ''}" onclick="switchMergedTabSubtab('${groupKey}','${tab.id}')">${tab.label}</button>`
+    nav.innerHTML = group.tabs.filter(tab => isMergedTabAvailable(tab) || tab.id === 'tab-growthboard').map(tab =>
+        `<button type="button" class="subtab-btn${tab.id === selectedId ? ' active' : ''}" onclick="switchMergedTabSubtab('${groupKey}','${tab.id}')" ${isMergedTabAvailable(tab) ? '' : 'disabled title="루프 25에 해금"'}>${tab.label}${isMergedTabAvailable(tab) ? '' : ' 🔒 루프 25'}</button>`
     ).join('');
     shell.querySelectorAll('.merged-subtab-pane').forEach(pane => {
         pane.classList.toggle('active', pane.dataset.tabId === selectedId);
@@ -6310,11 +6310,12 @@ function getItemStatToneColor(statId) {
 }
 
 function getItemSlotDisplayLabel(item, fallbackLabel) {
-    // 생장 아이템은 부위가 아니라 종류(꽃/가지/잎/석판)로 식별한다. 모두 1칸이라 크기는 표기하지 않는다.
+    // 생장 아이템은 부위가 아니라 종류와 점유 칸 수로 식별한다.
     // item.slot은 옵션 풀·화석 계열 판정을 위한 내부 매핑일 뿐이라 사용자에게 노출하지 않는다.
     if (typeof isGrowthItem === 'function' && isGrowthItem(item)) {
         let info = (typeof GROWTH_CATEGORY_INFO !== 'undefined' && GROWTH_CATEGORY_INFO[item.growthCategory]) || null;
-        return info ? info.label : '생장';
+        let cellCount = typeof getGrowthItemCells === 'function' ? getGrowthItemCells(item, 0).length : 1;
+        return `${info ? info.label : '생장'} · ${cellCount}칸`;
     }
     let rawSlot = item && item.slot !== undefined && item.slot !== null ? item.slot : null;
     if (rawSlot === null && item && Array.isArray(item.slots) && item.slots.length > 0) rawSlot = item.slots[0];
@@ -10480,6 +10481,7 @@ function buildCraftActionButtons(item) {
 
     let hiddenCurrencyKeys = new Set(['chaosKey', 'coreKey', 'bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'rivalKey', 'cosmosSovereignKey', 'bossCore', 'skyEssence', 'gemShard', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos', 'reefFragment', 'oceanRerollShard']);
     hiddenCurrencyKeys.add('condensedSkyPower');
+    hiddenCurrencyKeys.add('growthEssence');
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
         if (hiddenCurrencyKeys.has(key)) return false;
         if (key === 'emberBranch') return (game.season || 1) >= 5 && (game.currencies[key] || 0) > 0;
@@ -15396,7 +15398,7 @@ function checkUnlocks() {
     if (typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked() && !(game.seenTutorials || []).includes('unlock_growth_board')) {
         game.noti.growthboard = true;
         queueTutorialNotice('unlock_growth_board', '생장판 개방',
-            `루프 ${GROWTH_UNLOCK_LOOP} 달성! 장비와 별개로 자라나는 생장판이 열렸습니다.\n보조장비 탭에서 꽃·가지·잎을 8×4 판에 배치하면 위치와 인접 관계에 따라 공간 시너지가 발동합니다.\n생장 아이템은 전투에서 별도로 드랍되어 최근 획득함에 쌓입니다.`,
+            `루프 ${GROWTH_UNLOCK_LOOP} 달성! 장비와 별개로 자라나는 생장판이 열렸습니다.\n보조장비 탭의 빠른 배치함에서 카드를 8×4 판으로 끌면 공간 시너지가 발동합니다.\n생장 아이템과 석판을 해체하면 탭 내부 제작대에서 쓰는 생장 정수를 얻습니다.`,
             'tab-flask');
     }
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {

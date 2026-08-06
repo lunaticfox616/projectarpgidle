@@ -21,7 +21,7 @@ function normalizeGrowthCells(cells) {
     return cells.map(([x, y]) => [x - minX, y - minY]).sort((a, b) => (a[1] - b[1]) || (a[0] - b[0]));
 }
 
-// 모든 생장 아이템은 1칸이다. 예전 저장에 남은 폴리오미노 형태 id도 1칸으로 해석한다.
+// 알 수 없는 예전 형태 id는 안전하게 1칸으로 해석한다.
 function getGrowthShapeDef(shapeId) {
     if (typeof GROWTH_SHAPE_DB === 'undefined') return null;
     return GROWTH_SHAPE_DB[shapeId] || GROWTH_SHAPE_DB.dot1 || null;
@@ -41,8 +41,7 @@ function isGrowthSlab(item) {
     return !!(item && item.growthCategory === 'slab');
 }
 
-// 아이템의 점유 좌표. 모든 아이템이 1칸이므로 회전은 점유 칸을 바꾸지 않지만,
-// 방향 조건(왼쪽이 외벽 등)은 회전과 함께 돌아가므로 회전 값 자체는 계속 의미가 있다.
+// 아이템의 점유 좌표. 형태와 방향 조건 모두 회전을 반영한다.
 function getGrowthItemCells(item, rotation) {
     let shape = item ? getGrowthShapeDef(item.growthShapeId) : null;
     if (!shape) return [];
@@ -167,41 +166,82 @@ function getPlacedGrowthEntries() {
 }
 
 /** 점유 맵: 'x,y' → itemId */
-function buildGrowthOccupancyMap(excludeItemId) {
+function buildGrowthOccupancyMap(excludeItemIds, targetLoadout) {
+    let excluded = new Set(Array.isArray(excludeItemIds) ? excludeItemIds : [excludeItemIds]);
     let map = new Map();
-    getPlacedGrowthEntries().forEach(entry => {
-        if (excludeItemId !== undefined && entry.item.id === excludeItemId) return;
-        entry.cells.forEach(([x, y]) => map.set(`${x},${y}`, entry.item.id));
+    let loadout = targetLoadout || getActiveGrowthLoadout();
+    Object.keys((loadout && loadout.placements) || {}).forEach(key => {
+        let item = findGrowthItemById(Number(key));
+        let placement = loadout.placements[key];
+        if (!item || !placement || excluded.has(item.id)) return;
+        getGrowthPlacementCells(item, placement.x, placement.y, placement.rotation)
+            .forEach(([x, y]) => map.set(`${x},${y}`, item.id));
     });
     return map;
+}
+
+function getGrowthPlacementCells(item, x, y, rotation) {
+    return getGrowthItemCells(item, rotation).map(([cx, cy]) => [cx + Math.floor(x), cy + Math.floor(y)]);
+}
+
+function checkGrowthCells(cells, occupancy) {
+    if (cells.length === 0) return { ok: false, reason: '형태 정보가 없습니다.' };
+    for (let i = 0; i < cells.length; i++) {
+        let [x, y] = cells[i];
+        if (x < 0 || y < 0 || x >= GROWTH_BOARD_W || y >= GROWTH_BOARD_H) return { ok: false, reason: '보드 밖으로 나갈 수 없습니다.' };
+        if (!isGrowthCellUnlocked(x, y)) return { ok: false, reason: '봉인된 칸에는 배치할 수 없습니다.' };
+        if (occupancy && occupancy.has(`${x},${y}`)) return { ok: false, reason: '다른 아이템과 겹칩니다.' };
+    }
+    return { ok: true, reason: '' };
 }
 
 /** @returns {{ok:boolean, reason:string}} */
 function canPlaceGrowthItem(item, x, y, rotation) {
     if (!isGrowthItem(item)) return { ok: false, reason: '생장 아이템이 아닙니다.' };
     if (item.rotationLocked && ((Math.floor(rotation || 0) % 4) + 4) % 4 !== 0) return { ok: false, reason: '회전이 봉인된 아이템입니다.' };
-    let cells = getGrowthItemCells(item, rotation).map(([cx, cy]) => [cx + x, cy + y]);
-    if (cells.length === 0) return { ok: false, reason: '형태 정보가 없습니다.' };
+    return checkGrowthCells(getGrowthPlacementCells(item, x, y, rotation), buildGrowthOccupancyMap(item.id));
+}
+
+/** 겹친 아이템이 하나면 이전 자리와 교환하고, 교환이 불가능하면 기존 아이템을 내린다. */
+function planGrowthPlacement(itemId, x, y, rotation) {
+    let item = findGrowthItemById(itemId);
+    if (!item) return { ok: false, reason: '아이템을 찾을 수 없습니다.' };
+    let loadout = getActiveGrowthLoadout();
+    let target = { x: Math.floor(x), y: Math.floor(y), rotation: ((Math.floor(rotation || 0) % 4) + 4) % 4 };
+    let cells = getGrowthPlacementCells(item, target.x, target.y, target.rotation);
+    let boundary = checkGrowthCells(cells);
+    if (!boundary.ok) return boundary;
     let occupancy = buildGrowthOccupancyMap(item.id);
-    for (let i = 0; i < cells.length; i++) {
-        let [cx, cy] = cells[i];
-        if (cx < 0 || cy < 0 || cx >= GROWTH_BOARD_W || cy >= GROWTH_BOARD_H) return { ok: false, reason: '보드 밖으로 나갈 수 없습니다.' };
-        if (!isGrowthCellUnlocked(cx, cy)) return { ok: false, reason: '봉인된 칸에는 배치할 수 없습니다.' };
-        if (occupancy.has(`${cx},${cy}`)) return { ok: false, reason: '다른 아이템과 겹칩니다.' };
-    }
-    return { ok: true, reason: '' };
+    let overlapIds = new Set(cells.map(([cx, cy]) => occupancy.get(`${cx},${cy}`)).filter(id => id !== undefined));
+    if (overlapIds.size === 0) return { ok: true, mode: 'move', itemId, target };
+    if (overlapIds.size > 1) return { ok: false, reason: '여러 아이템과 겹치는 위치에는 놓을 수 없습니다.' };
+    let displacedItemId = Array.from(overlapIds)[0];
+    let previous = loadout.placements[itemId];
+    let swap = previous ? planGrowthSwap(itemId, target, cells, displacedItemId, previous) : null;
+    return swap || { ok: true, mode: 'replace', itemId, target, displacedItemId };
+}
+
+function planGrowthSwap(itemId, target, targetCells, displacedItemId, previous) {
+    let displaced = findGrowthItemById(displacedItemId);
+    if (!displaced) return null;
+    let displacedTarget = { x: previous.x, y: previous.y, rotation: previous.rotation || 0 };
+    let displacedCells = getGrowthPlacementCells(displaced, displacedTarget.x, displacedTarget.y, displacedTarget.rotation);
+    let occupancy = buildGrowthOccupancyMap([itemId, displacedItemId]);
+    targetCells.forEach(([x, y]) => occupancy.set(`${x},${y}`, itemId));
+    if (!checkGrowthCells(displacedCells, occupancy).ok) return null;
+    return { ok: true, mode: 'swap', itemId, target, displacedItemId, displacedTarget };
 }
 
 function placeGrowthItem(itemId, x, y, rotation) {
-    let item = findGrowthItemById(itemId);
-    if (!item) return { ok: false, reason: '아이템을 찾을 수 없습니다.' };
-    let check = canPlaceGrowthItem(item, x, y, rotation);
-    if (!check.ok) return check;
-    let loadout = getActiveGrowthLoadout();
-    loadout.placements[itemId] = { x: Math.floor(x), y: Math.floor(y), rotation: ((Math.floor(rotation || 0) % 4) + 4) % 4 };
+    let plan = planGrowthPlacement(itemId, x, y, rotation);
+    if (!plan.ok) return plan;
+    let placements = getActiveGrowthLoadout().placements;
+    if (plan.mode === 'swap') placements[plan.displacedItemId] = plan.displacedTarget;
+    if (plan.mode === 'replace') delete placements[plan.displacedItemId];
+    placements[itemId] = plan.target;
     invalidateGrowthEffects();
     if (typeof queueImportantSave === 'function') queueImportantSave(300);
-    return { ok: true, reason: '' };
+    return plan;
 }
 
 function removeGrowthPlacement(itemId, options) {
@@ -226,6 +266,44 @@ function rotatePlacedGrowthItem(itemId) {
     invalidateGrowthEffects();
     if (typeof queueImportantSave === 'function') queueImportantSave(300);
     return { ok: true, reason: '' };
+}
+
+function getGrowthShapeAlternatives(item) {
+    if (!isGrowthItem(item) || isGrowthSlab(item)) return [];
+    let size = getGrowthItemCells(item, 0).length;
+    return Object.keys(GROWTH_SHAPE_DB).filter(shapeId => shapeId !== item.growthShapeId
+        && (GROWTH_SHAPE_DB[shapeId].cells || []).length === size);
+}
+
+function getGrowthShapeReforgeCost(item) {
+    let size = isGrowthItem(item) ? getGrowthItemCells(item, 0).length : 0;
+    return size > 0 ? size * GROWTH_SHAPE_REFORGE_COST_PER_CELL : 0;
+}
+
+function canUseGrowthShapeInLoadout(item, shapeId, loadout) {
+    let placement = (loadout.placements || {})[item.id];
+    if (!placement) return true;
+    let shaped = Object.assign({}, item, { growthShapeId: shapeId });
+    let cells = getGrowthPlacementCells(shaped, placement.x, placement.y, placement.rotation);
+    return checkGrowthCells(cells, buildGrowthOccupancyMap(item.id, loadout)).ok;
+}
+
+/** 같은 칸 수의 다른 형태로 재배열한다. 어느 세팅의 기존 배치도 깨지지 않는 후보만 사용한다. */
+function reforgeGrowthItemShape(itemId) {
+    let item = findGrowthItemById(itemId);
+    if (!item || isGrowthSlab(item)) return { ok: false, reason: '형태를 바꿀 생장판이 아닙니다.' };
+    let board = ensureGrowthBoardState();
+    let candidates = getGrowthShapeAlternatives(item)
+        .filter(shapeId => board.loadouts.every(loadout => canUseGrowthShapeInLoadout(item, shapeId, loadout)));
+    if (candidates.length === 0) return { ok: false, reason: '같은 크기에서 바꿀 수 있는 형태가 없습니다.' };
+    let cost = getGrowthShapeReforgeCost(item);
+    if ((game.currencies.growthEssence || 0) < cost) return { ok: false, reason: '생장 정수가 부족합니다.' };
+    let previousShapeId = item.growthShapeId;
+    item.growthShapeId = rndChoice(candidates);
+    game.currencies.growthEssence -= cost;
+    invalidateGrowthEffects();
+    if (typeof queueImportantSave === 'function') queueImportantSave(300);
+    return { ok: true, previousShapeId, shapeId: item.growthShapeId, cost };
 }
 
 // 저장 로드/루프 리셋/아이템 소실 후: 사라진 아이템·겹침·봉인 칸 위반 배치를 제거한다.
@@ -327,6 +405,32 @@ function renameGrowthLoadout(idx, name) {
     return true;
 }
 
+function getGrowthSalvageEssenceYield(item) {
+    if (!isGrowthItem(item)) return 0;
+    let rarityYield = { normal: 1, magic: 2, rare: 4, unique: 10 };
+    let footprint = Math.max(1, getGrowthItemCells(item, 0).length);
+    let slabBonus = isGrowthSlab(item) ? 2 + Math.floor(Math.max(1, Number(item.itemTier) || 1) / 5) : 0;
+    return Math.max(1, (rarityYield[item.rarity] || 1) + footprint - 1 + slabBonus);
+}
+
+/** 기존 해체 보상과 생장 정수를 한 트랜잭션으로 지급한다. */
+function salvageGrowthItemObject(item, silent, options) {
+    if (!item) return {};
+    let rewards = salvageItemObject(item, true, options) || {};
+    let essence = getGrowthSalvageEssenceYield(item);
+    if (essence > 0) {
+        game.currencies = game.currencies || {};
+        game.currencies.growthEssence = (game.currencies.growthEssence || 0) + essence;
+        rewards.growthEssence = (rewards.growthEssence || 0) + essence;
+    }
+    if (!silent) {
+        let summary = typeof formatSalvageRewardSummary === 'function'
+            ? formatSalvageRewardSummary(rewards) : `생장 정수 +${essence}`;
+        addLog(`🧪 [${item.name}] 해체 · ${summary}`, 'loot-normal');
+    }
+    return rewards;
+}
+
 // ── 최근 획득함 ──────────────────────────────────────────────────────────
 const RECENT_GROWTH_DROPS_CAP = 24;
 
@@ -361,7 +465,7 @@ function meltOldestRecentGrowthDrop(tier) {
     let idx = game.recentGrowthDrops.findIndex(row => getRecentGrowthDropKeepTier(row) === tier);
     if (idx < 0) return false;
     let victim = game.recentGrowthDrops.splice(idx, 1)[0];
-    salvageItemObject(victim, true, { noDivine: true });
+    salvageGrowthItemObject(victim, true, { noDivine: true });
     if (game.settings.showLootLog) addLog(`🧪 최근 획득함 초과 자동해체: [${victim.name}]`, 'loot-normal');
     return true;
 }
@@ -424,7 +528,7 @@ function addDroppedGrowthItem(item, options) {
     let ignoreAutoSalvage = !!(options && (options.ignoreAutoSalvage || options.guaranteedKeep));
     let growthSalvage = game.settings.growthAutoSalvageRarities || {};
     if (!ignoreAutoSalvage && game.settings.growthAutoSalvageEnabled && growthSalvage[item.rarity]) {
-        salvageItemObject(item, true);
+        salvageGrowthItemObject(item, true);
         if (game.settings.showLootLog) addLog(`🧪 생장 자동해체: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-normal');
         return false;
     }
@@ -493,7 +597,10 @@ function sortGrowthInventory(mode) {
     ensureGrowthBoardState();
     let key = GROWTH_SORT_MODES.includes(mode) ? mode : 'recent';
     let rarityRank = { unique: 3, rare: 2, magic: 1, normal: 0 };
-    let categoryRank = { flower: 0, branch: 1, leaf: 2, slab: 3 };
+    let categoryRank = Object.keys(GROWTH_CATEGORY_INFO).reduce((out, category, index) => {
+        out[category] = index;
+        return out;
+    }, {});
     let compare = {
         recent: (a, b) => (b.id || 0) - (a.id || 0),
         rarity: (a, b) => (rarityRank[b.rarity] || 0) - (rarityRank[a.rarity] || 0) || (b.itemTier || 0) - (a.itemTier || 0),
@@ -552,7 +659,7 @@ function salvageGrowthInventoryItem(itemId) {
     if (item.locked) { addLog('잠금된 아이템은 해체할 수 없습니다.', 'attack-monster'); return false; }
     if (isGrowthItemPlacedAnywhere(item.id)) { addLog('생장판에 배치된 아이템은 먼저 내려야 해체할 수 있습니다.', 'attack-monster'); return false; }
     game.growthInventory.splice(idx, 1);
-    salvageItemObject(item, false);
+    salvageGrowthItemObject(item, false);
     updateStaticUI();
     return true;
 }
@@ -572,7 +679,7 @@ async function bulkSalvageGrowthInventory() {
     if (targets.length <= 0) return addLog('확인 중 대상이 모두 보호 상태가 되어 해체를 취소했습니다.', 'attack-monster');
     let protectedCount = game.growthInventory.length - targets.length;
     let rewards = {};
-    targets.forEach(item => mergeSalvageRewards(rewards, salvageItemObject(item, true)));
+    targets.forEach(item => mergeSalvageRewards(rewards, salvageGrowthItemObject(item, true)));
     game.growthInventory = game.growthInventory.filter(item => item && (item.locked || isGrowthItemPlacedAnywhere(item.id)));
     addLog(`🧪 생장 아이템 ${targets.length}개 해체 · ${formatSalvageRewardSummary(rewards)}${protectedCount > 0 ? ` (보호 ${protectedCount}개)` : ''}`, 'loot-normal');
     updateStaticUI();
@@ -681,7 +788,7 @@ function salvageRecentGrowthDrop(itemId) {
     let item = game.recentGrowthDrops[idx];
     if (item.locked) { addLog('잠금된 아이템은 해체할 수 없습니다.', 'attack-monster'); return false; }
     game.recentGrowthDrops.splice(idx, 1);
-    salvageItemObject(item, false);
+    salvageGrowthItemObject(item, false);
     updateStaticUI();
     return true;
 }
@@ -691,7 +798,7 @@ safeExposeGlobals({
     getGrowthItemCells,
     ensureGrowthBoardState, getGrowthCellUnlockOrder, getGrowthStageUnlockedCellCount,
     syncGrowthBoardUnlocks, isGrowthCellUnlocked, getActiveGrowthLoadout, findGrowthItemById,
-    getPlacedGrowthEntries, buildGrowthOccupancyMap, canPlaceGrowthItem, placeGrowthItem,
+    getPlacedGrowthEntries, buildGrowthOccupancyMap, canPlaceGrowthItem, planGrowthPlacement, placeGrowthItem,
     removeGrowthPlacement, rotatePlacedGrowthItem, validateGrowthPlacements, validateGrowthLoadoutPlacements,
     switchGrowthLoadout, renameGrowthLoadout, purgeGrowthItemFromAllLoadouts, isGrowthItemPlacedAnywhere,
     resetGrowthBoardForLoop,
@@ -700,6 +807,8 @@ safeExposeGlobals({
     isGrowthBoardUnlocked, getGrowthInventoryLimit, findAnyGrowthItemById,
     salvageGrowthInventoryItem, bulkSalvageGrowthInventory, tryAutoPlaceGrowthItem,
     autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout, tryPlaceSlabAtBestCell,
-    sortGrowthInventory, GROWTH_SORT_MODES, getGrowthAutoSalvageRarities, toggleGrowthAutoSalvageRarity,
+    sortGrowthInventory, GROWTH_SORT_MODES, getGrowthSalvageEssenceYield, salvageGrowthItemObject,
+    getGrowthShapeAlternatives, getGrowthShapeReforgeCost, reforgeGrowthItemShape,
+    getGrowthAutoSalvageRarities, toggleGrowthAutoSalvageRarity,
     toggleGrowthAutoSalvageEnabled, toggleGrowthUseItemFilter
 });
