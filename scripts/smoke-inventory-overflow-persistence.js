@@ -1,4 +1,4 @@
-// 주얼 보관함 초과분이 불러오기에서 사라지지 않는다는 계약.
+// 보관 컬렉션의 초과분이 불러오기에서 사라지지 않는다는 계약(주얼·별쐐기·장비).
 //
 // 전투 드랍은 보관함이 가득 차도 희귀·고유 주얼만은 유실 방지로 한도를 넘겨
 // 보관한다(combat.js의 protectOverflow). 그런데 mergeDefaults가 불러올 때
@@ -48,4 +48,16 @@ const reclaim = passives.slice(passives.indexOf('function reclaimKeystoneJewelSl
 assert.ok(/jewelInventory\.push\(jewel\)/.test(reclaim), '회수한 주얼은 보관함으로 돌려줘야 한다');
 assert.ok(!/salvageJewel/.test(reclaim), '회수 과정에서 주얼을 녹이면 안 된다');
 
-console.log('smoke-jewel-overflow-persistence passed');
+// ── 보유 별쐐기도 같은 이유로 잘라내지 않는다 ───────────────────────────
+// 획득 경로(드랍·제작) 어디에도 보유 한도 검사가 없고 화면에도 한도 표시가 없는데,
+// 불러오기에서만 60개로 잘라 초과분이 조용히 사라졌다(실측 70개 → 60개, 최신 10개 소멸).
+// 별쐐기 하나가 운석 파편 77개 + 불완전한 별쐐기 1개다.
+assert.ok(!/starWedge\.wedges[^\n]*\.slice\(0,\s*\d+\)/.test(ui),
+    '보유 별쐐기를 불러오기에서 잘라내면 최근에 얻은 것부터 조용히 사라진다');
+assert.ok(/merged\.starWedge\.wedges = Array\.isArray\(merged\.starWedge\.wedges\)[^\n]*filter\(/.test(ui),
+    '별쐐기 유효성 검사(filter)는 남아 있어야 한다');
+// 장착 수 제한은 살아 있어야 한다(보유와 장착은 다른 이야기다).
+assert.ok(/merged\.starWedge\.sockets[^\n]*slice\(0, starWedgeSocketCap\)/.test(ui),
+    '장착 슬롯 상한은 유지되어야 한다');
+
+console.log('smoke-inventory-overflow-persistence passed');

@@ -12668,7 +12668,12 @@ function mergeDefaults(save) {
     merged.starWedge.entriesCleared = Math.max(0, Math.floor(clampFiniteNumber(merged.starWedge.entriesCleared, 0, 0)));
     merged.starWedge.firstClearDone = !!merged.starWedge.firstClearDone;
     merged.starWedge.selectedWedgeId = Number.isFinite(merged.starWedge.selectedWedgeId) ? merged.starWedge.selectedWedgeId : null;
-    merged.starWedge.wedges = Array.isArray(merged.starWedge.wedges) ? merged.starWedge.wedges.filter(w => w && Number.isFinite(w.id) && Array.isArray(w.lines)).slice(0, 60) : [];
+    // 보유 별쐐기는 잘라내지 않는다. 획득 경로(드랍·제작) 어디에도 보유 한도 검사가
+    // 없고 화면에도 한도 표시가 없는데, 여기서만 60개로 잘라 초과분이 조용히 사라졌다.
+    // 앞에서부터 남기므로 가장 최근에 얻은 것이 먼저 지워진다(별쐐기 하나가
+    // 운석 파편 77개 + 불완전한 별쐐기 1개다). 장비·주얼 보관함과 같이 그대로 둔다.
+    // 장착 수는 아래 sockets 상한(천문학자 레벨)이 계속 제한한다.
+    merged.starWedge.wedges = Array.isArray(merged.starWedge.wedges) ? merged.starWedge.wedges.filter(w => w && Number.isFinite(w.id) && Array.isArray(w.lines)) : [];
     let mergedAstronomerLevel = merged.expertise && merged.expertise.levels ? merged.expertise.levels.astronomer : 1;
     let starWedgeSocketCap = typeof getMaxEquippedStarWedgesForLevel === 'function' ? getMaxEquippedStarWedgesForLevel(mergedAstronomerLevel) : MAX_STAR_WEDGES;
     merged.starWedge.sockets = Array.isArray(merged.starWedge.sockets) ? merged.starWedge.sockets.filter(s => s && typeof s.nodeId === 'string' && Number.isFinite(s.wedgeId)).slice(0, starWedgeSocketCap) : [];
