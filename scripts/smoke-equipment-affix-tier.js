@@ -85,8 +85,8 @@ const tierValueContext = { Number, Math };
 vm.createContext(tierValueContext);
 vm.runInContext(passiveSource.slice(tierValueStart, tierValueEnd), tierValueContext, { filename: 'tier-value-affix-cap.js' });
 assert.strictEqual(tierValueContext.rollTierValueAffix({ tierValues: [1, 2, 3], statName: 'special' }, 'special', 20).tier, 3, 'finite special-option tables must not display a fake T20 with an unchanged T3 value');
-assert(passiveSource.includes("{ dropRealm: zone.type || null, affixTierCap }"), 'equipment drops must persist their realm provenance and affix cap');
-assert(passiveSource.includes("rerollExplicitMods(item, rarity, affixTierCap)"), 'initial explicit rolls must use the provenance-aware affix cap');
+// Drop provenance and bounded initial affix tiers are exercised through the real generators in
+// smoke-loot-tier-progression.js instead of pinning this test to a particular call expression.
 
 const beltRangeStart = passiveSource.indexOf('function getBeltFlaskUtilSlotRollRange');
 const beltRangeEnd = passiveSource.indexOf('function rollBaseStats', beltRangeStart);

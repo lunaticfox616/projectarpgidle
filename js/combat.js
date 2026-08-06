@@ -7076,7 +7076,7 @@ function rollLootForEnemy(enemy) {
     }
     rollGrowthItemDrop(enemy, itemChance);
     if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * challengeRewardMul) {
-        let jewel = generateJewelDrop((getZone(game.currentZoneId) || { tier: 1 }).tier || 1);
+        let jewel = generateJewelDrop(getZone(game.currentZoneId) || { type: 'act', storyOrder: 1 });
         game.jewelInventory = game.jewelInventory || [];
         let jewelRarity = jewel.rarity || 'normal';
         let autoSalvage = !!(game.settings.jewelAutoSalvageEnabled && game.settings.jewelAutoSalvageRarities && game.settings.jewelAutoSalvageRarities[jewelRarity]);

@@ -7207,6 +7207,22 @@ function getRealmEquipmentAffixTierCap(zone, hiddenTierCap) {
     return Math.min(zone && zone.type === 'cosmos' ? 20 : 15, itemTier);
 }
 
+/**
+ * @param {{type?: string, storyOrder?: number, id?: number, depth?: number, equivalentChaosDepth?: number, tier?: number}|null} zone
+ * @param {{isBoss?: boolean, isElite?: boolean}|null} enemy
+ * @returns {{min: number, max: number}}
+ */
+function getRealmItemDropTierRange(zone, enemy) {
+    const maxTier = getRealmEquipmentHiddenTierCap(zone);
+    const width = enemy && enemy.isBoss ? 2 : (enemy && enemy.isElite ? 3 : 4);
+    return { min: Math.max(1, maxTier - width), max: maxTier };
+}
+
+function getDroppedAffixTierRange(itemTier) {
+    const maxTier = clampNumber(Math.floor(Number(itemTier) || 1), 1, 20);
+    return { min: Math.max(1, maxTier - 4), max: maxTier };
+}
+
 function getCraftTierRangeForItem(item, source) {
     let maxTier = getItemCraftTier(item);
     if (maxTier < 11) return { min: 1, max: maxTier };
@@ -7471,6 +7487,11 @@ function pickTierInRangeWeighted(minTier, maxTier) {
         roll -= pool[i].weight;
     }
     return pool[pool.length - 1].tier;
+}
+
+function rollRealmItemDropTier(zone, enemy) {
+    const range = getRealmItemDropTierRange(zone, enemy);
+    return pickTierInRangeWeighted(range.min, range.max);
 }
 
 function rollAffixValueInTierRange(mod, minTier, maxTier) {
@@ -7764,6 +7785,7 @@ function rerollChaosInfusionForItem(item, previousInfusion) {
 
 function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let maxTier = Math.max(1, zoneTier);
+    let minTier = clampNumber(Math.floor(Number(options && options.minTier) || 1), 1, maxTier);
     let rerollChaosInfusion = !!(options && options.rerollChaosInfusion);
     let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
     if (rerollChaosInfusion) item.chaosInfusion = null;
@@ -7777,7 +7799,9 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     if (typeof isGrowthItem === 'function' && isGrowthItem(item)) count = Math.min(count, getGrowthItemAffixCap(item));
     count = Math.max(0, count - getItemExplicitOptionCount(item) - reservedInfusionCount);
     let mods = pickRandomMods(getAvailableMods(item), count);
-    mods.forEach(mod => item.stats.push(rollAffixValue(mod, maxTier)));
+    mods.forEach(mod => item.stats.push(minTier > 1
+        ? rollAffixValueInTierRange(mod, minTier, maxTier)
+        : rollAffixValue(mod, maxTier)));
     if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
     updateItemName(item);
 }
@@ -8137,6 +8161,7 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
     origin = origin && typeof origin === 'object' ? origin : {};
     const dropRealm = typeof origin.dropRealm === 'string' ? origin.dropRealm : null;
     const affixTierCap = clampNumber(Math.floor(Number(origin.affixTierCap) || Math.min(15, Math.max(1, Number(zoneTier) || 1))), 1, 20);
+    const affixTierFloor = clampNumber(Math.floor(Number(origin.affixTierFloor) || 1), 1, affixTierCap);
     let item = {
         id: itemIdCounter,
         slot: base.slot,
@@ -8151,7 +8176,7 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
         baseStats: rollBaseStats(base, zoneTier),
         stats: []
     };
-    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, affixTierCap);
+    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, affixTierCap, { minTier: affixTierFloor });
     return item;
 }
 
@@ -8356,7 +8381,8 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
     if (!pool || pool.length <= 0) return item;
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     if (item.stats.length >= 6) item.stats.pop();
-    let roll = rollAffixValue(pickWeightedMod(pool), getItemCraftTier(item));
+    let tierRange = getDroppedAffixTierRange(zoneTier);
+    let roll = rollAffixValueInTierRange(pickWeightedMod(pool), tierRange.min, tierRange.max);
     roll.fossilExclusiveDrop = true;
     item.stats.push(roll);
     if (item.rarity === 'normal') item.rarity = 'magic';
@@ -8367,9 +8393,11 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
 function generateEquipmentDrop(enemy) {
     let zone = getZone(game.currentZoneId) || {};
     let hiddenTierCap = getRealmEquipmentHiddenTierCap(zone);
-    let affixTierCap = getRealmEquipmentAffixTierCap(zone, hiddenTierCap);
+    let dropTier = rollRealmItemDropTier(zone, enemy);
+    let affixTierCap = getRealmEquipmentAffixTierCap(zone, dropTier);
+    let affixTierRange = getDroppedAffixTierRange(affixTierCap);
     let slot = rndChoice(EQUIPMENT_DROP_SLOTS);
-    let base = chooseItemBase(slot, hiddenTierCap);
+    let base = chooseItemBase(slot, dropTier);
     let rarity = 'normal';
     let roll = Math.random();
     if (enemy.isBoss) {
@@ -8382,9 +8410,13 @@ function generateEquipmentDrop(enemy) {
         if (roll < 0.006) return generateUniqueItem(hiddenTierCap, slot);
         rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
-    let item = createItemFromBase(base, rarity, hiddenTierCap, { dropRealm: zone.type || null, affixTierCap });
+    let item = createItemFromBase(base, rarity, dropTier, {
+        dropRealm: zone.type || null,
+        affixTierCap,
+        affixTierFloor: affixTierRange.min
+    });
     maybeApplyExceptionalBase(item);
-    item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, hiddenTierCap);
+    item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
     return maybeApplyChaosRealmEncroachment(item, enemy, getZone(game.currentZoneId));
 }
 
@@ -8876,9 +8908,9 @@ function resolveJewelRollOption(option, excludeIds) {
     return rndChoice(pool.length > 0 ? pool : JEWEL_OPTION_POOL.filter(row => JEWEL_SUMMON_OPTION_IDS.has(row.id)));
 }
 
-function rollRandomJewelStat(excludeIds) {
+function rollRandomJewelStat(excludeIds, tierRange) {
     let pool = getJewelRollOptionPool(excludeIds);
-    return rollJewelStat(resolveJewelRollOption(rndChoice(pool), excludeIds));
+    return rollJewelStat(resolveJewelRollOption(rndChoice(pool), excludeIds), tierRange);
 }
 
 const JEWEL_CRAFT_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'pruningShears'];
@@ -8907,11 +8939,11 @@ function setJewelStatsAndRarity(jewel, rarity, stats) {
     jewel.name = `${getJewelRarityLabel(rarity)} 주얼`;
 }
 
-function rollJewelCraftStats(count, keepStats) {
+function rollJewelCraftStats(count, keepStats, tierRange) {
     let stats = (keepStats || []).map(cloneJewelStat).filter(Boolean);
     let usedIds = stats.map(stat => stat.id);
     while (stats.length < count) {
-        let stat = rollRandomJewelStat(usedIds);
+        let stat = rollRandomJewelStat(usedIds, tierRange);
         if (!stat) break;
         stats.push(stat);
         usedIds.push(stat.id);
@@ -8993,11 +9025,15 @@ function cloneJewelStat(stat) {
     return normalized ? { ...normalized } : null;
 }
 
-function rollJewelStat(option) {
+function rollJewelStat(option, tierRange) {
     if (!option) return null;
+    let requestedMinTier = tierRange ? Math.max(1, Math.min(JEWEL_HIDDEN_TIER_COUNT, Math.floor(Number(tierRange.min) || 1))) : 1;
+    let requestedMaxTier = tierRange ? Math.max(requestedMinTier, Math.min(JEWEL_HIDDEN_TIER_COUNT, Math.floor(Number(tierRange.max) || requestedMinTier))) : JEWEL_HIDDEN_TIER_COUNT;
     let ailResIds = new Set(['ailResIgnite','ailResShock','ailResFreeze','ailResPoison','ailResBleed']);
     if (ailResIds.has(option.id)) {
-        let tier = 1 + Math.floor(Math.random() * JEWEL_HIDDEN_TIER_COUNT);
+        let tier = tierRange
+            ? pickTierInRangeWeighted(requestedMinTier, requestedMaxTier)
+            : 1 + Math.floor(Math.random() * JEWEL_HIDDEN_TIER_COUNT);
         let tierRanges = { 1:[12.5,25], 2:[17,30], 3:[22,36], 4:[26,43], 5:[30,50] };
         let rng = tierRanges[tier] || [12.5,50];
         let step = 0.5;
@@ -9009,9 +9045,21 @@ function rollJewelStat(option) {
     let hasDecimalRange = !Number.isInteger(Number(option.min)) || !Number.isInteger(Number(option.max));
     let step = Number.isFinite(option.step) && option.step > 0 ? option.step : (hasDecimalRange ? 0.1 : 1);
     let slots = Math.max(0, Math.floor(((option.max - option.min) / step) + 0.000001));
-    let val = option.min + Math.floor(Math.random() * (slots + 1)) * step;
+    let selectedTier = slots > 0 && tierRange ? pickTierInRangeWeighted(requestedMinTier, requestedMaxTier) : 1;
+    let slotStart = tierRange ? Math.ceil(((selectedTier - 1) * (slots + 1)) / JEWEL_HIDDEN_TIER_COUNT) : 0;
+    let slotEnd = tierRange ? Math.max(slotStart + 1, Math.ceil((selectedTier * (slots + 1)) / JEWEL_HIDDEN_TIER_COUNT)) : slots + 1;
+    let slotIndex = slotStart + Math.floor(Math.random() * Math.max(1, slotEnd - slotStart));
+    let val = option.min + Math.min(slots, slotIndex) * step;
     val = (step < 1 || !Number.isInteger(Number(val))) ? Number(val.toFixed(2)) : Math.floor(val);
-    return normalizeJewelStat({ id: option.id, val: val, valMin: option.min, valMax: option.max });
+    let rolled = { id: option.id, val: val, valMin: option.min, valMax: option.max };
+    if (tierRange && slots > 0) rolled.tier = selectedTier;
+    return normalizeJewelStat(rolled);
+}
+
+function getJewelDropTierRange(zoneTier) {
+    let boundedZoneTier = Math.max(1, Math.min(20, Math.floor(Number(zoneTier) || 1)));
+    let maxTier = Math.max(1, Math.min(JEWEL_HIDDEN_TIER_COUNT, Math.ceil(boundedZoneTier / 4)));
+    return { min: Math.max(1, maxTier - 1), max: maxTier };
 }
 
 function makeFixedJewelStat(statId, val) {
@@ -9037,8 +9085,15 @@ function rollJewelPetiteStat(rarity, excludeIds) {
     return stat;
 }
 
-function generateJewelDrop(zoneTier) {
-    let tier = Math.max(1, Number(zoneTier) || 1);
+/**
+ * @param {number|{type?: string, storyOrder?: number, id?: number, depth?: number, equivalentChaosDepth?: number, tier?: number}} zoneOrTier
+ * @returns {{id: number, name: string, rarity: string, hiddenTier: number, stats: Array<{id: string, val: number, valMin: number, valMax: number, tier: number}>}}
+ */
+function generateJewelDrop(zoneOrTier) {
+    let tier = zoneOrTier && typeof zoneOrTier === 'object'
+        ? getRealmEquipmentHiddenTierCap(zoneOrTier)
+        : Math.max(1, Number(zoneOrTier) || 1);
+    let dropTierRange = getJewelDropTierRange(tier);
     let uniqueChance = Math.max(0.003, Math.min(0.03, 0.002 + (tier / 2000)));
     if (Math.random() < uniqueChance) {
         let pool = UNIQUE_JEWEL_DB.filter(v => !v.ultra);
@@ -9063,7 +9118,7 @@ function generateJewelDrop(zoneTier) {
     else if (rarityRoll > 0.55) rarity = 'magic';
     // 등급별 옵션 줄 수: 일반 0줄(진화의 오브로 제작), 매직 1~2줄, 레어 2~4줄
     let lineCount = rarity === 'rare' ? (2 + Math.floor(Math.random() * 3)) : (rarity === 'magic' ? (1 + Math.floor(Math.random() * 2)) : 0);
-    let stats = rollJewelCraftStats(lineCount);
+    let stats = rollJewelCraftStats(lineCount, null, dropTierRange);
     let hiddenTier = stats.length ? Math.max(1, ...stats.map(st => st.tier || 1)) : 1;
     let name = stats.length ? `${getStatName(stats[0].id)} 주얼` : '미가공 주얼';
     return { id: Date.now() + Math.floor(Math.random() * 100000), name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
@@ -10572,6 +10627,10 @@ async function exchangeAtMarket(exchangeId, exchangeAll) {
 }
 
 safeExposeGlobals({
+    getRealmEquipmentHiddenTierCap,
+    getRealmItemDropTierRange,
+    getDroppedAffixTierRange,
+    rollRealmItemDropTier,
     getAnnulmentRemovableStats,
     getSporeCraftCost,
     hasSporeCraftCost,

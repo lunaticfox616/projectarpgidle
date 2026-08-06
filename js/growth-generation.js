@@ -72,9 +72,10 @@ function pickGrowthBaseForDrop(tier, preferredCategory) {
     return candidates[candidates.length - 1];
 }
 
-function createGrowthItemFromBase(base, rarity, tier) {
+function createGrowthItemFromBase(base, rarity, tier, options) {
     if (!base) return null;
     let zoneTier = Math.max(1, Math.floor(Number(tier) || 1));
+    let affixTierFloor = Math.max(1, Math.min(zoneTier, Math.floor(Number(options && options.affixTierFloor) || 1)));
     itemIdCounter++;
     let item = {
         id: itemIdCounter,
@@ -88,12 +89,13 @@ function createGrowthItemFromBase(base, rarity, tier) {
         rarity: rarity,
         itemTier: zoneTier,
         hiddenTier: zoneTier,
+        affixTierCap: zoneTier,
         baseStats: rollBaseStats(base, zoneTier),
         stats: [],
         growthTags: [],
         growthRemovedTags: []
     };
-    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, zoneTier);
+    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, zoneTier, { minTier: affixTierFloor });
     updateItemName(item);
     return item;
 }
@@ -197,22 +199,26 @@ function rollGrowthDropRarity(enemy) {
 function generateGrowthDrop(enemy) {
     let zone = (typeof getZone === 'function' ? getZone(game.currentZoneId) : null) || {};
     let tierCap = typeof getRealmEquipmentHiddenTierCap === 'function' ? getRealmEquipmentHiddenTierCap(zone) : Math.max(1, Math.floor(zone.tier || 1));
+    let dropTier = typeof rollRealmItemDropTier === 'function' ? rollRealmItemDropTier(zone, enemy) : tierCap;
     if (Math.random() < GROWTH_SLAB_DROP_RATE) {
-        let slab = createGrowthSlabItem(tierCap);
+        let slab = createGrowthSlabItem(dropTier);
         if (slab) return slab;
     }
     let rarity = rollGrowthDropRarity(enemy);
     if (rarity === 'unique') {
-        let unique = generateGrowthUniqueItem(tierCap);
+        let unique = generateGrowthUniqueItem(dropTier);
         if (unique) return unique;
         rarity = 'rare';
     }
-    let base = pickGrowthBaseForDrop(tierCap);
+    let base = pickGrowthBaseForDrop(dropTier);
     if (!base) return null;
-    let item = createGrowthItemFromBase(base, rarity, tierCap);
+    let affixTierRange = typeof getDroppedAffixTierRange === 'function'
+        ? getDroppedAffixTierRange(dropTier)
+        : { min: Math.max(1, dropTier - 4), max: dropTier };
+    let item = createGrowthItemFromBase(base, rarity, dropTier, { affixTierFloor: affixTierRange.min });
     if (!item) return null;
     if (typeof maybeApplyExceptionalBase === 'function') maybeApplyExceptionalBase(item);
-    if (typeof maybeApplyDroppedFossilExclusiveAffix === 'function') item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, tierCap);
+    if (typeof maybeApplyDroppedFossilExclusiveAffix === 'function') item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
     if (typeof maybeApplyChaosRealmEncroachment === 'function') item = maybeApplyChaosRealmEncroachment(item, enemy, zone);
     return item;
 }
