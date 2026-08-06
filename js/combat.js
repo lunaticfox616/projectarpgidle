@@ -2615,14 +2615,16 @@ function getPlayerStats() {
     let scaleStatList = (stats, multiplier) => multiplier === 1 ? (stats || []) : (stats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number(stat.val) * multiplier } : stat);
     getStatSourceItemEntries().forEach(([equipSlotKey, item]) => {
         if (!item) return;
-        if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && item.slot === '무기') return;
+        let growthItem = typeof isGrowthItem === 'function' && isGrowthItem(item);
+        let isEquippedWeapon = !growthItem && item.slot === '무기';
+        if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && isEquippedWeapon) return;
         let mirrorSourceItem = getMirrorRingSourceItem(equipSlotKey, item);
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '', sourceSlot: equipSlotKey });
         if (mirrorSourceItem && mirrorSourceItem.rarity === 'unique' && mirrorSourceItem.uniqueEffectKey) equippedUniqueEffects.push({ key: mirrorSourceItem.uniqueEffectKey, params: mirrorSourceItem.uniqueEffectParams || null, itemName: mirrorSourceItem.name || '', sourceSlot: getOppositeRingSlotKey(equipSlotKey) });
         // 생장판: 공간 효과가 부여하는 아이템 단위 배율(공허 고리 2배 등)과 베이스 전용 배율(중계 덩굴손).
-        let growthStatMultiplier = (typeof getGrowthItemStatMultiplier === 'function' && isGrowthItem(item)) ? getGrowthItemStatMultiplier(item.id) : 1;
-        let growthBaseMultiplier = (typeof getGrowthItemBaseMultiplier === 'function' && isGrowthItem(item)) ? getGrowthItemBaseMultiplier(item.id) : 1;
-        let itemStatMultiplier = (item.slot === '무기' ? warriorDualWeaponEffectMultiplier : 1) * growthStatMultiplier;
+        let growthStatMultiplier = (typeof getGrowthItemStatMultiplier === 'function' && growthItem) ? getGrowthItemStatMultiplier(item.id) : 1;
+        let growthBaseMultiplier = (typeof getGrowthItemBaseMultiplier === 'function' && growthItem) ? getGrowthItemBaseMultiplier(item.id) : 1;
+        let itemStatMultiplier = (isEquippedWeapon ? warriorDualWeaponEffectMultiplier : 1) * growthStatMultiplier;
         let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
         let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(item.quality || 0)));
         let qualityMul = 1 + (qualityValue / 100);

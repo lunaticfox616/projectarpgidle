@@ -13,6 +13,7 @@ const files = [
   'data/maps.js',
   'data/skills.js',
   'data/items.js',
+  'data/growth-items.js',
   'data/passives.js',
   'data/bosses.js',
   'data/rewards.js',

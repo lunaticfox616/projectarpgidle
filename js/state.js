@@ -2100,7 +2100,7 @@ const defaultGame = {
     inventory: [],
     inventoryExpandLevel: 0,
     // 생장판: 기존 장비를 대체하지 않는 추가 시스템. 루프 25에 해금되며 그 전에는 활성 칸이 0이다.
-    growthBoard: { width: 12, height: 5, unlockedCellCount: 0, activeLoadout: 0, loadouts: [] },
+    growthBoard: { width: GROWTH_BOARD_W, height: GROWTH_BOARD_H, unlockedCellCount: 0, activeLoadout: 0, loadouts: [] },
     growthInventory: [],
     growthInventoryExpandLevel: 0,
     recentGrowthDrops: [],

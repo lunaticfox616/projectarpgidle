@@ -669,8 +669,8 @@ function renderGrowthCraftTargetLists() {
 
 // 이 탭은 updateStaticUI마다 불린다. 판 32칸 + 보관함 40장 + 시너지/비교 목록을
 // 매번 새로 만들면 25ms가 나와 전투 중 프레임이 눈에 띄게 튄다.
-// 화면에 영향을 주는 값만 모아 지문을 만들고, 바뀌지 않았으면 통째로 건너뛴다.
-// (시간에 따라 변하는 표시가 없어서 지문만으로 충분하다.)
+// 화면에 표시될 수 있는 아이템 상태를 지문에 담고, 바뀌지 않았으면 통째로 건너뛴다.
+// 제작은 옵션 값·태그·품질만 바꿀 수도 있으므로 개수나 등급만 비교하면 안 된다.
 let _growthTabSignature = null;
 
 function getGrowthTabSignature() {
@@ -678,9 +678,18 @@ function getGrowthTabSignature() {
     let loadout = getActiveGrowthLoadout();
     let placements = Object.keys(loadout.placements || {}).sort()
         .map(id => { let p = loadout.placements[id]; return `${id}:${p.x},${p.y},${p.rotation}`; }).join('|');
-    let items = (game.growthInventory || [])
-        .map(item => `${item.id}:${item.rarity}:${(item.stats || []).length}:${item.locked ? 1 : 0}`).join(',');
-    let recent = (game.recentGrowthDrops || []).map(item => item.id).join(',');
+    let itemSignature = item => JSON.stringify({
+        id: item.id, growthBaseId: item.growthBaseId, growthCategory: item.growthCategory,
+        growthShapeId: item.growthShapeId, name: item.name, rarity: item.rarity,
+        itemTier: item.itemTier, hiddenTier: item.hiddenTier, quality: item.quality,
+        corrupted: item.corrupted, fusedRelic: item.fusedRelic, loopSealed: item.loopSealed,
+        rotationLocked: item.rotationLocked, locked: item.locked, baseStats: item.baseStats,
+        stats: item.stats, growthTags: item.growthTags, growthRemovedTags: item.growthRemovedTags,
+        uniqueEffect: item.uniqueEffect, uniqueEffectKey: item.uniqueEffectKey,
+        uniqueEffectParams: item.uniqueEffectParams, slabDefId: item.slabDefId
+    });
+    let items = (game.growthInventory || []).map(itemSignature).join(',');
+    let recent = (game.recentGrowthDrops || []).map(itemSignature).join(',');
     let filter = JSON.stringify((game.settings || {}).growthInventoryFilter || {});
     let flags = [(game.settings || {}).growthSortMode, (game.settings || {}).growthAutoClaim,
         (game.settings || {}).growthAutoSalvageEnabled, (game.settings || {}).growthUseItemFilter,

@@ -72,15 +72,6 @@ function pickGrowthBaseForDrop(tier, preferredCategory) {
     return candidates[candidates.length - 1];
 }
 
-// 잎은 유틸리티 플라스크 슬롯을 제공한다 (기존 허리띠 역할 계승, spec 13 기능 보존).
-function rollGrowthFlaskSlotStat(category, tier) {
-    if (category !== 'leaf' || typeof getBeltFlaskUtilSlotRollRange !== 'function') return null;
-    let range = getBeltFlaskUtilSlotRollRange(tier);
-    if (!range) return null;
-    let val = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
-    return { id: 'flaskUtilSlots', val, valMin: range.min, valMax: range.max, baseRollMin: range.min, baseRollMax: range.max, tier: 0, statName: getStatName('flaskUtilSlots') };
-}
-
 function createGrowthItemFromBase(base, rarity, tier) {
     if (!base) return null;
     let zoneTier = Math.max(1, Math.floor(Number(tier) || 1));
@@ -102,8 +93,6 @@ function createGrowthItemFromBase(base, rarity, tier) {
         growthTags: [],
         growthRemovedTags: []
     };
-    let flaskStat = rollGrowthFlaskSlotStat(base.category, zoneTier);
-    if (flaskStat) item.baseStats.push(flaskStat);
     if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, zoneTier);
     updateItemName(item);
     return item;
