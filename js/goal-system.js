@@ -18,6 +18,9 @@
     function isTabActionAvailable(tabId) {
         let g = goalGame();
         if (!g) return false;
+        // 저널처럼 TAB_UNLOCK_GATES에 없는 병합 탭도 안쪽 패널이 잠기면 열리지 않는다.
+        // 표시 계층의 판정과 같은 함수를 써서, 눌러도 아무 일도 없는 바로가기를 만들지 않는다.
+        if (typeof isTabSurfaceAvailable === 'function') return !!isTabSurfaceAvailable(tabId);
         let gateKey = (typeof TAB_UNLOCK_GATES !== 'undefined' && TAB_UNLOCK_GATES) ? TAB_UNLOCK_GATES[tabId] : null;
         if (!gateKey) return true;
         return !!(g.unlocks && g.unlocks[gateKey]);

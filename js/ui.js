@@ -1048,7 +1048,7 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 't
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
     utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '루프 25에 해금. 열 가지 생장판과 석판을 배치합니다.' }] },
-    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'codex', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -1512,6 +1512,8 @@ function updateTabUnlockButtons() {
         let root = document.getElementById(group.launcher);
         if (root && root.classList.contains('active')) renderMergedTabPanels(groupKey);
     });
+    // 다시 잠긴 탭의 창/패널이 열린 채로 남지 않게 정리한다(갱신이 멈춘 잔상 방지).
+    closeRelockedTabSurfaces();
     // 2단 그룹핑이 활성이면 해금 판정 직후 활성 그룹 외 탭을 숨긴다(단일 권위 지점).
     hideOutOfGroupTabButtons();
     // 데스크톱 창형 레일은 그룹 섹션 단위로 표시되므로, 해금 변경 시 빈 그룹을 함께 숨긴다.
@@ -1567,7 +1569,11 @@ function isMergedTabAvailable(tab) {
         return typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked();
     }
     let gateKey = (tab && typeof tab === 'object' && tab.gate) || TAB_UNLOCK_GATES[tabId];
-    if (gateKey === 'codex' && !isCodexTabUnlockReady()) return false;
+    // 저널은 루프를 건너 유지되는 영구 기록이라 고유 아이템 보유 여부와 무관하게 열려 있어야 한다.
+    // (도감은 game.unlocks.codex가 권위이며 checkUnlocks가 루프마다 다시 판정한다. 여기서
+    //  "지금 고유를 들고 있는가"를 다시 보면, 고유를 처분하거나 루프를 넘긴 직후 기록 메뉴 자체가
+    //  사라져 저널·도감을 열 수 없게 된다.)
+    if (gateKey === 'journal') return isJournalTabUnlockReady();
     return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
 }
 
@@ -1593,6 +1599,45 @@ function getActiveUiTabId() {
     if (!mergedEntry || mergedEntry[1].launcher !== activeContent.id) return activeContent.id;
     return getSelectedMergedTabId(mergedEntry[0]) || activeContent.id;
 }
+
+// 지금 이 탭 화면(창/패널)을 열어 둘 수 있는지 판정한다.
+// 병합 그룹의 런처는 안쪽에 열 수 있는 탭이 하나라도 남아 있어야 유효하다.
+function isTabSurfaceAvailable(tabId) {
+    if (!tabId) return false;
+    let mergedEntry = getMergedTabGroup(tabId);
+    if (mergedEntry) {
+        if (mergedEntry[1].launcher === tabId) return !!getSelectedMergedTabId(mergedEntry[0]);
+        return isMergedTabAvailable(mergedEntry[1].tabs.find(tab => tab.id === tabId) || tabId);
+    }
+    let gateKey = TAB_UNLOCK_GATES[tabId];
+    return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
+}
+
+// 보고 있던 화면이 다시 잠겨 닫혔음을 알리는 표시. 다음 정적 UI 갱신이 안전한 탭으로
+// 되돌린다(활성 탭이 하나도 없어 아무것도 렌더되지 않는 빈 화면 방지).
+let pendingRelockedTabFallback = false;
+
+// 루프 정산처럼 런타임 판정이 탭을 다시 잠그면 실행 버튼만 사라지고, 이미 열려 있던
+// 창/패널은 화면에 그대로 남는다. 그 화면은 updateStaticUI의 렌더 대상(getActiveUiTabId)에서도
+// 빠지므로 갱신이 멈춘 잔상이 닫을 방법도 없이 남아 "탭이 고장난" 것처럼 보인다.
+// 해금 판정 직후 이 함수가 잠긴 표면을 함께 닫는다.
+function closeRelockedTabSurfaces() {
+    Array.from(document.querySelectorAll('.tab-content:not(.merged-subtab-pane)')).forEach(el => {
+        if (!el.id || isTabSurfaceAvailable(el.id)) return;
+        let wasActive = el.classList.contains('active');
+        let windowOpen = el.classList.contains('ui-window-open') || el.classList.contains('ui-window-minimized');
+        if (!wasActive && !windowOpen) return;
+        el.classList.remove('active');
+        let btn = document.getElementById('btn-' + el.id);
+        if (btn) btn.classList.remove('active');
+        // ui-window-open은 창 관리자가 준비한 창에만 붙으므로, 이 조건에서만 closeWindow를 부른다.
+        if (windowOpen && typeof closeWindow === 'function') closeWindow(el.id);
+        if (lastActiveTabId === el.id) lastActiveTabId = null;
+        if (wasActive) pendingRelockedTabFallback = true;
+    });
+}
+
+safeExposeGlobals({ isTabSurfaceAvailable, closeRelockedTabSurfaces });
 
 function mountMergedTabGroup(groupKey) {
     let group = MERGED_TAB_GROUPS[groupKey];
@@ -1730,6 +1775,8 @@ function switchTab(tabId) {
     // 창의 선택 패널이 사라져 빈 창만 남는다. 전역 전환은 최상위 탭과 메뉴 버튼만 해제한다.
     document.querySelectorAll('.tab-content:not(.merged-subtab-pane), .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
+    // 열 수 있는 화면을 다시 세웠으므로 잠금 정리 후의 복귀 예약은 소진된다.
+    pendingRelockedTabFallback = false;
     let activeBtn = document.getElementById('btn-' + tabId);
     activeBtn.classList.add('active');
     if (mergedEntry) renderMergedTabSubtabs(mergedEntry[0]);
@@ -9118,8 +9165,15 @@ function performUpdateStaticUI() {
     }
     let activeTabId = getActiveUiTabId();
     if (activeTabId) syncDerivedTabUnlock(activeTabId);
+    // 열려 있는 최상위 화면이 그 사이 다시 잠겼는지(루프 정산 등)를 먼저 본다.
+    // 병합 런처(기록 등)는 TAB_UNLOCK_GATES에 없으므로 게이트 검사만으로는 걸러지지 않는다.
+    let activeHostId = (document.querySelector('.tab-content.active') || {}).id || '';
+    closeRelockedTabSurfaces();
     let activeGate = activeTabId ? TAB_UNLOCK_GATES[activeTabId] : null;
-    if (activeGate && !game.unlocks[activeGate]) {
+    // 잠긴 화면을 정리하고 나면 활성 탭이 하나도 남지 않을 수 있다(pendingRelockedTabFallback).
+    // 그대로 두면 어떤 탭도 렌더되지 않는 빈 화면이 되므로 안전한 탭으로 되돌린다.
+    if ((activeGate && !game.unlocks[activeGate]) || pendingRelockedTabFallback || (activeHostId && !isTabSurfaceAvailable(activeHostId))) {
+        pendingRelockedTabFallback = false;
         switchTab('tab-character');
         return;
     }
@@ -15417,6 +15471,13 @@ function isCodexTabUnlockReady() {
     return (game.inventory || []).some(item => item && item.rarity === 'unique')
         || Object.values(game.equipment || {}).some(item => item && item.rarity === 'unique')
         || Object.keys(game.uniqueCodex || {}).length > 0;
+}
+
+// 저널은 루프를 건너 유지되는 영구 기록(해금 항목·영구 보너스·패시브 포인트)이다.
+// 한 번 첫 기록을 얻으면 다시 잠기지 않아야 한다. 도감이 열려 있으면 기록 메뉴도 함께 연다.
+function isJournalTabUnlockReady() {
+    let entries = Array.isArray(game.journalEntries) ? game.journalEntries : [];
+    return entries.some(id => id && id !== 'prologue') || !!(game.unlocks && game.unlocks.codex);
 }
 
 function syncDerivedTabUnlock(tabId) {

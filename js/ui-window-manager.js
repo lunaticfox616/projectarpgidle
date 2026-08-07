@@ -766,7 +766,11 @@
         // 데스크톱 창 모드에서는 탭 재클릭이 창 닫기로 동작하므로, 목표 바로가기는
         // 원본 탭 갱신 뒤 항상 창을 열고 포커스하는 단방향 동작으로 처리한다.
         if (isDesktopWindowed() && originalSwitchTab && WINDOW_DEFS[target.actionTabId]) {
-            originalSwitchTab(target.actionTabId);
+            // 기록·보조장비처럼 병합 그룹의 런처인 탭은 안쪽 패널 선택까지 맞춰야
+            // 누른 화면(저널)이 실제로 보인다. 아니면 마지막에 보던 패널(도감)이 열린다.
+            let merged = typeof getMergedTabGroup === 'function' ? getMergedTabGroup(target.actionTabId) : null;
+            if (merged && typeof window.switchMergedTabSubtab === 'function') window.switchMergedTabSubtab(merged[0], target.actionTabId, { keepWindowOpen: true });
+            else originalSwitchTab(target.actionTabId);
             openWindow(target.actionTabId);
         } else if (typeof window.switchTab === 'function') {
             window.switchTab(target.actionTabId);
