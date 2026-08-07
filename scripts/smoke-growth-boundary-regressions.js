@@ -99,11 +99,26 @@ function createScrollableRenderHost(top, left) {
     resetGame();
     placeFlatHpFlower();
     const panel = createScrollableRenderHost(137, 29);
-    ctx.document.getElementById = id => id === 'ui-growth-panel' ? panel : null;
+    let scrollIntoViewCalls = 0;
+    const bench = { scrollIntoView() { scrollIntoViewCalls++; } };
+    ctx.document.getElementById = id => id === 'ui-growth-panel' ? panel : (id === 'ui-growth-craft-bench' ? bench : null);
+    run('growthCraftItemId = null;');
     run("growthSelection = { itemId: null, source: null, rotation: 0, hoverCell: null }; selectGrowthItem(game.growthInventory[0].id, 'tray')");
     assert.strictEqual(run('growthSelection.source'), 'tray', '빠른 배치함 클릭으로 아이템을 선택해야 한다');
+    assert.strictEqual(run('growthCraftItemId'), run('game.growthInventory[0].id'), '빠른 배치함에서 선택한 아이템을 제작대에도 올려야 한다');
+    assert.ok(panel._html.includes('제작 전 옵션 확인'), '빠른 배치함 선택 직후 제작대 미리보기를 갱신해야 한다');
     assert.strictEqual(panel.tray.scrollTop, 137, '빠른 배치함의 세로 스크롤을 복원해야 한다');
     assert.strictEqual(panel.tray.scrollLeft, 29, '모바일 빠른 배치함의 가로 스크롤도 복원해야 한다');
+    assert.strictEqual(scrollIntoViewCalls, 0, '빠른 배치함 선택은 제작대로 화면을 이동시키면 안 된다');
+
+    run(`(function () {
+        growthSelection = { itemId: null, source: null, rotation: 0, hoverCell: null };
+        let entry = getPlacedGrowthEntries()[0];
+        handleGrowthCellClick(entry.cells[0][0], entry.cells[0][1]);
+    })()`);
+    assert.strictEqual(run('growthSelection.source'), 'board', '장착칸 클릭으로 배치된 아이템을 선택해야 한다');
+    assert.strictEqual(run('growthCraftItemId'), run('game.growthInventory[0].id'), '장착칸에서 선택한 아이템도 제작대에 올려야 한다');
+    assert.strictEqual(scrollIntoViewCalls, 0, '장착칸 선택도 제작대로 화면을 이동시키면 안 된다');
 }
 
 // 보관함 카드는 별도 제작 버튼 없이 카드 자체로 제작대 대상을 선택하고,

@@ -25,6 +25,7 @@ function selectGrowthItem(itemId, source) {
     } else {
         let placement = (getActiveGrowthLoadout().placements || {})[numericId];
         growthSelection = { itemId: numericId, source: source || 'inventory', rotation: placement ? placement.rotation : 0, hoverCell: null };
+        if (source === 'board' || source === 'tray') growthCraftItemId = numericId;
     }
     renderGrowthBoardPanel();
 }
@@ -479,7 +480,7 @@ function buildGrowthTooltipHtml(item) {
     let placement = (getActiveGrowthLoadout().placements || {})[item.id];
     let report = placement ? getGrowthItemConditionReport(item.id) : { met: [], unmet: [] };
     let tags = Array.from(getGrowthItemTags(item));
-    let statLine = stat => `<div class="tooltip-line">${escapeHTML(stat.statName || getStatName(stat.id))} +${formatValue(stat.id, stat.val)}${Number(stat.tier) > 0 ? ` <span style="color:#8fb7ca;">T${Math.floor(stat.tier)}</span>` : ''}</div>`;
+    let statLine = stat => `<div class="tooltip-line">${escapeHTML(stat.statName || getStatName(stat.id))} +${formatValue(stat.id, stat.val)}${Number(stat.tier) > 0 ? ` <span style="color:#8fb7ca;">T${Math.floor(stat.tier)}</span>` : ''}${stat.growthDropOverflow ? ' <span class="growth-overflow-affix">변이 옵션 · 제작 시 소멸</span>' : ''}</div>`;
     let flags = [
         item.corrupted ? '<span style="color:#e74c3c;">타락</span>' : '',
         item.fusedRelic ? '<span style="color:#c7a2ff;">융합</span>' : '',
@@ -768,6 +769,10 @@ function reforgeGrowthShapeAtBench() {
     let item = findGrowthItemById(growthCraftItemId);
     let result = reforgeGrowthItemShape(item ? item.id : null);
     if (!result.ok) return addLog(result.reason, 'attack-monster');
+    let expiredGrowthDropAffix = removeGrowthDropOverflowAffix(item);
+    if (expiredGrowthDropAffix) {
+        addLog(`🍂 형태 제작으로 변이 옵션이 소멸했습니다: ${expiredGrowthDropAffix.statName || getStatName(expiredGrowthDropAffix.id)}`, 'attack-monster');
+    }
     let shape = getGrowthShapeDef(result.shapeId);
     addLog(`🧩 [${item.name}] 형태 재배열 → ${shape.label} (생장 정수 -${result.cost})`, 'loot-normal');
     renderGrowthTab({ force: true });

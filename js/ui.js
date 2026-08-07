@@ -7221,10 +7221,10 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         if (downPhase === null && isAttacking) {
             frame = pickAttackFrame(pickSkillAttackCycle());
         }
-        const _walkBobPeriod = Math.max(80, (moveFrameDuration * walkSequenceLength) / (Math.PI * 2));
-        let stepOffset = (downPhase === null && advanceBlend > 0.08)
-            ? Math.sin(now / _walkBobPeriod) * lerpNumber(0.08, 0.24, advanceBlend)
-            : 0;
+        let walkCycleMs = moveFrameDuration * walkSequenceLength;
+        let walkMotion = downPhase === null && advanceBlend > 0.08 && typeof getPlayableHeroWalkMotion === 'function'
+            ? getPlayableHeroWalkMotion(getHeroAppearanceId(), now, walkCycleMs, advanceBlend)
+            : { x: 0, y: 0 };
         let localHeroTuning = getLocalBattleHeroVisualTuning();
         let heroScaleBoost = clampNumber((Number(scale) || 1) / 1.85, 1, localHeroTuning.maxScaleBoost);
         let normalizedHeroSize = (localHeroTuning.baseHeight * heroScaleBoost) - downBlend * localHeroTuning.downShrink;
@@ -7237,7 +7237,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             outlineAlpha: 0.86,
             outlineThickness: 1
         };
-        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + stepOffset, y + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
+        drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + walkMotion.x, y + walkMotion.y + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
             ctx.save();
             ctx.globalAlpha = 0.42;

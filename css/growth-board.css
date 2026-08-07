@@ -166,6 +166,7 @@ body.growth-unplace-dragging .growth-unplace-zone.drag-hover { border-style: sol
 @keyframes growth-chase-sheen { 0%, 60% { transform: translateX(-55%); } 100% { transform: translateX(55%); } }
 .growth-chase-label { margin-top: 4px; color: #d7a7ff; font-weight: 900; text-shadow: 0 0 6px rgba(181, 96, 255, 0.55); }
 .growth-flavor { margin-top: 7px; color: #a992bd; font-style: italic; }
+.growth-overflow-affix { color: #ffbd66; font-size: 0.86em; font-weight: 800; text-shadow: 0 0 5px rgba(255, 137, 57, 0.45); }
 
 .growth-craft-bench { margin: 12px 0; padding: 10px; border: 1px solid #526b3c; border-radius: 10px; background: linear-gradient(135deg, rgba(23, 38, 25, 0.9), rgba(13, 22, 28, 0.9)); }
 .growth-bench-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

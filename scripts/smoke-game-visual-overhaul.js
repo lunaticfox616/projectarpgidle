@@ -109,6 +109,20 @@ assert.strictEqual(shortStepWalk.stopped, 0, '걷지 않을 때 이동 애니메
 assert.ok(shortStepWalk.combat > 0, '짧은 전투 칸 이동도 0.26초를 기다리지 않고 걷기 전환을 시작해야 한다');
 assert.strictEqual(shortStepWalk.map, 0, '지역 이동의 짧은 안정화 지연은 유지되어야 한다');
 assert.strictEqual(shortStepWalk.mapSettled, 1, '계속 이동 중이면 걷기 전환이 완전히 끝나야 한다');
+const heroWalkMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+  let ids = Array.from({ length: 10 }, (_, index) => 'hero' + (index + 1));
+  return {
+    stopped: getPlayableHeroWalkMotion('hero5', 100, 800, 0),
+    moving: ids.map(id => getPlayableHeroWalkMotion(id, 100, 800, 1))
+  };
+})())`, context));
+assert.deepStrictEqual(heroWalkMotion.stopped, { x: 0, y: 0 }, '정지한 캐릭터에는 보행 흔들림을 적용하면 안 된다');
+heroWalkMotion.moving.forEach((motion, index) => {
+  assert.ok(Math.abs(motion.x) + Math.abs(motion.y) >= 1,
+    `hero${index + 1}은 걷기 스트립이 미묘해도 식별 가능한 보행 변위가 있어야 한다`);
+});
+assert.ok(Math.abs(heroWalkMotion.moving[4].y) > Math.abs(heroWalkMotion.moving[0].y),
+  '성기사 같은 중장 캐릭터는 가벼운 캐릭터보다 보폭이 분명해야 한다');
 const shake = vm.runInContext(`(() => { game.settings.cameraShake = false; battleFx = [{ type: 'hit', start: 900, crit: true }]; return getBattleCameraShake(1000); })()`, context);
 assert.strictEqual(Math.abs(shake.x) + Math.abs(shake.y), 0, 'camera shake toggle should fully disable translation');
 const impactFeedback = vm.runInContext(`(() => {
