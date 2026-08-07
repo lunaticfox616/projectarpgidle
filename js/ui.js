@@ -3325,8 +3325,6 @@ function upgradeUnderworldRune(fromNo) {
     game.currencies.runeShard -= shardNeed;
     let removed = 0;
     st.obtainedRunes = st.obtainedRunes.filter(n => Math.floor(n || 0) === from && removed++ < 3 ? false : true);
-    let equipRemoved = 0;
-    st.equippedRunes = Array.isArray(st.equippedRunes) ? st.equippedRunes.map(n => Math.floor(n || 0) === from && equipRemoved++ < 3 ? null : n) : [null, null, null, null, null, null];
     let to = Math.min(unlockedMax, from + 1);
     st.obtainedRunes.push(to);
     autoEquipUnderworldRune(to);

@@ -32,14 +32,11 @@
         'tab-char': { title: '스킬 / 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460 },
         'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-map': { title: '지도 및 콘텐츠', x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
-        // .core-cube-shell(css/core-cube.css)의 2열 그리드는 minmax(420px,..)+minmax(310px,..)+gap 14px로
-        // 열 최소 합이 744px다. 창 본문 좌우 패딩(26px*2)을 더하면 약 796px가 있어야 오른쪽 열이
-        // 창 밖으로 밀려나지 않는다. 기존 720/480은 이 최소치보다 좁아 오른쪽 카드가 항상 잘렸다.
-        'tab-cube': { title: '코어 큐브', x: 300, y: 110, width: 820, height: 640, minWidth: 800, minHeight: 380 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-season': { title: '루프', x: 300, y: 90, width: 740, height: 640, minWidth: 500, minHeight: 380 },
         // 보조장비 창은 주얼·부적·플라스크뿐 아니라 코어 큐브와 생장판까지 담는다.
-        // 큐브의 2열 그리드가 약 796px를 요구하므로 최소 폭을 그 기준에 맞춘다.
+        // 큐브를 별도 WINDOW_DEFS에 등록하면 병합 패널 안에 창 크롬이 한 번 더 씌워지므로,
+        // 실제 창 소유자는 이 런처 하나뿐이다. 큐브의 2열 그리드에 맞춰 최소 폭도 보장한다.
         'tab-flask': { title: '보조장비', x: 260, y: 100, width: 860, height: 660, minWidth: 800, minHeight: 380 },
         'tab-journal': { title: '기록', x: 300, y: 110, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-talent': { title: '재능', x: 260, y: 100, width: 760, height: 640, minWidth: 500, minHeight: 380 }
