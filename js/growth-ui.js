@@ -334,18 +334,21 @@ function renderGrowthItemCard(item, mode) {
     let info = getGrowthCategoryInfo(item.growthCategory);
     let placement = (getActiveGrowthLoadout().placements || {})[item.id];
     let selected = growthSelection.itemId === item.id;
+    let crafting = growthCraftItemId === item.id;
     let itemLevel = placement && !isGrowthSlab(item) ? getGrowthItemLevel(item.id) : 0;
     let levelBadge = itemLevel !== 0
         ? ` <span class="growth-level-badge${itemLevel < 0 ? ' negative' : ''}">Lv${itemLevel > 0 ? '+' : ''}${itemLevel}</span>`
         : '';
     let actions = mode === 'recent'
         ? `<button onclick="claimRecentGrowthDrop(${item.id})">보관</button><button onclick="salvageRecentGrowthDrop(${item.id})">해체</button>`
-        : `<button onclick="selectGrowthItem(${item.id},'inventory')">${selected ? '선택 해제' : (placement ? '선택' : '배치')}</button>`
-          + (placement ? `<button onclick="unplaceGrowthItem(${item.id})">내리기</button>` : '')
-          + `<button onclick="openGrowthCrafting(${item.id})">${isGrowthSlab(item) ? '재각인' : '제작'}</button>`
-          + `<button onclick="toggleGrowthItemLock(${item.id})">${item.locked ? '🔒' : '🔓'}</button>`
-          + `<button onclick="salvageGrowthInventoryItem(${item.id})">해체</button>`;
-    return `<div class="growth-item-card${selected ? ' selected' : ''}${placement ? ' placed' : ''}${item.growthChase ? ' growth-chase' : ''}" data-info-tooltip-anchor="1" data-growth-drag-id="${item.id}"
+        : `<button onclick="event.stopPropagation();selectGrowthItem(${item.id},'inventory')">${selected ? '선택 해제' : (placement ? '선택' : '배치')}</button>`
+          + (placement ? `<button onclick="event.stopPropagation();unplaceGrowthItem(${item.id})">내리기</button>` : '')
+          + `<button onclick="event.stopPropagation();toggleGrowthItemLock(${item.id})">${item.locked ? '🔒' : '🔓'}</button>`
+          + `<button onclick="event.stopPropagation();salvageGrowthInventoryItem(${item.id})">해체</button>`;
+    let cardActivation = mode === 'inventory'
+        ? ` role="button" tabindex="0" onclick="openGrowthCrafting(${item.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openGrowthCrafting(${item.id});}"`
+        : '';
+    return `<div class="growth-item-card${selected ? ' selected' : ''}${crafting ? ' craft-target' : ''}${placement ? ' placed' : ''}${item.growthChase ? ' growth-chase' : ''}" data-info-tooltip-anchor="1" data-growth-drag-id="${item.id}"${cardActivation}
         onmouseenter="setGrowthBoardItemHover(${item.id});showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="clearGrowthBoardItemHover();hideInfoTooltip()">
         <div class="growth-item-head">
             <span class="item-title loot-${item.rarity || 'normal'}">${item.growthChase ? '✦ ' : ''}${info.icon} ${escapeHTML(item.name || '')}</span>
@@ -724,6 +727,7 @@ function getGrowthCraftActionState(item, action) {
 }
 
 function openGrowthCrafting(itemId) {
+    if (Date.now() < growthSuppressClickUntil) return;
     let item = findGrowthItemById(itemId);
     if (!item) return addLog('생장 아이템을 찾을 수 없습니다.', 'attack-monster');
     growthCraftItemId = item.id;
@@ -807,9 +811,12 @@ function renderGrowthCraftBench() {
         let have = Math.max(0, Math.floor(game.currencies[action.key] || 0));
         return `<button type="button" onclick="exchangeGrowthCraftCurrency('${action.key}')" ${have >= 10 ? '' : 'disabled'}>${escapeHTML(ORB_DB[action.key].name)} 10 → 정수 ${action.cost} <small>(${have})</small></button>`;
     }).join('');
-    let target = item ? `<strong class="loot-${item.rarity || 'normal'}">${escapeHTML(item.name)}</strong> · ${isGrowthSlab(item) ? '석판 문양' : `${getGrowthItemAffixCap(item)}줄 상한`}` : '보관함 카드의 제작 버튼을 누르세요.';
+    let target = item ? `<strong class="loot-${item.rarity || 'normal'}">${escapeHTML(item.name)}</strong> · ${isGrowthSlab(item) ? '석판 문양' : `${getGrowthItemAffixCap(item)}줄 상한`}` : '보관함에서 생장판 카드를 클릭하세요.';
+    let preview = item
+        ? `<div class="growth-craft-preview"><h4>제작 전 옵션 확인</h4>${buildGrowthTooltipHtml(item)}</div>`
+        : '<div class="growth-craft-preview empty">선택한 생장판의 옵션이 여기에 표시됩니다.</div>';
     return `<section id="ui-growth-craft-bench" class="growth-craft-bench"><div class="growth-bench-head"><h3>🛠️ 생장판 제작대</h3><strong>생장 정수 ${essence}</strong></div>
-        <div class="growth-craft-target">${target}</div><div class="growth-craft-actions">${isGrowthSlab(item) ? '' : actions}${renderGrowthReforgeAction(item)}</div>
+        <div class="growth-craft-target">${target}</div>${preview}<div class="growth-craft-actions">${isGrowthSlab(item) ? '' : actions}${renderGrowthReforgeAction(item)}</div>
         <details><summary>기존 재화 교환 (10배 비용)</summary><p>각 재화 10개를 해당 제작 1회분의 생장 정수로 바꿉니다.</p><div class="growth-exchange-actions">${exchanges}</div></details></section>`;
 }
 
@@ -878,14 +885,13 @@ function renderGrowthCraftTargets(targetId) {
     host.innerHTML = items.map(item => {
         let info = getGrowthCategoryInfo(item.growthCategory);
         let selected = !isEquipRef && selectedRef === item.id;
-        return `<div class="growth-item-card${selected ? ' selected' : ''}" data-info-tooltip-anchor="1"
+        return `<div class="growth-item-card${selected ? ' selected' : ''}" data-info-tooltip-anchor="1" role="button" tabindex="0"
             onmouseenter="showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="hideInfoTooltip()"
-            onclick="selectForCrafting(${item.id}, false)">
+            onclick="selectForCrafting(${item.id}, false)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectForCrafting(${item.id},false);}">
             <div class="growth-item-head">
                 <span class="item-title loot-${item.rarity || 'normal'}">${info.icon} ${escapeHTML(item.name || '')}</span>
                 <span class="growth-item-size">${getGrowthCategoryInfo(item.growthCategory).label}</span>
             </div>
-            <div class="growth-item-actions"><button onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">제작 대상</button></div>
         </div>`;
     }).join('');
 }

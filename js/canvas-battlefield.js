@@ -550,6 +550,14 @@ function selectPlayerSwingEffects(effects, now) {
     return { latest, frame };
 }
 
+function getPlayerAdvanceAnimationTarget(isWalking, enemyCount, elapsedMs) {
+    if (!isWalking) return 0;
+    let hasCombatTarget = Math.max(0, Number(enemyCount) || 0) > 0;
+    let delayMs = hasCombatTarget ? 0 : 120;
+    let blendMs = hasCombatTarget ? 140 : 500;
+    return clampNumber((Math.max(0, Number(elapsedMs) || 0) - delayMs) / blendMs, 0, 1);
+}
+
 // Phase-2 extracted battlefield canvas renderer block.
 function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
@@ -641,7 +649,9 @@ function renderBattlefield(forceWhenHidden) {
     let advanceTarget = 0;
     if (desiredAdvancing) {
         let changedAt = Number.isFinite(battleVisualState.advanceChangedAt) ? battleVisualState.advanceChangedAt : now;
-        advanceTarget = clampNumber((now - changedAt - 260) / 700, 0, 1);
+        // 전투 중 한 칸 이동은 빠르면 0.2초 안에 끝난다. 기존 0.26초 대기 때문에
+        // 그 짧은 이동 전체가 대기 자세로 보였으므로, 교전 이동은 즉시 걷기 전환을 시작한다.
+        advanceTarget = getPlayerAdvanceAnimationTarget(true, enemies.length, now - changedAt);
     }
     battleVisualState.playerAdvanceBlend = approachNumber(battleVisualState.playerAdvanceBlend || 0, advanceTarget, desiredAdvancing ? 2.2 : 2.8, deltaSec);
     battleVisualState.playerAttackBlend = approachNumber(battleVisualState.playerAttackBlend || 0, swingFx ? 1 : 0, swingFx ? 4 : 3, deltaSec);

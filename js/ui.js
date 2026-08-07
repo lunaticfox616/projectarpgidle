@@ -7152,7 +7152,9 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let downFx = battleFx.filter(fx => fx.type === 'playerDown' && now - fx.start <= fx.duration).slice(-1)[0];
         let downPhase = downFx ? clampNumber((now - downFx.start) / downFx.duration, 0, 0.999) : null;
         let downBlend = clampNumber(Number.isFinite(motionState.downBlend) ? motionState.downBlend : (downPhase !== null ? 1 : 0), 0, 1);
-        let isAttacking = !isMapAdvancing && (attackBlend > 0.12 || Math.abs(swingPower) > 0.14);
+        // 칸을 좁히는 동안 남은 타격 이펙트가 있어도 공격 포즈로 미끄러지지 않게
+        // 걷기 상태를 우선한다. 공격은 실제 이동이 끝난 다음 프레임부터 재개한다.
+        let isAttacking = !isAdvancing && (attackBlend > 0.12 || Math.abs(swingPower) > 0.14);
         let idleCycle = Array.isArray(bodyClips.idle) && bodyClips.idle.length > 0 ? bodyClips.idle : (Array.isArray(frames.idle) && frames.idle.length > 0 ? frames.idle : [frames.sideIdle, frames.frontIdle, frames.frontGuard].filter(Boolean));
         let walkCycle = Array.isArray(bodyClips.walk_or_run) && bodyClips.walk_or_run.length > 0 ? bodyClips.walk_or_run : (Array.isArray(frames.walk) && frames.walk.length > 0 ? frames.walk : [frames.sideWalk, frames.sideIdle, frames.frontGuard].filter(Boolean));
         let runCycle = walkCycle;
