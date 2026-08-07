@@ -978,8 +978,12 @@ function drawCoreCubeWireframe(drawableFaces, completed) {
 
 function startCoreCubeCanvasAnimation() {
     if (coreCubeCanvasView.animationFrame) cancelAnimationFrame(coreCubeCanvasView.animationFrame);
+    if (!isCoreCubeCanvasVisible(coreCubeCanvasView.canvas)) {
+        coreCubeCanvasView.animationFrame = null;
+        return;
+    }
     const animate = () => {
-        if (!coreCubeCanvasView.canvas || !coreCubeCanvasView.canvas.isConnected) {
+        if (!isCoreCubeCanvasVisible(coreCubeCanvasView.canvas)) {
             coreCubeCanvasView.animationFrame = null;
             return;
         }
@@ -993,8 +997,18 @@ function startCoreCubeCanvasAnimation() {
     coreCubeCanvasView.animationFrame = requestAnimationFrame(animate);
 }
 
+function isCoreCubeCanvasVisible(canvas) {
+    if (!canvas || canvas.isConnected === false) return false;
+    return typeof canvas.getClientRects !== 'function' || canvas.getClientRects().length > 0;
+}
+
 function bindCoreCubeCanvas(canvas) {
-    if (!canvas || coreCubeCanvasView.canvas === canvas) return;
+    if (!canvas) return;
+    if (coreCubeCanvasView.canvas === canvas) {
+        resizeCoreCubeCanvas();
+        startCoreCubeCanvasAnimation();
+        return;
+    }
     coreCubeCanvasView.canvas = canvas;
     coreCubeCanvasView.ctx = canvas.getContext('2d');
     initCoreCubeTextureCanvas();
@@ -1083,7 +1097,10 @@ function renderCoreCubePanel(options) {
     let unlocked = isCoreCubeUnlocked();
     let signature = getCoreCubePanelSignature(st, info, unlocked);
     let force = !!(options && options.force) || !host.firstChild;
-    if (!force && signature === _coreCubePanelSignature) return;
+    if (!force && signature === _coreCubePanelSignature) {
+        initCoreCubeCanvas();
+        return;
+    }
     _coreCubePanelSignature = signature;
     let faceHtml = st.faces.map((value, idx) => {
         let cls = ['core-cube-face'];
