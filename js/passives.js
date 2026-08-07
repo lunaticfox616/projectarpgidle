@@ -10513,6 +10513,10 @@ async function useCurrency(currencyKey) {
         consumedSpore = true;
     }
     game.currencies[currencyKey]--;
+    let expiredGrowthDropAffix = growthCraft ? removeGrowthDropOverflowAffix(item) : null;
+    if (expiredGrowthDropAffix) {
+        addLog(`🍂 제작으로 변이 옵션이 소멸했습니다: ${expiredGrowthDropAffix.statName || getStatName(expiredGrowthDropAffix.id)}`, 'attack-monster');
+    }
     if (['deepWhetstone', 'rootIron', 'jewelPolish'].includes(currencyKey)) {
         item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
         addLog(`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic');
@@ -10655,6 +10659,16 @@ async function useCurrency(currencyKey) {
     updateStaticUI();
 }
 
+/** 드랍에서만 붙는 상한 초과 옵션은 첫 제작이 확정된 뒤 한 번만 제거한다. */
+function removeGrowthDropOverflowAffix(item) {
+    if (!item || !Array.isArray(item.stats)) return null;
+    let index = item.stats.findIndex(stat => stat && stat.growthDropOverflow);
+    if (index < 0) return null;
+    let removed = item.stats.splice(index, 1)[0];
+    updateItemName(item);
+    return removed;
+}
+
 function isMarketUnlocked() {
     return (game.maxZoneId || 0) >= 5;
 }
@@ -10701,5 +10715,6 @@ safeExposeGlobals({
     getItemSalvagePreviewText,
     rollItemSalvageRewards,
     mergeSalvageRewards,
-    formatSalvageRewardSummary
+    formatSalvageRewardSummary,
+    removeGrowthDropOverflowAffix
 });

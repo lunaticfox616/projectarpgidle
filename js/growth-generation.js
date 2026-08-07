@@ -153,7 +153,33 @@ function createGrowthItemFromBase(base, rarity, tier, options) {
     return item;
 }
 
-function generateGrowthUniqueItem(tier, forcedName) {
+const GROWTH_DROP_OVERFLOW_CHANCE = { rare: 0.03, unique: 0.05 };
+
+function rollGrowthDropOverflowStat(item, affixTierRange) {
+    let mod = pickWeightedMod(getAvailableMods(item));
+    if (!mod) return null;
+    let maxTier = Math.max(1, Math.floor(Number(affixTierRange && affixTierRange.max) || item.hiddenTier || item.itemTier || 1));
+    let minTier = Math.max(1, Math.min(maxTier, Math.floor(Number(affixTierRange && affixTierRange.min) || Math.max(1, maxTier - 4))));
+    return rollAffixValueInTierRange(mod, minTier, maxTier, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF);
+}
+
+/** 드랍 생성 경계에서만 옵션 상한을 정리하고, 희귀하게 한 줄의 변이 옵션을 허용한다. */
+function finalizeGrowthDropAffixes(item, affixTierRange) {
+    if (!isGrowthItem(item) || isGrowthSlab(item)) return item;
+    let cap = getGrowthItemAffixCap(item);
+    let stats = Array.isArray(item.stats) ? item.stats : [];
+    let overflowCandidates = stats.slice(cap);
+    item.stats = stats.slice(0, cap);
+    let chance = GROWTH_DROP_OVERFLOW_CHANCE[item.rarity] || 0;
+    if (chance <= 0 || Math.random() >= chance) return item;
+    let overflow = overflowCandidates[0] || rollGrowthDropOverflowStat(item, affixTierRange);
+    if (!overflow) return item;
+    overflow.growthDropOverflow = true;
+    item.stats.push(overflow);
+    return item;
+}
+
+function generateGrowthUniqueItem(tier, forcedName, options) {
     let zoneTier = Math.max(1, Math.floor(Number(tier) || 1));
     let pool = GROWTH_UNIQUE_DB.filter(unique => zoneTier >= (unique.reqTier || 1));
     let unique = forcedName ? GROWTH_UNIQUE_DB.find(row => row && row.name === forcedName) : null;
@@ -191,6 +217,8 @@ function generateGrowthUniqueItem(tier, forcedName) {
         let rolled = rollUniqueStatValue(stat);
         item.stats.push({ id: stat.id, val: rolled.val, valMin: rolled.min, valMax: rolled.max, tier: 0, statName: getStatName(stat.id) });
     });
+    if (options && options.allowDropOverflow) finalizeGrowthDropAffixes(item, options.affixTierRange);
+    else item.stats = item.stats.slice(0, getGrowthItemAffixCap(item));
     return item;
 }
 
@@ -270,16 +298,16 @@ function generateGrowthDrop(enemy) {
         if (slab) return slab;
     }
     let rarity = rollGrowthDropRarity(enemy);
+    let affixTierRange = typeof getDroppedAffixTierRange === 'function'
+        ? getDroppedAffixTierRange(dropTier)
+        : { min: Math.max(1, dropTier - 4), max: dropTier };
     if (rarity === 'unique') {
-        let unique = generateGrowthUniqueItem(dropTier);
+        let unique = generateGrowthUniqueItem(dropTier, null, { allowDropOverflow: true, affixTierRange });
         if (unique) return unique;
         rarity = 'rare';
     }
     let base = pickGrowthBaseForDrop(dropTier);
     if (!base) return null;
-    let affixTierRange = typeof getDroppedAffixTierRange === 'function'
-        ? getDroppedAffixTierRange(dropTier)
-        : { min: Math.max(1, dropTier - 4), max: dropTier };
     let item = createGrowthItemFromBase(base, rarity, dropTier, {
         affixTierFloor: affixTierRange.min,
         tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF
@@ -288,7 +316,7 @@ function generateGrowthDrop(enemy) {
     if (typeof maybeApplyExceptionalBase === 'function') maybeApplyExceptionalBase(item);
     if (typeof maybeApplyDroppedFossilExclusiveAffix === 'function') item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
     if (typeof maybeApplyChaosRealmEncroachment === 'function') item = maybeApplyChaosRealmEncroachment(item, enemy, zone);
-    return item;
+    return finalizeGrowthDropAffixes(item, affixTierRange);
 }
 
 // ── 타락 (spec 18) ───────────────────────────────────────────────────────
