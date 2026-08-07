@@ -4619,6 +4619,8 @@ function closeRewardOverlay() {
 }
 
 function getHeroAppearanceId() {
+    let followsLoopTalent = !game || !game.settings || game.settings.heroAppearanceMode !== 'fixed';
+    if (followsLoopTalent) return game && HERO_SELECTION_DEFS[game.selectedHeroId] ? game.selectedHeroId : 'hero1';
     let cosmeticId = game && HERO_SELECTION_DEFS[game.appearanceHeroId] ? game.appearanceHeroId : null;
     if (cosmeticId) return cosmeticId;
     return game && HERO_SELECTION_DEFS[game.selectedHeroId] ? game.selectedHeroId : 'hero1';

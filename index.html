@@ -1246,7 +1246,14 @@
                     </div>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-two-row-tabs" onchange="updateSettings()"><span class="cfg-label">탭 2줄로 늘리기</span></label>
                     <div class="cfg-select-row">
-                        <span class="cfg-label">캐릭터 외형</span>
+                        <span class="cfg-label">캐릭터 외형 방식</span>
+                        <select id="sel-hero-appearance-mode" onchange="onHeroAppearanceModeChanged()" class="cfg-select" style="min-width:180px;">
+                            <option value="fixed">고정</option>
+                            <option value="loop">루프(재능 변경)마다 변경</option>
+                        </select>
+                    </div>
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">고정 외형</span>
                         <select id="sel-active-hero" onchange="onHeroSelectionChanged()" class="cfg-select" style="min-width:140px;"></select>
                     </div>
                     <div class="cfg-select-row">
@@ -1368,11 +1375,11 @@
 <script defer src="data/talent-cards.js?v=20260722-templar-overheal1"></script>
 <script defer src="js/utils.js?v=20260717-talent-coverage1"></script>
 <script defer src="js/ui-feedback.js?v=20260722-instant-choice1"></script>
-<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1"></script>
+<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1"></script>
 <script defer src="js/save.js?v=20260719-stutter-fix1"></script>
 <script defer src="js/items.js?v=20260719-white-copy1-20260807-base-upgrade-cost1"></script>
 <script defer src="js/skills.js?v=20260717-gem-flask-mobile1"></script>
-<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1&reward=20260806-act2-fix1"></script>
+<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1&reward=20260806-act2-fix1"></script>
 <script defer src="js/growth-board.js?v=20260806-growth-chase1"></script>
 <script defer src="js/growth-effects.js?v=20260806-growth-unique2"></script>
 <script defer src="js/growth-generation.js?v=20260807-growth-affix-balance1"></script>
@@ -1384,7 +1391,7 @@
 <script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1"></script>
+<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1"></script>
 <script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
 <script defer src="js/ui-window-manager.js?v=20260723-merged-tab-window-fix2"></script>
