@@ -13,6 +13,40 @@ const GROWTH_CATEGORY_MOD_SLOTS = {
     vine: ['허리띠', '목걸이', '신발']
 };
 
+const LEGACY_GROWTH_DISCRETE_STATS = new Set([
+    'summonCap', 'summonGemLevel', 'gemLevel', 'targetAny', 'targetProjectile',
+    'projectileExtraShots', 'targetSlam', 'suppCap', 'maxResF', 'maxResC',
+    'maxResL', 'maxResChaos', 'maxResAll', 'spellGemLevel'
+]);
+
+function convertLegacyGrowthStatNumber(value, unique, discrete) {
+    let numeric = Number(value);
+    if (!Number.isFinite(numeric)) return value;
+    if (discrete) return Math.max(-1, Math.min(1, numeric));
+    let converted = unique ? numeric + (numeric / 2) : (numeric * 2) / 5;
+    return Math.round(converted * 1000) / 1000;
+}
+
+function convertLegacyGrowthStat(stat, unique) {
+    if (!stat || !stat.id) return stat;
+    let discrete = !unique && LEGACY_GROWTH_DISCRETE_STATS.has(stat.id);
+    ['val', 'valMin', 'valMax', 'originalVal'].forEach(key => {
+        if (Number.isFinite(Number(stat[key]))) stat[key] = convertLegacyGrowthStatNumber(stat[key], unique, discrete);
+    });
+    if (Array.isArray(stat.extraStats)) stat.extraStats.forEach(extra => convertLegacyGrowthStat(extra, unique));
+    return stat;
+}
+
+/** 구버전 저장 수치를 한 번 실제 값으로 변환한다. 전투 계산에는 별도 배율을 걸지 않는다. */
+function normalizeGrowthOptionValues(item) {
+    if (!isGrowthItem(item) || isGrowthSlab(item)) return item;
+    if (Number(item.growthOptionValueVersion) >= GROWTH_AFFIX_VALUE_VERSION) return item;
+    let unique = item.rarity === 'unique';
+    (Array.isArray(item.stats) ? item.stats : []).forEach(stat => convertLegacyGrowthStat(stat, unique));
+    item.growthOptionValueVersion = GROWTH_AFFIX_VALUE_VERSION;
+    return item;
+}
+
 function getGrowthCategoryModSlots(category) {
     // 석판은 옵션 풀이 없다 — 정체성이 곧 효과라 제작으로 바뀌지 않는다.
     if (category === 'slab') return [];
@@ -105,6 +139,7 @@ function createGrowthItemFromBase(base, rarity, tier, options) {
         itemTier: zoneTier,
         hiddenTier: zoneTier,
         affixTierCap: zoneTier,
+        growthOptionValueVersion: GROWTH_AFFIX_VALUE_VERSION,
         baseStats: rollBaseStats(base, zoneTier),
         stats: [],
         growthTags: [],
@@ -140,6 +175,7 @@ function generateGrowthUniqueItem(tier, forcedName) {
         rarity: 'unique',
         itemTier: Math.max(zoneTier, unique.reqTier || 1),
         hiddenTier: Math.max(zoneTier, unique.reqTier || 1),
+        growthOptionValueVersion: GROWTH_AFFIX_VALUE_VERSION,
         baseStats: base ? rollBaseStats(base, Math.max(zoneTier, unique.reqTier || 1)) : [],
         stats: [],
         growthTags: Array.isArray(unique.tags) ? unique.tags.slice() : [],
@@ -343,5 +379,6 @@ safeExposeGlobals({
     getGrowthCategoryModSlots, getGrowthCraftSlot, getGrowthItemAffixCap, isGrowthBaseUnlockedAtTier,
     pickGrowthBaseForDrop, createGrowthItemFromBase, generateGrowthUniqueItem, generateGrowthDrop,
     applyGrowthCorruptionOutcome, pickGrowthCorruptionOutcome,
-    createGrowthSlabItem, pickGrowthSlabDef, reforgeGrowthSlabDefinition
+    createGrowthSlabItem, pickGrowthSlabDef, reforgeGrowthSlabDefinition,
+    normalizeGrowthOptionValues
 });
