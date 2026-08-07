@@ -5362,21 +5362,28 @@ function syncHeroSelectionState(source, options = {}) {
         let appearanceDef = getHeroSelectionDef(typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId);
         let discovered = Math.min(HERO_SELECTION_ORDER.length, game.discoveredHeroIds.length);
         let unlockText = game.heroFreeSwitchUnlocked ? `외형 변경 해금됨 · 외형: ${appearanceDef.label}` : `해금 진행 ${discovered}/${HERO_SELECTION_ORDER.length}`;
-        summaryEl.innerText = `${def.label} · 실제 재능: ${def.talentsText} · ${unlockText}`;
+        let modeText = game.settings && game.settings.heroAppearanceMode === 'fixed' ? '고정' : '재능 연동';
+        summaryEl.innerText = `${def.label} · 실제 재능: ${def.talentsText} · ${unlockText} · 방식: ${modeText}`;
     }
 }
 
 function renderHeroSelectionControls() {
     let selectEl = document.getElementById('sel-active-hero');
     if (!selectEl) return;
+    let mode = game.settings && game.settings.heroAppearanceMode === 'fixed' ? 'fixed' : 'loop';
+    let modeEl = document.getElementById('sel-hero-appearance-mode');
+    if (modeEl) modeEl.value = mode;
     selectEl.innerHTML = HERO_SELECTION_ORDER.map(id => {
         let def = HERO_SELECTION_DEFS[id];
         return `<option value="${id}">${def.label}</option>`;
     }).join('');
     selectEl.value = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : (game.selectedHeroId || 'hero1');
-    if (!game.heroFreeSwitchUnlocked) {
+    if (mode !== 'fixed') {
         selectEl.disabled = true;
-        selectEl.title = '모든 캐릭터를 한 번씩 선택하면 자유 변경이 해금됩니다.';
+        selectEl.title = '루프(재능 변경)마다 현재 재능 캐릭터의 외형을 사용합니다.';
+    } else if (!game.heroFreeSwitchUnlocked) {
+        selectEl.disabled = true;
+        selectEl.title = '현재 외형은 고정됩니다. 다른 외형 선택은 모든 캐릭터를 한 번씩 경험하면 해금됩니다.';
     } else {
         selectEl.disabled = false;
         selectEl.title = '';
@@ -5389,10 +5396,28 @@ function persistHeroSelectionChange(reason) {
     if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave(reason || '캐릭터 재능 변경');
 }
 
+const applyHeroAppearanceMode = function(mode, options = {}) {
+    let nextMode = mode === 'fixed' ? 'fixed' : 'loop';
+    let previousMode = game.settings && game.settings.heroAppearanceMode === 'fixed' ? 'fixed' : 'loop';
+    let previousAppearance = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : (game.selectedHeroId || 'hero1');
+    game.settings.heroAppearanceMode = nextMode;
+    if (nextMode === 'fixed') game.appearanceHeroId = previousAppearance;
+    syncHeroSelectionState();
+    let nextAppearance = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : (game.selectedHeroId || 'hero1');
+    if (previousAppearance !== nextAppearance && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
+    renderHeroSelectionControls();
+    if (!options.silent && previousMode !== nextMode) {
+        let label = nextMode === 'fixed' ? '고정' : '루프(재능 변경)마다 변경';
+        addLog(`🎭 캐릭터 외형 방식: ${label}`, 'season-up');
+    }
+    if (!options.skipSave && previousMode !== nextMode) persistHeroSelectionChange('캐릭터 외형 방식 변경');
+    return previousMode !== nextMode;
+};
+
 function applyHeroSelection(heroId, options = {}) {
     if (!HERO_SELECTION_DEFS[heroId]) return false;
     if (options.cosmeticOnly) {
-        if (!game.heroFreeSwitchUnlocked) return false;
+        if (!game.heroFreeSwitchUnlocked || game.settings.heroAppearanceMode !== 'fixed') return false;
         let prevAppearance = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : (game.appearanceHeroId || game.selectedHeroId || 'hero1');
         game.appearanceHeroId = heroId;
         syncHeroSelectionState();
@@ -5403,14 +5428,28 @@ function applyHeroSelection(heroId, options = {}) {
         return true;
     }
     let prev = game.selectedHeroId;
+    let prevAppearance = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : (prev || 'hero1');
+    let wasInitialized = !!game.heroSelectionInitialized;
     game.selectedHeroId = heroId;
+    if (game.settings.heroAppearanceMode === 'fixed' && (!wasInitialized || !HERO_SELECTION_DEFS[game.appearanceHeroId])) {
+        game.appearanceHeroId = wasInitialized ? prevAppearance : heroId;
+    }
     syncHeroSelectionState(null, { recordSelected: true });
-    if (prev !== heroId && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
+    let nextAppearance = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : heroId;
+    if (prevAppearance !== nextAppearance && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
     renderHeroSelectionControls();
     if (!options.silent && prev !== heroId) addLog(`🧬 캐릭터 변경: ${getHeroSelectionDef(heroId).label}`, 'season-up');
     if (!options.skipSave) persistHeroSelectionChange('캐릭터 재능 변경');
     return true;
 }
+
+function onHeroAppearanceModeChanged() {
+    let selectEl = document.getElementById('sel-hero-appearance-mode');
+    if (!selectEl) return;
+    applyHeroAppearanceMode(selectEl.value);
+    updateStaticUI();
+}
+safeExposeGlobals({ onHeroAppearanceModeChanged });
 
 function onHeroSelectionChanged() {
     let selectEl = document.getElementById('sel-active-hero');
@@ -12423,6 +12462,7 @@ function mergeDefaults(save) {
         return Math.min(expandedCap ? 12 : 8, cap);
     }
 
+    let savedHeroAppearanceMode = save && save.settings && save.settings.heroAppearanceMode;
     let savedColony = (save && save.colony && typeof save.colony === 'object') ? save.colony : null;
     let savedColonyHadWardSlotVersion = !!(savedColony && Object.prototype.hasOwnProperty.call(savedColony, 'wardSlotVersion'));
     let merged = {
@@ -12825,6 +12865,9 @@ function mergeDefaults(save) {
     merged.heroSelectionInitialized = !!merged.heroSelectionInitialized;
     merged.selectedHeroId = HERO_SELECTION_DEFS[merged.selectedHeroId] ? merged.selectedHeroId : 'hero1';
     merged.appearanceHeroId = HERO_SELECTION_DEFS[merged.appearanceHeroId] ? merged.appearanceHeroId : null;
+    merged.settings.heroAppearanceMode = ['fixed', 'loop'].includes(savedHeroAppearanceMode)
+        ? savedHeroAppearanceMode
+        : (merged.appearanceHeroId ? 'fixed' : 'loop');
     merged.discoveredHeroIds = Array.isArray(merged.discoveredHeroIds) ? merged.discoveredHeroIds.filter(id => HERO_SELECTION_DEFS[id]) : [];
     if (!merged.heroSelectionInitialized && !merged.heroFreeSwitchUnlocked && merged.selectedHeroId === 'hero1' && merged.discoveredHeroIds.length === 1 && merged.discoveredHeroIds[0] === 'hero1') {
         merged.discoveredHeroIds = [];
@@ -12832,7 +12875,7 @@ function mergeDefaults(save) {
     if ((merged.heroSelectionInitialized || merged.heroFreeSwitchUnlocked) && !merged.discoveredHeroIds.includes(merged.selectedHeroId)) merged.discoveredHeroIds.push(merged.selectedHeroId);
     merged.heroFreeSwitchUnlocked = !!merged.heroFreeSwitchUnlocked || merged.discoveredHeroIds.length >= HERO_SELECTION_ORDER.length;
     if (merged.heroSelectionInitialized && merged.unlocks) merged.unlocks.char = true;
-    if (!merged.heroFreeSwitchUnlocked) merged.appearanceHeroId = null;
+    if (merged.settings.heroAppearanceMode === 'fixed' && !merged.appearanceHeroId) merged.appearanceHeroId = merged.selectedHeroId;
     merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
     merged.abyssPassivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.abyssPassivePoints, defaultGame.abyssPassivePoints, 0)));
     merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];

@@ -1983,6 +1983,7 @@ const defaultGame = {
         showEnemyHpComma: true,
         showCharacterComma: true,
         themeMode: 'dark',
+        heroAppearanceMode: 'loop',
         leftPaneCollapsed: false,
         combatLogCollapsed: false,
         autoEquipEmptySlots: true,
