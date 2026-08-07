@@ -106,6 +106,32 @@ function createScrollableRenderHost(top, left) {
     assert.strictEqual(panel.tray.scrollLeft, 29, '모바일 빠른 배치함의 가로 스크롤도 복원해야 한다');
 }
 
+// 보관함 카드는 별도 제작 버튼 없이 카드 자체로 제작대 대상을 선택하고,
+// 제작대는 실제 베이스/추가 옵션을 제작 전에 보여 줘야 한다.
+{
+    resetGame();
+    run(`(function () {
+        game.season = 25;
+        let base = GROWTH_BASE_DB.find(row => row.category === 'flower');
+        let item = createGrowthItemFromBase(base, 'rare', 12);
+        item.name = '제작 미리보기 꽃';
+        item.baseStats = [{ id: 'flatHp', statName: '최대 생명력', val: 77 }];
+        item.stats = [{ id: 'crit', statName: '치명타 확률', val: 3, tier: 3 }];
+        game.growthInventory = [item];
+        growthCraftItemId = item.id;
+    })()`);
+    const itemCard = run("renderGrowthItemCard(game.growthInventory[0], 'inventory')");
+    assert.ok(itemCard.includes('onclick="openGrowthCrafting('), '보관함 카드 자체가 제작대 선택 동작을 가져야 한다');
+    assert.ok(!itemCard.includes('>제작</button>') && !itemCard.includes('>재각인</button>'),
+        '생장판 카드에 별도 제작/재각인 버튼을 남기면 안 된다');
+    const bench = run('renderGrowthCraftBench()');
+    assert.ok(bench.includes('제작 미리보기 꽃') && bench.includes('최대 생명력') && bench.includes('77'),
+        '제작대는 선택한 생장판의 이름과 베이스 옵션을 보여야 한다');
+    assert.ok(bench.includes('치명타 확률'), '제작대는 추가 옵션 이름을 보여야 한다');
+    assert.ok(bench.includes('+3'), '제작대는 추가 옵션 수치를 보여야 한다');
+    assert.ok(bench.includes('T3'), '제작대는 추가 옵션 티어를 보여야 한다');
+}
+
 // 제작 탭에서 옵션 값·태그·품질이 바뀐 뒤 돌아오면 판의 시너지와 비교도 다시 그려야 한다.
 {
     resetGame();

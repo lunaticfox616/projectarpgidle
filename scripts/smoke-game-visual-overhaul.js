@@ -99,6 +99,16 @@ for (let index = 1; index < layout.ringMeans.length; index++) {
 }
 
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
+const shortStepWalk = vm.runInContext(`({
+  stopped: getPlayerAdvanceAnimationTarget(false, 1, 80),
+  combat: getPlayerAdvanceAnimationTarget(true, 1, 80),
+  map: getPlayerAdvanceAnimationTarget(true, 0, 80),
+  mapSettled: getPlayerAdvanceAnimationTarget(true, 0, 620),
+})`, context);
+assert.strictEqual(shortStepWalk.stopped, 0, '걷지 않을 때 이동 애니메이션이 켜지면 안 된다');
+assert.ok(shortStepWalk.combat > 0, '짧은 전투 칸 이동도 0.26초를 기다리지 않고 걷기 전환을 시작해야 한다');
+assert.strictEqual(shortStepWalk.map, 0, '지역 이동의 짧은 안정화 지연은 유지되어야 한다');
+assert.strictEqual(shortStepWalk.mapSettled, 1, '계속 이동 중이면 걷기 전환이 완전히 끝나야 한다');
 const shake = vm.runInContext(`(() => { game.settings.cameraShake = false; battleFx = [{ type: 'hit', start: 900, crit: true }]; return getBattleCameraShake(1000); })()`, context);
 assert.strictEqual(Math.abs(shake.x) + Math.abs(shake.y), 0, 'camera shake toggle should fully disable translation');
 const impactFeedback = vm.runInContext(`(() => {
