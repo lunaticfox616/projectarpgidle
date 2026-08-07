@@ -204,4 +204,41 @@ ctx.GROWTH_UNIQUE_DB.forEach(unique => {
         '새 고유 생장판은 상향된 실제 고정 수치를 생성해야 한다');
 }
 
+// 원소 기본 피해는 장비 종류별 원본 값을 직접 사용하며, 생장판 저단계 고정 피해도 0으로 보이면 안 된다.
+{
+    const { buildGameRuntime } = require('./lib/game-runtime');
+    const runtime = buildGameRuntime();
+    const rolls = JSON.parse(vm.runInContext(`JSON.stringify((function () {
+        Math.random = () => 0;
+        let roll = id => rollAffixValue(MOD_DB.find(mod => mod.id === id), 1);
+        let growthRoll = id => {
+            let source = MOD_DB.find(mod => mod.id === id);
+            return rollAffixValue({ ...source, ...GROWTH_AFFIX_VALUE_DB[id], growthAffix: true }, 1);
+        };
+        let lowGrowthIds = Object.keys(GROWTH_AFFIX_VALUE_DB)
+            .filter(id => /^(ring|glove).+FlatDmg$/.test(id));
+        return {
+            weaponDefs: ['weaponFireFlatDmg', 'weaponColdFlatDmg', 'weaponLightFlatDmg']
+                .map(id => MOD_DB.find(mod => mod.id === id)).map(mod => [mod.base, mod.step]),
+            gloveDefs: ['gloveFireFlatDmg', 'gloveColdFlatDmg', 'gloveLightFlatDmg']
+                .map(id => MOD_DB.find(mod => mod.id === id)).map(mod => [mod.base, mod.step]),
+            weaponRolls: ['weaponFireFlatDmg', 'weaponColdFlatDmg', 'weaponLightFlatDmg'].map(roll),
+            gloveRolls: ['gloveFireFlatDmg', 'gloveColdFlatDmg', 'gloveLightFlatDmg'].map(roll),
+            growthWeaponDefs: ['weaponFireFlatDmg', 'weaponColdFlatDmg', 'weaponLightFlatDmg']
+                .map(id => GROWTH_AFFIX_VALUE_DB[id]).map(mod => [mod.base, mod.step]),
+            growthLowRolls: lowGrowthIds.map(id => ({ id, roll: growthRoll(id) }))
+        };
+    })())`, runtime));
+    assert.deepStrictEqual(rolls.weaponDefs, [[6, 6], [6, 6], [6, 6]],
+        '무기 원소 기본 피해는 원본 base/step을 기존의 2배로 올려야 한다');
+    assert.deepStrictEqual(rolls.gloveDefs, [[1.8, 1.8], [1.8, 1.8], [1.8, 1.8]],
+        '장갑 원소 기본 피해는 원본 base/step을 기존의 3배로 올려야 한다');
+    assert.ok(rolls.weaponRolls.every(stat => stat.valMin === 12), 'T1 무기 원소 기본 피해 최소값은 12여야 한다');
+    assert.ok(rolls.gloveRolls.every(stat => stat.valMin === 3), 'T1 장갑 원소 기본 피해 최소값은 정수 3이어야 한다');
+    assert.deepStrictEqual(rolls.growthWeaponDefs, [[1.3, 1.3], [1.3, 1.3], [1.3, 1.3]],
+        '생장판 무기 원소 기본 피해는 별도 원본 수치로 소폭 상향해야 한다');
+    assert.ok(rolls.growthLowRolls.length > 0 && rolls.growthLowRolls.every(row => row.roll.valMin >= 1),
+        '반지/장갑 계열 생장판 기본 피해는 최저 티어에서도 1 미만이 나오면 안 된다');
+}
+
 console.log('smoke-growth-balance passed');

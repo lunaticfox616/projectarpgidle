@@ -1355,21 +1355,21 @@ const MOD_DB = [
     { id: 'shieldSpellGemLevel', statId: 'spellGemLevel', type: 'special', statName: '모든 주문 스킬 젬 레벨', slots: ['방패'], base: 1, step: 0.7, weight: 0.3 },
     // --- 무기 속성별 기본 피해(flat). 속성 타입이 실제로 적용되어 해당 저항으로 경감되고 해당 속성 피해% 증가의 영향을 받는다. ---
     { id: 'weaponPhysFlatDmg', statId: 'physFlatDmg', type: 'prefix', statName: '물리 기본 피해', slots: ['무기'], base: 3, step: 3 },
-    { id: 'weaponFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['무기'], base: 3, step: 3 },
-    { id: 'weaponColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['무기'], base: 3, step: 3 },
-    { id: 'weaponLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['무기'], base: 3, step: 3 },
+    { id: 'weaponFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['무기'], base: 6, step: 6 },
+    { id: 'weaponColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['무기'], base: 6, step: 6 },
+    { id: 'weaponLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['무기'], base: 6, step: 6 },
     { id: 'weaponChaosFlatDmg', statId: 'chaosFlatDmg', type: 'prefix', statName: '카오스 기본 피해', slots: ['무기'], base: 3, step: 3 },
-    // --- 반지 속성별 기본 피해(flat). 무기 수치의 약 20% 수준. ---
+    // --- 반지 속성별 기본 피해(flat). 반지 전용 저수치 계열. ---
     { id: 'ringPhysFlatDmg', statId: 'physFlatDmg', type: 'prefix', statName: '물리 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
     { id: 'ringFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
     { id: 'ringColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
     { id: 'ringLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
     { id: 'ringChaosFlatDmg', statId: 'chaosFlatDmg', type: 'prefix', statName: '카오스 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
-    // --- 장갑 속성별 기본 피해(flat). 무기 수치의 약 20% 수준. ---
+    // --- 장갑 속성별 기본 피해(flat). 원소 계열은 공격 장갑의 가치를 위해 별도 상향. ---
     { id: 'glovePhysFlatDmg', statId: 'physFlatDmg', type: 'prefix', statName: '물리 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
-    { id: 'gloveFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
-    { id: 'gloveColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
-    { id: 'gloveLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
+    { id: 'gloveFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['장갑'], base: 1.8, step: 1.8 },
+    { id: 'gloveColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['장갑'], base: 1.8, step: 1.8 },
+    { id: 'gloveLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['장갑'], base: 1.8, step: 1.8 },
     { id: 'gloveChaosFlatDmg', statId: 'chaosFlatDmg', type: 'prefix', statName: '카오스 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
     // --- 한 줄에 방어(flat) + 방어 증가(%)를 동시에 가지는 복합 옵션. 각 수치는 단일 옵션의 30% 수준. 베이스 방어 타입에 맞는 것만 등장. ---
     { id: 'compoundArmor', statId: 'armor', type: 'prefix', statName: '방어도 + 방어도 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 3.6, step: 3, compound: [{ statId: 'armorPct', statName: '방어도 증가(%)', base: 1.8, step: 1.2 }] },

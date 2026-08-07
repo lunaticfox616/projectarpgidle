@@ -558,6 +558,18 @@ function getPlayerAdvanceAnimationTarget(isWalking, enemyCount, elapsedMs) {
     return clampNumber((Math.max(0, Number(elapsedMs) || 0) - delayMs) / blendMs, 0, 1);
 }
 
+function getPlayableHeroWalkMotion(heroId, now, cycleDuration, advanceBlend) {
+    let blend = clampNumber(Number(advanceBlend) || 0, 0, 1);
+    if (blend <= 0) return { x: 0, y: 0 };
+    let duration = Math.max(240, Number(cycleDuration) || 900);
+    let phase = ((Math.max(0, Number(now) || 0) % duration) / duration) * Math.PI * 2;
+    let heavyStep = ['hero2', 'hero5', 'hero8'].includes(heroId) ? 1.16 : 1;
+    return {
+        x: Math.sin(phase) * 0.9 * heavyStep * blend,
+        y: -Math.abs(Math.sin(phase * 2)) * 1.15 * heavyStep * blend
+    };
+}
+
 // Phase-2 extracted battlefield canvas renderer block.
 function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
@@ -1383,4 +1395,4 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
 }
 
 
-Object.assign(window, { renderBattlefield });
+safeExposeGlobals({ renderBattlefield, getPlayableHeroWalkMotion });
