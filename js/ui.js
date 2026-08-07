@@ -1796,6 +1796,8 @@ function switchTab(tabId) {
         renderTabCategoryBar();
     }
     if (tabId === 'tab-codex' && game.noti && game.noti.codex) game.codexFocusNewOnOpen = true;
+    // 알림을 지우기 전에, 그 알림을 띄운 세부 화면을 먼저 선택한다.
+    if (tabId === 'tab-map') focusMapAlarmSourceSubtab();
     // 알림 키 전체(TAB_HEADER_NOTI_KEYS)를 대상으로 해제한다. 과거에 하드코딩 목록에서
     // 'jewel'이 빠져 있어 주얼 탭을 방문해도 알림이 꺼지지 않았고, 저장 데이터에 true로
     // 남아 장비 상위탭 그룹 점이 영구히 켜져 있는 문제가 있었다.
@@ -3484,6 +3486,34 @@ function renderMapExploreNotiDots() {
         const seen = game.mapAlarmSeen[key];
         dot.style.display = (seen !== undefined && sigs[key] > seen) ? 'block' : 'none';
     });
+}
+
+// 좌측 탐험 목록에서 이 세부 탭 버튼이 실제로 노출 중인지(해금됐는지) 본다.
+function isMapExploreSubtabOpenable(subtabId) {
+    let btn = document.getElementById('btn-' + subtabId);
+    return !!btn && btn.style.display !== 'none';
+}
+
+// 지도 탭의 빨간 점을 켠 원인 세부 화면을 돌려준다. 액트 보상 미수령이 우선이고,
+// 그다음이 아직 열어 보지 않은 신규 해금이다.
+function getMapAlarmSourceSubtab() {
+    if (Array.isArray(game.claimableActRewards) && game.claimableActRewards.length > 0) return 'map-explore-hunting';
+    ensureMapAlarmState();
+    let sigs = getMapExploreUnlockSignatures();
+    return MAP_EXPLORE_ALARM_SUBTABS.find(key => {
+        let seen = game.mapAlarmSeen[key];
+        return seen !== undefined && sigs[key] > seen && isMapExploreSubtabOpenable(key);
+    }) || null;
+}
+
+// 알람을 보고 지도를 열었으면 마지막에 보던 화면이 아니라 알람을 띄운 화면부터 연다.
+// (알림 플래그를 끄기 전에 판정해야 하므로 switchTab의 알림 해제보다 앞에서 호출한다.)
+function focusMapAlarmSourceSubtab() {
+    if (!(game.noti && game.noti.map && isNotiEnabled('map'))) return;
+    let source = getMapAlarmSourceSubtab();
+    if (!source) return;
+    game.mapSubtab = 'map-tab-zones';
+    game.mapExploreSubtab = source;
 }
 
 // 탐험 좌측 세부 탭 버튼 노출 여부를 갱신한다. subtabId는 패널/버튼 id의 공통 키
