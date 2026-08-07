@@ -132,4 +132,13 @@ function bootManager(storedRaw, options = {}) {
     assert.strictEqual(bootState.community.open, false, 'chat dock should not reopen automatically');
 }
 
+// 8) 병합 하위 탭은 독립 창으로 열리지 않는다.
+// 큐브는 보조장비(tab-flask)가 창을 소유하므로 tab-cube를 다시 openWindow하면
+// 병합 패널 안에 제목 표시줄과 리사이즈 핸들이 중첩된다.
+{
+    const m = bootManager(undefined);
+    assert.strictEqual(m.exposed.openWindow('tab-cube'), false, 'cube must not create a nested standalone window');
+    assert.strictEqual(m.exposed.openWindow('tab-flask'), true, 'the utility launcher must remain the cube window owner');
+}
+
 console.log('smoke-ui-layout-state passed');

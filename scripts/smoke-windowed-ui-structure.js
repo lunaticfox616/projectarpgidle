@@ -17,11 +17,11 @@ assert(html.indexOf('js/ui-window-manager.js') < html.indexOf('js/main.js'), 'wi
 
 [
   'tab-character', 'tab-items', 'tab-skills', 'tab-char', 'tab-flask',
-  'tab-journal', 'tab-expertise', 'tab-map', 'tab-cube', 'tab-settings'
+  'tab-journal', 'tab-expertise', 'tab-map', 'tab-settings'
 ].forEach(id => assert(manager.includes(`'${id}'`), `${id} must be registered as a window`));
 
 [
-  'tab-traits', 'tab-jewel', 'tab-talisman', 'tab-codex'
+  'tab-traits', 'tab-jewel', 'tab-talisman', 'tab-codex', 'tab-cube'
 ].forEach(id => assert(!new RegExp(`'${id}'\\s*:`).test(manager), `${id} must remain a panel inside its merged host window`));
 assert(manager.includes("'tab-char': { title: '스킬 / 전직'"), 'the skill and advancement host must use one shared window title');
 assert(manager.includes("'tab-flask': { title: '보조장비'"), 'the utility host must use one shared window title');
@@ -78,6 +78,8 @@ assert(css.includes('min-width: 320px'), 'mobile enemy HUD should not shrink bel
 // 최소 필요 폭보다 창 기본/최소 폭이 좁으면 오른쪽 카드(동력원 보관함 등)가 창 밖으로 밀려
 // 잘려 보인다(회귀: 720/480이었을 때 실측으로 재현됨).
 const coreCubeCss = fs.readFileSync('css/core-cube.css', 'utf8');
+assert(/@container\s*\(max-width:\s*860px\)\s*\{[\s\S]*?\.core-cube-shell\s*\{[^}]*grid-template-columns:\s*1fr/.test(coreCubeCss),
+    'the cube must stack inside a narrow utility window instead of overflowing horizontally');
 const shellMatch = coreCubeCss.match(/\.core-cube-shell\s*{[^}]*grid-template-columns:\s*minmax\((\d+)px[^)]*\)\s*minmax\((\d+)px[^)]*\)[^}]*gap:\s*(\d+)px/);
 assert(shellMatch, 'core-cube-shell grid definition must be parseable for the width regression check');
 const [colAMin, colBMin, gridGap] = [Number(shellMatch[1]), Number(shellMatch[2]), Number(shellMatch[3])];
