@@ -101,6 +101,7 @@ vm.createContext(context);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
     readFunctionSource('isCodexTabUnlockReady'),
+    readFunctionSource('isJournalTabUnlockReady'),
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('syncMergedTabLauncherVisibility'),
     readFunctionSource('syncMergedTabLauncherState'),
@@ -121,6 +122,8 @@ const activeTabContext = {
 vm.createContext(activeTabContext);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
+    readFunctionSource('isCodexTabUnlockReady'),
+    readFunctionSource('isJournalTabUnlockReady'),
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('getMergedTabGroup'),
     readFunctionSource('getSelectedMergedTabId'),
@@ -213,11 +216,13 @@ assert.strictEqual(mergedShell.childNodes[1].childNodes[1], traitPanel, 'seconda
 
 const lockedTabTransitions = [];
 let lockedTabLogs = 0;
+let lockedTabRefreshes = 0;
 const lockedTabContext = {
-    game: { unlocks: { codex: true }, settings: {}, inventory: [], equipment: {}, uniqueCodex: {} },
+    game: { unlocks: {}, settings: {}, inventory: [], equipment: {}, uniqueCodex: {}, journalEntries: ['prologue'] },
     TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-codex': 'codex' },
     addLog: () => { lockedTabLogs += 1; },
     window: { switchTab: tabId => lockedTabTransitions.push(tabId) },
+    updateStaticUI: () => { lockedTabRefreshes += 1; },
     Object,
     Array
 };
@@ -225,6 +230,7 @@ vm.createContext(lockedTabContext);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
     readFunctionSource('isCodexTabUnlockReady'),
+    readFunctionSource('isJournalTabUnlockReady'),
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('getSelectedMergedTabId'),
     readFunctionSource('switchMergedTabSubtab'),
@@ -235,6 +241,97 @@ lockedTabContext.switchMergedTabSubtab('records', 'tab-codex');
 assert.deepStrictEqual(lockedTabTransitions, [], 'locked merged tabs must not open an empty host panel');
 assert.strictEqual(lockedTabLogs, 0, 'locked merged tabs must remain silent when no inner panel is available');
 assert(source.includes("keepWindowOpen: options.keepWindowOpen !== false"), 'merged tabs must tell the window manager whether to preserve or toggle the host');
+
+// 회귀: 도감 해금은 game.unlocks.codex가 권위다. "지금 고유를 들고 있는가"를 다시 보면
+// 고유를 처분하거나 루프를 넘긴 직후 기록 메뉴가 통째로 사라져 저널·도감을 열 수 없었다.
+lockedTabContext.game.unlocks.codex = true;
+assert.strictEqual(lockedTabContext.getSelectedMergedTabId('records'), 'tab-journal',
+    '고유를 하나도 들고 있지 않아도 해금된 기록 메뉴는 열려 있어야 한다');
+assert.strictEqual(lockedTabContext.isMergedTabAvailable({ id: 'tab-codex', gate: 'codex' }), true,
+    '도감은 보유 고유가 0개여도 해금 플래그가 서 있으면 열 수 있어야 한다');
+// 저널은 루프를 건너 유지되는 영구 기록이므로 도감이 다시 잠겨도 남아 있어야 한다.
+lockedTabContext.game.unlocks.codex = false;
+lockedTabContext.game.journalEntries = ['prologue', 'act_1'];
+assert.strictEqual(lockedTabContext.getSelectedMergedTabId('records'), 'tab-journal',
+    '기록을 가진 플레이어는 루프 정산으로 도감이 잠겨도 저널을 볼 수 있어야 한다');
+assert.strictEqual(lockedTabContext.isMergedTabAvailable({ id: 'tab-codex', gate: 'codex' }), false,
+    '도감은 해금 플래그가 내려가면 닫혀야 한다');
+lockedTabContext.game.journalEntries = ['prologue'];
+assert.strictEqual(lockedTabContext.getSelectedMergedTabId('records'), null,
+    '아직 기록도 도감도 없는 새 게임에서는 기록 메뉴가 없어야 한다');
+
+// 회귀: 루프 정산으로 탭이 다시 잠기면 실행 버튼만 사라지고, 이미 열려 있던 창은
+// 갱신도 안 되고 닫을 방법도 없는 잔상으로 남았다(스킬 젬·기록 창이 "고장난" 증상).
+{
+    const relockNodes = {};
+    function addRelockNode(id, className) {
+        const node = makePanelNode(id, className);
+        node.id = id;
+        relockNodes[id] = node;
+        return node;
+    }
+    const relockContents = [
+        addRelockNode('tab-skills', 'tab-content active ui-window-open'),
+        addRelockNode('tab-journal', 'tab-content ui-window-open'),
+        addRelockNode('tab-character', 'tab-content')
+    ];
+    ['btn-tab-skills', 'btn-tab-journal'].forEach(id => addRelockNode(id, 'tab-btn active'));
+    const closedWindows = [];
+    const relockContext = {
+        game: {
+            unlocks: { skills: false, codex: false },
+            settings: {},
+            inventory: [], equipment: {}, uniqueCodex: {}, journalEntries: ['prologue']
+        },
+        TAB_UNLOCK_GATES: { 'tab-skills': 'skills', 'tab-codex': 'codex' },
+        document: {
+            getElementById: id => relockNodes[id] || null,
+            querySelectorAll: selector => (selector === '.tab-content:not(.merged-subtab-pane)' ? relockContents : [])
+        },
+        closeWindow: tabId => closedWindows.push(tabId),
+        Object,
+        Array
+    };
+    vm.createContext(relockContext);
+    vm.runInContext([
+        'let lastActiveTabId = "tab-skills";',
+        source.slice(groupStart, groupEnd),
+        readFunctionSource('isCodexTabUnlockReady'),
+        readFunctionSource('isJournalTabUnlockReady'),
+        readFunctionSource('isMergedTabAvailable'),
+        readFunctionSource('getMergedTabGroup'),
+        readFunctionSource('getSelectedMergedTabId'),
+        readFunctionSource('isTabSurfaceAvailable'),
+        readFunctionSource('closeRelockedTabSurfaces'),
+        'globalThis.readLastActiveTabId = () => lastActiveTabId;'
+    ].join('\n'), relockContext, { filename: 'relocked-tab-surfaces.js' });
+
+    assert.strictEqual(relockContext.isTabSurfaceAvailable('tab-skills'), false, '잠긴 스킬 젬 탭은 열어 둘 수 없다');
+    assert.strictEqual(relockContext.isTabSurfaceAvailable('tab-journal'), false, '안쪽 패널이 모두 잠긴 기록 런처는 열어 둘 수 없다');
+    assert.strictEqual(relockContext.isTabSurfaceAvailable('tab-character'), true, '게이트 없는 탭은 항상 열 수 있다');
+
+    relockContext.closeRelockedTabSurfaces();
+    assert.deepStrictEqual(closedWindows.slice().sort(), ['tab-journal', 'tab-skills'],
+        '다시 잠긴 탭의 창은 열린 채로 남지 않고 닫혀야 한다');
+    assert(!relockNodes['tab-skills'].classList.contains('active'), '잠긴 탭은 활성 화면 자리를 넘겨야 한다');
+    assert(!relockNodes['btn-tab-skills'].classList.contains('active'), '잠긴 탭의 메뉴 버튼도 활성 표시를 지워야 한다');
+    assert.strictEqual(relockContext.readLastActiveTabId(), null, '잠긴 탭이 마지막 활성 탭으로 남으면 안 된다');
+    assert(!closedWindows.includes('tab-character'), '열 수 있는 탭은 건드리지 않는다');
+
+    // 다시 해금되면 정상 탭은 그대로 유지된다(잔상 정리가 과잉 동작하지 않는다).
+    relockContext.game.unlocks.skills = true;
+    relockNodes['tab-skills'].classList.add('active');
+    relockNodes['tab-skills'].classList.add('ui-window-open');
+    closedWindows.length = 0;
+    relockContext.closeRelockedTabSurfaces();
+    assert(!closedWindows.includes('tab-skills'), '해금된 탭의 창은 닫지 않는다');
+    assert(relockNodes['tab-skills'].classList.contains('active'), '해금된 탭은 활성 상태를 유지한다');
+
+    assert(readFunctionSource('updateTabUnlockButtons').includes('closeRelockedTabSurfaces'),
+        '해금 판정의 권위 지점이 잠긴 탭 화면 정리를 함께 수행해야 한다');
+    assert(readFunctionSource('performUpdateStaticUI').includes('isTabSurfaceAvailable(activeHostId)'),
+        '화면 갱신은 열려 있는 최상위 화면이 다시 잠겼는지 매번 확인해야 한다');
+}
 
 const routedCalls = [];
 let routedRefreshes = 0;
@@ -250,6 +347,7 @@ vm.createContext(routedContext);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
     readFunctionSource('isCodexTabUnlockReady'),
+    readFunctionSource('isJournalTabUnlockReady'),
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('switchMergedTabSubtab')
 ].join('\n'), routedContext, { filename: 'routed-merged-tab.js' });
@@ -351,6 +449,7 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
         vm.runInContext([
             source.slice(groupStart, groupEnd),
             readFunctionSource('isCodexTabUnlockReady'),
+            readFunctionSource('isJournalTabUnlockReady'),
             readFunctionSource('isMergedTabAvailable'),
             readFunctionSource('getSelectedMergedTabId')
         ].join('\n'), runtimeContext, { filename: 'runtime-gated-merged-tab.js' });

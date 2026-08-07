@@ -18,6 +18,9 @@
     function isTabActionAvailable(tabId) {
         let g = goalGame();
         if (!g) return false;
+        // 저널처럼 TAB_UNLOCK_GATES에 없는 병합 탭도 안쪽 패널이 잠기면 열리지 않는다.
+        // 표시 계층의 판정과 같은 함수를 써서, 눌러도 아무 일도 없는 바로가기를 만들지 않는다.
+        if (typeof isTabSurfaceAvailable === 'function') return !!isTabSurfaceAvailable(tabId);
         let gateKey = (typeof TAB_UNLOCK_GATES !== 'undefined' && TAB_UNLOCK_GATES) ? TAB_UNLOCK_GATES[tabId] : null;
         if (!gateKey) return true;
         return !!(g.unlocks && g.unlocks[gateKey]);
@@ -25,12 +28,19 @@
 
     // 목표 버튼은 화면 열기만 허용한다. 대상 탭이 아직 잠겨 있으면 버튼 자체를 빼서
     // 잠긴 창이 열리는 일이 없게 한다.
-    function buildTabAction(goal, label, tabId) {
+    // subtabId를 주면 그 목표가 실제로 가리키는 세부 화면까지 열어, 탭만 열어 두고
+    // 플레이어가 안에서 다시 찾아다니지 않게 한다.
+    function buildTabAction(goal, label, tabId, subtabId) {
         if (!isTabActionAvailable(tabId)) return goal;
         goal.actionLabel = label;
         goal.actionTabId = tabId;
+        if (subtabId) goal.actionSubtabId = subtabId;
         return goal;
     }
+
+    // 혼돈은 1~20층과 21층 이상(심화) 입장 카드를 지도 > 탐험 > [혼돈] 한 화면에 함께 보여준다.
+    // (전용 [혼돈 심화층] 세부 탭은 중복 표시를 피하려고 숨겨져 있어 대상으로 쓰면 안 된다.)
+    const CHAOS_EXPLORE_SUBTAB = 'map-explore-chaos';
 
     function clampCount(value) {
         let num = Math.floor(Number(value) || 0);
@@ -171,7 +181,8 @@
                     description: `지도의 클리어한 액트에서 보상 ${count}개를 선택할 수 있습니다.`,
                     mandatory: true
                 };
-                return buildTabAction(goal, '지도 열기', 'tab-map');
+                // 보상 선택 카드는 탐험 > 나무(사냥터) 화면의 액트 목록에 붙는다.
+                return buildTabAction(goal, '액트 보상 열기', 'tab-map', 'map-explore-hunting');
             }
         },
         {
@@ -209,7 +220,7 @@
                     goal.target = 100;
                     goal.progressPct = goal.current;
                 }
-                return buildTabAction(goal, '지도 열기', 'tab-map');
+                return buildTabAction(goal, '사냥터 열기', 'tab-map', 'map-explore-hunting');
             }
         },
         {
@@ -250,7 +261,7 @@
                     target: cap,
                     progressText: `현재 최고 ${best}층`
                 };
-                return buildTabAction(goal, '혼돈 지도 열기', 'tab-map');
+                return buildTabAction(goal, '혼돈 지도 열기', 'tab-map', CHAOS_EXPLORE_SUBTAB);
             }
         },
         {
@@ -277,7 +288,7 @@
                     target,
                     progressText: `현재 최고 ${best}층`
                 };
-                return buildTabAction(goal, '혼돈 지도 열기', 'tab-map');
+                return buildTabAction(goal, '혼돈 심화 열기', 'tab-map', CHAOS_EXPLORE_SUBTAB);
             }
         },
         {
@@ -315,7 +326,7 @@
             matches(g, primary) {
                 return primary !== 'claim-act-reward' && Array.isArray(g.claimableActRewards) && g.claimableActRewards.length > 0;
             },
-            build(g) { return buildNotice(`선택하지 않은 액트 보상 ${g.claimableActRewards.length}개`, 'tab-map'); }
+            build(g) { return buildNotice(`선택하지 않은 액트 보상 ${g.claimableActRewards.length}개`, 'tab-map', 'map-explore-hunting'); }
         },
         {
             id: 'available-trial',
@@ -378,7 +389,7 @@
                 if (typeof getAvailableLoopAdvancePaths !== 'function') return false;
                 return getAvailableLoopAdvancePaths(Math.max(1, Math.floor(Number(g.season) || 1))).includes('cosmos');
             },
-            build() { return buildNotice('우주계 경로로도 루프 진행 가능', 'tab-map'); }
+            build() { return buildNotice('우주계 경로로도 루프 진행 가능', 'tab-map', 'map-tab-cosmos'); }
         },
         {
             id: 'inventory-near-full',

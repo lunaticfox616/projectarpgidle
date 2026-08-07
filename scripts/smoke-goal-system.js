@@ -71,6 +71,8 @@ const baseGame = extra => ({
     const goal = m.presented[0];
     assert.strictEqual(goal.actionTabId, 'tab-map');
     assert.strictEqual(typeof goal.actionLabel, 'string');
+    // 탭만 열면 플레이어가 지도 안에서 사냥터 화면을 다시 찾아야 한다.
+    assert.strictEqual(goal.actionSubtabId, 'map-explore-hunting', '스토리 목표는 사냥터 화면까지 연다');
     assert(!('action' in goal) && !('onAction' in goal), '목표에 실행 함수를 싣지 않는다');
 }
 
@@ -80,6 +82,8 @@ const baseGame = extra => ({
     m.refresh();
     assert.strictEqual(m.presented[0].id, 'claim-act-reward');
     assert(m.presented[0].description.includes('2개'));
+    // 보상 선택 카드는 탐험 > 나무(사냥터) 화면의 액트 목록에 붙는다.
+    assert.strictEqual(m.presented[0].actionSubtabId, 'map-explore-hunting', '액트 보상은 나무 화면까지 연다');
 }
 
 // 4) pendingLoopReady는 최우선이며, 보상 대기는 보조 안내로 밀려난다.
@@ -89,7 +93,8 @@ const baseGame = extra => ({
     const goal = m.presented[0];
     assert.strictEqual(goal.id, 'pending-loop-advance');
     assert.strictEqual(goal.mandatory, true);
-    assert(goal.notices.some(n => n.text.includes('액트 보상') && n.actionTabId === 'tab-map'), '보상은 지도 바로가기 보조 안내로 표시');
+    assert(goal.notices.some(n => n.text.includes('액트 보상') && n.actionTabId === 'tab-map' && n.actionSubtabId === 'map-explore-hunting'),
+        '보상은 나무 화면으로 여는 보조 안내로 표시');
 }
 
 // 5) 스토리 이후에는 현재 루프가 요구하는 혼돈 깊이를 실제 진행도로 표시한다.
@@ -100,6 +105,22 @@ const baseGame = extra => ({
     assert.strictEqual(goal.id, 'loop-chaos-17', '시즌 8 요구 깊이 17');
     assert.strictEqual(goal.current, 13);
     assert.strictEqual(goal.target, 17);
+    // 혼돈은 1~20층과 심화 입장 카드를 [혼돈] 화면 하나에 모아 보여준다.
+    // (전용 [혼돈 심화층] 세부 탭은 숨겨져 있어 대상으로 쓰면 나무 화면으로 튕긴다.)
+    assert.strictEqual(goal.actionSubtabId, 'map-explore-chaos', '혼돈 목표는 혼돈 화면까지 연다');
+}
+
+// 5-b) 혼돈 심화 기록 갱신 목표도 같은 혼돈 화면으로 연결된다.
+{
+    const m = boot(
+        baseGame({ maxZoneId: 3, currentZoneId: 3, season: 4, loopCount: 3, unlocks: { map: true } }),
+        { getHighestUnlockedEndlessChaosDepth: () => 23 }
+    );
+    m.refresh();
+    const goal = m.presented[0];
+    assert.strictEqual(goal.id, 'endless-chaos-25', '다음 5층 이정표');
+    assert.strictEqual(goal.actionTabId, 'tab-map');
+    assert.strictEqual(goal.actionSubtabId, 'map-explore-chaos', '심화 기록 목표도 혼돈 화면까지 연다');
 }
 
 // 6) 루프 조건 달성 시 즉시 '루프 진행 준비' 목표로 바뀌고, 우주계 대체 경로는 보조 안내로 나온다.
