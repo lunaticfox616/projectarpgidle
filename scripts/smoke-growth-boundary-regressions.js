@@ -72,10 +72,38 @@ function placeFlatHpFlower() {
 function createRenderHost() {
     return {
         style: {}, renderCount: 0, _html: '',
+        querySelector: () => null,
         get firstChild() { return this.renderCount > 0 ? {} : null; },
         get innerHTML() { return this._html; },
         set innerHTML(value) { this._html = value; this.renderCount++; }
     };
+}
+
+function createScrollableRenderHost(top, left) {
+    const host = createRenderHost();
+    host.tray = { scrollTop: top, scrollLeft: left };
+    host.querySelector = selector => selector === '.growth-tray-list' ? host.tray : null;
+    Object.defineProperty(host, 'innerHTML', {
+        get() { return this._html; },
+        set(value) {
+            this._html = value;
+            this.renderCount++;
+            this.tray = { scrollTop: 0, scrollLeft: 0 };
+        }
+    });
+    return host;
+}
+
+// 빠른 배치함 카드 선택은 패널을 다시 그리더라도 사용자가 보고 있던 위치를 유지해야 한다.
+{
+    resetGame();
+    placeFlatHpFlower();
+    const panel = createScrollableRenderHost(137, 29);
+    ctx.document.getElementById = id => id === 'ui-growth-panel' ? panel : null;
+    run("growthSelection = { itemId: null, source: null, rotation: 0, hoverCell: null }; selectGrowthItem(game.growthInventory[0].id, 'tray')");
+    assert.strictEqual(run('growthSelection.source'), 'tray', '빠른 배치함 클릭으로 아이템을 선택해야 한다');
+    assert.strictEqual(panel.tray.scrollTop, 137, '빠른 배치함의 세로 스크롤을 복원해야 한다');
+    assert.strictEqual(panel.tray.scrollLeft, 29, '모바일 빠른 배치함의 가로 스크롤도 복원해야 한다');
 }
 
 // 제작 탭에서 옵션 값·태그·품질이 바뀐 뒤 돌아오면 판의 시너지와 비교도 다시 그려야 한다.

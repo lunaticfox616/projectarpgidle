@@ -865,6 +865,33 @@ function getItemBaseChainInfo(item) {
     if (!base) return null;
     return getBaseChainInfo(base);
 }
+
+/**
+ * @param {{id?: string, reqTier?: number}} nextBase
+ * @returns {{formlessDew: number, goldenRule: number, totalDewValue: number, dewPerGoldenRule: number}}
+ */
+function getBaseUpgradeCost(nextBase) {
+    if (!nextBase) throw new Error('베이스 업그레이드 비용을 계산할 다음 베이스가 없습니다.');
+    let exchange = MARKET_EXCHANGES.find(row => row && row.from === 'formlessDew'
+        && row.to === 'goldenRule' && Number(row.need) > 0 && Number(row.gain) > 0);
+    if (!exchange) throw new Error('형체 없는 이슬과 황금률의 기준 교환 비율을 찾을 수 없습니다.');
+    let dewPerGoldenRule = Number(exchange.need) / Number(exchange.gain);
+    if (!Number.isInteger(dewPerGoldenRule)) throw new Error('베이스 업그레이드 교환 비율은 정수여야 합니다.');
+    let targetTier = Math.max(1, Math.floor(Number(nextBase.reqTier) || 1));
+    let totalDewValue = Math.max(10,
+        Math.ceil((5 + targetTier + targetTier * targetTier * 0.5) / 5) * 5);
+    let chainInfo = getBaseChainInfo(nextBase);
+    if (chainInfo && chainInfo.step >= 6) totalDewValue = Math.max(totalDewValue, 625);
+    else if (chainInfo && chainInfo.step === 5) totalDewValue = Math.max(totalDewValue, 225);
+    let goldenRule = Math.floor(totalDewValue / dewPerGoldenRule);
+    return {
+        formlessDew: totalDewValue - goldenRule * dewPerGoldenRule,
+        goldenRule,
+        totalDewValue,
+        dewPerGoldenRule
+    };
+}
+
 function upgradeSelectedItemBase() {
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
@@ -876,19 +903,15 @@ function upgradeSelectedItemBase() {
     let candidates = getBaseUpgradeCandidates(currentBase);
     let nextBase = candidates[0];
     if (!nextBase) return addLog('해당 계열의 다음 베이스가 없습니다.', 'attack-monster');
-    let nextChainInfo = typeof getBaseChainInfo === 'function' ? getBaseChainInfo(nextBase) : null;
-    let nextStep = nextChainInfo ? nextChainInfo.step : 1;
-    let costChaos = Math.max(5, 3 + Math.floor((nextBase.reqTier - currentBase.reqTier) * 2.5));
-    // 신성 비용은 도착 단계 기준: 6단계(최종) 5개, 5단계 1개, 그 외 0개.
-    let costDivine = nextStep >= 6 ? 5 : (nextStep === 5 ? 1 : 0);
-    game.pendingBaseUpgrade = { itemId: item.id, nextBaseId: nextBase.id, costChaos: costChaos, costDivine: costDivine };
+    let cost = getBaseUpgradeCost(nextBase);
+    game.pendingBaseUpgrade = { itemId: item.id, nextBaseId: nextBase.id };
     let titleEl = document.getElementById('base-upgrade-title');
     let bodyEl = document.getElementById('base-upgrade-body');
     if (titleEl) titleEl.innerText = `${currentBase.name} → ${nextBase.name}`;
     if (bodyEl) {
         let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
         let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} +${formatValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
-        bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:var(--copy-muted);">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 형체 없는 이슬 ${costChaos}${costDivine > 0 ? ` + 황금률 ${costDivine}` : ''}`;
+        bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:var(--copy-muted);">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule > 0 ? ` + 황금률 ${cost.goldenRule}` : ''}<br><span style="color:var(--copy-muted);">총 이슬 가치 ${cost.totalDewValue}</span>`;
     }
     let overlay = document.getElementById('base-upgrade-overlay');
     if (overlay) overlay.classList.add('active');
@@ -909,19 +932,20 @@ function confirmSelectedItemBaseUpgrade() {
         if (equipMatch) item = equipMatch[1];
     }
     if (!item) { closeBaseUpgradeOverlay(); return addLog('대상 장비를 찾을 수 없습니다.', 'attack-monster'); }
-    if ((game.currencies.formlessDew || 0) < (pending.costChaos || 0)) return addLog(`형체 없는 이슬이 부족합니다. (필요: ${pending.costChaos})`, 'attack-monster');
-    if ((game.currencies.goldenRule || 0) < (pending.costDivine || 0)) return addLog(`황금률이 부족합니다. (필요: ${pending.costDivine})`, 'attack-monster');
-    game.currencies.formlessDew -= (pending.costChaos || 0);
-    game.currencies.goldenRule = Math.max(0, (game.currencies.goldenRule || 0) - (pending.costDivine || 0));
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || null;
     let nextBase = BASE_ITEM_DB.find(base => base && base.id === pending.nextBaseId);
     if (!nextBase) return closeBaseUpgradeOverlay();
+    let cost = getBaseUpgradeCost(nextBase);
+    if ((game.currencies.formlessDew || 0) < cost.formlessDew) return addLog(`형체 없는 이슬이 부족합니다. (필요: ${cost.formlessDew})`, 'attack-monster');
+    if ((game.currencies.goldenRule || 0) < cost.goldenRule) return addLog(`황금률이 부족합니다. (필요: ${cost.goldenRule})`, 'attack-monster');
+    game.currencies.formlessDew -= cost.formlessDew;
+    game.currencies.goldenRule = Math.max(0, (game.currencies.goldenRule || 0) - cost.goldenRule);
     item.baseId = nextBase.id;
     item.baseName = nextBase.name;
     if (item.rarity !== 'unique') item.name = nextBase.name;
     item.itemTier = Math.max(item.itemTier || 1, nextBase.reqTier || 1);
     item.baseStats = rollBaseStats(nextBase, nextBase.reqTier || 1);
-    addLog(`🛠️ 베이스 업그레이드: ${(currentBase && currentBase.name) || '기존'} → ${nextBase.name} (카오스 ${pending.costChaos}${pending.costDivine ? ` + 신성 ${pending.costDivine}` : ''})`, 'loot-magic');
+    addLog(`🛠️ 베이스 업그레이드: ${(currentBase && currentBase.name) || '기존'} → ${nextBase.name} (형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule ? ` + 황금률 ${cost.goldenRule}` : ''})`, 'loot-magic');
     closeBaseUpgradeOverlay();
     updateStaticUI();
 }

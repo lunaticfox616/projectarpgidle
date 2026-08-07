@@ -55,17 +55,47 @@ try {
     const abyssItem = read('generateEquipmentDrop({ isBoss: false, isElite: false })');
     assert.ok(abyssItem.hiddenTier >= 11 && abyssItem.hiddenTier <= 15, 'deep abyss equipment must stay inside the T11-T15 window');
     assert.ok(
-        abyssItem.stats.every(stat => stat.tier >= Math.max(1, abyssItem.hiddenTier - 4) && stat.tier <= abyssItem.hiddenTier),
-        'dropped equipment affixes must follow the item tier window instead of falling back to early-game tiers'
+        abyssItem.stats.every(stat => stat.tier >= 1 && stat.tier <= abyssItem.hiddenTier),
+        'dropped equipment affixes must roll from T1 through the item tier ceiling'
     );
 
     const growthItem = read('generateGrowthDrop({ isBoss: false, isElite: false })');
     assert.ok(growthItem.hiddenTier >= 11 && growthItem.hiddenTier <= 15, 'growth drops must use the same deep-abyss tier window');
     assert.strictEqual(growthItem.affixTierCap, growthItem.hiddenTier, 'growth drops must retain their affix tier ceiling for later crafting');
     assert.ok(
-        growthItem.stats.every(stat => stat.tier >= Math.max(1, growthItem.hiddenTier - 4) && stat.tier <= growthItem.hiddenTier),
-        'growth-item affixes must follow the same bounded drop tier rule'
+        growthItem.stats.every(stat => stat.tier >= 1 && stat.tier <= growthItem.hiddenTier),
+        'growth-item affixes must follow the same T1-to-cap drop tier rule'
     );
+
+    assert.deepStrictEqual(
+        plain(read('getDroppedAffixTierRange(20)')),
+        { min: 1, max: 20 },
+        'endgame equipment affixes must keep T1 in the roll pool instead of forcing a recent-tier floor'
+    );
+    let seed = 0x5f3759df;
+    Math.random = () => {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        return seed / 0x100000000;
+    };
+    const affixTierCounts = plain(read(`(function () {
+        let counts = Array(21).fill(0);
+        let mod = { id: 'flatHp', base: 1, step: 1 };
+        for (let i = 0; i < 100000; i++) {
+            let roll = rollAffixValueInTierRange(mod, 1, 20, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF);
+            counts[roll.tier]++;
+        }
+        return counts;
+    })()`));
+    const bucketCount = (start, end) => affixTierCounts.slice(start, end + 1).reduce((sum, count) => sum + count, 0);
+    assert.ok(bucketCount(1, 5) < 46000,
+        'T1-T5 affixes must not absorb more than 46 percent of the endgame drop distribution');
+    assert.ok(bucketCount(16, 20) > 12000,
+        'redistributed affix weight must give T16-T20 at least 12 percent of the endgame drop distribution');
+    assert.ok(bucketCount(1, 5) > bucketCount(6, 10), 'low affix tiers must remain more common than mid tiers');
+    assert.ok(bucketCount(6, 10) > bucketCount(11, 15), 'mid affix tiers must remain more common than high tiers');
+    assert.ok(bucketCount(11, 15) > bucketCount(16, 20), 'high affix tiers must remain rarer as the tier rises');
+    assert.ok(affixTierCounts[20] >= 2250 && affixTierCounts[20] <= 2700,
+        'the highest affix tier should receive its share of the redistributed endgame drop weight');
 
     assert.deepStrictEqual(plain(read('getJewelDropTierRange(1)')), { min: 1, max: 1 }, 'early jewels must remain T1');
     assert.deepStrictEqual(plain(read('getJewelDropTierRange(9)')), { min: 2, max: 3 }, 'late-story jewels must move into the T2-T3 band');

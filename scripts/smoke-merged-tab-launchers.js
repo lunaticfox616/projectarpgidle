@@ -38,6 +38,7 @@ function makeClassList() {
         contains: name => values.has(name),
         toggle(name, force) { if (force) values.add(name); else values.delete(name); },
         add: name => values.add(name),
+        remove: name => values.delete(name),
         values
     };
 }
@@ -142,6 +143,49 @@ activeTabContext.game.unlocks.traits = false;
 assert.strictEqual(activeTabContext.getActiveUiTabId(), 'tab-char', 'a stale locked inner selection must fall back to its available launcher');
 activeTabContext.activeContent = null;
 assert.strictEqual(activeTabContext.getActiveUiTabId(), '', 'no active content must not select a renderer');
+
+const persistentPaneIds = ['tab-traits', 'tab-jewel', 'tab-talisman', 'tab-codex', 'tab-growthboard'];
+const switchNodes = {};
+function addSwitchNode(id, className) {
+    const node = makePanelNode(id, className);
+    node.id = id;
+    switchNodes[id] = node;
+    return node;
+}
+const switchTopLevel = [addSwitchNode('tab-flask', 'tab-content active'), addSwitchNode('tab-character', 'tab-content')];
+const switchPanes = persistentPaneIds.map(id => addSwitchNode(id, 'tab-content merged-subtab-pane active'));
+const switchButtons = [addSwitchNode('btn-tab-flask', 'tab-btn active'), addSwitchNode('btn-tab-character', 'tab-btn')];
+const tabSwitchContext = {
+    game: { unlocks: {}, settings: {}, noti: {} },
+    TAB_UNLOCK_GATES: {},
+    TAB_HEADER_NOTI_KEYS: [],
+    document: {
+        getElementById: id => switchNodes[id] || null,
+        querySelectorAll(selector) {
+            if (selector === '.tab-content, .tab-btn') return switchTopLevel.concat(switchPanes, switchButtons);
+            if (selector === '.tab-content:not(.merged-subtab-pane), .tab-btn') return switchTopLevel.concat(switchButtons);
+            return [];
+        }
+    },
+    window: { matchMedia: () => ({ matches: false }) },
+    hideInfoTooltip() {}, hideItemTooltip() {}, syncDerivedTabUnlock() {}, syncMergedTabLauncherState() {},
+    isTabGroupingActive: () => false, acknowledgeMapMainAlarm() {}, stopChatPolling() {},
+    updateMobileBattlePipVisibility() {}, isMobileBattlePipVisible: () => false, updateStaticUI() {},
+    Object, Array
+};
+vm.createContext(tabSwitchContext);
+vm.runInContext([
+    'let lastActiveTabId = "tab-flask";',
+    source.slice(groupStart, groupEnd),
+    readFunctionSource('getMergedTabGroup'),
+    readFunctionSource('switchTab')
+].join('\n'), tabSwitchContext, { filename: 'merged-pane-persistence.js' });
+tabSwitchContext.switchTab('tab-character');
+assert(switchNodes['tab-character'].classList.contains('active'), 'the newly selected top-level tab must become active');
+assert(!switchNodes['tab-flask'].classList.contains('active'), 'the previous top-level host must relinquish global tab activation');
+persistentPaneIds.forEach(id => {
+    assert(switchNodes[id].classList.contains('active'), `${id} must keep its selected content while another window opens`);
+});
 
 const windowRoot = makePanelNode('window-root');
 const windowTitlebar = makePanelNode('titlebar', 'ui-window-titlebar');

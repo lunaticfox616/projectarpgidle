@@ -18,7 +18,7 @@ const LOAD_ORDER = [
     'js/utils.js', 'js/ui-feedback.js', 'js/state.js', 'js/save.js', 'js/items.js',
     'js/skills.js', 'js/passives.js', 'js/growth-board.js', 'js/growth-effects.js',
     'js/growth-generation.js', 'js/core-cube.js', 'js/combat-grid.js',
-    'js/combat-patterns.js', 'js/combat.js', 'js/canvas-battlefield.js',
+    'js/combat-patterns.js', 'js/combat.js', 'js/combat-ehp.js', 'js/canvas-battlefield.js',
     'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/ui.js', 'js/growth-ui.js'
 ];
 // 여기까지만 올린다. index.html은 뒤에 ui-window-manager·goal-system·main 등을 더

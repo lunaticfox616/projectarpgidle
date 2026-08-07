@@ -1306,7 +1306,7 @@ const MOD_DB = [
     { id: 'strength', type: 'suffix', statName: '힘', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
     { id: 'dexterity', type: 'suffix', statName: '민첩', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
     { id: 'intelligence', type: 'suffix', statName: '지능', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
-    { id: 'accuracy', type: 'suffix', statName: '정확도', slots: ['무기', '장갑', '반지', '목걸이'], base: 60, step: 40 },
+    { id: 'accuracy', type: 'suffix', statName: '정확도', slots: ['무기', '장갑', '반지', '목걸이'], base: 90, step: 60 },
     { id: 'armor', type: 'prefix', statName: '방어도', slots: ['투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 12, step: 10 },
     { id: 'evasion', type: 'prefix', statName: '회피', slots: ['투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 12, step: 10 },
     { id: 'energyShield', type: 'prefix', statName: '에너지 보호막', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 9, step: 8 },

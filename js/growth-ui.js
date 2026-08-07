@@ -794,18 +794,24 @@ function renderGrowthCraftBench() {
 function renderGrowthBoardPanel() {
     let host = document.getElementById('ui-growth-panel');
     if (!host) return;
+    let previousTray = host.querySelector('.growth-tray-list');
+    let trayScroll = previousTray
+        ? { top: previousTray.scrollTop, left: previousTray.scrollLeft }
+        : { top: 0, left: 0 };
     let selectedItem = growthSelection.itemId === null ? null : findGrowthItemById(growthSelection.itemId);
     host.innerHTML = `
         ${renderGrowthUnlockSummary()}
         ${renderGrowthLoadoutBar()}
         <div class="growth-controls">
-            <span>${selectedItem ? `선택: <strong>${escapeHTML(selectedItem.name)}</strong>` : '아이템을 선택한 뒤 칸을 클릭해 배치하세요.'}</span>
-            <span id="ui-growth-hover-hint" class="growth-hover-hint"></span>
-            <span id="ui-growth-relation-hint" class="growth-relation-hint"></span>
+            <span class="growth-selection-label">${selectedItem ? `선택: <strong>${escapeHTML(selectedItem.name)}</strong>` : '아이템을 선택한 뒤 칸을 클릭해 배치하세요.'}</span>
             <span class="growth-control-actions">
                 <button type="button" onclick="rotateGrowthSelection()" ${selectedItem ? '' : 'disabled'}>회전 (${growthSelection.rotation * 90}°)</button>
                 <button type="button" onclick="autoFillGrowthBoard()">빈 칸 자동 배치</button>
                 <button type="button" onclick="unplaceAllGrowthItems()" ${Object.keys(getActiveGrowthLoadout().placements || {}).length > 0 ? '' : 'disabled'}>전부 내리기</button>
+            </span>
+            <span class="growth-context-hints">
+                <span id="ui-growth-hover-hint" class="growth-hover-hint"></span>
+                <span id="ui-growth-relation-hint" class="growth-relation-hint"></span>
             </span>
         </div>
         <div class="growth-workspace">
@@ -823,6 +829,11 @@ function renderGrowthBoardPanel() {
                 <div class="growth-synergy-list">${renderGrowthComparisonPanel()}</div>
             </div>
         </div>`;
+    let nextTray = host.querySelector('.growth-tray-list');
+    if (nextTray) {
+        nextTray.scrollTop = trayScroll.top;
+        nextTray.scrollLeft = trayScroll.left;
+    }
     paintGrowthPlacementPreview();
     bindGrowthDragOnce();
     if (growthHoverItemId !== null) paintGrowthBoardRelations(growthHoverItemId);

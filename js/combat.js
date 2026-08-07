@@ -8,7 +8,11 @@ const LEECH_BASE_INSTANCE_CAP_PCT = 20;
 const LEECH_BASE_TOTAL_CAP_PCT = 40;
 const LEECH_BASE_RATE_CAP_PCT = 4;
 const ARMOR_MITIGATION_SCALE = 24;
-const EVASION_ACCURACY_SCALE = 2.25;
+const EVASION_ACCURACY_SCALE = 3.5;
+const EVASION_ENTROPY_RESET_MS = 3330;
+const PLAYER_ACCURACY_BASE = 80;
+const PLAYER_ACCURACY_PER_LEVEL = 3;
+const PLAYER_ACCURACY_PER_DEXTERITY = 5;
 const MIN_PENETRATED_RESISTANCE = -200;
 const CRIT_DAMAGE_BASE_MULTIPLIER = 125;
 const PENDING_SKILL_STAGE_CAP = 160;
@@ -39,6 +43,40 @@ function getEvasionChancePct(evasion, enemyAccuracy) {
     let evasionValue = Math.max(0, Number(evasion) || 0);
     let accuracyValue = Math.max(1, Number(enemyAccuracy) || 1);
     return Math.min(90, (evasionValue / (evasionValue + accuracyValue * EVASION_ACCURACY_SCALE)) * 100);
+}
+
+const evasionEntropyByDefender = new WeakMap();
+
+function resolveEntropyEvasion(defender, evadeChance, now) {
+    let chance = Math.max(0, Math.min(90, Number(evadeChance) || 0));
+    if (chance <= 0 || !defender || typeof defender !== 'object') return false;
+    let hitChance = 100 - chance;
+    let currentTime = Number.isFinite(now) ? now : Date.now();
+    let state = evasionEntropyByDefender.get(defender);
+    if (!state || currentTime - state.lastAt > EVASION_ENTROPY_RESET_MS) {
+        state = { value: Math.floor(Math.random() * 100), lastAt: currentTime };
+    }
+    state.lastAt = currentTime;
+    state.value += hitChance;
+    let wasHit = state.value >= 100;
+    if (wasHit) state.value -= 100;
+    evasionEntropyByDefender.set(defender, state);
+    return !wasHit;
+}
+
+function calculatePlayerAccuracy(level, dexterity, flatAccuracy, bonusPct) {
+    let levelPart = Math.max(1, Math.floor(Number(level) || 1)) * PLAYER_ACCURACY_PER_LEVEL;
+    let dexterityPart = Math.max(0, Number(dexterity) || 0) * PLAYER_ACCURACY_PER_DEXTERITY;
+    let itemPart = Math.max(0, Number(flatAccuracy) || 0);
+    let multiplier = 1 + Math.max(0, Number(bonusPct) || 0) / 100;
+    return Math.max(1, Math.floor((PLAYER_ACCURACY_BASE + levelPart + dexterityPart + itemPart) * multiplier));
+}
+
+function getEnemyTotalEvadeChance(enemy, playerAccuracy) {
+    if (!enemy) return 0;
+    let flatChance = Math.max(0, Number(enemy.evasionChance) || 0);
+    let ratingChance = getEvasionChancePct(Math.max(0, enemy.evasion || 0), Math.max(1, playerAccuracy || 1));
+    return Math.min(70, flatChance + Math.min(45, ratingChance * 0.65));
 }
 
 function formatNumberKR(value) {
@@ -1242,7 +1280,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (ele === 'light') enemyRes -= (curseFx.resLShred || 0);
     if (ele === 'chaos') enemyRes -= (curseFx.resChaosShred || 0);
     if (ele === 'phys') enemyRes -= (curseFx.physDrShred || 0);
-    if (!expected && target && (target.evasionChance || 0) > 0 && Math.random() * 100 < target.evasionChance) {
+    if (!expected && target && resolveEntropyEvasion(target, target.evasionChance || 0, Date.now())) {
         dmg = 0;
         ailmentSourceDmg = 0;
         addBattleFx('enemyEvade', { enemyId: target.id, text: '회피!', color: '#9fb4c8', duration: 260 });
@@ -3074,7 +3112,7 @@ function getPlayerStats() {
     }
     let favorFx = (typeof getExpertFavorEffectTotals === 'function') ? getExpertFavorEffectTotals() : {};
     Object.keys(favorFx).forEach(statKey => addStatToBucket(reward, statKey, favorFx[statKey] || 0));
-    // 범용 스탯 전환 — 힘: 1당 생명력 +2, 5당 물리 피해 +1% / 민첩: 1당 회피 +3, 1당 정확도 +2, 5당 투사체 피해 +1%
+    // 범용 스탯 전환 — 힘: 1당 생명력 +2, 5당 물리 피해 +1% / 민첩: 1당 회피 +3, 1당 정확도 +5, 5당 투사체 피해 +1%
     // / 지능: 1당 ES +2, 5당 주문 피해 +1%. 어떤 출처(장비/패시브/보상)의 스탯이든 합산 후 전환된다.
     let totalStrength = Math.max(0, sumStatAcrossBuckets('strength'));
     let totalDexterity = Math.max(0, sumStatAcrossBuckets('dexterity'));
@@ -3082,8 +3120,10 @@ function getPlayerStats() {
     if (totalStrength > 0) { addStatToBucket(reward, 'flatHp', totalStrength * 2); addStatToBucket(reward, 'physPctDmg', Math.floor(totalStrength / 5)); }
     if (totalDexterity > 0) { addStatToBucket(reward, 'evasion', totalDexterity * 3); addStatToBucket(reward, 'projectilePctDmg', Math.floor(totalDexterity / 5)); }
     if (totalIntelligence > 0) { addStatToBucket(reward, 'energyShield', totalIntelligence * 2); addStatToBucket(reward, 'spellPctDmg', Math.floor(totalIntelligence / 5)); }
-    // 정확도: 기본치 + 레벨 성장 + 민첩 파생 + 장비/패시브의 정확도 옵션. 적 회피 '수치'를 상쇄한다.
-    let playerAccuracy = 200 + Math.max(1, Math.floor(game.level || 1)) * 10 + totalDexterity * 2 + Math.max(0, sumStatAcrossBuckets('accuracy'));
+    // 레벨 자동 성장보다 민첩과 장비가 정확도의 주 공급원이 되도록 한다.
+    let flatAccuracy = Math.max(0, sumStatAcrossBuckets('accuracy'));
+    let accuracyBonusPct = Math.max(0, sumStatAcrossBuckets('accuracyBonusPct'));
+    let playerAccuracy = calculatePlayerAccuracy(game.level, totalDexterity, flatAccuracy, accuracyBonusPct);
     // 플라스크 지속 효과(유틸리티 슬롯): 활성 시간 동안 각 버프를 버킷에 반영 — 스탯 툴팁에도 잡힌다.
     // 현재 허리띠(스탯 미리보기 중이면 미리보기 대상 허리띠)가 지원하는 슬롯 수만큼만 반영한다.
     let flaskState = (typeof ensureFlaskState === 'function') ? ensureFlaskState() : null;
@@ -4371,12 +4411,13 @@ function getPlayerStats() {
         accuracy: {
             title: '정확도',
             lines: [
-                `기본 200 + 레벨 성장(레벨 ${Math.max(1, Math.floor(game.level || 1))} × 10 = ${Math.max(1, Math.floor(game.level || 1)) * 10})`,
-                makeSourceLine('민첩 파생(민첩 × 2)', totalDexterity * 2),
-                makeSourceLine('장비/기타 정확도', Math.max(0, sumStatAcrossBuckets('accuracy'))),
+                `기본 ${PLAYER_ACCURACY_BASE} + 레벨 성장(레벨 ${Math.max(1, Math.floor(game.level || 1))} × ${PLAYER_ACCURACY_PER_LEVEL} = ${Math.max(1, Math.floor(game.level || 1)) * PLAYER_ACCURACY_PER_LEVEL})`,
+                makeSourceLine(`민첩 파생(민첩 × ${PLAYER_ACCURACY_PER_DEXTERITY})`, totalDexterity * PLAYER_ACCURACY_PER_DEXTERITY),
+                makeSourceLine('장비/기타 정확도', flatAccuracy),
+                makeSourceLine('정확도 보정', accuracyBonusPct, '%', value => `${Math.floor(value)}%`),
                 `효과: 적의 회피 수치와 대결해 명중을 판정합니다. 정확도가 높을수록 고회피 적에게 덜 빗나갑니다.`,
-                `예: 회피 500 적 상대 예상 명중률 ${Math.floor(100 - Math.min(60, getEvasionChancePct(500, Math.max(1, playerAccuracy)) * 0.35))}% · 회피 2000 적 상대 ${Math.floor(100 - Math.min(60, getEvasionChancePct(2000, Math.max(1, playerAccuracy)) * 0.35))}%`,
-                `적 회피 대비 빗나감은 최대 30%p, 적의 별도 회피 확률 옵션과 합쳐 총 60%가 상한입니다.`
+                `예: 회피 500 적 상대 예상 명중률 ${Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 500 }, playerAccuracy))}% · 회피 2000 적 상대 ${Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 2000 }, playerAccuracy))}%`,
+                `적 회피 대비 빗나감은 최대 45%p, 적의 별도 회피 확률 옵션과 합쳐 총 70%가 상한입니다.`
             ].filter(Boolean),
             final: `${Math.floor(playerAccuracy)}`
         },
@@ -4385,8 +4426,8 @@ function getPlayerStats() {
             lines: [
                 `💪 힘 ${Math.floor(totalStrength)} — 1당 최대 생명력 +2, 5당 물리 피해 +1%`,
                 `　→ 최대 생명력 +${Math.floor(totalStrength * 2)} · 물리 피해 +${Math.floor(totalStrength / 5)}%`,
-                `🏹 민첩 ${Math.floor(totalDexterity)} — 1당 회피 +3, 1당 정확도 +2, 5당 투사체 피해 +1%`,
-                `　→ 회피 +${Math.floor(totalDexterity * 3)} · 정확도 +${Math.floor(totalDexterity * 2)} · 투사체 피해 +${Math.floor(totalDexterity / 5)}%`,
+                `🏹 민첩 ${Math.floor(totalDexterity)} — 1당 회피 +3, 1당 정확도 +${PLAYER_ACCURACY_PER_DEXTERITY}, 5당 투사체 피해 +1%`,
+                `　→ 회피 +${Math.floor(totalDexterity * 3)} · 정확도 +${Math.floor(totalDexterity * PLAYER_ACCURACY_PER_DEXTERITY)} · 투사체 피해 +${Math.floor(totalDexterity / 5)}%`,
                 `📘 지능 ${Math.floor(totalIntelligence)} — 1당 에너지 보호막 +2, 5당 주문 피해 +1%`,
                 `　→ 에너지 보호막 +${Math.floor(totalIntelligence * 2)} · 주문 피해 +${Math.floor(totalIntelligence / 5)}%`,
                 `범용 스탯은 전 부위 장비 추가 옵션으로 등장합니다.`
@@ -8466,10 +8507,9 @@ function performPlayerAttack(pStats, attackOptions) {
             dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
             if ((pStats.cosmosLightningVariance || 0) > 0 && hitElement === 'light') dmg = Math.floor(dmg * (0.8 + Math.random() * 0.7));
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg = Math.floor(dmg * Math.max(1, pStats.uniqueDoubleDamageMultiplier || 2));
-            // 명중 판정: 적의 flat 회피 확률 + (적 회피 수치 vs 플레이어 정확도) 완만 계수. 합계 상한 60%.
-            let enemyTotalEvadeChance = Math.max(0, targetEnemy.evasionChance || 0)
-                + Math.min(30, getEvasionChancePct(Math.max(0, targetEnemy.evasion || 0), Math.max(1, pStats.accuracy || 1)) * 0.35);
-            if (enemyTotalEvadeChance > 0 && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit()) && Math.random() * 100 < Math.min(60, enemyTotalEvadeChance)) {
+            let enemyTotalEvadeChance = getEnemyTotalEvadeChance(targetEnemy, pStats.accuracy);
+            if (!(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit())
+                && resolveEntropyEvasion(targetEnemy, enemyTotalEvadeChance, Date.now())) {
                 addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(targetEnemy, false);
                 return;
@@ -9625,9 +9665,8 @@ function performMonsterAttacks(pStats) {
                 evadeChance *= 1.3;
                 game.catalystEvadeBoostReady = false;
             }
-            let evadeRoll = Math.random() * 100;
-            if (game.ascendClass === 'hunter' && hasKeystone('h3')) evadeRoll = Math.min(evadeRoll, Math.random() * 100);
-            if (evadeRoll < evadeChance) {
+            if (game.ascendClass === 'hunter' && hasKeystone('h3')) evadeChance = 100 - Math.pow(1 - evadeChance / 100, 2) * 100;
+            if (resolveEntropyEvasion(game, evadeChance, Date.now())) {
                 addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(null, true);
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
