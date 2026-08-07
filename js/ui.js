@@ -9490,15 +9490,21 @@ function matchSearchQuery(raw, query) {
     const text = String(raw || '').toLowerCase();
     return q.split(/\s+/).filter(Boolean).every(tok => text.includes(tok));
 }
+function isGemLibraryMatchVisible(searchable, query, foldInactive, isActive) {
+    if (!matchSearchQuery(searchable, query)) return false;
+    return !foldInactive || !!String(query || '').trim() || !!isActive;
+}
 function getGemSearchText(name, definition) {
     let def = definition || {};
     let tags = Array.isArray(def.tags) ? def.tags : [];
     let localizedTags = tags.map(tag => translateSkillTag(tag));
-    let statText = Array.isArray(def.stats)
-        ? def.stats.map(stat => getStatName(stat.id || stat.stat || '')).join(' ')
-        : '';
-    return [name, tags.join(' '), localizedTags.join(' '), def.desc || '', def.type || '',
-        def.ele || '', def.targetMode || '', statText].join(' ');
+    let statIds = Array.isArray(def.stats)
+        ? def.stats.map(stat => stat.id || stat.stat || '').filter(Boolean)
+        : [];
+    if (def.stat) statIds.push(def.stat);
+    let statNames = statIds.map(statId => getStatName(statId));
+    return [name, def.name || '', tags.join(' '), localizedTags.join(' '), def.desc || '',
+        def.type || '', def.ele || '', def.targetMode || '', statIds.join(' '), statNames.join(' ')].join(' ');
 }
 function shouldBulkSalvageBySearch(isMatched, salvageUnmatched) { return salvageUnmatched ? !isMatched : isMatched; }
 async function bulkSalvageEquipBySearch(salvageUnmatched) {
@@ -11077,17 +11083,16 @@ function buildCraftActionButtons(item) {
     let skillsRows = game.skills.filter(name => {
         let def = SKILL_DB[name] || {};
         let searchable = getGemSearchText(name, def);
-        if (!matchSearchQuery(searchable, sf.skill)) return false;
-        if (!foldAttackInactive) return true;
-        return name === game.activeSkill || (isSummonAttackSkillGem(name) && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
+        let active = name === game.activeSkill || (isSummonAttackSkillGem(name)
+            && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
+        return isGemLibraryMatchVisible(searchable, sf.skill, foldAttackInactive, active);
     }).map(name => renderAttackGemCard(name, highlightSearchText(name, sf.skill))).join('');
     let sealedSkillRows = sealedSkills.filter(name => {
         let def = SKILL_DB[name] || {};
         let searchable = getGemSearchText(name, def);
-        return matchSearchQuery(searchable, sf.skill);
+        return isGemLibraryMatchVisible(searchable, sf.skill, foldAttackInactive, false);
     }).map(name => renderSealedGemCard(name, highlightSearchText(name, sf.skill), false)).join('');
-    let skillsHtml = skillsRows;
-    if (!foldAttackInactive && sealedSkillRows) skillsHtml += sealedSkillRows;
+    let skillsHtml = skillsRows + sealedSkillRows;
     let skillsListEl = document.getElementById('ui-skills-list');
     let skillActions = foldAttackInactive ? '' : '<button onclick="sealAllInactiveSkillGems()">미사용 공격 젬 일괄 봉인</button>';
     let skillsRenderSig = `${skillsHtml}::${skillActions}`;
@@ -11109,17 +11114,14 @@ function buildCraftActionButtons(item) {
     let supportRows = game.supports.filter(name => {
         let def = SUPPORT_GEM_DB[name] || {};
         let searchable = getGemSearchText(name, def);
-        if (!matchSearchQuery(searchable, sf.support)) return false;
-        if (!foldSupportInactive) return true;
-        return game.equippedSupports.includes(name);
+        return isGemLibraryMatchVisible(searchable, sf.support, foldSupportInactive, game.equippedSupports.includes(name));
     }).map(name => renderSupportGemCard(name, highlightSearchText(name, sf.support))).join('');
     let sealedSupportRows = sealedSupports.filter(name => {
         let def = SUPPORT_GEM_DB[name] || {};
         let searchable = getGemSearchText(name, def);
-        return matchSearchQuery(searchable, sf.support);
+        return isGemLibraryMatchVisible(searchable, sf.support, foldSupportInactive, false);
     }).map(name => renderSealedGemCard(name, highlightSearchText(name, sf.support), true)).join('');
-    let supportHtml = supportRows;
-    if (!foldSupportInactive && sealedSupportRows) supportHtml += sealedSupportRows;
+    let supportHtml = supportRows + sealedSupportRows;
     let supportListEl = document.getElementById('ui-support-list');
     let supportActions = foldSupportInactive ? '' : '<button onclick="sealAllInactiveSupportGems()">미사용 보조 젬 일괄 봉인</button>';
     let supportRenderSig = `${supportHtml}::${supportActions}`;

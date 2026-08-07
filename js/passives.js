@@ -5128,6 +5128,9 @@ function grantActRewardEntry(zoneId, choice) {
         if (!hasSupportGemOwned(choice.gem)) {
             game.supports.push(choice.gem);
             game.supportGemData[choice.gem] = game.supportGemData[choice.gem] || { level: 1, exp: 0 };
+            // 새 보조 젬이 '장착 보조 젬만 보기'에 가려져 지급되지 않은 것처럼
+            // 보이지 않도록, 획득 직후에는 전체 보조 젬 목록을 보여 준다.
+            game.gemFoldInactiveSupport = false;
             game.noti.skills = true;
             addLog(`🎁 액트 보상 보조 젬 [${choice.gem}] 획득!`, 'loot-rare');
         } else {

@@ -82,6 +82,18 @@ run(`
     game.currencies.magicBud = 0;
     game.currencies.gemShard = 0;
 `);
+
+// 미보유 보조 젬은 실제 보유 목록과 성장 데이터에 추가되고, 장착 젬만 보기 상태도
+// 해제되어 플레이어가 획득 결과를 즉시 확인할 수 있어야 한다.
+run('game.gemFoldInactiveSupport = true');
+run('grantActRewardEntry(1, getActRewardChoices(1)[1])');
+assert.strictEqual(run("game.supports.includes('날카로움')"), true,
+    '액트 보상으로 선택한 미보유 보조 젬은 보유 목록에 추가되어야 한다');
+assert.strictEqual(run("game.supportGemData['날카로움'].level"), 1,
+    '새 보조 젬의 성장 데이터가 초기화되어야 한다');
+assert.strictEqual(run('game.gemFoldInactiveSupport'), false,
+    '새 보조 젬 획득 후에는 장착 젬만 보기 상태가 해제되어야 한다');
+
 const ownedAct2Choices = JSON.parse(run('JSON.stringify(getActRewardChoices(1))'));
 assert(ownedAct2Choices[0].desc.includes('패시브 포인트 +1'),
     '액트 2 중복 보조 젬 설명은 존재하지 않는 오브가 아니라 패시브 포인트를 표시해야 한다');
