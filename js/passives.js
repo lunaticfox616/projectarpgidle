@@ -7433,7 +7433,12 @@ function rollCompoundExtraStats(mod, tier, roundInteger) {
         let min = sub.base + (tier * sub.step);
         let max = min + sub.step * 1.6;
         let val;
-        if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(subId)) {
+        if (mod.growthAffix) {
+            let rolled = rollGrowthAffixNumber(min, max);
+            val = rolled.val;
+            min = rolled.min;
+            max = rolled.max;
+        } else if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(subId)) {
             let minStep = Math.round(min * 10);
             let maxStep = Math.round(max * 10);
             val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -7464,7 +7469,12 @@ function rollAffixValue(mod, maxTier, opts) {
         let min = mod.base + (tier * mod.step);
         let max = min + mod.step * 1.6;
         let val;
-        if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+        if (mod.growthAffix) {
+            let rolled = rollGrowthAffixNumber(min, max);
+            val = rolled.val;
+            min = rolled.min;
+            max = rolled.max;
+        } else if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
             let minStep = Math.round(min * 10);
             let maxStep = Math.round(max * 10);
             val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -7525,7 +7535,12 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
         let min = mod.base + (tier * mod.step);
         let max = min + mod.step * 1.6;
         let val;
-        if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+        if (mod.growthAffix) {
+            let rolled = rollGrowthAffixNumber(min, max);
+            val = rolled.val;
+            min = rolled.min;
+            max = rolled.max;
+        } else if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
             let minStep = Math.round(min * 10);
             let maxStep = Math.round(max * 10);
             val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -7758,6 +7773,7 @@ function getAvailableModSlotsForItem(item) {
 
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
+    let growthItem = typeof isGrowthItem === 'function' && isGrowthItem(item);
     let isKaleidoscopeShield = !!(item && item.rarity === 'unique' && item.uniqueEffectKey === 'kaleidoscopeShield');
     let allowedSlots = getAvailableModSlotsForItem(item);
     let summonBaseStatIds = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
@@ -7768,6 +7784,7 @@ function getAvailableMods(item) {
     let isSummonBaseRing = item && item.slot === '반지' && hasSummonBaseStat;
     let baseDefenseTypes = getItemBaseDefenseTypes(item);
     return MOD_DB.filter(mod => {
+        if (growthItem && !getGrowthAffixValueDef(mod.id)) return false;
         let statId = mod.statId || mod.id;
         if (!isDefenseTypeStatAllowed(item, statId)) return false;
         if (statId === 'deflectChance' && !baseDefenseTypes.has('evasion')) return false;
@@ -7776,7 +7793,23 @@ function getAvailableMods(item) {
         if (item.slot === '반지' && summonOnlyModIds.has(statId) && !isSummonBaseRing) return false;
         if (!isPrimaryDualDefenseAffixMod(item, mod)) return false;
         return allowedSlots.some(slot => mod.slots.includes(slot)) && !existing.has(statId);
-    }).map(mod => makeDualDefenseAffixMod(item, mod));
+    }).map(mod => {
+        if (!growthItem) return makeDualDefenseAffixMod(item, mod);
+        let growthValues = getGrowthAffixValueDef(mod.id);
+        let growthMod = { ...mod, ...growthValues, growthAffix: true };
+        if (growthValues.compound) growthMod.compound = growthValues.compound.map(stat => ({ ...stat }));
+        return makeDualDefenseAffixMod(item, growthMod);
+    });
+}
+
+function rollGrowthAffixNumber(min, max) {
+    let minStep = Math.round(Number(min) * 1000);
+    let maxStep = Math.max(minStep, Math.round(Number(max) * 1000));
+    return {
+        val: (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 1000,
+        min: minStep / 1000,
+        max: maxStep / 1000
+    };
 }
 
 function updateItemName(item) {
@@ -7820,6 +7853,7 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
         ? rollAffixValueInTierRange(mod, minTier, maxTier, requestedFalloff)
         : rollAffixValue(mod, maxTier)));
     if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) item.growthOptionValueVersion = GROWTH_AFFIX_VALUE_VERSION;
     updateItemName(item);
 }
 

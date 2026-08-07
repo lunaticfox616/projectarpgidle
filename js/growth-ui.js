@@ -607,6 +607,24 @@ function growthCellFromPoint(clientX, clientY) {
     return found;
 }
 
+function isGrowthUnplaceZonePoint(clientX, clientY) {
+    let zone = document.getElementById('ui-growth-unplace-zone');
+    if (!zone) return false;
+    let rect = zone.getBoundingClientRect();
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+}
+
+function setGrowthUnplaceZoneHover(active) {
+    let zone = document.getElementById('ui-growth-unplace-zone');
+    if (zone) zone.classList.toggle('drag-hover', !!active);
+}
+
+function clearGrowthDragVisuals() {
+    document.body.classList.remove('growth-dragging', 'growth-unplace-dragging');
+    setGrowthUnplaceZoneHover(false);
+    clearGrowthHoverCell();
+}
+
 function onGrowthPointerDown(event) {
     if (event.button !== undefined && event.button !== 0) return;
     if (!event.target || !event.target.closest) return;
@@ -618,7 +636,10 @@ function onGrowthPointerDown(event) {
     if (card) itemId = Number(card.dataset.growthDragId);
     else if (cell && !cell.classList.contains('sealed')) itemId = getGrowthOccupantIdAt(Number(cell.dataset.x), Number(cell.dataset.y));
     if (itemId === null || !Number.isFinite(itemId)) return;
-    growthDrag = { itemId, startX: event.clientX, startY: event.clientY, active: false };
+    growthDrag = {
+        itemId, startX: event.clientX, startY: event.clientY, active: false,
+        wasPlaced: isGrowthItemPlacedInLoadout(itemId)
+    };
 }
 
 function onGrowthPointerMove(event) {
@@ -631,11 +652,13 @@ function onGrowthPointerMove(event) {
         // 이미 선택된 카드를 다시 토글하면 드래그 도중 선택이 풀리므로 그대로 둔다.
         if (growthSelection.itemId !== growthDrag.itemId) selectGrowthItem(growthDrag.itemId, 'inventory');
         document.body.classList.add('growth-dragging');
+        document.body.classList.toggle('growth-unplace-dragging', growthDrag.wasPlaced);
         if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
     }
     // 터치에서 드래그 중 화면이 스크롤되지 않게 막는다(비수동 리스너로 등록).
     if (event.cancelable) event.preventDefault();
     let target = growthCellFromPoint(event.clientX, event.clientY);
+    setGrowthUnplaceZoneHover(growthDrag.wasPlaced && !target && isGrowthUnplaceZonePoint(event.clientX, event.clientY));
     if (target) setGrowthHoverCell(target.x, target.y);
     else clearGrowthHoverCell();
 }
@@ -644,11 +667,12 @@ function onGrowthPointerUp(event) {
     if (!growthDrag) return;
     let drag = growthDrag;
     growthDrag = null;
-    document.body.classList.remove('growth-dragging');
-    if (!drag.active) return;   // 움직이지 않았으면 평범한 클릭 — 기존 경로가 처리한다.
     let target = growthCellFromPoint(event.clientX, event.clientY);
-    clearGrowthHoverCell();
+    let shouldUnplace = drag.wasPlaced && !target && isGrowthUnplaceZonePoint(event.clientX, event.clientY);
+    clearGrowthDragVisuals();
+    if (!drag.active) return;   // 움직이지 않았으면 평범한 클릭 — 기존 경로가 처리한다.
     if (target) handleGrowthCellClick(target.x, target.y);
+    else if (shouldUnplace) unplaceGrowthItem(drag.itemId);
     growthSuppressClickUntil = Date.now() + 400;
 }
 
@@ -660,8 +684,7 @@ function bindGrowthDragOnce() {
     document.addEventListener('pointerup', onGrowthPointerUp);
     document.addEventListener('pointercancel', () => {
         growthDrag = null;
-        document.body.classList.remove('growth-dragging');
-        clearGrowthHoverCell();
+        clearGrowthDragVisuals();
     });
 }
 
@@ -816,7 +839,9 @@ function renderGrowthBoardPanel() {
         </div>
         <div class="growth-workspace">
             <div class="growth-board-column">${renderGrowthBoardGrid()}</div>
-            <aside class="growth-placement-tray"><h3>빠른 배치함</h3><p>카드를 보드로 끌거나, 카드 선택 후 칸을 누르세요.</p><div class="growth-tray-list">${renderGrowthPlacementTray()}</div></aside>
+            <aside class="growth-placement-tray"><h3>빠른 배치함</h3><p>카드를 보드로 끌거나, 카드 선택 후 칸을 누르세요.</p>
+                <div id="ui-growth-unplace-zone" class="growth-unplace-zone"><strong>장착 해제</strong><span>배치된 생장판을 여기로 끌어 놓으세요.</span></div>
+                <div class="growth-tray-list">${renderGrowthPlacementTray()}</div></aside>
         </div>
         ${renderGrowthCraftBench()}
         <div class="growth-columns">

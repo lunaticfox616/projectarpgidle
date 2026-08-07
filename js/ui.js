@@ -8825,7 +8825,14 @@ function openJournalEntryAction(entryId) {
 
 function updateStaticUI(forceImmediate) {
     void forceImmediate;
-    if (uiRefreshQueued || uiRefreshRunning) return;
+    // 긴 정적 UI 갱신 도중 탭을 누르면 이전에는 그 탭의 후속 렌더 요청을 버렸다.
+    // 그러면 새 탭 컨테이너만 활성화되고 주얼·부적·생장판·스킬 젬 내용은 이전 탭
+    // 기준으로 남아 간헐적인 빈 화면이 됐다. 실행 중 요청은 다음 프레임에 반드시 잇는다.
+    if (uiRefreshRunning) {
+        uiRefreshQueued = true;
+        return;
+    }
+    if (uiRefreshQueued) return;
     uiRefreshQueued = true;
     requestAnimationFrame(processQueuedUIRefresh);
 }
@@ -12483,6 +12490,8 @@ function mergeDefaults(save) {
     merged.equipment = normalizedEquipment;
     merged.inventory = (merged.inventory || []).map(normalizeItem);
     Object.keys(merged.equipment).forEach(slot => merged.equipment[slot] = normalizeItem(merged.equipment[slot]));
+    merged.growthInventory = (merged.growthInventory || []).map(normalizeGrowthOptionValues);
+    merged.recentGrowthDrops = (merged.recentGrowthDrops || []).map(normalizeGrowthOptionValues);
     merged.gemData = (merged.gemData && typeof merged.gemData === 'object') ? merged.gemData : {};
     merged.gemData['기본 공격'] = normalizeGemRecord(merged.gemData['기본 공격']);
     Object.keys(merged.gemData).forEach(name => merged.gemData[name] = normalizeGemRecord(merged.gemData[name]));

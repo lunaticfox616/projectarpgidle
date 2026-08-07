@@ -265,6 +265,54 @@ assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋
         '드래그 중에는 아이템 툴팁을 띄우지 않아야 한다');
 }
 
+// 배치된 생장판을 보드에서 해제 영역으로 끌면 실제 배치 상태가 해제되어야 한다.
+{
+    const listeners = {};
+    const removed = [];
+    let refreshed = 0;
+    const makeClassList = () => {
+        const values = new Set();
+        return {
+            add: (...names) => names.forEach(name => values.add(name)),
+            remove: (...names) => names.forEach(name => values.delete(name)),
+            toggle: (name, force) => force === undefined
+                ? (values.has(name) ? (values.delete(name), false) : (values.add(name), true))
+                : (force ? (values.add(name), true) : (values.delete(name), false)),
+            contains: name => values.has(name)
+        };
+    };
+    const board = { querySelectorAll: () => [], querySelector: () => null };
+    const zone = { classList: makeClassList(), getBoundingClientRect: () => ({ left: 100, top: 100, right: 220, bottom: 180 }) };
+    const body = { classList: makeClassList() };
+    const uiContext = {
+        console,
+        game: { woodsmanBuildLock: false },
+        document: {
+            body,
+            addEventListener: (name, handler) => { listeners[name] = handler; },
+            getElementById: id => id === 'ui-growth-board' ? board : (id === 'ui-growth-unplace-zone' ? zone : null)
+        },
+        safeExposeGlobals: () => {},
+        isGrowthItemPlacedInLoadout: () => true,
+        getPlacedGrowthEntries: () => [{ item: { id: 7 }, cells: [[1, 1]] }],
+        findGrowthItemById: id => ({ id, name: `item${id}` }),
+        removeGrowthPlacement: id => { removed.push(id); return true; },
+        updateStaticUI: () => { refreshed++; },
+        hideInfoTooltip: () => {}
+    };
+    vm.createContext(uiContext);
+    vm.runInContext(fs.readFileSync('js/growth-ui.js', 'utf8'), uiContext);
+    vm.runInContext("growthSelection = { itemId: 7, source: 'board', rotation: 0, hoverCell: null }; bindGrowthDragOnce();", uiContext);
+    const cell = { dataset: { x: '1', y: '1' }, classList: { contains: () => false } };
+    const target = { closest: selector => selector === '#ui-growth-board .growth-cell' ? cell : null };
+    listeners.pointerdown({ button: 0, target, clientX: 20, clientY: 20 });
+    listeners.pointermove({ target, clientX: 130, clientY: 130, cancelable: true, preventDefault() {} });
+    listeners.pointerup({ target, clientX: 130, clientY: 130 });
+    assert.deepStrictEqual(removed, [7], '해제 영역에 놓은 배치 생장판만 보드에서 내려야 한다');
+    assert.strictEqual(refreshed, 1, '드래그 해제 뒤 UI를 한 번 갱신해야 한다');
+    assert.strictEqual(body.classList.contains('growth-dragging'), false, '드롭 뒤 드래그 시각 상태가 남으면 안 된다');
+}
+
 // ── 옛 판(폴리오미노 10x6) 저장을 불러올 때 ──────────────────────────────
 // 이 브랜치가 판을 10x6·60칸에서 8x4·32칸으로 줄이고 모든 아이템을 1칸으로 바꿨다.
 // 그 전에 저장한 사람이 돌아오면 판 밖을 가리키는 배치가 남아 있다. 아이템을

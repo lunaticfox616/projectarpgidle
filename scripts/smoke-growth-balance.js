@@ -158,4 +158,50 @@ ctx.GROWTH_UNIQUE_DB.forEach(unique => {
     assert.ok(new RegExp(`\\b${unique.growthEffectKey}:`).test(effects), `고유 핸들러 ${unique.growthEffectKey}가 없다`);
 });
 
+// ── 추가 옵션 원본 수치: 장비는 유지하고 생장판 결과 자체만 낮춘다 ────────
+{
+    const { buildGameRuntime } = require('./lib/game-runtime');
+    const runtime = buildGameRuntime();
+    const run = code => vm.runInContext(code, runtime);
+    const pools = JSON.parse(run(`JSON.stringify((function () {
+        let gear = { slot: '무기', rarity: 'rare', baseStats: [], stats: [] };
+        let growth = { slot: '무기', rarity: 'rare', growthCategory: 'flower', growthShapeId: 'dot1', baseStats: [], stats: [] };
+        let gearFlat = getAvailableMods(gear).find(mod => mod.id === 'flatDmg');
+        let growthFlat = getAvailableMods(growth).find(mod => mod.id === 'flatDmg');
+        let growthCrit = getAvailableMods(growth).find(mod => mod.id === 'crit');
+        return {
+            gearFlat,
+            growthFlat,
+            growthCritRoll: rollAffixValue(growthCrit, 1),
+            growthHasExtraShots: getAvailableMods(growth).some(mod => mod.id === 'projectileExtraShots')
+        };
+    })())`));
+    assert.deepStrictEqual([pools.gearFlat.base, pools.gearFlat.step], [3, 3],
+        '일반 장비의 추가 옵션 원본 수치는 바뀌면 안 된다');
+    assert.deepStrictEqual([pools.growthFlat.base, pools.growthFlat.step], [1.2, 1.2],
+        '생장판은 별도의 낮은 base/step 원본 수치를 사용해야 한다');
+    assert.ok(pools.growthCritRoll.val > 0 && pools.growthCritRoll.val < 1,
+        '낮춘 생장판 옵션은 정수 반올림으로 0이 되지 않고 실제 소수 수치를 저장해야 한다');
+    assert.strictEqual(pools.growthHasExtraShots, false,
+        '판 전체에서 중첩되는 추가 발사 같은 불연속 장비 옵션은 생장판 풀에서 제외해야 한다');
+
+    const migrated = JSON.parse(run(`JSON.stringify((function () {
+        let rare = { growthCategory: 'flower', growthShapeId: 'dot1', rarity: 'rare', baseStats: [], stats: [{ id: 'flatDmg', val: 100, valMin: 90, valMax: 110 }] };
+        let unique = { growthCategory: 'seed', growthShapeId: 'dot1', rarity: 'unique', baseStats: [], stats: [{ id: 'pctHp', val: 12, valMin: 12, valMax: 12 }] };
+        normalizeGrowthOptionValues(rare);
+        normalizeGrowthOptionValues(unique);
+        normalizeGrowthOptionValues(rare);
+        normalizeGrowthOptionValues(unique);
+        return { rare, unique };
+    })())`));
+    assert.strictEqual(migrated.rare.stats[0].val, 40, '기존 희귀 생장판도 실제 저장 수치로 한 번 낮춰야 한다');
+    assert.strictEqual(migrated.unique.stats[0].val, 18, '기존 고유 생장판도 실제 저장 수치로 한 번 상향해야 한다');
+    assert.strictEqual(migrated.rare.growthOptionValueVersion, ctx.GROWTH_AFFIX_VALUE_VERSION,
+        '저장 수치 변환은 버전을 남겨 재로드 때 중복 적용되면 안 된다');
+
+    const uniqueStats = JSON.parse(run(`JSON.stringify(generateGrowthUniqueItem(20, '태초의 핵').stats)`));
+    assert.deepStrictEqual(uniqueStats.map(stat => stat.val), [18, 18],
+        '새 고유 생장판은 상향된 실제 고정 수치를 생성해야 한다');
+}
+
 console.log('smoke-growth-balance passed');
