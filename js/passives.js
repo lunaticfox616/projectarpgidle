@@ -5365,7 +5365,6 @@ function initBattleAssets() {
         woodEnemyPuppet7: 'assets/enemies/wood/wood-puppet/frame_007.png',
         woodEnemyPuppet8: 'assets/enemies/wood/wood-puppet/frame_008.png',
         effects: 'assets/battle-effects-v1.png',
-        effectsV2: 'assets/battle-effects-v2.png',
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
         bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
         bossTelegraphPulse: 'assets/effects/boss-telegraph-pulse-v1.png',
@@ -5379,8 +5378,6 @@ function initBattleAssets() {
         skillFxBurst: 'assets/effects/skill-burst-v1.png',
         skillFxDotField: 'assets/effects/skill-dot-field-v1.png',
         skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
-        weapons: 'assets/battle-weapon.png',
-        tiles: 'assets/battle-tiles-v1.png',
         backdropAct1: 'assets/battlefield-act1.png',
         backdropAct2_6: 'assets/battlefield-act2-6.png',
         backdropAct3_7: 'assets/battlefield-act3-7.png',
@@ -5425,7 +5422,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260718-motion2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos') || key.startsWith('bossTelegraph') || key.startsWith('skillFx')).concat(['effectsV2', 'weapons', 'tiles']));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos') || key.startsWith('bossTelegraph') || key.startsWith('skillFx')));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
@@ -5438,7 +5435,7 @@ function initBattleAssets() {
         group.keys.push(key);
         if (criticalManifestKeys.has(key)) group.priority = Math.min(group.priority, 0);
         else if (key.startsWith('backdrop')) group.priority = Math.min(group.priority, 1);
-        else if (key.startsWith('bossAct') || key === 'enemies2' || key === 'enemies3' || key === 'effectsV2') group.priority = Math.min(group.priority, 2);
+        else if (key.startsWith('bossAct') || key === 'enemies2' || key === 'enemies3') group.priority = Math.min(group.priority, 2);
     });
     const manifestGroups = Array.from(manifestGroupsBySrc.values()).sort((a, b) => a.priority - b.priority || a.src.localeCompare(b.src));
     const maxParallelLoads = Math.max(4, Math.min(8, Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 6) || 6));
