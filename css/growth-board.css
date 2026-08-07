@@ -11,7 +11,11 @@
 .growth-loadout-bar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .growth-loadout-btn.active { border-color: #f1c40f; color: #ffe9a8; }
 
-.growth-controls { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; color: #c7d9ea; font-size: 0.86em; }
+.growth-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 5px 10px; margin-bottom: 8px; color: #c7d9ea; font-size: 0.86em; }
+.growth-selection-label { min-width: 0; }
+.growth-context-hints { grid-column: 1 / -1; display: flex; gap: 10px; height: 1.35em; min-width: 0; overflow: hidden; }
+.growth-context-hints > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.growth-relation-hint { flex: 1 1 auto; }
 
 .growth-board {
     display: grid;
@@ -180,6 +184,8 @@ body.growth-dragging #info-tooltip { pointer-events: none; }
 
 @media (max-width: 720px) {
     .growth-workspace { grid-template-columns: 1fr; }
+    .growth-controls { grid-template-columns: 1fr; }
+    .growth-control-actions, .growth-context-hints { grid-column: 1; }
     .growth-placement-tray { max-height: none; }
     .growth-tray-list { flex-direction: row; max-height: none; overflow-x: auto; padding-bottom: 4px; }
     .growth-tray-card { flex: 0 0 165px; }

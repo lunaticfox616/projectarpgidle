@@ -1725,7 +1725,10 @@ function switchTab(tabId) {
         updateTabNotificationDots();
         return;
     }
-    document.querySelectorAll('.tab-content, .tab-btn').forEach(el => el.classList.remove('active'));
+    // 병합 창 안의 하위 패널은 각 창이 독립적으로 표시 상태를 소유한다.
+    // 다른 최상위 창을 열 때까지 함께 비활성화하면, 이미 열려 있던 도감·생장판·전직·주얼·부적
+    // 창의 선택 패널이 사라져 빈 창만 남는다. 전역 전환은 최상위 탭과 메뉴 버튼만 해제한다.
+    document.querySelectorAll('.tab-content:not(.merged-subtab-pane), .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     let activeBtn = document.getElementById('btn-' + tabId);
     activeBtn.classList.add('active');
@@ -8877,11 +8880,16 @@ function renderEquipmentLoadoutSummary(pStats) {
             ? Math.round(qualityItems.reduce((sum, item) => sum + Number(item.quality || 0), 0) / qualityItems.length)
             : 0;
         let averageTier = typeof getAverageExplicitAffixTier === 'function' ? getAverageExplicitAffixTier(equipped) : 0;
-        let dps = Math.max(0, Math.floor(Number(pStats && (pStats.totalDps || pStats.dps)) || 0));
-        let defense = Math.max(0, Math.floor((Number(pStats && pStats.armor) || 0) + (Number(pStats && pStats.evasion) || 0) + (Number(pStats && pStats.energyShield) || 0)));
-        host.innerHTML = `
-            <div class="equipment-summary-stat"><span>전투력</span><strong>${formatSettingNumber(dps, 'showCharacterComma')}</strong></div>
-            <div class="equipment-summary-stat"><span>방어 합계</span><strong>${formatSettingNumber(defense, 'showCharacterComma')}</strong></div>
+        let ehpProfile = typeof calculatePlayerEhpProfile === 'function' ? calculatePlayerEhpProfile(pStats) : null;
+        let ehpLabels = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' };
+        let ehpCards = ehpProfile ? Object.keys(ehpLabels).map(element => {
+            let row = ehpProfile.elements[element];
+            let entropyText = formatSettingNumber(row.entropy, 'showCharacterComma');
+            let directText = formatSettingNumber(row.direct, 'showCharacterComma');
+            let title = `${ehpLabels[element]} 공격 EHP ${entropyText} · 직격 EHP ${directText} · 엔트로피 회피 ${ehpProfile.evadeChance.toFixed(1)}%`;
+            return `<div class="equipment-summary-stat equipment-ehp-stat" data-ehp-element="${element}" title="${title}"><span>${ehpLabels[element]} EHP</span><strong>${entropyText}</strong></div>`;
+        }).join('') : '';
+        host.innerHTML = `${ehpCards}
             <div class="equipment-summary-stat"><span>추가옵션 평균 티어</span><strong>${averageTier > 0 ? `T${averageTier.toFixed(1)}` : '—'}</strong></div>
             <div class="equipment-summary-stat"><span>평균 품질</span><strong>${averageQuality > 0 ? `${averageQuality}%` : '—'}</strong></div>`;
     }
@@ -9437,6 +9445,16 @@ function matchSearchQuery(raw, query) {
     if (!q) return true;
     const text = String(raw || '').toLowerCase();
     return q.split(/\s+/).filter(Boolean).every(tok => text.includes(tok));
+}
+function getGemSearchText(name, definition) {
+    let def = definition || {};
+    let tags = Array.isArray(def.tags) ? def.tags : [];
+    let localizedTags = tags.map(tag => translateSkillTag(tag));
+    let statText = Array.isArray(def.stats)
+        ? def.stats.map(stat => getStatName(stat.id || stat.stat || '')).join(' ')
+        : '';
+    return [name, tags.join(' '), localizedTags.join(' '), def.desc || '', def.type || '',
+        def.ele || '', def.targetMode || '', statText].join(' ');
 }
 function shouldBulkSalvageBySearch(isMatched, salvageUnmatched) { return salvageUnmatched ? !isMatched : isMatched; }
 async function bulkSalvageEquipBySearch(salvageUnmatched) {
@@ -11014,32 +11032,14 @@ function buildCraftActionButtons(item) {
     let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
     let skillsRows = game.skills.filter(name => {
         let def = SKILL_DB[name] || {};
-        let statText = Array.isArray(def.stats) ? def.stats.map(st => getStatName(st.id || st.stat || '')).join(' ') : '';
-        let searchable = [
-            name,
-            Array.isArray(def.tags) ? def.tags.join(' ') : '',
-            String(def.desc || ''),
-            String(def.type || ''),
-            String(def.ele || ''),
-            String(def.targetMode || ''),
-            statText
-        ].join(' ');
+        let searchable = getGemSearchText(name, def);
         if (!matchSearchQuery(searchable, sf.skill)) return false;
         if (!foldAttackInactive) return true;
         return name === game.activeSkill || (isSummonAttackSkillGem(name) && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
     }).map(name => renderAttackGemCard(name, highlightSearchText(name, sf.skill))).join('');
     let sealedSkillRows = sealedSkills.filter(name => {
         let def = SKILL_DB[name] || {};
-        let statText = Array.isArray(def.stats) ? def.stats.map(st => getStatName(st.id || st.stat || '')).join(' ') : '';
-        let searchable = [
-            name,
-            Array.isArray(def.tags) ? def.tags.join(' ') : '',
-            String(def.desc || ''),
-            String(def.type || ''),
-            String(def.ele || ''),
-            String(def.targetMode || ''),
-            statText
-        ].join(' ');
+        let searchable = getGemSearchText(name, def);
         return matchSearchQuery(searchable, sf.skill);
     }).map(name => renderSealedGemCard(name, highlightSearchText(name, sf.skill), false)).join('');
     let skillsHtml = skillsRows;
@@ -11064,32 +11064,14 @@ function buildCraftActionButtons(item) {
     }
     let supportRows = game.supports.filter(name => {
         let def = SUPPORT_GEM_DB[name] || {};
-        let statText = Array.isArray(def.stats) ? def.stats.map(st => getStatName(st.id || st.stat || '')).join(' ') : '';
-        let searchable = [
-            name,
-            Array.isArray(def.tags) ? def.tags.join(' ') : '',
-            String(def.desc || ''),
-            String(def.type || ''),
-            String(def.ele || ''),
-            String(def.targetMode || ''),
-            statText
-        ].join(' ');
+        let searchable = getGemSearchText(name, def);
         if (!matchSearchQuery(searchable, sf.support)) return false;
         if (!foldSupportInactive) return true;
         return game.equippedSupports.includes(name);
     }).map(name => renderSupportGemCard(name, highlightSearchText(name, sf.support))).join('');
     let sealedSupportRows = sealedSupports.filter(name => {
         let def = SUPPORT_GEM_DB[name] || {};
-        let statText = Array.isArray(def.stats) ? def.stats.map(st => getStatName(st.id || st.stat || '')).join(' ') : '';
-        let searchable = [
-            name,
-            Array.isArray(def.tags) ? def.tags.join(' ') : '',
-            String(def.desc || ''),
-            String(def.type || ''),
-            String(def.ele || ''),
-            String(def.targetMode || ''),
-            statText
-        ].join(' ');
+        let searchable = getGemSearchText(name, def);
         return matchSearchQuery(searchable, sf.support);
     }).map(name => renderSealedGemCard(name, highlightSearchText(name, sf.support), true)).join('');
     let supportHtml = supportRows;

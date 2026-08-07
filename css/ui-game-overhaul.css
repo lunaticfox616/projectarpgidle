@@ -1179,6 +1179,11 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
 .equipment-summary-stat strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .equipment-summary-stat span { color: #eef2f6; font-size: 9px; }
 .equipment-summary-stat strong { margin-top: 2px; color: #ffffff; font-size: 12px; }
+.equipment-ehp-stat[data-ehp-element="phys"] strong { color: #d9e1ea; }
+.equipment-ehp-stat[data-ehp-element="fire"] strong { color: #ff9b78; }
+.equipment-ehp-stat[data-ehp-element="cold"] strong { color: #8fd6ff; }
+.equipment-ehp-stat[data-ehp-element="light"] strong { color: #ffe27a; }
+.equipment-ehp-stat[data-ehp-element="chaos"] strong { color: #d5a2ff; }
 
 body:not(.light-mode) #item-tab-equip .equipment-paperdoll {
   position: relative;

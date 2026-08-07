@@ -228,6 +228,11 @@ assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋
         assert.ok(/box-sizing:\s*border-box/.test(css.slice(idx, idx + 220)),
             `${selector}도 border-box여야 한다`);
     });
+    const hintRuleStart = css.indexOf('.growth-context-hints {');
+    const hintRule = css.slice(hintRuleStart, hintRuleStart + 240);
+    assert.ok(hintRuleStart >= 0, '호버 안내 전용 행이 있어야 한다');
+    assert.ok(/height:\s*1\.35em/.test(hintRule) && /overflow:\s*hidden/.test(hintRule),
+        '호버 안내 행은 내용이 생겨도 생장판 위치를 밀지 않도록 높이가 고정되어야 한다');
 }
 
 // ── 드래그 배치 계약 (js/growth-ui.js) ───────────────────────────────────

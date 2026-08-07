@@ -110,7 +110,10 @@ function createGrowthItemFromBase(base, rarity, tier, options) {
         growthTags: [],
         growthRemovedTags: []
     };
-    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, zoneTier, { minTier: affixTierFloor });
+    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, zoneTier, {
+        minTier: affixTierFloor,
+        tierWeightFalloff: options && options.tierWeightFalloff
+    });
     updateItemName(item);
     return item;
 }
@@ -241,7 +244,10 @@ function generateGrowthDrop(enemy) {
     let affixTierRange = typeof getDroppedAffixTierRange === 'function'
         ? getDroppedAffixTierRange(dropTier)
         : { min: Math.max(1, dropTier - 4), max: dropTier };
-    let item = createGrowthItemFromBase(base, rarity, dropTier, { affixTierFloor: affixTierRange.min });
+    let item = createGrowthItemFromBase(base, rarity, dropTier, {
+        affixTierFloor: affixTierRange.min,
+        tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF
+    });
     if (!item) return null;
     if (typeof maybeApplyExceptionalBase === 'function') maybeApplyExceptionalBase(item);
     if (typeof maybeApplyDroppedFossilExclusiveAffix === 'function') item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);

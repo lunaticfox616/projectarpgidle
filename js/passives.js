@@ -7234,8 +7234,10 @@ function getRealmItemDropTierRange(zone, enemy) {
 
 function getDroppedAffixTierRange(itemTier) {
     const maxTier = clampNumber(Math.floor(Number(itemTier) || 1), 1, 20);
-    return { min: Math.max(1, maxTier - 4), max: maxTier };
+    return { min: 1, max: maxTier };
 }
+
+const DROPPED_AFFIX_TIER_WEIGHT_FALLOFF = 0.2;
 
 function getCraftTierRangeForItem(item, source) {
     let maxTier = getItemCraftTier(item);
@@ -7485,13 +7487,15 @@ function rollAffixValue(mod, maxTier, opts) {
     return result;
 }
 
-function pickTierInRangeWeighted(minTier, maxTier) {
+function pickTierInRangeWeighted(minTier, maxTier, tierWeightFalloff) {
     minTier = Math.max(1, Math.floor(minTier || 1));
     maxTier = Math.max(minTier, Math.floor(maxTier || minTier));
+    let requestedFalloff = Number(tierWeightFalloff);
+    let falloff = Number.isFinite(requestedFalloff) ? Math.max(0, requestedFalloff) : 0.85;
     let pool = [];
     for (let tier = minTier; tier <= maxTier; tier++) {
         let dist = tier - minTier;
-        let weight = 1 / (1 + dist * 0.85);
+        let weight = 1 / (1 + dist * falloff);
         pool.push({ tier: tier, weight: weight });
     }
     let total = pool.reduce((sum, row) => sum + row.weight, 0);
@@ -7508,7 +7512,7 @@ function rollRealmItemDropTier(zone, enemy) {
     return pickTierInRangeWeighted(range.min, range.max);
 }
 
-function rollAffixValueInTierRange(mod, minTier, maxTier) {
+function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
     let statId = mod.statId || mod.id;
     minTier = clampNumber(Math.floor(Number(minTier) || 1), 1, 20);
     maxTier = clampNumber(Math.floor(Number(maxTier) || minTier), minTier, 20);
@@ -7516,7 +7520,7 @@ function rollAffixValueInTierRange(mod, minTier, maxTier) {
         maxTier = Math.min(maxTier, mod.tierValues.length);
         minTier = Math.min(minTier, maxTier);
     }
-    let tier = pickTierInRangeWeighted(minTier, maxTier);
+    let tier = pickTierInRangeWeighted(minTier, maxTier, tierWeightFalloff);
     let result;
     if (Array.isArray(mod.tierValues)) {
         result = rollTierValueAffix(mod, statId, tier);
@@ -7800,6 +7804,8 @@ function rerollChaosInfusionForItem(item, previousInfusion) {
 function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     let maxTier = Math.max(1, zoneTier);
     let minTier = clampNumber(Math.floor(Number(options && options.minTier) || 1), 1, maxTier);
+    let requestedFalloff = Number(options && options.tierWeightFalloff);
+    let hasTierWeightOverride = Number.isFinite(requestedFalloff);
     let rerollChaosInfusion = !!(options && options.rerollChaosInfusion);
     let previousInfusion = rerollChaosInfusion ? item.chaosInfusion : null;
     if (rerollChaosInfusion) item.chaosInfusion = null;
@@ -7813,8 +7819,8 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     if (typeof isGrowthItem === 'function' && isGrowthItem(item)) count = Math.min(count, getGrowthItemAffixCap(item));
     count = Math.max(0, count - getItemExplicitOptionCount(item) - reservedInfusionCount);
     let mods = pickRandomMods(getAvailableMods(item), count);
-    mods.forEach(mod => item.stats.push(minTier > 1
-        ? rollAffixValueInTierRange(mod, minTier, maxTier)
+    mods.forEach(mod => item.stats.push(minTier > 1 || hasTierWeightOverride
+        ? rollAffixValueInTierRange(mod, minTier, maxTier, requestedFalloff)
         : rollAffixValue(mod, maxTier)));
     if (rerollChaosInfusion) rerollChaosInfusionForItem(item, previousInfusion);
     updateItemName(item);
@@ -8190,7 +8196,10 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
         baseStats: rollBaseStats(base, zoneTier),
         stats: []
     };
-    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, affixTierCap, { minTier: affixTierFloor });
+    if (rarity === 'magic' || rarity === 'rare') rerollExplicitMods(item, rarity, affixTierCap, {
+        minTier: affixTierFloor,
+        tierWeightFalloff: origin.tierWeightFalloff
+    });
     return item;
 }
 
@@ -8396,7 +8405,9 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     if (item.stats.length >= 6) item.stats.pop();
     let tierRange = getDroppedAffixTierRange(zoneTier);
-    let roll = rollAffixValueInTierRange(pickWeightedMod(pool), tierRange.min, tierRange.max);
+    let roll = rollAffixValueInTierRange(
+        pickWeightedMod(pool), tierRange.min, tierRange.max, DROPPED_AFFIX_TIER_WEIGHT_FALLOFF
+    );
     roll.fossilExclusiveDrop = true;
     item.stats.push(roll);
     if (item.rarity === 'normal') item.rarity = 'magic';
@@ -8427,7 +8438,8 @@ function generateEquipmentDrop(enemy) {
     let item = createItemFromBase(base, rarity, dropTier, {
         dropRealm: zone.type || null,
         affixTierCap,
-        affixTierFloor: affixTierRange.min
+        affixTierFloor: affixTierRange.min,
+        tierWeightFalloff: DROPPED_AFFIX_TIER_WEIGHT_FALLOFF
     });
     maybeApplyExceptionalBase(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
