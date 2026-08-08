@@ -381,6 +381,7 @@
         <div class="tab-btn" id="btn-tab-skills" onclick="switchTab('tab-skills')">스킬 젬 <span id="noti-skills" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-journal" data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;">기록 <span id="noti-journal" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-codex" data-merged-tab-member="1" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-records" data-merged-tab-member="1" onclick="switchTab('tab-records')">전적</div>
         <div class="tab-btn" id="btn-tab-talisman" data-merged-tab-member="1" onclick="switchTab('tab-talisman')">부적 <span id="noti-talisman" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-cube" data-merged-tab-member="1" onclick="switchTab('tab-cube')" style="display:none;">큐브 <span id="noti-cube" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-growthboard" data-merged-tab-member="1" onclick="switchTab('tab-growthboard')" style="display:none;">생장판 <span id="noti-growthboard" class="noti-dot"></span></div>
@@ -1118,6 +1119,12 @@
         <div id="ui-journal-list" class="journal-archive"></div>
     </div>
 
+    <div id="tab-records" class="tab-content" data-merged-tab-member="1">
+        <h2>📈 전적</h2>
+        <div style="color:var(--copy-muted); margin-bottom:10px;">루프 소요 시간, 액트 돌파 기록, 최고 도달 지점과 전투력 측정 결과를 모아 봅니다.</div>
+        <div id="ui-records-body" class="records-archive"></div>
+    </div>
+
     <div id="tab-settings" class="tab-content">
         <div class="settings-layout">
 
@@ -1376,6 +1383,7 @@
 <script defer src="js/utils.js?v=20260717-talent-coverage1"></script>
 <script defer src="js/ui-feedback.js?v=20260722-instant-choice1"></script>
 <script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1"></script>
+<script defer src="js/records.js?v=20260808-records-tab1"></script>
 <script defer src="js/save.js?v=20260719-stutter-fix1"></script>
 <script defer src="js/items.js?v=20260719-white-copy1-20260807-base-upgrade-cost1"></script>
 <script defer src="js/skills.js?v=20260717-gem-flask-mobile1"></script>
@@ -1393,6 +1401,7 @@
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
 <script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1"></script>
 <script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1"></script>
+<script defer src="js/records-ui.js?v=20260808-records-tab1"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
 <script defer src="js/ui-window-manager.js?v=20260723-merged-tab-window-fix2"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
