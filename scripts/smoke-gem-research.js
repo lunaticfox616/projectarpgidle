@@ -101,6 +101,8 @@ assert.strictEqual(context.game.supportGemData['보조 C'].unlockedTier, 1);
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+// 스킬 젬 화면은 js/ui.js의 거대 렌더 함수에서 분리되어 자기 파일로 옮겨졌다.
+const skillsUiSource = fs.readFileSync('js/skills-ui.js', 'utf8');
 const stateSource = fs.readFileSync('js/state.js', 'utf8');
 const itemSource = fs.readFileSync('data/items.js', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
@@ -143,7 +145,7 @@ assert(passiveSource.includes('중복 보조 젬 대신') && passiveSource.inclu
 assert(uiSource.includes('function renderGemResearchPanel()'), 'skill UI should render targeted gem research');
 assert(stateSource.includes('gemResearchExpanded: {}'), 'new saves should initialize gem research fold preferences');
 assert(uiSource.includes('getGemGrowthSummaryHtml'), 'gem growth screen should expose its level and output breakdown');
-assert(uiSource.includes("getExpertCombinedCostReduction('gemQualityCostReducePct')"), 'displayed quality cost must respect the actual discount');
+assert(skillsUiSource.includes("getExpertCombinedCostReduction('gemQualityCostReducePct')"), 'displayed quality cost must respect the actual discount');
 assert(stateSource.includes('gemShard: 0'), 'new saves should initialize gem fragments');
 assert(itemSource.includes("gemShard: { name: '젬 잔향'"), 'gem fragments need a player-facing currency definition');
 assert(indexSource.includes('id="ui-gem-research-panel"'), 'skill tab should contain the research workspace');

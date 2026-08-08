@@ -120,8 +120,23 @@ rg -n "safeExposeGlobals|window\\." js
 전체 스모크 검사:
 
 ```bash
-for test_file in scripts/smoke-*.js; do node "$test_file" || exit 1; done
+npm test
 ```
+
+`scripts/run-smoke.js`가 `scripts/smoke-*.js`를 전부 실행한다. 통과하면 종료 코드 0,
+하나라도 실패하면 1이며 실패한 검사의 출력만 보여준다.
+
+작업 중 특정 검사만 빠르게 돌리려면 이름 일부를 넘긴다.
+
+```bash
+npm test -- merged-tab        # 이름에 'merged-tab'이 들어간 검사만
+SMOKE_CONCURRENCY=1 npm test  # 순차 실행(출력 순서 고정)
+```
+
+같은 명령을 GitHub Actions(`.github/workflows/test.yml`)가 푸시·PR마다 실행한다.
+로컬에서 통과했는데 CI가 실패하면 Node 버전(로컬 22 / CI 22)이나 실행 순서 의존성을
+먼저 의심한다 — 러너는 검사를 동시에 여러 개 돌리므로, 전역 파일을 건드리는 검사는
+서로 간섭할 수 있다.
 
 ---
 
@@ -198,6 +213,23 @@ for test_file in scripts/smoke-*.js; do node "$test_file" || exit 1; done
 - 새 독립 기능을 거대 파일 끝에 붙이지 않는다. 책임에 맞는 기존 파일 또는 새 응집 모듈을 쓴다.
 - 긴 함수를 수정할 때 변경 범위 안에서 guard clause, 계산 추출, 중복 제거를 우선한다.
 - 파일 분리는 로드 순서, 전역 공개 API, 상태 초기화 계약을 테스트로 고정한 뒤 별도 변경으로 한다.
+
+#### 화면(탭) 렌더러를 추가할 때
+
+`js/ui.js`의 `performUpdateStaticUI`는 아직 2,000줄대이고 그 안에 함수 수십 개가 중첩
+선언되어 있다. 한 화면을 손대면 무관한 화면이 깨지는 회귀의 구조적 원인이다.
+**새 화면을 여기에 끼워 넣지 않는다.**
+
+1. 도메인은 `js/<기능>.js`, 화면 조립은 `js/<기능>-ui.js`에 만든다.
+   (예: `js/records.js` + `js/records-ui.js`, `js/skills-ui.js`)
+2. 화면 모듈은 렌더 컨텍스트와 도메인 읽기 모델만 받고, 자기 화면 밖의 DOM은 만지지 않는다.
+3. `performUpdateStaticUI`에서는 `isTabRendering('tab-<id>')` 판정으로 호출만 한다.
+4. `index.html`과 `scripts/lib/game-runtime.js`의 로드 순서에 함께 등록한다.
+5. 중첩 헬퍼가 필요하면 `exposeUiRenderHelpersOnce`에 추가한다. 이것은 중첩 선언을
+   최상위로 끌어올릴 때까지의 임시 통로이며, 늘리기보다 줄이는 방향으로 쓴다.
+
+`scripts/smoke-ui-render-decomposition.js`가 렌더 함수 줄 수와 중첩 선언 개수의 상한을
+고정한다. 쪼개서 수치가 내려가면 그 파일의 상한도 함께 내린다(래칫).
 
 ### 3.3 중첩 평탄화
 

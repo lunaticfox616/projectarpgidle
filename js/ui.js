@@ -13,7 +13,6 @@ let lastReachableSignature = '';
 let passiveTreeSearch = '';
 let passiveTreeFilter = 'all';
 let cachedTooltipStats = null;
-let lastSkillPanelRenderSignature = '';
 let battleSkillVisualCache = { key: '', value: null };
 let gemTooltipCache = null;
 let mapZoneGroupCollapseState = { hunting: false, chaos: false };
@@ -454,10 +453,73 @@ function requestFasterBackgroundCombat() {
     button.textContent = '남은 진행 예상 정산 중...';
 }
 
+// 남은 구간의 재화를 실제 드랍 확률로 다시 굴린다.
+//
+// 왜 표본 결과에 배율을 곱하면 안 되는가: 재화마다 확률이 자릿수 단위로 다르다
+// (황금률은 일반 몹 0.01375%, 나무꾼의 손길은 그 1/1200). 표본에서 우연히 하나
+// 나오면 그 우연이 최대 9~10배로 증폭되어 "10%는 잭팟, 90%는 0"인 분포가 된다.
+// 처치 수만 비례로 늘리고, 그 처치 수만큼 getCurrencyDrops를 실제로 굴리면
+// 기대값은 그대로 두면서 잭팟만 사라진다. 전투 시뮬 없이 드랍만 굴리므로 싸다.
+//
+// 처치 구성(일반/정예/보스)이 필요하다 — 셋의 드랍 확률이 크게 다르기 때문이다.
+// 구성을 알 수 없으면(구버전 경로) 굴리지 않고 표본 실측만 남긴다.
+// 소수 부분을 확률로 처리한다. 그냥 반올림하면 보스처럼 표본에 적게 잡히는 종류가
+// 계통적으로 깎인다(0.4마리 → 항상 0마리). 보스는 일반 몹보다 재화 확률이 90배라
+// 이 손실이 곧바로 기대값 절반으로 나타난다.
+function roundStochastic(value) {
+    let base = Math.floor(value);
+    return base + (Math.random() < (value - base) ? 1 : 0);
+}
+
+// 굴림 횟수 상한. 복귀 시 한 번만 도는 계산이지만, 표본이 크면 수만 번이 되므로
+// 체감 지연을 막는 안전장치를 둔다(초과분은 굴린 결과를 비례로 확장한다).
+const BACKGROUND_CURRENCY_ROLL_LIMIT = 20000;
+
+function scaleBackgroundCurrencyRollPlan(plan, limit) {
+    let planned = plan.reduce((sum, entry) => sum + entry.count, 0);
+    let rollLimit = Math.max(1, Math.floor(Number(limit) || 0));
+    if (planned <= rollLimit) return 1;
+    let scaleBack = planned / rollLimit;
+    plan.forEach(entry => { entry.count = roundStochastic(entry.count / scaleBack); });
+    return scaleBack;
+}
+
+function rollBackgroundCurrencyRemainder(state, killMix, ratio) {
+    if (typeof getCurrencyDrops !== 'function') return false;
+    let mix = (killMix && typeof killMix === 'object') ? killMix : null;
+    if (!mix) return false;
+    let plan = [
+        { count: roundStochastic(Math.max(0, Math.floor(mix.normal || 0)) * ratio), enemy: { isBoss: false, isElite: false } },
+        { count: roundStochastic(Math.max(0, Math.floor(mix.elite || 0)) * ratio), enemy: { isBoss: false, isElite: true } },
+        { count: roundStochastic(Math.max(0, Math.floor(mix.boss || 0)) * ratio), enemy: { isBoss: true, isElite: false } }
+    ];
+    if (!plan.some(entry => entry.count > 0)) return false;
+    // 상한을 넘으면 비율만큼 줄여 굴리고 결과를 되돌려 곱한다. 표본이 수천 번 이상이면
+    // 큰 수의 법칙으로 총량이 안정되므로, 이 확장은 잭팟을 만들지 않는다.
+    let scaleBack = scaleBackgroundCurrencyRollPlan(plan, BACKGROUND_CURRENCY_ROLL_LIMIT);
+    let currencies = state.currencies || (state.currencies = {});
+    let gained = {};
+    plan.forEach(entry => {
+        for (let i = 0; i < entry.count; i++) {
+            let drops = getCurrencyDrops(entry.enemy) || [];
+            drops.forEach(drop => {
+                // 흐릿한 45면체는 전용 적립 경로(addCoreCubeBlurred45)를 타므로 여기서 다루지 않는다.
+                if (!drop || !drop[0] || drop[0] === 'blurred45') return;
+                if (!(drop[0] in currencies)) return;
+                gained[drop[0]] = (gained[drop[0]] || 0) + (Number(drop[1]) || 0);
+            });
+        }
+    });
+    Object.keys(gained).forEach(key => {
+        currencies[key] = (Number(currencies[key]) || 0) + roundStochastic(gained[key] * scaleBack);
+    });
+    return true;
+}
+
 // 시뮬레이션된 표본 구간의 획득 속도를 기준으로 남은 구간의 보상을 예상 정산한다.
-// 경험치(레벨 업 포함)·처치·사망·재화는 비례 반영하고, 아이템 드랍과 지역 진행은
-// 실제로 시뮬레이션된 구간의 결과만 유지한다.
-function extrapolateBackgroundRemainder(state, metrics, snapshot, processedMs, remainingMs) {
+// 경험치(레벨 업 포함)·처치·사망은 비례 반영하고, 재화는 실제 드랍 확률로 다시 굴린다.
+// 아이템 드랍과 지역 진행은 실제로 시뮬레이션된 구간의 결과만 유지한다.
+function extrapolateBackgroundRemainder(state, metrics, processedMs, remainingMs) {
     if (!state || !(processedMs > 0) || !(remainingMs > 0)) return false;
     let ratio = remainingMs / processedMs;
     let estKills = Math.max(0, Math.round((metrics ? metrics.kills : 0) * ratio));
@@ -476,12 +538,10 @@ function extrapolateBackgroundRemainder(state, metrics, snapshot, processedMs, r
             required = Math.max(1, Math.floor(Number(getExpReq(state.level)) || 0));
         }
     }
-    let startCurrencies = (snapshot && snapshot.currencies) || {};
-    let currencies = state.currencies || {};
-    Object.keys(currencies).forEach(key => {
-        let gain = (Number(currencies[key]) || 0) - (Number(startCurrencies[key]) || 0);
-        if (gain > 0) currencies[key] = (Number(currencies[key]) || 0) + Math.round(gain * ratio);
-    });
+    // 재화: 표본 결과에 배율을 곱하지 않고 남은 처치 수만큼 실제 드랍을 굴린다.
+    // 굴릴 수 없으면(처치 구성 없음) 표본 실측만 남긴다 — 희귀 재화를 부풀리느니 덜 주는 쪽이 안전하다.
+    rollBackgroundCurrencyRemainder(state, state.backgroundKillMix, ratio);
+    if (typeof addRecordActiveTime === 'function') addRecordActiveTime(remainingMs, state);
     if (metrics) {
         metrics.kills += estKills;
         metrics.deaths += estDeaths;
@@ -571,6 +631,7 @@ function simulateBackgroundCombat(options) {
         game = simGame;
         game.isBackgroundCalculation = true;
         game.backgroundOverflowSalvageCount = 0;
+        game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
         statsCache.install();
         let processed = 0;
         while (processed < stepCount) {
@@ -593,6 +654,7 @@ function simulateBackgroundCombat(options) {
     }
     let overflowSalvaged = Math.max(0, Math.floor(Number(simGame.backgroundOverflowSalvageCount) || 0));
     delete simGame.backgroundOverflowSalvageCount;
+    delete simGame.backgroundKillMix;
     return { game: simGame, steps: stepCount, simulatedNow, metrics, overflowSalvaged };
 }
 
@@ -644,6 +706,7 @@ async function simulateBackgroundCombatChunked(options) {
         game = simGame;
         game.isBackgroundCalculation = true;
         game.backgroundOverflowSalvageCount = 0;
+        game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
         statsCache.install();
         while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) {
             let chunkBudgetMs = backgroundCombatRuntime.accelerationTier > 0
@@ -664,7 +727,7 @@ async function simulateBackgroundCombatChunked(options) {
             let settleRequested = backgroundCombatRuntime.accelerationTier > 0
                 || (wallNow() - replayStartWallMs) >= BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS;
             if (settleRequested && processedMs >= sampleReadyMs && processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) {
-                estimated = extrapolateBackgroundRemainder(game, metrics, options.snapshot, processedMs, elapsedMs - processedMs);
+                estimated = extrapolateBackgroundRemainder(game, metrics, processedMs, elapsedMs - processedMs);
                 if (estimated) {
                     processedMs = elapsedMs;
                     if (typeof options.onProgress === 'function') options.onProgress(processedMs, elapsedMs);
@@ -1048,7 +1111,7 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 't
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
     utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '루프 25에 해금. 열 가지 생장판과 석판을 배치합니다.' }] },
-    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }] }
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '전적', detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -1057,7 +1120,7 @@ const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season', 'tab-skills'] },
-    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal'] },
+    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube', 'tab-growthboard'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
@@ -10492,7 +10555,15 @@ function exposeUiRenderHelpersOnce() {
         // 생장판 UI(js/growth-ui.js)가 보관함 필터/검색을 그대로 재사용한다.
         isItemRarityVisible,
         getSearchFilterState,
-        matchSearchQuery
+        matchSearchQuery,
+        // 스킬 젬 화면(js/skills-ui.js)이 젬 목록 검색/강조에 그대로 재사용한다.
+        // 이 헬퍼들은 performUpdateStaticUI 안에 중첩 선언되어 있어 전역이 아니다.
+        // 화면을 파일로 분리할 때마다 여기서 함께 열어 준다(중첩 선언을 최상위로
+        // 끌어올리는 정리는 별도 변경으로 한다 — 78개가 같은 상태다).
+        getGemSearchText,
+        isGemLibraryMatchVisible,
+        highlightSearchText,
+        renderSearchSection
     };
     let pending = {};
     Object.keys(helpers).forEach(key => {
@@ -11145,179 +11216,9 @@ function buildCraftActionButtons(item) {
 
     __mark('progressionTabs');
     if (isTabRendering('tab-codex')) renderUniqueCodexUI();
+    if (isTabRendering('tab-records') && typeof renderRecordsTab === 'function') renderRecordsTab();
 
-    if (isTabRendering('tab-skills')) {
-    let foldAttackInactive = !!game.gemFoldInactiveAttack;
-    let foldSupportInactive = !!game.gemFoldInactiveSupport;
-    let foldActiveBtn = document.getElementById('btn-skill-fold-active');
-    let foldAttackBtn = document.getElementById('btn-skill-fold-inactive-attack');
-    let foldSupportBtn = document.getElementById('btn-skill-fold-inactive-support');
-    if (foldActiveBtn) foldActiveBtn.classList.toggle('active', !foldAttackInactive && !foldSupportInactive);
-    if (foldAttackBtn) foldAttackBtn.classList.toggle('active', foldAttackInactive);
-    if (foldSupportBtn) foldSupportBtn.classList.toggle('active', foldSupportInactive);
-    let effectiveResonanceCap = getEffectiveResonanceCap();
-    renderSkillLoadoutSummary(pStats, effectiveResonanceCap);
-    let skyTowerSignatureState = (typeof ensureSkyTowerState === 'function') ? ensureSkyTowerState() : null;
-    let skillPanelRenderSignature = JSON.stringify({
-        activeSkill: game.activeSkill || '',
-        skills: game.skills || [],
-        supports: game.supports || [],
-        equippedSupports: game.equippedSupports || [],
-        equippedSummonSkills: game.equippedSummonSkills || [],
-        summonSkillCounts: game.summonSkillCounts || {},
-        sealedSkills: game.sealedSkills || [],
-        sealedSupports: game.sealedSupports || [],
-        gemData: game.gemData || {},
-        supportGemData: game.supportGemData || {},
-        skyGemEnhancements: game.skyGemEnhancements || {},
-        gemEnhanceTargetSkill: game.gemEnhanceTargetSkill || '',
-        currencies: {
-            bossCore: game.currencies.bossCore || 0,
-            skyEssence: game.currencies.skyEssence || 0,
-            awakenedEcho: game.currencies.awakenedEcho || 0,
-            gemShard: game.currencies.gemShard || 0
-        },
-        skyTower: {
-            condensedPower: Math.max(0, Math.floor((skyTowerSignatureState && skyTowerSignatureState.condensedPower) || 0)),
-            gemBoosts: (skyTowerSignatureState && skyTowerSignatureState.gemBoosts) || {}
-        },
-        filters: { skill: sf.skill || '', support: sf.support || '' },
-        foldAttackInactive: foldAttackInactive,
-        foldSupportInactive: foldSupportInactive,
-        suppCap: pStats.suppCap || 0,
-        resonanceCap: effectiveResonanceCap,
-        gemEnhanceUnlocked: !!game.gemEnhanceUnlocked,
-        gemEngraverLevel: typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1,
-        inscriptionCostReduction: typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('inscriptionCostReducePct') : 0,
-        gemQualityCostReduction: typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('gemQualityCostReducePct') : 0,
-        season: game.season || 1
-    });
-    if (skillPanelRenderSignature !== lastSkillPanelRenderSignature) {
-        lastSkillPanelRenderSignature = skillPanelRenderSignature;
-    renderGemResearchPanel();
-    let resonancePower = effectiveResonanceCap;
-    let sealedSkills = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
-    let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
-    let skillsRows = game.skills.filter(name => {
-        let def = SKILL_DB[name] || {};
-        let searchable = getGemSearchText(name, def);
-        let active = name === game.activeSkill || (isSummonAttackSkillGem(name)
-            && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
-        return isGemLibraryMatchVisible(searchable, sf.skill, foldAttackInactive, active);
-    }).map(name => renderAttackGemCard(name, highlightSearchText(name, sf.skill))).join('');
-    let sealedSkillRows = sealedSkills.filter(name => {
-        let def = SKILL_DB[name] || {};
-        let searchable = getGemSearchText(name, def);
-        return isGemLibraryMatchVisible(searchable, sf.skill, foldAttackInactive, false);
-    }).map(name => renderSealedGemCard(name, highlightSearchText(name, sf.skill), false)).join('');
-    let skillsHtml = skillsRows + sealedSkillRows;
-    let skillsListEl = document.getElementById('ui-skills-list');
-    let skillActions = foldAttackInactive ? '' : '<button onclick="sealAllInactiveSkillGems()">미사용 공격 젬 일괄 봉인</button>';
-    let skillsRenderSig = `${skillsHtml}::${skillActions}`;
-    if (skillsListEl && skillsListEl.dataset.renderSig !== skillsRenderSig) {
-        renderSearchSection('ui-skills-list', 'skill', '공격 젬 이름·태그 검색', skillsHtml, '', skillActions);
-        skillsListEl = document.getElementById('ui-skills-list');
-        skillsListEl.dataset.renderSig = skillsRenderSig;
-    }
-
-    let suppCountEl = document.getElementById('ui-supp-count');
-    let suppMaxEl = document.getElementById('ui-supp-max');
-    let suppResonanceEl = document.getElementById('ui-resonance');
-    if (suppCountEl) suppCountEl.innerText = game.equippedSupports.length;
-    if (suppMaxEl) suppMaxEl.innerText = pStats.suppCap;
-    if (suppResonanceEl) {
-        let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-        suppResonanceEl.innerText = `${Math.max(0, getEffectiveResonanceCap() - used)}`;
-    }
-    let supportRows = game.supports.filter(name => {
-        let def = SUPPORT_GEM_DB[name] || {};
-        let searchable = getGemSearchText(name, def);
-        return isGemLibraryMatchVisible(searchable, sf.support, foldSupportInactive, game.equippedSupports.includes(name));
-    }).map(name => renderSupportGemCard(name, highlightSearchText(name, sf.support))).join('');
-    let sealedSupportRows = sealedSupports.filter(name => {
-        let def = SUPPORT_GEM_DB[name] || {};
-        let searchable = getGemSearchText(name, def);
-        return isGemLibraryMatchVisible(searchable, sf.support, foldSupportInactive, false);
-    }).map(name => renderSealedGemCard(name, highlightSearchText(name, sf.support), true)).join('');
-    let supportHtml = supportRows + sealedSupportRows;
-    let supportListEl = document.getElementById('ui-support-list');
-    let supportActions = foldSupportInactive ? '' : '<button onclick="sealAllInactiveSupportGems()">미사용 보조 젬 일괄 봉인</button>';
-    let supportRenderSig = `${supportHtml}::${supportActions}`;
-    if (supportListEl && supportListEl.dataset.renderSig !== supportRenderSig) {
-        renderSearchSection('ui-support-list', 'support', '보조 젬 이름·효과 검색', supportHtml, '', supportActions);
-        supportListEl = document.getElementById('ui-support-list');
-        supportListEl.dataset.renderSig = supportRenderSig;
-    }
-
-    let gemEnhanceOpen = !!game.gemEnhanceUnlocked;
-    let gemEnhanceHeader = document.getElementById('ui-gem-enhance-header');
-    let gemEnhancePanel = document.getElementById('ui-gem-enhance-panel');
-    let skillEnhanceBtn = document.getElementById('btn-skill-tab-enhance');
-    if (gemEnhanceHeader && gemEnhancePanel) {
-        gemEnhanceHeader.style.display = gemEnhanceOpen ? '' : 'none';
-        gemEnhancePanel.style.display = gemEnhanceOpen ? '' : 'none';
-        if (skillEnhanceBtn) {
-            skillEnhanceBtn.disabled = !gemEnhanceOpen;
-            skillEnhanceBtn.style.opacity = gemEnhanceOpen ? '1' : '0.45';
-            skillEnhanceBtn.title = gemEnhanceOpen ? '' : '군주의 핵 또는 창공의 힘을 처음 획득하면 개방됩니다.';
-        }
-        if (!gemEnhanceOpen && game.skillSubtab === 'skill-tab-enhance') game.skillSubtab = 'skill-tab-equip';
-        if (gemEnhanceOpen) {
-            let active = (typeof getGemEnhanceTargetSkill === 'function') ? getGemEnhanceTargetSkill() : game.activeSkill;
-            let equippedEnhanceTargets = typeof getEquippedEnhanceableGemNames === 'function' ? getEquippedEnhanceableGemNames() : [];
-            if ((!active || !equippedEnhanceTargets.includes(active)) && equippedEnhanceTargets.length > 0) active = equippedEnhanceTargets[0];
-            let targetButtons = equippedEnhanceTargets.map(name => renderGemEnhanceTargetCard(name, name === active)).join('');
-            let isGem = !!(SKILL_DB[active] && SKILL_DB[active].isGem);
-            let activeSlots = isGem && typeof getSkyEnhancementSlotsForSkill === 'function' ? getSkyEnhancementSlotsForSkill(active) : [null, null, null, null, null];
-            let activeEnh = getSkyEnhancementForSkill(active);
-            let activeGem = isGem ? normalizeGemRecord((game.gemData || {})[active]) : null;
-            let bossNeed = activeGem ? ((activeGem.bossCoreLevel || 0) + 1) : 1;
-            let gemExpertLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1;
-            let qualityDiscount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('gemQualityCostReducePct') : 0;
-            let qualityNeed = activeGem ? Math.max(1, Math.floor((1 + Math.floor((activeGem.quality || 0) / 5)) * (1 - qualityDiscount))) : 1;
-            let awakenReady = !!(activeGem && !activeGem.awakened && (activeGem.level || 1) >= 20 && gemExpertLv >= 15);
-            let skyNeed = activeGem ? ((activeGem.skyCoreLevel || 0) + 1) : 1;
-            let engraveCap = activeGem ? (activeGem.skyEnhanceCap || 1) : 1;
-            let selectedSlot = typeof getSelectedGemEngraveSlot === 'function' ? getSelectedGemEngraveSlot() : 0;
-            if (selectedSlot >= engraveCap) selectedSlot = Math.max(0, engraveCap - 1);
-            game.gemEngraveSelectedSlot = selectedSlot;
-            let permanentSkyBoost = isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(active) : 0;
-            let permanentSkyCost = isGem && typeof getSkyTowerGemBoostCost === 'function' ? getSkyTowerGemBoostCost(active) : 0;
-            let permanentSkyMax = typeof getSkyTowerGemBoostMaxLevel === 'function' ? getSkyTowerGemBoostMaxLevel() : 3;
-            let condensedPower = (typeof ensureSkyTowerState === 'function' ? ensureSkyTowerState().condensedPower : 0) || 0;
-            let coreDone = !!(activeGem && activeGem.bossCoreLevel >= 5 && activeGem.skyCoreLevel >= 5);
-            let slotDone = !!(activeGem && engraveCap >= 5);
-            let engraveFilled = !!(activeGem && activeEnh.length >= engraveCap);
-            let activeDef = SKILL_DB[active] || {};
-            let activeMeta = getGemCardMeta(activeDef);
-            let activePresentation = isGem ? getUiGemPresentation(active, false) : null;
-            let growthSummary = isGem ? getGemGrowthSummaryHtml(active, activePresentation) : '';
-            let activeOptions = activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '적용된 각인 없음';
-            document.getElementById('ui-gem-enhance-target').innerHTML = `<div class="gem-target-list">${targetButtons || '<span class="gem-process-empty">장착 중인 공격 젬 없음</span>'}</div>` + (isGem
-                ? `<div class="gem-target-profile element-${activeMeta.className}">${renderSkillGemArt(active, 'gem-target-profile-icon', { eager: true })}<div><small>현재 선택 · ${activeMeta.elementLabel} ${activeMeta.typeLabel}</small><strong>${escapeHTML(active)}</strong><p>${escapeHTML(activeDef.desc || '')}</p></div></div>${growthSummary}<div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '핵 강화 완료' : '핵 강화 진행 중'}</span><span class="gem-status-chip ${slotDone ? 'done' : ''}">${slotDone ? '슬롯 최대' : `각인 슬롯 ${engraveCap}/5`}</span><span class="gem-status-chip ${engraveFilled ? 'done' : ''}">${engraveFilled ? '슬롯 사용 완료' : `빈 슬롯 ${Math.max(0, engraveCap - activeEnh.length)}`}</span></div><div class="gem-current-inscriptions"><span>현재 각인</span><strong>${escapeHTML(activeOptions)}</strong></div>`
-                : '<div class="gem-process-empty">공격 젬을 선택하면 성장 정보가 표시됩니다.</div>');
-            renderGemResourceStrip(activeGem, gemExpertLv, condensedPower);
-            renderGemEngraveSlots(activeSlots, engraveCap);
-            renderSupportGemProcessList(gemExpertLv);
-            let upgradeBtns = [];
-            let currentTotalGemLevel = Math.max(1, Math.floor((activePresentation && activePresentation.totalLevel) || 1));
-            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.bossCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('bossCore', 1)" ${!isGem || (activeGem && activeGem.bossCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.bossCoreLevel >= 5 ? '✅ 군주의 핵 강화 완료' : '군주의 핵 강화'}</strong><br><small>보유 ${game.currencies.bossCore || 0} / 필요 ${bossNeed} · ${activeGem && activeGem.bossCoreLevel >= 5 ? '최대 단계' : `적용 후 최종 Lv.${currentTotalGemLevel + 1}`}</small></button>`);
-            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.skyCoreLevel >= 5 ? 'done' : ''}" onclick="upgradeActiveGem('skyEssence', 1)" ${!isGem || (activeGem && activeGem.skyCoreLevel >= 5) ? 'disabled' : ''}><strong>${activeGem && activeGem.skyCoreLevel >= 5 ? '✅ 창공의 힘 강화 완료' : '창공의 힘 강화'}</strong><br><small>보유 ${game.currencies.skyEssence || 0} / 필요 ${skyNeed} · ${activeGem && activeGem.skyCoreLevel >= 5 ? '최대 단계' : `적용 후 최종 Lv.${currentTotalGemLevel + 1}`}</small></button>`);
-            upgradeBtns.push(`<button class="gem-upgrade-btn ${permanentSkyBoost >= permanentSkyMax ? 'done' : ''}" onclick="upgradeActiveGemWithCondensedSkyPower()" ${!isGem || permanentSkyBoost >= permanentSkyMax ? 'disabled' : ''}><strong>${permanentSkyBoost >= permanentSkyMax ? '✅ 응축 창공 강화 완료' : '응축 창공 영구 강화'}</strong><br><small>루프 초기화 없음 · 보유 ${Math.floor(condensedPower)} / 필요 ${permanentSkyCost} · ${permanentSkyBoost >= permanentSkyMax ? '최대 단계' : `적용 후 최종 Lv.${currentTotalGemLevel + 1}`}</small></button>`);
-            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && (activeGem.quality || 0) >= 20 ? 'done' : ''}" onclick="upgradeActiveGemQuality()" ${!isGem || gemExpertLv < 8 || (activeGem && (activeGem.quality || 0) >= 20) ? 'disabled' : ''}><strong>${activeGem && (activeGem.quality || 0) >= 20 ? '✅ 퀄리티 완료' : '젬 퀄리티 강화'}</strong><br><small>젬 각인사 Lv.8 · 군주의 핵 ${game.currencies.bossCore || 0}/${qualityNeed} · 피해·속도 배율 +0.5%</small></button>`);
-            upgradeBtns.push(`<button class="gem-upgrade-btn ${activeGem && activeGem.awakened ? 'done' : ''}" onclick="awakenActiveGemCandidate()" ${!isGem || !awakenReady || (game.currencies.awakenedEcho || 0) < 3 ? 'disabled' : ''}><strong>${activeGem && activeGem.awakened ? '✅ 각성 젬' : '각성 젬 변환'}</strong><br><small>각인사 Lv.15 · 기본 Lv.20 · 각성 잔향 ${game.currencies.awakenedEcho || 0}/3 · ${activeGem && activeGem.awakened ? '각성 완료' : `적용 후 최종 Lv.${currentTotalGemLevel + 2}`}</small></button>`);
-            document.getElementById('ui-gem-upgrade-actions').innerHTML = upgradeBtns.join('') || `<div style="grid-column:1/-1; color:var(--copy-muted);">보유한 젬 강화 재료가 없습니다.</div>`;
-            if ((game.season || 1) >= 4) {
-                document.getElementById('ui-gem-enhance-options').innerHTML = `<div class="gem-engrave-slot-guide"><strong>전체 각인</strong><span>각인을 누르면 빈 슬롯에 적용되고, 적용 중인 각인을 다시 누르면 해제됩니다. 특정 슬롯을 교체하려면 위 슬롯을 누르세요.</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, gemExpertLv, isGem)).join('');
-            } else {
-                document.getElementById('ui-gem-enhance-options').innerHTML = '<div class="gem-process-empty">창공 각인은 루프 4부터 해금됩니다.</div>';
-            }
-        }
-    }
-
-    }
-
-    }
+    if (isTabRendering('tab-skills') && typeof renderSkillGemScreen === 'function') renderSkillGemScreen({ pStats, searchFilters: sf });
 
     __mark('codex+skills');
     game.talismanBoard = Array.isArray(game.talismanBoard) ? game.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
@@ -12964,6 +12865,9 @@ function mergeDefaults(save) {
         ? merged.starterGemTutorialPending
         : null;
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
+    // 전적: 기존 세이브에는 과거 시간 데이터가 없다. 지어내지 않고 지금부터 기록을 시작하며,
+    // startedAt이 남으므로 화면이 "언제부터의 기록인지"를 그대로 밝힐 수 있다.
+    if (typeof ensureRecordsState === 'function') ensureRecordsState(merged);
     merged.voidRift = (merged.voidRift && typeof merged.voidRift === 'object') ? merged.voidRift : {};
     merged.voidRift.grandBreachCleared = !!merged.voidRift.grandBreachCleared;
     merged.timeRift = (merged.timeRift && typeof merged.timeRift === 'object') ? { ...defaultGame.timeRift, ...merged.timeRift } : { ...defaultGame.timeRift };

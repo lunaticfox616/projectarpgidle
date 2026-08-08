@@ -1438,3 +1438,55 @@ html, body { overflow: hidden; }
   html { overflow-x: hidden; overflow-y: auto; }
   body:not(.startup-active):not(.loading-active) { overflow-x: hidden; overflow-y: auto; }
 }
+
+/* ── 전적 화면(기록 그룹) ────────────────────────────────────────────
+   저널·도감과 같은 창 안에서 열리므로 여백과 색은 그쪽 규칙을 따르고,
+   표와 수치 카드만 이 블록에서 정의한다. */
+.records-archive { display: flex; flex-direction: column; gap: 12px; }
+
+.records-section {
+    background: linear-gradient(160deg, rgba(39, 51, 86, 0.22), rgba(16, 22, 38, 0.5));
+    border: 1px solid #3d4f71;
+    border-radius: 10px;
+    padding: 10px 12px 12px;
+}
+.records-section-title {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+    font-weight: 800; color: #f1c40f; margin-bottom: 8px;
+}
+.records-section-title span { font-weight: 600; font-size: 0.78em; color: var(--copy-muted); }
+
+.records-note, .records-empty { color: var(--copy-muted); font-size: 0.8em; margin: 6px 0 0; }
+.records-empty { margin-top: 8px; }
+
+/* 수치 카드: 화면 폭에 따라 자동으로 접힌다(휴대폰 360px에서 2열). */
+.records-stat-row {
+    display: grid; gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+.records-stat {
+    display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto;
+    column-gap: 8px; align-items: center;
+    background: rgba(10, 15, 26, 0.55);
+    border: 1px solid #35506b; border-radius: 8px; padding: 8px 10px;
+    min-width: 0;
+}
+.records-stat-icon { grid-row: 1 / span 2; font-size: 1.3em; }
+.records-stat-label { color: var(--copy-muted); font-size: 0.74em; }
+.records-stat-value {
+    color: var(--copy-bright); font-size: 1.02em; font-weight: 800;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.records-stat-sub { grid-column: 1 / -1; color: var(--copy-muted); font-size: 0.7em; margin-top: 2px; }
+
+/* 표는 좁은 화면에서 잘리지 않고 자기 영역 안에서 가로 스크롤한다. */
+.records-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.records-table { width: 100%; border-collapse: collapse; font-size: 0.82em; white-space: nowrap; }
+.records-table th, .records-table td { padding: 5px 8px; text-align: left; }
+.records-table thead th {
+    color: var(--copy-muted); font-size: 0.88em; font-weight: 700;
+    border-bottom: 1px solid #35506b;
+}
+.records-table tbody tr:nth-child(odd) { background: rgba(255, 255, 255, 0.03); }
+.records-table td.records-num { text-align: right; font-variant-numeric: tabular-nums; }
+.records-table td.is-best { color: #8fe7b0; font-weight: 800; }
