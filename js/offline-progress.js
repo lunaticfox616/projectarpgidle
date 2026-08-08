@@ -13,6 +13,23 @@ function offlineFiniteInt(value, fallback, min, max) {
 
 function getOfflineLevelMax(table) { return Math.max(0, table.length - 1); }
 
+function isOfflineProtectedItem(item) {
+    return !!(item && (item.locked || item.offlineProtected || item.rarity === 'unique' || item.rarity === 'chase'));
+}
+
+function normalizeOfflineStashEntries(state, stashLevel) {
+    let capacity = OFFLINE_PROGRESS_STASH_LEVELS[stashLevel].slots;
+    let source = state.offlineProgress && Array.isArray(state.offlineProgress.stash) ? state.offlineProgress.stash : [];
+    let existingOverflow = state.offlineProgress && Array.isArray(state.offlineProgress.protectedOverflow) ? state.offlineProgress.protectedOverflow : [];
+    let entries = source.concat(existingOverflow).filter(item => item && typeof item === 'object');
+    entries.forEach(item => { if (isOfflineProtectedItem(item)) item.offlineProtected = true; });
+    let protectedEntries = entries.filter(isOfflineProtectedItem);
+    let regularEntries = entries.filter(item => !isOfflineProtectedItem(item));
+    let stash = protectedEntries.slice(0, capacity);
+    stash.push(...regularEntries.slice(0, Math.max(0, capacity - stash.length)));
+    return { stash, protectedOverflow: protectedEntries.slice(capacity, capacity + OFFLINE_PROGRESS_PROTECTED_OVERFLOW_LIMIT) };
+}
+
 function ensureOfflineProgressState(state) {
     if (!state || typeof state !== 'object') return cloneOfflineProgressDefault();
     let source = state.offlineProgress && typeof state.offlineProgress === 'object' ? state.offlineProgress : {};
@@ -30,12 +47,9 @@ function ensureOfflineProgressState(state) {
     merged.huntDirectiveUnlocked = !!merged.huntDirectiveUnlocked;
     merged.safeReturnUnlocked = !!merged.safeReturnUnlocked;
     merged.lootDirectiveUnlocked = !!merged.lootDirectiveUnlocked;
-    merged.stash = Array.isArray(merged.stash)
-        ? merged.stash.filter(item => item && typeof item === 'object').map(item => {
-            if (item.locked || item.offlineProtected || item.rarity === 'unique' || item.rarity === 'chase') item.offlineProtected = true;
-            return item;
-        })
-        : [];
+    let stashState = normalizeOfflineStashEntries({ offlineProgress: merged }, merged.stashLevel);
+    merged.stash = stashState.stash;
+    merged.protectedOverflow = stashState.protectedOverflow;
     state.offlineProgress = merged;
     return merged;
 }
@@ -170,7 +184,7 @@ function getOfflineProgressView(state) {
         return { level, current: table[level], next: table[level + 1] || null };
     };
     let stashSlots = OFFLINE_PROGRESS_STASH_LEVELS[progress.stashLevel].slots;
-    return { wallet, completedLoops: getOfflineCompletedLoopCount(source), lifetimeGranted: progress.lifetimeGranted, maxLifetimeGrant: OFFLINE_PROGRESS_MAX_LIFETIME_GRANT, config, recognition: next('recognition'), efficiency: next('efficiency'), stashUpgrade: next('stash'), stash: progress.stash.slice(), stashSlots, huntMode: progress.huntMode, huntDirectiveUnlocked: progress.huntDirectiveUnlocked, safeReturnUnlocked: progress.safeReturnUnlocked, lootDirectiveUnlocked: progress.lootDirectiveUnlocked, safetyPolicy: { ...progress.safetyPolicy }, lootPolicy: { ...progress.lootPolicy, preferredSlots: progress.lootPolicy.preferredSlots.slice() } };
+    return { wallet, completedLoops: getOfflineCompletedLoopCount(source), lifetimeGranted: progress.lifetimeGranted, maxLifetimeGrant: OFFLINE_PROGRESS_MAX_LIFETIME_GRANT, config, recognition: next('recognition'), efficiency: next('efficiency'), stashUpgrade: next('stash'), stash: progress.stash.slice(), protectedOverflow: progress.protectedOverflow.slice(), stashSlots, protectedOverflowSlots: OFFLINE_PROGRESS_PROTECTED_OVERFLOW_LIMIT, huntMode: progress.huntMode, huntDirectiveUnlocked: progress.huntDirectiveUnlocked, safeReturnUnlocked: progress.safeReturnUnlocked, lootDirectiveUnlocked: progress.lootDirectiveUnlocked, safetyPolicy: { ...progress.safetyPolicy }, lootPolicy: { ...progress.lootPolicy, preferredSlots: progress.lootPolicy.preferredSlots.slice() } };
 }
 
 function getOfflineItemPriority(item, policy, options) {
@@ -189,14 +203,17 @@ function routeOfflineItem(item, state, options) {
     let progress = ensureOfflineProgressState(state);
     let capacity = OFFLINE_PROGRESS_STASH_LEVELS[progress.stashLevel].slots;
     if (capacity <= 0) return { action: 'normal' };
-    let protectedItem = !!(options && options.protected) || !!(item && (item.locked || item.offlineProtected)) || String(item && item.rarity) === 'unique' || String(item && item.rarity) === 'chase';
+    let protectedItem = !!(options && options.protected) || isOfflineProtectedItem(item);
     item.offlineProtected = protectedItem;
     let priority = getOfflineItemPriority(item, progress.lootPolicy, { protected: protectedItem });
     let stash = progress.stash;
     if (stash.length < capacity) { stash.push(item); return { action: 'stored', protected: protectedItem }; }
     let candidates = stash.map((entry, index) => ({ entry, index })).filter(row => !row.entry.offlineProtected && String(row.entry.rarity) !== 'unique' && String(row.entry.rarity) !== 'chase');
     if (candidates.length === 0) {
-        if (protectedItem) { stash.push(item); return { action: 'stored', protected: true, overflowProtected: true }; }
+        if (protectedItem && progress.protectedOverflow.length < OFFLINE_PROGRESS_PROTECTED_OVERFLOW_LIMIT) {
+            progress.protectedOverflow.push(item);
+            return { action: 'stored', protected: true, overflowProtected: true };
+        }
         return { action: 'salvage', reason: 'protected-stash-full' };
     }
     let weakest = candidates.reduce((best, row) => getOfflineItemPriority(row.entry, progress.lootPolicy, { protected: false }) < getOfflineItemPriority(best.entry, progress.lootPolicy, { protected: false }) ? row : best);

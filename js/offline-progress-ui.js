@@ -21,9 +21,12 @@
         let config = view.config || {};
         let warning = config.recognitionHours > 12 ? '<p class="offline-progress-warning">12시간 이후 업그레이드는 비용이 크게 증가합니다.</p>' : '';
         let stash = view.stash || [];
-        let stashHtml = stash.length ? stash.map((item, index) => `<button class="offline-stash-item" type="button" onclick="withdrawOfflineStashItem(${index})" oncontextmenu="event.preventDefault(); salvageOfflineStashItem(${index});"><span>${escapeHtml(item.name || '장비')}</span><small>${escapeHtml(item.rarity || 'normal')}</small></button>`).join('') : '<span class="offline-progress-empty">보관된 장비가 없습니다.</span>';
+        let protectedOverflow = view.protectedOverflow || [];
+        let protectedOverflowSlots = Math.max(0, Number(view.protectedOverflowSlots) || 0);
+        let stashHtml = stash.length ? stash.map((item, index) => `<button class="offline-stash-item" type="button" onclick="withdrawOfflineStashItem(${index}, false)" oncontextmenu="event.preventDefault(); salvageOfflineStashItem(${index}, false);"><span>${escapeHtml(item.name || '장비')}</span><small>${escapeHtml(item.rarity || 'normal')}</small></button>`).join('') : '<span class="offline-progress-empty">보관된 장비가 없습니다.</span>';
+        let overflowHtml = protectedOverflow.length ? protectedOverflow.map((item, index) => `<button class="offline-stash-item offline-stash-protected-overflow" type="button" onclick="withdrawOfflineStashItem(${index}, true)" oncontextmenu="event.preventDefault(); salvageOfflineStashItem(${index}, true);"><span>${escapeHtml(item.name || '장비')}</span><small>${escapeHtml(item.rarity || 'normal')} · 보호 대기</small></button>`).join('') : '';
         let policy = `<div class="offline-progress-policy">${view.huntDirectiveUnlocked ? `<label>사냥 <select onchange="handleOfflinePolicy('huntMode', this.value)">${['push', 'current', 'highestCleared', 'stopBeforeBoss'].map(mode => `<option value="${mode}" ${view.huntMode === mode ? 'selected' : ''}>${mode}</option>`).join('')}</select></label>` : ''}${view.safeReturnUnlocked ? `<label>연속 사망 <select onchange="handleOfflinePolicy('consecutiveDeaths', this.value)">${[3, 5, 10].map(value => `<option ${view.safetyPolicy.consecutiveDeaths === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label><label><input type="checkbox" ${view.safetyPolicy.stopOnNegativeExp ? 'checked' : ''} onchange="handleOfflinePolicy('stopOnNegativeExp', this.checked)"> 경험치 손실 시 중단</label>` : ''}${view.lootDirectiveUnlocked ? `<label>전리품 <select onchange="handleOfflinePolicy('lootMode', this.value)">${['rarity', 'itemLevel', 'baseTier'].map(mode => `<option value="${mode}" ${view.lootPolicy.mode === mode ? 'selected' : ''}>${mode}</option>`).join('')}</select></label>` : ''}</div>`;
-        return `<section class="offline-progress-panel"><div class="offline-progress-heading"><h2>영구 방치 성장</h2><span class="offline-progress-currency">⌛ 시간의 잔재 <strong>${view.wallet}</strong></span></div><p>완료 루프 ${view.completedLoops} · 누적 지급 ${view.lifetimeGranted}/${view.maxLifetimeGrant} · 인식 한도 ${formatOfflineHours(config.recognitionHours)} · 효율 ${Math.round((config.efficiencyRate || 0) * 100)}%</p>${warning}<div class="offline-progress-upgrades">${upgradeRow('recognition', '시간 인식', view.recognition, formatOfflineHours(view.recognition.current.hours))}${upgradeRow('efficiency', '전투 효율', view.efficiency, `${Math.round(view.efficiency.current.rate * 100)}%`)}${upgradeRow('stash', '보관함', view.stashUpgrade, `${view.stashSlots}칸`)}</div><div class="offline-progress-directives"><strong>방치 지시</strong>${directiveButton('hunt', '사냥 지시', view.huntDirectiveUnlocked, 10)}${directiveButton('safety', '안전 귀환', view.safeReturnUnlocked, 12)}${directiveButton('loot', '전리품 지시', view.lootDirectiveUnlocked, 15)}</div>${policy}<div class="offline-progress-stash"><strong>방치 보관함 ${stash.length}/${view.stashSlots}</strong><span>클릭: 회수 · 우클릭: 해체</span><div class="offline-stash-list">${stashHtml}</div></div></section>`;
+        return `<section class="offline-progress-panel"><div class="offline-progress-heading"><h2>영구 방치 성장</h2><span class="offline-progress-currency">⌛ 시간의 잔재 <strong>${view.wallet}</strong></span></div><p>완료 루프 ${view.completedLoops} · 누적 지급 ${view.lifetimeGranted}/${view.maxLifetimeGrant} · 인식 한도 ${formatOfflineHours(config.recognitionHours)} · 효율 ${Math.round((config.efficiencyRate || 0) * 100)}%</p>${warning}<div class="offline-progress-upgrades">${upgradeRow('recognition', '시간 인식', view.recognition, formatOfflineHours(view.recognition.current.hours))}${upgradeRow('efficiency', '전투 효율', view.efficiency, `${Math.round(view.efficiency.current.rate * 100)}%`)}${upgradeRow('stash', '보관함', view.stashUpgrade, `${view.stashSlots}칸`)}</div><div class="offline-progress-directives"><strong>방치 지시</strong>${directiveButton('hunt', '사냥 지시', view.huntDirectiveUnlocked, 10)}${directiveButton('safety', '안전 귀환', view.safeReturnUnlocked, 12)}${directiveButton('loot', '전리품 지시', view.lootDirectiveUnlocked, 15)}</div>${policy}<div class="offline-progress-stash"><strong>방치 보관함 ${stash.length}/${view.stashSlots}</strong><span>클릭: 회수 · 우클릭: 해체</span><div class="offline-stash-list">${stashHtml}</div>${protectedOverflow.length ? `<div class="offline-stash-overflow"><strong>보호 대기열 ${protectedOverflow.length}/${protectedOverflowSlots}</strong><span>보호 아이템은 초과 보관 한도 내에서 유지됩니다.</span><div class="offline-stash-list">${overflowHtml}</div></div>` : ''}</div></section>`;
     }
 
     function refreshOfflineProgressUi() {
@@ -55,20 +58,22 @@
     function purchaseOfflineProgressUpgradeDomain(type) { return purchaseOfflineProgressUpgrade(type, getOfflineState()); }
     function purchaseOfflineDirectiveDomain(id) { return purchaseOfflineDirective(id, getOfflineState()); }
 
-    function withdrawOfflineStashItem(index) {
-        let state = getOfflineState(), stash = state && state.offlineProgress && state.offlineProgress.stash;
+    function withdrawOfflineStashItem(index, fromProtectedOverflow) {
+        let state = getOfflineState(), stash = state && state.offlineProgress && (fromProtectedOverflow ? state.offlineProgress.protectedOverflow : state.offlineProgress.stash);
         if (!Array.isArray(stash) || !stash[index]) return false;
         if ((state.inventory || []).length >= getInventoryLimit()) { if (typeof addLog === 'function') addLog('인벤토리 공간이 부족합니다.', 'attack-monster'); return false; }
         state.inventory.push(stash.splice(index, 1)[0]);
+        ensureOfflineProgressState(state);
         if (typeof checkUnlocks === 'function') checkUnlocks();
         refreshOfflineProgressUi();
         return true;
     }
 
-    function salvageOfflineStashItem(index) {
-        let state = getOfflineState(), stash = state && state.offlineProgress && state.offlineProgress.stash;
+    function salvageOfflineStashItem(index, fromProtectedOverflow) {
+        let state = getOfflineState(), stash = state && state.offlineProgress && (fromProtectedOverflow ? state.offlineProgress.protectedOverflow : state.offlineProgress.stash);
         if (!Array.isArray(stash) || !stash[index]) return false;
         let item = stash.splice(index, 1)[0];
+        ensureOfflineProgressState(state);
         if (typeof salvageItemObject === 'function') salvageItemObject(item, false, { noDivine: true });
         refreshOfflineProgressUi();
         return true;

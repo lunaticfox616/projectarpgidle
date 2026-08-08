@@ -12,6 +12,8 @@ const {
     purchaseOfflineProgressUpgrade,
     purchaseOfflineDirective,
     routeOfflineItem,
+    getOfflineProgressView,
+    buildOfflineProgressHtml,
     getOfflineSafetyStopReason,
     mergeDefaults,
     simulateBackgroundCombat,
@@ -62,13 +64,20 @@ assert.strictEqual(routeOfflineItem({ name: 'unique', rarity: 'unique' }, stashS
 stashState.offlineProgress.stash = Array.from({ length: 8 }, (_, index) => ({ name: `locked${index}`, rarity: 'unique' }));
 assert.strictEqual(routeOfflineItem({ name: 'ordinary', rarity: 'normal' }, stashState, {}).action, 'salvage');
 assert.strictEqual(routeOfflineItem({ name: 'chase', rarity: 'unique' }, stashState, { protected: true }).overflowProtected, true);
+assert.strictEqual(stashState.offlineProgress.stash.length, 8);
+assert.strictEqual(stashState.offlineProgress.protectedOverflow.length, 1);
 let lockedState = state({ offlineProgress: { stashLevel: 1, lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' }, stash: [] } });
 routeOfflineItem({ name: 'locked', rarity: 'normal', locked: true }, lockedState, {});
 assert.strictEqual(lockedState.offlineProgress.stash[0].offlineProtected, true);
 let protectedOverflow = Array.from({ length: 129 }, (_, index) => ({ name: `u${index}`, rarity: 'unique', offlineProtected: true }));
 lockedState.offlineProgress.stash = protectedOverflow;
 ensureOfflineProgressState(lockedState);
-assert.strictEqual(lockedState.offlineProgress.stash.length, 129, 'protected over-cap stash entries survive normalization');
+let lockedView = getOfflineProgressView(lockedState);
+assert.strictEqual(lockedView.stash.length, lockedView.stashSlots, 'main stash stays within capacity');
+assert.strictEqual(lockedView.protectedOverflow.length, lockedView.protectedOverflowSlots, 'protected overflow stays within its dedicated limit');
+assert.strictEqual(lockedView.stash.length + lockedView.protectedOverflow.length, 40);
+assert.strictEqual(routeOfflineItem({ name: 'overflow-limit', rarity: 'unique' }, lockedState, {}).action, 'salvage');
+assert.ok(buildOfflineProgressHtml(getOfflineProgressView(stashState)).includes('보호 대기열 1/32'));
 let legacyLockedState = state({ offlineProgress: { stashLevel: 1, stash: [{ name: 'legacy-locked', rarity: 'normal', locked: true }] } });
 ensureOfflineProgressState(legacyLockedState);
 assert.strictEqual(legacyLockedState.offlineProgress.stash[0].offlineProtected, true);
