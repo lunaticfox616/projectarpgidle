@@ -214,6 +214,23 @@ SMOKE_CONCURRENCY=1 npm test  # 순차 실행(출력 순서 고정)
 - 긴 함수를 수정할 때 변경 범위 안에서 guard clause, 계산 추출, 중복 제거를 우선한다.
 - 파일 분리는 로드 순서, 전역 공개 API, 상태 초기화 계약을 테스트로 고정한 뒤 별도 변경으로 한다.
 
+#### 화면(탭) 렌더러를 추가할 때
+
+`js/ui.js`의 `performUpdateStaticUI`는 아직 2,000줄대이고 그 안에 함수 수십 개가 중첩
+선언되어 있다. 한 화면을 손대면 무관한 화면이 깨지는 회귀의 구조적 원인이다.
+**새 화면을 여기에 끼워 넣지 않는다.**
+
+1. 도메인은 `js/<기능>.js`, 화면 조립은 `js/<기능>-ui.js`에 만든다.
+   (예: `js/records.js` + `js/records-ui.js`, `js/skills-ui.js`)
+2. 화면 모듈은 렌더 컨텍스트와 도메인 읽기 모델만 받고, 자기 화면 밖의 DOM은 만지지 않는다.
+3. `performUpdateStaticUI`에서는 `isTabRendering('tab-<id>')` 판정으로 호출만 한다.
+4. `index.html`과 `scripts/lib/game-runtime.js`의 로드 순서에 함께 등록한다.
+5. 중첩 헬퍼가 필요하면 `exposeUiRenderHelpersOnce`에 추가한다. 이것은 중첩 선언을
+   최상위로 끌어올릴 때까지의 임시 통로이며, 늘리기보다 줄이는 방향으로 쓴다.
+
+`scripts/smoke-ui-render-decomposition.js`가 렌더 함수 줄 수와 중첩 선언 개수의 상한을
+고정한다. 쪼개서 수치가 내려가면 그 파일의 상한도 함께 내린다(래칫).
+
 ### 3.3 중첩 평탄화
 
 3단계 이상의 중첩이 생기면 다음 순서로 줄인다.
