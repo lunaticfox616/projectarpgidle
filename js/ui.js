@@ -215,6 +215,16 @@ const BACKGROUND_COMBAT_MIN_SAMPLE_MS = 60 * 1000;
 const BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS = 45 * 1000;
 let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, accelerationTier: 0, offlineConsumed: false };
 
+function getBackgroundProgressConfig(state) {
+    if (typeof getOfflineProgressConfig === 'function') return getOfflineProgressConfig(state || game || {});
+    return { recognitionLimitMs: BACKGROUND_PROGRESS_MAX_REAL_MS, efficiencyRate: BACKGROUND_PROGRESS_RATE, effectiveLimitMs: BACKGROUND_PROGRESS_MAX_SIMULATED_MS, recognitionHours: 3 };
+}
+
+function getBackgroundProgressResultLimits(state) {
+    let config = getBackgroundProgressConfig(state);
+    return { ...config, effectiveLimitMs: Math.max(0, Number(config.effectiveLimitMs) || 0) };
+}
+
 function calculateBackgroundProgressMs(actualElapsedMs, minRealMs, rate, maxProgressMs) {
     let elapsed = Math.max(0, Number.isFinite(actualElapsedMs) ? actualElapsedMs : 0);
     let minElapsed = Math.max(0, Number.isFinite(minRealMs) ? minRealMs : 0);
@@ -410,6 +420,8 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
             beforeUniqueNames.splice(idx, 1);
             return false;
         });
+    let beforeStash = Array.isArray(beforeState && beforeState.offlineProgress && beforeState.offlineProgress.stash) ? beforeState.offlineProgress.stash.length : 0;
+    let afterStash = Array.isArray(afterState && afterState.offlineProgress && afterState.offlineProgress.stash) ? afterState.offlineProgress.stash.length : 0;
     return {
         kills: combatMetrics ? combatMetrics.kills : Math.max(0, Math.floor((afterState.loopKills || 0) - (beforeState.loopKills || 0))),
         exp: combatMetrics ? combatMetrics.exp : Math.max(0, getBackgroundTotalExperience(afterState) - getBackgroundTotalExperience(beforeState)),
@@ -419,6 +431,8 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
         items: Math.max(0, afterInv - beforeInv),
         rarityGains,
         uniqueNames,
+        stashItems: Math.max(0, afterStash - beforeStash),
+        stashTotal: afterStash,
         overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0))
     };
 }
@@ -601,6 +615,7 @@ function showBackgroundCombatResult(result) {
         ? `<br>공간 부족 자동해체: <strong>${summary.overflowSalvaged}개</strong> <span class="background-combat-exp-lost">(해체 보상은 재화에 포함)</span>`
         : '';
     let rewards = [
+        ...(summary.stashItems > 0 ? [`諛깃렇?쇱슫??李?????묒쟻: ${summary.stashItems}媛? (珥?${summary.stashTotal}媛?)`] : []),
         `총 처치: <strong>${summary.kills || 0}</strong>`,
         `총 경험치: <strong>+${summary.exp || 0}</strong> <span class="background-combat-exp-lost">(잃은 경험치 -${summary.expLost || 0})</span>`,
         `사망 횟수: <strong>${summary.deaths || 0}</strong>`,
@@ -632,6 +647,7 @@ function simulateBackgroundCombat(options) {
         game.isBackgroundCalculation = true;
         game.backgroundOverflowSalvageCount = 0;
         game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
+        game.backgroundStopReason = null;
         statsCache.install();
         let processed = 0;
         while (processed < stepCount) {
@@ -642,6 +658,8 @@ function simulateBackgroundCombat(options) {
                 statsCache.step();
                 simulatedNow += BACKGROUND_COMBAT_STEP_MS;
                 updateBackgroundCombatMetrics(metrics, game);
+                let safetyReason = typeof getOfflineSafetyStopReason === 'function' ? getOfflineSafetyStopReason(game, metrics, processed * BACKGROUND_COMBAT_STEP_MS) : null;
+                if (safetyReason) { game.backgroundStopReason = safetyReason; break; }
             }
             if (game.pendingLoopDecision || game.pendingLoopReady) break;
         }
@@ -655,7 +673,9 @@ function simulateBackgroundCombat(options) {
     let overflowSalvaged = Math.max(0, Math.floor(Number(simGame.backgroundOverflowSalvageCount) || 0));
     delete simGame.backgroundOverflowSalvageCount;
     delete simGame.backgroundKillMix;
-    return { game: simGame, steps: stepCount, simulatedNow, metrics, overflowSalvaged };
+    let stopReason = simGame.backgroundStopReason || null;
+    delete simGame.backgroundStopReason;
+    return { game: simGame, steps: stepCount, simulatedNow, metrics, overflowSalvaged, stopReason, stopped: !!stopReason };
 }
 
 function shouldStopBackgroundReplay(state) {
@@ -707,6 +727,7 @@ async function simulateBackgroundCombatChunked(options) {
         game.isBackgroundCalculation = true;
         game.backgroundOverflowSalvageCount = 0;
         game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
+        game.backgroundStopReason = null;
         statsCache.install();
         while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) {
             let chunkBudgetMs = backgroundCombatRuntime.accelerationTier > 0
@@ -720,13 +741,15 @@ async function simulateBackgroundCombatChunked(options) {
                 processedMs += BACKGROUND_COMBAT_STEP_MS;
                 processedSteps++;
                 updateBackgroundCombatMetrics(metrics, game);
+                let safetyReason = typeof getOfflineSafetyStopReason === 'function' ? getOfflineSafetyStopReason(game, metrics, processedMs) : null;
+                if (safetyReason) { game.backgroundStopReason = safetyReason; break; }
             } while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game) && (wallNow() - chunkStart) < chunkBudgetMs);
             if (typeof options.onProgress === 'function') options.onProgress(processedMs, elapsedMs);
             // 빠른 계산을 눌렀거나 일반 계산이 실제 시간 상한을 넘기면,
             // 표본이 모인 시점에 남은 구간을 예상 보상으로 즉시 정산한다.
             let settleRequested = backgroundCombatRuntime.accelerationTier > 0
                 || (wallNow() - replayStartWallMs) >= BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS;
-            if (settleRequested && processedMs >= sampleReadyMs && processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) {
+            if (settleRequested && processedMs >= sampleReadyMs && processedMs < elapsedMs && !shouldStopBackgroundReplay(game) && !game.backgroundStopReason) {
                 estimated = extrapolateBackgroundRemainder(game, metrics, processedMs, elapsedMs - processedMs);
                 if (estimated) {
                     processedMs = elapsedMs;
@@ -734,7 +757,7 @@ async function simulateBackgroundCombatChunked(options) {
                     break;
                 }
             }
-            if (processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) await waitBackgroundReplayFrame();
+            if (processedMs < elapsedMs && !shouldStopBackgroundReplay(game) && !game.backgroundStopReason) await waitBackgroundReplayFrame();
         }
         simGame = game;
         delete simGame.isBackgroundCalculation;
@@ -745,11 +768,14 @@ async function simulateBackgroundCombatChunked(options) {
     }
     let overflowSalvaged = Math.max(0, Math.floor(Number(simGame.backgroundOverflowSalvageCount) || 0));
     delete simGame.backgroundOverflowSalvageCount;
+    let stopReason = simGame.backgroundStopReason || null;
+    delete simGame.backgroundStopReason;
     return {
         game: simGame,
         steps: processedSteps,
         simulatedNow,
-        stopped: processedMs < elapsedMs,
+        stopped: processedMs < elapsedMs || !!stopReason,
+        stopReason,
         estimated,
         metrics,
         overflowSalvaged
@@ -764,7 +790,8 @@ function handleBackgroundCombatReturn(nowMs) {
     let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
     backgroundCombatRuntime.snapshot = null;
     backgroundCombatRuntime.signature = '';
-    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, BACKGROUND_PROGRESS_RATE, BACKGROUND_PROGRESS_MAX_SIMULATED_MS);
+    let limits = getBackgroundProgressResultLimits(snapshot || game);
+    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, limits.efficiencyRate, limits.effectiveLimitMs);
     if (!snapshot || effectiveProgressMs <= 0) return false;
     backgroundCombatRuntime.processing = true;
     try {
@@ -772,7 +799,7 @@ function handleBackgroundCombatReturn(nowMs) {
         if (!shouldApplyBackgroundCombatResult(signature)) return false;
         let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
         game = mergeDefaults(result.game || game);
-        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= BACKGROUND_PROGRESS_MAX_SIMULATED_MS });
+        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= limits.effectiveLimitMs, limits, stopReason: result.stopReason });
         updateStaticUI();
         return true;
     } finally {
@@ -788,7 +815,8 @@ async function startBackgroundCombatReturn(nowMs) {
     let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
     backgroundCombatRuntime.snapshot = null;
     backgroundCombatRuntime.signature = '';
-    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, BACKGROUND_PROGRESS_RATE, BACKGROUND_PROGRESS_MAX_SIMULATED_MS);
+    let limits = getBackgroundProgressResultLimits(snapshot || game);
+    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, limits.efficiencyRate, limits.effectiveLimitMs);
     if (!snapshot || effectiveProgressMs <= 0) {
         if (actualElapsedMs > 0) restoreBattlefieldBeforeBackgroundReplay();
         return false;
@@ -813,7 +841,9 @@ async function startBackgroundCombatReturn(nowMs) {
             effectiveProgressMs,
             estimated: result.estimated,
             summary,
-            capped: effectiveProgressMs >= BACKGROUND_PROGRESS_MAX_SIMULATED_MS
+            capped: effectiveProgressMs >= limits.effectiveLimitMs,
+            limits,
+            stopReason: result.stopReason
         });
         updateStaticUI();
         restoreBattlefieldBeforeBackgroundReplay();
@@ -10736,7 +10766,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:var(--copy-muted);">보유한 화석이 없습니다.</div>`;
     document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:var(--copy-muted);">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:var(--copy-bright);">기본 화석 정제는 항상 가능하며, 균사학자 Lv.4부터 원시 화석(복원 전용), Lv.5부터 원시 고대 화석(태고 화석 추가/고급 재화 확률 증가)이 미궁에서 드랍됩니다. 화석 전용 옵션은 Lv.6부터 제작이 아니라 장비 드랍 시 일정 확률로 붙습니다.</div>`;
 
-    let hiddenCurrencyKeys = new Set(['chaosKey', 'coreKey', 'bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'rivalKey', 'cosmosSovereignKey', 'bossCore', 'skyEssence', 'gemShard', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos', 'reefFragment', 'oceanRerollShard']);
+    let hiddenCurrencyKeys = new Set(['timeRemnant', 'chaosKey', 'coreKey', 'bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'rivalKey', 'cosmosSovereignKey', 'bossCore', 'skyEssence', 'gemShard', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos', 'reefFragment', 'oceanRerollShard']);
     hiddenCurrencyKeys.add('condensedSkyPower');
     hiddenCurrencyKeys.add('growthEssence');
     document.getElementById('ui-currency-grid').innerHTML = Object.keys(ORB_DB).filter(key => {
@@ -12939,6 +12969,7 @@ function mergeDefaults(save) {
     merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
     merged.season = Math.max(1, Math.floor(clampFiniteNumber(merged.season, defaultGame.season, 1)));
     merged.loopCount = Math.max(0, Math.floor(clampFiniteNumber(merged.loopCount, defaultGame.loopCount, 0)));
+    if (typeof ensureOfflineProgressState === 'function') ensureOfflineProgressState(merged);
     merged.woodsmanDefeatAttempts = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanDefeatAttempts, defaultGame.woodsmanDefeatAttempts, 0)));
     merged.woodsmanSimulatorSeenLoop = !!merged.woodsmanSimulatorSeenLoop;
     merged.woodsmanEntrancePending = !!(merged.woodsmanEntrancePending && merged.currentZoneId === OUTSIDE_CHAOS_ZONE_ID);
