@@ -110,15 +110,33 @@ vm.runInContext([
     readFunctionSource('getMergedTabGroup')
 ].join('\n'), context, { filename: 'merged-tab-launchers.js' });
 
+// 병합 하위 패널(.merged-subtab-pane)은 각 창의 안쪽 선택을 표현하려고 .active를 계속
+// 유지한다. 그리고 런처 안으로 옮겨져 문서 순서가 바뀌므로(tab-jewel은 tab-flask 안 =
+// tab-skills보다 앞), 셀렉터가 그 패널을 배제하지 않으면 다른 탭이 전부 오인식된다.
+// 회귀를 잡으려면 스텁도 셀렉터를 실제로 해석해야 한다.
 const activeTabContext = {
     game: {
         unlocks: { char: true, traits: true, items: true, jewel: true, talisman: true },
         settings: { mergedTabSelection: {} }
     },
     TAB_UNLOCK_GATES: { 'tab-char': 'char', 'tab-traits': 'traits', 'tab-jewel': 'jewel', 'tab-talisman': 'talisman' },
-    document: { querySelector: () => activeTabContext.activeContent },
-    activeContent: { id: 'tab-char' }
+    document: {
+        // 문서 순서: 남아 있는 하위 패널이 먼저, 최상위 활성 탭이 나중.
+        querySelector(selector) {
+            let pool = [];
+            if (activeTabContext.stalePane) pool.push({ ...activeTabContext.stalePane, mergedPane: true });
+            if (activeTabContext.activeContent) pool.push(activeTabContext.activeContent);
+            if (selector.includes(':not(.merged-subtab-pane)')) pool = pool.filter(node => !node.mergedPane);
+            return pool[0] || null;
+        }
+    },
+    body: { classList: { contains: () => false } },
+    activeContent: { id: 'tab-char' },
+    stalePane: null,
+    Set,
+    Object
 };
+activeTabContext.document.body = activeTabContext.body;
 vm.createContext(activeTabContext);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
@@ -127,6 +145,8 @@ vm.runInContext([
     readFunctionSource('isMergedTabAvailable'),
     readFunctionSource('getMergedTabGroup'),
     readFunctionSource('getSelectedMergedTabId'),
+    readFunctionSource('getActiveTopLevelTabElement'),
+    readFunctionSource('resolveRenderedTabId'),
     readFunctionSource('getActiveUiTabId')
 ].join('\n'), activeTabContext, { filename: 'merged-active-tab.js' });
 
@@ -146,6 +166,73 @@ activeTabContext.game.unlocks.traits = false;
 assert.strictEqual(activeTabContext.getActiveUiTabId(), 'tab-char', 'a stale locked inner selection must fall back to its available launcher');
 activeTabContext.activeContent = null;
 assert.strictEqual(activeTabContext.getActiveUiTabId(), '', 'no active content must not select a renderer');
+
+// 회귀: 보조장비 창을 한 번 열면 tab-jewel이 .active인 채 tab-flask 안(문서 순서상 앞)에
+// 남는다. 그때 스킬 젬·기록·지도로 이동하면 렌더 대상이 tab-jewel로 오인식돼,
+// 그 탭들이 열려 있는데도 내용이 갱신되지 않았다.
+activeTabContext.game.unlocks.traits = true;
+activeTabContext.stalePane = { id: 'tab-jewel' };
+[['tab-skills', 'tab-skills'], ['tab-map', 'tab-map'], ['tab-items', 'tab-items']].forEach(([activeId, expected]) => {
+    activeTabContext.activeContent = { id: activeId };
+    assert.strictEqual(activeTabContext.getActiveUiTabId(), expected,
+        `남아 있는 하위 패널이 ${activeId}의 렌더 대상을 가로채면 안 된다`);
+});
+// 하위 패널이 남아 있어도 병합 런처를 열면 그 그룹의 선택이 렌더 대상이 된다.
+activeTabContext.game.settings.mergedTabSelection.utility = 'tab-talisman';
+activeTabContext.activeContent = { id: 'tab-flask' };
+assert.strictEqual(activeTabContext.getActiveUiTabId(), 'tab-talisman', '런처는 안쪽 선택으로 해석한다');
+activeTabContext.stalePane = null;
+
+// 회귀: 데스크톱 창 모드는 창을 여러 개 동시에 띄운다. 포커스된 창 하나만 그리면
+// 나머지 창은 보이는 채로 갱신이 멈춰(레일 버튼으로 다시 열기 전까지) 고장난 것처럼 보였다.
+{
+    const openWindowIds = ['tab-items', 'tab-skills', 'tab-flask'];
+    const renderingContext = {
+        game: {
+            unlocks: { char: true, traits: true, items: true, jewel: true, talisman: true, skills: true },
+            settings: { mergedTabSelection: { utility: 'tab-talisman' } }
+        },
+        TAB_UNLOCK_GATES: { 'tab-jewel': 'jewel', 'tab-talisman': 'talisman', 'tab-skills': 'skills' },
+        document: {
+            body: { classList: { contains: name => name === 'desktop-windowed-ui' && renderingContext.windowedUi } },
+            querySelector: selector => (selector.includes(':not(.merged-subtab-pane)') ? { id: 'tab-items' } : { id: 'tab-talisman' }),
+            querySelectorAll: () => openWindowIds.map(id => ({ id }))
+        },
+        windowedUi: true,
+        Set,
+        Object,
+        Array
+    };
+    vm.createContext(renderingContext);
+    vm.runInContext([
+        source.slice(groupStart, groupEnd),
+        readFunctionSource('isCodexTabUnlockReady'),
+        readFunctionSource('isJournalTabUnlockReady'),
+        readFunctionSource('isMergedTabAvailable'),
+        readFunctionSource('getMergedTabGroup'),
+        readFunctionSource('getSelectedMergedTabId'),
+        readFunctionSource('getActiveTopLevelTabElement'),
+        readFunctionSource('resolveRenderedTabId'),
+        readFunctionSource('getActiveUiTabId'),
+        readFunctionSource('getRenderingUiTabIds')
+    ].join('\n'), renderingContext, { filename: 'rendering-ui-tabs.js' });
+
+    const windowed = Array.from(renderingContext.getRenderingUiTabIds()).sort();
+    assert.deepStrictEqual(windowed, ['tab-items', 'tab-skills', 'tab-talisman'],
+        '열려 있는 창은 포커스와 무관하게 모두 렌더 대상이어야 하고, 런처는 안쪽 선택으로 해석해야 한다');
+
+    // 모바일/단일 화면 모드에서는 한 번에 한 화면만 보이므로 활성 탭만 그린다.
+    renderingContext.windowedUi = false;
+    assert.deepStrictEqual(Array.from(renderingContext.getRenderingUiTabIds()), ['tab-items'],
+        '창 모드가 아니면 활성 화면 하나만 그린다');
+
+    const renderBody = readFunctionSource('performUpdateStaticUI');
+    assert.ok(!/activeTabId === 'tab-/.test(renderBody),
+        '패널 렌더 게이트는 활성 탭 하나가 아니라 보이는 화면 집합(isTabRendering)을 써야 한다');
+    ['tab-codex', 'tab-skills', 'tab-journal', 'tab-jewel', 'tab-talisman', 'tab-growthboard'].forEach(tabId => {
+        assert.ok(renderBody.includes(`isTabRendering('${tabId}')`), `${tabId} 패널은 보이는 화면 집합으로 판정해야 한다`);
+    });
+}
 
 const persistentPaneIds = ['tab-traits', 'tab-jewel', 'tab-talisman', 'tab-codex', 'tab-growthboard'];
 const switchNodes = {};
