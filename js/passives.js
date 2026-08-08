@@ -8688,6 +8688,11 @@ function addItemToInventory(item, options) {
             checkUnlocks();
             return true;
         }
+        if (route.action === 'normal' && route.protected) {
+            ignoreAutoSalvage = true;
+            guaranteedKeep = true;
+            if ((game.inventory || []).length >= getInventoryLimit()) game.backgroundStopReason = 'protected-storage-full';
+        }
     }
     if ((game.inventory || []).length >= getInventoryLimit()) {
         if (!guaranteedKeep) {

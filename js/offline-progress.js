@@ -214,6 +214,7 @@ function routeOfflineItem(item, state, options) {
             progress.protectedOverflow.push(item);
             return { action: 'stored', protected: true, overflowProtected: true };
         }
+        if (protectedItem) return { action: 'normal', protected: true, reason: 'protected-stash-full' };
         return { action: 'salvage', reason: 'protected-stash-full' };
     }
     let weakest = candidates.reduce((best, row) => getOfflineItemPriority(row.entry, progress.lootPolicy, { protected: false }) < getOfflineItemPriority(best.entry, progress.lootPolicy, { protected: false }) ? row : best);
