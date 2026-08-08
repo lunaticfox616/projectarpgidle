@@ -96,6 +96,15 @@ const baseGame = extra => ({
     assert.ok(view.currentLoop.elapsedMs > 8 * 60 * 60 * 1000, '실제 경과는 벽시계 그대로 보여준다');
 }
 
+// 2-c) Building the read model must not advance progress time by itself.
+{
+    const { context, advance } = bootRecords(baseGame());
+    const records = context.ensureRecordsState();
+    advance(1000);
+    context.getRecordsView();
+    assert.strictEqual(records.currentLoop.activeMs, 0, 'record rendering must remain read-only');
+}
+
 // 3) 루프를 닫으면 소요 시간·도달치가 남고, 다음 루프가 즉시 시작된다.
 {
     const { context, tick } = bootRecords(baseGame({ maxZoneId: 4, level: 30, loopDeaths: 2, loopProgressCurrent: { bestAbyssDepth: 23 } }));
@@ -220,6 +229,11 @@ assert.ok(/recordActClear\(zone\.id\)/.test(combatSource), '액트 돌파가 기
 assert.ok(/recordWoodsmanEchoRun\(run\.totalDamage, dps\)/.test(combatSource), '잔상 측정이 기록을 남겨야 한다');
 assert.ok(/trackRecordBests\(\)/.test(combatSource), '최고 기록을 주기적으로 적립해야 한다');
 // 루프 기록은 상태 초기화보다 앞서야 이번 루프의 도달치를 남길 수 있다.
+const coreLoopAt = combatSource.indexOf('function coreLoop()');
+const promptGuardAt = combatSource.indexOf('if (ensurePendingLoopHeroSelectionPrompt()) return;', coreLoopAt);
+const recordTickAt = combatSource.indexOf("if (typeof trackRecordBests === 'function') trackRecordBests();", coreLoopAt);
+assert.ok(coreLoopAt >= 0 && promptGuardAt > coreLoopAt && recordTickAt > promptGuardAt,
+    '루프 영웅 선택으로 진행이 멈춘 동안에는 전적 진행 시간을 쌓지 않아야 한다');
 const closeAt = combatSource.indexOf('closeLoopRecord(loopPath)');
 const resetAt = combatSource.indexOf('game.unlocks = { ...defaultGame.unlocks }');
 assert.ok(closeAt > 0 && resetAt > closeAt, '루프 기록은 초기화 전에 닫아야 한다');

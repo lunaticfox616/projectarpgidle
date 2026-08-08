@@ -2079,10 +2079,10 @@ function expireActiveFlaskEffects() {
 }
 
 function coreLoop() {
-    if (typeof trackRecordBests === 'function') trackRecordBests();
     if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     tickWoodsmanCurse();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
+    if (typeof trackRecordBests === 'function') trackRecordBests();
     const pStats = getPlayerStats();
     refreshRealmDeathWard(pStats);
     game.lastCombatStats = pStats;

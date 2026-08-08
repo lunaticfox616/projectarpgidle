@@ -107,6 +107,18 @@ function tickRecordActiveTime(records) {
     records.currentLoop.lastTickAt = now;
 }
 
+// Background fast settlement skips combat ticks for the estimated remainder.
+// Add that simulated progress explicitly so loop records match granted rewards.
+function addRecordActiveTime(elapsedMs, state) {
+    let g = state || (typeof game !== 'undefined' ? game : null);
+    let delta = Math.max(0, Math.floor(Number(elapsedMs) || 0));
+    if (!g || delta <= 0) return 0;
+    let r = ensureRecordsState(g);
+    r.currentLoop.activeMs = Math.max(0, Math.floor(r.currentLoop.activeMs || 0)) + delta;
+    r.currentLoop.lastTickAt = Date.now();
+    return delta;
+}
+
 // 매 틱 호출된다. 최댓값 비교와 시간 적립만 하므로 비용은 무시할 수 있다.
 function trackRecordBests(state) {
     let g = state || (typeof game !== 'undefined' ? game : null);
@@ -188,7 +200,6 @@ function getRecordsView(state) {
     let g = state || (typeof game !== 'undefined' ? game : null);
     if (!g) return null;
     let r = ensureRecordsState(g);
-    trackRecordBests(g);
     let now = Date.now();
     let loops = r.loops.slice();
     // 최단·평균은 활동 시간으로 낸다. 벽시계로 내면 "자리를 덜 비운 루프"가 1등이 된다.
@@ -228,6 +239,7 @@ safeExposeGlobals({
     getRecordsView,
     createDefaultRecordsState,
     tickRecordActiveTime,
+    addRecordActiveTime,
     RECORDS_LOOP_HISTORY_LIMIT,
     RECORDS_ACTIVE_TICK_MAX_MS
 });

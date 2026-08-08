@@ -475,6 +475,15 @@ function roundStochastic(value) {
 // 체감 지연을 막는 안전장치를 둔다(초과분은 굴린 결과를 비례로 확장한다).
 const BACKGROUND_CURRENCY_ROLL_LIMIT = 20000;
 
+function scaleBackgroundCurrencyRollPlan(plan, limit) {
+    let planned = plan.reduce((sum, entry) => sum + entry.count, 0);
+    let rollLimit = Math.max(1, Math.floor(Number(limit) || 0));
+    if (planned <= rollLimit) return 1;
+    let scaleBack = planned / rollLimit;
+    plan.forEach(entry => { entry.count = roundStochastic(entry.count / scaleBack); });
+    return scaleBack;
+}
+
 function rollBackgroundCurrencyRemainder(state, killMix, ratio) {
     if (typeof getCurrencyDrops !== 'function') return false;
     let mix = (killMix && typeof killMix === 'object') ? killMix : null;
@@ -487,12 +496,7 @@ function rollBackgroundCurrencyRemainder(state, killMix, ratio) {
     if (!plan.some(entry => entry.count > 0)) return false;
     // 상한을 넘으면 비율만큼 줄여 굴리고 결과를 되돌려 곱한다. 표본이 수천 번 이상이면
     // 큰 수의 법칙으로 총량이 안정되므로, 이 확장은 잭팟을 만들지 않는다.
-    let planned = plan.reduce((sum, entry) => sum + entry.count, 0);
-    let scaleBack = 1;
-    if (planned > BACKGROUND_CURRENCY_ROLL_LIMIT) {
-        scaleBack = planned / BACKGROUND_CURRENCY_ROLL_LIMIT;
-        plan.forEach(entry => { entry.count = Math.floor(entry.count / scaleBack); });
-    }
+    let scaleBack = scaleBackgroundCurrencyRollPlan(plan, BACKGROUND_CURRENCY_ROLL_LIMIT);
     let currencies = state.currencies || (state.currencies = {});
     let gained = {};
     plan.forEach(entry => {
@@ -537,6 +541,7 @@ function extrapolateBackgroundRemainder(state, metrics, processedMs, remainingMs
     // 재화: 표본 결과에 배율을 곱하지 않고 남은 처치 수만큼 실제 드랍을 굴린다.
     // 굴릴 수 없으면(처치 구성 없음) 표본 실측만 남긴다 — 희귀 재화를 부풀리느니 덜 주는 쪽이 안전하다.
     rollBackgroundCurrencyRemainder(state, state.backgroundKillMix, ratio);
+    if (typeof addRecordActiveTime === 'function') addRecordActiveTime(remainingMs, state);
     if (metrics) {
         metrics.kills += estKills;
         metrics.deaths += estDeaths;

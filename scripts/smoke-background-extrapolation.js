@@ -10,10 +10,18 @@ const fs = require('fs');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
 const runtime = buildGameRuntime();
-const { extrapolateBackgroundRemainder, rollBackgroundCurrencyRemainder, roundStochastic, getCurrencyDrops } = runtime;
+const {
+    extrapolateBackgroundRemainder,
+    rollBackgroundCurrencyRemainder,
+    scaleBackgroundCurrencyRollPlan,
+    roundStochastic,
+    getCurrencyDrops,
+    ensureRecordsState
+} = runtime;
 
 assert.strictEqual(typeof extrapolateBackgroundRemainder, 'function');
 assert.strictEqual(typeof rollBackgroundCurrencyRemainder, 'function');
+assert.strictEqual(typeof scaleBackgroundCurrencyRollPlan, 'function');
 assert.strictEqual(typeof getCurrencyDrops, 'function');
 
 const SAMPLE_MS = 108 * 1000;
@@ -135,6 +143,30 @@ function makeState(extra) {
 }
 
 // ── 배선 ────────────────────────────────────────────────────────────
+// Fast-settled time must remain part of the observable loop progress record.
+{
+    const state = makeState({ backgroundKillMix: { normal: 0, elite: 0, boss: 0 } });
+    const records = ensureRecordsState(state);
+    const before = records.currentLoop.activeMs;
+    extrapolateBackgroundRemainder(state, { kills: 0, deaths: 0, exp: 0, expLost: 0 }, SAMPLE_MS, REMAINDER_MS);
+    assert.strictEqual(records.currentLoop.activeMs - before, REMAINDER_MS,
+        'estimated remainder must be added to loop progress time');
+}
+
+// Capping a huge roll plan must not deterministically erase a scarce boss category.
+{
+    const originalRandom = runtime.Math.random;
+    runtime.Math.random = () => 0;
+    try {
+        const plan = [{ count: 100000 }, { count: 100 }, { count: 1 }];
+        const scaleBack = scaleBackgroundCurrencyRollPlan(plan, 20000);
+        assert.ok(scaleBack > 1, 'oversized plans must be sampled down');
+        assert.strictEqual(plan[2].count, 1, 'scarce boss samples must use stochastic rounding');
+    } finally {
+        runtime.Math.random = originalRandom;
+    }
+}
+
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 assert.ok(/game\.isBackgroundCalculation[\s\S]{0,400}backgroundKillMix/.test(combatSource),
