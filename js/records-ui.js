@@ -193,7 +193,10 @@
     }
 
     function buildRecordsHtml(view) {
-        return renderHeader(view)
+        let offlineHtml = typeof buildOfflineProgressHtml === 'function' && typeof getOfflineProgressView === 'function'
+            ? buildOfflineProgressHtml(getOfflineProgressView()) : '';
+        return offlineHtml
+            + renderHeader(view)
             + renderLoopSection(view)
             + renderActSection(view)
             + renderBestSection(view)

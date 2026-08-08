@@ -1443,6 +1443,22 @@ html, body { overflow: hidden; }
    저널·도감과 같은 창 안에서 열리므로 여백과 색은 그쪽 규칙을 따르고,
    표와 수치 카드만 이 블록에서 정의한다. */
 .records-archive { display: flex; flex-direction: column; gap: 12px; }
+.offline-progress-panel { background: linear-gradient(150deg, rgba(44, 67, 100, .35), rgba(15, 22, 38, .7)); border: 1px solid #536e91; border-radius: 12px; padding: 14px; display: grid; gap: 10px; }
+.offline-progress-heading, .offline-progress-upgrade, .offline-progress-directives, .offline-progress-stash { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.offline-progress-heading { justify-content: space-between; }
+.offline-progress-heading h2 { margin: 0; color: #f2d276; font-size: 1.1rem; }
+.offline-progress-currency { color: #ffd36b; }
+.offline-progress-warning { margin: 0; color: #ffad6b; font-size: .85rem; }
+.offline-progress-upgrades { display: grid; gap: 6px; }
+.offline-progress-upgrade { justify-content: space-between; border-top: 1px solid rgba(132, 164, 204, .25); padding-top: 7px; }
+.offline-progress-upgrade div { display: grid; gap: 2px; }
+.offline-progress-upgrade span, .offline-progress-directives, .offline-progress-stash > span { color: var(--copy-muted); font-size: .82rem; }
+.offline-progress-upgrade button, .offline-progress-directives button { border: 1px solid #617ea5; background: #20324d; color: #eef6ff; border-radius: 6px; padding: 5px 8px; cursor: pointer; }
+.offline-progress-max, .offline-progress-unlocked { color: #80e0a0 !important; font-weight: 700; }
+.offline-stash-list { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; }
+.offline-stash-item { display: grid; gap: 2px; min-width: 110px; text-align: left; border: 1px solid #536e91; background: rgba(26, 39, 62, .8); color: #e9f2ff; border-radius: 6px; padding: 6px; cursor: pointer; }
+.offline-stash-item small { color: var(--copy-muted); }
+.offline-progress-empty { color: var(--copy-muted); }
 
 .records-section {
     background: linear-gradient(160deg, rgba(39, 51, 86, 0.22), rgba(16, 22, 38, 0.5));
