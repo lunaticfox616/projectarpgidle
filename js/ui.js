@@ -453,10 +453,69 @@ function requestFasterBackgroundCombat() {
     button.textContent = '남은 진행 예상 정산 중...';
 }
 
+// 남은 구간의 재화를 실제 드랍 확률로 다시 굴린다.
+//
+// 왜 표본 결과에 배율을 곱하면 안 되는가: 재화마다 확률이 자릿수 단위로 다르다
+// (황금률은 일반 몹 0.01375%, 나무꾼의 손길은 그 1/1200). 표본에서 우연히 하나
+// 나오면 그 우연이 최대 9~10배로 증폭되어 "10%는 잭팟, 90%는 0"인 분포가 된다.
+// 처치 수만 비례로 늘리고, 그 처치 수만큼 getCurrencyDrops를 실제로 굴리면
+// 기대값은 그대로 두면서 잭팟만 사라진다. 전투 시뮬 없이 드랍만 굴리므로 싸다.
+//
+// 처치 구성(일반/정예/보스)이 필요하다 — 셋의 드랍 확률이 크게 다르기 때문이다.
+// 구성을 알 수 없으면(구버전 경로) 굴리지 않고 표본 실측만 남긴다.
+// 소수 부분을 확률로 처리한다. 그냥 반올림하면 보스처럼 표본에 적게 잡히는 종류가
+// 계통적으로 깎인다(0.4마리 → 항상 0마리). 보스는 일반 몹보다 재화 확률이 90배라
+// 이 손실이 곧바로 기대값 절반으로 나타난다.
+function roundStochastic(value) {
+    let base = Math.floor(value);
+    return base + (Math.random() < (value - base) ? 1 : 0);
+}
+
+// 굴림 횟수 상한. 복귀 시 한 번만 도는 계산이지만, 표본이 크면 수만 번이 되므로
+// 체감 지연을 막는 안전장치를 둔다(초과분은 굴린 결과를 비례로 확장한다).
+const BACKGROUND_CURRENCY_ROLL_LIMIT = 20000;
+
+function rollBackgroundCurrencyRemainder(state, killMix, ratio) {
+    if (typeof getCurrencyDrops !== 'function') return false;
+    let mix = (killMix && typeof killMix === 'object') ? killMix : null;
+    if (!mix) return false;
+    let plan = [
+        { count: roundStochastic(Math.max(0, Math.floor(mix.normal || 0)) * ratio), enemy: { isBoss: false, isElite: false } },
+        { count: roundStochastic(Math.max(0, Math.floor(mix.elite || 0)) * ratio), enemy: { isBoss: false, isElite: true } },
+        { count: roundStochastic(Math.max(0, Math.floor(mix.boss || 0)) * ratio), enemy: { isBoss: true, isElite: false } }
+    ];
+    if (!plan.some(entry => entry.count > 0)) return false;
+    // 상한을 넘으면 비율만큼 줄여 굴리고 결과를 되돌려 곱한다. 표본이 수천 번 이상이면
+    // 큰 수의 법칙으로 총량이 안정되므로, 이 확장은 잭팟을 만들지 않는다.
+    let planned = plan.reduce((sum, entry) => sum + entry.count, 0);
+    let scaleBack = 1;
+    if (planned > BACKGROUND_CURRENCY_ROLL_LIMIT) {
+        scaleBack = planned / BACKGROUND_CURRENCY_ROLL_LIMIT;
+        plan.forEach(entry => { entry.count = Math.floor(entry.count / scaleBack); });
+    }
+    let currencies = state.currencies || (state.currencies = {});
+    let gained = {};
+    plan.forEach(entry => {
+        for (let i = 0; i < entry.count; i++) {
+            let drops = getCurrencyDrops(entry.enemy) || [];
+            drops.forEach(drop => {
+                // 흐릿한 45면체는 전용 적립 경로(addCoreCubeBlurred45)를 타므로 여기서 다루지 않는다.
+                if (!drop || !drop[0] || drop[0] === 'blurred45') return;
+                if (!(drop[0] in currencies)) return;
+                gained[drop[0]] = (gained[drop[0]] || 0) + (Number(drop[1]) || 0);
+            });
+        }
+    });
+    Object.keys(gained).forEach(key => {
+        currencies[key] = (Number(currencies[key]) || 0) + roundStochastic(gained[key] * scaleBack);
+    });
+    return true;
+}
+
 // 시뮬레이션된 표본 구간의 획득 속도를 기준으로 남은 구간의 보상을 예상 정산한다.
-// 경험치(레벨 업 포함)·처치·사망·재화는 비례 반영하고, 아이템 드랍과 지역 진행은
-// 실제로 시뮬레이션된 구간의 결과만 유지한다.
-function extrapolateBackgroundRemainder(state, metrics, snapshot, processedMs, remainingMs) {
+// 경험치(레벨 업 포함)·처치·사망은 비례 반영하고, 재화는 실제 드랍 확률로 다시 굴린다.
+// 아이템 드랍과 지역 진행은 실제로 시뮬레이션된 구간의 결과만 유지한다.
+function extrapolateBackgroundRemainder(state, metrics, processedMs, remainingMs) {
     if (!state || !(processedMs > 0) || !(remainingMs > 0)) return false;
     let ratio = remainingMs / processedMs;
     let estKills = Math.max(0, Math.round((metrics ? metrics.kills : 0) * ratio));
@@ -475,12 +534,9 @@ function extrapolateBackgroundRemainder(state, metrics, snapshot, processedMs, r
             required = Math.max(1, Math.floor(Number(getExpReq(state.level)) || 0));
         }
     }
-    let startCurrencies = (snapshot && snapshot.currencies) || {};
-    let currencies = state.currencies || {};
-    Object.keys(currencies).forEach(key => {
-        let gain = (Number(currencies[key]) || 0) - (Number(startCurrencies[key]) || 0);
-        if (gain > 0) currencies[key] = (Number(currencies[key]) || 0) + Math.round(gain * ratio);
-    });
+    // 재화: 표본 결과에 배율을 곱하지 않고 남은 처치 수만큼 실제 드랍을 굴린다.
+    // 굴릴 수 없으면(처치 구성 없음) 표본 실측만 남긴다 — 희귀 재화를 부풀리느니 덜 주는 쪽이 안전하다.
+    rollBackgroundCurrencyRemainder(state, state.backgroundKillMix, ratio);
     if (metrics) {
         metrics.kills += estKills;
         metrics.deaths += estDeaths;
@@ -570,6 +626,7 @@ function simulateBackgroundCombat(options) {
         game = simGame;
         game.isBackgroundCalculation = true;
         game.backgroundOverflowSalvageCount = 0;
+        game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
         statsCache.install();
         let processed = 0;
         while (processed < stepCount) {
@@ -592,6 +649,7 @@ function simulateBackgroundCombat(options) {
     }
     let overflowSalvaged = Math.max(0, Math.floor(Number(simGame.backgroundOverflowSalvageCount) || 0));
     delete simGame.backgroundOverflowSalvageCount;
+    delete simGame.backgroundKillMix;
     return { game: simGame, steps: stepCount, simulatedNow, metrics, overflowSalvaged };
 }
 
@@ -643,6 +701,7 @@ async function simulateBackgroundCombatChunked(options) {
         game = simGame;
         game.isBackgroundCalculation = true;
         game.backgroundOverflowSalvageCount = 0;
+        game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
         statsCache.install();
         while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) {
             let chunkBudgetMs = backgroundCombatRuntime.accelerationTier > 0
@@ -663,7 +722,7 @@ async function simulateBackgroundCombatChunked(options) {
             let settleRequested = backgroundCombatRuntime.accelerationTier > 0
                 || (wallNow() - replayStartWallMs) >= BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS;
             if (settleRequested && processedMs >= sampleReadyMs && processedMs < elapsedMs && !shouldStopBackgroundReplay(game)) {
-                estimated = extrapolateBackgroundRemainder(game, metrics, options.snapshot, processedMs, elapsedMs - processedMs);
+                estimated = extrapolateBackgroundRemainder(game, metrics, processedMs, elapsedMs - processedMs);
                 if (estimated) {
                     processedMs = elapsedMs;
                     if (typeof options.onProgress === 'function') options.onProgress(processedMs, elapsedMs);

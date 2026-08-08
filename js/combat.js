@@ -7257,6 +7257,15 @@ function handleEnemyDeath(enemy, pStats) {
         grand.kills = Math.max(0, Math.floor(grand.kills || 0)) + 1;
     }
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
+    // 백그라운드 정산이 남은 구간을 예상할 때 쓸 처치 구성. 재화 드랍 확률은 일반/정예/보스가
+    // 자릿수 단위로 다르므로(황금률: 보스 1.25% vs 일반 0.01375%), 총 처치 수만으로는
+    // 남은 구간의 재화를 제대로 다시 굴릴 수 없다. 시뮬레이션 중에만 센다.
+    if (game.isBackgroundCalculation) {
+        let mix = game.backgroundKillMix && typeof game.backgroundKillMix === 'object'
+            ? game.backgroundKillMix : (game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 });
+        let bucket = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'normal');
+        mix[bucket] = Math.max(0, Math.floor(mix[bucket] || 0)) + 1;
+    }
     grantLoopStarterGemOnFirstKill();
     tickFlaskChargesOnKill();
     // 재능 런타임: 적별 누적 상태 정리(메모리 누수 방지)

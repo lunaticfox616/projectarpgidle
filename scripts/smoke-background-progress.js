@@ -56,20 +56,23 @@ assert(vm.runInContext('BACKGROUND_COMBAT_FAST_CHUNK_BUDGET_MS', context) <= 16,
 assert(vm.runInContext('BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS', context) <= 60 * 1000, 'normal calculation must settle the 3-hour cap within one minute of real time');
 assert(!source.includes('보상 85%') && !source.includes('보상 65%'), 'acceleration must not advertise a reward penalty');
 
-// 예상 정산: 표본 구간의 획득 속도를 남은 구간에 비례 반영한다.
+// 예상 정산: 경험치·처치·사망은 남은 구간에 비례 반영한다.
+// 재화는 비례 반영하지 않는다 — 확률이 자릿수 단위로 다른 희귀 재화가 표본의 우연으로
+// 최대 9~10배까지 증폭됐기 때문이다. 남은 처치 수만큼 실제 드랍을 다시 굴리는 쪽으로
+// 바뀌었고, 그 행동은 scripts/smoke-background-extrapolation.js가 고정한다.
 const extraState = vm.runInContext(`(function () {
     let state = { level: 1, exp: 5, loopKills: 10, loopDeaths: 1, currencies: { chaos: 2 } };
     let metrics = { kills: 10, deaths: 1, exp: 35, expLost: 5, previousKills: 10, previousDeaths: 1, previousExp: 5, previousLevel: 1 };
-    let applied = extrapolateBackgroundRemainder(state, metrics, { currencies: { chaos: 0 } }, 60000, 120000);
+    let applied = extrapolateBackgroundRemainder(state, metrics, 60000, 120000);
     return { applied, state, metrics };
 })()`, context);
 assert.strictEqual(extraState.applied, true, 'extrapolation should apply with a valid sample');
 assert.strictEqual(extraState.state.loopKills, 30, 'kills should scale with the remaining duration');
 assert.strictEqual(extraState.state.level, 7, 'estimated experience should include level-ups');
 assert.strictEqual(extraState.state.exp, 5, 'leftover experience should carry the level-up remainder');
-assert.strictEqual(extraState.state.currencies.chaos, 6, 'currency gains should scale with the remaining duration');
+assert.strictEqual(extraState.state.currencies.chaos, 2, '재화는 표본 결과에 배율을 곱하지 않는다(잭팟 방지)');
 assert.strictEqual(extraState.metrics.kills, 30, 'metrics should include the estimated kills for the result summary');
-assert.strictEqual(vm.runInContext('extrapolateBackgroundRemainder({ level: 1, exp: 0 }, null, null, 0, 1000)', context), false, 'extrapolation requires a simulated sample');
+assert.strictEqual(vm.runInContext('extrapolateBackgroundRemainder({ level: 1, exp: 0 }, null, 0, 1000)', context), false, 'extrapolation requires a simulated sample');
 
 context.game = { saveMeta: { lastModifiedAt: 1000 }, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
 assert.strictEqual(vm.runInContext('recordOfflineCombatEntry(11 * 60 * 1000)', context), true, 'saved timestamp should stage offline progress after a full disconnect');
