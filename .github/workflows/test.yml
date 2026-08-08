@@ -1,0 +1,31 @@
+# 푸시와 PR마다 scripts/smoke-*.js 전부를 GitHub이 대신 실행한다.
+#
+# 이게 필요한 이유: 검사 102개는 이미 있었지만 진입점이 없어 "기억하는 사람이 기억할 때만"
+# 돌았다. 실제로 한 화면을 고치면 무관한 화면이 깨지는 회귀가 반복해서 main에 들어갔다.
+# 여기서 실패하면 PR에 빨간 X가 떠서 머지 전에 보인다.
+name: test
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# 같은 브랜치에 연속으로 푸시하면 이전 실행을 취소한다(마지막 커밋 결과만 의미가 있다).
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # package.json의 engines(>=20)와 맞춘다. 개발 환경은 22를 쓴다.
+          node-version: '22'
+      # 의존성이 없는 프로젝트라 npm ci를 돌리지 않는다(package-lock.json도 없다).
+      # 의존성이 생기면 이 자리에 `npm ci`를 넣고 setup-node에 cache: npm을 켠다.
+      - name: 스모크 검사 실행
+        run: npm test

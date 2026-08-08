@@ -1,0 +1,12 @@
+{
+  "name": "projectarpgidle",
+  "version": "0.2.0",
+  "private": true,
+  "description": "브라우저 방치형 ARPG. 번들러 없이 index.html의 <script> 순서로 로드된다.",
+  "scripts": {
+    "test": "node scripts/run-smoke.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

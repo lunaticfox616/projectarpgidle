@@ -120,8 +120,23 @@ rg -n "safeExposeGlobals|window\\." js
 전체 스모크 검사:
 
 ```bash
-for test_file in scripts/smoke-*.js; do node "$test_file" || exit 1; done
+npm test
 ```
+
+`scripts/run-smoke.js`가 `scripts/smoke-*.js`를 전부 실행한다. 통과하면 종료 코드 0,
+하나라도 실패하면 1이며 실패한 검사의 출력만 보여준다.
+
+작업 중 특정 검사만 빠르게 돌리려면 이름 일부를 넘긴다.
+
+```bash
+npm test -- merged-tab        # 이름에 'merged-tab'이 들어간 검사만
+SMOKE_CONCURRENCY=1 npm test  # 순차 실행(출력 순서 고정)
+```
+
+같은 명령을 GitHub Actions(`.github/workflows/test.yml`)가 푸시·PR마다 실행한다.
+로컬에서 통과했는데 CI가 실패하면 Node 버전(로컬 22 / CI 22)이나 실행 순서 의존성을
+먼저 의심한다 — 러너는 검사를 동시에 여러 개 돌리므로, 전역 파일을 건드리는 검사는
+서로 간섭할 수 있다.
 
 ---
 
