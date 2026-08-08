@@ -30,7 +30,12 @@ function ensureOfflineProgressState(state) {
     merged.huntDirectiveUnlocked = !!merged.huntDirectiveUnlocked;
     merged.safeReturnUnlocked = !!merged.safeReturnUnlocked;
     merged.lootDirectiveUnlocked = !!merged.lootDirectiveUnlocked;
-    merged.stash = Array.isArray(merged.stash) ? merged.stash.filter(item => item && typeof item === 'object').slice(0, 128) : [];
+    merged.stash = Array.isArray(merged.stash)
+        ? merged.stash.filter(item => item && typeof item === 'object').map(item => {
+            if (item.locked || item.offlineProtected || item.rarity === 'unique' || item.rarity === 'chase') item.offlineProtected = true;
+            return item;
+        })
+        : [];
     state.offlineProgress = merged;
     return merged;
 }
@@ -48,7 +53,11 @@ function normalizeOfflineLootPolicy(policy) {
     return { mode: OFFLINE_PROGRESS_LOOT_MODES.includes(source.mode) ? source.mode : 'rarity', preferredSlots: slots, searchText: String(source.searchText || '').slice(0, 64) };
 }
 
-function getOfflineCompletedLoopCount(state) { return Math.max(0, offlineFiniteInt(state && state.loopCount, 0, 0)); }
+function getOfflineCompletedLoopCount(state) {
+    let loopCount = offlineFiniteInt(state && state.loopCount, 0, 0);
+    if (loopCount > 0) return loopCount;
+    return Math.max(0, offlineFiniteInt(state && state.season, 1, 1) - 1);
+}
 
 function getOfflineLoopReward(loop) {
     let value = offlineFiniteInt(loop, 0, 0);
@@ -142,6 +151,15 @@ function updateOfflineProgressPolicy(kind, value, state) {
     return getOfflineProgressView(state);
 }
 
+function applyOfflineHuntDirective(state) {
+    let progress = ensureOfflineProgressState(state);
+    if (!progress.huntDirectiveUnlocked) return state;
+    let actions = { push: 'nextZone', current: 'repeatZone', highestCleared: 'nextLoopBestPlusOne', stopBeforeBoss: 'nextZone' };
+    state.settings = { ...(state.settings || {}), mapCompleteAction: actions[progress.huntMode] || 'nextZone' };
+    state.offlineHuntMode = progress.huntMode;
+    return state;
+}
+
 function getOfflineProgressView(state) {
     let source = state || (typeof game !== 'undefined' ? game : null) || {};
     let progress = ensureOfflineProgressState(source);
@@ -167,10 +185,12 @@ function getOfflineItemPriority(item, policy, options) {
 }
 
 function routeOfflineItem(item, state, options) {
+    if (!item || typeof item !== 'object') return { action: 'normal' };
     let progress = ensureOfflineProgressState(state);
     let capacity = OFFLINE_PROGRESS_STASH_LEVELS[progress.stashLevel].slots;
     if (capacity <= 0) return { action: 'normal' };
-    let protectedItem = !!(options && options.protected) || String(item && item.rarity) === 'unique' || String(item && item.rarity) === 'chase';
+    let protectedItem = !!(options && options.protected) || !!(item && (item.locked || item.offlineProtected)) || String(item && item.rarity) === 'unique' || String(item && item.rarity) === 'chase';
+    item.offlineProtected = protectedItem;
     let priority = getOfflineItemPriority(item, progress.lootPolicy, { protected: protectedItem });
     let stash = progress.stash;
     if (stash.length < capacity) { stash.push(item); return { action: 'stored', protected: protectedItem }; }
@@ -188,14 +208,23 @@ function routeOfflineItem(item, state, options) {
 
 function getOfflineSafetyStopReason(state, metrics, elapsedMs) {
     let progress = ensureOfflineProgressState(state);
+    if (progress.huntDirectiveUnlocked && progress.huntMode === 'stopBeforeBoss' && isOfflineBossEncounterPending(state)) return 'before-boss';
     if (!progress.safeReturnUnlocked) return null;
     let data = metrics || {};
-    if (progress.safetyPolicy.consecutiveDeaths > 0 && Number(data.deaths || 0) >= progress.safetyPolicy.consecutiveDeaths) return 'consecutive-deaths';
-    if (Number(data.kills || 0) === 0 && Number(elapsedMs || 0) >= progress.safetyPolicy.noKillMinutes * 60 * 1000) return 'no-kill';
-    if (progress.safetyPolicy.stopOnNegativeExp && Number(data.expLost || 0) > 0) return 'negative-exp';
+    if (progress.safetyPolicy.consecutiveDeaths > 0 && Number(data.consecutiveDeaths || 0) >= progress.safetyPolicy.consecutiveDeaths) return 'consecutive-deaths';
+    let noKillElapsed = Number.isFinite(Number(data.elapsedSinceLastKillMs)) ? Number(data.elapsedSinceLastKillMs) : Number(elapsedMs || 0);
+    if (noKillElapsed >= progress.safetyPolicy.noKillMinutes * 60 * 1000) return 'no-kill';
+    if (progress.safetyPolicy.stopOnNegativeExp && Number(data.exp || 0) - Number(data.expLost || 0) < 0) return 'negative-exp';
     if (progress.safetyPolicy.stopWhenStorageFull && Array.isArray(state.inventory) && typeof getInventoryLimit === 'function' && state.inventory.length >= getInventoryLimit()) return 'storage-full';
-    if (progress.huntMode === 'stopBeforeBoss' && Array.isArray(state.enemies) && state.enemies.some(enemy => enemy && enemy.isBoss && enemy.hp > 0)) return 'before-boss';
     return null;
 }
 
-safeExposeGlobals({ cloneOfflineProgressDefault, ensureOfflineProgressState, getOfflineLoopReward, getOfflineLifetimeEntitlement, syncOfflineProgressEntitlement, getOfflineProgressConfig, getOfflineProgressView, purchaseOfflineProgressUpgrade, purchaseOfflineDirective, updateOfflineProgressPolicy, routeOfflineItem, getOfflineSafetyStopReason, getOfflineCompletedLoopCount });
+function isOfflineBossEncounterPending(state) {
+    if (Array.isArray(state && state.enemies) && state.enemies.some(enemy => enemy && enemy.isBoss && enemy.hp > 0)) return true;
+    let progress = Math.max(0, Number(state && state.runProgress) || 0);
+    let markers = Array.isArray(state && state.encounterPlan) ? state.encounterPlan : [];
+    let nextBoss = markers.filter(marker => marker && marker.boss && Number(marker.at) >= progress - 0.1).sort((a, b) => Number(a.at) - Number(b.at))[0];
+    return !!nextBoss && progress >= Number(nextBoss.at) - 0.1;
+}
+
+safeExposeGlobals({ cloneOfflineProgressDefault, ensureOfflineProgressState, getOfflineLoopReward, getOfflineLifetimeEntitlement, syncOfflineProgressEntitlement, getOfflineProgressConfig, getOfflineProgressView, purchaseOfflineProgressUpgrade, purchaseOfflineDirective, updateOfflineProgressPolicy, applyOfflineHuntDirective, routeOfflineItem, getOfflineSafetyStopReason, getOfflineCompletedLoopCount });
