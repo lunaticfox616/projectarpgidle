@@ -1592,12 +1592,41 @@ function getSelectedMergedTabId(groupKey) {
     return firstAvailable ? firstAvailable.id : null;
 }
 
+// 지금 보고 있는 "최상위" 탭 화면. 병합 그룹의 하위 패널(.merged-subtab-pane)은 각 창의
+// 안쪽 선택을 표현하려고 .active를 계속 유지하므로 반드시 제외해야 한다. 하위 패널은
+// 런처 안으로 옮겨져 문서 순서가 바뀌기 때문에(예: tab-jewel은 tab-flask 안 = tab-skills보다 앞),
+// 제외하지 않으면 보조장비 창을 한 번 연 뒤부터 다른 탭이 전부 그 패널로 오인식된다.
+function getActiveTopLevelTabElement() {
+    return document.querySelector('.tab-content.active:not(.merged-subtab-pane)');
+}
+
 function getActiveUiTabId() {
-    let activeContent = document.querySelector('.tab-content.active');
+    let activeContent = getActiveTopLevelTabElement();
     if (!activeContent) return '';
-    let mergedEntry = getMergedTabGroup(activeContent.id);
-    if (!mergedEntry || mergedEntry[1].launcher !== activeContent.id) return activeContent.id;
-    return getSelectedMergedTabId(mergedEntry[0]) || activeContent.id;
+    return resolveRenderedTabId(activeContent.id);
+}
+
+// 최상위 탭 id를 "실제로 내용을 그려야 하는" 탭 id로 바꾼다.
+// 병합 그룹의 런처는 안쪽에서 선택된 탭이 곧 렌더 대상이다.
+function resolveRenderedTabId(tabId) {
+    let mergedEntry = getMergedTabGroup(tabId);
+    if (!mergedEntry || mergedEntry[1].launcher !== tabId) return tabId;
+    return getSelectedMergedTabId(mergedEntry[0]) || tabId;
+}
+
+// 지금 화면에 내용이 보이는 탭 전체. 데스크톱 창 모드는 창을 여러 개 동시에 띄우므로
+// 포커스된 창 하나만 그리면 나머지 창은 보이는 채로 갱신이 멈춘다(레일 버튼으로 다시
+// 열기 전까지 계속 옛 내용이 남아 "탭이 고장난" 것처럼 보인다).
+function getRenderingUiTabIds() {
+    let ids = new Set();
+    let activeId = getActiveUiTabId();
+    if (activeId) ids.add(activeId);
+    if (!document.body.classList.contains('desktop-windowed-ui')) return ids;
+    // ui-window-open은 창 관리자가 준비한 최상위 창에만 붙는다(하위 패널에는 붙지 않는다).
+    document.querySelectorAll('.tab-content.ui-window-open:not(.ui-window-minimized)').forEach(el => {
+        if (el.id) ids.add(resolveRenderedTabId(el.id));
+    });
+    return ids;
 }
 
 // 지금 이 탭 화면(창/패널)을 열어 둘 수 있는지 판정한다.
@@ -9162,7 +9191,7 @@ function performUpdateStaticUI() {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
     }
-    let charTabActive = getActiveUiTabId() === 'tab-char';
+    let charTabActive = getRenderingUiTabIds().has('tab-char');
     if (charTabActive) {
         let drawNow = Date.now();
         if (shouldRedrawPassiveTree(drawNow)) {
@@ -9174,8 +9203,8 @@ function performUpdateStaticUI() {
     }
     __mark('tree');
     if (typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
-    let cubeTabActive = document.getElementById('tab-cube') && document.getElementById('tab-cube').classList.contains('active');
-    if (cubeTabActive && typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
+    // 큐브는 병합 하위 패널이라 창을 닫아도 .active가 남는다. 실제로 보고 있을 때만 그린다.
+    if (getRenderingUiTabIds().has('tab-cube') && typeof renderCoreCubePanel === 'function') renderCoreCubePanel();
 
     TAB_HEADER_NOTI_KEYS.forEach(key => { let el=document.getElementById('noti-' + key); if(!el) return; el.style.display = (game.noti[key] && isNotiEnabled(key)) ? 'block' : 'none'; });
     TAB_UNLOCK_BUTTON_KEYS.forEach(key => document.getElementById('btn-tab-' + key).style.display = game.unlocks[key] ? 'flex' : 'none');
@@ -9195,9 +9224,12 @@ function performUpdateStaticUI() {
     }
     let activeTabId = getActiveUiTabId();
     if (activeTabId) syncDerivedTabUnlock(activeTabId);
+    // 포커스된 화면 하나가 아니라 "지금 보이는 화면 전부"를 그린다.
+    let renderingTabIds = getRenderingUiTabIds();
+    let isTabRendering = tabId => renderingTabIds.has(tabId);
     // 열려 있는 최상위 화면이 그 사이 다시 잠겼는지(루프 정산 등)를 먼저 본다.
     // 병합 런처(기록 등)는 TAB_UNLOCK_GATES에 없으므로 게이트 검사만으로는 걸러지지 않는다.
-    let activeHostId = (document.querySelector('.tab-content.active') || {}).id || '';
+    let activeHostId = (getActiveTopLevelTabElement() || {}).id || '';
     closeRelockedTabSurfaces();
     let activeGate = activeTabId ? TAB_UNLOCK_GATES[activeTabId] : null;
     // 잠긴 화면을 정리하고 나면 활성 탭이 하나도 남지 않을 수 있다(pendingRelockedTabFallback).
@@ -9211,13 +9243,13 @@ function performUpdateStaticUI() {
     // 보이지 않는 탭의 무거운 패널(인벤토리/주얼/부적)을 매 갱신마다 innerHTML로
     // 재구성하면 탭 전환·주기적 갱신마다 큰 렉이 발생한다. 활성 탭의 패널만 재구성한다.
     // (탭 전환 시 switchTab이 updateStaticUI를 다시 호출하므로 진입 시 정상 갱신된다.)
-    let itemsTabActive = activeTabId === 'tab-items';
-    if (activeTabId === 'tab-growthboard' && typeof renderGrowthTab === 'function') renderGrowthTab();
-    let jewelTabActive = activeTabId === 'tab-jewel';
-    let talismanTabActive = activeTabId === 'tab-talisman';
+    let itemsTabActive = isTabRendering('tab-items');
+    if (isTabRendering('tab-growthboard') && typeof renderGrowthTab === 'function') renderGrowthTab();
+    let jewelTabActive = isTabRendering('tab-jewel');
+    let talismanTabActive = isTabRendering('tab-talisman');
     const sf = getSearchFilterState();
     document.getElementById('ui-passive-points').innerText = game.passivePoints;
-    if (activeTabId === 'tab-char') renderPassiveInvestmentSummary();
+    if (isTabRendering('tab-char')) renderPassiveInvestmentSummary();
     document.getElementById('ui-season-text-tab').innerText = game.season;
     document.getElementById('ui-season-pts').innerText = game.seasonPoints;
     document.getElementById('ui-ascend-pts').innerText = game.ascendPoints;
@@ -10895,7 +10927,7 @@ function buildCraftActionButtons(item) {
     if (mapAbyssBtn) mapAbyssBtn.style.display = mapAbyssUnlocked ? 'block' : 'none';
     if (!mapAbyssUnlocked && game.mapSubtab === 'map-tab-abyss') game.mapSubtab = 'map-tab-zones';
 
-    if (activeTabId === 'tab-season' || (activeTabId === 'tab-map' && game.mapSubtab === 'map-tab-abyss')) {
+    if (isTabRendering('tab-season') || (isTabRendering('tab-map') && game.mapSubtab === 'map-tab-abyss')) {
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
     document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
     document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
@@ -11042,7 +11074,7 @@ function buildCraftActionButtons(item) {
 
     }
 
-    if (activeTabId === 'tab-traits') {
+    if (isTabRendering('tab-traits')) {
     if (game.ascendClass) {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'none';
@@ -11112,9 +11144,9 @@ function buildCraftActionButtons(item) {
     }
 
     __mark('progressionTabs');
-    if (activeTabId === 'tab-codex') renderUniqueCodexUI();
+    if (isTabRendering('tab-codex')) renderUniqueCodexUI();
 
-    if (activeTabId === 'tab-skills') {
+    if (isTabRendering('tab-skills')) {
     let foldAttackInactive = !!game.gemFoldInactiveAttack;
     let foldSupportInactive = !!game.gemFoldInactiveSupport;
     let foldActiveBtn = document.getElementById('btn-skill-fold-active');
@@ -11413,7 +11445,7 @@ function buildCraftActionButtons(item) {
     if (talismanTabActive && document.getElementById('talisman-sub-colony-ward')) {
         switchTalismanSubtab(game.talismanSubtab === 'talisman-sub-colony-ward' ? 'talisman-sub-colony-ward' : 'talisman-sub-board');
     }
-    let journalList = activeTabId === 'tab-journal' ? document.getElementById('ui-journal-list') : null;
+    let journalList = isTabRendering('tab-journal') ? document.getElementById('ui-journal-list') : null;
     if (journalList) {
         let unlocked = new Set((game.journalEntries || []).filter(id => JOURNAL_DB[id]));
         let orderedIds = JOURNAL_ENTRY_ORDER.filter(id => !!JOURNAL_DB[id]);
@@ -11514,16 +11546,22 @@ function buildCraftActionButtons(item) {
                 }).join('')}</div>
             </section>`;
         }).join('');
-        journalList.innerHTML = summary + cards;
+        // 저널 카드 목록은 해금이 바뀔 때만 달라진다. 내용이 같으면 innerHTML 재작성
+        // (파싱 + 리플로우)을 생략한다. 창을 여러 개 띄웠을 때 갱신 비용이 눈에 띈다.
+        let journalHtml = summary + cards;
+        if (journalList.__lastHtml !== journalHtml) {
+            journalList.innerHTML = journalHtml;
+            journalList.__lastHtml = journalHtml;
+        }
     }
 
     __mark('talisman+journal');
     if (itemsTabActive) switchItemSubtab(game.itemSubtab || 'item-tab-equip');
-    if (activeTabId === 'tab-skills') {
+    if (isTabRendering('tab-skills')) {
         renderSkillAutoRulePanel();
         switchSkillSubtab(game.skillSubtab || 'skill-tab-equip');
     }
-    if (activeTabId === 'tab-map') switchMapSubtab(game.mapSubtab || 'map-tab-zones');
+    if (isTabRendering('tab-map')) switchMapSubtab(game.mapSubtab || 'map-tab-zones');
     __mark('end');
     let __ptot = __perfNow() - __pm[0][1];
     if (__ptot > 150 || (typeof window !== 'undefined' && window.__perfLog)) {
