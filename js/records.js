@@ -14,6 +14,9 @@
 const RECORDS_VERSION = 1;
 // 최근 루프 목록의 보관 개수. 저장 용량을 위해 상한을 둔다(오래된 것부터 버린다).
 const RECORDS_LOOP_HISTORY_LIMIT = 30;
+// 한 틱에서 이 이상 벌어진 간격은 "게임이 굴러간 시간"이 아니라 자리를 비운 구간으로 본다.
+// 포그라운드 틱은 100ms, 백그라운드 정산도 100ms 스텝으로 시뮬레이션 시계를 밀어 준다.
+const RECORDS_ACTIVE_TICK_MAX_MS = 5000;
 
 function createDefaultRecordsState(now) {
     return {
@@ -52,9 +55,14 @@ function ensureRecordsState(state) {
         r.currentLoop.startedAt = toPositiveInt(r.currentLoop.startedAt) || now;
         r.currentLoop.actClears = (r.currentLoop.actClears && typeof r.currentLoop.actClears === 'object')
             ? r.currentLoop.actClears : {};
+        r.currentLoop.activeMs = Math.max(0, Math.floor(Number(r.currentLoop.activeMs) || 0));
+        // 기준점은 여기서 되돌리지 않는다. ensureRecordsState는 매 틱 호출되므로 되돌리면
+        // 델타가 항상 0이 된다. 불러온 직후의 큰 간격은 RECORDS_ACTIVE_TICK_MAX_MS 상한이
+        // 걸러 주므로 값만 정규화한다.
+        r.currentLoop.lastTickAt = toPositiveInt(r.currentLoop.lastTickAt);
     } else {
         // 진행 중인 루프 기록이 없으면 지금부터 센다(기존 세이브의 첫 진입 경로).
-        r.currentLoop = { loop: Math.max(1, Math.floor((g.season || 1))), startedAt: now, actClears: {} };
+        r.currentLoop = { loop: Math.max(1, Math.floor((g.season || 1))), startedAt: now, activeMs: 0, lastTickAt: now, actClears: {} };
     }
     return r;
 }
@@ -82,11 +90,29 @@ function getRecordBestSources(g) {
     };
 }
 
-// 매 틱 호출된다. 최댓값 비교만 하므로 비용은 무시할 수 있다.
+// 실제 경과(벽시계)와 활동 시간을 나눠 센다.
+//
+// 방치형은 자리를 비운 동안 게임이 그만큼 진행되지 않는다. 복귀 정산은 실제 경과의 10%만,
+// 그것도 3시간까지만 시뮬레이션한다(js/ui.js의 BACKGROUND_PROGRESS_RATE / MAX_REAL_MS).
+// 그래서 벽시계로 잰 "루프 소요 시간"은 사실상 "얼마나 자리를 안 비웠나"를 재게 되어
+// 루프끼리 비교하는 의미가 사라진다. 틱이 실제로 돈 시간만 따로 적립해 비교에 쓴다.
+// (복귀 정산 중에는 Date.now가 시뮬레이션 시계라 이 적립이 그대로 게임 진행 시간을 센다.)
+function tickRecordActiveTime(records) {
+    let now = Date.now();
+    let last = Math.floor(Number(records.currentLoop.lastTickAt) || 0) || now;
+    let delta = now - last;
+    if (delta > 0 && delta <= RECORDS_ACTIVE_TICK_MAX_MS) {
+        records.currentLoop.activeMs = Math.max(0, Math.floor(records.currentLoop.activeMs || 0)) + delta;
+    }
+    records.currentLoop.lastTickAt = now;
+}
+
+// 매 틱 호출된다. 최댓값 비교와 시간 적립만 하므로 비용은 무시할 수 있다.
 function trackRecordBests(state) {
     let g = state || (typeof game !== 'undefined' ? game : null);
     if (!g) return null;
     let r = ensureRecordsState(g);
+    tickRecordActiveTime(r);
     let sources = getRecordBestSources(g);
     Object.keys(sources).forEach(key => {
         let next = sources[key];
@@ -96,8 +122,8 @@ function trackRecordBests(state) {
 }
 
 // ── 액트 돌파 시간 ──────────────────────────────────────────────────
-// 이번 루프가 시작된 시점 기준 경과 시간을 남긴다. 절대 시각이 아니라 경과라서
-// 루프끼리 바로 비교할 수 있다("이번엔 액트 5까지 12분").
+// 이번 루프의 "활동 시간" 기준으로 남긴다. 벽시계로 재면 자리를 비운 시간이 그대로
+// 섞여 루프끼리 비교가 무의미해진다.
 function recordActClear(zoneId, state) {
     let g = state || (typeof game !== 'undefined' ? game : null);
     if (!g) return;
@@ -105,7 +131,7 @@ function recordActClear(zoneId, state) {
     if (!Number.isFinite(id) || id < 0) return;
     let r = ensureRecordsState(g);
     if (r.currentLoop.actClears[id] !== undefined) return; // 루프당 첫 돌파만 남긴다.
-    let elapsed = Math.max(0, Date.now() - r.currentLoop.startedAt);
+    let elapsed = Math.max(0, Math.floor(r.currentLoop.activeMs || 0));
     r.currentLoop.actClears[id] = elapsed;
     let best = toPositiveInt(r.actBest[id]);
     if (!best || elapsed < best) r.actBest[id] = elapsed;
@@ -134,8 +160,11 @@ function closeLoopRecord(path, state) {
     trackRecordBests(g);
     let now = Date.now();
     let progress = (g.loopProgressCurrent && typeof g.loopProgressCurrent === 'object') ? g.loopProgressCurrent : {};
+    tickRecordActiveTime(r);
     let row = {
         loop: Math.max(1, Math.floor(r.currentLoop.loop || g.season || 1)),
+        // activeMs = 게임이 실제로 굴러간 시간(루프 비교용), durationMs = 벽시계 경과.
+        activeMs: Math.max(0, Math.floor(r.currentLoop.activeMs || 0)),
         durationMs: Math.max(0, now - r.currentLoop.startedAt),
         endedAt: now,
         maxZoneId: toPositiveInt(g.maxZoneId),
@@ -148,7 +177,7 @@ function closeLoopRecord(path, state) {
     };
     r.loops.unshift(row);
     if (r.loops.length > RECORDS_LOOP_HISTORY_LIMIT) r.loops.length = RECORDS_LOOP_HISTORY_LIMIT;
-    r.currentLoop = { loop: row.loop + 1, startedAt: now, actClears: {} };
+    r.currentLoop = { loop: row.loop + 1, startedAt: now, activeMs: 0, lastTickAt: now, actClears: {} };
     return row;
 }
 
@@ -162,23 +191,25 @@ function getRecordsView(state) {
     trackRecordBests(g);
     let now = Date.now();
     let loops = r.loops.slice();
-    let finished = loops.filter(row => row && row.durationMs > 0);
-    let fastest = finished.length ? finished.reduce((a, b) => (a.durationMs <= b.durationMs ? a : b)) : null;
+    // 최단·평균은 활동 시간으로 낸다. 벽시계로 내면 "자리를 덜 비운 루프"가 1등이 된다.
+    let finished = loops.filter(row => row && Math.floor(row.activeMs || 0) > 0);
+    let fastest = finished.length ? finished.reduce((a, b) => (a.activeMs <= b.activeMs ? a : b)) : null;
     let averageMs = finished.length
-        ? Math.round(finished.reduce((sum, row) => sum + row.durationMs, 0) / finished.length)
+        ? Math.round(finished.reduce((sum, row) => sum + Math.floor(row.activeMs || 0), 0) / finished.length)
         : 0;
     return {
         startedAt: r.startedAt,
         trackedForMs: Math.max(0, now - r.startedAt),
         currentLoop: {
             loop: r.currentLoop.loop,
+            activeMs: Math.max(0, Math.floor(r.currentLoop.activeMs || 0)),
             elapsedMs: Math.max(0, now - r.currentLoop.startedAt),
             actClears: { ...r.currentLoop.actClears }
         },
         loops,
         loopSummary: {
             count: finished.length,
-            fastestMs: fastest ? fastest.durationMs : 0,
+            fastestMs: fastest ? fastest.activeMs : 0,
             fastestLoop: fastest ? fastest.loop : 0,
             averageMs
         },
@@ -196,5 +227,7 @@ safeExposeGlobals({
     closeLoopRecord,
     getRecordsView,
     createDefaultRecordsState,
-    RECORDS_LOOP_HISTORY_LIMIT
+    tickRecordActiveTime,
+    RECORDS_LOOP_HISTORY_LIMIT,
+    RECORDS_ACTIVE_TICK_MAX_MS
 });

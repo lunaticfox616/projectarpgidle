@@ -75,10 +75,11 @@
             <div class="records-section-title">진행 중인 루프</div>
             <div class="records-stat-row">
                 ${statCard('🔁', '현재 루프', `루프 ${formatCount(view.currentLoop.loop)}`, '')}
-                ${statCard('⏱️', '이번 루프 경과', formatDuration(view.currentLoop.elapsedMs), '')}
+                ${statCard('⏱️', '이번 루프 진행', formatDuration(view.currentLoop.activeMs), `실제 경과 ${formatDuration(view.currentLoop.elapsedMs)}`)}
                 ${statCard('📅', '기록 시작', formatDate(view.startedAt), `${formatDuration(view.trackedForMs)} 동안 기록`)}
             </div>
-            <p class="records-note">시간 기록은 이 기능이 추가된 시점부터 쌓입니다. 그 전의 루프는 남아 있지 않습니다.</p>
+            <p class="records-note">시간 기록은 이 기능이 추가된 시점부터 쌓입니다. 그 전의 루프는 남아 있지 않습니다.<br>
+            <strong>진행</strong>은 게임이 실제로 굴러간 시간이고, <strong>실제 경과</strong>는 자리를 비운 시간까지 포함한 벽시계 시간입니다. 루프 비교는 진행 시간으로 합니다.</p>
         </section>`;
     }
 
@@ -86,8 +87,8 @@
         let summary = view.loopSummary;
         let summaryRow = `<div class="records-stat-row">
             ${statCard('✅', '완료한 루프', `${formatCount(summary.count)}회`, '기록 시작 이후')}
-            ${statCard('⚡', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '—', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)}` : '아직 없음')}
-            ${statCard('📊', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '—', '')}
+            ${statCard('⚡', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '—', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)} · 진행 시간` : '아직 없음')}
+            ${statCard('📊', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '—', '진행 시간')}
         </div>`;
 
         if (!view.loops.length) {
@@ -100,7 +101,8 @@
 
         let rows = view.loops.map(row => `<tr>
             <td>${formatCount(row.loop)}</td>
-            <td class="records-num${summary.fastestMs && row.durationMs === summary.fastestMs ? ' is-best' : ''}">${escape(formatDuration(row.durationMs))}</td>
+            <td class="records-num${summary.fastestMs && row.activeMs === summary.fastestMs ? ' is-best' : ''}">${escape(formatDuration(row.activeMs))}</td>
+            <td class="records-num">${escape(formatDuration(row.durationMs))}</td>
             <td>${escape(getZoneLabel(row.maxZoneId))}</td>
             <td class="records-num">${row.bestAbyssDepth ? `${formatCount(row.bestAbyssDepth)}층` : '—'}</td>
             <td class="records-num">Lv.${formatCount(row.level)}</td>
@@ -112,7 +114,7 @@
             ${summaryRow}
             <div class="records-table-scroll">
                 <table class="records-table">
-                    <thead><tr><th>루프</th><th>소요 시간</th><th>도달 사냥터</th><th>혼돈 최고</th><th>레벨</th><th>죽음</th></tr></thead>
+                    <thead><tr><th>루프</th><th>진행 시간</th><th>실제 경과</th><th>도달 사냥터</th><th>혼돈 최고</th><th>레벨</th><th>죽음</th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
             </div>
@@ -128,7 +130,7 @@
         if (!ids.length) {
             return `<section class="records-section">
                 <div class="records-section-title">액트 돌파 기록</div>
-                <p class="records-empty">액트를 돌파하면 루프 시작 기준 경과 시간이 여기에 남습니다.</p>
+                <p class="records-empty">액트를 돌파하면 루프 진행 시간 기준 기록이 여기에 남습니다.</p>
             </section>`;
         }
         let rows = ids.map(id => {
@@ -142,7 +144,7 @@
             </tr>`;
         }).join('');
         return `<section class="records-section">
-            <div class="records-section-title">액트 돌파 기록<span>루프 시작 기준 경과</span></div>
+            <div class="records-section-title">액트 돌파 기록<span>루프 진행 시간 기준</span></div>
             <div class="records-table-scroll">
                 <table class="records-table">
                     <thead><tr><th>사냥터</th><th>이번 루프</th><th>최고 기록</th></tr></thead>

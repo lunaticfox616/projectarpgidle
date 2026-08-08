@@ -29,7 +29,19 @@ function bootRecords(gameState, overrides = {}) {
     vm.createContext(context);
     vm.runInContext(recordsSource, context, { filename: 'js/records.js' });
     vm.runInContext(uiSource, context, { filename: 'js/records-ui.js' });
-    return { context, clock, advance: ms => { clock.now += ms; } };
+    // advance = 벽시계만 민다(자리 비움). tick = 게임 틱이 돈 것처럼 진행 시간을 적립한다.
+    const advance = ms => { clock.now += ms; };
+    const tick = ms => {
+        const step = context.RECORDS_ACTIVE_TICK_MAX_MS;
+        let left = ms;
+        while (left > 0) {
+            const chunk = Math.min(step, left);
+            clock.now += chunk;
+            context.trackRecordBests();
+            left -= chunk;
+        }
+    };
+    return { context, clock, advance, tick };
 }
 
 const baseGame = extra => ({
@@ -49,33 +61,51 @@ const baseGame = extra => ({
     assert.strictEqual(r.currentLoop.startedAt, clock.now);
 }
 
-// 2) 액트 돌파는 루프 시작 기준 경과를 남기고, 루프당 첫 돌파만 기록한다.
+// 2) 액트 돌파는 루프 "진행 시간" 기준으로 남기고, 루프당 첫 돌파만 기록한다.
 {
-    const { context, advance } = bootRecords(baseGame());
+    const { context, tick } = bootRecords(baseGame());
     context.ensureRecordsState();
-    advance(5 * 60 * 1000);
+    tick(5 * 60 * 1000);
     context.recordActClear(0);
-    advance(7 * 60 * 1000);
+    tick(7 * 60 * 1000);
     context.recordActClear(0);            // 같은 루프의 재클리어는 무시
     context.recordActClear(1);
     const view = context.getRecordsView();
     assert.strictEqual(view.currentLoop.actClears[0], 5 * 60 * 1000, '첫 돌파 시점을 유지한다');
-    assert.strictEqual(view.currentLoop.actClears[1], 12 * 60 * 1000, '루프 시작 기준 경과');
+    assert.strictEqual(view.currentLoop.actClears[1], 12 * 60 * 1000, '루프 진행 시간 기준');
     assert.strictEqual(view.actBest[0], 5 * 60 * 1000, '최고 기록에도 반영된다');
     context.recordActClear(-1);
     context.recordActClear('없음');
     assert.strictEqual(Object.keys(view.currentLoop.actClears).length, 2, '잘못된 구역 id는 무시한다');
 }
 
+// 2-b) 회귀: 자리를 비운 시간은 진행 시간에 들어가지 않는다.
+// 방치형은 복귀 정산이 실제 경과의 10%만(최대 3시간) 시뮬레이션한다. 벽시계로 재면
+// "얼마나 자리를 안 비웠나"를 재게 되어 루프 비교가 무의미해진다.
+{
+    const { context, tick, advance } = bootRecords(baseGame());
+    context.ensureRecordsState();
+    tick(10 * 60 * 1000);                 // 10분 플레이
+    advance(8 * 60 * 60 * 1000);          // 8시간 자리 비움(틱 없음)
+    context.trackRecordBests();           // 복귀 후 첫 틱
+    tick(5 * 60 * 1000);                  // 5분 더 플레이
+    context.recordActClear(2);
+    const view = context.getRecordsView();
+    assert.strictEqual(view.currentLoop.activeMs, 15 * 60 * 1000, '진행 시간은 15분이어야 한다');
+    assert.strictEqual(view.currentLoop.actClears[2], 15 * 60 * 1000, '액트 기록도 진행 시간 기준');
+    assert.ok(view.currentLoop.elapsedMs > 8 * 60 * 60 * 1000, '실제 경과는 벽시계 그대로 보여준다');
+}
+
 // 3) 루프를 닫으면 소요 시간·도달치가 남고, 다음 루프가 즉시 시작된다.
 {
-    const { context, advance } = bootRecords(baseGame({ maxZoneId: 4, level: 30, loopDeaths: 2, loopProgressCurrent: { bestAbyssDepth: 23 } }));
+    const { context, tick } = bootRecords(baseGame({ maxZoneId: 4, level: 30, loopDeaths: 2, loopProgressCurrent: { bestAbyssDepth: 23 } }));
     context.ensureRecordsState();
-    advance(10 * 60 * 1000);
+    tick(10 * 60 * 1000);
     context.recordActClear(0);
-    advance(50 * 60 * 1000);
+    tick(50 * 60 * 1000);
     const row = context.closeLoopRecord('cosmos');
-    assert.strictEqual(row.durationMs, 60 * 60 * 1000, '루프 소요 시간');
+    assert.strictEqual(row.durationMs, 60 * 60 * 1000, '실제 경과(벽시계)');
+    assert.strictEqual(row.activeMs, 60 * 60 * 1000, '진행 시간');
     assert.strictEqual(row.maxZoneId, 4);
     assert.strictEqual(row.bestAbyssDepth, 23);
     assert.strictEqual(row.deaths, 2);
@@ -83,17 +113,18 @@ const baseGame = extra => ({
     assert.strictEqual(row.actClears[0], 10 * 60 * 1000, '루프 기록이 액트 돌파 시간을 함께 보관한다');
     const r = context.ensureRecordsState();
     assert.strictEqual(r.currentLoop.loop, 2, '다음 루프가 시작된다');
+    assert.strictEqual(r.currentLoop.activeMs, 0, '새 루프의 진행 시간은 0에서 시작한다');
     assert.strictEqual(Object.keys(r.currentLoop.actClears).length, 0, '새 루프의 액트 기록은 비어 있다');
     assert.strictEqual(r.actBest[0], 10 * 60 * 1000, '역대 최고는 루프를 건너 유지된다');
 }
 
 // 4) 루프 목록은 상한을 넘지 않고, 최신이 앞에 온다.
 {
-    const { context, advance } = bootRecords(baseGame());
+    const { context, tick } = bootRecords(baseGame());
     context.ensureRecordsState();
     const limit = context.RECORDS_LOOP_HISTORY_LIMIT;
     for (let i = 0; i < limit + 5; i++) {
-        advance(60 * 1000);
+        tick(60 * 1000);
         context.game.season = i + 1;
         context.closeLoopRecord('chaos');
     }
@@ -133,16 +164,17 @@ const baseGame = extra => ({
 
 // 7) 요약 통계(최단/평균)는 완료한 루프만 센다.
 {
-    const { context, advance } = bootRecords(baseGame());
+    const { context, tick, advance } = bootRecords(baseGame());
     context.ensureRecordsState();
     [30, 10, 20].forEach(minutes => {
-        advance(minutes * 60 * 1000);
+        tick(minutes * 60 * 1000);
+        advance(60 * 60 * 1000);          // 루프 사이에 자리를 비워도 통계는 흔들리지 않아야 한다
         context.closeLoopRecord('chaos');
     });
     const summary = context.getRecordsView().loopSummary;
     assert.strictEqual(summary.count, 3);
-    assert.strictEqual(summary.fastestMs, 10 * 60 * 1000);
-    assert.strictEqual(summary.averageMs, 20 * 60 * 1000);
+    assert.strictEqual(summary.fastestMs, 10 * 60 * 1000, '최단은 진행 시간 기준');
+    assert.strictEqual(summary.averageMs, 20 * 60 * 1000, '평균도 진행 시간 기준');
 }
 
 // 8) 화면: 안 가본 콘텐츠는 행 자체를 숨기고, 빈 상태도 안내를 낸다.
@@ -161,8 +193,9 @@ const baseGame = extra => ({
 
 // 9) 화면: 표시 문자열은 이스케이프한다(구역 이름이 데이터에서 온다).
 {
-    const { context } = bootRecords(baseGame(), { getZone: () => ({ id: 0, name: '<img src=x onerror=1>' }) });
+    const { context, tick } = bootRecords(baseGame(), { getZone: () => ({ id: 0, name: '<img src=x onerror=1>' }) });
     context.ensureRecordsState();
+    tick(60 * 1000);
     context.closeLoopRecord('chaos');
     const out = context.buildRecordsHtml(context.getRecordsView());
     assert.ok(!out.includes('<img src=x'), '구역 이름을 그대로 심지 않는다');
