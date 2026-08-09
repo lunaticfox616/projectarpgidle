@@ -227,7 +227,75 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(hits.length, 1, '인접하지 않은 적으로는 전이되지 않아야 한다');
 }
 
-// ── 3-1. 스킬 공격 단계: 회전 순차 타격 / 최초·연쇄 분리 / 강타 여진 ──
+// ── 3-1. 전투 전술: 소급 해금 / 대상 우선순위 / 재배치 지연 ──
+{
+  resetGame();
+  assert.strictEqual(context.game.combatTacticsUnlocked, false, '새 게임은 전투 전술이 잠겨 있어야 한다');
+  context.game.journalUnlocked = ['act_3'];
+  assert.strictEqual(context.ensureCombatTacticsUnlockState(context.game), true, '액트 3 기록이 있는 저장은 소급 해금돼야 한다');
+  assert.strictEqual(context.ensureCombatTacticsUnlockState(context.game), false, '소급 해금은 한 번만 상태를 변경해야 한다');
+
+  const attacker = { gx: 1, gy: 6 };
+  const near = makeEnemy(201, 2, 6, { hp: 90, maxHp: 100 });
+  const weak = makeEnemy(202, 4, 6, { hp: 10, maxHp: 100 });
+  const boss = makeEnemy(203, 5, 5, { isBoss: true, attackKind: 'ranged' });
+  let hits = context.selectGridSkillTargets('서리 폭발', { targets: 1, targetMode: 'single' }, attacker, [near, weak, boss], { targetPriority: 'weakest' });
+  assert.strictEqual(hits[0].enemy.id, 202, '약한 적 전술은 사거리 안에서 남은 생명력 비율이 가장 낮은 적을 골라야 한다');
+  hits = context.selectGridSkillTargets('서리 폭발', { targets: 1, targetMode: 'single' }, attacker, [near, weak, boss], { targetPriority: 'dangerous' });
+  assert.strictEqual(hits[0].enemy.id, 203, '위험한 적 전술은 보스를 일반 적보다 우선해야 한다');
+  hits = context.selectGridSkillTargets('서리 폭발', { targets: 1, targetMode: 'single' }, attacker, [near, weak, boss], { targetPriority: 'dangerous', preferredEnemyId: 202 });
+  assert.strictEqual(hits[0].enemy.id, 202, '잠긴 대상이 살아 있고 사거리 안이면 짧은 대상 고정을 지켜야 한다');
+
+  const clusterA = makeEnemy(211, 3, 4);
+  const clusterB = makeEnemy(212, 4, 4);
+  const clusterC = makeEnemy(213, 4, 5);
+  const isolated = makeEnemy(214, 6, 1);
+  hits = context.selectGridSkillTargets('서리 폭발', { targets: 3, targetMode: 'all' }, attacker, [isolated, clusterA, clusterB, clusterC], { targetPriority: 'dense' });
+  assert.ok([211, 212, 213].includes(hits[0].enemy.id), '밀집 전술은 더 많은 적을 덮는 폭발 중심을 골라야 한다');
+
+  assert.strictEqual(context.getTacticalMoveAttackDelayMs(100), 500, '이동 속도 100의 전술 이동은 다음 공격을 0.5초 미뤄야 한다');
+  assert.strictEqual(context.getTacticalMoveAttackDelayMs(10000), 300, '매우 빠른 이동도 공격 지연 하한 0.3초를 무시할 수 없어야 한다');
+  assert.strictEqual(context.getTacticalMoveAttackDelayMs(1), 650, '매우 느린 이동은 공격 지연 상한 0.65초를 넘지 않아야 한다');
+
+  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(220, 4, 3)];
+  const moved = context.advanceGridTacticalMovement(context.game.gridPlayer, context.game.enemies[0], {
+    direction: 'away', maxRange: 5, dtSec: 0.6, intervalSec: 0.6,
+  });
+  assert.strictEqual(moved.moved, true, '거리 유지 전술은 이동 주기가 찼을 때 한 칸만 후퇴해야 한다');
+  assert.strictEqual(context.gridChebyshevDist(context.game.gridPlayer.gx, context.game.gridPlayer.gy, 4, 3), 2, '후퇴 한 번에 두 칸 이상 순간이동하면 안 된다');
+
+  context.game.combatTacticsUnlocked = true;
+  context.game.settings.combatPositionMode = 'auto';
+  context.game.settings.combatTargetPriority = 'nearest';
+  context.game.activeSkill = '얼음 창';
+  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0.6 };
+  context.game.enemies = [makeEnemy(221, 4, 3)];
+  context.resetCombatTacticsRuntime();
+  const before = { gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy };
+  assert.strictEqual(context.updatePlayerGridEngagement({ sSkill: context.SKILL_DB['얼음 창'], moveSpeed: 100 }), true, '자동 위치 운용은 기존처럼 사거리 안에서 즉시 공격 가능해야 한다');
+  assert.deepStrictEqual({ gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy }, before, '자동 위치 운용은 기존 위치를 바꾸면 안 된다');
+
+  const NativeDate = context.Date;
+  let tacticNow = 1000;
+  context.Date = class extends NativeDate { static now() { return tacticNow; } };
+  context.game.settings.combatPositionMode = 'keepRange';
+  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0.6 };
+  context.game.enemies = [makeEnemy(222, 4, 3)];
+  context.resetCombatTacticsRuntime();
+  assert.strictEqual(context.updatePlayerGridEngagement({ sSkill: context.SKILL_DB['얼음 창'], moveSpeed: 100 }), false, '첫 후퇴가 발생한 틱에는 공격을 미뤄야 한다');
+  tacticNow += 500;
+  context.game.gridPlayer.gridMoveTimer = 0.6;
+  assert.strictEqual(context.updatePlayerGridEngagement({ sSkill: context.SKILL_DB['얼음 창'], moveSpeed: 100 }), false, '두 번째 후퇴도 공격보다 먼저 처리해야 한다');
+  tacticNow += 500;
+  context.game.gridPlayer.gridMoveTimer = 0.6;
+  const heldCell = { gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy };
+  assert.strictEqual(context.updatePlayerGridEngagement({ sSkill: context.SKILL_DB['얼음 창'], moveSpeed: 100 }), true, '연속 두 번 후퇴한 뒤에는 이동을 멈추고 공격 기회를 내줘야 한다');
+  assert.deepStrictEqual({ gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy }, heldCell, '후퇴 상한 뒤에는 같은 틱에 추가 이동하면 안 된다');
+  context.Date = NativeDate;
+}
+
+// ── 3-2. 스킬 공격 단계: 회전 순차 타격 / 최초·연쇄 분리 / 강타 여진 ──
 {
   const split = context.applyProjectilePatternMode({ ...context.SKILL_DB['얼음 창'], dmg: 100 }, 'split', '테스트 각인');
   assert.strictEqual(context.getSkillGridProfile('얼음 창', split).kind, 'fan', '분산 방식은 기존 직선 젬을 실제 부채꼴 판정으로 바꿔야 한다');
