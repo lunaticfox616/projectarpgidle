@@ -95,6 +95,9 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     slamAftershock: 'skillFxSlamAftershock',
     slash: 'skillFxSlash',
     projectile: 'skillFxProjectile',
+    frostField: 'skillFxFrostField',
+    frostWave: 'skillFxFrostWave',
+    chaosBoomerang: 'skillFxChaosBoomerang',
     burst: 'skillFxBurst',
     dot: 'skillFxDotField',
     summon: 'skillFxSummonStrike'
@@ -103,6 +106,58 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
 function getSkillGemVfxProfile(skillName) {
     let profiles = typeof SKILL_GEM_VFX_PROFILES !== 'undefined' ? SKILL_GEM_VFX_PROFILES : null;
     return profiles && profiles[skillName] ? profiles[skillName] : null;
+}
+
+function getSkillGemSigilSpec(skillName) {
+    let profile = getSkillGemVfxProfile(skillName);
+    let code = Math.max(0, Math.floor(Number(profile && profile.sigil) || 0));
+    if (code <= 0) return null;
+    let index = code - 1;
+    return {
+        spokes: 2 + (index % 5),
+        rings: 1 + (Math.floor(index / 5) % 3),
+        orbitals: 1 + (Math.floor(index / 15) % 3),
+        twist: code % 2 ? 1 : -1
+    };
+}
+
+function drawSkillGemSigil(ctx, skillName, size, progress, element) {
+    let spec = getSkillGemSigilSpec(skillName);
+    if (!spec) return;
+    let profile = getSkillGemVfxProfile(skillName);
+    let colorKey = normalizeSkillGemVfxElement(element, profile && profile.accent);
+    let color = colorKey === 'blood' ? '#ff537e' : getElementColor(colorKey);
+    let pulse = 0.9 + Math.sin(progress * Math.PI) * 0.12;
+    let radius = Math.max(8, size * 0.22 * pulse);
+    ctx.save();
+    ctx.filter = 'none';
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha *= 0.66;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = Math.max(1, size * 0.014);
+    ctx.shadowColor = color;
+    ctx.shadowBlur = Math.max(3, size * 0.07);
+    ctx.rotate(spec.twist * progress * 1.35);
+    for (let ring = 1; ring <= spec.rings; ring++) {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * ring / spec.rings, ring * 0.22, Math.PI * 2 - ring * 0.16);
+        ctx.stroke();
+    }
+    for (let spoke = 0; spoke < spec.spokes; spoke++) {
+        let angle = spoke * Math.PI * 2 / spec.spokes;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * radius * 0.35, Math.sin(angle) * radius * 0.35);
+        ctx.lineTo(Math.cos(angle) * radius * 1.2, Math.sin(angle) * radius * 1.2);
+        ctx.stroke();
+    }
+    for (let dot = 0; dot < spec.orbitals; dot++) {
+        let angle = dot * Math.PI * 2 / spec.orbitals + progress * spec.twist * 2.4;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * radius * 1.42, Math.sin(angle) * radius * 1.42, Math.max(1.5, size * 0.026), 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
 }
 
 function getSkillGemVfxImage(imageKey) {
@@ -198,6 +253,7 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
         if (family === 'whirlwind') rotation = (Number(fx.stageIndex) || 0) * (Math.PI / 4) + seed * 0.031;
         list.push({
             skillName: fx.skillName,
+            element: normalizeSkillGemVfxElement(fx.element, profile.accent),
             family: family,
             stageKind: stageKind,
             imageKey: imageKey,
@@ -236,7 +292,7 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
         // 관통은 대상 수만큼 탄환을 복제하지 않는다. 한 발이 같은 직선의 마지막 적까지 통과한다.
         targets.sort((a, b) => Math.hypot(a.x - playerPos.x, a.y - playerPos.y) - Math.hypot(b.x - playerPos.x, b.y - playerPos.y));
         targets = targets.length > 0 ? [targets[targets.length - 1]] : [];
-    } else targets = targets.slice(0, 4);
+    } else targets = targets.slice(0, skill.projectilePattern && skill.projectilePattern.kind === 'fan' ? 8 : 4);
     if (targets.length <= 0) return;
     let imageKey = SKILL_GEM_VFX_IMAGE_KEYS.projectile;
     let baseImpactAt = Number(swingFx.impactAt) || (swingFx.start + swingFx.duration);
@@ -254,6 +310,7 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
             let laneOffset = (repeat - (repeats - 1) / 2) * 4;
             list.push({
                 skillName: swingFx.skillName,
+                element: normalizeSkillGemVfxElement(swingFx.element, profile.accent),
                 family: 'projectile',
                 stageKind: 'projectileTravel',
                 imageKey: imageKey,
@@ -276,6 +333,107 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
         }
     });
     if (list.length > 96) list.splice(0, list.length - 96);
+}
+
+function getCombatTravelScreenPos(gridProj, cell, fallback) {
+    if (!cell || !gridProj) return fallback;
+    let pos = gridProj.cellToScreen(cell.gx, cell.gy);
+    return { x: pos.x, y: pos.y - 10 };
+}
+
+function getCombatTravelImageKey(fx) {
+    let element = fx.element ? normalizeSkillGemVfxElement(fx.element) : null;
+    if (fx.patternKind === 'field') return !element || element === 'cold' ? SKILL_GEM_VFX_IMAGE_KEYS.frostField : SKILL_GEM_VFX_IMAGE_KEYS.dot;
+    if (fx.patternKind === 'moving') return !element || element === 'cold' ? SKILL_GEM_VFX_IMAGE_KEYS.frostWave : SKILL_GEM_VFX_IMAGE_KEYS.projectile;
+    if (fx.patternKind === 'boomerang') return SKILL_GEM_VFX_IMAGE_KEYS.chaosBoomerang;
+    if (fx.owner === 'enemy' && fx.delivery === 'magicCell') return 'bossTelegraphPulse';
+    if (fx.delivery !== 'magicCell') return SKILL_GEM_VFX_IMAGE_KEYS.projectile;
+    let profile = getSkillGemVfxProfile(fx.skillName);
+    let family = profile && profile.family;
+    if (family === 'chain') return SKILL_GEM_VFX_IMAGE_KEYS.chainPrimary;
+    if (family === 'slam') return SKILL_GEM_VFX_IMAGE_KEYS.slamPrimary;
+    return SKILL_GEM_VFX_IMAGE_KEYS[family] || SKILL_GEM_VFX_IMAGE_KEYS.burst;
+}
+
+function isSpecializedCombatTravelImage(imageKey) {
+    return [SKILL_GEM_VFX_IMAGE_KEYS.frostField, SKILL_GEM_VFX_IMAGE_KEYS.frostWave,
+        SKILL_GEM_VFX_IMAGE_KEYS.chaosBoomerang].includes(imageKey);
+}
+
+function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
+    if (targets.length <= 0) return;
+    let image = getSkillGemVfxImage(imageKey);
+    let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
+    let fade = now <= arriveAt ? 0.24 + progress * 0.42
+        : clampNumber((fx.start + fx.duration - now) / 260, 0, 1) * 0.48;
+    let drawTargets = targets;
+    let size = fx.owner === 'enemy' ? 92 : 78;
+    if (fx.patternKind === 'field') {
+        let minX = Math.min(...targets.map(target => target.x));
+        let maxX = Math.max(...targets.map(target => target.x));
+        let minY = Math.min(...targets.map(target => target.y));
+        let maxY = Math.max(...targets.map(target => target.y));
+        drawTargets = [{ x: (minX + maxX) / 2, y: (minY + maxY) / 2 }];
+        size = Math.max(110, maxX - minX + 78, maxY - minY + 78);
+        fade = 0.38 + Math.sin(now / 150) * 0.06;
+    }
+    drawTargets.forEach(target => {
+        ctx.save();
+        ctx.translate(target.x, target.y);
+        ctx.rotate(fx.patternKind === 'field' ? now / 9000 : progress * 0.2);
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = fade;
+        ctx.filter = isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
+        if (image) ctx.drawImage(image, -size / 2, -size / 2, size, size);
+        else {
+            ctx.strokeStyle = getElementColor(element);
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, size * (0.24 + progress * 0.15), 0, Math.PI * 2);
+            ctx.stroke();
+        }
+        drawSkillGemSigil(ctx, fx.skillName, Math.min(size, 130), progress, element);
+        ctx.restore();
+    });
+}
+
+function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, imageKey, element) {
+    if (now < launchAt || now > arriveAt || !source) return;
+    let progress = clampNumber((now - launchAt) / Math.max(1, arriveAt - launchAt), 0, 1);
+    let image = getSkillGemVfxImage(imageKey);
+    let width = fx.patternKind === 'moving' ? 112 : (fx.patternKind === 'boomerang' ? 72 : 48);
+    let height = fx.patternKind === 'moving' ? 58 : (fx.patternKind === 'boomerang' ? 48 : 24);
+    targets.forEach(target => {
+        let x = source.x + (target.x - source.x) * progress;
+        let y = source.y + (target.y - source.y) * progress;
+        let angle = Math.atan2(target.y - source.y, target.x - source.x);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        if (fx.patternKind === 'boomerang') ctx.rotate(progress * Math.PI * 3);
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.82;
+        ctx.filter = isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
+        if (image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
+        else { ctx.fillStyle = getElementColor(element); ctx.fillRect(-12, -3, 24, 6); }
+        drawSkillGemSigil(ctx, fx.skillName, Math.min(width, 84), progress, element);
+        ctx.restore();
+    });
+}
+
+function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
+    let launchAt = fx.start + Math.max(0, Number(fx.releaseDelayMs) || 0);
+    let arriveAt = launchAt + Math.max(1, Number(fx.flightMs) || 1);
+    let source = getCombatTravelScreenPos(gridProj, fx.sourceCell, playerPos);
+    let targets = (fx.targetCells || []).map((cell, index) => {
+        let current = fx.owner === 'player' && fx.delivery === 'projectileTarget'
+            ? enemyPosMap[(fx.targetIds || [])[index]] : null;
+        return current ? { x: current.x, y: current.y - 10 } : getCombatTravelScreenPos(gridProj, cell, playerPos);
+    }).filter(Boolean);
+    let imageKey = getCombatTravelImageKey(fx);
+    let element = normalizeSkillGemVfxElement(fx.element, fx.element);
+    if (fx.delivery === 'magicCell') drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element);
+    else drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, imageKey, element);
 }
 
 function drawSkillGemVfxLayer(ctx, now) {
@@ -328,6 +486,7 @@ function drawSkillGemVfxLayer(ctx, now) {
             ctx.rotate(effect.rotation || 0);
             ctx.drawImage(image, -width / 2, -height / 2, width, height);
         }
+        drawSkillGemSigil(ctx, effect.skillName, Math.min(effect.size, 104), t, effect.element);
         ctx.restore();
     });
 }
@@ -741,7 +900,7 @@ function renderBattlefield(forceWhenHidden) {
         const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, framePlayerStats.aspd)) * 100));
         battleVisualState.lastAutoSkillAt = now + _atkInterval;
     }
-    if (latestSwingFx && latestSwingFx.projectile) {
+    if (latestSwingFx && latestSwingFx.projectile && !latestSwingFx.combatTravel) {
         const viewportProjectileFxScale = Math.min(width / 960, height / 540);
         queueSkillGemProjectileLaunch(latestSwingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
     }
@@ -940,6 +1099,8 @@ function renderBattlefield(forceWhenHidden) {
         }
         if (fx.type === 'playerSwing') {
             drawBattleSwingFx(ctx, fx, t, playerPos);
+        } else if (fx.type === 'combatTravel') {
+            drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap);
         } else if (fx.type === 'hit') {
             drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap);
             drawDamageImpactAccent(ctx, fx, t, enemyPosMap);

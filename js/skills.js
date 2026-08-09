@@ -80,6 +80,7 @@ function getGemEngraverLevelForUnlocks() {
 function getSkyEnhancementUnlockLevel(enhanceId) {
     if (['sky_fury', 'sky_swiftness', 'sky_precision', 'sky_blood', 'sky_tempest', 'sky_keen', 'sky_blitz', 'sky_harmony', 'sky_sunder', 'sky_pierce'].includes(enhanceId)) return 1;
     const byLevel = {
+        sky_projectile_split: 5, sky_projectile_focus: 8, sky_projectile_return: 11,
         sky_gemcraft_edge: 2, sky_gemcraft_swift: 3, sky_gemcraft_focus: 4, sky_gemcraft_pierce: 5, sky_gemcraft_break: 6,
         sky_gemcraft_vigor: 7, sky_gemcraft_echo: 8, sky_gemcraft_hybrid: 9, sky_gemcraft_dot: 10, sky_gemcraft_critical: 11,
         sky_awakened_force: 12, sky_awakened_surge: 12, sky_awakened_focus: 13, sky_awakened_overdrive: 14, sky_awakened_resonance: 15
@@ -96,7 +97,8 @@ function isAwakenedSkyEnhancement(enhanceId) {
 }
 
 function isEnhanceableAttackGem(name) {
-    return !!(name && SKILL_DB[name] && SKILL_DB[name].isGem);
+    if (name && SKILL_DB[name] && SKILL_DB[name].isGem) return true;
+    return typeof isTalentFenrirEngravingEnabled === 'function' && isTalentFenrirEngravingEnabled(name);
 }
 
 function getEquippedEnhanceableGemNames() {
@@ -128,7 +130,7 @@ function upgradeActiveGem(materialKey, amount) {
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
-    if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
+    if (!gem || !isEnhanceableAttackGem(active)) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
     let isBossCore = materialKey === 'bossCore';
     let levelKey = isBossCore ? 'bossCoreLevel' : 'skyCoreLevel';
     let currentLevel = Number.isFinite(gem[levelKey]) ? gem[levelKey] : 0;
@@ -168,7 +170,7 @@ function upgradeSkyEngraveCap() {
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
-    if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) {
+    if (!gem || !isEnhanceableAttackGem(active)) {
         addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
         return false;
     }
@@ -192,10 +194,13 @@ function upgradeSkyEngraveCap() {
 function normalizeSkyGemEnhancementSlots(rawSlots) {
     let result = [null, null, null, null, null];
     let used = new Set();
+    let hasProjectilePattern = false;
     (Array.isArray(rawSlots) ? rawSlots : []).slice(0, 5).forEach((id, index) => {
         if (!id || !GEM_SKY_ENHANCEMENTS[id] || used.has(id)) return;
+        if (GEM_SKY_ENHANCEMENTS[id].projectilePatternMode && hasProjectilePattern) return;
         result[index] = id;
         used.add(id);
+        if (GEM_SKY_ENHANCEMENTS[id].projectilePatternMode) hasProjectilePattern = true;
     });
     return result;
 }
@@ -209,6 +214,40 @@ function getSkyEnhancementSlotsForSkill(skillName) {
 
 function getSkyEnhancementForSkill(skillName) {
     return getSkyEnhancementSlotsForSkill(skillName).filter(Boolean);
+}
+
+function getSkyProjectilePatternMode(skillName) {
+    let id = getSkyEnhancementForSkill(skillName).find(enhanceId => GEM_SKY_ENHANCEMENTS[enhanceId].projectilePatternMode);
+    return id ? GEM_SKY_ENHANCEMENTS[id].projectilePatternMode : null;
+}
+
+function isSkyEnhancementCompatibleWithSkill(enhanceId, skillName) {
+    let enhancement = GEM_SKY_ENHANCEMENTS[enhanceId];
+    if (!enhancement || !enhancement.requiredTag) return !!enhancement;
+    let tags = (SKILL_DB[skillName] && SKILL_DB[skillName].tags) || [];
+    return tags.includes(enhancement.requiredTag);
+}
+
+function applyProjectilePatternMode(skill, mode, source, damageMultiplierOverride) {
+    let config = PROJECTILE_PATTERN_MODE_DB[mode];
+    let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
+    if (!config || !tags.includes('projectile') || !config.kind) return skill;
+    let hasDamageMultiplierOverride = damageMultiplierOverride !== null
+        && damageMultiplierOverride !== undefined
+        && Number.isFinite(Number(damageMultiplierOverride));
+    let damageMultiplier = hasDamageMultiplierOverride
+        ? Number(damageMultiplierOverride)
+        : config.damageMultiplier;
+    let next = { ...skill, projectilePattern: { mode, kind: config.kind }, projectilePatternSource: source || '효과', projectilePatternDamageMultiplier: damageMultiplier };
+    if (config.rays) next.projectilePattern.rays = config.rays;
+    if (config.targetMode) next.targetMode = config.targetMode;
+    if (config.targetLimit) next.targets = config.targetLimit;
+    if (config.minTargets) next.targets = Math.max(config.minTargets, Number(next.targets) || 1);
+    if (config.extraProjectileDamagePct) next.extraProjectileDamagePct = config.extraProjectileDamagePct;
+    if (next.combatPattern && next.combatPattern.kind === 'boomerang') delete next.combatPattern;
+    if (config.combatPattern) next.combatPattern = { ...config.combatPattern };
+    if (Number.isFinite(next.dmg) && Number.isFinite(damageMultiplier)) next.dmg *= damageMultiplier;
+    return next;
 }
 
 function getSelectedGemEngraveSlot() {
@@ -269,19 +308,26 @@ function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
     }
     let active = getGemEnhanceTargetSkill();
     let gem = game.gemData[active];
-    if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) {
+    if (!gem || !isEnhanceableAttackGem(active)) {
         addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
         return false;
     }
     let enhance = GEM_SKY_ENHANCEMENTS[enhanceId];
     if (!enhance) return false;
+    if (!isSkyEnhancementCompatibleWithSkill(enhanceId, active)) {
+        addLog('이 발사 방식 각인은 투사체 젬에만 적용할 수 있습니다.', 'attack-monster');
+        return false;
+    }
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let slots = getSkyEnhancementSlotsForSkill(active);
     let cap = game.gemData[active].skyEnhanceCap || 1;
     let hasRequestedSlot = Number.isFinite(Number(requestedSlotIndex));
+    let currentPatternSlot = enhance.projectilePatternMode
+        ? slots.findIndex(id => id && GEM_SKY_ENHANCEMENTS[id].projectilePatternMode)
+        : -1;
     let selectedSlot = hasRequestedSlot
         ? Math.max(0, Math.min(4, Math.floor(Number(requestedSlotIndex))))
-        : getFirstEmptyGemEngraveSlot(active);
+        : (currentPatternSlot >= 0 ? currentPatternSlot : getFirstEmptyGemEngraveSlot(active));
     if (selectedSlot < 0) {
         addLog(`젬 특수 옵션은 현재 최대 ${cap}개까지 부여할 수 있습니다. 슬롯을 눌러 교체할 각인을 선택하세요.`, 'attack-monster');
         return false;
@@ -296,6 +342,9 @@ function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
         addLog('같은 각인은 한 젬에 중복 적용할 수 없습니다.', 'attack-monster');
         return false;
     }
+    let previousPatternSlot = enhance.projectilePatternMode
+        ? slots.findIndex((id, index) => index !== selectedSlot && id && GEM_SKY_ENHANCEMENTS[id].projectilePatternMode)
+        : -1;
     // 각성 각인은 각성 젬 전용이 아니라 모든 공격 젬에 부여할 수 있습니다.
     // 각성 젬 상태는 별도의 보너스(+2 젬 레벨/슬롯 보정)만 제공합니다.
     if (isAwakenedSkyEnhancement(enhanceId) && slots.some((id, index) => index !== selectedSlot && isAwakenedSkyEnhancement(id))) {
@@ -303,6 +352,7 @@ function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
         return false;
     }
     game.currencies.skyEssence--;
+    if (previousPatternSlot >= 0) slots[previousPatternSlot] = null;
     slots[selectedSlot] = enhanceId;
     game.skyGemEnhancements[active] = slots;
     if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', 'engrave_apply');
@@ -352,7 +402,7 @@ function upgradeActiveGemQuality() {
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
-    if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
+    if (!gem || !isEnhanceableAttackGem(active)) return addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
     if ((gem.quality || 0) >= 20) return addLog('젬 퀄리티는 최대 20%입니다.', 'attack-monster');
     let discount = typeof getExpertCombinedCostReduction === 'function' ? getExpertCombinedCostReduction('gemQualityCostReducePct') : 0;
     let need = Math.max(1, Math.floor((1 + Math.floor((gem.quality || 0) / 5)) * (1 - discount)));
@@ -420,7 +470,7 @@ function awakenActiveGemCandidate() {
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
-    if (!gem || !SKILL_DB[active] || !SKILL_DB[active].isGem) return addLog('각성할 공격 젬을 먼저 장착하세요.', 'attack-monster');
+    if (!gem || !isEnhanceableAttackGem(active)) return addLog('각성할 공격 젬을 먼저 장착하세요.', 'attack-monster');
     if (gem.awakened) return addLog('이미 각성 후보로 변환된 젬입니다.', 'attack-monster');
     if ((gem.level || 1) < 20) return addLog('Lv.20 이상의 공격 젬만 각성 후보로 변환할 수 있습니다.', 'attack-monster');
     let echoNeed = 3;
@@ -818,14 +868,15 @@ function getActiveSkillStats(bonusLevel) {
         game.activeSkill = '기본 공격';
         skill = SKILL_DB['기본 공격'];
     }
-    if (!skill.isGem && !skill.levelable) return { ...skill, baseLevel: 0, finalLevel: 0, bonusLevel: 0 };
+    let usesGemProgression = skill.isGem || (typeof isTalentFenrirEngravingEnabled === 'function' && isTalentFenrirEngravingEnabled(game.activeSkill));
+    if (!usesGemProgression && !skill.levelable) return { ...skill, baseLevel: 0, finalLevel: 0, bonusLevel: 0 };
     game.gemData = game.gemData || {};
     let gem = normalizeGemRecord((game.gemData || {})[game.activeSkill]);
     if (skill.levelable) game.gemData[game.activeSkill] = gem;
-    let permanentSkyBonus = skill.isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(game.activeSkill) : 0;
-    let materialBonus = skill.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
-    let awakenedGemLevelBonus = skill.isGem ? getGemSkyEnhanceGemLevelBonus(game.activeSkill) : 0;
-    let levelBonus = skill.isGem ? bonusLevel : 0;
+    let permanentSkyBonus = usesGemProgression && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(game.activeSkill) : 0;
+    let materialBonus = usesGemProgression ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
+    let awakenedGemLevelBonus = usesGemProgression ? getGemSkyEnhanceGemLevelBonus(game.activeSkill) : 0;
+    let levelBonus = usesGemProgression ? bonusLevel : 0;
     let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + awakenedGemLevelBonus;
     let totalLevel = gem.level + levelBonus + materialBonus + awakenedGemLevelBonus;
     let stats = { ...skill, baseLevel: gem.level, finalLevel: finalLevel, totalLevel: totalLevel, bonusLevel: bonusLevel, materialBonusLevel: materialBonus, permanentSkyBonusLevel: permanentSkyBonus };
@@ -835,12 +886,12 @@ function getActiveSkillStats(bonusLevel) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     stats.dmg *= qualityMul;
     stats.spd *= qualityMul;
-    if (skill.isGem && gem.level >= 20) {
+    if (usesGemProgression && gem.level >= 20) {
         if (game.activeSkill === '연속 베기') stats.spd *= 1.2;
         if (game.activeSkill === '흡혈 타격') stats.leech *= 2;
         if (game.activeSkill === '암살자의 일격') stats.crit += 15;
     }
-    if (!skill.isGem) return stats;
+    if (!usesGemProgression) return stats;
     getSkyEnhancementForSkill(game.activeSkill).forEach(id => {
         let enh = GEM_SKY_ENHANCEMENTS[id];
         if (!enh) return;
@@ -877,11 +928,13 @@ function getActiveSkillStats(bonusLevel) {
         if (enh.penaltyCritDmg) stats.critDmgBonus = (stats.critDmgBonus || 0) - enh.penaltyCritDmg;
         if (enh.penaltyResPen) stats.resPenBonus = (stats.resPenBonus || 0) - enh.penaltyResPen;
     });
+    let projectilePatternMode = getSkyProjectilePatternMode(game.activeSkill);
+    if (projectilePatternMode) stats = applyProjectilePatternMode(stats, projectilePatternMode, '창공 각인');
     return stats;
 }
 
 
-safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
+safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
 
 
 function sealSkillGem(name){ if(!name||name===game.activeSkill) return addLog('활성 스킬은 봉인할 수 없습니다.','attack-monster'); if(name==='기본 공격') return addLog('기본 공격은 봉인할 수 없습니다.','attack-monster'); if((game.equippedSummonSkills||[]).includes(name)) return addLog('장착 중 소환수 젬은 봉인할 수 없습니다.','attack-monster'); game.skills=dedupeList(game.skills); game.sealedSkills=dedupeList(game.sealedSkills).filter(v=>!game.skills.includes(v)); if(!game.skills.includes(name)) return; game.skills=game.skills.filter(v=>v!==name); if(game.summonSkillCounts&&typeof game.summonSkillCounts==='object') delete game.summonSkillCounts[name]; if(!game.sealedSkills.includes(name)) game.sealedSkills.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 공격 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }

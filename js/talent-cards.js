@@ -22,6 +22,12 @@ function getTalentCardDef(heroId, classKey) {
     return null;
 }
 
+function getTalentCardRuntimeDefinition(comboKey) {
+    let { heroId, classKey } = parseTalentComboKey(comboKey);
+    let def = getTalentCardDef(heroId, classKey);
+    return def && def.surface && def.surface.runtime ? def.surface.runtime : null;
+}
+
 function parseTalentComboKey(comboKey) {
     let parts = String(comboKey || '').split('__');
     return { heroId: parts[0] || 'hero1', classKey: parts[1] || 'none' };
@@ -155,6 +161,32 @@ function getTalentKeystoneConditionText(when, threshold) {
     }
 }
 
+function getTalentRuntimeAppliedText(runtime, level) {
+    if (!runtime || !runtime.key) return '';
+    let levelRatio = level / TALENT_CARD_MAX_LEVEL;
+    if (runtime.key === 'mistral') {
+        let aspd = Math.round((Number(runtime.aspdPerStackAtLevel10) || 0) * levelRatio * 100) / 100;
+        let move = Math.round((Number(runtime.movePerStackAtLevel10) || 0) * levelRatio * 100) / 100;
+        return `중첩당 공격 속도 +${aspd}% · 이동 속도 +${move}% (최대 ${runtime.maxStacks}중첩)`;
+    }
+    if (runtime.key === 'stoneShield') {
+        let pct = Math.round((Number(runtime.maxHpPctAtLevel10) || 0) * levelRatio * 100) / 100;
+        return `막기 시 최대 생명력의 ${pct}% 돌 보호막`;
+    }
+    if (runtime.key === 'moonReturn') return `단일 적에게 원 피해의 ${runtime.damagePct}% 추가 타격`;
+    if (runtime.key === 'ailmentWhitelist') return '적에게 점화·중독만 부여 가능';
+    if (runtime.key === 'shadowSlayer') return `치명타 피해 배율 무작위 ×1.0~×${(1 + (runtime.maxMultiplierAtLevel10 - 1) * levelRatio).toFixed(2)}`;
+    if (runtime.key === 'summonCritLucky') return '소환수 치명타 확률 행운 판정';
+    if (runtime.key === 'instantWarcry') return '함성 시전 시간 0초';
+    if (runtime.key === 'rangerCharge') return `돌격 명중 시 공격·이동 속도 ${runtime.speedPctAtLevel10 * levelRatio}% 증폭`;
+    if (runtime.key === 'fenrirTooth') return `펜리르의 맹독: 중독 확률 +${runtime.poisonChanceAtLevel10 * levelRatio}%`;
+    if (runtime.key === 'executionOrder') return `집행 명령 대상이 받는 피해 +${runtime.damagePctAtLevel10 * levelRatio}%`;
+    if (runtime.key === 'vanguardBanner') return `소환수 피해 ${runtime.summonDamagePctAtLevel10 * levelRatio}% 증폭`;
+    if (runtime.key === 'quicksilver') return `공격·이동 속도 ${runtime.speedPctAtLevel10 * levelRatio}% 증폭`;
+    if (runtime.key === 'sunOath') return `생명력 ${runtime.lifeThresholdPct}% 이하에서 받는 피해 ${runtime.takenLessPctAtLevel10 * levelRatio}% 감소`;
+    return '';
+}
+
 function escapeTalentHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -182,6 +214,8 @@ function getTalentCardEffectLines(heroId, classKey, level) {
             let more = Math.round(((Number(def.surface.dmg.perLevel) || 0) * lv) * 100) / 100;
             applied.push(`${getTalentKeystoneConditionText(def.surface.dmg.when, def.surface.dmg.threshold)}피해 ${more >= 0 ? '+' : ''}${more}%`);
         }
+        let runtimeText = getTalentRuntimeAppliedText(def.surface.runtime, lv);
+        if (runtimeText) applied.push(runtimeText);
         if (applied.length) lines.push(`<span style="color:#d6c8a3;">[현재 적용] ${applied.map(escapeTalentHtml).join(' · ')}</span>`);
     } else if (def.surface) {
         // 구버전(uniq/dmg/ops) 호환 표시
@@ -328,6 +362,7 @@ function unequipTalentSlot(slotIndex) {
 }
 
 function afterTalentLoadoutChange() {
+    clearTalentCardRuntimeState();
     if (typeof renderTalentTab === 'function') renderTalentTab();
     if (typeof updateStaticUI === 'function') updateStaticUI();
     if (typeof queueImportantSave === 'function') queueImportantSave(200);
@@ -345,6 +380,14 @@ function getActiveTalentCardStatBonuses() {
         let { heroId, classKey } = parseTalentComboKey(key);
         let level = Math.max(1, Math.floor(owned[key].level || 1));
         getTalentCardStatBonuses(heroId, classKey, level).forEach(b => out.push({ id: b.stat, val: b.val }));
+    }
+    let mistralLevel = isTalentCardActive('hero1__ranger');
+    let mistralRuntime = getTalentCardRuntimeDefinition('hero1__ranger');
+    let mistralStacks = getTalentMistralStackCount();
+    if (mistralLevel > 0 && mistralRuntime && mistralStacks > 0) {
+        let ratio = mistralLevel / TALENT_CARD_MAX_LEVEL;
+        out.push({ id: 'aspd', val: mistralStacks * mistralRuntime.aspdPerStackAtLevel10 * ratio });
+        out.push({ id: 'move', val: mistralStacks * mistralRuntime.movePerStackAtLevel10 * ratio });
     }
     return out;
 }
@@ -382,6 +425,204 @@ function getTalentKeystoneDamageMul(target, ele, crit, pStats) {
     return mul;
 }
 
+function getTalentCardRuntimeState() {
+    if (!game.talentCardRuntime || typeof game.talentCardRuntime !== 'object') game.talentCardRuntime = {};
+    return game.talentCardRuntime;
+}
+
+function getTalentMistralStackCount(now) {
+    if (!isTalentCardActive('hero1__ranger')) return 0;
+    let runtime = getTalentCardRuntimeState();
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    if ((runtime.mistralExpiresAt || 0) > timestamp) {
+        let config = getTalentCardRuntimeDefinition('hero1__ranger');
+        return Math.max(0, Math.min(config.maxStacks, Math.floor(Number(runtime.mistralStacks) || 0)));
+    }
+    delete runtime.mistralStacks;
+    delete runtime.mistralExpiresAt;
+    return 0;
+}
+
+function recordTalentMistralAttack(now) {
+    if (!isTalentCardActive('hero1__ranger')) return 0;
+    let config = getTalentCardRuntimeDefinition('hero1__ranger');
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let runtime = getTalentCardRuntimeState();
+    runtime.mistralStacks = Math.min(config.maxStacks, getTalentMistralStackCount(timestamp) + 1);
+    runtime.mistralExpiresAt = timestamp + config.durationMs;
+    return runtime.mistralStacks;
+}
+
+function grantTalentStoneShield(maxHp, now) {
+    let level = isTalentCardActive('hero2__guardian');
+    if (level <= 0) return null;
+    let config = getTalentCardRuntimeDefinition('hero2__guardian');
+    let capacity = Math.max(1, Math.floor(Math.max(0, Number(maxHp) || 0) * config.maxHpPctAtLevel10 * level / TALENT_CARD_MAX_LEVEL / 100));
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let runtime = getTalentCardRuntimeState();
+    runtime.stoneShieldAmount = capacity;
+    runtime.stoneShieldMax = capacity;
+    runtime.stoneShieldExpiresAt = timestamp + config.durationMs;
+    return { amount: capacity, expiresAt: runtime.stoneShieldExpiresAt };
+}
+
+function getTalentMoonReturnConfig(targets) {
+    if (!isTalentCardActive('hero4__hunter') || !Array.isArray(targets)) return null;
+    let alive = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
+    if (alive.length !== 1 || !targets.some(row => row && row.enemy === alive[0])) return null;
+    let config = getTalentCardRuntimeDefinition('hero4__hunter');
+    return { targetId: alive[0].id, damageMultiplier: Math.max(0, Number(config.damagePct) || 0) / 100 };
+}
+
+function canTalentCardApplyEnemyAilment(type) {
+    if (!isTalentCardActive('hero10__catalyst')) return true;
+    let ailmentType = String(type || '').toLowerCase();
+    let standardTypes = ['ignite', 'poison', 'bleed', 'chill', 'freeze', 'shock', 'flamedecay'];
+    if (!standardTypes.includes(ailmentType)) return true;
+    let config = getTalentCardRuntimeDefinition('hero10__catalyst');
+    return config.allowed.includes(ailmentType);
+}
+
+function getActiveTalentRuntimeConfig(comboKey) {
+    let level = isTalentCardActive(comboKey);
+    let config = level > 0 ? getTalentCardRuntimeDefinition(comboKey) : null;
+    return config ? { config, level, levelRatio: level / TALENT_CARD_MAX_LEVEL } : null;
+}
+
+function getTalentShadowCritDamageMultiplier(isCrit) {
+    let active = isCrit ? getActiveTalentRuntimeConfig('hero1__assassin') : null;
+    if (!active) return 1;
+    let upper = 1 + (Math.max(1, Number(active.config.maxMultiplierAtLevel10) || 1) - 1) * active.levelRatio;
+    return 1 + Math.random() * (upper - 1);
+}
+
+function getTalentSummonCritChance(baseChance) {
+    let chance = Math.max(0, Math.min(1, Number(baseChance) || 0));
+    if (!getActiveTalentRuntimeConfig('hero1__soulbinder')) return chance;
+    return 1 - ((1 - chance) * (1 - chance));
+}
+
+function rollTalentSummonCrit(baseChance) {
+    let chance = Math.max(0, Math.min(1, Number(baseChance) || 0));
+    if (!getActiveTalentRuntimeConfig('hero1__soulbinder')) return Math.random() < chance;
+    return Math.random() < chance || Math.random() < chance;
+}
+
+function isTalentInstantWarcryActive() {
+    return !!getActiveTalentRuntimeConfig('hero2__warrior');
+}
+
+function getTalentSummonDamageMultiplier() {
+    let active = getActiveTalentRuntimeConfig('hero2__soulbinder');
+    if (!active) return 1;
+    return 1 + Math.max(0, Number(active.config.summonDamagePctAtLevel10) || 0) * active.levelRatio / 100;
+}
+
+function getTalentQuicksilverConfig() {
+    let active = getActiveTalentRuntimeConfig('hero2__catalyst');
+    if (!active) return null;
+    return {
+        speedMultiplier: 1 + active.config.speedPctAtLevel10 * active.levelRatio / 100,
+        regenMultiplier: 1 - active.config.regenLessPctAtLevel10 * active.levelRatio / 100,
+        regenPointPenalty: active.config.regenPointPenaltyAtLevel10 * active.levelRatio
+    };
+}
+
+function getTalentConditionalDamageTakenMultiplier(maxHp) {
+    let active = getActiveTalentRuntimeConfig('hero2__crusader');
+    if (!active) return 1;
+    let lifeRatio = Math.max(0, Number(game.playerHp) || 0) / Math.max(1, Number(maxHp) || 1) * 100;
+    if (lifeRatio > active.config.lifeThresholdPct) return 1;
+    return 1 - active.config.takenLessPctAtLevel10 * active.levelRatio / 100;
+}
+
+function tickTalentRangerCharge(now) {
+    let active = getActiveTalentRuntimeConfig('hero2__ranger');
+    let runtime = getTalentCardRuntimeState();
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    if (!active) return clearTalentRangerChargeState(runtime);
+    let alive = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
+    if (!alive.some(enemy => enemy.id === runtime.rangerChargeTargetId)) {
+        delete runtime.rangerChargeTargetId;
+        delete runtime.rangerChargeTargetPending;
+    }
+    if (!runtime.rangerChargeNextAt) runtime.rangerChargeNextAt = timestamp + active.config.intervalMs;
+    if (alive.length > 0 && timestamp >= runtime.rangerChargeNextAt) {
+        runtime.rangerChargeTargetId = alive[Math.floor(Math.random() * alive.length)].id;
+        runtime.rangerChargeTargetPending = true;
+        runtime.rangerChargeNextAt = timestamp + active.config.intervalMs;
+    }
+    if ((runtime.rangerChargeBuffUntil || 0) <= timestamp) delete runtime.rangerChargeBuffUntil;
+}
+
+function clearTalentRangerChargeState(runtime) {
+    delete runtime.rangerChargeTargetId;
+    delete runtime.rangerChargeTargetPending;
+    delete runtime.rangerChargeNextAt;
+    delete runtime.rangerChargeBuffUntil;
+    delete runtime.rangerChargeBuffPct;
+}
+
+function getTalentRangerChargeTarget(enemies) {
+    let runtime = game.talentCardRuntime;
+    if (!getActiveTalentRuntimeConfig('hero2__ranger') || !runtime || !runtime.rangerChargeTargetPending) return null;
+    return (Array.isArray(enemies) ? enemies : game.enemies || [])
+        .find(enemy => enemy && enemy.hp > 0 && enemy.id === runtime.rangerChargeTargetId) || null;
+}
+
+function isTalentRangerGuaranteedTarget(target) {
+    let runtime = getTalentCardRuntimeState();
+    return !!(getActiveTalentRuntimeConfig('hero2__ranger') && runtime.rangerChargeTargetPending
+        && target && target.id === runtime.rangerChargeTargetId);
+}
+
+function recordTalentRangerChargeHit(target, now) {
+    if (!isTalentRangerGuaranteedTarget(target)) return false;
+    let active = getActiveTalentRuntimeConfig('hero2__ranger');
+    let runtime = getTalentCardRuntimeState();
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    runtime.rangerChargeTargetPending = false;
+    delete runtime.rangerChargeTargetId;
+    runtime.rangerChargeBuffUntil = timestamp + active.config.buffDurationMs;
+    runtime.rangerChargeBuffPct = active.config.speedPctAtLevel10 * active.levelRatio;
+    return true;
+}
+
+function getTalentRangerChargeSpeedMultiplier(now) {
+    let runtime = getTalentCardRuntimeState();
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    if ((runtime.rangerChargeBuffUntil || 0) <= timestamp) return 1;
+    return 1 + Math.max(0, Number(runtime.rangerChargeBuffPct) || 0) / 100;
+}
+
+function getTalentExecutionOrderMultiplier(target) {
+    let active = getActiveTalentRuntimeConfig('hero2__inquisitor');
+    let marked = target && getTalentCardRuntimeState().executionOrders;
+    if (!active || !marked || !marked[target.id]) return 1;
+    return 1 + active.config.damagePctAtLevel10 * active.levelRatio / 100;
+}
+
+function markTalentExecutionOrder(target) {
+    if (!getActiveTalentRuntimeConfig('hero2__inquisitor') || !target || !(target.isBoss || target.isElite || target.elite)) return false;
+    let runtime = getTalentCardRuntimeState();
+    runtime.executionOrders = runtime.executionOrders || {};
+    if (runtime.executionOrders[target.id]) return false;
+    runtime.executionOrders[target.id] = true;
+    return true;
+}
+
+function getTalentFenrirConfig() {
+    return getActiveTalentRuntimeConfig('hero2__warlock');
+}
+
+function isTalentFenrirEngravingEnabled(skillName) {
+    return skillName === '기본 공격' && !!getTalentFenrirConfig();
+}
+
+function clearTalentCardRuntimeState() {
+    delete game.talentCardRuntime;
+}
+
 // 특정 조합 카드가 "열린 슬롯"에 장착돼 있으면 그 레벨을 반환(아니면 0). 정밀 메커니즘 게이트용.
 function isTalentCardActive(comboKey) {
     let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
@@ -397,6 +638,7 @@ function isTalentCardActive(comboKey) {
 function talentOnPlayerAttack(pStats, isCrit) {
     if (!game.talentRuntime || typeof game.talentRuntime !== 'object') game.talentRuntime = {};
     let rt = game.talentRuntime;
+    recordTalentMistralAttack();
     // 2 플레쳐: 3회째 공격마다 피해 +33% (이번 공격에만 적용되는 부스트)
     if (isTalentCardActive('hero1__gladiator')) {
         rt.fletcherCount = (Math.floor(rt.fletcherCount || 0) % 3) + 1;
@@ -585,3 +827,26 @@ function renderTalentTab() {
     }).join('');
     gridEl.innerHTML = loadoutHtml + cardsHtml;
 }
+
+safeExposeGlobals({
+    grantTalentStoneShield,
+    getTalentMoonReturnConfig,
+    canTalentCardApplyEnemyAilment,
+    getTalentShadowCritDamageMultiplier,
+    getTalentSummonCritChance,
+    rollTalentSummonCrit,
+    isTalentInstantWarcryActive,
+    getTalentSummonDamageMultiplier,
+    getTalentQuicksilverConfig,
+    getTalentConditionalDamageTakenMultiplier,
+    tickTalentRangerCharge,
+    getTalentRangerChargeTarget,
+    isTalentRangerGuaranteedTarget,
+    recordTalentRangerChargeHit,
+    getTalentRangerChargeSpeedMultiplier,
+    getTalentExecutionOrderMultiplier,
+    markTalentExecutionOrder,
+    getTalentFenrirConfig,
+    isTalentFenrirEngravingEnabled,
+    clearTalentCardRuntimeState
+});

@@ -80,6 +80,7 @@ function refreshItemIdCounter() {
 
 function createSaveSnapshot(sourceGame) {
     let snapshot = JSON.parse(JSON.stringify(sourceGame || game || {}));
+    delete snapshot.talentCardRuntime;
     if (!snapshot.saveMeta || typeof snapshot.saveMeta !== 'object') snapshot.saveMeta = {};
     return snapshot;
 }
@@ -87,7 +88,10 @@ function createSaveSnapshot(sourceGame) {
 function serializeSaveState(sourceGame) {
     // 로컬 저장은 직렬화된 문자열만 필요하다. 깊은 복제 후 다시 문자열화하면 큰 인벤토리에서
     // 같은 상태를 두 번 순회하고 대량의 임시 객체를 만들어 주기적인 GC 끊김을 유발한다.
-    return JSON.stringify(sourceGame || game || {});
+    let root = sourceGame || game || {};
+    let serializable = root && typeof root === 'object' ? { ...root } : {};
+    delete serializable.talentCardRuntime;
+    return JSON.stringify(serializable);
 }
 
 function createCloudSavePayload(sourceGame) {
@@ -141,6 +145,7 @@ function createCloudSaveRequestBody(userId, sourceGame) {
         realmDeathWard: null,
         realmInvulnerableBarrierUntil: 0
     };
+    delete payload.talentCardRuntime;
     return JSON.stringify({ user_id: userId, save_data: payload });
 }
 
@@ -176,6 +181,7 @@ function persistLocalSave(options = {}) {
         try {
             let sanitized = sanitizeForSave(game || {});
             if (!sanitized.saveMeta || typeof sanitized.saveMeta !== 'object') sanitized.saveMeta = {};
+            delete sanitized.talentCardRuntime;
             localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(sanitized));
             if (typeof addLog === 'function') addLog('💾 저장 데이터 정리 후 로컬 저장을 복구했습니다.', 'season-up');
         } catch (retryError) {

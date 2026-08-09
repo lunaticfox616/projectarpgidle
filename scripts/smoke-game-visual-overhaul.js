@@ -177,15 +177,36 @@ assert.ok(fs.existsSync('assets/effects/boss-telegraph-pulse-v1.png'), 'generate
 [
   'skill-whirlwind-v1.png', 'skill-chain-primary-v1.png', 'skill-chain-jump-v1.png',
   'skill-slam-primary-v1.png', 'skill-slam-aftershock-v1.png', 'skill-slash-v1.png',
-  'skill-projectile-v1.png', 'skill-burst-v1.png', 'skill-dot-field-v1.png',
+  'skill-projectile-v1.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
+  'skill-chaos-boomerang-v1.png', 'skill-burst-v1.png', 'skill-dot-field-v1.png',
   'skill-summon-strike-v1.png',
 ].forEach(file => assert.ok(fs.existsSync(`assets/effects/${file}`), `generated skill VFX ${file} should exist`));
 const skillVfxCoverage = vm.runInContext(`(() => {
   const gems = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
-  return { count: gems.length, missing: gems.filter(name => !SKILL_GEM_VFX_PROFILES[name]) };
+  const specs = gems.map(name => JSON.stringify(getSkillGemSigilSpec(name)));
+  return {
+    count: gems.length,
+    missing: gems.filter(name => !SKILL_GEM_VFX_PROFILES[name]),
+    missingSigil: gems.filter(name => !getSkillGemSigilSpec(name)),
+    uniqueSigils: new Set(specs).size,
+  };
 })()`, context);
 assert.ok(skillVfxCoverage.count >= 41, 'the active skill-gem roster should remain fully represented');
 assert.deepStrictEqual(Array.from(skillVfxCoverage.missing), [], 'every active skill gem should have an explicit image VFX profile');
+assert.deepStrictEqual(Array.from(skillVfxCoverage.missingSigil), [], 'every active skill gem should have a visible procedural sigil');
+assert.strictEqual(skillVfxCoverage.uniqueSigils, skillVfxCoverage.count, 'active skill gems should not share the same combat sigil');
+const sigilDrawCounts = vm.runInContext(`(() => {
+  function makeCtx() {
+    return { globalAlpha: 1, strokes: 0, fills: 0, save() {}, restore() {}, rotate() {}, beginPath() {},
+      arc() {}, moveTo() {}, lineTo() {}, stroke() { this.strokes++; }, fill() { this.fills++; } };
+  }
+  const slash = makeCtx();
+  const slam = makeCtx();
+  drawSkillGemSigil(slash, '연속 베기', 80, 0.5, 'phys');
+  drawSkillGemSigil(slam, '묵직한 강타', 80, 0.5, 'phys');
+  return { slash: [slash.strokes, slash.fills], slam: [slam.strokes, slam.fills] };
+})()`, context);
+assert.notDeepStrictEqual(Array.from(sigilDrawCounts.slash), Array.from(sigilDrawCounts.slam), 'different gems should render different sigil geometry');
 const skillGemArtCoverage = vm.runInContext(`(() => {
   const gems = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
   return {
@@ -199,6 +220,7 @@ assert.strictEqual(new Set(skillGemArtCoverage.paths).size, skillGemArtCoverage.
 skillGemArtCoverage.paths.forEach(file => assert.ok(fs.existsSync(file), `skill gem portrait ${file} should exist`));
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png'"), 'battle asset loader should preload skill VFX images');
+assert.ok(passiveSource.includes("skillFxFrostField: 'assets/effects/skill-frost-field-v1.png'"), 'battle asset loader should preload specialized combat pattern images');
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
 assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
 assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wood monster sheets should bypass legacy backdrop sanitization');
@@ -256,6 +278,16 @@ assert.ok(!battlefieldSource.includes('let connector = family === \'projectile\'
 assert.ok(battlefieldSource.includes("stageKind === 'chainJump'"), 'secondary chain hits should use their connector image');
 assert.ok(battlefieldSource.includes("stageKind === 'slamAftershock'"), 'delayed slam aftershocks should use their own image');
 assert.ok(battlefieldSource.includes('if (list.length > 96)'), 'skill image effects should retain a hard runtime allocation cap');
+const combatPatternImages = vm.runInContext(`[
+  getCombatTravelImageKey({ patternKind: 'field' }),
+  getCombatTravelImageKey({ patternKind: 'moving' }),
+  getCombatTravelImageKey({ patternKind: 'boomerang' }),
+  getCombatTravelImageKey({ patternKind: 'field', element: 'fire' }),
+  getCombatTravelImageKey({ owner: 'enemy', delivery: 'magicCell' })
+]`, context);
+assert.deepStrictEqual(Array.from(combatPatternImages), [
+  'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxDotField', 'bossTelegraphPulse'
+], 'real collision patterns should select their dedicated image assets');
 const stagedSkillVfx = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
   const player = { x: 100, y: 220 };
@@ -287,6 +319,16 @@ const travellingProjectile = vm.runInContext(`(() => {
 assert.ok(travellingProjectile && travellingProjectile.travel, 'projectile image should own a real travel phase');
 assert.strictEqual(travellingProjectile.arriveAt, 1400, 'projectile arrival should match the delayed damage frame');
 assert.ok(travellingProjectile.fromX < travellingProjectile.toX, 'projectile should move from the player toward the target');
+const fanProjectiles = vm.runInContext(`(() => {
+  battleVisualState.skillEffects = [];
+  const swing = { id: 201, projectile: true, skillName: '연발 사격', element: 'phys', start: 1000, duration: 400, impactAt: 1400 };
+  const entries = [{ enemy: { id: 'a' } }, { enemy: { id: 'b' } }, { enemy: { id: 'c' } }];
+  const map = { a: { x: 250, y: 210 }, b: { x: 210, y: 150 }, c: { x: 215, y: 275 } };
+  queueSkillGemProjectileLaunch(swing, entries, { x: 100, y: 220 }, map, 1);
+  return battleVisualState.skillEffects.map(effect => ({ toX: effect.toX, toY: effect.toY }));
+})()`, context);
+assert.strictEqual(fanProjectiles.length, 3, '산탄은 선택된 방향마다 실제 투사체 하나를 생성해야 한다');
+assert.strictEqual(new Set(fanProjectiles.map(effect => `${effect.toX},${effect.toY}`)).size, 3, '산탄 투사체는 서로 다른 방향으로 날아가야 한다');
 const annihilateSpawnOptions = vm.runInContext(`getAttackFxSpawnOpts(
   { element: 'fire', impactTier: 'annihilate', crit: false },
   { isBoss: false, isElite: false },
