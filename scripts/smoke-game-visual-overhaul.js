@@ -288,6 +288,30 @@ const combatPatternImages = vm.runInContext(`[
 assert.deepStrictEqual(Array.from(combatPatternImages), [
   'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxDotField', 'bossTelegraphPulse'
 ], 'real collision patterns should select their dedicated image assets');
+const optimizedAreaVfx = vm.runInContext(`(() => {
+  const counts = { meteorImages: 0, blizzardLines: 0, blizzardBounds: 0 };
+  battleAssets.images.skillFxSlamPrimary = { complete: true, naturalWidth: 64 };
+  const ctx = {
+    save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, arc() {}, stroke() {},
+    moveTo() {}, lineTo() { counts.blizzardLines++; }, strokeRect() { counts.blizzardBounds++; },
+    drawImage() { counts.meteorImages++; }
+  };
+  const targets = [{ x: 120, y: 160 }, { x: 260, y: 240 }];
+  drawCombatCellFx(ctx, {
+    start: 1000, duration: 720, patternKind: 'meteor', skillName: '유성 낙화'
+  }, 1230, 1460, targets, 'skillFxSlamPrimary', 'fire');
+  drawCombatCellFx(ctx, {
+    start: 1000, duration: 1400, patternKind: 'field', skillName: '난타 눈보라'
+  }, 1230, 1460, targets, 'skillFxFrostField', 'cold');
+  battleVisualState.skillEffects = [];
+  queueSkillGemVfx({ id: 700, skillName: '난타 눈보라', stageKind: 'fieldTick', element: 'cold' },
+    targets[0], { x: 20, y: 220 }, {}, 1230, 1);
+  return { ...counts, impactEffectCount: battleVisualState.skillEffects.length };
+})()`, context);
+assert.strictEqual(optimizedAreaVfx.meteorImages, 1, '유성 낙화는 낙하 중 큰 유성 이미지 하나만 그려야 한다');
+assert.strictEqual(optimizedAreaVfx.blizzardLines, 12, '난타 눈보라는 고정된 큰 이미지 대신 가벼운 눈보라 입자를 그려야 한다');
+assert.strictEqual(optimizedAreaVfx.blizzardBounds, 1, '눈보라의 실제 유지 범위는 한 번만 표시해야 한다');
+assert.strictEqual(optimizedAreaVfx.impactEffectCount, 0, '눈보라 매 타격마다 중복 폭발 이미지를 추가하면 안 된다');
 const stagedSkillVfx = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
   const player = { x: 100, y: 220 };
