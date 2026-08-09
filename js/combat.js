@@ -2959,7 +2959,8 @@ function getPlayerStats() {
         else if (effect.key === 'projectilePatternMode' && PROJECTILE_PATTERN_MODE_DB[ep.mode] && !projectilePatternEffect) {
             projectilePatternEffect = {
                 mode: ep.mode,
-                source: effect.itemName ? `고유 장비 · ${effect.itemName}` : '재능'
+                source: effect.itemName ? `고유 장비 · ${effect.itemName}` : '재능',
+                damageMultiplier: Number.isFinite(Number(ep.damageMultiplier)) ? Number(ep.damageMultiplier) : null
             };
         }
         else if (effect.key === 'hitApplyChaosResDown') uniqueChaosResDownOnHit = { perHit: Number(ep.perHit || 3), maxStacks: Number(ep.maxStacks || 10) };
@@ -3257,7 +3258,7 @@ function getPlayerStats() {
     let constellation = game.starWedge && game.starWedge.constellationBuff;
     if (constellation && constellation.stat) addStatToBucket(reward, constellation.stat, constellation.val || 0);
     let skill = getActiveSkillStats(gemSources.total);
-    if (projectilePatternEffect && !skill.projectilePatternSource) skill = applyProjectilePatternMode(skill, projectilePatternEffect.mode, projectilePatternEffect.source);
+    if (projectilePatternEffect && !skill.projectilePatternSource) skill = applyProjectilePatternMode(skill, projectilePatternEffect.mode, projectilePatternEffect.source, projectilePatternEffect.damageMultiplier);
     if (game.activeSkill === '기본 공격' && typeof getTalentFenrirConfig === 'function' && getTalentFenrirConfig()) {
         skill = { ...skill, name: '펜리르의 이빨', fenrirTooth: true };
     }
@@ -5094,7 +5095,7 @@ function getGemPresentation(name, isSupport) {
         ? stats.sSkill : null;
     let patternMode = activePattern && activePattern.projectilePattern
         ? activePattern.projectilePattern.mode : getSkyProjectilePatternMode(name);
-    if (patternMode) skill = applyProjectilePatternMode(skill, patternMode, activePattern ? activePattern.projectilePatternSource : '창공 각인');
+    if (patternMode) skill = applyProjectilePatternMode(skill, patternMode, activePattern ? activePattern.projectilePatternSource : '창공 각인', activePattern ? activePattern.projectilePatternDamageMultiplier : null);
     return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, permanentSkyBonus: permanentSkyBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources };
 }
 

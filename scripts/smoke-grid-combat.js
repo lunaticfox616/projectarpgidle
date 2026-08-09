@@ -233,6 +233,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.getSkillGridProfile('얼음 창', split).kind, 'fan', '분산 방식은 기존 직선 젬을 실제 부채꼴 판정으로 바꿔야 한다');
   assert.strictEqual(split.targets, 3, '분산 방식은 최소 세 방향의 대상을 확보해야 한다');
   assert.strictEqual(split.dmg, 72, '분산 방식의 피해 감폭은 실제 스킬 피해에 적용돼야 한다');
+  assert.strictEqual(context.applyProjectilePatternMode({ ...context.SKILL_DB['얼음 창'], dmg: 100 }, 'split', '재능', null).dmg, 72, '전용 배율이 없는 효과는 null이어도 각인 기본 배율을 유지해야 한다');
   assert.ok(context.describeSkillGridProfile('얼음 창', split).includes('적용: 테스트 각인'), '변경된 발사 방식과 출처를 툴팁에 표시해야 한다');
   const focused = context.applyProjectilePatternMode({ ...context.SKILL_DB['독니 사출'], dmg: 100 }, 'focus', '테스트 각인');
   assert.strictEqual(focused.targets, 1, '집속 방식은 대상 하나에만 투사체를 집중해야 한다');
@@ -270,19 +271,22 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     };
   };
   const patternWeapons = [
-    ['파편비 시위', 'split'],
-    ['일점 관통기', 'focus'],
-    ['귀로를 새긴 활', 'return'],
+    ['파편비 시위', 'split', 0.9],
+    ['일점 관통기', 'focus', 1.75],
+    ['귀로를 새긴 활', 'return', 1],
   ];
-  patternWeapons.forEach(([name, mode]) => {
+  patternWeapons.forEach(([name, mode, damageMultiplier]) => {
     resetGame();
     context.game.activeSkill = '얼음 창';
     context.game.skills = ['얼음 창'];
     context.game.gemData['얼음 창'] = { level: 1, exp: 0, quality: 0 };
+    const baseSkillDamage = context.getActiveSkillStats(0).dmg;
     context.game.equipment['무기'] = makeUniqueItem(name);
     const weaponStats = context.getPlayerStats();
     assert.strictEqual(weaponStats.sSkill.projectilePattern.mode, mode, `${name}은 실제 발사 방식을 ${mode}로 변경해야 한다`);
     assert.strictEqual(weaponStats.sSkill.projectilePatternSource, `고유 장비 · ${name}`, `${name}의 발사 방식 출처를 표시해야 한다`);
+    assert.strictEqual(weaponStats.sSkill.dmg, baseSkillDamage * damageMultiplier, `${name}은 각인보다 완화된 전용 피해 배율을 사용해야 한다`);
+    assert.strictEqual(context.getGemPresentation('얼음 창').skill.dmg, weaponStats.sSkill.dmg, `${name}의 완화된 배율을 젬 상세 화면에도 보존해야 한다`);
   });
   context.game.skyGemEnhancements = { '얼음 창': ['sky_projectile_focus'] };
   const engravedWeaponStats = context.getPlayerStats();

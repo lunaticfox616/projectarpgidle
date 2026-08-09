@@ -228,11 +228,17 @@ function isSkyEnhancementCompatibleWithSkill(enhanceId, skillName) {
     return tags.includes(enhancement.requiredTag);
 }
 
-function applyProjectilePatternMode(skill, mode, source) {
+function applyProjectilePatternMode(skill, mode, source, damageMultiplierOverride) {
     let config = PROJECTILE_PATTERN_MODE_DB[mode];
     let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
     if (!config || !tags.includes('projectile') || !config.kind) return skill;
-    let next = { ...skill, projectilePattern: { mode, kind: config.kind }, projectilePatternSource: source || '효과' };
+    let hasDamageMultiplierOverride = damageMultiplierOverride !== null
+        && damageMultiplierOverride !== undefined
+        && Number.isFinite(Number(damageMultiplierOverride));
+    let damageMultiplier = hasDamageMultiplierOverride
+        ? Number(damageMultiplierOverride)
+        : config.damageMultiplier;
+    let next = { ...skill, projectilePattern: { mode, kind: config.kind }, projectilePatternSource: source || '효과', projectilePatternDamageMultiplier: damageMultiplier };
     if (config.rays) next.projectilePattern.rays = config.rays;
     if (config.targetMode) next.targetMode = config.targetMode;
     if (config.targetLimit) next.targets = config.targetLimit;
@@ -240,7 +246,7 @@ function applyProjectilePatternMode(skill, mode, source) {
     if (config.extraProjectileDamagePct) next.extraProjectileDamagePct = config.extraProjectileDamagePct;
     if (next.combatPattern && next.combatPattern.kind === 'boomerang') delete next.combatPattern;
     if (config.combatPattern) next.combatPattern = { ...config.combatPattern };
-    if (Number.isFinite(next.dmg) && config.damageMultiplier) next.dmg *= config.damageMultiplier;
+    if (Number.isFinite(next.dmg) && Number.isFinite(damageMultiplier)) next.dmg *= damageMultiplier;
     return next;
 }
 
