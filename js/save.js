@@ -203,6 +203,12 @@ function persistLocalSave(options = {}) {
 
 function normalizeLocalRuntimeAfterLoad() {
     if (!game) return;
+    if (typeof ensureCombatTacticsUnlockState === 'function') ensureCombatTacticsUnlockState(game);
+    if (typeof normalizeCombatTacticsSettings === 'function') {
+        let tactics = normalizeCombatTacticsSettings(game.settings);
+        game.settings.combatTargetPriority = tactics.targetPriority;
+        game.settings.combatPositionMode = tactics.positionMode;
+    }
     let zone = (typeof getZone === 'function') ? getZone(game.currentZoneId) : null;
     if (!zone && typeof getAutoProgressZoneId === 'function') {
         game.currentZoneId = getAutoProgressZoneId(Math.max(0, Math.floor(game.maxZoneId || 0)));

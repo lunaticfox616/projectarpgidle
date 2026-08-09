@@ -1921,6 +1921,7 @@ function switchTab(tabId) {
             scheduleStableResize();
         }, 40);
     } else if (tabId === 'tab-settings') {
+        syncCombatTacticsSettingsControls();
         renderTabOrderSettings();
     }
 }
@@ -5890,6 +5891,22 @@ async function openMapCompleteActionPicker(event) {
 
 safeExposeGlobals({ openMapCompleteActionPicker });
 
+function syncCombatTacticsSettingsControls() {
+    let targetSelect = document.getElementById('sel-combat-target-priority');
+    let positionSelect = document.getElementById('sel-combat-position-mode');
+    let help = document.getElementById('combat-tactics-help');
+    if (!targetSelect || !positionSelect) return;
+    let tactics = normalizeCombatTacticsSettings(game.settings);
+    let unlocked = !!game.combatTacticsUnlocked;
+    targetSelect.value = tactics.targetPriority;
+    positionSelect.value = tactics.positionMode;
+    targetSelect.disabled = !unlocked;
+    positionSelect.disabled = !unlocked;
+    if (help) help.textContent = unlocked
+        ? '전술 이동이 실제로 발생하면 이동 속도에 따라 다음 공격이 0.3~0.65초 미뤄집니다.'
+        : '액트 3을 처음 클리어하면 영구 해금됩니다.';
+}
+
 function updateSettings() {
     let previousSocialChatNotifications = game.settings.socialChatNotifications !== false;
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
@@ -5918,6 +5935,16 @@ function updateSettings() {
     game.settings.pauseGameOnOverlay = !!(pauseOverlayCheckbox && pauseOverlayCheckbox.checked);
     let autoEquipCheckbox = document.getElementById('chk-auto-equip-empty');
     game.settings.autoEquipEmptySlots = !autoEquipCheckbox || autoEquipCheckbox.checked;
+    if (game.combatTacticsUnlocked) {
+        let targetSelect = document.getElementById('sel-combat-target-priority');
+        let positionSelect = document.getElementById('sel-combat-position-mode');
+        let tactics = normalizeCombatTacticsSettings({
+            combatTargetPriority: targetSelect && targetSelect.value,
+            combatPositionMode: positionSelect && positionSelect.value
+        });
+        game.settings.combatTargetPriority = tactics.targetPriority;
+        game.settings.combatPositionMode = tactics.positionMode;
+    }
     let damageFormatSelect = document.getElementById('sel-damage-number-format');
     let damageFormat = damageFormatSelect ? damageFormatSelect.value : game.settings.damageNumberFormat;
     game.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(damageFormat) ? damageFormat : 'comma';
@@ -15048,6 +15075,7 @@ function init() {
     if (socialChatNotiCheckboxInit) socialChatNotiCheckboxInit.checked = game.settings.socialChatNotifications !== false;
     document.getElementById('chk-pause-overlay').checked = !!game.settings.pauseGameOnOverlay;
     document.getElementById('chk-auto-equip-empty').checked = game.settings.autoEquipEmptySlots !== false;
+    syncCombatTacticsSettingsControls();
     document.getElementById('chk-two-row-tabs').checked = !!game.settings.twoRowTabs;
     document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';
     document.getElementById('chk-exp-comma').checked = game.settings.showExpComma !== false;

@@ -20,6 +20,42 @@ const COMBAT_PROJECTILE_MIN_TRAVEL_MS = 120;
 const COMBAT_PROJECTILE_MS_PER_CELL = 55;
 let pendingSkillStageHits = [];
 let pendingEnemyCombatAttacks = [];
+const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
+const COMBAT_TACTIC_STALL_MS = 2000;
+const COMBAT_TACTIC_MAX_RETREATS = 2;
+let combatTacticsRuntime = createCombatTacticsRuntime();
+
+function createCombatTacticsRuntime(now) {
+    let timestamp = Number.isFinite(now) ? now : Date.now();
+    return {
+        encounterKey: '', targetId: null, targetLockedUntil: 0,
+        attackDelayUntil: 0, nextMoveAt: 0, walkingUntil: 0,
+        lastAttackAt: timestamp, previousCell: null, consecutiveRetreats: 0
+    };
+}
+
+function resetCombatTacticsRuntime() {
+    combatTacticsRuntime = createCombatTacticsRuntime();
+}
+
+function getTacticalMoveAttackDelayMs(moveSpeed) {
+    let speed = Number.isFinite(moveSpeed) && moveSpeed > 0 ? moveSpeed : 100;
+    return Math.round(Math.max(300, Math.min(650, 500 * Math.sqrt(100 / speed))));
+}
+
+function syncCombatTacticsEncounterRuntime() {
+    let key = `${game.currentZoneId}:${Math.max(0, Math.floor(game.encounterIndex || 0))}`;
+    if (combatTacticsRuntime.encounterKey === key) return;
+    combatTacticsRuntime = createCombatTacticsRuntime();
+    combatTacticsRuntime.encounterKey = key;
+}
+
+function noteCombatTacticAttack(attackMotionMs) {
+    let now = Date.now();
+    combatTacticsRuntime.lastAttackAt = now;
+    combatTacticsRuntime.consecutiveRetreats = 0;
+    combatTacticsRuntime.nextMoveAt = Math.max(combatTacticsRuntime.nextMoveAt, now + Math.max(0, attackMotionMs || 0));
+}
 
 function applyCritDamageSoftcap(rawCritDamage) {
     let raw = Math.max(0, Number(rawCritDamage) || 0);
@@ -959,7 +995,7 @@ function runColonyDefenseTick(pStats) {
     tickEnemyDotEffects(pStats, 0.1);
     tickEnemyAilments(pStats, 0.1);
     let nowCast = Date.now();
-    let castUntil = Math.floor(game.playerCastDelayUntil || 0);
+    let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0);
     let castBlocked = nowCast < castUntil;
     if (!castBlocked) pTimer += 0.1 * pStats.aspd;
     while (!castBlocked && pTimer >= 1.0 && (game.enemies || []).length > 0) {
@@ -2360,7 +2396,7 @@ function coreLoop() {
         tickEnemyDotEffects(pStats, 0.1);
         tickEnemyAilments(pStats, 0.1);
         let nowCast = Date.now();
-        let castUntil = Math.floor(game.playerCastDelayUntil || 0);
+        let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0);
         if (!Number.isFinite(castUntil) || castUntil < 0) castUntil = 0;
         if (castUntil > nowCast + 5000) { castUntil = nowCast + 500; game.playerCastDelayUntil = castUntil; }
         let castBlocked = nowCast < castUntil;
@@ -5112,7 +5148,50 @@ function getSkillTargets(pStats) {
         let rays = Math.min(8, Math.max(1, Math.floor(pattern.rays || 1)) + Math.floor(pStats.projectileExtraShots));
         skill = { ...skill, targets: rays, projectilePattern: { ...pattern, rays } };
     }
-    return selectGridSkillTargets(game.activeSkill, skill, game.gridPlayer, chargeTarget ? [chargeTarget] : alive);
+    let now = Date.now();
+    let tactics = game.combatTacticsUnlocked ? normalizeCombatTacticsSettings(game.settings) : null;
+    let options = tactics ? {
+        targetPriority: tactics.targetPriority,
+        preferredEnemyId: now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null
+    } : null;
+    let targets = selectGridSkillTargets(game.activeSkill, skill, game.gridPlayer, chargeTarget ? [chargeTarget] : alive, options);
+    if (tactics && !chargeTarget && targets.length > 0 && String(targets[0].enemy.id) !== String(combatTacticsRuntime.targetId)) {
+        combatTacticsRuntime.targetId = targets[0].enemy.id;
+        combatTacticsRuntime.targetLockedUntil = now + COMBAT_TACTIC_TARGET_LOCK_MS;
+    }
+    return targets;
+}
+
+function getPlayerTacticalMovePlan(pStats, target) {
+    let tactics = normalizeCombatTacticsSettings(game.settings);
+    if (tactics.positionMode === 'auto') return null;
+    let profile = getSkillGridProfile(game.activeSkill, pStats.sSkill);
+    let distance = gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, target.gx, target.gy);
+    if (tactics.positionMode === 'pressure') return distance > 1 ? { direction: 'toward', range: profile.range } : null;
+    let desiredRange = Math.max(1, Math.floor(Number(profile.range) || 1));
+    return desiredRange > 1 && distance < desiredRange ? { direction: 'away', range: desiredRange } : null;
+}
+
+function tryPlayerTacticalMove(pStats, target, plan, now) {
+    if (!plan || now < combatTacticsRuntime.nextMoveAt) return false;
+    if (plan.direction === 'away' && combatTacticsRuntime.consecutiveRetreats >= COMBAT_TACTIC_MAX_RETREATS) return false;
+    let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
+    let result = advanceGridTacticalMovement(game.gridPlayer, target, {
+        direction: plan.direction,
+        maxRange: plan.range,
+        previousCell: combatTacticsRuntime.previousCell,
+        dtSec: 0.1,
+        intervalSec: COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed)
+    });
+    if (!result.moved) return false;
+    let delayMs = getTacticalMoveAttackDelayMs(moveSpeed);
+    combatTacticsRuntime.previousCell = result.from;
+    combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, now + delayMs);
+    combatTacticsRuntime.nextMoveAt = now + delayMs;
+    combatTacticsRuntime.walkingUntil = now + Math.min(300, delayMs);
+    if (result.retreat) combatTacticsRuntime.consecutiveRetreats++;
+    game.gridPlayerPursuing = true;
+    return true;
 }
 
 /**
@@ -5124,7 +5203,16 @@ function getSkillTargets(pStats) {
 function updatePlayerGridEngagement(pStats) {
     let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
     if (alive.length === 0) { game.gridPlayerPursuing = false; return false; }
-    if (getSkillTargets(pStats).length > 0) { game.gridPlayerPursuing = false; return true; }
+    syncCombatTacticsEncounterRuntime();
+    let targets = getSkillTargets(pStats);
+    if (targets.length > 0) {
+        let now = Date.now();
+        let stalled = now - combatTacticsRuntime.lastAttackAt >= COMBAT_TACTIC_STALL_MS;
+        let plan = game.combatTacticsUnlocked && !stalled ? getPlayerTacticalMovePlan(pStats, targets[0].enemy) : null;
+        if (tryPlayerTacticalMove(pStats, targets[0].enemy, plan, now)) return false;
+        game.gridPlayerPursuing = now < combatTacticsRuntime.walkingUntil;
+        return true;
+    }
     let nearest = typeof getTalentRangerChargeTarget === 'function' ? getTalentRangerChargeTarget(alive) : null;
     if (!nearest) nearest = findNearestGridEnemy(game.gridPlayer, alive);
     if (!nearest) { game.gridPlayerPursuing = false; return false; }
@@ -5145,7 +5233,7 @@ function updatePlayerGridEngagement(pStats) {
 function isPlayerWalkingForAnimation() {
     let enemiesAlive = (game.enemies || []).some(enemy => enemy && enemy.hp > 0);
     if (!enemiesAlive) return game.moveTimer <= 0 && game.runProgress < 100;
-    return !!game.gridPlayerPursuing;
+    return !!game.gridPlayerPursuing || Date.now() < combatTacticsRuntime.walkingUntil;
 }
 
 
@@ -6833,6 +6921,7 @@ function applyCosmosAstraStance(enemy) {
 
 function startEncounterRun() {
     pTimer = 0;
+    resetCombatTacticsRuntime();
     progressStallTicks = 0;
     game.runProgress = 0;
     game.encounterIndex = 0;
@@ -6853,6 +6942,7 @@ function startEncounterRun() {
 
 function startMoving(isTown) {
     pTimer = 0;
+    resetCombatTacticsRuntime();
     progressStallTicks = 0;
     if (typeof clearTalentCardRuntimeState === 'function') clearTalentCardRuntimeState();
     expireActiveFlaskEffects();
@@ -8203,7 +8293,13 @@ function finishEncounterRun() {
             if (zone.id === 1) addLog('📖 정원사의 불멸 앞에서 패배를 기록했지만, 전진을 위한 보상은 확보했다.', 'season-up');
             if (zone.id === 0) unlockJournalEntry('act_1');
             if (zone.id === 1) unlockJournalEntry('act_2');
-            if (zone.id === 2) unlockJournalEntry('act_3');
+            if (zone.id === 2) {
+                unlockJournalEntry('act_3');
+                if (ensureCombatTacticsUnlockState(game)) {
+                    addLog('🎯 전투 전술이 해금되었습니다. 설정에서 대상 우선순위와 위치 운용을 선택할 수 있습니다.', 'season-up');
+                    queueTutorialNotice('combat_tactics_unlock', '전투 전술 해금', '대상 우선순위와 위치 운용을 설정할 수 있습니다. 전술 이동 중에는 다음 공격이 잠시 미뤄집니다.', 'tab-settings');
+                }
+            }
             if (zone.id === 3) unlockJournalEntry('act_4');
             if (zone.id === 4) unlockJournalEntry('act_5');
             if (zone.id === 5) unlockJournalEntry('act_6');
@@ -8462,6 +8558,7 @@ function performPlayerAttack(pStats, attackOptions) {
     // enough time to be visible. Slams deliberately carry the longest wind-up.
     let attackMotionMs = attackTags.includes('slam') ? 460 : (attackTags.includes('projectile') ? 400 : 360);
     if (!isStageReplay) {
+        noteCombatTacticAttack(attackMotionMs);
         addBattleFx('playerSwing', {
             color: getElementColor(swingElement),
             element: swingElement,
@@ -10727,4 +10824,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ isPlayerWalkingForAnimation, getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ isPlayerWalkingForAnimation, getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });

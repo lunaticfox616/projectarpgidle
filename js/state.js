@@ -1932,6 +1932,30 @@ function grantLoopBaseExpertExp(){
 }
 function hasExpertTreeUnlocked(){ return getExpertPointTotal() > 0; }
 
+const COMBAT_TACTIC_TARGET_PRIORITIES = Object.freeze(['nearest', 'weakest', 'dangerous', 'dense']);
+const COMBAT_TACTIC_POSITION_MODES = Object.freeze(['auto', 'pressure', 'keepRange']);
+
+function normalizeCombatTacticsSettings(settings) {
+    let target = settings && COMBAT_TACTIC_TARGET_PRIORITIES.includes(settings.combatTargetPriority)
+        ? settings.combatTargetPriority : 'nearest';
+    let position = settings && COMBAT_TACTIC_POSITION_MODES.includes(settings.combatPositionMode)
+        ? settings.combatPositionMode : 'auto';
+    return { targetPriority: target, positionMode: position };
+}
+
+function hasCombatTacticsUnlockProgress(state) {
+    if (!state || typeof state !== 'object') return false;
+    let journal = Array.isArray(state.journalUnlocked) ? state.journalUnlocked : [];
+    let claimed = Array.isArray(state.claimedActRewards) ? state.claimedActRewards : [];
+    return journal.includes('act_3') || claimed.includes(2) || Math.floor(Number(state.maxZoneId) || 0) >= 3;
+}
+
+function ensureCombatTacticsUnlockState(state) {
+    if (!state || state.combatTacticsUnlocked || !hasCombatTacticsUnlockProgress(state)) return false;
+    state.combatTacticsUnlocked = true;
+    return true;
+}
+
 const defaultGame = {
     saveVersion: 16,
     loopChallenge: null,
@@ -1940,6 +1964,7 @@ const defaultGame = {
     exp: 0,
     season: 1,
     loopCount: 0,
+    combatTacticsUnlocked: false,
     woodsmanDefeatAttempts: 0,
     woodsmanSimulatorSeenLoop: false,
     woodsmanEntrancePending: false,
@@ -2003,6 +2028,8 @@ const defaultGame = {
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         mapCompleteAction: 'nextZone',
         townReturnAction: 'retry',
+        combatTargetPriority: 'nearest',
+        combatPositionMode: 'auto',
         tabNotiEnabled: true,
         socialChatNotifications: true,
         notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
@@ -2209,7 +2236,11 @@ const defaultGame = {
 };
 
 
-safeExposeGlobals({ defaultGame, hasPermanentTalentTabUnlock, syncPermanentTalentTabUnlock });
+safeExposeGlobals({
+    defaultGame, hasPermanentTalentTabUnlock, syncPermanentTalentTabUnlock,
+    COMBAT_TACTIC_TARGET_PRIORITIES, COMBAT_TACTIC_POSITION_MODES,
+    normalizeCombatTacticsSettings, hasCombatTacticsUnlockProgress, ensureCombatTacticsUnlockState
+});
 
 // Phase-4 extracted progression math helpers.
 function getExpReq(level) {
