@@ -2492,10 +2492,12 @@ function getSkillCombatDelivery(skill) {
     return 'instantTarget';
 }
 
-function getCombatTravelMs(sourceCell, targetCell) {
-    if (!sourceCell || !targetCell) return COMBAT_PROJECTILE_MIN_TRAVEL_MS;
-    let distance = gridChebyshevDist(sourceCell.gx, sourceCell.gy, targetCell.gx, targetCell.gy);
-    return COMBAT_PROJECTILE_MIN_TRAVEL_MS + distance * COMBAT_PROJECTILE_MS_PER_CELL;
+function getCombatTravelMs(sourceCell, targetCell, skill) {
+    let distance = sourceCell && targetCell
+        ? gridChebyshevDist(sourceCell.gx, sourceCell.gy, targetCell.gx, targetCell.gy) : 0;
+    let baseTravelMs = COMBAT_PROJECTILE_MIN_TRAVEL_MS + distance * COMBAT_PROJECTILE_MS_PER_CELL;
+    let multiplier = clampNumber(Number(skill && skill.projectileTravelTimeMultiplier) || 1, 0.15, 2);
+    return Math.max(36, Math.round(baseTravelMs * multiplier));
 }
 
 function getPendingSkillCollisionCells(row) {
@@ -2544,7 +2546,7 @@ function addPendingSkillTravelFx(row, attackContext, now) {
     addBattleFx('combatTravel', fx);
     let options = row.options || {};
     if (options.stageKind !== 'boomerangReturn' || options.stageIndex !== options.stageCount - 1) return;
-    let returnMs = getCombatTravelMs(row.targetCells[0], copyCombatGridCell(game.gridPlayer));
+    let returnMs = getCombatTravelMs(row.targetCells[0], copyCombatGridCell(game.gridPlayer), row.pStats && row.pStats.sSkill);
     addBattleFx('combatTravel', {
         ...fx, sourceCell: row.targetCells[0], targetCells: [copyCombatGridCell(game.gridPlayer)],
         targetIds: [], releaseDelayMs: Math.max(0, row.at - now), flightMs: returnMs,
@@ -2573,7 +2575,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             : (stageDelivery === 'magicMoving' ? baseDelay + stageDelay : 0);
         let launchAt = now + releaseDelay + stageDelay;
         if (stageDelivery === 'magicMoving') launchAt = now + releaseDelay;
-        let travelMs = stageDelivery.startsWith('projectile') ? getCombatTravelMs(sourceCell, targetCells[0])
+        let travelMs = stageDelivery.startsWith('projectile') ? getCombatTravelMs(sourceCell, targetCells[0], pStats.sSkill)
             : (stageDelivery === 'magicMoving' ? Math.max(80, Number(pStats.sSkill.combatPattern.intervalMs) || 160) : baseDelay);
         let row = {
             at: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt + travelMs : now + baseDelay + stageDelay,

@@ -367,6 +367,12 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(slam[1].damageMultiplier, 0.38, '묵직한 강타의 여진 피해 배율을 사용해야 한다');
   assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('묵직한 강타', context.SKILL_DB['묵직한 강타']), 1, '판정 세분화만으로 표시 DPS가 증가하면 안 된다');
 
+  const meteor = context.buildSkillHitSequence('유성 낙화', context.SKILL_DB['유성 낙화'], targets);
+  assert.strictEqual(meteor.length, 1, '유성 낙화는 유성과 여진을 중복 생성하지 않고 한 번만 충돌해야 한다');
+  assert.strictEqual(meteor[0].kind, 'meteorImpact', '유성 낙화는 전용 단일 충돌 단계로 판정해야 한다');
+  assert.strictEqual(meteor[0].damageMultiplier, 1, '단일 유성 충돌이 기존 총 피해를 모두 보존해야 한다');
+  assert.ok(meteor[0].impactCells.length > targets.length, '유성 하나가 충돌 지점의 전체 범위를 판정해야 한다');
+
   const field = context.buildSkillHitSequence('난타 눈보라', context.SKILL_DB['난타 눈보라'], targets);
   assert.strictEqual(field.length, 4, '지속 장판은 설정한 횟수만큼 실제 타격 단계를 가져야 한다');
   assert.strictEqual(field.map(stage => stage.delayMs).join(','), '0,300,600,900', '장판 타격 간격을 지켜야 한다');
@@ -470,6 +476,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['연발 사격']), 'projectileTarget');
   assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['서리 폭발']), 'magicCell');
   assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['기본 공격']), 'instantTarget');
+  const normalTravelMs = context.getCombatTravelMs({ gx: 0, gy: 0 }, { gx: 7, gy: 7 });
+  const iceSpearTravelMs = context.getCombatTravelMs({ gx: 0, gy: 0 }, { gx: 7, gy: 7 }, context.SKILL_DB['얼음 창']);
+  assert.ok(iceSpearTravelMs <= 150, '얼음 창은 전장 끝까지도 매우 빠르게 도착해야 한다');
+  assert.ok(iceSpearTravelMs < normalTravelMs / 3, '얼음 창의 실제 피해 판정도 일반 투사체보다 세 배 넘게 빨라야 한다');
 
   resetGame();
   context.game.enemies = [makeEnemy(550, 2, 2), makeEnemy(551, 3, 2), makeEnemy(552, 4, 2), makeEnemy(553, 5, 2)];
@@ -502,6 +512,26 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(fieldTarget.hp, fieldTarget.maxHp, '장판 밖으로 이동한 적은 다음 틱을 맞으면 안 된다');
   assert.ok(fieldEntrant.hp < fieldEntrant.maxHp, '유지 중인 장판 칸에 새로 들어온 적이 다음 틱을 맞아야 한다');
   vm.runInContext('pendingSkillStageHits = [];', context);
+
+  resetGame();
+  context.game.activeSkill = '유성 낙화';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '유성 낙화']));
+  context.game.gemData['유성 낙화'] = { level: 1, exp: 0, quality: 0 };
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const meteorTargets = [makeEnemy(600, 3, 6), makeEnemy(601, 3, 5)];
+  meteorTargets.forEach(enemy => { enemy.hp = enemy.maxHp = 1000000; });
+  context.game.enemies = meteorTargets;
+  const meteorStats = context.getPlayerStats();
+  meteorStats.baseDmg = 1000;
+  meteorStats.minDmgRoll = meteorStats.maxDmgRoll = 100;
+  meteorStats.accuracy = 1000000;
+  context.performPlayerAttack(meteorStats);
+  const meteorRows = vm.runInContext("pendingSkillStageHits.filter(row => row.patternKind === 'meteor')", context);
+  const meteorTravelFx = vm.runInContext("battleFx.filter(fx => fx.type === 'combatTravel' && fx.patternKind === 'meteor')", context);
+  assert.strictEqual(meteorRows.length, 1, '실제 유성 공격도 대기 중인 피해 단계를 하나만 만들어야 한다');
+  assert.strictEqual(meteorTravelFx.length, 1, '실제 유성 공격도 낙하 이펙트를 하나만 만들어야 한다');
+  vm.runInContext('pendingSkillStageHits[0].at = 0; processPendingSkillStageHits();', context);
+  assert.ok(meteorTargets.every(enemy => enemy.hp < enemy.maxHp), '단일 유성이 충돌 범위의 모든 선택 대상에게 피해를 줘야 한다');
 
   resetGame();
   context.game.activeSkill = '관통 사격';

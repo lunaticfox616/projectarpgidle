@@ -218,6 +218,7 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
     let profile = getSkillGemVfxProfile(fx.skillName);
     if (!profile) return;
     let stageKind = String(fx.stageKind || 'primary');
+    if (profile.impactVfx === false || stageKind === 'meteorImpact') return;
     let family = getSkillGemVfxStageFamily(profile, stageKind);
     if (profile.family === 'projectile' && stageKind !== 'chainJump' && hasMatchingTravelProjectile(fx.skillName, now)) return;
     let imageKey = SKILL_GEM_VFX_IMAGE_KEYS[family] || SKILL_GEM_VFX_IMAGE_KEYS.slash;
@@ -360,8 +361,82 @@ function isSpecializedCombatTravelImage(imageKey) {
         SKILL_GEM_VFX_IMAGE_KEYS.chaosBoomerang].includes(imageKey);
 }
 
+function getCombatAreaBounds(targets) {
+    let bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+    targets.forEach(target => {
+        bounds.minX = Math.min(bounds.minX, target.x);
+        bounds.maxX = Math.max(bounds.maxX, target.x);
+        bounds.minY = Math.min(bounds.minY, target.y);
+        bounds.maxY = Math.max(bounds.maxY, target.y);
+    });
+    bounds.x = (bounds.minX + bounds.maxX) / 2;
+    bounds.y = (bounds.minY + bounds.maxY) / 2;
+    return bounds;
+}
+
+function drawBlizzardCombatFx(ctx, now, targets) {
+    let bounds = getCombatAreaBounds(targets);
+    let width = Math.max(70, bounds.maxX - bounds.minX + 48);
+    let height = Math.max(52, bounds.maxY - bounds.minY + 34);
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.strokeStyle = '#b8ecff';
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.26;
+    ctx.strokeRect(bounds.x - width / 2, bounds.y - height / 2, width, height);
+    ctx.beginPath();
+    for (let index = 0; index < 12; index++) {
+        let phase = (now / 820 + index * 0.271) % 1;
+        let lane = ((index * 37) % 101) / 100;
+        let x = bounds.x - width / 2 + lane * width + Math.sin(phase * Math.PI * 2 + index) * 9;
+        let y = bounds.y - height / 2 + phase * height;
+        ctx.moveTo(x - 4, y - 3);
+        ctx.lineTo(x + 3, y + 4);
+    }
+    ctx.globalAlpha = 0.48;
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawMeteorCombatFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
+    let bounds = getCombatAreaBounds(targets);
+    let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
+    let impactFade = now <= arriveAt ? 0 : clampNumber((fx.start + fx.duration - now) / 260, 0, 1);
+    let image = getSkillGemVfxImage(imageKey);
+    let size = 138 + progress * 38;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.filter = getSkillGemVfxFilter(element, imageKey);
+    if (now <= arriveAt) {
+        ctx.translate(bounds.x - (1 - progress) * 92, bounds.y - (1 - progress) * 210);
+        ctx.rotate(progress * 0.42);
+        ctx.globalAlpha = 0.9;
+        if (image) ctx.drawImage(image, -size / 2, -size / 2, size, size);
+    } else {
+        let radius = Math.max(46, Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) / 2 + 34);
+        ctx.translate(bounds.x, bounds.y);
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = impactFade * 0.72;
+        ctx.strokeStyle = getElementColor(element);
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * (1.08 - impactFade * 0.18), 0, Math.PI * 2);
+        ctx.stroke();
+        drawSkillGemSigil(ctx, fx.skillName, Math.min(132, radius * 1.6), 1 - impactFade, element);
+    }
+    ctx.restore();
+}
+
 function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
     if (targets.length <= 0) return;
+    if (fx.patternKind === 'meteor') {
+        drawMeteorCombatFx(ctx, fx, now, arriveAt, targets, imageKey, element);
+        return;
+    }
+    if (fx.patternKind === 'field' && fx.skillName === '난타 눈보라') {
+        drawBlizzardCombatFx(ctx, now, targets);
+        return;
+    }
     let image = getSkillGemVfxImage(imageKey);
     let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
     let fade = now <= arriveAt ? 0.24 + progress * 0.42
@@ -369,12 +444,9 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
     let drawTargets = targets;
     let size = fx.owner === 'enemy' ? 92 : 78;
     if (fx.patternKind === 'field') {
-        let minX = Math.min(...targets.map(target => target.x));
-        let maxX = Math.max(...targets.map(target => target.x));
-        let minY = Math.min(...targets.map(target => target.y));
-        let maxY = Math.max(...targets.map(target => target.y));
-        drawTargets = [{ x: (minX + maxX) / 2, y: (minY + maxY) / 2 }];
-        size = Math.max(110, maxX - minX + 78, maxY - minY + 78);
+        let bounds = getCombatAreaBounds(targets);
+        drawTargets = [{ x: bounds.x, y: bounds.y }];
+        size = Math.max(110, bounds.maxX - bounds.minX + 78, bounds.maxY - bounds.minY + 78);
         fade = 0.38 + Math.sin(now / 150) * 0.06;
     }
     drawTargets.forEach(target => {
@@ -460,7 +532,8 @@ function drawSkillGemVfxLayer(ctx, now) {
             let height = effect.size * 0.52;
             ctx.translate(x, y);
             ctx.rotate(effect.rotation || 0);
-            for (let trail = 3; trail >= 1; trail--) {
+            let trailCount = list.length > 48 ? 0 : (list.length > 24 ? 1 : 2);
+            for (let trail = trailCount; trail >= 1; trail--) {
                 ctx.globalAlpha *= 0.28;
                 ctx.drawImage(image, -width / 2 - trail * 7, -height / 2, width * (1 - trail * 0.07), height * (1 - trail * 0.08));
                 ctx.globalAlpha /= 0.28;

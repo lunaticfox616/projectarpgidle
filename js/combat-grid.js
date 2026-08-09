@@ -404,12 +404,19 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     let pattern = skill && skill.combatPattern;
     if (!pattern) return null;
     let intervalMs = Math.max(40, Math.floor(Number(pattern.intervalMs) || 160));
+    let attacker = (typeof game !== 'undefined' && game.gridPlayer) ? game.gridPlayer : null;
+    let primary = targets[0] && targets[0].enemy;
+    let impactCells = attacker && primary
+        ? getGridAttackAreaCells(getSkillGridProfile(skillName, skill), attacker, primary) : [];
+    if (pattern.kind === 'meteor') {
+        return [{
+            kind: 'meteorImpact', label: '유성 충돌', delayMs: 0,
+            damageMultiplier: 1, impactCells, targets
+        }];
+    }
     if (pattern.kind === 'field') {
         let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
         let damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
-        let attacker = (typeof game !== 'undefined' && game.gridPlayer) ? game.gridPlayer : null;
-        let primary = targets[0] && targets[0].enemy;
-        let impactCells = attacker && primary ? getGridAttackAreaCells(getSkillGridProfile(skillName, skill), attacker, primary) : [];
         return Array.from({ length: hits }, (_, idx) => ({
             kind: idx === 0 ? 'fieldStart' : 'fieldTick', label: `장판 ${idx + 1}회`,
             delayMs: idx * intervalMs, damageMultiplier, singleRepeat: true, impactCells, targets
