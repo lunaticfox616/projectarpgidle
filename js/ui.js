@@ -4559,6 +4559,7 @@ function renderAttackGemCard(name, highlightedName) {
     let def = SKILL_DB[name] || {};
     let gemInfo = getUiGemPresentation(name, false);
     let meta = getGemCardMeta(def);
+    let rangeText = typeof describeSkillGridProfile === 'function' ? describeSkillGridProfile(name, gemInfo.skill || def) : '';
     let isSummon = Array.isArray(def.tags) && def.tags.includes('summon_attack');
     let summonEquipped = isSummon && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name);
     let active = name === game.activeSkill || summonEquipped;
@@ -4571,6 +4572,7 @@ function renderAttackGemCard(name, highlightedName) {
         ${tutorialGuide}
         <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${escapeHTML(def.desc || '공격 스킬 젬')}</p>
+        ${rangeText ? `<div class="gem-card-range">${escapeHTML(rangeText)}</div>` : ''}
         <div class="gem-card-tags">${renderGemTagChips(def, 4)}</div>
         <div class="gem-card-footer"><span class="gem-usage-state">${active ? '● ' : ''}${usageLabel}</span>${summonControls}${sealButton}</div>
     </article>`;
@@ -4618,6 +4620,7 @@ function renderGemResearchCandidate(kind, name, cost, availableFragments) {
     let meta = getGemCardMeta(def);
     let encodedName = encodeURIComponent(name);
     let affordable = availableFragments >= cost;
+    let rangeText = !isSupport && typeof describeSkillGridProfile === 'function' ? describeSkillGridProfile(name, def) : '';
     let tags = renderGemTagChips(def, 3);
     if (!tags && isSupport) {
         tags = `<span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || '') || '보조 효과')}</span>`;
@@ -4626,6 +4629,7 @@ function renderGemResearchCandidate(kind, name, cost, availableFragments) {
     return `<article class="gem-research-card element-${meta.className}">
         <div class="gem-research-card-head">${art}<div><small>${isSupport ? '보조 젬' : `${meta.elementLabel} · ${meta.typeLabel}`}</small><strong>${escapeHTML(name)}</strong></div></div>
         <p>${escapeHTML(def.desc || '연구를 완료하면 보유 젬 목록에 추가됩니다.')}</p>
+        ${rangeText ? `<div class="gem-card-range">${escapeHTML(rangeText)}</div>` : ''}
         <div class="gem-card-tags">${tags}</div>
         <button type="button" onclick="researchMissingGem('${kind}', decodeURIComponent('${encodedName}'))" ${affordable ? '' : 'disabled'}>
             ${affordable ? `확정 연구 · 잔향 ${cost}` : `잔향 부족 · ${availableFragments}/${cost}`}
@@ -4761,6 +4765,7 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
 
 function getSkyEnhancementGlyph(enhancement) {
     let stat = String((enhancement && enhancement.stat) || '');
+    if (stat === 'projectilePattern') return '⑂';
     if (stat.includes('crit')) return '✧';
     if (stat.includes('aspd')) return '»';
     if (stat.includes('leech')) return '◉';
@@ -4773,6 +4778,7 @@ function getSkyEnhancementGlyph(enhancement) {
 }
 
 function getSkyEnhancementGroup(enhancement) {
+    if (enhancement.projectilePatternMode) return { label: '탄도', className: 'crafted' };
     if (String(enhancement.id || '').startsWith('sky_awakened')) return { label: '각성', className: 'awakened' };
     if (String(enhancement.id || '').startsWith('sky_gemcraft')) return { label: '조율', className: 'crafted' };
     return { label: '기본', className: 'basic' };
@@ -4784,8 +4790,9 @@ function renderSkyEnhancementOption(enhancement, activeSlots, gemExpertLv, isGem
     let locked = gemExpertLv < unlockLv;
     let removeCost = typeof getSkyGemEnhancementRemoveCost === 'function' ? getSkyGemEnhancementRemoveCost() : 0;
     let group = getSkyEnhancementGroup(enhancement);
-    let actionLabel = applied ? (removeCost > 0 ? `다시 눌러 해제 · 창공 ${removeCost}` : '다시 눌러 무료 해제') : locked ? `각인사 Lv.${unlockLv}` : '빈 슬롯에 각인 · 창공 1';
-    return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="toggleSkyGemEnhancement('${enhancement.id}')" ${!isGem || (locked && !applied) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${applied ? '적용 중' : actionLabel}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
+    let compatible = typeof isSkyEnhancementCompatibleWithSkill !== 'function' || isSkyEnhancementCompatibleWithSkill(enhancement.id, getGemEnhanceTargetSkill());
+    let actionLabel = applied ? (removeCost > 0 ? `다시 눌러 해제 · 창공 ${removeCost}` : '다시 눌러 무료 해제') : !compatible ? '투사체 젬 전용' : locked ? `각인사 Lv.${unlockLv}` : '빈 슬롯에 각인 · 창공 1';
+    return `<button class="gem-engrave-option group-${group.className} ${applied ? 'applied' : ''}" onclick="toggleSkyGemEnhancement('${enhancement.id}')" ${!isGem || !compatible || (locked && !applied) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${applied ? '적용 중' : actionLabel}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
 }
 
 function closeGemEngraveSlotOverlay() {
@@ -4803,8 +4810,9 @@ function renderGemEngraveOverlayOption(enhancement, slots, slotIndex, gemExpertL
     let unlockLv = getSkyEnhancementUnlockLevel(enhancement.id);
     let locked = gemExpertLv < unlockLv;
     let group = getSkyEnhancementGroup(enhancement);
-    let state = current ? '현재 각인 · 누르면 해제' : usedElsewhere ? '다른 슬롯에 적용 중' : locked ? `각인사 Lv.${unlockLv}` : '이 슬롯에 각인';
-    return `<button type="button" class="gem-engrave-option group-${group.className} ${current ? 'applied' : ''}" data-engrave-id="${enhancement.id}" data-action="${current ? 'remove' : 'apply'}" ${usedElsewhere || (locked && !current) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${state}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
+    let compatible = typeof isSkyEnhancementCompatibleWithSkill !== 'function' || isSkyEnhancementCompatibleWithSkill(enhancement.id, getGemEnhanceTargetSkill());
+    let state = current ? '현재 각인 · 누르면 해제' : usedElsewhere ? '다른 슬롯에 적용 중' : !compatible ? '투사체 젬 전용' : locked ? `각인사 Lv.${unlockLv}` : '이 슬롯에 각인';
+    return `<button type="button" class="gem-engrave-option group-${group.className} ${current ? 'applied' : ''}" data-engrave-id="${enhancement.id}" data-action="${current ? 'remove' : 'apply'}" ${usedElsewhere || !compatible || (locked && !current) ? 'disabled' : ''}><span class="gem-engrave-top"><em>${group.label}</em><b>${state}</b></span><strong>${escapeHTML(enhancement.name)}</strong><small>${escapeHTML(enhancement.desc)}</small></button>`;
 }
 
 function openGemEngraveSlotOverlay(index) {
@@ -6422,10 +6430,13 @@ function showGemTooltip(event, type, name) {
         }
         if (name === '화염 부패') html += `<div class="tooltip-line">특수 규칙: 공격력(기본 피해) 미적용 · 적에게 화염 부패 디버프 적용 · 화염 부패 대상은 점화 피해가 생명력 100당 8% 증폭(최대 ${(Math.max(1, Number(skill.igniteTakenMaxMultiplier || 0)) || 1).toFixed(1)}x)</div>`;
         if ((skill.dotMultiplier || 1) !== 1) html += `<div class="tooltip-line">지속 피해 배율 ${(skill.dotMultiplier || 1).toFixed(2)}x</div>`;
-        if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
+        if ((skill.multiHit || 1) > 1) html += `<div class="tooltip-line">다단 히트: 1회 시전당 ${Math.floor(skill.multiHit)}회 타격${skill.repeatHitDamagePct ? ` · 후속 타격 ${skill.repeatHitDamagePct}%` : ''}${skill.randomTargetEachHit ? ' (타격마다 무작위 대상)' : ''}</div>`;
         if (skill.extraProjectileDamagePct) html += `<div class="tooltip-line">추가 투사체 타격 배율: 기본 타격의 ${Number(skill.extraProjectileDamagePct).toFixed(0)}%</div>`;
-        if (skill.ailmentChanceBonus && skill.ailmentChanceBonus.ignite) html += `<div class="tooltip-line">점화 확률 보너스: +${skill.ailmentChanceBonus.ignite}%</div>`;
-        if (skill.ailmentChanceBonus && skill.ailmentChanceBonus.poison) html += `<div class="tooltip-line">중독 확률 보너스: +${skill.ailmentChanceBonus.poison}%</div>`;
+        if (skill.ailmentChanceBonus) {
+            let ailmentLabels = { ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', poison: '중독', bleed: '출혈' };
+            let bonusText = Object.entries(skill.ailmentChanceBonus).map(([type, value]) => `${ailmentLabels[type] || type} +${value}%`).join(' / ');
+            html += `<div class="tooltip-line">상태이상 확률 보너스: ${bonusText}</div>`;
+        }
         if (skill.activeAilmentDamageMore) html += `<div class="tooltip-line">활성 ${skill.activeAilmentDamageMore.type === 'ignite' ? '점화' : skill.activeAilmentDamageMore.type} 대상 적중 피해: ${skill.activeAilmentDamageMore.pct}% 증폭</div>`;
         if (skill.consumeAilmentDamageMore) {
             let ailmentLabels = { chill: '냉각', freeze: '동결' };
@@ -8006,6 +8017,7 @@ const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
     invulnerableBarrier: { sprite: 23, label: '균열 장막', color: '#c49bff' },
     warriorRage: { sprite: 24, label: '격노 순환', color: '#ff9f43' },
     playerUniqueGuard: { sprite: 25, label: '용맥의 수호', color: '#b9d9ff' },
+    stoneShield: { sprite: 16, label: '돌 보호막', color: '#d8b77a' },
     shadowStealth: { sprite: 26, label: '그림자 은신', color: '#c9a8ff' },
     leechEfficiency: { sprite: 27, label: '흡혈 효율 강화', color: '#d989a2' },
     lifeLeech: { sprite: 27, label: '생명력 흡혈', color: '#df8396' },
@@ -8052,6 +8064,7 @@ const UI_RUNTIME_EFFECT_DETAILS = Object.freeze({
     invulnerableBarrier: () => '모든 피해를 받지 않습니다.',
     warriorRage: (value, maximum) => `${Math.floor(value || 0)} / ${Math.floor(maximum || 0)}중첩 · 물리 피해 +${Math.floor(value || 0) * (typeof WARRIOR_RAGE_STACK_DAMAGE_PCT === 'number' ? WARRIOR_RAGE_STACK_DAMAGE_PCT : 10)}%`,
     playerUniqueGuard: (value, maximum) => `남은 피해 흡수량: ${Math.floor(value || 0)} / ${Math.floor(maximum || 0)}`,
+    stoneShield: (value, maximum) => `남은 돌 보호막: ${Math.floor(value || 0)} / ${Math.floor(maximum || 0)}`,
     shadowStealth: value => `이동 속도·회피·치명타 피해 +${Number(value || 0).toFixed(0)}%`,
     leechEfficiency: value => `모든 흡혈 효율 +${Number(value || 0).toFixed(0)}%`,
     lifeLeech: (value, rate) => `남은 회복 ${Math.floor(value || 0)} · 초당 ${Math.floor(rate || 0)}`,
@@ -8242,6 +8255,10 @@ function buildPlayerFlaskEffectIcons(now) {
 
 function buildPlayerUniqueEffectIcons(pStats, now) {
     let icons = [];
+    let talentRuntime = game.talentCardRuntime;
+    if (talentRuntime && Number(talentRuntime.stoneShieldAmount) > 0 && Number(talentRuntime.stoneShieldExpiresAt) > now) {
+        icons.push(renderUiRuntimeEffectIcon({ key: 'stoneShield', value: talentRuntime.stoneShieldAmount, maxValue: talentRuntime.stoneShieldMax, expiresAt: talentRuntime.stoneShieldExpiresAt }, now));
+    }
     let guard = game.playerUniqueGuard;
     if (guard && Number(guard.amount) > 0 && Number(guard.expiresAt) > now) {
         let hpPct = Number((pStats.uniqueDragonVeinGuard || {}).hpPct || 8);
@@ -12478,7 +12495,7 @@ function mergeDefaults(save) {
         let unlockedSlots = (typeof TALENT_CARD_SLOT_UNLOCKS !== 'undefined' ? TALENT_CARD_SLOT_UNLOCKS : [])
             .filter(requirement => ownedCards.length >= requirement).length;
         (state && Array.isArray(state.talentCardLoadout) ? state.talentCardLoadout.slice(0, unlockedSlots) : []).forEach(comboKey => {
-            let def = typeof TALENT_CARD_DEFS !== 'undefined' ? TALENT_CARD_DEFS[comboKey] : null;
+            let def = typeof TALENT_BLOOM_CARD_DEFS !== 'undefined' ? TALENT_BLOOM_CARD_DEFS[comboKey] : null;
             ((def && def.surface && def.surface.uniq) || []).forEach(effect => {
                 if (effect && effect.key === 'summonCapBonus') bonus += Number((effect.params || {}).cap) || 1;
             });
@@ -12502,6 +12519,7 @@ function mergeDefaults(save) {
         equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
         saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
     };
+    delete merged.talentCardRuntime;
     Object.entries(typeof CURRENCY_LEGACY_MERGE === 'object' ? CURRENCY_LEGACY_MERGE : {}).forEach(([currentKey, legacyKeys]) => {
         let legacyAmount = (legacyKeys || []).reduce((sum, legacyKey) => sum + Math.max(0, Math.floor(Number(merged.currencies[legacyKey]) || 0)), 0);
         merged.currencies[currentKey] = Math.max(0, Math.floor(Number(merged.currencies[currentKey]) || 0)) + legacyAmount;

@@ -137,7 +137,9 @@
                 let equippedEnhanceTargets = typeof getEquippedEnhanceableGemNames === 'function' ? getEquippedEnhanceableGemNames() : [];
                 if ((!active || !equippedEnhanceTargets.includes(active)) && equippedEnhanceTargets.length > 0) active = equippedEnhanceTargets[0];
                 let targetButtons = equippedEnhanceTargets.map(name => renderGemEnhanceTargetCard(name, name === active)).join('');
-                let isGem = !!(SKILL_DB[active] && SKILL_DB[active].isGem);
+                let isGem = typeof isEnhanceableAttackGem === 'function'
+                    ? isEnhanceableAttackGem(active)
+                    : !!(SKILL_DB[active] && SKILL_DB[active].isGem);
                 let activeSlots = isGem && typeof getSkyEnhancementSlotsForSkill === 'function' ? getSkyEnhancementSlotsForSkill(active) : [null, null, null, null, null];
                 let activeEnh = getSkyEnhancementForSkill(active);
                 let activeGem = isGem ? normalizeGemRecord((game.gemData || {})[active]) : null;

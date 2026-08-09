@@ -37,9 +37,13 @@ assert.strictEqual(cardIds.length, 120, '재능 카드 정의는 120종이어야
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 const talentSource = fs.readFileSync('js/talent-cards.js', 'utf8');
 const preciseRuntimeOnly = new Set([
+  'hero1__ranger',
   'hero1__inquisitor',
   'hero2__gladiator',
+  'hero2__guardian',
   'hero2__hunter',
+  'hero4__hunter',
+  'hero10__catalyst',
 ]);
 const supportedConditions = new Set(['always', 'lowLife', 'highLife', 'vsBoss', 'onCrit', 'fewEnemies', 'manyEnemies', 'moving']);
 const declaredStats = new Set();
@@ -51,7 +55,7 @@ cardIds.forEach(cardId => {
   const hidden = Array.isArray(def.hidden) ? def.hidden : (def.hidden ? [def.hidden] : []);
   const ops = Array.isArray(surface.ops) ? surface.ops : [];
   const uniques = Array.isArray(surface.uniq) ? surface.uniq : [];
-  const hasSurfaceRoute = ops.length > 0 || uniques.length > 0 || !!surface.dmg || preciseRuntimeOnly.has(cardId);
+  const hasSurfaceRoute = ops.length > 0 || uniques.length > 0 || !!surface.dmg || !!surface.runtime || preciseRuntimeOnly.has(cardId);
 
   assert.ok(surface.desc, `${cardId}: 표면 설명이 필요하다`);
   assert.ok(hasSurfaceRoute, `${cardId}: 표면 효과가 실제 적용 경로를 갖지 않는다`);
@@ -96,6 +100,11 @@ cardIds.forEach(cardId => {
     const target = { hp: 100, maxHp: 100, isBoss: surface.dmg.when === 'vsBoss' };
     const appliedMul = context.getTalentKeystoneDamageMul(target, 'phys', surface.dmg.when === 'onCrit', { maxHp: 100 });
     assert.ok(Number.isFinite(appliedMul) && appliedMul > 1, `${cardId}: 장착된 조건부 피해가 실제 판정에서 적용되지 않는다`);
+  }
+
+  if (surface.runtime) {
+    assert.ok(talentSource.includes(surface.runtime.key) || combatSource.includes(surface.runtime.key),
+      `${cardId}: 런타임 효과 ${surface.runtime.key}가 연결되지 않았다`);
   }
 
   if (preciseRuntimeOnly.has(cardId)) {

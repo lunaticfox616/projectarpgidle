@@ -208,6 +208,12 @@ function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
 /** 스킬 젬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다. */
 function getSkillGridProfile(skillName, skillDef) {
     let profile = SKILL_GRID_DB[skillName];
+    let pattern = skillDef && skillDef.projectilePattern;
+    if (profile && pattern && pattern.kind) {
+        let resolved = { ...profile, kind: pattern.kind };
+        if (pattern.kind === 'fan') resolved.rays = Math.max(1, Math.min(8, Math.floor(Number(pattern.rays) || profile.rays || 1)));
+        return resolved;
+    }
     if (profile) return profile;
     let mode = skillDef && skillDef.targetMode;
     let isMeleeTag = !!(skillDef && Array.isArray(skillDef.tags) && skillDef.tags.includes('melee'));
@@ -230,37 +236,61 @@ function getGridSkillTargetMult(mode, idx) {
     return 0.7;
 }
 
+function isGridAreaOffset(shape, dx, dy, radius) {
+    let ax = Math.abs(dx), ay = Math.abs(dy);
+    if (shape === 'square') return Math.max(ax, ay) <= radius;
+    if (shape === 'cross') return (dx === 0 || dy === 0) && Math.max(ax, ay) <= radius;
+    if (shape === 'diagonal') return ax === ay && ax <= radius;
+    if (shape === 'ring') return (dx === 0 && dy === 0) || ax + ay === radius;
+    return ax + ay <= radius;
+}
+
+function getGridFanDirections(attacker, target, rayCount) {
+    let ring = [{ gx: 1, gy: 0 }, { gx: 1, gy: 1 }, { gx: 0, gy: 1 }, { gx: -1, gy: 1 },
+        { gx: -1, gy: 0 }, { gx: -1, gy: -1 }, { gx: 0, gy: -1 }, { gx: 1, gy: -1 }];
+    let aimX = Math.sign(target.gx - attacker.gx), aimY = Math.sign(target.gy - attacker.gy);
+    let center = ring.findIndex(direction => direction.gx === aimX && direction.gy === aimY);
+    if (center < 0) center = 0;
+    let offsets = [0, -1, 1, -2, 2, -3, 3, 4];
+    return offsets.slice(0, Math.max(1, Math.min(8, rayCount))).map(offset => ring[(center + offset + 8) % 8]);
+}
+
 /**
  * 범위 프로필이 실제로 덮는 칸 목록을 계산한다(chain 제외 — 연쇄는 칸이 아니라 유닛 간 점프).
- * @param {{kind:string, range:number, radius?:number}} profile
+ * @param {{kind:string, range:number, radius?:number, shape?:string}} profile
  * @param {{gx:number, gy:number}} attacker
  * @param {{gx:number, gy:number}} target 1차 대상 칸
  * @returns {Array<{gx:number, gy:number}>}
  */
 function getGridAttackAreaCells(profile, attacker, target) {
-    let cells = [{ gx: target.gx, gy: target.gy }];
-    let pushRing = (center, radius, excludeSelf) => {
+    let cells = profile.kind === 'nova' || profile.kind === 'fan' ? [] : [{ gx: target.gx, gy: target.gy }];
+    let pushArea = (center, radius, excludeSelf, shape) => {
         for (let dx = -radius; dx <= radius; dx++) {
             for (let dy = -radius; dy <= radius; dy++) {
                 let gx = center.gx + dx, gy = center.gy + dy;
                 if (excludeSelf && gx === center.gx && gy === center.gy) continue;
-                if (Math.abs(dx) + Math.abs(dy) > radius) continue;
-                if (gx === target.gx && gy === target.gy) continue;
+                if (!isGridAreaOffset(shape, dx, dy, radius)) continue;
+                if (profile.kind !== 'nova' && gx === target.gx && gy === target.gy) continue;
                 if (isGridCellInBounds(gx, gy)) cells.push({ gx, gy });
             }
         }
     };
     if (profile.kind === 'arc') {
         // 전방 부채꼴: 플레이어와 대상 모두에 인접한 칸까지 휩쓸린다.
-        pushRing({ gx: attacker.gx, gy: attacker.gy }, 1, true);
+        pushArea({ gx: attacker.gx, gy: attacker.gy }, 1, true, 'diamond');
         cells = cells.filter(cell => gridChebyshevDist(cell.gx, cell.gy, target.gx, target.gy) <= 1);
     } else if (profile.kind === 'nova') {
-        pushRing({ gx: attacker.gx, gy: attacker.gy }, Math.max(1, profile.radius || 1), true);
+        pushArea({ gx: attacker.gx, gy: attacker.gy }, Math.max(1, profile.radius || 1), true, profile.shape);
     } else if (profile.kind === 'blast') {
-        if ((profile.radius || 0) > 0) pushRing({ gx: target.gx, gy: target.gy }, profile.radius, false);
+        if ((profile.radius || 0) > 0) pushArea({ gx: target.gx, gy: target.gy }, profile.radius, false, profile.shape);
     } else if (profile.kind === 'line') {
         let end = gridProjectedLineEnd(attacker.gx, attacker.gy, target.gx, target.gy, profile.range || 7);
         gridLineCells(attacker.gx, attacker.gy, end.gx, end.gy, profile.range || 7).forEach(cell => cells.push(cell));
+    } else if (profile.kind === 'fan') {
+        getGridFanDirections(attacker, target, profile.rays || 3).forEach(direction => {
+            let end = { gx: attacker.gx + direction.gx * profile.range, gy: attacker.gy + direction.gy * profile.range };
+            gridLineCells(attacker.gx, attacker.gy, end.gx, end.gy, profile.range).forEach(cell => cells.push(cell));
+        });
     }
     return cells;
 }
@@ -307,18 +337,28 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies) {
     let hits;
     if (profile.kind === 'chain') {
         hits = buildGridChainTargets(profile, targetCount, primary.enemy, candidates.map(row => row.enemy));
+    } else if (profile.kind === 'fan') {
+        hits = getGridFanDirections(attackerCell, primary.enemy, profile.rays || 3).map(direction => {
+            let match = candidates.find(row => {
+                let dx = row.enemy.gx - attackerCell.gx, dy = row.enemy.gy - attackerCell.gy;
+                let steps = direction.gx !== 0 ? dx / direction.gx : dy / direction.gy;
+                return Number.isInteger(steps) && steps >= 1 && steps <= profile.range
+                    && attackerCell.gx + direction.gx * steps === row.enemy.gx
+                    && attackerCell.gy + direction.gy * steps === row.enemy.gy;
+            });
+            return match && match.enemy;
+        }).filter(Boolean).slice(0, targetCount);
     } else {
         let areaKeys = new Set(getGridAttackAreaCells(profile, attackerCell, primary.enemy).map(cell => gridCellKey(cell.gx, cell.gy)));
-        hits = [primary.enemy];
-        candidates.forEach(row => {
-            if (hits.length >= targetCount || row.enemy === primary.enemy) return;
-            if (areaKeys.has(gridCellKey(row.enemy.gx, row.enemy.gy))) hits.push(row.enemy);
-        });
+        hits = candidates.filter(row => areaKeys.has(gridCellKey(row.enemy.gx, row.enemy.gy)))
+            .slice(0, targetCount).map(row => row.enemy);
     }
     if (profile.kind === 'melee' || profile.kind === 'arc') {
         extendGridTargetsBySpill(hits, targetCount, candidates.map(row => row.enemy));
     }
-    return hits.map((enemy, idx) => ({ enemy, mult: getGridSkillTargetMult(mode, idx) }));
+    let fanDamage = skill.projectilePattern && skill.projectilePattern.kind === 'fan'
+        ? Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT) / 100 : null;
+    return hits.map((enemy, idx) => ({ enemy, mult: fanDamage !== null && idx > 0 ? fanDamage : getGridSkillTargetMult(mode, idx) }));
 }
 
 const SKILL_HIT_SEQUENCE_CONFIG = Object.freeze({
@@ -346,10 +386,73 @@ function getSkillHitSequenceProfile(skillName, skill) {
     return { kind: 'instant' };
 }
 
+function sortSkillHitTargetsByDistance(targets) {
+    let attacker = (typeof game !== 'undefined' && game.gridPlayer) ? game.gridPlayer : null;
+    return targets.slice().sort((a, b) => {
+        if (!attacker || !a.enemy || !b.enemy) return 0;
+        return gridChebyshevDist(attacker.gx, attacker.gy, a.enemy.gx, a.enemy.gy)
+            - gridChebyshevDist(attacker.gx, attacker.gy, b.enemy.gx, b.enemy.gy);
+    });
+}
+
+function getSkillChainDamageMultiplier(skill, jumpIndex) {
+    let stepPct = Number(skill && skill.chainStepDamagePct) || 0;
+    return Math.max(0.1, 1 + Math.max(0, jumpIndex) * stepPct / 100);
+}
+
+function buildConfiguredSkillHitSequence(skillName, skill, targets) {
+    let pattern = skill && skill.combatPattern;
+    if (!pattern) return null;
+    let intervalMs = Math.max(40, Math.floor(Number(pattern.intervalMs) || 160));
+    if (pattern.kind === 'field') {
+        let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
+        let damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
+        let attacker = (typeof game !== 'undefined' && game.gridPlayer) ? game.gridPlayer : null;
+        let primary = targets[0] && targets[0].enemy;
+        let impactCells = attacker && primary ? getGridAttackAreaCells(getSkillGridProfile(skillName, skill), attacker, primary) : [];
+        return Array.from({ length: hits }, (_, idx) => ({
+            kind: idx === 0 ? 'fieldStart' : 'fieldTick', label: `장판 ${idx + 1}회`,
+            delayMs: idx * intervalMs, damageMultiplier, singleRepeat: true, impactCells, targets
+        }));
+    }
+    if (pattern.kind !== 'moving') return null;
+    return sortSkillHitTargetsByDistance(targets).map((entry, idx, ordered) => ({
+        kind: idx === 0 ? 'movingStart' : 'movingStep', label: `이동 파동 ${idx + 1}칸`,
+        delayMs: idx * intervalMs, damageMultiplier: 1,
+        chainFromEnemyId: idx > 0 ? ordered[idx - 1].enemy.id : null,
+        targets: [entry]
+    }));
+}
+
+function buildPierceSkillHitSequence(profile, skill, targets) {
+    let ordered = sortSkillHitTargetsByDistance(targets);
+    let boomerang = skill && skill.combatPattern && skill.combatPattern.kind === 'boomerang';
+    let damageMultiplier = boomerang ? 0.5 : 1;
+    let outbound = ordered.map((entry, idx) => ({
+        kind: idx === 0 ? 'piercePrimary' : 'pierceThrough',
+        label: idx === 0 ? '관통 직격' : `${idx + 1}번째 관통`,
+        delayMs: idx * profile.intervalMs, damageMultiplier,
+        chainFromEnemyId: idx > 0 ? ordered[idx - 1].enemy.id : null,
+        targets: [entry]
+    }));
+    if (!boomerang) return outbound;
+    let returnDelay = Math.max(80, Math.floor(Number(skill.combatPattern.returnDelayMs) || 160));
+    let returnStart = Math.max(0, ordered.length - 1) * profile.intervalMs + returnDelay;
+    let returning = ordered.slice().reverse().map((entry, idx, reversed) => ({
+        kind: 'boomerangReturn', label: `${idx + 1}번째 귀환`,
+        delayMs: returnStart + idx * profile.intervalMs, damageMultiplier,
+        chainFromEnemyId: idx === 0 ? entry.enemy.id : reversed[idx - 1].enemy.id,
+        targets: [entry]
+    }));
+    return outbound.concat(returning);
+}
+
 /** 한 번의 스킬 사용을 실제 시간차가 있는 타격 단계로 분해한다. */
 function buildSkillHitSequence(skillName, skill, targetEntries) {
     let targets = (targetEntries || []).filter(entry => entry && entry.enemy && entry.enemy.hp > 0);
     if (targets.length <= 0) return [];
+    let configured = buildConfiguredSkillHitSequence(skillName, skill, targets);
+    if (configured) return configured;
     let profile = getSkillHitSequenceProfile(skillName, skill || {});
     if (profile.kind === 'whirl') {
         return targets.map((entry, idx) => ({
@@ -365,26 +468,13 @@ function buildSkillHitSequence(skillName, skill, targetEntries) {
             kind: idx === 0 ? 'chainPrimary' : 'chainJump',
             label: idx === 0 ? '1차 공격' : `${idx + 1}차 연쇄`,
             delayMs: idx * profile.intervalMs,
-            damageMultiplier: 1,
+            damageMultiplier: getSkillChainDamageMultiplier(skill, idx),
             chainFromEnemyId: idx > 0 ? targets[idx - 1].enemy.id : null,
             targets: [entry]
         }));
     }
     if (profile.kind === 'pierce') {
-        let attacker = (typeof game !== 'undefined' && game.gridPlayer) ? game.gridPlayer : null;
-        let ordered = targets.slice().sort((a, b) => {
-            if (!attacker || !a.enemy || !b.enemy) return 0;
-            let da = gridChebyshevDist(attacker.gx, attacker.gy, a.enemy.gx, a.enemy.gy);
-            let db = gridChebyshevDist(attacker.gx, attacker.gy, b.enemy.gx, b.enemy.gy);
-            return da - db;
-        });
-        return ordered.map((entry, idx) => ({
-            kind: idx === 0 ? 'piercePrimary' : 'pierceThrough',
-            label: idx === 0 ? '관통 직격' : `${idx + 1}번째 관통`,
-            delayMs: idx * profile.intervalMs,
-            damageMultiplier: 1,
-            targets: [entry]
-        }));
+        return buildPierceSkillHitSequence(profile, skill, targets);
     }
     if (profile.kind === 'slam') {
         return [
@@ -397,7 +487,21 @@ function buildSkillHitSequence(skillName, skill, targetEntries) {
 
 function getSkillHitSequenceDpsMultiplier(skillName, skill) {
     let profile = getSkillHitSequenceProfile(skillName, skill || {});
-    return profile.kind === 'slam' ? Math.max(0, 1 - profile.damageMultiplier) + profile.damageMultiplier : 1;
+    if (profile.kind === 'slam') return Math.max(0, 1 - profile.damageMultiplier) + profile.damageMultiplier;
+    let pattern = skill && skill.combatPattern;
+    if (pattern && pattern.kind === 'field') {
+        let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
+        return hits * Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
+    }
+    let projectilePattern = skill && skill.projectilePattern;
+    if (projectilePattern && projectilePattern.kind === 'fan') {
+        let rays = Math.max(1, Math.min(8, Math.floor(Number(projectilePattern.rays) || 1)));
+        return 1 + (rays - 1) * Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT) / 100;
+    }
+    let repeats = Math.max(1, Math.floor(Number(skill && skill.multiHit) || 1));
+    if (repeats <= 1) return 1;
+    let repeatPct = Number(skill.repeatHitDamagePct);
+    return Number.isFinite(repeatPct) ? 1 + (repeats - 1) * Math.max(0, repeatPct) / 100 : repeats;
 }
 
 
@@ -408,16 +512,28 @@ function getSkillGridProfileKindLabel(kind) {
     if (kind === 'line') return '직선 관통';
     if (kind === 'chain') return '연쇄';
     if (kind === 'blast') return '대상 지점 폭발';
+    if (kind === 'fan') return '부채꼴 투사체';
+    if (kind === 'summon') return '소환수 공격';
     return '그리드 공격';
 }
 
 function describeSkillGridProfile(skillName, skillDef) {
     let profile = getSkillGridProfile(skillName, skillDef || {});
-    let parts = [`공격 범위: ${getSkillGridProfileKindLabel(profile.kind)}`];
+    let tags = Array.isArray(skillDef && skillDef.tags) ? skillDef.tags : [];
+    let projectileMode = skillDef && skillDef.projectilePattern && skillDef.projectilePattern.mode;
+    let projectileModeDef = typeof PROJECTILE_PATTERN_MODE_DB !== 'undefined' && PROJECTILE_PATTERN_MODE_DB[projectileMode];
+    let title = tags.includes('projectile')
+        ? `발사 방식: ${projectileModeDef ? projectileModeDef.label : getSkillGridProfileKindLabel(profile.kind)}`
+        : `공격 범위: ${getSkillGridProfileKindLabel(profile.kind)}`;
+    let parts = [title];
     parts.push(`사거리 ${Math.max(1, profile.range || 1)}칸`);
     if (profile.kind === 'blast' && (profile.radius || 0) > 0) parts.push(`반경 ${profile.radius}칸`);
     if (profile.kind === 'nova') parts.push(`반경 ${Math.max(1, profile.radius || 1)}칸`);
+    let shapeLabels = { diamond: '마름모형', square: '사각형', cross: '십자형', diagonal: 'X자형', ring: '고리형' };
+    if (shapeLabels[profile.shape]) parts.push(shapeLabels[profile.shape]);
     if (profile.kind === 'chain') parts.push(`연쇄 ${Math.max(1, profile.jump || COMBAT_GRID_CONFIG.chainJumpRange)}칸`);
+    if (profile.kind === 'fan') parts.push(`${Math.max(1, Math.min(8, Math.floor(Number(profile.rays) || 1)))}방향`);
+    if (tags.includes('projectile')) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
     return parts.join(' · ');
 }
 
