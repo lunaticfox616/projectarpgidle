@@ -1272,7 +1272,12 @@ const SUPPORT_GEM_DB = {
     '혼돈 공명': { baseVal: 8, scale: 1.5, stat: 'chaosPctDmg', name: '카오스 피해', isPct: true, resonanceCosts: [4, 11, 21], scaleWithOwnStat: 'chaosPctDmg', desc: '자신의 카오스 피해 증가 수치에 비례해 카오스 피해를 추가로 증폭합니다.' },
     '카오스 잠식': { baseVal: 1, scale: 0.05, stat: 'chaosErosion', name: '카오스 잠식', isPct: false, resonanceCosts: [9, 21, 33], capStat: 'chaosErosionCap', capBase: 20, capGrowAfterLevel: 20, capPerLevel: 1, desc: '카오스 피해로 적중할 때마다 적의 카오스 저항을 깎아 잠식시킵니다(중첩). 잠식 한도는 기본 20이며, 20레벨을 넘기면 레벨당 1씩 한도가 늘어납니다. 적이 죽거나 교체되면 잠식은 초기화됩니다.' },
     '분쇄의 일격': { baseVal: 9, scale: 2.8, stat: 'slamPctDmg', name: '강타 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '강타 태그 스킬의 피해를 강하게 증폭하는 상급 보조 젬입니다.' },
-    '비전 증폭': { baseVal: 9, scale: 2.6, stat: 'spellFlatPct', name: '주문 내장 피해 증가', isPct: true, resonanceCosts: [9, 21, 33], desc: '주문 태그 스킬의 내장 피해 증가를 강하게 끌어올리는 상급 보조 젬입니다.' }
+    '비전 증폭': { baseVal: 9, scale: 2.6, stat: 'spellFlatPct', name: '주문 내장 피해 증가', isPct: true, resonanceCosts: [9, 21, 33], desc: '주문 태그 스킬의 내장 피해 증가를 강하게 끌어올리는 상급 보조 젬입니다.' },
+    '방패 공명': { baseVal: 7, scale: 2.4, stat: 'shieldPctDmg', name: '방패 스킬 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '방패 태그 스킬의 피해를 높입니다.' },
+    '지뢰 증폭': { baseVal: 8, scale: 2.5, stat: 'minePctDmg', name: '지뢰 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '지뢰 태그 스킬의 피해를 높입니다.' },
+    '연금 촉매': { baseVal: 7, scale: 2.3, stat: 'potionPctDmg', name: '포션 투척 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '포션 태그 스킬의 피해를 높입니다.' },
+    '기동 타격': { baseVal: 6, scale: 2.0, stat: 'mobilityPctDmg', name: '기동 스킬 피해', isPct: true, resonanceCosts: [6, 12, 21], desc: '기동 태그 스킬의 피해를 높입니다.' },
+    '집중 유지': { baseVal: 9, scale: 2.8, stat: 'channelingPctDmg', name: '채널링 피해', isPct: true, resonanceCosts: [9, 21, 33], desc: '이동을 포기하고 유지하는 채널링 스킬의 피해를 높입니다.' }
 };
 
 const MOD_DB = [

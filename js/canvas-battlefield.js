@@ -173,6 +173,66 @@ function normalizeSkillGemVfxElement(element, accent) {
     return ['phys', 'fire', 'cold', 'light', 'chaos', 'blood'].includes(key) ? key : 'phys';
 }
 
+function getSkillProjectileVfxStyle(skillName, element) {
+    let profile = getSkillGemVfxProfile(skillName);
+    if (profile && profile.projectileStyle) return profile.projectileStyle;
+    return normalizeSkillGemVfxElement(element, profile && profile.accent);
+}
+
+function drawPolygonPath(ctx, points) {
+    if (!points.length) return;
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    points.slice(1).forEach(point => ctx.lineTo(point[0], point[1]));
+    ctx.closePath();
+}
+
+function drawElementProjectileVfx(ctx, style, width, height, progress) {
+    let color = getElementColor(style === 'shield' ? 'phys' : style);
+    ctx.filter = 'none';
+    ctx.shadowColor = color;
+    ctx.shadowBlur = Math.max(3, height * 0.24);
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1.5, height * 0.09);
+    if (style === 'fire') {
+        drawPolygonPath(ctx, [[-width * 0.54, 0], [-width * 0.12, -height * 0.38], [width * 0.18, 0], [-width * 0.12, height * 0.38]]);
+        ctx.globalAlpha *= 0.52;
+        ctx.fill();
+        ctx.globalAlpha /= 0.52;
+        ctx.beginPath(); ctx.arc(width * 0.2, 0, height * 0.31, 0, Math.PI * 2); ctx.fill();
+    } else if (style === 'cold') {
+        drawPolygonPath(ctx, [[-width * 0.46, 0], [width * 0.08, -height * 0.22], [width * 0.5, 0], [width * 0.08, height * 0.22]]);
+        ctx.fill(); ctx.strokeStyle = '#e9fbff'; ctx.stroke();
+    } else if (style === 'light') {
+        ctx.beginPath();
+        for (let step = 0; step <= 6; step++) {
+            let x = -width * 0.5 + width * step / 6;
+            let y = step === 0 || step === 6 ? 0 : ((step + Math.floor(progress * 8)) % 2 ? -height * 0.24 : height * 0.24);
+            if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = '#f8f2a0'; ctx.stroke();
+    } else if (style === 'chaos') {
+        ctx.beginPath(); ctx.arc(0, 0, height * 0.38, -2.35, 2.35); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-width * 0.45, 0); ctx.lineTo(width * 0.42, 0); ctx.stroke();
+    } else if (style === 'shield') {
+        let radius = height * 0.42;
+        let points = Array.from({ length: 8 }, (_, index) => {
+            let angle = index * Math.PI / 4 + progress * Math.PI * 3;
+            return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+        });
+        drawPolygonPath(ctx, points); ctx.globalAlpha *= 0.56; ctx.fill(); ctx.globalAlpha /= 0.56; ctx.stroke();
+    } else if (style === 'potion') {
+        ctx.rotate(-0.2 + progress * 0.5);
+        ctx.strokeStyle = '#f1f7ff'; ctx.strokeRect(-height * 0.08, -height * 0.4, height * 0.22, height * 0.22);
+        ctx.beginPath(); ctx.arc(0, height * 0.1, height * 0.34, 0, Math.PI * 2); ctx.globalAlpha *= 0.62; ctx.fill(); ctx.globalAlpha /= 0.62; ctx.stroke();
+    } else {
+        drawPolygonPath(ctx, [[-width * 0.48, -height * 0.08], [width * 0.22, -height * 0.08], [width * 0.5, 0], [width * 0.22, height * 0.08], [-width * 0.48, height * 0.08]]);
+        ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+}
+
 function getSkillGemVfxFilter(element, imageKey) {
     let key = normalizeSkillGemVfxElement(element);
     if (imageKey === 'skillFxChainPrimary' || imageKey === 'skillFxChainJump') {
@@ -312,6 +372,7 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
             list.push({
                 skillName: swingFx.skillName,
                 element: normalizeSkillGemVfxElement(swingFx.element, profile.accent),
+                projectileStyle: getSkillProjectileVfxStyle(swingFx.skillName, swingFx.element),
                 family: 'projectile',
                 stageKind: 'projectileTravel',
                 imageKey: imageKey,
@@ -398,6 +459,66 @@ function drawBlizzardCombatFx(ctx, now, targets) {
     ctx.restore();
 }
 
+function drawFireCoreCombatFx(ctx, now, targets) {
+    let bounds = getCombatAreaBounds(targets);
+    let radius = Math.max(34, Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) / 2 + 24);
+    let pulse = 0.9 + Math.sin(now / 140) * 0.08;
+    ctx.save();
+    ctx.translate(bounds.x, bounds.y);
+    ctx.rotate(now / 6000);
+    ctx.globalCompositeOperation = 'screen';
+    ctx.strokeStyle = '#ff743d';
+    ctx.fillStyle = '#ffb04c';
+    ctx.shadowColor = '#ff4d24';
+    ctx.shadowBlur = 10;
+    ctx.globalAlpha = 0.42;
+    ctx.beginPath(); ctx.arc(0, 0, radius * 0.16 * pulse, 0, Math.PI * 2); ctx.fill();
+    for (let ring = 1; ring <= 2; ring++) {
+        ctx.beginPath(); ctx.arc(0, 0, radius * (0.38 + ring * 0.22), ring * 0.6, Math.PI * 1.65 + ring * 0.25); ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function drawRuneMineCombatFx(ctx, fx, now, arriveAt, targets) {
+    let bounds = getCombatAreaBounds(targets);
+    let armed = now >= arriveAt;
+    let radius = Math.max(30, Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) / 2 + 20);
+    let fade = armed ? clampNumber((fx.start + fx.duration - now) / 220, 0, 1) : 0.42;
+    ctx.save();
+    ctx.translate(bounds.x, bounds.y);
+    ctx.rotate(now / 1800);
+    ctx.globalCompositeOperation = 'screen';
+    ctx.strokeStyle = armed ? '#fff2a1' : '#9ad8ff';
+    ctx.lineWidth = armed ? 4 : 2;
+    ctx.globalAlpha = fade;
+    ctx.beginPath(); ctx.arc(0, 0, radius * (armed ? 1 : 0.48), 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-radius, 0); ctx.lineTo(radius, 0); ctx.moveTo(0, -radius); ctx.lineTo(0, radius); ctx.stroke();
+    ctx.restore();
+}
+
+function drawChannelCombatFx(ctx, fx, now, targets) {
+    let source = fx.screenSource;
+    if (!source || targets.length <= 0) return;
+    let bounds = getCombatAreaBounds(targets);
+    let dx = bounds.x - source.x;
+    let dy = bounds.y - source.y;
+    let length = Math.max(20, Math.hypot(dx, dy));
+    let pulse = 0.7 + Math.sin(now / 55) * 0.22;
+    ctx.save();
+    ctx.translate((source.x + bounds.x) / 2, (source.y + bounds.y) / 2);
+    ctx.rotate(Math.atan2(dy, dx));
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = getElementColor(fx.element);
+    ctx.shadowColor = ctx.fillStyle;
+    ctx.shadowBlur = 10;
+    ctx.globalAlpha = 0.38;
+    ctx.fillRect(-length / 2, -4 * pulse, length, 8 * pulse);
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-length / 2, -1, length, 2);
+    ctx.restore();
+}
+
 function drawMeteorCombatFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
     let bounds = getCombatAreaBounds(targets);
     let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
@@ -435,6 +556,18 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
     }
     if (fx.patternKind === 'field' && fx.skillName === '난타 눈보라') {
         drawBlizzardCombatFx(ctx, now, targets);
+        return;
+    }
+    if (fx.patternKind === 'field' && fx.skillName === '화염 폭풍핵') {
+        drawFireCoreCombatFx(ctx, now, targets);
+        return;
+    }
+    if (fx.patternKind === 'mine') {
+        drawRuneMineCombatFx(ctx, fx, now, arriveAt, targets);
+        return;
+    }
+    if (fx.patternKind === 'channel') {
+        drawChannelCombatFx(ctx, fx, now, targets);
         return;
     }
     let image = getSkillGemVfxImage(imageKey);
@@ -486,7 +619,9 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
         ctx.globalCompositeOperation = 'screen';
         ctx.globalAlpha = 0.82;
         ctx.filter = isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
-        if (image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
+        let proceduralProjectile = fx.owner === 'player' && String(fx.delivery || '').startsWith('projectile');
+        if (proceduralProjectile) drawElementProjectileVfx(ctx, getSkillProjectileVfxStyle(fx.skillName, element), width, height, progress);
+        else if (image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
         else { ctx.fillStyle = getElementColor(element); ctx.fillRect(-12, -3, 24, 6); }
         drawSkillGemSigil(ctx, fx.skillName, Math.min(width, 84), progress, element);
         ctx.restore();
@@ -504,15 +639,123 @@ function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
     }).filter(Boolean);
     let imageKey = getCombatTravelImageKey(fx);
     let element = normalizeSkillGemVfxElement(fx.element, fx.element);
-    if (fx.delivery === 'magicCell') drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element);
+    if (fx.delivery === 'magicCell') {
+        fx.screenSource = source;
+        drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element);
+    }
     else drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, imageKey, element);
+}
+
+function drawIaiSkillVfx(ctx, effect, progress) {
+    let length = Math.max(54, Math.hypot(effect.toX - effect.fromX, effect.toY - effect.fromY));
+    let reveal = Math.sin(progress * Math.PI);
+    ctx.translate(effect.x, effect.y);
+    ctx.rotate(effect.rotation || 0);
+    ctx.strokeStyle = effect.element === 'chaos' ? '#d88cff' : '#f5f7ff';
+    ctx.lineWidth = Math.max(2, effect.size * 0.045);
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.moveTo(-length * 0.55 * reveal, 0); ctx.lineTo(length * 0.55 * reveal, 0); ctx.stroke();
+    ctx.globalAlpha *= 0.34;
+    ctx.beginPath(); ctx.moveTo(-length * 0.42, 6); ctx.lineTo(length * 0.48, -4); ctx.stroke();
+}
+
+function drawStormStrikeVfx(ctx, effect, progress) {
+    let height = Math.max(70, effect.size * 1.15);
+    ctx.translate(effect.x, effect.y);
+    ctx.strokeStyle = '#f5ef91';
+    ctx.lineWidth = Math.max(2, effect.size * 0.035);
+    ctx.shadowColor = '#8edcff';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    for (let step = 0; step <= 6; step++) {
+        let y = -height + height * step / 6;
+        let x = step === 0 || step === 6 ? 0 : (((effect.seed + step) % 3) - 1) * effect.size * 0.12;
+        if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha *= 0.45 * Math.sin(progress * Math.PI);
+    ctx.beginPath(); ctx.arc(0, 0, effect.size * 0.32, 0, Math.PI * 2); ctx.stroke();
+}
+
+function drawBeamSkillVfx(ctx, effect, progress) {
+    let dx = effect.toX - effect.fromX;
+    let dy = effect.toY - effect.fromY;
+    let length = Math.max(20, Math.hypot(dx, dy));
+    ctx.translate((effect.fromX + effect.toX) / 2, (effect.fromY + effect.toY) / 2);
+    ctx.rotate(Math.atan2(dy, dx));
+    ctx.fillStyle = getElementColor(effect.element);
+    ctx.shadowColor = ctx.fillStyle;
+    ctx.shadowBlur = 10;
+    let thickness = Math.max(4, effect.size * (0.055 + Math.sin(progress * Math.PI) * 0.035));
+    ctx.fillRect(-length / 2, -thickness / 2, length, thickness);
+    ctx.globalAlpha *= 0.38;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-length / 2, -thickness * 0.16, length, thickness * 0.32);
+}
+
+function drawCoreSkillVfx(ctx, effect, progress) {
+    ctx.translate(effect.x, effect.y);
+    ctx.rotate(progress * Math.PI * 1.4 + effect.seed * 0.01);
+    ctx.strokeStyle = getElementColor(effect.element);
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 12;
+    ctx.beginPath(); ctx.arc(0, 0, effect.size * 0.18, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha *= 0.58;
+    for (let ring = 1; ring <= 2; ring++) {
+        ctx.beginPath();
+        ctx.arc(0, 0, effect.size * (0.22 + ring * 0.11), ring * 0.5, Math.PI * 1.55 + ring * 0.4);
+        ctx.stroke();
+    }
+}
+
+function drawConeSkillVfx(ctx, effect, progress) {
+    let length = Math.max(60, Math.hypot(effect.toX - effect.fromX, effect.toY - effect.fromY));
+    ctx.translate(effect.fromX, effect.fromY);
+    ctx.rotate(effect.rotation || 0);
+    ctx.fillStyle = getElementColor(effect.element);
+    ctx.shadowColor = ctx.fillStyle;
+    ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(length, -effect.size * 0.34); ctx.lineTo(length, effect.size * 0.34); ctx.closePath();
+    ctx.globalAlpha *= 0.24 + Math.sin(progress * Math.PI) * 0.24;
+    ctx.fill();
+}
+
+function drawProceduralSkillImpact(ctx, effect, progress) {
+    if (effect.family === 'iai') drawIaiSkillVfx(ctx, effect, progress);
+    else if (effect.family === 'stormStrike') drawStormStrikeVfx(ctx, effect, progress);
+    else if (effect.family === 'beam') drawBeamSkillVfx(ctx, effect, progress);
+    else if (effect.family === 'fireCore' || effect.family === 'mine' || effect.family === 'voidBlade') drawCoreSkillVfx(ctx, effect, progress);
+    else if (effect.family === 'breath' || effect.family === 'charge') drawConeSkillVfx(ctx, effect, progress);
+    else return false;
+    return true;
+}
+
+function drawPlayerMobilityFx(ctx, fx, progress, gridProj) {
+    if (!gridProj || !fx.fromCell || !fx.toCell) return;
+    let from = gridProj.cellToScreen(fx.fromCell.gx, fx.fromCell.gy);
+    let to = gridProj.cellToScreen(fx.toCell.gx, fx.toCell.gy);
+    let blink = fx.skillName === '그림자 점멸';
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = (1 - progress) * 0.62;
+    ctx.strokeStyle = blink ? '#c07cff' : '#b9ddff';
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 9;
+    ctx.lineWidth = blink ? 3 : 7;
+    ctx.beginPath(); ctx.moveTo(from.x, from.y - 18); ctx.lineTo(to.x, to.y - 18); ctx.stroke();
+    if (blink) {
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(from.x, from.y - 8); ctx.lineTo(to.x, to.y - 27); ctx.stroke();
+    }
+    ctx.restore();
 }
 
 function drawSkillGemVfxLayer(ctx, now) {
     let list = battleVisualState.skillEffects || [];
     list.forEach(effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
-        if (!image) return;
         let elapsed = now - effect.startAt;
         if (elapsed < 0 || elapsed > effect.duration) return;
         let t = clampNumber(elapsed / Math.max(1, effect.duration), 0, 1);
@@ -532,13 +775,7 @@ function drawSkillGemVfxLayer(ctx, now) {
             let height = effect.size * 0.52;
             ctx.translate(x, y);
             ctx.rotate(effect.rotation || 0);
-            let trailCount = list.length > 48 ? 0 : (list.length > 24 ? 1 : 2);
-            for (let trail = trailCount; trail >= 1; trail--) {
-                ctx.globalAlpha *= 0.28;
-                ctx.drawImage(image, -width / 2 - trail * 7, -height / 2, width * (1 - trail * 0.07), height * (1 - trail * 0.08));
-                ctx.globalAlpha /= 0.28;
-            }
-            ctx.drawImage(image, -width / 2, -height / 2, width, height);
+            drawElementProjectileVfx(ctx, effect.projectileStyle || effect.element, width, height, t);
         } else if (effect.connector) {
             let reveal = Math.min(1, t / 0.22);
             let fromX = effect.toX + (effect.fromX - effect.toX) * reveal;
@@ -549,15 +786,17 @@ function drawSkillGemVfxLayer(ctx, now) {
             let thickness = Math.max(18, effect.size * (0.82 + Math.sin(t * Math.PI) * 0.18));
             ctx.translate((fromX + effect.toX) / 2, (fromY + effect.toY) / 2);
             ctx.rotate(Math.atan2(dy, dx));
-            ctx.drawImage(image, -length / 2, -thickness / 2, length, thickness);
+            if (image) ctx.drawImage(image, -length / 2, -thickness / 2, length, thickness);
         } else {
             let grow = effect.family === 'dot' ? (0.9 + t * 0.1) : (0.72 + (1 - Math.pow(1 - t, 3)) * 0.36);
             let width = effect.size * grow;
             let height = width;
             if (effect.family === 'slash' || effect.family === 'summon') height *= 0.88;
-            ctx.translate(effect.x, effect.y);
-            ctx.rotate(effect.rotation || 0);
-            ctx.drawImage(image, -width / 2, -height / 2, width, height);
+            if (!drawProceduralSkillImpact(ctx, effect, t) && image) {
+                ctx.translate(effect.x, effect.y);
+                ctx.rotate(effect.rotation || 0);
+                ctx.drawImage(image, -width / 2, -height / 2, width, height);
+            }
         }
         drawSkillGemSigil(ctx, effect.skillName, Math.min(effect.size, 104), t, effect.element);
         ctx.restore();
@@ -1172,6 +1411,8 @@ function renderBattlefield(forceWhenHidden) {
         }
         if (fx.type === 'playerSwing') {
             drawBattleSwingFx(ctx, fx, t, playerPos);
+        } else if (fx.type === 'playerMobility') {
+            drawPlayerMobilityFx(ctx, fx, t, gridProj);
         } else if (fx.type === 'combatTravel') {
             drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap);
         } else if (fx.type === 'hit') {
@@ -1448,6 +1689,10 @@ function getEnemyShortLabel(enemy) {
 
 
 const SUMMON_SPRITE_ORDER = ['서리늑대 소환', '불곰 소환', '벼락멧돼지 소환', '칼날까마귀 소환', '공허 유충 소환', '벌떼 소환', '수액 골렘 소환'];
+const SUMMON_SPRITE_FALLBACK_BY_NAME = Object.freeze({
+    '폭풍 정령 소환': '벼락멧돼지 소환',
+    '철갑 거북 소환': '불곰 소환'
+});
 const summonSpriteFrameCache = new WeakMap();
 const SUMMON1_CANONICAL_WIDTH = 540;
 // summon1.png 수동 분석 기준 경계(좌->우, 7프레임).
@@ -1479,7 +1724,8 @@ function getSummonSpriteFrameRectByName(name, image) {
     if (!image) return null;
     const frames = buildSummonSpriteFramesByContent(image);
     if (!frames || frames.length <= 0) return null;
-    const normalizeName = String(name || '').replace(/\s+/g, ' ').trim();
+    const rawName = String(name || '').replace(/\s+/g, ' ').trim();
+    const normalizeName = SUMMON_SPRITE_FALLBACK_BY_NAME[rawName] || rawName;
     const index = Math.max(0, SUMMON_SPRITE_ORDER.findIndex(label => label === normalizeName));
     const safeIndex = Math.min(index, frames.length - 1);
     return frames[safeIndex];

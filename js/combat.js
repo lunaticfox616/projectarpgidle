@@ -24,6 +24,8 @@ const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
 const COMBAT_TACTIC_STALL_MS = 2000;
 const COMBAT_TACTIC_MAX_RETREATS = 2;
 let combatTacticsRuntime = createCombatTacticsRuntime();
+let combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+let nextCombatChannelId = 1;
 
 function createCombatTacticsRuntime(now) {
     let timestamp = Number.isFinite(now) ? now : Date.now();
@@ -36,6 +38,45 @@ function createCombatTacticsRuntime(now) {
 
 function resetCombatTacticsRuntime() {
     combatTacticsRuntime = createCombatTacticsRuntime();
+}
+
+function resetCombatChannelRuntime() {
+    combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+    pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
+}
+
+function hasPlayerChannelBreakingAilment() {
+    let breakingTypes = new Set(['freeze', 'stun', 'root', 'immobilize']);
+    return (game.playerAilments || []).some(ailment => ailment && ailment.time > 0 && breakingTypes.has(ailment.type));
+}
+
+function cancelCombatChannel(reason) {
+    if (!combatChannelRuntime.id) return false;
+    let channelId = combatChannelRuntime.id;
+    pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || row.channelId !== channelId);
+    combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+    if (reason) addBattleFx('statusText', { text: `집중 취소 · ${reason}`, color: '#d7b8ff', duration: 480 });
+    return true;
+}
+
+function updateCombatChannelRuntime(now) {
+    let timestamp = Number.isFinite(now) ? now : Date.now();
+    if (!combatChannelRuntime.id) return false;
+    if (hasPlayerChannelBreakingAilment()) {
+        cancelCombatChannel('군중 제어');
+        return false;
+    }
+    if (timestamp >= combatChannelRuntime.endAt) combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+    return combatChannelRuntime.id > 0;
+}
+
+function beginCombatChannel(skillName, stages, baseDelayMs) {
+    let lastDelay = (stages || []).reduce((max, stage) => Math.max(max, Number(stage && stage.delayMs) || 0), 0);
+    combatChannelRuntime = {
+        id: nextCombatChannelId++, skillName: String(skillName || ''),
+        endAt: Date.now() + Math.max(1, Number(baseDelayMs) || 0) + lastDelay + 120
+    };
+    return combatChannelRuntime.id;
 }
 
 function getTacticalMoveAttackDelayMs(moveSpeed) {
@@ -1039,6 +1080,8 @@ function getSummonProfile(gemName) {
         '칼날까마귀 소환': { role: 'attack', ele: 'phys', gridRange: 2, trait: '치명타 특화', baseHp: 55, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, dmgRollMinPct: 35, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 4000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
         '공허 유충 소환': { role: 'attack', ele: 'chaos', gridRange: 3, trait: '카오스 관통', baseHp: 71, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, dmgRollMinPct: 45, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 4000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
         '벌떼 소환': { role: 'attack', ele: 'chaos', gridRange: 2, trait: '매우 빠른 공속', baseHp: 50, baseArmor: 24, baseEvasion: 75, baseRes: { fire: 10, cold: 10, light: 10, chaos: 8 }, baseDamage: 36, dmgRollMinPct: 50, attackSpeedMul: 1.65, baseCrit: 10, baseCritDmg: 145, resPenBonus: 6, respawnMs: 4000, hpScaleBase: 0.033, hpScaleExp: 1.08, dmgPerLevelPct: 0.092, armorScaleBase: 0.012, armorScaleExp: 1.06, evasionScaleBase: 0.026, evasionScaleExp: 1.12 },
+        '폭풍 정령 소환': { role: 'attack', ele: 'light', gridRange: 4, trait: '원거리 번개', baseHp: 48, baseArmor: 20, baseEvasion: 66, baseRes: { fire: 8, cold: 12, light: 34, chaos: 0 }, baseDamage: 48, dmgRollMinPct: 45, attackSpeedMul: 1.32, baseCrit: 12, baseCritDmg: 160, resPenBonus: 10, respawnMs: 4000, hpScaleBase: 0.032, hpScaleExp: 1.09, dmgPerLevelPct: 0.104, armorScaleBase: 0.011, armorScaleExp: 1.07, evasionScaleBase: 0.027, evasionScaleExp: 1.12 },
+        '철갑 거북 소환': { role: 'attack', ele: 'phys', gridRange: 1, trait: '중장갑 돌진', baseHp: 102, baseArmor: 96, baseEvasion: 12, baseRes: { fire: 18, cold: 18, light: 18, chaos: 8 }, baseDamage: 72, dmgRollMinPct: 38, attackSpeedMul: 0.68, baseCrit: 4, baseCritDmg: 145, physIgnoreBonus: 10, respawnMs: 4800, hpScaleBase: 0.052, hpScaleExp: 1.15, dmgPerLevelPct: 0.118, armorScaleBase: 0.034, armorScaleExp: 1.14, evasionScaleBase: 0.008, evasionScaleExp: 1.05 },
         '수액 골렘 소환': { role: 'guard', ele: 'phys', gridRange: 1, trait: '피해 대리', baseHp: 111, baseArmor: 90, baseEvasion: 18, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 15, dmgRollMinPct: 45, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 8000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
     };
     return table[gemName] || { role: 'attack', ele: 'phys', gridRange: 1, trait: '균형형', baseHp: 58, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 45, dmgRollMinPct: 40, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
@@ -2193,6 +2236,7 @@ function coreLoop() {
     } else {
         runConditionGemAutoRules(pStats);
     }
+    updateCombatChannelRuntime(Date.now());
     processPendingSkillStageHits();
     processPendingSlamEchoHits();
     if (typeof tickTalentRangerCharge === 'function') tickTalentRangerCharge(Date.now());
@@ -2396,11 +2440,13 @@ function coreLoop() {
         tickEnemyDotEffects(pStats, 0.1);
         tickEnemyAilments(pStats, 0.1);
         let nowCast = Date.now();
-        let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0);
+        let channelEndAt = combatChannelRuntime.id ? combatChannelRuntime.endAt : 0;
+        let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0, channelEndAt);
         if (!Number.isFinite(castUntil) || castUntil < 0) castUntil = 0;
         if (castUntil > nowCast + 5000) { castUntil = nowCast + 500; game.playerCastDelayUntil = castUntil; }
         let castBlocked = nowCast < castUntil;
-        let inSkillRange = updatePlayerGridEngagement(pStats);
+        let channelLocked = combatChannelRuntime.id && nowCast < combatChannelRuntime.endAt;
+        let inSkillRange = channelLocked ? getSkillTargets(pStats).length > 0 : updatePlayerGridEngagement(pStats);
         if (!castBlocked) {
             pTimer += 0.1 * pStats.aspd;
             // 사거리 밖이면 스윙 게이지를 1회분까지만 모아 두고, 붙는 즉시 공격한다.
@@ -2565,7 +2611,7 @@ function getPendingSkillImpactTargets(row) {
 
 function addPendingSkillTravelFx(row, attackContext, now) {
     if (!row || row.delivery === 'instantTarget') return;
-    if (row.patternKind === 'field' && row.options.stageIndex > 0) return;
+    if (['field', 'channel'].includes(row.patternKind) && row.options.stageIndex > 0) return;
     let fx = {
         owner: 'player',
         delivery: row.delivery,
@@ -2617,7 +2663,8 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             at: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt + travelMs : now + baseDelay + stageDelay,
             launchAt: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt : now,
             zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
-            fieldDurationMs: patternKind === 'field' ? baseDelay + finalStageDelayMs + 320 : 0,
+            channelId: Math.max(0, Math.floor(Number(attackContext.channelId) || 0)),
+            fieldDurationMs: ['field', 'channel'].includes(patternKind) ? baseDelay + finalStageDelayMs + 320 : 0,
             options: {
                 stageReplay: true, skipSlamEcho: true, skillName: attackContext.skillName,
                 forcedCrit: !!attackContext.forcedCrit, forcedElement: attackContext.forcedElement,
@@ -3502,6 +3549,10 @@ function getPlayerStats() {
     let baseDamageIncreaseMultiplier = (1 + (generalPctDmg + taggedTotal) / 100) * (skill.dmg || skill.baseDmg || 1) * codexBonusRatio;
     baseDamageIncreaseMultiplier *= (1 + Math.max(0, Number(skill.flatSkillDmgPct) || 0) / 100);
     let finalBaseDmg = Math.floor(scaledFlatDmg * baseDamageIncreaseMultiplier);
+    let equippedShield = game.equipment && game.equipment['방패'];
+    if (skill.shieldDamageBonusPct && equippedShield && equippedShield.slot === '방패') {
+        finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, Number(skill.shieldDamageBonusPct) || 0) / 100));
+    }
 
     let gearAspd = gearBase.aspd + gearExplicit.aspd;
     let passiveAspd = passive.aspd + season.aspd + ascend.aspd + reward.aspd;
@@ -5191,6 +5242,42 @@ function tryPlayerTacticalMove(pStats, target, plan, now) {
     combatTacticsRuntime.walkingUntil = now + Math.min(300, delayMs);
     if (result.retreat) combatTacticsRuntime.consecutiveRetreats++;
     game.gridPlayerPursuing = true;
+    return true;
+}
+
+function movePlayerForCharge(target, maxCells) {
+    let origin = copyCombatGridCell(game.gridPlayer);
+    let moved = false;
+    for (let step = 0; step < maxCells; step++) {
+        if (gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, target.gx, target.gy) <= 1) break;
+        if (!gridStepToward(game.gridPlayer, target.gx, target.gy, getGridBlockedCells(game.gridPlayer))) break;
+        moved = true;
+    }
+    return moved ? origin : null;
+}
+
+function movePlayerForBlink(target) {
+    if (gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, target.gx, target.gy) <= 1) return null;
+    let destination = findFreeGridCell(getGridBlockedCells(game.gridPlayer), target);
+    if (!destination || gridChebyshevDist(destination.gx, destination.gy, target.gx, target.gy) > 1) return null;
+    let origin = copyCombatGridCell(game.gridPlayer);
+    if (origin && origin.gx === destination.gx && origin.gy === destination.gy) return null;
+    game.gridPlayer.gx = destination.gx;
+    game.gridPlayer.gy = destination.gy;
+    return origin;
+}
+
+function applySkillMobilityBeforeAttack(skill, target, pStats) {
+    let pattern = skill && skill.mobilityPattern;
+    if (!pattern || !target || !hasGridCell(target) || !hasGridCell(game.gridPlayer)) return false;
+    let maxCells = Math.max(1, Math.min(6, Math.floor(Number(pattern.maxCells) || 1)));
+    let origin = pattern.kind === 'blink' ? movePlayerForBlink(target) : movePlayerForCharge(target, maxCells);
+    if (!origin) return false;
+    let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
+    let delayMs = getTacticalMoveAttackDelayMs(moveSpeed);
+    combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, Date.now() + delayMs);
+    combatTacticsRuntime.walkingUntil = pattern.kind === 'blink' ? 0 : Date.now() + Math.min(300, delayMs);
+    addBattleFx('playerMobility', { skillName: game.activeSkill, fromCell: origin, toCell: copyCombatGridCell(game.gridPlayer), duration: pattern.kind === 'blink' ? 180 : 280 });
     return true;
 }
 
@@ -6922,6 +7009,7 @@ function applyCosmosAstraStance(enemy) {
 function startEncounterRun() {
     pTimer = 0;
     resetCombatTacticsRuntime();
+    resetCombatChannelRuntime();
     progressStallTicks = 0;
     game.runProgress = 0;
     game.encounterIndex = 0;
@@ -6943,6 +7031,7 @@ function startEncounterRun() {
 function startMoving(isTown) {
     pTimer = 0;
     resetCombatTacticsRuntime();
+    resetCombatChannelRuntime();
     progressStallTicks = 0;
     if (typeof clearTalentCardRuntimeState === 'function') clearTalentCardRuntimeState();
     expireActiveFlaskEffects();
@@ -8477,6 +8566,7 @@ function performPlayerAttack(pStats, attackOptions) {
     }).filter(Boolean) : getSkillTargets(pStats);
     if (colosseumSavedTargets !== null) pStats.sSkill.targets = colosseumSavedTargets;
     if (targets.length === 0) return;
+    if (!isStageReplay) applySkillMobilityBeforeAttack(pStats.sSkill, targets[0].enemy, pStats);
     let talentMoonReturn = !isStageReplay && typeof getTalentMoonReturnConfig === 'function'
         ? getTalentMoonReturnConfig(targets)
         : null;
@@ -8558,6 +8648,8 @@ function performPlayerAttack(pStats, attackOptions) {
     // enough time to be visible. Slams deliberately carry the longest wind-up.
     let attackMotionMs = attackTags.includes('slam') ? 460 : (attackTags.includes('projectile') ? 400 : 360);
     if (!isStageReplay) {
+        let channelId = attackTags.includes('channeling')
+            ? beginCombatChannel(skillName, pendingStages, attackMotionMs) : 0;
         noteCombatTacticAttack(attackMotionMs);
         addBattleFx('playerSwing', {
             color: getElementColor(swingElement),
@@ -8577,6 +8669,7 @@ function performPlayerAttack(pStats, attackOptions) {
             talentAttackMultiplier: talentAttackMul,
             attackDamageMultiplier: colosseumStrikeMul,
             talentMoonReturn: talentMoonReturn,
+            channelId: channelId,
             baseDelayMs: attackMotionMs
         });
         return;
@@ -10829,4 +10922,4 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 
-safeExposeGlobals({ isPlayerWalkingForAnimation, getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ isPlayerWalkingForAnimation, getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, resetCombatChannelRuntime, updateCombatChannelRuntime, cancelCombatChannel, applySkillMobilityBeforeAttack, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });

@@ -1096,6 +1096,58 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(primary.hp < primary.maxHp && adjacent.hp < adjacent.maxHp, '꿰뚫는 이는 주 대상 주변 1칸의 적도 소환수 공격으로 맞춰야 한다');
 }
 
+// ── 신규 전투 젬: 시간차 판정 / 기동 / 채널 취소 / 태그 보조 ──
+{
+  resetGame();
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const target = makeEnemy(301, 6, 6, { hp: 100000, maxHp: 100000 });
+  context.game.enemies = [target];
+  const channelSkill = context.SKILL_DB['집중 광선'];
+  const channelTargets = context.selectGridSkillTargets('집중 광선', channelSkill, context.game.gridPlayer, context.game.enemies);
+  const channelStages = context.buildSkillHitSequence('집중 광선', channelSkill, channelTargets);
+  assert.strictEqual(channelStages.length, 5, '집중 광선은 다섯 번의 실제 시간차 타격이어야 한다');
+  assert.deepStrictEqual(Array.from(channelStages, stage => stage.delayMs), [0, 180, 360, 540, 720], '채널링 타격 간격은 젬 정의와 일치해야 한다');
+  assert.ok(Math.abs(context.getSkillHitSequenceDpsMultiplier('집중 광선', channelSkill) - 1.1) < 1e-9, '표시 DPS는 채널링 5회의 총 배율을 반영해야 한다');
+
+  const chargeStats = { moveSpeed: 100 };
+  assert.strictEqual(context.applySkillMobilityBeforeAttack(context.SKILL_DB['방패 돌진'], target, chargeStats), true, '방패 돌진은 사거리 안 대상에게 실제로 접근해야 한다');
+  assert.deepStrictEqual([context.game.gridPlayer.gx, context.game.gridPlayer.gy], [4, 6], '돌진은 한 번에 최대 세 칸까지만 이동해야 한다');
+  assert.notDeepStrictEqual([context.game.gridPlayer.gx, context.game.gridPlayer.gy], [target.gx, target.gy], '돌진은 적이 점유한 칸을 침범하면 안 된다');
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  assert.strictEqual(context.applySkillMobilityBeforeAttack(context.SKILL_DB['그림자 점멸'], target, chargeStats), true, '그림자 점멸은 대상 주변의 빈칸으로 이동해야 한다');
+  assert.strictEqual(context.gridChebyshevDist(context.game.gridPlayer.gx, context.game.gridPlayer.gy, target.gx, target.gy), 1, '점멸도 적과 칸이 겹치면 안 된다');
+
+  const supportBucket = context.createEmptyStatBucket();
+  context.addStatToBucket(supportBucket, 'channelingPctDmg', 17);
+  const channelBreakdown = context.getTaggedDamageBreakdown(supportBucket, channelSkill);
+  assert.ok(channelBreakdown.parts.some(part => part.statId === 'channelingPctDmg' && part.value === 17), '집중 유지 보조의 피해는 채널링 태그에만 연결되어야 한다');
+
+  context.game.activeSkill = '방패 투척';
+  context.game.skills = ['기본 공격', '방패 투척'];
+  const unshieldedDamage = context.getPlayerStats().baseDmg;
+  context.game.equipment['방패'] = { id: 9901, slot: '방패', name: '시험 방패', rarity: 'normal', baseStats: [], stats: [] };
+  const shieldedDamage = context.getPlayerStats().baseDmg;
+  assert.ok(shieldedDamage >= Math.floor(unshieldedDamage * 1.27), '방패 투척의 방패 장착 증폭은 실제 기본 피해와 표시 DPS 계산에 반영되어야 한다');
+  context.game.equipment['방패'] = { id: 9902, slot: '무기', name: '시험 보조 무기', rarity: 'normal', baseStats: [], stats: [] };
+  assert.strictEqual(context.getPlayerStats().baseDmg, unshieldedDamage, '방패 슬롯의 보조 무기는 방패 스킬 증폭을 활성화하면 안 된다');
+  context.game.equipment['방패'] = null;
+
+  context.game.activeSkill = '집중 광선';
+  context.game.skills = ['기본 공격', '집중 광선'];
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  target.gx = 5; target.gy = 6; target.hp = target.maxHp;
+  const pStats = context.getPlayerStats();
+  context.performPlayerAttack(pStats);
+  context.game.playerAilments = [{ type: 'freeze', time: 1, duration: 1, power: 1 }];
+  context.updateCombatChannelRuntime(Date.now());
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.strictEqual(target.hp, target.maxHp, '채널링 중 동결되면 예약된 후속 타격이 남아 피해를 주면 안 된다');
+
+  assert.strictEqual(context.getSummonProfile('폭풍 정령 소환').gridRange, 4, '폭풍 정령은 원거리 소환수 계약을 사용해야 한다');
+  assert.ok(context.getSummonProfile('철갑 거북 소환').baseArmor > context.getSummonProfile('불곰 소환').baseArmor, '철갑 거북은 기존 근접 소환수보다 높은 방어도를 가져야 한다');
+  resetGame();
+}
+
 // ── 걷기 모션 상태: 지역 이동뿐 아니라 전투 중 칸 이동에서도 걸어야 한다 ──
 {
   const g = context.game;

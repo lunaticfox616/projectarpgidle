@@ -505,6 +505,21 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
             delayMs: idx * intervalMs, damageMultiplier, singleRepeat: true, impactCells, targets
         }));
     }
+    if (pattern.kind === 'mine') {
+        let delayMs = Math.max(120, Math.floor(Number(pattern.armDelayMs) || 420));
+        return [{
+            kind: 'mineDetonate', label: '룬 지뢰 폭발', delayMs,
+            damageMultiplier: 1, singleRepeat: true, impactCells, targets
+        }];
+    }
+    if (pattern.kind === 'channel') {
+        let hits = Math.max(2, Math.min(8, Math.floor(Number(pattern.hits) || 3)));
+        let damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
+        return Array.from({ length: hits }, (_, idx) => ({
+            kind: idx === 0 ? 'channelStart' : 'channelTick', label: `집중 ${idx + 1}회`,
+            delayMs: idx * intervalMs, damageMultiplier, singleRepeat: true, impactCells, targets
+        }));
+    }
     if (pattern.kind !== 'moving') return null;
     return sortSkillHitTargetsByDistance(targets).map((entry, idx, ordered) => ({
         kind: idx === 0 ? 'movingStart' : 'movingStep', label: `이동 파동 ${idx + 1}칸`,
@@ -579,7 +594,7 @@ function getSkillHitSequenceDpsMultiplier(skillName, skill) {
     let profile = getSkillHitSequenceProfile(skillName, skill || {});
     if (profile.kind === 'slam') return Math.max(0, 1 - profile.damageMultiplier) + profile.damageMultiplier;
     let pattern = skill && skill.combatPattern;
-    if (pattern && pattern.kind === 'field') {
+    if (pattern && ['field', 'channel'].includes(pattern.kind)) {
         let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
         return hits * Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
     }
