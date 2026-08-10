@@ -50,11 +50,17 @@ function hasPlayerChannelBreakingAilment() {
     return (game.playerAilments || []).some(ailment => ailment && ailment.time > 0 && COMBAT_CHANNEL_BREAKING_AILMENTS.has(ailment.type));
 }
 
+function removeCombatChannelTravelFx(skillName) {
+    battleFx = battleFx.filter(fx => fx.type !== 'combatTravel' || fx.patternKind !== 'channel' || fx.skillName !== skillName);
+}
+
 function cancelCombatChannel(reason) {
     if (!combatChannelRuntime.id) return false;
     let channelId = combatChannelRuntime.id;
+    let skillName = combatChannelRuntime.skillName;
     pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || row.channelId !== channelId);
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+    removeCombatChannelTravelFx(skillName);
     if (reason) addBattleFx('statusText', { text: `집중 취소 · ${reason}`, color: '#d7b8ff', duration: 480 });
     return true;
 }
@@ -80,6 +86,7 @@ function updateCombatChannelRuntime(now) {
 
 function beginCombatChannel(skillName, stages, baseDelayMs) {
     if (combatChannelRuntime.id) cancelCombatChannel();
+    else removeCombatChannelTravelFx(skillName);
     let lastDelay = (stages || []).reduce((max, stage) => Math.max(max, Number(stage && stage.delayMs) || 0), 0);
     combatChannelRuntime = {
         id: nextCombatChannelId++, skillName: String(skillName || ''),

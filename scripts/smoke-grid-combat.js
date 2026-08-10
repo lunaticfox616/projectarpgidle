@@ -1138,13 +1138,16 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   target.gx = 5; target.gy = 6; target.hp = target.maxHp;
   const pStats = context.getPlayerStats();
   context.performPlayerAttack(pStats);
+  assert.strictEqual(vm.runInContext("battleFx.filter(fx => fx.type === 'combatTravel' && fx.patternKind === 'channel').length", context), 1, '집중 시작 시 유지 이펙트는 하나만 생성되어야 한다');
   vm.runInContext('pendingSkillStageHits = []; combatChannelRuntime.endAt = Date.now() - 1; pTimer = 0;', context);
   context.updateCombatChannelRuntime(Date.now());
   assert.strictEqual(vm.runInContext('pTimer', context), 1, '채널링이 자연 종료되면 다음 집중을 즉시 이어갈 수 있도록 공격 게이지가 준비되어야 한다');
 
   context.performPlayerAttack(pStats);
+  assert.strictEqual(vm.runInContext("battleFx.filter(fx => fx.type === 'combatTravel' && fx.patternKind === 'channel').length", context), 1, '연속 집중은 이전 유지 이펙트를 교체해 밝기가 중첩되지 않아야 한다');
   context.game.playerAilments = [{ type: 'freeze', time: 1, duration: 1, power: 1 }];
   context.updateCombatChannelRuntime(Date.now());
+  assert.strictEqual(vm.runInContext("battleFx.filter(fx => fx.type === 'combatTravel' && fx.patternKind === 'channel').length", context), 0, '군중 제어로 집중이 취소되면 유지 이펙트도 즉시 사라져야 한다');
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.strictEqual(target.hp, target.maxHp, '채널링 중 동결되면 예약된 후속 타격이 남아 피해를 주면 안 된다');
 

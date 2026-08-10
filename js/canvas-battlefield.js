@@ -454,48 +454,64 @@ function getCombatCellEffectSize(targets) {
 }
 
 function drawBlizzardCombatFx(ctx, now, targets) {
-    let sampled = getSampledCombatTargets(targets, 14);
+    let sampled = getSampledCombatTargets(targets, 10);
     let size = getCombatCellEffectSize(targets);
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     ctx.strokeStyle = '#b8ecff';
     ctx.shadowColor = '#75cfff';
-    ctx.shadowBlur = 5;
+    ctx.shadowBlur = 7;
     sampled.forEach((target, index) => {
         let phase = (now / 640 + index * 0.37) % 1;
-        let drift = (phase - 0.5) * size * 0.52;
-        let y = target.y + Math.sin(phase * Math.PI * 2 + index) * size * 0.12;
-        ctx.globalAlpha = 0.28 + (1 - Math.abs(phase - 0.5) * 2) * 0.3;
-        ctx.lineWidth = 1.4 + (index % 2) * 0.5;
+        let drift = (phase - 0.5) * size * 0.48;
+        let gustY = Math.sin(phase * Math.PI * 2 + index) * size * 0.12;
+        ctx.save();
+        ctx.translate(target.x + drift, target.y + gustY);
+        ctx.rotate(index % 2 ? -0.16 : 0.12);
+        ctx.globalAlpha = 0.34 + (1 - Math.abs(phase - 0.5) * 2) * 0.34;
+        ctx.lineWidth = 1.5 + (index % 2) * 0.45;
         ctx.beginPath();
-        ctx.moveTo(target.x - size * 0.42 + drift, y + size * 0.08);
-        ctx.lineTo(target.x - size * 0.1 + drift, y - size * 0.1);
-        ctx.lineTo(target.x + size * 0.18 + drift, y + size * 0.04);
-        ctx.lineTo(target.x + size * 0.4 + drift, y - size * 0.06);
+        ctx.moveTo(-size * 0.48, size * 0.2); ctx.lineTo(size * 0.46, -size * 0.2);
+        ctx.moveTo(-size * 0.34, size * 0.38); ctx.lineTo(size * 0.24, size * 0.12);
         ctx.stroke();
+        let shard = size * (0.16 + (index % 3) * 0.018);
+        ctx.globalAlpha *= 0.78;
+        ctx.beginPath();
+        ctx.moveTo(0, -shard); ctx.lineTo(0, shard);
+        ctx.moveTo(-shard * 0.86, -shard * 0.5); ctx.lineTo(shard * 0.86, shard * 0.5);
+        ctx.moveTo(-shard * 0.86, shard * 0.5); ctx.lineTo(shard * 0.86, -shard * 0.5);
+        ctx.stroke();
+        ctx.restore();
     });
     ctx.restore();
 }
 
+function drawFireCellFlame(ctx, target, size, phase) {
+    let sway = Math.sin(phase) * size * 0.1;
+    let height = size * (0.54 + Math.sin(phase * 1.7) * 0.06);
+    ctx.save();
+    ctx.translate(target.x, target.y + size * 0.22);
+    ctx.fillStyle = '#ff6b2c';
+    drawPolygonPath(ctx, [[-size * 0.24, 0], [-size * 0.16 + sway, -height * 0.48],
+        [sway, -height], [size * 0.1 + sway, -height * 0.42], [size * 0.25, 0]]);
+    ctx.fill();
+    ctx.globalAlpha *= 0.72;
+    ctx.fillStyle = '#ffd46f';
+    drawPolygonPath(ctx, [[-size * 0.09, 0], [sway * 0.35, -height * 0.52], [size * 0.1, 0]]);
+    ctx.fill();
+    ctx.restore();
+}
+
 function drawFireCoreCombatFx(ctx, now, targets) {
-    let sampled = getSampledCombatTargets(targets, 12);
+    let sampled = getSampledCombatTargets(targets, 10);
     let size = getCombatCellEffectSize(targets);
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = '#ffb04c';
     ctx.shadowColor = '#ff4d24';
-    ctx.shadowBlur = 7;
+    ctx.shadowBlur = 9;
     sampled.forEach((target, index) => {
-        let flicker = 0.72 + Math.sin(now / 95 + index * 1.7) * 0.2;
-        let flame = size * (0.22 + (index % 3) * 0.035) * flicker;
-        ctx.globalAlpha = 0.3 + flicker * 0.22;
-        ctx.beginPath();
-        ctx.moveTo(target.x - flame * 0.62, target.y + flame * 0.55);
-        ctx.lineTo(target.x - flame * 0.16, target.y - flame * 0.15);
-        ctx.lineTo(target.x + flame * 0.08, target.y - flame);
-        ctx.lineTo(target.x + flame * 0.58, target.y + flame * 0.5);
-        ctx.lineTo(target.x - flame * 0.62, target.y + flame * 0.55);
-        ctx.fill();
+        ctx.globalAlpha = 0.42 + Math.sin(now / 120 + index) * 0.08;
+        drawFireCellFlame(ctx, target, size * (0.84 + (index % 3) * 0.06), now / 110 + index * 1.7);
     });
     ctx.restore();
 }
@@ -534,11 +550,19 @@ function drawBeamChannelFx(ctx, fx, now, targets) {
     ctx.fillStyle = getElementColor(fx.element);
     ctx.shadowColor = ctx.fillStyle;
     ctx.shadowBlur = 10;
-    ctx.globalAlpha = 0.38;
-    ctx.fillRect(-length / 2, -4 * pulse, length, 8 * pulse);
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.32;
+    ctx.fillRect(-length / 2, -5 * pulse, length, 10 * pulse);
+    ctx.globalAlpha = 0.62;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(-length / 2, -1, length, 2);
+    ctx.globalAlpha = 0.32;
+    ctx.strokeStyle = '#9ee9ff';
+    ctx.lineWidth = 1.5;
+    let ripple = Math.sin(now / 70) * 3;
+    ctx.beginPath();
+    ctx.moveTo(-length / 2, -7); ctx.lineTo(-length * 0.15, -4 + ripple); ctx.lineTo(length * 0.2, -7 - ripple); ctx.lineTo(length / 2, -5);
+    ctx.moveTo(-length / 2, 7); ctx.lineTo(-length * 0.15, 4 - ripple); ctx.lineTo(length * 0.2, 7 + ripple); ctx.lineTo(length / 2, 5);
+    ctx.stroke();
     ctx.restore();
 }
 
@@ -561,10 +585,33 @@ function drawBreathFlameTongue(ctx, x, y, angle, size) {
     ctx.translate(x, y);
     ctx.rotate(angle);
     ctx.beginPath();
-    ctx.moveTo(-size, 0); ctx.lineTo(size * 0.14, -size * 0.34);
-    ctx.lineTo(size, 0); ctx.lineTo(size * 0.14, size * 0.34); ctx.lineTo(-size, 0);
+    ctx.moveTo(-size, 0);
+    ctx.bezierCurveTo(-size * 0.42, -size * 0.48, size * 0.42, -size * 0.34, size, 0);
+    ctx.bezierCurveTo(size * 0.28, size * 0.12, -size * 0.12, size * 0.46, -size, 0);
+    ctx.closePath();
     ctx.fill();
     ctx.restore();
+}
+
+function drawBreathRibbon(ctx, source, target, wave, phase) {
+    let dx = target.x - source.x;
+    let dy = target.y - source.y;
+    let length = Math.max(1, Math.hypot(dx, dy));
+    let px = -dy / length;
+    let py = dx / length;
+    let width = clampNumber(length * 0.075, 8, 16) * (0.9 + Math.sin(phase) * 0.08);
+    let startX = source.x + dx * 0.1;
+    let startY = source.y + dy * 0.1;
+    let nearX = source.x + dx * 0.32 - px * wave * 0.35;
+    let nearY = source.y + dy * 0.32 - py * wave * 0.35;
+    let midX = source.x + dx * 0.58 + px * wave;
+    let midY = source.y + dy * 0.58 + py * wave;
+    drawPolygonPath(ctx, [[startX + px * 2, startY + py * 2], [nearX + px * width * 0.42, nearY + py * width * 0.42],
+        [midX + px * width, midY + py * width],
+        [target.x + px * width * 0.35, target.y + py * width * 0.35], [target.x - px * width * 0.35, target.y - py * width * 0.35],
+        [midX - px * width * 0.82, midY - py * width * 0.82], [nearX - px * width * 0.5, nearY - py * width * 0.5],
+        [startX - px * 2, startY - py * 2]]);
+    ctx.fill();
 }
 
 function drawBreathChannelFx(ctx, fx, now, targets) {
@@ -574,7 +621,6 @@ function drawBreathChannelFx(ctx, fx, now, targets) {
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
     ctx.fillStyle = '#ff7435';
-    ctx.strokeStyle = '#ff9b45';
     ctx.shadowColor = '#ff4b22';
     ctx.shadowBlur = 7;
     endpoints.forEach((target, index) => {
@@ -584,18 +630,16 @@ function drawBreathChannelFx(ctx, fx, now, targets) {
         let px = -dy / length;
         let py = dx / length;
         let wave = Math.sin(now / 85 + index * 1.9) * 5;
-        let startX = source.x + dx * 0.12;
-        let startY = source.y + dy * 0.12;
-        ctx.globalAlpha = 0.5;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(source.x + dx * 0.58 + px * wave, source.y + dy * 0.58 + py * wave); ctx.lineTo(target.x, target.y); ctx.stroke();
-        for (let tongue = 1; tongue <= 3; tongue++) {
-            let progress = ((now / 460 + tongue / 3 + index * 0.17) % 1) * 0.82 + 0.12;
+        ctx.globalAlpha = 0.06;
+        ctx.fillStyle = '#ff5a26';
+        drawBreathRibbon(ctx, source, target, wave, now / 130 + index);
+        for (let tongue = 1; tongue <= 4; tongue++) {
+            let progress = ((now / 420 + tongue / 4 + index * 0.17) % 1) * 0.82 + 0.12;
             let bend = Math.sin(now / 90 + tongue + index) * 4;
             let x = source.x + dx * progress + px * bend;
             let y = source.y + dy * progress + py * bend;
-            let size = 8 + tongue * 1.8;
-            ctx.globalAlpha = 0.5;
+            let size = 11 + tongue * 1.35;
+            ctx.globalAlpha = 0.64;
             ctx.fillStyle = '#ff7435';
             drawBreathFlameTongue(ctx, x, y, Math.atan2(dy, dx), size);
             ctx.globalAlpha = 0.34;
@@ -613,20 +657,26 @@ function drawVoidChannelFx(ctx, fx, now, targets) {
     let dx = bounds.x - source.x;
     let dy = bounds.y - source.y;
     let length = Math.max(20, Math.hypot(dx, dy));
-    let px = -dy / length;
-    let py = dx / length;
-    let sweep = Math.sin(now / 110) * 7;
     ctx.save();
+    ctx.translate(source.x, source.y);
+    ctx.rotate(Math.atan2(dy, dx));
     ctx.globalCompositeOperation = 'screen';
-    ctx.strokeStyle = '#bd75ff';
+    ctx.fillStyle = '#8d39df';
+    ctx.strokeStyle = '#d59aff';
     ctx.shadowColor = '#7824c7';
-    ctx.shadowBlur = 8;
-    ctx.globalAlpha = 0.46;
-    ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(source.x + px * sweep, source.y + py * sweep); ctx.lineTo(bounds.x - px * sweep, bounds.y - py * sweep); ctx.stroke();
-    ctx.globalAlpha = 0.3;
+    ctx.shadowBlur = 10;
+    let sweep = Math.sin(now / 110) * 5;
+    ctx.globalAlpha = 0.4;
+    drawPolygonPath(ctx, [[0, -3], [length * 0.4, -10 + sweep], [length, -2], [length * 0.58, 9 + sweep], [0, 3]]);
+    ctx.fill();
+    ctx.globalAlpha = 0.68;
     ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(source.x - px * (sweep + 5), source.y - py * (sweep + 5)); ctx.lineTo(bounds.x + px * (sweep + 5), bounds.y + py * (sweep + 5)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(length * 0.38, sweep); ctx.lineTo(length * 0.74, -sweep); ctx.lineTo(length, 0); ctx.stroke();
+    for (let slice = 1; slice <= 3; slice++) {
+        let x = length * (((now / 520) + slice / 3) % 1);
+        ctx.globalAlpha = 0.3 + slice * 0.08;
+        ctx.beginPath(); ctx.moveTo(x - 8, -12); ctx.lineTo(x + 8, 12); ctx.stroke();
+    }
     ctx.restore();
 }
 
@@ -645,8 +695,11 @@ function drawMeteorBody(ctx, x, y, size, progress) {
     ctx.fillStyle = '#ff6b2c';
     ctx.shadowColor = '#ff4b22';
     ctx.shadowBlur = 7;
-    ctx.globalAlpha = 0.48;
+    ctx.globalAlpha = 0.38;
     ctx.beginPath(); ctx.moveTo(-tail, 0); ctx.lineTo(-size * 0.28, -size * 0.3); ctx.lineTo(-size * 0.08, size * 0.27); ctx.lineTo(-tail, 0); ctx.fill();
+    ctx.globalAlpha = 0.68;
+    ctx.fillStyle = '#ffbd59';
+    ctx.beginPath(); ctx.moveTo(-tail * 0.72, 0); ctx.lineTo(-size * 0.24, -size * 0.12); ctx.lineTo(-size * 0.06, size * 0.11); ctx.lineTo(-tail * 0.72, 0); ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 0.96;
     ctx.fillStyle = '#2e211f';
@@ -660,6 +713,28 @@ function drawMeteorBody(ctx, x, y, size, progress) {
     ctx.strokeStyle = '#ffb15b';
     ctx.lineWidth = 1.4;
     ctx.beginPath(); ctx.moveTo(-size * 0.08, -size * 0.2); ctx.lineTo(size * 0.08, 0); ctx.lineTo(-size * 0.02, size * 0.2); ctx.stroke();
+    ctx.fillStyle = '#ff8240';
+    ctx.globalAlpha = 0.56;
+    drawPolygonPath(ctx, [[-tail * 0.54, -size * 0.22], [-tail * 0.4, -size * 0.3], [-tail * 0.34, -size * 0.18]]); ctx.fill();
+    drawPolygonPath(ctx, [[-tail * 0.72, size * 0.2], [-tail * 0.58, size * 0.28], [-tail * 0.5, size * 0.16]]); ctx.fill();
+    ctx.restore();
+}
+
+function drawMeteorWarning(ctx, targets, progress) {
+    let sampled = getSampledCombatTargets(targets, 10);
+    let size = getCombatCellEffectSize(targets);
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = '#ff6b2c';
+    ctx.shadowColor = '#ff3d18';
+    ctx.shadowBlur = 6;
+    ctx.globalAlpha = 0.12 + progress * 0.22;
+    sampled.forEach((target, index) => {
+        let mark = size * (0.07 + (index % 2) * 0.025);
+        drawPolygonPath(ctx, [[target.x, target.y - mark], [target.x + mark, target.y],
+            [target.x, target.y + mark], [target.x - mark, target.y]]);
+        ctx.fill();
+    });
     ctx.restore();
 }
 
@@ -679,7 +754,9 @@ function drawMeteorImpact(ctx, targets, fade) {
         let dy = Math.sin(angle) * size * 0.24;
         ctx.lineWidth = 2 + index % 2;
         ctx.beginPath(); ctx.moveTo(target.x - dx * 0.2, target.y - dy * 0.2); ctx.lineTo(target.x + dx * 0.45, target.y + dy * 0.45); ctx.lineTo(target.x + dx, target.y + dy); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(target.x, target.y - 3); ctx.lineTo(target.x + 3, target.y); ctx.lineTo(target.x, target.y + 3); ctx.lineTo(target.x - 3, target.y); ctx.lineTo(target.x, target.y - 3); ctx.fill();
+        let shard = 3 + index % 3;
+        drawPolygonPath(ctx, [[target.x, target.y - shard * 1.8], [target.x + shard, target.y + shard], [target.x - shard, target.y + shard]]);
+        ctx.fill();
     });
     ctx.restore();
 }
@@ -689,8 +766,9 @@ function drawMeteorCombatFx(ctx, fx, now, arriveAt, targets) {
     let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
     let impactFade = now <= arriveAt ? 0 : clampNumber((fx.start + fx.duration - now) / 260, 0, 1);
     if (now <= arriveAt) {
-        let fall = Math.pow(progress, 2.5);
-        drawMeteorBody(ctx, bounds.x - (1 - fall) * 76, bounds.y - (1 - fall) * 240, 42 + fall * 10, progress);
+        let fall = Math.pow(progress, 3);
+        drawMeteorWarning(ctx, targets, progress);
+        drawMeteorBody(ctx, bounds.x - (1 - fall) * 52, bounds.y - (1 - fall) * 128, 30 + fall * 8, progress);
         return;
     }
     drawMeteorImpact(ctx, targets, impactFade);
@@ -833,24 +911,35 @@ function drawIaiSkillVfx(ctx, effect, progress) {
 
 function drawStormStrikeVfx(ctx, effect, progress) {
     let height = Math.max(70, effect.size * 1.15);
-    ctx.translate(effect.x, effect.y);
-    ctx.strokeStyle = '#f5ef91';
-    ctx.lineWidth = Math.max(2, effect.size * 0.035);
-    ctx.shadowColor = '#8edcff';
-    ctx.shadowBlur = 12;
-    ctx.beginPath();
+    let points = [];
     for (let step = 0; step <= 6; step++) {
         let y = -height + height * step / 6;
         let x = step === 0 || step === 6 ? 0 : (((effect.seed + step) % 3) - 1) * effect.size * 0.12;
-        if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        points.push([x, y]);
     }
+    ctx.translate(effect.x, effect.y);
+    ctx.strokeStyle = '#70cfff';
+    ctx.lineWidth = Math.max(4, effect.size * 0.07);
+    ctx.shadowColor = '#8edcff';
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    points.forEach((point, index) => index === 0 ? ctx.moveTo(point[0], point[1]) : ctx.lineTo(point[0], point[1]));
+    ctx.stroke();
+    ctx.strokeStyle = '#fffbd0';
+    ctx.lineWidth = Math.max(1.5, effect.size * 0.022);
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    points.forEach((point, index) => index === 0 ? ctx.moveTo(point[0], point[1]) : ctx.lineTo(point[0], point[1]));
     ctx.stroke();
     ctx.globalAlpha *= 0.58 * Math.sin(progress * Math.PI);
-    ctx.lineWidth *= 0.72;
+    ctx.lineWidth = Math.max(1.2, effect.size * 0.018);
     ctx.beginPath();
     ctx.moveTo(0, -height * 0.32); ctx.lineTo(-effect.size * 0.23, -height * 0.12); ctx.lineTo(-effect.size * 0.34, height * 0.04);
     ctx.moveTo(effect.size * 0.05, -height * 0.22); ctx.lineTo(effect.size * 0.28, -height * 0.04); ctx.lineTo(effect.size * 0.18, height * 0.12);
     ctx.stroke();
+    ctx.fillStyle = '#d8f8ff';
+    drawPolygonPath(ctx, [[0, -5], [8, 0], [0, 5], [-8, 0]]);
+    ctx.fill();
 }
 
 function drawBeamSkillVfx(ctx, effect, progress) {

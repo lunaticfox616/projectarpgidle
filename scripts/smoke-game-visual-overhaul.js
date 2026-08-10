@@ -307,7 +307,8 @@ const optimizedAreaVfx = vm.runInContext(`(() => {
   const counts = { meteorImages: 0, lines: 0, blizzardLines: 0, blizzardBounds: 0, arcs: 0, fills: 0 };
   battleAssets.images.skillFxSlamPrimary = { complete: true, naturalWidth: 64 };
   const ctx = {
-    globalAlpha: 1, save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {},
+    globalAlpha: 1, save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, closePath() {},
+    bezierCurveTo() {},
     arc() { counts.arcs++; }, stroke() {}, fill() { counts.fills++; }, fillRect() {},
     moveTo() {}, lineTo() { counts.lines++; }, strokeRect() { counts.blizzardBounds++; },
     drawImage() { counts.meteorImages++; }
