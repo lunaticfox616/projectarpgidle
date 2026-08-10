@@ -8642,6 +8642,21 @@ function getUiEnemyTraitLabels(tags) {
     });
 }
 
+function getUiEnemyTraitDisplayText(tags) {
+    let labels = getUiEnemyTraitLabels(tags);
+    let fullText = labels.join(' · ');
+    let compactLabels = labels.map(label => String(label)
+        .replace(/^패턴:\s*/, '')
+        .replace(/^다음:\s*/, '다음 ')
+        .split(/\s+[—–]\s+/)[0]
+        .replace(/\s+전개$/, ''));
+    let compactText = compactLabels.join(' · ');
+    if (compactText.length > 25) {
+        compactText = compactLabels.map(label => label.length > 7 ? `${label.slice(0, 6)}…` : label).join(' · ');
+    }
+    return { fullText, compactText };
+}
+
 function buildEnemyCombatEffectIcons(activeAilments, enemyDebuffs, now, enemy) {
     let ailmentIcons = (activeAilments || []).filter(ail => ail && (ail.time || 0) > 0).map(ail => {
         let remain = Math.ceil(Math.max(0, ail.time || 0));
@@ -8987,7 +9002,6 @@ function updateCombatUI(pStats) {
             enemyListEl.innerHTML = `
                 <div class="enemy-card targeted enemy-${enemyHudTier}">
                     <div class="enemy-nameplate"><div class="enemy-name"></div></div>
-                    ${effectMarkup}
                     <div class="enemy-health-frame">
                         <img class="health-skin-frame" src="assets/ui/health-${enemyHudTier}-v1.png" alt="" aria-hidden="true">
                         <div class="hp-bar-bg">
@@ -9001,6 +9015,7 @@ function updateCombatUI(pStats) {
                         </div>
                         ${metaMarkup}
                     </div>
+                    ${effectMarkup}
                 </div>
             `;
         }
@@ -9034,12 +9049,14 @@ function updateCombatUI(pStats) {
         }
         if (traitEl) {
             let showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase);
-            let traitText = showTraits ? tags.join(' · ') : '';
+            let traitDisplay = getUiEnemyTraitDisplayText(showTraits ? tags : []);
             let patternText = focusedEnemy.patternMode && typeof getBossPatternDescription === 'function'
                 ? getBossPatternDescription(focusedEnemy.patternMode) : '';
-            traitEl.innerText = traitText;
-            traitEl.title = [traitText, patternText].filter(Boolean).join(' · ');
-            traitEl.style.display = showTraits && traitText ? '' : 'none';
+            let fullTooltip = [traitDisplay.fullText, patternText].filter(Boolean).join(' · ');
+            traitEl.innerText = traitDisplay.compactText;
+            traitEl.title = fullTooltip;
+            traitEl.setAttribute('aria-label', fullTooltip);
+            traitEl.style.display = showTraits && traitDisplay.fullText ? '' : 'none';
         }
     }
 }

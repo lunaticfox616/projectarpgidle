@@ -115,6 +115,12 @@ assert(firstSpriteMarkup.includes('--effect-sprite-x:0.0000%') && firstSpriteMar
   'the first effect must address the first atlas cell');
 assert(lastSpriteMarkup.includes('--effect-sprite-x:100.0000%') && lastSpriteMarkup.includes('--effect-sprite-y:100.0000%'),
   'unknown effects must address the final fallback atlas cell');
+const lifeLeechSpriteMarkup = context.renderCombatEffectIcon({ key: 'lifeLeech' });
+const swiftSpriteMarkup = context.renderCombatEffectIcon({ key: 'gladiatorSwift' });
+assert(lifeLeechSpriteMarkup.includes('--effect-sprite-x:100.0000%') && lifeLeechSpriteMarkup.includes('--effect-sprite-y:50.0000%'),
+  'life leech must stay in atlas cell 27 without slipping into the row below');
+assert(swiftSpriteMarkup.includes('--effect-sprite-x:100.0000%') && swiftSpriteMarkup.includes('--effect-sprite-y:66.6667%'),
+  'swift deployment must stay in atlas cell 34 without slipping into the row below');
 assert.notStrictEqual(firstSpriteMarkup, context.renderCombatEffectIcon({ key: 'freeze' }),
   'different effects must select different atlas cells');
 context.game.talentRuntime.colosseumReady = false;
@@ -247,6 +253,11 @@ assert.deepStrictEqual(
   JSON.parse(JSON.stringify(context.getUiEnemyTraitLabels(['보스', '화염', '정예', '광폭']))),
   ['화염', '광폭'],
   'rarity labels must not be repeated as enemy traits'
+);
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(context.getUiEnemyTraitDisplayText(['화염', '중갑 전개', '패턴: 격앙', '연타경감 6%']))),
+  { fullText: '화염 · 중갑 전개 · 패턴: 격앙 · 연타경감 6%', compactText: '화염 · 중갑 · 격앙 · 연타경감 6%' },
+  'boss trait text must abbreviate panel labels while preserving the complete hover text'
 );
 
 const traitStart = battlefieldSource.indexOf('function getEnemyTraitSummary(');
