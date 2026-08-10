@@ -5527,64 +5527,57 @@ function getZoneElementWardProfile(zone) {
 }
 
 function getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, seed) {
-    if (!zone || zone.type !== 'cosmos' || (!isElite && !isBoss)) return null;
+    if (!zone || zone.type !== 'cosmos') return null;
     const tag = String(zone.cosmosTag || '').trim() || 'stellar';
     const sizeClass = Math.max(1, Math.min(5, Math.floor(zone.sizeClass || 1)));
     const gravity = Math.max(1, Number(zone.gravity || 1));
-    const power = (isBoss ? 1.45 : 1) * (1 + Math.max(0, sizeClass - 1) * 0.06 + Math.max(0, gravity - 1) * 0.04);
-    const byTag = {
-        crit: 'critResist', toxiccrit: 'critResist', mirror: 'critResist', reflect: 'critResist', balance: 'critResist', judgement: 'critResist',
-        guard: 'critDamageResist', shield: 'critDamageResist', relic: 'critDamageResist', belt: 'critDamageResist', tank: 'critDamageResist', purify: 'critDamageResist',
-        projectile: 'comboGuard', bind: 'comboGuard', path: 'comboGuard', node: 'comboGuard', gate: 'comboGuard', loop: 'comboGuard', warp: 'comboGuard',
-        charge: 'heavySlow', impact: 'heavySlow', aoe: 'heavySlow', fire: 'heavySlow', physical: 'heavySlow', core: 'heavySlow', end: 'heavySlow',
-        speed: 'fast', hunt: 'fast', arcane: 'fast', dual: 'fast', companion: 'fast', sting: 'fast',
-        absorb: 'energyShield', cold: 'energyShield', vital: 'energyShield', regen: 'energyShield', seed: 'energyShield', flower: 'energyShield',
-        map: 'evasion', wealth: 'evasion', reward: 'evasion', gateway: 'evasion', outer: 'evasion', skill: 'evasion',
-        venom: 'armor', poison: 'armor', chaos: 'armor', curse: 'armor', sacrifice: 'armor', asteroid: 'armor', boss: 'heavySlow'
-    };
-    const archetype = byTag[tag] || ['critResist', 'critDamageResist', 'comboGuard', 'heavySlow', 'fast', 'energyShield', 'evasion', 'armor'][Math.abs(seed || 0) % 8];
+    const rankPower = isBoss ? 1.45 : (isElite ? 1 : 0.72);
+    const power = rankPower * (1 + Math.max(0, sizeClass - 1) * 0.06 + Math.max(0, gravity - 1) * 0.04);
+    const mechanic = typeof resolveCosmosMechanic === 'function' ? resolveCosmosMechanic(tag, seed) : null;
+    if (!mechanic) return null;
+    const archetype = mechanic.id;
     const trait = {
         id: `cosmos_${archetype}`,
         name: '',
-        expMul: 1 + (isBoss ? 0.16 : 0.08),
-        dropMul: 1 + (isBoss ? 0.12 : 0.06),
+        expMul: 1 + (isBoss ? 0.16 : (isElite ? 0.08 : 0.03)),
+        dropMul: 1 + (isBoss ? 0.12 : (isElite ? 0.06 : 0.02)),
         bossDebuffs: []
     };
     if (archetype === 'critResist') {
-        trait.name = '우주계 한정: 성운 굴절';
+        trait.name = `우주계: ${mechanic.name}`;
         trait.critResistPct = Math.floor((isBoss ? 42 : 26) * power);
         trait.critDamageResistPct = Math.floor((isBoss ? 38 : 22) * power);
     } else if (archetype === 'critDamageResist') {
-        trait.name = '우주계 한정: 항성 장갑';
+        trait.name = `우주계: ${mechanic.name}`;
         trait.critDamageResistPct = Math.floor((isBoss ? 58 : 36) * power);
         trait.dr = Math.floor((isBoss ? 10 : 6) * power);
         trait.armorMul = 1 + (isBoss ? 0.85 : 0.55) * power;
     } else if (archetype === 'comboGuard') {
-        trait.name = '우주계 한정: 연속 타격 저항';
+        trait.name = `우주계: ${mechanic.name}`;
         trait.hitRateGuard = Math.min(0.28, (isBoss ? 0.12 : 0.08) * power);
         trait.comboTakenLessPct = Math.min(70, Math.floor((isBoss ? 38 : 24) * power));
     } else if (archetype === 'heavySlow') {
-        trait.name = '우주계 한정: 중력 강타';
+        trait.name = `우주계: ${mechanic.name}`;
         trait.atkMul = 1 + (isBoss ? 0.62 : 0.38) * power;
         trait.damageMul = 1 + (isBoss ? 0.28 : 0.16) * power;
         trait.attackSpeedVarMul = Math.max(0.42, 1 - (isBoss ? 0.32 : 0.22) * power);
         trait.penetration = Math.floor((isBoss ? 8 : 4) * power);
     } else if (archetype === 'fast') {
-        trait.name = '우주계 한정: 광속 공세';
+        trait.name = `우주계: ${mechanic.name}`;
         trait.attackSpeedVarMul = 1 + (isBoss ? 0.55 : 0.34) * power;
         trait.critChanceBonus = Math.floor((isBoss ? 12 : 7) * power);
         trait.evasionChance = Math.floor((isBoss ? 18 : 10) * power);
     } else if (archetype === 'energyShield') {
         const esPct = Math.min(100, Math.max(50, Math.floor(50 + ((Math.abs(seed || 0) % 51)) + (isBoss ? 18 : 0))));
-        trait.name = `우주계 한정: 에너지 보호막 ${esPct}%`;
+        trait.name = `우주계: ${mechanic.name} ${esPct}%`;
         trait.energyShieldPct = esPct;
         trait.resAll = Math.floor((isBoss ? 8 : 4) * power);
     } else if (archetype === 'evasion') {
-        trait.name = '우주계 한정: 성간 회피';
+        trait.name = `우주계: ${mechanic.name}`;
         trait.evasionMul = 1 + (isBoss ? 1.65 : 1.05) * power;
         trait.evasionChance = Math.min(72, Math.floor((isBoss ? 42 : 28) * power));
     } else if (archetype === 'armor') {
-        trait.name = '우주계 한정: 운석 장갑';
+        trait.name = `우주계: ${mechanic.name}`;
         trait.armorMul = 1 + (isBoss ? 2.2 : 1.35) * power;
         trait.armorGuard = Math.min(0.72, (isBoss ? 0.36 : 0.24) * power);
         trait.dr = Math.floor((isBoss ? 14 : 8) * power);

@@ -2059,6 +2059,7 @@ function getDefaultSkillAutoRule() {
 }
 
 function addSkillAutoRule() {
+    if (!game.conditionGemUnlocked) return addLog('컨디션 젬이 아직 잠겨 있습니다. 루프2 뿌리 보스를 먼저 쓰러뜨리세요.', 'attack-monster');
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
 
     game.skillAutoRules.push(getDefaultSkillAutoRule());
@@ -2066,9 +2067,71 @@ function addSkillAutoRule() {
 }
 
 function sortSkillAutoRules() {
+    if (!game.conditionGemUnlocked) return addLog('컨디션 젬이 아직 잠겨 있습니다. 루프2 뿌리 보스를 먼저 쓰러뜨리세요.', 'attack-monster');
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
 
     game.skillAutoRules.sort((a, b) => (a.priority || 0) - (b.priority || 0));
+    game.skillAutoRules.forEach((rule, idx) => rule.priority = idx + 1);
+    renderSkillAutoRulePanel();
+}
+
+function setEquipmentInventoryView(key, value) {
+    game.settings = game.settings || {};
+    if (key === 'slot') game.settings.equipmentSlotFilter = String(value || 'all');
+    if (key === 'sort') game.settings.equipmentSort = ['recent', 'rarity', 'tier', 'slot'].includes(value) ? value : 'recent';
+    updateStaticUI();
+}
+
+safeExposeGlobals({ setEquipmentInventoryView });
+
+function selectJewelWorkbenchTarget(index, fusion) {
+    if (fusion) toggleJewelFusionSelection(index);
+    else selectJewelCraftTarget(index);
+    let disclosure = document.getElementById('ui-jewel-craft-disclosure');
+    if (disclosure) disclosure.open = true;
+}
+
+safeExposeGlobals({ selectJewelWorkbenchTarget });
+
+function getSortedEquipmentInventoryRows(query) {
+    game.settings = game.settings || {};
+    let slotValue = game.settings.equipmentSlotFilter || 'all';
+    let sortValue = game.settings.equipmentSort || 'recent';
+    if (!['recent', 'rarity', 'tier', 'slot'].includes(sortValue)) sortValue = 'recent';
+    let slots = Array.from(new Set(game.inventory.map(item => item && item.slot).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ko'));
+    if (!slots.includes(slotValue)) slotValue = 'all';
+    let slotSelect = document.getElementById('ui-equipment-slot-filter');
+    let sortSelect = document.getElementById('ui-equipment-sort');
+    if (slotSelect) {
+        slotSelect.innerHTML = `<option value="all">전체</option>${slots.map(slot => `<option value="${escapeHTML(slot)}">${escapeHTML(slot)}</option>`).join('')}`;
+        slotSelect.value = slotValue;
+    }
+    if (sortSelect) sortSelect.value = sortValue;
+    let ranks = { unique: 4, rare: 3, magic: 2, normal: 1 };
+    return game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
+        let item = row.item || {};
+        if (slotValue !== 'all' && item.slot !== slotValue) return false;
+        if (!isItemRarityVisible(item)) return false;
+        let under = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
+        let base = (item.baseStats || []).map(stat => `${stat && stat.id || ''} ${stat && stat.statName || ''}`).join(' ');
+        let stats = (item.stats || []).map(stat => `${stat && stat.id || ''} ${stat && stat.statName || getStatName((stat && stat.id) || '') || ''}`).join(' ');
+        return matchSearchQuery(`${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${base} ${stats} ${under}`, query);
+    }).sort((a, b) => {
+        if (sortValue === 'rarity') return (ranks[b.item.rarity] || 0) - (ranks[a.item.rarity] || 0) || b.idx - a.idx;
+        if (sortValue === 'tier') return Number(b.item.hiddenTier || b.item.itemTier || 0) - Number(a.item.hiddenTier || a.item.itemTier || 0) || b.idx - a.idx;
+        if (sortValue === 'slot') return String(a.item.slot || '').localeCompare(String(b.item.slot || ''), 'ko') || b.idx - a.idx;
+        return b.idx - a.idx;
+    });
+}
+
+function moveSkillAutoRule(index, delta) {
+    if (!game.conditionGemUnlocked) return;
+    game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
+    let from = Math.max(0, Math.min(game.skillAutoRules.length - 1, Math.floor(index || 0)));
+    let to = Math.max(0, Math.min(game.skillAutoRules.length - 1, from + Math.sign(delta || 0)));
+    if (from === to) return;
+    let moved = game.skillAutoRules.splice(from, 1)[0];
+    game.skillAutoRules.splice(to, 0, moved);
     game.skillAutoRules.forEach((rule, idx) => rule.priority = idx + 1);
     renderSkillAutoRulePanel();
 }
@@ -2212,6 +2275,10 @@ function renderSkillAutoRulePanel() {
     let panel = document.getElementById('ui-skill-rules-panel');
     if (!panel) return;
     let unlocked = !!game.conditionGemUnlocked;
+    let addButton = document.getElementById('btn-condition-rule-add');
+    let sortButton = document.getElementById('btn-condition-rule-sort');
+    if (addButton) addButton.disabled = !unlocked;
+    if (sortButton) sortButton.disabled = !unlocked;
     let owned = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
     let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
     if (!unlocked) {
@@ -2222,10 +2289,10 @@ function renderSkillAutoRulePanel() {
     let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> · 선택지 <strong>3</strong>개 <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 컨디션 젬 가공</button></div>`;
     let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
     let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
-    let ownedHtml = ownedEntries.length > 0 ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">${ownedEntries.map(entry => {
+    let ownedHtml = ownedEntries.length > 0 ? `<details class="progression-workbench"><summary>보유 컨디션 젬 ${ownedEntries.length}개</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;">${ownedEntries.map(entry => {
         let safeName = String(entry.name || '').replace(/'/g, "\\'");
         return `<div class="condition-gem-card" style="border:1px solid #314761;border-radius:8px;padding:7px; cursor:help;" onmouseover="showConditionGemTooltip(event,'${safeName}')" onmouseenter="showConditionGemTooltip(event,'${safeName}')" onmousemove="showConditionGemTooltip(event,'${safeName}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong><small style="margin-left:6px;color:var(--copy-bright);">Lv.${Math.max(1,Math.min(5,Math.floor(((game.conditionGemLevels||{})[entry.name]||1))))}</small></div>`;
-    }).join('')}</div>` : '';
+    }).join('')}</div></details>` : '';
 
     if (game.skillAutoRules.length === 0) {
         panel.innerHTML = summary + choiceHtml + ownedHtml + `<div style="color:var(--copy-muted); border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
@@ -2235,12 +2302,14 @@ function renderSkillAutoRulePanel() {
         <div style="background:#111722; border:1px solid #304a67; border-radius:10px; padding:10px; display:grid; gap:6px;">
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked;"> 사용</label>
-                <label>우선순위 <input type="number" min="1" value="${rule.priority || (idx+1)}" style="width:60px;" onchange="game.skillAutoRules[${idx}].priority=Math.max(1,Math.floor(this.value||1));"></label>
+                <span>우선순위 ${idx + 1}</span>
+                <button aria-label="규칙 위로 이동" onclick="moveSkillAutoRule(${idx},-1)" ${idx === 0 ? 'disabled' : ''}>↑</button>
+                <button aria-label="규칙 아래로 이동" onclick="moveSkillAutoRule(${idx},1)" ${idx === game.skillAutoRules.length - 1 ? 'disabled' : ''}>↓</button>
                 <button onclick="game.skillAutoRules.splice(${idx},1); renderSkillAutoRulePanel();">삭제</button>
             </div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; color:var(--copy-bright);">
                 <span>IF</span>
-                <select onchange="game.skillAutoRules[${idx}].triggerType=this.value;">
+                <select onchange="game.skillAutoRules[${idx}].triggerType=this.value; renderSkillAutoRulePanel();">
                     <option value="hp_below" ${(rule.triggerType||'hp_below')==='hp_below'?'selected':''}>HP ≤</option>
                     <option value="hp_above" ${(rule.triggerType||'hp_below')==='hp_above'?'selected':''}>HP ≥</option>
                     <option value="enemy_many" ${(rule.triggerType||'hp_below')==='enemy_many'?'selected':''}>적 수 ≥</option>
@@ -2250,14 +2319,14 @@ function renderSkillAutoRulePanel() {
                     <option value="boss_present" ${(rule.triggerType||'hp_below')==='boss_present'?'selected':''}>보스 등장 시</option>
                     <option value="boss_absent" ${(rule.triggerType||'hp_below')==='boss_absent'?'selected':''}>보스 없음</option>
                 </select>
-                <input type="number" min="1" max="100" value="${rule.hpThreshold || 40}" style="width:64px;" onchange="game.skillAutoRules[${idx}].hpThreshold=Math.min(100,Math.max(1,Math.floor(this.value||40)));">
-                <span>%</span>
+                ${['boss_present', 'boss_absent'].includes(rule.triggerType) ? '' : `<input type="number" min="1" max="100" value="${rule.hpThreshold || 40}" style="width:64px;" onchange="game.skillAutoRules[${idx}].hpThreshold=Math.min(100,Math.max(1,Math.floor(this.value||40)));"><span>${['enemy_many', 'enemy_few'].includes(rule.triggerType) ? '마리' : '%'}</span>`}
                 <span>THEN</span>
                 <select onchange="game.skillAutoRules[${idx}].skillName=this.value;" style="min-width:180px;">
                     <option value="">사용할 젬 선택</option>
                     ${ownedEntries.map(entry => `<option value="${entry.name}" title="${escapeHTML(getConditionGemTooltip(entry))}" ${rule.skillName===entry.name?'selected':''}>${entry.name} (${entry.type})</option>`).join('')}
                 </select>
             </div>
+            ${rule.skillName && owned.includes(rule.skillName) ? '' : '<div class="condition-rule-warning">사용할 젬이 선택되지 않아 이 규칙은 실행되지 않습니다.</div>'}
         </div>`).join('');
 }
 
@@ -4646,7 +4715,8 @@ function renderAttackGemCard(name, highlightedName) {
     let summonControls = summonEquipped ? `<span class="summon-gem-controls"><button class="summon-gem-count-btn" title="소환 해제" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', -1)">−</button><span class="summon-gem-count">${getSummonSkillCount(name)}기</span><button class="summon-gem-count-btn" title="추가 소환" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', 1)">+</button></span>` : '';
     let sealButton = active || name === '기본 공격' ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
     let tutorialGuide = tutorialTarget ? '<div class="starter-gem-equip-guide">첫 스킬 젬 · 클릭하여 장착</div>' : '';
-    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" onclick="${active ? `openEquippedGemManagement('${name}')` : `changeSkill('${name}')`}" aria-pressed="${active}" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
+    let action = active ? `openEquippedGemManagement('${name}')` : `changeSkill('${name}')`;
+    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
         ${tutorialGuide}
         <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${escapeHTML(def.desc || '공격 스킬 젬')}</p>
@@ -4665,12 +4735,14 @@ function renderSupportGemCard(name, highlightedName) {
     let activeTier = getSupportActiveTier(name);
     let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, activeTier) : (activeTier === 3 ? '상급' : activeTier === 2 ? '중급' : '하급');
     let cost = getSupportTierResonanceCost(name);
+    let used = (game.equippedSupports || []).reduce((sum, supportName) => sum + getSupportTierResonanceCost(supportName), 0);
+    let remaining = Math.max(0, getEffectiveResonanceCap() - used - (active ? 0 : cost));
     let tierButtons = tierCap <= 1 ? '' : [1, 2, 3].map(tier => `<button class="${tier === activeTier ? 'active' : ''}" title="${tier <= unlockedTier ? `${tier}등급 사용` : '미해금 등급'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${tier})" ${tier <= unlockedTier ? '' : 'disabled'}>${tier}</button>`).join('');
     let sealButton = active ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSupportGem('${name}')">봉인</button>`;
-    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''}" onclick="toggleSupport('${name}')" aria-pressed="${active}" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()">
+    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''}" role="group" tabindex="0" onclick="toggleSupport('${name}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();toggleSupport('${name}');}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()">
         <div class="gem-card-head"><span class="gem-card-sigil">✚</span><div><small>${tierLabel} 보조 · 공명 ${cost}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${escapeHTML(def.desc || '보조 젬 효과')}</p>
-        <div class="gem-card-tags"><span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || ''))}</span><span class="gem-tag gem-tag--resonance">공명 ${cost}</span></div>
+        <div class="gem-card-tags"><span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || ''))}</span><span class="gem-tag gem-tag--resonance">${active ? `장착 중 · 공명 ${cost}` : `장착 후 공명 ${remaining}`}</span></div>
         <div class="gem-card-footer"><span class="gem-usage-state">${active ? '● 장착 중' : '클릭하여 장착'}</span>${tierButtons ? `<span class="support-tier-switch" aria-label="보조 젬 등급">${tierButtons}</span>` : ''}${sealButton}</div>
     </article>`;
 }
@@ -9450,15 +9522,8 @@ function performUpdateStaticUI() {
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
     if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
-    const equipInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
-        let item = row.item || {};
-        if (!isItemRarityVisible(item)) return false;
-        let underEnchantHay = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
-        let hay = `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${(item.baseStats||[]).map(s => `${s&&s.id||''} ${s&&s.statName||''}`).join(' ')} ${(item.stats || []).map(s2 => `${s2&&s2.id||''} ${s2&&s2.statName||getStatName((s2&&s2.id)||'')||''}`).join(' ')} ${underEnchantHay}`;
-        return matchSearchQuery(hay, sf.equip);
-    });
-    let equipSearchTools = `<button onclick="bulkSalvageEquipBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageEquipBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">미검색 항목 해체</button>`;
-    renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join(''), '', equipSearchTools);
+    const equipInvRows = getSortedEquipmentInventoryRows(sf.equip);
+    renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join(''), '', '');
     const visibleInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isItemRarityVisible(row.item));
     document.getElementById('ui-craft-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
     document.getElementById('ui-fossil-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'fossil')).join('');
@@ -9545,10 +9610,10 @@ function performUpdateStaticUI() {
                 ? `고유 고정 옵션 ${quality.optionCount}개`
                 : (quality.optionCount > 0 ? `옵션 ${quality.optionCount}개 · 평균 T${quality.averageTier.toFixed(1)} · 품질 ${quality.qualityPct}%` : '미가공 · 오브 제작 가능');
             let equipSlotBtns = Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => `<button onclick="equipJewel(${idx}, ${slotIdx})">슬롯${slotIdx + 1}</button>`).join('');
-            return `<div class="item-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="jewel-quality-line">${qualityText}</div><div class="item-stats" style="line-height:1.45;color:var(--copy-bright);">${desc || '<span style="color:var(--copy-muted);">옵션 없음</span>'}</div><div class="item-actions">${equipSlotBtns}<button onclick="selectJewelCraftTarget(${idx})">제작대상</button><button onclick="toggleJewelFusionSelection(${idx})">융합선택</button>${jewel.waxedByBeeswax ? `<button disabled>밀랍</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="toggleJewelLock(${idx})">${jewel.locked ? '🔒 잠금' : '🔓 잠금'}</button><button onclick="salvageJewel(${idx})" ${jewel.locked ? 'disabled' : ''}>해체 +${getJewelSalvageShardGain(jewel)}</button></div></div>`;
+            let manageActions = `<button onclick="selectJewelWorkbenchTarget(${idx},false)">제작대상</button><button onclick="selectJewelWorkbenchTarget(${idx},true)">융합선택</button>${jewel.waxedByBeeswax ? `<button disabled>밀랍</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="toggleJewelLock(${idx})">${jewel.locked ? '🔒 잠금' : '🔓 잠금'}</button><button onclick="salvageJewel(${idx})" ${jewel.locked ? 'disabled' : ''}>해체 +${getJewelSalvageShardGain(jewel)}</button>`;
+            return `<div class="item-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="jewel-quality-line">${qualityText}</div><div class="item-stats" style="line-height:1.45;color:var(--copy-bright);">${desc || '<span style="color:var(--copy-muted);">옵션 없음</span>'}</div><div class="item-actions">${equipSlotBtns}<details class="item-card-more"><summary>제작 · 관리</summary>${manageActions}</details></div></div>`;
         }).join('');
-        let jewelTools = `<button onclick="bulkSalvageJewelsBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageJewelsBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">미검색 항목 해체</button>`;
-        renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:var(--copy-muted);">주얼 인벤토리가 비었습니다.</div>`, jewelTools);
+        renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:var(--copy-muted);">주얼 인벤토리가 비었습니다.</div>`, '');
     }
 
 function getJewelStatToneColor(statId) {
@@ -10144,7 +10209,7 @@ function renderFlaskPanel() {
         </div>
         ${utilSlots}${beltHint}
     </div>
-    <section class="flask-workbench"><div class="flask-workbench-head"><div><span>ALCHEMY BENCH</span><strong>플라스크 제작·품질</strong><small>연금 유리로 다음 단계를 제작하거나 장착 플라스크 품질을 최대 20%까지 올립니다. 회복 품질은 총 회복량, 유틸리티 품질은 지속시간을 높입니다.</small></div><div class="flask-glass-balance"><span>연금 유리</span><b>${st.alchemyGlass}</b></div></div><div class="flask-craft-grid">${craftCards || '<div class="gem-process-empty">현재 레벨에서 제작 가능한 다음 단계가 없습니다.</div>'}</div></section>
+    <details class="flask-workbench progression-workbench"><summary>ALCHEMY BENCH · 제작 가능한 플라스크 ${craftCandidates.length}개 · 연금 유리 ${st.alchemyGlass}</summary><div class="flask-workbench-head"><div><span>ALCHEMY BENCH</span><strong>플라스크 제작·품질</strong><small>연금 유리로 다음 단계를 제작하거나 장착 플라스크 품질을 최대 20%까지 올립니다. 회복 품질은 총 회복량, 유틸리티 품질은 지속시간을 높입니다.</small></div><div class="flask-glass-balance"><span>연금 유리</span><b>${st.alchemyGlass}</b></div></div><div class="flask-craft-grid">${craftCards || '<div class="gem-process-empty">현재 레벨에서 제작 가능한 다음 단계가 없습니다.</div>'}</div></details>
     <div class="flask-help-text"><strong>운용 안내</strong> 낮은 단계는 전투에서 비교적 쉽게 발견되지만 높은 단계일수록 드랍 확률이 낮아집니다. 제작은 무작위 발견을 보완하며, 같은 계열은 앞 단계부터 순서대로 진행합니다(미발견 ${undiscoveredCount}종).</div>`;
 }
 
@@ -10154,6 +10219,7 @@ function renderFlaskPanel() {
 function openFlaskPickerOverlay(kind, slotIndex) {
     if (typeof ensureFlaskState !== 'function') return;
     let st = ensureFlaskState();
+    let currentHealDef = getFlaskHealDef(st.healTier);
     let lvl = Math.max(1, Math.floor(game.level || 1));
     let found = typeof ensureFlaskFoundKeys === 'function' ? ensureFlaskFoundKeys() : (st.foundKeys || []);
     let maxUtilSlots = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
@@ -10185,7 +10251,7 @@ function openFlaskPickerOverlay(kind, slotIndex) {
         let textColor = opts.locked ? '#5d6d86' : (opts.selected ? '#ffffff' : '#d6e3ff');
         btn.style.cssText = `text-align:left; padding:10px; border-radius:9px; border:1px solid ${borderColor}; background:${opts.locked ? '#141d2c' : bgColor}; color:${textColor}; cursor:${opts.locked ? 'not-allowed' : 'pointer'}; font-weight:700;`;
         let subColor = opts.locked ? '#5d6d86' : '#b7c6df';
-        btn.innerHTML = `${opts.name}${opts.selected ? ' ✓' : ''}<br><span style="font-weight:400; font-size:0.78em; color:${subColor};">${opts.desc}${opts.lockLabel ? ` · ${opts.lockLabel}` : ''}</span>`;
+        btn.innerHTML = `${opts.name}${opts.selected ? ' ✓' : ''}<br><span style="font-weight:400; font-size:0.78em; color:${subColor};">${opts.desc}${opts.lockLabel ? ` · ${opts.lockLabel}` : ''}</span>${opts.compare ? `<br><span style="font-weight:700;font-size:0.75em;color:#f2d88f;">${opts.compare}</span>` : ''}`;
         if (!opts.locked) btn.onclick = () => { opts.onSelect(); overlay.remove(); };
         return btn;
     }
@@ -10203,6 +10269,7 @@ function openFlaskPickerOverlay(kind, slotIndex) {
                 locked: levelLocked || undiscovered,
                 lockLabel: levelLocked ? `Lv.${t.reqLevel} 필요` : (undiscovered ? '미발견' : ''),
                 selected: st.healTier === t.key,
+                compare: st.healTier === t.key ? '현재 장착' : `총 회복 ${currentHealDef.healPct}% → ${t.healPct}% (${t.healPct - currentHealDef.healPct >= 0 ? '+' : ''}${t.healPct - currentHealDef.healPct}%p)`,
                 onSelect: () => selectHealFlaskTier(t.key)
             }));
         });
@@ -10224,6 +10291,7 @@ function openFlaskPickerOverlay(kind, slotIndex) {
                     locked: usedElsewhere || levelLocked || undiscovered,
                     lockLabel: levelLocked ? `Lv.${reqLevel} 필요` : (undiscovered ? '미발견' : (usedElsewhere ? '다른 슬롯 장착 중' : '')),
                     selected: !!(st.utils[idx] && st.utils[idx].key === key),
+                    compare: st.utils[idx] && st.utils[idx].key === key ? '현재 장착' : (st.utils[idx] && FLASK_UTILITY_POOL[st.utils[idx].key] ? `${FLASK_UTILITY_POOL[st.utils[idx].key].name}에서 교체` : '빈 슬롯에 장착'),
                     onSelect: () => equipUtilityFlask(idx, key)
                 }));
             });
@@ -11143,9 +11211,10 @@ function buildCraftActionButtons(item) {
             </div>`;
         }).join('');
         let loop10Panel = document.getElementById('ui-loop10-panel');
+        let loop10Section = document.getElementById('ui-loop10-section');
         if (loop10Panel) {
             let loop10Open = (game.season || 1) >= 10;
-            loop10Panel.style.display = loop10Open ? 'block' : 'none';
+            if (loop10Section) loop10Section.style.display = loop10Open ? 'block' : 'none';
             if (loop10Open) {
                 game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
                 game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
@@ -11172,8 +11241,8 @@ function buildCraftActionButtons(item) {
                     <div style="margin-top:6px; color:var(--copy-bright);">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()" ${deepChaosUnlocked ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:var(--copy-bright);">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${deepChaosUnlocked ? '' : ` (혼돈 20 클리어 필요)`}</span></div>
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
-                <div style="margin-top:4px; color:#9ec4f0;">${deepTotalLine}</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div>`;
+                <details class="progression-workbench"><summary>영구 강화 · 보유 포인트 ${game.loopDeepPoints || 0}</summary><div style="padding:8px;"><div style="color:#9ec4f0;">${deepTotalLine}</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div></div></details>`;
             }
         }
     } else {
@@ -11286,7 +11355,8 @@ function buildCraftActionButtons(item) {
             let titleText = statLines.map(line => (P_STATS[line.stat] || { name: getStatName(line.stat) }).name || line.stat).join(' / ');
             let title = id === 'n10' ? '👑 궁극기' : ((id === 'n11' || id === 'n12') ? '💠 4차 핵심' : ((id === 'n13a' || id === 'n13b') ? '🌸 재능특화' : ((id === 'n13c' || id === 'n13d') ? '🌸 전직특화' : titleText)));
             let stateText = active ? '선택됨 · 클릭하여 반환' : (reqMet ? '선택 가능' : '선행 노드 필요');
-            return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" ${active ? `onclick="askRefundAscendNode('${id}')"` : (!reqMet ? '' : `onclick="buyAscend('${id}')"`)}><div class="trait-title">${title}</div><div class="trait-desc">${desc}<span class="trait-card-state">${stateText}</span></div></div>`;
+            let action = active ? `askRefundAscendNode('${id}')` : (!reqMet ? '' : `buyAscend('${id}')`);
+            return `<div class="trait-card ${active ? 'active' : (!reqMet ? 'locked' : '')}" role="button" tabindex="${action ? '0' : '-1'}" aria-disabled="${action ? 'false' : 'true'}" ${action ? `onclick="${action}" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${action};}"` : ''}><div class="trait-title">${title}</div><div class="trait-desc">${desc}<span class="trait-card-state">${stateText}</span></div></div>`;
         };
         let coreRow = (tree.n11 || tree.n12) ? `<div class="trait-row">${renderAscend('n11')}${renderAscend('n12')}</div>` : '';
         let bloomRow = (tree.n13a || tree.n13c) ? `<div class="trait-row">${renderAscend('n13a')}${renderAscend('n13b')}</div><div class="trait-row">${renderAscend('n13c')}${renderAscend('n13d')}</div>` : '';
@@ -11326,7 +11396,7 @@ function buildCraftActionButtons(item) {
         document.getElementById('ui-class-select').style.display = 'block';
         document.getElementById('ui-class-locked').style.display = 'none';
         document.getElementById('ui-class-tree').style.display = 'none';
-        document.getElementById('ui-class-grid').innerHTML = Object.keys(CLASS_TEMPLATES).map(key => `<div class="class-card" onclick="selectClass('${key}')"><div style="font-weight:bold; color:#f1c40f; margin-bottom:5px;">${CLASS_TEMPLATES[key].name}</div><div style="font-size:0.85em; color:#aaa;">${CLASS_TEMPLATES[key].desc}</div></div>`).join('');
+        document.getElementById('ui-class-grid').innerHTML = Object.keys(CLASS_TEMPLATES).map(key => `<button type="button" class="class-card" onclick="selectClass('${key}')"><span style="display:block;font-weight:bold; color:#f1c40f; margin-bottom:5px;">${CLASS_TEMPLATES[key].name}</span><span style="display:block;font-size:0.85em; color:#aaa;">${CLASS_TEMPLATES[key].desc}</span></button>`).join('');
     } else {
         document.getElementById('ui-class-select').style.display = 'none';
         document.getElementById('ui-class-locked').style.display = 'block';
@@ -11395,10 +11465,10 @@ function buildCraftActionButtons(item) {
         let talismanUniqueBadge = isUniqueTalisman ? '<span class="unique-inventory-badge">✨ 고유</span>' : '';
         let rollQuality = getTalismanRollQuality(t);
         let qualityBadge = rollQuality === null ? '' : `<span class="talisman-quality-badge ${rollQuality >= 75 ? 'high' : (rollQuality < 40 ? 'low' : '')}">품질 ${rollQuality}%</span>`;
-        return `<div class="item-card ${selected ? 'selected' : ''} ${talismanCardClass}" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${talismanTitleClass}" style="${isUniqueTalisman ? '' : `color:${shapeStyle.color};`}">${isLockedInventoryObject(t) ? '🔒 ' : ''}${talismanUniqueBadge}${highlightSearchText(getTalismanDisplayName(t), q)} ${t.stat ? ` · ${highlightSearchText(t.statName, q)} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:var(--copy-bright);">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${qualityBadge} ${t.special ? `· 효과: ${highlightSearchText(getTalismanSpecialDescription(t), q)}` : ''}</div></div></div><div style="display:flex; gap:4px;"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})" style="padding:4px 8px; min-height:30px;">회전</button><button onclick="event.stopPropagation(); toggleTalismanLock(${t.id})" style="padding:4px 8px; min-height:30px;">${getLockButtonLabel(t)}</button>${t.waxedByBeeswax ? `<button disabled style="padding:4px 8px; min-height:30px;">밀랍</button>` : `<button onclick="event.stopPropagation(); applyBeeswaxToTalisman(${t.id})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'} style="padding:4px 8px; min-height:30px;">밀랍</button>`}<button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" ${isLockedInventoryObject(t) ? 'disabled' : ''} style="background:#6e3f3f; border-color:#8f5959; padding:4px 8px; min-height:30px;">해체</button></div></div></div>`;
+        let manage = `<button onclick="event.stopPropagation(); toggleTalismanLock(${t.id})">${getLockButtonLabel(t)}</button>${t.waxedByBeeswax ? '<button disabled>밀랍</button>' : `<button onclick="event.stopPropagation(); applyBeeswaxToTalisman(${t.id})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" ${isLockedInventoryObject(t) ? 'disabled' : ''}>해체</button>`;
+        return `<div class="item-card ${selected ? 'selected' : ''} ${talismanCardClass}" role="group" tabindex="0" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectTalismanInventoryItem(${t.id});}" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${talismanTitleClass}" style="${isUniqueTalisman ? '' : `color:${shapeStyle.color};`}">${isLockedInventoryObject(t) ? '🔒 ' : ''}${talismanUniqueBadge}${highlightSearchText(getTalismanDisplayName(t), q)} ${t.stat ? ` · ${highlightSearchText(t.statName, q)} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:var(--copy-bright);">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${qualityBadge} ${t.special ? `· 효과: ${highlightSearchText(getTalismanSpecialDescription(t), q)}` : ''}</div></div></div><div class="item-actions"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})">회전</button><details class="item-card-more" onclick="event.stopPropagation()"><summary>관리</summary>${manage}</details></div></div></div>`;
     }).join('');
-    let talismanTools = `<button onclick="bulkSalvageTalismansBySearch(false)" style="background:#6e3f3f; border-color:#8f5959;">검색 항목 해체</button><button onclick="bulkSalvageTalismansBySearch(true)" style="background:#4b2f55; border-color:#6e4a78;">미검색 항목 해체</button>`;
-    renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanRowsHtml, `<div style="grid-column:1/-1; color:var(--copy-muted);">보유한 부적이 없습니다.</div>`, talismanTools);
+    renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanRowsHtml, `<div style="grid-column:1/-1; color:var(--copy-muted);">보유한 부적이 없습니다.</div>`, '');
     let selectedPlacementTalisman = (game.talismanInventory || []).find(row => row && row.id === game.talismanSelectedId) || null;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
@@ -11438,7 +11508,8 @@ function buildCraftActionButtons(item) {
                 ? ' talisman-placement-valid'
                 : ' talisman-placement-invalid';
         }
-        return `<button class="talisman-board-cell${placementClass}" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:var(--talisman-cell); height:var(--talisman-cell); border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
+        let cellLabel = placed ? `${getTalismanDisplayName(placed)} 배치 칸` : (unlocked ? `빈 부적 칸 ${x + 1}, ${y + 1}` : `잠긴 부적 칸 ${x + 1}, ${y + 1} · 해금 비용 ${unlockCost}`);
+        return `<button class="talisman-board-cell${placementClass}" aria-label="${escapeHTML(cellLabel)}" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:var(--talisman-cell); height:var(--talisman-cell); border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     }
     let talismanTotalEl = talismanTabActive ? document.getElementById('ui-talisman-total') : null;
@@ -11934,6 +12005,8 @@ function setupCanvasEvents() {
         let mutationConflict = (starState.mutationConflictSources || {})[node.id];
         let passiveAccent = getPassiveStatAccent(typeof getPassiveNodeDisplayStat === 'function' ? getPassiveNodeDisplayStat(node) : node.stat);
         let state = getPassiveVisibility(node.id);
+        let route = typeof getHoveredPassivePathNodeIds === 'function' ? getHoveredPassivePathNodeIds(node.id) : new Set([node.id]);
+        let routeCost = Array.from(route).filter(id => !(game.passives || []).includes(id) && id !== 'n0').length;
         let ownedApexCount = getPassiveApexNodeIds().filter(id => (game.passives || []).includes(id)).length;
         let msg = virtualLearned
             ? '🌀 블랙홀이 연결한 가상 거점 · 포인트 없이 인접 경로를 시작할 수 있습니다.'
@@ -11985,6 +12058,7 @@ function setupCanvasEvents() {
              ${effectHtml}
              ${node.desc ? `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-bright);">${node.desc}</div>` : ''}
              ${voidCraftHtml}
+             <div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${routeCost}포인트 필요 · 연결 경로가 트리에 강조됩니다.</div>
              <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
 
         canvasTooltip.style.display = 'block';
@@ -12883,7 +12957,7 @@ function mergeDefaults(save) {
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
     merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
-    merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
+    merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-research','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
     merged.skillAutoRules = Array.isArray(merged.skillAutoRules) ? merged.skillAutoRules : [];
     merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
     merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
@@ -15424,7 +15498,7 @@ function getExpertiseCardHtml(id) {
     let favorOptions = (typeof getExpertFavorOptions === 'function') ? getExpertFavorOptions(id) : [];
     let favorSelected = (typeof getSelectedExpertFavor === 'function') ? getSelectedExpertFavor(id) : null;
     let favorHtml = favorOptions.length > 0
-        ? `<div class="expertise-panel" style="margin-top:8px;"><div style="color:var(--copy-bright); font-weight:700; margin-bottom:4px;">전문가의 호의 (영구 1개 선택)</div>${favorOptions.map(opt => { let unlocked = lv >= (opt.level || 1); let active = favorSelected === opt.id; return `<button ${unlocked ? `onclick="selectExpertFavor('${id}','${opt.id}')"` : 'disabled'} style="display:block; width:100%; text-align:left; margin:4px 0; ${active ? 'border-color:#ffd36b; color:#ffd36b;' : ''}">${active ? '✓ ' : ''}${opt.name} ${unlocked ? '' : `(Lv.${opt.level} 필요)`}<br><span class='expertise-muted'>${formatExpertFavorEffect(opt.effect)}</span></button>`; }).join('')}</div>`
+        ? `<div class="expertise-panel expert-favor-panel" style="margin-top:8px;"><div style="color:var(--copy-bright); font-weight:700; margin-bottom:4px;">활성 호의 1개 · 언제든 교체 가능</div><div class="expert-favor-grid">${favorOptions.map(opt => { let unlocked = lv >= (opt.level || 1); let active = favorSelected === opt.id; return `<button class="expert-favor-option ${active ? 'active' : ''}" ${unlocked ? `onclick="selectExpertFavor('${id}','${opt.id}')"` : 'disabled'}>${active ? '✓ ' : ''}${opt.name} ${unlocked ? '' : `(Lv.${opt.level} 필요)`}<br><span class='expertise-muted'>${formatExpertFavorEffect(opt.effect)}</span></button>`; }).join('')}</div></div>`
         : '';
     let guideRows = ((typeof EXPERT_EXP_GUIDES !== 'undefined' && EXPERT_EXP_GUIDES[id]) || []).map(line => `<li>${line}</li>`).join('');
     let guideHtml = guideRows ? `<div class="expertise-panel" style="margin-top:8px;"><div style="color:var(--copy-bright); font-weight:700; margin-bottom:4px;">경험치 획득 가이드</div><ul style="margin:0 0 0 18px; padding:0; color:var(--copy-bright); line-height:1.55;">${guideRows}</ul></div>` : '';

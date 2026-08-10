@@ -294,6 +294,27 @@ const baseGame = extra => ({
     assert.strictEqual(journalOnly.presented[0].actionTabId, 'tab-journal');
 }
 
+// 16) 나무꾼 이후에는 지하계 30층과 우주계 은하 순서를 주 목표로 안내한다.
+{
+    const unlock = boot(baseGame({
+        maxZoneId: 12, season: 20, loopCount: 19, journalEntries: ['woodsman_echo'],
+        unlocks: { map: true }, underworldProgress: { highestFloor: 17 }
+    }));
+    unlock.refresh();
+    assert.strictEqual(unlock.presented[0].id, 'cosmos-unlock-underworld');
+    assert.strictEqual(unlock.presented[0].target, 30);
+    assert.strictEqual(unlock.presented[0].actionSubtabId, 'map-tab-underworld');
+
+    const atlas = boot(baseGame({
+        maxZoneId: 12, season: 31, loopCount: 30, journalEntries: ['woodsman_echo'],
+        unlocks: { map: true }, underworldProgress: { highestFloor: 30 },
+        cosmosAtlas: { bossClears: ['planet-46', 'planet-47'] }
+    }));
+    atlas.refresh();
+    assert.strictEqual(atlas.presented[0].id, 'cosmos-galaxy-3');
+    assert.strictEqual(atlas.presented[0].actionSubtabId, 'map-tab-cosmos');
+}
+
 // 생장판 안내: 루프 25에 판이 조용히 열리고, 드랍은 최근 획득함에 쌓이며,
 // 배치하지 않으면 아무 효과도 없다. 장비에는 "장착 가능한 장비가 있습니다" 안내가
 // 있는데 생장판에는 신호가 없어 판이 빈 채로 계속 굴러가기 쉬웠다.

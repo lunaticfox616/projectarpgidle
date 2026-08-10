@@ -319,15 +319,14 @@ const COSMOS_BOSS_STONE_COMMON_OPTIONS = [
     { stat: 'maxDmgRoll', min: 1, max: 4, label: '최대 피해 보정(%)' }
 ];
 
-const COSMOS_BOSS_STONE_DUD_OPTIONS = [
-    { stat: 'flatHp', min: 12, max: 28, label: '최대 생명력' },
-    { stat: 'pctHp', min: 1, max: 3, label: '최대 생명력 증가(%)' },
-    { stat: 'regen', min: 0.1, max: 0.4, label: '생명력 재생(%)' },
-    { stat: 'move', min: 1, max: 3, label: '이동 속도(%)' },
-    { stat: 'resAll', min: 1, max: 3, label: '모든 저항(%)' },
-    { stat: 'armorPct', min: 2, max: 5, label: '방어도 증가(%)' },
-    { stat: 'evasionPct', min: 2, max: 5, label: '회피 증가(%)' },
-    { stat: 'energyShieldPct', min: 2, max: 5, label: '에너지 보호막 증가(%)' }
+const COSMOS_BOSS_STONE_DEFENSE_OPTIONS = [
+    { stat: 'flatHp', min: 80, max: 150, label: '최대 생명력' },
+    { stat: 'pctHp', min: 5, max: 9, label: '최대 생명력 증가(%)' },
+    { stat: 'regen', min: 0.5, max: 1.0, label: '생명력 재생(%)' },
+    { stat: 'resAll', min: 4, max: 7, label: '모든 저항(%)' },
+    { stat: 'armorPct', min: 10, max: 18, label: '방어도 증가(%)' },
+    { stat: 'evasionPct', min: 10, max: 18, label: '회피 증가(%)' },
+    { stat: 'energyShieldPct', min: 10, max: 18, label: '에너지 보호막 증가(%)' }
 ];
 
 const COSMOS_BOSS_STONE_OPTION_POOLS = {
@@ -341,7 +340,7 @@ const COSMOS_BOSS_STONE_OPTION_POOLS = {
             { stat: 'slamPctDmg', min: 3, max: 8, label: '강타 피해 증가(%)' },
             { stat: 'slamEchoChance', min: 1, max: 4, label: '강타 여진 확률(%)' },
             ...COSMOS_BOSS_STONE_COMMON_OPTIONS,
-            ...COSMOS_BOSS_STONE_DUD_OPTIONS
+            ...COSMOS_BOSS_STONE_DEFENSE_OPTIONS
         ],
         bossOptions: [
             { stat: 'cosmosAlwaysFirstHitChancePct', min: 5, max: 12, label: '첫 공격 취급 확률(%)' },
@@ -359,7 +358,7 @@ const COSMOS_BOSS_STONE_OPTION_POOLS = {
             { stat: 'dotPctDmg', min: 3, max: 8, label: '지속 피해 배율(%)' },
             { stat: 'summonResPen', min: 1, max: 3, label: '소환수 저항 관통(%)' },
             ...COSMOS_BOSS_STONE_COMMON_OPTIONS,
-            ...COSMOS_BOSS_STONE_DUD_OPTIONS
+            ...COSMOS_BOSS_STONE_DEFENSE_OPTIONS
         ],
         bossOptions: [
             { stat: 'uniqueInstantLeechPct', min: 3, max: 8, label: '즉시 흡수 비율(%)' },
@@ -377,7 +376,7 @@ const COSMOS_BOSS_STONE_OPTION_POOLS = {
             { stat: 'summonPctDmg', min: 3, max: 8, label: '소환수 피해 증가(%)' },
             { stat: 'summonFlatDmg', min: 3, max: 9, label: '소환수 추가 피해' },
             ...COSMOS_BOSS_STONE_COMMON_OPTIONS,
-            ...COSMOS_BOSS_STONE_DUD_OPTIONS
+            ...COSMOS_BOSS_STONE_DEFENSE_OPTIONS
         ],
         bossOptions: [
             { stat: 'gemLevel', min: 1, max: 1, label: '모든 스킬 젬 레벨' },
@@ -395,7 +394,7 @@ const COSMOS_BOSS_STONE_OPTION_POOLS = {
             { stat: 'dotPctDmg', min: 3, max: 8, label: '지속 피해 배율(%)' },
             { stat: 'slamPctDmg', min: 3, max: 8, label: '강타 피해 증가(%)' },
             ...COSMOS_BOSS_STONE_COMMON_OPTIONS,
-            ...COSMOS_BOSS_STONE_DUD_OPTIONS
+            ...COSMOS_BOSS_STONE_DEFENSE_OPTIONS
         ],
         bossOptions: [
             { stat: 'resPen', min: 3, max: 8, label: '저항 관통(%)' },
@@ -413,7 +412,7 @@ const COSMOS_BOSS_STONE_OPTION_POOLS = {
             { stat: 'summonAspd', min: 1, max: 4, label: '소환수 공격 속도(%)' },
             { stat: 'summonCritDmg', min: 5, max: 12, label: '소환수 치명타 피해(%)' },
             ...COSMOS_BOSS_STONE_COMMON_OPTIONS,
-            ...COSMOS_BOSS_STONE_DUD_OPTIONS
+            ...COSMOS_BOSS_STONE_DEFENSE_OPTIONS
         ],
         bossOptions: [
             { stat: 'cosmosBossDamageMorePct', min: 5, max: 12, label: '보스 피해 증폭(%)' },

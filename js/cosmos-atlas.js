@@ -355,12 +355,13 @@
 ];
     const COSMOS_ASTEROID_NUMBERS = [32, 60, 81, 111, 115, 127, 132, 140, 155, 156, 164, 166, 168, 170, 181, 183, 195, 198, 204, 208, 211, 214, 227, 234, 241, 261, 264, 291, 299, 308, 331, 343, 349, 358, 365, 394, 406, 430, 431, 442, 463, 477, 486, 511, 533, 550, 554, 599, 681, 693, 702, 715, 726, 737, 756, 757, 761, 767, 769, 778, 781, 786, 800, 813, 824, 843, 866, 886, 900, 944, 947, 964, 969, 985, 1000];
 
-    const COSMOS_LAYOUT_VERSION = 20260601;
+    const COSMOS_LAYOUT_VERSION = 20260810;
     const DEFAULT_COSMOS_CAMERA_SCALE = 0.56;
     const GALAXY_SEQUENCE = [1, 2, 3, 4, 5];
     const PLANETS_PER_GALAXY = 10;
     const ASTEROIDS_PER_GALAXY = 15;
     const NODES_PER_GALAXY = PLANETS_PER_GALAXY + ASTEROIDS_PER_GALAXY;
+    const GALAXY_BOSS_REQUIRED_CLEARS = 15;
     const GALAXY_BOSS_PLANET_INDEX = {
         1: 46,
         2: 47,
@@ -385,6 +386,7 @@
         host: null,
         detail: null,
         summary: null,
+        roadmap: null,
         tooltip: null,
         selectedId: 'planet-0',
         hoverId: null,
@@ -400,20 +402,20 @@
     };
 
     const COSMOS_MASTERY_NODES = [
-        { key: 'planetRelief', name: '행성 패널티 완화', max: 30, cost: 1, desc: '행성 진행도/중력 패널티 완화 +1.2% (최대 36%)' },
+        { key: 'planetRelief', name: '행성 패널티 완화', max: 30, cost: 1, desc: '10레벨마다 행성 전투 위협 티어 -1 (최대 -3)' },
         { key: 'asteroidRelief', name: '소행성 수확 증폭', max: 24, cost: 1, desc: '소행성 클리어 별가루 +1.6% (최대 38.4%)' },
         { key: 'combatFocus', name: '전투 파밍 집중', max: 24, cost: 1, desc: '행성 클리어 별가루 +1.0% (최대 24%)' },
         { key: 'craftFocus', name: '제작 파밍 집중', max: 24, cost: 1, desc: '소행성 클리어 별가루 +1.0% (최대 24%)' },
         { key: 'stardustGain', name: '별가루 증폭', max: 30, cost: 1, desc: '우주계 별가루 획득 +1.0% (최대 30%)' },
-        { key: 'challengeEase', name: '행성 난이도 완화', max: 22, cost: 1, desc: '행성 전투 난이도 -1.0% (최대 -22%)' },
-        { key: 'highRisk', name: '고위험 난이도', max: 20, cost: 1, desc: '우주계 난이도 +1.5%(최대 +30%), 보상 +2.2%(최대 +44%)' },
+        { key: 'challengeEase', name: '행성 난이도 완화', max: 22, cost: 1, desc: '4레벨마다 우주계 전투 위협 티어 -1 (최대 -5)' },
+        { key: 'highRisk', name: '고위험 난이도', max: 20, cost: 1, desc: '4레벨마다 위협 티어 +1, 보상 +2.2% (최대 +44%)' },
         { key: 'bossBounty', name: '보스 보상 강화', max: 18, cost: 1, desc: '은하 보스 별가루 보상 +2.2% (최대 +39.6%)' },
-        { key: 'routeInsight', name: '별길 통찰', max: 28, cost: 1, desc: '우주계 전투 난이도 -0.9% (최대 -25.2%)' },
+        { key: 'routeInsight', name: '별길 통찰', max: 28, cost: 1, desc: '7레벨마다 우주계 전투 위협 티어 -1 (최대 -4)' },
         { key: 'gravityHarness', name: '중력 제어', max: 22, cost: 1, desc: '중력 페널티 완화 +1.0% (최대 22%)' },
         { key: 'warpEfficiency', name: '항성 추진', max: 20, cost: 1, desc: '모든 우주계 클리어 별가루 +1.0% (최대 20%)' },
         { key: 'eliteHunt', name: '유물 감응', max: 20, cost: 1, desc: '보스 유물 드랍 확률 +0.7%p (최대 +14%p)' },
         { key: 'resonanceDrive', name: '공명 구동', max: 22, cost: 1, desc: '우주계 전투 최종 피해 +0.6% (최대 13.2%)' },
-        { key: 'voidSurvey', name: '공허 측량', max: 20, cost: 1, desc: '소행성 전투 난이도 -0.8% (최대 -16%)' },
+        { key: 'voidSurvey', name: '공허 측량', max: 20, cost: 1, desc: '8레벨마다 소행성 전투 위협 티어 -1 (최대 -2)' },
         { key: 'stellarForge', name: '항성 단조', max: 26, cost: 1, desc: '소행성 클리어 별가루 +0.9% (최대 23.4%)' },
         { key: 'echoCache', name: '에코 저장고', max: 20, cost: 1, desc: '탐사 완료 보너스 별가루 +1.0% (최대 20%)' },
         { key: 'riftGuard', name: '균열 방벽', max: 20, cost: 1, desc: '우주계 받는 피해 완화 +0.7% (최대 14%)' },
@@ -517,32 +519,44 @@
         return alpha == null ? spec.accent : getColorWithAlpha(spec.accent, alpha);
     }
 
-    function getGalaxySpiralPosition(galaxy, slot, seed, kind) {
+    function getGalaxyRouteOrder(localSlot, isGalaxyBoss) {
+        if (isGalaxyBoss) return 22;
+        const withoutBoss = localSlot > 9 ? localSlot - 1 : localSlot;
+        return withoutBoss >= 22 ? withoutBoss + 1 : withoutBoss;
+    }
+
+    function getGalaxyRoutePosition(galaxy, routeOrder) {
         const spec = GALAXY_SPECS[galaxy] || GALAXY_SPECS[1];
         if (galaxy === 0) return { x: spec.x, y: spec.y };
-        const safeSlot = Math.max(0, Math.min(NODES_PER_GALAXY - 1, Math.floor(slot || 0)));
-        const normalized = NODES_PER_GALAXY <= 1 ? 0 : safeSlot / (NODES_PER_GALAXY - 1);
-        const turn = spec.angle + 1.18 + safeSlot * 0.92 + seeded01(seed + ':turn') * 0.26;
-        const inner = kind === 'planet' ? 58 : 130;
-        const outer = spec.r * (kind === 'planet' ? 0.74 : 0.96);
-        const radius = inner + (outer - inner) * Math.sqrt(normalized) + (seeded01(seed + ':radius') - 0.5) * (kind === 'planet' ? 24 : 44);
-        const side = (seeded01(seed + ':side') - 0.5) * (kind === 'planet' ? 22 : 36);
+        const order = Math.max(0, Math.min(NODES_PER_GALAXY - 1, Math.floor(routeOrder || 0)));
+        const stage = Math.floor(order / 5);
+        const lane = (order % 5) - 2;
+        const length = Math.max(1, Math.hypot(spec.x, spec.y));
+        const dx = spec.x / length;
+        const dy = spec.y / length;
+        const progress = (stage - 2) * 118;
+        const side = lane * 58;
         return {
-            x: spec.x + Math.cos(turn) * radius + Math.cos(turn + Math.PI / 2) * side,
-            y: spec.y + Math.sin(turn) * radius + Math.sin(turn + Math.PI / 2) * side
+            x: spec.x + dx * progress - dy * side,
+            y: spec.y + dy * progress + dx * side
         };
     }
 
-    function clampNodeToGalaxy(node) {
-        if (!node || node.orbit === 0) return;
-        const spec = GALAXY_SPECS[node.orbit] || GALAXY_SPECS[1];
-        const dx = node.x - spec.x;
-        const dy = node.y - spec.y;
-        const d = Math.hypot(dx, dy) || 0.001;
-        const maxR = spec.r * 1.05;
-        if (d <= maxR) return;
-        node.x = spec.x + dx / d * maxR;
-        node.y = spec.y + dy / d * maxR;
+    function assignGalaxyRoutePositions() {
+        GALAXY_SEQUENCE.forEach(galaxy => {
+            const nodes = ATLAS.nodes.filter(node => node.orbit === galaxy);
+            const boss = nodes.find(node => node.tag === 'boss');
+            const routeOrders = Array.from({ length: NODES_PER_GALAXY }, (_, index) => index)
+                .filter(order => order !== 22);
+            nodes.filter(node => node !== boss).sort((a, b) => a.localSlot - b.localSlot).forEach((node, index) => {
+                node.routeOrder = routeOrders[index];
+                Object.assign(node, getGalaxyRoutePosition(galaxy, node.routeOrder));
+            });
+            if (boss) {
+                boss.routeOrder = 22;
+                Object.assign(boss, getGalaxyRoutePosition(galaxy, boss.routeOrder));
+            }
+        });
     }
 
     function buildCosmosAtlasData() {
@@ -556,8 +570,9 @@
             const galaxy = getGalaxyForPlanetIndex(idx);
             const planetSlot = getGalaxyPlanetSlot(idx);
             const localSlot = galaxy === 0 ? 0 : planetSlot;
-            const pos = getGalaxySpiralPosition(galaxy, localSlot, `planet-${idx}-${p.name}`, 'planet');
             const isGalaxyBoss = galaxy > 0 && GALAXY_BOSS_PLANET_INDEX[galaxy] === idx;
+            const routeOrder = galaxy === 0 ? 0 : getGalaxyRouteOrder(localSlot, isGalaxyBoss);
+            const pos = getGalaxyRoutePosition(galaxy, routeOrder);
             const tag = isGalaxyBoss || p.tag === 'boss' ? 'boss' : p.tag;
             const sizeSeed = seeded01(p.name + ':size');
             const gravitySeed = seeded01(p.name + ':grav');
@@ -575,6 +590,7 @@
                 originalOrbit: Math.max(0, Math.floor(p.orbit || 0)),
                 localIndex: localSlot,
                 localSlot,
+                routeOrder,
                 tier: idx === 0 ? 1 : Math.max(1, Math.min(25, isGalaxyBoss
                     ? getGalaxyTierBandBase(galaxy) + 4
                     : getGalaxyTierBandBase(galaxy) + Math.min(4, Math.floor(planetSlot / 2)))),
@@ -592,7 +608,8 @@
             const galaxy = getGalaxyForAsteroidIndex(idx);
             const asteroidSlot = idx % ASTEROIDS_PER_GALAXY;
             const localSlot = PLANETS_PER_GALAXY + asteroidSlot;
-            const pos = getGalaxySpiralPosition(galaxy, localSlot, `asteroid-${no}`, 'asteroid');
+            const routeOrder = getGalaxyRouteOrder(localSlot, false);
+            const pos = getGalaxyRoutePosition(galaxy, routeOrder);
             const sizeClass = Math.max(1, Math.min(4, 1 + Math.floor(seeded01('ast-size-' + no) * 4)));
             const gravity = Math.max(0.9, Math.round((0.95 + galaxy * 0.16 + sizeClass * 0.13 + seeded01('ast-grav-' + no) * 1.05) * 10) / 10);
             const node = {
@@ -607,6 +624,7 @@
                 originalOrbit: galaxy,
                 localIndex: localSlot,
                 localSlot,
+                routeOrder,
                 tier: Math.max(1, Math.min(25, getGalaxyTierBandBase(galaxy) + Math.min(4, Math.floor(asteroidSlot / 3)))),
                 x: pos.x,
                 y: pos.y,
@@ -618,29 +636,7 @@
             ATLAS.nodes.push(node);
         });
 
-        for (let pass = 0; pass < 120; pass++) {
-            let moved = false;
-            for (let i = 0; i < ATLAS.nodes.length; i++) {
-                for (let j = i + 1; j < ATLAS.nodes.length; j++) {
-                    const a = ATLAS.nodes[i];
-                    const b = ATLAS.nodes[j];
-                    if (a.orbit !== b.orbit) continue;
-                    const minD = a.radius + b.radius + (a.orbit === 0 ? 28 : 18);
-                    const dx = b.x - a.x;
-                    const dy = b.y - a.y;
-                    const d = Math.hypot(dx, dy) || 0.001;
-                    if (d >= minD) continue;
-                    const push = (minD - d) * 0.5;
-                    const nx = dx / d;
-                    const ny = dy / d;
-                    if (a.id !== 'planet-0') { a.x -= nx * push; a.y -= ny * push; clampNodeToGalaxy(a); }
-                    if (b.id !== 'planet-0') { b.x += nx * push; b.y += ny * push; clampNodeToGalaxy(b); }
-                    moved = true;
-                }
-            }
-            if (!moved) break;
-        }
-
+        assignGalaxyRoutePositions();
         ATLAS.nodes.forEach(node => ATLAS.byId.set(node.id, node));
         buildEdges();
     }
@@ -652,66 +648,24 @@
         ATLAS.edges.push({ key, a, b, type: type || 'route' });
     }
 
-    function distance(a, b) {
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        return Math.sqrt(dx * dx + dy * dy);
-    }
-
     function buildEdges() {
-        const nodes = ATLAS.nodes.slice();
-        const deg = new Map(nodes.map(n => [n.id, 0]));
-        const maxDeg = 4;
-        const center = { x: 0, y: 0 };
-        const closestToCenter = nodes.slice().sort((a, b) => distance(a, center) - distance(b, center))[0];
-
-        function canLink(a, b) {
-            return a && b && a.id !== b.id && (deg.get(a.id) || 0) < maxDeg && (deg.get(b.id) || 0) < maxDeg;
-        }
-        function link(a, b, type) {
-            if (!canLink(a, b)) return false;
-            const before = ATLAS.edges.length;
-            addEdge(a.id, b.id, type);
-            if (ATLAS.edges.length > before) {
-                deg.set(a.id, (deg.get(a.id) || 0) + 1);
-                deg.set(b.id, (deg.get(b.id) || 0) + 1);
-                return true;
+        GALAXY_SEQUENCE.forEach(galaxy => {
+            const route = ATLAS.nodes.filter(node => node.orbit === galaxy)
+                .sort((a, b) => a.routeOrder - b.routeOrder);
+            const byOrder = new Map(route.map(node => [node.routeOrder, node]));
+            for (let stage = 0; stage < 5; stage++) {
+                for (let lane = 0; lane < 5; lane++) {
+                    const node = byOrder.get(stage * 5 + lane);
+                    const right = byOrder.get(stage * 5 + lane + 1);
+                    const next = byOrder.get((stage + 1) * 5 + lane);
+                    if (node && lane < 4 && right) addEdge(node.id, right.id, 'route');
+                    if (node && stage < 4 && next) addEdge(node.id, next.id, 'spine');
+                }
             }
-            return false;
-        }
-
-        // 1) Minimum spanning backbone over all nodes (planet/asteroid equal role)
-        const unvisited = new Set(nodes.map(n => n.id));
-        const visited = new Set();
-        const start = closestToCenter || nodes[0];
-        if (start) { visited.add(start.id); unvisited.delete(start.id); }
-        while (unvisited.size > 0) {
-            let best = null;
-            visited.forEach(va => {
-                const a = ATLAS.byId.get(va);
-                unvisited.forEach(vb => {
-                    const b = ATLAS.byId.get(vb);
-                    if (!canLink(a, b)) return;
-                    const d = distance(a, b);
-                    if (!best || d < best.d) best = { a, b, d };
-                });
-            });
-            if (!best) break;
-            if (!link(best.a, best.b, 'spine')) break;
-            visited.add(best.b.id);
-            unvisited.delete(best.b.id);
-        }
-
-        // 2) Fill local mesh with nearest neighbors up to degree 4
-        nodes.forEach(node => {
-            const near = nodes
-                .filter(o => o.id !== node.id)
-                .map(o => ({ o, d: distance(node, o) }))
-                .sort((x, y) => x.d - y.d)
-                .slice(0, 14);
-            for (let i = 0; i < near.length && (deg.get(node.id) || 0) < maxDeg; i++) {
-                link(node, near[i].o, 'route');
-            }
+            const entry = byOrder.get(2);
+            const previous = galaxy === 1 ? ATLAS.byId.get('planet-0')
+                : ATLAS.byId.get(`planet-${GALAXY_BOSS_PLANET_INDEX[galaxy - 1]}`);
+            if (entry && previous) addEdge(previous.id, entry.id, galaxy === 1 ? 'spine' : 'transition');
         });
     }
 
@@ -749,7 +703,6 @@
         state.selectedId = state.selectedId || 'planet-0';
         state.camera = state.camera && typeof state.camera === 'object' ? state.camera : null;
         if (state.layoutVersion !== COSMOS_LAYOUT_VERSION) {
-            state.cleared = state.cleared.filter(id => id !== 'planet-0');
             state.camera = { x: 0, y: 0, scale: DEFAULT_COSMOS_CAMERA_SCALE };
             state.layoutVersion = COSMOS_LAYOUT_VERSION;
         }
@@ -865,6 +818,16 @@
         if (!isCosmosUnlocked()) return 'locked';
         if (state.cleared.includes(node.id)) return 'cleared';
         if (node.id === 'planet-0') return 'available';
+        if (node.orbit > 1) {
+            const previousBoss = `planet-${GALAXY_BOSS_PLANET_INDEX[node.orbit - 1]}`;
+            if (!state.bossClears.includes(previousBoss)) return 'locked';
+        }
+        if (node.tag === 'boss') {
+            const galaxyClears = ATLAS.nodes.filter(row => row.orbit === node.orbit
+                && row.id !== node.id && state.cleared.includes(row.id)).length;
+            if (galaxyClears < GALAXY_BOSS_REQUIRED_CLEARS) return 'locked';
+            return 'available';
+        }
         const neighbors = getNeighbors(node.id);
         return neighbors.some(id => state.cleared.includes(id)) ? 'available' : 'locked';
     }
@@ -1257,14 +1220,94 @@
         const baseCombatTier = (typeof window.getChaosRealmTier === 'function')
             ? window.getChaosRealmTier(equivFloor)
             : (30 + Math.floor((equivFloor - 1) * 0.85) + Math.floor(Math.max(0, equivFloor - 10) * 0.18));
-        const ease = getCosmosMasteryValue('challengeEase') * 0.01 + getCosmosMasteryValue('routeInsight') * 0.009;
-        const risk = getCosmosMasteryValue('highRisk') * 0.015;
-        const relief = node && node.kind === 'planet'
-            ? getCosmosMasteryValue('planetRelief') * 0.012
-            : getCosmosMasteryValue('voidSurvey') * 0.008;
-        const finalMul = Math.max(0.65, 1 + risk - ease - relief);
+        const generalEase = Math.floor(getCosmosMasteryValue('challengeEase') / 4)
+            + Math.floor(getCosmosMasteryValue('routeInsight') / 7);
+        const routeEase = node && node.kind === 'planet'
+            ? Math.floor(getCosmosMasteryValue('planetRelief') / 10)
+            : Math.floor(getCosmosMasteryValue('voidSurvey') / 8);
+        const riskTier = Math.floor(getCosmosMasteryValue('highRisk') / 4);
+        const tierAdjustment = Math.max(-8, Math.min(6, riskTier - generalEase - routeEase));
         const cosmosLoopBonus = Math.max(0, Math.floor((window.game && window.game.cosmosLoopCount) || 0)) * 2;
-        return Math.max(1, Math.floor(baseCombatTier * finalMul) + cosmosLoopBonus);
+        return Math.max(1, baseCombatTier + tierAdjustment + cosmosLoopBonus);
+    }
+
+    function getCosmosNodeMechanic(node) {
+        if (!node || typeof window.resolveCosmosMechanic !== 'function') return null;
+        return window.resolveCosmosMechanic(node.tag, hashSeed(node.id));
+    }
+
+    function getCosmosPlayerBenchmark(element) {
+        const stats = typeof window.getPlayerStats === 'function' ? window.getPlayerStats() : {};
+        const profile = typeof window.calculatePlayerEhpProfile === 'function'
+            ? window.calculatePlayerEhpProfile(stats) : null;
+        const currentZone = typeof window.getZone === 'function' ? window.getZone(window.game && window.game.currentZoneId) : null;
+        const masteryAlreadyActive = currentZone && currentZone.type === 'cosmos';
+        const damageBonus = masteryAlreadyActive ? 1 : 1 + getCosmosMasteryValue('resonanceDrive') * 0.006;
+        const guardBonus = masteryAlreadyActive ? 1 : 1 / Math.max(0.5, 1 - getCosmosMasteryValue('riftGuard') * 0.007);
+        const keys = ['phys', 'fire', 'cold', 'light', 'chaos'];
+        const selected = profile && profile.elements && profile.elements[element]
+            ? profile.elements[element].entropy
+            : Math.min(...keys.map(key => profile && profile.elements && profile.elements[key]
+                ? profile.elements[key].entropy : 1));
+        return {
+            dps: Math.max(0, Number(stats.totalDps) || Number(stats.dps) || 0) * damageBonus,
+            ehp: Math.max(1, Number(selected) || 1) * guardBonus
+        };
+    }
+
+    function getCosmosNodeRecommendation(nodeOrId) {
+        buildCosmosAtlasData();
+        const node = typeof nodeOrId === 'string' ? ATLAS.byId.get(nodeOrId) : nodeOrId;
+        if (!node || typeof window.calculateCosmosDifficultyTarget !== 'function') return null;
+        const mechanic = getCosmosNodeMechanic(node);
+        const target = window.calculateCosmosDifficultyTarget({
+            combatTier: getCosmosChallengeTier(node),
+            sizeClass: node.sizeClass,
+            gravity: node.gravity,
+            isGalaxyBoss: node.tag === 'boss',
+            element: mechanic ? mechanic.element : 'chaos'
+        });
+        const player = getCosmosPlayerBenchmark(target.element);
+        const readiness = typeof window.evaluateCosmosReadiness === 'function'
+            ? window.evaluateCosmosReadiness(target, player) : null;
+        return { nodeId: node.id, mechanic, target, player, readiness };
+    }
+
+    function getGalaxyClearCount(state, galaxy) {
+        return ATLAS.nodes.filter(node => node.orbit === galaxy && node.tag !== 'boss'
+            && state.cleared.includes(node.id)).length;
+    }
+
+    function getCosmosProgressGuide() {
+        buildCosmosAtlasData();
+        const state = getState();
+        if (!isCosmosUnlocked()) return { stage: 'unlock', title: '지하계 30층 도달', detail: '나무꾼 이후 지하계를 내려가 우주계 관문을 여세요.', targetId: null };
+        if (!state.cleared.includes('planet-0')) return { stage: 'entry', title: '시리온 관문 돌파', detail: '중앙 관문을 클리어하면 첫 은하의 별길이 열립니다.', targetId: 'planet-0' };
+        for (const galaxy of GALAXY_SEQUENCE) {
+            const bossId = `planet-${GALAXY_BOSS_PLANET_INDEX[galaxy]}`;
+            if (state.bossClears.includes(bossId)) continue;
+            const clearCount = getGalaxyClearCount(state, galaxy);
+            const bossReady = clearCount >= GALAXY_BOSS_REQUIRED_CLEARS;
+            const candidates = ATLAS.nodes.filter(node => node.orbit === galaxy
+                && getNodeStatus(node) === 'available' && (bossReady || node.tag !== 'boss'))
+                .sort((a, b) => a.routeOrder - b.routeOrder);
+            const target = bossReady ? ATLAS.byId.get(bossId) : candidates[0];
+            return {
+                stage: bossReady ? 'boss' : 'stabilize', galaxy,
+                title: bossReady ? `G${galaxy} 은하 보스 격파` : `G${galaxy} 별길 안정화 ${clearCount}/${GALAXY_BOSS_REQUIRED_CLEARS}`,
+                detail: bossReady ? '보스를 격파해 우주석과 다음 은하를 여세요.' : '연결된 노드를 클리어하고 성도술 포인트를 얻으세요.',
+                targetId: target ? target.id : bossId,
+                current: clearCount,
+                target: GALAXY_BOSS_REQUIRED_CLEARS
+            };
+        }
+        const capstone = getCosmosCapstoneProgress(state);
+        if (!capstone.eligibleSeason) {
+            return { stage: 'season', title: '루프 31 도달', detail: '다섯 은하를 정복했습니다. 루프를 이어 최종 관문이 열리는 시점에 도달하세요.', targetId: null };
+        }
+        return capstone.canChallenge
+            ? { stage: 'capstone', title: '잔향체 아스트라 도전', detail: '다섯 은하의 준비가 끝났습니다.', targetId: null }
+            : { stage: 'key', title: '표식: 잔향 확보', detail: '은하 보스를 반복 처치해 아스트라 도전권을 확보하세요.', targetId: COSMOS_CAPSTONE_BOSS_IDS[0] };
     }
 
 
@@ -1486,29 +1529,28 @@
             panel.id = 'map-tab-cosmos';
             panel.className = 'subtab-content cosmos-atlas-tab';
             panel.innerHTML = `
-                <h2>🌠 우주계 아틀라스 <span class="h2-right">5개 은하 × 25개 노드 · 행성 50개 · 소행성 75개</span></h2>
+                <h2>🌠 우주계 아틀라스 <span class="h2-right">중앙 관문 + 5개 은하 · 행성 50개 · 소행성 75개</span></h2>
                 <div id="ui-cosmos-panel" class="cosmos-panel">
                     <div class="cosmos-header">
                         <div class="cosmos-brand">
                             <div class="cosmos-kicker">Cosmic Atlas</div>
                             <div class="cosmos-title">별을 잇는 우주계 탐험 지도</div>
                             <div class="cosmos-desc">별길을 개척하고 은하 보스를 추적하세요. 완료한 탐사마다 성도술 포인트를 얻습니다.</div>
-                            <div class="cosmos-legend" aria-label="노드 상태 안내">
-                                <span><i class="available"></i>탐사 가능</span>
-                                <span><i class="cleared"></i>완료</span>
-                                <span><i class="locked"></i>미연결</span>
-                            </div>
                         </div>
-                        <div class="cosmos-summary" id="ui-cosmos-summary"></div>
+                        <nav class="cosmos-mode-tabs" aria-label="우주계 화면 선택">
+                            <button type="button" class="cosmos-mode-tab active" id="btn-cosmos-sub-atlas" onclick="switchCosmosInnerTab('atlas')"><span class="cosmos-mode-icon">✦</span><span><strong>아틀라스</strong><small>별길 탐사와 은하 보스</small></span></button>
+                            <button type="button" class="cosmos-mode-tab" id="btn-cosmos-sub-mastery" onclick="switchCosmosInnerTab('mastery')"><span class="cosmos-mode-icon">⌘</span><span><strong>성도술</strong><small>탐사 포인트로 능력 강화</small></span></button>
+                        </nav>
                     </div>
-                    <nav class="cosmos-mode-tabs" aria-label="우주계 화면 선택">
-                        <button type="button" class="cosmos-mode-tab active" id="btn-cosmos-sub-atlas" onclick="switchCosmosInnerTab('atlas')"><span class="cosmos-mode-icon">✦</span><span><strong>아틀라스</strong><small>별길 탐사와 은하 보스</small></span></button>
-                        <button type="button" class="cosmos-mode-tab" id="btn-cosmos-sub-mastery" onclick="switchCosmosInnerTab('mastery')"><span class="cosmos-mode-icon">⌘</span><span><strong>성도술</strong><small>탐사 포인트로 능력 강화</small></span></button>
-                    </nav>
+                    <div class="cosmos-summary" id="ui-cosmos-summary"></div>
+                    <div id="ui-cosmos-roadmap" class="cosmos-roadmap"></div>
                     <div id="cosmos-inner-atlas" class="cosmos-layout">
                         <div class="cosmos-map-column">
                             <div class="cosmos-map-toolbar">
                                 <div><strong>성도 지도</strong><span>드래그로 이동 · 노드를 눌러 상세 확인</span></div>
+                                <div class="cosmos-legend cosmos-map-legend" aria-label="노드 상태 안내">
+                                    <span><i class="available"></i>탐사 가능</span><span><i class="cleared"></i>완료</span><span><i class="locked"></i>미연결</span>
+                                </div>
                                 <div class="cosmos-map-controls">
                                     <button type="button" onclick="zoomCosmosAtlas(0.88)" title="축소">−</button>
                                     <button type="button" onclick="resetCosmosAtlasCamera()">전체 보기</button>
@@ -1535,6 +1577,7 @@
         ATLAS.host = ATLAS.canvas ? ATLAS.canvas.parentElement : null;
         ATLAS.detail = document.getElementById('ui-cosmos-detail');
         ATLAS.summary = document.getElementById('ui-cosmos-summary');
+        ATLAS.roadmap = document.getElementById('ui-cosmos-roadmap');
         ATLAS.tooltip = document.getElementById('cosmos-atlas-tooltip');
 
         const overlayEl = document.getElementById('cosmos-stone-overlay');
@@ -1753,7 +1796,9 @@
             return;
         }
         const status = getNodeStatus(node);
-        ATLAS.tooltip.innerHTML = `<strong>${escapeHtml(node.name)}</strong><br><span>${escapeHtml(node.source)}</span><br>${escapeHtml(node.theme)}<br><em>${getStatusLabel(status)}</em>`;
+        const mechanic = getCosmosNodeMechanic(node);
+        const mechanicLine = mechanic ? `<br>${escapeHtml(mechanic.name)}` : '';
+        ATLAS.tooltip.innerHTML = `<strong>${escapeHtml(node.name)}</strong><br><span>${escapeHtml(node.source)}</span><br>${escapeHtml(node.theme)}${mechanicLine}<br><em>${getStatusLabel(status)}</em>`;
         const rect = ATLAS.host.getBoundingClientRect();
         ATLAS.tooltip.style.display = 'block';
         ATLAS.tooltip.style.left = `${event.clientX - rect.left + 14}px`;
@@ -1807,6 +1852,7 @@
         drawAtlas();
         renderDetail();
         renderSummary();
+        renderRoadmap();
         renderMasteryPanel();
         refreshCosmosStoneOverlay();
     }
@@ -1897,6 +1943,7 @@
             const pb = worldToScreen(b);
             const sa = getNodeStatus(a);
             const sb = getNodeStatus(b);
+            if (sa === 'locked' && sb === 'locked') return;
             const open = sa !== 'locked' && sb !== 'locked';
             const partial = sa !== 'locked' || sb !== 'locked';
             const mx = (pa.x + pb.x) / 2;
@@ -1969,7 +2016,7 @@
             const selected = ATLAS.selectedId === node.id;
             const r = Math.max(2.2, node.radius * ATLAS.camera.scale);
             const color = getNodeColor(node, status);
-            const alpha = status === 'locked' ? 0.45 : 1;
+            const alpha = status === 'locked' ? 0.16 : 1;
 
             ctx.globalAlpha = alpha;
             if (node.kind === 'planet') {
@@ -1998,6 +2045,20 @@
             ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
             ctx.stroke();
 
+            if (status === 'cleared') {
+                ctx.font = `900 ${Math.max(10, drawR * 0.95)}px Malgun Gothic, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#eafff1';
+                ctx.fillText('✓', p.x + drawR * 0.72, p.y - drawR * 0.72);
+            } else if (status === 'available') {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, drawR * 1.48, 0, Math.PI * 2);
+                ctx.strokeStyle = getGalaxyAccent(node.orbit, 0.72);
+                ctx.lineWidth = 1.4;
+                ctx.stroke();
+            }
+
             const tierText = `T${getDisplayedNodeTier(node)}`;
             if (node.kind === 'planet') {
                 ctx.font = `${Math.max(10, 11 * (selected ? 1.12 : 1))}px Malgun Gothic, sans-serif`;
@@ -2008,7 +2069,8 @@
                 ctx.fillStyle = '#ffd88a';
                 ctx.fillText(tierText, p.x, p.y);
             }
-            if (node.kind === 'planet' && (selected || hover || node.labelPriority >= 5 || ATLAS.camera.scale > 0.98)) {
+            if (node.kind === 'planet' && (status !== 'locked' || node.tag === 'boss')
+                && (selected || hover || node.labelPriority >= 5 || ATLAS.camera.scale > 0.98)) {
                 ctx.globalAlpha = status === 'locked' ? 0.62 : 1;
                 ctx.font = `${selected ? 17 : 13}px Malgun Gothic, sans-serif`;
                 ctx.textAlign = 'center';
@@ -2043,6 +2105,39 @@
             return `<div class="cosmos-stone-card" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()" style="border:1px solid ${equipped ? '#8fd4ff' : '#31445c'};border-radius:8px;padding:8px;background:${acquired ? 'rgba(23,38,58,.78)' : 'rgba(18,24,34,.62)'};"><div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><b>${escapeHtml(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착' : (acquired ? '보유' : '미획득')}</span></div><div style="font-size:11px;color:#9fd6ff;">우주계 최소 티어 보정: ${getCosmosTierFloor()}</div>${optionHtml}<div style="display:flex;gap:4px;margin-top:6px;"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && usableRelic ? '' : 'disabled'} title="${usableRelic ? '이 우주석 전용 보스 유물 사용' : '이 우주석에 맞는 보스 유물이 없습니다'}">보스 유물 사용</button></div></div>`;
         }).join('');
         return `<div style="grid-column:1/-1;margin-top:8px;"><div style="font-weight:700;color:var(--copy-bright);margin-bottom:6px;">우주석 장착 UI · 보스 유물 ${relicCount}개</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;">${cards}</div></div>`;
+    }
+
+    function renderRoadmap() {
+        if (!ATLAS.roadmap) return;
+        const guide = getCosmosProgressGuide();
+        const freePoints = getCosmosMasteryFreePoints();
+        const targetButton = guide.targetId
+            ? `<button type="button" onclick="focusRecommendedCosmosNode()">추천 노드 보기</button>` : '';
+        ATLAS.roadmap.innerHTML = `
+            <div class="cosmos-roadmap-current"><span>NEXT OBJECTIVE</span><strong>${escapeHtml(guide.title)}</strong><small>${escapeHtml(guide.detail)}</small></div>
+            <div class="cosmos-roadmap-steps" aria-label="우주계 진행 순서">
+                <span class="complete">1 지하계 30층</span><span class="${guide.stage === 'entry' ? 'active' : ''}">2 관문</span>
+                <span class="${guide.stage === 'stabilize' ? 'active' : ''}">3 은하 안정화</span><span class="${guide.stage === 'boss' ? 'active' : ''}">4 은하 보스</span>
+                <span class="${guide.stage === 'season' || guide.stage === 'key' || guide.stage === 'capstone' ? 'active' : ''}">5 아스트라</span>
+            </div>
+            <div class="cosmos-roadmap-actions">${freePoints > 0 ? `<b>미사용 성도술 ${freePoints}</b>` : '<span>성도술 배분 완료</span>'}${targetButton}</div>`;
+    }
+
+    function focusRecommendedCosmosNode() {
+        const guide = getCosmosProgressGuide();
+        if (!guide.targetId) {
+            if (guide.stage === 'capstone') openCosmosCapstoneBossPanel();
+            return;
+        }
+        const node = ATLAS.byId.get(guide.targetId);
+        if (!node) return;
+        ATLAS.selectedId = node.id;
+        getState().selectedId = node.id;
+        ATLAS.camera.x = -node.x;
+        ATLAS.camera.y = -node.y;
+        ATLAS.camera.scale = Math.max(0.82, ATLAS.camera.scale);
+        saveCamera();
+        renderCosmosAtlas();
     }
 
     function renderSummary() {
@@ -2083,17 +2178,16 @@
                 <div><span>탐사 완료</span><strong>${cleared}<small> / ${ATLAS.nodes.length}</small></strong></div>
                 <div><span>탐사 가능</span><strong>${unlocked ? available : 0}<small>개</small></strong></div>
                 <div><span>성도술</span><strong>${getCosmosMasteryFreePoints()}<small> / ${getCosmosMasteryTotalPoints()}</small></strong></div>
-                <div><span>별가루</span><strong>${getCosmosStarDustBalance()}</strong></div>
+                <div title="별가루는 우주계 탐사·이상 현상에서 얻고 천문 제작에 사용합니다."><span>별가루</span><strong>${getCosmosStarDustBalance()}</strong></div>
             </div>
-            <div class="cosmos-galaxy-progress">${galaxyProgress}</div>
-            <div class="cosmos-resource-line"><span>행성 ${planetsCleared}/50 · 소행성 ${asteroidsCleared}/75</span><span>보스 유물 ${(state.bossRelics || []).length} · 우주석 ${getEquippedCosmosStoneCount(state)}/${hasSixthCosmosStoneUnlock() ? 6 : 5}</span></div>
-            <div class="cosmos-capstone-card ${capstoneState}">
-                <div class="cosmos-capstone-head"><span>이번 루프 최종 관문</span><strong>잔향체 아스트라 ${capstone.clearedCount}/${capstone.total}</strong></div>
+            <div class="cosmos-progress-overview"><div class="cosmos-galaxy-progress">${galaxyProgress}</div>
+                <div class="cosmos-resource-line"><span>행성 ${planetsCleared}/50 · 소행성 ${asteroidsCleared}/75</span><span>보스 유물 ${(state.bossRelics || []).length} · 우주석 ${getEquippedCosmosStoneCount(state)}/${hasSixthCosmosStoneUnlock() ? 6 : 5}</span></div></div>
+            <details class="cosmos-capstone-card ${capstoneState}">
+                <summary class="cosmos-capstone-head"><span>최종 관문</span><strong>잔향체 아스트라 ${capstone.clearedCount}/${capstone.total} · 표식 ${capstone.keyCount}</strong></summary>
                 <div class="cosmos-capstone-bosses">${capstoneBosses}</div>
                 <p>${escapeHtml(capstoneMessage)}</p>
                 <div class="cosmos-capstone-footer"><span>표식: 잔향 <b>${capstone.keyCount}</b></span>${capstoneAction}</div>
-            </div>
-            <div class="cosmos-summary-tip">별가루는 우주계 탐사·이상 현상에서 얻고 천문 제작에 사용합니다 · 시리온 아래 오각형 슬롯에서 우주석을 장착할 수 있습니다.</div>`;
+            </details>`;
     }
 
     function focusCosmosCapstoneBoss(nodeId) {
@@ -2115,6 +2209,35 @@
         if (typeof window.switchMapExploreSubtab === 'function') window.switchMapExploreSubtab('map-explore-root-boss');
     }
 
+    function formatCosmosPower(value) {
+        return Math.max(0, Math.round(Number(value) || 0)).toLocaleString('ko-KR');
+    }
+
+    function renderCosmosDifficultySection(node) {
+        const model = getCosmosNodeRecommendation(node);
+        if (!model) return '';
+        const labels = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' };
+        const ready = model.readiness || { id: 'blocked', label: '측정 불가', dpsRatio: 0, ehpRatio: 0 };
+        return `<div class="cosmos-detail-section cosmos-readiness ${ready.id}">
+            <div class="cosmos-section-label">전투 준비도 <b>${escapeHtml(ready.label)}</b></div>
+            <div class="cosmos-power-grid"><span>권장 DPS<strong>${formatCosmosPower(model.target.dps)}</strong><small>약 ${model.target.clearTimeSec}초 클리어</small></span><span>권장 ${labels[model.target.element] || '최저'} EHP<strong>${formatCosmosPower(model.target.ehp)}</strong><small>엔트로피 회피 포함</small></span></div>
+            <div class="cosmos-power-compare"><span>내 DPS ${formatCosmosPower(model.player.dps)} · ${Math.floor(ready.dpsRatio * 100)}%</span><span>내 EHP ${formatCosmosPower(model.player.ehp)} · ${Math.floor(ready.ehpRatio * 100)}%</span></div>
+        </div>`;
+    }
+
+    function renderCosmosMechanicSection(node) {
+        const mechanic = getCosmosNodeMechanic(node);
+        if (!mechanic) return '';
+        return `<div class="cosmos-detail-section cosmos-mechanic"><div class="cosmos-section-label">예상 적 특성</div><strong>${escapeHtml(mechanic.name)}</strong><div>${escapeHtml(mechanic.summary)}</div><small>대응: ${escapeHtml(mechanic.counter)}</small></div>`;
+    }
+
+    function renderGalaxyGateLine(node, state) {
+        if (!node || node.orbit <= 0) return '';
+        const clears = getGalaxyClearCount(state, node.orbit);
+        const ready = clears >= GALAXY_BOSS_REQUIRED_CLEARS;
+        return `<div class="cosmos-gate-line ${ready ? 'ready' : ''}"><span>은하 안정도</span><strong>${Math.min(GALAXY_BOSS_REQUIRED_CLEARS, clears)}/${GALAXY_BOSS_REQUIRED_CLEARS}</strong><small>${ready ? '은하 보스 도전 가능' : `보스 해금까지 ${GALAXY_BOSS_REQUIRED_CLEARS - clears}개 노드`}</small></div>`;
+    }
+
     function renderDetail() {
         if (!ATLAS.detail) return;
         const state = getState();
@@ -2133,20 +2256,16 @@
                 <div class="cosmos-status ${status}">${getStatusLabel(status)}</div>
             </div>
             <div class="cosmos-detail-source">관측명 ${escapeHtml(node.source)}${window.game && window.game.cosmosLoopCount ? ` · 우주계 루프 난이도 +${Math.max(0, Math.floor(window.game.cosmosLoopCount || 0)) * 2}` : ''}</div>
-            <div class="cosmos-detail-section">
-                <div class="cosmos-section-label">천체 테마</div>
-                <div>${escapeHtml(node.theme)}</div>
+            <div class="cosmos-node-facts">
+                <span><small>천체 테마</small><strong>${escapeHtml(node.theme)}</strong></span>
+                <span><small>궤도 정보</small><strong>G${node.orbit} · ${Math.max(1, Math.floor((node.localSlot || 0) + 1))}/${NODES_PER_GALAXY}</strong></span>
+                <span><small>환경</small><strong>크기 ${Math.max(1, Math.floor(node.sizeClass || 1))} · ${Number(node.gravity || 1).toFixed(1)}g</strong></span>
+                <span><small>압력</small><strong>진행 +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</strong></span>
             </div>
-            <div class="cosmos-detail-section">
-                <div class="cosmos-section-label">탐사 보상</div>
-                <div>${escapeHtml(rewardLine)}</div>
-            </div>
-            <div class="cosmos-detail-section">
-                <div class="cosmos-section-label">행성 정보</div>
-                <div>소속: G${node.orbit} · 은하 내 슬롯 ${Math.max(1, Math.floor((node.localSlot || 0) + 1))}/${NODES_PER_GALAXY}</div>
-                <div>크기 등급: ${Math.max(1, Math.floor(node.sizeClass || 1))} · 중력: ${Number(node.gravity || 1).toFixed(1)}g</div>
-                <div class="cosmos-detail-pressure">진행도 요구 +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 패널티 +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</div>
-            </div>
+            <div class="cosmos-reward-line"><span>탐사 보상</span>${escapeHtml(rewardLine)}</div>
+            ${renderGalaxyGateLine(node, state)}
+            ${renderCosmosDifficultySection(node)}
+            ${renderCosmosMechanicSection(node)}
             <div class="cosmos-actions">
                 <button class="primary" onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '은하 보스 도전' : '전투 도전'}</button>
                 ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 관리</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">지도에서 초점</button>
@@ -2226,6 +2345,8 @@
     function startCosmosBattle(node) {
         if (!window.game || !node) return;
         const tier = getCosmosChallengeTier(node);
+        const mechanic = getCosmosNodeMechanic(node);
+        const recommendation = getCosmosNodeRecommendation(node);
         const gravity = Math.max(1, Number(node.gravity || 1));
         const sizeClass = Math.max(1, Math.floor(node.sizeClass || 1));
         const state = getState();
@@ -2237,7 +2358,10 @@
             sizeClass,
             tag: node.tag || '',
             theme: node.theme || '',
-            ele: node.tag === 'boss' ? 'chaos' : (node.tag === 'cold' ? 'cold' : (node.tag === 'fire' ? 'fire' : (node.tag === 'light' ? 'light' : 'chaos')))
+            mechanicId: mechanic ? mechanic.id : '',
+            recommendedDps: recommendation ? recommendation.target.dps : 0,
+            recommendedEhp: recommendation ? recommendation.target.ehp : 0,
+            ele: mechanic ? mechanic.element : 'chaos'
         };
         window.game.currentZoneId = 'cosmos_challenge';
         window.game.killsInZone = 0;
@@ -2349,6 +2473,7 @@
     window.getCosmosCapstoneProgress = getCosmosCapstoneProgress;
     window.focusCosmosCapstoneBoss = focusCosmosCapstoneBoss;
     window.openCosmosCapstoneBossPanel = openCosmosCapstoneBossPanel;
+    safeExposeGlobals({ getCosmosNodeRecommendation, getCosmosProgressGuide, focusRecommendedCosmosNode });
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();

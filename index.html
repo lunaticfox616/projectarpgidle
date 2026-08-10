@@ -10,18 +10,18 @@
     <link rel="stylesheet" href="css/theme.css?v=20260721-contract-header1">
     <link rel="stylesheet" href="css/components.css?v=20260722-combat-icons2">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260723-currency-icons1">
-    <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1">
+    <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1-20260810-subtab-state1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260722-combat-icons2">
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260721-galmuri-body1">
     <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1">
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1">
     <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1-20260807-windowed-cube1">
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260722-health-menu-skin4">
-    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-health-menu-skin4-20260807-elemental-ehp1">
+    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-health-menu-skin4-20260807-elemental-ehp1-20260810-management-ux1">
     <link rel="stylesheet" href="css/typography-readability.css?v=20260721-galmuri-item-names1">
     <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-merged-tabs-timers1">
     <link rel="stylesheet" href="css/ui-menu-sockets.css?v=20260723-menu-button-states2-20260805-merged-tab-scroll1">
-    <link rel="stylesheet" href="css/growth-board.css?v=20260807-growth-drag-unplace1-20260807-growth-overflow1">
+    <link rel="stylesheet" href="css/growth-board.css?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -596,9 +596,11 @@
                 </div>
                 <button type="button" id="passive-search-clear">검색초기화</button>
             </div>
-            <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: none; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
-                <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
-                <div id="passive-tree-overlay" class="passive-tree-overlay" aria-hidden="true"><div class="passive-tree-overlay-world"></div></div>
+            <div class="passive-workspace">
+                <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: none; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
+                    <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
+                    <div id="passive-tree-overlay" class="passive-tree-overlay" aria-hidden="true"><div class="passive-tree-overlay-world"></div></div>
+                </div>
                 <aside id="passive-investment-summary" class="passive-investment-summary" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
                     <button type="button" class="passive-investment-summary-toggle" onclick="togglePassiveInvestmentSummary()" aria-expanded="true">
                         <span>투자 효과 총합</span><span class="passive-summary-chevron">▴</span>
@@ -606,7 +608,7 @@
                     <div id="passive-investment-summary-body" class="passive-investment-summary-body"></div>
                 </aside>
             </div>
-            <div id="ui-star-wedge-panel" style="background:#0f1018; border:1px solid #37274a; border-radius:10px; padding:10px;"></div>
+            <details class="progression-workbench"><summary>별쐐기 관리</summary><div id="ui-star-wedge-panel" style="background:#0f1018; border:1px solid #37274a; border-radius:10px; padding:10px;"></div></details>
         </div>
     </div>
 
@@ -635,15 +637,17 @@
     </div>
 
     <div id="tab-season" class="tab-content">
-        <div id="trait-season-section" style="display: none; margin-bottom: 30px;">
+        <details id="trait-season-section" class="progression-section" style="display: none; margin-bottom: 16px;" open>
+            <summary>원환 패시브</summary>
             <h2>🔄 루프 패시브 트리 <span style="margin-left:10px; color:#ffd36b; font-size:0.88em;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:0.75em;" onclick="resetSeasonNodes()">루프 패시브 전체 초기화</button></span></h2>
             <div class="trait-tree" id="ui-season-tree"></div>
-        </div>
-        <div id="ui-loop10-panel" data-loop10-panel="1" style="display:none; margin-bottom:20px; background:#151226; border:1px solid #4d3c7a; border-radius:12px; padding:12px;"></div>
-        <div id="season-content-section" style="display: none; margin-bottom: 20px;">
+        </details>
+        <details id="ui-loop10-section" class="progression-section" style="display:none; margin-bottom:16px;" open><summary>심화 등반 · 영구 강화</summary><div id="ui-loop10-panel" data-loop10-panel="1" style="background:#151226; border:1px solid #4d3c7a; border-radius:12px; padding:12px;"></div></details>
+        <details id="season-content-section" class="progression-section" style="display: none; margin-bottom: 20px;">
+            <summary>루프 이정표</summary>
             <h2 class="loop-roadmap-heading">📦 루프 이정표 <button id="btn-toggle-past-loop-milestones" type="button" onclick="togglePastLoopMilestones()">지난 루프 펼치기</button></h2>
             <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
-        </div>
+        </details>
     </div>
 
     
@@ -695,7 +699,12 @@
                             <button id="btn-equipment-inventory-expand" class="inventory-expand-shortcut" type="button" onclick="marketExpandInventoryByDivine()" hidden>+5칸 확장</button>
                         </div>
                     </div>
-                    <div class="bulk-salvage-bar equipment-inventory-toolbar">
+                    <div class="inventory-browse-toolbar">
+                        <label>슬롯 <select id="ui-equipment-slot-filter" onchange="setEquipmentInventoryView('slot',this.value)"></select></label>
+                        <label>정렬 <select id="ui-equipment-sort" onchange="setEquipmentInventoryView('sort',this.value)"><option value="recent">최신순</option><option value="rarity">등급순</option><option value="tier">티어순</option><option value="slot">슬롯순</option></select></label>
+                    </div>
+                    <div class="inventory-grid equipment-inventory-grid" id="ui-inventory-list"></div>
+                    <details class="bulk-manager"><summary>일괄 해체 · 자동해체 관리</summary><div class="bulk-salvage-bar equipment-inventory-toolbar">
                         <div class="bulk-salvage-filters">
                             <span class="inventory-view-filter-label" title="켜진 등급만 인벤토리에 표시되며, '선택 등급 해체'의 대상이 됩니다. (자동해체와는 별개)">표시 등급</span>
                             <div class="inventory-view-filter" id="ui-inventory-rarity-filter"></div>
@@ -703,10 +712,11 @@
                         <div class="equipment-salvage-actions">
                             <button class="bulk-salvage-action equipment-action-muted" onclick="bulkSalvageAllInventory()" title="잠금되지 않은 모든 장비를 해체합니다.">전체 해체</button>
                             <button class="bulk-salvage-action" onclick="bulkSalvageSelected()" title="등급 필터에서 켜진(표시 중인) 등급의 장비를 해체합니다.">표시 등급 해체</button>
+                            <button class="bulk-salvage-action" onclick="bulkSalvageEquipBySearch(false)">검색 항목 해체</button>
+                            <button class="bulk-salvage-action" onclick="bulkSalvageEquipBySearch(true)">미검색 항목 해체</button>
                             <button id="btn-auto-salvage" class="bulk-salvage-action" onclick="openAutoSalvageConfigOverlay()" title="자동해체 설정 (대상 등급은 표시 필터와 별개로 지정합니다.)">자동해체 OFF</button>
                         </div>
-                    </div>
-                    <div class="inventory-grid equipment-inventory-grid" id="ui-inventory-list"></div>
+                    </div></details>
                 </section>
             </div>
         </div>
@@ -828,8 +838,10 @@
                 <div id="ui-jewel-cap" style="color:#9ac5ec; font-size:0.84em;"></div>
                 <button id="btn-jewel-inventory-expand" class="inventory-expand-shortcut" type="button" onclick="marketExpandJewelInventoryByDivine()" hidden>+5칸 확장</button>
             </div>
-            <div id="ui-jewel-core-craft" style="background:#0f1620; border:1px solid #35536b; border-radius:8px; padding:8px; margin-bottom:8px;"></div>
-            <div class="jewel-salvage-bar">
+            <div id="ui-jewel-slots" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;"></div>
+            <div id="ui-jewel-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
+            <details id="ui-jewel-craft-disclosure" class="progression-workbench"><summary>제작 · 융합 · 슬롯 증폭</summary><div id="ui-jewel-core-craft" style="background:#0f1620; border:1px solid #35536b; border-radius:8px; padding:8px; margin-bottom:8px;"></div></details>
+            <details class="bulk-manager"><summary>일괄 해체 · 자동해체 관리</summary><div class="jewel-salvage-bar">
                 <div class="jewel-salvage-filters">
                     <label><input type="checkbox" id="chk-jewel-salvage-normal" checked onchange="updateJewelSalvageSettingsFromUI()"> 일반</label>
                     <label><input type="checkbox" id="chk-jewel-salvage-magic" checked onchange="updateJewelSalvageSettingsFromUI()"> 매직</label>
@@ -838,11 +850,11 @@
                 </div>
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button class="bulk-salvage-action" onclick="bulkSalvageJewels()">선택 등급 해체</button>
+                    <button class="bulk-salvage-action" onclick="bulkSalvageJewelsBySearch(false)">검색 항목 해체</button>
+                    <button class="bulk-salvage-action" onclick="bulkSalvageJewelsBySearch(true)">미검색 항목 해체</button>
                     <button id="btn-jewel-auto-salvage" class="bulk-salvage-action" onclick="toggleJewelAutoSalvage()">주얼 자동해체 OFF</button>
                 </div>
-            </div>
-            <div id="ui-jewel-slots" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;"></div>
-            <div id="ui-jewel-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"></div>
+            </div></details>
         </div>
     </div>
 
@@ -968,6 +980,7 @@
         <div class="subtab-row skill-subtab-row">
             <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')"><strong>장착 · 보조</strong><small>현재 전투 세팅</small></button>
             <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')"><strong>성장 · 각인</strong><small>젬 강화와 특수 옵션</small></button>
+            <button class="subtab-btn" id="btn-skill-tab-research" onclick="switchSkillSubtab('skill-tab-research')"><strong>젬 연구</strong><small>미보유 젬 확정 해금</small></button>
             <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><strong>자동 사용</strong><small>컨디션 젬 규칙</small></button>
         </div>
         <div id="skill-tab-equip" class="subtab-content active">
@@ -979,7 +992,6 @@
                 </div>
                 <div id="ui-skill-loadout-summary" class="skill-loadout-summary"></div>
             </div>
-            <section id="ui-gem-research-panel" class="gem-research-panel"></section>
             <div class="skill-library-toolbar">
                 <span>목록 표시</span>
                 <button id="btn-skill-fold-active" onclick="toggleGemFoldMode('all')">전체</button>
@@ -1002,6 +1014,9 @@
                     <div id="ui-support-list" class="skill-gem-library"></div>
                 </section>
             </div>
+        </div>
+        <div id="skill-tab-research" class="subtab-content">
+            <section id="ui-gem-research-panel" class="gem-research-panel"></section>
         </div>
         <div id="skill-tab-enhance" class="subtab-content">
             <div id="ui-gem-enhance-header" class="gem-forge-heading" style="display:none;">
@@ -1044,8 +1059,8 @@
             </div>
             <div id="ui-skill-rules-panel" class="condition-gem-rule-list"></div>
             <div class="condition-gem-actions">
-                <button onclick="addSkillAutoRule()">+ 규칙 추가</button>
-                <button onclick="sortSkillAutoRules()">우선순위 정렬</button>
+                <button id="btn-condition-rule-add" onclick="addSkillAutoRule()">+ 규칙 추가</button>
+                <button id="btn-condition-rule-sort" onclick="sortSkillAutoRules()">우선순위 정렬</button>
             </div>
         </div>
 
@@ -1059,14 +1074,15 @@
         </div>
         <div id="talisman-sub-board" class="subtab-content active">
             <div id="ui-talisman-currency" style="margin-bottom:10px; color:var(--copy-bright);"></div>
-            <div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div>
-            <h3 style="margin:10px 0 6px;">📦 부적 인벤토리</h3>
-            <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
             <h3 style="margin:10px 0 6px;">🧩 부적 장착 보드 (해금 <span id="ui-talisman-board-size">16</span>/<span id="ui-talisman-board-size2">44</span>칸)</h3>
             <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
                 <div id="ui-talisman-board" style="display:grid; grid-template-columns:repeat(8, var(--talisman-cell)); gap:4px;"></div>
                 <div id="ui-talisman-total" style="min-width:240px; color:#ffffff; background:#101722; border:1px solid #35506b; border-radius:8px; padding:10px;"></div>
             </div>
+            <h3 style="margin:14px 0 6px;">📦 부적 인벤토리</h3>
+            <div id="ui-talisman-inventory" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;"></div>
+            <details class="bulk-manager"><summary>부적 일괄 해체 관리</summary><div class="equipment-salvage-actions"><button onclick="bulkSalvageTalismansBySearch(false)">검색 항목 해체</button><button onclick="bulkSalvageTalismansBySearch(true)">미검색 항목 해체</button><button onclick="salvageAllTalismansInInventory()">잠금 제외 전체 해체</button></div></details>
+            <details class="progression-workbench"><summary>부적 해제 · 편린 교환</summary><div id="ui-talisman-unseal" style="background:#101722; border:1px solid #35506b; border-radius:10px; padding:10px; margin-bottom:12px;"></div></details>
         </div>
         <div id="talisman-sub-colony-ward" class="subtab-content">
             <div id="ui-colony-ward-talisman-panel"></div>
@@ -1420,13 +1436,14 @@
 <script defer src="js/core-cube.js?v=20260707-community-ui1-20260807-canvas-lifecycle1"></script>
 <script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1"></script>
+<script defer src="js/cosmos-rules.js?v=20260810-endgame1"></script>
 <script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1"></script>
 <script defer src="js/combat-ehp.js?v=20260807-elemental-ehp1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260810-skill-vfx2"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
-<script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1&tactics=20260810-combat-tactics1"></script>
-<script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1"></script>
+<script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1"></script>
+<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1&tactics=20260810-combat-tactics1"></script>
+<script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1"></script>
 <script defer src="js/skills-ui.js?v=20260808-skills-screen1"></script>
 <script defer src="js/offline-progress-ui.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records-ui.js?v=20260808-records-tab1"></script>

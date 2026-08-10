@@ -37,9 +37,9 @@ body:not(.light-mode) button:disabled:not(.gem-engrave-option) {
 /* 사용 / 액션 강조 버튼 — 골드 계열 */
 body:not(.light-mode) button.use-btn,
 body:not(.light-mode) .item-actions button:not(:disabled),
-body:not(.light-mode) button[onclick*="use"],
-body:not(.light-mode) button[onclick*="equip"],
-body:not(.light-mode) button[onclick*="salvage"] {
+body:not(.light-mode) button[onclick*="use"]:not(.subtab-btn),
+body:not(.light-mode) button[onclick*="equip"]:not(.subtab-btn),
+body:not(.light-mode) button[onclick*="salvage"]:not(.subtab-btn) {
   background: linear-gradient(180deg, #3a2a08 0%, #281d05 100%);
   border-color: #8a6520;
   color: #e8c26a;
@@ -47,9 +47,9 @@ body:not(.light-mode) button[onclick*="salvage"] {
 }
 body:not(.light-mode) button.use-btn:hover:not(:disabled),
 body:not(.light-mode) .item-actions button:hover:not(:disabled),
-body:not(.light-mode) button[onclick*="use"]:hover:not(:disabled),
-body:not(.light-mode) button[onclick*="equip"]:hover:not(:disabled),
-body:not(.light-mode) button[onclick*="salvage"]:hover:not(:disabled) {
+body:not(.light-mode) button[onclick*="use"]:not(.subtab-btn):hover:not(:disabled),
+body:not(.light-mode) button[onclick*="equip"]:not(.subtab-btn):hover:not(:disabled),
+body:not(.light-mode) button[onclick*="salvage"]:not(.subtab-btn):hover:not(:disabled) {
   background: linear-gradient(180deg, #4a360c 0%, #342509 100%);
   border-color: #b08830;
   color: #f0d080;

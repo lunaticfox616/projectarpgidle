@@ -8,6 +8,7 @@ const context = {
   globalThis: null,
   document: { readyState: 'loading', addEventListener() {} },
   addEventListener() {},
+  safeExposeGlobals(fns) { Object.assign(context, fns); },
   game: {
     season: 31,
     currencies: { cosmosSovereignKey: 0 },
