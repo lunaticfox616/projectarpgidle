@@ -344,7 +344,7 @@ function renderGrowthItemCard(item, mode) {
         ? `<button onclick="claimRecentGrowthDrop(${item.id})">보관</button><button onclick="salvageRecentGrowthDrop(${item.id})">해체</button>`
         : `<button onclick="event.stopPropagation();selectGrowthItem(${item.id},'inventory')">${selected ? '선택 해제' : (placement ? '선택' : '배치')}</button>`
           + (placement ? `<button onclick="event.stopPropagation();unplaceGrowthItem(${item.id})">내리기</button>` : '')
-          + `<details class="item-card-more" onclick="event.stopPropagation()"><summary>관리</summary><button onclick="event.stopPropagation();toggleGrowthItemLock(${item.id})">${item.locked ? '잠금 해제' : '잠금'}</button><button onclick="event.stopPropagation();salvageGrowthInventoryItem(${item.id})">해체</button></details>`;
+          + `<button onclick="event.stopPropagation();toggleGrowthItemLock(${item.id})">${item.locked ? '잠금 해제' : '잠금'}</button><button onclick="event.stopPropagation();salvageGrowthInventoryItem(${item.id})">해체</button>`;
     let cardActivation = mode === 'inventory'
         ? ` role="group" tabindex="0" onclick="openGrowthCrafting(${item.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openGrowthCrafting(${item.id});}"`
         : '';

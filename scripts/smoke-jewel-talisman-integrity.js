@@ -7,6 +7,7 @@ const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
+const growthUiSource = fs.readFileSync('js/growth-ui.js', 'utf8');
 
 function extract(source, startNeedle, endNeedle) {
     const start = source.indexOf(startNeedle);
@@ -136,7 +137,7 @@ assert.strictEqual(qualityContext.getJewelQualityProfile({ rarity: 'unique', sta
 
 assert(uiSource.includes('강화 단계당 주얼 수치 +3%'), 'jewel amplification UI must match the combat multiplier');
 assert(uiSource.includes('let ampBonus = ampLv * 3;'), 'slot amplification summary must display three percent per level');
-assert(uiSource.includes("createJewelRangeTooltipHtml(jewel, { showSlotComparison: socketType === 'inventory' })"), 'inventory jewels should show slot comparison');
+assert(uiSource.includes("let hasComparison = socketType === 'inventory';"), 'inventory jewels should show slot comparison');
 const tooltipBlock = extract(uiSource, 'function showSocketedJewelTooltip', 'function getCraftActionValidators');
 assert(!tooltipBlock.includes("if (!item) return hideInfoTooltip();\n    let jewel"), 'normal jewel tooltips must not depend on a selected craft item');
 assert(uiSource.includes('function showTalismanPlacementTooltip'), 'talisman placement preview must be available');
@@ -152,5 +153,12 @@ assert(cosmosSource.includes("game.noti.jewel = true"), 'cosmos boss exclusive j
 assert(cosmosSource.includes("game.noti.talisman = true"), 'cosmos boss exclusive talismans need discovery notification');
 assert(passiveSource.includes("return addLog('유효하지 않은 주얼 슬롯입니다.'"), 'jewel slot mutations must validate their target slot');
 assert(indexSource.includes('id="noti-jewel"'), 'jewel discoveries need a visible tab notification dot');
+
+assert(uiSource.includes('getPlayerStatComparisonLines(before, after)'), 'jewel comparison must use the same real player-stat comparison as equipment');
+assert(uiSource.includes('slots[slotIndex] = previewCandidate;') && uiSource.includes('slots[slotIndex] = slotBackup;'), 'jewel preview must install and restore each compared slot without mutating the inventory jewel');
+assert(uiSource.includes("tooltip.classList.add('item-compare-tooltip')"), 'jewel comparison must use the equipment comparison layout');
+const growthCardBlock = extract(growthUiSource, 'function renderGrowthItemCard', '// 보관함이 40칸이라');
+assert(!growthCardBlock.includes('<summary>관리</summary>'), 'growth item actions must not require an extra management disclosure click');
+assert(growthCardBlock.includes('toggleGrowthItemLock') && growthCardBlock.includes('salvageGrowthInventoryItem'), 'growth item lock and salvage actions must remain directly available');
 
 console.log('smoke-jewel-talisman-integrity passed');

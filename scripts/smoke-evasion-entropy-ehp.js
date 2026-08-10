@@ -66,7 +66,9 @@ try {
         'physical EHP must solve the hit-size-dependent armor formula');
 
     const summaryHost = { innerHTML: '' };
-    context.document.getElementById = id => id === 'ui-equipment-loadout-summary' ? summaryHost : null;
+    const characterHost = { innerHTML: '' };
+    context.document.getElementById = id => id === 'ui-equipment-loadout-summary' ? summaryHost
+        : id === 'ui-character-ehp' ? characterHost : null;
     context.game.equipment = {};
     context.game.inventory = [];
     context.__summaryStats = simpleStats;
@@ -78,6 +80,10 @@ try {
         'the EHP tooltip must preserve the non-evasion one-hit value');
     assert.ok(summaryHost.innerHTML.includes('엔트로피 회피 50.0%'),
         'the EHP tooltip must explain the entropy multiplier');
+    run('renderCharacterEhpSummary(__summaryStats)');
+    ['물리 EHP', '화염 EHP', '냉기 EHP', '번개 EHP', '카오스 EHP'].forEach(label => {
+        assert.ok(characterHost.innerHTML.includes(label), `the character sheet must render ${label}`);
+    });
 } finally {
     Math.random = originalRandom;
 }
