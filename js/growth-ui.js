@@ -705,7 +705,7 @@ function renderGrowthPlacementTray() {
         let placed = isGrowthItemPlacedInLoadout(item.id);
         let selected = growthSelection.itemId === item.id;
         return `<div class="growth-tray-card loot-${item.rarity || 'normal'}${placed ? ' placed' : ''}${selected ? ' selected' : ''}${item.growthChase ? ' growth-chase' : ''}"
-            role="button" tabindex="0" data-growth-drag-id="${item.id}" onclick="selectGrowthItem(${item.id},'tray')"
+            role="button" tabindex="0" data-info-tooltip-anchor="1" data-growth-drag-id="${item.id}" onclick="selectGrowthItem(${item.id},'tray')"
             onmouseenter="setGrowthBoardItemHover(${item.id});showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="clearGrowthBoardItemHover();hideInfoTooltip()">
             <span>${info.icon}</span><strong>${item.growthChase ? '✦ ' : ''}${escapeHTML(item.name || '')}</strong><small>${info.label} · ${escapeHTML(getGrowthShapeDef(item.growthShapeId).label)}${placed ? ' · 배치됨' : ''}</small>
         </div>`;

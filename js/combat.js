@@ -2405,7 +2405,8 @@ function coreLoop() {
             game.playerEnergyShield = Math.min(energyShieldRecoveryCap, game.playerEnergyShield + regenPerSec * 0.1 * challengeRecoveryMul);
         }
         let sinceHit = (Date.now() - (game.playerEsLastHitAt || 0)) / 1000;
-        let noInterruptEsRegen = game.ascendClass === 'elementalist' && hasKeystone('e3');
+        let uniqueBreakRecharge = pStats.uniqueEnergyShieldBreakRecharge && (game.uniqueEnergyShieldBreakRechargeUntil || 0) > Date.now();
+        let noInterruptEsRegen = (game.ascendClass === 'elementalist' && hasKeystone('e3')) || uniqueBreakRecharge;
         let allowRechargeWhileMoving = (game.moveTimer || 0) > 0 && (pStats.energyShieldRechargeDelay || 0) <= 0;
         if (noInterruptEsRegen || allowRechargeWhileMoving || sinceHit >= (pStats.energyShieldRechargeDelay || 3)) {
             let regenPerSec = (pStats.energyShield || 0) * ((pStats.energyShieldRegenRate || 12.5) / 100);
@@ -2650,13 +2651,22 @@ function getPendingSkillImpactTargets(row) {
 function addPendingSkillTravelFx(row, attackContext, now) {
     if (!row || row.delivery === 'instantTarget') return;
     if (['field', 'channel'].includes(row.patternKind) && row.options.stageIndex > 0) return;
+    let boomerangReturn = row.patternKind === 'boomerang' && row.options.stageKind === 'boomerangReturn';
+    let visualTargetCells = row.targetCells;
+    let visualTargetIds = row.targetEntries.map(entry => entry.enemyId);
+    if (row.patternKind === 'boomerang') {
+        visualTargetCells = boomerangReturn
+            ? [copyCombatGridCell(game.gridPlayer)]
+            : row.targetCells.slice(-1);
+        visualTargetIds = boomerangReturn ? [] : visualTargetIds.slice(-1);
+    }
     let fx = {
         owner: 'player',
         delivery: row.delivery,
         patternKind: row.patternKind,
         sourceCell: row.sourceCell,
-        targetCells: row.targetCells,
-        targetIds: row.targetEntries.map(entry => entry.enemyId),
+        targetCells: visualTargetCells,
+        targetIds: visualTargetIds,
         skillName: attackContext.skillName,
         element: attackContext.forcedElement,
         releaseDelayMs: Math.max(0, row.launchAt - now),
@@ -2664,14 +2674,6 @@ function addPendingSkillTravelFx(row, attackContext, now) {
         duration: row.fieldDurationMs || Math.max(260, row.at - now + 260)
     };
     addBattleFx('combatTravel', fx);
-    let options = row.options || {};
-    if (options.stageKind !== 'boomerangReturn' || options.stageIndex !== options.stageCount - 1) return;
-    let returnMs = getCombatTravelMs(row.targetCells[0], copyCombatGridCell(game.gridPlayer), row.pStats && row.pStats.sSkill);
-    addBattleFx('combatTravel', {
-        ...fx, sourceCell: row.targetCells[0], targetCells: [copyCombatGridCell(game.gridPlayer)],
-        targetIds: [], releaseDelayMs: Math.max(0, row.at - now), flightMs: returnMs,
-        duration: Math.max(260, row.at - now + returnMs + 260)
-    });
 }
 
 function queuePendingSkillStageHits(stages, pStats, attackContext) {
@@ -2799,7 +2801,7 @@ function getUniqueEffectImplementationReport() {
         'xpGainPct','flatDmgPerLevel','esAmpAndRecoverOnCrit','invertShockTaken','alwaysShock',
         'projectileDoubleStrikePct','projectilePatternMode','hitApplyChaosResDown','corpseExplodeOnKill','instantLeechAndDoubleDamage',
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
-        'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','fewEnemyEvasionMore','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
+        'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','fewEnemyEvasionMore','evasionDanceOnEvade','loneEvasionCounter','critAdvanceEnergyShieldRecharge','energyShieldBreakRecharge','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
         'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmBleedingEnemyDamageMore','realmRiftWaveOnHit','realmChaosDamageInstantLeech','realmInvulnerableBarrierOnHit','realmPoisonDuration','realmArmorToPhysicalDamage','realmDeathWard','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
         ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence','extraFlaskUtilitySlots'
     ]);
@@ -2808,6 +2810,50 @@ function getUniqueEffectImplementationReport() {
         implemented: uniqueKeys.filter(k => implemented.has(k)),
         missing: uniqueKeys.filter(k => !implemented.has(k))
     };
+}
+
+function recordPlayerEvadeUniqueEffects(pStats, aliveEnemyCount, now) {
+    let at = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let dance = pStats && pStats.uniqueEvasionDance;
+    if (dance) {
+        let previous = game.uniqueEvasionDanceState || {};
+        let stacks = (previous.expiresAt || 0) > at ? Math.floor(previous.stacks || 0) : 0;
+        game.uniqueEvasionDanceState = {
+            stacks: Math.min(Math.max(1, Math.floor(dance.maxStacks || 4)), stacks + 1),
+            expiresAt: at + Math.max(0.1, Number(dance.duration || 4)) * 1000
+        };
+    }
+    let counter = pStats && pStats.uniqueLoneEvasionCounter;
+    if (!counter || aliveEnemyCount < 1 || aliveEnemyCount > Math.max(1, Math.floor(counter.maxEnemies || 2))) return;
+    game.uniqueLoneEvasionCounterUntil = at + Math.max(0.1, Number(counter.duration || 3)) * 1000;
+}
+
+function consumeLoneEvasionCounterMultiplier(pStats, now) {
+    let counter = pStats && pStats.uniqueLoneEvasionCounter;
+    let at = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    if (!counter || (game.uniqueLoneEvasionCounterUntil || 0) <= at) return 1;
+    game.uniqueLoneEvasionCounterUntil = 0;
+    return 1 + Math.max(0, Number(counter.damageMorePct || 20)) / 100;
+}
+
+function advanceEnergyShieldRechargeOnCrit(pStats, now) {
+    let config = pStats && pStats.uniqueCritAdvanceEsRecharge;
+    let at = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let recoveryCap = pStats ? getPlayerEnergyShieldRecoveryCap(pStats) : 0;
+    if (!config || recoveryCap <= 0 || (game.playerEnergyShield || 0) >= recoveryCap || (game.uniqueCritEsAdvanceReadyAt || 0) > at) return false;
+    let previousHitAt = Number.isFinite(game.playerEsLastHitAt) ? game.playerEsLastHitAt : at;
+    game.playerEsLastHitAt = Math.max(0, previousHitAt - Math.max(0, Number(config.advanceSec || 0.25)) * 1000);
+    game.uniqueCritEsAdvanceReadyAt = at + Math.max(0, Number(config.cooldownSec || 0.6)) * 1000;
+    return true;
+}
+
+function triggerUniqueEnergyShieldBreakRecharge(pStats, energyShieldBeforeHit, now) {
+    let config = pStats && pStats.uniqueEnergyShieldBreakRecharge;
+    let at = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    if (!config || energyShieldBeforeHit <= 0 || (game.playerEnergyShield || 0) > 0 || (game.uniqueEnergyShieldBreakRechargeReadyAt || 0) > at) return false;
+    game.uniqueEnergyShieldBreakRechargeUntil = at + Math.max(0.1, Number(config.duration || 3)) * 1000;
+    game.uniqueEnergyShieldBreakRechargeReadyAt = at + Math.max(0.1, Number(config.cooldown || 12)) * 1000;
+    return true;
 }
 
 function getEquippedUniqueJewels() {
@@ -3058,6 +3104,7 @@ function getPlayerStats() {
     let cosmosAlwaysFirstHit=false, cosmosEnergyShieldBypassPct=0, cosmosOrbitCycle=null, cosmosDeepSeaLeechCaps=null, cosmosTideEsRegenToLife=false, cosmosEqualDamageSplit=false, cosmosBalanceMitigation=false, cosmosTwinStarResonance=null, cosmosJudgmentLightning=null, cosmosDeathResistPct=0, cosmosVerdictSupportDamagePct=0, cosmosGuardianConditionInstant=false, cosmosBossDamageMorePct=0, cosmosCometChillNoFreeze=false;
     let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
     let uniqueRollGapDamage=false, uniqueRollGapCritDs=false, uniqueCrowdEvasionMore=null, uniqueFewEnemyEvasionMore=null, uniqueEsToLightPct=false, uniqueUnderdogMorePct=0, uniqueInstakillNormalPct=0, uniqueProjExtraShotChance=null, projectilePatternEffect=null;
+    let uniqueEvasionDance=null, uniqueLoneEvasionCounter=null, uniqueCritAdvanceEsRecharge=null, uniqueEnergyShieldBreakRecharge=null;
     if (activeUniqueIds.has('uj_crown_empty')) {
         let otherUniqueCount = equippedUniqueJewels.filter(entry => entry && entry.jewel && entry.jewel.uniqueId !== 'uj_crown_empty').length;
         if (otherUniqueCount === 0) {
@@ -3124,6 +3171,10 @@ function getPlayerStats() {
         else if (effect.key === 'rollGapCritAndDs') uniqueRollGapCritDs = true;
         else if (effect.key === 'crowdEvasionMore') uniqueCrowdEvasionMore = { minEnemies: Number(ep.minEnemies || 10), morePct: Number(ep.morePct || 100) };
         else if (effect.key === 'fewEnemyEvasionMore') uniqueFewEnemyEvasionMore = { minEnemies: Number(ep.minEnemies || 1), maxEnemies: Number(ep.maxEnemies || 2), morePct: Number(ep.morePct || 45) };
+        else if (effect.key === 'evasionDanceOnEvade') uniqueEvasionDance = { maxStacks: Number(ep.maxStacks || 4), evasionPctPerStack: Number(ep.evasionPctPerStack || 4), movePerStack: Number(ep.movePerStack || 2), duration: Number(ep.duration || 4) };
+        else if (effect.key === 'loneEvasionCounter') uniqueLoneEvasionCounter = { maxEnemies: Number(ep.maxEnemies || 2), damageMorePct: Number(ep.damageMorePct || 20), duration: Number(ep.duration || 3) };
+        else if (effect.key === 'critAdvanceEnergyShieldRecharge') uniqueCritAdvanceEsRecharge = { advanceSec: Number(ep.advanceSec || 0.25), cooldownSec: Number(ep.cooldownSec || 0.6) };
+        else if (effect.key === 'energyShieldBreakRecharge') uniqueEnergyShieldBreakRecharge = { duration: Number(ep.duration || 3), cooldown: Number(ep.cooldown || 12) };
         else if (effect.key === 'esToLightPct') uniqueEsToLightPct = true;
         else if (effect.key === 'underdogNonMaxRollMorePct') uniqueUnderdogMorePct = Math.max(uniqueUnderdogMorePct, Number(ep.pct || 20));
         else if (effect.key === 'instakillNormalOnHitPct') uniqueInstakillNormalPct = Math.max(uniqueInstakillNormalPct, Number(ep.pct || 5));
@@ -3607,6 +3658,11 @@ function getPlayerStats() {
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82;
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
+    let danceState = game.uniqueEvasionDanceState || {};
+    let activeEvasionDanceStacks = uniqueEvasionDance && (danceState.expiresAt || 0) > Date.now()
+        ? Math.max(0, Math.min(uniqueEvasionDance.maxStacks, Math.floor(danceState.stacks || 0)))
+        : 0;
+    if (activeEvasionDanceStacks > 0) finalMove += activeEvasionDanceStacks * Math.max(0, uniqueEvasionDance.movePerStack);
     game.oceanOxygenMaxBonus = Math.max(0, gearBase.oxygenMax + gearExplicit.oxygenMax + passive.oxygenMax + season.oxygenMax + ascend.oxygenMax + reward.oxygenMax);
     game.oceanOxygenDrainReductionPct = Math.max(0, Math.min(80, gearBase.oxygenRegen + gearExplicit.oxygenRegen + passive.oxygenRegen + season.oxygenRegen + ascend.oxygenRegen + reward.oxygenRegen));
     let activeShadowStealth = uniqueDeflectStealth && (game.shadowStealthExpiresAt || 0) > Date.now();
@@ -3658,6 +3714,7 @@ function getPlayerStats() {
     let gearEnergyShield = localDefenseTotals.energyShield + extraFlatEnergyShield;
     let totalArmorPct = passive.armorPct + season.armorPct + ascend.armorPct + reward.armorPct;
     let totalEvasionPct = passive.evasionPct + season.evasionPct + ascend.evasionPct + reward.evasionPct + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.evasionPct || 20)) : 0);
+    totalEvasionPct += activeEvasionDanceStacks * Math.max(0, uniqueEvasionDance ? uniqueEvasionDance.evasionPctPerStack : 0);
     let totalEnergyShieldPct = passive.energyShieldPct + season.energyShieldPct + ascend.energyShieldPct + reward.energyShieldPct;
     let finalArmor = Math.max(0, Math.floor(gearArmor * (1 + totalArmorPct / 100)));
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
@@ -5052,6 +5109,10 @@ function getPlayerStats() {
         uniqueDoubleDamageChancePct: uniqueDoubleDamageChancePct + Math.max(0, coreCubeDoubleDamageChance || 0),
         uniqueDoubleDamageMultiplier: 2 + Math.max(0, sumStatAcrossBuckets('doubleDamageMultiplierPct') || 0) / 100,
         uniqueEsRecoverOnCritPct: uniqueEsRecoverOnCritPct,
+        uniqueEvasionDance: uniqueEvasionDance,
+        uniqueLoneEvasionCounter: uniqueLoneEvasionCounter,
+        uniqueCritAdvanceEsRecharge: uniqueCritAdvanceEsRecharge,
+        uniqueEnergyShieldBreakRecharge: uniqueEnergyShieldBreakRecharge,
         uniqueRiderCompass: uniqueRiderCompass,
         uniqueMaxRollBonusHit: uniqueMaxRollBonusHit,
         uniqueCeilingSmashDouble: uniqueCeilingSmashDouble,
@@ -7401,6 +7462,8 @@ function grantExpAndGem(enemy, pStats) {
     }
     if (game.level >= MAX_PLAYER_LEVEL) game.exp = 0;
     if (leveledUp) {
+        let autoInvest = typeof runPassiveTreeAutoInvest === 'function' ? runPassiveTreeAutoInvest() : { nodes: 0 };
+        if (autoInvest.nodes > 0) addLog(`🧭 프리셋 자동 투자: ${autoInvest.nodes}개 노드 활성화`, 'season-up');
         addBattleFx('levelUp', { level: game.level, duration: 560, color: '#ffe59a' });
         queueImportantSave(250);
     }
@@ -8600,6 +8663,7 @@ function performPlayerAttack(pStats, attackOptions) {
     }).filter(Boolean) : getSkillTargets(pStats);
     if (colosseumSavedTargets !== null) pStats.sSkill.targets = colosseumSavedTargets;
     if (targets.length === 0) return;
+    if (!isStageReplay) colosseumStrikeMul *= consumeLoneEvasionCounterMultiplier(pStats, Date.now());
     if (!isStageReplay) applySkillMobilityBeforeAttack(pStats.sSkill, targets[0].enemy, pStats);
     let talentMoonReturn = !isStageReplay && typeof getTalentMoonReturnConfig === 'function'
         ? getTalentMoonReturnConfig(targets)
@@ -9469,6 +9533,8 @@ function performPlayerAttack(pStats, attackOptions) {
         let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * ((pStats.uniqueEsRecoverOnCritPct || 0) / 100) * getChallengeContractRecoveryMultiplier()));
         game.playerEnergyShield = Math.min(getPlayerEnergyShieldRecoveryCap(pStats), Math.max(0, (game.playerEnergyShield || 0) + recover));
     }
+    let firstResolvedSkillHit = !isStageReplay || Number(options.stageIndex) === 0;
+    if (firstResolvedSkillHit && isCrit && hitSummary.totalDamage > 0) advanceEnergyShieldRechargeOnCrit(pStats, Date.now());
 
     if (game.settings.showCombatLog) {
         let dotInfo = '';
@@ -10266,6 +10332,7 @@ function performMonsterAttacks(pStats) {
             if (resolveEntropyEvasion(game, evadeChance, Date.now())) {
                 addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(null, true);
+                recordPlayerEvadeUniqueEffects(pStats, aliveEnemies, Date.now());
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
                 // 7 에이기스: 회피 성공 → 다음 공격 막기 확률 +5%p
                 if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisBlockBonus = 5; }
@@ -10395,6 +10462,7 @@ function performMonsterAttacks(pStats) {
                 game.playerEnergyShield -= absorbed;
                 remaining = bypass + Math.max(0, shieldPart - absorbed);
             }
+            triggerUniqueEnergyShieldBreakRecharge(pStats, beforeEsForCr8, Date.now());
             if (remaining > 0) remaining = absorbDamageWithTalentStoneShield(remaining);
             if (remaining > 0) remaining = absorbDamageWithRealmDeathWard(remaining, pStats);
             if (remaining > 0 && game.playerUniqueGuard && Date.now() < (game.playerUniqueGuard.expiresAt || 0) && (game.playerUniqueGuard.amount || 0) > 0) {
@@ -10485,11 +10553,13 @@ function applyTrialTrapTick(pStats) {
     trapDamage = Math.max(10, Math.floor(trapDamage * (1 - (pStats.dr * 0.45 / 100))));
     let remaining = applyTalentIncomingDamageMultiplier(trapDamage, pStats);
     game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
+    let energyShieldBeforeTrap = game.playerEnergyShield;
     if (remaining > 0 && game.playerEnergyShield > 0) {
         let absorbed = Math.min(game.playerEnergyShield, remaining);
         game.playerEnergyShield -= absorbed;
         remaining -= absorbed;
     }
+    triggerUniqueEnergyShieldBreakRecharge(pStats, energyShieldBeforeTrap, Date.now());
     if (remaining > 0) remaining = absorbDamageWithTalentStoneShield(remaining);
     if (remaining > 0) remaining = absorbDamageWithRealmDeathWard(remaining, pStats);
     game.playerHp = Math.floor(game.playerHp - remaining);
@@ -10898,6 +10968,8 @@ function triggerSeasonReset(options) {
     recalculateStarWedgeMutations();
     calculateReachableNodes();
     refreshPassiveVisibility();
+    let presetInvest = typeof runPassiveTreeAutoInvest === 'function' ? runPassiveTreeAutoInvest() : { nodes: 0 };
+    if (presetInvest.nodes > 0) addLog(`🧭 새 루프 프리셋 자동 투자: ${presetInvest.nodes}개 노드 활성화`, 'season-up');
     game.playerHp = getPlayerHpCap(getPlayerStats());
     ensureActJournalCompletionForLoop({ silent: false });
     addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");

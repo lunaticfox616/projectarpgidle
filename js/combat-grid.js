@@ -532,24 +532,23 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
 function buildPierceSkillHitSequence(profile, skill, targets) {
     let ordered = sortSkillHitTargetsByDistance(targets);
     let boomerang = skill && skill.combatPattern && skill.combatPattern.kind === 'boomerang';
-    let damageMultiplier = boomerang ? 0.5 : 1;
     let outbound = ordered.map((entry, idx) => ({
         kind: idx === 0 ? 'piercePrimary' : 'pierceThrough',
         label: idx === 0 ? '관통 직격' : `${idx + 1}번째 관통`,
-        delayMs: idx * profile.intervalMs, damageMultiplier,
+        delayMs: idx * profile.intervalMs, damageMultiplier: 1,
         chainFromEnemyId: idx > 0 ? ordered[idx - 1].enemy.id : null,
         targets: [entry]
     }));
     if (!boomerang) return outbound;
     let returnDelay = Math.max(80, Math.floor(Number(skill.combatPattern.returnDelayMs) || 160));
     let returnStart = Math.max(0, ordered.length - 1) * profile.intervalMs + returnDelay;
-    let returning = ordered.slice().reverse().map((entry, idx, reversed) => ({
-        kind: 'boomerangReturn', label: `${idx + 1}번째 귀환`,
-        delayMs: returnStart + idx * profile.intervalMs, damageMultiplier,
-        chainFromEnemyId: idx === 0 ? entry.enemy.id : reversed[idx - 1].enemy.id,
-        targets: [entry]
-    }));
-    return outbound.concat(returning);
+    return [{
+        kind: 'boomerangOutbound', label: '관통 왕복', delayMs: 0, damageMultiplier: 0.5,
+        chainFromEnemyId: null, targets: ordered
+    }, {
+        kind: 'boomerangReturn', label: '귀환 타격', delayMs: returnStart, damageMultiplier: 0.5,
+        chainFromEnemyId: ordered.at(-1).enemy.id, targets: ordered.slice().reverse()
+    }];
 }
 
 /** 한 번의 스킬 사용을 실제 시간차가 있는 타격 단계로 분해한다. */

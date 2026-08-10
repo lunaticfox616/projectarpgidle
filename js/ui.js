@@ -841,6 +841,7 @@ function handleBackgroundCombatReturn(nowMs) {
     let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, limits.efficiencyRate, limits.effectiveLimitMs);
     if (!snapshot || effectiveProgressMs <= 0) return false;
     backgroundCombatRuntime.processing = true;
+    if (typeof setBattleFxSuppressed === 'function') setBattleFxSuppressed(true);
     try {
         let result = simulateBackgroundCombat({ elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs });
         if (!shouldApplyBackgroundCombatResult(signature)) return false;
@@ -851,6 +852,7 @@ function handleBackgroundCombatReturn(nowMs) {
         return true;
     } finally {
         backgroundCombatRuntime.processing = false;
+        if (typeof setBattleFxSuppressed === 'function') setBattleFxSuppressed(false);
     }
 }
 
@@ -870,6 +872,7 @@ async function startBackgroundCombatReturn(nowMs) {
     }
     backgroundCombatRuntime.processing = true;
     backgroundCombatRuntime.accelerationTier = 0;
+    if (typeof setBattleFxSuppressed === 'function') setBattleFxSuppressed(true);
     restoreBattlefieldBeforeBackgroundReplay();
     updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
     await waitBackgroundReplayFrame();
@@ -897,6 +900,7 @@ async function startBackgroundCombatReturn(nowMs) {
         return true;
     } finally {
         backgroundCombatRuntime.processing = false;
+        if (typeof setBattleFxSuppressed === 'function') setBattleFxSuppressed(false);
         hideBackgroundProgressOverlay();
     }
 }
@@ -4024,7 +4028,7 @@ function renderStarWedgePanel() {
             ${lines}
             ${statusBits.length ? `<div style="margin-top:6px; color:${conflictCount ? '#ffb58f' : '#8fd9c1'}; font-size:.76em;">장착 효과 · ${statusBits.join(' · ')}</div>` : ''}
             <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">
-                <button style="min-height:26px; padding:3px 8px; font-size:0.76em; ${selecting ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="beginStarWedgeSocketSelection(${wedge.id})">${selecting ? '슬롯 선택 취소' : '장착할 슬롯 선택'}</button>
+                <button style="min-height:26px; padding:3px 8px; font-size:0.76em; ${selecting ? 'background:#2f6a42; border-color:#3f9b5c;' : ''}" onclick="beginStarWedgeSocketSelection(${wedge.id}); this.closest('details').open=false">${selecting ? '슬롯 선택 취소' : '장착할 슬롯 선택'}</button>
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id})" ${rerollLockedAttr || wedge.eternal || (wedge.unique && wedge.uniqueType === 'comet') ? 'disabled' : ''}>리롤${rerollTitle}</button>
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'single')" ${rerollLockedAttr || wedge.eternal || (wedge.unique && wedge.uniqueType === 'comet') ? 'disabled' : ''}>1줄 고정${rerollTitle}</button>
                 <button style="min-height:26px; padding:3px 8px; font-size:0.76em;" onclick="rerollStarWedge(${wedge.id}, 'double')" ${rerollLockedAttr || wedge.eternal || (wedge.unique && wedge.uniqueType === 'comet') ? 'disabled' : ''}>2줄 고정 (파편x10)${rerollTitle}</button>
@@ -8979,10 +8983,11 @@ function updateCombatUI(pStats) {
             enemyListEl.dataset.enemyId = focusedKey;
             let traitMarkup = '<div class="enemy-tags muted enemy-traits"></div>';
             let effectMarkup = '<div class="enemy-tags muted enemy-ailments combat-effect-strip enemy-combat-effect-strip" aria-label="활성 상태이상 및 효과"></div>';
-            let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}${effectMarkup}</div>`;
+            let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}</div>`;
             enemyListEl.innerHTML = `
                 <div class="enemy-card targeted enemy-${enemyHudTier}">
                     <div class="enemy-nameplate"><div class="enemy-name"></div></div>
+                    ${effectMarkup}
                     <div class="enemy-health-frame">
                         <img class="health-skin-frame" src="assets/ui/health-${enemyHudTier}-v1.png" alt="" aria-hidden="true">
                         <div class="hp-bar-bg">
@@ -9271,7 +9276,8 @@ function shouldRedrawPassiveTree(now) {
         game.season || 1,
         (game.starWedge && game.starWedge._mutationSignature) || '',
         (game.settings && game.settings.passiveTreeSearch) || '',
-        (game.settings && game.settings.passiveTreeFilter) || 'all'
+        (game.settings && game.settings.passiveTreeFilter) || 'all',
+        game.settings && game.settings.passiveTreeShowLabels === false ? 'labels-off' : 'labels-on'
     ].join('|');
     let changed = signature !== lastPassiveTreeSignature;
     let due = (now - lastPassiveTreeDrawAt) >= 500;
@@ -11838,6 +11844,7 @@ function renderPassiveInvestmentSummary() {
         ? `<div class="passive-summary-specials">조건부 효과 · ${summary.specialEffects.join(' · ')}</div>`
         : '';
     body.innerHTML = `<div class="passive-summary-meta">투자 ${summary.allocatedCount}개${summary.voidCount ? ` · 공허 ${summary.voidCount}개` : ''}</div><div class="passive-summary-grid">${rows}</div>${specials}`;
+    renderPassiveTreePlannerPanel();
 }
 
 function togglePassiveInvestmentSummary() {
@@ -11847,6 +11854,100 @@ function togglePassiveInvestmentSummary() {
 }
 
 safeExposeGlobals({ togglePassiveInvestmentSummary, renderPassiveInvestmentSummary });
+
+function renderPassiveTreePlannerPanel() {
+    let host = document.getElementById('passive-tree-planner');
+    if (!host || typeof ensurePassiveTreePlannerState !== 'function') return;
+    let planner = ensurePassiveTreePlannerState();
+    let active = planner.presets[planner.activeSlot];
+    let owned = new Set(game.passives || []);
+    let completed = active ? active.nodeIds.filter(id => owned.has(id)).length : 0;
+    let signature = JSON.stringify([planner.activeSlot, planner.autoInvest, game.settings.passiveTreeShowLabels !== false,
+        completed, planner.presets.map(preset => preset ? [preset.name, preset.nodeIds.length] : null)]);
+    if (host.dataset.plannerSignature === signature) return;
+    let options = planner.presets.map((preset, index) => {
+        let label = preset ? `${index + 1}. ${preset.name} (${preset.nodeIds.length})` : `${index + 1}. 빈 프리셋`;
+        return `<option value="${index}" ${index === planner.activeSlot ? 'selected' : ''}>${escapeHTML(label)}</option>`;
+    }).join('');
+    host.innerHTML = `
+        <div class="passive-planner-row passive-planner-primary">
+            <strong>트리 프리셋</strong>
+            <select id="passive-preset-slot" onchange="selectPassiveTreePresetSlot(this.value)">${options}</select>
+            <input id="passive-preset-name" class="passive-preset-name" type="text" maxlength="24" value="${escapeHTML(active ? active.name : `프리셋 ${planner.activeSlot + 1}`)}" aria-label="프리셋 이름">
+            <button type="button" onclick="savePassiveTreePresetFromUi()">현재 트리 저장</button>
+            <label class="passive-planner-toggle"><input type="checkbox" ${planner.autoInvest ? 'checked' : ''} onchange="togglePassiveTreeAutoInvest(this.checked)"> 환생 후 자동 투자</label>
+            <label class="passive-planner-toggle"><input type="checkbox" ${game.settings.passiveTreeShowLabels !== false ? 'checked' : ''} onchange="togglePassiveTreeLabels(this.checked)"> 노드 문구</label>
+            <span class="passive-planner-progress">${active ? `${completed}/${active.nodeIds.length} 투자` : '저장된 경로 없음'}</span>
+        </div>
+        <div class="passive-planner-row passive-planner-share">
+            <input id="passive-preset-code" type="text" placeholder="공유 코드를 붙여넣으세요" autocomplete="off">
+            <button type="button" onclick="copyPassiveTreePresetCode()" ${active ? '' : 'disabled'}>공유 코드 복사</button>
+            <button type="button" onclick="importPassiveTreePresetFromUi()">코드 불러오기</button>
+        </div>`;
+    host.dataset.plannerSignature = signature;
+}
+
+function selectPassiveTreePresetSlot(slotIndex) {
+    if (setActivePassiveTreePreset(slotIndex)) renderPassiveTreePlannerPanel();
+}
+
+function savePassiveTreePresetFromUi() {
+    let planner = ensurePassiveTreePlannerState();
+    let allocated = (game.passives || []).filter(id => id !== 'n0');
+    if (allocated.length === 0) return addLog('저장할 패시브 경로가 없습니다.', 'attack-monster');
+    let nameInput = document.getElementById('passive-preset-name');
+    let name = nameInput && nameInput.value.trim() ? nameInput.value.trim() : `프리셋 ${planner.activeSlot + 1}`;
+    let preset = saveCurrentPassiveTreePreset(planner.activeSlot, name);
+    addLog(`🧭 ${preset.name}에 현재 패시브 ${preset.nodeIds.length}개를 저장했습니다.`, 'season-up');
+    renderPassiveTreePlannerPanel();
+}
+
+function togglePassiveTreeAutoInvest(enabled) {
+    setPassiveTreeAutoInvest(enabled);
+    let result = enabled ? runPassiveTreeAutoInvest() : { nodes: 0 };
+    if (result.nodes > 0) addLog(`🧭 프리셋 자동 투자: ${result.nodes}개 노드 활성화`, 'season-up');
+    updateStaticUI();
+}
+
+function togglePassiveTreeLabels(enabled) {
+    game.settings.passiveTreeShowLabels = !!enabled;
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('labels');
+    drawPassiveTree();
+}
+
+async function copyPassiveTreePresetCode() {
+    let planner = ensurePassiveTreePlannerState();
+    let code = encodePassiveTreePreset(planner.activeSlot);
+    let input = document.getElementById('passive-preset-code');
+    if (!code || !input) return;
+    input.value = code;
+    input.select();
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(code);
+        else if (document.execCommand) document.execCommand('copy');
+        addLog('📋 패시브 트리 공유 코드를 복사했습니다.', 'loot-magic');
+    } catch (error) {
+        addLog('공유 코드를 입력칸에 만들었습니다. 직접 복사해 주세요.', 'attack-monster');
+    }
+}
+
+function importPassiveTreePresetFromUi() {
+    let planner = ensurePassiveTreePlannerState();
+    let input = document.getElementById('passive-preset-code');
+    try {
+        let preset = importPassiveTreePreset(planner.activeSlot, input ? input.value : '');
+        addLog(`🧭 공유 프리셋 [${preset.name}]을 불러왔습니다.`, 'season-up');
+        renderPassiveTreePlannerPanel();
+    } catch (error) {
+        addLog(`프리셋을 불러오지 못했습니다: ${error.message}`, 'attack-monster');
+    }
+}
+
+safeExposeGlobals({
+    renderPassiveTreePlannerPanel, selectPassiveTreePresetSlot, savePassiveTreePresetFromUi,
+    togglePassiveTreeAutoInvest, togglePassiveTreeLabels, copyPassiveTreePresetCode,
+    importPassiveTreePresetFromUi
+});
 
 function setupPassiveTreeSearchControls() {
     if (typeof syncPassiveAttributePreferenceControls === 'function') syncPassiveAttributePreferenceControls();
@@ -11916,9 +12017,6 @@ function openVoidPassiveCraftOverlay(nodeId) {
     if (!node || node.kind !== 'void') return addLog('공허 패시브만 제작할 수 있습니다.', 'attack-monster');
     let active = (game.passives || []).includes(node.id);
     let entry = typeof getVoidPassiveCraft === 'function' ? getVoidPassiveCraft(node.id) : { stats: [] };
-    let stats = entry && Array.isArray(entry.stats) ? entry.stats : [];
-    let hasStats = stats.length > 0;
-    let canAugment = hasStats && stats.length < 2;
     let refundState = getVoidPassiveRefundState(node.id);
     let effectLabel = typeof getVoidPassiveEffectLabel === 'function' ? getVoidPassiveEffectLabel(node.id) : getPassiveEffectLabel(node);
     let overlay = document.createElement('div');
@@ -11931,9 +12029,9 @@ function openVoidPassiveCraftOverlay(nodeId) {
             <button type="button" onclick="closeVoidPassiveCraftOverlay()">닫기</button>
         </div>
         <div style="border:1px solid rgba(114,184,208,0.45);background:rgba(8,18,28,0.72);border-radius:10px;padding:10px;margin-bottom:10px;color:#ffffff;line-height:1.45;">${effectLabel}</div>
-        <div style="color:${active ? '#b9d7e8' : '#ffcf8a'};margin-bottom:10px;">${active ? '진화/확장/변화의 오브로 최대 2줄까지 옵션을 조율합니다.' : '먼저 패시브 트리에서 이 공허 패시브를 활성화해야 제작할 수 있습니다.'}</div>
+        <div style="color:${active ? '#b9d7e8' : '#ffcf8a'};margin-bottom:10px;">${active ? '마법의 새싹은 현재 옵션을 지우고 공허 옵션 1~2줄을 다시 굴립니다.' : '먼저 패시브 트리에서 이 공허 패시브를 활성화해야 제작할 수 있습니다.'}</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px;">
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','magicBud')" ${active && !entry.transcendent && (game.currencies.magicBud || 0) > 0 && entry.stats.length < 2 ? '' : 'disabled'}>마법의 새싹<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.magicBud || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','magicBud')" ${active && !entry.transcendent && (game.currencies.magicBud || 0) > 0 ? '' : 'disabled'}>마법의 새싹 · 1~2줄 재굴림<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.magicBud || 0}</span></button>
             <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','fairyRing')" ${active && (game.currencies.fairyRing || 0) > 0 ? '' : 'disabled'}>요정의 고리<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.fairyRing || 0}</span></button>
             <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','goldenRule')" ${active && entry.transcendent && typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' && TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min))) && (game.currencies.goldenRule || 0) > 0 ? '' : 'disabled'}>황금률<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.goldenRule || 0}</span></button>
         </div>
@@ -13167,6 +13265,10 @@ function mergeDefaults(save) {
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.growthInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.growthInventoryExpandLevel, defaultGame.growthInventoryExpandLevel, 0)));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
+    merged.settings.passiveTreeShowLabels = merged.settings.passiveTreeShowLabels !== false;
+    if (typeof normalizePassiveTreePlannerState === 'function') {
+        merged.settings.passiveTreePlanner = normalizePassiveTreePlannerState(merged.settings.passiveTreePlanner);
+    }
     merged.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(merged.settings.damageNumberFormat) ? merged.settings.damageNumberFormat : 'comma';
     merged.settings.showExpComma = merged.settings.showExpComma !== false;
     merged.settings.showHpComma = merged.settings.showHpComma !== false;

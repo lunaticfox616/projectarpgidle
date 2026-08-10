@@ -264,7 +264,9 @@
         {
             // 3순위: 현재 루프의 필수 돌파 목표(혼돈/혼돈 심화, 우주계 대체 경로 포함).
             id: 'loop-requirement',
-            priority: 600,
+            // 우주계는 루프의 대체 진행 경로다. 아직 현재 루프 조건이 남아 있다면
+            // 엔드게임 장기 목표보다 먼저 보여 플레이어가 당장 해야 할 일을 잃지 않게 한다.
+            priority: 950,
             matches(g) {
                 if (typeof LAST_STORY_ZONE_ID === 'undefined' || typeof getSeasonAbyssDepthCap !== 'function') return false;
                 return clampCount(g.maxZoneId) > LAST_STORY_ZONE_ID;
@@ -365,6 +367,21 @@
                 return primary !== 'claim-act-reward' && Array.isArray(g.claimableActRewards) && g.claimableActRewards.length > 0;
             },
             build(g) { return buildNotice(`선택하지 않은 액트 보상 ${g.claimableActRewards.length}개`, 'tab-map', 'map-explore-hunting'); }
+        },
+        {
+            id: 'cosmos-journey-notice',
+            matches(g, primary) {
+                let journey = getCosmosJourney(g);
+                let primaryId = String(primary || '');
+                return !!journey && journey.stage !== 'complete' && primaryId !== 'cosmos-unlock-underworld' && !primaryId.startsWith('cosmos-galaxy-');
+            },
+            build(g) {
+                let journey = getCosmosJourney(g);
+                if (journey.stage === 'unlock') {
+                    return buildNotice(`우주계 개방 목표 · 지하계 ${journey.highestFloor}/30층`, 'tab-map', 'map-tab-underworld');
+                }
+                return buildNotice(`우주계 진행 목표 · ${journey.nextGalaxy}은하 관문`, 'tab-map', 'map-tab-cosmos');
+            }
         },
         {
             id: 'available-trial',

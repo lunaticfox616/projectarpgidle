@@ -184,6 +184,7 @@ function getPassiveNodeEffectShortLabel(node) {
 const PASSIVE_EFFECT_LABEL_MIN_ZOOM = 0.23;
 
 function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility) {
+    if (game && game.settings && game.settings.passiveTreeShowLabels === false) return;
     if (!node || visibility === 'hidden' || camZoom < PASSIVE_EFFECT_LABEL_MIN_ZOOM) return;
     const important = node.kind === 'major' || node.kind === 'hub' || node.kind === 'apex' || node.kind === 'transcendent';
     const hovered = !!(hoverNode && hoverNode.id === node.id);

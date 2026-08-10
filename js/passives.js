@@ -938,7 +938,7 @@ function generateOrganicTree() {
             pick.stat = 'pctDmg';
             pick.val = 0;
             pick.title = '공허 패시브';
-            pick.desc = '처음 활성화할 때는 아무 효과도 없습니다. 진화의 오브, 확장의 오브, 변화의 오브로 최대 2줄의 공허 옵션을 부여할 수 있습니다.';
+            pick.desc = '처음 활성화할 때는 아무 효과도 없습니다. 마법의 새싹을 사용할 때마다 공허 옵션 1~2줄을 다시 굴릴 수 있습니다.';
             pick.effectLabel = null;
             pick.voidPassive = true;
         }
@@ -2123,11 +2123,15 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
         return;
     }
     if (entry.transcendent) return addLog('초월 공허 패시브에는 마법의 새싹을 사용할 수 없습니다.', 'attack-monster');
-    if (currencyKey === 'magicBud' && entry.stats.length >= 2) return addLog('공허 패시브의 옵션이 가득 찼습니다.', 'attack-monster');
     game.currencies[currencyKey]--;
     if (currencyKey === 'magicBud') {
-        let next = rollVoidPassiveOption(entry.stats);
-        if (next) entry.stats.push(next);
+        let nextStats = [];
+        let optionCount = 1 + Math.floor(Math.random() * 2);
+        for (let index = 0; index < optionCount; index++) {
+            let next = rollVoidPassiveOption(nextStats);
+            if (next) nextStats.push(next);
+        }
+        entry.stats = nextStats;
     }
     entry.rarity = entry.stats.length > 0 ? 'magic' : 'normal';
     addLog(`🕳️ 공허 패시브에 ${ORB_DB[currencyKey].name} 사용: ${getVoidPassiveEffectLabel(node.id).replace(/<[^>]*>/g, '')}`, 'loot-magic');
@@ -3275,11 +3279,145 @@ function activatePassivePath(targetNodeId, options) {
     }
     path.forEach(nodeId => {
         if (!(game.passives || []).includes(nodeId)) game.passives.push(nodeId);
+        let node = PASSIVE_TREE.nodes[nodeId];
+        let attributeStat = options && options.attributeStat;
+        if (node && node.kind === 'attribute' && ['strength', 'dexterity', 'intelligence'].includes(attributeStat)) {
+            game.passiveAttributeChoices = game.passiveAttributeChoices || {};
+            game.passiveAttributeChoices[nodeId] = attributeStat;
+        }
         revealAroundNode(nodeId, { forcePulse: !options || options.forcePulseNodeId === nodeId });
     });
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) - path.length);
     return { activated: true, cost: path.length, path: path.slice() };
 }
+
+const PASSIVE_TREE_PRESET_SLOTS = 3;
+
+function normalizePassiveTreePreset(raw, slotIndex) {
+    if (!raw || typeof raw !== 'object') return null;
+    let nodeIds = Array.from(new Set((Array.isArray(raw.nodeIds) ? raw.nodeIds : [])
+        .filter(id => typeof id === 'string' && id !== 'n0' && PASSIVE_TREE.nodes[id])));
+    let choices = raw.attributeChoices && typeof raw.attributeChoices === 'object' ? raw.attributeChoices : {};
+    let attributeChoices = {};
+    nodeIds.forEach(id => {
+        if (PASSIVE_TREE.nodes[id].kind !== 'attribute') return;
+        let stat = choices[id];
+        if (['strength', 'dexterity', 'intelligence'].includes(stat)) attributeChoices[id] = stat;
+    });
+    let fallbackName = `프리셋 ${slotIndex + 1}`;
+    let name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 24) : fallbackName;
+    return { name, nodeIds, attributeChoices };
+}
+
+function normalizePassiveTreePlannerState(raw) {
+    let source = raw && typeof raw === 'object' ? raw : {};
+    let layoutMatches = Number(source.layoutVersion) === PASSIVE_LAYOUT_VERSION;
+    let slots = layoutMatches && Array.isArray(source.presets) ? source.presets : [];
+    let presets = Array.from({ length: PASSIVE_TREE_PRESET_SLOTS }, (_, index) => normalizePassiveTreePreset(slots[index], index));
+    let activeSlot = Math.floor(Number(source.activeSlot));
+    if (!Number.isFinite(activeSlot) || activeSlot < 0 || activeSlot >= PASSIVE_TREE_PRESET_SLOTS) activeSlot = 0;
+    return { layoutVersion: PASSIVE_LAYOUT_VERSION, activeSlot, autoInvest: layoutMatches && !!source.autoInvest, presets };
+}
+
+function ensurePassiveTreePlannerState() {
+    game.settings = game.settings && typeof game.settings === 'object' ? game.settings : {};
+    game.settings.passiveTreePlanner = normalizePassiveTreePlannerState(game.settings.passiveTreePlanner);
+    return game.settings.passiveTreePlanner;
+}
+
+function saveCurrentPassiveTreePreset(slotIndex, name) {
+    let planner = ensurePassiveTreePlannerState();
+    let slot = Math.max(0, Math.min(PASSIVE_TREE_PRESET_SLOTS - 1, Math.floor(Number(slotIndex) || 0)));
+    let nodeIds = (game.passives || []).filter(id => id !== 'n0' && PASSIVE_TREE.nodes[id]);
+    let attributeChoices = {};
+    nodeIds.forEach(id => {
+        let stat = (game.passiveAttributeChoices || {})[id];
+        if (['strength', 'dexterity', 'intelligence'].includes(stat)) attributeChoices[id] = stat;
+    });
+    planner.presets[slot] = normalizePassiveTreePreset({ name, nodeIds, attributeChoices }, slot);
+    planner.activeSlot = slot;
+    return planner.presets[slot];
+}
+
+function setActivePassiveTreePreset(slotIndex) {
+    let planner = ensurePassiveTreePlannerState();
+    let slot = Math.floor(Number(slotIndex));
+    if (!Number.isFinite(slot) || slot < 0 || slot >= PASSIVE_TREE_PRESET_SLOTS) return false;
+    planner.activeSlot = slot;
+    return true;
+}
+
+function setPassiveTreeAutoInvest(enabled) {
+    let planner = ensurePassiveTreePlannerState();
+    planner.autoInvest = !!enabled;
+    return planner.autoInvest;
+}
+
+function encodePassiveTreePreset(slotIndex) {
+    let planner = ensurePassiveTreePlannerState();
+    let preset = planner.presets[Math.floor(Number(slotIndex))];
+    if (!preset) return '';
+    let payload = JSON.stringify({ v: 1, layout: PASSIVE_LAYOUT_VERSION, name: preset.name, nodeIds: preset.nodeIds, attributeChoices: preset.attributeChoices });
+    return `PT1.${btoa(unescape(encodeURIComponent(payload))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}`;
+}
+
+function decodePassiveTreePreset(code) {
+    let raw = String(code || '').trim();
+    if (!raw.startsWith('PT1.')) throw new Error('지원하지 않는 프리셋 코드입니다.');
+    let body = raw.slice(4).replace(/-/g, '+').replace(/_/g, '/');
+    body += '='.repeat((4 - body.length % 4) % 4);
+    let parsed = JSON.parse(decodeURIComponent(escape(atob(body))));
+    if (!parsed || parsed.v !== 1) throw new Error('프리셋 버전이 올바르지 않습니다.');
+    if (Number.isFinite(parsed.layout) && parsed.layout !== PASSIVE_LAYOUT_VERSION) throw new Error('현재 스킬트리 배치와 호환되지 않는 프리셋입니다.');
+    return parsed;
+}
+
+function importPassiveTreePreset(slotIndex, code) {
+    let planner = ensurePassiveTreePlannerState();
+    let slot = Math.max(0, Math.min(PASSIVE_TREE_PRESET_SLOTS - 1, Math.floor(Number(slotIndex) || 0)));
+    let preset = normalizePassiveTreePreset(decodePassiveTreePreset(code), slot);
+    if (!preset || preset.nodeIds.length === 0) throw new Error('투자 노드가 없는 프리셋입니다.');
+    planner.presets[slot] = preset;
+    planner.activeSlot = slot;
+    return preset;
+}
+
+function runPassiveTreeAutoInvest() {
+    let planner = ensurePassiveTreePlannerState();
+    let preset = planner.presets[planner.activeSlot];
+    if (!planner.autoInvest || !preset || game.woodsmanBuildLock) return { nodes: 0, points: 0 };
+    let result = { nodes: 0, points: 0 };
+    let guard = Math.min(preset.nodeIds.length + 1, Math.max(0, Math.floor(game.passivePoints || 0)) + 1);
+    while (guard-- > 0 && game.passivePoints > 0) {
+        // 저장 당시의 투자 순서를 지킨다. 중간 노드를 건너뛰어 예상 밖 최단 경로를
+        // 구매하거나, 매 포인트마다 모든 노드에 BFS를 반복하는 일을 피한다.
+        let targetId = preset.nodeIds.find(id => !(game.passives || []).includes(id));
+        if (!targetId) break;
+        let path = getPassiveActivationPath(targetId);
+        if (path.length <= 0 || path.length > game.passivePoints) break;
+        let attributeStat = preset.attributeChoices[targetId] || game.passiveAttributePreference || 'strength';
+        let activated = activatePassivePath(targetId, { attributeStat });
+        if (!activated.activated || activated.cost <= 0) break;
+        unlockPassiveStarEvolution({ silent: true });
+        activated.path.forEach(id => {
+            let savedStat = preset.attributeChoices[id];
+            if (savedStat) game.passiveAttributeChoices[id] = savedStat;
+        });
+        result.nodes += activated.path.length;
+        result.points += activated.cost;
+    }
+    if (result.nodes > 0) {
+        calculateReachableNodes();
+        refreshPassiveVisibility();
+    }
+    return result;
+}
+
+safeExposeGlobals({
+    normalizePassiveTreePlannerState, ensurePassiveTreePlannerState, saveCurrentPassiveTreePreset,
+    setActivePassiveTreePreset, setPassiveTreeAutoInvest, encodePassiveTreePreset,
+    importPassiveTreePreset, runPassiveTreeAutoInvest
+});
 
 function calculateReachableNodes() {
     reachableNodes.clear();
@@ -3639,6 +3777,8 @@ let activeItemTooltipToken = null;
 let pendingHeavyUiRefresh = false;
 let battleFx = [];
 let battleFxId = 0;
+let battleFxSuppressed = false;
+const BATTLE_FX_QUEUE_CAP = 240;
 let battleVisualState = {
     projectiles: [],
     damageTexts: [],
@@ -3932,6 +4072,7 @@ function getBattleFxStart(type, data, now) {
 }
 
 function addBattleFx(type, data) {
+    if (battleFxSuppressed || (typeof document !== 'undefined' && document.hidden)) return;
     let payload = data || {};
     let wallNow = performance.now();
     let now = battleVisualState
@@ -3955,7 +4096,34 @@ function addBattleFx(type, data) {
         ...getBattleHitFeedback(payload),
         ...payload
     });
+    if (battleFx.length > BATTLE_FX_QUEUE_CAP) battleFx.splice(0, battleFx.length - BATTLE_FX_QUEUE_CAP);
 }
+
+function clearBattleVisualBacklog() {
+    battleFx = [];
+    latestPlayerSwingImpactAt = 0;
+    battleVisualState.projectiles = [];
+    battleVisualState.damageTexts = [];
+    battleVisualState.skillProjectiles = [];
+    battleVisualState.skillEffects = [];
+    battleVisualState.skillPlayback = null;
+    battleVisualState.processedFxIds = new Set();
+    battleVisualState.hitStopRemainingMs = 0;
+    battleVisualState.lastHitStopFxId = 0;
+    battleVisualState.lastNow = 0;
+    battleVisualState.visualNow = 0;
+    battleVisualState.lastWallNow = 0;
+}
+
+function setBattleFxSuppressed(suppressed) {
+    battleFxSuppressed = !!suppressed;
+    if (battleFxSuppressed) clearBattleVisualBacklog();
+}
+
+if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('visibilitychange', () => setBattleFxSuppressed(!!document.hidden));
+}
+safeExposeGlobals({ setBattleFxSuppressed });
 
 function getBattleImageContext(image) {
     if (!image) return null;
@@ -4171,10 +4339,10 @@ function spawnDamageText(config) {
     let x = Number.isFinite(Number(config.x)) ? Number(config.x) : 0;
     let y = Number.isFinite(Number(config.y)) ? Number(config.y) : 0;
     let activeTexts = battleVisualState.damageTexts || (battleVisualState.damageTexts = []);
-    queueDamageTextStackShift(activeTexts, start, x, y, config.enemyHit);
+    if (!config.bodyCue) queueDamageTextStackShift(activeTexts, start, x, y, config.enemyHit);
     activeTexts.push({
         start: start,
-        duration: config.duration || (config.impactTier === 'annihilate' ? 940 : (config.impactTier === 'heavy' ? 860 : (config.enemyHit ? 820 : (config.crit ? 840 : 760)))),
+        duration: config.duration || (config.bodyCue ? 420 : (config.impactTier === 'annihilate' ? 940 : (config.impactTier === 'heavy' ? 860 : (config.enemyHit ? 820 : (config.crit ? 840 : 760))))),
         x: x,
         y: y,
         offsetX: 0,
@@ -4189,6 +4357,7 @@ function spawnDamageText(config) {
         dot: !!config.dot,
         dotType: config.dotType || '',
         miss: !!config.miss,
+        bodyCue: !!config.bodyCue,
         color: config.color || '',
         deflected: !!config.deflected,
         impactTier: config.impactTier || 'normal',
@@ -4221,20 +4390,20 @@ function drawDamageTexts(ctx, now) {
         if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return;
         let t = clampNumber(elapsed / text.duration, 0, 1);
         let easedRise = 1 - Math.pow(1 - t, 2);
-        let rise = (text.dot ? 13 : 19) + (text.crit ? 5 : 0);
+        let rise = text.bodyCue ? 4 : ((text.dot ? 13 : 19) + (text.crit ? 5 : 0));
         let x = text.x;
         let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
         ctx.globalAlpha = t < 0.62 ? 1 : Math.max(0, (1 - t) / 0.38);
         const tierSize = text.impactTier === 'annihilate' ? 27 : (text.impactTier === 'heavy' ? 22 : 0);
-        const fontSize = tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16))));
+        const fontSize = text.bodyCue ? 11 : (tierSize || (text.miss ? 14 : (text.dot ? 13 : (text.crit ? 19 : (text.enemyHit ? 17 : 16)))));
         ctx.font = `800 ${fontSize}px "DOSSaemmul", "Malgun Gothic", sans-serif`;
-        ctx.textAlign = 'center';
+        ctx.textAlign = text.bodyCue ? 'left' : 'center';
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
-        ctx.lineWidth = text.impactTier === 'annihilate' ? 2.8 : (text.crit || text.impactTier === 'heavy' ? 2.4 : 1.8);
+        ctx.lineWidth = text.bodyCue ? 1.25 : (text.impactTier === 'annihilate' ? 2.8 : (text.crit || text.impactTier === 'heavy' ? 2.4 : 1.8));
         ctx.strokeStyle = 'rgba(2,5,9,0.92)';
         ctx.shadowColor = text.enemyHit ? 'rgba(255,76,88,0.42)' : (text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(255,211,102,0.38)' : 'transparent'));
-        ctx.shadowBlur = text.impactTier === 'annihilate' ? 7 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 4 : 0);
+        ctx.shadowBlur = text.bodyCue ? 0 : (text.impactTier === 'annihilate' ? 7 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 4 : 0));
         ctx.strokeText(textValue, x, y);
         let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
         ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff9a9a' : (text.impactTier === 'annihilate' ? '#fff1b0' : (text.crit || text.impactTier === 'heavy' ? '#ffdc75' : '#ffffff')))));
@@ -5032,7 +5201,10 @@ function grantJournalBonus(entryId) {
     game.journalBonusClaims = (game.journalBonusClaims && typeof game.journalBonusClaims === 'object') ? game.journalBonusClaims : {};
     if (game.journalBonusClaims[entryId]) return;
     game.journalBonuses = Array.isArray(game.journalBonuses) ? game.journalBonuses : [];
-    if (entry.bonus.stat === 'passivePoint') game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + Math.max(0, Math.floor(entry.bonus.value || 0));
+    if (entry.bonus.stat === 'passivePoint') {
+        game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + Math.max(0, Math.floor(entry.bonus.value || 0));
+        if (typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
+    }
     else if (!game.journalBonuses.some(row => row && row.entryId === entryId)) game.journalBonuses.push({ entryId: entryId, stat: entry.bonus.stat, value: entry.bonus.value });
     game.journalBonusClaims[entryId] = true;
     addLog(`🕮 저널 영구 보너스 획득: ${entry.bonus.label}`, 'season-up');
@@ -5165,6 +5337,7 @@ function claimActRewardChoice(zoneId, choiceIndex) { if (game.woodsmanBuildLock)
     let choice = choices[choiceIndex];
     if (!choice) return;
     grantActRewardEntry(zoneId, choice);
+    if (typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
     game.claimableActRewards = (game.claimableActRewards || []).filter(id => id !== zoneId);
     if (!(game.claimedActRewards || []).includes(zoneId)) game.claimedActRewards.push(zoneId);
     closeRewardOverlay();
@@ -7185,6 +7358,16 @@ function normalizeItem(item) {
     }
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
     item.name = item.name || item.baseName;
+    let syncedUnique = item.rarity === 'unique'
+        ? UNIQUE_DB.find(unique => unique && unique.syncEffectOnLoad && unique.name === item.name)
+        : null;
+    if (syncedUnique) {
+        item.uniqueEffect = syncedUnique.uniqueEffect || '';
+        item.uniqueEffectKey = syncedUnique.uniqueEffectKey || '';
+        item.uniqueEffectParams = syncedUnique.uniqueEffectParams
+            ? JSON.parse(JSON.stringify(syncedUnique.uniqueEffectParams))
+            : null;
+    }
     item.locked = !!item.locked;
     if (!item.id) item.id = ++itemIdCounter;
     return item;

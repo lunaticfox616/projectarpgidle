@@ -294,25 +294,29 @@ const baseGame = extra => ({
     assert.strictEqual(journalOnly.presented[0].actionTabId, 'tab-journal');
 }
 
-// 16) 나무꾼 이후에는 지하계 30층과 우주계 은하 순서를 주 목표로 안내한다.
+// 16) 나무꾼 이후에도 현재 루프 조건이 우주계 장기 목표보다 먼저 나온다.
 {
     const unlock = boot(baseGame({
         maxZoneId: 12, season: 20, loopCount: 19, journalEntries: ['woodsman_echo'],
-        unlocks: { map: true }, underworldProgress: { highestFloor: 17 }
+        unlocks: { map: true }, underworldProgress: { highestFloor: 17 },
+        loopProgressCurrent: { bestAbyssDepth: 4 }
     }));
     unlock.refresh();
-    assert.strictEqual(unlock.presented[0].id, 'cosmos-unlock-underworld');
-    assert.strictEqual(unlock.presented[0].target, 30);
-    assert.strictEqual(unlock.presented[0].actionSubtabId, 'map-tab-underworld');
+    assert.ok(unlock.presented[0].id.startsWith('loop-chaos-'), '지하계 해금보다 루프 조건이 우선');
+    const unlockCosmosNotice = unlock.presented[0].notices.find(n => n.text.includes('우주계 개방 목표'));
+    assert.ok(unlockCosmosNotice, '루프 주 목표와 우주계 개방 목표를 함께 안내');
+    assert.strictEqual(unlockCosmosNotice.actionSubtabId, 'map-tab-underworld');
 
     const atlas = boot(baseGame({
         maxZoneId: 12, season: 31, loopCount: 30, journalEntries: ['woodsman_echo'],
         unlocks: { map: true }, underworldProgress: { highestFloor: 30 },
-        cosmosAtlas: { bossClears: ['planet-46', 'planet-47'] }
-    }));
+        cosmosAtlas: { bossClears: ['planet-46', 'planet-47'] }, loopProgressCurrent: { bestAbyssDepth: 7 }
+    }), { hasCurrentLoopAbyssRequirementClear: () => true });
     atlas.refresh();
-    assert.strictEqual(atlas.presented[0].id, 'cosmos-galaxy-3');
-    assert.strictEqual(atlas.presented[0].actionSubtabId, 'map-tab-cosmos');
+    assert.strictEqual(atlas.presented[0].id, 'loop-requirement-met', '우주계 진행 중이어도 루프 진입 준비가 우선');
+    const atlasCosmosNotice = atlas.presented[0].notices.find(n => n.text.includes('우주계 진행 목표 · 3은하 관문'));
+    assert.ok(atlasCosmosNotice, '루프 주 목표와 다음 우주계 은하 목표를 함께 안내');
+    assert.strictEqual(atlasCosmosNotice.actionSubtabId, 'map-tab-cosmos');
 }
 
 // 생장판 안내: 루프 25에 판이 조용히 열리고, 드랍은 최근 획득함에 쌓이며,

@@ -11,6 +11,8 @@ const SOCIAL_NICK_KEY = 'arpg_social_nickname';
 const SOCIAL_LAST_SEEN_CHAT_KEY = 'arpg_social_last_seen_chat_id';
 const SOCIAL_CHAT_LIMIT = 50;
 const SOCIAL_CHAT_POLL_MS = 4000;
+const SOCIAL_ONLINE_POLL_MS = 30000;
+const SOCIAL_CHAT_FULL_SYNC_MS = 5 * 60 * 1000;
 // 커뮤니티 탭이 비활성일 때 새 채팅 여부만 가볍게 확인하는 주기(활성 탭 폴링보다 훨씬 느리게).
 const SOCIAL_BG_NOTI_POLL_MS = 15000;
 const SOCIAL_MSG_MAX = 300;
@@ -20,7 +22,9 @@ const SOCIAL_SEND_MIN_INTERVAL_MS = 1500;
 const SOCIAL_SEND_MAX_PER_MIN = 12;
 const SOCIAL_MAX_ITEMS_PER_MSG = 3;
 const SOCIAL_HEARTBEAT_MS = 30000;
-const SOCIAL_ONLINE_WINDOW_S = 75;
+const SOCIAL_ONLINE_WINDOW_S = 300;
+const SOCIAL_RECENT_WINDOW_S = 1800;
+const SOCIAL_CHAT_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
 const SOCIAL_ITEM_TOKEN_RE = /⟦(\d+)⟧/g;
 const SOCIAL_NICK_RE = /^[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_\-]+$/;
 const SOCIAL_EQUIP_SLOTS = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
@@ -31,9 +35,13 @@ let socialState = {
     identityCheckedUserId: null,
     identityCheckPromise: null,
     chatPollTimer: null,
+    onlinePollTimer: null,
     heartbeatTimer: null,
     bgNotificationTimer: null,
     chatLoading: false,
+    chatInitialized: false,
+    chatMessages: [],
+    lastChatFullSyncAt: 0,
     onlineLoading: false,
     lastChatRenderKey: '',
     lastOnlineRenderKey: '',
@@ -183,6 +191,25 @@ function buildTalismanSnapshot(t) {
     let name = (typeof getTalismanDisplayName === 'function') ? getTalismanDisplayName(t) : (t.name || '부적');
     let cells = Array.isArray(t.cells) ? t.cells.map(c => ({ x: c.x || 0, y: c.y || 0 })) : [];
     return { kind: 'talisman', name, rarity: t.rarity || 'normal', shape: t.shape || null, cells, stats, effects };
+}
+function buildStarWedgeSnapshot(wedge) {
+    if (!wedge) return null;
+    let uniqueDef = wedge.unique && typeof getStarWedgeUniqueDef === 'function' ? getStarWedgeUniqueDef(wedge.uniqueType) : null;
+    let effects = uniqueDef ? [uniqueDef.desc] : [];
+    let stats = (wedge.lines || []).map((line, index) => {
+        let path = index === 3 ? '핵심노드' : `${index + 1}경로`;
+        if (!line || line.disabled) { effects.push(`${path} · 적용 안 됨`); return null; }
+        let statName = typeof getStatName === 'function' ? getStatName(line.stat) : line.stat;
+        return { id: line.stat, val: line.val, statName: `${path} · ${statName}${line.boosted ? ' ★' : ''}` };
+    }).filter(Boolean);
+    if (wedge.eternal) effects.push('영원 고정');
+    return {
+        kind: 'starWedge',
+        name: `${uniqueDef ? uniqueDef.name : '별쐐기'} #${Number(wedge.id || 0) % 10000}`,
+        rarity: wedge.unique ? 'unique' : 'rare',
+        stats,
+        effects
+    };
 }
 
 // 캐릭터 스탯 색상(타입별)
@@ -381,6 +408,8 @@ async function promptAndSetNickname() {
         await uploadPlayerProfile({ fromNicknameChange: true });
         await updatePastChatNicknames(name);     // 과거 채팅도 새 닉네임으로
         if (typeof addLog === 'function') addLog(`🪪 닉네임이 "${name}"(으)로 설정되었습니다.`, 'season-up');
+        socialState.chatInitialized = false;
+        socialState.chatMessages = [];
         socialState.lastChatRenderKey = '';
         renderSocialTab();
         refreshChatPanel(false);
@@ -440,7 +469,7 @@ function stopHeartbeat() {
 }
 async function loadOnlineUsers() {
     if (!socialCloudReady() || !socialState.onlineSupported) return [];
-    let cutoff = new Date(Date.now() - SOCIAL_ONLINE_WINDOW_S * 1000).toISOString();
+    let cutoff = new Date(Date.now() - SOCIAL_RECENT_WINDOW_S * 1000).toISOString();
     try {
         let rows = await cloudJsonRequest(`/rest/v1/player_profiles?select=user_id,nickname,last_seen&last_seen=gte.${encodeURIComponent(cutoff)}&order=last_seen.desc&limit=80`, {});
         return Array.isArray(rows) ? rows : [];
@@ -449,22 +478,34 @@ async function loadOnlineUsers() {
         return [];
     }
 }
-function renderOnlineUsers(users) {
+function getSocialPresenceState(lastSeen, now = Date.now()) {
+    let seenAt = new Date(lastSeen).getTime();
+    if (!Number.isFinite(seenAt)) return '';
+    let ageSeconds = Math.max(0, now - seenAt) / 1000;
+    if (ageSeconds <= SOCIAL_ONLINE_WINDOW_S) return 'active';
+    return ageSeconds <= SOCIAL_RECENT_WINDOW_S ? 'recent' : '';
+}
+function renderOnlineUsers(users, now = Date.now()) {
     let host = document.getElementById('social-online');
     if (!host) return;
     if (!socialState.onlineSupported) { host.style.display = 'none'; return; }
     host.style.display = 'block';
     let myId = socialLoggedInUserId();
-    let key = users.map(u => u.user_id).join(',');
+    let visible = (users || []).map(user => ({ user, state: getSocialPresenceState(user.last_seen, now) })).filter(row => row.state);
+    let key = visible.length ? visible.map(row => `${row.user.user_id}:${row.state}`).join(',') : 'empty';
     if (key === socialState.lastOnlineRenderKey) return;
     socialState.lastOnlineRenderKey = key;
-    let chips = users.length
-        ? users.map(u => {
+    let activeCount = visible.filter(row => row.state === 'active').length;
+    let recentCount = visible.length - activeCount;
+    let chips = visible.length
+        ? visible.map(row => {
+            let u = row.user;
             let me = u.user_id === myId;
-            return `<span class="social-online-chip${me ? ' me' : ''}" onclick="openPlayerProfile('${socialEscape(u.user_id)}')">🟢 ${socialEscape(u.nickname || '익명')}${me ? ' (나)' : ''}</span>`;
+            let dot = row.state === 'active' ? '🟢' : '🟡';
+            return `<span class="social-online-chip ${row.state}${me ? ' me' : ''}" onclick="openPlayerProfile('${socialEscape(u.user_id)}')">${dot} ${socialEscape(u.nickname || '익명')}${me ? ' (나)' : ''}</span>`;
         }).join('')
         : `<span class="social-online-empty">접속 중인 플레이어가 없습니다.</span>`;
-    host.innerHTML = `<div class="social-online-title">🟢 접속 중 (${users.length})</div><div class="social-online-list">${chips}</div>`;
+    host.innerHTML = `<div class="social-online-title">접속 상태 · 🟢 ${activeCount} · 🟡 ${recentCount}</div><div class="social-online-list">${chips}</div>`;
 }
 async function refreshOnlineUsers() {
     if (socialState.onlineLoading || !socialState.onlineSupported) return;
@@ -522,9 +563,10 @@ async function checkSocialChatNotification() {
     socialState.bgNotiLoading = true;
     try {
         let seen = getLastSeenChatId();
+        let cutoff = encodeURIComponent(new Date(Date.now() - SOCIAL_CHAT_RETENTION_MS).toISOString());
         let query = seen == null
-            ? '/rest/v1/chat_messages?select=id,user_id,nickname,body,payload&order=id.desc&limit=1'
-            : `/rest/v1/chat_messages?select=id,user_id,nickname,body,payload&id=gt.${encodeURIComponent(String(seen))}&order=id.desc&limit=20`;
+            ? `/rest/v1/chat_messages?select=id,user_id,nickname,body,payload&created_at=gte.${cutoff}&order=id.desc&limit=1`
+            : `/rest/v1/chat_messages?select=id,user_id,nickname,body,payload&id=gt.${encodeURIComponent(String(seen))}&created_at=gte.${cutoff}&order=id.desc&limit=20`;
         let rows = await cloudJsonRequest(query, {});
         rows = Array.isArray(rows) ? rows : [];
         if (!rows.length) return;
@@ -594,10 +636,26 @@ function syncSocialBackgroundTasks() {
     }
 }
 
-async function loadChatMessages() {
+async function loadChatMessages(afterId = null, now = Date.now()) {
     if (!socialCloudReady()) return [];
-    let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id,nickname,body,payload,created_at&order=created_at.desc&limit=${SOCIAL_CHAT_LIMIT}`, {});
-    return Array.isArray(rows) ? rows.slice().reverse() : [];
+    let cutoff = new Date(now - SOCIAL_CHAT_RETENTION_MS).toISOString();
+    let incremental = afterId != null && Number.isFinite(Number(afterId));
+    let cursor = incremental ? `&id=gt.${encodeURIComponent(String(afterId))}` : '';
+    let order = incremental ? 'id.asc' : 'created_at.desc';
+    let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id,nickname,body,payload,created_at&created_at=gte.${encodeURIComponent(cutoff)}${cursor}&order=${order}&limit=${SOCIAL_CHAT_LIMIT}`, {});
+    let current = Array.isArray(rows) ? rows.filter(row => isSocialChatMessageCurrent(row, now)) : [];
+    return incremental ? current : current.reverse();
+}
+function isSocialChatMessageCurrent(row, now = Date.now()) {
+    let createdAt = new Date(row && row.created_at).getTime();
+    return Number.isFinite(createdAt) && createdAt > now - SOCIAL_CHAT_RETENTION_MS;
+}
+function mergeSocialChatMessages(current, incoming, now = Date.now()) {
+    let byId = new Map();
+    (current || []).concat(incoming || []).forEach(row => {
+        if (row && Number.isFinite(Number(row.id)) && isSocialChatMessageCurrent(row, now)) byId.set(String(row.id), row);
+    });
+    return Array.from(byId.values()).sort((a, b) => Number(a.id) - Number(b.id)).slice(-SOCIAL_CHAT_LIMIT);
 }
 function checkSendRateLimit() {
     let now = Date.now();
@@ -656,11 +714,28 @@ async function sendChatMessage() {
 }
 
 // --- 아이템 링크 첨부 ------------------------------------------------------
+function getChatAttachSnapshot(source, key) {
+    let state = typeof game !== 'undefined' && game ? game : {};
+    if (source === 'equip') return buildItemSnapshot((state.equipment || {})[key], key);
+    if (source === 'inv') return buildItemSnapshot((state.inventory || [])[Number(key)]);
+    if (source === 'jewelSlot') return buildJewelSnapshot((state.jewelSlots || [])[Number(key)]);
+    if (source === 'jewel') return buildJewelSnapshot((state.jewelInventory || [])[Number(key)]);
+    if (source === 'talisman') return buildTalismanSnapshot((state.talismanInventory || [])[Number(key)]);
+    if (source === 'talismanPlaced') {
+        return buildTalismanSnapshot(((state.talismanPlacements || {})[key] || {}).talisman);
+    }
+    if (source === 'growth') return buildItemSnapshot((state.growthInventory || [])[Number(key)], '생장판');
+    if (source === 'growthPlaced' && typeof getPlacedGrowthEntries === 'function') {
+        let entry = getPlacedGrowthEntries().find(row => String(row.item.id) === String(key));
+        return buildItemSnapshot(entry && entry.item, '배치된 생장판');
+    }
+    if (source === 'starWedge') {
+        return buildStarWedgeSnapshot((((state.starWedge || {}).wedges) || []).find(wedge => String(wedge.id) === String(key)));
+    }
+    return null;
+}
 function attachChatItem(source, idx) {
-    let item = null;
-    if (source === 'equip') { let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {}; item = eq[idx]; }
-    else { let inv = (typeof game !== 'undefined' && Array.isArray(game.inventory)) ? game.inventory : []; item = inv[idx]; }
-    let snap = buildItemSnapshot(item, source === 'equip' ? idx : (item && item.slot));
+    let snap = getChatAttachSnapshot(source, idx);
     if (!snap) return;
     if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`, 'warning'); return; }
     let tokenIndex = socialState.pendingChatItems.length;
@@ -700,6 +775,36 @@ function updateChatCounter() {
     counterEl.textContent = `${len}/${SOCIAL_MSG_MAX}`;
     counterEl.style.color = len > SOCIAL_MSG_MAX ? '#e88' : 'var(--copy-muted)';
 }
+function getChatItemPickerGroups() {
+    let state = typeof game !== 'undefined' && game ? game : {};
+    let entries = (source, rows, label) => (rows || []).map((item, index) => item ? { source, key: index, label: label(item, index) } : null).filter(Boolean);
+    let equipment = Object.keys(state.equipment || {}).filter(slot => state.equipment[slot]).map(slot => ({ source: 'equip', key: slot, label: `[${slot}]` }));
+    let jewels = entries('jewelSlot', state.jewelSlots, (_, index) => `[장착 ${index + 1}]`).concat(entries('jewel', state.jewelInventory, () => '[보관]'));
+    let placedTalismans = Object.keys(state.talismanPlacements || {}).map(id => ({ source: 'talismanPlaced', key: id, label: '[배치]' }));
+    let placedGrowth = typeof getPlacedGrowthEntries === 'function'
+        ? getPlacedGrowthEntries().map(row => ({ source: 'growthPlaced', key: row.item.id, label: '[배치]' })) : [];
+    let wedges = ((((state.starWedge || {}).wedges) || [])).map(wedge => ({ source: 'starWedge', key: wedge.id, label: wedge.eternal ? '[영원]' : '[보유]' }));
+    return [
+        { title: '장착 장비', entries: equipment },
+        { title: '장비 인벤토리', entries: entries('inv', (state.inventory || []).slice(0, 300), item => `[${item.slot || '장비'}]`) },
+        { title: '주얼', entries: jewels.slice(0, 300) },
+        { title: '부적', entries: placedTalismans.concat(entries('talisman', state.talismanInventory, () => '[보관]')).slice(0, 300) },
+        { title: '생장판', entries: placedGrowth.concat(entries('growth', state.growthInventory, () => '[보관]')).slice(0, 300) },
+        { title: '별쐐기', entries: wedges }
+    ];
+}
+function renderChatItemPickerGroup(group) {
+    let cards = group.entries.map(entry => {
+        let snap = getChatAttachSnapshot(entry.source, entry.key);
+        if (!snap) return '';
+        let tipKey = `${entry.source}:${entry.key}`;
+        let color = socialRarityColor(snap.rarity);
+        let keyArg = socialEscape(JSON.stringify(entry.key));
+        socialState.pickTips[tipKey] = renderProfileItemCard(snap);
+        return `<div class="social-pick-item" style="border-color:${color};" onclick="attachChatItem('${entry.source}',${keyArg})" onmouseenter="showSocialTip(event,'pick','${socialEscape(tipKey)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()"><span style="color:${color};">${socialEscape(entry.label)} ${socialEscape(snap.name)}</span></div>`;
+    }).join('') || `<div class="social-profile-empty">보유 아이템 없음</div>`;
+    return `<h4 class="social-pick-sub">${socialEscape(group.title)}</h4><div class="social-pick-grid">${cards}</div>`;
+}
 function openItemPicker() {
     if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     let modal = document.getElementById('social-item-picker-modal');
@@ -711,29 +816,9 @@ function openItemPicker() {
         document.body.appendChild(modal);
     }
     socialState.pickTips = {};
-    let slotLabel = (typeof getItemSlotDisplayLabel === 'function') ? (it => getItemSlotDisplayLabel(it)) : (it => (it && it.slot) || '');
-    let tipAttrs = key => `onmouseenter="showSocialTip(event,'pick','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()"`;
-    let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {};
-    let equipCards = Object.keys(eq).filter(s => eq[s]).map(slot => {
-        let it = eq[slot]; let color = socialRarityColor(it.rarity);
-        let key = `eq:${socialEscape(slot)}`;
-        socialState.pickTips[key] = renderProfileItemCard(buildItemSnapshot(it, slot));
-        return `<div class="social-pick-item" style="border-color:${color};" onclick="attachChatItem('equip','${socialEscape(slot)}')" ${tipAttrs(key)}><span style="color:${color};">[${socialEscape(slot)}] ${socialEscape(it.name)}</span></div>`;
-    }).join('') || `<div class="social-profile-empty">장착한 장비 없음</div>`;
-    let inv = (typeof game !== 'undefined' && Array.isArray(game.inventory)) ? game.inventory : [];
-    let invCards = inv.slice(0, 300).map((it, i) => {
-        if (!it) return '';
-        let color = socialRarityColor(it.rarity);
-        let key = `inv:${i}`;
-        socialState.pickTips[key] = renderProfileItemCard(buildItemSnapshot(it, it.slot));
-        return `<div class="social-pick-item" style="border-color:${color};" onclick="attachChatItem('inv',${i})" ${tipAttrs(key)}><span style="color:${color};">[${socialEscape(slotLabel(it))}] ${socialEscape(it.name)}</span></div>`;
-    }).join('') || `<div class="social-profile-empty">인벤토리 비어 있음</div>`;
+    let groups = getChatItemPickerGroups().map(renderChatItemPickerGroup).join('');
     modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closeItemPicker()" aria-label="닫기">✕</button>
-        <div class="social-modal-content">
-        <h3 style="color:var(--copy-bright);margin-top:0;">🔗 첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개) · 마우스를 올리면 옵션 표시</h3>
-        <h4 class="social-pick-sub">장착 중</h4><div class="social-pick-grid">${equipCards}</div>
-        <h4 class="social-pick-sub">인벤토리${inv.length > 300 ? ' (상위 300개)' : ''}</h4><div class="social-pick-grid">${invCards}</div>
-        </div></div>`;
+        <div class="social-modal-content"><h3 style="color:var(--copy-bright);margin-top:0;">🔗 첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개) · 마우스를 올리면 옵션 표시</h3>${groups}</div></div>`;
     modal.style.display = 'flex';
 }
 function closeItemPicker() { hideSocialTip(); let m = document.getElementById('social-item-picker-modal'); if (m) m.style.display = 'none'; }
@@ -816,7 +901,14 @@ async function refreshChatPanel(forceScroll) {
     if (socialState.chatLoading) return;
     socialState.chatLoading = true;
     try {
-        renderChatMessages(await loadChatMessages(), forceScroll);
+        let now = Date.now();
+        let fullSync = !socialState.chatInitialized || now - socialState.lastChatFullSyncAt >= SOCIAL_CHAT_FULL_SYNC_MS;
+        let afterId = fullSync ? null : socialState.chatMessages.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
+        let incoming = await loadChatMessages(afterId, now);
+        socialState.chatMessages = fullSync ? incoming : mergeSocialChatMessages(socialState.chatMessages, incoming, now);
+        socialState.chatInitialized = true;
+        if (fullSync) socialState.lastChatFullSyncAt = now;
+        renderChatMessages(socialState.chatMessages, forceScroll);
     } catch (e) { console.warn('채팅 로드 실패:', e); } finally { socialState.chatLoading = false; }
 }
 function startChatPolling() {
@@ -827,10 +919,18 @@ function startChatPolling() {
     socialState.chatPollTimer = setInterval(() => {
         if (!isSocialTabActive()) { stopChatPolling(); return; }
         refreshChatPanel(false);
-        refreshOnlineUsers();
     }, SOCIAL_CHAT_POLL_MS);
+    socialState.onlinePollTimer = setInterval(() => {
+        if (!isSocialTabActive()) { stopChatPolling(); return; }
+        refreshOnlineUsers();
+    }, SOCIAL_ONLINE_POLL_MS);
 }
-function stopChatPolling() { if (socialState.chatPollTimer) { clearInterval(socialState.chatPollTimer); socialState.chatPollTimer = null; } }
+function stopChatPolling() {
+    if (socialState.chatPollTimer) clearInterval(socialState.chatPollTimer);
+    if (socialState.onlinePollTimer) clearInterval(socialState.onlinePollTimer);
+    socialState.chatPollTimer = null;
+    socialState.onlinePollTimer = null;
+}
 function onSocialChatKeydown(event) { if (event && event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); } }
 
 // ============================================================================
@@ -1212,10 +1312,12 @@ function injectSocialStyles() {
     .social-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0;}
     .social-toolbar .social-mynick{margin-right:auto;color:var(--copy-bright);}
     .social-online{background:rgba(16,28,46,0.6);border:1px solid #24344f;border-radius:8px;padding:8px 10px;margin-bottom:8px;}
-    .social-online-title{color:#7fd99a;font-size:0.82em;font-weight:700;margin-bottom:6px;}
+    .social-online-title{color:var(--copy-bright);font-size:0.82em;font-weight:700;margin-bottom:6px;}
     .social-online-list{display:flex;flex-wrap:wrap;gap:6px;}
-    .social-online-chip{font-size:0.8em;background:#13202f;border:1px solid #285038;border-radius:14px;padding:2px 9px;color:#ffffff;cursor:pointer;}
-    .social-online-chip:hover{background:#1b3327;}
+    .social-online-chip{font-size:0.8em;background:#13202f;border:1px solid;border-radius:14px;padding:2px 9px;color:#ffffff;cursor:pointer;}
+    .social-online-chip.active{border-color:#2f7547;}
+    .social-online-chip.recent{border-color:#8a7332;color:#e7dcaa;opacity:.82;}
+    .social-online-chip:hover{filter:brightness(1.18);}
     .social-online-chip.me{border-color:#3a6ea5;}
     .social-online-empty{color:var(--copy-muted);font-size:0.82em;}
     .social-chat-wrap{display:flex;flex-direction:column;gap:8px;}

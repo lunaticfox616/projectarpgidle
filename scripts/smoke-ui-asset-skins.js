@@ -78,9 +78,14 @@ assert.ok(ui.includes('src="assets/ui/health-${enemyHudTier}-v1.png"'), 'enemy f
 assert.ok(ui.includes("let traitMarkup = '<div class=\"enemy-tags muted enemy-traits\"></div>'"), 'enemy traits must have one DOM owner per tier');
 assert.ok(ui.includes("let effectMarkup = '<div class=\"enemy-tags muted enemy-ailments combat-effect-strip enemy-combat-effect-strip\""),
   'enemy effects must have one DOM owner per tier');
-assert.ok(ui.includes('let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}${effectMarkup}</div>`'),
-  'enemy traits and effects must share one compact metadata block');
-assert.ok(ui.includes('${metaMarkup}'), 'every enemy tier must render its metadata row inside its health frame');
+assert.ok(ui.includes('let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}</div>`'),
+  'enemy traits must remain attached to the health-frame art panel');
+const enemyEffectSlot = ui.indexOf('${effectMarkup}', ui.indexOf('let metaMarkup'));
+const enemyFrameSlot = ui.indexOf('<div class="enemy-health-frame">', enemyEffectSlot);
+assert.ok(enemyEffectSlot >= 0 && enemyFrameSlot > enemyEffectSlot,
+  'enemy effect icons must use an unclipped row outside and above the health frame');
+assert.ok(ui.indexOf('${metaMarkup}', enemyFrameSlot) > enemyFrameSlot,
+  'every enemy tier must render its trait panel inside its health frame');
 assert.ok(/#enemy-area \.enemy-hud-meta \{[\s\S]*?flex-direction: column;[\s\S]*?gap: 2px;/.test(css),
   'enemy traits and effect icons must occupy separate stacked rows');
 assert.ok(css.includes('.player-health-frame #ui-hp-bar'), 'player HP must have its own green live fill');
@@ -103,7 +108,7 @@ assert.ok(css.includes('body.desktop-windowed-ui .combat-panel { overflow: visib
   'desktop identity panel must remain visible outside the combat panel padding box');
 assert.ok(css.includes('.player-exp-percent') && css.includes('.player-exp-values { display: none; }'), 'experience percent must sit above the art while exact values remain hover-only');
 assert.ok(css.includes('.combat-effect-icon') && css.includes('.combat-effect-strip:empty'), 'active effects must render as collapsible icon strips');
-assert.ok(css.includes('border: 1px solid var(--effect-color') && css.includes('filter: brightness(1.22)'),
+assert.ok(css.includes('border: 2px solid var(--effect-color') && css.includes('filter: brightness(1.34)'),
   'effect icons must keep a bright framed treatment at small sizes');
 assert.ok(css.includes("status-effects-atlas-v1.png") && fs.existsSync('assets/ui/status-effects-atlas-v1.png'), 'active effects must use the generated raster icon atlas');
 const effectAtlasSize = readPngSize('assets/ui/status-effects-atlas-v1.png');
@@ -111,17 +116,21 @@ assert.strictEqual(effectAtlasSize[0], effectAtlasSize[1], 'effect atlas must re
 assert.strictEqual(effectAtlasSize[0] % 7, 0, 'effect atlas must retain seven equal sprite columns and rows');
 assert.strictEqual(readPngColorType('assets/ui/status-effects-atlas-v1.png'), 6, 'effect atlas must retain RGBA transparency');
 assert.ok(css.includes('background-size: 700% 700%'), 'effect art must expose exactly one cell from the 7x7 atlas');
-assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 0;/.test(css),
-  'dense player effects must shrink inside the framed strip instead of overflowing on mobile');
+assert.ok(/\.player-health-frame \.player-combat-effect-strip \{[\s\S]*?bottom: calc\(100% \+ 4px\);[\s\S]*?flex-wrap: wrap-reverse;/.test(css),
+  'player effects must occupy a wrapped shelf above the health frame instead of covering its gauge');
+assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 28px;/.test(css),
+  'player effects must remain recognizable instead of shrinking below their icon art');
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('--health-frame-width: 520px') && css.includes('.enemy-card.enemy-boss .enemy-hud-meta'),
-  'boss health, traits, and effects must use the compact integrated frame');
-assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?width: 44%;[\s\S]*?min-height: 16px;/.test(css),
+  'boss health and traits must use the compact integrated frame');
+assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 54%;[\s\S]*?width: 44%;[\s\S]*?height: 18%;/.test(css),
   'boss traits must stay centered within the supplied pink trait panel');
 ['mob', 'elite', 'boss'].forEach(tier => assert.ok(css.includes(`.enemy-card.enemy-${tier} .enemy-hud-meta`),
-  `${tier} traits and effects must have their own health-frame position`));
+  `${tier} traits must have their own health-frame position`));
 assert.ok(css.includes('.enemy-card.enemy-elite .enemy-traits') && css.includes('background: rgba(15, 10, 12, .55)'), 'elite traits must use a content-sized translucent panel');
 assert.ok(/#enemy-area \.enemy-ailments \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/.test(css), 'enemy effects must no longer use a text box');
+assert.ok(/#enemy-area \.enemy-card\.targeted > \.enemy-combat-effect-strip \{[\s\S]*?overflow: visible;[\s\S]*?background: rgba\(7, 9, 13, \.9\);/.test(css),
+  'enemy effect icons must remain visible on their own unclipped shelf');
 assert.ok(css.includes('.enemy-card.enemy-boss .health-skin-track { min-height: 0; }'), 'the mobile boss gauge must not expand over its frame');
 assert.ok(css.includes('--health-track-left:'), 'baked health colors must be covered by a live clipped track');
 assert.ok(/\.enemy-card\.targeted \.hp-bar-bg \{[\s\S]*?z-index: 2;/.test(css), 'the live enemy gauge layer must render above the frame artwork');

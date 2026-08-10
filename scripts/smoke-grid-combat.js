@@ -362,38 +362,85 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(engravedWeaponStats.sSkill.projectilePatternSource, '창공 각인', '우선 적용된 창공 각인의 출처를 보존해야 한다');
 
   resetGame();
-  context.game.enemies = Array.from({ length: 6 }, (_, idx) => makeEnemy(800 + idx, 1 + idx, 2));
   context.game.equipment['투구'] = makeUniqueItem('군무의 베일', false);
   const crowdBaseStats = context.getPlayerStats();
   context.game.equipment['투구'] = makeUniqueItem('군무의 베일');
+  const danceStats = context.getPlayerStats();
+  assert.strictEqual(danceStats.evasion, crowdBaseStats.evasion, '군무의 베일은 장착만으로 회피를 증폭하면 안 된다');
+  const danceStartedAt = Date.now();
+  for (let i = 0; i < 6; i++) context.recordPlayerEvadeUniqueEffects(danceStats, 6, danceStartedAt + i);
   const crowdBoostedStats = context.getPlayerStats();
-  assert.strictEqual(crowdBoostedStats.evasion, Math.floor(crowdBaseStats.evasion * 1.6), '군무의 베일은 적 6명 이상에서 회피를 60% 증폭해야 한다');
-  assert.ok(crowdBoostedStats.evadeChance > crowdBaseStats.evadeChance, '회피 증폭은 실제 회피 확률에도 반영돼야 한다');
-  context.game.enemies = context.game.enemies.slice(0, 2);
-  assert.strictEqual(context.getPlayerStats().evasion, crowdBaseStats.evasion, '군무의 베일은 적이 6명 미만이면 발동하지 않아야 한다');
+  assert.strictEqual(context.game.uniqueEvasionDanceState.stacks, 4, '군무는 4중첩을 초과하면 안 된다');
+  assert.strictEqual(crowdBoostedStats.moveSpeed, crowdBaseStats.moveSpeed + 8, '군무 4중첩은 이동 속도를 8%만 올려야 한다');
+  assert.ok(crowdBoostedStats.evasion > crowdBaseStats.evasion, '군무 중첩은 실제 회피 수치를 올려야 한다');
+  assert.ok(crowdBoostedStats.evasion < crowdBaseStats.evasion * 1.3, '군무가 기존 60% 증폭처럼 과도하게 커지면 안 된다');
+  context.game.uniqueEvasionDanceState.expiresAt = 0;
+  assert.strictEqual(context.getPlayerStats().evasion, crowdBaseStats.evasion, '군무 지속시간이 끝나면 회피 보너스가 사라져야 한다');
 
   resetGame();
-  context.game.enemies = [makeEnemy(820, 2, 2)];
   context.game.equipment['갑옷'] = makeUniqueItem('고독한 잔상', false);
   const loneBaseStats = context.getPlayerStats();
   context.game.equipment['갑옷'] = makeUniqueItem('고독한 잔상');
-  assert.strictEqual(context.getPlayerStats().evasion, Math.floor(loneBaseStats.evasion * 1.45), '고독한 잔상은 적 1~2명에서 회피를 45% 증폭해야 한다');
-  context.game.enemies = [makeEnemy(821, 2, 2), makeEnemy(822, 3, 2), makeEnemy(823, 4, 2)];
-  assert.strictEqual(context.getPlayerStats().evasion, loneBaseStats.evasion, '고독한 잔상은 적이 3명 이상이면 발동하지 않아야 한다');
+  const loneStats = context.getPlayerStats();
+  assert.strictEqual(loneStats.evasion, loneBaseStats.evasion, '고독한 잔상은 장착만으로 회피를 증폭하면 안 된다');
+  context.recordPlayerEvadeUniqueEffects(loneStats, 3, Date.now());
+  assert.ok(!(context.game.uniqueLoneEvasionCounterUntil > Date.now()), '적이 3명 이상이면 잔상 반격을 준비하면 안 된다');
+  context.recordPlayerEvadeUniqueEffects(loneStats, 2, Date.now());
+  assert.ok(context.game.uniqueLoneEvasionCounterUntil > Date.now(), '적이 1~2명일 때 회피하면 잔상 반격을 준비해야 한다');
+  context.game.activeSkill = '기본 공격';
+  context.game.gridPlayer = { gx: 1, gy: 1, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(820, 2, 1, { hp: 1000000, maxHp: 1000000 })];
+  vm.runInContext('pendingSkillStageHits = [];', context);
+  context.performPlayerAttack(loneStats);
+  assert.strictEqual(vm.runInContext('pendingSkillStageHits[0].options.attackDamageMultiplier', context), 1.2, '잔상 반격은 다음 스킬 전체에 피해 20% 증폭을 전달해야 한다');
+  assert.strictEqual(context.game.uniqueLoneEvasionCounterUntil, 0, '잔상 반격은 한 번의 스킬에만 소비돼야 한다');
 
   resetGame();
   context.game.equipment['장갑1'] = makeUniqueItem('영점 장갑', false);
   const zeroPointBaseStats = context.getPlayerStats();
   context.game.equipment['장갑1'] = makeUniqueItem('영점 장갑');
   const zeroPointStats = context.getPlayerStats();
-  assert.strictEqual(zeroPointStats.energyShield, Math.floor(zeroPointBaseStats.energyShield * 1.2), '영점 장갑은 에너지 보호막을 20% 증폭해야 한다');
-  assert.strictEqual(zeroPointStats.uniqueEsRecoverOnCritPct, 3, '영점 장갑은 치명타 시 최대 에너지 보호막 3% 회복을 부여해야 한다');
+  assert.strictEqual(zeroPointStats.energyShield, zeroPointBaseStats.energyShield, '영점 장갑은 에너지 보호막을 단순 전역 증폭하면 안 된다');
+  assert.strictEqual(zeroPointStats.uniqueEsRecoverOnCritPct, 0, '영점 장갑은 치명타마다 에너지 보호막을 즉시 회복하면 안 된다');
+  context.game.activeSkill = '기본 공격';
+  context.game.gridPlayer = { gx: 1, gy: 1, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(830, 2, 1, { hp: 1000000, maxHp: 1000000 })];
+  zeroPointStats.crit = 100;
+  zeroPointStats.accuracy = 1000000;
+  context.game.playerEnergyShield = Math.floor(zeroPointStats.energyShield / 2);
+  const esHitAt = Date.now();
+  context.game.playerEsLastHitAt = esHitAt;
+  vm.runInContext('pendingSkillStageHits = [];', context);
+  context.performPlayerAttack(zeroPointStats);
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.strictEqual(context.game.playerEsLastHitAt, esHitAt - 250, '영점 장갑의 치명타는 재충전 대기시간을 0.25초만 앞당겨야 한다');
+  const advancedOnce = context.game.playerEsLastHitAt;
+  assert.strictEqual(context.advanceEnergyShieldRechargeOnCrit(zeroPointStats, Date.now()), false, '영점 장갑은 0.6초 내부 재사용 대기시간 동안 연속 발동하면 안 된다');
+  assert.strictEqual(context.game.playerEsLastHitAt, advancedOnce, '내부 재사용 대기시간 중 재충전 시점을 다시 앞당기면 안 된다');
 
   resetGame();
   context.game.equipment['갑옷'] = makeUniqueItem('별을 품은 살갗', false);
   const starSkinBaseStats = context.getPlayerStats();
   context.game.equipment['갑옷'] = makeUniqueItem('별을 품은 살갗');
-  assert.ok(context.getPlayerStats().energyShield > starSkinBaseStats.energyShield, '별을 품은 살갗은 최대 생명력 기반 에너지 보호막을 실제로 추가해야 한다');
+  const starSkinStats = context.getPlayerStats();
+  assert.strictEqual(starSkinStats.energyShield, starSkinBaseStats.energyShield, '별을 품은 살갗은 기존 생명력 기반 보호막 효과를 중복 사용하면 안 된다');
+  const breakAt = Date.now();
+  context.game.playerEnergyShield = 0;
+  assert.strictEqual(context.triggerUniqueEnergyShieldBreakRecharge(starSkinStats, 100, breakAt), true, '보호막이 0이 되는 타격은 재충전 유지 효과를 발동해야 한다');
+  assert.strictEqual(context.game.uniqueEnergyShieldBreakRechargeUntil, breakAt + 3000, '재충전 유지 시간은 3초여야 한다');
+  assert.strictEqual(context.game.uniqueEnergyShieldBreakRechargeReadyAt, breakAt + 12000, '재충전 유지 효과의 재사용 대기시간은 12초여야 한다');
+  assert.strictEqual(context.triggerUniqueEnergyShieldBreakRecharge(starSkinStats, 100, breakAt + 100), false, '재사용 대기시간 중 보호막이 다시 소진돼도 재발동하면 안 된다');
+
+  [
+    ['군무의 베일', 'crowdEvasionMore', 'evasionDanceOnEvade'],
+    ['고독한 잔상', 'fewEnemyEvasionMore', 'loneEvasionCounter'],
+    ['영점 장갑', 'esAmpAndRecoverOnCrit', 'critAdvanceEnergyShieldRecharge'],
+    ['별을 품은 살갗', 'lifePctAsEnergyShield', 'energyShieldBreakRecharge'],
+  ].forEach(([name, legacyKey, currentKey]) => {
+    const migrated = context.normalizeItem({ name, slot: context.UNIQUE_DB.find(row => row.name === name).slots[0], rarity: 'unique', baseStats: [], stats: [], uniqueEffectKey: legacyKey, uniqueEffectParams: { legacy: true } });
+    assert.strictEqual(migrated.uniqueEffectKey, currentKey, `${name}의 기존 획득품도 새 고유 효과로 마이그레이션돼야 한다`);
+    assert.ok(!migrated.uniqueEffectParams.legacy, `${name}의 구형 고유 효과 수치가 남으면 안 된다`);
+  });
 
   resetGame();
   context.game.activeSkill = '연발 사격';
@@ -458,8 +505,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(moving[1].chainFromEnemyId, moving[0].targets[0].enemy.id, '다음 파동은 직전 칸에서 이어져야 한다');
 
   const boomerang = context.buildSkillHitSequence('독니 사출', context.SKILL_DB['독니 사출'], targets);
-  assert.strictEqual(boomerang.length, 6, '부메랑은 전진 3회와 귀환 3회 판정을 가져야 한다');
-  assert.strictEqual(boomerang.slice(3).map(stage => stage.kind).join(','), 'boomerangReturn,boomerangReturn,boomerangReturn');
+  assert.strictEqual(boomerang.length, 2, '부메랑은 왕복 두 판정으로 묶어 다중 대상 처리 부하를 제한해야 한다');
+  assert.strictEqual(boomerang.map(stage => stage.kind).join(','), 'boomerangOutbound,boomerangReturn');
+  assert.ok(boomerang.every(stage => stage.targets.length === 3), '왕복 각 판정은 관통한 세 대상을 모두 보존해야 한다');
   assert.ok(boomerang.every(stage => stage.damageMultiplier === 0.5), '왕복 총 피해가 기존 피해를 초과하면 안 된다');
 
   assert.strictEqual(context.getSkillHitSequenceDpsMultiplier('연속 베기', context.SKILL_DB['연속 베기']), 1.45, '연속 베기의 표시 DPS는 감쇠된 후속타를 반영해야 한다');

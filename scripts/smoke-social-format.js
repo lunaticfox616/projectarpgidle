@@ -50,6 +50,49 @@ context.renderProfileData({ updatedAt: 'not-a-date', stats: [], nickname: '테�
 assert.ok(!profileBody.innerHTML.includes('NaN'), 'invalid profile timestamps should not render NaN text');
 assert.match(context.formatChatTime('2026-07-05T03:04:00Z'), /^\d{2}\/\d{2} \d{2}:\d{2}$/);
 
+const presenceNow = Date.parse('2026-08-11T12:00:00Z');
+assert.strictEqual(context.getSocialPresenceState('2026-08-11T11:55:00Z', presenceNow), 'active', 'heartbeat up to five minutes old should be green');
+assert.strictEqual(context.getSocialPresenceState('2026-08-11T11:30:01Z', presenceNow), 'recent', 'heartbeat under thirty minutes old should be yellow');
+assert.strictEqual(context.getSocialPresenceState('2026-08-11T11:30:00Z', presenceNow), 'recent', 'thirty-minute boundary should remain yellow');
+assert.strictEqual(context.getSocialPresenceState('2026-08-11T11:29:59Z', presenceNow), '', 'presence older than thirty minutes should disappear');
+const onlineHost = { innerHTML: '', style: {} };
+context.cloudState = { user: { id: 'user-1' } };
+context.document.getElementById = (id) => (id === 'social-online' ? onlineHost : null);
+context.renderOnlineUsers([
+  { user_id: 'user-1', nickname: '초록', last_seen: '2026-08-11T11:55:00Z' },
+  { user_id: 'user-2', nickname: '노랑', last_seen: '2026-08-11T11:30:00Z' },
+  { user_id: 'user-3', nickname: '숨김', last_seen: '2026-08-11T11:29:59Z' }
+], presenceNow);
+assert.ok(onlineHost.innerHTML.includes('🟢 초록') && onlineHost.innerHTML.includes('🟡 노랑'), 'presence chips should expose green and yellow states');
+assert.ok(!onlineHost.innerHTML.includes('숨김'), 'expired presence chips must be removed');
+assert.strictEqual(context.isSocialChatMessageCurrent({ created_at: '2026-08-08T12:00:01Z' }, presenceNow), true, 'messages newer than three days should remain');
+assert.strictEqual(context.isSocialChatMessageCurrent({ created_at: '2026-08-08T12:00:00Z' }, presenceNow), false, 'messages reaching three days should expire');
+
+context.getJewelStats = jewel => jewel.stats || [];
+context.getTalismanDisplayName = talisman => talisman.name;
+context.getStatName = stat => stat;
+context.getStarWedgeUniqueDef = type => type === 'sun' ? { name: '태양', desc: '핵심 옵션 증폭' } : null;
+context.game = {
+  equipment: { 무기: { name: '검', rarity: 'rare', stats: [] } },
+  inventory: [{ name: '장갑', slot: '장갑', rarity: 'magic', stats: [] }],
+  jewelSlots: [{ name: '장착 주얼', rarity: 'rare', stats: [{ id: 'crit', val: 3 }] }],
+  jewelInventory: [{ name: '보관 주얼', rarity: 'magic', stats: [] }],
+  talismanPlacements: { 10: { talisman: { id: 10, name: '배치 부적', rarity: 'rare', stat: 'flatHp', value: 4 } } },
+  talismanInventory: [{ id: 11, name: '보관 부적', rarity: 'magic', stat: 'crit', value: 2 }],
+  growthInventory: [{ id: 20, name: '보관 생장판', rarity: 'rare', stats: [] }],
+  starWedge: { wedges: [{ id: 30, unique: true, uniqueType: 'sun', lines: [{ stat: 'flatHp', val: 8 }] }] }
+};
+context.getPlacedGrowthEntries = () => [{ item: { id: 21, name: '배치 생장판', rarity: 'unique', stats: [] } }];
+assert.strictEqual(context.getChatAttachSnapshot('jewel', 0).kind, 'jewel');
+assert.strictEqual(context.getChatAttachSnapshot('talismanPlaced', 10).kind, 'talisman');
+assert.strictEqual(context.getChatAttachSnapshot('growthPlaced', 21).name, '배치 생장판');
+assert.strictEqual(context.getChatAttachSnapshot('starWedge', 30).name, '태양 #30');
+const pickerGroups = context.getChatItemPickerGroups();
+assert.deepStrictEqual(Array.from(pickerGroups, group => group.title),
+  ['장착 장비', '장비 인벤토리', '주얼', '부적', '생장판', '별쐐기']);
+assert.ok(context.renderChatItemPickerGroup(pickerGroups[2]).includes("attachChatItem('jewelSlot',0)"), 'equipped jewels should be selectable in the chat picker');
+assert.ok(context.renderChatItemPickerGroup(pickerGroups[5]).includes('태양 #30'), 'star wedges should render as item links with their unique name');
+
 const socialRoot = { innerHTML: '' };
 const socialHost = { querySelector() { return socialRoot; }, classList: { contains() { return false; } } };
 context.document.getElementById = (id) => (id === 'tab-social' ? socialHost : null);
@@ -77,5 +120,7 @@ const socialSource = fs.readFileSync('js/social.js', 'utf8');
 assert.ok(html.includes('id="chk-social-chat-noti"'), 'settings should expose a new-chat notification toggle');
 assert.ok(socialSource.includes('SOCIAL_BG_NOTI_POLL_MS = 15000'), 'background chat notifications should arrive promptly');
 assert.ok(socialSource.includes("showGameToast(`새 채팅"), 'incoming chat should create an in-game notification');
+const socialSql = fs.readFileSync('db/social.sql', 'utf8');
+assert.ok(socialSql.includes("created_at < now() - interval '3 days'"), 'database cleanup must delete chat messages after three days');
 
 console.log('smoke-social-format passed');

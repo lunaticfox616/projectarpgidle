@@ -138,6 +138,21 @@ assert.strictEqual(impactFeedback.hit.start, impactFeedback.swing.start + impact
 assert.strictEqual(impactFeedback.hit.impactTier, 'annihilate', '100%+ raw damage should use annihilation feedback');
 assert.strictEqual(impactFeedback.death.start, impactFeedback.hit.start, 'death feedback should stay on the same impact frame');
 assert.strictEqual(impactFeedback.independent.start, impactFeedback.independent.queuedAt, 'summon, reflect, and delayed hits should not attach to the player swing');
+const backlogGuard = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
+  battleFx = [];
+  document.hidden = true;
+  addBattleFx('hit', { damage: 1 });
+  const hiddenCount = battleFx.length;
+  document.hidden = false;
+  for (let index = 0; index < 300; index++) addBattleFx('hit', { damage: 1 });
+  const cappedCount = battleFx.length;
+  setBattleFxSuppressed(true);
+  addBattleFx('hit', { damage: 1 });
+  const suppressedCount = battleFx.length;
+  setBattleFxSuppressed(false);
+  return { hiddenCount, cappedCount, suppressedCount };
+})()`, context)));
+assert.deepStrictEqual(backlogGuard, { hiddenCount: 0, cappedCount: 240, suppressedCount: 0 }, 'hidden/background combat must discard visual effects and cap any foreground backlog');
 const damageTextLayout = vm.runInContext(`(() => {
   battleVisualState.damageTexts = [];
   spawnDamageText({ start: 1200, x: 400, y: 240, value: 10 });
@@ -154,6 +169,22 @@ assert.ok(damageTextLayout.every(text => text.start === 1200), 'damage labels sh
 assert.ok(damageTextLayout.every(text => text.offsetX === 0), 'rapid damage labels should stay on one readable anchor');
 assert.deepStrictEqual(Array.from(damageTextLayout, text => text.stackShiftTo), [-36, -18, 0], 'older damage labels should be pushed upward in arrival order');
 assert.ok(damageTextLayout.every(text => text.duration <= 760), 'ordinary damage labels should clear quickly instead of lingering over combat');
+const bodyCueLayout = vm.runInContext(`(() => {
+  battleVisualState.damageTexts = [];
+  spawnDamageText({ start: 1500, x: 300, y: 220, value: 25 });
+  spawnDamageText({ start: 1500, x: 300, y: 220, value: '회피!', miss: true, bodyCue: true });
+  const rows = battleVisualState.damageTexts.map(text => ({ bodyCue: text.bodyCue, stackShiftTo: text.stackShiftTo, duration: text.duration }));
+  battleVisualState.damageTexts = [battleVisualState.damageTexts[1]];
+  let font = '';
+  const ctx = { save() {}, restore() {}, strokeText() {}, fillText() { font = this.font; } };
+  drawDamageTexts(ctx, 1600);
+  return { rows, font };
+})()`, context);
+assert.strictEqual(bodyCueLayout.rows[0].stackShiftTo, 0, 'body cues must not push ordinary damage labels into the damage-number stack');
+assert.strictEqual(bodyCueLayout.rows[1].bodyCue, true, 'evasion feedback should use the body-cue presentation');
+assert.strictEqual(bodyCueLayout.rows[1].stackShiftTo, 0, 'evasion body cues must stay out of the damage-number stack');
+assert.strictEqual(bodyCueLayout.rows[1].duration, 420, 'evasion body cues should clear quickly beside the character');
+assert.ok(bodyCueLayout.font.includes('11px'), 'body cues should be visibly smaller than ordinary damage numbers');
 
 for (let index = 0; index < 18; index++) {
   assert.ok(fs.existsSync(`assets/background/chaos/endgame-${index}.png`), `chaos backdrop ${index} should exist`);
@@ -304,11 +335,12 @@ assert.deepStrictEqual(Array.from(combatPatternImages), [
   'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxDotField', 'bossTelegraphPulse'
 ], 'real collision patterns should select their dedicated image assets');
 const optimizedAreaVfx = vm.runInContext(`(() => {
-  const counts = { meteorImages: 0, blizzardLines: 0, blizzardBounds: 0 };
+  const counts = { meteorImages: 0, blizzardGusts: 0, blizzardFlakes: 0, rainLines: 0, blizzardBounds: 0 };
   battleAssets.images.skillFxSlamPrimary = { complete: true, naturalWidth: 64 };
   const ctx = {
-    save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, arc() {}, stroke() {},
-    moveTo() {}, lineTo() { counts.blizzardLines++; }, strokeRect() { counts.blizzardBounds++; },
+    save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, stroke() {}, fill() {}, moveTo() {},
+    arc() { counts.blizzardFlakes++; }, bezierCurveTo() { counts.blizzardGusts++; },
+    lineTo() { counts.rainLines++; }, strokeRect() { counts.blizzardBounds++; },
     drawImage() { counts.meteorImages++; }
   };
   const targets = [{ x: 120, y: 160 }, { x: 260, y: 240 }];
@@ -324,9 +356,63 @@ const optimizedAreaVfx = vm.runInContext(`(() => {
   return { ...counts, impactEffectCount: battleVisualState.skillEffects.length };
 })()`, context);
 assert.strictEqual(optimizedAreaVfx.meteorImages, 1, '유성 낙화는 낙하 중 큰 유성 이미지 하나만 그려야 한다');
-assert.strictEqual(optimizedAreaVfx.blizzardLines, 12, '난타 눈보라는 고정된 큰 이미지 대신 가벼운 눈보라 입자를 그려야 한다');
-assert.strictEqual(optimizedAreaVfx.blizzardBounds, 1, '눈보라의 실제 유지 범위는 한 번만 표시해야 한다');
+assert.strictEqual(optimizedAreaVfx.blizzardGusts, 6, '난타 눈보라는 범위를 가로지르는 굽은 돌풍을 여러 겹 그려야 한다');
+assert.strictEqual(optimizedAreaVfx.blizzardFlakes, 22, '난타 눈보라는 충분한 눈 입자를 옆으로 휘날려야 한다');
+assert.strictEqual(optimizedAreaVfx.rainLines, 0, '난타 눈보라를 아래로 떨어지는 빗줄기로 표현하면 안 된다');
+assert.strictEqual(optimizedAreaVfx.blizzardBounds, 0, '난타 눈보라에 네모난 범위 상자를 그리면 안 된다');
 assert.strictEqual(optimizedAreaVfx.impactEffectCount, 0, '눈보라 매 타격마다 중복 폭발 이미지를 추가하면 안 된다');
+const aggregatedBurstVfx = vm.runInContext(`(() => {
+  let images = 0;
+  battleAssets.images.skillFxBurst = { complete: true, naturalWidth: 64 };
+  const ctx = {
+    save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, stroke() {}, fill() {},
+    moveTo() {}, lineTo() {}, arc() {}, drawImage() { images++; }
+  };
+  const targets = Array.from({ length: 8 }, (_, index) => ({ x: 100 + index * 24, y: 180 + (index % 2) * 30 }));
+  ['서리 폭발', '삼원 파동'].forEach((skillName, index) => {
+    drawCombatCellFx(ctx, {
+      start: 1000, duration: 720, delivery: 'magicCell', patternKind: null, skillName
+    }, 1230, 1460, targets, 'skillFxBurst', index ? 'fire' : 'cold');
+  });
+  battleVisualState.skillEffects = [];
+  targets.forEach((target, index) => {
+    queueSkillGemVfx({ id: 800 + index, skillName: '서리 폭발', element: 'cold' }, target, { x: 20, y: 220 }, {}, 1230, 1);
+    queueSkillGemVfx({ id: 900 + index, skillName: '삼원 파동', element: 'fire' }, target, { x: 20, y: 220 }, {}, 1230, 1);
+  });
+  return {
+    images,
+    impactEffectCount: battleVisualState.skillEffects.length,
+    frostParticles: getAttackFxSpawnOpts({ skillName: '서리 폭발' }, {}, {}, 1),
+    triParticles: getAttackFxSpawnOpts({ skillName: '삼원 파동' }, {}, {}, 1)
+  };
+})()`, context);
+assert.strictEqual(aggregatedBurstVfx.images, 2, '서리 폭발과 삼원 파동은 대상 수와 무관하게 범위당 이미지 하나만 그려야 한다');
+assert.strictEqual(aggregatedBurstVfx.impactEffectCount, 0, '범위 폭발은 각 대상마다 별도 적중 이미지를 할당하면 안 된다');
+assert.strictEqual(aggregatedBurstVfx.frostParticles, null, '서리 폭발은 대상별 보조 입자를 중복 생성하면 안 된다');
+assert.strictEqual(aggregatedBurstVfx.triParticles, null, '삼원 파동은 대상별 보조 입자를 중복 생성하면 안 된다');
+const compactFireCoreVfx = vm.runInContext(`(() => {
+  const counts = { arcs: 0, maxRadius: 0, flames: 0, strokes: 0 };
+  const ctx = {
+    save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, moveTo() {}, closePath() {}, fill() {},
+    arc(x, y, radius) { counts.arcs++; counts.maxRadius = Math.max(counts.maxRadius, radius); },
+    bezierCurveTo() { counts.flames++; }, stroke() { counts.strokes++; }
+  };
+  const targets = [{ x: 120, y: 160 }, { x: 320, y: 280 }];
+  drawCombatCellFx(ctx, {
+    start: 1000, duration: 900, patternKind: 'field', skillName: '화염 폭풍핵'
+  }, 1230, 1460, targets, 'skillFxDotField', 'fire');
+  battleVisualState.skillEffects = [];
+  queueSkillGemVfx({ id: 701, skillName: '화염 폭풍핵', stageKind: 'fieldTick', element: 'fire' },
+    targets[0], { x: 20, y: 220 }, {}, 1230, 1);
+  return { ...counts, impactEffectCount: battleVisualState.skillEffects.length };
+})()`, context);
+assert.strictEqual(compactFireCoreVfx.arcs, 1, '화염 폭풍핵은 작은 중심 핵 하나만 그려야 한다');
+assert.ok(compactFireCoreVfx.maxRadius <= 12, '화염 폭풍핵 중심광이 전장 범위만큼 커지면 안 된다');
+assert.strictEqual(compactFireCoreVfx.flames, 12, '화염 폭풍핵은 중심 주위의 작은 불꽃 조각으로 회전감을 표현해야 한다');
+assert.strictEqual(compactFireCoreVfx.strokes, 0, '화염 폭풍핵에 눈부신 원형 선을 그리면 안 된다');
+assert.strictEqual(compactFireCoreVfx.impactEffectCount, 0, '화염 폭풍핵 매 타격마다 큰 핵 이펙트를 중복 생성하면 안 된다');
+assert.ok(battlefieldSource.includes('bodyCue: true') && battlefieldSource.includes('bodyCue: playerEvade'),
+  '플레이어와 적의 회피 피드백은 피해 숫자가 아닌 본체 주변 cue로 연결되어야 한다');
 const stagedSkillVfx = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
   const player = { x: 100, y: 220 };
@@ -368,6 +454,35 @@ const fanProjectiles = vm.runInContext(`(() => {
 })()`, context);
 assert.strictEqual(fanProjectiles.length, 3, '산탄은 선택된 방향마다 실제 투사체 하나를 생성해야 한다');
 assert.strictEqual(new Set(fanProjectiles.map(effect => `${effect.toX},${effect.toY}`)).size, 3, '산탄 투사체는 서로 다른 방향으로 날아가야 한다');
+const breathQueue = vm.runInContext(`(() => {
+  battleVisualState.skillEffects = [];
+  const player = { x: 100, y: 220 };
+  const first = { x: 250, y: 210, enemy: { id: 'a' } };
+  const second = { x: 230, y: 260, enemy: { id: 'b' } };
+  queueSkillGemVfx({ id: 301, skillName: '용화 숨결', stageKind: 'channelTick', element: 'fire' }, first, player, {}, 1000, 1);
+  queueSkillGemVfx({ id: 302, skillName: '용화 숨결', stageKind: 'channelTick', element: 'fire' }, second, player, {}, 1000, 1);
+  return battleVisualState.skillEffects;
+})()`, context);
+assert.strictEqual(breathQueue.length, 1, '한 채널 타격의 다중 대상은 화염 호흡을 중복 생성하면 안 된다');
+assert.strictEqual(breathQueue[0].duration, 380, '화염 호흡은 다음 채널 타격까지 자연스럽게 이어져야 한다');
+assert.ok(breathQueue[0].fromX > 100 && breathQueue[0].fromY < 220, '화염 호흡은 캐릭터 중심이 아니라 얼굴 앞에서 시작해야 한다');
+const breathDrawing = vm.runInContext(`(() => {
+  const calls = { bezier: 0, arcs: 0, fills: 0, lines: 0, rects: 0 };
+  const ctx = {
+    globalAlpha: 0.7, translate() {}, rotate() {}, beginPath() {}, moveTo() {}, closePath() {},
+    bezierCurveTo() { calls.bezier++; }, arc() { calls.arcs++; }, fill() { calls.fills++; },
+    lineTo() { calls.lines++; }, fillRect() { calls.rects++; }
+  };
+  const handled = drawProceduralSkillImpact(ctx, {
+    family: 'breath', element: 'fire', seed: 33, size: 82,
+    fromX: 100, fromY: 200, toX: 260, toY: 220
+  }, 0.5);
+  return { ...calls, handled };
+})()`, context);
+assert.strictEqual(breathDrawing.handled, true, '용화 숨결은 전용 절차형 이펙트가 처리해야 한다');
+assert.ok(breathDrawing.bezier >= 24 && breathDrawing.fills >= 16, '화염 호흡은 여러 굽은 불꽃 혀로 보여야 한다');
+assert.strictEqual(breathDrawing.lines, 0, '화염 호흡은 광선이나 삼각형 윤곽선을 그리면 안 된다');
+assert.strictEqual(breathDrawing.rects, 0, '화염 호흡은 직사각형 광선을 그리면 안 된다');
 const annihilateSpawnOptions = vm.runInContext(`getAttackFxSpawnOpts(
   { element: 'fire', impactTier: 'annihilate', crit: false },
   { isBoss: false, isElite: false },

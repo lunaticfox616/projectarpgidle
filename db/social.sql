@@ -216,8 +216,8 @@ create trigger trg_chat_messages_rate_limit
     for each row execute function public.chat_messages_rate_limit();
 
 -- 저장 공간 보호: 채팅 로그 자동 정리 -----------------------------------------
--- 무료 티어에서 데이터가 무한히 쌓이지 않도록, 새 메시지가 들어올 때마다
--- 최신 CHAT_KEEP개만 남기고 오래된 메시지를 삭제한다.
+-- 새 메시지가 들어올 때마다 3일이 지난 메시지를 지우고, 짧은 기간에 메시지가
+-- 몰리는 경우에도 최신 CHAT_KEEP개만 남긴다.
 create or replace function public.chat_messages_prune()
 returns trigger
 language plpgsql
@@ -228,6 +228,9 @@ declare
     keep_count constant int := 500;  -- 보관할 최신 메시지 수
     cutoff_id bigint;
 begin
+    delete from public.chat_messages
+     where created_at < now() - interval '3 days';
+
     select id into cutoff_id
       from public.chat_messages
      order by id desc
@@ -240,6 +243,10 @@ begin
     return null;
 end;
 $$;
+
+-- 이 스키마를 기존 프로젝트에 다시 적용하는 즉시 과거 로그도 한 번 정리한다.
+delete from public.chat_messages
+ where created_at < now() - interval '3 days';
 
 drop trigger if exists trg_chat_messages_prune on public.chat_messages;
 create trigger trg_chat_messages_prune

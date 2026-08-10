@@ -581,6 +581,55 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   background: rgba(36, 58, 84, .96);
 }
 
+.cosmos-stone-panel { grid-column: 1 / -1; margin-top: 8px; }
+.cosmos-stone-panel > header { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 9px; color: #dceeff; }
+.cosmos-stone-panel > header span { color: #8eabc4; font-size: .78em; }
+.cosmos-stone-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.cosmos-stone-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  min-height: 116px;
+  padding: 10px;
+  border: 1px solid #2e4358;
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(18, 31, 47, .96), rgba(8, 14, 24, .96));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+.cosmos-stone-card.locked { opacity: .58; filter: saturate(.55); }
+.cosmos-stone-card.equipped { border-color: #78cfff; box-shadow: inset 0 0 22px rgba(75,165,222,.12), 0 0 18px rgba(84,187,245,.12); }
+.cosmos-stone-orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 1px solid rgba(145, 211, 255, .7);
+  border-radius: 50%;
+  color: #e9f7ff;
+  background: radial-gradient(circle at 35% 28%, #7dc5e9 0 8%, #234a66 30%, #0b1726 70%);
+  box-shadow: inset 0 0 0 5px rgba(4, 11, 19, .5), 0 0 14px rgba(100, 195, 247, .16);
+}
+.cosmos-stone-orb::before,
+.cosmos-stone-orb::after { content: ''; position: absolute; inset: -5px; border: 1px solid rgba(118,190,235,.28); border-radius: 50%; }
+.cosmos-stone-orb::after { inset: 7px -7px; transform: rotate(-24deg); }
+.cosmos-stone-orb i { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #ffe09a; box-shadow: -19px 6px #7fd6ff, 15px -12px #c0a1ff; }
+.cosmos-stone-orb b { position: relative; z-index: 1; font-size: .82em; letter-spacing: .08em; }
+.cosmos-stone-card-body header { display: flex; justify-content: space-between; gap: 7px; color: #e8f5ff; }
+.cosmos-stone-card-body header span { color: #77d6aa; font-size: .72em; white-space: nowrap; }
+.cosmos-stone-card-body > small { display: block; margin: 2px 0 5px; color: #83bfe4; }
+.cosmos-stone-options { min-height: 30px; }
+.cosmos-stone-option { color: #b9cce0; font-size: 10px; line-height: 1.4; }
+.cosmos-stone-option.boss { color: #ffd98a; }
+.cosmos-stone-option.empty { color: #6f8295; }
+.cosmos-stone-actions { display: flex; gap: 4px; margin-top: 7px; }
+.cosmos-stone-actions button { min-height: 25px; padding: 3px 7px; font-size: 10px; }
+
+@media (max-width: 700px) {
+  .cosmos-stone-grid { grid-template-columns: 1fr; }
+}
+
 .cosmos-atlas-tooltip {
   display: none;
   position: absolute;
