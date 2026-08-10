@@ -205,6 +205,44 @@ function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
     return moved;
 }
 
+function findGridRetreatCell(unit, target, maxRange, previousCell) {
+    let blocked = getGridBlockedCells(unit);
+    let currentDist = gridChebyshevDist(unit.gx, unit.gy, target.gx, target.gy);
+    let best = null, bestScore = currentDist;
+    for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            let gx = unit.gx + dx, gy = unit.gy + dy;
+            if (!isGridCellInBounds(gx, gy) || blocked.has(gridCellKey(gx, gy))) continue;
+            let distance = gridChebyshevDist(gx, gy, target.gx, target.gy);
+            if (distance <= currentDist || distance > maxRange) continue;
+            let backtrack = previousCell && gx === previousCell.gx && gy === previousCell.gy;
+            let score = distance - (backtrack ? 0.25 : 0);
+            if (score > bestScore) { best = { gx, gy }; bestScore = score; }
+        }
+    }
+    return best;
+}
+
+/** 사거리 안 전술 재배치를 한 칸만 수행한다. */
+function advanceGridTacticalMovement(unit, target, options) {
+    if (!hasGridCell(unit) || !hasGridCell(target)) return { moved: false };
+    let config = options || {};
+    let interval = Number(config.intervalSec) > 0 ? Number(config.intervalSec) : COMBAT_GRID_CONFIG.playerMoveIntervalSec;
+    unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + Math.max(0, Number(config.dtSec) || 0);
+    if (unit.gridMoveTimer < interval) return { moved: false };
+    let from = { gx: unit.gx, gy: unit.gy };
+    let moved = false;
+    if (config.direction === 'away') {
+        let cell = findGridRetreatCell(unit, target, Math.max(1, Number(config.maxRange) || 1), config.previousCell);
+        if (cell) { unit.gx = cell.gx; unit.gy = cell.gy; moved = true; }
+    } else {
+        moved = gridStepToward(unit, target.gx, target.gy, getGridBlockedCells(unit));
+    }
+    unit.gridMoveTimer = moved ? 0 : interval;
+    return { moved, from, to: { gx: unit.gx, gy: unit.gy }, retreat: moved && config.direction === 'away' };
+}
+
 /** 스킬 젬의 그리드 범위 프로필을 조회한다. 정의가 없으면 targetMode/태그 기반 기본값을 쓴다. */
 function getSkillGridProfile(skillName, skillDef) {
     let profile = SKILL_GRID_DB[skillName];
@@ -314,6 +352,49 @@ function buildGridChainTargets(profile, targetCount, primaryEnemy, candidates) {
     return hits;
 }
 
+function compareGridCandidateTie(a, b) {
+    if (a.dist !== b.dist) return a.dist - b.dist;
+    let aId = Number(a.enemy.id), bId = Number(b.enemy.id);
+    if (Number.isFinite(aId) && Number.isFinite(bId)) return aId - bId;
+    return String(a.enemy.id).localeCompare(String(b.enemy.id));
+}
+
+function getGridDangerScore(enemy) {
+    if (enemy && enemy.isBoss) return 3;
+    if (enemy && (enemy.isElite || enemy.elite)) return 2;
+    return enemy && enemy.attackKind === 'ranged' ? 1 : 0;
+}
+
+function getGridDensityScore(candidate, candidates, profile, attackerCell) {
+    let cells = getGridAttackAreaCells(profile, attackerCell, candidate.enemy);
+    let areaKeys = new Set(cells.map(cell => gridCellKey(cell.gx, cell.gy)));
+    return candidates.reduce((count, row) => count + (areaKeys.has(gridCellKey(row.enemy.gx, row.enemy.gy)) ? 1 : 0), 0);
+}
+
+function selectGridPrimaryCandidate(candidates, profile, attackerCell, options) {
+    let inRange = candidates.filter(row => row.dist <= Math.max(1, profile.range || 1));
+    if (inRange.length === 0) return null;
+    let preferredId = options && options.preferredEnemyId;
+    let preferred = inRange.find(row => String(row.enemy.id) === String(preferredId));
+    if (preferred) return preferred;
+    let priority = options && options.targetPriority;
+    if (priority === 'weakest') {
+        return inRange.slice().sort((a, b) => {
+            let aRatio = Math.max(0, Number(a.enemy.hp) || 0) / Math.max(1, Number(a.enemy.maxHp) || 1);
+            let bRatio = Math.max(0, Number(b.enemy.hp) || 0) / Math.max(1, Number(b.enemy.maxHp) || 1);
+            return aRatio - bRatio || compareGridCandidateTie(a, b);
+        })[0];
+    }
+    if (priority === 'dangerous') {
+        return inRange.slice().sort((a, b) => getGridDangerScore(b.enemy) - getGridDangerScore(a.enemy) || compareGridCandidateTie(a, b))[0];
+    }
+    if (priority === 'dense') {
+        return inRange.slice().sort((a, b) => getGridDensityScore(b, inRange, profile, attackerCell)
+            - getGridDensityScore(a, inRange, profile, attackerCell) || compareGridCandidateTie(a, b))[0];
+    }
+    return inRange[0];
+}
+
 /**
  * 그리드 기반 스킬 대상 선택. 사거리 안의 가장 가까운 적을 1차 대상으로 삼고,
  * 범위 패턴이 덮는 칸의 다른 적을 targets 수까지 함께 타격한다.
@@ -322,24 +403,26 @@ function buildGridChainTargets(profile, targetCount, primaryEnemy, candidates) {
  * @param {{targets?:number, targetMode?:string}} skill 스킬 정의(레벨 반영본)
  * @param {{gx:number, gy:number}} attackerCell
  * @param {Array<object>} enemies 살아 있는 적 목록
+ * @param {{targetPriority?:string, preferredEnemyId?:number|string}} [options]
  * @returns {Array<{enemy:object, mult:number}>}
  */
-function selectGridSkillTargets(skillName, skill, attackerCell, enemies) {
+function selectGridSkillTargets(skillName, skill, attackerCell, enemies, options) {
     if (!attackerCell || !isGridCellInBounds(attackerCell.gx, attackerCell.gy)) return [];
     let profile = getSkillGridProfile(skillName, skill);
     let candidates = (enemies || []).filter(hasGridCell)
         .map(enemy => ({ enemy, dist: gridChebyshevDist(attackerCell.gx, attackerCell.gy, enemy.gx, enemy.gy) }))
-        .sort((a, b) => a.dist - b.dist || a.enemy.id - b.enemy.id);
-    let primary = candidates.find(row => row.dist <= Math.max(1, profile.range || 1));
+        .sort(compareGridCandidateTie);
+    let primary = selectGridPrimaryCandidate(candidates, profile, attackerCell, options);
     if (!primary) return [];
+    let orderedCandidates = [primary].concat(candidates.filter(row => row !== primary));
     let targetCount = Math.max(1, Math.floor(skill.targets || 1));
     let mode = skill.targetMode || 'single';
     let hits;
     if (profile.kind === 'chain') {
-        hits = buildGridChainTargets(profile, targetCount, primary.enemy, candidates.map(row => row.enemy));
+        hits = buildGridChainTargets(profile, targetCount, primary.enemy, orderedCandidates.map(row => row.enemy));
     } else if (profile.kind === 'fan') {
         hits = getGridFanDirections(attackerCell, primary.enemy, profile.rays || 3).map(direction => {
-            let match = candidates.find(row => {
+            let match = orderedCandidates.find(row => {
                 let dx = row.enemy.gx - attackerCell.gx, dy = row.enemy.gy - attackerCell.gy;
                 let steps = direction.gx !== 0 ? dx / direction.gx : dy / direction.gy;
                 return Number.isInteger(steps) && steps >= 1 && steps <= profile.range
@@ -350,11 +433,11 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies) {
         }).filter(Boolean).slice(0, targetCount);
     } else {
         let areaKeys = new Set(getGridAttackAreaCells(profile, attackerCell, primary.enemy).map(cell => gridCellKey(cell.gx, cell.gy)));
-        hits = candidates.filter(row => areaKeys.has(gridCellKey(row.enemy.gx, row.enemy.gy)))
+        hits = orderedCandidates.filter(row => areaKeys.has(gridCellKey(row.enemy.gx, row.enemy.gy)))
             .slice(0, targetCount).map(row => row.enemy);
     }
     if (profile.kind === 'melee' || profile.kind === 'arc') {
-        extendGridTargetsBySpill(hits, targetCount, candidates.map(row => row.enemy));
+        extendGridTargetsBySpill(hits, targetCount, orderedCandidates.map(row => row.enemy));
     }
     let fanDamage = skill.projectilePattern && skill.projectilePattern.kind === 'fan'
         ? Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT) / 100 : null;
@@ -404,14 +487,36 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     let pattern = skill && skill.combatPattern;
     if (!pattern) return null;
     let intervalMs = Math.max(40, Math.floor(Number(pattern.intervalMs) || 160));
+    let attacker = (typeof game !== 'undefined' && game.gridPlayer) ? game.gridPlayer : null;
+    let primary = targets[0] && targets[0].enemy;
+    let impactCells = attacker && primary
+        ? getGridAttackAreaCells(getSkillGridProfile(skillName, skill), attacker, primary) : [];
+    if (pattern.kind === 'meteor') {
+        return [{
+            kind: 'meteorImpact', label: '유성 충돌', delayMs: 0,
+            damageMultiplier: 1, impactCells, targets
+        }];
+    }
     if (pattern.kind === 'field') {
         let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
         let damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
-        let attacker = (typeof game !== 'undefined' && game.gridPlayer) ? game.gridPlayer : null;
-        let primary = targets[0] && targets[0].enemy;
-        let impactCells = attacker && primary ? getGridAttackAreaCells(getSkillGridProfile(skillName, skill), attacker, primary) : [];
         return Array.from({ length: hits }, (_, idx) => ({
             kind: idx === 0 ? 'fieldStart' : 'fieldTick', label: `장판 ${idx + 1}회`,
+            delayMs: idx * intervalMs, damageMultiplier, singleRepeat: true, impactCells, targets
+        }));
+    }
+    if (pattern.kind === 'mine') {
+        let delayMs = Math.max(120, Math.floor(Number(pattern.armDelayMs) || 420));
+        return [{
+            kind: 'mineDetonate', label: '룬 지뢰 폭발', delayMs,
+            damageMultiplier: 1, singleRepeat: true, impactCells, targets
+        }];
+    }
+    if (pattern.kind === 'channel') {
+        let hits = Math.max(2, Math.min(8, Math.floor(Number(pattern.hits) || 3)));
+        let damageMultiplier = Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
+        return Array.from({ length: hits }, (_, idx) => ({
+            kind: idx === 0 ? 'channelStart' : 'channelTick', label: `집중 ${idx + 1}회`,
             delayMs: idx * intervalMs, damageMultiplier, singleRepeat: true, impactCells, targets
         }));
     }
@@ -489,7 +594,7 @@ function getSkillHitSequenceDpsMultiplier(skillName, skill) {
     let profile = getSkillHitSequenceProfile(skillName, skill || {});
     if (profile.kind === 'slam') return Math.max(0, 1 - profile.damageMultiplier) + profile.damageMultiplier;
     let pattern = skill && skill.combatPattern;
-    if (pattern && pattern.kind === 'field') {
+    if (pattern && ['field', 'channel'].includes(pattern.kind)) {
         let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
         return hits * Math.max(0.01, Number(pattern.damagePct) || 100) / 100;
     }
@@ -576,7 +681,7 @@ safeExposeGlobals({
     isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
     getGridBlockedCells, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
-    gridStepToward, advanceGridUnitMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
+    gridStepToward, advanceGridUnitMovement, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
     describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,
     selectGridSkillTargets, findNearestGridEnemy, extendGridTargetsBySpill,
     getSkillHitSequenceProfile, buildSkillHitSequence, getSkillHitSequenceDpsMultiplier

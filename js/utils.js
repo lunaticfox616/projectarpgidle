@@ -110,7 +110,12 @@ const SKILL_TAG_LABELS = {
     chain: '연쇄',
     summon: '소환수',
     summon_attack: '공격형 소환수',
-    summon_guard: '방어형 소환수'
+    summon_guard: '방어형 소환수',
+    shield: '방패',
+    mine: '지뢰',
+    potion: '포션',
+    mobility: '기동',
+    channeling: '채널링'
 };
 const TAGGED_DAMAGE_STAT_BY_TAG = {
     melee: 'meleePctDmg',
@@ -123,7 +128,12 @@ const TAGGED_DAMAGE_STAT_BY_TAG = {
     chaos: 'chaosPctDmg',
     aoe: 'aoePctDmg',
     slam: 'slamPctDmg',
-    spell: 'spellPctDmg'
+    spell: 'spellPctDmg',
+    shield: 'shieldPctDmg',
+    mine: 'minePctDmg',
+    potion: 'potionPctDmg',
+    mobility: 'mobilityPctDmg',
+    channeling: 'channelingPctDmg'
 };
 const COMPARE_STAT_META = {
     dps: { label: 'DPS', format: value => `${Math.floor(value)}` },
@@ -240,6 +250,11 @@ function getStatName(statId) {
         spellFlatDmg: '주문 내장 피해',
         spellFlatPct: '주문 내장 피해 증가(%)',
         spellPctDmg: '주문 피해(%)',
+        shieldPctDmg: '방패 스킬 피해(%)',
+        minePctDmg: '지뢰 피해(%)',
+        potionPctDmg: '포션 투척 피해(%)',
+        mobilityPctDmg: '기동 스킬 피해(%)',
+        channelingPctDmg: '채널링 피해(%)',
         physPctDmg: '물리 피해(%)',
         elementalPctDmg: '원소 피해(%)',
         firePctDmg: '화염 피해(%)',
@@ -362,7 +377,7 @@ function createEmptyStatBucket() {
         physTakenAsFire: 0, physTakenAsCold: 0, physTakenAsLight: 0, physTakenAsChaos: 0,
         addedFireDamagePct: 0, addedColdDamagePct: 0, addedLightDamagePct: 0, addedChaosDamagePct: 0, addedPhysDamagePct: 0,
         fireFlatDmg: 0, coldFlatDmg: 0, lightFlatDmg: 0, chaosFlatDmg: 0, physFlatDmg: 0,
-        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, shockChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
+        meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellPctDmg: 0, shieldPctDmg: 0, minePctDmg: 0, potionPctDmg: 0, mobilityPctDmg: 0, channelingPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, shockChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
         strength: 0, dexterity: 0, intelligence: 0, accuracy: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0, deflectChance: 0, deflectDamageReduce: 0, blockChance: 0, blockChancePct: 0,
@@ -393,6 +408,11 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'aoePctDmg') bucket.aoePctDmg += value;
     else if (statId === 'dotPctDmg') bucket.dotPctDmg += value;
     else if (statId === 'spellPctDmg') bucket.spellPctDmg += value;
+    else if (statId === 'shieldPctDmg') bucket.shieldPctDmg += value;
+    else if (statId === 'minePctDmg') bucket.minePctDmg += value;
+    else if (statId === 'potionPctDmg') bucket.potionPctDmg += value;
+    else if (statId === 'mobilityPctDmg') bucket.mobilityPctDmg += value;
+    else if (statId === 'channelingPctDmg') bucket.channelingPctDmg += value;
     else if (statId === 'igniteChance') bucket.igniteChance += value;
     else if (statId === 'chillChance') bucket.chillChance += value;
     else if (statId === 'freezeChance') bucket.freezeChance += value;

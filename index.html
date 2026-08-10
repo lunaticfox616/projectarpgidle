@@ -1210,6 +1210,30 @@
                 </div>
             </div>
 
+            <div class="cfg-group" id="combat-tactics-settings">
+                <div class="cfg-group-title">전투 전술</div>
+                <div class="cfg-rows">
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">대상 우선순위</span>
+                        <select id="sel-combat-target-priority" onchange="updateSettings()" class="cfg-select">
+                            <option value="nearest">가까운 적</option>
+                            <option value="weakest">약한 적</option>
+                            <option value="dangerous">위험한 적</option>
+                            <option value="dense">밀집 지역</option>
+                        </select>
+                    </div>
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">위치 운용</span>
+                        <select id="sel-combat-position-mode" onchange="updateSettings()" class="cfg-select">
+                            <option value="auto">자동 (기존 방식)</option>
+                            <option value="pressure">압박 (근접 유지)</option>
+                            <option value="keepRange">거리 유지</option>
+                        </select>
+                    </div>
+                    <div id="combat-tactics-help" class="cfg-sublabel">액트 3을 처음 클리어하면 영구 해금됩니다.</div>
+                </div>
+            </div>
+
             <!-- ── 아이템 필터 ── -->
             <div class="cfg-group">
                 <div class="cfg-group-title">아이템 필터</div>
@@ -1373,7 +1397,7 @@
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260718-regional-passive1"></script>
 <script defer src="data/maps.js?v=20260719-tier-rift-stack1"></script>
-<script defer src="data/skills.js?v=20260721-hero-gem-refine1"></script>
+<script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260810-skill-vfx2"></script>
 <script defer src="data/items.js?v=20260723-currency-salvage1"></script>
 <script defer src="data/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="data/growth-items.js?v=20260807-growth-affix-balance1-20260807-flat-element-balance1"></script>
@@ -1381,12 +1405,12 @@
 <script defer src="data/bosses.js?v=20260715-runtime-structure2"></script>
 <script defer src="data/rewards.js?v=20260721-act2-support-reward1"></script>
 <script defer src="data/talent-cards.js?v=20260722-templar-overheal1"></script>
-<script defer src="js/utils.js?v=20260717-talent-coverage1"></script>
+<script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2"></script>
 <script defer src="js/ui-feedback.js?v=20260722-instant-choice1"></script>
-<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1"></script>
+<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2"></script>
 <script defer src="js/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records.js?v=20260808-records-tab1-20260808-background-fix1"></script>
-<script defer src="js/save.js?v=20260719-stutter-fix1"></script>
+<script defer src="js/save.js?v=20260719-stutter-fix1&tactics=20260810-combat-tactics1"></script>
 <script defer src="js/items.js?v=20260719-white-copy1-20260807-base-upgrade-cost1"></script>
 <script defer src="js/skills.js?v=20260717-gem-flask-mobile1"></script>
 <script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1"></script>
@@ -1394,14 +1418,14 @@
 <script defer src="js/growth-effects.js?v=20260806-growth-unique2"></script>
 <script defer src="js/growth-generation.js?v=20260807-growth-affix-balance1-20260807-growth-overflow1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1-20260807-canvas-lifecycle1"></script>
-<script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1"></script>
+<script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1"></script>
-<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1"></script>
+<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1"></script>
 <script defer src="js/combat-ehp.js?v=20260807-elemental-ehp1"></script>
-<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260810-skill-vfx2"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1"></script>
-<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1"></script>
+<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1&tactics=20260810-combat-tactics1"></script>
 <script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1"></script>
 <script defer src="js/skills-ui.js?v=20260808-skills-screen1"></script>
 <script defer src="js/offline-progress-ui.js?v=20260808-offline-meta1"></script>
