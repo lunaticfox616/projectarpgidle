@@ -6148,6 +6148,7 @@ function clearActiveTooltip(id) {
 
 function showInfoTooltipHtml(x, y, html, borderColor) {
     let tt = document.getElementById('info-tooltip');
+    tt.classList.remove('item-compare-tooltip');
     tt.innerHTML = html;
     tt.style.borderColor = borderColor || '#777';
     tt.style.display = 'block';
@@ -6787,6 +6788,17 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
     return '';
 }
 
+function getPlayerStatComparisonLines(before, after) {
+    return Object.keys(COMPARE_STAT_META).map(key => {
+        let diff = (after[key] || 0) - (before[key] || 0);
+        if (Math.abs(diff) < 0.001) return null;
+        let meta = COMPARE_STAT_META[key];
+        let color = diff > 0 ? '#2ecc71' : '#e74c3c';
+        let sign = diff > 0 ? '▲' : '▼';
+        return `<div class="tooltip-line item-compare-line"><span style="color:${color}">${sign}</span> ${meta.label}: <span style="color:${color}">${meta.format(Math.abs(diff))}</span></div>`;
+    }).filter(Boolean);
+}
+
 let itemTooltipHideTimer = null;
 
 function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
@@ -6952,14 +6964,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
             } finally {
                 game.equipment[targetSlot] = backup;
             }
-            let changedLines = Object.keys(COMPARE_STAT_META).map(key => {
-                let diff = (after[key] || 0) - (before[key] || 0);
-                if (Math.abs(diff) < 0.001) return null;
-                let meta = COMPARE_STAT_META[key];
-                let color = diff > 0 ? '#2ecc71' : '#e74c3c';
-                let sign = diff > 0 ? '▲' : '▼';
-                return `<div class="tooltip-line item-compare-line"><span style="color:${color}">${sign}</span> ${meta.label}: <span style="color:${color}">${meta.format(Math.abs(diff))}</span></div>`;
-            }).filter(Boolean);
+            let changedLines = getPlayerStatComparisonLines(before, after);
             if ((backup && backup.uniqueEffect) !== item.uniqueEffect) {
                 if (item.uniqueEffect) {
                     let hint = getUniqueEffectApplicationHint(item, true, targetSlot);
@@ -9986,48 +9991,41 @@ function getStyledOrbName(orbKey) {
     return name;
 }
 
-function getJewelComparisonTotals(jewel, multiplier) {
-    let totals = {};
-    let scale = Number.isFinite(Number(multiplier)) ? Number(multiplier) : 1;
-    getJewelStats(jewel).forEach(stat => {
-        if (!stat || !stat.id) return;
-        totals[stat.id] = (totals[stat.id] || 0) + (Number(stat.val) || 0) * scale;
-    });
-    return totals;
-}
-
 function createJewelSlotComparisonHtml(candidate) {
-    if (!candidate) return '';
+    if (!candidate || !Array.isArray(game.jewelSlots)) return '';
     let maxSlots = typeof getMaxJewelSlotCount === 'function' ? getMaxJewelSlotCount() : 2;
-    let slots = Array.isArray(game.jewelSlots) ? game.jewelSlots : [];
+    let slots = game.jewelSlots;
     let amplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [];
+    let previewCandidate = Object.assign({}, candidate);
+    let before = getUiPlayerStats();
     let rows = Array.from({ length: maxSlots }, (_, slotIndex) => {
-        let current = slots[slotIndex] || null;
-        let multiplier = 1 + (Math.max(0, Math.floor(Number(amplify[slotIndex]) || 0)) * 0.03);
-        let nextTotals = getJewelComparisonTotals(candidate, multiplier);
-        let currentTotals = getJewelComparisonTotals(current, multiplier);
-        let statIds = Array.from(new Set(Object.keys(nextTotals).concat(Object.keys(currentTotals))));
-        let deltas = statIds.map(statId => ({
-            statId,
-            value: (nextTotals[statId] || 0) - (currentTotals[statId] || 0)
-        })).filter(row => Math.abs(row.value) > 0.0001);
-        deltas.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
-        let deltaHtml = deltas.slice(0, 5).map(row => {
-            let positive = row.value > 0;
-            let sign = positive ? '+' : '-';
-            let value = formatJewelStatValue(row.statId, Math.abs(row.value));
-            return `<span style="color:${positive ? '#8fe7b0' : '#ff9a9a'};">${escapeHTML(getStatName(row.statId))} ${sign}${value}</span>`;
-        }).join(' · ');
-        if (deltas.length > 5) deltaHtml += ` <span style="color:var(--copy-muted);">외 ${deltas.length - 5}개</span>`;
-        let uniqueChange = '';
+        let slotLength = slots.length;
+        let hadSlot = Object.prototype.hasOwnProperty.call(slots, slotIndex);
+        let slotBackup = slots[slotIndex];
+        let current = slotBackup || null;
+        let twinBackup = Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones.slice() : game.cosmosTwinKeystones;
+        let after = before;
+        try {
+            slots[slotIndex] = previewCandidate;
+            after = getUiPlayerStats();
+        } finally {
+            if (hadSlot) slots[slotIndex] = slotBackup;
+            else delete slots[slotIndex];
+            slots.length = slotLength;
+            game.cosmosTwinKeystones = twinBackup;
+        }
+        let changedLines = getPlayerStatComparisonLines(before, after);
         if ((current && current.uniqueId) !== candidate.uniqueId || (current && current.uniqueEffect) !== candidate.uniqueEffect) {
-            if (candidate.uniqueEffect) uniqueChange = `<div style="color:#d7b8ff;">획득: ${escapeHTML(candidate.uniqueEffect)}</div>`;
-            if (current && current.uniqueEffect) uniqueChange += `<div style="color:#c98f9f;">상실: ${escapeHTML(current.uniqueEffect)}</div>`;
+            if (candidate.uniqueEffect) changedLines.push(`<div class="tooltip-line item-compare-line" style="color:#d7b8ff;">◆ 획득: ${escapeHTML(candidate.uniqueEffect)}</div>`);
+            if (current && current.uniqueEffect) changedLines.push(`<div class="tooltip-line item-compare-line" style="color:#c98f9f;">◇ 상실: ${escapeHTML(current.uniqueEffect)}</div>`);
         }
         let currentName = current ? escapeHTML(current.name || '주얼') : '빈 슬롯';
-        return `<div class="tooltip-line" style="border-top:1px solid rgba(120,150,190,.22);padding-top:5px;margin-top:5px;"><strong>슬롯 ${slotIndex + 1}</strong> · ${currentName}<div style="margin-top:2px;">${deltaHtml || '<span style="color:var(--copy-bright);">수치 변화 없음</span>'}</div>${uniqueChange}</div>`;
+        let ampLevel = Math.max(0, Math.floor(Number(amplify[slotIndex]) || 0));
+        let title = `슬롯 ${slotIndex + 1}${ampLevel > 0 ? ` (+${ampLevel})` : ''} · ${currentName}`;
+        return `<div class="item-compare-panel${changedLines.length ? '' : ' item-compare-empty'}"><div class="tooltip-line item-compare-title">${title}</div>${changedLines.join('') || '<div class="tooltip-line">교체 시 변화 없음</div>'}</div>`;
     }).join('');
-    return `<div class="tooltip-line" style="color:#9fd6ff;font-weight:800;margin-top:7px;">장착 시 슬롯별 변화</div>${rows}`;
+    let layoutClass = maxSlots > 1 ? 'item-compare-grid' : 'item-compare-single';
+    return `<div class="${layoutClass}">${rows}</div>`;
 }
 
 const createJewelRangeTooltipHtml = function createJewelRangeTooltipHtml(jewel, options) {
@@ -10064,8 +10062,9 @@ const createJewelRangeTooltipHtml = function createJewelRangeTooltipHtml(jewel, 
         let blocked = charges <= 0 ? ' · 합성/공허융합 불가' : '';
         voidChargesLine = `<div class="tooltip-line" style="color:${charges <= 0 ? '#ff8a8a' : '#d7b8ff'};">공허 합성 가능 수: ${charges}회 남음${blocked}</div>`;
     }
+    let main = `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${keystoneLine}${voidChargesLine}${fixedTierLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
     let comparison = opts.showSlotComparison ? createJewelSlotComparisonHtml(jewel) : '';
-    return `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${keystoneLine}${voidChargesLine}${fixedTierLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}${comparison}`;
+    return comparison ? `<div class="item-tooltip-main">${main}</div>${comparison}` : main;
 };
 
 
@@ -10087,8 +10086,14 @@ function showSocketedJewelTooltip(event, socketType, socketIdx) {
         jewel = sockets[idx] && sockets[idx].jewel ? sockets[idx].jewel : null;
     }
     if (!jewel) return hideInfoTooltip();
-    let html = createJewelRangeTooltipHtml(jewel, { showSlotComparison: socketType === 'inventory' });
+    let hasComparison = socketType === 'inventory';
+    let html = createJewelRangeTooltipHtml(jewel, { showSlotComparison: hasComparison });
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
+    if (hasComparison) {
+        let tooltip = document.getElementById('info-tooltip');
+        tooltip.classList.add('item-compare-tooltip');
+        positionTooltipElement(tooltip, event.clientX, event.clientY);
+    }
 }
 
 
