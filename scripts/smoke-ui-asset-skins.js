@@ -58,6 +58,7 @@ const polishCss = fs.readFileSync('css/ui-polish.css', 'utf8');
 const windowManager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 
 assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-merged-tabs-timers1'), 'asset skin CSS must be cache-versioned');
+assert.ok(html.includes('20260811-mobile-status-fix2'), 'combat HUD CSS changes must invalidate deployed browser caches');
 assert.ok(html.includes('css/ui-menu-sockets.css?v=20260723-menu-button-states2'), 'menu socket CSS must be cache-versioned');
 assert.ok(html.includes('css/ui-polish.css?v=20260723-currency-icons1'), 'currency card CSS must be cache-versioned');
 assert.ok(html.includes('data/items.js?v=20260723-currency-salvage1'), 'currency item data must be cache-versioned');
@@ -116,18 +117,23 @@ assert.strictEqual(effectAtlasSize[0], effectAtlasSize[1], 'effect atlas must re
 assert.strictEqual(effectAtlasSize[0] % 7, 0, 'effect atlas must retain seven equal sprite columns and rows');
 assert.strictEqual(readPngColorType('assets/ui/status-effects-atlas-v1.png'), 6, 'effect atlas must retain RGBA transparency');
 assert.ok(css.includes('background-size: 700% 700%'), 'effect art must expose exactly one cell from the 7x7 atlas');
-assert.ok(/\.combat-effect-art \{[\s\S]*?overflow: hidden;/.test(css)
-  && /\.combat-effect-art::before \{[\s\S]*?inset: -1px;[\s\S]*?background-repeat: no-repeat;/.test(css),
-  'effect art must crop atlas cell edges so neighboring row icons cannot bleed into row-end effects');
+assert.ok(/\.combat-effect-art \{[\s\S]*?overflow: hidden;[\s\S]*?background-repeat: no-repeat;/.test(css),
+  'effect art must clip a single non-repeating atlas cell');
 assert.ok(/\.player-health-frame \.player-combat-effect-strip \{[\s\S]*?bottom: calc\(100% \+ 4px\);[\s\S]*?flex-wrap: wrap-reverse;/.test(css),
   'player effects must occupy a wrapped shelf above the health frame instead of covering its gauge');
 assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 28px;/.test(css),
   'player effects must remain recognizable instead of shrinking below their icon art');
+assert.ok(/\.player-health-frame \.player-combat-effect-strip \{[\s\S]*?width: max-content;[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/.test(css),
+  'player effects must not reserve an opaque strip over the battlefield');
+assert.ok(/\.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?flex: 0 0 clamp\(20px, 5\.2vw, 23px\);[\s\S]*?aspect-ratio: 1;/.test(css),
+  'mobile player effects must remain square so atlas rows cannot bleed together');
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('--health-frame-width: 520px') && css.includes('.enemy-card.enemy-boss .enemy-hud-meta'),
   'boss health and traits must use the compact integrated frame');
 assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 46%;[\s\S]*?width: 42%;[\s\S]*?height: 22%;/.test(css),
   'boss traits must stay centered within the supplied pink trait panel');
+assert.ok(/body\.mobile-battle-tab #tab-battle \.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?display: flex;[\s\S]*?align-items: center;[\s\S]*?height: 22%;/.test(css),
+  'mobile boss traits must keep the frame-panel centering contract');
 ['mob', 'elite', 'boss'].forEach(tier => assert.ok(css.includes(`.enemy-card.enemy-${tier} .enemy-hud-meta`),
   `${tier} traits must have their own health-frame position`));
 assert.ok(css.includes('.enemy-card.enemy-elite .enemy-traits') && css.includes('background: rgba(15, 10, 12, .55)'), 'elite traits must use a content-sized translucent panel');
