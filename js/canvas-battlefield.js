@@ -593,27 +593,6 @@ function drawBreathFlameTongue(ctx, x, y, angle, size) {
     ctx.restore();
 }
 
-function drawBreathRibbon(ctx, source, target, wave, phase) {
-    let dx = target.x - source.x;
-    let dy = target.y - source.y;
-    let length = Math.max(1, Math.hypot(dx, dy));
-    let px = -dy / length;
-    let py = dx / length;
-    let width = clampNumber(length * 0.075, 8, 16) * (0.9 + Math.sin(phase) * 0.08);
-    let startX = source.x + dx * 0.1;
-    let startY = source.y + dy * 0.1;
-    let nearX = source.x + dx * 0.32 - px * wave * 0.35;
-    let nearY = source.y + dy * 0.32 - py * wave * 0.35;
-    let midX = source.x + dx * 0.58 + px * wave;
-    let midY = source.y + dy * 0.58 + py * wave;
-    drawPolygonPath(ctx, [[startX + px * 2, startY + py * 2], [nearX + px * width * 0.42, nearY + py * width * 0.42],
-        [midX + px * width, midY + py * width],
-        [target.x + px * width * 0.35, target.y + py * width * 0.35], [target.x - px * width * 0.35, target.y - py * width * 0.35],
-        [midX - px * width * 0.82, midY - py * width * 0.82], [nearX - px * width * 0.5, nearY - py * width * 0.5],
-        [startX - px * 2, startY - py * 2]]);
-    ctx.fill();
-}
-
 function drawBreathChannelFx(ctx, fx, now, targets) {
     let source = fx.screenSource;
     if (!source || targets.length <= 0) return;
@@ -629,10 +608,10 @@ function drawBreathChannelFx(ctx, fx, now, targets) {
         let length = Math.max(1, Math.hypot(dx, dy));
         let px = -dy / length;
         let py = dx / length;
-        let wave = Math.sin(now / 85 + index * 1.9) * 5;
-        ctx.globalAlpha = 0.06;
-        ctx.fillStyle = '#ff5a26';
-        drawBreathRibbon(ctx, source, target, wave, now / 130 + index);
+        ctx.globalAlpha = 0.1;
+        ctx.strokeStyle = '#ff5a26';
+        ctx.lineWidth = 10;
+        ctx.beginPath(); ctx.moveTo(source.x + dx * 0.1, source.y + dy * 0.1); ctx.lineTo(target.x, target.y); ctx.stroke();
         for (let tongue = 1; tongue <= 4; tongue++) {
             let progress = ((now / 420 + tongue / 4 + index * 0.17) % 1) * 0.82 + 0.12;
             let bend = Math.sin(now / 90 + tongue + index) * 4;
