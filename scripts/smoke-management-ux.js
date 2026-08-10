@@ -32,7 +32,14 @@ const elementalTooltip = vm.runInContext("getConditionGemTooltipHtml({name:'시�
 const favorHtml = vm.runInContext("game.expertise.levels.mycologist=10; game.expertise.favors.mycologist=getExpertFavorOptions('mycologist')[0].id; getExpertiseCardHtml('mycologist')", runtime);
 assert(favorHtml.includes('현재 선택') && favorHtml.includes('✓ 선택됨'), 'expert favor must name and badge the active choice');
 
+const equipmentCardHtml = runtime.renderInventoryCard({ id: 9910, slot: 'weapon', name: 'Test Sword', baseName: 'Test Sword', rarity: 'normal', baseStats: [], stats: [] }, 0, 'equip');
+assert(!equipmentCardHtml.includes('<details'), 'equipment card actions must not be split behind a management disclosure');
+['equipItemById(9910)', 'craftSelectInventoryItemById(9910)', 'toggleItemLockById(9910)', 'salvageItemById(9910)'].forEach(action => {
+    assert(equipmentCardHtml.includes(action), `equipment card must expose ${action} directly`);
+});
+
 const html = fs.readFileSync('index.html', 'utf8');
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const equipStart = html.indexOf('id="skill-tab-equip"');
 const researchStart = html.indexOf('id="skill-tab-research"');
 const enhanceStart = html.indexOf('id="skill-tab-enhance"');
@@ -44,6 +51,10 @@ assert(html.indexOf('id="ui-jewel-craft-disclosure"') < html.indexOf('id="ui-jew
 assert(html.includes('id="ui-jewel-craft-disclosure" class="progression-workbench" open'), 'jewel crafting must be expanded by default');
 assert(html.indexOf('일괄 해체 · 자동해체 관리') < html.indexOf('id="ui-inventory-list"'), 'equipment bulk management must appear before inventory cards');
 assert(!html.includes('<h2 class="loop-roadmap-heading">📦 루프 이정표'), 'loop milestones must not repeat their disclosure title');
+const jewelCardSource = uiSource.slice(uiSource.indexOf('let manageActions ='), uiSource.indexOf("renderSearchSection('ui-jewel-inventory'"));
+const talismanCardSource = uiSource.slice(uiSource.indexOf('let manage = `<button'), uiSource.indexOf("renderSearchSection('ui-talisman-inventory'"));
+assert(!jewelCardSource.includes('<details'), 'jewel card actions must be direct buttons');
+assert(!talismanCardSource.includes('<details'), 'talisman card actions must be direct buttons');
 const treeStart = html.indexOf('id="tree-container"');
 const treeEnd = html.indexOf('</div>', html.indexOf('id="passive-investment-summary"'));
 assert(html.indexOf('id="passive-investment-summary"', treeStart) < treeEnd, 'passive investment summary must overlay the tree instead of shrinking it');
