@@ -81,9 +81,9 @@ assert.ok(ui.includes("let effectMarkup = '<div class=\"enemy-tags muted enemy-a
 assert.ok(ui.includes('let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}</div>`'),
   'enemy traits must remain attached to the health-frame art panel');
 const enemyEffectSlot = ui.indexOf('${effectMarkup}', ui.indexOf('let metaMarkup'));
-const enemyFrameSlot = ui.indexOf('<div class="enemy-health-frame">', enemyEffectSlot);
-assert.ok(enemyEffectSlot >= 0 && enemyFrameSlot > enemyEffectSlot,
-  'enemy effect icons must use an unclipped row outside and above the health frame');
+const enemyFrameSlot = ui.indexOf('<div class="enemy-health-frame">', ui.indexOf('let metaMarkup'));
+assert.ok(enemyFrameSlot >= 0 && enemyEffectSlot > enemyFrameSlot,
+  'enemy effect icons must use an unclipped row below the health frame');
 assert.ok(ui.indexOf('${metaMarkup}', enemyFrameSlot) > enemyFrameSlot,
   'every enemy tier must render its trait panel inside its health frame');
 assert.ok(/#enemy-area \.enemy-hud-meta \{[\s\S]*?flex-direction: column;[\s\S]*?gap: 2px;/.test(css),
@@ -108,7 +108,7 @@ assert.ok(css.includes('body.desktop-windowed-ui .combat-panel { overflow: visib
   'desktop identity panel must remain visible outside the combat panel padding box');
 assert.ok(css.includes('.player-exp-percent') && css.includes('.player-exp-values { display: none; }'), 'experience percent must sit above the art while exact values remain hover-only');
 assert.ok(css.includes('.combat-effect-icon') && css.includes('.combat-effect-strip:empty'), 'active effects must render as collapsible icon strips');
-assert.ok(css.includes('border: 2px solid var(--effect-color') && css.includes('filter: brightness(1.34)'),
+assert.ok(css.includes('border: 2px solid var(--effect-color') && css.includes('filter: brightness(1.46)'),
   'effect icons must keep a bright framed treatment at small sizes');
 assert.ok(css.includes("status-effects-atlas-v1.png") && fs.existsSync('assets/ui/status-effects-atlas-v1.png'), 'active effects must use the generated raster icon atlas');
 const effectAtlasSize = readPngSize('assets/ui/status-effects-atlas-v1.png');
@@ -116,6 +116,9 @@ assert.strictEqual(effectAtlasSize[0], effectAtlasSize[1], 'effect atlas must re
 assert.strictEqual(effectAtlasSize[0] % 7, 0, 'effect atlas must retain seven equal sprite columns and rows');
 assert.strictEqual(readPngColorType('assets/ui/status-effects-atlas-v1.png'), 6, 'effect atlas must retain RGBA transparency');
 assert.ok(css.includes('background-size: 700% 700%'), 'effect art must expose exactly one cell from the 7x7 atlas');
+assert.ok(/\.combat-effect-art \{[\s\S]*?overflow: hidden;/.test(css)
+  && /\.combat-effect-art::before \{[\s\S]*?inset: -1px;[\s\S]*?background-repeat: no-repeat;/.test(css),
+  'effect art must crop atlas cell edges so neighboring row icons cannot bleed into row-end effects');
 assert.ok(/\.player-health-frame \.player-combat-effect-strip \{[\s\S]*?bottom: calc\(100% \+ 4px\);[\s\S]*?flex-wrap: wrap-reverse;/.test(css),
   'player effects must occupy a wrapped shelf above the health frame instead of covering its gauge');
 assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 28px;/.test(css),
@@ -123,7 +126,7 @@ assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-ic
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('--health-frame-width: 520px') && css.includes('.enemy-card.enemy-boss .enemy-hud-meta'),
   'boss health and traits must use the compact integrated frame');
-assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 54%;[\s\S]*?width: 44%;[\s\S]*?height: 18%;/.test(css),
+assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 46%;[\s\S]*?width: 42%;[\s\S]*?height: 22%;/.test(css),
   'boss traits must stay centered within the supplied pink trait panel');
 ['mob', 'elite', 'boss'].forEach(tier => assert.ok(css.includes(`.enemy-card.enemy-${tier} .enemy-hud-meta`),
   `${tier} traits must have their own health-frame position`));
