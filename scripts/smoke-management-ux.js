@@ -57,6 +57,11 @@ assert(!jewelCardSource.includes('<details'), 'jewel card actions must be direct
 assert(!talismanCardSource.includes('<details'), 'talisman card actions must be direct buttons');
 const treeStart = html.indexOf('id="tree-container"');
 const treeEnd = html.indexOf('</div>', html.indexOf('id="passive-investment-summary"'));
+const searchStart = html.indexOf('id="passive-search-panel"');
+const plannerStart = html.indexOf('id="passive-tree-planner"');
+assert(treeStart < searchStart && searchStart < treeEnd, 'passive search controls must live inside the tree viewport');
+assert(plannerStart > treeEnd, 'passive presets must render below the tree viewport');
+assert(!html.includes('제작 · 장착 · 변성'), 'the compact star-wedge control must not repeat its actions');
 assert(html.indexOf('id="passive-investment-summary"', treeStart) < treeEnd, 'passive investment summary must overlay the tree instead of shrinking it');
 const starWedgeStart = html.indexOf('id="passive-star-wedge-drawer"');
 const investmentStart = html.indexOf('id="passive-investment-summary"');
