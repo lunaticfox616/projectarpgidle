@@ -923,12 +923,56 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     flex: 0 0 auto;
     display: grid;
     gap: 7px;
-    margin: 0 0 9px;
+    margin: 9px 0 0;
     padding: 9px 10px;
     border: 1px solid rgba(133, 177, 214, .28);
     border-radius: 10px;
     background: linear-gradient(135deg, rgba(10, 20, 31, .94), rgba(19, 16, 32, .9));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04);
+}
+
+.passive-search-panel {
+    position: absolute;
+    z-index: 7;
+    top: 58px;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: min(620px, calc(100% - 24px));
+    padding: 6px 7px;
+    box-sizing: border-box;
+    border: 1px solid rgba(118, 155, 190, .28);
+    border-radius: 9px;
+    background: rgba(5, 10, 18, .82);
+    box-shadow: 0 7px 18px rgba(0, 0, 0, .3);
+    transform: translateX(-50%);
+    cursor: default;
+}
+
+.passive-search-panel:focus-within { background: rgba(5, 10, 18, .94); }
+.passive-search-panel > input {
+    flex: 1 1 210px;
+    min-width: 150px;
+    padding: 6px 8px;
+    border: 1px solid #2a4056;
+    border-radius: 7px;
+    color: #fff;
+    background: #08101a;
+}
+.passive-filter-row { display: flex; gap: 4px; flex-wrap: nowrap; }
+.passive-search-panel button { min-height: 28px; padding: 4px 7px; white-space: nowrap; }
+.passive-tree-gesture-hint {
+    position: absolute;
+    z-index: 6;
+    right: 10px;
+    bottom: 8px;
+    padding: 4px 7px;
+    border-radius: 6px;
+    color: var(--copy-muted);
+    background: rgba(3, 7, 12, .72);
+    font-size: .68rem;
+    pointer-events: none;
 }
 
 .passive-planner-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
@@ -944,7 +988,8 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     z-index: 10;
     top: 12px;
     left: 12px;
-    width: min(440px, calc(100% - 24px));
+    width: max-content;
+    max-width: calc(100% - 24px);
     border: 1px solid rgba(184, 126, 241, .42);
     border-radius: 10px;
     background: linear-gradient(135deg, rgba(29, 18, 42, .96), rgba(11, 16, 28, .97));
@@ -953,19 +998,21 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     cursor: default;
     overflow: hidden;
 }
+.passive-star-wedge-drawer[open] { width: min(440px, calc(100% - 24px)); }
 .passive-star-wedge-drawer > summary {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 9px 11px;
+    justify-content: center;
+    gap: 0;
+    min-height: 26px;
+    padding: 4px 7px;
     cursor: pointer;
     list-style: none;
     user-select: none;
     background: linear-gradient(90deg, rgba(93, 48, 130, .44), rgba(25, 30, 48, .56));
 }
 .passive-star-wedge-drawer > summary::-webkit-details-marker { display: none; }
-.passive-star-wedge-drawer > summary strong { font-size: .86rem; }
+.passive-star-wedge-drawer > summary strong { font-size: .76rem; white-space: nowrap; }
 .passive-star-wedge-drawer > summary span { color: #bda7d1; font-size: .7rem; }
 .passive-star-wedge-drawer[open] > summary { border-bottom: 1px solid rgba(184, 126, 241, .28); }
 .passive-star-wedge-drawer #ui-star-wedge-panel {
@@ -979,7 +1026,12 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 @media (max-width: 760px) {
     .passive-planner-progress { margin-left: 0; width: 100%; }
     .passive-planner-row button { flex: 1 1 auto; }
-    .passive-star-wedge-drawer { top: 7px; left: 7px; width: calc(100% - 14px); }
+    .passive-search-panel { top: 48px; width: calc(100% - 14px); flex-wrap: wrap; }
+    .passive-search-panel > input { flex-basis: calc(100% - 58px); }
+    .passive-filter-row { order: 3; width: 100%; overflow-x: auto; }
+    .passive-tree-gesture-hint { display: none; }
+    .passive-star-wedge-drawer { top: 7px; left: 7px; width: max-content; max-width: calc(100% - 14px); }
+    .passive-star-wedge-drawer[open] { width: calc(100% - 14px); }
     .passive-star-wedge-drawer #ui-star-wedge-panel { max-height: 54vh; }
 }
 

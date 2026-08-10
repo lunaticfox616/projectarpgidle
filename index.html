@@ -4,11 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#05080e">
+    <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>PROJECT IDLE — Rootbound ARPG</title>
+    <script id="app-update-registration">
+    (() => {
+        if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+        let updateReloadStarted = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (updateReloadStarted) return;
+            updateReloadStarted = true;
+            location.reload();
+        });
+        window.addEventListener('load', async () => {
+            try {
+                const registration = await navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' });
+                await registration.update();
+            } catch (error) {
+                console.warn('[app-update] 최신 게임 파일 확인에 실패했습니다.', error);
+            }
+        }, { once: true });
+    })();
+    </script>
     <link rel="stylesheet" href="css/base.css?v=20260722-map-action-native-tab1">
     <link rel="stylesheet" href="css/layout.css?v=20260722-combat-log-nav1-20260810-jewel-compare1">
     <link rel="stylesheet" href="css/theme.css?v=20260721-contract-header1">
-    <link rel="stylesheet" href="css/components.css?v=20260722-combat-icons2-20260810-market-clarity1-20260811-star-wedge-drawer1">
+    <link rel="stylesheet" href="css/components.css?v=20260722-combat-icons2-20260810-market-clarity1-20260811-passive-tree-layout1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260723-currency-icons1-20260810-jewel-compare1">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1-20260810-subtab-state1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260722-combat-icons2">
@@ -588,24 +610,23 @@
     <div id="tab-char" class="tab-content">
         <div style="display: flex; flex-direction: column; height: 100%;">
             <h2><span>🌌 패시브 스킬 트리</span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold; font-size: 1.3em;">0</span></span></h2>
-            <div style="font-size: 0.85em; color: var(--copy-bright); text-align: center; margin-bottom: 8px;">🖱️ 드래그 / 📱 터치 드래그: 이동 | 휠 / 🤏 핀치: 줌 </div>
-            <div id="passive-search-panel" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 10px; padding:8px 10px; border:1px solid rgba(118,155,190,0.22); border-radius:10px; background:rgba(8,12,20,0.58);">
-                <input id="passive-search-input" type="search" placeholder="패시브 이름/효과/스탯 검색" autocomplete="off" style="flex:1 1 220px; min-width:180px; padding:7px 9px; border-radius:8px; border:1px solid #2a4056; background:#08101a; color:#ffffff;">
-                <div id="passive-filter-row" style="display:flex; gap:5px; flex-wrap:wrap;">
-                    <button type="button" data-passive-filter="all">전체</button>
-                    <button type="button" data-passive-filter="offense">공격</button>
-                    <button type="button" data-passive-filter="defense">방어</button>
-                    <button type="button" data-passive-filter="element">원소/카오스</button>
-                    <button type="button" data-passive-filter="utility">유틸</button>
-                </div>
-                <button type="button" id="passive-search-clear">검색초기화</button>
-            </div>
-            <section id="passive-tree-planner" class="passive-tree-planner" aria-label="패시브 트리 프리셋"></section>
-            <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: none; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
+            <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: none; border-radius: 6px; position: relative; overflow: hidden; cursor: grab;">
                 <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
                 <div id="passive-tree-overlay" class="passive-tree-overlay" aria-hidden="true"><div class="passive-tree-overlay-world"></div></div>
+                <div id="passive-search-panel" class="passive-search-panel" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
+                    <input id="passive-search-input" type="search" placeholder="패시브 이름/효과/스탯 검색" autocomplete="off">
+                    <div id="passive-filter-row" class="passive-filter-row">
+                        <button type="button" data-passive-filter="all">전체</button>
+                        <button type="button" data-passive-filter="offense">공격</button>
+                        <button type="button" data-passive-filter="defense">방어</button>
+                        <button type="button" data-passive-filter="element">원소/카오스</button>
+                        <button type="button" data-passive-filter="utility">유틸</button>
+                    </div>
+                    <button type="button" id="passive-search-clear">초기화</button>
+                </div>
+                <div class="passive-tree-gesture-hint">드래그: 이동 · 휠/핀치: 확대</div>
                 <details id="passive-star-wedge-drawer" class="passive-star-wedge-drawer" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
-                    <summary><strong>☄ 별쐐기</strong><span>제작 · 장착 · 변성</span></summary>
+                    <summary title="별쐐기 관리" aria-label="별쐐기 관리"><strong>☄ 별쐐기</strong></summary>
                     <div id="ui-star-wedge-panel"></div>
                 </details>
                 <aside id="passive-investment-summary" class="passive-investment-summary" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
@@ -615,6 +636,7 @@
                     <div id="passive-investment-summary-body" class="passive-investment-summary-body"></div>
                 </aside>
             </div>
+            <section id="passive-tree-planner" class="passive-tree-planner" aria-label="패시브 트리 프리셋"></section>
         </div>
     </div>
 
