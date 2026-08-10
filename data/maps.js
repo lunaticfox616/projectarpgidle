@@ -52,6 +52,18 @@ const OCEAN_UNLOCK_LOOP = 11;
 
 const OCEAN_ZONE_ID = 'ocean_depth';
 
+// 우주계 적 특성의 단일 정의. 전투 효과는 id로, 아틀라스의 사전 안내는 설명·대응법으로 소비한다.
+const COSMOS_MECHANIC_DB = Object.freeze([
+    { id: 'critResist', name: '성운 굴절', summary: '치명타 확률과 치명타 피해를 크게 억제합니다.', counter: '관통·비치명타 피해·저항 감소를 준비하세요.', element: 'light', tags: ['crit', 'toxiccrit', 'mirror', 'reflect', 'balance', 'judgement'] },
+    { id: 'critDamageResist', name: '항성 장갑', summary: '방어도와 피해 감소로 큰 한 방을 버팁니다.', counter: '방어 무시·저항 관통 또는 지속 피해가 효과적입니다.', element: 'phys', tags: ['guard', 'shield', 'relic', 'belt', 'tank', 'purify'] },
+    { id: 'comboGuard', name: '연속 타격 저항', summary: '짧은 시간에 반복 적중하는 공격의 피해를 줄입니다.', counter: '느리지만 강한 타격이나 지속 피해로 공략하세요.', element: 'cold', tags: ['projectile', 'bind', 'path', 'node', 'gate', 'loop', 'warp'] },
+    { id: 'heavySlow', name: '중력 강타', summary: '느린 대신 강하고 저항을 관통하는 공격을 사용합니다.', counter: '직격 EHP와 최대 저항을 우선 확보하세요.', element: 'phys', tags: ['charge', 'impact', 'aoe', 'fire', 'physical', 'core', 'end', 'boss'] },
+    { id: 'fast', name: '광속 공세', summary: '빠른 연속 공격과 높은 치명타 확률로 압박합니다.', counter: '엔트로피 회피·막기·회복을 함께 준비하세요.', element: 'light', tags: ['speed', 'hunt', 'arcane', 'dual', 'companion', 'sting'] },
+    { id: 'energyShield', name: '성간 보호막', summary: '생명력 위에 큰 에너지 보호막을 추가로 두릅니다.', counter: '지속 화력과 회복 억제로 전투가 길어지지 않게 하세요.', element: 'cold', tags: ['absorb', 'cold', 'vital', 'regen', 'seed', 'flower'] },
+    { id: 'evasion', name: '성간 회피', summary: '높은 회피로 명중이 낮은 공격을 흘려냅니다.', counter: '정확도·다단 타격·회피 무시 수단을 준비하세요.', element: 'chaos', tags: ['map', 'wealth', 'reward', 'gateway', 'outer', 'skill'] },
+    { id: 'armor', name: '운석 장갑', summary: '방어도와 피해 감소로 물리 타격을 억제합니다.', counter: '원소·카오스 피해나 방어 관통이 유리합니다.', element: 'chaos', tags: ['venom', 'poison', 'chaos', 'curse', 'sacrifice', 'asteroid'] }
+]);
+
 // 루프 조건 상한·세분화 (state.js: getSeasonAbyssDepthCap / hasCurrentLoopAbyssRequirementClear):
 //  - 요구 혼돈 심도는 루프 30(심화 40) 이후에도 기존처럼 루프당 1층씩 증가한다.
 //  - 루프 31+에서는 에니프론 행성을 이번 루프에 돌파하면 우주계 루프를 선택할 수 있다.
@@ -222,4 +234,4 @@ const ABYSS_PASSIVE_NODES = [
     { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +20%' }
 ];
 
-safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID });
+safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, COSMOS_MECHANIC_DB });

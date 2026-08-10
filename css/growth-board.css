@@ -93,11 +93,13 @@
 .growth-level-badge.negative { color: #e07a7a; }
 
 .growth-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.growth-workspace { display: grid; grid-template-columns: minmax(0, 3fr) minmax(210px, 1fr); gap: 12px; align-items: stretch; }
+.growth-workspace { display: grid; grid-template-columns: minmax(0, 3fr) minmax(180px, 1fr) minmax(210px, 1.1fr); gap: 12px; align-items: start; }
 .growth-board-column { min-width: 0; }
 .growth-placement-tray { box-sizing: border-box; display: flex; flex-direction: column; min-width: 0; max-width: 100%; max-height: 430px; padding: 9px; border: 1px solid #2f4a63; border-radius: 10px; background: rgba(10, 17, 25, 0.72); overflow: hidden; }
 .growth-placement-tray h3 { margin: 0 0 3px; color: #d7e9ff; font-size: 0.92em; }
 .growth-placement-tray p { margin: 0 0 7px; color: #8fb7ca; font-size: 0.74em; }
+.growth-context-panel { display: grid; gap: 10px; min-width: 0; max-height: 430px; padding: 9px; border: 1px solid #2f4a63; border-radius: 10px; background: rgba(10, 17, 25, 0.72); overflow: auto; }
+.growth-context-panel h3 { margin: 0 0 6px; color: #d7e9ff; font-size: 0.92em; }
 .growth-unplace-zone { display: grid; gap: 2px; box-sizing: border-box; margin-bottom: 7px; padding: 7px 8px; border: 1px dashed #45576b; border-radius: 7px; color: #72869a; background: rgba(14, 20, 29, 0.7); font-size: 0.7em; transition: border-color 0.12s, color 0.12s, background 0.12s, transform 0.12s; }
 .growth-unplace-zone strong { font-size: 1.12em; }
 body.growth-unplace-dragging .growth-unplace-zone { border-color: #cf7f68; color: #f0b8a6; background: rgba(77, 34, 29, 0.48); }
@@ -133,6 +135,11 @@ body.growth-unplace-dragging .growth-unplace-zone.drag-hover { border-style: sol
     .growth-columns { grid-template-columns: 1fr; }
     .growth-board { gap: 2px; padding: 5px; }
     .growth-cell { min-width: 22px; }
+}
+
+@media (max-width: 980px) and (min-width: 721px) {
+    .growth-workspace { grid-template-columns: minmax(0, 2fr) minmax(210px, 1fr); }
+    .growth-context-panel { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; max-height: none; }
 }
 
 /* 보관함 필터 / 보드 조작 버튼 */
@@ -197,6 +204,7 @@ body.growth-dragging #info-tooltip { pointer-events: none; }
     .growth-controls { grid-template-columns: 1fr; }
     .growth-control-actions, .growth-context-hints { grid-column: 1; }
     .growth-placement-tray { max-height: none; }
+    .growth-context-panel { max-height: none; }
     .growth-tray-list { flex-direction: row; max-height: none; overflow-x: auto; padding-bottom: 4px; }
     .growth-tray-card { flex: 0 0 165px; }
     .growth-unlock-guide ol { columns: 1; }

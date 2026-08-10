@@ -23,11 +23,11 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 
 .cosmos-header {
   display: grid;
-  grid-template-columns: minmax(240px, .72fr) minmax(520px, 1.28fr);
-  align-items: stretch;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 10px;
-  padding: 14px;
+  margin-bottom: 8px;
+  padding: 9px 12px;
   border: 1px solid #22384a;
   border-radius: 14px;
   background: linear-gradient(135deg, rgba(10, 18, 28, .94), rgba(7, 11, 18, .82));
@@ -38,7 +38,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   flex-direction: column;
   justify-content: center;
   min-width: 0;
-  padding: 4px 6px;
+  padding: 0;
 }
 
 .cosmos-kicker {
@@ -57,10 +57,10 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 }
 
 .cosmos-desc {
-  margin-top: 5px;
+  margin-top: 2px;
   color: var(--copy-muted);
-  font-size: .82em;
-  line-height: 1.55;
+  font-size: .76em;
+  line-height: 1.35;
 }
 
 .cosmos-legend {
@@ -99,10 +99,13 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 
 .cosmos-summary {
   display: grid;
+  grid-template-columns: minmax(400px, 1.25fr) minmax(300px, 1fr) minmax(240px, .8fr);
+  align-items: center;
   gap: 8px;
   color: #ffffff;
   font-size: .82em;
-  padding: 10px;
+  margin-bottom: 8px;
+  padding: 8px;
   border-radius: 12px;
   border: 1px solid #31465d;
   background: linear-gradient(180deg, #121a25 0%, #0b111a 100%);
@@ -110,11 +113,6 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 
 .cosmos-summary b {
   color: #f6c461;
-}
-
-.cosmos-summary-tip {
-  color: #9fd6ff;
-  font-size: 11px;
 }
 
 .cosmos-summary-metrics {
@@ -185,11 +183,15 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   font-size: 10px;
 }
 
-.cosmos-capstone-card {
-  grid-column: 1 / -1;
+.cosmos-progress-overview {
   display: grid;
-  gap: 7px;
-  margin-top: 5px;
+  gap: 9px;
+  min-width: 0;
+  padding: 4px 2px;
+}
+
+.cosmos-capstone-card {
+  min-width: 0;
   padding: 9px;
   border: 1px solid rgba(104, 122, 157, .55);
   border-radius: 9px;
@@ -216,6 +218,34 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.cosmos-capstone-head {
+  cursor: pointer;
+  list-style: none;
+}
+
+.cosmos-capstone-head::-webkit-details-marker {
+  display: none;
+}
+
+.cosmos-capstone-head::before {
+  content: '▸';
+  color: #7fc9ff;
+  transition: transform .15s ease;
+}
+
+.cosmos-capstone-card[open] .cosmos-capstone-head::before {
+  transform: rotate(90deg);
+}
+
+.cosmos-capstone-card[open] .cosmos-capstone-bosses {
+  margin-top: 9px;
+}
+
+.cosmos-capstone-card[open] p,
+.cosmos-capstone-card[open] .cosmos-capstone-footer {
+  margin-top: 7px;
 }
 
 .cosmos-capstone-head span {
@@ -343,6 +373,86 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   background: rgba(24, 58, 82, .64);
 }
 
+.cosmos-roadmap {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.2fr) minmax(360px, 2fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #365775;
+  border-radius: 12px;
+  background: linear-gradient(100deg, rgba(24, 56, 82, .92), rgba(12, 22, 35, .94));
+}
+
+.cosmos-roadmap-current,
+.cosmos-roadmap-actions {
+  display: grid;
+  gap: 3px;
+}
+
+.cosmos-roadmap-current span {
+  color: #7fc9ff;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.cosmos-roadmap-current strong {
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.cosmos-roadmap-current small,
+.cosmos-roadmap-actions span {
+  color: var(--copy-muted);
+  font-size: 9px;
+}
+
+.cosmos-roadmap-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.cosmos-roadmap-steps span {
+  padding: 6px 4px;
+  border: 1px solid #30465b;
+  border-radius: 7px;
+  color: #74879b;
+  background: rgba(7, 13, 21, .55);
+  font-size: 8px;
+  text-align: center;
+}
+
+.cosmos-roadmap-steps span.complete {
+  border-color: #3f815c;
+  color: #a8e5bc;
+}
+
+.cosmos-roadmap-steps span.active {
+  border-color: #e5b95d;
+  color: #ffe4a4;
+  background: rgba(82, 57, 17, .55);
+}
+
+.cosmos-roadmap-actions {
+  justify-items: end;
+}
+
+.cosmos-roadmap-actions b {
+  color: #f3ce7c;
+  font-size: 10px;
+}
+
+.cosmos-roadmap-actions button {
+  padding: 6px 9px;
+  border-color: #68b9ed;
+  color: #ffffff;
+  background: #174b6d;
+  white-space: nowrap;
+}
+
 .cosmos-map-column {
   min-width: 0;
   border: 1px solid #26384a;
@@ -360,6 +470,11 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   padding: 7px 9px 7px 13px;
   border-bottom: 1px solid #26384a;
   background: linear-gradient(180deg, #142130, #0c141f);
+}
+
+.cosmos-map-legend {
+  justify-content: center;
+  margin: 0;
 }
 
 .cosmos-map-toolbar strong,
@@ -496,6 +611,8 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   background: linear-gradient(180deg, #171f2c 0%, #10151d 100%);
   color: #ffffff;
   min-height: 586px;
+  max-height: min(72vh, 790px);
+  overflow: auto;
 }
 
 .cosmos-detail-hero {
@@ -578,6 +695,132 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   border-top: 1px solid rgba(57, 79, 101, .55);
   color: #b8d9ef;
   font-size: 11px;
+}
+
+.cosmos-node-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.cosmos-node-facts span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #24384a;
+  border-radius: 8px;
+  background: #0b111a;
+}
+
+.cosmos-node-facts small,
+.cosmos-reward-line span {
+  color: #7fc9ff;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.cosmos-node-facts strong {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cosmos-reward-line {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 9px 10px;
+  border-left: 3px solid #b98be3;
+  border-radius: 0 8px 8px 0;
+  color: #eef5fb;
+  background: rgba(38, 26, 52, .58);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.cosmos-gate-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid #4f4050;
+  border-radius: 10px;
+  color: #e0c2ce;
+  background: rgba(50, 24, 37, .54);
+}
+
+.cosmos-gate-line strong {
+  color: #ffd38d;
+}
+
+.cosmos-gate-line small {
+  grid-column: 1 / -1;
+  color: var(--copy-muted);
+}
+
+.cosmos-gate-line.ready {
+  border-color: #3d7d59;
+  color: #afe4bf;
+  background: rgba(19, 55, 34, .55);
+}
+
+.cosmos-power-grid,
+.cosmos-power-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cosmos-power-grid span {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border-radius: 8px;
+  background: rgba(17, 29, 42, .8);
+  color: var(--copy-muted);
+  font-size: 9px;
+}
+
+.cosmos-power-grid strong {
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.cosmos-power-grid small,
+.cosmos-power-compare {
+  color: var(--copy-muted);
+  font-size: 8px;
+}
+
+.cosmos-readiness.comfortable,
+.cosmos-readiness.ready {
+  border-color: rgba(76, 166, 109, .78);
+}
+
+.cosmos-readiness.risky {
+  border-color: rgba(221, 170, 68, .78);
+}
+
+.cosmos-readiness.blocked {
+  border-color: rgba(194, 80, 80, .78);
+}
+
+.cosmos-readiness .cosmos-section-label b {
+  float: right;
+  color: #ffd88a;
+}
+
+.cosmos-mechanic > strong {
+  color: #d7c0ff;
+}
+
+.cosmos-mechanic small {
+  color: #9fd6ff;
 }
 
 .cosmos-section-label {
@@ -758,6 +1001,8 @@ body.light-mode .cosmos-detail,
 body.light-mode .cosmos-header,
 body.light-mode .cosmos-summary,
 body.light-mode .cosmos-detail-section,
+body.light-mode .cosmos-node-facts span,
+body.light-mode .cosmos-reward-line,
 body.light-mode .cosmos-mastery-shell,
 body.light-mode .cosmos-mastery-card {
   background: #ffffff;
@@ -766,7 +1011,8 @@ body.light-mode .cosmos-mastery-card {
 }
 
 body.light-mode .cosmos-title,
-body.light-mode .cosmos-detail-title {
+body.light-mode .cosmos-detail-title,
+body.light-mode .cosmos-node-facts strong {
   color: #1e5aa5;
 }
 
@@ -777,14 +1023,26 @@ body.light-mode .cosmos-help {
 }
 
 @media (max-width: 1080px) {
-  .cosmos-header,
   .cosmos-layout {
     grid-template-columns: 1fr;
     display: grid;
   }
 
   .cosmos-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     min-width: 0;
+  }
+
+  .cosmos-capstone-card {
+    grid-column: 1 / -1;
+  }
+
+  .cosmos-roadmap {
+    grid-template-columns: 1fr;
+  }
+
+  .cosmos-roadmap-actions {
+    justify-items: start;
   }
 
   .cosmos-mastery-grid {
@@ -812,12 +1070,18 @@ body.light-mode .cosmos-help {
   }
 
   .cosmos-header {
+    grid-template-columns: 1fr;
     padding: 10px;
   }
 
+  .cosmos-summary,
   .cosmos-summary-metrics,
   .cosmos-mastery-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cosmos-summary > * {
+    grid-column: 1 / -1;
   }
 
   .cosmos-mode-tabs {

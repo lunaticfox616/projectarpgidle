@@ -421,6 +421,9 @@ function getZone(id) {
                 ele: c.ele || 'chaos',
                 cosmosNodeId: c.nodeId || null,
                 cosmosTag: c.tag || '',
+                cosmosMechanicId: c.mechanicId || '',
+                recommendedDps: Math.max(0, Math.floor(Number(c.recommendedDps) || 0)),
+                recommendedEhp: Math.max(0, Math.floor(Number(c.recommendedEhp) || 0)),
                 gravity: Math.max(1, Number(c.gravity || 1)),
                 sizeClass: Math.max(1, Math.floor(c.sizeClass || 1)),
                 theme: c.theme || ''

@@ -24,6 +24,7 @@ const context = {
     globalThis: null,
     document: { readyState: 'loading', addEventListener() {} },
     addEventListener() {},
+    safeExposeGlobals(fns) { Object.assign(context, fns); },
     game: {
         currencies: { starDust: 11 },
         cosmosAtlas: { starDust: 17 }

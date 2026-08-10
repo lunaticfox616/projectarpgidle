@@ -128,6 +128,20 @@
         };
     }
 
+    function getCosmosJourney(g) {
+        if (!g) return null;
+        const journal = Array.isArray(g.journalEntries) ? g.journalEntries : [];
+        if (!journal.includes('woodsman_echo')) return null;
+        const underworld = g.underworldProgress && typeof g.underworldProgress === 'object' ? g.underworldProgress : {};
+        const highestFloor = Math.max(0, Math.floor(Number(underworld.highestFloor) || 0));
+        if (highestFloor < 30) return { stage: 'unlock', highestFloor };
+        const atlas = g.cosmosAtlas && typeof g.cosmosAtlas === 'object' ? g.cosmosAtlas : {};
+        const bosses = new Set(Array.isArray(atlas.bossClears) ? atlas.bossClears : []);
+        const bossIds = ['planet-46', 'planet-47', 'planet-48', 'planet-49', 'planet-45'];
+        const nextGalaxy = bossIds.findIndex(id => !bosses.has(id)) + 1;
+        return { stage: nextGalaxy > 0 ? 'atlas' : 'complete', highestFloor, nextGalaxy };
+    }
+
     // ── 규칙 레지스트리 ─────────────────────────────────────────────────
     // priority가 큰 규칙부터 검사해, matches가 참인 첫 규칙의 build 결과를 주 목표로 쓴다.
     const GOAL_RULES = [
@@ -221,6 +235,30 @@
                     goal.progressPct = goal.current;
                 }
                 return buildTabAction(goal, '사냥터 열기', 'tab-map', 'map-explore-hunting');
+            }
+        },
+        {
+            id: 'cosmos-endgame-path',
+            priority: 650,
+            matches(g) {
+                const journey = getCosmosJourney(g);
+                return !!journey && journey.stage !== 'complete';
+            },
+            build(g) {
+                const journey = getCosmosJourney(g);
+                if (journey.stage === 'unlock') {
+                    return buildTabAction({
+                        id: 'cosmos-unlock-underworld', type: 'progression', icon: '🕳️', categoryLabel: '엔드게임',
+                        title: '지하계 30층에서 우주계를 여세요',
+                        description: '나무꾼 이후의 주 진행은 지하계 하강입니다. 룬과 방어 장비를 모으며 30층 관문에 도달하세요.',
+                        current: journey.highestFloor, target: 30, progressText: `현재 최고 ${journey.highestFloor}층`
+                    }, '지하계 열기', 'tab-map', 'map-tab-underworld');
+                }
+                return buildTabAction({
+                    id: `cosmos-galaxy-${journey.nextGalaxy}`, type: 'progression', icon: '🌠', categoryLabel: '우주계',
+                    title: `G${journey.nextGalaxy} 은하를 개척하세요`,
+                    description: '연결된 노드 15개를 안정화하고 은하 보스를 격파하면 다음 은하와 우주석이 열립니다.'
+                }, '우주계 열기', 'tab-map', 'map-tab-cosmos');
             }
         },
         {

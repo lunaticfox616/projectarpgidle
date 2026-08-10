@@ -344,10 +344,9 @@ function renderGrowthItemCard(item, mode) {
         ? `<button onclick="claimRecentGrowthDrop(${item.id})">보관</button><button onclick="salvageRecentGrowthDrop(${item.id})">해체</button>`
         : `<button onclick="event.stopPropagation();selectGrowthItem(${item.id},'inventory')">${selected ? '선택 해제' : (placement ? '선택' : '배치')}</button>`
           + (placement ? `<button onclick="event.stopPropagation();unplaceGrowthItem(${item.id})">내리기</button>` : '')
-          + `<button onclick="event.stopPropagation();toggleGrowthItemLock(${item.id})">${item.locked ? '🔒' : '🔓'}</button>`
-          + `<button onclick="event.stopPropagation();salvageGrowthInventoryItem(${item.id})">해체</button>`;
+          + `<details class="item-card-more" onclick="event.stopPropagation()"><summary>관리</summary><button onclick="event.stopPropagation();toggleGrowthItemLock(${item.id})">${item.locked ? '잠금 해제' : '잠금'}</button><button onclick="event.stopPropagation();salvageGrowthInventoryItem(${item.id})">해체</button></details>`;
     let cardActivation = mode === 'inventory'
-        ? ` role="button" tabindex="0" onclick="openGrowthCrafting(${item.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openGrowthCrafting(${item.id});}"`
+        ? ` role="group" tabindex="0" onclick="openGrowthCrafting(${item.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openGrowthCrafting(${item.id});}"`
         : '';
     return `<div class="growth-item-card${selected ? ' selected' : ''}${crafting ? ' craft-target' : ''}${placement ? ' placed' : ''}${item.growthChase ? ' growth-chase' : ''}" data-info-tooltip-anchor="1" data-growth-drag-id="${item.id}"${cardActivation}
         onmouseenter="setGrowthBoardItemHover(${item.id});showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="clearGrowthBoardItemHover();hideInfoTooltip()">
@@ -698,6 +697,9 @@ function renderGrowthPlacementTray() {
         return placedDelta || (Number(b.id) - Number(a.id));
     });
     if (items.length === 0) return '<div class="growth-synergy-empty">보관함이 비어 있습니다.</div>';
+    let selected = items.find(item => item.id === growthSelection.itemId);
+    items = items.slice(0, 12);
+    if (selected && !items.includes(selected)) items.push(selected);
     return items.map(item => {
         let info = getGrowthCategoryInfo(item.growthCategory);
         let placed = isGrowthItemPlacedInLoadout(item.id);
@@ -851,21 +853,12 @@ function renderGrowthBoardPanel() {
         </div>
         <div class="growth-workspace">
             <div class="growth-board-column">${renderGrowthBoardGrid()}</div>
-            <aside class="growth-placement-tray"><h3>빠른 배치함</h3><p>카드를 보드로 끌거나, 카드 선택 후 칸을 누르세요.</p>
+            <aside class="growth-placement-tray"><h3>빠른 배치함</h3><p>미배치·최근 아이템 최대 12개입니다. 전체 목록은 아래 보관함에서 관리하세요.</p>
                 <div id="ui-growth-unplace-zone" class="growth-unplace-zone"><strong>장착 해제</strong><span>배치된 생장판을 여기로 끌어 놓으세요.</span></div>
                 <div class="growth-tray-list">${renderGrowthPlacementTray()}</div></aside>
+            <aside class="growth-context-panel"><div><h3>활성 시너지</h3><div class="growth-synergy-list">${renderActiveGrowthSynergies()}</div></div><div><h3>교체 비교</h3><div class="growth-synergy-list">${renderGrowthComparisonPanel()}</div></div></aside>
         </div>
-        ${renderGrowthCraftBench()}
-        <div class="growth-columns">
-            <div>
-                <h3>활성 시너지</h3>
-                <div class="growth-synergy-list">${renderActiveGrowthSynergies()}</div>
-            </div>
-            <div>
-                <h3>교체 비교</h3>
-                <div class="growth-synergy-list">${renderGrowthComparisonPanel()}</div>
-            </div>
-        </div>`;
+        <details class="progression-workbench growth-bench-disclosure" ${growthCraftItemId !== null ? 'open' : ''}><summary>생장판 제작대</summary>${renderGrowthCraftBench()}</details>`;
     let nextTray = host.querySelector('.growth-tray-list');
     if (nextTray) {
         nextTray.scrollTop = trayScroll.top;
