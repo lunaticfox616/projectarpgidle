@@ -1033,6 +1033,8 @@ body:not(.light-mode).desktop-windowed-ui .combat-hp-bar::after {
   font-size: .72em;
 }
 
+.loop-roadmap-toolbar { justify-content: flex-end; margin-bottom: 8px; }
+
 .enemy-card .hp-bar-bg,
 .combat-hp-bar {
   background: transparent !important;
@@ -1745,6 +1747,7 @@ body:not(.light-mode) #info-tooltip {
 .gem-card-tags .gem-tag--dot { color: #e7bcff; border-color: rgba(139, 86, 174, .62); background: rgba(50, 24, 65, .68); }
 .gem-card-tags .gem-tag--support { color: #a9ead2; border-color: rgba(69, 157, 126, .68); background: rgba(13, 55, 43, .72); }
 .gem-card-tags .gem-tag--resonance { color: #e6d69b; border-color: rgba(162, 137, 66, .66); background: rgba(59, 47, 15, .72); }
+.tooltip-line .gem-tooltip-tags { display: inline-flex; min-height: 0; margin-left: 4px; overflow: visible; vertical-align: middle; flex-wrap: wrap; }
 .gem-card-footer { display: flex; align-items: center; gap: 4px; min-height: 25px; margin-top: auto; padding-top: 7px; border-top: 1px solid rgba(51, 72, 94, .46); }
 .gem-usage-state { min-width: 0; margin-right: auto; overflow: hidden; color: #eef2f6; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .gem-library-card.active .gem-usage-state { color: #d7bd76; }
@@ -2244,21 +2247,27 @@ body:not(.light-mode) #info-tooltip {
 .item-card-more > summary { min-height: 25px; box-sizing: border-box; padding: 5px 7px; }
 .item-card-more[open] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 0 4px 4px; }
 .item-card-more[open] > summary { grid-column: 1 / -1; margin: 0 -4px; }
-.passive-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 280px); gap: 10px; min-height: 0; }
-.passive-workspace .passive-investment-summary { position: relative; inset: auto; width: auto; height: max-content; }
-.passive-workspace .passive-investment-summary-body { max-height: 430px; }
+.stat-item.full.character-ehp-block { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 9px 0; }
+.character-ehp-block .ailment-stat-title small { margin-left: 6px; color: var(--copy-muted); font-weight: 500; }
+.character-ehp-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.character-ehp-stat { min-height: 42px; }
 .trait-card[role="button"]:focus-visible,
 .class-card:focus-visible,
 .talisman-board-cell:focus-visible { outline: 2px solid #f2d88f; outline-offset: 2px; }
 .class-card { width: 100%; text-align: left; }
+.expert-favor-current { display: flex; align-items: baseline; gap: 7px; margin-bottom: 8px; padding: 8px 9px; border: 1px solid rgba(225, 186, 92, .48); border-radius: 7px; background: rgba(72, 50, 16, .32); }
+.expert-favor-current span { color: var(--copy-bright); font-size: 9px; }
+.expert-favor-current strong { color: #ffe098; }
+.expert-favor-current small { margin-left: auto; color: var(--copy-muted); }
 .expert-favor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px; }
-.expert-favor-option { width: 100%; min-height: 62px; padding: 8px; text-align: left; }
-.expert-favor-option.active { color: #ffd36b; border-color: #ffd36b; background: rgba(91, 65, 24, .34); }
+.expert-favor-option { display: grid; gap: 5px; width: 100%; min-height: 68px; padding: 8px; text-align: left; }
+.expert-favor-option-title { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-weight: 800; }
+.expert-favor-option-title b { padding: 2px 5px; border-radius: 999px; background: #d6a73f; color: #171006; font-size: 8px; white-space: nowrap; }
+.expert-favor-option.active { color: #ffe29a; border: 2px solid #e2b454; background: linear-gradient(180deg, rgba(101, 71, 22, .7), rgba(51, 36, 15, .72)); box-shadow: 0 0 0 2px rgba(226, 180, 84, .12), inset 0 0 18px rgba(226, 180, 84, .1); }
 .condition-rule-warning { padding: 6px 8px; color: #f2c68a; border: 1px solid rgba(178, 119, 55, .48); border-radius: 6px; background: rgba(78, 46, 19, .28); font-size: 9px; }
 
 @media (max-width: 760px) {
-  .passive-workspace { grid-template-columns: 1fr; }
-  .passive-workspace .passive-investment-summary { order: -1; }
+  .character-ehp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .inventory-browse-toolbar { position: static; flex-wrap: wrap; }
   #tab-skills .skill-subtab-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

@@ -534,8 +534,10 @@
         const length = Math.max(1, Math.hypot(spec.x, spec.y));
         const dx = spec.x / length;
         const dy = spec.y / length;
-        const progress = (stage - 2) * 118;
-        const side = lane * 58;
+        const stagger = stage % 2 === 0 ? 0 : 24;
+        const curve = (lane * lane - 2) * 8;
+        const progress = (stage - 2) * 126 + curve;
+        const side = lane * 66 + stagger;
         return {
             x: spec.x + dx * progress - dy * side,
             y: spec.y + dy * progress + dx * side
@@ -596,7 +598,7 @@
                     : getGalaxyTierBandBase(galaxy) + Math.min(4, Math.floor(planetSlot / 2)))),
                 x: pos.x,
                 y: pos.y,
-                radius: idx === 0 ? 18 : Math.max(9, 15.5 - galaxy * 0.45 + sizeClass * 0.35),
+                radius: idx === 0 ? 19 : Math.max(11, 17 - galaxy * 0.35 + sizeClass * 0.4),
                 labelPriority: idx === 0 ? 10 : (tag === 'boss' ? 8 : Math.max(2, 7 - Math.floor(localSlot / 2))),
                 sizeClass,
                 gravity
@@ -628,7 +630,7 @@
                 tier: Math.max(1, Math.min(25, getGalaxyTierBandBase(galaxy) + Math.min(4, Math.floor(asteroidSlot / 3)))),
                 x: pos.x,
                 y: pos.y,
-                radius: Math.max(7.5, 11.5 - galaxy * 0.25 + sizeClass * 0.2),
+                radius: Math.max(9, 12.5 - galaxy * 0.2 + sizeClass * 0.25),
                 labelPriority: 0,
                 sizeClass,
                 gravity
@@ -1529,7 +1531,7 @@
             panel.id = 'map-tab-cosmos';
             panel.className = 'subtab-content cosmos-atlas-tab';
             panel.innerHTML = `
-                <h2>🌠 우주계 아틀라스 <span class="h2-right">중앙 관문 + 5개 은하 · 행성 50개 · 소행성 75개</span></h2>
+                <h2>🌠 우주계 아틀라스</h2>
                 <div id="ui-cosmos-panel" class="cosmos-panel">
                     <div class="cosmos-header">
                         <div class="cosmos-brand">
@@ -1972,31 +1974,21 @@
 
 
     function drawPlanetSurface(ctx, node, p, r, status) {
-        const seed = hashSeed(node.id + ':surface');
-        const hue = seed % 360;
-        const bandShift = ((seed >> 3) % 100) / 100;
-        const core = ctx.createRadialGradient(p.x - r * 0.35, p.y - r * 0.45, Math.max(1, r * 0.1), p.x, p.y, r * 1.12);
         const locked = status === 'locked';
-        core.addColorStop(0, locked ? 'rgba(122,136,162,0.9)' : `hsl(${hue}, 78%, 72%)`);
-        core.addColorStop(0.55, locked ? 'rgba(82,97,123,0.92)' : `hsl(${(hue + 24) % 360}, 70%, 48%)`);
-        core.addColorStop(1, locked ? 'rgba(48,58,79,0.96)' : `hsl(${(hue + 52) % 360}, 72%, 28%)`);
+        const accent = status === 'cleared' ? '#71d699' : getGalaxyAccent(node.orbit);
+        const core = ctx.createRadialGradient(p.x - r * 0.35, p.y - r * 0.45, Math.max(1, r * 0.1), p.x, p.y, r * 1.12);
+        core.addColorStop(0, locked ? '#718096' : '#d7efff');
+        core.addColorStop(0.28, locked ? '#445064' : accent);
+        core.addColorStop(1, locked ? '#202938' : '#0b1420');
         ctx.beginPath();
         ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
         ctx.fillStyle = core;
         ctx.fill();
-
-        ctx.save();
         ctx.beginPath();
-        ctx.arc(p.x, p.y, r * 0.96, 0, Math.PI * 2);
-        ctx.clip();
-        for (let i = 0; i < 3; i++) {
-            const yy = p.y - r * 0.58 + (i + bandShift) * r * 0.52;
-            ctx.beginPath();
-            ctx.ellipse(p.x + (i - 1) * r * 0.08, yy, r * (0.96 - i * 0.14), r * (0.18 + i * 0.03), 0, 0, Math.PI * 2);
-            ctx.fillStyle = locked ? `rgba(140,150,172,${0.12 - i * 0.02})` : `hsla(${(hue + 70 + i * 24) % 360}, 72%, ${62 - i * 8}%, ${0.18 - i * 0.03})`;
-            ctx.fill();
-        }
-        ctx.restore();
+        ctx.arc(p.x, p.y, r * 0.72, -Math.PI * 0.82, Math.PI * 0.24);
+        ctx.strokeStyle = locked ? 'rgba(183,196,215,.28)' : getGalaxyAccent(node.orbit, 0.72);
+        ctx.lineWidth = Math.max(1, r * 0.13);
+        ctx.stroke();
 
         if (node.tag === 'boss') {
             ctx.beginPath();
@@ -2016,7 +2008,7 @@
             const selected = ATLAS.selectedId === node.id;
             const r = Math.max(2.2, node.radius * ATLAS.camera.scale);
             const color = getNodeColor(node, status);
-            const alpha = status === 'locked' ? 0.16 : 1;
+            const alpha = status === 'locked' ? 0.42 : 1;
 
             ctx.globalAlpha = alpha;
             if (node.kind === 'planet') {
@@ -2034,15 +2026,18 @@
             if (node.kind === 'planet') {
                 drawPlanetSurface(ctx, node, p, drawR, status);
             } else {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
+                tracePentagon(ctx, p.x, p.y, drawR, Math.PI / 4);
                 ctx.fillStyle = color;
                 ctx.fill();
             }
             ctx.lineWidth = selected ? 3 : hover ? 2.4 : 1.4;
             ctx.strokeStyle = selected ? '#ffffff' : status === 'available' ? getGalaxyAccent(node.orbit, 0.95) : status === 'cleared' ? '#9ef0bf' : getGalaxyAccent(node.orbit, 0.34);
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
+            if (node.kind === 'planet') {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2);
+            } else {
+                tracePentagon(ctx, p.x, p.y, drawR, Math.PI / 4);
+            }
             ctx.stroke();
 
             if (status === 'cleared') {
