@@ -23,6 +23,7 @@ let pendingEnemyCombatAttacks = [];
 const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
 const COMBAT_TACTIC_STALL_MS = 2000;
 const COMBAT_TACTIC_MAX_RETREATS = 2;
+const COMBAT_CHANNEL_BREAKING_AILMENTS = new Set(['freeze', 'stun', 'root', 'immobilize']);
 let combatTacticsRuntime = createCombatTacticsRuntime();
 let combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
 let nextCombatChannelId = 1;
@@ -46,8 +47,7 @@ function resetCombatChannelRuntime() {
 }
 
 function hasPlayerChannelBreakingAilment() {
-    let breakingTypes = new Set(['freeze', 'stun', 'root', 'immobilize']);
-    return (game.playerAilments || []).some(ailment => ailment && ailment.time > 0 && breakingTypes.has(ailment.type));
+    return (game.playerAilments || []).some(ailment => ailment && ailment.time > 0 && COMBAT_CHANNEL_BREAKING_AILMENTS.has(ailment.type));
 }
 
 function cancelCombatChannel(reason) {
@@ -62,15 +62,24 @@ function cancelCombatChannel(reason) {
 function updateCombatChannelRuntime(now) {
     let timestamp = Number.isFinite(now) ? now : Date.now();
     if (!combatChannelRuntime.id) return false;
+    if (game.activeSkill !== combatChannelRuntime.skillName) {
+        cancelCombatChannel();
+        return false;
+    }
     if (hasPlayerChannelBreakingAilment()) {
         cancelCombatChannel('군중 제어');
         return false;
     }
-    if (timestamp >= combatChannelRuntime.endAt) combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+    if (timestamp >= combatChannelRuntime.endAt) {
+        let canContinue = (game.enemies || []).some(enemy => enemy && enemy.hp > 0);
+        combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+        if (canContinue) pTimer = Math.max(1, pTimer);
+    }
     return combatChannelRuntime.id > 0;
 }
 
 function beginCombatChannel(skillName, stages, baseDelayMs) {
+    if (combatChannelRuntime.id) cancelCombatChannel();
     let lastDelay = (stages || []).reduce((max, stage) => Math.max(max, Number(stage && stage.delayMs) || 0), 0);
     combatChannelRuntime = {
         id: nextCombatChannelId++, skillName: String(skillName || ''),
@@ -1036,7 +1045,9 @@ function runColonyDefenseTick(pStats) {
     tickEnemyDotEffects(pStats, 0.1);
     tickEnemyAilments(pStats, 0.1);
     let nowCast = Date.now();
-    let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0);
+    updateCombatChannelRuntime(nowCast);
+    let channelEndAt = combatChannelRuntime.id ? combatChannelRuntime.endAt : 0;
+    let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0, channelEndAt);
     let castBlocked = nowCast < castUntil;
     if (!castBlocked) pTimer += 0.1 * pStats.aspd;
     while (!castBlocked && pTimer >= 1.0 && (game.enemies || []).length > 0) {
@@ -2455,7 +2466,8 @@ function coreLoop() {
         while (!castBlocked && inSkillRange && pTimer >= 1.0 && game.enemies.length > 0) {
             pTimer -= 1.0;
             performPlayerAttack(pStats);
-            let dsChance = Math.max(0, pStats.ds || 0);
+            let isChanneling = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('channeling');
+            let dsChance = isChanneling ? 0 : Math.max(0, pStats.ds || 0);
             let guaranteedExtra = Math.floor(dsChance / 100);
             let extraRemainder = dsChance - (guaranteedExtra * 100);
             let extraHits = guaranteedExtra + ((Math.random() * 100 < extraRemainder) ? 1 : 0);

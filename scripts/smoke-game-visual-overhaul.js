@@ -304,28 +304,44 @@ assert.deepStrictEqual(Array.from(combatPatternImages), [
   'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxDotField', 'bossTelegraphPulse'
 ], 'real collision patterns should select their dedicated image assets');
 const optimizedAreaVfx = vm.runInContext(`(() => {
-  const counts = { meteorImages: 0, blizzardLines: 0, blizzardBounds: 0 };
+  const counts = { meteorImages: 0, lines: 0, blizzardLines: 0, blizzardBounds: 0, arcs: 0, fills: 0 };
   battleAssets.images.skillFxSlamPrimary = { complete: true, naturalWidth: 64 };
   const ctx = {
-    save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, arc() {}, stroke() {},
-    moveTo() {}, lineTo() { counts.blizzardLines++; }, strokeRect() { counts.blizzardBounds++; },
+    globalAlpha: 1, save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {},
+    arc() { counts.arcs++; }, stroke() {}, fill() { counts.fills++; }, fillRect() {},
+    moveTo() {}, lineTo() { counts.lines++; }, strokeRect() { counts.blizzardBounds++; },
     drawImage() { counts.meteorImages++; }
   };
-  const targets = [{ x: 120, y: 160 }, { x: 260, y: 240 }];
+  const targets = [{ x: 120, y: 160, gx: 3, gy: 3 }, { x: 160, y: 180, gx: 4, gy: 3 }, { x: 200, y: 160, gx: 5, gy: 3 }];
   drawCombatCellFx(ctx, {
-    start: 1000, duration: 720, patternKind: 'meteor', skillName: '유성 낙화'
+    start: 1000, duration: 720, patternKind: 'meteor', skillName: '유성 낙화', element: 'fire'
   }, 1230, 1460, targets, 'skillFxSlamPrimary', 'fire');
+  const beforeBlizzard = counts.lines;
   drawCombatCellFx(ctx, {
     start: 1000, duration: 1400, patternKind: 'field', skillName: '난타 눈보라'
   }, 1230, 1460, targets, 'skillFxFrostField', 'cold');
+  counts.blizzardLines = counts.lines - beforeBlizzard;
+  drawCombatCellFx(ctx, {
+    start: 1000, duration: 1400, patternKind: 'field', skillName: '화염 폭풍핵'
+  }, 1230, 1460, targets, 'skillFxDotField', 'fire');
+  drawCombatCellFx(ctx, {
+    start: 1000, duration: 1400, patternKind: 'channel', skillName: '용화 숨결', element: 'fire',
+    screenSource: { x: 60, y: 180, gx: 1, gy: 3 }
+  }, 1230, 1460, targets, 'skillFxBurst', 'fire');
+  drawCombatCellFx(ctx, {
+    start: 1000, duration: 720, skillName: '천뢰 분기', element: 'light'
+  }, 1450, 1460, [targets[1]], 'skillFxBurst', 'light');
   battleVisualState.skillEffects = [];
   queueSkillGemVfx({ id: 700, skillName: '난타 눈보라', stageKind: 'fieldTick', element: 'cold' },
     targets[0], { x: 20, y: 220 }, {}, 1230, 1);
   return { ...counts, impactEffectCount: battleVisualState.skillEffects.length };
 })()`, context);
-assert.strictEqual(optimizedAreaVfx.meteorImages, 1, '유성 낙화는 낙하 중 큰 유성 이미지 하나만 그려야 한다');
-assert.strictEqual(optimizedAreaVfx.blizzardLines, 12, '난타 눈보라는 고정된 큰 이미지 대신 가벼운 눈보라 입자를 그려야 한다');
-assert.strictEqual(optimizedAreaVfx.blizzardBounds, 1, '눈보라의 실제 유지 범위는 한 번만 표시해야 한다');
+assert.strictEqual(optimizedAreaVfx.meteorImages, 0, '유성 낙화는 큰 원형 이미지 대신 작은 가속 낙하체를 직접 그려야 한다');
+assert.ok(optimizedAreaVfx.blizzardLines >= 9, '난타 눈보라는 수직 비가 아니라 셀 안의 가로 눈바람 결을 그려야 한다');
+assert.strictEqual(optimizedAreaVfx.blizzardBounds, 0, '눈보라 범위를 네모 테두리로 그리면 안 된다');
+assert.strictEqual(optimizedAreaVfx.arcs, 0, '낙뢰·유성·폭풍핵·눈보라·용화 숨결은 범위와 무관한 원형 선을 그리면 안 된다');
+assert.ok(optimizedAreaVfx.fills > 0, '유성과 폭풍핵·용화 숨결은 선만이 아니라 가벼운 면 실루엣을 포함해야 한다');
+assert.ok(optimizedAreaVfx.lines < 140 && optimizedAreaVfx.fills < 80, '전용 범위 효과는 한 프레임의 선분·면 개수를 고정된 저비용 상한 안에 유지해야 한다');
 assert.strictEqual(optimizedAreaVfx.impactEffectCount, 0, '눈보라 매 타격마다 중복 폭발 이미지를 추가하면 안 된다');
 const stagedSkillVfx = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
@@ -337,17 +353,22 @@ const stagedSkillVfx = vm.runInContext(`(() => {
   queueSkillGemVfx({ id: 3, skillName: '지진 파쇄', stageKind: 'slamAftershock', element: 'phys' }, target, player, map, 1000, 1);
   queueSkillGemVfx({ id: 4, skillName: '서리늑대 소환', stageKind: 'primary', element: 'cold', summon: true }, target, player, map, 1000, 1);
   queueSkillGemVfx({ id: 5, skillName: '번개 타격', stageKind: 'chainPrimary', element: 'light' }, target, player, map, 1000, 1);
+  const heavenlyProfile = SKILL_GEM_VFX_PROFILES['천뢰 분기'];
+  queueSkillGemVfx({ id: 6, skillName: '천뢰 분기', stageKind: 'chainJump', chainFromEnemyId: 'a', element: 'light' }, target, player, map, 1000, 1);
+  const heavenlyImpactCount = battleVisualState.skillEffects.filter(effect => effect.skillName === '천뢰 분기').length;
   const imageKeys = battleVisualState.skillEffects.map(effect => effect.imageKey);
   for (let id = 10; id < 140; id++) {
     queueSkillGemVfx({ id, skillName: '기본 공격', stageKind: 'primary', element: 'phys' }, target, player, map, 1000, 1);
   }
-  return { imageKeys, count: battleVisualState.skillEffects.length };
+  return { imageKeys, count: battleVisualState.skillEffects.length, heavenlyFamily: heavenlyProfile.family, heavenlyImpactCount };
 })()`, context);
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxWhirlwind'), 'whirlwind stages should use the rotating image asset');
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxChainJump'), 'chain jumps should use the connector image asset');
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSlamAftershock'), 'slam aftershocks should use the delayed fracture image asset');
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSummonStrike'), 'summon attacks should use the spectral strike image asset');
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSlash'), 'lightning strike primary should use a lightning-tinted melee slash');
+assert.strictEqual(stagedSkillVfx.heavenlyFamily, 'stormStrike', '천뢰 분기는 원형 연쇄 이미지 대신 수직 낙뢰를 사용해야 한다');
+assert.strictEqual(stagedSkillVfx.heavenlyImpactCount, 0, '천뢰 분기는 타격 시 원형 연쇄 이미지를 중복 생성하면 안 된다');
 assert.ok(stagedSkillVfx.count <= 96, 'skill image effect queue should stay bounded during rapid attacks');
 const travellingProjectile = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];

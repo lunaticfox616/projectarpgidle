@@ -1138,6 +1138,11 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   target.gx = 5; target.gy = 6; target.hp = target.maxHp;
   const pStats = context.getPlayerStats();
   context.performPlayerAttack(pStats);
+  vm.runInContext('pendingSkillStageHits = []; combatChannelRuntime.endAt = Date.now() - 1; pTimer = 0;', context);
+  context.updateCombatChannelRuntime(Date.now());
+  assert.strictEqual(vm.runInContext('pTimer', context), 1, '채널링이 자연 종료되면 다음 집중을 즉시 이어갈 수 있도록 공격 게이지가 준비되어야 한다');
+
+  context.performPlayerAttack(pStats);
   context.game.playerAilments = [{ type: 'freeze', time: 1, duration: 1, power: 1 }];
   context.updateCombatChannelRuntime(Date.now());
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
