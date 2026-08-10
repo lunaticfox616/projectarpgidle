@@ -44,5 +44,9 @@ assert(masteryPanel.innerHTML.includes('cosmos-mastery-card locked'), 'locked ro
 assert(masteryPanel.innerHTML.includes('선행 노드 필요: 행성 패널티 완화 8레벨'), 'locked routes must explain their prerequisite');
 assert(source.includes('class="cosmos-map-toolbar"') && source.includes('class="cosmos-mode-tabs"'), 'atlas needs dedicated navigation and map controls');
 assert(css.includes('.cosmos-summary-metrics') && css.includes('.cosmos-mastery-grid'), 'the redesigned dashboard and mastery cards need responsive styling');
+assert(!source.includes('중앙 관문 + 5개 은하 · 행성 50개 · 소행성 75개'), 'the redundant atlas inventory sentence must be removed');
+assert(!css.includes('max-height: min(72vh, 790px)'), 'the node detail must not create a second vertical scrollbar');
+assert(css.includes('grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr)'), 'atlas summary columns must shrink inside the window');
+assert(source.includes("tracePentagon(ctx, p.x, p.y, drawR, Math.PI / 4)"), 'asteroids must be visually distinct from planet nodes');
 
 console.log('smoke-cosmos-ui passed');

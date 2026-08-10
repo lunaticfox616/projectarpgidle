@@ -99,7 +99,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 
 .cosmos-summary {
   display: grid;
-  grid-template-columns: minmax(400px, 1.25fr) minmax(300px, 1fr) minmax(240px, .8fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr);
   align-items: center;
   gap: 8px;
   color: #ffffff;
@@ -218,6 +218,8 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .cosmos-capstone-head {
@@ -255,6 +257,8 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 
 .cosmos-capstone-head strong {
   color: #f1d38c;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .cosmos-capstone-bosses {
@@ -310,11 +314,13 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 }
 
 .cosmos-capstone-action {
+  max-width: 100%;
   padding: 4px 7px;
   border-color: rgba(218, 172, 77, .65);
   color: #f5daa0;
   background: rgba(76, 54, 19, .72);
   font-size: 9px;
+  white-space: normal;
 }
 
 .cosmos-layout {
@@ -611,8 +617,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   background: linear-gradient(180deg, #171f2c 0%, #10151d 100%);
   color: #ffffff;
   min-height: 586px;
-  max-height: min(72vh, 790px);
-  overflow: auto;
+  overflow: visible;
 }
 
 .cosmos-detail-hero {
