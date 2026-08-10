@@ -355,7 +355,7 @@
 ];
     const COSMOS_ASTEROID_NUMBERS = [32, 60, 81, 111, 115, 127, 132, 140, 155, 156, 164, 166, 168, 170, 181, 183, 195, 198, 204, 208, 211, 214, 227, 234, 241, 261, 264, 291, 299, 308, 331, 343, 349, 358, 365, 394, 406, 430, 431, 442, 463, 477, 486, 511, 533, 550, 554, 599, 681, 693, 702, 715, 726, 737, 756, 757, 761, 767, 769, 778, 781, 786, 800, 813, 824, 843, 866, 886, 900, 944, 947, 964, 969, 985, 1000];
 
-    const COSMOS_LAYOUT_VERSION = 20260810;
+    const COSMOS_LAYOUT_VERSION = 20260811;
     const DEFAULT_COSMOS_CAMERA_SCALE = 0.56;
     const GALAXY_SEQUENCE = [1, 2, 3, 4, 5];
     const PLANETS_PER_GALAXY = 10;
@@ -534,10 +534,12 @@
         const length = Math.max(1, Math.hypot(spec.x, spec.y));
         const dx = spec.x / length;
         const dy = spec.y / length;
-        const stagger = stage % 2 === 0 ? 0 : 24;
-        const curve = (lane * lane - 2) * 8;
-        const progress = (stage - 2) * 126 + curve;
-        const side = lane * 66 + stagger;
+        // 5x5 격자 대신 중심 줄기에서 짧은 가지가 뻗는 성좌 형태로 배치한다.
+        // 진행 방향은 은하 중심의 방사 방향이며, 보스(마지막 중앙 노드)는 가장 바깥에 놓인다.
+        const branchDepth = Math.abs(lane);
+        const sweep = lane === 0 ? 0 : (stage % 2 === 0 ? lane : -lane) * 12;
+        const progress = (stage - 2) * 154 + branchDepth * 28 + sweep;
+        const side = lane * (78 + stage * 7);
         return {
             x: spec.x + dx * progress - dy * side,
             y: spec.y + dy * progress + dx * side
@@ -656,13 +658,19 @@
                 .sort((a, b) => a.routeOrder - b.routeOrder);
             const byOrder = new Map(route.map(node => [node.routeOrder, node]));
             for (let stage = 0; stage < 5; stage++) {
-                for (let lane = 0; lane < 5; lane++) {
-                    const node = byOrder.get(stage * 5 + lane);
-                    const right = byOrder.get(stage * 5 + lane + 1);
-                    const next = byOrder.get((stage + 1) * 5 + lane);
-                    if (node && lane < 4 && right) addEdge(node.id, right.id, 'route');
-                    if (node && stage < 4 && next) addEdge(node.id, next.id, 'spine');
-                }
+                const leftOuter = byOrder.get(stage * 5);
+                const leftInner = byOrder.get(stage * 5 + 1);
+                const center = byOrder.get(stage * 5 + 2);
+                const rightInner = byOrder.get(stage * 5 + 3);
+                const rightOuter = byOrder.get(stage * 5 + 4);
+                if (leftOuter && leftInner) addEdge(leftOuter.id, leftInner.id, 'branch');
+                if (leftInner && center) addEdge(leftInner.id, center.id, 'branch');
+                if (center && rightInner) addEdge(center.id, rightInner.id, 'branch');
+                if (rightInner && rightOuter) addEdge(rightInner.id, rightOuter.id, 'branch');
+                const nextCenter = byOrder.get((stage + 1) * 5 + 2);
+                if (center && nextCenter) addEdge(center.id, nextCenter.id, 'spine');
+                if (stage < 4 && stage % 2 === 0 && rightInner && nextCenter) addEdge(rightInner.id, nextCenter.id, 'route');
+                if (stage < 4 && stage % 2 === 1 && leftInner && nextCenter) addEdge(leftInner.id, nextCenter.id, 'route');
             }
             const entry = byOrder.get(2);
             const previous = galaxy === 1 ? ATLAS.byId.get('planet-0')
@@ -1038,57 +1046,75 @@
         ctx.restore();
     }
 
-    function drawCosmosStoneSlot(ctx) {
-        const state = getState();
-        const ui = getCosmosUiScale();
-        // 시리온(planet-0, world 0,0) 바로 아래에 슬롯을 배치한다.
-        const sirion = ATLAS.byId.get('planet-0');
-        const worldY = (sirion ? sirion.y + (sirion.radius || 18) : 18) + 64;
-        const center = worldToScreen({ x: sirion ? sirion.x : 0, y: worldY });
-        const r = (30 + 8 * Math.max(0.5, Math.min(1.6, ATLAS.camera.scale))) * ui;
-        const equippedCount = getEquippedCosmosStoneCount(state);
-        const maxStones = hasSixthCosmosStoneUnlock() ? 6 : 5;
-        const equippable = hasEquippableCosmosStone(state);
-        const hovered = ATLAS.uiHover === 'slot';
-        const pulse = equippable ? (0.5 + 0.5 * Math.sin(Date.now() / 360)) : 0;
+    function drawCosmosStoneSlotGlow(ctx, center, r, pulse) {
+        const glowR = r * (1.7 + pulse * 0.5);
+        const glow = ctx.createRadialGradient(center.x, center.y, r * 0.4, center.x, center.y, glowR);
+        glow.addColorStop(0, `rgba(255,221,138,${0.40 + pulse * 0.3})`);
+        glow.addColorStop(1, 'rgba(255,221,138,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, glowR, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
-        ctx.save();
-        // 장착 가능한 우주석이 있으면 빛나는 강조 효과
-        if (equippable) {
-            const glowR = r * (1.7 + pulse * 0.5);
-            const glow = ctx.createRadialGradient(center.x, center.y, r * 0.4, center.x, center.y, glowR);
-            glow.addColorStop(0, `rgba(255,221,138,${0.40 + pulse * 0.3})`);
-            glow.addColorStop(1, 'rgba(255,221,138,0)');
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(center.x, center.y, glowR, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        // 오각형 슬롯 본체
-        tracePentagon(ctx, center.x, center.y, r);
-        const body = ctx.createLinearGradient(center.x, center.y - r, center.x, center.y + r);
-        body.addColorStop(0, 'rgba(26,42,64,0.96)');
-        body.addColorStop(1, 'rgba(10,17,28,0.96)');
+    function drawCosmosStoneDial(ctx, center, r, visual) {
+        // 지도와 같은 천구의 형태로 슬롯을 그려, 노드와 구분하면서도 같은 세계관을 유지한다.
+        const body = ctx.createRadialGradient(center.x - r * .3, center.y - r * .35, r * .1, center.x, center.y, r);
+        body.addColorStop(0, 'rgba(112,170,214,.92)');
+        body.addColorStop(.24, 'rgba(31,57,82,.98)');
+        body.addColorStop(1, 'rgba(7,13,24,.98)');
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
         ctx.fillStyle = body;
         ctx.fill();
-        ctx.lineWidth = (equippable ? 2.6 : 1.8) * ui;
-        ctx.strokeStyle = equippable ? `rgba(255,221,138,${0.7 + pulse * 0.3})` : hovered ? 'rgba(143,212,255,0.95)' : 'rgba(127,201,255,0.55)';
-        if (equippable) { ctx.shadowColor = 'rgba(255,221,138,0.85)'; ctx.shadowBlur = (10 + pulse * 12) * ui; }
+        ctx.lineWidth = (visual.equippable ? 2.6 : 1.8) * visual.ui;
+        ctx.strokeStyle = visual.equippable ? `rgba(255,221,138,${0.7 + visual.pulse * 0.3})` : visual.hovered ? 'rgba(143,212,255,0.95)' : 'rgba(127,201,255,0.55)';
+        if (visual.equippable) { ctx.shadowColor = 'rgba(255,221,138,0.85)'; ctx.shadowBlur = (10 + visual.pulse * 12) * visual.ui; }
         ctx.stroke();
         ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, r * .72, -Math.PI * .85, Math.PI * .2);
+        ctx.strokeStyle = 'rgba(196,226,255,.48)';
+        ctx.lineWidth = 1.2 * visual.ui;
+        ctx.stroke();
+        for (let tick = 0; tick < 8; tick++) {
+            const angle = tick / 8 * Math.PI * 2;
+            ctx.beginPath();
+            ctx.moveTo(center.x + Math.cos(angle) * r * .88, center.y + Math.sin(angle) * r * .88);
+            ctx.lineTo(center.x + Math.cos(angle) * r * 1.08, center.y + Math.sin(angle) * r * 1.08);
+            ctx.strokeStyle = 'rgba(127,201,255,.46)';
+            ctx.stroke();
+        }
 
         // 라벨
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#d7ebff';
-        ctx.font = `${Math.round(11 * ui)}px Malgun Gothic, sans-serif`;
-        ctx.fillText('우주석', center.x, center.y - r * 0.34);
-        ctx.fillStyle = equippable ? '#ffd98a' : '#9fb4d1';
-        ctx.font = `bold ${Math.round(16 * ui)}px Malgun Gothic, sans-serif`;
-        ctx.fillText(`${equippedCount}/${maxStones}`, center.x, center.y + r * 0.24);
-        ctx.restore();
+        ctx.font = `${Math.round(11 * visual.ui)}px Malgun Gothic, sans-serif`;
+        ctx.fillText('우주석 슬롯', center.x, center.y - r * 0.34);
+        ctx.fillStyle = visual.equippable ? '#ffd98a' : '#9fb4d1';
+        ctx.font = `bold ${Math.round(16 * visual.ui)}px Malgun Gothic, sans-serif`;
+        ctx.fillText(`${visual.equippedCount}/${visual.maxStones}`, center.x, center.y + r * 0.24);
+    }
 
+    function drawCosmosStoneSlot(ctx) {
+        const state = getState();
+        const ui = getCosmosUiScale();
+        const sirion = ATLAS.byId.get('planet-0');
+        const worldY = (sirion ? sirion.y + (sirion.radius || 18) : 18) + 64;
+        const center = worldToScreen({ x: sirion ? sirion.x : 0, y: worldY });
+        const r = (30 + 8 * Math.max(0.5, Math.min(1.6, ATLAS.camera.scale))) * ui;
+        const equippable = hasEquippableCosmosStone(state);
+        const pulse = equippable ? (0.5 + 0.5 * Math.sin(Date.now() / 360)) : 0;
+        const visual = {
+            ui, equippable, pulse, hovered: ATLAS.uiHover === 'slot',
+            equippedCount: getEquippedCosmosStoneCount(state),
+            maxStones: hasSixthCosmosStoneUnlock() ? 6 : 5
+        };
+        ctx.save();
+        if (equippable) drawCosmosStoneSlotGlow(ctx, center, r, pulse);
+        drawCosmosStoneDial(ctx, center, r, visual);
+        ctx.restore();
         ATLAS.stoneSlot = { x: center.x, y: center.y, r: r };
     }
 
@@ -1937,7 +1963,6 @@
     function drawEdges(ctx) {
         ctx.save();
         ATLAS.edges.forEach(edge => {
-            if (edge.type === 'transition') return;
             const a = ATLAS.byId.get(edge.a);
             const b = ATLAS.byId.get(edge.b);
             if (!a || !b) return;
@@ -1959,13 +1984,15 @@
             ctx.beginPath();
             ctx.moveTo(pa.x, pa.y);
             ctx.quadraticCurveTo(cx, cy, pb.x, pb.y);
-            ctx.strokeStyle = open ? 'rgba(127, 201, 255, 0.48)' : partial ? 'rgba(127, 201, 255, 0.22)' : 'rgba(80, 92, 120, 0.13)';
-            ctx.lineWidth = edge.type === 'spine' ? 2.6 : edge.type === 'asteroid' ? 0.85 : 1.25;
+            ctx.strokeStyle = edge.type === 'transition' ? 'rgba(244,211,135,.34)' : open ? 'rgba(127, 201, 255, 0.48)' : partial ? 'rgba(127, 201, 255, 0.22)' : 'rgba(80, 92, 120, 0.13)';
+            ctx.lineWidth = edge.type === 'spine' ? 2.6 : edge.type === 'transition' ? 1.8 : edge.type === 'branch' ? 1.1 : 1.25;
+            if (edge.type === 'transition') ctx.setLineDash([9, 8]);
             if (open) {
                 ctx.shadowColor = 'rgba(127, 201, 255, 0.25)';
                 ctx.shadowBlur = edge.type === 'spine' ? 8 : 4;
             }
             ctx.stroke();
+            ctx.setLineDash([]);
             ctx.shadowBlur = 0;
         });
         ctx.restore();
@@ -2096,10 +2123,10 @@
             const equipped = !!(state.equippedStones && state.equippedStones[String(g)]);
             const usableRelic = Array.isArray(state.bossRelics) && findCosmosBossRelicIndexForStone(state.bossRelics, g) >= 0;
             const options = acquired ? ensureCosmosStoneOptions(state, g) : [];
-            const optionHtml = options.map(option => `<div style="font-size:11px;color:${option.boss ? '#ffd98a' : '#b9c7dd'};">${escapeHtml(getCosmosStoneOptionText(option))}</div>`).join('') || '<div style="font-size:11px;color:var(--copy-muted);">미획득</div>';
-            return `<div class="cosmos-stone-card" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()" style="border:1px solid ${equipped ? '#8fd4ff' : '#31445c'};border-radius:8px;padding:8px;background:${acquired ? 'rgba(23,38,58,.78)' : 'rgba(18,24,34,.62)'};"><div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><b>${escapeHtml(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착' : (acquired ? '보유' : '미획득')}</span></div><div style="font-size:11px;color:#9fd6ff;">우주계 최소 티어 보정: ${getCosmosTierFloor()}</div>${optionHtml}<div style="display:flex;gap:4px;margin-top:6px;"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && usableRelic ? '' : 'disabled'} title="${usableRelic ? '이 우주석 전용 보스 유물 사용' : '이 우주석에 맞는 보스 유물이 없습니다'}">보스 유물 사용</button></div></div>`;
+            const optionHtml = options.map(option => `<div class="cosmos-stone-option ${option.boss ? 'boss' : ''}">${escapeHtml(getCosmosStoneOptionText(option))}</div>`).join('') || '<div class="cosmos-stone-option empty">미획득</div>';
+            return `<article class="cosmos-stone-card ${acquired ? 'acquired' : 'locked'} ${equipped ? 'equipped' : ''}" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()"><div class="cosmos-stone-orb"><i></i><b>G${g}</b></div><div class="cosmos-stone-card-body"><header><b>${escapeHtml(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착 중' : (acquired ? '보유' : '미획득')}</span></header><small>최소 티어 T${getCosmosTierFloor()}</small><div class="cosmos-stone-options">${optionHtml}</div><div class="cosmos-stone-actions"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && usableRelic ? '' : 'disabled'} title="${usableRelic ? '이 우주석 전용 보스 유물 사용' : '이 우주석에 맞는 보스 유물이 없습니다'}">유물 각인</button></div></div></article>`;
         }).join('');
-        return `<div style="grid-column:1/-1;margin-top:8px;"><div style="font-weight:700;color:var(--copy-bright);margin-bottom:6px;">우주석 장착 UI · 보스 유물 ${relicCount}개</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;">${cards}</div></div>`;
+        return `<section class="cosmos-stone-panel"><header><strong>우주석 성좌</strong><span>보스 유물 ${relicCount}개</span></header><div class="cosmos-stone-grid">${cards}</div></section>`;
     }
 
     function renderRoadmap() {

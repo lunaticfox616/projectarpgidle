@@ -58,6 +58,16 @@ assert(!talismanCardSource.includes('<details'), 'talisman card actions must be 
 const treeStart = html.indexOf('id="tree-container"');
 const treeEnd = html.indexOf('</div>', html.indexOf('id="passive-investment-summary"'));
 assert(html.indexOf('id="passive-investment-summary"', treeStart) < treeEnd, 'passive investment summary must overlay the tree instead of shrinking it');
+const starWedgeStart = html.indexOf('id="passive-star-wedge-drawer"');
+const investmentStart = html.indexOf('id="passive-investment-summary"');
+assert(starWedgeStart > treeStart && starWedgeStart < investmentStart, 'star wedge management must overlay the tree instead of shrinking it');
+assert(html.slice(starWedgeStart - 9, starWedgeStart).includes('<details'), 'star wedge management should use the native disclosure instead of custom toggle code');
+assert(uiSource.includes("this.closest('details').open=false"), 'choosing a star wedge socket must reveal the passive tree immediately');
+const exchangeSection = html.indexOf('id="market-exchange-title"');
+const blackMarketSection = html.indexOf('id="market-black-title"');
+const serviceSection = html.indexOf('id="market-service-title"');
+assert(exchangeSection >= 0 && blackMarketSection > exchangeSection && serviceSection > blackMarketSection,
+    'market actions must be grouped as fixed exchange, limited offers, and permanent services');
 
 const overhaulCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 const premiumCss = fs.readFileSync('css/ui-premium.css', 'utf8');

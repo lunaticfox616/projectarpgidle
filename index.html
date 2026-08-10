@@ -8,18 +8,18 @@
     <link rel="stylesheet" href="css/base.css?v=20260722-map-action-native-tab1">
     <link rel="stylesheet" href="css/layout.css?v=20260722-combat-log-nav1-20260810-jewel-compare1">
     <link rel="stylesheet" href="css/theme.css?v=20260721-contract-header1">
-    <link rel="stylesheet" href="css/components.css?v=20260722-combat-icons2">
+    <link rel="stylesheet" href="css/components.css?v=20260722-combat-icons2-20260810-market-clarity1-20260811-star-wedge-drawer1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260723-currency-icons1-20260810-jewel-compare1">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1-20260810-subtab-state1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260722-combat-icons2">
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260721-galmuri-body1">
     <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1">
-    <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1-20260810-ux-refine1">
+    <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1">
     <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1-20260807-windowed-cube1">
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260722-health-menu-skin4">
     <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-health-menu-skin4-20260807-elemental-ehp1-20260810-management-ux1-20260810-ux-refine1">
     <link rel="stylesheet" href="css/typography-readability.css?v=20260721-galmuri-item-names1">
-    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-merged-tabs-timers1">
+    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-merged-tabs-timers1-20260811-status-clarity1">
     <link rel="stylesheet" href="css/ui-menu-sockets.css?v=20260723-menu-button-states2-20260805-merged-tab-scroll1">
     <link rel="stylesheet" href="css/growth-board.css?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1">
     <style>
@@ -511,7 +511,7 @@
                 <span class="stat-unit">%</span>
             </div>
             <div class="stat-item full character-ehp-block">
-                <div class="ailment-stat-title">속성별 실효 체력 <small>엔트로피 회피 포함</small></div>
+                <div class="ailment-stat-title">속성별 실효 체력</div>
                 <div id="ui-character-ehp" class="character-ehp-grid"></div>
             </div>
             <div class="stat-item full ailment-stat-block">
@@ -600,9 +600,14 @@
                 </div>
                 <button type="button" id="passive-search-clear">검색초기화</button>
             </div>
+            <section id="passive-tree-planner" class="passive-tree-planner" aria-label="패시브 트리 프리셋"></section>
             <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: radial-gradient(circle at 50% 45%, #1b1a22 0%, #0b0a10 48%, #030305 100%); border: none; border-radius: 6px; position: relative; overflow: hidden; margin-bottom: 10px; cursor: grab;">
                 <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
                 <div id="passive-tree-overlay" class="passive-tree-overlay" aria-hidden="true"><div class="passive-tree-overlay-world"></div></div>
+                <details id="passive-star-wedge-drawer" class="passive-star-wedge-drawer" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
+                    <summary><strong>☄ 별쐐기</strong><span>제작 · 장착 · 변성</span></summary>
+                    <div id="ui-star-wedge-panel"></div>
+                </details>
                 <aside id="passive-investment-summary" class="passive-investment-summary" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
                     <button type="button" class="passive-investment-summary-toggle" onclick="togglePassiveInvestmentSummary()" aria-expanded="true">
                         <span>투자 효과 총합</span><span class="passive-summary-chevron">▴</span>
@@ -610,7 +615,6 @@
                     <div id="passive-investment-summary-body" class="passive-investment-summary-body"></div>
                 </aside>
             </div>
-            <details class="progression-workbench"><summary>별쐐기 관리</summary><div id="ui-star-wedge-panel" style="background:#0f1018; border:1px solid #37274a; border-radius:10px; padding:10px;"></div></details>
         </div>
     </div>
 
@@ -807,21 +811,32 @@
         </div>
 
         <div id="item-tab-market" class="subtab-content">
-            <div class="forge-panel" style="border-color:#4b5f86;">
-                <h3>🏦 거래소</h3>
-                <div id="ui-market-locked" style="color:var(--copy-bright); font-size:0.9em;">액트 5 클리어 시 거래소가 해금됩니다.</div>
+            <div class="forge-panel market-shell">
+                <div class="market-page-header">
+                    <div><span class="market-page-kicker">SANCTUARY EXCHANGE</span><h3>🏦 거래소</h3></div>
+                    <p>고정 환율 교환, 한정 품목, 영구 서비스를 용도별로 나누어 확인할 수 있습니다.</p>
+                </div>
+                <div id="ui-market-locked" class="market-locked">액트 5 클리어 시 거래소가 해금됩니다.</div>
                 <div id="ui-market-panel" style="display:none;">
-                    <div id="ui-market-exchange-list" style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px;"></div>
-                    <div id="ui-market-black" style="margin-top:10px; background:#101722; border:1px solid #2b3f59; border-radius:8px; padding:8px;"></div>
-                    <div style="margin-top:12px; background:#111923; border:1px solid #30485f; border-radius:8px; padding:10px;">
-                        <div style="color:#f1c67d; margin-bottom:8px;">황금률 특수 서비스</div>
-                        <div id="ui-market-service-passive" style="margin-bottom:8px;"></div>
-                        <div id="ui-market-service-annul" style="margin-bottom:8px;"></div>
-                        <div id="ui-market-service-inv" style="margin-bottom:4px;"></div>
-                        <div id="ui-market-service-jewel-inv" style="margin-bottom:4px;"></div>
-                        <div id="ui-market-service-growth-inv" style="margin-bottom:4px;"></div>
-                        <div id="ui-market-service-pollen" style="margin-bottom:4px;"></div>
-                    </div>
+                    <section class="market-section market-section-exchange" aria-labelledby="market-exchange-title">
+                        <div class="market-section-heading"><div><span>고정 환율</span><h4 id="market-exchange-title">재화 교환</h4></div><p>보유 재화를 정해진 비율로 바꿉니다.</p></div>
+                        <div id="ui-market-exchange-list" class="market-exchange-list"></div>
+                    </section>
+                    <section class="market-section market-section-black" aria-labelledby="market-black-title">
+                        <div class="market-section-heading"><div><span>시간 한정</span><h4 id="market-black-title">암거래상</h4></div><p>품목을 잠그면 다음 갱신에서도 유지됩니다.</p></div>
+                        <div id="ui-market-black"></div>
+                    </section>
+                    <section class="market-section market-section-services" aria-labelledby="market-service-title">
+                        <div class="market-section-heading"><div><span>영구 기능</span><h4 id="market-service-title">특수 서비스</h4></div><p>황금률로 초기화·옵션 제거·보관 공간 확장을 이용합니다.</p></div>
+                        <div class="market-service-grid">
+                            <div id="ui-market-service-passive" class="market-service-card"></div>
+                            <div id="ui-market-service-annul" class="market-service-card market-service-card-wide"></div>
+                            <div id="ui-market-service-inv" class="market-service-card"></div>
+                            <div id="ui-market-service-jewel-inv" class="market-service-card"></div>
+                            <div id="ui-market-service-growth-inv" class="market-service-card"></div>
+                            <div id="ui-market-service-pollen" class="market-service-card market-service-card-wide"></div>
+                        </div>
+                    </section>
                 </div>
             </div>
         </div>
@@ -1415,8 +1430,8 @@
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260718-regional-passive1"></script>
 <script defer src="data/maps.js?v=20260719-tier-rift-stack1"></script>
-<script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260810-skill-vfx2"></script>
-<script defer src="data/items.js?v=20260723-currency-salvage1"></script>
+<script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260811-area-impact1"></script>
+<script defer src="data/items.js?v=20260723-currency-salvage1&defense-unique=20260811-rework1"></script>
 <script defer src="data/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="data/growth-items.js?v=20260807-growth-affix-balance1-20260807-flat-element-balance1"></script>
 <script defer src="data/passives.js?v=20260719-spiderweb-rollback1"></script>
@@ -1425,36 +1440,36 @@
 <script defer src="data/talent-cards.js?v=20260722-templar-overheal1"></script>
 <script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2"></script>
 <script defer src="js/ui-feedback.js?v=20260722-instant-choice1"></script>
-<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2"></script>
+<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1"></script>
 <script defer src="js/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records.js?v=20260808-records-tab1-20260808-background-fix1"></script>
 <script defer src="js/save.js?v=20260719-stutter-fix1&tactics=20260810-combat-tactics1"></script>
-<script defer src="js/items.js?v=20260719-white-copy1-20260807-base-upgrade-cost1"></script>
+<script defer src="js/items.js?v=20260719-white-copy1-20260810-market-clarity1"></script>
 <script defer src="js/skills.js?v=20260717-gem-flask-mobile1"></script>
-<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1"></script>
+<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1&presets=20260810-passive1&battle=20260811-body-cue1&void=20260811-reroll1&defense-unique=20260811-rework1&fx-backlog=20260811-clear1"></script>
 <script defer src="js/growth-board.js?v=20260806-growth-chase1"></script>
 <script defer src="js/growth-effects.js?v=20260806-growth-unique2"></script>
 <script defer src="js/growth-generation.js?v=20260807-growth-affix-balance1-20260807-growth-overflow1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1-20260807-canvas-lifecycle1"></script>
-<script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1"></script>
+<script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&boomerang=20260811-batched1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1"></script>
 <script defer src="js/cosmos-rules.js?v=20260810-endgame1"></script>
-<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1"></script>
+<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1"></script>
 <script defer src="js/combat-ehp.js?v=20260807-elemental-ehp1"></script>
-<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260810-skill-vfx2"></script>
+<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
-<script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1"></script>
-<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1"></script>
-<script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1"></script>
+<script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1-20260810-label-toggle1"></script>
+<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1"></script>
+<script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1&tooltip=20260811-tray1"></script>
 <script defer src="js/skills-ui.js?v=20260808-skills-screen1"></script>
 <script defer src="js/offline-progress-ui.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records-ui.js?v=20260808-records-tab1"></script>
-<script defer src="js/social.js?v=20260721-chat-notify-session-only1"></script>
+<script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1"></script>
 <script defer src="js/ui-window-manager.js?v=20260723-merged-tab-window-fix2"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
-<script defer src="js/goal-system.js?v=20260717-system-integrity1"></script>
+<script defer src="js/goal-system.js?v=20260717-system-integrity1-20260810-loop-cosmos-notice1"></script>
 <script defer src="js/talent-cards.js?v=20260722-templar-overheal1"></script>
-<script defer src="js/cosmos-atlas.js?v=20260719-white-copy1-20260810-ux-refine1"></script>
+<script defer src="js/cosmos-atlas.js?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>
 <script defer src="js/main.js?v=20260513-gemfix1"></script>
 </body>

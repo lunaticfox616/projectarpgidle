@@ -1377,7 +1377,7 @@ function renderMarketUI() {
     if (!lockedEl || !panelEl) return;
     let unlocked = isMarketUnlocked();
     lockedEl.style.display = unlocked ? 'none' : 'block';
-    panelEl.style.display = unlocked ? 'block' : 'none';
+    panelEl.style.display = unlocked ? 'grid' : 'none';
     if (!unlocked) return;
     refreshBlackMarket(false);
 
@@ -1389,12 +1389,14 @@ function renderMarketUI() {
             let spendAll = maxTimes * recipe.need;
             let gainAll = maxTimes * recipe.gain;
             let tone = (recipe.to === 'goldenRule' || recipe.from === 'goldenRule') ? 'divine' : (recipe.to === 'formlessDew' ? 'chaos' : 'basic');
+            let fromLabel = typeof getStyledOrbName === 'function' ? getStyledOrbName(recipe.from) : ORB_DB[recipe.from].name;
+            let toLabel = typeof getStyledOrbName === 'function' ? getStyledOrbName(recipe.to) : ORB_DB[recipe.to].name;
             return `<div class="market-card market-tone-${tone}">
-                <div class="market-title">${typeof getStyledOrbName === 'function' ? getStyledOrbName(recipe.from) : ORB_DB[recipe.from].name} ${recipe.need}개 → ${typeof getStyledOrbName === 'function' ? getStyledOrbName(recipe.to) : ORB_DB[recipe.to].name} ${recipe.gain}개</div>
-                <div class="market-row">
+                <div class="market-title market-exchange-rate"><span>${fromLabel} ${recipe.need}개</span><span class="market-exchange-arrow">→</span><span>${toLabel} ${recipe.gain}개</span></div>
+                <span class="market-meta">보유 ${fromLabel} ${have}개</span>
+                <div class="market-exchange-actions">
                     <button onclick="exchangeAtMarket('${recipe.id}', false)" ${maxTimes < 1 ? 'disabled' : ''}>1회 교환</button>
-                    <button onclick="exchangeAtMarket('${recipe.id}', true)" style="background:#5d6d7e; border-color:#465664;" ${maxTimes < 1 ? 'disabled' : ''}>모두 교환 (${spendAll}→${gainAll})</button>
-                    <span class="market-meta">보유: ${have}</span>
+                    <button class="market-exchange-all" onclick="exchangeAtMarket('${recipe.id}', true)" ${maxTimes < 1 ? 'disabled' : ''}>최대 ${spendAll} → ${gainAll}</button>
                 </div>
             </div>`;
         }).join('');
@@ -1417,7 +1419,7 @@ function renderMarketUI() {
         let options = removable.map((row, order) => `<option value="${row.index}">${order + 1}. ${row.stat.statName || getStatName(row.stat.id)} +${formatValue(row.stat.id, row.stat.val)}</option>`).join('');
         annulEl.innerHTML = `<div class="market-service-title">황금률 2개 → 선택 장비의 원하는 옵션 1줄 소멸</div>
         <div class="market-row">
-            <select id="sel-market-annul-stat" ${removable.length <= 0 ? 'disabled' : ''} style="min-width:260px; background:#0e141d; color:#ffffff; border:1px solid #35506b; border-radius:6px; padding:5px 8px;">${options || '<option>제거 가능한 옵션 없음</option>'}</select>
+            <select id="sel-market-annul-stat" ${removable.length <= 0 ? 'disabled' : ''}>${options || '<option>제거 가능한 옵션 없음</option>'}</select>
             <button onclick="marketAnnulSelectedStat(Number(document.getElementById('sel-market-annul-stat').value))" ${removable.length <= 0 || (game.currencies.goldenRule || 0) < 2 ? 'disabled' : ''}>옵션 1줄 소멸</button>
         </div>
         <div class="market-meta">대상: ${item ? `[${item.name}] · 제거 가능 ${removable.length}줄${protectedCount > 0 ? ` · 보호 ${protectedCount}줄 유지` : ''}` : '제작 대상 장비를 먼저 선택하세요.'}</div>`;
@@ -1533,7 +1535,7 @@ function renderMarketUI() {
         </div>
         <div class="market-insight"><div><span>시장 정보</span><strong>${refreshesLeft <= 0 ? '다음 갱신에 표적 고유 확정' : `표적 고유까지 ${refreshesLeft}회`}</strong></div><div class="market-insight-cells">${insightCells}</div><small>추적 부위의 도감 미등록 일반 고유를 우선 제시합니다. 체이싱 고유는 기존 희귀 확률을 유지합니다.</small></div>
         <div class="market-black-grid">${offers}</div>
-        <button style="margin-top:6px;" onclick="expandBlackMarketSlotsByDivine()" ${atCap || (game.currencies.goldenRule || 0) < getBlackMarketSlotExpandCost() ? 'disabled' : ''}>${expandLabel}</button>`;
+        <button class="market-black-expand" onclick="expandBlackMarketSlotsByDivine()" ${atCap || (game.currencies.goldenRule || 0) < getBlackMarketSlotExpandCost() ? 'disabled' : ''}>${expandLabel}</button>`;
     }
 }
 

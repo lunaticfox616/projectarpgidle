@@ -3,6 +3,7 @@
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
 function loadGrowthContext() {
     const context = {
@@ -263,6 +264,27 @@ assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋
     // 드래그 중 툴팁이 커서를 따라다니면 정작 봐야 할 미리보기와 칸 레벨을 가린다.
     assert.ok(/function showGrowthItemTooltip[\s\S]{0,300}growthDrag[\s\S]{0,80}return;/.test(ui),
         '드래그 중에는 아이템 툴팁을 띄우지 않아야 한다');
+}
+
+// 빠른 배치함도 공용 툴팁의 유효 앵커여야 한다. 이 표식이 없으면 카드의
+// onmousemove가 툴팁을 연 직후 ui.js의 전역 mousemove 경계가 다시 닫는다.
+{
+    const uiRuntime = buildGameRuntime();
+    vm.runInContext(`
+        game.season = 60;
+        game.growthInventory = [{
+            id: 701, growthShapeId: 'dot1', growthCategory: 'flower',
+            growthBaseId: 'gf_sun_bloom', name: '빠른 배치 시험', rarity: 'rare',
+            baseStats: [], stats: []
+        }];
+        ensureGrowthBoardState();
+        syncGrowthBoardUnlocks({ silent: true });
+    `, uiRuntime);
+    const trayHtml = vm.runInContext('renderGrowthPlacementTray()', uiRuntime);
+    assert.ok(trayHtml.includes('data-info-tooltip-anchor="1"'),
+        '빠른 배치함 카드는 마우스가 머무는 동안 공용 툴팁이 닫히지 않는 앵커여야 한다');
+    assert.ok(trayHtml.includes('showGrowthItemTooltip(event, 701)'),
+        '빠른 배치함 카드는 실제 생장판 툴팁 렌더 경로를 사용해야 한다');
 }
 
 // 배치된 생장판을 보드에서 해제 영역으로 끌면 실제 배치 상태가 해제되어야 한다.
