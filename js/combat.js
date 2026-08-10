@@ -25,6 +25,7 @@ const COMBAT_TACTIC_STALL_MS = 2000;
 const COMBAT_TACTIC_MAX_RETREATS = 2;
 let combatTacticsRuntime = createCombatTacticsRuntime();
 let combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+let combatChannelResumeSkillName = '';
 let nextCombatChannelId = 1;
 
 function createCombatTacticsRuntime(now) {
@@ -42,6 +43,7 @@ function resetCombatTacticsRuntime() {
 
 function resetCombatChannelRuntime() {
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+    combatChannelResumeSkillName = '';
     pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
 }
 
@@ -55,6 +57,7 @@ function cancelCombatChannel(reason) {
     let channelId = combatChannelRuntime.id;
     pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || row.channelId !== channelId);
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+    combatChannelResumeSkillName = '';
     if (reason) addBattleFx('statusText', { text: `집중 취소 · ${reason}`, color: '#d7b8ff', duration: 480 });
     return true;
 }
@@ -66,17 +69,51 @@ function updateCombatChannelRuntime(now) {
         cancelCombatChannel('군중 제어');
         return false;
     }
-    if (timestamp >= combatChannelRuntime.endAt) combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+    if (timestamp >= combatChannelRuntime.endAt) {
+        combatChannelResumeSkillName = combatChannelRuntime.skillName;
+        combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+        pTimer = Math.max(1, Number.isFinite(pTimer) ? pTimer : 0);
+    }
     return combatChannelRuntime.id > 0;
 }
 
-function beginCombatChannel(skillName, stages, baseDelayMs) {
-    let lastDelay = (stages || []).reduce((max, stage) => Math.max(max, Number(stage && stage.delayMs) || 0), 0);
+function beginCombatChannel(skillName, baseDelayMs, cycleMs) {
     combatChannelRuntime = {
         id: nextCombatChannelId++, skillName: String(skillName || ''),
-        endAt: Date.now() + Math.max(1, Number(baseDelayMs) || 0) + lastDelay + 120
+        endAt: Date.now() + Math.max(0, Number(baseDelayMs) || 0) + Math.max(1, Number(cycleMs) || 1)
     };
     return combatChannelRuntime.id;
+}
+
+function getCombatChannelCycleMs(attackSpeed) {
+    let attacksPerSecond = Math.max(0.01, Number(attackSpeed) || 1);
+    return Math.max(100, Math.min(5000, Math.round(1000 / attacksPerSecond)));
+}
+
+function createContinuousChannelStages(stages, cycleMs) {
+    let source = Array.isArray(stages) ? stages : [];
+    let stepMs = Math.max(1, Math.floor(Math.max(1, cycleMs) / Math.max(1, source.length)));
+    return source.map((stage, index) => ({ ...stage, delayMs: index * stepMs }));
+}
+
+function consumeCombatChannelContinuation(skillName) {
+    let continues = combatChannelResumeSkillName === String(skillName || '');
+    combatChannelResumeSkillName = '';
+    return continues;
+}
+
+function getCombatChannelGate(pStats, now) {
+    let timestamp = Number.isFinite(now) ? now : Date.now();
+    let active = !!combatChannelRuntime.id && timestamp < combatChannelRuntime.endAt;
+    let ready = combatChannelResumeSkillName === String(game.activeSkill || '');
+    if (!active && !ready) return { endAt: 0, locked: false, hasTargets: false };
+    if (ready && hasPlayerChannelBreakingAilment()) {
+        combatChannelResumeSkillName = '';
+        return { endAt: 0, locked: false, hasTargets: false };
+    }
+    let hasTargets = getSkillTargets(pStats).length > 0;
+    if (ready && !hasTargets) combatChannelResumeSkillName = '';
+    return { endAt: active ? combatChannelRuntime.endAt : 0, locked: active || (ready && hasTargets), hasTargets };
 }
 
 function getTacticalMoveAttackDelayMs(moveSpeed) {
@@ -1036,7 +1073,8 @@ function runColonyDefenseTick(pStats) {
     tickEnemyDotEffects(pStats, 0.1);
     tickEnemyAilments(pStats, 0.1);
     let nowCast = Date.now();
-    let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0);
+    let channelGate = getCombatChannelGate(pStats, nowCast);
+    let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0, channelGate.endAt);
     let castBlocked = nowCast < castUntil;
     if (!castBlocked) pTimer += 0.1 * pStats.aspd;
     while (!castBlocked && pTimer >= 1.0 && (game.enemies || []).length > 0) {
@@ -2440,13 +2478,12 @@ function coreLoop() {
         tickEnemyDotEffects(pStats, 0.1);
         tickEnemyAilments(pStats, 0.1);
         let nowCast = Date.now();
-        let channelEndAt = combatChannelRuntime.id ? combatChannelRuntime.endAt : 0;
-        let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0, channelEndAt);
+        let channelGate = getCombatChannelGate(pStats, nowCast);
+        let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0, channelGate.endAt);
         if (!Number.isFinite(castUntil) || castUntil < 0) castUntil = 0;
         if (castUntil > nowCast + 5000) { castUntil = nowCast + 500; game.playerCastDelayUntil = castUntil; }
         let castBlocked = nowCast < castUntil;
-        let channelLocked = combatChannelRuntime.id && nowCast < combatChannelRuntime.endAt;
-        let inSkillRange = channelLocked ? getSkillTargets(pStats).length > 0 : updatePlayerGridEngagement(pStats);
+        let inSkillRange = channelGate.locked ? channelGate.hasTargets : updatePlayerGridEngagement(pStats);
         if (!castBlocked) {
             pTimer += 0.1 * pStats.aspd;
             // 사거리 밖이면 스윙 게이지를 1회분까지만 모아 두고, 붙는 즉시 공격한다.
@@ -2567,6 +2604,7 @@ function copyCombatGridCell(unit) {
 
 function getSkillCombatDelivery(skill) {
     let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
+    if (skill && skill.combatPattern && skill.combatPattern.kind === 'channel') return 'magicCell';
     if (tags.includes('projectile') || (skill && skill.targetMode === 'pierce')) {
         return skill && skill.targetMode === 'pierce' ? 'projectileCell' : 'projectileTarget';
     }
@@ -2643,6 +2681,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
     let patternKind = pStats && pStats.sSkill && pStats.sSkill.combatPattern
         ? pStats.sSkill.combatPattern.kind : null;
     let finalStageDelayMs = (stages || []).reduce((max, stage) => Math.max(max, Number(stage && stage.delayMs) || 0), 0);
+    let channelDurationMs = Math.max(finalStageDelayMs, Math.floor(Number(attackContext.channelCycleMs) || 0));
     (stages || []).forEach((stage, stageOffset) => {
         if (!stage || !Array.isArray(stage.targets) || stage.targets.length <= 0) return;
         let targetEntries = stage.targets.map(entry => ({ enemyId: entry.enemy.id, mult: Math.max(0, Number(entry.mult) || 1) }));
@@ -2664,7 +2703,8 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             launchAt: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt : now,
             zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
             channelId: Math.max(0, Math.floor(Number(attackContext.channelId) || 0)),
-            fieldDurationMs: ['field', 'channel'].includes(patternKind) ? baseDelay + finalStageDelayMs + 320 : 0,
+            fieldDurationMs: patternKind === 'channel' ? baseDelay + channelDurationMs + 120
+                : (patternKind === 'field' ? baseDelay + finalStageDelayMs + 320 : 0),
             options: {
                 stageReplay: true, skipSlamEcho: true, skillName: attackContext.skillName,
                 forcedCrit: !!attackContext.forcedCrit, forcedElement: attackContext.forcedElement,
@@ -8529,6 +8569,7 @@ function performPlayerAttack(pStats, attackOptions) {
     let options = attackOptions || {};
     let isStageReplay = !!options.stageReplay;
     let skillName = options.skillName || game.activeSkill;
+    let channelContinuationRequested = !isStageReplay && consumeCombatChannelContinuation(skillName);
     if (!isStageReplay && typeof consumeOceanOxygenOnAttack === 'function') consumeOceanOxygenOnAttack();
     if (!isStageReplay && Array.isArray(game.queenBees) && game.queenBees.length > 0) {
         let now = Date.now();
@@ -8641,9 +8682,14 @@ function performPlayerAttack(pStats, attackOptions) {
     // enough time to be visible. Slams deliberately carry the longest wind-up.
     let attackMotionMs = attackTags.includes('slam') ? 460 : (attackTags.includes('projectile') ? 400 : 360);
     if (!isStageReplay) {
-        let channelId = attackTags.includes('channeling')
-            ? beginCombatChannel(skillName, pendingStages, attackMotionMs) : 0;
-        noteCombatTacticAttack(attackMotionMs);
+        let isChannel = attackTags.includes('channeling');
+        let channelContinuation = isChannel && channelContinuationRequested;
+        let channelCycleMs = isChannel ? getCombatChannelCycleMs(pStats.aspd) : 0;
+        let scheduledStages = isChannel ? createContinuousChannelStages(pendingStages, channelCycleMs) : pendingStages;
+        let stageBaseDelayMs = channelContinuation ? 0 : attackMotionMs;
+        let channelId = isChannel ? beginCombatChannel(skillName, stageBaseDelayMs, channelCycleMs) : 0;
+        let actionDurationMs = isChannel ? stageBaseDelayMs + channelCycleMs : attackMotionMs;
+        noteCombatTacticAttack(actionDurationMs);
         addBattleFx('playerSwing', {
             color: getElementColor(swingElement),
             element: swingElement,
@@ -8651,10 +8697,10 @@ function performPlayerAttack(pStats, attackOptions) {
             projectile: (pStats.sSkill.tags || []).includes('projectile'),
             combatTravel: getSkillCombatDelivery(pStats.sSkill) !== 'instantTarget',
             skillName: skillName,
-            duration: attackMotionMs,
-            impactDelayMs: attackMotionMs
+            duration: actionDurationMs,
+            impactDelayMs: stageBaseDelayMs
         });
-        queuePendingSkillStageHits(pendingStages, pStats, {
+        queuePendingSkillStageHits(scheduledStages, pStats, {
             skillName: skillName,
             forcedCrit: isCrit,
             forcedElement: swingElement,
@@ -8663,7 +8709,8 @@ function performPlayerAttack(pStats, attackOptions) {
             attackDamageMultiplier: colosseumStrikeMul,
             talentMoonReturn: talentMoonReturn,
             channelId: channelId,
-            baseDelayMs: attackMotionMs
+            channelCycleMs: channelCycleMs,
+            baseDelayMs: stageBaseDelayMs
         });
         return;
     }

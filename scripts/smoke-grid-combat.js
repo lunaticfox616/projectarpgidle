@@ -1143,6 +1143,34 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.strictEqual(target.hp, target.maxHp, '채널링 중 동결되면 예약된 후속 타격이 남아 피해를 주면 안 된다');
 
+  resetGame();
+  context.game.activeSkill = '집중 광선';
+  context.game.skills = ['기본 공격', '집중 광선'];
+  context.game.playerAilments = [];
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const sustainedTarget = makeEnemy(302, 5, 6, { hp: 100000, maxHp: 100000 });
+  context.game.enemies = [sustainedTarget];
+  const sustainedStats = context.getPlayerStats();
+  const cycleMs = context.getCombatChannelCycleMs(sustainedStats.aspd);
+  const runtimeStages = context.createContinuousChannelStages(channelStages, cycleMs);
+  assert.strictEqual(runtimeStages[0].delayMs, 0, '채널링 첫 틱은 주기 시작과 함께 예약되어야 한다');
+  assert.ok(runtimeStages.every((stage, index) => index === 0 || stage.delayMs > runtimeStages[index - 1].delayMs), '채널링 틱은 공격 주기 전체에 균등하게 이어져야 한다');
+  const fastestStages = context.createContinuousChannelStages(channelStages, context.getCombatChannelCycleMs(100));
+  assert.ok(fastestStages[fastestStages.length - 1].delayMs < 100, '공격 속도 상한에서도 모든 채널 틱이 다음 주기 전에 예약되어야 한다');
+  context.performPlayerAttack(sustainedStats);
+  vm.runInContext('pendingSkillStageHits = []; combatChannelRuntime.endAt = 0; pTimer = 0; updateCombatChannelRuntime(Date.now());', context);
+  assert.strictEqual(vm.runInContext('pTimer', context), 1, '채널 주기가 끝나면 다음 집중을 즉시 이어갈 수 있어야 한다');
+  assert.strictEqual(vm.runInContext('combatChannelResumeSkillName', context), context.game.activeSkill, '종료된 채널은 같은 스킬의 연속 집중 상태를 보존해야 한다');
+  assert.ok(sustainedStats.sSkill.tags.includes('channeling'), '연속 집중 검증 스킬은 채널링 태그를 유지해야 한다');
+  context.performPlayerAttack(sustainedStats);
+  const continuationRows = vm.runInContext('pendingSkillStageHits.map(row => ({ at: row.at, channelId: row.channelId }))', context);
+  const continuationRuntimeRemaining = vm.runInContext('combatChannelRuntime.endAt - Date.now()', context);
+  assert.strictEqual(continuationRows.length, 5, '이어지는 집중도 같은 수의 피해 틱을 예약해야 한다');
+  const continuationDelay = continuationRows[0].at - Date.now();
+  assert.ok(continuationDelay < 120, `이어지는 집중은 재시전 선딜 없이 바로 첫 피해 틱을 예약해야 한다 (${continuationDelay}ms)`);
+  assert.ok(continuationRuntimeRemaining <= cycleMs + 100, '이어지는 집중 주기에 최초 시전 선딜이 다시 붙으면 안 된다');
+  assert.ok(new Set(continuationRows.map(row => row.channelId)).size === 1 && continuationRows[0].channelId > 0, '이어지는 집중 틱은 하나의 새 채널 주기에 속해야 한다');
+
   assert.strictEqual(context.getSummonProfile('폭풍 정령 소환').gridRange, 4, '폭풍 정령은 원거리 소환수 계약을 사용해야 한다');
   assert.ok(context.getSummonProfile('철갑 거북 소환').baseArmor > context.getSummonProfile('불곰 소환').baseArmor, '철갑 거북은 기존 근접 소환수보다 높은 방어도를 가져야 한다');
   resetGame();
