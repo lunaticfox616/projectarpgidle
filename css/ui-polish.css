@@ -203,7 +203,8 @@ body:not(.light-mode) #info-tooltip {
   box-shadow: 0 14px 34px rgba(0,0,0,.55);
   backdrop-filter: blur(2px);
 }
-body:not(.light-mode) #item-tooltip-box.item-compare-tooltip {
+body:not(.light-mode) #item-tooltip-box.item-compare-tooltip,
+body:not(.light-mode) #info-tooltip.item-compare-tooltip {
   background: transparent;
   border: 0;
   box-shadow: none;
