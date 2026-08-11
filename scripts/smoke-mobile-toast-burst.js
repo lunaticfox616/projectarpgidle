@@ -10,7 +10,8 @@ function readFunctionSource(source, name) {
     const start = source.indexOf(`function ${name}`);
     assert.ok(start >= 0, `${name} must exist`);
     let depth = 0;
-    for (let index = source.indexOf('{', start); index < source.length; index++) {
+    const bodyStart = source.indexOf('{', source.indexOf(')', start));
+    for (let index = bodyStart; index < source.length; index++) {
         if (source[index] === '{') depth++;
         if (source[index] !== '}') continue;
         depth--;
@@ -31,25 +32,35 @@ const context = {
         getElementById(id) { return createdElements.find(element => element.id === id) || null; },
         createElement() {
             let element = { style: {}, appendChild() {}, remove() {}, parentNode: { removeChild() {} } };
+            Object.defineProperty(element, 'innerHTML', {
+                set(value) { this.textContent = String(value).replace(/<[^>]*>/g, ''); }
+            });
             createdElements.push(element);
             return element;
         },
         body: { appendChild() {} }
     },
     setTimeout(fn, ms) { let entry = { fn, ms }; pendingTimeouts.push(entry); return entry; },
-    requestAnimationFrame(fn) { rafQueue.push(fn); return rafQueue.length; }
+    requestAnimationFrame(fn) { rafQueue.push(fn); return rafQueue.length; },
+    matchMedia() { return { matches: true }; },
+    game: { settings: { showCombatLog: true } }
 };
 context.window = context;
 context.globalThis = context;
 vm.createContext(context);
 
 const varsSource = 'let mobileToastQueue = [];\nlet mobileToastActiveCount = 0;\nconst MOBILE_TOAST_MAX_CONCURRENT = 3;\n';
-const fnNames = ['getMobileToastRoot', 'stripHtmlMessage', 'enqueueMobileToast', 'pumpMobileToastQueue', 'getMobileToastDisplayDurationMs', 'showNextMobileToast'];
+const fnNames = ['shouldShowMobileToast', 'getMobileToastRoot', 'stripHtmlMessage', 'enqueueMobileToast', 'pumpMobileToastQueue', 'getMobileToastDisplayDurationMs', 'showNextMobileToast'];
 const combined = varsSource + fnNames.map(name => readFunctionSource(uiSource, name)).join('\n') + '\n'
     + fnNames.map(name => `this.${name} = ${name};`).join('\n')
     + '\nthis.getMobileToastQueue = function(){ return mobileToastQueue; };'
     + '\nthis.getMobileToastActiveCount = function(){ return mobileToastActiveCount; };';
 vm.runInContext(combined, context, { filename: 'mobile-toast.js' });
+
+assert.strictEqual(context.shouldShowMobileToast('적 6마리 참전', 'attack-monster'), false,
+    'routine combat log entries must not cover mobile controls as toasts');
+assert.strictEqual(context.shouldShowMobileToast('재화가 부족합니다', 'attack-monster'), true,
+    'important failures should remain visible on mobile');
 
 function flushAllTimeouts() {
     while (pendingTimeouts.length > 0) {

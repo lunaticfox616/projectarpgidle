@@ -4,15 +4,31 @@ const fs = require('fs');
 const html = fs.readFileSync('index.html', 'utf8');
 const mobileCss = fs.readFileSync('css/mobile.css', 'utf8');
 const gameCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
+const assetCss = fs.readFileSync('css/ui-asset-skins.css', 'utf8');
 const ui = fs.readFileSync('js/ui.js', 'utf8');
 
 assert.ok(html.includes('id="ui-combat-flasks"'), 'combat HUD should expose the flask charge strip');
 assert.ok(mobileCss.includes('height: clamp(210px, 42svh, 360px) !important'), 'phone battlefields need a playable viewport height');
 assert.ok(mobileCss.includes('grid-template-columns: repeat(2, minmax(0, 1fr)) !important'), 'dense mobile map layouts should collapse to two columns');
 assert.ok(mobileCss.includes('@media (max-width: 480px)'), 'small phones need a dedicated one-column breakpoint');
+assert.ok(mobileCss.includes('min-height: 48px'), 'mobile tab rails need enough height for touch controls');
+assert.ok(mobileCss.includes('min-height: 44px !important'), 'mobile tabs need a 44px touch target');
+assert.ok(mobileCss.includes('scroll-snap-type: x proximity'), 'wide mobile tab rails should settle on readable tab boundaries');
+assert.ok(/#tab-skills \.search-filter-panel\s*\{[^}]*box-sizing:\s*border-box/.test(mobileCss), 'skill search controls must stay inside the phone viewport');
 assert.ok(gameCss.includes('.gem-engrave-slot-dialog'), 'engraving slot selection needs a responsive in-game dialog');
 assert.ok(gameCss.includes('.combat-flask-mini'), 'combat flask charges need dedicated readable controls');
 assert.ok(ui.indexOf('function renderCombatFlaskHud()') < ui.indexOf('function updateCombatUI('), 'the dynamic combat HUD renderer must live in updateCombatUI scope');
+assert.ok(ui.includes('width:112px; height:64px'), 'mobile battle PiP should not cover a full card or action row');
+assert.ok(ui.includes("host.setAttribute('aria-label', '전투 화면으로 이동')"), 'mobile battle PiP needs an accessible action name');
+assert.ok(mobileCss.includes('.combat-dashboard { display: contents !important; }'), 'mobile combat HUD sections should share one explicit vertical order');
+assert.ok(mobileCss.includes('#enemy-area { order: -2; }'), 'the enemy gauge should render above the battlefield on mobile');
+assert.ok(mobileCss.includes('.player-hud { order: 2; }'), 'the player gauge and flasks should render below the battlefield on mobile');
+assert.ok(mobileCss.includes('.combat-feed.collapsed #log { display: block;'), 'a collapsed mobile combat log must keep recent entries visible');
+assert.ok(/player-hud-identity-row\s*\{[\s\S]*?position:\s*static;[\s\S]*?width:\s*100%;/.test(assetCss), 'mobile player identity text should use the full HUD width instead of clipping inside the desktop frame slot');
+assert.ok(/\.startup-panel\.hero,[\s\S]*?\.startup-hero-copy\s*\{\s*display:\s*contents;/.test(gameCss), 'mobile startup content should be reorderable without duplicating the login form');
+assert.ok(gameCss.includes('.startup-panel.auth { order: 1;'), 'the login form should appear before local-save details on mobile');
+assert.ok(gameCss.includes('box-sizing: border-box;'), 'the mobile login panel must include padding within the viewport width');
+assert.ok(gameCss.includes('.startup-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr));'), 'mobile local-save details should remain compact');
 
 // 부적 보드는 8열 고정이다. 칸 크기를 42px로 박아 두면 보드 폭이 364px이 되어
 // 360px 기기에서 오른쪽 열이 화면 밖으로 29px 밀려 나가고, 가로 스크롤도 없어

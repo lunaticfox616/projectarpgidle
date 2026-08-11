@@ -20,7 +20,7 @@ let mapZoneGroupCollapseState = { hunting: false, chaos: false };
 let mobilePipCanvas = null;
 var lod = 1; // fallback for any legacy FX paths
 let mobilePipCtx = null;
-let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 94, lastTapAt: 0 };
+let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 76 };
 let mobilePipRefreshHandle = null;
 let mobilePipRefreshErrorReported = false;
 let battleAssetDeferredInitHandle = null;
@@ -991,7 +991,10 @@ function ensureMobileBattlePip() {
     if (!host) {
         host = document.createElement('div');
         host.id = 'mobile-battle-pip';
-        host.style.cssText = 'position:fixed; right:10px; bottom:94px; width:148px; height:84px; border:1px solid #4c6b93; border-radius:10px; overflow:hidden; background:#0a1320; z-index:9997; display:none; box-shadow:0 8px 20px rgba(0,0,0,.35);';
+        host.style.cssText = 'position:fixed; right:10px; bottom:76px; width:112px; height:64px; border:1px solid #4c6b93; border-radius:8px; overflow:hidden; background:#0a1320; z-index:9997; display:none; opacity:.86; box-shadow:0 6px 16px rgba(0,0,0,.3);';
+        host.setAttribute('role', 'button');
+        host.setAttribute('aria-label', '전투 화면으로 이동');
+        host.title = '탭하여 전투 화면으로 이동 · 드래그하여 위치 변경';
         host.style.touchAction = 'none';
         host.addEventListener('pointerdown', (e) => {
             mobilePipDrag.active = true;
@@ -999,7 +1002,7 @@ function ensureMobileBattlePip() {
             mobilePipDrag.startX = e.clientX;
             mobilePipDrag.startY = e.clientY;
             mobilePipDrag.baseRight = parseFloat(host.dataset.right || '10') || 10;
-            mobilePipDrag.baseBottom = parseFloat(host.dataset.bottom || '94') || 94;
+            mobilePipDrag.baseBottom = parseFloat(host.dataset.bottom || '76') || 76;
             host.setPointerCapture && host.setPointerCapture(e.pointerId);
             e.preventDefault();
         });
@@ -1021,13 +1024,7 @@ function ensureMobileBattlePip() {
             mobilePipDrag.active = false;
             host.releasePointerCapture && host.releasePointerCapture(e.pointerId);
             if (wasMoved) return;
-            let now = Date.now();
-            if (now - mobilePipDrag.lastTapAt < 320) {
-                mobilePipDrag.lastTapAt = 0;
-                switchTab('tab-battle');
-            } else {
-                mobilePipDrag.lastTapAt = now;
-            }
+            switchTab('tab-battle');
         });
         let c = document.createElement('canvas');
         c.width = 296; c.height = 168;
@@ -1050,7 +1047,7 @@ function updateMobileBattlePipVisibility() {
     let blocked = isStartupOverlayOpen() || isLoadingOverlayOpen();
     host.style.display = (isMobile && !activeBattle && !blocked && game.settings && game.settings.showMobileBattlePip !== false) ? 'block' : 'none';
     host.style.right = (host.dataset.right || '10') + 'px';
-    host.style.bottom = (host.dataset.bottom || '94') + 'px';
+    host.style.bottom = (host.dataset.bottom || '76') + 'px';
     if (host.style.display !== 'none') {
         let src = document.getElementById('battlefield-canvas');
         if (src && !activeBattle && mobilePipCanvas) {
@@ -5484,9 +5481,7 @@ function shouldShowMobileToast(msg, cls, opts = {}) {
     if (importantFailure) return true;
     let level = cls || '';
     if (level === 'attack-monster') {
-        let noisyCombat = /(피격|상태이상|점화|중독|출혈|감전|냉각|도트|지속\s*피해)/.test(text || '');
-        if (noisyCombat) return false;
-        return true;
+        return false;
     }
     if (level === 'season-up' || level === 'loot-unique') return true;
     return false;
@@ -13482,7 +13477,9 @@ function setStartupOverlayActive(active) {
     startupOverlayActive = !!active;
     document.body.classList.toggle('startup-active', startupOverlayActive);
     let overlay = document.getElementById('startup-overlay');
-    if (overlay) overlay.classList.toggle('active', startupOverlayActive);
+    if (!overlay) return;
+    overlay.classList.toggle('active', startupOverlayActive);
+    if (startupOverlayActive) overlay.scrollTop = 0;
 }
 
 function setLoadingOverlayState(active, options = {}) {

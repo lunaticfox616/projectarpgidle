@@ -176,15 +176,17 @@ const bodyCueLayout = vm.runInContext(`(() => {
   const rows = battleVisualState.damageTexts.map(text => ({ bodyCue: text.bodyCue, stackShiftTo: text.stackShiftTo, duration: text.duration }));
   battleVisualState.damageTexts = [battleVisualState.damageTexts[1]];
   let font = '';
-  const ctx = { save() {}, restore() {}, strokeText() {}, fillText() { font = this.font; } };
+  let drawY = 0;
+  const ctx = { save() {}, restore() {}, strokeText() {}, fillText(value, x, y) { font = this.font; drawY = y; } };
   drawDamageTexts(ctx, 1600);
-  return { rows, font };
+  return { rows, font, drawY };
 })()`, context);
 assert.strictEqual(bodyCueLayout.rows[0].stackShiftTo, 0, 'body cues must not push ordinary damage labels into the damage-number stack');
 assert.strictEqual(bodyCueLayout.rows[1].bodyCue, true, 'evasion feedback should use the body-cue presentation');
 assert.strictEqual(bodyCueLayout.rows[1].stackShiftTo, 0, 'evasion body cues must stay out of the damage-number stack');
 assert.strictEqual(bodyCueLayout.rows[1].duration, 420, 'evasion body cues should clear quickly beside the character');
 assert.ok(bodyCueLayout.font.includes('11px'), 'body cues should be visibly smaller than ordinary damage numbers');
+assert.strictEqual(bodyCueLayout.drawY, 220, 'body cues must stay fixed beside the character instead of rising like damage numbers');
 
 for (let index = 0; index < 18; index++) {
   assert.ok(fs.existsSync(`assets/background/chaos/endgame-${index}.png`), `chaos backdrop ${index} should exist`);
@@ -208,7 +210,7 @@ assert.ok(fs.existsSync('assets/effects/boss-telegraph-pulse-v1.png'), 'generate
 [
   'skill-whirlwind-v1.png', 'skill-chain-primary-v1.png', 'skill-chain-jump-v1.png',
   'skill-slam-primary-v1.png', 'skill-slam-aftershock-v1.png', 'skill-slash-v1.png',
-  'skill-projectile-v1.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
+  'skill-projectile-v1.png', 'skill-venom-fang-v1.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
   'skill-chaos-boomerang-v1.png', 'skill-burst-v1.png', 'skill-dot-field-v1.png',
   'skill-summon-strike-v1.png',
 ].forEach(file => assert.ok(fs.existsSync(`assets/effects/${file}`), `generated skill VFX ${file} should exist`));
@@ -233,11 +235,14 @@ const sigilDrawCounts = vm.runInContext(`(() => {
   }
   const slash = makeCtx();
   const slam = makeCtx();
+  const venom = makeCtx();
   drawSkillGemSigil(slash, '연속 베기', 80, 0.5, 'phys');
   drawSkillGemSigil(slam, '묵직한 강타', 80, 0.5, 'phys');
-  return { slash: [slash.strokes, slash.fills], slam: [slam.strokes, slam.fills] };
+  drawSkillGemSigil(venom, '독니 사출', 80, 0.5, 'chaos');
+  return { slash: [slash.strokes, slash.fills], slam: [slam.strokes, slam.fills], venom: [venom.strokes, venom.fills] };
 })()`, context);
 assert.notDeepStrictEqual(Array.from(sigilDrawCounts.slash), Array.from(sigilDrawCounts.slam), 'different gems should render different sigil geometry');
+assert.deepStrictEqual(Array.from(sigilDrawCounts.venom), [0, 0], 'venom fang should not add a procedural rune over its dedicated projectile image');
 const projectileVfxShapes = vm.runInContext(`(() => {
   function signature(style) {
     const calls = [];
@@ -248,11 +253,19 @@ const projectileVfxShapes = vm.runInContext(`(() => {
     return calls.join('|');
   }
   const styles = ['fire', 'cold', 'light', 'chaos', 'shield', 'potion'];
-  return { styles: styles.map(signature), shield: getSkillProjectileVfxStyle('방패 투척', 'phys'), potion: getSkillProjectileVfxStyle('원소 포션 투척', 'fire') };
+  return {
+    styles: styles.map(signature),
+    shield: getSkillProjectileVfxStyle('방패 투척', 'phys'),
+    potion: getSkillProjectileVfxStyle('원소 포션 투척', 'fire'),
+    venomAsset: SKILL_GEM_VFX_PROFILES['독니 사출'].projectileAsset,
+    venomImpact: SKILL_GEM_VFX_PROFILES['독니 사출'].impactVfx,
+  };
 })()`, context);
 assert.strictEqual(new Set(projectileVfxShapes.styles).size, 6, '화염·냉기·번개·카오스·방패·포션 투사체는 서로 다른 실루엣으로 그려야 한다');
 assert.strictEqual(projectileVfxShapes.shield, 'shield', '방패 투척은 물리 화살 대신 회전 방패 실루엣을 사용해야 한다');
 assert.strictEqual(projectileVfxShapes.potion, 'potion', '포션 투척은 화염탄 대신 병 실루엣을 사용해야 한다');
+assert.strictEqual(projectileVfxShapes.venomAsset, 'venomFang', 'venom fang should use its dedicated image projectile');
+assert.strictEqual(projectileVfxShapes.venomImpact, false, 'venom fang should not layer a generic impact burst over the image projectile');
 const skillGemArtCoverage = vm.runInContext(`(() => {
   const gems = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
   return {
@@ -267,6 +280,7 @@ skillGemArtCoverage.paths.forEach(file => assert.ok(fs.existsSync(file), `skill 
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png'"), 'battle asset loader should preload skill VFX images');
 assert.ok(passiveSource.includes("skillFxFrostField: 'assets/effects/skill-frost-field-v1.png'"), 'battle asset loader should preload specialized combat pattern images');
+assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v1.png'"), 'battle asset loader should preload the venom fang projectile image');
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
 assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
 assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wood monster sheets should bypass legacy backdrop sanitization');
@@ -275,6 +289,7 @@ assert.ok(passiveSource.includes('boss: ['), 'boss variants should retain the de
 assert.ok(passiveSource.includes("const frameKey = getPassiveNodeFrameKey(node)"), 'passive nodes should select their dedicated frame assets');
 assert.ok(!passiveSource.includes('if (!lightweightMode && useMajorFrame'), 'drag optimization should not hide passive frame images');
 const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
+const luxeCss = fs.readFileSync('css/ui-luxe.css', 'utf8');
 assert.ok(!windowCss.includes('border-image-source:'), 'regular windows should avoid a visually noisy full-image frame');
 assert.ok(windowCss.includes('> .ui-window-resize'), 'window resize handle should retain an explicit absolute layer');
 assert.ok(windowCss.includes('border: 1px solid rgba(111, 151, 188, .58);'), 'regular windows should use a restrained one-pixel frame');
@@ -297,6 +312,8 @@ const enemyUiSource = fs.readFileSync('js/ui.js', 'utf8');
 assert.ok(enemyUiSource.includes("outlineColor: enemy.isBoss ? '#a84e49' : (enemy.isElite ? '#e2b94f' : null)"), 'elite and boss monsters should have restrained yellow and red outlines');
 assert.ok(enemyUiSource.includes('let animationFrames = Array.isArray(variantEntry.frames)'), 'wood monster variants should animate instead of rendering a whole sheet or a frozen cell');
 const battlefieldSource = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
+assert.ok(battlefieldSource.includes("caption = '지역 탐색 중';"), 'empty encounter intervals should use the concise exploration caption');
+assert.ok(luxeCss.includes('top: 12px;') && luxeCss.includes('left: 14px;') && luxeCss.includes('bottom: auto;'), 'the battlefield caption should stay in the upper-left safe area instead of covering player effects');
 assert.ok(battlefieldSource.includes('playerPos.y - 82'), 'the player overhead health bar should clear tall character sprites and head ornaments');
 assert.ok(battlefieldSource.includes('enemy.isBoss ? 78 : 56'), 'enemy overhead health bars should clear normal and boss sprites');
 assert.ok(!battlefieldSource.includes('let flashFx = (battleFx || []).find'), 'battlefield rendering should not flash the full screen on impact');
@@ -328,12 +345,31 @@ const combatPatternImages = vm.runInContext(`[
   getCombatTravelImageKey({ patternKind: 'field' }),
   getCombatTravelImageKey({ patternKind: 'moving' }),
   getCombatTravelImageKey({ patternKind: 'boomerang' }),
+  getCombatTravelImageKey({ patternKind: 'boomerang', skillName: '독니 사출', element: 'chaos' }),
   getCombatTravelImageKey({ patternKind: 'field', element: 'fire' }),
   getCombatTravelImageKey({ owner: 'enemy', delivery: 'magicCell' })
 ]`, context);
 assert.deepStrictEqual(Array.from(combatPatternImages), [
-  'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxDotField', 'bossTelegraphPulse'
+  'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxVenomFang', 'skillFxDotField', 'bossTelegraphPulse'
 ], 'real collision patterns should select their dedicated image assets');
+const venomProjectileDrawing = vm.runInContext(`(() => {
+  const calls = { images: 0, rectangles: 0, strokes: 0 };
+  battleAssets.images.skillFxVenomFang = { complete: true, naturalWidth: 192 };
+  const ctx = {
+    globalAlpha: 1,
+    save() {}, restore() {}, translate() {}, rotate() {},
+    drawImage() { calls.images++; }, fillRect() { calls.rectangles++; },
+    beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, arc() {}, fill() {},
+    stroke() { calls.strokes++; },
+  };
+  drawCombatMovingFx(ctx, {
+    owner: 'player', delivery: 'projectileTarget', patternKind: 'boomerang', skillName: '독니 사출'
+  }, 50, 0, 100, { x: 0, y: 0 }, [{ x: 100, y: 0 }], 'skillFxVenomFang', 'chaos');
+  return calls;
+})()`, context);
+assert.strictEqual(venomProjectileDrawing.images, 1, 'venom fang should draw one compact image projectile');
+assert.strictEqual(venomProjectileDrawing.rectangles, 0, 'venom fang should not fall back to a placeholder rectangle');
+assert.strictEqual(venomProjectileDrawing.strokes, 0, 'venom fang should not retain procedural rings or line trails');
 const optimizedAreaVfx = vm.runInContext(`(() => {
   const counts = { meteorImages: 0, blizzardGusts: 0, blizzardFlakes: 0, rainLines: 0, blizzardBounds: 0 };
   battleAssets.images.skillFxSlamPrimary = { complete: true, naturalWidth: 64 };
@@ -411,7 +447,7 @@ assert.ok(compactFireCoreVfx.maxRadius <= 12, '화염 폭풍핵 중심광이 전
 assert.strictEqual(compactFireCoreVfx.flames, 12, '화염 폭풍핵은 중심 주위의 작은 불꽃 조각으로 회전감을 표현해야 한다');
 assert.strictEqual(compactFireCoreVfx.strokes, 0, '화염 폭풍핵에 눈부신 원형 선을 그리면 안 된다');
 assert.strictEqual(compactFireCoreVfx.impactEffectCount, 0, '화염 폭풍핵 매 타격마다 큰 핵 이펙트를 중복 생성하면 안 된다');
-assert.ok(battlefieldSource.includes('bodyCue: true') && battlefieldSource.includes('bodyCue: playerEvade'),
+assert.ok(battlefieldSource.includes('bodyCue: true') && battlefieldSource.includes('bodyCue: bodyCue'),
   '플레이어와 적의 회피 피드백은 피해 숫자가 아닌 본체 주변 cue로 연결되어야 한다');
 const stagedSkillVfx = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
@@ -500,6 +536,8 @@ assert.ok(passiveSource.includes("text.impactTier === 'annihilate' ? 27"), 'dama
 assert.ok(!passiveSource.includes("ctx.fillText('ANNIHILATION'"), 'damage labels should avoid redundant oversized impact captions');
 assert.ok(passiveSource.includes("annihilate: Object.freeze({ hitStopMs: 34, shake: 3.8, duration: 170 })"), 'one-shot feedback intensity should stay below the previous expensive profile');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
+assert.ok(combatSource.includes("text: '회피!', color: '#9fb4c8', duration: 260, bodyCue: true"), 'player evasion should request fixed body feedback');
+assert.ok(combatSource.includes("text: '막아냄!', color: '#a7a7a7', duration: 260, bodyCue: true"), 'player blocks should request fixed body feedback');
 assert.ok(combatSource.includes("attackTags.includes('slam') ? 460") && combatSource.includes("attackTags.includes('projectile') ? 400 : 360"), 'seven-pose attacks should use a readable motion window');
 assert.ok(combatSource.includes('rawDamage: dmg'), 'one-shot damage labels should retain uncapped calculated damage');
 assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage'), 'damage labels should show damage beyond the target remaining life');

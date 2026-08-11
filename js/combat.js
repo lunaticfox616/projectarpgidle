@@ -10330,7 +10330,7 @@ function performMonsterAttacks(pStats) {
             }
             if (game.ascendClass === 'hunter' && hasKeystone('h3')) evadeChance = 100 - Math.pow(1 - evadeChance / 100, 2) * 100;
             if (resolveEntropyEvasion(game, evadeChance, Date.now())) {
-                addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260 });
+                addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260, bodyCue: true });
                 addEvasionCombatLog(null, true);
                 recordPlayerEvadeUniqueEffects(pStats, aliveEnemies, Date.now());
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
@@ -10358,7 +10358,7 @@ function performMonsterAttacks(pStats) {
                     let stoneShield = grantTalentStoneShield(pStats.maxHp);
                     if (stoneShield) addBattleFx('statusText', { text: `돌 보호막 +${stoneShield.amount}`, color: '#d8b77a', duration: 300 });
                 }
-                addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260 });
+                addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260, bodyCue: true });
                 if (game.settings.showCombatLog) addLog(`🛡️ 막아냄!`, "loot-magic");
                 continue;
             }
