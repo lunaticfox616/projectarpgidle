@@ -79,6 +79,8 @@ const context = {
   isUiDamageAilmentType(type) { return ['ignite', 'poison', 'bleed'].includes(type); },
   getUiPlayerDamageAilmentDps() { return 10; }
 };
+context.GLADIATOR_FLURRY_ATTACK_SPEED_AMP_PCT_PER_STACK = 1;
+context.GLADIATOR_FLURRY_EVASION_PCT_PER_STACK = 3;
 vm.createContext(context);
 vm.runInContext(source.slice(start, end), context, { filename: 'combat-effect-icons.js' });
 
@@ -147,6 +149,9 @@ ownedKeystones.clear(); ['g2', 'g3', 'g5'].forEach(id => ownedKeystones.add(id))
 const gladiatorMarkup = context.buildPlayerAscendStackEffectIcons(now) + context.buildPlayerAscendReadyEffectIcons(now);
 ['gladiatorFlurry', 'gladiatorVeteran', 'gladiatorSwift']
   .forEach(key => assert(gladiatorMarkup.includes(`effect-${key}`), `${key} must expose its live state`));
+assert.strictEqual(vm.runInContext('UI_RUNTIME_EFFECT_DETAILS.gladiatorFlurry(4)', context),
+  '4/12중첩 · 공격 속도 4% 증폭 · 회피 +12%',
+  '연참 호흡 상태 아이콘은 공격 속도 증폭과 회피 증가를 서로 다른 수치로 표시해야 한다');
 
 context.game.ascendClass = 'assassin'; context.game.assassinBlurred = true;
 ownedKeystones.clear(); ownedKeystones.add('a2');

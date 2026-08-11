@@ -880,6 +880,8 @@ const CLASS_TEMPLATES = {
 };
 
 const CLASS_KEYSTONE_PICK_LIMIT = 5;
+const GLADIATOR_FLURRY_ATTACK_SPEED_AMP_PCT_PER_STACK = 1;
+const GLADIATOR_FLURRY_EVASION_PCT_PER_STACK = 3;
 const CLASS_KEYSTONE_DEFS = {
     warrior: [
         { id: 'w1', name: '강철 태세', desc: '물리 피해 15% 증폭, 방어도 15% 증가', req: null },
@@ -894,7 +896,7 @@ const CLASS_KEYSTONE_DEFS = {
     ],
     gladiator: [
         { id: 'g1', name: '결투 태세', desc: '물리 피해 20% 증폭, 물리가 아닌 피해 20% 감폭', req: null },
-        { id: 'g2', name: '연참 호흡', desc: '연속 타격 발생 시 3초간 공격 속도 +3%, 회피 +3% (최대 12중첩)', req: null },
+        { id: 'g2', name: '연참 호흡', desc: `연속 타격 발생 시 3초간 공격 속도 ${GLADIATOR_FLURRY_ATTACK_SPEED_AMP_PCT_PER_STACK}% 증폭, 회피 +${GLADIATOR_FLURRY_EVASION_PCT_PER_STACK}% (최대 12중첩)`, req: null },
         { id: 'g3', name: '노련함', desc: '치명타가 아닌 타격 시 다음 타격 치명타 확률 +5%p, 치명타 발동 시 초기화', req: null },
         { id: 'g4', name: '난투 본능', desc: '적이 3기 이상 주변에 있으면 받는 피해 20% 감폭, 주는 피해 20% 증폭', req: 'g1' },
         { id: 'g5', name: '속공 전개', desc: '이동 후 첫 타격 피해 30% 증폭 및 첫 받는 피해 30% 감폭', req: 'g2' },

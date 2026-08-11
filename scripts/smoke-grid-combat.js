@@ -128,6 +128,22 @@ const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => sk
 assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 젬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
 assert.ok(projectileGems.every(([name, skill]) => context.describeSkillGridProfile(name, skill).startsWith('발사 방식:')), '모든 투사체 젬 툴팁은 공격 범위 대신 발사 방식을 표시해야 한다');
 assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= 7, '스킬 최대 사거리는 8x8 전장의 끝을 넘지 않아야 한다');
+
+resetGame();
+context.game.ascendClass = 'gladiator';
+context.game.ascendKeystones = ['g2'];
+const flurryBaseStats = context.getPlayerStats();
+context.game.gladiatorFlurryStacks = 4;
+context.game.gladiatorFlurryExpiresAt = Date.now() + 3000;
+const flurryBoostedStats = context.getPlayerStats();
+assert.ok(Math.abs(flurryBoostedStats.aspd - flurryBaseStats.aspd * 1.04) < 0.000001,
+  '연참 호흡 4중첩은 소프트캡 이후 최종 공격 속도를 4% 증폭해야 한다');
+assert.strictEqual(
+  vm.runInContext("CLASS_KEYSTONE_DEFS.gladiator.find(node => node.id === 'g2').desc", context),
+  '연속 타격 발생 시 3초간 공격 속도 1% 증폭, 회피 +3% (최대 12중첩)',
+  '연참 호흡 노드 설명은 공격 속도 증폭과 회피 증가를 구분해야 한다'
+);
+
 const radiusOneCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 1 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
 const radiusTwoCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 2 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
 assert.strictEqual(radiusOneCells.length, 5, '반경 1은 중심과 상하좌우 4칸만 덮어야 한다');

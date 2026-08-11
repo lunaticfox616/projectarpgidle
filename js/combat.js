@@ -3980,8 +3980,8 @@ function getPlayerStats() {
             let now = Date.now();
             let stacks = (game.gladiatorFlurryExpiresAt || 0) > now ? Math.max(0, Math.min(12, Math.floor(game.gladiatorFlurryStacks || 0))) : 0;
             if (stacks > 0) {
-                finalAspd = Math.min(12, finalAspd * (1 + stacks * 0.03));
-                finalEvasion = Math.floor(finalEvasion * (1 + stacks * 0.03));
+                finalAspd = Math.min(12, finalAspd * (1 + stacks * GLADIATOR_FLURRY_ATTACK_SPEED_AMP_PCT_PER_STACK / 100));
+                finalEvasion = Math.floor(finalEvasion * (1 + stacks * GLADIATOR_FLURRY_EVASION_PCT_PER_STACK / 100));
             }
         }
         if (hasKeystone('g3')) finalCrit = Math.min(100, finalCrit + Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0)));
