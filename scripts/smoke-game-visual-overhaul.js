@@ -176,15 +176,17 @@ const bodyCueLayout = vm.runInContext(`(() => {
   const rows = battleVisualState.damageTexts.map(text => ({ bodyCue: text.bodyCue, stackShiftTo: text.stackShiftTo, duration: text.duration }));
   battleVisualState.damageTexts = [battleVisualState.damageTexts[1]];
   let font = '';
-  const ctx = { save() {}, restore() {}, strokeText() {}, fillText() { font = this.font; } };
+  let drawY = 0;
+  const ctx = { save() {}, restore() {}, strokeText() {}, fillText(value, x, y) { font = this.font; drawY = y; } };
   drawDamageTexts(ctx, 1600);
-  return { rows, font };
+  return { rows, font, drawY };
 })()`, context);
 assert.strictEqual(bodyCueLayout.rows[0].stackShiftTo, 0, 'body cues must not push ordinary damage labels into the damage-number stack');
 assert.strictEqual(bodyCueLayout.rows[1].bodyCue, true, 'evasion feedback should use the body-cue presentation');
 assert.strictEqual(bodyCueLayout.rows[1].stackShiftTo, 0, 'evasion body cues must stay out of the damage-number stack');
 assert.strictEqual(bodyCueLayout.rows[1].duration, 420, 'evasion body cues should clear quickly beside the character');
 assert.ok(bodyCueLayout.font.includes('11px'), 'body cues should be visibly smaller than ordinary damage numbers');
+assert.strictEqual(bodyCueLayout.drawY, 220, 'body cues must stay fixed beside the character instead of rising like damage numbers');
 
 for (let index = 0; index < 18; index++) {
   assert.ok(fs.existsSync(`assets/background/chaos/endgame-${index}.png`), `chaos backdrop ${index} should exist`);
@@ -442,7 +444,7 @@ assert.ok(compactFireCoreVfx.maxRadius <= 12, '화염 폭풍핵 중심광이 전
 assert.strictEqual(compactFireCoreVfx.flames, 12, '화염 폭풍핵은 중심 주위의 작은 불꽃 조각으로 회전감을 표현해야 한다');
 assert.strictEqual(compactFireCoreVfx.strokes, 0, '화염 폭풍핵에 눈부신 원형 선을 그리면 안 된다');
 assert.strictEqual(compactFireCoreVfx.impactEffectCount, 0, '화염 폭풍핵 매 타격마다 큰 핵 이펙트를 중복 생성하면 안 된다');
-assert.ok(battlefieldSource.includes('bodyCue: true') && battlefieldSource.includes('bodyCue: playerEvade'),
+assert.ok(battlefieldSource.includes('bodyCue: true') && battlefieldSource.includes('bodyCue: bodyCue'),
   '플레이어와 적의 회피 피드백은 피해 숫자가 아닌 본체 주변 cue로 연결되어야 한다');
 const stagedSkillVfx = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
@@ -531,6 +533,8 @@ assert.ok(passiveSource.includes("text.impactTier === 'annihilate' ? 27"), 'dama
 assert.ok(!passiveSource.includes("ctx.fillText('ANNIHILATION'"), 'damage labels should avoid redundant oversized impact captions');
 assert.ok(passiveSource.includes("annihilate: Object.freeze({ hitStopMs: 34, shake: 3.8, duration: 170 })"), 'one-shot feedback intensity should stay below the previous expensive profile');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
+assert.ok(combatSource.includes("text: '회피!', color: '#9fb4c8', duration: 260, bodyCue: true"), 'player evasion should request fixed body feedback');
+assert.ok(combatSource.includes("text: '막아냄!', color: '#a7a7a7', duration: 260, bodyCue: true"), 'player blocks should request fixed body feedback');
 assert.ok(combatSource.includes("attackTags.includes('slam') ? 460") && combatSource.includes("attackTags.includes('projectile') ? 400 : 360"), 'seven-pose attacks should use a readable motion window');
 assert.ok(combatSource.includes('rawDamage: dmg'), 'one-shot damage labels should retain uncapped calculated damage');
 assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage'), 'damage labels should show damage beyond the target remaining life');

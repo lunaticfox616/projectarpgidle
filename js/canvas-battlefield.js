@@ -1401,15 +1401,18 @@ function renderBattlefield(forceWhenHidden) {
             });
             handled = true;
         } else if (fx.type === 'statusText') {
-            let playerEvade = fx.text === '회피!';
+            let bodyCue = fx.bodyCue === true;
+            let anchorPos = fx.enemyId
+                ? (enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || playerPos)
+                : playerPos;
             spawnDamageText({
                 start: now,
-                x: playerPos.x + (playerEvade ? 18 : 14),
-                y: playerPos.y - (playerEvade ? 22 : 40),
+                x: anchorPos.x + (bodyCue ? 18 : 14),
+                y: anchorPos.y - (bodyCue ? 22 : 40),
                 value: fx.text || '회피!',
                 miss: true,
-                bodyCue: playerEvade,
-                duration: playerEvade ? 420 : undefined,
+                bodyCue: bodyCue,
+                duration: bodyCue ? 420 : undefined,
                 color: fx.color || '#9fb4c8'
             });
             handled = true;

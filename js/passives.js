@@ -4390,7 +4390,7 @@ function drawDamageTexts(ctx, now) {
         if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed > text.duration) return;
         let t = clampNumber(elapsed / text.duration, 0, 1);
         let easedRise = 1 - Math.pow(1 - t, 2);
-        let rise = text.bodyCue ? 4 : ((text.dot ? 13 : 19) + (text.crit ? 5 : 0));
+        let rise = text.bodyCue ? 0 : ((text.dot ? 13 : 19) + (text.crit ? 5 : 0));
         let x = text.x;
         let y = text.y + getDamageTextStackShift(text, now) - rise * easedRise;
         ctx.save();
