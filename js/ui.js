@@ -63,8 +63,10 @@ function buildMapZoneGroupHtml(groupKey, title, cards) {
 function buildMapPowerEstimateHtml(zone) {
     let estimate = typeof estimateMapZonePowerRequirements === 'function' ? estimateMapZonePowerRequirements(zone) : null;
     if (!estimate) return '';
-    let elementLabel = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' }[estimate.element] || '최저';
-    return `<span class="map-zone-status map-power-estimate" title="현재 루프의 보스전 기준 예상치">예상 DPS ${formatCommaNumber(estimate.dps)} · ${elementLabel} EHP ${formatCommaNumber(estimate.ehp)}</span>`;
+    let options = { notation: 'compact', maximumSignificantDigits: 2 };
+    let dps = Math.round(estimate.dps).toLocaleString('ko-KR', options);
+    let ehp = Math.round(estimate.ehp).toLocaleString('ko-KR', options);
+    return `<span class="map-zone-status map-power-estimate" title="현재 루프의 대략적인 보스전 기준">예상 DPS 약 ${dps} · EHP 약 ${ehp}</span>`;
 }
 
 function buildTrialMapItemHtml(trial) {

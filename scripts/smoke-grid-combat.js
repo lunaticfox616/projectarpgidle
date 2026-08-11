@@ -1397,8 +1397,19 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const ui = fs.readFileSync('js/ui.js', 'utf8');
   assert.ok(battlefield.includes('isPlayerWalkingForAnimation'), '전장 캔버스가 공용 걷기 판단을 써야 한다');
   assert.ok(ui.includes('isPlayerWalkingForAnimation'), '스프라이트 선택이 공용 걷기 판단을 써야 한다');
-  assert.ok(ui.includes('estimateMapZonePowerRequirements(zone)') && ui.includes('예상 DPS'), '지도 지역 카드가 예상 DPS/EHP를 표시해야 한다');
+  assert.ok(ui.includes('estimateMapZonePowerRequirements(zone)') && ui.includes('예상 DPS 약 ${dps} · EHP 약 ${ehp}'),
+    '지도 지역 카드는 상세 계산 대신 대략적인 DPS/EHP만 표시해야 한다');
   assert.ok((ui.match(/buildMapPowerEstimateHtml\(/g) || []).length >= 14, '특수 지도 패널도 예상 DPS/EHP 표시를 공유해야 한다');
+  const estimateStart = ui.indexOf('function buildMapPowerEstimateHtml(');
+  const estimateEnd = ui.indexOf('function buildTrialMapItemHtml(', estimateStart);
+  const estimateContext = {
+    estimateMapZonePowerRequirements() { return { dps: 413210, ehp: 692474, element: 'fire' }; }
+  };
+  vm.createContext(estimateContext);
+  vm.runInContext(ui.slice(estimateStart, estimateEnd), estimateContext, { filename: 'map-power-estimate.js' });
+  const estimateHtml = estimateContext.buildMapPowerEstimateHtml({ id: 1 });
+  assert.ok(estimateHtml.includes('예상 DPS 약 41만 · EHP 약 69만') && !estimateHtml.includes('413,210'),
+    '지도 예상치는 정확한 원시 수치 대신 두 자리 수준의 대략값을 렌더링해야 한다');
 }
 
 console.log('smoke-grid-combat passed');

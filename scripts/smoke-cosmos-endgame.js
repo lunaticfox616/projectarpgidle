@@ -79,4 +79,12 @@ const boss = context.getCosmosNodeRecommendation('planet-47');
 assert(first && boss && boss.target.dps > first.target.dps && boss.target.ehp > first.target.ehp,
     '상위 은하 보스의 권장 DPS/EHP는 초입 노드보다 높아야 한다');
 
+const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
+assert(cosmosSource.includes('예상 DPS<strong>약 ${formatCosmosPower(model.target.dps)}')
+    && cosmosSource.includes('예상 EHP<strong>약 ${formatCosmosPower(model.target.ehp)}'),
+    '우주계 노드도 상세 비율 대신 대략적인 DPS/EHP만 표시해야 한다');
+assert(!cosmosSource.includes('약 ${model.target.clearTimeSec}초 클리어')
+    && !cosmosSource.includes('내 DPS ${formatCosmosPower(model.player.dps)}'),
+    '우주계 예상치에는 클리어 시간과 상세 플레이어 비율을 중복 표시하지 않아야 한다');
+
 console.log('smoke-cosmos-endgame passed');
