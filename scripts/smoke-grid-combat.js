@@ -22,6 +22,7 @@ const files = [
   'js/passives.js',
   'js/core-cube.js',
   'js/combat-grid.js',
+  'js/combat-patterns.js',
   'js/combat.js',
   'js/talent-cards.js',
 ];
@@ -726,6 +727,40 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
   context.performMonsterAttacks(defenseStats);
   assert.ok(context.game.playerHp < 1000, '이미 발사된 투사체는 발사한 적이 죽어도 사라지면 안 된다');
+}
+
+// ── 3-3. 보스 원거리 공격: 일반·특수 패턴의 충돌 시점이 같아야 한다 ──
+{
+  resetGame();
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const boss = makeEnemy(65, 6, 1, {
+    isBoss: true, attackKind: 'ranged', attackRange: 8, attackTimer: 1,
+    patternMode: 'burst', patternAttackCount: 0, ele: 'fire',
+  });
+  context.game.enemies = [boss];
+  context.game.playerHp = 1000;
+  const defenseStats = {
+    maxHp: 1000, energyShield: 0, dr: 0, armor: 0, evasion: 0, evadeChance: 0,
+    resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
+  };
+
+  context.performMonsterAttacks(defenseStats);
+  const normalFlightMs = vm.runInContext("battleFx.find(fx => fx.type === 'combatTravel' && fx.sourceId === 65).flightMs", context);
+
+  vm.runInContext('pendingEnemyCombatAttacks = []; battleFx = [];', context);
+  boss.attackTimer = 1;
+  boss.patternAttackCount = 3;
+  boss.nextPatternState = context.getBossPatternPreview(boss);
+  boss.patternTelegraphKey = `${boss.nextPatternState.patternMode}:${boss.nextPatternState.attackNumber}:${boss.nextPatternState.label}`;
+  boss.patternTelegraphStartedAt = Date.now() - 400;
+  context.performMonsterAttacks(defenseStats);
+  const specialFlightMs = vm.runInContext("battleFx.find(fx => fx.type === 'combatTravel' && fx.sourceId === 65).flightMs", context);
+
+  assert.deepStrictEqual(
+    [normalFlightMs, specialFlightMs],
+    [500, 500],
+    '보스의 일반·특수 원거리 공격은 같은 시점에 이펙트가 닿고 피해가 적용되어야 한다',
+  );
 }
 
 // ── 3-4. 플라스크 수명주기: 조우 사이 유지, 지역 완료/이동 시 종료, 루프 시 획득 리셋 ──
