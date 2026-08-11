@@ -222,7 +222,7 @@ assert.ok(fs.existsSync('assets/effects/boss-telegraph-pulse-v1.png'), 'generate
 [
   'skill-whirlwind-v1.png', 'skill-chain-primary-v1.png', 'skill-chain-jump-v1.png',
   'skill-slam-primary-v1.png', 'skill-slam-aftershock-v1.png', 'skill-slash-v1.png',
-  'skill-projectile-v1.png', 'skill-venom-fang-v1.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
+  'skill-projectile-v1.png', 'skill-venom-fang-v2.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
   'skill-chaos-boomerang-v1.png', 'skill-burst-v1.png', 'skill-dot-field-v1.png',
   'skill-summon-strike-v1.png',
 ].forEach(file => assert.ok(fs.existsSync(`assets/effects/${file}`), `generated skill VFX ${file} should exist`));
@@ -278,6 +278,9 @@ assert.strictEqual(projectileVfxShapes.shield, 'shield', '방패 투척은 물�
 assert.strictEqual(projectileVfxShapes.potion, 'potion', '포션 투척은 화염탄 대신 병 실루엣을 사용해야 한다');
 assert.strictEqual(projectileVfxShapes.venomAsset, 'venomFang', 'venom fang should use its dedicated image projectile');
 assert.strictEqual(projectileVfxShapes.venomImpact, false, 'venom fang should not layer a generic impact burst over the image projectile');
+const venomProfile = vm.runInContext(`SKILL_GEM_VFX_PROFILES['독니 사출']`, context);
+assert.strictEqual(venomProfile.projectileWidth, 88, 'the supplied sharp venom projectile should remain readable in combat');
+assert.strictEqual(venomProfile.projectileHeight, 28, 'the sharp venom projectile should retain its narrow silhouette');
 const skillGemArtCoverage = vm.runInContext(`(() => {
   const gems = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
   return {
@@ -292,7 +295,11 @@ skillGemArtCoverage.paths.forEach(file => assert.ok(fs.existsSync(file), `skill 
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png'"), 'battle asset loader should preload skill VFX images');
 assert.ok(passiveSource.includes("skillFxFrostField: 'assets/effects/skill-frost-field-v1.png'"), 'battle asset loader should preload specialized combat pattern images');
-assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v1.png'"), 'battle asset loader should preload the venom fang projectile image');
+assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v2.png'"), 'battle asset loader should preload the supplied sharp venom projectile image');
+const venomVfxBytes = fs.readFileSync('assets/effects/skill-venom-fang-v2.png');
+assert.deepStrictEqual([venomVfxBytes.readUInt32BE(16), venomVfxBytes.readUInt32BE(20)], [512, 160],
+  'the supplied venom projectile must keep its optimized combat dimensions');
+assert.strictEqual(venomVfxBytes.readUInt8(25), 6, 'the supplied venom projectile must retain RGBA transparency');
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
 assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
 assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wood monster sheets should bypass legacy backdrop sanitization');
