@@ -1511,7 +1511,7 @@ body:not(.light-mode) #info-tooltip {
     transform-origin: bottom center;
   }
   body.desktop-windowed-ui .ui-goal-panel { width: 235px; }
-  body:not(.light-mode).desktop-windowed-ui .battlefield-caption { bottom: 104px; }
+  body:not(.light-mode).desktop-windowed-ui .battlefield-caption { top: 12px; bottom: auto; }
 }
 
 @media (min-width: 1081px) and (max-width: 1199px) and (max-height: 720px) {

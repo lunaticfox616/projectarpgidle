@@ -1689,7 +1689,7 @@ function renderBattlefield(forceWhenHidden) {
     else if (game.moveTimer > 0) caption = '다음 구간으로 이동 중...';
     else if (getCanvasCrowdProgressPaused()) caption = `적이 ${getCanvasCrowdPauseLimit()}기 이상 몰려 전진이 막혔습니다.`;
     else if (enemies.length > 0) caption = `${enemies.length}기와 교전 중`;
-    else if ((game.encounterPlan || []).length > 0) caption = '다음 매복 지점을 탐색 중...';
+    else if ((game.encounterPlan || []).length > 0) caption = '지역 탐색 중';
     document.getElementById('ui-battlefield-caption').innerText = caption;
 }
 

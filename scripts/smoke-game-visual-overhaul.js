@@ -289,6 +289,7 @@ assert.ok(passiveSource.includes('boss: ['), 'boss variants should retain the de
 assert.ok(passiveSource.includes("const frameKey = getPassiveNodeFrameKey(node)"), 'passive nodes should select their dedicated frame assets');
 assert.ok(!passiveSource.includes('if (!lightweightMode && useMajorFrame'), 'drag optimization should not hide passive frame images');
 const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
+const luxeCss = fs.readFileSync('css/ui-luxe.css', 'utf8');
 assert.ok(!windowCss.includes('border-image-source:'), 'regular windows should avoid a visually noisy full-image frame');
 assert.ok(windowCss.includes('> .ui-window-resize'), 'window resize handle should retain an explicit absolute layer');
 assert.ok(windowCss.includes('border: 1px solid rgba(111, 151, 188, .58);'), 'regular windows should use a restrained one-pixel frame');
@@ -311,6 +312,8 @@ const enemyUiSource = fs.readFileSync('js/ui.js', 'utf8');
 assert.ok(enemyUiSource.includes("outlineColor: enemy.isBoss ? '#a84e49' : (enemy.isElite ? '#e2b94f' : null)"), 'elite and boss monsters should have restrained yellow and red outlines');
 assert.ok(enemyUiSource.includes('let animationFrames = Array.isArray(variantEntry.frames)'), 'wood monster variants should animate instead of rendering a whole sheet or a frozen cell');
 const battlefieldSource = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
+assert.ok(battlefieldSource.includes("caption = '지역 탐색 중';"), 'empty encounter intervals should use the concise exploration caption');
+assert.ok(luxeCss.includes('top: 12px;') && luxeCss.includes('left: 14px;') && luxeCss.includes('bottom: auto;'), 'the battlefield caption should stay in the upper-left safe area instead of covering player effects');
 assert.ok(battlefieldSource.includes('playerPos.y - 82'), 'the player overhead health bar should clear tall character sprites and head ornaments');
 assert.ok(battlefieldSource.includes('enemy.isBoss ? 78 : 56'), 'enemy overhead health bars should clear normal and boss sprites');
 assert.ok(!battlefieldSource.includes('let flashFx = (battleFx || []).find'), 'battlefield rendering should not flash the full screen on impact');
