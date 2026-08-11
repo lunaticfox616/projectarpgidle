@@ -98,6 +98,9 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     slamAftershock: 'skillFxSlamAftershock',
     slash: 'skillFxSlash',
     projectile: 'skillFxProjectile',
+    projectileFire: 'skillFxProjectileFire',
+    projectileCold: 'skillFxProjectileCold',
+    projectileLight: 'skillFxProjectileLight',
     venomFang: 'skillFxVenomFang',
     frostField: 'skillFxFrostField',
     frostWave: 'skillFxFrostWave',
@@ -182,6 +185,22 @@ function getSkillProjectileVfxStyle(skillName, element) {
     let profile = getSkillGemVfxProfile(skillName);
     if (profile && profile.projectileStyle) return profile.projectileStyle;
     return normalizeSkillGemVfxElement(element, profile && profile.accent);
+}
+
+function getProjectileVfxImageKey(profile, element) {
+    let explicitKey = profile && SKILL_GEM_VFX_IMAGE_KEYS[profile.projectileAsset];
+    if (explicitKey) return explicitKey;
+    if (profile && profile.projectileStyle) return null;
+    let elementKey = normalizeSkillGemVfxElement(element, profile && profile.accent);
+    if (elementKey === 'fire') return SKILL_GEM_VFX_IMAGE_KEYS.projectileFire;
+    if (elementKey === 'cold') return SKILL_GEM_VFX_IMAGE_KEYS.projectileCold;
+    if (elementKey === 'light') return SKILL_GEM_VFX_IMAGE_KEYS.projectileLight;
+    return null;
+}
+
+function isProjectileVfxImageKey(imageKey) {
+    return [SKILL_GEM_VFX_IMAGE_KEYS.projectileFire, SKILL_GEM_VFX_IMAGE_KEYS.projectileCold,
+        SKILL_GEM_VFX_IMAGE_KEYS.projectileLight, SKILL_GEM_VFX_IMAGE_KEYS.venomFang].includes(imageKey);
 }
 
 function drawPolygonPath(ctx, points) {
@@ -364,8 +383,10 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
         targets = targets.length > 0 ? [targets[targets.length - 1]] : [];
     } else targets = targets.slice(0, skill.projectilePattern && skill.projectilePattern.kind === 'fan' ? 8 : 4);
     if (targets.length <= 0) return;
-    let imageKey = SKILL_GEM_VFX_IMAGE_KEYS[profile.projectileAsset] || SKILL_GEM_VFX_IMAGE_KEYS.projectile;
-    let imageProjectile = !!profile.projectileAsset;
+    let element = normalizeSkillGemVfxElement(swingFx.element, profile.accent);
+    let projectileImageKey = getProjectileVfxImageKey(profile, element);
+    let imageKey = projectileImageKey || SKILL_GEM_VFX_IMAGE_KEYS.projectile;
+    let imageProjectile = !!projectileImageKey;
     let baseImpactAt = Number(swingFx.impactAt) || (swingFx.start + swingFx.duration);
     let piercedTargetCount = isPiercePath ? Math.max(1, Math.min(12, (targetEntries || []).length)) : 1;
     let arriveAt = baseImpactAt + (isPiercePath ? (piercedTargetCount - 1) * 30 : 0);
@@ -381,7 +402,7 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
             let laneOffset = (repeat - (repeats - 1) / 2) * 4;
             list.push({
                 skillName: swingFx.skillName,
-                element: normalizeSkillGemVfxElement(swingFx.element, profile.accent),
+                element: element,
                 projectileStyle: getSkillProjectileVfxStyle(swingFx.skillName, swingFx.element),
                 family: 'projectile',
                 stageKind: 'projectileTravel',
@@ -402,7 +423,7 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
                 rotation: Math.atan2((target.y - 9 + laneOffset) - (playerPos.y - 20 + laneOffset), target.x - (playerPos.x + 13)),
                 size: getSkillGemVfxBaseSize('projectile', 'projectileTravel') * scale * (1 - targetIndex * 0.035),
                 alpha: imageProjectile ? 0.94 : (isPiercePath ? 0.78 : 0.72),
-                filter: imageProjectile ? 'none' : getSkillGemVfxFilter(normalizeSkillGemVfxElement(swingFx.element, profile.accent), imageKey),
+                filter: imageProjectile ? 'none' : getSkillGemVfxFilter(element, imageKey),
                 seed: Math.max(1, Number(swingFx.id) || 1) + targetIndex * 19 + repeat * 7
             });
         }
@@ -419,13 +440,14 @@ function getCombatTravelScreenPos(gridProj, cell, fallback) {
 function getCombatTravelImageKey(fx) {
     let element = fx.element ? normalizeSkillGemVfxElement(fx.element) : null;
     let profile = getSkillGemVfxProfile(fx.skillName);
-    let projectileImageKey = profile && SKILL_GEM_VFX_IMAGE_KEYS[profile.projectileAsset];
+    let hasProjectileProfile = profile && (profile.family === 'projectile' || profile.projectileAsset);
+    let projectileImageKey = hasProjectileProfile ? getProjectileVfxImageKey(profile, element) : null;
     if (projectileImageKey) return projectileImageKey;
     if (fx.patternKind === 'field') return !element || element === 'cold' ? SKILL_GEM_VFX_IMAGE_KEYS.frostField : SKILL_GEM_VFX_IMAGE_KEYS.dot;
     if (fx.patternKind === 'moving') return !element || element === 'cold' ? SKILL_GEM_VFX_IMAGE_KEYS.frostWave : SKILL_GEM_VFX_IMAGE_KEYS.projectile;
     if (fx.patternKind === 'boomerang') return SKILL_GEM_VFX_IMAGE_KEYS.chaosBoomerang;
     if (fx.owner === 'enemy' && fx.delivery === 'magicCell') return 'bossTelegraphPulse';
-    if (fx.delivery !== 'magicCell') return SKILL_GEM_VFX_IMAGE_KEYS.projectile;
+    if (fx.delivery !== 'magicCell') return getProjectileVfxImageKey(profile, element) || SKILL_GEM_VFX_IMAGE_KEYS.projectile;
     let family = profile && profile.family;
     if (family === 'chain') return SKILL_GEM_VFX_IMAGE_KEYS.chainPrimary;
     if (family === 'slam') return SKILL_GEM_VFX_IMAGE_KEYS.slamPrimary;
@@ -434,7 +456,7 @@ function getCombatTravelImageKey(fx) {
 
 function isSpecializedCombatTravelImage(imageKey) {
     return [SKILL_GEM_VFX_IMAGE_KEYS.frostField, SKILL_GEM_VFX_IMAGE_KEYS.frostWave,
-        SKILL_GEM_VFX_IMAGE_KEYS.chaosBoomerang, SKILL_GEM_VFX_IMAGE_KEYS.venomFang].includes(imageKey);
+        SKILL_GEM_VFX_IMAGE_KEYS.chaosBoomerang].includes(imageKey) || isProjectileVfxImageKey(imageKey);
 }
 
 function getCombatAreaBounds(targets) {
@@ -652,10 +674,10 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
     let progress = clampNumber((now - launchAt) / Math.max(1, arriveAt - launchAt), 0, 1);
     let profile = getSkillGemVfxProfile(fx.skillName);
     let image = getSkillGemVfxImage(imageKey);
-    let imageProjectile = !!(profile && profile.projectileAsset);
+    let imageProjectile = isProjectileVfxImageKey(imageKey);
     let useProjectileImage = imageProjectile && !!image;
-    let width = imageProjectile ? (Number(profile.projectileWidth) || 58) : (fx.patternKind === 'moving' ? 112 : (fx.patternKind === 'boomerang' ? 72 : 48));
-    let height = imageProjectile ? (Number(profile.projectileHeight) || 26) : (fx.patternKind === 'moving' ? 58 : (fx.patternKind === 'boomerang' ? 48 : 24));
+    let width = imageProjectile ? (Number(profile && profile.projectileWidth) || 58) : (fx.patternKind === 'moving' ? 112 : (fx.patternKind === 'boomerang' ? 72 : 48));
+    let height = imageProjectile ? (Number(profile && profile.projectileHeight) || 26) : (fx.patternKind === 'moving' ? 58 : (fx.patternKind === 'boomerang' ? 48 : 24));
     targets.forEach(target => {
         let x = source.x + (target.x - source.x) * progress;
         let y = source.y + (target.y - source.y) * progress;

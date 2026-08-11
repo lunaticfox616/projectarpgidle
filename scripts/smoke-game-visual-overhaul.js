@@ -210,7 +210,8 @@ assert.ok(fs.existsSync('assets/effects/boss-telegraph-pulse-v1.png'), 'generate
 [
   'skill-whirlwind-v1.png', 'skill-chain-primary-v1.png', 'skill-chain-jump-v1.png',
   'skill-slam-primary-v1.png', 'skill-slam-aftershock-v1.png', 'skill-slash-v1.png',
-  'skill-projectile-v1.png', 'skill-venom-fang-v2.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
+  'skill-projectile-v1.png', 'skill-projectile-fire-v1.png', 'skill-projectile-cold-v1.png',
+  'skill-projectile-lightning-v1.png', 'skill-venom-fang-v2.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
   'skill-chaos-boomerang-v1.png', 'skill-burst-v1.png', 'skill-dot-field-v1.png',
   'skill-summon-strike-v1.png',
 ].forEach(file => assert.ok(fs.existsSync(`assets/effects/${file}`), `generated skill VFX ${file} should exist`));
@@ -281,9 +282,19 @@ const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png'"), 'battle asset loader should preload skill VFX images');
 assert.ok(passiveSource.includes("skillFxFrostField: 'assets/effects/skill-frost-field-v1.png'"), 'battle asset loader should preload specialized combat pattern images');
 assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v2.png'"), 'battle asset loader should preload the venom fang projectile image');
-const venomAssetBytes = fs.readFileSync('assets/effects/skill-venom-fang-v2.png');
-assert.deepStrictEqual([venomAssetBytes.readUInt32BE(16), venomAssetBytes.readUInt32BE(20)], [192, 80], 'venom fang art should retain the compact projectile dimensions');
-assert.strictEqual(venomAssetBytes[25], 6, 'venom fang art should retain an RGBA transparent background');
+[
+  ['skillFxProjectileFire', 'skill-projectile-fire-v1.png'],
+  ['skillFxProjectileCold', 'skill-projectile-cold-v1.png'],
+  ['skillFxProjectileLight', 'skill-projectile-lightning-v1.png'],
+].forEach(([key, file]) => assert.ok(passiveSource.includes(`${key}: 'assets/effects/${file}'`), `${key} should be preloaded`));
+[
+  'skill-venom-fang-v2.png', 'skill-projectile-fire-v1.png',
+  'skill-projectile-cold-v1.png', 'skill-projectile-lightning-v1.png',
+].forEach(file => {
+  const assetBytes = fs.readFileSync(`assets/effects/${file}`);
+  assert.deepStrictEqual([assetBytes.readUInt32BE(16), assetBytes.readUInt32BE(20)], [192, 80], `${file} should retain compact projectile dimensions`);
+  assert.strictEqual(assetBytes[25], 6, `${file} should retain an RGBA transparent background`);
+});
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
 assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
 assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wood monster sheets should bypass legacy backdrop sanitization');
@@ -350,11 +361,26 @@ const combatPatternImages = vm.runInContext(`[
   getCombatTravelImageKey({ patternKind: 'boomerang' }),
   getCombatTravelImageKey({ patternKind: 'boomerang', skillName: '독니 사출', element: 'chaos' }),
   getCombatTravelImageKey({ patternKind: 'field', element: 'fire' }),
-  getCombatTravelImageKey({ owner: 'enemy', delivery: 'magicCell' })
+  getCombatTravelImageKey({ owner: 'enemy', delivery: 'magicCell' }),
+  getCombatTravelImageKey({ owner: 'player', delivery: 'projectileTarget', element: 'fire' }),
+  getCombatTravelImageKey({ owner: 'player', delivery: 'projectileTarget', element: 'cold' }),
+  getCombatTravelImageKey({ owner: 'player', delivery: 'projectileTarget', element: 'lightning' })
 ]`, context);
 assert.deepStrictEqual(Array.from(combatPatternImages), [
-  'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxVenomFang', 'skillFxDotField', 'bossTelegraphPulse'
+  'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxVenomFang', 'skillFxDotField', 'bossTelegraphPulse',
+  'skillFxProjectileFire', 'skillFxProjectileCold', 'skillFxProjectileLight'
 ], 'real collision patterns should select their dedicated image assets');
+const projectileImageKeys = vm.runInContext(`[
+  getProjectileVfxImageKey(null, 'fire'),
+  getProjectileVfxImageKey(null, 'cold'),
+  getProjectileVfxImageKey(null, 'lightning'),
+  getProjectileVfxImageKey(null, 'chaos'),
+  getProjectileVfxImageKey({ projectileStyle: 'potion' }, 'fire'),
+  getProjectileVfxImageKey({ projectileAsset: 'venomFang' }, 'chaos')
+]`, context);
+assert.deepStrictEqual(Array.from(projectileImageKeys), [
+  'skillFxProjectileFire', 'skillFxProjectileCold', 'skillFxProjectileLight', null, null, 'skillFxVenomFang'
+], 'elemental images should not override chaos or bespoke projectile styles');
 const venomProjectileDrawing = vm.runInContext(`(() => {
   const calls = { images: 0, rectangles: 0, strokes: 0 };
   battleAssets.images.skillFxVenomFang = { complete: true, naturalWidth: 192 };
@@ -373,6 +399,22 @@ const venomProjectileDrawing = vm.runInContext(`(() => {
 assert.strictEqual(venomProjectileDrawing.images, 1, 'venom fang should draw one compact image projectile');
 assert.strictEqual(venomProjectileDrawing.rectangles, 0, 'venom fang should not fall back to a placeholder rectangle');
 assert.strictEqual(venomProjectileDrawing.strokes, 0, 'venom fang should not retain procedural rings or line trails');
+const elementalProjectileDrawing = vm.runInContext(`(() => {
+  const calls = { images: 0, strokes: 0 };
+  battleAssets.images.skillFxProjectileFire = { complete: true, naturalWidth: 192 };
+  const ctx = {
+    globalAlpha: 1,
+    save() {}, restore() {}, translate() {}, rotate() {}, fillRect() {}, fill() {},
+    drawImage() { calls.images++; }, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, arc() {},
+    stroke() { calls.strokes++; },
+  };
+  drawCombatMovingFx(ctx, {
+    owner: 'player', delivery: 'projectileTarget', element: 'fire'
+  }, 50, 0, 100, { x: 0, y: 0 }, [{ x: 100, y: 0 }], 'skillFxProjectileFire', 'fire');
+  return calls;
+})()`, context);
+assert.strictEqual(elementalProjectileDrawing.images, 1, 'loaded elemental projectiles should draw their compact image');
+assert.strictEqual(elementalProjectileDrawing.strokes, 0, 'loaded elemental projectiles should not retain procedural strokes');
 const missingVenomProjectileFallback = vm.runInContext(`(() => {
   delete battleAssets.images.skillFxVenomFang;
   const calls = { strokes: 0 };
@@ -504,6 +546,8 @@ const travellingProjectile = vm.runInContext(`(() => {
   return battleVisualState.skillEffects[0];
 })()`, context);
 assert.ok(travellingProjectile && travellingProjectile.travel, 'projectile image should own a real travel phase');
+assert.strictEqual(travellingProjectile.imageKey, 'skillFxProjectileCold', 'cold projectile gems should use the dedicated ice-lance art');
+assert.strictEqual(travellingProjectile.imageProjectile, true, 'elemental projectile art should use the image rendering path');
 assert.strictEqual(travellingProjectile.arriveAt, 1400, 'projectile arrival should match the delayed damage frame');
 assert.ok(travellingProjectile.fromX < travellingProjectile.toX, 'projectile should move from the player toward the target');
 const fanProjectiles = vm.runInContext(`(() => {
