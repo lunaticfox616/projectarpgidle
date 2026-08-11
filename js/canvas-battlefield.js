@@ -365,7 +365,8 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
     } else targets = targets.slice(0, skill.projectilePattern && skill.projectilePattern.kind === 'fan' ? 8 : 4);
     if (targets.length <= 0) return;
     let imageKey = SKILL_GEM_VFX_IMAGE_KEYS[profile.projectileAsset] || SKILL_GEM_VFX_IMAGE_KEYS.projectile;
-    let imageProjectile = !!profile.projectileAsset;
+    let imageProjectile = !profile.projectileStyle;
+    let dedicatedProjectileImage = !!profile.projectileAsset;
     let baseImpactAt = Number(swingFx.impactAt) || (swingFx.start + swingFx.duration);
     let piercedTargetCount = isPiercePath ? Math.max(1, Math.min(12, (targetEntries || []).length)) : 1;
     let arriveAt = baseImpactAt + (isPiercePath ? (piercedTargetCount - 1) * 30 : 0);
@@ -402,7 +403,7 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
                 rotation: Math.atan2((target.y - 9 + laneOffset) - (playerPos.y - 20 + laneOffset), target.x - (playerPos.x + 13)),
                 size: getSkillGemVfxBaseSize('projectile', 'projectileTravel') * scale * (1 - targetIndex * 0.035),
                 alpha: imageProjectile ? 0.94 : (isPiercePath ? 0.78 : 0.72),
-                filter: imageProjectile ? 'none' : getSkillGemVfxFilter(normalizeSkillGemVfxElement(swingFx.element, profile.accent), imageKey),
+                filter: dedicatedProjectileImage ? 'none' : getSkillGemVfxFilter(normalizeSkillGemVfxElement(swingFx.element, profile.accent), imageKey),
                 seed: Math.max(1, Number(swingFx.id) || 1) + targetIndex * 19 + repeat * 7
             });
         }
@@ -652,9 +653,11 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
     let progress = clampNumber((now - launchAt) / Math.max(1, arriveAt - launchAt), 0, 1);
     let profile = getSkillGemVfxProfile(fx.skillName);
     let image = getSkillGemVfxImage(imageKey);
-    let imageProjectile = !!(profile && profile.projectileAsset);
-    let width = imageProjectile ? (Number(profile.projectileWidth) || 58) : (fx.patternKind === 'moving' ? 112 : (fx.patternKind === 'boomerang' ? 72 : 48));
-    let height = imageProjectile ? (Number(profile.projectileHeight) || 26) : (fx.patternKind === 'moving' ? 58 : (fx.patternKind === 'boomerang' ? 48 : 24));
+    let dedicatedProjectileImage = !!(profile && profile.projectileAsset);
+    let playerProjectile = fx.owner === 'player' && String(fx.delivery || '').startsWith('projectile');
+    let useProjectileImage = !!image && (!playerProjectile || !(profile && profile.projectileStyle));
+    let width = dedicatedProjectileImage ? (Number(profile.projectileWidth) || 58) : (fx.patternKind === 'moving' ? 112 : (fx.patternKind === 'boomerang' ? 72 : 64));
+    let height = dedicatedProjectileImage ? (Number(profile.projectileHeight) || 26) : (fx.patternKind === 'moving' ? 58 : (fx.patternKind === 'boomerang' ? 48 : 24));
     targets.forEach(target => {
         let x = source.x + (target.x - source.x) * progress;
         let y = source.y + (target.y - source.y) * progress;
@@ -662,15 +665,13 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
-        if (fx.patternKind === 'boomerang' && !imageProjectile) ctx.rotate(progress * Math.PI * 3);
-        ctx.globalCompositeOperation = imageProjectile ? 'source-over' : 'screen';
-        ctx.globalAlpha = imageProjectile ? 0.94 : 0.82;
-        ctx.filter = imageProjectile || isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
-        let proceduralProjectile = !imageProjectile && fx.owner === 'player' && String(fx.delivery || '').startsWith('projectile');
-        if (imageProjectile && image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
-        else if (proceduralProjectile) drawElementProjectileVfx(ctx, getSkillProjectileVfxStyle(fx.skillName, element), width, height, progress);
-        else if (image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
-        else if (!imageProjectile) { ctx.fillStyle = getElementColor(element); ctx.fillRect(-12, -3, 24, 6); }
+        if (fx.patternKind === 'boomerang' && !useProjectileImage) ctx.rotate(progress * Math.PI * 3);
+        ctx.globalCompositeOperation = useProjectileImage ? 'source-over' : 'screen';
+        ctx.globalAlpha = useProjectileImage ? 0.94 : 0.82;
+        ctx.filter = dedicatedProjectileImage || isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
+        if (useProjectileImage) ctx.drawImage(image, -width / 2, -height / 2, width, height);
+        else if (playerProjectile) drawElementProjectileVfx(ctx, getSkillProjectileVfxStyle(fx.skillName, element), width, height, progress);
+        else { ctx.fillStyle = getElementColor(element); ctx.fillRect(-12, -3, 24, 6); }
         drawSkillGemSigil(ctx, fx.skillName, Math.min(width, 84), progress, element);
         ctx.restore();
     });
@@ -868,7 +869,7 @@ function drawSkillGemVfxLayer(ctx, now) {
             ctx.translate(x, y);
             ctx.rotate(effect.rotation || 0);
             if (imageProjectile && image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
-            else if (!imageProjectile) drawElementProjectileVfx(ctx, effect.projectileStyle || effect.element, width, height, t);
+            else drawElementProjectileVfx(ctx, effect.projectileStyle || effect.element, width, height, t);
         } else if (effect.connector) {
             let reveal = Math.min(1, t / 0.22);
             let fromX = effect.toX + (effect.fromX - effect.toX) * reveal;
