@@ -6525,7 +6525,7 @@ function showPlayerFlaskTooltip(event, kind, key) {
         let def = getFlaskHealDef(key);
         let remain = Math.max(0, Math.ceil(((st.healOverTimeUntil || 0) - now) / 1000));
         html = `<div class="tooltip-title">🧪 ${def.name}</div>`
-            + `<div class="tooltip-line">남은 시간: ${remain}초</div>`
+            + `<div class="tooltip-line">${remain > 0 ? `남은 시간: ${remain}초` : '상태: 대기 중'}</div>`
             + `<div class="tooltip-line">지속 회복: 초당 약 ${(st.healOverTimePerSec || 0).toLocaleString()}</div>`
             + `<div class="tooltip-line" style="color:var(--copy-bright);">생명력 ${def.autoBelowHpPct}% 이하 시 자동 발동 · ${Math.round((def.durationMs || 4000) / 1000)}초간 총 ${def.healPct}% 회복</div>`
             + `<div class="tooltip-line" style="color:var(--copy-bright);">남은 충전: ${st.healCharges}/${def.maxCharges}</div>`;
@@ -6535,11 +6535,27 @@ function showPlayerFlaskTooltip(event, kind, key) {
         let entry = (st.utils || []).find(u => u && u.key === key);
         let remain = entry ? Math.max(0, Math.ceil(((entry.until || 0) - now) / 1000)) : 0;
         html = `<div class="tooltip-title">🧪 ${def.name}</div>`
-            + `<div class="tooltip-line">남은 시간: ${remain}초</div>`
+            + `<div class="tooltip-line">${remain > 0 ? `남은 시간: ${remain}초` : '상태: 대기 중'}</div>`
             + `<div class="tooltip-line">효과: ${def.desc}</div>`
             + `<div class="tooltip-line" style="color:var(--copy-bright);">남은 충전: ${entry ? entry.charges : 0}/${def.maxCharges}</div>`;
     }
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#9ed6ff');
+}
+
+function showCombatFlaskOverflowTooltip(event) {
+    if (typeof ensureFlaskState !== 'function') return;
+    let st = ensureFlaskState();
+    let maxSlots = typeof getMaxFlaskUtilitySlotCount === 'function'
+        ? getMaxFlaskUtilitySlotCount() : (st.utils || []).length;
+    let entries = (st.utils || []).slice(2, maxSlots).map(runtime => {
+        let def = runtime && FLASK_UTILITY_POOL[runtime.key];
+        return def ? { runtime, def } : null;
+    }).filter(Boolean);
+    if (entries.length === 0) return hideInfoTooltip();
+    let lines = entries.map(({ runtime, def }) => `<div class="tooltip-line"><strong>${escapeHTML(def.name)}</strong>`
+        + ` · ${runtime.charges}/${def.maxCharges}회<br><span style="color:var(--copy-bright);">${escapeHTML(def.desc || '')}</span></div>`).join('');
+    showInfoTooltipHtml(event.clientX, event.clientY,
+        `<div class="tooltip-title">🧪 추가 플라스크</div>${lines}`, '#9ed6ff');
 }
 const UI_ENEMY_AILMENT_DETAIL_FORMATTERS = Object.freeze({
     chill: () => '이동/공격 속도 감소 (최대 생명력 대비 타격 비율 반영)',
@@ -8229,12 +8245,12 @@ function renderCombatFlaskHud() {
     host.dataset.signature = signature;
     let socketEntries = [healEntry, utilityEntries[0] || null, utilityEntries[1] || null];
     let buttons = socketEntries.map(entry => entry
-        ? `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" title="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" onclick="openTabPane('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`
+        ? `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" aria-label="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" data-info-tooltip-anchor="1" onmouseenter="showPlayerFlaskTooltip(event,'${entry.type === 'heal' ? 'heal' : 'util'}','${entry.key}')" onmousemove="showPlayerFlaskTooltip(event,'${entry.type === 'heal' ? 'heal' : 'util'}','${entry.key}')" onmouseleave="hideInfoTooltip()" onclick="openTabPane('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`
         : '<span class="combat-flask-mini empty" aria-hidden="true"></span>');
     let overflowEntries = utilityEntries.slice(2).filter(Boolean);
     if (overflowEntries.length > 0) {
         let overflowTitle = overflowEntries.map(entry => `${entry.name} · ${entry.charges}/${entry.maxCharges}회`).join(' / ');
-        buttons.push(`<button type="button" class="combat-flask-mini overflow" title="${escapeHTML(overflowTitle)}" onclick="openTabPane('tab-flask')"><span>+${overflowEntries.length}</span></button>`);
+        buttons.push(`<button type="button" class="combat-flask-mini overflow" aria-label="${escapeHTML(overflowTitle)}" data-info-tooltip-anchor="1" onmouseenter="showCombatFlaskOverflowTooltip(event)" onmousemove="showCombatFlaskOverflowTooltip(event)" onmouseleave="hideInfoTooltip()" onclick="openTabPane('tab-flask')"><span>+${overflowEntries.length}</span></button>`);
     }
     host.innerHTML = buttons.join('');
 }
@@ -8738,13 +8754,15 @@ function scheduleUiEnemyTraitOverflow(traitEl, track) {
     let measure = () => {
         if (!traitEl.isConnected) return;
         let panelWidth = Math.max(0, traitEl.clientWidth);
-        let trackWidth = Math.max(0, track.scrollWidth);
-        let overflowing = trackWidth > panelWidth + 4;
+        let singleWidth = Math.max(0, track.scrollWidth);
+        let overflowing = singleWidth > panelWidth + 4;
         traitEl.classList.toggle('is-overflowing', overflowing);
         if (!overflowing) return;
-        track.style.setProperty('--trait-enter-x', `${panelWidth}px`);
-        track.style.setProperty('--trait-exit-x', `${-trackWidth}px`);
-        track.style.setProperty('--trait-duration', `${Math.max(8, Math.min(20, (panelWidth + trackWidth) / 28)).toFixed(2)}s`);
+        let content = track.textContent;
+        track.textContent = `${content}　·　${content}　·　`;
+        let loopDistance = Math.max(singleWidth, track.scrollWidth / 2);
+        track.style.setProperty('--trait-loop-x', `${-loopDistance}px`);
+        track.style.setProperty('--trait-duration', `${Math.max(8, Math.min(20, loopDistance / 20)).toFixed(2)}s`);
     };
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(measure);
     else measure();
@@ -8756,7 +8774,9 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     if (!track) return;
     let visible = Array.isArray(labels) && labels.length > 0;
     traitEl.style.display = visible ? '' : 'none';
-    traitEl.title = fullTooltip || '';
+    traitEl.removeAttribute('title');
+    traitEl.setAttribute('data-enemy-trait-tooltip', fullTooltip || display.fullText || '');
+    traitEl.setAttribute('data-enemy-trait-kind', isBoss ? '보스 특성' : '정예 특성');
     traitEl.setAttribute('aria-label', fullTooltip || display.fullText || '');
     if (!visible) {
         clearUiEnemyTraitRotation(traitEl);
@@ -8791,6 +8811,18 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
         index = (index + 1) % labels.length;
         track.textContent = labels[index];
     }, 2600);
+}
+
+function showEnemyTraitTooltip(event) {
+    let anchor = event.currentTarget || (event.target && event.target.closest
+        ? event.target.closest('.enemy-traits') : null);
+    if (!anchor) return;
+    let detail = anchor.getAttribute('data-enemy-trait-tooltip') || '';
+    if (!detail) return hideInfoTooltip();
+    let title = anchor.getAttribute('data-enemy-trait-kind') || '적 특성';
+    let html = `<div class="tooltip-title">${escapeHTML(title)}</div>`
+        + `<div class="tooltip-line">${escapeHTML(detail)}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#d99a8f');
 }
 
 function buildEnemyCombatEffectIcons(activeAilments, enemyDebuffs, now, enemy) {
@@ -9134,7 +9166,7 @@ function updateCombatUI(pStats) {
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = focusedKey;
-            let traitMarkup = '<div class="enemy-tags muted enemy-traits"><span class="enemy-trait-marquee"></span></div>';
+            let traitMarkup = '<div class="enemy-tags muted enemy-traits" data-info-tooltip-anchor="1" onmouseenter="showEnemyTraitTooltip(event)" onmousemove="showEnemyTraitTooltip(event)" onmouseleave="hideInfoTooltip()"><span class="enemy-trait-marquee"></span></div>';
             let effectMarkup = '<div class="enemy-tags muted enemy-ailments combat-effect-strip enemy-combat-effect-strip" aria-label="활성 상태이상 및 효과"></div>';
             let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}</div>`;
             enemyListEl.innerHTML = `
@@ -10347,7 +10379,7 @@ function renderFlaskPanel() {
             <div class="flask-slot-status">${status}</div>
             ${def ? `<div class="flask-slot-effect">${def.desc} · 품질 +${quality}%</div>${renderFlaskChargeMeter(cur.charges, def.maxCharges, cur.chargeProgress, getFlaskEffectiveChargesPerKills(def.chargesPerKills))}` : ''}
             <div class="flask-slot-actions">
-                <button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('utility', ${idx})" title="${def ? def.desc : '유틸리티 플라스크 선택'}">변경</button>
+                <button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('utility', ${idx})" ${def ? `data-info-tooltip-anchor="1" onmouseenter="showPlayerFlaskTooltip(event,'util','${def.key}')" onmousemove="showPlayerFlaskTooltip(event,'util','${def.key}')" onmouseleave="hideInfoTooltip()"` : ''}>변경</button>
                 <button type="button" class="flask-trigger-select" onclick="cycleUtilityFlaskTrigger(${idx})" ${cur ? '' : 'disabled'}>자동: ${triggerLabel}</button>
                 ${def ? `<button type="button" onclick="upgradeFlaskQuality('${def.key}')" ${quality >= 20 || st.alchemyGlass < qualityCost ? 'disabled' : ''}>품질 +1 · 유리 ${qualityCost}</button>` : ''}
             </div>

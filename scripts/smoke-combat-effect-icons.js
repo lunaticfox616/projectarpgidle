@@ -79,6 +79,10 @@ const context = {
   isUiDamageAilmentType(type) { return ['ignite', 'poison', 'bleed'].includes(type); },
   getUiPlayerDamageAilmentDps() { return 10; }
 };
+context.showInfoTooltipHtml = (x, y, html, borderColor) => {
+  context.__enemyTraitTooltip = { x, y, html, borderColor };
+};
+context.hideInfoTooltip = () => { context.__enemyTraitTooltipHidden = true; };
 vm.createContext(context);
 vm.runInContext(source.slice(start, end), context, { filename: 'combat-effect-icons.js' });
 
@@ -271,7 +275,8 @@ function createTraitPanelFixture() {
       toggle(name, active) { if (active) classes.add(name); else classes.delete(name); }
     },
     querySelector() { return track; }, matches() { return false; },
-    setAttribute(key, value) { this[key] = value; }, removeAttribute(key) { delete this[key]; }
+    setAttribute(key, value) { this[key] = value; }, removeAttribute(key) { delete this[key]; },
+    getAttribute(key) { return this[key]; }
   };
   return { panel, track, classes, properties };
 }
@@ -283,10 +288,17 @@ context.clearInterval = () => {};
 const desktopTraits = createTraitPanelFixture();
 const traitDisplay = context.getUiEnemyTraitDisplayText(['화염', '중갑 전개', '패턴: 격앙']);
 context.updateUiEnemyTraitPanel(desktopTraits.panel, ['화염', '중갑 전개', '패턴: 격앙'], traitDisplay, '전체 설명', true);
-assert.strictEqual(desktopTraits.track.textContent, traitDisplay.fullText, 'desktop bosses must keep every trait on the ticker track');
-assert(desktopTraits.classes.has('is-overflowing') && desktopTraits.properties['--trait-enter-x'] === '80px',
-  'desktop boss traits must animate only when their full text exceeds the frame panel');
-assert.strictEqual(desktopTraits.panel.title, '전체 설명', 'hover text must preserve the complete boss trait explanation');
+assert(desktopTraits.track.textContent.startsWith(traitDisplay.fullText)
+  && desktopTraits.track.textContent.split(traitDisplay.fullText).length - 1 === 2,
+  'desktop boss ticker must begin filled and repeat its text for a seamless loop');
+assert(desktopTraits.classes.has('is-overflowing') && desktopTraits.properties['--trait-loop-x'] === '-180px',
+  'desktop boss traits must loop from visible content instead of entering from an empty panel');
+assert.strictEqual(desktopTraits.panel.title, undefined, 'boss traits must not retain the browser-native title tooltip');
+assert.strictEqual(desktopTraits.panel['data-enemy-trait-tooltip'], '전체 설명',
+  'the complete boss explanation must be retained for the shared custom tooltip');
+context.showEnemyTraitTooltip({ currentTarget: desktopTraits.panel, clientX: 12, clientY: 34 });
+assert(context.__enemyTraitTooltip.html.includes('보스 특성') && context.__enemyTraitTooltip.html.includes('전체 설명'),
+  'boss traits must render through the existing custom info tooltip');
 
 context.matchMedia = query => ({ matches: query.includes('max-width') });
 const mobileTraits = createTraitPanelFixture();

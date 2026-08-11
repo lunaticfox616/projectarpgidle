@@ -681,12 +681,12 @@
 #enemy-area .enemy-card.enemy-boss .enemy-traits {
   position: absolute;
   top: 41%;
-  left: 32%;
+  left: 34%;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36%;
-  max-width: 36%;
+  width: 32%;
+  max-width: 32%;
   height: 17%;
   min-height: 0;
   margin: 0;
@@ -703,6 +703,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   pointer-events: auto;
+  cursor: help;
 }
 
 #enemy-area .enemy-card.enemy-boss .enemy-trait-marquee {
@@ -730,8 +731,8 @@
 }
 
 @keyframes boss-trait-marquee {
-  from { transform: translate3d(var(--trait-enter-x), 0, 0); }
-  to { transform: translate3d(var(--trait-exit-x), 0, 0); }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(var(--trait-loop-x), 0, 0); }
 }
 
 #enemy-area .enemy-hud-meta {
@@ -831,12 +832,12 @@
   }
   body.mobile-battle-tab #tab-battle .enemy-card.enemy-boss .enemy-traits {
     top: 41%;
-    left: 32%;
+    left: 34%;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36%;
-    max-width: 36%;
+    width: 32%;
+    max-width: 32%;
     height: 17%;
     padding: 0 3px;
     overflow: hidden;
