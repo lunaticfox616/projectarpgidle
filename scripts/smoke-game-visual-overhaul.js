@@ -210,7 +210,7 @@ assert.ok(fs.existsSync('assets/effects/boss-telegraph-pulse-v1.png'), 'generate
 [
   'skill-whirlwind-v1.png', 'skill-chain-primary-v1.png', 'skill-chain-jump-v1.png',
   'skill-slam-primary-v1.png', 'skill-slam-aftershock-v1.png', 'skill-slash-v1.png',
-  'skill-projectile-v1.png', 'skill-venom-fang-v1.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
+  'skill-projectile-v1.png', 'skill-venom-fang-v2.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
   'skill-chaos-boomerang-v1.png', 'skill-burst-v1.png', 'skill-dot-field-v1.png',
   'skill-summon-strike-v1.png',
 ].forEach(file => assert.ok(fs.existsSync(`assets/effects/${file}`), `generated skill VFX ${file} should exist`));
@@ -280,7 +280,10 @@ skillGemArtCoverage.paths.forEach(file => assert.ok(fs.existsSync(file), `skill 
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png'"), 'battle asset loader should preload skill VFX images');
 assert.ok(passiveSource.includes("skillFxFrostField: 'assets/effects/skill-frost-field-v1.png'"), 'battle asset loader should preload specialized combat pattern images');
-assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v1.png'"), 'battle asset loader should preload the venom fang projectile image');
+assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v2.png'"), 'battle asset loader should preload the venom fang projectile image');
+const venomAssetBytes = fs.readFileSync('assets/effects/skill-venom-fang-v2.png');
+assert.deepStrictEqual([venomAssetBytes.readUInt32BE(16), venomAssetBytes.readUInt32BE(20)], [192, 80], 'venom fang art should retain the compact projectile dimensions');
+assert.strictEqual(venomAssetBytes[25], 6, 'venom fang art should retain an RGBA transparent background');
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
 assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
 assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wood monster sheets should bypass legacy backdrop sanitization');
