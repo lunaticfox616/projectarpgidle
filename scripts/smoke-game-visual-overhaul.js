@@ -380,6 +380,34 @@ const venomProjectileDrawing = vm.runInContext(`(() => {
 assert.strictEqual(venomProjectileDrawing.images, 1, 'venom fang should draw one compact image projectile');
 assert.strictEqual(venomProjectileDrawing.rectangles, 0, 'venom fang should not fall back to a placeholder rectangle');
 assert.strictEqual(venomProjectileDrawing.strokes, 0, 'venom fang should not retain procedural rings or line trails');
+const projectileImageRouting = vm.runInContext(`(() => {
+  const calls = { genericImages: 0, missingImageStrokes: 0 };
+  battleAssets.images.skillFxProjectile = { complete: true, naturalWidth: 640 };
+  const imageCtx = {
+    globalAlpha: 1,
+    save() {}, restore() {}, translate() {}, rotate() {},
+    drawImage() { calls.genericImages++; }, fillRect() {}, fill() {},
+    beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, arc() {},
+    stroke() {},
+  };
+  drawCombatMovingFx(imageCtx, {
+    owner: 'player', delivery: 'projectileTarget', skillName: '얼음 창'
+  }, 50, 0, 100, { x: 0, y: 0 }, [{ x: 100, y: 0 }], 'skillFxProjectile', 'cold');
+
+  delete battleAssets.images.skillFxVenomFang;
+  const fallbackCtx = {
+    globalAlpha: 1,
+    save() {}, restore() {}, translate() {}, rotate() {}, fillRect() {}, fill() {},
+    beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, arc() {},
+    stroke() { calls.missingImageStrokes++; },
+  };
+  drawCombatMovingFx(fallbackCtx, {
+    owner: 'player', delivery: 'projectileTarget', patternKind: 'boomerang', skillName: '독니 사출'
+  }, 50, 0, 100, { x: 0, y: 0 }, [{ x: 100, y: 0 }], 'skillFxVenomFang', 'chaos');
+  return calls;
+})()`, context);
+assert.strictEqual(projectileImageRouting.genericImages, 1, 'ordinary projectile gems should use the loaded projectile image');
+assert.ok(projectileImageRouting.missingImageStrokes > 0, 'a missing dedicated projectile image should retain a visible procedural fallback');
 const optimizedAreaVfx = vm.runInContext(`(() => {
   const counts = { meteorImages: 0, blizzardGusts: 0, blizzardFlakes: 0, rainLines: 0, blizzardBounds: 0 };
   battleAssets.images.skillFxSlamPrimary = { complete: true, naturalWidth: 64 };
