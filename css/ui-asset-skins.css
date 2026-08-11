@@ -113,8 +113,16 @@
   background-position: var(--effect-sprite-x) var(--effect-sprite-y);
   background-size: 700% 700%;
   border-radius: 3px;
+  clip-path: inset(0 0 5.5% 0);
   image-rendering: pixelated;
   filter: brightness(1.55) saturate(1.4) contrast(1.28);
+}
+
+.effect-leechEfficiency .combat-effect-art::before,
+.effect-lifeLeech .combat-effect-art::before,
+.effect-energyShieldLeech .combat-effect-art::before,
+.effect-gladiatorFlurry .combat-effect-art::before {
+  transform: scale(.94);
 }
 
 .combat-effect-icon.timed::after {
@@ -672,7 +680,7 @@
 
 #enemy-area .enemy-card.enemy-boss .enemy-traits {
   position: absolute;
-  top: 52%;
+  top: 41%;
   left: 32%;
   display: flex;
   align-items: center;
@@ -822,7 +830,7 @@
     font-size: clamp(8px, 2.5vw, 11px) !important;
   }
   body.mobile-battle-tab #tab-battle .enemy-card.enemy-boss .enemy-traits {
-    top: 52%;
+    top: 41%;
     left: 32%;
     display: flex;
     align-items: center;

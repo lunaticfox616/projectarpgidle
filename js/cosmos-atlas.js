@@ -2232,18 +2232,18 @@
     }
 
     function formatCosmosPower(value) {
-        return Math.max(0, Math.round(Number(value) || 0)).toLocaleString('ko-KR');
+        return Math.max(0, Math.round(Number(value) || 0)).toLocaleString('ko-KR', {
+            notation: 'compact', maximumSignificantDigits: 2
+        });
     }
 
     function renderCosmosDifficultySection(node) {
         const model = getCosmosNodeRecommendation(node);
         if (!model) return '';
-        const labels = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' };
         const ready = model.readiness || { id: 'blocked', label: '측정 불가', dpsRatio: 0, ehpRatio: 0 };
         return `<div class="cosmos-detail-section cosmos-readiness ${ready.id}">
             <div class="cosmos-section-label">전투 준비도 <b>${escapeHtml(ready.label)}</b></div>
-            <div class="cosmos-power-grid"><span>권장 DPS<strong>${formatCosmosPower(model.target.dps)}</strong><small>약 ${model.target.clearTimeSec}초 클리어</small></span><span>권장 ${labels[model.target.element] || '최저'} EHP<strong>${formatCosmosPower(model.target.ehp)}</strong><small>엔트로피 회피 포함</small></span></div>
-            <div class="cosmos-power-compare"><span>내 DPS ${formatCosmosPower(model.player.dps)} · ${Math.floor(ready.dpsRatio * 100)}%</span><span>내 EHP ${formatCosmosPower(model.player.ehp)} · ${Math.floor(ready.ehpRatio * 100)}%</span></div>
+            <div class="cosmos-power-grid"><span>예상 DPS<strong>약 ${formatCosmosPower(model.target.dps)}</strong></span><span>예상 EHP<strong>약 ${formatCosmosPower(model.target.ehp)}</strong></span></div>
         </div>`;
     }
 

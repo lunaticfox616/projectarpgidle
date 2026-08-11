@@ -823,8 +823,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   background: rgba(19, 55, 34, .55);
 }
 
-.cosmos-power-grid,
-.cosmos-power-compare {
+.cosmos-power-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
@@ -843,12 +842,6 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 .cosmos-power-grid strong {
   color: #ffffff;
   font-size: 14px;
-}
-
-.cosmos-power-grid small,
-.cosmos-power-compare {
-  color: var(--copy-muted);
-  font-size: 8px;
 }
 
 .cosmos-readiness.comfortable,

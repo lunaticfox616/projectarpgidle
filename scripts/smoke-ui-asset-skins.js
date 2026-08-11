@@ -118,8 +118,11 @@ assert.strictEqual(effectAtlasSize[0] % 7, 0, 'effect atlas must retain seven eq
 assert.strictEqual(readPngColorType('assets/ui/status-effects-atlas-v1.png'), 6, 'effect atlas must retain RGBA transparency');
 assert.ok(css.includes('background-size: 700% 700%'), 'effect art must expose exactly one cell from the 7x7 atlas');
 assert.ok(/\.combat-effect-art \{[\s\S]*?overflow: hidden;/.test(css)
-  && /\.combat-effect-art::before \{[\s\S]*?inset: 1px;[\s\S]*?background-repeat: no-repeat;/.test(css),
-  'effect art must isolate and inset one atlas cell so its edges and neighboring rows stay hidden');
+  && /\.combat-effect-art::before \{[\s\S]*?inset: 1px;[\s\S]*?background-repeat: no-repeat;[\s\S]*?clip-path: inset\(0 0 5\.5% 0\);/.test(css),
+  'effect art must isolate one atlas cell and clip the neighboring row pixels baked into its lower edge');
+assert.ok(css.includes('.effect-lifeLeech .combat-effect-art::before')
+  && css.includes('.effect-gladiatorFlurry .combat-effect-art::before') && css.includes('transform: scale(.94);'),
+  'the leech and flurry artwork must receive their per-icon framing correction');
 assert.ok(/\.player-health-frame \.player-combat-effect-strip \{[\s\S]*?bottom: calc\(100% \+ 4px\);[\s\S]*?flex-wrap: wrap-reverse;/.test(css),
   'player effects must occupy a wrapped shelf above the health frame instead of covering its gauge');
 assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 32px;/.test(css),
@@ -131,7 +134,7 @@ assert.ok(/\.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?flex: 0 0
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('--health-frame-width: 520px') && css.includes('.enemy-card.enemy-boss .enemy-hud-meta'),
   'boss health and traits must use the compact integrated frame');
-assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 52%;[\s\S]*?left: 32%;[\s\S]*?width: 36%;[\s\S]*?height: 17%;/.test(css),
+assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 41%;[\s\S]*?left: 32%;[\s\S]*?width: 36%;[\s\S]*?height: 17%;/.test(css),
   'boss traits must stay centered within the supplied pink trait panel');
 assert.ok(/body\.mobile-battle-tab #tab-battle \.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?display: flex;[\s\S]*?align-items: center;[\s\S]*?height: 17%;/.test(css),
   'mobile boss traits must keep the frame-panel centering contract');
