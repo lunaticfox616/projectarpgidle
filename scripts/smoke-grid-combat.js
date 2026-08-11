@@ -92,6 +92,7 @@ files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { 
 context.getHeroSelectionDef = () => ({ label: '테스트 영웅', classId: null });
 context.getCodexBonusPct = () => 0;
 context.addLog = () => {};
+context.updateStaticUI = () => {};
 
 function resetGame() {
   vm.runInContext('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;', context);
@@ -107,6 +108,89 @@ function makeEnemy(id, gx, gy, extra) {
 }
 
 const cfg = context.COMBAT_GRID_CONFIG;
+
+// 지도 예상 전투력은 실제 지역·루프 스케일을 따라야 한다.
+{
+  resetGame();
+  const opening = context.estimateMapZonePowerRequirements({ id: 0, type: 'act', tier: 1, ele: 'phys' });
+  const finale = context.estimateMapZonePowerRequirements({ id: 9, type: 'act', tier: 7, ele: 'chaos' });
+  assert.ok(finale.dps > opening.dps && finale.ehp > opening.ehp, '후반 액트는 초반 액트보다 예상 DPS/EHP가 높아야 한다');
+  context.game.season = 10;
+  context.game.loopCount = 9;
+  const looped = context.estimateMapZonePowerRequirements({ id: 9, type: 'act', tier: 7, ele: 'chaos' });
+  assert.ok(looped.dps > finale.dps && looped.ehp > finale.ehp, '같은 지역도 루프가 오르면 예상 DPS/EHP가 함께 올라야 한다');
+
+  context.game.abyssEndlessDepth = 24;
+  context.game.labyrinthFloor = 12;
+  context.game.underworldProgress = { currentFloor: 6, highestFloor: 6 };
+  context.game.chaosRealm.currentFloor = 4;
+  context.game.timeRift.pressure = 5;
+  context.game.ocean.unlocked = true;
+  context.game.ocean.depthM = 650;
+  const zoneIds = vm.runInContext(`({
+    labyrinth: LABYRINTH_ZONE_ID,
+    underworld: UNDERWORLD_ZONE_ID,
+    chaosRealm: CHAOS_REALM_ZONE_ID,
+    timeRiftPast: TIME_RIFT_PAST_ZONE_ID,
+    meteor: METEOR_FALL_ZONE_ID,
+    ocean: OCEAN_ZONE_ID
+  })`, context);
+  const specialZones = [
+    ['혼돈 심화', context.getZone(context.getAbyssZoneIdForDepth(24))],
+    ['고대 미궁', context.getZone(zoneIds.labyrinth)],
+    ['지하계', context.getZone(zoneIds.underworld)],
+    ['혼돈계', context.getZone(zoneIds.chaosRealm)],
+    ['뿌리 보스', context.getZone(context.SEASON_BOSS_ZONES[0].id)],
+    ['시간의 균열', context.getZone(zoneIds.timeRiftPast)],
+    ['운석 낙하 지점', context.getZone(zoneIds.meteor)],
+    ['벌집 원정', context.getZone('beehive_run')],
+    ['군락지', context.getZone('colony_run')],
+    ['대균열', context.getZone('grand_breach_run')],
+    ['전직 시련', context.getZone('trial_1')],
+    ['심해', context.getZone(zoneIds.ocean)],
+  ];
+  specialZones.forEach(([label, zone]) => {
+    assert.ok(zone, `${label} 실제 지역 정의를 찾을 수 있어야 한다`);
+    const estimate = context.estimateMapZonePowerRequirements(zone);
+    assert.ok(estimate && Number.isFinite(estimate.dps) && estimate.dps > 0, `${zone.name} 예상 DPS가 유효해야 한다`);
+    assert.ok(Number.isFinite(estimate.ehp) && estimate.ehp > 0, `${zone.name} 예상 EHP가 유효해야 한다`);
+  });
+
+  context.game.beehive.branchStep = 1;
+  const earlyHive = context.estimateMapZonePowerRequirements(context.getZone('beehive_run'));
+  context.game.beehive.branchStep = 10;
+  const lateHive = context.estimateMapZonePowerRequirements(context.getZone('beehive_run'));
+  assert.ok(lateHive.dps > earlyHive.dps, '벌집 후반 갈림길은 초반보다 예상 DPS가 높아야 한다');
+
+  const breachRewards = context.getGrandBreachRewardSummary(31);
+  assert.strictEqual(breachRewards.kills, 31, '대균열 정산은 실제 생존 구간 처치 수를 사용해야 한다');
+  assert.strictEqual(breachRewards.voidChisel, 5, '대균열 처치 수가 공허의 끌 정산량을 높여야 한다');
+  assert.strictEqual(context.getColonyWaveEnemyCount(1), 12, '군락지 첫 웨이브 목표와 실제 생성 수가 같아야 한다');
+  assert.strictEqual(context.getColonyWaveEnemyCount(20), 36, '군락지 적 수는 무한히 늘지 않아야 한다');
+  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_1'), false), 0.05, '무료 1차 시련 반복은 낮은 확률로 공격 젬을 지급해야 한다');
+  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_2'), false), 0.08, '무료 2차 시련 반복은 1차보다 높은 확률로 공격 젬을 지급해야 한다');
+  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_3'), false), 1, '증표를 소비하는 시련 반복은 공격 젬을 확정 지급해야 한다');
+  assert.strictEqual(context.getTrialSkillGemRewardChance(context.getZone('trial_1'), true), 1, '시련 최초 클리어는 공격 젬을 확정 지급해야 한다');
+
+  const oceanCurrents = Array.from({ length: 18 }, (_, tier) => context.getOceanCurrentAffixes(tier)).flat();
+  const oceanCurrentIds = new Set(oceanCurrents.map(current => current.id));
+  assert.strictEqual(oceanCurrentIds.size, 6, '심해의 모든 해류가 실제 수심 단계에 등장해야 한다');
+  assert.strictEqual(context.getOceanCurrentAffixes(15).length, 6, '깊은 수심은 예정된 해류 수를 빠짐없이 적용해야 한다');
+
+  context.game.timeRift.pressure = 3;
+  context.game.timeRift.altarOpen = true;
+  context.setTimeRiftPressure(1);
+  assert.strictEqual(context.game.timeRift.pressure, 3, '과거 제단이 열린 뒤에는 시간압을 바꿀 수 없어야 한다');
+  context.retrieveTimeAltarItems();
+  assert.strictEqual(context.game.timeRift.altarOpen, false, '아이템이 없어도 빈 제단을 닫고 시간압 잠금을 풀 수 있어야 한다');
+  context.setTimeRiftPressure(1);
+  assert.strictEqual(context.game.timeRift.pressure, 4, '제단 작업 전에는 시간압을 바꿀 수 있어야 한다');
+  context.game.currentZoneId = zoneIds.timeRiftPast;
+  context.game.timeRift.pressure = 9;
+  context.game.timeRift.activePressure = 3;
+  assert.strictEqual(context.getZone(zoneIds.timeRiftPast).pressure, 3, '진행 중 시간 균열은 진입 당시 시간압을 유지해야 한다');
+  resetGame();
+}
 
 // ── 1. 모든 스킬 젬에 유효한 그리드 범위 프로필이 있어야 한다 ──
 const validKinds = new Set(['melee', 'arc', 'nova', 'line', 'chain', 'blast', 'fan', 'summon']);
@@ -662,12 +746,17 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   projectileStats.baseDmg = 1000;
   projectileStats.minDmgRoll = projectileStats.maxDmgRoll = 100;
   projectileStats.accuracy = 1000000;
+  projectileStats.projectileExtraShots = 2;
   context.performPlayerAttack(projectileStats);
   original.gx = 3; original.gy = 5;
   interceptor.gx = 2; interceptor.gy = 6;
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.strictEqual(original.hp, original.maxHp, '직선 투사체는 떠난 원래 대상을 추적하면 안 된다');
   assert.ok(interceptor.hp < interceptor.maxHp, '직선 투사체는 목표까지의 중간 경로에 들어온 다른 적과 충돌해야 한다');
+  const projectileHitGroups = vm.runInContext("battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === 62).map(fx => fx.damageTextGroupId)", context);
+  assert.ok(projectileHitGroups.length >= 3, '추가 발사 +2는 실제 피해 타격을 그대로 유지해야 한다');
+  assert.strictEqual(new Set(projectileHitGroups).size, 1, '한 단계의 추가 투사체 타격은 동일한 피해 숫자 그룹을 공유해야 한다');
+  assert.ok(projectileHitGroups[0], '추가 투사체 피해 숫자 그룹은 비어 있으면 안 된다');
 
   resetGame();
   context.game.activeSkill = '연발 사격';
@@ -1308,6 +1397,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const ui = fs.readFileSync('js/ui.js', 'utf8');
   assert.ok(battlefield.includes('isPlayerWalkingForAnimation'), '전장 캔버스가 공용 걷기 판단을 써야 한다');
   assert.ok(ui.includes('isPlayerWalkingForAnimation'), '스프라이트 선택이 공용 걷기 판단을 써야 한다');
+  assert.ok(ui.includes('estimateMapZonePowerRequirements(zone)') && ui.includes('예상 DPS'), '지도 지역 카드가 예상 DPS/EHP를 표시해야 한다');
+  assert.ok((ui.match(/buildMapPowerEstimateHtml\(/g) || []).length >= 14, '특수 지도 패널도 예상 DPS/EHP 표시를 공유해야 한다');
 }
 
 console.log('smoke-grid-combat passed');

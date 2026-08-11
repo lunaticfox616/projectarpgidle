@@ -29,11 +29,11 @@ const WORLD_MAP_HOTSPOTS = [
 ];
 
 const TRIAL_ZONES = [
-    { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3, fixedDifficultyMul: 1 },
-    { id: 'trial_2', name: "2차 전직 시련", type: "trial", tier: 6, maxKills: 1, reqZone: 8, fixedDifficultyMul: 1 },
-    { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', fixedDifficultyMul: 1 },
-    { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', fixedDifficultyMul: 1 },
-    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", tier: 30, maxKills: 1, reqZone: -1, bloomTrial: true, bloomTrialAffixFloor: 10, underworldPenaltyFloor: 10, trapRegenSuppressPct: 3, fixedDifficultyMul: 1 }
+    { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3, ele: 'phys', repeatGemChance: 0.05, fixedDifficultyMul: 1, trapElements: ['phys'], trialDesc: '칼날 함정 · 방어도와 물리 피해 감소 점검' },
+    { id: 'trial_2', name: "2차 전직 시련", type: "trial", tier: 6, maxKills: 1, reqZone: 8, ele: 'fire', repeatGemChance: 0.08, fixedDifficultyMul: 1, trapElements: ['fire', 'cold', 'light'], trialDesc: '삼원 함정 · 화염·냉기·번개 저항 점검' },
+    { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['chaos'], trialDesc: '여신의 독무 · 카오스 저항과 회복력 점검' },
+    { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['phys', 'chaos'], trialDesc: '피와 공허의 회랑 · 물리·카오스 방어 복합 점검' },
+    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", tier: 30, maxKills: 1, reqZone: -1, bloomTrial: true, bloomTrialAffixFloor: 10, underworldPenaltyFloor: 10, trapRegenSuppressPct: 3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialDesc: '혹한 함정 · 적응형 혼돈 특성과 누적 재생 억제' }
 ];
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';

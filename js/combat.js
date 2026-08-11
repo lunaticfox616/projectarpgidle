@@ -28,6 +28,7 @@ let combatTacticsRuntime = createCombatTacticsRuntime();
 let combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
 let combatChannelResumeSkillName = '';
 let nextCombatChannelId = 1;
+let nextPlayerDamageTextGroupId = 1;
 
 function createCombatTacticsRuntime(now) {
     let timestamp = Number.isFinite(now) ? now : Date.now();
@@ -2717,6 +2718,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
                 stageRepeatOnce: !!stage.singleRepeat,
                 restrictRandomTargets: !!stage.singleRepeat,
                 talentMoonReturn: attackContext.talentMoonReturn || null,
+                damageTextGroupId: attackContext.damageTextGroupId ? `${attackContext.damageTextGroupId}:${stageOffset}` : '',
                 hitDamageMultiplier: Math.max(0, Number(stage.damageMultiplier) || 0),
                 attackDamageMultiplier: Number.isFinite(Number(attackContext.attackDamageMultiplier)) ? Math.max(0, Number(attackContext.attackDamageMultiplier)) : 1
             }
@@ -3679,6 +3681,8 @@ function getPlayerStats() {
         finalMove *= (1 - gravitySlow);
     }
     let oceanPressureDamageMul = 1;
+    let oceanCurrentResPenaltyF = 0;
+    let oceanCurrentResPenaltyC = 0;
     if (zonePenalty && zonePenalty.type === 'oceanDepth') {
         let depthTier = Math.max(0, Math.floor(zonePenalty.depthTier || 0));
         let pressureResistPct = Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist') + (typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0)));
@@ -3687,6 +3691,10 @@ function getPlayerStats() {
         oceanPressureDamageMul *= (1 - pressureSlow * 0.6);
         // 이동속도는 수압의 영향을 압축해서 받아 100%에 가깝게 유지(체감 페널티 완만화)
         finalMove *= (1 - pressureSlow * 0.2);
+        if (hasOceanCurrent(zonePenalty, 'riptide')) finalMove *= 0.85;
+        if (hasOceanCurrent(zonePenalty, 'bioluminescence')) playerAccuracy *= 0.82;
+        if (hasOceanCurrent(zonePenalty, 'warm_current')) oceanCurrentResPenaltyF = 12;
+        if (hasOceanCurrent(zonePenalty, 'cold_current')) oceanCurrentResPenaltyC = 12;
     }
     if (zonePenalty && zonePenalty.bloomTrial && zonePenalty.underworldPenaltyFloor) {
         // 지하계 N층급 중력 패널티: 창공석으로 줄일 수 없음
@@ -3840,8 +3848,8 @@ function getPlayerStats() {
         finalMaxResC = Math.min(90, finalMaxResC + 3);
         finalMaxResL = Math.min(90, finalMaxResL + 3);
     }
-    let rawResF = gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + support.resF + reward.resF + elementalistResistanceShift.resF - resistPenalty;
-    let rawResC = gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + support.resC + reward.resC + elementalistResistanceShift.resC - resistPenalty;
+    let rawResF = gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + support.resF + reward.resF + elementalistResistanceShift.resF - resistPenalty - oceanCurrentResPenaltyF;
+    let rawResC = gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + support.resC + reward.resC + elementalistResistanceShift.resC - resistPenalty - oceanCurrentResPenaltyC;
     let rawResL = gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + support.resL + reward.resL + elementalistResistanceShift.resL - resistPenalty;
     let rawResChaos = gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + support.resChaos + reward.resChaos + elementalistResistanceShift.resChaos - resistPenalty;
     if (uniqueRegenRateAndRegen) { finalRegen += Number(uniqueRegenRateAndRegen.regen || 0); finalRegen *= (1 + Math.max(0, Number(uniqueRegenRateAndRegen.regenRatePct || 0)) / 100); }
@@ -5990,7 +5998,7 @@ function createEnemy(zone, marker, groupIndex) {
         if (empower > 0) hp = Math.floor(hp * (1 + empower * 0.08));
     }
     let enemyElePool = zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos'];
-    let enemyEle = rndChoice(enemyElePool);
+    let enemyEle = hasOceanCurrent(zone, 'cold_current') ? 'cold' : (hasOceanCurrent(zone, 'warm_current') ? 'fire' : rndChoice(enemyElePool));
     let eleIcon = enemyEle === 'fire' ? '🔥' : (enemyEle === 'cold' ? '❄️' : (enemyEle === 'light' ? '⚡' : (enemyEle === 'chaos' ? '☠️' : '🩸')));
     let name = `${eleIcon} ${zone.name.split(':')[0]} 추종자`;
     if (isElite) name = `정예 ${name}`;
@@ -6221,6 +6229,71 @@ function getZoneEncounterProfile(zone) {
     };
 }
 
+function resolveMapEstimateContentScale(zone) {
+    let scale = { hp: 1, damage: 1, clearTimeSec: 24 };
+    let floor = Math.max(1, Math.floor(Number(zone.floor) || 1));
+    if (zone.type === 'act') scale.clearTimeSec = 18;
+    if (zone.type === 'chaosRealm') scale.hp = 5 * (1 + (floor - 1) * 0.06);
+    if (zone.type === 'underworld') {
+        scale.hp = 5 * (1 + (floor - 1) * 0.045);
+        scale.damage = 0.78;
+    }
+    if (zone.type === 'oceanDepth') scale.hp = 5 * (1 + Math.max(0, Math.floor(zone.depthTier || 0)) * 0.05);
+    if (zone.type === 'timeRift' || zone.type === 'seasonBoss') scale.clearTimeSec = 30;
+    if (zone.type === 'beehive') {
+        let hive = game.beehive || {};
+        scale.hp = (1 + Math.max(0, Math.floor(hive.branchStep || 1)) * 0.16
+            + Math.max(0, Math.floor(hive.enemyEmpower || 0)) * 0.22) * 2.4;
+        scale.damage = 1.75 * (1 + Math.max(0, Math.floor(hive.enemyEmpower || 0)) * 0.12);
+        scale.clearTimeSec = 30;
+    }
+    if (zone.type === 'colony') {
+        scale.hp = 9.5;
+        scale.damage = 1.45;
+    }
+    if (zone.type === 'grandBreach') scale.clearTimeSec = 35;
+    return scale;
+}
+
+/**
+ * 지도 카드에 표시할 대략적인 보스전 기준치다.
+ * @param {{type:string,tier:number,id:(number|string),ele?:string}} zone
+ * @returns {{dps:number,ehp:number,element:string,clearTimeSec:number}|null}
+ */
+function estimateMapZonePowerRequirements(zone) {
+    const supportedTypes = ['act', 'abyss', 'labyrinth', 'underworld', 'chaosRealm', 'oceanDepth', 'seasonBoss', 'timeRift', 'meteor', 'beehive', 'colony', 'grandBreach', 'trial'];
+    if (!zone || !supportedTypes.includes(zone.type)) return null;
+    let tier = Math.max(1, Number(zone.tier) || 1);
+    let loopInputs = getLoopDifficultyInputs(zone);
+    let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
+    let tierProgress = clampNumber((tier - 1) / 18, 0, 1);
+    let hp = ((56 + tier * 30) * 1.15)
+        * (1 + seasonDepth * (0.08 + tierProgress * 0.52))
+        * (1 + tierProgress * 9)
+        * getLoopHpScale(loopInputs.loopCount);
+    if (loopInputs.exempt) hp *= Number(zone.fixedDifficultyMul) || 1;
+    let abyssScale = getAbyssMonsterScales(zone);
+    let contentScale = resolveMapEstimateContentScale(zone);
+    let bossMods = (zone.bossMods && typeof zone.bossMods === 'object') ? zone.bossMods : {};
+    let bossHp = hp * (1.8 + tier * 0.6) * (1 + tierProgress * 4)
+        * (abyssScale.hpMul || 1) * (abyssScale.bossMul || 1) * 0.92
+        * getChallengeContractEnemyHealthMultiplier(zone) * contentScale.hp * (bossMods.hpMul || 1);
+    if (zone.type === 'trial' && zone.id === 'trial_3') bossHp *= 0.85;
+    let tierPressure = clampNumber((tier - 1) / 10, 0, 1);
+    let bossHit = (2.4 + tier * 3.35) * 1.15
+        * (1 + seasonDepth * (0.05 + tierPressure * 0.07))
+        * (1.14 + tier * 0.16) * 1.34
+        * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (abyssScale.bossMul || 1)
+        * contentScale.damage * (bossMods.damageMul || 1);
+    if (zone.type === 'act' && Number(zone.id) <= 1 && (game.season || 1) >= 3) bossHit *= 0.58;
+    return {
+        dps: Math.max(1, Math.round(bossHp / contentScale.clearTimeSec)),
+        ehp: Math.max(1, Math.round(bossHit)),
+        element: String(zone.ele || 'phys'),
+        clearTimeSec: contentScale.clearTimeSec
+    };
+}
+
 function getEncounterDifficultyValue(zone) {
     if (!zone) return 1;
     if (Number.isFinite(zone.floor)) return Math.max(1, Math.floor(zone.floor));
@@ -6319,6 +6392,7 @@ function resetBattleRuntimeVisuals() {
     pendingSkillStageHits = [];
     pendingEnemyCombatAttacks = [];
     latestPlayerSwingImpactAt = 0;
+    nextPlayerDamageTextGroupId = 1;
     battleVisualState = {
         projectiles: [],
         damageTexts: [],
@@ -6349,8 +6423,10 @@ function primeTrialHazardTimer(zone) {
     if (!zone || !zone.bloomTrial) game.bloomTrialRegenSuppress = 0;
     if (!zone || zone.type !== 'trial') {
         trialHazardTimer = 0;
+        game.trialHazardIndex = 0;
         return;
     }
+    game.trialHazardIndex = 0;
     trialHazardTimer = 1.8 + Math.random() * 1.6;
 }
 
@@ -7918,19 +7994,12 @@ function handleEnemyDeath(enemy, pStats) {
     if (zone && zone.id === 'colony_run' && game.colony && game.colony.inRun) {
         game.colony.kills = Math.max(0, Math.floor((game.colony.kills || 0) + 1));
         if ((game.colony.kills || 0) >= Math.max(1, Math.floor(game.colony.requiredKills || 1))) {
-            if (Math.random() < 0.6) awardCurrency('colonyShard', 1 + Math.floor((game.colony.wave || 1) / 3));
+            let completedWave = Math.max(1, Math.floor(game.colony.wave || 1));
+            let shardReward = 1 + Math.floor(completedWave / 3);
+            awardCurrency('colonyShard', shardReward);
             if (Math.random() < 0.35) awardCurrency('formlessDew', 1);
-
-            if (Math.random() < 0.42) {
-                let c = game.colony || (game.colony = {});
-                c.wardInventory = Array.isArray(c.wardInventory) ? c.wardInventory : [];
-                if (typeof generateColonyWard === 'function') {
-                    let ward = generateColonyWard();
-                    c.wardInventory.push(ward);
-                    addLog(`🛡️ 군락지 액막이 부적 획득: ${ward.name}`, 'loot-rare');
-                }
-            }
-            if (Math.random() < 0.42) {
+            if (completedWave % 10 === 0) awardCurrency('colonyTrace', 1);
+            if (completedWave % 5 === 0 || Math.random() < 0.28) {
                 let c = game.colony || (game.colony = {});
                 c.wardInventory = Array.isArray(c.wardInventory) ? c.wardInventory : [];
                 if (typeof generateColonyWard === 'function') {
@@ -7943,13 +8012,16 @@ function handleEnemyDeath(enemy, pStats) {
             game.colony.highestWave = Math.max(Math.floor(game.colony.highestWave || 1), game.colony.wave);
             if (game.colony.highestWave >= 11) unlockJournalEntry('colony_wave_10');
             game.colony.kills = 0;
-            game.colony.requiredKills = Math.min(60, 16 + Math.floor((game.colony.wave || 1) * 3));
+            game.colony.requiredKills = getColonyWaveEnemyCount(game.colony.wave);
             if (typeof spawnColonyWave === 'function') spawnColonyWave();
-            addLog(`🪲 군락지 웨이브 완료! 다음 웨이브 ${game.colony.wave} 시작.`, 'loot-magic');
+            addLog(`🪲 군락지 ${completedWave}웨이브 완료! 군락지 편린 +${shardReward}${completedWave % 10 === 0 ? ' · 군락지 흔적 +1' : ''} · 다음 웨이브 ${game.colony.wave} 시작.`, 'loot-magic');
+            queueImportantSave(200);
         }
     }
     if (zone && zone.id === 'grand_breach_run' && enemy.isBoss && grand && grand.inRun) {
         let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
+        let rewards = getGrandBreachRewardSummary(grand.kills);
+        awardCurrency('voidChisel', rewards.voidChisel);
         grand.inRun = false;
         grand.phase = 'done';
         grand.timeLeft = 0;
@@ -7961,7 +8033,8 @@ function handleEnemyDeath(enemy, pStats) {
         game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
         markLoopSpecialBossKill('void_grand_breach');
         unlockJournalEntry('void_grand_breach');
-        addLog('🌌 대균열 보스를 격파했습니다!', 'level-up');
+        addLog(`🌌 대균열 보스를 격파했습니다! 생존 구간 ${rewards.kills}처치 정산 · 공허의 끌 +${rewards.voidChisel}`, 'level-up');
+        queueImportantSave(200);
     }
     // 시체폭발/연쇄 피해 등으로 동시에 0 이하가 된 적은
     // 일반 타격 루프를 통하지 않으면 사망 처리(handleEnemyDeath)가 누락될 수 있다.
@@ -8088,6 +8161,19 @@ function grantGuaranteedTrialSkillGem() {
     let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(2) : (awardCurrency('gemShard', 2), 2);
     addLog(`✨ 전직 시련 보상: 공격 젬 <span class='loot-magic'>[${skill}]</span> 획득! · 젬 잔향 +${shardGain}`, 'loot-magic');
     return true;
+}
+
+function getTrialSkillGemRewardChance(zone, isFirstClear) {
+    if (isFirstClear) return 1;
+    return Math.max(0, Math.min(1, Number(zone && zone.repeatGemChance) || 0));
+}
+
+function getGrandBreachRewardSummary(kills) {
+    let safeKills = Math.max(0, Math.floor(Number(kills) || 0));
+    return {
+        kills: safeKills,
+        voidChisel: 2 + Math.floor(safeKills / 10)
+    };
 }
 
 function finishEncounterRun() {
@@ -8223,7 +8309,7 @@ function finishEncounterRun() {
         let rift = ensureTimeRiftState();
         if (zone.riftPhase === 'past') {
             rift.altarOpen = true;
-            addLog(`⏳ 과거의 제단이 열렸습니다. (시간압 ${rift.pressure}) 인벤토리에서 아이템을 선택해 같은 부위의 고유 1개·희귀 1개를 올리세요.`, 'loot-unique');
+            addLog(`⏳ 과거의 제단이 열렸습니다. (시간압 ${zone.pressure}) 인벤토리에서 아이템을 선택해 같은 부위의 고유 1개·희귀 1개를 올리세요.`, 'loot-unique');
         } else {
             let fusion = typeof resolveTimeRiftFusion === 'function' ? resolveTimeRiftFusion() : null;
             if (fusion) {
@@ -8233,6 +8319,7 @@ function finishEncounterRun() {
                 addLog(`⌛ ${gradeLabel}! [${fusion.fused.name}]이(가) 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 ${fusion.inherited}개${fusion.lost > 0 ? ` · ${fusion.lost}개 유실` : ' · 유실 없음'})`, 'loot-unique');
             }
         }
+        rift.activePressure = null;
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         enterAutomaticMapInterruptionAfterClear(zone);
@@ -8253,9 +8340,9 @@ function finishEncounterRun() {
         return;
     }
     if (zone.type === 'trial') {
-        grantGuaranteedTrialSkillGem();
         let isFirstClear = !game.completedTrials.includes(zone.id);
         if (isFirstClear) game.completedTrials.push(zone.id);
+        if (Math.random() < getTrialSkillGemRewardChance(zone, isFirstClear)) grantGuaranteedTrialSkillGem();
         if (isFirstClear) {
             game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
             addLog(`💠 키스톤 포인트 +1 (현재 ${game.ascendKeystonePoints})`, 'loot-unique');
@@ -8754,6 +8841,8 @@ function performPlayerAttack(pStats, attackOptions) {
         let stageBaseDelayMs = channelContinuation ? 0 : attackMotionMs;
         let channelId = isChannel ? beginCombatChannel(skillName, stageBaseDelayMs, channelCycleMs) : 0;
         let actionDurationMs = isChannel ? stageBaseDelayMs + channelCycleMs : attackMotionMs;
+        let damageTextGroupId = nextPlayerDamageTextGroupId++;
+        if (nextPlayerDamageTextGroupId > 1000000000) nextPlayerDamageTextGroupId = 1;
         noteCombatTacticAttack(actionDurationMs);
         addBattleFx('playerSwing', {
             color: getElementColor(swingElement),
@@ -8775,7 +8864,8 @@ function performPlayerAttack(pStats, attackOptions) {
             talentMoonReturn: talentMoonReturn,
             channelId: channelId,
             channelCycleMs: channelCycleMs,
-            baseDelayMs: stageBaseDelayMs
+            baseDelayMs: stageBaseDelayMs,
+            damageTextGroupId: damageTextGroupId
         });
         return;
     }
@@ -8811,8 +8901,9 @@ function performPlayerAttack(pStats, attackOptions) {
     let uniqueProjectileExtraHits = Math.floor(projectileRepeatPct / 100);
     if (isProjectileSkill && Math.random() * 100 < (projectileRepeatPct % 100)) uniqueProjectileExtraHits += 1;
     let chanceProjExtraShots = (isProjectileSkill && pStats.uniqueProjExtraShotChance && Math.random() * 100 < Number(pStats.uniqueProjExtraShotChance.chance || 0)) ? Math.max(0, Math.floor(pStats.uniqueProjExtraShotChance.shots || 0)) : 0;
+    let addedProjectileRepeatCount = projectileBonusShots + chanceProjExtraShots + curseProjectileExtraHits + uniqueProjectileExtraHits;
     let nativeRepeats = options.stageRepeatOnce ? 1 : Math.max(1, Math.floor(pStats.sSkill.multiHit || 1));
-    let repeats = Math.max(1, Math.min(12, nativeRepeats + projectileBonusShots + chanceProjExtraShots + curseProjectileExtraHits + uniqueProjectileExtraHits));
+    let repeats = Math.max(1, Math.min(12, nativeRepeats + addedProjectileRepeatCount));
     let baseRepeats = nativeRepeats;
     if (game.ascendClass === 'hunter' && hasKeystone('h7')) {
         pStats.sSkill.targets = 1;
@@ -9471,6 +9562,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 skillName: skillName,
                 damage: dealtToEnemy,
                 rawDamage: dmg,
+                damageTextGroupId: addedProjectileRepeatCount > 0 ? options.damageTextGroupId : '',
                 duration: 320,
                 element: hitElement,
                 syncToSwing: !isStageReplay
@@ -9618,6 +9710,11 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.colony.inRun = false;
         game.currentZoneId = game.colony.returnZoneId !== undefined && game.colony.returnZoneId !== null ? game.colony.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
         game.colony.returnZoneId = null;
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.runProgress = 0;
+        game.killsInZone = 0;
     } else if (zone && zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) {
         addLog(message || "☠️ 벌집 전투에서 패배했습니다. 원정이 즉시 종료됩니다.", "death", { noToast: !!opts.noToast });
         if (typeof exitBeehiveRun === 'function') exitBeehiveRun('', 'death');
@@ -9651,6 +9748,16 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         let returnZoneId = st.meteorReturnZoneId;
         st.meteorReturnZoneId = null;
         game.currentZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+        game.killsInZone = 0;
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.runProgress = 0;
+    } else if (zone && zone.type === 'timeRift') {
+        let rift = ensureTimeRiftState();
+        rift.activePressure = null;
+        addLog(message || `☠️ 시간의 균열(${zone.riftPhase === 'past' ? '과거' : '미래'})에서 밀려났습니다. 제단에 맡긴 아이템은 보존됩니다.`, 'death', { noToast: !!opts.noToast });
+        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         game.enemies = [];
         game.encounterPlan = [];
@@ -10550,8 +10657,13 @@ function applyTrialTrapTick(pStats) {
         addBattleFx('statusText', { text: '균열 장막', color: '#c49bff', duration: 260 });
         return;
     }
+    let trapElements = Array.isArray(zone.trapElements) && zone.trapElements.length > 0 ? zone.trapElements : ['phys'];
+    let trapElement = trapElements[Math.max(0, Math.floor(game.trialHazardIndex || 0)) % trapElements.length];
+    game.trialHazardIndex = Math.max(0, Math.floor(game.trialHazardIndex || 0)) + 1;
+    let resistanceKey = { fire: 'resF', cold: 'resC', light: 'resL', chaos: 'resChaos' }[trapElement];
+    let mitigation = trapElement === 'phys' ? (Number(pStats.dr) || 0) * 0.45 : (Number(pStats[resistanceKey]) || 0);
     let trapDamage = Math.floor((pStats.maxHp * (0.035 + zone.tier * 0.005)) + 10 + zone.tier * 3);
-    trapDamage = Math.max(10, Math.floor(trapDamage * (1 - (pStats.dr * 0.45 / 100))));
+    trapDamage = Math.max(10, Math.floor(trapDamage * (1 - Math.max(-60, Math.min(85, mitigation)) / 100)));
     let remaining = applyTalentIncomingDamageMultiplier(trapDamage, pStats);
     game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
     let energyShieldBeforeTrap = game.playerEnergyShield;
@@ -10565,15 +10677,16 @@ function applyTrialTrapTick(pStats) {
     if (remaining > 0) remaining = absorbDamageWithRealmDeathWard(remaining, pStats);
     game.playerHp = Math.floor(game.playerHp - remaining);
     game.playerEsLastHitAt = Date.now();
-    recordIncomingDamage('phys', trapDamage, '시련 함정');
-    addBattleFx('trialTrap', { color: '#ffd36b', duration: 460 });
+    recordIncomingDamage(trapElement, trapDamage, '시련 함정');
+    let trapColor = { phys: '#ffd36b', fire: '#ff754f', cold: '#86dcff', light: '#e5d35b', chaos: '#c47cff' }[trapElement] || '#ffd36b';
+    addBattleFx('trialTrap', { color: trapColor, duration: 460 });
     if (zone.bloomTrial && (zone.trapRegenSuppressPct || 0) > 0) {
         game.bloomTrialRegenSuppress = Math.min(0.95, (game.bloomTrialRegenSuppress || 0) + (zone.trapRegenSuppressPct || 0) / 100);
         addLog(`❄️ 혹독한 한기: 생명력 재생 억제 ${Math.round((game.bloomTrialRegenSuppress || 0) * 100)}%`, 'attack-monster', { noToast: true });
     }
-    addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel('phys')}] (${trapDamage} 피해)`, 'attack-monster', { noToast: true });
+    addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel(trapElement)}] (${trapDamage} 피해)`, 'attack-monster', { noToast: true });
     if (game.playerHp <= 0) {
-        handlePlayerDefeat(zone, pStats, "☠️ 시련 함정에 쓰러졌습니다. 마을로 귀환합니다.", { fatalElement: 'phys', sourceName: '시련 함정', noToast: true });
+        handlePlayerDefeat(zone, pStats, "☠️ 시련 함정에 쓰러졌습니다. 마을로 귀환합니다.", { fatalElement: trapElement, sourceName: '시련 함정', noToast: true });
     }
 }
 
@@ -11034,5 +11147,6 @@ function chooseLoopAdvance(shouldLoop) {
     enterNextEndlessChaosDepth();
 }
 
+safeExposeGlobals({ estimateMapZonePowerRequirements });
 
 safeExposeGlobals({ isPlayerWalkingForAnimation, getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, resetCombatChannelRuntime, updateCombatChannelRuntime, cancelCombatChannel, applySkillMobilityBeforeAttack, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });

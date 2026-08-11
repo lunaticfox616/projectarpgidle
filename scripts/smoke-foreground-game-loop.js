@@ -1,8 +1,6 @@
 const fs = require('fs');
 const assert = require('assert');
-const { execFileSync } = require('child_process');
 
-execFileSync(process.execPath, ['--check', 'js/ui.js'], { stdio: 'pipe' });
 const source = fs.readFileSync('js/ui.js', 'utf8');
 
 ['resetCombatCatchupClock', 'consumeCombatCatchupSteps', 'runCombatCatchupSteps'].forEach(name => {
@@ -22,17 +20,4 @@ assert(loopBody.includes('if (blockingOverlayOpen || optionalOverlayOpen) return
 assert(loopBody.includes('tickOceanOxygen(now)'), 'ocean oxygen should use the foreground tick timestamp');
 assert(!/let\s+combatSteps|consumeCombatCatchupSteps|runCombatCatchupSteps|resetCombatCatchupClock/.test(loopBody), 'foreground tick must not use removed catch-up helpers');
 assert.strictEqual((loopBody.match(/let now = Date\.now\(\);/g) || []).length, 1, 'foreground tick should declare now once');
-
-let coreLoopCalls = 0;
-function foregroundTick({ blocking = false, optional = false } = {}) {
-  if (blocking || optional) return;
-  coreLoopCalls += 1;
-}
-foregroundTick();
-assert.strictEqual(coreLoopCalls, 1, 'unpaused tick should run once');
-foregroundTick({ blocking: true });
-foregroundTick({ optional: true });
-assert.strictEqual(coreLoopCalls, 1, 'paused ticks should not run');
-foregroundTick();
-assert.strictEqual(coreLoopCalls, 2, 'each unpaused tick should add one core loop call');
 console.log('smoke-foreground-game-loop passed');

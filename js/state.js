@@ -149,12 +149,12 @@ const OCEAN_PERMANENT_UPGRADE_DEFS = {
 const OCEAN_PERMANENT_UPGRADE_KEYS = Object.keys(OCEAN_PERMANENT_UPGRADE_DEFS);
 
 const OCEAN_CURRENT_POOL = [
-    { id: 'cold_current', name: '냉수층', desc: '냉기 저항 감소' },
-    { id: 'warm_current', name: '온수층', desc: '화염 저항 감소' },
-    { id: 'riptide', name: '역류', desc: '이동속도 추가 감소' },
-    { id: 'bioluminescence', name: '발광 생물군', desc: '명중 디버프 강화' },
-    { id: 'still_water', name: '정체수', desc: '산소 소모 증가' },
-    { id: 'school_of_fish', name: '물고기 떼', desc: '낚시 게이지 충전 증가' }
+    { id: 'cold_current', name: '냉수층', desc: '냉기 적 출현 · 냉기 저항 -12' },
+    { id: 'warm_current', name: '온수층', desc: '화염 적 출현 · 화염 저항 -12' },
+    { id: 'riptide', name: '역류', desc: '이동 속도 15% 감폭' },
+    { id: 'bioluminescence', name: '발광 생물군', desc: '정확도 18% 감폭' },
+    { id: 'still_water', name: '정체수', desc: '산소 시간 소모 35% 증가' },
+    { id: 'school_of_fish', name: '물고기 떼', desc: '낚시 게이지 획득 50% 증가' }
 ];
 function getOceanCurrentAffixes(depthTier) {
     let safeTier = Math.max(0, Math.floor(depthTier || 0));
@@ -162,10 +162,16 @@ function getOceanCurrentAffixes(depthTier) {
     let start = Math.abs(hashSeed('oceanCurrent:' + safeTier)) % OCEAN_CURRENT_POOL.length;
     let out = [];
     for (let i = 0; i < OCEAN_CURRENT_POOL.length && out.length < count; i++) {
-        let affix = OCEAN_CURRENT_POOL[(start + (i * 3)) % OCEAN_CURRENT_POOL.length];
+        let affix = OCEAN_CURRENT_POOL[(start + (i * 5)) % OCEAN_CURRENT_POOL.length];
         if (!out.some(row => row.id === affix.id)) out.push({ ...affix });
     }
     return out;
+}
+function hasOceanCurrent(zone, currentId) {
+    return !!(zone && Array.isArray(zone.currents) && zone.currents.some(current => current && current.id === currentId));
+}
+function getColonyWaveEnemyCount(wave) {
+    return Math.max(12, Math.min(36, 10 + Math.max(1, Math.floor(wave || 1)) * 2));
 }
 function createDefaultOceanState() {
     return {
@@ -241,6 +247,7 @@ function getOceanOxygenDrainPerSec() {
     let depthTier = getOceanDepthTier((game && game.ocean && game.ocean.depthM) || 0);
     let pressureResistPct = Math.max(0, Math.min(80, getOceanPressureResistUpgradePct()));
     let pressureDrainMul = 1 + Math.min(1.0, depthTier * 0.07) * (1 - pressureResistPct / 100);
+    if (getOceanCurrentAffixes(depthTier).some(current => current.id === 'still_water')) pressureDrainMul *= 1.35;
     return Math.max(0.1, base * pressureDrainMul);
 }
 function getOceanOxygenPerAttackCost() {
@@ -461,11 +468,12 @@ function getZone(id) {
         let rift = ensureTimeRiftState();
         let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
         // 시간압이 유일한 난이도 손잡이 — 루프 인플레이션 대신 fixedDifficultyMul로만 세진다.
-        let equivalentChaosDepth = getTimeRiftEquivalentChaosDepth(rift.pressure);
-        let difficultyTier = getTimeRiftDifficultyTier(rift.pressure);
+        let activePressure = game.currentZoneId === id && rift.activePressure ? rift.activePressure : rift.pressure;
+        let equivalentChaosDepth = getTimeRiftEquivalentChaosDepth(activePressure);
+        let difficultyTier = getTimeRiftDifficultyTier(activePressure);
         // 과거 시간압 1은 혼돈 1과 같은 기준이며, 미래는 같은 시간압에서도 조금 더 어렵다.
         let pressureMul = phase === 'past' ? 1 : 1.18;
-        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${rift.pressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: rift.pressure, equivalentChaosDepth: equivalentChaosDepth };
+        return { id: id, name: `시간의 균열 · ${phase === 'past' ? '과거' : '미래'} (시간압 ${activePressure})`, type: 'timeRift', riftPhase: phase, tier: difficultyTier, maxKills: 1, ele: 'chaos', loopScaleExempt: true, fixedDifficultyMul: pressureMul, pressure: activePressure, equivalentChaosDepth: equivalentChaosDepth };
     }
     if (id === UNDERWORLD_ZONE_ID) {
         let uw = (game && game.underworldProgress) || {};
@@ -602,6 +610,7 @@ function ensureTimeRiftState() {
     if (!game.timeRift || typeof game.timeRift !== 'object') game.timeRift = {};
     let st = game.timeRift;
     st.pressure = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, Math.floor(st.pressure || 1)));
+    st.activePressure = Number.isFinite(st.activePressure) ? Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, Math.floor(st.activePressure))) : null;
     st.altarOpen = !!st.altarOpen;
     st.altarUnique = (st.altarUnique && typeof st.altarUnique === 'object') ? st.altarUnique : null;
     st.altarRare = (st.altarRare && typeof st.altarRare === 'object') ? st.altarRare : null;
@@ -2108,7 +2117,7 @@ const defaultGame = {
     conditionGemLevels: {},
     pendingConditionGemChoices: null,
     clearedRootBosses: [],
-    timeRift: { pressure: 1, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
+    timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
     // 유틸리티 슬롯은 이제 허리띠(숨겨진 티어/고유 효과)가 결정하므로 기본은 회복 슬롯 1개뿐이다.
     // getMaxFlaskUtilitySlotCount 참고.
     flasks: {

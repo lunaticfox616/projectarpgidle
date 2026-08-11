@@ -2588,8 +2588,6 @@ function advanceOceanDiveFromKill(zone) {
     try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
     let clearBurst = (14 + getOceanDepthTier(st.depthM)) * (1 + gearDepthGainPct / 100);
     applyOceanDepthGain(st, clearBurst);
-    let pressureCrushAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanPressureGainMul);
-    if (pressureCrushAlive) st.pressureLevel = Math.ceil(st.pressureLevel * 1.1);
     gainOceanFishingGaugeFromCombat(zone);
 }
 
@@ -2611,6 +2609,7 @@ function gainOceanFishingGaugeFromCombat(zone) {
     // 낚시 게이지는 구역 강도(수심 단계)에 따라 세분화: 얕은(약한) 곳에선 조금, 깊은(강한) 곳에선 조금 더 오른다.
     let depthTier = Math.max(0, Math.floor((zone && zone.depthTier) || getOceanDepthTier(st.depthM)));
     let gain = (1.0 + depthTier * 0.18) * getOceanFishingGaugeGainMul();
+    if (hasOceanCurrent(zone, 'school_of_fish')) gain *= 1.5;
     let nextGauge = (st.fishingGauge || 0) + gain;
     st.fishingGauge = clampNumber(nextGauge, 0, 100);
     if (st.fishingGauge >= 100) {
@@ -2767,6 +2766,11 @@ function tickOceanOxygen(nowMs) {
     let drainPerSec = getOceanOxygenDrainPerSec();
     let leechAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanOxygenLeechOnHit);
     if (leechAlive) drainPerSec *= 1.4;
+    let pressureCrushMul = (game.enemies || []).reduce((mul, enemy) => {
+        if (!enemy || enemy.hp <= 0 || !enemy.trait) return mul;
+        return Math.max(mul, Number(enemy.trait.oceanPressureGainMul) || 1);
+    }, 1);
+    drainPerSec *= pressureCrushMul;
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, st.oxygenCur - drainPerSec * dtSec));
     if (st.oxygenCur <= 0) { applyOceanDrowningDamage(st, dtSec); return; }
     // 산소가 다시 차오르면 익사 상태를 해제한다(잠수 중에는 보통 회복되지 않지만 안전 장치).
@@ -3034,27 +3038,28 @@ function rerollSingleBaseOption(item, costCurrency, costAmount) {
 function grantMeteorEncounterRewards() {
     let st = ensureStarWedgeState();
     let astroLv = getAstronomerLevelForUnlocks();
-    let shard = 17 + Math.floor(Math.random() * 40);
+    let encounterTier = Math.max(1, Math.floor(st.activeMeteorTier || 1));
+    let shard = 17 + Math.floor(Math.random() * 40) + Math.min(60, Math.floor(encounterTier * 1.5));
     if (astroLv >= 6) shard += 6 + Math.floor(Math.random() * 9);
     if (astroLv >= 13) shard += 8;
     awardCurrency('meteorShard', shard);
     if (astroLv >= 2) awardCurrency('starDust', 2 + Math.floor(Math.random() * (astroLv >= 15 ? 4 : 2)));
     if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('astronomer', 'meteor_clear');
-    addLog(`☄️ 운석 파편 +${shard}`, 'loot-rare');
+    addLog(`☄️ 운석 ${encounterTier}단계 정산 · 운석 파편 +${shard}`, 'loot-rare');
     if (!st.firstClearDone) {
         st.firstClearDone = true;
         awardCurrency('incompleteStarWedge', 1);
         addLog('☄️ 검은 별의 파편은 나무의 성장을 거부한다. 별쐐기 하나가 차갑게 식어 있다.', 'loot-unique');
     } else {
-        if (Math.random() < 0.17) {
+        if (Math.random() < Math.min(0.32, 0.12 + encounterTier * 0.005)) {
             awardCurrency('incompleteStarWedge', 1);
             addLog('☄️ 불완전한 별쐐기를 주웠습니다.', 'loot-magic');
         }
         let starDropBonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('starWedgeDropPct') || 0) / 100 : 0;
-        if (astroLv >= 4 && Math.random() < 0.0187 * (1 + starDropBonus)) {
+        if (astroLv >= 4 && Math.random() < 0.0187 * (1 + starDropBonus + Math.min(0.8, encounterTier * 0.02))) {
             let uniqueChance = Math.min(0.35, Math.max(0, (game.currencies.astralCore || 0) * 0.02));
-    if ((game.currencies.astralCore || 0) > 0) game.currencies.astralCore--;
-    let wedge = Math.random() < uniqueChance ? createUniqueStarWedgeItem() : createStarWedgeItem();
+            if ((game.currencies.astralCore || 0) > 0) game.currencies.astralCore--;
+            let wedge = Math.random() < uniqueChance ? createUniqueStarWedgeItem() : createStarWedgeItem();
             st.wedges.push(wedge);
             awardCurrency('starWedge', 1);
             addLog('☄️ 완성된 별쐐기가 떨어졌다!', 'loot-unique');
@@ -4328,6 +4333,23 @@ function queueDamageTextStackShift(activeTexts, start, x, y, enemyHit) {
     });
 }
 
+function mergeDamageTextByKey(activeTexts, config, start, x, y) {
+    if (!config.aggregateKey || config.bodyCue || config.dot || config.miss) return false;
+    let text = activeTexts.find(row => row && row.aggregateKey === config.aggregateKey);
+    let nextValue = Number(config.value);
+    if (!text || !Number.isFinite(nextValue)) return false;
+    text.value = Math.max(0, Number(text.value) || 0) + Math.max(0, nextValue);
+    text.hitCount = Math.max(1, Math.floor(Number(text.hitCount) || 1)) + 1;
+    text.crit = text.crit || !!config.crit;
+    text.x = x;
+    text.y = y;
+    text.duration = Math.max(text.duration, Number(config.duration) || 0);
+    text.damageRatio = Math.max(0, Number(text.damageRatio) || 0) + Math.max(0, Number(config.damageRatio) || 0);
+    if (text.damageRatio >= 1 || config.impactTier === 'annihilate') text.impactTier = 'annihilate';
+    else if (text.damageRatio >= 0.3 || config.impactTier === 'heavy' || text.impactTier === 'heavy') text.impactTier = 'heavy';
+    return true;
+}
+
 function spawnDamageText(config) {
     config = config || {};
     let wallNow = performance.now();
@@ -4339,6 +4361,7 @@ function spawnDamageText(config) {
     let x = Number.isFinite(Number(config.x)) ? Number(config.x) : 0;
     let y = Number.isFinite(Number(config.y)) ? Number(config.y) : 0;
     let activeTexts = battleVisualState.damageTexts || (battleVisualState.damageTexts = []);
+    if (mergeDamageTextByKey(activeTexts, config, start, x, y)) return;
     if (!config.bodyCue) queueDamageTextStackShift(activeTexts, start, x, y, config.enemyHit);
     activeTexts.push({
         start: start,
@@ -4352,6 +4375,8 @@ function spawnDamageText(config) {
         stackShiftTo: 0,
         stackShiftStart: start,
         value: config.value || 0,
+        hitCount: 1,
+        aggregateKey: config.aggregateKey || '',
         crit: !!config.crit,
         enemyHit: !!config.enemyHit,
         dot: !!config.dot,
@@ -4408,6 +4433,17 @@ function drawDamageTexts(ctx, now) {
         let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
         ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff9a9a' : (text.impactTier === 'annihilate' ? '#fff1b0' : (text.crit || text.impactTier === 'heavy' ? '#ffdc75' : '#ffffff')))));
         ctx.fillText(textValue, x, y);
+        if (!text.bodyCue && !text.miss && Math.floor(Number(text.hitCount) || 1) > 1) {
+            let hitLabel = `${Math.floor(text.hitCount)}타`;
+            let labelX = x + ctx.measureText(textValue).width / 2 + 4;
+            ctx.font = `800 10px "DOSSaemmul", "Malgun Gothic", sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.lineWidth = 1.2;
+            ctx.shadowBlur = 0;
+            ctx.strokeText(hitLabel, labelX, y - 3);
+            ctx.fillStyle = '#c8d9e8';
+            ctx.fillText(hitLabel, labelX, y - 3);
+        }
         ctx.restore();
     });
 }
@@ -7796,14 +7832,24 @@ function maybeApplyChaosRealmEncroachment(item, enemy, zone) {
     applyEncroachmentToItem(item, Math.max(1, Math.floor(zone.floor || 1)));
     return item;
 }
+function getEncroachmentLiberationTier(item) {
+    let sourceFloor = Math.max(1, Math.floor(Number(item && item.encroached && item.encroached.sourceFloor) || 1));
+    let sourceTier = typeof getChaosRealmTier === 'function' ? getChaosRealmTier(sourceFloor) : 15;
+    let sourceZone = { type: 'chaosRealm', tier: sourceTier, floor: sourceFloor };
+    let realmCap = getRealmEquipmentAffixTierCap(sourceZone, getRealmEquipmentHiddenTierCap(sourceZone));
+    return Math.max(getItemCraftTier(item), realmCap);
+}
 function rollEncroachmentLiberationOptions(item) {
     if (!item || !item.encroached || item.encroached.liberated) return [];
+    let liberationTier = getEncroachmentLiberationTier(item);
     item.encroached.pendingOptions = Array.isArray(item.encroached.pendingOptions) ? item.encroached.pendingOptions.filter(Boolean).slice(0, 3) : [];
-    if (item.encroached.pendingOptions.length > 0) return item.encroached.pendingOptions;
+    let pendingMatchesTier = item.encroached.pendingOptions.length > 0
+        && item.encroached.pendingOptions.every(option => Math.floor(Number(option && option.tier) || 0) === liberationTier);
+    if (pendingMatchesTier) return item.encroached.pendingOptions;
     let existing = getItemOccupiedExplicitModIds(item);
     let pool = getAvailableMods(item).filter(mod => !existing.has(mod.statId || mod.id));
     let picks = pickRandomMods(pool, 3);
-    item.encroached.pendingOptions = picks.map(mod => ({ ...rollAffixValueInTierRange(mod, 10, 10), encroachedCandidate: true }));
+    item.encroached.pendingOptions = picks.map(mod => ({ ...rollAffixValueInTierRange(mod, liberationTier, liberationTier), encroachedCandidate: true }));
     return item.encroached.pendingOptions;
 }
 function liberateSelectedEncroachedItem() {
@@ -10667,7 +10713,11 @@ async function useCurrency(currencyKey) {
             damage: ['firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg','pctDmg','dotPctDmg','critDmg','dr']
         };
         let ids = new Set(poolMap[sporeMode] || []);
-        let source = allowReplacement ? MOD_DB.filter(mod => mod.slots.includes(item.slot)) : getAvailableMods(item);
+        let rerollItem = allowReplacement ? {
+            ...item,
+            stats: (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift))
+        } : item;
+        let source = getAvailableMods(rerollItem);
         let avail = source.filter(mod => ids.has(mod.statId || mod.id));
         return pickWeightedMod(avail);
     }
@@ -10682,6 +10732,12 @@ async function useCurrency(currencyKey) {
     function applyGuaranteedToNonLocked(modOverride) {
         let modToApply = modOverride || guaranteedMod || getSporeGuaranteedMod();
         if (!modToApply || !Array.isArray(item.stats) || item.stats.length <= 0) return;
+        let statId = modToApply.statId || modToApply.id;
+        let existingIdx = item.stats.findIndex(stat => stat && stat.id === statId);
+        if (existingIdx >= 0) {
+            item.stats[existingIdx] = rollSporeGuaranteedValue(modToApply);
+            return;
+        }
         let idx = item.stats.findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
         if (idx < 0) {
             item.stats.push(rollSporeGuaranteedValue(modToApply));
@@ -10704,11 +10760,10 @@ async function useCurrency(currencyKey) {
     }
     if (sporeMode !== 'none' && usesSporeAffix && isRerollSporeCurrency) {
         guaranteedMod = getSporeGuaranteedMod(true);
-        if (guaranteedMod) {
-            if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족해 제작을 시작하지 않았습니다.', 'attack-monster');
-            if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
-            consumedSpore = true;
-        }
+        if (!guaranteedMod) return addLog('이 장비에는 선택한 홀씨로 출현 가능한 옵션이 없어 제작할 수 없습니다.', 'attack-monster');
+        if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족해 제작을 시작하지 않았습니다.', 'attack-monster');
+        if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
+        consumedSpore = true;
     }
     let exaltedMod = null;
     if (actionKey === 'exalted') {
@@ -10731,24 +10786,18 @@ async function useCurrency(currencyKey) {
         item.rarity = 'magic';
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
-            if (guaranteedMod) {
-                applyGuaranteedToNonLocked(guaranteedMod);
-            } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
+            applyGuaranteedToNonLocked(guaranteedMod);
         }
     } else if (actionKey === 'alteration') {
         rerollExplicitMods(item, 'magic', getItemCraftTier(item));
         if (sporeMode !== 'none' && usesSporeAffix) {
-            if (guaranteedMod) {
-                applyGuaranteedToNonLocked(guaranteedMod);
-            } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
+            applyGuaranteedToNonLocked(guaranteedMod);
         }
     } else if (actionKey === 'alchemy') {
         item.rarity = 'rare';
         rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
-            if (guaranteedMod) {
-                applyGuaranteedToNonLocked(guaranteedMod);
-            } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
+            applyGuaranteedToNonLocked(guaranteedMod);
         }
     } else if (actionKey === 'exalted') {
         item.stats.push((exaltedMod === guaranteedMod) ? rollSporeGuaranteedValue(exaltedMod) : rollAffixValue(exaltedMod, getItemCraftTier(item)));
@@ -10761,9 +10810,7 @@ async function useCurrency(currencyKey) {
     } else if (actionKey === 'chaos') {
         rerollExplicitMods(item, 'rare', getItemCraftTier(item), { rerollChaosInfusion: true });
         if (sporeMode !== 'none' && usesSporeAffix) {
-            if (guaranteedMod) {
-                applyGuaranteedToNonLocked(guaranteedMod);
-            } else addLog('홀씨로 부여 가능한 옵션이 없어 홀씨 보장 없이 재련했습니다.', 'attack-monster');
+            applyGuaranteedToNonLocked(guaranteedMod);
         }
     } else if (actionKey === 'divine') {
         item.stats.forEach(stat => {
@@ -10817,12 +10864,12 @@ async function useCurrency(currencyKey) {
             let mod = pickWeightedMod(getAvailableMods(item));
             if (mod) {
                 item.stats.push(rollAffixValue(mod, getItemCraftTier(item)));
-                addLog("🩸 타락 : 추가 옵션이 부여되었습니다.", "loot-unique");
+                addLog("🩸 타락: 추가 옵션이 부여되었습니다.", "loot-unique", { toast: true });
             } else {
-                addLog("🩸 타락 : 부여 가능한 추가 옵션이 없습니다.", "attack-monster");
+                addLog("🩸 타락: 부여 가능한 추가 옵션이 없습니다.", "attack-monster", { toast: true });
             }
         } else {
-            addLog("🩸 타락 : 아이템에 변화가 생기지 않았습니다.", "attack-monster");
+            addLog("🩸 타락: 아이템에 변화가 없습니다.", "attack-monster", { toast: true });
         }
     } else if (currencyKey === 'abyssCatalyst') {
         let qualityLabel = applyAbyssCatalystToItemQuality(item);

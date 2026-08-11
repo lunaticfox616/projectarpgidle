@@ -260,6 +260,41 @@ assert.deepStrictEqual(
   'boss trait text must abbreviate panel labels while preserving the complete hover text'
 );
 
+function createTraitPanelFixture() {
+  const classes = new Set();
+  const properties = {};
+  const track = { textContent: '', scrollWidth: 180, style: { setProperty(key, value) { properties[key] = value; } } };
+  const panel = {
+    clientWidth: 80, isConnected: true, style: {}, title: '',
+    classList: {
+      add(name) { classes.add(name); }, remove(name) { classes.delete(name); },
+      toggle(name, active) { if (active) classes.add(name); else classes.delete(name); }
+    },
+    querySelector() { return track; }, matches() { return false; },
+    setAttribute(key, value) { this[key] = value; }, removeAttribute(key) { delete this[key]; }
+  };
+  return { panel, track, classes, properties };
+}
+
+context.requestAnimationFrame = callback => callback();
+context.matchMedia = () => ({ matches: false });
+context.setInterval = callback => { context.__traitRotationCallback = callback; return 1; };
+context.clearInterval = () => {};
+const desktopTraits = createTraitPanelFixture();
+const traitDisplay = context.getUiEnemyTraitDisplayText(['화염', '중갑 전개', '패턴: 격앙']);
+context.updateUiEnemyTraitPanel(desktopTraits.panel, ['화염', '중갑 전개', '패턴: 격앙'], traitDisplay, '전체 설명', true);
+assert.strictEqual(desktopTraits.track.textContent, traitDisplay.fullText, 'desktop bosses must keep every trait on the ticker track');
+assert(desktopTraits.classes.has('is-overflowing') && desktopTraits.properties['--trait-enter-x'] === '80px',
+  'desktop boss traits must animate only when their full text exceeds the frame panel');
+assert.strictEqual(desktopTraits.panel.title, '전체 설명', 'hover text must preserve the complete boss trait explanation');
+
+context.matchMedia = query => ({ matches: query.includes('max-width') });
+const mobileTraits = createTraitPanelFixture();
+context.updateUiEnemyTraitPanel(mobileTraits.panel, ['화염', '중갑 전개'], traitDisplay, '전체 설명', true);
+assert.strictEqual(mobileTraits.track.textContent, '화염', 'mobile bosses must initially show one trait');
+context.__traitRotationCallback();
+assert.strictEqual(mobileTraits.track.textContent, '중갑 전개', 'mobile bosses must rotate traits one at a time');
+
 const traitStart = battlefieldSource.indexOf('function getEnemyTraitSummary(');
 const traitEnd = battlefieldSource.indexOf('function getEnemyShortLabel(', traitStart);
 const traitContext = {

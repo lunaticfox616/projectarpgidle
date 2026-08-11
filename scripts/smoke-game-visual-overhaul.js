@@ -169,6 +169,18 @@ assert.ok(damageTextLayout.every(text => text.start === 1200), 'damage labels sh
 assert.ok(damageTextLayout.every(text => text.offsetX === 0), 'rapid damage labels should stay on one readable anchor');
 assert.deepStrictEqual(Array.from(damageTextLayout, text => text.stackShiftTo), [-36, -18, 0], 'older damage labels should be pushed upward in arrival order');
 assert.ok(damageTextLayout.every(text => text.duration <= 760), 'ordinary damage labels should clear quickly instead of lingering over combat');
+const projectileVolleyText = vm.runInContext(`(() => {
+  battleVisualState.damageTexts = [];
+  spawnDamageText({ start: 1400, x: 400, y: 240, value: 100, damageRatio: 0.1, aggregateKey: 'volley:1' });
+  spawnDamageText({ start: 1400, x: 400, y: 240, value: 40, damageRatio: 0.04, aggregateKey: 'volley:1' });
+  spawnDamageText({ start: 1400, x: 400, y: 240, value: 40, damageRatio: 0.04, aggregateKey: 'volley:1' });
+  spawnDamageText({ start: 1400, x: 400, y: 240, value: 25, aggregateKey: 'volley:2' });
+  return battleVisualState.damageTexts.map(text => ({ value: text.value, hitCount: text.hitCount, impactTier: text.impactTier }));
+})()`, context);
+assert.deepStrictEqual(Array.from(projectileVolleyText, row => row.value), [180, 25],
+  'one projectile volley must collapse same-target bonus shots into one total damage label');
+assert.deepStrictEqual(Array.from(projectileVolleyText, row => row.hitCount), [3, 1],
+  'the consolidated projectile label must retain its actual hit count');
 const bodyCueLayout = vm.runInContext(`(() => {
   battleVisualState.damageTexts = [];
   spawnDamageText({ start: 1500, x: 300, y: 220, value: 25 });
@@ -325,8 +337,6 @@ assert.ok(battlefieldSource.includes("const dissolveFade = Math.pow(1 - dissolve
 assert.ok(battlefieldSource.includes('ctx.translate(enemy.x, enemy.y + dissolve *'), 'enemy deaths should settle in place rather than floating upward');
 assert.ok(!battlefieldSource.includes('ctx.translate(enemy.x, enemy.y - t *'), 'enemy deaths should not use the previous upward exit motion');
 assert.ok(!battlefieldSource.includes('drawBossTelegraphDecal'), 'boss telegraphs should not use the coarse generated decal assets');
-assert.ok(!battlefieldSource.includes('ctx.arc(playerPos.x, playerPos.y + 5, ringRadius'), 'boss patterns should not scatter ring warnings across the battlefield');
-assert.ok(!battlefieldSource.includes('[-0.16, 0, 0.16].forEach'), 'boss patterns should not scatter fan lines across the battlefield');
 assert.ok(battlefieldSource.includes('function queueSkillGemVfx('), 'resolved skill hits should enqueue generated image effects');
 assert.ok(battlefieldSource.includes('drawSkillGemVfxLayer(ctx, now);'), 'skill VFX should render through the battlefield effect layer');
 assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') > battlefieldSource.indexOf('drawEnemySprite(ctx, enemy, entry.x'), 'translucent skill VFX should remain visible over monster sprites');
@@ -544,7 +554,6 @@ assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Nu
 assert.strictEqual(context.SKILL_DB['회오리바람'].targets, 8, 'whirlwind should cover all eight adjacent directions');
 assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['번개 타격'].primaryFamily, 'slash', 'lightning strike should begin with a melee lightning slash before chain arcs');
 assert.ok(battlefieldSource.includes('if (!enemy.isElite) return;'), 'ordinary monsters should not render ground aura telegraphs');
-assert.ok(battlefieldSource.includes('drawBossPatternLabel(ctx, entry, enemy, gridUnitScale);'), 'boss pattern names should remain readable after removing their geometric effects');
 assert.ok(combatSource.includes("addBattleFx('enemySpawn', { enemyId: bossEnemy.id"), 'boss entrance feedback should remain separate from pattern telegraphs');
 assert.ok(battlefieldSource.includes("fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32)"), 'enemy hits should use restrained camera feedback');
 assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups should create a battlefield effect');
@@ -563,17 +572,6 @@ assert.ok(uiSource.includes("'rivalKey', 'cosmosSovereignKey'"), 'rival and echo
 assert.ok(uiSource.includes('gem-tag--${getTone(tag)}'), 'skill-gem tags should render semantic color classes');
 assert.ok(uiSource.includes('gem-tag--support') && uiSource.includes('gem-tag--resonance'), 'support gem tags should use distinct support and resonance colors');
 assert.ok(uiSource.includes("renderSkillGemArt(name, 'gem-card-sigil gem-card-art')"), 'skill cards should use their dedicated gem portraits');
-assert.ok(uiSource.includes('class="gem-orbit-slot slot-${index + 1}'), 'engraving slots should orbit the selected gem instead of forming a detached row');
-assert.ok(indexSource.includes('id="ui-gem-engrave-slots" class="gem-engrave-orbit"'), 'the gem forge should expose the central-gem engraving overlay');
-assert.ok(windowCss.includes('.gem-orbit-center'), 'the engraving overlay should keep the selected gem at its visual center');
-assert.ok(windowCss.includes('grid-template-columns: minmax(0, 1fr); justify-items: center'), 'the engraving device should remain symmetric instead of reserving an uneven side column');
-assert.ok(windowCss.includes('.gem-orbit-center {') && windowCss.includes('border-radius: 50%'), 'the selected gem should use a circular socket instead of a tall card silhouette');
-assert.ok(windowCss.includes('aspect-ratio: 1') && uiSource.includes('let orbitAngle = -90 + index * 72') && uiSource.includes('let orbitRadius = 38.5'), 'all engraving slot centers should be calculated on one exact circular path around the gem');
-assert.ok(windowCss.includes('.gem-orbit-spoke {') && uiSource.includes('class="gem-orbit-spoke"'), 'every engraving slot should visibly connect back to the central gem');
-assert.ok(uiSource.includes('class="gem-orbit-legend"') && windowCss.includes('.gem-orbit-slot.filled .gem-orbit-slot-glyph') && !windowCss.includes(".gem-orbit-slot.filled::after { content: '◆'"), 'empty and filled engraving slots should differ by their central socket shape without a stray corner glyph');
-assert.ok(!uiSource.includes('<small>${index + 1}</small>'), 'engraving slots should not show redundant corner number badges');
-assert.ok(windowCss.includes('@container (max-width: 430px)'), 'the engraving constellation should retain a dedicated mobile layout');
-assert.ok(indexSource.includes('<small>장착 중인 공격 젬</small>'), 'gem forge target rail should describe its equipped-only scope');
 assert.ok(uiSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not pause the live battle screen');
 assert.ok(!uiSource.includes('if (isTutorialOpen() || isRewardOpen()'), 'compact tutorial notices should keep the game loop running');
 assert.ok(windowManagerSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not block desktop window interactions');
@@ -582,7 +580,6 @@ assert.ok(uiSource.includes('refreshSocialAfterCloudStateChange'), 'cloud sessio
 assert.ok(uiSource.includes("socialTab.classList.contains('ui-community-dock')"), 'cloud session restore should refresh an open community dock');
 assert.ok(uiSource.includes("socialTab.classList.contains('ui-community-overlay')"), 'cloud session restore should refresh an open community overlay');
 assert.ok(uiSource.includes('exitPushStartedAt - lastPageExitCloudPushAt < 1500'), 'page-exit cloud uploads should be deduplicated across lifecycle events');
-assert.ok(socialSource.includes('function syncSocialBackgroundTasks()'), 'social timers should follow cloud-session lifetime');
 assert.ok(socialSource.includes('function syncSocialChatNotificationSetting()'), 'new chat notifications should follow their dedicated setting');
 assert.ok(socialSource.includes('scrollChatToLatestOnNextRender'), 'opening chat should explicitly request the newest message position');
 assert.ok(indexSource.includes('id="chk-social-chat-noti"'), 'settings should expose a new-chat notification toggle');

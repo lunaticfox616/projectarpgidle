@@ -40,6 +40,15 @@ try {
     assert.fail(`전역 스코프 선언 충돌: ${error.message}`);
 }
 
+const productionUiSource = [
+    html,
+    ...fs.readdirSync('js')
+        .filter(name => name.endsWith('.js'))
+        .map(name => fs.readFileSync(`js/${name}`, 'utf8'))
+].join('\n');
+assert.ok(!/\b(?:alert|confirm|prompt)\s*\(/.test(productionUiSource),
+    'production UI must use the in-game dialog system instead of browser-native dialogs');
+
 // (3) function 선언도 같은 window 프로퍼티를 공유한다. let/const와 달리 문법 오류 없이
 // 뒤 파일이 앞 구현을 덮어쓰므로, 모듈 소유권이 깨진 채 계산식만 조용히 바뀌는 회귀를 막는다.
 const functionOwners = new Map();
