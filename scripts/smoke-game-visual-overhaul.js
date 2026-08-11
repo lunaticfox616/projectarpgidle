@@ -208,7 +208,7 @@ assert.ok(fs.existsSync('assets/effects/boss-telegraph-pulse-v1.png'), 'generate
 [
   'skill-whirlwind-v1.png', 'skill-chain-primary-v1.png', 'skill-chain-jump-v1.png',
   'skill-slam-primary-v1.png', 'skill-slam-aftershock-v1.png', 'skill-slash-v1.png',
-  'skill-projectile-v1.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
+  'skill-projectile-v1.png', 'skill-venom-fang-v1.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
   'skill-chaos-boomerang-v1.png', 'skill-burst-v1.png', 'skill-dot-field-v1.png',
   'skill-summon-strike-v1.png',
 ].forEach(file => assert.ok(fs.existsSync(`assets/effects/${file}`), `generated skill VFX ${file} should exist`));
@@ -233,11 +233,14 @@ const sigilDrawCounts = vm.runInContext(`(() => {
   }
   const slash = makeCtx();
   const slam = makeCtx();
+  const venom = makeCtx();
   drawSkillGemSigil(slash, '연속 베기', 80, 0.5, 'phys');
   drawSkillGemSigil(slam, '묵직한 강타', 80, 0.5, 'phys');
-  return { slash: [slash.strokes, slash.fills], slam: [slam.strokes, slam.fills] };
+  drawSkillGemSigil(venom, '독니 사출', 80, 0.5, 'chaos');
+  return { slash: [slash.strokes, slash.fills], slam: [slam.strokes, slam.fills], venom: [venom.strokes, venom.fills] };
 })()`, context);
 assert.notDeepStrictEqual(Array.from(sigilDrawCounts.slash), Array.from(sigilDrawCounts.slam), 'different gems should render different sigil geometry');
+assert.deepStrictEqual(Array.from(sigilDrawCounts.venom), [0, 0], 'venom fang should not add a procedural rune over its dedicated projectile image');
 const projectileVfxShapes = vm.runInContext(`(() => {
   function signature(style) {
     const calls = [];
@@ -248,11 +251,19 @@ const projectileVfxShapes = vm.runInContext(`(() => {
     return calls.join('|');
   }
   const styles = ['fire', 'cold', 'light', 'chaos', 'shield', 'potion'];
-  return { styles: styles.map(signature), shield: getSkillProjectileVfxStyle('방패 투척', 'phys'), potion: getSkillProjectileVfxStyle('원소 포션 투척', 'fire') };
+  return {
+    styles: styles.map(signature),
+    shield: getSkillProjectileVfxStyle('방패 투척', 'phys'),
+    potion: getSkillProjectileVfxStyle('원소 포션 투척', 'fire'),
+    venomAsset: SKILL_GEM_VFX_PROFILES['독니 사출'].projectileAsset,
+    venomImpact: SKILL_GEM_VFX_PROFILES['독니 사출'].impactVfx,
+  };
 })()`, context);
 assert.strictEqual(new Set(projectileVfxShapes.styles).size, 6, '화염·냉기·번개·카오스·방패·포션 투사체는 서로 다른 실루엣으로 그려야 한다');
 assert.strictEqual(projectileVfxShapes.shield, 'shield', '방패 투척은 물리 화살 대신 회전 방패 실루엣을 사용해야 한다');
 assert.strictEqual(projectileVfxShapes.potion, 'potion', '포션 투척은 화염탄 대신 병 실루엣을 사용해야 한다');
+assert.strictEqual(projectileVfxShapes.venomAsset, 'venomFang', 'venom fang should use its dedicated image projectile');
+assert.strictEqual(projectileVfxShapes.venomImpact, false, 'venom fang should not layer a generic impact burst over the image projectile');
 const skillGemArtCoverage = vm.runInContext(`(() => {
   const gems = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
   return {
@@ -267,6 +278,7 @@ skillGemArtCoverage.paths.forEach(file => assert.ok(fs.existsSync(file), `skill 
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png'"), 'battle asset loader should preload skill VFX images');
 assert.ok(passiveSource.includes("skillFxFrostField: 'assets/effects/skill-frost-field-v1.png'"), 'battle asset loader should preload specialized combat pattern images');
+assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v1.png'"), 'battle asset loader should preload the venom fang projectile image');
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
 assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
 assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wood monster sheets should bypass legacy backdrop sanitization');
@@ -328,12 +340,31 @@ const combatPatternImages = vm.runInContext(`[
   getCombatTravelImageKey({ patternKind: 'field' }),
   getCombatTravelImageKey({ patternKind: 'moving' }),
   getCombatTravelImageKey({ patternKind: 'boomerang' }),
+  getCombatTravelImageKey({ patternKind: 'boomerang', skillName: '독니 사출', element: 'chaos' }),
   getCombatTravelImageKey({ patternKind: 'field', element: 'fire' }),
   getCombatTravelImageKey({ owner: 'enemy', delivery: 'magicCell' })
 ]`, context);
 assert.deepStrictEqual(Array.from(combatPatternImages), [
-  'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxDotField', 'bossTelegraphPulse'
+  'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxVenomFang', 'skillFxDotField', 'bossTelegraphPulse'
 ], 'real collision patterns should select their dedicated image assets');
+const venomProjectileDrawing = vm.runInContext(`(() => {
+  const calls = { images: 0, rectangles: 0, strokes: 0 };
+  battleAssets.images.skillFxVenomFang = { complete: true, naturalWidth: 192 };
+  const ctx = {
+    globalAlpha: 1,
+    save() {}, restore() {}, translate() {}, rotate() {},
+    drawImage() { calls.images++; }, fillRect() { calls.rectangles++; },
+    beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, arc() {}, fill() {},
+    stroke() { calls.strokes++; },
+  };
+  drawCombatMovingFx(ctx, {
+    owner: 'player', delivery: 'projectileTarget', patternKind: 'boomerang', skillName: '독니 사출'
+  }, 50, 0, 100, { x: 0, y: 0 }, [{ x: 100, y: 0 }], 'skillFxVenomFang', 'chaos');
+  return calls;
+})()`, context);
+assert.strictEqual(venomProjectileDrawing.images, 1, 'venom fang should draw one compact image projectile');
+assert.strictEqual(venomProjectileDrawing.rectangles, 0, 'venom fang should not fall back to a placeholder rectangle');
+assert.strictEqual(venomProjectileDrawing.strokes, 0, 'venom fang should not retain procedural rings or line trails');
 const optimizedAreaVfx = vm.runInContext(`(() => {
   const counts = { meteorImages: 0, blizzardGusts: 0, blizzardFlakes: 0, rainLines: 0, blizzardBounds: 0 };
   battleAssets.images.skillFxSlamPrimary = { complete: true, naturalWidth: 64 };

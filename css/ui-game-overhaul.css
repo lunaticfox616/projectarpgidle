@@ -1524,10 +1524,35 @@ body:not(.light-mode) #info-tooltip {
 
 @media (max-width: 760px) {
   body:not(.light-mode) .startup-overlay { overflow-y: auto; background-position: 42% center; }
-  body:not(.light-mode) .startup-shell { min-height: auto; grid-template-columns: 1fr; align-items: start; gap: 24px; padding: 24px 16px 36px; }
-  body:not(.light-mode) .startup-panel.hero { align-self: start; padding-top: 8vh; }
-  body:not(.light-mode) .startup-wordmark { font-size: clamp(2.7rem, 15vw, 4.8rem); }
-  body:not(.light-mode) .startup-panel.auth { padding: 22px; }
+  body:not(.light-mode) .startup-shell {
+    min-height: 100dvh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: max(14px, env(safe-area-inset-top)) 12px calc(22px + env(safe-area-inset-bottom));
+  }
+  body:not(.light-mode) .startup-panel.hero,
+  body:not(.light-mode) .startup-hero-grid,
+  body:not(.light-mode) .startup-hero-copy { display: contents; }
+  body:not(.light-mode) .startup-brand-wrap { order: 0; gap: 4px; margin: 0 auto; text-align: center; }
+  body:not(.light-mode) .startup-game-kicker,
+  body:not(.light-mode) .startup-season-mark { display: none; }
+  body:not(.light-mode) .startup-wordmark { margin-top: 0; font-size: clamp(2rem, 10vw, 2.8rem); line-height: 1; }
+  body:not(.light-mode) .startup-wordmark-bar { width: 110px; margin: 6px auto 0; }
+  body:not(.light-mode) .startup-game-tagline { margin-top: 4px; font-size: .76rem; letter-spacing: .01em; }
+  body:not(.light-mode) .startup-panel.auth { order: 1; width: 100%; max-width: 440px; margin: 0 auto; padding: 16px; gap: 9px; border-radius: 12px; box-sizing: border-box; }
+  body:not(.light-mode) .startup-panel.auth::before,
+  body:not(.light-mode) .startup-panel.auth::after { display: none; }
+  body:not(.light-mode) .startup-auth-title { font-size: 1.35rem; }
+  body:not(.light-mode) .startup-summary-card { order: 2; width: 100%; max-width: 440px; margin: 0 auto; padding: 10px; box-sizing: border-box; }
+  body:not(.light-mode) .startup-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  body:not(.light-mode) .startup-summary-item { min-height: 0; padding: 9px 10px; }
+  body:not(.light-mode) .patch-note-card { order: 3; grid-template-columns: 1fr auto; align-items: center; }
+  body:not(.light-mode) .patch-note-card .patch-notes-open-btn { min-height: 40px; }
+  body:not(.light-mode) #startup-social-actions .social-login-image-btn img { height: 44px; }
+  body:not(.light-mode) .startup-status { min-height: 0; padding: 8px 10px; line-height: 1.4; }
   body:not(.light-mode) #loop-hero-select-overlay .tutorial-card { width: calc(100vw - 12px); padding: 18px; }
   body:not(.light-mode) #loop-hero-select-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body:not(.light-mode) .hero-choice { min-height: 146px; }

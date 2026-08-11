@@ -756,7 +756,17 @@
     line-height: 1;
   }
   body.mobile-battle-tab #tab-battle .player-health-frame .combat-es-text { font-size: clamp(6px, 2vw, 9px); }
-  body.mobile-battle-tab #tab-battle .player-hud-shell > .player-hud-identity-row { font-size: clamp(6px, 1.75vw, 9px); }
+  body.mobile-battle-tab #tab-battle .player-hud-shell > .player-hud-identity-row {
+    position: static;
+    justify-content: center;
+    width: 100%;
+    height: auto;
+    margin-bottom: 3px;
+    overflow: visible;
+    font-size: 11px;
+  }
+  body.mobile-battle-tab #tab-battle .player-hud-shell > .player-hud-identity-row strong,
+  body.mobile-battle-tab #tab-battle .player-hud-shell > .player-hud-identity-row span { flex: 0 1 auto; }
   body.mobile-battle-tab #tab-battle .combat-effect-icon { width: clamp(19px, 5.2vw, 23px); height: clamp(19px, 5.2vw, 23px); }
   body.mobile-battle-tab #tab-battle .player-combat-effect-strip .combat-effect-icon {
     flex: 0 0 clamp(20px, 5.2vw, 23px);
