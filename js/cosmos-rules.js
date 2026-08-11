@@ -22,7 +22,7 @@
 
     /**
      * @param {{combatTier:number,sizeClass:number,gravity:number,isGalaxyBoss:boolean,element:string}} input
-     * @returns {{dps:number,ehp:number,element:string,clearTimeSec:number}}
+     * @returns {{dps:number,ehp:number,element:string,clearTimeSec:number,basis:string}}
      */
     function calculateCosmosDifficultyTarget(input) {
         const combatTier = Math.max(1, Math.floor(Number(input && input.combatTier) || 1));
@@ -32,12 +32,16 @@
         const encounterPressure = 1 + (sizeClass - 1) * 0.08 + (gravity - 1) * 0.08;
         const survivalPressure = 1 + (sizeClass - 1) * 0.04 + (gravity - 1) * 0.10;
         const bossDpsPressure = input && input.isGalaxyBoss ? 2.2 : 1;
-        const bossEhpPressure = input && input.isGalaxyBoss ? 1.55 : 1;
+        const galaxyBossEhpPressure = input && input.isGalaxyBoss ? 1.55 : 1;
+        const peakBossHitPressure = getMaximumBossPatternDamageMultiplier()
+            * ENEMY_CRITICAL_DAMAGE_MULTIPLIER;
         return {
             dps: Math.max(1, Math.round(550000 * Math.pow(1.12, tierDelta) * encounterPressure * bossDpsPressure)),
-            ehp: Math.max(1, Math.round(18000 * Math.pow(1.10, tierDelta) * survivalPressure * bossEhpPressure)),
+            ehp: Math.max(1, Math.round(18000 * Math.pow(1.10, tierDelta) * survivalPressure
+                * peakBossHitPressure * galaxyBossEhpPressure)),
             element: String((input && input.element) || 'chaos'),
-            clearTimeSec: input && input.isGalaxyBoss ? 55 : 45
+            clearTimeSec: input && input.isGalaxyBoss ? 55 : 45,
+            basis: 'bossPeakHit'
         };
     }
 

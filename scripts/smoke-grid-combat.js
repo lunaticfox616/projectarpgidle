@@ -114,11 +114,59 @@ const cfg = context.COMBAT_GRID_CONFIG;
   resetGame();
   const opening = context.estimateMapZonePowerRequirements({ id: 0, type: 'act', tier: 1, ele: 'phys' });
   const finale = context.estimateMapZonePowerRequirements({ id: 9, type: 'act', tier: 7, ele: 'chaos' });
+  assert.strictEqual(finale.basis, 'bossPeakHit', 'map EHP should identify the boss peak-hit basis');
   assert.ok(finale.dps > opening.dps && finale.ehp > opening.ehp, '후반 액트는 초반 액트보다 예상 DPS/EHP가 높아야 한다');
+  context.game.season = 1;
+  const burstBoss = context.estimateMapZonePowerRequirements({ id: 4, type: 'act', tier: 8, ele: 'fire', bossMods: { patternMode: 'burst' } });
+  const slamBoss = context.estimateMapZonePowerRequirements({ id: 4, type: 'act', tier: 8, ele: 'fire', bossMods: { patternMode: 'slam' } });
+  assert.ok(slamBoss.ehp > burstBoss.ehp * 1.18,
+    'recommended EHP should follow the boss pattern peak instead of a generic monster hit');
+  context.game.season = 2;
+  const criticalSlamBoss = context.estimateMapZonePowerRequirements({ id: 4, type: 'act', tier: 8, ele: 'fire', bossMods: { patternMode: 'slam' } });
+  assert.ok(criticalSlamBoss.ehp > slamBoss.ehp * 1.5,
+    'recommended EHP should include the critical version of the boss peak hit');
   context.game.season = 10;
   context.game.loopCount = 9;
   const looped = context.estimateMapZonePowerRequirements({ id: 9, type: 'act', tier: 7, ele: 'chaos' });
   assert.ok(looped.dps > finale.dps && looped.ehp > finale.ehp, '같은 지역도 루프가 오르면 예상 DPS/EHP가 함께 올라야 한다');
+
+  context.game.underworldProgress = { currentFloor: 1, highestFloor: 1 };
+  const underworldFloorOne = context.getZone('underworld_core');
+  const floorOneEstimate = context.estimateMapZonePowerRequirements(underworldFloorOne);
+  const floorOneBoss = context.createEnemy(underworldFloorOne, { boss: true, at: 100 }, 0);
+  context.game.underworldProgress = { currentFloor: 2, highestFloor: 2 };
+  const underworldFloorTwo = context.getZone('underworld_core');
+  const floorTwoEstimate = context.estimateMapZonePowerRequirements(underworldFloorTwo);
+  const floorTwoBoss = context.createEnemy(underworldFloorTwo, { boss: true, at: 100 }, 0);
+  assert.ok(floorOneEstimate.dps < floorTwoEstimate.dps * 0.83,
+    'underworld floor 1 boss health should receive its entry-floor reduction');
+  assert.ok(floorOneEstimate.ehp < floorTwoEstimate.ehp * 0.83,
+    'underworld floor 1 boss hit should receive its entry-floor reduction');
+  assert.ok(floorOneBoss.maxHp < floorTwoBoss.maxHp * 0.83,
+    'the spawned floor 1 boss should use the same reduced health as its estimate');
+
+  const measureUnderworldBossHit = floor => {
+    resetGame();
+    context.game.season = 1;
+    context.game.currentZoneId = 'underworld_core';
+    context.game.underworldProgress = { currentFloor: floor, highestFloor: floor };
+    context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+    context.game.enemies = [makeEnemy(900 + floor, 2, 6, {
+      isBoss: true, attackKind: 'melee', attackRange: 1, attackTimer: 1, ele: 'chaos',
+    })];
+    context.game.playerHp = 100000;
+    context.performMonsterAttacks({
+      maxHp: 100000, energyShield: 0, dr: 0, armor: 0, evasion: 0, evadeChance: 0,
+      resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
+    });
+    return 100000 - context.game.playerHp;
+  };
+  const floorOneBossHit = measureUnderworldBossHit(1);
+  const floorTwoBossHit = measureUnderworldBossHit(2);
+  assert.ok(floorOneBossHit < floorTwoBossHit * 0.84,
+    'the actual floor 1 boss attack should use the same reduced damage as its estimate');
+  context.game.season = 10;
+  context.game.loopCount = 9;
 
   context.game.abyssEndlessDepth = 24;
   context.game.labyrinthFloor = 12;

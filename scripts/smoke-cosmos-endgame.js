@@ -32,7 +32,9 @@ context.globalThis = context;
 context.safeExposeData = values => Object.assign(context, values);
 context.safeExposeGlobals = values => Object.assign(context, values);
 vm.createContext(context);
+vm.runInContext(fs.readFileSync('data/constants.js', 'utf8'), context, { filename: 'data/constants.js' });
 vm.runInContext(fs.readFileSync('data/maps.js', 'utf8'), context, { filename: 'data/maps.js' });
+vm.runInContext(fs.readFileSync('js/combat-patterns.js', 'utf8'), context, { filename: 'js/combat-patterns.js' });
 vm.runInContext(fs.readFileSync('js/cosmos-rules.js', 'utf8'), context, { filename: 'js/cosmos-rules.js' });
 vm.runInContext(fs.readFileSync('js/cosmos-atlas.js', 'utf8'), context, { filename: 'js/cosmos-atlas.js' });
 
@@ -42,6 +44,9 @@ assert(fireMechanic.counter.includes('EHP'), '기믹에는 입장 전 대응법�
 
 const baseTarget = context.calculateCosmosDifficultyTarget({ combatTier: 57, sizeClass: 1, gravity: 1, isGalaxyBoss: false, element: 'chaos' });
 const deepTarget = context.calculateCosmosDifficultyTarget({ combatTier: 70, sizeClass: 4, gravity: 3, isGalaxyBoss: true, element: 'phys' });
+assert.strictEqual(baseTarget.basis, 'bossPeakHit', 'every cosmos node should report boss-peak EHP');
+assert.strictEqual(baseTarget.ehp, Math.round(18000 * 1.55 * 1.55),
+    'cosmos EHP should include the node boss special hit and critical damage');
 assert(deepTarget.dps > baseTarget.dps && deepTarget.ehp > baseTarget.ehp, '깊은 은하와 보스는 DPS/EHP 요구가 함께 올라야 한다');
 assert.strictEqual(context.evaluateCosmosReadiness(baseTarget, { dps: baseTarget.dps * 2, ehp: baseTarget.ehp * 0.7 }).id, 'risky', 'DPS가 높아도 EHP 병목을 숨기면 안 된다');
 

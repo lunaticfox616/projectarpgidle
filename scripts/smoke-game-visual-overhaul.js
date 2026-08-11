@@ -215,6 +215,14 @@ assert.ok(fs.existsSync('assets/ui/passive-node-major-v1.png'), 'generated major
 assert.ok(fs.existsSync('assets/ui/passive-node-void-v1.png'), 'generated void socket frame should exist');
 assert.ok(fs.existsSync('assets/ui/passive-node-star-wedge-v1.png'), 'generated star-wedge socket frame should exist');
 assert.ok(fs.existsSync('assets/ui/passive-node-path-v1.png'), 'generated path node frame should exist');
+const passiveNodeV2Assets = ['major', 'void', 'star-wedge', 'path']
+  .flatMap(type => ['active', 'inactive'].map(state => `assets/ui/passive-node-${type}-v2-${state}.png`));
+passiveNodeV2Assets.forEach(file => {
+  const png = fs.readFileSync(file);
+  assert.strictEqual(png.readUInt32BE(16), 512, `${file} should retain its intended width`);
+  assert.strictEqual(png.readUInt32BE(20), 512, `${file} should retain its intended height`);
+  assert.strictEqual(png[25], 6, `${file} should retain an RGBA transparency channel`);
+});
 assert.ok(fs.existsSync('assets/ui/window-frame-luxe-v1.png'), 'generated window frame should exist');
 assert.ok(fs.existsSync('assets/effects/boss-telegraph-ring-v1.png'), 'generated boss ring telegraph should exist');
 assert.ok(fs.existsSync('assets/effects/boss-telegraph-fan-v1.png'), 'generated boss fan telegraph should exist');
@@ -299,6 +307,9 @@ assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wo
 assert.ok(passiveSource.includes('normal: woodEnemyVariants.length ? woodEnemyVariants.slice()'), 'normal monster variants should use the supplied wood roster');
 assert.ok(passiveSource.includes('boss: ['), 'boss variants should retain the dedicated legacy and act-boss pool');
 assert.ok(passiveSource.includes("const frameKey = getPassiveNodeFrameKey(node)"), 'passive nodes should select their dedicated frame assets');
+assert.ok(passiveSource.includes("'major:active': 'assets/ui/passive-node-major-v2-active.png'"), 'learned major nodes should use the active frame art');
+assert.ok(passiveSource.includes("'major:inactive': 'assets/ui/passive-node-major-v2-inactive.png'"), 'unlearned major nodes should use the inactive frame art');
+assert.ok(passiveSource.includes('getPassiveNodeFrameAssetKey(frameKey, active)'), 'passive rendering should select frame art from the learned state');
 assert.ok(!passiveSource.includes('if (!lightweightMode && useMajorFrame'), 'drag optimization should not hide passive frame images');
 const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 const luxeCss = fs.readFileSync('css/ui-luxe.css', 'utf8');

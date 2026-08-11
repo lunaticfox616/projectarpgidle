@@ -16,10 +16,14 @@ window.GameModules.passives = {
 let passiveRevealBursts = [];
 
 const PASSIVE_NODE_FRAME_SOURCES = Object.freeze({
-    major: 'assets/ui/passive-node-major-v1.png',
-    void: 'assets/ui/passive-node-void-v1.png',
-    starWedge: 'assets/ui/passive-node-star-wedge-v1.png',
-    path: 'assets/ui/passive-node-path-v1.png'
+    'major:active': 'assets/ui/passive-node-major-v2-active.png',
+    'major:inactive': 'assets/ui/passive-node-major-v2-inactive.png',
+    'void:active': 'assets/ui/passive-node-void-v2-active.png',
+    'void:inactive': 'assets/ui/passive-node-void-v2-inactive.png',
+    'starWedge:active': 'assets/ui/passive-node-star-wedge-v2-active.png',
+    'starWedge:inactive': 'assets/ui/passive-node-star-wedge-v2-inactive.png',
+    'path:active': 'assets/ui/passive-node-path-v2-active.png',
+    'path:inactive': 'assets/ui/passive-node-path-v2-inactive.png'
 });
 const passiveNodeFrameImages = {};
 const passiveNodeFrameReady = {};
@@ -44,6 +48,15 @@ function getPassiveNodeFrameKey(node) {
     if (node.kind === 'core' || node.kind === 'hub' || node.kind === 'apex'
         || node.kind === 'transcendent' || node.kind === 'keystone' || node.kind === 'major' || node.tier >= 3) return 'major';
     return null;
+}
+
+function getPassiveNodeFrameAssetKey(frameKey, active) {
+    return frameKey ? `${frameKey}:${active ? 'active' : 'inactive'}` : null;
+}
+
+function isPassiveNodeFrameReady(frameKey, active) {
+    const assetKey = getPassiveNodeFrameAssetKey(frameKey, active);
+    return !!(assetKey && passiveNodeFrameReady[assetKey]);
 }
 
 
@@ -437,7 +450,7 @@ function tracePassiveNodeFramePath(ctx, node, radius) {
 function drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode) {
     if (lightweightMode) return;
     const dedicatedFrame = getPassiveNodeFrameKey(node);
-    if (dedicatedFrame && dedicatedFrame !== 'major' && passiveNodeFrameReady[dedicatedFrame]) return;
+    if (dedicatedFrame && dedicatedFrame !== 'major' && isPassiveNodeFrameReady(dedicatedFrame, active)) return;
     ctx.save();
     ctx.translate(node.x, node.y);
 
@@ -560,15 +573,16 @@ function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, vis
     drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode);
 
     const frameKey = getPassiveNodeFrameKey(node);
-    const frameImage = frameKey ? passiveNodeFrameImages[frameKey] : null;
-    if (frameKey && passiveNodeFrameReady[frameKey] && frameImage) {
+    const frameAssetKey = getPassiveNodeFrameAssetKey(frameKey, active);
+    const frameImage = frameAssetKey ? passiveNodeFrameImages[frameAssetKey] : null;
+    if (frameAssetKey && passiveNodeFrameReady[frameAssetKey] && frameImage) {
         const frameScale = frameKey === 'path' ? 1.48
             : (frameKey === 'void' ? 1.58
                 : (frameKey === 'starWedge' ? 1.62
                     : (node.kind === 'apex' || node.kind === 'transcendent' ? 1.72 : 1.55)));
         const frameRadius = radius * frameScale;
         ctx.save();
-        ctx.globalAlpha = revealAlpha * (active ? 0.98 : (reachable ? 0.9 : (frameKey === 'path' ? 0.82 : 0.76)));
+        ctx.globalAlpha = revealAlpha * (active ? 1 : (reachable ? 0.96 : 0.9));
         ctx.drawImage(frameImage, node.x - frameRadius, node.y - frameRadius, frameRadius * 2, frameRadius * 2);
         ctx.restore();
     }

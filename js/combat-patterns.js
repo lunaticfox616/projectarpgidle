@@ -13,7 +13,21 @@
         ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다.',
         cosmos: '연속 참격·파쇄 강타·격앙을 차례로 순환합니다.'
     });
+    const BOSS_PATTERN_PEAK_DAMAGE_MULTIPLIERS = Object.freeze({
+        burst: 1.30,
+        slam: 1.55,
+        ramp: 1.21,
+        cosmos: 1.34
+    });
     const BOSS_SPECIAL_TELEGRAPH_MIN_MS = 360;
+
+    function getBossPatternPeakDamageMultiplier(mode) {
+        return BOSS_PATTERN_PEAK_DAMAGE_MULTIPLIERS[String(mode || '')] || 1;
+    }
+
+    function getMaximumBossPatternDamageMultiplier() {
+        return Math.max(...Object.values(BOSS_PATTERN_PEAK_DAMAGE_MULTIPLIERS));
+    }
 
     function normalizeAttackCount(enemy) {
         return Math.max(0, Math.floor(Number(enemy && enemy.patternAttackCount) || 0));
@@ -35,7 +49,7 @@
             return {
                 mode,
                 label: special ? '연속 참격' : '빠른 베기',
-                damageMul: special ? (cosmosPattern ? 1.18 : 1.30) : 1,
+                damageMul: special ? (cosmosPattern ? 1.18 : getBossPatternPeakDamageMultiplier('burst')) : 1,
                 isSpecial: special,
                 telegraphKind: 'fan',
                 attackNumber
@@ -46,7 +60,7 @@
             return {
                 mode,
                 label: special ? '파쇄 강타' : '무거운 일격',
-                damageMul: special ? (cosmosPattern ? 1.34 : 1.55) : 1,
+                damageMul: special ? (cosmosPattern ? getBossPatternPeakDamageMultiplier('cosmos') : getBossPatternPeakDamageMultiplier('slam')) : 1,
                 isSpecial: special,
                 telegraphKind: 'ring',
                 attackNumber
@@ -142,6 +156,8 @@
         refreshBossPatternPreview,
         getBossPatternModeLabel,
         getBossPatternDescription,
+        getBossPatternPeakDamageMultiplier,
+        getMaximumBossPatternDamageMultiplier,
         updateBossPatternTelegraph
     });
 }());

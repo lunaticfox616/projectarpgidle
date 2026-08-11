@@ -66,7 +66,7 @@ function buildMapPowerEstimateHtml(zone) {
     let options = { notation: 'compact', maximumSignificantDigits: 2 };
     let dps = Math.round(estimate.dps).toLocaleString('ko-KR', options);
     let ehp = Math.round(estimate.ehp).toLocaleString('ko-KR', options);
-    return `<span class="map-zone-status map-power-estimate" title="현재 루프의 대략적인 보스전 기준">예상 DPS 약 ${dps} · EHP 약 ${ehp}</span>`;
+    return `<span class="map-zone-status map-power-estimate" title="해당 지역 보스의 강공격·치명타 기준">예상 DPS 약 ${dps} · EHP 약 ${ehp}</span>`;
 }
 
 function buildTrialMapItemHtml(trial) {
