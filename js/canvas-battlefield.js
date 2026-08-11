@@ -653,6 +653,7 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
     let profile = getSkillGemVfxProfile(fx.skillName);
     let image = getSkillGemVfxImage(imageKey);
     let imageProjectile = !!(profile && profile.projectileAsset);
+    let useProjectileImage = imageProjectile && !!image;
     let width = imageProjectile ? (Number(profile.projectileWidth) || 58) : (fx.patternKind === 'moving' ? 112 : (fx.patternKind === 'boomerang' ? 72 : 48));
     let height = imageProjectile ? (Number(profile.projectileHeight) || 26) : (fx.patternKind === 'moving' ? 58 : (fx.patternKind === 'boomerang' ? 48 : 24));
     targets.forEach(target => {
@@ -662,15 +663,15 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
-        if (fx.patternKind === 'boomerang' && !imageProjectile) ctx.rotate(progress * Math.PI * 3);
-        ctx.globalCompositeOperation = imageProjectile ? 'source-over' : 'screen';
-        ctx.globalAlpha = imageProjectile ? 0.94 : 0.82;
-        ctx.filter = imageProjectile || isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
-        let proceduralProjectile = !imageProjectile && fx.owner === 'player' && String(fx.delivery || '').startsWith('projectile');
-        if (imageProjectile && image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
+        if (fx.patternKind === 'boomerang' && !useProjectileImage) ctx.rotate(progress * Math.PI * 3);
+        ctx.globalCompositeOperation = useProjectileImage ? 'source-over' : 'screen';
+        ctx.globalAlpha = useProjectileImage ? 0.94 : 0.82;
+        ctx.filter = useProjectileImage || isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
+        let proceduralProjectile = !useProjectileImage && fx.owner === 'player' && String(fx.delivery || '').startsWith('projectile');
+        if (useProjectileImage) ctx.drawImage(image, -width / 2, -height / 2, width, height);
         else if (proceduralProjectile) drawElementProjectileVfx(ctx, getSkillProjectileVfxStyle(fx.skillName, element), width, height, progress);
         else if (image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
-        else if (!imageProjectile) { ctx.fillStyle = getElementColor(element); ctx.fillRect(-12, -3, 24, 6); }
+        else { ctx.fillStyle = getElementColor(element); ctx.fillRect(-12, -3, 24, 6); }
         drawSkillGemSigil(ctx, fx.skillName, Math.min(width, 84), progress, element);
         ctx.restore();
     });
@@ -855,9 +856,10 @@ function drawSkillGemVfxLayer(ctx, now) {
         if (effect.travel) fade = Math.min(1, t / 0.12) * Math.min(1, (1 - t) / 0.1);
         ctx.save();
         let imageProjectile = !!(effect.travel && effect.imageProjectile);
-        ctx.globalCompositeOperation = imageProjectile || effect.stageKind === 'slamPrimary' || effect.stageKind === 'slamAftershock' ? 'source-over' : 'screen';
-        ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, imageProjectile ? 0.94 : 0.82);
-        ctx.filter = imageProjectile ? 'none' : (effect.filter || 'none');
+        let useProjectileImage = imageProjectile && !!image;
+        ctx.globalCompositeOperation = useProjectileImage || effect.stageKind === 'slamPrimary' || effect.stageKind === 'slamAftershock' ? 'source-over' : 'screen';
+        ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, useProjectileImage ? 0.94 : 0.82);
+        ctx.filter = useProjectileImage ? 'none' : (effect.filter || 'none');
         if (effect.travel) {
             // 모든 플레이어 투사체는 포물선 없이 실제 발사선 위를 빠르게 이동한다.
             let travelProgress = t;
@@ -867,8 +869,8 @@ function drawSkillGemVfxLayer(ctx, now) {
             let height = imageProjectile ? effect.projectileHeight : effect.size * 0.52;
             ctx.translate(x, y);
             ctx.rotate(effect.rotation || 0);
-            if (imageProjectile && image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
-            else if (!imageProjectile) drawElementProjectileVfx(ctx, effect.projectileStyle || effect.element, width, height, t);
+            if (useProjectileImage) ctx.drawImage(image, -width / 2, -height / 2, width, height);
+            else drawElementProjectileVfx(ctx, effect.projectileStyle || effect.element, width, height, t);
         } else if (effect.connector) {
             let reveal = Math.min(1, t / 0.22);
             let fromX = effect.toX + (effect.fromX - effect.toX) * reveal;

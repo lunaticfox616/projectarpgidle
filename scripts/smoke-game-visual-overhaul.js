@@ -370,6 +370,29 @@ const venomProjectileDrawing = vm.runInContext(`(() => {
 assert.strictEqual(venomProjectileDrawing.images, 1, 'venom fang should draw one compact image projectile');
 assert.strictEqual(venomProjectileDrawing.rectangles, 0, 'venom fang should not fall back to a placeholder rectangle');
 assert.strictEqual(venomProjectileDrawing.strokes, 0, 'venom fang should not retain procedural rings or line trails');
+const missingVenomProjectileFallback = vm.runInContext(`(() => {
+  delete battleAssets.images.skillFxVenomFang;
+  const calls = { strokes: 0 };
+  const ctx = {
+    globalAlpha: 1,
+    save() {}, restore() {}, translate() {}, rotate() {},
+    drawImage() {}, fillRect() {}, fill() {},
+    beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, arc() {},
+    stroke() { calls.strokes++; },
+  };
+  drawCombatMovingFx(ctx, {
+    owner: 'player', delivery: 'projectileTarget', patternKind: 'boomerang', skillName: '독니 사출'
+  }, 50, 0, 100, { x: 0, y: 0 }, [{ x: 100, y: 0 }], 'skillFxVenomFang', 'chaos');
+  battleVisualState.skillEffects = [{
+    skillName: '독니 사출', element: 'chaos', projectileStyle: 'chaos', family: 'projectile',
+    stageKind: 'projectileTravel', imageKey: 'skillFxVenomFang', imageProjectile: true,
+    projectileWidth: 58, projectileHeight: 26, startAt: 0, duration: 100,
+    fromX: 0, fromY: 0, toX: 100, toY: 0, travel: true, rotation: 0, size: 34, alpha: 0.94,
+  }];
+  drawSkillGemVfxLayer(ctx, 50);
+  return calls;
+})()`, context);
+assert.ok(missingVenomProjectileFallback.strokes >= 4, 'a missing optional venom image should fall back to visible procedural projectiles in both render paths');
 const optimizedAreaVfx = vm.runInContext(`(() => {
   const counts = { meteorImages: 0, blizzardGusts: 0, blizzardFlakes: 0, rainLines: 0, blizzardBounds: 0 };
   battleAssets.images.skillFxSlamPrimary = { complete: true, naturalWidth: 64 };
