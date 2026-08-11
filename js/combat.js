@@ -18,6 +18,7 @@ const CRIT_DAMAGE_BASE_MULTIPLIER = 125;
 const PENDING_SKILL_STAGE_CAP = 160;
 const COMBAT_PROJECTILE_MIN_TRAVEL_MS = 120;
 const COMBAT_PROJECTILE_MS_PER_CELL = 55;
+const BOSS_ATTACK_IMPACT_DELAY_MS = 500;
 let pendingSkillStageHits = [];
 let pendingEnemyCombatAttacks = [];
 const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
@@ -9961,7 +9962,7 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     let targetCell = copyCombatGridCell(target);
     if (!sourceCell || !targetCell) return false;
     let now = Date.now();
-    let travelMs = delivery === 'magicCell' ? 520 : getCombatTravelMs(sourceCell, targetCell);
+    let travelMs = enemy.isBoss ? BOSS_ATTACK_IMPACT_DELAY_MS : getCombatTravelMs(sourceCell, targetCell);
     let targetType = target === game.gridPlayer ? 'player' : 'summon';
     pendingEnemyCombatAttacks.push({
         at: now + travelMs, enemyId: enemy.id, source: enemy, sourceCell, targetType,
