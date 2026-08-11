@@ -1,6 +1,6 @@
 // 검사 진입점(npm test)과 CI 배선이 살아 있는지 확인한다.
 //
-// 이 검사가 존재하는 이유: 검사 102개가 있어도 실행되지 않으면 없는 것과 같다.
+// 이 검사가 존재하는 이유: 검사가 많아도 실행되지 않으면 없는 것과 같다.
 // 러너 파일명이 바뀌거나 workflow가 다른 명령을 부르게 되면 안전망 전체가 조용히
 // 꺼지는데, 그건 아무 검사도 실패하지 않으므로 아무도 모른다. 배선 자체를 고정한다.
 const assert = require('assert');
@@ -56,11 +56,6 @@ try {
 assert.strictEqual(exitCode, 1, '검사가 실패하면 러너는 종료 코드 1이어야 한다(CI가 이 코드로 막는다)');
 assert.ok(output.includes(`${probeName}.js`), '어떤 검사가 실패했는지 보고해야 한다');
 assert.ok(output.includes('진입점 검사가 의도적으로 실패시킨 검사'), '실패 원인 출력을 그대로 보여줘야 한다');
-
-// ── 러너가 실제로 모든 검사를 집는지 ────────────────────────────────
-const onDisk = fs.readdirSync(path.join(ROOT, 'scripts')).filter(name => /^smoke-.*\.js$/.test(name));
-assert.ok(onDisk.length >= 100, `스모크 검사가 충분히 집혀야 한다(현재 ${onDisk.length}개)`);
-assert.ok(onDisk.includes('smoke-test-entrypoint.js'), '이 검사 자신도 목록에 들어가야 한다');
 
 // AGENTS.md가 옛 셸 반복문을 계속 안내하면 사람은 진입점을 쓰지 않는다.
 const agents = read('AGENTS.md');

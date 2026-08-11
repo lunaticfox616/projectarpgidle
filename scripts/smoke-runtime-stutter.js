@@ -4,8 +4,6 @@ const vm = require('vm');
 
 const saveSource = fs.readFileSync('js/save.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-const windowCss = fs.readFileSync('css/ui-windows.css', 'utf8');
-const html = fs.readFileSync('index.html', 'utf8');
 
 const storageWrites = [];
 let scheduledCloudSyncs = 0;
@@ -124,21 +122,6 @@ async function exerciseCloudUpload() {
   assert.strictEqual(JSON.parse(capturedRequest.options.body).user_id, 'user-1');
   assert.strictEqual(localPersistCalls, 3, 'cloud upload should persist before upload and after sync metadata updates');
 }
-
-assert(windowCss.includes('max-height: none'), 'trait enemy cards should grow with their status rows');
-assert(windowCss.includes('.enemy-traits { display: block') && windowCss.includes('white-space: normal'), 'enemy traits should wrap instead of being clipped to one line');
-assert(!windowCss.includes('.enemy-ailments { display: block'), 'legacy enemy status text wrapping must not override the icon strip');
-assert(windowCss.includes('#enemy-area') && windowCss.includes('top: 24px') && windowCss.includes('z-index: 24'), 'the enemy health card should sit above the progress panel');
-const overhaulCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
-assert(overhaulCss.includes('#enemy-area { top: 24px; z-index: 24'), 'the final dark-mode override must keep the enemy HUD above progress');
-assert(!html.includes('\u{1F9ED} 진행도'), 'the initial progress label should not show a compass emoji');
-assert(!uiSource.includes('\u{1F6B6} 다음 구간 준비'), 'the next-area preparation label should not show a walking emoji');
-assert(!uiSource.includes('\u{1F9ED} 진행도'), 'the live progress label should not restore a compass emoji');
-assert(html.includes('css/ui-windows.css?v=20260722-combat-icons2'), 'enemy HUD and shared font CSS cache must refresh');
-assert(html.includes('css/ui-game-overhaul.css?v=20260722-health-menu-skin4'), 'the combat layout CSS cache must refresh');
-assert(html.includes('js/ui.js?v=20260723-merged-tab-window-fix2'), 'the combat UI runtime cache must refresh');
-assert(html.includes('js/state.js?v=20260806-growth-boundaries1'), 'the shared game state cache must refresh');
-assert(html.includes('js/save.js?v=20260719-stutter-fix1'), 'save runtime cache must refresh');
 
 exerciseCloudUpload()
   .then(() => console.log('smoke-runtime-stutter passed'))

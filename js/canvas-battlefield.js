@@ -1346,7 +1346,8 @@ function renderBattlefield(forceWhenHidden) {
                     dot: !!fx.dot,
                     dotType: fx.element || '',
                     impactTier: fx.impactTier || 'normal',
-                    damageRatio: fx.damageRatio || 0
+                    damageRatio: fx.damageRatio || 0,
+                    aggregateKey: fx.damageTextGroupId ? `${fx.damageTextGroupId}:${fx.enemyId}` : ''
                 });
             }
             if (!fx.dot && fx.skillName) {

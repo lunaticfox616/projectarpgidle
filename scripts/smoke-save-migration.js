@@ -121,6 +121,22 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         `한도를 넘긴 주얼을 불러오기에서 자르면 안 된다 (${many.length}개 → ${g.jewelInventory.length}개)`);
 }
 
+// 별쐐기 보관함도 장착 슬롯 한도와 무관하게 전부 복원한다.
+{
+    const manyWedges = Array.from({ length: 70 }, (_, index) => ({
+        id: 900000 + index,
+        name: `wedge-${index}`,
+        lines: []
+    }));
+    const g = merge({
+        level: 50, season: 30, playerHp: 300, inventory: [], equipment: {},
+        currencies: {}, unlocks: {}, settings: {},
+        starWedge: { wedges: manyWedges }
+    });
+    assert.strictEqual(g.starWedge.wedges.length, manyWedges.length,
+        '장착 한도를 넘긴 보유 별쐐기도 불러오기에서 모두 보존해야 한다');
+}
+
 // ── 손상된 저장은 조용히 넘어가지 않고 던진다 ────────────────────────────
 // js/save.js가 이 예외를 받아 손상본을 백업하고 자동 저장을 멈춘다.
 // 여기서 조용히 빈 배열로 고쳐 버리면 플레이어 아이템이 말없이 사라진다.

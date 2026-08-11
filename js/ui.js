@@ -60,6 +60,38 @@ function buildMapZoneGroupHtml(groupKey, title, cards) {
     </section>`;
 }
 
+function buildMapPowerEstimateHtml(zone) {
+    let estimate = typeof estimateMapZonePowerRequirements === 'function' ? estimateMapZonePowerRequirements(zone) : null;
+    if (!estimate) return '';
+    let elementLabel = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' }[estimate.element] || '최저';
+    return `<span class="map-zone-status map-power-estimate" title="현재 루프의 보스전 기준 예상치">예상 DPS ${formatCommaNumber(estimate.dps)} · ${elementLabel} EHP ${formatCommaNumber(estimate.ehp)}</span>`;
+}
+
+function buildTrialMapItemHtml(trial) {
+    if (trial.bloomTrial) {
+        let isCurrent = game.currentZoneId === trial.id;
+        let chaosKeys = Math.floor(game.currencies.chaosKey || 0);
+        let coreKeys = Math.floor(game.currencies.coreKey || 0);
+        let ready = canEnterTalentBloomTrial();
+        let hint = '🔒 조건 미충족';
+        if (ready) hint = '개화 도전';
+        else if (chaosKeys < 1 || coreKeys < 1) hint = `카오스 ${chaosKeys}/1 · 코어 ${coreKeys}/1`;
+        else if (!isWoodsmanEchoUnlocked()) hint = '🔒 나무꾼의 잔상 필요';
+        else if (!game.ascendClass) hint = '🔒 직업(전직) 필요';
+        return `<div class="map-item ${isCurrent ? 'current' : 'trial'}" ${ready ? `onclick="enterTalentBloomTrial()"` : ''}><span>${ready ? '🔔 ' : ''}🌸 ${trial.name}<br>${buildMapPowerEstimateHtml(trial)}</span><span style="font-size:0.8em; font-weight:normal; ${ready ? 'color:#ffd76b;' : ''}">${ready ? '도전 가능 ' : ''}${hint}</span></div>`;
+    }
+    let isCurrent = game.currentZoneId === trial.id;
+    let isCompleted = game.completedTrials.includes(trial.id);
+    let needsTicket = isCompleted && (trial.id === 'trial_3' || trial.id === 'trial_4');
+    let hasTicket = (game.currencies.trialKey3 || 0) > 0;
+    let cls = isCompleted ? '' : (isCurrent ? 'current' : 'trial');
+    let action = (isCompleted && needsTicket) ? `enterTrialWithTicket('${trial.id}')` : `changeZone('${trial.id}')`;
+    let repeatGemChance = typeof getTrialSkillGemRewardChance === 'function' ? getTrialSkillGemRewardChance(trial, false) : 0;
+    let repeatReward = repeatGemChance >= 1 ? '젬 확정' : `젬 ${Math.round(repeatGemChance * 100)}%`;
+    let status = isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3 || 0} · ${repeatReward}` : `무료 재도전 · ${repeatReward}`) : '도전하기';
+    return `<div class="map-item ${cls}" ${(isCompleted && needsTicket && !hasTicket) ? '' : `onclick="${action}"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}<br><span class="map-zone-status">${trial.trialDesc || '수호자와 함정을 돌파하세요'}</span><br>${buildMapPowerEstimateHtml(trial)}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? status : `첫 클리어 보상 · ${status}`}</span></div>`;
+}
+
 function getDefaultUiPlayerStats() {
     return {
         maxHp: 1, energyShield: 0, baseDmg: 0, directDps: 0, dps: 0, totalDps: 0, summonDps: 0,
@@ -2406,9 +2438,14 @@ function renderLoop8BeehivePanel(shouldRenderPanel = true) {
     if (!shouldRenderPanel || !panel) return;
     let beekeeperLv = getBeekeeperLevelForHive();
     let hiveUnlockText = `양봉업자 Lv.${beekeeperLv} · 카오스 ${beekeeperLv >= 3 ? '해금' : 'Lv.3'} · 신성한오브 ${beekeeperLv >= 5 ? '해금' : 'Lv.5'}`;
+    let powerEstimate = buildMapPowerEstimateHtml(getZone('beehive_run'));
+    let recentRewards = (Array.isArray(b.rewardLedger) ? b.rewardLedger : []).slice(-3).join(' · ') || '아직 없음';
+    let pendingQueenRewards = Array.isArray(b.pendingQueenRewards) ? b.pendingQueenRewards.length : 0;
     panel.innerHTML = `<div style="color:#f6d68e; margin-bottom:6px;">벌집 열쇠: <strong>${game.currencies.hiveKey||0}</strong> · 꽃가루: <strong>${game.currencies.pollen||0}</strong> · 독벌침: <strong>${game.currencies.venomStinger||0}</strong> · 벌꿀: <strong>${game.currencies.enchantedHoney||0}</strong> · 밀랍: <strong>${game.currencies.beeswax||0}</strong></div>
     <div style="color:var(--copy-bright); font-size:0.82em; margin-bottom:8px;">자동 맵 진행 없이 갈림길 선택 → 벌떼 웨이브 → 전멸 확인 순서로 진행됩니다. 선택마다 진행도 10%가 오르고, 10개 갈림길 완료 후 여왕벌이 등장합니다.<br>${hiveUnlockText}</div>
+    <div style="margin-bottom:8px;">${powerEstimate}</div>
     <div style="color:#f6d68e; margin-bottom:8px;">진행도: <strong>${Math.min(100, Math.max(0, Math.floor(b.branchStep || 0) * 10))}%</strong> · 완료한 갈림길: <strong>${Math.min(10, Math.max(0, Math.floor(b.branchStep || 0)))}/10</strong>${b.queenActive ? ' · <strong>여왕벌 등장</strong>' : ''}</div>
+    <div style="color:var(--copy-bright); font-size:.82em; margin-bottom:8px;">군체 강화 <strong>${Math.max(0, Math.floor(b.enemyEmpower || 0))}</strong> · 여왕 보류 보상 <strong>${pendingQueenRewards}</strong>개 · 최근 획득: ${recentRewards}</div>
     <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="startBeehiveRun()" ${(game.currencies.hiveKey||0)<=0 || b.inRun ? 'disabled':''}>벌집 입장</button><button onclick="forfeitBeehiveRun()" ${b.inRun ? '':'disabled'}>던전 포기</button></div>${choiceHtml}`;
 }
 
@@ -2637,11 +2674,15 @@ function renderLoop15ColonyPanel() {
     if (!open) return;
     let c = normalizeColonyWardState();
     let status = c.inRun ? `진행중 · 웨이브 ${Math.max(1,Math.floor(c.wave||1))} · 처치 ${Math.max(0,Math.floor(c.kills||0))}/${Math.max(1,Math.floor(c.requiredKills||1))}` : '대기중';
+    let completedWaves = Math.max(0, Math.floor(c.wave || 0) - (c.inRun ? 1 : 0));
+    let powerEstimate = buildMapPowerEstimateHtml(getZone('colony_run'));
     panel.innerHTML = `<div style="color:#c9f7d6; margin-bottom:6px;">군락지 흔적: <strong>${game.currencies.colonyTrace||0}</strong> · 군락지 편린: <strong>${game.currencies.colonyShard||0}</strong></div>
     <div style="color:#9fd3b1; font-size:.84em; margin-bottom:8px;">루프 15 이후 해금. 혼돈 심화(21+), 벌집, 대균열에서 아주 낮은 확률로 군락지 흔적 획득. 입장 시 마지막 혼돈 심화 층 기준 난이도로 웨이브가 진행됩니다.</div>
+    <div style="margin-bottom:8px;">${powerEstimate}</div>
     <div style="color:#e3ffe8; margin-bottom:8px;">상태: <strong>${status}</strong></div>
+    <div style="color:#9fd3b1; margin-bottom:8px;">완료 웨이브: <strong>${completedWaves}</strong> · 최고 도달: <strong>${Math.max(0, Math.floor(c.highestWave || 0))}</strong> · 10웨이브마다 다음 입장용 군락지 흔적 1개를 회수합니다.</div>
     <div style="margin-top:8px;color:#a5e3bc;">액막이 슬롯: <strong>${Math.max(1, Math.floor(c.wardSlots || 1))}/4</strong> · 장착/확장은 <button onclick="switchTab('tab-talisman'); switchTalismanSubtab('talisman-sub-colony-ward')">부적 &gt; 군락지 액막이</button>에서 관리합니다.</div>
-    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><button onclick="startColonyRun()" ${(game.currencies.colonyTrace||0)<=0 || c.inRun ? 'disabled':''}>군락지 입장</button><button onclick="forfeitColonyRun()" ${c.inRun ? '' : 'disabled'}>군락지 포기</button></div>`;
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;"><button onclick="startColonyRun()" ${(game.currencies.colonyTrace||0)<=0 || c.inRun ? 'disabled':''}>군락지 입장</button><button onclick="forfeitColonyRun()" ${c.inRun ? '' : 'disabled'}>정산 후 철수</button></div>`;
 }
 
 function generateColonyWard(){
@@ -2749,7 +2790,7 @@ function startColonyRun(){
     let c = game.colony || (game.colony = {});
     if ((game.currencies.colonyTrace||0)<=0 || c.inRun) return;
     game.currencies.colonyTrace--;
-    c.inRun = true; c.wave = 1; c.kills = 0; c.requiredKills = 16; c.entryDeepChaosDepth = Math.max(21, Math.floor(game.abyssEndlessDepth||21));
+    c.inRun = true; c.wave = 1; c.kills = 0; c.requiredKills = getColonyWaveEnemyCount(1); c.entryDeepChaosDepth = Math.max(21, Math.floor(game.abyssEndlessDepth||21));
     c.returnZoneId = game.currentZoneId;
     game.currentZoneId = 'colony_run';
     game.enemies = []; game.encounterPlan = []; game.encounterIndex = 0; game.runProgress = 0; game.moveTimer = 0;
@@ -2757,10 +2798,23 @@ function startColonyRun(){
     addLog(`🪲 군락지 방어전 시작! 기준 난이도: 혼돈 심화 ${c.entryDeepChaosDepth}`, 'season-up');
     updateStaticUI();
 }
-function forfeitColonyRun(){ let c=game.colony||{}; if(!c.inRun)return; c.inRun=false; game.currentZoneId = c.returnZoneId!==undefined&&c.returnZoneId!==null?c.returnZoneId:getAutoProgressZoneId(game.maxZoneId); addLog('군락지 방어전을 포기했습니다.', 'attack-monster'); updateStaticUI(); }
+function forfeitColonyRun(){
+    let c = game.colony || {};
+    if (!c.inRun) return;
+    c.inRun = false;
+    game.currentZoneId = c.returnZoneId !== undefined && c.returnZoneId !== null ? c.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+    c.returnZoneId = null;
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    addLog(`🪲 군락지 ${Math.max(0, Math.floor(c.wave || 1) - 1)}웨이브 정산 후 철수했습니다. 획득 보상은 유지됩니다.`, 'season-up');
+    updateStaticUI();
+    queueImportantSave(200);
+}
 function spawnColonyWave(){
     let c = game.colony || {}; let zone = getZone('colony_run') || getZone(0);
-    let count = Math.max(10, Math.min(36, 10 + Math.floor((c.wave||1)*2)));
+    let count = Math.max(0, getColonyWaveEnemyCount(c.wave) - Math.max(0, Math.floor(c.kills || 0)));
     game.enemies=[];
     for (let i=0;i<count;i++){
         let marker = { elite: Math.random() < 0.22 + Math.min(0.35, (c.wave||1)*0.02), boss: false };
@@ -2799,8 +2853,10 @@ function renderLoop9VoidRiftPanel(){
     let progress = v.active ? `${Math.max(0, Math.floor(v.activeKills || 0))}/${Math.max(1, Math.floor(v.requiredKills || 0))}` : '-';
     let phase = g.phase === 'survival' ? '생존전' : '보스전';
     let grandText = (g.inRun && game.currentZoneId === 'grand_breach_run') ? ` · 대균열: <strong>${phase}</strong> · 남은시간: <strong>${Math.max(0, Math.ceil(g.timeLeft || 0))}초</strong> · 처치: <strong>${Math.floor(g.kills || 0)}</strong>` : '';
+    let grandRewards = typeof getGrandBreachRewardSummary === 'function' ? getGrandBreachRewardSummary(g.kills || 0) : { voidChisel: 2 };
     let canEnter = v.grandBreachUnlock && !g.inRun;
-    panel.innerHTML = `<div style="color:var(--copy-bright);">활성 균열: <strong>${v.active ? '진행중' : '없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock ? '가능' : '잠김'}</strong>${grandText}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter ? '' : 'disabled'}>대균열 진입</button></div>`;
+    let powerEstimate = buildMapPowerEstimateHtml(getZone('grand_breach_run'));
+    panel.innerHTML = `<div style="color:var(--copy-bright);">활성 균열: <strong>${v.active ? '진행중' : '없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock ? '가능' : '잠김'}</strong>${grandText}</div><div style="margin-top:5px; color:#cdb8e8; font-size:.82em;">35초 동안 더 많이 처치할수록 보스가 강해지고 정산도 증가 · 현재 예상 공허의 끌 ${grandRewards.voidChisel}</div><div style="margin-top:6px;">${powerEstimate}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter ? '' : 'disabled'}>대균열 진입</button></div>`;
 }
 
 function spawnBeehiveWave(isBoss){
@@ -3212,7 +3268,7 @@ function renderChaosRealmMapPanel() {
     let zone = getZone(CHAOS_REALM_ZONE_ID);
     let echo = (game.woodsmanEchoRun && typeof game.woodsmanEchoRun === 'object') ? game.woodsmanEchoRun : { bestDps: 0 };
     let woodsmanEchoUnlocked = Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo');
-    list.innerHTML = `<div class="map-item ${game.currentZoneId === CHAOS_REALM_ZONE_ID ? 'current' : ''}" ${entryReady ? 'onclick="enterChaosRealmPrompt()"' : ''}><div class="map-item-main"><span>🌌</span><span>혼돈계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 ${zone ? zone.tier : getChaosRealmTier(floor)}급 · 특징 ${affixes.length}개</span></span></div><div class="map-item-actions"><span class="map-zone-status">${entryReady ? `입장 가능: 1 ~ ${highest}` : '혼돈 20 필요'}</span></div></div>`
+    list.innerHTML = `<div class="map-item ${game.currentZoneId === CHAOS_REALM_ZONE_ID ? 'current' : ''}" ${entryReady ? 'onclick="enterChaosRealmPrompt()"' : ''}><div class="map-item-main"><span>🌌</span><span>혼돈계 ${floor}층<br><span class="map-zone-status">난이도 기준: 혼돈 심화 ${zone ? zone.tier : getChaosRealmTier(floor)}급 · 특징 ${affixes.length}개</span><br>${buildMapPowerEstimateHtml(zone)}</span></div><div class="map-item-actions"><span class="map-zone-status">${entryReady ? `입장 가능: 1 ~ ${highest}` : '혼돈 20 필요'}</span></div></div>`
         + (woodsmanEchoUnlocked ? `<div class="map-item ${game.currentZoneId === WOODSMAN_ECHO_ZONE_ID ? 'current' : ''}" onclick="enterWoodsmanEchoChallenge()"><div class="map-item-main"><span>🪵</span><span>나무꾼의 잔상 (전투력 측정)<br><span class="map-zone-status">30초 전투 · 체력 ? · 공격하지 않는 허수아비(실체력 1000배)</span></span></div><div class="map-item-actions"><span class="map-zone-status">최고 DPS ${Math.floor(echo.bestDps || 0).toLocaleString()}</span></div></div>` : '');
 }
 function renderSkyTowerMapPanel() {
@@ -3315,20 +3371,25 @@ function renderOceanDepthMapPanel() {
     let perAttackCost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0;
     let secsLeft = drainPerSec > 0 ? Math.floor(st.oxygenCur / drainPerSec) : 0;
     let depthTier = getOceanDepthTier(st.depthM);
+    let oceanZone = getZone(OCEAN_ZONE_ID);
+    let currents = Array.isArray(oceanZone.currents) ? oceanZone.currents : [];
+    let currentChips = currents.map(current => `<span class="sky-tower-chip" title="${current.desc}">${current.name} · ${current.desc}</span>`).join('');
+    let nextGuardianM = (Math.floor(Math.max(0, st.bossClearM || 0) / getOceanBossBoundaryInterval()) + 1) * getOceanBossBoundaryInterval();
     let upgradeRows = renderOceanPermanentUpgradeRows(st);
     panel.innerHTML = `<div class="sky-tower-head">
         <div>
-            <div class="sky-tower-title">🌊 심해 잠수 <span style="color:#ffce6b; font-size:0.7em; border:1px solid #ffce6b; border-radius:4px; padding:1px 5px; vertical-align:middle;">⚠ 테스트 중</span></div>
-            <div class="sky-tower-sub" style="color:#ffce6b;">⚠ 현재 테스트 중인 컨텐츠입니다. 밸런스·보상·기능이 예고 없이 변경되거나 초기화될 수 있습니다.</div>
-            <div class="sky-tower-sub">수심이 깊어질수록 수압 디버프(공속/피해/이동속도 감소)가 강해지고, 산소가 다 떨어지면 시간이 지날수록 커지는 익사 피해를 입습니다. 쓰러지기 직전에는 수면으로 복귀합니다.</div>
+            <div class="sky-tower-title">🌊 심해 잠수</div>
+            <div class="sky-tower-sub">산소 안에 다음 체크포인트를 확보하고 500m마다 심해 가디언을 돌파하세요. 수심이 깊어질수록 수압과 해류가 강해지며, 위험할 때 복귀하면 확보한 체크포인트부터 다시 시작합니다.</div>
         </div>
         ${st.diving ? `<button onclick="forceSurfaceOcean('manual'); changeZone(Math.max(0, game.maxZoneId || 0)); updateStaticUI();">수면으로 복귀</button>` : `<button onclick="enterOceanDive(); changeZone(OCEAN_ZONE_ID); updateStaticUI();">잠수 시작 (${st.checkpointM}m부터)</button>`}
     </div>
     <div class="sky-tower-chips">
         <span class="sky-tower-chip">현재 수심 <b>${Math.floor(st.depthM)}m</b></span>
         <span class="sky-tower-chip">체크포인트 <b>${st.checkpointM}m</b></span>
+        <span class="sky-tower-chip">다음 가디언 <b>${nextGuardianM}m</b> · ${Math.max(0, nextGuardianM - Math.floor(st.depthM))}m 남음</span>
         <span class="sky-tower-chip">수압 단계 <b>${depthTier}</b></span>
         <span class="sky-tower-chip" title="산소 최대치 ${st.oxygenMax}. 이동 속도가 높을수록 시간당 소모가 빨라지고(현재 ${drainPerSec.toFixed(2)}/초), 공격 1회마다 추가로 ${perAttackCost}씩 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
+        ${currentChips}
     </div>
     <div style="margin-top:10px; display:grid; gap:8px;">
         <div style="color:#8fe3ff; font-weight:bold;">🌊 심해 영구 업그레이드</div>
@@ -3336,7 +3397,7 @@ function renderOceanDepthMapPanel() {
         ${upgradeRows}
     </div>
     <div class="sky-tower-sub" style="margin-top:8px;">🎣 낚시·암초 조각·바다의 선물(제작)은 상단 <b>🎣 낚시</b> 탭에서 관리할 수 있습니다.</div>`;
-    list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span></span></div></div>`;
+    list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span><br>${buildMapPowerEstimateHtml(oceanZone)}</span></div></div>`;
 }
 
 function renderFishingPanel() {
@@ -3448,7 +3509,8 @@ function renderUnderworldMapPanel() {
         return `<button type="button" class="underworld-rune-slot ${unlocked ? 'unlocked' : 'locked'}" ${attrs}><span class="underworld-rune-slot-no">${idx + 1}</span><strong>${label}</strong><small>${effect}</small></button>`;
     }).join('');
     panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div><div style="margin-top:6px; color:#c9b8ff;">룬 슬롯 ${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 · 해금된 룬 번호 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))}</div><div class=\"underworld-rune-slots\">${slots}</div><div style="margin-top:4px; color:#9fe3d6;">룬 조각: <strong>${runeShardCount}</strong></div><div style="margin-top:4px; color:#d7c6a0;">지하계 재화: 구리 <strong>${Math.floor((game.currencies||{}).underCopper||0)}</strong> · 은 <strong>${Math.floor((game.currencies||{}).underSilver||0)}</strong> · 금 <strong>${Math.floor((game.currencies||{}).underGold||0)}</strong></div><div style="margin-top:4px; color:#ffd8a8;">우버 뿌리 입장권: ${ticketLine}</div><div style="margin-top:6px;"><button onclick="craftUnderworldRune()">룬 가공 (룬조각 10)</button><button onclick="openUnderworldRuneUpgradeOverlay()" style="margin-left:6px;">룬 승급 (동일 룬 3개 + 룬조각)</button><button onclick="applyUnderworldEnchant()" style="margin-left:6px;">지하계 인챈트</button><button onclick="attemptUnderworldLimitBreak()" style="margin-left:6px;">20% 한계돌파</button><button onclick="enhanceUnderworldRune()" style="margin-left:6px;">룬 강화</button><button onclick="rerollUnderworldRuneBonus()" style="margin-left:6px;">룬 옵션 리롤</button></div>${skyStonePanel}<div style="margin-top:6px; color:var(--copy-bright);">보유 룬:<div class=\"underworld-rune-inventory\">${runeLine || '<span style=\"color:var(--copy-muted);\">없음</span>'}${Object.keys(runeCountMap).length > 12 ? '<span style=\"color:var(--copy-muted);\">...</span>' : ''}</div></div><div style="margin-top:6px; color:var(--copy-bright);">장착 룬(영구 적용):<div class=\"underworld-equipped-list\">${equippedLine || '<span style=\"color:var(--copy-muted);\">없음</span>'}</div></div>`;
-    list.innerHTML = `<div class="map-item ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}" ${canEnter ? 'onclick="enterUnderworldPrompt()"' : ''} style="${canEnter ? '' : 'opacity:.65; cursor:not-allowed;'}"><div class="map-item-main"><span>🕳️</span><span>지하계 ${floor}층</span></div><div class="map-item-actions"><button ${canEnter ? '' : 'disabled'}>층 선택 입장</button></div></div>`;
+    let powerEstimate = buildMapPowerEstimateHtml(getZone(UNDERWORLD_ZONE_ID));
+    list.innerHTML = `<div class="map-item ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}" ${canEnter ? 'onclick="enterUnderworldPrompt()"' : ''} style="${canEnter ? '' : 'opacity:.65; cursor:not-allowed;'}"><div class="map-item-main"><span>🕳️</span><span>지하계 ${floor}층<br>${powerEstimate}</span></div><div class="map-item-actions"><button ${canEnter ? '' : 'disabled'}>층 선택 입장</button></div></div>`;
 }
 function ensureUnderworldRuneState() {
     if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {} };
@@ -3913,8 +3975,9 @@ function getDeepChaosMapEntryHtml() {
     let state = getDeepChaosEntryState();
     if (!state.open) return '';
     let current = getAbyssDepthFromZoneId(game.currentZoneId) >= 21 ? 'current' : '';
+    let powerEstimate = buildMapPowerEstimateHtml(getZone(getAbyssZoneIdForDepth(state.currentDepth)));
     return `<div class="map-item map-item--deep-chaos ${current}" onclick="enterDeepChaosPrompt()">
-        <div class="map-item-main"><span>♾️</span><span>혼돈 심화층<br><span class="map-zone-status">현재 심화층: ${state.currentDepth}층 · 최고 기록: ${state.highestDepth}층</span></span></div>
+        <div class="map-item-main"><span>♾️</span><span>혼돈 심화층<br><span class="map-zone-status">현재 심화층: ${state.currentDepth}층 · 최고 기록: ${state.highestDepth}층</span><br>${powerEstimate}</span></div>
         <div class="map-item-actions"><span class="map-zone-status">입장 가능: 21 ~ ${state.highestDepth}</span></div>
     </div>`;
 }
@@ -5657,7 +5720,10 @@ function addLog(msg, cls, opts = {}) {
         return;
     }
     logQueue.push({ msg, cls });
-    if (shouldShowMobileToast(msg, cls, opts)) enqueueMobileToast(msg, cls);
+    if (opts.toast && typeof showGameToast === 'function') {
+        let tone = opts.toastTone || (cls === 'loot-unique' ? 'success' : (cls === 'attack-monster' ? 'warning' : 'info'));
+        showGameToast(stripHtmlMessage(msg) || String(msg || ''), { tone: tone });
+    } else if (shouldShowMobileToast(msg, cls, opts)) enqueueMobileToast(msg, cls);
     if (!logFlushRaf) logFlushRaf = requestAnimationFrame(flushLogQueue);
 }
 
@@ -6158,6 +6224,14 @@ function hideInfoTooltip() {
     clearActiveTooltip('info-tooltip');
     document.getElementById('info-tooltip').style.display = 'none';
 }
+function showSporeCraftTooltip(event, kind) {
+    let info = kind === 'corrupt'
+        ? { name: '부패 홀씨', desc: '잠기지 않은 원소 피해·원소 저항 옵션 1개를 무작위로 제거합니다.', color: '#b58ad9' }
+        : { name: '균열 홀씨', desc: '빈 옵션 1칸에 해당 부위의 화석 전용 옵션 1개를 추가합니다.', color: '#72c8d8' };
+    let html = `<div class="tooltip-title">${info.name}</div><div class="tooltip-line">${info.desc}</div>`;
+    showInfoTooltipHtml(event.clientX, event.clientY, html, info.color);
+}
+safeExposeGlobals({ showSporeCraftTooltip });
 document.addEventListener('mousemove', function(evt) {
     let tt = document.getElementById('info-tooltip');
     if (!tt || tt.style.display === 'none') return;
@@ -8652,6 +8726,71 @@ function getUiEnemyTraitDisplayText(tags) {
     return { fullText, compactText };
 }
 
+function clearUiEnemyTraitRotation(traitEl) {
+    if (!traitEl || traitEl.__traitRotationTimer == null) return;
+    clearInterval(traitEl.__traitRotationTimer);
+    traitEl.__traitRotationTimer = null;
+}
+
+function scheduleUiEnemyTraitOverflow(traitEl, track) {
+    let measure = () => {
+        if (!traitEl.isConnected) return;
+        let panelWidth = Math.max(0, traitEl.clientWidth);
+        let trackWidth = Math.max(0, track.scrollWidth);
+        let overflowing = trackWidth > panelWidth + 4;
+        traitEl.classList.toggle('is-overflowing', overflowing);
+        if (!overflowing) return;
+        track.style.setProperty('--trait-enter-x', `${panelWidth}px`);
+        track.style.setProperty('--trait-exit-x', `${-trackWidth}px`);
+        track.style.setProperty('--trait-duration', `${Math.max(8, Math.min(20, (panelWidth + trackWidth) / 28)).toFixed(2)}s`);
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(measure);
+    else measure();
+}
+
+function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) {
+    if (!traitEl) return;
+    let track = traitEl.querySelector('.enemy-trait-marquee');
+    if (!track) return;
+    let visible = Array.isArray(labels) && labels.length > 0;
+    traitEl.style.display = visible ? '' : 'none';
+    traitEl.title = fullTooltip || '';
+    traitEl.setAttribute('aria-label', fullTooltip || display.fullText || '');
+    if (!visible) {
+        clearUiEnemyTraitRotation(traitEl);
+        traitEl.__traitSignature = '';
+        track.textContent = '';
+        return;
+    }
+    let mobile = isBoss && typeof matchMedia === 'function' && matchMedia('(max-width: 1080px)').matches;
+    let reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let signature = `${isBoss ? 'boss' : 'elite'}|${mobile}|${reducedMotion}|${labels.join('\u001f')}`;
+    if (traitEl.__traitSignature === signature) return;
+    traitEl.__traitSignature = signature;
+    clearUiEnemyTraitRotation(traitEl);
+    traitEl.classList.remove('is-overflowing', 'is-rotating');
+    if (!isBoss) {
+        traitEl.removeAttribute('tabindex');
+        track.textContent = display.compactText;
+        return;
+    }
+    traitEl.setAttribute('tabindex', '0');
+    if (!mobile || reducedMotion || labels.length === 1) {
+        track.textContent = display.fullText;
+        scheduleUiEnemyTraitOverflow(traitEl, track);
+        return;
+    }
+    let index = 0;
+    traitEl.classList.add('is-rotating');
+    track.textContent = labels[index];
+    traitEl.__traitRotationTimer = setInterval(() => {
+        if (!traitEl.isConnected) return clearUiEnemyTraitRotation(traitEl);
+        if (traitEl.matches(':hover') || (typeof document !== 'undefined' && document.activeElement === traitEl)) return;
+        index = (index + 1) % labels.length;
+        track.textContent = labels[index];
+    }, 2600);
+}
+
 function buildEnemyCombatEffectIcons(activeAilments, enemyDebuffs, now, enemy) {
     let ailmentIcons = (activeAilments || []).filter(ail => ail && (ail.time || 0) > 0).map(ail => {
         let remain = Math.ceil(Math.max(0, ail.time || 0));
@@ -8963,6 +9102,7 @@ function updateCombatUI(pStats) {
     let enemyListEl = document.getElementById('ui-enemy-list');
     if (!focusedEnemy) {
         if (enemyListEl.dataset.enemyId !== '') {
+            clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = '';
             enemyListEl.innerHTML = `<div class="enemy-empty">현재 조준 중인 적이 없습니다.</div>`;
         }
@@ -8990,8 +9130,9 @@ function updateCombatUI(pStats) {
         let enemyHudTier = (focusedEnemy.isBoss || focusedEnemy.bossPhase) ? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob');
         let focusedKey = String(focusedEnemy.id) + '|' + enemies.length + '|' + enemyHudTier;
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
+            clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = focusedKey;
-            let traitMarkup = '<div class="enemy-tags muted enemy-traits"></div>';
+            let traitMarkup = '<div class="enemy-tags muted enemy-traits"><span class="enemy-trait-marquee"></span></div>';
             let effectMarkup = '<div class="enemy-tags muted enemy-ailments combat-effect-strip enemy-combat-effect-strip" aria-label="활성 상태이상 및 효과"></div>';
             let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}</div>`;
             enemyListEl.innerHTML = `
@@ -9044,14 +9185,12 @@ function updateCombatUI(pStats) {
         }
         if (traitEl) {
             let showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase);
-            let traitDisplay = getUiEnemyTraitDisplayText(showTraits ? tags : []);
+            let traitLabels = getUiEnemyTraitLabels(showTraits ? tags : []);
+            let traitDisplay = getUiEnemyTraitDisplayText(traitLabels);
             let patternText = focusedEnemy.patternMode && typeof getBossPatternDescription === 'function'
                 ? getBossPatternDescription(focusedEnemy.patternMode) : '';
             let fullTooltip = [traitDisplay.fullText, patternText].filter(Boolean).join(' · ');
-            traitEl.innerText = traitDisplay.compactText;
-            traitEl.title = fullTooltip;
-            traitEl.setAttribute('aria-label', fullTooltip);
-            traitEl.style.display = showTraits && traitDisplay.fullText ? '' : 'none';
+            updateUiEnemyTraitPanel(traitEl, traitLabels, traitDisplay, fullTooltip, enemyHudTier === 'boss');
         }
     }
 }
@@ -10353,26 +10492,29 @@ function renderTimeRiftPanel() {
     let riftDifficultyTier = getTimeRiftDifficultyTier(rift.pressure);
     let pct = v => `${Math.round(v * 100)}%`;
     let altarFull = !!(rift.altarUnique && rift.altarRare);
+    let pressureLocked = rift.altarOpen || game.currentZoneId === TIME_RIFT_PAST_ZONE_ID || game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID;
     let altarLine = slotItem => slotItem ? `<strong>${slotItem.name}</strong> <span style="color:var(--copy-bright);">[${slotItem.slot}]</span>` : '<span style="color:var(--copy-muted);">비어 있음</span>';
     let selected = typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null;
     let selectedLine = selected ? `선택됨: [${selected.slot}] ${selected.name} (${selected.rarity})` : '인벤토리에서 아이템을 선택하세요';
+    let pastPowerEstimate = buildMapPowerEstimateHtml(getZone(TIME_RIFT_PAST_ZONE_ID));
+    let futurePowerEstimate = buildMapPowerEstimateHtml(getZone(TIME_RIFT_FUTURE_ZONE_ID));
     host.innerHTML = `
         <div style="margin-bottom:8px; color:var(--copy-bright); font-size:0.85em;">과거를 클리어해 제단을 열고, 같은 부위의 <strong>고유 1개·희귀 1개</strong>를 올린 뒤 미래를 클리어하면 희귀의 추가 옵션을 계승한 <strong>융합 유물</strong>이 됩니다. 융합 유물은 신성한/타락/축복의 오브만 사용할 수 있습니다. 제단은 루프를 건너도 보존됩니다.</div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
             <span>시간압</span>
-            <button onclick="setTimeRiftPressure(-1)" ${rift.pressure <= 1 ? 'disabled' : ''}>-</button>
+            <button onclick="setTimeRiftPressure(-1)" ${rift.pressure <= 1 || pressureLocked ? 'disabled' : ''}>-</button>
             <strong>${rift.pressure}</strong>
-            <button onclick="setTimeRiftPressure(1)" ${rift.pressure >= TIME_RIFT_MAX_PRESSURE ? 'disabled' : ''}>+</button>
+            <button onclick="setTimeRiftPressure(1)" ${rift.pressure >= TIME_RIFT_MAX_PRESSURE || pressureLocked ? 'disabled' : ''}>+</button>
             <span style="color:var(--copy-bright); font-size:0.83em;">완벽 ${pct(odds.perfect)} · 보통 ${pct(odds.normal)} · 불안정 ${pct(odds.unstable)}</span>
         </div>
-        <div style="margin:-2px 0 8px; color:#d8bd78; font-size:0.8em;">혼돈 ${equivalentChaosDepth} 상당 · 전투 난이도 ${riftDifficultyTier}</div>
+        <div style="margin:-2px 0 8px; color:#d8bd78; font-size:0.8em;">혼돈 ${equivalentChaosDepth} 상당 · 전투 난이도 ${riftDifficultyTier}${pressureLocked ? ' · 제단 작업이 끝날 때까지 시간압 고정' : ''}</div>
         <div class="map-grid" style="margin-bottom:8px;">
             <div class="map-item ${game.currentZoneId === TIME_RIFT_PAST_ZONE_ID ? 'current' : ''}" onclick="changeZone('time_rift_past')">
-                <div class="map-item-main"><span>⏳</span><span>과거 (제단 개방)</span></div>
+                <div class="map-item-main"><span>⏳</span><span>과거 (제단 개방)<br>${pastPowerEstimate}</span></div>
                 <div class="map-item-actions"><span class="map-zone-status">${rift.altarOpen ? '제단 열림' : '클리어 필요'}</span></div>
             </div>
             <div class="map-item ${game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID ? 'current' : ''}" onclick="changeZone('time_rift_future')">
-                <div class="map-item-main"><span>⌛</span><span>미래 (융합 정산)</span></div>
+                <div class="map-item-main"><span>⌛</span><span>미래 (융합 정산)<br>${futurePowerEstimate}</span></div>
                 <div class="map-item-actions"><span class="map-zone-status">${altarFull ? '융합 준비 완료' : '제단 2자리 필요'}</span></div>
             </div>
         </div>
@@ -10382,7 +10524,7 @@ function renderTimeRiftPanel() {
             <div style="color:var(--copy-bright); font-size:0.8em; margin-bottom:6px;">${selectedLine}</div>
             <div style="display:flex; gap:6px; flex-wrap:wrap;">
                 <button onclick="placeItemOnTimeAltar()" ${rift.altarOpen ? '' : 'disabled'}>선택 아이템 올리기</button>
-                <button onclick="retrieveTimeAltarItems()" ${(rift.altarUnique || rift.altarRare) ? '' : 'disabled'}>제단 회수</button>
+                <button onclick="retrieveTimeAltarItems()" ${(rift.altarOpen || rift.altarUnique || rift.altarRare) ? '' : 'disabled'}>${(rift.altarUnique || rift.altarRare) ? '제단 회수' : '빈 제단 닫기'}</button>
             </div>
         </div>`;
 }
@@ -10610,8 +10752,8 @@ function buildSporeSummaryHtml() {
                 <div style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; color:#ffe08a; font-size:0.86em;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
-                <button onclick="applyCorruptSporeToSelectedItem()" ${typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 7 ? '' : 'disabled'}>부패 홀씨 (각 8)</button>
-                <button onclick="applyRiftSporeToSelectedItem()" ${typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 9 ? '' : 'disabled'}>균열 홀씨 (화석1+각5)</button>
+                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 7 ? '' : 'disabled'}>부패 홀씨 (각 8)</button>
+                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'rift')" onmousemove="showSporeCraftTooltip(event,'rift')" onmouseleave="hideInfoTooltip()" onclick="applyRiftSporeToSelectedItem()" ${typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 9 ? '' : 'disabled'}>균열 홀씨 (화석1+각5)</button>
             </div>
         </div>`;
 }
@@ -11061,6 +11203,8 @@ function buildCraftActionButtons(item) {
             if (storyAct) mapZoneText = `${zone.name}<br><span class="map-zone-status">보스: ${storyAct.bossName}</span>`;
             if (contractScore > 0) mapZoneText += `<br><span class="map-zone-status" style="color:#e9b97d;">📜 계약 ${contractScore} · 보상 +${contractBonusPct}%</span>`;
         }
+        let powerEstimateHtml = buildMapPowerEstimateHtml(zone);
+        if (powerEstimateHtml) mapZoneText += `<br>${powerEstimateHtml}`;
         if (isActRewardZone && rewardReady) actionHtml = `<button class="map-reward-btn" onclick="event.stopPropagation(); openActReward(${idx})">보상 받기</button>`;
         else if (isActRewardZone && rewardClaimed) actionHtml = `<button class="map-reward-btn claimed" disabled>보상 완료</button>`;
         else if (cleared) actionHtml = `<span class="map-zone-status">정복 완료</span>`;
@@ -11128,8 +11272,9 @@ function buildCraftActionButtons(item) {
         }
         let disabled = keys <= 0 || !!gateReason;
         let statusText = gateReason || `${ORB_DB[zone.key].name}: ${keys}`;
+        let powerEstimate = buildMapPowerEstimateHtml(zone);
         return `<div class="map-item ${game.currentZoneId === zone.id ? 'current' : ''}" ${disabled ? '' : `onclick="changeZone('${zone.id}')"`}>
-            <div class="map-item-main"><span>🗝️</span><span>${zone.name}</span></div>
+            <div class="map-item-main"><span>🗝️</span><span>${zone.name}<br>${powerEstimate}</span></div>
             <div class="map-item-actions"><span class="map-zone-status">${statusText}</span>${gateReason ? `<button type="button" disabled>선행 조건 필요</button>` : ''}</div>
         </div>`;
     }).join('');
@@ -11144,8 +11289,9 @@ function buildCraftActionButtons(item) {
     setExploreSubtabAvailable('map-explore-labyrinth', labyrinthOpen);
     if (labyrinthOpen) {
         let maxFloor = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
+        let powerEstimate = buildMapPowerEstimateHtml(getZone(LABYRINTH_ZONE_ID));
         document.getElementById('ui-labyrinth-list').innerHTML = `<div class="map-item ${game.currentZoneId === LABYRINTH_ZONE_ID ? 'current' : ''}" onclick="enterLabyrinthPrompt()">
-            <div class="map-item-main"><span>🏛️</span><span>고대 미궁 ${game.labyrinthFloor || 1}층</span></div>
+            <div class="map-item-main"><span>🏛️</span><span>고대 미궁 ${game.labyrinthFloor || 1}층<br>${powerEstimate}</span></div>
             <div class="map-item-actions"><span class="map-zone-status">미궁 화석: ${game.currencies.fossil || 0}</span></div>
         </div><div class="map-item-actions"><span class="map-zone-status">해금 최고층: ${maxFloor}층 · 클릭하여 층수 선택 입장</span></div></div>`;
     } else document.getElementById('ui-labyrinth-list').innerHTML = '';
@@ -11170,8 +11316,9 @@ function buildCraftActionButtons(item) {
         meteorAutoBtn.innerText = `자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`;
     }
 
+    let meteorPowerEstimate = buildMapPowerEstimateHtml(getZone(METEOR_FALL_ZONE_ID));
     document.getElementById('ui-meteor-list').innerHTML = meteorUnlocked ? `<div class="map-item ${game.currentZoneId === METEOR_FALL_ZONE_ID ? 'current' : ''}" ${meteorReady ? `onclick="changeZone('${METEOR_FALL_ZONE_ID}')"` : ''}>
-        <div class="map-item-main"><span>☄️</span><span>운석 낙하 지점<br><span class="map-zone-status">하늘의 균열 ${meteorGauge}% ${meteorReady ? '· 입장 가능' : '· 충전 중'}</span></span></div>
+        <div class="map-item-main"><span>☄️</span><span>운석 낙하 지점<br><span class="map-zone-status">하늘의 균열 ${meteorGauge}% ${meteorReady ? '· 입장 가능' : '· 충전 중'} · 충전 중 기록한 최저 티어 기준 1회 원정</span><br><span class="map-zone-status">난이도가 높을수록 운석 파편과 별쐐기 획득률 증가</span><br>${meteorPowerEstimate}</span></div>
         <div class="map-item-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="map-zone-status">난이도: 혼돈 ${Math.max(1, Math.floor((game.starWedge && game.starWedge.skyRiftMinTier) || 1))}</span></div>
     </div>` : '';
 
@@ -11191,28 +11338,7 @@ function buildCraftActionButtons(item) {
     renderMapExploreNotiDots();
 
     renderLoop9VoidRiftPanel();
-    document.getElementById('ui-trial-list').innerHTML = availTrials.map(trial => {
-        if (trial.bloomTrial) {
-            let isCurrent = game.currentZoneId === trial.id;
-            let chaosKeys = Math.floor(game.currencies.chaosKey || 0);
-            let coreKeys = Math.floor(game.currencies.coreKey || 0);
-            let ready = canEnterTalentBloomTrial();
-            let hint;
-            if (ready) hint = '개화 도전';
-            else if (chaosKeys < 1 || coreKeys < 1) hint = `카오스 ${chaosKeys}/1 · 코어 ${coreKeys}/1`;
-            else if (!isWoodsmanEchoUnlocked()) hint = '🔒 나무꾼의 잔상 필요';
-            else if (!game.ascendClass) hint = '🔒 직업(전직) 필요';
-            else hint = '🔒 조건 미충족';
-            return `<div class="map-item ${isCurrent ? 'current' : 'trial'}" ${ready ? `onclick="enterTalentBloomTrial()"` : ''}><span>${ready ? '🔔 ' : ''}🌸 ${trial.name}</span><span style="font-size:0.8em; font-weight:normal; ${ready ? 'color:#ffd76b;' : ''}">${ready ? '도전 가능 ' : ''}${hint}</span></div>`;
-        }
-        let isCurrent = game.currentZoneId === trial.id;
-        let isCompleted = game.completedTrials.includes(trial.id);
-        let needsTicket = isCompleted && (trial.id === 'trial_3' || trial.id === 'trial_4');
-        let hasTicket = (game.currencies.trialKey3 || 0) > 0;
-        let cls = isCurrent ? 'current' : 'trial';
-        if (isCompleted) cls = '';
-        return `<div class="map-item ${cls}" ${(isCompleted && needsTicket && !hasTicket) ? '' : `onclick="${(isCompleted && needsTicket) ? `enterTrialWithTicket('${trial.id}')` : `changeZone('${trial.id}')`}"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3||0}` : '✔️') : '도전하기'}</span></div>`;
-    }).join('');
+    document.getElementById('ui-trial-list').innerHTML = availTrials.map(buildTrialMapItemHtml).join('');
     }
     __mark('mapPanels');
 

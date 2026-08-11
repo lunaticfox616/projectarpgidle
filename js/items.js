@@ -457,6 +457,8 @@ function warnBeehiveMapTravelBlocked() {
 // 흐름: 과거 클리어(altarOpen) → 같은 부위 고유 1개·희귀 1개 배치 → 미래 클리어 → resolveTimeRiftFusion.
 function setTimeRiftPressure(delta) {
     let rift = ensureTimeRiftState();
+    let inRift = game.currentZoneId === TIME_RIFT_PAST_ZONE_ID || game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID;
+    if (inRift || rift.altarOpen) return addLog('시간압은 과거에 진입하기 전에만 바꿀 수 있습니다. 제단 아이템을 회수하면 다시 선택할 수 있습니다.', 'attack-monster');
     rift.pressure = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, rift.pressure + Math.floor(delta || 0)));
     updateStaticUI();
 }
@@ -507,12 +509,22 @@ function placeItemOnTimeAltar() {
 
 function retrieveTimeAltarItems() {
     let rift = ensureTimeRiftState();
-    if (!rift.altarUnique && !rift.altarRare) return addLog('제단이 비어 있습니다.', 'attack-monster');
+    if (!rift.altarUnique && !rift.altarRare) {
+        if (!rift.altarOpen) return addLog('제단이 비어 있습니다.', 'attack-monster');
+        rift.altarOpen = false;
+        rift.activePressure = null;
+        addLog('⏳ 빈 제단을 닫았습니다. 시간압을 다시 선택할 수 있습니다.', 'season-up');
+        updateStaticUI();
+        queueImportantSave(200);
+        return;
+    }
     let needSlots = (rift.altarUnique ? 1 : 0) + (rift.altarRare ? 1 : 0);
     if ((game.inventory || []).length + needSlots > getInventoryLimit()) return addLog(`인벤토리 공간이 부족합니다. (필요: ${needSlots}칸)`, 'attack-monster');
     // guaranteedKeep: 회수 아이템이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
     if (rift.altarUnique) { addItemToInventory(rift.altarUnique, { guaranteedKeep: true }); rift.altarUnique = null; }
     if (rift.altarRare) { addItemToInventory(rift.altarRare, { guaranteedKeep: true }); rift.altarRare = null; }
+    rift.altarOpen = false;
+    rift.activePressure = null;
     addLog('⏳ 제단의 아이템을 회수했습니다.', 'season-up');
     updateStaticUI();
     queueImportantSave(200);
@@ -558,6 +570,7 @@ function resolveTimeRiftFusion() {
     rift.altarUnique = null;
     rift.altarRare = null;
     rift.altarOpen = false;
+    rift.activePressure = null;
     // guaranteedKeep: 융합 결과물이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
     addItemToInventory(fused, { guaranteedKeep: true });
     return { fused: fused, grade: grade, lost: lost, inherited: rareStats.length };
@@ -606,6 +619,7 @@ function changeZone(id) {
         let rift = ensureTimeRiftState();
         if ((game.season || 1) < TIME_RIFT_UNLOCK_LOOP) return addLog(`시간의 균열은 루프 ${TIME_RIFT_UNLOCK_LOOP}부터 열립니다.`, 'attack-monster');
         if (zone.riftPhase === 'future' && (!rift.altarUnique || !rift.altarRare)) return addLog('미래로 건너가려면 먼저 과거의 제단에 고유 1개·희귀 1개를 올려야 합니다.', 'attack-monster');
+        rift.activePressure = rift.pressure;
     }
     if (id === CHAOS_REALM_ZONE_ID) {
         let realm = ensureChaosRealmState();
@@ -1371,6 +1385,48 @@ async function buyBlackMarketOffer(idx){
     updateStaticUI();
 }
 
+function renderMarketExchangePicker(listEl) {
+    let getSelectedValue = id => {
+        if (!listEl || typeof listEl.querySelector !== 'function') return '';
+        let select = listEl.querySelector(`#${id}`);
+        return select ? select.value : '';
+    };
+    let fromKeys = Array.from(new Set(MARKET_EXCHANGES.map(recipe => recipe.from)));
+    let selectedFrom = getSelectedValue('ui-market-exchange-from');
+    if (!fromKeys.includes(selectedFrom)) selectedFrom = fromKeys[0] || '';
+    let availableRecipes = MARKET_EXCHANGES.filter(recipe => recipe.from === selectedFrom);
+    let selectedTo = getSelectedValue('ui-market-exchange-to');
+    let recipe = availableRecipes.find(row => row.to === selectedTo) || availableRecipes[0];
+    if (!recipe) {
+        listEl.innerHTML = '<div class="market-meta">이용 가능한 고정 환율이 없습니다.</div>';
+        return;
+    }
+    let getName = key => (ORB_DB[key] && ORB_DB[key].name) || key;
+    let getDisplayName = key => typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : getName(key);
+    let have = Math.max(0, Math.floor(game.currencies[recipe.from] || 0));
+    let maxTimes = Math.floor(have / recipe.need);
+    let spendAll = maxTimes * recipe.need;
+    let gainAll = maxTimes * recipe.gain;
+    let tone = (recipe.to === 'goldenRule' || recipe.from === 'goldenRule') ? 'divine' : (recipe.to === 'formlessDew' ? 'chaos' : 'basic');
+    let fromOptions = fromKeys.map(key => `<option value="${key}" ${key === recipe.from ? 'selected' : ''}>${getName(key)}</option>`).join('');
+    let toOptions = availableRecipes.map(row => `<option value="${row.to}" ${row.to === recipe.to ? 'selected' : ''}>${getName(row.to)}</option>`).join('');
+    listEl.innerHTML = `<div class="market-exchange-picker market-tone-${tone}">
+        <div class="market-exchange-selectors">
+            <label class="market-exchange-select"><span>내가 줄 재화</span><select id="ui-market-exchange-from" onchange="renderMarketUI()">${fromOptions}</select></label>
+            <span class="market-exchange-direction" aria-hidden="true">→</span>
+            <label class="market-exchange-select"><span>받을 재화</span><select id="ui-market-exchange-to" onchange="renderMarketUI()">${toOptions}</select></label>
+        </div>
+        <div class="market-exchange-quote">
+            <span>현재 교환가</span><strong>${getDisplayName(recipe.from)} ${recipe.need}개 <b>→</b> ${getDisplayName(recipe.to)} ${recipe.gain}개</strong>
+            <small>보유 ${have}개 · 최대 ${maxTimes}회 교환 가능</small>
+        </div>
+        <div class="market-exchange-actions">
+            <button onclick="exchangeAtMarket('${recipe.id}', false)" ${maxTimes < 1 ? 'disabled' : ''}>1회 교환</button>
+            <button class="market-exchange-all" onclick="exchangeAtMarket('${recipe.id}', true)" ${maxTimes < 1 ? 'disabled' : ''}>최대 ${spendAll} → ${gainAll}</button>
+        </div>
+    </div>`;
+}
+
 function renderMarketUI() {
     let lockedEl = document.getElementById('ui-market-locked');
     let panelEl = document.getElementById('ui-market-panel');
@@ -1382,25 +1438,7 @@ function renderMarketUI() {
     refreshBlackMarket(false);
 
     let listEl = document.getElementById('ui-market-exchange-list');
-    if (listEl) {
-        listEl.innerHTML = MARKET_EXCHANGES.map(recipe => {
-            let have = game.currencies[recipe.from] || 0;
-            let maxTimes = Math.floor(have / recipe.need);
-            let spendAll = maxTimes * recipe.need;
-            let gainAll = maxTimes * recipe.gain;
-            let tone = (recipe.to === 'goldenRule' || recipe.from === 'goldenRule') ? 'divine' : (recipe.to === 'formlessDew' ? 'chaos' : 'basic');
-            let fromLabel = typeof getStyledOrbName === 'function' ? getStyledOrbName(recipe.from) : ORB_DB[recipe.from].name;
-            let toLabel = typeof getStyledOrbName === 'function' ? getStyledOrbName(recipe.to) : ORB_DB[recipe.to].name;
-            return `<div class="market-card market-tone-${tone}">
-                <div class="market-title market-exchange-rate"><span>${fromLabel} ${recipe.need}개</span><span class="market-exchange-arrow">→</span><span>${toLabel} ${recipe.gain}개</span></div>
-                <span class="market-meta">보유 ${fromLabel} ${have}개</span>
-                <div class="market-exchange-actions">
-                    <button onclick="exchangeAtMarket('${recipe.id}', false)" ${maxTimes < 1 ? 'disabled' : ''}>1회 교환</button>
-                    <button class="market-exchange-all" onclick="exchangeAtMarket('${recipe.id}', true)" ${maxTimes < 1 ? 'disabled' : ''}>최대 ${spendAll} → ${gainAll}</button>
-                </div>
-            </div>`;
-        }).join('');
-    }
+    if (listEl) renderMarketExchangePicker(listEl);
     let passiveEl = document.getElementById('ui-market-service-passive');
     if (passiveEl) {
         let hasSpent = Array.isArray(game.passives) && game.passives.length > 0;

@@ -76,7 +76,7 @@ assert.ok(!html.includes('combat-es-bar'), 'energy shield must not reserve a sep
 assert.ok(ui.includes('<div class="health-skin-track">'), 'enemy fills must be clipped separately from their art');
 assert.ok(ui.includes("? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob')"), 'boss, elite, and normal enemies must select distinct art tiers');
 assert.ok(ui.includes('src="assets/ui/health-${enemyHudTier}-v1.png"'), 'enemy frames must use one real image selected by tier');
-assert.ok(ui.includes("let traitMarkup = '<div class=\"enemy-tags muted enemy-traits\"></div>'"), 'enemy traits must have one DOM owner per tier');
+assert.ok(ui.includes('class="enemy-trait-marquee"'), 'enemy traits must have one clipped marquee track per tier');
 assert.ok(ui.includes("let effectMarkup = '<div class=\"enemy-tags muted enemy-ailments combat-effect-strip enemy-combat-effect-strip\""),
   'enemy effects must have one DOM owner per tier');
 assert.ok(ui.includes('let metaMarkup = `<div class="enemy-hud-meta">${traitMarkup}</div>`'),
@@ -109,7 +109,7 @@ assert.ok(css.includes('body.desktop-windowed-ui .combat-panel { overflow: visib
   'desktop identity panel must remain visible outside the combat panel padding box');
 assert.ok(css.includes('.player-exp-percent') && css.includes('.player-exp-values { display: none; }'), 'experience percent must sit above the art while exact values remain hover-only');
 assert.ok(css.includes('.combat-effect-icon') && css.includes('.combat-effect-strip:empty'), 'active effects must render as collapsible icon strips');
-assert.ok(css.includes('border: 2px solid var(--effect-color') && css.includes('filter: brightness(1.46)'),
+assert.ok(css.includes('border: 1px solid var(--effect-color') && css.includes('filter: brightness(1.55)'),
   'effect icons must keep a bright framed treatment at small sizes');
 assert.ok(css.includes("status-effects-atlas-v1.png") && fs.existsSync('assets/ui/status-effects-atlas-v1.png'), 'active effects must use the generated raster icon atlas');
 const effectAtlasSize = readPngSize('assets/ui/status-effects-atlas-v1.png');
@@ -117,23 +117,27 @@ assert.strictEqual(effectAtlasSize[0], effectAtlasSize[1], 'effect atlas must re
 assert.strictEqual(effectAtlasSize[0] % 7, 0, 'effect atlas must retain seven equal sprite columns and rows');
 assert.strictEqual(readPngColorType('assets/ui/status-effects-atlas-v1.png'), 6, 'effect atlas must retain RGBA transparency');
 assert.ok(css.includes('background-size: 700% 700%'), 'effect art must expose exactly one cell from the 7x7 atlas');
-assert.ok(/\.combat-effect-art \{[\s\S]*?overflow: hidden;[\s\S]*?background-repeat: no-repeat;/.test(css),
-  'effect art must clip a single non-repeating atlas cell');
+assert.ok(/\.combat-effect-art \{[\s\S]*?overflow: hidden;/.test(css)
+  && /\.combat-effect-art::before \{[\s\S]*?inset: 1px;[\s\S]*?background-repeat: no-repeat;/.test(css),
+  'effect art must isolate and inset one atlas cell so its edges and neighboring rows stay hidden');
 assert.ok(/\.player-health-frame \.player-combat-effect-strip \{[\s\S]*?bottom: calc\(100% \+ 4px\);[\s\S]*?flex-wrap: wrap-reverse;/.test(css),
   'player effects must occupy a wrapped shelf above the health frame instead of covering its gauge');
-assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 28px;/.test(css),
+assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 32px;/.test(css),
   'player effects must remain recognizable instead of shrinking below their icon art');
 assert.ok(/\.player-health-frame \.player-combat-effect-strip \{[\s\S]*?width: max-content;[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/.test(css),
   'player effects must not reserve an opaque strip over the battlefield');
-assert.ok(/\.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?flex: 0 0 clamp\(20px, 5\.2vw, 23px\);[\s\S]*?aspect-ratio: 1;/.test(css),
+assert.ok(/\.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?flex: 0 0 clamp\(24px, 5\.8vw, 28px\);[\s\S]*?aspect-ratio: 1;/.test(css),
   'mobile player effects must remain square so atlas rows cannot bleed together');
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('--health-frame-width: 520px') && css.includes('.enemy-card.enemy-boss .enemy-hud-meta'),
   'boss health and traits must use the compact integrated frame');
-assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 46%;[\s\S]*?width: 42%;[\s\S]*?height: 22%;/.test(css),
+assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 52%;[\s\S]*?left: 32%;[\s\S]*?width: 36%;[\s\S]*?height: 17%;/.test(css),
   'boss traits must stay centered within the supplied pink trait panel');
-assert.ok(/body\.mobile-battle-tab #tab-battle \.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?display: flex;[\s\S]*?align-items: center;[\s\S]*?height: 22%;/.test(css),
+assert.ok(/body\.mobile-battle-tab #tab-battle \.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?display: flex;[\s\S]*?align-items: center;[\s\S]*?height: 17%;/.test(css),
   'mobile boss traits must keep the frame-panel centering contract');
+assert.ok(css.includes('@keyframes boss-trait-marquee') && css.includes('animation-play-state: paused')
+  && css.includes('mask-image: linear-gradient'),
+  'overflowing boss traits must use a faded, pausable transform ticker');
 ['mob', 'elite', 'boss'].forEach(tier => assert.ok(css.includes(`.enemy-card.enemy-${tier} .enemy-hud-meta`),
   `${tier} traits must have their own health-frame position`));
 assert.ok(css.includes('.enemy-card.enemy-elite .enemy-traits') && css.includes('background: rgba(15, 10, 12, .55)'), 'elite traits must use a content-sized translucent panel');
