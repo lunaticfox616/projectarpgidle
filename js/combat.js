@@ -19,6 +19,8 @@ const PENDING_SKILL_STAGE_CAP = 160;
 const COMBAT_PROJECTILE_MIN_TRAVEL_MS = 120;
 const COMBAT_PROJECTILE_MS_PER_CELL = 55;
 const BOSS_ATTACK_IMPACT_DELAY_MS = 500;
+const UNDERWORLD_FIRST_FLOOR_BOSS_HP_MULTIPLIER = 0.85;
+const UNDERWORLD_FIRST_FLOOR_BOSS_DAMAGE_MULTIPLIER = 0.82;
 let pendingSkillStageHits = [];
 let pendingEnemyCombatAttacks = [];
 const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
@@ -5944,6 +5946,11 @@ function getChaosBossVisual(zone, variantSeed) {
     return { assetKey: assetKey, tint: hues[actId] };
 }
 
+function isUnderworldFirstFloorBoss(zone, isBoss) {
+    return !!isBoss && !!zone && zone.type === 'underworld'
+        && Math.max(1, Math.floor(Number(zone.floor) || 1)) === 1;
+}
+
 function createEnemy(zone, marker, groupIndex) {
     let loopInputs = getLoopDifficultyInputs(zone);
     let loopScaleExempt = loopInputs.exempt;
@@ -5989,6 +5996,9 @@ function createEnemy(zone, marker, groupIndex) {
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(loopInputs.loopCount) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
+    if (isUnderworldFirstFloorBoss(zone, isBoss)) {
+        hp = Math.floor(hp * UNDERWORLD_FIRST_FLOOR_BOSS_HP_MULTIPLIER);
+    }
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
     hp = Math.floor(hp * getChallengeContractEnemyHealthMultiplier(zone));
@@ -6255,10 +6265,19 @@ function resolveMapEstimateContentScale(zone) {
     return scale;
 }
 
+function getMapBossPeakHitMultiplier(bossMods) {
+    let fixedMode = String((bossMods && bossMods.patternMode) || '');
+    let patternMul = fixedMode
+        ? getBossPatternPeakDamageMultiplier(fixedMode)
+        : ((game.season || 1) >= 6 ? getMaximumBossPatternDamageMultiplier() : 1);
+    let canCrit = (game.season || 1) >= 2 || Number(bossMods && bossMods.critChanceBonus) > 0;
+    return patternMul * (canCrit ? ENEMY_CRITICAL_DAMAGE_MULTIPLIER : 1);
+}
+
 /**
  * 지도 카드에 표시할 대략적인 보스전 기준치다.
  * @param {{type:string,tier:number,id:(number|string),ele?:string}} zone
- * @returns {{dps:number,ehp:number,element:string,clearTimeSec:number}|null}
+ * @returns {{dps:number,ehp:number,element:string,clearTimeSec:number,basis:string}|null}
  */
 function estimateMapZonePowerRequirements(zone) {
     const supportedTypes = ['act', 'abyss', 'labyrinth', 'underworld', 'chaosRealm', 'oceanDepth', 'seasonBoss', 'timeRift', 'meteor', 'beehive', 'colony', 'grandBreach', 'trial'];
@@ -6278,6 +6297,7 @@ function estimateMapZonePowerRequirements(zone) {
     let bossHp = hp * (1.8 + tier * 0.6) * (1 + tierProgress * 4)
         * (abyssScale.hpMul || 1) * (abyssScale.bossMul || 1) * 0.92
         * getChallengeContractEnemyHealthMultiplier(zone) * contentScale.hp * (bossMods.hpMul || 1);
+    if (isUnderworldFirstFloorBoss(zone, true)) bossHp *= UNDERWORLD_FIRST_FLOOR_BOSS_HP_MULTIPLIER;
     if (zone.type === 'trial' && zone.id === 'trial_3') bossHp *= 0.85;
     let tierPressure = clampNumber((tier - 1) / 10, 0, 1);
     let bossHit = (2.4 + tier * 3.35) * 1.15
@@ -6286,11 +6306,14 @@ function estimateMapZonePowerRequirements(zone) {
         * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (abyssScale.bossMul || 1)
         * contentScale.damage * (bossMods.damageMul || 1);
     if (zone.type === 'act' && Number(zone.id) <= 1 && (game.season || 1) >= 3) bossHit *= 0.58;
+    if (isUnderworldFirstFloorBoss(zone, true)) bossHit *= UNDERWORLD_FIRST_FLOOR_BOSS_DAMAGE_MULTIPLIER;
+    bossHit *= getMapBossPeakHitMultiplier(bossMods) * getChallengeContractEnemyDamageMultiplier();
     return {
         dps: Math.max(1, Math.round(bossHp / contentScale.clearTimeSec)),
         ehp: Math.max(1, Math.round(bossHit)),
         element: String(zone.ele || 'phys'),
-        clearTimeSec: contentScale.clearTimeSec
+        clearTimeSec: contentScale.clearTimeSec,
+        basis: 'bossPeakHit'
     };
 }
 
@@ -10239,6 +10262,9 @@ function performMonsterAttacks(pStats) {
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);
             if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.14 + zone.tier * 0.16));
+            if (isUnderworldFirstFloorBoss(zone, enemy.isBoss)) {
+                dmg = Math.floor(dmg * UNDERWORLD_FIRST_FLOOR_BOSS_DAMAGE_MULTIPLIER);
+            }
             if (bossPattern && Number.isFinite(bossPattern.damageMul) && bossPattern.damageMul > 1) {
                 dmg = Math.max(1, Math.floor(dmg * bossPattern.damageMul));
                 if (bossPattern.isSpecial && game.settings.showCombatLog) {
@@ -10393,7 +10419,7 @@ function performMonsterAttacks(pStats) {
             let enemyCritDotBonusPct = 0;
             let enemyCritChance = Math.max(0, (enemy.critChance || 0) - Math.max(0, Math.min(80, pStats.critResist || 0)));
             if (enemyCritChance > 0 && Math.random() < (enemyCritChance / 100)) {
-                scaleBreakdown(enemy.critDamageMul || 1.55);
+                scaleBreakdown(enemy.critDamageMul || ENEMY_CRITICAL_DAMAGE_MULTIPLIER);
                 dmg = Math.max(1, sumBreakdown());
                 enemyCritDotBonusPct = 50;
             }

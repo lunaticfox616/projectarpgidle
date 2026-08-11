@@ -47,6 +47,12 @@ vm.runInContext(source, context, { filename: 'js/combat-patterns.js' });
     assert(labels[2].includes('격앙'));
 }
 
+assert.strictEqual(exposed.getBossPatternPeakDamageMultiplier('burst'), 1.30,
+    'burst readiness should use its actual peak hit multiplier');
+assert.strictEqual(exposed.getBossPatternPeakDamageMultiplier('slam'), 1.55,
+    'slam readiness should use its actual peak hit multiplier');
+assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplier(), 1.55,
+    'unknown boss patterns should use the strongest possible special hit');
 assert.strictEqual(exposed.getBossPatternPreview({ isBoss: false, patternMode: 'slam' }), null);
 assert.strictEqual(exposed.getBossPatternModeLabel('burst'), '연속 참격');
 assert.ok(exposed.getBossPatternDescription('slam').includes('3번째 공격'), 'boss pattern descriptions should explain their trigger rule');

@@ -2243,7 +2243,7 @@
         const ready = model.readiness || { id: 'blocked', label: '측정 불가', dpsRatio: 0, ehpRatio: 0 };
         return `<div class="cosmos-detail-section cosmos-readiness ${ready.id}">
             <div class="cosmos-section-label">전투 준비도 <b>${escapeHtml(ready.label)}</b></div>
-            <div class="cosmos-power-grid"><span>예상 DPS<strong>약 ${formatCosmosPower(model.target.dps)}</strong></span><span>예상 EHP<strong>약 ${formatCosmosPower(model.target.ehp)}</strong></span></div>
+            <div class="cosmos-power-grid"><span>예상 DPS<strong>약 ${formatCosmosPower(model.target.dps)}</strong></span><span title="노드 보스의 강공격·치명타 기준">예상 EHP<strong>약 ${formatCosmosPower(model.target.ehp)}</strong></span></div>
         </div>`;
     }
 
