@@ -103,6 +103,10 @@ flaskContext.renderCombatFlaskHud();
 assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini/g) || []).length, 4, 'three art sockets plus one overflow control must represent five flasks without leaving the frame');
 assert(flaskHost.innerHTML.includes('class="combat-flask-mini overflow"'), 'extra flasks must share a compact control inside the third orb');
 assert(flaskHost.innerHTML.includes('유틸리티 4 · 4/5회'), 'the overflow tooltip must preserve the fifth flask charge information');
+assert(!flaskHost.innerHTML.includes(' title='), 'combat flasks must not use browser-native title tooltips');
+assert(flaskHost.innerHTML.includes('onmouseenter="showPlayerFlaskTooltip(event')
+  && flaskHost.innerHTML.includes('onmouseenter="showCombatFlaskOverflowTooltip(event)"'),
+  'combat flask sockets and overflow must use the shared custom tooltip handlers');
 
 flaskContext.flaskState = { healTier: 1, healCharges: 3, healOverTimeUntil: 0, utils: [] };
 flaskContext.utilitySlotCount = 2;
@@ -112,6 +116,40 @@ flaskContext.renderCombatFlaskHud();
 assert.strictEqual((flaskHost.innerHTML.match(/<button/g) || []).length, 1, 'only the health flask may be interactive before utility flasks are equipped');
 assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini empty/g) || []).length, 2, 'unequipped green and blue art sockets must be visibly masked as empty');
 assert(!flaskHost.innerHTML.includes('class="combat-flask-mini utility'), 'an empty utility slot must not look like an equipped potion');
+
+const flaskTooltipStart = uiSource.indexOf('function showPlayerFlaskTooltip(');
+const flaskTooltipEnd = uiSource.indexOf('const UI_ENEMY_AILMENT_DETAIL_FORMATTERS', flaskTooltipStart);
+assert(flaskTooltipStart >= 0 && flaskTooltipEnd > flaskTooltipStart, 'flask custom tooltips must have a testable boundary');
+const flaskTooltipContext = {
+  Date,
+  state: {
+    healTier: 1, healCharges: 3, healOverTimeUntil: 0, healOverTimePerSec: 120,
+    utils: [
+      { key: 'u1', charges: 1, until: 0 }, { key: 'u2', charges: 2, until: 0 },
+      { key: 'u3', charges: 3, until: 0 }, { key: 'u4', charges: 4, until: 0 }
+    ]
+  },
+  ensureFlaskState() { return flaskTooltipContext.state; },
+  getFlaskHealDef() { return { key: 'heal', name: '생명력 플라스크', maxCharges: 5, autoBelowHpPct: 40, durationMs: 4000, healPct: 20 }; },
+  getMaxFlaskUtilitySlotCount() { return 4; },
+  FLASK_UTILITY_POOL: {
+    u1: { key: 'u1', name: '유틸리티 1', maxCharges: 5, desc: '효과 1' },
+    u2: { key: 'u2', name: '유틸리티 2', maxCharges: 5, desc: '효과 2' },
+    u3: { key: 'u3', name: '유틸리티 3', maxCharges: 5, desc: '효과 3' },
+    u4: { key: 'u4', name: '유틸리티 4', maxCharges: 5, desc: '효과 4' }
+  },
+  escapeHTML(value) { return String(value); },
+  showInfoTooltipHtml(x, y, html) { flaskTooltipContext.tooltip = { x, y, html }; },
+  hideInfoTooltip() { flaskTooltipContext.hidden = true; }
+};
+vm.createContext(flaskTooltipContext);
+vm.runInContext(uiSource.slice(flaskTooltipStart, flaskTooltipEnd), flaskTooltipContext, { filename: 'player-hud-flask-tooltips.js' });
+flaskTooltipContext.showPlayerFlaskTooltip({ clientX: 4, clientY: 8 }, 'heal', 'heal');
+assert(flaskTooltipContext.tooltip.html.includes('생명력 플라스크') && flaskTooltipContext.tooltip.html.includes('상태: 대기 중'),
+  'an inactive flask socket must show its full state in the custom tooltip');
+flaskTooltipContext.showCombatFlaskOverflowTooltip({ clientX: 5, clientY: 9 });
+assert(flaskTooltipContext.tooltip.html.includes('유틸리티 3') && flaskTooltipContext.tooltip.html.includes('유틸리티 4'),
+  'overflow flask custom tooltip must list every hidden flask and its effect');
 
 flaskContext.flaskState = {
   healTier: 1,

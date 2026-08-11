@@ -134,13 +134,15 @@ assert.ok(/\.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?flex: 0 0
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('--health-frame-width: 520px') && css.includes('.enemy-card.enemy-boss .enemy-hud-meta'),
   'boss health and traits must use the compact integrated frame');
-assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 41%;[\s\S]*?left: 32%;[\s\S]*?width: 36%;[\s\S]*?height: 17%;/.test(css),
+assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 41%;[\s\S]*?left: 34%;[\s\S]*?width: 32%;[\s\S]*?height: 17%;/.test(css),
   'boss traits must stay centered within the supplied pink trait panel');
 assert.ok(/body\.mobile-battle-tab #tab-battle \.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?display: flex;[\s\S]*?align-items: center;[\s\S]*?height: 17%;/.test(css),
   'mobile boss traits must keep the frame-panel centering contract');
 assert.ok(css.includes('@keyframes boss-trait-marquee') && css.includes('animation-play-state: paused')
-  && css.includes('mask-image: linear-gradient'),
-  'overflowing boss traits must use a faded, pausable transform ticker');
+  && css.includes('mask-image: linear-gradient') && css.includes('translate3d(var(--trait-loop-x), 0, 0)'),
+  'overflowing boss traits must use a filled, faded, pausable transform ticker');
+assert.ok(ui.includes('onmouseenter="showEnemyTraitTooltip(event)"') && !ui.includes('traitEl.title ='),
+  'boss trait hover must use the shared custom tooltip without a native title fallback');
 ['mob', 'elite', 'boss'].forEach(tier => assert.ok(css.includes(`.enemy-card.enemy-${tier} .enemy-hud-meta`),
   `${tier} traits must have their own health-frame position`));
 assert.ok(css.includes('.enemy-card.enemy-elite .enemy-traits') && css.includes('background: rgba(15, 10, 12, .55)'), 'elite traits must use a content-sized translucent panel');

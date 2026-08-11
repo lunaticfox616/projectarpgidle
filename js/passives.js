@@ -5603,7 +5603,7 @@ function initBattleAssets() {
         skillFxSlamAftershock: 'assets/effects/skill-slam-aftershock-v1.png',
         skillFxSlash: 'assets/effects/skill-slash-v1.png',
         skillFxProjectile: 'assets/effects/skill-projectile-v1.png',
-        skillFxVenomFang: 'assets/effects/skill-venom-fang-v1.png',
+        skillFxVenomFang: 'assets/effects/skill-venom-fang-v2.png',
         skillFxFrostField: 'assets/effects/skill-frost-field-v1.png',
         skillFxFrostWave: 'assets/effects/skill-frost-wave-v1.png',
         skillFxChaosBoomerang: 'assets/effects/skill-chaos-boomerang-v1.png',
