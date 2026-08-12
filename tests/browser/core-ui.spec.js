@@ -78,7 +78,7 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
     const groups = [
         ['tab-items', 'switchItemSubtab', ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser']],
         ['tab-skills', 'switchSkillSubtab', ['skill-tab-equip', 'skill-tab-enhance', 'skill-tab-research', 'skill-tab-condition']],
-        ['tab-map', 'switchMapSubtab', ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-ocean', 'map-tab-fishing']],
+        ['tab-map', 'switchMapSubtab', ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp']],
         ['tab-talisman', 'switchTalismanSubtab', ['talisman-sub-board', 'talisman-sub-colony-ward']]
     ];
     for (const [tabId, switcher, panels] of groups) {
@@ -162,9 +162,16 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
         cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
         localStorage.setItem('arpg_social_nickname:browser-user', '테스터');
         socialState.nicknameUserId = null;
-        switchTab('tab-social');
-        renderSocialTab();
+        game.level = 100;
+        game.season = 30;
+        game.maxZoneId = 20;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        updateStaticUI();
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-pvp');
     });
+    await expect(page.locator('#tab-social #social-ghost-arena')).toHaveCount(0);
+    await expect(page.locator('#map-tab-pvp.active .ghost-arena')).toBeVisible();
     await expect(page.locator('.ghost-arena')).toContainText('내 레이팅 1000');
     await page.getByRole('button', { name: '상대 찾기' }).click();
     await expect(page.locator('.ghost-result')).toContainText('승리');
@@ -181,10 +188,17 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
         })
     }));
     await page.evaluate(id => openPlayerProfile(id), targetId);
-    await expect(page.getByRole('button', { name: '고스트 친선 대결' })).toBeVisible();
-    await page.getByRole('button', { name: '고스트 친선 대결' }).click();
-    await expect(page.locator('#social-profile-pvp-result')).toContainText('친선전 무승부');
-    await expect(page.locator('#social-profile-pvp-result')).toContainText('레이팅 변동 없음');
+    await expect(page.getByRole('button', { name: '대전 탭에서 친선전' })).toBeVisible();
+    await page.getByRole('button', { name: '대전 탭에서 친선전' }).click();
+    await expect(page.locator('#map-tab-pvp')).toHaveClass(/active/);
+    await expect(page.locator('.ghost-friendly')).toContainText('상대');
+    await page.evaluate(() => {
+        tutorialQueue.length = 0;
+        if (activeTutorial) dismissTutorial(false);
+    });
+    await page.getByRole('button', { name: '친선 대결 시작' }).click();
+    await expect(page.locator('#map-tab-pvp .ghost-friendly + .ghost-result')).toContainText('친선전 무승부');
+    await expect(page.locator('#map-tab-pvp .ghost-friendly + .ghost-result')).toContainText('레이팅 변동 없음');
     expect(failures).toEqual([]);
 });
 
