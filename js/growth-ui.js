@@ -385,6 +385,12 @@ function toggleGrowthInventoryCategory(category) {
     updateStaticUI();
 }
 
+function selectAllGrowthInventoryCategories() {
+    let filter = getGrowthInventoryFilter();
+    GROWTH_INVENTORY_CATEGORIES.forEach(key => { filter.categories[key] = true; });
+    updateStaticUI();
+}
+
 function toggleGrowthInventoryUnplacedOnly() {
     let filter = getGrowthInventoryFilter();
     filter.unplacedOnly = !filter.unplacedOnly;
@@ -395,19 +401,23 @@ const GROWTH_SORT_LABELS = { recent: '최신', rarity: '등급', tier: '티어',
 
 function renderGrowthInventoryFilterChips() {
     let filter = getGrowthInventoryFilter();
-    let chips = GROWTH_INVENTORY_CATEGORIES.map(key => {
+    let allSelected = GROWTH_INVENTORY_CATEGORIES.every(key => filter.categories[key]);
+    let totalCount = (game.growthInventory || []).filter(isGrowthItem).length;
+    let chips = `<button type="button" class="growth-filter-chip${allSelected ? ' on' : ''}" aria-pressed="${allSelected}" onclick="selectAllGrowthInventoryCategories()" title="모든 생장판 종류를 표시합니다.">전체 ${totalCount}</button>`;
+    chips += GROWTH_INVENTORY_CATEGORIES.map(key => {
         let info = getGrowthCategoryInfo(key);
         let count = (game.growthInventory || []).filter(item => isGrowthItem(item) && item.growthCategory === key).length;
-        return `<button type="button" class="growth-filter-chip${filter.categories[key] ? ' on' : ''}" onclick="toggleGrowthInventoryCategory('${key}')">${info.icon} ${info.label} ${count}</button>`;
+        let selected = filter.categories[key];
+        return `<button type="button" class="growth-filter-chip${selected ? ' on' : ''}" aria-pressed="${selected}" onclick="toggleGrowthInventoryCategory('${key}')">${info.icon} ${info.label} ${count}</button>`;
     }).join('');
     let sortMode = (game.settings && game.settings.growthSortMode) || 'recent';
     let sortChips = GROWTH_SORT_MODES.map(mode =>
-        `<button type="button" class="growth-filter-chip${sortMode === mode ? ' on' : ''}" onclick="sortGrowthInventory('${mode}')">${GROWTH_SORT_LABELS[mode]}순</button>`).join('');
+        `<button type="button" class="growth-filter-chip${sortMode === mode ? ' on' : ''}" aria-pressed="${sortMode === mode}" onclick="sortGrowthInventory('${mode}')">${GROWTH_SORT_LABELS[mode]}순</button>`).join('');
     let autoClaim = !!(game.settings && game.settings.growthAutoClaim);
     return `<div class="growth-filter-row">${chips}
-        <button type="button" class="growth-filter-chip${filter.unplacedOnly ? ' on' : ''}" onclick="toggleGrowthInventoryUnplacedOnly()">미배치만</button></div>
+        <button type="button" class="growth-filter-chip${filter.unplacedOnly ? ' on' : ''}" aria-pressed="${filter.unplacedOnly}" onclick="toggleGrowthInventoryUnplacedOnly()">미배치만</button></div>
         <div class="growth-filter-row"><span class="growth-filter-label">정렬</span>${sortChips}
-        <button type="button" class="growth-filter-chip${autoClaim ? ' on' : ''}" onclick="toggleGrowthAutoClaim()" title="드랍을 최근 획득함을 거치지 않고 바로 보관함으로 보냅니다.">자동 보관</button></div>
+        <button type="button" class="growth-filter-chip${autoClaim ? ' on' : ''}" aria-pressed="${autoClaim}" onclick="toggleGrowthAutoClaim()" title="드랍을 최근 획득함을 거치지 않고 바로 보관함으로 보냅니다.">자동 보관</button></div>
         ${renderGrowthDropSettings()}`;
 }
 
@@ -417,13 +427,15 @@ function renderGrowthDropSettings() {
     let useFilter = !!(game.settings && game.settings.growthUseItemFilter);
     let rarities = getGrowthAutoSalvageRarities();
     let labels = { normal: '일반', magic: '매직', rare: '레어', unique: '고유' };
+    let allRarities = Object.keys(labels).every(key => rarities[key]);
     let rarityChips = Object.keys(labels).map(key =>
-        `<button type="button" class="growth-filter-chip loot-${key}${rarities[key] ? ' on' : ''}" onclick="toggleGrowthAutoSalvageRarity('${key}')" ${enabled ? '' : 'disabled'}>${labels[key]}</button>`).join('');
+        `<button type="button" class="growth-filter-chip loot-${key}${rarities[key] ? ' on' : ''}" aria-pressed="${rarities[key]}" onclick="toggleGrowthAutoSalvageRarity('${key}')">${labels[key]}</button>`).join('');
     return `<div class="growth-filter-row">
         <span class="growth-filter-label">드랍 처리</span>
-        <button type="button" class="growth-filter-chip${enabled ? ' on' : ''}" onclick="toggleGrowthAutoSalvageEnabled()" title="선택한 등급의 생장 드랍을 획득 즉시 해체합니다. 장비 자동해체와는 별개 설정입니다.">자동해체</button>
+        <button type="button" class="growth-filter-chip${enabled ? ' on' : ''}" aria-pressed="${enabled}" onclick="toggleGrowthAutoSalvageEnabled()" title="선택한 등급의 생장 드랍을 획득 즉시 해체합니다. 장비 자동해체와는 별개 설정입니다.">자동해체</button>
+        <button type="button" class="growth-filter-chip${allRarities ? ' on' : ''}" aria-pressed="${allRarities}" onclick="selectAllGrowthAutoSalvageRarities()" title="자동해체 대상 등급을 모두 선택합니다.">등급 전체</button>
         ${rarityChips}
-        <button type="button" class="growth-filter-chip${useFilter ? ' on' : ''}" onclick="toggleGrowthUseItemFilter()" title="켜면 장비용 아이템 필터를 생장 드랍에도 적용합니다. 기본은 꺼짐(모두 획득).">장비 필터 적용</button>
+        <button type="button" class="growth-filter-chip${useFilter ? ' on' : ''}" aria-pressed="${useFilter}" onclick="toggleGrowthUseItemFilter()" title="켜면 장비용 아이템 필터를 생장 드랍에도 적용합니다. 기본은 꺼짐(모두 획득).">장비 필터 적용</button>
     </div>`;
 }
 
@@ -697,9 +709,6 @@ function renderGrowthPlacementTray() {
         return placedDelta || (Number(b.id) - Number(a.id));
     });
     if (items.length === 0) return '<div class="growth-synergy-empty">보관함이 비어 있습니다.</div>';
-    let selected = items.find(item => item.id === growthSelection.itemId);
-    items = items.slice(0, 12);
-    if (selected && !items.includes(selected)) items.push(selected);
     return items.map(item => {
         let info = getGrowthCategoryInfo(item.growthCategory);
         let placed = isGrowthItemPlacedInLoadout(item.id);
@@ -853,7 +862,7 @@ function renderGrowthBoardPanel() {
         </div>
         <div class="growth-workspace">
             <div class="growth-board-column">${renderGrowthBoardGrid()}</div>
-            <aside class="growth-placement-tray"><h3>빠른 배치함</h3><p>미배치·최근 아이템 최대 12개입니다. 전체 목록은 아래 보관함에서 관리하세요.</p>
+            <aside class="growth-placement-tray"><h3>빠른 배치함</h3><p>보유 생장판을 모두 표시합니다. 미배치 아이템이 먼저, 같은 상태에서는 최근 획득 순으로 정렬됩니다.</p>
                 <div id="ui-growth-unplace-zone" class="growth-unplace-zone"><strong>장착 해제</strong><span>배치된 생장판을 여기로 끌어 놓으세요.</span></div>
                 <div class="growth-tray-list">${renderGrowthPlacementTray()}</div></aside>
             <aside class="growth-context-panel"><div><h3>활성 시너지</h3><div class="growth-synergy-list">${renderActiveGrowthSynergies()}</div></div><div><h3>교체 비교</h3><div class="growth-synergy-list">${renderGrowthComparisonPanel()}</div></div></aside>
@@ -985,7 +994,7 @@ safeExposeGlobals({
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, buildGrowthComparison,
     renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
-    toggleGrowthInventoryCategory, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, toggleGrowthAutoClaim, renderGrowthDropSettings,
+    toggleGrowthInventoryCategory, selectAllGrowthInventoryCategories, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, toggleGrowthAutoClaim, renderGrowthDropSettings,
     renderGrowthHoverHint, bindGrowthDragOnce, openGrowthCrafting, craftGrowthItem, exchangeGrowthCraftCurrency,
     getSelectedSlabInfluenceCells, renderGrowthLevelLine, setGrowthBoardItemHover, clearGrowthBoardItemHover,
     reforgeGrowthShapeAtBench, reforgeGrowthSlabAtBench

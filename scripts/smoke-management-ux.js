@@ -65,6 +65,7 @@ assert(!html.includes('제작 · 장착 · 변성'), 'the compact star-wedge con
 assert(html.indexOf('id="passive-investment-summary"', treeStart) < treeEnd, 'passive investment summary must overlay the tree instead of shrinking it');
 const starWedgeStart = html.indexOf('id="passive-star-wedge-drawer"');
 const investmentStart = html.indexOf('id="passive-investment-summary"');
+assert(searchStart < starWedgeStart && searchStart < investmentStart, 'passive search must precede star wedges and the investment summary');
 assert(starWedgeStart > treeStart && starWedgeStart < investmentStart, 'star wedge management must overlay the tree instead of shrinking it');
 assert(html.slice(starWedgeStart - 9, starWedgeStart).includes('<details'), 'star wedge management should use the native disclosure instead of custom toggle code');
 assert(uiSource.includes("this.closest('details').open=false"), 'choosing a star wedge socket must reveal the passive tree immediately');

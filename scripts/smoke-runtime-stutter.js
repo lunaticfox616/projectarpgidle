@@ -93,7 +93,7 @@ async function exerciseCloudUpload() {
   const uploadContext = {
     JSON, Math, Date, console,
     game: uploadGame,
-    cloudState: { user: { id: 'user-1' }, lastRemoteUpdatedAt: 0, lastRemoteLoop: 0 },
+    cloudState: { user: { id: 'user-1' }, lastRemoteUpdatedAt: 0, lastRemoteLoop: 0, revisionSupported: false },
     canPersistLocalSave() { return true; },
     getLocalSaveStatus() { return { message: '' }; },
     fetchCloudSaveRecord: async () => null,
@@ -109,7 +109,7 @@ async function exerciseCloudUpload() {
     setCloudMessage() {}
   };
   vm.createContext(uploadContext);
-  const uploadStart = uiSource.indexOf('async function pushCloudSave(options = {})');
+  const uploadStart = uiSource.indexOf('async function commitCloudSavePayload(payload, legacyBody)');
   const uploadEnd = uiSource.indexOf('async function pullCloudSave', uploadStart);
   vm.runInContext(uiSource.slice(uploadStart, uploadEnd), uploadContext, { filename: 'cloud-upload.js' });
 
@@ -124,6 +124,33 @@ async function exerciseCloudUpload() {
 }
 
 exerciseCloudUpload()
+  .then(async () => {
+    const requests = [];
+    const revisionContext = {
+      JSON, Math, Date, console,
+      cloudState: { revisionSupported: true, user: { id: 'user-1' }, lastRemoteRevision: 4 },
+      getLocalCloudRevision() { return 4; },
+      async cloudJsonRequest(path, options) {
+        requests.push({ path, options });
+        return [{ committed: true, current_revision: 5, saved_at: '2026-07-20T00:00:00Z' }];
+      }
+    };
+    vm.createContext(revisionContext);
+    const commitStart = uiSource.indexOf('async function commitCloudSavePayload(payload, legacyBody)');
+    const commitEnd = uiSource.indexOf('async function pushCloudSave', commitStart);
+    vm.runInContext(uiSource.slice(commitStart, commitEnd), revisionContext, { filename: 'cloud-revision.js' });
+    const row = await vm.runInContext('commitCloudSavePayload({ level: 9 })', revisionContext);
+    assert.strictEqual(requests[0].path, '/rest/v1/rpc/commit_cloud_save');
+    assert.strictEqual(requests[0].options.body.expected_revision, 4);
+    assert.strictEqual(requests[0].options.body.next_save_data.level, 9);
+    assert.strictEqual(row.revision, 5);
+
+    revisionContext.cloudJsonRequest = async () => [{ committed: false, current_revision: 6 }];
+    await assert.rejects(
+      vm.runInContext('commitCloudSavePayload({ level: 10 })', revisionContext),
+      /다른 기기에서 서버 저장이 변경/
+    );
+  })
   .then(() => console.log('smoke-runtime-stutter passed'))
   .catch(error => {
     console.error(error);

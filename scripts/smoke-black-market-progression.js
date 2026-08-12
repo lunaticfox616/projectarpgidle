@@ -13,7 +13,8 @@ function extract(startNeedle, endNeedle) {
     return source.slice(start, end);
 }
 
-const runtimeBlock = extract('function refreshBlackMarket(force)', 'function canStoreBlackMarketEquipmentOffer');
+const promptBlock = extract('function buildGoldenRuleSpendPrompt', 'async function marketExpandInventoryByDivine');
+const runtimeBlock = promptBlock + '\n' + extract('function refreshBlackMarket(force)', 'function canStoreBlackMarketEquipmentOffer');
 const logs = [];
 let confirmationPrompt = '';
 let rollSeq = 0;
@@ -81,6 +82,7 @@ vm.runInContext(runtimeBlock, context, { filename: 'black-market-progression-run
     assert.strictEqual(context.game.blackMarket.extraSlots, 1);
     assert.strictEqual(context.game.currencies.goldenRule, 99);
     assert(confirmationPrompt.includes('황금률 1개') && !confirmationPrompt.includes('신성한 오브'), 'slot expansion must disclose its actual currency');
+    assert(confirmationPrompt.includes('현재 보유: 황금률 100개'), 'slot expansion must disclose the current golden-rule balance');
     assert.deepStrictEqual(
         context.game.blackMarket.offers.slice(0, 6).map(offer => offer && offer.name),
         beforeExpandOffers.map(offer => offer && offer.name),

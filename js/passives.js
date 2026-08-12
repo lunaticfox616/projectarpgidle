@@ -4423,6 +4423,20 @@ function drawVisualProjectile(ctx, projectile, now) {
     ctx.fill();
     ctx.restore();
 }
+function getDamageTextFillColor(text) {
+    if (text.miss) return text.color || '#9fb4c8';
+    if (text.dot) {
+        if (text.dotType === 'fire') return '#ff9f43';
+        if (text.dotType === 'chaos') return '#c56cff';
+        if (text.dotType === 'phys') return '#ff6b6b';
+        return '#b57cff';
+    }
+    if (text.deflected) return '#b7c8c5';
+    if (text.enemyHit) return '#ff9a9a';
+    if (text.impactTier === 'annihilate') return '#fff1b0';
+    if (text.crit || text.impactTier === 'heavy') return '#ffdc75';
+    return '#ffffff';
+}
 function drawDamageTexts(ctx, now) {
     (battleVisualState.damageTexts || []).forEach(text => {
         let elapsed = now - Number(text.start);
@@ -4441,11 +4455,10 @@ function drawDamageTexts(ctx, now) {
         let textValue = text.miss ? String(text.value) : `${text.enemyHit && !text.deflected ? '-' : ''}${formatDamageNumberForDisplay(text.value)}`;
         ctx.lineWidth = text.bodyCue ? 1.25 : (text.impactTier === 'annihilate' ? 2.8 : (text.crit || text.impactTier === 'heavy' ? 2.4 : 1.8));
         ctx.strokeStyle = 'rgba(2,5,9,0.92)';
-        ctx.shadowColor = text.enemyHit ? 'rgba(255,76,88,0.42)' : (text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(255,211,102,0.38)' : 'transparent'));
-        ctx.shadowBlur = text.bodyCue ? 0 : (text.impactTier === 'annihilate' ? 7 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 4 : 0));
+        ctx.shadowColor = text.deflected ? 'rgba(151,174,174,0.2)' : (text.enemyHit ? 'rgba(255,76,88,0.42)' : (text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (text.crit || text.impactTier === 'heavy' ? 'rgba(255,211,102,0.38)' : 'transparent')));
+        ctx.shadowBlur = text.bodyCue ? 0 : (text.deflected ? 2 : (text.impactTier === 'annihilate' ? 7 : (text.crit || text.enemyHit || text.impactTier === 'heavy' ? 4 : 0)));
         ctx.strokeText(textValue, x, y);
-        let dotColor = text.dotType === 'fire' ? '#ff9f43' : (text.dotType === 'chaos' ? '#c56cff' : (text.dotType === 'phys' ? '#ff6b6b' : '#b57cff'));
-        ctx.fillStyle = text.miss ? (text.color || '#9fb4c8') : (text.dot ? dotColor : (text.deflected ? '#8fe3b0' : (text.enemyHit ? '#ff9a9a' : (text.impactTier === 'annihilate' ? '#fff1b0' : (text.crit || text.impactTier === 'heavy' ? '#ffdc75' : '#ffffff')))));
+        ctx.fillStyle = getDamageTextFillColor(text);
         ctx.fillText(textValue, x, y);
         if (!text.bodyCue && !text.miss && Math.floor(Number(text.hitCount) || 1) > 1) {
             let hitLabel = `${Math.floor(text.hitCount)}타`;

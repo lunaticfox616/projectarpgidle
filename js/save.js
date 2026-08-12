@@ -65,6 +65,7 @@ function ensureSaveMeta() {
     if (typeof game.saveMeta.cloudUserId !== 'string' || !game.saveMeta.cloudUserId.trim()) {
         game.saveMeta.cloudUserId = null;
     }
+    game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(game.saveMeta.cloudRevision) || 0));
 }
 
 function refreshItemIdCounter() {

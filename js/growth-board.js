@@ -632,6 +632,12 @@ function toggleGrowthAutoSalvageRarity(rarity) {
     updateStaticUI();
 }
 
+function selectAllGrowthAutoSalvageRarities() {
+    let map = getGrowthAutoSalvageRarities();
+    Object.keys(map).forEach(rarity => { map[rarity] = true; });
+    updateStaticUI();
+}
+
 function toggleGrowthAutoSalvageEnabled() {
     game.settings = game.settings || {};
     game.settings.growthAutoSalvageEnabled = !game.settings.growthAutoSalvageEnabled;
@@ -809,6 +815,6 @@ safeExposeGlobals({
     autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout, tryPlaceSlabAtBestCell,
     sortGrowthInventory, GROWTH_SORT_MODES, getGrowthSalvageEssenceYield, salvageGrowthItemObject,
     getGrowthShapeAlternatives, getGrowthShapeReforgeCost, reforgeGrowthItemShape,
-    getGrowthAutoSalvageRarities, toggleGrowthAutoSalvageRarity,
+    getGrowthAutoSalvageRarities, toggleGrowthAutoSalvageRarity, selectAllGrowthAutoSalvageRarities,
     toggleGrowthAutoSalvageEnabled, toggleGrowthUseItemFilter
 });

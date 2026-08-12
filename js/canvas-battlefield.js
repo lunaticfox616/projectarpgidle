@@ -52,7 +52,7 @@ function getCanvasCrowdPauseLimit() {
 function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
     const skillProfile = fx.skillName ? getSkillGemVfxProfile(fx.skillName) : null;
     // 범위 전체를 한 장면으로 그리는 스킬은 대상마다 별도 입자를 만들지 않는다.
-    if (skillProfile && skillProfile.aggregateImpact) return null;
+    if (skillProfile && (skillProfile.aggregateImpact || skillProfile.impactParticles === false)) return null;
     let variant = (skillVisual && skillVisual.variant) || 'melee';
     if (fx.chain) variant = 'chain';
     else if (fx.pierce || fx.penetrate) variant = 'pierce';
@@ -278,6 +278,26 @@ function hasMatchingTravelProjectile(skillName, now) {
         && Math.abs((Number(effect.arriveAt) || 0) - now) <= 150);
 }
 
+function reuseStormStrikeImpact(list, profile, fx, target, now) {
+    let targetKey = target && target.enemy && target.enemy.id != null
+        ? `enemy:${target.enemy.id}`
+        : `cell:${Math.round(Number(target && target.x) || 0)}:${Math.round(Number(target && target.y) || 0)}`;
+    let active = list.filter(effect => effect && effect.family === 'stormStrike'
+        && effect.skillName === fx.skillName && now - effect.startAt <= effect.duration);
+    let reusable = active.find(effect => effect.targetKey === targetKey);
+    let cap = Math.max(1, Math.floor(Number(profile.maxActiveImpacts) || 4));
+    if (!reusable && active.length >= cap) {
+        reusable = active.reduce((oldest, effect) => effect.startAt < oldest.startAt ? effect : oldest);
+    }
+    if (!reusable) return false;
+    reusable.targetKey = targetKey;
+    reusable.startAt = now;
+    reusable.x = target.x;
+    reusable.y = target.y - 5;
+    reusable.seed = Math.max(1, Number(fx.id) || 1);
+    return true;
+}
+
 function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportScale) {
     if (!fx || fx.dot || !fx.skillName) return;
     let profile = getSkillGemVfxProfile(fx.skillName);
@@ -316,6 +336,7 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
     if (stageKind === 'chainJump' || stageKind === 'slamAftershock' || stageKind === 'slamPrimary' || family === 'whirlwind') repeatCount = 1;
     let seed = Math.max(1, Number(fx.id) || 1);
     let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
+    if (family === 'stormStrike' && reuseStormStrikeImpact(list, profile, fx, target, now)) return;
     for (let repeat = 0; repeat < repeatCount; repeat++) {
         let repeatOffset = repeat - (repeatCount - 1) / 2;
         let baseRotation = Math.atan2(target.y - source.y, target.x - source.x);
@@ -340,7 +361,10 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
             size: getSkillGemVfxBaseSize(family, stageKind) * scale * (1 - Math.abs(repeatOffset) * 0.08),
             alpha: family === 'dot' ? 0.4 : (family === 'whirlwind' ? 0.54 : 0.72),
             filter: getSkillGemVfxFilter(normalizeSkillGemVfxElement(fx.element, profile.accent), imageKey),
-            seed: seed + repeat * 17
+            seed: seed + repeat * 17,
+            targetKey: family !== 'stormStrike' ? '' : (target.enemy && target.enemy.id != null
+                ? `enemy:${target.enemy.id}`
+                : `cell:${Math.round(Number(target.x) || 0)}:${Math.round(Number(target.y) || 0)}`)
         });
     }
     if (list.length > 96) list.splice(0, list.length - 96);
@@ -715,16 +739,21 @@ function drawStormStrikeVfx(ctx, effect, progress) {
     ctx.strokeStyle = '#f5ef91';
     ctx.lineWidth = Math.max(2, effect.size * 0.035);
     ctx.shadowColor = '#8edcff';
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 5;
     ctx.beginPath();
-    for (let step = 0; step <= 6; step++) {
-        let y = -height + height * step / 6;
-        let x = step === 0 || step === 6 ? 0 : (((effect.seed + step) % 3) - 1) * effect.size * 0.12;
+    for (let step = 0; step <= 5; step++) {
+        let y = -height + height * step / 5;
+        let x = step === 0 || step === 5 ? 0 : (((effect.seed + step) % 3) - 1) * effect.size * 0.1;
         if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
     ctx.stroke();
-    ctx.globalAlpha *= 0.45 * Math.sin(progress * Math.PI);
-    ctx.beginPath(); ctx.arc(0, 0, effect.size * 0.32, 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha *= 0.34 * Math.sin(progress * Math.PI);
+    ctx.lineWidth = Math.max(1, effect.size * 0.016);
+    ctx.beginPath();
+    ctx.moveTo(0, -height * 0.42);
+    ctx.lineTo(effect.size * 0.18, -height * 0.25);
+    ctx.lineTo(effect.size * 0.08, -height * 0.08);
+    ctx.stroke();
 }
 
 function drawBeamSkillVfx(ctx, effect, progress) {
@@ -1096,14 +1125,15 @@ function drawLevelUpFx(ctx, fx, t, playerPos) {
     ctx.restore();
 }
 
-function selectPlayerSwingEffects(effects, now) {
+function selectPlayerSwingEffects(effects, now, durationScale) {
     let latest = null;
     let frame = null;
     let frameProgress = -1;
+    let safeDurationScale = Math.max(1, Math.min(1.6, Number(durationScale) || 1));
     for (let index = effects.length - 1; index >= 0; index--) {
         let fx = effects[index];
         if (!fx || fx.type !== 'playerSwing') continue;
-        let duration = Math.max(1, Number(fx.duration) || 1);
+        let duration = Math.max(1, Number(fx.duration) || 1) * safeDurationScale;
         let age = now - Number(fx.start);
         if (!Number.isFinite(age) || age < 0 || age > duration) continue;
         if (!latest) latest = fx;
@@ -1113,6 +1143,12 @@ function selectPlayerSwingEffects(effects, now) {
         frameProgress = progress;
     }
     return { latest, frame };
+}
+
+function getPlayableHeroAttackDurationScale(heroId) {
+    let definitions = typeof HERO_SELECTION_DEFS !== 'undefined' ? HERO_SELECTION_DEFS : null;
+    let definition = definitions && definitions[heroId];
+    return clampNumber(Number(definition && definition.attackAnimationDurationScale) || 1, 1, 1.6);
 }
 
 function getPlayerAdvanceAnimationTarget(isWalking, enemyCount, elapsedMs) {
@@ -1179,7 +1215,9 @@ function renderBattlefield(forceWhenHidden) {
     let backdropActive = drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone, gridProj);
     let framePlayerStats = getCanvasPlayerStats();
     let currentTargets = getCanvasSkillTargets(framePlayerStats);
-    let swingEffects = selectPlayerSwingEffects(battleFx, now);
+    let appearanceId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId;
+    let attackAnimationDurationScale = getPlayableHeroAttackDurationScale(appearanceId);
+    let swingEffects = selectPlayerSwingEffects(battleFx, now, attackAnimationDurationScale);
     let latestSwingFx = swingEffects.latest;
     let swingFx = swingEffects.frame;
     let playerFlash = false;
@@ -1213,7 +1251,7 @@ function renderBattlefield(forceWhenHidden) {
     }
 
     let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
-    let swingPower = swingFx ? Math.sin(((now - swingFx.start) / swingFx.duration) * Math.PI) : 0;
+    let swingPower = swingFx ? Math.sin(((now - swingFx.start) / (swingFx.duration * attackAnimationDurationScale)) * Math.PI) : 0;
     let currentSkillVisual = getBattleSkillVisual(game.activeSkill, currentSkill);
     // 지역 이동뿐 아니라 전투 중 칸 이동(사거리 밖 적에게 접근)도 걷기 모션을 쓴다.
     let desiredAdvancing = typeof isPlayerWalkingForAnimation === 'function'
@@ -1323,7 +1361,7 @@ function renderBattlefield(forceWhenHidden) {
     drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15 * gridUnitScale, playerFlash, swingPower, currentSkillVisual, now, {
         advanceBlend: advanceBlend,
         attackBlend: attackBlend,
-        attackProgress: swingFx ? clampNumber((now - swingFx.start) / Math.max(1, swingFx.duration), 0, 0.999) : 0,
+        attackProgress: swingFx ? clampNumber((now - swingFx.start) / Math.max(1, swingFx.duration * attackAnimationDurationScale), 0, 0.999) : 0,
         hurtBlend: hurtBlend,
         downBlend: downBlend
     });
