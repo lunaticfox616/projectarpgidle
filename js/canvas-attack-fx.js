@@ -240,15 +240,11 @@
         }
         for (let i = 0; i < qn(18, q); i++) {
             const a = rand(-Math.PI * 1.1, Math.PI * 0.1); const sp = rand(30, 110);
-            fx.pFront.push(makeParticle({ x: x + rand(-10, 10), y: y + rand(-4, 8), vx: Math.cos(a) * sp * 0.5, vy: -rand(60, 150), grav: -40, drag: 0.8, size: rand(1.4, 3.2), life: rand(0.5, 0.95), shape: 'glowdot', twinkle: rand(4, 8), c0: [255, 224, 120], c1: [200, 40, 10] }));
+            fx.pFront.push(makeParticle({ x: x + rand(-10, 10), y: y + rand(-4, 8), vx: Math.cos(a) * sp * 0.5, vy: -rand(60, 150), grav: -40, drag: 0.8, size: rand(1.4, 3.2), life: rand(0.5, 0.95), shape: 'spark', trail: 3, c0: [255, 224, 120], c1: [200, 40, 10] }));
         }
         for (let i = 0; i < qn(7, q); i++) {
             const a = rand(-Math.PI, 0); const sp = rand(180, 340);
             fx.pFront.push(makeParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, grav: 260, drag: 1.0, size: rand(1.4, 2.4), life: rand(0.25, 0.45), shape: 'spark', trail: 4, c0: [255, 240, 180], c1: [255, 90, 30] }));
-        }
-        for (let i = 0; i < qn(6, q); i++) {
-            const a = rand(-Math.PI * 0.9, -Math.PI * 0.1);
-            fx.pBack.push(makeParticle({ x: x + rand(-12, 12), y: y - rand(0, 14), vx: Math.cos(a) * rand(10, 35), vy: -rand(30, 70), drag: 1.2, size: rand(14, 26), grow: 1.8, life: rand(0.7, 1.05), shape: 'smoke', c0: [60, 38, 30], c1: [25, 20, 22] }));
         }
     }
 
@@ -262,11 +258,7 @@
         }
         for (let i = 0; i < qn(14, q); i++) {
             const a = rand(0, TAU); const sp = rand(20, 90);
-            fx.pFront.push(makeParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 1.4, size: rand(1, 2.2), life: rand(0.5, 0.95), shape: 'glowdot', twinkle: rand(5, 9), c0: [235, 252, 255], c1: [150, 210, 255] }));
-        }
-        for (let i = 0; i < qn(5, q); i++) {
-            const a = rand(0, TAU);
-            fx.pBack.push(makeParticle({ x, y, vx: Math.cos(a) * rand(20, 50), vy: Math.sin(a) * rand(10, 30) + 20, drag: 1.6, size: rand(16, 28), grow: 1.4, life: rand(0.7, 1.0), shape: 'smoke', c0: [150, 200, 235], c1: [110, 150, 190] }));
+            fx.pFront.push(makeParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 1.4, size: rand(1, 2.2), life: rand(0.5, 0.95), shape: 'spark', trail: 3, c0: [235, 252, 255], c1: [150, 210, 255] }));
         }
     }
 
@@ -274,8 +266,6 @@
         const { x, y } = fx;
         fx.st.bolts = [];
         for (let i = 0; i < 5; i++) fx.st.bolts.push({ angle: rand(0, TAU), len: rand(80, 150), seed: rand(0, 1000) });
-        fx.st.arcs = [];
-        for (let i = 0; i < 5; i++) fx.st.arcs.push({ a: rand(0, TAU), r: rand(14, 30), span: rand(0.5, 1.4) });
         for (let i = 0; i < qn(14, q); i++) {
             const a = rand(0, TAU); const sp = rand(220, 460);
             fx.pFront.push(makeParticle({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 2.0, size: rand(1.2, 2.4), life: rand(0.12, 0.28), shape: 'spark', trail: 4, c0: [255, 255, 255], c1: [90, 170, 255] }));
@@ -383,11 +373,8 @@
         g.beginPath(); g.arc(x, y, 10 + 38 * p, 0, TAU); g.stroke();
     }
 
-    function drawFireUnder(g, fx, t) {
-        const { x, y } = fx;
-        const a = 1 - t;
-        const burn = 0.92 + Math.sin(t * Math.PI * 6) * 0.08;
-        softGlow(g, x, y, 92 * easeOutCubic(t) * burn, 'rgba(255,110,28,0.5)', 'rgba(255,40,0,0)', a);
+    function drawFireUnder() {
+        // 화염은 원형 광륜 대신 불꽃 혀와 직선 불티만 사용한다.
     }
 
     function drawFireTongue(g, fx, f, t, p) {
@@ -421,30 +408,15 @@
     }
 
     function drawFireBody(g, fx, t) {
-        const { x, y } = fx;
-        const a = 1 - t;
         const p = easeOutCubic(t);
-        const burn = 0.92 + Math.sin(t * Math.PI * 5) * 0.08;
         g.save();
         g.globalCompositeOperation = 'lighter';
-        const cr = 56 * p * burn;
-        const core = g.createRadialGradient(x, y + 4, 0, x, y + 4, cr);
-        core.addColorStop(0, `rgba(255,252,205,${a * 0.95})`);
-        core.addColorStop(0.28, `rgba(255,190,66,${a * 0.8})`);
-        core.addColorStop(0.62, `rgba(255,74,16,${a * 0.5})`);
-        core.addColorStop(1, 'rgba(140,20,0,0)');
-        g.fillStyle = core;
-        g.beginPath(); g.arc(x, y + 4, cr, 0, TAU); g.fill();
         for (const f of fx.st.flame) drawFireTongue(g, fx, f, t, p);
-        g.strokeStyle = `rgba(255,142,46,${a * 0.5})`;
-        g.lineWidth = 2.5 * (1 - t * 0.5);
-        g.beginPath(); g.arc(x, y + 6, 22 + 56 * p * burn, 0, TAU); g.stroke();
         g.restore();
     }
 
-    function drawIceUnder(g, fx, t) {
-        const { x, y } = fx;
-        softGlow(g, x, y, 86 * easeOutQuart(t), 'rgba(150,225,255,0.42)', 'rgba(90,170,255,0)', 1 - t);
+    function drawIceUnder() {
+        // 냉기는 원형 광륜 대신 각진 결정과 파편만 사용한다.
     }
 
     function drawIceCrystal(g, fx, c, t, p, a) {
@@ -504,22 +476,12 @@
         const { x, y } = fx;
         const a = 1 - t;
         const p = easeOutQuart(t);
-        const cr = 30 * p;
-        const core = g.createRadialGradient(x, y, 0, x, y, cr);
-        core.addColorStop(0, `rgba(248,255,255,${a * 0.92})`);
-        core.addColorStop(0.45, `rgba(150,222,255,${a * 0.62})`);
-        core.addColorStop(1, 'rgba(70,155,255,0)');
-        g.fillStyle = core;
-        g.beginPath(); g.arc(x, y, cr, 0, TAU); g.fill();
-        g.strokeStyle = `rgba(205,245,255,${a * 0.8})`;
-        g.lineWidth = 2;
-        g.beginPath(); g.arc(x, y, 20 + 58 * p, 0, TAU); g.stroke();
         drawIceLattice(g, x, y, t, p, a);
         for (const c of fx.st.crystal) drawIceCrystal(g, fx, c, t, p, a);
     }
 
-    function drawLightningUnder(g, fx, t) {
-        softGlow(g, fx.x, fx.y, 88, 'rgba(120,190,255,0.6)', 'rgba(50,100,255,0)', 1 - t);
+    function drawLightningUnder() {
+        // 번개는 원형 광륜 대신 본체의 직선 섬광과 갈라지는 전기 가지만 사용한다.
     }
 
     function drawLightningBolt(g, fx, b, a, tick) {
@@ -543,21 +505,17 @@
         const tick = Math.floor(t * 7);
         g.save();
         g.globalCompositeOperation = 'lighter';
-        g.fillStyle = `rgba(255,255,255,${0.85 * a})`;
-        g.beginPath(); g.arc(x, y, 7 + 12 * pulse, 0, TAU); g.fill();
         for (const b of fx.st.bolts) drawLightningBolt(g, fx, b, a, tick);
-        g.strokeStyle = `rgba(180,215,255,${a * 0.7})`;
-        g.lineWidth = 1.4;
-        for (const arc of fx.st.arcs) {
-            const r = arc.r + 18 * easeOutExpo(t);
-            const s = arc.a + tick * 0.6;
+        g.strokeStyle = `rgba(255,248,185,${a * 0.92})`;
+        g.lineWidth = 2.2;
+        for (let flash = 0; flash < 3; flash++) {
+            const angle = (fx.st.bolts[flash] || {}).angle || flash * TAU / 3;
+            const length = 9 + pulse * (14 + flash * 3);
             g.beginPath();
-            g.arc(x, y, r, s, s + arc.span);
+            g.moveTo(x - Math.cos(angle) * length * 0.28, y - Math.sin(angle) * length * 0.28);
+            g.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
             g.stroke();
         }
-        g.strokeStyle = `rgba(120,180,255,${a * 0.5})`;
-        g.lineWidth = 2;
-        g.beginPath(); g.arc(x, y, 22 + 40 * t, 0, TAU); g.stroke();
         g.restore();
     }
 
@@ -758,7 +716,10 @@
         g.globalCompositeOperation = 'lighter';
         g.lineCap = 'round';
         g.lineJoin = 'round';
-        if (variant === 'slam') drawSlamAccent(g, fx, t, color, fade, p, seed);
+        if (['fire', 'ice', 'lightning'].includes(fx.kindId)) {
+            if (variant === 'pierce' || variant === 'projectile') drawPierceAccent(g, fx, t, color, fade, seed);
+            else drawChainAccent(g, fx, color, fade, p, seed);
+        } else if (variant === 'slam') drawSlamAccent(g, fx, t, color, fade, p, seed);
         else if (variant === 'pierce' || variant === 'projectile') drawPierceAccent(g, fx, t, color, fade, seed);
         else if (variant === 'chain') drawChainAccent(g, fx, color, fade, p, seed);
         else if (variant === 'corpse_burst') drawCorpseBurstAccent(g, fx, color, fade, p, seed);

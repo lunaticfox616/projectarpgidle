@@ -128,6 +128,7 @@ function getSkillGemSigilSpec(skillName) {
 function drawSkillGemSigil(ctx, skillName, size, progress, element) {
     let profile = getSkillGemVfxProfile(skillName);
     if (profile && profile.sigilVfx === false) return;
+    if (['fire', 'cold', 'light'].includes(normalizeSkillGemVfxElement(element, profile && profile.accent))) return;
     let spec = getSkillGemSigilSpec(skillName);
     if (!spec) return;
     let colorKey = normalizeSkillGemVfxElement(element, profile && profile.accent);
@@ -586,6 +587,81 @@ function drawChannelCombatFx(ctx, fx, now, targets) {
     ctx.restore();
 }
 
+function drawLightningCombatFx(ctx, targets, progress) {
+    targets.forEach((target, index) => {
+        let height = 46 + (index % 3) * 7;
+        let phase = Math.floor(progress * 8) + index;
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.42 + Math.sin(progress * Math.PI) * 0.38;
+        ctx.strokeStyle = '#f8f2a0';
+        ctx.lineWidth = 2.2;
+        ctx.shadowColor = '#79bfff';
+        ctx.shadowBlur = 5;
+        ctx.beginPath();
+        for (let step = 0; step <= 5; step++) {
+            let y = target.y - height + height * step / 5;
+            let x = target.x + (step === 0 || step === 5 ? 0 : ((step + phase) % 2 ? -7 : 7));
+            if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+    });
+}
+
+function drawFireCombatFx(ctx, targets, progress) {
+    targets.forEach((target, index) => {
+        ctx.save();
+        ctx.translate(target.x, target.y + 5);
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.3 + Math.sin(progress * Math.PI) * 0.42;
+        for (let flame = 0; flame < 4; flame++) {
+            let offset = (flame - 1.5) * 7;
+            let height = 24 + ((flame + index) % 3) * 8;
+            ctx.fillStyle = flame % 2 ? '#ffcf63' : '#ff642c';
+            ctx.beginPath();
+            ctx.moveTo(offset - 5, 0);
+            ctx.bezierCurveTo(offset - 9, -height * 0.42, offset + 6, -height * 0.7, offset, -height);
+            ctx.bezierCurveTo(offset + 11, -height * 0.5, offset + 8, -height * 0.18, offset + 5, 0);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+    });
+}
+
+function drawColdCombatFx(ctx, targets, progress) {
+    targets.forEach((target, index) => {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.34 + Math.sin(progress * Math.PI) * 0.44;
+        ctx.strokeStyle = '#d9f8ff';
+        ctx.lineWidth = 1.8;
+        for (let shard = 0; shard < 6; shard++) {
+            let angle = shard * Math.PI / 3 + index * 0.17;
+            let length = 18 + ((shard + index) % 3) * 7;
+            ctx.beginPath();
+            ctx.moveTo(target.x + Math.cos(angle) * 4, target.y + Math.sin(angle) * 4);
+            ctx.lineTo(target.x + Math.cos(angle) * length, target.y + Math.sin(angle) * length);
+            ctx.stroke();
+        }
+        ctx.restore();
+    });
+}
+
+function drawElementalCombatFx(ctx, profile, element, targets, progress) {
+    let drawTargets = targets;
+    if (profile && profile.aggregateImpact && targets.length > 1) {
+        let bounds = getCombatAreaBounds(targets);
+        drawTargets = [{ x: bounds.x, y: bounds.y }];
+    }
+    if (element === 'light') drawLightningCombatFx(ctx, drawTargets, progress);
+    else if (element === 'fire') drawFireCombatFx(ctx, drawTargets, progress);
+    else if (element === 'cold') drawColdCombatFx(ctx, drawTargets, progress);
+    else return false;
+    return true;
+}
+
 function drawMeteorCombatFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
     let bounds = getCombatAreaBounds(targets);
     let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
@@ -617,6 +693,9 @@ function drawMeteorCombatFx(ctx, fx, now, arriveAt, targets, imageKey, element) 
 
 function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
     if (targets.length <= 0) return;
+    let profile = getSkillGemVfxProfile(fx.skillName);
+    // 뇌운 낙뢰는 적중 시 전용 낙뢰를 그리므로 공용 도착 이펙트를 겹치지 않는다.
+    if (profile && profile.family === 'stormStrike') return;
     if (fx.patternKind === 'meteor') {
         drawMeteorCombatFx(ctx, fx, now, arriveAt, targets, imageKey, element);
         return;
@@ -637,13 +716,14 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
         drawChannelCombatFx(ctx, fx, now, targets);
         return;
     }
+    let elementalProgress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
+    if (drawElementalCombatFx(ctx, profile, element, targets, elementalProgress)) return;
     let image = getSkillGemVfxImage(imageKey);
     let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
     let fade = now <= arriveAt ? 0.24 + progress * 0.42
         : clampNumber((fx.start + fx.duration - now) / 260, 0, 1) * 0.48;
     let drawTargets = targets;
     let size = fx.owner === 'enemy' ? 92 : 78;
-    let profile = getSkillGemVfxProfile(fx.skillName);
     let aggregateImpact = !!(profile && profile.aggregateImpact && targets.length > 1);
     if (fx.patternKind === 'field' || aggregateImpact) {
         let bounds = getCombatAreaBounds(targets);
@@ -664,7 +744,15 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
             ctx.strokeStyle = getElementColor(element);
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(0, 0, size * (0.24 + progress * 0.15), 0, Math.PI * 2);
+            if (element === 'light') {
+                for (let step = 0; step <= 5; step++) {
+                    let y = -size * 0.34 + size * 0.68 * step / 5;
+                    let x = step === 0 || step === 5 ? 0 : ((step + Math.floor(progress * 7)) % 2 ? -size * 0.12 : size * 0.12);
+                    if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                }
+            } else {
+                ctx.arc(0, 0, size * (0.24 + progress * 0.15), 0, Math.PI * 2);
+            }
             ctx.stroke();
         }
         drawSkillGemSigil(ctx, fx.skillName, Math.min(size, 130), progress, element);
@@ -1074,6 +1162,7 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
 
 function drawDamageImpactAccent(ctx, fx, t, enemyPosMap) {
     if (!fx || !['heavy', 'annihilate'].includes(fx.impactTier)) return;
+    if (String(fx.element || '').toLowerCase() === 'light') return;
     let profile = fx.skillName ? getSkillGemVfxProfile(fx.skillName) : null;
     if (profile && profile.impactAccentVfx === false) return;
     let target = enemyPosMap[fx.enemyId];
