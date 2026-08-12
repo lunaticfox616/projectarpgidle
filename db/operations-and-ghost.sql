@@ -1,5 +1,8 @@
 -- Project ARPG Idle: 운영 도구, 저장 이력, 고스트 대결
 -- db/cloud-and-playtest.sql 및 db/social.sql 실행 후 Supabase SQL Editor에서 실행한다.
+-- Supabase의 "destructive operations" 경고는 아래 제약조건 교체, 권한 REVOKE 및
+-- 함수 본문 안의 오래된 저장 이력 정리 DELETE 때문에 표시된다. 이 스크립트를 실행하는
+-- 즉시 플레이어 저장·프로필·채팅·전투 기록 테이블이나 그 데이터를 삭제하지 않는다.
 -- 운영 화면을 쓸 계정은 Dashboard > Authentication > Users의 app_metadata에
 -- { "project_admin": true }를 설정한다. service_role 키는 클라이언트에 넣지 않는다.
 

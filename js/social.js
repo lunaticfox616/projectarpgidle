@@ -1197,7 +1197,7 @@ function renderProfileData(profile) {
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
     let canDuel = socialState.currentProfileUserId && socialState.currentProfileUserId !== socialLoggedInUserId();
-    let duelAction = canDuel ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">고스트 친선 대결</button><small>레이팅과 전적은 변하지 않습니다.</small><div id="social-profile-pvp-result"></div></div>` : '';
+    let duelAction = canDuel ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">대전 탭에서 친선전</button><small>상대를 지정해 지도 · 대전 탭으로 이동합니다.</small></div>` : '';
     body.innerHTML = `
         <div class="social-profile-header">
             <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
@@ -1280,7 +1280,6 @@ function renderSocialTab() {
             <button onclick="openMyProfilePreview()">내 프로필 미리보기</button>
             <button onclick="syncPlayerProfile()" title="현재 장비/스탯을 공개 프로필에 반영">프로필 갱신</button>
         </div>
-        <div id="social-ghost-arena"></div>
         <div id="social-online" class="social-online" style="display:none;"></div>
         <div class="social-chat-wrap">
             <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty">불러오는 중…</div></div>
@@ -1299,7 +1298,6 @@ function renderSocialTab() {
     socialState.scrollChatToLatestOnNextRender = true;
     renderPendingChatItems();
     updateChatCounter();
-    if (typeof renderGhostArena === 'function') renderGhostArena();
     ensureHeartbeat();
     startChatPolling();
     restoreNicknameFromServer().then(restored => { if (restored !== nickname) renderSocialTab(); });
@@ -1361,7 +1359,7 @@ function injectSocialStyles() {
     .social-profile-name{font-size:1.4em;font-weight:800;color:#f0d7a6;}
     .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
     .social-profile-updated{color:var(--copy-muted);font-size:0.78em;margin-top:4px;}
-    .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}.social-profile-duel #social-profile-pvp-result{flex-basis:100%;}
+    .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}
     .social-profile-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
     @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
     .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}
