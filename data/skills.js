@@ -117,7 +117,7 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '화염 부패': { family: 'dot', scale: 1.04, sigil: 19 },
     '빙결 침식': { family: 'dot', scale: 0.98, sigil: 20 },
     '서리 파동': { family: 'burst', scale: 0.92, sigil: 21 },
-    '뇌운 낙뢰': { family: 'stormStrike', scale: 0.96, impactParticles: false, maxActiveImpacts: 4, sigilVfx: false, sigil: 22 },
+    '뇌운 낙뢰': { family: 'stormStrike', scale: 0.96, impactParticles: false, impactAccentVfx: false, maxActiveImpacts: 4, sigilVfx: false, sigil: 22 },
     '심연 전염': { family: 'dot', scale: 1.02, sigil: 23 },
     '독니 사출': { family: 'projectile', scale: 0.78, projectileAsset: 'venomFang', projectileWidth: 88, projectileHeight: 28, impactVfx: false, sigilVfx: false, sigil: 24 },
     '연발 사격': { family: 'projectile', scale: 0.7, sigil: 25 },

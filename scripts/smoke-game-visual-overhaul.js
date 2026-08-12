@@ -509,20 +509,33 @@ const boundedThundercloudVfx = vm.runInContext(`(() => {
     queueSkillGemVfx({ id: 1000 + index, skillName: '뇌운 낙뢰', element: 'light' }, target, player, {}, 1230 + index * 12, 1);
   }
   const ctx = {
-    globalAlpha: 0.72, translate() {}, beginPath() {}, moveTo() {},
+    globalAlpha: 0.72, translate() {}, beginPath() {}, moveTo() {}, save() {}, restore() {},
     lineTo() { ctxCalls.lines++; }, stroke() { ctxCalls.strokes++; }, arc() { ctxCalls.arcs++; }
   };
   drawProceduralSkillImpact(ctx, battleVisualState.skillEffects[0], 0.5);
+  const boltArcCount = ctxCalls.arcs;
+  const boltStrokeCount = ctxCalls.strokes;
+  const boltLineCount = ctxCalls.lines;
+  drawDamageImpactAccent(ctx, { skillName: '뇌운 낙뢰', enemyId: 1, impactTier: 'heavy' }, 0.5, { 1: { x: 220, y: 180 } });
+  const thundercloudArcCount = ctxCalls.arcs - boltArcCount;
+  drawDamageImpactAccent(ctx, { skillName: '묵직한 강타', enemyId: 1, impactTier: 'heavy' }, 0.5, { 1: { x: 220, y: 180 } });
   return {
     activeEffects: battleVisualState.skillEffects.length,
     particleOptions: getAttackFxSpawnOpts({ skillName: '뇌운 낙뢰', element: 'light' }, { id: 1 }, {}, 1),
+    boltArcCount,
+    boltStrokeCount,
+    boltLineCount,
+    thundercloudArcCount,
+    ordinaryHeavyArcCount: ctxCalls.arcs - boltArcCount - thundercloudArcCount,
     ...ctxCalls
   };
 })()`, context);
 assert.ok(boundedThundercloudVfx.activeEffects <= 4, '뇌운 낙뢰는 빠른 연속 사용 중에도 활성 낙뢰를 네 개 넘게 쌓으면 안 된다');
 assert.strictEqual(boundedThundercloudVfx.particleOptions, null, '뇌운 낙뢰는 대상마다 별도 보조 입자를 생성하면 안 된다');
-assert.strictEqual(boundedThundercloudVfx.arcs, 0, '뇌운 낙뢰는 비싼 원형 적중선을 그리면 안 된다');
-assert.ok(boundedThundercloudVfx.strokes <= 2 && boundedThundercloudVfx.lines <= 7, '뇌운 낙뢰 한 개의 그리기 명령 수는 작게 유지되어야 한다');
+assert.strictEqual(boundedThundercloudVfx.boltArcCount, 0, '뇌운 낙뢰 자체 이펙트는 원형 적중선을 그리면 안 된다');
+assert.strictEqual(boundedThundercloudVfx.thundercloudArcCount, 0, '뇌운 낙뢰는 강한 타격 공통 원형 충격파도 그리면 안 된다');
+assert.ok(boundedThundercloudVfx.ordinaryHeavyArcCount > 0, '다른 강한 타격의 공통 충격파까지 제거하면 안 된다');
+assert.ok(boundedThundercloudVfx.boltStrokeCount <= 2 && boundedThundercloudVfx.boltLineCount <= 7, '뇌운 낙뢰 한 개의 그리기 명령 수는 작게 유지되어야 한다');
 const compactFireCoreVfx = vm.runInContext(`(() => {
   const counts = { arcs: 0, maxRadius: 0, flames: 0, strokes: 0 };
   const ctx = {
@@ -641,6 +654,7 @@ assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Nu
 assert.strictEqual(context.SKILL_DB['회오리바람'].targets, 8, 'whirlwind should cover all eight adjacent directions');
 assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['번개 타격'].primaryFamily, 'slash', 'lightning strike should begin with a melee lightning slash before chain arcs');
 assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['뇌운 낙뢰'].sigilVfx, false, 'thundercloud strike should keep its bolt without stacking a large circular sigil on the target');
+assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['뇌운 낙뢰'].impactAccentVfx, false, 'thundercloud strike should not inherit the generic circular heavy-hit accent');
 assert.ok(battlefieldSource.includes('if (!enemy.isElite) return;'), 'ordinary monsters should not render ground aura telegraphs');
 assert.ok(combatSource.includes("addBattleFx('enemySpawn', { enemyId: bossEnemy.id"), 'boss entrance feedback should remain separate from pattern telegraphs');
 assert.ok(battlefieldSource.includes("fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32)"), 'enemy hits should use restrained camera feedback');
