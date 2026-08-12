@@ -6,7 +6,7 @@
 // "인접한 폭발 태그 1개당 범위 피해 +3%"가 계속 미충족으로 남았다. 비운 뒤에는 충족.
 //
 // 그래서 (1) 스냅샷이 실제로 그렇게 굳는지, (2) 생장 아이템을 대상으로 삼을 수 있는
-// 제작 경로가 전부 스냅샷을 비우는지 두 가지를 고정한다.
+// 제작 경로가 전부 스냅샷을 비우는지, (3) 혼돈 주입에서 생장판이 차단되는지 고정한다.
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
@@ -78,10 +78,11 @@ const vm = require('vm');
 // ── (2) 생장 아이템을 대상으로 삼는 제작 경로는 스냅샷을 비워야 한다 ──────
 {
     const html = fs.readFileSync('index.html', 'utf8');
-    // 생장 아이템을 고를 수 있는 제작 화면(제작/화석/주입)
-    ['ui-craft-growth-list', 'ui-fossil-growth-list', 'ui-infuser-growth-list'].forEach(id => {
+    // 생장 아이템을 고를 수 있는 제작 화면(제작/화석)
+    ['ui-craft-growth-list', 'ui-fossil-growth-list'].forEach(id => {
         assert.ok(html.includes(`id="${id}"`), `${id}가 없으면 이 계약의 전제가 무너진다`);
     });
+    assert.ok(!html.includes('id="ui-infuser-growth-list"'), '혼돈 주입기에는 생장 아이템 대상 목록을 노출하면 안 된다');
 
     const bodyOf = (source, name) => {
         const start = source.search(new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\(`));
@@ -104,6 +105,39 @@ const vm = require('vm');
         assert.ok(/invalidateGrowthEffects/.test(bodyOf(source, name)),
             `${label}(${name})은 생장 아이템을 바꾸므로 공간 시너지 스냅샷을 비워야 한다`);
     });
+}
+
+// ── (3) 공유 제작 선택에 생장판이 남아 있어도 혼돈 주입은 거부한다 ─────────
+{
+    const passives = fs.readFileSync('js/passives.js', 'utf8');
+    const start = passives.indexOf('function getChaosInfuserOptionsForItem');
+    const end = passives.indexOf('function removeChaosInfusionFromSelectedItem', start);
+    assert.ok(start >= 0 && end > start, '혼돈 주입 대상 판정 함수를 찾을 수 있어야 한다');
+    const logs = [];
+    const context = {
+        console,
+        window: {},
+        game: { season: 60, growthInventory: [], recentGrowthDrops: [], growthBoard: null, settings: {}, noti: {}, chaosInfuserUnlocked: true, currencies: { chaos: 99 } },
+        addLog: message => logs.push(message), updateStaticUI: () => {}, queueImportantSave: () => {},
+        normalizeItem: item => item, salvageItemObject: () => {}, passesItemPickupFilter: () => true,
+        getSelectedCraftItem: () => context.selectedItem,
+        getItemExplicitOptionCount() { throw new Error('생장판은 장비 옵션 수 검사 전에 거부되어야 한다'); }
+    };
+    context.safeExposeData = map => Object.keys(map || {}).forEach(key => { context[key] = map[key]; });
+    context.safeExposeGlobals = map => Object.assign(context, map);
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
+    vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
+    vm.runInContext(passives.slice(start, end), context, { filename: 'growth-chaos-infusion-eligibility.js' });
+    const item = { id: 901, growthBaseId: 'growth_leaf', growthCategory: 'leaf', growthShapeId: 'dot1', rarity: 'rare', stats: [] };
+    context.selectedItem = item;
+    const result = context.isChaosInfusionEligibleItem(item);
+    assert.deepStrictEqual({ ...result }, { ok: false, reason: '생장판에는 혼돈 주입을 할 수 없습니다.' });
+    assert.deepStrictEqual(Array.from(context.getChaosInfuserOptionsForItem(item)), [], '생장판에는 우회 호출로도 혼돈 주입 옵션을 제공하면 안 된다');
+    context.applyChaosInfusionToSelectedItem('res_fire');
+    assert.strictEqual(context.game.currencies.chaos, 99, '거부된 생장판 혼돈 주입은 재화를 소모하면 안 된다');
+    assert.strictEqual(item.chaosInfusion, undefined, '거부된 생장판에는 혼돈 주입 옵션이 생기면 안 된다');
+    assert.deepStrictEqual(logs, ['생장판에는 혼돈 주입을 할 수 없습니다.']);
 }
 
 console.log('smoke-growth-craft-invalidation passed');

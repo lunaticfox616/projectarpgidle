@@ -8152,12 +8152,14 @@ CHAOS_INFUSER_OPTIONS.forEach(option => {
     if (merged) option.currency = merged[0];
 });
 function getChaosInfuserOptionsForItem(item) {
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) return [];
     let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
     let occupied = getItemOccupiedExplicitModIds(item);
     return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && isDefenseTypeStatAllowed(item, opt.id) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)));
 }
 function isChaosInfusionEligibleItem(item) {
     if (!item) return { ok: false, reason: '아이템 미선택' };
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) return { ok: false, reason: '생장판에는 혼돈 주입을 할 수 없습니다.' };
     if (item.corrupted) return { ok: false, reason: '타락된 아이템에는 혼돈 주입을 할 수 없습니다.' };
     if (item.rarity === 'unique') return { ok: false, reason: '고유 아이템에는 혼돈 주입을 할 수 없습니다.' };
     if (item.rarity === 'normal' || item.rarity === 'magic') return { ok: false, reason: '일반/마법 등급 아이템에는 혼돈 주입을 할 수 없습니다.' };

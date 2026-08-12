@@ -914,7 +914,7 @@ function toggleGrowthItemLock(itemId) {
 
 // 제작 대상 목록은 장비/제작 탭에 남아 있어, 생장판 탭과 별개로 갱신된다.
 function renderGrowthCraftTargetLists() {
-    ['ui-craft-growth-list', 'ui-fossil-growth-list', 'ui-infuser-growth-list'].forEach(renderGrowthCraftTargets);
+    ['ui-craft-growth-list', 'ui-fossil-growth-list'].forEach(renderGrowthCraftTargets);
 }
 
 // 이 탭은 updateStaticUI마다 불린다. 판 32칸 + 보관함 40장 + 시너지/비교 목록을
