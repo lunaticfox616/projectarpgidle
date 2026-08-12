@@ -99,6 +99,7 @@ for (let index = 1; index < layout.ringMeans.length; index++) {
 }
 
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
+vm.runInContext(fs.readFileSync('js/canvas-attack-fx.js', 'utf8'), context, { filename: 'js/canvas-attack-fx.js' });
 const shortStepWalk = vm.runInContext(`({
   stopped: getPlayerAdvanceAnimationTarget(false, 1, 80),
   combat: getPlayerAdvanceAnimationTarget(true, 1, 80),
@@ -262,13 +263,43 @@ const sigilDrawCounts = vm.runInContext(`(() => {
   const slash = makeCtx();
   const slam = makeCtx();
   const venom = makeCtx();
+  const lightning = makeCtx();
+  const fire = makeCtx();
+  const cold = makeCtx();
   drawSkillGemSigil(slash, '연속 베기', 80, 0.5, 'phys');
   drawSkillGemSigil(slam, '묵직한 강타', 80, 0.5, 'phys');
   drawSkillGemSigil(venom, '독니 사출', 80, 0.5, 'chaos');
-  return { slash: [slash.strokes, slash.fills], slam: [slam.strokes, slam.fills], venom: [venom.strokes, venom.fills] };
+  drawSkillGemSigil(lightning, '번개 타격', 80, 0.5, 'light');
+  drawSkillGemSigil(fire, '화염 참격', 80, 0.5, 'fire');
+  drawSkillGemSigil(cold, '서리 파동', 80, 0.5, 'cold');
+  return { slash: [slash.strokes, slash.fills], slam: [slam.strokes, slam.fills], venom: [venom.strokes, venom.fills], lightning: [lightning.strokes, lightning.fills], fire: [fire.strokes, fire.fills], cold: [cold.strokes, cold.fills] };
 })()`, context);
 assert.notDeepStrictEqual(Array.from(sigilDrawCounts.slash), Array.from(sigilDrawCounts.slam), 'different gems should render different sigil geometry');
 assert.deepStrictEqual(Array.from(sigilDrawCounts.venom), [0, 0], 'venom fang should not add a procedural rune over its dedicated projectile image');
+assert.deepStrictEqual(Array.from(sigilDrawCounts.lightning), [0, 0], 'lightning hits should not add a circular procedural sigil');
+assert.deepStrictEqual(Array.from(sigilDrawCounts.fire), [0, 0], 'fire hits should not add the shared circular procedural sigil');
+assert.deepStrictEqual(Array.from(sigilDrawCounts.cold), [0, 0], 'cold hits should not add the shared circular procedural sigil');
+const elementalImpactDraw = vm.runInContext(`(() => {
+  const calls = { arcs: 0, lines: 0, radialGradients: 0 };
+  const gradient = { addColorStop() {} };
+  const ctx = {
+    globalAlpha: 1, save() {}, restore() {}, translate() {}, scale() {}, rotate() {}, beginPath() {}, closePath() {},
+    moveTo() {}, lineTo() { calls.lines++; }, bezierCurveTo() { calls.lines++; }, quadraticCurveTo() { calls.lines++; }, stroke() {}, fill() {}, fillRect() {},
+    arc() { calls.arcs++; }, ellipse() { calls.arcs++; },
+    createRadialGradient() { calls.radialGradients++; return gradient; },
+    createLinearGradient() { return gradient; }
+  };
+  attackFxSpawn('light', 120, 100, { variant: 'melee' });
+  attackFxSpawn('light', 220, 100, { variant: 'nova' });
+  attackFxSpawn('fire', 320, 100, { variant: 'slam' });
+  attackFxSpawn('cold', 420, 100, { variant: 'nova' });
+  attackFxUpdate(16);
+  attackFxDraw(ctx);
+  return calls;
+})()`, context);
+assert.strictEqual(elementalImpactDraw.arcs, 0, 'fire, cold, and lightning impacts must not draw circles, ellipses, or arc fragments');
+assert.strictEqual(elementalImpactDraw.radialGradients, 0, 'fire, cold, and lightning impacts must not draw circular radial glows');
+assert.ok(elementalImpactDraw.lines > 0, 'elemental impacts should retain flame, shard, and forked-line feedback');
 const projectileVfxShapes = vm.runInContext(`(() => {
   function signature(style) {
     const calls = [];
@@ -461,10 +492,14 @@ assert.strictEqual(optimizedAreaVfx.blizzardBounds, 0, '난타 눈보라에 네�
 assert.strictEqual(optimizedAreaVfx.impactEffectCount, 0, '눈보라 매 타격마다 중복 폭발 이미지를 추가하면 안 된다');
 const aggregatedBurstVfx = vm.runInContext(`(() => {
   let images = 0;
+  let arcs = 0;
+  let lines = 0;
+  let flames = 0;
   battleAssets.images.skillFxBurst = { complete: true, naturalWidth: 64 };
   const ctx = {
     save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, stroke() {}, fill() {},
-    moveTo() {}, lineTo() {}, arc() {}, drawImage() { images++; }
+    moveTo() {}, lineTo() { lines++; }, bezierCurveTo() { flames++; }, closePath() {},
+    arc() { arcs++; }, drawImage() { images++; }
   };
   const targets = Array.from({ length: 8 }, (_, index) => ({ x: 100 + index * 24, y: 180 + (index % 2) * 30 }));
   ['서리 폭발', '삼원 파동'].forEach((skillName, index) => {
@@ -478,13 +513,16 @@ const aggregatedBurstVfx = vm.runInContext(`(() => {
     queueSkillGemVfx({ id: 900 + index, skillName: '삼원 파동', element: 'fire' }, target, { x: 20, y: 220 }, {}, 1230, 1);
   });
   return {
-    images,
+    images, arcs, lines, flames,
     impactEffectCount: battleVisualState.skillEffects.length,
     frostParticles: getAttackFxSpawnOpts({ skillName: '서리 폭발' }, {}, {}, 1),
     triParticles: getAttackFxSpawnOpts({ skillName: '삼원 파동' }, {}, {}, 1)
   };
 })()`, context);
-assert.strictEqual(aggregatedBurstVfx.images, 2, '서리 폭발과 삼원 파동은 대상 수와 무관하게 범위당 이미지 하나만 그려야 한다');
+assert.strictEqual(aggregatedBurstVfx.images, 0, '화염과 냉기 범위 타격은 같은 공용 원형 이미지를 색만 바꿔 쓰면 안 된다');
+assert.strictEqual(aggregatedBurstVfx.arcs, 0, '화염과 냉기 범위 타격은 원형 또는 호를 그리면 안 된다');
+assert.ok(aggregatedBurstVfx.lines > 0 && aggregatedBurstVfx.flames > 0, '냉기는 각진 결정선, 화염은 불꽃 곡선으로 구분되어야 한다');
+assert.ok(aggregatedBurstVfx.lines <= 8 && aggregatedBurstVfx.flames <= 8, '합성 범위 타격은 대상마다 같은 이펙트를 중복 그리면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.impactEffectCount, 0, '범위 폭발은 각 대상마다 별도 적중 이미지를 할당하면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.frostParticles, null, '서리 폭발은 대상별 보조 입자를 중복 생성하면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.triParticles, null, '삼원 파동은 대상별 보조 입자를 중복 생성하면 안 된다');
@@ -512,28 +550,39 @@ const boundedThundercloudVfx = vm.runInContext(`(() => {
     globalAlpha: 0.72, translate() {}, beginPath() {}, moveTo() {}, save() {}, restore() {},
     lineTo() { ctxCalls.lines++; }, stroke() { ctxCalls.strokes++; }, arc() { ctxCalls.arcs++; }
   };
+  const beforeStormCell = ctxCalls.arcs + ctxCalls.strokes + ctxCalls.lines;
+  drawCombatCellFx(ctx, {
+    start: 1000, duration: 720, delivery: 'magicCell', patternKind: null, skillName: '뇌운 낙뢰'
+  }, 1230, 1460, [{ x: 220, y: 180 }], 'skillFxBurst', 'light');
+  const stormCellDrawCount = ctxCalls.arcs + ctxCalls.strokes + ctxCalls.lines - beforeStormCell;
   drawProceduralSkillImpact(ctx, battleVisualState.skillEffects[0], 0.5);
   const boltArcCount = ctxCalls.arcs;
   const boltStrokeCount = ctxCalls.strokes;
   const boltLineCount = ctxCalls.lines;
   drawDamageImpactAccent(ctx, { skillName: '뇌운 낙뢰', enemyId: 1, impactTier: 'heavy' }, 0.5, { 1: { x: 220, y: 180 } });
   const thundercloudArcCount = ctxCalls.arcs - boltArcCount;
-  drawDamageImpactAccent(ctx, { skillName: '묵직한 강타', enemyId: 1, impactTier: 'heavy' }, 0.5, { 1: { x: 220, y: 180 } });
+  drawDamageImpactAccent(ctx, { skillName: '번개 타격', element: 'light', enemyId: 1, impactTier: 'heavy' }, 0.5, { 1: { x: 220, y: 180 } });
+  const genericLightningArcCount = ctxCalls.arcs - boltArcCount - thundercloudArcCount;
+  drawDamageImpactAccent(ctx, { skillName: '묵직한 강타', element: 'phys', enemyId: 1, impactTier: 'heavy' }, 0.5, { 1: { x: 220, y: 180 } });
   return {
     activeEffects: battleVisualState.skillEffects.length,
     particleOptions: getAttackFxSpawnOpts({ skillName: '뇌운 낙뢰', element: 'light' }, { id: 1 }, {}, 1),
     boltArcCount,
     boltStrokeCount,
     boltLineCount,
+    stormCellDrawCount,
     thundercloudArcCount,
-    ordinaryHeavyArcCount: ctxCalls.arcs - boltArcCount - thundercloudArcCount,
+    genericLightningArcCount,
+    ordinaryHeavyArcCount: ctxCalls.arcs - boltArcCount - thundercloudArcCount - genericLightningArcCount,
     ...ctxCalls
   };
 })()`, context);
 assert.ok(boundedThundercloudVfx.activeEffects <= 4, '뇌운 낙뢰는 빠른 연속 사용 중에도 활성 낙뢰를 네 개 넘게 쌓으면 안 된다');
 assert.strictEqual(boundedThundercloudVfx.particleOptions, null, '뇌운 낙뢰는 대상마다 별도 보조 입자를 생성하면 안 된다');
+assert.strictEqual(boundedThundercloudVfx.stormCellDrawCount, 0, '뇌운 낙뢰는 전용 낙뢰 전에 공용 도착 버스트를 그리면 안 된다');
 assert.strictEqual(boundedThundercloudVfx.boltArcCount, 0, '뇌운 낙뢰 자체 이펙트는 원형 적중선을 그리면 안 된다');
 assert.strictEqual(boundedThundercloudVfx.thundercloudArcCount, 0, '뇌운 낙뢰는 강한 타격 공통 원형 충격파도 그리면 안 된다');
+assert.strictEqual(boundedThundercloudVfx.genericLightningArcCount, 0, '일반 번개 강타도 공통 원형 충격파를 그리면 안 된다');
 assert.ok(boundedThundercloudVfx.ordinaryHeavyArcCount > 0, '다른 강한 타격의 공통 충격파까지 제거하면 안 된다');
 assert.ok(boundedThundercloudVfx.boltStrokeCount <= 2 && boundedThundercloudVfx.boltLineCount <= 7, '뇌운 낙뢰 한 개의 그리기 명령 수는 작게 유지되어야 한다');
 const compactFireCoreVfx = vm.runInContext(`(() => {
