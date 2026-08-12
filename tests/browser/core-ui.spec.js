@@ -89,6 +89,11 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
         }
     }
     await page.evaluate(() => {
+        switchTab('tab-items');
+        switchItemSubtab('item-tab-infuser');
+    });
+    await expect(page.locator('#ui-infuser-growth-list')).toHaveCount(0);
+    await page.evaluate(() => {
         switchTab('tab-map');
         switchMapSubtab('map-tab-zones');
     });
