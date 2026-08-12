@@ -3693,6 +3693,7 @@ function switchMapSubtab(subtabId) {
         let currentBtn = document.getElementById('btn-' + subtabId);
         if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) {
             if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+            if (subtabId === 'map-tab-pvp' && typeof renderGhostArena === 'function') renderGhostArena();
             return;
         }
     }
@@ -3704,6 +3705,7 @@ function switchMapSubtab(subtabId) {
     if (panel) panel.classList.add('active');
     if (btn) btn.classList.add('active');
     if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+    if (subtabId === 'map-tab-pvp' && typeof renderGhostArena === 'function') renderGhostArena();
 }
 
 function switchMapExploreSubtab(subtabId) {
@@ -13255,7 +13257,7 @@ function mergeDefaults(save) {
     // 과거 루프 정산 시 컨디션 젬 해금이 잘못 초기화되던 버그로 잠긴 기존 플레이어 복구:
     // 뿌리 보스를 한 번이라도 클리어한 적이 있다면 영구 해금 처리한다.
     if (!merged.conditionGemUnlocked && merged.clearedRootBosses.length > 0) merged.conditionGemUnlocked = true;
-    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
+    merged.mapSubtab = ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
     merged.mapExploreSubtab = ['map-explore-hunting', 'map-explore-chaos', 'map-explore-root-boss', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-timerift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-hunting';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
