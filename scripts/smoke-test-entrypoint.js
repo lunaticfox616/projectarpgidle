@@ -17,15 +17,14 @@ assert.ok(pkg.scripts && pkg.scripts.test, 'package.json에 test 스크립트가
 assert.ok(pkg.scripts.test.includes('run-smoke'), 'npm test는 scripts/run-smoke.js를 불러야 한다');
 assert.ok(fs.existsSync(path.join(ROOT, 'scripts/run-smoke.js')), '러너 파일이 있어야 한다');
 
-// 의존성이 없는 프로젝트다. 의존성이 생기면 CI에 npm ci를 넣어야 하므로 함께 검토하도록 고정한다.
-assert.ok(!pkg.dependencies && !pkg.devDependencies,
-    '의존성을 추가하면 .github/workflows/test.yml에 npm ci 단계도 함께 추가해야 한다');
-
 // ── CI: 푸시·PR마다 같은 명령을 실행한다 ────────────────────────────
 const workflow = read('.github/workflows/test.yml');
+const hasDependencies = Object.keys(pkg.dependencies || {}).length > 0 || Object.keys(pkg.devDependencies || {}).length > 0;
+if (hasDependencies) assert.ok(/run:\s*npm ci/.test(workflow), '의존성이 있으면 CI가 npm ci를 실행해야 한다');
 assert.ok(/on:\s*[\s\S]*push:/.test(workflow), 'CI는 푸시에서 실행되어야 한다');
 assert.ok(/pull_request:/.test(workflow), 'CI는 PR에서 실행되어야 한다');
 assert.ok(/run:\s*npm test/.test(workflow), 'CI는 로컬과 같은 npm test를 실행해야 한다');
+if (pkg.scripts['test:browser']) assert.ok(/run:\s*npm run test:browser/.test(workflow), 'CI는 실제 브라우저 검사도 실행해야 한다');
 assert.ok(/timeout-minutes:/.test(workflow), '매달린 실행이 러너를 붙잡지 않도록 타임아웃이 있어야 한다');
 
 const engines = (pkg.engines && pkg.engines.node) || '';

@@ -2680,12 +2680,32 @@ function addPendingSkillTravelFx(row, attackContext, now) {
     addBattleFx('combatTravel', fx);
 }
 
+function addPendingSkillTravelFxRows(rows, attackContext, now) {
+    let queuedRows = (rows || []).filter(Boolean);
+    if (queuedRows.length <= 0) return;
+    let firstRow = queuedRows[0];
+    let straightPierce = firstRow.delivery === 'projectileCell' && firstRow.patternKind !== 'boomerang';
+    if (!straightPierce) {
+        queuedRows.forEach(row => addPendingSkillTravelFx(row, attackContext, now));
+        return;
+    }
+    // 관통 판정의 시간차는 그대로 두되, 화면에는 마지막 대상까지 가는 한 발만 만든다.
+    let lastRow = queuedRows[queuedRows.length - 1];
+    addPendingSkillTravelFx({
+        ...firstRow,
+        at: lastRow.at,
+        targetCells: lastRow.targetCells,
+        targetEntries: lastRow.targetEntries
+    }, attackContext, now);
+}
+
 function queuePendingSkillStageHits(stages, pStats, attackContext) {
     let now = Date.now();
     let baseDelay = Math.max(1, Math.floor(Number(attackContext.baseDelayMs) || 0));
     let delivery = getSkillCombatDelivery(pStats && pStats.sSkill);
     let patternKind = pStats && pStats.sSkill && pStats.sSkill.combatPattern
         ? pStats.sSkill.combatPattern.kind : null;
+    let queuedRows = [];
     let finalStageDelayMs = (stages || []).reduce((max, stage) => Math.max(max, Number(stage && stage.delayMs) || 0), 0);
     let channelDurationMs = Math.max(finalStageDelayMs, Math.floor(Number(attackContext.channelCycleMs) || 0));
     (stages || []).forEach((stage, stageOffset) => {
@@ -2726,8 +2746,9 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             }
         };
         pendingSkillStageHits.push(row);
-        addPendingSkillTravelFx(row, attackContext, now);
+        queuedRows.push(row);
     });
+    addPendingSkillTravelFxRows(queuedRows, attackContext, now);
     if (pendingSkillStageHits.length > PENDING_SKILL_STAGE_CAP) pendingSkillStageHits = pendingSkillStageHits.slice(-PENDING_SKILL_STAGE_CAP);
 }
 
@@ -7175,6 +7196,29 @@ const COSMOS_ASTRA_STANCES = [
 ];
 const COSMOS_ASTRA_STANCE_CYCLE_MS = 4500;
 
+function getEncounterTelemetryContext(zone) {
+    if (!zone) return {};
+    let context = { tier: Math.max(0, Math.floor(Number(zone.tier) || 0)) };
+    if (game.voidRift && game.voidRift.active) context.mode = 'voidBreach';
+    if (zone.type === 'beehive') {
+        context.branch = Math.max(1, Math.floor(Number(game.beehive && game.beehive.branchStep) || 1));
+    } else if (zone.type === 'colony') {
+        context.wave = Math.max(1, Math.floor(Number(game.colony && game.colony.wave) || 1));
+    } else if (zone.type === 'timeRift') {
+        context.phase = zone.riftPhase || 'unknown';
+        context.pressure = Math.max(0, Math.floor(Number(zone.pressure) || 0));
+    } else if (zone.type === 'meteor') {
+        context.meteorTier = Math.max(0, Math.floor(Number(zone.meteorTier || zone.tier) || 0));
+    } else if (zone.type === 'trial') {
+        context.trialId = String(zone.id || '');
+    } else if (zone.type === 'oceanDepth') {
+        context.depth = Math.max(0, Math.floor(Number(game.ocean && game.ocean.depthM) || 0));
+    } else if (zone.type === 'grandBreach') {
+        context.phase = String((game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.phase) || 'horde');
+    }
+    return context;
+}
+
 function applyCosmosAstraStance(enemy) {
     if (!enemy || !enemy.astraBase) return;
     let base = enemy.astraBase;
@@ -7211,6 +7255,12 @@ function startEncounterRun() {
     game.bloomBossDefeated = false;
     if (typeof clearTalentCardRuntimeState === 'function') clearTalentCardRuntimeState();
     let zone = getZone(game.currentZoneId) || getZone(0);
+    dispatchRuntimeEvent('encounter-started', {
+        zoneId: zone.id,
+        zoneType: zone.type,
+        contentContext: getEncounterTelemetryContext(zone),
+        background: !!game.isBackgroundCalculation
+    });
     if (isChallengeContractEligibleZone(zone)) applyPendingChallengeContract();
     resetBattleRuntimeVisuals();
     resetPlayerGridPosition();
@@ -7223,6 +7273,7 @@ function startEncounterRun() {
 }
 
 function startMoving(isTown) {
+    dispatchRuntimeEvent('movement-started', { background: !!game.isBackgroundCalculation });
     pTimer = 0;
     resetCombatTacticsRuntime();
     resetCombatChannelRuntime();
@@ -8202,6 +8253,12 @@ function getGrandBreachRewardSummary(kills) {
 function finishEncounterRun() {
     expireActiveFlaskEffects();
     let zone = getZone(game.currentZoneId);
+    dispatchRuntimeEvent('encounter-finished', {
+        zoneId: zone.id,
+        zoneType: zone.type,
+        contentContext: getEncounterTelemetryContext(zone),
+        background: !!game.isBackgroundCalculation
+    });
     let mapAction = (game.settings && game.settings.mapCompleteAction) || 'nextZone';
     game.killsInZone++;
 
@@ -9696,6 +9753,12 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
     refillAllFlaskCharges();
     addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
+    dispatchRuntimeEvent('player-defeated', {
+        zoneId: zone && zone.id,
+        zoneType: zone && zone.type,
+        contentContext: getEncounterTelemetryContext(zone),
+        background: !!game.isBackgroundCalculation
+    });
     let expLost = 0;
     if (storyAct && storyAct.specialType === 'forced_defeat') {
         addLog(`🩸 ${storyAct.clearText}`, 'death');

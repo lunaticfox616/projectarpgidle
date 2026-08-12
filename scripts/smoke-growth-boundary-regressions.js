@@ -94,6 +94,78 @@ function createScrollableRenderHost(top, left) {
     return host;
 }
 
+// 종류 필터는 선택 여부를 접근성 상태와 시각 상태로 함께 드러내고,
+// 일부만 켠 상태에서도 전체 선택을 한 번에 복원할 수 있어야 한다.
+{
+    resetGame();
+    run(`(function () {
+        game.settings.growthInventoryFilter = {
+            categories: Object.fromEntries(GROWTH_INVENTORY_CATEGORIES.map(key => [key, key !== 'flower'])),
+            unplacedOnly: false
+        };
+    })()`);
+    const partialHtml = run('renderGrowthInventoryFilterChips()');
+    assert.ok(partialHtml.includes('onclick="selectAllGrowthInventoryCategories()"'),
+        '생장판 종류 필터에 전체 선택 버튼이 있어야 한다');
+    assert.ok(partialHtml.includes('aria-pressed="false" onclick="selectAllGrowthInventoryCategories()"'),
+        '일부 종류만 선택했을 때 전체 버튼은 꺼진 상태로 보여야 한다');
+
+    run('selectAllGrowthInventoryCategories()');
+    assert.strictEqual(run('GROWTH_INVENTORY_CATEGORIES.every(key => game.settings.growthInventoryFilter.categories[key])'), true,
+        '전체 버튼은 모든 생장판 종류 필터를 켜야 한다');
+    const allHtml = run('renderGrowthInventoryFilterChips()');
+    assert.ok(allHtml.includes('class="growth-filter-chip on" aria-pressed="true" onclick="selectAllGrowthInventoryCategories()"'),
+        '모두 선택한 뒤 전체 버튼은 활성 상태로 보여야 한다');
+
+    run("game.settings.growthSortMode = 'tier'");
+    const sortedHtml = run('renderGrowthInventoryFilterChips()');
+    assert.ok(sortedHtml.includes('class="growth-filter-chip on" aria-pressed="true" onclick="sortGrowthInventory(\'tier\')"'),
+        '현재 정렬 기준도 활성 상태로 명확히 보여야 한다');
+}
+
+// 자동해체가 꺼져 있어도 대상 등급을 미리 고르고 상태를 확인할 수 있어야 한다.
+// 전체 선택은 실제 생장 전용 설정을 모두 켜되 자동해체 본체를 임의로 켜지는 않는다.
+{
+    resetGame();
+    run(`game.settings.growthAutoSalvageEnabled = false;
+        game.settings.growthAutoSalvageRarities = { normal: true, magic: false, rare: false, unique: false };`);
+    const partialDropHtml = run('renderGrowthDropSettings()');
+    assert.ok(partialDropHtml.includes('aria-pressed="false" onclick="selectAllGrowthAutoSalvageRarities()"'),
+        '일부 등급만 선택한 경우 등급 전체 버튼은 꺼진 상태로 보여야 한다');
+    assert.ok(!partialDropHtml.includes('disabled'),
+        '자동해체가 꺼져 있어도 대상 등급은 미리 선택할 수 있어야 한다');
+
+    run('selectAllGrowthAutoSalvageRarities()');
+    assert.strictEqual(run('Object.values(game.settings.growthAutoSalvageRarities).every(Boolean)'), true,
+        '등급 전체 버튼은 모든 자동해체 등급을 선택해야 한다');
+    assert.strictEqual(run('game.settings.growthAutoSalvageEnabled'), false,
+        '등급 전체 선택이 자동해체 본체까지 켜면 안 된다');
+    const allDropHtml = run('renderGrowthDropSettings()');
+    assert.ok(allDropHtml.includes('class="growth-filter-chip on" aria-pressed="true" onclick="selectAllGrowthAutoSalvageRarities()"'),
+        '모든 등급을 선택하면 등급 전체 버튼이 활성 상태로 보여야 한다');
+}
+
+// 빠른 배치함은 스크롤 가능한 전체 보유 목록이다. 예전의 12개 제한 때문에
+// 오래 보유한 생장판이 실제 보관함에는 있으면서 배치 후보에서 사라지면 안 된다.
+{
+    resetGame();
+    run(`(function () {
+        game.season = 25;
+        let base = GROWTH_BASE_DB.find(row => row.category === 'flower');
+        game.growthInventory = Array.from({ length: 14 }, (_, index) => {
+            let item = createGrowthItemFromBase(base, 'normal', 10);
+            item.id = 8100 + index;
+            item.name = '빠른 배치 보유 ' + (index + 1);
+            return item;
+        });
+    })()`);
+    const trayHtml = run('renderGrowthPlacementTray()');
+    const trayIds = Array.from(trayHtml.matchAll(/data-growth-drag-id="(\d+)"/g), match => Number(match[1]));
+    assert.strictEqual(trayIds.length, 14, '빠른 배치함은 12개를 넘는 보유 생장판도 모두 표시해야 한다');
+    assert.strictEqual(trayIds[0], 8113, '미배치 생장판은 최근 획득 순으로 시작해야 한다');
+    assert.strictEqual(trayIds.at(-1), 8100, '가장 오래 보유한 생장판도 빠른 배치함에서 사라지면 안 된다');
+}
+
 // 빠른 배치함 카드 선택은 패널을 다시 그리더라도 사용자가 보고 있던 위치를 유지해야 한다.
 {
     resetGame();

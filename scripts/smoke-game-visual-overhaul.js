@@ -169,6 +169,12 @@ assert.ok(damageTextLayout.every(text => text.start === 1200), 'damage labels sh
 assert.ok(damageTextLayout.every(text => text.offsetX === 0), 'rapid damage labels should stay on one readable anchor');
 assert.deepStrictEqual(Array.from(damageTextLayout, text => text.stackShiftTo), [-36, -18, 0], 'older damage labels should be pushed upward in arrival order');
 assert.ok(damageTextLayout.every(text => text.duration <= 760), 'ordinary damage labels should clear quickly instead of lingering over combat');
+const damageTextColors = vm.runInContext(`({
+  normalIncoming: getDamageTextFillColor({ enemyHit: true }),
+  deflectedIncoming: getDamageTextFillColor({ enemyHit: true, deflected: true })
+})`, context);
+assert.strictEqual(damageTextColors.normalIncoming, '#ff9a9a', 'ordinary incoming damage must retain its warning color');
+assert.strictEqual(damageTextColors.deflectedIncoming, '#b7c8c5', 'deflected damage must use a paler, less saturated color');
 const projectileVolleyText = vm.runInContext(`(() => {
   battleVisualState.damageTexts = [];
   spawnDamageText({ start: 1400, x: 400, y: 240, value: 100, damageRatio: 0.1, aggregateKey: 'volley:1' });
@@ -482,6 +488,41 @@ assert.strictEqual(aggregatedBurstVfx.images, 2, '서리 폭발과 삼원 파동
 assert.strictEqual(aggregatedBurstVfx.impactEffectCount, 0, '범위 폭발은 각 대상마다 별도 적중 이미지를 할당하면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.frostParticles, null, '서리 폭발은 대상별 보조 입자를 중복 생성하면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.triParticles, null, '삼원 파동은 대상별 보조 입자를 중복 생성하면 안 된다');
+const optimizedLightningSpearVfx = vm.runInContext(`(() => {
+  battleVisualState.skillEffects = [];
+  const target = { x: 250, y: 210, enemy: { id: 'lightning-target' } };
+  queueSkillGemVfx({ id: 950, skillName: '번개 창', element: 'light' }, target, { x: 20, y: 220 }, {}, 1230, 1);
+  return {
+    impactEffectCount: battleVisualState.skillEffects.length,
+    particleOptions: getAttackFxSpawnOpts({ skillName: '번개 창', element: 'light', pierce: true }, target.enemy, { variant: 'projectile' }, 1)
+  };
+})()`, context);
+assert.strictEqual(optimizedLightningSpearVfx.impactEffectCount, 0, '번개창은 관통 대상마다 별도 적중 문양을 중복 생성하면 안 된다');
+assert.strictEqual(optimizedLightningSpearVfx.particleOptions, null, '번개창 반복 적중은 대상별 보조 입자를 생성하면 안 된다');
+const boundedThundercloudVfx = vm.runInContext(`(() => {
+  battleVisualState.skillEffects = [];
+  const ctxCalls = { arcs: 0, strokes: 0, lines: 0 };
+  const player = { x: 20, y: 220 };
+  for (let index = 0; index < 20; index++) {
+    const enemyId = index % 7;
+    const target = { x: 170 + enemyId * 22, y: 180 + (enemyId % 2) * 35, enemy: { id: enemyId } };
+    queueSkillGemVfx({ id: 1000 + index, skillName: '뇌운 낙뢰', element: 'light' }, target, player, {}, 1230 + index * 12, 1);
+  }
+  const ctx = {
+    globalAlpha: 0.72, translate() {}, beginPath() {}, moveTo() {},
+    lineTo() { ctxCalls.lines++; }, stroke() { ctxCalls.strokes++; }, arc() { ctxCalls.arcs++; }
+  };
+  drawProceduralSkillImpact(ctx, battleVisualState.skillEffects[0], 0.5);
+  return {
+    activeEffects: battleVisualState.skillEffects.length,
+    particleOptions: getAttackFxSpawnOpts({ skillName: '뇌운 낙뢰', element: 'light' }, { id: 1 }, {}, 1),
+    ...ctxCalls
+  };
+})()`, context);
+assert.ok(boundedThundercloudVfx.activeEffects <= 4, '뇌운 낙뢰는 빠른 연속 사용 중에도 활성 낙뢰를 네 개 넘게 쌓으면 안 된다');
+assert.strictEqual(boundedThundercloudVfx.particleOptions, null, '뇌운 낙뢰는 대상마다 별도 보조 입자를 생성하면 안 된다');
+assert.strictEqual(boundedThundercloudVfx.arcs, 0, '뇌운 낙뢰는 비싼 원형 적중선을 그리면 안 된다');
+assert.ok(boundedThundercloudVfx.strokes <= 2 && boundedThundercloudVfx.lines <= 7, '뇌운 낙뢰 한 개의 그리기 명령 수는 작게 유지되어야 한다');
 const compactFireCoreVfx = vm.runInContext(`(() => {
   const counts = { arcs: 0, maxRadius: 0, flames: 0, strokes: 0 };
   const ctx = {
@@ -599,6 +640,7 @@ assert.ok(combatSource.includes('rawDamage: dmg'), 'one-shot damage labels shoul
 assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage'), 'damage labels should show damage beyond the target remaining life');
 assert.strictEqual(context.SKILL_DB['회오리바람'].targets, 8, 'whirlwind should cover all eight adjacent directions');
 assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['번개 타격'].primaryFamily, 'slash', 'lightning strike should begin with a melee lightning slash before chain arcs');
+assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['뇌운 낙뢰'].sigilVfx, false, 'thundercloud strike should keep its bolt without stacking a large circular sigil on the target');
 assert.ok(battlefieldSource.includes('if (!enemy.isElite) return;'), 'ordinary monsters should not render ground aura telegraphs');
 assert.ok(combatSource.includes("addBattleFx('enemySpawn', { enemyId: bossEnemy.id"), 'boss entrance feedback should remain separate from pattern telegraphs');
 assert.ok(battlefieldSource.includes("fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32)"), 'enemy hits should use restrained camera feedback');
@@ -651,6 +693,8 @@ heroVisualCoverage.forEach(hero => {
 assert.ok(passiveSource.includes("hero7Walk: 'assets/playable/hero7/walk.png'"), 'summoner combat art should no longer reuse the druid');
 assert.ok(passiveSource.includes("hero8Walk: 'assets/playable/hero8/walk.png'"), 'guardian combat art should no longer reuse the warrior');
 const playableManifest = JSON.parse(fs.readFileSync('assets/playable/manifest.json', 'utf8'));
+assert.strictEqual(context.getPlayableHeroAttackDurationScale('hero9'), 1.4, 'elementalist attack poses should remain readable for a 560ms visual cycle');
+assert.strictEqual(context.getPlayableHeroAttackDurationScale('hero8'), 1, 'slowing the elementalist must not change other hero attack timing');
 const expectedAnimationRoles = {
   hero1: ['walks_forward', 'shifts_their_weight'],
   hero2: ['maintains_a_guarded', 'takes_a_brief_focused'],

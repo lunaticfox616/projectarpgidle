@@ -710,11 +710,16 @@ async function marketAnnulSelectedStat(statIdx) {
     updateStaticUI();
 }
 
+function buildGoldenRuleSpendPrompt(message) {
+    let owned = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
+    return `${message}\n\n현재 보유: 황금률 ${owned}개`;
+}
+
 async function marketExpandInventoryByDivine() {
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     let cost = getMarketInventoryExpandCost();
     if ((game.currencies.goldenRule || 0) < cost) return addLog(`황금률이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!await requestGameConfirmation(`황금률 ${cost}개를 소모하여 인벤토리를 영구히 5칸 확장합니다.`, {
+    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모하여 인벤토리를 영구히 5칸 확장합니다.`), {
         title: '인벤토리 영구 확장',
         confirmLabel: '확장'
     })) return;
@@ -730,7 +735,7 @@ async function marketExpandJewelInventoryByDivine() {
     if ((game.season || 1) < 5) return addLog('주얼 해금 후 이용할 수 있습니다.', 'attack-monster');
     let cost = getJewelMarketExpandCost();
     if ((game.currencies.goldenRule || 0) < cost) return addLog(`황금률이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!await requestGameConfirmation(`황금률 ${cost}개를 소모하여 주얼 인벤토리를 영구히 5칸 확장합니다.\n이 확장은 루프 종료 후에도 유지됩니다.`, {
+    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모하여 주얼 인벤토리를 영구히 5칸 확장합니다.\n이 확장은 루프 종료 후에도 유지됩니다.`), {
         title: '주얼 인벤토리 영구 확장',
         confirmLabel: '확장'
     })) return;
@@ -746,7 +751,7 @@ async function marketExpandGrowthInventoryByDivine() {
     if (typeof isGrowthBoardUnlocked !== 'function' || !isGrowthBoardUnlocked()) return addLog('생장판 해금 후 이용할 수 있습니다.', 'attack-monster');
     let cost = getGrowthMarketExpandCost();
     if ((game.currencies.goldenRule || 0) < cost) return addLog(`황금률이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!await requestGameConfirmation(`황금률 ${cost}개를 소모하여 생장 보관함을 영구히 5칸 확장합니다.\n이 확장은 루프 종료 후에도 유지됩니다.`, {
+    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모하여 생장 보관함을 영구히 5칸 확장합니다.\n이 확장은 루프 종료 후에도 유지됩니다.`), {
         title: '생장 보관함 영구 확장',
         confirmLabel: '확장'
     })) return;
@@ -1251,7 +1256,7 @@ async function expandBlackMarketSlotsByDivine(){
     if (isBlackMarketSlotCapReached()) return addLog(`암거래상 품목 한도는 최대 ${BLACK_MARKET_MAX_SLOT_COUNT}개입니다.`, 'attack-monster');
     let cost = getBlackMarketSlotExpandCost();
     if ((game.currencies.goldenRule||0) < cost) return addLog(`황금률이 부족합니다. (필요 ${cost})`, 'attack-monster');
-    if (!await requestGameConfirmation(`황금률 ${cost}개를 소모해 암거래 품목 슬롯을 영구히 1칸 확장합니다.\n현재 상품과 잠금 상태는 그대로 유지됩니다.`, {
+    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모해 암거래 품목 슬롯을 영구히 1칸 확장합니다.\n현재 상품과 잠금 상태는 그대로 유지됩니다.`), {
         title: '암거래 품목 확장',
         tone: cost >= 5 ? 'danger' : 'warning',
         confirmLabel: '슬롯 확장'

@@ -58,6 +58,7 @@ let socialState = {
     profileTips: {},
     pickTips: {},
     currentProfile: null,
+    currentProfileUserId: null,
     profileTab: 'equipment',
     bgNotiLoading: false
 };
@@ -1195,11 +1196,14 @@ function renderProfileData(profile) {
         : `<div class="social-profile-empty">스탯 정보 없음</div>`;
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
+    let canDuel = socialState.currentProfileUserId && socialState.currentProfileUserId !== socialLoggedInUserId();
+    let duelAction = canDuel ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">고스트 친선 대결</button><small>레이팅과 전적은 변하지 않습니다.</small><div id="social-profile-pvp-result"></div></div>` : '';
     body.innerHTML = `
         <div class="social-profile-header">
             <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
             <div class="social-profile-sub">Lv.${socialEscape(p.level || 1)} · ${socialEscape(p.className || '무직')} · 🔁 루프 ${socialEscape(socialComma(p.loop || 0))}${p.power ? ` · 전투력 ${socialEscape(socialComma(p.power))}` : ''}</div>
             ${updated ? `<div class="social-profile-updated">갱신: ${socialEscape(updated)}</div>` : ''}
+            ${duelAction}
         </div>
         <div class="social-profile-cols">
             <div class="social-profile-col">
@@ -1220,6 +1224,7 @@ function renderProfileData(profile) {
 async function openPlayerProfile(userId) {
     if (!userId) return;
     if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+    socialState.currentProfileUserId = String(userId);
     let modal = ensureProfileModal();
     modal.style.display = 'flex';
     let body = document.getElementById('social-profile-body');
@@ -1275,6 +1280,7 @@ function renderSocialTab() {
             <button onclick="openMyProfilePreview()">내 프로필 미리보기</button>
             <button onclick="syncPlayerProfile()" title="현재 장비/스탯을 공개 프로필에 반영">프로필 갱신</button>
         </div>
+        <div id="social-ghost-arena"></div>
         <div id="social-online" class="social-online" style="display:none;"></div>
         <div class="social-chat-wrap">
             <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty">불러오는 중…</div></div>
@@ -1293,6 +1299,7 @@ function renderSocialTab() {
     socialState.scrollChatToLatestOnNextRender = true;
     renderPendingChatItems();
     updateChatCounter();
+    if (typeof renderGhostArena === 'function') renderGhostArena();
     ensureHeartbeat();
     startChatPolling();
     restoreNicknameFromServer().then(restored => { if (restored !== nickname) renderSocialTab(); });
@@ -1354,6 +1361,7 @@ function injectSocialStyles() {
     .social-profile-name{font-size:1.4em;font-weight:800;color:#f0d7a6;}
     .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
     .social-profile-updated{color:var(--copy-muted);font-size:0.78em;margin-top:4px;}
+    .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}.social-profile-duel #social-profile-pvp-result{flex-basis:100%;}
     .social-profile-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
     @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
     .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}

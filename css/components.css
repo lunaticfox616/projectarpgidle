@@ -82,6 +82,7 @@
         }
 
         .startup-ghost { background: #172330; border-color: #33506a; color: #ffffff; }
+        .startup-local-save-warning { color: #d7b579; font-size: 0.76em; line-height: 1.45; text-align: center; }
         .startup-status { min-height: 48px; padding: 12px 14px; border-radius: 12px; background: #0c1219; border: 1px solid #1b2b3b; color: #ffffff; font-size: 0.84em; line-height: 1.65; }
         .startup-status strong { color: var(--copy-bright); }
         .loading-overlay { display: none; position: fixed; inset: 0; z-index: 14500; background:
@@ -946,7 +947,7 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 .passive-search-panel {
     position: absolute;
     z-index: 7;
-    top: 58px;
+    top: 12px;
     left: 50%;
     display: flex;
     align-items: center;
@@ -998,7 +999,7 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 .passive-star-wedge-drawer {
     position: absolute;
     z-index: 10;
-    top: 12px;
+    top: 62px;
     left: 12px;
     width: max-content;
     max-width: calc(100% - 24px);
@@ -1038,11 +1039,11 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 @media (max-width: 760px) {
     .passive-planner-progress { margin-left: 0; width: 100%; }
     .passive-planner-row button { flex: 1 1 auto; }
-    .passive-search-panel { top: 48px; width: calc(100% - 14px); flex-wrap: wrap; }
+    .passive-search-panel { top: 7px; width: calc(100% - 14px); flex-wrap: wrap; }
     .passive-search-panel > input { flex-basis: calc(100% - 58px); }
     .passive-filter-row { order: 3; width: 100%; overflow-x: auto; }
     .passive-tree-gesture-hint { display: none; }
-    .passive-star-wedge-drawer { top: 7px; left: 7px; width: max-content; max-width: calc(100% - 14px); }
+    .passive-star-wedge-drawer { top: 92px; left: 7px; width: max-content; max-width: calc(100% - 14px); }
     .passive-star-wedge-drawer[open] { width: calc(100% - 14px); }
     .passive-star-wedge-drawer #ui-star-wedge-panel { max-height: 54vh; }
 }
@@ -1238,7 +1239,7 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 .passive-investment-summary {
     position: absolute;
     z-index: 8;
-    top: 12px;
+    top: 62px;
     right: 12px;
     width: min(300px, calc(100% - 24px));
     border: 1px solid rgba(210, 178, 108, 0.54);
@@ -1277,8 +1278,8 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 .passive-summary-grid span:nth-child(odd) { color: var(--copy-bright); overflow-wrap: anywhere; }
 .passive-summary-grid strong { color: #f2d88f; text-align: right; font-variant-numeric: tabular-nums; }
 .passive-summary-specials { margin-top: 8px; padding-top: 7px; border-top: 1px solid rgba(133, 163, 188, 0.18); color: #c7a9ee; font-size: 0.7rem; line-height: 1.45; }
-@media (max-width: 720px) {
-    .passive-investment-summary { top: 7px; right: 7px; width: min(260px, calc(100% - 14px)); }
+@media (max-width: 760px) {
+    .passive-investment-summary { top: 92px; right: 7px; width: min(250px, calc(100% - 96px)); }
     .passive-investment-summary-body { max-height: 34vh; }
 }
 

@@ -6337,7 +6337,10 @@ function showTalismanUnlockTooltip(event, x, y) {
     let unlockedSet = getTalismanUnlockedCellsSet();
     let extraUnlocked = Math.max(0, unlockedSet.size - 16);
     let unlockCost = getTalismanExpandCost(extraUnlocked);
-    let html = `<div class="tooltip-title">잠긴 부적 칸</div><div class="tooltip-line">좌표: (${x + 1}, ${y + 1})</div><div class="tooltip-line">해금 비용: ${formatTalismanUnlockCostLabel(unlockCost)}</div>`;
+    let sealShard = Math.max(0, Math.floor((game.currencies && game.currencies.sealShard) || 0));
+    let strongSealShard = Math.max(0, Math.floor((game.currencies && game.currencies.strongSealShard) || 0));
+    let html = `<div class="tooltip-title">잠긴 부적 칸</div><div class="tooltip-line">좌표: (${x + 1}, ${y + 1})</div><div class="tooltip-line">해금 비용: ${formatTalismanUnlockCostLabel(unlockCost)}</div>
+        <div class="tooltip-line" style="color:#9fd6ff;">보유: 봉인편린 ${sealShard} · 강력 봉인편린 ${strongSealShard}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7ea6d3');
 }
 
@@ -9570,8 +9573,8 @@ function syncInventoryExpansionShortcuts() {
         button.hidden = !control.unlocked;
         if (!control.unlocked) return;
         button.disabled = goldenRule < control.cost;
-        button.textContent = `+5칸 · 황금률 ${control.cost}`;
-        button.title = `현재 ${control.currentLimit}칸 · 황금률 ${control.cost}개로 영구 확장`;
+        button.textContent = `+5칸 · 황금률 ${control.cost} / 보유 ${goldenRule}`;
+        button.title = `현재 ${control.currentLimit}칸 · 필요 황금률 ${control.cost}개 · 보유 황금률 ${goldenRule}개`;
     });
 }
 
@@ -14073,6 +14076,7 @@ function applyCloudSession(session) {
     let nextUserId = session && session.user && session.user.id;
     if (previousUserId !== nextUserId) {
         cloudState.lastSyncedLocalModifiedAt = 0;
+        cloudState.lastRemoteRevision = 0;
         cloudState.pendingAutoSyncDirty = false;
         cloudState.pendingForcedSyncOptions = null;
         if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
@@ -14578,6 +14582,7 @@ function applyExternalSave(snapshot, sourceStamp) {
     applySeasonContentProgression({ silent: true });
     ensureSaveMeta();
     markCurrentSaveCloudOwner();
+    game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(cloudState.lastRemoteRevision) || 0));
     if (sourceStamp) {
         cloudState.lastRemoteUpdatedAt = sourceStamp;
         cloudState.lastRemoteLoop = getSaveLoopNumber(game);
@@ -14626,31 +14631,43 @@ async function restoreCloudSession() {
     return false;
 }
 
+function isMissingCloudRevisionSchemaError(error) {
+    return /revision.*does not exist|column.*revision|schema cache/i.test(String((error && error.message) || error || ''));
+}
+
+async function fetchLatestCloudSaveRow(userId, select) {
+    let rows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=${select}&order=updated_at.desc.nullslast&limit=1`, {
+        headers: { Accept: 'application/json' }
+    });
+    if (Array.isArray(rows) && rows[0]) return rows[0];
+    let fallback = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=${select}`, {
+        headers: { Accept: 'application/json' }
+    });
+    return (Array.isArray(fallback) ? fallback : []).filter(Boolean).sort((a, b) => {
+        let at = a.updated_at ? (new Date(a.updated_at).getTime() || 0) : 0;
+        let bt = b.updated_at ? (new Date(b.updated_at).getTime() || 0) : 0;
+        return bt - at;
+    })[0] || null;
+}
+
 async function fetchCloudSaveRecord() {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
     try {
         let userId = encodeURIComponent(cloudState.user.id);
-        let rows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=user_id,save_data,updated_at&order=updated_at.desc.nullslast&limit=1`, {
-            headers: { Accept: 'application/json' }
-        });
-        let record = Array.isArray(rows) ? rows[0] : null;
-        if (!record) {
-            let fallbackRows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=user_id,save_data,updated_at`, {
-                headers: { Accept: 'application/json' }
-            });
-            if (Array.isArray(fallbackRows) && fallbackRows.length > 0) {
-                record = fallbackRows
-                    .filter(Boolean)
-                    .sort((a, b) => {
-                        let at = a && a.updated_at ? (new Date(a.updated_at).getTime() || 0) : 0;
-                        let bt = b && b.updated_at ? (new Date(b.updated_at).getTime() || 0) : 0;
-                        return bt - at;
-                    })[0] || null;
-            }
+        let record;
+        try {
+            record = await fetchLatestCloudSaveRow(userId, 'user_id,save_data,updated_at,revision');
+            cloudState.revisionSupported = true;
+        } catch (error) {
+            if (!isMissingCloudRevisionSchemaError(error)) throw error;
+            cloudState.revisionSupported = false;
+            record = await fetchLatestCloudSaveRow(userId, 'user_id,save_data,updated_at');
+            if (record) record.revision = 0;
         }
         cloudState.isLoaded = true;
         cloudState.lastRemoteCheckedAt = Date.now();
         if (record && record.updated_at) cloudState.lastRemoteUpdatedAt = new Date(record.updated_at).getTime() || 0;
+        cloudState.lastRemoteRevision = record ? Math.max(0, Math.floor(Number(record.revision) || 0)) : 0;
         if (record && record.save_data) updateRemoteLoopFromRecord(record);
         updateCloudSaveUI();
         return record;
@@ -14664,6 +14681,11 @@ async function fetchCloudSaveRecord() {
 function getLocalSaveStamp() {
     ensureSaveMeta();
     return game.saveMeta.lastModifiedAt || 0;
+}
+
+function getLocalCloudRevision() {
+    ensureSaveMeta();
+    return Math.max(0, Math.floor(Number(game.saveMeta.cloudRevision) || 0));
 }
 
 function getRemoteSaveStamp(record) {
@@ -14771,6 +14793,31 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
     return { record, status: 'safe-to-push' };
 }
 
+async function commitCloudSavePayload(payload, legacyBody) {
+    if (cloudState.revisionSupported !== true) {
+        let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
+            method: 'POST',
+            headers: { Prefer: 'resolution=merge-duplicates,return=representation', 'Content-Type': 'application/json' },
+            body: legacyBody || { user_id: cloudState.user.id, save_data: payload }
+        });
+        return Array.isArray(rows) ? rows[0] : null;
+    }
+    let rows = await cloudJsonRequest('/rest/v1/rpc/commit_cloud_save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: { expected_revision: getLocalCloudRevision(), next_save_data: payload }
+    });
+    let result = Array.isArray(rows) ? rows[0] : rows;
+    if (!result || result.committed !== true) {
+        cloudState.lastRemoteRevision = Math.max(0, Math.floor(Number(result && result.current_revision) || 0));
+        throw new Error('다른 기기에서 서버 저장이 변경되었습니다. 서버 저장을 불러온 뒤 다시 시도해주세요.');
+    }
+    return {
+        revision: Math.max(0, Math.floor(Number(result.current_revision) || 0)),
+        updated_at: result.saved_at || new Date().toISOString()
+    };
+}
+
 async function pushCloudSave(options = {}) {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
     if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) {
@@ -14794,6 +14841,9 @@ async function pushCloudSave(options = {}) {
         setCloudMessage(guardMessage);
         throw new Error(guardMessage);
     }
+    if (cloudState.revisionSupported === true && remoteRecord && getLocalCloudRevision() !== cloudState.lastRemoteRevision) {
+        throw new Error('다른 기기에서 서버 저장이 변경되었습니다. 서버 저장을 불러온 뒤 다시 시도해주세요.');
+    }
     markCurrentSaveCloudOwner();
     if (!persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true })) {
         throw new Error('로컬 저장에 실패하여 클라우드 업로드를 중단했습니다.');
@@ -14808,15 +14858,15 @@ async function pushCloudSave(options = {}) {
     let payloadSize = requestBody.length;
     if (payloadSize > 900000 && typeof addLog === 'function') addLog(`☁️ 클라우드 저장 데이터 최적화 적용 (${Math.round(payloadSize / 1024)}KB)`, 'attack-monster', { noToast: true });
     let tSerialize = Date.now();
-    let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
-        method: 'POST',
-        headers: { Prefer: 'resolution=merge-duplicates,return=representation', 'Content-Type': 'application/json' },
-        body: requestBody
-    });
+    let request = JSON.parse(requestBody);
+    let row = await commitCloudSavePayload(request.save_data, requestBody);
     let tUpload = Date.now();
-    let row = Array.isArray(rows) ? rows[0] : null;
     let syncedAt = row && row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
     ensureSaveMeta();
+    if (row && Number.isFinite(Number(row.revision))) {
+        game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(row.revision)));
+        cloudState.lastRemoteRevision = getLocalCloudRevision();
+    }
     game.saveMeta.lastCloudSyncAt = syncedAt;
     cloudState.lastRemoteUpdatedAt = syncedAt;
     cloudState.lastRemoteLoop = getSaveLoopNumber(game);
@@ -14843,6 +14893,31 @@ async function pullCloudSave(options = {}) {
     setCloudMessage('클라우드 저장을 로컬로 불러왔습니다.');
     if (!options.silent) addLog('클라우드 세이브를 불러왔습니다.', 'loot-magic');
     return record;
+}
+
+async function resolveCloudRevisionConflict(record, options = {}) {
+    if (cloudState.revisionSupported !== true || !record || !record.save_data) return null;
+    if (getLocalCloudRevision() === cloudState.lastRemoteRevision) return null;
+    if (!options.preferRemoteOnResume) return null;
+    let localStamp = getLocalSaveStamp();
+    let remoteStamp = getRemoteSaveStamp(record);
+    let keepLocal = false;
+    if (localStamp > remoteStamp) {
+        keepLocal = await requestGameConfirmation(
+            '로그아웃 중 이 기기와 서버가 모두 변경되었습니다.\n현재 기기 진행으로 서버 저장을 덮어쓸까요?\n취소하면 서버 저장을 사용합니다.',
+            { title: '저장 충돌', tone: 'danger', confirmLabel: '현재 기기 진행 사용' }
+        );
+    }
+    if (keepLocal) {
+        ensureSaveMeta();
+        game.saveMeta.cloudRevision = cloudState.lastRemoteRevision;
+        await pushCloudSave({ touchModifiedAt: false });
+        setCloudMessage('사용자 선택에 따라 현재 기기 진행으로 서버 저장을 교체했습니다.');
+        return 'pushed-local-conflict-confirmed';
+    }
+    applyExternalSave(record.save_data, remoteStamp);
+    setCloudMessage('저장 충돌에서 서버 저장을 선택했습니다.');
+    return 'pulled-remote-conflict';
 }
 
 async function reconcileCloudSaveState(options = {}) {
@@ -14882,6 +14957,9 @@ async function reconcileCloudSaveState(options = {}) {
         if (!options.silent) addLog('클라우드 루프가 더 높아 로컬 저장 업로드를 차단하고 서버 저장을 적용했습니다.', 'loot-magic');
         return 'pulled-remote-higher-loop';
     }
+    let revisionResolution = cloudState.revisionSupported === true
+        ? await resolveCloudRevisionConflict(record, options) : null;
+    if (revisionResolution) return revisionResolution;
     if (preferRemoteOnResume) {
         if (remoteStamp >= localStamp) {
             applyExternalSave(record.save_data, remoteStamp);
@@ -15216,21 +15294,18 @@ function pushCloudSaveOnPageExit(reason) {
         markCurrentSaveCloudOwner();
         if (!persistLocalSave({ touchModifiedAt: true })) return false;
         ensureSaveMeta();
-        let optimisticSyncAt = Date.now();
-        game.saveMeta.lastCloudSyncAt = optimisticSyncAt;
-        cloudState.lastRemoteUpdatedAt = optimisticSyncAt;
-        if (!persistLocalSave({ touchModifiedAt: false })) {
-            throw new Error('로컬 저장에 실패하여 경량화 업로드를 중단했습니다.');
-        }
         let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
-        let body = JSON.stringify({ user_id: cloudState.user.id, save_data: payload });
+        let revisionEnabled = cloudState.revisionSupported === true;
+        let body = JSON.stringify(revisionEnabled
+            ? { expected_revision: getLocalCloudRevision(), next_save_data: payload }
+            : { user_id: cloudState.user.id, save_data: payload });
         let headers = {
             apikey: config.supabaseAnonKey,
             Authorization: `Bearer ${cloudState.session.access_token}`,
             'Content-Type': 'application/json',
-            Prefer: 'resolution=merge-duplicates,return=minimal'
+            Prefer: revisionEnabled ? 'return=representation' : 'resolution=merge-duplicates,return=minimal'
         };
-        let endpoint = config.supabaseUrl + '/rest/v1/cloud_saves';
+        let endpoint = config.supabaseUrl + (revisionEnabled ? '/rest/v1/rpc/commit_cloud_save' : '/rest/v1/cloud_saves');
         // NOTE: sendBeacon cannot attach Authorization/apikey headers required by Supabase RLS.
         // Always use authenticated keepalive fetch on exit path to avoid silent unauthenticated drops.
         fetch(endpoint, {
@@ -15238,6 +15313,20 @@ function pushCloudSaveOnPageExit(reason) {
             headers,
             body,
             keepalive: true
+        }).then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.text();
+        }).then(text => {
+            if (!revisionEnabled || !text) return;
+            let result = JSON.parse(text);
+            result = Array.isArray(result) ? result[0] : result;
+            if (!result || !result.committed) return;
+            ensureSaveMeta();
+            game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(result.current_revision) || 0));
+            game.saveMeta.lastCloudSyncAt = result.saved_at ? (new Date(result.saved_at).getTime() || Date.now()) : Date.now();
+            cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
+            cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
+            persistLocalSave({ touchModifiedAt: false });
         }).catch(error => {
             let msg = String((error && error.message) || error || '');
             let expectedAbort = /failed to fetch|networkerror|abort|cancel/i.test(msg);
@@ -15248,7 +15337,7 @@ function pushCloudSaveOnPageExit(reason) {
             }
         });
         lastPageExitCloudPushAt = exitPushStartedAt;
-        cloudState.lastSyncAttemptAt = optimisticSyncAt;
+        cloudState.lastSyncAttemptAt = exitPushStartedAt;
         setCloudMessage('페이지 종료 전 클라우드 저장을 시도했습니다.');
         return true;
     } catch (error) {
@@ -15285,14 +15374,14 @@ async function cloudCompactAndPushNow() {
         let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
         let payloadBytes = JSON.stringify(payload).length;
         let tSerialize = Date.now();
-        let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
-            method: 'POST',
-            headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-            body: { user_id: cloudState.user.id, save_data: payload }
-        });
+        await fetchCloudSaveRecord();
+        let row = await commitCloudSavePayload(payload, { user_id: cloudState.user.id, save_data: payload });
         let tUpload = Date.now();
-        let row = Array.isArray(rows) ? rows[0] : null;
         let syncedAt = row && row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
+        if (row && Number.isFinite(Number(row.revision))) {
+            game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(row.revision)));
+            cloudState.lastRemoteRevision = getLocalCloudRevision();
+        }
         game.saveMeta.lastCloudSyncAt = syncedAt;
         cloudState.lastRemoteUpdatedAt = syncedAt;
         cloudState.lastSyncAttemptAt = Date.now();

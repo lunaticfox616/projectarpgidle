@@ -2,6 +2,7 @@
 <html lang="ko" class="app-preload">
 <head>
     <meta charset="UTF-8">
+    <meta name="app-build" content="20260812-ops-ghost1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#05080e">
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -30,7 +31,7 @@
     <link rel="stylesheet" href="css/base.css?v=20260722-map-action-native-tab1">
     <link rel="stylesheet" href="css/layout.css?v=20260722-combat-log-nav1-20260810-jewel-compare1">
     <link rel="stylesheet" href="css/theme.css?v=20260721-contract-header1">
-    <link rel="stylesheet" href="css/components.css?v=20260722-combat-icons2-20260810-market-clarity1-20260811-passive-tree-layout1-20260811-exchange-picker1">
+    <link rel="stylesheet" href="css/components.css?v=20260722-combat-icons2-20260810-market-clarity1-20260811-passive-tree-layout1-20260811-exchange-picker1-20260812-passive-toolbar1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260723-currency-icons1-20260810-jewel-compare1">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1-20260810-subtab-state1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260722-combat-icons2">
@@ -144,7 +145,8 @@
             <div class="startup-actions-stack">
                 <button id="btn-startup-continue" class="startup-primary" onclick="continueWithCloudSession()" style="display:none;">클라우드 세이브로 계속</button>
                 <button id="btn-startup-switch-account" class="startup-ghost" onclick="prepareStartupAccountSwitch()" style="display:none;">다른 계정 사용</button>
-                <button id="btn-startup-guest" class="startup-ghost" onclick="startGuestMode()">게스트로 시작</button>
+                <button id="btn-startup-guest" class="startup-ghost" onclick="startGuestMode()">게스트로 시작 (로컬 전용)</button>
+                <div class="startup-local-save-warning">게스트 저장은 이 브라우저에만 남습니다. 데이터 삭제·기기 변경 시 복구되지 않습니다.</div>
                 <button id="btn-startup-back" class="startup-ghost" onclick="returnFromStartupGate()" style="display:none;">게임으로 돌아가기</button>
             </div>
             <div class="startup-actions-stack social-login-stack" id="startup-social-actions">
@@ -1387,6 +1389,9 @@
             <div class="cloud-actions secondary">
                 <button id="btn-cloud-push" onclick="cloudForcePullNow()">서버에서 강제 불러오기</button>
                 <button id="btn-cloud-return-startup" onclick="openStartupGate({ accountOnly: true })">계정 전환</button>
+                <button type="button" onclick="copyClientDiagnostics()">진단 정보 복사</button>
+                <button type="button" onclick="openCloudSaveHistory()">저장 이력</button>
+                <button type="button" id="btn-ops-dashboard" onclick="openOpsDashboard()" hidden>운영 통계</button>
             </div>
             <div class="cloud-actions secondary" id="cloud-link-actions">
                 <button id="btn-cloud-link-google" class="social-login-image-btn" onclick="linkGoogleAccount()"><img src="assets/google_login.png" alt="Google 계정 연결"></button>
@@ -1452,11 +1457,11 @@
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260718-regional-passive1&ehp=20260811-bosspeak1"></script>
 <script defer src="data/maps.js?v=20260719-tier-rift-stack1"></script>
-<script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260811-area-impact1&venom=20260811-image2"></script>
+<script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260811-area-impact1&venom=20260811-image2&lightning-spear=20260812-performance1&thundercloud=20260812-impact1"></script>
 <script defer src="data/items.js?v=20260723-currency-salvage1&defense-unique=20260811-rework1"></script>
 <script defer src="data/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="data/growth-items.js?v=20260807-growth-affix-balance1-20260807-flat-element-balance1"></script>
-<script defer src="data/passives.js?v=20260719-spiderweb-rollback1"></script>
+<script defer src="data/passives.js?v=20260719-spiderweb-rollback1&hero-motion=20260812-elementalist1"></script>
 <script defer src="data/bosses.js?v=20260715-runtime-structure2"></script>
 <script defer src="data/rewards.js?v=20260721-act2-support-reward1"></script>
 <script defer src="data/talent-cards.js?v=20260722-templar-overheal1"></script>
@@ -1468,7 +1473,7 @@
 <script defer src="js/save.js?v=20260719-stutter-fix1&tactics=20260810-combat-tactics1"></script>
 <script defer src="js/items.js?v=20260719-white-copy1-20260810-market-clarity1-20260811-exchange-picker1"></script>
 <script defer src="js/skills.js?v=20260717-gem-flask-mobile1"></script>
-<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1&presets=20260810-passive1&battle=20260811-body-cue2&void=20260811-reroll1&defense-unique=20260811-rework1&fx-backlog=20260811-clear1&venom=20260811-image2&encroachment=20260811-tier1&damage-text=20260811-volley1&spore-craft=20260811-guard1&node-art=20260811-v2states1"></script>
+<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1&presets=20260810-passive1&battle=20260811-body-cue2&void=20260811-reroll1&defense-unique=20260811-rework1&fx-backlog=20260811-clear1&venom=20260811-image2&encroachment=20260811-tier1&damage-text=20260811-volley1&spore-craft=20260811-guard1&node-art=20260811-v2states1&deflect-text=20260812-muted1"></script>
 <script defer src="js/growth-board.js?v=20260806-growth-chase1"></script>
 <script defer src="js/growth-effects.js?v=20260806-growth-unique2"></script>
 <script defer src="js/growth-generation.js?v=20260807-growth-affix-balance1-20260807-growth-overflow1"></script>
@@ -1476,17 +1481,20 @@
 <script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&boomerang=20260811-batched1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1&ehp=20260811-bosspeak1"></script>
 <script defer src="js/cosmos-rules.js?v=20260810-endgame1&ehp=20260811-bosspeak1"></script>
-<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260811-floor1-tune1"></script>
+<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260811-floor1-tune1&lightning-spear=20260812-performance1"></script>
 <script defer src="js/combat-ehp.js?v=20260807-elemental-ehp1"></script>
-<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260811-top1&damage-text=20260811-volley1&projectile=20260811-image-route1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260811-top1&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260812-impact1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1-20260810-label-toggle1"></script>
 <script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260811-playability1&boss-traits=20260811-ticker-tooltip1&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260811-approx1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1"></script>
+<script defer src="js/playtest-telemetry.js?v=20260812-playtest2"></script>
+<script defer src="js/cloud-tools-ui.js?v=20260812-ops1"></script>
 <script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1&tooltip=20260811-tray1"></script>
 <script defer src="js/skills-ui.js?v=20260808-skills-screen1"></script>
 <script defer src="js/offline-progress-ui.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records-ui.js?v=20260808-records-tab1"></script>
-<script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1"></script>
+<script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1&pvp=20260812-profile1"></script>
+<script defer src="js/ghost-pvp.js?v=20260812-ghost2"></script>
 <script defer src="js/ui-window-manager.js?v=20260723-merged-tab-window-fix2"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
 <script defer src="js/goal-system.js?v=20260717-system-integrity1-20260810-loop-cosmos-notice1"></script>

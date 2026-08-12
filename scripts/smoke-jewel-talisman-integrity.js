@@ -8,6 +8,7 @@ const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
 const growthUiSource = fs.readFileSync('js/growth-ui.js', 'utf8');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
 function extract(source, startNeedle, endNeedle) {
     const start = source.indexOf(startNeedle);
@@ -160,5 +161,17 @@ assert(uiSource.includes("tooltip.classList.add('item-compare-tooltip')"), 'jewe
 const growthCardBlock = extract(growthUiSource, 'function renderGrowthItemCard', '// 보관함이 40칸이라');
 assert(!growthCardBlock.includes('<summary>관리</summary>'), 'growth item actions must not require an extra management disclosure click');
 assert(growthCardBlock.includes('toggleGrowthItemLock') && growthCardBlock.includes('salvageGrowthInventoryItem'), 'growth item lock and salvage actions must remain directly available');
+
+const talismanUiRuntime = buildGameRuntime();
+vm.runInContext(`
+    game.currencies.sealShard = 17;
+    game.currencies.strongSealShard = 4;
+    __talismanUnlockTooltip = '';
+    showInfoTooltipHtml = function (x, y, html) { __talismanUnlockTooltip = html; };
+    showTalismanUnlockTooltip({ clientX: 0, clientY: 0 }, 0, 0);
+`, talismanUiRuntime);
+const talismanUnlockTooltip = vm.runInContext('__talismanUnlockTooltip', talismanUiRuntime);
+assert(talismanUnlockTooltip.includes('보유: 봉인편린 17 · 강력 봉인편린 4'),
+    '부적 칸 해금 안내는 실제 해금 재화의 현재 보유량을 표시해야 한다');
 
 console.log('smoke-jewel-talisman-integrity passed');

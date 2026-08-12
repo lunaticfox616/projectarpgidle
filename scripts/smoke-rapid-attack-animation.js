@@ -38,6 +38,11 @@ const single = context.selectPlayerSwingEffects([
 assert.strictEqual(single.latest.id, 'single', 'a normal non-overlapping attack must remain the active event');
 assert.strictEqual(single.frame.id, 'single', 'a normal non-overlapping attack must preserve its own animation progress');
 
+const slowedVisual = context.selectPlayerSwingEffects([
+    { id: 'elementalist', type: 'playerSwing', start: 1000, duration: 400 }
+], 1450, 1.4);
+assert.strictEqual(slowedVisual.frame.id, 'elementalist', 'a slower hero visual must retain its follow-through without delaying combat damage');
+
 const empty = context.selectPlayerSwingEffects([], 1000);
 assert.strictEqual(empty.latest, null, 'no swing must produce no latest combat event');
 assert.strictEqual(empty.frame, null, 'no swing must produce no animation frame source');

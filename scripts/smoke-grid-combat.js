@@ -725,6 +725,28 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['연발 사격']), 'projectileTarget');
   assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['서리 폭발']), 'magicCell');
   assert.strictEqual(context.getSkillCombatDelivery(context.SKILL_DB['기본 공격']), 'instantTarget');
+
+  resetGame();
+  context.game.activeSkill = '번개 창';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '번개 창']));
+  context.game.gemData['번개 창'] = { level: 1, exp: 0, quality: 0 };
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(560, 3, 6), makeEnemy(561, 5, 6), makeEnemy(562, 7, 6)];
+  context.game.enemies.forEach(enemy => { enemy.hp = 1000000; enemy.maxHp = 1000000; });
+  vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+  const lightningSpearStats = context.getPlayerStats();
+  lightningSpearStats.accuracy = 1000000;
+  context.performPlayerAttack(lightningSpearStats);
+  const lightningTravel = vm.runInContext(`battleFx.filter(fx => fx && fx.type === 'combatTravel' && fx.skillName === '번개 창')`, context);
+  const lightningPendingCount = vm.runInContext('pendingSkillStageHits.length', context);
+  assert.strictEqual(lightningPendingCount, 3, '번개창의 관통 판정은 세 대상 모두 유지해야 한다');
+  assert.strictEqual(lightningTravel.length, 1, '번개창 한 발을 관통 대상마다 별도 투사체로 복제하면 안 된다');
+  assert.deepStrictEqual(
+    { gx: lightningTravel[0].targetCells[0].gx, gy: lightningTravel[0].targetCells[0].gy },
+    { gx: 7, gy: 6 },
+    '단일 번개창 이펙트는 마지막 관통 대상까지 날아가야 한다'
+  );
+
   const normalTravelMs = context.getCombatTravelMs({ gx: 0, gy: 0 }, { gx: 7, gy: 7 });
   const iceSpearTravelMs = context.getCombatTravelMs({ gx: 0, gy: 0 }, { gx: 7, gy: 7 }, context.SKILL_DB['얼음 창']);
   assert.ok(iceSpearTravelMs <= 150, '얼음 창은 전장 끝까지도 매우 빠르게 도착해야 한다');

@@ -1724,6 +1724,8 @@ let cloudState = {
     lastMessage: '설정 전',
     lastRemoteUpdatedAt: 0,
     lastRemoteLoop: 0,
+    lastRemoteRevision: 0,
+    revisionSupported: null,
     lastSyncAttemptAt: 0,
     lastSyncedLocalModifiedAt: 0,
     pendingAutoSyncDirty: false,
@@ -2247,7 +2249,7 @@ const defaultGame = {
         nodeMutations: {},
         selectedWedgeId: null
     },
-    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null },
+    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0 },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false },
     noti: { char: false, season: false, items: false, skills: false, flask: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
     mapAlarmSeen: {},

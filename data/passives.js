@@ -171,6 +171,7 @@ const HERO_SELECTION_DEFS = {
         label: '원소술사',
         blindLabel: '원소술사',
         portrait: 'assets/portraits/hero9.png',
+        attackAnimationDurationScale: 1.4,
         talentsText: '원소 피해 +22%, 원소 저항 관통 +10%, 모든 원소 저항 +5%',
         stats: [{ stat: 'elementalPctDmg', value: 22 }, { stat: 'resPen', value: 10 }, { stat: 'resF', value: 5 }, { stat: 'resC', value: 5 }, { stat: 'resL', value: 5 }],
         strips: { idle: 'hero9Idle', walk: 'hero9Walk', attack: 'hero9Attack', hurt: 'hero9Hurt', death: 'hero9Death' }

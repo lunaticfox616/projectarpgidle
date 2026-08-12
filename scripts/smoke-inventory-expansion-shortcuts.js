@@ -46,18 +46,20 @@ vm.runInContext(readFunctionSource(source, 'syncInventoryExpansionShortcuts'), c
 context.syncInventoryExpansionShortcuts();
 assert.strictEqual(equipmentButton.hidden, false);
 assert.strictEqual(equipmentButton.disabled, false);
-assert.strictEqual(equipmentButton.textContent, '+5칸 · 황금률 2');
-assert(equipmentButton.title.includes('현재 30칸'));
+assert.strictEqual(equipmentButton.textContent, '+5칸 · 황금률 2 / 보유 2');
+assert(equipmentButton.title.includes('현재 30칸') && equipmentButton.title.includes('보유 황금률 2개'));
 assert.strictEqual(jewelButton.hidden, false);
 assert.strictEqual(jewelButton.disabled, false);
-assert.strictEqual(jewelButton.textContent, '+5칸 · 황금률 1');
-assert(jewelButton.title.includes('현재 20칸'));
+assert.strictEqual(jewelButton.textContent, '+5칸 · 황금률 1 / 보유 2');
+assert(jewelButton.title.includes('현재 20칸') && jewelButton.title.includes('보유 황금률 2개'));
 assert.strictEqual(growthButton.hidden, false);
-assert.strictEqual(growthButton.textContent, '+5칸 · 황금률 2');
-assert(growthButton.title.includes('현재 40칸'));
+assert.strictEqual(growthButton.textContent, '+5칸 · 황금률 2 / 보유 2');
+assert(growthButton.title.includes('현재 40칸') && growthButton.title.includes('보유 황금률 2개'));
 
 context.game.currencies.goldenRule = 0;
 context.syncInventoryExpansionShortcuts();
+assert(equipmentButton.textContent.includes('보유 0') && jewelButton.textContent.includes('보유 0') && growthButton.textContent.includes('보유 0'),
+    '재화가 부족해 확장창을 열 수 없어도 각 화면에서 황금률 보유량을 확인할 수 있어야 한다');
 assert.strictEqual(equipmentButton.disabled, true, '재화가 부족하면 장비 한도 확장을 누를 수 없어야 한다');
 assert.strictEqual(jewelButton.disabled, true, '재화가 부족하면 주얼 한도 확장을 누를 수 없어야 한다');
 assert.strictEqual(growthButton.disabled, true, '재화가 부족하면 생장 보관함 확장을 누를 수 없어야 한다');

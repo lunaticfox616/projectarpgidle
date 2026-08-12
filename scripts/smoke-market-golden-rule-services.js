@@ -5,8 +5,9 @@ const vm = require('vm');
 const source = fs.readFileSync('js/items.js', 'utf8');
 
 function readFunctionSource(name) {
-    const start = source.indexOf(`function ${name}(`);
+    let start = source.indexOf(`function ${name}(`);
     assert(start >= 0, `${name} must exist`);
+    if (source.slice(Math.max(0, start - 6), start) === 'async ') start -= 6;
     let depth = 0;
     for (let index = source.indexOf('{', start); index < source.length; index++) {
         if (source[index] === '{') depth++;
@@ -23,7 +24,7 @@ const elements = Object.fromEntries([
 ].map(id => [id, { style: {}, innerHTML: '' }]));
 const selectedItem = { name: '검증 장비', stats: [{ id: 'flatHp', statName: '생명력', val: 10 }] };
 const context = {
-    game: { season: 5, passives: ['p1'], currencies: { magicBud: 24, formlessDew: 100, goldenRule: 3, divine: 0 } },
+    game: { season: 30, passives: ['p1'], currencies: { magicBud: 24, formlessDew: 100, goldenRule: 3, divine: 0 } },
     document: { getElementById: id => elements[id] || null },
     isMarketUnlocked: () => true,
     refreshBlackMarket() {},
@@ -43,12 +44,22 @@ const context = {
     getInventoryLimit: () => 40,
     getJewelMarketExpandCost: () => 2,
     getJewelInventoryLimit: () => 30,
+    getGrowthMarketExpandCost: () => 2,
+    getGrowthInventoryLimit: () => 40,
+    isGrowthBoardUnlocked: () => true,
+    requestGameConfirmation: async message => { context.confirmationPrompts.push(message); return false; },
+    confirmationPrompts: [],
+    addLog() {},
+    updateStaticUI() {},
     Array,
     Math
 };
 vm.createContext(context);
 vm.runInContext(readFunctionSource('renderMarketExchangePicker'), context, { filename: 'market-exchange-picker.js' });
 vm.runInContext(readFunctionSource('renderMarketUI'), context, { filename: 'market-golden-rule-services.js' });
+vm.runInContext(readFunctionSource('buildGoldenRuleSpendPrompt'), context, { filename: 'golden-rule-spend-prompt.js' });
+['marketExpandInventoryByDivine', 'marketExpandJewelInventoryByDivine', 'marketExpandGrowthInventoryByDivine']
+    .forEach(name => vm.runInContext(readFunctionSource(name), context, { filename: `${name}.js` }));
 
 context.renderMarketUI();
 const exchangeHtml = elements['ui-market-exchange-list'].innerHTML;
@@ -76,10 +87,23 @@ assert.strictEqual((serviceHtml.match(/황금률/g) || []).length, 4, 'every gol
 assert(!serviceHtml.includes('<button onclick="marketResetPassiveTreeByDivine()" disabled'), 'golden-rule balance must enable passive reset');
 assert(!serviceHtml.includes('marketExpandInventoryByDivine()" disabled'), 'golden-rule balance must enable inventory expansion');
 
-context.game.currencies.goldenRule = 0;
-context.renderMarketUI();
-assert(elements['ui-market-service-passive'].innerHTML.includes('disabled'), 'zero golden rule must disable passive reset');
-assert(elements['ui-market-service-inv'].innerHTML.includes('disabled'), 'zero golden rule must disable inventory expansion');
-assert(elements['ui-market-service-jewel-inv'].innerHTML.includes('disabled'), 'zero golden rule must disable jewel expansion');
+Promise.resolve().then(async () => {
+    await context.marketExpandInventoryByDivine();
+    await context.marketExpandJewelInventoryByDivine();
+    await context.marketExpandGrowthInventoryByDivine();
+    assert.strictEqual(context.confirmationPrompts.length, 3, '모든 황금률 인벤토리 확장창을 열어야 한다');
+    context.confirmationPrompts.forEach(prompt => {
+        assert(prompt.includes('현재 보유: 황금률 3개'), '확장창은 현재 황금률 보유량을 표시해야 한다');
+    });
 
-console.log('smoke-market-golden-rule-services passed');
+    context.game.currencies.goldenRule = 0;
+    context.renderMarketUI();
+    assert(elements['ui-market-service-passive'].innerHTML.includes('disabled'), 'zero golden rule must disable passive reset');
+    assert(elements['ui-market-service-inv'].innerHTML.includes('disabled'), 'zero golden rule must disable inventory expansion');
+    assert(elements['ui-market-service-jewel-inv'].innerHTML.includes('disabled'), 'zero golden rule must disable jewel expansion');
+
+    console.log('smoke-market-golden-rule-services passed');
+}).catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});

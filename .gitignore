@@ -1,3 +1,9 @@
 
 # 생성 산출물(엑셀 내보내기)
 *.xlsx
+
+# 로컬 테스트 의존성과 브라우저 검사 산출물
+node_modules/
+playwright-report/
+test-results/
+debug.log
