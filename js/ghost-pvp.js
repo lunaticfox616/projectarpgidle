@@ -28,7 +28,9 @@ function getGhostArenaError(error) {
     if (/GHOST_FRIENDLY_LIMIT/.test(message)) return '오늘 이 상대와 할 수 있는 친선전을 모두 진행했습니다.';
     if (/GHOST_DAILY_LIMIT/.test(message)) return '오늘의 대결 한도 20회를 모두 사용했습니다.';
     if (/NICKNAME_REQUIRED/.test(message)) return '먼저 커뮤니티 닉네임을 설정하세요.';
-    if (/schema cache|could not find|does not exist/i.test(message)) return '고스트 대결 SQL이 아직 적용되지 않았습니다.';
+    if (/schema cache|could not find|does not exist/i.test(message)) {
+        return '고스트 대결 DB가 준비되지 않았습니다. Supabase SQL Editor에서 db/operations-and-ghost.sql을 실행하세요.';
+    }
     return message;
 }
 

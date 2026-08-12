@@ -172,10 +172,15 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
         game.maxZoneId = 20;
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         updateStaticUI();
+        switchTab('tab-social');
+        renderSocialTab();
+    });
+    await expect(page.locator('#tab-social .ghost-arena')).toHaveCount(0);
+    await expect(page.locator('#tab-social')).not.toContainText('고스트 대결');
+    await page.evaluate(() => {
         switchTab('tab-map');
         switchMapSubtab('map-tab-pvp');
     });
-    await expect(page.locator('#tab-social #social-ghost-arena')).toHaveCount(0);
     await expect(page.locator('#map-tab-pvp.active .ghost-arena')).toBeVisible();
     await expect(page.locator('.ghost-arena')).toContainText('내 레이팅 1000');
     await page.getByRole('button', { name: '상대 찾기' }).click();
