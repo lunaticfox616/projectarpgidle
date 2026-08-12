@@ -1074,6 +1074,8 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
 
 function drawDamageImpactAccent(ctx, fx, t, enemyPosMap) {
     if (!fx || !['heavy', 'annihilate'].includes(fx.impactTier)) return;
+    let profile = fx.skillName ? getSkillGemVfxProfile(fx.skillName) : null;
+    if (profile && profile.impactAccentVfx === false) return;
     let target = enemyPosMap[fx.enemyId];
     if (!target) return;
     let annihilate = fx.impactTier === 'annihilate';
