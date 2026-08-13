@@ -259,8 +259,8 @@ assert.deepStrictEqual(
   'rarity labels must not be repeated as enemy traits'
 );
 assert.deepStrictEqual(
-  JSON.parse(JSON.stringify(context.getUiEnemyTraitDisplayText(['화염', '중갑 전개', '패턴: 격앙', '연타경감 6%']))),
-  { fullText: '화염 · 중갑 전개 · 패턴: 격앙 · 연타경감 6%', compactText: '화염 · 중갑 · 격앙 · 연타경감 6%' },
+  JSON.parse(JSON.stringify(context.getUiEnemyTraitDisplayText(['화염', '중갑 전개', '패턴: 격앙', '연타경감 6%/후속타']))),
+  { fullText: '화염 · 중갑 전개 · 패턴: 격앙 · 연타경감 6%/후속타', compactText: '화염 · 중갑 · 격앙 · 연타경감 6…' },
   'boss trait text must abbreviate panel labels while preserving the complete hover text'
 );
 
