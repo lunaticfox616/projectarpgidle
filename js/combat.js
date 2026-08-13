@@ -2740,6 +2740,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
                 stageRepeatOnce: !!stage.singleRepeat,
                 restrictRandomTargets: !!stage.singleRepeat,
                 talentMoonReturn: attackContext.talentMoonReturn || null,
+                attackHitGuardCounts: attackContext.attackHitGuardCounts,
                 damageTextGroupId: attackContext.damageTextGroupId ? `${attackContext.damageTextGroupId}:${stageOffset}` : '',
                 hitDamageMultiplier: Math.max(0, Number(stage.damageMultiplier) || 0),
                 attackDamageMultiplier: Number.isFinite(Number(attackContext.attackDamageMultiplier)) ? Math.max(0, Number(attackContext.attackDamageMultiplier)) : 1
@@ -8798,6 +8799,8 @@ function finishEncounterRun() {
 
 function performPlayerAttack(pStats, attackOptions) {
     let options = attackOptions || {};
+    // 예약된 시간차 타격은 같은 카운터를 공유하되, 다음 공격은 항상 새 카운터로 시작한다.
+    let attackHitGuardCounts = options.attackHitGuardCounts instanceof Map ? options.attackHitGuardCounts : new Map();
     let isStageReplay = !!options.stageReplay;
     let skillName = options.skillName || game.activeSkill;
     let channelContinuationRequested = !isStageReplay && consumeCombatChannelContinuation(skillName);
@@ -8945,7 +8948,8 @@ function performPlayerAttack(pStats, attackOptions) {
             channelId: channelId,
             channelCycleMs: channelCycleMs,
             baseDelayMs: stageBaseDelayMs,
-            damageTextGroupId: damageTextGroupId
+            damageTextGroupId: damageTextGroupId,
+            attackHitGuardCounts: attackHitGuardCounts
         });
         return;
     }
@@ -9069,6 +9073,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 } else return;
             }
             if (!targetEnemy || targetEnemy.hp <= 0) return;
+            let priorGuardedHits = Math.max(0, Math.floor(Number(attackHitGuardCounts.get(targetEnemy.id)) || 0));
             let nextHitCount = (perEnemyHitCount.get(targetEnemy.id) || 0) + 1;
             perEnemyHitCount.set(targetEnemy.id, nextHitCount);
             let hitElement = swingElement;
@@ -9231,13 +9236,13 @@ function performPlayerAttack(pStats, attackOptions) {
                 ailmentSourceDamage = Math.floor(ailmentSourceDamage * (1 - targetEnemy.firstHitGuard));
                 if (!cosmosFirstHitRoll) targetEnemy.firstHitConsumed = true;
             }
-            let burstHits = Math.max(0, (targetEnemy.recentHitsTaken || 0) - 2);
-            let hitGuard = (targetEnemy.hitRateGuard || 0) * Math.min(5, burstHits);
+            let hitGuard = Math.max(0, Number(targetEnemy.hitRateGuard) || 0) * Math.min(5, priorGuardedHits);
             if (hitGuard > 0) {
                 let hitGuardMul = Math.max(0.2, 1 - hitGuard);
                 dmg = Math.floor(dmg * hitGuardMul);
                 ailmentSourceDamage = Math.floor(ailmentSourceDamage * hitGuardMul);
             }
+            let burstHits = Math.max(0, (targetEnemy.recentHitsTaken || 0) - 2);
             if ((targetEnemy.comboTakenLessPct || 0) > 0 && burstHits > 0) {
                 let comboLess = Math.max(0, Math.min(85, Number(targetEnemy.comboTakenLessPct || 0) * Math.min(5, burstHits) / 5));
                 dmg = Math.floor(dmg * (1 - comboLess / 100));
@@ -9259,6 +9264,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 addEvasionCombatLog(targetEnemy, false);
                 return;
             }
+            if ((targetEnemy.hitRateGuard || 0) > 0) attackHitGuardCounts.set(targetEnemy.id, priorGuardedHits + 1);
             dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
             let addedDamagePctByElement = (pStats && pStats.addedDamagePctByElement) || {};
             ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(addEle => {

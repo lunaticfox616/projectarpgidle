@@ -699,6 +699,50 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(enemies[1].hp < enemies[1].maxHp && enemies[2].hp < enemies[2].maxHp, `회오리바람 후속 대상은 예약된 순차 단계에서 피해를 받아야 한다 (${enemies.map(enemy => enemy.hp).join(',')})`);
 
   resetGame();
+  context.game.activeSkill = '기본 공격';
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const guardedTarget = makeEnemy(49, 2, 6, {
+    hp: 1000000, maxHp: 1000000, hitRateGuard: 0.1, recentHitsTaken: 99,
+    armor: 0, evasion: 0, evasionChance: 0, dr: 0, resF: 0, resC: 0, resL: 0, resChaos: 0,
+  });
+  context.game.enemies = [guardedTarget];
+  const guardedStats = context.getPlayerStats();
+  guardedStats.baseDmg = 1000;
+  guardedStats.minDmgRoll = guardedStats.maxDmgRoll = 100;
+  guardedStats.accuracy = 1000000;
+  guardedStats.crit = 0;
+  guardedStats.sSkill = { ...context.SKILL_DB['기본 공격'], multiHit: 3, repeatHitDamagePct: 100 };
+  vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+  context.performPlayerAttack(guardedStats);
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  const firstGuardedAttack = vm.runInContext("battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === 49).map(fx => fx.rawDamage)", context);
+  assert.strictEqual(firstGuardedAttack.length, 3, '연타경감 검사는 한 공격의 세 타격을 모두 실제 처리해야 한다');
+  assert.ok(firstGuardedAttack[0] > firstGuardedAttack[1] && firstGuardedAttack[1] > firstGuardedAttack[2],
+    '연타경감은 같은 공격 안에서 후속 타격마다 피해를 단계적으로 줄여야 한다');
+  assert.ok(Math.abs(firstGuardedAttack[1] / firstGuardedAttack[0] - 0.9) < 0.02
+    && Math.abs(firstGuardedAttack[2] / firstGuardedAttack[0] - 0.8) < 0.02,
+    '연타경감 10%는 같은 공격의 2타와 3타를 각각 약 90%, 80%로 줄여야 한다');
+
+  vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+  context.performPlayerAttack(guardedStats);
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  const nextGuardedAttack = vm.runInContext("battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === 49).map(fx => fx.rawDamage)", context);
+  assert.strictEqual(nextGuardedAttack[0], firstGuardedAttack[0],
+    '이전 피격 횟수가 아무리 많아도 다음 공격의 첫 타격은 연타경감 없이 시작해야 한다');
+
+  guardedStats.sSkill = {
+    ...context.SKILL_DB['기본 공격'],
+    combatPattern: { kind: 'field', hits: 3, intervalMs: 80, damagePct: 100 },
+  };
+  vm.runInContext('battleFx = []; pendingSkillStageHits = [];', context);
+  context.performPlayerAttack(guardedStats);
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  const stagedGuardedAttack = vm.runInContext("battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === 49).map(fx => fx.rawDamage)", context);
+  assert.strictEqual(stagedGuardedAttack.length, 3, '시간차 공격의 세 타격을 모두 실제 처리해야 한다');
+  assert.ok(stagedGuardedAttack[0] > stagedGuardedAttack[1] && stagedGuardedAttack[1] > stagedGuardedAttack[2],
+    '장판·채널링처럼 시간차가 있는 한 번의 공격도 같은 연타경감 묶음을 공유해야 한다');
+
+  resetGame();
   context.game.activeSkill = '묵직한 강타';
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '묵직한 강타']));
   context.game.gemData['묵직한 강타'] = { level: 1, exp: 0, quality: 0 };
