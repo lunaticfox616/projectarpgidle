@@ -3002,6 +3002,7 @@ function getPlayerStats() {
     let colonyWardBonus = {};
 
     let localDefenseTotals = { armor: 0, evasion: 0, energyShield: 0 };
+    let shieldArmorForDamage = 0;
     let shieldBaseBlockChance = 0;
     let shieldBlockChancePct = 0;
     let shieldBlockChanceFlat = 0;
@@ -3071,9 +3072,11 @@ function getPlayerStats() {
             // 복합 옵션(한 줄에 방어flat + 방어%)의 추가 스탯도 방어 합산에 반영.
             if (Array.isArray(stat.extraStats)) stat.extraStats.forEach(accumulateExplicitDefense);
         });
-        localDefenseTotals.armor += (itemBaseArmor + itemFlatArmor) * (1 + itemPctArmor / 100);
+        let itemLocalArmor = (itemBaseArmor + itemFlatArmor) * (1 + itemPctArmor / 100);
+        localDefenseTotals.armor += itemLocalArmor;
         localDefenseTotals.evasion += (itemBaseEvasion + itemFlatEvasion) * (1 + itemPctEvasion / 100);
         localDefenseTotals.energyShield += (itemBaseEs + itemFlatEs) * (1 + itemPctEs / 100);
+        if (equipSlotKey === '방패' && item.slot === '방패') shieldArmorForDamage = Math.max(0, itemLocalArmor);
         if (item.voidSocket && item.voidSocket.open && item.voidSocket.jewel) {
             getJewelStats(item.voidSocket.jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val));
         }
@@ -3666,6 +3669,9 @@ function getPlayerStats() {
     let hpScaleRatio = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
     let hpFlatBonus = Math.floor(totalFlatDmg * hpScaleRatio);
     let scaledFlatDmg = totalFlatDmg + hpFlatBonus;
+    if (skill.shieldArmorDamageRatio) {
+        scaledFlatDmg = Math.max(1, shieldArmorForDamage * Math.max(0, Number(skill.shieldArmorDamageRatio) || 0));
+    }
     let baseDamageIncreaseMultiplier = (1 + (generalPctDmg + taggedTotal) / 100) * (skill.dmg || skill.baseDmg || 1) * codexBonusRatio;
     baseDamageIncreaseMultiplier *= (1 + Math.max(0, Number(skill.flatSkillDmgPct) || 0) / 100);
     let finalBaseDmg = Math.floor(scaledFlatDmg * baseDamageIncreaseMultiplier);

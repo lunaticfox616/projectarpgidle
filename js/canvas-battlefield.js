@@ -951,15 +951,39 @@ function drawCoreSkillVfx(ctx, effect, progress) {
     }
 }
 
-function drawConeSkillVfx(ctx, effect, progress) {
-    let length = Math.max(60, Math.hypot(effect.toX - effect.fromX, effect.toY - effect.fromY));
-    ctx.translate(effect.fromX, effect.fromY);
-    ctx.rotate(effect.rotation || 0);
-    ctx.fillStyle = getElementColor(effect.element);
-    ctx.shadowColor = ctx.fillStyle;
-    ctx.shadowBlur = 8;
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(length, -effect.size * 0.34); ctx.lineTo(length, effect.size * 0.34); ctx.closePath();
-    ctx.globalAlpha *= 0.24 + Math.sin(progress * Math.PI) * 0.24;
+function drawShieldChargeImpactVfx(ctx, effect, progress) {
+    let pulse = Math.sin(progress * Math.PI);
+    let size = Math.max(54, effect.size || 82);
+    ctx.translate(effect.x, effect.y);
+    ctx.rotate(Math.atan2(effect.toY - effect.fromY, effect.toX - effect.fromX));
+    ctx.shadowColor = '#bde8ff';
+    ctx.shadowBlur = 10 * pulse;
+    ctx.strokeStyle = '#e8f5ff';
+    ctx.lineWidth = Math.max(2, size * 0.045);
+    ctx.globalAlpha *= 0.4 + pulse * 0.5;
+    for (let layer = 0; layer < 3; layer++) {
+        let reach = size * (0.2 + layer * 0.12 + progress * 0.12);
+        let spread = size * (0.24 + layer * 0.08);
+        ctx.beginPath();
+        ctx.moveTo(reach - size * 0.1, -spread);
+        ctx.bezierCurveTo(reach + size * 0.16, -spread * 0.55, reach + size * 0.2, spread * 0.55, reach - size * 0.1, spread);
+        ctx.stroke();
+    }
+    ctx.fillStyle = '#91b5c8';
+    ctx.shadowBlur = 4;
+    for (let shard = 0; shard < 6; shard++) {
+        let lane = shard - 2.5;
+        let distance = size * (0.14 + progress * (0.22 + (shard % 3) * 0.05));
+        ctx.save();
+        ctx.translate(distance, lane * size * 0.095);
+        ctx.rotate(lane * 0.34 + progress * 0.8);
+        ctx.fillRect(-size * 0.055, -size * 0.022, size * 0.11, size * 0.044);
+        ctx.restore();
+    }
+    ctx.globalAlpha *= 0.45;
+    ctx.fillStyle = '#7d91a0';
+    ctx.beginPath();
+    ctx.ellipse(size * 0.08, size * 0.28, size * (0.32 + progress * 0.18), size * 0.075, 0, 0, Math.PI * 2);
     ctx.fill();
 }
 
@@ -1011,7 +1035,7 @@ function drawProceduralSkillImpact(ctx, effect, progress) {
     else if (effect.family === 'beam') drawBeamSkillVfx(ctx, effect, progress);
     else if (effect.family === 'fireCore' || effect.family === 'mine' || effect.family === 'voidBlade') drawCoreSkillVfx(ctx, effect, progress);
     else if (effect.family === 'breath') drawBreathSkillVfx(ctx, effect, progress);
-    else if (effect.family === 'charge') drawConeSkillVfx(ctx, effect, progress);
+    else if (effect.family === 'charge') drawShieldChargeImpactVfx(ctx, effect, progress);
     else return false;
     return true;
 }

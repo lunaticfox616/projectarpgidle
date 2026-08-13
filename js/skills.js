@@ -856,8 +856,22 @@ function getGemBonusSources(target) {
     return { gear: gear, passive: passive, reward: reward, total: gear + passive + reward };
 }
 
+function hasEquippedShield() {
+    let shield = game.equipment && game.equipment['방패'];
+    return !!(shield && shield.slot === '방패');
+}
+
+function canUseSkillWithCurrentEquipment(name) {
+    let skill = SKILL_DB[name];
+    return !skill || !skill.requiresShield || hasEquippedShield();
+}
+
 function getActiveSkillStats(bonusLevel) {
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
+    if (!canUseSkillWithCurrentEquipment(game.activeSkill)) {
+        game.activeSkill = '기본 공격';
+        skill = SKILL_DB['기본 공격'];
+    }
     if (skill && Array.isArray(skill.tags) && skill.tags.includes('summon_attack')) {
         game.activeSkill = '기본 공격';
         skill = SKILL_DB['기본 공격'];
@@ -926,6 +940,8 @@ function getActiveSkillStats(bonusLevel) {
     if (projectilePatternMode) stats = applyProjectilePatternMode(stats, projectilePatternMode, '창공 각인');
     return stats;
 }
+
+safeExposeGlobals({ hasEquippedShield, canUseSkillWithCurrentEquipment });
 
 
 safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });

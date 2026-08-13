@@ -1424,6 +1424,33 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.getPlayerStats().baseDmg, unshieldedDamage, '방패 슬롯의 보조 무기는 방패 스킬 증폭을 활성화하면 안 된다');
   context.game.equipment['방패'] = null;
 
+  context.game.activeSkill = '방패 돌진';
+  context.game.skills = ['기본 공격', '방패 돌진'];
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('방패 돌진'), false, '방패돌진은 방패 없이 사용할 수 없어야 한다');
+  context.getActiveSkillStats(0);
+  assert.strictEqual(context.game.activeSkill, '기본 공격', '장착 중 방패가 사라지면 방패돌진 대신 기본 공격으로 복귀해야 한다');
+
+  context.game.equipment['방패'] = {
+    id: 9903, slot: '방패', name: '방어도 방패', rarity: 'rare', quality: 20,
+    baseStats: [{ id: 'armor', val: 100 }, { id: 'evasion', val: 500 }, { id: 'energyShield', val: 500 }],
+    stats: [{ id: 'armor', val: 50 }, { id: 'armorPct', val: 20 }]
+  };
+  context.game.activeSkill = '방패 돌진';
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('방패 돌진'), true, '실제 방패를 장착하면 방패돌진을 사용할 수 있어야 한다');
+  const armoredCharge = context.getPlayerStats();
+  const armoredChargeDamage = armoredCharge.baseDmg;
+  context.game.equipment['방패'].baseStats = [{ id: 'armor', val: 100 }];
+  assert.strictEqual(context.getPlayerStats().baseDmg, armoredChargeDamage, '방패의 회피와 에너지 보호막은 방패돌진 피해에 영향을 주면 안 된다');
+  context.game.equipment['갑옷'] = { id: 9904, slot: '갑옷', name: '전신 방어 갑옷', rarity: 'normal', baseStats: [{ id: 'armor', val: 10000 }], stats: [] };
+  assert.strictEqual(context.getPlayerStats().baseDmg, armoredChargeDamage, '다른 부위의 방어도는 방패돌진 피해에 영향을 주면 안 된다');
+  context.game.equipment['갑옷'] = null;
+  context.game.equipment['방패'].quality = 0;
+  context.game.equipment['방패'].stats = [];
+  const plainShieldChargeDamage = context.getPlayerStats().baseDmg;
+  assert.ok(plainShieldChargeDamage < armoredChargeDamage, '방패 품질과 방패 자체 방어도 옵션은 방패돌진 피해를 높여야 한다');
+  context.game.equipment['방패'].baseStats = [{ id: 'armor', val: 200 }];
+  assert.ok(context.getPlayerStats().baseDmg > plainShieldChargeDamage, '방패 자체 방어도가 높아지면 방패돌진 피해가 증가해야 한다');
+
   context.game.activeSkill = '집중 광선';
   context.game.skills = ['기본 공격', '집중 광선'];
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };

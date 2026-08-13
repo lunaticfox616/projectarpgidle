@@ -4778,13 +4778,14 @@ function renderAttackGemCard(name, highlightedName) {
     let isSummon = Array.isArray(def.tags) && def.tags.includes('summon_attack');
     let summonEquipped = isSummon && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name);
     let active = name === game.activeSkill || summonEquipped;
+    let equipmentReady = typeof canUseSkillWithCurrentEquipment !== 'function' || canUseSkillWithCurrentEquipment(name);
     let tutorialTarget = getStarterGemTutorialTarget() === name && !active;
-    let usageLabel = active ? '클릭하여 강화 · 각인' : '클릭하여 장착';
+    let usageLabel = !equipmentReady ? '방패 필요' : (active ? '클릭하여 강화 · 각인' : '클릭하여 장착');
     let summonControls = summonEquipped ? `<span class="summon-gem-controls"><button class="summon-gem-count-btn" title="소환 해제" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', -1)">−</button><span class="summon-gem-count">${getSummonSkillCount(name)}기</span><button class="summon-gem-count-btn" title="추가 소환" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', 1)">+</button></span>` : '';
     let sealButton = active || name === '기본 공격' ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
     let tutorialGuide = tutorialTarget ? '<div class="starter-gem-equip-guide">첫 스킬 젬 · 클릭하여 장착</div>' : '';
     let action = active ? `openEquippedGemManagement('${name}')` : `changeSkill('${name}')`;
-    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
+    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${!equipmentReady ? 'equipment-blocked' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}${!equipmentReady ? ', 방패 필요' : ''}" aria-disabled="${equipmentReady ? 'false' : 'true'}" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
         ${tutorialGuide}
         <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${escapeHTML(def.desc || '공격 스킬 젬')}</p>
@@ -5408,6 +5409,9 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
 
 function changeSkill(name) { if (!assertBuildEditable()) return;
     let def = SKILL_DB[name] || {};
+    if (typeof canUseSkillWithCurrentEquipment === 'function' && !canUseSkillWithCurrentEquipment(name)) {
+        return addLog(`[${name}]은(는) 방패를 장착해야 사용할 수 있습니다.`, 'attack-monster');
+    }
     if (def && Array.isArray(def.tags) && def.tags.includes('summon_attack')) {
         normalizeEquippedSummonAttackSkills();
         if (game.equippedSummonSkills.includes(name)) {
