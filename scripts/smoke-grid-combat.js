@@ -836,6 +836,16 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.activeSkill = '유성 낙화';
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '유성 낙화']));
   context.game.gemData['유성 낙화'] = { level: 1, exp: 0, quality: 0 };
+  assert.ok(context.SKILL_DB['유성 낙화'].tags.includes('spell'), '유성 낙화는 주문 태그를 가져야 한다');
+  assert.ok(!context.SKILL_DB['유성 낙화'].tags.includes('attack'), '유성 낙화에 공격 태그가 남으면 안 된다');
+  assert.ok(context.SKILL_DB['유성 낙화'].spellFlatBase > 0 && context.SKILL_DB['유성 낙화'].spellFlatScale > 0, '유성 낙화는 레벨에 따라 성장하는 주문 내장 피해를 가져야 한다');
+  context.game.equipment['무기'] = { id: 9940, slot: '무기', name: '시험용 무기', rarity: 'normal', baseStats: [{ id: 'flatDmg', val: 10 }], stats: [] };
+  const lowWeaponMeteorDamage = context.getPlayerStats().baseDmg;
+  context.game.equipment['무기'].baseStats[0].val = 10000;
+  assert.strictEqual(context.getPlayerStats().baseDmg, lowWeaponMeteorDamage, '무기 기본 피해가 유성 낙화 주문 피해를 올리면 안 된다');
+  context.game.equipment['무기'].stats = [{ id: 'spellFlatDmg', val: 20 }];
+  assert.ok(context.getPlayerStats().baseDmg > lowWeaponMeteorDamage, '주문 기본 피해 옵션은 유성 낙화 피해를 올려야 한다');
+  context.game.equipment['무기'] = null;
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const meteorTargets = [makeEnemy(600, 3, 6), makeEnemy(601, 3, 5)];
   meteorTargets.forEach(enemy => { enemy.hp = enemy.maxHp = 1000000; });
@@ -849,7 +859,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const meteorTravelFx = vm.runInContext("battleFx.filter(fx => fx.type === 'combatTravel' && fx.patternKind === 'meteor')", context);
   assert.strictEqual(meteorRows.length, 4, '실제 유성 공격은 충돌과 불길 지대 3회를 예약해야 한다');
   assert.strictEqual(meteorTravelFx.length, 1, '실제 유성 공격도 낙하 이펙트를 하나만 만들어야 한다');
-  assert.ok(meteorTravelFx[0].duration >= 2500, '유성 이펙트는 마지막 불길 타격까지 유지되어야 한다');
+  assert.ok(meteorTravelFx[0].duration >= meteorRows[3].at - meteorRows[0].launchAt, '유성 이펙트는 마지막 불길 타격까지 유지되어야 한다');
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.ok(meteorTargets.every(enemy => enemy.hp < enemy.maxHp), '단일 유성이 충돌 범위의 모든 선택 대상에게 피해를 줘야 한다');
   assert.ok(meteorTargets.every(enemy => (enemy.ailments || []).some(ailment => ailment.type === 'ignite')), '불길 지대에 남은 적은 점화되어야 한다');
