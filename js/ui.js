@@ -8761,19 +8761,27 @@ function clearUiEnemyTraitRotation(traitEl) {
     traitEl.__traitRotationTimer = null;
 }
 
-function scheduleUiEnemyTraitOverflow(traitEl, track) {
+function scheduleUiEnemyTraitOverflow(traitEl, track, content, signature) {
+    track.textContent = content;
+    traitEl.__traitOverflowPending = true;
+    if (typeof document !== 'undefined' && document.hidden) return;
+    let generation = Math.max(0, Math.floor(traitEl.__traitOverflowGeneration || 0)) + 1;
+    traitEl.__traitOverflowGeneration = generation;
     let measure = () => {
-        if (!traitEl.isConnected) return;
+        if (!traitEl.isConnected || traitEl.__traitOverflowGeneration !== generation || traitEl.__traitSignature !== signature) return;
+        if (typeof document !== 'undefined' && document.hidden) return;
+        track.textContent = content;
         let panelWidth = Math.max(0, traitEl.clientWidth);
         let singleWidth = Math.max(0, track.scrollWidth);
         let overflowing = singleWidth > panelWidth + 4;
         traitEl.classList.toggle('is-overflowing', overflowing);
-        if (!overflowing) return;
-        let content = track.textContent;
-        track.textContent = `${content}　·　${content}　·　`;
-        let loopDistance = Math.max(singleWidth, track.scrollWidth / 2);
-        track.style.setProperty('--trait-loop-x', `${-loopDistance}px`);
-        track.style.setProperty('--trait-duration', `${Math.max(8, Math.min(20, loopDistance / 20)).toFixed(2)}s`);
+        if (overflowing) {
+            track.textContent = `${content}　·　${content}　·　`;
+            let loopDistance = Math.max(singleWidth, track.scrollWidth / 2);
+            track.style.setProperty('--trait-loop-x', `${-loopDistance}px`);
+            track.style.setProperty('--trait-duration', `${Math.max(8, Math.min(20, loopDistance / 20)).toFixed(2)}s`);
+        }
+        traitEl.__traitOverflowPending = false;
     };
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(measure);
     else measure();
@@ -8792,13 +8800,21 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     if (!visible) {
         clearUiEnemyTraitRotation(traitEl);
         traitEl.__traitSignature = '';
+        traitEl.__traitOverflowPending = false;
+        traitEl.__traitOverflowGeneration = Math.max(0, Math.floor(traitEl.__traitOverflowGeneration || 0)) + 1;
         track.textContent = '';
         return;
     }
     let mobile = isBoss && typeof matchMedia === 'function' && matchMedia('(max-width: 1080px)').matches;
     let reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     let signature = `${isBoss ? 'boss' : 'elite'}|${mobile}|${reducedMotion}|${labels.join('\u001f')}`;
-    if (traitEl.__traitSignature === signature) return;
+    if (traitEl.__traitSignature === signature) {
+        if (traitEl.__traitOverflowPending && isBoss && (!mobile || reducedMotion || labels.length === 1)) {
+            if (typeof document !== 'undefined' && document.hidden) return;
+            scheduleUiEnemyTraitOverflow(traitEl, track, display.fullText, signature);
+        }
+        return;
+    }
     traitEl.__traitSignature = signature;
     clearUiEnemyTraitRotation(traitEl);
     traitEl.classList.remove('is-overflowing', 'is-rotating');
@@ -8809,8 +8825,7 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     }
     traitEl.setAttribute('tabindex', '0');
     if (!mobile || reducedMotion || labels.length === 1) {
-        track.textContent = display.fullText;
-        scheduleUiEnemyTraitOverflow(traitEl, track);
+        scheduleUiEnemyTraitOverflow(traitEl, track, display.fullText, signature);
         return;
     }
     let index = 0;

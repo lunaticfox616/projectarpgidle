@@ -492,10 +492,20 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     let impactCells = attacker && primary
         ? getGridAttackAreaCells(getSkillGridProfile(skillName, skill), attacker, primary) : [];
     if (pattern.kind === 'meteor') {
-        return [{
+        let groundHits = Math.max(1, Math.min(5, Math.floor(Number(pattern.groundHits) || 3)));
+        let groundIntervalMs = Math.max(160, Math.floor(Number(pattern.groundIntervalMs) || 600));
+        let groundDamageMultiplier = Math.max(0.01, Number(pattern.groundDamagePct) || 8) / 100;
+        let impact = {
             kind: 'meteorImpact', label: '유성 충돌', delayMs: 0,
             damageMultiplier: 1, impactCells, targets
-        }];
+        };
+        let ground = Array.from({ length: groundHits }, (_, idx) => ({
+            kind: 'meteorGroundTick', label: `불길 지대 ${idx + 1}회`,
+            delayMs: (idx + 1) * groundIntervalMs,
+            damageMultiplier: groundDamageMultiplier, singleRepeat: true,
+            primaryAilmentChance: idx === 0 ? 1 : undefined, impactCells, targets
+        }));
+        return [impact, ...ground];
     }
     if (pattern.kind === 'field') {
         let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
@@ -590,9 +600,13 @@ function buildSkillHitSequence(skillName, skill, targetEntries) {
 }
 
 function getSkillHitSequenceDpsMultiplier(skillName, skill) {
+    let pattern = skill && skill.combatPattern;
+    if (pattern && pattern.kind === 'meteor') {
+        let hits = Math.max(1, Math.min(5, Math.floor(Number(pattern.groundHits) || 3)));
+        return 1 + hits * Math.max(0.01, Number(pattern.groundDamagePct) || 8) / 100;
+    }
     let profile = getSkillHitSequenceProfile(skillName, skill || {});
     if (profile.kind === 'slam') return Math.max(0, 1 - profile.damageMultiplier) + profile.damageMultiplier;
-    let pattern = skill && skill.combatPattern;
     if (pattern && ['field', 'channel'].includes(pattern.kind)) {
         let hits = Math.max(1, Math.min(12, Math.floor(Number(pattern.hits) || 1)));
         return hits * Math.max(0.01, Number(pattern.damagePct) || 100) / 100;

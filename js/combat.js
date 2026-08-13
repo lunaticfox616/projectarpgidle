@@ -2654,7 +2654,7 @@ function getPendingSkillImpactTargets(row) {
 
 function addPendingSkillTravelFx(row, attackContext, now) {
     if (!row || row.delivery === 'instantTarget') return;
-    if (['field', 'channel'].includes(row.patternKind) && row.options.stageIndex > 0) return;
+    if (['field', 'channel', 'meteor'].includes(row.patternKind) && row.options.stageIndex > 0) return;
     let boomerangReturn = row.patternKind === 'boomerang' && row.options.stageKind === 'boomerangReturn';
     let visualTargetCells = row.targetCells;
     let visualTargetIds = row.targetEntries.map(entry => entry.enemyId);
@@ -2730,7 +2730,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
             channelId: Math.max(0, Math.floor(Number(attackContext.channelId) || 0)),
             fieldDurationMs: patternKind === 'channel' ? baseDelay + channelDurationMs + 120
-                : (patternKind === 'field' ? baseDelay + finalStageDelayMs + 320 : 0),
+                : (['field', 'meteor'].includes(patternKind) ? baseDelay + finalStageDelayMs + 320 : 0),
             options: {
                 stageReplay: true, skipSlamEcho: true, skillName: attackContext.skillName,
                 forcedCrit: !!attackContext.forcedCrit, forcedElement: attackContext.forcedElement,
@@ -2739,6 +2739,8 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
                 stageCount: attackContext.stageCount, chainFromEnemyId: stage.chainFromEnemyId || null,
                 stageRepeatOnce: !!stage.singleRepeat,
                 restrictRandomTargets: !!stage.singleRepeat,
+                primaryAilmentChance: Number.isFinite(Number(stage.primaryAilmentChance))
+                    ? Math.max(0, Math.min(1, Number(stage.primaryAilmentChance))) : undefined,
                 talentMoonReturn: attackContext.talentMoonReturn || null,
                 attackHitGuardCounts: attackContext.attackHitGuardCounts,
                 damageTextGroupId: attackContext.damageTextGroupId ? `${attackContext.damageTextGroupId}:${stageOffset}` : '',
@@ -6991,7 +6993,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
         } else enemy.ailments.push(payload);
         return true;
     }
-    applyAilmentType(primaryType);
+    applyAilmentType(primaryType, opts.primaryAilmentChance);
     if (ele === 'cold') applyAilmentType('freeze');
     Object.entries(opts.additionalAilmentChances || {}).forEach(([type, chance]) => {
         if (type !== primaryType) applyAilmentType(type, chance);
@@ -9675,6 +9677,7 @@ function performPlayerAttack(pStats, attackOptions) {
             applyEnemyAilmentFromHit(targetEnemy, ailmentStats, dmg, hitCrit, {
                 ailmentSourceDamage: Math.floor(ailmentDamageBeforeCritMitigation * conditionAilmentTakenMul),
                 critDotBonusPct: hitCrit ? 50 : 0,
+                primaryAilmentChance: options.primaryAilmentChance,
                 additionalAilmentChances: fenrirEffect ? { poison: ailmentStats.poisonChance / 100 } : null,
                 ailmentDamageMorePct: fenrirEffect ? { poison: fenrirEffect.poisonDamageMorePct } : null
             });
