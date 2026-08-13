@@ -100,6 +100,9 @@ context.openMapCompleteActionPicker({ preventDefault() { prevented++; }, stopPro
     assert(html.includes('<option value="nextZone">다음 지역</option>'));
     assert(html.includes('<option value="nextLoopBestPlusOne">최고층</option>'));
     assert(html.includes('<option value="stop">중단</option>'));
+    assert(html.includes('id="loop-completion-settings"'), '설정 화면에 루프 완료 후 행동을 모은 영역이 있어야 한다');
+    assert(html.includes('id="chk-loop-disable-item-automation"'), '루프 후 자동관리 해제 여부를 설정할 수 있어야 한다');
+    assert(html.includes('id="sel-loop-map-complete-action"'), '루프 후 전투 완료 행동을 설정할 수 있어야 한다');
     console.log('smoke-map-complete-action-picker passed');
 }).catch(error => {
     console.error(error);

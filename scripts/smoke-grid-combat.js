@@ -992,6 +992,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   // 루프(환생) 시 플라스크 발견/충전 리셋
   context.game.flasks.foundKeys = ['h1', 'h2', 'h3', 'granite1', 'quicksilver1'];
   context.game.season = 1;
+  context.game.settings.mapCompleteAction = 'nextZone';
+  context.game.settings.postLoopMapCompleteAction = 'nextLoopBestPlusOne';
   const beforeFound = context.game.flasks.foundKeys.length;
   // 루프 리셋이 부르는 UI/코스모스 경계 함수는 Node 하네스에 없으므로 무해한 스텁으로 대체
   ['grantCodexLegacyStarterUniques', 'renderCosmosAtlas', 'updateStaticUI', 'renderPassiveTree', 'checkUnlocks', 'renderSkills', 'renderInventory', 'renderEquipment', 'updateCombatUI', 'renderMapList', 'syncBattleTabLayout', 'renderTalentCards', 'closeRewardOverlay', 'renderFlaskPanel', 'updateCloudSaveUI', 'renderConditionGems', 'renderSupports', 'updateHeroSelectionUI', 'renderCoreCube'].forEach(name => {
@@ -1000,6 +1002,20 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.triggerSeasonReset();
   const afterFound = context.ensureFlaskFoundKeys();
   assert.ok(afterFound.length < beforeFound, '루프 시 발견한 플라스크가 기본 지급분으로 리셋되어야 한다');
+  assert.strictEqual(context.game.settings.mapCompleteAction, 'nextLoopBestPlusOne', '루프 후 전투 완료 행동은 기본적으로 최고층으로 변경되어야 한다');
+
+  resetGame();
+  context.game.season = 1;
+  context.game.settings.disableItemAutomationAfterLoop = false;
+  context.game.settings.postLoopMapCompleteAction = 'repeatZone';
+  context.game.settings.autoSalvageEnabled = true;
+  context.game.settings.jewelAutoSalvageEnabled = true;
+  context.game.settings.itemFilterEnabled = true;
+  context.triggerSeasonReset();
+  assert.strictEqual(context.game.settings.mapCompleteAction, 'repeatZone', '설정에서 고른 루프 후 전투 완료 행동을 적용해야 한다');
+  assert.strictEqual(context.game.settings.autoSalvageEnabled, true, '자동관리 해제를 끄면 장비 자동해체 설정을 유지해야 한다');
+  assert.strictEqual(context.game.settings.jewelAutoSalvageEnabled, true, '자동관리 해제를 끄면 주얼 자동해체 설정을 유지해야 한다');
+  assert.strictEqual(context.game.settings.itemFilterEnabled, true, '자동관리 해제를 끄면 아이템 필터 설정을 유지해야 한다');
 }
 
 // ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──

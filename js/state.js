@@ -2046,6 +2046,8 @@ const defaultGame = {
         jewelAutoSalvageEnabled: false,
         jewelAutoSalvageRarities: { normal: false, magic: false, rare: false, unique: false },
         mapCompleteAction: 'nextZone',
+        disableItemAutomationAfterLoop: true,
+        postLoopMapCompleteAction: 'nextLoopBestPlusOne',
         townReturnAction: 'retry',
         combatTargetPriority: 'nearest',
         combatPositionMode: 'auto',

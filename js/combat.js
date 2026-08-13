@@ -11168,9 +11168,12 @@ function triggerSeasonReset(options) {
     game.talismanUnseal = null;
     game.talismanUnlockPickMode = false;
     if (game.settings) {
-        game.settings.autoSalvageEnabled = false;
-        game.settings.jewelAutoSalvageEnabled = false;
-        game.settings.itemFilterEnabled = false;
+        if (game.settings.disableItemAutomationAfterLoop !== false) {
+            game.settings.autoSalvageEnabled = false;
+            game.settings.jewelAutoSalvageEnabled = false;
+            game.settings.itemFilterEnabled = false;
+        }
+        game.settings.mapCompleteAction = game.settings.postLoopMapCompleteAction || 'nextLoopBestPlusOne';
     }
     if (game.heroSelectionInitialized && game.unlocks) game.unlocks.char = true;
     game.loopDeepPoints = Math.max(loopDeepBeforeReset, loopDeepExpectedAfterSettle);
