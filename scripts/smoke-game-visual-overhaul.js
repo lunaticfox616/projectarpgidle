@@ -465,6 +465,9 @@ assert.strictEqual(projectileImageRouting.genericImages, 1, 'ordinary projectile
 assert.ok(projectileImageRouting.missingImageStrokes > 0, 'a missing dedicated projectile image should retain a visible procedural fallback');
 const optimizedAreaVfx = vm.runInContext(`(() => {
   const counts = { meteorImages: 0, meteorPaths: 0, blizzardGusts: 0, blizzardFlakes: 0, rainLines: 0, blizzardBounds: 0 };
+  battleAssets.images.skillFxMeteorProjectile = { complete: true, naturalWidth: 448 };
+  battleAssets.images.skillFxMeteorImpact = { complete: true, naturalWidth: 384 };
+  battleAssets.images.skillFxMeteorGround = { complete: true, naturalWidth: 448 };
   const ctx = {
     save() {}, restore() {}, translate() {}, rotate() {}, beginPath() { counts.meteorPaths++; }, stroke() {}, fill() {}, moveTo() {}, closePath() {},
     arc() { counts.blizzardFlakes++; }, bezierCurveTo() { counts.blizzardGusts++; },
@@ -475,11 +478,11 @@ const optimizedAreaVfx = vm.runInContext(`(() => {
   drawCombatCellFx(ctx, {
     start: 1000, duration: 2800, patternKind: 'meteor', skillName: '유성 낙화'
   }, 1230, 1460, targets, 'skillFxSlamPrimary', 'fire');
-  const meteorDescentPaths = counts.meteorPaths;
+  const meteorDescentImages = counts.meteorImages;
   drawCombatCellFx(ctx, {
     start: 1000, duration: 2800, patternKind: 'meteor', skillName: '유성 낙화'
   }, 1540, 1460, targets, 'skillFxSlamPrimary', 'fire');
-  const meteorImpactPaths = counts.meteorPaths - meteorDescentPaths;
+  const meteorImpactImages = counts.meteorImages - meteorDescentImages;
   const meteorArcs = counts.blizzardFlakes;
   const meteorLines = counts.rainLines;
   drawCombatCellFx(ctx, {
@@ -489,12 +492,11 @@ const optimizedAreaVfx = vm.runInContext(`(() => {
   queueSkillGemVfx({ id: 700, skillName: '난타 눈보라', stageKind: 'fieldTick', element: 'cold' },
     targets[0], { x: 20, y: 220 }, {}, 1230, 1);
   return { ...counts, rainLines: counts.rainLines - meteorLines,
-    meteorDescentPaths, meteorImpactPaths, meteorArcs,
+    meteorDescentImages, meteorImpactImages, meteorArcs,
     impactEffectCount: battleVisualState.skillEffects.length };
 })()`, context);
-assert.strictEqual(optimizedAreaVfx.meteorImages, 0, '유성 낙화는 큰 원형 강타 이미지를 재사용하면 안 된다');
-assert.ok(optimizedAreaVfx.meteorDescentPaths >= 4, '유성 낙화는 작은 유성 본체와 꼬리를 절차적으로 그려야 한다');
-assert.ok(optimizedAreaVfx.meteorImpactPaths >= 10, '충돌 순간에는 파편과 불길 지대가 함께 보여야 한다');
+assert.strictEqual(optimizedAreaVfx.meteorDescentImages, 1, '유성 낙화는 낙하 전용 이미지를 한 장만 그려야 한다');
+assert.strictEqual(optimizedAreaVfx.meteorImpactImages, 2, '충돌 뒤에는 충돌 이미지와 불길 지대만 한 장씩 그려야 한다');
 assert.strictEqual(optimizedAreaVfx.meteorArcs, 0, '유성 충돌에 원형 파동을 다시 그리면 안 된다');
 assert.strictEqual(optimizedAreaVfx.blizzardGusts, 6, '난타 눈보라는 범위를 가로지르는 굽은 돌풍을 여러 겹 그려야 한다');
 assert.strictEqual(optimizedAreaVfx.blizzardFlakes, 22, '난타 눈보라는 충분한 눈 입자를 옆으로 휘날려야 한다');
