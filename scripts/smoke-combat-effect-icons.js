@@ -283,6 +283,7 @@ function createTraitPanelFixture() {
 
 context.requestAnimationFrame = callback => callback();
 context.matchMedia = () => ({ matches: false });
+context.document = { hidden: false, activeElement: null };
 context.setInterval = callback => { context.__traitRotationCallback = callback; return 1; };
 context.clearInterval = () => {};
 const desktopTraits = createTraitPanelFixture();
@@ -296,6 +297,34 @@ assert(desktopTraits.classes.has('is-overflowing') && desktopTraits.properties['
 assert.strictEqual(desktopTraits.panel.title, undefined, 'boss traits must not retain the browser-native title tooltip');
 assert.strictEqual(desktopTraits.panel['data-enemy-trait-tooltip'], '전체 설명',
   'the complete boss explanation must be retained for the shared custom tooltip');
+
+const delayedFrames = [];
+context.requestAnimationFrame = callback => { delayedFrames.push(callback); return delayedFrames.length; };
+const delayedTraits = createTraitPanelFixture();
+const firstDelayedDisplay = context.getUiEnemyTraitDisplayText(['화염', '중갑 전개']);
+const latestDelayedDisplay = context.getUiEnemyTraitDisplayText(['냉기', '격앙', '연타 경감']);
+context.updateUiEnemyTraitPanel(delayedTraits.panel, ['화염', '중갑 전개'], firstDelayedDisplay, '첫 설명', true);
+context.updateUiEnemyTraitPanel(delayedTraits.panel, ['냉기', '격앙', '연타 경감'], latestDelayedDisplay, '최신 설명', true);
+delayedFrames.splice(0).forEach(callback => callback());
+assert.strictEqual(delayedTraits.track.textContent.split(latestDelayedDisplay.fullText).length - 1, 2,
+  'delayed marquee measurements must render only two copies of the latest trait text');
+assert(!delayedTraits.track.textContent.includes(firstDelayedDisplay.fullText),
+  'stale animation frames must not append old trait text after returning to the tab');
+
+context.document.hidden = true;
+const hiddenDisplay = context.getUiEnemyTraitDisplayText(['번개', '속공 전개']);
+context.updateUiEnemyTraitPanel(delayedTraits.panel, ['번개', '속공 전개'], hiddenDisplay, '숨김 설명', true);
+assert.strictEqual(delayedFrames.length, 0, 'hidden tabs must not accumulate marquee measurement frames');
+assert.strictEqual(delayedTraits.track.textContent, hiddenDisplay.fullText,
+  'hidden tabs must retain one bounded copy of the current trait text');
+context.document.hidden = false;
+context.updateUiEnemyTraitPanel(delayedTraits.panel, ['번개', '속공 전개'], hiddenDisplay, '숨김 설명', true);
+assert.strictEqual(delayedFrames.length, 1, 'the visible tab must schedule exactly one deferred marquee measurement');
+delayedFrames.shift()();
+assert.strictEqual(delayedTraits.track.textContent.split(hiddenDisplay.fullText).length - 1, 2,
+  'returning to the tab must rebuild one bounded two-copy ticker');
+
+context.requestAnimationFrame = callback => callback();
 context.showEnemyTraitTooltip({ currentTarget: desktopTraits.panel, clientX: 12, clientY: 34 });
 assert(context.__enemyTraitTooltip.html.includes('보스 특성') && context.__enemyTraitTooltip.html.includes('전체 설명'),
   'boss traits must render through the existing custom info tooltip');
