@@ -63,6 +63,8 @@ assert.strictEqual(regular.improvingTier, true, 'normal support gems should stil
 assert.strictEqual(regular.nextTier, 2);
 context.processSupportGemWithSkyEssence('일반 보조');
 assert.strictEqual(context.game.supportGemData['일반 보조'].unlockedTier, 2);
+assert.strictEqual(context.game.supportGemData['일반 보조'].activeTier, 1,
+  'processing may unlock a higher tier but must not auto-apply its higher resonance cost');
 assert.strictEqual(context.game.supportGemData['일반 보조'].level, 5);
 assert.strictEqual(context.game.currencies.skyEssence, 15);
 

@@ -1398,7 +1398,7 @@ const MOD_DB = [
 
 const FOSSIL_DB = [
     { key: 'fossilJagged', name: '톱니 화석', desc: '카오스 재련 + 물리/근접 계열 옵션 1개 확정', guaranteedStats: ['physPctDmg', 'meleePctDmg', 'flatDmg', 'physIgnore'] },
-    { key: 'fossilBound', name: '속박 화석', desc: '카오스 재련 + 생명/방어 계열 옵션 1개 확정', guaranteedStats: ['flatHp', 'pctHp', 'dr'] },
+    { key: 'fossilBound', name: '속박 화석', desc: '카오스 재련 + 생명/방어 계열 옵션 1개 확정', guaranteedStats: ['flatHp', 'pctHp', 'dr', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct'] },
     { key: 'fossilGale', name: '돌풍 화석', desc: '카오스 재련 + 속도/치명 계열 옵션 1개 확정', guaranteedStats: ['aspd', 'crit', 'move'] },
     { key: 'fossilPrismatic', name: '프리즘 화석', desc: '카오스 재련 + 저항/원소 계열 옵션 1개 확정', guaranteedStats: ['resAll', 'resF', 'resC', 'resL', 'elementalPctDmg', 'resPen'] },
     { key: 'fossilAbyssal', name: '심연 화석', desc: '카오스 재련 + 카오스/흡혈/재생 계열 옵션 1개 확정', guaranteedStats: ['chaosPctDmg', 'leech', 'regen'] },
