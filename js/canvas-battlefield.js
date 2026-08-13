@@ -96,6 +96,9 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     chainJump: 'skillFxChainJump',
     slamPrimary: 'skillFxSlamPrimary',
     slamAftershock: 'skillFxSlamAftershock',
+    meteorProjectile: 'skillFxMeteorProjectile',
+    meteorImpact: 'skillFxMeteorImpact',
+    meteorGround: 'skillFxMeteorGround',
     slash: 'skillFxSlash',
     projectile: 'skillFxProjectile',
     venomFang: 'skillFxVenomFang',
@@ -663,14 +666,20 @@ function drawElementalCombatFx(ctx, profile, element, targets, progress) {
 }
 
 function drawMeteorDescent(ctx, bounds, progress) {
-    let eased = progress * progress;
-    let x = bounds.x - (1 - eased) * 78;
-    let y = bounds.y - (1 - eased) * 188;
+    let eased = progress * progress * progress;
+    let x = bounds.x - (1 - eased) * 54;
+    let y = bounds.y - (1 - eased) * 120;
+    let image = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.meteorProjectile);
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(Math.atan2(188, 78));
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.36 + progress * 0.58;
+    ctx.rotate(Math.atan2(120, 54));
+    ctx.globalCompositeOperation = image ? 'screen' : 'source-over';
+    ctx.globalAlpha = 0.72 + progress * 0.24;
+    if (image) {
+        ctx.drawImage(image, -104, -28, 128, 34);
+        ctx.restore();
+        return;
+    }
     ctx.fillStyle = '#8f1d0b';
     ctx.beginPath(); ctx.moveTo(-92, -5); ctx.lineTo(-18, -15); ctx.lineTo(5, 0);
     ctx.lineTo(-22, 15); ctx.closePath(); ctx.fill();
@@ -687,9 +696,18 @@ function drawMeteorDescent(ctx, bounds, progress) {
 
 function drawMeteorBurningGround(ctx, bounds, now, endAt) {
     let fade = clampNumber((endAt - now) / 380, 0, 1);
-    let width = Math.max(92, bounds.maxX - bounds.minX + 68);
-    let height = Math.max(48, bounds.maxY - bounds.minY + 34);
+    let image = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.meteorGround);
+    let spanX = bounds.maxX - bounds.minX;
+    let spanY = bounds.maxY - bounds.minY;
+    let width = clampNumber(Math.max(spanX + 82, (spanY + 48) * 2.2), 150, 330);
+    let height = width * 173 / 448;
     ctx.save(); ctx.translate(bounds.x, bounds.y); ctx.globalCompositeOperation = 'screen';
+    if (image) {
+        ctx.globalAlpha = fade * (0.58 + Math.sin(now / 130) * 0.04);
+        ctx.drawImage(image, -width / 2, -height / 2 + 8, width, height);
+        ctx.restore();
+        return;
+    }
     ctx.globalAlpha = 0.16 * fade; ctx.fillStyle = '#7a1508';
     ctx.beginPath(); ctx.moveTo(-width * 0.5, 2); ctx.lineTo(-width * 0.26, -height * 0.42);
     ctx.lineTo(width * 0.18, -height * 0.35); ctx.lineTo(width * 0.5, 4);
@@ -710,8 +728,18 @@ function drawMeteorBurningGround(ctx, bounds, now, endAt) {
 function drawMeteorImpact(ctx, bounds, now, arriveAt) {
     let burst = clampNumber((now - arriveAt) / 220, 0, 1);
     if (burst >= 1) return;
+    let image = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.meteorImpact);
+    let span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+    let width = clampNumber(154 + span * 0.28, 154, 224) * (0.78 + burst * 0.22);
+    let height = width * 281 / 384;
     ctx.save(); ctx.translate(bounds.x, bounds.y); ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 1 - burst; ctx.fillStyle = '#ffd27a';
+    ctx.globalAlpha = Math.pow(1 - burst, 0.72);
+    if (image) {
+        ctx.drawImage(image, -width / 2, -height * 0.68, width, height);
+        ctx.restore();
+        return;
+    }
+    ctx.fillStyle = '#ffd27a';
     for (let shard = 0; shard < 8; shard++) {
         let angle = -2.75 + shard * 0.7;
         let inner = 10 + burst * 18;
