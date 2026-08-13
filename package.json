@@ -5,7 +5,8 @@
   "description": "브라우저 방치형 ARPG. 번들러 없이 index.html의 <script> 순서로 로드된다.",
   "scripts": {
     "test": "node scripts/run-smoke.js",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "pr:check": "node scripts/check-pr-state.js"
   },
   "engines": {
     "node": ">=20"
