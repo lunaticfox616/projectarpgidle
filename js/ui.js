@@ -6935,10 +6935,16 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
         let flat = { armor: 0, evasion: 0, energyShield: 0 };
         let pct = { armor: 0, evasion: 0, energyShield: 0 };
         (target.baseStats || []).forEach(stat => { if (base[stat.id] !== undefined) base[stat.id] += Number(stat.val || 0); });
-        let explicitForDefense = (target.stats || []).slice();
-        if (target.chaosInfusion) explicitForDefense.push(target.chaosInfusion);
-        // 복합 옵션(한 줄에 두 스탯)의 추가 스탯도 방어 계산에 포함한다.
-        (target.stats || []).forEach(stat => { if (stat && Array.isArray(stat.extraStats)) explicitForDefense.push(...stat.extraStats); });
+        let explicitSources = (target.stats || []).slice();
+        if (target.chaosInfusion) explicitSources.push(target.chaosInfusion);
+        if (typeof getImmutableItemSpecialStats === 'function') explicitSources.push(...getImmutableItemSpecialStats(target));
+        let explicitForDefense = [];
+        // 잠식 특수 옵션과 복합 옵션도 실제 전투 계산과 같은 방식으로 베이스 방어 수치에 반영한다.
+        explicitSources.forEach(stat => {
+            if (!stat) return;
+            explicitForDefense.push(stat);
+            if (Array.isArray(stat.extraStats)) explicitForDefense.push(...stat.extraStats);
+        });
         explicitForDefense.forEach(stat => {
             if (flat[stat.id] !== undefined) flat[stat.id] += Number(stat.val || 0);
             if (stat.id === 'armorPct') pct.armor += Number(stat.val || 0);
@@ -10309,7 +10315,7 @@ function getCraftOrbUseState(key, item) {
     if (!item) return { enabled: false, reason: '아이템 미선택' };
     if ((game.currencies[key] || 0) <= 0) return { enabled: false, reason: '재화 부족' };
     let actionKey = key;
-    if (key === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'augment';
+    if (key === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'alteration';
     if (key === 'sapBud') actionKey = item.rarity === 'magic' ? 'regal' : 'exalted';
     if (key === 'formlessDew') actionKey = item.rarity === 'normal' ? 'alchemy' : 'chaos';
     if (key === 'goldenRule') actionKey = 'divine';
@@ -10322,6 +10328,7 @@ function getCraftOrbUseState(key, item) {
     let ok = false;
     if (actionKey === 'transmute') ok = item.rarity === 'normal';
     else if (actionKey === 'augment') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 2;
+    else if (actionKey === 'alteration') ok = item.rarity === 'magic';
     else if (actionKey === 'alchemy') ok = item.rarity === 'normal';
     else if (actionKey === 'exalted') ok = item.rarity === 'rare' && getItemExplicitOptionCount(item) < 6;
     else if (actionKey === 'regal') ok = item.rarity === 'magic' && getItemExplicitOptionCount(item) < 6;

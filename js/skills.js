@@ -451,8 +451,7 @@ function processSupportGemWithSkyEssence(name) {
     game.currencies.skyEssence -= need;
     if (improvingTier) {
         rec.unlockedTier = Math.min(processState.tierCap, Math.floor(rec.unlockedTier || 1) + 1);
-        rec.activeTier = Math.max(Math.floor(rec.activeTier || 1), rec.unlockedTier);
-        addLog(`☁️ 보조 젬 [${name}] 창공 가공 완료: ${rec.unlockedTier === 3 ? '상급' : '중급'} 해금 (소모 ${need})`, 'loot-unique');
+        addLog(`☁️ 보조 젬 [${name}] 창공 가공 완료: ${rec.unlockedTier === 3 ? '상급' : '중급'} 해금 · 적용 등급은 현재 설정 유지 (소모 ${need})`, 'loot-unique');
     } else {
         rec.level = Math.min(30, Math.floor(rec.level || 1) + 1);
         addLog(`☁️ 보조 젬 [${name}] 숙련 가공 완료: Lv.${rec.level} (소모 ${need})`, 'loot-unique');
@@ -540,9 +539,13 @@ function applyFossilChaosCraft(fossilKey) {
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (item.corrupted) return addLog('타락한 아이템은 제작할 수 없습니다.', 'attack-monster');
     let immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
+    let lockedStats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
+    let rerollCandidate = { ...item, stats: lockedStats, chaosInfusion: null };
     // guaranteedStats는 실제 스탯 id(예: maxResF)로 적혀 있으므로 모드의 statId(없으면 id)로 비교해야 한다.
     // 방패 화석의 최대 저항 모드는 id가 'shieldMaxResF'이고 statId가 'maxResF'라서, mod.id로 비교하면 방패에서도 매칭되지 않던 버그가 있었다.
-    let guaranteedPool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && fossil.guaranteedStats.includes(mod.statId || mod.id) && !immutableIds.has(mod.statId || mod.id));
+    // 전체 재련에서는 사라질 기존 옵션을 후보 점유로 세지 않는다. 잠긴 옵션과 고유 고정 옵션만 유지한다.
+    let guaranteedPool = getAvailableMods(rerollCandidate)
+        .filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id));
     // 🛡️ 방패 화석의 최대 저항(최대 화염/냉기/번개) 확정 옵션은 원래 방패 전용 모드라 다른 방어구에는 슬롯상 매칭되지 않는다.
     // 방패뿐 아니라 모든 방어구(투구/갑옷/장갑/신발/방패)에 부여할 수 있도록 슬롯 제한을 완화한다.
     let ARMOR_DEFENSE_SLOTS = new Set(['투구', '갑옷', '장갑', '신발', '방패']);
@@ -551,6 +554,8 @@ function applyFossilChaosCraft(fossilKey) {
     }
     let specialFossil = ['fossilOld', 'fossilRift'].includes(fossilKey);
     if (!specialFossil && guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
+    let fossilExclusivePool = fossilKey === 'fossilOld' ? getFossilExclusivePool(rerollCandidate) : null;
+    if (fossilExclusivePool && fossilExclusivePool.length <= 0) return addLog('화석 전용 옵션을 부여할 수 없습니다.', 'attack-monster');
 
     let tierRange = typeof getCraftTierRangeForItem === 'function' ? getCraftTierRangeForItem(item, 'fossil') : { min: 1, max: getItemCraftTier(item) };
     let maxTier = tierRange.max;
@@ -561,16 +566,6 @@ function applyFossilChaosCraft(fossilKey) {
     let guaranteedMinTier = Math.max(tierRange.min || 1, hiddenTier >= 11 ? tierRange.min : hiddenTier - 3);
     let guaranteedMaxTier = Math.max(guaranteedMinTier, hiddenTier);
     let guaranteed = specialFossil ? null : pickWeightedMod(guaranteedPool);
-    let bypassDefenseTypeRule = item && (item.rarity === 'unique' || !new Set(['투구', '갑옷', '장갑', '신발', '방패']).has(item.slot));
-    let baseDefenseTypes = getItemBaseDefenseTypes(item);
-    function canUseDefenseStat(statId) {
-        statId = String(statId || '');
-        if (bypassDefenseTypeRule) return true;
-        if (statId === 'deflectChance') return baseDefenseTypes.size <= 0 || baseDefenseTypes.has('evasion');
-        return isDefenseTypeStatAllowed(item, statId);
-    }
-
-    let lockedStats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
     let newStats = lockedStats.slice();
     let blockedIds = new Set([...immutableIds, ...newStats.map(stat => stat.id)]);
     if (guaranteed) {
@@ -580,9 +575,7 @@ function applyFossilChaosCraft(fossilKey) {
             blockedIds.add(guaranteedRoll.id);
         }
     } else if (fossilKey === 'fossilOld') {
-        let pool = getFossilExclusivePool(item);
-        if (pool.length <= 0) return addLog('화석 전용 옵션을 부여할 수 없습니다.', 'attack-monster');
-        let row = rndChoice(pool);
+        let row = rndChoice(fossilExclusivePool);
         let fixedVal = Number.isFinite(Number(row.fixedVal)) ? Number(row.fixedVal) : Number((row.base + Math.max(0, hiddenTier - 1) * row.step).toFixed(2));
         let rolled = Number(fixedVal.toFixed(2));
         newStats.push({ id: row.id, statName: row.statName, val: rolled, valMin: rolled, valMax: rolled, fossilExclusive: true });
@@ -590,7 +583,8 @@ function applyFossilChaosCraft(fossilKey) {
 
     let count = 4 + Math.floor(Math.random() * 2);
     while ((newStats.length + reservedInfusionCount) < Math.min(6, Math.max(count, lockedStats.length + 1))) {
-        let pool = MOD_DB.filter(mod => mod.slots.includes(item.slot) && !blockedIds.has(mod.statId || mod.id) && canUseDefenseStat(mod.statId || mod.id));
+        let pool = getAvailableMods({ ...item, stats: newStats, chaosInfusion: previousChaosInfusion })
+            .filter(mod => !blockedIds.has(mod.statId || mod.id));
         if (pool.length === 0) break;
         // 화석이 보정하는 보장 옵션만 고티어 보정을 받고, 나머지 옵션은 일반 티어 분포(1티어부터)로 굴린다.
         let roll = rollAffixValue(pickWeightedMod(pool), maxTier);
