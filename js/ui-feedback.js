@@ -21,7 +21,7 @@
         root = document.createElement('div');
         root.id = 'game-feedback-root';
         root.innerHTML = `
-            <div id="game-dialog-overlay" class="game-dialog-overlay" aria-hidden="true">
+            <div id="game-dialog-overlay" class="game-dialog-overlay" aria-hidden="true" inert>
                 <section id="game-dialog-card" class="game-dialog-card" role="dialog" aria-modal="true" aria-labelledby="game-dialog-title">
                     <div class="game-dialog-kicker" id="game-dialog-kicker"></div>
                     <h2 class="game-dialog-title" id="game-dialog-title"></h2>
@@ -141,6 +141,7 @@
         confirm.style.display = activeDialog.type === 'choice' && activeDialog.submitOnChoice ? 'none' : '';
         control.innerHTML = buildDialogControl(activeDialog);
         bindDialogControl(activeDialog, control);
+        overlay.inert = false;
         overlay.classList.add('active');
         overlay.setAttribute('aria-hidden', 'false');
         document.body.classList.add('game-dialog-open');
@@ -249,13 +250,17 @@
         let finished = activeDialog;
         activeDialog = null;
         let overlay = document.getElementById('game-dialog-overlay');
+        let focused = document.activeElement;
+        let restoreTarget = previousFocus && previousFocus.focus && !overlay.contains(previousFocus) ? previousFocus : null;
+        if (restoreTarget) restoreTarget.focus({ preventScroll: true });
+        else if (focused && overlay.contains(focused) && focused.blur) focused.blur();
+        previousFocus = null;
+        overlay.inert = true;
         overlay.classList.remove('active');
         overlay.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('game-dialog-open');
         playUiFeedbackSound(confirmed ? 'confirm' : 'cancel');
         finished.resolve(confirmed ? value : null);
-        if (previousFocus && previousFocus.focus) previousFocus.focus({ preventScroll: true });
-        previousFocus = null;
         requestAnimationFrame(showNextDialog);
     }
 

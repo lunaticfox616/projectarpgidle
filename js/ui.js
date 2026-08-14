@@ -15,6 +15,10 @@ let passiveTreeFilter = 'all';
 let cachedTooltipStats = null;
 let battleSkillVisualCache = { key: '', value: null };
 let gemTooltipCache = null;
+let activeInfoTooltipToken = null;
+let tooltipPositionFrame = null;
+let pendingTooltipPositions = new Map();
+let tooltipSizeCache = new WeakMap();
 let mapZoneGroupCollapseState = { hunting: false, chaos: false };
 
 let mobilePipCanvas = null;
@@ -991,9 +995,9 @@ function getUiConditionGemStatDelta(name, type) {
     return provider ? (callUiProvider('getConditionGemStatDelta', provider, [name, type]) || {}) : {};
 }
 
-function getUiGemPresentation(name, isSupport) {
+function getUiGemPresentation(name, isSupport, stats) {
     let provider = getUiGlobalFunction('getGemPresentation');
-    if (provider) return callUiProvider('getGemPresentation', provider, [name, isSupport]) || {};
+    if (provider) return callUiProvider('getGemPresentation', provider, [name, isSupport, stats]) || {};
     let db = isSupport ? (SUPPORT_GEM_DB[name] || {}) : (SKILL_DB[name] || {});
     let store = isSupport ? (game.supportGemData || {}) : (game.gemData || {});
     let level = Math.max(1, Math.floor(((store[name] || {}).level) || 1));
@@ -4807,9 +4811,9 @@ function renderGemTagChips(def, maxTags) {
     }).join('');
 }
 
-function renderAttackGemCard(name, highlightedName) {
+function renderAttackGemCard(name, highlightedName, stats) {
     let def = SKILL_DB[name] || {};
-    let gemInfo = getUiGemPresentation(name, false);
+    let gemInfo = getUiGemPresentation(name, false, stats);
     let meta = getGemCardMeta(def);
     let rangeText = typeof describeSkillGridProfile === 'function' ? describeSkillGridProfile(name, gemInfo.skill || def) : '';
     let isSummon = Array.isArray(def.tags) && def.tags.includes('summon_attack');
@@ -4822,7 +4826,7 @@ function renderAttackGemCard(name, highlightedName) {
     let sealButton = active || name === '기본 공격' ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
     let tutorialGuide = tutorialTarget ? '<div class="starter-gem-equip-guide">첫 스킬 젬 · 클릭하여 장착</div>' : '';
     let action = active ? `openEquippedGemManagement('${name}')` : `changeSkill('${name}')`;
-    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${!equipmentReady ? 'equipment-blocked' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}${!equipmentReady ? ', 방패 필요' : ''}" aria-disabled="${equipmentReady ? 'false' : 'true'}" onmouseenter="showGemTooltip(event,'active','${name}')" onmousemove="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
+    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${!equipmentReady ? 'equipment-blocked' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}${!equipmentReady ? ', 방패 필요' : ''}" aria-disabled="${equipmentReady ? 'false' : 'true'}" onmouseenter="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
         ${tutorialGuide}
         <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${escapeHTML(def.desc || '공격 스킬 젬')}</p>
@@ -4832,9 +4836,9 @@ function renderAttackGemCard(name, highlightedName) {
     </article>`;
 }
 
-function renderSupportGemCard(name, highlightedName) {
+function renderSupportGemCard(name, highlightedName, stats) {
     let def = SUPPORT_GEM_DB[name] || {};
-    let gemInfo = getUiGemPresentation(name, true);
+    let gemInfo = getUiGemPresentation(name, true, stats);
     let active = Array.isArray(game.equippedSupports) && game.equippedSupports.includes(name);
     let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3;
     let unlockedTier = Math.max(1, Math.min(tierCap, Math.floor((((game.supportGemData || {})[name]) || {}).unlockedTier || 1)));
@@ -4842,10 +4846,10 @@ function renderSupportGemCard(name, highlightedName) {
     let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, activeTier) : (activeTier === 3 ? '상급' : activeTier === 2 ? '중급' : '하급');
     let cost = getSupportTierResonanceCost(name);
     let used = (game.equippedSupports || []).reduce((sum, supportName) => sum + getSupportTierResonanceCost(supportName), 0);
-    let remaining = Math.max(0, getEffectiveResonanceCap() - used - (active ? 0 : cost));
+    let remaining = Math.max(0, getEffectiveResonanceCap(stats) - used - (active ? 0 : cost));
     let tierButtons = tierCap <= 1 ? '' : [1, 2, 3].map(tier => `<button class="${tier === activeTier ? 'active' : ''}" title="${tier <= unlockedTier ? `${tier}등급 사용` : '미해금 등급'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${tier})" ${tier <= unlockedTier ? '' : 'disabled'}>${tier}</button>`).join('');
     let sealButton = active ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSupportGem('${name}')">봉인</button>`;
-    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''}" role="group" tabindex="0" onclick="toggleSupport('${name}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();toggleSupport('${name}');}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}" onmouseenter="showGemTooltip(event,'support','${name}')" onmousemove="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()">
+    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''}" role="group" tabindex="0" onclick="toggleSupport('${name}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();toggleSupport('${name}');}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}" onmouseenter="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()">
         <div class="gem-card-head"><span class="gem-card-sigil">✚</span><div><small>${tierLabel} 보조 · 공명 ${cost}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${escapeHTML(def.desc || '보조 젬 효과')}</p>
         <div class="gem-card-tags"><span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || ''))}</span><span class="gem-tag gem-tag--resonance">${active ? `장착 중 · 공명 ${cost}` : `장착 후 공명 ${remaining}`}</span></div>
@@ -4863,7 +4867,7 @@ function renderSkillLoadoutSummary(pStats, resonanceCap) {
     let root = document.getElementById('ui-skill-loadout-summary');
     if (!root) return;
     let activeName = game.activeSkill || '기본 공격';
-    let activeInfo = getUiGemPresentation(activeName, false);
+    let activeInfo = getUiGemPresentation(activeName, false, pStats);
     let usedResonance = (game.equippedSupports || []).reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
     let summonCount = getEquippedSummonCount();
     let summonCap = getSummonEquipCapFromStats(pStats);
@@ -4941,10 +4945,10 @@ function getGemGrowthSummaryHtml(name, presentation) {
     return `<div class="gem-growth-breakdown">${parts.join('')}</div>${combatParts.length > 0 ? `<div class="gem-growth-output">${escapeHTML(combatParts.join(' · '))}</div>` : ''}`;
 }
 
-function renderGemEnhanceTargetCard(name, selected) {
+function renderGemEnhanceTargetCard(name, selected, stats) {
     let def = SKILL_DB[name] || {};
     let rec = normalizeGemRecord((game.gemData || {})[name]);
-    let info = getUiGemPresentation(name, false);
+    let info = getUiGemPresentation(name, false, stats);
     let meta = getGemCardMeta(def);
     let enhanceCount = getSkyEnhancementForSkill(name).length;
     return `<button class="gem-target-card element-${meta.className} ${selected ? 'selected' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')">${renderSkillGemArt(name, 'gem-target-icon')}<span><strong>${escapeHTML(name)}</strong><small>Lv.${info.totalLevel} · 퀄리티 ${rec.quality || 0}% · 각인 ${enhanceCount}/${rec.skyEnhanceCap || 1}</small></span>${selected ? '<b>선택</b>' : ''}</button>`;
@@ -5488,10 +5492,10 @@ function getSupportResonanceCost(name) {
     return 1;
 }
 
-function getEffectiveResonanceCap() {
+function getEffectiveResonanceCap(statsOverride) {
     let base = Math.max(0, Math.floor(game.resonancePower || 0));
     let runeBonus = 0;
-    let stats = getUiPlayerStats(null);
+    let stats = statsOverride || getUiPlayerStats(null);
     if (stats) {
         runeBonus = Math.max(0, Math.floor((stats && stats.runeResonancePower) || 0));
         let tempFloor = Math.max(0, Math.floor((stats && stats.uniqueResonanceFloor) || 0));
@@ -6108,6 +6112,8 @@ function syncMapCompleteActionQuickControl() {
     if (!show) return;
     let option = getMapCompleteActionOption((game.settings || {}).mapCompleteAction);
     button.textContent = `전투 완료: ${option.label}`;
+    button.dataset.mobileLabel = option.label;
+    button.setAttribute('aria-label', `전투 완료 후 행동: ${option.label}`);
     button.title = `현재: ${option.label} · ${option.detail}`;
 }
 
@@ -6235,35 +6241,70 @@ function updateSettings() {
     updateStaticUI();
 }
 
-function positionTooltipElement(el, x, y) {
-    if (!el) return;
-    el.style.left = '0px';
-    el.style.top = '0px';
-    let rect = el.getBoundingClientRect();
+function applyTooltipPosition(el, x, y) {
+    if (!el || el.style.display === 'none') return;
+    if (el.style.left !== '0px' || el.style.top !== '0px') {
+        el.style.left = '0px';
+        el.style.top = '0px';
+    }
+    let size = tooltipSizeCache.get(el);
+    if (!size) {
+        let rect = el.getBoundingClientRect();
+        size = { width: rect.width, height: rect.height };
+        tooltipSizeCache.set(el, size);
+    }
     let left = x + 18;
     let top = y + 18;
-    if (left + rect.width > window.innerWidth - 10) left = x - rect.width - 18;
-    if (top + rect.height > window.innerHeight - 10) top = y - rect.height - 18;
-    left = clampNumber(left, 8, Math.max(8, window.innerWidth - rect.width - 8));
-    top = clampNumber(top, 8, Math.max(8, window.innerHeight - rect.height - 8));
-    el.style.left = left + 'px';
-    el.style.top = top + 'px';
+    if (left + size.width > window.innerWidth - 10) left = x - size.width - 18;
+    if (top + size.height > window.innerHeight - 10) top = y - size.height - 18;
+    left = clampNumber(left, 8, Math.max(8, window.innerWidth - size.width - 8));
+    top = clampNumber(top, 8, Math.max(8, window.innerHeight - size.height - 8));
+    el.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
+}
+
+function flushTooltipPositions() {
+    tooltipPositionFrame = null;
+    let positions = Array.from(pendingTooltipPositions.entries());
+    pendingTooltipPositions.clear();
+    positions.forEach(([el, point]) => applyTooltipPosition(el, point.x, point.y));
+}
+
+function positionTooltipElement(el, x, y) {
+    if (!el) return;
+    pendingTooltipPositions.set(el, { x: Number(x) || 0, y: Number(y) || 0 });
+    if (tooltipPositionFrame !== null) return;
+    tooltipPositionFrame = requestAnimationFrame(flushTooltipPositions);
+}
+
+function invalidateTooltipSize(el) {
+    if (!el) return;
+    tooltipSizeCache.delete(el);
+}
+
+function reuseInfoTooltip(event, token) {
+    let tt = document.getElementById('info-tooltip');
+    if (!token || activeInfoTooltipToken !== token || !tt || tt.style.display !== 'block' || !tt.innerHTML) return false;
+    positionTooltipElement(tt, event.clientX, event.clientY);
+    return true;
 }
 function setActiveTooltip(id) {
     if (typeof activeTooltipId === 'undefined') activeTooltipId = null;
     activeTooltipId = id;
-    let el = document.getElementById(id);
-    if (el && el.style.display !== 'none') positionTooltipElement(el, mouseX, mouseY);
 }
 function clearActiveTooltip(id) {
     if (typeof activeTooltipId === 'undefined') return;
     if (activeTooltipId === id) activeTooltipId = null;
 }
 
-function showInfoTooltipHtml(x, y, html, borderColor) {
+function showInfoTooltipHtml(x, y, html, borderColor, contentToken) {
     let tt = document.getElementById('info-tooltip');
-    tt.classList.remove('item-compare-tooltip');
-    tt.innerHTML = html;
+    let hadComparison = tt.classList.contains('item-compare-tooltip');
+    if (hadComparison) tt.classList.remove('item-compare-tooltip');
+    if (tt.innerHTML !== html || hadComparison) {
+        tt.innerHTML = html;
+        invalidateTooltipSize(tt);
+    }
+    activeInfoTooltipToken = contentToken || null;
     tt.style.borderColor = borderColor || '#777';
     tt.style.display = 'block';
     positionTooltipElement(tt, x, y);
@@ -6271,6 +6312,7 @@ function showInfoTooltipHtml(x, y, html, borderColor) {
 }
 function hideInfoTooltip() {
     clearActiveTooltip('info-tooltip');
+    activeInfoTooltipToken = null;
     document.getElementById('info-tooltip').style.display = 'none';
 }
 function showSporeCraftTooltip(event, kind) {
@@ -6288,6 +6330,10 @@ document.addEventListener('mousemove', function(evt) {
     if (!anchor && evt.target && evt.target.closest) anchor = evt.target.closest('.tip, .skill-gem, .support-gem, .item-card, .currency-card, .condition-gem-card');
     let overTooltip = evt.target && evt.target.closest ? evt.target.closest('#info-tooltip') : null;
     if (!anchor && !overTooltip) hideInfoTooltip();
+    else positionTooltipElement(tt, evt.clientX, evt.clientY);
+});
+window.addEventListener('resize', function() {
+    tooltipSizeCache = new WeakMap();
 });
 let activeTalismanHoverId = null;
 function setTalismanHoverGroup(talismanId) {
@@ -6676,9 +6722,14 @@ function showEnemyAilmentTooltip(event, payload) {
 }
 
 function showGemTooltip(event, type, name) {
-    let info = getUiGemPresentation(name, type === 'support');
-    let stats = getUiPlayerStats();
-    let cacheKey = `${type || 'active'}:${name}:${info && (info.totalLevel || info.finalLevel || info.baseLevel || 1)}`;
+    let cacheKey = `${type || 'active'}:${name}`;
+    if (reuseInfoTooltip(event, cacheKey)) return;
+    let stats = cachedTooltipStats || getUiPlayerStats();
+    if (gemTooltipCache && gemTooltipCache.key === cacheKey && gemTooltipCache.stats === stats) {
+        showInfoTooltipHtml(event.clientX, event.clientY, gemTooltipCache.html, gemTooltipCache.border, cacheKey);
+        return;
+    }
+    let info = getUiGemPresentation(name, type === 'support', stats);
     let html = `<div class="tooltip-title">${name}</div>`;
     if (type === 'support') {
         html += `<div class="tooltip-line">${info.desc}</div>`;
@@ -6803,8 +6854,8 @@ function showGemTooltip(event, type, name) {
         }
     }
     let border = type === 'support' ? '#2bcbba' : '#ff5252';
-    gemTooltipCache = { key: cacheKey, html: html, border: border };
-    showInfoTooltipHtml(event.clientX, event.clientY, html, border);
+    gemTooltipCache = { key: cacheKey, html: html, border: border, stats: stats };
+    showInfoTooltipHtml(event.clientX, event.clientY, html, border, cacheKey);
 }
 
 function getItemStatToneColor(statId) {
@@ -7101,7 +7152,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
         let compareSlots = getEquipCandidateSlots(item).filter(slotKey => !!game.equipment[slotKey]);
         if (compareSlots.length === 0 && item.slot !== '반지') compareSlots = getEquipCandidateSlots(item);
         let compareSections = [];
-        let before = getUiPlayerStats();
+        let before = cachedTooltipStats || getUiPlayerStats();
         compareSlots.forEach((targetSlot, idx) => {
             let backup = game.equipment[targetSlot];
             let after = before;
@@ -7136,6 +7187,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
     tt.classList.toggle('item-compare-tooltip', hasItemCompareSections);
     tt.classList.toggle('dual-compare-tooltip', !isEquip && isDualSlotItem(item.slot));
     tt.innerHTML = html;
+    invalidateTooltipSize(tt);
     tt.style.display = 'block';
     positionTooltipElement(tt, event.clientX, event.clientY);
     setActiveTooltip('item-tooltip-box');
@@ -9646,6 +9698,17 @@ function syncInventoryExpansionShortcuts() {
     });
 }
 
+function getSearchTokens(query) {
+    return String(query || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+}
+
+function matchSearchQuery(raw, query) {
+    const q = String(query || '').trim().toLowerCase();
+    if (!q) return true;
+    const text = String(raw || '').toLowerCase();
+    return q.split(/\s+/).filter(Boolean).every(token => text.includes(token));
+}
+
 function performUpdateStaticUI() {
     updateInventoryFullWarnings();
     syncInventoryExpansionShortcuts();
@@ -9910,9 +9973,6 @@ function getJewelStatToneColor(statId) {
     return '#d7e9ff';
 }
 
-function getSearchTokens(query) {
-    return String(query || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
-}
 function highlightSearchText(text, query) {
     let raw = String(text || '');
     let lower = raw.toLowerCase();
@@ -10130,12 +10190,6 @@ function updateSearchFilter(key, value) {
         }
     }
 }
-function matchSearchQuery(raw, query) {
-    const q = String(query || '').trim().toLowerCase();
-    if (!q) return true;
-    const text = String(raw || '').toLowerCase();
-    return q.split(/\s+/).filter(Boolean).every(tok => text.includes(tok));
-}
 function isGemLibraryMatchVisible(searchable, query, foldInactive, isActive) {
     if (!matchSearchQuery(searchable, query)) return false;
     return !foldInactive || !!String(query || '').trim() || !!isActive;
@@ -10260,7 +10314,7 @@ function createJewelSlotComparisonHtml(candidate) {
     let slots = game.jewelSlots;
     let amplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [];
     let previewCandidate = Object.assign({}, candidate);
-    let before = getUiPlayerStats();
+    let before = cachedTooltipStats || getUiPlayerStats();
     let rows = Array.from({ length: maxSlots }, (_, slotIndex) => {
         let slotLength = slots.length;
         let hadSlot = Object.prototype.hasOwnProperty.call(slots, slotIndex);
@@ -10349,12 +10403,15 @@ function showSocketedJewelTooltip(event, socketType, socketIdx) {
         jewel = sockets[idx] && sockets[idx].jewel ? sockets[idx].jewel : null;
     }
     if (!jewel) return hideInfoTooltip();
+    let tooltipToken = `jewel:${socketType}:${idx}:${jewel.id || jewel.uniqueId || jewel.name || ''}`;
+    if (reuseInfoTooltip(event, tooltipToken)) return;
     let hasComparison = socketType === 'inventory';
     let html = createJewelRangeTooltipHtml(jewel, { showSlotComparison: hasComparison });
-    showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
+    showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff', tooltipToken);
     if (hasComparison) {
         let tooltip = document.getElementById('info-tooltip');
         tooltip.classList.add('item-compare-tooltip');
+        invalidateTooltipSize(tooltip);
         positionTooltipElement(tooltip, event.clientX, event.clientY);
     }
 }
@@ -12430,6 +12487,7 @@ function setupCanvasEvents() {
              <div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${routeCost}포인트 필요 · 연결 경로가 트리에 강조됩니다.</div>
              <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
 
+        invalidateTooltipSize(canvasTooltip);
         canvasTooltip.style.display = 'block';
         positionTooltipElement(canvasTooltip, clientX, clientY);
         setActiveTooltip('canvas-tooltip');

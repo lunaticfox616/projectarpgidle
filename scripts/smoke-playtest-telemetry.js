@@ -7,6 +7,7 @@ const source = fs.readFileSync('js/playtest-telemetry.js', 'utf8');
 const listeners = new Map();
 const requests = [];
 const storage = new Map();
+let requestFailure = null;
 
 const context = {
   console, Date, Math, Number, String, Array, Object, Set, JSON, Uint8Array,
@@ -29,7 +30,11 @@ const context = {
     phys: { entropy: 8000 }, fire: { entropy: 9000 }, cold: { entropy: 8500 },
     light: { entropy: 8200 }, chaos: { entropy: 7000 }
   } }),
-  async cloudJsonRequest(path, options) { requests.push({ path, options }); return null; },
+  async cloudJsonRequest(path, options) {
+    requests.push({ path, options });
+    if (requestFailure) throw requestFailure;
+    return null;
+  },
   addLog() {},
   safeExposeGlobals(map) { Object.assign(context, map); }
 };
@@ -93,6 +98,18 @@ async function run() {
   assert.strictEqual(requests[2].path, '/rest/v1/client_error_reports');
   assert.strictEqual(requests[2].options.body.message, 'test runtime failure');
   assert.ok(!JSON.stringify(requests[2].options.body.context).includes('user-1'), 'diagnostics must omit account identifiers');
+
+  requestFailure = new Error('PLAYTEST_DAILY_LIMIT');
+  dispatch('project-idle:encounter-started', { zoneId: 5, zoneType: 'act' });
+  dispatch('project-idle:encounter-finished', { zoneId: 5, zoneType: 'act' });
+  await flushAsyncWrites();
+  const requestsAfterLimit = requests.length;
+  requestFailure = null;
+  dispatch('project-idle:encounter-started', { zoneId: 6, zoneType: 'act' });
+  dispatch('project-idle:encounter-finished', { zoneId: 6, zoneType: 'act' });
+  await flushAsyncWrites();
+  assert.strictEqual(requests.length, requestsAfterLimit,
+    'server daily limit should stop repeated playtest run writes for the rest of the UTC day');
 }
 
 run()

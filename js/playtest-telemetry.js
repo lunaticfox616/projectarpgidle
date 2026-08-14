@@ -9,6 +9,7 @@ const playtestRuntime = {
     attempt: null,
     recentErrors: [],
     disabledTables: new Set(),
+    dailyLimitedTables: new Map(),
     frameSamples: [],
     longFrames: 0,
     peakFx: 0,
@@ -42,10 +43,14 @@ function getPlaytestUserId() {
     return typeof id === 'string' && id ? id : null;
 }
 
+function getPlaytestUtcDay() {
+    return new Date().toISOString().slice(0, 10);
+}
+
 function consumePlaytestDailyBudget(name, limit) {
     let userId = getPlaytestUserId();
     if (!userId) return false;
-    let day = new Date().toISOString().slice(0, 10);
+    let day = getPlaytestUtcDay();
     let key = `projectidle_${name}_budget`;
     try {
         let value = JSON.parse(localStorage.getItem(key) || 'null');
@@ -64,8 +69,24 @@ function disableMissingPlaytestTable(table, error) {
     if (/schema cache|does not exist|could not find/i.test(message)) playtestRuntime.disabledTables.add(table);
 }
 
+function isPlaytestTableUnavailable(table) {
+    if (playtestRuntime.disabledTables.has(table)) return true;
+    let limitedDay = playtestRuntime.dailyLimitedTables.get(table);
+    if (!limitedDay) return false;
+    if (limitedDay === getPlaytestUtcDay()) return true;
+    playtestRuntime.dailyLimitedTables.delete(table);
+    return false;
+}
+
+function rememberPlaytestDailyLimit(table, error) {
+    let message = String((error && error.message) || error || '');
+    if (!/PLAYTEST_DAILY_LIMIT/i.test(message)) return false;
+    playtestRuntime.dailyLimitedTables.set(table, getPlaytestUtcDay());
+    return true;
+}
+
 async function postPlaytestRow(table, body) {
-    if (!getPlaytestUserId() || playtestRuntime.disabledTables.has(table)) return false;
+    if (!getPlaytestUserId() || isPlaytestTableUnavailable(table)) return false;
     if (typeof cloudJsonRequest !== 'function') return false;
     try {
         await cloudJsonRequest(`/rest/v1/${table}`, {
@@ -76,7 +97,8 @@ async function postPlaytestRow(table, body) {
         return true;
     } catch (error) {
         disableMissingPlaytestTable(table, error);
-        console.warn(`${table} write failed:`, error);
+        let dailyLimited = rememberPlaytestDailyLimit(table, error);
+        if (!dailyLimited) console.warn(`${table} write failed:`, error);
         return false;
     }
 }

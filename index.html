@@ -9,6 +9,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>PROJECT IDLE — Rootbound ARPG</title>
+    <link rel="icon" type="image/png" href="assets/ui/passive-node-star-wedge-v2-active.png">
     <script id="app-update-registration">
     (() => {
         if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
@@ -29,17 +30,17 @@
     })();
     </script>
     <link rel="stylesheet" href="css/base.css?v=20260722-map-action-native-tab1">
-    <link rel="stylesheet" href="css/layout.css?v=20260722-combat-log-nav1-20260810-jewel-compare1">
+    <link rel="stylesheet" href="css/layout.css?v=20260722-combat-log-nav1-20260810-jewel-compare1&tooltip=20260814-perf1">
     <link rel="stylesheet" href="css/theme.css?v=20260721-contract-header1">
     <link rel="stylesheet" href="css/components.css?v=20260722-combat-icons2-20260810-market-clarity1-20260811-passive-tree-layout1-20260811-exchange-picker1-20260812-passive-toolbar1">
-    <link rel="stylesheet" href="css/ui-polish.css?v=20260723-currency-icons1-20260810-jewel-compare1">
+    <link rel="stylesheet" href="css/ui-polish.css?v=20260723-currency-icons1-20260810-jewel-compare1&tooltip=20260814-perf1">
     <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1-20260810-subtab-state1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260722-combat-icons2">
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260721-galmuri-body1">
-    <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1&mobile=20260814-first-flow1">
+    <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1&mobile=20260814-combat-hud2">
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1&power=20260811-approx1">
     <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1-20260807-windowed-cube1">
-    <link rel="stylesheet" href="css/ui-luxe.css?v=20260722-health-menu-skin4&caption=20260811-top1">
+    <link rel="stylesheet" href="css/ui-luxe.css?v=20260722-health-menu-skin4&caption=20260811-top1&tooltip=20260814-perf1">
     <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-health-menu-skin4-20260807-elemental-ehp1-20260810-management-ux1-20260810-ux-refine1&mobile=20260814-first-flow1&caption=20260811-top1&shield-charge=20260814-armor1">
     <link rel="stylesheet" href="css/typography-readability.css?v=20260721-galmuri-item-names1">
     <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-merged-tabs-timers1-20260811-mobile-status-fix2&mobile=20260811-hud1&boss-traits=20260811-ticker-tooltip1&icons=20260811-atlas-clip2">
@@ -1495,7 +1496,7 @@
 <script defer src="data/rewards.js?v=20260721-act2-support-reward1"></script>
 <script defer src="data/talent-cards.js?v=20260722-templar-overheal1"></script>
 <script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2"></script>
-<script defer src="js/ui-feedback.js?v=20260722-instant-choice1"></script>
+<script defer src="js/ui-feedback.js?v=20260722-instant-choice1&focus=20260814-dialog1"></script>
 <script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1"></script>
 <script defer src="js/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records.js?v=20260808-records-tab1-20260808-background-fix1"></script>
@@ -1510,16 +1511,16 @@
 <script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&boomerang=20260811-batched1&meteor=20260813-ground1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1&ehp=20260811-bosspeak1"></script>
 <script defer src="js/cosmos-rules.js?v=20260810-endgame1&ehp=20260811-bosspeak1"></script>
-<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260811-floor1-tune1&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1&shield-charge=20260814-armor1&loop-completion=20260814-settings1"></script>
+<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260811-floor1-tune1&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-perf1"></script>
 <script defer src="js/combat-ehp.js?v=20260807-elemental-ehp1"></script>
 <script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260811-top1&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260813-elements1&hit-guard=20260813-attack-scope1&meteor=20260814-assets1&shield-charge=20260814-impact1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1&elements=20260813-distinct1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1-20260810-label-toggle1"></script>
-<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260813-ticker-lifecycle1&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260811-approx1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260812-map1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1"></script>
-<script defer src="js/playtest-telemetry.js?v=20260812-playtest2"></script>
+<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260813-ticker-lifecycle1&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260811-approx1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260812-map1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-perf1"></script>
+<script defer src="js/playtest-telemetry.js?v=20260812-playtest2&limit=20260814-stop1"></script>
 <script defer src="js/cloud-tools-ui.js?v=20260812-ops1"></script>
 <script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1&tooltip=20260811-tray1"></script>
-<script defer src="js/skills-ui.js?v=20260808-skills-screen1"></script>
+<script defer src="js/skills-ui.js?v=20260808-skills-screen1&tooltip=20260814-perf1"></script>
 <script defer src="js/offline-progress-ui.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records-ui.js?v=20260808-records-tab1"></script>
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1&pvp=20260812-map2"></script>

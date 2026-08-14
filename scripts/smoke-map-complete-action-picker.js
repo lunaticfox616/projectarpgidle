@@ -21,7 +21,10 @@ const html = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('css/base.css', 'utf8');
 const windowCss = fs.readFileSync('css/ui-windows.css', 'utf8');
 const select = { value: '' };
-const quickButton = { textContent: '', title: '', hidden: true };
+const quickButton = {
+    textContent: '', title: '', hidden: true, dataset: {},
+    setAttribute(name, value) { this[name] = value; }
+};
 let saved = 0;
 let refreshed = 0;
 let toast = null;
@@ -63,6 +66,8 @@ vm.runInContext(functionNames.map(name => readFunctionSource(uiSource, name)).jo
 context.syncMapCompleteActionQuickControl();
 assert.strictEqual(quickButton.hidden, false, '기타 그룹에서는 설정 탭 옆 빠른 버튼이 보여야 한다');
 assert.strictEqual(quickButton.textContent, '전투 완료: 다음 지역', '빠른 버튼에서 현재 설정을 바로 확인할 수 있어야 한다');
+assert.strictEqual(quickButton.dataset.mobileLabel, '다음 지역', '모바일에서는 현재 행동을 짧게 표시해야 한다');
+assert.strictEqual(quickButton['aria-label'], '전투 완료 후 행동: 다음 지역');
 assert(quickButton.title.includes('현재: 다음 지역'));
 groupingActive = false;
 context.syncMapCompleteActionQuickControl();

@@ -12,8 +12,8 @@ const fs = require('fs');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
 // 현재값(2026-08-08 기준). 내려갈 때만 갱신한다.
-const MAX_RENDER_LINES = 2295;
-const MAX_NESTED_DECLARATIONS = 66;
+const MAX_RENDER_LINES = 2288;
+const MAX_NESTED_DECLARATIONS = 63;
 
 const runtime = buildGameRuntime();
 assert.strictEqual(typeof runtime.performUpdateStaticUI, 'function', '렌더 함수를 찾을 수 있어야 한다');
