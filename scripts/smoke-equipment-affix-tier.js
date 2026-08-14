@@ -76,6 +76,8 @@ assert.strictEqual(realmTierContext.getRealmEquipmentHiddenTierCap({ type: 'act'
   assert.strictEqual(hiddenTier, expected, `cosmos tier ${tier} hidden tier`);
   assert.strictEqual(realmTierContext.getRealmEquipmentAffixTierCap(zone, hiddenTier), expected, `cosmos tier ${tier} affix cap`);
 });
+assert.strictEqual(realmTierContext.getRealmEquipmentHiddenTierCap({ type: 'cosmos', tier: 57, lootTier: 1 }), 16,
+  'cosmos combat tier must not force the entry loot tier to T20');
 assert.strictEqual(realmTierContext.getRealmEquipmentAffixTierCap({ type: 'abyss' }, 15), 15, 'deep chaos should unlock T15 affixes');
 assert.strictEqual(realmTierContext.getRealmEquipmentHiddenTierCap({ type: 'timeRift', equivalentChaosDepth: 29 }), 15, 'time rift loot should follow its equivalent chaos depth');
 assert(passiveSource.includes('maxTier = clampNumber(Math.floor(Number(maxTier) || 1), 1, 20);'), 'regular affix rolls must support the cosmos T20 ceiling');

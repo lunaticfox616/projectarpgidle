@@ -149,13 +149,19 @@ const cfg = context.COMBAT_GRID_CONFIG;
     '5차 전직 시련의 중력 패널티는 실제 전투처럼 창공석 완화를 무시해야 한다');
   assert.ok(bloomEstimate.dps >= underworldEntry.dps && bloomEstimate.ehp >= underworldEntry.ehp,
     '5차 전직 보스는 지하계 1층 보스보다 약하면 안 된다');
+  assert.ok(bloomEstimate.dps <= underworldEntry.dps * 1.15,
+    '5차 전직 보스의 권장 DPS는 입장 기준인 지하계 1층보다 15% 넘게 높으면 안 된다');
+  assert.ok(bloomEstimate.ehp <= underworldEntry.ehp * 1.15,
+    '5차 전직 보스의 권장 EHP는 입장 기준인 지하계 1층보다 15% 넘게 높으면 안 된다');
+  assert.ok(bloomEstimate.peakHit <= underworldEntry.peakHit * 1.15,
+    '5차 전직 보스의 파쇄 강타도 지하계 1층 최대 피격량보다 15% 넘게 높으면 안 된다');
   assert.strictEqual(bloomTrial.bossMods.patternMode, 'slam', '5차 전직 보스는 고정된 강공격 패턴을 가져야 한다');
   const bloomBoss = context.createEnemy(bloomTrial, { at: 100, count: 1, boss: true }, 0);
   assert.strictEqual(bloomBoss.patternMode, 'slam', '실제 생성된 5차 전직 보스에도 파쇄 강타가 적용되어야 한다');
   assert.ok(bloomBoss.maxHp >= bloomEstimate.dps * bloomEstimate.clearTimeSec * 0.99,
     '5차 전직 보스 실제 체력은 표시된 권장 DPS의 계산 근거보다 낮으면 안 된다');
-  assert.ok(Array.isArray(bloomBoss.chaosRealmAffixes) && bloomBoss.chaosRealmAffixes.length === 3,
-    '5차 전직 보스는 기존 적응형 혼돈 특성도 실제로 유지해야 한다');
+  assert.ok(Array.isArray(bloomBoss.chaosRealmAffixes) && bloomBoss.chaosRealmAffixes.length === 1,
+    '5차 전직 보스는 완화된 적응형 혼돈 특성을 실제로 유지해야 한다');
 
   const pinnacleZones = context.SEASON_BOSS_ZONES.filter(zone => zone.milestonePinnacle);
   assert.strictEqual(pinnacleZones.length, 4, '지하계·심해·창공·통합 아틀라스 최종 관문이 모두 정의되어야 한다');
@@ -219,13 +225,13 @@ const cfg = context.COMBAT_GRID_CONFIG;
   context.game.loopCount = 30;
 
   const cosmosBossSteps = [
-    ['planet-46', 'physical', 57, 1.5, 2],
-    ['planet-47', 'absorb', 63, 2.1, 3],
-    ['planet-48', 'balance', 69, 2.4, 3],
-    ['planet-49', 'judgement', 75, 2.8, 4],
-    ['planet-45', 'impact', 82, 3.2, 5]
-  ].map(([cosmosNodeId, cosmosTag, tier, gravity, sizeClass], index) => ({
-    id: 'cosmos_challenge', type: 'cosmos', tier, ele: 'phys', cosmosNodeId, cosmosTag,
+    ['planet-46', 'physical', 57, 1.5, 2, 'phys'],
+    ['planet-47', 'absorb', 63, 2.1, 3, 'chaos'],
+    ['planet-48', 'balance', 69, 2.4, 3, 'phys'],
+    ['planet-49', 'judgement', 75, 2.8, 4, 'chaos'],
+    ['planet-45', 'impact', 82, 3.2, 5, 'phys']
+  ].map(([cosmosNodeId, cosmosTag, tier, gravity, sizeClass, ele], index) => ({
+    id: 'cosmos_challenge', type: 'cosmos', tier, ele, cosmosNodeId, cosmosTag,
     cosmosGalaxy: index + 1, gravity, sizeClass
   }));
   const cosmosEntry = cosmosBossSteps[0];
@@ -235,9 +241,25 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const astraEstimate = context.estimateMapZonePowerRequirements(context.getZone('cosmos_astra'));
   assert.ok(entryEstimate.dps > 1000000, '우주계 권장 DPS는 실제 보스 체력 공식을 사용해야 한다');
   const cosmosBossEstimates = cosmosBossSteps.map(zone => context.estimateMapZonePowerRequirements(zone));
+  const baselineCosmosDefense = {
+    maxHp: 7500, energyShield: 0, armor: 0, dr: 75, evadeChance: 0,
+    resF: 75, maxResF: 75, resC: 75, maxResC: 75,
+    resL: 75, maxResL: 75, resChaos: 75, maxResChaos: 75,
+    totalDps: 1, genericTakenDamageMultiplier: 1
+  };
+  const cosmosRecommendedEhp = cosmosBossEstimates.map(estimate =>
+    context.getMapPowerReadiness(baselineCosmosDefense, estimate).recommendedEhp);
+  const cosmosEhpBands = [[28000, 35000], [38000, 46000], [52000, 60000], [64000, 72000], [76000, 84000]];
   cosmosBossEstimates.slice(1).forEach((estimate, index) => {
-    assert.ok(estimate.dps > cosmosBossEstimates[index].dps && estimate.ehp > cosmosBossEstimates[index].ehp,
-      `G${index + 2} 권장 DPS/EHP는 이전 은하보다 높아야 한다`);
+    assert.ok(estimate.dps > cosmosBossEstimates[index].dps,
+      `G${index + 2} 권장 DPS는 이전 은하보다 높아야 한다`);
+    assert.ok(cosmosRecommendedEhp[index + 1] > cosmosRecommendedEhp[index],
+      `G${index + 2} 개인화 권장 EHP는 이전 은하보다 높아야 한다`);
+  });
+  cosmosRecommendedEhp.forEach((ehp, index) => {
+    const [min, max] = cosmosEhpBands[index];
+    assert.ok(ehp >= min && ehp <= max,
+      `G${index + 1} 권장 EHP ${Math.round(ehp)}는 ${min}~${max} 성장 구간 안이어야 한다`);
   });
   assert.ok(finalEstimate.dps > entryEstimate.dps && finalEstimate.ehp > entryEstimate.ehp);
   assert.ok(astraEstimate.dps > finalEstimate.dps && astraEstimate.ehp > finalEstimate.ehp,
@@ -255,7 +277,7 @@ const cfg = context.COMBAT_GRID_CONFIG;
   context.game.loopCount = 30;
   context.game.cosmosAtlas = {};
   context.game.cosmosAtlas.activeChallenge = {
-    nodeId: 'planet-47', name: '디프다르', galaxy: 2, tier: 63, gravity: 2.1, sizeClass: 3,
+    nodeId: 'planet-47', name: '디프다르', galaxy: 2, tier: 63, lootTier: 10, gravity: 2.1, sizeClass: 3,
     tag: 'absorb', mechanicId: 'abyssalTide', ele: 'chaos'
   };
   context.game.currentZoneId = 'cosmos_challenge';

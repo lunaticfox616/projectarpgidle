@@ -15,7 +15,7 @@ const BLACK_MARKET_BASE_SLOT_COUNT = 6;
 const BLACK_MARKET_MAX_SLOT_COUNT = 50;
 const BLACK_MARKET_MAX_EXTRA_SLOTS = Math.max(0, BLACK_MARKET_MAX_SLOT_COUNT - BLACK_MARKET_BASE_SLOT_COUNT);
 const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;
-const BLACK_MARKET_T20_RARE_BASE_CHANCE = 0.001;
+const BLACK_MARKET_BASE_CRAFT_TIER = 15;
 const BLACK_MARKET_MAX_LOCKED_OFFERS = 3;
 const BLACK_MARKET_INSIGHT_TARGET = 5;
 const BLACK_MARKET_EQUIPMENT_SLOTS = ['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패'];
@@ -96,16 +96,10 @@ function clearExceptionalBaseState(item) {
     return item;
 }
 
-function chooseBlackMarketBase(slot, tier) {
-    // 일반 드랍의 최종 단계 베이스 가중치(일반 베이스의 1/25)보다 더 낮게 둔다.
-    let rareBaseRoll = Math.random() < BLACK_MARKET_T20_RARE_BASE_CHANCE;
-    let candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot && (base.reqTier || 1) <= (tier + 3));
-    if (rareBaseRoll) {
-        let rareCandidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot && (base.reqTier || 1) >= 20);
-        if (rareCandidates.length > 0) candidates = rareCandidates;
-    }
-    if (candidates.length <= 0) candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === slot);
-    return candidates.length ? rndChoice(candidates) : chooseItemBase(slot, tier);
+function chooseBlackMarketBase(slot) {
+    let candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base)
+        && base.slot === slot && (base.reqTier || 1) <= BLACK_MARKET_BASE_CRAFT_TIER);
+    return candidates.length ? rndChoice(candidates) : chooseItemBase(slot, BLACK_MARKET_BASE_CRAFT_TIER);
 }
 
 function getBlackMarketBaseRollRange(stat) {
@@ -168,7 +162,18 @@ function normalizeBlackMarketState() {
     game.blackMarket = (game.blackMarket && typeof game.blackMarket === 'object') ? game.blackMarket : { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {} };
     game.blackMarket.extraSlots = Math.max(0, Math.min(BLACK_MARKET_MAX_EXTRA_SLOTS, Math.floor(Number(game.blackMarket.extraSlots) || 0)));
     game.blackMarket.offers = Array.isArray(game.blackMarket.offers) ? game.blackMarket.offers.slice(0, BLACK_MARKET_MAX_SLOT_COUNT).map(offer => {
-        if (!offer || offer.type !== 'unique') return offer;
+        if (!offer) return offer;
+        if (offer.type === 'baseItem') {
+            let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId)
+                || (row.name === String(offer.name || '').replace(' 베이스', '') && row.slot === offer.slot)));
+            if (base && (base.reqTier || 1) > BLACK_MARKET_BASE_CRAFT_TIER) return null;
+            offer.hiddenTier = BLACK_MARKET_BASE_CRAFT_TIER;
+            offer.affixTierCap = BLACK_MARKET_BASE_CRAFT_TIER;
+            offer.rareT20Base = false;
+            offer.price = Math.ceil(BLACK_MARKET_BASE_CRAFT_TIER * 0.45) + 2 + (offer.exceptionalBase ? 4 : 0);
+            return offer;
+        }
+        if (offer.type !== 'unique') return offer;
         let unique = UNIQUE_DB.find(row => row && row.name === offer.name);
         return isUniqueEligibleForBlackMarket(unique) ? offer : null;
     }) : [];
@@ -1033,15 +1038,15 @@ function buildBlackMarketOffer(index) {
     if (roll < 0.75) {
         let preferred = bm.preferredSlot;
         let slot = preferred !== 'any' && Math.random() < 0.35 ? preferred : rndChoice(BLACK_MARKET_EQUIPMENT_SLOTS);
-        let base = chooseBlackMarketBase(slot, tier);
-        let hiddenTier = Math.max(tier, base.reqTier || tier);
+        let base = chooseBlackMarketBase(slot);
+        let hiddenTier = BLACK_MARKET_BASE_CRAFT_TIER;
         let chainInfo = getBlackMarketBaseChainInfo(base);
         let rolledBase = maybeApplyBlackMarketExceptionalBaseStats(rollBlackMarketBaseStats(base, hiddenTier));
         // 제작 가능 옵션 단계는 현재 지역(hiddenTier)을 따르므로 가격도 원본 베이스 요구 티어가
         // 아니라 실제 제공 티어를 기준으로 계산한다. 저티어 베이스를 고단계 제작대로 헐값에
         // 구매하는 경제 우회를 막되, 직접 드랍보다 접근성은 유지한다.
         let price = Math.max(2, Math.ceil(hiddenTier * 0.45) + 2 + (rolledBase.exceptionalBase ? 4 : 0));
-        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, priceKey:'formlessDew', price:price, baseStats: rolledBase.baseStats, exceptionalBase: rolledBase.exceptionalBase, exceptionalStatNames: rolledBase.names, rareT20Base: (base.reqTier || 1) >= 20, baseChainStep: chainInfo && chainInfo.step, baseChainTotal: chainInfo && chainInfo.total };
+        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, affixTierCap:hiddenTier, priceKey:'formlessDew', price:price, baseStats: rolledBase.baseStats, exceptionalBase: rolledBase.exceptionalBase, exceptionalStatNames: rolledBase.names, rareT20Base:false, baseChainStep: chainInfo && chainInfo.step, baseChainTotal: chainInfo && chainInfo.total };
     }
     if (roll < 0.9) {
         let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
@@ -1349,6 +1354,7 @@ async function buyBlackMarketOffer(idx){
             rarity: 'normal',
             itemTier: offer.hiddenTier || offer.reqTier || base.reqTier || 1,
             hiddenTier: offer.hiddenTier || offer.reqTier || base.reqTier || 1,
+            affixTierCap: BLACK_MARKET_BASE_CRAFT_TIER,
             baseStats: Array.isArray(offer.baseStats) && offer.baseStats.length > 0 ? offer.baseStats.map(stat => ({ ...stat })) : rollBaseStats(base, offer.hiddenTier || offer.reqTier || base.reqTier || 1),
             stats: [],
             exceptionalBase: !!offer.exceptionalBase,

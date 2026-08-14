@@ -480,6 +480,8 @@ function getZone(id) {
                 name: `우주계 ${c.name || '행성'}`,
                 type: 'cosmos',
                 tier: Math.max(1, Math.floor(c.tier || 1)),
+                lootTier: Math.max(1, Math.floor(Number(c.lootTier)
+                    || (Math.max(1, Math.floor(Number(c.galaxy) || 1)) - 1) * 5 + 1)),
                 maxKills: 1,
                 ele: c.ele || 'chaos',
                 cosmosNodeId: c.nodeId || null,
