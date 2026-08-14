@@ -7465,7 +7465,9 @@ function getRealmEquipmentHiddenTierCap(zone) {
         return Math.min(15, 10 + Math.floor((depth - 1) / 5));
     }
     if (zone.type === 'cosmos') {
-        let cosmosTier = Math.max(1, Math.floor(Number(zone.tier) || 1));
+        // 전투 tier는 지하계 환산값(첫 지역도 50+)이다. 전리품은 아틀라스에 표시된
+        // 1~25 티어를 사용해야 G1~G5가 각각 T16~T20으로 한 단계씩 열린다.
+        let cosmosTier = Math.max(1, Math.floor(Number(zone.lootTier) || Number(zone.tier) || 1));
         return Math.min(20, 16 + Math.floor((cosmosTier - 1) / 5));
     }
     return Math.min(15, Math.max(1, Math.floor(Number(zone.tier) || 1)));

@@ -5977,7 +5977,7 @@ function getCosmosEnemyModifiers(zone, isElite, isBoss) {
         mod.hpMul += 0.22;
         mod.damageMul += 0.08;
         mod.hpMul *= Math.max(0.5, Number(galaxyBossMechanic.hpScale || 1));
-        mod.damageMul *= Math.max(0.5, Number(galaxyBossMechanic.damageScale || 1));
+        mod.damageMul *= Math.max(0.2, Number(galaxyBossMechanic.damageScale || 1));
         mod.dr += 5;
         mod.resAll += 5;
         mod.penetration += 4;
@@ -6432,6 +6432,20 @@ function getMapBossPatternMultiplier(bossMods, zone) {
         : ((game.season || 1) >= 6 ? getMaximumBossPatternDamageMultiplier() : 1);
 }
 
+function getMapEstimateDamageElements(zone) {
+    const cosmosBoss = zone && zone.type === 'cosmos' && typeof getCosmosGalaxyBossMechanic === 'function'
+        ? getCosmosGalaxyBossMechanic(zone.cosmosNodeId) : null;
+    if (cosmosBoss) {
+        if (cosmosBoss.elementRule === 'physical') return ['phys'];
+        if (cosmosBoss.elementRule === 'chaos') return ['chaos'];
+        if (cosmosBoss.elementRule === 'weakestResistance') return ['fire', 'cold', 'light', 'chaos'];
+        if (cosmosBoss.elementRule === 'alternatingWeakest') return ['phys', 'fire', 'cold', 'light', 'chaos'];
+    }
+    return zone && zone.ele === 'chaos'
+        ? ['fire', 'cold', 'light', 'chaos']
+        : ['phys', 'fire', 'cold', 'light', 'chaos'];
+}
+
 function getMapEstimateAffixPressure(zone) {
     const sourceFloor = zone && (zone.bloomTrialAffixFloor || (zone.type === 'chaosRealm' && zone.floor));
     const floor = Math.max(0, Math.floor(Number(sourceFloor) || 0));
@@ -6529,7 +6543,7 @@ function estimateMapZonePowerRequirements(zone) {
         ehp: Math.max(1, Math.round(threat.threatWindow)),
         peakHit: Math.max(1, Math.round(threat.peakHit)),
         resistancePressure: threat.resistancePressure,
-        elements: zone.ele === 'chaos' ? ['fire', 'cold', 'light', 'chaos'] : ['phys', 'fire', 'cold', 'light', 'chaos'],
+        elements: getMapEstimateDamageElements(zone),
         playerDpsMultiplier: 1,
         underworldGravityFloor,
         underworldGravityIgnoresReduction: !!zone.bloomTrial,

@@ -1292,6 +1292,7 @@
             name: `우주계 ${node.name}`,
             type: 'cosmos',
             tier: getCosmosChallengeTier(node),
+            lootTier: getDisplayedNodeTier(node),
             ele: mechanic && ['phys', 'fire', 'cold', 'light', 'chaos'].includes(mechanic.element)
                 ? mechanic.element : 'chaos',
             cosmosNodeId: node.id,
@@ -2411,6 +2412,7 @@
     function startCosmosBattle(node) {
         if (!window.game || !node) return;
         const tier = getCosmosChallengeTier(node);
+        const lootTier = getDisplayedNodeTier(node);
         const mechanic = getCosmosNodeMechanic(node);
         const recommendation = getCosmosNodeRecommendation(node);
         const gravity = Math.max(1, Number(node.gravity || 1));
@@ -2421,6 +2423,7 @@
             galaxy: node.orbit,
             name: node.name,
             tier,
+            lootTier,
             gravity,
             sizeClass,
             tag: node.baseTag || node.tag || '',

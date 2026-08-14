@@ -45,6 +45,15 @@ try {
         { min: 16, max: 20 },
         'cosmos progression must stop at the absolute T20 ceiling'
     );
+    assert.deepStrictEqual(
+        plain(read('getRealmItemDropTierRange({ type: "cosmos", tier: 57, lootTier: 1 }, {})')),
+        { min: 12, max: 16 },
+        'cosmos combat tier must not leak into the first-galaxy T16 loot ceiling'
+    );
+    [1, 6, 11, 16, 21].forEach((lootTier, index) => {
+        const range = plain(read(`getRealmItemDropTierRange({ type: "cosmos", tier: 57, lootTier: ${lootTier} }, {})`));
+        assert.strictEqual(range.max, 16 + index, `cosmos galaxy ${index + 1} must unlock exactly one loot tier`);
+    });
 
     Math.random = () => 0.5;
     ctx.game.currentZoneId = 0;
@@ -66,6 +75,41 @@ try {
         growthItem.stats.every(stat => stat.tier >= 1 && stat.tier <= growthItem.hiddenTier),
         'growth-item affixes must follow the same T1-to-cap drop tier rule'
     );
+
+    ctx.game.cosmosAtlas = { activeChallenge: {
+        nodeId: 'planet-1', name: '베가라', galaxy: 1, tier: 57, lootTier: 1,
+        gravity: 1.5, sizeClass: 2, tag: 'arcane', ele: 'light'
+    } };
+    ctx.game.currentZoneId = 'cosmos_challenge';
+    assert.strictEqual(read("getZone('cosmos_challenge').lootTier"), 1,
+        'active cosmos battles must preserve the atlas loot tier separately from combat tier');
+    const cosmosEntryItem = read('generateEquipmentDrop({ isBoss: false, isElite: false })');
+    assert.ok(cosmosEntryItem.hiddenTier >= 12 && cosmosEntryItem.hiddenTier <= 16,
+        'first-galaxy equipment drops must stay in the T12-T16 window instead of jumping to T20');
+
+    ctx.game.currentZoneId = 0;
+    ctx.game.blackMarket = { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {} };
+    const marketBaseOffer = read('buildBlackMarketOffer(0)');
+    assert.strictEqual(marketBaseOffer.type, 'baseItem', 'deterministic market fixture must produce a base item');
+    assert.strictEqual(marketBaseOffer.hiddenTier, 15, 'market base offers must be fixed at T15');
+    assert.strictEqual(marketBaseOffer.affixTierCap, 15, 'market base offers must retain a T15 crafting ceiling');
+    const marketBase = read(`BASE_ITEM_DB.find(base => base.id === ${JSON.stringify(marketBaseOffer.baseId)})`);
+    assert.ok(marketBase && (marketBase.reqTier || 1) <= 15,
+        'market base offers must not bypass cosmos progression with a T16-T20 base');
+    ctx.game.blackMarket.offers = [{ ...marketBaseOffer, hiddenTier: 10, affixTierCap: 10 }];
+    const migratedMarketOffer = read('normalizeBlackMarketState().offers[0]');
+    assert.strictEqual(migratedMarketOffer.hiddenTier, 15,
+        'saved market base offers must migrate from the obsolete T10 limit to T15');
+    assert.strictEqual(migratedMarketOffer.affixTierCap, 15,
+        'saved market base offers must migrate their crafting ceiling to T15');
+    const normalizedMarketBase = read(`normalizeItem({ id: 991001, slot: ${JSON.stringify(marketBaseOffer.slot)},
+        baseId: ${JSON.stringify(marketBaseOffer.baseId)}, baseName: ${JSON.stringify(marketBaseOffer.baseName)},
+        name: ${JSON.stringify(marketBaseOffer.baseName)}, rarity: "normal", itemTier: 15, hiddenTier: 15,
+        affixTierCap: 15, baseStats: [], stats: [] })`);
+    assert.strictEqual(normalizedMarketBase.affixTierCap, 15,
+        'purchased market provenance must survive equipment normalization instead of falling back to T10');
+    assert.strictEqual(read(`getItemCraftTier(${JSON.stringify(normalizedMarketBase)})`), 15,
+        'market bases must actually allow T15 crafting after purchase');
 
     assert.deepStrictEqual(
         plain(read('getDroppedAffixTierRange(20)')),
