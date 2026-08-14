@@ -20,7 +20,6 @@ let mapZoneGroupCollapseState = { hunting: false, chaos: false };
 let mobilePipCanvas = null;
 var lod = 1; // fallback for any legacy FX paths
 let mobilePipCtx = null;
-let mobilePipDrag = { active: false, moved: false, startX: 0, startY: 0, baseRight: 10, baseBottom: 76 };
 let mobilePipRefreshHandle = null;
 let mobilePipRefreshErrorReported = false;
 let battleAssetDeferredInitHandle = null;
@@ -66,7 +65,38 @@ function buildMapPowerEstimateHtml(zone) {
     let options = { notation: 'compact', maximumSignificantDigits: 2 };
     let dps = Math.round(estimate.dps).toLocaleString('ko-KR', options);
     let ehp = Math.round(estimate.ehp).toLocaleString('ko-KR', options);
-    return `<span class="map-zone-status map-power-estimate" title="해당 지역 보스의 강공격·치명타 기준">예상 DPS 약 ${dps} · EHP 약 ${ehp}</span>`;
+    let label = `예상 DPS 약 ${dps} · EHP 약 ${ehp}`;
+    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label} · 해당 지역 보스의 강공격과 치명타 기준" data-info-tooltip-anchor="1" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()">${label}</span>`;
+}
+
+function showMapPowerEstimateTooltip(event) {
+    let rect = event.currentTarget && event.currentTarget.getBoundingClientRect ? event.currentTarget.getBoundingClientRect() : null;
+    let x = Number.isFinite(event.clientX) && event.clientX > 0 ? event.clientX : (rect ? rect.left + rect.width / 2 : 0);
+    let y = Number.isFinite(event.clientY) && event.clientY > 0 ? event.clientY : (rect ? rect.bottom : 0);
+    let html = '<div class="tooltip-title">예상 전투력</div><div class="tooltip-line">해당 지역 보스의 강공격과 치명타를 기준으로 한 대략적인 권장치입니다.</div>';
+    showInfoTooltipHtml(x, y, html, '#6ba7d8');
+}
+
+function getRecommendedHuntingZone(zones) {
+    let huntingZones = (Array.isArray(zones) ? zones : []).filter(zone => zone && zone.type !== 'abyss');
+    return huntingZones.length > 0 ? huntingZones[huntingZones.length - 1] : null;
+}
+
+function buildMapRouteSummaryHtml(currentZone, recommendedZone) {
+    if (!recommendedZone) return '';
+    let currentName = currentZone ? escapeHTML(currentZone.name) : '선택 없음';
+    let recommendedName = escapeHTML(recommendedZone.name);
+    let sameZone = currentZone && Number(currentZone.id) === Number(recommendedZone.id);
+    let action = sameZone ? "switchTab('tab-battle')" : `changeZone(${Number(recommendedZone.id)})`;
+    let actionLabel = sameZone ? '전투로 돌아가기' : '추천 지역 사냥';
+    return `<div class="map-route-copy"><span class="map-route-kicker">NEXT HUNT</span><strong>${recommendedName}</strong><small>현재 지역 · ${currentName}</small></div><button type="button" class="map-route-action" onclick="${action}">${actionLabel}</button>`;
+}
+
+function getMapCardState(isCurrent, cleared, recommended) {
+    if (isCurrent) return { label: '현재', className: 'current' };
+    if (cleared) return { label: '완료', className: 'cleared' };
+    if (recommended) return { label: '추천', className: 'recommended' };
+    return { label: '도전', className: 'available' };
 }
 
 function buildTrialMapItemHtml(trial) {
@@ -93,6 +123,8 @@ function buildTrialMapItemHtml(trial) {
     let status = isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3 || 0} · ${repeatReward}` : `무료 재도전 · ${repeatReward}`) : '도전하기';
     return `<div class="map-item ${cls}" ${(isCompleted && needsTicket && !hasTicket) ? '' : `onclick="${action}"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}<br><span class="map-zone-status">${trial.trialDesc || '수호자와 함정을 돌파하세요'}</span><br>${buildMapPowerEstimateHtml(trial)}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? status : `첫 클리어 보상 · ${status}`}</span></div>`;
 }
+
+safeExposeGlobals({ showMapPowerEstimateTooltip });
 
 function getDefaultUiPlayerStats() {
     return {
@@ -1025,46 +1057,28 @@ function ensureMobileBattlePip() {
     if (!host) {
         host = document.createElement('div');
         host.id = 'mobile-battle-pip';
-        host.style.cssText = 'position:fixed; right:10px; bottom:76px; width:112px; height:64px; border:1px solid #4c6b93; border-radius:8px; overflow:hidden; background:#0a1320; z-index:9997; display:none; opacity:.86; box-shadow:0 6px 16px rgba(0,0,0,.3);';
+        host.className = 'mobile-battle-dock';
+        host.style.display = 'none';
         host.setAttribute('role', 'button');
+        host.setAttribute('tabindex', '0');
         host.setAttribute('aria-label', '전투 화면으로 이동');
-        host.title = '탭하여 전투 화면으로 이동 · 드래그하여 위치 변경';
-        host.style.touchAction = 'none';
-        host.addEventListener('pointerdown', (e) => {
-            mobilePipDrag.active = true;
-            mobilePipDrag.moved = false;
-            mobilePipDrag.startX = e.clientX;
-            mobilePipDrag.startY = e.clientY;
-            mobilePipDrag.baseRight = parseFloat(host.dataset.right || '10') || 10;
-            mobilePipDrag.baseBottom = parseFloat(host.dataset.bottom || '76') || 76;
-            host.setPointerCapture && host.setPointerCapture(e.pointerId);
-            e.preventDefault();
-        });
-        host.addEventListener('pointermove', (e) => {
-            if (!mobilePipDrag.active) return;
-            let dx = e.clientX - mobilePipDrag.startX;
-            let dy = e.clientY - mobilePipDrag.startY;
-            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) mobilePipDrag.moved = true;
-            let right = Math.max(6, mobilePipDrag.baseRight - dx);
-            let bottom = Math.max(72, mobilePipDrag.baseBottom - dy);
-            host.dataset.right = String(right);
-            host.dataset.bottom = String(bottom);
-            host.style.right = right + 'px';
-            host.style.bottom = bottom + 'px';
-            e.preventDefault();
-        });
-        host.addEventListener('pointerup', (e) => {
-            let wasMoved = mobilePipDrag.moved;
-            mobilePipDrag.active = false;
-            host.releasePointerCapture && host.releasePointerCapture(e.pointerId);
-            if (wasMoved) return;
+        host.addEventListener('click', () => switchTab('tab-battle'));
+        host.addEventListener('keydown', event => {
+            if (!['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
             switchTab('tab-battle');
         });
         let c = document.createElement('canvas');
         c.width = 296; c.height = 168;
-        c.style.cssText = 'width:100%; height:100%; display:block;';
         host.appendChild(c);
-        document.body.appendChild(host);
+        let label = document.createElement('span');
+        label.className = 'mobile-battle-dock-label';
+        label.textContent = '전투로 돌아가기';
+        host.appendChild(label);
+        let rightPane = document.getElementById('right-pane');
+        let firstTab = rightPane && rightPane.querySelector('.tab-content');
+        if (rightPane && firstTab) rightPane.insertBefore(host, firstTab);
+        else document.body.appendChild(host);
     }
     if (!mobilePipCanvas) {
         mobilePipCanvas = host.querySelector('canvas');
@@ -1076,12 +1090,10 @@ function ensureMobileBattlePip() {
 function updateMobileBattlePipVisibility() {
     let host = ensureMobileBattlePip();
     if (!host) return;
-    let isMobile = (window.matchMedia && window.matchMedia('(max-width: 1080px)').matches) || ('ontouchstart' in window);
+    let isMobile = window.matchMedia ? window.matchMedia('(max-width: 1080px)').matches : window.innerWidth <= 1080;
     let activeBattle = (document.getElementById('tab-battle') || {}).classList.contains('active');
     let blocked = isStartupOverlayOpen() || isLoadingOverlayOpen();
-    host.style.display = (isMobile && !activeBattle && !blocked && game.settings && game.settings.showMobileBattlePip !== false) ? 'block' : 'none';
-    host.style.right = (host.dataset.right || '10') + 'px';
-    host.style.bottom = (host.dataset.bottom || '76') + 'px';
+    host.style.display = (isMobile && !activeBattle && !blocked && game.settings && game.settings.showMobileBattlePip !== false) ? 'grid' : 'none';
     if (host.style.display !== 'none') {
         let src = document.getElementById('battlefield-canvas');
         if (src && !activeBattle && mobilePipCanvas) {
@@ -2118,6 +2130,31 @@ function setEquipmentInventoryView(key, value) {
 }
 
 safeExposeGlobals({ setEquipmentInventoryView });
+
+function syncEquipmentMobilePane() {
+    game.settings = game.settings || {};
+    let pane = game.settings.equipmentMobilePane === 'loadout' ? 'loadout' : 'inventory';
+    game.settings.equipmentMobilePane = pane;
+    let workspace = document.querySelector('#item-tab-equip .equipment-workspace');
+    if (workspace) workspace.dataset.mobilePane = pane;
+    ['inventory', 'loadout'].forEach(key => {
+        let button = document.getElementById(`btn-equipment-mobile-${key}`);
+        if (!button) return;
+        let selected = key === pane;
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+}
+
+function setEquipmentMobilePane(pane) {
+    if (!['inventory', 'loadout'].includes(pane)) return;
+    game.settings = game.settings || {};
+    game.settings.equipmentMobilePane = pane;
+    syncEquipmentMobilePane();
+    if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
+}
+
+safeExposeGlobals({ setEquipmentMobilePane });
 
 function selectJewelWorkbenchTarget(index, fusion) {
     if (fusion) toggleJewelFusionSelection(index);
@@ -9753,6 +9790,7 @@ function performUpdateStaticUI() {
 
     if (itemsTabActive) {
     syncSalvageControlsFromSettings();
+    syncEquipmentMobilePane();
     renderEquipmentLoadoutSummary(pStats);
     renderPaperdoll('ui-equip-list', false);
     renderPaperdoll('ui-craft-equip-list', true);
@@ -11247,13 +11285,20 @@ function buildCraftActionButtons(item) {
     let seasonMapCap = typeof getVisibleHuntingMapCapZoneId === 'function' ? getVisibleHuntingMapCapZoneId() : Math.min(getCurrentSeasonFinalZoneId(), getAbyssZoneIdForDepth(20));
     let highestMapZone = Math.min(Math.max(0, Math.floor(game.maxZoneId || 0)), seasonMapCap);
     let mapZones = Array.from({ length: highestMapZone + 1 }, (_, idx) => getZone(idx)).filter(Boolean);
+    let recommendedHuntingZone = getRecommendedHuntingZone(mapZones);
+    let recommendedHuntingZoneId = recommendedHuntingZone ? Number(recommendedHuntingZone.id) : null;
+    let mapRouteSummary = document.getElementById('ui-map-route-summary');
+    let routeSummaryHtml = buildMapRouteSummaryHtml(getZone(game.currentZoneId), recommendedHuntingZone);
+    if (mapRouteSummary && mapRouteSummary.innerHTML !== routeSummaryHtml) mapRouteSummary.innerHTML = routeSummaryHtml;
     let pendingContract = getChallengeContractState();
     let contractScore = getChallengeContractScore(pendingContract);
     let contractBonusPct = Math.round((getChallengeContractRewardMultiplier({ type: 'act' }, pendingContract) - 1) * 100);
     let mapCards = mapZones.map(zone => {
         let idx = Number(zone.id);
         let isChaosMap = zone.type === 'abyss';
-        let current = idx === game.currentZoneId ? 'current' : '';
+        let isCurrent = idx === game.currentZoneId;
+        let current = isCurrent ? 'current' : '';
+        let recommended = idx === recommendedHuntingZoneId && !isChaosMap;
         let unlockReveal = idx === pendingMapRevealZoneId ? 'map-unlock-reveal' : '';
         let icon = zone.ele === 'fire' ? '🔥' : (zone.ele === 'cold' ? '❄️' : (zone.ele === 'light' ? '⚡' : (zone.ele === 'chaos' ? '☠️' : '🩸')));
         let rewardReady = (game.claimableActRewards || []).includes(idx);
@@ -11274,13 +11319,16 @@ function buildCraftActionButtons(item) {
         }
         let powerEstimateHtml = buildMapPowerEstimateHtml(zone);
         if (powerEstimateHtml) mapZoneText += `<br>${powerEstimateHtml}`;
-        if (isActRewardZone && rewardReady) actionHtml = `<button class="map-reward-btn" onclick="event.stopPropagation(); openActReward(${idx})">보상 받기</button>`;
-        else if (isActRewardZone && rewardClaimed) actionHtml = `<button class="map-reward-btn claimed" disabled>보상 완료</button>`;
-        else if (cleared) actionHtml = `<span class="map-zone-status">정복 완료</span>`;
+        let state = getMapCardState(isCurrent, cleared, recommended);
+        actionHtml = `<span class="map-state-badge ${state.className}">${state.label}</span>`;
+        if (isActRewardZone && rewardReady) actionHtml += `<button class="map-reward-btn" onclick="event.stopPropagation(); openActReward(${idx})">보상 받기</button>`;
+        else if (isActRewardZone && rewardClaimed) actionHtml += `<button class="map-reward-btn claimed" disabled>보상 완료</button>`;
+        let enterAction = isCurrent ? "switchTab('tab-battle')" : `changeZone(${idx})`;
+        actionHtml += `<button type="button" class="map-enter-btn" onclick="event.stopPropagation(); ${enterAction}">${isCurrent ? '전투 보기' : '사냥 시작'}</button>`;
         return {
             isChaosMap,
             html: `
-            <div class="map-item ${isChaosMap ? 'map-item--chaos' : ''} ${current} ${unlockReveal}" onclick="changeZone(${idx})">
+            <div class="map-item ${isChaosMap ? 'map-item--chaos' : ''} ${current} ${cleared ? 'is-cleared' : ''} ${recommended ? 'is-recommended' : ''} ${unlockReveal}" role="group" ${isCurrent ? 'aria-current="true"' : ''}>
                 <div class="map-item-main"><span>${icon}</span><span>${mapZoneText}</span></div>
                 <div class="map-item-actions">${actionHtml}</div>
             </div>

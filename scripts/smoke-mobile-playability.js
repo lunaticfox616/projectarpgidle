@@ -6,6 +6,7 @@ const mobileCss = fs.readFileSync('css/mobile.css', 'utf8');
 const gameCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 const assetCss = fs.readFileSync('css/ui-asset-skins.css', 'utf8');
 const ui = fs.readFileSync('js/ui.js', 'utf8');
+const responsiveLayoutCss = mobileCss.slice(mobileCss.indexOf('@media (max-width: 1080px)'), mobileCss.indexOf('@media (max-width: 720px)'));
 
 assert.ok(html.includes('id="ui-combat-flasks"'), 'combat HUD should expose the flask charge strip');
 assert.ok(mobileCss.includes('height: clamp(210px, 42svh, 360px) !important'), 'phone battlefields need a playable viewport height');
@@ -18,7 +19,9 @@ assert.ok(/#tab-skills \.search-filter-panel\s*\{[^}]*box-sizing:\s*border-box/.
 assert.ok(gameCss.includes('.gem-engrave-slot-dialog'), 'engraving slot selection needs a responsive in-game dialog');
 assert.ok(gameCss.includes('.combat-flask-mini'), 'combat flask charges need dedicated readable controls');
 assert.ok(ui.indexOf('function renderCombatFlaskHud()') < ui.indexOf('function updateCombatUI('), 'the dynamic combat HUD renderer must live in updateCombatUI scope');
-assert.ok(ui.includes('width:112px; height:64px'), 'mobile battle PiP should not cover a full card or action row');
+assert.ok(/#mobile-battle-pip\.mobile-battle-dock\s*{[^}]*position:\s*sticky/.test(mobileCss), 'mobile battle preview must stay in layout flow instead of covering cards and actions');
+assert.ok(!ui.includes('host.style.cssText = \'position:fixed'), 'mobile battle preview must not restore the floating overlay layout');
+assert.ok(responsiveLayoutCss.includes('.equipment-mobile-switch {'), 'tablet-width one-column equipment layouts need the inventory/loadout switch');
 assert.ok(ui.includes("host.setAttribute('aria-label', '전투 화면으로 이동')"), 'mobile battle PiP needs an accessible action name');
 assert.ok(mobileCss.includes('.combat-dashboard { display: contents !important; }'), 'mobile combat HUD sections should share one explicit vertical order');
 assert.ok(mobileCss.includes('#enemy-area { order: -2; }'), 'the enemy gauge should render above the battlefield on mobile');

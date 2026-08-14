@@ -1110,6 +1110,8 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window {
 }
 
 /* ── Equipment command screen ─────────────────────────────── */
+.equipment-mobile-switch { display: none; }
+
 .equipment-workspace {
   display: grid;
   grid-template-columns: minmax(330px, .82fr) minmax(430px, 1.35fr);
@@ -1345,7 +1347,7 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .equipment-meta-chip { padding: 2px 5px; border: 1px solid rgba(66, 91, 117, .52); border-radius: 4px; color: #eef2f6; background: rgba(11, 20, 30, .72); font-size: 8px; white-space: nowrap; }
 .equipment-card-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px !important; margin-top: 7px; }
 .equipment-card-actions button { min-width: 0; min-height: 25px; padding: 3px 4px; border-radius: 5px; font-size: 9px; }
-.equipment-card-actions .equipment-card-primary { color: #ffffff; border-color: #4b83ad; background: linear-gradient(180deg, #285b7d, #173c56); }
+.equipment-card-actions .equipment-card-primary { grid-column: 1 / -1; min-height: 31px; color: #ffffff; border-color: #4b83ad; background: linear-gradient(180deg, #285b7d, #173c56); }
 .equipment-card-actions .equipment-card-danger { color: #d8b2b2; border-color: #684143; background: #3f282c; }
 .equipment-card-actions .is-locked { color: #f0d59a; border-color: #7d6330; background: #4a3b1d; }
 
@@ -1365,6 +1367,37 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
   .equipment-loadout-panel, .equipment-inventory-panel { padding: 12px; }
   body:not(.light-mode) #item-tab-equip .equipment-inventory-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
 }
+
+/* First-flow map hierarchy: location, recommendation, then one explicit action. */
+.map-route-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(211, 176, 97, .55);
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(73, 51, 18, .76), rgba(16, 39, 58, .92) 68%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 8px 22px rgba(0,0,0,.2);
+}
+
+.map-route-copy { display: grid; min-width: 0; gap: 2px; }
+.map-route-kicker { color: #e4bd67; font-size: 9px; font-weight: 900; letter-spacing: .18em; }
+.map-route-copy strong { overflow: hidden; color: #fff3c5; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.map-route-copy small { color: #d6e0ea; font-size: 10px; }
+.map-route-action,
+.map-enter-btn { border-color: #5489af; color: #fff; background: linear-gradient(180deg, #2e6d95, #17425f); font-weight: 900; }
+.map-route-action { flex: 0 0 auto; min-height: 38px; }
+.map-item[role="group"] { cursor: default; }
+.map-item[role="group"].is-cleared:not(.current) { border-color: rgba(76, 103, 128, .64); background: rgba(17, 27, 39, .82); }
+.map-item[role="group"].is-recommended { border-color: #d8b45d; box-shadow: 0 0 0 1px rgba(216,180,93,.22), 0 8px 20px rgba(0,0,0,.22); }
+.map-item[role="group"] .map-item-actions { justify-content: flex-end; flex-wrap: wrap; }
+.map-state-badge { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 7px; border: 1px solid #4c6177; border-radius: 999px; color: #e4edf5; background: #1a2837; font-size: 9px; font-weight: 900; }
+.map-state-badge.current { border-color: #73b8e8; color: #d9f2ff; background: #173d58; }
+.map-state-badge.cleared { border-color: #506779; color: #afbfcc; background: #18232d; }
+.map-state-badge.recommended { border-color: #d8b45d; color: #fff0b8; background: #5d4519; }
+.map-enter-btn { min-height: 30px; padding: 5px 9px; font-size: 10px; }
 
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-titlebar,
 body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-body {

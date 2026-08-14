@@ -2035,6 +2035,7 @@ const defaultGame = {
         autoSalvageEnabled: false,
         autoSalvageRarities: { normal: true, magic: true, rare: false, unique: false },
         inventoryViewRarities: { normal: true, magic: true, rare: true, unique: true },
+        equipmentMobilePane: 'inventory',
         itemFilterEnabled: false,
         itemFilterRarities: { normal: true, magic: true, rare: true, unique: true },
         itemFilterTierThreshold: 10,
