@@ -63,7 +63,7 @@
         .ailment-chip-value { color: var(--copy-bright); font-weight: 900; font-variant-numeric: tabular-nums; }
         .stat-unit { min-width: 16px; text-align: right; color: var(--copy-muted); }
 
-        #item-tooltip-box, #canvas-tooltip, #info-tooltip { display: none; position: fixed; left: 0; top: 0; z-index: 9999; background: rgba(10,10,15,0.97); border: 1px solid #777; padding: 12px; border-radius: 6px; pointer-events: none; color: #eee; box-shadow: 0 5px 15px rgba(0,0,0,0.8); min-width: 200px; font-size: 0.9em; line-height: 1.5; will-change: transform; }
+        #item-tooltip-box, #canvas-tooltip, #info-tooltip { display: none; position: fixed; left: 0; top: 0; z-index: 9999; background: rgba(10,10,15,0.97); border: 1px solid #777; padding: 12px; border-radius: 6px; pointer-events: none; color: #eee; box-shadow: 0 5px 15px rgba(0,0,0,0.8); min-width: 200px; font-family: var(--game-font-body, 'Galmuri14', 'Malgun Gothic', sans-serif); font-size: 0.9em; line-height: 1.5; -webkit-font-smoothing: auto; text-rendering: optimizeLegibility; }
         #item-tooltip-box { max-width: min(720px, calc(100vw - 20px)); max-height: calc(100vh - 20px); overflow: hidden auto; overscroll-behavior: contain; }
         #item-tooltip-box.item-compare-tooltip, #info-tooltip.item-compare-tooltip { width: fit-content; max-width: min(680px, calc(100vw - 20px)); min-width: 0; padding: 0; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
         #canvas-tooltip { z-index: 9999; border-color: #f39c12; min-width: 180px; }

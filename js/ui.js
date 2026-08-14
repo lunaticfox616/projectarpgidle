@@ -6317,7 +6317,10 @@ function applyTooltipPosition(el, x, y) {
     if (top + size.height > window.innerHeight - 10) top = y - size.height - 18;
     left = clampNumber(left, 8, Math.max(8, window.innerWidth - size.width - 8));
     top = clampNumber(top, 8, Math.max(8, window.innerHeight - size.height - 8));
-    el.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
+    const deviceScale = Math.max(1, Number(window.devicePixelRatio) || 1);
+    const snappedLeft = Math.round(left * deviceScale) / deviceScale;
+    const snappedTop = Math.round(top * deviceScale) / deviceScale;
+    el.style.transform = `translate(${snappedLeft}px, ${snappedTop}px)`;
 }
 
 function flushTooltipPositions() {
