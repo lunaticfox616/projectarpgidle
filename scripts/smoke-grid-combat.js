@@ -23,7 +23,9 @@ const files = [
   'js/core-cube.js',
   'js/combat-grid.js',
   'js/combat-patterns.js',
+  'js/cosmos-rules.js',
   'js/combat.js',
+  'js/combat-ehp.js',
   'js/talent-cards.js',
 ];
 
@@ -114,21 +116,176 @@ const cfg = context.COMBAT_GRID_CONFIG;
   resetGame();
   const opening = context.estimateMapZonePowerRequirements({ id: 0, type: 'act', tier: 1, ele: 'phys' });
   const finale = context.estimateMapZonePowerRequirements({ id: 9, type: 'act', tier: 7, ele: 'chaos' });
-  assert.strictEqual(finale.basis, 'bossPeakHit', 'map EHP should identify the boss peak-hit basis');
+  assert.strictEqual(finale.basis, 'bossThreatWindow', 'map EHP should use the boss threat window instead of one isolated hit');
   assert.ok(finale.dps > opening.dps && finale.ehp > opening.ehp, '후반 액트는 초반 액트보다 예상 DPS/EHP가 높아야 한다');
   context.game.season = 1;
+  const normalRateEstimate = context.estimateMapZonePowerRequirements({ id: 'rate_normal', type: 'act', tier: 22, ele: 'phys' });
+  const underworldRateEstimate = context.estimateMapZonePowerRequirements({ id: 'rate_underworld', type: 'underworld', tier: 22, floor: 1, ele: 'phys' });
+  assert.ok(normalRateEstimate.ehp / normalRateEstimate.peakHit > underworldRateEstimate.ehp / underworldRateEstimate.peakHit,
+    '권장 EHP 위협 구간은 실제 전투의 지하계 공격 주기 감소를 반영해야 한다');
+  assert.strictEqual(underworldRateEstimate.underworldGravityFloor, 1,
+    '일반 지하계도 현재 층의 중력 패널티를 준비도 계산에 전달해야 한다');
   const burstBoss = context.estimateMapZonePowerRequirements({ id: 4, type: 'act', tier: 8, ele: 'fire', bossMods: { patternMode: 'burst' } });
   const slamBoss = context.estimateMapZonePowerRequirements({ id: 4, type: 'act', tier: 8, ele: 'fire', bossMods: { patternMode: 'slam' } });
-  assert.ok(slamBoss.ehp > burstBoss.ehp * 1.18,
-    'recommended EHP should follow the boss pattern peak instead of a generic monster hit');
+  assert.ok(slamBoss.peakHit > burstBoss.peakHit * 1.18,
+    'the direct-hit floor should follow the boss pattern peak instead of a generic monster hit');
   context.game.season = 2;
   const criticalSlamBoss = context.estimateMapZonePowerRequirements({ id: 4, type: 'act', tier: 8, ele: 'fire', bossMods: { patternMode: 'slam' } });
-  assert.ok(criticalSlamBoss.ehp > slamBoss.ehp * 1.5,
-    'recommended EHP should include the critical version of the boss peak hit');
+  assert.ok(criticalSlamBoss.peakHit > slamBoss.peakHit * 1.5,
+    'the direct-hit floor should include the critical version of the boss peak hit');
   context.game.season = 10;
   context.game.loopCount = 9;
   const looped = context.estimateMapZonePowerRequirements({ id: 9, type: 'act', tier: 7, ele: 'chaos' });
   assert.ok(looped.dps > finale.dps && looped.ehp > finale.ehp, '같은 지역도 루프가 오르면 예상 DPS/EHP가 함께 올라야 한다');
+
+  context.game.season = 31;
+  context.game.loopCount = 30;
+  context.game.underworldProgress = { currentFloor: 1, highestFloor: 1 };
+  const underworldEntry = context.estimateMapZonePowerRequirements(context.getZone('underworld_core'));
+  const bloomTrial = context.getZone('trial_5');
+  const bloomEstimate = context.estimateMapZonePowerRequirements(bloomTrial);
+  assert.strictEqual(bloomTrial.difficultyBenchmark, 'underworld1', '5차 전직 시련은 코어 키 최소 획득처를 난이도 계약으로 가져야 한다');
+  assert.strictEqual(bloomEstimate.underworldGravityIgnoresReduction, true,
+    '5차 전직 시련의 중력 패널티는 실제 전투처럼 창공석 완화를 무시해야 한다');
+  assert.ok(bloomEstimate.dps >= underworldEntry.dps && bloomEstimate.ehp >= underworldEntry.ehp,
+    '5차 전직 보스는 지하계 1층 보스보다 약하면 안 된다');
+  assert.strictEqual(bloomTrial.bossMods.patternMode, 'slam', '5차 전직 보스는 고정된 강공격 패턴을 가져야 한다');
+  const bloomBoss = context.createEnemy(bloomTrial, { at: 100, count: 1, boss: true }, 0);
+  assert.strictEqual(bloomBoss.patternMode, 'slam', '실제 생성된 5차 전직 보스에도 파쇄 강타가 적용되어야 한다');
+  assert.ok(bloomBoss.maxHp >= bloomEstimate.dps * bloomEstimate.clearTimeSec * 0.99,
+    '5차 전직 보스 실제 체력은 표시된 권장 DPS의 계산 근거보다 낮으면 안 된다');
+  assert.ok(Array.isArray(bloomBoss.chaosRealmAffixes) && bloomBoss.chaosRealmAffixes.length === 3,
+    '5차 전직 보스는 기존 적응형 혼돈 특성도 실제로 유지해야 한다');
+
+  const pinnacleZones = context.SEASON_BOSS_ZONES.filter(zone => zone.milestonePinnacle);
+  assert.strictEqual(pinnacleZones.length, 4, '지하계·심해·창공·통합 아틀라스 최종 관문이 모두 정의되어야 한다');
+  const underking = context.getZone('pinnacle_underking');
+  assert.strictEqual(context.getSeasonBossProgressGate(underking, context.game).met, false,
+    '지핵군주는 지하계 30층을 실제로 돌파하기 전에 잠겨야 한다');
+  context.game.underworldProgress = { currentFloor: 30, highestFloor: 31 };
+  assert.strictEqual(context.getSeasonBossProgressGate(underking, context.game).met, true,
+    '지하계 30층을 돌파하면 지핵군주가 영구 해금되어야 한다');
+  const currenciesBeforePinnacleEntry = JSON.stringify(context.game.currencies);
+  context.game.currentZoneId = 0;
+  context.changeZone('pinnacle_underking');
+  assert.strictEqual(context.game.currentZoneId, 'pinnacle_underking', '해금된 최종 관문은 별도 입장권 없이 진입해야 한다');
+  assert.strictEqual(JSON.stringify(context.game.currencies), currenciesBeforePinnacleEntry,
+    '이정표 최종 관문 진입은 어떤 재화도 소모하면 안 된다');
+  context.game.ocean = { bossClearM: 1000 };
+  assert.strictEqual(context.getSeasonBossProgressGate(context.getZone('pinnacle_leviathan'), context.game).met, true,
+    '1000m 심해 가디언을 돌파하면 탈라사가 해금되어야 한다');
+  context.game.skyTower = { highestFloor: 31, clearedFloors: [30] };
+  assert.strictEqual(context.getSeasonBossProgressGate(context.getZone('pinnacle_sky'), context.game).met, true,
+    '창공의 탑 30층을 돌파하면 카엘룸이 해금되어야 한다');
+  context.game.clearedRootBosses = ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky'];
+  const observer = context.getZone('pinnacle_observer');
+  assert.strictEqual(context.getSeasonBossProgressGate(observer, context.game).met, false,
+    '베일라는 세 영역 지배자만으로 열리면 안 된다');
+  context.game.clearedRootBosses.push('cosmos_astra');
+  assert.strictEqual(context.getSeasonBossProgressGate(observer, context.game).met, true,
+    '세 영역 지배자와 아스트라를 모두 격파하면 베일라가 열려야 한다');
+  const pinnacleEnemies = pinnacleZones.map(zone => context.createEnemy(zone, { at: 100, count: 1, boss: true }, 0));
+  assert.strictEqual(pinnacleEnemies[0].patternMode, 'slam', '지핵군주는 파쇄 강타 패턴을 사용해야 한다');
+  assert.ok(pinnacleEnemies[1].maxEnergyShield > 0, '탈라사는 생명력 위에 심해 보호막을 가져야 한다');
+  assert.strictEqual(pinnacleEnemies[2].patternMode, 'burst', '카엘룸은 빠른 연격 패턴을 사용해야 한다');
+  assert.strictEqual(pinnacleEnemies[3].patternMode, 'cosmos', '베일라는 세 보스 패턴을 순환해야 한다');
+  assert.ok(pinnacleEnemies.every(enemy => enemy.disableExecute && enemy.disableHpScaleDamage),
+    '최종 관문은 처형이나 적 생명력 비례 피해로 우회할 수 없어야 한다');
+  const pinnacleEstimates = pinnacleZones.map(zone => context.estimateMapZonePowerRequirements(zone));
+  const observerEstimate = pinnacleEstimates[pinnacleEstimates.length - 1];
+  const underworldThirtyEstimate = context.estimateMapZonePowerRequirements(context.getZone('underworld_core'));
+  const oceanThousandEstimate = context.estimateMapZonePowerRequirements(context.getZone('ocean_depth'));
+  const skyThirtyEstimate = context.estimateMapZonePowerRequirements(context.getZone('sky_tower'));
+  assert.ok(pinnacleEstimates[0].dps > underworldThirtyEstimate.dps && pinnacleEstimates[0].ehp > underworldThirtyEstimate.ehp,
+    '지핵군주는 해금 조건인 지하계 30층 보스보다 강해야 한다');
+  assert.ok(pinnacleEstimates[1].dps > oceanThousandEstimate.dps && pinnacleEstimates[1].ehp > oceanThousandEstimate.ehp,
+    '탈라사는 해금 조건인 심해 1000m 가디언보다 강해야 한다');
+  assert.ok(pinnacleEstimates[2].dps > skyThirtyEstimate.dps && pinnacleEstimates[2].ehp > skyThirtyEstimate.ehp,
+    '카엘룸은 해금 조건인 창공의 탑 30층 보스보다 강해야 한다');
+  assert.ok(pinnacleEstimates.slice(0, -1).every(estimate => observerEstimate.dps > estimate.dps && observerEstimate.ehp > estimate.ehp),
+    '베일라는 세 영역 지배자보다 화력과 생존 요구가 모두 높은 마지막 관문이어야 한다');
+  resetGame();
+  context.game.season = 31;
+  context.game.currentZoneId = 'pinnacle_underking';
+  context.game.inTicketBossFight = true;
+  context.game.currencies.goldenRule = 0;
+  context.finishEncounterRun();
+  assert.ok(context.game.clearedRootBosses.includes('pinnacle_underking'), '최종 관문 최초 격파는 영구 기록되어야 한다');
+  assert.strictEqual(context.game.currencies.goldenRule, 2, '지핵군주 최초 격파 보상은 정확히 한 번 지급되어야 한다');
+  context.game.currentZoneId = 'pinnacle_underking';
+  context.game.inTicketBossFight = true;
+  context.finishEncounterRun();
+  assert.strictEqual(context.game.currencies.goldenRule, 2, '무료 재도전으로 최초 격파 보상을 반복 획득하면 안 된다');
+  context.game.loopCount = 30;
+
+  const cosmosBossSteps = [
+    ['planet-46', 'physical', 57, 1.5, 2],
+    ['planet-47', 'absorb', 63, 2.1, 3],
+    ['planet-48', 'balance', 69, 2.4, 3],
+    ['planet-49', 'judgement', 75, 2.8, 4],
+    ['planet-45', 'impact', 82, 3.2, 5]
+  ].map(([cosmosNodeId, cosmosTag, tier, gravity, sizeClass], index) => ({
+    id: 'cosmos_challenge', type: 'cosmos', tier, ele: 'phys', cosmosNodeId, cosmosTag,
+    cosmosGalaxy: index + 1, gravity, sizeClass
+  }));
+  const cosmosEntry = cosmosBossSteps[0];
+  const cosmosFinal = cosmosBossSteps[cosmosBossSteps.length - 1];
+  const entryEstimate = context.estimateMapZonePowerRequirements(cosmosEntry);
+  const finalEstimate = context.estimateMapZonePowerRequirements(cosmosFinal);
+  const astraEstimate = context.estimateMapZonePowerRequirements(context.getZone('cosmos_astra'));
+  assert.ok(entryEstimate.dps > 1000000, '우주계 권장 DPS는 실제 보스 체력 공식을 사용해야 한다');
+  const cosmosBossEstimates = cosmosBossSteps.map(zone => context.estimateMapZonePowerRequirements(zone));
+  cosmosBossEstimates.slice(1).forEach((estimate, index) => {
+    assert.ok(estimate.dps > cosmosBossEstimates[index].dps && estimate.ehp > cosmosBossEstimates[index].ehp,
+      `G${index + 2} 권장 DPS/EHP는 이전 은하보다 높아야 한다`);
+  });
+  assert.ok(finalEstimate.dps > entryEstimate.dps && finalEstimate.ehp > entryEstimate.ehp);
+  assert.ok(astraEstimate.dps > finalEstimate.dps && astraEstimate.ehp > finalEstimate.ehp,
+    '아스트라는 해금 조건인 마지막 은하 보스보다 약하면 안 된다');
+  context.game.season = 80;
+  context.game.loopCount = 79;
+  const lateLoopEntryEstimate = context.estimateMapZonePowerRequirements(cosmosEntry);
+  assert.strictEqual(lateLoopEntryEstimate.dps, entryEstimate.dps,
+    '일반 루프만 진행해도 우주계 목표가 몰래 상승하면 안 된다');
+  assert.strictEqual(lateLoopEntryEstimate.ehp, entryEstimate.ehp,
+    '우주계 생존 기준은 전용 티어와 우주계 루프로만 상승해야 한다');
+
+  resetGame();
+  context.game.season = 31;
+  context.game.loopCount = 30;
+  context.game.cosmosAtlas = {};
+  context.game.cosmosAtlas.activeChallenge = {
+    nodeId: 'planet-47', name: '디프다르', galaxy: 2, tier: 63, gravity: 2.1, sizeClass: 3,
+    tag: 'absorb', mechanicId: 'abyssalTide', ele: 'chaos'
+  };
+  context.game.currentZoneId = 'cosmos_challenge';
+  const diphdar = context.createEnemy(context.getZone('cosmos_challenge'), { boss: true, at: 100 }, 0);
+  assert.strictEqual(diphdar.patternMode, 'cosmosBoss', '은하 보스는 공용 성좌 순환을 사용하면 안 된다');
+  assert.strictEqual(diphdar.cosmosBossId, 'planet-47');
+  assert.ok(diphdar.maxEnergyShield > 0, '디프다르의 심해 역류는 실제로 회복할 보호막 자원을 가져야 한다');
+
+  const cosmosChaseUniques = context.UNIQUE_DB.filter(item => item && item.cosmosChase);
+  assert.strictEqual(cosmosChaseUniques.length, 5, '각 은하 보스는 별도의 희귀 추적 고유 장비를 가져야 한다');
+  cosmosChaseUniques.forEach(item => {
+    const reward = context.COSMOS_BOSS_REWARD_DB[item.dropOnly.bossId];
+    assert.ok(reward && reward.equipment.includes(item.name), `${item.name}은 실제 보스 보상 풀에 연결되어야 한다`);
+  });
+
+  resetGame();
+  context.game.ascendClass = 'guardian';
+  context.game.ascendKeystones = ['gd9'];
+  const fortressStats = context.getPlayerStats();
+  assert.strictEqual(fortressStats.guardianHitCapPct, 35, '가디언 5차 노드는 단순 생명력 증가가 아닌 적중 상한을 제공해야 한다');
+  context.game.currentZoneId = 0;
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(880, 2, 6, { attackTimer: 1, damageMul: 1000 })];
+  context.game.playerHp = 1000;
+  context.performMonsterAttacks({
+    maxHp: 1000, energyShield: 0, dr: 0, armor: 0, evasion: 0, evadeChance: 0,
+    resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
+    guardianHitCapPct: 35
+  });
+  assert.strictEqual(context.game.playerHp, 650, '살아 있는 성채는 실제 단일 적중 생명력 손실을 35%로 제한해야 한다');
 
   context.game.underworldProgress = { currentFloor: 1, highestFloor: 1 };
   const underworldFloorOne = context.getZone('underworld_core');
@@ -1570,19 +1727,28 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const ui = fs.readFileSync('js/ui.js', 'utf8');
   assert.ok(battlefield.includes('isPlayerWalkingForAnimation'), '전장 캔버스가 공용 걷기 판단을 써야 한다');
   assert.ok(ui.includes('isPlayerWalkingForAnimation'), '스프라이트 선택이 공용 걷기 판단을 써야 한다');
-  assert.ok(ui.includes('estimateMapZonePowerRequirements(zone)') && ui.includes('예상 DPS 약 ${dps} · EHP 약 ${ehp}'),
-    '지도 지역 카드는 상세 계산 대신 대략적인 DPS/EHP만 표시해야 한다');
+  assert.ok(ui.includes('estimateMapZonePowerRequirements(zone)') && ui.includes('예상 DPS ${model.dps.label} · 권장 EHP ${model.ehp.label}'),
+    '지도 지역 카드는 원시 수치 대신 개인화된 DPS/EHP 등급을 표시해야 한다');
   assert.ok((ui.match(/buildMapPowerEstimateHtml\(/g) || []).length >= 14, '특수 지도 패널도 예상 DPS/EHP 표시를 공유해야 한다');
-  const estimateStart = ui.indexOf('function buildMapPowerEstimateHtml(');
+  const estimateStart = ui.indexOf('function formatApproximateMapPower(');
   const estimateEnd = ui.indexOf('function buildTrialMapItemHtml(', estimateStart);
   const estimateContext = {
-    estimateMapZonePowerRequirements() { return { dps: 413210, ehp: 692474, element: 'fire' }; }
+    cachedTooltipStats: {},
+    estimateMapZonePowerRequirements() { return { dps: 413210, ehp: 692474, element: 'fire' }; },
+    getMapPowerReadiness() {
+      return {
+        dps: { id: 'fit', label: '적정' }, ehp: { id: 'low', label: '낮음' }, element: 'fire',
+        playerDps: 400000, recommendedDps: 413210, playerEhp: 500000, recommendedEhp: 692474
+      };
+    }
   };
   vm.createContext(estimateContext);
   vm.runInContext(ui.slice(estimateStart, estimateEnd), estimateContext, { filename: 'map-power-estimate.js' });
   const estimateHtml = estimateContext.buildMapPowerEstimateHtml({ id: 1 });
-  assert.ok(estimateHtml.includes('예상 DPS 약 41만 · EHP 약 69만') && !estimateHtml.includes('413,210'),
-    '지도 예상치는 정확한 원시 수치 대신 두 자리 수준의 대략값을 렌더링해야 한다');
+  assert.ok(estimateHtml.includes('예상 DPS <b class="map-power-grade grade-fit">적정</b>')
+      && estimateHtml.includes('권장 EHP <b class="map-power-grade grade-low">낮음</b>')
+      && !estimateHtml.includes('413,210'),
+    '지도 카드는 원시 수치를 숨기고 낮음·적정·높음 등급만 렌더링해야 한다');
 }
 
 console.log('smoke-grid-combat passed');

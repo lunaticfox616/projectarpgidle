@@ -414,6 +414,62 @@ function getStarWedgeUnlockReady() {
     return (game.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (game.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT;
 }
 
+function getClearedSkyTowerFloor(source) {
+    const tower = source && source.skyTower && typeof source.skyTower === 'object' ? source.skyTower : {};
+    const cleared = Array.isArray(tower.clearedFloors) ? tower.clearedFloors : [];
+    const recorded = cleared.reduce((highest, floor) => Math.max(highest, Math.floor(Number(floor) || 0)), 0);
+    return Math.max(recorded, Math.max(0, Math.floor(Number(tower.highestFloor) || 1) - 1));
+}
+
+function getPinnacleRequirementProgress(requirement, source) {
+    const target = Math.max(1, Math.floor(Number(requirement && requirement.target) || 1));
+    if (!source || !requirement) return { met: false, current: 0, target, label: '진행 정보 없음' };
+    if (requirement.kind === 'underworldFloor') {
+        const progress = source.underworldProgress && typeof source.underworldProgress === 'object' ? source.underworldProgress : {};
+        const current = Math.max(0, Math.floor(Number(progress.highestFloor) || 1) - 1);
+        return { met: current >= target, current, target, label: `지하계 ${current}/${target}층` };
+    }
+    if (requirement.kind === 'oceanDepth') {
+        const ocean = source.ocean && typeof source.ocean === 'object' ? source.ocean : {};
+        const current = Math.max(0, Math.floor(Number(ocean.bossClearM) || 0));
+        return { met: current >= target, current, target, label: `심해 가디언 ${current}/${target}m` };
+    }
+    if (requirement.kind === 'skyFloor') {
+        const current = getClearedSkyTowerFloor(source);
+        return { met: current >= target, current, target, label: `창공의 탑 ${current}/${target}층` };
+    }
+    return { met: false, current: 0, target, label: '알 수 없는 선행 조건' };
+}
+
+/**
+ * @param {Readonly<object>} zone
+ * @param {Readonly<object>} source
+ * @returns {{met:boolean,label:string,current?:number,target?:number}}
+ */
+function getSeasonBossProgressGate(zone, source) {
+    const state = source || game;
+    if (!zone || !state) return { met: false, label: '진행 정보 없음' };
+    if (Array.isArray(zone.requiresRivals)) {
+        const progress = state.loopProgressCurrent && typeof state.loopProgressCurrent === 'object' ? state.loopProgressCurrent : {};
+        const cleared = new Set(Array.isArray(progress.specialBosses) ? progress.specialBosses : []);
+        const current = zone.requiresRivals.filter(id => cleared.has(id)).length;
+        return { met: current >= zone.requiresRivals.length, current, target: zone.requiresRivals.length, label: `이번 루프 선행 결투 ${current}/${zone.requiresRivals.length}` };
+    }
+    if (Array.isArray(zone.requiresCosmosBosses)) {
+        const atlas = state.cosmosAtlas && typeof state.cosmosAtlas === 'object' ? state.cosmosAtlas : {};
+        const cleared = new Set(Array.isArray(atlas.bossClears) ? atlas.bossClears : []);
+        const current = zone.requiresCosmosBosses.filter(id => cleared.has(id)).length;
+        return { met: current >= zone.requiresCosmosBosses.length, current, target: zone.requiresCosmosBosses.length, label: `이번 루프 은하 보스 ${current}/${zone.requiresCosmosBosses.length}` };
+    }
+    if (zone.pinnacleRequirement) return getPinnacleRequirementProgress(zone.pinnacleRequirement, state);
+    if (Array.isArray(zone.requiresPinnacles)) {
+        const cleared = new Set(Array.isArray(state.clearedRootBosses) ? state.clearedRootBosses : []);
+        const current = zone.requiresPinnacles.filter(id => cleared.has(id)).length;
+        return { met: current >= zone.requiresPinnacles.length, current, target: zone.requiresPinnacles.length, label: `최종 관문 격파 ${current}/${zone.requiresPinnacles.length}` };
+    }
+    return { met: true, label: '' };
+}
+
 function getZone(id) {
     if (id === 'cosmos_challenge') {
         let cosmos = (game && game.cosmosAtlas && typeof game.cosmosAtlas === 'object') ? game.cosmosAtlas : {};
@@ -427,6 +483,7 @@ function getZone(id) {
                 maxKills: 1,
                 ele: c.ele || 'chaos',
                 cosmosNodeId: c.nodeId || null,
+                cosmosGalaxy: Math.max(0, Math.min(5, Math.floor(Number(c.galaxy) || 0))),
                 cosmosTag: c.tag || '',
                 cosmosMechanicId: c.mechanicId || '',
                 recommendedDps: Math.max(0, Math.floor(Number(c.recommendedDps) || 0)),
@@ -1011,7 +1068,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'gd6', name: '인내 장전', desc: '피격 시 4초간 방어도 +11% (최대 5중첩, 곱연산), 5중첩 소모 반사 피해 후 2중첩 유지', req: 'gd3' },
         { id: 'gd7', name: '최후 저지선', desc: '생명력 50% 이하 시 받는 피해 20% 감폭/주는 피해 30% 증폭, 상태이상 제거(쿨 5초)', reqAny: ['gd4', 'gd5'] },
         { id: 'gd8', name: '절대 수호', desc: '막기 확률과 별개로 피해를 무효화할 확률 30%, 모든 상태 이상 저항 확률 +50%', req: 'gd7' },
-        { id: 'gd9', name: '거대화', desc: '최대 생명력 20% 증폭', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
+        { id: 'gd9', name: '살아 있는 성채', desc: '한 번의 적중으로 생명력 최대치의 35%를 넘게 잃지 않음, 생명력 재생과 흡수 효과 35% 감폭', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
     inquisitor: [
         { id: 'iq1', name: '교리 집행', desc: '원소 피해가 현재 사용 중인 총 공명력의 50%만큼 증폭', req: null },

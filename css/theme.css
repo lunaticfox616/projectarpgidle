@@ -3,6 +3,12 @@
         .map-reward-btn { background: linear-gradient(180deg, #6e5420 0%, #4a3815 100%); border-color: #b88a2b; color: #ffe7a2; font-size: 0.78em; padding: 5px 10px; }
         .map-reward-btn.claimed { background: #263544; border-color: #3a536c; color: #ffffff; }
         .map-zone-status { color: var(--copy-muted); font-size: 0.78em; font-weight: normal; }
+        .map-power-estimate { display: inline-flex; flex-wrap: wrap; gap: 0.25rem 0.65rem; cursor: help; }
+        .map-power-estimate > span { white-space: nowrap; }
+        .map-power-grade { font-weight: 800; }
+        .map-power-grade.grade-low { color: #ff877f; }
+        .map-power-grade.grade-fit { color: #f0cf71; }
+        .map-power-grade.grade-high { color: #78d8b0; }
 
         .subtab-row { display: flex; gap: 8px; margin-bottom: 15px; }
         .subtab-btn { flex: 1; padding: 10px 0; background: #1a1a24; color: #888; border: 1px solid #2a2a35; border-radius: 6px; display: flex; align-items: center; justify-content: center; }

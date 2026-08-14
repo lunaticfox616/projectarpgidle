@@ -600,19 +600,17 @@ function changeZone(id) {
     let zone = getZone(id);
     if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');
     if (zone.type === 'seasonBoss') {
-        if ((game.season || 1) < (zone.reqSeason || 2)) return addLog(zone.rivalBlade ? '버려진 날붙이들은 루프 31부터 당신을 찾아옵니다.' : '아직 뿌리 보스가 잠겨 있습니다.', 'attack-monster');
-        if (Array.isArray(zone.requiresRivals)) {
-            let killedRivals = (game.loopProgressCurrent && Array.isArray(game.loopProgressCurrent.specialBosses)) ? game.loopProgressCurrent.specialBosses : [];
-            let remainingRivals = zone.requiresRivals.filter(rivalId => !killedRivals.includes(rivalId)).length;
-            if (remainingRivals > 0) return addLog(`완성작은 이번 루프에 다섯 날을 모두 꺾어야 모습을 드러냅니다. (남은 날: ${remainingRivals}개)`, 'attack-monster');
+        if ((game.season || 1) < (zone.reqSeason || 2)) {
+            let lockedMessage = zone.rivalBlade ? '버려진 날붙이들은 루프 31부터 당신을 찾아옵니다.'
+                : (zone.milestonePinnacle ? '아틀라스 최종 관문은 루프 31부터 모습을 드러냅니다.' : '아직 뿌리 보스가 잠겨 있습니다.');
+            return addLog(lockedMessage, 'attack-monster');
         }
-        if (Array.isArray(zone.requiresCosmosBosses)) {
-            let clearedBosses = (game.cosmosAtlas && Array.isArray(game.cosmosAtlas.bossClears)) ? game.cosmosAtlas.bossClears : [];
-            let remainingBosses = zone.requiresCosmosBosses.filter(bossId => !clearedBosses.includes(bossId)).length;
-            if (remainingBosses > 0) return addLog(`잔향체는 이번 루프에 다섯 은하 보스를 모두 꺾어야 모습을 드러냅니다. (남은 은하 보스: ${remainingBosses}개)`, 'attack-monster');
+        let gate = getSeasonBossProgressGate(zone, game);
+        if (!gate.met) return addLog(`🔒 ${gate.label} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
+        if (!zone.milestonePinnacle) {
+            if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${ORB_DB[zone.key].name})가 필요합니다.`, 'attack-monster');
+            game.currencies[zone.key]--;
         }
-        if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${ORB_DB[zone.key].name})가 필요합니다.`, 'attack-monster');
-        game.currencies[zone.key]--;
         game.inTicketBossFight = true;
     }
     if (zone.type === 'timeRift') {

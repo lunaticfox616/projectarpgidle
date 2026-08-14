@@ -83,6 +83,12 @@ function makeState(extra) {
 {
     const full = { normal: 200, elite: 10, boss: 1 };
     const trials = 120;
+    const originalRandom = Math.random;
+    let randomSeed = 0x5eed1234;
+    Math.random = () => {
+        randomSeed = (Math.imul(randomSeed, 1664525) + 1013904223) >>> 0;
+        return randomSeed / 0x100000000;
+    };
     const sampleOf = n => {
         const base = Math.floor(n / 10);
         return base + (Math.random() < ((n / 10) - base) ? 1 : 0);
@@ -106,6 +112,7 @@ function makeState(extra) {
         extrapolated += state.currencies.goldenRule;
         direct += rollGoldenRule(full);
     }
+    Math.random = originalRandom;
     // 극저확률 사건이라 표본 오차가 크다. 자릿수가 뒤집히지 않는지만 고정한다.
     const ratio = (extrapolated + 1) / (direct + 1);
     assert.ok(ratio > 0.4 && ratio < 2.5,

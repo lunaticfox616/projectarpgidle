@@ -142,6 +142,27 @@
         return { stage: nextGalaxy > 0 ? 'atlas' : 'complete', highestFloor, nextGalaxy };
     }
 
+    function getPinnacleJourney(g) {
+        if (!g || Math.max(1, Math.floor(Number(g.season) || 1)) < 31) return null;
+        const ids = ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
+        const zones = ids.map(id => SEASON_BOSS_ZONES.find(zone => zone.id === id)).filter(Boolean);
+        const cleared = new Set(Array.isArray(g.clearedRootBosses) ? g.clearedRootBosses : []);
+        const completeCount = zones.filter(zone => cleared.has(zone.id)).length;
+        const next = zones.find(zone => !cleared.has(zone.id));
+        if (!next) return { complete: true, completeCount, total: zones.length };
+        const gate = getSeasonBossProgressGate(next, g);
+        return { complete: false, completeCount, total: zones.length, next, gate };
+    }
+
+    function getPinnacleJourneySubtab(journey, g) {
+        if (!journey || !journey.next || journey.gate.met) return 'map-explore-root-boss';
+        if (journey.next.pinnacleTrack === 'underworld') return 'map-tab-underworld';
+        if (journey.next.pinnacleTrack === 'ocean') return 'map-tab-ocean';
+        if (journey.next.pinnacleTrack === 'sky') return 'map-tab-sky';
+        const cleared = new Set(Array.isArray(g && g.clearedRootBosses) ? g.clearedRootBosses : []);
+        return cleared.has('cosmos_astra') ? 'map-explore-root-boss' : 'map-tab-cosmos';
+    }
+
     // ── 규칙 레지스트리 ─────────────────────────────────────────────────
     // priority가 큰 규칙부터 검사해, matches가 참인 첫 규칙의 build 결과를 주 목표로 쓴다.
     const GOAL_RULES = [
@@ -410,6 +431,19 @@
                 if (progress.canChallenge) return buildNotice('잔향체 아스트라 도전 가능', 'tab-map', 'map-explore-root-boss');
                 if (progress.ready) return buildNotice('아스트라 조건 완료 · 표식: 잔향 필요', 'tab-map', 'map-tab-cosmos');
                 return buildNotice(`아스트라 은하 보스 ${progress.clearedCount}/${progress.total}`, 'tab-map', 'map-tab-cosmos');
+            }
+        },
+        {
+            id: 'atlas-pinnacle-progress',
+            matches(g) {
+                let journey = getPinnacleJourney(g);
+                return !!(g.unlocks && g.unlocks.map) && !!journey && !journey.complete;
+            },
+            build(g) {
+                let journey = getPinnacleJourney(g);
+                let progress = `아틀라스 최종 관문 ${journey.completeCount}/${journey.total}`;
+                let detail = journey.gate.met ? `${journey.next.name} 도전 가능` : journey.gate.label;
+                return buildNotice(`${progress} · ${detail}`, 'tab-map', getPinnacleJourneySubtab(journey, g));
             }
         },
         {

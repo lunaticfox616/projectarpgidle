@@ -329,3 +329,98 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
     await expect(page.locator('#log')).toBeVisible();
     expect(failures).toEqual([]);
 });
+
+test('map cards show readiness grades and keep approximate numbers in the tooltip', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.level = 100;
+        game.season = 10;
+        game.loopCount = 9;
+        game.maxZoneId = 9;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-zones');
+        switchMapExploreSubtab('map-explore-hunting');
+        performUpdateStaticUI();
+        tutorialQueue.length = 0;
+        if (activeTutorial) dismissTutorial(false);
+    });
+    const power = page.locator('#map-explore-hunting .map-power-estimate').first();
+    await expect(power).toBeVisible();
+    await expect(power).toContainText('예상 DPS');
+    await expect(power).toContainText('권장 EHP');
+    await expect(power).toContainText(/낮음|적정|높음/);
+    if (testInfo.project.name.startsWith('mobile')) await power.focus();
+    else await power.hover();
+    await expect(page.locator('#info-tooltip')).toContainText('내 DPS 약');
+    await expect(page.locator('#info-tooltip')).toContainText('내 EHP 약');
+    expect(failures).toEqual([]);
+});
+
+test('atlas pinnacle bosses expose realm milestones and allow ticketless challenges', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season = 31;
+        game.loopCount = 30;
+        game.maxZoneId = 12;
+        game.underworldProgress = { currentFloor: 30, highestFloor: 31, floor10Cleared: true };
+        game.ocean = { ...game.ocean, unlocked: true, depthM: 1000, bossClearM: 1000 };
+        game.skyTower = { ...game.skyTower, unlocked: true, currentFloor: 30, highestFloor: 31, clearedFloors: [30] };
+        game.clearedRootBosses = ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky'];
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-zones');
+        switchMapExploreSubtab('map-explore-root-boss');
+        performUpdateStaticUI();
+        tutorialQueue.length = 0;
+        if (activeTutorial) dismissTutorial(false);
+    });
+    const panel = page.locator('#map-explore-root-boss');
+    await expect(panel).toContainText('아틀라스 최종 관문');
+    await expect(panel).toContainText('지핵군주 모르그란');
+    await expect(panel).toContainText('무광해의 포식자 탈라사');
+    await expect(panel).toContainText('빈 왕좌의 집행자 카엘룸');
+    await expect(panel).toContainText('경계의 관측자 베일라');
+    const observer = panel.locator('.map-item').filter({ hasText: '경계의 관측자 베일라' });
+    await expect(observer).toContainText('최종 관문 격파 3/4');
+    await expect(observer).not.toHaveAttribute('onclick', /changeZone/);
+    const underking = panel.locator('.map-item').filter({ hasText: '지핵군주 모르그란' });
+    await expect(underking).toContainText('재도전 가능');
+    await underking.getByRole('button', { name: '도전' }).click();
+    await expect.poll(() => page.evaluate(() => game.currentZoneId)).toBe('pinnacle_underking');
+    expect(failures).toEqual([]);
+});
+
+test('cosmos boss detail keeps readiness compact and reveals approximate values on hover', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season = 31;
+        game.loopCount = 30;
+        game.journalEntries = Array.from(new Set([...(game.journalEntries || []), 'woodsman']));
+        game.underworldProgress = { ...(game.underworldProgress || {}), highestFloor: 30, currentFloor: 30 };
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-cosmos');
+        focusCosmosCapstoneBoss('planet-46');
+        tutorialQueue.length = 0;
+        if (activeTutorial) dismissTutorial(false);
+    });
+    const detail = page.locator('#ui-cosmos-detail');
+    await expect(detail).toBeVisible();
+    await expect(detail).toContainText('하말리스');
+    await expect(detail).toContainText('예상 DPS');
+    await expect(detail).toContainText('권장 EHP');
+    await expect(detail).not.toContainText('예상 적 특성');
+    await expect(detail).not.toContainText('대응:');
+    const readiness = detail.locator('.map-power-estimate');
+    await expect(readiness).toContainText(/낮음|적정|높음/);
+    if (testInfo.project.name.startsWith('mobile')) await readiness.focus();
+    else await readiness.hover();
+    await expect(page.locator('#info-tooltip')).toContainText('내 DPS 약');
+    await expect(page.locator('#info-tooltip')).toContainText('권장 약');
+    await expect(page.locator('#info-tooltip')).toContainText('내 EHP 약');
+    expect(failures).toEqual([]);
+});

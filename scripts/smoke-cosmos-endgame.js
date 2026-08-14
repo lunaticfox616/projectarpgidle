@@ -12,6 +12,7 @@ const context = {
         season: 31,
         loopCount: 30,
         currencies: { starDust: 0 },
+        journalEntries: ['woodsman'],
         jewelSlots: [],
         currentZoneId: 0,
         underworldProgress: { highestFloor: 30 },
@@ -45,12 +46,16 @@ assert(fireMechanic.counter.includes('EHP'), '기믹에는 입장 전 대응법�
 const baseTarget = context.calculateCosmosDifficultyTarget({ combatTier: 57, sizeClass: 1, gravity: 1, isGalaxyBoss: false, element: 'chaos' });
 const deepTarget = context.calculateCosmosDifficultyTarget({ combatTier: 70, sizeClass: 4, gravity: 3, isGalaxyBoss: true, element: 'phys' });
 assert.strictEqual(baseTarget.basis, 'bossPeakHit', 'every cosmos node should report boss-peak EHP');
-assert.strictEqual(baseTarget.ehp, Math.round(18000 * 1.55 * 1.55),
-    'cosmos EHP should include the node boss special hit and critical damage');
+assert(baseTarget.dps > 5000000 && baseTarget.ehp > 30000,
+    '전투 모듈 준비 전 대체값도 실제 나무꾼 이후 보스 공식과 같은 규모여야 한다');
 assert(deepTarget.dps > baseTarget.dps && deepTarget.ehp > baseTarget.ehp, '깊은 은하와 보스는 DPS/EHP 요구가 함께 올라야 한다');
 assert.strictEqual(context.evaluateCosmosReadiness(baseTarget, { dps: baseTarget.dps * 2, ehp: baseTarget.ehp * 0.7 }).id, 'risky', 'DPS가 높아도 EHP 병목을 숨기면 안 된다');
 
+context.game.journalEntries = [];
 let guide = context.getCosmosProgressGuide();
+assert.strictEqual(guide.title, '혼돈 밖의 나무꾼 격파', '우주계는 나무꾼 이후의 두 번째 성장 목표여야 한다');
+context.game.journalEntries.push('woodsman');
+guide = context.getCosmosProgressGuide();
 assert.strictEqual(guide.stage, 'stabilize');
 assert.strictEqual(guide.galaxy, 1, '관문 이후 첫 은하부터 순서대로 안내해야 한다');
 context.allocateCosmosMastery('riftGuard');
@@ -85,11 +90,11 @@ assert(first && boss && boss.target.dps > first.target.dps && boss.target.ehp > 
     '상위 은하 보스의 권장 DPS/EHP는 초입 노드보다 높아야 한다');
 
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
-assert(cosmosSource.includes('예상 DPS<strong>약 ${formatCosmosPower(model.target.dps)}')
-    && cosmosSource.includes('예상 EHP<strong>약 ${formatCosmosPower(model.target.ehp)}'),
-    '우주계 노드도 상세 비율 대신 대략적인 DPS/EHP만 표시해야 한다');
+assert(cosmosSource.includes('예상 DPS<strong class="map-power-grade grade-${ready.dps.id}">${ready.dps.label}')
+    && cosmosSource.includes('권장 EHP<strong class="map-power-grade grade-${ready.ehp.id}">${ready.ehp.label}'),
+    '우주계 노드도 원시 수치 대신 낮음·적정·높음 준비도만 표시해야 한다');
 assert(!cosmosSource.includes('약 ${model.target.clearTimeSec}초 클리어')
-    && !cosmosSource.includes('내 DPS ${formatCosmosPower(model.player.dps)}'),
-    '우주계 예상치에는 클리어 시간과 상세 플레이어 비율을 중복 표시하지 않아야 한다');
+    && !cosmosSource.includes('renderCosmosMechanicSection(node)'),
+    '우주계 상세 화면은 클리어 시간이나 기믹 공략을 미리 노출하지 않아야 한다');
 
 console.log('smoke-cosmos-endgame passed');

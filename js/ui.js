@@ -19,7 +19,7 @@ let activeInfoTooltipToken = null;
 let tooltipPositionFrame = null;
 let pendingTooltipPositions = new Map();
 let tooltipSizeCache = new WeakMap();
-let mapZoneGroupCollapseState = { hunting: false, chaos: false };
+let mapZoneGroupCollapseState = { hunting: false, chaos: false, rootBosses: false, rivalBosses: false, pinnacleBosses: false };
 
 let mobilePipCanvas = null;
 var lod = 1; // fallback for any legacy FX paths
@@ -63,22 +63,80 @@ function buildMapZoneGroupHtml(groupKey, title, cards) {
     </section>`;
 }
 
+function formatApproximateMapPower(value) {
+    return Math.max(0, Math.round(Number(value) || 0)).toLocaleString('ko-KR', {
+        notation: 'compact', maximumSignificantDigits: 2
+    });
+}
+
+function getMapPowerReadinessModel(estimate) {
+    if (typeof getMapPowerReadiness !== 'function') return null;
+    if (!cachedTooltipStats && typeof getPlayerStats === 'function') cachedTooltipStats = getPlayerStats();
+    return cachedTooltipStats ? getMapPowerReadiness(cachedTooltipStats, estimate) : null;
+}
+
 function buildMapPowerEstimateHtml(zone) {
     let estimate = typeof estimateMapZonePowerRequirements === 'function' ? estimateMapZonePowerRequirements(zone) : null;
     if (!estimate) return '';
-    let options = { notation: 'compact', maximumSignificantDigits: 2 };
-    let dps = Math.round(estimate.dps).toLocaleString('ko-KR', options);
-    let ehp = Math.round(estimate.ehp).toLocaleString('ko-KR', options);
-    let label = `예상 DPS 약 ${dps} · EHP 약 ${ehp}`;
-    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label} · 해당 지역 보스의 강공격과 치명타 기준" data-info-tooltip-anchor="1" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()">${label}</span>`;
+    let model = getMapPowerReadinessModel(estimate);
+    if (!model) return '';
+    let label = `예상 DPS ${model.dps.label} · 권장 EHP ${model.ehp.label}`;
+    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span>예상 DPS <b class="map-power-grade grade-${model.dps.id}">${model.dps.label}</b></span><span>권장 EHP <b class="map-power-grade grade-${model.ehp.id}">${model.ehp.label}</b></span></span>`;
 }
 
 function showMapPowerEstimateTooltip(event) {
-    let rect = event.currentTarget && event.currentTarget.getBoundingClientRect ? event.currentTarget.getBoundingClientRect() : null;
+    let target = event.currentTarget;
+    let rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
     let x = Number.isFinite(event.clientX) && event.clientX > 0 ? event.clientX : (rect ? rect.left + rect.width / 2 : 0);
     let y = Number.isFinite(event.clientY) && event.clientY > 0 ? event.clientY : (rect ? rect.bottom : 0);
-    let html = '<div class="tooltip-title">예상 전투력</div><div class="tooltip-line">해당 지역 보스의 강공격과 치명타를 기준으로 한 대략적인 권장치입니다.</div>';
+    let data = target ? target.dataset : {};
+    let elementLabel = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' }[data.limitingElement] || '취약 속성';
+    let html = `<div class="tooltip-title">권장 전투력</div>
+        <div class="tooltip-line">내 DPS 약 ${formatApproximateMapPower(data.playerDps)} / 권장 약 ${formatApproximateMapPower(data.recommendedDps)}</div>
+        <div class="tooltip-line">내 EHP 약 ${formatApproximateMapPower(data.playerEhp)} / 권장 약 ${formatApproximateMapPower(data.recommendedEhp)}</div>
+        <div class="tooltip-line tooltip-muted">${elementLabel} 기준 · 회피 주기와 직격 생존 하한 반영</div>`;
     showInfoTooltipHtml(x, y, html, '#6ba7d8');
+}
+
+function getSeasonBossTrackLabel(zone) {
+    if (zone.pinnacleTrack === 'underworld') return '지하계 종착';
+    if (zone.pinnacleTrack === 'ocean') return '심해 종착';
+    if (zone.pinnacleTrack === 'sky') return '창공 종착';
+    if (zone.pinnacleTrack === 'convergence') return '아틀라스 종착';
+    if (zone.cosmosCapstone) return '우주계 종착';
+    return '';
+}
+
+function buildSeasonBossCardHtml(zone) {
+    const gate = getSeasonBossProgressGate(zone, game);
+    const firstClearDone = Array.isArray(game.clearedRootBosses) && game.clearedRootBosses.includes(zone.id);
+    const keyCount = zone.key ? Math.max(0, Math.floor(game.currencies[zone.key] || 0)) : 0;
+    const hasEntry = zone.milestonePinnacle || keyCount > 0;
+    const disabled = !gate.met || !hasEntry;
+    const keyName = zone.key && ORB_DB[zone.key] ? ORB_DB[zone.key].name : '입장 열쇠';
+    const statusText = !gate.met ? gate.label
+        : (zone.milestonePinnacle ? (firstClearDone ? '최초 격파 완료 · 재도전 가능' : '도전 가능') : `${keyName}: ${keyCount}`);
+    const track = getSeasonBossTrackLabel(zone);
+    const icon = zone.pinnacleCapstone ? '👁️' : (zone.milestonePinnacle ? '♜' : (zone.cosmosCapstone ? '🌌' : (zone.rivalBlade ? '🗡️' : '🗝️')));
+    const powerEstimate = buildMapPowerEstimateHtml(zone);
+    const actionButton = !gate.met ? '<button type="button" disabled>선행 조건 필요</button>'
+        : (hasEntry ? `<button type="button" onclick="event.stopPropagation(); changeZone('${zone.id}')">도전</button>` : '');
+    return `<div class="map-item ${game.currentZoneId === zone.id ? 'current' : ''}" ${disabled ? '' : `onclick="changeZone('${zone.id}')"`}>
+        <div class="map-item-main"><span>${icon}</span><span>${zone.name}${track ? `<br><span class="map-zone-status">${track}</span>` : ''}<br>${powerEstimate}</span></div>
+        <div class="map-item-actions"><span class="map-zone-status">${statusText}</span>${actionButton}</div>
+    </div>`;
+}
+
+function buildSeasonBossGroupsHtml(zones) {
+    const cards = zoneList => zoneList.map(zone => ({ html: buildSeasonBossCardHtml(zone) }));
+    const roots = zones.filter(zone => !zone.rivalBlade && !zone.cosmosCapstone && !zone.milestonePinnacle);
+    const rivals = zones.filter(zone => zone.rivalBlade);
+    const pinnacles = zones.filter(zone => zone.cosmosCapstone || zone.milestonePinnacle);
+    return [
+        buildMapZoneGroupHtml('pinnacleBosses', '아틀라스 최종 관문', cards(pinnacles)),
+        buildMapZoneGroupHtml('rivalBosses', '버려진 날붙이', cards(rivals)),
+        buildMapZoneGroupHtml('rootBosses', '뿌리 보스', cards(roots))
+    ].join('');
 }
 
 function getRecommendedHuntingZone(zones) {
@@ -9528,6 +9586,9 @@ function getJournalEntryAction(entryId) {
             ? { label: '아스트라 도전 보기', tabId: 'tab-map', subtabId: 'map-explore-root-boss' }
             : { label: '우주계 진행 보기', tabId: 'tab-map', subtabId: 'map-tab-cosmos' };
     }
+    if (/^pinnacle_/.test(entryId)) {
+        return mapUnlocked && loop >= 31 ? { label: '최종 관문 보기', tabId: 'tab-map', subtabId: 'map-explore-root-boss' } : null;
+    }
     return null;
 }
 
@@ -11424,34 +11485,11 @@ function buildCraftActionButtons(item) {
     if (seasonBossRepeatWrap) seasonBossRepeatWrap.style.display = 'none';
     if (seasonBossRepeatBtn) {
         seasonBossRepeatBtn.style.display = seasonBosses.length > 0 ? 'inline-block' : 'none';
-        seasonBossRepeatBtn.innerText = `반복 도전 ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`;
+        seasonBossRepeatBtn.innerText = `입장권 보스 반복 ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`;
         seasonBossRepeatBtn.style.background = game.autoRepeatSeasonBoss ? '#2f6a42' : '#5b4a2f';
         seasonBossRepeatBtn.style.minWidth = '0';
     }
-    let rootBossListHtml = seasonBosses.map(zone => {
-        let keys = game.currencies[zone.key] || 0;
-        let gateReason = '';
-        if (Array.isArray(zone.requiresRivals)) {
-            let killedRivals = (game.loopProgressCurrent && Array.isArray(game.loopProgressCurrent.specialBosses)) ? game.loopProgressCurrent.specialBosses : [];
-            let remainingRivals = zone.requiresRivals.filter(id => !killedRivals.includes(id));
-            if (remainingRivals.length > 0) gateReason = `이번 루프 선행 결투 ${zone.requiresRivals.length - remainingRivals.length}/${zone.requiresRivals.length}`;
-        }
-        if (Array.isArray(zone.requiresCosmosBosses)) {
-            let progress = typeof getCosmosCapstoneProgress === 'function'
-                ? getCosmosCapstoneProgress(game.cosmosAtlas)
-                : null;
-            let clearedBosses = (game.cosmosAtlas && Array.isArray(game.cosmosAtlas.bossClears)) ? game.cosmosAtlas.bossClears : [];
-            let clearedCount = progress ? progress.clearedCount : zone.requiresCosmosBosses.filter(id => clearedBosses.includes(id)).length;
-            if (clearedCount < zone.requiresCosmosBosses.length) gateReason = `이번 루프 은하 보스 ${clearedCount}/${zone.requiresCosmosBosses.length}`;
-        }
-        let disabled = keys <= 0 || !!gateReason;
-        let statusText = gateReason || `${ORB_DB[zone.key].name}: ${keys}`;
-        let powerEstimate = buildMapPowerEstimateHtml(zone);
-        return `<div class="map-item ${game.currentZoneId === zone.id ? 'current' : ''}" ${disabled ? '' : `onclick="changeZone('${zone.id}')"`}>
-            <div class="map-item-main"><span>🗝️</span><span>${zone.name}<br>${powerEstimate}</span></div>
-            <div class="map-item-actions"><span class="map-zone-status">${statusText}</span>${gateReason ? `<button type="button" disabled>선행 조건 필요</button>` : ''}</div>
-        </div>`;
-    }).join('');
+    let rootBossListHtml = buildSeasonBossGroupsHtml(seasonBosses);
     document.getElementById('ui-season-boss-list').innerHTML = rootBossListHtml;
 
     let timeRiftOpen = (game.season || 1) >= TIME_RIFT_UNLOCK_LOOP;
@@ -11882,6 +11920,7 @@ function buildCraftActionButtons(item) {
             if (JOURNAL_DB[id] && JOURNAL_DB[id].hidden) return '숨겨진 기록';
             if (/^rival_/.test(id)) return '버려진 날';
             if (id === 'cosmos_astra') return '우주계 기록';
+            if (/^pinnacle_/.test(id)) return '최종 관문';
             if (['labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10'].includes(id)) return '탐험 기록';
             return '세계의 흔적';
         };
@@ -11903,7 +11942,11 @@ function buildCraftActionButtons(item) {
             rival_afterimage: '버려진 다섯 번째 날 「잔영」 격파',
             rival_backedge: '버려진 여섯 번째 날 「역린」 격파',
             rival_masterwork: '일곱 번째 날 「완성작」 격파',
-            cosmos_astra: '우주계의 잔향체 아스트라 격파'
+            cosmos_astra: '우주계의 잔향체 아스트라 격파',
+            pinnacle_underking: '지하계 30층 이후 지핵군주 모르그란 격파',
+            pinnacle_leviathan: '심해 1000m 이후 무광해의 포식자 탈라사 격파',
+            pinnacle_sky: '창공의 탑 30층 이후 빈 왕좌의 집행자 카엘룸 격파',
+            pinnacle_observer: '세 영역의 지배자와 아스트라 격파 후 경계의 관측자 베일라 격파'
         };
         let getJournalHint = (id, def) => {
             if (def && def.hint) return def.hint;
@@ -11911,7 +11954,7 @@ function buildCraftActionButtons(item) {
             if (actMatch) return `액트 ${actMatch[1]} 보스 처치`;
             return journalHintById[id] || '관련 콘텐츠 탐험';
         };
-        let categoryOrder = ['스토리', '세계의 흔적', '탐험 기록', '버려진 날', '우주계 기록', '숨겨진 기록'];
+        let categoryOrder = ['스토리', '세계의 흔적', '탐험 기록', '버려진 날', '우주계 기록', '최종 관문', '숨겨진 기록'];
         let categoryCounts = {};
         entries.forEach(({ id }) => {
             let category = getJournalCategory(id);
