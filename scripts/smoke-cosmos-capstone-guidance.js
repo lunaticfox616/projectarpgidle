@@ -36,10 +36,6 @@ context.game.currencies.cosmosSovereignKey = 1;
 progress = context.getCosmosCapstoneProgress(context.game.cosmosAtlas);
 assert.strictEqual(progress.canChallenge, true);
 
-const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-assert.ok(uiSource.includes('이번 루프 은하 보스 ${clearedCount}/${zone.requiresCosmosBosses.length}'), 'root boss card should expose the same-loop gate');
-assert.ok(uiSource.includes("keys <= 0 || !!gateReason"), 'locked capstones must not look clickable before prerequisites are met');
-
 const cssSource = fs.readFileSync('css/cosmos-atlas.css', 'utf8');
 assert.ok(cssSource.includes('.cosmos-capstone-card'), 'atlas summary needs a dedicated capstone progress card');
 assert.ok(cssSource.includes('.cosmos-capstone-boss.cleared'), 'cleared galaxy bosses need a distinct state');

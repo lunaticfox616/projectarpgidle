@@ -33,7 +33,7 @@ const TRIAL_ZONES = [
     { id: 'trial_2', name: "2차 전직 시련", type: "trial", tier: 6, maxKills: 1, reqZone: 8, ele: 'fire', repeatGemChance: 0.08, fixedDifficultyMul: 1, trapElements: ['fire', 'cold', 'light'], trialDesc: '삼원 함정 · 화염·냉기·번개 저항 점검' },
     { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['chaos'], trialDesc: '여신의 독무 · 카오스 저항과 회복력 점검' },
     { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['phys', 'chaos'], trialDesc: '피와 공허의 회랑 · 물리·카오스 방어 복합 점검' },
-    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", tier: 30, maxKills: 1, reqZone: -1, bloomTrial: true, bloomTrialAffixFloor: 10, underworldPenaltyFloor: 10, trapRegenSuppressPct: 3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialDesc: '혹한 함정 · 적응형 혼돈 특성과 누적 재생 억제' }
+    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", tier: 57, maxKills: 1, reqZone: -1, bloomTrial: true, difficultyBenchmark: 'underworld1', bloomTrialAffixFloor: 10, underworldPenaltyFloor: 10, trapRegenSuppressPct: 3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialDesc: '혹한 함정 · 적응형 혼돈 특성과 누적 재생 억제', bossMods: { hpMul: 1.15, damageMul: 1.08, patternMode: 'slam', traitName: '백야의 심장 — 파쇄 강타 사이에 회복할 틈을 찾으세요' } }
 ];
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
@@ -62,6 +62,14 @@ const COSMOS_MECHANIC_DB = Object.freeze([
     { id: 'energyShield', name: '성간 보호막', summary: '생명력 위에 큰 에너지 보호막을 추가로 두릅니다.', counter: '지속 화력과 회복 억제로 전투가 길어지지 않게 하세요.', element: 'cold', tags: ['absorb', 'cold', 'vital', 'regen', 'seed', 'flower'] },
     { id: 'evasion', name: '성간 회피', summary: '높은 회피로 명중이 낮은 공격을 흘려냅니다.', counter: '정확도·다단 타격·회피 무시 수단을 준비하세요.', element: 'chaos', tags: ['map', 'wealth', 'reward', 'gateway', 'outer', 'skill'] },
     { id: 'armor', name: '운석 장갑', summary: '방어도와 피해 감소로 물리 타격을 억제합니다.', counter: '원소·카오스 피해나 방어 관통이 유리합니다.', element: 'chaos', tags: ['venom', 'poison', 'chaos', 'curse', 'sacrifice', 'asteroid'] }
+]);
+
+const COSMOS_GALAXY_ENVIRONMENT_DB = Object.freeze([
+    { galaxy: 1, name: '충돌권', summary: '무거운 물리 충돌과 운석 장갑이 중심인 은하입니다.', counter: '방어도·물리 피해 감소·방어 관통을 점검하세요.', armorMul: 1.12, attackSpeedMul: 0.95, damageMul: 0.06 },
+    { galaxy: 2, name: '심해권', summary: '모든 적이 생명력 위에 성간 보호막을 두르는 은하입니다.', counter: '지속 화력과 카오스 방어를 준비하세요.', hpMul: 0.08, energyShieldPct: 25, attackSpeedMul: 0.96 },
+    { galaxy: 3, name: '쌍성권', summary: '주 피해와 카오스 피해가 겹치는 이중성 은하입니다.', counter: '한 속성만이 아니라 최저 EHP를 함께 보완하세요.', hybridElement: 'chaos', resAll: 3 },
+    { galaxy: 4, name: '심판권', summary: '높은 치명타와 저항 관통으로 방어의 빈틈을 심판합니다.', counter: '치명타 저항과 초과 저항을 확보하세요.', critChanceBonus: 6, penetration: 4 },
+    { galaxy: 5, name: '혜성권', summary: '빠른 공격과 높은 회피로 완성 빌드를 추격하는 은하입니다.', counter: '정확도·회피 대응·회복 속도를 점검하세요.', attackSpeedMul: 1.12, evasionMul: 1.10 }
 ]);
 
 // 루프 조건 상한·세분화 (state.js: getSeasonAbyssDepthCap / hasCurrentLoopAbyssRequirementClear):
@@ -178,9 +186,23 @@ const SEASON_BOSS_ZONES = [
       bossMods: { hpMul: 1.9, damageMul: 1.35, attackSpeedMul: 1.12, critChanceBonus: 10, dr: 10, resAll: 10, regenMul: 3, penetration: 8, firstHitGuard: 0.25, patternMode: 'ramp', traitName: '완성작 — 여섯 날의 모든 것' } },
     // 잔향체 아스트라 (루프 31+): 우주계 5개 은하의 보스(하말리스/디프다르/주베누비아/주벤샤말/에니프론)를
     // 같은 루프 안에 모두 격파해야 모습을 드러내는 우주계의 최종 관문. 다섯 보스의 정체성을 번갈아 두르며 싸운다.
-    { id: 'cosmos_astra', name: '잔향체 아스트라', type: 'seasonBoss', tier: 34, key: 'cosmosSovereignKey', reqSeason: 31, ele: 'chaos', reward: 'goldenRule', journalId: 'cosmos_astra', cosmosCapstone: true, loopScaleExempt: true, fixedDifficultyMul: 3.6,
+    { id: 'cosmos_astra', name: '잔향체 아스트라', type: 'seasonBoss', tier: 82, key: 'cosmosSovereignKey', reqSeason: 31, ele: 'chaos', reward: 'goldenRule', journalId: 'cosmos_astra', cosmosCapstone: true, difficultyBenchmark: 'cosmosFinal',
       requiresCosmosBosses: ['planet-45', 'planet-46', 'planet-47', 'planet-48', 'planet-49'],
-      bossMods: { hpMul: 1.6, damageMul: 1.3, attackSpeedMul: 1.1, dr: 10, resAll: 12, armorMul: 1.35, evasionMul: 1.25, regenMul: 2, penetration: 10, critChanceBonus: 12, firstHitGuard: 0.28, patternMode: 'ramp', traitName: '잔향 — 다섯 별의 마지막 메아리' } }
+      bossMods: { hpMul: 2.8, damageMul: 2.75, attackSpeedMul: 1.1, dr: 12, resAll: 14, armorMul: 1.45, evasionMul: 1.35, regenMul: 2, penetration: 12, critChanceBonus: 14, firstHitGuard: 0.3, patternMode: 'ramp', traitName: '잔향 — 다섯 별의 마지막 메아리' } },
+    // 아틀라스 최종 관문: 기존 무한 콘텐츠의 명확한 종착 목표다. 진행 이정표로 영구 해금되며
+    // 입장권은 요구하지 않는다. 무료 반복 파밍을 막기 위해 보상은 최초 격파에만 지급한다.
+    { id: 'pinnacle_underking', name: '지핵군주 모르그란', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'phys', journalId: 'pinnacle_underking', milestonePinnacle: true, pinnacleTrack: 'underworld', difficultyBenchmark: 'underworld30', underworldPenaltyFloor: 30,
+      pinnacleRequirement: { kind: 'underworldFloor', target: 30 }, firstClearReward: { key: 'goldenRule', amount: 2 },
+      bossMods: { hpMul: 1.35, damageMul: 1.18, attackSpeedMul: 0.82, dr: 14, resAll: 10, armorMul: 1.8, penetration: 14, firstHitGuard: 0.32, patternMode: 'slam', traitName: '지핵 붕괴 — 느리지만 방어를 파쇄하는 강타' } },
+    { id: 'pinnacle_leviathan', name: '무광해의 포식자 탈라사', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'cold', journalId: 'pinnacle_leviathan', milestonePinnacle: true, pinnacleTrack: 'ocean', difficultyBenchmark: 'ocean1000', oceanPressureDepthTier: 10,
+      pinnacleRequirement: { kind: 'oceanDepth', target: 1000 }, firstClearReward: { key: 'goldenRule', amount: 2 },
+      bossMods: { hpMul: 1.3, damageMul: 1.22, attackSpeedMul: 1.04, energyShieldPct: 35, regenMul: 2.4, resC: 18, resChaos: 12, penetration: 10, ailmentChanceBonus: 0.12, patternMode: 'ramp', traitName: '무광해 역류 — 보호막과 냉각으로 장기전을 강요' } },
+    { id: 'pinnacle_sky', name: '빈 왕좌의 집행자 카엘룸', type: 'seasonBoss', tier: 61, reqSeason: 31, ele: 'light', journalId: 'pinnacle_sky', milestonePinnacle: true, pinnacleTrack: 'sky', difficultyBenchmark: 'sky30',
+      pinnacleRequirement: { kind: 'skyFloor', target: 30 }, firstClearReward: { key: 'goldenRule', amount: 2 },
+      bossMods: { hpMul: 1.25, damageMul: 1.32, attackSpeedMul: 1.24, evasionMul: 1.75, critChanceBonus: 18, penetration: 12, firstHitGuard: 0.18, patternMode: 'burst', traitName: '천정 집행 — 빠른 연격과 치명타로 빈틈을 추적' } },
+    { id: 'pinnacle_observer', name: '경계의 관측자 베일라', type: 'seasonBoss', tier: 86, reqSeason: 31, ele: 'chaos', journalId: 'pinnacle_observer', milestonePinnacle: true, pinnacleTrack: 'convergence', pinnacleCapstone: true, difficultyBenchmark: 'cosmosFinal',
+      requiresPinnacles: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'], firstClearReward: { key: 'goldenRule', amount: 5 },
+      bossMods: { hpMul: 11, damageMul: 3, attackSpeedMul: 1.12, dr: 15, resAll: 16, armorMul: 1.55, evasionMul: 1.4, energyShieldPct: 25, regenMul: 2.5, penetration: 16, critChanceBonus: 16, firstHitGuard: 0.35, patternMode: 'cosmos', traitName: '경계 관측 — 강습·강타·격앙을 순환하며 모든 성장축을 검증' } }
 ];
 
 const LABYRINTH_ZONE_ID = 'labyrinth_endless';
@@ -216,10 +238,14 @@ const JOURNAL_DB = {
     rival_afterimage: { title: '버려진 날 - 잔영', lines: ['“맞지 않으면 지지 않는다고 믿었다.”', '“닿지 않는 날은, 아무것도 바꾸지 못했다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' } },
     rival_backedge: { title: '버려진 날 - 역린', lines: ['“나는 갑옷 안쪽부터 베었다.”', '“그는 말했다. 방식이 아니라 방향이 틀렸다고.”'], bonus: { stat: 'pctDmg', value: 1, label: '피해 +1%' } },
     rival_masterwork: { title: '일곱 번째 날 - 완성작', lines: ['“내가 완성이라면, 너는 무엇이지.”', '“그가 끝내 손에서 놓지 않은 날이, 처음으로 물었다.”', '“…어째서 버려진 쪽이 더 날카로운가.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' } },
-    cosmos_astra: { title: '잔향체 - 아스트라', lines: ['“다섯 개의 별이 사라진 자리에, 하나의 메아리가 남았다.”', '“하말리스의 굳음, 디프다르의 굶주림, 주베누비아의 저울, 주벤샤말의 심판, 에니프론의 충격.”', '“모든 것을 삼킨 별은 마지막으로 하나의 질문을 남긴다 — 너는 그 다섯 조각들보다 온전한가.”'], bonus: { stat: 'passivePoint', value: 2, label: '영구 패시브 포인트 +2' } }
+    cosmos_astra: { title: '잔향체 - 아스트라', lines: ['“다섯 개의 별이 사라진 자리에, 하나의 메아리가 남았다.”', '“하말리스의 굳음, 디프다르의 굶주림, 주베누비아의 저울, 주벤샤말의 심판, 에니프론의 충격.”', '“모든 것을 삼킨 별은 마지막으로 하나의 질문을 남긴다 — 너는 그 다섯 조각들보다 온전한가.”'], bonus: { stat: 'passivePoint', value: 2, label: '영구 패시브 포인트 +2' } },
+    pinnacle_underking: { title: '지핵군주 - 모르그란', lines: ['“지하계의 끝은 바닥이 아니었다. 아래를 떠받치던 심장이었다.”', '“모르그란이 무너지자 뿌리 아래의 침묵이 처음으로 갈라졌다.”'] },
+    pinnacle_leviathan: { title: '무광해의 포식자 - 탈라사', lines: ['“빛이 사라진 바다는 스스로 굶주림을 낳았다.”', '“천 미터 아래에서 돌아온 칼날에는 검은 조류의 기억이 남았다.”'] },
+    pinnacle_sky: { title: '빈 왕좌의 집행자 - 카엘룸', lines: ['“하늘의 왕좌는 오래전부터 비어 있었다.”', '“왕이 없는 질서를 지키던 집행자만이 마지막 번개로 길을 막았다.”'] },
+    pinnacle_observer: { title: '경계의 관측자 - 베일라', lines: ['“땅 아래, 바다 아래, 하늘 위, 별 너머의 죽음을 모두 보았다.”', '“관측이 끝난 순간, 세계는 뿌리없는 자를 더 이상 우연이라 부를 수 없었다.”'] }
 };
 
-const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra'];
+const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
 const ABYSS_PASSIVE_NODES = [
     { key: 'power', name: '강력함', max: 20, desc: '몬스터 피해 +2%, 재화 드랍률 +1%/pt' },
@@ -234,4 +260,4 @@ const ABYSS_PASSIVE_NODES = [
     { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +20%' }
 ];
 
-safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, COSMOS_MECHANIC_DB });
+safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB });

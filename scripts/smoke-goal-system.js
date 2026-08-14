@@ -24,6 +24,12 @@ function boot(gameState, overrides = {}) {
             { id: 'trial_2', name: '2차 전직 시련', reqZone: 8 },
             { id: 'trial_3', name: '3차 전직 시련', reqZone: -1 }
         ],
+        SEASON_BOSS_ZONES: [
+            { id: 'pinnacle_underking', name: '지핵군주 모르그란', pinnacleTrack: 'underworld', pinnacleRequirement: { kind: 'underworldFloor', target: 30 } },
+            { id: 'pinnacle_leviathan', name: '무광해의 포식자 탈라사', pinnacleTrack: 'ocean', pinnacleRequirement: { kind: 'oceanDepth', target: 1000 } },
+            { id: 'pinnacle_sky', name: '빈 왕좌의 집행자 카엘룸', pinnacleTrack: 'sky', pinnacleRequirement: { kind: 'skyFloor', target: 30 } },
+            { id: 'pinnacle_observer', name: '경계의 관측자 베일라', pinnacleTrack: 'convergence', requiresPinnacles: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'] }
+        ],
         SKILL_DB: { 화염구: { isGem: true } },
         getEquipCandidateSlots: item => item && item.slot ? [item.slot] : [],
         getZone: id => ({ id, name: `지역${id}`, type: id <= 9 ? 'act' : 'abyss' }),
@@ -33,6 +39,23 @@ function boot(gameState, overrides = {}) {
         getAvailableLoopAdvancePaths: () => [],
         getHighestUnlockedEndlessChaosDepth: () => 0,
         getInventoryLimit: () => 30,
+        getSeasonBossProgressGate: (zone, g) => {
+            if (zone.pinnacleTrack === 'underworld') {
+                const current = Math.max(0, Math.floor(Number(g.underworldProgress && g.underworldProgress.highestFloor) || 1) - 1);
+                return { met: current >= 30, current, target: 30, label: `지하계 ${current}/30층` };
+            }
+            if (zone.pinnacleTrack === 'ocean') {
+                const current = Math.max(0, Math.floor(Number(g.ocean && g.ocean.bossClearM) || 0));
+                return { met: current >= 1000, current, target: 1000, label: `심해 가디언 ${current}/1000m` };
+            }
+            if (zone.pinnacleTrack === 'sky') {
+                const current = Math.max(0, Math.floor(Number(g.skyTower && g.skyTower.highestFloor) || 1) - 1);
+                return { met: current >= 30, current, target: 30, label: `창공의 탑 ${current}/30층` };
+            }
+            const cleared = new Set(Array.isArray(g.clearedRootBosses) ? g.clearedRootBosses : []);
+            const current = zone.requiresPinnacles.filter(id => cleared.has(id)).length;
+            return { met: current >= zone.requiresPinnacles.length, current, target: zone.requiresPinnacles.length, label: `최종 관문 격파 ${current}/${zone.requiresPinnacles.length}` };
+        },
         ...overrides
     };
     vm.createContext(context);
@@ -47,7 +70,7 @@ const baseGame = extra => ({
     passivePoints: 0, ascendPoints: 0, seasonPoints: 0,
     skills: [], gemData: {}, currencies: {}, gemEnhanceUnlocked: false,
     completedTrials: [], unlockedTrials: [], ascendClass: null,
-    loopProgressCurrent: {},
+    loopProgressCurrent: {}, clearedRootBosses: [],
     ...extra
 });
 
@@ -317,6 +340,48 @@ const baseGame = extra => ({
     const atlasCosmosNotice = atlas.presented[0].notices.find(n => n.text.includes('우주계 진행 목표 · 3은하 관문'));
     assert.ok(atlasCosmosNotice, '루프 주 목표와 다음 우주계 은하 목표를 함께 안내');
     assert.strictEqual(atlasCosmosNotice.actionSubtabId, 'map-tab-cosmos');
+}
+
+// 17) 루프31 이후 새 아틀라스 최종 관문은 진행축과 실제 도전 화면을 차례로 안내한다.
+{
+    const common = {
+        maxZoneId: 12, currentZoneId: 12, season: 31, loopCount: 30,
+        unlocks: { map: true }, completedTrials: ['trial_1', 'trial_2', 'trial_3'],
+        loopProgressCurrent: { bestAbyssDepth: 30 }
+    };
+    const descending = boot(baseGame({ ...common, underworldProgress: { highestFloor: 20 } }), {
+        hasCurrentLoopAbyssRequirementClear: () => true
+    });
+    descending.refresh();
+    const descentNotice = descending.presented[0].notices.find(n => n.text.includes('지하계 19/30층'));
+    assert(descentNotice, '첫 최종 관문은 실제 지하계 클리어 층을 안내해야 한다');
+    assert.strictEqual(descentNotice.actionSubtabId, 'map-tab-underworld');
+
+    const underkingReady = boot(baseGame({ ...common, underworldProgress: { highestFloor: 31 } }), {
+        hasCurrentLoopAbyssRequirementClear: () => true
+    });
+    underkingReady.refresh();
+    const challengeNotice = underkingReady.presented[0].notices.find(n => n.text.includes('지핵군주 모르그란 도전 가능'));
+    assert(challengeNotice, '이정표를 달성하면 보스 도전 가능 상태를 알려야 한다');
+    assert.strictEqual(challengeNotice.actionSubtabId, 'map-explore-root-boss');
+
+    const observerLocked = boot(baseGame({
+        ...common,
+        clearedRootBosses: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky']
+    }), { hasCurrentLoopAbyssRequirementClear: () => true });
+    observerLocked.refresh();
+    const observerGate = observerLocked.presented[0].notices.find(n => n.text.includes('최종 관문 격파 3/4'));
+    assert(observerGate, '마지막 관측자는 아스트라까지 포함한 선행 보스 진행을 표시해야 한다');
+    assert.strictEqual(observerGate.actionSubtabId, 'map-tab-cosmos');
+
+    const observerReady = boot(baseGame({
+        ...common,
+        clearedRootBosses: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra']
+    }), { hasCurrentLoopAbyssRequirementClear: () => true });
+    observerReady.refresh();
+    const observerNotice = observerReady.presented[0].notices.find(n => n.text.includes('경계의 관측자 베일라 도전 가능'));
+    assert(observerNotice, '모든 선행 보스를 격파하면 마지막 관측자 도전을 안내해야 한다');
+    assert.strictEqual(observerNotice.actionSubtabId, 'map-explore-root-boss');
 }
 
 // 생장판 안내: 루프 25에 판이 조용히 열리고, 드랍은 최근 획득함에 쌓이며,

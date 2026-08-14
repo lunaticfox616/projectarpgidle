@@ -106,4 +106,109 @@ function calculatePlayerEhpProfile(stats) {
     return { pool: getPlayerEhpResourcePool(stats), evadeChance, hitChance, elements };
 }
 
-safeExposeGlobals({ calculatePlayerRawHitTaken, calculatePlayerEhpProfile });
+function getMapReadinessGrade(ratio) {
+    const value = Math.max(0, Number(ratio) || 0);
+    if (value < 0.85) return { id: 'low', label: '낮음' };
+    if (value < 1.30) return { id: 'fit', label: '적정' };
+    return { id: 'high', label: '높음' };
+}
+
+function getMapEstimateElements(estimate) {
+    const source = Array.isArray(estimate && estimate.elements) ? estimate.elements : [estimate && estimate.element];
+    const elements = source.filter(element => PLAYER_EHP_ELEMENT_KEYS.includes(element));
+    return elements.length > 0 ? Array.from(new Set(elements)) : PLAYER_EHP_ELEMENT_KEYS.slice();
+}
+
+function getPenetratedStats(stats, element, pressure) {
+    if (element === 'phys' || pressure <= 0) return stats;
+    const suffix = { fire: 'F', cold: 'C', light: 'L', chaos: 'Chaos' }[element];
+    const adjusted = { ...stats };
+    const resistanceKey = `res${suffix}`;
+    const rawResistanceKey = `rawRes${suffix}`;
+    adjusted[resistanceKey] = Number(stats && stats[resistanceKey] || 0) - pressure;
+    if (Number.isFinite(Number(stats && stats[rawResistanceKey]))) {
+        adjusted[rawResistanceKey] = Number(stats[rawResistanceKey]) - pressure;
+    }
+    return adjusted;
+}
+
+function getBossTakenMultiplierRelativeToProfile(stats) {
+    const bossTaken = Math.max(0.01, Number(stats && stats.bossTakenDamageMultiplier) || 1);
+    const guardian = stats && stats.uniqueGuardianArmor;
+    if (!guardian) return bossTaken;
+    const normalLess = Math.max(0, Math.min(95, Number(guardian.takenLessPct) || 0));
+    const bossLess = Math.max(0, Math.min(95, Number(guardian.bossTakenLessPct) || 0));
+    return bossTaken * (1 - bossLess / 100) / Math.max(0.05, 1 - normalLess / 100);
+}
+
+function getBossEquivalentEhpTarget(stats, profile, estimate, element) {
+    const row = profile.elements[element];
+    const peakHit = Math.max(1, Number(estimate.peakHit) || Number(estimate.ehp) || 1);
+    const threatWindow = Math.max(peakHit, Number(estimate.ehp) || peakHit);
+    const pressure = Math.max(0, Number(estimate.resistancePressure) || 0);
+    const adjusted = getPenetratedStats(stats, element, pressure);
+    const bossTakenMul = getBossTakenMultiplierRelativeToProfile(stats);
+    const basePeakTaken = Math.max(0.0001, calculatePlayerRawHitTaken(stats, element, peakHit));
+    const baseWindowTaken = Math.max(0.0001, calculatePlayerRawHitTaken(stats, element, threatWindow));
+    const peakPenalty = calculatePlayerRawHitTaken(adjusted, element, peakHit) * bossTakenMul / basePeakTaken;
+    const windowPenalty = calculatePlayerRawHitTaken(adjusted, element, threatWindow) * bossTakenMul / baseWindowTaken;
+    const entropyPerDirect = row.entropy / Math.max(1, row.direct);
+    return Math.max(threatWindow * windowPenalty, peakHit * peakPenalty * entropyPerDirect);
+}
+
+function getMapEstimateDpsMultiplier(stats, estimate, alreadyInZone) {
+    if (alreadyInZone) return 1;
+    let multiplier = Math.max(0.1, Number(estimate && estimate.playerDpsMultiplier) || 1);
+    const gravityFloor = Math.max(0, Math.floor(Number(estimate && estimate.underworldGravityFloor) || 0));
+    if (gravityFloor > 0) {
+        const ignoresReduction = !!(estimate && estimate.underworldGravityIgnoresReduction);
+        const reduction = ignoresReduction ? 0
+            : Math.max(0, Math.min(75, Number(stats && stats.underworldGravityReductionPct) || 0));
+        const gravitySlow = Math.min(0.75, 0.12 + Math.max(0, gravityFloor - 1) * 0.018)
+            * (1 - reduction / 100);
+        multiplier *= Math.max(0.1, 1 - gravitySlow);
+    }
+    const depthTier = Math.max(0, Math.floor(Number(estimate && estimate.oceanPressureDepthTier) || 0));
+    if (depthTier <= 0) return multiplier;
+    const pressureResist = Math.max(0, Math.min(80, Number(stats && stats.oceanPressureResist) || 0));
+    const pressureSlow = Math.min(0.65, depthTier * 0.05) * (1 - pressureResist / 100);
+    return multiplier * Math.max(0.1, 1 - pressureSlow);
+}
+
+/**
+ * @param {Readonly<object>} stats
+ * @param {Readonly<object>} estimate
+ * @returns {{dps:object,ehp:object,element:string,playerDps:number,playerEhp:number,recommendedDps:number,recommendedEhp:number}}
+ */
+function getMapPowerReadiness(stats, estimate) {
+    const profile = calculatePlayerEhpProfile(stats || {});
+    const elements = getMapEstimateElements(estimate);
+    let limiting = null;
+    elements.forEach(element => {
+        const row = profile.elements[element];
+        const recommended = getBossEquivalentEhpTarget(stats || {}, profile, estimate || {}, element);
+        const ratio = row.entropy / Math.max(1, recommended);
+        if (!limiting || ratio < limiting.ratio) limiting = { element, ratio, player: row.entropy, recommended };
+    });
+    const playerDps = Math.max(0, Number(stats && stats.totalDps)
+        || (Number(stats && stats.dps) || 0) + (Number(stats && stats.summonDps) || 0));
+    const activeZoneId = stats && stats.activeZoneId;
+    const estimateZoneId = estimate && estimate.zoneId;
+    const alreadyInZone = activeZoneId != null && estimateZoneId != null
+        && String(activeZoneId) === String(estimateZoneId);
+    const zoneDpsMultiplier = getMapEstimateDpsMultiplier(stats || {}, estimate || {}, alreadyInZone);
+    const effectivePlayerDps = playerDps * zoneDpsMultiplier;
+    const recommendedDps = Math.max(1, Number(estimate && estimate.dps) || 1);
+    const dpsRatio = effectivePlayerDps / recommendedDps;
+    return {
+        dps: { ...getMapReadinessGrade(dpsRatio), ratio: dpsRatio },
+        ehp: { ...getMapReadinessGrade(limiting.ratio), ratio: limiting.ratio },
+        element: limiting.element,
+        playerDps: effectivePlayerDps,
+        playerEhp: limiting.player,
+        recommendedDps,
+        recommendedEhp: limiting.recommended
+    };
+}
+
+safeExposeGlobals({ calculatePlayerRawHitTaken, calculatePlayerEhpProfile, getMapPowerReadiness });

@@ -5,13 +5,15 @@
         burst: '연속 참격',
         slam: '파쇄 강타',
         ramp: '격앙',
-        cosmos: '성좌 순환'
+        cosmos: '성좌 순환',
+        cosmosBoss: '은하 고유 기믹'
     });
     const BOSS_PATTERN_DESCRIPTIONS = Object.freeze({
         burst: '4번째 공격마다 연속 참격으로 피해가 30% 증가합니다.',
         slam: '3번째 공격마다 파쇄 강타로 피해가 55% 증가합니다.',
         ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다.',
-        cosmos: '연속 참격·파쇄 강타·격앙을 차례로 순환합니다.'
+        cosmos: '연속 참격·파쇄 강타·격앙을 차례로 순환합니다.',
+        cosmosBoss: '은하 보스마다 고유한 공격 순서와 파훼 조건을 사용합니다.'
     });
     const BOSS_PATTERN_PEAK_DAMAGE_MULTIPLIERS = Object.freeze({
         burst: 1.30,
@@ -86,6 +88,9 @@
         if (!enemy || !enemy.isBoss || !enemy.patternMode) return null;
         let attackNumber = normalizeAttackCount(enemy) + 1;
         let mode = String(enemy.patternMode);
+        if (mode === 'cosmosBoss' && typeof globalThis.getCosmosBossPatternState === 'function') {
+            return globalThis.getCosmosBossPatternState(enemy.cosmosBossId, attackNumber);
+        }
         if (mode === 'cosmos') {
             let cycle = ['burst', 'slam', 'ramp'];
             let resolvedMode = cycle[(attackNumber - 1) % cycle.length];

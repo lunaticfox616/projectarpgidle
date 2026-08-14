@@ -19,8 +19,10 @@ const PENDING_SKILL_STAGE_CAP = 160;
 const COMBAT_PROJECTILE_MIN_TRAVEL_MS = 120;
 const COMBAT_PROJECTILE_MS_PER_CELL = 55;
 const BOSS_ATTACK_IMPACT_DELAY_MS = 500;
-const UNDERWORLD_FIRST_FLOOR_BOSS_HP_MULTIPLIER = 0.85;
-const UNDERWORLD_FIRST_FLOOR_BOSS_DAMAGE_MULTIPLIER = 0.82;
+const UNDERWORLD_FIRST_FLOOR_BOSS_HP_MULTIPLIER = 0.81;
+const UNDERWORLD_FIRST_FLOOR_BOSS_DAMAGE_MULTIPLIER = 0.74;
+const UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER = 0.85;
+const UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER = 0.82;
 let pendingSkillStageHits = [];
 let pendingEnemyCombatAttacks = [];
 const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
@@ -3704,8 +3706,8 @@ function getPlayerStats() {
     if (activeShadowStealth) finalMove += Math.max(0, Number(uniqueDeflectStealth.move || 20));
     if (uniqueKillMoveStacks && game.uniqueKillMoveStacksState && (game.uniqueKillMoveStacksState.expiresAt || 0) > Date.now()) finalMove += Math.max(0, Math.floor(game.uniqueKillMoveStacksState.stacks || 0)) * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
     let zonePenalty = getZone(game.currentZoneId) || getZone(0);
-    if (zonePenalty && zonePenalty.type === 'underworld') {
-        let uf = Math.max(1, Math.floor(zonePenalty.floor || 1));
+    if (zonePenalty && (zonePenalty.type === 'underworld' || (zonePenalty.milestonePinnacle && zonePenalty.underworldPenaltyFloor))) {
+        let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || zonePenalty.floor || 1));
         let gravitySlow = Math.min(0.75, 0.12 + Math.max(0, uf - 1) * 0.018);
         let skyStoneReduction = Math.max(0, Math.min(75, typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)) / 100;
         gravitySlow *= (1 - skyStoneReduction);
@@ -3715,8 +3717,8 @@ function getPlayerStats() {
     let oceanPressureDamageMul = 1;
     let oceanCurrentResPenaltyF = 0;
     let oceanCurrentResPenaltyC = 0;
-    if (zonePenalty && zonePenalty.type === 'oceanDepth') {
-        let depthTier = Math.max(0, Math.floor(zonePenalty.depthTier || 0));
+    if (zonePenalty && (zonePenalty.type === 'oceanDepth' || Number(zonePenalty.oceanPressureDepthTier) > 0)) {
+        let depthTier = Math.max(0, Math.floor(zonePenalty.oceanPressureDepthTier || zonePenalty.depthTier || 0));
         let pressureResistPct = Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist') + (typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0)));
         let pressureSlow = Math.min(0.65, depthTier * 0.05) * (1 - pressureResistPct / 100);
         finalAspd *= (1 - pressureSlow);
@@ -3810,6 +3812,7 @@ function getPlayerStats() {
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
     let guardianDamageNullifyChance = 0;
+    let guardianHitCapPct = 0;
     let guardianArmorDamageBonus = false;
     let sbSummonAspdBonus = 0;
     let sbSummonCapBonus = 0;
@@ -4243,8 +4246,11 @@ function getPlayerStats() {
         if (hasKeystone('gd6')) { let now = Date.now(); let stacks = (game.guardianEnduranceExpiresAt || 0) > now ? Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) : 0; if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.11)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
         if (guardianArmorDamageBonus) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, finalArmor) * 0.001));
         if (hasKeystone('gd8')) { guardianDamageNullifyChance += 30; ailmentResistBonusPct += 50; }
-        // 9) 거대화: 최대 생명력 20% 증폭
-        if (hasKeystone('gd9')) finalMaxHp = Math.floor(finalMaxHp * 1.2);
+        if (hasKeystone('gd9')) {
+            guardianHitCapPct = 35;
+            finalRegen *= 0.65;
+            finalLeech *= 0.65;
+        }
         if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             genericTakenDamageMultiplier *= 0.8;
             finalBaseDmg = Math.floor(finalBaseDmg * 1.3);
@@ -5008,6 +5014,9 @@ function getPlayerStats() {
 
 
     let enemy = {
+        activeZoneId: game.currentZoneId,
+        underworldGravityReductionPct: Math.max(0, Math.min(75,
+            typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)),
         baseDmg: finalBaseDmg,
         maxHp: finalMaxHp,
         lifeRecoveryCap: getPlayerRecoveryHpCap({ maxHp: finalMaxHp, uniqueOverhealCapPct: uniqueOverhealCapPct }),
@@ -5053,6 +5062,7 @@ function getPlayerStats() {
         guardianReflectDamage: guardianReflectDamage,
         guardianBlockChance: guardianBlockChance,
         guardianDamageNullifyChance: guardianDamageNullifyChance,
+        guardianHitCapPct: guardianHitCapPct,
         shieldBaseBlockChance: shieldBaseBlockChance,
         effectiveShieldBaseBlockChance: effectiveShieldBaseBlockChance,
         shieldBlockChancePct: shieldBlockChancePct,
@@ -5783,6 +5793,7 @@ function getCosmosDebuffSpec(type, power) {
 
 function applyCosmosBossPlayerDebuff(enemy) {
     if (!enemy || !enemy.isBoss || !Array.isArray(enemy.cosmosBossDebuffs) || enemy.cosmosBossDebuffs.length <= 0) return;
+    if (typeof getCosmosGalaxyBossMechanic === 'function' && getCosmosGalaxyBossMechanic(enemy.cosmosBossId)) return;
     const now = Date.now();
     if (now < Math.floor(enemy.nextCosmosBossDebuffAt || 0)) return;
     enemy.nextCosmosBossDebuffAt = now + 3200;
@@ -5797,6 +5808,58 @@ function applyCosmosBossPlayerDebuff(enemy) {
     row.durationMs = Math.floor(spec.duration * 1000);
     row.expiresAt = Math.max(Number(row.expiresAt || 0), now + Math.floor(spec.duration * 1000));
     if (game.settings && game.settings.showCombatLog) addLog(`🌌 ${enemy.name}의 우주계 보스 디버프: ${spec.label} -${spec.value}%`, 'attack-monster', { noToast: true });
+}
+
+function getCosmosBossAttackElement(enemy, pattern, pStats) {
+    if (!pattern) return enemy && (enemy.cosmosBaseElement || enemy.ele) || 'phys';
+    const elements = ['fire', 'cold', 'light', 'chaos'];
+    if (pattern.elementRule === 'alternatingWeakest' && pattern.attackNumber % 2 === 1) return 'phys';
+    if (pattern.elementRule === 'weakestResistance' || pattern.elementRule === 'alternatingWeakest') {
+        if (!pattern.isSpecial && pattern.elementRule !== 'alternatingWeakest') return enemy.cosmosBaseElement || enemy.ele || 'phys';
+        return elements.reduce((weakest, element) => {
+            const current = Number((pStats && pStats[`res${element === 'fire' ? 'F' : element === 'cold' ? 'C' : element === 'light' ? 'L' : 'Chaos'}`]) || 0);
+            const weakestValue = Number((pStats && pStats[`res${weakest === 'fire' ? 'F' : weakest === 'cold' ? 'C' : weakest === 'light' ? 'L' : 'Chaos'}`]) || 0);
+            return current < weakestValue ? element : weakest;
+        }, elements[0]);
+    }
+    if (!pattern || !pattern.isSpecial) return enemy.cosmosBaseElement || enemy.ele || 'phys';
+    if (pattern.elementRule === 'physical') return 'phys';
+    if (pattern.elementRule === 'chaos') return 'chaos';
+    return enemy.cosmosBaseElement || enemy.ele || 'phys';
+}
+
+function applyCosmosBossSpecialDebuff(enemy, type) {
+    const spec = getCosmosDebuffSpec(type, enemy.cosmosBossDebuffPower || 1);
+    if (!spec) return;
+    game.cosmosPlayerDebuffs = Array.isArray(game.cosmosPlayerDebuffs) ? game.cosmosPlayerDebuffs : [];
+    let row = game.cosmosPlayerDebuffs.find(debuff => debuff && debuff.type === spec.type);
+    if (!row) {
+        row = { type: spec.type, label: spec.label, value: 0, expiresAt: 0, durationMs: 0 };
+        game.cosmosPlayerDebuffs.push(row);
+    }
+    row.label = spec.label;
+    row.value = Math.max(Number(row.value || 0), spec.value);
+    row.durationMs = Math.floor(spec.duration * 1000);
+    row.expiresAt = Math.max(Number(row.expiresAt || 0), Date.now() + row.durationMs);
+}
+
+function applyCosmosBossAttackSetup(enemy, pattern, pStats) {
+    if (!enemy || !pattern || pattern.cosmosSetupApplied) return pattern;
+    pattern.cosmosSetupApplied = true;
+    enemy.ele = getCosmosBossAttackElement(enemy, pattern, pStats);
+    if (pattern.shieldRestorePct > 0 && enemy.maxEnergyShield > 0) {
+        const restore = Math.max(1, Math.floor(enemy.maxEnergyShield * pattern.shieldRestorePct / 100));
+        enemy.energyShield = Math.min(enemy.maxEnergyShield, Math.max(0, enemy.energyShield || 0) + restore);
+    }
+    if (pattern.debuffType) applyCosmosBossSpecialDebuff(enemy, pattern.debuffType);
+    if (pattern.moveCounterPct > 0) {
+        const moveBonus = Math.max(0, Number((pStats && pStats.moveSpeed) || 100) - 100);
+        const moveRatio = Math.max(0, Math.min(1, moveBonus / 70));
+        const extraDamage = Math.max(0, Number(pattern.damageMul || 1) - 1);
+        pattern.damageMul = 1 + extraDamage * (1 - moveRatio * pattern.moveCounterPct / 100);
+        pattern.countered = moveRatio >= 0.98;
+    }
+    return pattern;
 }
 
 function applyCosmosPlayerDebuffsToStats(pStats) {
@@ -5897,8 +5960,31 @@ function getCosmosEnemyModifiers(zone, isElite, isBoss) {
         else if (key === 'attackSpeedMul' || key === 'armorMul' || key === 'evasionMul' || key === 'regenMul' || key === 'dropMul') mod[key] = (mod[key] || 1) * extra[key];
         else mod[key] = (mod[key] || 0) + extra[key];
     });
+    const galaxyEnvironment = Array.isArray(globalThis.COSMOS_GALAXY_ENVIRONMENT_DB)
+        ? globalThis.COSMOS_GALAXY_ENVIRONMENT_DB.find(row => row && row.galaxy === Math.floor(zone.cosmosGalaxy || 0)) : null;
+    Object.keys(galaxyEnvironment || {}).forEach(key => {
+        if (key === 'name' || key === 'summary' || key === 'counter' || key === 'galaxy') return;
+        if (key === 'hybridElement') mod.hybridElement = galaxyEnvironment[key];
+        else if (key === 'energyShieldPct') mod.energyShieldPct = Math.max(mod.energyShieldPct || 0, galaxyEnvironment[key]);
+        else if (key === 'attackSpeedMul' || key === 'armorMul' || key === 'evasionMul') mod[key] = (mod[key] || 1) * galaxyEnvironment[key];
+        else mod[key] = (mod[key] || 0) + galaxyEnvironment[key];
+    });
     mod.hpMul = Math.max(0.5, mod.hpMul * bossMul);
     mod.damageMul = Math.max(0.5, mod.damageMul * (isBoss ? 1.1 : 1));
+    const galaxyBossMechanic = isBoss && typeof getCosmosGalaxyBossMechanic === 'function'
+        ? getCosmosGalaxyBossMechanic(zone.cosmosNodeId) : null;
+    if (galaxyBossMechanic) {
+        mod.hpMul += 0.22;
+        mod.damageMul += 0.08;
+        mod.hpMul *= Math.max(0.5, Number(galaxyBossMechanic.hpScale || 1));
+        mod.damageMul *= Math.max(0.5, Number(galaxyBossMechanic.damageScale || 1));
+        mod.dr += 5;
+        mod.resAll += 5;
+        mod.penetration += 4;
+        mod.critChanceBonus += 5;
+        mod.patternMode = 'cosmosBoss';
+        mod.traitName = `은하 보스: ${galaxyBossMechanic.name}`;
+    }
     return mod;
 }
 
@@ -5917,11 +6003,15 @@ function getSoftenedLoopDepth(depth) {
 //    특정 조합/빌드의 실력을 시험하는 고정 관문 — 루프 인플레이션을 받지 않고
 //    zone.fixedDifficultyMul(데이터)로만 난이도를 조절한다.
 //  - act: 매 루프 레벨 1부터 다시 지나는 재성장 구간 — ACT_LOOP_SCALE_CAP까지만 세지고 이후 고정.
+//  - cosmos: 나무꾼 이후 고정 성장계단. 일반 루프 인플레이션은 30에서 고정하고
+//    우주계 루프와 노드 티어로만 추가 난이도를 올린다.
 //  - 그 외(엔드리스 파밍 콘텐츠): 제한 없이 루프 스케일을 따른다.
 function getLoopDifficultyInputs(zone) {
+    if (getDifficultyBenchmarkProfile(zone)) return { exempt: false, seasonLoops: 30, loopCount: 30 };
     let exempt = !!zone && (zone.type === 'trial' || zone.type === 'outsideChaos' || !!zone.loopScaleExempt);
     if (exempt) return { exempt: true, seasonLoops: 0, loopCount: 0 };
-    let cap = zone && zone.type === 'act' ? ACT_LOOP_SCALE_CAP : Infinity;
+    let cap = zone && zone.type === 'act' ? ACT_LOOP_SCALE_CAP
+        : (zone && zone.type === 'cosmos' ? 30 : Infinity);
     return {
         exempt: false,
         seasonLoops: Math.min(cap, Math.max(0, (game.season || 1) - 1)),
@@ -5976,9 +6066,30 @@ function getChaosBossVisual(zone, variantSeed) {
     return { assetKey: assetKey, tint: hues[actId] };
 }
 
-function isUnderworldFirstFloorBoss(zone, isBoss) {
-    return !!isBoss && !!zone && zone.type === 'underworld'
+function isUnderworldEntryBenchmark(zone) {
+    return !!zone && zone.difficultyBenchmark === 'underworld1';
+}
+
+function getDifficultyBenchmarkProfile(zone) {
+    const benchmark = String(zone && zone.difficultyBenchmark || '');
+    if (benchmark === 'underworld1') return { hp: 5, damage: 0.78, attackRate: 0.76, clearTimeSec: 24 };
+    if (benchmark === 'underworld30') return { hp: 5 * (1 + 29 * 0.045), damage: 0.78, attackRate: 0.76, clearTimeSec: 30 };
+    if (benchmark === 'ocean1000') return { hp: 5 * (1 + 10 * 0.05), damage: 1, attackRate: 1, clearTimeSec: 30 };
+    if (benchmark === 'sky30') return { hp: 4.2 * (1 + 29 * 0.035), damage: 1.08, attackRate: 1.05, clearTimeSec: 30 };
+    if (benchmark === 'cosmosFinal') return { hp: 1, damage: 1, attackRate: 1, clearTimeSec: 45 };
+    return null;
+}
+
+function getUnderworldEntryBossTuning(zone, isBoss) {
+    if (!isBoss || !zone) return { hp: 1, damage: 1 };
+    if (isUnderworldEntryBenchmark(zone)) {
+        return { hp: UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER, damage: UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER };
+    }
+    const firstFloor = zone.type === 'underworld'
         && Math.max(1, Math.floor(Number(zone.floor) || 1)) === 1;
+    return firstFloor
+        ? { hp: UNDERWORLD_FIRST_FLOOR_BOSS_HP_MULTIPLIER, damage: UNDERWORLD_FIRST_FLOOR_BOSS_DAMAGE_MULTIPLIER }
+        : { hp: 1, damage: 1 };
 }
 
 function createEnemy(zone, marker, groupIndex) {
@@ -6008,15 +6119,16 @@ function createEnemy(zone, marker, groupIndex) {
         let realmFloorMul = 1 + Math.max(0, realmFloor - 1) * 0.06;
         hp = Math.floor(hp * realmBaseMul * realmFloorMul);
     }
-    if (zone.type === 'skyTower') {
+    const benchmarkProfile = getDifficultyBenchmarkProfile(zone);
+    if (benchmarkProfile) {
+        hp = Math.floor(hp * benchmarkProfile.hp);
+    } else if (zone.type === 'skyTower') {
         let towerFloor = Math.max(1, Math.floor(zone.floor || 1));
         hp = Math.floor(hp * 4.2 * (1 + Math.max(0, towerFloor - 1) * 0.035));
-    }
-    if (zone.type === 'underworld') {
+    } else if (zone.type === 'underworld') {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
         hp = Math.floor(hp * 5 * (1 + Math.max(0, underFloor - 1) * 0.045));
-    }
-    if (zone.type === 'oceanDepth') {
+    } else if (zone.type === 'oceanDepth') {
         let depthTier = Math.max(0, Math.floor(zone.depthTier || 0));
         // 수심 0m 진입 시점 난이도를 혼돈심화 21층 부근(혼돈계 floor1 hp배율 5와 유사한 강도)에 맞추고, 100m(depthTier 1)마다 완만히 추가 상승.
         let oceanBaseMul = 5;
@@ -6026,9 +6138,8 @@ function createEnemy(zone, marker, groupIndex) {
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(loopInputs.loopCount) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
-    if (isUnderworldFirstFloorBoss(zone, isBoss)) {
-        hp = Math.floor(hp * UNDERWORLD_FIRST_FLOOR_BOSS_HP_MULTIPLIER);
-    }
+    const underworldEntryTuning = getUnderworldEntryBossTuning(zone, isBoss);
+    hp = Math.floor(hp * underworldEntryTuning.hp);
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
     hp = Math.floor(hp * getChallengeContractEnemyHealthMultiplier(zone));
@@ -6125,8 +6236,8 @@ function createEnemy(zone, marker, groupIndex) {
         nextPatternState: null,
         patternTelegraphKey: null,
         patternTelegraphStartedAt: 0,
-        disableExecute: zone.type === 'outsideChaos' || zone.id === 'cosmos_astra',
-        disableHpScaleDamage: zone.type === 'outsideChaos' || zone.id === 'cosmos_astra',
+        disableExecute: zone.type === 'outsideChaos' || zone.id === 'cosmos_astra' || !!zone.milestonePinnacle,
+        disableHpScaleDamage: zone.type === 'outsideChaos' || zone.id === 'cosmos_astra' || !!zone.milestonePinnacle,
         trait: trait ? { ...trait } : null,
         traitName: trait ? trait.name : null,
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
@@ -6139,14 +6250,6 @@ function createEnemy(zone, marker, groupIndex) {
         if (zoneWard.elem === 'fire') enemy.resF = Math.min(95, enemy.resF + zoneWard.strength);
         else if (zoneWard.elem === 'cold') enemy.resC = Math.min(95, enemy.resC + zoneWard.strength);
         else if (zoneWard.elem === 'light') enemy.resL = Math.min(95, enemy.resL + zoneWard.strength);
-    }
-    if (zone.id === 'cosmos_astra' && isBoss) {
-        enemy.astraBase = {
-            dr: enemy.dr, armor: enemy.armor, evasion: enemy.evasion,
-            resF: enemy.resF, resC: enemy.resC, resL: enemy.resL, resChaos: enemy.resChaos,
-            penetration: enemy.penetration, critChance: enemy.critChance,
-            atkMul: enemy.atkMul, attackSpeedVar: enemy.attackSpeedVar, regenRate: enemy.regenRate
-        };
     }
     if (typeof refreshBossPatternPreview === 'function') refreshBossPatternPreview(enemy);
     if (cosmosMods) {
@@ -6161,9 +6264,25 @@ function createEnemy(zone, marker, groupIndex) {
         enemy.cosmosTag = zone.cosmosTag || '';
         enemy.cosmosSizeClass = Math.max(1, Math.floor(zone.sizeClass || 1));
         enemy.cosmosGravity = Math.max(1, Number(zone.gravity || 1));
+        enemy.cosmosBossId = isBoss ? zone.cosmosNodeId || null : null;
+        enemy.cosmosBaseElement = zone.ele || enemy.ele || 'phys';
+        if (cosmosMods.hybridElement) enemy.hybridElement = cosmosMods.hybridElement;
+        if (cosmosMods.energyShieldPct) {
+            enemy.maxEnergyShield = Math.max(enemy.maxEnergyShield || 0, Math.floor(enemy.maxHp * cosmosMods.energyShieldPct / 100));
+            enemy.energyShield = Math.max(enemy.energyShield || 0, enemy.maxEnergyShield);
+        }
         enemy.traitName = enemy.traitName ? `${enemy.traitName} · ${cosmosMods.traitName}` : cosmosMods.traitName;
     }
+    if (zone.id === 'cosmos_astra' && isBoss) {
+        enemy.astraBase = {
+            dr: enemy.dr, armor: enemy.armor, evasion: enemy.evasion,
+            resF: enemy.resF, resC: enemy.resC, resL: enemy.resL, resChaos: enemy.resChaos,
+            penetration: enemy.penetration, critChance: enemy.critChance,
+            atkMul: enemy.atkMul, attackSpeedVar: enemy.attackSpeedVar, regenRate: enemy.regenRate
+        };
+    }
     applyCosmosExclusiveTraitToEnemy(enemy, cosmosExclusiveTrait);
+    if (enemy.cosmosBossId && typeof refreshBossPatternPreview === 'function') refreshBossPatternPreview(enemy);
     if (zone.type === 'outsideChaos') enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
     if (zone.type === 'outsideChaos') {
         enemy.isWoodsman = true;
@@ -6270,6 +6389,8 @@ function getZoneEncounterProfile(zone) {
 }
 
 function resolveMapEstimateContentScale(zone) {
+    const benchmark = getDifficultyBenchmarkProfile(zone);
+    if (benchmark) return { hp: benchmark.hp, damage: benchmark.damage, clearTimeSec: benchmark.clearTimeSec };
     let scale = { hp: 1, damage: 1, clearTimeSec: 24 };
     let floor = Math.max(1, Math.floor(Number(zone.floor) || 1));
     if (zone.type === 'act') scale.clearTimeSec = 18;
@@ -6292,16 +6413,65 @@ function resolveMapEstimateContentScale(zone) {
         scale.damage = 1.45;
     }
     if (zone.type === 'grandBreach') scale.clearTimeSec = 35;
+    if (zone.type === 'cosmos') {
+        const galaxyBoss = typeof getCosmosGalaxyBossMechanic === 'function'
+            && !!getCosmosGalaxyBossMechanic(zone.cosmosNodeId);
+        scale.clearTimeSec = galaxyBoss ? 55 : 40;
+    }
     return scale;
 }
 
-function getMapBossPeakHitMultiplier(bossMods) {
+function getMapBossPatternMultiplier(bossMods, zone) {
     let fixedMode = String((bossMods && bossMods.patternMode) || '');
-    let patternMul = fixedMode
+    let cosmosBossMechanic = fixedMode === 'cosmosBoss' && typeof getCosmosGalaxyBossMechanic === 'function'
+        ? getCosmosGalaxyBossMechanic(zone && zone.cosmosNodeId) : null;
+    return cosmosBossMechanic
+        ? Math.max(1, Number(cosmosBossMechanic.damageMul) || 1)
+        : fixedMode
         ? getBossPatternPeakDamageMultiplier(fixedMode)
         : ((game.season || 1) >= 6 ? getMaximumBossPatternDamageMultiplier() : 1);
-    let canCrit = (game.season || 1) >= 2 || Number(bossMods && bossMods.critChanceBonus) > 0;
-    return patternMul * (canCrit ? ENEMY_CRITICAL_DAMAGE_MULTIPLIER : 1);
+}
+
+function getMapEstimateAffixPressure(zone) {
+    const sourceFloor = zone && (zone.bloomTrialAffixFloor || (zone.type === 'chaosRealm' && zone.floor));
+    const floor = Math.max(0, Math.floor(Number(sourceFloor) || 0));
+    const result = { penetration: 0, critChance: 0, critDamageMul: ENEMY_CRITICAL_DAMAGE_MULTIPLIER, attackRateMul: 1, doubleStrikeChance: 0 };
+    if (floor <= 0 || typeof getChaosRealmAffixes !== 'function') return result;
+    getChaosRealmAffixes(floor).forEach(affix => {
+        const scale = Number(affix.scale) || (typeof getChaosRealmAffixScale === 'function' ? getChaosRealmAffixScale(floor) : 1);
+        if (affix.id === 'curse_blade') { result.attackRateMul *= 1.18 + floor * 0.006; result.penetration += Math.floor(8 * scale); }
+        if (affix.id === 'deadly_crit') { result.critChance += Math.floor(18 * scale); result.critDamageMul = Math.max(result.critDamageMul, 1.95 + floor * 0.01); }
+        if (affix.id === 'multi_strike') result.doubleStrikeChance = Math.max(result.doubleStrikeChance, Math.min(45, 18 + floor * 0.6));
+        if (affix.id === 'deep_penetration') result.penetration += Math.floor(18 * scale);
+    });
+    return result;
+}
+
+function getMapEstimateThreatProfile(zone, bossMods, baseHit, seasonDepth, tier) {
+    const affix = getMapEstimateAffixPressure(zone);
+    const benchmark = getDifficultyBenchmarkProfile(zone);
+    const contentAttackRateMul = benchmark ? benchmark.attackRate
+        : zone.type === 'underworld' ? 0.76
+        : zone.type === 'skyTower' ? 1.05 : 1;
+    const critChance = Math.max(0, ((game.season || 1) >= 2 ? 16 : 0)
+        + Number(bossMods.critChanceBonus || 0) + affix.critChance);
+    const critDamageMul = Math.max(ENEMY_CRITICAL_DAMAGE_MULTIPLIER, affix.critDamageMul);
+    const peakHit = baseHit * getMapBossPatternMultiplier(bossMods, zone)
+        * (critChance > 0 ? critDamageMul : 1);
+    const tierPressure = clampNumber((tier - 1) / 10, 0, 1);
+    const attackRate = (0.26 + tier * 0.013) * 1.10
+        * (1 + seasonDepth * (0.012 + tierPressure * 0.018)) * 1.16 * 1.18
+        * Math.max(0.1, Number(bossMods.atkMul || 1))
+        * Math.max(0.1, Number(bossMods.attackSpeedMul || 1))
+        * affix.attackRateMul * contentAttackRateMul;
+    const followUpHits = Math.max(0, Math.min(2, Math.floor(attackRate * 2.5) - 1));
+    const averageCritMul = 1 + Math.min(1, critChance / 100) * (critDamageMul - 1);
+    return {
+        peakHit,
+        threatWindow: peakHit + baseHit * averageCritMul * (followUpHits + affix.doubleStrikeChance / 100),
+        resistancePressure: ((game.season || 1) >= 4 ? 14 : 0)
+            + Math.max(0, Number(bossMods.penetration || 0)) + affix.penetration
+    };
 }
 
 /**
@@ -6310,7 +6480,7 @@ function getMapBossPeakHitMultiplier(bossMods) {
  * @returns {{dps:number,ehp:number,element:string,clearTimeSec:number,basis:string}|null}
  */
 function estimateMapZonePowerRequirements(zone) {
-    const supportedTypes = ['act', 'abyss', 'labyrinth', 'underworld', 'chaosRealm', 'oceanDepth', 'seasonBoss', 'timeRift', 'meteor', 'beehive', 'colony', 'grandBreach', 'trial'];
+    const supportedTypes = ['act', 'abyss', 'labyrinth', 'underworld', 'chaosRealm', 'oceanDepth', 'skyTower', 'seasonBoss', 'timeRift', 'meteor', 'beehive', 'colony', 'grandBreach', 'trial', 'cosmos'];
     if (!zone || !supportedTypes.includes(zone.type)) return null;
     let tier = Math.max(1, Number(zone.tier) || 1);
     let loopInputs = getLoopDifficultyInputs(zone);
@@ -6324,26 +6494,50 @@ function estimateMapZonePowerRequirements(zone) {
     let abyssScale = getAbyssMonsterScales(zone);
     let contentScale = resolveMapEstimateContentScale(zone);
     let bossMods = (zone.bossMods && typeof zone.bossMods === 'object') ? zone.bossMods : {};
+    if (zone.type === 'cosmos') bossMods = getCosmosEnemyModifiers(zone, false, true) || bossMods;
+    let cosmosTrait = zone.type === 'cosmos' ? getCosmosExclusiveEnemyTrait(zone, false, true, hashSeed(zone.cosmosNodeId || zone.id)) : null;
     let bossHp = hp * (1.8 + tier * 0.6) * (1 + tierProgress * 4)
         * (abyssScale.hpMul || 1) * (abyssScale.bossMul || 1) * 0.92
-        * getChallengeContractEnemyHealthMultiplier(zone) * contentScale.hp * (bossMods.hpMul || 1);
-    if (isUnderworldFirstFloorBoss(zone, true)) bossHp *= UNDERWORLD_FIRST_FLOOR_BOSS_HP_MULTIPLIER;
+        * getChallengeContractEnemyHealthMultiplier(zone) * contentScale.hp * (bossMods.hpMul || 1)
+        * (cosmosTrait && cosmosTrait.hpMul ? cosmosTrait.hpMul : 1);
+    let estimateEnergyShieldPct = Math.max(Number(bossMods.energyShieldPct || 0), Number(cosmosTrait && cosmosTrait.energyShieldPct || 0));
+    if (estimateEnergyShieldPct > 0) bossHp *= 1 + estimateEnergyShieldPct / 100;
+    const underworldEntryTuning = getUnderworldEntryBossTuning(zone, true);
+    bossHp *= underworldEntryTuning.hp;
     if (zone.type === 'trial' && zone.id === 'trial_3') bossHp *= 0.85;
     let tierPressure = clampNumber((tier - 1) / 10, 0, 1);
     let bossHit = (2.4 + tier * 3.35) * 1.15
         * (1 + seasonDepth * (0.05 + tierPressure * 0.07))
         * (1.14 + tier * 0.16) * 1.34
         * (abyssScale.dmgMul || 1) * (abyssScale.playerTakenMul || 1) * (abyssScale.bossMul || 1)
-        * contentScale.damage * (bossMods.damageMul || 1);
+        * contentScale.damage * (bossMods.damageMul || 1)
+        * (cosmosTrait && cosmosTrait.damageMul ? cosmosTrait.damageMul : 1);
     if (zone.type === 'act' && Number(zone.id) <= 1 && (game.season || 1) >= 3) bossHit *= 0.58;
-    if (isUnderworldFirstFloorBoss(zone, true)) bossHit *= UNDERWORLD_FIRST_FLOOR_BOSS_DAMAGE_MULTIPLIER;
-    bossHit *= getMapBossPeakHitMultiplier(bossMods) * getChallengeContractEnemyDamageMultiplier();
+    bossHit *= underworldEntryTuning.damage;
+    bossHit *= getChallengeContractEnemyDamageMultiplier();
+    const threatMods = cosmosTrait ? {
+        ...bossMods,
+        penetration: Number(bossMods.penetration || 0) + Number(cosmosTrait.penetration || 0),
+        atkMul: Number(bossMods.atkMul || 1) * Number(cosmosTrait.atkMul || 1),
+        attackSpeedMul: Number(bossMods.attackSpeedMul || 1) * Number(cosmosTrait.attackSpeedVarMul || 1)
+    } : bossMods;
+    const threat = getMapEstimateThreatProfile(zone, threatMods, bossHit, seasonDepth, tier);
+    const underworldGravityFloor = Math.max(0, Math.floor(Number(
+        zone.type === 'underworld' ? zone.floor : zone.underworldPenaltyFloor) || 0));
     return {
         dps: Math.max(1, Math.round(bossHp / contentScale.clearTimeSec)),
-        ehp: Math.max(1, Math.round(bossHit)),
+        ehp: Math.max(1, Math.round(threat.threatWindow)),
+        peakHit: Math.max(1, Math.round(threat.peakHit)),
+        resistancePressure: threat.resistancePressure,
+        elements: zone.ele === 'chaos' ? ['fire', 'cold', 'light', 'chaos'] : ['phys', 'fire', 'cold', 'light', 'chaos'],
+        playerDpsMultiplier: 1,
+        underworldGravityFloor,
+        underworldGravityIgnoresReduction: !!zone.bloomTrial,
+        oceanPressureDepthTier: Math.max(0, Math.floor(Number(zone.oceanPressureDepthTier) || 0)),
+        zoneId: zone.id,
         element: String(zone.ele || 'phys'),
         clearTimeSec: contentScale.clearTimeSec,
-        basis: 'bossPeakHit'
+        basis: 'bossThreatWindow'
     };
 }
 
@@ -8259,6 +8453,22 @@ function getGrandBreachRewardSummary(kills) {
     };
 }
 
+function grantMilestonePinnacleClearRewards(zone, firstClear) {
+    if (!zone || !zone.milestonePinnacle) return;
+    if (zone.journalId && firstClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
+    if (!firstClear) {
+        addLog(`♜ [${zone.name}] 재도전 완료 · 최초 격파 보상은 이미 획득했습니다.`, 'season-up');
+        return;
+    }
+    const reward = zone.firstClearReward && typeof zone.firstClearReward === 'object' ? zone.firstClearReward : null;
+    const amount = Math.max(0, Math.floor(Number(reward && reward.amount) || 0));
+    if (reward && reward.key && amount > 0) awardCurrency(reward.key, amount);
+    const rewardName = reward && ORB_DB[reward.key] ? ORB_DB[reward.key].name : '';
+    const rewardText = rewardName ? ` · ${rewardName} +${amount}` : '';
+    const prefix = zone.pinnacleCapstone ? '👁️ 모든 경계의 관측을 끝냈습니다.' : '♜ 새로운 최종 관문을 정복했습니다.';
+    addLog(`${prefix} [${zone.name}] 최초 격파${rewardText}`, 'loot-unique');
+}
+
 function finishEncounterRun() {
     expireActiveFlaskEffects();
     let zone = getZone(game.currentZoneId);
@@ -8481,7 +8691,9 @@ function finishEncounterRun() {
                 else addLog('🗡️ 다섯 날이 모두 꺾였습니다. 「일곱 번째 날 - 완성작」이 결투를 기다립니다.', 'loot-unique');
             }
         }
-        if (zone.cosmosCapstone) {
+        if (zone.milestonePinnacle) {
+            grantMilestonePinnacleClearRewards(zone, firstRootBossClear);
+        } else if (zone.cosmosCapstone) {
             if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
             addLog('🌌 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.', 'loot-unique');
             awardCurrency(zone.reward || 'goldenRule', 2);
@@ -8497,8 +8709,8 @@ function finishEncounterRun() {
             }
         }
         addLog(`🗝️ [${zone.name}] 토벌 완료!`, 'loot-unique');
-        let shouldRepeat = !!game.autoRepeatSeasonBoss;
-        let keyLeft = game.currencies[zone.key] || 0;
+        let shouldRepeat = !!game.autoRepeatSeasonBoss && !zone.milestonePinnacle;
+        let keyLeft = zone.key ? game.currencies[zone.key] || 0 : 0;
         if (shouldRepeat && keyLeft > 0) {
             game.currencies[zone.key]--;
             game.currentZoneId = zone.id;
@@ -9865,7 +10077,10 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.encounterIndex = 0;
         game.runProgress = 0;
     } else if (zone && zone.type === 'seasonBoss' && game.inTicketBossFight) {
-        addLog(message || "☠️ 뿌리 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.", "death", { noToast: !!opts.noToast });
+        let fallbackMessage = zone.milestonePinnacle
+            ? '☠️ 최종 관문 도전에 실패했습니다. 장비와 방어를 정비해 다시 도전하세요.'
+            : '☠️ 뿌리 보스 도전에 실패했습니다. 액트 1로 되돌아갑니다.';
+        addLog(message || fallbackMessage, "death", { noToast: !!opts.noToast });
         game.currentZoneId = 0;
         game.killsInZone = 0;
         game.inTicketBossFight = false;
@@ -10290,7 +10505,9 @@ function performMonsterAttacks(pStats) {
             continue;
         }
         let atkRate = (0.26 + zone.tier * 0.013) * monsterBaseAttackSpeedMul * seasonAtkScale * (enemy.isElite || enemy.isBoss ? 1.16 : 1) * (enemy.atkMul || 1) * (enemy.attackSpeedVar || 1) * 1.03 * (1 - chillSlow);
-        if (zone.type === 'underworld') atkRate *= 0.76;
+        const benchmarkProfile = getDifficultyBenchmarkProfile(zone);
+        if (benchmarkProfile) atkRate *= benchmarkProfile.attackRate;
+        else if (zone.type === 'underworld') atkRate *= 0.76;
         if (zone.type === 'skyTower') atkRate *= 1.05;
         if (!Number.isFinite(atkRate) || atkRate <= 0) atkRate = 0.12;
         if (!Number.isFinite(enemy.attackTimer) || enemy.attackTimer < 0) enemy.attackTimer = 0;
@@ -10312,6 +10529,9 @@ function performMonsterAttacks(pStats) {
             let resolvingPendingAttack = pendingAttack;
             let bossPattern = resolvingPendingAttack ? resolvingPendingAttack.bossPattern
                 : (typeof consumeBossPatternAttack === 'function' ? consumeBossPatternAttack(enemy) : null);
+            if (!resolvingPendingAttack && zone && zone.type === 'cosmos') {
+                bossPattern = applyCosmosBossAttackSetup(enemy, bossPattern, pStats);
+            }
             if (!resolvingPendingAttack && zone && zone.type === 'cosmos') applyCosmosBossPlayerDebuff(enemy);
             if (!resolvingPendingAttack && zone && zone.id === 'cosmos_astra' && enemy.isBoss) applyCosmosAstraStance(enemy);
             if (zone.type === 'outsideChaos') {
@@ -10334,15 +10554,14 @@ function performMonsterAttacks(pStats) {
             }
             let seasonDmgScale = 1 + seasonDepth * (0.05 + (tierPressure * 0.07));
             let dmg = Math.floor((2.4 + zone.tier * 3.35) * monsterBaseDamageMul * seasonDmgScale);
-            if (zone.type === 'underworld') dmg = Math.floor(dmg * 0.78);
+            if (benchmarkProfile) dmg = Math.floor(dmg * benchmarkProfile.damage);
+            else if (zone.type === 'underworld') dmg = Math.floor(dmg * 0.78);
             if (zone.type === 'skyTower') dmg = Math.floor(dmg * 1.08);
             dmg = Math.floor(dmg * enemyDmgMul * (enemy.damageMul || 1));
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);
             if (enemy.isElite) dmg = Math.floor(dmg * 1.28);
             if (enemy.isBoss) dmg = Math.floor(dmg * (1.14 + zone.tier * 0.16));
-            if (isUnderworldFirstFloorBoss(zone, enemy.isBoss)) {
-                dmg = Math.floor(dmg * UNDERWORLD_FIRST_FLOOR_BOSS_DAMAGE_MULTIPLIER);
-            }
+            dmg = Math.floor(dmg * getUnderworldEntryBossTuning(zone, enemy.isBoss).damage);
             if (bossPattern && Number.isFinite(bossPattern.damageMul) && bossPattern.damageMul > 1) {
                 dmg = Math.max(1, Math.floor(dmg * bossPattern.damageMul));
                 if (bossPattern.isSpecial && game.settings.showCombatLog) {
@@ -10681,6 +10900,13 @@ function performMonsterAttacks(pStats) {
                 let absorbed = Math.min(remaining, Math.floor(game.playerUniqueGuard.amount || 0));
                 game.playerUniqueGuard.amount = Math.max(0, Math.floor((game.playerUniqueGuard.amount || 0) - absorbed));
                 remaining -= absorbed;
+            }
+            if (remaining > 0 && (pStats.guardianHitCapPct || 0) > 0) {
+                const hitCap = Math.max(1, Math.floor((pStats.maxHp || 1) * pStats.guardianHitCapPct / 100));
+                if (remaining > hitCap) {
+                    remaining = hitCap;
+                    addBattleFx('statusText', { text: '성채화!', color: '#d8c08b', duration: 300, bodyCue: true });
+                }
             }
             let nextPlayerHp = Math.floor(game.playerHp - remaining);
             if (nextPlayerHp <= 0 && (pStats.cosmosDeathResistPct || 0) > 0 && Math.random() * 100 < Math.max(0, pStats.cosmosDeathResistPct || 0)) {

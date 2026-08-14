@@ -6,10 +6,13 @@ const source = fs.readFileSync('js/combat-patterns.js', 'utf8');
 const exposed = {};
 const context = {
     window: {},
-    safeExposeGlobals: map => Object.assign(exposed, map)
+    safeExposeGlobals: null
 };
+context.globalThis = context;
+context.safeExposeGlobals = map => { Object.assign(exposed, map); Object.assign(context, map); };
 vm.createContext(context);
 vm.runInContext(source, context, { filename: 'js/combat-patterns.js' });
+vm.runInContext(fs.readFileSync('js/cosmos-rules.js', 'utf8'), context, { filename: 'js/cosmos-rules.js' });
 
 {
     const enemy = { isBoss: true, patternMode: 'burst', patternAttackCount: 3, hp: 100, maxHp: 100 };
@@ -45,6 +48,22 @@ vm.runInContext(source, context, { filename: 'js/combat-patterns.js' });
     assert(labels[0].includes('연속 참격'));
     assert(labels[1].includes('파쇄 강타'));
     assert(labels[2].includes('격앙'));
+}
+
+{
+    const enemy = { isBoss: true, patternMode: 'cosmosBoss', cosmosBossId: 'planet-45', patternAttackCount: 3, hp: 100, maxHp: 100 };
+    const preview = exposed.getBossPatternPreview(enemy);
+    assert.strictEqual(preview.label, '혜성 돌진', '에니프론은 공용 성좌 순환 대신 고유 돌진을 사용해야 한다');
+    assert.strictEqual(preview.damageMul, 1.70);
+    assert.strictEqual(preview.moveCounterPct, 35, '돌진은 이동 속도로 완화할 실제 파훼 수단이 있어야 한다');
+}
+
+{
+    const tide = exposed.getCosmosBossPatternState('planet-47', 4);
+    const balance = exposed.getCosmosBossPatternState('planet-48', 2);
+    assert.strictEqual(tide.shieldRestorePct, 8, '디프다르는 지속 화력을 시험하는 보호막 역류를 사용해야 한다');
+    assert.strictEqual(balance.elementRule, 'alternatingWeakest', '주베누비아는 편중 방어를 공략해야 한다');
+    assert.notStrictEqual(tide.mode, balance.mode, '은하 보스 기믹은 이름만 다른 공용 패턴이면 안 된다');
 }
 
 assert.strictEqual(exposed.getBossPatternPeakDamageMultiplier('burst'), 1.30,
