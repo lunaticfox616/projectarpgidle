@@ -691,6 +691,25 @@ assert.strictEqual(breathDrawing.handled, true, '용화 숨결은 전용 절차�
 assert.ok(breathDrawing.bezier >= 24 && breathDrawing.fills >= 16, '화염 호흡은 여러 굽은 불꽃 혀로 보여야 한다');
 assert.strictEqual(breathDrawing.lines, 0, '화염 호흡은 광선이나 삼각형 윤곽선을 그리면 안 된다');
 assert.strictEqual(breathDrawing.rects, 0, '화염 호흡은 직사각형 광선을 그리면 안 된다');
+const shieldChargeImpact = vm.runInContext(`(() => {
+  const calls = { curves: 0, shards: 0, groundDust: 0, triangleLines: 0 };
+  const ctx = {
+    globalAlpha: 0.72, translate() {}, rotate() {}, beginPath() {}, moveTo() {}, stroke() {}, fill() {}, save() {}, restore() {},
+    bezierCurveTo() { calls.curves++; }, fillRect() { calls.shards++; }, ellipse() { calls.groundDust++; }, lineTo() { calls.triangleLines++; }
+  };
+  const handled = drawProceduralSkillImpact(ctx, {
+    family: 'charge', element: 'phys', size: 82, x: 250, y: 210,
+    fromX: 100, fromY: 220, toX: 250, toY: 210
+  }, 0.5);
+  return { ...calls, handled };
+})()`, context);
+assert.strictEqual(shieldChargeImpact.handled, true, '방패돌진은 전용 충돌 이펙트가 처리해야 한다');
+assert.strictEqual(shieldChargeImpact.curves, 3, '방패돌진 충돌면은 겹친 곡선 충격파로 보여야 한다');
+assert.strictEqual(shieldChargeImpact.shards, 6, '방패돌진은 제한된 수의 금속·바닥 파편을 뿌려야 한다');
+assert.strictEqual(shieldChargeImpact.groundDust, 1, '방패돌진은 충돌점 바닥 먼지를 한 번만 그려야 한다');
+assert.strictEqual(shieldChargeImpact.triangleLines, 0, '방패돌진은 기존 삼각형 방사 이펙트를 그리면 안 된다');
+assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['방패 돌진'].sigilVfx, false, '방패돌진 충돌 위에 공용 원형 문양을 겹치면 안 된다');
+assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['방패 돌진'].impactAccentVfx, false, '방패돌진 충돌 위에 공용 원형 강타 효과를 겹치면 안 된다');
 const annihilateSpawnOptions = vm.runInContext(`getAttackFxSpawnOpts(
   { element: 'fire', impactTier: 'annihilate', crit: false },
   { isBoss: false, isElite: false },

@@ -36,11 +36,11 @@
     <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1-20260810-subtab-state1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260722-combat-icons2">
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260721-galmuri-body1">
-    <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1&mobile=20260811-playability2">
+    <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1&mobile=20260814-first-flow1">
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1&power=20260811-approx1">
     <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1-20260807-windowed-cube1">
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260722-health-menu-skin4&caption=20260811-top1">
-    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-health-menu-skin4-20260807-elemental-ehp1-20260810-management-ux1-20260810-ux-refine1&mobile=20260811-login1&caption=20260811-top1">
+    <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-health-menu-skin4-20260807-elemental-ehp1-20260810-management-ux1-20260810-ux-refine1&mobile=20260814-first-flow1&caption=20260811-top1&shield-charge=20260814-armor1">
     <link rel="stylesheet" href="css/typography-readability.css?v=20260721-galmuri-item-names1">
     <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-merged-tabs-timers1-20260811-mobile-status-fix2&mobile=20260811-hud1&boss-traits=20260811-ticker-tooltip1&icons=20260811-atlas-clip2">
     <link rel="stylesheet" href="css/ui-menu-sockets.css?v=20260723-menu-button-states2-20260805-merged-tab-scroll1">
@@ -700,6 +700,10 @@
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
+            <div class="equipment-mobile-switch" role="group" aria-label="모바일 장비 화면 선택">
+                <button type="button" id="btn-equipment-mobile-inventory" onclick="setEquipmentMobilePane('inventory')" aria-pressed="true">인벤토리</button>
+                <button type="button" id="btn-equipment-mobile-loadout" onclick="setEquipmentMobilePane('loadout')" aria-pressed="false">장착 장비</button>
+            </div>
             <div class="equipment-workspace">
                 <section class="equipment-loadout-panel">
                     <div class="equipment-section-heading">
@@ -928,6 +932,7 @@
                     <section id="map-explore-hunting" class="vertical-tab-panel active">
                         <h2>사냥터 선택</h2>
                         <div id="ui-challenge-contract-panel" class="challenge-contract-panel"></div>
+                        <div id="ui-map-route-summary" class="map-route-summary" aria-live="polite"></div>
                         <div class="map-overview-card">
                             <img class="map-overview-image" src="assets/battlefield-map.png" alt="월드 지도">
                             <div class="map-hotspots" id="ui-map-hotspots"></div>
@@ -1274,6 +1279,23 @@
                 </div>
             </div>
 
+            <div class="cfg-group" id="loop-completion-settings">
+                <div class="cfg-group-title">루프 완료 후</div>
+                <div class="cfg-rows">
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-loop-disable-item-automation" onchange="updateSettings()" checked><span class="cfg-label">장비·주얼 자동해체 및 아이템 필터 해제</span></label>
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">전투 완료 후 행동</span>
+                        <select id="sel-loop-map-complete-action" onchange="updateSettings()" class="cfg-select">
+                            <option value="repeatZone">반복</option>
+                            <option value="nextZone">다음 지역</option>
+                            <option value="nextLoopBestPlusOne">최고층</option>
+                            <option value="stop">중단</option>
+                        </select>
+                    </div>
+                    <div class="cfg-sublabel">새 루프가 시작될 때 한 번 적용됩니다.</div>
+                </div>
+            </div>
+
             <div class="cfg-group" id="combat-tactics-settings">
                 <div class="cfg-group-title">전투 전술</div>
                 <div class="cfg-rows">
@@ -1464,7 +1486,7 @@
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260718-regional-passive1&ehp=20260811-bosspeak1"></script>
 <script defer src="data/maps.js?v=20260719-tier-rift-stack1"></script>
-<script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260811-area-impact1&venom=20260811-image2&lightning-spear=20260812-performance1&thundercloud=20260812-impact2&meteor=20260813-ground1"></script>
+<script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260811-area-impact1&venom=20260811-image2&lightning-spear=20260812-performance1&thundercloud=20260812-impact2&meteor=20260813-ground1&shield-charge=20260814-armor1&meteor-spell=20260814-damage1"></script>
 <script defer src="data/items.js?v=20260723-currency-salvage1&defense-unique=20260811-rework1"></script>
 <script defer src="data/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="data/growth-items.js?v=20260807-growth-affix-balance1-20260807-flat-element-balance1"></script>
@@ -1474,12 +1496,12 @@
 <script defer src="data/talent-cards.js?v=20260722-templar-overheal1"></script>
 <script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2"></script>
 <script defer src="js/ui-feedback.js?v=20260722-instant-choice1"></script>
-<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1"></script>
+<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1"></script>
 <script defer src="js/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records.js?v=20260808-records-tab1-20260808-background-fix1"></script>
 <script defer src="js/save.js?v=20260719-stutter-fix1&tactics=20260810-combat-tactics1"></script>
 <script defer src="js/items.js?v=20260719-white-copy1-20260810-market-clarity1-20260811-exchange-picker1"></script>
-<script defer src="js/skills.js?v=20260717-gem-flask-mobile1&craft=20260813-validation1"></script>
+<script defer src="js/skills.js?v=20260717-gem-flask-mobile1&craft=20260813-validation1&shield-charge=20260814-armor1"></script>
 <script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1&presets=20260810-passive1&battle=20260811-body-cue2&void=20260811-reroll1&defense-unique=20260811-rework1&fx-backlog=20260811-clear1&venom=20260811-image2&encroachment=20260811-tier1&damage-text=20260811-volley1&spore-craft=20260811-guard1&node-art=20260811-v2states1&deflect-text=20260812-muted1&meteor=20260814-assets1"></script>
 <script defer src="js/growth-board.js?v=20260806-growth-chase1"></script>
 <script defer src="js/growth-effects.js?v=20260806-growth-unique2"></script>
@@ -1488,12 +1510,12 @@
 <script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&boomerang=20260811-batched1&meteor=20260813-ground1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1&ehp=20260811-bosspeak1"></script>
 <script defer src="js/cosmos-rules.js?v=20260810-endgame1&ehp=20260811-bosspeak1"></script>
-<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260811-floor1-tune1&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1"></script>
+<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260811-floor1-tune1&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1&shield-charge=20260814-armor1&loop-completion=20260814-settings1"></script>
 <script defer src="js/combat-ehp.js?v=20260807-elemental-ehp1"></script>
-<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260811-top1&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260813-elements1&hit-guard=20260813-attack-scope1&meteor=20260814-assets1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260811-top1&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260813-elements1&hit-guard=20260813-attack-scope1&meteor=20260814-assets1&shield-charge=20260814-impact1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1&elements=20260813-distinct1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1-20260810-label-toggle1"></script>
-<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260811-playability1&boss-traits=20260813-ticker-lifecycle1&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260811-approx1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260812-map1&craft=20260813-magic-reroll2"></script>
+<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260813-ticker-lifecycle1&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260811-approx1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260812-map1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1"></script>
 <script defer src="js/playtest-telemetry.js?v=20260812-playtest2"></script>
 <script defer src="js/cloud-tools-ui.js?v=20260812-ops1"></script>
 <script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1&tooltip=20260811-tray1"></script>

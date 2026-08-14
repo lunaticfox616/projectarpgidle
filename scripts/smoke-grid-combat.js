@@ -836,6 +836,16 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.activeSkill = '유성 낙화';
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '유성 낙화']));
   context.game.gemData['유성 낙화'] = { level: 1, exp: 0, quality: 0 };
+  assert.ok(context.SKILL_DB['유성 낙화'].tags.includes('spell'), '유성 낙화는 주문 태그를 가져야 한다');
+  assert.ok(!context.SKILL_DB['유성 낙화'].tags.includes('attack'), '유성 낙화에 공격 태그가 남으면 안 된다');
+  assert.ok(context.SKILL_DB['유성 낙화'].spellFlatBase > 0 && context.SKILL_DB['유성 낙화'].spellFlatScale > 0, '유성 낙화는 레벨에 따라 성장하는 주문 내장 피해를 가져야 한다');
+  context.game.equipment['무기'] = { id: 9940, slot: '무기', name: '시험용 무기', rarity: 'normal', baseStats: [{ id: 'flatDmg', val: 10 }], stats: [] };
+  const lowWeaponMeteorDamage = context.getPlayerStats().baseDmg;
+  context.game.equipment['무기'].baseStats[0].val = 10000;
+  assert.strictEqual(context.getPlayerStats().baseDmg, lowWeaponMeteorDamage, '무기 기본 피해가 유성 낙화 주문 피해를 올리면 안 된다');
+  context.game.equipment['무기'].stats = [{ id: 'spellFlatDmg', val: 20 }];
+  assert.ok(context.getPlayerStats().baseDmg > lowWeaponMeteorDamage, '주문 기본 피해 옵션은 유성 낙화 피해를 올려야 한다');
+  context.game.equipment['무기'] = null;
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const meteorTargets = [makeEnemy(600, 3, 6), makeEnemy(601, 3, 5)];
   meteorTargets.forEach(enemy => { enemy.hp = enemy.maxHp = 1000000; });
@@ -849,7 +859,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const meteorTravelFx = vm.runInContext("battleFx.filter(fx => fx.type === 'combatTravel' && fx.patternKind === 'meteor')", context);
   assert.strictEqual(meteorRows.length, 4, '실제 유성 공격은 충돌과 불길 지대 3회를 예약해야 한다');
   assert.strictEqual(meteorTravelFx.length, 1, '실제 유성 공격도 낙하 이펙트를 하나만 만들어야 한다');
-  assert.ok(meteorTravelFx[0].duration >= 2500, '유성 이펙트는 마지막 불길 타격까지 유지되어야 한다');
+  assert.ok(meteorTravelFx[0].duration >= meteorRows[3].at - meteorRows[0].launchAt, '유성 이펙트는 마지막 불길 타격까지 유지되어야 한다');
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.ok(meteorTargets.every(enemy => enemy.hp < enemy.maxHp), '단일 유성이 충돌 범위의 모든 선택 대상에게 피해를 줘야 한다');
   assert.ok(meteorTargets.every(enemy => (enemy.ailments || []).some(ailment => ailment.type === 'ignite')), '불길 지대에 남은 적은 점화되어야 한다');
@@ -992,6 +1002,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   // 루프(환생) 시 플라스크 발견/충전 리셋
   context.game.flasks.foundKeys = ['h1', 'h2', 'h3', 'granite1', 'quicksilver1'];
   context.game.season = 1;
+  context.game.settings.mapCompleteAction = 'nextZone';
+  context.game.settings.postLoopMapCompleteAction = 'nextLoopBestPlusOne';
   const beforeFound = context.game.flasks.foundKeys.length;
   // 루프 리셋이 부르는 UI/코스모스 경계 함수는 Node 하네스에 없으므로 무해한 스텁으로 대체
   ['grantCodexLegacyStarterUniques', 'renderCosmosAtlas', 'updateStaticUI', 'renderPassiveTree', 'checkUnlocks', 'renderSkills', 'renderInventory', 'renderEquipment', 'updateCombatUI', 'renderMapList', 'syncBattleTabLayout', 'renderTalentCards', 'closeRewardOverlay', 'renderFlaskPanel', 'updateCloudSaveUI', 'renderConditionGems', 'renderSupports', 'updateHeroSelectionUI', 'renderCoreCube'].forEach(name => {
@@ -1000,6 +1012,20 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.triggerSeasonReset();
   const afterFound = context.ensureFlaskFoundKeys();
   assert.ok(afterFound.length < beforeFound, '루프 시 발견한 플라스크가 기본 지급분으로 리셋되어야 한다');
+  assert.strictEqual(context.game.settings.mapCompleteAction, 'nextLoopBestPlusOne', '루프 후 전투 완료 행동은 기본적으로 최고층으로 변경되어야 한다');
+
+  resetGame();
+  context.game.season = 1;
+  context.game.settings.disableItemAutomationAfterLoop = false;
+  context.game.settings.postLoopMapCompleteAction = 'repeatZone';
+  context.game.settings.autoSalvageEnabled = true;
+  context.game.settings.jewelAutoSalvageEnabled = true;
+  context.game.settings.itemFilterEnabled = true;
+  context.triggerSeasonReset();
+  assert.strictEqual(context.game.settings.mapCompleteAction, 'repeatZone', '설정에서 고른 루프 후 전투 완료 행동을 적용해야 한다');
+  assert.strictEqual(context.game.settings.autoSalvageEnabled, true, '자동관리 해제를 끄면 장비 자동해체 설정을 유지해야 한다');
+  assert.strictEqual(context.game.settings.jewelAutoSalvageEnabled, true, '자동관리 해제를 끄면 주얼 자동해체 설정을 유지해야 한다');
+  assert.strictEqual(context.game.settings.itemFilterEnabled, true, '자동관리 해제를 끄면 아이템 필터 설정을 유지해야 한다');
 }
 
 // ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──
@@ -1423,6 +1449,33 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.equipment['방패'] = { id: 9902, slot: '무기', name: '시험 보조 무기', rarity: 'normal', baseStats: [], stats: [] };
   assert.strictEqual(context.getPlayerStats().baseDmg, unshieldedDamage, '방패 슬롯의 보조 무기는 방패 스킬 증폭을 활성화하면 안 된다');
   context.game.equipment['방패'] = null;
+
+  context.game.activeSkill = '방패 돌진';
+  context.game.skills = ['기본 공격', '방패 돌진'];
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('방패 돌진'), false, '방패돌진은 방패 없이 사용할 수 없어야 한다');
+  context.getActiveSkillStats(0);
+  assert.strictEqual(context.game.activeSkill, '기본 공격', '장착 중 방패가 사라지면 방패돌진 대신 기본 공격으로 복귀해야 한다');
+
+  context.game.equipment['방패'] = {
+    id: 9903, slot: '방패', name: '방어도 방패', rarity: 'rare', quality: 20,
+    baseStats: [{ id: 'armor', val: 100 }, { id: 'evasion', val: 500 }, { id: 'energyShield', val: 500 }],
+    stats: [{ id: 'armor', val: 50 }, { id: 'armorPct', val: 20 }]
+  };
+  context.game.activeSkill = '방패 돌진';
+  assert.strictEqual(context.canUseSkillWithCurrentEquipment('방패 돌진'), true, '실제 방패를 장착하면 방패돌진을 사용할 수 있어야 한다');
+  const armoredCharge = context.getPlayerStats();
+  const armoredChargeDamage = armoredCharge.baseDmg;
+  context.game.equipment['방패'].baseStats = [{ id: 'armor', val: 100 }];
+  assert.strictEqual(context.getPlayerStats().baseDmg, armoredChargeDamage, '방패의 회피와 에너지 보호막은 방패돌진 피해에 영향을 주면 안 된다');
+  context.game.equipment['갑옷'] = { id: 9904, slot: '갑옷', name: '전신 방어 갑옷', rarity: 'normal', baseStats: [{ id: 'armor', val: 10000 }], stats: [] };
+  assert.strictEqual(context.getPlayerStats().baseDmg, armoredChargeDamage, '다른 부위의 방어도는 방패돌진 피해에 영향을 주면 안 된다');
+  context.game.equipment['갑옷'] = null;
+  context.game.equipment['방패'].quality = 0;
+  context.game.equipment['방패'].stats = [];
+  const plainShieldChargeDamage = context.getPlayerStats().baseDmg;
+  assert.ok(plainShieldChargeDamage < armoredChargeDamage, '방패 품질과 방패 자체 방어도 옵션은 방패돌진 피해를 높여야 한다');
+  context.game.equipment['방패'].baseStats = [{ id: 'armor', val: 200 }];
+  assert.ok(context.getPlayerStats().baseDmg > plainShieldChargeDamage, '방패 자체 방어도가 높아지면 방패돌진 피해가 증가해야 한다');
 
   context.game.activeSkill = '집중 광선';
   context.game.skills = ['기본 공격', '집중 광선'];
