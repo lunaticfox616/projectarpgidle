@@ -505,7 +505,6 @@ body:not(.light-mode) #info-tooltip {
   border-color: rgba(114, 157, 201, 0.72);
   background: linear-gradient(160deg, rgba(16, 25, 38, 0.97), rgba(6, 11, 18, 0.98));
   box-shadow: 0 18px 52px rgba(0, 0, 0, 0.62), inset 0 1px 0 rgba(255, 255, 255, 0.055);
-  backdrop-filter: blur(9px);
 }
 
 @keyframes luxeAtmosphere {

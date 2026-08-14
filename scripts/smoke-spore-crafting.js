@@ -134,7 +134,7 @@ function makeBoots(id) {
             `bound fossil must include the matching evasion defense family, got ${boundFirstStat.id}`);
 
         const tooltip = {
-            classList: { remove() {} }, style: {}, innerHTML: '',
+            classList: { contains() { return false; }, remove() {} }, style: {}, innerHTML: '',
             getBoundingClientRect: () => ({ width: 240, height: 80 })
         };
         context.document.getElementById = id => id === 'info-tooltip' ? tooltip : null;

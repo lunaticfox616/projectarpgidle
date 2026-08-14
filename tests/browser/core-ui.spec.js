@@ -20,8 +20,16 @@ function watchRuntimeFailures(page) {
     page.on('pageerror', error => failures.push(error.message));
     page.on('console', message => {
         if (message.type() !== 'error') return;
-        if (/favicon|Failed to load resource/i.test(message.text())) return;
+        if (/Failed to load resource|ERR_NETWORK_ACCESS_DENIED/i.test(message.text())) return;
         failures.push(message.text());
+    });
+    page.on('response', response => {
+        if (response.status() < 400 || !response.url().startsWith('http://127.0.0.1:4173/')) return;
+        failures.push(`${response.status()} ${response.url()}`);
+    });
+    page.on('requestfailed', request => {
+        if (!request.url().startsWith('http://127.0.0.1:4173/')) return;
+        failures.push(`${request.failure().errorText} ${request.url()}`);
     });
     return failures;
 }
@@ -112,6 +120,66 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     await expect(panel).toContainText('p95');
     await expect(panel).toContainText('FX');
     expect(failures).toEqual([]);
+});
+
+test('gem tooltips reuse computed stats and avoid live-canvas blur', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const result = await page.evaluate(() => {
+        game.level = 200;
+        game.season = 60;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.skills = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
+        game.supports = Object.keys(SUPPORT_GEM_DB);
+        switchTab('tab-skills');
+        performUpdateStaticUI();
+
+        const originalGetPlayerStats = window.getPlayerStats;
+        let renderStatCalls = 0;
+        window.getPlayerStats = (...args) => {
+            renderStatCalls++;
+            return originalGetPlayerStats(...args);
+        };
+        game.gemFoldInactiveAttack = !game.gemFoldInactiveAttack;
+        performUpdateStaticUI();
+
+        let tooltipStatCalls = 0;
+        window.getPlayerStats = (...args) => {
+            tooltipStatCalls++;
+            return originalGetPlayerStats(...args);
+        };
+        const skillName = game.skills[0];
+        for (let index = 0; index < 80; index++) {
+            showGemTooltip({ clientX: 120 + index, clientY: 180 }, 'active', skillName);
+        }
+        window.getPlayerStats = originalGetPlayerStats;
+        const tooltip = document.getElementById('info-tooltip');
+        const backdrop = getComputedStyle(tooltip).backdropFilter;
+        const card = document.querySelector('.skill-gem.gem-library-card');
+        return {
+            renderStatCalls,
+            tooltipStatCalls,
+            backdrop,
+            hasMoveRenderer: !!(card && card.getAttribute('onmousemove'))
+        };
+    });
+    expect(result.renderStatCalls).toBeLessThanOrEqual(5);
+    expect(result.tooltipStatCalls).toBe(0);
+    expect(['none', '']).toContain(result.backdrop);
+    expect(result.hasMoveRenderer).toBe(false);
+    expect(failures).toEqual([]);
+});
+
+test('closing a custom dialog restores focus before hiding it', async ({ page }) => {
+    const ariaWarnings = [];
+    page.on('console', message => {
+        if (/Blocked aria-hidden/i.test(message.text())) ariaWarnings.push(message.text());
+    });
+    await openLocalGame(page);
+    await page.evaluate(() => { requestGameConfirmation({ title: '확인', message: '포커스 검사' }); });
+    await page.locator('#game-dialog-confirm').click();
+    await expect(page.locator('#game-dialog-overlay')).toHaveAttribute('aria-hidden', 'true');
+    expect(ariaWarnings).toEqual([]);
 });
 
 test('cloud history and admin operations render through authenticated RPCs', async ({ page }) => {
@@ -214,10 +282,47 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
 
 test('mobile battle HUD stays within the viewport and exposes combat log', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
+    await page.setViewportSize({ width: 360, height: 800 });
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
+    await page.evaluate(() => {
+        document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
+        syncMapCompleteActionQuickControl();
+    });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
+    const compactHud = await page.evaluate(() => {
+        const zoneTitle = document.getElementById('ui-combat-zone-inline');
+        const action = document.getElementById('btn-map-complete-action-picker');
+        const goalToggle = document.getElementById('ui-goal-toggle');
+        const progress = document.querySelector('.map-progress-row');
+        const actions = document.querySelector('.combat-zone-actions');
+        const zoneRect = zoneTitle.getBoundingClientRect();
+        const goalRect = goalToggle.getBoundingClientRect();
+        const progressRect = progress.getBoundingClientRect();
+        const actionsRect = actions.getBoundingClientRect();
+        action.scrollIntoView({ block: 'nearest', inline: 'end' });
+        return {
+            zoneTitleClipped: zoneTitle.scrollWidth > zoneTitle.clientWidth + 1
+                || zoneTitle.scrollHeight > zoneTitle.clientHeight + 1,
+            actionTextClipped: action.scrollWidth > action.clientWidth + 1,
+            actionRight: action.getBoundingClientRect().right,
+            viewportWidth: document.documentElement.clientWidth,
+            goalOverlapsZoneTitle: goalRect.right > zoneRect.left + 1
+                && goalRect.left < zoneRect.right - 1
+                && goalRect.bottom > zoneRect.top + 1
+                && goalRect.top < zoneRect.bottom - 1,
+            progressOverlapsActions: progressRect.right > actionsRect.left + 1
+                && progressRect.left < actionsRect.right - 1
+                && progressRect.bottom > actionsRect.top + 1
+                && progressRect.top < actionsRect.bottom - 1
+        };
+    });
+    expect(compactHud.zoneTitleClipped).toBe(false);
+    expect(compactHud.actionTextClipped).toBe(false);
+    expect(compactHud.actionRight).toBeLessThanOrEqual(compactHud.viewportWidth + 1);
+    expect(compactHud.goalOverlapsZoneTitle).toBe(false);
+    expect(compactHud.progressOverlapsActions).toBe(false);
     await expect(page.locator('.player-health-frame')).toBeVisible();
     await expect(page.locator('#btn-combat-log-toggle')).toBeVisible();
     await page.locator('#btn-combat-log-toggle').click();

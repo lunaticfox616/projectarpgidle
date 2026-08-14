@@ -5288,8 +5288,8 @@ function getPlayerStats() {
     return enemy;
 }
 
-function getGemPresentation(name, isSupport) {
-    let stats = getPlayerStats();
+function getGemPresentation(name, isSupport, statsOverride) {
+    let stats = statsOverride || getPlayerStats();
     let targetGemSources = getTargetGemBonusSources(name, stats.gemBonusSources);
     if (isSupport) {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);

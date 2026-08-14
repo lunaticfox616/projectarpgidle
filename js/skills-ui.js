@@ -25,7 +25,7 @@
         if (foldActiveBtn) foldActiveBtn.classList.toggle('active', !foldAttackInactive && !foldSupportInactive);
         if (foldAttackBtn) foldAttackBtn.classList.toggle('active', foldAttackInactive);
         if (foldSupportBtn) foldSupportBtn.classList.toggle('active', foldSupportInactive);
-        let effectiveResonanceCap = getEffectiveResonanceCap();
+        let effectiveResonanceCap = getEffectiveResonanceCap(pStats);
         renderSkillLoadoutSummary(pStats, effectiveResonanceCap);
         let skyTowerSignatureState = (typeof ensureSkyTowerState === 'function') ? ensureSkyTowerState() : null;
         let skillPanelRenderSignature = JSON.stringify({
@@ -74,7 +74,7 @@
             let active = name === game.activeSkill || (isSummonAttackSkillGem(name)
                 && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
             return isGemLibraryMatchVisible(searchable, sf.skill, foldAttackInactive, active);
-        }).map(name => renderAttackGemCard(name, highlightSearchText(name, sf.skill))).join('');
+        }).map(name => renderAttackGemCard(name, highlightSearchText(name, sf.skill), pStats)).join('');
         let sealedSkillRows = sealedSkills.filter(name => {
             let def = SKILL_DB[name] || {};
             let searchable = getGemSearchText(name, def);
@@ -97,13 +97,13 @@
         if (suppMaxEl) suppMaxEl.innerText = pStats.suppCap;
         if (suppResonanceEl) {
             let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-            suppResonanceEl.innerText = `${Math.max(0, getEffectiveResonanceCap() - used)}`;
+            suppResonanceEl.innerText = `${Math.max(0, getEffectiveResonanceCap(pStats) - used)}`;
         }
         let supportRows = game.supports.filter(name => {
             let def = SUPPORT_GEM_DB[name] || {};
             let searchable = getGemSearchText(name, def);
             return isGemLibraryMatchVisible(searchable, sf.support, foldSupportInactive, game.equippedSupports.includes(name));
-        }).map(name => renderSupportGemCard(name, highlightSearchText(name, sf.support))).join('');
+        }).map(name => renderSupportGemCard(name, highlightSearchText(name, sf.support), pStats)).join('');
         let sealedSupportRows = sealedSupports.filter(name => {
             let def = SUPPORT_GEM_DB[name] || {};
             let searchable = getGemSearchText(name, def);
@@ -136,7 +136,7 @@
                 let active = (typeof getGemEnhanceTargetSkill === 'function') ? getGemEnhanceTargetSkill() : game.activeSkill;
                 let equippedEnhanceTargets = typeof getEquippedEnhanceableGemNames === 'function' ? getEquippedEnhanceableGemNames() : [];
                 if ((!active || !equippedEnhanceTargets.includes(active)) && equippedEnhanceTargets.length > 0) active = equippedEnhanceTargets[0];
-                let targetButtons = equippedEnhanceTargets.map(name => renderGemEnhanceTargetCard(name, name === active)).join('');
+                let targetButtons = equippedEnhanceTargets.map(name => renderGemEnhanceTargetCard(name, name === active, pStats)).join('');
                 let isGem = typeof isEnhanceableAttackGem === 'function'
                     ? isEnhanceableAttackGem(active)
                     : !!(SKILL_DB[active] && SKILL_DB[active].isGem);
@@ -162,7 +162,7 @@
                 let engraveFilled = !!(activeGem && activeEnh.length >= engraveCap);
                 let activeDef = SKILL_DB[active] || {};
                 let activeMeta = getGemCardMeta(activeDef);
-                let activePresentation = isGem ? getUiGemPresentation(active, false) : null;
+                let activePresentation = isGem ? getUiGemPresentation(active, false, pStats) : null;
                 let growthSummary = isGem ? getGemGrowthSummaryHtml(active, activePresentation) : '';
                 let activeOptions = activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '적용된 각인 없음';
                 document.getElementById('ui-gem-enhance-target').innerHTML = `<div class="gem-target-list">${targetButtons || '<span class="gem-process-empty">장착 중인 공격 젬 없음</span>'}</div>` + (isGem
