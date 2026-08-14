@@ -6,6 +6,7 @@
 
 @media (max-width: 640px) {
   .tab-btn { font-size: 0.9em; }
+  .tab-header:not(.tab-header-bottom) > .tab-btn { min-width: 72px !important; }
   button { min-height: 36px; }
   #ui-talisman-inventory { grid-template-columns: 1fr !important; gap: 10px !important; }
   #ui-talisman-inventory .item-card { padding: 12px; min-height: 96px !important; }
@@ -126,7 +127,7 @@
       "progress actions";
     gap: 6px 8px;
     align-items: center;
-    padding: 6px 7px 6px 48px;
+    padding: 6px 7px;
     border: 1px solid rgba(55, 79, 105, .58);
     border-radius: 8px;
     background: rgba(9, 17, 27, .74);
@@ -140,6 +141,7 @@
     font-size: 12px;
     font-weight: 800;
     line-height: 1.35;
+    padding-left: 41px;
     text-align: left;
     text-overflow: clip;
     white-space: normal;
@@ -147,12 +149,15 @@
   body.mobile-battle-tab #tab-battle #ui-combat-zone-inline {
     display: block;
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: keep-all;
     white-space: normal;
   }
   body.mobile-battle-tab #tab-battle .combat-zone-actions { grid-area: actions; display: flex; flex: 0 0 auto; gap: 4px; }
   body.mobile-battle-tab #tab-battle .combat-zone-actions button { min-width: 58px; min-height: 36px; padding: 5px 7px; font-size: 10px; }
-  body.mobile-battle-tab #tab-battle .map-progress-row { grid-area: progress; min-width: 0; }
+  body.mobile-battle-tab #tab-battle .map-progress-row { grid-area: progress; min-width: 0; gap: 5px; }
+  body.mobile-battle-tab #tab-battle #ui-progress-label { font-size: 12px !important; }
+  body.mobile-battle-tab #tab-battle .map-progress-row .hp-bar-bg { height: 18px !important; }
   body.mobile-battle-tab #tab-battle .combat-top-status { display: block !important; }
   body.mobile-battle-tab #tab-battle .player-hud-vitals { display: grid !important; grid-template-columns: auto minmax(0, 1fr) !important; gap: 5px; }
   body.mobile-battle-tab #tab-battle .combat-hp-bar { min-width: 0; height: 30px; margin: 0; }
