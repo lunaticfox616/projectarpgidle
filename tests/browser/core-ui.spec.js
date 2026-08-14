@@ -122,6 +122,30 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     expect(failures).toEqual([]);
 });
 
+test('global UI keeps native font smoothing and compact HUD text at full scale', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    if (testInfo.project.name === 'desktop-chromium') {
+        await page.setViewportSize({ width: 1280, height: 720 });
+    }
+    await openLocalGame(page);
+    const rendering = await page.evaluate(() => {
+        const scaleOf = selector => {
+            const transform = getComputedStyle(document.querySelector(selector)).transform;
+            if (transform === 'none') return 1;
+            return Number(transform.match(/^matrix\(([^,]+)/)?.[1] || 1);
+        };
+        return {
+            smoothing: getComputedStyle(document.body).getPropertyValue('-webkit-font-smoothing'),
+            enemyScale: scaleOf('#enemy-area'),
+            playerScale: scaleOf('.player-hud')
+        };
+    });
+    expect(rendering.smoothing).toBe('auto');
+    expect(rendering.enemyScale).toBe(1);
+    expect(rendering.playerScale).toBe(1);
+    expect(failures).toEqual([]);
+});
+
 test('gem tooltips reuse computed stats and avoid live-canvas blur', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);

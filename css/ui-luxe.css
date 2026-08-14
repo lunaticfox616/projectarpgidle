@@ -24,7 +24,7 @@ body:not(.light-mode) {
     radial-gradient(circle at 78% 78%, rgba(145, 99, 34, 0.09), transparent 28%),
     linear-gradient(145deg, #060a11, #090e17 46%, #05080d);
   font-variant-numeric: tabular-nums;
-  -webkit-font-smoothing: antialiased;
+  -webkit-font-smoothing: auto;
   text-rendering: optimizeLegibility;
 }
 
