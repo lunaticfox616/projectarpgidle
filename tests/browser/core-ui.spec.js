@@ -282,47 +282,51 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
 
 test('mobile battle HUD stays within the viewport and exposes combat log', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
-    await page.setViewportSize({ width: 360, height: 800 });
     const failures = watchRuntimeFailures(page);
-    await openLocalGame(page);
-    await page.evaluate(() => {
-        document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
-        syncMapCompleteActionQuickControl();
-    });
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-    expect(overflow).toBeLessThanOrEqual(1);
-    const compactHud = await page.evaluate(() => {
-        const zoneTitle = document.getElementById('ui-combat-zone-inline');
-        const action = document.getElementById('btn-map-complete-action-picker');
-        const goalToggle = document.getElementById('ui-goal-toggle');
-        const progress = document.querySelector('.map-progress-row');
-        const actions = document.querySelector('.combat-zone-actions');
-        const zoneRect = zoneTitle.getBoundingClientRect();
-        const goalRect = goalToggle.getBoundingClientRect();
-        const progressRect = progress.getBoundingClientRect();
-        const actionsRect = actions.getBoundingClientRect();
-        action.scrollIntoView({ block: 'nearest', inline: 'end' });
-        return {
-            zoneTitleClipped: zoneTitle.scrollWidth > zoneTitle.clientWidth + 1
-                || zoneTitle.scrollHeight > zoneTitle.clientHeight + 1,
-            actionTextClipped: action.scrollWidth > action.clientWidth + 1,
-            actionRight: action.getBoundingClientRect().right,
-            viewportWidth: document.documentElement.clientWidth,
-            goalOverlapsZoneTitle: goalRect.right > zoneRect.left + 1
-                && goalRect.left < zoneRect.right - 1
-                && goalRect.bottom > zoneRect.top + 1
-                && goalRect.top < zoneRect.bottom - 1,
-            progressOverlapsActions: progressRect.right > actionsRect.left + 1
-                && progressRect.left < actionsRect.right - 1
-                && progressRect.bottom > actionsRect.top + 1
-                && progressRect.top < actionsRect.bottom - 1
-        };
-    });
-    expect(compactHud.zoneTitleClipped).toBe(false);
-    expect(compactHud.actionTextClipped).toBe(false);
-    expect(compactHud.actionRight).toBeLessThanOrEqual(compactHud.viewportWidth + 1);
-    expect(compactHud.goalOverlapsZoneTitle).toBe(false);
-    expect(compactHud.progressOverlapsActions).toBe(false);
+    for (const width of [320, 360, 390]) {
+        await page.setViewportSize({ width, height: 800 });
+        await openLocalGame(page);
+        await page.evaluate(() => {
+            document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
+            syncMapCompleteActionQuickControl();
+        });
+        const compactHud = await page.evaluate(() => {
+            const rect = selector => document.querySelector(selector).getBoundingClientRect();
+            const overlaps = (left, right) => left.right > right.left + 1
+                && left.left < right.right - 1 && left.bottom > right.top + 1 && left.top < right.bottom - 1;
+            const zoneTitle = document.getElementById('ui-combat-zone-inline');
+            const action = document.getElementById('btn-map-complete-action-picker');
+            const settingsTab = document.getElementById('btn-tab-settings');
+            const zoneRect = zoneTitle.getBoundingClientRect();
+            const goalRect = rect('#ui-goal-toggle');
+            const progressRect = rect('.map-progress-row');
+            const actionsRect = rect('.combat-zone-actions');
+            const playerRect = rect('.player-hud');
+            const battlefieldRect = rect('.battlefield-wrap');
+            action.scrollIntoView({ block: 'nearest', inline: 'end' });
+            return {
+                pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                zoneTitleClipped: zoneTitle.scrollWidth > zoneTitle.clientWidth + 1
+                    || zoneTitle.scrollHeight > zoneTitle.clientHeight + 1,
+                settingsTextClipped: settingsTab.scrollWidth > settingsTab.clientWidth + 1,
+                actionTextClipped: action.scrollWidth > action.clientWidth + 1,
+                actionRight: action.getBoundingClientRect().right,
+                viewportWidth: document.documentElement.clientWidth,
+                goalOverlapsZoneTitle: overlaps(goalRect, zoneRect),
+                progressOverlapsActions: overlaps(progressRect, actionsRect),
+                playerHudWidth: playerRect.width,
+                battlefieldWidth: battlefieldRect.width
+            };
+        });
+        expect(compactHud.pageOverflow).toBeLessThanOrEqual(1);
+        expect(compactHud.zoneTitleClipped).toBe(false);
+        expect(compactHud.settingsTextClipped).toBe(false);
+        expect(compactHud.actionTextClipped).toBe(false);
+        expect(compactHud.actionRight).toBeLessThanOrEqual(compactHud.viewportWidth + 1);
+        expect(compactHud.goalOverlapsZoneTitle).toBe(false);
+        expect(compactHud.progressOverlapsActions).toBe(false);
+        expect(compactHud.playerHudWidth).toBeGreaterThanOrEqual(compactHud.battlefieldWidth - 1);
+    }
     await expect(page.locator('.player-health-frame')).toBeVisible();
     await expect(page.locator('#btn-combat-log-toggle')).toBeVisible();
     await page.locator('#btn-combat-log-toggle').click();

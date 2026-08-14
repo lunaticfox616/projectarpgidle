@@ -794,7 +794,7 @@
 
 @media (max-width: 1080px) {
   body.mobile-battle-tab #tab-battle .player-hud > .player-hud-shell { display: grid !important; }
-  body.mobile-battle-tab #tab-battle .player-hud { margin: 0 0 5px; padding: 0; }
+  body.mobile-battle-tab #tab-battle .player-hud { width: 100%; margin: 0 0 5px; padding: 0; }
   body.mobile-battle-tab #tab-battle .player-health-frame { width: min(100%, 560px); }
   body.mobile-battle-tab #tab-battle .player-hud-vitals { display: block !important; }
   body.mobile-battle-tab #tab-battle .player-health-frame .combat-hp-bar { height: 32.15% !important; }
