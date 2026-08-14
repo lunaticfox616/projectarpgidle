@@ -167,6 +167,27 @@ test('gem tooltips reuse computed stats and avoid live-canvas blur', async ({ pa
     expect(result.tooltipStatCalls).toBe(0);
     expect(['none', '']).toContain(result.backdrop);
     expect(result.hasMoveRenderer).toBe(false);
+    await page.waitForTimeout(50);
+    const rendering = await page.evaluate(() => {
+        const info = document.getElementById('info-tooltip');
+        const item = document.getElementById('item-tooltip-box');
+        const infoStyle = getComputedStyle(info);
+        const itemStyle = getComputedStyle(item);
+        const rect = info.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        return {
+            fontFamilyMatches: infoStyle.fontFamily === itemStyle.fontFamily,
+            fontSizeMatches: infoStyle.fontSize === itemStyle.fontSize,
+            willChange: infoStyle.willChange,
+            physicalX: rect.left * dpr,
+            physicalY: rect.top * dpr
+        };
+    });
+    expect(rendering.fontFamilyMatches).toBe(true);
+    expect(rendering.fontSizeMatches).toBe(true);
+    expect(rendering.willChange).toBe('auto');
+    expect(Math.abs(rendering.physicalX - Math.round(rendering.physicalX))).toBeLessThan(0.001);
+    expect(Math.abs(rendering.physicalY - Math.round(rendering.physicalY))).toBeLessThan(0.001);
     expect(failures).toEqual([]);
 });
 
