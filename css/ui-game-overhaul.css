@@ -1347,7 +1347,7 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .equipment-meta-chip { padding: 2px 5px; border: 1px solid rgba(66, 91, 117, .52); border-radius: 4px; color: #eef2f6; background: rgba(11, 20, 30, .72); font-size: 8px; white-space: nowrap; }
 .equipment-card-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px !important; margin-top: 7px; }
 .equipment-card-actions button { min-width: 0; min-height: 25px; padding: 3px 4px; border-radius: 5px; font-size: 9px; }
-.equipment-card-actions .equipment-card-primary { grid-column: 1 / -1; min-height: 31px; color: #ffffff; border-color: #4b83ad; background: linear-gradient(180deg, #285b7d, #173c56); }
+.equipment-card-actions .equipment-card-primary { min-height: 31px; color: #ffffff; border-color: #4b83ad; background: linear-gradient(180deg, #285b7d, #173c56); }
 .equipment-card-actions .equipment-card-danger { color: #d8b2b2; border-color: #684143; background: #3f282c; }
 .equipment-card-actions .is-locked { color: #f0d59a; border-color: #7d6330; background: #4a3b1d; }
 
