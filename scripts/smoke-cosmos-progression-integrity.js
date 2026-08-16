@@ -37,6 +37,18 @@ assert.deepStrictEqual(
     'exclusive boss rewards need a visible 40-kill guarantee'
 );
 
+context.game.cosmosAtlas.unlocked = true;
+context.game.cosmosAtlas.bossClears = [];
+context.game.journalEntries = ['woodsman'];
+context.game.underworldProgress = { highestFloor: 30 };
+assert.strictEqual(context.continueCosmosChallengeAfterClear('stop'), false,
+    'stop completion mode must not start another cosmos challenge');
+assert.strictEqual(context.continueCosmosChallengeAfterClear('nextZone'), true,
+    'next-region completion mode must start the next available cosmos node');
+assert.strictEqual(context.game.currentZoneId, 'cosmos_challenge');
+assert(context.game.cosmosAtlas.activeChallenge && context.game.cosmosAtlas.activeChallenge.nodeId !== 'planet-0',
+    'automatic continuation must advance beyond the cleared gateway');
+
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert(cosmosSource.includes("state.bossExclusiveMisses[node.id] = granted ? 0"), 'successful exclusive drops must reset pity');

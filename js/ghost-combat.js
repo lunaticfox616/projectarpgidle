@@ -1,4 +1,5 @@
 const GHOST_COMBAT_SNAPSHOT_VERSION = 1;
+const GHOST_COMBAT_RULESET_VERSION = 'ghost-combat-rules-v1';
 const GHOST_COMBAT_ELEMENTS = Object.freeze(['phys', 'fire', 'cold', 'light', 'chaos']);
 const GHOST_COMBAT_TAGS = new Set(['attack', 'spell', 'melee', 'projectile', 'aoe', 'dot', 'channeling', 'summon', 'summon_attack']);
 
@@ -10,6 +11,10 @@ function getGhostCombatStyle(skill) {
     if (tags.includes('dot')) return 'dot';
     if (tags.includes('spell')) return 'spell';
     return 'melee';
+}
+
+function getGhostCombatVersion() {
+    return GHOST_COMBAT_RULESET_VERSION;
 }
 
 function getGhostCombatRecoveryPct(stats) {
@@ -47,6 +52,7 @@ function getGhostCombatSnapshot(suppliedStats) {
     let appearance = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId;
     return {
         schemaVersion: GHOST_COMBAT_SNAPSHOT_VERSION,
+        ascendClass: game && game.ascendClass ? String(game.ascendClass).slice(0, 80) : null,
         heroId: /^hero(?:10|[1-9])$/.test(String(appearance || '')) ? appearance : 'hero1',
         talentHeroId: /^hero(?:10|[1-9])$/.test(String(game.selectedHeroId || '')) ? game.selectedHeroId : 'hero1',
         activeSkill, skillElement: element, style: getGhostCombatStyle(skill),
@@ -71,4 +77,4 @@ function getGhostCombatSnapshot(suppliedStats) {
     };
 }
 
-safeExposeGlobals({ getGhostCombatSnapshot });
+safeExposeGlobals({ getGhostCombatSnapshot, getGhostCombatVersion });

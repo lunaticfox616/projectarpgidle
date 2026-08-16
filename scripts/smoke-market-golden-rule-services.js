@@ -22,6 +22,13 @@ const elements = Object.fromEntries([
     'ui-market-locked', 'ui-market-panel', 'ui-market-exchange-list', 'ui-market-service-passive',
     'ui-market-service-annul', 'ui-market-service-inv', 'ui-market-service-jewel-inv'
 ].map(id => [id, { style: {}, innerHTML: '' }]));
+elements['ui-market-exchange-list'].dataset = {};
+let exchangeRenderCount = 0;
+let exchangeMarkup = '';
+Object.defineProperty(elements['ui-market-exchange-list'], 'innerHTML', {
+    get: () => exchangeMarkup,
+    set: value => { exchangeMarkup = value; exchangeRenderCount++; }
+});
 const selectedItem = { name: '검증 장비', stats: [{ id: 'flatHp', statName: '생명력', val: 10 }] };
 const context = {
     game: { season: 30, passives: ['p1'], currencies: { magicBud: 24, formlessDew: 100, goldenRule: 3, divine: 0 } },
@@ -55,6 +62,8 @@ const context = {
     Math
 };
 vm.createContext(context);
+vm.runInContext("const marketExchangeSelection = { from: '', to: '' };", context, { filename: 'market-exchange-state.js' });
+vm.runInContext(readFunctionSource('setMarketExchangeSelection'), context, { filename: 'market-exchange-selection.js' });
 vm.runInContext(readFunctionSource('renderMarketExchangePicker'), context, { filename: 'market-exchange-picker.js' });
 vm.runInContext(readFunctionSource('renderMarketUI'), context, { filename: 'market-golden-rule-services.js' });
 vm.runInContext(readFunctionSource('buildGoldenRuleSpendPrompt'), context, { filename: 'golden-rule-spend-prompt.js' });
@@ -76,6 +85,14 @@ context.renderMarketUI();
 const selectedExchangeHtml = elements['ui-market-exchange-list'].innerHTML;
 assert(selectedExchangeHtml.includes('형체 없는 이슬 100개') && selectedExchangeHtml.includes('황금률 1개'),
     'selecting a give/receive pair must immediately replace the displayed quote');
+elements['ui-market-exchange-list'].querySelector = () => null;
+const rendersBeforeUnrelatedUpdate = exchangeRenderCount;
+context.game.inventory = [{ id: 1, name: '새 전리품' }];
+context.renderMarketUI();
+assert.strictEqual(exchangeRenderCount, rendersBeforeUnrelatedUpdate,
+    'unrelated loot UI updates must not replace an open exchange selector');
+assert(elements['ui-market-exchange-list'].innerHTML.includes('형체 없는 이슬 100개'),
+    'the exchange choice must survive after its select element temporarily disappears');
 const serviceHtml = [
     elements['ui-market-service-passive'].innerHTML,
     elements['ui-market-service-annul'].innerHTML,

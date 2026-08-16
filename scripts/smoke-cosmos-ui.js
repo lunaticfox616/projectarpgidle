@@ -49,4 +49,20 @@ assert(!css.includes('max-height: min(72vh, 790px)'), 'the node detail must not 
 assert(css.includes('grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr)'), 'atlas summary columns must shrink inside the window');
 assert(source.includes("tracePentagon(ctx, p.x, p.y, drawR, Math.PI / 4)"), 'asteroids must be visually distinct from planet nodes');
 
+const canvas = { width: 2400, height: 1520 };
+let hostRect = { width: 0, height: 0 };
+const resizeContext = {
+    ATLAS: { canvas, host: { getBoundingClientRect: () => hostRect }, dpr: 1 },
+    window: { devicePixelRatio: 1 },
+    Math
+};
+vm.createContext(resizeContext);
+vm.runInContext(readFunctionSource('resizeCanvasToHost'), resizeContext, { filename: 'cosmos-canvas-resize.js' });
+assert.strictEqual(resizeContext.resizeCanvasToHost(), false, 'a hidden atlas must skip canvas resizing');
+assert.deepStrictEqual({ width: canvas.width, height: canvas.height }, { width: 2400, height: 1520 },
+    'hidden-tab UI updates must not collapse the canvas to fallback dimensions');
+hostRect = { width: 900, height: 540 };
+assert.strictEqual(resizeContext.resizeCanvasToHost(), true, 'a visible atlas must resize to its host');
+assert.deepStrictEqual({ width: canvas.width, height: canvas.height }, { width: 900, height: 540 });
+
 console.log('smoke-cosmos-ui passed');

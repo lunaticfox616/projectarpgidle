@@ -1215,6 +1215,24 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.game.settings.itemFilterEnabled, true, '자동관리 해제를 끄면 아이템 필터 설정을 유지해야 한다');
 }
 
+// 특수 구역 패배는 자동 사냥용 최고 심화층으로 보내지 않는다.
+{
+  resetGame();
+  context.game.season = 10;
+  context.game.maxZoneId = 9;
+  context.game.loopProgressCurrent.chaos20Cleared = true;
+  context.game.abyssUnlockedDepths = [21, 37];
+  assert.notStrictEqual(context.getAutoProgressZoneId(context.game.maxZoneId), 9,
+    'fixture must reproduce automatic highest-depth selection');
+  context.game.settings.showDeathNotice = false;
+  context.handlePlayerDefeat(
+    { id: 'time_rift_past', type: 'timeRift', riftPhase: 'past', name: '시간의 균열' },
+    { maxHp: 100, energyShield: 0, moveSpeed: 100 }
+  );
+  assert.strictEqual(context.game.currentZoneId, 9,
+    'special-content defeat must return to the normal progression frontier');
+}
+
 // ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──
 // ── 3-2. 플라스크 무결성: 순차 발견, 교체 충전 보존, 독립 충전, 조우별 자동 사용 ──
 {

@@ -1,6 +1,6 @@
 -- Project ARPG Idle: 운영 도구, 저장 이력, 고스트 대결
 -- db/cloud-and-playtest.sql 및 db/social.sql 실행 후 Supabase SQL Editor에서 실행한다.
--- Supabase의 "destructive operations" 경고는 아래 제약조건 교체, 권한 REVOKE 및
+-- Supabase의 "destructive operations" 경고는 아래 제약조건·함수 시그니처 교체, 권한 REVOKE 및
 -- 함수 본문 안의 오래된 저장 이력 정리 DELETE 때문에 표시된다. 이 스크립트를 실행하는
 -- 즉시 플레이어 저장·프로필·채팅·전투 기록 테이블이나 그 데이터를 삭제하지 않는다.
 -- 운영 화면을 쓸 계정은 Dashboard > Authentication > Users의 app_metadata에
@@ -505,7 +505,9 @@ begin
 end;
 $ghost_combat_contract$;
 
-create or replace function public.register_my_ghost(p_combat_version text)
+drop function if exists public.register_my_ghost(text);
+
+create or replace function public.register_my_ghost(p_combat_version text, p_snapshot jsonb)
 returns jsonb
 language plpgsql
 security definer
@@ -514,9 +516,9 @@ as $$
 declare
     account_id uuid := auth.uid();
     profile_name text;
-    latest_run public.playtest_runs%rowtype;
-    sample_count integer;
-    median_dps numeric;
+    normalized_snapshot jsonb;
+    snapshot_dps numeric;
+    direct_ehp jsonb;
     element_ehp jsonb;
     registered public.ghost_profiles%rowtype;
 begin
@@ -524,47 +526,38 @@ begin
     if p_combat_version is null or char_length(p_combat_version) not between 1 and 80 then
         raise exception 'INVALID_COMBAT_VERSION';
     end if;
+    if p_snapshot is null or jsonb_typeof(p_snapshot) <> 'object' then
+        raise exception 'INVALID_GHOST_SNAPSHOT';
+    end if;
+    if pg_column_size(p_snapshot) > 8192 or p_snapshot ->> 'schemaVersion' <> '1' then
+        raise exception 'INVALID_GHOST_SNAPSHOT';
+    end if;
+    direct_ehp := p_snapshot -> 'directEhpByElement';
+    if jsonb_typeof(p_snapshot -> 'dps') <> 'number' or jsonb_typeof(direct_ehp) <> 'object' then
+        raise exception 'INVALID_GHOST_SNAPSHOT';
+    end if;
     if exists (select 1 from public.ghost_profiles
                 where user_id = account_id and updated_at >= now() - interval '5 minutes') then
         raise exception 'GHOST_REGISTRATION_COOLDOWN';
     end if;
     select nickname into profile_name from public.player_profiles where user_id = account_id;
     if profile_name is null then raise exception 'NICKNAME_REQUIRED'; end if;
-    select * into latest_run from public.playtest_runs
-     where user_id = account_id and app_version = p_combat_version
-       and dps > 0 and ehp_min > 0 and active_skill is not null
-       and jsonb_typeof(ghost_snapshot) = 'object' and ghost_snapshot ->> 'schemaVersion' = '1'
-       and skill_element in ('phys', 'fire', 'cold', 'light', 'chaos')
-       and created_at >= now() - interval '24 hours'
-     order by created_at desc limit 1;
-    if not found then raise exception 'GHOST_NEEDS_BATTLE_DATA'; end if;
-
-    select count(*), percentile_cont(0.5) within group (order by dps),
-           jsonb_build_object(
-               'phys', percentile_cont(0.5) within group (order by (ehp_by_element ->> 'phys')::numeric),
-               'fire', percentile_cont(0.5) within group (order by (ehp_by_element ->> 'fire')::numeric),
-               'cold', percentile_cont(0.5) within group (order by (ehp_by_element ->> 'cold')::numeric),
-               'light', percentile_cont(0.5) within group (order by (ehp_by_element ->> 'light')::numeric),
-               'chaos', percentile_cont(0.5) within group (order by (ehp_by_element ->> 'chaos')::numeric)
-           )
-      into sample_count, median_dps, element_ehp
-      from (select * from public.playtest_runs
-             where user_id = account_id and app_version = p_combat_version
-               and ascend_class is not distinct from latest_run.ascend_class
-               and hero_id is not distinct from latest_run.hero_id
-               and active_skill = latest_run.active_skill and dps > 0 and ehp_min > 0
-               and jsonb_typeof(ghost_snapshot) = 'object' and ghost_snapshot ->> 'schemaVersion' = '1'
-               and created_at >= now() - interval '24 hours'
-             order by created_at desc limit 10) samples;
-    if sample_count < 3 then raise exception 'GHOST_NEEDS_3_RUNS'; end if;
+    snapshot_dps := public.ghost_snapshot_number(p_snapshot, 'dps', 1, 1, 9000000000000000);
+    element_ehp := jsonb_build_object(
+        'phys', public.ghost_snapshot_number(direct_ehp, 'phys', 1, 1, 9000000000000000),
+        'fire', public.ghost_snapshot_number(direct_ehp, 'fire', 1, 1, 9000000000000000),
+        'cold', public.ghost_snapshot_number(direct_ehp, 'cold', 1, 1, 9000000000000000),
+        'light', public.ghost_snapshot_number(direct_ehp, 'light', 1, 1, 9000000000000000),
+        'chaos', public.ghost_snapshot_number(direct_ehp, 'chaos', 1, 1, 9000000000000000));
+    normalized_snapshot := public.normalize_ghost_combat_snapshot(p_snapshot, snapshot_dps, element_ehp);
 
     insert into public.ghost_profiles(
         user_id, nickname, ascend_class, active_skill, skill_element,
         dps, ehp_by_element, combat_snapshot, combat_version, updated_at
     ) values (
-        account_id, profile_name, latest_run.ascend_class, latest_run.active_skill, latest_run.skill_element,
-        least(9000000000000000::numeric, greatest(1, median_dps))::bigint, element_ehp,
-        public.normalize_ghost_combat_snapshot(latest_run.ghost_snapshot, median_dps, element_ehp), p_combat_version, now()
+        account_id, profile_name, nullif(left(coalesce(p_snapshot ->> 'ascendClass', ''), 80), ''),
+        normalized_snapshot ->> 'activeSkill', normalized_snapshot ->> 'skillElement',
+        snapshot_dps::bigint, element_ehp, normalized_snapshot, p_combat_version, now()
     )
     on conflict (user_id) do update set
         nickname = excluded.nickname, ascend_class = excluded.ascend_class,
@@ -588,7 +581,7 @@ declare
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     select jsonb_build_object(
-        'combatProtocolVersion', 3,
+        'combatProtocolVersion', 4,
         'me', (select to_jsonb(me) - 'user_id' - 'combat_snapshot' from public.ghost_profiles me where me.user_id = account_id),
         'leaderboard', coalesce((select jsonb_agg(to_jsonb(board)) from (
             select row_number() over (order by rating desc, wins desc, updated_at asc) as rank,
@@ -776,7 +769,7 @@ begin
 end;
 $$;
 
-revoke all on function public.register_my_ghost(text) from public, anon;
+revoke all on function public.register_my_ghost(text, jsonb) from public, anon;
 revoke all on function public.get_ghost_arena(text) from public, anon;
 revoke all on function public.fight_ghost(text) from public, anon;
 revoke all on function public.fight_ghost_target(uuid, text) from public, anon;
@@ -786,7 +779,7 @@ revoke all on function public.ghost_duel_roll(text, text) from public, anon, aut
 revoke all on function public.prepare_ghost_duel_fighter(jsonb, text, jsonb) from public, anon, authenticated;
 revoke all on function public.resolve_ghost_duel_attack(jsonb, jsonb, jsonb, numeric) from public, anon, authenticated;
 revoke all on function public.simulate_ghost_duel(jsonb, jsonb, text) from public, anon, authenticated;
-grant execute on function public.register_my_ghost(text) to authenticated;
+grant execute on function public.register_my_ghost(text, jsonb) to authenticated;
 grant execute on function public.get_ghost_arena(text) to authenticated;
 grant execute on function public.fight_ghost(text) to authenticated;
 grant execute on function public.fight_ghost_target(uuid, text) to authenticated;

@@ -1394,6 +1394,16 @@ async function buyBlackMarketOffer(idx){
     updateStaticUI();
 }
 
+const marketExchangeSelection = { from: '', to: '' };
+
+function setMarketExchangeSelection(kind, value) {
+    if (kind === 'from') {
+        marketExchangeSelection.from = String(value || '');
+        marketExchangeSelection.to = '';
+    } else if (kind === 'to') marketExchangeSelection.to = String(value || '');
+    renderMarketUI();
+}
+
 function renderMarketExchangePicker(listEl) {
     let getSelectedValue = id => {
         if (!listEl || typeof listEl.querySelector !== 'function') return '';
@@ -1401,29 +1411,37 @@ function renderMarketExchangePicker(listEl) {
         return select ? select.value : '';
     };
     let fromKeys = Array.from(new Set(MARKET_EXCHANGES.map(recipe => recipe.from)));
-    let selectedFrom = getSelectedValue('ui-market-exchange-from');
+    let domFrom = getSelectedValue('ui-market-exchange-from');
+    if (fromKeys.includes(domFrom)) marketExchangeSelection.from = domFrom;
+    let selectedFrom = marketExchangeSelection.from;
     if (!fromKeys.includes(selectedFrom)) selectedFrom = fromKeys[0] || '';
     let availableRecipes = MARKET_EXCHANGES.filter(recipe => recipe.from === selectedFrom);
-    let selectedTo = getSelectedValue('ui-market-exchange-to');
+    let domTo = getSelectedValue('ui-market-exchange-to');
+    if (availableRecipes.some(row => row.to === domTo)) marketExchangeSelection.to = domTo;
+    let selectedTo = marketExchangeSelection.to;
     let recipe = availableRecipes.find(row => row.to === selectedTo) || availableRecipes[0];
     if (!recipe) {
         listEl.innerHTML = '<div class="market-meta">이용 가능한 고정 환율이 없습니다.</div>';
         return;
     }
+    marketExchangeSelection.from = recipe.from;
+    marketExchangeSelection.to = recipe.to;
     let getName = key => (ORB_DB[key] && ORB_DB[key].name) || key;
     let getDisplayName = key => typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : getName(key);
     let have = Math.max(0, Math.floor(game.currencies[recipe.from] || 0));
     let maxTimes = Math.floor(have / recipe.need);
     let spendAll = maxTimes * recipe.need;
     let gainAll = maxTimes * recipe.gain;
+    let renderKey = `${recipe.id}:${have}:${maxTimes}`;
+    if (listEl.dataset && listEl.dataset.marketExchangeRenderKey === renderKey) return;
     let tone = (recipe.to === 'goldenRule' || recipe.from === 'goldenRule') ? 'divine' : (recipe.to === 'formlessDew' ? 'chaos' : 'basic');
     let fromOptions = fromKeys.map(key => `<option value="${key}" ${key === recipe.from ? 'selected' : ''}>${getName(key)}</option>`).join('');
     let toOptions = availableRecipes.map(row => `<option value="${row.to}" ${row.to === recipe.to ? 'selected' : ''}>${getName(row.to)}</option>`).join('');
     listEl.innerHTML = `<div class="market-exchange-picker market-tone-${tone}">
         <div class="market-exchange-selectors">
-            <label class="market-exchange-select"><span>내가 줄 재화</span><select id="ui-market-exchange-from" onchange="renderMarketUI()">${fromOptions}</select></label>
+            <label class="market-exchange-select"><span>내가 줄 재화</span><select id="ui-market-exchange-from" onchange="setMarketExchangeSelection('from',this.value)">${fromOptions}</select></label>
             <span class="market-exchange-direction" aria-hidden="true">→</span>
-            <label class="market-exchange-select"><span>받을 재화</span><select id="ui-market-exchange-to" onchange="renderMarketUI()">${toOptions}</select></label>
+            <label class="market-exchange-select"><span>받을 재화</span><select id="ui-market-exchange-to" onchange="setMarketExchangeSelection('to',this.value)">${toOptions}</select></label>
         </div>
         <div class="market-exchange-quote">
             <span>현재 교환가</span><strong>${getDisplayName(recipe.from)} ${recipe.need}개 <b>→</b> ${getDisplayName(recipe.to)} ${recipe.gain}개</strong>
@@ -1434,6 +1452,7 @@ function renderMarketExchangePicker(listEl) {
             <button class="market-exchange-all" onclick="exchangeAtMarket('${recipe.id}', true)" ${maxTimes < 1 ? 'disabled' : ''}>최대 ${spendAll} → ${gainAll}</button>
         </div>
     </div>`;
+    if (listEl.dataset) listEl.dataset.marketExchangeRenderKey = renderKey;
 }
 
 function renderMarketUI() {
@@ -1587,4 +1606,4 @@ function renderMarketUI() {
 }
 
 
-safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, marketExpandGrowthInventoryByDivine, renderMarketUI, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, marketExpandGrowthInventoryByDivine, setMarketExchangeSelection, renderMarketUI, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
