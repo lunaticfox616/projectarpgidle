@@ -72,6 +72,17 @@ const COSMOS_GALAXY_ENVIRONMENT_DB = Object.freeze([
     { galaxy: 5, name: '혜성권', summary: '빠른 공격과 높은 회피로 완성 빌드를 추격하는 은하입니다.', counter: '정확도·회피 대응·회복 속도를 점검하세요.', attackSpeedMul: 1.12, evasionMul: 1.10 }
 ]);
 
+// 각 우주계 노드에서 선택하는 탐사 신호. 안정 관측은 항상 제시되고, 나머지 두 칸은
+// weight에 따라 결정적으로 뽑힌다. 완료 전 새로고침으로 신호를 재굴림할 수 없다.
+const COSMOS_EXPEDITION_DIRECTIVE_DB = Object.freeze([
+    { id: 'survey', name: '안정 관측', signal: 'CALIBRATED', description: '위협을 낮춰 처음 연결하는 항로입니다.', weight: 0, enemyHpMul: 0.90, enemyDamageMul: 0.92, enemyAttackSpeedMul: 0.96, rewardMul: 0.82, jackpotChance: 0, jackpotBonusMul: 0 },
+    { id: 'salvage', name: '잔해 회수', signal: 'SALVAGE', description: '성간 잔해를 회수해 별가루 수익을 높입니다.', weight: 36, enemyHpMul: 1.10, enemyDamageMul: 1.05, enemyAttackSpeedMul: 1, rewardMul: 1.22, jackpotChance: 0.04, jackpotBonusMul: 0.75 },
+    { id: 'predator', name: '포식자 추적', signal: 'HUNT', description: '강한 개체를 추적해 밀도 높은 보상을 노립니다.', weight: 28, enemyHpMul: 1.23, enemyDamageMul: 1.14, enemyAttackSpeedMul: 1.08, rewardMul: 1.40, jackpotChance: 0.07, jackpotBonusMul: 1.10 },
+    { id: 'rift', name: '균열 관통', signal: 'BREACH', description: '불안정한 균열을 가로질러 큰 수익을 노립니다.', weight: 18, enemyHpMul: 1.38, enemyDamageMul: 1.23, enemyAttackSpeedMul: 1.12, rewardMul: 1.62, jackpotChance: 0.11, jackpotBonusMul: 1.40 },
+    { id: 'storm', name: '성운 폭풍', signal: 'STORM', description: '빨라지는 성운 폭풍 속에서 공명 잔광을 수확합니다.', weight: 18, enemyHpMul: 1.18, enemyDamageMul: 1.20, enemyAttackSpeedMul: 1.18, rewardMul: 1.48, jackpotChance: 0.08, jackpotBonusMul: 1.20 },
+    { id: 'eclipse', name: '흑성 일식', signal: 'RARE SIGNAL', description: '드물게 관측되는 흑성 신호입니다. 위험과 보상이 크게 증폭됩니다.', weight: 2, enemyHpMul: 1.68, enemyDamageMul: 1.40, enemyAttackSpeedMul: 1.18, rewardMul: 2.15, jackpotChance: 0.20, jackpotBonusMul: 2, rare: true }
+]);
+
 // 루프 조건 상한·세분화 (state.js: getSeasonAbyssDepthCap / hasCurrentLoopAbyssRequirementClear):
 //  - 요구 혼돈 심도는 루프 30(심화 40) 이후에도 기존처럼 루프당 1층씩 증가한다.
 //  - 루프 31+에서는 에니프론 행성을 이번 루프에 돌파하면 우주계 루프를 선택할 수 있다.
@@ -260,4 +271,4 @@ const ABYSS_PASSIVE_NODES = [
     { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +20%' }
 ];
 
-safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB });
+safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

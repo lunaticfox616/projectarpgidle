@@ -35,6 +35,7 @@ context.safeExposeGlobals = values => Object.assign(context, values);
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('data/constants.js', 'utf8'), context, { filename: 'data/constants.js' });
 vm.runInContext(fs.readFileSync('data/maps.js', 'utf8'), context, { filename: 'data/maps.js' });
+vm.runInContext(fs.readFileSync('js/utils.js', 'utf8'), context, { filename: 'js/utils.js' });
 vm.runInContext(fs.readFileSync('js/combat-patterns.js', 'utf8'), context, { filename: 'js/combat-patterns.js' });
 vm.runInContext(fs.readFileSync('js/cosmos-rules.js', 'utf8'), context, { filename: 'js/cosmos-rules.js' });
 vm.runInContext(fs.readFileSync('js/cosmos-atlas.js', 'utf8'), context, { filename: 'js/cosmos-atlas.js' });
@@ -88,6 +89,46 @@ const first = context.getCosmosNodeRecommendation('planet-1');
 const boss = context.getCosmosNodeRecommendation('planet-47');
 assert(first && boss && boss.target.dps > first.target.dps && boss.target.ehp > first.target.ehp,
     '상위 은하 보스의 권장 DPS/EHP는 초입 노드보다 높아야 한다');
+
+const firstSignalChoices = context.getCosmosExpeditionDirectiveChoices('planet-1', 0);
+assert.strictEqual(firstSignalChoices.length, 3, '각 우주계 노드는 세 가지 탐사 신호를 제시해야 한다');
+assert.strictEqual(firstSignalChoices[0].id, 'survey', '안정 관측 항로는 항상 첫 선택지로 남아야 한다');
+assert.strictEqual(new Set(firstSignalChoices.map(row => row.id)).size, 3, '같은 탐사 신호를 중복 제시하면 안 된다');
+assert.deepStrictEqual(
+    firstSignalChoices.map(row => row.id),
+    context.getCosmosExpeditionDirectiveChoices('planet-1', 0).map(row => row.id),
+    '완료 전 새로고침으로 탐사 신호가 재굴림되면 안 된다'
+);
+const rotatedSignals = new Set(Array.from({ length: 8 }, (_, cycle) =>
+    context.getCosmosExpeditionDirectiveChoices('planet-1', cycle).map(row => row.id).join(',')));
+assert(rotatedSignals.size > 1, '탐사 완료 뒤에는 무작위 신호 구성이 갱신되어야 한다');
+const rareSignalCount = Array.from({ length: 500 }, (_, cycle) =>
+    context.getCosmosExpeditionDirectiveChoices('planet-46', cycle).some(row => row.id === 'eclipse'))
+    .filter(Boolean).length;
+assert(rareSignalCount >= 5 && rareSignalCount <= 50,
+    '흑성 일식은 실제로 등장하되 일반 신호처럼 자주 나오면 안 된다');
+
+context.game.cosmosAtlas = { layoutVersion: 20260811, cleared: ['planet-0'], bossClears: [], mastery: {}, selectedDirectives: {}, directiveCycles: {} };
+context.game.currencies.starDust = 0;
+context.focusRecommendedCosmosNode();
+const expeditionNodeId = context.game.cosmosAtlas.selectedId;
+const expeditionChoices = context.getCosmosExpeditionDirectiveChoices(expeditionNodeId, 0);
+const riskyDirective = expeditionChoices.find(row => row.id !== 'survey');
+const safeExpeditionTarget = context.getCosmosNodeRecommendation(expeditionNodeId).target;
+context.game.cosmosAtlas.selectedDirectives[expeditionNodeId] = riskyDirective.id;
+const riskyExpeditionTarget = context.getCosmosNodeRecommendation(expeditionNodeId).target;
+assert(riskyExpeditionTarget.dps > safeExpeditionTarget.dps && riskyExpeditionTarget.ehp > safeExpeditionTarget.ehp,
+    '탐사 신호의 위험도는 입장 전 권장 DPS와 EHP에 반영되어야 한다');
+context.challengeSelectedCosmosNode();
+assert.strictEqual(context.game.cosmosAtlas.activeChallenge.directive.id, riskyDirective.id,
+    '선택한 탐사 신호가 실제 전투 계약에 고정되어야 한다');
+vm.runInContext('Math.random = () => 0;', context);
+context.exploreSelectedCosmosNode(expeditionNodeId);
+assert(context.game.currencies.starDust > 7, '위험 탐사와 공명 잭팟은 실제 별가루 보상을 늘려야 한다');
+assert.strictEqual(context.game.cosmosAtlas.directiveCycles[expeditionNodeId], 1,
+    '탐사를 완료한 뒤에만 해당 노드 신호 주기가 증가해야 한다');
+assert.strictEqual(context.game.cosmosAtlas.selectedDirectives[expeditionNodeId], undefined,
+    '완료한 탐사의 이전 선택은 다음 신호에 남으면 안 된다');
 
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
 assert(cosmosSource.includes('예상 DPS<strong class="map-power-grade grade-${ready.dps.id}">${ready.dps.label}')

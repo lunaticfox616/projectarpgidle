@@ -710,6 +710,58 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
     expect(failures).toEqual([]);
 });
 
+test('cosmos expedition signals change risk and persist into the battle contract', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season = 31;
+        game.loopCount = 30;
+        game.journalEntries = Array.from(new Set([...(game.journalEntries || []), 'woodsman']));
+        game.underworldProgress = { ...(game.underworldProgress || {}), highestFloor: 30, currentFloor: 30 };
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.cosmosAtlas = {
+            ...(game.cosmosAtlas || {}), unlocked: true, cleared: ['planet-0', 'planet-46'],
+            bossClears: ['planet-46'], bossKills: { 'planet-46': 1 }, selectedId: 'planet-46',
+            selectedDirectives: {}, directiveCycles: {}
+        };
+        game.combatHalted = true;
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-cosmos');
+        focusCosmosCapstoneBoss('planet-46');
+        tutorialQueue.length = 0;
+        if (activeTutorial) dismissTutorial(false);
+    });
+    const detail = page.locator('#ui-cosmos-detail');
+    const cards = detail.locator('.cosmos-directive-card');
+    await expect(cards).toHaveCount(3);
+    await expect(detail.locator('.cosmos-directive-card.selected')).toHaveCount(1);
+    const readiness = detail.locator('.map-power-estimate');
+    const safeTarget = await readiness.evaluate(element => ({
+        dps: Number(element.dataset.recommendedDps), ehp: Number(element.dataset.recommendedEhp)
+    }));
+    const riskyCard = detail.locator('.cosmos-directive-card:not(.selected)').first();
+    const riskyId = await riskyCard.getAttribute('data-cosmos-directive-id');
+    await riskyCard.evaluate(button => button.click());
+    const selectedRisk = detail.locator(`[data-cosmos-directive-id="${riskyId}"]`);
+    await expect(selectedRisk).toHaveClass(/selected/);
+    await expect(selectedRisk).toHaveAttribute('aria-pressed', 'true');
+    const riskyTarget = await readiness.evaluate(element => ({
+        dps: Number(element.dataset.recommendedDps), ehp: Number(element.dataset.recommendedEhp)
+    }));
+    expect(riskyTarget.dps).toBeGreaterThan(safeTarget.dps);
+    expect(riskyTarget.ehp).toBeGreaterThan(safeTarget.ehp);
+    await detail.getByRole('button', { name: '은하 보스 도전' }).evaluate(button => button.click());
+    const battleContract = await page.evaluate(() => {
+        const zone = getZone('cosmos_challenge');
+        game.combatHalted = true;
+        game.enemies = [];
+        return { zoneId: game.currentZoneId, directiveId: zone.cosmosDirective.id, rewardMul: zone.cosmosDirective.rewardMul };
+    });
+    expect(battleContract).toEqual({ zoneId: 'cosmos_challenge', directiveId: riskyId, rewardMul: expect.any(Number) });
+    expect(battleContract.rewardMul).toBeGreaterThan(1);
+    expect(failures).toEqual([]);
+});
+
 test('market exchange selector survives auto-salvage currency updates', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
