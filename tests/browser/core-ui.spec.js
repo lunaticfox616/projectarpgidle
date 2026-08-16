@@ -286,7 +286,7 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     let fights = 0;
     await page.route('https://**/rest/v1/rpc/get_ghost_arena', route => route.fulfill({
         status: 200, contentType: 'application/json', body: JSON.stringify({
-            combatProtocolVersion: 2,
+            combatProtocolVersion: 3,
             me: { rating: 1000 + fights * 12, wins: fights, losses: 0, draws: 0, matches: fights, active_skill: '독니 사출' },
             leaderboard: [{ rank: 1, nickname: '상대', ascend_class: 'gladiator', active_skill: '연속 베기', rating: 1040, wins: 4, losses: 2, draws: 1, provisional: true }],
             recent: []
@@ -326,10 +326,12 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     });
     await expect(page.locator('#map-tab-pvp.active .ghost-arena')).toBeVisible();
     await expect(page.locator('.ghost-arena')).toContainText('내 레이팅 1000');
-    await page.evaluate(() => { ghostArenaState.data.combatProtocolVersion = 1; renderGhostArena(); });
+    await expect(page.locator('.ghost-arena')).toContainText('대전 간 20초');
+    await expect(page.locator('.ghost-arena')).toContainText('랭크 20회/24시간');
+    await page.evaluate(() => { ghostArenaState.data.combatProtocolVersion = 2; renderGhostArena(); });
     await expect(page.getByRole('button', { name: '상대 찾기' })).toBeDisabled();
     await expect(page.locator('.ghost-arena')).toContainText('DB가 아직 적용되지 않았습니다');
-    await page.evaluate(() => { ghostArenaState.data.combatProtocolVersion = 2; ghostArenaState.message = ''; renderGhostArena(); });
+    await page.evaluate(() => { ghostArenaState.data.combatProtocolVersion = 3; ghostArenaState.message = ''; renderGhostArena(); });
     await page.getByRole('button', { name: '상대 찾기' }).click();
     await expect(page.locator('.ghost-duel-canvas')).toBeVisible();
     await expect(page.locator('.ghost-result')).toContainText('승리');

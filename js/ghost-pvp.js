@@ -27,8 +27,11 @@ function getGhostArenaError(error) {
     if (/GHOST_OPPONENT_NOT_FOUND/.test(message)) return '대결 가능한 상대가 아직 없습니다.';
     if (/GHOST_TARGET_NOT_REGISTERED/.test(message)) return '상대가 현재 버전의 고스트를 등록하지 않았습니다.';
     if (/GHOST_REGISTRATION_REQUIRED/.test(message)) return '먼저 내 고스트를 등록하세요.';
-    if (/GHOST_FRIENDLY_LIMIT/.test(message)) return '오늘 이 상대와 할 수 있는 친선전을 모두 진행했습니다.';
-    if (/GHOST_DAILY_LIMIT/.test(message)) return '오늘의 대결 한도 20회를 모두 사용했습니다.';
+    if (/GHOST_REGISTRATION_COOLDOWN/.test(message)) return '고스트는 5분마다 한 번 갱신할 수 있습니다.';
+    if (/GHOST_DUEL_COOLDOWN/.test(message)) return '대전 시작 후 20초가 지나야 다시 대전할 수 있습니다.';
+    if (/GHOST_FRIENDLY_TARGET_LIMIT/.test(message)) return '최근 24시간 동안 이 상대와 친선전 10회를 모두 진행했습니다.';
+    if (/GHOST_FRIENDLY_DAILY_LIMIT/.test(message)) return '최근 24시간의 친선전 한도 30회를 모두 사용했습니다.';
+    if (/GHOST_DAILY_LIMIT/.test(message)) return '최근 24시간의 랭크 대전 한도 20회를 모두 사용했습니다.';
     if (/NICKNAME_REQUIRED/.test(message)) return '먼저 커뮤니티 닉네임을 설정하세요.';
     if (/schema cache|could not find|does not exist/i.test(message)) {
         return '고스트 대결 DB가 준비되지 않았습니다. Supabase SQL Editor에서 db/operations-and-ghost.sql을 실행하세요.';
@@ -37,7 +40,7 @@ function getGhostArenaError(error) {
 }
 
 function isGhostCombatServerReady() {
-    return Number(ghostArenaState.data && ghostArenaState.data.combatProtocolVersion) >= 2;
+    return Number(ghostArenaState.data && ghostArenaState.data.combatProtocolVersion) >= 3;
 }
 
 async function loadGhostArena() {
@@ -208,7 +211,7 @@ function renderGhostArena() {
     let status = me
         ? `<span>내 레이팅 <strong>${me.rating}</strong> · ${me.wins}승 ${me.losses}패 ${me.draws}무${me.matches < 10 ? ' · 배치 중' : ''}</span>`
         : '<span>등록된 고스트 없음</span>';
-    host.innerHTML = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음 · 서버 시뮬레이션 Elo</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">최근 24시간의 같은 빌드 전투 3회 이상으로 실제 공격·방어 능력치를 등록합니다. 서버가 전투를 판정하고 같은 기록을 재생합니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderFriendlyGhostChallenge()}${renderActiveGhostDuel()}${renderActiveGhostResult()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
+    host.innerHTML = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음 · 서버 시뮬레이션 Elo</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">최근 24시간의 같은 빌드 전투 3회 이상으로 등록합니다. 대전 간 20초 · 랭크 20회/24시간 · 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderFriendlyGhostChallenge()}${renderActiveGhostDuel()}${renderActiveGhostResult()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
     if (ghostArenaState.duel && !ghostArenaState.loading && typeof mountGhostDuelReplay === 'function') {
         requestAnimationFrame(() => mountGhostDuelReplay(ghostArenaState.duel));
     }

@@ -524,6 +524,10 @@ begin
     if p_combat_version is null or char_length(p_combat_version) not between 1 and 80 then
         raise exception 'INVALID_COMBAT_VERSION';
     end if;
+    if exists (select 1 from public.ghost_profiles
+                where user_id = account_id and updated_at >= now() - interval '5 minutes') then
+        raise exception 'GHOST_REGISTRATION_COOLDOWN';
+    end if;
     select nickname into profile_name from public.player_profiles where user_id = account_id;
     if profile_name is null then raise exception 'NICKNAME_REQUIRED'; end if;
     select * into latest_run from public.playtest_runs
@@ -584,7 +588,7 @@ declare
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     select jsonb_build_object(
-        'combatProtocolVersion', 2,
+        'combatProtocolVersion', 3,
         'me', (select to_jsonb(me) - 'user_id' - 'combat_snapshot' from public.ghost_profiles me where me.user_id = account_id),
         'leaderboard', coalesce((select jsonb_agg(to_jsonb(board)) from (
             select row_number() over (order by rating desc, wins desc, updated_at asc) as rank,
@@ -634,6 +638,10 @@ begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     -- ponytail: 테스터 규모에서는 전역 매치 잠금이 가장 안전하다. 동시 매치가 병목이 될 때 계정 순서 잠금으로 교체한다.
     perform pg_advisory_xact_lock(937041);
+    if exists (select 1 from public.ghost_matches
+                where challenger_id = account_id and created_at >= now() - interval '20 seconds') then
+        raise exception 'GHOST_DUEL_COOLDOWN';
+    end if;
     if (select count(*) from public.ghost_matches
          where challenger_id = account_id and ranked and created_at >= now() - interval '1 day') >= 20 then
         raise exception 'GHOST_DAILY_LIMIT';
@@ -719,17 +727,21 @@ begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     if p_target_user_id is null or p_target_user_id = account_id then raise exception 'GHOST_INVALID_TARGET'; end if;
     perform pg_advisory_xact_lock(937041);
+    if exists (select 1 from public.ghost_matches
+                where challenger_id = account_id and created_at >= now() - interval '20 seconds') then
+        raise exception 'GHOST_DUEL_COOLDOWN';
+    end if;
     if (select count(*) from public.ghost_matches
          where challenger_id = account_id and not ranked
            and created_at >= now() - interval '1 day') >= 30 then
-        raise exception 'GHOST_FRIENDLY_LIMIT';
+        raise exception 'GHOST_FRIENDLY_DAILY_LIMIT';
     end if;
     if (select count(*) from public.ghost_matches previous
          where not previous.ranked
            and ((previous.challenger_id = account_id and previous.defender_id = p_target_user_id)
              or (previous.challenger_id = p_target_user_id and previous.defender_id = account_id))
            and previous.created_at >= now() - interval '1 day') >= 10 then
-        raise exception 'GHOST_FRIENDLY_LIMIT';
+        raise exception 'GHOST_FRIENDLY_TARGET_LIMIT';
     end if;
 
     select * into challenger from public.ghost_profiles
