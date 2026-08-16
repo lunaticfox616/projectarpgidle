@@ -2896,6 +2896,30 @@ function removeOneModFromItem(item) {
     return true;
 }
 
+const applySeaGiftLockEffect = function (item, effect, category) {
+    let editable = (item.stats || []).filter(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
+    let count = Math.max(1, Math.floor(effect.count || 1));
+    let requiredEditable = count + (effect.bonusTaggedReroll ? 1 : 0);
+    if (editable.length < requiredEditable) {
+        let message = editable.length === 0
+            ? '봉인할 수 있는 옵션 줄이 없습니다.'
+            : `이 제작에는 봉인되지 않은 옵션이 ${requiredEditable}줄 이상 필요합니다.`;
+        addLog(message, 'attack-monster');
+        return false;
+    }
+    let rerollMod = null;
+    if (effect.bonusTaggedReroll) {
+        let pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
+        rerollMod = pickRandomMods(pool, 1)[0];
+        if (!rerollMod) { addLog('해당 계열로 재단할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
+    }
+    for (let i = 0; i < count; i++) editable[i].lockedByHoney = true;
+    if (!rerollMod) return true;
+    let idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
+    item.stats[idx] = rollAffixValue(rerollMod, getItemCraftTier(item));
+    return true;
+};
+
 function craftSeaGift(recipeId, targetItem, options) {
     let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
     if (!recipe) return false;
@@ -2926,17 +2950,7 @@ function craftSeaGift(recipeId, targetItem, options) {
         else if (item.rarity === 'magic' || effect.force) item.rarity = 'rare';
         updateItemName(item);
     } else if (effect.type === 'lockMod') {
-        let editable = (item.stats || []).filter(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
-        let count = Math.max(1, Math.floor(effect.count || 1));
-        for (let i = 0; i < count && i < editable.length; i++) editable[i].lockedByHoney = true;
-        if (effect.bonusTaggedReroll) {
-            let pool = getAvailableMods(item).filter(mod => !category || getModCategory(mod) === category);
-            let idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
-            if (idx >= 0) {
-                let mods = pickRandomMods(pool, 1);
-                if (mods && mods[0]) item.stats[idx] = rollAffixValue(mods[0], getItemCraftTier(item));
-            }
-        }
+        if (!applySeaGiftLockEffect(item, effect, category)) return false;
     } else if (effect.type === 'taggedReroll') {
         let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift && (!category || getModCategory(s) === category)) ? i : -1).filter(i => i >= 0);
         if (editableIdx.length === 0) { addLog('해당 계열의 재굴림 가능한 옵션 줄이 없습니다.', 'attack-monster'); return false; }
