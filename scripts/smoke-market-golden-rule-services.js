@@ -64,6 +64,7 @@ const context = {
 vm.createContext(context);
 vm.runInContext("const marketExchangeSelection = { from: '', to: '' };", context, { filename: 'market-exchange-state.js' });
 vm.runInContext(readFunctionSource('setMarketExchangeSelection'), context, { filename: 'market-exchange-selection.js' });
+vm.runInContext(readFunctionSource('updateMarketExchangeAvailability'), context, { filename: 'market-exchange-availability.js' });
 vm.runInContext(readFunctionSource('renderMarketExchangePicker'), context, { filename: 'market-exchange-picker.js' });
 vm.runInContext(readFunctionSource('renderMarketUI'), context, { filename: 'market-golden-rule-services.js' });
 vm.runInContext(readFunctionSource('buildGoldenRuleSpendPrompt'), context, { filename: 'golden-rule-spend-prompt.js' });
@@ -88,9 +89,10 @@ assert(selectedExchangeHtml.includes('형체 없는 이슬 100개') && selectedE
 elements['ui-market-exchange-list'].querySelector = () => null;
 const rendersBeforeUnrelatedUpdate = exchangeRenderCount;
 context.game.inventory = [{ id: 1, name: '새 전리품' }];
+context.game.currencies.formlessDew += 2;
 context.renderMarketUI();
 assert.strictEqual(exchangeRenderCount, rendersBeforeUnrelatedUpdate,
-    'unrelated loot UI updates must not replace an open exchange selector');
+    'auto-salvage currency updates must not replace an open exchange selector');
 assert(elements['ui-market-exchange-list'].innerHTML.includes('형체 없는 이슬 100개'),
     'the exchange choice must survive after its select element temporarily disappears');
 const serviceHtml = [
