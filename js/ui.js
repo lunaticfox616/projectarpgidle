@@ -13072,7 +13072,7 @@ function mergeDefaults(save) {
     function normalizeEnemyRecord(enemy) {
         if (!enemy || typeof enemy !== 'object') return null;
         let hp = clampFiniteNumber(enemy.hp, NaN, 0);
-        let maxHp = clampFiniteNumber(enemy.maxHp, hp, 1);
+        let maxHp = clampFiniteNumber(enemy.maxHp, clampFiniteNumber(hp, 1, 1), 1);
         if (!Number.isFinite(hp)) hp = maxHp;
         return normalizeEnemyGridFields({
             ...enemy,
