@@ -2591,6 +2591,59 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
     }
 }
 
+function getOceanFishingStrategyDef(st) {
+    let state = st || ensureOceanState();
+    return OCEAN_FISHING_STRATEGIES[state.fishingStrategy] || OCEAN_FISHING_STRATEGIES.balanced;
+}
+
+function getOceanFishCollectionProgress(st) {
+    let state = st || ensureOceanState();
+    let discovered = Object.keys(OCEAN_FISH_DB).filter(key => (state.fishCaughtTotal[key] || 0) > 0);
+    let claimed = new Set(state.claimedCollectionMilestones || []);
+    let milestones = OCEAN_FISH_COLLECTION_MILESTONES.map(row => ({
+        ...row,
+        ready: discovered.length >= row.required,
+        claimed: claimed.has(row.required)
+    }));
+    return { discovered, discoveredCount: discovered.length, totalCount: Object.keys(OCEAN_FISH_DB).length, milestones };
+}
+
+function getOceanFishCollectionBonus(key, st) {
+    let state = st || ensureOceanState();
+    let claimed = new Set(state.claimedCollectionMilestones || []);
+    return OCEAN_FISH_COLLECTION_MILESTONES.reduce((sum, row) => {
+        return sum + (claimed.has(row.required) ? Math.max(0, Number((row.bonus || {})[key]) || 0) : 0);
+    }, 0);
+}
+
+function setOceanFishingStrategy(strategyId) {
+    let st = ensureOceanState();
+    let strategy = OCEAN_FISHING_STRATEGIES[strategyId];
+    if (!strategy) return false;
+    if (st.diving) { addLog('낚시 전략은 수면에서만 변경할 수 있습니다.', 'attack-monster'); return false; }
+    if (st.fishingStrategy === strategyId) return true;
+    st.fishingStrategy = strategyId;
+    addLog(`${strategy.icon} 낚시 전략을 '${strategy.name}'(으)로 변경했습니다.`, 'loot-magic');
+    if (typeof queueImportantSave === 'function') queueImportantSave(200);
+    if (typeof updateStaticUI === 'function') updateStaticUI();
+    return true;
+}
+
+function claimOceanFishCollectionMilestone(requiredCount) {
+    let st = ensureOceanState();
+    let required = Math.max(0, Math.floor(requiredCount || 0));
+    let milestone = OCEAN_FISH_COLLECTION_MILESTONES.find(row => row.required === required);
+    let progress = getOceanFishCollectionProgress(st);
+    let status = progress.milestones.find(row => row.required === required);
+    if (!milestone || !status || !status.ready || status.claimed) return false;
+    st.claimedCollectionMilestones.push(required);
+    Object.keys(milestone.reward || {}).forEach(key => awardCurrency(key, milestone.reward[key]));
+    addLog(`📘 심해 도감 '${milestone.label}' 보상을 획득했습니다.`, 'loot-unique');
+    if (typeof queueImportantSave === 'function') queueImportantSave(200);
+    if (typeof updateStaticUI === 'function') updateStaticUI();
+    return true;
+}
+
 function advanceOceanDiveFromKill(zone) {
     // 팩(웨이브) 전체를 클리어했을 때만 호출됩니다 (개별 몬스터 처치마다 호출되지 않음).
     let st = ensureOceanState();
@@ -2613,6 +2666,7 @@ function consumeOceanOxygenOnAttack() {
     let savingPct = 0;
     try { if (typeof getPlayerStats === 'function') savingPct = Math.max(0, Math.min(90, Number(getPlayerStats().oceanOxygenAttackSavingPct) || 0)); } catch (e) { console.warn('failed to read ocean oxygen saving stat:', e); }
     cost *= (1 - savingPct / 100);
+    cost *= Math.max(0.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, (st.oxygenCur || 0) - cost));
     // 산소가 0이 되어도 즉시 귀환하지 않는다. 익사 피해는 tickOceanOxygen 에서 시간에 따라 누적된다.
 }
@@ -2622,12 +2676,15 @@ function gainOceanFishingGaugeFromCombat(zone) {
     if (!st.unlocked || !st.diving) return;
     // 낚시 게이지는 구역 강도(수심 단계)에 따라 세분화: 얕은(약한) 곳에선 조금, 깊은(강한) 곳에선 조금 더 오른다.
     let depthTier = Math.max(0, Math.floor((zone && zone.depthTier) || getOceanDepthTier(st.depthM)));
+    let strategy = getOceanFishingStrategyDef(st);
+    let collectionGainPct = getOceanFishCollectionBonus('gaugeGainPct', st);
     let gain = (1.0 + depthTier * 0.18) * getOceanFishingGaugeGainMul();
+    gain *= Math.max(0.1, Number(strategy.gaugeGainMul) || 1) * (1 + collectionGainPct / 100);
     if (hasOceanCurrent(zone, 'school_of_fish')) gain *= 1.5;
     let nextGauge = (st.fishingGauge || 0) + gain;
     st.fishingGauge = clampNumber(nextGauge, 0, 100);
     if (st.fishingGauge >= 100) {
-        st.fishingGauge = 0;
+        st.fishingGauge = clampNumber(nextGauge - 100, 0, 99.99);
         catchOceanFish(st.pressureLevel || 0);
     }
 }
@@ -2635,13 +2692,21 @@ function gainOceanFishingGaugeFromCombat(zone) {
 function catchOceanFish(depthTier) {
     let safeTier = Math.max(0, Math.floor(depthTier || 0));
     let eligible = Object.keys(OCEAN_FISH_DB).filter(key => (OCEAN_FISH_DB[key].depthTier || 0) <= safeTier);
-    if (eligible.length === 0) return;
+    if (eligible.length === 0) return null;
+    let st = ensureOceanState();
+    let strategy = getOceanFishingStrategyDef(st);
+    let rareEligible = eligible.filter(key => (OCEAN_FISH_RARITY_META[OCEAN_FISH_DB[key].rarity] || {}).rank >= 2);
+    let guaranteed = st.rareFishPity >= 100 && rareEligible.length > 0;
+    if (guaranteed) eligible = rareEligible;
     let rareChanceBonusPct = 0;
     try { if (typeof getPlayerStats === 'function') rareChanceBonusPct = Math.max(0, Number(getPlayerStats().oceanRareFishChancePct) || 0); } catch (e) { console.warn('failed to read ocean rare fish chance stat:', e); }
+    rareChanceBonusPct += getOceanFishCollectionBonus('rareChancePct', st);
     let weights = eligible.map(key => {
-        let rareWeight = Number.isFinite(OCEAN_FISH_DB[key].rareWeight) ? OCEAN_FISH_DB[key].rareWeight : 1;
-        if (rareWeight < 1) rareWeight *= (1 + rareChanceBonusPct / 100);
-        return (1 / (1 + (safeTier - (OCEAN_FISH_DB[key].depthTier || 0)))) * rareWeight;
+        let fish = OCEAN_FISH_DB[key];
+        let rarityRank = (OCEAN_FISH_RARITY_META[fish.rarity] || {}).rank || 0;
+        let rareWeight = Number.isFinite(fish.rareWeight) ? fish.rareWeight : 1;
+        if (rarityRank >= 2) rareWeight *= Math.max(0.1, Number(strategy.rareWeightMul) || 1) * (1 + rareChanceBonusPct / 100);
+        return (1 / (1 + (safeTier - (fish.depthTier || 0)))) * rareWeight;
     });
     let total = weights.reduce((a, b) => a + b, 0);
     let roll = Math.random() * total;
@@ -2650,10 +2715,23 @@ function catchOceanFish(depthTier) {
         roll -= weights[i];
         if (roll <= 0) { picked = eligible[i]; break; }
     }
-    let st = ensureOceanState();
+    let wasDiscovered = (st.fishCaughtTotal[picked] || 0) > 0;
     st.fishStock[picked] = Math.max(0, Math.floor(st.fishStock[picked] || 0)) + 1;
-    addLog(`🐟 ${OCEAN_FISH_DB[picked].name}을(를) 낚았습니다!`, 'loot-magic');
+    st.fishCaughtTotal[picked] = Math.max(0, Math.floor(st.fishCaughtTotal[picked] || 0)) + 1;
+    let rarityRank = (OCEAN_FISH_RARITY_META[OCEAN_FISH_DB[picked].rarity] || {}).rank || 0;
+    st.rareFishPity = rarityRank >= 2 ? 0 : Math.min(100, st.rareFishPity + Math.max(1, Number(strategy.pityGain) || 8));
+    st.lastCatch = { key: picked, at: Date.now(), guaranteed };
+    let logType = rarityRank >= 4 ? 'loot-unique' : (rarityRank >= 2 ? 'loot-rare' : 'loot-magic');
+    addLog(`${guaranteed ? '✨ 희귀 조짐 적중! ' : '🐟 '}${OCEAN_FISH_DB[picked].name}을(를) 낚았습니다!`, logType);
+    let discoveredCount = getOceanFishCollectionProgress(st).discoveredCount;
+    if (!wasDiscovered && OCEAN_FISH_COLLECTION_MILESTONES.some(row => row.required === discoveredCount)) {
+        addLog(`📘 심해 도감 ${discoveredCount}/${Object.keys(OCEAN_FISH_DB).length} — 수령 가능한 보상이 생겼습니다.`, 'loot-rare');
+        game.noti.map = true;
+    }
+    return picked;
 }
+
+safeExposeGlobals({ getOceanFishingStrategyDef, getOceanFishCollectionProgress, getOceanFishCollectionBonus, setOceanFishingStrategy, claimOceanFishCollectionMilestone });
 
 
 function getOceanPermanentUpgradeCost(key) {
@@ -2778,6 +2856,7 @@ function tickOceanOxygen(nowMs) {
     st.lastTickAt = nowMs;
     if (dtSec <= 0) return;
     let drainPerSec = getOceanOxygenDrainPerSec();
+    drainPerSec *= Math.max(0.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
     let leechAlive = (game.enemies || []).some(e => e && e.hp > 0 && e.trait && e.trait.oceanOxygenLeechOnHit);
     if (leechAlive) drainPerSec *= 1.4;
     let pressureCrushMul = (game.enemies || []).reduce((mul, enemy) => {
@@ -2904,8 +2983,8 @@ function craftSeaGift(recipeId, targetItem, options) {
     if (!ready) { addLog('바다의 선물 재료가 부족합니다.', 'attack-monster'); return false; }
     let effect = recipe.effect;
     let needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(effect.type);
-    let item = needsItem ? (targetItem || (typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null) || (game.equipment && game.equipment['무기'])) : null;
-    if (needsItem && !item) { addLog('대상 장비가 없습니다.', 'attack-monster'); return false; }
+    let item = needsItem ? (targetItem || (typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null)) : null;
+    if (needsItem && !item) { addLog('바다의 선물에 사용할 대상 장비를 먼저 선택하세요.', 'attack-monster'); return false; }
     let category = options && options.category;
     if (effect.type === 'guaranteedMod' || effect.type === 'guaranteedTaggedMod') {
         let pool = getAvailableMods(item);

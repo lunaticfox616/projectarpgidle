@@ -190,6 +190,74 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
     expect(failures).toEqual([]);
 });
 
+test('ocean fishing exposes strategy, collection growth and explicit crafting target', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season = 30;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.ocean = createDefaultOceanState();
+        game.ocean.unlocked = true;
+        game.ocean.depthM = 720;
+        game.ocean.checkpointM = 700;
+        game.ocean.pressureLevel = 7;
+        game.ocean.fishingGauge = 62;
+        game.ocean.rareFishPity = 72;
+        game.ocean.reefInstalled = 4;
+        Object.keys(OCEAN_FISH_DB).forEach((key, index) => {
+            game.ocean.fishStock[key] = 99;
+            game.ocean.fishCaughtTotal[key] = index < 5 ? index + 1 : 0;
+        });
+        game.ocean.lastCatch = { key: 'abyssAngler', at: Date.now(), guaranteed: true };
+        game.equipment['무기'] = {
+            id: 990100,
+            slot: '무기',
+            baseId: 'ocean_browser_weapon',
+            baseName: '심해 검증 무기',
+            name: '희귀한 심해 검증 무기',
+            rarity: 'rare',
+            baseStats: [{ id: 'flatDmg', statName: '피해', val: 20 }],
+            stats: [{ id: 'crit', statName: '치명타 확률', val: 4, tier: 3 }]
+        };
+        clearCraftSelection();
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-fishing');
+        updateStaticUI();
+    });
+
+    await expect(page.locator('.ocean-strategy-card')).toHaveCount(3);
+    await expect(page.locator('.ocean-fish-card')).toHaveCount(8);
+    await expect(page.locator('.ocean-milestone')).toHaveCount(4);
+    await expect(page.locator('.ocean-meter--pity')).toContainText('72%');
+    await expect(page.locator('.ocean-last-catch')).toContainText('심연 등불고기');
+    await expect(page.locator('.ocean-craft-target')).toContainText('선택된 장비 없음');
+    await expect(page.locator('.ocean-recipe-card button', { hasText: '대상 선택 필요' }).first()).toBeDisabled();
+
+    await page.locator('.ocean-strategy-card', { hasText: '심연 투망' }).click();
+    await expect.poll(() => page.evaluate(() => game.ocean.fishingStrategy)).toBe('abyss');
+    await expect(page.locator('.ocean-strategy-card.selected')).toContainText('심연 투망');
+    await page.evaluate(() => {
+        game.ocean.diving = true;
+        updateStaticUI();
+    });
+    await expect(page.locator('.ocean-strategy-card:disabled')).toHaveCount(3);
+
+    await page.evaluate(() => {
+        game.ocean.diving = false;
+        selectForCrafting('무기', true);
+        updateStaticUI();
+    });
+    await expect(page.locator('.ocean-craft-target.selected')).toContainText('희귀한 심해 검증 무기');
+    await expect(page.locator('.ocean-recipe-card.ready')).not.toHaveCount(0);
+    const layout = await page.locator('#map-tab-fishing').evaluate(element => ({
+        overflow: element.scrollWidth - element.clientWidth,
+        strategyColumns: getComputedStyle(element.querySelector('.ocean-strategy-grid')).gridTemplateColumns.split(' ').length
+    }));
+    expect(layout.overflow).toBeLessThanOrEqual(1);
+    expect(layout.strategyColumns).toBe(testInfo.project.name === 'mobile-chromium' ? 1 : 3);
+    expect(failures).toEqual([]);
+});
+
 test('debug performance panel reports live frame and FX metrics', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page, '/?debug=perf');
