@@ -3731,9 +3731,12 @@ function getPlayerStats() {
         if (hasOceanCurrent(zonePenalty, 'cold_current')) oceanCurrentResPenaltyC = 12;
     }
     if (zonePenalty && zonePenalty.bloomTrial && zonePenalty.underworldPenaltyFloor) {
-        // 지하계 N층급 중력 패널티: 창공석으로 줄일 수 없음
+        // 개화 시련은 입장 기준인 지하계와 같은 중력 완화 수단을 인정한다.
         let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || 1));
         let gravitySlow = Math.min(0.75, 0.12 + Math.max(0, uf - 1) * 0.018);
+        let skyStoneReduction = Math.max(0, Math.min(75,
+            typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)) / 100;
+        gravitySlow *= (1 - skyStoneReduction);
         finalAspd *= (1 - gravitySlow);
         finalMove *= (1 - gravitySlow);
     }
@@ -6546,7 +6549,7 @@ function estimateMapZonePowerRequirements(zone) {
         elements: getMapEstimateDamageElements(zone),
         playerDpsMultiplier: 1,
         underworldGravityFloor,
-        underworldGravityIgnoresReduction: !!zone.bloomTrial,
+        underworldGravityIgnoresReduction: false,
         oceanPressureDepthTier: Math.max(0, Math.floor(Number(zone.oceanPressureDepthTier) || 0)),
         zoneId: zone.id,
         element: String(zone.ele || 'phys'),
@@ -10989,6 +10992,22 @@ function performMonsterAttacks(pStats) {
     }
 }
 
+function calculateTrialTrapDamage(zone, pStats, trapElement) {
+    let resistanceKey = { fire: 'resF', cold: 'resC', light: 'resL', chaos: 'resChaos' }[trapElement];
+    let mitigation = trapElement === 'phys' ? (Number(pStats.dr) || 0) * 0.45 : (Number(pStats[resistanceKey]) || 0);
+    let baseDamage = (pStats.maxHp * (0.035 + zone.tier * 0.005)) + 10 + zone.tier * 3;
+    let damageMultiplier = Math.max(0.1, Number(zone.trapDamageMul) || 1);
+    let scaledDamage = Math.floor(baseDamage * damageMultiplier);
+    return Math.max(10, Math.floor(scaledDamage * (1 - Math.max(-60, Math.min(85, mitigation)) / 100)));
+}
+
+function getBloomTrialRegenSuppressNext(zone, currentSuppress) {
+    let gain = Math.max(0, Number(zone && zone.trapRegenSuppressPct) || 0) / 100;
+    let requestedCap = Number(zone && zone.trapRegenSuppressCap);
+    let cap = Number.isFinite(requestedCap) ? Math.max(0, Math.min(0.95, requestedCap)) : 0.95;
+    return Math.min(cap, Math.max(0, Number(currentSuppress) || 0) + gain);
+}
+
 function applyTrialTrapTick(pStats) {
     let zone = getZone(game.currentZoneId);
     if (!zone || zone.type !== 'trial' || game.moveTimer > 0) return;
@@ -11004,10 +11023,7 @@ function applyTrialTrapTick(pStats) {
     let trapElements = Array.isArray(zone.trapElements) && zone.trapElements.length > 0 ? zone.trapElements : ['phys'];
     let trapElement = trapElements[Math.max(0, Math.floor(game.trialHazardIndex || 0)) % trapElements.length];
     game.trialHazardIndex = Math.max(0, Math.floor(game.trialHazardIndex || 0)) + 1;
-    let resistanceKey = { fire: 'resF', cold: 'resC', light: 'resL', chaos: 'resChaos' }[trapElement];
-    let mitigation = trapElement === 'phys' ? (Number(pStats.dr) || 0) * 0.45 : (Number(pStats[resistanceKey]) || 0);
-    let trapDamage = Math.floor((pStats.maxHp * (0.035 + zone.tier * 0.005)) + 10 + zone.tier * 3);
-    trapDamage = Math.max(10, Math.floor(trapDamage * (1 - Math.max(-60, Math.min(85, mitigation)) / 100)));
+    let trapDamage = calculateTrialTrapDamage(zone, pStats, trapElement);
     let remaining = applyTalentIncomingDamageMultiplier(trapDamage, pStats);
     game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
     let energyShieldBeforeTrap = game.playerEnergyShield;
@@ -11025,7 +11041,7 @@ function applyTrialTrapTick(pStats) {
     let trapColor = { phys: '#ffd36b', fire: '#ff754f', cold: '#86dcff', light: '#e5d35b', chaos: '#c47cff' }[trapElement] || '#ffd36b';
     addBattleFx('trialTrap', { color: trapColor, duration: 460 });
     if (zone.bloomTrial && (zone.trapRegenSuppressPct || 0) > 0) {
-        game.bloomTrialRegenSuppress = Math.min(0.95, (game.bloomTrialRegenSuppress || 0) + (zone.trapRegenSuppressPct || 0) / 100);
+        game.bloomTrialRegenSuppress = getBloomTrialRegenSuppressNext(zone, game.bloomTrialRegenSuppress);
         addLog(`❄️ 혹독한 한기: 생명력 재생 억제 ${Math.round((game.bloomTrialRegenSuppress || 0) * 100)}%`, 'attack-monster', { noToast: true });
     }
     addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel(trapElement)}] (${trapDamage} 피해)`, 'attack-monster', { noToast: true });

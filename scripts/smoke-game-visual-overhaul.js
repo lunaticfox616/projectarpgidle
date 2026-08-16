@@ -154,6 +154,15 @@ const backlogGuard = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
   return { hiddenCount, cappedCount, suppressedCount };
 })()`, context)));
 assert.deepStrictEqual(backlogGuard, { hiddenCount: 0, cappedCount: 240, suppressedCount: 0 }, 'hidden/background combat must discard visual effects and cap any foreground backlog');
+const blizzardFieldQueue = vm.runInContext(`(() => {
+  battleFx = [];
+  addBattleFx('combatTravel', { patternKind: 'field', skillName: '난타 눈보라', duration: 1400 });
+  addBattleFx('combatTravel', { patternKind: 'field', skillName: '난타 눈보라', duration: 1400 });
+  addBattleFx('combatTravel', { patternKind: 'field', skillName: '화염 폭풍핵', duration: 1400 });
+  return battleFx.map(fx => fx.skillName);
+})()`, context);
+assert.deepStrictEqual(Array.from(blizzardFieldQueue), ['난타 눈보라', '화염 폭풍핵'],
+  '빠른 재시전은 이전 눈보라 화면 효과를 교체하되 다른 장판 효과는 유지해야 한다');
 const damageTextLayout = vm.runInContext(`(() => {
   battleVisualState.damageTexts = [];
   spawnDamageText({ start: 1200, x: 400, y: 240, value: 10 });
@@ -340,7 +349,15 @@ skillGemArtCoverage.paths.forEach(file => assert.ok(fs.existsSync(file), `skill 
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png'"), 'battle asset loader should preload skill VFX images');
 assert.ok(passiveSource.includes("skillFxFrostField: 'assets/effects/skill-frost-field-v1.png'"), 'battle asset loader should preload specialized combat pattern images');
+assert.ok(passiveSource.includes("skillFxBlizzardAmbient: 'assets/effects/skill-bludgeoning-blizzard-ambient-sheet-v1.png'"), 'battle asset loader should preload the blizzard ambient sprite sheet');
+assert.ok(passiveSource.includes("skillFxBlizzardImpact: 'assets/effects/skill-bludgeoning-blizzard-impact-sheet-v1.png'"), 'battle asset loader should preload the blizzard impact sprite sheet');
 assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v2.png'"), 'battle asset loader should preload the supplied sharp venom projectile image');
+['ambient', 'impact'].forEach(kind => {
+  const bytes = fs.readFileSync(`assets/effects/skill-bludgeoning-blizzard-${kind}-sheet-v1.png`);
+  assert.deepStrictEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], [1024, 1024],
+    `blizzard ${kind} sheet should retain its 4x4 frame grid`);
+  assert.strictEqual(bytes.readUInt8(25), 6, `blizzard ${kind} sheet should retain RGBA transparency`);
+});
 const venomVfxBytes = fs.readFileSync('assets/effects/skill-venom-fang-v2.png');
 assert.deepStrictEqual([venomVfxBytes.readUInt32BE(16), venomVfxBytes.readUInt32BE(20)], [512, 160],
   'the supplied venom projectile must keep its optimized combat dimensions');
@@ -464,13 +481,15 @@ const projectileImageRouting = vm.runInContext(`(() => {
 assert.strictEqual(projectileImageRouting.genericImages, 1, 'ordinary projectile gems should use the loaded projectile image');
 assert.ok(projectileImageRouting.missingImageStrokes > 0, 'a missing dedicated projectile image should retain a visible procedural fallback');
 const optimizedAreaVfx = vm.runInContext(`(() => {
-  const counts = { meteorImages: 0, meteorPaths: 0, blizzardGusts: 0, blizzardFlakes: 0, rainLines: 0, blizzardBounds: 0 };
+  const counts = { meteorImages: 0, meteorPaths: 0, meteorArcs: 0, blizzardImages: 0, blizzardPaths: 0, rainLines: 0, blizzardBounds: 0 };
   battleAssets.images.skillFxMeteorProjectile = { complete: true, naturalWidth: 448 };
   battleAssets.images.skillFxMeteorImpact = { complete: true, naturalWidth: 384 };
   battleAssets.images.skillFxMeteorGround = { complete: true, naturalWidth: 448 };
+  battleAssets.images.skillFxBlizzardAmbient = { complete: true, naturalWidth: 1024, naturalHeight: 1024 };
+  battleAssets.images.skillFxBlizzardImpact = { complete: true, naturalWidth: 1024, naturalHeight: 1024 };
   const ctx = {
     save() {}, restore() {}, translate() {}, rotate() {}, beginPath() { counts.meteorPaths++; }, stroke() {}, fill() {}, moveTo() {}, closePath() {},
-    arc() { counts.blizzardFlakes++; }, bezierCurveTo() { counts.blizzardGusts++; },
+    arc() { counts.meteorArcs++; }, bezierCurveTo() {},
     lineTo() { counts.rainLines++; }, strokeRect() { counts.blizzardBounds++; },
     drawImage() { counts.meteorImages++; }
   };
@@ -483,11 +502,15 @@ const optimizedAreaVfx = vm.runInContext(`(() => {
     start: 1000, duration: 2800, patternKind: 'meteor', skillName: '유성 낙화'
   }, 1540, 1460, targets, 'skillFxSlamPrimary', 'fire');
   const meteorImpactImages = counts.meteorImages - meteorDescentImages;
-  const meteorArcs = counts.blizzardFlakes;
+  const meteorArcs = counts.meteorArcs;
   const meteorLines = counts.rainLines;
+  const beforeBlizzardImages = counts.meteorImages;
+  const beforeBlizzardPaths = counts.meteorPaths;
   drawCombatCellFx(ctx, {
-    start: 1000, duration: 1400, patternKind: 'field', skillName: '난타 눈보라'
-  }, 1230, 1460, targets, 'skillFxFrostField', 'cold');
+    id: 9, start: 1000, duration: 1400, patternKind: 'field', skillName: '난타 눈보라'
+  }, 1510, 1460, targets, 'skillFxFrostField', 'cold');
+  counts.blizzardImages = counts.meteorImages - beforeBlizzardImages;
+  counts.blizzardPaths = counts.meteorPaths - beforeBlizzardPaths;
   battleVisualState.skillEffects = [];
   queueSkillGemVfx({ id: 700, skillName: '난타 눈보라', stageKind: 'fieldTick', element: 'cold' },
     targets[0], { x: 20, y: 220 }, {}, 1230, 1);
@@ -498,8 +521,8 @@ const optimizedAreaVfx = vm.runInContext(`(() => {
 assert.strictEqual(optimizedAreaVfx.meteorDescentImages, 1, '유성 낙화는 낙하 전용 이미지를 한 장만 그려야 한다');
 assert.strictEqual(optimizedAreaVfx.meteorImpactImages, 2, '충돌 뒤에는 충돌 이미지와 불길 지대만 한 장씩 그려야 한다');
 assert.strictEqual(optimizedAreaVfx.meteorArcs, 0, '유성 충돌에 원형 파동을 다시 그리면 안 된다');
-assert.strictEqual(optimizedAreaVfx.blizzardGusts, 6, '난타 눈보라는 범위를 가로지르는 굽은 돌풍을 여러 겹 그려야 한다');
-assert.strictEqual(optimizedAreaVfx.blizzardFlakes, 22, '난타 눈보라는 충분한 눈 입자를 옆으로 휘날려야 한다');
+assert.strictEqual(optimizedAreaVfx.blizzardImages, 2, '난타 눈보라는 한 프레임에 필드와 타격 스프라이트 한 장씩만 그려야 한다');
+assert.strictEqual(optimizedAreaVfx.blizzardPaths, 0, '스프라이트가 준비되면 눈보라 도형을 매 프레임 다시 만들면 안 된다');
 assert.strictEqual(optimizedAreaVfx.rainLines, 0, '난타 눈보라를 아래로 떨어지는 빗줄기로 표현하면 안 된다');
 assert.strictEqual(optimizedAreaVfx.blizzardBounds, 0, '난타 눈보라에 네모난 범위 상자를 그리면 안 된다');
 assert.strictEqual(optimizedAreaVfx.impactEffectCount, 0, '눈보라 매 타격마다 중복 폭발 이미지를 추가하면 안 된다');

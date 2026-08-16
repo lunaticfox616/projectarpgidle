@@ -145,23 +145,31 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const bloomTrial = context.getZone('trial_5');
   const bloomEstimate = context.estimateMapZonePowerRequirements(bloomTrial);
   assert.strictEqual(bloomTrial.difficultyBenchmark, 'underworld1', '5차 전직 시련은 코어 키 최소 획득처를 난이도 계약으로 가져야 한다');
-  assert.strictEqual(bloomEstimate.underworldGravityIgnoresReduction, true,
-    '5차 전직 시련의 중력 패널티는 실제 전투처럼 창공석 완화를 무시해야 한다');
-  assert.ok(bloomEstimate.dps >= underworldEntry.dps && bloomEstimate.ehp >= underworldEntry.ehp,
-    '5차 전직 보스는 지하계 1층 보스보다 약하면 안 된다');
-  assert.ok(bloomEstimate.dps <= underworldEntry.dps * 1.15,
-    '5차 전직 보스의 권장 DPS는 입장 기준인 지하계 1층보다 15% 넘게 높으면 안 된다');
-  assert.ok(bloomEstimate.ehp <= underworldEntry.ehp * 1.15,
-    '5차 전직 보스의 권장 EHP는 입장 기준인 지하계 1층보다 15% 넘게 높으면 안 된다');
-  assert.ok(bloomEstimate.peakHit <= underworldEntry.peakHit * 1.15,
-    '5차 전직 보스의 파쇄 강타도 지하계 1층 최대 피격량보다 15% 넘게 높으면 안 된다');
+  assert.strictEqual(bloomEstimate.underworldGravityFloor, 1,
+    '5차 전직 시련은 해금 기준보다 높은 지하계 중력 패널티를 적용하면 안 된다');
+  assert.strictEqual(bloomEstimate.underworldGravityIgnoresReduction, false,
+    '지하계 1층을 통과할 때 사용한 중력 완화 수단은 5차 전직 시련에서도 유효해야 한다');
+  assert.ok(bloomEstimate.dps >= underworldEntry.dps * 0.9 && bloomEstimate.dps <= underworldEntry.dps,
+    '5차 전직 보스의 권장 DPS는 지하계 1층의 90~100% 범위여야 한다');
+  assert.ok(bloomEstimate.ehp >= underworldEntry.ehp * 0.9 && bloomEstimate.ehp <= underworldEntry.ehp,
+    '함정 압박을 고려해 5차 전직 보스의 권장 EHP는 지하계 1층보다 약간 낮아야 한다');
+  assert.ok(bloomEstimate.peakHit >= underworldEntry.peakHit * 0.9 && bloomEstimate.peakHit <= underworldEntry.peakHit,
+    '5차 전직 보스의 파쇄 강타는 지하계 1층 최대 피격량을 넘으면 안 된다');
   assert.strictEqual(bloomTrial.bossMods.patternMode, 'slam', '5차 전직 보스는 고정된 강공격 패턴을 가져야 한다');
   const bloomBoss = context.createEnemy(bloomTrial, { at: 100, count: 1, boss: true }, 0);
   assert.strictEqual(bloomBoss.patternMode, 'slam', '실제 생성된 5차 전직 보스에도 파쇄 강타가 적용되어야 한다');
   assert.ok(bloomBoss.maxHp >= bloomEstimate.dps * bloomEstimate.clearTimeSec * 0.99,
     '5차 전직 보스 실제 체력은 표시된 권장 DPS의 계산 근거보다 낮으면 안 된다');
-  assert.ok(Array.isArray(bloomBoss.chaosRealmAffixes) && bloomBoss.chaosRealmAffixes.length === 1,
-    '5차 전직 보스는 완화된 적응형 혼돈 특성을 실제로 유지해야 한다');
+  assert.ok(!Array.isArray(bloomBoss.chaosRealmAffixes) || bloomBoss.chaosRealmAffixes.length === 0,
+    '5차 전직 보스는 특정 빌드의 피해를 반감하는 혼돈 특성을 추가로 가지면 안 된다');
+  const fullTrapDamage = context.calculateTrialTrapDamage({ ...bloomTrial, trapDamageMul: 1 }, { maxHp: 10000, resC: 75, dr: 0 }, 'cold');
+  const tunedTrapDamage = context.calculateTrialTrapDamage(bloomTrial, { maxHp: 10000, resC: 75, dr: 0 }, 'cold');
+  assert.ok(tunedTrapDamage <= fullTrapDamage * 0.73,
+    '5차 전직 혹한 함정은 기존 피해의 약 72%만 가해야 한다');
+  let suppress = 0;
+  for (let tick = 0; tick < 100; tick++) suppress = context.getBloomTrialRegenSuppressNext(bloomTrial, suppress);
+  assert.ok(Math.abs(suppress - 0.3) < 0.0001,
+    '장기전에서도 5차 전직 시련의 재생 억제는 30%를 넘으면 안 된다');
 
   const pinnacleZones = context.SEASON_BOSS_ZONES.filter(zone => zone.milestonePinnacle);
   assert.strictEqual(pinnacleZones.length, 4, '지하계·심해·창공·통합 아틀라스 최종 관문이 모두 정의되어야 한다');

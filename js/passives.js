@@ -4106,6 +4106,10 @@ function addBattleFx(type, data) {
         latestPlayerSwingImpactAt = now + delay;
         payload = { ...payload, impactAt: latestPlayerSwingImpactAt };
     }
+    if (type === 'combatTravel' && payload.patternKind === 'field' && payload.skillName === '난타 눈보라') {
+        battleFx = battleFx.filter(fx => !(fx && fx.type === type
+            && fx.patternKind === payload.patternKind && fx.skillName === payload.skillName));
+    }
     battleFx.push({
         id: ++battleFxId,
         type: type,
@@ -5621,6 +5625,8 @@ function initBattleAssets() {
         skillFxProjectile: 'assets/effects/skill-projectile-v1.png',
         skillFxVenomFang: 'assets/effects/skill-venom-fang-v2.png',
         skillFxFrostField: 'assets/effects/skill-frost-field-v1.png',
+        skillFxBlizzardAmbient: 'assets/effects/skill-bludgeoning-blizzard-ambient-sheet-v1.png',
+        skillFxBlizzardImpact: 'assets/effects/skill-bludgeoning-blizzard-impact-sheet-v1.png',
         skillFxFrostWave: 'assets/effects/skill-frost-wave-v1.png',
         skillFxChaosBoomerang: 'assets/effects/skill-chaos-boomerang-v1.png',
         skillFxBurst: 'assets/effects/skill-burst-v1.png',

@@ -122,6 +122,28 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     expect(failures).toEqual([]);
 });
 
+test('blizzard sprites load and rapid recasts keep one field visual', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const result = await page.evaluate(() => {
+        battleFx = [];
+        for (let cast = 0; cast < 12; cast++) {
+            addBattleFx('combatTravel', {
+                patternKind: 'field', skillName: '난타 눈보라', duration: 1400
+            });
+        }
+        return {
+            ambientReady: !!(battleAssets.images.skillFxBlizzardAmbient
+                && battleAssets.images.skillFxBlizzardAmbient.naturalWidth),
+            impactReady: !!(battleAssets.images.skillFxBlizzardImpact
+                && battleAssets.images.skillFxBlizzardImpact.naturalWidth),
+            activeFields: battleFx.filter(fx => fx.skillName === '난타 눈보라').length
+        };
+    });
+    expect(result).toEqual({ ambientReady: true, impactReady: true, activeFields: 1 });
+    expect(failures).toEqual([]);
+});
+
 test('global UI keeps native font smoothing and compact HUD text at full scale', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     if (testInfo.project.name === 'desktop-chromium') {
