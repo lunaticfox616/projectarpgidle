@@ -803,9 +803,11 @@ function coreCubeProjectVertex(v) {
     const distance = 4.3;
     const scale = Math.min(rect.width, rect.height) * 0.15;
     const perspective = distance / (distance - z);
+    const centerX = rect.width >= 560 ? rect.width * 0.36 : rect.width / 2;
+    const centerY = rect.width < 560 ? rect.height * 0.38 : rect.height / 2;
     return {
-        x: rect.width / 2 + x * scale * perspective,
-        y: rect.height / 2 - y * scale * perspective,
+        x: centerX + x * scale * perspective,
+        y: centerY - y * scale * perspective,
         z
     };
 }
@@ -1147,10 +1149,10 @@ function renderCoreCubePanel(options) {
             <div class="core-cube-stage">
                 <div class="core-cube-stage-title"><span>Subterranean Core</span><strong>코어 큐브</strong></div>
                 <div class="core-cube-canvas-wrap"><canvas id="coreCubeCanvas" aria-label="코어 큐브 3D 캔버스"></canvas></div>
+                <section class="core-cube-stage-options" aria-live="polite"><header><span>발현 옵션</span><strong>${comboText}</strong></header><div class="core-cube-options">${optionsHtml}</div></section>
             </div>
             <div class="core-cube-side">
                 <div class="core-cube-card"><h3>흐릿한 45면체</h3><div class="core-cube-row"><span>보유 <strong>${st.blurred45}</strong></span>${blurredButtonsHtml}</div><p>사용 시 1~45 중 하나의 동력원을 획득합니다. 이 재료는 재화 목록에 표시되지 않습니다.</p>${st.lastPower ? `<p class="core-cube-good">최근 획득: ${st.lastPower}의 동력원</p>` : ''}</div>
-                <div class="core-cube-card"><h3>발현 결과</h3><p>현재 조합: <strong>${comboText}</strong></p><div class="core-cube-options">${optionsHtml}</div></div>
                 ${renderCoreCubePresetCard(st, unlocked)}
             </div>
         </div>`;

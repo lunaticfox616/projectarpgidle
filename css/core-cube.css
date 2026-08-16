@@ -22,7 +22,7 @@
 }
 .core-cube-shell.locked { opacity: 0.72; }
 .core-cube-stage {
-  min-height: 340px;
+  min-height: 390px;
   position: relative;
   border: 1px solid rgba(126, 191, 255, 0.16);
   border-radius: 18px;
@@ -100,6 +100,26 @@
   border-radius: 14px;
   background: rgba(7, 14, 29, .86);
 }
+.core-cube-stage-options {
+  position: absolute;
+  z-index: 4;
+  top: 72px;
+  right: 16px;
+  width: min(270px, 42%);
+  max-height: calc(100% - 90px);
+  padding: 11px;
+  overflow: auto;
+  border: 1px solid rgba(131, 235, 204, .3);
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(8, 24, 32, .9), rgba(5, 11, 22, .88));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .05);
+  backdrop-filter: blur(5px);
+}
+.core-cube-stage-options header { display: grid; gap: 3px; }
+.core-cube-stage-options header span { color: #8fe5c6; font-size: .72em; letter-spacing: .12em; }
+.core-cube-stage-options header strong { color: #fff; font-size: .88em; }
+.core-cube-stage-options .core-cube-options { margin-top: 9px; }
+.core-cube-stage-options .core-cube-option { padding: 7px 8px; font-size: .82em; line-height: 1.35; }
 .core-cube-assembly-head,
 .core-cube-power-picker-head {
   display: flex;
@@ -185,7 +205,16 @@
   .core-cube-assembly-head,
   .core-cube-power-picker-head { align-items: stretch; flex-direction: column; }
   .core-cube-faces { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .core-cube-stage { min-height: 260px; }
+  .core-cube-stage { min-height: 350px; }
+  .core-cube-stage-options {
+    top: auto;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    width: auto;
+    max-height: 132px;
+  }
+  .core-cube-stage-options .core-cube-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* 조합 저장(프리셋) */

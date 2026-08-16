@@ -133,7 +133,8 @@ const TALENT_STAT_LABELS = {
     aspd: '공격 속도', ds: '연속 타격', move: '이동 속도', pctHp: '생명력 증가', armorPct: '방어도',
     evasionPct: '회피', energyShieldPct: '에너지 보호막', resPen: '저항 관통', leech: '생명력 흡수',
     dr: '받는 피해 감소', physIgnore: '물리 피해 감소 무시', regen: '생명력 재생', regenSuppress: '재생 억제',
-    blockChance: '막기 확률', deflectDamageReduce: '빗겨내기 피해 감소', resAll: '모든 원소 저항', resChaos: '카오스 저항',
+    blockChance: '막기 확률', blockChancePct: '방패 기본 막기 확률 증가', blockChanceMax: '막기 확률 최대치',
+    deflectDamageReduce: '빗겨내기 피해 감소', resAll: '모든 원소 저항', resChaos: '카오스 저항',
     igniteChance: '점화 확률', poisonChance: '중독 확률', bleedChance: '출혈 확률', shockChance: '감전 확률',
     freezeChance: '동결 확률', chillChance: '한기 확률',
     ailResIgnite: '점화 저항 확률', ailResShock: '감전 저항 확률', ailResFreeze: '동결 저항 확률',
@@ -272,6 +273,7 @@ function getTalentUniqLabel(key, p) {
         immuneFreeze: () => `빙결 면역`,
         immuneIgnite: () => `점화 면역`,
         uniqueBlockChance: () => `막기 확률 +${p.chance}%`,
+        blockedDamageTakenPct: () => `막기 시 피해의 ${p.pct}%를 받음`,
         dragonVeinGuard: () => `피격 시 ${p.chance}% 확률로 ${p.duration}초 피해 경감`,
         leechEfficiencyOnKill: () => `처치 시 ${p.duration}초간 흡혈 효율 +${p.efficiencyPct}%`,
         cosmosSustain: () => `생명력 재생 +${p.regen}% · 흡혈 +${p.leech}%`,
@@ -330,18 +332,58 @@ function getTalentCardDimensionRows(owned) {
     });
 }
 
+function getCurrentTalentBloomContext(owned) {
+    let heroId = HERO_SELECTION_DEFS[game.selectedHeroId] ? game.selectedHeroId : HERO_SELECTION_ORDER[0];
+    let classKey = game.ascendClass && CLASS_TEMPLATES[game.ascendClass] ? game.ascendClass : null;
+    let key = classKey ? makeTalentComboKey(heroId, classKey) : null;
+    let names = getTalentCardName(heroId, classKey);
+    return { heroId, classKey, key, names, card: key ? owned[key] : null };
+}
+
+function renderCurrentTalentBloomContext(owned) {
+    let current = getCurrentTalentBloomContext(owned);
+    let state = !current.classKey ? '직업을 선택하면 조합이 확정됩니다.'
+        : (current.card ? `개화 완료 · Lv.${Math.max(1, Math.floor(current.card.level || 1))}` : '아직 개화하지 못한 조합');
+    return `<section class="talent-current-combo ${current.card ? 'unlocked' : 'locked'}">
+        <div><span>현재 재능</span><strong>${escapeTalentHtml(current.names.heroLabel)}</strong></div>
+        <i aria-hidden="true">×</i>
+        <div><span>현재 직업</span><strong>${escapeTalentHtml(current.names.classLabel)}</strong></div>
+        <div class="talent-current-result"><span>개화 조합</span><strong>${escapeTalentHtml(current.names.bloomName)}</strong><small>${state}</small></div>
+    </section>`;
+}
+
+function renderTalentCombinationStatus(owned) {
+    let current = getCurrentTalentBloomContext(owned);
+    let dimension = talentCardView.dimension;
+    let focusId = talentCardView.filterId || (dimension === 'talent' ? current.heroId : current.classKey);
+    if (!focusId) return '<div class="talent-combo-empty">직업을 선택하면 조합 현황을 볼 수 있습니다.</div>';
+    let counterpartIds = dimension === 'talent' ? Object.keys(CLASS_TEMPLATES) : HERO_SELECTION_ORDER;
+    let cells = counterpartIds.map(counterpartId => {
+        let heroId = dimension === 'talent' ? focusId : counterpartId;
+        let classKey = dimension === 'talent' ? counterpartId : focusId;
+        let key = makeTalentComboKey(heroId, classKey);
+        let card = owned[key];
+        let names = getTalentCardName(heroId, classKey);
+        let counterpart = dimension === 'talent' ? names.classLabel : names.heroLabel;
+        let isCurrent = current.key === key;
+        let classes = `talent-combo-cell ${card ? 'unlocked' : 'locked'}${isCurrent ? ' current' : ''}`;
+        return `<div class="${classes}"><span>${escapeTalentHtml(counterpart)}</span><strong>${escapeTalentHtml(names.bloomName)}</strong><small>${card ? `Lv.${Math.max(1, Math.floor(card.level || 1))} 개화` : '미개화'}</small></div>`;
+    }).join('');
+    let focusLabel = dimension === 'talent' ? getHeroSelectionDef(focusId).label : CLASS_TEMPLATES[focusId].name;
+    return `<div class="talent-combo-status"><div class="talent-combo-status-head"><strong>${escapeTalentHtml(focusLabel)} 조합</strong><span>밝은 카드는 개화 완료 · 테두리는 현재 조합</span></div><div class="talent-combo-grid">${cells}</div></div>`;
+}
+
 function renderTalentBloomNavigator(owned) {
     let rows = getTalentCardDimensionRows(owned);
     let chips = rows.map(row => {
         let active = talentCardView.filterId === row.id;
         return `<button type="button" class="talent-bloom-filter${active ? ' active' : ''}" aria-pressed="${active}" onclick="setTalentCardFilter('${row.id}')"><strong>${escapeTalentHtml(row.label)}</strong><span>${row.count}/${row.total}</span></button>`;
     }).join('');
-    return `<section class="talent-bloom-navigator">
-        <div class="talent-bloom-navigator-head"><div><strong>개화 현황</strong><span>항목을 누르면 해당 조합만 모아 봅니다.</span></div><div class="talent-bloom-view-tabs">
+    return `<details class="talent-bloom-navigator" data-ui-disclosure="talent-bloom-progress" open><summary><span><strong>개화 현황</strong><small>미개화 조합과 수집 진행도를 확인합니다.</small></span><b>${Object.keys(owned).length}/${TALENT_BLOOM_TOTAL_CARDS}</b></summary><div class="talent-bloom-navigator-body">
+        <div class="talent-bloom-navigator-head"><div><strong>분류</strong><span>항목을 누르면 해당 조합만 모아 봅니다.</span></div><div class="talent-bloom-view-tabs">
             <button type="button" class="${talentCardView.dimension === 'talent' ? 'active' : ''}" onclick="setTalentCardView('talent')">재능별</button>
             <button type="button" class="${talentCardView.dimension === 'class' ? 'active' : ''}" onclick="setTalentCardView('class')">직업별</button>
-        </div></div><div class="talent-bloom-filter-grid">${chips}</div>
-    </section>`;
+        </div></div><div class="talent-bloom-filter-grid">${chips}</div>${renderTalentCombinationStatus(owned)}</div></details>`;
 }
 
 function matchesTalentCardView(key) {
@@ -842,7 +884,7 @@ function renderTalentTab() {
         slotHtml += renderTalentLoadoutSlot(i, unlocked, key, owned);
     }
     let nextSlot = unlockedSlots < TALENT_CARD_SLOT_COUNT ? `<span style="color:var(--copy-bright);"> · 다음 슬롯: 보유 ${TALENT_CARD_SLOT_UNLOCKS[unlockedSlots]}장</span>` : '';
-    let loadoutHtml = `${renderTalentBloomNavigator(owned)}<div class="talent-loadout-panel">
+    let loadoutHtml = `${renderCurrentTalentBloomContext(owned)}${renderTalentBloomNavigator(owned)}<div class="talent-loadout-panel">
         <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
             <strong>장착 슬롯</strong><span style="font-size:0.82em;">열린 슬롯 ${unlockedSlots}/${TALENT_CARD_SLOT_COUNT}${nextSlot}</span>
         </div>

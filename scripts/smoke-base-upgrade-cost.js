@@ -97,4 +97,36 @@ const nonIncreasingChainSteps = JSON.parse(run(`JSON.stringify((function () {
 assert.deepStrictEqual(nonIncreasingChainSteps, [],
     'every later base-chain upgrade must cost more than the preceding upgrade');
 
+const shieldBlockRegressions = JSON.parse(run(`JSON.stringify(BASE_ITEM_DB.filter(base => base.slot === '방패').flatMap(base => {
+    let next = getBaseUpgradeCandidates(base)[0];
+    if (!next) return [];
+    let block = row => Number((((row.baseStats || []).find(stat => stat.id === 'baseBlockChance') || {}).base) || 0);
+    return block(next) < block(base) ? [{ from: base.name, to: next.name, fromBlock: block(base), toBlock: block(next) }] : [];
+}))`));
+assert.deepStrictEqual(shieldBlockRegressions, [], '방패의 다음 베이스는 현재 베이스보다 낮은 기본 막기 확률을 가지면 안 된다');
+
+run(`(function () {
+    let current = BASE_ITEM_DB.find(base => base.id === 'parry_rune_t8');
+    let next = BASE_ITEM_DB.find(base => base.id === 'parry_sentinel_t12');
+    game.inventory = [{ id: 99002, baseId: current.id, baseName: current.name, name: current.name,
+        slot: '방패', rarity: 'rare', itemTier: 8,
+        baseStats: [{ id: 'armor', val: 60 }, { id: 'baseBlockChance', val: 14, valMin: 9, valMax: 14 }], stats: [] }];
+    game.currencies.formlessDew = 1000;
+    game.currencies.goldenRule = 100;
+    game.pendingBaseUpgrade = { itemId: 99002, nextBaseId: next.id };
+    Math.random = () => 0;
+})()`);
+run('confirmSelectedItemBaseUpgrade()');
+assert.strictEqual(run("game.inventory[0].baseName"), '감시자의 방패', '고막기 방패는 같은 계열의 다음 베이스로 업그레이드되어야 한다');
+assert.ok(run("game.inventory[0].baseStats.find(stat => stat.id === 'baseBlockChance').val") >= 14,
+    '업그레이드 재굴림이 기존 방패의 실제 베이스 막기 확률을 낮추면 안 된다');
+assert.ok(run("game.inventory[0].baseStats.find(stat => stat.id === 'baseBlockChance').baseRollMin") >= 14,
+    '업그레이드 후 축복 재련으로도 보존된 막기 확률 아래로 내려가면 안 된다');
+
+const parryBases = JSON.parse(run("JSON.stringify(BASE_ITEM_DB.filter(base => base.shieldStyle === 'parry').map(base => ({ id: base.id, tier: base.reqTier })))"));
+assert.deepStrictEqual(parryBases.map(base => base.tier), [1, 4, 8, 12, 16, 20], '고막기·저방어 방패는 전 구간 업그레이드 체인을 가져야 한다');
+const prayerShield = JSON.parse(run("JSON.stringify(generateUniqueItem(16, '방패', '마지막 기도의 문'))"));
+assert.strictEqual(prayerShield.baseId, 'parry_seraph_t16', '고막기 고유 방패는 고막기·저방어 베이스를 사용해야 한다');
+assert.strictEqual(prayerShield.uniqueEffectKey, 'blockRecoverEnergyShieldPct', '고막기 고유 방패의 전용 막기 보상이 유지되어야 한다');
+
 console.log('smoke-base-upgrade-cost passed');

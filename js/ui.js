@@ -3609,7 +3609,7 @@ function renderUnderworldMapPanel() {
     panel.innerHTML = `<div class="underworld-panel-head"><div><strong>룬 장착과 영구 강화</strong><span class="${canEnter ? '' : 'locked'}">${canEnter ? '입장 가능' : '이번 루프 혼돈 20 클리어 필요'} · 15층부터 지속 피해</span></div><div class="underworld-resource-strip"><span>룬 조각 <b>${runeShardCount}</b></span><span>구리 <b>${Math.floor((game.currencies||{}).underCopper||0)}</b></span><span>은 <b>${Math.floor((game.currencies||{}).underSilver||0)}</b></span><span>금 <b>${Math.floor((game.currencies||{}).underGold||0)}</b></span></div></div>
         <section class="underworld-rune-console"><div class="underworld-section-head"><div><strong>장착 룬</strong><span>${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 슬롯 · 룬 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))} 해금</span></div><small>슬롯을 눌러 즉시 교체</small></div><div class="underworld-rune-slots">${slots}</div></section>
         <div class="underworld-action-grid"><button onclick="craftUnderworldRune()"><strong>룬 가공</strong><span>조각 10</span></button><button onclick="openUnderworldRuneUpgradeOverlay()"><strong>룬 승급</strong><span>동일 룬 3개</span></button><button onclick="enhanceUnderworldRune()"><strong>룬 강화</strong><span>수치 성장</span></button><button onclick="rerollUnderworldRuneBonus()"><strong>옵션 리롤</strong><span>추가 옵션 변경</span></button><button onclick="applyUnderworldEnchant()"><strong>장비 인챈트</strong><span>지하계 제작</span></button><button onclick="attemptUnderworldLimitBreak()"><strong>한계돌파</strong><span>성공률 20%</span></button></div>
-        <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개 · 우버 입장권 확인</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}${Object.keys(runeCountMap).length > 12 ? '<span class="core-cube-muted">...</span>' : ''}</div><p>우버 뿌리 입장권 · ${ticketLine}</p></details></div>`;
+        <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card" data-ui-disclosure="underworld-rune-inventory"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개 · 우버 입장권 확인</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}${Object.keys(runeCountMap).length > 12 ? '<span class="core-cube-muted">...</span>' : ''}</div><p>우버 뿌리 입장권 · ${ticketLine}</p></details></div>`;
 }
 function ensureUnderworldRuneState() {
     if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {} };
@@ -9513,6 +9513,7 @@ let uiRefreshQueued = false;
 let uiRefreshRunning = false;
 let uiPointerInteraction = null;
 let uiPointerFlushTimer = null;
+let uiDisclosureState = Object.create(null);
 const UI_REFRESH_POINTER_FLUSH_DELAY_MS = 35;
 const UI_REFRESH_LONG_POINTER_LIMIT_MS = 8000;
 
@@ -9546,11 +9547,52 @@ function isUiPointerInteractionActive(now = Date.now()) {
     return (now - uiPointerInteraction.startedAt) < UI_REFRESH_LONG_POINTER_LIMIT_MS;
 }
 
+function getUiDisclosureKey(details) {
+    if (!details || !details.dataset) return '';
+    if (details.dataset.uiDisclosure) return `named:${details.dataset.uiDisclosure}`;
+    if (details.id) return `id:${details.id}`;
+    let owner = typeof details.closest === 'function' ? details.closest('[id]') : null;
+    if (!owner || typeof owner.querySelectorAll !== 'function') return '';
+    let siblings = Array.from(owner.querySelectorAll('details'));
+    let index = siblings.indexOf(details);
+    return index >= 0 ? `owner:${owner.id}:${index}` : '';
+}
+
+function captureUiDisclosureState(root) {
+    if (!root || typeof root.querySelectorAll !== 'function') return;
+    root.querySelectorAll('details').forEach(details => {
+        let key = getUiDisclosureKey(details);
+        if (key) uiDisclosureState[key] = !!details.open;
+    });
+}
+
+function restoreUiDisclosureState(root) {
+    if (!root || typeof root.querySelectorAll !== 'function') return;
+    root.querySelectorAll('details').forEach(details => {
+        let key = getUiDisclosureKey(details);
+        if (key && Object.prototype.hasOwnProperty.call(uiDisclosureState, key)) details.open = uiDisclosureState[key];
+    });
+}
+
+function isUiSelectInteractionActive() {
+    let active = typeof document !== 'undefined' ? document.activeElement : null;
+    return !!(active && active.tagName === 'SELECT' && active.isConnected !== false);
+}
+
 if (!window.__uiRefreshPointerGuardBound) {
     window.__uiRefreshPointerGuardBound = true;
     document.addEventListener('pointerdown', beginUiPointerInteraction, true);
     document.addEventListener('pointerup', finishUiPointerInteraction, true);
     document.addEventListener('pointercancel', finishUiPointerInteraction, true);
+    document.addEventListener('focusout', event => {
+        if (event && event.target && event.target.tagName === 'SELECT' && uiRefreshQueued) {
+            scheduleDeferredStaticUiFlush(0);
+        }
+    }, true);
+    document.addEventListener('toggle', event => {
+        let key = getUiDisclosureKey(event && event.target);
+        if (key) uiDisclosureState[key] = !!event.target.open;
+    }, true);
 }
 
 function getJournalEntryAction(entryId) {
@@ -9638,10 +9680,18 @@ function processQueuedUIRefresh() {
         scheduleDeferredStaticUiFlush(UI_REFRESH_POINTER_FLUSH_DELAY_MS);
         return;
     }
+    if (isUiSelectInteractionActive()) {
+        // 네이티브 선택창은 DOM 노드를 교체하는 즉시 닫힌다. 선택이 끝나 포커스가
+        // 빠질 때까지 정적 패널 교체만 보류하고, 누적 요청은 focusout에서 한 번 처리한다.
+        uiRefreshQueued = true;
+        return;
+    }
+    captureUiDisclosureState(document);
     uiRefreshRunning = true;
     try {
         performUpdateStaticUI();
     } finally {
+        restoreUiDisclosureState(document);
         uiRefreshRunning = false;
         if (uiRefreshQueued) requestAnimationFrame(processQueuedUIRefresh);
     }

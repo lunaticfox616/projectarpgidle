@@ -85,6 +85,8 @@ test('endgame support screens keep primary actions and interaction state visible
         game.labyrinthUnlockedMaxFloor = 100;
         game.underworldProgress = { currentFloor: 12, highestFloor: 18, floor10Cleared: true };
         game.underworldRunes = { unlockedSlots: 3, unlockedRunesMaxNumber: 9, obtainedRunes: [1, 2, 2], equippedRunes: [1, null, 2, null, null, null], enhanceLvByNo: {}, bonusLinesByNo: {} };
+        game.selectedHeroId = 'hero1';
+        game.ascendClass = 'warrior';
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         let cube = ensureCoreCubeState();
         Object.assign(cube, { unlocked: true, everUnlocked: true, relockUntilDrop: false, powers: { 7: 2, 12: 1 }, faces: [null, null, null, null, null, null], selectedFace: 0, completed: false });
@@ -101,6 +103,11 @@ test('endgame support screens keep primary actions and interaction state visible
     await expect(page.locator('.underworld-entry-card')).toBeVisible();
     await expect(page.getByRole('button', { name: '최고층 18 입장' })).toBeVisible();
     await expect(page.locator('.underworld-action-grid button')).toHaveCount(6);
+    const runeInventory = page.locator('details[data-ui-disclosure="underworld-rune-inventory"]');
+    await runeInventory.locator(':scope > summary').click();
+    await expect(runeInventory).toHaveAttribute('open', '');
+    await page.evaluate(() => updateStaticUI());
+    await expect(runeInventory).toHaveAttribute('open', '');
     const entryBeforeManagement = await page.evaluate(() => Boolean(document.querySelector('.underworld-entry-card').compareDocumentPosition(document.querySelector('.underworld-panel')) & Node.DOCUMENT_POSITION_FOLLOWING));
     expect(entryBeforeManagement).toBe(true);
 
@@ -108,6 +115,9 @@ test('endgame support screens keep primary actions and interaction state visible
     await expect(page.locator('.core-cube-assembly')).toBeVisible();
     await expect(page.locator('.core-cube-assembly .core-cube-face')).toHaveCount(6);
     await expect(page.locator('.core-cube-assembly .core-cube-power')).toHaveCount(2);
+    await expect(page.locator('.core-cube-stage-options')).toBeVisible();
+    await expect(page.locator('.core-cube-stage-options')).toContainText('발현 옵션');
+    await expect(page.locator('.core-cube-side')).not.toContainText('발현 결과');
     await page.locator('.core-cube-power').first().click();
     await expect(page.locator('.core-cube-assembly-head')).toContainText('2번 면 선택');
 
@@ -115,8 +125,16 @@ test('endgame support screens keep primary actions and interaction state visible
     await expect(page.locator('.talent-bloom-navigator')).toBeVisible();
     await expect(page.getByRole('button', { name: '재능별' })).toBeVisible();
     await expect(page.getByRole('button', { name: '직업별' })).toBeVisible();
+    await expect(page.locator('.talent-current-combo')).toContainText('궁수');
+    await expect(page.locator('.talent-current-combo')).toContainText('워리어');
+    await expect(page.locator('.talent-combo-cell')).toHaveCount(12);
+    await expect(page.locator('.talent-combo-cell.current')).toContainText('아방가르드');
     await expect(page.locator('.talent-slot.filled')).toContainText('아방가르드');
     await expect(page.locator('.talent-slot.filled')).toContainText('궁수 × 워리어');
+    await page.locator('.talent-bloom-navigator > summary').click();
+    await expect(page.locator('.talent-bloom-navigator')).not.toHaveAttribute('open', '');
+    await page.evaluate(() => updateStaticUI());
+    await expect(page.locator('.talent-bloom-navigator')).not.toHaveAttribute('open', '');
 
     await page.evaluate(() => { switchTab('tab-growthboard'); updateStaticUI(); });
     const craftBench = page.locator('details[data-growth-disclosure="craft-bench"]');
@@ -621,12 +639,13 @@ test('market exchange selector survives auto-salvage currency updates', async ({
         window.__marketExchangeSelectorBeforeSalvage = document.getElementById('ui-market-exchange-from');
         for (let index = 0; index < 4; index++) {
             awardCurrency('magicBud', 1);
-            performUpdateStaticUI();
+            updateStaticUI();
         }
     });
     expect(await page.evaluate(() => document.getElementById('ui-market-exchange-from') === window.__marketExchangeSelectorBeforeSalvage)).toBe(true);
     await expect(selector).toBeFocused();
     await expect(selector).toHaveValue('magicBud');
+    await selector.blur();
     await expect(page.locator('[data-market-exchange-balance]')).toContainText('보유 24개');
     expect(failures).toEqual([]);
 });

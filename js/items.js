@@ -803,6 +803,7 @@ function getWeaponBaseArchetype(base) {
 function getBaseBuildArchetype(base) {
     if (!base) return 'generic';
     if (base.slot === '무기') return getWeaponBaseArchetype(base);
+    if (base.slot === '방패') return `shield:${base.shieldStyle || 'fortress'}`;
     let ids = (base.baseStats || []).map(stat => stat.id);
     if (ids.some(id => id.startsWith('summon'))) return 'summon';
     return 'generic';
@@ -837,6 +838,21 @@ function getBaseUpgradeCandidates(currentBase) {
         });
     }
     return candidates;
+}
+
+function rollUpgradedBaseStats(item, nextBase) {
+    let rolled = rollBaseStats(nextBase, nextBase.reqTier || 1);
+    if (!item || nextBase.slot !== '방패') return rolled;
+    let previous = (item.baseStats || []).find(stat => stat && stat.id === 'baseBlockChance');
+    let next = rolled.find(stat => stat && stat.id === 'baseBlockChance');
+    let floor = Math.max(0, Number(previous && previous.val) || 0);
+    if (!next || floor <= 0 || Number(next.val || 0) >= floor) return rolled;
+    next.val = floor;
+    next.valMin = Math.max(Number(next.valMin || 0), floor);
+    next.valMax = Math.max(Number(next.valMax || 0), floor);
+    next.baseRollMin = Math.max(Number(next.baseRollMin || 0), floor);
+    next.baseRollMax = Math.max(Number(next.baseRollMax || 0), floor);
+    return rolled;
 }
 // 업그레이드로 이어진 베이스들을 하나의 체인으로 보고, 각 베이스가 그 체인에서 몇 단계인지 계산한다.
 // step = 아래(저티어)에서부터의 위치(1부터), total = 그 베이스를 지나는 가장 긴 체인의 길이.
@@ -966,7 +982,7 @@ function confirmSelectedItemBaseUpgrade() {
     item.baseName = nextBase.name;
     if (item.rarity !== 'unique') item.name = nextBase.name;
     item.itemTier = Math.max(item.itemTier || 1, nextBase.reqTier || 1);
-    item.baseStats = rollBaseStats(nextBase, nextBase.reqTier || 1);
+    item.baseStats = rollUpgradedBaseStats(item, nextBase);
     addLog(`🛠️ 베이스 업그레이드: ${(currentBase && currentBase.name) || '기존'} → ${nextBase.name} (형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule ? ` + 황금률 ${cost.goldenRule}` : ''})`, 'loot-magic');
     closeBaseUpgradeOverlay();
     updateStaticUI();
