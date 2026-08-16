@@ -93,9 +93,9 @@ try {
     context.__simpleStats.underworldGravityReductionPct = 75;
     assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).dps.label'), '적정',
         '창공석 중력 완화는 지하계 준비도에도 실제 전투와 같은 비율로 반영해야 한다');
-    context.__mapEstimate.underworldGravityIgnoresReduction = true;
-    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).dps.label'), '낮음',
-        '재능 개화 시련의 고정 중력은 창공석으로 우회할 수 없어야 한다');
+    context.__mapEstimate.underworldGravityIgnoresReduction = false;
+    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).dps.label'), '적정',
+        '재능 개화 시련은 입장 기준인 지하계와 같은 중력 완화를 인정해야 한다');
 
     context.__guardianStats = {
         ...simpleStats, evadeChance: 0,

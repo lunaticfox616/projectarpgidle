@@ -103,6 +103,8 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     projectile: 'skillFxProjectile',
     venomFang: 'skillFxVenomFang',
     frostField: 'skillFxFrostField',
+    blizzardAmbient: 'skillFxBlizzardAmbient',
+    blizzardImpact: 'skillFxBlizzardImpact',
     frostWave: 'skillFxFrostWave',
     chaosBoomerang: 'skillFxChaosBoomerang',
     burst: 'skillFxBurst',
@@ -479,41 +481,66 @@ function getCombatAreaBounds(targets) {
     return bounds;
 }
 
-function drawBlizzardCombatFx(ctx, now, targets) {
-    let bounds = getCombatAreaBounds(targets);
-    let width = Math.max(112, bounds.maxX - bounds.minX + 88);
-    let height = Math.max(78, bounds.maxY - bounds.minY + 58);
+function drawSpriteSheetFrame(ctx, image, frameIndex, columns, rows, x, y, width, height) {
+    let sourceWidth = Math.max(1, Number(image.naturalWidth) || Number(image.width) || 1) / columns;
+    let sourceHeight = Math.max(1, Number(image.naturalHeight) || Number(image.height) || 1) / rows;
+    let frame = Math.max(0, Math.floor(frameIndex)) % (columns * rows);
+    let sourceX = (frame % columns) * sourceWidth;
+    let sourceY = Math.floor(frame / columns) * sourceHeight;
+    ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight,
+        x - width / 2, y - height / 2, width, height);
+}
+
+function drawBlizzardFallbackFx(ctx, bounds, now) {
     ctx.save();
-    ctx.translate(bounds.x, bounds.y);
-    ctx.rotate(-0.14 + Math.sin(now / 740) * 0.035);
     ctx.globalCompositeOperation = 'screen';
-    ctx.shadowColor = '#9bdfff';
-    ctx.shadowBlur = 7;
-    for (let gust = 0; gust < 6; gust++) {
-        let phase = (now / 920 + gust * 0.193) % 1;
-        let y = -height * 0.46 + gust * height * 0.18 + Math.sin(phase * Math.PI * 2 + gust) * 9;
-        let bend = Math.sin(now / 210 + gust * 1.7) * height * 0.16;
-        ctx.globalAlpha = 0.13 + (gust % 3) * 0.055;
-        ctx.strokeStyle = gust % 2 ? '#e8fbff' : '#8fdcff';
-        ctx.lineWidth = 2.4 + (gust % 3) * 0.9;
+    ctx.strokeStyle = '#ccefff';
+    ctx.lineWidth = 2;
+    for (let streak = 0; streak < 4; streak++) {
+        let offset = ((now / 12 + streak * 47) % 180) - 90;
+        let y = bounds.y - 24 + streak * 16;
+        ctx.globalAlpha = 0.18 + streak * 0.04;
         ctx.beginPath();
-        ctx.moveTo(-width * 0.58, y);
-        ctx.bezierCurveTo(-width * 0.2, y - bend, width * 0.14, y + bend, width * 0.58, y - bend * 0.25);
+        ctx.moveTo(bounds.x + offset - 28, y + 8);
+        ctx.lineTo(bounds.x + offset + 28, y - 8);
         ctx.stroke();
     }
-    ctx.shadowBlur = 4;
-    for (let flake = 0; flake < 22; flake++) {
-        let seedX = Math.abs(Math.sin((flake + 3) * 17.371) * 34127.421) % 1;
-        let seedY = Math.abs(Math.sin((flake + 9) * 41.173) * 19283.731) % 1;
-        let travel = (now / 1450 + seedX + flake * 0.031) % 1;
-        let x = -width * 0.56 + travel * width * 1.12;
-        let y = -height * 0.52 + seedY * height * 1.04 + Math.sin(now / 125 + flake * 2.1) * 7;
-        let radius = 1.2 + (flake % 4) * 0.48;
-        ctx.globalAlpha = 0.34 + (flake % 3) * 0.13;
-        ctx.fillStyle = flake % 4 ? '#d9f7ff' : '#ffffff';
-        ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
-    }
     ctx.restore();
+}
+
+function drawBlizzardCombatFx(ctx, fx, now, arriveAt, targets) {
+    let bounds = getCombatAreaBounds(targets);
+    let width = Math.max(148, bounds.maxX - bounds.minX + 112);
+    let height = Math.max(98, bounds.maxY - bounds.minY + 82);
+    let ambient = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.blizzardAmbient);
+    let impact = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.blizzardImpact);
+    let fadeIn = clampNumber((now - fx.start) / 120, 0, 1);
+    let fadeOut = clampNumber((fx.start + fx.duration - now) / 180, 0, 1);
+    if (ambient) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = 0.34 * fadeIn * fadeOut;
+        let ambientFrame = Math.floor(now / 90) % 16;
+        drawSpriteSheetFrame(ctx, ambient, ambientFrame, 4, 4, bounds.x, bounds.y, width, height);
+        ctx.restore();
+    } else {
+        drawBlizzardFallbackFx(ctx, bounds, now);
+    }
+    let elapsed = Math.max(0, now - arriveAt);
+    let hitIndex = Math.floor(elapsed / 300);
+    let hitElapsed = elapsed - hitIndex * 300;
+    if (impact && hitIndex < 4 && hitElapsed < 240) {
+        let targetIndex = (Math.max(0, Number(fx.id) || 0) + hitIndex * 3) % targets.length;
+        let target = targets[targetIndex];
+        let impactFrame = hitIndex * 4 + Math.min(3, Math.floor(hitElapsed / 60));
+        let impactSize = Math.max(86, Math.min(132, width * 0.48));
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.globalAlpha = Math.min(0.82, (1 - hitElapsed / 300) * 0.9) * fadeOut;
+        drawSpriteSheetFrame(ctx, impact, impactFrame, 4, 4,
+            target.x, target.y - 8, impactSize, impactSize);
+        ctx.restore();
+    }
 }
 
 function drawFireCoreCombatFx(ctx, now, targets) {
@@ -776,7 +803,7 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
         return;
     }
     if (fx.patternKind === 'field' && fx.skillName === '난타 눈보라') {
-        drawBlizzardCombatFx(ctx, now, targets);
+        drawBlizzardCombatFx(ctx, fx, now, arriveAt, targets);
         return;
     }
     if (fx.patternKind === 'field' && fx.skillName === '화염 폭풍핵') {
