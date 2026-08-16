@@ -47,6 +47,27 @@ test('guest mode is local-only and survives reload', async ({ page }) => {
     expect(failures).toEqual([]);
 });
 
+test('shrine pity and claim stay tied to encounter progress', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await expect(page.locator('#ui-shrine-box')).toContainText('성소 기운 0/20');
+
+    const outcome = await page.evaluate(() => {
+        game.shrineState = { activeId: null, pity: 19, spawned: 0, claimed: 0 };
+        const result = shrineRuntime.advanceAfterEncounter({ type: 'act' });
+        updateStaticUI();
+        return { spawned: result.spawned, activeId: game.shrineState.activeId };
+    });
+    expect(outcome.spawned).toBe(true);
+    expect(outcome.activeId).toBeTruthy();
+    const claimButton = page.locator('#ui-shrine-box button');
+    await expect(claimButton).toContainText('받기');
+    await claimButton.click();
+    await expect(page.locator('#ui-shrine-box')).toContainText('지속중');
+    await expect.poll(() => page.evaluate(() => game.shrineState.claimed)).toBe(1);
+    expect(failures).toEqual([]);
+});
+
 test('unlocked secondary tabs render after cross-tab navigation', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
