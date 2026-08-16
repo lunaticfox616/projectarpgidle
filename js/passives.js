@@ -3909,7 +3909,7 @@ let activeTutorialStep = 0;
 let activeRewardZoneId = null;
 let divineBannerTimer = null;
 let jewelFusionSelection = [];
-let selectedJewelCraftIndex = null;
+let selectedJewelCraftTarget = null;
 let voidJewelOverlayState = { mode: null, selected: [] };
 let latestPlayerSwingImpactAt = 0;
 let pendingRingEquipItemId = null;
@@ -8483,7 +8483,7 @@ function removeJewelFromAbyssSocket(socketIdx) { if (game.woodsmanBuildLock) ret
     updateStaticUI();
 }
 
-safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, getSelectedJewelCraftTarget, selectJewelCraftTarget, useCurrencyOnJewel, getJewelCurrencyUseState, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, openAbyssSocketJewelOverlay, closeAbyssSocketJewelOverlay, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
+safeExposeGlobals({ isVoidSocketAccessoryItem, applyVoidChiselToSelectedItem, insertJewelIntoVoidSocket, getSelectedJewelCraftTarget, selectJewelCraftTarget, selectEquippedJewelCraftTarget, useCurrencyOnJewel, getJewelCurrencyUseState, openVoidSocketJewelOverlay, closeVoidSocketJewelOverlay, removeJewelFromVoidSocket, insertJewelIntoAbyssSocket, openAbyssSocketJewelOverlay, closeAbyssSocketJewelOverlay, removeJewelFromAbyssSocket, toggleJewelFusionSelection, drawJewelRefine, craftJewelFusion, openJewelFusionOverlay, closeJewelFusionOverlay, confirmJewelFusion, getVoidJewelCraftMaterialIndices, openVoidJewelCraftOverlay, closeVoidJewelOverlay, toggleVoidJewelOverlaySelection, confirmVoidJewelCraft, craftVoidJewel, openVoidJewelFusionOverlay, confirmVoidJewelFusion, fuseVoidJewel, fuseSelectedVoidJewels, tryAmplifyJewelSlot, toggleJewelLock, salvageJewel, equipJewel, unequipJewel, applyBeeswaxToJewel, removeBeeswaxFromJewel });
 
 function createItemFromBase(base, rarity, zoneTier, origin) {
     itemIdCounter++;
@@ -9270,20 +9270,26 @@ function rollRandomJewelStat(excludeIds, tierRange) {
 
 const JEWEL_CRAFT_ORB_KEYS = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'pruningShears'];
 
-function getSelectedJewelCraftIndex() {
-    let index = Math.floor(Number(selectedJewelCraftIndex));
-    return Number.isInteger(index) && index >= 0 && index < (game.jewelInventory || []).length ? index : -1;
-}
-
 function getSelectedJewelCraftTarget() {
-    let index = getSelectedJewelCraftIndex();
-    return index >= 0 ? game.jewelInventory[index] : null;
+    let jewel = selectedJewelCraftTarget;
+    let owned = (game.jewelInventory || []).includes(jewel) || (game.jewelSlots || []).includes(jewel);
+    if (owned) return jewel;
+    selectedJewelCraftTarget = null;
+    return null;
 }
 
 function selectJewelCraftTarget(idx) {
     let index = getValidJewelInventoryIndex(idx);
     if (index < 0) return;
-    selectedJewelCraftIndex = index;
+    selectedJewelCraftTarget = game.jewelInventory[index];
+    updateStaticUI();
+}
+
+function selectEquippedJewelCraftTarget(slotIndex) {
+    let index = Math.floor(Number(slotIndex));
+    let jewel = Number.isInteger(index) && index >= 0 ? (game.jewelSlots || [])[index] : null;
+    if (!jewel) return addLog('유효하지 않은 장착 주얼입니다.', 'attack-monster');
+    selectedJewelCraftTarget = jewel;
     updateStaticUI();
 }
 
@@ -9560,8 +9566,8 @@ function getJewelCurrencyUseState(currencyKey, jewel) {
 
 async function useCurrencyOnJewel(currencyKey, idx) {
     game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
-    let index = idx === undefined ? getSelectedJewelCraftIndex() : getValidJewelInventoryIndex(idx);
-    let jewel = index >= 0 ? game.jewelInventory[index] : null;
+    let index = idx === undefined ? -1 : getValidJewelInventoryIndex(idx);
+    let jewel = idx === undefined ? getSelectedJewelCraftTarget() : (index >= 0 ? game.jewelInventory[index] : null);
     if ((game.currencies[currencyKey] || 0) <= 0) return addLog('오브가 부족합니다.', 'attack-monster');
     let state = getJewelCurrencyUseState(currencyKey, jewel);
     if (!state.enabled) return addLog(state.reason, 'attack-monster');
@@ -9570,14 +9576,17 @@ async function useCurrencyOnJewel(currencyKey, idx) {
         tone: 'danger',
         confirmLabel: '사용'
     })) return;
-    if ((game.jewelInventory || [])[index] !== jewel || (game.currencies[currencyKey] || 0) <= 0) {
+    let targetUnchanged = idx === undefined
+        ? getSelectedJewelCraftTarget() === jewel
+        : (game.jewelInventory || [])[index] === jewel;
+    if (!targetUnchanged || (game.currencies[currencyKey] || 0) <= 0) {
         return addLog('확인 중 제작 대상 또는 재화가 변경되어 사용을 취소했습니다.', 'attack-monster');
     }
     state = getJewelCurrencyUseState(currencyKey, jewel);
     if (!state.enabled) return addLog(`확인 중 주얼 상태가 변경되어 사용을 취소했습니다. (${state.reason})`, 'attack-monster');
     game.currencies[currencyKey]--;
     applyCurrencyToJewel(currencyKey, jewel);
-    selectedJewelCraftIndex = index;
+    selectedJewelCraftTarget = jewel;
     addLog(`💠 주얼에 ${ORB_DB[currencyKey].name} 사용: [${jewel.name || '주얼'}]`, currencyKey === 'sapBud' || currencyKey === 'goldenRule' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }

@@ -12,18 +12,16 @@ const ghostArenaState = {
     duelMode: ''
 };
 
-function getGhostCombatVersion() {
-    return typeof getPlaytestBuildVersion === 'function' ? getPlaytestBuildVersion() : 'unknown';
-}
-
 function ghostArenaEscape(value) {
     return typeof escapeHTML === 'function' ? escapeHTML(String(value == null ? '' : value)) : String(value == null ? '' : value);
 }
 
 function getGhostArenaError(error) {
     let message = String(error && error.message || error);
-    if (/GHOST_NEEDS_3_RUNS/.test(message)) return '현재 빌드로 전투를 3회 완료한 뒤 등록하세요.';
-    if (/GHOST_NEEDS_BATTLE_DATA/.test(message)) return '현재 빌드의 전투 기록이 없습니다.';
+    if (/GHOST_NEEDS_3_RUNS|GHOST_NEEDS_BATTLE_DATA/.test(message)) {
+        return '고스트 DB가 이전 버전입니다. Supabase에서 db/operations-and-ghost.sql을 다시 실행하세요.';
+    }
+    if (/GHOST_SNAPSHOT_UNAVAILABLE|INVALID_GHOST_SNAPSHOT/.test(message)) return '현재 세팅의 전투 능력치를 불러오지 못했습니다.';
     if (/GHOST_OPPONENT_NOT_FOUND/.test(message)) return '대결 가능한 상대가 아직 없습니다.';
     if (/GHOST_TARGET_NOT_REGISTERED/.test(message)) return '상대가 현재 버전의 고스트를 등록하지 않았습니다.';
     if (/GHOST_REGISTRATION_REQUIRED/.test(message)) return '먼저 내 고스트를 등록하세요.';
@@ -40,7 +38,7 @@ function getGhostArenaError(error) {
 }
 
 function isGhostCombatServerReady() {
-    return Number(ghostArenaState.data && ghostArenaState.data.combatProtocolVersion) >= 3;
+    return Number(ghostArenaState.data && ghostArenaState.data.combatProtocolVersion) >= 4;
 }
 
 async function loadGhostArena() {
@@ -71,9 +69,11 @@ async function registerMyGhost() {
         await restoreNicknameFromServer();
         if (!getMyNickname()) await promptAndSetNickname();
         if (!getMyNickname()) return;
+        if (typeof getGhostCombatSnapshot !== 'function') throw new Error('GHOST_SNAPSHOT_UNAVAILABLE');
+        let snapshot = getGhostCombatSnapshot();
         await uploadPlayerProfile({ required: true });
         await cloudJsonRequest('/rest/v1/rpc/register_my_ghost', {
-            method: 'POST', body: { p_combat_version: getGhostCombatVersion() }
+            method: 'POST', body: { p_combat_version: getGhostCombatVersion(), p_snapshot: snapshot }
         });
         ghostArenaState.result = null;
         ghostArenaState.duel = null;
@@ -211,7 +211,7 @@ function renderGhostArena() {
     let status = me
         ? `<span>내 레이팅 <strong>${me.rating}</strong> · ${me.wins}승 ${me.losses}패 ${me.draws}무${me.matches < 10 ? ' · 배치 중' : ''}</span>`
         : '<span>등록된 고스트 없음</span>';
-    host.innerHTML = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음 · 서버 시뮬레이션 Elo</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">최근 24시간의 같은 빌드 전투 3회 이상으로 등록합니다. 대전 간 20초 · 랭크 20회/24시간 · 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderFriendlyGhostChallenge()}${renderActiveGhostDuel()}${renderActiveGhostResult()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
+    host.innerHTML = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음 · 서버 시뮬레이션 Elo</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">등록 시 현재 세팅을 즉시 반영합니다. 대전 간 20초 · 랭크 20회/24시간 · 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderFriendlyGhostChallenge()}${renderActiveGhostDuel()}${renderActiveGhostResult()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
     if (ghostArenaState.duel && !ghostArenaState.loading && typeof mountGhostDuelReplay === 'function') {
         requestAnimationFrame(() => mountGhostDuelReplay(ghostArenaState.duel));
     }

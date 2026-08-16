@@ -8843,10 +8843,17 @@ function finishEncounterRun() {
             window.exploreSelectedCosmosNode(zone.cosmosNodeId || null);
         }
         if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') game.cosmosAtlas.activeChallenge = null;
+        if (typeof window.continueCosmosChallengeAfterClear === 'function'
+            && window.continueCosmosChallengeAfterClear(mapAction)) {
+            updateStaticUI();
+            queueImportantSave(200);
+            return;
+        }
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
+        if (mapAction === 'stop') game.combatHalted = true;
         enterAutomaticMapInterruptionAfterClear(zone);
-        startMoving(false);
+        if (mapAction !== 'stop') startMoving(false);
         updateStaticUI();
         queueImportantSave(200);
         return;
@@ -9992,6 +9999,11 @@ function performPlayerAttack(pStats, attackOptions) {
     });
 }
 
+function getDefeatRecoveryZoneId() {
+    let frontier = Math.max(0, Math.floor(Number(game.maxZoneId) || 0));
+    return getZone(frontier) ? frontier : 0;
+}
+
 function handlePlayerDefeat(zone, pStats, message, options) {
     let opts = options || {};
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
@@ -10013,7 +10025,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             game.maxZoneId = Math.min(getCurrentSeasonFinalZoneId(), game.maxZoneId + 1);
             triggerMapUnlockReveal(game.maxZoneId);
         }
-        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+        game.currentZoneId = getDefeatRecoveryZoneId();
         game.killsInZone = 0;
         game.playerHp = getPlayerHpCap(pStats);
         startMoving(false);
@@ -10033,12 +10045,12 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             addLog(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
         }
         clearWoodsmanBuildLock();
-        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+        game.currentZoneId = getDefeatRecoveryZoneId();
         game.killsInZone = 0;
     } else if (zone && zone.id === 'colony_run' && game.colony && game.colony.inRun) {
         addLog(message || "☠️ 군락지 방어전에서 패배했습니다.", "death", { noToast: !!opts.noToast });
         game.colony.inRun = false;
-        game.currentZoneId = game.colony.returnZoneId !== undefined && game.colony.returnZoneId !== null ? game.colony.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+        game.currentZoneId = game.colony.returnZoneId !== undefined && game.colony.returnZoneId !== null ? game.colony.returnZoneId : getDefeatRecoveryZoneId();
         game.colony.returnZoneId = null;
         game.enemies = [];
         game.encounterPlan = [];
@@ -10052,7 +10064,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
             game.beehive.inRun = false;
             game.beehive.awaitingClear = false;
             game.beehive.pendingChoice = null;
-            game.currentZoneId = game.beehive.returnZoneId !== undefined && game.beehive.returnZoneId !== null ? game.beehive.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+            game.currentZoneId = game.beehive.returnZoneId !== undefined && game.beehive.returnZoneId !== null ? game.beehive.returnZoneId : getDefeatRecoveryZoneId();
             game.beehive.returnZoneId = null;
             game.enemies = [];
             game.encounterPlan = [];
@@ -10069,7 +10081,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.encounterPlan = [];
         game.encounterIndex = 0;
         game.runProgress = 0;
-        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+        game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getDefeatRecoveryZoneId();
         game.killsInZone = 0;
     } else if (zone && zone.type === 'meteor') {
         addLog(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
@@ -10077,7 +10089,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         st.activeMeteorTier = null;
         let returnZoneId = st.meteorReturnZoneId;
         st.meteorReturnZoneId = null;
-        game.currentZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+        game.currentZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getDefeatRecoveryZoneId();
         game.killsInZone = 0;
         game.enemies = [];
         game.encounterPlan = [];
@@ -10087,7 +10099,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         let rift = ensureTimeRiftState();
         rift.activePressure = null;
         addLog(message || `☠️ 시간의 균열(${zone.riftPhase === 'past' ? '과거' : '미래'})에서 밀려났습니다. 제단에 맡긴 아이템은 보존됩니다.`, 'death', { noToast: !!opts.noToast });
-        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+        game.currentZoneId = getDefeatRecoveryZoneId();
         game.killsInZone = 0;
         game.enemies = [];
         game.encounterPlan = [];
@@ -10103,7 +10115,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.inTicketBossFight = false;
     } else if (zone && zone.type === 'trial') {
         addLog(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death", { noToast: !!opts.noToast });
-        game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
+        game.currentZoneId = getDefeatRecoveryZoneId();
         game.killsInZone = 0;
     } else {
         let expPenalty = Math.floor(getExpReq(game.level) * 0.1);

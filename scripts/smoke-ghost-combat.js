@@ -4,7 +4,7 @@ const vm = require('vm');
 
 const context = vm.createContext({
     console,
-    game: { activeSkill: '독니 사출', selectedHeroId: 'hero6' },
+    game: { activeSkill: '독니 사출', selectedHeroId: 'hero6', ascendClass: 'assassin' },
     SKILL_DB: { '독니 사출': { ele: 'chaos', tags: ['attack', 'projectile', 'chaos'] } },
     clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); },
     calculatePlayerEhpProfile() {
@@ -27,6 +27,7 @@ const snapshot = context.getGhostCombatSnapshot({
 });
 
 assert.strictEqual(snapshot.schemaVersion, 1, 'snapshot contract must be versioned');
+assert.strictEqual(snapshot.ascendClass, 'assassin', 'the current ascendancy must travel with the build snapshot');
 assert.strictEqual(snapshot.heroId, 'hero4', 'registered ghost should use the visible character appearance');
 assert.strictEqual(snapshot.activeSkill, '독니 사출');
 assert.strictEqual(snapshot.style, 'projectile', 'skill delivery style must survive registration for replay');
@@ -46,4 +47,66 @@ assert.strictEqual(capped.attackSpeed, 8);
 assert.strictEqual(capped.blockChance, 75);
 assert.strictEqual(capped.leechPct, 20);
 
-console.log('smoke-ghost-combat passed');
+async function verifyDirectRegistrationFromCurrentBuild() {
+    const calls = [];
+    const integrationContext = {
+        console,
+        cloudState: { user: { id: 'ghost-user' } },
+        game: {
+            activeSkill: '독니 사출', selectedHeroId: 'hero6', season: 8,
+            currentZoneId: 4, ascendClass: 'assassin'
+        },
+        SKILL_DB: context.SKILL_DB,
+        document: {
+            readyState: 'complete',
+            head: { appendChild() {} },
+            querySelector: () => ({ content: 'ghost-test-build' }),
+            getElementById: () => null,
+            createElement: () => ({ style: {}, setAttribute() {} }),
+            addEventListener() {}
+        },
+        requestAnimationFrame() {},
+        getPlayerStats: () => ({
+            totalDps: 2400, directDps: 1900, maxHp: 800, energyShield: 200,
+            aspd: 2, crit: 25, critDmg: 180, sSkill: context.SKILL_DB['독니 사출']
+        }),
+        clampNumber: context.clampNumber,
+        calculatePlayerEhpProfile: context.calculatePlayerEhpProfile,
+        getHeroAppearanceId: context.getHeroAppearanceId,
+        socialCloudReady: () => true,
+        restoreNicknameFromServer: async () => {},
+        getMyNickname: () => '테스터',
+        promptAndSetNickname: async () => {},
+        uploadPlayerProfile: async () => { calls.push({ path: 'profile-uploaded' }); },
+        showGameToast() {},
+        escapeHTML: value => String(value),
+        async cloudJsonRequest(path, options) {
+            calls.push({ path, options });
+            if (path === '/rest/v1/rpc/get_ghost_arena') return { combatProtocolVersion: 4, me: null, leaderboard: [] };
+            return null;
+        },
+        safeExposeGlobals(entries) { Object.assign(integrationContext, entries); }
+    };
+
+    vm.createContext(integrationContext);
+    vm.runInContext(fs.readFileSync('js/ghost-combat.js', 'utf8'), integrationContext, { filename: 'ghost-combat.js' });
+    vm.runInContext(fs.readFileSync('js/ghost-pvp.js', 'utf8'), integrationContext, { filename: 'ghost-pvp.js' });
+    await integrationContext.loadGhostArena();
+    calls.length = 0;
+
+    await integrationContext.registerMyGhost();
+    const registration = calls.find(call => call.path === '/rest/v1/rpc/register_my_ghost');
+    assert(registration, 'registration must call the dedicated ghost RPC without requiring a combat run');
+    assert.strictEqual(registration.options.body.p_combat_version, 'ghost-combat-rules-v1');
+    assert.strictEqual(registration.options.body.p_snapshot.schemaVersion, 1);
+    assert.strictEqual(registration.options.body.p_snapshot.ascendClass, 'assassin');
+    assert.strictEqual(registration.options.body.p_snapshot.activeSkill, '독니 사출');
+    assert.strictEqual(registration.options.body.p_snapshot.dps, 2400);
+    assert(!calls.some(call => call.path === '/rest/v1/playtest_runs'), 'ghost registration must stay independent from playtest records');
+    assert(calls.findIndex(call => call.path === 'profile-uploaded') < calls.indexOf(registration),
+        'the social profile must exist before registering its current build');
+}
+
+verifyDirectRegistrationFromCurrentBuild()
+    .then(() => console.log('smoke-ghost-combat passed'))
+    .catch(error => { console.error(error); process.exitCode = 1; });

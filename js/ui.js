@@ -9992,7 +9992,8 @@ function performUpdateStaticUI() {
                 let tone = getJewelStatToneColor(stat.id);
                 return `<span style="color:${tone};">${petite}${highlightSearchText(getStatName(stat.id), sf.jewel)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
-            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box" style="min-height:86px; border:2px solid ${isKeystoneSlot ? '#9b59b6' : getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); ${keystoneFilledShadow}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmousemove="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1}${keystoneBadge} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:var(--copy-bright);">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><br><button style="margin-top:4px; font-size:0.72em;" onclick="unequipJewel(${slotIdx})">해제</button></div>`;
+            let selected = jewelCraftTarget === jewel ? 'selected' : '';
+            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box ${selected}" style="min-height:86px; border:2px solid ${isKeystoneSlot ? '#9b59b6' : getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); ${keystoneFilledShadow}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmousemove="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1}${keystoneBadge} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:var(--copy-bright);">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><div class="item-actions"><button onclick="selectEquippedJewelCraftTarget(${slotIdx})">제작대상</button><button onclick="unequipJewel(${slotIdx})">해제</button></div></div>`;
         }).join('');
         const jewelRows = game.jewelInventory.map((jewel, idx) => ({ jewel, idx })).filter(row => {
             const jewel = row.jewel || {};
@@ -11352,7 +11353,7 @@ function buildCraftActionButtons(item) {
         let isCraftOrb = ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','emberBranch','blessing','deepWhetstone','rootIron','jewelPolish','abyssCatalyst'].includes(key);
         let canUseSporeMode = ['magicBud','sapBud','formlessDew'].includes(key);
         let mode = sporeModes[key] || 'none';
-        let useState = key === 'voidChisel' ? getMobileCraftCurrencyUseState(key, getSelectedCraftItem()) : getCraftOrbUseState(key, getSelectedCraftItem());
+        let useState = getMobileCraftCurrencyUseState(key, getSelectedCraftItem());
         let reason = useState.reason;
         if (isCraftOrb) {
             let rightButtons = '';

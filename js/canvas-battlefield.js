@@ -532,13 +532,19 @@ function drawBlizzardCombatFx(ctx, fx, now, arriveAt, targets) {
     if (impact && hitIndex < 4 && hitElapsed < 240) {
         let targetIndex = (Math.max(0, Number(fx.id) || 0) + hitIndex * 3) % targets.length;
         let target = targets[targetIndex];
-        let impactFrame = hitIndex * 4 + Math.min(3, Math.floor(hitElapsed / 60));
+        let impactFrames = [2, 5, 10, 13];
+        let impactFrame = impactFrames[hitIndex];
         let impactSize = Math.max(86, Math.min(132, width * 0.48));
+        let phase = clampNumber(hitElapsed / 240, 0, 1);
+        let arrival = 1 - Math.pow(1 - phase, 3);
+        let direction = hitIndex % 2 === 0 ? -1 : 1;
         ctx.save();
+        ctx.translate(target.x + direction * (1 - arrival) * 24, target.y - 8 - (1 - arrival) * 42);
+        ctx.rotate(direction * (1 - arrival) * 0.14);
         ctx.globalCompositeOperation = 'screen';
-        ctx.globalAlpha = Math.min(0.82, (1 - hitElapsed / 300) * 0.9) * fadeOut;
+        ctx.globalAlpha = Math.min(0.86, Math.sin(Math.PI * phase) * 1.05) * fadeOut;
         drawSpriteSheetFrame(ctx, impact, impactFrame, 4, 4,
-            target.x, target.y - 8, impactSize, impactSize);
+            0, 0, impactSize * (0.62 + arrival * 0.48), impactSize * (0.62 + arrival * 0.48));
         ctx.restore();
     }
 }

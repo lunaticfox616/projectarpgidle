@@ -1913,7 +1913,7 @@
         ATLAS.needsFrame = true;
         requestAnimationFrame(() => {
             ATLAS.needsFrame = false;
-            drawAtlas();
+            if (isCosmosTabActive()) drawAtlas();
         });
     }
 
@@ -1934,8 +1934,7 @@
         }
         syncCosmosTabVisibility();
         if (!ATLAS.canvas || !ATLAS.ctx) return;
-        resizeCanvasToHost();
-        drawAtlas();
+        if (isCosmosTabActive() && resizeCanvasToHost()) drawAtlas();
         renderDetail();
         renderSummary();
         renderRoadmap();
@@ -1945,8 +1944,9 @@
 
     function resizeCanvasToHost() {
         const canvas = ATLAS.canvas;
-        if (!canvas || !ATLAS.host) return;
+        if (!canvas || !ATLAS.host) return false;
         const rect = ATLAS.host.getBoundingClientRect();
+        if (rect.width < 2 || rect.height < 2) return false;
         const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
         ATLAS.dpr = dpr;
         const w = Math.max(600, Math.floor(rect.width * dpr));
@@ -1955,6 +1955,7 @@
             canvas.width = w;
             canvas.height = h;
         }
+        return true;
     }
 
     function drawAtlas() {
@@ -1981,12 +1982,23 @@
         ctx.fillStyle = g;
         ctx.fillRect(0, 0, w, h);
 
+        const blueMist = ctx.createRadialGradient(w * 0.18, h * 0.25, 0, w * 0.18, h * 0.25, Math.max(w, h) * 0.62);
+        blueMist.addColorStop(0, 'rgba(44,91,140,.12)');
+        blueMist.addColorStop(1, 'rgba(6,10,18,0)');
+        ctx.fillStyle = blueMist;
+        ctx.fillRect(0, 0, w, h);
+        const violetMist = ctx.createRadialGradient(w * 0.82, h * 0.72, 0, w * 0.82, h * 0.72, Math.max(w, h) * 0.52);
+        violetMist.addColorStop(0, 'rgba(84,55,126,.1)');
+        violetMist.addColorStop(1, 'rgba(3,5,9,0)');
+        ctx.fillStyle = violetMist;
+        ctx.fillRect(0, 0, w, h);
+
         ctx.save();
-        ctx.globalAlpha = 0.42;
-        for (let i = 0; i < 190; i++) {
-            const x = (hashSeed('star-x-' + i) % w);
-            const y = (hashSeed('star-y-' + i) % h);
-            const s = 0.8 + (hashSeed('star-s-' + i) % 19) / 18;
+        ctx.globalAlpha = 0.36;
+        for (let i = 0; i < 96; i++) {
+            const x = seeded01('star-x-' + i) * w;
+            const y = seeded01('star-y-' + i) * h;
+            const s = 0.7 + seeded01('star-s-' + i) * 1.15;
             ctx.fillStyle = i % 11 === 0 ? '#9fd4ff' : '#d8e9ff';
             ctx.fillRect(x, y, s, s);
         }
@@ -1999,13 +2011,13 @@
         galaxyShells.forEach((g, idx) => {
             ctx.beginPath();
             ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
-            ctx.strokeStyle = idx === 0 ? 'rgba(180,220,255,0.14)' : 'rgba(127, 201, 255, 0.1)';
-            ctx.lineWidth = 1.2 / ATLAS.camera.scale;
-            ctx.setLineDash([3 / ATLAS.camera.scale, 10 / ATLAS.camera.scale]);
+            ctx.strokeStyle = idx === 0 ? 'rgba(180,220,255,0.12)' : 'rgba(127, 201, 255, 0.075)';
+            ctx.lineWidth = 1 / ATLAS.camera.scale;
+            ctx.setLineDash([2 / ATLAS.camera.scale, 14 / ATLAS.camera.scale]);
             ctx.stroke();
             ctx.setLineDash([]);
-            ctx.fillStyle = 'rgba(200,225,255,0.42)';
-            ctx.font = `${Math.max(12, 15 / ATLAS.camera.scale)}px Malgun Gothic, sans-serif`;
+            ctx.fillStyle = 'rgba(200,225,255,0.34)';
+            ctx.font = `${Math.max(11, 13 / ATLAS.camera.scale)}px Malgun Gothic, sans-serif`;
             ctx.fillText(g.label, g.x - 14 / ATLAS.camera.scale, g.y - g.r - 10 / ATLAS.camera.scale);
         });
         ctx.restore();
@@ -2444,6 +2456,19 @@
         if (typeof window.startMoving === 'function') window.startMoving(true);
     }
 
+    function continueCosmosChallengeAfterClear(mapAction) {
+        if (mapAction !== 'nextZone' && mapAction !== 'nextLoopBestPlusOne') return false;
+        const guide = getCosmosProgressGuide();
+        const node = guide.targetId ? ATLAS.byId.get(guide.targetId) : null;
+        if (!node || !canChallengeNode(node)) return false;
+        const state = getState();
+        ATLAS.selectedId = node.id;
+        state.selectedId = node.id;
+        if (typeof window.addLog === 'function') window.addLog(`🧭 다음 천체 자동 탐사: ${node.name}`, 'season-up');
+        startCosmosBattle(node);
+        return true;
+    }
+
     function challengeSelectedCosmosNode() {
         buildCosmosAtlasData();
         const state = getState();
@@ -2543,7 +2568,7 @@
     window.getCosmosCapstoneProgress = getCosmosCapstoneProgress;
     window.focusCosmosCapstoneBoss = focusCosmosCapstoneBoss;
     window.openCosmosCapstoneBossPanel = openCosmosCapstoneBossPanel;
-    safeExposeGlobals({ getCosmosNodeRecommendation, getCosmosProgressGuide, focusRecommendedCosmosNode });
+    safeExposeGlobals({ getCosmosNodeRecommendation, getCosmosProgressGuide, focusRecommendedCosmosNode, continueCosmosChallengeAfterClear });
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();

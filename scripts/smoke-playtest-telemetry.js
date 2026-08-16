@@ -4,6 +4,7 @@ const vm = require('vm');
 const { webcrypto } = require('crypto');
 
 const source = fs.readFileSync('js/playtest-telemetry.js', 'utf8');
+const indexSource = fs.readFileSync('index.html', 'utf8');
 const listeners = new Map();
 const requests = [];
 const storage = new Map();
@@ -77,6 +78,8 @@ async function run() {
   assert.strictEqual(requests[0].options.body.skill_element, 'fire');
   assert.strictEqual(requests[0].options.body.result, 'clear');
   assert.ok(!Object.hasOwn(requests[0].options.body, 'user_id'), 'the server must derive user_id from auth.uid()');
+  assert.ok(!Object.hasOwn(requests[0].options.body, 'ghost_snapshot'),
+    'playtest analytics must stay independent from direct ghost registration');
 
   dispatch('project-idle:encounter-started', { zoneId: 4, zoneType: 'act', background: true });
   dispatch('project-idle:encounter-finished', { zoneId: 4, zoneType: 'act', background: true });
@@ -111,6 +114,9 @@ async function run() {
   assert.strictEqual(requests.length, requestsAfterLimit,
     'server daily limit should stop repeated playtest run writes for the rest of the UTC day');
 }
+
+assert(indexSource.includes('js/playtest-telemetry.js?v=20260816-telemetry-separation1'),
+  'telemetry separation must use a fresh browser cache key');
 
 run()
   .then(() => console.log('smoke-playtest-telemetry passed'))

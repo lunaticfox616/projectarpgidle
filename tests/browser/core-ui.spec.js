@@ -284,9 +284,10 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     let fights = 0;
+    let registrationBody = null;
     await page.route('https://**/rest/v1/rpc/get_ghost_arena', route => route.fulfill({
         status: 200, contentType: 'application/json', body: JSON.stringify({
-            combatProtocolVersion: 3,
+            combatProtocolVersion: 4,
             me: { rating: 1000 + fights * 12, wins: fights, losses: 0, draws: 0, matches: fights, active_skill: '독니 사출' },
             leaderboard: [{ rank: 1, nickname: '상대', ascend_class: 'gladiator', active_skill: '연속 베기', rating: 1040, wins: 4, losses: 2, draws: 1, provisional: true }],
             recent: []
@@ -305,6 +306,16 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
             }
         }) });
     });
+    await page.route('https://**/rest/v1/rpc/register_my_ghost', route => {
+        registrationBody = route.request().postDataJSON();
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    });
+    await page.route('https://**/rest/v1/player_profiles**', route => {
+        if (route.request().method() === 'GET') {
+            return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ nickname: '테스터' }]) });
+        }
+        return route.fulfill({ status: 204, body: '' });
+    });
     await page.evaluate(() => {
         cloudState.user = { id: 'browser-user' };
         cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
@@ -313,6 +324,7 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
         game.level = 100;
         game.season = 30;
         game.maxZoneId = 20;
+        game.activeSkill = '독니 사출';
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         updateStaticUI();
         switchTab('tab-social');
@@ -328,11 +340,17 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     await expect(page.locator('.ghost-arena')).toContainText('내 레이팅 1000');
     await expect(page.locator('.ghost-arena')).toContainText('대전 간 20초');
     await expect(page.locator('.ghost-arena')).toContainText('랭크 20회/24시간');
-    await page.evaluate(() => { ghostArenaState.data.combatProtocolVersion = 2; renderGhostArena(); });
+    await page.getByRole('button', { name: '고스트 갱신' }).click({ force: true });
+    await expect.poll(() => registrationBody).not.toBeNull();
+    await expect.poll(() => page.evaluate(() => ghostArenaState.loading)).toBe(false);
+    expect(registrationBody.p_snapshot.schemaVersion).toBe(1);
+    expect(registrationBody.p_snapshot.activeSkill).toBe('독니 사출');
+    expect(registrationBody.p_snapshot.dps).toBeGreaterThan(0);
+    await page.evaluate(() => { ghostArenaState.data.combatProtocolVersion = 3; renderGhostArena(); });
     await expect(page.getByRole('button', { name: '상대 찾기' })).toBeDisabled();
     await expect(page.locator('.ghost-arena')).toContainText('DB가 아직 적용되지 않았습니다');
-    await page.evaluate(() => { ghostArenaState.data.combatProtocolVersion = 3; ghostArenaState.message = ''; renderGhostArena(); });
-    await page.getByRole('button', { name: '상대 찾기' }).click();
+    await page.evaluate(() => { ghostArenaState.data.combatProtocolVersion = 4; ghostArenaState.message = ''; renderGhostArena(); });
+    await page.evaluate(() => fightRandomGhost());
     await expect(page.locator('.ghost-duel-canvas')).toBeVisible();
     await expect(page.locator('.ghost-result')).toContainText('승리');
     await expect(page.locator('.ghost-result')).toContainText('+12');
@@ -510,5 +528,37 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
     await expect(page.locator('#info-tooltip')).toContainText('내 DPS 약');
     await expect(page.locator('#info-tooltip')).toContainText('권장 약');
     await expect(page.locator('#info-tooltip')).toContainText('내 EHP 약');
+    const visibleCanvasSize = await page.locator('#cosmos-atlas-canvas').evaluate(canvas => ({ width: canvas.width, height: canvas.height }));
+    await page.evaluate(() => {
+        switchMapSubtab('map-tab-zones');
+        performUpdateStaticUI();
+    });
+    const hiddenCanvasSize = await page.locator('#cosmos-atlas-canvas').evaluate(canvas => ({ width: canvas.width, height: canvas.height }));
+    expect(hiddenCanvasSize).toEqual(visibleCanvasSize);
+    expect(failures).toEqual([]);
+});
+
+test('market exchange selector survives unrelated loot UI updates', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season = 10;
+        game.maxZoneId = 5;
+        game.inventory = [];
+        game.currencies.magicBud = 20;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        switchTab('tab-items');
+        switchItemSubtab('item-tab-market');
+        performUpdateStaticUI();
+    });
+    const selector = page.locator('#ui-market-exchange-from');
+    await selector.focus();
+    await expect(selector).toBeFocused();
+    await page.evaluate(() => {
+        game.inventory.push({ id: 987654, slot: '무기', name: '회귀 검증 전리품', rarity: 'normal', stats: [] });
+        performUpdateStaticUI();
+    });
+    await expect(selector).toBeFocused();
+    await expect(selector).toHaveValue('magicBud');
     expect(failures).toEqual([]);
 });
