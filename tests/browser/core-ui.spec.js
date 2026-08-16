@@ -190,6 +190,35 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
     expect(failures).toEqual([]);
 });
 
+test('equipment crafting shows the exact last change and repeats without losing the target', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.level = 200;
+        game.season = 20;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        const base = BASE_ITEM_DB.find(row => row.slot === '무기' && !row.dropOnly && !row.realmBase);
+        const item = createItemFromBase(base, 'rare', 10);
+        game.inventory = [item];
+        game.currencies.deepWhetstone = 2;
+        switchTab('tab-items');
+        switchItemSubtab('item-tab-craft');
+        selectForCrafting(item.id, false);
+    });
+
+    await expect(page.locator('.craft-result-ledger')).toHaveCount(0);
+    await page.evaluate(() => useCurrency('deepWhetstone'));
+    const result = page.locator('.craft-result-ledger');
+    await expect(result).toBeVisible();
+    await expect(result).toContainText('품질 0% → 1%');
+    await expect(result.locator('[data-repeat-craft="deepWhetstone"]')).toContainText('다시 사용 · 1');
+    await result.locator('[data-repeat-craft="deepWhetstone"]').click();
+    await expect(result).toContainText('품질 1% → 2%');
+    await expect(result.locator('[data-repeat-craft="deepWhetstone"]')).toContainText('다시 사용 · 0');
+    await expect.poll(() => page.evaluate(() => getSelectedCraftItem().quality)).toBe(2);
+    expect(failures).toEqual([]);
+});
+
 test('debug performance panel reports live frame and FX metrics', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page, '/?debug=perf');

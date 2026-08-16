@@ -10835,6 +10835,7 @@ async function useCurrency(currencyKey) {
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
         consumedSpore = true;
     }
+    let craftResultToken = craftingResultLedger.begin(item, { currencyKey, actionKey });
     game.currencies[currencyKey]--;
     let expiredGrowthDropAffix = growthCraft ? removeGrowthDropOverflowAffix(item) : null;
     if (expiredGrowthDropAffix) {
@@ -10970,6 +10971,7 @@ async function useCurrency(currencyKey) {
     let guaranteedTagNote = (sporeMode !== 'none' && usesSporeAffix && consumedSpore && guaranteedMod) ? ` · 홀씨 보장: ${guaranteedMod.statName}` : '';
     // 제작으로 태그/크기/옵션이 바뀔 수 있으므로 공간 시너지 캐시를 무효화한다.
     if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
+    craftingResultLedger.commit(craftResultToken, item);
     addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }

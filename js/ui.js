@@ -10831,7 +10831,6 @@ function renderCraftSelectedSummary(item) {
     host.innerHTML = `<div><strong>[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:var(--copy-bright); font-size:0.83em;">${item.baseName || ''}</div>`;
 }
 
-
 function renderChaosInfuserPanel(selectedItem) {
     let host = document.getElementById('ui-chaos-infuser-panel');
     if (!host) return;
@@ -11384,7 +11383,8 @@ function buildCraftActionButtons(item) {
         let selectedUniqueEffectHtml = selectedItem.rarity === 'unique' && selectedItem.uniqueEffect
             ? `<div class="craft-unique-effect"><strong>고유 효과</strong><span>${escapeHTML(selectedItem.uniqueEffect)}</span>${selectedUniqueEffectHint ? `<small>${escapeHTML(selectedUniqueEffectHint)}</small>` : ''}</div>`
             : '';
-        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${exceptionalStars}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div>${craftMetrics}${selectedUniqueEffectHtml}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
+        let craftResultHtml = craftingResultUi.getLedgerHtml(selectedItem);
+        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${exceptionalStars}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div>${craftMetrics}${selectedUniqueEffectHtml}</div><div class="craft-section-title">옵션</div>${lines.join('')}${craftResultHtml}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}</div>`;
     document.getElementById('fossil-item-display').innerHTML = craftSelectedBodyHtml;
