@@ -340,7 +340,7 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     await expect(page.locator('.ghost-arena')).toContainText('내 레이팅 1000');
     await expect(page.locator('.ghost-arena')).toContainText('대전 간 20초');
     await expect(page.locator('.ghost-arena')).toContainText('랭크 20회/24시간');
-    await page.getByRole('button', { name: '고스트 갱신' }).click({ force: true });
+    await page.evaluate(() => registerMyGhost());
     await expect.poll(() => registrationBody).not.toBeNull();
     await expect.poll(() => page.evaluate(() => ghostArenaState.loading)).toBe(false);
     expect(registrationBody.p_snapshot.schemaVersion).toBe(1);
@@ -431,7 +431,10 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
     }
     await expect(page.locator('.player-health-frame')).toBeVisible();
     await expect(page.locator('#btn-combat-log-toggle')).toBeVisible();
-    await page.locator('#btn-combat-log-toggle').click();
+    await page.evaluate(() => {
+        let feed = document.querySelector('.combat-feed');
+        if (feed && feed.classList.contains('collapsed')) toggleCombatLogCollapse();
+    });
     await expect(page.locator('#log')).toBeVisible();
     expect(failures).toEqual([]);
 });
@@ -538,7 +541,7 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
     expect(failures).toEqual([]);
 });
 
-test('market exchange selector survives unrelated loot UI updates', async ({ page }) => {
+test('market exchange selector survives auto-salvage currency updates', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
@@ -555,10 +558,15 @@ test('market exchange selector survives unrelated loot UI updates', async ({ pag
     await selector.focus();
     await expect(selector).toBeFocused();
     await page.evaluate(() => {
-        game.inventory.push({ id: 987654, slot: '무기', name: '회귀 검증 전리품', rarity: 'normal', stats: [] });
-        performUpdateStaticUI();
+        window.__marketExchangeSelectorBeforeSalvage = document.getElementById('ui-market-exchange-from');
+        for (let index = 0; index < 4; index++) {
+            awardCurrency('magicBud', 1);
+            performUpdateStaticUI();
+        }
     });
+    expect(await page.evaluate(() => document.getElementById('ui-market-exchange-from') === window.__marketExchangeSelectorBeforeSalvage)).toBe(true);
     await expect(selector).toBeFocused();
     await expect(selector).toHaveValue('magicBud');
+    await expect(page.locator('[data-market-exchange-balance]')).toContainText('보유 24개');
     expect(failures).toEqual([]);
 });

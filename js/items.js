@@ -1404,6 +1404,17 @@ function setMarketExchangeSelection(kind, value) {
     renderMarketUI();
 }
 
+function updateMarketExchangeAvailability(listEl, recipe, have, maxTimes) {
+    let balance = listEl.querySelector('[data-market-exchange-balance]');
+    let onceButton = listEl.querySelector('[data-market-exchange-once]');
+    let allButton = listEl.querySelector('[data-market-exchange-all]');
+    if (balance) balance.textContent = `보유 ${have}개 · 최대 ${maxTimes}회 교환 가능`;
+    if (onceButton) onceButton.disabled = maxTimes < 1;
+    if (!allButton) return;
+    allButton.disabled = maxTimes < 1;
+    allButton.textContent = `최대 ${maxTimes * recipe.need} → ${maxTimes * recipe.gain}`;
+}
+
 function renderMarketExchangePicker(listEl) {
     let getSelectedValue = id => {
         if (!listEl || typeof listEl.querySelector !== 'function') return '';
@@ -1432,8 +1443,10 @@ function renderMarketExchangePicker(listEl) {
     let maxTimes = Math.floor(have / recipe.need);
     let spendAll = maxTimes * recipe.need;
     let gainAll = maxTimes * recipe.gain;
-    let renderKey = `${recipe.id}:${have}:${maxTimes}`;
-    if (listEl.dataset && listEl.dataset.marketExchangeRenderKey === renderKey) return;
+    if (listEl.dataset && listEl.dataset.marketExchangeRecipeId === recipe.id) {
+        updateMarketExchangeAvailability(listEl, recipe, have, maxTimes);
+        return;
+    }
     let tone = (recipe.to === 'goldenRule' || recipe.from === 'goldenRule') ? 'divine' : (recipe.to === 'formlessDew' ? 'chaos' : 'basic');
     let fromOptions = fromKeys.map(key => `<option value="${key}" ${key === recipe.from ? 'selected' : ''}>${getName(key)}</option>`).join('');
     let toOptions = availableRecipes.map(row => `<option value="${row.to}" ${row.to === recipe.to ? 'selected' : ''}>${getName(row.to)}</option>`).join('');
@@ -1445,14 +1458,14 @@ function renderMarketExchangePicker(listEl) {
         </div>
         <div class="market-exchange-quote">
             <span>현재 교환가</span><strong>${getDisplayName(recipe.from)} ${recipe.need}개 <b>→</b> ${getDisplayName(recipe.to)} ${recipe.gain}개</strong>
-            <small>보유 ${have}개 · 최대 ${maxTimes}회 교환 가능</small>
+            <small data-market-exchange-balance>보유 ${have}개 · 최대 ${maxTimes}회 교환 가능</small>
         </div>
         <div class="market-exchange-actions">
-            <button onclick="exchangeAtMarket('${recipe.id}', false)" ${maxTimes < 1 ? 'disabled' : ''}>1회 교환</button>
-            <button class="market-exchange-all" onclick="exchangeAtMarket('${recipe.id}', true)" ${maxTimes < 1 ? 'disabled' : ''}>최대 ${spendAll} → ${gainAll}</button>
+            <button data-market-exchange-once onclick="exchangeAtMarket('${recipe.id}', false)" ${maxTimes < 1 ? 'disabled' : ''}>1회 교환</button>
+            <button data-market-exchange-all class="market-exchange-all" onclick="exchangeAtMarket('${recipe.id}', true)" ${maxTimes < 1 ? 'disabled' : ''}>최대 ${spendAll} → ${gainAll}</button>
         </div>
     </div>`;
-    if (listEl.dataset) listEl.dataset.marketExchangeRenderKey = renderKey;
+    if (listEl.dataset) listEl.dataset.marketExchangeRecipeId = recipe.id;
 }
 
 function renderMarketUI() {
