@@ -531,13 +531,15 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
 test('mobile battle HUD stays within the viewport and exposes combat log', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
     const failures = watchRuntimeFailures(page);
+    await page.setViewportSize({ width: 320, height: 800 });
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
+        syncMapCompleteActionQuickControl();
+    });
     for (const width of [320, 360, 390]) {
         await page.setViewportSize({ width, height: 800 });
-        await openLocalGame(page);
-        await page.evaluate(() => {
-            document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
-            syncMapCompleteActionQuickControl();
-        });
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const compactHud = await page.evaluate(() => {
             const rect = selector => document.querySelector(selector).getBoundingClientRect();
             const overlaps = (left, right) => left.right > right.left + 1
