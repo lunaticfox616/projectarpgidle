@@ -10,7 +10,8 @@ begin;
 
 alter table public.playtest_runs
     add column if not exists content_context jsonb not null default '{}'::jsonb,
-    add column if not exists skill_element text;
+    add column if not exists skill_element text,
+    add column if not exists ghost_snapshot jsonb not null default '{}'::jsonb;
 
 alter table public.playtest_runs drop constraint if exists playtest_runs_result_check;
 alter table public.playtest_runs add constraint playtest_runs_result_check
@@ -269,6 +270,7 @@ create table if not exists public.ghost_profiles (
     skill_element text not null check (skill_element in ('phys', 'fire', 'cold', 'light', 'chaos')),
     dps bigint not null check (dps > 0),
     ehp_by_element jsonb not null,
+    combat_snapshot jsonb not null default '{}'::jsonb,
     rating integer not null default 1000 check (rating between 100 and 4000),
     wins integer not null default 0,
     losses integer not null default 0,
@@ -278,6 +280,8 @@ create table if not exists public.ghost_profiles (
     active boolean not null default true,
     updated_at timestamptz not null default now()
 );
+
+alter table public.ghost_profiles add column if not exists combat_snapshot jsonb not null default '{}'::jsonb;
 
 create table if not exists public.ghost_matches (
     id bigint generated always as identity primary key,
@@ -318,6 +322,189 @@ as $$
                       then (values_json ->> 'phys')::numeric end, 1)));
 $$;
 
+create or replace function public.ghost_snapshot_number(
+    payload jsonb, field_name text, fallback numeric, minimum numeric, maximum numeric
+)
+returns numeric
+language sql
+immutable
+as $$
+    select greatest(minimum, least(maximum, coalesce(
+        case when jsonb_typeof(payload -> field_name) = 'number'
+             then (payload ->> field_name)::numeric end, fallback)));
+$$;
+
+create or replace function public.normalize_ghost_combat_snapshot(payload jsonb, measured_dps numeric, measured_ehp jsonb)
+returns jsonb
+language plpgsql
+immutable
+as $$
+declare
+    source jsonb := coalesce(payload, '{}'::jsonb);
+    element text := case when source ->> 'skillElement' in ('phys','fire','cold','light','chaos') then source ->> 'skillElement' else 'phys' end;
+    style text := case when source ->> 'style' in ('melee','projectile','spell','dot','channel','summon') then source ->> 'style' else 'melee' end;
+    hero text := case when source ->> 'heroId' ~ '^hero([1-9]|10)$' then source ->> 'heroId' else 'hero1' end;
+    direct_ehp jsonb := coalesce(source -> 'directEhpByElement', '{}'::jsonb);
+begin
+    return jsonb_build_object(
+        'schemaVersion', 1, 'heroId', hero, 'activeSkill', left(coalesce(source ->> 'activeSkill', '기본 공격'), 80),
+        'skillElement', element, 'style', style,
+        'dps', greatest(1, least(9000000000000000::numeric, measured_dps)),
+        'directDps', public.ghost_snapshot_number(source, 'directDps', measured_dps, 0, measured_dps),
+        'dotDps', public.ghost_snapshot_number(source, 'dotDps', 0, 0, measured_dps),
+        'summonDps', public.ghost_snapshot_number(source, 'summonDps', 0, 0, measured_dps),
+        'maxHp', public.ghost_snapshot_number(source, 'maxHp', 1, 1, 9000000000000000),
+        'energyShield', public.ghost_snapshot_number(source, 'energyShield', 0, 0, 9000000000000000),
+        'directEhpByElement', jsonb_build_object(
+            'phys', public.ghost_snapshot_number(direct_ehp, 'phys', public.ghost_ehp_for_element(measured_ehp, 'phys'), 1, 9000000000000000),
+            'fire', public.ghost_snapshot_number(direct_ehp, 'fire', public.ghost_ehp_for_element(measured_ehp, 'fire'), 1, 9000000000000000),
+            'cold', public.ghost_snapshot_number(direct_ehp, 'cold', public.ghost_ehp_for_element(measured_ehp, 'cold'), 1, 9000000000000000),
+            'light', public.ghost_snapshot_number(direct_ehp, 'light', public.ghost_ehp_for_element(measured_ehp, 'light'), 1, 9000000000000000),
+            'chaos', public.ghost_snapshot_number(direct_ehp, 'chaos', public.ghost_ehp_for_element(measured_ehp, 'chaos'), 1, 9000000000000000)),
+        'attackSpeed', public.ghost_snapshot_number(source, 'attackSpeed', 1, 0.2, 8),
+        'critChance', public.ghost_snapshot_number(source, 'critChance', 0, 0, 100),
+        'critMultiplier', public.ghost_snapshot_number(source, 'critMultiplier', 1.25, 1, 20),
+        'damageRollMinPct', public.ghost_snapshot_number(source, 'damageRollMinPct', 100, 5, 1000),
+        'damageRollMaxPct', public.ghost_snapshot_number(source, 'damageRollMaxPct', 100, 5, 1000),
+        'doubleStrikeChance', public.ghost_snapshot_number(source, 'doubleStrikeChance', 0, 0, 500),
+        'accuracy', public.ghost_snapshot_number(source, 'accuracy', 1, 1, 9000000000000000),
+        'evasion', public.ghost_snapshot_number(source, 'evasion', 0, 0, 9000000000000000),
+        'blockChance', public.ghost_snapshot_number(source, 'blockChance', 0, 0, 75),
+        'deflectChance', public.ghost_snapshot_number(source, 'deflectChance', 0, 0, 75),
+        'deflectDamageReduce', public.ghost_snapshot_number(source, 'deflectDamageReduce', 40, 40, 85),
+        'leechPct', public.ghost_snapshot_number(source, 'leechPct', 0, 0, 20),
+        'recoveryPct', public.ghost_snapshot_number(source, 'recoveryPct', 0, 0, 10));
+end;
+$$;
+
+create or replace function public.ghost_duel_roll(seed_value text, roll_key text)
+returns numeric
+language sql
+immutable
+as $$
+    select abs(mod(hashtextextended(seed_value || ':' || roll_key, 0), 1000001)) / 1000000.0;
+$$;
+
+create or replace function public.prepare_ghost_duel_fighter(snapshot jsonb, enemy_element text, fallback_ehp jsonb)
+returns jsonb
+language sql
+immutable
+as $$
+    select snapshot || jsonb_build_object(
+        'maxVitality', public.ghost_snapshot_number(coalesce(snapshot -> 'directEhpByElement', fallback_ehp), enemy_element,
+            public.ghost_ehp_for_element(fallback_ehp, enemy_element), 1, 9000000000000000),
+        'attackIntervalMs', round(1000 / public.ghost_snapshot_number(snapshot, 'attackSpeed', 1, 0.2, 8)));
+$$;
+
+create or replace function public.resolve_ghost_duel_attack(attacker jsonb, defender jsonb, attack_context jsonb, entropy numeric)
+returns jsonb
+language plpgsql
+immutable
+as $$
+declare
+    seed_value text := attack_context ->> 'seed'; key_value text := attack_context ->> 'key';
+    accuracy numeric := public.ghost_snapshot_number(attacker, 'accuracy', 1, 1, 9000000000000000);
+    evasion numeric := public.ghost_snapshot_number(defender, 'evasion', 0, 0, 9000000000000000);
+    evade_chance numeric := least(70, evasion / greatest(1, evasion + accuracy * 3.5) * 100);
+    next_entropy numeric := entropy + (100 - evade_chance);
+    crit_chance numeric := public.ghost_snapshot_number(attacker, 'critChance', 0, 0, 100);
+    crit_multiplier numeric := public.ghost_snapshot_number(attacker, 'critMultiplier', 1.25, 1, 20);
+    roll_min numeric := public.ghost_snapshot_number(attacker, 'damageRollMinPct', 100, 5, 1000);
+    roll_max numeric := public.ghost_snapshot_number(attacker, 'damageRollMaxPct', 100, roll_min, 1000);
+    double_chance numeric := public.ghost_snapshot_number(attacker, 'doubleStrikeChance', 0, 0, 500);
+    attacks_per_second numeric := public.ghost_snapshot_number(attacker, 'attackSpeed', 1, 0.2, 8);
+    expected_multiplier numeric; actual_multiplier numeric; damage_value numeric; strike_count integer; is_crit boolean;
+begin
+    if next_entropy < 100 then return jsonb_build_object('outcome','evade','damage',0,'entropy',next_entropy); end if;
+    next_entropy := next_entropy - 100;
+    if public.ghost_duel_roll(seed_value, key_value || ':block') * 100 < public.ghost_snapshot_number(defender, 'blockChance', 0, 0, 75) then
+        return jsonb_build_object('outcome','block','damage',0,'entropy',next_entropy);
+    end if;
+    is_crit := public.ghost_duel_roll(seed_value, key_value || ':crit') * 100 < crit_chance;
+    strike_count := 1 + floor(double_chance / 100)::integer;
+    if public.ghost_duel_roll(seed_value, key_value || ':double') * 100 < mod(double_chance, 100) then strike_count := strike_count + 1; end if;
+    expected_multiplier := (1 + crit_chance / 100 * (crit_multiplier - 1)) * ((roll_min + roll_max) / 200) * (1 + double_chance / 100);
+    actual_multiplier := (case when is_crit then crit_multiplier else 1 end)
+        * (roll_min + (roll_max - roll_min) * public.ghost_duel_roll(seed_value, key_value || ':damage')) / 100 * strike_count;
+    damage_value := public.ghost_snapshot_number(attacker, 'dps', 1, 1, 9000000000000000)
+        / attacks_per_second / greatest(0.01, expected_multiplier) * actual_multiplier
+        * public.ghost_snapshot_number(attack_context, 'scale', 1, 0.000001, 1000);
+    if public.ghost_duel_roll(seed_value, key_value || ':deflect') * 100 < public.ghost_snapshot_number(defender, 'deflectChance', 0, 0, 75) then
+        damage_value := damage_value * (1 - public.ghost_snapshot_number(defender, 'deflectDamageReduce', 40, 40, 85) / 100);
+        return jsonb_build_object('outcome','deflect','damage',round(damage_value),'entropy',next_entropy,'crit',is_crit,'strikes',strike_count);
+    end if;
+    return jsonb_build_object('outcome','hit','damage',round(damage_value),'entropy',next_entropy,'crit',is_crit,'strikes',strike_count);
+end;
+$$;
+
+create or replace function public.simulate_ghost_duel(left_snapshot jsonb, right_snapshot jsonb, seed_value text)
+returns jsonb
+language plpgsql
+immutable
+as $$
+declare
+    left_fighter jsonb; right_fighter jsonb; left_action jsonb; right_action jsonb; replay_events jsonb := '[]'::jsonb;
+    left_max numeric; right_max numeric; left_hp numeric; right_hp numeric; left_next numeric := 700; right_next numeric := 700;
+    left_entropy numeric; right_entropy numeric; shared_scale numeric; recovery_scale numeric; damage_scale numeric;
+    elapsed integer := 0; step_number integer; winner text := 'draw';
+begin
+    left_fighter := public.prepare_ghost_duel_fighter(left_snapshot, right_snapshot ->> 'skillElement', left_snapshot -> 'directEhpByElement');
+    right_fighter := public.prepare_ghost_duel_fighter(right_snapshot, left_snapshot ->> 'skillElement', right_snapshot -> 'directEhpByElement');
+    left_max := (left_fighter ->> 'maxVitality')::numeric; right_max := (right_fighter ->> 'maxVitality')::numeric;
+    left_hp := left_max; right_hp := right_max;
+    shared_scale := sqrt((right_max / greatest(1, (left_fighter ->> 'dps')::numeric))
+        * (left_max / greatest(1, (right_fighter ->> 'dps')::numeric))) / 10;
+    shared_scale := greatest(0.000001, least(1000, shared_scale));
+    left_entropy := floor(public.ghost_duel_roll(seed_value, 'left:entropy') * 100);
+    right_entropy := floor(public.ghost_duel_roll(seed_value, 'right:entropy') * 100);
+    for step_number in 1..300 loop
+        elapsed := step_number * 100; recovery_scale := case when elapsed < 20000 then 1 when elapsed < 25000 then 0.5 else 0 end;
+        damage_scale := case when elapsed < 25000 then 1 else 1.5 end;
+        left_hp := least(left_max, left_hp + left_max * (left_fighter ->> 'recoveryPct')::numeric / 1000 * recovery_scale);
+        right_hp := least(right_max, right_hp + right_max * (right_fighter ->> 'recoveryPct')::numeric / 1000 * recovery_scale);
+        left_action := null; right_action := null;
+        if elapsed >= left_next and left_hp > 0 then
+            left_action := public.resolve_ghost_duel_attack(left_fighter, right_fighter,
+                jsonb_build_object('seed',seed_value,'key','left:' || step_number,'scale',shared_scale * damage_scale), left_entropy);
+            left_entropy := (left_action ->> 'entropy')::numeric; left_next := left_next + (left_fighter ->> 'attackIntervalMs')::numeric;
+        end if;
+        if elapsed >= right_next and right_hp > 0 then
+            right_action := public.resolve_ghost_duel_attack(right_fighter, left_fighter,
+                jsonb_build_object('seed',seed_value,'key','right:' || step_number,'scale',shared_scale * damage_scale), right_entropy);
+            right_entropy := (right_action ->> 'entropy')::numeric; right_next := right_next + (right_fighter ->> 'attackIntervalMs')::numeric;
+        end if;
+        if left_action is not null then left_hp := least(left_max, left_hp + least(left_max * 0.04, (left_action ->> 'damage')::numeric * (left_fighter ->> 'leechPct')::numeric / 100)); end if;
+        if right_action is not null then right_hp := least(right_max, right_hp + least(right_max * 0.04, (right_action ->> 'damage')::numeric * (right_fighter ->> 'leechPct')::numeric / 100)); end if;
+        right_hp := greatest(0, right_hp - coalesce((left_action ->> 'damage')::numeric, 0));
+        left_hp := greatest(0, left_hp - coalesce((right_action ->> 'damage')::numeric, 0));
+        if left_action is not null or right_action is not null then
+            replay_events := replay_events || jsonb_build_array(jsonb_build_object('t',elapsed,'left',left_action,'right',right_action,
+                'leftPct',round(left_hp / left_max * 1000) / 10,'rightPct',round(right_hp / right_max * 1000) / 10));
+        end if;
+        if left_hp <= 0 or right_hp <= 0 then exit; end if;
+    end loop;
+    if left_hp > 0 and right_hp <= 0 then winner := 'left'; elsif right_hp > 0 and left_hp <= 0 then winner := 'right'; end if;
+    return jsonb_build_object('schemaVersion',1,'winner',winner,'durationMs',elapsed,'events',replay_events,
+        'leftMax',round(left_max),'rightMax',round(right_max),'leftFinalPct',round(left_hp / left_max * 1000) / 10,
+        'rightFinalPct',round(right_hp / right_max * 1000) / 10,'suddenDeathMs',25000);
+end;
+$$;
+
+do $ghost_combat_contract$
+declare
+    measured_ehp jsonb := '{"phys":10000,"fire":10000,"cold":10000,"light":10000,"chaos":10000}'::jsonb;
+    raw_snapshot jsonb := '{"schemaVersion":1,"heroId":"hero1","activeSkill":"기본 공격","skillElement":"phys","style":"melee","dps":1000,"directEhpByElement":{"phys":10000,"fire":10000,"cold":10000,"light":10000,"chaos":10000},"attackSpeed":1,"critChance":10,"critMultiplier":1.5,"damageRollMinPct":80,"damageRollMaxPct":120,"accuracy":500,"evasion":500}'::jsonb;
+    snapshot jsonb; first_result jsonb; repeated_result jsonb;
+begin
+    snapshot := public.normalize_ghost_combat_snapshot(raw_snapshot, 1000, measured_ehp);
+    first_result := public.simulate_ghost_duel(snapshot, snapshot, 'ghost-combat-contract');
+    repeated_result := public.simulate_ghost_duel(snapshot, snapshot, 'ghost-combat-contract');
+    if first_result <> repeated_result then raise exception 'GHOST_SIMULATION_NOT_DETERMINISTIC'; end if;
+    if (first_result ->> 'durationMs')::integer > 30000 then raise exception 'GHOST_SIMULATION_TIME_LIMIT_BROKEN'; end if;
+    if jsonb_array_length(first_result -> 'events') = 0 then raise exception 'GHOST_SIMULATION_EMPTY_REPLAY'; end if;
+end;
+$ghost_combat_contract$;
+
 create or replace function public.register_my_ghost(p_combat_version text)
 returns jsonb
 language plpgsql
@@ -342,6 +529,7 @@ begin
     select * into latest_run from public.playtest_runs
      where user_id = account_id and app_version = p_combat_version
        and dps > 0 and ehp_min > 0 and active_skill is not null
+       and jsonb_typeof(ghost_snapshot) = 'object' and ghost_snapshot ->> 'schemaVersion' = '1'
        and skill_element in ('phys', 'fire', 'cold', 'light', 'chaos')
        and created_at >= now() - interval '24 hours'
      order by created_at desc limit 1;
@@ -359,26 +547,28 @@ begin
       from (select * from public.playtest_runs
              where user_id = account_id and app_version = p_combat_version
                and ascend_class is not distinct from latest_run.ascend_class
+               and hero_id is not distinct from latest_run.hero_id
                and active_skill = latest_run.active_skill and dps > 0 and ehp_min > 0
+               and jsonb_typeof(ghost_snapshot) = 'object' and ghost_snapshot ->> 'schemaVersion' = '1'
                and created_at >= now() - interval '24 hours'
              order by created_at desc limit 10) samples;
     if sample_count < 3 then raise exception 'GHOST_NEEDS_3_RUNS'; end if;
 
     insert into public.ghost_profiles(
         user_id, nickname, ascend_class, active_skill, skill_element,
-        dps, ehp_by_element, combat_version, updated_at
+        dps, ehp_by_element, combat_snapshot, combat_version, updated_at
     ) values (
         account_id, profile_name, latest_run.ascend_class, latest_run.active_skill, latest_run.skill_element,
-        least(9000000000000000::numeric, greatest(1, median_dps))::bigint,
-        element_ehp, p_combat_version, now()
+        least(9000000000000000::numeric, greatest(1, median_dps))::bigint, element_ehp,
+        public.normalize_ghost_combat_snapshot(latest_run.ghost_snapshot, median_dps, element_ehp), p_combat_version, now()
     )
     on conflict (user_id) do update set
         nickname = excluded.nickname, ascend_class = excluded.ascend_class,
         active_skill = excluded.active_skill, skill_element = excluded.skill_element,
-        dps = excluded.dps, ehp_by_element = excluded.ehp_by_element,
+        dps = excluded.dps, ehp_by_element = excluded.ehp_by_element, combat_snapshot = excluded.combat_snapshot,
         combat_version = excluded.combat_version, active = true, updated_at = now()
     returning * into registered;
-    return to_jsonb(registered) - 'user_id';
+    return to_jsonb(registered) - 'user_id' - 'combat_snapshot';
 end;
 $$;
 
@@ -394,7 +584,8 @@ declare
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     select jsonb_build_object(
-        'me', (select to_jsonb(me) - 'user_id' from public.ghost_profiles me where me.user_id = account_id),
+        'combatProtocolVersion', 2,
+        'me', (select to_jsonb(me) - 'user_id' - 'combat_snapshot' from public.ghost_profiles me where me.user_id = account_id),
         'leaderboard', coalesce((select jsonb_agg(to_jsonb(board)) from (
             select row_number() over (order by rating desc, wins desc, updated_at asc) as rank,
                    nickname, ascend_class, active_skill, rating, wins, losses, draws, matches,
@@ -434,8 +625,7 @@ declare
     defender public.ghost_profiles%rowtype;
     defender_id uuid;
     seed_value text;
-    challenger_ttk numeric;
-    defender_ttk numeric;
+    duel jsonb;
     result_value text;
     challenger_score numeric;
     expected_score numeric;
@@ -466,20 +656,12 @@ begin
     select * into defender from public.ghost_profiles where user_id = defender_id for update;
 
     seed_value := md5(account_id::text || defender_id::text || clock_timestamp()::text || random()::text);
-    challenger_ttk := public.ghost_ehp_for_element(defender.ehp_by_element, challenger.skill_element)
-        / greatest(1, challenger.dps)
-        * (0.94 + abs(mod(hashtextextended(seed_value || 'a', 0), 1201)) / 10000.0);
-    defender_ttk := public.ghost_ehp_for_element(challenger.ehp_by_element, defender.skill_element)
-        / greatest(1, defender.dps)
-        * (0.94 + abs(mod(hashtextextended(seed_value || 'b', 0), 1201)) / 10000.0);
-
-    if abs(challenger_ttk - defender_ttk) / greatest(challenger_ttk, defender_ttk) <= 0.04 then
-        result_value := 'draw'; challenger_score := 0.5;
-    elsif challenger_ttk < defender_ttk then
-        result_value := 'win'; challenger_score := 1;
-    else
-        result_value := 'loss'; challenger_score := 0;
-    end if;
+    duel := public.simulate_ghost_duel(challenger.combat_snapshot, defender.combat_snapshot, seed_value);
+    result_value := case duel ->> 'winner' when 'left' then 'win' when 'right' then 'loss' else 'draw' end;
+    challenger_score := case result_value when 'win' then 1 when 'loss' then 0 else 0.5 end;
+    duel := duel || jsonb_build_object('seed',seed_value,
+        'left', jsonb_build_object('nickname',challenger.nickname,'ascendClass',challenger.ascend_class,'snapshot',challenger.combat_snapshot),
+        'right', jsonb_build_object('nickname',defender.nickname,'ascendClass',defender.ascend_class,'snapshot',defender.combat_snapshot));
     expected_score := 1 / (1 + power(10::numeric, (defender.rating - challenger.rating) / 400.0));
     rating_delta := round(24 * (challenger_score - expected_score));
     if rating_delta = 0 and result_value <> 'draw' then rating_delta := case when result_value = 'win' then 1 else -1 end; end if;
@@ -515,7 +697,7 @@ begin
         'ratingBefore', challenger.rating,
         'ratingAfter', greatest(100, least(4000, challenger.rating + rating_delta)),
         'ratingDelta', greatest(100, least(4000, challenger.rating + rating_delta)) - challenger.rating,
-        'seed', seed_value
+        'seed', seed_value, 'duel', duel
     );
 end;
 $$;
@@ -531,8 +713,7 @@ declare
     challenger public.ghost_profiles%rowtype;
     defender public.ghost_profiles%rowtype;
     seed_value text;
-    challenger_ttk numeric;
-    defender_ttk numeric;
+    duel jsonb;
     result_value text;
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
@@ -559,17 +740,11 @@ begin
     if not found then raise exception 'GHOST_TARGET_NOT_REGISTERED'; end if;
 
     seed_value := md5(account_id::text || p_target_user_id::text || clock_timestamp()::text || random()::text);
-    challenger_ttk := public.ghost_ehp_for_element(defender.ehp_by_element, challenger.skill_element)
-        / greatest(1, challenger.dps)
-        * (0.94 + abs(mod(hashtextextended(seed_value || 'a', 0), 1201)) / 10000.0);
-    defender_ttk := public.ghost_ehp_for_element(challenger.ehp_by_element, defender.skill_element)
-        / greatest(1, defender.dps)
-        * (0.94 + abs(mod(hashtextextended(seed_value || 'b', 0), 1201)) / 10000.0);
-    if abs(challenger_ttk - defender_ttk) / greatest(challenger_ttk, defender_ttk) <= 0.04 then
-        result_value := 'draw';
-    elsif challenger_ttk < defender_ttk then result_value := 'win';
-    else result_value := 'loss';
-    end if;
+    duel := public.simulate_ghost_duel(challenger.combat_snapshot, defender.combat_snapshot, seed_value);
+    result_value := case duel ->> 'winner' when 'left' then 'win' when 'right' then 'loss' else 'draw' end;
+    duel := duel || jsonb_build_object('seed',seed_value,
+        'left', jsonb_build_object('nickname',challenger.nickname,'ascendClass',challenger.ascend_class,'snapshot',challenger.combat_snapshot),
+        'right', jsonb_build_object('nickname',defender.nickname,'ascendClass',defender.ascend_class,'snapshot',defender.combat_snapshot));
 
     insert into public.ghost_matches(
         challenger_id, defender_id, result,
@@ -584,7 +759,7 @@ begin
         'opponent', defender.nickname, 'opponentClass', defender.ascend_class,
         'opponentSkill', defender.active_skill, 'result', result_value,
         'ratingBefore', challenger.rating, 'ratingAfter', challenger.rating,
-        'ratingDelta', 0, 'ranked', false, 'seed', seed_value
+        'ratingDelta', 0, 'ranked', false, 'seed', seed_value, 'duel', duel
     );
 end;
 $$;
@@ -593,6 +768,12 @@ revoke all on function public.register_my_ghost(text) from public, anon;
 revoke all on function public.get_ghost_arena(text) from public, anon;
 revoke all on function public.fight_ghost(text) from public, anon;
 revoke all on function public.fight_ghost_target(uuid, text) from public, anon;
+revoke all on function public.ghost_snapshot_number(jsonb, text, numeric, numeric, numeric) from public, anon, authenticated;
+revoke all on function public.normalize_ghost_combat_snapshot(jsonb, numeric, jsonb) from public, anon, authenticated;
+revoke all on function public.ghost_duel_roll(text, text) from public, anon, authenticated;
+revoke all on function public.prepare_ghost_duel_fighter(jsonb, text, jsonb) from public, anon, authenticated;
+revoke all on function public.resolve_ghost_duel_attack(jsonb, jsonb, jsonb, numeric) from public, anon, authenticated;
+revoke all on function public.simulate_ghost_duel(jsonb, jsonb, text) from public, anon, authenticated;
 grant execute on function public.register_my_ghost(text) to authenticated;
 grant execute on function public.get_ghost_arena(text) to authenticated;
 grant execute on function public.fight_ghost(text) to authenticated;
