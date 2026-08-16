@@ -823,6 +823,138 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   background: rgba(19, 55, 34, .55);
 }
 
+.cosmos-directive-section {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid #314b63;
+  border-radius: 11px;
+  background: linear-gradient(180deg, rgba(10, 19, 30, .96), rgba(7, 13, 21, .96));
+}
+
+.cosmos-directive-title,
+.cosmos-directive-card-head,
+.cosmos-directive-reward {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+}
+
+.cosmos-directive-title span {
+  color: #8fd5ff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .05em;
+}
+
+.cosmos-directive-title small,
+.cosmos-directive-section.exhausted p {
+  margin: 0;
+  color: #8299ad;
+  font-size: 8px;
+}
+
+.cosmos-directive-list {
+  display: grid;
+  gap: 6px;
+}
+
+.cosmos-directive-card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-height: 92px;
+  padding: 8px 9px;
+  border: 1px solid #30465a;
+  border-radius: 9px;
+  color: #dbe8f3;
+  background: linear-gradient(145deg, rgba(20, 33, 48, .94), rgba(10, 17, 27, .96));
+  text-align: left;
+}
+
+.cosmos-directive-card:not(:disabled):hover {
+  border-color: #5da9d8;
+  transform: translateY(-1px);
+}
+
+.cosmos-directive-card.selected {
+  border-color: #70c9ff;
+  background: linear-gradient(145deg, rgba(24, 67, 94, .96), rgba(13, 31, 47, .98));
+  box-shadow: inset 3px 0 #73ceff, 0 0 15px rgba(93, 185, 238, .12);
+}
+
+.cosmos-directive-card.rare {
+  border-color: #d79af5;
+  background: linear-gradient(145deg, rgba(62, 25, 77, .94), rgba(20, 14, 37, .98));
+  box-shadow: inset 0 0 18px rgba(194, 98, 236, .08);
+}
+
+.cosmos-directive-card-head small {
+  color: #75bfe9;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.cosmos-directive-card-head b {
+  color: #9fe3b6;
+  font-size: 8px;
+}
+
+.cosmos-directive-card.rare .cosmos-directive-card-head small,
+.cosmos-directive-card.rare .cosmos-directive-card-head b {
+  color: #edb7ff;
+}
+
+.cosmos-directive-card > strong {
+  color: #ffffff;
+  font-size: 11px;
+}
+
+.cosmos-directive-desc {
+  color: #aebfce;
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.cosmos-directive-risk {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.cosmos-directive-risk i {
+  padding: 3px 2px;
+  border-radius: 4px;
+  color: #d5e0ea;
+  background: rgba(5, 10, 17, .55);
+  font-size: 7px;
+  font-style: normal;
+  text-align: center;
+}
+
+.cosmos-directive-reward b {
+  color: #f5d185;
+  font-size: 9px;
+}
+
+.cosmos-directive-reward em {
+  color: #c69ce7;
+  font-size: 8px;
+  font-style: normal;
+}
+
+.cosmos-directive-card:disabled:not(.selected) {
+  opacity: .48;
+}
+
+.cosmos-directive-section.exhausted {
+  color: #8ca0b2;
+  background: rgba(10, 17, 26, .7);
+}
+
 .cosmos-power-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1050,6 +1182,8 @@ body.light-mode .cosmos-summary,
 body.light-mode .cosmos-detail-section,
 body.light-mode .cosmos-node-facts span,
 body.light-mode .cosmos-reward-line,
+body.light-mode .cosmos-directive-section,
+body.light-mode .cosmos-directive-card,
 body.light-mode .cosmos-mastery-shell,
 body.light-mode .cosmos-mastery-card {
   background: #ffffff;
@@ -1065,8 +1199,19 @@ body.light-mode .cosmos-node-facts strong {
 
 body.light-mode .cosmos-desc,
 body.light-mode .cosmos-detail-source,
+body.light-mode .cosmos-directive-desc,
 body.light-mode .cosmos-help {
   color: #5f748d;
+}
+
+body.light-mode .cosmos-directive-card.selected {
+  border-color: #2d83b8;
+  background: #edf7ff;
+}
+
+body.light-mode .cosmos-directive-card.rare {
+  border-color: #a66bc1;
+  background: #fbf3ff;
 }
 
 @media (max-width: 1080px) {

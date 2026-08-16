@@ -470,31 +470,44 @@ function getSeasonBossProgressGate(zone, source) {
     return { met: true, label: '' };
 }
 
+function normalizeCosmosDirectiveSnapshot(source) {
+    if (!source || typeof source !== 'object') return null;
+    return {
+        id: String(source.id || 'survey'),
+        name: String(source.name || '안정 관측').slice(0, 40),
+        enemyHpMul: Math.max(0.5, Math.min(3, Number(source.enemyHpMul) || 1)),
+        enemyDamageMul: Math.max(0.5, Math.min(3, Number(source.enemyDamageMul) || 1)),
+        enemyAttackSpeedMul: Math.max(0.5, Math.min(2, Number(source.enemyAttackSpeedMul) || 1)),
+        rewardMul: Math.max(0.1, Math.min(5, Number(source.rewardMul) || 1)),
+        jackpotChance: Math.max(0, Math.min(0.5, Number(source.jackpotChance) || 0)),
+        jackpotBonusMul: Math.max(0, Math.min(5, Number(source.jackpotBonusMul) || 0)),
+        rare: source.rare === true
+    };
+}
+
+function createCosmosChallengeZone(state) {
+    const cosmos = state && state.cosmosAtlas && typeof state.cosmosAtlas === 'object' ? state.cosmosAtlas : {};
+    const challenge = cosmos.activeChallenge && typeof cosmos.activeChallenge === 'object' ? cosmos.activeChallenge : null;
+    if (!challenge) return null;
+    const galaxy = Math.max(0, Math.min(5, Math.floor(Number(challenge.galaxy) || 0)));
+    return {
+        id: 'cosmos_challenge', name: `우주계 ${challenge.name || '행성'}`, type: 'cosmos',
+        tier: Math.max(1, Math.floor(challenge.tier || 1)),
+        lootTier: Math.max(1, Math.floor(Number(challenge.lootTier) || (Math.max(1, galaxy) - 1) * 5 + 1)),
+        maxKills: 1, ele: challenge.ele || 'chaos', cosmosNodeId: challenge.nodeId || null,
+        cosmosGalaxy: galaxy, cosmosTag: challenge.tag || '', cosmosMechanicId: challenge.mechanicId || '',
+        recommendedDps: Math.max(0, Math.floor(Number(challenge.recommendedDps) || 0)),
+        recommendedEhp: Math.max(0, Math.floor(Number(challenge.recommendedEhp) || 0)),
+        gravity: Math.max(1, Number(challenge.gravity || 1)),
+        sizeClass: Math.max(1, Math.floor(challenge.sizeClass || 1)), theme: challenge.theme || '',
+        cosmosDirective: normalizeCosmosDirectiveSnapshot(challenge.directive)
+    };
+}
+
 function getZone(id) {
     if (id === 'cosmos_challenge') {
-        let cosmos = (game && game.cosmosAtlas && typeof game.cosmosAtlas === 'object') ? game.cosmosAtlas : {};
-        let c = (cosmos.activeChallenge && typeof cosmos.activeChallenge === 'object') ? cosmos.activeChallenge : null;
-        if (c) {
-            return {
-                id: 'cosmos_challenge',
-                name: `우주계 ${c.name || '행성'}`,
-                type: 'cosmos',
-                tier: Math.max(1, Math.floor(c.tier || 1)),
-                lootTier: Math.max(1, Math.floor(Number(c.lootTier)
-                    || (Math.max(1, Math.floor(Number(c.galaxy) || 1)) - 1) * 5 + 1)),
-                maxKills: 1,
-                ele: c.ele || 'chaos',
-                cosmosNodeId: c.nodeId || null,
-                cosmosGalaxy: Math.max(0, Math.min(5, Math.floor(Number(c.galaxy) || 0))),
-                cosmosTag: c.tag || '',
-                cosmosMechanicId: c.mechanicId || '',
-                recommendedDps: Math.max(0, Math.floor(Number(c.recommendedDps) || 0)),
-                recommendedEhp: Math.max(0, Math.floor(Number(c.recommendedEhp) || 0)),
-                gravity: Math.max(1, Number(c.gravity || 1)),
-                sizeClass: Math.max(1, Math.floor(c.sizeClass || 1)),
-                theme: c.theme || ''
-            };
-        }
+        const challengeZone = createCosmosChallengeZone(game);
+        if (challengeZone) return challengeZone;
     }
     if (id === 'beehive_run') {
         let step = Math.max(1, Math.floor((game && game.beehive && game.beehive.branchStep) || 1));

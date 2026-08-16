@@ -5901,6 +5901,18 @@ function getZoneStaticBossMods(zone, isBoss) {
     return zone.bossMods;
 }
 
+function applyCosmosDirectiveModifiers(modifiers, zone) {
+    const directive = zone && zone.cosmosDirective && typeof zone.cosmosDirective === 'object'
+        ? zone.cosmosDirective : null;
+    if (!directive) return modifiers;
+    modifiers.hpMul *= Math.max(0.5, Math.min(3, Number(directive.enemyHpMul) || 1));
+    modifiers.damageMul *= Math.max(0.5, Math.min(3, Number(directive.enemyDamageMul) || 1));
+    modifiers.attackSpeedMul *= Math.max(0.5, Math.min(2, Number(directive.enemyAttackSpeedMul) || 1));
+    const name = String(directive.name || '').trim();
+    if (name) modifiers.traitName = `${modifiers.traitName} · 탐사:${name}`;
+    return modifiers;
+}
+
 function getCosmosEnemyModifiers(zone, isElite, isBoss) {
     if (!zone || zone.type !== 'cosmos') return null;
     let tag = String(zone.cosmosTag || '').trim();
@@ -5990,7 +6002,7 @@ function getCosmosEnemyModifiers(zone, isElite, isBoss) {
         mod.patternMode = 'cosmosBoss';
         mod.traitName = `은하 보스: ${galaxyBossMechanic.name}`;
     }
-    return mod;
+    return applyCosmosDirectiveModifiers(mod, zone);
 }
 
 // 루프 20 이후 적 강화(특히 생명력) 곡선을 완만하게 만든다.
