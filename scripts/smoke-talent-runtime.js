@@ -98,6 +98,45 @@ guardianStats.blockChanceMax = 75;
 withRandom(0, () => context.performMonsterAttacks(guardianStats));
 assert.ok(context.game.talentCardRuntime && context.game.talentCardRuntime.stoneShieldAmount > 0, '실제 막기 성공이 돌 보호막을 생성해야 한다');
 
+resetGame();
+equipCard('hero8__guardian', 10);
+context.game.equipment['방패'] = {
+  id: 88001, slot: '방패', rarity: 'rare', baseStats: [{ id: 'baseBlockChance', val: 10 }], stats: []
+};
+const adamantStats = context.getPlayerStats();
+assert.strictEqual(sumStat('blockChanceMax'), 15, '금강불괴 Lv.10은 막기 확률 최대치를 15%p 높여야 한다');
+assert.strictEqual(sumStat('blockChancePct'), 100, '금강불괴 Lv.10은 방패 기본 막기 확률을 100% 증가시켜야 한다');
+assert.strictEqual(adamantStats.blockChanceMax, 65, '금강불괴가 실제 전투 막기 상한 50%를 65%로 높여야 한다');
+assert.strictEqual(adamantStats.blockChance, 22, '방패 기본 막기 10%가 2배가 되고 이면 막기 2%p가 더해져야 한다');
+assert.strictEqual(adamantStats.uniqueBlockedDamageTakenPct, 60, '금강불괴는 막은 피해의 60%를 받는 대가를 실제 전투 스탯으로 전달해야 한다');
+const adamantText = context.getTalentCardEffectLines('hero8', 'guardian', 10).join(' ');
+assert.ok(adamantText.includes('막기 확률 최대치 +15%') && adamantText.includes('방패 기본 막기 확률 증가 +100%') && adamantText.includes('막기 시 피해의 60%'),
+  '금강불괴 툴팁도 실제 상한과 배율을 표시해야 한다');
+
+function measureAdamantEnemyHit(blockChance) {
+  resetGame();
+  equipCard('hero8__guardian', 10);
+  context.game.equipment['방패'] = {
+    id: 88002, slot: '방패', rarity: 'rare', baseStats: [{ id: 'baseBlockChance', val: 10 }], stats: []
+  };
+  context.game.enemies = [makeEnemy(2, { attackTimer: 1 })];
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const stats = context.getPlayerStats();
+  stats.evadeChance = 0;
+  stats.blockChance = blockChance;
+  stats.blockChanceMax = 75;
+  stats.deflectChance = 0;
+  context.game.playerHp = 100000;
+  withRandom(0, () => context.performMonsterAttacks(stats));
+  return 100000 - context.game.playerHp;
+}
+
+const adamantFullHit = measureAdamantEnemyHit(0);
+const adamantBlockedHit = measureAdamantEnemyHit(75);
+assert.ok(adamantFullHit > 0, '금강불괴 부분 막기 비교용 일반 피격은 실제 피해를 줘야 한다');
+assert.strictEqual(adamantBlockedHit, Math.max(1, Math.floor(adamantFullHit * 0.6)),
+  '금강불괴 막기는 일반 막기처럼 피해를 지우지 않고 정확히 60%를 받아야 한다');
+
 function runMoonAttack(enemies, randomValue = 0.5) {
   resetGame();
   equipCard('hero4__hunter', 10);

@@ -1324,6 +1324,7 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 }
 
 .talent-bloom-navigator,
+.talent-current-combo,
 .talent-loadout-panel,
 .talent-bloom-empty {
     grid-column: 1 / -1;
@@ -1339,11 +1340,43 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     line-height: 1.45;
 }
 .talent-bloom-navigator {
-    padding: 11px;
     border: 1px solid #334d6c;
     border-radius: 12px;
     background: linear-gradient(145deg, rgba(27, 44, 67, .9), rgba(12, 22, 35, .9));
 }
+.talent-bloom-navigator > summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 11px;
+    cursor: pointer;
+    list-style: none;
+}
+.talent-bloom-navigator > summary::-webkit-details-marker { display: none; }
+.talent-bloom-navigator > summary span { display: grid; gap: 2px; }
+.talent-bloom-navigator > summary small { color: var(--copy-muted); font-weight: 400; }
+.talent-bloom-navigator > summary b { color: #fff1a8; font-variant-numeric: tabular-nums; }
+.talent-bloom-navigator[open] > summary { border-bottom: 1px solid rgba(85, 116, 151, .45); }
+.talent-bloom-navigator-body { padding: 11px; }
+.talent-current-combo {
+    display: grid;
+    grid-template-columns: minmax(100px, .65fr) auto minmax(100px, .65fr) minmax(180px, 1.25fr);
+    align-items: center;
+    gap: 10px;
+    padding: 11px 13px;
+    border: 1px solid rgba(197, 154, 255, .32);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(70, 40, 95, .55), rgba(15, 27, 43, .84));
+}
+.talent-current-combo > div { display: grid; gap: 2px; min-width: 0; }
+.talent-current-combo span { color: var(--copy-muted); font-size: .75em; }
+.talent-current-combo strong { color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.talent-current-combo > i { color: #dcaeff; font-style: normal; }
+.talent-current-result { padding-left: 11px; border-left: 1px solid rgba(220, 174, 255, .25); }
+.talent-current-result strong { color: #fff1a8; }
+.talent-current-result small { color: #9fe2b1; }
+.talent-current-combo.locked .talent-current-result small { color: #c2adcf; }
 .talent-bloom-navigator-head {
     display: flex;
     justify-content: space-between;
@@ -1391,6 +1424,18 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     color: var(--copy-bright);
     font-variant-numeric: tabular-nums;
 }
+.talent-combo-status { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(85, 116, 151, .36); }
+.talent-combo-status-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+.talent-combo-status-head span { color: var(--copy-muted); font-size: .76em; }
+.talent-combo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 6px; }
+.talent-combo-cell { display: grid; gap: 2px; min-width: 0; padding: 7px 8px; border: 1px solid #2e4058; border-radius: 8px; background: rgba(8, 15, 25, .72); }
+.talent-combo-cell span, .talent-combo-cell small { color: #8697aa; font-size: .72em; }
+.talent-combo-cell strong { color: #728095; font-size: .83em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.talent-combo-cell.unlocked { border-color: rgba(121, 219, 177, .36); background: rgba(28, 72, 58, .34); }
+.talent-combo-cell.unlocked strong { color: #e7fff4; }
+.talent-combo-cell.unlocked small { color: #9fe2b1; }
+.talent-combo-cell.current { box-shadow: inset 0 0 0 2px #f1c40f, 0 0 16px rgba(241, 196, 15, .14); }
+.talent-combo-empty { margin-top: 9px; color: var(--copy-muted); }
 .talent-loadout-panel {
     padding: 10px;
     border: 1px solid rgba(241, 196, 15, .2);
@@ -1410,9 +1455,13 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 }
 
 @media (max-width: 560px) {
+    .talent-current-combo { grid-template-columns: 1fr auto 1fr; }
+    .talent-current-result { grid-column: 1 / -1; padding: 8px 0 0; border-top: 1px solid rgba(220, 174, 255, .25); border-left: 0; }
     .talent-bloom-navigator-head { align-items: stretch; flex-direction: column; }
     .talent-bloom-view-tabs button { flex: 1; }
     .talent-bloom-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .talent-combo-status-head { display: grid; }
+    .talent-combo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .passive-investment-summary {

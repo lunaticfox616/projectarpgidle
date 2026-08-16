@@ -2834,7 +2834,7 @@ function getUniqueEffectImplementationReport() {
         'riderCompass','maxRollBonusHit','ceilingSmashDouble','minRollEqualsMaxRoll','hpToPhysPct','immuneIgnite',
         'rollGapDamagePct','rollGapCritAndDs','crowdEvasionMore','fewEnemyEvasionMore','evasionDanceOnEvade','loneEvasionCounter','critAdvanceEnergyShieldRecharge','energyShieldBreakRecharge','esToLightPct','underdogNonMaxRollMorePct','instakillNormalOnHitPct','projectileExtraShotChance',
         'abyssSocketOnItem','abyssSocketAndJewelAmp','leechEfficiencyOnKill','overkillSplash','dragonVeinGuard','fateTwinRollSync','realmBleedingEnemyDamageMore','realmRiftWaveOnHit','realmChaosDamageInstantLeech','realmInvulnerableBarrierOnHit','realmPoisonDuration','realmArmorToPhysicalDamage','realmDeathWard','realmAllResDownOnHit','realmKillMoveStacks','realmCursedTakenAndRefresh','realmEnemyRegenCutAndMinRoll','realmPhysDrHalfTakenAsMore','realmArmorAppliesToDot','realmMeleeArmorAmp','realmNoCollisionBlock','realmResonanceAndSuppCap','realmRegenRateAndRegen','realmMaxHpPct','realmAllMaxRes','frostSentinelBoots','shockTracerGreaves','venomStride','bleedBlockHelm','curseCrown','guardianArmor','warcryResonanceBelt','stackingElementalResDownOnHit','conditionManual','queenBeeSummonOnHit','bleedWeightOnBleedingHit','grandBreachCrown','labyrinthShackles','meteorFootsteps'
-        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence','extraFlaskUtilitySlots'
+        ,'cosmosFinalDmg','cosmosTakenLess','cosmosSpeedBurst','cosmosPenetration','cosmosSustain','cosmosBossSlayer','cosmosStatBundle','summonCapBonus','summonDeathDamageBuff','summonCritAspdStacks','summonNonCritNoDamage','summonEfficiencyBonus','rightRingSummonCap','genericTakenDamageReducePct','uniqueBlockChance','uniqueDeflectDamageReduce','blockRecoverEnergyShieldPct','blockedDamageTakenPct','uniqueTakenReduceWhen2Enemies','uniqueMaxResAll','deflectGrantShadowStealth','chaosTakenDamageReducePct','uniqueGemLevelBonus','lifeRecoupTakenDamage','immuneBleed','uniqueTakenReduceWhen1Enemy','lifePctAsEnergyShield','dsAndTargetAnyBonus','poisonDamageMorePct','immuneFreeze','uniqueMinDmgRoll','hitShockedEnemyDamageMorePct','noCollisionBlock','projectileTargetBonus','igniteDamageMorePct','cosmosAlwaysFirstHit','cosmosEnergyShieldAmpBypass','cosmosOrbitCycle','cosmosDeepSeaLeechCaps','cosmosTideEsRegenToLife','cosmosEqualDamageSplit','cosmosBalanceMitigation','cosmosTwinStarResonance','cosmosJudgmentLightning','cosmosDeathResist','cosmosVerdictSupportDamage','cosmosGuardianConditionInstant','cosmosBossDamageMore','cosmosCometChillNoFreeze','fixedAllMaxRes','kaleidoscopeShield','stealEliteTrait','mirrorOppositeRing','astraUniqueConvergence','extraFlaskUtilitySlots'
     ]);
     return {
         total: uniqueKeys.length,
@@ -3148,7 +3148,7 @@ function getPlayerStats() {
     }
     if (activeUniqueIds.has('uj_condensed_curse')) uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, 10);
     let uniqueSummonDeathDamageBuff=null, uniqueSummonCritAspdStacks=null, uniqueSummonNonCritNoDamage=false;
-    let uniqueBlockRecoverEnergyShieldPct=0, uniqueDeflectStealth=null, uniqueChaosTakenDamageReducePct=0, uniqueLifeRecoupTakenDamage=null, uniqueOverhealCapPct=0;
+    let uniqueBlockRecoverEnergyShieldPct=0, uniqueBlockedDamageTakenPct=0, uniqueDeflectStealth=null, uniqueChaosTakenDamageReducePct=0, uniqueLifeRecoupTakenDamage=null, uniqueOverhealCapPct=0;
     // 재능 개화 표면 키스톤: 장착된 카드가 부여하는 고유 효과를 동일 파이프라인에 주입
     if (typeof getActiveTalentKeystoneUniqueEffects === 'function') {
         getActiveTalentKeystoneUniqueEffects().forEach(e => { if (e && e.key) equippedUniqueEffects.push(e); });
@@ -3244,6 +3244,7 @@ function getPlayerStats() {
         else if (effect.key === 'uniqueBlockChance') addStatToBucket(reward, 'blockChance', Number(ep.chance || 0));
         else if (effect.key === 'uniqueDeflectDamageReduce') addStatToBucket(reward, 'deflectDamageReduce', Number(ep.pct || 0));
         else if (effect.key === 'blockRecoverEnergyShieldPct') uniqueBlockRecoverEnergyShieldPct = Math.max(uniqueBlockRecoverEnergyShieldPct, Number(ep.pct || 2));
+        else if (effect.key === 'blockedDamageTakenPct') uniqueBlockedDamageTakenPct = Math.max(uniqueBlockedDamageTakenPct, Number(ep.pct || 0));
         else if (effect.key === 'uniqueTakenReduceWhen2Enemies') addStatToBucket(reward, 'takenDamageReduceWhen2EnemiesPct', Number(ep.pct || 0));
         else if (effect.key === 'uniqueTakenReduceWhen1Enemy') addStatToBucket(reward, 'takenDamageReduceWhen1EnemyPct', Number(ep.pct || 0));
         else if (effect.key === 'uniqueMaxResAll') addStatToBucket(reward, 'maxResAll', Number(ep.pct || 0));
@@ -5194,6 +5195,7 @@ function getPlayerStats() {
         uniqueSummonCritAspdStacks: uniqueSummonCritAspdStacks,
         uniqueSummonNonCritNoDamage: uniqueSummonNonCritNoDamage,
         uniqueBlockRecoverEnergyShieldPct: uniqueBlockRecoverEnergyShieldPct,
+        uniqueBlockedDamageTakenPct: uniqueBlockedDamageTakenPct,
         uniqueDeflectStealth: uniqueDeflectStealth,
         uniqueChaosTakenDamageReducePct: uniqueChaosTakenDamageReducePct,
         uniqueLifeRecoupTakenDamage: uniqueLifeRecoupTakenDamage,
@@ -10807,7 +10809,8 @@ function performMonsterAttacks(pStats) {
             let gladiatorBattleLuck = game.ascendClass === 'gladiator' && hasKeystone('g9');
             let blockRoll = Math.random() * 100;
             if (gladiatorBattleLuck) blockRoll = Math.min(blockRoll, Math.random() * 100);
-            if (blockRoll < blockRollChance) {
+            let wasBlocked = blockRoll < blockRollChance;
+            if (wasBlocked) {
                 // 7 에이기스: 막기 성공 → 다음 회피 10% 증폭
                 if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisEvadeAmp = true; }
                 if ((pStats.uniqueBlockRecoverEnergyShieldPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
@@ -10818,9 +10821,17 @@ function performMonsterAttacks(pStats) {
                     let stoneShield = grantTalentStoneShield(pStats.maxHp);
                     if (stoneShield) addBattleFx('statusText', { text: `돌 보호막 +${stoneShield.amount}`, color: '#d8b77a', duration: 300 });
                 }
-                addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260, bodyCue: true });
-                if (game.settings.showCombatLog) addLog(`🛡️ 막아냄!`, "loot-magic");
-                continue;
+                let blockedTakenPct = Math.max(0, Math.min(100, Number(pStats.uniqueBlockedDamageTakenPct) || 0));
+                if (blockedTakenPct <= 0) {
+                    addBattleFx('statusText', { text: '막아냄!', color: '#a7a7a7', duration: 260, bodyCue: true });
+                    if (game.settings.showCombatLog) addLog('🛡️ 막아냄!', "loot-magic");
+                    continue;
+                }
+                let blockText = `막아냄 · 피해 ${blockedTakenPct}%`;
+                addBattleFx('statusText', { text: blockText, color: '#a7a7a7', duration: 260, bodyCue: true });
+                if (game.settings.showCombatLog) addLog(`🛡️ ${blockText}`, "loot-magic");
+                dmg = scaleBreakdownToTotal(Math.max(1, Math.floor(dmg * blockedTakenPct / 100)));
+                ailmentSourceDamageBeforeCrit = Math.max(1, Math.floor(ailmentSourceDamageBeforeCrit * blockedTakenPct / 100));
             }
             let guardianNullifyChance = Math.max(0, Math.min(100, Number(pStats.guardianDamageNullifyChance) || 0));
             if (guardianNullifyChance > 0 && Math.random() * 100 < guardianNullifyChance) {
@@ -10830,9 +10841,9 @@ function performMonsterAttacks(pStats) {
             }
             let deflected = false;
             let deflectReducePct = 0;
-            let deflectRoll = Math.random() * 100;
-            if (gladiatorBattleLuck) deflectRoll = Math.min(deflectRoll, Math.random() * 100);
-            if (deflectRoll < Math.max(0, Math.min(75, pStats.deflectChance || 0))) {
+            let deflectRoll = wasBlocked ? 100 : Math.random() * 100;
+            if (!wasBlocked && gladiatorBattleLuck) deflectRoll = Math.min(deflectRoll, Math.random() * 100);
+            if (!wasBlocked && deflectRoll < Math.max(0, Math.min(75, pStats.deflectChance || 0))) {
                 let deflectReduce = Math.max(0, Math.min(85, 40 + Number(pStats.deflectDamageReduce || 0)));
                 dmg = scaleBreakdownToTotal(Math.max(1, Math.floor(dmg * (1 - deflectReduce / 100))));
                 if (pStats.uniqueDeflectStealth) {
