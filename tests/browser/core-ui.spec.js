@@ -694,6 +694,12 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
     await expect(page.locator('#info-tooltip')).toContainText('내 DPS 약');
     await expect(page.locator('#info-tooltip')).toContainText('권장 약');
     await expect(page.locator('#info-tooltip')).toContainText('내 EHP 약');
+    await detail.getByRole('button', { name: '우주석 관리' }).evaluate(button => button.click());
+    const stoneOverlay = page.locator('#cosmos-stone-overlay');
+    await expect(stoneOverlay).toBeVisible();
+    await expect(stoneOverlay).toContainText('우주석 장착');
+    await stoneOverlay.locator('.cosmos-stone-overlay-close').evaluate(button => button.click());
+    await expect(stoneOverlay).toBeHidden();
     const visibleCanvasSize = await page.locator('#cosmos-atlas-canvas').evaluate(canvas => ({ width: canvas.width, height: canvas.height }));
     await page.evaluate(() => {
         switchMapSubtab('map-tab-zones');

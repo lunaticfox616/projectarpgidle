@@ -8,6 +8,10 @@ const context = {
     globalThis: null,
     document: { readyState: 'loading', addEventListener() {} },
     addEventListener() {},
+    requestAnimationFrame(callback) { context.requestedFrames.push(callback); },
+    requestedFrames: [],
+    logs: [],
+    addLog(message, type) { context.logs.push({ message, type }); },
     safeExposeGlobals(fns) { Object.assign(context, fns); },
     game: {
         season: 31,
@@ -36,6 +40,14 @@ assert.deepStrictEqual(
     { misses: 39, guaranteeAt: 40, remaining: 1 },
     'exclusive boss rewards need a visible 40-kill guarantee'
 );
+
+const framesBeforeDuplicateEquip = context.requestedFrames.length;
+const logsBeforeDuplicateEquip = context.logs.length;
+context.equipBossStoneByGalaxy(1);
+assert.strictEqual(context.requestedFrames.length, framesBeforeDuplicateEquip,
+    'equipping an already equipped cosmos stone must not restart its animation');
+assert.strictEqual(context.logs.length, logsBeforeDuplicateEquip,
+    'equipping an already equipped cosmos stone must not duplicate its log');
 
 context.game.cosmosAtlas.unlocked = true;
 context.game.cosmosAtlas.bossClears = [];
