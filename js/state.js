@@ -2318,7 +2318,7 @@ const defaultGame = {
     colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
     voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, grandBreachCleared: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},
-    shrineState: { active: null, nextRollAt: 0 },
+    shrineState: { activeId: null, pity: 0, spawned: 0, claimed: 0 },
     shrineBuff: null,
     challengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
     activeChallengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },

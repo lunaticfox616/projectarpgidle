@@ -8511,6 +8511,7 @@ function finishEncounterRun() {
     });
     let mapAction = (game.settings && game.settings.mapCompleteAction) || 'nextZone';
     game.killsInZone++;
+    shrineRuntime.advanceAfterEncounter(zone);
 
     if (zone.type === 'meteor') {
         grantMeteorEncounterRewards();

@@ -1252,23 +1252,10 @@ function isPauseSettingOverlayOpen() {
     return modalSelectors.some(selector => isOverlayElementOpen(selector));
 }
 
-function tickShrineState(){
-    game.shrineState = game.shrineState || { active: null, nextRollAt: 0 };
-    let now = Date.now();
-    if (game.shrineBuff && now > (game.shrineBuff.expiresAt || 0)) game.shrineBuff = null;
-    if (game.shrineState.active && now > (game.shrineState.active.expiresAt || 0)) game.shrineState.active = null;
-    if (!game.shrineState.active && now >= (game.shrineState.nextRollAt || 0) && Math.random() < 0.01) {
-        game.shrineState.active = { name: rndChoice(['힘의 성소','수호의 성소','질주의 성소']), expiresAt: now + 30000 };
-        game.shrineState.nextRollAt = now + 240000;
-    }
-}
 function clickActiveShrine(){
-    let active = game.shrineState && game.shrineState.active; if (!active) return;
-    let stat = active.name.includes('힘') ? 'pctDmg' : active.name.includes('수호') ? 'dr' : 'aspd';
-    let value = active.name.includes('수호') ? 10 : 16;
-    game.shrineBuff = { name: active.name, stat: stat, value: value, expiresAt: Date.now() + 45000 };
-    game.shrineState.active = null;
-    addLog(`🛕 ${active.name} 축복 활성화!`, 'loot-rare');
+    let result = shrineRuntime.claimActive();
+    if (!result.claimed) return;
+    addLog(`🛕 ${result.blessing.name} 축복 활성화!`, 'loot-rare');
     updateStaticUI();
 }
 
@@ -8805,7 +8792,8 @@ function buildPlayerUniqueEffectIcons(pStats, now) {
     let shrine = game.shrineBuff;
     if (shrine && Number(shrine.expiresAt) > now) {
         let statLabel = typeof getStatName === 'function' ? getStatName(shrine.stat) : String(shrine.stat || '능력치');
-        icons.push(renderUiNamedEffectIcon({ key: 'shrineBuff', name: shrine.name || '성소 축복', detail: `${statLabel} +${Number(shrine.value || 0)}%`, expiresAt: shrine.expiresAt }, now));
+        let detail = shrine.detail || `${statLabel} +${Number(shrine.value || 0)}%`;
+        icons.push(renderUiNamedEffectIcon({ key: 'shrineBuff', name: shrine.name || '성소 축복', detail, expiresAt: shrine.expiresAt }, now));
     }
     let elite = game.uniqueEliteTraitBuff;
     if (elite && Number(elite.expiresAt) > now) {
@@ -9914,7 +9902,6 @@ function performUpdateStaticUI() {
     renderFlaskPanel();
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });
-    tickShrineState();
     refreshTabHeaderUiIfNeeded();
     let passiveStateSig = [
         game.passivePoints || 0,
@@ -9959,18 +9946,15 @@ function performUpdateStaticUI() {
     if (combatLoopBtn) combatLoopBtn.style.display = canShowCombatLoopAdvanceButton() ? 'inline-flex' : 'none';
     let shrineBox = document.getElementById('ui-shrine-box');
     if (shrineBox) {
-        let active = game.shrineState && game.shrineState.active;
+        let active = shrineRuntime.getActiveBlessing();
         let buff = game.shrineBuff;
         let now = Date.now();
-        let activeRemain = active ? Math.max(0, Math.ceil(((active.expiresAt || 0) - now) / 1000)) : 0;
         let buffRemain = buff ? Math.max(0, Math.ceil(((buff.expiresAt || 0) - now) / 1000)) : 0;
-        let shrineStateKey = active ? `active:${active.name}` : (buff ? `buff:${buff.name}` : 'idle');
+        let pity = Math.max(0, Math.floor(game.shrineState.pity || 0));
+        let shrineStateKey = active ? `active:${active.id}` : (buff ? `buff:${buff.name}` : `idle:${pity}`);
         if (shrineBox.dataset.stateKey !== shrineStateKey) {
-            shrineBox.innerHTML = active ? `<button onclick="clickActiveShrine()">${active.name} 클릭 (${activeRemain}s)</button>` : (buff ? `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>` : '<div style="color:var(--copy-muted);">성소 대기중</div>');
+            shrineBox.innerHTML = active ? `<button onclick="clickActiveShrine()">🛕 ${active.name} 받기</button>` : (buff ? `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>` : `<div style="color:var(--copy-muted);">성소 기운 ${pity}/${SHRINE_ENCOUNTER_CONFIG.guaranteedAt}</div>`);
             shrineBox.dataset.stateKey = shrineStateKey;
-        } else if (active) {
-            let btn = shrineBox.querySelector('button');
-            if (btn) btn.innerText = `${active.name} 클릭 (${activeRemain}s)`;
         } else if (buff) {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
@@ -12807,7 +12791,6 @@ function setupCanvasEvents() {
                 return;
             }
             unlockPassiveStarEvolution();
-            tickShrineState();
             calculateReachableNodes();
             let nodeName = getPassiveNodeDisplayName(targetNode);
             let routeText = canPathActivate ? ` (최단 경로 ${pointCost}개 노드)` : '';
@@ -13946,6 +13929,7 @@ function mergeDefaults(save) {
     // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
     // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.
     if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
+    shrineRuntime.ensureState(merged);
     return merged;
 }
 
@@ -14915,7 +14899,6 @@ function applyExternalSave(snapshot, sourceStamp) {
     }
     recoverRuntimeState();
     refreshPassiveVisibility();
-    tickShrineState();
     refreshTabHeaderUiIfNeeded();
     calculateReachableNodes();
     normalizeSupportLoadout(false);
@@ -15822,7 +15805,6 @@ function runStartupSmokeChecks() {
         issues.push('smoke-exception:' + (error && error.message ? error.message : String(error)));
     } finally {
         game = snapshot;
-        tickShrineState();
         refreshTabHeaderUiIfNeeded();
         calculateReachableNodes();
         refreshPassiveVisibility();
@@ -15907,7 +15889,6 @@ function init() {
     window.__battleAssetAutoloadEnabled = false;
     scheduleDeferredBattleAssetLoad();
     refreshPassiveVisibility();
-    tickShrineState();
     refreshTabHeaderUiIfNeeded();
     calculateReachableNodes();
     document.getElementById('chk-combat-scene').checked = game.settings.showCombatScene !== false;
