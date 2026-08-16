@@ -121,6 +121,21 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         `한도를 넘긴 주얼을 불러오기에서 자르면 안 된다 (${many.length}개 → ${g.jewelInventory.length}개)`);
 }
 
+// A legacy/incomplete in-combat save can omit both enemy health fields.
+// Never revive it as a NaN enemy because that stalls combat progression.
+{
+    const g = merge({
+        level: 20, season: 2, playerHp: 200, inventory: [], equipment: {},
+        currencies: {}, unlocks: {}, settings: {},
+        enemies: [{ id: 77, name: 'save-boundary-enemy', isElite: true }]
+    });
+    assert.strictEqual(g.enemies.length, 1, 'a missing health field must not discard the enemy record');
+    assert.strictEqual(g.enemies[0].hp, 1, 'missing hp must recover to a positive value');
+    assert.strictEqual(g.enemies[0].maxHp, 1, 'missing maxHp must recover to a positive value');
+    assert.strictEqual(g.enemies[0].name, 'save-boundary-enemy', 'unrelated enemy data must survive recovery');
+    assert.strictEqual(g.enemies[0].isElite, true, 'unrelated enemy state must survive recovery');
+}
+
 // 별쐐기 보관함도 장착 슬롯 한도와 무관하게 전부 복원한다.
 {
     const manyWedges = Array.from({ length: 70 }, (_, index) => ({
