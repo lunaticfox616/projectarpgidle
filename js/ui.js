@@ -8065,6 +8065,19 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
     return pool[(variantSeed + elementOffset) % pool.length];
 }
 
+function drawBountyTargetGlyph(ctx, x, y, scale) {
+    let size = Math.max(4, Math.min(7, 5 * scale));
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = '#ffe49a';
+    ctx.strokeStyle = '#8b5a12';
+    ctx.lineWidth = 1.2;
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+    ctx.strokeRect(-size / 2, -size / 2, size, size);
+    ctx.restore();
+}
+
 function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
     if (battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
         let enemyAtlas = battleAssets.atlas.enemies;
@@ -8088,6 +8101,7 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
             outlineAlpha: enemy.isBoss ? 0.46 : (enemy.isElite ? 0.72 : 0)
         });
         ctx.restore();
+        if (enemy.isBountyTarget) drawBountyTargetGlyph(ctx, x, y - drawSize * 0.54, scale);
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.16;
@@ -9959,6 +9973,7 @@ function performUpdateStaticUI() {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
     }
+    if (typeof bountyUi !== 'undefined') bountyUi.renderHud();
     let charTabActive = getRenderingUiTabIds().has('tab-char');
     if (charTabActive) {
         let drawNow = Date.now();
@@ -13114,12 +13129,14 @@ function mergeDefaults(save) {
         if (!marker || typeof marker !== 'object') return null;
         let at = clampFiniteNumber(marker.at, NaN, 0, 100);
         if (!Number.isFinite(at)) return null;
-        return {
+        let normalized = {
             at: at,
             count: Math.max(1, Math.floor(clampFiniteNumber(marker.count, 1, 1, 99))),
             elite: !!marker.elite,
             boss: !!marker.boss
         };
+        if (typeof BOUNTY_TARGET_DB !== 'undefined' && BOUNTY_TARGET_DB[marker.bountyId]) normalized.bountyId = marker.bountyId;
+        return normalized;
     }
     function normalizeEnemyRecord(enemy) {
         if (!enemy || typeof enemy !== 'object') return null;
@@ -13925,6 +13942,8 @@ function mergeDefaults(save) {
         merged.starWedge.unlocked = true;
     }
     merged.saveVersion = defaultGame.saveVersion;
+    merged.bountyHunt = { ...defaultGame.bountyHunt, ...((merged.bountyHunt && typeof merged.bountyHunt === 'object') ? merged.bountyHunt : {}) };
+    if (typeof bountyRuntime !== 'undefined') bountyRuntime.ensureState(merged);
     // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
     // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
     // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.

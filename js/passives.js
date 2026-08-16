@@ -8837,7 +8837,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
     return item;
 }
 
-function generateEquipmentDrop(enemy) {
+function generateEquipmentDrop(enemy, options) {
     let zone = getZone(game.currentZoneId) || {};
     let hiddenTierCap = getRealmEquipmentHiddenTierCap(zone);
     let dropTier = rollRealmItemDropTier(zone, enemy);
@@ -8857,6 +8857,8 @@ function generateEquipmentDrop(enemy) {
         if (roll < 0.006) return generateUniqueItem(hiddenTierCap, slot);
         rarity = roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
     }
+    let minimumRarity = options && ['normal', 'magic', 'rare'].includes(options.minimumRarity) ? options.minimumRarity : null;
+    if (minimumRarity && getRarityRank(rarity) < getRarityRank(minimumRarity)) rarity = minimumRarity;
     let item = createItemFromBase(base, rarity, dropTier, {
         dropRealm: zone.type || null,
         affixTierCap,
