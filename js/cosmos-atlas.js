@@ -1562,6 +1562,7 @@
             if (typeof window.addLog === 'function') window.addLog(`은하 ${g} 우주석이 없습니다.`, 'attack-monster');
             return;
         }
+        if (state.equippedStones[String(g)]) return;
         ensureCosmosStoneOptions(state, g);
         state.equippedStones[String(g)] = true;
         state.equippedStoneGalaxy = getEquippedCosmosStoneCount(state);
@@ -2347,7 +2348,7 @@
             ${renderCosmosDifficultySection(node)}
             <div class="cosmos-actions">
                 <button class="primary" onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '은하 보스 도전' : '전투 도전'}</button>
-                ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 관리</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">지도에서 초점</button>
+                ${node.tag === 'boss' ? '<button onclick="openCosmosStoneOverlay()">우주석 관리</button>' : ''}<button onclick="focusCosmosAtlasOnSelected()">지도에서 초점</button>
             </div>
             <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 나무꾼 격파 후 지하계 30층 도달 시 해금된다.'}</div>`;
     }
