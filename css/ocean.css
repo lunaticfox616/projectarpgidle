@@ -1,0 +1,250 @@
+.ocean-panel-shell {
+  margin-bottom: 10px;
+  padding: 14px;
+  border: 1px solid #24627a;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(58, 176, 210, .13), transparent 34%),
+    linear-gradient(155deg, #0d2230, #07131d 68%);
+  color: #f3fbff;
+  box-shadow: inset 0 1px 0 rgba(176, 232, 255, .08), 0 12px 28px rgba(0, 8, 18, .2);
+}
+
+.ocean-gift-heading {
+  margin: 16px 0 8px;
+  color: #a8ebff;
+}
+
+.ocean-dashboard-head,
+.ocean-section-head,
+.ocean-craft-target,
+.ocean-recipe-card,
+.ocean-recipe-group > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ocean-dashboard-head > div:first-child,
+.ocean-section-head > div,
+.ocean-craft-target > div:first-child,
+.ocean-recipe-copy,
+.ocean-milestone > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ocean-dashboard-head > div:first-child > span {
+  color: #56c8e9;
+  font-size: .68em;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+.ocean-dashboard-head h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.18em;
+}
+
+.ocean-dashboard-head p,
+.ocean-section-head span,
+.ocean-craft-target span,
+.ocean-recipe-group summary small {
+  margin: 0;
+  color: #bdd2dc;
+  font-size: .8em;
+  line-height: 1.45;
+}
+
+.ocean-last-catch {
+  min-width: 154px;
+  padding: 8px 11px;
+  border: 1px solid rgba(102, 210, 241, .32);
+  border-radius: 10px;
+  background: rgba(8, 34, 48, .75);
+  text-align: right;
+}
+
+.ocean-last-catch small,
+.ocean-last-catch strong { display: block; }
+.ocean-last-catch small { color: #8fb5c4; font-size: .7em; }
+.ocean-last-catch strong { margin-top: 3px; color: #ffe18a; }
+
+.ocean-meter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ocean-meter {
+  padding: 8px 10px;
+  border: 1px solid #28586c;
+  border-radius: 10px;
+  background: rgba(7, 24, 34, .72);
+}
+
+.ocean-meter > div { display: flex; justify-content: space-between; gap: 8px; font-size: .8em; }
+.ocean-meter b { color: #8de7ff; }
+.ocean-meter i { display: block; height: 6px; margin-top: 7px; overflow: hidden; border-radius: 999px; background: #122f3e; }
+.ocean-meter i span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1c8eb5, #63e5ff); }
+.ocean-meter--pity i span { background: linear-gradient(90deg, #6751c7, #ef82ff, #ffe18a); }
+
+.ocean-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(85, 169, 196, .2);
+}
+
+.ocean-section-head strong { color: #eafaff; }
+.ocean-reef-count {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid #366579;
+  border-radius: 999px;
+  color: #c8f3ff !important;
+  background: #102d3a;
+}
+
+.ocean-strategy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.ocean-strategy-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 8px;
+  min-height: 100px;
+  padding: 10px;
+  border: 1px solid #31576a;
+  border-radius: 11px;
+  background: linear-gradient(160deg, rgba(24, 57, 72, .84), rgba(9, 28, 39, .92));
+  color: #eefbff;
+  text-align: left;
+}
+
+.ocean-strategy-card:hover:not(:disabled),
+.ocean-strategy-card:focus-visible,
+.ocean-strategy-card.selected {
+  border-color: #72def7;
+  box-shadow: 0 0 0 2px rgba(84, 207, 239, .14), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+
+.ocean-strategy-card.selected { background: linear-gradient(155deg, rgba(30, 101, 124, .85), rgba(12, 40, 54, .96)); }
+.ocean-strategy-card > strong { align-self: center; }
+.ocean-strategy-card > span:not(.ocean-strategy-icon),
+.ocean-strategy-card > small { grid-column: 1 / -1; color: #bed2da; line-height: 1.35; }
+.ocean-strategy-card > span:not(.ocean-strategy-icon) { font-size: .78em; }
+.ocean-strategy-card > small { color: #8fe3ff; font-size: .72em; }
+.ocean-strategy-icon { font-size: 1.2em; }
+.ocean-reef-action { margin-top: 8px; }
+
+.ocean-milestone-grid,
+.ocean-recipe-groups { display: grid; gap: 7px; margin-top: 9px; }
+.ocean-milestone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #294b5c;
+  border-radius: 9px;
+  background: rgba(9, 29, 40, .72);
+}
+.ocean-milestone small { color: #86a8b5; }
+.ocean-milestone strong { color: #fff; }
+.ocean-milestone span { color: #acc5cf; font-size: .76em; }
+.ocean-milestone.ready { border-color: #c5a64d; background: linear-gradient(90deg, rgba(103, 77, 21, .3), rgba(9, 29, 40, .75)); }
+.ocean-milestone.claimed { border-color: #39755a; opacity: .78; }
+
+.ocean-fish-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.ocean-fish-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 70px;
+  padding: 8px 10px;
+  border: 1px solid #315163;
+  border-radius: 10px;
+  background: rgba(10, 30, 41, .78);
+}
+.ocean-fish-card > div { display: grid; gap: 2px; min-width: 0; }
+.ocean-fish-card small { color: #8eabb7; font-size: .69em; }
+.ocean-fish-card strong { color: #fff; }
+.ocean-fish-card span { overflow: hidden; color: #b9ccd4; font-size: .74em; text-overflow: ellipsis; white-space: nowrap; }
+.ocean-fish-mark { color: #7bdcf6 !important; font-size: 1.25em !important; }
+.ocean-fish-count { text-align: right; }
+.ocean-fish-count b { color: #ffe18a; font-size: 1.12em; }
+.ocean-fish-card.undiscovered { filter: saturate(.35); opacity: .6; }
+.ocean-fish-card.rarity-rare { border-color: #3f7caf; }
+.ocean-fish-card.rarity-epic { border-color: #7959ae; }
+.ocean-fish-card.rarity-legendary { border-color: #b48636; }
+.ocean-fish-card.rarity-mythic { border-color: #d85fa8; box-shadow: inset 3px 0 0 #d85fa8; }
+
+.ocean-craft-target {
+  padding: 11px;
+  border: 1px solid #36586a;
+  border-radius: 11px;
+  background: rgba(8, 28, 39, .82);
+}
+.ocean-craft-target.selected { border-color: #4d9b79; box-shadow: inset 3px 0 0 #5bc08e; }
+.ocean-craft-target small { color: #86a8b5; }
+.ocean-craft-target strong { font-size: .96em; }
+.ocean-craft-target > div:last-child { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.ocean-recipe-group {
+  overflow: hidden;
+  border: 1px solid #315568;
+  border-radius: 11px;
+  background: rgba(8, 26, 37, .74);
+}
+.ocean-recipe-group > summary { padding: 10px 11px; cursor: pointer; list-style: none; }
+.ocean-recipe-group > summary::-webkit-details-marker { display: none; }
+.ocean-recipe-group > summary span { display: grid; gap: 2px; }
+.ocean-recipe-group > summary strong { color: #eafaff; }
+.ocean-recipe-group > summary b { min-width: 26px; padding: 3px 7px; border-radius: 999px; background: #173d4e; color: #9ceaff; text-align: center; }
+.ocean-recipe-list { border-top: 1px solid rgba(75, 138, 161, .24); }
+.ocean-recipe-card { padding: 10px 11px; border-bottom: 1px solid rgba(52, 101, 119, .25); }
+.ocean-recipe-card:last-child { border-bottom: 0; }
+.ocean-recipe-card.ready { background: linear-gradient(90deg, rgba(32, 91, 72, .16), transparent 55%); }
+.ocean-recipe-copy small { color: #75d4ef; font-weight: 800; }
+.ocean-recipe-copy strong { color: #eef9fc; font-size: .82em; line-height: 1.4; }
+.ocean-recipe-cost { display: flex; flex-wrap: wrap; gap: 4px; }
+.ocean-recipe-cost span { padding: 2px 5px; border-radius: 5px; background: #222d34; color: #bf9b9b; font-size: .7em; }
+.ocean-recipe-cost span.ready { color: #a9dfc0; background: #18382d; }
+.ocean-recipe-actions { display: grid; grid-template-columns: minmax(100px, auto) auto; gap: 6px; flex: 0 0 auto; }
+.ocean-recipe-actions > button:only-child { grid-column: 2; }
+.ocean-recipe-select { min-width: 112px; }
+
+@media (max-width: 760px) {
+  .ocean-panel-shell { padding: 11px; }
+  .ocean-dashboard-head,
+  .ocean-section-head,
+  .ocean-craft-target,
+  .ocean-recipe-card { align-items: stretch; flex-direction: column; }
+  .ocean-last-catch { min-width: 0; text-align: left; }
+  .ocean-strategy-grid { grid-template-columns: 1fr; }
+  .ocean-recipe-actions { grid-template-columns: 1fr 1fr; width: 100%; }
+  .ocean-recipe-actions > button:only-child { grid-column: 1 / -1; }
+  .ocean-craft-target > div:last-child button { flex: 1; }
+}
+
+@media (max-width: 480px) {
+  .ocean-meter-grid { grid-template-columns: 1fr; }
+  .ocean-fish-grid { grid-template-columns: 1fr; }
+  .ocean-milestone { align-items: stretch; flex-direction: column; }
+  .ocean-milestone button { width: 100%; }
+}

@@ -3468,8 +3468,11 @@ function renderOceanDepthMapPanel() {
         return;
     }
     let oxygenPct = Math.round((st.oxygenCur / Math.max(1, st.oxygenMax)) * 100);
+    let strategyDrainMul = Math.max(0.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
     let drainPerSec = getOceanOxygenDrainPerSec();
+    drainPerSec *= strategyDrainMul;
     let perAttackCost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0;
+    perAttackCost *= strategyDrainMul;
     let secsLeft = drainPerSec > 0 ? Math.floor(st.oxygenCur / drainPerSec) : 0;
     let depthTier = getOceanDepthTier(st.depthM);
     let oceanZone = getZone(OCEAN_ZONE_ID);
@@ -3489,7 +3492,7 @@ function renderOceanDepthMapPanel() {
         <span class="sky-tower-chip">체크포인트 <b>${st.checkpointM}m</b></span>
         <span class="sky-tower-chip">다음 가디언 <b>${nextGuardianM}m</b> · ${Math.max(0, nextGuardianM - Math.floor(st.depthM))}m 남음</span>
         <span class="sky-tower-chip">수압 단계 <b>${depthTier}</b></span>
-        <span class="sky-tower-chip" title="산소 최대치 ${st.oxygenMax}. 이동 속도가 높을수록 시간당 소모가 빨라지고(현재 ${drainPerSec.toFixed(2)}/초), 공격 1회마다 추가로 ${perAttackCost}씩 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
+        <span class="sky-tower-chip" title="산소 최대치 ${st.oxygenMax}. 현재 시간 소모 ${drainPerSec.toFixed(2)}/초, 공격 1회마다 ${perAttackCost}씩 추가 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
         ${currentChips}
     </div>
     <div style="margin-top:10px; display:grid; gap:8px;">
@@ -3501,6 +3504,55 @@ function renderOceanDepthMapPanel() {
     list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span><br>${buildMapPowerEstimateHtml(oceanZone)}</span></div></div>`;
 }
 
+const renderOceanFishingStrategies = function (st) {
+    return Object.keys(OCEAN_FISHING_STRATEGIES).map(key => {
+        let def = OCEAN_FISHING_STRATEGIES[key];
+        let selected = st.fishingStrategy === key;
+        let gaugePct = Math.round((def.gaugeGainMul - 1) * 100);
+        let rarePct = Math.round((def.rareWeightMul - 1) * 100);
+        let oxygenPct = Math.round((def.oxygenDrainMul - 1) * 100);
+        let effects = [`게이지 ${gaugePct >= 0 ? '+' : ''}${gaugePct}%`, `희귀 추적 ${rarePct >= 0 ? '+' : ''}${rarePct}%`];
+        if (oxygenPct) effects.push(`산소 소모 +${oxygenPct}%`);
+        return `<button type="button" class="ocean-strategy-card ${selected ? 'selected' : ''}" aria-pressed="${selected}" onclick="setOceanFishingStrategy('${key}')" ${st.diving ? 'disabled' : ''}>
+            <span class="ocean-strategy-icon">${def.icon}</span><strong>${def.name}</strong><span>${def.desc}</span><small>${effects.join(' · ')}</small>
+        </button>`;
+    }).join('');
+};
+
+const renderOceanFishCollection = function (st) {
+    return Object.keys(OCEAN_FISH_DB).map(key => {
+        let fish = OCEAN_FISH_DB[key];
+        let total = Math.max(0, Math.floor(st.fishCaughtTotal[key] || 0));
+        let owned = Math.max(0, Math.floor(st.fishStock[key] || 0));
+        let discovered = total > 0;
+        let rarity = OCEAN_FISH_RARITY_META[fish.rarity] || OCEAN_FISH_RARITY_META.common;
+        let name = discovered ? fish.name : '미발견 어종';
+        let description = discovered ? fish.desc : `${fish.depthTier * 100}m 이후 발견 가능`;
+        return `<article class="ocean-fish-card rarity-${fish.rarity} ${discovered ? 'discovered' : 'undiscovered'}">
+            <span class="ocean-fish-mark">${discovered ? '◈' : '?'}</span>
+            <div><small>${rarity.label} · ${fish.depthTier * 100}m+</small><strong>${name}</strong><span>${description}</span></div>
+            <div class="ocean-fish-count"><b>${discovered ? owned : '—'}</b><small>${discovered ? `누적 ${total}` : '미발견'}</small></div>
+        </article>`;
+    }).join('');
+};
+
+const getOceanRewardText = function (reward) {
+    return Object.keys(reward || {}).map(key => `${(ORB_DB[key] || {}).name || key} ${reward[key]}`).join(' · ');
+};
+
+const renderOceanCollectionMilestones = function (progress) {
+    return progress.milestones.map(row => {
+        let state = row.claimed ? 'claimed' : (row.ready ? 'ready' : 'locked');
+        let bonuses = [];
+        if (row.bonus.gaugeGainPct) bonuses.push(`게이지 +${row.bonus.gaugeGainPct}%`);
+        if (row.bonus.rareChancePct) bonuses.push(`희귀 추적 +${row.bonus.rareChancePct}%`);
+        return `<article class="ocean-milestone ${state}">
+            <div><small>${row.required}종 발견</small><strong>${row.label}</strong><span>${getOceanRewardText(row.reward)} · 영구 ${bonuses.join(' · ')}</span></div>
+            <button type="button" onclick="claimOceanFishCollectionMilestone(${row.required})" ${row.ready && !row.claimed ? '' : 'disabled'}>${row.claimed ? '완료' : (row.ready ? '보상 받기' : `${progress.discoveredCount}/${row.required}`)}</button>
+        </article>`;
+    }).join('');
+};
+
 function renderFishingPanel() {
     let panel = document.getElementById('ui-fishing-panel');
     if (!panel) return;
@@ -3509,58 +3561,59 @@ function renderFishingPanel() {
         panel.innerHTML = `<div class="sky-tower-head"><div><div class="sky-tower-title">🎣 낚시</div><div class="sky-tower-sub">루프 ${OCEAN_UNLOCK_LOOP} 이후 심해가 해금되면 낚시를 할 수 있습니다.</div></div><span class="sky-tower-lock-chip">🔒 봉인됨</span></div>`;
         return;
     }
-    let fishRows = Object.keys(OCEAN_FISH_DB).map(key => {
-        let f = OCEAN_FISH_DB[key];
-        let n = st.fishStock[key] || 0;
-        return `<span class="sky-tower-chip" title="${f.desc || ''}">${f.name} <b>${n}</b></span>`;
-    }).join('');
-    panel.innerHTML = `<div class="sky-tower-head">
-        <div>
-            <div class="sky-tower-title">🎣 낚시</div>
-            <div class="sky-tower-sub">심해에서 잠수하며 전투로 낚시 게이지를 채우면 수심에 맞는 어종을 낚습니다. 낚은 어종은 아래 <b>🎁 바다의 선물</b> 제작에 사용됩니다.</div>
-        </div>
-    </div>
-    <div class="sky-tower-chips">
-        <span class="sky-tower-chip">낚시 게이지 <b>${Math.floor(st.fishingGauge)}%</b></span>
-        <span class="sky-tower-chip">설치된 암초 조각 <b>${st.reefInstalled}/10</b> (게이지 +${st.reefInstalled * 15}%)</span>
-    </div>
-    <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <button onclick="installOceanReefFragment(); renderFishingPanel();">암초 조각 설치 (보유 ${game.currencies.reefFragment || 0})</button>
-    </div>
-    <div style="margin-top:12px; color:#8fe3ff; font-weight:bold;">보유 어종</div>
-    <div class="sky-tower-chips" style="margin-top:4px;">${fishRows}</div>`;
+    let progress = getOceanFishCollectionProgress(st);
+    let strategy = getOceanFishingStrategyDef(st);
+    let lastFish = st.lastCatch && OCEAN_FISH_DB[st.lastCatch.key];
+    let lastCatch = lastFish ? `${st.lastCatch.guaranteed ? '✨ ' : ''}${lastFish.name}` : '아직 포획 기록 없음';
+    panel.innerHTML = `<div class="ocean-dashboard-head"><div><span>ABYSSAL FISHERY</span><h3>🎣 심해 어장</h3><p>잠수 전에 채집 전략을 정하고, 전투로 어종을 모아 도감과 바다의 선물 제작을 성장시키세요.</p></div><div class="ocean-last-catch"><small>최근 포획</small><strong>${lastCatch}</strong></div></div>
+    <div class="ocean-meter-grid"><div class="ocean-meter"><div><span>낚시 게이지</span><b>${Math.floor(st.fishingGauge)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.fishingGauge))}%"></span></i></div><div class="ocean-meter ocean-meter--pity"><div><span>희귀 조짐</span><b>${Math.floor(st.rareFishPity)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.rareFishPity))}%"></span></i></div></div>
+    <section class="ocean-section"><div class="ocean-section-head"><div><strong>채집 전략</strong><span>${st.diving ? '잠수 중에는 변경할 수 없습니다.' : `현재 ${strategy.name} · 다음 잠수부터 적용`}</span></div><span class="ocean-reef-count">🪸 ${st.reefInstalled}/10 · 게이지 +${st.reefInstalled * 15}%</span></div><div class="ocean-strategy-grid">${renderOceanFishingStrategies(st)}</div><button type="button" class="ocean-reef-action" onclick="installOceanReefFragment(); renderFishingPanel();" ${st.reefInstalled >= 10 || (game.currencies.reefFragment || 0) < 1 ? 'disabled' : ''}>암초 조각 설치 · 보유 ${game.currencies.reefFragment || 0}</button></section>
+    <section class="ocean-section"><div class="ocean-section-head"><div><strong>심해 도감</strong><span>발견 ${progress.discoveredCount}/${progress.totalCount} · 보유량은 제작에 사용해도 누적 기록은 유지됩니다.</span></div></div><div class="ocean-milestone-grid">${renderOceanCollectionMilestones(progress)}</div><div class="ocean-fish-grid">${renderOceanFishCollection(st)}</div></section>`;
 }
 
 const OCEAN_MOD_CATEGORY_OPTIONS = ['공격', '방어·생명', '속도·치명', '저항'];
 function renderSeaGiftRecipeCard(recipe, st) {
-    let ready = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
-    let reqText = Object.keys(recipe.requires).map(key => `${OCEAN_FISH_DB[key].name} ${st.fishStock[key] || 0}/${recipe.requires[key]}`).join(', ');
+    let materialReady = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
+    let reqText = Object.keys(recipe.requires).map(key => `<span class="${(st.fishStock[key] || 0) >= recipe.requires[key] ? 'ready' : ''}">${OCEAN_FISH_DB[key].name} <b>${st.fishStock[key] || 0}/${recipe.requires[key]}</b></span>`).join('');
+    let needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
+    let hasTarget = !needsItem || !!getSelectedCraftItem();
+    let ready = materialReady && hasTarget;
     let needsCategory = recipe.effect.type === 'guaranteedTaggedMod' || recipe.effect.type === 'taggedReroll' || recipe.effect.type === 'convertCategoryMod' || (recipe.effect.type === 'lockMod' && recipe.effect.bonusTaggedReroll);
     let inlineId = `seaGiftCategory_${recipe.id}`;
-    let categorySelect = needsCategory ? `<select id="${inlineId}" style="margin-top:4px;">${OCEAN_MOD_CATEGORY_OPTIONS.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>` : '';
+    let categorySelect = needsCategory ? `<select id="${inlineId}" class="ocean-recipe-select" aria-label="옵션 계열 선택">${OCEAN_MOD_CATEGORY_OPTIONS.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>` : '';
     let onclick = needsCategory
         ? `craftSeaGift('${recipe.id}', null, { category: document.getElementById('${inlineId}').value }); renderSeaGiftPanel(); renderFishingPanel();`
         : `craftSeaGift('${recipe.id}'); renderSeaGiftPanel(); renderFishingPanel();`;
-    return `<div style="border-bottom:1px solid #1f5b73; padding:8px 0;">
-        <div style="color:#8fe3ff;">${recipe.desc}</div>
-        <div style="font-size:0.85em; color:var(--copy-bright);">필요: ${reqText}</div>
-        ${categorySelect}
-        <button onclick="${onclick}" ${ready ? '' : 'disabled'} style="margin-top:4px;">제작</button>
-    </div>`;
+    let parsed = recipe.desc.match(/^【([^】]+)】\s*(.*)$/);
+    let title = parsed ? parsed[1] : recipe.desc;
+    let description = parsed ? parsed[2] : '';
+    let actionLabel = !materialReady ? '재료 부족' : (!hasTarget ? '대상 선택 필요' : '제작');
+    return `<article class="ocean-recipe-card ${ready ? 'ready' : ''}"><div class="ocean-recipe-copy"><small>${title}</small><strong>${description}</strong><div class="ocean-recipe-cost">${reqText}</div></div><div class="ocean-recipe-actions">${categorySelect}<button type="button" onclick="${onclick}" ${ready ? '' : 'disabled'}>${actionLabel}</button></div></article>`;
 }
+
+const renderSeaGiftTarget = function () {
+    let item = getSelectedCraftItem();
+    let target = item
+        ? `<div><small>현재 제작 대상</small><strong class="item-title ${item.rarity || 'normal'}">[${item.slot || '장비'}] ${item.name}</strong><span>추가 옵션 ${(item.stats || []).length}줄 · 바다의 선물 장비 가공은 이 대상에만 적용됩니다.</span></div>`
+        : `<div><small>현재 제작 대상</small><strong>선택된 장비 없음</strong><span>장비 가공 레시피를 사용하려면 대상을 먼저 선택하세요.</span></div>`;
+    return `<div class="ocean-craft-target ${item ? 'selected' : ''}">${target}<div><button type="button" onclick="openCraftItemPickerOverlay('equip')">장착 장비</button><button type="button" onclick="openCraftItemPickerOverlay('inventory')">인벤토리</button></div></div>`;
+};
+
+const renderSeaGiftRecipeGroup = function (title, description, recipes, st, open) {
+    return `<details class="ocean-recipe-group" ${open ? 'open' : ''}><summary><span><strong>${title}</strong><small>${description}</small></span><b>${recipes.length}</b></summary><div class="ocean-recipe-list">${recipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('')}</div></details>`;
+};
+
 function renderSeaGiftPanel() {
     let panel = document.getElementById('ui-sea-gift-panel');
     if (!panel) return;
     let st = ensureOceanState();
     if (!st.unlocked) { panel.innerHTML = ''; return; }
     let ultraRareIds = new Set(['tidelordKoi', 'prismaticHorror', 'kingLeviathan']);
-    let normalRecipes = SEA_GIFT_RECIPES.filter(r => !Object.keys(r.requires).some(key => ultraRareIds.has(key)));
-    let ultraRecipes = SEA_GIFT_RECIPES.filter(r => Object.keys(r.requires).some(key => ultraRareIds.has(key)));
-    panel.innerHTML = `<div style="color:#ffce6b; font-size:0.85em; border:1px solid #ffce6b; border-radius:4px; padding:4px 8px; margin:4px 0;">⚠ 테스트 중인 컨텐츠입니다. 레시피 효과·재료·밸런스가 예고 없이 변경될 수 있습니다.</div>`
-        + `<div style="color:#8fe3ff; font-weight:bold; margin:4px 0;">일반 레시피</div>`
-        + normalRecipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('')
-        + `<div style="color:#ffce6b; font-weight:bold; margin:10px 0 4px;">초강력 레시피 (초희귀 어종 필요)</div>`
-        + ultraRecipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('');
+    let chaseRecipes = SEA_GIFT_RECIPES.filter(recipe => Object.keys(recipe.requires).some(key => ultraRareIds.has(key)));
+    let regularRecipes = SEA_GIFT_RECIPES.filter(recipe => !chaseRecipes.includes(recipe));
+    let supplyRecipes = regularRecipes.filter(recipe => !SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type));
+    let forgeRecipes = regularRecipes.filter(recipe => SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type));
+    panel.innerHTML = `${renderSeaGiftTarget()}<div class="ocean-recipe-groups">${renderSeaGiftRecipeGroup('재화 정제', '자주 잡히는 어종을 성장 재화로 교환합니다.', supplyRecipes, st, true)}${renderSeaGiftRecipeGroup('장비 가공', '선택한 장비의 옵션을 직접 가공합니다.', forgeRecipes, st, true)}${renderSeaGiftRecipeGroup('심연의 비전', '초희귀 어종을 사용하는 추적 제작입니다.', chaseRecipes, st, false)}</div>`;
 }
 
 function renderUnderworldMapPanel() {

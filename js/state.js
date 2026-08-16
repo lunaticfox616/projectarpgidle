@@ -147,6 +147,9 @@ const OCEAN_PERMANENT_UPGRADE_DEFS = {
     pressureResist: { label: '수압 패널티 감소', maxLevel: 20, valuePerLevel: 4, unit: '%', desc: '심해 수압으로 인한 공속/피해/이속 감소가 완화됩니다.' }
 };
 const OCEAN_PERMANENT_UPGRADE_KEYS = Object.keys(OCEAN_PERMANENT_UPGRADE_DEFS);
+const OCEAN_STATE_FISH_KEYS = Object.freeze(Object.keys(OCEAN_FISH_DB));
+const OCEAN_COLLECTION_REQUIRED_COUNTS = Object.freeze(OCEAN_FISH_COLLECTION_MILESTONES.map(row => row.required));
+const OCEAN_NORMALIZED_FISHING_STATES = new WeakSet();
 
 const OCEAN_CURRENT_POOL = [
     { id: 'cold_current', name: '냉수층', desc: '냉기 적 출현 · 냉기 저항 -12' },
@@ -182,8 +185,13 @@ function createDefaultOceanState() {
         oxygenCur: 100,
         pressureLevel: 0,
         fishingGauge: 0,
+        fishingStrategy: 'balanced',
+        rareFishPity: 0,
         reefInstalled: 0,
         fishStock: {},
+        fishCaughtTotal: {},
+        claimedCollectionMilestones: [],
+        lastCatch: null,
         diving: false,
         lastTickAt: 0,
         bossClearM: 0,
@@ -207,6 +215,27 @@ function ensureOceanPermanentUpgrades(st) {
         st.permanentUpgrades[key] = Math.max(0, Math.min(OCEAN_PERMANENT_UPGRADE_DEFS[key].maxLevel, Math.floor(st.permanentUpgrades[key] || 0)));
     });
 }
+const normalizeOceanFishingProgress = function (st) {
+    st.fishStock = (st.fishStock && typeof st.fishStock === 'object') ? st.fishStock : {};
+    let hasCaughtHistory = !!(st.fishCaughtTotal && typeof st.fishCaughtTotal === 'object');
+    let caught = hasCaughtHistory ? st.fishCaughtTotal : st.fishStock;
+    if (!hasCaughtHistory) st.fishCaughtTotal = {};
+    OCEAN_STATE_FISH_KEYS.forEach(key => { st.fishCaughtTotal[key] = Math.max(0, Math.floor(caught[key] || 0)); });
+    let claims = st.claimedCollectionMilestones;
+    let validClaims = Array.isArray(claims) && claims.every((value, index) => Number.isInteger(value)
+        && OCEAN_COLLECTION_REQUIRED_COUNTS.includes(value) && claims.indexOf(value) === index);
+    if (!validClaims) {
+        let sourceClaims = Array.isArray(claims) ? claims : [];
+        st.claimedCollectionMilestones = Array.from(new Set(sourceClaims.map(value => Math.floor(value || 0))))
+            .filter(value => OCEAN_COLLECTION_REQUIRED_COUNTS.includes(value));
+    }
+    if (!st.lastCatch || !OCEAN_FISH_DB[st.lastCatch.key]) st.lastCatch = null;
+    else {
+        st.lastCatch.at = Math.max(0, Math.floor(st.lastCatch.at || 0));
+        st.lastCatch.guaranteed = !!st.lastCatch.guaranteed;
+    }
+    OCEAN_NORMALIZED_FISHING_STATES.add(st);
+};
 function ensureOceanState() {
     let st = (game && game.ocean && typeof game.ocean === 'object') ? game.ocean : (game.ocean = createDefaultOceanState());
     st.unlocked = !!st.unlocked;
@@ -218,8 +247,10 @@ function ensureOceanState() {
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, Number.isFinite(st.oxygenCur) ? st.oxygenCur : st.oxygenMax));
     st.pressureLevel = Math.max(0, Math.floor(st.pressureLevel || 0));
     st.fishingGauge = Math.max(0, Math.min(100, Number(st.fishingGauge) || 0));
+    st.fishingStrategy = OCEAN_FISHING_STRATEGIES[st.fishingStrategy] ? st.fishingStrategy : 'balanced';
+    st.rareFishPity = Math.max(0, Math.min(100, Number(st.rareFishPity) || 0));
     st.reefInstalled = Math.max(0, Math.min(10, Math.floor(st.reefInstalled || 0)));
-    st.fishStock = (st.fishStock && typeof st.fishStock === 'object') ? st.fishStock : {};
+    if (!OCEAN_NORMALIZED_FISHING_STATES.has(st)) normalizeOceanFishingProgress(st);
     st.diving = !!st.diving;
     st.drowning = !!st.drowning;
     st.drownSec = Math.max(0, Number(st.drownSec) || 0);
