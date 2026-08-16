@@ -87,6 +87,7 @@ create table if not exists public.playtest_runs (
     dps bigint not null default 0,
     ehp_min bigint not null default 0,
     ehp_by_element jsonb not null default '{}'::jsonb,
+    ghost_snapshot jsonb not null default '{}'::jsonb,
     frame_p95_ms numeric(8,2),
     long_frames integer not null default 0,
     peak_fx integer not null default 0,
@@ -94,6 +95,8 @@ create table if not exists public.playtest_runs (
     platform text not null,
     created_at timestamptz not null default now()
 );
+
+alter table public.playtest_runs add column if not exists ghost_snapshot jsonb not null default '{}'::jsonb;
 
 create index if not exists playtest_runs_user_created_idx on public.playtest_runs(user_id, created_at desc);
 create index if not exists playtest_runs_class_created_idx on public.playtest_runs(ascend_class, created_at desc);
@@ -109,6 +112,9 @@ begin
     delete from public.playtest_runs where created_at < now() - interval '30 days';
     if (select count(*) from public.playtest_runs where user_id = new.user_id and created_at >= now() - interval '1 day') >= 60 then
         raise exception 'PLAYTEST_DAILY_LIMIT';
+    end if;
+    if jsonb_typeof(new.ghost_snapshot) <> 'object' or pg_column_size(new.ghost_snapshot) > 8192 then
+        raise exception 'INVALID_GHOST_SNAPSHOT';
     end if;
     return new;
 end;

@@ -7,7 +7,9 @@ const ghostArenaState = {
     result: null,
     selectedProfile: null,
     friendlyBusy: false,
-    friendlyResult: null
+    friendlyResult: null,
+    duel: null,
+    duelMode: ''
 };
 
 function getGhostCombatVersion() {
@@ -25,13 +27,20 @@ function getGhostArenaError(error) {
     if (/GHOST_OPPONENT_NOT_FOUND/.test(message)) return '대결 가능한 상대가 아직 없습니다.';
     if (/GHOST_TARGET_NOT_REGISTERED/.test(message)) return '상대가 현재 버전의 고스트를 등록하지 않았습니다.';
     if (/GHOST_REGISTRATION_REQUIRED/.test(message)) return '먼저 내 고스트를 등록하세요.';
-    if (/GHOST_FRIENDLY_LIMIT/.test(message)) return '오늘 이 상대와 할 수 있는 친선전을 모두 진행했습니다.';
-    if (/GHOST_DAILY_LIMIT/.test(message)) return '오늘의 대결 한도 20회를 모두 사용했습니다.';
+    if (/GHOST_REGISTRATION_COOLDOWN/.test(message)) return '고스트는 5분마다 한 번 갱신할 수 있습니다.';
+    if (/GHOST_DUEL_COOLDOWN/.test(message)) return '대전 시작 후 20초가 지나야 다시 대전할 수 있습니다.';
+    if (/GHOST_FRIENDLY_TARGET_LIMIT/.test(message)) return '최근 24시간 동안 이 상대와 친선전 10회를 모두 진행했습니다.';
+    if (/GHOST_FRIENDLY_DAILY_LIMIT/.test(message)) return '최근 24시간의 친선전 한도 30회를 모두 사용했습니다.';
+    if (/GHOST_DAILY_LIMIT/.test(message)) return '최근 24시간의 랭크 대전 한도 20회를 모두 사용했습니다.';
     if (/NICKNAME_REQUIRED/.test(message)) return '먼저 커뮤니티 닉네임을 설정하세요.';
     if (/schema cache|could not find|does not exist/i.test(message)) {
         return '고스트 대결 DB가 준비되지 않았습니다. Supabase SQL Editor에서 db/operations-and-ghost.sql을 실행하세요.';
     }
     return message;
+}
+
+function isGhostCombatServerReady() {
+    return Number(ghostArenaState.data && ghostArenaState.data.combatProtocolVersion) >= 3;
 }
 
 async function loadGhostArena() {
@@ -42,7 +51,8 @@ async function loadGhostArena() {
         ghostArenaState.data = await cloudJsonRequest('/rest/v1/rpc/get_ghost_arena', {
             method: 'POST', body: { p_combat_version: getGhostCombatVersion() }
         });
-        ghostArenaState.message = '';
+        ghostArenaState.message = isGhostCombatServerReady() ? ''
+            : '고스트 실전투 DB가 아직 적용되지 않았습니다. Supabase에서 db/operations-and-ghost.sql을 다시 실행하세요.';
     } catch (error) {
         ghostArenaState.message = getGhostArenaError(error);
     } finally {
@@ -53,6 +63,7 @@ async function loadGhostArena() {
 
 async function registerMyGhost() {
     if (!socialCloudReady()) return showGameToast('클라우드 로그인이 필요합니다.', 'warning');
+    if (!isGhostCombatServerReady()) return showGameToast('고스트 실전투 DB 업데이트가 필요합니다.', 'warning');
     ghostArenaState.loading = true;
     ghostArenaState.message = '';
     renderGhostArena();
@@ -65,6 +76,7 @@ async function registerMyGhost() {
             method: 'POST', body: { p_combat_version: getGhostCombatVersion() }
         });
         ghostArenaState.result = null;
+        ghostArenaState.duel = null;
         showGameToast('최근 전투 기록으로 고스트를 등록했습니다.', 'success');
     } catch (error) {
         ghostArenaState.message = getGhostArenaError(error);
@@ -75,14 +87,20 @@ async function registerMyGhost() {
 }
 
 async function fightRandomGhost() {
-    if (ghostArenaState.loading) return;
+    if (ghostArenaState.loading || !isGhostCombatServerReady()) return;
     ghostArenaState.loading = true;
     ghostArenaState.message = '';
+    ghostArenaState.result = null;
+    ghostArenaState.duel = null;
+    ghostArenaState.duelMode = '';
+    if (typeof stopGhostDuelReplay === 'function') stopGhostDuelReplay();
     renderGhostArena();
     try {
         ghostArenaState.result = await cloudJsonRequest('/rest/v1/rpc/fight_ghost', {
             method: 'POST', body: { p_combat_version: getGhostCombatVersion() }
         });
+        ghostArenaState.duel = ghostArenaState.result && ghostArenaState.result.duel || null;
+        ghostArenaState.duelMode = 'ranked';
     } catch (error) {
         ghostArenaState.message = getGhostArenaError(error);
     } finally {
@@ -95,7 +113,8 @@ function renderProfileGhostResult(result) {
     if (!result) return '';
     let labels = { win: '승리', loss: '패배', draw: '무승부' };
     let tone = result.result === 'win' ? 'win' : (result.result === 'loss' ? 'loss' : 'draw');
-    return `<div class="ghost-result ${tone}"><strong>친선전 ${labels[result.result] || result.result}</strong><span>${ghostArenaEscape(result.opponent)} · 레이팅 변동 없음</span></div>`;
+    let pending = result.duel ? ' ghost-duel-result-pending' : '';
+    return `<div class="ghost-result ${tone}${pending}" data-ghost-duel-result><strong>친선전 ${labels[result.result] || result.result}</strong><span>${ghostArenaEscape(result.opponent)} · 레이팅 변동 없음</span></div>`;
 }
 
 async function fightCurrentProfileGhost() {
@@ -107,6 +126,9 @@ async function fightCurrentProfileGhost() {
         nickname: String(profile.nickname || '선택한 플레이어')
     };
     ghostArenaState.friendlyResult = null;
+    ghostArenaState.duel = null;
+    ghostArenaState.duelMode = '';
+    if (typeof stopGhostDuelReplay === 'function') stopGhostDuelReplay();
     if (typeof closePlayerProfile === 'function') closePlayerProfile();
     if (typeof window !== 'undefined' && typeof window.switchTab === 'function') {
         window.switchTab('tab-map', { keepWindowOpen: true });
@@ -119,16 +141,21 @@ async function fightCurrentProfileGhost() {
 
 async function fightSelectedProfileGhost() {
     let selected = ghostArenaState.selectedProfile;
-    if (!selected || ghostArenaState.friendlyBusy) return;
+    if (!selected || ghostArenaState.friendlyBusy || !isGhostCombatServerReady()) return;
     ghostArenaState.friendlyBusy = true;
     ghostArenaState.friendlyResult = null;
     ghostArenaState.message = '';
+    ghostArenaState.duel = null;
+    ghostArenaState.duelMode = '';
+    if (typeof stopGhostDuelReplay === 'function') stopGhostDuelReplay();
     renderGhostArena();
     try {
         let result = await cloudJsonRequest('/rest/v1/rpc/fight_ghost_target', {
             method: 'POST', body: { p_target_user_id: selected.userId, p_combat_version: getGhostCombatVersion() }
         });
         ghostArenaState.friendlyResult = result || {};
+        ghostArenaState.duel = result && result.duel || null;
+        ghostArenaState.duelMode = 'friendly';
     } catch (error) {
         ghostArenaState.message = getGhostArenaError(error);
     } finally {
@@ -142,7 +169,8 @@ function renderGhostResult(result) {
     let labels = { win: '승리', loss: '패배', draw: '무승부' };
     let tone = result.result === 'win' ? 'win' : (result.result === 'loss' ? 'loss' : 'draw');
     let delta = Number(result.ratingDelta) || 0;
-    return `<div class="ghost-result ${tone}"><strong>${labels[result.result] || result.result}</strong> · ${ghostArenaEscape(result.opponent)} (${ghostArenaEscape(result.opponentSkill)})<span>레이팅 ${ghostArenaEscape(result.ratingBefore)} → ${ghostArenaEscape(result.ratingAfter)} (${delta >= 0 ? '+' : ''}${delta})</span></div>`;
+    let pending = result.duel ? ' ghost-duel-result-pending' : '';
+    return `<div class="ghost-result ${tone}${pending}" data-ghost-duel-result><strong>${labels[result.result] || result.result}</strong> · ${ghostArenaEscape(result.opponent)} (${ghostArenaEscape(result.opponentSkill)})<span>레이팅 ${ghostArenaEscape(result.ratingBefore)} → ${ghostArenaEscape(result.ratingAfter)} (${delta >= 0 ? '+' : ''}${delta})</span></div>`;
 }
 
 function renderGhostLeaderboard(rows) {
@@ -153,7 +181,19 @@ function renderGhostLeaderboard(rows) {
 function renderFriendlyGhostChallenge() {
     let selected = ghostArenaState.selectedProfile;
     if (!selected) return '';
-    return `<section class="ghost-friendly"><div><small>친선전 상대</small><strong>${ghostArenaEscape(selected.nickname)}</strong><span>레이팅과 전적은 변하지 않습니다.</span></div><button type="button" onclick="fightSelectedProfileGhost()" ${ghostArenaState.friendlyBusy ? 'disabled' : ''}>${ghostArenaState.friendlyBusy ? '대결 중…' : '친선 대결 시작'}</button></section>${renderProfileGhostResult(ghostArenaState.friendlyResult)}`;
+    let disabled = ghostArenaState.friendlyBusy || !isGhostCombatServerReady();
+    return `<section class="ghost-friendly"><div><small>친선전 상대</small><strong>${ghostArenaEscape(selected.nickname)}</strong><span>레이팅과 전적은 변하지 않습니다.</span></div><button type="button" onclick="fightSelectedProfileGhost()" ${disabled ? 'disabled' : ''}>${ghostArenaState.friendlyBusy ? '대결 중…' : '친선 대결 시작'}</button></section>`;
+}
+
+function renderActiveGhostDuel() {
+    if (!ghostArenaState.duel || typeof renderGhostDuelReplay !== 'function') return '';
+    return renderGhostDuelReplay(ghostArenaState.duel);
+}
+
+function renderActiveGhostResult() {
+    if (ghostArenaState.duelMode === 'friendly') return renderProfileGhostResult(ghostArenaState.friendlyResult);
+    if (ghostArenaState.duelMode === 'ranked') return renderGhostResult(ghostArenaState.result);
+    return '';
 }
 
 function renderGhostArena() {
@@ -165,10 +205,16 @@ function renderGhostArena() {
     }
     let data = ghostArenaState.data || {};
     let me = data.me;
+    let serverReady = isGhostCombatServerReady();
+    let visibleMessage = ghostArenaState.message || (!serverReady && me
+        ? '고스트 실전투 DB가 아직 적용되지 않았습니다. Supabase에서 db/operations-and-ghost.sql을 다시 실행하세요.' : '');
     let status = me
         ? `<span>내 레이팅 <strong>${me.rating}</strong> · ${me.wins}승 ${me.losses}패 ${me.draws}무${me.matches < 10 ? ' · 배치 중' : ''}</span>`
         : '<span>등록된 고스트 없음</span>';
-    host.innerHTML = `<section class="ghost-arena"><header><div><strong>고스트 대결</strong><small>보상 없음 · 서버 판정 Elo</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">최근 24시간의 같은 빌드 전투 3회 이상을 중앙값으로 등록합니다. 패치 버전이 다른 고스트는 매칭하지 않습니다.</p>${ghostArenaState.message ? `<p class="ghost-error">${ghostArenaEscape(ghostArenaState.message)}</p>` : ''}${renderFriendlyGhostChallenge()}${renderGhostResult(ghostArenaState.result)}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
+    host.innerHTML = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음 · 서버 시뮬레이션 Elo</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">최근 24시간의 같은 빌드 전투 3회 이상으로 등록합니다. 대전 간 20초 · 랭크 20회/24시간 · 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderFriendlyGhostChallenge()}${renderActiveGhostDuel()}${renderActiveGhostResult()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
+    if (ghostArenaState.duel && !ghostArenaState.loading && typeof mountGhostDuelReplay === 'function') {
+        requestAnimationFrame(() => mountGhostDuelReplay(ghostArenaState.duel));
+    }
     if (!ghostArenaState.data && !ghostArenaState.loading) Promise.resolve(loadGhostArena()).catch(() => {});
 }
 

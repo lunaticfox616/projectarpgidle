@@ -119,6 +119,7 @@ function getPlaytestPowerSnapshot() {
         dps: clampPlaytestInteger(stats.totalDps || stats.dps || stats.hitDps),
         ehpMin: positiveEhp.length ? Math.min(...positiveEhp) : 0,
         elements,
+        ghost: typeof getGhostCombatSnapshot === 'function' ? getGhostCombatSnapshot(stats) : null,
         skillElement: stats.sSkill && ['phys', 'fire', 'cold', 'light', 'chaos'].includes(stats.sSkill.ele)
             ? stats.sSkill.ele : 'phys'
     };
@@ -177,6 +178,7 @@ function finishPlaytestAttempt(result, detail) {
         dps: attempt.power.dps,
         ehp_min: attempt.power.ehpMin,
         ehp_by_element: attempt.power.elements,
+        ghost_snapshot: attempt.power.ghost || {},
         frame_p95_ms: frame.p95,
         long_frames: frame.longFrames,
         peak_fx: frame.peakFx,
