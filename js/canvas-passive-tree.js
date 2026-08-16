@@ -621,7 +621,7 @@ function renderPaperdoll(targetId, forCrafting) {
     document.getElementById(targetId).innerHTML = html;
 }
 
-function renderInventoryCard(item, idx, mode) {
+function renderInventoryCard(item, idx, mode, triageResult) {
     let selected = !isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === item.id;
     let query = getEquipSearchQueryLocal();
     let hi = (text) => {
@@ -641,6 +641,14 @@ function renderInventoryCard(item, idx, mode) {
         : ((item.stats || []).length + (item.chaosInfusion ? 1 : 0));
     let optionSummary = explicitCount > 0 ? `추가 옵션 ${explicitCount}` : '추가 옵션 없음';
     let metaChips = `<span class="equipment-meta-chip">${optionSummary}</span>`;
+    if (triageResult) {
+        let dpsSlot = triageResult.dpsSlot ? ` · ${String(triageResult.dpsSlot).replace(/[12]$/, '')} 교체 기준` : '';
+        let ehpSlot = triageResult.ehpSlot ? ` · ${String(triageResult.ehpSlot).replace(/[12]$/, '')} 교체 기준` : '';
+        if (triageResult.dpsGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-damage" title="${escapeHTML(`현재 세팅${dpsSlot}`)}">공격 +${triageResult.dpsGainPct}%</span>`;
+        if (triageResult.ehpGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-defense" title="${escapeHTML(`현재 세팅${ehpSlot}`)}">생존 +${triageResult.ehpGainPct}%</span>`;
+        if (triageResult.kind === 'keep') metaChips += '<span class="equipment-meta-chip equipment-triage-chip triage-keep">현 세팅 유지</span>';
+        if (triageResult.special) metaChips += '<span class="equipment-meta-chip equipment-triage-chip triage-special">특수</span>';
+    }
     let salvageTitle = typeof getItemSalvagePreviewText === 'function' ? getItemSalvagePreviewText(item, false) : '장비를 해체합니다.';
     let actions = '';
     if (mode === 'equip') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${item.locked ? 'disabled' : ''}>해체</button></div>`;
@@ -664,7 +672,7 @@ function renderInventoryCard(item, idx, mode) {
             <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(item) : item.slot)}</span><span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>
             <div class="item-title equipment-card-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}</div>
             <div class="item-base-line equipment-card-base">${hi(item.baseName)}</div>
-            <div class="item-stats equipment-card-meta">${metaChips}</div>
+            <div class="item-stats equipment-card-meta${triageResult ? ' has-triage' : ''}">${metaChips}</div>
         </div>
         ${actions}
     </div>`;

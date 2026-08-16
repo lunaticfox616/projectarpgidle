@@ -18,7 +18,7 @@ const LOAD_ORDER = [
     'js/utils.js', 'js/ui-feedback.js', 'js/state.js', 'js/offline-progress.js', 'js/records.js', 'js/save.js', 'js/items.js',
     'js/skills.js', 'js/passives.js', 'js/growth-board.js', 'js/growth-effects.js',
     'js/growth-generation.js', 'js/core-cube.js', 'js/combat-grid.js',
-    'js/combat-patterns.js', 'js/combat.js', 'js/combat-ehp.js', 'js/canvas-battlefield.js',
+    'js/combat-patterns.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-battlefield.js',
     'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/ui.js', 'js/growth-ui.js',
     'js/skills-ui.js', 'js/offline-progress-ui.js', 'js/records-ui.js'
 ];

@@ -2193,6 +2193,14 @@ function setEquipmentInventoryView(key, value) {
 
 safeExposeGlobals({ setEquipmentInventoryView });
 
+function syncEquipmentSlotFilterOptions(select, slots) {
+    if (!select) return;
+    let signature = JSON.stringify(slots);
+    if (select.dataset.optionSignature === signature) return;
+    select.innerHTML = `<option value="all">전체</option>${slots.map(slot => `<option value="${escapeHTML(slot)}">${escapeHTML(slot)}</option>`).join('')}`;
+    select.dataset.optionSignature = signature;
+}
+
 function syncEquipmentMobilePane() {
     game.settings = game.settings || {};
     let pane = game.settings.equipmentMobilePane === 'loadout' ? 'loadout' : 'inventory';
@@ -2236,13 +2244,11 @@ function getSortedEquipmentInventoryRows(query) {
     if (!slots.includes(slotValue)) slotValue = 'all';
     let slotSelect = document.getElementById('ui-equipment-slot-filter');
     let sortSelect = document.getElementById('ui-equipment-sort');
-    if (slotSelect) {
-        slotSelect.innerHTML = `<option value="all">전체</option>${slots.map(slot => `<option value="${escapeHTML(slot)}">${escapeHTML(slot)}</option>`).join('')}`;
-        slotSelect.value = slotValue;
-    }
+    syncEquipmentSlotFilterOptions(slotSelect, slots);
+    if (slotSelect) slotSelect.value = slotValue;
     if (sortSelect) sortSelect.value = sortValue;
     let ranks = { unique: 4, rare: 3, magic: 2, normal: 1 };
-    return game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
+    let rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
         let item = row.item || {};
         if (slotValue !== 'all' && item.slot !== slotValue) return false;
         if (!isItemRarityVisible(item)) return false;
@@ -2256,6 +2262,7 @@ function getSortedEquipmentInventoryRows(query) {
         if (sortValue === 'slot') return String(a.item.slot || '').localeCompare(String(b.item.slot || ''), 'ko') || b.idx - a.idx;
         return b.idx - a.idx;
     });
+    return window.equipmentTriage ? window.equipmentTriage.filterRows(rows) : rows;
 }
 
 function moveSkillAutoRule(index, delta) {
@@ -10045,8 +10052,12 @@ function performUpdateStaticUI() {
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
     if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
+    if (window.equipmentTriage) {
+        window.equipmentTriage.sync();
+        window.equipmentTriage.render();
+    }
     const equipInvRows = getSortedEquipmentInventoryRows(sf.equip);
-    renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join(''), '', '');
+    renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip', window.equipmentTriage ? window.equipmentTriage.getResult(row.item) : null)).join(''), '', '');
     const visibleInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isItemRarityVisible(row.item));
     document.getElementById('ui-craft-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
     document.getElementById('ui-fossil-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'fossil')).join('');

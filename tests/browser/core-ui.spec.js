@@ -72,6 +72,52 @@ test('unlocked secondary tabs render after cross-tab navigation', async ({ page 
     expect(failures).toEqual([]);
 });
 
+test('equipment triage classifies the current build without destabilizing selectors', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.combatHalted = true;
+        game.enemies = [];
+        game.unlocks.items = true;
+        game.inventory = [
+            { id: 98101, slot: '투구', name: '생존 시험 투구', baseName: '시험 투구', rarity: 'rare', baseStats: [], stats: [{ id: 'flatHp', val: 500 }] },
+            { id: 98102, slot: '목걸이', name: '공격 시험 목걸이', baseName: '시험 목걸이', rarity: 'rare', baseStats: [], stats: [{ id: 'flatDmg', val: 250 }] },
+            { id: 98103, slot: '허리띠', name: '특수 시험 허리띠', baseName: '시험 허리띠', rarity: 'unique', baseStats: [], stats: [] }
+        ];
+        game.equipment['투구'] = null;
+        game.equipment['목걸이'] = null;
+        game.equipment['허리띠'] = null;
+        switchTab('tab-items');
+        switchItemSubtab('item-tab-equip');
+        updateStaticUI();
+        window.__equipmentSlotOptionMutations = 0;
+        const slotSelect = document.getElementById('ui-equipment-slot-filter');
+        new MutationObserver(records => {
+            window.__equipmentSlotOptionMutations += records.filter(record => record.type === 'childList').length;
+        }).observe(slotSelect, { childList: true });
+    });
+    const triage = page.locator('#ui-equipment-triage');
+    await expect(triage).toContainText('호버 대신');
+    await triage.getByRole('button', { name: '일괄 분석' }).click();
+    await expect(triage).toContainText('3개 완료');
+    const cards = page.locator('#ui-inventory-list .equipment-item-card');
+    await expect(cards).toHaveCount(3);
+    await expect(page.locator('#ui-inventory-list')).toContainText('공격 +');
+    await expect(page.locator('#ui-inventory-list')).toContainText('생존 +');
+    await expect(page.locator('#ui-inventory-list')).toContainText('특수');
+    await triage.locator('select').selectOption('defense');
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('생존 +');
+    await page.evaluate(async () => {
+        window.__equipmentSlotOptionMutations = 0;
+        updateStaticUI();
+        updateStaticUI();
+        await new Promise(resolve => setTimeout(resolve, 120));
+    });
+    expect(await page.evaluate(() => window.__equipmentSlotOptionMutations)).toBe(0);
+    expect(failures).toEqual([]);
+});
+
 test('endgame support screens keep primary actions and interaction state visible', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
