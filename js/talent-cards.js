@@ -304,6 +304,63 @@ function getTalentCardName(heroId, classKey) {
     return { heroLabel, classLabel, bloomName };
 }
 
+let talentCardView = { dimension: 'talent', filterId: null };
+
+function setTalentCardView(dimension) {
+    if (dimension !== 'talent' && dimension !== 'class') return;
+    talentCardView = { dimension, filterId: null };
+    renderTalentTab();
+}
+
+function setTalentCardFilter(filterId) {
+    talentCardView.filterId = talentCardView.filterId === filterId ? null : filterId;
+    renderTalentTab();
+}
+
+function getTalentCardDimensionRows(owned) {
+    let dimension = talentCardView.dimension;
+    let ids = dimension === 'talent' ? HERO_SELECTION_ORDER : Object.keys(CLASS_TEMPLATES);
+    return ids.map(id => {
+        let label = dimension === 'talent' ? getHeroSelectionDef(id).label : CLASS_TEMPLATES[id].name;
+        let count = Object.keys(owned).filter(key => {
+            let parsed = parseTalentComboKey(key);
+            return dimension === 'talent' ? parsed.heroId === id : parsed.classKey === id;
+        }).length;
+        return { id, label, count, total: dimension === 'talent' ? Object.keys(CLASS_TEMPLATES).length : HERO_SELECTION_ORDER.length };
+    });
+}
+
+function renderTalentBloomNavigator(owned) {
+    let rows = getTalentCardDimensionRows(owned);
+    let chips = rows.map(row => {
+        let active = talentCardView.filterId === row.id;
+        return `<button type="button" class="talent-bloom-filter${active ? ' active' : ''}" aria-pressed="${active}" onclick="setTalentCardFilter('${row.id}')"><strong>${escapeTalentHtml(row.label)}</strong><span>${row.count}/${row.total}</span></button>`;
+    }).join('');
+    return `<section class="talent-bloom-navigator">
+        <div class="talent-bloom-navigator-head"><div><strong>개화 현황</strong><span>항목을 누르면 해당 조합만 모아 봅니다.</span></div><div class="talent-bloom-view-tabs">
+            <button type="button" class="${talentCardView.dimension === 'talent' ? 'active' : ''}" onclick="setTalentCardView('talent')">재능별</button>
+            <button type="button" class="${talentCardView.dimension === 'class' ? 'active' : ''}" onclick="setTalentCardView('class')">직업별</button>
+        </div></div><div class="talent-bloom-filter-grid">${chips}</div>
+    </section>`;
+}
+
+function matchesTalentCardView(key) {
+    if (!talentCardView.filterId) return true;
+    let parsed = parseTalentComboKey(key);
+    return talentCardView.dimension === 'talent'
+        ? parsed.heroId === talentCardView.filterId
+        : parsed.classKey === talentCardView.filterId;
+}
+
+function renderTalentLoadoutSlot(index, unlocked, key, owned) {
+    if (!unlocked) return `<div class="talent-slot locked">🔒<br><span>보유 ${TALENT_CARD_SLOT_UNLOCKS[index]}장</span></div>`;
+    if (!key || !owned[key]) return '<div class="talent-slot empty">빈 슬롯<br><span>카드를 눌러 장착</span></div>';
+    let { heroId, classKey } = parseTalentComboKey(key);
+    let { heroLabel, classLabel, bloomName } = getTalentCardName(heroId, classKey);
+    let level = Math.max(1, Math.floor(owned[key].level || 1));
+    return `<div class="talent-slot filled" onclick="unequipTalentSlot(${index})" title="클릭하여 해제"><strong>${escapeTalentHtml(bloomName)}</strong><span>${escapeTalentHtml(heroLabel)} × ${escapeTalentHtml(classLabel)} · Lv.${level}</span></div>`;
+}
+
 function getOwnedTalentCardCount() {
     return (game.talentCards && typeof game.talentCards === 'object') ? Object.keys(game.talentCards).length : 0;
 }
@@ -782,18 +839,10 @@ function renderTalentTab() {
     for (let i = 0; i < TALENT_CARD_SLOT_COUNT; i++) {
         let unlocked = i < unlockedSlots;
         let key = loadout[i];
-        if (!unlocked) {
-            slotHtml += `<div class="talent-slot locked">🔒<br><span>보유 ${TALENT_CARD_SLOT_UNLOCKS[i]}장</span></div>`;
-        } else if (key && owned[key]) {
-            let { heroId, classKey } = parseTalentComboKey(key);
-            let { heroLabel, classLabel } = getTalentCardName(heroId, classKey);
-            slotHtml += `<div class="talent-slot filled" onclick="unequipTalentSlot(${i})" title="클릭하여 해제"><strong>${heroLabel}</strong><br><span>${classLabel} · Lv.${Math.max(1, Math.floor(owned[key].level || 1))}</span></div>`;
-        } else {
-            slotHtml += `<div class="talent-slot empty">빈 슬롯<br><span>카드를 눌러 장착</span></div>`;
-        }
+        slotHtml += renderTalentLoadoutSlot(i, unlocked, key, owned);
     }
     let nextSlot = unlockedSlots < TALENT_CARD_SLOT_COUNT ? `<span style="color:var(--copy-bright);"> · 다음 슬롯: 보유 ${TALENT_CARD_SLOT_UNLOCKS[unlockedSlots]}장</span>` : '';
-    let loadoutHtml = `<div style="grid-column:1/-1;">
+    let loadoutHtml = `${renderTalentBloomNavigator(owned)}<div class="talent-loadout-panel">
         <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
             <strong>장착 슬롯</strong><span style="font-size:0.82em;">열린 슬롯 ${unlockedSlots}/${TALENT_CARD_SLOT_COUNT}${nextSlot}</span>
         </div>
@@ -806,7 +855,8 @@ function renderTalentTab() {
     }
     // 레벨 내림차순 정렬
     ownedKeys.sort((a, b) => (owned[b].level - owned[a].level) || (owned[b].score - owned[a].score));
-    let cardsHtml = ownedKeys.map(key => {
+    let visibleKeys = ownedKeys.filter(matchesTalentCardView);
+    let cardsHtml = visibleKeys.map(key => {
         let card = owned[key];
         let { heroId, classKey } = parseTalentComboKey(key);
         let { heroLabel, classLabel, bloomName } = getTalentCardName(heroId, classKey);
@@ -825,10 +875,12 @@ function renderTalentTab() {
             <div class="talent-card-foot">${equipped ? '✅ 장착됨 · ' : ''}점수 ${Math.max(0, Math.floor(card.score || 0))} · 개화 ${Math.max(0, Math.floor(card.count || 0))}회 · ${nextText}</div>
         </div>`;
     }).join('');
-    gridEl.innerHTML = loadoutHtml + cardsHtml;
+    gridEl.innerHTML = loadoutHtml + (cardsHtml || '<div class="talent-bloom-empty">이 항목으로 개화한 조합이 아직 없습니다.</div>');
 }
 
 safeExposeGlobals({
+    setTalentCardView,
+    setTalentCardFilter,
     grantTalentStoneShield,
     getTalentMoonReturnConfig,
     canTalentCardApplyEnemyAilment,

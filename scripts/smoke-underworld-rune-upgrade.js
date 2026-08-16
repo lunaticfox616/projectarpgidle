@@ -75,4 +75,32 @@ function runUpgrade(state) {
     assert.deepStrictEqual(state.underworldRunes.obtainedRunes, [2], 'the upgraded rune must remain in inventory when no slot is available');
 }
 
+function runEnterUnderworld(state, requestedFloor, canEnter = true) {
+    let zoneChanges = 0;
+    const context = {
+        Math,
+        Number,
+        game: state,
+        UNDERWORLD_ZONE_ID: 'underworld',
+        canEnterUnderworld: () => canEnter,
+        isBeehiveRunLockedForMapTravel: () => false,
+        changeZone(zoneId) { state.currentZoneId = zoneId; zoneChanges += 1; },
+        updateStaticUI() {},
+        addLog() {}
+    };
+    vm.createContext(context);
+    vm.runInContext(readFunctionSource('enterUnderworldFloor'), context, { filename: 'underworld-floor-entry.js' });
+    context.enterUnderworldFloor(requestedFloor);
+    return zoneChanges;
+}
+
+{
+    const state = { underworldProgress: { highestFloor: 18, currentFloor: 7 } };
+    assert.strictEqual(runEnterUnderworld(state, 18), 1, '최고층 즉시 입장은 지역을 한 번만 변경해야 한다');
+    assert.strictEqual(state.underworldProgress.currentFloor, 18, '선택한 최고층이 현재 층에 반영되어야 한다');
+    assert.strictEqual(state.currentZoneId, 'underworld', '지하계 지역으로 입장해야 한다');
+    assert.strictEqual(runEnterUnderworld(state, 19), 0, '도달하지 않은 층에는 즉시 입장할 수 없어야 한다');
+    assert.strictEqual(runEnterUnderworld(state, 5, false), 0, '입장 조건이 잠겼으면 빠른 입장도 우회할 수 없어야 한다');
+}
+
 console.log('smoke-underworld-rune-upgrade passed');

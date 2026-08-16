@@ -34,6 +34,25 @@ const defs = vm.runInContext('TALENT_BLOOM_CARD_DEFS', context);
 const cardIds = Object.keys(defs);
 assert.strictEqual(cardIds.length, 120, '재능 카드 정의는 120종이어야 한다');
 
+context.HERO_SELECTION_ORDER = ['hero1', 'hero2'];
+context.CLASS_TEMPLATES = { warrior: { name: '전사' }, ranger: { name: '레인저' } };
+context.getHeroSelectionDef = heroId => ({ label: heroId === 'hero1' ? '궁수' : '전사 재능' });
+context.game.talentCards = {
+  hero1__warrior: { level: 3, score: 20, count: 1 },
+  hero2__warrior: { level: 2, score: 10, count: 1 },
+};
+context.setTalentCardView('talent');
+let dimensionRows = JSON.parse(vm.runInContext('JSON.stringify(getTalentCardDimensionRows(game.talentCards))', context));
+assert.deepStrictEqual(dimensionRows.map(row => [row.id, row.count]), [['hero1', 1], ['hero2', 1]],
+  '재능별 현황은 각 재능의 개화 조합 수를 보여야 한다');
+context.setTalentCardView('class');
+dimensionRows = JSON.parse(vm.runInContext('JSON.stringify(getTalentCardDimensionRows(game.talentCards))', context));
+assert.deepStrictEqual(dimensionRows.map(row => [row.id, row.count]), [['warrior', 2], ['ranger', 0]],
+  '직업별 현황은 미개화 직업도 0건으로 함께 보여야 한다');
+const slotHtml = vm.runInContext("renderTalentLoadoutSlot(0, true, 'hero1__warrior', game.talentCards)", context);
+assert(slotHtml.includes('아방가르드') && slotHtml.includes('궁수 × 전사'),
+  '장착 슬롯은 혼합 재능명과 원본 재능·직업을 함께 표시해야 한다');
+
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 const talentSource = fs.readFileSync('js/talent-cards.js', 'utf8');
 const preciseRuntimeOnly = new Set([

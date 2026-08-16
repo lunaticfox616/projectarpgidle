@@ -140,6 +140,7 @@ async function main() {
         const ctx = loadCubeContext();
         run(ctx, 'let st = ensureCoreCubeState(); st.powers = { 7: 1 }; st.selectedFace = 0; socketCoreCubePower(7);');
         assert.strictEqual(run(ctx, 'ensureCoreCubeState().faces[0]'), 7, '각인이 반영되어야 한다');
+        assert.strictEqual(run(ctx, 'ensureCoreCubeState().selectedFace'), 1, '각인 후에는 다음 빈 면을 자동 선택해야 한다');
         assert.strictEqual(run(ctx, 'getCoreCubeUsedPowerCount(ensureCoreCubeState())'), 1, '각인은 사용 이력에 남아야 한다');
     }
 

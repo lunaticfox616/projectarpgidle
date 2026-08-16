@@ -73,6 +73,7 @@ function createRenderHost() {
     return {
         style: {}, renderCount: 0, _html: '',
         querySelector: () => null,
+        querySelectorAll: () => [],
         get firstChild() { return this.renderCount > 0 ? {} : null; },
         get innerHTML() { return this._html; },
         set innerHTML(value) { this._html = value; this.renderCount++; }
@@ -179,6 +180,7 @@ function createScrollableRenderHost(top, left) {
     assert.strictEqual(run('growthSelection.source'), 'tray', '빠른 배치함 클릭으로 아이템을 선택해야 한다');
     assert.strictEqual(run('growthCraftItemId'), run('game.growthInventory[0].id'), '빠른 배치함에서 선택한 아이템을 제작대에도 올려야 한다');
     assert.ok(panel._html.includes('제작 전 옵션 확인'), '빠른 배치함 선택 직후 제작대 미리보기를 갱신해야 한다');
+    assert.ok(/data-growth-disclosure="craft-bench"\s+open/.test(panel._html), '빠른 배치함에서 선택하면 제작대가 즉시 열려야 한다');
     assert.strictEqual(panel.tray.scrollTop, 137, '빠른 배치함의 세로 스크롤을 복원해야 한다');
     assert.strictEqual(panel.tray.scrollLeft, 29, '모바일 빠른 배치함의 가로 스크롤도 복원해야 한다');
     assert.strictEqual(scrollIntoViewCalls, 0, '빠른 배치함 선택은 제작대로 화면을 이동시키면 안 된다');
