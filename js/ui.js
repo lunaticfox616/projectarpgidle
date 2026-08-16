@@ -3580,12 +3580,6 @@ function renderUnderworldMapPanel() {
         let label = def ? def.name : ('룬' + k);
         return `<button type="button" class="underworld-rune-chip" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${runeNo})" onmousemove="showUnderworldRuneTooltip(event,${runeNo})" onmouseleave="hideInfoTooltip()">${label}×${runeCountMap[k]}</button>`;
     }).join('');
-    let equippedLine = (Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes : []).slice(0, 6).map((no, idx) => {
-        if (idx >= Math.max(0, Math.floor(runeState.unlockedSlots || 0))) return '';
-        let def = no ? getUnderworldRuneDef(no) : null;
-        let label = def ? `${def.name} (${getUnderworldRuneEffectHtml(no)})` : '비어있음';
-        return `<div class="underworld-equipped-row">[${idx + 1}] ${label}</div>`;
-    }).filter(Boolean).join('');
     let runeShardCount = Math.max(0, Math.floor((game.currencies || {}).runeShard || 0));
     let ticketLine = [
         `화염 ${Math.max(0, Math.floor((game.currencies || {}).uberRootTicketFlame || 0))}`,
@@ -3598,7 +3592,7 @@ function renderUnderworldMapPanel() {
     let skyStonePct = typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0;
     let skyStoneCost = typeof getSkyStoneNextCost === 'function' ? getSkyStoneNextCost() : 20;
     let skyStoneMaxed = skyStoneLevel >= (typeof getSkyStoneMaxLevel === 'function' ? getSkyStoneMaxLevel() : 15);
-    let skyStonePanel = `<div style="margin-top:10px; padding:9px; border:1px solid #44637c; border-radius:10px; background:rgba(35,54,72,0.42);"><div style="font-weight:800; color:#ffffff;">☁️ 창공석 ${skyStoneLevel > 0 ? `+${skyStoneLevel}` : '(미제작)'}</div><div style="margin-top:3px; color:#ffffff;">주변의 중력이 일그러질 정도로 창공의 힘이 응축된 돌</div><div style="margin-top:4px; color:#ffffff;">지하계 패널티 감소: <strong>${skyStonePct}%</strong> / 75% · 응축된 창공의 힘 <strong>${Math.floor(skyTower.condensedPower || 0)}</strong></div><button style="margin-top:6px;" onclick="upgradeSkyStone()" ${skyStoneMaxed ? 'disabled' : ''}>${skyStoneLevel > 0 ? '창공석 강화' : '창공석 제작'} (${skyStoneMaxed ? '최대' : `필요 ${skyStoneCost}`})</button></div>`;
+    let skyStonePanel = `<section class="underworld-upgrade-card"><div><strong>☁️ 창공석 ${skyStoneLevel > 0 ? `+${skyStoneLevel}` : '미제작'}</strong><span>중력 패널티 감소 ${skyStonePct}% / 75%</span></div><div><span>응축된 창공의 힘 ${Math.floor(skyTower.condensedPower || 0)}</span><button onclick="upgradeSkyStone()" ${skyStoneMaxed ? 'disabled' : ''}>${skyStoneLevel > 0 ? '강화' : '제작'} · ${skyStoneMaxed ? '최대' : skyStoneCost}</button></div></section>`;
     let slots = Array.from({ length: 6 }).map((_, idx) => {
         let no = (Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes : [])[idx];
         let unlocked = idx < Math.max(0, Math.floor(runeState.unlockedSlots || 0));
@@ -3609,9 +3603,13 @@ function renderUnderworldMapPanel() {
         let attrs = unlocked ? `onclick="openUnderworldRuneOverlay(${idx})" data-info-tooltip-anchor="1" onmouseenter="${tooltip}" onmousemove="${tooltip}" onmouseleave="hideInfoTooltip()"` : 'disabled';
         return `<button type="button" class="underworld-rune-slot ${unlocked ? 'unlocked' : 'locked'}" ${attrs}><span class="underworld-rune-slot-no">${idx + 1}</span><strong>${label}</strong><small>${effect}</small></button>`;
     }).join('');
-    panel.innerHTML = `<div style="font-weight:800; color:#e4d8ff;">지하계: 핵으로 하강</div><div style="margin-top:4px; color:${canEnter ? '#d6e4ff' : '#ffcf8a'};">입장 조건: 이번 루프 혼돈 20 클리어 필요 · 고중력으로 층이 깊어질수록 이속/공속 감소 · 15층부터 지속 피해</div><div style="margin-top:6px; color:#c9b8ff;">룬 슬롯 ${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 · 해금된 룬 번호 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))}</div><div class=\"underworld-rune-slots\">${slots}</div><div style="margin-top:4px; color:#9fe3d6;">룬 조각: <strong>${runeShardCount}</strong></div><div style="margin-top:4px; color:#d7c6a0;">지하계 재화: 구리 <strong>${Math.floor((game.currencies||{}).underCopper||0)}</strong> · 은 <strong>${Math.floor((game.currencies||{}).underSilver||0)}</strong> · 금 <strong>${Math.floor((game.currencies||{}).underGold||0)}</strong></div><div style="margin-top:4px; color:#ffd8a8;">우버 뿌리 입장권: ${ticketLine}</div><div style="margin-top:6px;"><button onclick="craftUnderworldRune()">룬 가공 (룬조각 10)</button><button onclick="openUnderworldRuneUpgradeOverlay()" style="margin-left:6px;">룬 승급 (동일 룬 3개 + 룬조각)</button><button onclick="applyUnderworldEnchant()" style="margin-left:6px;">지하계 인챈트</button><button onclick="attemptUnderworldLimitBreak()" style="margin-left:6px;">20% 한계돌파</button><button onclick="enhanceUnderworldRune()" style="margin-left:6px;">룬 강화</button><button onclick="rerollUnderworldRuneBonus()" style="margin-left:6px;">룬 옵션 리롤</button></div>${skyStonePanel}<div style="margin-top:6px; color:var(--copy-bright);">보유 룬:<div class=\"underworld-rune-inventory\">${runeLine || '<span style=\"color:var(--copy-muted);\">없음</span>'}${Object.keys(runeCountMap).length > 12 ? '<span style=\"color:var(--copy-muted);\">...</span>' : ''}</div></div><div style="margin-top:6px; color:var(--copy-bright);">장착 룬(영구 적용):<div class=\"underworld-equipped-list\">${equippedLine || '<span style=\"color:var(--copy-muted);\">없음</span>'}</div></div>`;
     let powerEstimate = buildMapPowerEstimateHtml(getZone(UNDERWORLD_ZONE_ID));
-    list.innerHTML = `<div class="map-item ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}" ${canEnter ? 'onclick="enterUnderworldPrompt()"' : ''} style="${canEnter ? '' : 'opacity:.65; cursor:not-allowed;'}"><div class="map-item-main"><span>🕳️</span><span>지하계 ${floor}층<br>${powerEstimate}</span></div><div class="map-item-actions"><button ${canEnter ? '' : 'disabled'}>층 선택 입장</button></div></div>`;
+    let currentFloorButton = floor === highest ? '' : `<button type="button" onclick="enterUnderworldFloor(${floor})" ${canEnter ? '' : 'disabled'}>${floor}층 입장</button>`;
+    list.innerHTML = `<section class="underworld-entry-card ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}"><div class="underworld-entry-copy"><span>현재 선택 ${floor}층</span><strong>도달 최고 ${highest}층</strong><div>${powerEstimate}</div></div><div class="underworld-entry-actions"><button type="button" class="underworld-primary-action" onclick="enterUnderworldFloor(${highest})" ${canEnter ? '' : 'disabled'}>최고층 ${highest} 입장</button>${currentFloorButton}<button type="button" onclick="enterUnderworldPrompt()" ${canEnter ? '' : 'disabled'}>다른 층…</button></div></section>`;
+    panel.innerHTML = `<div class="underworld-panel-head"><div><strong>룬 장착과 영구 강화</strong><span class="${canEnter ? '' : 'locked'}">${canEnter ? '입장 가능' : '이번 루프 혼돈 20 클리어 필요'} · 15층부터 지속 피해</span></div><div class="underworld-resource-strip"><span>룬 조각 <b>${runeShardCount}</b></span><span>구리 <b>${Math.floor((game.currencies||{}).underCopper||0)}</b></span><span>은 <b>${Math.floor((game.currencies||{}).underSilver||0)}</b></span><span>금 <b>${Math.floor((game.currencies||{}).underGold||0)}</b></span></div></div>
+        <section class="underworld-rune-console"><div class="underworld-section-head"><div><strong>장착 룬</strong><span>${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 슬롯 · 룬 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))} 해금</span></div><small>슬롯을 눌러 즉시 교체</small></div><div class="underworld-rune-slots">${slots}</div></section>
+        <div class="underworld-action-grid"><button onclick="craftUnderworldRune()"><strong>룬 가공</strong><span>조각 10</span></button><button onclick="openUnderworldRuneUpgradeOverlay()"><strong>룬 승급</strong><span>동일 룬 3개</span></button><button onclick="enhanceUnderworldRune()"><strong>룬 강화</strong><span>수치 성장</span></button><button onclick="rerollUnderworldRuneBonus()"><strong>옵션 리롤</strong><span>추가 옵션 변경</span></button><button onclick="applyUnderworldEnchant()"><strong>장비 인챈트</strong><span>지하계 제작</span></button><button onclick="attemptUnderworldLimitBreak()"><strong>한계돌파</strong><span>성공률 20%</span></button></div>
+        <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개 · 우버 입장권 확인</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}${Object.keys(runeCountMap).length > 12 ? '<span class="core-cube-muted">...</span>' : ''}</div><p>우버 뿌리 입장권 · ${ticketLine}</p></details></div>`;
 }
 function ensureUnderworldRuneState() {
     if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {} };
@@ -3995,9 +3993,22 @@ async function enterChaosRealmPrompt(){
     changeZone(CHAOS_REALM_ZONE_ID);
     updateStaticUI();
 }
-async function enterUnderworldPrompt(){
+function enterUnderworldFloor(requestedFloor) {
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return addLog('지하계 입장 조건: 야수왕 케르베로스 클리어 + 혼돈 심화 30층 + 고대 미궁 100층 + 이번 루프 혼돈20 클리어', 'attack-monster');
+    let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
+    game.underworldProgress = uw;
+    let max = Math.max(1, Math.floor(uw.highestFloor || 1));
+    let floor = Math.floor(Number(requestedFloor) || 0);
+    if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
+    uw.currentFloor = floor;
+    changeZone(UNDERWORLD_ZONE_ID);
+    updateStaticUI();
+}
+
+async function enterUnderworldPrompt(){
+    if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    if (!(typeof canEnterUnderworld === 'function' && canEnterUnderworld())) return enterUnderworldFloor(1);
     let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
     game.underworldProgress = uw;
     let max = Math.max(1, Math.floor(uw.highestFloor || 1));
@@ -4010,12 +4021,10 @@ async function enterUnderworldPrompt(){
         confirmLabel: '입장'
     });
     if (v === null) return;
-    let floor = Math.floor(Number(v) || 0);
-    if (floor < 1 || floor > max) return addLog(`1~${max} 범위의 층수를 입력하세요.`, 'attack-monster');
-    uw.currentFloor = floor;
-    changeZone(UNDERWORLD_ZONE_ID);
-    updateStaticUI();
+    enterUnderworldFloor(v);
 }
+
+safeExposeGlobals({ enterUnderworldFloor, enterUnderworldPrompt });
 
 function enterTrialWithTicket(trialId) {
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
@@ -10526,6 +10535,8 @@ function getCraftOrbUseState(key, item) {
     if (!ok) return { enabled: false, reason: '현재 아이템 조건 불일치' };
     let sporeMode = game.sporeCraftModes && game.sporeCraftModes[key] || 'none';
     if (['magicBud','sapBud','formlessDew'].includes(key)
+        && typeof isSporeCraftEquipment === 'function'
+        && isSporeCraftEquipment(item)
         && sporeMode !== 'none'
         && typeof hasSporeCraftCost === 'function'
         && !hasSporeCraftCost(sporeMode)) {
@@ -10813,6 +10824,11 @@ function renderCraftOrbActions(selectedItem) {
 function openSporeModeOverlay(currencyKey) {
     let allowed = ['magicBud','sapBud','formlessDew'];
     if (!allowed.includes(currencyKey)) return;
+    let item = typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null;
+    if (item && typeof isSporeCraftEquipment === 'function' && !isSporeCraftEquipment(item)) {
+        if (typeof addLog === 'function') addLog('홀씨 태그 제련은 장비에만 사용할 수 있습니다.', 'attack-monster');
+        return;
+    }
     let modeOptions = [
         { id: 'none', label: '미사용' },
         { id: 'fire', label: '화염' },
@@ -10973,6 +10989,9 @@ function renderMobileCraftCurrencyPicker(item) {
 }
 
 function buildSporeSummaryHtml() {
+    let item = typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null;
+    let equipmentSelected = !item || (typeof isSporeCraftEquipment === 'function' && isSporeCraftEquipment(item));
+    let targetDisabled = equipmentSelected ? '' : 'disabled';
     return `<div style="border:1px solid #3d4f71; border-radius:10px; padding:8px; margin-bottom:8px; background:linear-gradient(160deg, rgba(39,51,86,0.25), rgba(16,22,38,0.5));">
             <div style="font-weight:700; color:var(--copy-bright); margin-bottom:6px; font-size:0.92em;">🌱 홀씨 보유량</div>
             <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px;">
@@ -10981,8 +11000,8 @@ function buildSporeSummaryHtml() {
                 <div style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; color:#ffe08a; font-size:0.86em;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
-                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 7 ? '' : 'disabled'}>부패 홀씨 (각 8)</button>
-                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'rift')" onmousemove="showSporeCraftTooltip(event,'rift')" onmouseleave="hideInfoTooltip()" onclick="applyRiftSporeToSelectedItem()" ${typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 9 ? '' : 'disabled'}>균열 홀씨 (화석1+각5)</button>
+                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${targetDisabled || (typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 7 ? '' : 'disabled')}>부패 홀씨 (각 8)</button>
+                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'rift')" onmousemove="showSporeCraftTooltip(event,'rift')" onmouseleave="hideInfoTooltip()" onclick="applyRiftSporeToSelectedItem()" ${targetDisabled || (typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 9 ? '' : 'disabled')}>균열 홀씨 (화석1+각5)</button>
             </div>
         </div>`;
 }
@@ -11351,7 +11370,8 @@ function buildCraftActionButtons(item) {
         let sporeModes = game.sporeCraftModes || {};
         let modeLabelMap = { none: '미사용', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', damage: '피해' };
         let isCraftOrb = ['magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','emberBranch','blessing','deepWhetstone','rootIron','jewelPolish','abyssCatalyst'].includes(key);
-        let canUseSporeMode = ['magicBud','sapBud','formlessDew'].includes(key);
+        let canUseSporeMode = ['magicBud','sapBud','formlessDew'].includes(key)
+            && (!selectedItem || (typeof isSporeCraftEquipment === 'function' && isSporeCraftEquipment(selectedItem)));
         let mode = sporeModes[key] || 'none';
         let useState = getMobileCraftCurrencyUseState(key, getSelectedCraftItem());
         let reason = useState.reason;

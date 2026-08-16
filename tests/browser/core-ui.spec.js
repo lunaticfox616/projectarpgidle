@@ -71,6 +71,66 @@ test('unlocked secondary tabs render after cross-tab navigation', async ({ page 
     expect(failures).toEqual([]);
 });
 
+test('endgame support screens keep primary actions and interaction state visible', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.level = 200;
+        game.season = 31;
+        game.loopCount = 30;
+        game.loopProgressCurrent = { ...(game.loopProgressCurrent || {}), chaos20Cleared: true };
+        game.chaosRealm = { ...ensureChaosRealmState(), unlocked: true };
+        game.clearedRootBosses = Array.from(new Set([...(game.clearedRootBosses || []), 's6_beast_cerberus']));
+        game.abyssEndlessDepth = 30;
+        game.labyrinthUnlockedMaxFloor = 100;
+        game.underworldProgress = { currentFloor: 12, highestFloor: 18, floor10Cleared: true };
+        game.underworldRunes = { unlockedSlots: 3, unlockedRunesMaxNumber: 9, obtainedRunes: [1, 2, 2], equippedRunes: [1, null, 2, null, null, null], enhanceLvByNo: {}, bonusLinesByNo: {} };
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        let cube = ensureCoreCubeState();
+        Object.assign(cube, { unlocked: true, everUnlocked: true, relockUntilDrop: false, powers: { 7: 2, 12: 1 }, faces: [null, null, null, null, null, null], selectedFace: 0, completed: false });
+        game.talentCards = { hero1__warrior: { level: 3, score: 20, count: 1 }, hero2__warrior: { level: 2, score: 12, count: 1 } };
+        game.talentCardLoadout = ['hero1__warrior', null, null, null, null, null];
+        let base = GROWTH_BASE_DB.find(row => row.category === 'flower');
+        game.growthInventory = [createGrowthItemFromBase(base, 'rare', 12)];
+        game.recentGrowthDrops = [];
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-underworld');
+        updateStaticUI();
+    });
+
+    await expect(page.locator('.underworld-entry-card')).toBeVisible();
+    await expect(page.getByRole('button', { name: '최고층 18 입장' })).toBeVisible();
+    await expect(page.locator('.underworld-action-grid button')).toHaveCount(6);
+    const entryBeforeManagement = await page.evaluate(() => Boolean(document.querySelector('.underworld-entry-card').compareDocumentPosition(document.querySelector('.underworld-panel')) & Node.DOCUMENT_POSITION_FOLLOWING));
+    expect(entryBeforeManagement).toBe(true);
+
+    await page.evaluate(() => { switchTab('tab-cube'); updateStaticUI(); });
+    await expect(page.locator('.core-cube-assembly')).toBeVisible();
+    await expect(page.locator('.core-cube-assembly .core-cube-face')).toHaveCount(6);
+    await expect(page.locator('.core-cube-assembly .core-cube-power')).toHaveCount(2);
+    await page.locator('.core-cube-power').first().click();
+    await expect(page.locator('.core-cube-assembly-head')).toContainText('2번 면 선택');
+
+    await page.evaluate(() => { switchTab('tab-talent'); updateStaticUI(); });
+    await expect(page.locator('.talent-bloom-navigator')).toBeVisible();
+    await expect(page.getByRole('button', { name: '재능별' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '직업별' })).toBeVisible();
+    await expect(page.locator('.talent-slot.filled')).toContainText('아방가르드');
+    await expect(page.locator('.talent-slot.filled')).toContainText('궁수 × 워리어');
+
+    await page.evaluate(() => { switchTab('tab-growthboard'); updateStaticUI(); });
+    const craftBench = page.locator('details[data-growth-disclosure="craft-bench"]');
+    await craftBench.locator(':scope > summary').click();
+    await expect(craftBench).toHaveAttribute('open', '');
+    await page.evaluate(() => {
+        let base = GROWTH_BASE_DB.find(row => row.category === 'leaf');
+        game.growthInventory.push(createGrowthItemFromBase(base, 'magic', 12));
+        updateStaticUI();
+    });
+    await expect(craftBench).toHaveAttribute('open', '');
+    expect(failures).toEqual([]);
+});
+
 test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);

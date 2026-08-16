@@ -10491,11 +10491,18 @@ function getAvailableSporeCraftModes() {
     return modes;
 }
 
+function isSporeCraftEquipment(item) {
+    if (!item || (typeof isGrowthItem === 'function' && isGrowthItem(item))) return false;
+    let slot = String(item.slot || '').replace(/[123]$/, '');
+    return EQUIPMENT_DROP_SLOTS.includes(slot);
+}
+
 function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let mycoLv = getMycologistLevelForCrafting();
     if (mycoLv < 7) return addLog('부패 홀씨는 균사학자 Lv.7에 해금됩니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
+    if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
     if (item.corrupted) return addLog('타락한 아이템에는 사용할 수 없습니다.', 'attack-monster');
     let cost = 8;
     if ((game.currencies.sporeFire || 0) < cost || (game.currencies.sporeCold || 0) < cost || (game.currencies.sporeLight || 0) < cost) return addLog(`부패 홀씨에는 각 속성 홀씨 ${cost}개가 필요합니다.`, 'attack-monster');
@@ -10519,6 +10526,7 @@ function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return add
     if (mycoLv < 9) return addLog('균열 홀씨는 균사학자 Lv.9에 해금됩니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
+    if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
     if (item.corrupted) return addLog('타락한 아이템에는 사용할 수 없습니다.', 'attack-monster');
     if ((game.currencies.fossil || 0) < 1 || (game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return addLog('균열 홀씨에는 미궁 화석 1개와 각 속성 홀씨 5개가 필요합니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
@@ -10739,7 +10747,9 @@ async function useCurrency(currencyKey) {
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(currencyKey)) return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
 
     game.sporeCraftModes = game.sporeCraftModes || {};
-    let sporeMode = game.sporeCraftModes[currencyKey] || 'none';
+    // 홀씨 태그 보장은 장비 제작 전용이다. 생장판 제작대가 이 함수를
+    // 재사용하더라도 장비 화면에 남은 모드를 적용하거나 홀씨를 소모하지 않는다.
+    let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
     function consumeSpore(mode) {
         if (mode === 'none') return true;
         let baseCost = getSporeCraftCost();
@@ -11014,6 +11024,7 @@ safeExposeGlobals({
     getAnnulmentRemovableStats,
     getSporeCraftCost,
     hasSporeCraftCost,
+    isSporeCraftEquipment,
     getItemSalvageRewardProfile,
     getItemSalvagePreviewText,
     rollItemSalvageRewards,

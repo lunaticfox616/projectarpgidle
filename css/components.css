@@ -1059,6 +1059,85 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     to { opacity: 0; transform: translate3d(-50%, -50%, 0) scale(1); }
 }
 
+.underworld-entry-card {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid #5266a6;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(35, 48, 86, .92), rgba(13, 20, 39, .95));
+}
+.underworld-entry-card.current { box-shadow: inset 3px 0 0 #aa8cff; }
+.underworld-entry-copy { display: grid; gap: 3px; min-width: 0; }
+.underworld-entry-copy > span { color: #c7d3ef; font-size: .8em; }
+.underworld-entry-copy > strong { color: #fff; font-size: 1.08em; }
+.underworld-entry-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.underworld-primary-action { border-color: #b69cff !important; color: #fff !important; }
+.underworld-panel {
+  padding: 12px;
+  border: 1px solid #3f3569;
+  border-radius: 12px;
+  background: #0f1120;
+  color: #d6cdf6;
+}
+.underworld-panel-head,
+.underworld-section-head,
+.underworld-upgrade-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.underworld-panel-head > div:first-child,
+.underworld-section-head > div,
+.underworld-upgrade-card > div {
+  display: grid;
+  gap: 3px;
+}
+.underworld-panel-head > div:first-child > span,
+.underworld-section-head span,
+.underworld-section-head small,
+.underworld-upgrade-card span { color: #c6d0e5; font-size: .8em; }
+.underworld-panel-head > div:first-child > span.locked { color: #ffcf8a; }
+.underworld-resource-strip { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+.underworld-resource-strip span {
+  padding: 4px 7px;
+  border: 1px solid #364664;
+  border-radius: 999px;
+  background: rgba(18, 29, 51, .8);
+  color: #dce7fb;
+  font-size: .78em;
+}
+.underworld-resource-strip b { color: #fff; }
+.underworld-rune-console { margin-top: 10px; }
+.underworld-action-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 9px;
+}
+.underworld-action-grid button { display: grid; gap: 2px; min-height: 48px; padding: 6px; }
+.underworld-action-grid button span { color: #d7dfed; font-size: .72em; }
+.underworld-lower-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, .8fr) minmax(280px, 1.2fr);
+  gap: 8px;
+  margin-top: 9px;
+}
+.underworld-upgrade-card,
+.underworld-inventory-card {
+  padding: 9px;
+  border: 1px solid #3a526e;
+  border-radius: 10px;
+  background: rgba(24, 38, 58, .62);
+}
+.underworld-inventory-card summary { color: #eef4ff; cursor: pointer; font-weight: 700; }
+.underworld-inventory-card p { margin: 7px 0 0; color: #d9c8aa; font-size: .78em; }
+
 .underworld-rune-slots {
   display: grid;
   grid-template-columns: repeat(6, minmax(74px, 1fr));
@@ -1223,10 +1302,18 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
   white-space: nowrap;
 }
 @media (max-width: 760px) {
+  .underworld-entry-card,
+  .underworld-panel-head { align-items: stretch; flex-direction: column; }
+  .underworld-entry-actions { justify-content: stretch; }
+  .underworld-entry-actions button { flex: 1; }
+  .underworld-resource-strip { justify-content: flex-start; }
+  .underworld-action-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .underworld-lower-grid { grid-template-columns: 1fr; }
   .underworld-rune-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .craft-selected-body { padding-right: 0; }
 }
 @media (max-width: 460px) {
+  .underworld-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .underworld-rune-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .underworld-rune-option:disabled {
@@ -1234,6 +1321,98 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
   cursor: not-allowed;
   border-color: #33405f;
   background: linear-gradient(180deg, #1a2236, #111827);
+}
+
+.talent-bloom-navigator,
+.talent-loadout-panel,
+.talent-bloom-empty {
+    grid-column: 1 / -1;
+}
+.talent-bloom-summary {
+    margin: 6px 0 10px;
+    padding: 9px 11px;
+    border-left: 3px solid #dcaeff;
+    border-radius: 0 9px 9px 0;
+    background: rgba(34, 23, 51, .55);
+    color: #f4eaff;
+    font-size: .86em;
+    line-height: 1.45;
+}
+.talent-bloom-navigator {
+    padding: 11px;
+    border: 1px solid #334d6c;
+    border-radius: 12px;
+    background: linear-gradient(145deg, rgba(27, 44, 67, .9), rgba(12, 22, 35, .9));
+}
+.talent-bloom-navigator-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 9px;
+}
+.talent-bloom-navigator-head > div:first-child {
+    display: grid;
+    gap: 2px;
+}
+.talent-bloom-navigator-head span {
+    color: var(--copy-muted);
+    font-size: .8em;
+}
+.talent-bloom-view-tabs {
+    display: flex;
+    gap: 5px;
+}
+.talent-bloom-view-tabs button {
+    min-height: 32px;
+    padding: 5px 10px;
+}
+.talent-bloom-view-tabs button.active,
+.talent-bloom-filter.active {
+    border-color: #f1c40f;
+    color: #fff3a3;
+    box-shadow: inset 0 0 0 1px rgba(241, 196, 15, .25);
+}
+.talent-bloom-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 6px;
+}
+.talent-bloom-filter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 6px 8px;
+    text-align: left;
+}
+.talent-bloom-filter span {
+    color: var(--copy-bright);
+    font-variant-numeric: tabular-nums;
+}
+.talent-loadout-panel {
+    padding: 10px;
+    border: 1px solid rgba(241, 196, 15, .2);
+    border-radius: 12px;
+    background: rgba(15, 24, 37, .68);
+}
+.talent-slot.filled strong {
+    color: #fff1a8;
+    line-height: 1.18;
+}
+.talent-bloom-empty {
+    padding: 18px;
+    border: 1px dashed #334d6c;
+    border-radius: 10px;
+    color: var(--copy-muted);
+    text-align: center;
+}
+
+@media (max-width: 560px) {
+    .talent-bloom-navigator-head { align-items: stretch; flex-direction: column; }
+    .talent-bloom-view-tabs button { flex: 1; }
+    .talent-bloom-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .passive-investment-summary {

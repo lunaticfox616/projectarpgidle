@@ -22,7 +22,7 @@
 }
 .core-cube-shell.locked { opacity: 0.72; }
 .core-cube-stage {
-  min-height: 520px;
+  min-height: 340px;
   position: relative;
   border: 1px solid rgba(126, 191, 255, 0.16);
   border-radius: 18px;
@@ -69,7 +69,7 @@
 }
 .core-cube-canvas-wrap {
   position:absolute;
-  inset:0 126px 64px 0;
+  inset:0;
 }
 #coreCubeCanvas {
   position:absolute;
@@ -91,21 +91,36 @@
   pointer-events:none;
 }
 .core-cube-stage-complete button { pointer-events:auto; }
+.core-cube-assembly {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(126, 191, 255, .24);
+  border-radius: 14px;
+  background: rgba(7, 14, 29, .86);
+}
+.core-cube-assembly-head,
+.core-cube-power-picker-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.core-cube-assembly-head > div:first-child { display: grid; gap: 2px; }
+.core-cube-assembly-head > div:first-child span,
+.core-cube-power-picker-head span { color: #eef2f6; font-size: .8em; }
+.core-cube-assembly-head > div:first-child strong { color: #fff; }
 .core-cube-faces {
-  position:absolute;
-  top:78px;
-  right:18px;
-  bottom:18px;
-  width:104px;
   display:grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap:8px;
-  grid-template-rows: repeat(6, 1fr);
-  z-index:4;
 }
 .core-cube-face {
   position:relative;
   border:1px solid rgba(138, 211, 255, .24);
   border-radius:13px;
+  min-height: 58px;
   padding:8px;
   background: linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.015)), rgba(10, 18, 36, .78);
   color:#ffffff;
@@ -127,25 +142,50 @@
 .core-cube-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 .core-cube-row span { color:#ffffff; }
 .core-cube-good { color:#93ffc2 !important; }
-.core-cube-inventory { display:grid; grid-template-columns: repeat(auto-fill, minmax(118px,1fr)); gap:7px; margin-top:10px; }
-.core-cube-power { text-align:left; min-height:42px; }
-.core-cube-power span { color:#ffffff; margin-left:4px; }
+.core-cube-power-picker { min-width: 0; }
+.core-cube-inventory {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap:6px;
+  max-height: 142px;
+  margin-top:7px;
+  padding-right: 3px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.core-cube-power {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 3px;
+  min-height:36px;
+  padding: 5px 6px;
+  text-align:center;
+}
+.core-cube-power strong { color: #dff8ff; font-size: 1.02em; }
+.core-cube-power span { color:#ffffff; font-size: .78em; }
 .core-cube-complete { border-color:rgba(255,185,95,.48); background:linear-gradient(180deg, rgba(255,142,55,.45), rgba(95,45,16,.55)); }
 .core-cube-options { display:grid; gap:7px; margin-top:10px; }
 .core-cube-option { padding:9px 10px; border:1px solid rgba(147,255,194,.18); border-radius:11px; background:rgba(30,90,70,.16); color:#dffff0; }
 .core-cube-muted { color:#eef2f6; font-size:.9em; }
 @media (max-width: 1080px) {
   .core-cube-shell { grid-template-columns:1fr; }
-  .core-cube-stage { min-height:420px; }
-  .core-cube-canvas-wrap { inset:0 118px 62px 0; }
+  .core-cube-stage { min-height:320px; }
 }
 
 /* 보조장비 창은 우측 커뮤니티 도크·창 크기 조절로 폭이 급격히 줄 수 있다.
    뷰포트가 넓어도 창 본문이 좁다면 2열 최소 폭을 강제하지 않고 한 열로 전환한다. */
 @container (max-width: 860px) {
   .core-cube-shell { grid-template-columns:1fr; }
-  .core-cube-stage { min-height:420px; }
-  .core-cube-canvas-wrap { inset:0 118px 62px 0; }
+  .core-cube-stage { min-height:320px; }
+}
+
+@container (max-width: 560px) {
+  .core-cube-shell { padding: 8px; }
+  .core-cube-assembly-head,
+  .core-cube-power-picker-head { align-items: stretch; flex-direction: column; }
+  .core-cube-faces { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .core-cube-stage { min-height: 260px; }
 }
 
 /* 조합 저장(프리셋) */

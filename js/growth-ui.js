@@ -4,6 +4,29 @@
 let growthSelection = { itemId: null, source: null, rotation: 0, hoverCell: null };
 let growthCraftItemId = null;
 let growthHoverItemId = null;
+let growthDisclosureState = {};
+
+function captureGrowthDisclosureState(host) {
+    if (!host) return;
+    host.querySelectorAll('details[data-growth-disclosure]').forEach(details => {
+        growthDisclosureState[details.dataset.growthDisclosure] = details.open;
+    });
+}
+
+function isGrowthDisclosureOpen(key, defaultOpen = false) {
+    return Object.prototype.hasOwnProperty.call(growthDisclosureState, key)
+        ? growthDisclosureState[key]
+        : defaultOpen;
+}
+
+function bindGrowthDisclosureState(host) {
+    if (!host) return;
+    host.querySelectorAll('details[data-growth-disclosure]').forEach(details => {
+        details.addEventListener('toggle', () => {
+            growthDisclosureState[details.dataset.growthDisclosure] = details.open;
+        });
+    });
+}
 
 const GROWTH_CRAFT_ACTIONS = [
     { key: 'magicBud', label: '마법 부여/재련', cost: 1 },
@@ -25,7 +48,10 @@ function selectGrowthItem(itemId, source) {
     } else {
         let placement = (getActiveGrowthLoadout().placements || {})[numericId];
         growthSelection = { itemId: numericId, source: source || 'inventory', rotation: placement ? placement.rotation : 0, hoverCell: null };
-        if (source === 'board' || source === 'tray') growthCraftItemId = numericId;
+        if (source === 'board' || source === 'tray') {
+            growthCraftItemId = numericId;
+            growthDisclosureState['craft-bench'] = true;
+        }
     }
     renderGrowthBoardPanel();
 }
@@ -274,7 +300,7 @@ function renderGrowthUnlockSummary() {
         <span style="color:#8fb7ca;">${escapeHTML(nextText)}</span>
     </div>
     <div class="growth-stage-row">${stages}</div>
-    <details class="growth-unlock-guide"><summary>해금 방법과 전체 단계 보기</summary><ol>${cellGuide}</ol></details>`;
+    <details class="growth-unlock-guide" data-growth-disclosure="unlock-guide" ${isGrowthDisclosureOpen('unlock-guide') ? 'open' : ''}><summary>해금 방법과 전체 단계 보기</summary><ol>${cellGuide}</ol></details>`;
 }
 
 function renderGrowthLoadoutBar() {
@@ -743,6 +769,7 @@ function openGrowthCrafting(itemId) {
     let item = findGrowthItemById(itemId);
     if (!item) return addLog('생장 아이템을 찾을 수 없습니다.', 'attack-monster');
     growthCraftItemId = item.id;
+    growthDisclosureState['craft-bench'] = true;
     if (!isGrowthSlab(item)) selectForCrafting(item.id, false);
     renderGrowthTab({ force: true });
     let bench = document.getElementById('ui-growth-craft-bench');
@@ -833,13 +860,14 @@ function renderGrowthCraftBench() {
         : '<div class="growth-craft-preview empty">선택한 생장판의 옵션이 여기에 표시됩니다.</div>';
     return `<section id="ui-growth-craft-bench" class="growth-craft-bench"><div class="growth-bench-head"><h3>🛠️ 생장판 제작대</h3><strong>생장 정수 ${essence}</strong></div>
         <div class="growth-craft-target">${target}</div>${preview}<div class="growth-craft-actions">${isGrowthSlab(item) ? '' : actions}${renderGrowthReforgeAction(item)}</div>
-        <details><summary>기존 재화 교환 (10배 비용)</summary><p>각 재화 10개를 해당 제작 1회분의 생장 정수로 바꿉니다.</p><div class="growth-exchange-actions">${exchanges}</div></details></section>`;
+        <details data-growth-disclosure="craft-exchange" ${isGrowthDisclosureOpen('craft-exchange') ? 'open' : ''}><summary>기존 재화 교환 (10배 비용)</summary><p>각 재화 10개를 해당 제작 1회분의 생장 정수로 바꿉니다.</p><div class="growth-exchange-actions">${exchanges}</div></details></section>`;
 }
 
 // ── 패널 조립 ────────────────────────────────────────────────────────────
 function renderGrowthBoardPanel() {
     let host = document.getElementById('ui-growth-panel');
     if (!host) return;
+    captureGrowthDisclosureState(host);
     let previousTray = host.querySelector('.growth-tray-list');
     let trayScroll = previousTray
         ? { top: previousTray.scrollTop, left: previousTray.scrollLeft }
@@ -867,7 +895,7 @@ function renderGrowthBoardPanel() {
                 <div class="growth-tray-list">${renderGrowthPlacementTray()}</div></aside>
             <aside class="growth-context-panel"><div><h3>활성 시너지</h3><div class="growth-synergy-list">${renderActiveGrowthSynergies()}</div></div><div><h3>교체 비교</h3><div class="growth-synergy-list">${renderGrowthComparisonPanel()}</div></div></aside>
         </div>
-        <details class="progression-workbench growth-bench-disclosure" ${growthCraftItemId !== null ? 'open' : ''}><summary>생장판 제작대</summary>${renderGrowthCraftBench()}</details>`;
+        <details class="progression-workbench growth-bench-disclosure" data-growth-disclosure="craft-bench" ${isGrowthDisclosureOpen('craft-bench', growthCraftItemId !== null) ? 'open' : ''}><summary>생장판 제작대</summary>${renderGrowthCraftBench()}</details>`;
     let nextTray = host.querySelector('.growth-tray-list');
     if (nextTray) {
         nextTray.scrollTop = trayScroll.top;
@@ -875,6 +903,7 @@ function renderGrowthBoardPanel() {
     }
     paintGrowthPlacementPreview();
     bindGrowthDragOnce();
+    bindGrowthDisclosureState(host);
     if (growthHoverItemId !== null) paintGrowthBoardRelations(growthHoverItemId);
 }
 

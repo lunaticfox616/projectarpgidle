@@ -275,6 +275,17 @@ function selectCoreCubeFace(faceIndex) {
     renderCoreCubePanel({ force: true });
 }
 
+function selectNextEmptyCoreCubeFace(st, afterIndex) {
+    for (let offset = 1; offset <= CORE_CUBE_FACE_COUNT; offset += 1) {
+        let idx = (afterIndex + offset) % CORE_CUBE_FACE_COUNT;
+        if (st.faces[idx] === null) {
+            st.selectedFace = idx;
+            return idx;
+        }
+    }
+    return afterIndex;
+}
+
 function socketCoreCubePower(powerNo) {
     if (!isCoreCubeUnlocked()) return addLog('코어 큐브가 아직 해금되지 않았습니다.', 'attack-monster');
     let st = ensureCoreCubeState();
@@ -285,6 +296,7 @@ function socketCoreCubePower(powerNo) {
     if (!consumeCoreCubePowerFromState(st, n, 1)) return addLog(`${n}의 동력원이 부족합니다.`, 'attack-monster');
     st.faces[faceIndex] = n;
     markCoreCubePowerUsed(st, n);
+    selectNextEmptyCoreCubeFace(st, faceIndex);
     addLog(`🧊 코어 큐브 ${faceIndex + 1}번 면에 ${n}의 동력원 각인`, 'loot-magic');
     renderCoreCubePanel({ force: true });
     updateStaticUI();
@@ -306,6 +318,7 @@ function socketRandomCoreCubePower(allRemaining = false) {
             markCoreCubePowerUsed(st, picked);
         }
     });
+    if (!allRemaining && targetFaces.length > 0) selectNextEmptyCoreCubeFace(st, targetFaces[0]);
     renderCoreCubePanel({ force: true });
     updateStaticUI();
 }
@@ -1112,7 +1125,7 @@ function renderCoreCubePanel(options) {
     let powerEntries = Object.keys(st.powers || {}).map(Number).sort((a, b) => a - b);
     let selectedFilled = st.faces[st.selectedFace] !== null;
     let inventoryHtml = powerEntries.length
-        ? powerEntries.map(no => `<button type="button" class="core-cube-power" onclick="socketCoreCubePower(${no})" ${st.completed || selectedFilled || !unlocked ? 'disabled' : ''}>${no}의 동력원 <span>×${st.powers[no]}</span></button>`).join('')
+        ? powerEntries.map(no => `<button type="button" class="core-cube-power" title="${no}의 동력원 ${st.powers[no]}개" aria-label="${no}의 동력원 ${st.powers[no]}개 각인" onclick="socketCoreCubePower(${no})" ${st.completed || selectedFilled || !unlocked ? 'disabled' : ''}><strong>${no}</strong><span>×${st.powers[no]}</span></button>`).join('')
         : '<div class="core-cube-muted">보유 동력원이 없습니다.</div>';
     let comboText = st.faces.every(v => v !== null) ? st.faces.slice().sort((a, b) => a - b).join(' / ') : '6면 각인 필요';
     let optionsHtml = (st.revealedOptions || []).length ? st.revealedOptions.map(row => `<div class="core-cube-option">${row.text || formatCoreCubeOption(row)}</div>`).join('') : '<div class="core-cube-muted">큐브를 완성하면 옵션 4줄이 발현됩니다.</div>';
@@ -1126,16 +1139,18 @@ function renderCoreCubePanel(options) {
     let lockedHtml = `<div class="core-cube-locked"><strong>코어 큐브 잠김</strong><br>해금 조건: 지하계 10층 클리어 (${info.underworld10Cleared ? '완료' : `최고 ${info.highestFloor}층`}) · 루프 20 (${info.loopReady ? '완료' : `현재 ${info.currentLoop}`})</div>`;
     host.innerHTML = `${unlocked ? '' : lockedHtml}
         <div class="core-cube-shell ${st.completed ? 'completed' : ''} ${unlocked ? '' : 'locked'}">
+            <section class="core-cube-assembly">
+                <div class="core-cube-assembly-head"><div><span>동력원 장착</span><strong>${st.completed ? '완성된 큐브' : `${st.selectedFace + 1}번 면 선택 · ${st.faces.filter(value => value !== null).length}/6 각인`}</strong></div><div class="core-cube-row"><button type="button" onclick="socketRandomCoreCubePower(false)" ${unlocked && !st.completed && st.faces[st.selectedFace] === null && getCoreCubePowerTotal() > 0 ? '' : 'disabled'}>선택 면 무작위</button><button type="button" onclick="socketRandomCoreCubePower(true)" ${unlocked && !st.completed && getCoreCubePowerTotal() >= st.faces.filter(v => v === null).length && st.faces.some(v => v === null) ? '' : 'disabled'}>빈 면 전부</button><button type="button" class="core-cube-complete" onclick="completeCoreCube()" ${unlocked && !st.completed && st.faces.every(v => v !== null) ? '' : 'disabled'}>완성</button><button type="button" onclick="resetCoreCube()" ${unlocked && (st.completed || st.faces.some(v => v !== null)) ? '' : 'disabled'}>재구성</button></div></div>
+                <div class="core-cube-faces">${faceHtml}</div>
+                <div class="core-cube-power-picker"><div class="core-cube-power-picker-head"><strong>보유 동력원</strong><span>${selectedFilled ? '비어 있는 면을 선택하세요.' : `${st.selectedFace + 1}번 면에 각인할 번호를 선택하세요.`}</span></div><div class="core-cube-inventory">${inventoryHtml}</div></div>
+            </section>
             <div class="core-cube-stage">
                 <div class="core-cube-stage-title"><span>Subterranean Core</span><strong>코어 큐브</strong></div>
                 <div class="core-cube-canvas-wrap"><canvas id="coreCubeCanvas" aria-label="코어 큐브 3D 캔버스"></canvas></div>
-                <div class="core-cube-stage-complete"><button type="button" class="core-cube-complete" onclick="completeCoreCube()" ${unlocked && !st.completed && st.faces.every(v => v !== null) ? '' : 'disabled'}>코어 큐브 완성</button></div>
-                <div class="core-cube-faces">${faceHtml}</div>
             </div>
             <div class="core-cube-side">
                 <div class="core-cube-card"><h3>흐릿한 45면체</h3><div class="core-cube-row"><span>보유 <strong>${st.blurred45}</strong></span>${blurredButtonsHtml}</div><p>사용 시 1~45 중 하나의 동력원을 획득합니다. 이 재료는 재화 목록에 표시되지 않습니다.</p>${st.lastPower ? `<p class="core-cube-good">최근 획득: ${st.lastPower}의 동력원</p>` : ''}</div>
-                <div class="core-cube-card"><h3>동력원 보관함</h3><div class="core-cube-row"><span>선택 면: <strong>${st.selectedFace + 1}번</strong> · ${selectedFilled ? '<strong class="core-cube-good">각인됨</strong>' : '비어 있음'}</span><button type="button" onclick="socketRandomCoreCubePower(false)" ${unlocked && !st.completed && st.faces[st.selectedFace] === null && getCoreCubePowerTotal() > 0 ? '' : 'disabled'}>선택 면 무작위</button><button type="button" onclick="socketRandomCoreCubePower(true)" ${unlocked && !st.completed && getCoreCubePowerTotal() >= st.faces.filter(v => v === null).length && st.faces.some(v => v === null) ? '' : 'disabled'}>전체 무작위</button></div><div class="core-cube-inventory">${inventoryHtml}</div><p>동력원 버튼을 누르면 선택된 면에 즉시 각인됩니다. 각인된 동력원은 재구성 전까지 회수할 수 없습니다.</p></div>
-                <div class="core-cube-card"><h3>큐브 완성</h3><div class="core-cube-row"><button type="button" class="core-cube-complete" onclick="completeCoreCube()" ${unlocked && !st.completed && st.faces.every(v => v !== null) ? '' : 'disabled'}>코어 큐브 완성</button><button type="button" onclick="resetCoreCube()" ${unlocked && (st.completed || st.faces.some(v => v !== null)) ? '' : 'disabled'}>재구성</button></div><p>현재 조합: <strong>${comboText}</strong></p><div class="core-cube-options">${optionsHtml}</div></div>
+                <div class="core-cube-card"><h3>발현 결과</h3><p>현재 조합: <strong>${comboText}</strong></p><div class="core-cube-options">${optionsHtml}</div></div>
                 ${renderCoreCubePresetCard(st, unlocked)}
             </div>
         </div>`;
