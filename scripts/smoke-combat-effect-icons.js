@@ -267,26 +267,40 @@ assert.deepStrictEqual(
 function createTraitPanelFixture() {
   const classes = new Set();
   const properties = {};
-  const track = { textContent: '', scrollWidth: 180, style: { setProperty(key, value) { properties[key] = value; } } };
+  let rawText = '';
+  let copies = [];
+  let innerHtmlWrites = 0;
+  const track = {
+    scrollWidth: 180,
+    style: { setProperty(key, value) { properties[key] = value; } },
+    querySelectorAll(selector) { return selector === '.enemy-trait-marquee-copy' ? copies : []; }
+  };
+  Object.defineProperty(track, 'textContent', {
+    get() { return copies.length > 0 ? copies.map(copy => copy.textContent).join('') : rawText; },
+    set(value) { rawText = String(value); copies = []; this.__innerHTML = ''; this.scrollWidth = 180; }
+  });
   Object.defineProperty(track, 'innerHTML', {
     get() { return this.__innerHTML || ''; },
     set(value) {
+      innerHtmlWrites += 1;
       this.__innerHTML = value;
-      this.textContent = String(value).replace(/<[^>]+>/g, '');
+      const values = Array.from(String(value).matchAll(/<span[^>]*>(.*?)<\/span>/g), match => decodeHtmlAttribute(match[1]));
+      copies = values.map(textContent => ({ textContent }));
+      rawText = '';
       this.scrollWidth = 400;
     }
   });
   const panel = {
     clientWidth: 80, isConnected: true, style: {}, title: '',
     classList: {
-      add(name) { classes.add(name); }, remove(name) { classes.delete(name); },
+      add(name) { classes.add(name); }, remove(name) { classes.delete(name); }, contains(name) { return classes.has(name); },
       toggle(name, active) { if (active) classes.add(name); else classes.delete(name); }
     },
     querySelector() { return track; }, matches() { return false; },
     setAttribute(key, value) { this[key] = value; }, removeAttribute(key) { delete this[key]; },
     getAttribute(key) { return this[key]; }
   };
-  return { panel, track, classes, properties };
+  return { panel, track, classes, properties, getInnerHtmlWrites() { return innerHtmlWrites; } };
 }
 
 context.requestAnimationFrame = callback => callback();
@@ -305,6 +319,13 @@ assert(desktopTraits.classes.has('is-overflowing') && desktopTraits.properties['
 assert.strictEqual(desktopTraits.panel.title, undefined, 'boss traits must not retain the browser-native title tooltip');
 assert.strictEqual(desktopTraits.panel['data-enemy-trait-tooltip'], '전체 설명',
   'the complete boss explanation must be retained for the shared custom tooltip');
+const initialTickerWrites = desktopTraits.getInnerHtmlWrites();
+const changedPatternDisplay = context.getUiEnemyTraitDisplayText(['화염', '중갑 전개', '패턴: 폭주']);
+context.updateUiEnemyTraitPanel(desktopTraits.panel, ['화염', '중갑 전개', '패턴: 폭주'], changedPatternDisplay, '바뀐 설명', true);
+assert.strictEqual(desktopTraits.getInnerHtmlWrites(), initialTickerWrites,
+  'changing boss pattern text must update the existing ticker without restarting its animation DOM');
+assert.strictEqual(desktopTraits.track.textContent.split(changedPatternDisplay.fullText).length - 1, 2,
+  'both live ticker copies must receive changed boss pattern text in place');
 
 const delayedFrames = [];
 context.requestAnimationFrame = callback => { delayedFrames.push(callback); return delayedFrames.length; };
@@ -321,20 +342,22 @@ assert(!delayedTraits.track.textContent.includes(firstDelayedDisplay.fullText),
 
 context.document.hidden = true;
 const hiddenDisplay = context.getUiEnemyTraitDisplayText(['번개', '속공 전개']);
+const hiddenTickerWrites = delayedTraits.getInnerHtmlWrites();
 context.updateUiEnemyTraitPanel(delayedTraits.panel, ['번개', '속공 전개'], hiddenDisplay, '숨김 설명', true);
 assert.strictEqual(delayedFrames.length, 0, 'hidden tabs must not accumulate marquee measurement frames');
-assert.strictEqual(delayedTraits.track.textContent, hiddenDisplay.fullText,
-  'hidden tabs must retain one bounded copy of the current trait text');
+assert.strictEqual(delayedTraits.getInnerHtmlWrites(), hiddenTickerWrites,
+  'hidden-tab trait changes must preserve the mounted ticker DOM');
+assert.strictEqual(delayedTraits.track.textContent.split(hiddenDisplay.fullText).length - 1, 2,
+  'hidden tabs must retain the two bounded live ticker copies');
 context.document.hidden = false;
 context.updateUiEnemyTraitPanel(delayedTraits.panel, ['번개', '속공 전개'], hiddenDisplay, '숨김 설명', true);
-assert.strictEqual(delayedFrames.length, 1, 'the visible tab must schedule exactly one deferred marquee measurement');
-delayedFrames.shift()();
+assert.strictEqual(delayedFrames.length, 0, 'returning to the tab must not remount or remeasure an existing ticker');
 assert.strictEqual(delayedTraits.track.textContent.split(hiddenDisplay.fullText).length - 1, 2,
-  'returning to the tab must rebuild one bounded two-copy ticker');
+  'returning to the tab must preserve one bounded two-copy ticker');
 
 context.requestAnimationFrame = callback => callback();
 context.showEnemyTraitTooltip({ currentTarget: desktopTraits.panel, clientX: 12, clientY: 34 });
-assert(context.__enemyTraitTooltip.html.includes('보스 특성') && context.__enemyTraitTooltip.html.includes('전체 설명'),
+assert(context.__enemyTraitTooltip.html.includes('보스 특성') && context.__enemyTraitTooltip.html.includes('바뀐 설명'),
   'boss traits must render through the existing custom info tooltip');
 
 context.matchMedia = query => ({ matches: query.includes('max-width') });

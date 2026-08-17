@@ -935,6 +935,46 @@ test('player exchange keeps trade inputs stable and rankings readable', async ({
     expect(failures).toEqual([]);
 });
 
+test('boss trait ticker keeps its DOM and animation position across combat UI updates', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.combatHalted = true;
+        const boss = createEnemy(getZone(0), { boss: true, at: 0 }, 0);
+        boss.id = 'ticker-boss';
+        boss.traitName = '화염 중갑 전개 · 연속 참격 · 연타경감 6% · 격앙 예고';
+        game.enemies = [boss];
+        updateStaticUI();
+    });
+    const panel = page.locator('#ui-enemy-list .enemy-traits');
+    await expect(panel).toHaveClass(/is-overflowing/);
+    await page.evaluate(() => {
+        window.__bossTraitPanel = document.querySelector('#ui-enemy-list .enemy-traits');
+        window.__bossTraitTrack = window.__bossTraitPanel.querySelector('.enemy-trait-marquee');
+        window.__bossTraitCopy = window.__bossTraitTrack.querySelector('.enemy-trait-marquee-copy');
+    });
+    await page.waitForTimeout(180);
+    const before = await page.evaluate(() => window.__bossTraitTrack.getAnimations()[0].currentTime);
+    await page.evaluate(() => {
+        const boss = game.enemies[0];
+        boss.traitName = '냉기 중갑 전개 · 폭주 예고 · 연타경감 6% · 다음 격앙';
+        game.enemies.push({ id: 'ticker-add', name: '추종자', hp: 10, maxHp: 10, ele: 'phys' });
+        updateStaticUI();
+    });
+    await page.waitForTimeout(180);
+    const result = await page.evaluate(() => ({
+        samePanel: window.__bossTraitPanel === document.querySelector('#ui-enemy-list .enemy-traits'),
+        sameTrack: window.__bossTraitTrack === document.querySelector('#ui-enemy-list .enemy-trait-marquee'),
+        sameCopy: window.__bossTraitCopy === document.querySelector('#ui-enemy-list .enemy-trait-marquee-copy'),
+        currentTime: window.__bossTraitTrack.getAnimations()[0].currentTime,
+        text: window.__bossTraitTrack.textContent
+    }));
+    expect(result.samePanel && result.sameTrack && result.sameCopy).toBe(true);
+    expect(result.currentTime).toBeGreaterThan(before);
+    expect(result.text).toContain('냉기 중갑 전개');
+    expect(failures).toEqual([]);
+});
+
 test('mobile battle HUD stays within the viewport and exposes combat log', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
     const failures = watchRuntimeFailures(page);

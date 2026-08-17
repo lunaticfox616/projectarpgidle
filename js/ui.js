@@ -9050,6 +9050,17 @@ function scheduleUiEnemyTraitOverflow(traitEl, track, content, signature) {
     else measure();
 }
 
+function updateUiEnemyTraitMarqueeCopies(traitEl, track, content) {
+    if (!traitEl.classList.contains('is-overflowing')) return false;
+    let copies = track.querySelectorAll('.enemy-trait-marquee-copy');
+    if (copies.length !== 2) return false;
+    let loopText = `${content}　·　`;
+    copies.forEach(copy => {
+        if (copy.textContent !== loopText) copy.textContent = loopText;
+    });
+    return true;
+}
+
 function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) {
     if (!traitEl) return;
     let track = traitEl.querySelector('.enemy-trait-marquee');
@@ -9079,6 +9090,8 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
         return;
     }
     traitEl.__traitSignature = signature;
+    if (isBoss && !mobile && !reducedMotion
+        && updateUiEnemyTraitMarqueeCopies(traitEl, track, display.fullText)) return;
     clearUiEnemyTraitRotation(traitEl);
     traitEl.classList.remove('is-overflowing', 'is-rotating');
     if (!isBoss) {
@@ -9421,7 +9434,8 @@ function updateCombatUI(pStats) {
     let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
     pruneEnemyHpDamageGhostStates(enemies.map(enemy => enemy.id));
     let targetIds = getUiSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
-    let focusedEnemy = enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
+    let bossEnemy = enemies.find(enemy => enemy.isBoss || enemy.bossPhase);
+    let focusedEnemy = bossEnemy || enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     let enemyListEl = document.getElementById('ui-enemy-list');
     if (!focusedEnemy) {
         if (enemyListEl.dataset.enemyId !== '') {
@@ -9451,7 +9465,7 @@ function updateCombatUI(pStats) {
         let ghostPct = updateEnemyHpDamageGhost(focusedEnemy.id, pct);
         let ghostDisplay = ghostPct > pct + 0.2 ? 'block' : 'none';
         let enemyHudTier = (focusedEnemy.isBoss || focusedEnemy.bossPhase) ? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob');
-        let focusedKey = String(focusedEnemy.id) + '|' + enemies.length + '|' + enemyHudTier;
+        let focusedKey = String(focusedEnemy.id) + '|' + enemyHudTier;
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = focusedKey;
