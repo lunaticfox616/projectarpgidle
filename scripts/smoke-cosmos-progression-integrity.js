@@ -19,7 +19,9 @@ const context = {
             bossStones: { 1: '백성핵석' },
             equippedStones: { 1: true, 2: true, 9: true },
             bossExclusiveMisses: { 'planet-46': 39 },
-            mastery: { resonanceDrive: 3 }
+            mastery: { resonanceDrive: 3 },
+            selectedDirectives: ['rift'],
+            directiveCycles: [7]
         }
     }
 };
@@ -31,6 +33,10 @@ vm.runInContext(fs.readFileSync('js/cosmos-atlas.js', 'utf8'), context, { filena
 assert.strictEqual(context.getCosmosMasteryValue('resonanceDrive'), 3, 'mastery lookup must be available to combat');
 assert.deepStrictEqual(Object.keys(context.game.cosmosAtlas.equippedStones), ['1'], 'unowned and invalid equipped stones must be repaired');
 assert.strictEqual(context.game.cosmosAtlas.cleared.length, 1, 'duplicate atlas clears must not inflate progress');
+assert.strictEqual(Array.isArray(context.game.cosmosAtlas.selectedDirectives), false,
+    '손상된 탐사 신호 선택 배열은 빈 키-값 상태로 복구해야 한다');
+assert.strictEqual(Array.isArray(context.game.cosmosAtlas.directiveCycles), false,
+    '손상된 탐사 신호 주기 배열은 빈 키-값 상태로 복구해야 한다');
 assert.deepStrictEqual(
     JSON.parse(JSON.stringify(context.getCosmosBossPityProgress({ id: 'planet-46', tag: 'boss' }))),
     { misses: 39, guaranteeAt: 40, remaining: 1 },

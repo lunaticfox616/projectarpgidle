@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const TEST_ORIGIN = `http://127.0.0.1:${Math.max(1, Number(process.env.PLAYWRIGHT_PORT) || 4173)}/`;
 
 async function openLocalGame(page, path = '/') {
     await page.route('https://**', route => route.fulfill({ status: 204, contentType: 'text/javascript', body: '' }));
@@ -24,11 +25,11 @@ function watchRuntimeFailures(page) {
         failures.push(message.text());
     });
     page.on('response', response => {
-        if (response.status() < 400 || !response.url().startsWith('http://127.0.0.1:4173/')) return;
+        if (response.status() < 400 || !response.url().startsWith(TEST_ORIGIN)) return;
         failures.push(`${response.status()} ${response.url()}`);
     });
     page.on('requestfailed', request => {
-        if (!request.url().startsWith('http://127.0.0.1:4173/')) return;
+        if (!request.url().startsWith(TEST_ORIGIN)) return;
         failures.push(`${request.failure().errorText} ${request.url()}`);
     });
     return failures;
@@ -463,13 +464,15 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
 test('mobile battle HUD stays within the viewport and exposes combat log', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
     const failures = watchRuntimeFailures(page);
+    await page.setViewportSize({ width: 320, height: 800 });
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
+        syncMapCompleteActionQuickControl();
+    });
     for (const width of [320, 360, 390]) {
         await page.setViewportSize({ width, height: 800 });
-        await openLocalGame(page);
-        await page.evaluate(() => {
-            document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
-            syncMapCompleteActionQuickControl();
-        });
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const compactHud = await page.evaluate(() => {
             const rect = selector => document.querySelector(selector).getBoundingClientRect();
             const overlaps = (left, right) => left.right > right.left + 1
@@ -659,7 +662,7 @@ test('cosmos expedition signals change risk and persist into the battle contract
     }));
     expect(riskyTarget.dps).toBeGreaterThan(safeTarget.dps);
     expect(riskyTarget.ehp).toBeGreaterThan(safeTarget.ehp);
-    await detail.getByRole('button', { name: '은하 보스 도전' }).evaluate(button => button.click());
+    await detail.getByRole('button', { name: '은하 보스 재도전' }).evaluate(button => button.click());
     const battleContract = await page.evaluate(() => {
         const zone = getZone('cosmos_challenge');
         game.combatHalted = true;
@@ -668,6 +671,21 @@ test('cosmos expedition signals change risk and persist into the battle contract
     });
     expect(battleContract).toEqual({ zoneId: 'cosmos_challenge', directiveId: riskyId, rewardMul: expect.any(Number) });
     expect(battleContract.rewardMul).toBeGreaterThan(1);
+    const repeatNodeId = await page.evaluate(() => {
+        game.cosmosAtlas.activeChallenge = null;
+        game.currentZoneId = 0;
+        if (!continueCosmosChallengeAfterClear('nextZone')) return null;
+        const nodeId = game.cosmosAtlas.activeChallenge && game.cosmosAtlas.activeChallenge.nodeId;
+        exploreSelectedCosmosNode(nodeId);
+        game.cosmosAtlas.activeChallenge = null;
+        game.currentZoneId = 0;
+        renderCosmosAtlas();
+        return nodeId;
+    });
+    expect(repeatNodeId).toBeTruthy();
+    await expect(detail.getByRole('button', { name: '새 신호 재탐사' })).toBeEnabled();
+    await expect(detail.locator('.cosmos-directive-card')).toHaveCount(3);
+    await expect(detail.locator('.cosmos-directive-title')).toContainText('새 신호가 포착되었습니다');
     expect(failures).toEqual([]);
 });
 

@@ -706,11 +706,13 @@
 
     function normalizeCosmosExpeditionState(state) {
         const cycles = state.directiveCycles && typeof state.directiveCycles === 'object'
+            && !Array.isArray(state.directiveCycles)
             ? state.directiveCycles : {};
         Object.keys(cycles).forEach(nodeId => {
             cycles[nodeId] = Math.max(0, Math.min(999999, Math.floor(Number(cycles[nodeId]) || 0)));
         });
         const selected = state.selectedDirectives && typeof state.selectedDirectives === 'object'
+            && !Array.isArray(state.selectedDirectives)
             ? state.selectedDirectives : {};
         Object.keys(selected).forEach(nodeId => {
             if (typeof selected[nodeId] !== 'string' || !selected[nodeId]) delete selected[nodeId];
@@ -1304,8 +1306,7 @@
     function canChallengeNode(node) {
         if (!node) return false;
         const status = getNodeStatus(node);
-        if (status === 'available') return true;
-        return status === 'cleared' && node.tag === 'boss';
+        return status === 'available' || status === 'cleared';
     }
 
     function getCosmosEquivalentUnderworldFloor(node) {
@@ -2427,9 +2428,6 @@
 
     function renderCosmosDirectiveSection(node, state) {
         const status = getNodeStatus(node);
-        if (status === 'cleared' && node.tag !== 'boss') {
-            return '<section class="cosmos-directive-section exhausted"><div><span>탐사 신호</span><small>탐사 완료</small></div><p>이 천체의 신호를 모두 회수했습니다.</p></section>';
-        }
         const choices = getCosmosDirectiveChoicesForNode(node, state);
         if (choices.length === 0) return '';
         const selected = getSelectedCosmosDirective(node, state);
@@ -2437,8 +2435,16 @@
             && state.activeChallenge && state.activeChallenge.nodeId === node.id;
         const disabled = !canChallengeNode(node) || fighting;
         const cards = choices.map(row => renderCosmosDirectiveCard(node, row, selected && row.id === selected.id, disabled)).join('');
-        const hint = fighting ? '현재 탐사에 고정됨' : '탐사 완료 후 무작위 신호 2개가 갱신됩니다.';
+        let hint = status === 'cleared'
+            ? '새 신호가 포착되었습니다. 원하는 항로로 재탐사하세요.'
+            : '탐사 완료 후 무작위 신호 2개가 갱신됩니다.';
+        if (fighting) hint = '현재 탐사에 고정됨';
         return `<section class="cosmos-directive-section"><div class="cosmos-directive-title"><span>탐사 신호 선택</span><small>${hint}</small></div><div class="cosmos-directive-list">${cards}</div></section>`;
+    }
+
+    function getCosmosChallengeButtonLabel(node, status) {
+        if (node && node.tag === 'boss') return status === 'cleared' ? '은하 보스 재도전' : '은하 보스 도전';
+        return status === 'cleared' ? '새 신호 재탐사' : '전투 도전';
     }
 
     function renderDetail() {
@@ -2470,10 +2476,10 @@
             ${renderCosmosDirectiveSection(node, state)}
             ${renderCosmosDifficultySection(node)}
             <div class="cosmos-actions">
-                <button class="primary" onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '은하 보스 도전' : '전투 도전'}</button>
+                <button class="primary" onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${getCosmosChallengeButtonLabel(node, status)}</button>
                 ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 관리</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">지도에서 초점</button>
             </div>
-            <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 나무꾼 격파 후 지하계 30층 도달 시 해금된다.'}</div>`;
+            <div class="cosmos-help">${isCosmosUnlocked() ? '첫 탐사는 별길을 열고, 완료한 천체는 갱신된 신호로 반복 탐사할 수 있습니다.' : '우주계는 나무꾼 격파 후 지하계 30층 도달 시 해금된다.'}</div>`;
     }
 
     function exploreSelectedCosmosNode(nodeIdOverride) {
@@ -2483,20 +2489,20 @@
         const node = ATLAS.byId.get(targetId);
         if (!node) return;
         const status = getNodeStatus(node);
-        const repeatBossRun = status === 'cleared' && node.tag === 'boss';
+        const repeatRun = status === 'cleared';
         const completedChallenge = state.activeChallenge && state.activeChallenge.nodeId === node.id;
         const firstClear = !state.cleared.includes(node.id);
         const defeatedBossStage = node.tag === 'boss' ? getBossStage(node) : 0;
-        if ((status === 'available' || repeatBossRun) && !completedChallenge) {
+        if ((status === 'available' || repeatRun) && !completedChallenge) {
             if (typeof window.addLog === 'function') window.addLog('우주계 전투 완료 후 탐사가 기록됩니다.', 'attack-monster');
             return;
         }
-        if (!(status === 'available' || repeatBossRun)) {
+        if (!(status === 'available' || repeatRun)) {
             if (typeof window.addLog === 'function') window.addLog('아직 별길이 연결되지 않은 우주계 노드입니다.', 'attack-monster');
             return;
         }
         if (status === 'available' && !state.cleared.includes(node.id)) state.cleared.push(node.id);
-        if (node.kind === 'planet' && typeof window.markLoopCosmosPlanetClear === 'function') {
+        if (firstClear && node.kind === 'planet' && typeof window.markLoopCosmosPlanetClear === 'function') {
             const completedLoopGate = window.markLoopCosmosPlanetClear(node.id);
             if (completedLoopGate && typeof window.addLog === 'function') window.addLog('🪐 루프 대체 경로 달성: 우주계 에니프론 행성 돌파', 'season-up');
         }
