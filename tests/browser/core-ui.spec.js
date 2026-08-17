@@ -935,7 +935,8 @@ test('player exchange keeps trade inputs stable and rankings readable', async ({
     expect(failures).toEqual([]);
 });
 
-test('boss trait ticker keeps its DOM and animation position across combat UI updates', async ({ page }) => {
+test('boss trait ticker keeps its DOM and animation position across combat UI updates', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('desktop'), 'desktop marquee assertion');
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
