@@ -147,6 +147,9 @@ const OCEAN_PERMANENT_UPGRADE_DEFS = {
     pressureResist: { label: '수압 패널티 감소', maxLevel: 20, valuePerLevel: 4, unit: '%', desc: '심해 수압으로 인한 공속/피해/이속 감소가 완화됩니다.' }
 };
 const OCEAN_PERMANENT_UPGRADE_KEYS = Object.keys(OCEAN_PERMANENT_UPGRADE_DEFS);
+const OCEAN_STATE_FISH_KEYS = Object.freeze(Object.keys(OCEAN_FISH_DB));
+const OCEAN_COLLECTION_REQUIRED_COUNTS = Object.freeze(OCEAN_FISH_COLLECTION_MILESTONES.map(row => row.required));
+const OCEAN_NORMALIZED_FISHING_STATES = new WeakSet();
 
 const OCEAN_CURRENT_POOL = [
     { id: 'cold_current', name: '냉수층', desc: '냉기 적 출현 · 냉기 저항 -12' },
@@ -182,8 +185,13 @@ function createDefaultOceanState() {
         oxygenCur: 100,
         pressureLevel: 0,
         fishingGauge: 0,
+        fishingStrategy: 'balanced',
+        rareFishPity: 0,
         reefInstalled: 0,
         fishStock: {},
+        fishCaughtTotal: {},
+        claimedCollectionMilestones: [],
+        lastCatch: null,
         diving: false,
         lastTickAt: 0,
         bossClearM: 0,
@@ -207,6 +215,43 @@ function ensureOceanPermanentUpgrades(st) {
         st.permanentUpgrades[key] = Math.max(0, Math.min(OCEAN_PERMANENT_UPGRADE_DEFS[key].maxLevel, Math.floor(st.permanentUpgrades[key] || 0)));
     });
 }
+const normalizeOceanFishingProgress = function (st) {
+    st.fishStock = (st.fishStock && typeof st.fishStock === 'object' && !Array.isArray(st.fishStock)) ? st.fishStock : {};
+    let hasCaughtHistory = !!(st.fishCaughtTotal && typeof st.fishCaughtTotal === 'object' && !Array.isArray(st.fishCaughtTotal));
+    let caught = hasCaughtHistory ? st.fishCaughtTotal : st.fishStock;
+    if (!hasCaughtHistory) st.fishCaughtTotal = {};
+    OCEAN_STATE_FISH_KEYS.forEach(key => {
+        let stock = Math.max(0, Math.floor(Number(st.fishStock[key]) || 0));
+        let total = Math.max(0, Math.floor(Number(caught[key]) || 0));
+        st.fishStock[key] = stock;
+        st.fishCaughtTotal[key] = Math.max(stock, total);
+    });
+    let claims = st.claimedCollectionMilestones;
+    let validClaims = Array.isArray(claims) && claims.every((value, index) => Number.isInteger(value)
+        && OCEAN_COLLECTION_REQUIRED_COUNTS.includes(value) && claims.indexOf(value) === index);
+    if (!validClaims) {
+        let sourceClaims = Array.isArray(claims) ? claims : [];
+        st.claimedCollectionMilestones = Array.from(new Set(sourceClaims.map(value => Math.floor(value || 0))))
+            .filter(value => OCEAN_COLLECTION_REQUIRED_COUNTS.includes(value));
+    }
+    if (!st.lastCatch || !OCEAN_FISH_DB[st.lastCatch.key]) st.lastCatch = null;
+    else {
+        st.lastCatch.at = Math.max(0, Math.floor(st.lastCatch.at || 0));
+        st.lastCatch.guaranteed = !!st.lastCatch.guaranteed;
+    }
+    OCEAN_NORMALIZED_FISHING_STATES.add(st);
+};
+
+function mergeOceanState(savedOcean) {
+    let source = savedOcean && typeof savedOcean === 'object' && !Array.isArray(savedOcean) ? savedOcean : {};
+    let merged = { ...createDefaultOceanState(), ...source };
+    merged.permanentUpgrades = { ...createDefaultOceanState().permanentUpgrades, ...(source.permanentUpgrades || {}) };
+    ensureOceanPermanentUpgrades(merged);
+    if (!Object.prototype.hasOwnProperty.call(source, 'fishCaughtTotal')) merged.fishCaughtTotal = null;
+    normalizeOceanFishingProgress(merged);
+    return merged;
+}
+
 function ensureOceanState() {
     let st = (game && game.ocean && typeof game.ocean === 'object') ? game.ocean : (game.ocean = createDefaultOceanState());
     st.unlocked = !!st.unlocked;
@@ -218,8 +263,10 @@ function ensureOceanState() {
     st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, Number.isFinite(st.oxygenCur) ? st.oxygenCur : st.oxygenMax));
     st.pressureLevel = Math.max(0, Math.floor(st.pressureLevel || 0));
     st.fishingGauge = Math.max(0, Math.min(100, Number(st.fishingGauge) || 0));
+    st.fishingStrategy = OCEAN_FISHING_STRATEGIES[st.fishingStrategy] ? st.fishingStrategy : 'balanced';
+    st.rareFishPity = Math.max(0, Math.min(100, Number(st.rareFishPity) || 0));
     st.reefInstalled = Math.max(0, Math.min(10, Math.floor(st.reefInstalled || 0)));
-    st.fishStock = (st.fishStock && typeof st.fishStock === 'object') ? st.fishStock : {};
+    if (!OCEAN_NORMALIZED_FISHING_STATES.has(st)) normalizeOceanFishingProgress(st);
     st.diving = !!st.diving;
     st.drowning = !!st.drowning;
     st.drownSec = Math.max(0, Number(st.drownSec) || 0);
@@ -470,31 +517,50 @@ function getSeasonBossProgressGate(zone, source) {
     return { met: true, label: '' };
 }
 
+function normalizeCosmosDirectiveSnapshot(source) {
+    if (!source || typeof source !== 'object') return null;
+    const definitions = Array.isArray(globalThis.COSMOS_EXPEDITION_DIRECTIVE_DB)
+        ? globalThis.COSMOS_EXPEDITION_DIRECTIVE_DB : [];
+    const requestedId = String(source.id || 'survey');
+    const canonical = definitions.find(row => row && row.id === requestedId)
+        || definitions.find(row => row && row.id === 'survey');
+    const directive = canonical || source;
+    return {
+        id: String(directive.id || 'survey'),
+        name: String(directive.name || '안정 관측').slice(0, 40),
+        enemyHpMul: Math.max(0.5, Math.min(3, Number(directive.enemyHpMul) || 1)),
+        enemyDamageMul: Math.max(0.5, Math.min(3, Number(directive.enemyDamageMul) || 1)),
+        enemyAttackSpeedMul: Math.max(0.5, Math.min(2, Number(directive.enemyAttackSpeedMul) || 1)),
+        rewardMul: Math.max(0.1, Math.min(5, Number(directive.rewardMul) || 1)),
+        jackpotChance: Math.max(0, Math.min(0.5, Number(directive.jackpotChance) || 0)),
+        jackpotBonusMul: Math.max(0, Math.min(5, Number(directive.jackpotBonusMul) || 0)),
+        rare: directive.rare === true
+    };
+}
+
+function createCosmosChallengeZone(state) {
+    const cosmos = state && state.cosmosAtlas && typeof state.cosmosAtlas === 'object' ? state.cosmosAtlas : {};
+    const challenge = cosmos.activeChallenge && typeof cosmos.activeChallenge === 'object' ? cosmos.activeChallenge : null;
+    if (!challenge) return null;
+    const galaxy = Math.max(0, Math.min(5, Math.floor(Number(challenge.galaxy) || 0)));
+    return {
+        id: 'cosmos_challenge', name: `우주계 ${challenge.name || '행성'}`, type: 'cosmos',
+        tier: Math.max(1, Math.floor(challenge.tier || 1)),
+        lootTier: Math.max(1, Math.floor(Number(challenge.lootTier) || (Math.max(1, galaxy) - 1) * 5 + 1)),
+        maxKills: 1, ele: challenge.ele || 'chaos', cosmosNodeId: challenge.nodeId || null,
+        cosmosGalaxy: galaxy, cosmosTag: challenge.tag || '', cosmosMechanicId: challenge.mechanicId || '',
+        recommendedDps: Math.max(0, Math.floor(Number(challenge.recommendedDps) || 0)),
+        recommendedEhp: Math.max(0, Math.floor(Number(challenge.recommendedEhp) || 0)),
+        gravity: Math.max(1, Number(challenge.gravity || 1)),
+        sizeClass: Math.max(1, Math.floor(challenge.sizeClass || 1)), theme: challenge.theme || '',
+        cosmosDirective: normalizeCosmosDirectiveSnapshot(challenge.directive)
+    };
+}
+
 function getZone(id) {
     if (id === 'cosmos_challenge') {
-        let cosmos = (game && game.cosmosAtlas && typeof game.cosmosAtlas === 'object') ? game.cosmosAtlas : {};
-        let c = (cosmos.activeChallenge && typeof cosmos.activeChallenge === 'object') ? cosmos.activeChallenge : null;
-        if (c) {
-            return {
-                id: 'cosmos_challenge',
-                name: `우주계 ${c.name || '행성'}`,
-                type: 'cosmos',
-                tier: Math.max(1, Math.floor(c.tier || 1)),
-                lootTier: Math.max(1, Math.floor(Number(c.lootTier)
-                    || (Math.max(1, Math.floor(Number(c.galaxy) || 1)) - 1) * 5 + 1)),
-                maxKills: 1,
-                ele: c.ele || 'chaos',
-                cosmosNodeId: c.nodeId || null,
-                cosmosGalaxy: Math.max(0, Math.min(5, Math.floor(Number(c.galaxy) || 0))),
-                cosmosTag: c.tag || '',
-                cosmosMechanicId: c.mechanicId || '',
-                recommendedDps: Math.max(0, Math.floor(Number(c.recommendedDps) || 0)),
-                recommendedEhp: Math.max(0, Math.floor(Number(c.recommendedEhp) || 0)),
-                gravity: Math.max(1, Number(c.gravity || 1)),
-                sizeClass: Math.max(1, Math.floor(c.sizeClass || 1)),
-                theme: c.theme || ''
-            };
-        }
+        const challengeZone = createCosmosChallengeZone(game);
+        if (challengeZone) return challengeZone;
     }
     if (id === 'beehive_run') {
         let step = Math.max(1, Math.floor((game && game.beehive && game.beehive.branchStep) || 1));
@@ -1808,7 +1874,7 @@ let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 let lastRenderedChaosMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
 
@@ -2214,6 +2280,7 @@ const defaultGame = {
     talismanUnseal: null,
     talismanUnlockPickMode: false,
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
+    equipmentLoadouts: { selectedSlot: 0, presets: [null, null, null] },
     inventory: [],
     inventoryExpandLevel: 0,
     // 생장판: 기존 장비를 대체하지 않는 추가 시스템. 루프 25에 해금되며 그 전에는 활성 칸이 0이다.
@@ -2252,8 +2319,10 @@ const defaultGame = {
     colony: { inRun: false, wave: 0, highestWave: 0, kills: 0, requiredKills: 0, rewardPending: false, wardInventory: [], wardEquipped: [null,null,null,null], wardSlots: 1, wardSlotVersion: 1 },
     voidRift: { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, grandBreachCleared: false, activeKills: 0, requiredKills: 0 },
     sporeCraftModes: {},
-    shrineState: { active: null, nextRollAt: 0 },
+    shrineState: { activeId: null, pity: 0, spawned: 0, claimed: 0 },
     shrineBuff: null,
+    bountyHunt: { pity: 0, offerIds: [], activeId: null, status: 'idle', offered: 0, accepted: 0, completed: 0, abandoned: 0 },
+    salvageRecovery: { entries: [], sequence: 0 },
     challengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
     activeChallengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
@@ -2293,6 +2362,7 @@ const defaultGame = {
     gemEnhanceTargetSkill: null,
     gemEngraveSelectedSlot: 0,
     uniqueCodex: {},
+    uniqueHuntTargets: [],
     codexNewlyRegistered: {},
     codexCollapsedSlots: {},
     codexSubtab: 'main',

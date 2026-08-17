@@ -704,6 +704,23 @@
         return gain;
     }
 
+    function normalizeCosmosExpeditionState(state) {
+        const cycles = state.directiveCycles && typeof state.directiveCycles === 'object'
+            && !Array.isArray(state.directiveCycles)
+            ? state.directiveCycles : {};
+        Object.keys(cycles).forEach(nodeId => {
+            cycles[nodeId] = Math.max(0, Math.min(999999, Math.floor(Number(cycles[nodeId]) || 0)));
+        });
+        const selected = state.selectedDirectives && typeof state.selectedDirectives === 'object'
+            && !Array.isArray(state.selectedDirectives)
+            ? state.selectedDirectives : {};
+        Object.keys(selected).forEach(nodeId => {
+            if (typeof selected[nodeId] !== 'string' || !selected[nodeId]) delete selected[nodeId];
+        });
+        state.directiveCycles = cycles;
+        state.selectedDirectives = selected;
+    }
+
     function getState() {
         if (!window.game) window.game = {};
         const state = window.game.cosmosAtlas && typeof window.game.cosmosAtlas === 'object'
@@ -732,6 +749,7 @@
             if (galaxy < 1 || galaxy > 6 || !state.equippedStones[g] || !isCosmosStoneAcquired(state, galaxy)) delete state.equippedStones[g];
         });
         state.equippedStoneGalaxy = getEquippedCosmosStoneCount(state);
+        normalizeCosmosExpeditionState(state);
         state.masteryPointsSpent = Math.max(0, Math.floor(state.masteryPointsSpent || 0));
         state.mastery = state.mastery && typeof state.mastery === 'object' ? state.mastery : {};
         COSMOS_MASTERY_NODES.forEach(node => {
@@ -1229,13 +1247,66 @@
         return Math.max(Math.floor(node.tier || 1), getCosmosTierFloor());
     }
 
+    function getCosmosDirectiveChoicesForNode(node, stateOverride) {
+        if (!node || typeof window.getCosmosExpeditionDirectiveChoices !== 'function') return [];
+        const state = stateOverride || getState();
+        const cycle = Math.max(0, Math.floor(Number(state.directiveCycles[node.id]) || 0));
+        return window.getCosmosExpeditionDirectiveChoices(node.id, cycle);
+    }
+
+    function getSelectedCosmosDirective(node, stateOverride) {
+        const state = stateOverride || getState();
+        const choices = getCosmosDirectiveChoicesForNode(node, state);
+        if (choices.length === 0) return null;
+        const selectedId = state.selectedDirectives[node.id];
+        return choices.find(row => row.id === selectedId) || choices[0];
+    }
+
+    function createCosmosDirectiveSnapshot(directive) {
+        if (!directive) return null;
+        return {
+            id: directive.id, name: directive.name,
+            enemyHpMul: directive.enemyHpMul, enemyDamageMul: directive.enemyDamageMul,
+            enemyAttackSpeedMul: directive.enemyAttackSpeedMul, rewardMul: directive.rewardMul,
+            jackpotChance: directive.jackpotChance, jackpotBonusMul: directive.jackpotBonusMul,
+            rare: directive.rare === true
+        };
+    }
+
+    function selectCosmosExpeditionDirective(nodeId, directiveId) {
+        const node = ATLAS.byId.get(String(nodeId || ''));
+        if (!node || getNodeStatus(node) === 'locked') return false;
+        const state = getState();
+        const fightingThisNode = window.game.currentZoneId === 'cosmos_challenge'
+            && state.activeChallenge && state.activeChallenge.nodeId === node.id;
+        if (fightingThisNode) return false;
+        const choices = getCosmosDirectiveChoicesForNode(node, state);
+        const selected = choices.find(row => row.id === String(directiveId || ''));
+        if (!selected) return false;
+        state.selectedDirectives[node.id] = selected.id;
+        renderCosmosAtlas();
+        return true;
+    }
+
+    function advanceCosmosDirectiveCycle(state, nodeId) {
+        const current = Math.max(0, Math.floor(Number(state.directiveCycles[nodeId]) || 0));
+        state.directiveCycles[nodeId] = Math.min(999999, current + 1);
+        delete state.selectedDirectives[nodeId];
+    }
+
+    function getCompletedChallengeDirective(state, node) {
+        const challenge = state.activeChallenge && state.activeChallenge.nodeId === node.id
+            ? state.activeChallenge : null;
+        if (challenge && challenge.directive) return challenge.directive;
+        return createCosmosDirectiveSnapshot(getSelectedCosmosDirective(node, state));
+    }
+
 
 
     function canChallengeNode(node) {
         if (!node) return false;
         const status = getNodeStatus(node);
-        if (status === 'available') return true;
-        return status === 'cleared' && node.tag === 'boss';
+        return status === 'available' || status === 'cleared';
     }
 
     function getCosmosEquivalentUnderworldFloor(node) {
@@ -1287,6 +1358,7 @@
     }
 
     function createCosmosEstimateZone(node, mechanic) {
+        const directive = getSelectedCosmosDirective(node);
         return {
             id: 'cosmos_challenge',
             name: `우주계 ${node.name}`,
@@ -1300,7 +1372,8 @@
             cosmosTag: node.baseTag || node.tag || '',
             cosmosMechanicId: mechanic ? mechanic.id : '',
             gravity: Math.max(1, Number(node.gravity || 1)),
-            sizeClass: Math.max(1, Math.floor(node.sizeClass || 1))
+            sizeClass: Math.max(1, Math.floor(node.sizeClass || 1)),
+            cosmosDirective: createCosmosDirectiveSnapshot(directive)
         };
     }
 
@@ -1326,6 +1399,7 @@
         const node = typeof nodeOrId === 'string' ? ATLAS.byId.get(nodeOrId) : nodeOrId;
         if (!node || typeof window.calculateCosmosDifficultyTarget !== 'function') return null;
         const mechanic = getCosmosNodeMechanic(node);
+        const directive = getSelectedCosmosDirective(node);
         const estimateZone = createCosmosEstimateZone(node, mechanic);
         const actualEstimate = typeof window.estimateMapZonePowerRequirements === 'function'
             ? window.estimateMapZonePowerRequirements(estimateZone) : null;
@@ -1334,13 +1408,14 @@
             sizeClass: node.sizeClass,
             gravity: node.gravity,
             isGalaxyBoss: node.tag === 'boss',
-            element: mechanic ? mechanic.element : 'chaos'
+            element: mechanic ? mechanic.element : 'chaos',
+            directive
         });
         if (mechanic && mechanic.element === 'weakest') target.element = 'weakest';
         const stats = getCosmosReadinessStats(node);
         const readiness = typeof window.getMapPowerReadiness === 'function'
             ? window.getMapPowerReadiness(stats, target) : null;
-        return { nodeId: node.id, mechanic, target, readiness };
+        return { nodeId: node.id, mechanic, directive, target, readiness };
     }
 
     function getGalaxyClearCount(state, galaxy) {
@@ -1562,6 +1637,7 @@
             if (typeof window.addLog === 'function') window.addLog(`은하 ${g} 우주석이 없습니다.`, 'attack-monster');
             return;
         }
+        if (state.equippedStones[String(g)]) return;
         ensureCosmosStoneOptions(state, g);
         state.equippedStones[String(g)] = true;
         state.equippedStoneGalaxy = getEquippedCosmosStoneCount(state);
@@ -1665,6 +1741,7 @@
         ATLAS.summary = document.getElementById('ui-cosmos-summary');
         ATLAS.roadmap = document.getElementById('ui-cosmos-roadmap');
         ATLAS.tooltip = document.getElementById('cosmos-atlas-tooltip');
+        bindCosmosDetailEvents();
 
         const overlayEl = document.getElementById('cosmos-stone-overlay');
         if (overlayEl && !overlayEl.__cosmosBound) {
@@ -1717,6 +1794,20 @@
             try { renderCosmosAtlas(); } catch (error) { console.error('cosmos atlas render failed:', error); }
             return result;
         };
+    }
+
+    function bindCosmosDetailEvents() {
+        const detail = ATLAS.detail;
+        if (!detail || detail.__cosmosDirectiveBound) return;
+        detail.__cosmosDirectiveBound = true;
+        detail.addEventListener('click', event => {
+            const button = event.target.closest('[data-cosmos-directive-id]');
+            if (!button || button.disabled) return;
+            selectCosmosExpeditionDirective(
+                button.dataset.cosmosDirectiveNode,
+                button.dataset.cosmosDirectiveId
+            );
+        });
     }
 
     function bindCanvasEvents() {
@@ -2318,6 +2409,45 @@
         return `<div class="cosmos-gate-line ${ready ? 'ready' : ''}"><span>은하 안정도</span><strong>${Math.min(GALAXY_BOSS_REQUIRED_CLEARS, clears)}/${GALAXY_BOSS_REQUIRED_CLEARS}</strong><small>${ready ? '은하 보스 도전 가능' : `보스 해금까지 ${GALAXY_BOSS_REQUIRED_CLEARS - clears}개 노드`}</small></div>`;
     }
 
+    function formatCosmosDirectivePressure(multiplier) {
+        const pct = Math.round((Math.max(0, Number(multiplier) || 1) - 1) * 100);
+        return `${pct > 0 ? '+' : ''}${pct}%`;
+    }
+
+    function renderCosmosDirectiveCard(node, directive, selected, disabled) {
+        const chance = Math.round(Math.max(0, Number(directive.jackpotChance) || 0) * 100);
+        const className = ['cosmos-directive-card', selected ? 'selected' : '', directive.rare ? 'rare' : '']
+            .filter(Boolean).join(' ');
+        return `<button type="button" class="${className}" data-cosmos-directive-node="${escapeHtml(node.id)}" data-cosmos-directive-id="${escapeHtml(directive.id)}" aria-pressed="${selected ? 'true' : 'false'}" ${disabled ? 'disabled' : ''}>
+            <span class="cosmos-directive-card-head"><small>${escapeHtml(directive.signal || 'SIGNAL')}</small>${selected ? '<b>선택됨</b>' : (directive.rare ? '<b>희귀 신호</b>' : '')}</span>
+            <strong>${escapeHtml(directive.name)}</strong>
+            <span class="cosmos-directive-desc">${escapeHtml(directive.description)}</span>
+            <span class="cosmos-directive-risk"><i>생명력 ${formatCosmosDirectivePressure(directive.enemyHpMul)}</i><i>피해 ${formatCosmosDirectivePressure(directive.enemyDamageMul)}</i><i>속도 ${formatCosmosDirectivePressure(directive.enemyAttackSpeedMul)}</i></span>
+            <span class="cosmos-directive-reward"><b>별가루 ×${Number(directive.rewardMul || 1).toFixed(2)}</b><em>${chance > 0 ? `공명 잭팟 ${chance}%` : '잭팟 없음'}</em></span>
+        </button>`;
+    }
+
+    function renderCosmosDirectiveSection(node, state) {
+        const status = getNodeStatus(node);
+        const choices = getCosmosDirectiveChoicesForNode(node, state);
+        if (choices.length === 0) return '';
+        const selected = getSelectedCosmosDirective(node, state);
+        const fighting = window.game.currentZoneId === 'cosmos_challenge'
+            && state.activeChallenge && state.activeChallenge.nodeId === node.id;
+        const disabled = !canChallengeNode(node) || fighting;
+        const cards = choices.map(row => renderCosmosDirectiveCard(node, row, selected && row.id === selected.id, disabled)).join('');
+        let hint = status === 'cleared'
+            ? '새 신호가 포착되었습니다. 원하는 항로로 재탐사하세요.'
+            : '탐사 완료 후 무작위 신호 2개가 갱신됩니다.';
+        if (fighting) hint = '현재 탐사에 고정됨';
+        return `<section class="cosmos-directive-section"><div class="cosmos-directive-title"><span>탐사 신호 선택</span><small>${hint}</small></div><div class="cosmos-directive-list">${cards}</div></section>`;
+    }
+
+    function getCosmosChallengeButtonLabel(node, status) {
+        if (node && node.tag === 'boss') return status === 'cleared' ? '은하 보스 재도전' : '은하 보스 도전';
+        return status === 'cleared' ? '새 신호 재탐사' : '전투 도전';
+    }
+
     function renderDetail() {
         if (!ATLAS.detail) return;
         const state = getState();
@@ -2344,12 +2474,13 @@
             </div>
             <div class="cosmos-reward-line"><span>탐사 보상</span>${escapeHtml(rewardLine)}</div>
             ${renderGalaxyGateLine(node, state)}
+            ${renderCosmosDirectiveSection(node, state)}
             ${renderCosmosDifficultySection(node)}
             <div class="cosmos-actions">
-                <button class="primary" onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${node.tag === 'boss' ? '은하 보스 도전' : '전투 도전'}</button>
-                ${node.tag === 'boss' ? `<button onclick="equipBossStoneByGalaxy(${Math.max(1, Math.min(5, Math.floor(node.orbit || 1)))})">우주석 관리</button>` : ''}<button onclick="focusCosmosAtlasOnSelected()">지도에서 초점</button>
+                <button class="primary" onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${getCosmosChallengeButtonLabel(node, status)}</button>
+                ${node.tag === 'boss' ? '<button onclick="openCosmosStoneOverlay()">우주석 관리</button>' : ''}<button onclick="focusCosmosAtlasOnSelected()">지도에서 초점</button>
             </div>
-            <div class="cosmos-help">${isCosmosUnlocked() ? '탐사 완료된 노드와 연결된 노드가 다음 탐사 후보로 열린다.' : '우주계는 나무꾼 격파 후 지하계 30층 도달 시 해금된다.'}</div>`;
+            <div class="cosmos-help">${isCosmosUnlocked() ? '첫 탐사는 별길을 열고, 완료한 천체는 갱신된 신호로 반복 탐사할 수 있습니다.' : '우주계는 나무꾼 격파 후 지하계 30층 도달 시 해금된다.'}</div>`;
     }
 
     function exploreSelectedCosmosNode(nodeIdOverride) {
@@ -2359,20 +2490,20 @@
         const node = ATLAS.byId.get(targetId);
         if (!node) return;
         const status = getNodeStatus(node);
-        const repeatBossRun = status === 'cleared' && node.tag === 'boss';
+        const repeatRun = status === 'cleared';
         const completedChallenge = state.activeChallenge && state.activeChallenge.nodeId === node.id;
         const firstClear = !state.cleared.includes(node.id);
         const defeatedBossStage = node.tag === 'boss' ? getBossStage(node) : 0;
-        if ((status === 'available' || repeatBossRun) && !completedChallenge) {
+        if ((status === 'available' || repeatRun) && !completedChallenge) {
             if (typeof window.addLog === 'function') window.addLog('우주계 전투 완료 후 탐사가 기록됩니다.', 'attack-monster');
             return;
         }
-        if (!(status === 'available' || repeatBossRun)) {
+        if (!(status === 'available' || repeatRun)) {
             if (typeof window.addLog === 'function') window.addLog('아직 별길이 연결되지 않은 우주계 노드입니다.', 'attack-monster');
             return;
         }
         if (status === 'available' && !state.cleared.includes(node.id)) state.cleared.push(node.id);
-        if (node.kind === 'planet' && typeof window.markLoopCosmosPlanetClear === 'function') {
+        if (firstClear && node.kind === 'planet' && typeof window.markLoopCosmosPlanetClear === 'function') {
             const completedLoopGate = window.markLoopCosmosPlanetClear(node.id);
             if (completedLoopGate && typeof window.addLog === 'function') window.addLog('🪐 루프 대체 경로 달성: 우주계 에니프론 행성 돌파', 'season-up');
         }
@@ -2386,6 +2517,7 @@
                 ensureCosmosStoneOptions(state, Number(g));
             }
         }
+        const directive = getCompletedChallengeDirective(state, node) || {};
         const rewardBase = node.tag === 'boss' ? (30 + node.orbit * 10 + defeatedBossStage * 10) : (node.kind === 'planet' ? 5 + node.orbit * 2 : 2 + node.orbit);
         const focusMul = node.kind === 'planet'
             ? (1 + getCosmosMasteryValue('combatFocus') * 0.01)
@@ -2400,10 +2532,16 @@
             + (node.kind === 'asteroid' ? getCosmosMasteryValue('stellarForge') * 0.009 : 0)
             + (node.orbit >= 4 ? getCosmosMasteryValue('frontierTax') * 0.013 : 0)
             + (firstClear ? getCosmosMasteryValue('chainMastery') * 0.02 : 0);
-        const reward = Math.max(1, Math.floor(rewardBase * rewardMul * focusMul));
-        grantCosmosStarDust(reward);
+        const directiveRewardMul = Math.max(0.1, Math.min(5, Number(directive.rewardMul) || 1));
+        const reward = Math.max(1, Math.floor(rewardBase * rewardMul * focusMul * directiveRewardMul));
+        const jackpotChance = Math.max(0, Math.min(0.5, Number(directive.jackpotChance) || 0));
+        const jackpot = jackpotChance > 0 && Math.random() < jackpotChance;
+        const jackpotBonus = jackpot
+            ? Math.max(1, Math.floor(reward * Math.max(0, Number(directive.jackpotBonusMul) || 0))) : 0;
+        grantCosmosStarDust(reward + jackpotBonus);
         if (typeof window.addLog === 'function') {
-            window.addLog(`${node.tag === 'boss' ? '👑 우주계 은하 보스 격파' : '🌠 우주계 탐사 완료'}: ${node.name} · 별가루 +${reward}${node.tag === 'boss' ? ` · 난이도 바닥 Tier ${getCosmosTierFloor()} 적용` : ''}`, node.tag === 'boss' ? 'season-up' : (node.kind === 'planet' ? 'loot-unique' : 'loot-magic'));
+            window.addLog(`${node.tag === 'boss' ? '👑 우주계 은하 보스 격파' : '🌠 우주계 탐사 완료'}: ${node.name} · ${directive.name || '기본 탐사'} · 별가루 +${reward + jackpotBonus}${node.tag === 'boss' ? ` · 난이도 바닥 Tier ${getCosmosTierFloor()} 적용` : ''}`, node.tag === 'boss' ? 'season-up' : (node.kind === 'planet' ? 'loot-unique' : 'loot-magic'));
+            if (jackpot) window.addLog(`🌌 공명 잭팟! ${directive.name || '탐사 신호'} 추가 별가루 +${jackpotBonus}`, 'loot-unique');
             if (node.tag === 'boss') {
                 const kills = Math.max(0, Math.floor(state.bossKills[node.id] || 0));
                 if (kills === 1) window.addLog(`💠 ${node.name} 첫 격파: ${getBossStoneName(node)} 획득`, 'loot-unique');
@@ -2412,7 +2550,11 @@
                 if (relicDrop) window.addLog(`💠 보스 유물 획득: ${relicDrop.name} (우주석 보스 옵션 리롤 재화)`, 'loot-unique');
             }
         }
+        if (jackpot && typeof window.showGameToast === 'function') {
+            window.showGameToast(`공명 잭팟 · 별가루 +${jackpotBonus}`, { tone: 'success', duration: 3800 });
+        }
         if (node.tag === 'boss') grantCosmosBossExclusiveDrops(node);
+        advanceCosmosDirectiveCycle(state, node.id);
         if (typeof window.saveGame === 'function') {
             try { window.saveGame({ auto: true, silent: true }); } catch (error) { console.error('cosmos atlas save failed:', error); }
         }
@@ -2426,6 +2568,7 @@
         const tier = getCosmosChallengeTier(node);
         const lootTier = getDisplayedNodeTier(node);
         const mechanic = getCosmosNodeMechanic(node);
+        const directive = getSelectedCosmosDirective(node);
         const recommendation = getCosmosNodeRecommendation(node);
         const gravity = Math.max(1, Number(node.gravity || 1));
         const sizeClass = Math.max(1, Math.floor(node.sizeClass || 1));
@@ -2443,7 +2586,8 @@
             mechanicId: mechanic ? mechanic.id : '',
             recommendedDps: recommendation ? recommendation.target.dps : 0,
             recommendedEhp: recommendation ? recommendation.target.ehp : 0,
-            ele: mechanic ? mechanic.element : 'chaos'
+            ele: mechanic ? mechanic.element : 'chaos',
+            directive: createCosmosDirectiveSnapshot(directive)
         };
         window.game.currentZoneId = 'cosmos_challenge';
         window.game.killsInZone = 0;
@@ -2479,7 +2623,8 @@
             return;
         }
         if (typeof window.addLog === 'function') {
-            window.addLog(`⚔️ ${node.name} 도전 시작: 중력 ${Number(node.gravity || 1).toFixed(1)}g · 크기 등급 ${Math.max(1, Math.floor(node.sizeClass || 1))} · 특징 ${node.theme}`, 'attack-monster');
+            const directive = getSelectedCosmosDirective(node);
+            window.addLog(`⚔️ ${node.name} 도전 시작: ${directive ? directive.name : '기본 탐사'} · 중력 ${Number(node.gravity || 1).toFixed(1)}g · 크기 등급 ${Math.max(1, Math.floor(node.sizeClass || 1))} · 특징 ${node.theme}`, 'attack-monster');
         }
         startCosmosBattle(node);
     }

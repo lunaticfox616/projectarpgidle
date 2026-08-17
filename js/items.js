@@ -248,6 +248,61 @@ function selectForCrafting(ref, isEquip) {
     updateStaticUI();
 }
 
+function copyCraftResultStat(stat) {
+    if (!stat) return null;
+    return {
+        id: stat.id || '',
+        statName: stat.statName || '',
+        val: stat.val,
+        tier: stat.tier,
+        lockedByHoney: !!stat.lockedByHoney,
+        lockedByRift: !!stat.lockedByRift,
+        unremovable: !!stat.unremovable,
+        venomStingerBonus: !!stat.venomStingerBonus
+    };
+}
+
+function snapshotCraftResultItem(item) {
+    if (!item) return null;
+    return {
+        name: item.name || '',
+        baseName: item.baseName || '',
+        rarity: item.rarity || 'normal',
+        quality: Math.max(0, Math.floor(Number(item.quality) || 0)),
+        corrupted: !!item.corrupted,
+        uniqueEffect: item.uniqueEffect || '',
+        baseStats: (item.baseStats || []).map(copyCraftResultStat).filter(Boolean),
+        stats: (item.stats || []).map(copyCraftResultStat).filter(Boolean),
+        chaosInfusion: copyCraftResultStat(item.chaosInfusion),
+        encroachedStat: copyCraftResultStat(item.encroached && item.encroached.chosen)
+    };
+}
+
+const craftingResultLedger = (() => {
+    let latest = null;
+
+    function begin(item, meta) {
+        if (!item) return null;
+        return { itemRef: item, before: snapshotCraftResultItem(item), meta: { ...(meta || {}) } };
+    }
+
+    function commit(token, item) {
+        if (!token || !item || token.itemRef !== item) return null;
+        let after = snapshotCraftResultItem(item);
+        latest = { itemRef: item, before: token.before, after, meta: token.meta, afterKey: JSON.stringify(after) };
+        return latest;
+    }
+
+    function getForItem(item) {
+        if (!latest || latest.itemRef !== item) return null;
+        return JSON.stringify(snapshotCraftResultItem(item)) === latest.afterKey ? latest : null;
+    }
+
+    function clear() { latest = null; }
+
+    return { begin, commit, getForItem, clear };
+})();
+
 function getEquipCandidateSlots(item) {
     if (!item) return [];
     if (item.slot === '반지') return (typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger') > 0) ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
@@ -649,7 +704,7 @@ function changeZone(id) {
 }
 
 
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason, craftingResultLedger });
 
 // Phase-3 extracted market/crafting service handlers.
 async function marketResetPassiveTreeByDivine() {

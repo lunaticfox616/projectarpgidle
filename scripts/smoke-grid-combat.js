@@ -6,6 +6,8 @@ const files = [
   'js/bootstrap.js',
   'cloud-save-config.js',
   'data/constants.js',
+  'data/shrines.js',
+  'data/bounties.js',
   'data/maps.js',
   'data/skills.js',
   'data/items.js',
@@ -20,6 +22,8 @@ const files = [
   'js/items.js',
   'js/skills.js',
   'js/passives.js',
+  'js/shrines.js',
+  'js/bounties.js',
   'js/core-cube.js',
   'js/combat-grid.js',
   'js/combat-patterns.js',
@@ -248,6 +252,25 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const finalEstimate = context.estimateMapZonePowerRequirements(cosmosFinal);
   const astraEstimate = context.estimateMapZonePowerRequirements(context.getZone('cosmos_astra'));
   assert.ok(entryEstimate.dps > 1000000, '우주계 권장 DPS는 실제 보스 체력 공식을 사용해야 한다');
+  const dangerousDirective = {
+    id: 'test-risk', name: '위험 신호', enemyHpMul: 1.38,
+    enemyDamageMul: 1.23, enemyAttackSpeedMul: 1.12,
+    rewardMul: 1.62, jackpotChance: 0.11, jackpotBonusMul: 1.4
+  };
+  const directiveZone = { ...cosmosEntry, cosmosDirective: dangerousDirective };
+  const directiveEstimate = context.estimateMapZonePowerRequirements(directiveZone);
+  assert.ok(directiveEstimate.dps > entryEstimate.dps * 1.35,
+    '위험 탐사 신호의 적 생명력은 권장 DPS에 반영되어야 한다');
+  assert.ok(directiveEstimate.ehp > entryEstimate.ehp * 1.20,
+    '위험 탐사 신호의 피해와 공격 속도는 권장 EHP에 반영되어야 한다');
+  const baselineCosmosBoss = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { boss: true, at: 100 }, 0);
+  const directiveCosmosBoss = context.createEnemy({ ...directiveZone, name: '우주계 기준' }, { boss: true, at: 100 }, 0);
+  assert.ok(directiveCosmosBoss.maxHp > baselineCosmosBoss.maxHp * 1.35,
+    '실제 우주계 적도 선택한 탐사 생명력 배율을 받아야 한다');
+  assert.ok(directiveCosmosBoss.damageMul > baselineCosmosBoss.damageMul * 1.20,
+    '실제 우주계 적도 선택한 탐사 피해 배율을 받아야 한다');
+  assert.ok(directiveCosmosBoss.attackSpeedVar > baselineCosmosBoss.attackSpeedVar * 1.10,
+    '실제 우주계 적도 선택한 탐사 공격 속도 배율을 받아야 한다');
   const cosmosBossEstimates = cosmosBossSteps.map(zone => context.estimateMapZonePowerRequirements(zone));
   const baselineCosmosDefense = {
     maxHp: 7500, energyShield: 0, armor: 0, dr: 75, evadeChance: 0,
@@ -284,12 +307,21 @@ const cfg = context.COMBAT_GRID_CONFIG;
   context.game.season = 31;
   context.game.loopCount = 30;
   context.game.cosmosAtlas = {};
+  const corruptedDirective = { ...context.COSMOS_EXPEDITION_DIRECTIVE_DB.find(row => row.id === 'rift'),
+    enemyHpMul: 0.5, enemyDamageMul: 0.5, rewardMul: 5, jackpotChance: 0.5 };
   context.game.cosmosAtlas.activeChallenge = {
     nodeId: 'planet-47', name: '디프다르', galaxy: 2, tier: 63, lootTier: 10, gravity: 2.1, sizeClass: 3,
-    tag: 'absorb', mechanicId: 'abyssalTide', ele: 'chaos'
+    tag: 'absorb', mechanicId: 'abyssalTide', ele: 'chaos', directive: corruptedDirective
   };
   context.game.currentZoneId = 'cosmos_challenge';
-  const diphdar = context.createEnemy(context.getZone('cosmos_challenge'), { boss: true, at: 100 }, 0);
+  const activeCosmosZone = context.getZone('cosmos_challenge');
+  assert.strictEqual(activeCosmosZone.cosmosDirective.id, 'rift',
+    '저장된 우주계 탐사 신호가 재접속 뒤에도 전투 지역에 복원되어야 한다');
+  assert.strictEqual(activeCosmosZone.cosmosDirective.enemyHpMul, 1.38,
+    '저장된 탐사 신호 배율은 임의 값을 믿지 않고 정적 신호 정의에서 복원해야 한다');
+  assert.strictEqual(activeCosmosZone.cosmosDirective.rewardMul, 1.62,
+    '손상된 저장 보상 배율로 안전한 전투에서 과도한 보상을 얻을 수 없어야 한다');
+  const diphdar = context.createEnemy(activeCosmosZone, { boss: true, at: 100 }, 0);
   assert.strictEqual(diphdar.patternMode, 'cosmosBoss', '은하 보스는 공용 성좌 순환을 사용하면 안 된다');
   assert.strictEqual(diphdar.cosmosBossId, 'planet-47');
   assert.ok(diphdar.maxEnergyShield > 0, '디프다르의 심해 역류는 실제로 회복할 보호막 자원을 가져야 한다');

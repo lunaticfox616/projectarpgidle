@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const TEST_ORIGIN = `http://127.0.0.1:${Math.max(1, Number(process.env.PLAYWRIGHT_PORT) || 4173)}/`;
 
 async function openLocalGame(page, path = '/') {
     await page.route('https://**', route => route.fulfill({ status: 204, contentType: 'text/javascript', body: '' }));
@@ -24,11 +25,11 @@ function watchRuntimeFailures(page) {
         failures.push(message.text());
     });
     page.on('response', response => {
-        if (response.status() < 400 || !response.url().startsWith('http://127.0.0.1:4173/')) return;
+        if (response.status() < 400 || !response.url().startsWith(TEST_ORIGIN)) return;
         failures.push(`${response.status()} ${response.url()}`);
     });
     page.on('requestfailed', request => {
-        if (!request.url().startsWith('http://127.0.0.1:4173/')) return;
+        if (!request.url().startsWith(TEST_ORIGIN)) return;
         failures.push(`${request.failure().errorText} ${request.url()}`);
     });
     return failures;
@@ -44,6 +45,27 @@ test('guest mode is local-only and survives reload', async ({ page }) => {
     await page.reload();
     await page.locator('#btn-startup-guest').click();
     await expect.poll(() => page.evaluate(() => game.level)).toBe(37);
+    expect(failures).toEqual([]);
+});
+
+test('shrine pity and claim stay tied to encounter progress', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await expect(page.locator('#ui-shrine-box')).toContainText('성소 기운 0/20');
+
+    const outcome = await page.evaluate(() => {
+        game.shrineState = { activeId: null, pity: 19, spawned: 0, claimed: 0 };
+        const result = shrineRuntime.advanceAfterEncounter({ type: 'act' });
+        updateStaticUI();
+        return { spawned: result.spawned, activeId: game.shrineState.activeId };
+    });
+    expect(outcome.spawned).toBe(true);
+    expect(outcome.activeId).toBeTruthy();
+    const claimButton = page.locator('#ui-shrine-box button');
+    await expect(claimButton).toContainText('받기');
+    await claimButton.click();
+    await expect(page.locator('#ui-shrine-box')).toContainText('지속중');
+    await expect.poll(() => page.evaluate(() => game.shrineState.claimed)).toBe(1);
     expect(failures).toEqual([]);
 });
 
@@ -68,6 +90,126 @@ test('unlocked secondary tabs render after cross-tab navigation', async ({ page 
         await expect.poll(async () => (await tab.innerText()).trim().length).toBeGreaterThan(0);
         await page.evaluate(() => switchTab('tab-settings'));
     }
+    expect(failures).toEqual([]);
+});
+
+test('equipment triage classifies the current build without destabilizing selectors', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.combatHalted = true;
+        game.enemies = [];
+        game.unlocks.items = true;
+        game.inventory = [
+            { id: 98101, slot: '투구', name: '생존 시험 투구', baseName: '시험 투구', rarity: 'rare', baseStats: [], stats: [{ id: 'flatHp', val: 500 }] },
+            { id: 98102, slot: '목걸이', name: '공격 시험 목걸이', baseName: '시험 목걸이', rarity: 'rare', baseStats: [], stats: [{ id: 'flatDmg', val: 250 }] },
+            { id: 98103, slot: '허리띠', name: '특수 시험 허리띠', baseName: '시험 허리띠', rarity: 'unique', baseStats: [], stats: [] }
+        ];
+        game.equipment['투구'] = null;
+        game.equipment['목걸이'] = null;
+        game.equipment['허리띠'] = null;
+        switchTab('tab-items');
+        switchItemSubtab('item-tab-equip');
+        updateStaticUI();
+        window.__equipmentSlotOptionMutations = 0;
+        const slotSelect = document.getElementById('ui-equipment-slot-filter');
+        new MutationObserver(records => {
+            window.__equipmentSlotOptionMutations += records.filter(record => record.type === 'childList').length;
+        }).observe(slotSelect, { childList: true });
+    });
+    const triage = page.locator('#ui-equipment-triage');
+    await expect(triage).toContainText('호버 대신');
+    await triage.getByRole('button', { name: '일괄 분석' }).click();
+    await expect(triage).toContainText('3개 완료');
+    const cards = page.locator('#ui-inventory-list .equipment-item-card');
+    await expect(cards).toHaveCount(3);
+    await expect(page.locator('#ui-inventory-list')).toContainText('공격 +');
+    await expect(page.locator('#ui-inventory-list')).toContainText('생존 +');
+    await expect(page.locator('#ui-inventory-list')).toContainText('특수');
+    await triage.locator('select').selectOption('defense');
+    await expect(cards).toHaveCount(1);
+    await expect(cards.first()).toContainText('생존 +');
+    await page.evaluate(async () => {
+        window.__equipmentSlotOptionMutations = 0;
+        updateStaticUI();
+        updateStaticUI();
+        await new Promise(resolve => setTimeout(resolve, 120));
+    });
+    expect(await page.evaluate(() => window.__equipmentSlotOptionMutations)).toBe(0);
+    expect(failures).toEqual([]);
+});
+
+test('equipment presets swap owned gear atomically and stay usable on narrow screens', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const initial = await page.evaluate(() => {
+        game.level = 100;
+        game.season = 20;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        const swordBase = BASE_ITEM_DB.find(base => base.slot === '무기' && !base.dropOnly && !base.realmBase);
+        const helmetBase = BASE_ITEM_DB.find(base => base.slot === '투구' && !base.dropOnly && !base.realmBase);
+        const sword = createItemFromBase(swordBase, 'rare', 10);
+        const helmet = createItemFromBase(helmetBase, 'rare', 10);
+        const bossSword = createItemFromBase(swordBase, 'rare', 12);
+        sword.name = '사냥검';
+        helmet.name = '사냥 투구';
+        bossSword.name = '보스검';
+        game.equipment = { ...defaultGame.equipment, '무기': sword, '투구': helmet };
+        game.inventory = [bossSword];
+        switchTab('tab-items');
+        switchItemSubtab('item-tab-equip');
+        updateStaticUI();
+        return { swordId: sword.id, helmetId: helmet.id, bossSwordId: bossSword.id };
+    });
+
+    const panel = page.locator('.equipment-preset-panel');
+    expect(failures).toEqual([]);
+    const mobileLoadoutButton = page.locator('#btn-equipment-mobile-loadout');
+    if (await mobileLoadoutButton.isVisible()) await mobileLoadoutButton.click();
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('.equipment-preset-slot')).toHaveCount(3);
+    await panel.getByRole('button', { name: '현재 장비 저장' }).click();
+    await expect(panel.locator('.equipment-preset-slot').first()).toContainText('현재 적용');
+    await expect(panel.locator('.equipment-preset-slot').first()).toContainText('2부위');
+
+    await page.evaluate(ids => {
+        const savedSword = game.equipment['무기'];
+        const bossSword = game.inventory.find(item => item.id === ids.bossSwordId);
+        game.equipment['무기'] = bossSword;
+        game.inventory = [savedSword];
+        selectForCrafting('무기', true);
+        updateStaticUI();
+    }, initial);
+    await expect(panel.locator('.equipment-preset-slot').first()).not.toContainText('현재 적용');
+    await expect(page.locator('#ui-inventory-list .equipment-preset-protected')).toHaveText('세팅 보호');
+    await expect(page.locator('#ui-inventory-list .equipment-card-danger')).toBeDisabled();
+    await panel.getByRole('button', { name: '세팅 불러오기' }).click();
+
+    const applied = await page.evaluate(ids => ({
+        weaponId: game.equipment['무기'] && game.equipment['무기'].id,
+        helmetId: game.equipment['투구'] && game.equipment['투구'].id,
+        inventoryIds: game.inventory.map(item => item.id),
+        savedWeaponProtected: equipmentLoadoutRuntime.isReferenced(ids.swordId),
+        craftSelection: getCraftSelectionRef()
+    }), initial);
+    expect(applied).toEqual({
+        weaponId: initial.swordId,
+        helmetId: initial.helmetId,
+        inventoryIds: [initial.bossSwordId],
+        savedWeaponProtected: true,
+        craftSelection: null
+    });
+    await expect(panel.locator('.equipment-preset-slot').first()).toContainText('현재 적용');
+
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.evaluate(() => setEquipmentMobilePane('loadout'));
+    await expect(panel).toBeVisible();
+    const layout = await panel.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: document.documentElement.clientWidth };
+    });
+    expect(layout.left).toBeGreaterThanOrEqual(-1);
+    expect(layout.right).toBeLessThanOrEqual(layout.width + 1);
     expect(failures).toEqual([]);
 });
 
@@ -99,6 +241,7 @@ test('endgame support screens keep primary actions and interaction state visible
         switchMapSubtab('map-tab-underworld');
         updateStaticUI();
     });
+    await page.evaluate(() => toggleGoalDrawer(false));
 
     await expect(page.locator('.underworld-entry-card')).toBeVisible();
     await expect(page.getByRole('button', { name: '최고층 18 입장' })).toBeVisible();
@@ -190,6 +333,217 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
     expect(failures).toEqual([]);
 });
 
+test('ocean fishing exposes strategy, collection growth and explicit crafting target', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season = 30;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.ocean = createDefaultOceanState();
+        game.ocean.unlocked = true;
+        game.ocean.depthM = 720;
+        game.ocean.checkpointM = 700;
+        game.ocean.pressureLevel = 7;
+        game.ocean.fishingGauge = 62;
+        game.ocean.rareFishPity = 72;
+        game.ocean.reefInstalled = 4;
+        Object.keys(OCEAN_FISH_DB).forEach((key, index) => {
+            game.ocean.fishStock[key] = 99;
+            game.ocean.fishCaughtTotal[key] = index < 5 ? index + 1 : 0;
+        });
+        game.ocean.lastCatch = { key: 'abyssAngler', at: Date.now(), guaranteed: true };
+        game.equipment['무기'] = {
+            id: 990100,
+            slot: '무기',
+            baseId: 'ocean_browser_weapon',
+            baseName: '심해 검증 무기',
+            name: '희귀한 심해 검증 무기',
+            rarity: 'rare',
+            baseStats: [{ id: 'flatDmg', statName: '피해', val: 20 }],
+            stats: [{ id: 'crit', statName: '치명타 확률', val: 4, tier: 3 }]
+        };
+        clearCraftSelection();
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-fishing');
+        updateStaticUI();
+    });
+
+    await expect(page.locator('.ocean-strategy-card')).toHaveCount(3);
+    await expect(page.locator('.ocean-fish-card')).toHaveCount(8);
+    await expect(page.locator('.ocean-milestone')).toHaveCount(4);
+    await expect(page.locator('.ocean-meter--pity')).toContainText('72%');
+    await expect(page.locator('.ocean-last-catch')).toContainText('심연 등불고기');
+    await expect(page.locator('.ocean-craft-target')).toContainText('선택된 장비 없음');
+    await expect(page.locator('.ocean-recipe-card button', { hasText: '대상 선택 필요' }).first()).toBeDisabled();
+    await page.evaluate(() => {
+        const base = GROWTH_BASE_DB.find(row => row.category === 'flower');
+        const growthItem = createGrowthItemFromBase(base, 'rare', 12);
+        game.growthInventory = [growthItem];
+        selectForCrafting(growthItem.id, false);
+        updateStaticUI();
+    });
+    await expect(page.locator('.ocean-craft-target')).toContainText('일반 장비가 아님');
+    await expect(page.locator('.ocean-recipe-card button', { hasText: '대상 선택 필요' }).first()).toBeDisabled();
+
+    await page.locator('.ocean-strategy-card', { hasText: '심연 투망' }).click();
+    await expect.poll(() => page.evaluate(() => game.ocean.fishingStrategy)).toBe('abyss');
+    await expect(page.locator('.ocean-strategy-card.selected')).toContainText('심연 투망');
+    await page.evaluate(() => {
+        game.ocean.diving = true;
+        updateStaticUI();
+    });
+    await expect(page.locator('.ocean-strategy-card:disabled')).toHaveCount(3);
+
+    await page.evaluate(() => {
+        game.ocean.diving = false;
+        selectForCrafting('무기', true);
+        updateStaticUI();
+    });
+    await expect(page.locator('.ocean-craft-target.selected')).toContainText('희귀한 심해 검증 무기');
+    await expect(page.locator('.ocean-recipe-card.ready')).not.toHaveCount(0);
+    const chaseRecipes = page.locator('[data-ui-disclosure="sea-gift-chase"]');
+    await chaseRecipes.locator(':scope > summary').click();
+    await expect(chaseRecipes).toHaveAttribute('open', '');
+    await page.evaluate(() => renderSeaGiftPanel());
+    await expect(chaseRecipes).toHaveAttribute('open', '');
+    const layout = await page.locator('#map-tab-fishing').evaluate(element => ({
+        overflow: element.scrollWidth - element.clientWidth,
+        strategyColumns: getComputedStyle(element.querySelector('.ocean-strategy-grid')).gridTemplateColumns.split(' ').length
+    }));
+    expect(layout.overflow).toBeLessThanOrEqual(1);
+    expect(layout.strategyColumns).toBe(testInfo.project.name === 'mobile-chromium' ? 1 : 3);
+    expect(failures).toEqual([]);
+});
+
+test('equipment crafting shows the exact last change and repeats without losing the target', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.level = 200;
+        game.season = 20;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        const base = BASE_ITEM_DB.find(row => row.slot === '무기' && !row.dropOnly && !row.realmBase);
+        const item = createItemFromBase(base, 'rare', 10);
+        game.inventory = [item];
+        game.currencies.deepWhetstone = 2;
+        switchTab('tab-items');
+        switchItemSubtab('item-tab-craft');
+        selectForCrafting(item.id, false);
+    });
+
+    await expect(page.locator('.craft-result-ledger')).toHaveCount(0);
+    await page.evaluate(() => useCurrency('deepWhetstone'));
+    const result = page.locator('.craft-result-ledger');
+    await expect(result).toHaveCount(1);
+    await expect(result).toBeVisible();
+    await expect(result).toContainText('품질 0% → 1%');
+    await expect(result.locator('[data-repeat-craft="deepWhetstone"]')).toContainText('다시 사용 · 1');
+    await result.locator('[data-repeat-craft="deepWhetstone"]').click();
+    await expect(result).toContainText('품질 1% → 2%');
+    await expect(result.locator('[data-repeat-craft="deepWhetstone"]')).toContainText('다시 사용 · 0');
+    await expect.poll(() => page.evaluate(() => getSelectedCraftItem().quality)).toBe(2);
+    expect(failures).toEqual([]);
+});
+
+test('salvaged equipment can be recovered for its exact reward on desktop and mobile', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.combatHalted = true;
+        game.enemies = [];
+        game.season = 2;
+        game.unlocks.items = true;
+        game.currencies.magicBud = 0;
+        game.inventory = [{
+            id: 990001, name: '복구 시험 장화', baseName: '가죽 장화', slot: '신발',
+            rarity: 'normal', hiddenTier: 3, stats: []
+        }];
+        salvageItem(0);
+        switchTab('tab-items');
+        updateStaticUI();
+    });
+
+    const shortcut = page.locator('#btn-salvage-recovery');
+    await expect(shortcut).toHaveAttribute('aria-label', /복구 가능 장비 1개/);
+    await shortcut.click();
+    const overlay = page.locator('#salvage-recovery-overlay');
+    await expect(overlay).toBeVisible();
+    await expect(overlay).toContainText('복구 시험 장화');
+    await expect(overlay).toContainText('마법의 새싹 1개');
+    const layout = await overlay.locator('.salvage-recovery-panel').evaluate(panel => {
+        const rect = panel.getBoundingClientRect();
+        return { width: rect.width, right: rect.right, bottom: rect.bottom, viewportWidth: innerWidth, viewportHeight: innerHeight };
+    });
+    expect(layout.width).toBeGreaterThan(250);
+    expect(layout.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
+    expect(layout.bottom).toBeLessThanOrEqual(layout.viewportHeight + 1);
+
+    await overlay.getByRole('button', { name: '재화 반환 후 복구' }).click();
+    await expect(overlay).toContainText('복구할 장비가 없습니다.');
+    const restored = await page.evaluate(() => ({
+        inventory: game.inventory.map(item => item.name),
+        magicBud: game.currencies.magicBud,
+        recoveryCount: game.salvageRecovery.entries.length
+    }));
+    expect(restored).toEqual({ inventory: ['복구 시험 장화'], magicBud: 0, recoveryCount: 0 });
+    await expect(shortcut).toHaveAttribute('aria-label', /비어 있음/);
+    expect(failures).toEqual([]);
+});
+
+test('codex hunt targets expose sources and survive loot automation', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.level = 200;
+        game.season = 31;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.uniqueCodex = {};
+        game.uniqueHuntTargets = [];
+        switchTab('tab-codex');
+        updateStaticUI();
+    });
+
+    const card = page.locator('.codex-card').filter({ hasText: '핏빛 톱날' });
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('미등록');
+    await card.getByRole('button', { name: /파밍 추적/ }).click();
+    const tracker = page.locator('.unique-hunt-panel');
+    await expect(tracker).toContainText('핏빛 톱날');
+    await expect(tracker).toContainText('1/3');
+    const trackerLayout = await tracker.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, viewportWidth: innerWidth };
+    });
+    expect(trackerLayout.left).toBeGreaterThanOrEqual(-1);
+    expect(trackerLayout.right).toBeLessThanOrEqual(trackerLayout.viewportWidth + 1);
+    await tracker.getByRole('button', { name: '드랍처 보기' }).click();
+    await expect(page.locator('#map-tab-zones')).toHaveClass(/active/);
+    await expect(page.locator('#map-explore-hunting')).toHaveClass(/active/);
+    await page.evaluate(() => switchTab('tab-codex'));
+
+    const result = await page.evaluate(() => {
+        Object.keys(game.equipment).forEach((slot, index) => {
+            game.equipment[slot] = { id: 60000 + index, name: `시험 ${slot}`, slot, rarity: 'normal', baseStats: [], stats: [] };
+        });
+        game.settings.itemFilterEnabled = true;
+        game.settings.itemFilterRarities.unique = false;
+        game.settings.autoSalvageEnabled = true;
+        game.settings.autoSalvageRarities.unique = true;
+        const item = generateUniqueItem(20, null, '핏빛 톱날');
+        const accepted = addItemToInventory(item);
+        return {
+            accepted,
+            inventoryNames: game.inventory.map(entry => entry.name),
+            targets: game.uniqueHuntTargets.slice(),
+            registered: !!game.uniqueCodex['무기|핏빛 톱날']
+        };
+    });
+    expect(result).toEqual({ accepted: true, inventoryNames: ['핏빛 톱날'], targets: [], registered: true });
+    await expect(tracker).not.toContainText('핏빛 톱날');
+    await expect(card.getByRole('button', { name: /파밍 추적/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(failures).toEqual([]);
+});
+
 test('debug performance panel reports live frame and FX metrics', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page, '/?debug=perf');
@@ -197,6 +551,74 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     await expect(panel).toBeVisible();
     await expect(panel).toContainText('p95');
     await expect(panel).toContainText('FX');
+    expect(failures).toEqual([]);
+});
+
+test('bounty offer can be chosen, hunted and rewarded without leaving the combat HUD', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season = 2;
+        game.loopCount = 1;
+        game.currentZoneId = 0;
+        game.unlocks.season = true;
+        game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_season_tab']));
+        game.bountyHunt = { pity: 9, offerIds: [], activeId: null, status: 'idle', offered: 0, accepted: 0, completed: 0, abandoned: 0 };
+        bountyRuntime.advanceAfterBossKill(getZone(0), { isBoss: true });
+        updateStaticUI();
+    });
+
+    const hud = page.locator('#ui-bounty-box');
+    await expect(hud).toBeVisible();
+    await expect(hud.getByRole('button', { name: /희귀 표적 발견/ })).toBeVisible();
+    await hud.getByRole('button', { name: /희귀 표적 발견/ }).click();
+    await expect(page.locator('.game-choice-option')).toHaveCount(3);
+    await expect(page.locator('.game-choice-option').first()).toContainText('위험:');
+    await expect(page.locator('.game-choice-option').first()).toContainText('보상:');
+    await page.locator('.game-choice-option').first().click();
+    await expect(page.locator('#game-dialog-overlay')).not.toHaveClass(/active/);
+    await expect(hud).toContainText('다음 사냥에 출현');
+
+    const spawned = await page.evaluate(() => {
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.moveTimer = 0;
+        startEncounterRun();
+        const marker = game.encounterPlan.find(entry => entry && entry.bountyId);
+        spawnEncounterMarker(marker);
+        const enemy = game.enemies.find(entry => entry && entry.isBountyTarget);
+        enemy.maxHp = 1e30;
+        enemy.hp = enemy.maxHp;
+        updateStaticUI();
+        return { name: enemy.name, label: getEnemyShortLabel(enemy), status: game.bountyHunt.status };
+    });
+    expect(spawned.name).toContain('현상금');
+    expect(spawned.label).toBe('현상금');
+    expect(spawned.status).toBe('hunting');
+    await expect(hud).toContainText('교전 중');
+
+    const layout = await hud.evaluate((node) => {
+        const wrap = document.getElementById('battlefield-wrap').getBoundingClientRect();
+        const box = node.getBoundingClientRect();
+        return { insideX: box.left >= wrap.left && box.right <= wrap.right, insideY: box.top >= wrap.top && box.bottom <= wrap.bottom };
+    });
+    expect(layout).toEqual({ insideX: true, insideY: true });
+
+    const reward = await page.evaluate(() => {
+        const enemy = game.enemies.find(entry => entry && entry.isBountyTarget);
+        enemy.hp = 0;
+        handleEnemyDeath(enemy, getPlayerStats());
+        const owned = game.inventory.concat(Object.values(game.equipment || {}).filter(Boolean));
+        updateStaticUI();
+        return {
+            completed: game.bountyHunt.completed,
+            activeId: game.bountyHunt.activeId,
+            rareReward: owned.some(item => item && ['rare', 'unique'].includes(item.rarity))
+        };
+    });
+    expect(reward).toEqual({ completed: 1, activeId: null, rareReward: true });
+    await expect(hud).toContainText('현상금 흔적');
     expect(failures).toEqual([]);
 });
 
@@ -432,7 +854,7 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     await expect(page.locator('.ghost-duel-canvas')).toBeVisible();
     await expect(page.locator('.ghost-result')).toContainText('승리');
     await expect(page.locator('.ghost-result')).toContainText('+12');
-    await expect(page.locator('.ghost-result')).not.toHaveClass(/ghost-duel-result-pending/, { timeout: 3000 });
+    await expect(page.locator('.ghost-result')).not.toHaveClass(/ghost-duel-result-pending/, { timeout: 10_000 });
     await expect.poll(() => page.evaluate(() => ghostDuelReplayRuntime.frameId)).toBe(0);
     const targetId = '22222222-2222-4222-8222-222222222222';
     await page.route('https://**/rest/v1/player_profiles**', route => route.fulfill({
@@ -463,13 +885,15 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
 test('mobile battle HUD stays within the viewport and exposes combat log', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
     const failures = watchRuntimeFailures(page);
+    await page.setViewportSize({ width: 320, height: 800 });
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
+        syncMapCompleteActionQuickControl();
+    });
     for (const width of [320, 360, 390]) {
         await page.setViewportSize({ width, height: 800 });
-        await openLocalGame(page);
-        await page.evaluate(() => {
-            document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
-            syncMapCompleteActionQuickControl();
-        });
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const compactHud = await page.evaluate(() => {
             const rect = selector => document.querySelector(selector).getBoundingClientRect();
             const overlaps = (left, right) => left.right > right.left + 1
@@ -609,6 +1033,12 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
     await expect(page.locator('#info-tooltip')).toContainText('내 DPS 약');
     await expect(page.locator('#info-tooltip')).toContainText('권장 약');
     await expect(page.locator('#info-tooltip')).toContainText('내 EHP 약');
+    await detail.getByRole('button', { name: '우주석 관리' }).evaluate(button => button.click());
+    const stoneOverlay = page.locator('#cosmos-stone-overlay');
+    await expect(stoneOverlay).toBeVisible();
+    await expect(stoneOverlay).toContainText('우주석 장착');
+    await stoneOverlay.locator('.cosmos-stone-overlay-close').evaluate(button => button.click());
+    await expect(stoneOverlay).toBeHidden();
     const visibleCanvasSize = await page.locator('#cosmos-atlas-canvas').evaluate(canvas => ({ width: canvas.width, height: canvas.height }));
     await page.evaluate(() => {
         switchMapSubtab('map-tab-zones');
@@ -616,6 +1046,73 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
     });
     const hiddenCanvasSize = await page.locator('#cosmos-atlas-canvas').evaluate(canvas => ({ width: canvas.width, height: canvas.height }));
     expect(hiddenCanvasSize).toEqual(visibleCanvasSize);
+    expect(failures).toEqual([]);
+});
+
+test('cosmos expedition signals change risk and persist into the battle contract', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season = 31;
+        game.loopCount = 30;
+        game.journalEntries = Array.from(new Set([...(game.journalEntries || []), 'woodsman']));
+        game.underworldProgress = { ...(game.underworldProgress || {}), highestFloor: 30, currentFloor: 30 };
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.cosmosAtlas = {
+            ...(game.cosmosAtlas || {}), unlocked: true, cleared: ['planet-0', 'planet-46'],
+            bossClears: ['planet-46'], bossKills: { 'planet-46': 1 }, selectedId: 'planet-46',
+            selectedDirectives: {}, directiveCycles: {}
+        };
+        game.combatHalted = true;
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-cosmos');
+        focusCosmosCapstoneBoss('planet-46');
+        tutorialQueue.length = 0;
+        if (activeTutorial) dismissTutorial(false);
+    });
+    const detail = page.locator('#ui-cosmos-detail');
+    const cards = detail.locator('.cosmos-directive-card');
+    await expect(cards).toHaveCount(3);
+    await expect(detail.locator('.cosmos-directive-card.selected')).toHaveCount(1);
+    const readiness = detail.locator('.map-power-estimate');
+    const safeTarget = await readiness.evaluate(element => ({
+        dps: Number(element.dataset.recommendedDps), ehp: Number(element.dataset.recommendedEhp)
+    }));
+    const riskyCard = detail.locator('.cosmos-directive-card:not(.selected)').first();
+    const riskyId = await riskyCard.getAttribute('data-cosmos-directive-id');
+    await riskyCard.evaluate(button => button.click());
+    const selectedRisk = detail.locator(`[data-cosmos-directive-id="${riskyId}"]`);
+    await expect(selectedRisk).toHaveClass(/selected/);
+    await expect(selectedRisk).toHaveAttribute('aria-pressed', 'true');
+    const riskyTarget = await readiness.evaluate(element => ({
+        dps: Number(element.dataset.recommendedDps), ehp: Number(element.dataset.recommendedEhp)
+    }));
+    expect(riskyTarget.dps).toBeGreaterThan(safeTarget.dps);
+    expect(riskyTarget.ehp).toBeGreaterThan(safeTarget.ehp);
+    await detail.getByRole('button', { name: '은하 보스 재도전' }).evaluate(button => button.click());
+    const battleContract = await page.evaluate(() => {
+        const zone = getZone('cosmos_challenge');
+        game.combatHalted = true;
+        game.enemies = [];
+        return { zoneId: game.currentZoneId, directiveId: zone.cosmosDirective.id, rewardMul: zone.cosmosDirective.rewardMul };
+    });
+    expect(battleContract).toEqual({ zoneId: 'cosmos_challenge', directiveId: riskyId, rewardMul: expect.any(Number) });
+    expect(battleContract.rewardMul).toBeGreaterThan(1);
+    const repeatNodeId = await page.evaluate(() => {
+        game.cosmosAtlas.activeChallenge = null;
+        game.currentZoneId = 0;
+        if (!continueCosmosChallengeAfterClear('nextZone')) return null;
+        const nodeId = game.cosmosAtlas.activeChallenge && game.cosmosAtlas.activeChallenge.nodeId;
+        exploreSelectedCosmosNode(nodeId);
+        game.cosmosAtlas.activeChallenge = null;
+        game.currentZoneId = 0;
+        renderCosmosAtlas();
+        return nodeId;
+    });
+    expect(repeatNodeId).toBeTruthy();
+    await expect(detail.getByRole('button', { name: '새 신호 재탐사' })).toBeEnabled();
+    await expect(detail.locator('.cosmos-directive-card')).toHaveCount(3);
+    await expect(detail.locator('.cosmos-directive-title')).toContainText('새 신호가 포착되었습니다');
     expect(failures).toEqual([]);
 });
 

@@ -1252,23 +1252,10 @@ function isPauseSettingOverlayOpen() {
     return modalSelectors.some(selector => isOverlayElementOpen(selector));
 }
 
-function tickShrineState(){
-    game.shrineState = game.shrineState || { active: null, nextRollAt: 0 };
-    let now = Date.now();
-    if (game.shrineBuff && now > (game.shrineBuff.expiresAt || 0)) game.shrineBuff = null;
-    if (game.shrineState.active && now > (game.shrineState.active.expiresAt || 0)) game.shrineState.active = null;
-    if (!game.shrineState.active && now >= (game.shrineState.nextRollAt || 0) && Math.random() < 0.01) {
-        game.shrineState.active = { name: rndChoice(['힘의 성소','수호의 성소','질주의 성소']), expiresAt: now + 30000 };
-        game.shrineState.nextRollAt = now + 240000;
-    }
-}
 function clickActiveShrine(){
-    let active = game.shrineState && game.shrineState.active; if (!active) return;
-    let stat = active.name.includes('힘') ? 'pctDmg' : active.name.includes('수호') ? 'dr' : 'aspd';
-    let value = active.name.includes('수호') ? 10 : 16;
-    game.shrineBuff = { name: active.name, stat: stat, value: value, expiresAt: Date.now() + 45000 };
-    game.shrineState.active = null;
-    addLog(`🛕 ${active.name} 축복 활성화!`, 'loot-rare');
+    let result = shrineRuntime.claimActive();
+    if (!result.claimed) return;
+    addLog(`🛕 ${result.blessing.name} 축복 활성화!`, 'loot-rare');
     updateStaticUI();
 }
 
@@ -2193,6 +2180,14 @@ function setEquipmentInventoryView(key, value) {
 
 safeExposeGlobals({ setEquipmentInventoryView });
 
+function syncEquipmentSlotFilterOptions(select, slots) {
+    if (!select) return;
+    let signature = JSON.stringify(slots);
+    if (select.dataset.optionSignature === signature) return;
+    select.innerHTML = `<option value="all">전체</option>${slots.map(slot => `<option value="${escapeHTML(slot)}">${escapeHTML(slot)}</option>`).join('')}`;
+    select.dataset.optionSignature = signature;
+}
+
 function syncEquipmentMobilePane() {
     game.settings = game.settings || {};
     let pane = game.settings.equipmentMobilePane === 'loadout' ? 'loadout' : 'inventory';
@@ -2236,13 +2231,11 @@ function getSortedEquipmentInventoryRows(query) {
     if (!slots.includes(slotValue)) slotValue = 'all';
     let slotSelect = document.getElementById('ui-equipment-slot-filter');
     let sortSelect = document.getElementById('ui-equipment-sort');
-    if (slotSelect) {
-        slotSelect.innerHTML = `<option value="all">전체</option>${slots.map(slot => `<option value="${escapeHTML(slot)}">${escapeHTML(slot)}</option>`).join('')}`;
-        slotSelect.value = slotValue;
-    }
+    syncEquipmentSlotFilterOptions(slotSelect, slots);
+    if (slotSelect) slotSelect.value = slotValue;
     if (sortSelect) sortSelect.value = sortValue;
     let ranks = { unique: 4, rare: 3, magic: 2, normal: 1 };
-    return game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
+    let rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
         let item = row.item || {};
         if (slotValue !== 'all' && item.slot !== slotValue) return false;
         if (!isItemRarityVisible(item)) return false;
@@ -2256,6 +2249,7 @@ function getSortedEquipmentInventoryRows(query) {
         if (sortValue === 'slot') return String(a.item.slot || '').localeCompare(String(b.item.slot || ''), 'ko') || b.idx - a.idx;
         return b.idx - a.idx;
     });
+    return window.equipmentTriage ? window.equipmentTriage.filterRows(rows) : rows;
 }
 
 function moveSkillAutoRule(index, delta) {
@@ -3468,8 +3462,11 @@ function renderOceanDepthMapPanel() {
         return;
     }
     let oxygenPct = Math.round((st.oxygenCur / Math.max(1, st.oxygenMax)) * 100);
+    let strategyDrainMul = Math.max(0.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
     let drainPerSec = getOceanOxygenDrainPerSec();
+    drainPerSec *= strategyDrainMul;
     let perAttackCost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0;
+    perAttackCost *= strategyDrainMul;
     let secsLeft = drainPerSec > 0 ? Math.floor(st.oxygenCur / drainPerSec) : 0;
     let depthTier = getOceanDepthTier(st.depthM);
     let oceanZone = getZone(OCEAN_ZONE_ID);
@@ -3489,7 +3486,7 @@ function renderOceanDepthMapPanel() {
         <span class="sky-tower-chip">체크포인트 <b>${st.checkpointM}m</b></span>
         <span class="sky-tower-chip">다음 가디언 <b>${nextGuardianM}m</b> · ${Math.max(0, nextGuardianM - Math.floor(st.depthM))}m 남음</span>
         <span class="sky-tower-chip">수압 단계 <b>${depthTier}</b></span>
-        <span class="sky-tower-chip" title="산소 최대치 ${st.oxygenMax}. 이동 속도가 높을수록 시간당 소모가 빨라지고(현재 ${drainPerSec.toFixed(2)}/초), 공격 1회마다 추가로 ${perAttackCost}씩 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
+        <span class="sky-tower-chip" title="산소 최대치 ${st.oxygenMax}. 현재 시간 소모 ${drainPerSec.toFixed(2)}/초, 공격 1회마다 ${perAttackCost}씩 추가 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
         ${currentChips}
     </div>
     <div style="margin-top:10px; display:grid; gap:8px;">
@@ -3501,6 +3498,55 @@ function renderOceanDepthMapPanel() {
     list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span><br>${buildMapPowerEstimateHtml(oceanZone)}</span></div></div>`;
 }
 
+const renderOceanFishingStrategies = function (st) {
+    return Object.keys(OCEAN_FISHING_STRATEGIES).map(key => {
+        let def = OCEAN_FISHING_STRATEGIES[key];
+        let selected = st.fishingStrategy === key;
+        let gaugePct = Math.round((def.gaugeGainMul - 1) * 100);
+        let rarePct = Math.round((def.rareWeightMul - 1) * 100);
+        let oxygenPct = Math.round((def.oxygenDrainMul - 1) * 100);
+        let effects = [`게이지 ${gaugePct >= 0 ? '+' : ''}${gaugePct}%`, `희귀 추적 ${rarePct >= 0 ? '+' : ''}${rarePct}%`];
+        if (oxygenPct) effects.push(`산소 소모 +${oxygenPct}%`);
+        return `<button type="button" class="ocean-strategy-card ${selected ? 'selected' : ''}" aria-pressed="${selected}" onclick="setOceanFishingStrategy('${key}')" ${st.diving ? 'disabled' : ''}>
+            <span class="ocean-strategy-icon">${def.icon}</span><strong>${def.name}</strong><span>${def.desc}</span><small>${effects.join(' · ')}</small>
+        </button>`;
+    }).join('');
+};
+
+const renderOceanFishCollection = function (st) {
+    return Object.keys(OCEAN_FISH_DB).map(key => {
+        let fish = OCEAN_FISH_DB[key];
+        let total = Math.max(0, Math.floor(st.fishCaughtTotal[key] || 0));
+        let owned = Math.max(0, Math.floor(st.fishStock[key] || 0));
+        let discovered = total > 0;
+        let rarity = OCEAN_FISH_RARITY_META[fish.rarity] || OCEAN_FISH_RARITY_META.common;
+        let name = discovered ? fish.name : '미발견 어종';
+        let description = discovered ? fish.desc : `${fish.depthTier * 100}m 이후 발견 가능`;
+        return `<article class="ocean-fish-card rarity-${fish.rarity} ${discovered ? 'discovered' : 'undiscovered'}">
+            <span class="ocean-fish-mark">${discovered ? '◈' : '?'}</span>
+            <div><small>${rarity.label} · ${fish.depthTier * 100}m+</small><strong>${name}</strong><span>${description}</span></div>
+            <div class="ocean-fish-count"><b>${discovered ? owned : '—'}</b><small>${discovered ? `누적 ${total}` : '미발견'}</small></div>
+        </article>`;
+    }).join('');
+};
+
+const getOceanRewardText = function (reward) {
+    return Object.keys(reward || {}).map(key => `${(ORB_DB[key] || {}).name || key} ${reward[key]}`).join(' · ');
+};
+
+const renderOceanCollectionMilestones = function (progress) {
+    return progress.milestones.map(row => {
+        let state = row.claimed ? 'claimed' : (row.ready ? 'ready' : 'locked');
+        let bonuses = [];
+        if (row.bonus.gaugeGainPct) bonuses.push(`게이지 +${row.bonus.gaugeGainPct}%`);
+        if (row.bonus.rareChancePct) bonuses.push(`희귀 추적 +${row.bonus.rareChancePct}%`);
+        return `<article class="ocean-milestone ${state}">
+            <div><small>${row.required}종 발견</small><strong>${row.label}</strong><span>${getOceanRewardText(row.reward)} · 영구 ${bonuses.join(' · ')}</span></div>
+            <button type="button" onclick="claimOceanFishCollectionMilestone(${row.required})" ${row.ready && !row.claimed ? '' : 'disabled'}>${row.claimed ? '완료' : (row.ready ? '보상 받기' : `${progress.discoveredCount}/${row.required}`)}</button>
+        </article>`;
+    }).join('');
+};
+
 function renderFishingPanel() {
     let panel = document.getElementById('ui-fishing-panel');
     if (!panel) return;
@@ -3509,58 +3555,64 @@ function renderFishingPanel() {
         panel.innerHTML = `<div class="sky-tower-head"><div><div class="sky-tower-title">🎣 낚시</div><div class="sky-tower-sub">루프 ${OCEAN_UNLOCK_LOOP} 이후 심해가 해금되면 낚시를 할 수 있습니다.</div></div><span class="sky-tower-lock-chip">🔒 봉인됨</span></div>`;
         return;
     }
-    let fishRows = Object.keys(OCEAN_FISH_DB).map(key => {
-        let f = OCEAN_FISH_DB[key];
-        let n = st.fishStock[key] || 0;
-        return `<span class="sky-tower-chip" title="${f.desc || ''}">${f.name} <b>${n}</b></span>`;
-    }).join('');
-    panel.innerHTML = `<div class="sky-tower-head">
-        <div>
-            <div class="sky-tower-title">🎣 낚시</div>
-            <div class="sky-tower-sub">심해에서 잠수하며 전투로 낚시 게이지를 채우면 수심에 맞는 어종을 낚습니다. 낚은 어종은 아래 <b>🎁 바다의 선물</b> 제작에 사용됩니다.</div>
-        </div>
-    </div>
-    <div class="sky-tower-chips">
-        <span class="sky-tower-chip">낚시 게이지 <b>${Math.floor(st.fishingGauge)}%</b></span>
-        <span class="sky-tower-chip">설치된 암초 조각 <b>${st.reefInstalled}/10</b> (게이지 +${st.reefInstalled * 15}%)</span>
-    </div>
-    <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <button onclick="installOceanReefFragment(); renderFishingPanel();">암초 조각 설치 (보유 ${game.currencies.reefFragment || 0})</button>
-    </div>
-    <div style="margin-top:12px; color:#8fe3ff; font-weight:bold;">보유 어종</div>
-    <div class="sky-tower-chips" style="margin-top:4px;">${fishRows}</div>`;
+    let progress = getOceanFishCollectionProgress(st);
+    let strategy = getOceanFishingStrategyDef(st);
+    let lastFish = st.lastCatch && OCEAN_FISH_DB[st.lastCatch.key];
+    let lastCatch = lastFish ? `${st.lastCatch.guaranteed ? '✨ ' : ''}${lastFish.name}` : '아직 포획 기록 없음';
+    panel.innerHTML = `<div class="ocean-dashboard-head"><div><span>ABYSSAL FISHERY</span><h3>🎣 심해 어장</h3><p>잠수 전에 채집 전략을 정하고, 전투로 어종을 모아 도감과 바다의 선물 제작을 성장시키세요.</p></div><div class="ocean-last-catch"><small>최근 포획</small><strong>${lastCatch}</strong></div></div>
+    <div class="ocean-meter-grid"><div class="ocean-meter"><div><span>낚시 게이지</span><b>${Math.floor(st.fishingGauge)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.fishingGauge))}%"></span></i></div><div class="ocean-meter ocean-meter--pity"><div><span>희귀 조짐</span><b>${Math.floor(st.rareFishPity)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.rareFishPity))}%"></span></i></div></div>
+    <section class="ocean-section"><div class="ocean-section-head"><div><strong>채집 전략</strong><span>${st.diving ? '잠수 중에는 변경할 수 없습니다.' : `현재 ${strategy.name} · 다음 잠수부터 적용`}</span></div><span class="ocean-reef-count">🪸 ${st.reefInstalled}/10 · 게이지 +${st.reefInstalled * 15}%</span></div><div class="ocean-strategy-grid">${renderOceanFishingStrategies(st)}</div><button type="button" class="ocean-reef-action" onclick="installOceanReefFragment(); renderFishingPanel();" ${st.reefInstalled >= 10 || (game.currencies.reefFragment || 0) < 1 ? 'disabled' : ''}>암초 조각 설치 · 보유 ${game.currencies.reefFragment || 0}</button></section>
+    <section class="ocean-section"><div class="ocean-section-head"><div><strong>심해 도감</strong><span>발견 ${progress.discoveredCount}/${progress.totalCount} · 보유량은 제작에 사용해도 누적 기록은 유지됩니다.</span></div></div><div class="ocean-milestone-grid">${renderOceanCollectionMilestones(progress)}</div><div class="ocean-fish-grid">${renderOceanFishCollection(st)}</div></section>`;
 }
 
 const OCEAN_MOD_CATEGORY_OPTIONS = ['공격', '방어·생명', '속도·치명', '저항'];
 function renderSeaGiftRecipeCard(recipe, st) {
-    let ready = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
-    let reqText = Object.keys(recipe.requires).map(key => `${OCEAN_FISH_DB[key].name} ${st.fishStock[key] || 0}/${recipe.requires[key]}`).join(', ');
+    let materialReady = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
+    let reqText = Object.keys(recipe.requires).map(key => `<span class="${(st.fishStock[key] || 0) >= recipe.requires[key] ? 'ready' : ''}">${OCEAN_FISH_DB[key].name} <b>${st.fishStock[key] || 0}/${recipe.requires[key]}</b></span>`).join('');
+    let needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
+    let hasTarget = !needsItem || !!getSelectedSeaGiftEquipmentTarget();
+    let ready = materialReady && hasTarget;
     let needsCategory = recipe.effect.type === 'guaranteedTaggedMod' || recipe.effect.type === 'taggedReroll' || recipe.effect.type === 'convertCategoryMod' || (recipe.effect.type === 'lockMod' && recipe.effect.bonusTaggedReroll);
     let inlineId = `seaGiftCategory_${recipe.id}`;
-    let categorySelect = needsCategory ? `<select id="${inlineId}" style="margin-top:4px;">${OCEAN_MOD_CATEGORY_OPTIONS.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>` : '';
+    let categorySelect = needsCategory ? `<select id="${inlineId}" class="ocean-recipe-select" aria-label="옵션 계열 선택">${OCEAN_MOD_CATEGORY_OPTIONS.map(cat => `<option value="${cat}">${cat}</option>`).join('')}</select>` : '';
     let onclick = needsCategory
         ? `craftSeaGift('${recipe.id}', null, { category: document.getElementById('${inlineId}').value }); renderSeaGiftPanel(); renderFishingPanel();`
         : `craftSeaGift('${recipe.id}'); renderSeaGiftPanel(); renderFishingPanel();`;
-    return `<div style="border-bottom:1px solid #1f5b73; padding:8px 0;">
-        <div style="color:#8fe3ff;">${recipe.desc}</div>
-        <div style="font-size:0.85em; color:var(--copy-bright);">필요: ${reqText}</div>
-        ${categorySelect}
-        <button onclick="${onclick}" ${ready ? '' : 'disabled'} style="margin-top:4px;">제작</button>
-    </div>`;
+    let parsed = recipe.desc.match(/^【([^】]+)】\s*(.*)$/);
+    let title = parsed ? parsed[1] : recipe.desc;
+    let description = parsed ? parsed[2] : '';
+    let actionLabel = !materialReady ? '재료 부족' : (!hasTarget ? '대상 선택 필요' : '제작');
+    return `<article class="ocean-recipe-card ${ready ? 'ready' : ''}"><div class="ocean-recipe-copy"><small>${title}</small><strong>${description}</strong><div class="ocean-recipe-cost">${reqText}</div></div><div class="ocean-recipe-actions">${categorySelect}<button type="button" onclick="${onclick}" ${ready ? '' : 'disabled'}>${actionLabel}</button></div></article>`;
 }
+
+const renderSeaGiftTarget = function () {
+    let selected = getSelectedCraftItem();
+    let item = getSelectedSeaGiftEquipmentTarget();
+    let target = item
+        ? `<div><small>현재 제작 대상</small><strong class="item-title ${item.rarity || 'normal'}">[${item.slot || '장비'}] ${item.name}</strong><span>추가 옵션 ${(item.stats || []).length}줄 · 바다의 선물 장비 가공은 이 대상에만 적용됩니다.</span></div>`
+        : selected
+            ? `<div><small>현재 제작 대상</small><strong>일반 장비가 아님</strong><span>생장판 등 보조 아이템에는 바다의 선물 장비 가공을 사용할 수 없습니다.</span></div>`
+            : `<div><small>현재 제작 대상</small><strong>선택된 장비 없음</strong><span>장비 가공 레시피를 사용하려면 대상을 먼저 선택하세요.</span></div>`;
+    return `<div class="ocean-craft-target ${item ? 'selected' : ''}">${target}<div><button type="button" onclick="openCraftItemPickerOverlay('equip')">장착 장비</button><button type="button" onclick="openCraftItemPickerOverlay('inventory')">인벤토리</button></div></div>`;
+};
+
+const renderSeaGiftRecipeGroup = function (key, title, description, recipes, st, open) {
+    return `<details class="ocean-recipe-group" data-ui-disclosure="sea-gift-${key}" ${open ? 'open' : ''}><summary><span><strong>${title}</strong><small>${description}</small></span><b>${recipes.length}</b></summary><div class="ocean-recipe-list">${recipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('')}</div></details>`;
+};
+
 function renderSeaGiftPanel() {
     let panel = document.getElementById('ui-sea-gift-panel');
     if (!panel) return;
+    if (typeof captureUiDisclosureState === 'function') captureUiDisclosureState(panel);
     let st = ensureOceanState();
     if (!st.unlocked) { panel.innerHTML = ''; return; }
     let ultraRareIds = new Set(['tidelordKoi', 'prismaticHorror', 'kingLeviathan']);
-    let normalRecipes = SEA_GIFT_RECIPES.filter(r => !Object.keys(r.requires).some(key => ultraRareIds.has(key)));
-    let ultraRecipes = SEA_GIFT_RECIPES.filter(r => Object.keys(r.requires).some(key => ultraRareIds.has(key)));
-    panel.innerHTML = `<div style="color:#ffce6b; font-size:0.85em; border:1px solid #ffce6b; border-radius:4px; padding:4px 8px; margin:4px 0;">⚠ 테스트 중인 컨텐츠입니다. 레시피 효과·재료·밸런스가 예고 없이 변경될 수 있습니다.</div>`
-        + `<div style="color:#8fe3ff; font-weight:bold; margin:4px 0;">일반 레시피</div>`
-        + normalRecipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('')
-        + `<div style="color:#ffce6b; font-weight:bold; margin:10px 0 4px;">초강력 레시피 (초희귀 어종 필요)</div>`
-        + ultraRecipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('');
+    let chaseRecipes = SEA_GIFT_RECIPES.filter(recipe => Object.keys(recipe.requires).some(key => ultraRareIds.has(key)));
+    let regularRecipes = SEA_GIFT_RECIPES.filter(recipe => !chaseRecipes.includes(recipe));
+    let supplyRecipes = regularRecipes.filter(recipe => !SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type));
+    let forgeRecipes = regularRecipes.filter(recipe => SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type));
+    panel.innerHTML = `${renderSeaGiftTarget()}<div class="ocean-recipe-groups">${renderSeaGiftRecipeGroup('supply', '재화 정제', '자주 잡히는 어종을 성장 재화로 교환합니다.', supplyRecipes, st, true)}${renderSeaGiftRecipeGroup('forge', '장비 가공', '선택한 장비의 옵션을 직접 가공합니다.', forgeRecipes, st, true)}${renderSeaGiftRecipeGroup('chase', '심연의 비전', '초희귀 어종을 사용하는 추적 제작입니다.', chaseRecipes, st, false)}</div>`;
+    if (typeof restoreUiDisclosureState === 'function') restoreUiDisclosureState(panel);
 }
 
 function renderUnderworldMapPanel() {
@@ -5328,6 +5380,7 @@ function renderUniqueCodexUI() {
     let newlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
     game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
     game.codexSubtab = (game.codexSubtab === 'realm') ? 'realm' : 'main';
+    if (typeof uniqueHuntUi !== 'undefined') uniqueHuntUi.renderPanel();
     let realmOnly = game.codexSubtab === 'realm';
     syncCodexSubtabButtons();
     let pool = UNIQUE_DB.filter(entry => realmOnly ? !!entry.realmCodexOnly : !entry.realmCodexOnly);
@@ -5367,12 +5420,14 @@ function renderUniqueCodexUI() {
     let cardsHtml = selectedEntries.map(entry => {
         let key = `${selectedSlot}|${entry.name}`;
         let stored = game.uniqueCodex[key];
-        let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (루프 리셋됨)') : '미등록';
+        let source = typeof uniqueHuntUi !== 'undefined' ? uniqueHuntUi.getSource(entry) : null;
+        let infoLine = stored ? (stored.baseName ? `${stored.baseName} / 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : '정보만 유지됨 (루프 리셋됨)') : `미등록${source ? ` · ${escapeHTML(source.label)}` : ''}`;
         let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
         let isNew = stored && newlyRegistered[key];
         let newBadge = isNew ? ` <span style="color:#ff4d4f; font-weight:800; font-size:0.82em;">● NEW</span>` : '';
         let statusHtml = stored ? `<span style="color:#4cd964; font-weight:700;">등록됨</span>` : `<span style="color:var(--copy-muted);">미등록</span>`;
-        return `<div class="item-card codex-card${isNew ? ' codex-card-new' : ''}"><div><div class="item-title unique">[${selectedSlot}] ${stored ? entry.name : '???'}${newBadge}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '옵션 정보 없음'}</div></div><div class="item-actions">${statusHtml}</div></div>`;
+        let huntAction = typeof uniqueHuntUi !== 'undefined' ? uniqueHuntUi.renderCardAction(entry) : '';
+        return `<div class="item-card codex-card${isNew ? ' codex-card-new' : ''}"><div><div class="item-title unique">[${selectedSlot}] ${entry.name}${newBadge}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '획득하면 옵션 정보가 공개됩니다.'}</div></div><div class="item-actions">${statusHtml}${huntAction}</div></div>`;
     }).join('');
     listEl.innerHTML = `<div class="codex-layout"><div class="codex-slot-tabs">${slotTabsHtml}</div><div class="codex-slot-content"><div class="codex-slot-heading">${selectedSlot} <span>${selectedEntries.filter(entry => !!game.uniqueCodex[`${selectedSlot}|${entry.name}`]).length}/${selectedEntries.length}</span></div><div class="codex-card-grid">${cardsHtml}</div></div></div>`;
 }
@@ -8013,6 +8068,19 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
     return pool[(variantSeed + elementOffset) % pool.length];
 }
 
+function drawBountyTargetGlyph(ctx, x, y, scale) {
+    let size = Math.max(4, Math.min(7, 5 * scale));
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = '#ffe49a';
+    ctx.strokeStyle = '#8b5a12';
+    ctx.lineWidth = 1.2;
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+    ctx.strokeRect(-size / 2, -size / 2, size, size);
+    ctx.restore();
+}
+
 function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
     if (battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
         let enemyAtlas = battleAssets.atlas.enemies;
@@ -8036,6 +8104,7 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
             outlineAlpha: enemy.isBoss ? 0.46 : (enemy.isElite ? 0.72 : 0)
         });
         ctx.restore();
+        if (enemy.isBountyTarget) drawBountyTargetGlyph(ctx, x, y - drawSize * 0.54, scale);
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.16;
@@ -8740,7 +8809,8 @@ function buildPlayerUniqueEffectIcons(pStats, now) {
     let shrine = game.shrineBuff;
     if (shrine && Number(shrine.expiresAt) > now) {
         let statLabel = typeof getStatName === 'function' ? getStatName(shrine.stat) : String(shrine.stat || '능력치');
-        icons.push(renderUiNamedEffectIcon({ key: 'shrineBuff', name: shrine.name || '성소 축복', detail: `${statLabel} +${Number(shrine.value || 0)}%`, expiresAt: shrine.expiresAt }, now));
+        let detail = shrine.detail || `${statLabel} +${Number(shrine.value || 0)}%`;
+        icons.push(renderUiNamedEffectIcon({ key: 'shrineBuff', name: shrine.name || '성소 축복', detail, expiresAt: shrine.expiresAt }, now));
     }
     let elite = game.uniqueEliteTraitBuff;
     if (elite && Number(elite.expiresAt) > now) {
@@ -9849,7 +9919,6 @@ function performUpdateStaticUI() {
     renderFlaskPanel();
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });
-    tickShrineState();
     refreshTabHeaderUiIfNeeded();
     let passiveStateSig = [
         game.passivePoints || 0,
@@ -9894,22 +9963,20 @@ function performUpdateStaticUI() {
     if (combatLoopBtn) combatLoopBtn.style.display = canShowCombatLoopAdvanceButton() ? 'inline-flex' : 'none';
     let shrineBox = document.getElementById('ui-shrine-box');
     if (shrineBox) {
-        let active = game.shrineState && game.shrineState.active;
+        let active = shrineRuntime.getActiveBlessing();
         let buff = game.shrineBuff;
         let now = Date.now();
-        let activeRemain = active ? Math.max(0, Math.ceil(((active.expiresAt || 0) - now) / 1000)) : 0;
         let buffRemain = buff ? Math.max(0, Math.ceil(((buff.expiresAt || 0) - now) / 1000)) : 0;
-        let shrineStateKey = active ? `active:${active.name}` : (buff ? `buff:${buff.name}` : 'idle');
+        let pity = Math.max(0, Math.floor(game.shrineState.pity || 0));
+        let shrineStateKey = active ? `active:${active.id}` : (buff ? `buff:${buff.name}` : `idle:${pity}`);
         if (shrineBox.dataset.stateKey !== shrineStateKey) {
-            shrineBox.innerHTML = active ? `<button onclick="clickActiveShrine()">${active.name} 클릭 (${activeRemain}s)</button>` : (buff ? `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>` : '<div style="color:var(--copy-muted);">성소 대기중</div>');
+            shrineBox.innerHTML = active ? `<button onclick="clickActiveShrine()">🛕 ${active.name} 받기</button>` : (buff ? `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>` : `<div style="color:var(--copy-muted);">성소 기운 ${pity}/${SHRINE_ENCOUNTER_CONFIG.guaranteedAt}</div>`);
             shrineBox.dataset.stateKey = shrineStateKey;
-        } else if (active) {
-            let btn = shrineBox.querySelector('button');
-            if (btn) btn.innerText = `${active.name} 클릭 (${activeRemain}s)`;
         } else if (buff) {
             shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
         }
     }
+    if (typeof bountyUi !== 'undefined') bountyUi.renderHud();
     let charTabActive = getRenderingUiTabIds().has('tab-char');
     if (charTabActive) {
         let drawNow = Date.now();
@@ -9976,8 +10043,10 @@ function performUpdateStaticUI() {
 
     if (itemsTabActive) {
     syncSalvageControlsFromSettings();
+    if (typeof salvageRecoveryUi !== 'undefined') salvageRecoveryUi.refreshShortcut();
     syncEquipmentMobilePane();
     renderEquipmentLoadoutSummary(pStats);
+    if (window.equipmentLoadoutUi) window.equipmentLoadoutUi.render();
     renderPaperdoll('ui-equip-list', false);
     renderPaperdoll('ui-craft-equip-list', true);
     renderPaperdoll('ui-fossil-equip-list', true);
@@ -9987,8 +10056,12 @@ function performUpdateStaticUI() {
     document.getElementById('ui-inv-limit').innerText = getInventoryLimit();
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
     if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
+    if (window.equipmentTriage) {
+        window.equipmentTriage.sync();
+        window.equipmentTriage.render();
+    }
     const equipInvRows = getSortedEquipmentInventoryRows(sf.equip);
-    renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip')).join(''), '', '');
+    renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip', window.equipmentTriage ? window.equipmentTriage.getResult(row.item) : null)).join(''), '', '');
     const visibleInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isItemRarityVisible(row.item));
     document.getElementById('ui-craft-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
     document.getElementById('ui-fossil-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'fossil')).join('');
@@ -10345,7 +10418,7 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
     });
     const targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('해체 대상이 없습니다.', 'attack-monster');
-    if (!await requestGameConfirmation(`검색 조건에 해당하는 장비 ${targetCount}개를 해체합니다.\n잠긴 장비는 보호됩니다.`, {
+    if (!await requestGameConfirmation(`검색 조건에 해당하는 장비 ${targetCount}개를 해체합니다.\n잠금·장비 세팅으로 보호된 장비는 제외됩니다.`, {
         title: '검색 장비 일괄 해체',
         tone: 'danger',
         confirmLabel: `${targetCount}개 해체`
@@ -10362,7 +10435,7 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
     });
     game.inventory = survivors;
     let rewardText = typeof formatSalvageRewardSummary === 'function' ? ` · ${formatSalvageRewardSummary(rewards)}` : '';
-    addLog(`🧪 장비 ${removed}개 해체 완료${rewardText}${lockedSkipped > 0 ? ` (잠금/배치 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 장비 ${removed}개 해체 완료${rewardText}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 async function bulkSalvageJewelsBySearch(salvageUnmatched) {
@@ -10830,7 +10903,6 @@ function renderCraftSelectedSummary(item) {
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     host.innerHTML = `<div><strong>[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}</strong> · ${item.rarity.toUpperCase()} · 추가 옵션 ${statCount}/6</div><div style="color:var(--copy-bright); font-size:0.83em;">${item.baseName || ''}</div>`;
 }
-
 
 function renderChaosInfuserPanel(selectedItem) {
     let host = document.getElementById('ui-chaos-infuser-panel');
@@ -11315,6 +11387,8 @@ function buildCraftActionButtons(item) {
     renderMobileCraftCurrencyPicker(selectedItem);
     let craftTargetControls = getCraftTargetControlsHtml();
     let craftSelectedBodyHtml = `<div style="color:var(--copy-bright);">아이템을 클릭하여 선택</div>`;
+    let craftSelectedBodyTailHtml = '';
+    let craftResultHtml = '';
     if (selectedItem) {
         let lines = [];
         (selectedItem.baseStats || []).forEach(stat => {
@@ -11384,10 +11458,12 @@ function buildCraftActionButtons(item) {
         let selectedUniqueEffectHtml = selectedItem.rarity === 'unique' && selectedItem.uniqueEffect
             ? `<div class="craft-unique-effect"><strong>고유 효과</strong><span>${escapeHTML(selectedItem.uniqueEffect)}</span>${selectedUniqueEffectHint ? `<small>${escapeHTML(selectedUniqueEffectHint)}</small>` : ''}</div>`
             : '';
-        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${exceptionalStars}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div>${craftMetrics}${selectedUniqueEffectHtml}</div><div class="craft-section-title">옵션</div>${lines.join('')}<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
+        craftResultHtml = craftingResultUi.getLedgerHtml(selectedItem);
+        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${exceptionalStars}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div>${craftMetrics}${selectedUniqueEffectHtml}</div><div class="craft-section-title">옵션</div>${lines.join('')}`;
+        craftSelectedBodyTailHtml = `<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
-    document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}</div>`;
-    document.getElementById('fossil-item-display').innerHTML = craftSelectedBodyHtml;
+    document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}${craftResultHtml}${craftSelectedBodyTailHtml}</div>`;
+    document.getElementById('fossil-item-display').innerHTML = `${craftSelectedBodyHtml}${craftSelectedBodyTailHtml}`;
     let fossilButtons = [];
     let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
     if ((game.currencies.fossil || 0) > 0) fossilButtons.push(`<button onclick="applyFossilCraft()">기본 화석 정제 (${game.currencies.fossil || 0})</button>`);
@@ -12738,7 +12814,6 @@ function setupCanvasEvents() {
                 return;
             }
             unlockPassiveStarEvolution();
-            tickShrineState();
             calculateReachableNodes();
             let nodeName = getPassiveNodeDisplayName(targetNode);
             let routeText = canPathActivate ? ` (최단 경로 ${pointCost}개 노드)` : '';
@@ -13062,17 +13137,19 @@ function mergeDefaults(save) {
         if (!marker || typeof marker !== 'object') return null;
         let at = clampFiniteNumber(marker.at, NaN, 0, 100);
         if (!Number.isFinite(at)) return null;
-        return {
+        let normalized = {
             at: at,
             count: Math.max(1, Math.floor(clampFiniteNumber(marker.count, 1, 1, 99))),
             elite: !!marker.elite,
             boss: !!marker.boss
         };
+        if (typeof BOUNTY_TARGET_DB !== 'undefined' && BOUNTY_TARGET_DB[marker.bountyId]) normalized.bountyId = marker.bountyId;
+        return normalized;
     }
     function normalizeEnemyRecord(enemy) {
         if (!enemy || typeof enemy !== 'object') return null;
         let hp = clampFiniteNumber(enemy.hp, NaN, 0);
-        let maxHp = clampFiniteNumber(enemy.maxHp, hp, 1);
+        let maxHp = clampFiniteNumber(enemy.maxHp, clampFiniteNumber(hp, 1, 1), 1);
         if (!Number.isFinite(hp)) hp = maxHp;
         return normalizeEnemyGridFields({
             ...enemy,
@@ -13274,12 +13351,7 @@ function mergeDefaults(save) {
     merged.saveMeta.cloudUserId = typeof merged.saveMeta.cloudUserId === 'string' && merged.saveMeta.cloudUserId.trim()
         ? merged.saveMeta.cloudUserId
         : null;
-    merged.ocean = (merged.ocean && typeof merged.ocean === 'object') ? { ...createDefaultOceanState(), ...merged.ocean } : createDefaultOceanState();
-    merged.ocean.permanentUpgrades = { ...(createDefaultOceanState().permanentUpgrades || {}), ...(merged.ocean.permanentUpgrades || {}) };
-    Object.keys(merged.ocean.permanentUpgrades).forEach(key => {
-        let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
-        merged.ocean.permanentUpgrades[key] = def ? Math.max(0, Math.min(def.maxLevel, Math.floor(merged.ocean.permanentUpgrades[key] || 0))) : 0;
-    });
+    merged.ocean = mergeOceanState(save && save.ocean);
     merged.unlocks.jewel = !!merged.unlocks.jewel;
     merged.unlocks.cube = !!merged.unlocks.cube;
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(merged);
@@ -13295,6 +13367,7 @@ function mergeDefaults(save) {
         normalizedEquipment['장갑1'] = save.equipment['장갑'];
     }
     merged.equipment = normalizedEquipment;
+    if (window.equipmentLoadoutRuntime) window.equipmentLoadoutRuntime.ensureState(merged);
     merged.inventory = (merged.inventory || []).map(normalizeItem);
     Object.keys(merged.equipment).forEach(slot => merged.equipment[slot] = normalizeItem(merged.equipment[slot]));
     merged.growthInventory = (merged.growthInventory || []).map(normalizeGrowthOptionValues);
@@ -13559,6 +13632,7 @@ function mergeDefaults(save) {
     merged.gemEngraveSelectedSlot = Math.max(0, Math.min(4, Math.floor(clampFiniteNumber(merged.gemEngraveSelectedSlot, 0, 0, 4))));
     merged.gemEnhanceTargetSkill = (typeof merged.gemEnhanceTargetSkill === 'string' && SKILL_DB[merged.gemEnhanceTargetSkill] && SKILL_DB[merged.gemEnhanceTargetSkill].isGem && Array.isArray(merged.skills) && merged.skills.includes(merged.gemEnhanceTargetSkill)) ? merged.gemEnhanceTargetSkill : null;
     merged.uniqueCodex = (merged.uniqueCodex && typeof merged.uniqueCodex === 'object') ? merged.uniqueCodex : {};
+    if (typeof uniqueHuntRuntime !== 'undefined') uniqueHuntRuntime.ensureState(merged);
     merged.codexNewlyRegistered = (merged.codexNewlyRegistered && typeof merged.codexNewlyRegistered === 'object') ? merged.codexNewlyRegistered : {};
     merged.codexCollapsedSlots = (merged.codexCollapsedSlots && typeof merged.codexCollapsedSlots === 'object') ? merged.codexCollapsedSlots : {};
     merged.codexSubtab = (merged.codexSubtab === 'realm') ? 'realm' : 'main';
@@ -13877,11 +13951,15 @@ function mergeDefaults(save) {
     if ((merged.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT) {
         merged.starWedge.unlocked = true;
     }
+    if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
     merged.saveVersion = defaultGame.saveVersion;
+    merged.bountyHunt = { ...defaultGame.bountyHunt, ...((merged.bountyHunt && typeof merged.bountyHunt === 'object') ? merged.bountyHunt : {}) };
+    if (typeof bountyRuntime !== 'undefined') bountyRuntime.ensureState(merged);
     // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
     // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
     // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.
     if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
+    shrineRuntime.ensureState(merged);
     return merged;
 }
 
@@ -14851,7 +14929,6 @@ function applyExternalSave(snapshot, sourceStamp) {
     }
     recoverRuntimeState();
     refreshPassiveVisibility();
-    tickShrineState();
     refreshTabHeaderUiIfNeeded();
     calculateReachableNodes();
     normalizeSupportLoadout(false);
@@ -15758,7 +15835,6 @@ function runStartupSmokeChecks() {
         issues.push('smoke-exception:' + (error && error.message ? error.message : String(error)));
     } finally {
         game = snapshot;
-        tickShrineState();
         refreshTabHeaderUiIfNeeded();
         calculateReachableNodes();
         refreshPassiveVisibility();
@@ -15843,7 +15919,6 @@ function init() {
     window.__battleAssetAutoloadEnabled = false;
     scheduleDeferredBattleAssetLoad();
     refreshPassiveVisibility();
-    tickShrineState();
     refreshTabHeaderUiIfNeeded();
     calculateReachableNodes();
     document.getElementById('chk-combat-scene').checked = game.settings.showCombatScene !== false;

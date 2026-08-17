@@ -5901,6 +5901,18 @@ function getZoneStaticBossMods(zone, isBoss) {
     return zone.bossMods;
 }
 
+function applyCosmosDirectiveModifiers(modifiers, zone) {
+    const directive = zone && zone.cosmosDirective && typeof zone.cosmosDirective === 'object'
+        ? zone.cosmosDirective : null;
+    if (!directive) return modifiers;
+    modifiers.hpMul *= Math.max(0.5, Math.min(3, Number(directive.enemyHpMul) || 1));
+    modifiers.damageMul *= Math.max(0.5, Math.min(3, Number(directive.enemyDamageMul) || 1));
+    modifiers.attackSpeedMul *= Math.max(0.5, Math.min(2, Number(directive.enemyAttackSpeedMul) || 1));
+    const name = String(directive.name || '').trim();
+    if (name) modifiers.traitName = `${modifiers.traitName} · 탐사:${name}`;
+    return modifiers;
+}
+
 function getCosmosEnemyModifiers(zone, isElite, isBoss) {
     if (!zone || zone.type !== 'cosmos') return null;
     let tag = String(zone.cosmosTag || '').trim();
@@ -5990,7 +6002,7 @@ function getCosmosEnemyModifiers(zone, isElite, isBoss) {
         mod.patternMode = 'cosmosBoss';
         mod.traitName = `은하 보스: ${galaxyBossMechanic.name}`;
     }
-    return mod;
+    return applyCosmosDirectiveModifiers(mod, zone);
 }
 
 // 루프 20 이후 적 강화(특히 생명력) 곡선을 완만하게 만든다.
@@ -6304,6 +6316,7 @@ function createEnemy(zone, marker, groupIndex) {
     }
     applyChaosRealmAffixesToEnemy(enemy, zone);
     applyGrandBreachMobTuning(zone, enemy);
+    if (marker.bountyId && typeof bountyRuntime !== 'undefined') bountyRuntime.applyTargetToEnemy(enemy, marker.bountyId);
     assignEnemyGridCombatProfile(enemy);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
     return enemy;
@@ -7489,6 +7502,7 @@ function startEncounterRun() {
     restoreAndRecallSummons(getPlayerStats());
     primeTrialHazardTimer(zone);
     game.encounterPlan = generateEncounterPlan(zone);
+    if (typeof bountyRuntime !== 'undefined') bountyRuntime.injectEncounterMarker(game.encounterPlan, zone);
     game.enemies = [];
     if (zone && zone.type === 'outsideChaos') startWoodsmanCurse();
     else resetWoodsmanCurse();
@@ -7496,6 +7510,7 @@ function startEncounterRun() {
 
 function startMoving(isTown) {
     dispatchRuntimeEvent('movement-started', { background: !!game.isBackgroundCalculation });
+    if (typeof bountyRuntime !== 'undefined') bountyRuntime.requeueInterrupted();
     pTimer = 0;
     resetCombatTacticsRuntime();
     resetCombatChannelRuntime();
@@ -8141,6 +8156,55 @@ function grantLoopStarterGemOnFirstKill() {
     addLog(`🎁 재능에 맞는 스킬 젬 [${gemName}] 획득! (스킬 탭에서 장착하세요)`, 'loot-rare');
 }
 
+function grantBountyEquipmentRewards(enemy, reward, countOverride) {
+    let count = Math.max(0, Math.floor(Number(countOverride ?? reward.equipmentCount) || 0));
+    let items = [];
+    for (let index = 0; index < count; index++) {
+        let item = generateEquipmentDrop(enemy, { minimumRarity: reward.minimumRarity });
+        if (item && addItemToInventory(item, { guaranteedKeep: true })) items.push(item);
+    }
+    return items;
+}
+
+function grantBountyGrowthRewards(enemy, reward) {
+    let count = Math.max(0, Math.floor(Number(reward.growthCount) || 0));
+    let items = [];
+    for (let index = 0; index < count; index++) {
+        let item = typeof generateGrowthDrop === 'function' ? generateGrowthDrop(enemy) : null;
+        if (item && addDroppedGrowthItem(item, { guaranteedKeep: true })) items.push(item);
+    }
+    return items;
+}
+
+function grantBountyCurrencyRewards(reward) {
+    Object.entries(reward.currencies || {}).forEach(([key, amount]) => {
+        let gain = Math.max(0, Math.floor(Number(amount) || 0));
+        if (gain > 0) awardCurrency(key, gain);
+    });
+}
+
+function logBountyItemRewards(items, label) {
+    items.forEach(item => addLog(`🎁 ${label}: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-unique', { item }));
+}
+
+function grantBountyCompletionReward(enemy) {
+    if (typeof bountyRuntime === 'undefined') return false;
+    let completion = bountyRuntime.completeTarget(enemy);
+    if (!completion.completed) return false;
+    let reward = completion.reward || {};
+    let growthItems = grantBountyGrowthRewards(enemy, reward);
+    let fallbackCount = growthItems.length < (reward.growthCount || 0) ? reward.fallbackEquipmentCount : 0;
+    let equipmentItems = grantBountyEquipmentRewards(enemy, reward);
+    equipmentItems.push(...grantBountyEquipmentRewards(enemy, reward, fallbackCount));
+    grantBountyCurrencyRewards(reward);
+    if (!game.isBackgroundCalculation) addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#ffd56b', tier: 'unique', duration: 1500 });
+    addLog(`🎯 현상금 완료: [${completion.target.name}] · ${completion.target.rewardLabel}`, 'level-up');
+    logBountyItemRewards(equipmentItems, '현상금 장비');
+    logBountyItemRewards(growthItems, '현상금 생장품');
+    if (typeof queueImportantSave === 'function') queueImportantSave(200);
+    return true;
+}
+
 function handleEnemyDeath(enemy, pStats) {
     if (!enemy || !Number.isFinite(enemy.id)) return;
     let liveRef = (game.enemies || []).find(entry => entry && entry.id === enemy.id);
@@ -8187,6 +8251,13 @@ function handleEnemyDeath(enemy, pStats) {
     let gemLeveled = grantExpAndGem(enemy, pStats);
     let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
     rollLootForEnemy(enemy);
+    let bountyCompleted = grantBountyCompletionReward(enemy);
+    let bountyOffer = typeof bountyRuntime !== 'undefined'
+        ? bountyRuntime.advanceAfterBossKill(zone, enemy) : { offered: false };
+    if (bountyOffer.offered) {
+        addLog('🎯 희귀 현상금 표적을 발견했습니다. 전투 화면에서 추적할 표적을 고르세요.', 'loot-unique');
+        if (typeof queueImportantSave === 'function') queueImportantSave(200);
+    }
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
     if (Math.random() < 0.00002 && typeof tryUnlockMonsterSkinFromEnemy === 'function') tryUnlockMonsterSkinFromEnemy(enemy);
     gainSkyRiftGaugeFromCombat(zone, enemy);
@@ -8341,7 +8412,7 @@ function handleEnemyDeath(enemy, pStats) {
     }
     let currencyChanged = Math.max(0, Math.floor(game.currencyDropVersion || 0)) !== currencyDropVersionBefore;
     let colonyStateChanged = zone && zone.id === 'colony_run' && game.colony && game.colony.inRun;
-    if (enemy.isBoss || enemy.isElite || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map || game.noti.cube) {
+    if (enemy.isBoss || enemy.isElite || bountyCompleted || bountyOffer.offered || currencyChanged || gemLeveled || colonyStateChanged || game.noti.char || game.noti.skills || game.noti.items || game.noti.map || game.noti.cube) {
         pendingHeavyUiRefresh = true;
     }
 }
@@ -8499,6 +8570,7 @@ function finishEncounterRun() {
     });
     let mapAction = (game.settings && game.settings.mapCompleteAction) || 'nextZone';
     game.killsInZone++;
+    shrineRuntime.advanceAfterEncounter(zone);
 
     if (zone.type === 'meteor') {
         grantMeteorEncounterRewards();
@@ -11251,6 +11323,7 @@ function triggerSeasonReset(options) {
         return false;
     }
     if (!loopPath) loopPath = 'chaos';
+    if (typeof bountyRuntime !== 'undefined') bountyRuntime.requeueInterrupted();
     if (isRewardOpen()) closeRewardOverlay();
     if (game.woodsmanBuildLock) {
         clearWoodsmanBuildLock();

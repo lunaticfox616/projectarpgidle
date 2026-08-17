@@ -3,6 +3,34 @@
 (function () {
     'use strict';
 
+    function pickWeightedCosmosDirective(candidates, rng) {
+        const total = candidates.reduce((sum, row) => sum + Math.max(0, Number(row.weight) || 0), 0);
+        if (total <= 0) return null;
+        let roll = rng() * total;
+        for (const row of candidates) {
+            roll -= Math.max(0, Number(row.weight) || 0);
+            if (roll <= 0) return row;
+        }
+        return candidates[candidates.length - 1] || null;
+    }
+
+    function getCosmosExpeditionDirectiveChoices(nodeId, cycle) {
+        const rows = Array.isArray(globalThis.COSMOS_EXPEDITION_DIRECTIVE_DB)
+            ? globalThis.COSMOS_EXPEDITION_DIRECTIVE_DB.filter(Boolean) : [];
+        const safe = rows.find(row => row.id === 'survey');
+        if (!safe) return [];
+        const choices = [safe];
+        const candidates = rows.filter(row => row.id !== safe.id && Number(row.weight) > 0);
+        const rng = createSeededRng(`cosmos-expedition:${String(nodeId || 'unknown')}:${Math.max(0, Math.floor(Number(cycle) || 0))}`);
+        while (choices.length < 3 && candidates.length > 0) {
+            const picked = pickWeightedCosmosDirective(candidates, rng);
+            if (!picked) break;
+            choices.push(picked);
+            candidates.splice(candidates.indexOf(picked), 1);
+        }
+        return choices;
+    }
+
     const COSMOS_GALAXY_BOSS_MECHANICS = Object.freeze({
         'planet-46': Object.freeze({
             id: 'orbitalCollision', name: '궤도 충돌', specialEvery: 4, damageMul: 1.42,
@@ -76,7 +104,7 @@
     }
 
     /**
-     * @param {{combatTier:number,sizeClass:number,gravity:number,isGalaxyBoss:boolean,element:string}} input
+     * @param {{combatTier:number,sizeClass:number,gravity:number,isGalaxyBoss:boolean,element:string,directive?:object}} input
      * @returns {{dps:number,ehp:number,element:string,clearTimeSec:number,basis:string}}
      */
     function calculateCosmosDifficultyTarget(input) {
@@ -89,8 +117,12 @@
             * (1 + seasonDepth * (0.08 + tierProgress * 0.52))
             * (1 + tierProgress * 9) * 3.22;
         const cosmosHpPressure = (1 + (sizeClass - 1) * 0.10 + (gravity - 1) * 0.13) * 1.35;
+        const directive = input && input.directive && typeof input.directive === 'object' ? input.directive : {};
+        const directiveHpMul = Math.max(0.5, Math.min(3, Number(directive.enemyHpMul) || 1));
+        const directiveDamageMul = Math.max(0.5, Math.min(3, Number(directive.enemyDamageMul) || 1));
+        const directiveSpeedMul = Math.max(0.5, Math.min(2, Number(directive.enemyAttackSpeedMul) || 1));
         const bossHp = baseHp * (1.8 + combatTier * 0.6) * (1 + tierProgress * 4) * 0.92
-            * cosmosHpPressure * (input && input.isGalaxyBoss ? 1.35 : 1);
+            * cosmosHpPressure * directiveHpMul * (input && input.isGalaxyBoss ? 1.35 : 1);
         const tierPressure = Math.max(0, Math.min(1, (combatTier - 1) / 10));
         const baseHit = (2.4 + combatTier * 3.35) * 1.15
             * (1 + seasonDepth * (0.05 + tierPressure * 0.07))
@@ -101,7 +133,8 @@
         const clearTimeSec = input && input.isGalaxyBoss ? 55 : 40;
         return {
             dps: Math.max(1, Math.round(bossHp / clearTimeSec)),
-            ehp: Math.max(1, Math.round(baseHit * cosmosDamagePressure * peakBossHitPressure)),
+            ehp: Math.max(1, Math.round(baseHit * cosmosDamagePressure * peakBossHitPressure
+                * directiveDamageMul * Math.max(1, Math.sqrt(directiveSpeedMul)))),
             element: String((input && input.element) || 'chaos'),
             clearTimeSec,
             basis: 'bossPeakHit'
@@ -124,6 +157,7 @@
     }
 
     safeExposeGlobals({
+        getCosmosExpeditionDirectiveChoices,
         resolveCosmosMechanic,
         getCosmosGalaxyBossMechanic,
         getCosmosBossPatternState,

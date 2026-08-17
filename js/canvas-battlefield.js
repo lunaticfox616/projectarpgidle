@@ -1267,7 +1267,8 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
-        let width = enemy.isBoss ? 72 : 46;
+        let bountyTarget = !!enemy.isBountyTarget;
+        let width = enemy.isBoss ? 72 : (bountyTarget ? 58 : 46);
         let x = Math.round(entry.x - width / 2);
         let y = Math.round(entry.y - (enemy.isBoss ? 78 : 56));
         let targeted = targetIds.includes(enemy.id);
@@ -1278,16 +1279,22 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
             ctx.fillStyle = 'rgba(255, 138, 80, 0.58)';
             ctx.fillRect(x, y, Math.max(2, Math.round(width * ghostPct)), 6);
         }
-        ctx.fillStyle = targeted ? '#f1c40f' : '#e94f64';
+        ctx.fillStyle = bountyTarget ? '#d9a42d' : (targeted ? '#f1c40f' : '#e94f64');
         ctx.fillRect(x, y, Math.max(2, Math.round(width * pct)), 6);
         let esPct = (enemy.maxEnergyShield || 0) > 0 ? clampNumber((enemy.energyShield || 0) / Math.max(1, enemy.maxEnergyShield), 0, 1) : 0;
         if (esPct > 0) {
             ctx.fillStyle = 'rgba(92, 184, 255, 0.92)';
             ctx.fillRect(x, y - 4, Math.max(2, Math.round(width * esPct)), 3);
         }
-        ctx.strokeStyle = targeted ? 'rgba(255, 224, 130, 0.95)' : 'rgba(255,255,255,0.14)';
+        ctx.strokeStyle = bountyTarget ? 'rgba(255, 225, 132, 0.98)' : (targeted ? 'rgba(255, 224, 130, 0.95)' : 'rgba(255,255,255,0.14)');
         ctx.lineWidth = 1;
         ctx.strokeRect(x - 0.5, y - 0.5, width + 1, 7);
+        if (bountyTarget) {
+            ctx.fillStyle = '#ffe69b';
+            ctx.translate(Math.round(entry.x), y - 5);
+            ctx.rotate(Math.PI / 4);
+            ctx.fillRect(-3, -3, 6, 6);
+        }
         ctx.restore();
     });
 }
@@ -2043,6 +2050,7 @@ function getEnemyTraitSummary(enemy) {
     return Array.from(new Set(tags.filter(Boolean)));
 }
 function getEnemyShortLabel(enemy) {
+    if (enemy.isBountyTarget) return '현상금';
     if (enemy.isBoss) return '보스';
     if (enemy.isElite) return '정예';
     if (enemy.ele === 'fire') return '화염';

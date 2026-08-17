@@ -610,6 +610,41 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: 'â
   font-size: 0.76em;
 }
 
+.craft-result-ledger {
+  margin-top: 10px;
+  padding: 9px;
+  border: 1px solid rgba(211, 172, 83, .46);
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba(60, 42, 16, .54), rgba(15, 23, 33, .84));
+  box-shadow: inset 0 1px rgba(255, 235, 174, .08);
+}
+
+.craft-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.craft-result-head div,
+.craft-result-head small,
+.craft-result-head strong { display: block; }
+.craft-result-head small { color: #cdbb91; font-size: .66rem; }
+.craft-result-head strong { margin-top: 1px; color: #ffe5a0; font-size: .82rem; }
+.craft-result-head button { min-height: 30px; padding: 4px 8px; font-size: .7rem; }
+.craft-result-ledger ul { display: grid; gap: 3px; margin: 8px 0 0; padding: 0; list-style: none; }
+.craft-result-ledger li { display: grid; grid-template-columns: 15px minmax(0, 1fr); gap: 4px; color: #dce5ef; font-size: .72rem; line-height: 1.35; }
+.craft-result-ledger li.added { color: #9df1b4; }
+.craft-result-ledger li.removed { color: #e5a0a0; }
+.craft-result-ledger li.changed { color: #f3d88d; }
+.craft-result-ledger li.unchanged { color: #aeb9c5; }
+.craft-result-ledger li b { margin: 0 5px; color: #8f9dab; }
+
+@media (max-width: 640px) {
+  .craft-result-head { align-items: stretch; flex-direction: column; }
+  .craft-result-head button { width: 100%; }
+}
+
 .challenge-contract-panel {
   margin: 0 0 12px;
   padding: 12px;
@@ -2321,6 +2356,41 @@ body:not(.light-mode) #info-tooltip {
 }
 .inventory-browse-toolbar label { display: flex; align-items: center; gap: 5px; color: #eef2f6; font-size: 9px; }
 .inventory-browse-toolbar select { min-height: 29px; color: #fff; border: 1px solid #3d5872; border-radius: 6px; background: #101b29; }
+.equipment-triage-host {
+  display: flex;
+  flex: 1 1 390px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  margin-left: auto;
+  padding-left: 10px;
+  border-left: 1px solid rgba(78, 105, 132, .48);
+}
+.equipment-triage-copy { display: grid; min-width: 0; gap: 2px; }
+.equipment-triage-copy strong { color: #9fdcff; font-size: 10px; }
+.equipment-triage-copy small { overflow: hidden; color: #a9bac9; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.equipment-triage-controls { display: flex; align-items: center; gap: 6px; }
+.equipment-triage-controls label { white-space: nowrap; }
+.equipment-triage-controls select { max-width: 122px; }
+.equipment-triage-controls button {
+  min-height: 29px;
+  padding: 4px 9px;
+  color: #e9f7ff;
+  border-color: #3e7da5;
+  background: linear-gradient(180deg, #245a79, #15394f);
+  font-size: 9px;
+  white-space: nowrap;
+}
+.equipment-triage-chip { padding-left: 6px; border-left-width: 3px; font-weight: 800; }
+.equipment-triage-chip.triage-damage { color: #ffc596; border-color: #b96b3f; background: rgba(92, 44, 24, .56); }
+.equipment-triage-chip.triage-defense { color: #a9e6cf; border-color: #3f9a7a; background: rgba(24, 75, 61, .56); }
+.equipment-triage-chip.triage-special { color: #e2bcff; border-color: #9b67c4; background: rgba(67, 37, 91, .56); }
+.equipment-triage-chip.triage-keep { color: #b9c5d0; border-color: #657482; background: rgba(48, 59, 69, .56); }
+.equipment-card-meta.has-triage { flex-wrap: wrap; overflow: visible; }
+body.light-mode .equipment-triage-host { border-left-color: #c7d7e5; }
+body.light-mode .equipment-triage-copy strong { color: #256d99; }
+body.light-mode .equipment-triage-copy small { color: #5d7183; }
 .item-card-more { grid-column: 1 / -1; min-width: 0; border: 1px solid rgba(68, 92, 117, .58); border-radius: 6px; background: rgba(8, 16, 25, .7); }
 .item-card-more > summary { min-height: 25px; box-sizing: border-box; padding: 5px 7px; }
 .item-card-more[open] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 0 4px 4px; }
@@ -2347,7 +2417,17 @@ body:not(.light-mode) #info-tooltip {
 @media (max-width: 760px) {
   .character-ehp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .inventory-browse-toolbar { position: static; flex-wrap: wrap; }
+  .equipment-triage-host { flex: 1 1 100%; width: 100%; padding: 7px 0 0; border-top: 1px solid rgba(78, 105, 132, .48); border-left: 0; }
+  .equipment-triage-copy small { max-width: 46vw; }
   #tab-skills .skill-subtab-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 430px) {
+  .equipment-triage-host { align-items: stretch; flex-direction: column; gap: 6px; }
+  .equipment-triage-copy small { max-width: none; white-space: normal; }
+  .equipment-triage-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .equipment-triage-controls label { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+  .equipment-triage-controls select { width: 100%; max-width: none; }
 }
 .flask-craft-card button { min-width: 76px; min-height: 31px; padding: 4px 7px; font-size: 8px; }
 
