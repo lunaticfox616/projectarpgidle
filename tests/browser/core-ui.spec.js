@@ -370,6 +370,51 @@ test('equipment crafting shows the exact last change and repeats without losing 
     expect(failures).toEqual([]);
 });
 
+test('salvaged equipment can be recovered for its exact reward on desktop and mobile', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.combatHalted = true;
+        game.enemies = [];
+        game.season = 2;
+        game.unlocks.items = true;
+        game.currencies.magicBud = 0;
+        game.inventory = [{
+            id: 990001, name: '복구 시험 장화', baseName: '가죽 장화', slot: '신발',
+            rarity: 'normal', hiddenTier: 3, stats: []
+        }];
+        salvageItem(0);
+        switchTab('tab-items');
+        updateStaticUI();
+    });
+
+    const shortcut = page.locator('#btn-salvage-recovery');
+    await expect(shortcut).toHaveAttribute('aria-label', /복구 가능 장비 1개/);
+    await shortcut.click();
+    const overlay = page.locator('#salvage-recovery-overlay');
+    await expect(overlay).toBeVisible();
+    await expect(overlay).toContainText('복구 시험 장화');
+    await expect(overlay).toContainText('마법의 새싹 1개');
+    const layout = await overlay.locator('.salvage-recovery-panel').evaluate(panel => {
+        const rect = panel.getBoundingClientRect();
+        return { width: rect.width, right: rect.right, bottom: rect.bottom, viewportWidth: innerWidth, viewportHeight: innerHeight };
+    });
+    expect(layout.width).toBeGreaterThan(250);
+    expect(layout.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
+    expect(layout.bottom).toBeLessThanOrEqual(layout.viewportHeight + 1);
+
+    await overlay.getByRole('button', { name: '재화 반환 후 복구' }).click();
+    await expect(overlay).toContainText('복구할 장비가 없습니다.');
+    const restored = await page.evaluate(() => ({
+        inventory: game.inventory.map(item => item.name),
+        magicBud: game.currencies.magicBud,
+        recoveryCount: game.salvageRecovery.entries.length
+    }));
+    expect(restored).toEqual({ inventory: ['복구 시험 장화'], magicBud: 0, recoveryCount: 0 });
+    await expect(shortcut).toHaveAttribute('aria-label', /비어 있음/);
+    expect(failures).toEqual([]);
+});
+
 test('debug performance panel reports live frame and FX metrics', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page, '/?debug=perf');

@@ -10040,6 +10040,7 @@ function performUpdateStaticUI() {
 
     if (itemsTabActive) {
     syncSalvageControlsFromSettings();
+    if (typeof salvageRecoveryUi !== 'undefined') salvageRecoveryUi.refreshShortcut();
     syncEquipmentMobilePane();
     renderEquipmentLoadoutSummary(pStats);
     renderPaperdoll('ui-equip-list', false);
@@ -13941,6 +13942,7 @@ function mergeDefaults(save) {
     if ((merged.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT) {
         merged.starWedge.unlocked = true;
     }
+    if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
     merged.saveVersion = defaultGame.saveVersion;
     merged.bountyHunt = { ...defaultGame.bountyHunt, ...((merged.bountyHunt && typeof merged.bountyHunt === 'object') ? merged.bountyHunt : {}) };
     if (typeof bountyRuntime !== 'undefined') bountyRuntime.ensureState(merged);

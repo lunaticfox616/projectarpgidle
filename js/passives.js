@@ -10386,6 +10386,10 @@ function getItemSalvagePreviewText(item, compact) {
 }
 
 function rollItemSalvageRewards(item, options) {
+    let replayRewards = typeof salvageRecoveryRuntime !== 'undefined'
+        ? salvageRecoveryRuntime.getReplayRewards(item)
+        : null;
+    if (replayRewards) return replayRewards;
     let profile = getItemSalvageRewardProfile(item, options);
     let rewards = {};
     mergeSalvageRewards(rewards, profile.guaranteed);
@@ -10401,6 +10405,7 @@ function salvageItemObject(item, silent, options) {
     if (!item) return {};
     let rewards = rollItemSalvageRewards(item, options);
     Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount));
+    if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
     if (!silent) addLog(`🧪 [${item.name}] 해체 · ${formatSalvageRewardSummary(rewards)}`, "loot-normal");
     return rewards;
 }
