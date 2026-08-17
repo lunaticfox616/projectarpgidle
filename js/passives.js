@@ -10425,6 +10425,9 @@ function salvageItem(idx) {
     let item = game.inventory[idx];
     if (!item) return;
     if (item.locked) return addLog(`🔒 잠금된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
+    if (typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item.id)) {
+        return addLog(`🧰 장비 세팅에 저장된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
+    }
     if (!isCraftSelectionEquip() && getCraftSelectionRef() === item.id) clearCraftSelection();
     if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     salvageItemObject(item, false);
@@ -10503,10 +10506,11 @@ async function toggleJewelAutoSalvage() {
     addLog(`💠 주얼 자동해체 ${game.settings.jewelAutoSalvageEnabled ? '활성화' : '비활성화'}`, 'loot-normal');
 }
 
-// 일괄 해체 보호: 잠금 아이템과 생장판에 배치된 아이템은 대상에서 제외한다.
+// 일괄 해체 보호: 잠금·장비 프리셋·생장판 배치 아이템은 대상에서 제외한다.
 function isBulkSalvageProtectedItem(item) {
     if (!item) return true;
     if (item.locked) return true;
+    if (typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item.id)) return true;
     return typeof isGrowthItemPlacedAnywhere === 'function' && isGrowthItemPlacedAnywhere(item.id);
 }
 
@@ -10566,12 +10570,12 @@ async function bulkSalvageSelected() {
         }
     });
     if (removed === 0) {
-        if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 보호 상태입니다. (잠금/배치 ${lockedSkipped}개)`, 'attack-monster');
+        if (lockedSkipped > 0) return addLog(`🔒 선택 등급 아이템이 모두 보호 상태입니다. (잠금/배치/세팅 ${lockedSkipped}개)`, 'attack-monster');
         return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
     }
     game.inventory = kept;
     ensureCraftSelectionValid();
-    addLog(`🧪 선택한 등급 장비 ${removed}개 해체 · ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 선택한 등급 장비 ${removed}개 해체 · ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 async function bulkSalvageAllInventory() {
@@ -10579,8 +10583,8 @@ async function bulkSalvageAllInventory() {
     let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
     let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
     let salvageCount = targetItems.length;
-    if (salvageCount <= 0) return addLog('🔒 잠금/배치되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
-    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${lockedCount > 0 ? `\n잠금/배치 장비 ${lockedCount}개는 보호됩니다.` : ''}`, {
+    if (salvageCount <= 0) return addLog('🔒 잠금/배치/세팅 보호되지 않은 아이템이 없어 전체해체를 실행할 수 없습니다.', 'attack-monster');
+    if (!await requestGameConfirmation(`인벤토리 장비 ${salvageCount}개를 모두 해체합니다.${lockedCount > 0 ? `\n잠금/배치/세팅 장비 ${lockedCount}개는 보호됩니다.` : ''}`, {
         title: '인벤토리 전체 해체',
         tone: 'danger',
         confirmLabel: `${salvageCount}개 해체`
@@ -10594,7 +10598,7 @@ async function bulkSalvageAllInventory() {
     });
     game.inventory = kept;
     if (!isCraftSelectionEquip()) clearCraftSelection();
-    addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개) · ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? ` · 잠금/배치 ${lockedCount}개 보호` : ''}`, 'loot-normal');
+    addLog(`🧪 인벤토리 전체해체 완료 (${salvageCount}개) · ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? ` · 잠금/배치/세팅 ${lockedCount}개 보호` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 
