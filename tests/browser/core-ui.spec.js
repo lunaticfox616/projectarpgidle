@@ -750,7 +750,7 @@ test('cosmos expedition signals change risk and persist into the battle contract
     }));
     expect(riskyTarget.dps).toBeGreaterThan(safeTarget.dps);
     expect(riskyTarget.ehp).toBeGreaterThan(safeTarget.ehp);
-    await detail.getByRole('button', { name: '은하 보스 도전' }).evaluate(button => button.click());
+    await detail.getByRole('button', { name: '은하 보스 재도전' }).evaluate(button => button.click());
     const battleContract = await page.evaluate(() => {
         const zone = getZone('cosmos_challenge');
         game.combatHalted = true;
@@ -759,6 +759,21 @@ test('cosmos expedition signals change risk and persist into the battle contract
     });
     expect(battleContract).toEqual({ zoneId: 'cosmos_challenge', directiveId: riskyId, rewardMul: expect.any(Number) });
     expect(battleContract.rewardMul).toBeGreaterThan(1);
+    const repeatNodeId = await page.evaluate(() => {
+        game.cosmosAtlas.activeChallenge = null;
+        game.currentZoneId = 0;
+        if (!continueCosmosChallengeAfterClear('nextZone')) return null;
+        const nodeId = game.cosmosAtlas.activeChallenge && game.cosmosAtlas.activeChallenge.nodeId;
+        exploreSelectedCosmosNode(nodeId);
+        game.cosmosAtlas.activeChallenge = null;
+        game.currentZoneId = 0;
+        renderCosmosAtlas();
+        return nodeId;
+    });
+    expect(repeatNodeId).toBeTruthy();
+    await expect(detail.getByRole('button', { name: '새 신호 재탐사' })).toBeEnabled();
+    await expect(detail.locator('.cosmos-directive-card')).toHaveCount(3);
+    await expect(detail.locator('.cosmos-directive-title')).toContainText('새 신호가 포착되었습니다');
     expect(failures).toEqual([]);
 });
 

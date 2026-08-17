@@ -519,16 +519,22 @@ function getSeasonBossProgressGate(zone, source) {
 
 function normalizeCosmosDirectiveSnapshot(source) {
     if (!source || typeof source !== 'object') return null;
+    const definitions = Array.isArray(globalThis.COSMOS_EXPEDITION_DIRECTIVE_DB)
+        ? globalThis.COSMOS_EXPEDITION_DIRECTIVE_DB : [];
+    const requestedId = String(source.id || 'survey');
+    const canonical = definitions.find(row => row && row.id === requestedId)
+        || definitions.find(row => row && row.id === 'survey');
+    const directive = canonical || source;
     return {
-        id: String(source.id || 'survey'),
-        name: String(source.name || '안정 관측').slice(0, 40),
-        enemyHpMul: Math.max(0.5, Math.min(3, Number(source.enemyHpMul) || 1)),
-        enemyDamageMul: Math.max(0.5, Math.min(3, Number(source.enemyDamageMul) || 1)),
-        enemyAttackSpeedMul: Math.max(0.5, Math.min(2, Number(source.enemyAttackSpeedMul) || 1)),
-        rewardMul: Math.max(0.1, Math.min(5, Number(source.rewardMul) || 1)),
-        jackpotChance: Math.max(0, Math.min(0.5, Number(source.jackpotChance) || 0)),
-        jackpotBonusMul: Math.max(0, Math.min(5, Number(source.jackpotBonusMul) || 0)),
-        rare: source.rare === true
+        id: String(directive.id || 'survey'),
+        name: String(directive.name || '안정 관측').slice(0, 40),
+        enemyHpMul: Math.max(0.5, Math.min(3, Number(directive.enemyHpMul) || 1)),
+        enemyDamageMul: Math.max(0.5, Math.min(3, Number(directive.enemyDamageMul) || 1)),
+        enemyAttackSpeedMul: Math.max(0.5, Math.min(2, Number(directive.enemyAttackSpeedMul) || 1)),
+        rewardMul: Math.max(0.1, Math.min(5, Number(directive.rewardMul) || 1)),
+        jackpotChance: Math.max(0, Math.min(0.5, Number(directive.jackpotChance) || 0)),
+        jackpotBonusMul: Math.max(0, Math.min(5, Number(directive.jackpotBonusMul) || 0)),
+        rare: directive.rare === true
     };
 }
 

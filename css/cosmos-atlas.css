@@ -849,8 +849,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   letter-spacing: .05em;
 }
 
-.cosmos-directive-title small,
-.cosmos-directive-section.exhausted p {
+.cosmos-directive-title small {
   margin: 0;
   color: #8299ad;
   font-size: 8px;
@@ -948,11 +947,6 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 
 .cosmos-directive-card:disabled:not(.selected) {
   opacity: .48;
-}
-
-.cosmos-directive-section.exhausted {
-  color: #8ca0b2;
-  background: rgba(10, 17, 26, .7);
 }
 
 .cosmos-power-grid {

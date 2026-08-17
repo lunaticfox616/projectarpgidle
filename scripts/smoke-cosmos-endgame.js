@@ -129,6 +129,14 @@ assert.strictEqual(context.game.cosmosAtlas.directiveCycles[expeditionNodeId], 1
     '탐사를 완료한 뒤에만 해당 노드 신호 주기가 증가해야 한다');
 assert.strictEqual(context.game.cosmosAtlas.selectedDirectives[expeditionNodeId], undefined,
     '완료한 탐사의 이전 선택은 다음 신호에 남으면 안 된다');
+context.game.cosmosAtlas.activeChallenge = null;
+context.game.currentZoneId = 0;
+context.challengeSelectedCosmosNode();
+assert.strictEqual(context.game.cosmosAtlas.activeChallenge.nodeId, expeditionNodeId,
+    '완료한 일반 천체도 갱신된 신호로 다시 탐사할 수 있어야 한다');
+assert.strictEqual(context.game.cosmosAtlas.activeChallenge.directive.id,
+    context.getCosmosExpeditionDirectiveChoices(expeditionNodeId, 1)[0].id,
+    '재탐사는 증가한 신호 주기의 선택지를 전투 계약에 고정해야 한다');
 
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
 assert(cosmosSource.includes('예상 DPS<strong class="map-power-grade grade-${ready.dps.id}">${ready.dps.label}')

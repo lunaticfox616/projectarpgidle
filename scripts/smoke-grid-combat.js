@@ -303,14 +303,20 @@ const cfg = context.COMBAT_GRID_CONFIG;
   context.game.season = 31;
   context.game.loopCount = 30;
   context.game.cosmosAtlas = {};
+  const corruptedDirective = { ...context.COSMOS_EXPEDITION_DIRECTIVE_DB.find(row => row.id === 'rift'),
+    enemyHpMul: 0.5, enemyDamageMul: 0.5, rewardMul: 5, jackpotChance: 0.5 };
   context.game.cosmosAtlas.activeChallenge = {
     nodeId: 'planet-47', name: '디프다르', galaxy: 2, tier: 63, lootTier: 10, gravity: 2.1, sizeClass: 3,
-    tag: 'absorb', mechanicId: 'abyssalTide', ele: 'chaos', directive: dangerousDirective
+    tag: 'absorb', mechanicId: 'abyssalTide', ele: 'chaos', directive: corruptedDirective
   };
   context.game.currentZoneId = 'cosmos_challenge';
   const activeCosmosZone = context.getZone('cosmos_challenge');
-  assert.strictEqual(activeCosmosZone.cosmosDirective.id, dangerousDirective.id,
+  assert.strictEqual(activeCosmosZone.cosmosDirective.id, 'rift',
     '저장된 우주계 탐사 신호가 재접속 뒤에도 전투 지역에 복원되어야 한다');
+  assert.strictEqual(activeCosmosZone.cosmosDirective.enemyHpMul, 1.38,
+    '저장된 탐사 신호 배율은 임의 값을 믿지 않고 정적 신호 정의에서 복원해야 한다');
+  assert.strictEqual(activeCosmosZone.cosmosDirective.rewardMul, 1.62,
+    '손상된 저장 보상 배율로 안전한 전투에서 과도한 보상을 얻을 수 없어야 한다');
   const diphdar = context.createEnemy(activeCosmosZone, { boss: true, at: 100 }, 0);
   assert.strictEqual(diphdar.patternMode, 'cosmosBoss', '은하 보스는 공용 성좌 순환을 사용하면 안 된다');
   assert.strictEqual(diphdar.cosmosBossId, 'planet-47');
