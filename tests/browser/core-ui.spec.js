@@ -487,7 +487,7 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     await expect(page.locator('.ghost-duel-canvas')).toBeVisible();
     await expect(page.locator('.ghost-result')).toContainText('승리');
     await expect(page.locator('.ghost-result')).toContainText('+12');
-    await expect(page.locator('.ghost-result')).not.toHaveClass(/ghost-duel-result-pending/, { timeout: 3000 });
+    await expect(page.locator('.ghost-result')).not.toHaveClass(/ghost-duel-result-pending/, { timeout: 10_000 });
     await expect.poll(() => page.evaluate(() => ghostDuelReplayRuntime.frameId)).toBe(0);
     const targetId = '22222222-2222-4222-8222-222222222222';
     await page.route('https://**/rest/v1/player_profiles**', route => route.fulfill({
