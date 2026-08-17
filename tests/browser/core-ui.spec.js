@@ -415,6 +415,60 @@ test('salvaged equipment can be recovered for its exact reward on desktop and mo
     expect(failures).toEqual([]);
 });
 
+test('codex hunt targets expose sources and survive loot automation', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.level = 200;
+        game.season = 31;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.uniqueCodex = {};
+        game.uniqueHuntTargets = [];
+        switchTab('tab-codex');
+        updateStaticUI();
+    });
+
+    const card = page.locator('.codex-card').filter({ hasText: '핏빛 톱날' });
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('미등록');
+    await card.getByRole('button', { name: /파밍 추적/ }).click();
+    const tracker = page.locator('.unique-hunt-panel');
+    await expect(tracker).toContainText('핏빛 톱날');
+    await expect(tracker).toContainText('1/3');
+    const trackerLayout = await tracker.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, viewportWidth: innerWidth };
+    });
+    expect(trackerLayout.left).toBeGreaterThanOrEqual(-1);
+    expect(trackerLayout.right).toBeLessThanOrEqual(trackerLayout.viewportWidth + 1);
+    await tracker.getByRole('button', { name: '드랍처 보기' }).click();
+    await expect(page.locator('#map-tab-zones')).toHaveClass(/active/);
+    await expect(page.locator('#map-explore-hunting')).toHaveClass(/active/);
+    await page.evaluate(() => switchTab('tab-codex'));
+
+    const result = await page.evaluate(() => {
+        Object.keys(game.equipment).forEach((slot, index) => {
+            game.equipment[slot] = { id: 60000 + index, name: `시험 ${slot}`, slot, rarity: 'normal', baseStats: [], stats: [] };
+        });
+        game.settings.itemFilterEnabled = true;
+        game.settings.itemFilterRarities.unique = false;
+        game.settings.autoSalvageEnabled = true;
+        game.settings.autoSalvageRarities.unique = true;
+        const item = generateUniqueItem(20, null, '핏빛 톱날');
+        const accepted = addItemToInventory(item);
+        return {
+            accepted,
+            inventoryNames: game.inventory.map(entry => entry.name),
+            targets: game.uniqueHuntTargets.slice(),
+            registered: !!game.uniqueCodex['무기|핏빛 톱날']
+        };
+    });
+    expect(result).toEqual({ accepted: true, inventoryNames: ['핏빛 톱날'], targets: [], registered: true });
+    await expect(tracker).not.toContainText('핏빛 톱날');
+    await expect(card.getByRole('button', { name: /파밍 추적/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(failures).toEqual([]);
+});
+
 test('debug performance panel reports live frame and FX metrics', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page, '/?debug=perf');

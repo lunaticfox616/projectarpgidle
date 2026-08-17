@@ -9048,13 +9048,14 @@ function addItemToInventory(item, options) {
     normalizeItem(item);
     // guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등).
     // 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다.
-    let guaranteedKeep = !!(options && options.guaranteedKeep);
+    let uniqueHuntTarget = typeof uniqueHuntRuntime !== 'undefined' && uniqueHuntRuntime.isTargetItem(item);
+    let guaranteedKeep = !!(options && options.guaranteedKeep) || uniqueHuntTarget;
     let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
     let ignoreAutoSalvage = guaranteedKeep || !!(options && options.ignoreAutoSalvage);
     let offlineStashEnabled = game.isBackgroundCalculation && typeof routeOfflineItem === 'function' && game.offlineProgress && game.offlineProgress.stashLevel > 0;
     let autoEquipSlot = !offlineStashEnabled && typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
     if (autoEquipSlot) {
-        if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
+        recordUniqueAcquisition(item);
         if (game.settings.showLootLog) addLog(`🛡️ 빈 ${autoEquipSlot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-rare', { item });
         checkUnlocks();
         return true;
@@ -9064,7 +9065,7 @@ function addItemToInventory(item, options) {
         return false;
     }
     if (offlineStashEnabled) {
-        let route = routeOfflineItem(item, game, { protected: (typeof isChaseUniqueItem === 'function' && isChaseUniqueItem(item)) || item.locked });
+        let route = routeOfflineItem(item, game, { protected: (typeof isChaseUniqueItem === 'function' && isChaseUniqueItem(item)) || item.locked || uniqueHuntTarget });
         if (route.action === 'salvage') {
             salvageItemObject(item, true, { noDivine: true });
             game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1;
@@ -9072,7 +9073,7 @@ function addItemToInventory(item, options) {
         }
         if (route.action === 'stored') {
             if (route.replacedItem) salvageItemObject(route.replacedItem, true, { noDivine: true });
-            if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
+            recordUniqueAcquisition(item);
             checkUnlocks();
             return true;
         }
@@ -9100,11 +9101,21 @@ function addItemToInventory(item, options) {
         return false;
     }
     // 도감은 실제로 인벤토리에 수집했을 때만 등록한다. (인벤토리가 가득 차 해체된 고유는 도감 미등록)
-    if (item.rarity === 'unique') registerUniqueToCodexOnAcquire(item);
+    recordUniqueAcquisition(item);
     game.inventory.push(item);
     // 일반 습득마다 알림을 켜면 전투 중 끊임없는 드랍 때문에 장비 알림이 항상 켜진 것처럼
     // 보인다. 장비 탭 알림은 해금 같은 실제 주목할 이벤트(checkUnlocks)에서만 켠다.
     checkUnlocks();
+    return true;
+}
+
+function recordUniqueAcquisition(item) {
+    if (item.rarity !== 'unique') return false;
+    registerUniqueToCodexOnAcquire(item);
+    if (typeof uniqueHuntRuntime === 'undefined') return true;
+    let target = uniqueHuntRuntime.complete(item);
+    if (!target) return true;
+    addLog(`🎯 파밍 목표 획득: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique', { item, toast: true });
     return true;
 }
 

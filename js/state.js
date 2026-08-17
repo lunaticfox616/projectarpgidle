@@ -2361,6 +2361,7 @@ const defaultGame = {
     gemEnhanceTargetSkill: null,
     gemEngraveSelectedSlot: 0,
     uniqueCodex: {},
+    uniqueHuntTargets: [],
     codexNewlyRegistered: {},
     codexCollapsedSlots: {},
     codexSubtab: 'main',
