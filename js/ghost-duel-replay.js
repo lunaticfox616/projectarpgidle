@@ -1,6 +1,7 @@
 const ghostDuelReplayRuntime = { frameId: 0, token: 0, assets: new Map(), state: null };
 const GHOST_DUEL_FRAME_COUNTS = Object.freeze({ idle: 1, attack: 7 });
 const GHOST_DUEL_ELEMENT_COLORS = Object.freeze({ phys: '#e8d4b0', fire: '#ff7048', cold: '#80d9ff', light: '#d9f36a', chaos: '#c770ff' });
+const GHOST_DUEL_ARENA_IMAGE = 'assets/battlefield-map.png';
 
 function getGhostReplayFighter(duel, side) {
     let fighter = duel && duel[side] && typeof duel[side] === 'object' ? duel[side] : {};
@@ -15,7 +16,8 @@ function renderGhostDuelReplay(duel) {
     return `<section class="ghost-duel-replay" data-duel-seed="${escapeHTML(String(duel.seed || ''))}">
         <div class="ghost-duel-hud left"><strong>${escapeHTML(String(left.nickname || '도전자'))}</strong><span>${escapeHTML(String(left.snapshot.activeSkill || '기본 공격'))}</span><div><i data-ghost-hp="left"></i></div><em data-ghost-hp-label="left">100%</em></div>
         <div class="ghost-duel-hud right"><strong>${escapeHTML(String(right.nickname || '수비자'))}</strong><span>${escapeHTML(String(right.snapshot.activeSkill || '기본 공격'))}</span><div><i data-ghost-hp="right"></i></div><em data-ghost-hp-label="right">100%</em></div>
-        <canvas class="ghost-duel-canvas" width="720" height="320" aria-label="고스트 실전투 재생"></canvas>
+        <canvas class="ghost-duel-canvas" width="800" height="480" aria-label="고스트 실전투 재생"></canvas>
+        <div class="ghost-duel-stage-label">GHOST COMBAT REPLAY</div>
         <div class="ghost-duel-status" aria-live="polite">실전투 준비</div>
         <div class="ghost-duel-controls"><button type="button" data-ghost-action="toggle">일시정지</button><button type="button" data-ghost-action="speed">1×</button><button type="button" data-ghost-action="restart">다시 보기</button><button type="button" data-ghost-action="skip">결과 보기</button></div>
     </section>`;
@@ -75,25 +77,53 @@ function applyGhostDuelEvent(state, event) {
     updateGhostDuelHealth(state.root, 'right', state.rightPct);
 }
 
-function drawGhostDuelBackdrop(ctx, width, height) {
+function drawGhostDuelGrid(ctx, width, height) {
+    let horizon = height * 0.48;
+    let floor = height * 0.96;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(151, 207, 238, .17)';
+    ctx.lineWidth = 1;
+    for (let lane = -8; lane <= 8; lane++) {
+        ctx.beginPath(); ctx.moveTo(width / 2, horizon); ctx.lineTo(width / 2 + lane * width / 8, floor); ctx.stroke();
+    }
+    for (let row = 0; row <= 8; row++) {
+        let progress = row / 8; let y = horizon + (floor - horizon) * progress;
+        let half = width * 0.62 * progress;
+        ctx.beginPath(); ctx.moveTo(width / 2 - half, y); ctx.lineTo(width / 2 + half, y); ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function drawGhostDuelBackdrop(ctx, width, height, image) {
+    if (image) ctx.drawImage(image, 0, 0, width, height);
+    else {
     let gradient = ctx.createLinearGradient(0, 0, 0, height);
     gradient.addColorStop(0, '#12162a'); gradient.addColorStop(0.55, '#1d2235'); gradient.addColorStop(1, '#090d16');
     ctx.fillStyle = gradient; ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = 'rgba(91,69,135,.18)'; ctx.beginPath(); ctx.ellipse(width / 2, height - 42, width * 0.43, 54, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(180,154,230,.15)'; ctx.lineWidth = 1;
-    for (let ring = 0; ring < 3; ring++) { ctx.beginPath(); ctx.ellipse(width / 2, height - 42, 90 + ring * 90, 18 + ring * 17, 0, 0, Math.PI * 2); ctx.stroke(); }
-    ctx.fillStyle = 'rgba(205,185,255,.18)'; ctx.fillRect(width / 2 - 1, 62, 2, height - 92);
+    }
+    let shade = ctx.createLinearGradient(0, 0, 0, height);
+    shade.addColorStop(0, 'rgba(3, 6, 14, .45)'); shade.addColorStop(0.5, 'rgba(7, 9, 17, .12)'); shade.addColorStop(1, 'rgba(2, 4, 9, .62)');
+    ctx.fillStyle = shade; ctx.fillRect(0, 0, width, height);
+    drawGhostDuelGrid(ctx, width, height);
 }
 
-function drawGhostDuelSprite(ctx, image, action, frameProgress, x, y, flip) {
-    if (!image) return;
-    let count = GHOST_DUEL_FRAME_COUNTS[action] || 1;
-    let index = action === 'attack' ? Math.min(count - 1, Math.floor(clampNumber(frameProgress, 0, 0.999) * count)) : 0;
+function drawGhostDuelFallbackFighter(ctx, view) {
+    ctx.save(); ctx.translate(view.x, view.y); if (view.flip) ctx.scale(-1, 1); if (view.defeated) ctx.rotate(-0.28);
+    ctx.globalAlpha = view.defeated ? 0.48 : 0.92; ctx.fillStyle = '#172233'; ctx.strokeStyle = '#b8d4eb'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-28, 0); ctx.lineTo(-18, -92); ctx.lineTo(0, -125); ctx.lineTo(22, -90); ctx.lineTo(32, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+}
+
+function drawGhostDuelSprite(ctx, image, view) {
+    if (!image) return drawGhostDuelFallbackFighter(ctx, view);
+    let count = GHOST_DUEL_FRAME_COUNTS[view.action] || 1;
+    let index = view.action === 'attack' ? Math.min(count - 1, Math.floor(clampNumber(view.progress, 0, 0.999) * count)) : 0;
     let sx = Math.round(index * image.width / count);
     let nextX = index === count - 1 ? image.width : Math.round((index + 1) * image.width / count);
-    let sw = Math.max(1, nextX - sx); let drawHeight = 235; let scale = drawHeight / Math.max(1, image.height); let dw = sw * scale;
-    ctx.save(); ctx.translate(x, 0); if (flip) ctx.scale(-1, 1);
-    ctx.drawImage(image, sx, 0, sw, image.height, -dw / 2, y - drawHeight, dw, drawHeight); ctx.restore();
+    let sw = Math.max(1, nextX - sx); let drawHeight = Math.min(292, view.viewportHeight * 0.58);
+    let scale = drawHeight / Math.max(1, image.height); let dw = sw * scale;
+    ctx.save(); ctx.translate(view.x, view.y); if (view.defeated) { ctx.globalAlpha = 0.5; ctx.rotate(view.flip ? 0.2 : -0.2); } if (view.flip) ctx.scale(-1, 1);
+    ctx.drawImage(image, sx, 0, sw, image.height, -dw / 2, -drawHeight, dw, drawHeight); ctx.restore();
 }
 
 function drawGhostDuelDelivery(ctx, cue, progress, fromX, toX, y, color) {
@@ -114,31 +144,61 @@ function drawGhostDuelDelivery(ctx, cue, progress, fromX, toX, y, color) {
     ctx.restore();
 }
 
+function drawGhostDuelImpact(ctx, x, y, progress, color) {
+    let size = 42 * Math.sin(clampNumber(progress, 0, 1) * Math.PI);
+    if (size <= 1) return;
+    ctx.save(); ctx.translate(x, y); ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.shadowColor = color; ctx.shadowBlur = 14;
+    for (let shard = 0; shard < 7; shard++) {
+        let angle = -1.15 + shard * 0.38;
+        ctx.beginPath(); ctx.moveTo(Math.cos(angle) * 5, Math.sin(angle) * 5);
+        ctx.lineTo(Math.cos(angle) * size, Math.sin(angle) * size); ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function getGhostDuelFighterX(side, width) {
+    return side === 'left' ? width * 0.24 : width * 0.76;
+}
+
 function drawGhostDuelCue(ctx, cue, elapsed, width, height) {
     let age = elapsed - cue.start; if (age < 0 || age > 620) return;
-    let fromX = cue.side === 'left' ? 170 : width - 170; let toX = cue.side === 'left' ? width - 170 : 170;
+    let fromX = getGhostDuelFighterX(cue.side, width);
+    let toX = getGhostDuelFighterX(cue.side === 'left' ? 'right' : 'left', width);
     let progress = clampNumber(age / 260, 0, 1); let color = GHOST_DUEL_ELEMENT_COLORS[cue.element] || GHOST_DUEL_ELEMENT_COLORS.phys;
     if (cue.style !== 'melee' && progress < 1) {
         drawGhostDuelDelivery(ctx, cue, progress, fromX, toX, height - 112, color);
     }
+    if (age >= 185 && age < 430) drawGhostDuelImpact(ctx, toX, height - 132, (age - 185) / 245, color);
     if (age < 180 || progress < 1) return;
     let fade = 1 - clampNumber((age - 180) / 440, 0, 1); ctx.save(); ctx.globalAlpha = fade;
     ctx.font = '900 17px "Malgun Gothic",sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#070911';
-    let targetX = cue.side === 'left' ? width - 170 : 170; let targetY = height - 170 - (age - 180) * 0.035;
+    let targetX = toX; let targetY = height - 190 - (age - 180) * 0.035;
     ctx.strokeText(cue.text, targetX, targetY); ctx.fillStyle = cue.outcome === 'hit' ? color : '#c9d5e8'; ctx.fillText(cue.text, targetX, targetY); ctx.restore();
+}
+
+function getGhostDuelLunge(cue, progress, width) {
+    if (!cue) return 0;
+    let distance = cue.style === 'melee' ? width * 0.16 : width * 0.018;
+    return Math.sin(progress * Math.PI) * distance;
 }
 
 function drawGhostDuelFrame(state) {
     let ctx = state.context; let width = state.width; let height = state.height;
-    ctx.clearRect(0, 0, width, height); drawGhostDuelBackdrop(ctx, width, height);
+    ctx.clearRect(0, 0, width, height); drawGhostDuelBackdrop(ctx, width, height, state.arenaAsset);
     let recentLeft = [...state.cues].reverse().find(cue => cue.side === 'left' && state.elapsed - cue.start < 360);
     let recentRight = [...state.cues].reverse().find(cue => cue.side === 'right' && state.elapsed - cue.start < 360);
     let leftProgress = recentLeft ? clampNumber((state.elapsed - recentLeft.start) / 360, 0, 1) : 0;
     let rightProgress = recentRight ? clampNumber((state.elapsed - recentRight.start) / 360, 0, 1) : 0;
-    let leftLunge = recentLeft ? Math.sin(leftProgress * Math.PI) * 28 : 0;
-    let rightLunge = recentRight ? Math.sin(rightProgress * Math.PI) * 28 : 0;
-    drawGhostDuelSprite(ctx, recentLeft ? state.leftAssets.attack : state.leftAssets.idle, recentLeft ? 'attack' : 'idle', leftProgress, 170 + leftLunge, height - 30, false);
-    drawGhostDuelSprite(ctx, recentRight ? state.rightAssets.attack : state.rightAssets.idle, recentRight ? 'attack' : 'idle', rightProgress, width - 170 - rightLunge, height - 30, true);
+    let leftLunge = getGhostDuelLunge(recentLeft, leftProgress, width);
+    let rightLunge = getGhostDuelLunge(recentRight, rightProgress, width);
+    let leftImage = recentLeft ? (state.leftAssets.attack || state.leftAssets.idle) : state.leftAssets.idle;
+    let rightImage = recentRight ? (state.rightAssets.attack || state.rightAssets.idle) : state.rightAssets.idle;
+    drawGhostDuelSprite(ctx, leftImage, { action: recentLeft ? 'attack' : 'idle', progress: leftProgress,
+        x: getGhostDuelFighterX('left', width) + leftLunge, y: height - 34,
+        flip: false, defeated: state.leftPct <= 0, viewportHeight: height });
+    drawGhostDuelSprite(ctx, rightImage, { action: recentRight ? 'attack' : 'idle', progress: rightProgress,
+        x: getGhostDuelFighterX('right', width) - rightLunge, y: height - 34,
+        flip: true, defeated: state.rightPct <= 0, viewportHeight: height });
     state.cues.forEach(cue => drawGhostDuelCue(ctx, cue, state.elapsed, width, height));
     state.cues = state.cues.filter(cue => state.elapsed - cue.start <= 650);
 }
@@ -197,12 +257,16 @@ function runGhostDuelReplayFrame(token, now) {
 async function mountGhostDuelReplay(duel) {
     let root = document.querySelector('.ghost-duel-replay');
     if (!root || !duel || !Array.isArray(duel.events)) return false;
+    let mounted = ghostDuelReplayRuntime.state;
+    if (mounted && mounted.root === root && String(mounted.duel.seed || '') === String(duel.seed || '')) return true;
     stopGhostDuelReplay(); let token = ghostDuelReplayRuntime.token;
     let canvas = root.querySelector('canvas'); let context = canvas && canvas.getContext('2d'); if (!context) return false;
     let left = getGhostReplayFighter(duel, 'left'); let right = getGhostReplayFighter(duel, 'right');
-    let [leftAssets, rightAssets] = await Promise.all([loadGhostDuelFighterAssets(left), loadGhostDuelFighterAssets(right)]);
+    let [leftAssets, rightAssets, arenaAsset] = await Promise.all([
+        loadGhostDuelFighterAssets(left), loadGhostDuelFighterAssets(right), loadGhostDuelImage(GHOST_DUEL_ARENA_IMAGE)
+    ]);
     if (token !== ghostDuelReplayRuntime.token || !document.contains(root)) return false;
-    let state = { root, duel, left, right, leftAssets, rightAssets, context, width: canvas.width, height: canvas.height,
+    let state = { root, duel, left, right, leftAssets, rightAssets, arenaAsset, context, width: canvas.width, height: canvas.height,
         duration: Math.max(0, Number(duel.durationMs) || 0), elapsed: 0, index: 0, leftPct: 100, rightPct: 100,
         cues: [], speed: 1, playing: true, finished: false, lastNow: performance.now() };
     ghostDuelReplayRuntime.state = state; bindGhostDuelControls(state); resetGhostDuelReplay(state);

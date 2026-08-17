@@ -49,6 +49,11 @@ assert.strictEqual(capped.leechPct, 20);
 
 async function verifyDirectRegistrationFromCurrentBuild() {
     const calls = [];
+    const arenaHost = {
+        htmlWrites: 0,
+        get innerHTML() { return this.html || ''; },
+        set innerHTML(value) { this.html = value; this.htmlWrites++; }
+    };
     const integrationContext = {
         console,
         cloudState: { user: { id: 'ghost-user' } },
@@ -61,7 +66,7 @@ async function verifyDirectRegistrationFromCurrentBuild() {
             readyState: 'complete',
             head: { appendChild() {} },
             querySelector: () => ({ content: 'ghost-test-build' }),
-            getElementById: () => null,
+            getElementById: id => id === 'map-ghost-arena' ? arenaHost : null,
             createElement: () => ({ style: {}, setAttribute() {} }),
             addEventListener() {}
         },
@@ -105,6 +110,11 @@ async function verifyDirectRegistrationFromCurrentBuild() {
     assert(!calls.some(call => call.path === '/rest/v1/playtest_runs'), 'ghost registration must stay independent from playtest records');
     assert(calls.findIndex(call => call.path === 'profile-uploaded') < calls.indexOf(registration),
         'the social profile must exist before registering its current build');
+    const writesBeforeRepeat = arenaHost.htmlWrites;
+    integrationContext.renderGhostArena();
+    integrationContext.renderGhostArena();
+    assert.strictEqual(arenaHost.htmlWrites, writesBeforeRepeat,
+        'unchanged inventory or static UI refreshes must not replace the ghost arena DOM');
 }
 
 verifyDirectRegistrationFromCurrentBuild()

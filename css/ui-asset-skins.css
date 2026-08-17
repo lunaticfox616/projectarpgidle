@@ -707,11 +707,18 @@
 }
 
 #enemy-area .enemy-card.enemy-boss .enemy-trait-marquee {
-  display: block;
+  display: flex;
   width: max-content;
   min-width: 100%;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   white-space: nowrap;
+}
+
+#enemy-area .enemy-card.enemy-boss .enemy-trait-marquee-copy {
+  display: block;
+  flex: 0 0 auto;
 }
 
 #enemy-area .enemy-card.enemy-boss .enemy-traits.is-overflowing {
@@ -721,6 +728,7 @@
 
 #enemy-area .enemy-card.enemy-boss .enemy-traits.is-overflowing .enemy-trait-marquee {
   min-width: max-content;
+  justify-content: flex-start;
   animation: boss-trait-marquee var(--trait-duration) linear infinite;
   will-change: transform;
 }
@@ -732,7 +740,7 @@
 
 @keyframes boss-trait-marquee {
   from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(var(--trait-loop-x), 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
 }
 
 #enemy-area .enemy-hud-meta {

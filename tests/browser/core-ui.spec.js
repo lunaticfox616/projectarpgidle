@@ -786,11 +786,11 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
             opponent: '상대', opponentSkill: '연속 베기', result: 'win', ratingBefore: 1000, ratingAfter: 1012, ratingDelta: 12,
             duel: {
-                seed: 'browser-duel', winner: 'left', durationMs: 120,
+                seed: 'browser-duel', winner: 'left', durationMs: 2400,
                 leftFinalPct: 72, rightFinalPct: 0,
                 left: { nickname: '테스터', snapshot: { heroId: 'hero1', activeSkill: '독니 사출', skillElement: 'chaos', style: 'projectile' } },
                 right: { nickname: '상대', snapshot: { heroId: 'hero2', activeSkill: '연속 베기', skillElement: 'phys', style: 'melee' } },
-                events: [{ t: 60, left: { outcome: 'hit', damage: 100, crit: false, strikes: 1 }, right: { outcome: 'deflect', damage: 28, crit: false, strikes: 1 }, leftPct: 72, rightPct: 0 }]
+                events: [{ t: 600, left: { outcome: 'hit', damage: 100, crit: false, strikes: 1 }, right: { outcome: 'deflect', damage: 28, crit: false, strikes: 1 }, leftPct: 72, rightPct: 0 }]
             }
         }) });
     });
@@ -840,6 +840,27 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     await page.evaluate(() => { ghostArenaState.data.combatProtocolVersion = 4; ghostArenaState.message = ''; renderGhostArena(); });
     await page.evaluate(() => fightRandomGhost());
     await expect(page.locator('.ghost-duel-canvas')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => !!ghostDuelReplayRuntime.state)).toBe(true);
+    const replayBeforeRefresh = await page.evaluate(() => {
+        window.__ghostCanvasBeforeRefresh = document.querySelector('.ghost-duel-canvas');
+        window.__ghostRootBeforeRefresh = ghostDuelReplayRuntime.state && ghostDuelReplayRuntime.state.root;
+        return ghostDuelReplayRuntime.state && ghostDuelReplayRuntime.state.elapsed;
+    });
+    await page.evaluate(() => {
+        game.inventory.push({ id: 987654321, name: '대전 갱신 검사 장비', slot: '무기', rarity: 'normal', stats: [], baseStats: [] });
+        updateStaticUI();
+        game.inventory = game.inventory.filter(item => item && item.id !== 987654321);
+        updateStaticUI();
+    });
+    await page.waitForTimeout(180);
+    const replayAfterRefresh = await page.evaluate(() => ({
+        sameCanvas: document.querySelector('.ghost-duel-canvas') === window.__ghostCanvasBeforeRefresh,
+        sameRoot: ghostDuelReplayRuntime.state && ghostDuelReplayRuntime.state.root === window.__ghostRootBeforeRefresh,
+        elapsed: ghostDuelReplayRuntime.state && ghostDuelReplayRuntime.state.elapsed
+    }));
+    expect(replayAfterRefresh.sameCanvas).toBe(true);
+    expect(replayAfterRefresh.sameRoot).toBe(true);
+    expect(replayAfterRefresh.elapsed).toBeGreaterThan(replayBeforeRefresh);
     await expect(page.locator('.ghost-result')).toContainText('승리');
     await expect(page.locator('.ghost-result')).toContainText('+12');
     await expect(page.locator('.ghost-result')).not.toHaveClass(/ghost-duel-result-pending/, { timeout: 10_000 });

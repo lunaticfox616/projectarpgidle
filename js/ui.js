@@ -3869,7 +3869,6 @@ function switchMapSubtab(subtabId) {
         let currentBtn = document.getElementById('btn-' + subtabId);
         if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) {
             if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
-            if (subtabId === 'map-tab-pvp' && typeof renderGhostArena === 'function') renderGhostArena();
             return;
         }
     }
@@ -9040,9 +9039,9 @@ function scheduleUiEnemyTraitOverflow(traitEl, track, content, signature) {
         let overflowing = singleWidth > panelWidth + 4;
         traitEl.classList.toggle('is-overflowing', overflowing);
         if (overflowing) {
-            track.textContent = `${content}　·　${content}　·　`;
+            let loopText = escapeHTML(`${content}　·　`);
+            track.innerHTML = `<span class="enemy-trait-marquee-copy">${loopText}</span><span class="enemy-trait-marquee-copy" aria-hidden="true">${loopText}</span>`;
             let loopDistance = Math.max(singleWidth, track.scrollWidth / 2);
-            track.style.setProperty('--trait-loop-x', `${-loopDistance}px`);
             track.style.setProperty('--trait-duration', `${Math.max(8, Math.min(20, loopDistance / 20)).toFixed(2)}s`);
         }
         traitEl.__traitOverflowPending = false;

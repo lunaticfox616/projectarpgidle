@@ -268,6 +268,14 @@ function createTraitPanelFixture() {
   const classes = new Set();
   const properties = {};
   const track = { textContent: '', scrollWidth: 180, style: { setProperty(key, value) { properties[key] = value; } } };
+  Object.defineProperty(track, 'innerHTML', {
+    get() { return this.__innerHTML || ''; },
+    set(value) {
+      this.__innerHTML = value;
+      this.textContent = String(value).replace(/<[^>]+>/g, '');
+      this.scrollWidth = 400;
+    }
+  });
   const panel = {
     clientWidth: 80, isConnected: true, style: {}, title: '',
     classList: {
@@ -292,7 +300,7 @@ context.updateUiEnemyTraitPanel(desktopTraits.panel, ['화염', '중갑 전개',
 assert(desktopTraits.track.textContent.startsWith(traitDisplay.fullText)
   && desktopTraits.track.textContent.split(traitDisplay.fullText).length - 1 === 2,
   'desktop boss ticker must begin filled and repeat its text for a seamless loop');
-assert(desktopTraits.classes.has('is-overflowing') && desktopTraits.properties['--trait-loop-x'] === '-180px',
+assert(desktopTraits.classes.has('is-overflowing') && desktopTraits.properties['--trait-duration'] === '10.00s',
   'desktop boss traits must loop from visible content instead of entering from an empty panel');
 assert.strictEqual(desktopTraits.panel.title, undefined, 'boss traits must not retain the browser-native title tooltip');
 assert.strictEqual(desktopTraits.panel['data-enemy-trait-tooltip'], '전체 설명',
