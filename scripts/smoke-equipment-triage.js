@@ -53,10 +53,10 @@ const cardHtml = runtime.renderInventoryCard(candidates[0], 0, 'equip', defenseR
 assert(cardHtml.includes('생존 +'), 'analyzed cards must expose the result without requiring tooltip hover');
 
 vm.runInContext('game.inventory[0].locked = true', runtime);
-runtime.equipmentTriage.sync();
+runtime.equipmentTriage.sync(true);
 assert(runtime.equipmentTriage.getResult(candidates[0]), 'locking a reviewed item must not discard the analysis');
 vm.runInContext('game.inventory[0].stats[0].val += 1', runtime);
-runtime.equipmentTriage.sync();
+runtime.equipmentTriage.sync(true);
 assert.strictEqual(runtime.equipmentTriage.getResult(candidates[0]), null,
     'crafting or loot changes must invalidate stale comparison results');
 assert(triageHost.innerHTML.includes('다시 분석'), 'stale results must ask for a fresh analysis');

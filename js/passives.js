@@ -2950,7 +2950,7 @@ const SEA_GIFT_RECIPES = [
     // --- 초강력 레시피 (초희귀 어종 필요) ---
     { id: 'sealOffering', desc: '【장비 강화: 옵션 1줄 영구 봉인】 해류군주 비단잉어와 발광 송어로 옵션 한 줄을 영구히 봉인합니다.', requires: { tidelordKoi: 1, glowfinTrout: 3 }, effect: { type: 'lockMod', count: 1 } },
     { id: 'leviathanBoon', desc: '【장비 강화: 최상급 태그 옵션 확정(등급 +2)】 전설의 새끼 괴어와 심연 등불고기, 조류 장어로 최상급 태그 옵션을 확정 부여합니다.', requires: { voidLeviathanSpawn: 2, abyssAngler: 2, tidalEel: 3 }, effect: { type: 'guaranteedTaggedMod', tierBoost: 2 } },
-    { id: 'tidelordRefine', desc: '【장비 강화: 계열 재굴림(등급 +1)】 해류군주 비단잉어와 발광 송어로 원하는 계열의 기존 옵션만 다시 굴립니다(다른 줄 보존).', requires: { tidelordKoi: 2, glowfinTrout: 3 }, effect: { type: 'taggedReroll', tierBoost: 1 } },
+    { id: 'tidelordRefine', desc: '【장비 강화: 계열 재굴림(등급 +1)】 해류군주 비단잉어와 발광 송어로 원하는 계열의 기존 옵션만 다시 굴립니다(다른 줄 보존).', requires: { tidelordKoi: 2, glowfinTrout: 3 }, effect: { type: 'taggedReroll', tierBoost: 1, allMatching: true } },
     { id: 'crushDepthScar', desc: '【장비 강화: 심해 전용 고정 옵션 부착】 무지갯빛 공포와 해류군주 비단잉어, 심연 등불고기로 심해 전용 고정 옵션을 부착합니다.', requires: { prismaticHorror: 2, tidelordKoi: 1, abyssAngler: 2 }, effect: { type: 'fixedBenchOption' } },
     { id: 'doubleSealForge', desc: '【장비 강화: 옵션 2줄 동시 영구 봉인 + 나머지 1줄 즉시 재단】 무지갯빛 공포와 발광 송어로 옵션 두 줄을 동시에 봉인하고, 남은 줄은 즉시 재단합니다.', requires: { prismaticHorror: 3, glowfinTrout: 4 }, effect: { type: 'lockMod', count: 2, bonusTaggedReroll: true } },
     { id: 'voidPureRefine', desc: '【장비 강화: 강제 희귀 등급 승급】 무지갯빛 공포와 공허 리바이어던 새끼, 은빛 비늘치로 장비를 강제로 희귀 등급으로 승급시킵니다.', requires: { prismaticHorror: 2, voidLeviathanSpawn: 1, shallowSilverfin: 5 }, effect: { type: 'upgradeRarity', force: true } },
@@ -2972,6 +2972,37 @@ function removeOneModFromItem(item) {
     let idx = item.stats.findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
     if (idx < 0) return false;
     item.stats.splice(idx, 1);
+    return true;
+}
+
+function getSeaGiftRerollRow(item, index) {
+    let stat = item && Array.isArray(item.stats) ? item.stats[index] : null;
+    if (!stat || stat.lockedByHoney || stat.lockedByRift) return null;
+    let probe = { ...item, stats: item.stats.filter((row, rowIndex) => rowIndex !== index) };
+    let mod = getAvailableMods(probe).find(row => (row.statId || row.id) === stat.id);
+    return mod ? { index, stat, mod } : null;
+}
+
+function rollSeaGiftExistingAffix(row, tierBoost) {
+    let currentTier = Math.max(1, Math.floor(Number(row.stat.tier) || 1));
+    let maxTier = Array.isArray(row.mod.tierValues) ? row.mod.tierValues.length : 20;
+    let targetTier = Math.min(maxTier, currentTier + Math.max(0, Math.floor(tierBoost || 0)));
+    return rollAffixValueInTierRange(row.mod, targetTier, targetTier);
+}
+
+function getSeaGiftRerollRows(item, category) {
+    return (item.stats || []).map((stat, index) => {
+        if (category && getModCategory(stat) !== category) return null;
+        return getSeaGiftRerollRow(item, index);
+    }).filter(Boolean);
+}
+
+function removeWorstSeaGiftMod(item, excludedIndex) {
+    let candidates = (item.stats || []).map((stat, index) => ({ stat, index }))
+        .filter(row => row.index !== excludedIndex && row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift)
+        .sort((left, right) => (Number(left.stat.tier) || 0) - (Number(right.stat.tier) || 0));
+    if (candidates.length === 0) return false;
+    item.stats.splice(candidates[0].index, 1);
     return true;
 }
 
@@ -3031,29 +3062,37 @@ function craftSeaGift(recipeId, targetItem, options) {
         if (effect.type === 'guaranteedTaggedMod' && category) pool = pool.filter(mod => getModCategory(mod) === category);
         let mod = pickWeightedMod(pool);
         if (!mod) { addLog('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
+        let editable = (item.stats || []).map((stat, index) => ({ stat, index }))
+            .filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift);
+        if (effect.bonusRemoveMod && editable.length < 2) {
+            addLog('최상급 옵션을 부여하고 다른 옵션을 제거하려면 봉인되지 않은 옵션이 2줄 이상 필요합니다.', 'attack-monster');
+            return false;
+        }
         let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(effect.tierBoost || 0));
-        let idx = (item.stats || []).findIndex(stat => stat && !stat.lockedByHoney && !stat.lockedByRift);
+        let idx = editable.length > 0 ? editable[0].index : -1;
         let rolled = rollAffixValue(mod, maxTier);
         if (idx < 0) item.stats.push(rolled); else item.stats[idx] = rolled;
-        if (effect.bonusRemoveMod) removeOneModFromItem(item);
+        if (effect.bonusRemoveMod) removeWorstSeaGiftMod(item, idx);
         updateItemName(item);
     } else if (effect.type === 'removeMod') {
         if (!removeOneModFromItem(item)) { addLog('제거할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
         updateItemName(item);
     } else if (effect.type === 'upgradeRarity') {
-        if (item.rarity === 'normal') item.rarity = 'magic';
-        else if (item.rarity === 'magic' || effect.force) item.rarity = 'rare';
+        if (item.rarity === 'rare' || item.rarity === 'unique') {
+            addLog('이미 희귀 이상인 장비는 더 승급할 수 없습니다.', 'attack-monster');
+            return false;
+        }
+        if (effect.force) item.rarity = 'rare';
+        else if (item.rarity === 'normal') item.rarity = 'magic';
+        else if (item.rarity === 'magic') item.rarity = 'rare';
         updateItemName(item);
     } else if (effect.type === 'lockMod') {
         if (!applySeaGiftLockEffect(item, effect, category)) return false;
     } else if (effect.type === 'taggedReroll') {
-        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift && (!category || getModCategory(s) === category)) ? i : -1).filter(i => i >= 0);
-        if (editableIdx.length === 0) { addLog('해당 계열의 재굴림 가능한 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + Math.max(0, Math.floor(effect.tierBoost || 0));
-        editableIdx.forEach(idx => {
-            let mods = pickRandomMods(getAvailableMods(item), 1);
-            if (mods && mods[0]) item.stats[idx] = rollAffixValue(mods[0], maxTier);
-        });
+        let rows = getSeaGiftRerollRows(item, category);
+        if (rows.length === 0) { addLog('해당 계열의 재굴림 가능한 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+        let targets = effect.allMatching ? rows : [rows[Math.floor(Math.random() * rows.length)]];
+        targets.forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, effect.tierBoost); });
         updateItemName(item);
     } else if (effect.type === 'fixedBenchOption') {
         let option = getOceanWorkbenchOption(options && options.optionId, !!effect.topTier);
@@ -3076,34 +3115,27 @@ function craftSeaGift(recipeId, targetItem, options) {
             addLog(`🎲 무작위 제작 오브: ${(ORB_DB[key] || {}).name || key} +1`, 'loot-rare');
         }
     } else if (effect.type === 'safeReroll') {
-        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
-        if (editableIdx.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
-        let before = item.stats[idx];
-        let mods = pickRandomMods(getAvailableMods(item), 1);
-        if (mods && mods[0]) {
-            let rolled = rollAffixValue(mods[0], getItemCraftTier(item));
-            if ((Number(rolled.val) || 0) >= (Number(before.val) || 0)) item.stats[idx] = rolled;
-            else addLog('🌊 재굴림 결과가 기존보다 낮아 적용을 취소했습니다.', 'loot-magic');
-        }
+        let rows = getSeaGiftRerollRows(item);
+        if (rows.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+        let row = rows[Math.floor(Math.random() * rows.length)];
+        let rolled = rollSeaGiftExistingAffix(row, 0);
+        if ((Number(rolled.val) || 0) >= (Number(row.stat.val) || 0)) item.stats[row.index] = rolled;
+        else addLog('🌊 재굴림 결과가 기존보다 낮아 적용을 취소했습니다.', 'loot-magic');
         updateItemName(item);
     } else if (effect.type === 'twinReroll') {
-        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
-        if (editableIdx.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1));
-        let shuffled = editableIdx.slice().sort(() => Math.random() - 0.5).slice(0, 2);
-        shuffled.forEach(idx => {
-            let mods = pickRandomMods(getAvailableMods(item), 1);
-            if (mods && mods[0]) item.stats[idx] = rollAffixValue(mods[0], maxTier);
-        });
+        let rows = getSeaGiftRerollRows(item);
+        if (rows.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+        rows.sort(() => Math.random() - 0.5).slice(0, 2)
+            .forEach(row => { item.stats[row.index] = rollSeaGiftExistingAffix(row, 0); });
         updateItemName(item);
     } else if (effect.type === 'tierStepUp') {
-        let editableIdx = (item.stats || []).map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
-        if (editableIdx.length === 0) { addLog('등급을 올릴 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
-        let idx = editableIdx[Math.floor(Math.random() * editableIdx.length)];
-        let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1)) + 1;
-        let mods = pickRandomMods(getAvailableMods(item), 1);
-        if (mods && mods[0]) item.stats[idx] = rollAffixValue(mods[0], maxTier);
+        let rows = getSeaGiftRerollRows(item).filter(row => {
+            let cap = Array.isArray(row.mod.tierValues) ? row.mod.tierValues.length : 20;
+            return Math.max(1, Math.floor(Number(row.stat.tier) || 1)) < cap;
+        });
+        if (rows.length === 0) { addLog('등급을 올릴 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+        let row = rows[Math.floor(Math.random() * rows.length)];
+        item.stats[row.index] = rollSeaGiftExistingAffix(row, 1);
         updateItemName(item);
     } else if (effect.type === 'echoMod') {
         if ((item.stats || []).some(s => s && s.isEchoMod)) { addLog('이미 메아리 옵션을 가진 장비에는 다시 사용할 수 없습니다.', 'attack-monster'); return false; }

@@ -127,4 +127,21 @@ function loadGame(save = {}) {
     assert.strictEqual(context.isBulkSalvageProtectedItem(sword), false, '프리셋을 비우면 자동 보호도 해제해야 한다');
 }
 
+{
+    const state = loadGame();
+    state.equipment['무기'] = makeItem(601, '렌더 검', '무기');
+    context.equipmentLoadoutRuntime.save(0, '렌더 검사', state);
+    let writes = 0;
+    let html = '';
+    const root = { dataset: {} };
+    Object.defineProperty(root, 'innerHTML', {
+        get: () => html,
+        set: value => { writes += 1; html = value; }
+    });
+    context.document.getElementById = id => id === 'ui-equipment-presets' ? root : null;
+    context.equipmentLoadoutUi.render();
+    context.equipmentLoadoutUi.render();
+    assert.strictEqual(writes, 1, 'unchanged UI refreshes must not replace the loadout preset controls');
+}
+
 console.log('smoke-equipment-loadouts passed');

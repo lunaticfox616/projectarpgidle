@@ -12,7 +12,8 @@
      * @property {string} ehpSlot
      */
     const state = {
-        status: 'idle', filter: 'all', results: new Map(), signature: '', token: 0, work: null
+        status: 'idle', filter: 'all', results: new Map(), signature: '', token: 0, work: null,
+        lastSyncAt: 0
     };
 
     function getInventorySignature() {
@@ -152,11 +153,15 @@
         state.results = new Map();
         state.signature = '';
         state.work = null;
+        state.lastSyncAt = 0;
         render();
     }
 
-    function sync() {
+    function sync(force) {
         if (state.status !== 'ready' && state.status !== 'running') return;
+        let now = Date.now();
+        if (!force && now - state.lastSyncAt < 500) return;
+        state.lastSyncAt = now;
         if (getInventorySignature() === state.signature) return;
         clearResults('stale');
     }
@@ -171,15 +176,19 @@
 
     function finishAnalysis(token) {
         if (token !== state.token || !state.work) return;
+        if (getInventorySignature() !== state.signature) {
+            clearResults('stale');
+            return;
+        }
         state.status = 'ready';
         state.work = null;
+        state.lastSyncAt = Date.now();
         render();
         if (typeof updateStaticUI === 'function') updateStaticUI();
     }
 
     function runChunk(token) {
         if (token !== state.token || !state.work) return;
-        if (getInventorySignature() !== state.signature) return clearResults('stale');
         const end = Math.min(state.work.items.length, state.work.index + 3);
         try {
             while (state.work.index < end) {
