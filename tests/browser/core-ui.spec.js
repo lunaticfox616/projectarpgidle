@@ -190,6 +190,51 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
     expect(failures).toEqual([]);
 });
 
+test('salvaged equipment can be recovered for its exact reward on desktop and mobile', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.combatHalted = true;
+        game.enemies = [];
+        game.season = 2;
+        game.unlocks.items = true;
+        game.currencies.magicBud = 0;
+        game.inventory = [{
+            id: 990001, name: '복구 시험 장화', baseName: '가죽 장화', slot: '신발',
+            rarity: 'normal', hiddenTier: 3, stats: []
+        }];
+        salvageItem(0);
+        switchTab('tab-items');
+        updateStaticUI();
+    });
+
+    const shortcut = page.locator('#btn-salvage-recovery');
+    await expect(shortcut).toHaveAttribute('aria-label', /복구 가능 장비 1개/);
+    await shortcut.click();
+    const overlay = page.locator('#salvage-recovery-overlay');
+    await expect(overlay).toBeVisible();
+    await expect(overlay).toContainText('복구 시험 장화');
+    await expect(overlay).toContainText('마법의 새싹 1개');
+    const layout = await overlay.locator('.salvage-recovery-panel').evaluate(panel => {
+        const rect = panel.getBoundingClientRect();
+        return { width: rect.width, right: rect.right, bottom: rect.bottom, viewportWidth: innerWidth, viewportHeight: innerHeight };
+    });
+    expect(layout.width).toBeGreaterThan(250);
+    expect(layout.right).toBeLessThanOrEqual(layout.viewportWidth + 1);
+    expect(layout.bottom).toBeLessThanOrEqual(layout.viewportHeight + 1);
+
+    await overlay.getByRole('button', { name: '재화 반환 후 복구' }).click();
+    await expect(overlay).toContainText('복구할 장비가 없습니다.');
+    const restored = await page.evaluate(() => ({
+        inventory: game.inventory.map(item => item.name),
+        magicBud: game.currencies.magicBud,
+        recoveryCount: game.salvageRecovery.entries.length
+    }));
+    expect(restored).toEqual({ inventory: ['복구 시험 장화'], magicBud: 0, recoveryCount: 0 });
+    await expect(shortcut).toHaveAttribute('aria-label', /비어 있음/);
+    expect(failures).toEqual([]);
+});
+
 test('debug performance panel reports live frame and FX metrics', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page, '/?debug=perf');
@@ -463,13 +508,15 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
 test('mobile battle HUD stays within the viewport and exposes combat log', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
     const failures = watchRuntimeFailures(page);
+    await page.setViewportSize({ width: 320, height: 800 });
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
+        syncMapCompleteActionQuickControl();
+    });
     for (const width of [320, 360, 390]) {
         await page.setViewportSize({ width, height: 800 });
-        await openLocalGame(page);
-        await page.evaluate(() => {
-            document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
-            syncMapCompleteActionQuickControl();
-        });
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const compactHud = await page.evaluate(() => {
             const rect = selector => document.querySelector(selector).getBoundingClientRect();
             const overlaps = (left, right) => left.right > right.left + 1

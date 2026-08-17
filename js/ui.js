@@ -9976,6 +9976,7 @@ function performUpdateStaticUI() {
 
     if (itemsTabActive) {
     syncSalvageControlsFromSettings();
+    if (typeof salvageRecoveryUi !== 'undefined') salvageRecoveryUi.refreshShortcut();
     syncEquipmentMobilePane();
     renderEquipmentLoadoutSummary(pStats);
     renderPaperdoll('ui-equip-list', false);
@@ -13877,6 +13878,7 @@ function mergeDefaults(save) {
     if ((merged.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT) {
         merged.starWedge.unlocked = true;
     }
+    if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
     merged.saveVersion = defaultGame.saveVersion;
     // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
     // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.

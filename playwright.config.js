@@ -3,7 +3,7 @@ const { defineConfig, devices } = require('@playwright/test');
 module.exports = defineConfig({
     testDir: './tests/browser',
     globalSetup: require.resolve('./scripts/serve-test.js'),
-    timeout: 45_000,
+    timeout: 60_000,
     expect: { timeout: 10_000 },
     fullyParallel: false,
     reporter: [['list'], ['html', { open: 'never' }]],

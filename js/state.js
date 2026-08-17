@@ -2254,6 +2254,7 @@ const defaultGame = {
     sporeCraftModes: {},
     shrineState: { active: null, nextRollAt: 0 },
     shrineBuff: null,
+    salvageRecovery: { entries: [], sequence: 0 },
     challengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
     activeChallengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
