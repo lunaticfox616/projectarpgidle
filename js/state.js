@@ -2321,6 +2321,7 @@ const defaultGame = {
     sporeCraftModes: {},
     shrineState: { activeId: null, spawnCell: null, pity: 0, spawned: 0, claimed: 0 },
     shrineBuff: null,
+    bountyHunt: { pity: 0, offerIds: [], activeId: null, status: 'idle', offered: 0, accepted: 0, completed: 0, abandoned: 0 },
     salvageRecovery: { entries: [], sequence: 0 },
     challengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
     activeChallengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },

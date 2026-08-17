@@ -8095,6 +8095,19 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
     return pool[(variantSeed + elementOffset) % pool.length];
 }
 
+function drawBountyTargetGlyph(ctx, x, y, scale) {
+    let size = Math.max(4, Math.min(7, 5 * scale));
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(y));
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = '#ffe49a';
+    ctx.strokeStyle = '#8b5a12';
+    ctx.lineWidth = 1.2;
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+    ctx.strokeRect(-size / 2, -size / 2, size, size);
+    ctx.restore();
+}
+
 function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
     if (battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
         let enemyAtlas = battleAssets.atlas.enemies;
@@ -8118,6 +8131,7 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
             outlineAlpha: enemy.isBoss ? 0.46 : (enemy.isElite ? 0.72 : 0)
         });
         ctx.restore();
+        if (enemy.isBountyTarget) drawBountyTargetGlyph(ctx, x, y - drawSize * 0.54, scale);
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.16;
@@ -9974,6 +9988,7 @@ function performUpdateStaticUI() {
     if (loopReadyBanner) loopReadyBanner.classList.toggle('active', !!game.pendingLoopReady);
     let combatLoopBtn = document.getElementById('btn-combat-loop-advance');
     if (combatLoopBtn) combatLoopBtn.style.display = canShowCombatLoopAdvanceButton() ? 'inline-flex' : 'none';
+    if (typeof bountyUi !== 'undefined') bountyUi.renderHud();
     let charTabActive = getRenderingUiTabIds().has('tab-char');
     if (charTabActive) {
         let drawNow = Date.now();
@@ -13141,6 +13156,7 @@ function mergeDefaults(save) {
             elite: !!marker.elite,
             boss: !!marker.boss
         };
+        if (typeof BOUNTY_TARGET_DB !== 'undefined' && BOUNTY_TARGET_DB[marker.bountyId]) normalized.bountyId = marker.bountyId;
         return normalized;
     }
     function normalizeEnemyRecord(enemy) {
@@ -13148,7 +13164,7 @@ function mergeDefaults(save) {
         let hp = clampFiniteNumber(enemy.hp, NaN, 0);
         let maxHp = clampFiniteNumber(enemy.maxHp, clampFiniteNumber(hp, 1, 1), 1);
         if (!Number.isFinite(hp)) hp = maxHp;
-        let normalized = normalizeEnemyGridFields({
+        return normalizeEnemyGridFields({
             ...enemy,
             id: Math.max(1, Math.floor(clampFiniteNumber(enemy.id, 1, 1))),
             hp: Math.min(maxHp, hp),
@@ -13170,9 +13186,6 @@ function mergeDefaults(save) {
             isElite: !!enemy.isElite,
             isBoss: !!enemy.isBoss
         });
-        delete normalized.isBountyTarget;
-        delete normalized.bountyId;
-        return normalized;
     }
 
     // 그리드 필드 정리: 잘못된 좌표/유형은 버려서 다음 전투 틱의 그리드 복구가 다시 배치하게 한다.
@@ -13953,7 +13966,8 @@ function mergeDefaults(save) {
     }
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
     merged.saveVersion = defaultGame.saveVersion;
-    delete merged.bountyHunt;
+    merged.bountyHunt = { ...defaultGame.bountyHunt, ...((merged.bountyHunt && typeof merged.bountyHunt === 'object') ? merged.bountyHunt : {}) };
+    if (typeof bountyRuntime !== 'undefined') bountyRuntime.ensureState(merged);
     // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
     // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
     // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.

@@ -93,6 +93,7 @@ function applySeveredWandererLoadout(enemy, loadout) {
 }
 
 function maybeApplySeveredWanderer(enemy, zone, isElite, isBoss, rng = Math.random) {
+    if (enemy && enemy.isBountyTarget) return enemy;
     if (!canRollSeveredWanderer(zone, isElite, isBoss) || rng() >= SEVERED_WANDERER_CONFIG.eliteReplacementChance) return enemy;
     return applySeveredWandererLoadout(enemy, buildSeveredWandererLoadout(zone, rng));
 }

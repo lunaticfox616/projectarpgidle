@@ -564,6 +564,52 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     expect(failures).toEqual([]);
 });
 
+test('bounty HUD card reveals its reward and owns the cancel action', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season = 2;
+        game.loopCount = 1;
+        game.currentZoneId = 0;
+        game.unlocks.season = true;
+        game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_season_tab']));
+        game.bountyHunt = { pity: 9, offerIds: [], activeId: null, status: 'idle', offered: 0,
+            accepted: 0, completed: 0, abandoned: 0 };
+        bountyRuntime.advanceAfterBossKill(getZone(0), { isBoss: true });
+        updateStaticUI();
+    });
+
+    const hud = page.locator('#ui-bounty-box');
+    const offer = hud.getByRole('button', { name: /희귀 표적 발견/ });
+    await expect(offer).toBeVisible();
+    await offer.click();
+    await expect(page.locator('.game-choice-option')).toHaveCount(3);
+    await expect(page.locator('.game-choice-option').first()).toContainText('위험:');
+    await expect(page.locator('.game-choice-option').first()).toContainText('보상:');
+    await page.locator('.game-choice-option').first().click();
+    await expect(page.locator('#game-dialog-overlay')).not.toHaveClass(/active/);
+
+    const active = hud.getByRole('button', { name: /현상금 보상 확인 및 취소/ });
+    await expect(active).toContainText('다음 사냥에 출현');
+    await expect(hud.locator('.bounty-hud-dismiss')).toHaveCount(0);
+    await active.click();
+    const dialog = page.locator('#game-dialog-overlay');
+    await expect(dialog).toHaveClass(/active/);
+    await expect(dialog).toContainText('위험:');
+    await expect(dialog).toContainText('보상:');
+    await dialog.getByRole('button', { name: '계속 추적' }).click();
+    await expect(dialog).not.toHaveClass(/active/);
+    await expect(active).toBeVisible();
+
+    await active.click();
+    await dialog.getByRole('button', { name: '추적 취소' }).click();
+    const state = await page.evaluate(() => ({ activeId: game.bountyHunt.activeId,
+        abandoned: game.bountyHunt.abandoned }));
+    expect(state).toEqual({ activeId: null, abandoned: 1 });
+    await expect(hud).toContainText('현상금 흔적');
+    expect(failures).toEqual([]);
+});
+
 test('blizzard sprites load and rapid recasts keep one field visual', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);

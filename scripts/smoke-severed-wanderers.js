@@ -63,4 +63,10 @@ assert.strictEqual(context.maybeApplySeveredWanderer(rolled, zone, true, false, 
 assert.strictEqual(context.getEnemyCombatDelivery(rolled), rolled.wandererDelivery,
     '방랑자 스킬의 실제 공격 전달 방식을 전투가 사용해야 한다');
 
+const bountyTarget = { isElite: true, isBountyTarget: true, bountyId: 'iron_collector' };
+assert.strictEqual(context.maybeApplySeveredWanderer(bountyTarget, zone, true, false, () => 0), bountyTarget,
+    '현상금 표적은 방랑자로 다시 교체되면 안 된다');
+assert.strictEqual(bountyTarget.isSeveredWanderer, undefined,
+    '현상금 표적에 방랑자 상태가 섞이면 안 된다');
+
 console.log('smoke-severed-wanderers passed');
