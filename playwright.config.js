@@ -1,4 +1,5 @@
 const { defineConfig, devices } = require('@playwright/test');
+const testPort = Math.max(1, Number(process.env.PLAYWRIGHT_PORT) || 4173);
 
 module.exports = defineConfig({
     testDir: './tests/browser',
@@ -8,7 +9,7 @@ module.exports = defineConfig({
     fullyParallel: false,
     reporter: [['list'], ['html', { open: 'never' }]],
     use: {
-        baseURL: 'http://127.0.0.1:4173',
+        baseURL: `http://127.0.0.1:${testPort}`,
         trace: 'retain-on-failure',
         screenshot: 'only-on-failure',
         video: 'retain-on-failure'

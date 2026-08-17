@@ -9978,6 +9978,7 @@ function performUpdateStaticUI() {
     syncSalvageControlsFromSettings();
     syncEquipmentMobilePane();
     renderEquipmentLoadoutSummary(pStats);
+    if (window.equipmentLoadoutUi) window.equipmentLoadoutUi.render();
     renderPaperdoll('ui-equip-list', false);
     renderPaperdoll('ui-craft-equip-list', true);
     renderPaperdoll('ui-fossil-equip-list', true);
@@ -10345,7 +10346,7 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
     });
     const targetCount = targetItems.length;
     if (targetCount <= 0) return addLog('해체 대상이 없습니다.', 'attack-monster');
-    if (!await requestGameConfirmation(`검색 조건에 해당하는 장비 ${targetCount}개를 해체합니다.\n잠긴 장비는 보호됩니다.`, {
+    if (!await requestGameConfirmation(`검색 조건에 해당하는 장비 ${targetCount}개를 해체합니다.\n잠금·장비 세팅으로 보호된 장비는 제외됩니다.`, {
         title: '검색 장비 일괄 해체',
         tone: 'danger',
         confirmLabel: `${targetCount}개 해체`
@@ -10362,7 +10363,7 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
     });
     game.inventory = survivors;
     let rewardText = typeof formatSalvageRewardSummary === 'function' ? ` · ${formatSalvageRewardSummary(rewards)}` : '';
-    addLog(`🧪 장비 ${removed}개 해체 완료${rewardText}${lockedSkipped > 0 ? ` (잠금/배치 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
+    addLog(`🧪 장비 ${removed}개 해체 완료${rewardText}${lockedSkipped > 0 ? ` (잠금/배치/세팅 ${lockedSkipped}개 보호)` : ''}`, 'loot-normal');
     updateStaticUI();
 }
 async function bulkSalvageJewelsBySearch(salvageUnmatched) {
@@ -13295,6 +13296,7 @@ function mergeDefaults(save) {
         normalizedEquipment['장갑1'] = save.equipment['장갑'];
     }
     merged.equipment = normalizedEquipment;
+    if (window.equipmentLoadoutRuntime) window.equipmentLoadoutRuntime.ensureState(merged);
     merged.inventory = (merged.inventory || []).map(normalizeItem);
     Object.keys(merged.equipment).forEach(slot => merged.equipment[slot] = normalizeItem(merged.equipment[slot]));
     merged.growthInventory = (merged.growthInventory || []).map(normalizeGrowthOptionValues);

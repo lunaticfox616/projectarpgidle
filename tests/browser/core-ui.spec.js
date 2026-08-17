@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const TEST_ORIGIN = `http://127.0.0.1:${Math.max(1, Number(process.env.PLAYWRIGHT_PORT) || 4173)}/`;
 
 async function openLocalGame(page, path = '/') {
     await page.route('https://**', route => route.fulfill({ status: 204, contentType: 'text/javascript', body: '' }));
@@ -24,11 +25,11 @@ function watchRuntimeFailures(page) {
         failures.push(message.text());
     });
     page.on('response', response => {
-        if (response.status() < 400 || !response.url().startsWith('http://127.0.0.1:4173/')) return;
+        if (response.status() < 400 || !response.url().startsWith(TEST_ORIGIN)) return;
         failures.push(`${response.status()} ${response.url()}`);
     });
     page.on('requestfailed', request => {
-        if (!request.url().startsWith('http://127.0.0.1:4173/')) return;
+        if (!request.url().startsWith(TEST_ORIGIN)) return;
         failures.push(`${request.failure().errorText} ${request.url()}`);
     });
     return failures;
@@ -68,6 +69,80 @@ test('unlocked secondary tabs render after cross-tab navigation', async ({ page 
         await expect.poll(async () => (await tab.innerText()).trim().length).toBeGreaterThan(0);
         await page.evaluate(() => switchTab('tab-settings'));
     }
+    expect(failures).toEqual([]);
+});
+
+test('equipment presets swap owned gear atomically and stay usable on narrow screens', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const initial = await page.evaluate(() => {
+        game.level = 100;
+        game.season = 20;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        const swordBase = BASE_ITEM_DB.find(base => base.slot === '무기' && !base.dropOnly && !base.realmBase);
+        const helmetBase = BASE_ITEM_DB.find(base => base.slot === '투구' && !base.dropOnly && !base.realmBase);
+        const sword = createItemFromBase(swordBase, 'rare', 10);
+        const helmet = createItemFromBase(helmetBase, 'rare', 10);
+        const bossSword = createItemFromBase(swordBase, 'rare', 12);
+        sword.name = '사냥검';
+        helmet.name = '사냥 투구';
+        bossSword.name = '보스검';
+        game.equipment = { ...defaultGame.equipment, '무기': sword, '투구': helmet };
+        game.inventory = [bossSword];
+        switchTab('tab-items');
+        switchItemSubtab('item-tab-equip');
+        updateStaticUI();
+        return { swordId: sword.id, helmetId: helmet.id, bossSwordId: bossSword.id };
+    });
+
+    const panel = page.locator('.equipment-preset-panel');
+    expect(failures).toEqual([]);
+    const mobileLoadoutButton = page.locator('#btn-equipment-mobile-loadout');
+    if (await mobileLoadoutButton.isVisible()) await mobileLoadoutButton.click();
+    await expect(panel).toBeVisible();
+    await expect(panel.locator('.equipment-preset-slot')).toHaveCount(3);
+    await panel.getByRole('button', { name: '현재 장비 저장' }).click();
+    await expect(panel.locator('.equipment-preset-slot').first()).toContainText('현재 적용');
+    await expect(panel.locator('.equipment-preset-slot').first()).toContainText('2부위');
+
+    await page.evaluate(ids => {
+        const savedSword = game.equipment['무기'];
+        const bossSword = game.inventory.find(item => item.id === ids.bossSwordId);
+        game.equipment['무기'] = bossSword;
+        game.inventory = [savedSword];
+        selectForCrafting('무기', true);
+        updateStaticUI();
+    }, initial);
+    await expect(panel.locator('.equipment-preset-slot').first()).not.toContainText('현재 적용');
+    await expect(page.locator('#ui-inventory-list .equipment-preset-protected')).toHaveText('세팅 보호');
+    await expect(page.locator('#ui-inventory-list .equipment-card-danger')).toBeDisabled();
+    await panel.getByRole('button', { name: '세팅 불러오기' }).click();
+
+    const applied = await page.evaluate(ids => ({
+        weaponId: game.equipment['무기'] && game.equipment['무기'].id,
+        helmetId: game.equipment['투구'] && game.equipment['투구'].id,
+        inventoryIds: game.inventory.map(item => item.id),
+        savedWeaponProtected: equipmentLoadoutRuntime.isReferenced(ids.swordId),
+        craftSelection: getCraftSelectionRef()
+    }), initial);
+    expect(applied).toEqual({
+        weaponId: initial.swordId,
+        helmetId: initial.helmetId,
+        inventoryIds: [initial.bossSwordId],
+        savedWeaponProtected: true,
+        craftSelection: null
+    });
+    await expect(panel.locator('.equipment-preset-slot').first()).toContainText('현재 적용');
+
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.evaluate(() => setEquipmentMobilePane('loadout'));
+    await expect(panel).toBeVisible();
+    const layout = await panel.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: document.documentElement.clientWidth };
+    });
+    expect(layout.left).toBeGreaterThanOrEqual(-1);
+    expect(layout.right).toBeLessThanOrEqual(layout.width + 1);
     expect(failures).toEqual([]);
 });
 

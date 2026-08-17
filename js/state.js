@@ -2214,6 +2214,7 @@ const defaultGame = {
     talismanUnseal: null,
     talismanUnlockPickMode: false,
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
+    equipmentLoadouts: { selectedSlot: 0, presets: [null, null, null] },
     inventory: [],
     inventoryExpandLevel: 0,
     // 생장판: 기존 장비를 대체하지 않는 추가 시스템. 루프 25에 해금되며 그 전에는 활성 칸이 0이다.
