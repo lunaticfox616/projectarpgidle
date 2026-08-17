@@ -7,8 +7,10 @@ const run = source => vm.runInContext(source, context);
 
 function setSealFixture(stats) {
     run(`(function () {
-        game.ocean.fishStock.tidelordKoi = 1;
-        game.ocean.fishStock.glowfinTrout = 3;
+        const ocean = ensureOceanState();
+        Object.keys(ocean.fishStock).forEach(key => { ocean.fishStock[key] = 0; });
+        ocean.fishStock.tidelordKoi = 1;
+        ocean.fishStock.glowfinTrout = 3;
         window.__seaGiftLogs = [];
         addLog = message => window.__seaGiftLogs.push(String(message));
         window.__seaGiftTarget = {

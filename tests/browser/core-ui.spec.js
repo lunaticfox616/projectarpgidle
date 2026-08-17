@@ -434,6 +434,7 @@ test('equipment crafting shows the exact last change and repeats without losing 
     await expect(page.locator('.craft-result-ledger')).toHaveCount(0);
     await page.evaluate(() => useCurrency('deepWhetstone'));
     const result = page.locator('.craft-result-ledger');
+    await expect(result).toHaveCount(1);
     await expect(result).toBeVisible();
     await expect(result).toContainText('품질 0% → 1%');
     await expect(result.locator('[data-repeat-craft="deepWhetstone"]')).toContainText('다시 사용 · 1');
