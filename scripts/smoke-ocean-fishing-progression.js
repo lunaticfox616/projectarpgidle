@@ -99,18 +99,25 @@ assert.strictEqual(run('claimOceanFishCollectionMilestone(2)'), false,
 assert.strictEqual(run('game.currencies.reefFragment'), 4,
     'a duplicate claim must not grant currency again');
 
-run(`game.ocean = {
-    unlocked: true,
-    fishingStrategy: 'missing-strategy',
-    fishStock: { shallowSilverfin: 3 },
-    claimedCollectionMilestones: [2, 2, 999],
-    lastCatch: { key: 'missing-fish' }
-}`);
+run(`game = mergeDefaults({
+    season: 30,
+    ocean: {
+        unlocked: true,
+        fishingStrategy: 'missing-strategy',
+        fishStock: { shallowSilverfin: '3', tidalEel: -4 },
+        claimedCollectionMilestones: [2, 2, 999],
+        lastCatch: { key: 'missing-fish' }
+    }
+});`);
 const normalized = JSON.parse(run('JSON.stringify(ensureOceanState())'));
 assert.strictEqual(normalized.fishingStrategy, 'balanced',
     'legacy saves must fall back to a valid fishing strategy');
 assert.strictEqual(normalized.fishCaughtTotal.shallowSilverfin, 3,
-    'legacy fish stock must retroactively seed lifetime collection progress');
+    'the real save merge path must retroactively seed lifetime collection progress');
+assert.strictEqual(normalized.fishStock.shallowSilverfin, 3,
+    'legacy fish stock strings must normalize to finite owned counts');
+assert.strictEqual(normalized.fishStock.tidalEel, 0,
+    'negative legacy fish stock must not survive normalization');
 assert.deepStrictEqual(normalized.claimedCollectionMilestones, [2],
     'collection claims must be deduplicated and unknown milestones removed');
 assert.strictEqual(normalized.lastCatch, null,
@@ -131,6 +138,28 @@ assert.strictEqual(run("craftSeaGift('safeReroll')"), false,
 assert.strictEqual(run('JSON.stringify(game.ocean.fishStock)'), stockBefore,
     'missing-target crafting must not spend fish');
 
+run(`(function () {
+    window.__growthSeaGiftTarget = {
+        id: 990200,
+        name: '잘못 선택된 생장판',
+        growthCategory: 'flower',
+        growthShapeId: 'dot1',
+        stats: [{ id: 'flatHp', val: 10 }]
+    };
+    game.growthInventory = [window.__growthSeaGiftTarget];
+    selectForCrafting(window.__growthSeaGiftTarget.id, false);
+})()`);
+const growthBefore = run('JSON.stringify(window.__growthSeaGiftTarget)');
+const growthStockBefore = run('JSON.stringify(game.ocean.fishStock)');
+assert.strictEqual(run("craftSeaGift('safeReroll', window.__growthSeaGiftTarget)"), false,
+    'sea gifts must reject growth-board items as equipment targets');
+assert.strictEqual(run('JSON.stringify(window.__growthSeaGiftTarget)'), growthBefore,
+    'a rejected growth-board target must not be mutated');
+assert.strictEqual(run('JSON.stringify(game.ocean.fishStock)'), growthStockBefore,
+    'a rejected growth-board target must not consume fish');
+assert.strictEqual(run('getSelectedSeaGiftEquipmentTarget()'), null,
+    'the shared crafting selection must not expose a growth item as a sea-gift equipment target');
+
 const elements = {
     'ui-fishing-panel': { innerHTML: '' },
     'ui-sea-gift-panel': { innerHTML: '' }
@@ -142,8 +171,9 @@ assert(elements['ui-fishing-panel'].innerHTML.includes('ocean-strategy-card')
     && elements['ui-fishing-panel'].innerHTML.includes('무광해 도감 완성'),
 'the fishing UI must expose strategy, omen, and collection progression');
 assert(elements['ui-sea-gift-panel'].innerHTML.includes('현재 제작 대상')
+    && elements['ui-sea-gift-panel'].innerHTML.includes('일반 장비가 아님')
     && elements['ui-sea-gift-panel'].innerHTML.includes('대상 선택 필요'),
-'the sea-gift UI must make its explicit target requirement visible');
+'the sea-gift UI must explain an incompatible shared crafting target');
 assert(!elements['ui-sea-gift-panel'].innerHTML.includes('테스트 중인 컨텐츠'),
     'finished sea-gift presentation must not retain the prototype warning');
 

@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const TEST_ORIGIN = `http://127.0.0.1:${Math.max(1, Number(process.env.PLAYWRIGHT_PORT) || 4173)}/`;
 
 async function openLocalGame(page, path = '/') {
     await page.route('https://**', route => route.fulfill({ status: 204, contentType: 'text/javascript', body: '' }));
@@ -24,11 +25,11 @@ function watchRuntimeFailures(page) {
         failures.push(message.text());
     });
     page.on('response', response => {
-        if (response.status() < 400 || !response.url().startsWith('http://127.0.0.1:4173/')) return;
+        if (response.status() < 400 || !response.url().startsWith(TEST_ORIGIN)) return;
         failures.push(`${response.status()} ${response.url()}`);
     });
     page.on('requestfailed', request => {
-        if (!request.url().startsWith('http://127.0.0.1:4173/')) return;
+        if (!request.url().startsWith(TEST_ORIGIN)) return;
         failures.push(`${request.failure().errorText} ${request.url()}`);
     });
     return failures;
@@ -232,6 +233,15 @@ test('ocean fishing exposes strategy, collection growth and explicit crafting ta
     await expect(page.locator('.ocean-last-catch')).toContainText('심연 등불고기');
     await expect(page.locator('.ocean-craft-target')).toContainText('선택된 장비 없음');
     await expect(page.locator('.ocean-recipe-card button', { hasText: '대상 선택 필요' }).first()).toBeDisabled();
+    await page.evaluate(() => {
+        const base = GROWTH_BASE_DB.find(row => row.category === 'flower');
+        const growthItem = createGrowthItemFromBase(base, 'rare', 12);
+        game.growthInventory = [growthItem];
+        selectForCrafting(growthItem.id, false);
+        updateStaticUI();
+    });
+    await expect(page.locator('.ocean-craft-target')).toContainText('일반 장비가 아님');
+    await expect(page.locator('.ocean-recipe-card button', { hasText: '대상 선택 필요' }).first()).toBeDisabled();
 
     await page.locator('.ocean-strategy-card', { hasText: '심연 투망' }).click();
     await expect.poll(() => page.evaluate(() => game.ocean.fishingStrategy)).toBe('abyss');
@@ -249,6 +259,11 @@ test('ocean fishing exposes strategy, collection growth and explicit crafting ta
     });
     await expect(page.locator('.ocean-craft-target.selected')).toContainText('희귀한 심해 검증 무기');
     await expect(page.locator('.ocean-recipe-card.ready')).not.toHaveCount(0);
+    const chaseRecipes = page.locator('[data-ui-disclosure="sea-gift-chase"]');
+    await chaseRecipes.locator(':scope > summary').click();
+    await expect(chaseRecipes).toHaveAttribute('open', '');
+    await page.evaluate(() => renderSeaGiftPanel());
+    await expect(chaseRecipes).toHaveAttribute('open', '');
     const layout = await page.locator('#map-tab-fishing').evaluate(element => ({
         overflow: element.scrollWidth - element.clientWidth,
         strategyColumns: getComputedStyle(element.querySelector('.ocean-strategy-grid')).gridTemplateColumns.split(' ').length
@@ -531,13 +546,15 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
 test('mobile battle HUD stays within the viewport and exposes combat log', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
     const failures = watchRuntimeFailures(page);
+    await page.setViewportSize({ width: 320, height: 800 });
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
+        syncMapCompleteActionQuickControl();
+    });
     for (const width of [320, 360, 390]) {
         await page.setViewportSize({ width, height: 800 });
-        await openLocalGame(page);
-        await page.evaluate(() => {
-            document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
-            syncMapCompleteActionQuickControl();
-        });
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const compactHud = await page.evaluate(() => {
             const rect = selector => document.querySelector(selector).getBoundingClientRect();
             const overlaps = (left, right) => left.right > right.left + 1

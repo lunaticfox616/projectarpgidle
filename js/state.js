@@ -216,11 +216,16 @@ function ensureOceanPermanentUpgrades(st) {
     });
 }
 const normalizeOceanFishingProgress = function (st) {
-    st.fishStock = (st.fishStock && typeof st.fishStock === 'object') ? st.fishStock : {};
-    let hasCaughtHistory = !!(st.fishCaughtTotal && typeof st.fishCaughtTotal === 'object');
+    st.fishStock = (st.fishStock && typeof st.fishStock === 'object' && !Array.isArray(st.fishStock)) ? st.fishStock : {};
+    let hasCaughtHistory = !!(st.fishCaughtTotal && typeof st.fishCaughtTotal === 'object' && !Array.isArray(st.fishCaughtTotal));
     let caught = hasCaughtHistory ? st.fishCaughtTotal : st.fishStock;
     if (!hasCaughtHistory) st.fishCaughtTotal = {};
-    OCEAN_STATE_FISH_KEYS.forEach(key => { st.fishCaughtTotal[key] = Math.max(0, Math.floor(caught[key] || 0)); });
+    OCEAN_STATE_FISH_KEYS.forEach(key => {
+        let stock = Math.max(0, Math.floor(Number(st.fishStock[key]) || 0));
+        let total = Math.max(0, Math.floor(Number(caught[key]) || 0));
+        st.fishStock[key] = stock;
+        st.fishCaughtTotal[key] = Math.max(stock, total);
+    });
     let claims = st.claimedCollectionMilestones;
     let validClaims = Array.isArray(claims) && claims.every((value, index) => Number.isInteger(value)
         && OCEAN_COLLECTION_REQUIRED_COUNTS.includes(value) && claims.indexOf(value) === index);
@@ -236,6 +241,17 @@ const normalizeOceanFishingProgress = function (st) {
     }
     OCEAN_NORMALIZED_FISHING_STATES.add(st);
 };
+
+function mergeOceanState(savedOcean) {
+    let source = savedOcean && typeof savedOcean === 'object' && !Array.isArray(savedOcean) ? savedOcean : {};
+    let merged = { ...createDefaultOceanState(), ...source };
+    merged.permanentUpgrades = { ...createDefaultOceanState().permanentUpgrades, ...(source.permanentUpgrades || {}) };
+    ensureOceanPermanentUpgrades(merged);
+    if (!Object.prototype.hasOwnProperty.call(source, 'fishCaughtTotal')) merged.fishCaughtTotal = null;
+    normalizeOceanFishingProgress(merged);
+    return merged;
+}
+
 function ensureOceanState() {
     let st = (game && game.ocean && typeof game.ocean === 'object') ? game.ocean : (game.ocean = createDefaultOceanState());
     st.unlocked = !!st.unlocked;
@@ -1839,7 +1855,7 @@ let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 let lastRenderedChaosMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
 
