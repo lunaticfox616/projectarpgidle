@@ -15,11 +15,11 @@ const LOAD_ORDER = [
     'data/constants.js', 'data/maps.js', 'data/skills.js', 'data/items.js', 'data/offline-progress.js',
     'data/growth-items.js', 'data/passives.js', 'data/bosses.js', 'data/rewards.js',
     'data/talent-cards.js',
-    'js/utils.js', 'js/ui-feedback.js', 'js/state.js', 'js/offline-progress.js', 'js/records.js', 'js/save.js', 'js/items.js',
+    'js/utils.js', 'js/ui-feedback.js', 'js/state.js', 'js/unique-hunt.js', 'js/offline-progress.js', 'js/records.js', 'js/save.js', 'js/items.js',
     'js/skills.js', 'js/passives.js', 'js/growth-board.js', 'js/growth-effects.js',
     'js/growth-generation.js', 'js/core-cube.js', 'js/combat-grid.js',
     'js/combat-patterns.js', 'js/combat.js', 'js/combat-ehp.js', 'js/canvas-battlefield.js',
-    'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/ui.js', 'js/growth-ui.js',
+    'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/ui.js', 'js/unique-hunt-ui.js', 'js/growth-ui.js',
     'js/skills-ui.js', 'js/offline-progress-ui.js', 'js/records-ui.js'
 ];
 // 여기까지만 올린다. index.html은 뒤에 ui-window-manager·goal-system·main 등을 더

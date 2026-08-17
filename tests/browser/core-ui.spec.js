@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const TEST_ORIGIN = `http://127.0.0.1:${Math.max(1, Number(process.env.PLAYWRIGHT_PORT) || 4173)}/`;
 
 async function openLocalGame(page, path = '/') {
     await page.route('https://**', route => route.fulfill({ status: 204, contentType: 'text/javascript', body: '' }));
@@ -24,11 +25,11 @@ function watchRuntimeFailures(page) {
         failures.push(message.text());
     });
     page.on('response', response => {
-        if (response.status() < 400 || !response.url().startsWith('http://127.0.0.1:4173/')) return;
+        if (response.status() < 400 || !response.url().startsWith(TEST_ORIGIN)) return;
         failures.push(`${response.status()} ${response.url()}`);
     });
     page.on('requestfailed', request => {
-        if (!request.url().startsWith('http://127.0.0.1:4173/')) return;
+        if (!request.url().startsWith(TEST_ORIGIN)) return;
         failures.push(`${request.failure().errorText} ${request.url()}`);
     });
     return failures;
@@ -187,6 +188,60 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
         await page.evaluate(id => switchMapExploreSubtab(id), panelId);
         await expect(page.locator(`#${panelId}`)).toHaveClass(/active/);
     }
+    expect(failures).toEqual([]);
+});
+
+test('codex hunt targets expose sources and survive loot automation', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.level = 200;
+        game.season = 31;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.uniqueCodex = {};
+        game.uniqueHuntTargets = [];
+        switchTab('tab-codex');
+        updateStaticUI();
+    });
+
+    const card = page.locator('.codex-card').filter({ hasText: '핏빛 톱날' });
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('미등록');
+    await card.getByRole('button', { name: /파밍 추적/ }).click();
+    const tracker = page.locator('.unique-hunt-panel');
+    await expect(tracker).toContainText('핏빛 톱날');
+    await expect(tracker).toContainText('1/3');
+    const trackerLayout = await tracker.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, viewportWidth: innerWidth };
+    });
+    expect(trackerLayout.left).toBeGreaterThanOrEqual(-1);
+    expect(trackerLayout.right).toBeLessThanOrEqual(trackerLayout.viewportWidth + 1);
+    await tracker.getByRole('button', { name: '드랍처 보기' }).click();
+    await expect(page.locator('#map-tab-zones')).toHaveClass(/active/);
+    await expect(page.locator('#map-explore-hunting')).toHaveClass(/active/);
+    await page.evaluate(() => switchTab('tab-codex'));
+
+    const result = await page.evaluate(() => {
+        Object.keys(game.equipment).forEach((slot, index) => {
+            game.equipment[slot] = { id: 60000 + index, name: `시험 ${slot}`, slot, rarity: 'normal', baseStats: [], stats: [] };
+        });
+        game.settings.itemFilterEnabled = true;
+        game.settings.itemFilterRarities.unique = false;
+        game.settings.autoSalvageEnabled = true;
+        game.settings.autoSalvageRarities.unique = true;
+        const item = generateUniqueItem(20, null, '핏빛 톱날');
+        const accepted = addItemToInventory(item);
+        return {
+            accepted,
+            inventoryNames: game.inventory.map(entry => entry.name),
+            targets: game.uniqueHuntTargets.slice(),
+            registered: !!game.uniqueCodex['무기|핏빛 톱날']
+        };
+    });
+    expect(result).toEqual({ accepted: true, inventoryNames: ['핏빛 톱날'], targets: [], registered: true });
+    await expect(tracker).not.toContainText('핏빛 톱날');
+    await expect(card.getByRole('button', { name: /파밍 추적/ })).toHaveAttribute('aria-pressed', 'false');
     expect(failures).toEqual([]);
 });
 
@@ -463,13 +518,15 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
 test('mobile battle HUD stays within the viewport and exposes combat log', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
     const failures = watchRuntimeFailures(page);
+    await page.setViewportSize({ width: 320, height: 800 });
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
+        syncMapCompleteActionQuickControl();
+    });
     for (const width of [320, 360, 390]) {
         await page.setViewportSize({ width, height: 800 });
-        await openLocalGame(page);
-        await page.evaluate(() => {
-            document.getElementById('ui-combat-zone-inline').textContent = '시간의 균열: 무너져 내리는 영원의 회랑';
-            syncMapCompleteActionQuickControl();
-        });
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const compactHud = await page.evaluate(() => {
             const rect = selector => document.querySelector(selector).getBoundingClientRect();
             const overlaps = (left, right) => left.right > right.left + 1
