@@ -100,6 +100,7 @@ test('endgame support screens keep primary actions and interaction state visible
         switchMapSubtab('map-tab-underworld');
         updateStaticUI();
     });
+    await page.evaluate(() => toggleGoalDrawer(false));
 
     await expect(page.locator('.underworld-entry-card')).toBeVisible();
     await expect(page.getByRole('button', { name: '최고층 18 입장' })).toBeVisible();
