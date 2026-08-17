@@ -6318,6 +6318,7 @@ function createEnemy(zone, marker, groupIndex) {
     applyGrandBreachMobTuning(zone, enemy);
     if (marker.bountyId && typeof bountyRuntime !== 'undefined') bountyRuntime.applyTargetToEnemy(enemy, marker.bountyId);
     assignEnemyGridCombatProfile(enemy);
+    if (typeof maybeApplyRogueExile === 'function') maybeApplyRogueExile(enemy, zone, isElite, isBoss);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
     return enemy;
 }
@@ -10479,6 +10480,7 @@ function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
 }
 
 function getEnemyCombatDelivery(enemy, bossPattern) {
+    if (enemy && enemy.isRogueExile && enemy.rogueDelivery) return enemy.rogueDelivery;
     if (!enemy || enemy.attackKind !== 'ranged') return 'instantTarget';
     return bossPattern && bossPattern.isSpecial ? 'magicCell' : 'projectileCell';
 }

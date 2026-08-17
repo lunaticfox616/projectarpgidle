@@ -12,12 +12,12 @@ const vm = require('vm');
 
 // index.html의 <script src> 순서와 같아야 한다. 이 목록 자체가 로드 순서 계약이다.
 const LOAD_ORDER = [
-    'data/constants.js', 'data/shrines.js', 'data/bounties.js', 'data/maps.js', 'data/skills.js', 'data/items.js', 'data/offline-progress.js',
+    'data/constants.js', 'data/shrines.js', 'data/bounties.js', 'data/maps.js', 'data/skills.js', 'data/rogue-exiles.js', 'data/items.js', 'data/offline-progress.js',
     'data/growth-items.js', 'data/passives.js', 'data/bosses.js', 'data/rewards.js',
     'data/talent-cards.js',
     'js/utils.js', 'js/ui-feedback.js', 'js/state.js', 'js/salvage-recovery.js', 'js/unique-hunt.js', 'js/offline-progress.js', 'js/records.js', 'js/save.js', 'js/items.js', 'js/equipment-loadouts.js',
     'js/skills.js', 'js/passives.js', 'js/shrines.js', 'js/growth-board.js', 'js/growth-effects.js',
-    'js/growth-generation.js', 'js/bounties.js', 'js/core-cube.js', 'js/combat-grid.js',
+    'js/growth-generation.js', 'js/bounties.js', 'js/core-cube.js', 'js/combat-grid.js', 'js/rogue-exiles.js',
     'js/combat-patterns.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-battlefield.js',
     'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/crafting-result-ui.js', 'js/bounty-ui.js', 'js/ui.js', 'js/salvage-recovery-ui.js', 'js/unique-hunt-ui.js', 'js/equipment-loadouts-ui.js', 'js/growth-ui.js',
     'js/skills-ui.js', 'js/offline-progress-ui.js', 'js/records-ui.js'

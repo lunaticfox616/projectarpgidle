@@ -2051,6 +2051,7 @@ function getEnemyTraitSummary(enemy) {
 }
 function getEnemyShortLabel(enemy) {
     if (enemy.isBountyTarget) return '현상금';
+    if (enemy.isRogueExile) return '유배자';
     if (enemy.isBoss) return '보스';
     if (enemy.isElite) return '정예';
     if (enemy.ele === 'fire') return '화염';

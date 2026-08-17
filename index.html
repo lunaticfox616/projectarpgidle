@@ -2,7 +2,7 @@
 <html lang="ko" class="app-preload">
 <head>
     <meta charset="UTF-8">
-    <meta name="app-build" content="20260817-goal-integration-review1">
+    <meta name="app-build" content="20260817-trade-rank-rogue1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#05080e">
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -42,6 +42,7 @@
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260721-galmuri-body1">
     <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1&mobile=20260814-combat-hud3">
     <link rel="stylesheet" href="css/ghost-pvp.css?v=20260816-real-duel1">
+    <link rel="stylesheet" href="css/player-exchange.css?v=20260817-1">
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1&power=20260811-approx1&directives=20260817-2">
     <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1-20260807-windowed-cube1">
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260722-health-menu-skin4&caption=20260811-top1&tooltip=20260814-perf1&text=20260814-crisp1">
@@ -1028,10 +1029,17 @@
 
         <div id="map-tab-pvp" class="subtab-content">
             <div class="map-pvp-heading">
-                <div><span>ASYNC ARENA</span><h2>⚔️ 대전</h2></div>
-                <p>내 전투 기록으로 고스트를 등록하고 다른 플레이어의 빌드와 비동기 대결을 진행합니다.</p>
+                <div><span>PLAYER NETWORK</span><h2>⚔️ 플레이어 교류</h2></div>
+                <p>고스트 대결, 서버 보관 거래, 현재 빌드 순위를 한곳에서 확인합니다.</p>
             </div>
-            <div id="map-ghost-arena"></div>
+            <div class="player-arena-tabs" role="tablist" aria-label="플레이어 교류 메뉴">
+                <button class="player-arena-tab active" data-arena-tab="ghost" onclick="switchPlayerArenaSection('ghost')">고스트 대결</button>
+                <button class="player-arena-tab" data-arena-tab="trade" onclick="switchPlayerArenaSection('trade')">PTP 거래</button>
+                <button class="player-arena-tab" data-arena-tab="ranking" onclick="switchPlayerArenaSection('ranking')">루프·DPS 순위</button>
+            </div>
+            <section class="player-arena-panel active" data-arena-panel="ghost"><div id="map-ghost-arena"></div></section>
+            <section class="player-arena-panel" data-arena-panel="trade"><div id="map-player-trade"></div></section>
+            <section class="player-arena-panel" data-arena-panel="ranking"><div id="map-player-ranking"></div></section>
         </div>
 
         <div id="map-tab-abyss" class="subtab-content">
@@ -1502,6 +1510,7 @@
 <script defer src="data/bounties.js?v=20260817-bounty1"></script>
 <script defer src="data/maps.js?v=20260719-tier-rift-stack1&cosmos=20260814-balance1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-bloom2&trial5=20260816-underworld1&directives=20260817-1"></script>
 <script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260811-area-impact1&venom=20260811-image2&lightning-spear=20260812-performance1&thundercloud=20260812-impact2&meteor=20260813-ground1&shield-charge=20260814-armor1&meteor-spell=20260814-damage1"></script>
+<script defer src="data/rogue-exiles.js?v=20260817-1"></script>
 <script defer src="data/items.js?v=20260723-currency-salvage1&defense-unique=20260811-rework1&cosmos=20260814-balance1&ocean=20260817-fishing1"></script>
 <script defer src="data/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="data/growth-items.js?v=20260807-growth-affix-balance1-20260807-flat-element-balance1"></script>
@@ -1528,6 +1537,7 @@
 <script defer src="js/bounties.js?v=20260817-bounty1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1-20260807-canvas-lifecycle1"></script>
 <script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&boomerang=20260811-batched1&meteor=20260813-ground1"></script>
+<script defer src="js/rogue-exiles.js?v=20260817-1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1&ehp=20260811-bosspeak1&cosmos=20260814-balance1"></script>
 <script defer src="js/cosmos-rules.js?v=20260810-endgame1&ehp=20260811-bosspeak1&cosmos=20260814-balance1&tune=20260815-ehp-curve1&directives=20260817-1"></script>
 <script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260814-floor1-tune2&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-perf1&cosmos=20260814-balance1&power=20260814-readiness1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-cosmos-ehp1&trial5=20260816-underworld1&directives=20260817-1"></script>
@@ -1552,6 +1562,7 @@
 <script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1&pvp=20260812-map2"></script>
 <script defer src="js/ghost-duel-replay.js?v=20260816-real-duel1"></script>
 <script defer src="js/ghost-pvp.js?v=20260816-direct-register1"></script>
+<script defer src="js/player-exchange.js?v=20260817-1"></script>
 <script defer src="js/ui-window-manager.js?v=20260723-merged-tab-window-fix2"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
 <script defer src="js/goal-system.js?v=20260717-system-integrity1-20260810-loop-cosmos-notice1&pinnacle=20260814-atlas1"></script>
