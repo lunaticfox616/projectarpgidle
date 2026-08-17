@@ -3576,7 +3576,7 @@ function renderSeaGiftRecipeCard(recipe, st) {
     let materialReady = Object.keys(recipe.requires).every(key => (st.fishStock[key] || 0) >= recipe.requires[key]);
     let reqText = Object.keys(recipe.requires).map(key => `<span class="${(st.fishStock[key] || 0) >= recipe.requires[key] ? 'ready' : ''}">${OCEAN_FISH_DB[key].name} <b>${st.fishStock[key] || 0}/${recipe.requires[key]}</b></span>`).join('');
     let needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
-    let hasTarget = !needsItem || !!getSelectedCraftItem();
+    let hasTarget = !needsItem || !!getSelectedSeaGiftEquipmentTarget();
     let ready = materialReady && hasTarget;
     let needsCategory = recipe.effect.type === 'guaranteedTaggedMod' || recipe.effect.type === 'taggedReroll' || recipe.effect.type === 'convertCategoryMod' || (recipe.effect.type === 'lockMod' && recipe.effect.bonusTaggedReroll);
     let inlineId = `seaGiftCategory_${recipe.id}`;
@@ -3592,20 +3592,24 @@ function renderSeaGiftRecipeCard(recipe, st) {
 }
 
 const renderSeaGiftTarget = function () {
-    let item = getSelectedCraftItem();
+    let selected = getSelectedCraftItem();
+    let item = getSelectedSeaGiftEquipmentTarget();
     let target = item
         ? `<div><small>현재 제작 대상</small><strong class="item-title ${item.rarity || 'normal'}">[${item.slot || '장비'}] ${item.name}</strong><span>추가 옵션 ${(item.stats || []).length}줄 · 바다의 선물 장비 가공은 이 대상에만 적용됩니다.</span></div>`
-        : `<div><small>현재 제작 대상</small><strong>선택된 장비 없음</strong><span>장비 가공 레시피를 사용하려면 대상을 먼저 선택하세요.</span></div>`;
+        : selected
+            ? `<div><small>현재 제작 대상</small><strong>일반 장비가 아님</strong><span>생장판 등 보조 아이템에는 바다의 선물 장비 가공을 사용할 수 없습니다.</span></div>`
+            : `<div><small>현재 제작 대상</small><strong>선택된 장비 없음</strong><span>장비 가공 레시피를 사용하려면 대상을 먼저 선택하세요.</span></div>`;
     return `<div class="ocean-craft-target ${item ? 'selected' : ''}">${target}<div><button type="button" onclick="openCraftItemPickerOverlay('equip')">장착 장비</button><button type="button" onclick="openCraftItemPickerOverlay('inventory')">인벤토리</button></div></div>`;
 };
 
-const renderSeaGiftRecipeGroup = function (title, description, recipes, st, open) {
-    return `<details class="ocean-recipe-group" ${open ? 'open' : ''}><summary><span><strong>${title}</strong><small>${description}</small></span><b>${recipes.length}</b></summary><div class="ocean-recipe-list">${recipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('')}</div></details>`;
+const renderSeaGiftRecipeGroup = function (key, title, description, recipes, st, open) {
+    return `<details class="ocean-recipe-group" data-ui-disclosure="sea-gift-${key}" ${open ? 'open' : ''}><summary><span><strong>${title}</strong><small>${description}</small></span><b>${recipes.length}</b></summary><div class="ocean-recipe-list">${recipes.map(recipe => renderSeaGiftRecipeCard(recipe, st)).join('')}</div></details>`;
 };
 
 function renderSeaGiftPanel() {
     let panel = document.getElementById('ui-sea-gift-panel');
     if (!panel) return;
+    if (typeof captureUiDisclosureState === 'function') captureUiDisclosureState(panel);
     let st = ensureOceanState();
     if (!st.unlocked) { panel.innerHTML = ''; return; }
     let ultraRareIds = new Set(['tidelordKoi', 'prismaticHorror', 'kingLeviathan']);
@@ -3613,7 +3617,8 @@ function renderSeaGiftPanel() {
     let regularRecipes = SEA_GIFT_RECIPES.filter(recipe => !chaseRecipes.includes(recipe));
     let supplyRecipes = regularRecipes.filter(recipe => !SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type));
     let forgeRecipes = regularRecipes.filter(recipe => SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type));
-    panel.innerHTML = `${renderSeaGiftTarget()}<div class="ocean-recipe-groups">${renderSeaGiftRecipeGroup('재화 정제', '자주 잡히는 어종을 성장 재화로 교환합니다.', supplyRecipes, st, true)}${renderSeaGiftRecipeGroup('장비 가공', '선택한 장비의 옵션을 직접 가공합니다.', forgeRecipes, st, true)}${renderSeaGiftRecipeGroup('심연의 비전', '초희귀 어종을 사용하는 추적 제작입니다.', chaseRecipes, st, false)}</div>`;
+    panel.innerHTML = `${renderSeaGiftTarget()}<div class="ocean-recipe-groups">${renderSeaGiftRecipeGroup('supply', '재화 정제', '자주 잡히는 어종을 성장 재화로 교환합니다.', supplyRecipes, st, true)}${renderSeaGiftRecipeGroup('forge', '장비 가공', '선택한 장비의 옵션을 직접 가공합니다.', forgeRecipes, st, true)}${renderSeaGiftRecipeGroup('chase', '심연의 비전', '초희귀 어종을 사용하는 추적 제작입니다.', chaseRecipes, st, false)}</div>`;
+    if (typeof restoreUiDisclosureState === 'function') restoreUiDisclosureState(panel);
 }
 
 function renderUnderworldMapPanel() {
@@ -13327,12 +13332,7 @@ function mergeDefaults(save) {
     merged.saveMeta.cloudUserId = typeof merged.saveMeta.cloudUserId === 'string' && merged.saveMeta.cloudUserId.trim()
         ? merged.saveMeta.cloudUserId
         : null;
-    merged.ocean = (merged.ocean && typeof merged.ocean === 'object') ? { ...createDefaultOceanState(), ...merged.ocean } : createDefaultOceanState();
-    merged.ocean.permanentUpgrades = { ...(createDefaultOceanState().permanentUpgrades || {}), ...(merged.ocean.permanentUpgrades || {}) };
-    Object.keys(merged.ocean.permanentUpgrades).forEach(key => {
-        let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
-        merged.ocean.permanentUpgrades[key] = def ? Math.max(0, Math.min(def.maxLevel, Math.floor(merged.ocean.permanentUpgrades[key] || 0))) : 0;
-    });
+    merged.ocean = mergeOceanState(save && save.ocean);
     merged.unlocks.jewel = !!merged.unlocks.jewel;
     merged.unlocks.cube = !!merged.unlocks.cube;
     if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(merged);

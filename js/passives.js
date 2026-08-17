@@ -2975,6 +2975,17 @@ function removeOneModFromItem(item) {
     return true;
 }
 
+function isSeaGiftEquipmentTarget(item) {
+    if (!item || (typeof isGrowthItem === 'function' && isGrowthItem(item))) return false;
+    if (!Array.isArray(item.stats) || typeof getEquipCandidateSlots !== 'function') return false;
+    return getEquipCandidateSlots(item).some(slot => Object.prototype.hasOwnProperty.call(game.equipment || {}, slot));
+}
+
+function getSelectedSeaGiftEquipmentTarget() {
+    let item = typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null;
+    return isSeaGiftEquipmentTarget(item) ? item : null;
+}
+
 function craftSeaGift(recipeId, targetItem, options) {
     let recipe = SEA_GIFT_RECIPES.find(r => r.id === recipeId);
     if (!recipe) return false;
@@ -2983,8 +2994,13 @@ function craftSeaGift(recipeId, targetItem, options) {
     if (!ready) { addLog('바다의 선물 재료가 부족합니다.', 'attack-monster'); return false; }
     let effect = recipe.effect;
     let needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(effect.type);
-    let item = needsItem ? (targetItem || (typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null)) : null;
-    if (needsItem && !item) { addLog('바다의 선물에 사용할 대상 장비를 먼저 선택하세요.', 'attack-monster'); return false; }
+    let candidate = needsItem ? (targetItem || (typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null)) : null;
+    if (needsItem && !candidate) { addLog('바다의 선물에 사용할 대상 장비를 먼저 선택하세요.', 'attack-monster'); return false; }
+    if (needsItem && !isSeaGiftEquipmentTarget(candidate)) {
+        addLog('바다의 선물 장비 가공은 일반 장비에만 사용할 수 있습니다.', 'attack-monster');
+        return false;
+    }
+    let item = candidate;
     let category = options && options.category;
     if (effect.type === 'guaranteedMod' || effect.type === 'guaranteedTaggedMod') {
         let pool = getAvailableMods(item);
@@ -3109,6 +3125,8 @@ function craftSeaGift(recipeId, targetItem, options) {
     if (item && typeof normalizeItem === 'function') normalizeItem(item);
     return true;
 }
+
+safeExposeGlobals({ isSeaGiftEquipmentTarget, getSelectedSeaGiftEquipmentTarget });
 
 function rerollSingleBaseOption(item, costCurrency, costAmount) {
     if (!item || !Array.isArray(item.stats) || item.stats.length === 0) return false;
