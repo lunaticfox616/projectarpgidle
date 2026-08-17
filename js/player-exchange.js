@@ -21,7 +21,7 @@ function getPlayerExchangeError(error) {
         TRADE_LISTING_NOT_OPEN: '이미 판매되었거나 취소된 항목입니다.', TRADE_SELF_PURCHASE: '자신의 판매 항목은 구매할 수 없습니다.',
         TRADE_CURRENCY_SHORTAGE: '황금률이 부족합니다.', TRADE_INVENTORY_FULL: '인벤토리 공간이 부족합니다.',
         TRADE_NO_PROCEEDS: '수령할 판매금이 없습니다.', TRADE_CURRENCY_OVERFLOW: '황금률 보유 한도를 초과합니다.',
-        RANKING_RATE_LIMIT: '랭킹은 1분에 한 번 갱신할 수 있습니다.'
+        RANKING_DAILY_LIMIT: '랭킹 기록은 한국 시간 기준 하루에 한 번 등록할 수 있습니다.'
     };
     let code = Object.keys(messages).find(key => raw.includes(key));
     return code ? messages[code] : raw;
@@ -261,7 +261,8 @@ function renderRankingRows(rows, valueKey) {
 function renderPlayerRankingPanel() {
     if (!isPlayerExchangeServerReady()) return '<div class="player-exchange-empty">클라우드 로그인과 랭킹 SQL 적용 후 이용할 수 있습니다.</div>';
     let data = playerExchangeState.data || {};
-    return `<section class="player-exchange-card ranking-head"><div><strong>루프 · DPS 랭킹</strong><small>현재 클라우드 저장과 일치하는 기록만 등록 · 보상 없음</small></div><button onclick="submitPlayerRanking()" ${playerExchangeState.loading ? 'disabled' : ''}>내 기록 갱신</button></section><div class="player-ranking-columns"><section class="player-exchange-card"><header><strong>루프 순위</strong></header>${renderRankingRows(data.loopRanking, 'loop')}</section><section class="player-exchange-card"><header><strong>DPS 순위</strong></header>${renderRankingRows(data.dpsRanking, 'dps')}</section></div>`;
+    let submitted = data.rankingSubmittedToday === true;
+    return `<section class="player-exchange-card ranking-head"><div><strong>오늘의 루프 · DPS 랭킹</strong><small>매일 00:00 KST 초기화 · 오늘 1회 등록 · 보상 없음</small></div><button onclick="submitPlayerRanking()" ${playerExchangeState.loading || submitted ? 'disabled' : ''}>${submitted ? '오늘 등록 완료' : '오늘 기록 등록'}</button></section><div class="player-ranking-columns"><section class="player-exchange-card"><header><strong>루프 순위</strong></header>${renderRankingRows(data.loopRanking, 'loop')}</section><section class="player-exchange-card"><header><strong>DPS 순위</strong></header>${renderRankingRows(data.dpsRanking, 'dps')}</section></div>`;
 }
 
 function renderPlayerExchange() {

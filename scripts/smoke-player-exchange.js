@@ -48,9 +48,12 @@ async function runScenario() {
         if (path.endsWith('get_player_exchange')) return {
             listings: [{ id: 8, sellerName: '상대', item: { name: '구매 장비' }, price: 3, isMine: false }],
             mine: [{ id: 9, item: { name: '회수 장비' }, price: 2, status: 'open' }],
-            unclaimedProceeds: 6, loopRanking: [], dpsRanking: []
+            unclaimedProceeds: 6, loopRanking: [], dpsRanking: [],
+            rankingDay: '2026-08-17', rankingSubmittedToday: false
         };
-        if (path.endsWith('submit_player_ranking')) return { loopCount: 3, dps: options.body.p_dps, saveRevision: 8 };
+        if (path.endsWith('submit_player_ranking')) return {
+            loopCount: 3, dps: options.body.p_dps, saveRevision: 8, rankingDay: '2026-08-17'
+        };
         throw new Error(`unexpected ${path}`);
     };
     vm.runInContext(fs.readFileSync('js/player-exchange.js', 'utf8'), context, { filename: 'player-exchange.js' });
@@ -88,6 +91,7 @@ async function runScenario() {
     const rankCall = calls.find(call => call.path && call.path.endsWith('submit_player_ranking'));
     assert.strictEqual(rankCall.options.body.p_dps, expectedDps, '실제 전투 계산기의 현재 DPS를 등록해야 한다');
     assert.strictEqual(rankCall.options.body.p_expected_revision, 10, '랭킹도 최신 클라우드 리비전과 묶어야 한다');
+    assert.match(hosts['map-player-ranking'].innerHTML, /매일 00:00 KST 초기화/, '한국 시간 일일 랭킹 규칙을 표시해야 한다');
 }
 
 runScenario().then(() => console.log('smoke-player-exchange passed'))

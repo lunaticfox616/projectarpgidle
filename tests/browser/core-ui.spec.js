@@ -48,24 +48,34 @@ test('guest mode is local-only and survives reload', async ({ page }) => {
     expect(failures).toEqual([]);
 });
 
-test('shrine pity and claim stay tied to encounter progress', async ({ page }) => {
+test('a shrine appears on the battlefield and grants its blessing when clicked', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
-    await expect(page.locator('#ui-shrine-box')).toContainText('성소 기운 0/20');
-
     const outcome = await page.evaluate(() => {
-        game.shrineState = { activeId: null, pity: 19, spawned: 0, claimed: 0 };
-        const result = shrineRuntime.advanceAfterEncounter({ type: 'act' });
-        updateStaticUI();
-        return { spawned: result.spawned, activeId: game.shrineState.activeId };
+        game.shrineState = { activeId: null, spawnCell: null, pity: 19, spawned: 0, claimed: 0 };
+        const result = shrineRuntime.advanceAfterEncounter({ type: 'act' }, game, () => 0.5);
+        renderBattlefield(true);
+        return { spawned: result.spawned, activeId: game.shrineState.activeId, spawnCell: game.shrineState.spawnCell };
     });
     expect(outcome.spawned).toBe(true);
     expect(outcome.activeId).toBeTruthy();
-    const claimButton = page.locator('#ui-shrine-box button');
-    await expect(claimButton).toContainText('받기');
-    await claimButton.click();
-    await expect(page.locator('#ui-shrine-box')).toContainText('지속중');
+    expect(outcome.spawnCell).toEqual(expect.objectContaining({ gx: expect.any(Number), gy: expect.any(Number) }));
+    await expect.poll(() => page.evaluate(() => !!battleVisualState.shrineHitbox)).toBe(true);
+    const clickPoint = await page.evaluate(() => {
+        const canvas = document.getElementById('battlefield-canvas');
+        const rect = canvas.getBoundingClientRect();
+        const hitbox = battleVisualState.shrineHitbox;
+        return {
+            x: rect.left + (hitbox.x + hitbox.width / 2) * rect.width / canvas.clientWidth,
+            y: rect.top + (hitbox.y + hitbox.height / 2) * rect.height / canvas.clientHeight
+        };
+    });
+    await page.mouse.click(clickPoint.x, clickPoint.y);
     await expect.poll(() => page.evaluate(() => game.shrineState.claimed)).toBe(1);
+    expect(await page.evaluate(() => ({ activeId: game.shrineState.activeId,
+        spawnCell: game.shrineState.spawnCell, buff: game.shrineBuff && game.shrineBuff.id })))
+        .toEqual({ activeId: null, spawnCell: null, buff: outcome.activeId });
+    await expect(page.locator('#ui-shrine-box')).toHaveCount(0);
     expect(failures).toEqual([]);
 });
 
@@ -551,74 +561,6 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     await expect(panel).toBeVisible();
     await expect(panel).toContainText('p95');
     await expect(panel).toContainText('FX');
-    expect(failures).toEqual([]);
-});
-
-test('bounty offer can be chosen, hunted and rewarded without leaving the combat HUD', async ({ page }) => {
-    const failures = watchRuntimeFailures(page);
-    await openLocalGame(page);
-    await page.evaluate(() => {
-        game.season = 2;
-        game.loopCount = 1;
-        game.currentZoneId = 0;
-        game.unlocks.season = true;
-        game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_season_tab']));
-        game.bountyHunt = { pity: 9, offerIds: [], activeId: null, status: 'idle', offered: 0, accepted: 0, completed: 0, abandoned: 0 };
-        bountyRuntime.advanceAfterBossKill(getZone(0), { isBoss: true });
-        updateStaticUI();
-    });
-
-    const hud = page.locator('#ui-bounty-box');
-    await expect(hud).toBeVisible();
-    await expect(hud.getByRole('button', { name: /희귀 표적 발견/ })).toBeVisible();
-    await hud.getByRole('button', { name: /희귀 표적 발견/ }).click();
-    await expect(page.locator('.game-choice-option')).toHaveCount(3);
-    await expect(page.locator('.game-choice-option').first()).toContainText('위험:');
-    await expect(page.locator('.game-choice-option').first()).toContainText('보상:');
-    await page.locator('.game-choice-option').first().click();
-    await expect(page.locator('#game-dialog-overlay')).not.toHaveClass(/active/);
-    await expect(hud).toContainText('다음 사냥에 출현');
-
-    const spawned = await page.evaluate(() => {
-        game.enemies = [];
-        game.encounterPlan = [];
-        game.encounterIndex = 0;
-        game.moveTimer = 0;
-        startEncounterRun();
-        const marker = game.encounterPlan.find(entry => entry && entry.bountyId);
-        spawnEncounterMarker(marker);
-        const enemy = game.enemies.find(entry => entry && entry.isBountyTarget);
-        enemy.maxHp = 1e30;
-        enemy.hp = enemy.maxHp;
-        updateStaticUI();
-        return { name: enemy.name, label: getEnemyShortLabel(enemy), status: game.bountyHunt.status };
-    });
-    expect(spawned.name).toContain('현상금');
-    expect(spawned.label).toBe('현상금');
-    expect(spawned.status).toBe('hunting');
-    await expect(hud).toContainText('교전 중');
-
-    const layout = await hud.evaluate((node) => {
-        const wrap = document.getElementById('battlefield-wrap').getBoundingClientRect();
-        const box = node.getBoundingClientRect();
-        return { insideX: box.left >= wrap.left && box.right <= wrap.right, insideY: box.top >= wrap.top && box.bottom <= wrap.bottom };
-    });
-    expect(layout).toEqual({ insideX: true, insideY: true });
-
-    const reward = await page.evaluate(() => {
-        const enemy = game.enemies.find(entry => entry && entry.isBountyTarget);
-        enemy.hp = 0;
-        handleEnemyDeath(enemy, getPlayerStats());
-        const owned = game.inventory.concat(Object.values(game.equipment || {}).filter(Boolean));
-        updateStaticUI();
-        return {
-            completed: game.bountyHunt.completed,
-            activeId: game.bountyHunt.activeId,
-            rareReward: owned.some(item => item && ['rare', 'unique'].includes(item.rarity))
-        };
-    });
-    expect(reward).toEqual({ completed: 1, activeId: null, rareReward: true });
-    await expect(hud).toContainText('현상금 흔적');
     expect(failures).toEqual([]);
 });
 

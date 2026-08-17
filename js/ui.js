@@ -1252,11 +1252,38 @@ function isPauseSettingOverlayOpen() {
     return modalSelectors.some(selector => isOverlayElementOpen(selector));
 }
 
-function clickActiveShrine(){
+function claimBattlefieldShrine() {
     let result = shrineRuntime.claimActive();
-    if (!result.claimed) return;
+    if (!result.claimed) return false;
+    battleVisualState.shrineHitbox = null;
+    battleVisualState.shrineHovered = false;
     addLog(`🛕 ${result.blessing.name} 축복 활성화!`, 'loot-rare');
+    if (typeof showGameToast === 'function') {
+        showGameToast(`${result.blessing.name} · ${result.blessing.detail}`, { tone: 'success', duration: 3200 });
+    }
+    if (typeof queueImportantSave === 'function') queueImportantSave(200);
     updateStaticUI();
+    return true;
+}
+
+function setupBattlefieldShrineInteraction() {
+    let canvas = document.getElementById('battlefield-canvas');
+    if (!canvas || canvas.dataset.shrineInteractionBound === 'true') return;
+    canvas.dataset.shrineInteractionBound = 'true';
+    canvas.addEventListener('pointermove', event => {
+        let hovered = !!getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY);
+        battleVisualState.shrineHovered = hovered;
+        canvas.style.cursor = hovered ? 'pointer' : '';
+    });
+    canvas.addEventListener('pointerleave', () => {
+        battleVisualState.shrineHovered = false;
+        canvas.style.cursor = '';
+    });
+    canvas.addEventListener('click', event => {
+        if (!getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY)) return;
+        event.preventDefault();
+        claimBattlefieldShrine();
+    });
 }
 
 function renderTabOrderSettings() {
@@ -8068,19 +8095,6 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
     return pool[(variantSeed + elementOffset) % pool.length];
 }
 
-function drawBountyTargetGlyph(ctx, x, y, scale) {
-    let size = Math.max(4, Math.min(7, 5 * scale));
-    ctx.save();
-    ctx.translate(Math.round(x), Math.round(y));
-    ctx.rotate(Math.PI / 4);
-    ctx.fillStyle = '#ffe49a';
-    ctx.strokeStyle = '#8b5a12';
-    ctx.lineWidth = 1.2;
-    ctx.fillRect(-size / 2, -size / 2, size, size);
-    ctx.strokeRect(-size / 2, -size / 2, size, size);
-    ctx.restore();
-}
-
 function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
     if (battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
         let enemyAtlas = battleAssets.atlas.enemies;
@@ -8104,7 +8118,6 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now) {
             outlineAlpha: enemy.isBoss ? 0.46 : (enemy.isElite ? 0.72 : 0)
         });
         ctx.restore();
-        if (enemy.isBountyTarget) drawBountyTargetGlyph(ctx, x, y - drawSize * 0.54, scale);
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.16;
@@ -9961,22 +9974,6 @@ function performUpdateStaticUI() {
     if (loopReadyBanner) loopReadyBanner.classList.toggle('active', !!game.pendingLoopReady);
     let combatLoopBtn = document.getElementById('btn-combat-loop-advance');
     if (combatLoopBtn) combatLoopBtn.style.display = canShowCombatLoopAdvanceButton() ? 'inline-flex' : 'none';
-    let shrineBox = document.getElementById('ui-shrine-box');
-    if (shrineBox) {
-        let active = shrineRuntime.getActiveBlessing();
-        let buff = game.shrineBuff;
-        let now = Date.now();
-        let buffRemain = buff ? Math.max(0, Math.ceil(((buff.expiresAt || 0) - now) / 1000)) : 0;
-        let pity = Math.max(0, Math.floor(game.shrineState.pity || 0));
-        let shrineStateKey = active ? `active:${active.id}` : (buff ? `buff:${buff.name}` : `idle:${pity}`);
-        if (shrineBox.dataset.stateKey !== shrineStateKey) {
-            shrineBox.innerHTML = active ? `<button onclick="clickActiveShrine()">🛕 ${active.name} 받기</button>` : (buff ? `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>` : `<div style="color:var(--copy-muted);">성소 기운 ${pity}/${SHRINE_ENCOUNTER_CONFIG.guaranteedAt}</div>`);
-            shrineBox.dataset.stateKey = shrineStateKey;
-        } else if (buff) {
-            shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
-        }
-    }
-    if (typeof bountyUi !== 'undefined') bountyUi.renderHud();
     let charTabActive = getRenderingUiTabIds().has('tab-char');
     if (charTabActive) {
         let drawNow = Date.now();
@@ -12550,6 +12547,7 @@ function openVoidPassiveCraftOverlay(nodeId) {
 
 function setupCanvasEvents() {
     setupPassiveTreeSearchControls();
+    setupBattlefieldShrineInteraction();
     const canvas = document.getElementById('tree-canvas');
     if (!canvas) return;
     const canvasTooltip = document.getElementById('canvas-tooltip');
@@ -13143,7 +13141,6 @@ function mergeDefaults(save) {
             elite: !!marker.elite,
             boss: !!marker.boss
         };
-        if (typeof BOUNTY_TARGET_DB !== 'undefined' && BOUNTY_TARGET_DB[marker.bountyId]) normalized.bountyId = marker.bountyId;
         return normalized;
     }
     function normalizeEnemyRecord(enemy) {
@@ -13151,7 +13148,7 @@ function mergeDefaults(save) {
         let hp = clampFiniteNumber(enemy.hp, NaN, 0);
         let maxHp = clampFiniteNumber(enemy.maxHp, clampFiniteNumber(hp, 1, 1), 1);
         if (!Number.isFinite(hp)) hp = maxHp;
-        return normalizeEnemyGridFields({
+        let normalized = normalizeEnemyGridFields({
             ...enemy,
             id: Math.max(1, Math.floor(clampFiniteNumber(enemy.id, 1, 1))),
             hp: Math.min(maxHp, hp),
@@ -13173,6 +13170,9 @@ function mergeDefaults(save) {
             isElite: !!enemy.isElite,
             isBoss: !!enemy.isBoss
         });
+        delete normalized.isBountyTarget;
+        delete normalized.bountyId;
+        return normalized;
     }
 
     // 그리드 필드 정리: 잘못된 좌표/유형은 버려서 다음 전투 틱의 그리드 복구가 다시 배치하게 한다.
@@ -13953,8 +13953,7 @@ function mergeDefaults(save) {
     }
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
     merged.saveVersion = defaultGame.saveVersion;
-    merged.bountyHunt = { ...defaultGame.bountyHunt, ...((merged.bountyHunt && typeof merged.bountyHunt === 'object') ? merged.bountyHunt : {}) };
-    if (typeof bountyRuntime !== 'undefined') bountyRuntime.ensureState(merged);
+    delete merged.bountyHunt;
     // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
     // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
     // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.

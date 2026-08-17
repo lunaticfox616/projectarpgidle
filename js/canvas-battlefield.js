@@ -1267,8 +1267,7 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
-        let bountyTarget = !!enemy.isBountyTarget;
-        let width = enemy.isBoss ? 72 : (bountyTarget ? 58 : 46);
+        let width = enemy.isBoss ? 72 : 46;
         let x = Math.round(entry.x - width / 2);
         let y = Math.round(entry.y - (enemy.isBoss ? 78 : 56));
         let targeted = targetIds.includes(enemy.id);
@@ -1279,22 +1278,16 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
             ctx.fillStyle = 'rgba(255, 138, 80, 0.58)';
             ctx.fillRect(x, y, Math.max(2, Math.round(width * ghostPct)), 6);
         }
-        ctx.fillStyle = bountyTarget ? '#d9a42d' : (targeted ? '#f1c40f' : '#e94f64');
+        ctx.fillStyle = targeted ? '#f1c40f' : '#e94f64';
         ctx.fillRect(x, y, Math.max(2, Math.round(width * pct)), 6);
         let esPct = (enemy.maxEnergyShield || 0) > 0 ? clampNumber((enemy.energyShield || 0) / Math.max(1, enemy.maxEnergyShield), 0, 1) : 0;
         if (esPct > 0) {
             ctx.fillStyle = 'rgba(92, 184, 255, 0.92)';
             ctx.fillRect(x, y - 4, Math.max(2, Math.round(width * esPct)), 3);
         }
-        ctx.strokeStyle = bountyTarget ? 'rgba(255, 225, 132, 0.98)' : (targeted ? 'rgba(255, 224, 130, 0.95)' : 'rgba(255,255,255,0.14)');
+        ctx.strokeStyle = targeted ? 'rgba(255, 224, 130, 0.95)' : 'rgba(255,255,255,0.14)';
         ctx.lineWidth = 1;
         ctx.strokeRect(x - 0.5, y - 0.5, width + 1, 7);
-        if (bountyTarget) {
-            ctx.fillStyle = '#ffe69b';
-            ctx.translate(Math.round(entry.x), y - 5);
-            ctx.rotate(Math.PI / 4);
-            ctx.fillRect(-3, -3, 6, 6);
-        }
         ctx.restore();
     });
 }
@@ -1353,6 +1346,77 @@ function drawLevelUpFx(ctx, fx, t, playerPos) {
     ctx.fillStyle = '#fff2b4';
     ctx.fillText(`LEVEL ${fx.level || ''} UP`, playerPos.x, playerPos.y - 58 - t * 9);
     ctx.restore();
+}
+
+function getBattlefieldShrineAtClientPosition(canvas, clientX, clientY) {
+    let hitbox = battleVisualState.shrineHitbox;
+    if (!canvas || !hitbox) return null;
+    let rect = canvas.getBoundingClientRect();
+    let x = (clientX - rect.left) * ((canvas.clientWidth || rect.width) / Math.max(1, rect.width));
+    let y = (clientY - rect.top) * ((canvas.clientHeight || rect.height) / Math.max(1, rect.height));
+    return x >= hitbox.x && x <= hitbox.x + hitbox.width && y >= hitbox.y && y <= hitbox.y + hitbox.height
+        ? hitbox.encounter : null;
+}
+
+function drawShrineFallback(ctx, width, height, color) {
+    ctx.fillStyle = '#242b31';
+    ctx.fillRect(-width * 0.24, -height * 0.58, width * 0.48, height * 0.58);
+    ctx.fillStyle = '#4e5960';
+    ctx.beginPath();
+    ctx.moveTo(0, -height);
+    ctx.lineTo(width * 0.24, -height * 0.58);
+    ctx.lineTo(0, -height * 0.46);
+    ctx.lineTo(-width * 0.24, -height * 0.58);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, -height * 0.94);
+    ctx.lineTo(width * 0.1, -height * 0.68);
+    ctx.lineTo(0, -height * 0.55);
+    ctx.lineTo(-width * 0.1, -height * 0.68);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function drawBattlefieldShrine(ctx, gridProj, now, gridScale, cameraShake) {
+    let encounter = typeof shrineRuntime !== 'undefined' ? shrineRuntime.getActiveEncounter() : null;
+    if (!encounter || !gridProj) {
+        battleVisualState.shrineHitbox = null;
+        battleVisualState.shrineHovered = false;
+        return;
+    }
+    let pos = gridProj.cellToScreen(encounter.cell.gx, encounter.cell.gy);
+    let height = Math.round(88 * clampNumber(gridScale, 0.72, 1.18));
+    let width = Math.round(height * 0.8);
+    let color = { power: '#ffbd55', guard: '#73d4ff', haste: '#d6f06b' }[encounter.blessing.id] || '#ffd36b';
+    let hovered = battleVisualState.shrineHovered === true;
+    let image = battleAssets && battleAssets.images ? battleAssets.images.shrineInteractable : null;
+    ctx.save();
+    ctx.translate(pos.x, pos.y + 5);
+    ctx.globalAlpha = 0.92 + Math.sin(now / 310) * 0.05;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = hovered ? 16 : 8;
+    if (image && image.naturalWidth > 0) ctx.drawImage(image, -width / 2, -height, width, height);
+    else drawShrineFallback(ctx, width, height, color);
+    ctx.shadowBlur = 0;
+    let label = `${encounter.blessing.name} · 클릭`;
+    ctx.font = `700 ${hovered ? 12 : 11}px Malgun Gothic`;
+    let labelWidth = Math.ceil(ctx.measureText(label).width) + 16;
+    ctx.fillStyle = 'rgba(8, 12, 18, 0.88)';
+    ctx.fillRect(-labelWidth / 2, -height - 19, labelWidth, 17);
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, 0, -height - 10);
+    ctx.restore();
+    battleVisualState.shrineHitbox = {
+        x: pos.x + cameraShake.x - Math.max(28, width * 0.58),
+        y: pos.y + cameraShake.y - height - 20,
+        width: Math.max(56, width * 1.16),
+        height: height + 28,
+        encounter
+    };
 }
 
 function selectPlayerSwingEffects(effects, now, durationScale) {
@@ -1579,8 +1643,9 @@ function renderBattlefield(forceWhenHidden) {
         queueSkillGemProjectileLaunch(latestSwingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
-    drawActiveSummons(ctx, playerPos, now, gridProj);
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.62, 1.3);
+    drawBattlefieldShrine(ctx, gridProj, now, gridUnitScale, cameraShake);
+    drawActiveSummons(ctx, playerPos, now, gridProj);
     let playerFacingLeft = resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, enemyPosMap);
     if (playerFacingLeft) {
         ctx.save();
@@ -2050,8 +2115,7 @@ function getEnemyTraitSummary(enemy) {
     return Array.from(new Set(tags.filter(Boolean)));
 }
 function getEnemyShortLabel(enemy) {
-    if (enemy.isBountyTarget) return '현상금';
-    if (enemy.isRogueExile) return '유배자';
+    if (enemy.isSeveredWanderer) return '방랑자';
     if (enemy.isBoss) return '보스';
     if (enemy.isElite) return '정예';
     if (enemy.ele === 'fire') return '화염';
@@ -2249,4 +2313,4 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
 }
 
 
-safeExposeGlobals({ renderBattlefield, getPlayableHeroWalkMotion });
+safeExposeGlobals({ renderBattlefield, getPlayableHeroWalkMotion, getBattlefieldShrineAtClientPosition });

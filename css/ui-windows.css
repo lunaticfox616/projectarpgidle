@@ -99,7 +99,6 @@
   body.desktop-windowed-ui .map-progress-row #ui-progress-label { font-size: 11px !important; color: #82c7ff !important; white-space: nowrap; }
   body.desktop-windowed-ui .map-progress-row .hp-bar-bg { height: 6px !important; margin: 0; }
   body.desktop-windowed-ui .map-progress-row .hp-text { font-size: 0; }
-  body.desktop-windowed-ui #ui-shrine-box { top: 58px !important; right: 10px !important; }
 
   body.desktop-windowed-ui #enemy-area { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); top: 24px; z-index: 24; width: clamp(420px, 48vw, 680px); transform: translateX(-50%); pointer-events: none; }
   body.desktop-windowed-ui #ui-enemy-list { display: grid; gap: 3px; min-height: 0; pointer-events: none; }

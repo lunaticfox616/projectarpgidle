@@ -43,13 +43,26 @@ create table if not exists public.player_rankings (
     ascend_class text,
     active_skill text,
     save_revision bigint not null,
+    ranking_day date not null default ((now() at time zone 'Asia/Seoul')::date),
     updated_at timestamptz not null default now()
 );
+
+alter table public.player_rankings add column if not exists ranking_day date;
+update public.player_rankings
+   set ranking_day = (updated_at at time zone 'Asia/Seoul')::date
+ where ranking_day is null;
+alter table public.player_rankings alter column ranking_day set not null;
+alter table public.player_rankings alter column ranking_day
+    set default ((now() at time zone 'Asia/Seoul')::date);
 
 create index if not exists player_rankings_loop_idx
     on public.player_rankings(loop_count desc, dps desc, updated_at asc);
 create index if not exists player_rankings_dps_idx
     on public.player_rankings(dps desc, loop_count desc, updated_at asc);
+create index if not exists player_rankings_daily_loop_idx
+    on public.player_rankings(ranking_day, loop_count desc, dps desc, updated_at asc);
+create index if not exists player_rankings_daily_dps_idx
+    on public.player_rankings(ranking_day, dps desc, loop_count desc, updated_at asc);
 
 alter table public.trade_item_registry enable row level security;
 alter table public.player_trade_listings enable row level security;
@@ -259,32 +272,37 @@ declare
     save_row public.cloud_saves%rowtype;
     profile_name text;
     loop_value integer;
+    ranking_today date := (now() at time zone 'Asia/Seoul')::date;
+    affected_rows integer;
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     if p_dps < 0 or p_dps > 9000000000000000 then raise exception 'RANKING_INVALID_DPS'; end if;
     select * into save_row from public.cloud_saves where user_id = account_id;
     if not found or save_row.revision <> greatest(0, p_expected_revision) then raise exception 'CLOUD_REVISION_CONFLICT'; end if;
-    if exists (select 1 from public.player_rankings where user_id = account_id and updated_at > now() - interval '1 minute') then
-        raise exception 'RANKING_RATE_LIMIT';
-    end if;
     loop_value := greatest(1, least(100000, coalesce(
         case when jsonb_typeof(save_row.save_data -> 'season') = 'number'
              then (save_row.save_data ->> 'season')::integer end, 1)));
     select nickname into profile_name from public.player_profiles where user_id = account_id;
-    insert into public.player_rankings(user_id, nickname, loop_count, dps, ascend_class, active_skill, save_revision, updated_at)
+    insert into public.player_rankings(user_id, nickname, loop_count, dps, ascend_class, active_skill, save_revision, ranking_day, updated_at)
     values (account_id, left(coalesce(nullif(trim(profile_name), ''), '익명'), 24), loop_value, p_dps,
         left(coalesce(save_row.save_data ->> 'ascendClass', ''), 32),
-        left(coalesce(save_row.save_data ->> 'activeSkill', ''), 48), save_row.revision, now())
+        left(coalesce(save_row.save_data ->> 'activeSkill', ''), 48), save_row.revision, ranking_today, now())
     on conflict (user_id) do update set nickname = excluded.nickname, loop_count = excluded.loop_count,
         dps = excluded.dps, ascend_class = excluded.ascend_class, active_skill = excluded.active_skill,
-        save_revision = excluded.save_revision, updated_at = now();
-    return jsonb_build_object('loopCount', loop_value, 'dps', p_dps, 'saveRevision', save_row.revision);
+        save_revision = excluded.save_revision, ranking_day = excluded.ranking_day, updated_at = excluded.updated_at
+        where player_rankings.ranking_day < excluded.ranking_day;
+    get diagnostics affected_rows = row_count;
+    if affected_rows = 0 then raise exception 'RANKING_DAILY_LIMIT'; end if;
+    return jsonb_build_object('loopCount', loop_value, 'dps', p_dps,
+        'saveRevision', save_row.revision, 'rankingDay', ranking_today);
 end;
 $$;
 
 create or replace function public.get_player_exchange()
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare account_id uuid := auth.uid();
+declare
+    account_id uuid := auth.uid();
+    ranking_today date := (now() at time zone 'Asia/Seoul')::date;
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     return jsonb_build_object(
@@ -303,10 +321,15 @@ begin
             where listing.seller_id = account_id and listing.status = 'sold' and listing.proceeds_claimed_at is null), 0),
         'loopRanking', coalesce((select jsonb_agg(to_jsonb(ranked) - 'user_id') from (
             select nickname, loop_count, dps, ascend_class, active_skill, updated_at
-              from public.player_rankings order by loop_count desc, dps desc, updated_at asc limit 50) ranked), '[]'::jsonb),
+              from public.player_rankings where ranking_day = ranking_today
+             order by loop_count desc, dps desc, updated_at asc limit 50) ranked), '[]'::jsonb),
         'dpsRanking', coalesce((select jsonb_agg(to_jsonb(ranked) - 'user_id') from (
             select nickname, loop_count, dps, ascend_class, active_skill, updated_at
-              from public.player_rankings order by dps desc, loop_count desc, updated_at asc limit 50) ranked), '[]'::jsonb)
+              from public.player_rankings where ranking_day = ranking_today
+             order by dps desc, loop_count desc, updated_at asc limit 50) ranked), '[]'::jsonb),
+        'rankingDay', ranking_today,
+        'rankingSubmittedToday', exists(select 1 from public.player_rankings
+            where user_id = account_id and ranking_day = ranking_today)
     );
 end;
 $$;

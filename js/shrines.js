@@ -10,6 +10,17 @@ function normalizeShrineBlessingId(rawState) {
     return getShrineBlessingIdByLegacyName(rawState.active.name);
 }
 
+function getShrineSpawnCellByIndex(index) {
+    let safeIndex = Math.max(0, Math.floor(Number(index) || 0)) % SHRINE_SPAWN_CELLS.length;
+    let cell = SHRINE_SPAWN_CELLS[safeIndex];
+    return { gx: cell.gx, gy: cell.gy };
+}
+
+function normalizeShrineSpawnCell(cell, fallbackIndex) {
+    let match = SHRINE_SPAWN_CELLS.find(row => row.gx === Number(cell && cell.gx) && row.gy === Number(cell && cell.gy));
+    return match ? { gx: match.gx, gy: match.gy } : getShrineSpawnCellByIndex(fallbackIndex);
+}
+
 function ensureShrineState(targetGame = game) {
     let raw = targetGame.shrineState && typeof targetGame.shrineState === 'object'
         ? targetGame.shrineState
@@ -19,6 +30,7 @@ function ensureShrineState(targetGame = game) {
     raw.pity = Math.max(0, Math.min(guaranteedAt - 1, Math.floor(Number(raw.pity) || 0)));
     raw.spawned = Math.max(0, Math.floor(Number(raw.spawned) || 0));
     raw.claimed = Math.max(0, Math.floor(Number(raw.claimed) || 0));
+    raw.spawnCell = raw.activeId ? normalizeShrineSpawnCell(raw.spawnCell, raw.spawned) : null;
     delete raw.active;
     delete raw.nextRollAt;
     targetGame.shrineState = raw;
@@ -34,23 +46,34 @@ function getActiveShrineBlessing(targetGame = game) {
     return state.activeId ? SHRINE_BLESSING_DB[state.activeId] || null : null;
 }
 
-function rollShrineBlessingId() {
-    let ids = Object.keys(SHRINE_BLESSING_DB);
-    return ids[Math.floor(Math.random() * ids.length)] || ids[0];
+function getActiveShrineEncounter(targetGame = game) {
+    let state = ensureShrineState(targetGame);
+    let blessing = state.activeId ? SHRINE_BLESSING_DB[state.activeId] || null : null;
+    return blessing ? { blessing, cell: { ...state.spawnCell } } : null;
 }
 
-function advanceShrineAfterEncounter(zone, targetGame = game) {
+function rollShrineBlessingId(rng) {
+    let ids = Object.keys(SHRINE_BLESSING_DB);
+    return ids[Math.floor(rng() * ids.length)] || ids[0];
+}
+
+function rollShrineSpawnCell(rng) {
+    return getShrineSpawnCellByIndex(Math.floor(rng() * SHRINE_SPAWN_CELLS.length));
+}
+
+function advanceShrineAfterEncounter(zone, targetGame = game, rng = Math.random) {
     let state = ensureShrineState(targetGame);
     if (!isShrineEligibleZone(zone)) return { spawned: false, reason: 'ineligible' };
     if (state.activeId) return { spawned: false, reason: 'pending' };
     let config = SHRINE_ENCOUNTER_CONFIG;
     let chance = Math.min(1, config.baseChance + (state.pity * config.pityChancePerClear));
     let guaranteed = state.pity >= config.guaranteedAt - 1;
-    if (!guaranteed && Math.random() >= chance) {
+    if (!guaranteed && rng() >= chance) {
         state.pity = Math.min(config.guaranteedAt - 1, state.pity + 1);
         return { spawned: false, reason: 'miss', chance };
     }
-    state.activeId = rollShrineBlessingId();
+    state.activeId = rollShrineBlessingId(rng);
+    state.spawnCell = rollShrineSpawnCell(rng);
     state.pity = 0;
     state.spawned++;
     return { spawned: true, blessing: SHRINE_BLESSING_DB[state.activeId] };
@@ -69,6 +92,7 @@ function claimActiveShrine(targetGame = game, now = Date.now()) {
         expiresAt: now + SHRINE_ENCOUNTER_CONFIG.buffDurationMs
     };
     state.activeId = null;
+    state.spawnCell = null;
     state.claimed++;
     return { claimed: true, blessing };
 }
@@ -77,6 +101,7 @@ const shrineRuntime = Object.freeze({
     ensureState: ensureShrineState,
     isEligibleZone: isShrineEligibleZone,
     getActiveBlessing: getActiveShrineBlessing,
+    getActiveEncounter: getActiveShrineEncounter,
     advanceAfterEncounter: advanceShrineAfterEncounter,
     claimActive: claimActiveShrine
 });
