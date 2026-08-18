@@ -7588,6 +7588,15 @@ function normalizeItem(item) {
             : null;
     }
     item.locked = !!item.locked;
+    item.hallReplica = !!item.hallReplica;
+    item.hallRelistBlocked = !!item.hallRelistBlocked;
+    if (item.hallReplica) {
+        item.locked = true;
+        item.tradeLocked = true;
+        item.hallSourceId = Math.max(0, Math.floor(coerceFiniteNumber(item.hallSourceId, 0)));
+        item.hallAppraisalScore = Math.max(0, Math.floor(coerceFiniteNumber(item.hallAppraisalScore, 0)));
+        item.hallCuratorName = String(item.hallCuratorName || '').slice(0, 24);
+    }
     if (!item.id) item.id = ++itemIdCounter;
     return item;
 }

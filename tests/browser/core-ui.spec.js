@@ -891,15 +891,16 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     expect(failures).toEqual([]);
 });
 
-test('player exchange keeps trade inputs stable and rankings readable', async ({ page }) => {
+test('equipment hall shows server appraisal, ownership rules, and rankings', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
-    await page.route('https://**/rest/v1/rpc/get_player_exchange', route => route.fulfill({
+    await page.route('https://**/rest/v1/rpc/get_player_hall', route => route.fulfill({
         status: 200, contentType: 'application/json', body: JSON.stringify({
-            listings: [{ id: 41, sellerName: '상대', price: 12, isMine: false,
-                item: { id: 9000000000041, name: '서릿빛 검', slot: '무기', rarity: 'rare', stats: [{ id: 'flatDmg', val: 18 }] } }],
+            listings: [{ id: 41, curatorName: '상대', score: 9180, price: 620, honorPerCopy: 4,
+                copiesSold: 2, copyCap: 5, isMine: false, alreadyCollected: false,
+                item: { id: 9100000000041, name: '서릿빛 검', baseId: 'rusted_blade', slot: '무기', rarity: 'rare', hiddenTier: 15, stats: [{ id: 'flatDmg', val: 18 }] } }],
             mine: [],
-            unclaimedProceeds: 19,
+            honor: 19, copiesShared: 6, collectionCount: 3,
             loopRanking: [{ nickname: '순환자', loop_count: 17, dps: 88000, ascend_class: '검투사', active_skill: '연속 베기' }],
             dpsRanking: [{ nickname: '화력왕', loop_count: 12, dps: 123456, ascend_class: '원소술사', active_skill: '유성 낙화' }]
         })
@@ -910,21 +911,23 @@ test('player exchange keeps trade inputs stable and rankings readable', async ({
         cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
         cloudState.revisionSupported = true;
         game.saveMeta.cloudRevision = 4;
-        game.inventory = [{ id: 771, name: '판매할 투구', slot: '투구', rarity: 'magic', stats: [{ id: 'flatHp', val: 22 }] }];
+        game.inventory = [{ id: 771, name: '전시할 투구', baseId: 'war_helm', baseName: '전투 투구',
+            slot: '투구', rarity: 'rare', hiddenTier: 12, baseStats: [], stats: [{ id: 'flatHp', val: 220, tier: 9 }] }];
         game.level = 100;
         game.season = 20;
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         updateStaticUI();
         switchTab('tab-map');
         switchMapSubtab('map-tab-pvp');
-        switchPlayerArenaSection('trade');
+        switchPlayerArenaSection('hall');
     });
-    await expect(page.locator('#map-player-trade')).toContainText('서릿빛 검');
-    await page.locator('#player-trade-price').fill('37');
-    await page.getByRole('button', { name: '판매 선택' }).click();
-    await expect(page.locator('#player-trade-price')).toHaveValue('37');
-    await expect(page.locator('#map-player-trade')).toContainText('황금률 12');
-    await expect(page.getByRole('button', { name: '판매금 19 수령' })).toBeVisible();
+    await expect(page.locator('#map-player-hall')).toContainText('서릿빛 검');
+    await page.getByRole('button', { name: '전당 등록 선택' }).click();
+    await expect(page.locator('#map-player-hall')).toContainText('전시 등록 0/3');
+    await expect(page.locator('#map-player-hall')).toContainText('감정 9,180');
+    await expect(page.locator('#map-player-hall')).toContainText('황금률 620');
+    await expect(page.locator('#map-player-hall')).toContainText('명예 19');
+    await expect(page.getByRole('button', { name: '서버 감정 후 전시' })).toBeVisible();
 
     await page.getByRole('button', { name: '루프·DPS 순위' }).click();
     await expect(page.locator('#map-player-ranking')).toContainText('17 루프');

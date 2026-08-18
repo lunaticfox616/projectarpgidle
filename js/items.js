@@ -243,9 +243,15 @@ function ensureCraftSelectionValid() {
 }
 
 function selectForCrafting(ref, isEquip) {
+    let item = isEquip ? game.equipment[ref] : (game.inventory || []).find(row => row && Number(row.id) === Number(ref));
+    if (item && item.hallReplica) {
+        addLog('전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다.', 'attack-monster');
+        return false;
+    }
     craftingSelectionState.ref = ref;
     craftingSelectionState.isEquip = isEquip;
     updateStaticUI();
+    return true;
 }
 
 function copyCraftResultStat(stat) {
@@ -450,6 +456,10 @@ function toggleItemLockById(itemId) {
     if (idx < 0) return false;
     let item = game.inventory[idx];
     if (!item) return false;
+    if (item.hallReplica) {
+        addLog('전당 소장품의 보호 잠금은 해제할 수 없습니다.', 'attack-monster');
+        return false;
+    }
     item.locked = !item.locked;
     addLog(`${item.locked ? '🔒 잠금' : '🔓 잠금 해제'}: [${item.name}]`, 'loot-normal');
     updateStaticUI();

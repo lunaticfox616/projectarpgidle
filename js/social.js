@@ -157,6 +157,12 @@ function buildItemSnapshot(item, slotOverride) {
             return o;
         })
     };
+    if (item.hallReplica) {
+        snap.hallReplica = true;
+        snap.hallCuratorName = item.hallCuratorName || '';
+        snap.hallAppraisalScore = Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0));
+    }
+    if (item.hallRelistBlocked) snap.hallRelistBlocked = true;
     // 특수 상태: 봉인(나무꾼의 손길), 고유 융합 유물, 혼돈 주입, 잠식 — 실제 툴팁과 동일하게 노출.
     if (item.loopSealed) snap.loopSealed = true;
     if (item.fusedRelic) {
@@ -1038,6 +1044,10 @@ function renderProfileItemCard(item) {
     let corrupt = item.corrupted ? ` <span style="color:#e74c3c;">(타락)</span>` : '';
     let encroachBadge = item.encroached ? ` <span style="color:#b084ff;">(잠식)</span>` : '';
     let sealBadge = item.loopSealed ? ` <span style="color:#7fd99a;">🌿봉인</span>` : '';
+    let hallBadge = item.hallReplica ? ` <span style="color:#e9cf8e;">🏛️전당 소장품</span>` : '';
+    let hallProvenance = item.hallReplica
+        ? `<div class="social-item-stat" style="color:#d2b878;">전시자 ${socialEscape(item.hallCuratorName || '익명')} · 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()} · 제작/재등록 불가</div>`
+        : (item.hallRelistBlocked ? '<div class="social-item-stat" style="color:#bda979;">전당 복제 이력 · 재등록 불가</div>' : '');
     // 고유 융합 유물(시간의 균열): 융합 등급 + 계승 원본 표시.
     let fusion = '';
     if (item.fusedRelic) {
@@ -1045,9 +1055,9 @@ function renderProfileItemCard(item) {
         fusion = `<div class="social-item-stat" style="color:#8fd8ff;">⌛ ${gradeLabel}${item.fusedRareName ? ` · [${socialEscape(item.fusedRareName)}]의 기억` : ''}</div>`;
     }
     return `<div class="social-item-card" style="border-color:${color};">`
-        + `<div class="social-item-title" style="color:${color};">${item.slot ? `[${socialEscape(item.slot)}] ` : ''}${socialEscape(item.name)}${encroachBadge}${corrupt}${sealBadge}</div>`
+        + `<div class="social-item-title" style="color:${color};">${item.slot ? `[${socialEscape(item.slot)}] ` : ''}${socialEscape(item.name)}${encroachBadge}${corrupt}${sealBadge}${hallBadge}</div>`
         + (item.baseName ? `<div class="social-item-base">${socialEscape(item.baseName)}</div>` : '')
-        + fusion + unique + lines + `</div>`;
+        + hallProvenance + fusion + unique + lines + `</div>`;
 }
 function renderSimpleCard(snap) {
     let color = socialRarityColor(snap.rarity);
