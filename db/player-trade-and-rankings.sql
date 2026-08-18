@@ -251,7 +251,10 @@ $$;
 
 create or replace function public.validate_hall_item(item_data jsonb)
 returns void language plpgsql immutable set search_path = public as $$
+declare
+    max_stat_lines integer := 8;
 begin
+    if item_data ->> 'rarity' = 'rare' then max_stat_lines := 7; end if;
     if jsonb_typeof(item_data) is distinct from 'object'
        or length(coalesce(item_data ->> 'name', '')) not between 1 and 80
        or length(coalesce(nullif(item_data ->> 'baseId', ''), item_data ->> 'baseName', '')) not between 1 and 80
@@ -265,7 +268,7 @@ begin
         raise exception 'HALL_ITEM_REJECTED';
     end if;
     if jsonb_typeof(item_data -> 'stats') is distinct from 'array'
-       or jsonb_array_length(public.hall_array(item_data -> 'stats')) > case when item_data ->> 'rarity' = 'rare' then 7 else 8 end
+       or jsonb_array_length(public.hall_array(item_data -> 'stats')) > max_stat_lines
        or jsonb_typeof(item_data -> 'baseStats') is distinct from 'array'
        or jsonb_array_length(public.hall_array(item_data -> 'baseStats')) > 8
        or exists (select 1 from (
@@ -274,8 +277,8 @@ begin
                select value stat from jsonb_array_elements(public.hall_array(item_data -> 'baseStats'))
            ) item_stats where jsonb_typeof(stat) is distinct from 'object'
               or length(coalesce(stat ->> 'id', '')) not between 1 and 80
-              or case when jsonb_typeof(stat -> 'val') = 'number'
-                      then abs((stat ->> 'val')::numeric) > 9000000000000 else true end) then
+              or jsonb_typeof(stat -> 'val') is distinct from 'number'
+              or abs(public.hall_number(stat -> 'val', 0, -9000000000001, 9000000000001)) > 9000000000000) then
         raise exception 'HALL_ITEM_REJECTED';
     end if;
     if item_data ? 'abyssSockets' and jsonb_typeof(item_data -> 'abyssSockets') not in ('array','null') then
@@ -287,10 +290,9 @@ begin
     end if;
     if item_data ->> 'rarity' = 'rare' and (
         exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'stats')) stat
-                 where case when jsonb_typeof(stat -> 'tier') = 'number'
-                     then (stat ->> 'tier')::numeric not between 1 and least(20,
-                         public.hall_number(coalesce(item_data -> 'affixTierCap', item_data -> 'hiddenTier'), 1, 1, 20))
-                     else true end)
+                 where jsonb_typeof(stat -> 'tier') is distinct from 'number'
+                    or public.hall_number(stat -> 'tier', 0, -1, 21) not between 1 and least(20,
+                        public.hall_number(coalesce(item_data -> 'affixTierCap', item_data -> 'hiddenTier'), 1, 1, 20)))
         or exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'stats')) stat
                     group by stat ->> 'id' having count(*) > 1)
     ) then raise exception 'HALL_ITEM_REJECTED'; end if;
