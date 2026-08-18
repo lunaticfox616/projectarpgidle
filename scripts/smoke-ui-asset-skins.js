@@ -139,7 +139,8 @@ assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;
 assert.ok(/body\.mobile-battle-tab #tab-battle \.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?display: flex;[\s\S]*?align-items: center;[\s\S]*?height: 17%;/.test(css),
   'mobile boss traits must keep the frame-panel centering contract');
 assert.ok(css.includes('@keyframes boss-trait-marquee') && css.includes('animation-play-state: paused')
-  && css.includes('mask-image: linear-gradient') && css.includes('translate3d(var(--trait-loop-x), 0, 0)'),
+  && css.includes('mask-image: linear-gradient') && css.includes('translate3d(-50%, 0, 0)')
+  && css.includes('.enemy-trait-marquee-copy'),
   'overflowing boss traits must use a filled, faded, pausable transform ticker');
 assert.ok(ui.includes('onmouseenter="showEnemyTraitTooltip(event)"') && !ui.includes('traitEl.title ='),
   'boss trait hover must use the shared custom tooltip without a native title fallback');

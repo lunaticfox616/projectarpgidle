@@ -6318,6 +6318,7 @@ function createEnemy(zone, marker, groupIndex) {
     applyGrandBreachMobTuning(zone, enemy);
     if (marker.bountyId && typeof bountyRuntime !== 'undefined') bountyRuntime.applyTargetToEnemy(enemy, marker.bountyId);
     assignEnemyGridCombatProfile(enemy);
+    if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, isElite, isBoss);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
     return enemy;
 }
@@ -6691,7 +6692,9 @@ function resetBattleRuntimeVisuals() {
         playerDownBlend: 0,
         lastNow: 0,
         advanceDesired: false,
-        advanceChangedAt: 0
+        advanceChangedAt: 0,
+        shrineHitbox: null,
+        shrineHovered: false
     };
     crowdPauseActive = false;
     trialHazardTimer = 0;
@@ -10479,6 +10482,7 @@ function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
 }
 
 function getEnemyCombatDelivery(enemy, bossPattern) {
+    if (enemy && enemy.isSeveredWanderer && enemy.wandererDelivery) return enemy.wandererDelivery;
     if (!enemy || enemy.attackKind !== 'ranged') return 'instantTarget';
     return bossPattern && bossPattern.isSpecial ? 'magicCell' : 'projectileCell';
 }

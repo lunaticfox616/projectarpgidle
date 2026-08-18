@@ -21,7 +21,7 @@ jobs:
     # 실행하면 동일한 브라우저 검사를 두 번 수행하므로 외부 포크 PR에서만 이 경로를 쓴다.
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

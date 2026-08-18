@@ -48,24 +48,34 @@ test('guest mode is local-only and survives reload', async ({ page }) => {
     expect(failures).toEqual([]);
 });
 
-test('shrine pity and claim stay tied to encounter progress', async ({ page }) => {
+test('a shrine appears on the battlefield and grants its blessing when clicked', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
-    await expect(page.locator('#ui-shrine-box')).toContainText('성소 기운 0/20');
-
     const outcome = await page.evaluate(() => {
-        game.shrineState = { activeId: null, pity: 19, spawned: 0, claimed: 0 };
-        const result = shrineRuntime.advanceAfterEncounter({ type: 'act' });
-        updateStaticUI();
-        return { spawned: result.spawned, activeId: game.shrineState.activeId };
+        game.shrineState = { activeId: null, spawnCell: null, pity: 19, spawned: 0, claimed: 0 };
+        const result = shrineRuntime.advanceAfterEncounter({ type: 'act' }, game, () => 0.5);
+        renderBattlefield(true);
+        return { spawned: result.spawned, activeId: game.shrineState.activeId, spawnCell: game.shrineState.spawnCell };
     });
     expect(outcome.spawned).toBe(true);
     expect(outcome.activeId).toBeTruthy();
-    const claimButton = page.locator('#ui-shrine-box button');
-    await expect(claimButton).toContainText('받기');
-    await claimButton.click();
-    await expect(page.locator('#ui-shrine-box')).toContainText('지속중');
+    expect(outcome.spawnCell).toEqual(expect.objectContaining({ gx: expect.any(Number), gy: expect.any(Number) }));
+    await expect.poll(() => page.evaluate(() => !!battleVisualState.shrineHitbox)).toBe(true);
+    const clickPoint = await page.evaluate(() => {
+        const canvas = document.getElementById('battlefield-canvas');
+        const rect = canvas.getBoundingClientRect();
+        const hitbox = battleVisualState.shrineHitbox;
+        return {
+            x: rect.left + (hitbox.x + hitbox.width / 2) * rect.width / canvas.clientWidth,
+            y: rect.top + (hitbox.y + hitbox.height / 2) * rect.height / canvas.clientHeight
+        };
+    });
+    await page.mouse.click(clickPoint.x, clickPoint.y);
     await expect.poll(() => page.evaluate(() => game.shrineState.claimed)).toBe(1);
+    expect(await page.evaluate(() => ({ activeId: game.shrineState.activeId,
+        spawnCell: game.shrineState.spawnCell, buff: game.shrineBuff && game.shrineBuff.id })))
+        .toEqual({ activeId: null, spawnCell: null, buff: outcome.activeId });
+    await expect(page.locator('#ui-shrine-box')).toHaveCount(0);
     expect(failures).toEqual([]);
 });
 
@@ -554,7 +564,7 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     expect(failures).toEqual([]);
 });
 
-test('bounty offer can be chosen, hunted and rewarded without leaving the combat HUD', async ({ page }) => {
+test('bounty HUD card reveals its reward and owns the cancel action', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
@@ -563,61 +573,39 @@ test('bounty offer can be chosen, hunted and rewarded without leaving the combat
         game.currentZoneId = 0;
         game.unlocks.season = true;
         game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_season_tab']));
-        game.bountyHunt = { pity: 9, offerIds: [], activeId: null, status: 'idle', offered: 0, accepted: 0, completed: 0, abandoned: 0 };
+        game.bountyHunt = { pity: 9, offerIds: [], activeId: null, status: 'idle', offered: 0,
+            accepted: 0, completed: 0, abandoned: 0 };
         bountyRuntime.advanceAfterBossKill(getZone(0), { isBoss: true });
         updateStaticUI();
     });
 
     const hud = page.locator('#ui-bounty-box');
-    await expect(hud).toBeVisible();
-    await expect(hud.getByRole('button', { name: /희귀 표적 발견/ })).toBeVisible();
-    await hud.getByRole('button', { name: /희귀 표적 발견/ }).click();
+    const offer = hud.getByRole('button', { name: /희귀 표적 발견/ });
+    await expect(offer).toBeVisible();
+    await offer.click();
     await expect(page.locator('.game-choice-option')).toHaveCount(3);
     await expect(page.locator('.game-choice-option').first()).toContainText('위험:');
     await expect(page.locator('.game-choice-option').first()).toContainText('보상:');
     await page.locator('.game-choice-option').first().click();
     await expect(page.locator('#game-dialog-overlay')).not.toHaveClass(/active/);
-    await expect(hud).toContainText('다음 사냥에 출현');
 
-    const spawned = await page.evaluate(() => {
-        game.enemies = [];
-        game.encounterPlan = [];
-        game.encounterIndex = 0;
-        game.moveTimer = 0;
-        startEncounterRun();
-        const marker = game.encounterPlan.find(entry => entry && entry.bountyId);
-        spawnEncounterMarker(marker);
-        const enemy = game.enemies.find(entry => entry && entry.isBountyTarget);
-        enemy.maxHp = 1e30;
-        enemy.hp = enemy.maxHp;
-        updateStaticUI();
-        return { name: enemy.name, label: getEnemyShortLabel(enemy), status: game.bountyHunt.status };
-    });
-    expect(spawned.name).toContain('현상금');
-    expect(spawned.label).toBe('현상금');
-    expect(spawned.status).toBe('hunting');
-    await expect(hud).toContainText('교전 중');
+    const active = hud.getByRole('button', { name: /현상금 보상 확인 및 취소/ });
+    await expect(active).toContainText('다음 사냥에 출현');
+    await expect(hud.locator('.bounty-hud-dismiss')).toHaveCount(0);
+    await active.click();
+    const dialog = page.locator('#game-dialog-overlay');
+    await expect(dialog).toHaveClass(/active/);
+    await expect(dialog).toContainText('위험:');
+    await expect(dialog).toContainText('보상:');
+    await dialog.getByRole('button', { name: '계속 추적' }).click();
+    await expect(dialog).not.toHaveClass(/active/);
+    await expect(active).toBeVisible();
 
-    const layout = await hud.evaluate((node) => {
-        const wrap = document.getElementById('battlefield-wrap').getBoundingClientRect();
-        const box = node.getBoundingClientRect();
-        return { insideX: box.left >= wrap.left && box.right <= wrap.right, insideY: box.top >= wrap.top && box.bottom <= wrap.bottom };
-    });
-    expect(layout).toEqual({ insideX: true, insideY: true });
-
-    const reward = await page.evaluate(() => {
-        const enemy = game.enemies.find(entry => entry && entry.isBountyTarget);
-        enemy.hp = 0;
-        handleEnemyDeath(enemy, getPlayerStats());
-        const owned = game.inventory.concat(Object.values(game.equipment || {}).filter(Boolean));
-        updateStaticUI();
-        return {
-            completed: game.bountyHunt.completed,
-            activeId: game.bountyHunt.activeId,
-            rareReward: owned.some(item => item && ['rare', 'unique'].includes(item.rarity))
-        };
-    });
-    expect(reward).toEqual({ completed: 1, activeId: null, rareReward: true });
+    await active.click();
+    await dialog.getByRole('button', { name: '추적 취소' }).click();
+    const state = await page.evaluate(() => ({ activeId: game.bountyHunt.activeId,
+        abandoned: game.bountyHunt.abandoned }));
+    expect(state).toEqual({ activeId: null, abandoned: 1 });
     await expect(hud).toContainText('현상금 흔적');
     expect(failures).toEqual([]);
 });
@@ -798,11 +786,11 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
             opponent: '상대', opponentSkill: '연속 베기', result: 'win', ratingBefore: 1000, ratingAfter: 1012, ratingDelta: 12,
             duel: {
-                seed: 'browser-duel', winner: 'left', durationMs: 120,
+                seed: 'browser-duel', winner: 'left', durationMs: 2400,
                 leftFinalPct: 72, rightFinalPct: 0,
                 left: { nickname: '테스터', snapshot: { heroId: 'hero1', activeSkill: '독니 사출', skillElement: 'chaos', style: 'projectile' } },
                 right: { nickname: '상대', snapshot: { heroId: 'hero2', activeSkill: '연속 베기', skillElement: 'phys', style: 'melee' } },
-                events: [{ t: 60, left: { outcome: 'hit', damage: 100, crit: false, strikes: 1 }, right: { outcome: 'deflect', damage: 28, crit: false, strikes: 1 }, leftPct: 72, rightPct: 0 }]
+                events: [{ t: 600, left: { outcome: 'hit', damage: 100, crit: false, strikes: 1 }, right: { outcome: 'deflect', damage: 28, crit: false, strikes: 1 }, leftPct: 72, rightPct: 0 }]
             }
         }) });
     });
@@ -852,6 +840,27 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     await page.evaluate(() => { ghostArenaState.data.combatProtocolVersion = 4; ghostArenaState.message = ''; renderGhostArena(); });
     await page.evaluate(() => fightRandomGhost());
     await expect(page.locator('.ghost-duel-canvas')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => !!ghostDuelReplayRuntime.state)).toBe(true);
+    const replayBeforeRefresh = await page.evaluate(() => {
+        window.__ghostCanvasBeforeRefresh = document.querySelector('.ghost-duel-canvas');
+        window.__ghostRootBeforeRefresh = ghostDuelReplayRuntime.state && ghostDuelReplayRuntime.state.root;
+        return ghostDuelReplayRuntime.state && ghostDuelReplayRuntime.state.elapsed;
+    });
+    await page.evaluate(() => {
+        game.inventory.push({ id: 987654321, name: '대전 갱신 검사 장비', slot: '무기', rarity: 'normal', stats: [], baseStats: [] });
+        updateStaticUI();
+        game.inventory = game.inventory.filter(item => item && item.id !== 987654321);
+        updateStaticUI();
+    });
+    await page.waitForTimeout(180);
+    const replayAfterRefresh = await page.evaluate(() => ({
+        sameCanvas: document.querySelector('.ghost-duel-canvas') === window.__ghostCanvasBeforeRefresh,
+        sameRoot: ghostDuelReplayRuntime.state && ghostDuelReplayRuntime.state.root === window.__ghostRootBeforeRefresh,
+        elapsed: ghostDuelReplayRuntime.state && ghostDuelReplayRuntime.state.elapsed
+    }));
+    expect(replayAfterRefresh.sameCanvas).toBe(true);
+    expect(replayAfterRefresh.sameRoot).toBe(true);
+    expect(replayAfterRefresh.elapsed).toBeGreaterThan(replayBeforeRefresh);
     await expect(page.locator('.ghost-result')).toContainText('승리');
     await expect(page.locator('.ghost-result')).toContainText('+12');
     await expect(page.locator('.ghost-result')).not.toHaveClass(/ghost-duel-result-pending/, { timeout: 10_000 });
@@ -879,6 +888,94 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     await page.getByRole('button', { name: '친선 대결 시작' }).click();
     await expect(page.locator('#map-tab-pvp .ghost-friendly + .ghost-result')).toContainText('친선전 무승부');
     await expect(page.locator('#map-tab-pvp .ghost-friendly + .ghost-result')).toContainText('레이팅 변동 없음');
+    expect(failures).toEqual([]);
+});
+
+test('equipment hall shows server appraisal, ownership rules, and rankings', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.route('https://**/rest/v1/rpc/get_player_hall', route => route.fulfill({
+        status: 200, contentType: 'application/json', body: JSON.stringify({
+            listings: [{ id: 41, curatorName: '상대', score: 9180, price: 620, honorPerCopy: 4,
+                copiesSold: 2, copyCap: 5, isMine: false, alreadyCollected: false,
+                item: { id: 9100000000041, name: '서릿빛 검', baseId: 'rusted_blade', slot: '무기', rarity: 'rare', hiddenTier: 15, stats: [{ id: 'flatDmg', val: 18 }] } }],
+            mine: [],
+            honor: 19, copiesShared: 6, collectionCount: 3,
+            loopRanking: [{ nickname: '순환자', loop_count: 17, dps: 88000, ascend_class: '검투사', active_skill: '연속 베기' }],
+            dpsRanking: [{ nickname: '화력왕', loop_count: 12, dps: 123456, ascend_class: '원소술사', active_skill: '유성 낙화' }]
+        })
+    }));
+    await page.evaluate(() => {
+        cloudState.configured = true;
+        cloudState.user = { id: 'exchange-user' };
+        cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
+        cloudState.revisionSupported = true;
+        game.saveMeta.cloudRevision = 4;
+        game.inventory = [{ id: 771, name: '전시할 투구', baseId: 'war_helm', baseName: '전투 투구',
+            slot: '투구', rarity: 'rare', hiddenTier: 12, baseStats: [], stats: [{ id: 'flatHp', val: 220, tier: 9 }] }];
+        game.level = 100;
+        game.season = 20;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        updateStaticUI();
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-pvp');
+        switchPlayerArenaSection('hall');
+    });
+    await expect(page.locator('#map-player-hall')).toContainText('서릿빛 검');
+    await page.getByRole('button', { name: '전당 등록 선택' }).click();
+    await expect(page.locator('#map-player-hall')).toContainText('전시 등록 0/3');
+    await expect(page.locator('#map-player-hall')).toContainText('감정 9,180');
+    await expect(page.locator('#map-player-hall')).toContainText('황금률 620');
+    await expect(page.locator('#map-player-hall')).toContainText('명예 19');
+    await expect(page.getByRole('button', { name: '서버 감정 후 전시' })).toBeVisible();
+
+    await page.getByRole('button', { name: '루프·DPS 순위' }).click();
+    await expect(page.locator('#map-player-ranking')).toContainText('17 루프');
+    await expect(page.locator('#map-player-ranking')).toContainText('123,456');
+    const viewportWidth = await page.evaluate(() => document.documentElement.clientWidth);
+    const rightEdge = await page.locator('#map-tab-pvp').evaluate(element => element.getBoundingClientRect().right);
+    expect(rightEdge).toBeLessThanOrEqual(viewportWidth + 1);
+    expect(failures).toEqual([]);
+});
+
+test('boss trait ticker keeps its DOM and animation position across combat UI updates', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('desktop'), 'desktop marquee assertion');
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.combatHalted = true;
+        const boss = createEnemy(getZone(0), { boss: true, at: 0 }, 0);
+        boss.id = 'ticker-boss';
+        boss.traitName = '화염 중갑 전개 · 연속 참격 · 연타경감 6% · 격앙 예고';
+        game.enemies = [boss];
+        updateStaticUI();
+    });
+    const panel = page.locator('#ui-enemy-list .enemy-traits');
+    await expect(panel).toHaveClass(/is-overflowing/);
+    await page.evaluate(() => {
+        window.__bossTraitPanel = document.querySelector('#ui-enemy-list .enemy-traits');
+        window.__bossTraitTrack = window.__bossTraitPanel.querySelector('.enemy-trait-marquee');
+        window.__bossTraitCopy = window.__bossTraitTrack.querySelector('.enemy-trait-marquee-copy');
+    });
+    await page.waitForTimeout(180);
+    const before = await page.evaluate(() => window.__bossTraitTrack.getAnimations()[0].currentTime);
+    await page.evaluate(() => {
+        const boss = game.enemies[0];
+        boss.traitName = '냉기 중갑 전개 · 폭주 예고 · 연타경감 6% · 다음 격앙';
+        game.enemies.push({ id: 'ticker-add', name: '추종자', hp: 10, maxHp: 10, ele: 'phys' });
+        updateStaticUI();
+    });
+    await page.waitForTimeout(180);
+    const result = await page.evaluate(() => ({
+        samePanel: window.__bossTraitPanel === document.querySelector('#ui-enemy-list .enemy-traits'),
+        sameTrack: window.__bossTraitTrack === document.querySelector('#ui-enemy-list .enemy-trait-marquee'),
+        sameCopy: window.__bossTraitCopy === document.querySelector('#ui-enemy-list .enemy-trait-marquee-copy'),
+        currentTime: window.__bossTraitTrack.getAnimations()[0].currentTime,
+        text: window.__bossTraitTrack.textContent
+    }));
+    expect(result.samePanel && result.sameTrack && result.sameCopy).toBe(true);
+    expect(result.currentTime).toBeGreaterThan(before);
+    expect(result.text).toContain('냉기 중갑 전개');
     expect(failures).toEqual([]);
 });
 

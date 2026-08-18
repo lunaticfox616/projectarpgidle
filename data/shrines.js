@@ -17,4 +17,15 @@ const SHRINE_ENCOUNTER_CONFIG = Object.freeze({
     ])
 });
 
-safeExposeData({ SHRINE_BLESSING_DB, SHRINE_ENCOUNTER_CONFIG });
+const SHRINE_SPAWN_CELLS = Object.freeze([
+    Object.freeze({ gx: 0, gy: 4 }),
+    Object.freeze({ gx: 1, gy: 3 }),
+    Object.freeze({ gx: 2, gy: 7 }),
+    Object.freeze({ gx: 3, gy: 6 }),
+    Object.freeze({ gx: 4, gy: 1 }),
+    Object.freeze({ gx: 5, gy: 0 }),
+    Object.freeze({ gx: 6, gy: 4 }),
+    Object.freeze({ gx: 7, gy: 3 })
+]);
+
+safeExposeData({ SHRINE_BLESSING_DB, SHRINE_ENCOUNTER_CONFIG, SHRINE_SPAWN_CELLS });

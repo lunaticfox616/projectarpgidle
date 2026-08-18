@@ -3962,7 +3962,9 @@ let battleVisualState = {
     hitStopRemainingMs: 0,
     lastHitStopFxId: 0,
     advanceDesired: false,
-    advanceChangedAt: 0
+    advanceChangedAt: 0,
+    shrineHitbox: null,
+    shrineHovered: false
 };
 const DEBUG_BATTLE_ANCHORS = false;
 const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92 };
@@ -5775,6 +5777,7 @@ function initBattleAssets() {
         skillFxBurst: 'assets/effects/skill-burst-v1.png',
         skillFxDotField: 'assets/effects/skill-dot-field-v1.png',
         skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
+        shrineInteractable: 'assets/effects/battlefield-shrine-v1.png',
         backdropAct1: 'assets/battlefield-act1.png',
         backdropAct2_6: 'assets/battlefield-act2-6.png',
         backdropAct3_7: 'assets/battlefield-act3-7.png',
@@ -5819,7 +5822,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260718-motion2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos') || key.startsWith('bossTelegraph') || key.startsWith('skillFx')));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key === 'shrineInteractable'));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
@@ -5898,7 +5901,7 @@ function initBattleAssets() {
             if (key.startsWith('backdrop') || key.startsWith('bgAct') || key.startsWith('bgChaos')) {
                 battleAssets.backdrops[key] = image;
             } else {
-                let keepOriginalSheet = key === 'tiles' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
+                let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
                 battleAssets.images[key] = image;
                 if (!keepOriginalSheet) queueBattleSheetSanitization(key, image);
             }
@@ -7585,6 +7588,15 @@ function normalizeItem(item) {
             : null;
     }
     item.locked = !!item.locked;
+    item.hallReplica = !!item.hallReplica;
+    item.hallRelistBlocked = !!item.hallRelistBlocked;
+    if (item.hallReplica) {
+        item.locked = true;
+        item.tradeLocked = true;
+        item.hallSourceId = Math.max(0, Math.floor(coerceFiniteNumber(item.hallSourceId, 0)));
+        item.hallAppraisalScore = Math.max(0, Math.floor(coerceFiniteNumber(item.hallAppraisalScore, 0)));
+        item.hallCuratorName = String(item.hallCuratorName || '').slice(0, 24);
+    }
     if (!item.id) item.id = ++itemIdCounter;
     return item;
 }

@@ -1252,11 +1252,38 @@ function isPauseSettingOverlayOpen() {
     return modalSelectors.some(selector => isOverlayElementOpen(selector));
 }
 
-function clickActiveShrine(){
+function claimBattlefieldShrine() {
     let result = shrineRuntime.claimActive();
-    if (!result.claimed) return;
+    if (!result.claimed) return false;
+    battleVisualState.shrineHitbox = null;
+    battleVisualState.shrineHovered = false;
     addLog(`🛕 ${result.blessing.name} 축복 활성화!`, 'loot-rare');
+    if (typeof showGameToast === 'function') {
+        showGameToast(`${result.blessing.name} · ${result.blessing.detail}`, { tone: 'success', duration: 3200 });
+    }
+    if (typeof queueImportantSave === 'function') queueImportantSave(200);
     updateStaticUI();
+    return true;
+}
+
+function setupBattlefieldShrineInteraction() {
+    let canvas = document.getElementById('battlefield-canvas');
+    if (!canvas || canvas.dataset.shrineInteractionBound === 'true') return;
+    canvas.dataset.shrineInteractionBound = 'true';
+    canvas.addEventListener('pointermove', event => {
+        let hovered = !!getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY);
+        battleVisualState.shrineHovered = hovered;
+        canvas.style.cursor = hovered ? 'pointer' : '';
+    });
+    canvas.addEventListener('pointerleave', () => {
+        battleVisualState.shrineHovered = false;
+        canvas.style.cursor = '';
+    });
+    canvas.addEventListener('click', event => {
+        if (!getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY)) return;
+        event.preventDefault();
+        claimBattlefieldShrine();
+    });
 }
 
 function renderTabOrderSettings() {
@@ -3842,7 +3869,6 @@ function switchMapSubtab(subtabId) {
         let currentBtn = document.getElementById('btn-' + subtabId);
         if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) {
             if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
-            if (subtabId === 'map-tab-pvp' && typeof renderGhostArena === 'function') renderGhostArena();
             return;
         }
     }
@@ -7135,6 +7161,8 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
     activeItemTooltipToken = nextTooltipToken;
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
+    if (item.hallReplica) html += `<div class="tooltip-line" style="color:#d2b878;">🏛️ 전당 소장품 · 전시자 ${escapeHTML(item.hallCuratorName || '익명')} · 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()} · 제작/재등록 불가</div>`;
+    else if (item.hallRelistBlocked) html += '<div class="tooltip-line" style="color:#bda979;">🏛️ 전당 복제 이력 · 재등록 불가</div>';
     let baseChainInfo = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
     let baseChainBadge = (baseChainInfo && baseChainInfo.total > 1)
         ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${baseChainInfo.step}/${baseChainInfo.total}]</span>`
@@ -9013,15 +9041,26 @@ function scheduleUiEnemyTraitOverflow(traitEl, track, content, signature) {
         let overflowing = singleWidth > panelWidth + 4;
         traitEl.classList.toggle('is-overflowing', overflowing);
         if (overflowing) {
-            track.textContent = `${content}　·　${content}　·　`;
+            let loopText = escapeHTML(`${content}　·　`);
+            track.innerHTML = `<span class="enemy-trait-marquee-copy">${loopText}</span><span class="enemy-trait-marquee-copy" aria-hidden="true">${loopText}</span>`;
             let loopDistance = Math.max(singleWidth, track.scrollWidth / 2);
-            track.style.setProperty('--trait-loop-x', `${-loopDistance}px`);
             track.style.setProperty('--trait-duration', `${Math.max(8, Math.min(20, loopDistance / 20)).toFixed(2)}s`);
         }
         traitEl.__traitOverflowPending = false;
     };
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(measure);
     else measure();
+}
+
+function updateUiEnemyTraitMarqueeCopies(traitEl, track, content) {
+    if (!traitEl.classList.contains('is-overflowing')) return false;
+    let copies = track.querySelectorAll('.enemy-trait-marquee-copy');
+    if (copies.length !== 2) return false;
+    let loopText = `${content}　·　`;
+    copies.forEach(copy => {
+        if (copy.textContent !== loopText) copy.textContent = loopText;
+    });
+    return true;
 }
 
 function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) {
@@ -9053,6 +9092,8 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
         return;
     }
     traitEl.__traitSignature = signature;
+    if (isBoss && !mobile && !reducedMotion
+        && updateUiEnemyTraitMarqueeCopies(traitEl, track, display.fullText)) return;
     clearUiEnemyTraitRotation(traitEl);
     traitEl.classList.remove('is-overflowing', 'is-rotating');
     if (!isBoss) {
@@ -9395,7 +9436,8 @@ function updateCombatUI(pStats) {
     let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
     pruneEnemyHpDamageGhostStates(enemies.map(enemy => enemy.id));
     let targetIds = getUiSkillTargets(pStats).map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
-    let focusedEnemy = enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
+    let bossEnemy = enemies.find(enemy => enemy.isBoss || enemy.bossPhase);
+    let focusedEnemy = bossEnemy || enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     let enemyListEl = document.getElementById('ui-enemy-list');
     if (!focusedEnemy) {
         if (enemyListEl.dataset.enemyId !== '') {
@@ -9425,7 +9467,7 @@ function updateCombatUI(pStats) {
         let ghostPct = updateEnemyHpDamageGhost(focusedEnemy.id, pct);
         let ghostDisplay = ghostPct > pct + 0.2 ? 'block' : 'none';
         let enemyHudTier = (focusedEnemy.isBoss || focusedEnemy.bossPhase) ? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob');
-        let focusedKey = String(focusedEnemy.id) + '|' + enemies.length + '|' + enemyHudTier;
+        let focusedKey = String(focusedEnemy.id) + '|' + enemyHudTier;
         if (enemyListEl.dataset.enemyId !== focusedKey || !enemyListEl.querySelector('.enemy-card.targeted')) {
             clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = focusedKey;
@@ -9961,21 +10003,6 @@ function performUpdateStaticUI() {
     if (loopReadyBanner) loopReadyBanner.classList.toggle('active', !!game.pendingLoopReady);
     let combatLoopBtn = document.getElementById('btn-combat-loop-advance');
     if (combatLoopBtn) combatLoopBtn.style.display = canShowCombatLoopAdvanceButton() ? 'inline-flex' : 'none';
-    let shrineBox = document.getElementById('ui-shrine-box');
-    if (shrineBox) {
-        let active = shrineRuntime.getActiveBlessing();
-        let buff = game.shrineBuff;
-        let now = Date.now();
-        let buffRemain = buff ? Math.max(0, Math.ceil(((buff.expiresAt || 0) - now) / 1000)) : 0;
-        let pity = Math.max(0, Math.floor(game.shrineState.pity || 0));
-        let shrineStateKey = active ? `active:${active.id}` : (buff ? `buff:${buff.name}` : `idle:${pity}`);
-        if (shrineBox.dataset.stateKey !== shrineStateKey) {
-            shrineBox.innerHTML = active ? `<button onclick="clickActiveShrine()">🛕 ${active.name} 받기</button>` : (buff ? `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>` : `<div style="color:var(--copy-muted);">성소 기운 ${pity}/${SHRINE_ENCOUNTER_CONFIG.guaranteedAt}</div>`);
-            shrineBox.dataset.stateKey = shrineStateKey;
-        } else if (buff) {
-            shrineBox.innerHTML = `<div style="color:#ffd36b;">${buff.name} 지속중 (${buffRemain}s)</div>`;
-        }
-    }
     if (typeof bountyUi !== 'undefined') bountyUi.renderHud();
     let charTabActive = getRenderingUiTabIds().has('tab-char');
     if (charTabActive) {
@@ -12550,6 +12577,7 @@ function openVoidPassiveCraftOverlay(nodeId) {
 
 function setupCanvasEvents() {
     setupPassiveTreeSearchControls();
+    setupBattlefieldShrineInteraction();
     const canvas = document.getElementById('tree-canvas');
     if (!canvas) return;
     const canvasTooltip = document.getElementById('canvas-tooltip');

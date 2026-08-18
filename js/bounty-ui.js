@@ -1,4 +1,5 @@
 let bountyOfferDialogOpen = false;
+let bountyDetailDialogOpen = false;
 
 function getBountyOfferChoices() {
     let state = bountyRuntime.ensureState();
@@ -33,30 +34,38 @@ async function openBountyOfferDialog() {
     }
 }
 
-async function abandonBountyFromHud() {
+async function openActiveBountyDialog() {
+    if (bountyDetailDialogOpen) return;
     let state = bountyRuntime.ensureState();
-    if (!state.activeId && state.offerIds.length === 0) return;
     let target = BOUNTY_TARGET_DB[state.activeId];
-    let label = target ? target.name : '현재 제안';
-    let confirmed = await requestGameConfirmation(`[${label}] 추적을 포기합니다. 진행도와 보상은 사라집니다.`, {
-        title: '현상금 추적 포기', tone: 'danger', confirmLabel: '추적 포기'
-    });
-    if (!confirmed || !bountyRuntime.abandon()) return;
-    addLog('🎯 현상금 흔적을 지웠습니다.', 'attack-monster');
-    if (typeof queueImportantSave === 'function') queueImportantSave(200);
-    updateStaticUI();
+    if (!target) return;
+    bountyDetailDialogOpen = true;
+    try {
+        let status = state.status === 'hunting' ? '현재 교전 중' : '다음 사냥에 출현';
+        let confirmed = await requestGameConfirmation(
+            `위험: ${target.danger}\n보상: ${target.rewardLabel}\n상태: ${status}\n\n추적을 취소하면 진행도와 보상을 잃습니다.`,
+            { title: `${target.icon} ${target.name}`, kicker: 'BOUNTY TRACE', tone: 'danger',
+                confirmLabel: '추적 취소', cancelLabel: '계속 추적' }
+        );
+        if (!confirmed || !bountyRuntime.abandon()) return;
+        addLog(`🎯 [${target.name}] 현상금 추적을 취소했습니다.`, 'attack-monster');
+        if (typeof queueImportantSave === 'function') queueImportantSave(200);
+        updateStaticUI();
+    } finally {
+        bountyDetailDialogOpen = false;
+    }
 }
 
 function getBountyHudState() {
     let state = bountyRuntime.ensureState();
     if (!bountyRuntime.isUnlocked()) return { hidden: true, key: 'locked', html: '' };
     if (state.offerIds.length > 0) {
-        return { key: `offer:${state.offerIds.join(',')}`, html: '<button class="bounty-hud-offer" onclick="bountyUi.openOffer()"><strong>🎯 희귀 표적 발견</strong><span>3개 중 선택</span></button><button class="bounty-hud-dismiss" onclick="bountyUi.abandon()" aria-label="현상금 제안 버리기">×</button>' };
+        return { key: `offer:${state.offerIds.join(',')}`, html: '<button class="bounty-hud-offer" onclick="bountyUi.openOffer()"><strong>🎯 희귀 표적 발견</strong><span>3개 중 선택</span></button>' };
     }
     if (state.activeId) {
         let target = BOUNTY_TARGET_DB[state.activeId];
         let status = state.status === 'hunting' ? '교전 중' : '다음 사냥에 출현';
-        return { key: `${state.status}:${state.activeId}`, html: `<div class="bounty-hud-active"><strong>${target.icon} ${target.name}</strong><span>${status}</span></div><button class="bounty-hud-dismiss" onclick="bountyUi.abandon()" aria-label="현상금 추적 포기">×</button>` };
+        return { key: `${state.status}:${state.activeId}`, html: `<button class="bounty-hud-active" onclick="bountyUi.openActive()" aria-label="${target.name} 현상금 보상 확인 및 취소"><strong>${target.icon} ${target.name}</strong><span>${status} · 보상 확인</span></button>` };
     }
     return { key: `idle:${state.pity}`, html: `<div class="bounty-hud-progress"><strong>🎯 현상금 흔적</strong><span>${state.pity}/${BOUNTY_HUNT_CONFIG.guaranteedAt}</span></div>` };
 }
@@ -71,5 +80,6 @@ function renderBountyHud() {
     box.dataset.stateKey = view.key;
 }
 
-const bountyUi = Object.freeze({ renderHud: renderBountyHud, openOffer: openBountyOfferDialog, abandon: abandonBountyFromHud });
+const bountyUi = Object.freeze({ renderHud: renderBountyHud, openOffer: openBountyOfferDialog,
+    openActive: openActiveBountyDialog });
 safeExposeGlobals({ bountyUi });

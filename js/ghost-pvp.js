@@ -196,11 +196,23 @@ function renderActiveGhostResult() {
     return '';
 }
 
+function updateGhostArenaMarkup(host, html) {
+    if (host.__ghostArenaHtml === html) return false;
+    host.innerHTML = html;
+    host.__ghostArenaHtml = html;
+    return true;
+}
+
+function mountActiveGhostDuel() {
+    if (!ghostArenaState.duel || ghostArenaState.loading || typeof mountGhostDuelReplay !== 'function') return;
+    requestAnimationFrame(() => mountGhostDuelReplay(ghostArenaState.duel));
+}
+
 function renderGhostArena() {
     let host = document.getElementById('map-ghost-arena');
     if (!host) return;
     if (!socialCloudReady()) {
-        host.innerHTML = `<section class="ghost-arena"><header><div><strong>고스트 대결</strong><small>보상 없음 · 서버 판정 Elo</small></div></header><p class="ghost-help">대전은 클라우드 로그인이 필요합니다. 설정에서 로그인한 뒤 다시 열어주세요.</p></section>`;
+        updateGhostArenaMarkup(host, `<section class="ghost-arena"><header><div><strong>고스트 대결</strong><small>보상 없음 · 서버 판정 Elo</small></div></header><p class="ghost-help">대전은 클라우드 로그인이 필요합니다. 설정에서 로그인한 뒤 다시 열어주세요.</p></section>`);
         return;
     }
     let data = ghostArenaState.data || {};
@@ -211,10 +223,9 @@ function renderGhostArena() {
     let status = me
         ? `<span>내 레이팅 <strong>${me.rating}</strong> · ${me.wins}승 ${me.losses}패 ${me.draws}무${me.matches < 10 ? ' · 배치 중' : ''}</span>`
         : '<span>등록된 고스트 없음</span>';
-    host.innerHTML = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음 · 서버 시뮬레이션 Elo</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">등록 시 현재 세팅을 즉시 반영합니다. 대전 간 20초 · 랭크 20회/24시간 · 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderFriendlyGhostChallenge()}${renderActiveGhostDuel()}${renderActiveGhostResult()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
-    if (ghostArenaState.duel && !ghostArenaState.loading && typeof mountGhostDuelReplay === 'function') {
-        requestAnimationFrame(() => mountGhostDuelReplay(ghostArenaState.duel));
-    }
+    let html = `<section class="ghost-arena"><header><div><strong>고스트 실전투</strong><small>보상 없음 · 서버 시뮬레이션 Elo</small></div></header><div class="ghost-toolbar">${status}<button onclick="registerMyGhost()" ${ghostArenaState.loading || !serverReady ? 'disabled' : ''}>${me ? '고스트 갱신' : '고스트 등록'}</button><button onclick="fightRandomGhost()" ${!me || ghostArenaState.loading || !serverReady ? 'disabled' : ''}>상대 찾기</button></div><p class="ghost-help">등록 시 현재 세팅을 즉시 반영합니다. 대전 간 20초 · 랭크 20회/24시간 · 친선 30회/24시간 제한이 서버에서 적용됩니다.</p>${visibleMessage ? `<p class="ghost-error">${ghostArenaEscape(visibleMessage)}</p>` : ''}${renderFriendlyGhostChallenge()}${renderActiveGhostDuel()}${renderActiveGhostResult()}${renderGhostLeaderboard(Array.isArray(data.leaderboard) ? data.leaderboard : [])}</section>`;
+    updateGhostArenaMarkup(host, html);
+    mountActiveGhostDuel();
     if (!ghostArenaState.data && !ghostArenaState.loading) Promise.resolve(loadGhostArena()).catch(() => {});
 }
 

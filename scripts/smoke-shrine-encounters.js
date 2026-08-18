@@ -16,6 +16,8 @@ const legacyGame = {
 };
 let legacyState = context.shrineRuntime.ensureState(legacyGame);
 assert.strictEqual(legacyState.activeId, 'guard', 'legacy pending shrine should migrate without being lost');
+assert.ok(context.SHRINE_SPAWN_CELLS.some(cell => cell.gx === legacyState.spawnCell.gx && cell.gy === legacyState.spawnCell.gy),
+    'legacy pending shrine should receive a valid battlefield cell');
 assert.strictEqual(Object.hasOwn(legacyState, 'active'), false, 'legacy wall-clock state should be removed');
 assert.strictEqual(legacyGame.unrelated.kept, true, 'normalization must preserve unrelated game state');
 
@@ -41,6 +43,11 @@ assert.strictEqual(result.spawned, true, 'the twentieth eligible clear should gu
 assert.strictEqual(game.shrineState.pity, 0, 'a successful spawn should reset pity');
 assert.strictEqual(game.shrineState.spawned, 1);
 assert.ok(context.SHRINE_BLESSING_DB[game.shrineState.activeId], 'spawn must select a real blessing');
+assert.ok(context.SHRINE_SPAWN_CELLS.some(cell => cell.gx === game.shrineState.spawnCell.gx && cell.gy === game.shrineState.spawnCell.gy),
+    'spawned shrine must occupy one of the safe battlefield cells');
+const activeEncounter = context.shrineRuntime.getActiveEncounter(game);
+assert.strictEqual(activeEncounter.blessing.id, game.shrineState.activeId);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(activeEncounter.cell)), JSON.parse(JSON.stringify(game.shrineState.spawnCell)));
 
 result = context.shrineRuntime.advanceAfterEncounter({ type: 'act' });
 assert.strictEqual(result.reason, 'pending', 'a pending shrine must not be replaced or stack pity');
@@ -50,6 +57,7 @@ const selectedId = game.shrineState.activeId;
 result = context.shrineRuntime.claimActive(game, 1000);
 assert.strictEqual(result.claimed, true);
 assert.strictEqual(game.shrineState.activeId, null);
+assert.strictEqual(game.shrineState.spawnCell, null);
 assert.strictEqual(game.shrineState.claimed, 1);
 assert.strictEqual(game.shrineBuff.id, selectedId);
 assert.strictEqual(game.shrineBuff.expiresAt, 1000 + context.SHRINE_ENCOUNTER_CONFIG.buffDurationMs);

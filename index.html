@@ -2,7 +2,7 @@
 <html lang="ko" class="app-preload">
 <head>
     <meta charset="UTF-8">
-    <meta name="app-build" content="20260817-goal-integration-review1">
+    <meta name="app-build" content="20260817-boss-ticker-stable2">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#05080e">
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -41,17 +41,18 @@
     <link rel="stylesheet" href="css/ui-windows.css?v=20260722-combat-icons2">
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260721-galmuri-body1">
     <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1&mobile=20260814-combat-hud3">
-    <link rel="stylesheet" href="css/ghost-pvp.css?v=20260816-real-duel1">
+    <link rel="stylesheet" href="css/ghost-pvp.css?v=20260817-battle-replay1">
+    <link rel="stylesheet" href="css/player-exchange.css?v=20260818-hall1">
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1&power=20260811-approx1&directives=20260817-2">
     <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1-20260807-windowed-cube1">
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260722-health-menu-skin4&caption=20260811-top1&tooltip=20260814-perf1&text=20260814-crisp1">
     <link rel="stylesheet" href="css/ui-game-overhaul.css?v=20260722-health-menu-skin4-20260807-elemental-ehp1-20260810-management-ux1-20260810-ux-refine1&mobile=20260814-first-flow1&caption=20260811-top1&shield-charge=20260814-armor1&text=20260814-crisp1&triage=20260817-1&craft-result=20260817-ledger1">
     <link rel="stylesheet" href="css/salvage-recovery.css?v=20260817-recovery1">
     <link rel="stylesheet" href="css/typography-readability.css?v=20260721-galmuri-item-names1">
-    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-merged-tabs-timers1-20260811-mobile-status-fix2&mobile=20260814-hud2&boss-traits=20260811-ticker-tooltip1&icons=20260811-atlas-clip2">
+    <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-merged-tabs-timers1-20260811-mobile-status-fix2&mobile=20260814-hud2&boss-traits=20260817-stable2&icons=20260811-atlas-clip2">
     <link rel="stylesheet" href="css/ui-menu-sockets.css?v=20260723-menu-button-states2-20260805-merged-tab-scroll1">
     <link rel="stylesheet" href="css/growth-board.css?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1">
-    <link rel="stylesheet" href="css/bounty-hunt.css?v=20260817-bounty1">
+    <link rel="stylesheet" href="css/bounty-hunt.css?v=20260817-card-action1">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -368,7 +369,6 @@
                         <canvas id="battlefield-canvas"></canvas>
                         <div class="battlefield-caption" id="ui-battlefield-caption">전장을 스캔 중...</div>
                         <div id="ui-bounty-box" aria-live="polite" hidden></div>
-                        <div id="ui-shrine-box" style="position:absolute; top:8px; right:10px; z-index:4; pointer-events:auto;"></div>
                     </div>
                 </div>
 
@@ -1028,10 +1028,17 @@
 
         <div id="map-tab-pvp" class="subtab-content">
             <div class="map-pvp-heading">
-                <div><span>ASYNC ARENA</span><h2>⚔️ 대전</h2></div>
-                <p>내 전투 기록으로 고스트를 등록하고 다른 플레이어의 빌드와 비동기 대결을 진행합니다.</p>
+                <div><span>PLAYER NETWORK</span><h2>⚔️ 플레이어 교류</h2></div>
+                <p>고스트 대결, 장비 전당, 현재 빌드 순위를 한곳에서 확인합니다.</p>
             </div>
-            <div id="map-ghost-arena"></div>
+            <div class="player-arena-tabs" role="tablist" aria-label="플레이어 교류 메뉴">
+                <button class="player-arena-tab active" data-arena-tab="ghost" onclick="switchPlayerArenaSection('ghost')">고스트 대결</button>
+                <button class="player-arena-tab" data-arena-tab="hall" onclick="switchPlayerArenaSection('hall')">장비 전당</button>
+                <button class="player-arena-tab" data-arena-tab="ranking" onclick="switchPlayerArenaSection('ranking')">루프·DPS 순위</button>
+            </div>
+            <section class="player-arena-panel active" data-arena-panel="ghost"><div id="map-ghost-arena"></div></section>
+            <section class="player-arena-panel" data-arena-panel="hall"><div id="map-player-hall"></div></section>
+            <section class="player-arena-panel" data-arena-panel="ranking"><div id="map-player-ranking"></div></section>
         </div>
 
         <div id="map-tab-abyss" class="subtab-content">
@@ -1498,10 +1505,11 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script defer src="cloud-save-config.js?v=20260513-gemfix1"></script>
 <script defer src="data/constants.js?v=20260718-regional-passive1&ehp=20260811-bosspeak1"></script>
-<script defer src="data/shrines.js?v=20260817-encounter-pity1"></script>
+<script defer src="data/shrines.js?v=20260817-battlefield1"></script>
 <script defer src="data/bounties.js?v=20260817-bounty1"></script>
 <script defer src="data/maps.js?v=20260719-tier-rift-stack1&cosmos=20260814-balance1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-bloom2&trial5=20260816-underworld1&directives=20260817-1"></script>
 <script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260811-area-impact1&venom=20260811-image2&lightning-spear=20260812-performance1&thundercloud=20260812-impact2&meteor=20260813-ground1&shield-charge=20260814-armor1&meteor-spell=20260814-damage1"></script>
+<script defer src="data/severed-wanderers.js?v=20260817-balance1"></script>
 <script defer src="data/items.js?v=20260723-currency-salvage1&defense-unique=20260811-rework1&cosmos=20260814-balance1&ocean=20260817-fishing1"></script>
 <script defer src="data/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="data/growth-items.js?v=20260807-growth-affix-balance1-20260807-flat-element-balance1"></script>
@@ -1511,35 +1519,36 @@
 <script defer src="data/talent-cards.js?v=20260722-templar-overheal1"></script>
 <script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2"></script>
 <script defer src="js/ui-feedback.js?v=20260722-instant-choice1&focus=20260814-dialog1"></script>
-<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1&cosmos=20260814-balance1&pinnacle=20260814-atlas1&loot=20260815-cosmos-tier1&ocean=20260817-fishing1&directives=20260817-2"></script>
+<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1&cosmos=20260814-balance1&pinnacle=20260814-atlas1&loot=20260815-cosmos-tier1&ocean=20260817-fishing1&directives=20260817-2&shrine=20260817-field1&bounty=20260817-restore1"></script>
 <script defer src="js/salvage-recovery.js?v=20260817-recovery1"></script>
 <script defer src="js/unique-hunt.js?v=20260817-hunt1"></script>
 <script defer src="js/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records.js?v=20260808-records-tab1-20260808-background-fix1"></script>
 <script defer src="js/save.js?v=20260719-stutter-fix1&tactics=20260810-combat-tactics1"></script>
-<script defer src="js/items.js?v=20260719-white-copy1-20260810-market-clarity1-20260811-exchange-picker1&pinnacle=20260814-atlas1&base=20260815-market-t15&exchange=20260816-live1"></script>
+<script defer src="js/items.js?v=20260719-white-copy1-20260810-market-clarity1-20260811-exchange-picker1&pinnacle=20260814-atlas1&base=20260815-market-t15&exchange=20260816-live1&hall=20260818-1"></script>
 <script defer src="js/equipment-loadouts.js?v=20260817-loadout1"></script>
 <script defer src="js/skills.js?v=20260717-gem-flask-mobile1&craft=20260813-validation1&shield-charge=20260814-armor1"></script>
-<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1&presets=20260810-passive1&battle=20260811-body-cue2&void=20260811-reroll1&defense-unique=20260811-rework1&fx-backlog=20260811-clear1&venom=20260811-image2&encroachment=20260811-tier1&damage-text=20260811-volley1&spore-craft=20260811-guard1&node-art=20260811-v2states1&deflect-text=20260812-muted1&meteor=20260814-assets1&loot=20260815-cosmos-tier1&blizzard=20260816-sprites1&ocean=20260817-fishing1&review=20260817-1"></script>
-<script defer src="js/shrines.js?v=20260817-encounter-pity1"></script>
+<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1&presets=20260810-passive1&battle=20260811-body-cue2&void=20260811-reroll1&defense-unique=20260811-rework1&fx-backlog=20260811-clear1&venom=20260811-image2&encroachment=20260811-tier1&damage-text=20260811-volley1&spore-craft=20260811-guard1&node-art=20260811-v2states1&deflect-text=20260812-muted1&meteor=20260814-assets1&loot=20260815-cosmos-tier1&blizzard=20260816-sprites1&ocean=20260817-fishing1&review=20260817-1&shrine=20260817-field1&hall=20260818-1"></script>
+<script defer src="js/shrines.js?v=20260817-battlefield1"></script>
 <script defer src="js/growth-board.js?v=20260806-growth-chase1"></script>
 <script defer src="js/growth-effects.js?v=20260806-growth-unique2"></script>
 <script defer src="js/growth-generation.js?v=20260807-growth-affix-balance1-20260807-growth-overflow1"></script>
 <script defer src="js/bounties.js?v=20260817-bounty1"></script>
 <script defer src="js/core-cube.js?v=20260707-community-ui1-20260807-canvas-lifecycle1"></script>
 <script defer src="js/combat-grid.js?v=20260721-grandlord-root-boss1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&boomerang=20260811-batched1&meteor=20260813-ground1"></script>
+<script defer src="js/severed-wanderers.js?v=20260817-balance1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1&ehp=20260811-bosspeak1&cosmos=20260814-balance1"></script>
 <script defer src="js/cosmos-rules.js?v=20260810-endgame1&ehp=20260811-bosspeak1&cosmos=20260814-balance1&tune=20260815-ehp-curve1&directives=20260817-1"></script>
-<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260814-floor1-tune2&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-perf1&cosmos=20260814-balance1&power=20260814-readiness1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-cosmos-ehp1&trial5=20260816-underworld1&directives=20260817-1"></script>
+<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260814-floor1-tune2&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-perf1&cosmos=20260814-balance1&power=20260814-readiness1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-cosmos-ehp1&trial5=20260816-underworld1&directives=20260817-1&wanderer=20260817-balance1&bounty=20260817-restore1"></script>
 <script defer src="js/combat-ehp.js?v=20260807-elemental-ehp1&power=20260814-readiness1"></script>
 <script defer src="js/equipment-triage.js?v=20260817-current-build1&review=20260817-1"></script>
 <script defer src="js/ghost-combat.js?v=20260816-direct-register1"></script>
-<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260811-top1&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260813-elements1&hit-guard=20260813-attack-scope1&meteor=20260814-assets1&shield-charge=20260814-impact1&blizzard=20260816-sprites1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260811-top1&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260813-elements1&hit-guard=20260813-attack-scope1&meteor=20260814-assets1&shield-charge=20260814-impact1&blizzard=20260816-sprites1&shrine=20260817-field1&bounty=20260817-restore1"></script>
 <script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1&elements=20260813-distinct1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1-20260810-label-toggle1&triage=20260817-1"></script>
 <script defer src="js/crafting-result-ui.js?v=20260817-ledger1"></script>
-<script defer src="js/bounty-ui.js?v=20260817-bounty1"></script>
-<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260813-ticker-lifecycle1&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260814-readiness1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260812-map1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-crisp1&pinnacle=20260814-atlas1&ocean=20260817-fishing1&triage=20260817-1"></script>
+<script defer src="js/bounty-ui.js?v=20260817-card-action1"></script>
+<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260817-stable2&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260814-readiness1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260817-arena-stable1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-crisp1&pinnacle=20260814-atlas1&ocean=20260817-fishing1&triage=20260817-1&shrine=20260817-field1&bounty=20260817-restore1&hall=20260818-1"></script>
 <script defer src="js/salvage-recovery-ui.js?v=20260817-recovery1"></script>
 <script defer src="js/unique-hunt-ui.js?v=20260817-hunt1"></script>
 <script defer src="js/equipment-loadouts-ui.js?v=20260817-loadout1&review=20260817-1"></script>
@@ -1549,9 +1558,10 @@
 <script defer src="js/skills-ui.js?v=20260808-skills-screen1&tooltip=20260814-perf1"></script>
 <script defer src="js/offline-progress-ui.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records-ui.js?v=20260808-records-tab1"></script>
-<script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1&pvp=20260812-map2"></script>
-<script defer src="js/ghost-duel-replay.js?v=20260816-real-duel1"></script>
-<script defer src="js/ghost-pvp.js?v=20260816-direct-register1"></script>
+<script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1&pvp=20260812-map2&hall=20260818-1"></script>
+<script defer src="js/ghost-duel-replay.js?v=20260817-battle-replay1"></script>
+<script defer src="js/ghost-pvp.js?v=20260817-arena-stable1"></script>
+<script defer src="js/player-exchange.js?v=20260818-hall1"></script>
 <script defer src="js/ui-window-manager.js?v=20260723-merged-tab-window-fix2"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
 <script defer src="js/goal-system.js?v=20260717-system-integrity1-20260810-loop-cosmos-notice1&pinnacle=20260814-atlas1"></script>
