@@ -11535,6 +11535,7 @@ function triggerSeasonReset(options) {
     game.currencies = { ...defaultGame.currencies };
     game.currencies.timeRemnant = preservedTimeRemnant;
     if (preservedOfflineProgress && typeof ensureOfflineProgressState === 'function') game.offlineProgress = preservedOfflineProgress;
+    if (typeof resetOfflineStashForLoop === 'function') resetOfflineStashForLoop(game);
     if (typeof syncOfflineProgressEntitlement === 'function') syncOfflineProgressEntitlement(game);
     // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
     Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = preservedSealedEquipment[slot]; });

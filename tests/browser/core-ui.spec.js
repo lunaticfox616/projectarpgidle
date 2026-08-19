@@ -241,7 +241,7 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
         weaponId: game.equipment['무기'] && game.equipment['무기'].id,
         helmetId: game.equipment['투구'] && game.equipment['투구'].id,
         inventoryIds: game.inventory.map(item => item.id),
-        savedWeaponProtected: equipmentLoadoutRuntime.isReferenced(ids.swordId),
+        savedWeaponProtected: equipmentLoadoutRuntime.isReferenced(game.equipment['무기']),
         craftSelection: getCraftSelectionRef()
     }), initial);
     expect(applied).toEqual({

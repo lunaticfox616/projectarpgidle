@@ -10514,7 +10514,7 @@ function salvageItem(idx) {
     let item = game.inventory[idx];
     if (!item) return;
     if (item.locked) return addLog(`🔒 잠금된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
-    if (typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item.id)) {
+    if (typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item)) {
         return addLog(`🧰 장비 세팅에 저장된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
     }
     if (!isCraftSelectionEquip() && getCraftSelectionRef() === item.id) clearCraftSelection();
@@ -10599,7 +10599,7 @@ async function toggleJewelAutoSalvage() {
 function isBulkSalvageProtectedItem(item) {
     if (!item) return true;
     if (item.locked) return true;
-    if (typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item.id)) return true;
+    if (typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item)) return true;
     return typeof isGrowthItemPlacedAnywhere === 'function' && isGrowthItemPlacedAnywhere(item.id);
 }
 

@@ -18,7 +18,8 @@ const {
     mergeDefaults,
     simulateBackgroundCombat,
     simulateBackgroundCombatChunked,
-    applyOfflineHuntDirective
+    applyOfflineHuntDirective,
+    resetOfflineStashForLoop
 } = runtime;
 
 function state(extra) {
@@ -63,9 +64,10 @@ assert.strictEqual(routeOfflineItem({ name: 'common', rarity: 'normal' }, stashS
 assert.strictEqual(routeOfflineItem({ name: 'unique', rarity: 'unique' }, stashState, { protected: true }).action, 'stored');
 stashState.offlineProgress.stash = Array.from({ length: 8 }, (_, index) => ({ name: `locked${index}`, rarity: 'unique' }));
 assert.strictEqual(routeOfflineItem({ name: 'ordinary', rarity: 'normal' }, stashState, {}).action, 'salvage');
-assert.strictEqual(routeOfflineItem({ name: 'chase', rarity: 'unique' }, stashState, { protected: true }).overflowProtected, true);
+assert.strictEqual(routeOfflineItem({ name: 'chase', rarity: 'unique' }, stashState, { protected: true }).action, 'normal');
 assert.strictEqual(stashState.offlineProgress.stash.length, 8);
-assert.strictEqual(stashState.offlineProgress.protectedOverflow.length, 1);
+assert.strictEqual(stashState.offlineProgress.protectedOverflow.length, 0,
+    '고유 아이템도 보관함 표시 한도를 넘는 별도 대기열에 쌓이면 안 된다');
 let lockedState = state({ offlineProgress: { stashLevel: 1, lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' }, stash: [] } });
 routeOfflineItem({ name: 'locked', rarity: 'normal', locked: true }, lockedState, {});
 assert.strictEqual(lockedState.offlineProgress.stash[0].offlineProtected, true);
@@ -74,17 +76,17 @@ lockedState.offlineProgress.stash = protectedOverflow;
 ensureOfflineProgressState(lockedState);
 let lockedView = getOfflineProgressView(lockedState);
 assert.strictEqual(lockedView.stash.length, lockedView.stashSlots, 'main stash stays within capacity');
-assert.strictEqual(lockedView.protectedOverflow.length, lockedView.protectedOverflowSlots, 'protected overflow stays within its dedicated limit');
-assert.strictEqual(lockedView.stash.length + lockedView.protectedOverflow.length, 40);
+assert.strictEqual(lockedState.offlineProgress.protectedOverflow.length, 0, 'legacy protected overflow is removed');
+assert.strictEqual(lockedState.inventory.length, protectedOverflow.length - lockedView.stashSlots,
+    'legacy overflow items move to regular inventory instead of being deleted');
 let protectedFallback = routeOfflineItem({ name: 'overflow-limit', rarity: 'unique' }, lockedState, {});
 assert.strictEqual(protectedFallback.action, 'normal', 'a protected item must fall back to regular inventory instead of salvage');
 assert.strictEqual(protectedFallback.protected, true);
-assert.strictEqual(lockedState.offlineProgress.stash.length + lockedState.offlineProgress.protectedOverflow.length, 40, 'protected queues remain bounded after fallback');
+assert.strictEqual(lockedState.offlineProgress.stash.length, lockedView.stashSlots, 'stash remains at its visible capacity after fallback');
 let inventoryFallbackState = mergeDefaults({
     inventory: [], offlineProgress: { stashLevel: 1 }
 });
 inventoryFallbackState.offlineProgress.stash = protectedOverflow.slice(0, 8);
-inventoryFallbackState.offlineProgress.protectedOverflow = protectedOverflow.slice(8, 40);
 inventoryFallbackState.settings.autoSalvageEnabled = true;
 inventoryFallbackState.settings.autoSalvageRarities.unique = true;
 runtime.document.getElementById = () => ({ innerText: '', innerHTML: '', style: {}, classList: { add() {} } });
@@ -96,7 +98,6 @@ assert.strictEqual(fallbackAdded, true);
 assert.deepStrictEqual(inventoryFallbackResult.game.inventory.map(item => item.name), ['kept-unique'], 'protected fallback item enters regular inventory');
 let fullInventoryState = mergeDefaults({ inventory: Array.from({ length: 30 }, (_, index) => ({ name: `filled-${index}`, rarity: 'normal' })), offlineProgress: { stashLevel: 1 } });
 fullInventoryState.offlineProgress.stash = protectedOverflow.slice(0, 8);
-fullInventoryState.offlineProgress.protectedOverflow = protectedOverflow.slice(8, 40);
 let fullFallbackAdded = false;
 let fullFallbackResult = simulateBackgroundCombat({ elapsedMs: 100, snapshot: fullInventoryState, stepFn: () => {
     if (!fullFallbackAdded) fullFallbackAdded = runtime.addItemToInventory({ name: 'last-kept-unique', rarity: 'unique' });
@@ -104,7 +105,13 @@ let fullFallbackResult = simulateBackgroundCombat({ elapsedMs: 100, snapshot: fu
 assert.strictEqual(fullFallbackAdded, true);
 assert.strictEqual(fullFallbackResult.game.inventory.at(-1).name, 'last-kept-unique', 'the item that triggers the safety stop remains owned');
 assert.strictEqual(fullFallbackResult.stopReason, 'protected-storage-full', 'background replay stops before protected inventory can grow without bound');
-assert.ok(buildOfflineProgressHtml(getOfflineProgressView(stashState)).includes('보호 대기열 1/32'));
+assert.ok(!buildOfflineProgressHtml(getOfflineProgressView(stashState)).includes('보호 대기열'),
+    '방치 보관함 UI에 숨은 초과 대기열을 표시하면 안 된다');
+let loopResetState = state({ offlineProgress: { stashLevel: 1, stash: [{ name: 'old-loop-item', rarity: 'rare' }], protectedOverflow: [{ name: 'old-loop-unique', rarity: 'unique' }] } });
+resetOfflineStashForLoop(loopResetState);
+assert.strictEqual(loopResetState.offlineProgress.stash.length, 0, '루프를 시작하면 방치 보관함을 비워야 한다');
+assert.strictEqual(loopResetState.offlineProgress.protectedOverflow.length, 0, '루프를 시작하면 예전 보호 대기열도 비워야 한다');
+assert.strictEqual(loopResetState.inventory.length, 0, '루프 초기화 대상 아이템을 일반 인벤토리로 이관하면 안 된다');
 let legacyLockedState = state({ offlineProgress: { stashLevel: 1, stash: [{ name: 'legacy-locked', rarity: 'normal', locked: true }] } });
 ensureOfflineProgressState(legacyLockedState);
 assert.strictEqual(legacyLockedState.offlineProgress.stash[0].offlineProtected, true);

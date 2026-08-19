@@ -215,9 +215,8 @@
   .map-item[role="group"] .map-item-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); width: 100%; }
   .map-item[role="group"] .map-state-badge { grid-column: 1; grid-row: 1; }
   .map-item[role="group"] .map-enter-btn { grid-column: 2; grid-row: 1; }
-  .map-item[role="group"] .map-item-actions:has(.map-reward-btn) .map-reward-btn { grid-column: 1 / -1; grid-row: 1; }
-  .map-item[role="group"] .map-item-actions:has(.map-reward-btn) .map-state-badge { grid-row: 2; }
-  .map-item[role="group"] .map-item-actions:has(.map-reward-btn) .map-enter-btn { grid-row: 2; }
+  .map-item[role="group"] .map-item-actions:has(.map-reward-btn) .map-reward-btn { grid-column: 1; grid-row: 1; }
+  .map-item[role="group"] .map-item-actions:has(.map-reward-btn) .map-enter-btn { grid-column: 2; grid-row: 1; }
   .map-item[role="group"] .map-enter-btn { width: 100%; }
   .item-card { min-width: 0; padding: 8px; }
   .item-actions, .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }

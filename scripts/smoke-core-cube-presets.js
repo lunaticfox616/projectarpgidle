@@ -20,6 +20,10 @@ function loadCubeContext(options = {}) {
         updateStaticUI: () => {},
         // 확인창은 테스트가 지정한 값을 돌려준다. 실제 런타임처럼 await를 한 틱 넘긴다.
         requestGameConfirmation: () => Promise.resolve(options.confirm !== false),
+        requestGameChoice: dialog => {
+            context.lastChoiceDialog = dialog;
+            return Promise.resolve(options.choice === undefined ? null : options.choice);
+        },
         hashSeed: (text) => {
             let h = 2166136261;
             String(text).split('').forEach(ch => { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); });
@@ -142,6 +146,29 @@ async function main() {
         assert.strictEqual(run(ctx, 'ensureCoreCubeState().faces[0]'), 7, '각인이 반영되어야 한다');
         assert.strictEqual(run(ctx, 'ensureCoreCubeState().selectedFace'), 1, '각인 후에는 다음 빈 면을 자동 선택해야 한다');
         assert.strictEqual(run(ctx, 'getCoreCubeUsedPowerCount(ensureCoreCubeState())'), 1, '각인은 사용 이력에 남아야 한다');
+    }
+
+    // ── 잉여 동력원은 하나의 재활용 버튼에서 번호를 고른다 ───────────────
+    {
+        const ctx = loadCubeContext({ choice: 7 });
+        run(ctx, 'let st = ensureCoreCubeState(); st.powers = { 7: 5, 9: 4 };');
+        const gained = await vm.runInContext('requestCoreCubePowerRecycle()', ctx);
+        assert.ok(Number(gained) >= 1 && Number(gained) <= 45 && Number(gained) !== 7,
+            '선택한 잉여 동력원은 다른 번호 하나로 재활용되어야 한다');
+        assert.strictEqual(run(ctx, 'ensureCoreCubeState().powers[7] || 0'), 0,
+            '선택한 번호의 동력원 5개를 정확히 소모해야 한다');
+        assert.deepStrictEqual(Array.from(ctx.lastChoiceDialog.choices, row => row.value), [7],
+            '선택창에는 실제로 5개 이상 보유한 번호만 보여야 한다');
+        assert.strictEqual(ctx.lastChoiceDialog.submitOnChoice, true,
+            '번호를 누르면 별도 확인 단계 없이 재활용해야 한다');
+    }
+
+    {
+        const ctx = loadCubeContext({ choice: null });
+        run(ctx, 'ensureCoreCubeState().powers = { 11: 5 };');
+        await vm.runInContext('requestCoreCubePowerRecycle()', ctx);
+        assert.strictEqual(run(ctx, 'ensureCoreCubeState().powers[11]'), 5,
+            '번호 선택을 취소하면 동력원을 소모하면 안 된다');
     }
 
     // ── 루프 리셋: 프리셋과 사용 이력은 유지, 각인은 초기화 ───────────────

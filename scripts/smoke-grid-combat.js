@@ -17,8 +17,10 @@ const files = [
   'data/bosses.js',
   'data/rewards.js',
   'data/talent-cards.js',
+  'data/offline-progress.js',
   'js/utils.js',
   'js/state.js',
+  'js/offline-progress.js',
   'js/save.js',
   'js/items.js',
   'js/skills.js',
@@ -1353,6 +1355,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.season = 1;
   context.game.settings.mapCompleteAction = 'nextZone';
   context.game.settings.postLoopMapCompleteAction = 'nextLoopBestPlusOne';
+  context.game.offlineProgress.stashLevel = 1;
+  context.game.offlineProgress.stash = [{ name: '지난 루프 장비', rarity: 'rare' }];
+  context.game.offlineProgress.protectedOverflow = [{ name: '지난 루프 고유', rarity: 'unique' }];
   const beforeFound = context.game.flasks.foundKeys.length;
   // 루프 리셋이 부르는 UI/코스모스 경계 함수는 Node 하네스에 없으므로 무해한 스텁으로 대체
   ['grantCodexLegacyStarterUniques', 'renderCosmosAtlas', 'updateStaticUI', 'renderPassiveTree', 'checkUnlocks', 'renderSkills', 'renderInventory', 'renderEquipment', 'updateCombatUI', 'renderMapList', 'syncBattleTabLayout', 'renderTalentCards', 'closeRewardOverlay', 'renderFlaskPanel', 'updateCloudSaveUI', 'renderConditionGems', 'renderSupports', 'updateHeroSelectionUI', 'renderCoreCube'].forEach(name => {
@@ -1361,6 +1366,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.triggerSeasonReset();
   const afterFound = context.ensureFlaskFoundKeys();
   assert.ok(afterFound.length < beforeFound, '루프 시 발견한 플라스크가 기본 지급분으로 리셋되어야 한다');
+  assert.strictEqual(context.game.offlineProgress.stash.length, 0, '루프 시 방치 보관함이 초기화되어야 한다');
+  assert.strictEqual(context.game.offlineProgress.protectedOverflow.length, 0, '루프 시 방치 보호 대기열도 초기화되어야 한다');
   assert.strictEqual(context.game.settings.mapCompleteAction, 'nextLoopBestPlusOne', '루프 후 전투 완료 행동은 기본적으로 최고층으로 변경되어야 한다');
 
   resetGame();

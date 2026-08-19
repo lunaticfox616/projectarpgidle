@@ -15,7 +15,6 @@ const OFFLINE_PROGRESS_STASH_LEVELS = Object.freeze([
     { slots: 0, cost: 0 }, { slots: 8, cost: 3 }, { slots: 16, cost: 6 },
     { slots: 32, cost: 12 }, { slots: 48, cost: 20 }, { slots: 72, cost: 32 }
 ]);
-const OFFLINE_PROGRESS_PROTECTED_OVERFLOW_LIMIT = 32;
 const OFFLINE_PROGRESS_DIRECTIVE_COSTS = Object.freeze({ hunt: 10, safety: 12, loot: 15 });
 const OFFLINE_PROGRESS_HUNT_MODES = Object.freeze(['push', 'current', 'highestCleared', 'stopBeforeBoss']);
 const OFFLINE_PROGRESS_LOOT_MODES = Object.freeze(['rarity', 'itemLevel', 'baseTier']);
@@ -35,5 +34,6 @@ const OFFLINE_PROGRESS_DEFAULT_STATE = Object.freeze({
     safetyPolicy: { consecutiveDeaths: 5, noKillMinutes: 10, stopOnNegativeExp: false, stopWhenStorageFull: false },
     lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' },
     stash: [],
+    // 구버전 보호 대기열 저장을 읽기 위한 호환 필드다. 현재 규칙에서는 항상 비운다.
     protectedOverflow: []
 });

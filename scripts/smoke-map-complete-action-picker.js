@@ -57,11 +57,27 @@ vm.createContext(context);
 const functionNames = [
     'getMapCompleteActionOptions',
     'getMapCompleteActionOption',
+    'buildMapCardActionsHtml',
     'syncMapCompleteActionQuickControl',
     'applyMapCompleteAction',
     'openMapCompleteActionPicker'
 ];
 vm.runInContext(functionNames.map(name => readFunctionSource(uiSource, name)).join('\n'), context, { filename: 'map-complete-action.js' });
+
+const rewardReadyActions = context.buildMapCardActionsHtml({
+    state: { className: 'cleared', label: '완료' }, isActRewardZone: true, rewardReady: true,
+    rewardClaimed: false, zoneId: 2, enterAction: 'changeZone(2)', enterLabel: '사냥 시작'
+});
+assert(!rewardReadyActions.includes('map-state-badge'), '보상 수령이 가능할 때 완료 배지를 별도 칸으로 중복 표시하면 안 된다');
+assert.strictEqual((rewardReadyActions.match(/<button/g) || []).length, 2,
+    '액트 카드에는 보상과 사냥 두 행동만 보여야 한다');
+const rewardClaimedActions = context.buildMapCardActionsHtml({
+    state: { className: 'cleared', label: '완료' }, isActRewardZone: true, rewardReady: false,
+    rewardClaimed: true, zoneId: 2, enterAction: 'changeZone(2)', enterLabel: '사냥 시작'
+});
+assert(rewardClaimedActions.includes('완료 · 보상 수령'), '수령한 보상은 비활성 버튼 대신 상태 한 줄로 합쳐야 한다');
+assert.strictEqual((rewardClaimedActions.match(/<button/g) || []).length, 1,
+    '보상 수령 후에는 사냥 버튼 하나만 행동으로 남아야 한다');
 
 context.syncMapCompleteActionQuickControl();
 assert.strictEqual(quickButton.hidden, false, '기타 그룹에서는 설정 탭 옆 빠른 버튼이 보여야 한다');

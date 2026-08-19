@@ -161,6 +161,16 @@ function getMapCardState(isCurrent, cleared, recommended) {
     return { label: '도전', className: 'available' };
 }
 
+function buildMapCardActionsHtml(options) {
+    let state = options.state;
+    let rewardButton = options.isActRewardZone && options.rewardReady
+        ? `<button class="map-reward-btn" onclick="event.stopPropagation(); openActReward(${options.zoneId})">보상 받기</button>` : '';
+    let stateLabel = options.isActRewardZone && options.rewardClaimed ? `${state.label} · 보상 수령` : state.label;
+    let stateBadge = rewardButton ? '' : `<span class="map-state-badge ${state.className}${options.rewardClaimed ? ' reward-claimed' : ''}">${stateLabel}</span>`;
+    let enterButton = `<button type="button" class="map-enter-btn" onclick="event.stopPropagation(); ${options.enterAction}">${options.enterLabel}</button>`;
+    return stateBadge + rewardButton + enterButton;
+}
+
 function buildTrialMapItemHtml(trial) {
     if (trial.bloomTrial) {
         let isCurrent = game.currentZoneId === trial.id;
@@ -11796,15 +11806,13 @@ function buildCraftActionButtons(item) {
         let powerEstimateHtml = buildMapPowerEstimateHtml(zone);
         if (powerEstimateHtml) mapZoneText += `<br>${powerEstimateHtml}`;
         let state = getMapCardState(isCurrent, cleared, recommended);
-        actionHtml = `<span class="map-state-badge ${state.className}">${state.label}</span>`;
-        if (isActRewardZone && rewardReady) actionHtml += `<button class="map-reward-btn" onclick="event.stopPropagation(); openActReward(${idx})">보상 받기</button>`;
-        else if (isActRewardZone && rewardClaimed) actionHtml += `<button class="map-reward-btn claimed" disabled>보상 완료</button>`;
         let enterAction = isCurrent ? "switchTab('tab-battle')" : `changeZone(${idx})`;
-        actionHtml += `<button type="button" class="map-enter-btn" onclick="event.stopPropagation(); ${enterAction}">${isCurrent ? '전투 보기' : '사냥 시작'}</button>`;
+        actionHtml = buildMapCardActionsHtml({ state, isActRewardZone, rewardReady, rewardClaimed, zoneId: idx,
+            enterAction, enterLabel: isCurrent ? '전투 보기' : '사냥 시작' });
         return {
             isChaosMap,
             html: `
-            <div class="map-item ${isChaosMap ? 'map-item--chaos' : ''} ${current} ${cleared ? 'is-cleared' : ''} ${recommended ? 'is-recommended' : ''} ${unlockReveal}" role="group" ${isCurrent ? 'aria-current="true"' : ''}>
+            <div class="map-item ${isChaosMap ? 'map-item--chaos' : ''} ${zone.type === 'act' ? 'map-item--act' : ''} ${current} ${cleared ? 'is-cleared' : ''} ${recommended ? 'is-recommended' : ''} ${unlockReveal}" role="group" ${isCurrent ? 'aria-current="true"' : ''}>
                 <div class="map-item-main"><span>${icon}</span><span>${mapZoneText}</span></div>
                 <div class="map-item-actions">${actionHtml}</div>
             </div>
@@ -16440,7 +16448,7 @@ function getExpertiseCardHtml(id) {
         : '';
     let guideRows = ((typeof EXPERT_EXP_GUIDES !== 'undefined' && EXPERT_EXP_GUIDES[id]) || []).map(line => `<li>${line}</li>`).join('');
     let guideHtml = guideRows ? `<div class="expertise-panel" style="margin-top:8px;"><div style="color:var(--copy-bright); font-weight:700; margin-bottom:4px;">경험치 획득 가이드</div><ul style="margin:0 0 0 18px; padding:0; color:var(--copy-bright); line-height:1.55;">${guideRows}</ul></div>` : '';
-    return `<div class="expertise-card"><h4>${d.icon} ${d.name} <span class="expertise-muted">Lv.${lv}</span> ${lv>=16?`<span style='color:#ffd36b;'>+${pt}pt</span>`:''}</h4><div class="expertise-muted">EXP ${exp}/${req} · 이번 루프 ${used}/${loopCap}</div><div style="margin:6px 0 8px 0; height:8px; border-radius:999px; background:#1c2a3a; border:1px solid #344b66;"><div style="width:${pct.toFixed(1)}%; height:100%; border-radius:999px; background:linear-gradient(90deg,#3f84ff,#72d1ff);"></div></div><div class="expertise-muted">${currentUnlockLine}</div><div class="expertise-muted">${nextUnlockLine}</div>${guideHtml}${historyHtml}${favorHtml}</div>`;
+    return `<div class="expertise-card"><h4>${d.icon} ${d.name} <span class="expertise-muted">Lv.${lv}</span> ${lv>=16?`<span style='color:#ffd36b;'>+${pt}pt</span>`:''}</h4>${favorHtml}<div class="expertise-muted">EXP ${exp}/${req} · 이번 루프 ${used}/${loopCap}</div><div style="margin:6px 0 8px 0; height:8px; border-radius:999px; background:#1c2a3a; border:1px solid #344b66;"><div style="width:${pct.toFixed(1)}%; height:100%; border-radius:999px; background:linear-gradient(90deg,#3f84ff,#72d1ff);"></div></div><div class="expertise-muted">${currentUnlockLine}</div><div class="expertise-muted">${nextUnlockLine}</div>${guideHtml}${historyHtml}</div>`;
 }
 
 const EXPERT_BRANCH_COLORS = { common:'#ffd36b', mycologist:'#6fcf72', gemEngraver:'#5cc8ff', astronomer:'#a98bff', beekeeper:'#f5c451' };
