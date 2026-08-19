@@ -1562,6 +1562,49 @@ test('logged-in community content keeps readable rows, presence, and item links'
     expect(failures).toEqual([]);
 });
 
+test('public profile separates the growth board from equipped gear', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const targetId = '33333333-3333-4333-8333-333333333333';
+    await page.route('https://**/rest/v1/player_profiles**', route => route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify([{
+            nickname: '정원사',
+            updated_at: '2026-08-19T01:00:00Z',
+            profile_data: {
+                version: 5, nickname: '정원사', level: 90, className: '원소술사', loop: 31, stats: [],
+                equipment: [{ slot: '무기', name: '별빛 지팡이', rarity: 'rare', baseStats: [], stats: [] }],
+                jewels: [], talismans: [], talBoard: [], boardW: 8, boardH: 8,
+                growthBoardW: 8, growthBoardH: 4,
+                growthUnlockedCells: [3, 4, 10, 11, 12, 13, 19, 20],
+                growthItems: [{
+                    slot: '꽃', name: '황혼의 해바라기', rarity: 'unique', growthCategory: 'flower',
+                    growthShapeId: 'domino2', rotation: 0, cells: [[3, 1], [4, 1]], baseStats: [],
+                    stats: [{ id: 'firePctDmg', val: 18, statName: '화염 피해' }]
+                }]
+            }
+        }])
+    }));
+    await page.evaluate(() => {
+        cloudState.user = { id: 'profile-browser-user' };
+        cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
+    });
+    await page.evaluate(id => openPlayerProfile(id), targetId);
+    const modal = page.locator('#social-profile-modal');
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('#social-profile-tabs button')).toHaveText(['장비', '주얼', '부적', '생장판']);
+    await expect(modal.locator('#social-profile-items')).toContainText('별빛 지팡이');
+    await expect(modal.locator('#social-profile-items')).not.toContainText('황혼의 해바라기');
+    await modal.locator('#social-profile-tabs').getByRole('button', { name: '생장판', exact: true }).click();
+    await expect(modal.locator('.social-growth-board')).toBeVisible();
+    await expect(modal.locator('.social-growth-cell')).toHaveCount(32);
+    await expect(modal.locator('.social-growth-cell[data-growth="0"]')).toHaveCount(2);
+    await modal.locator('.social-growth-cell[data-growth="0"]').first().hover();
+    await expect(page.locator('#social-tooltip')).toContainText('황혼의 해바라기');
+    expect(failures).toEqual([]);
+});
+
 test('mobile chat opens as a bounded bottom sheet and returns to battle', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile chat-sheet assertion');
     const failures = watchRuntimeFailures(page);

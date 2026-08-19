@@ -1,5 +1,5 @@
 // ============================================================================
-// 소셜 기능: 채팅 + 접속자 목록 + 다른 플레이어 프로필(장비창/주얼/부적 배치도/스탯)
+// 소셜 기능: 채팅 + 접속자 목록 + 다른 플레이어 프로필(장비/주얼/부적/생장판 배치도/스탯)
 // ----------------------------------------------------------------------------
 // 백엔드는 Supabase(player_profiles / chat_messages). 스키마는 db/social.sql.
 // ui.js 이후 로드되며 cloudState / cloudJsonRequest / getPlayerStats / getJewelStats
@@ -131,7 +131,7 @@ function socialRarityColor(rarity) {
 }
 
 // ============================================================================
-// 스냅샷 빌드(장비/주얼/부적) — 옵션에 티어·롤범위 포함
+// 스냅샷 빌드(장비/주얼/부적/생장판) — 옵션에 티어·롤범위 포함
 // ============================================================================
 function snapStat(st) {
     let o = { id: st.id || st.stat, val: st.val, statName: st.statName, tier: st.tier, valMin: st.valMin, valMax: st.valMax };
@@ -201,6 +201,41 @@ function buildTalismanSnapshot(t) {
     let cells = Array.isArray(t.cells) ? t.cells.map(c => ({ x: c.x || 0, y: c.y || 0 })) : [];
     return { kind: 'talisman', name, rarity: t.rarity || 'normal', shape: t.shape || null, cells, stats, effects };
 }
+
+function buildProfileGrowthSnapshot(entry) {
+    let item = entry && entry.item;
+    if (!item) return null;
+    let category = item.growthCategory || '';
+    let info = (typeof GROWTH_CATEGORY_INFO !== 'undefined' && GROWTH_CATEGORY_INFO[category]) || null;
+    let snap = buildItemSnapshot(item, info ? info.label : '생장');
+    if (!snap) return null;
+    snap.growthCategory = category;
+    snap.growthShapeId = item.growthShapeId || 'dot1';
+    snap.rotation = Math.max(0, Math.min(3, Math.floor(Number(entry.placement && entry.placement.rotation) || 0)));
+    snap.cells = (Array.isArray(entry.cells) ? entry.cells : []).slice(0, 4).map(cell => [
+        Math.floor(Number(cell && cell[0]) || 0),
+        Math.floor(Number(cell && cell[1]) || 0)
+    ]);
+    if (item.growthChase) snap.growthChase = true;
+    return snap;
+}
+
+function buildProfileGrowthData() {
+    let width = typeof GROWTH_BOARD_W !== 'undefined' ? GROWTH_BOARD_W : 8;
+    let height = typeof GROWTH_BOARD_H !== 'undefined' ? GROWTH_BOARD_H : 4;
+    let items = typeof getPlacedGrowthEntries === 'function'
+        ? getPlacedGrowthEntries().map(buildProfileGrowthSnapshot).filter(Boolean).slice(0, width * height)
+        : [];
+    let unlockedCells = [];
+    if (typeof isGrowthCellUnlocked === 'function') {
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                if (isGrowthCellUnlocked(x, y)) unlockedCells.push(y * width + x);
+            }
+        }
+    }
+    return { items, width, height, unlockedCells };
+}
 function buildStarWedgeSnapshot(wedge) {
     if (!wedge) return null;
     let uniqueDef = wedge.unique && typeof getStarWedgeUniqueDef === 'function' ? getStarWedgeUniqueDef(wedge.uniqueType) : null;
@@ -263,14 +298,7 @@ function buildProfileSnapshot() {
     let equipment = [];
     let eq = (typeof game !== 'undefined' && game.equipment) ? game.equipment : {};
     Object.keys(eq).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
-    // 생장판에 배치된 아이템은 장비와 별개 시스템이므로 뒤에 이어 붙인다(프로필에서 함께 열람).
-    if (typeof getPlacedGrowthEntries === 'function') {
-        getPlacedGrowthEntries().forEach(entry => {
-            let label = typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(entry.item) : '생장';
-            let snap = buildItemSnapshot(entry.item, label);
-            if (snap) equipment.push(snap);
-        });
-    }
+    let growth = buildProfileGrowthData();
 
     let jewels = [];
     let jslots = (typeof game !== 'undefined' && Array.isArray(game.jewelSlots)) ? game.jewelSlots : [];
@@ -293,13 +321,17 @@ function buildProfileSnapshot() {
     for (let i = 0; i < W * H; i++) { let id = board[i]; if (id != null && idToIndex[id] != null) talBoard[i] = idToIndex[id]; }
 
     return {
-        version: 4,
+        version: 5,
         nickname: getMyNickname(),
         level: (typeof game !== 'undefined' && game.level) ? game.level : 1,
         ascendClass: (typeof game !== 'undefined') ? (game.ascendClass || '') : '',
         className: socialClassLabel(typeof game !== 'undefined' ? game.ascendClass : ''),
         loop, power, stats,
         equipment: equipment.slice(0, 16),
+        growthItems: growth.items,
+        growthBoardW: growth.width,
+        growthBoardH: growth.height,
+        growthUnlockedCells: growth.unlockedCells,
         jewels: jewels.slice(0, 8),
         talismans: talismans.slice(0, 60),
         talBoard,
@@ -991,6 +1023,11 @@ function socialTalHighlight(idx, on) {
 }
 function socialTalEnter(event, idx, key) { socialTalHighlight(idx, true); showSocialTip(event, 'profile', key); }
 function socialTalLeave(idx) { socialTalHighlight(idx, false); hideSocialTip(); }
+function socialGrowthHighlight(idx, on) {
+    document.querySelectorAll(`.social-growth-cell[data-growth="${idx}"]`).forEach(c => c.classList.toggle('hl', !!on));
+}
+function socialGrowthEnter(event, idx, key) { socialGrowthHighlight(idx, true); showSocialTip(event, 'profile', key); }
+function socialGrowthLeave(idx) { socialGrowthHighlight(idx, false); hideSocialTip(); }
 function openTipModal(scope, key) {
     let html = tipMapByScope(scope)[key];
     if (!html) return;
@@ -1113,14 +1150,11 @@ async function openMyProfilePreview() {
     openPlayerProfile(socialLoggedInUserId());
 }
 
-// 장비: 고정 슬롯 페이퍼돌 + (있다면) 생장판 배치 목록을 함께 보여준다.
+// 장비: 고정 슬롯만 표시한다. 생장판은 별도 탭이 소유한다.
 function renderProfileEquipPaperdoll(equipment) {
     let rows = (equipment || []).filter(Boolean);
     let legacySlots = new Set(SOCIAL_EQUIP_SLOTS.concat(['반지3']));
-    let growthRows = rows.filter(it => !legacySlots.has(it.slot));
-    let html = renderProfileLegacyPaperdoll(rows.filter(it => legacySlots.has(it.slot)));
-    if (growthRows.length > 0) html += `<div style="margin-top:8px;color:#8aa0bd;font-size:0.76em;font-weight:700;">🌱 생장판</div>` + renderProfileGrowthList(growthRows);
-    return html;
+    return renderProfileLegacyPaperdoll(rows.filter(it => legacySlots.has(it.slot)));
 }
 
 function renderProfileGrowthList(rows) {
@@ -1130,6 +1164,58 @@ function renderProfileGrowthList(rows) {
         socialState.profileTips[key] = renderProfileItemCard(it);
         return `<div class="social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(it.slot || '생장')}]</div><div class="social-slot-name" style="color:${color};">${socialEscape(it.name)}</div></div>`;
     }).join('') + `</div>`;
+}
+
+function getProfileGrowthRows(profile) {
+    if (Array.isArray(profile && profile.growthItems)) return profile.growthItems.slice(0, 32).filter(Boolean);
+    let legacySlots = new Set(SOCIAL_EQUIP_SLOTS.concat(['반지3']));
+    return ((profile && profile.equipment) || []).filter(item => item && !legacySlots.has(item.slot)).slice(0, 32);
+}
+
+function renderProfileGrowthBoard(profile) {
+    let rows = getProfileGrowthRows(profile);
+    if (rows.length === 0) return `<div class="social-profile-empty">배치한 생장판 없음</div>`;
+    let hasLayout = rows.some(item => Array.isArray(item.cells) && item.cells.length > 0);
+    if (!hasLayout) {
+        return `<div class="social-growth-legacy">이전 프로필 형식입니다. 해당 플레이어의 다음 프로필 갱신 후 배치도가 표시됩니다.</div>${renderProfileGrowthList(rows)}`;
+    }
+    let maxW = typeof GROWTH_BOARD_W !== 'undefined' ? GROWTH_BOARD_W : 8;
+    let maxH = typeof GROWTH_BOARD_H !== 'undefined' ? GROWTH_BOARD_H : 4;
+    let width = Math.max(1, Math.min(maxW, Math.floor(Number(profile.growthBoardW) || maxW)));
+    let height = Math.max(1, Math.min(maxH, Math.floor(Number(profile.growthBoardH) || maxH)));
+    let unlocked = new Set((Array.isArray(profile.growthUnlockedCells) ? profile.growthUnlockedCells : [])
+        .map(value => Math.floor(Number(value))).filter(value => value >= 0 && value < width * height));
+    let owners = new Map();
+    rows.forEach((item, itemIndex) => {
+        (Array.isArray(item.cells) ? item.cells : []).slice(0, 4).forEach((cell, cellIndex) => {
+            let rawX = Number(cell && cell[0]);
+            let rawY = Number(cell && cell[1]);
+            if (!Number.isFinite(rawX) || !Number.isFinite(rawY)) return;
+            let x = Math.floor(rawX);
+            let y = Math.floor(rawY);
+            if (x < 0 || y < 0 || x >= width || y >= height || owners.has(`${x},${y}`)) return;
+            owners.set(`${x},${y}`, { item, itemIndex, origin: cellIndex === 0 });
+        });
+    });
+    let cells = '';
+    for (let index = 0; index < width * height; index++) cells += renderProfileGrowthCell(index, width, owners, unlocked);
+    return `<div class="social-growth-summary">배치 ${rows.length}개 · 활성 ${unlocked.size}/${width * height}칸</div>`
+        + `<div class="social-growth-board" style="grid-template-columns:repeat(${width},1fr);">${cells}</div>`;
+}
+
+function renderProfileGrowthCell(index, width, owners, unlocked) {
+    let x = index % width, y = Math.floor(index / width);
+    let owner = owners.get(`${x},${y}`);
+    if (!owner) return `<span class="social-growth-cell ${unlocked.has(index) ? 'empty' : 'sealed'}"></span>`;
+    let item = owner.item;
+    let category = (typeof GROWTH_CATEGORY_INFO !== 'undefined' && GROWTH_CATEGORY_INFO[item.growthCategory]) ? item.growthCategory : '';
+    let info = category ? GROWTH_CATEGORY_INFO[category] : null;
+    let color = socialRarityColor(item.rarity);
+    let key = `gb:${owner.itemIndex}`;
+    socialState.profileTips[key] = renderProfileItemCard(item);
+    let icon = owner.origin ? socialEscape(info ? info.icon : '✦') : '·';
+    let chase = item.growthChase ? ' chase' : '';
+    return `<span class="social-growth-cell filled${owner.origin ? ' origin' : ''}${chase}" data-growth="${owner.itemIndex}" style="border-color:${color};--growth-color:${color};" onmouseenter="socialGrowthEnter(event,${owner.itemIndex},'${key}')" onmousemove="moveSocialTip(event)" onmouseleave="socialGrowthLeave(${owner.itemIndex})" onclick="openTipModal('profile','${key}')">${icon}</span>`;
 }
 
 function renderProfileLegacyPaperdoll(equipment) {
@@ -1187,6 +1273,7 @@ function renderProfileItemsArea() {
     socialState.profileTips = {};
     let cat = socialState.profileTab;
     if (cat === 'equipment') return renderProfileEquipPaperdoll(p.equipment);
+    if (cat === 'growth') return renderProfileGrowthBoard(p);
     if (cat === 'talismans') return renderProfileTalismanBoard(p);
     // jewels
     let jewels = p.jewels || [];
@@ -1238,6 +1325,7 @@ function renderProfileData(profile) {
                     <button data-cat="equipment" class="active" onclick="switchProfileTab('equipment')">장비</button>
                     <button data-cat="jewels" onclick="switchProfileTab('jewels')">주얼</button>
                     <button data-cat="talismans" onclick="switchProfileTab('talismans')">부적</button>
+                    <button data-cat="growth" onclick="switchProfileTab('growth')">생장판</button>
                 </div>
                 <div id="social-profile-items">${renderProfileItemsArea()}</div>
             </div>
@@ -1417,6 +1505,16 @@ function injectSocialStyles() {
     .social-growth-list .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;border:1px solid #3a4d6e;cursor:pointer;background:linear-gradient(170deg,#101722,#152238);}
     .social-growth-list .social-slot-tag{font-size:0.66em;color:#8aa0bd;font-weight:700;}
     .social-growth-list .social-slot-name{font-size:0.74em;font-weight:700;line-height:1.15;word-break:break-all;}
+    .social-growth-legacy{margin:0 0 8px;padding:8px 10px;border:1px solid rgba(183,147,91,.32);border-radius:7px;color:#cbb996;background:rgba(73,53,28,.18);font-size:.76em;line-height:1.45;}
+    .social-growth-summary{margin:0 0 7px;color:var(--copy-muted);font-size:.78em;text-align:right;}
+    .social-growth-board{display:grid;gap:4px;width:100%;max-width:360px;margin:0 auto;padding:8px;border:1px solid rgba(130,105,72,.45);border-radius:9px;background:linear-gradient(155deg,rgba(35,29,22,.92),rgba(13,17,19,.96));box-shadow:inset 0 0 18px rgba(0,0,0,.48);}
+    .social-growth-cell{display:flex;align-items:center;justify-content:center;min-width:0;aspect-ratio:1/1;border:1px solid rgba(120,105,82,.28);border-radius:5px;background:rgba(12,15,16,.72);color:#f4ead7;font-size:1em;line-height:1;}
+    .social-growth-cell.empty{background:radial-gradient(circle at 35% 30%,rgba(83,74,57,.38),rgba(19,22,21,.88) 70%);}
+    .social-growth-cell.sealed{border-color:rgba(83,72,57,.12);background:repeating-linear-gradient(135deg,rgba(18,18,18,.8) 0 4px,rgba(10,10,10,.9) 4px 8px);opacity:.48;}
+    .social-growth-cell.filled{cursor:pointer;background:radial-gradient(circle at 32% 25%,var(--growth-color) 0%,rgba(24,26,24,.94) 72%);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 0 7px color-mix(in srgb,var(--growth-color) 42%,transparent);transition:filter .1s,box-shadow .1s,transform .1s;}
+    .social-growth-cell.filled.origin{font-size:1.15em;text-shadow:0 1px 3px #000;}
+    .social-growth-cell.filled.chase{box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 0 10px color-mix(in srgb,var(--growth-color) 70%,transparent);}
+    .social-growth-cell.filled.hl{filter:brightness(1.36) saturate(1.2);box-shadow:0 0 0 2px #e7cf98,0 0 13px color-mix(in srgb,var(--growth-color) 72%,transparent),inset 0 1px 0 rgba(255,255,255,.32);transform:translateY(-1px);z-index:1;}
     .social-tal-board{display:grid;gap:2px;justify-content:center;max-width:280px;margin:0 auto;}
     .social-tal-cell{width:100%;aspect-ratio:1/1;border-radius:3px;border:1px solid rgba(120,140,160,0.18);background:#0a0e14;}
     .social-tal-cell.void{border-color:transparent;background:transparent;}
@@ -1455,6 +1553,7 @@ if (typeof safeExposeGlobals === 'function') {
         openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
         attachChatItem, removePendingChatItem, openItemPicker, closeItemPicker, openTipModal, updateChatCounter,
         showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        socialTalEnter, socialTalLeave, socialTalHighlight, checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks
+        socialTalEnter, socialTalLeave, socialTalHighlight, socialGrowthEnter, socialGrowthLeave, socialGrowthHighlight,
+        checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks
     });
 }
