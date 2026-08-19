@@ -10,6 +10,9 @@ const LEECH_BASE_RATE_CAP_PCT = 4;
 const ARMOR_MITIGATION_SCALE = 24;
 const EVASION_ACCURACY_SCALE = 3.5;
 const EVASION_ENTROPY_RESET_MS = 3330;
+const SUMMON_EVASION_CAP_PCT = 85;
+const SUMMON_EVASION_POST_20_STEP_MULTIPLIER = 4;
+const SUMMON_EFFICIENCY_EVASION_RATIO = 0.5;
 const PLAYER_ACCURACY_BASE = 80;
 const PLAYER_ACCURACY_PER_LEVEL = 3;
 const PLAYER_ACCURACY_PER_DEXTERITY = 5;
@@ -166,6 +169,22 @@ function getEvasionChancePct(evasion, enemyAccuracy) {
     let evasionValue = Math.max(0, Number(evasion) || 0);
     let accuracyValue = Math.max(1, Number(enemyAccuracy) || 1);
     return Math.min(90, (evasionValue / (evasionValue + accuracyValue * EVASION_ACCURACY_SCALE)) * 100);
+}
+
+function getEnemyAccuracyForZone(zone) {
+    let tier = Math.max(1, Number(zone && zone.tier) || 1);
+    return Math.max(60, Math.floor(90 + tier * 24));
+}
+
+function getCombatEnemyAccuracy(enemy) {
+    let explicitAccuracy = Number(enemy && enemy.accuracy);
+    if (Number.isFinite(explicitAccuracy) && explicitAccuracy > 0) return explicitAccuracy;
+    return getEnemyAccuracyForZone(getZone(game.currentZoneId) || getZone(0));
+}
+
+function getSummonEvadeChance(summon, enemy) {
+    let rating = Math.max(0, Number(summon && summon.evasion) || 0);
+    return Math.min(SUMMON_EVASION_CAP_PCT, getEvasionChancePct(rating, getCombatEnemyAccuracy(enemy)));
 }
 
 const evasionEntropyByDefender = new WeakMap();
@@ -1305,6 +1324,21 @@ function getSummonMaxHp(profile, gemLevel, pStats) {
     return Math.max(1, Math.floor(profile.baseHp * hpGrowth * hpMul * effMul));
 }
 
+function getSummonEvasionGrowthSteps(gemLevel) {
+    let levelSteps = Math.max(0, Math.floor(Number(gemLevel || 1)) - 1);
+    let earlySteps = Math.min(19, levelSteps);
+    let post20Steps = Math.max(0, levelSteps - 19);
+    return earlySteps + post20Steps * SUMMON_EVASION_POST_20_STEP_MULTIPLIER;
+}
+
+function getSummonEvasionRating(profile, gemLevel, pStats) {
+    let steps = getSummonEvasionGrowthSteps(gemLevel);
+    let growth = 1 + (Math.pow(steps, profile.evasionScaleExp || 1.1) * (profile.evasionScaleBase || 0.015));
+    let efficiencyPct = Math.max(0, Number(pStats && pStats.summonEfficiency) || 0);
+    let efficiencyMultiplier = 1 + (efficiencyPct * SUMMON_EFFICIENCY_EVASION_RATIO / 100);
+    return Math.max(0, Math.floor((profile.baseEvasion || 0) * growth * efficiencyMultiplier));
+}
+
 function getSummonRegenPerSec(maxHp) {
     return Math.max(1, Math.floor(Math.max(1, maxHp) * SUMMON_REGEN_PCT_PER_SEC / 100));
 }
@@ -1315,7 +1349,6 @@ function buildSummonRuntimeStats(row, pStats, now) {
     let gemLv = getSummonGemLevel(row.name, row.source, pStats);
     let levelSteps = getSummonLevelGrowthSteps(profile, gemLv);
     let armorGrowth = 1 + (Math.pow(levelSteps, profile.armorScaleExp || 1.1) * (profile.armorScaleBase || 0.015));
-    let evasionGrowth = 1 + (Math.pow(levelSteps, profile.evasionScaleExp || 1.1) * (profile.evasionScaleBase || 0.015));
     let maxHp = getSummonMaxHp(profile, gemLv, pStats);
     return {
         gemName: row.name,
@@ -1328,7 +1361,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
         maxHp: maxHp,
         regenPerSec: getSummonRegenPerSec(maxHp),
         armor: Math.max(0, Math.floor((profile.baseArmor || 0) * armorGrowth)),
-        evasion: Math.max(0, Math.floor((profile.baseEvasion || 0) * evasionGrowth)),
+        evasion: getSummonEvasionRating(profile, gemLv, pStats),
         resFire: Math.max(-60, Math.min(90, profile.baseRes.fire || 0)),
         resCold: Math.max(-60, Math.min(90, profile.baseRes.cold || 0)),
         resLight: Math.max(-60, Math.min(90, profile.baseRes.light || 0)),
@@ -1616,6 +1649,7 @@ function getSummonTooltipPreview(gemName, pStats) {
     let minHit = getSummonHitDamageInfo(hitProfile, stats, null, { rollOverridePct: hitProfile.dmgRollMinPct, forceCrit: false });
     let maxHit = getSummonHitDamageInfo(hitProfile, stats, null, { rollOverridePct: 100, forceCrit: true });
     let maxHp = getSummonMaxHp(profile, gemLv, stats);
+    let evasion = getSummonEvasionRating(profile, gemLv, stats);
     let critChance = Math.max(0, Math.min(0.95, ((profile.baseCrit || 0) + (stats.summonCrit || 0)) / 100));
     return {
         roleLabel: profile.role === 'guard' ? '방어 소환수' : '공격 소환수',
@@ -1623,6 +1657,8 @@ function getSummonTooltipPreview(gemName, pStats) {
         gemLevel: gemLv,
         maxHp: maxHp,
         regenPerSec: getSummonRegenPerSec(maxHp),
+        evasion: evasion,
+        evadeChancePct: Math.round(getSummonEvadeChance({ evasion: evasion }, null) * 10) / 10,
         hitDamageMin: Math.max(1, Math.floor(minHit.damage || 1)),
         hitDamageMax: Math.max(1, Math.floor(maxHit.damage || 1)),
         attackPerSecond: profile.role === 'guard' ? 0 : (Math.round((1000 / getSummonAttackIntervalMs(stats, hitProfile)) * 100) / 100),
@@ -3769,7 +3805,7 @@ function getPlayerStats() {
     let finalEnergyShieldRechargeDelay = Math.max(0.25, 1 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + support.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
     let referenceIncomingPhysical = Math.max(1, Math.floor((2 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 3.1)));
     let armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
-    let enemyAccuracy = Math.max(60, Math.floor(90 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 24));
+    let enemyAccuracy = getEnemyAccuracyForZone(getZone(game.currentZoneId) || getZone(0));
     let evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
     let finalDeflectChance = Math.max(0, gearBase.deflectChance + gearExplicit.deflectChance + passive.deflectChance + season.deflectChance + ascend.deflectChance + support.deflectChance + reward.deflectChance);
     let finalDeflectDamageReduce = Math.max(0, gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce + passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + support.deflectDamageReduce + reward.deflectDamageReduce);
@@ -10487,8 +10523,8 @@ function getClosestLivingSummonToPlayer() {
 
 function applyMonsterDamageToSummon(summon, rawDamage, enemy, pStats) {
     if (summon && summon.isGhost) return 0;
-    let evade = Math.max(0, Math.min(85, (summon.evasion || 0) / ((summon.evasion || 0) + 300) * 100));
-    if (Math.random() * 100 < evade) return 0;
+    let evade = getSummonEvadeChance(summon, enemy);
+    if (resolveEntropyEvasion(summon, evade, Date.now())) return 0;
     let damage = Math.max(1, Math.floor(rawDamage || 1));
     if (enemy.ele === 'phys') {
         let armorReduction = Math.min(85, (summon.armor || 0) / ((summon.armor || 0) + damage * 8) * 100);
