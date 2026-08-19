@@ -103,7 +103,7 @@ body.desktop-windowed-ui .ui-rail-tab-layer .ui-rail-label {
 }
 
 body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn:hover,
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.active,
+body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.active:not([aria-pressed="false"]),
 body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.ui-window-open {
   border-color: rgba(255, 198, 184, .88) !important;
   color: #fff7f2;
@@ -141,8 +141,8 @@ body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn {
   box-shadow: none !important;
   transition: transform .1s ease, filter .1s ease !important;
 }
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.active,
 body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.ui-window-open,
+body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.active:not([aria-pressed="false"]),
 body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn[aria-pressed="true"] {
   background: url('../assets/ui/menu-tab-active-v1.png') center / 100% 100% no-repeat !important;
   color: #fff9e9;

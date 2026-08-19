@@ -527,6 +527,16 @@ body:not(.light-mode) :where(
     transform: translate(-50%, -50%) scale(1.06) !important;
   }
 
+  /* An open socket keeps its lit rim while hovered. Window-backed controls use
+     aria-pressed as the authority because the generic .active class can outlive
+     a closed window; the always-visible battle surface has no pressed state. */
+  body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.ui-window-open:hover:not(:disabled):not([aria-disabled='true']),
+  body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn[aria-pressed='true']:hover:not(:disabled):not([aria-disabled='true']) {
+    color: #fff4da;
+    background: url('../assets/ui/menu-tab-active-v1.png') center / 100% 100% no-repeat !important;
+    filter: brightness(1.22) saturate(1.06) drop-shadow(0 0 6px rgba(200, 151, 74, .52));
+  }
+
   body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn:active:not(:disabled):not([aria-disabled='true']) {
     filter: brightness(1.08) saturate(1.02);
     transform: translate(-50%, -50%) scale(.97) !important;
@@ -937,6 +947,9 @@ body:not(.light-mode) :where(
     border: 0;
     border-bottom: 1px solid var(--reliquary-line);
     background: transparent;
+    font-family: var(--game-font-body, 'Galmuri14', 'Malgun Gothic', sans-serif);
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   body.desktop-windowed-ui .ui-context-dock-tab {
@@ -950,8 +963,11 @@ body:not(.light-mode) :where(
     color: var(--reliquary-muted);
     background: #0b0c0b !important;
     box-shadow: none !important;
-    font-size: 12px;
-    font-weight: 800;
+    font-family: inherit;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0 !important;
+    text-transform: none;
   }
 
   body.desktop-windowed-ui .ui-context-dock-tab:hover {
@@ -1005,6 +1021,14 @@ body:not(.light-mode) :where(
     font-size: 12px;
     line-height: 1.5;
     text-rendering: optimizeLegibility;
+  }
+
+  body:not(.light-mode).desktop-windowed-ui .combat-feed .log-msg,
+  body:not(.light-mode).desktop-windowed-ui #tab-social.ui-community-dock .social-chat-body {
+    font-family: inherit;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.5;
   }
 
   body.desktop-windowed-ui .ui-community-dock-header {
