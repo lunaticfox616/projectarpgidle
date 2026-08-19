@@ -300,10 +300,11 @@
 .player-health-frame #ui-es-bar {
   position: absolute;
   inset: 0;
-  background-color: #087f99 !important;
+  background-color: #52c9f2 !important;
   background-image: url('../assets/ui/gauge-player-es-v1.png') !important;
-  box-shadow: inset 0 1px rgba(205, 249, 255, .26), 0 0 8px rgba(48, 190, 224, .28);
-  opacity: .78 !important;
+  background-blend-mode: screen;
+  box-shadow: inset 0 1px rgba(238, 253, 255, .68), inset 0 -2px rgba(13, 91, 129, .42), 0 0 9px rgba(77, 205, 244, .34);
+  opacity: .9 !important;
 }
 .player-health-frame #ui-exp-bar {
   background-color: #643184 !important;

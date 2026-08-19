@@ -6518,6 +6518,12 @@ function syncCombatTacticsSettingsControls() {
         : '액트 3을 처음 클리어하면 영구 해금됩니다.';
 }
 
+function applyChatMessageSize(size) {
+    let normalized = ['small', 'medium', 'large'].includes(size) ? size : 'medium';
+    if (document.body && document.body.dataset) document.body.dataset.chatMessageSize = normalized;
+    return normalized;
+}
+
 function updateSettings() {
     let previousSocialChatNotifications = game.settings.socialChatNotifications !== false;
     game.settings.showCombatScene = document.getElementById('chk-combat-scene').checked;
@@ -6538,6 +6544,8 @@ function updateSettings() {
     if (tabNotiCheckbox) game.settings.tabNotiEnabled = tabNotiCheckbox.checked;
     let socialChatNotiCheckbox = document.getElementById('chk-social-chat-noti');
     if (socialChatNotiCheckbox) game.settings.socialChatNotifications = socialChatNotiCheckbox.checked;
+    let chatMessageSizeSelect = document.getElementById('sel-chat-message-size');
+    game.settings.chatMessageSize = applyChatMessageSize(chatMessageSizeSelect ? chatMessageSizeSelect.value : game.settings.chatMessageSize);
     if (game.settings.socialChatNotifications === false && game.noti) game.noti.social = false;
     if (previousSocialChatNotifications !== (game.settings.socialChatNotifications !== false)
         && typeof syncSocialChatNotificationSetting === 'function') syncSocialChatNotificationSetting();
@@ -7223,7 +7231,7 @@ function getItemStatToneColor(statId) {
     if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(id)) return '#c7a6ff';
     if (['armor', 'armorPct', 'dr'].includes(id)) return '#ffd2a6';
     if (['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce'].includes(id)) return '#baffc2';
-    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#b9c6ff';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(id)) return '#8fdcff';
     if (['flatHp', 'pctHp', 'regen', 'regenFlat'].includes(id)) return '#ffb3b3';
     if (['crit', 'critDmg'].includes(id)) return '#ffd6f2';
     if (['aspd', 'move'].includes(id)) return '#fff3a8';
@@ -7242,7 +7250,7 @@ function getItemStatToneColor(statId) {
     if (low.includes('hp') || low.includes('life') || low.includes('regen') || low.includes('leech')) return '#ffb3b3';
     if (low.includes('armor') || low.includes('block') || low.includes('guard') || low.includes('dr')) return '#ffd2a6';
     if (low.includes('evasion') || low.includes('dodge') || low.includes('deflect')) return '#baffc2';
-    if (low.includes('energyshield') || low.includes('es')) return '#b9c6ff';
+    if (low.includes('energyshield') || low.includes('es')) return '#8fdcff';
     if (low.includes('crit')) return '#ffd6f2';
     if (low.includes('aspd') || low.includes('speed') || low.includes('move')) return '#fff3a8';
     if (low.includes('spell')) return '#d4a8ff';
@@ -8746,7 +8754,7 @@ function renderCombatSkillHud() {
     let signature = names.join('|');
     if (host.dataset.signature === signature) return;
     host.dataset.signature = signature;
-    host.innerHTML = names.map((name, index) => `<button type="button" class="player-hud-skill-slot ${index === 0 ? 'primary' : 'summon'}" data-gem-name="${escapeHTML(name)}" aria-label="${escapeHTML(name)} 젬">${renderSkillGemArt(name, 'combat-skill-gem-art', { eager: true })}</button>`).join('');
+    host.innerHTML = names.map((name, index) => `<button type="button" class="player-hud-skill-slot ${index === 0 ? 'primary' : 'summon'}" data-gem-name="${escapeHTML(name)}" data-info-tooltip-anchor="1" aria-label="${escapeHTML(name)} 젬">${renderSkillGemArt(name, 'combat-skill-gem-art', { eager: true })}</button>`).join('');
     host.querySelectorAll('.player-hud-skill-slot').forEach(button => {
         let name = button.dataset.gemName;
         button.addEventListener('mouseenter', event => showGemTooltip(event, 'active', name));
@@ -10420,7 +10428,7 @@ function getJewelStatToneColor(statId) {
     if (['chaosPctDmg', 'resChaos', 'dotPctDmg', 'poisonChance'].includes(statId)) return '#c7a6ff';
     if (['armor', 'armorPct', 'dr'].includes(statId)) return '#ffd2a6';
     if (['evasion', 'evasionPct', 'deflectChance', 'deflectDamageReduce'].includes(statId)) return '#baffc2';
-    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(statId)) return '#b9c6ff';
+    if (['energyShield', 'energyShieldPct', 'energyShieldRegen'].includes(statId)) return '#8fdcff';
     if (['flatHp', 'pctHp', 'regen'].includes(statId)) return '#ffb3b3';
     if (['crit', 'critDmg'].includes(statId)) return '#ffd6f2';
     if (['aspd', 'move'].includes(statId)) return '#fff3a8';
@@ -13976,6 +13984,7 @@ function mergeDefaults(save) {
     merged.growthInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.growthInventoryExpandLevel, defaultGame.growthInventoryExpandLevel, 0)));
     merged.growthEssenceExpandLevel = Math.max(0, Math.min(12, Math.floor(clampFiniteNumber(merged.growthEssenceExpandLevel, 0, 0, 12))));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
+    merged.settings.chatMessageSize = ['small', 'medium', 'large'].includes(merged.settings.chatMessageSize) ? merged.settings.chatMessageSize : 'medium';
     merged.settings.passiveTreeShowLabels = merged.settings.passiveTreeShowLabels !== false;
     if (typeof normalizePassiveTreePlannerState === 'function') {
         merged.settings.passiveTreePlanner = normalizePassiveTreePlannerState(merged.settings.passiveTreePlanner);
@@ -16146,6 +16155,9 @@ function init() {
     if (tabNotiCheckboxInit) tabNotiCheckboxInit.checked = game.settings.tabNotiEnabled !== false;
     let socialChatNotiCheckboxInit = document.getElementById('chk-social-chat-noti');
     if (socialChatNotiCheckboxInit) socialChatNotiCheckboxInit.checked = game.settings.socialChatNotifications !== false;
+    let chatMessageSizeSelectInit = document.getElementById('sel-chat-message-size');
+    game.settings.chatMessageSize = applyChatMessageSize(game.settings.chatMessageSize);
+    if (chatMessageSizeSelectInit) chatMessageSizeSelectInit.value = game.settings.chatMessageSize;
     document.getElementById('chk-pause-overlay').checked = !!game.settings.pauseGameOnOverlay;
     document.getElementById('chk-auto-equip-empty').checked = game.settings.autoEquipEmptySlots !== false;
     syncCombatTacticsSettingsControls();

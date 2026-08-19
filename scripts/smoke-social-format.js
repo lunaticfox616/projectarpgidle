@@ -84,6 +84,14 @@ assert.strictEqual(talismanNameContext.getGeneratedTalismanName({ stat: 'flatHp'
   'ordinary talismans must receive a stat-and-shape name instead of displaying only their option');
 assert.strictEqual(talismanNameContext.getGeneratedTalismanName({ statName: '막기 확률(%)', shape: 'T' }), '막기 확률의 갈림쇠',
   'unknown future talisman stats must still generate a readable fallback name');
+const chatSizeStart = uiSource.indexOf('function applyChatMessageSize(');
+const chatSizeEnd = uiSource.indexOf('function updateSettings()', chatSizeStart);
+const chatSizeContext = { document: { body: { dataset: {} } } };
+vm.createContext(chatSizeContext);
+vm.runInContext(uiSource.slice(chatSizeStart, chatSizeEnd), chatSizeContext, { filename: 'chat-message-size.js' });
+assert.strictEqual(chatSizeContext.applyChatMessageSize('large'), 'large');
+assert.strictEqual(chatSizeContext.document.body.dataset.chatMessageSize, 'large', 'chat size selection must immediately update the live UI');
+assert.strictEqual(chatSizeContext.applyChatMessageSize('invalid'), 'medium', 'damaged save data must fall back to the readable default size');
 context.game = {
   equipment: { 무기: { name: '검', rarity: 'rare', stats: [] } },
   inventory: [{ name: '장갑', slot: '장갑', rarity: 'magic', stats: [] }],
@@ -127,7 +135,8 @@ vm.runInContext("socialState.lastChatRenderKey = ''; socialState.scrollChatToLat
 context.renderChatMessages([{ id: 1, user_id: 'user-2', nickname: '새친구', body: '안녕하세요', created_at: '2026-07-17T12:00:00Z' }], true);
 assert.strictEqual(chatList.scrollTop, chatList.scrollHeight, 'opening chat should place the viewport at the newest message');
 assert.ok(chatList.innerHTML.includes('<article class="social-chat-msg">'), 'chat messages should expose row semantics instead of generic bubbles');
-assert.ok(chatList.innerHTML.includes('class="social-chat-avatar"') && chatList.innerHTML.includes('class="social-chat-head"'), 'chat rows should provide a stable author hierarchy');
+assert.ok(chatList.innerHTML.includes('class="social-chat-head"') && chatList.innerHTML.includes('class="social-chat-nick"'), 'chat rows should provide a stable author hierarchy');
+assert.ok(!chatList.innerHTML.includes('social-chat-avatar'), 'chat nicknames must not repeat their first letter inside a decorative circle');
 assert.ok(chatList.innerHTML.includes('class="social-chat-body">안녕하세요'), 'chat body content should remain visible under the author row');
 
 vm.runInContext("socialState.lastChatRenderKey = '';", context);
@@ -138,6 +147,8 @@ assert.ok(chatList.innerHTML.includes('social-chat-msg mine') && chatList.innerH
 const html = fs.readFileSync('index.html', 'utf8');
 const socialSource = fs.readFileSync('js/social.js', 'utf8');
 assert.ok(html.includes('id="chk-social-chat-noti"'), 'settings should expose a new-chat notification toggle');
+assert.ok(html.includes('id="sel-chat-message-size"'), 'settings should expose a persistent chat message size control');
+assert.ok(socialSource.includes('var(--social-chat-message-size,12px)'), 'chat message text should follow the shared size setting instead of a fixed pixel value');
 assert.ok(socialSource.includes('SOCIAL_BG_NOTI_POLL_MS = 15000'), 'background chat notifications should arrive promptly');
 assert.ok(socialSource.includes("showGameToast(`새 채팅"), 'incoming chat should create an in-game notification');
 const socialSql = fs.readFileSync('db/social.sql', 'utf8');

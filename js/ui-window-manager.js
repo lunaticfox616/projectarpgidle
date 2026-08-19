@@ -657,7 +657,6 @@
         drawer.querySelector('#ui-goal-pin').addEventListener('click', toggleGoalPin);
         drawer.querySelector('#ui-goal-pin').setAttribute('aria-pressed', layoutState.goals.pinned ? 'true' : 'false');
         drawer.querySelector('#ui-goal-action').addEventListener('click', openGoalDrawerTarget);
-        document.addEventListener('pointerdown', collapseGoalDrawerOnOutsidePointer);
     }
 
     function toggleGoalDrawer(force) {
@@ -727,13 +726,6 @@
             }
             toggleGoalDrawer(false);
         }, GOAL_AUTO_COLLAPSE_MS);
-    }
-
-    function collapseGoalDrawerOnOutsidePointer(event) {
-        let drawer = document.getElementById('ui-goal-drawer');
-        if (!drawer || !drawer.classList.contains('expanded')) return;
-        if (drawer.contains(event.target) || isGoalAutoCollapseBlocked()) return;
-        toggleGoalDrawer(false);
     }
 
     function openGoalTarget(target) {

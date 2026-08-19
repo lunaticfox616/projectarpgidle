@@ -66,6 +66,7 @@ function bootManager() {
     const switchCalls = [];
     const itemSubtabCalls = [];
     const skillSubtabCalls = [];
+    const documentListeners = {};
     const body = dom.createElement('body');
     const context = {
         console, JSON, Math, Number, Object, Array, String,
@@ -81,7 +82,10 @@ function bootManager() {
             querySelector: () => null,
             querySelectorAll: () => [],
             createElement: tag => dom.createElement(tag),
-            addEventListener: () => {},
+            addEventListener: (type, handler) => {
+                documentListeners[type] = documentListeners[type] || [];
+                documentListeners[type].push(handler);
+            },
             activeElement: null
         }
     };
@@ -107,7 +111,7 @@ function bootManager() {
     };
     vm.createContext(context);
     vm.runInContext(source, context, { filename: 'js/ui-window-manager.js' });
-    return { dom, exposed, timers, switchCalls, itemSubtabCalls, skillSubtabCalls, context };
+    return { dom, exposed, timers, switchCalls, itemSubtabCalls, skillSubtabCalls, documentListeners, context };
 }
 
 const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description: '심화층 등반', current: 13, target: 14, actionLabel: '혼돈 지도 열기', actionTabId: 'tab-map' });
@@ -143,6 +147,16 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
     m.exposed.toggleGoalDrawer(false);
     m.exposed.presentGoalDrawer({ ...goal('g1'), current: 14 });
     assert(!drawer.classList.contains('expanded'), '숫자 변화만으로 자동 펼침 금지');
+}
+
+// 3-2) 사용자가 직접 연 목표는 전투 화면의 다른 곳을 눌러도 닫히지 않는다.
+{
+    const m = bootManager();
+    const drawer = m.dom.registry['ui-goal-drawer'];
+    m.exposed.presentGoalDrawer(goal('g1-persistent'));
+    m.exposed.toggleGoalDrawer(true);
+    (m.documentListeners.pointerdown || []).forEach(handler => handler({ target: {} }));
+    assert(drawer.classList.contains('expanded'), 'outside pointer input must not dismiss an explicitly opened goal drawer');
 }
 
 // 3-1) 빈 progressText는 자동 생성 수치 대신 진행 문구를 숨긴다.
