@@ -1746,6 +1746,40 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(vm.runInContext('SUMMON_REGEN_PCT_PER_SEC', context), 0.75, '소환수 재생 너프는 기초 재생률에 반영해야 한다');
 }
 
+// ── 12-1. 소환수 회피: 별도 성장·적 정확도·엔트로피 판정 ──
+{
+  resetGame();
+  const profile = context.getSummonProfile('칼날까마귀 소환');
+  const level20Evasion = context.getSummonEvasionRating(profile, 20, { summonEfficiency: 0 });
+  const level30Evasion = context.getSummonEvasionRating(profile, 30, { summonEfficiency: 0 });
+  const lowestAccuracy = context.getEnemyAccuracyForZone({ tier: 1 });
+  const level20Chance = context.getSummonEvadeChance({ evasion: level20Evasion }, { accuracy: lowestAccuracy });
+  const level30Chance = context.getSummonEvadeChance({ evasion: level30Evasion }, { accuracy: lowestAccuracy });
+  assert.ok(level20Chance <= 30 && level20Chance >= 25,
+    '별도 세팅 없는 최고 회피 소환수도 20레벨에서 회피율 30%를 넘으면 안 된다');
+  assert.ok(level30Chance <= 50 && level30Chance >= 40,
+    '별도 세팅 없는 최고 회피 소환수도 30레벨에서 회피율 50%를 넘으면 안 된다');
+  assert.ok(context.getSummonEvasionRating(profile, 30, { summonEfficiency: 100 }) > level30Evasion,
+    '소환수 효율 세팅은 기본 성장과 별개로 소환수 회피 수치를 높여야 한다');
+  assert.ok(context.getSummonEvadeChance({ evasion: level30Evasion }, { accuracy: lowestAccuracy * 3 }) < level30Chance,
+    '적 정확도가 높으면 같은 소환수의 실전 회피율은 낮아져야 한다');
+  assert.strictEqual(context.getSummonEvadeChance({ evasion: Number.MAX_SAFE_INTEGER }, { accuracy: 1 }), 85,
+    '별도 회피 세팅을 위한 소환수 회피율 상한 85%는 유지해야 한다');
+
+  const summon = { id: 91, hp: 100, maxHp: 100, evasion: 350, armor: 0, alive: true, respawnMs: 4000 };
+  const enemy = makeEnemy(91, 1, 1, { accuracy: 100, ele: 'phys' });
+  const originalRandom = context.Math.random;
+  try {
+    context.Math.random = () => 0;
+    context.applyMonsterDamageToSummon(summon, 10, enemy, {});
+    context.applyMonsterDamageToSummon(summon, 10, enemy, {});
+  } finally {
+    context.Math.random = originalRandom;
+  }
+  assert.strictEqual(summon.hp, 90,
+    '50% 회피는 독립 난수 연속 회피가 아니라 엔트로피로 두 번 중 한 번 피격되어야 한다');
+}
+
 // ── 13. 소울바인더 소환수 키스톤: 흡혈/가까운 피해 공유/주변 관통 ──
 {
   resetGame();

@@ -7199,6 +7199,7 @@ function showGemTooltip(event, type, name) {
                 html += `<div class="tooltip-line">소환수 레벨: ${preview.gemLevel}</div>`;
                 html += `<div class="tooltip-line">예상 1타 피해: ${preview.hitDamageMin} ~ ${preview.hitDamageMax}${preview.attackPerSecond > 0 ? ` · 공속 ${preview.attackPerSecond}/s` : ''}</div>`;
                 html += `<div class="tooltip-line">소환수 생명력: ${Math.floor(preview.maxHp).toLocaleString()} · 자체 재생 ${Math.floor(preview.regenPerSec).toLocaleString()}/s</div>`;
+                html += `<div class="tooltip-line">회피 ${Math.floor(preview.evasion).toLocaleString()} · 현재 지역 적 기준 ${preview.evadeChancePct.toFixed(1)}%</div>`;
                 if (preview.critChancePct > 0) html += `<div class="tooltip-line">치명타: ${preview.critChancePct}% · 치명 피해 ${Math.floor(preview.critDmgPct)}%</div>`;
                 if (preview.resPenBonus > 0) html += `<div class="tooltip-line">소환수 자체 저항 관통 +${preview.resPenBonus}%</div>`;
                 if (preview.physIgnoreBonus > 0) html += `<div class="tooltip-line">소환수 자체 물리 피해 감소 무시 +${preview.physIgnoreBonus}%</div>`;
