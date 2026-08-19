@@ -1964,19 +1964,65 @@ test('combat HUD interactions keep their visual and tooltip contracts', async ({
         const chatRoot = document.querySelector('#tab-social .social-root');
         const chatFont = getComputedStyle(chatRoot).fontFamily;
         const esStyle = getComputedStyle(document.getElementById('ui-es-bar'));
-        return { flaskCenters, logFont, chatFont, esColor: esStyle.backgroundColor };
+        return {
+            flaskCenters,
+            logFont,
+            chatFont,
+            esColor: esStyle.backgroundColor,
+            esOpacity: esStyle.opacity,
+            esBlendMode: esStyle.backgroundBlendMode
+        };
     });
     expect(presentation.flaskCenters).toEqual([
         { x: 0.26, y: 0.54 }, { x: 0.418, y: 0.54 }, { x: 0.577, y: 0.54 },
         { x: 0.736, y: 0.54 }, { x: 0.895, y: 0.54 }
     ]);
     expect(presentation.chatFont).toBe(presentation.logFont);
-    expect(presentation.esColor).toBe('rgb(82, 201, 242)');
+    expect(presentation.esColor).toBe('rgb(57, 123, 152)');
+    expect(presentation.esOpacity).toBe('1');
+    expect(presentation.esBlendMode).toBe('soft-light');
 
     await page.evaluate(() => { closeCommunityDock(); switchTab('tab-settings'); });
     await page.locator('#sel-chat-message-size').selectOption('large');
     await expect(page.locator('body')).toHaveAttribute('data-chat-message-size', 'large');
     expect(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--social-chat-message-size').trim())).toBe('14px');
+    expect(failures).toEqual([]);
+});
+
+test('desktop dock labels and menu sockets follow the visible surface state', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'desktop dock and rail use separate mobile controls');
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const combatTypography = await page.locator('.combat-feed-title .ui-context-dock-tab').first().evaluate(element => {
+        const style = getComputedStyle(element);
+        return { family: style.fontFamily, size: style.fontSize, weight: style.fontWeight, spacing: style.letterSpacing };
+    });
+    await page.locator('#btn-combat-chat-tab').click();
+    const chatTypography = await page.locator('.ui-community-dock-header .ui-context-dock-tab').first().evaluate(element => {
+        const style = getComputedStyle(element);
+        return { family: style.fontFamily, size: style.fontSize, weight: style.fontWeight, spacing: style.letterSpacing };
+    });
+    expect(chatTypography).toEqual(combatTypography);
+
+    await page.evaluate(() => {
+        closeCommunityDock();
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        switchTab('tab-items');
+    });
+    const socket = page.locator('#btn-tab-items');
+    const openImage = await socket.evaluate(element => getComputedStyle(element).backgroundImage);
+    await socket.hover();
+    expect(await socket.evaluate(element => getComputedStyle(element).backgroundImage)).toBe(openImage);
+    expect(await socket.evaluate(element => getComputedStyle(element).filter)).toContain('drop-shadow');
+
+    await page.evaluate(() => closeWindow('tab-items'));
+    const closed = await socket.evaluate(element => ({
+        image: getComputedStyle(element).backgroundImage,
+        pressed: element.getAttribute('aria-pressed')
+    }));
+    expect(closed.pressed).toBe('false');
+    expect(closed.image).toContain('menu-socket-v1.svg');
+    expect(closed.image).not.toContain('menu-tab-active-v1.png');
     expect(failures).toEqual([]);
 });
 
