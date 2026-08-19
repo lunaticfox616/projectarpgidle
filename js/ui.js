@@ -11172,7 +11172,7 @@ function renderChaosInfuserPanel(selectedItem) {
         return;
     }
     let current = selectedItem.chaosInfusion
-        ? `<div style="color:#d7a8ff; margin-bottom:8px;">현재 주입: <strong>${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)} +${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.val)}</strong> <span style="color:var(--copy-bright);">(${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.valMin)}~${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.valMax)})</span> <button onclick="removeChaosInfusionFromSelectedItem()" ${(game.currencies.scour || 0) > 0 ? '' : 'disabled'}>제거(정화 1)</button></div>`
+        ? `<div style="color:#d7a8ff; margin-bottom:8px;">현재 주입: <strong>${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)} +${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.val)}</strong> <span style="color:var(--copy-bright);">(${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.valMin)}~${formatValue(selectedItem.chaosInfusion.id, selectedItem.chaosInfusion.valMax)})</span> <button onclick="removeChaosInfusionFromSelectedItem()" ${(game.currencies.blightSpore || 0) > 0 ? '' : 'disabled'}>제거(마름병 포자 1)</button></div>`
         : '<div style="color:var(--copy-muted); margin-bottom:8px;">현재 주입 옵션 없음</div>';
     let eligibility = typeof isChaosInfusionEligibleItem === 'function' ? isChaosInfusionEligibleItem(selectedItem) : { ok: true, reason: '' };
     let explicitCount = typeof getItemExplicitOptionCount === 'function' ? getItemExplicitOptionCount(selectedItem) : ((selectedItem.stats || []).length + (selectedItem.chaosInfusion ? 1 : 0));
@@ -11187,7 +11187,7 @@ function renderChaosInfuserPanel(selectedItem) {
         return `<button onclick="applyChaosInfusionToSelectedItem('${key}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${rangeText}<br><span style="font-size:0.78em;color:var(--copy-bright);">${same ? '적용 중' : costText}</span></button>`;
     }).join('') : `<div style="grid-column:1/-1; color:#ffb4b4;">${eligibility.reason}</div>`;
     if (eligibility.ok && !buttons) buttons = '<div style="grid-column:1/-1; color:var(--copy-bright);">이 부위에 추가할 수 있는 주입 옵션이 없습니다.</div>';
-    host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:var(--copy-bright);">T5급 범위 옵션 한 줄을 추가 옵션으로 부여합니다. 추가 옵션 제한: ${explicitCount}/6. 교체/제거 시 정화의 오브가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
+    host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:var(--copy-bright);">T5급 범위 옵션 한 줄을 추가 옵션으로 부여합니다. 추가 옵션 제한: ${explicitCount}/6. 교체/제거 시 마름병 포자가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
 }
 
 function renderCraftOrbActions(selectedItem) {
@@ -12035,7 +12035,7 @@ function buildCraftActionButtons(item) {
             ? ` role="button" tabindex="0" onclick="buySeason('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();buySeason('${id}');}"`
             : ' aria-disabled="true"';
         let glyph = seasonNodeGlyphs[node.stat] || '✦';
-        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core"><span class="loop-node-glyph" aria-hidden="true">${glyph}</span><span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${node.desc}</small><em>${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">정화의 오브로 반환</span>` : ''}</span></div>`;
+        return `<div class="loop-passive-node ${placement || ''} ${horizontalClass} ${stateClass} ${maxedClass}"${style}${actionAttrs} aria-label="${node.name}: ${node.desc}"><span class="loop-node-core"><span class="loop-node-glyph" aria-hidden="true">${glyph}</span><span class="loop-node-rank">${active ? `${lv}/${cap}` : (reqMet ? '+' : '×')}</span></span><span class="loop-node-tooltip"><strong>${node.name}</strong><small>${node.desc}</small><em>${statInfo.name || node.stat} +${formatValue(node.stat, scaled)}${suffix}</em><b>${stateText}</b>${active ? `<span class="loop-node-refund" role="button" tabindex="0" onclick="event.stopPropagation(); askRefundSeasonNode('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();askRefundSeasonNode('${id}');}">마름병 포자로 반환</span>` : ''}</span></div>`;
     };
     let seasonNodeIds = Object.keys(SEASON_NODES || {});
     let activeSeasonNodeCount = seasonNodeIds.filter(id => getSeasonNodeLevel(id) > 0).length;
@@ -12096,7 +12096,7 @@ function buildCraftActionButtons(item) {
             let kTiers = [];
             kDefs.forEach(k => { let d = depthOf(k.id); (kTiers[d] = kTiers[d] || []).push(k); });
             let kPts = Math.max(0, Math.floor(game.ascendKeystonePoints || 0));
-            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:0.75em;">키스톤 초기화</button></div><div style="font-size:0.78em; color:var(--copy-bright); margin-top:4px;">해제 비용: 정화의 오브 1개 · 전체 초기화 비용: 선택 개수만큼 · <span style="color:#9bc7ff;">카드에 마우스를 올리면 선행 키스톤이 연결되어 강조됩니다.</span></div>` + kTiers.filter(Boolean).map((tier, ti) => `<div class="trait-row${ti > 0 ? ' ks-tier-linked' : ''}">${tier.map(k => {
+            let kHtml = `<div style="margin-top:12px; color:#f0d7a6; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;"><span>키스톤 선택 (${game.ascendKeystones.length}/${CLASS_KEYSTONE_PICK_LIMIT}) · 보유 포인트 ${kPts}</span><button onclick="resetAscendKeystones()" style="padding:3px 8px; font-size:0.75em;">키스톤 초기화</button></div><div style="font-size:0.78em; color:var(--copy-bright); margin-top:4px;">해제 비용: 마름병 포자 1개 · 전체 초기화 비용: 선택 개수만큼 · <span style="color:#9bc7ff;">카드에 마우스를 올리면 선행 키스톤이 연결되어 강조됩니다.</span></div>` + kTiers.filter(Boolean).map((tier, ti) => `<div class="trait-row${ti > 0 ? ' ks-tier-linked' : ''}">${tier.map(k => {
                 let active = game.ascendKeystones.includes(k.id);
                 let reqMet = isAscendKeystoneRequirementMet(k);
                 let reqIds = reqIdsOf(k);
@@ -12690,7 +12690,7 @@ function getVoidPassiveRefundState(nodeId) {
         enabled: active && hasScour && connected,
         reason: !active ? '활성화된 공허 패시브만 반환할 수 있습니다.'
             : (!connected ? '연결 유지에 필요한 노드는 반환할 수 없습니다.'
-                : (!hasScour ? '정화의 오브가 부족합니다.' : '정화의 오브 1개를 소모해 반환합니다.'))
+                : (!hasScour ? '마름병 포자가 부족합니다.' : '마름병 포자 1개를 소모해 반환합니다.'))
     };
 }
 
@@ -12707,7 +12707,7 @@ function refundVoidPassiveFromOverlay(nodeId) {
 }
 
 async function askRefundPassiveNode(id) {
-    if (!await requestGameConfirmation('선택한 패시브 노드를 반환하고 정화의 오브 1개를 소모합니다.', {
+    if (!await requestGameConfirmation('선택한 패시브 노드를 반환하고 마름병 포자 1개를 소모합니다.', {
         title: '패시브 노드 반환',
         tone: 'danger',
         confirmLabel: '노드 반환'
@@ -12741,7 +12741,7 @@ function openVoidPassiveCraftOverlay(nodeId) {
         </div>
         <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(143,183,202,0.25);padding-top:10px;">
             <div style="color:${refundState.enabled ? '#c8f7d5' : '#8fa0ad'};font-size:13px;">${refundState.reason}</div>
-            <button type="button" onclick="refundVoidPassiveFromOverlay('${node.id}')" ${refundState.enabled ? '' : 'disabled'}>공허 패시브 반환 (정화의 오브 1)</button>
+            <button type="button" onclick="refundVoidPassiveFromOverlay('${node.id}')" ${refundState.enabled ? '' : 'disabled'}>공허 패시브 반환 (마름병 포자 1)</button>
         </div>
     </div>`;
     document.body.appendChild(overlay);
@@ -16382,7 +16382,7 @@ function gameLoop() {
 
 function getExpertiseOverviewHtml(total, spent, free) {
     const branchSummary = `균사 ${getExpertBranchSpent('mycologist')} · 젬 ${getExpertBranchSpent('gemEngraver')} · 천문 ${getExpertBranchSpent('astronomer')} · 양봉 ${getExpertBranchSpent('beekeeper')}`;
-    return `<div class="expertise-panel">전문가 포인트 · 총 <b>${total}</b> / 사용 <b>${spent}</b> / 남은 <b style="color:#ffd36b;">${free}</b> <button style="margin-left:8px;" onclick="askResetExpertTree()" title="전문가 트리 전체 초기화 (정화의 오브 ${spent}개 소모)">트리 초기화${spent > 0 ? ` (정화의 오브 ${spent})` : ''}</button><div class="expertise-summary">분기 투자: ${branchSummary}</div></div>`;
+    return `<div class="expertise-panel">전문가 포인트 · 총 <b>${total}</b> / 사용 <b>${spent}</b> / 남은 <b style="color:#ffd36b;">${free}</b> <button style="margin-left:8px;" onclick="askResetExpertTree()" title="전문가 트리 전체 초기화 (마름병 포자 ${spent}개 소모)">트리 초기화${spent > 0 ? ` (마름병 포자 ${spent})` : ''}</button><div class="expertise-summary">분기 투자: ${branchSummary}</div></div>`;
 }
 
 
@@ -16461,36 +16461,36 @@ function showExpertNodeTooltip(event, nodeId) {
 async function askUntrainExpertNode(nodeId) {
     let node = EXPERT_TREE_NODES.find(v => v.id === nodeId);
     if (!node) return;
-    if ((game.currencies.scour || 0) < 1) return addLog('전문가 노드 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
+    if ((game.currencies.blightSpore || 0) < 1) return addLog('전문가 노드 반환에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
     if (!canUntrainExpertNode(nodeId)) return addLog('핵심 노드 조건을 유지해야 하므로 이 노드는 반환할 수 없습니다.', 'attack-monster');
-    if (!await requestGameConfirmation(`[${node.name}] 노드를 반환하고 정화의 오브 1개를 소모합니다.`, {
+    if (!await requestGameConfirmation(`[${node.name}] 노드를 반환하고 마름병 포자 1개를 소모합니다.`, {
         title: '전문가 노드 반환',
         tone: 'danger',
         confirmLabel: '노드 반환'
     })) return;
     if (!untrainExpertNode(nodeId)) return;
-    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
-    addLog(`♻️ 전문가 노드 반환: ${node.name} (정화의 오브 1개 소모)`, 'season-up');
+    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - 1);
+    addLog(`♻️ 전문가 노드 반환: ${node.name} (마름병 포자 1개 소모)`, 'season-up');
     updateStaticUI();
 }
 async function askResetExpertTree() {
     let cost = (typeof getExpertPointSpent === 'function') ? getExpertPointSpent() : 0;
     if (cost <= 0) return;
-    if ((game.currencies.scour || 0) < cost) return addLog(`전문가 트리 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
-    if (!await requestGameConfirmation(`전문가 트리를 모두 초기화하고 정화의 오브 ${cost}개를 소모합니다.`, {
+    if ((game.currencies.blightSpore || 0) < cost) return addLog(`전문가 트리 전체 초기화에는 마름병 포자 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (!await requestGameConfirmation(`전문가 트리를 모두 초기화하고 마름병 포자 ${cost}개를 소모합니다.`, {
         title: '전문가 트리 전체 초기화',
         tone: 'danger',
         confirmLabel: '전체 초기화'
     })) return;
-    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
+    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - cost);
     resetExpertTree();
-    addLog(`♻️ 전문가 트리 전체 초기화 (정화의 오브 ${cost}개 소모)`, 'season-up');
+    addLog(`♻️ 전문가 트리 전체 초기화 (마름병 포자 ${cost}개 소모)`, 'season-up');
     updateStaticUI();
 }
 function getExpertiseNodeButtonHtml(node) {
     let lv = (game.expertise.nodes[node.id] || 0);
     let can = canAllocateExpertNode(node.id);
-    let canUn = (typeof canUntrainExpertNode === 'function') && canUntrainExpertNode(node.id) && (game.currencies.scour || 0) >= 1;
+    let canUn = (typeof canUntrainExpertNode === 'function') && canUntrainExpertNode(node.id) && (game.currencies.blightSpore || 0) >= 1;
     let keystoneCls = node.requireBranchPoints ? ' keystone' : '';
     let reqHtml = '';
     if (node.requireBranchPoints) {
@@ -16502,7 +16502,7 @@ function getExpertiseNodeButtonHtml(node) {
     // Use a `locked` class instead of the disabled attribute so hover tooltips still fire
     // on nodes the player cannot yet allocate; the click handlers guard their own conditions.
     let hover = `data-info-tooltip-anchor="1" onmouseenter="showExpertNodeTooltip(event,'${node.id}')" onmousemove="showExpertNodeTooltip(event,'${node.id}')" onmouseleave="hideInfoTooltip()"`;
-    return `<div class="expertise-node-row" ${hover}><button class="expertise-node branch-${node.branch}${keystoneCls}${can ? '' : ' locked'}" onclick="allocateExpertNode('${node.id}')&&updateStaticUI()">${node.requireBranchPoints ? '★ ' : ''}${node.name} (${lv}/${node.max}) · ${node.cost}pt${reqHtml}</button><button class="expertise-node-untrain${canUn ? '' : ' locked'}" onclick="askUntrainExpertNode('${node.id}')" title="반환 (정화의 오브 1개 소모)">−</button></div>`;
+    return `<div class="expertise-node-row" ${hover}><button class="expertise-node branch-${node.branch}${keystoneCls}${can ? '' : ' locked'}" onclick="allocateExpertNode('${node.id}')&&updateStaticUI()">${node.requireBranchPoints ? '★ ' : ''}${node.name} (${lv}/${node.max}) · ${node.cost}pt${reqHtml}</button><button class="expertise-node-untrain${canUn ? '' : ' locked'}" onclick="askUntrainExpertNode('${node.id}')" title="반환 (마름병 포자 1개 소모)">−</button></div>`;
 }
 
 function renderExpertiseUI() {
@@ -16742,19 +16742,19 @@ function canRefundPassiveNode(nodeId) {
 function refundPassiveNode(id) { if (!assertBuildEditable()) return;
     game.passives = Array.isArray(game.passives) ? game.passives : ['n0'];
     if (!game.passives.includes(id) || id === 'n0') return;
-    if ((game.currencies.scour || 0) < 1) return addLog('패시브 노드 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
+    if ((game.currencies.blightSpore || 0) < 1) return addLog('패시브 노드 반환에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
     if (!canRefundPassiveNode(id)) return addLog('연결 유지에 필요한 노드는 반환할 수 없습니다.', 'attack-monster');
-    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
+    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - 1);
     game.passives = game.passives.filter(nodeId => nodeId !== id);
     if (typeof clearPassiveAttributeChoice === 'function') clearPassiveAttributeChoice(id);
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + 1;
     calculateReachableNodes();
-    addLog(`♻️ 패시브 노드 반환: ${id} (정화의 오브 1개 소모)`, 'season-up');
+    addLog(`♻️ 패시브 노드 반환: ${id} (마름병 포자 1개 소모)`, 'season-up');
     updateStaticUI();
 }
 
 async function askRefundSeasonNode(id) { if (!assertBuildEditable()) return;
-    if (!await requestGameConfirmation('선택한 루프 패시브를 반환하고 정화의 오브 1개를 소모합니다.', {
+    if (!await requestGameConfirmation('선택한 루프 패시브를 반환하고 마름병 포자 1개를 소모합니다.', {
         title: '루프 패시브 반환',
         tone: 'danger',
         confirmLabel: '노드 반환'
@@ -16776,8 +16776,8 @@ function refundSeasonNode(id) { if (!assertBuildEditable()) return;
         return req === id;
     });
     if (blockers.length > 0) return addLog('선행 조건으로 연결된 루프 패시브가 있어 반환할 수 없습니다.', 'attack-monster');
-    if ((game.currencies.scour || 0) < 1) return addLog('루프 패시브 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
-    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
+    if ((game.currencies.blightSpore || 0) < 1) return addLog('루프 패시브 반환에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
+    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - 1);
     let lv = getSeasonNodeLevel(id);
     game.seasonNodes = game.seasonNodes.filter(nodeId => nodeId !== id);
     game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
@@ -16787,7 +16787,7 @@ function refundSeasonNode(id) { if (!assertBuildEditable()) return;
 }
 
 async function askRefundAscendNode(id) { if (!assertBuildEditable()) return;
-    if (!await requestGameConfirmation('선택한 전직 패시브를 반환하고 정화의 오브 1개를 소모합니다.', {
+    if (!await requestGameConfirmation('선택한 전직 패시브를 반환하고 마름병 포자 1개를 소모합니다.', {
         title: '전직 패시브 반환',
         tone: 'danger',
         confirmLabel: '노드 반환'
@@ -16813,8 +16813,8 @@ function refundAscendNode(id) { if (!assertBuildEditable()) return;
         return blockedByReq || blockedByReqAny;
     });
     if (blockers.length > 0) return addLog('선행 조건으로 연결된 전직 패시브가 있어 반환할 수 없습니다.', 'attack-monster');
-    if ((game.currencies.scour || 0) < 1) return addLog('전직 패시브 반환에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
-    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
+    if ((game.currencies.blightSpore || 0) < 1) return addLog('전직 패시브 반환에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
+    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - 1);
     game.ascendNodes = game.ascendNodes.filter(nodeId => nodeId !== id);
     game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + 1;
     normalizeSupportLoadout(true);
@@ -16829,7 +16829,7 @@ async function buySeason(id) { if (!assertBuildEditable()) return;
     let evolved = isSeasonTreeEvolved();
     let cap = node && node.inner ? 1 : (evolved ? 5 : 1);
     if (lv >= cap && lv > 0) {
-        if (!await requestGameConfirmation('이미 최대 단계인 노드입니다.\n정화의 오브 1개를 사용해 반환하시겠습니까?', {
+        if (!await requestGameConfirmation('이미 최대 단계인 노드입니다.\n마름병 포자 1개를 사용해 반환하시겠습니까?', {
             title: '최대 단계 노드 반환',
             tone: 'danger',
             confirmLabel: '노드 반환'
@@ -16937,8 +16937,8 @@ async function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
         return false;
     });
     if (blockers.length > 0) return addLog(`선행 키스톤입니다: ${blockers.map(v => v.name).join(', ')}`, 'attack-monster');
-    if ((game.currencies.scour || 0) < 1) return addLog('키스톤 환불에는 정화의 오브 1개가 필요합니다.', 'attack-monster');
-    if (!await requestGameConfirmation('선택한 키스톤을 반환하고 정화의 오브 1개를 소모합니다.', {
+    if ((game.currencies.blightSpore || 0) < 1) return addLog('키스톤 환불에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
+    if (!await requestGameConfirmation('선택한 키스톤을 반환하고 마름병 포자 1개를 소모합니다.', {
         title: '키스톤 반환',
         tone: 'danger',
         confirmLabel: '키스톤 반환'
@@ -16953,9 +16953,9 @@ async function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
         return !node.reqAny.some(reqId => reqId !== id && game.ascendKeystones.includes(reqId));
     });
     if (blockers.length > 0) return addLog(`확인 중 선행 상태가 변경되었습니다: ${blockers.map(v => v.name).join(', ')}`, 'attack-monster');
-    if ((game.currencies.scour || 0) < 1) return addLog('확인 중 정화의 오브가 부족해져 반환을 취소했습니다.', 'attack-monster');
+    if ((game.currencies.blightSpore || 0) < 1) return addLog('확인 중 마름병 포자가 부족해져 반환을 취소했습니다.', 'attack-monster');
     if (id === 'w3' && !enforceWarriorDualTrainingEquipment(false)) return;
-    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - 1);
+    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - 1);
     game.ascendKeystones = game.ascendKeystones.filter(key => key !== id);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
     if (typeof clearAscendKeystoneRuntimeState === 'function') clearAscendKeystoneRuntimeState([id]);
@@ -16967,8 +16967,8 @@ async function resetAscendKeystones() { if (!assertBuildEditable()) return;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
     if (game.ascendKeystones.length <= 0) return;
     let cost = game.ascendKeystones.length;
-    if ((game.currencies.scour || 0) < cost) return addLog(`키스톤 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
-    if (!await requestGameConfirmation(`선택한 키스톤을 모두 반환하고 정화의 오브 ${cost}개를 소모합니다.`, {
+    if ((game.currencies.blightSpore || 0) < cost) return addLog(`키스톤 전체 초기화에는 마름병 포자 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (!await requestGameConfirmation(`선택한 키스톤을 모두 반환하고 마름병 포자 ${cost}개를 소모합니다.`, {
         title: '키스톤 전체 초기화',
         tone: 'danger',
         confirmLabel: '전체 초기화'
@@ -16977,9 +16977,9 @@ async function resetAscendKeystones() { if (!assertBuildEditable()) return;
     game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
     if (game.ascendKeystones.length <= 0) return addLog('확인 중 키스톤 상태가 변경되어 초기화를 취소했습니다.', 'attack-monster');
     cost = game.ascendKeystones.length;
-    if ((game.currencies.scour || 0) < cost) return addLog(`확인 중 정화의 오브가 부족해졌습니다. (필요: ${cost})`, 'attack-monster');
+    if ((game.currencies.blightSpore || 0) < cost) return addLog(`확인 중 마름병 포자가 부족해졌습니다. (필요: ${cost})`, 'attack-monster');
     if (game.ascendKeystones.includes('w3') && !enforceWarriorDualTrainingEquipment(false)) return;
-    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
+    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - cost);
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + game.ascendKeystones.length;
     let removedKeystones = game.ascendKeystones.slice();
     let hadAbyssLord = game.ascendKeystones.includes('wlk8');
@@ -16995,8 +16995,8 @@ async function resetSeasonNodes() { if (!assertBuildEditable()) return;
     game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
     let totalLv = game.seasonNodes.reduce((s, id) => s + Math.max(1, Math.floor(game.seasonNodeLevels[id] || 1)), 0);
     let cost = game.seasonNodes.length;
-    if ((game.currencies.scour || 0) < cost) return addLog(`루프 패시브 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
-    if (!await requestGameConfirmation(`루프 패시브를 모두 초기화하고 정화의 오브 ${cost}개를 소모합니다.`, {
+    if ((game.currencies.blightSpore || 0) < cost) return addLog(`루프 패시브 전체 초기화에는 마름병 포자 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (!await requestGameConfirmation(`루프 패시브를 모두 초기화하고 마름병 포자 ${cost}개를 소모합니다.`, {
         title: '루프 패시브 전체 초기화',
         tone: 'danger',
         confirmLabel: '전체 초기화'
@@ -17007,8 +17007,8 @@ async function resetSeasonNodes() { if (!assertBuildEditable()) return;
     game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
     totalLv = game.seasonNodes.reduce((sum, nodeId) => sum + Math.max(1, Math.floor(game.seasonNodeLevels[nodeId] || 1)), 0);
     cost = game.seasonNodes.length;
-    if ((game.currencies.scour || 0) < cost) return addLog(`확인 중 정화의 오브가 부족해졌습니다. (필요: ${cost})`, 'attack-monster');
-    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
+    if ((game.currencies.blightSpore || 0) < cost) return addLog(`확인 중 마름병 포자가 부족해졌습니다. (필요: ${cost})`, 'attack-monster');
+    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - cost);
     game.seasonPoints = Math.max(0, Math.floor(game.seasonPoints || 0)) + totalLv;
     game.seasonNodes = [];
     game.seasonNodeLevels = {};
@@ -17019,8 +17019,8 @@ async function resetAscendNodes() { if (!assertBuildEditable()) return;
     game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
     if (game.ascendNodes.length <= 0) return;
     let cost = game.ascendNodes.length;
-    if ((game.currencies.scour || 0) < cost) return addLog(`전직 패시브 트리 전체 초기화에는 정화의 오브 ${cost}개가 필요합니다.`, 'attack-monster');
-    if (!await requestGameConfirmation(`전직 패시브 트리를 모두 초기화하고 정화의 오브 ${cost}개를 소모합니다.`, {
+    if ((game.currencies.blightSpore || 0) < cost) return addLog(`전직 패시브 트리 전체 초기화에는 마름병 포자 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (!await requestGameConfirmation(`전직 패시브 트리를 모두 초기화하고 마름병 포자 ${cost}개를 소모합니다.`, {
         title: '전직 패시브 전체 초기화',
         tone: 'danger',
         confirmLabel: '전체 초기화'
@@ -17029,8 +17029,8 @@ async function resetAscendNodes() { if (!assertBuildEditable()) return;
     game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
     if (game.ascendNodes.length <= 0) return addLog('확인 중 전직 패시브 상태가 변경되어 초기화를 취소했습니다.', 'attack-monster');
     cost = game.ascendNodes.length;
-    if ((game.currencies.scour || 0) < cost) return addLog(`확인 중 정화의 오브가 부족해졌습니다. (필요: ${cost})`, 'attack-monster');
-    game.currencies.scour = Math.max(0, Math.floor(game.currencies.scour || 0) - cost);
+    if ((game.currencies.blightSpore || 0) < cost) return addLog(`확인 중 마름병 포자가 부족해졌습니다. (필요: ${cost})`, 'attack-monster');
+    game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - cost);
     game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + game.ascendNodes.length;
     game.ascendNodes = [];
     normalizeSupportLoadout(true);

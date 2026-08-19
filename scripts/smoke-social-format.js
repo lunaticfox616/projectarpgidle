@@ -91,10 +91,33 @@ context.game = {
   jewelInventory: [{ name: '보관 주얼', rarity: 'magic', stats: [] }],
   talismanPlacements: { 10: { talisman: { id: 10, name: '배치 부적', rarity: 'rare', stat: 'flatHp', value: 4 } } },
   talismanInventory: [{ id: 11, name: '보관 부적', rarity: 'magic', stat: 'crit', value: 2 }],
-  growthInventory: [{ id: 20, name: '보관 생장판', rarity: 'rare', stats: [] }],
+  growthInventory: [{ id: 20, name: '보관 생장판', rarity: 'rare', growthCategory: 'flower', growthShapeId: 'dot1', stats: [] }],
   starWedge: { wedges: [{ id: 30, unique: true, uniqueType: 'sun', lines: [{ stat: 'flatHp', val: 8 }] }] }
 };
-context.getPlacedGrowthEntries = () => [{ item: { id: 21, name: '배치 생장판', rarity: 'unique', stats: [] } }];
+context.GROWTH_BOARD_W = 8;
+context.GROWTH_BOARD_H = 4;
+context.GROWTH_CATEGORY_INFO = { flower: { label: '꽃', icon: '🌸' } };
+context.isGrowthCellUnlocked = (x, y) => y < 2 && x >= 2 && x <= 5;
+context.getPlacedGrowthEntries = () => [{
+  item: { id: 21, name: '배치 생장판', rarity: 'unique', growthCategory: 'flower', growthShapeId: 'domino2', stats: [] },
+  placement: { x: 3, y: 1, rotation: 0 },
+  cells: [[3, 1], [4, 1]]
+}];
+const profileSnapshot = context.buildProfileSnapshot();
+assert.strictEqual(profileSnapshot.version, 5, '생장판 배치도를 지원하는 프로필 형식이어야 한다');
+assert.deepStrictEqual(Array.from(profileSnapshot.equipment, item => item.name), ['검'], '장비 스냅샷에 생장판을 뒤에 붙이면 안 된다');
+assert.strictEqual(profileSnapshot.growthItems[0].name, '배치 생장판');
+assert.deepStrictEqual(Array.from(profileSnapshot.growthItems[0].cells, cells => Array.from(cells)), [[3, 1], [4, 1]],
+  '프로필에는 활성 세팅의 실제 점유 칸을 저장해야 한다');
+context.profileSnapshotForTest = profileSnapshot;
+const equipmentProfileHtml = vm.runInContext("socialState.currentProfile = profileSnapshotForTest; socialState.profileTab = 'equipment'; renderProfileItemsArea();", context);
+assert.ok(!equipmentProfileHtml.includes('배치 생장판'), '장비 탭 아래에 생장판을 표시하면 안 된다');
+const growthProfileHtml = vm.runInContext("socialState.profileTab = 'growth'; renderProfileItemsArea();", context);
+assert.ok(growthProfileHtml.includes('social-growth-board') && growthProfileHtml.includes('배치 1개'), '생장판 탭은 배치 보드와 개수를 표시해야 한다');
+assert.strictEqual((growthProfileHtml.match(/data-growth="0"/g) || []).length, 2, '다칸 생장판의 형태를 보드에 그대로 보여야 한다');
+assert.ok(vm.runInContext("socialState.profileTips['gb:0']", context).includes('배치 생장판'), '배치도의 생장판은 상세 툴팁을 열어야 한다');
+const legacyGrowthProfile = { equipment: [{ name: '예전 생장판', slot: '꽃', rarity: 'rare', stats: [] }] };
+assert.ok(context.renderProfileGrowthBoard(legacyGrowthProfile).includes('이전 프로필 형식'), '이전 프로필은 다음 동기화 전까지 목록으로 호환 표시해야 한다');
 assert.strictEqual(context.getChatAttachSnapshot('jewel', 0).kind, 'jewel');
 assert.strictEqual(context.getChatAttachSnapshot('talismanPlaced', 10).kind, 'talisman');
 assert.strictEqual(context.getChatAttachSnapshot('growthPlaced', 21).name, '배치 생장판');
