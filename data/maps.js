@@ -243,6 +243,10 @@ const JOURNAL_DB = {
     colony_wave_10: { title: '군락지 - 열 번째 파동', lines: ['“군락은 개체를 세지 않는다. 살아남은 형태만을 기억한다.”', '“열 번의 파동을 견딘 방벽에는 벌레가 아니라 의지가 들러붙었다.”'] },
     level_200: { title: '히든저널 - 초월의 가지', lines: ['“성장이 숫자를 넘어 이름이 되는 순간.”', '“두 번째 백의 고리를 넘은 칼날은, 더 빠르게 다음 계절을 배운다.”'], bonus: { stat: 'expGain', value: 2, label: '경험치 획득 +2%' }, hidden: true, hint: '레벨 200 달성' },
     passive_star_evolution: { title: '히든저널 - 성좌 각성', lines: ['“별끝 다섯 자리가 하나의 문양으로 맞물렸다.”', '“각성한 성좌는 피해, 생명력, 발걸음에 영구적인 공명을 남긴다.”'], displayEffect: '성좌 각성 효과: 피해 +24%, 최대 생명력 +140, 이동 속도 +10%', hidden: true, hint: '별끝 특수 노드 5개를 모두 활성화' },
+    hidden_last_breath: { title: '히든저널 - 마지막 숨', lines: ['“심장은 거의 멎었으나, 칼날은 먼저 멎지 않았다.”', '“끝에 가까울수록 한 번의 선택은 더 무거워진다.”'], displayEffect: '은신처 전시물: 꺼지지 않은 심장', hidden: true, hint: '종반 보스를 생명력 5% 이하인 상태로 처치' },
+    hidden_unscarred: { title: '히든저널 - 상처 없는 승리', lines: ['“방벽은 흔들렸으나, 피는 한 방울도 땅에 닿지 않았다.”', '“살아남은 것이 아니라 닿게 두지 않은 기록.”'], displayEffect: '은신처 전시물: 무흠의 방패', hidden: true, hint: '최종 관문 보스를 생명력 피해 없이 처치' },
+    hidden_dry_vial: { title: '히든저널 - 빈 병의 맹세', lines: ['“구원은 허리춤에 있었으나 끝내 손이 가지 않았다.”', '“준비한 생존 수단을 포기한 채 증명한 완성.”'], displayEffect: '은신처 전시물: 봉인된 약병', hidden: true, hint: '최종 관문 보스를 플라스크 발동 없이 처치' },
+    hidden_fourfold_affliction: { title: '히든저널 - 네 겹의 흉터', lines: ['“불과 서리, 독과 번개가 한 몸 위에서 서로의 이름을 배웠다.”', '“한 가지 답으로는 열리지 않는 상처도 있다.”'], displayEffect: '은신처 전시물: 사중 공명석', hidden: true, hint: '한 종반 보스에게 서로 다른 상태이상 4종을 부여한 뒤 처치' },
     rival_overheat: { title: '버려진 날 - 과열', lines: ['“나는 가장 빨리 베었다. 그래서 가장 먼저 버려졌다.”', '“속도만 남은 날은, 결국 제 손잡이를 태운다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
     rival_dull: { title: '버려진 날 - 무딤', lines: ['“부러지지 않는 것이 나의 전부였다.”', '“그러나 베지 못하는 날을, 누가 날이라 부르지.”'], bonus: { stat: 'dr', value: 1, label: '물리 피해 감소 +1%' } },
     rival_glutton: { title: '버려진 날 - 탐식', lines: ['“상처는 전부 내 몫이었다. 그래서 전부 삼켰다.”', '“아무는 날은 갈리지 않는다. 그는 그것을 결함이라 불렀다.”'], bonus: { stat: 'flatHp', value: 10, label: '최대 생명력 +10' } },
@@ -256,7 +260,7 @@ const JOURNAL_DB = {
     pinnacle_observer: { title: '경계의 관측자 - 베일라', lines: ['“땅 아래, 바다 아래, 하늘 위, 별 너머의 죽음을 모두 보았다.”', '“관측이 끝난 순간, 세계는 뿌리없는 자를 더 이상 우연이라 부를 수 없었다.”'] }
 };
 
-const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
+const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_dry_vial', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
 const ABYSS_PASSIVE_NODES = [
     { key: 'power', name: '강력함', max: 20, desc: '몬스터 피해 +2%, 재화 드랍률 +1%/pt' },

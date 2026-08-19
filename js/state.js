@@ -2221,7 +2221,7 @@ const defaultGame = {
         tabNotiEnabled: true,
         socialChatNotifications: true,
         chatMessageSize: 'medium',
-        notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
+        notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, hideout: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
     },
     selectedHeroId: 'hero1',
     appearanceHeroId: null,
@@ -2286,6 +2286,12 @@ const defaultGame = {
     conditionGemPool: [],
     conditionGemLevels: {},
     pendingConditionGemChoices: null,
+    worldDeck: {
+        unlocked: false, pruningUnlocked: false, collection: {}, activeCardId: null,
+        pendingChoices: [], pruningPoints: 0, prunedCardIds: [], lastOfferLoop: 0,
+        lastPruningGrantLoop: 49
+    },
+    hideout: { initialized: false, placements: [], selectedDecorId: null },
     clearedRootBosses: [],
     timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
     // 유틸리티 슬롯은 이제 허리띠(숨겨진 티어/고유 효과)가 결정하므로 기본은 회복 슬롯 1개뿐이다.
@@ -2388,6 +2394,7 @@ const defaultGame = {
     journalEntries: ['prologue'],
     journalBonuses: [],
     journalBonusClaims: {},
+    hiddenJournalBossRun: null,
     claimableActRewards: [],
     claimedActRewards: [],
     actRewardBonuses: [],
@@ -2423,8 +2430,8 @@ const defaultGame = {
         selectedWedgeId: null
     },
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0 },
-    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false },
-    noti: { char: false, season: false, items: false, skills: false, flask: false, map: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
+    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false, hideout: false },
+    noti: { char: false, season: false, items: false, skills: false, flask: false, map: false, hideout: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }

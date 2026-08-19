@@ -1373,6 +1373,179 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .equipment-item-card.rarity-rare { --equipment-rarity: #e9c355; }
 .equipment-item-card.rarity-unique { --equipment-rarity: #ff9f43; }
 .equipment-card-main { min-width: 0; }
+
+.equipment-item-card,
+.jewel-inventory-card,
+.talisman-inventory-card,
+.growth-item-card {
+    position: relative;
+}
+
+.equipment-card-visual,
+.jewel-card-visual,
+.talisman-card-visual,
+.growth-card-visual {
+    width: 58px;
+    height: 58px;
+    flex: 0 0 58px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 7px rgba(0, 0, 0, .68));
+}
+
+.equipment-item-card,
+.jewel-inventory-card,
+.talisman-inventory-card {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    align-items: start;
+    gap: 9px;
+}
+
+.equipment-item-card > .equipment-card-actions { grid-column: 1 / -1; }
+.jewel-card-copy,
+.talisman-card-copy { min-width: 0; }
+
+.growth-item-card { padding-left: 67px; min-height: 66px; }
+.growth-card-visual { position: absolute; left: 6px; top: 5px; }
+
+@media (max-width: 640px) {
+    .equipment-card-visual,
+    .jewel-card-visual,
+    .talisman-card-visual,
+    .growth-card-visual { width: 48px; height: 48px; flex-basis: 48px; }
+    .equipment-item-card,
+    .jewel-inventory-card,
+    .talisman-inventory-card { grid-template-columns: 48px minmax(0, 1fr); gap: 7px; }
+    .growth-item-card { padding-left: 57px; }
+}
+
+.condition-pattern-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 11px 12px;
+    border: 1px solid rgba(155, 118, 72, .56);
+    border-radius: 9px;
+    background: linear-gradient(135deg, rgba(28, 22, 18, .96), rgba(18, 21, 25, .96));
+}
+
+.condition-pattern-summary > div { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.condition-pattern-summary span { color: var(--copy-muted); font-size: .82em; }
+.condition-pattern-roadmap { margin: 7px 0; color: var(--copy-bright); }
+.condition-pattern-roadmap > div { display: flex; flex-wrap: wrap; gap: 5px; padding: 7px 4px; }
+.condition-pattern-roadmap span { padding: 4px 7px; border: 1px solid rgba(141, 106, 65, .42); border-radius: 999px; font-size: .78em; }
+.condition-pattern-roadmap.is-complete { color: #a8cca9; font-size: .82em; }
+.condition-pattern-rule {
+    display: grid;
+    gap: 7px;
+    margin-top: 7px;
+    padding: 10px;
+    border: 1px solid rgba(117, 91, 58, .56);
+    border-radius: 9px;
+    background: rgba(17, 18, 20, .92);
+}
+
+.condition-pattern-rule input[type="number"] { width: 68px; }
+
+.world-deck-head,
+.world-card-pruning { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.world-deck-head { padding: 11px; border: 1px solid rgba(151, 111, 62, .52); background: rgba(17, 15, 14, .88); }
+.world-deck-head > div:first-child { display: grid; gap: 3px; }
+.world-deck-head > div:first-child > span { color: #b99768; font-size: .72em; letter-spacing: .14em; }
+.world-card-pruning { justify-content: flex-end; }
+.world-card-pruning span { color: var(--copy-muted); font-size: .78em; }
+.world-card-pruning.locked { opacity: .58; }
+.world-card-current { margin-top: 9px; padding: 10px; border-left: 3px solid #9d7443; background: rgba(45, 35, 25, .45); }
+.world-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.world-card-grid.choices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.world-card {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 11px;
+    border: 1px solid rgba(124, 94, 60, .62);
+    border-radius: 4px;
+    background: linear-gradient(160deg, rgba(36, 30, 25, .98), rgba(15, 16, 18, .98));
+    box-shadow: inset 0 0 0 1px rgba(224, 186, 125, .08), 0 8px 18px rgba(0, 0, 0, .22);
+}
+.world-card header { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; }
+.world-card header > span { grid-column: 1 / -1; color: #a78153; font-size: .66em; letter-spacing: .15em; }
+.world-card header strong { color: #eadac0; }
+.world-card header small { color: #c1a376; }
+.world-card-boon,
+.world-card-burden { line-height: 1.4; font-size: .84em; }
+.world-card-boon { color: #b8d5a8; }
+.world-card-burden { color: #d7a29c; }
+.world-card-boon b,
+.world-card-burden b { display: block; font-size: .76em; color: inherit; }
+.world-card.active { border-color: #d0a35f; box-shadow: inset 0 0 20px rgba(181, 127, 52, .14); }
+.world-card.pruned .world-card-burden { color: #a8c8b0; text-decoration: line-through; }
+.world-card-collection { margin-top: 9px; }
+.world-card-collection > .world-card-grid { padding-top: 8px; }
+
+.hideout-heading,
+.hideout-layout { display: grid; gap: 12px; }
+.hideout-heading { grid-template-columns: 1fr auto; align-items: end; margin-bottom: 10px; }
+.hideout-heading span { color: #aa8557; font-size: .7em; letter-spacing: .18em; }
+.hideout-heading h2 { margin: 2px 0; color: #eadbc3; }
+.hideout-heading p,
+.hideout-layout aside > p { margin: 0; color: var(--copy-muted); font-size: .82em; }
+.hideout-layout { grid-template-columns: minmax(0, 1fr) minmax(220px, 28%); align-items: start; }
+.hideout-scene {
+    aspect-ratio: 16 / 9;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+    gap: 3px;
+    padding: 12% 14% 8%;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 1px solid #4a3c2c;
+    background: #111 url('../assets/hideout/root-sanctum-v1.png') center / cover no-repeat;
+    box-shadow: inset 0 0 70px rgba(0, 0, 0, .72), 0 10px 30px rgba(0, 0, 0, .35);
+}
+.hideout-cell {
+    min-width: 0;
+    min-height: 0;
+    border: 1px dashed rgba(222, 190, 142, .12);
+    background: rgba(14, 13, 12, .08);
+    transition: border-color .15s ease, background .15s ease;
+}
+.hideout-cell:hover { border-color: rgba(222, 190, 142, .48); background: rgba(118, 88, 49, .15); }
+.hideout-cell.occupied { border-color: transparent; background: transparent; }
+.hideout-placed-decor { position: relative; display: grid; place-items: center; width: 100%; height: 100%; cursor: grab; }
+.hideout-placed-decor > img { width: 72%; height: 72%; object-fit: contain; filter: drop-shadow(0 6px 7px #000); }
+.hideout-placed-decor > strong { position: absolute; left: 2px; right: 2px; bottom: 2px; overflow: hidden; color: #f0dfc1; font-size: clamp(7px, .75vw, 11px); text-align: center; text-overflow: ellipsis; text-shadow: 0 1px 3px #000, 0 0 4px #000; white-space: nowrap; }
+.hideout-placed-decor > div { position: absolute; display: none; gap: 3px; inset: auto 1px 15px; justify-content: center; }
+.hideout-placed-decor:hover > div { display: flex; }
+.hideout-placed-decor button { padding: 2px 5px; font-size: 9px; }
+.hideout-layout aside { padding: 10px; border: 1px solid rgba(119, 91, 58, .52); background: rgba(20, 18, 16, .94); }
+.hideout-layout aside h3 { margin: 0 0 4px; }
+.hideout-library { display: grid; gap: 5px; max-height: 58vh; margin-top: 8px; overflow-y: auto; }
+.hideout-library-card,
+.hideout-locked-card { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 7px; align-items: center; min-width: 0; padding: 6px; text-align: left; }
+.hideout-library-card img { width: 42px; height: 42px; object-fit: contain; }
+.hideout-library-card span,
+.hideout-locked-card div { display: grid; min-width: 0; }
+.hideout-library-card small,
+.hideout-locked-card small { color: var(--copy-muted); }
+.hideout-library-card.placed { opacity: .62; }
+.hideout-library-card.selected { outline: 2px solid #c3975f; opacity: 1; }
+.hideout-locked-card { color: #756b60; border: 1px solid rgba(100, 88, 73, .25); }
+.hideout-locked-card > span { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #51493f; border-radius: 50%; }
+
+@media (max-width: 640px) {
+    .condition-pattern-summary { align-items: flex-start; flex-direction: column; }
+    .condition-pattern-rule select { max-width: 100%; }
+    .world-deck-head,
+    .world-card-pruning { align-items: flex-start; flex-direction: column; }
+    .world-card-grid.choices { grid-template-columns: 1fr; }
+    .hideout-heading,
+    .hideout-layout { grid-template-columns: 1fr; }
+    .hideout-scene { width: 100%; padding: 10% 8% 5%; }
+    .hideout-library { max-height: 34vh; }
+}
 .equipment-card-topline { display: flex; align-items: center; gap: 6px; color: #eef2f6; font-size: 9px; font-weight: 800; }
 .equipment-card-slot { padding: 2px 6px; border: 1px solid rgba(78, 105, 132, .55); border-radius: 999px; color: #ffffff; }
 .equipment-card-rarity { margin-left: auto; color: var(--equipment-rarity, #9db0c2); }

@@ -4091,6 +4091,7 @@ const TAB_UNLOCK_GATES = {
     'tab-talisman': 'talisman',
     'tab-cube': 'cube',
     'tab-map': 'map',
+    'tab-hideout': 'hideout',
     'tab-traits': 'traits',
     'tab-talent': 'talent',
     'tab-expertise': 'expertise'

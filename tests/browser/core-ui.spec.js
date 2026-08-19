@@ -145,6 +145,71 @@ test('unlocked secondary tabs render after cross-tab navigation', async ({ page 
     expect(failures).toEqual([]);
 });
 
+test('condition patterns, world cards and the hideout render as one endgame progression path', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season = 50;
+        game.loopCount = 49;
+        game.maxZoneId = 10;
+        game.journalEntries = Array.from(new Set([...(game.journalEntries || []), 'act_5', 'woodsman', 'cosmos_astra']));
+        game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_hideout']));
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.conditionGemUnlocked = true;
+        const firstGem = getAllConditionGemEntries()[0].name;
+        game.conditionGemPool = [firstGem];
+        game.skillAutoRules = [{
+            enabled:true, priority:0, triggerType:'enemy_many', triggerValue:3,
+            actionType:'target_weakest', skillName:''
+        }];
+        advanceWorldDeckForLoop(game, () => 0.42);
+        updateStaticUI();
+    });
+
+    await page.evaluate(() => switchTab('tab-hideout'));
+    await expect(page.locator('.hideout-scene')).toBeVisible();
+    await expect(page.locator('.hideout-cell')).toHaveCount(24);
+    expect(await page.locator('.hideout-placed-decor').count()).toBeGreaterThanOrEqual(3);
+    await expect.poll(() => page.locator('.hideout-placed-decor img').first().evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+    const hideoutNodeStable = await page.evaluate(() => {
+        const before = document.querySelector('.hideout-placed-decor');
+        updateStaticUI();
+        return before === document.querySelector('.hideout-placed-decor');
+    });
+    expect(hideoutNodeStable).toBe(true);
+    const hideoutBounds = await page.locator('.hideout-layout').boundingBox();
+    const viewport = page.viewportSize();
+    expect(hideoutBounds.x + hideoutBounds.width).toBeLessThanOrEqual(viewport.width + 1);
+
+    await page.evaluate(() => switchTab('tab-season'));
+    await expect(page.locator('#world-card-section')).toBeVisible();
+    await expect(page.locator('.world-card.choice')).toHaveCount(3);
+    await expect(page.locator('.world-card-pruning')).toContainText('가지치기');
+    const cardNodeStable = await page.evaluate(() => {
+        const before = document.querySelector('.world-card.choice');
+        updateStaticUI();
+        return before === document.querySelector('.world-card.choice');
+    });
+    expect(cardNodeStable).toBe(true);
+
+    await page.evaluate(() => {
+        switchTab('tab-skills');
+        switchSkillSubtab('skill-tab-condition');
+        renderSkillAutoRulePanel();
+    });
+    await expect(page.locator('.condition-pattern-summary')).toBeVisible();
+    await expect(page.locator('.condition-pattern-rule')).toHaveCount(1);
+    await expect(page.locator('.condition-pattern-rule')).toContainText('IF');
+    await expect(page.locator('.condition-pattern-rule')).toContainText('THEN');
+    const conditionSelectStable = await page.evaluate(() => {
+        const before = document.querySelector('.condition-pattern-rule select');
+        updateStaticUI();
+        return before === document.querySelector('.condition-pattern-rule select');
+    });
+    expect(conditionSelectStable).toBe(true);
+    expect(failures).toEqual([]);
+});
+
 test('equipment triage classifies the current build without destabilizing selectors', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);

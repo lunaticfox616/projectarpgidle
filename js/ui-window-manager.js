@@ -27,6 +27,7 @@
         'tab-char': { title: '스킬 / 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460 },
         'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-map': { title: '지도 및 콘텐츠', x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
+        'tab-hideout': { title: '뿌리 성소', x: 110, y: 46, width: 1080, height: 760, minWidth: 760, minHeight: 500 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-season': { title: '루프', x: 300, y: 90, width: 740, height: 640, minWidth: 500, minHeight: 380 },
         // 보조장비 창은 주얼·부적·플라스크뿐 아니라 코어 큐브와 생장판까지 담는다.

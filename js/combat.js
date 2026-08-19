@@ -908,21 +908,9 @@ function runConditionGemAutoRules(pStats) {
     game.playerConditionBuffs = Array.isArray(game.playerConditionBuffs) ? game.playerConditionBuffs : [];
     let rules = game.skillAutoRules.filter(r => r && r.enabled).sort((a,b)=>(a.priority||0)-(b.priority||0));
     for (let rule of rules) {
-        let hpPct = (pStats.maxHp || 1) > 0 ? (game.playerHp / pStats.maxHp * 100) : 100;
-        let esPct = (pStats.energyShield || 0) > 0 ? ((game.playerEnergyShield || 0) / Math.max(1, pStats.energyShield) * 100) : 0;
-        let trigger = rule.triggerType || 'hp_below';
-        let threshold = rule.hpThreshold || 40;
-        let liveEnemies = (game.enemies || []).filter(e => e && e.hp > 0);
-        let liveCount = liveEnemies.length;
-        let hasLiveBoss = liveEnemies.some(e => e.isBoss);
-        if (trigger === 'hp_below' && hpPct > threshold) continue;
-        if (trigger === 'hp_above' && hpPct < threshold) continue;
-        if (trigger === 'enemy_many' && liveCount < threshold) continue;
-        if (trigger === 'enemy_few' && (liveCount <= 0 || liveCount > threshold)) continue;
-        if (trigger === 'es_below' && esPct > threshold) continue;
-        if (trigger === 'es_above' && esPct < threshold) continue;
-        if (trigger === 'boss_present' && !hasLiveBoss) continue;
-        if (trigger === 'boss_absent' && (liveCount <= 0 || hasLiveBoss)) continue;
+        normalizeConditionPatternRule(rule);
+        if (rule.actionType !== 'condition_gem') continue;
+        if (!evaluateConditionPatternRule(rule, pStats, game, now)) continue;
         let gemName = (rule.skillName || '').trim();
         if (!gemName || !(game.conditionGemPool || []).includes(gemName)) continue;
         let entry = getAllConditionGemEntriesForCombat().find(e => e.name === gemName);
@@ -2249,6 +2237,7 @@ function tickFlaskAutoUse(pStats) {
     // 아이콘으로 표시하고 상세 정보는 그 커스텀 툴팁(showPlayerFlaskTooltip)에서 보여준다.
     if (inCombat && st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
         st.healCharges--;
+        trackHiddenJournalFlaskUse();
         let healDurationMs = Math.max(500, Math.floor(healDef.durationMs || 4000));
         let durSec = Math.max(0.5, healDurationMs / 1000);
         let totalHeal = Math.max(1, Math.floor(hpCap * getFlaskEffectiveHealPct(healDef) / 100));
@@ -2268,6 +2257,7 @@ function tickFlaskAutoUse(pStats) {
         let alreadyUsedThisEncounter = trigger !== 'lowHp' && u.lastAutoEncounter === st.encounterSerial;
         if (!alreadyUsedThisEncounter && u.charges > 0 && u.until <= now && shouldAutoUseUtilityFlask(trigger, aliveEnemies, hpPct)) {
             u.charges--;
+            trackHiddenJournalFlaskUse();
             u.until = now + getFlaskEffectiveDurationMs(def);
             if (trigger !== 'lowHp') u.lastAutoEncounter = st.encounterSerial;
             syncUtilityFlaskChargeBank(st, u);
@@ -5390,7 +5380,7 @@ function getSkillTargets(pStats) {
         skill = { ...skill, targets: rays, projectilePattern: { ...pattern, rays } };
     }
     let now = Date.now();
-    let tactics = game.combatTacticsUnlocked ? normalizeCombatTacticsSettings(game.settings) : null;
+    let tactics = game.combatTacticsUnlocked ? resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, now) : null;
     let options = tactics ? {
         targetPriority: tactics.targetPriority,
         preferredEnemyId: now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null
@@ -5404,7 +5394,7 @@ function getSkillTargets(pStats) {
 }
 
 function getPlayerTacticalMovePlan(pStats, target) {
-    let tactics = normalizeCombatTacticsSettings(game.settings);
+    let tactics = resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, Date.now());
     if (tactics.positionMode === 'auto') return null;
     let profile = getSkillGridProfile(game.activeSkill, pStats.sSkill);
     let distance = gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, target.gx, target.gy);
@@ -6365,6 +6355,11 @@ function createEnemy(zone, marker, groupIndex) {
     if (marker.bountyId && typeof bountyRuntime !== 'undefined') bountyRuntime.applyTargetToEnemy(enemy, marker.bountyId);
     assignEnemyGridCombatProfile(enemy);
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, isElite, isBoss);
+    let worldCardEnemyMods = getWorldCardEnemyMultipliers(enemy, game);
+    enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp * worldCardEnemyMods.hp));
+    enemy.hp = enemy.maxHp;
+    enemy.damageMul *= worldCardEnemyMods.damage;
+    if (enemy.isBoss) startHiddenJournalBossRun(enemy, zone);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
     return enemy;
 }
@@ -7300,6 +7295,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
                 row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
             }
         } else enemy.ailments.push(payload);
+        trackHiddenJournalAilment(type, enemy);
         return true;
     }
     applyAilmentType(primaryType, opts.primaryAilmentChance);
@@ -8098,6 +8094,9 @@ function rollLootForEnemy(enemy) {
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
     // 생장판은 장비 확률에서 배율로 파생하지 않고, 독립된 원본 확률을 사용한다.
     let growthItemChance = getGrowthItemBaseDropChance(enemy);
+    let worldCardDropMods = getWorldCardDropMultipliers(enemy, game);
+    itemChance *= worldCardDropMods.equipment;
+    growthItemChance *= worldCardDropMods.growth;
     itemChance *= 0.7; // 장비 드랍 확률 30% 감소
     let codexDropMul = 1 + (getCodexBonusPct() / 100);
     let abyssDropMul = Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
@@ -8291,6 +8290,7 @@ function handleEnemyDeath(enemy, pStats) {
     enemy = liveRef;
     transferSkillDotOnDeath(enemy);
     let zone = getZone(game.currentZoneId);
+    if (enemy.isBoss) completeHiddenJournalBossRun(enemy, zone, pStats);
     // 재능 개화 미궁의 보스를 실제로 처치한 경우에만 개화 완료를 허용하기 위해 기록한다.
     if (enemy.isBoss && zone && zone.type === 'trial' && zone.bloomTrial) game.bloomBossDefeated = true;
     let grand = (game.voidRift || {}).grandRun;
@@ -10158,6 +10158,7 @@ function getDefeatRecoveryZoneId() {
 function handlePlayerDefeat(zone, pStats, message, options) {
     let opts = options || {};
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+    resetHiddenJournalBossRun();
     refillAllFlaskCharges();
     addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
     dispatchRuntimeEvent('player-defeated', {
@@ -10372,6 +10373,7 @@ function tickAilments(pStats, dt) {
                 burn = absorbDamageWithTalentStoneShield(burn);
                 burn = absorbDamageWithRealmDeathWard(burn, pStats);
                 game.playerHp -= burn;
+                trackHiddenJournalPlayerDamage(burn);
                 recordIncomingDamage('fire', burn, '점화');
             }
         } else if (ail.type === 'poison') {
@@ -10387,6 +10389,7 @@ function tickAilments(pStats, dt) {
                     poison = absorbDamageWithTalentStoneShield(poison);
                     poison = absorbDamageWithRealmDeathWard(poison, pStats);
                     game.playerHp -= poison;
+                    trackHiddenJournalPlayerDamage(poison);
                     recordIncomingDamage('chaos', poison, '중독');
                 }
             }
@@ -10402,6 +10405,7 @@ function tickAilments(pStats, dt) {
                 bleed = absorbDamageWithTalentStoneShield(bleed);
                 bleed = absorbDamageWithRealmDeathWard(bleed, pStats);
                 game.playerHp -= bleed;
+                trackHiddenJournalPlayerDamage(bleed);
                 recordIncomingDamage('phys', bleed, '출혈');
             }
         } else if (ail.type === 'chill') {
@@ -11105,6 +11109,7 @@ function performMonsterAttacks(pStats) {
                 addBattleFx('statusText', { text: '죽음 저항!', color: '#d7b8ff', duration: 420 });
             }
             game.playerHp = nextPlayerHp;
+            trackHiddenJournalPlayerDamage(remaining);
             if (remaining > 0 && pStats.uniqueLifeRecoupTakenDamage) {
                 let cfg = pStats.uniqueLifeRecoupTakenDamage || {};
                 addPlayerRecoupInstance(remaining * Math.max(0, Number(cfg.pct || 25)) / 100, Math.max(1, Number(cfg.duration || 4)));
@@ -11457,6 +11462,7 @@ function triggerSeasonReset(options) {
     if (loopPath === 'cosmos') game.cosmosLoopCount = Math.max(0, Math.floor(game.cosmosLoopCount || 0)) + 1;
     game.lastLoopAdvancePath = loopPath;
     game.season++;
+    let worldDeckAdvance = advanceWorldDeckForLoop(game);
     if (typeof resetExpertiseLoopCaps === 'function') resetExpertiseLoopCaps();
     if (typeof grantLoopBaseExpertExp === 'function') grantLoopBaseExpertExp();
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
@@ -11471,6 +11477,13 @@ function triggerSeasonReset(options) {
     if (game.season === 31 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n지도의 뿌리 보스 목록에서 결투에 도전하세요. (도전권: 심층 보스가 드랍하는 [표식: 버려진 날])\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');
     }
+    if (game.season === WORLD_CARD_UNLOCK_LOOP && typeof queueTutorialNotice === 'function') {
+        queueTutorialNotice('unlock_world_cards', '세계 카드 해금', '루프 40 달성! 매 루프 하나의 세계 카드를 선택해 파밍 규칙과 위험을 함께 바꿀 수 있습니다. 루프 탭에서 이번 선택지를 확인하세요.', 'tab-season');
+    }
+    if (game.season === WORLD_CARD_PRUNING_LOOP && typeof queueTutorialNotice === 'function') {
+        queueTutorialNotice('unlock_world_card_pruning', '가지치기 해금', '루프 50 달성! 루프마다 가지치기 점수를 얻습니다. 모은 점수로 성장시킨 세계 카드의 부담을 영구 제거할 수 있습니다.', 'tab-season');
+    }
+    if (worldDeckAdvance.changed && game.season > WORLD_CARD_UNLOCK_LOOP) addLog('🃏 새 세계 카드 선택지가 도착했습니다.', 'season-up');
     addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
     game.level = 1;
     game.exp = 0;
@@ -11503,9 +11516,8 @@ function triggerSeasonReset(options) {
     game.supports = [];
     game.equippedSupports = [];
     game.supportGemData = {};
-    // 컨디션 젬은 한 번 해금되면 영구 해금이며, 보유 풀도 루프 간 유지된다(재해금 버그 방지).
+    // 컨디션 젬과 전술 패턴은 영구 빌드 설정이다. 루프는 쿨타임만 비우고 규칙 자체는 보존한다.
     game.pendingConditionGemChoices = null;
-    game.skillAutoRules = [];
     game.conditionGemCooldowns = {};
     game.enemyConditionDebuffs = {};
     game.playerConditionBuffs = [];
