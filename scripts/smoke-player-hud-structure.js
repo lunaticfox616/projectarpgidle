@@ -194,6 +194,8 @@ assert(!skillHost.innerHTML.includes('유성낙화'),
   'the combat gem rack must ignore non-summon entries outside the single active attack');
 assert.strictEqual((skillHost.innerHTML.match(/player-hud-skill-slot/g) || []).length, 2,
   'the combat gem rack must create one actionable slot per equipped attack gem');
+assert.strictEqual((skillHost.innerHTML.match(/data-info-tooltip-anchor="1"/g) || []).length, 2,
+  'combat gem slots must remain recognized by the shared tooltip lifetime manager while hovered');
 
 const gaugeStyle = {
   width: '',

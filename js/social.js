@@ -937,10 +937,8 @@ function renderChatMessages(messages, forceScroll) {
     listEl.innerHTML = messages.map(m => {
         let mine = m.user_id === myId;
         let nickname = String(m.nickname || '익명');
-        let initial = Array.from(nickname.trim())[0] || '?';
         return `<article class="social-chat-msg${mine ? ' mine' : ''}">`
             + `<header class="social-chat-head"><button type="button" class="social-chat-author" onclick="openPlayerProfile('${socialEscape(m.user_id)}')">`
-            + `<span class="social-chat-avatar" aria-hidden="true">${socialEscape(initial)}</span>`
             + `<span class="social-chat-nick">${socialEscape(nickname)}</span></button>`
             + `${mine ? '<span class="social-chat-self">나</span>' : ''}<time class="social-chat-time">${formatChatTime(m.created_at)}</time></header>`
             + `<div class="social-chat-body">${renderChatBody(m)}</div></article>`;
@@ -1445,11 +1443,11 @@ function injectSocialStyles() {
     .social-chat-empty{display:grid;justify-items:center;gap:5px;color:var(--copy-muted);text-align:center;margin:auto;font-size:0.9em;}.social-chat-empty>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #5b4a31;border-radius:50%;color:#d6b572;font-size:18px;}.social-chat-empty strong{color:#cfc5b5;}.social-chat-empty small{font-size:.8em;}
     .social-chat-msg{max-width:82%;align-self:flex-start;background:#141713;border:1px solid #343229;border-radius:6px;padding:7px 9px;}
     .social-chat-msg.mine{align-self:flex-end;background:#1b1914;border-color:#5b4930;}
-    .social-chat-head{display:flex;align-items:center;gap:6px;min-width:0;}.social-chat-author{display:inline-flex;align-items:center;gap:7px;min-width:0;padding:0;border:0;background:none;color:inherit;cursor:pointer;}.social-chat-avatar{display:grid;place-items:center;flex:0 0 24px;width:24px;height:24px;border:1px solid #675132;border-radius:50%;color:#dfbd7b;background:#0b0c0a;font-size:.78em;}.social-chat-self{padding:1px 4px;border:1px solid #675132;border-radius:2px;color:#c9aa70;font-size:.65em;}
+    .social-chat-head{display:flex;align-items:center;gap:6px;min-width:0;}.social-chat-author{display:inline-flex;align-items:center;min-width:0;padding:0;border:0;background:none;color:inherit;cursor:pointer;}.social-chat-self{padding:1px 4px;border:1px solid #675132;border-radius:2px;color:#c9aa70;font-size:.65em;}
     .social-chat-nick{overflow:hidden;color:#d6b572;font-weight:700;font-size:0.86em;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
     .social-chat-nick:hover{text-decoration:underline;}
     .social-chat-time{margin-left:auto;color:var(--copy-muted);font-size:0.68em;white-space:nowrap;}
-    .social-chat-body{color:var(--copy-bright);margin:3px 0 0 31px;white-space:pre-wrap;word-break:break-word;}
+    .social-chat-body{color:var(--copy-bright);margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:var(--social-chat-message-size,12px);line-height:1.5;}
     .social-chat-inputbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:stretch;}
     .social-chat-input-shell{position:relative;min-width:0;}
     .social-chat-input-shell input{box-sizing:border-box;width:100%;height:100%;min-height:38px;padding:8px 52px 8px 11px;background:#0e1726;border:1px solid #2a3e5c;border-radius:7px;color:#ffffff;}

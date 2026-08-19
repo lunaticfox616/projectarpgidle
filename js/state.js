@@ -2220,6 +2220,7 @@ const defaultGame = {
         passiveTreePlanner: { layoutVersion: PASSIVE_LAYOUT_VERSION, activeSlot: 0, autoInvest: false, presets: [null, null, null] },
         tabNotiEnabled: true,
         socialChatNotifications: true,
+        chatMessageSize: 'medium',
         notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
     },
     selectedHeroId: 'hero1',

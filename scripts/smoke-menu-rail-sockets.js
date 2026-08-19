@@ -5,6 +5,7 @@ const vm = require('vm');
 const source = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const menuCss = fs.readFileSync('css/ui-menu-sockets.css', 'utf8');
+const reliquaryCss = fs.readFileSync('css/ui-reliquary-shell.css', 'utf8');
 
 function readFunctionSource(sourceText, name) {
     const start = sourceText.indexOf(`function ${name}(`);
@@ -382,6 +383,8 @@ assert.strictEqual(descendants(menu.header).filter(element => element.id === 'bt
 assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.battlefieldWrap, 'desktop restore must remount goals inside the battlefield canvas frame');
 
 assert(menuCss.includes('transform: translate(-50%, -50%) !important;'), 'socket position must override inherited hover transforms');
+assert(!reliquaryCss.includes('.ui-rail-tab-layer .tab-btn.active,\n  body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.ui-window-open'), 'a closed tab must not retain the open socket glow through its legacy active class');
+assert(reliquaryCss.includes('scale(1.06)') && reliquaryCss.includes('scale(.97)'), 'menu sockets must respond visibly to hover and press without moving away from their slot');
 assert(menuCss.includes('.ui-rail-external-btn:hover'), 'external controls must have an explicit stable hover state');
 assert(menuCss.includes('transform: none !important;'), 'external controls must not move away from the pointer');
 assert(menuCss.includes('min(29.2svh, 18vw)'), 'the single artwork must remain resizable for short and narrow desktops');

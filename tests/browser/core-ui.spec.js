@@ -1551,7 +1551,8 @@ test('logged-in community content keeps readable rows, presence, and item links'
 
     const chatRows = page.locator('#social-chat-list .social-chat-msg');
     await expect(chatRows).toHaveCount(2);
-    await expect(chatRows.first().locator('.social-chat-avatar')).toHaveText('뿌');
+    await expect(chatRows.first().locator('.social-chat-avatar')).toHaveCount(0);
+    await expect(chatRows.first().locator('.social-chat-nick')).toHaveText('뿌리추적자');
     await expect(chatRows.last()).toHaveClass(/mine/);
     await expect(chatRows.last().locator('.social-chat-self')).toHaveText('나');
     await expect(chatRows.last().locator('.social-item-link')).toContainText('검증용 장궁');
@@ -1914,6 +1915,68 @@ test('reliquary gauges and alternate skins share one stable UI contract', async 
     expect(result.progressArt).toContain('progress-frame-v3.png');
     expect(result.gearBeforePresets).toBe(true);
     expect(result.skinOptions).toBeGreaterThanOrEqual(3);
+    expect(failures).toEqual([]);
+});
+
+test('combat HUD interactions keep their visual and tooltip contracts', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'desktop HUD artwork uses its own proportional slot coordinates');
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.combatHalted = true;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        renderCombatSkillHud();
+        presentGoalDrawer({ id: 'persistent-goal', title: '목표 유지 검사', current: 1, target: 2 });
+        toggleGoalDrawer(true);
+    });
+    const skillSlot = page.locator('.player-hud-skill-slot').first();
+    await skillSlot.hover();
+    await expect(page.locator('#info-tooltip')).toBeVisible();
+    await expect(page.locator('#info-tooltip')).toContainText(await skillSlot.getAttribute('data-gem-name'));
+    await page.locator('#battlefield-canvas').click({ position: { x: 8, y: 8 } });
+    await expect(page.locator('#ui-goal-drawer')).toHaveClass(/expanded/);
+
+    const itemSocket = page.locator('#btn-tab-items');
+    await page.evaluate(() => switchTab('tab-items'));
+    const openFilter = await itemSocket.evaluate(element => getComputedStyle(element).filter);
+    await page.evaluate(() => closeWindow('tab-items'));
+    await expect(itemSocket).not.toHaveClass(/ui-window-open/);
+    const closedFilter = await itemSocket.evaluate(element => getComputedStyle(element).filter);
+    await itemSocket.hover();
+    const hoverFilter = await itemSocket.evaluate(element => getComputedStyle(element).filter);
+    expect(closedFilter).not.toBe(openFilter);
+    expect(hoverFilter).not.toBe(closedFilter);
+    await page.evaluate(() => switchTab('tab-battle'));
+
+    const presentation = await page.evaluate(() => {
+        const host = document.getElementById('ui-combat-flasks');
+        host.innerHTML = Array.from({ length: 5 }, () => '<button class="combat-flask-mini flask-heal"><span></span><b>3</b></button>').join('');
+        const hostRect = host.getBoundingClientRect();
+        const flaskCenters = Array.from(host.children, element => {
+            const rect = element.getBoundingClientRect();
+            return {
+                x: Number(((rect.left + rect.width / 2 - hostRect.left) / hostRect.width).toFixed(3)),
+                y: Number(((rect.top + rect.height / 2 - hostRect.top) / hostRect.height).toFixed(3))
+            };
+        });
+        const logFont = getComputedStyle(document.getElementById('log')).fontFamily;
+        openCommunityDock();
+        const chatRoot = document.querySelector('#tab-social .social-root');
+        const chatFont = getComputedStyle(chatRoot).fontFamily;
+        const esStyle = getComputedStyle(document.getElementById('ui-es-bar'));
+        return { flaskCenters, logFont, chatFont, esColor: esStyle.backgroundColor };
+    });
+    expect(presentation.flaskCenters).toEqual([
+        { x: 0.26, y: 0.54 }, { x: 0.418, y: 0.54 }, { x: 0.577, y: 0.54 },
+        { x: 0.736, y: 0.54 }, { x: 0.895, y: 0.54 }
+    ]);
+    expect(presentation.chatFont).toBe(presentation.logFont);
+    expect(presentation.esColor).toBe('rgb(82, 201, 242)');
+
+    await page.evaluate(() => { closeCommunityDock(); switchTab('tab-settings'); });
+    await page.locator('#sel-chat-message-size').selectOption('large');
+    await expect(page.locator('body')).toHaveAttribute('data-chat-message-size', 'large');
+    expect(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--social-chat-message-size').trim())).toBe('14px');
     expect(failures).toEqual([]);
 });
 
