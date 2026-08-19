@@ -164,9 +164,7 @@ function getMapEstimateDpsMultiplier(stats, estimate, alreadyInZone) {
         const ignoresReduction = !!(estimate && estimate.underworldGravityIgnoresReduction);
         const reduction = ignoresReduction ? 0
             : Math.max(0, Math.min(75, Number(stats && stats.underworldGravityReductionPct) || 0));
-        const gravitySlow = Math.min(0.75, 0.12 + Math.max(0, gravityFloor - 1) * 0.018)
-            * (1 - reduction / 100);
-        multiplier *= Math.max(0.1, 1 - gravitySlow);
+        multiplier *= getUnderworldGravityActionMultiplier(gravityFloor, reduction);
     }
     const depthTier = Math.max(0, Math.floor(Number(estimate && estimate.oceanPressureDepthTier) || 0));
     if (depthTier <= 0) return multiplier;

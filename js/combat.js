@@ -3709,11 +3709,10 @@ function getPlayerStats() {
     let zonePenalty = getZone(game.currentZoneId) || getZone(0);
     if (zonePenalty && (zonePenalty.type === 'underworld' || (zonePenalty.milestonePinnacle && zonePenalty.underworldPenaltyFloor))) {
         let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || zonePenalty.floor || 1));
-        let gravitySlow = Math.min(0.75, 0.12 + Math.max(0, uf - 1) * 0.018);
-        let skyStoneReduction = Math.max(0, Math.min(75, typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)) / 100;
-        gravitySlow *= (1 - skyStoneReduction);
-        finalAspd *= (1 - gravitySlow);
-        finalMove *= (1 - gravitySlow);
+        let skyStoneReduction = typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0;
+        let gravityActionMultiplier = getUnderworldGravityActionMultiplier(uf, skyStoneReduction);
+        finalAspd *= gravityActionMultiplier;
+        finalMove *= gravityActionMultiplier;
     }
     let oceanPressureDamageMul = 1;
     let oceanCurrentResPenaltyF = 0;
@@ -3734,12 +3733,10 @@ function getPlayerStats() {
     if (zonePenalty && zonePenalty.bloomTrial && zonePenalty.underworldPenaltyFloor) {
         // 개화 시련은 입장 기준인 지하계와 같은 중력 완화 수단을 인정한다.
         let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || 1));
-        let gravitySlow = Math.min(0.75, 0.12 + Math.max(0, uf - 1) * 0.018);
-        let skyStoneReduction = Math.max(0, Math.min(75,
-            typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)) / 100;
-        gravitySlow *= (1 - skyStoneReduction);
-        finalAspd *= (1 - gravitySlow);
-        finalMove *= (1 - gravitySlow);
+        let skyStoneReduction = typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0;
+        let gravityActionMultiplier = getUnderworldGravityActionMultiplier(uf, skyStoneReduction);
+        finalAspd *= gravityActionMultiplier;
+        finalMove *= gravityActionMultiplier;
     }
     let currentStatsZone = getZone(game.currentZoneId);
     let activeCosmosMastery = currentStatsZone && currentStatsZone.type === 'cosmos' && typeof window.getCosmosMasteryValue === 'function';
@@ -6109,6 +6106,19 @@ function getUnderworldEntryBossTuning(zone, isBoss) {
         : { hp: 1, damage: 1 };
 }
 
+function getUnderworldEnemyDamageMultiplier(zone) {
+    if (!zone || zone.type !== 'underworld') return 1;
+    let floor = Math.max(1, Math.floor(Number(zone.floor) || 1));
+    let mediumStart = UNDERWORLD_DIFFICULTY_CONFIG.flatDamageThroughFloor;
+    let deepStart = UNDERWORLD_DIFFICULTY_CONFIG.mediumDamageThroughFloor;
+    let deepEnd = UNDERWORLD_DIFFICULTY_CONFIG.deepDamageThroughFloor;
+    let mediumFloors = Math.min(Math.max(0, floor - mediumStart), deepStart - mediumStart);
+    let deepFloors = Math.min(Math.max(0, floor - deepStart), deepEnd - deepStart);
+    return 1
+        + mediumFloors * UNDERWORLD_DIFFICULTY_CONFIG.mediumDamagePerFloor
+        + deepFloors * UNDERWORLD_DIFFICULTY_CONFIG.deepDamagePerFloor;
+}
+
 function createEnemy(zone, marker, groupIndex) {
     let loopInputs = getLoopDifficultyInputs(zone);
     let loopScaleExempt = loopInputs.exempt;
@@ -6438,7 +6448,7 @@ function resolveMapEstimateContentScale(zone) {
     if (zone.type === 'chaosRealm') scale.hp = 5 * (1 + (floor - 1) * 0.06);
     if (zone.type === 'underworld') {
         scale.hp = 5 * (1 + (floor - 1) * 0.045);
-        scale.damage = 0.78;
+        scale.damage = 0.78 * getUnderworldEnemyDamageMultiplier(zone);
     }
     if (zone.type === 'oceanDepth') scale.hp = 5 * (1 + Math.max(0, Math.floor(zone.depthTier || 0)) * 0.05);
     if (zone.type === 'timeRift' || zone.type === 'seasonBoss') scale.clearTimeSec = 30;
@@ -7720,9 +7730,11 @@ function advanceMapProgress(pStats) {
     let zoneType = zone ? zone.type : 'act';
     let baseGain = zoneType === 'trial' ? 0.26 : (zoneType === 'abyss' ? 0.42 : (zoneType === 'skyTower' ? 0.072 : 0.36));
     let crowdPenalty = enemyCount > 0 ? Math.max(0.4, 1 - enemyCount * 0.13) : 0.94;
+    let emptyTravelMultiplier = enemyCount === 0 ? EMPTY_TRAVEL_PROGRESS_MULTIPLIER : 1;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let chaosRealmActRush = zone && zone.type === 'act' && ensureChaosRealmState().highestFloor >= 10 ? 2 : 1;
-    let gain = baseGain * 0.5 * (moveSpeed / 100) * crowdPenalty * (abyssScale.mapProgressMul || 1) * chaosRealmActRush * getMapProgressGainMultiplier(zone);
+    let gain = baseGain * 0.5 * (moveSpeed / 100) * crowdPenalty * emptyTravelMultiplier
+        * (abyssScale.mapProgressMul || 1) * chaosRealmActRush * getMapProgressGainMultiplier(zone);
     game.runProgress = Math.min(100, game.runProgress + gain);
     while (game.encounterIndex < game.encounterPlan.length && game.runProgress >= game.encounterPlan[game.encounterIndex].at) {
         spawnEncounterMarker(game.encounterPlan[game.encounterIndex]);
@@ -10688,7 +10700,7 @@ function performMonsterAttacks(pStats) {
             let seasonDmgScale = 1 + seasonDepth * (0.05 + (tierPressure * 0.07));
             let dmg = Math.floor((2.4 + zone.tier * 3.35) * monsterBaseDamageMul * seasonDmgScale);
             if (benchmarkProfile) dmg = Math.floor(dmg * benchmarkProfile.damage);
-            else if (zone.type === 'underworld') dmg = Math.floor(dmg * 0.78);
+            else if (zone.type === 'underworld') dmg = Math.floor(dmg * 0.78 * getUnderworldEnemyDamageMultiplier(zone));
             if (zone.type === 'skyTower') dmg = Math.floor(dmg * 1.08);
             dmg = Math.floor(dmg * enemyDmgMul * (enemy.damageMul || 1));
             if (zone.type === 'act' && zone.id <= 1 && (game.season || 1) >= 3) dmg = Math.floor(dmg * 0.58);

@@ -95,6 +95,20 @@ function getChaosRealmTier(floor) {
     let safeFloor = Math.max(1, Math.floor(floor || 1));
     return 30 + Math.floor((safeFloor - 1) * 0.85) + Math.floor(Math.max(0, safeFloor - 10) * 0.18);
 }
+function getUnderworldTier(floor) {
+    let safeFloor = Math.max(1, Math.floor(Number(floor) || 1));
+    let deepFloor = UNDERWORLD_DIFFICULTY_CONFIG.deepDamageThroughFloor;
+    let tierGain = Math.max(0, safeFloor - deepFloor) * UNDERWORLD_DIFFICULTY_CONFIG.tierGainPerFloorAfterDeep;
+    return getChaosRealmTier(30) + tierGain;
+}
+function getUnderworldGravityActionMultiplier(floor, reductionPct) {
+    let safeFloor = Math.max(1, Math.floor(Number(floor) || 1));
+    let reduction = Math.max(0, Math.min(75, Number(reductionPct) || 0)) / 100;
+    let baseSlow = Math.min(0.75, 0.12 + Math.max(0, safeFloor - 1) * 0.018) * (1 - reduction);
+    let deepFloors = Math.max(0, safeFloor - UNDERWORLD_DIFFICULTY_CONFIG.deepDamageThroughFloor);
+    let deepMultiplier = Math.pow(1 - UNDERWORLD_DIFFICULTY_CONFIG.gravityActionLossPerFloorAfterDeep, deepFloors);
+    return Math.max(0.0001, (1 - baseSlow) * deepMultiplier);
+}
 function getChaosRealmAffixCount(floor) {
     let safeFloor = Math.max(1, Math.floor(floor || 1));
     if (safeFloor >= 35) return 5 + Math.floor((safeFloor - 35) / 20);
@@ -606,7 +620,7 @@ function getZone(id) {
     if (id === UNDERWORLD_ZONE_ID) {
         let uw = (game && game.underworldProgress) || {};
         let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
-        return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos', floor: floor };
+        return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor: floor };
     }
     if (typeof id === 'string') {
         if (id.startsWith('trial_')) return TRIAL_ZONES.find(t => t.id === id);
@@ -1892,6 +1906,7 @@ let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 let lastRenderedChaosMapListHtml = '';
 
+safeExposeGlobals({ getUnderworldGravityActionMultiplier });
 safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.

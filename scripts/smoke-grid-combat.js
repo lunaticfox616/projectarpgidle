@@ -419,6 +419,49 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const floorTwoBossHit = measureUnderworldBossHit(2);
   assert.ok(floorOneBossHit < floorTwoBossHit * 0.84,
     'the actual floor 1 boss attack should use the same reduced damage as its estimate');
+
+  const floorHundredHit = measureUnderworldBossHit(100);
+  const floorTwoHundredHit = measureUnderworldBossHit(200);
+  const floorThreeHundredHit = measureUnderworldBossHit(300);
+  const floorThreeHundredOneHit = measureUnderworldBossHit(301);
+  assert.strictEqual(floorHundredHit, floorTwoBossHit,
+    '지하계 일반 공격 압력은 입문 보정이 끝난 2층부터 100층까지 고정되어야 한다');
+  assert.ok(Math.abs(floorTwoHundredHit / floorHundredHit - 1.25) < 0.01,
+    '101~200층은 적 DPS가 층당 0.25%씩 누적되어야 한다');
+  assert.ok(Math.abs(floorThreeHundredHit / floorHundredHit - 1.75) < 0.01,
+    '201~300층은 이전 구간에 이어 적 DPS가 층당 0.5%씩 누적되어야 한다');
+  assert.ok(floorThreeHundredOneHit > floorThreeHundredHit,
+    '301층부터는 층별 전투 티어 상승이 실제 적 공격에 반영되어야 한다');
+
+  context.game.underworldProgress = { currentFloor: 300, highestFloor: 300 };
+  const floorThreeHundredTier = context.getZone('underworld_core').tier;
+  context.game.underworldProgress = { currentFloor: 301, highestFloor: 301 };
+  assert.strictEqual(context.getZone('underworld_core').tier, floorThreeHundredTier + 1,
+    '301층은 300층보다 전투 티어가 정확히 1 높아야 한다');
+  context.game.underworldProgress = { currentFloor: 305, highestFloor: 305 };
+  assert.strictEqual(context.getZone('underworld_core').tier, floorThreeHundredTier + 5,
+    '300층 이후 전투 티어는 층마다 1씩 계속 올라야 한다');
+
+  const estimateUnderworldEhp = floor => {
+    context.game.season = 1;
+    context.game.loopCount = 0;
+    context.game.underworldProgress = { currentFloor: floor, highestFloor: floor };
+    return context.estimateMapZonePowerRequirements(context.getZone('underworld_core')).ehp;
+  };
+  const floorHundredEhp = estimateUnderworldEhp(100);
+  assert.ok(Math.abs(estimateUnderworldEhp(200) / floorHundredEhp - 1.25) < 0.01,
+    '지도 권장 EHP도 200층 적 DPS 상승분을 그대로 안내해야 한다');
+  assert.ok(Math.abs(estimateUnderworldEhp(300) / floorHundredEhp - 1.75) < 0.01,
+    '지도 권장 EHP도 300층 적 DPS 상승분을 그대로 안내해야 한다');
+
+  const gravity300 = context.getUnderworldGravityActionMultiplier(300, 75);
+  const gravity301 = context.getUnderworldGravityActionMultiplier(301, 75);
+  const gravity301NoReduction = context.getUnderworldGravityActionMultiplier(301, 0);
+  const gravity300NoReduction = context.getUnderworldGravityActionMultiplier(300, 0);
+  assert.ok(Math.abs(gravity301 / gravity300 - 0.99) < 0.000001,
+    '301층부터 완화 적용 뒤 행동 속도가 층마다 추가로 1% 감소해야 한다');
+  assert.ok(Math.abs(gravity301NoReduction / gravity300NoReduction - 0.99) < 0.000001,
+    '심층 추가 중력은 중력 완화 수치와 독립적으로 같은 비율을 적용해야 한다');
   context.game.season = 10;
   context.game.loopCount = 9;
 
@@ -1843,6 +1886,29 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.getSummonProfile('폭풍 정령 소환').gridRange, 4, '폭풍 정령은 원거리 소환수 계약을 사용해야 한다');
   assert.ok(context.getSummonProfile('철갑 거북 소환').baseArmor > context.getSummonProfile('불곰 소환').baseArmor, '철갑 거북은 기존 근접 소환수보다 높은 방어도를 가져야 한다');
   resetGame();
+}
+
+// ── 적이 없는 이동 구간은 이동 속도 적용 후 진행도를 정확히 2배 획득한다 ──
+{
+  const measureTravelGain = moveSpeed => {
+    resetGame();
+    const g = context.game;
+    g.currentZoneId = 0;
+    g.moveTimer = 0;
+    g.runProgress = 10;
+    g.enemies = [];
+    g.encounterPlan = [{ at: 99, count: 1 }];
+    g.encounterIndex = 0;
+    context.advanceMapProgress({ moveSpeed });
+    return g.runProgress - 10;
+  };
+  const normalTravelGain = measureTravelGain(100);
+  const fastTravelGain = measureTravelGain(200);
+  const legacyEmptyGain = 0.36 * 0.5 * 0.94;
+  assert.ok(Math.abs(normalTravelGain - legacyEmptyGain * 2) < 0.000001,
+    '적이 0명인 일반 지역 진행도는 기존 이동량의 정확히 2배여야 한다');
+  assert.ok(Math.abs(fastTravelGain - normalTravelGain * 2) < 0.000001,
+    '이동 속도 배율을 먼저 적용한 뒤 빈 구간 2배 가속을 적용해야 한다');
 }
 
 // ── 걷기 모션 상태: 지역 이동뿐 아니라 전투 중 칸 이동에서도 걸어야 한다 ──
