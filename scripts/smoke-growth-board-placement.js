@@ -202,7 +202,6 @@ assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋
         ['rarity', '제작으로 바뀐 등급'],
         ['stats', '제작으로 바뀐 옵션 수'],
         ['locked', '잠금 토글'],
-        ['recentGrowthDrops', '최근 획득함'],
         ['growthSelection.itemId', '선택'],
         ['growthInventoryFilter', '보관함 필터'],
         ['growthSortMode', '정렬']

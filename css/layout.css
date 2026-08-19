@@ -227,7 +227,7 @@
         #tab-map img { display: none !important; }
         .map-item { padding: 12px; border: 1px solid #3d3d5c; border-radius: 4px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: 0.2s; cursor: pointer; background-color: #1a1a24; }
         .map-item:hover { filter: brightness(1.2); }
-        .map-item.current { background: #2980b9; border-color: #3498db; color: #fff; box-shadow: 0 0 10px rgba(41,128,185,0.5); }
+        .map-item.current { background: color-mix(in srgb, var(--ui-accent-strong, #a9783c), #17120c 45%); border-color: var(--ui-line-strong, #705938); color: #fff0d2; box-shadow: inset 3px 0 var(--ui-accent, #d7b36f); }
         .map-item.map-unlock-reveal { animation: mapUnlockReveal 0.8s ease-out 1; border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241,196,15,0.45), 0 0 16px rgba(241,196,15,0.35); }
         @keyframes mapUnlockReveal {
             0% { opacity: 0; transform: scale(0.95); filter: brightness(1.5); }

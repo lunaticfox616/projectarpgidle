@@ -236,6 +236,39 @@ const cfg = context.COMBAT_GRID_CONFIG;
   context.game.inTicketBossFight = true;
   context.finishEncounterRun();
   assert.strictEqual(context.game.currencies.goldenRule, 2, '무료 재도전으로 최초 격파 보상을 반복 획득하면 안 된다');
+
+  const ouroborosRewardBosses = context.SEASON_BOSS_ZONES.filter(zone => zone.reward === 'woodsmanTouch' || zone.reward === 'ouroboros');
+  assert.strictEqual(ouroborosRewardBosses.length, 1, '우로보로스 전용 보상을 가진 특정 보스는 하나뿐이어야 한다');
+  assert.strictEqual(ouroborosRewardBosses[0].id, 'rival_masterwork', '우로보로스 전용 보상은 일곱 번째 날 「완성작」만 가져야 한다');
+  resetGame();
+  context.game.season = 31;
+  context.game.currentZoneId = 'rival_masterwork';
+  context.game.inTicketBossFight = true;
+  context.game.autoRepeatSeasonBoss = false;
+  context.game.currencies.ouroboros = 0;
+  const originalRandom = context.Math.random;
+  try {
+    context.Math.random = () => 0.99;
+    context.finishEncounterRun();
+    assert.ok(context.game.clearedRootBosses.includes('rival_masterwork'), '완성작 최초 격파는 영구 기록되어야 한다');
+    assert.strictEqual(context.game.currencies.ouroboros, 1, '완성작 최초 격파는 우로보로스 1개를 확정 지급해야 한다');
+    context.game.currentZoneId = 'rival_masterwork';
+    context.game.inTicketBossFight = true;
+    context.Math.random = () => 0.99;
+    context.finishEncounterRun();
+    assert.strictEqual(context.game.currencies.ouroboros, 1, '완성작 반복 격파는 기존 50% 클리어 보상을 지급하면 안 된다');
+
+    context.game.currentZoneId = 'rival_masterwork';
+    context.game.clearedRootBosses = [];
+    context.Math.random = () => 0.00002;
+    const firstClearDrops = context.getCurrencyDrops({ isBoss: true, isElite: false });
+    assert.ok(!firstClearDrops.some(drop => drop[0] === 'ouroboros'), '최초 격파 전에는 완성작의 우로보로스 드랍 보정이 적용되면 안 된다');
+    context.game.clearedRootBosses = ['rival_masterwork'];
+    const repeatDrops = context.getCurrencyDrops({ isBoss: true, isElite: false });
+    assert.ok(repeatDrops.some(drop => drop[0] === 'ouroboros'), '완성작 반복 격파는 일반 보스 우로보로스 확률의 2.5배를 적용해야 한다');
+  } finally {
+    context.Math.random = originalRandom;
+  }
   context.game.loopCount = 30;
 
   const cosmosBossSteps = [
@@ -1167,6 +1200,58 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
   context.performMonsterAttacks(defenseStats);
   assert.ok(context.game.playerHp < 1000, '이미 발사된 투사체는 발사한 적이 죽어도 사라지면 안 된다');
+}
+
+// ── 3-2a. 피해 로그: 기본은 속성 표식과 총 피해만, 상세 옵션은 전투 맥락 복원 ──
+{
+  resetGame();
+  assert.strictEqual(context.game.settings.showDetailedDamageLog, false, '상세 피해 로그는 기본적으로 꺼져 있어야 한다');
+  const logs = [];
+  context.addLog = message => logs.push(String(message));
+  context.game.settings.showCombatLog = true;
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(641, 2, 6, { hp: 1000000, maxHp: 1000000 })];
+  const attackStats = context.getPlayerStats();
+  attackStats.accuracy = 1000000;
+  attackStats.crit = 0;
+  vm.runInContext('pendingSkillStageHits = [];', context);
+  context.performPlayerAttack(attackStats);
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.ok(logs.some(message => /^🩸 \d[\d,]* 피해$/.test(message)), '기본 공격 로그는 속성 표식과 총 피해만 표시해야 한다');
+
+  logs.length = 0;
+  context.game.settings.showDetailedDamageLog = true;
+  context.game.enemies = [makeEnemy(642, 2, 6, { hp: 1000000, maxHp: 1000000 })];
+  vm.runInContext('pendingSkillStageHits = [];', context);
+  context.performPlayerAttack(attackStats);
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.ok(logs.some(message => message.includes('⚔️') && message.includes('피해')), '상세 공격 로그는 기존 전투 맥락을 다시 표시해야 한다');
+
+  resetGame();
+  logs.length = 0;
+  context.game.settings.showCombatLog = true;
+  context.game.settings.showDetailedDamageLog = false;
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const ranged = makeEnemy(643, 4, 6, { attackKind: 'ranged', attackRange: 5, attackTimer: 1, ele: 'fire' });
+  context.game.enemies = [ranged];
+  context.game.playerHp = 1000;
+  const defenseStats = {
+    maxHp: 1000, energyShield: 0, dr: 0, armor: 0, evasion: 0, evadeChance: 0,
+    resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
+  };
+  context.performMonsterAttacks(defenseStats);
+  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  context.performMonsterAttacks(defenseStats);
+  assert.ok(logs.some(message => /^[🩸🔥❄️⚡☠️✦]+ \d[\d,]* 피해$/u.test(message)), '기본 피격 로그도 주요 속성 표식과 받은 피해만 표시해야 한다');
+
+  logs.length = 0;
+  context.game.settings.showDetailedDamageLog = true;
+  ranged.attackTimer = 1;
+  context.performMonsterAttacks(defenseStats);
+  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  context.performMonsterAttacks(defenseStats);
+  assert.ok(logs.some(message => message.includes('피격') && message.includes('화염')), '상세 피격 로그는 속성별 피해 분해를 표시해야 한다');
+  context.addLog = () => {};
 }
 
 // ── 3-3. 보스 원거리 공격: 일반·특수 패턴의 충돌 시점이 같아야 한다 ──

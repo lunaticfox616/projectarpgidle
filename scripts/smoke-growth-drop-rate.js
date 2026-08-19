@@ -27,7 +27,6 @@ run(`
     game.growthInventory = [];
     game.recentGrowthDrops = [];
     game.growthBoard = null;
-    game.settings.growthAutoClaim = false;
     game.settings.showLootLog = false;
     ensureGrowthBoardState();
     syncGrowthBoardUnlocks({ silent: true });
@@ -35,17 +34,20 @@ run(`
 
 function rollAt(randomValue, chance) {
     return JSON.parse(run(`JSON.stringify((function () {
+        game.growthInventory = [];
         game.recentGrowthDrops = [];
         let originalRandom = Math.random;
         Math.random = () => ${randomValue};
         rollGrowthItemDrop({ isBoss: false, isElite: false }, ${chance});
         Math.random = originalRandom;
-        return { drops: game.recentGrowthDrops.length };
+        return { drops: game.growthInventory.length, pending: game.recentGrowthDrops.length };
     })())`));
 }
 
 assert.strictEqual(rollAt(chances.regular - 0.000001, chances.regular).drops, 1,
     '원본 확률 바로 아래 굴림은 실제 생장판 생성·보관 경로까지 완료해야 한다');
+assert.strictEqual(rollAt(chances.regular - 0.000001, chances.regular).pending, 0,
+    '생장판 드랍이 별도 최근 획득 대기함에 남으면 안 된다');
 assert.strictEqual(rollAt(chances.regular, chances.regular).drops, 0,
     '원본 확률 경계 이상 굴림은 생장판을 생성하면 안 된다');
 

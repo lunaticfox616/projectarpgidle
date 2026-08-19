@@ -53,8 +53,53 @@ run(`(function () {
     consumeOceanOxygenOnAttack();
     window.__abyssAttackCost = 100 - game.ocean.oxygenCur;
 })()`);
-assert(run('window.__abyssAttackCost > window.__balancedAttackCost'),
-    'abyss fishing must pay the advertised additional oxygen cost');
+assert.strictEqual(run('window.__balancedAttackCost'), 0,
+    'attack speed must not drain extra oxygen in the time-based diving model');
+assert.strictEqual(run('window.__abyssAttackCost'), 0,
+    'abyss fishing must use its time-based oxygen multiplier instead of per-attack drain');
+
+run(`(function () {
+    game.currentZoneId = OCEAN_ZONE_ID;
+    game.ocean.depthM = 0;
+    game.ocean.checkpointM = 0;
+    game.ocean.bossClearM = 0;
+    game.ocean.diving = true;
+    game.ocean.oxygenMax = 10000;
+    game.ocean.oxygenCur = 10000;
+    game.ocean.fishingStrategy = 'balanced';
+    tickOceanDepth(game.ocean, 0.25);
+    window.__fractionalDepth = ensureOceanState().depthM;
+    let beforeClear = game.ocean.depthM;
+    advanceOceanDiveFromKill({ depthTier: 0, currents: [] });
+    window.__clearDepthDelta = game.ocean.depthM - beforeClear;
+    for (let i = 0; i < 220; i++) tickOceanDepth(game.ocean, 1);
+    window.__guardianDepth = game.ocean.depthM;
+    tickOceanDepth(game.ocean, 20);
+    window.__blockedDepth = game.ocean.depthM;
+})()`);
+assert(run('window.__fractionalDepth > 0 && window.__fractionalDepth < 4'),
+    'short ticks must preserve fractional continuous depth progress');
+assert.strictEqual(run('window.__clearDepthDelta'), 0,
+    'clearing a pack must not jump the dive forward by a region-sized depth step');
+assert.strictEqual(run('window.__guardianDepth'), 500,
+    'continuous progress must reach the first 500m guardian boundary');
+assert.strictEqual(run('window.__blockedDepth'), 500,
+    'depth must stop at the guardian boundary until that guardian is cleared');
+
+run(`(function () {
+    game.ocean = createDefaultOceanState();
+    game.ocean.unlocked = true;
+    game.ocean.diving = true;
+    game.ocean.lastTickAt = 1000;
+    game.currentZoneId = OCEAN_ZONE_ID;
+    for (let second = 1; second <= 125; second++) tickOceanOxygen(1000 + second * 1000);
+    window.__baselineDive = { depth: game.ocean.depthM, oxygen: game.ocean.oxygenCur };
+})()`);
+const baselineDive = JSON.parse(run('JSON.stringify(window.__baselineDive)'));
+assert.strictEqual(baselineDive.depth, 500,
+    'a baseline character must reach the first guardian in about 125 seconds');
+assert(baselineDive.oxygen > 15,
+    `the first guardian must be reachable with a useful oxygen reserve (${baselineDive.oxygen})`);
 
 const originalRandom = context.Math.random;
 try {

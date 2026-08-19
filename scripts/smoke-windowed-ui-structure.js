@@ -39,12 +39,10 @@ assert(manager.includes('setPointerCapture'), 'window dragging/resizing must use
 assert(manager.includes('restoreWindowMarkupForMobile'), 'window manager should restore tab markup when leaving desktop mode');
 assert(manager.includes('restoreDesktopMenuForMobile'), 'window manager should restore menu markup when leaving desktop mode');
 assert(manager.includes("art.className = 'ui-rail-art'"), 'rail artwork must be one real image element');
-assert(manager.includes('COMMUNITY_OVERLAY_THRESHOLD'), 'community mode should use workspace threshold');
-assert(manager.includes("document.body.style.removeProperty('--community-dock-width')"), 'closing community should clear dock width variable');
-assert(manager.includes("el.style.width = ''"), 'closing community should clear inline panel width');
-// 채팅 토글은 레일 커뮤니티 탭이 아니라 전용 말풍선 버튼이 담당한다(사용자 요구 변경).
-assert(manager.includes("button.id = 'ui-community-toggle'"), 'desktop chat should have a dedicated floating toggle button');
-assert(css.includes('#btn-tab-social { display: none !important; }'), 'rail community tab should be hidden while the floating toggle owns chat');
+assert(manager.includes("['left', 'top', 'right', 'bottom', 'width', 'height']"), 'closing community should clear its measured dock rectangle');
+assert(html.includes('id="btn-combat-chat-tab"'), 'battle dock should expose chat beside the combat log');
+assert(html.includes('id="noti-social-dock"'), 'shared chat tab should mirror unread notifications');
+assert(manager.includes("combatTab.addEventListener('click', closeCommunityDock)"), 'shared chat dock should return to the combat log without closing the battlefield');
 assert(manager.includes('closeAllWindows'), 'close-all-windows action must exist');
 assert(manager.includes('closePersistedSurfacesForBoot'), 'startup should close previously open windows without discarding their geometry');
 assert(ui.includes("switchTab('tab-battle')"), 'entering the game should focus the main battlefield');
@@ -62,6 +60,7 @@ assert(css.includes('.player-hud-vitals'), 'player HUD should use semantic row c
 assert(css.includes('.background-combat-progress-overlay'), 'background replay should have a non-inline progress overlay style');
 assert(html.indexOf('<div class="combat-zone-row">') < html.indexOf('<div class="combat-dashboard">'), 'combat header should be before battlefield dashboard');
 assert(html.indexOf('<div class="map-progress-row">') < html.indexOf('<div class="combat-zone-actions">'), 'progress should live in the single combat header row');
+assert(html.indexOf('id="ui-equip-list"') < html.indexOf('id="ui-equipment-presets"'), 'equipped gear must appear before optional loadout preset management');
 assert(/class="combat-zone-row-title">\s*<span id="ui-combat-zone-inline"/.test(html), 'contract status must stay inside the zone-title cell');
 assert(css.includes('#ui-combat-zone-inline { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }'), 'zone title should shrink before action buttons wrap');
 assert(html.includes('class="combat-top-status player-hud"'), 'player HUD should have a semantic player-hud wrapper');

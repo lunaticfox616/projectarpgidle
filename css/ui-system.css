@@ -1,0 +1,562 @@
+/* PROJECT IDLE product UI contract.
+   This final layer owns shared hierarchy and representative battle/equipment
+   layouts while legacy screens are migrated incrementally. */
+:root {
+  --ui-canvas: #060706;
+  --ui-surface-1: #0c0e0c;
+  --ui-surface-2: #15140f;
+  --ui-surface-3: #211d15;
+  --ui-line: #40392e;
+  --ui-line-strong: #705938;
+  --ui-text: #eee7dc;
+  --ui-text-2: #c7bdad;
+  --ui-text-3: #91897d;
+  --ui-accent: #d7b36f;
+  --ui-accent-strong: #a9783c;
+  --ui-gold: #d7b36f;
+  --ui-danger: #e36c73;
+  --ui-success: #63d89a;
+  --ui-focus: 0 0 0 2px #080907, 0 0 0 4px rgba(215, 179, 111, .82);
+  --ui-radius-sm: 3px;
+  --ui-radius-md: 5px;
+  --ui-radius-lg: 7px;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-control-sm: 32px;
+  --ui-control-md: 38px;
+  --ui-control-touch: 44px;
+  --copy-bright: var(--ui-text);
+  --copy-muted: var(--ui-text-2);
+}
+body:not(.light-mode) {
+  color: var(--ui-text);
+  background-color: var(--ui-canvas);
+}
+body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
+  outline: 0;
+  box-shadow: var(--ui-focus) !important;
+}
+
+body:not(.light-mode) :where(button, input, select, textarea):disabled {
+  cursor: not-allowed;
+  filter: saturate(.55);
+  opacity: .48;
+}
+
+/* Navigation communicates selected state with shape and position, not color alone. */
+body:not(.light-mode) .subtab-row {
+  gap: var(--ui-space-1);
+  padding: var(--ui-space-1);
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-md);
+  background: rgba(8, 9, 8, .86);
+}
+
+body:not(.light-mode) .subtab-btn {
+  position: relative;
+  min-height: var(--ui-control-md);
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-sm);
+  color: var(--ui-text-2);
+  background: transparent;
+  box-shadow: none;
+}
+
+body:not(.light-mode) .subtab-btn:hover:not(:disabled) {
+  border-color: var(--ui-line);
+  color: var(--ui-text);
+  background: var(--ui-surface-2);
+}
+
+body:not(.light-mode) .subtab-btn.active,
+body:not(.light-mode) .subtab-btn[aria-selected="true"] {
+  border-color: rgba(229, 187, 97, .72);
+  color: #fff2c4;
+  background: linear-gradient(180deg, rgba(111, 80, 28, .72), rgba(50, 36, 15, .9));
+  box-shadow: inset 0 -3px var(--ui-gold);
+}
+
+body:not(.light-mode) details > summary {
+  color: var(--ui-text-2);
+}
+
+body:not(.light-mode) details[open] > summary {
+  color: var(--ui-text);
+}
+
+body:not(.light-mode) details > summary::marker {
+  color: var(--ui-accent);
+}
+
+/* Desktop shell: keep the fantasy identity while reclaiming play space. */
+@media (min-width: 1081px) {
+  body.desktop-windowed-ui {
+    --menu-rail-width: clamp(118px, 14vw, 188px);
+    --combat-log-width: clamp(270px, 20vw, 314px);
+  }
+
+  body.desktop-windowed-ui .ui-window-titlebar {
+    min-height: 44px;
+    border-bottom-color: rgba(112, 89, 56, .72);
+  }
+
+  body.desktop-windowed-ui .ui-window-title {
+    font-size: 14px;
+    letter-spacing: .02em;
+  }
+
+  body.desktop-windowed-ui .ui-window-body {
+    scrollbar-gutter: stable;
+  }
+
+  body.desktop-windowed-ui .combat-feed {
+    border-color: rgba(112, 89, 56, .7) !important;
+    background: rgba(8, 9, 8, .94) !important;
+  }
+
+  body.desktop-windowed-ui .combat-feed-title {
+    min-height: 28px;
+    letter-spacing: .08em !important;
+  }
+}
+
+/* Equipment is the reference management screen: compare, equip, then manage. */
+#item-tab-equip .equipment-workspace {
+  gap: var(--ui-space-3);
+}
+
+body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
+body:not(.light-mode) #item-tab-equip .equipment-inventory-panel {
+  padding: var(--ui-space-4);
+  border-color: var(--ui-line);
+  border-radius: var(--ui-radius-lg);
+  background: linear-gradient(180deg, rgba(21, 20, 16, .99), rgba(8, 9, 8, .995));
+  box-shadow: inset 0 1px rgba(255, 255, 255, .035), 0 12px 30px rgba(0, 0, 0, .22);
+}
+
+#item-tab-equip .equipment-section-heading {
+  align-items: center;
+  margin-bottom: var(--ui-space-3);
+  padding-bottom: var(--ui-space-3);
+  border-bottom-color: rgba(112, 89, 56, .46);
+}
+
+#item-tab-equip .equipment-section-heading h2 {
+  margin-top: 2px !important;
+  font-size: 19px;
+  line-height: 1.15;
+}
+
+#item-tab-equip .equipment-section-kicker {
+  color: var(--ui-text-3);
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+
+#item-tab-equip .equipment-count-badge {
+  min-width: 54px;
+  padding: 5px 9px;
+  border-radius: var(--ui-radius-sm);
+  text-align: center;
+}
+
+#item-tab-equip .equipment-loadout-summary {
+  gap: var(--ui-space-2);
+}
+
+#item-tab-equip .equipment-summary-stat {
+  min-height: 44px;
+  padding: 7px 6px;
+  border-color: rgba(83, 70, 52, .74);
+  background: rgba(8, 9, 8, .76);
+}
+
+#item-tab-equip .equipment-summary-stat span {
+  color: var(--ui-text-3);
+  font-size: 9px;
+}
+
+#item-tab-equip .equipment-summary-stat strong {
+  font-size: 13px;
+}
+
+#item-tab-equip .inventory-browse-toolbar {
+  gap: var(--ui-space-2);
+  margin-bottom: var(--ui-space-2);
+  padding: var(--ui-space-2) 0;
+}
+
+#item-tab-equip .inventory-browse-toolbar label {
+  color: var(--ui-text-2);
+  font-size: 10px;
+}
+
+#item-tab-equip .inventory-browse-toolbar select,
+#item-tab-equip .equipment-triage-controls select {
+  min-height: var(--ui-control-sm);
+  border-color: var(--ui-line);
+  color: var(--ui-text);
+  background: var(--ui-surface-1);
+}
+
+#item-tab-equip .equipment-triage-host {
+  min-height: var(--ui-control-md);
+  padding-left: var(--ui-space-3);
+  border-left-color: var(--ui-line);
+}
+
+#item-tab-equip .equipment-triage-copy strong {
+  color: var(--ui-gold);
+  font-size: 11px;
+}
+
+#item-tab-equip .equipment-triage-copy small {
+  color: var(--ui-text-3);
+  font-size: 9px;
+}
+
+#item-tab-equip .bulk-manager {
+  margin-bottom: var(--ui-space-2);
+  overflow: hidden;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-radius-md);
+  background: rgba(8, 9, 8, .62);
+}
+
+#item-tab-equip .bulk-manager > summary {
+  min-height: var(--ui-control-md);
+  padding: 9px 11px;
+  box-sizing: border-box;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
+  margin: 0;
+  padding: var(--ui-space-3);
+  border: 0;
+  border-top: 1px solid rgba(82, 68, 48, .72);
+  border-radius: 0;
+  background: rgba(13, 14, 12, .82);
+}
+
+#item-tab-equip .equipment-salvage-actions {
+  gap: var(--ui-space-2);
+}
+
+#item-tab-equip .equipment-salvage-actions button {
+  min-height: var(--ui-control-sm);
+  border-color: var(--ui-line);
+  color: var(--ui-text-2);
+  background: var(--ui-surface-2);
+}
+
+#item-tab-equip .equipment-salvage-actions button:hover:not(:disabled) {
+  border-color: var(--ui-line-strong);
+  color: var(--ui-text);
+  background: var(--ui-surface-3);
+}
+
+#item-tab-equip .search-filter-panel {
+  margin-bottom: var(--ui-space-2) !important;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+#item-tab-equip .search-filter-input {
+  min-height: var(--ui-control-md);
+  padding-inline: 11px !important;
+  border-color: var(--ui-line) !important;
+  border-radius: var(--ui-radius-sm) !important;
+  background: var(--ui-surface-1) !important;
+}
+
+#item-tab-equip .search-action-row {
+  margin-top: var(--ui-space-1) !important;
+  overflow: visible !important;
+}
+
+#item-tab-equip .search-action-row button {
+  min-height: var(--ui-control-sm);
+  border-radius: var(--ui-radius-sm);
+}
+
+#item-tab-equip #ui-inventory-list:empty::before,
+#item-tab-equip .search-result-list:empty::before {
+  content: '◇\A보관 중인 장비가 없습니다\A전투와 제작으로 얻은 장비가 여기에 표시됩니다.';
+  grid-column: 1 / -1;
+  display: grid;
+  place-items: center;
+  min-height: 158px;
+  border: 1px solid color-mix(in srgb, var(--ui-line), transparent 42%);
+  border-radius: var(--ui-radius-md);
+  color: var(--ui-text-3);
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--ui-accent), transparent 93%), transparent 32%),
+    rgba(8, 9, 8, .44);
+  font-size: 10px;
+  line-height: 1.8;
+  text-align: center;
+  white-space: pre-line;
+}
+
+#item-tab-equip .equipment-card-actions .equipment-card-primary {
+  position: relative;
+  border-color: #95703c;
+  color: #f6e5c8;
+  background: linear-gradient(180deg, #60451f, #2c2114);
+}
+
+#item-tab-equip .equipment-card-actions .equipment-card-primary::before {
+  content: '✓';
+  margin-right: 4px;
+}
+
+/* Phone composition: thumb-sized controls without turning every action into a full row. */
+@media (max-width: 1080px) {
+  body:not(.light-mode) .tab-header:not(.tab-header-bottom) {
+    position: sticky;
+    top: max(0px, env(safe-area-inset-top));
+    z-index: 90;
+    border-color: var(--ui-line);
+    background: rgba(8, 9, 8, .98);
+    backdrop-filter: none;
+  }
+
+  body:not(.light-mode) .tab-btn.active {
+    box-shadow: inset 0 -3px var(--ui-gold);
+  }
+
+  .ui-goal-drawer:not(.expanded) { inset: auto 8px calc(74px + env(safe-area-inset-bottom, 0px)) auto; width: 44px; }
+  .ui-goal-drawer:not(.expanded) .ui-goal-panel { width: 44px; }
+  .ui-goal-drawer:not(.expanded) #ui-goal-toggle { width: 44px; min-height: 44px; }
+
+  #item-tab-equip .equipment-mobile-switch {
+    position: relative;
+    top: auto;
+    z-index: 20;
+    margin-bottom: var(--ui-space-2);
+    border-color: var(--ui-line);
+    background: rgba(8, 9, 8, .98);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .24);
+  }
+
+  #item-tab-equip .equipment-mobile-switch button {
+    min-height: var(--ui-control-touch);
+    border-radius: var(--ui-radius-sm);
+  }
+
+  #item-tab-equip .equipment-mobile-switch button.active,
+  #item-tab-equip .equipment-mobile-switch button[aria-pressed="true"] {
+    border-color: rgba(229, 187, 97, .76);
+    color: #fff2c4;
+    background: #5a4118;
+    box-shadow: inset 0 -3px var(--ui-gold);
+  }
+
+  body:not(.light-mode) #item-tab-equip .equipment-loadout-panel,
+  body:not(.light-mode) #item-tab-equip .equipment-inventory-panel {
+    padding: 11px;
+    border-radius: var(--ui-radius-md);
+  }
+
+  #item-tab-equip .equipment-section-heading {
+    margin-bottom: var(--ui-space-2);
+    padding-bottom: var(--ui-space-2);
+  }
+
+  #item-tab-equip .inventory-browse-toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: end;
+  }
+
+  #item-tab-equip .inventory-browse-toolbar > label {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--ui-space-1);
+  }
+
+  #item-tab-equip .inventory-browse-toolbar select {
+    width: 100%;
+    min-height: var(--ui-control-touch);
+  }
+
+  #item-tab-equip .equipment-triage-host {
+    grid-column: 1 / -1;
+    min-height: auto;
+    padding: var(--ui-space-2) 0 0;
+    border-top: 1px solid rgba(82, 68, 48, .72);
+    border-left: 0;
+  }
+
+  #item-tab-equip .equipment-triage-controls :where(select, button) {
+    min-height: var(--ui-control-touch);
+  }
+
+  #item-tab-equip .bulk-manager > summary {
+    min-height: var(--ui-control-touch);
+    padding-block: 12px;
+  }
+
+  #item-tab-equip .equipment-salvage-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #item-tab-equip .equipment-salvage-actions button,
+  #item-tab-equip .search-action-row button {
+    min-height: var(--ui-control-touch);
+  }
+
+  #item-tab-equip .search-filter-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    gap: var(--ui-space-1);
+  }
+
+  #item-tab-equip .search-action-row {
+    display: flex !important;
+    grid-column: 2;
+    margin-top: 0 !important;
+    overflow: visible !important;
+  }
+
+  #item-tab-equip .search-action-row button {
+    width: auto;
+    min-width: 82px;
+    padding-inline: 10px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .enemy-empty {
+    display: grid;
+    place-items: center;
+    min-height: 0;
+    height: 46px;
+    padding: 0 10px;
+    border-style: dashed;
+    color: var(--ui-text-3);
+    font-size: 11px;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed {
+    min-height: 144px !important;
+    height: clamp(144px, 20svh, 178px) !important;
+    max-height: 178px !important;
+    border-color: var(--ui-line);
+    background: var(--ui-surface-1);
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed.collapsed {
+    min-height: 72px !important;
+    height: 72px !important;
+    max-height: 72px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed.collapsed #log {
+    max-height: 30px;
+  }
+}
+
+@media (min-width: 1200px) {
+  #item-tab-equip .equipment-workspace {
+    grid-template-columns: minmax(360px, .9fr) minmax(470px, 1.35fr);
+  }
+
+  #item-tab-equip .equipment-loadout-summary {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  #item-tab-equip .equipment-summary-stat {
+    min-height: 36px;
+    padding: 5px 3px;
+  }
+
+  #item-tab-equip .equipment-summary-stat span {
+    font-size: 8px;
+  }
+
+  #item-tab-equip .equipment-summary-stat strong {
+    font-size: 12px;
+  }
+
+  #item-tab-equip .equipment-paperdoll {
+    padding: 8px;
+    gap: 5px;
+  }
+
+  #item-tab-equip .equipment-slot {
+    min-height: 74px;
+    padding: 6px;
+  }
+
+  #item-tab-equip .equipment-panel-hint {
+    margin-block: 5px 2px;
+    font-size: 8px;
+    line-height: 1.35;
+  }
+}
+
+@media (max-width: 480px) {
+  #tab-map .map-primary-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #tab-map .map-primary-tabs .subtab-btn {
+    width: 100%;
+    min-width: 0 !important;
+    padding-inline: 3px !important;
+    font-size: 9px;
+    white-space: normal;
+  }
+
+  #tab-map .map-explore-layout { display: block; }
+  #tab-map .vertical-tab-sidebar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ui-space-1);
+    width: 100%;
+    margin-bottom: var(--ui-space-2);
+  }
+
+  #tab-map .vertical-tab-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: var(--ui-control-touch);
+    padding: 4px;
+    font-size: 9px;
+    line-height: 1.15;
+    white-space: normal;
+  }
+
+  #tab-map .vertical-tab-btn.active {
+    border-color: rgba(229, 187, 97, .8);
+    box-shadow: inset 0 -3px var(--ui-gold);
+  }
+
+  #tab-map .vertical-tab-panels { min-width: 0; }
+  #item-tab-equip .equipment-loadout-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #item-tab-equip .equipment-salvage-actions,
+  #item-tab-equip .search-action-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body:not(.light-mode) .tab-btn,
+  body:not(.light-mode) .subtab-btn,
+  body:not(.light-mode) button {
+    transition-duration: .01ms !important;
+  }
+}

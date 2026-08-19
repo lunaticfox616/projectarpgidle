@@ -145,6 +145,14 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
     assert(!drawer.classList.contains('expanded'), '숫자 변화만으로 자동 펼침 금지');
 }
 
+// 3-1) 빈 progressText는 자동 생성 수치 대신 진행 문구를 숨긴다.
+{
+    const m = bootManager();
+    m.exposed.presentGoalDrawer({ ...goal('g1-compact'), progressText: '' });
+    assert.strictEqual(m.dom.registry['ui-goal-progress'].textContent, '', '명시적으로 비운 진행 문구 유지');
+    assert.strictEqual(m.dom.registry['ui-goal-progress'].style.display, 'none', '중복 진행 수치 행 숨김');
+}
+
 // 4) 필수 목표도 시간이 지나면 자동 수납된다(고정만 수납을 막는다).
 {
     const m = bootManager();
@@ -186,10 +194,30 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
             { text: '강화 가능한 스킬 젬', actionTabId: 'tab-skills', actionSubtabId: 'skill-tab-enhance' }
         ]
     });
-    assert(m.dom.registry['ui-goal-notices']._innerHTML.includes('바로가기'), '클릭 가능한 보조 안내 렌더링');
+    assert(m.dom.registry['ui-goal-notices']._innerHTML.includes('ui-goal-notice-action'), '클릭 가능한 보조 목표 행 렌더링');
+    assert(!m.dom.registry['ui-goal-notices']._innerHTML.includes('바로가기'), '보조 목표 행에 중복 이동 문구를 붙이지 않음');
     m.exposed.openGoalNoticeTarget(1);
     assert.deepStrictEqual(m.switchCalls, ['tab-skills'], '관련 창만 연다');
     assert.deepStrictEqual(m.skillSubtabCalls, ['skill-tab-enhance'], '강화 세부 탭으로 이동한다');
+}
+
+// 8) 전투·모바일 메뉴의 목표 진입점은 같은 목표 상태와 펼침 상태를 공유한다.
+{
+    const m = bootManager();
+    const combatAccess = m.context.document.createElement('button');
+    combatAccess.id = 'btn-combat-goal-toggle';
+    const menuAccess = m.context.document.createElement('button');
+    menuAccess.id = 'btn-mobile-nav-goal';
+    m.exposed.presentGoalDrawer({ ...goal('g6'), mandatory: true });
+    assert.strictEqual(combatAccess.hidden, false, '전투 목표 버튼 표시');
+    assert.strictEqual(menuAccess.hidden, false, '모바일 메뉴 목표 버튼 표시');
+    assert.strictEqual(combatAccess.attrs['aria-expanded'], 'true', '자동 펼침 상태 동기화');
+    assert(combatAccess.classList.contains('mandatory'), '필수 목표 강조 동기화');
+    m.exposed.toggleGoalDrawer(false);
+    assert.strictEqual(menuAccess.attrs['aria-expanded'], 'false', '수납 상태 동기화');
+    m.exposed.presentGoalDrawer(null);
+    assert.strictEqual(combatAccess.hidden, true, '목표가 없으면 진입점 숨김');
+    assert.strictEqual(menuAccess.hidden, true, '목표가 없으면 메뉴 진입점 숨김');
 }
 
 console.log('smoke-goal-drawer passed');

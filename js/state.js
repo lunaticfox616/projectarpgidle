@@ -143,7 +143,7 @@ function isUnderworldUnlockedPermanent() {
 
 const OCEAN_PERMANENT_UPGRADE_DEFS = {
     oxygenMax: { label: '산소 최대치', maxLevel: 20, valuePerLevel: 10, unit: '', desc: '잠수 시작 산소와 최대 산소가 증가합니다.' },
-    oxygenSaving: { label: '산소 소모 감소', maxLevel: 20, valuePerLevel: 3, unit: '%', desc: '시간 경과와 공격으로 소모되는 산소가 감소합니다.' },
+    oxygenSaving: { label: '산소 소모 감소', maxLevel: 20, valuePerLevel: 3, unit: '%', desc: '잠수 중 시간 경과로 소모되는 산소가 감소합니다.' },
     pressureResist: { label: '수압 패널티 감소', maxLevel: 20, valuePerLevel: 4, unit: '%', desc: '심해 수압으로 인한 공속/피해/이속 감소가 완화됩니다.' }
 };
 const OCEAN_PERMANENT_UPGRADE_KEYS = Object.keys(OCEAN_PERMANENT_UPGRADE_DEFS);
@@ -255,7 +255,9 @@ function mergeOceanState(savedOcean) {
 function ensureOceanState() {
     let st = (game && game.ocean && typeof game.ocean === 'object') ? game.ocean : (game.ocean = createDefaultOceanState());
     st.unlocked = !!st.unlocked;
-    st.depthM = Math.max(0, Math.floor(st.depthM || 0));
+    // 수심은 짧은 프레임 간격에도 누적되어야 한다. 여기서 매번 정수로 내리면
+    // 0.1~0.3m씩 들어오는 시간 기반 진행이 전부 사라지고 전투 종료 보너스만 보인다.
+    st.depthM = Math.max(0, Number(st.depthM) || 0);
     st.checkpointM = Math.max(0, Math.floor(st.checkpointM || 0));
     st.bossClearM = Math.max(0, Math.floor(st.bossClearM || 0));
     ensureOceanPermanentUpgrades(st);
@@ -298,8 +300,9 @@ function getOceanOxygenDrainPerSec() {
     return Math.max(0.1, base * pressureDrainMul);
 }
 function getOceanOxygenPerAttackCost() {
-    // 공격 1회마다 소모되는 고정 산소량입니다.
-    return 0.25 * (1 - getOceanOxygenSavingPct() / 100);
+    // 산소는 잠수 시간으로만 소모한다. 타격당 비용은 공속 10 빌드를 같은 DPS의
+    // 느린 빌드보다 열 배 불리하게 만들어 심해 진행 자체를 막았으므로 폐지했다.
+    return 0;
 }
 function getOceanDepthTier(depthM) {
     return Math.floor(Math.max(0, Math.floor(depthM || 0)) / 100);
@@ -901,6 +904,21 @@ function getAbyssMonsterScales(zone) {
         mapProgressMul: Math.max(0.35, 1 - (state.magnifier || 0) * 0.5),
         mapLengthMul: 1 + (state.magnifier || 0)
     };
+}
+
+const ENDLESS_CONTENT_DROP_MULTIPLIER_CAP = 2.25;
+
+/**
+ * 무한 등반 콘텐츠는 층수와 몬스터 수가 함께 늘어나므로, 플레이어 보너스까지
+ * 곱해진 최종 드랍 배율에는 공통 상한을 둔다. 원본 드랍 확률은 변경하지 않는다.
+ * @param {{type?:string}|null} zone
+ * @param {number} multiplier
+ * @returns {number}
+ */
+function capEndlessContentDropMultiplier(zone, multiplier) {
+    let value = Math.max(0, Number(multiplier) || 0);
+    if (!zone || !['abyss', 'chaosRealm', 'labyrinth', 'underworld'].includes(zone.type)) return value;
+    return Math.min(ENDLESS_CONTENT_DROP_MULTIPLIER_CAP, value);
 }
 
 function applySeasonContentProgression(options) {
@@ -1874,7 +1892,7 @@ let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 let lastRenderedChaosMapListHtml = '';
 
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
 
@@ -2133,13 +2151,12 @@ const defaultGame = {
         showCombatScene: true,
         cameraShake: true,
         showCombatLog: true,
+        showDetailedDamageLog: false,
         combatLogAggregate: true,
         combatLogRateLimit: true,
         showSpawnLog: true,
         showExpLog: true,
         showLootLog: true,
-        // 생장 드랍을 최근 획득함을 거치지 않고 바로 보관함으로 보낼지.
-        growthAutoClaim: false,
         growthSortMode: 'recent',
         // 생장 아이템은 장비와 별개 시스템이라 필터/자동해체도 따로 둔다.
         // 기본은 "전부 보관" — 루프 25에 판이 열리는데 장비 설정을 물려받으면
@@ -2158,6 +2175,7 @@ const defaultGame = {
         showEnemyHpComma: true,
         showCharacterComma: true,
         themeMode: 'dark',
+        uiSkin: 'reliquary',
         heroAppearanceMode: 'loop',
         leftPaneCollapsed: false,
         combatLogCollapsed: false,
@@ -2287,6 +2305,7 @@ const defaultGame = {
     growthBoard: { width: GROWTH_BOARD_W, height: GROWTH_BOARD_H, unlockedCellCount: 0, activeLoadout: 0, loadouts: [] },
     growthInventory: [],
     growthInventoryExpandLevel: 0,
+    growthEssenceExpandLevel: 0,
     recentGrowthDrops: [],
     jewelInventoryExpandLevel: 0,
     chaosInfuserUnlocked: false,

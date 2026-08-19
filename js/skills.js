@@ -512,6 +512,37 @@ async function applyFossilCraft() {
     updateStaticUI();
 }
 
+const FOSSIL_SURPLUS_REFINING_COSTS = Object.freeze({
+    fossil: 20,
+    fossilJagged: 12,
+    fossilBound: 12,
+    fossilGale: 12,
+    fossilPrismatic: 12,
+    fossilAbyssal: 16,
+    fossilBulwark: 12,
+    fossilWedge: 12
+});
+
+function getFossilSurplusRefiningCost(fossilKey) {
+    let cost = Number(FOSSIL_SURPLUS_REFINING_COSTS[fossilKey]);
+    return Number.isFinite(cost) && cost > 0 ? Math.floor(cost) : null;
+}
+
+function refineFossilSurplus(fossilKey) {
+    let cost = getFossilSurplusRefiningCost(fossilKey);
+    if (!cost) return false;
+    let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
+    if (mycologistLv < 4) return addLog('잉여 화석 정제는 균사학자 Lv.4에 해금됩니다.', 'attack-monster');
+    if ((game.currencies[fossilKey] || 0) < cost) return addLog(`잉여 화석 정제에는 같은 화석 ${cost}개가 필요합니다.`, 'attack-monster');
+    game.currencies[fossilKey] -= cost;
+    awardCurrency('fossilPrimal', 1);
+    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'fossil_refine');
+    let sourceName = fossilKey === 'fossil' ? '미궁 화석' : ((FOSSIL_DB.find(row => row.key === fossilKey) || {}).name || fossilKey);
+    addLog(`🪨 ${sourceName} ${cost}개를 압축해 원시 화석 1개를 만들었습니다.`, 'loot-magic');
+    updateStaticUI();
+    return true;
+}
+
 function getFossilExclusivePool(item) {
     // 화석 전용 옵션끼리만 중복을 막고, 같은 효과의 기본 추가옵션과는 공존할 수 있도록 한다.
     let existing = new Set((item && Array.isArray(item.stats) ? item.stats : [])
@@ -944,7 +975,7 @@ function getActiveSkillStats(bonusLevel) {
 safeExposeGlobals({ hasEquippedShield, canUseSkillWithCurrentEquipment });
 
 
-safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
+safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
 
 
 function sealSkillGem(name){ if(!name||name===game.activeSkill) return addLog('활성 스킬은 봉인할 수 없습니다.','attack-monster'); if(name==='기본 공격') return addLog('기본 공격은 봉인할 수 없습니다.','attack-monster'); if((game.equippedSummonSkills||[]).includes(name)) return addLog('장착 중 소환수 젬은 봉인할 수 없습니다.','attack-monster'); game.skills=dedupeList(game.skills); game.sealedSkills=dedupeList(game.sealedSkills).filter(v=>!game.skills.includes(v)); if(!game.skills.includes(name)) return; game.skills=game.skills.filter(v=>v!==name); if(game.summonSkillCounts&&typeof game.summonSkillCounts==='object') delete game.summonSkillCounts[name]; if(!game.sealedSkills.includes(name)) game.sealedSkills.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 공격 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }

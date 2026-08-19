@@ -84,6 +84,8 @@ const baseGame = extra => ({
     assert(goal.title.includes('보스1'), '액트 보스 처치 목표');
     assert.strictEqual(goal.current, 42, '실제 runProgress 사용');
     assert.strictEqual(goal.target, 100);
+    assert.strictEqual(goal.description, '', '전투 화면 목표에는 장문의 진행 설명을 반복하지 않음');
+    assert.strictEqual(goal.progressText, '', '진행 바와 중복되는 현재 수치 문구를 생략함');
     assert.strictEqual(goal.actionTabId, undefined, '지도 미해금 상태에서는 버튼을 만들지 않음');
 }
 
@@ -384,7 +386,7 @@ const baseGame = extra => ({
     assert.strictEqual(observerNotice.actionSubtabId, 'map-explore-root-boss');
 }
 
-// 생장판 안내: 루프 25에 판이 조용히 열리고, 드랍은 최근 획득함에 쌓이며,
+// 생장판 안내: 루프 25에 판이 조용히 열리고, 드랍은 전용 보관함에 바로 들어가며,
 // 배치하지 않으면 아무 효과도 없다. 장비에는 "장착 가능한 장비가 있습니다" 안내가
 // 있는데 생장판에는 신호가 없어 판이 빈 채로 계속 굴러가기 쉬웠다.
 {
@@ -417,16 +419,6 @@ const baseGame = extra => ({
             '생장판 해금 전에는 생장 안내를 띄우면 안 된다');
     }
 
-    // 최근 획득함 대기: 개수를 알려주고 생장판 화면으로 갈 수 있어야 한다.
-    {
-        const m = boot(growthGame({ recentGrowthDrops: [{ id: 2 }, { id: 3 }] }), growthHelpers({ unlocked: true }));
-        m.refresh();
-        const notice = (m.presented[0].notices || []).find(row => /최근 획득함/.test(row.text));
-        assert.ok(notice, '최근 획득함에 대기 중이면 알려야 한다');
-        assert.ok(notice.text.includes('2개'), '몇 개가 기다리는지 보여야 한다');
-        assert.strictEqual(notice.actionTabId, 'tab-growthboard', '생장판 화면을 열 수 있어야 한다');
-    }
-
     // 보관함에 미배치 아이템 + 빈 칸이 있으면 배치를 권한다.
     {
         const m = boot(growthGame({ growthInventory: [{ id: 5 }, { id: 6 }] }), growthHelpers({ unlocked: true }));
@@ -444,7 +436,7 @@ const baseGame = extra => ({
             '놓을 것도 대기 중인 것도 없으면 안내하지 않아야 한다');
     }
 
-    // 보관함이 가득 차면 새 드랍이 거절된다는 사실을 알려야 한다.
+    // 보관함이 가득 차면 새 드랍의 비교 없는 자동해체를 알려야 한다.
     {
         const full = Array.from({ length: 40 }, (_, i) => ({ id: 100 + i }));
         const m = boot(growthGame({ growthInventory: full }), growthHelpers({ unlocked: true }));
@@ -452,7 +444,7 @@ const baseGame = extra => ({
         const notice = (m.presented[0].notices || []).find(row => /생장 보관함/.test(row.text));
         assert.ok(notice, '보관함이 가득 차면 알려야 한다');
         assert.ok(notice.text.includes('40/40'), '현재 칸 수를 보여야 한다');
-        assert.ok(/받지 못합니다/.test(notice.text), '새 드랍이 거절된다는 결과를 알려야 한다');
+        assert.ok(/비교 없이 자동 해체됩니다/.test(notice.text), '새 드랍이 비교 없이 자동해체된다는 결과를 알려야 한다');
     }
 }
 

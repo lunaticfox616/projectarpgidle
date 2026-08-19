@@ -60,14 +60,13 @@ function getBountyHudState() {
     let state = bountyRuntime.ensureState();
     if (!bountyRuntime.isUnlocked()) return { hidden: true, key: 'locked', html: '' };
     if (state.offerIds.length > 0) {
-        return { key: `offer:${state.offerIds.join(',')}`, html: '<button class="bounty-hud-offer" onclick="bountyUi.openOffer()"><strong>🎯 희귀 표적 발견</strong><span>3개 중 선택</span></button>' };
+        return { key: `offer:${state.offerIds.join(',')}`, html: '<button class="bounty-hud-offer" onclick="bountyUi.openOffer()"><strong>희귀 표적 발견</strong><span>대상 선택</span></button>' };
     }
     if (state.activeId) {
         let target = BOUNTY_TARGET_DB[state.activeId];
-        let status = state.status === 'hunting' ? '교전 중' : '다음 사냥에 출현';
-        return { key: `${state.status}:${state.activeId}`, html: `<button class="bounty-hud-active" onclick="bountyUi.openActive()" aria-label="${target.name} 현상금 보상 확인 및 취소"><strong>${target.icon} ${target.name}</strong><span>${status} · 보상 확인</span></button>` };
+        return { key: `${state.status}:${state.activeId}`, html: `<button class="bounty-hud-active" onclick="bountyUi.openActive()" aria-label="${target.name} 현상금 추적 정보 및 취소"><strong>${target.name} 추적 중</strong></button>` };
     }
-    return { key: `idle:${state.pity}`, html: `<div class="bounty-hud-progress"><strong>🎯 현상금 흔적</strong><span>${state.pity}/${BOUNTY_HUNT_CONFIG.guaranteedAt}</span></div>` };
+    return { key: `idle:${state.pity}`, html: `<div class="bounty-hud-progress"><strong>현상금 흔적</strong><span>${state.pity}/${BOUNTY_HUNT_CONFIG.guaranteedAt}</span></div>` };
 }
 
 function renderBountyHud() {

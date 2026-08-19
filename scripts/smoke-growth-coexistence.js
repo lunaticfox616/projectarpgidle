@@ -92,19 +92,17 @@ function loadStatSourceContract(gameState) {
     // 해금 전에는 드랍 자체를 받지 않는다.
     context.game.season = 10;
     assert.strictEqual(run(`addDroppedGrowthItem(${JSON.stringify(makeDrop(100))})`), false, '루프 25 전에는 생장 드랍을 받으면 안 된다');
-    assert.strictEqual(context.game.recentGrowthDrops.length, 0, '해금 전에는 최근 획득함이 비어 있어야 한다');
+    assert.strictEqual(context.game.growthInventory.length, 0, '해금 전에는 생장 보관함이 비어 있어야 한다');
 
-    // 해금 후에는 최근 획득함으로 들어간다.
+    // 해금 후에는 대기함 없이 생장 보관함으로 바로 들어간다.
     context.game.season = 25;
     run('syncGrowthBoardUnlocks({ silent: true })');
     assert.strictEqual(run(`addDroppedGrowthItem(${JSON.stringify(makeDrop(101))})`), true, '해금 후에는 생장 드랍을 받아야 한다');
-    assert.strictEqual(context.game.recentGrowthDrops.length, 1, '드랍은 최근 획득함으로 들어가야 한다');
+    assert.strictEqual(context.game.growthInventory.length, 1, '드랍은 생장 보관함으로 바로 들어가야 한다');
+    assert.strictEqual(context.game.recentGrowthDrops.length, 0, '새 드랍이 호환용 최근 획득 필드에 남으면 안 된다');
     assert.strictEqual(context.game.inventory.length, 1, '장비 인벤토리는 생장 드랍의 영향을 받지 않아야 한다');
 
     // 보관은 전용 보관함으로 (addItemToInventory를 호출하면 위 throw로 실패한다).
-    assert.strictEqual(run('claimRecentGrowthDrop(101)'), true, '최근 획득함에서 생장 보관함으로 옮길 수 있어야 한다');
-    assert.strictEqual(context.game.growthInventory.length, 1, '생장 보관함으로 들어가야 한다');
-    assert.strictEqual(context.game.recentGrowthDrops.length, 0, '옮긴 뒤 최근 획득함에서 빠져야 한다');
     assert.strictEqual(context.game.inventory.length, 1, '장비 인벤토리 칸을 잠식하면 안 된다');
 
     // 전용 보관함 한도는 장비 한도와 별개다.
@@ -127,7 +125,7 @@ function loadStatSourceContract(gameState) {
 {
     const source = fs.readFileSync('js/growth-board.js', 'utf8');
     const state = fs.readFileSync('js/state.js', 'utf8');
-    const intake = source.slice(source.indexOf('function addDroppedGrowthItem'), source.indexOf('function claimRecentGrowthDrop'));
+    const intake = source.slice(source.indexOf('function addDroppedGrowthItem'), source.indexOf('const GROWTH_SORT_MODES'));
 
     assert.ok(!/settings\.autoSalvageEnabled/.test(intake),
         '생장 드랍 진입점이 장비 자동해체 설정을 읽으면 안 된다');
@@ -145,11 +143,11 @@ function loadStatSourceContract(gameState) {
     assert.ok(!/:\s*true/.test(defaults), '생장 자동해체 등급 기본값은 모두 꺼짐이어야 한다');
 }
 
-// ── 방치 중 최근 획득함이 넘칠 때 ────────────────────────────────────────
+// ── 방치 중 생장 보관함이 넘칠 때 ────────────────────────────────────────
 // 회귀 1: 보호 대상만 남으면 보관함 상한을 무시하고 밀어 넣어, 2000회 드랍이면
 //         보관함이 40칸 제한을 넘어 376개까지 불어났다(상한·확장이 무의미해진다).
-// 회귀 2: 희귀는 "이미 가진 베이스"라는 이유로 방치 중 조용히 녹았다.
-//         자고 일어나면 쓸 만한 것이 하나도 남아 있지 않았다.
+// 회귀 2: 새 드랍과 기존 아이템의 등급·티어를 임의 비교해 기존 보관함을 교체했다.
+//         옵션 조합의 실제 가치는 단순 점수로 판단할 수 없으므로 초과분만 해체한다.
 {
     const context = {
         console,
@@ -192,28 +190,33 @@ function loadStatSourceContract(gameState) {
     for (let i = 0; i < 2000; i++) run(`addDroppedGrowthItem(${drop(i, 'normal', 'gf_spark_seed', true)})`);
     assert.ok(context.game.growthInventory.length <= limit,
         `보관함이 상한(${limit})을 넘으면 안 된다 (현재 ${context.game.growthInventory.length})`);
-    assert.ok(context.game.recentGrowthDrops.length <= 24, '최근 획득함도 상한을 지켜야 한다');
+    assert.strictEqual(context.game.recentGrowthDrops.length, 0, '별도 최근 획득 대기함을 다시 만들면 안 된다');
     // 더 들어올 곳이 없으면 새 드랍을 거절하되, 이미 잠근 것을 녹이지는 않는다.
-    const lockedBefore = context.game.growthInventory.filter(row => row.locked).length
-        + context.game.recentGrowthDrops.filter(row => row.locked).length;
+    const lockedBefore = context.game.growthInventory.filter(row => row.locked).length;
     assert.strictEqual(run(`addDroppedGrowthItem(${drop(9999, 'normal', 'gf_spark_seed', true)})`), false,
         '둘 다 가득 차면 새 드랍을 거절해야 한다');
-    assert.strictEqual(context.game.growthInventory.filter(row => row.locked).length
-        + context.game.recentGrowthDrops.filter(row => row.locked).length, lockedBefore,
+    assert.strictEqual(context.game.growthInventory.filter(row => row.locked).length, lockedBefore,
         '거절 과정에서 잠금 아이템이 사라지면 안 된다');
 
-    // 희귀는 이미 가진 베이스여도 방치 중에 녹지 않는다.
+    // 보관함이 찬 뒤에는 희귀 여부와 무관하게 새 초과분만 해체한다.
     context.game.growthInventory = [];
     context.game.recentGrowthDrops = [];
-    for (let i = 0; i < 600; i++) {
+    for (let i = 0; i < limit; i++) {
         run(`addDroppedGrowthItem(${drop(10000 + i, i % 5 === 0 ? 'rare' : 'normal', 'gf_spark_seed', false)})`);
     }
-    const keptRare = context.game.recentGrowthDrops.filter(row => row.rarity === 'rare').length
-        + context.game.growthInventory.filter(row => row.rarity === 'rare').length;
-    const keptNormal = context.game.recentGrowthDrops.filter(row => row.rarity === 'normal').length
-        + context.game.growthInventory.filter(row => row.rarity === 'normal').length;
-    assert.ok(keptRare > 0, '방치 중에도 희귀 생장 아이템은 남아 있어야 한다');
-    assert.ok(keptRare > keptNormal, `일반보다 희귀가 먼저 녹으면 안 된다 (희귀 ${keptRare} / 일반 ${keptNormal})`);
+    const retainedBeforeOverflow = run('JSON.stringify(game.growthInventory.map(row => row.id))');
+    const essenceBeforeOverflow = run('game.currencies.growthEssence || 0');
+    for (let i = limit; i < 600; i++) {
+        run(`addDroppedGrowthItem(${drop(10000 + i, i % 5 === 0 ? 'rare' : 'normal', 'gf_spark_seed', false)})`);
+    }
+    const keptRare = context.game.growthInventory.filter(row => row.rarity === 'rare').length;
+    const keptNormal = context.game.growthInventory.filter(row => row.rarity === 'normal').length;
+    assert.strictEqual(run('JSON.stringify(game.growthInventory.map(row => row.id))'), retainedBeforeOverflow,
+        '새 희귀 드랍도 기존 아이템의 가치를 추측해 교체하면 안 된다');
+    assert.strictEqual(keptRare, 8, '가득 차기 전에 직접 획득한 희귀 아이템은 그대로 남아야 한다');
+    assert.strictEqual(keptNormal, 32, '가득 찬 뒤의 드랍만 해체하고 기존 일반 아이템도 유지해야 한다');
+    assert.ok(run('game.currencies.growthEssence || 0') > essenceBeforeOverflow,
+        '보관함 초과 드랍은 해체되어 생장 정수를 지급해야 한다');
     assert.ok(context.game.growthInventory.length <= limit, '섞인 드랍에서도 보관함 상한을 지켜야 한다');
 }
 
@@ -257,7 +260,7 @@ function loadStatSourceContract(gameState) {
         id, rarity: 'normal', growthShapeId: 'dot1', growthCategory: 'flower',
         growthBaseId: 'gf_spark_seed', name: `잠금${id}`, locked: true, baseStats: [], stats: []
     });
-    const refusedLines = () => logs.filter(text => /받지 못했습니다/.test(text)).length;
+    const refusedLines = () => logs.filter(text => /새 드랍은 품질 비교 없이 자동 해체됩니다/.test(text)).length;
 
     // 실시간: 포화된 뒤에도 1분에 한 줄까지만.
     for (let i = 0; i < 300; i++) { clock += 1000; run(`addDroppedGrowthItem(${locked(i)})`); }

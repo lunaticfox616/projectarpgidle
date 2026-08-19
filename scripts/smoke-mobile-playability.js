@@ -19,7 +19,7 @@ assert.ok(/#tab-skills \.search-filter-panel\s*\{[^}]*box-sizing:\s*border-box/.
 assert.ok(gameCss.includes('.gem-engrave-slot-dialog'), 'engraving slot selection needs a responsive in-game dialog');
 assert.ok(gameCss.includes('.combat-flask-mini'), 'combat flask charges need dedicated readable controls');
 assert.ok(ui.indexOf('function renderCombatFlaskHud()') < ui.indexOf('function updateCombatUI('), 'the dynamic combat HUD renderer must live in updateCombatUI scope');
-assert.ok(/#mobile-battle-pip\.mobile-battle-dock\s*{[^}]*position:\s*sticky/.test(mobileCss), 'mobile battle preview must stay in layout flow instead of covering cards and actions');
+assert.ok(/#mobile-battle-pip\.mobile-battle-dock\s*{[^}]*position:\s*relative/.test(mobileCss), 'mobile battle preview must stay in layout flow instead of covering cards and actions');
 assert.ok(!ui.includes('host.style.cssText = \'position:fixed'), 'mobile battle preview must not restore the floating overlay layout');
 assert.ok(responsiveLayoutCss.includes('.equipment-mobile-switch {'), 'tablet-width one-column equipment layouts need the inventory/loadout switch');
 assert.ok(ui.includes("host.setAttribute('aria-label', '전투 화면으로 이동')"), 'mobile battle PiP needs an accessible action name');

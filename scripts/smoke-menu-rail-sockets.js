@@ -197,6 +197,16 @@ function createTabHeader(body, openedTabs) {
 function bootMenu() {
     const body = createElement('body');
     const openedTabs = [];
+    const battlefieldWrap = createElement('div');
+    battlefieldWrap.id = 'battlefield-wrap';
+    battlefieldWrap.className = 'battlefield-wrap';
+    body.appendChild(battlefieldWrap);
+    const combatFeed = createElement('div');
+    combatFeed.className = 'combat-feed';
+    const combatFeedTitle = createElement('div');
+    combatFeedTitle.className = 'combat-feed-title';
+    combatFeed.appendChild(combatFeedTitle);
+    body.appendChild(combatFeed);
     const header = createTabHeader(body, openedTabs);
     const windowHandlers = {};
     const exposed = {};
@@ -206,7 +216,7 @@ function bootMenu() {
     const document = {
         readyState: 'complete', body, documentElement: { clientWidth: 1600, clientHeight: 900 },
         getElementById: findById,
-        querySelector: selector => selector === '.tab-header' ? header : null,
+        querySelector: selector => selector === '.tab-header' ? header : (selector === '.combat-feed' ? combatFeed : null),
         querySelectorAll: selector => selector === '.tab-header .tab-btn' ? header.querySelectorAll('.tab-btn') : [],
         createElement,
         addEventListener() {},
@@ -232,7 +242,7 @@ function bootMenu() {
     };
     vm.createContext(context);
     vm.runInContext(source, context, { filename: 'js/ui-window-manager.js' });
-    return { body, header, game, openedTabs, exposed, findById, context, setDesktop: value => { desktop = value; }, windowHandlers };
+    return { body, header, battlefieldWrap, combatFeed, game, openedTabs, exposed, findById, context, setDesktop: value => { desktop = value; }, windowHandlers };
 }
 
 function socketButtons(menu) {
@@ -241,11 +251,11 @@ function socketButtons(menu) {
 
 const menu = bootMenu();
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 1, 'menu art must be one real image');
-assert.strictEqual(menu.header.querySelector(':scope > .ui-rail-art').src, 'assets/ui/menu-rail-v1.png');
+assert.strictEqual(menu.header.querySelector(':scope > .ui-rail-art').src, 'assets/ui/reliquary/menu-rail-v1.svg');
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-category-btn')), false, 'group buttons must be removed');
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-group')), false, 'group layers must be removed');
 assert.deepStrictEqual(socketButtons(menu).map(button => button.dataset.railSlot), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
-assert.strictEqual(socketButtons(menu)[0].style.getPropertyValue('--rail-socket-y'), '92%', 'the first unlocked menu must occupy the bottom circle');
+assert.strictEqual(socketButtons(menu)[0].style.getPropertyValue('--rail-socket-y'), '79%', 'the first unlocked menu must occupy the lowest gameplay circle above the rail controls');
 assert(socketButtons(menu).every(button => button.classList.contains('tab-btn')), 'every illustrated circle must contain a real tab');
 assert(socketButtons(menu).every(button => button.querySelector(':scope > .ui-rail-label')), 'each circle must keep its text inside a dedicated clipped label');
 
@@ -262,7 +272,7 @@ assert.strictEqual(miscTrigger.parentElement, closeAll.parentElement, 'misc and 
 assert.strictEqual(miscTrigger.dataset.railSlot, undefined);
 assert.strictEqual(closeAll.dataset.railSlot, undefined);
 assert.strictEqual(miscPanel.dataset.railOverflow, '4', 'tabs beyond the eleven real circles must remain directly accessible from misc');
-assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.header, 'desktop goal handle must share the rail coordinate space below outside controls');
+assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.battlefieldWrap, 'desktop goals must mount inside the battlefield canvas frame');
 
 assert.strictEqual(miscPanel.hidden, true);
 menu.exposed.toggleGoalDrawer(true);
@@ -323,6 +333,7 @@ vm.runInContext([
     readFunctionSource(uiSource, 'isUngatedPersistentTabButton'),
     readFunctionSource(uiSource, 'isTabGroupingActive'),
     readFunctionSource(uiSource, 'getActiveTabGroup'),
+    readFunctionSource(uiSource, 'isMobilePrimaryNavigationEnabled'),
     readFunctionSource(uiSource, 'getTabHeaderUiSignature'),
     readFunctionSource(uiSource, 'hideOutOfGroupTabButtons'),
     readFunctionSource(uiSource, 'updateTabUnlockButtons')
@@ -368,7 +379,7 @@ menu.windowHandlers.resize();
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 1, 'desktop restore must create only one art image');
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 1, 'desktop restore must create only one flat layer');
 assert.strictEqual(descendants(menu.header).filter(element => element.id === 'btn-ui-rail-misc').length, 1, 'desktop restore must not duplicate misc');
-assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.header, 'desktop restore must remount goals below the rail controls');
+assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.battlefieldWrap, 'desktop restore must remount goals inside the battlefield canvas frame');
 
 assert(menuCss.includes('transform: translate(-50%, -50%) !important;'), 'socket position must override inherited hover transforms');
 assert(menuCss.includes('.ui-rail-external-btn:hover'), 'external controls must have an explicit stable hover state');
@@ -376,7 +387,7 @@ assert(menuCss.includes('transform: none !important;'), 'external controls must 
 assert(menuCss.includes('min(29.2svh, 18vw)'), 'the single artwork must remain resizable for short and narrow desktops');
 assert(menuCss.includes('.ui-rail-tab-layer .ui-rail-label') && menuCss.includes('overflow-wrap: anywhere'), 'circle labels must stay clipped independently of notice badges');
 assert(menuCss.includes('.ui-rail-tab-layer .noti-dot') && menuCss.includes('top: -3px !important'), 'tab notices must remain visible beyond the circle edge');
-assert(menuCss.includes('.tab-header > .ui-goal-drawer') && menuCss.includes('top: calc(100% + 47px) !important'), 'goal handle must occupy the space below misc and cleanup controls');
+assert(!menuCss.includes('.tab-header > .ui-goal-drawer'), 'menu rail must not retain the obsolete lower-left goal handle');
 
 const orderSettingsHost = { innerHTML: '' };
 let orderedGroupReads = 0;
@@ -391,6 +402,7 @@ const orderSettingsContext = {
         },
         querySelectorAll: () => [{ id: 'btn-tab-character', innerText: '캐릭터' }]
     },
+    isMobilePrimaryNavigationEnabled: () => false,
     getOrderedTabGroups() { orderedGroupReads++; return [{ key: 'character', label: '캐릭터' }]; }
 };
 vm.createContext(orderSettingsContext);
@@ -433,6 +445,7 @@ assert.strictEqual(railSyncs, 2, 'freeing capacity must clear the rail notice');
 const pointerStart = uiSource.indexOf('function onTabHeaderPointerDown(event)');
 const pointerEnd = uiSource.indexOf('function onTabHeaderPointerMove(event)', pointerStart);
 let desktopMode = true;
+let mobilePrimaryMode = false;
 let pointerCaptures = 0;
 const dragButton = {
     closest: () => ({ scrollLeft: 0 }),
@@ -440,7 +453,8 @@ const dragButton = {
 };
 const dragContext = {
     tabHeaderDragState: null,
-    document: { body: { classList: { contains: name => name === 'desktop-windowed-ui' && desktopMode } } },
+    document: { body: { classList: { contains: name => (name === 'desktop-windowed-ui' && desktopMode)
+        || (name === 'mobile-primary-navigation' && mobilePrimaryMode) } } },
     getTabButtonFromTarget: () => dragButton,
     setTimeout: () => 1,
     beginTabHeaderDrag() {},
@@ -454,6 +468,11 @@ assert.strictEqual(dragContext.tabHeaderDragState, null, 'desktop socket tabs mu
 desktopMode = false;
 dragContext.onTabHeaderPointerDown(pointerEvent);
 assert.strictEqual(dragContext.tabHeaderDragState.button, dragButton, 'mobile tabs must retain long-press reordering');
+assert.strictEqual(pointerCaptures, 1);
+dragContext.tabHeaderDragState = null;
+mobilePrimaryMode = true;
+dragContext.onTabHeaderPointerDown(pointerEvent);
+assert.strictEqual(dragContext.tabHeaderDragState, null, 'fixed mobile primary navigation must reject accidental long-press reordering');
 assert.strictEqual(pointerCaptures, 1);
 
 const viewportStart = uiSource.indexOf('function scheduleTabHeaderViewportSync()');

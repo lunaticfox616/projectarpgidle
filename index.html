@@ -2,7 +2,7 @@
 <html lang="ko" class="app-preload">
 <head>
     <meta charset="UTF-8">
-    <meta name="app-build" content="20260817-boss-ticker-stable2">
+    <meta name="app-build" content="20260819-commercial-hud5">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#05080e">
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
@@ -35,14 +35,14 @@
     <link rel="stylesheet" href="css/components.css?v=20260722-combat-icons2-20260810-market-clarity1-20260811-passive-tree-layout1-20260811-exchange-picker1-20260812-passive-toolbar1">
     <link rel="stylesheet" href="css/ocean.css?v=20260817-fishing-progression1">
     <link rel="stylesheet" href="css/unique-hunt.css?v=20260817-hunt1">
-    <link rel="stylesheet" href="css/equipment-loadouts.css?v=20260817-loadout1">
+    <link rel="stylesheet" href="css/equipment-loadouts.css?v=20260818-reliquary1">
     <link rel="stylesheet" href="css/ui-polish.css?v=20260723-currency-icons1-20260810-jewel-compare1&tooltip=20260814-perf1">
-    <link rel="stylesheet" href="css/ui-premium.css?v=20260719-white-copy1-20260810-subtab-state1">
+    <link rel="stylesheet" href="css/ui-premium.css?v=20260818-reliquary-chrome1">
     <link rel="stylesheet" href="css/ui-windows.css?v=20260722-combat-icons2">
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260721-galmuri-body1">
-    <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1&mobile=20260814-combat-hud3">
+    <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1&mobile=20260818-flow-pip1">
     <link rel="stylesheet" href="css/ghost-pvp.css?v=20260817-battle-replay1">
-    <link rel="stylesheet" href="css/player-exchange.css?v=20260818-hall1">
+    <link rel="stylesheet" href="css/player-exchange.css?v=20260818-hall-reliquary1">
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1&power=20260811-approx1&directives=20260817-2">
     <link rel="stylesheet" href="css/core-cube.css?v=20260719-white-copy1-20260807-windowed-cube1">
     <link rel="stylesheet" href="css/ui-luxe.css?v=20260722-health-menu-skin4&caption=20260811-top1&tooltip=20260814-perf1&text=20260814-crisp1">
@@ -52,7 +52,9 @@
     <link rel="stylesheet" href="css/ui-asset-skins.css?v=20260722-merged-tabs-timers1-20260811-mobile-status-fix2&mobile=20260814-hud2&boss-traits=20260817-stable2&icons=20260811-atlas-clip2">
     <link rel="stylesheet" href="css/ui-menu-sockets.css?v=20260723-menu-button-states2-20260805-merged-tab-scroll1">
     <link rel="stylesheet" href="css/growth-board.css?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1">
-    <link rel="stylesheet" href="css/bounty-hunt.css?v=20260817-card-action1">
+    <link rel="stylesheet" href="css/bounty-hunt.css?v=20260819-compact-hud1">
+    <link rel="stylesheet" href="css/ui-system.css?v=20260819-reliquary-equipment4">
+    <link rel="stylesheet" href="css/ui-reliquary-shell.css?v=20260819-commercial-hud6">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -252,9 +254,9 @@
         <div class="tutorial-title">루프 조건 달성</div>
         <div class="tutorial-body" id="loop-decision-body">다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.</div>
         <div id="loop-decision-actions" style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px;">
-            <button id="loop-decision-generic-btn" onclick="chooseLoopAdvance(true)">루프 진행</button>
-            <button id="loop-decision-chaos-btn" onclick="chooseLoopAdvancePath('chaos')" style="display:none;">혼돈 루프</button>
-            <button id="loop-decision-cosmos-btn" onclick="chooseLoopAdvancePath('cosmos')" style="display:none;">우주계 루프</button>
+            <button id="loop-decision-generic-btn" onclick="handleLoopDecisionAdvanceButton()">루프 진행</button>
+            <button id="loop-decision-chaos-btn" onclick="handleLoopDecisionAdvanceButton('chaos')" style="display:none;">혼돈 루프</button>
+            <button id="loop-decision-cosmos-btn" onclick="handleLoopDecisionAdvanceButton('cosmos')" style="display:none;">우주계 루프</button>
             <button id="loop-decision-continue-btn" onclick="chooseLoopAdvance(false)" style="background:#415f83; border-color:#5f84ad;">이번 루프 유지</button>
         </div>
     </div>
@@ -308,8 +310,8 @@
                 <div id="ui-combat-contract-status" class="combat-contract-status" style="display:none;"></div>
             </div>
             <div class="map-progress-row">
-                <strong id="ui-progress-label" style="color: #3498db; font-size: 1.05em;">진행도</strong>
-                <div class="hp-bar-bg" style="height: 20px;">
+                <strong id="ui-progress-label">진행도</strong>
+                <div class="hp-bar-bg map-progress-gauge">
                     <div id="ui-move-bar" class="hp-bar-fill move" style="width: 0%;"></div>
                     <div class="hp-text" id="ui-move-time-text">0%</div>
                 </div>
@@ -321,20 +323,19 @@
         </div>
         <div class="combat-top-status player-hud">
             <div class="player-hud-shell">
-                <div class="player-hud-identity-row">
-                    <strong id="ui-player-name-label">궁수</strong>
-                    <span id="ui-player-class-label">미전직</span>
-                    <span id="ui-exp-level-label">Lv.1</span>
+                <div class="player-hud-left-wing">
+                    <div class="player-hud-identity-row">
+                        <strong id="ui-player-name-label">궁수</strong>
+                        <span id="ui-player-class-label">미전직</span>
+                        <span id="ui-exp-level-label">Lv.1</span>
+                    </div>
+                    <div id="ui-combat-flasks" class="combat-flask-strip player-hud-flask-rack" data-visible-slots="1" aria-label="장착 플라스크와 남은 충전">
+                        <span class="combat-flask-mini boot-heal flask-heal" aria-hidden="true"></span>
+                    </div>
                 </div>
                 <div class="player-health-frame" aria-label="플레이어 전투 정보">
-                    <img class="player-health-frame-art" src="assets/ui/health-player-v1.png" width="512" height="84" alt="" aria-hidden="true" draggable="false">
                     <div id="ui-player-ailments-under" class="combat-effect-strip player-combat-effect-strip" aria-label="활성 상태이상 및 효과"></div>
                     <div class="combat-hud-row combat-hud-row-hp player-hud-vitals">
-                        <div id="ui-combat-flasks" class="combat-flask-strip" aria-label="장착 플라스크와 남은 충전">
-                            <span class="combat-flask-mini boot-heal" aria-hidden="true"></span>
-                            <span class="combat-flask-mini empty" aria-hidden="true"></span>
-                            <span class="combat-flask-mini empty" aria-hidden="true"></span>
-                        </div>
                         <div class="hp-bar-bg combat-hp-bar" aria-label="생명력">
                             <div id="ui-hp-bar" class="hp-bar-fill player" style="--gauge-fill: 100%;"></div>
                             <div class="combat-es-overlay" id="ui-es-track" aria-label="에너지 보호막">
@@ -351,6 +352,9 @@
                             <span class="player-exp-values" aria-hidden="true"><span id="ui-exp">0</span>/<span id="ui-maxexp">100</span></span>
                         </div>
                     </div>
+                </div>
+                <div class="player-hud-skill-rack" aria-label="현재 장착 젬">
+                    <div id="ui-combat-skill-gems" class="player-hud-skill-slots"></div>
                 </div>
             </div>
             <div id="ui-ocean-oxygen-box" class="combat-hud-row combat-hud-row-oxygen player-hud-oxygen" style="display:none;">
@@ -382,12 +386,14 @@
                 </div>
             </div>
 
-            <div class="combat-feed">
-                <div class="combat-feed-title">
-                    <span>전투 로그</span>
-                    <button id="btn-combat-log-toggle" class="combat-log-toggle" onclick="toggleCombatLogCollapse()">접기</button>
+            <div class="combat-feed" aria-label="전투 기록 도크">
+                <div class="combat-feed-title ui-context-dock-tabs" role="tablist" aria-label="전투 기록과 채팅">
+                    <button class="ui-context-dock-tab active" type="button" role="tab" aria-selected="true">전투 로그</button>
+                    <button id="btn-combat-chat-tab" class="ui-context-dock-tab" type="button" role="tab" aria-selected="false" onclick="openCommunityDock()">채팅<span id="noti-social-dock" class="noti-dot"></span></button>
+                    <button id="btn-combat-goal-toggle" class="ui-context-dock-tab combat-goal-toggle" type="button" aria-controls="ui-goal-drawer" aria-expanded="false" onclick="toggleGoalDrawer()" hidden>목표</button>
+                    <button id="btn-combat-log-toggle" class="combat-log-toggle" type="button" onclick="toggleCombatLogCollapse()">접기</button>
                 </div>
-                <div id="log"></div>
+                <div id="log" role="tabpanel" aria-label="전투 로그"></div>
             </div>
         </div>
     </div>
@@ -398,7 +404,7 @@
 <div id="right-pane">
     <button id="left-pane-expand-fab" onclick="toggleLeftPaneCollapse()" title="전투 패널 펼치기" aria-label="전투 패널 펼치기">▶</button>
     <div class="tab-category-bar" id="tab-category-bar" style="display:none;"></div>
-    <div class="tab-header">
+    <div class="tab-header" id="tab-header-main">
         <div class="tab-btn active" id="btn-tab-battle" onclick="switchTab('tab-battle')">전투 <span id="noti-battle" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-character" onclick="switchTab('tab-character')" style="display: flex;">캐릭터</div>
         <div class="tab-btn" id="btn-tab-char" data-merged-tab-launcher="growth" onclick="openMergedTabPicker(event,'growth')" style="display:none;">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
@@ -705,6 +711,7 @@
             <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')">제작실</button>
             <button class="subtab-btn" id="btn-item-tab-fossil" onclick="switchItemSubtab('item-tab-fossil')">화석 제작대</button>
             <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;">거래소</button>
+            <button class="subtab-btn" id="btn-item-tab-hall" onclick="switchItemSubtab('item-tab-hall')">장비 전당</button>
             <button class="subtab-btn" id="btn-item-tab-infuser" onclick="switchItemSubtab('item-tab-infuser')" style="display:none;">혼돈 주입기</button>
         </div>
 
@@ -717,21 +724,21 @@
                 <section class="equipment-loadout-panel">
                     <div class="equipment-section-heading">
                         <div>
-                            <span class="equipment-section-kicker">LOADOUT</span>
+                            <span class="equipment-section-kicker">현재 세팅</span>
                             <h2>장착 장비</h2>
                         </div>
                         <span id="ui-equipped-count" class="equipment-count-badge">0 / 11</span>
                     </div>
                     <div id="ui-equipment-loadout-summary" class="equipment-loadout-summary"></div>
-                    <div id="ui-equipment-presets"></div>
                     <div class="paperdoll equipment-paperdoll" id="ui-equip-list"></div>
                     <div class="equipment-panel-hint">장비를 두 번 클릭하면 해제됩니다. 장비 위에 마우스를 올리면 전체 옵션을 확인할 수 있습니다.</div>
+                    <div id="ui-equipment-presets"></div>
                 </section>
 
                 <section class="equipment-inventory-panel">
                     <div class="equipment-section-heading equipment-inventory-heading">
                         <div>
-                            <span class="equipment-section-kicker">STASH</span>
+                            <span class="equipment-section-kicker">보유 장비</span>
                             <h2>인벤토리</h2>
                         </div>
                         <div class="inventory-capacity-actions">
@@ -748,7 +755,7 @@
                         <label>정렬 <select id="ui-equipment-sort" onchange="setEquipmentInventoryView('sort',this.value)"><option value="recent">최신순</option><option value="rarity">등급순</option><option value="tier">티어순</option><option value="slot">슬롯순</option></select></label>
                         <div id="ui-equipment-triage" class="equipment-triage-host"></div>
                     </div>
-                    <details class="bulk-manager" open><summary>일괄 해체 · 자동해체 관리</summary><div class="bulk-salvage-bar equipment-inventory-toolbar">
+                    <details class="bulk-manager"><summary>일괄 해체 · 자동해체 관리</summary><div class="bulk-salvage-bar equipment-inventory-toolbar">
                         <div class="bulk-salvage-filters">
                             <span class="inventory-view-filter-label" title="켜진 등급만 인벤토리에 표시되며, '선택 등급 해체'의 대상이 됩니다. (자동해체와는 별개)">표시 등급</span>
                             <div class="inventory-view-filter" id="ui-inventory-rarity-filter"></div>
@@ -878,6 +885,14 @@
                 </div>
             </div>
         </div>
+
+        <div id="item-tab-hall" class="subtab-content">
+            <div class="map-pvp-heading">
+                <div><span>SANCTUARY HALL</span><h2>🏛️ 장비 전당</h2></div>
+                <p>장비를 서버 감정가로 전시하고 다른 플레이어의 소장품을 확인합니다.</p>
+            </div>
+            <div id="map-player-hall"></div>
+        </div>
     </div>
 
     <div id="tab-flask" class="tab-content">
@@ -985,7 +1000,7 @@
                     </section>
                     <section id="map-explore-timerift" class="vertical-tab-panel">
                         <h2 style="color: #8fd8ff; display: none;" id="ui-timerift-header">시간의 균열</h2>
-                        <div id="ui-timerift-panel" style="display:none; background:#0d1526; border:1px solid #35507a; border-radius:10px; padding:10px; margin-bottom:10px;"></div>
+                        <div id="ui-timerift-panel" class="time-rift-panel" style="display:none;"></div>
                     </section>
                     <section id="map-explore-trials" class="vertical-tab-panel">
                         <h2 style="color: #f1c40f; display: none;" id="ui-trials-header">전직 시련의 성소</h2>
@@ -1028,16 +1043,14 @@
 
         <div id="map-tab-pvp" class="subtab-content">
             <div class="map-pvp-heading">
-                <div><span>PLAYER NETWORK</span><h2>⚔️ 플레이어 교류</h2></div>
-                <p>고스트 대결, 장비 전당, 현재 빌드 순위를 한곳에서 확인합니다.</p>
+                <div><span>PLAYER ARENA</span><h2>⚔️ 대전</h2></div>
+                <p>고스트 대결과 현재 빌드 순위를 확인합니다.</p>
             </div>
-            <div class="player-arena-tabs" role="tablist" aria-label="플레이어 교류 메뉴">
+            <div class="player-arena-tabs" role="tablist" aria-label="대전 메뉴">
                 <button class="player-arena-tab active" data-arena-tab="ghost" onclick="switchPlayerArenaSection('ghost')">고스트 대결</button>
-                <button class="player-arena-tab" data-arena-tab="hall" onclick="switchPlayerArenaSection('hall')">장비 전당</button>
                 <button class="player-arena-tab" data-arena-tab="ranking" onclick="switchPlayerArenaSection('ranking')">루프·DPS 순위</button>
             </div>
             <section class="player-arena-panel active" data-arena-panel="ghost"><div id="map-ghost-arena"></div></section>
-            <section class="player-arena-panel" data-arena-panel="hall"><div id="map-player-hall"></div></section>
             <section class="player-arena-panel" data-arena-panel="ranking"><div id="map-player-ranking"></div></section>
         </div>
 
@@ -1181,12 +1194,6 @@
         <div id="ui-growth-panel"></div>
 
         <h2 style="margin-top: 18px;">
-            <span>📥 최근 획득함 (<span id="ui-growth-recent-count">0</span> / 24)</span>
-            <span class="h2-right"><button onclick="claimAllRecentGrowthDrops()">전부 보관함으로</button></span>
-        </h2>
-        <div class="growth-card-grid" id="ui-growth-recent"></div>
-
-        <h2 style="margin-top: 18px;">
             <span>🌿 생장 보관함 (<span id="ui-growth-inv-count">0</span> / <span id="ui-growth-inv-limit">40</span>)</span>
             <span class="h2-right"><button id="btn-growth-inventory-expand" class="inventory-expand-shortcut" type="button" onclick="marketExpandGrowthInventoryByDivine()" hidden>+5칸 확장</button><button onclick="bulkSalvageGrowthInventory()">일괄 해체</button></span>
         </h2>
@@ -1198,9 +1205,14 @@
         <div id="ui-core-cube-panel"></div>
     </div>
 
-    <!-- 소셜 콘텐츠는 renderSocialTab이 .social-root 하위에 렌더링하고,
-         도킹 모드 크롬(헤더/리사이저)은 창 관리자가 직접 붙인다. -->
-    <div id="tab-social" class="tab-content"></div>
+    <!-- 소셜 콘텐츠는 renderSocialTab이 .social-root 하위에 렌더링한다.
+         데스크톱은 전투 로그와 공용 도크, 모바일은 사용자 호출형 하단 시트를 쓴다. -->
+    <div id="tab-social" class="tab-content">
+        <div class="social-mobile-sheet-header">
+            <strong>채팅</strong>
+            <button type="button" onclick="switchTab('tab-battle')" aria-label="채팅 닫기">닫기</button>
+        </div>
+    </div>
 
     <div id="tab-journal" class="tab-content">
         <h2>📓 저널</h2>
@@ -1266,6 +1278,7 @@
                 <div class="cfg-group-title">전투 로그</div>
                 <div class="cfg-rows">
                     <label class="cfg-toggle"><input type="checkbox" id="chk-log-combat" onchange="updateSettings()" checked><span class="cfg-label">전투 로그 표시</span></label>
+                    <label class="cfg-toggle"><input type="checkbox" id="chk-log-damage-detail" onchange="updateSettings()"><span class="cfg-label">상세 피해 정보</span></label>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-log-aggregate" onchange="updateSettings()" checked><span class="cfg-label">0.5초 집계 표시</span></label>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-log-rate-limit" onchange="updateSettings()" checked><span class="cfg-label">연속타격 로그 속도 제한</span></label>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-log-spawn" onchange="updateSettings()" checked><span class="cfg-label">적/보스 등장 로그</span></label>
@@ -1379,6 +1392,14 @@
                         <select id="sel-theme-mode" onchange="updateSettings()" class="cfg-select">
                             <option value="dark">다크모드</option>
                             <option value="light">라이트모드</option>
+                        </select>
+                    </div>
+                    <div class="cfg-select-row">
+                        <span class="cfg-label">UI 스킨</span>
+                        <select id="sel-ui-skin" onchange="updateSettings()" class="cfg-select">
+                            <option value="reliquary">검은 성유물함</option>
+                            <option value="verdigris">녹청 성당</option>
+                            <option value="crimson">핏빛 참회</option>
                         </select>
                     </div>
                     <label class="cfg-toggle"><input type="checkbox" id="chk-two-row-tabs" onchange="updateSettings()"><span class="cfg-label">탭 2줄로 늘리기</span></label>
@@ -1510,7 +1531,7 @@
 <script defer src="data/maps.js?v=20260719-tier-rift-stack1&cosmos=20260814-balance1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-bloom2&trial5=20260816-underworld1&directives=20260817-1"></script>
 <script defer src="data/skills.js?v=20260721-hero-gem-refine1&vfx=20260811-area-impact1&venom=20260811-image2&lightning-spear=20260812-performance1&thundercloud=20260812-impact2&meteor=20260813-ground1&shield-charge=20260814-armor1&meteor-spell=20260814-damage1"></script>
 <script defer src="data/severed-wanderers.js?v=20260817-balance1"></script>
-<script defer src="data/items.js?v=20260723-currency-salvage1&defense-unique=20260811-rework1&cosmos=20260814-balance1&ocean=20260817-fishing1"></script>
+<script defer src="data/items.js?v=20260723-currency-salvage1&defense-unique=20260811-rework1&cosmos=20260814-balance1&ocean=20260817-fishing1&growth-essence=20260819-random1"></script>
 <script defer src="data/offline-progress.js?v=20260808-offline-meta1"></script>
 <script defer src="data/growth-items.js?v=20260807-growth-affix-balance1-20260807-flat-element-balance1"></script>
 <script defer src="data/passives.js?v=20260719-spiderweb-rollback1&hero-motion=20260812-elementalist1"></script>
@@ -1519,7 +1540,7 @@
 <script defer src="data/talent-cards.js?v=20260722-templar-overheal1"></script>
 <script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2"></script>
 <script defer src="js/ui-feedback.js?v=20260722-instant-choice1&focus=20260814-dialog1"></script>
-<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1&cosmos=20260814-balance1&pinnacle=20260814-atlas1&loot=20260815-cosmos-tier1&ocean=20260817-fishing1&directives=20260817-2&shrine=20260817-field1&bounty=20260817-restore1"></script>
+<script defer src="js/state.js?v=20260806-growth-boundaries1-20260807-accuracy-affix1-20260807-hero-appearance-mode1-20260807-flat-element-balance1&tactics=20260810-combat-tactics1&vfx=20260810-skill-vfx2&passive=20260810-presets1&craft=20260813-fossil-defense1&loop-completion=20260814-settings1&ux=20260814-first-flow1&cosmos=20260814-balance1&pinnacle=20260814-atlas1&loot=20260815-cosmos-tier1&ocean=20260817-fishing1&directives=20260817-2&shrine=20260817-field1&bounty=20260817-restore1&skin=20260818-1&balance=20260819-endless-cap1"></script>
 <script defer src="js/salvage-recovery.js?v=20260817-recovery1"></script>
 <script defer src="js/unique-hunt.js?v=20260817-hunt1"></script>
 <script defer src="js/offline-progress.js?v=20260808-offline-meta1"></script>
@@ -1528,9 +1549,9 @@
 <script defer src="js/items.js?v=20260719-white-copy1-20260810-market-clarity1-20260811-exchange-picker1&pinnacle=20260814-atlas1&base=20260815-market-t15&exchange=20260816-live1&hall=20260818-1"></script>
 <script defer src="js/equipment-loadouts.js?v=20260817-loadout1"></script>
 <script defer src="js/skills.js?v=20260717-gem-flask-mobile1&craft=20260813-validation1&shield-charge=20260814-armor1"></script>
-<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1&presets=20260810-passive1&battle=20260811-body-cue2&void=20260811-reroll1&defense-unique=20260811-rework1&fx-backlog=20260811-clear1&venom=20260811-image2&encroachment=20260811-tier1&damage-text=20260811-volley1&spore-craft=20260811-guard1&node-art=20260811-v2states1&deflect-text=20260812-muted1&meteor=20260814-assets1&loot=20260815-cosmos-tier1&blizzard=20260816-sprites1&ocean=20260817-fishing1&review=20260817-1&shrine=20260817-field1&hall=20260818-1"></script>
+<script defer src="js/passives.js?v=20260807-drop-affix-curve3-20260807-asset-manifest1-20260807-growth-affix-balance1-20260807-hero-appearance-mode1-20260807-growth-overflow1&reward=20260806-act2-fix1&presets=20260810-passive1&battle=20260811-body-cue2&void=20260811-reroll1&defense-unique=20260811-rework1&fx-backlog=20260811-clear1&venom=20260811-image2&encroachment=20260811-tier1&damage-text=20260811-volley1&spore-craft=20260811-guard1&node-art=20260811-v2states1&deflect-text=20260812-muted1&meteor=20260814-assets1&loot=20260815-cosmos-tier1&blizzard=20260816-sprites1&ocean=20260817-fishing1&review=20260817-1&shrine=20260817-field1&hall=20260818-1&vfx-budget=20260818-1&balance=20260819-endless-cap1"></script>
 <script defer src="js/shrines.js?v=20260817-battlefield1"></script>
-<script defer src="js/growth-board.js?v=20260806-growth-chase1"></script>
+<script defer src="js/growth-board.js?v=20260806-growth-chase1&overflow=20260819-salvage1&essence=20260819-random1"></script>
 <script defer src="js/growth-effects.js?v=20260806-growth-unique2"></script>
 <script defer src="js/growth-generation.js?v=20260807-growth-affix-balance1-20260807-growth-overflow1"></script>
 <script defer src="js/bounties.js?v=20260817-bounty1"></script>
@@ -1539,32 +1560,33 @@
 <script defer src="js/severed-wanderers.js?v=20260817-balance1"></script>
 <script defer src="js/combat-patterns.js?v=20260717-system-integrity1&ehp=20260811-bosspeak1&cosmos=20260814-balance1"></script>
 <script defer src="js/cosmos-rules.js?v=20260810-endgame1&ehp=20260811-bosspeak1&cosmos=20260814-balance1&tune=20260815-ehp-curve1&directives=20260817-1"></script>
-<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260814-floor1-tune2&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-perf1&cosmos=20260814-balance1&power=20260814-readiness1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-cosmos-ehp1&trial5=20260816-underworld1&directives=20260817-1&wanderer=20260817-balance1&bounty=20260817-restore1"></script>
+<script defer src="js/combat.js?v=20260806-loot-tiers1-20260807-evasion-entropy1&growth=20260806-growth-drop3&records=20260808-background-fix1&vfx=20260810-skill-vfx2&tactics=20260810-combat-tactics1&channel=20260810-sustain1&passive=20260810-presets1&defense-unique=20260811-rework1&body-cue=20260811-fixed1&impact=20260811-boss-sync1&damage-text=20260811-volley1&ehp=20260811-bosspeak1&underworld=20260814-floor1-tune2&lightning-spear=20260812-performance1&hit-guard=20260813-attack-scope1&meteor=20260813-ground1&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-perf1&cosmos=20260814-balance1&power=20260814-readiness1&trial=20260814-bloom1&pinnacle=20260814-atlas1&tune=20260815-cosmos-ehp1&trial5=20260816-underworld1&directives=20260817-1&wanderer=20260817-balance1&bounty=20260817-restore1&vfx-budget=20260818-1&balance=20260819-endless-cap1"></script>
 <script defer src="js/combat-ehp.js?v=20260807-elemental-ehp1&power=20260814-readiness1"></script>
 <script defer src="js/equipment-triage.js?v=20260817-current-build1&review=20260817-1"></script>
 <script defer src="js/ghost-combat.js?v=20260816-direct-register1"></script>
-<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260811-top1&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260813-elements1&hit-guard=20260813-attack-scope1&meteor=20260814-assets1&shield-charge=20260814-impact1&blizzard=20260816-sprites1&shrine=20260817-field1&bounty=20260817-restore1"></script>
-<script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1&elements=20260813-distinct1"></script>
+<script defer src="js/canvas-battlefield.js?v=20260722-combat-icons2-20260807-hero-stride1&vfx=20260811-area-impact1-body-cue2&venom=20260811-image1&caption=20260811-top1&damage-text=20260811-volley1&projectile=20260811-image-route1&hero-motion=20260812-elementalist1&thundercloud=20260813-elements1&hit-guard=20260813-attack-scope1&meteor=20260814-assets1&shield-charge=20260814-impact1&blizzard=20260816-sprites1&shrine=20260817-field1&bounty=20260817-restore1&vfx-budget=20260818-1"></script>
+<script defer src="js/canvas-attack-fx.js?v=20260717-system-integrity1&elements=20260813-distinct1&budget=20260818-1"></script>
 <script defer src="js/canvas-passive-tree.js?v=20260719-spiderweb-rollback1-20260810-management-ux1-20260810-ux-refine1-20260810-direct-actions1-20260810-label-toggle1&triage=20260817-1"></script>
 <script defer src="js/crafting-result-ui.js?v=20260817-ledger1"></script>
-<script defer src="js/bounty-ui.js?v=20260817-card-action1"></script>
-<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260817-stable2&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260814-readiness1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260817-arena-stable1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-crisp1&pinnacle=20260814-atlas1&ocean=20260817-fishing1&triage=20260817-1&shrine=20260817-field1&bounty=20260817-restore1&hall=20260818-1"></script>
+<script defer src="js/bounty-ui.js?v=20260819-compact-hud1"></script>
+<script defer src="js/loop-ui.js?v=20260819-advance-confirm1"></script>
+<script defer src="js/ui.js?v=20260723-merged-tab-window-fix2-20260807-elemental-ehp1-20260807-gem-search-tags1-20260807-merged-pane-persistence1-20260807-rune-upgrade1-20260807-ui-refresh-queue1-20260807-hero-appearance-mode1-20260807-hero-stride1-20260808-background-records-fix1-20260810-management-ux1-20260810-ux-refine1-20260810-jewel-compare1-20260810-direct-actions1&tactics=20260810-combat-tactics1&passive=20260811-star-wedge-drawer1&void=20260811-reroll1&fx-backlog=20260811-clear1&status=20260811-clarity1&mobile=20260814-first-flow1&boss-traits=20260817-stable2&craft-toast=20260811-tainted1&spore-craft=20260811-tooltip1&power=20260814-readiness1&ehp=20260811-bosspeak1&flask-tooltip=20260811-custom1&pvp=20260817-arena-stable1&craft=20260813-magic-reroll2&shield-charge=20260814-armor1&loop-completion=20260814-settings1&tooltip=20260814-crisp1&pinnacle=20260814-atlas1&ocean=20260817-fishing1&triage=20260817-1&shrine=20260817-field1&bounty=20260817-restore1&hall=20260819-route3&nav=20260818-reliquary-goal-access1&skin=20260819-2&flask-hud=20260819-1&balance=20260819-ocean-role1"></script>
 <script defer src="js/salvage-recovery-ui.js?v=20260817-recovery1"></script>
 <script defer src="js/unique-hunt-ui.js?v=20260817-hunt1"></script>
 <script defer src="js/equipment-loadouts-ui.js?v=20260817-loadout1&review=20260817-1"></script>
 <script defer src="js/playtest-telemetry.js?v=20260816-telemetry-separation1"></script>
 <script defer src="js/cloud-tools-ui.js?v=20260812-ops1"></script>
-<script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1&tooltip=20260811-tray1"></script>
+<script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1&tooltip=20260811-tray1&overflow=20260819-salvage1"></script>
 <script defer src="js/skills-ui.js?v=20260808-skills-screen1&tooltip=20260814-perf1"></script>
 <script defer src="js/offline-progress-ui.js?v=20260808-offline-meta1"></script>
 <script defer src="js/records-ui.js?v=20260808-records-tab1"></script>
-<script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1&pvp=20260812-map2&hall=20260818-1"></script>
+<script defer src="js/social.js?v=20260721-chat-notify-session-only1&retention=20260811-items1&poll=20260811-incremental1&pvp=20260812-map2&hall=20260818-1&ui=20260818-row-hierarchy1"></script>
 <script defer src="js/ghost-duel-replay.js?v=20260817-battle-replay1"></script>
 <script defer src="js/ghost-pvp.js?v=20260817-arena-stable1"></script>
-<script defer src="js/player-exchange.js?v=20260818-hall1"></script>
-<script defer src="js/ui-window-manager.js?v=20260723-merged-tab-window-fix2"></script>
+<script defer src="js/player-exchange.js?v=20260819-hall-route3"></script>
+<script defer src="js/ui-window-manager.js?v=20260723-merged-tab-window-fix2&goal=20260819-canvas1"></script>
 <script defer src="js/ui-game-shell.js?v=20260715-radial-goals1"></script>
-<script defer src="js/goal-system.js?v=20260717-system-integrity1-20260810-loop-cosmos-notice1&pinnacle=20260814-atlas1"></script>
+<script defer src="js/goal-system.js?v=20260717-system-integrity1-20260810-loop-cosmos-notice1&pinnacle=20260814-atlas1&growth=20260819-salvage1"></script>
 <script defer src="js/talent-cards.js?v=20260722-templar-overheal1"></script>
 <script defer src="js/cosmos-atlas.js?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1&power=20260814-readiness1&ehp=20260811-bosspeak1&cosmos=20260814-balance1&loot=20260815-tier1&stone=20260817-manage1&directives=20260817-2"></script>
 <script defer src="js/smoke-checks.js?v=20260513-gemfix1"></script>

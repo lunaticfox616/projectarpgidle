@@ -533,24 +533,12 @@ function setTimeRiftPressure(delta) {
     updateStaticUI();
 }
 
-/**
- * 시간의 균열 융합 조건 (spec 19). 생장 아이템은 부위 대신 다음 중 하나를 만족해야 한다:
- * 같은 베이스 / 같은 종류이며 같은 형태.
- * @returns {string|null} 융합 불가 사유. 가능하면 null.
- */
+/** @returns {string|null} 시간의 균열 장비 융합 불가 사유. 가능하면 null. */
 function getTimeRiftFusionMismatchReason(altarItem, candidate) {
-    let bothGrowth = typeof isGrowthItem === 'function' && isGrowthItem(altarItem) && isGrowthItem(candidate);
-    if (!bothGrowth) {
-        if (String(altarItem.slot || '') !== String(candidate.slot || '')) {
-            return `두 아이템은 같은 부위여야 융합됩니다. (제단: ${altarItem.slot} / 선택: ${candidate.slot})`;
-        }
-        return null;
+    if (String(altarItem.slot || '') !== String(candidate.slot || '')) {
+        return `두 아이템은 같은 부위여야 융합됩니다. (제단: ${altarItem.slot} / 선택: ${candidate.slot})`;
     }
-    if (altarItem.growthBaseId && altarItem.growthBaseId === candidate.growthBaseId) return null;
-    // 생장 아이템이 전부 1칸이 되면서 형태는 더 이상 구분 축이 아니다. 종류(꽃/가지/잎)만 본다.
-    if (altarItem.growthCategory === candidate.growthCategory) return null;
-    let categoryLabel = key => (GROWTH_CATEGORY_INFO[key] || {}).label || key;
-    return `같은 베이스이거나 같은 종류여야 융합됩니다. (제단: ${categoryLabel(altarItem.growthCategory)} / 선택: ${categoryLabel(candidate.growthCategory)})`;
+    return null;
 }
 
 function placeItemOnTimeAltar() {
@@ -558,6 +546,9 @@ function placeItemOnTimeAltar() {
     if (!rift.altarOpen) return addLog('먼저 시간의 균열(과거)을 클리어해 제단을 열어야 합니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('제단에 올릴 아이템을 인벤토리에서 먼저 선택하세요.', 'attack-monster');
+    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) {
+        return addLog('생장판과 석판은 시간의 균열 제단에 올릴 수 없습니다.', 'attack-monster');
+    }
     if (isCraftSelectionEquip()) return addLog('장착 중인 장비는 제단에 올릴 수 없습니다. 해제 후 올려주세요.', 'attack-monster');
     if (item.fusedRelic) return addLog('이미 융합된 유물은 다시 시간을 건널 수 없습니다.', 'attack-monster');
     if (item.corrupted) return addLog('타락한 아이템은 시간의 흐름을 거부합니다.', 'attack-monster');
@@ -624,19 +615,6 @@ function resolveTimeRiftFusion() {
     fused.fusedRelic = true;
     fused.fusionGrade = grade;
     fused.fusedRareName = rift.altarRare.name || '';
-    // 생장 융합: 고유의 형태·공간 효과를 유지한 채 희귀 쪽 태그 하나를 계승한다 (spec 19).
-    if (typeof isGrowthItem === 'function' && isGrowthItem(fused) && isGrowthItem(rift.altarRare)) {
-        let ownTags = getGrowthItemTags(fused);
-        let inheritable = Array.from(getGrowthItemTags(rift.altarRare)).filter(tag => !ownTags.has(tag));
-        if (inheritable.length > 0) {
-            fused.growthTags = (Array.isArray(fused.growthTags) ? fused.growthTags : []).concat([rndChoice(inheritable)]);
-        }
-        // 베이스 옵션은 두 아이템 중 높은 값을 취한다.
-        (fused.baseStats || []).forEach(stat => {
-            let match = (rift.altarRare.baseStats || []).find(row => row && row.id === stat.id);
-            if (match && Number(match.val) > Number(stat.val)) stat.val = Number(match.val);
-        });
-    }
     rift.altarUnique = null;
     rift.altarRare = null;
     rift.altarOpen = false;

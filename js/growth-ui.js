@@ -1,4 +1,4 @@
-// 생장판 UI: 격자 렌더, 드래그 배치, 회전, 시너지 시각화, 툴팁, 보관함, 최근 획득함, 세팅.
+// 생장판 UI: 격자 렌더, 드래그 배치, 회전, 시너지 시각화, 툴팁, 보관함, 세팅.
 // 도메인(js/growth-board.js, js/growth-effects.js)을 호출하며, 도메인이 UI를 호출하지 않는다.
 
 let growthSelection = { itemId: null, source: null, rotation: 0, hoverCell: null };
@@ -356,8 +356,8 @@ function renderActiveGrowthSynergies() {
     return summary + globalHtml + itemHtml;
 }
 
-// ── 아이템 카드 / 보관함 / 최근 획득함 ───────────────────────────────────
-function renderGrowthItemCard(item, mode) {
+// ── 아이템 카드 / 보관함 ────────────────────────────────────────────────
+function renderGrowthItemCard(item) {
     let info = getGrowthCategoryInfo(item.growthCategory);
     let placement = (getActiveGrowthLoadout().placements || {})[item.id];
     let selected = growthSelection.itemId === item.id;
@@ -366,14 +366,10 @@ function renderGrowthItemCard(item, mode) {
     let levelBadge = itemLevel !== 0
         ? ` <span class="growth-level-badge${itemLevel < 0 ? ' negative' : ''}">Lv${itemLevel > 0 ? '+' : ''}${itemLevel}</span>`
         : '';
-    let actions = mode === 'recent'
-        ? `<button onclick="claimRecentGrowthDrop(${item.id})">보관</button><button onclick="salvageRecentGrowthDrop(${item.id})">해체</button>`
-        : `<button onclick="event.stopPropagation();selectGrowthItem(${item.id},'inventory')">${selected ? '선택 해제' : (placement ? '선택' : '배치')}</button>`
+    let actions = `<button onclick="event.stopPropagation();selectGrowthItem(${item.id},'inventory')">${selected ? '선택 해제' : (placement ? '선택' : '배치')}</button>`
           + (placement ? `<button onclick="event.stopPropagation();unplaceGrowthItem(${item.id})">내리기</button>` : '')
           + `<button onclick="event.stopPropagation();toggleGrowthItemLock(${item.id})">${item.locked ? '잠금 해제' : '잠금'}</button><button onclick="event.stopPropagation();salvageGrowthInventoryItem(${item.id})">해체</button>`;
-    let cardActivation = mode === 'inventory'
-        ? ` role="group" tabindex="0" onclick="openGrowthCrafting(${item.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openGrowthCrafting(${item.id});}"`
-        : '';
+    let cardActivation = ` role="group" tabindex="0" onclick="openGrowthCrafting(${item.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openGrowthCrafting(${item.id});}"`;
     return `<div class="growth-item-card${selected ? ' selected' : ''}${crafting ? ' craft-target' : ''}${placement ? ' placed' : ''}${item.growthChase ? ' growth-chase' : ''}" data-info-tooltip-anchor="1" data-growth-drag-id="${item.id}"${cardActivation}
         onmouseenter="setGrowthBoardItemHover(${item.id});showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="clearGrowthBoardItemHover();hideInfoTooltip()">
         <div class="growth-item-head">
@@ -439,11 +435,9 @@ function renderGrowthInventoryFilterChips() {
     let sortMode = (game.settings && game.settings.growthSortMode) || 'recent';
     let sortChips = GROWTH_SORT_MODES.map(mode =>
         `<button type="button" class="growth-filter-chip${sortMode === mode ? ' on' : ''}" aria-pressed="${sortMode === mode}" onclick="sortGrowthInventory('${mode}')">${GROWTH_SORT_LABELS[mode]}순</button>`).join('');
-    let autoClaim = !!(game.settings && game.settings.growthAutoClaim);
     return `<div class="growth-filter-row">${chips}
         <button type="button" class="growth-filter-chip${filter.unplacedOnly ? ' on' : ''}" aria-pressed="${filter.unplacedOnly}" onclick="toggleGrowthInventoryUnplacedOnly()">미배치만</button></div>
-        <div class="growth-filter-row"><span class="growth-filter-label">정렬</span>${sortChips}
-        <button type="button" class="growth-filter-chip${autoClaim ? ' on' : ''}" aria-pressed="${autoClaim}" onclick="toggleGrowthAutoClaim()" title="드랍을 최근 획득함을 거치지 않고 바로 보관함으로 보냅니다.">자동 보관</button></div>
+        <div class="growth-filter-row"><span class="growth-filter-label">정렬</span>${sortChips}</div>
         ${renderGrowthDropSettings()}`;
 }
 
@@ -465,15 +459,6 @@ function renderGrowthDropSettings() {
     </div>`;
 }
 
-function toggleGrowthAutoClaim() {
-    game.settings = game.settings || {};
-    game.settings.growthAutoClaim = !game.settings.growthAutoClaim;
-    addLog(game.settings.growthAutoClaim
-        ? '🌱 생장 드랍을 최근 획득함을 건너뛰고 바로 보관함으로 보냅니다. (보관함이 가득 차면 다시 최근 획득함에 쌓입니다)'
-        : '🌱 생장 드랍이 최근 획득함을 거칩니다.', 'loot-normal');
-    updateStaticUI();
-}
-
 function renderGrowthInventorySection() {
     let all = (game.growthInventory || []).filter(isGrowthItem);
     if (all.length === 0) return '<div class="growth-synergy-empty">보관 중인 생장 아이템이 없습니다. 루프 ' + GROWTH_UNLOCK_LOOP + ' 이후 전투에서 드랍됩니다.</div>';
@@ -482,13 +467,7 @@ function renderGrowthInventorySection() {
         && (!filter.unplacedOnly || !isGrowthItemPlacedInLoadout(item.id)));
     let chips = renderGrowthInventoryFilterChips();
     if (items.length === 0) return `${chips}<div class="growth-synergy-empty">조건에 맞는 아이템이 없습니다. (전체 ${all.length}개)</div>`;
-    return chips + items.map(item => renderGrowthItemCard(item, 'inventory')).join('');
-}
-
-function renderGrowthRecentSection() {
-    let items = (game.recentGrowthDrops || []).filter(isGrowthItem);
-    if (items.length === 0) return '<div class="growth-synergy-empty">최근 획득한 아이템이 없습니다.</div>';
-    return items.map(item => renderGrowthItemCard(item, 'recent')).join('');
+    return chips + items.map(item => renderGrowthItemCard(item)).join('');
 }
 
 // ── 툴팁 ────────────────────────────────────────────────────────────────
@@ -557,8 +536,7 @@ function showGrowthItemTooltip(event, itemId) {
     // 드래그 중에는 툴팁을 띄우지 않는다. 커서를 따라다니며 판을 가려서,
     // 정작 보고 판단해야 할 배치 미리보기와 칸 레벨이 안 보인다.
     if (growthDrag && growthDrag.active) return;
-    let item = findGrowthItemById(itemId)
-        || (game.recentGrowthDrops || []).find(row => row && row.id === itemId);
+    let item = findGrowthItemById(itemId);
     if (!item || typeof showInfoTooltipHtml !== 'function') return;
     showInfoTooltipHtml(event.clientX, event.clientY, buildGrowthTooltipHtml(item), getRarityColor(item.rarity || 'normal'));
 }
@@ -803,6 +781,31 @@ function exchangeGrowthCraftCurrency(actionKey) {
     updateStaticUI();
 }
 
+function getGrowthEssenceExpansionCost() {
+    let level = Math.max(0, Math.min(12, Math.floor(game.growthEssenceExpandLevel || 0)));
+    return level >= 12 ? null : 300 + level * 250;
+}
+
+async function expandGrowthInventoryWithEssence() {
+    let cost = getGrowthEssenceExpansionCost();
+    if (cost === null) return addLog('생장 정수 보관함 확장은 최대 단계입니다.', 'attack-monster');
+    if ((game.currencies.growthEssence || 0) < cost) return addLog(`생장 정수가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if (typeof requestGameConfirmation === 'function') {
+        let confirmed = await requestGameConfirmation(`생장 정수 ${cost}개를 소모해 생장 보관함을 영구히 5칸 확장합니다.`, {
+            title: '생장 정수 압축', confirmLabel: '확장'
+        });
+        if (!confirmed) return false;
+    }
+    if (getGrowthEssenceExpansionCost() !== cost || (game.currencies.growthEssence || 0) < cost) return false;
+    game.currencies.growthEssence -= cost;
+    game.growthEssenceExpandLevel = Math.min(12, Math.floor(game.growthEssenceExpandLevel || 0) + 1);
+    game.growthInventoryExpandLevel = Math.max(0, Math.floor(game.growthInventoryExpandLevel || 0)) + 1;
+    addLog(`🌱 생장 정수를 압축해 보관함을 5칸 확장했습니다. (${getGrowthInventoryLimit()}칸)`, 'loot-rare');
+    renderGrowthTab({ force: true });
+    if (typeof queueImportantSave === 'function') queueImportantSave(200);
+    return true;
+}
+
 function reforgeGrowthShapeAtBench() {
     let item = findGrowthItemById(growthCraftItemId);
     let result = reforgeGrowthItemShape(item ? item.id : null);
@@ -846,6 +849,7 @@ function renderGrowthReforgeAction(item) {
 function renderGrowthCraftBench() {
     let item = findGrowthItemById(growthCraftItemId);
     let essence = Math.max(0, Math.floor(game.currencies.growthEssence || 0));
+    let expansionCost = getGrowthEssenceExpansionCost();
     let actions = GROWTH_CRAFT_ACTIONS.map(action => {
         let state = getGrowthCraftActionState(item, action);
         return `<button type="button" onclick="craftGrowthItem('${action.key}')" ${state.enabled ? '' : 'disabled'} title="${escapeHTML(state.reason)}">${escapeHTML(action.label)} · 정수 ${action.cost}</button>`;
@@ -858,7 +862,7 @@ function renderGrowthCraftBench() {
     let preview = item
         ? `<div class="growth-craft-preview"><h4>제작 전 옵션 확인</h4>${buildGrowthTooltipHtml(item)}</div>`
         : '<div class="growth-craft-preview empty">선택한 생장판의 옵션이 여기에 표시됩니다.</div>';
-    return `<section id="ui-growth-craft-bench" class="growth-craft-bench"><div class="growth-bench-head"><h3>🛠️ 생장판 제작대</h3><strong>생장 정수 ${essence}</strong></div>
+    return `<section id="ui-growth-craft-bench" class="growth-craft-bench"><div class="growth-bench-head"><h3>🛠️ 생장판 제작대</h3><strong>생장 정수 ${essence}</strong><button type="button" onclick="expandGrowthInventoryWithEssence()" ${expansionCost === null || essence < expansionCost ? 'disabled' : ''}>보관함 +5 · ${expansionCost === null ? '최대' : `정수 ${expansionCost}`}</button></div>
         <div class="growth-craft-target">${target}</div>${preview}<div class="growth-craft-actions">${isGrowthSlab(item) ? '' : actions}${renderGrowthReforgeAction(item)}</div>
         <details data-growth-disclosure="craft-exchange" ${isGrowthDisclosureOpen('craft-exchange') ? 'open' : ''}><summary>기존 재화 교환 (10배 비용)</summary><p>각 재화 10개를 해당 제작 1회분의 생장 정수로 바꿉니다.</p><div class="growth-exchange-actions">${exchanges}</div></details></section>`;
 }
@@ -969,15 +973,14 @@ function getGrowthTabSignature() {
         growthSlabId: item.growthSlabId, growthChase: item.growthChase, flavorText: item.flavorText
     });
     let items = (game.growthInventory || []).map(itemSignature).join(',');
-    let recent = (game.recentGrowthDrops || []).map(itemSignature).join(',');
     let filter = JSON.stringify((game.settings || {}).growthInventoryFilter || {});
-    let flags = [(game.settings || {}).growthSortMode, (game.settings || {}).growthAutoClaim,
+    let flags = [(game.settings || {}).growthSortMode,
         (game.settings || {}).growthAutoSalvageEnabled, (game.settings || {}).growthUseItemFilter,
         JSON.stringify((game.settings || {}).growthAutoSalvageRarities || {})].join('|');
     let craftCurrencies = GROWTH_CRAFT_ACTIONS.map(action => `${action.key}:${game.currencies[action.key] || 0}`).join(',');
     return [board.activeLoadout, board.unlockedCellCount, game.season, game.maxZoneId,
         growthCraftItemId, game.currencies.growthEssence || 0, craftCurrencies,
-        growthSelection.itemId, growthSelection.rotation, placements, items, recent, filter, flags].join('#');
+        growthSelection.itemId, growthSelection.rotation, placements, items, filter, flags].join('#');
 }
 
 function renderGrowthTab(options) {
@@ -989,12 +992,6 @@ function renderGrowthTab(options) {
     if (!force && signature === _growthTabSignature) return;
     _growthTabSignature = signature;
     renderGrowthBoardPanel();
-    let recentHost = document.getElementById('ui-growth-recent');
-    if (recentHost) {
-        recentHost.innerHTML = renderGrowthRecentSection();
-        let countEl = document.getElementById('ui-growth-recent-count');
-        if (countEl) countEl.innerText = String((game.recentGrowthDrops || []).length);
-    }
     let invHost = document.getElementById('ui-growth-inventory');
     if (invHost) invHost.innerHTML = renderGrowthInventorySection();
     let count = (game.growthInventory || []).length;
@@ -1002,7 +999,7 @@ function renderGrowthTab(options) {
     let invCount = document.getElementById('ui-growth-inv-count');
     if (invCount) {
         invCount.innerText = String(count);
-        // 가득 차면 최근 획득함의 새 드랍이 밀려 자동 해체된다. 숫자만으로는 놓치기 쉬워 색을 준다.
+        // 가득 차면 새 드랍이 품질 비교 없이 직접 자동 해체된다. 숫자만으로는 놓치기 쉬워 색을 준다.
         invCount.style.color = count >= limit ? '#e07a7a' : '';
         invCount.style.fontWeight = count >= limit ? '900' : '';
     }
@@ -1023,8 +1020,8 @@ safeExposeGlobals({
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, buildGrowthComparison,
     renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
-    toggleGrowthInventoryCategory, selectAllGrowthInventoryCategories, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, toggleGrowthAutoClaim, renderGrowthDropSettings,
-    renderGrowthHoverHint, bindGrowthDragOnce, openGrowthCrafting, craftGrowthItem, exchangeGrowthCraftCurrency,
+    toggleGrowthInventoryCategory, selectAllGrowthInventoryCategories, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, renderGrowthDropSettings,
+    renderGrowthHoverHint, bindGrowthDragOnce, openGrowthCrafting, craftGrowthItem, exchangeGrowthCraftCurrency, getGrowthEssenceExpansionCost, expandGrowthInventoryWithEssence,
     getSelectedSlabInfluenceCells, renderGrowthLevelLine, setGrowthBoardItemHover, clearGrowthBoardItemHover,
     reforgeGrowthShapeAtBench, reforgeGrowthSlabAtBench
 });

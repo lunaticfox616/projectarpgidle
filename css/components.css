@@ -1789,9 +1789,9 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
   max-height: min(760px, 92vh);
   overflow: hidden;
   padding: 14px;
-  border: 1px solid #4b86bd;
-  border-radius: 12px;
-  background: linear-gradient(155deg, #111b29, #090f18);
+  border: 1px solid var(--ui-line-strong, #705938);
+  border-radius: 4px;
+  background: linear-gradient(155deg, var(--ui-surface-2, #15140f), var(--ui-surface-1, #0c0e0c));
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.62);
 }
 .jewel-picker-panel header,
@@ -1812,8 +1812,8 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 .abyss-jewel-choice { min-height: 104px; padding: 10px; text-align: left; }
 .abyss-jewel-choice > strong { display: block; color: var(--copy-bright); font-size: 0.95em; }
 .abyss-jewel-choice-stats { margin-top: 5px; color: var(--copy-bright); font-size: 0.8em; line-height: 1.4; }
-.abyss-jewel-choice > span { display: block; margin-top: 8px; color: #7fd1ff; font-size: 0.8em; font-weight: 800; }
-.abyss-jewel-choice-empty { padding: 24px; color: var(--copy-muted); border: 1px dashed #40566c; text-align: center; }
+.abyss-jewel-choice > span { display: block; margin-top: 8px; color: var(--ui-accent, #d7b36f); font-size: 0.8em; font-weight: 800; }
+.abyss-jewel-choice-empty { padding: 24px; color: var(--copy-muted); border: 1px dashed var(--ui-line, #40392e); text-align: center; }
 .jewel-picker-panel footer { justify-content: flex-end; margin-top: 10px; }
 @media (max-width: 560px) {
   .jewel-picker-overlay { align-items: flex-end; padding: 0; }
