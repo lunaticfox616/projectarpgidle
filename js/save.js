@@ -73,8 +73,7 @@ function refreshItemIdCounter() {
     // 제단 아이템이 돌아왔을 때 id 기반 인벤토리 조작이 다른 아이템을 가리킬 수 있다.
     let rift = (game && game.timeRift && typeof game.timeRift === 'object') ? game.timeRift : {};
     let altarIds = [rift.altarUnique, rift.altarRare].filter(Boolean).map(item => item.id || 0);
-    // 생장 보관함/최근 획득함도 id 공간을 점유한다 — 누락하면 재로드 후 id가 재사용되어
-    // 배치/제작이 다른 아이템을 가리킨다.
+    // 생장 보관함과 아직 마이그레이션되지 않은 예전 최근 획득함도 id 공간을 점유한다.
     let growthIds = (game.growthInventory || []).concat(game.recentGrowthDrops || []).filter(Boolean).map(item => item.id || 0);
     itemIdCounter = Math.max(0, ...(game.inventory || []).map(item => item.id || 0), ...Object.values(game.equipment || {}).filter(Boolean).map(item => item.id || 0), ...altarIds, ...growthIds);
 }

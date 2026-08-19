@@ -220,7 +220,7 @@ function setPlayerExchangeMessage(message) {
 }
 
 function switchPlayerArenaSection(section) {
-    playerExchangeState.section = ['ghost', 'hall', 'ranking'].includes(section) ? section : 'ghost';
+    playerExchangeState.section = ['ghost', 'ranking'].includes(section) ? section : 'ghost';
     document.querySelectorAll('.player-arena-panel').forEach(panel => panel.classList.toggle('active', panel.dataset.arenaPanel === playerExchangeState.section));
     document.querySelectorAll('.player-arena-tab').forEach(button => button.classList.toggle('active', button.dataset.arenaTab === playerExchangeState.section));
     if (playerExchangeState.section === 'ghost' && typeof renderGhostArena === 'function') renderGhostArena();

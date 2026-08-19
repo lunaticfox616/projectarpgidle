@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" fill="none">
+  <defs>
+    <linearGradient id="iron" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#242423"/>
+      <stop offset="0.42" stop-color="#101111"/>
+      <stop offset="1" stop-color="#070808"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#D2AB66"/>
+      <stop offset="0.38" stop-color="#8D6A35"/>
+      <stop offset="1" stop-color="#3C2C19"/>
+    </linearGradient>
+    <pattern id="edgeWear" width="18" height="18" patternUnits="userSpaceOnUse">
+      <path d="M2 4h5M11 13h4" stroke="#FFFFFF" stroke-opacity=".035" stroke-width="1"/>
+      <path d="M5 16h7" stroke="#000000" stroke-opacity=".34" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <!-- Uniform edge bands: the 48-unit inset is the CSS border-image slice. -->
+  <path d="M4 4H188V188H4Z" stroke="#020303" stroke-width="8"/>
+  <path d="M8 8H184V184H8Z" stroke="url(#iron)" stroke-width="12"/>
+  <path d="M15 15H177V177H15Z" stroke="#343431" stroke-width="2"/>
+  <path d="M18 18H174V174H18Z" stroke="url(#brass)" stroke-width="1.5"/>
+  <path d="M11 11H181V181H11Z" stroke="url(#edgeWear)" stroke-width="6"/>
+
+  <!-- Compact corner brackets stay wholly inside each 48 x 48 slice. -->
+  <g fill="url(#iron)" stroke="#050606" stroke-width="2">
+    <path d="M3 3H43L49 9V24L39 18H18V39L24 49H9L3 43Z"/>
+    <path d="M189 3H149L143 9V24L153 18H174V39L168 49H183L189 43Z"/>
+    <path d="M3 189H43L49 183V168L39 174H18V153L24 143H9L3 149Z"/>
+    <path d="M189 189H149L143 183V168L153 174H174V153L168 143H183L189 149Z"/>
+  </g>
+  <g stroke="url(#brass)" stroke-width="1.5">
+    <path d="M9 9H38L43 14M9 9V38L14 43"/>
+    <path d="M183 9H154L149 14M183 9V38L178 43"/>
+    <path d="M9 183H38L43 178M9 183V154L14 149"/>
+    <path d="M183 183H154L149 178M183 183V154L178 149"/>
+  </g>
+  <g fill="#846232" stroke="#18130C" stroke-width="1">
+    <circle cx="13" cy="13" r="2.5"/><circle cx="179" cy="13" r="2.5"/>
+    <circle cx="13" cy="179" r="2.5"/><circle cx="179" cy="179" r="2.5"/>
+  </g>
+
+  <!-- Small center crests live inside the repeat-safe middle edge section. -->
+  <g fill="url(#iron)" stroke="url(#brass)" stroke-width="1.25">
+    <path d="M96 8L103 16L96 24L89 16Z"/>
+    <path d="M96 184L103 176L96 168L89 176Z"/>
+  </g>
+</svg>

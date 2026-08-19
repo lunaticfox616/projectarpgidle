@@ -9,18 +9,13 @@
     const DEFAULT_COMMUNITY_WIDTH = 360;
     const DESKTOP_RAIL_WIDTH = 140;
     const WORKSPACE_GAP = 10;
-    const COMMUNITY_OVERLAY_THRESHOLD = 700;
-    const RAIL_ART_SRC = 'assets/ui/menu-rail-v1.png';
+    const RAIL_ART_SRC = 'assets/ui/reliquary/menu-rail-v1.svg';
     // 해금된 메뉴가 캐릭터를 시작점으로 아래에서 위로 한 칸씩 채워지도록 정렬한다.
     const RAIL_TAB_SLOTS = [
-        { x: '50%', y: '92%' },
-        { x: '50%', y: '77%' },
-        { x: '12.5%', y: '67%' }, { x: '88%', y: '67%' },
-        { x: '50%', y: '56%' },
-        { x: '12.5%', y: '46%' }, { x: '88%', y: '46%' },
-        { x: '50%', y: '36%' },
-        { x: '12.5%', y: '24%' }, { x: '88%', y: '24%' },
-        { x: '50%', y: '14%' }
+        { x: '50%', y: '79%' }, { x: '50%', y: '72%' }, { x: '50%', y: '65%' },
+        { x: '50%', y: '58%' }, { x: '50%', y: '51%' }, { x: '50%', y: '44%' },
+        { x: '50%', y: '37%' }, { x: '50%', y: '30%' }, { x: '50%', y: '23%' },
+        { x: '50%', y: '16%' }, { x: '50%', y: '9%' }
     ];
     const RAIL_EXTERNAL_TAB_IDS = new Set([
         'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
@@ -109,7 +104,9 @@
     function getWorkspaceRect() {
         let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
         let height = Math.max(260, window.innerHeight || document.documentElement.clientHeight || 720);
-        let dockWidth = document.body.classList.contains('community-dock-open') ? (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH) : 0;
+        let dock = document.querySelector('#tab-social.ui-community-dock');
+        let dockRect = dock && typeof dock.getBoundingClientRect === 'function' ? dock.getBoundingClientRect() : null;
+        let dockWidth = document.body.classList.contains('community-dock-open') && dockRect ? Math.ceil(dockRect.width) : 0;
         let railInset = getDesktopRailInset();
         return { left: railInset, top: 8, width: Math.max(240, width - railInset - WORKSPACE_GAP - dockWidth), height: Math.max(260, height - 16) };
     }
@@ -184,7 +181,8 @@
             let state = layoutState.windows[id];
             return state && state.open && !state.minimized;
         }) || '';
-        let managementMode = isDesktopWindowed() && (!!activeWindowId || !!layoutState.community.open);
+        // 채팅은 전투 로그와 같은 자리를 공유하므로 전투를 가리는 관리 창으로 취급하지 않는다.
+        let managementMode = isDesktopWindowed() && !!activeWindowId;
         document.body.classList.toggle('ui-management-mode', managementMode);
         document.body.classList.toggle('ui-combat-mode', isDesktopWindowed() && !managementMode);
         if (document.body.dataset) {
@@ -348,29 +346,35 @@
         handle.addEventListener('pointercancel', up);
     }
 
-    function shouldUseCommunityOverlay() {
-        let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
-        let available = width - getDesktopRailInset() - WORKSPACE_GAP - (layoutState.community.width || DEFAULT_COMMUNITY_WIDTH);
-        return available < COMMUNITY_OVERLAY_THRESHOLD;
-    }
-
     function applyCommunityMode(panel) {
-        let overlay = shouldUseCommunityOverlay();
-        document.body.classList.toggle('community-dock-open', !overlay && layoutState.community.open);
-        document.body.classList.toggle('community-overlay-open', overlay && layoutState.community.open);
-        panel.classList.toggle('ui-community-overlay', overlay);
-        panel.classList.toggle('ui-community-dock', !overlay);
+        let docked = isDesktopWindowed();
+        document.body.classList.toggle('community-dock-open', docked && layoutState.community.open);
+        document.body.classList.toggle('community-overlay-open', !docked && layoutState.community.open);
+        panel.classList.toggle('ui-community-overlay', !docked);
+        panel.classList.toggle('ui-community-dock', docked);
     }
 
     function openCommunityDock() {
         let el = document.getElementById('tab-social');
         if (!el) return;
+        // 채팅은 별도 열을 만들지 않고 현재 전투 로그의 실제 화면 사각형을 그대로 인계받는다.
+        // 화면비·지역 제목 높이가 바뀌어도 두 패널의 위치가 갈라지지 않게 한다.
+        document.body.classList.remove('community-dock-open');
+        let combatFeed = document.querySelector('.combat-feed');
+        let feedRect = combatFeed && typeof combatFeed.getBoundingClientRect === 'function'
+            ? combatFeed.getBoundingClientRect()
+            : null;
         layoutState.community.open = true;
         saveLayoutState();
-        document.body.style.setProperty('--community-dock-width', `${layoutState.community.width}px`);
-        el.style.width = `${layoutState.community.width}px`;
         installCommunityDockChrome(el);
-        installCommunityResizer(el);
+        if (isDesktopWindowed() && feedRect && feedRect.width > 0 && feedRect.height > 0) {
+            el.style.left = `${Math.round(feedRect.left)}px`;
+            el.style.top = `${Math.round(feedRect.top)}px`;
+            el.style.width = `${Math.round(feedRect.width)}px`;
+            el.style.height = `${Math.round(feedRect.height)}px`;
+            el.style.right = 'auto';
+            el.style.bottom = 'auto';
+        }
         applyCommunityMode(el);
         if (typeof renderSocialTab === 'function') renderSocialTab();
         requestCanvasResize();
@@ -380,18 +384,23 @@
     function installCommunityDockChrome(panel) {
         if (!panel || panel.querySelector(':scope > .ui-community-dock-header')) return;
         let header = document.createElement('div');
-        header.className = 'ui-community-dock-header';
-        let title = document.createElement('div');
-        title.className = 'ui-community-dock-title';
-        title.textContent = '💬 커뮤니티';
-        let close = document.createElement('button');
-        close.type = 'button';
-        close.className = 'ui-community-dock-close';
-        close.textContent = '✕';
-        close.setAttribute('aria-label', '커뮤니티 패널 닫기');
-        close.addEventListener('click', closeCommunityDock);
-        header.appendChild(title);
-        header.appendChild(close);
+        header.className = 'ui-community-dock-header ui-context-dock-tabs';
+        header.setAttribute('role', 'tablist');
+        header.setAttribute('aria-label', '전투 기록과 채팅');
+        let combatTab = document.createElement('button');
+        combatTab.type = 'button';
+        combatTab.className = 'ui-context-dock-tab';
+        combatTab.setAttribute('role', 'tab');
+        combatTab.setAttribute('aria-selected', 'false');
+        combatTab.textContent = '전투 로그';
+        combatTab.addEventListener('click', closeCommunityDock);
+        let chatTab = document.createElement('button');
+        chatTab.type = 'button';
+        chatTab.className = 'ui-context-dock-tab active';
+        chatTab.setAttribute('role', 'tab');
+        chatTab.setAttribute('aria-selected', 'true');
+        chatTab.textContent = '채팅';
+        header.append(combatTab, chatTab);
         panel.prepend(header);
     }
 
@@ -400,65 +409,12 @@
         layoutState.community.open = false;
         saveLayoutState();
         document.body.classList.remove('community-dock-open', 'community-overlay-open');
-        document.body.style.removeProperty('--community-dock-width');
         if (el) {
             el.classList.remove('ui-community-dock', 'ui-community-overlay');
-            el.style.width = '';
-            let handle = el.querySelector(':scope > .ui-community-resize');
-            if (handle) handle.remove();
+            ['left', 'top', 'right', 'bottom', 'width', 'height'].forEach(property => { el.style[property] = ''; });
         }
         requestCanvasResize();
         syncWorkspacePresentation();
-    }
-
-    // 채팅은 레일의 커뮤니티 탭이 아니라 전용 말풍선 버튼으로 켜고 끈다.
-    function installCommunityToggle() {
-        if (document.getElementById('ui-community-toggle')) return;
-        let button = document.createElement('button');
-        button.id = 'ui-community-toggle';
-        button.className = 'ui-community-toggle';
-        button.type = 'button';
-        // 미읽음 점은 ui.js의 updateTabNotificationDots가 #noti-social과 함께 동기화한다.
-        button.innerHTML = '💬<span id="noti-social-dock" class="noti-dot"></span>';
-        button.setAttribute('aria-label', '채팅 열기/닫기');
-        button.addEventListener('click', () => layoutState.community.open ? closeCommunityDock() : openCommunityDock());
-        document.body.appendChild(button);
-    }
-
-
-    function installCommunityResizer(panel) {
-        if (!panel || panel.querySelector('.ui-community-resize')) return;
-        let handle = document.createElement('div');
-        handle.className = 'ui-community-resize';
-        handle.setAttribute('aria-hidden', 'true');
-        panel.prepend(handle);
-        handle.addEventListener('pointerdown', event => beginCommunityResize(event, panel, handle));
-    }
-
-    function beginCommunityResize(event, panel, handle) {
-        if (event.button !== undefined && event.button !== 0) return;
-        let startX = event.clientX;
-        let startWidth = layoutState.community.width || DEFAULT_COMMUNITY_WIDTH;
-        handle.setPointerCapture(event.pointerId);
-        let move = moveEvent => {
-            let width = clampNumberLocal(startWidth + startX - moveEvent.clientX, COMMUNITY_MIN_WIDTH, COMMUNITY_MAX_WIDTH, DEFAULT_COMMUNITY_WIDTH);
-            layoutState.community.width = width;
-            panel.style.width = `${width}px`;
-            document.body.style.setProperty('--community-dock-width', `${width}px`);
-            applyCommunityMode(panel);
-            Object.keys(WINDOW_DEFS).forEach(id => applyWindowState(id));
-            requestCanvasResize();
-        };
-        let up = upEvent => {
-            if (handle.hasPointerCapture && handle.hasPointerCapture(upEvent.pointerId)) handle.releasePointerCapture(upEvent.pointerId);
-            handle.removeEventListener('pointermove', move);
-            handle.removeEventListener('pointerup', up);
-            handle.removeEventListener('pointercancel', up);
-            saveLayoutState();
-        };
-        handle.addEventListener('pointermove', move);
-        handle.addEventListener('pointerup', up);
-        handle.addEventListener('pointercancel', up);
     }
 
 
@@ -645,7 +601,7 @@
         btn.id = 'btn-close-all-windows';
         btn.type = 'button';
         btn.className = 'ui-rail-external-btn ui-close-all-btn';
-        btn.textContent = '창정리';
+        btn.textContent = '정리';
         btn.setAttribute('aria-label', '열린 창 모두 닫기');
         btn.addEventListener('click', closeAllWindows);
         let controls = header.querySelector(':scope > .ui-rail-external-controls');
@@ -656,8 +612,12 @@
     let goalRuntime = { signature: '', collapseTimer: null, currentGoal: null, pendingAutoExpand: false };
 
     function mountGoalDrawer(drawer) {
-        let desktopHeader = isDesktopWindowed() ? document.querySelector('.tab-header') : null;
-        (desktopHeader || document.body).appendChild(drawer);
+        let battlefield = isDesktopWindowed() ? document.getElementById('battlefield-wrap') : null;
+        if (!battlefield) {
+            document.body.appendChild(drawer);
+            return;
+        }
+        battlefield.appendChild(drawer);
     }
 
     function installGoalDrawer() {
@@ -686,8 +646,9 @@
             + '</div>'
             + '<button type="button" id="ui-goal-toggle" aria-expanded="false" aria-label="다음 목표 열기/닫기">'
             + '<span id="ui-goal-handle-icon" class="ui-goal-handle-icon"></span>'
-            + '<span id="ui-goal-handle-title" class="ui-goal-handle-title">다음 목표</span>'
+            + '<span id="ui-goal-handle-title" class="ui-goal-handle-title">목표</span>'
             + '<span id="ui-goal-handle-progress" class="ui-goal-handle-progress"></span>'
+            + '<span class="ui-goal-chevron" aria-hidden="true"></span>'
             + '</button>'
             + '<div id="ui-goal-handle-bar" class="ui-goal-handle-bar"><span id="ui-goal-handle-fill" class="ui-goal-handle-fill"></span></div>'
             + '</div>';
@@ -707,8 +668,22 @@
         drawer.classList.toggle('expanded', expanded);
         let toggle = drawer.querySelector('#ui-goal-toggle');
         if (toggle) toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        syncGoalAccessButtons(goalRuntime.currentGoal);
         layoutState.goals.expanded = expanded;
         saveLayoutState();
+    }
+
+    function syncGoalAccessButtons(goal) {
+        let drawer = document.getElementById('ui-goal-drawer');
+        let expanded = !!(drawer && drawer.classList.contains('expanded'));
+        ['btn-combat-goal-toggle', 'btn-mobile-nav-goal'].forEach(id => {
+            let access = document.getElementById(id);
+            if (!access) return;
+            access.hidden = !goal;
+            access.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            access.classList.toggle('mandatory', !!(goal && goal.mandatory));
+            access.title = goal ? `목표: ${goal.title}` : '목표';
+        });
     }
 
     function toggleGoalPin() {
@@ -829,12 +804,16 @@
     function renderGoalDrawerContent(goal) {
         let hasProgress = Number.isFinite(goal.current) && Number.isFinite(goal.target);
         let pct = getGoalProgressPct(goal);
+        let rows = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 2);
         // 펼친 상태: 배지 → 제목 → 설명 → 진행도 바 → 수치 → 버튼 → 보조 안내.
         setGoalDrawerText('ui-goal-badge', goal.categoryLabel ? `${goal.icon ? goal.icon + ' ' : ''}${goal.categoryLabel}` : (goal.icon || ''));
         setGoalDrawerText('ui-goal-title', goal.title);
         setGoalDrawerText('ui-goal-desc', goal.description);
         setGoalDrawerBar('ui-goal-bar', 'ui-goal-bar-fill', pct);
-        setGoalDrawerText('ui-goal-progress', goal.progressText || (hasProgress ? `현재 ${goal.current} / ${goal.target}` : ''));
+        let progressText = Object.prototype.hasOwnProperty.call(goal, 'progressText')
+            ? goal.progressText
+            : (hasProgress ? `현재 ${goal.current} / ${goal.target}` : '');
+        setGoalDrawerText('ui-goal-progress', progressText);
         let action = document.getElementById('ui-goal-action');
         if (action) {
             let usable = !!(goal.actionLabel && goal.actionTabId);
@@ -843,24 +822,24 @@
         }
         let notices = document.getElementById('ui-goal-notices');
         if (notices) {
-            let rows = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 4);
             notices.innerHTML = rows.map((notice, index) => {
                 let normalized = typeof notice === 'string' ? { text: notice } : (notice || {});
                 let label = escapeGoalText(normalized.text || normalized.label || '');
                 if (!label) return '';
                 return normalized.actionTabId
-                    ? `<button type="button" class="ui-goal-notice-action" onclick="openGoalNoticeTarget(${index})"><span>${label}</span><strong>바로가기 ›</strong></button>`
+                    ? `<button type="button" class="ui-goal-notice-action" onclick="openGoalNoticeTarget(${index})"><span>${label}</span></button>`
                     : `<div class="ui-goal-notice-text">${label}</div>`;
             }).join('');
             notices.style.display = notices.innerHTML ? '' : 'none';
         }
-        // 접힌 상태 손잡이: 아이콘 + 제목 + 현재/목표 한 줄과 하단 미니 진행도 바.
-        setGoalDrawerText('ui-goal-handle-icon', goal.icon || '🎯');
-        setGoalDrawerText('ui-goal-handle-title', goal.title);
-        setGoalDrawerText('ui-goal-handle-progress', hasProgress ? `${goal.current}/${goal.target}` : '');
+        // 접힌 상태에는 목표 개수만 남겨 화면을 가리지 않는다. 제목과 진행도는 펼친 목록에서 본다.
+        setGoalDrawerText('ui-goal-handle-icon', '');
+        setGoalDrawerText('ui-goal-handle-title', '목표');
+        setGoalDrawerText('ui-goal-handle-progress', `${rows.length + 1}개`);
         setGoalDrawerBar('ui-goal-handle-bar', 'ui-goal-handle-fill', pct);
         let drawer = document.getElementById('ui-goal-drawer');
         if (drawer) drawer.classList.toggle('ui-goal-mandatory', !!goal.mandatory);
+        syncGoalAccessButtons(goal);
     }
 
     /**
@@ -876,6 +855,7 @@
             goalRuntime.currentGoal = null;
             goalRuntime.signature = '';
             drawer.style.display = 'none';
+            syncGoalAccessButtons(null);
             return;
         }
         goalRuntime.currentGoal = goal;
@@ -892,6 +872,9 @@
         // 오버레이가 닫힌 뒤의 다음 갱신에서 실행한다.
         if (isBlockingOverlayVisible()) return;
         goalRuntime.pendingAutoExpand = false;
+        // 휴대폰에서는 새 목표마다 하단 시트가 화면 대부분을 가리지 않도록 손잡이만 갱신한다.
+        // 사용자가 손잡이를 누른 경우에만 상세 목표를 펼친다.
+        if (!isDesktopWindowed()) return;
         toggleGoalDrawer(true);
         scheduleGoalAutoCollapse();
     }
@@ -1021,8 +1004,6 @@
         if (social) {
             social.classList.remove('ui-community-dock', 'ui-community-overlay');
             social.style.width = '';
-            let handle = social.querySelector(':scope > .ui-community-resize');
-            if (handle) handle.remove();
             let dockHeader = social.querySelector(':scope > .ui-community-dock-header');
             if (dockHeader) dockHeader.remove();
         }
@@ -1041,7 +1022,6 @@
             return;
         }
         Object.keys(WINDOW_DEFS).forEach(id => { prepareWindow(id); applyWindowState(id); });
-        installCommunityToggle();
         installGoalDrawer();
         installSettingsReset();
         if (layoutState.community.open) openCommunityDock();
@@ -1065,7 +1045,10 @@
     function closeTopWindowOnEscape(event) {
         if (event.key !== 'Escape' || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
         if (document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay),.social-modal-overlay[style*="display: block"]')) return;
-        if (document.body.classList.contains('community-overlay-open')) { closeCommunityDock(); return; }
+        if (document.body.classList.contains('community-overlay-open') || document.body.classList.contains('community-dock-open')) {
+            closeCommunityDock();
+            return;
+        }
         let open = zOrder.slice().reverse().find(id => {
             let st = layoutState.windows[id];
             return st && st.open && !st.minimized;

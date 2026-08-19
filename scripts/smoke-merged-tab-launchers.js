@@ -250,6 +250,7 @@ const tabSwitchContext = {
     TAB_UNLOCK_GATES: {},
     TAB_HEADER_NOTI_KEYS: [],
     document: {
+        body: makePanelNode('body'),
         getElementById: id => switchNodes[id] || null,
         querySelectorAll(selector) {
             if (selector === '.tab-content, .tab-btn') return switchTopLevel.concat(switchPanes, switchButtons);
@@ -259,6 +260,7 @@ const tabSwitchContext = {
     },
     window: { matchMedia: () => ({ matches: false }) },
     hideInfoTooltip() {}, hideItemTooltip() {}, syncDerivedTabUnlock() {}, syncMergedTabLauncherState() {},
+    setMobileTabDrawerOpen() {},
     isTabGroupingActive: () => false, acknowledgeMapMainAlarm() {}, stopChatPolling() {},
     updateMobileBattlePipVisibility() {}, isMobileBattlePipVisible: () => false, updateStaticUI() {},
     Object, Array

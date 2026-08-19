@@ -45,6 +45,32 @@ function getCanvasCrowdPauseLimit() {
     return 20;
 }
 
+const BATTLE_SKILL_EFFECT_CAP = 56;
+
+function getBattleVfxDensity() {
+    return clampNumber(Number(battleVisualState.vfxDensity) || 1, 0.42, 1);
+}
+
+function updateBattleVfxDensity(frameMs, enemyCount) {
+    let elapsed = clampNumber(Number(frameMs) || 16.7, 1, 50);
+    let previousEma = clampNumber(Number(battleVisualState.frameTimeEma) || 16.7, 1, 50);
+    let ema = previousEma * 0.92 + elapsed * 0.08;
+    let crowdTarget = enemyCount >= 8 ? 0.62 : (enemyCount >= 5 ? 0.78 : 1);
+    let frameTarget = ema >= 32 ? 0.42 : (ema >= 24 ? 0.56 : (ema >= 18 ? 0.74 : 1));
+    let target = Math.min(crowdTarget, frameTarget, elapsed >= 45 ? 0.48 : 1);
+    let current = getBattleVfxDensity();
+    battleVisualState.frameTimeEma = ema;
+    battleVisualState.vfxDensity = target < current
+        ? Math.max(target, current - 0.08)
+        : Math.min(target, current + 0.012);
+    return battleVisualState.vfxDensity;
+}
+
+function trimBattleSkillEffects(list) {
+    let cap = Math.max(24, Math.round(BATTLE_SKILL_EFFECT_CAP * getBattleVfxDensity()));
+    if (list.length > cap) list.splice(0, list.length - cap);
+}
+
 // Attack impact effects expand to a circular reach. Physical keeps its full
 // shockwave; every other element is capped to roughly the monster's footprint
 // so the rings/glow do not balloon past the target. When the enemy object is
@@ -78,6 +104,7 @@ function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
         opts.scale *= 0.72;
         opts.densityMul = (Number(opts.densityMul) || 1) * 0.5;
     }
+    opts.densityMul = (Number(opts.densityMul) || 1) * getBattleVfxDensity();
     return opts;
 }
 
@@ -310,6 +337,11 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
     if (!profile) return;
     let stageKind = String(fx.stageKind || 'primary');
     if (profile.impactVfx === false || stageKind.startsWith('meteor')) return;
+    let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
+    if (profile.aggregateImpact && fx.damageTextGroupId && list.some(effect => effect
+        && effect.vfxGroupId === fx.damageTextGroupId
+        && effect.skillName === fx.skillName
+        && effect.stageKind === stageKind)) return;
     let family = getSkillGemVfxStageFamily(profile, stageKind);
     if (profile.family === 'projectile' && stageKind !== 'chainJump' && hasMatchingTravelProjectile(fx.skillName, now)) return;
     if (family === 'breath' && (battleVisualState.skillEffects || []).some(effect => effect
@@ -339,9 +371,9 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
     let scale = Math.max(0.45, Number(profile.scale) || 1) * clampNumber(Number(viewportScale) || 1, 0.7, 1.16);
     if (target.enemy && target.enemy.isBoss) scale *= 1.08;
     let repeatCount = Math.max(1, Math.min(3, Math.floor(Number(profile.repeats) || 1)));
+    if (getBattleVfxDensity() < 0.84) repeatCount = 1;
     if (stageKind === 'chainJump' || stageKind === 'slamAftershock' || stageKind === 'slamPrimary' || family === 'whirlwind') repeatCount = 1;
     let seed = Math.max(1, Number(fx.id) || 1);
-    let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
     if (family === 'stormStrike' && reuseStormStrikeImpact(list, profile, fx, target, now)) return;
     for (let repeat = 0; repeat < repeatCount; repeat++) {
         let repeatOffset = repeat - (repeatCount - 1) / 2;
@@ -350,6 +382,7 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
         if (family === 'whirlwind') rotation = (Number(fx.stageIndex) || 0) * (Math.PI / 4) + seed * 0.031;
         list.push({
             skillName: fx.skillName,
+            vfxGroupId: fx.damageTextGroupId || '',
             element: normalizeSkillGemVfxElement(fx.element, profile.accent),
             family: family,
             stageKind: stageKind,
@@ -373,7 +406,7 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
                 : `cell:${Math.round(Number(target.x) || 0)}:${Math.round(Number(target.y) || 0)}`)
         });
     }
-    if (list.length > 96) list.splice(0, list.length - 96);
+    trimBattleSkillEffects(list);
 }
 
 function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyPosMap, viewportScale) {
@@ -387,12 +420,17 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
         return enemyId == null ? null : enemyPosMap[enemyId];
     }).filter(Boolean);
     let isPiercePath = skill.targetMode === 'pierce';
+    let density = getBattleVfxDensity();
     if (skill.targetMode === 'chain') targets = targets.slice(0, 1);
     else if (isPiercePath) {
         // 관통은 대상 수만큼 탄환을 복제하지 않는다. 한 발이 같은 직선의 마지막 적까지 통과한다.
         targets.sort((a, b) => Math.hypot(a.x - playerPos.x, a.y - playerPos.y) - Math.hypot(b.x - playerPos.x, b.y - playerPos.y));
         targets = targets.length > 0 ? [targets[targets.length - 1]] : [];
-    } else targets = targets.slice(0, skill.projectilePattern && skill.projectilePattern.kind === 'fan' ? 8 : 4);
+    } else {
+        let targetCap = skill.projectilePattern && skill.projectilePattern.kind === 'fan' ? 8 : 4;
+        targetCap = Math.max(2, Math.round(targetCap * density));
+        targets = targets.slice(0, targetCap);
+    }
     if (targets.length <= 0) return;
     let imageKey = SKILL_GEM_VFX_IMAGE_KEYS[profile.projectileAsset] || SKILL_GEM_VFX_IMAGE_KEYS.projectile;
     let imageProjectile = !profile.projectileStyle;
@@ -404,6 +442,7 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
     let releaseAt = Math.max(swingFx.start + 80, baseImpactAt - 82);
     let scale = Math.max(0.45, Number(profile.scale) || 1) * clampNumber(Number(viewportScale) || 1, 0.7, 1.16);
     let repeats = Math.max(1, Math.min(3, Math.floor(Number(profile.repeats) || 1)));
+    if (density < 0.84) repeats = 1;
     let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
     targets.forEach((target, targetIndex) => {
         for (let repeat = 0; repeat < repeats; repeat++) {
@@ -438,7 +477,7 @@ function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyP
             });
         }
     });
-    if (list.length > 96) list.splice(0, list.length - 96);
+    trimBattleSkillEffects(list);
 }
 
 function getCombatTravelScreenPos(gridProj, cell, fallback) {
@@ -1095,7 +1134,8 @@ function drawPlayerMobilityFx(ctx, fx, progress, gridProj) {
 
 function drawSkillGemVfxLayer(ctx, now) {
     let list = battleVisualState.skillEffects || [];
-    list.forEach(effect => {
+    let density = getBattleVfxDensity();
+    list.forEach((effect, effectIndex) => {
         let image = getSkillGemVfxImage(effect.imageKey);
         let elapsed = now - effect.startAt;
         if (elapsed < 0 || elapsed > effect.duration) return;
@@ -1141,7 +1181,9 @@ function drawSkillGemVfxLayer(ctx, now) {
                 ctx.drawImage(image, -width / 2, -height / 2, width, height);
             }
         }
-        if (effect.family !== 'breath') drawSkillGemSigil(ctx, effect.skillName, Math.min(effect.size, 104), t, effect.element);
+        if (effect.family !== 'breath' && (density >= 0.68 || effectIndex % 2 === 0)) {
+            drawSkillGemSigil(ctx, effect.skillName, Math.min(effect.size, 104), t, effect.element);
+        }
         ctx.restore();
     });
 }
@@ -1500,12 +1542,14 @@ function renderBattlefield(forceWhenHidden) {
     const deltaSec = deltaMs / 1000;
     battleVisualState.lastNow = now;
     cleanupBattleFx(now);
+    let activeEnemyCount = (game.enemies || []).reduce((count, enemy) => count + (enemy && enemy.hp > 0 ? 1 : 0), 0);
+    let vfxDensity = updateBattleVfxDensity(rawDeltaMs, activeEnemyCount);
     if (typeof attackFxUpdate === 'function') attackFxUpdate(deltaMs);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+    ctx.imageSmoothingQuality = vfxDensity < 0.7 ? 'medium' : 'high';
 
     const cameraShake = getBattleCameraShake(now);
     ctx.translate(cameraShake.x, cameraShake.y);

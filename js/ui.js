@@ -1286,19 +1286,163 @@ function setupBattlefieldShrineInteraction() {
     });
 }
 
+const MOBILE_PRIMARY_TAB_IDS = Object.freeze([
+    'btn-tab-battle', 'btn-tab-character', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map'
+]);
+let mobileNavigationKeyBound = false;
+
+function isMobilePrimaryNavigationEnabled() {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    if (document.body.classList.contains('desktop-windowed-ui')) return false;
+    return window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches
+        && !(game.settings && game.settings.twoRowTabs);
+}
+
+function setMobileTabDrawerOpen(open) {
+    let enabled = isMobilePrimaryNavigationEnabled();
+    let nextOpen = enabled && !!open;
+    let goalDrawer = document.getElementById('ui-goal-drawer');
+    if (nextOpen && goalDrawer && goalDrawer.classList.contains('expanded') && typeof toggleGoalDrawer === 'function') {
+        toggleGoalDrawer(false);
+    }
+    document.body.classList.toggle('mobile-tab-drawer-open', nextOpen);
+    let more = document.getElementById('btn-mobile-nav-more');
+    if (more) more.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+    let header = document.getElementById('tab-header-main');
+    if (header && enabled) header.setAttribute('aria-hidden', nextOpen ? 'false' : 'true');
+}
+
+function toggleMobileTabDrawer() {
+    setMobileTabDrawerOpen(!document.body.classList.contains('mobile-tab-drawer-open'));
+}
+
+function createMobileTabDrawerHead() {
+    let head = document.createElement('div');
+    head.className = 'mobile-tab-drawer-head';
+    let title = document.createElement('strong');
+    title.textContent = '전체 메뉴';
+    let actions = document.createElement('span');
+    actions.className = 'mobile-tab-drawer-actions';
+    let goal = document.createElement('button');
+    goal.id = 'btn-mobile-nav-goal';
+    goal.type = 'button';
+    goal.textContent = '목표';
+    goal.setAttribute('aria-controls', 'ui-goal-drawer');
+    let drawer = document.getElementById('ui-goal-drawer');
+    let goalTitle = document.getElementById('ui-goal-title');
+    let titleText = goalTitle ? goalTitle.textContent.trim() : '';
+    goal.hidden = !drawer || drawer.style.display === 'none' || !titleText;
+    goal.title = titleText ? `목표: ${titleText}` : '목표';
+    goal.classList.toggle('mandatory', !!(drawer && drawer.classList.contains('ui-goal-mandatory')));
+    goal.setAttribute('aria-expanded', drawer && drawer.classList.contains('expanded') ? 'true' : 'false');
+    goal.addEventListener('click', () => {
+        setMobileTabDrawerOpen(false);
+        if (typeof toggleGoalDrawer === 'function') toggleGoalDrawer(true);
+    });
+    let close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = '닫기';
+    close.setAttribute('aria-label', '전체 메뉴 닫기');
+    close.addEventListener('click', () => setMobileTabDrawerOpen(false));
+    actions.append(goal, close);
+    head.append(title, actions);
+    return head;
+}
+
+function createMobileMoreButton() {
+    let button = document.createElement('button');
+    button.id = 'btn-mobile-nav-more';
+    button.type = 'button';
+    button.className = 'mobile-nav-more';
+    button.setAttribute('aria-controls', 'tab-header-main');
+    button.setAttribute('aria-expanded', 'false');
+    button.setAttribute('aria-label', '전체 메뉴 열기');
+    button.innerHTML = '<span class="mobile-nav-more-icon" aria-hidden="true"></span><span>메뉴</span><span class="noti-dot"></span>';
+    button.addEventListener('click', toggleMobileTabDrawer);
+    return button;
+}
+
+function ensureMobilePrimaryNavigation(topHeader, bottomHeader) {
+    if (!topHeader || !bottomHeader) return null;
+    document.body.classList.add('mobile-primary-navigation', 'has-bottom-tabs');
+    topHeader.setAttribute('role', 'dialog');
+    topHeader.setAttribute('aria-modal', 'true');
+    topHeader.setAttribute('aria-label', '전체 메뉴');
+    topHeader.setAttribute('aria-hidden', 'true');
+    bottomHeader.setAttribute('role', 'navigation');
+    bottomHeader.setAttribute('aria-label', '핵심 메뉴');
+    let head = topHeader.querySelector(':scope > .mobile-tab-drawer-head');
+    if (!head) topHeader.prepend(createMobileTabDrawerHead());
+    let more = document.getElementById('btn-mobile-nav-more');
+    if (!more) more = createMobileMoreButton();
+    bottomHeader.appendChild(more);
+    let backdrop = document.getElementById('mobile-tab-drawer-backdrop');
+    if (!backdrop) {
+        backdrop = document.createElement('button');
+        backdrop.id = 'mobile-tab-drawer-backdrop';
+        backdrop.type = 'button';
+        backdrop.setAttribute('aria-label', '전체 메뉴 닫기');
+        backdrop.addEventListener('click', () => setMobileTabDrawerOpen(false));
+        document.body.appendChild(backdrop);
+    }
+    if (!mobileNavigationKeyBound) {
+        mobileNavigationKeyBound = true;
+        document.addEventListener('keydown', event => { if (event.key === 'Escape') setMobileTabDrawerOpen(false); });
+    }
+    return more;
+}
+
+function teardownMobilePrimaryNavigation(topHeader, bottomHeader) {
+    setMobileTabDrawerOpen(false);
+    document.body.classList.remove('mobile-primary-navigation', 'mobile-tab-drawer-open', 'has-bottom-tabs');
+    if (topHeader && bottomHeader) {
+        Array.from(bottomHeader.querySelectorAll(':scope > .tab-btn')).forEach(button => topHeader.appendChild(button));
+    }
+    if (topHeader) {
+        topHeader.removeAttribute('role');
+        topHeader.removeAttribute('aria-modal');
+        topHeader.removeAttribute('aria-label');
+        topHeader.removeAttribute('aria-hidden');
+        topHeader.querySelector(':scope > .mobile-tab-drawer-head')?.remove();
+    }
+    if (bottomHeader) {
+        bottomHeader.removeAttribute('role');
+        bottomHeader.removeAttribute('aria-label');
+        bottomHeader.style.removeProperty('display');
+    }
+    document.getElementById('btn-mobile-nav-more')?.remove();
+    document.getElementById('mobile-tab-drawer-backdrop')?.remove();
+    document.body.style.setProperty('--bottom-tab-height', '0px');
+}
+
+function syncMobilePrimaryNavigationState() {
+    let more = document.getElementById('btn-mobile-nav-more');
+    let topHeader = document.getElementById('tab-header-main');
+    if (!more || !topHeader) return;
+    let activeSecondary = !!lastActiveTabId && !MOBILE_PRIMARY_TAB_IDS.includes('btn-' + lastActiveTabId);
+    more.classList.toggle('active', activeSecondary);
+    let hasNotice = Array.from(topHeader.querySelectorAll('.tab-btn .noti-dot'))
+        .some(dot => dot.style.display !== 'none' && getComputedStyle(dot).display !== 'none');
+    let dot = more.querySelector('.noti-dot');
+    if (dot) dot.style.display = hasNotice ? 'block' : 'none';
+}
+
 function renderTabOrderSettings() {
     let tabOrderEl = document.getElementById('ui-tab-order-settings');
     if (!tabOrderEl) return;
     if (!(document.getElementById('tab-settings') || {}).classList.contains('active')) return;
     let tabs = Array.from(document.querySelectorAll('.tab-header .tab-btn'));
     let usesFlatDesktopRail = document.body.classList.contains('desktop-windowed-ui');
+    let usesMobilePrimaryNav = isMobilePrimaryNavigationEnabled();
     let groupRows = usesFlatDesktopRail ? '' : getOrderedTabGroups().map(group => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${group.label}</span><span style="display:flex;gap:4px;"><button onclick="moveTabGroup('${group.key}',-1)">▲</button><button onclick="moveTabGroup('${group.key}',1)">▼</button></span></div>`).join('');
     let tabRows = tabs.map(el => {
         let place = (game.settings.tabPlacement[el.id] === 'bottom') ? 'bottom' : 'top';
-        return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button><button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button></span></div>`;
+        let placement = usesMobilePrimaryNav ? '' : `<button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button>`;
+        return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button>${placement}</span></div>`;
     }).join('');
     let groupSection = usesFlatDesktopRail ? '' : `<div style="font-weight:800;color:#f1c40f;margin-bottom:2px;">상위 그룹 탭</div>${groupRows}`;
-    tabOrderEl.innerHTML = `${groupSection}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
+    let mobileNotice = usesMobilePrimaryNav ? '<div class="ui-inline-notice">모바일 핵심 메뉴 사용 중 · 탭 2줄을 켜면 직접 배치로 전환됩니다.</div>' : '';
+    tabOrderEl.innerHTML = `${mobileNotice}${groupSection}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
@@ -1550,6 +1694,7 @@ function clearTabHeaderDragState(saveOrder) {
 
 function onTabHeaderPointerDown(event) {
     if (document.body && document.body.classList.contains('desktop-windowed-ui')) return;
+    if (document.body && document.body.classList.contains('mobile-primary-navigation')) return;
     if (tabHeaderDragState) return;
     let button = getTabButtonFromTarget(event.target);
     if (!button || (event.pointerType === 'mouse' && event.button !== 0)) return;
@@ -1646,18 +1791,22 @@ function installTabHeaderDragReorder() {
 function applyTabHeaderOrder(shouldRenderSettings){
     game.settings=game.settings||{};
     game.settings.tabPlacement = game.settings.tabPlacement || {};
+    let headers = Array.from(document.querySelectorAll('.tab-header'));
+    let topHeader = headers.find(header => header.id !== 'tab-header-bottom');
+    let bottomHeader = document.getElementById('tab-header-bottom');
     // 데스크톱 창형 레일의 버튼 배치(고정 탭 + 더보기 메뉴)는 창 관리자가 소유한다.
     // 여기서 버튼을 다시 헤더 루트로 옮기면 더보기 메뉴가 비워져 레일이 깨진다.
     if (document.body.classList.contains('desktop-windowed-ui')) {
+        teardownMobilePrimaryNavigation(topHeader, bottomHeader);
         if (typeof syncDesktopRailGroups === 'function') syncDesktopRailGroups();
         if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
         return;
     }
-    installTabHeaderDragReorder();
-    let headers = Array.from(document.querySelectorAll('.tab-header'));
-    let topHeader = headers[0];
     if(!topHeader) return;
-    let bottomHeader = document.getElementById('tab-header-bottom');
+    let mobilePrimary = isMobilePrimaryNavigationEnabled();
+    if (!mobilePrimary) teardownMobilePrimaryNavigation(topHeader, bottomHeader);
+    else ensureMobilePrimaryNavigation(topHeader, bottomHeader);
+    if (!mobilePrimary) installTabHeaderDragReorder();
     if (game.settings.twoRowTabs && !game.settings.tabPlacementInitialized && window.matchMedia('(max-width: 1080px)').matches) {
         game.settings.tabPlacementInitialized = true;
         let autoIds = Array.from(topHeader.querySelectorAll('.tab-btn')).map(el => el.id);
@@ -1669,16 +1818,26 @@ function applyTabHeaderOrder(shouldRenderSettings){
     let map={}; allTabButtons.forEach(el=>map[el.id]=el);
     order.forEach(id=>{
         if(!map[id]) return;
-        let target = (game.settings.twoRowTabs && game.settings.tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader;
+        let target = mobilePrimary
+            ? (MOBILE_PRIMARY_TAB_IDS.includes(id) ? bottomHeader : topHeader)
+            : ((game.settings.twoRowTabs && game.settings.tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader);
         target.appendChild(map[id]);
     });
-    ids.forEach(id=>{ if(!order.includes(id) && map[id]) topHeader.appendChild(map[id]); });
+    ids.forEach(id=>{
+        if(order.includes(id) || !map[id]) return;
+        let target = mobilePrimary && MOBILE_PRIMARY_TAB_IDS.includes(id) ? bottomHeader : topHeader;
+        target.appendChild(map[id]);
+    });
+    if (mobilePrimary) MOBILE_PRIMARY_TAB_IDS.forEach(id => { if (map[id]) bottomHeader.appendChild(map[id]); });
     if (bottomHeader) {
+        let more = document.getElementById('btn-mobile-nav-more');
+        if (more) bottomHeader.appendChild(more);
         let hasBottomTabs = bottomHeader.children.length > 0;
         bottomHeader.style.display = hasBottomTabs ? 'flex' : 'none';
         document.body.classList.toggle('has-bottom-tabs', hasBottomTabs);
         updateBottomTabSpacing();
     }
+    syncMobilePrimaryNavigationState();
     if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
 }
 // Reserve scroll space at the bottom of the page so the fixed bottom tab bar
@@ -1728,6 +1887,7 @@ function getTabHeaderUiSignature() {
     let mobileBattle = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'mobileBattle' : 'desktopBattle';
     return [
         mobileBattle,
+        isMobilePrimaryNavigationEnabled() ? 'mobilePrimary' : 'legacyTabs',
         (game.settings && game.settings.tabNotiEnabled === false) ? 'notiOff' : 'notiOn',
         TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}:${noti[key] && filters[key] !== false ? 1 : 0}`).join('|'),
         Array.isArray(game.settings && game.settings.tabOrder) ? game.settings.tabOrder.join(',') : '',
@@ -1754,6 +1914,7 @@ function updateTabNotificationDots() {
     syncMergedTabLauncherState();
     let skillTabButton = document.getElementById('btn-tab-skills');
     if (skillTabButton) skillTabButton.classList.toggle('starter-gem-tutorial-pending', !!getStarterGemTutorialTarget());
+    syncMobilePrimaryNavigationState();
 }
 
 function updateTabUnlockButtons() {
@@ -2052,6 +2213,7 @@ function switchTab(tabId) {
         addLog(getLockedTabMessage(tabId), 'attack-monster');
         return;
     }
+    setMobileTabDrawerOpen(false);
     // 이미 활성인 탭을 다시 누르면 전체 UI 재구성(+ 캐릭터 탭의 패시브 트리 재드로우)을
     // 반복해 게임이 멈춘 것처럼 느껴진다. 같은 탭 재클릭은 무거운 재렌더를 생략한다.
     // (탭 내용 갱신은 게임 동작/주기 갱신이 별도로 처리한다.)
@@ -2067,13 +2229,15 @@ function switchTab(tabId) {
     // 창의 선택 패널이 사라져 빈 창만 남는다. 전역 전환은 최상위 탭과 메뉴 버튼만 해제한다.
     document.querySelectorAll('.tab-content:not(.merged-subtab-pane), .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
+    document.body.classList.toggle('mobile-community-sheet-open', tabId === 'tab-social' && window.matchMedia('(max-width: 1080px)').matches);
     // 열 수 있는 화면을 다시 세웠으므로 잠금 정리 후의 복귀 예약은 소진된다.
     pendingRelockedTabFallback = false;
     let activeBtn = document.getElementById('btn-' + tabId);
     activeBtn.classList.add('active');
     if (mergedEntry) renderMergedTabSubtabs(mergedEntry[0]);
     syncMergedTabLauncherState();
-    if (activeBtn && activeBtn.scrollIntoView && window.matchMedia('(max-width: 1080px)').matches) {
+    if (activeBtn && activeBtn.scrollIntoView && window.matchMedia('(max-width: 1080px)').matches
+        && !document.body.classList.contains('mobile-primary-navigation')) {
         try {
             activeBtn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
         } catch (error) {
@@ -2166,6 +2330,7 @@ function switchItemSubtab(subtabId) {
     document.querySelectorAll('#tab-items .subtab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(subtabId).classList.add('active');
     document.getElementById('btn-' + subtabId).classList.add('active');
+    if (subtabId === 'item-tab-hall' && typeof loadPlayerExchange === 'function') loadPlayerExchange();
 }
 
 
@@ -3492,8 +3657,6 @@ function renderOceanDepthMapPanel() {
     let strategyDrainMul = Math.max(0.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
     let drainPerSec = getOceanOxygenDrainPerSec();
     drainPerSec *= strategyDrainMul;
-    let perAttackCost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0;
-    perAttackCost *= strategyDrainMul;
     let secsLeft = drainPerSec > 0 ? Math.floor(st.oxygenCur / drainPerSec) : 0;
     let depthTier = getOceanDepthTier(st.depthM);
     let oceanZone = getZone(OCEAN_ZONE_ID);
@@ -3504,7 +3667,7 @@ function renderOceanDepthMapPanel() {
     panel.innerHTML = `<div class="sky-tower-head">
         <div>
             <div class="sky-tower-title">🌊 심해 잠수</div>
-            <div class="sky-tower-sub">산소 안에 다음 체크포인트를 확보하고 500m마다 심해 가디언을 돌파하세요. 수심이 깊어질수록 수압과 해류가 강해지며, 위험할 때 복귀하면 확보한 체크포인트부터 다시 시작합니다.</div>
+            <div class="sky-tower-sub">산소는 한 번의 잠수에서 도달할 수 있는 수심을 제한합니다. 산소 안에 다음 체크포인트를 확보하고 500m마다 심해 가디언을 돌파하세요. 수심이 깊어질수록 수압과 해류가 강해지며, 위험할 때 복귀하면 확보한 체크포인트부터 다시 시작합니다.</div>
         </div>
         ${st.diving ? `<button onclick="forceSurfaceOcean('manual'); changeZone(Math.max(0, game.maxZoneId || 0)); updateStaticUI();">수면으로 복귀</button>` : `<button onclick="enterOceanDive(); changeZone(OCEAN_ZONE_ID); updateStaticUI();">잠수 시작 (${st.checkpointM}m부터)</button>`}
     </div>
@@ -3513,7 +3676,7 @@ function renderOceanDepthMapPanel() {
         <span class="sky-tower-chip">체크포인트 <b>${st.checkpointM}m</b></span>
         <span class="sky-tower-chip">다음 가디언 <b>${nextGuardianM}m</b> · ${Math.max(0, nextGuardianM - Math.floor(st.depthM))}m 남음</span>
         <span class="sky-tower-chip">수압 단계 <b>${depthTier}</b></span>
-        <span class="sky-tower-chip" title="산소 최대치 ${st.oxygenMax}. 현재 시간 소모 ${drainPerSec.toFixed(2)}/초, 공격 1회마다 ${perAttackCost}씩 추가 소모됩니다. 잔여 약 ${secsLeft}초">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
+        <span class="sky-tower-chip" title="산소 최대치 ${st.oxygenMax}. 현재 소모 ${drainPerSec.toFixed(2)}/초 · 잔여 약 ${secsLeft}초. 공격 속도와 무관하게 실제 잠수 시간만큼 소모됩니다.">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
         ${currentChips}
     </div>
     <div style="margin-top:10px; display:grid; gap:8px;">
@@ -4430,6 +4593,31 @@ function rollTalismanStatLine(multiplier) {
     return { stat: option.stat, label: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)) };
 }
 
+const TALISMAN_NAME_STEMS = Object.freeze({
+    flatHp: '생명의', pctHp: '심장의', regen: '회복의', armor: '철벽의', armorPct: '강철의',
+    evasion: '그림자의', evasionPct: '잔상의', energyShield: '비전의', energyShieldPct: '수호의',
+    dr: '불굴의', resAll: '조화의', resF: '잿불의', resC: '서리의', resL: '뇌광의', resChaos: '심연의',
+    flatDmg: '격돌의', pctDmg: '격노의', physPctDmg: '쇄격의', firePctDmg: '화염의',
+    coldPctDmg: '빙결의', lightPctDmg: '천둥의', chaosPctDmg: '공허의', dotPctDmg: '침식의',
+    crit: '예리함의', critDmg: '처형의', aspd: '질풍의', move: '유랑의', resPen: '관통의',
+    projectilePctDmg: '궤적의', meleePctDmg: '결투의', summonPctDmg: '사역의', summonHpPct: '군세의'
+});
+const TALISMAN_SHAPE_NAMES = Object.freeze({ I: '장침', O: '고리', T: '갈림쇠', S: '굽이', Z: '번개매듭', J: '갈고리', L: '모서리' });
+
+function getGeneratedTalismanName(talisman) {
+    if (!talisman) return '이름 없는 부적';
+    if (talisman.name) return talisman.name;
+    let stem = TALISMAN_NAME_STEMS[talisman.stat]
+        || String(talisman.statName || '미지').replace(/\s*\(%\)\s*|\s*증가\s*|\s*피해\s*/g, '').trim() + '의';
+    let shape = TALISMAN_SHAPE_NAMES[talisman.shape] || '매듭';
+    return `${stem} ${shape}`;
+}
+
+function ensureTalismanName(talisman) {
+    if (talisman && !talisman.name) talisman.name = getGeneratedTalismanName(talisman);
+    return talisman;
+}
+
 const TALISMAN_UNIQUE_POOL = [
     { id:'ut_z_1', name:'굽이치는 전류', shape:'Z', stats:[{stat:'aspd',value:9,label:'공격 속도(%)'},{stat:'lightPctDmg',value:16,label:'번개 피해(%)'}] },
     { id:'ut_z_2', name:'균열의 발걸음', shape:'Z', stats:[{stat:'move',value:11,label:'이동 속도(%)'},{stat:'resPen',value:8,label:'저항 관통(%)'}] },
@@ -4492,7 +4680,7 @@ function rollTalismanCandidate(currencyKey) {
     let statLine = rollTalismanStatLine(multiplier);
     let option = TALISMAN_OPTION_POOL.find(row => row.stat === statLine.stat) || { min: statLine.value, max: statLine.value, step: 1 };
     let step = Number(option.step || 1);
-    return { id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: statLine.stat, statName: statLine.label, value: statLine.value, valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isRadiant ? '찬란한 기운' : (isStrong ? '강력한 기운' : '일반'), source: isRadiant ? 'radiantSealShard' : (isStrong ? 'strongSealShard' : 'sealShard') };
+    return ensureTalismanName({ id: Date.now() + Math.floor(Math.random() * 100000), shape: shapeKey, cells: TALISMAN_SHAPES[shapeKey].map(([x, y]) => ({ x: x, y: y })), stat: statLine.stat, statName: statLine.label, value: statLine.value, valueMin: Number(((option.min * multiplier)).toFixed(step < 1 ? 1 : 0)), valueMax: Number(((option.max * multiplier)).toFixed(step < 1 ? 1 : 0)), rarity: isRadiant ? '찬란한 기운' : (isStrong ? '강력한 기운' : '일반'), source: isRadiant ? 'radiantSealShard' : (isStrong ? 'strongSealShard' : 'sealShard') });
 }
 
 function startTalismanUnseal(currencyKey) {
@@ -5729,7 +5917,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
 
 let mobileToastQueue = [];
 let mobileToastActiveCount = 0;
-const MOBILE_TOAST_MAX_CONCURRENT = 3;
+const MOBILE_TOAST_MAX_CONCURRENT = 2;
 
 function shouldShowMobileToast(msg, cls, opts = {}) {
     if (opts && opts.noToast) return false;
@@ -5777,7 +5965,7 @@ function enqueueMobileToast(msg, cls) {
     pumpMobileToastQueue();
 }
 
-// 알림이 많이 밀려 있을수록: (1) 동시에 최대 3개까지 보여주고, (2) 쌓인 개수가 많을수록
+// 알림이 많이 밀려 있을수록: (1) 동시에 최대 2개까지만 보여 화면을 가리지 않고, (2) 쌓인 개수가 많을수록
 // 표시 시간을 점점 줄여 더 빨리 다음 알림이 나오게 한다(밀린 알림이 한 줄씩 느긋하게
 // 빠지는 대신, 밀린 만큼 더 빠르게 소화됨).
 function pumpMobileToastQueue() {
@@ -5927,6 +6115,16 @@ function addLog(msg, cls, opts = {}) {
 function applyThemeMode(mode) {
     let finalMode = mode === 'light' ? 'light' : 'dark';
     document.body.classList.toggle('light-mode', finalMode === 'light');
+}
+
+const UI_SKIN_IDS = Object.freeze(['reliquary', 'verdigris', 'crimson']);
+
+function normalizeUiSkin(skin) {
+    return UI_SKIN_IDS.includes(skin) ? skin : 'reliquary';
+}
+
+function applyUiSkin(skin) {
+    document.body.dataset.uiSkin = normalizeUiSkin(skin);
 }
 
 function getHeroSelectionDef(heroId) {
@@ -6326,6 +6524,8 @@ function updateSettings() {
     let cameraShakeCheckbox = document.getElementById('chk-camera-shake');
     game.settings.cameraShake = !cameraShakeCheckbox || cameraShakeCheckbox.checked;
     game.settings.showCombatLog = document.getElementById('chk-log-combat').checked;
+    let detailedDamageLogCheckbox = document.getElementById('chk-log-damage-detail');
+    game.settings.showDetailedDamageLog = !!(detailedDamageLogCheckbox && detailedDamageLogCheckbox.checked);
     game.settings.combatLogAggregate = document.getElementById('chk-log-aggregate').checked;
     game.settings.combatLogRateLimit = document.getElementById('chk-log-rate-limit').checked;
     game.settings.showSpawnLog = document.getElementById('chk-log-spawn').checked;
@@ -6383,7 +6583,10 @@ function updateSettings() {
     game.settings.townReturnAction = (document.getElementById('sel-town-return-action') || {}).value || 'retry';
     let themeSelect = document.getElementById('sel-theme-mode');
     game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
+    let skinSelect = document.getElementById('sel-ui-skin');
+    game.settings.uiSkin = normalizeUiSkin(skinSelect ? skinSelect.value : game.settings.uiSkin);
     applyThemeMode(game.settings.themeMode);
+    applyUiSkin(game.settings.uiSkin);
     toggleDeathNoticeSetting(game.settings.showDeathNotice);
     syncMapCompleteActionQuickControl();
     updateStaticUI();
@@ -6496,7 +6699,7 @@ function setTalismanHoverGroup(talismanId) {
 }
 function getTalismanDisplayName(talisman) {
     if (!talisman) return '부적';
-    return talisman.name || talisman.statName || '부적';
+    return getGeneratedTalismanName(talisman);
 }
 
 function getTalismanPrimaryStatLine(talisman, min, max) {
@@ -7261,7 +7464,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
             if (g !== 0) return g;
             return String(aKey || '').localeCompare(String(bKey || ''));
         });
-        html += `<div class="tooltip-line" style="margin-top:6px; color:#3498db; font-weight:800;">추가 옵션 (${explicitStats.length}/6)</div>`;
+        html += `<div class="tooltip-line" style="margin-top:6px; color:var(--ui-accent); font-weight:800;">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
@@ -8504,30 +8707,53 @@ function renderCombatFlaskHud() {
     let st = ensureFlaskState();
     let now = Date.now();
     let healDef = getFlaskHealDef(st.healTier);
-    let healEntry = { key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal' };
+    let healEntry = { key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal', category: 'heal' };
     let maxUtility = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
     let utilityEntries = [];
     for (let index = 0; index < maxUtility; index++) {
         let runtime = st.utils[index];
         let def = runtime && FLASK_UTILITY_POOL[runtime.key];
         utilityEntries.push(def
-            ? { key: def.key, name: def.name, charges: runtime.charges, maxCharges: def.maxCharges, active: runtime.until > now, type: 'utility' }
+            ? { key: def.key, name: def.name, charges: runtime.charges, maxCharges: def.maxCharges, active: runtime.until > now, type: 'utility', category: def.category || 'utility' }
             : null);
     }
-    let entries = [healEntry].concat(utilityEntries);
+    // HUD는 허용된 빈 슬롯이 아니라 실제 장착된 플라스크만 보여준다.
+    // 논리 슬롯 상한은 플라스크 화면에서 관리하고, 전투 HUD는 현재 장착 상태만 압축해 표현한다.
+    let entries = [healEntry].concat(utilityEntries.filter(Boolean));
+    let visibleSlotCount = String(entries.length);
+    host.dataset.visibleSlots = visibleSlotCount;
     let signature = `${maxUtility}|${entries.map(entry => entry ? `${entry.key}:${entry.charges}:${entry.active ? 1 : 0}` : '-').join('|')}`;
     if (host.dataset.signature === signature) return;
     host.dataset.signature = signature;
-    let socketEntries = [healEntry, utilityEntries[0] || null, utilityEntries[1] || null];
-    let buttons = socketEntries.map(entry => entry
-        ? `<button type="button" class="combat-flask-mini ${entry.type} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" aria-label="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" data-info-tooltip-anchor="1" onmouseenter="showPlayerFlaskTooltip(event,'${entry.type === 'heal' ? 'heal' : 'util'}','${entry.key}')" onmousemove="showPlayerFlaskTooltip(event,'${entry.type === 'heal' ? 'heal' : 'util'}','${entry.key}')" onmouseleave="hideInfoTooltip()" onclick="openTabPane('tab-flask')"><span>🧪</span><b>${entry.charges}</b></button>`
-        : '<span class="combat-flask-mini empty" aria-hidden="true"></span>');
-    let overflowEntries = utilityEntries.slice(2).filter(Boolean);
-    if (overflowEntries.length > 0) {
-        let overflowTitle = overflowEntries.map(entry => `${entry.name} · ${entry.charges}/${entry.maxCharges}회`).join(' / ');
-        buttons.push(`<button type="button" class="combat-flask-mini overflow" aria-label="${escapeHTML(overflowTitle)}" data-info-tooltip-anchor="1" onmouseenter="showCombatFlaskOverflowTooltip(event)" onmousemove="showCombatFlaskOverflowTooltip(event)" onmouseleave="hideInfoTooltip()" onclick="openTabPane('tab-flask')"><span>+${overflowEntries.length}</span></button>`);
-    }
+    let buttons = entries.map(entry => {
+        let categoryClass = `flask-${String(entry.category || 'utility').replace(/[^a-z0-9_-]/gi, '')}`;
+        return `<button type="button" class="combat-flask-mini ${entry.type} ${categoryClass} ${entry.active ? 'active' : ''} ${entry.maxCharges > 0 && entry.charges <= 0 ? 'empty-charge' : ''}" aria-label="${escapeHTML(entry.name)} · ${entry.charges}/${entry.maxCharges}회" data-info-tooltip-anchor="1" onmouseenter="showPlayerFlaskTooltip(event,'${entry.type === 'heal' ? 'heal' : 'util'}','${entry.key}')" onmousemove="showPlayerFlaskTooltip(event,'${entry.type === 'heal' ? 'heal' : 'util'}','${entry.key}')" onmouseleave="hideInfoTooltip()" onclick="openTabPane('tab-flask')"><span aria-hidden="true">🧪</span><b>${entry.charges}</b></button>`;
+    });
     host.innerHTML = buttons.join('');
+}
+
+function renderCombatSkillHud() {
+    let host = document.getElementById('ui-combat-skill-gems');
+    if (!host) return;
+    let summons = (Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : []).filter(name => {
+        let def = SKILL_DB[name];
+        return def && Array.isArray(def.tags) && def.tags.includes('summon_attack');
+    });
+    let names = [game.activeSkill || '기본 공격']
+        .concat(summons)
+        .filter((name, index, list) => name && list.indexOf(name) === index)
+        .slice(0, 4);
+    let signature = names.join('|');
+    if (host.dataset.signature === signature) return;
+    host.dataset.signature = signature;
+    host.innerHTML = names.map((name, index) => `<button type="button" class="player-hud-skill-slot ${index === 0 ? 'primary' : 'summon'}" data-gem-name="${escapeHTML(name)}" aria-label="${escapeHTML(name)} 젬">${renderSkillGemArt(name, 'combat-skill-gem-art', { eager: true })}</button>`).join('');
+    host.querySelectorAll('.player-hud-skill-slot').forEach(button => {
+        let name = button.dataset.gemName;
+        button.addEventListener('mouseenter', event => showGemTooltip(event, 'active', name));
+        button.addEventListener('mousemove', event => showGemTooltip(event, 'active', name));
+        button.addEventListener('mouseleave', hideInfoTooltip);
+        button.addEventListener('click', () => openTabPane('tab-skills'));
+    });
 }
 
 function setUiImageGaugePercent(element, percent) {
@@ -8535,6 +8761,9 @@ function setUiImageGaugePercent(element, percent) {
     let safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
     element.style.width = '100%';
     element.style.setProperty('--gauge-fill', `${safePercent}%`);
+    if (element.parentElement && element.parentElement.style) {
+        element.parentElement.style.setProperty('--gauge-fill', `${safePercent}%`);
+    }
 }
 
 const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
@@ -9222,6 +9451,7 @@ function updateCombatUI(pStats) {
     setUiImageGaugePercent(hpBar, hpPct);
     hpBar.classList.toggle('player-danger', hpPct > 0 && hpPct <= 25);
     renderCombatFlaskHud();
+    renderCombatSkillHud();
     let hpWrap = hpBar.parentElement;
     let hpGhostBar = document.getElementById('ui-hp-damage-ghost-bar');
     if (!hpGhostBar && hpWrap) {
@@ -9862,8 +10092,8 @@ function renderEquipmentLoadoutSummary(pStats) {
         let averageTier = typeof getAverageExplicitAffixTier === 'function' ? getAverageExplicitAffixTier(equipped) : 0;
         let ehpCards = getPlayerEhpCardsHtml(pStats, 'equipment-summary-stat');
         host.innerHTML = `${ehpCards}
-            <div class="equipment-summary-stat"><span>추가옵션 평균 티어</span><strong>${averageTier > 0 ? `T${averageTier.toFixed(1)}` : '—'}</strong></div>
-            <div class="equipment-summary-stat"><span>평균 품질</span><strong>${averageQuality > 0 ? `${averageQuality}%` : '—'}</strong></div>`;
+            <div class="equipment-summary-stat" title="장착 장비의 추가옵션 평균 티어"><span>옵션 티어</span><strong>${averageTier > 0 ? `T${averageTier.toFixed(1)}` : '—'}</strong></div>
+            <div class="equipment-summary-stat" title="품질이 있는 장착 장비의 평균 품질"><span>품질</span><strong>${averageQuality > 0 ? `${averageQuality}%` : '—'}</strong></div>`;
     }
     let capacityFill = document.getElementById('ui-inventory-capacity-fill');
     if (capacityFill) {
@@ -10792,29 +11022,25 @@ function openFlaskPickerOverlay(kind, slotIndex) {
 
     let overlay = document.createElement('div');
     overlay.id = 'flask-picker-overlay';
-    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(5,8,14,0.74); display:flex; align-items:center; justify-content:center; z-index:9999; padding:16px;';
+    overlay.className = 'selection-overlay';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     let panel = document.createElement('div');
-    panel.style.cssText = 'width:min(560px, 94vw); max-height:86vh; overflow-y:auto; border:1px solid #405a8f; border-radius:12px; background:linear-gradient(160deg, #182544, #0f1629); padding:14px; box-shadow:0 12px 28px rgba(0,0,0,0.45);';
+    panel.className = 'selection-overlay-panel flask-picker-panel';
 
     let title = kind === 'heal' ? '🧪 회복 플라스크 선택' : `🧪 유틸리티 플라스크 선택 (슬롯 ${idx + 1})`;
     let header = document.createElement('div');
-    header.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;';
-    header.innerHTML = `<div style="font-size:17px; font-weight:700; color:#ffffff;">${title}</div><button type="button" id="flask-picker-close" style="background:#22365e; color:#ffffff; border:1px solid #4669a9; border-radius:8px; padding:4px 9px; cursor:pointer;">닫기</button>`;
+    header.className = 'selection-overlay-header';
+    header.innerHTML = `<div class="selection-overlay-title">${title}</div><button type="button" id="flask-picker-close">닫기</button>`;
     panel.appendChild(header);
-    panel.insertAdjacentHTML('beforeend', `<div style="color:var(--copy-bright); font-size:12.5px; margin-bottom:10px;">발견한 플라스크만 선택할 수 있습니다. 잠긴 카드는 전투 중 처치로 발견해야 합니다.</div>`);
+    panel.insertAdjacentHTML('beforeend', '<div class="selection-overlay-help">발견한 플라스크만 선택할 수 있습니다. 잠긴 카드는 전투 중 처치로 발견해야 합니다.</div>');
 
     function makeOptionButton(opts) {
         let btn = document.createElement('button');
         btn.type = 'button';
         btn.disabled = opts.locked;
-        let borderColor = opts.selected ? '#89a7ff' : '#3f547f';
-        let bgColor = opts.selected ? '#304f91' : '#1d2e4f';
-        let textColor = opts.locked ? '#5d6d86' : (opts.selected ? '#ffffff' : '#d6e3ff');
-        btn.style.cssText = `text-align:left; padding:10px; border-radius:9px; border:1px solid ${borderColor}; background:${opts.locked ? '#141d2c' : bgColor}; color:${textColor}; cursor:${opts.locked ? 'not-allowed' : 'pointer'}; font-weight:700;`;
-        let subColor = opts.locked ? '#5d6d86' : '#b7c6df';
-        btn.innerHTML = `${opts.name}${opts.selected ? ' ✓' : ''}<br><span style="font-weight:400; font-size:0.78em; color:${subColor};">${opts.desc}${opts.lockLabel ? ` · ${opts.lockLabel}` : ''}</span>${opts.compare ? `<br><span style="font-weight:700;font-size:0.75em;color:#f2d88f;">${opts.compare}</span>` : ''}`;
+        btn.className = `selection-overlay-option${opts.selected ? ' selected' : ''}${opts.locked ? ' locked' : ''}`;
+        btn.innerHTML = `${opts.name}${opts.selected ? ' ✓' : ''}<br><span>${opts.desc}${opts.lockLabel ? ` · ${opts.lockLabel}` : ''}</span>${opts.compare ? `<br><span class="selection-overlay-compare">${opts.compare}</span>` : ''}`;
         if (!opts.locked) btn.onclick = () => { opts.onSelect(); overlay.remove(); };
         return btn;
     }
@@ -10822,7 +11048,7 @@ function openFlaskPickerOverlay(kind, slotIndex) {
     let body = document.createElement('div');
     if (kind === 'heal') {
         let grid = document.createElement('div');
-        grid.style.cssText = 'display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px;';
+        grid.className = 'selection-overlay-grid';
         FLASK_HEAL_TIERS.forEach(t => {
             let levelLocked = lvl < t.reqLevel;
             let undiscovered = !levelLocked && !found.includes(t.key);
@@ -10839,9 +11065,9 @@ function openFlaskPickerOverlay(kind, slotIndex) {
         body.appendChild(grid);
     } else {
         FLASK_UTILITY_CATEGORIES.forEach(cat => {
-            body.insertAdjacentHTML('beforeend', `<div style="color:var(--copy-bright); font-size:0.86em; font-weight:700; margin:10px 0 6px;">${cat.label}</div>`);
+            body.insertAdjacentHTML('beforeend', `<div class="selection-overlay-section-title">${cat.label}</div>`);
             let grid = document.createElement('div');
-            grid.style.cssText = 'display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:8px;';
+            grid.className = 'selection-overlay-grid';
             FLASK_UTILITY_TIER_REQ_LEVELS.forEach((reqLevel, tierIdx) => {
                 let key = `${cat.category}${tierIdx + 1}`;
                 let def = FLASK_UTILITY_POOL[key];
@@ -10908,7 +11134,7 @@ function renderTimeRiftPanel() {
                 <div class="map-item-actions"><span class="map-zone-status">${altarFull ? '융합 준비 완료' : '제단 2자리 필요'}</span></div>
             </div>
         </div>
-        <div style="background:#0f1420; border:1px solid #35507a; border-radius:8px; padding:8px;">
+        <div class="time-rift-altar" style="padding:8px;">
             <div style="margin-bottom:4px;">제단 · 고유: ${altarLine(rift.altarUnique)}</div>
             <div style="margin-bottom:6px;">제단 · 희귀: ${altarLine(rift.altarRare)}</div>
             <div style="color:var(--copy-bright); font-size:0.8em; margin-bottom:6px;">${selectedLine}</div>
@@ -10997,21 +11223,21 @@ function openSporeModeOverlay(currencyKey) {
 
     let overlay = document.createElement('div');
     overlay.id = 'spore-mode-overlay';
-    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(5,8,14,0.74); display:flex; align-items:center; justify-content:center; z-index:9999;';
+    overlay.className = 'selection-overlay';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
     let panel = document.createElement('div');
-    panel.style.cssText = 'width:min(560px, 92vw); border:1px solid #405a8f; border-radius:12px; background:linear-gradient(160deg, #182544, #0f1629); padding:14px; box-shadow:0 12px 28px rgba(0,0,0,0.45);';
-    panel.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><div style="font-size:17px; font-weight:700; color:#ffffff;">홀씨 모드 선택</div><button id="spore-overlay-close" style="background:#22365e; color:#ffffff; border:1px solid #4669a9; border-radius:8px; padding:4px 9px; cursor:pointer;">닫기</button></div><div style="color:#ffffff; font-size:13px; margin-bottom:10px;">오브 사용 시 적용할 홀씨 태그를 고르세요. 단일 속성은 ${sporeCost}개, 카오스/피해는 세 속성 홀씨를 각각 ${sporeCost}개 사용합니다.${mycoLv >= 10 ? '' : ' 카오스/피해 태그는 균사학자 Lv.10에 해금됩니다.'}</div><div style="color:#b7d9b7;font-size:12px;margin-bottom:10px;">보유: 화염 ${game.currencies.sporeFire || 0} · 냉기 ${game.currencies.sporeCold || 0} · 번개 ${game.currencies.sporeLight || 0}</div>`;
+    panel.className = 'selection-overlay-panel spore-picker-panel';
+    panel.innerHTML = `<div class="selection-overlay-header"><div class="selection-overlay-title">홀씨 모드 선택</div><button id="spore-overlay-close">닫기</button></div><div class="selection-overlay-help">오브 사용 시 적용할 홀씨 태그를 고르세요. 단일 속성은 ${sporeCost}개, 카오스/피해는 세 속성 홀씨를 각각 ${sporeCost}개 사용합니다.${mycoLv >= 10 ? '' : ' 카오스/피해 태그는 균사학자 Lv.10에 해금됩니다.'}</div><div class="selection-overlay-help spore-balance">보유: 화염 ${game.currencies.sporeFire || 0} · 냉기 ${game.currencies.sporeCold || 0} · 번개 ${game.currencies.sporeLight || 0}</div>`;
 
     let buttons = document.createElement('div');
-    buttons.style.cssText = 'display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px;';
+    buttons.className = 'selection-overlay-grid spore-mode-grid';
     modeOptions.forEach(opt => {
         let btn = document.createElement('button');
         let selected = cur === opt.id;
         btn.type = 'button';
         btn.textContent = opt.label + (selected ? ' ✓' : '');
-        btn.style.cssText = `padding:10px 8px; border-radius:9px; border:1px solid ${selected ? '#89a7ff' : '#3f547f'}; background:${selected ? '#304f91' : '#1d2e4f'}; color:${selected ? '#ffffff' : '#d6e3ff'}; cursor:pointer; font-weight:700;`;
+        btn.className = `selection-overlay-option${selected ? ' selected' : ''}`;
         btn.onclick = () => {
             game.sporeCraftModes[currencyKey] = opt.id;
             updateStaticUI();
@@ -11306,7 +11532,6 @@ function exposeUiRenderHelpersOnce() {
         equipUnderworldRuneToSlot,
         unequipUnderworldRuneSlot,
         showUnderworldRuneTooltip,
-        handleCombatLoopAdvanceButton,
         showCombatLogItemTooltip,
         openCombatLogItemEquipment,
         hideCombatLogItemTooltip,
@@ -11337,66 +11562,6 @@ function exposeUiRenderHelpersOnce() {
 }
 exposeUiRenderHelpersOnce();
 
-
-function canShowCombatLoopAdvanceButton() {
-    if (game && (game.pendingLoopReady || game.pendingLoopDecision)) return true;
-    if (!game || (game.season || 1) < 10) return false;
-    return typeof hasCurrentLoopAbyssRequirementClear === 'function'
-        ? hasCurrentLoopAbyssRequirementClear(game.season || 1)
-        : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);
-}
-
-function updateLoopDecisionOverlayUi() {
-    let season = game ? (game.season || 1) : 1;
-    let chaosReady = typeof hasCurrentLoopChaosRequirementClear === 'function'
-        ? hasCurrentLoopChaosRequirementClear(season)
-        : (typeof hasCurrentLoopAbyssRequirementClear === 'function' && hasCurrentLoopAbyssRequirementClear(season));
-    let cosmosReady = typeof hasCurrentLoopCosmosRequirementClear === 'function'
-        ? hasCurrentLoopCosmosRequirementClear(season)
-        : false;
-    let showPathChoices = season >= 31 && cosmosReady;
-    let body = document.getElementById('loop-decision-body');
-    if (body) body.innerText = showPathChoices
-        ? '다음 루프로 사용할 경로를 선택하거나, 이번 루프를 유지하고 심화 등반을 계속하세요.'
-        : '다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.';
-    let genericBtn = document.getElementById('loop-decision-generic-btn');
-    let chaosBtn = document.getElementById('loop-decision-chaos-btn');
-    let cosmosBtn = document.getElementById('loop-decision-cosmos-btn');
-    if (genericBtn) genericBtn.style.display = showPathChoices ? 'none' : '';
-    if (chaosBtn) {
-        chaosBtn.style.display = showPathChoices ? '' : 'none';
-        chaosBtn.disabled = !chaosReady;
-    }
-    if (cosmosBtn) {
-        cosmosBtn.style.display = showPathChoices ? '' : 'none';
-        cosmosBtn.disabled = !cosmosReady;
-    }
-}
-
-function handleCombatLoopAdvanceButton() {
-    if (game && game.pendingLoopReady && typeof confirmLoopReady === 'function') {
-        confirmLoopReady();
-        return;
-    }
-    if (game && game.pendingLoopDecision && typeof chooseLoopAdvance === 'function') {
-        chooseLoopAdvance(true);
-        return;
-    }
-    if (canShowCombatLoopAdvanceButton() && typeof triggerSeasonReset === 'function') {
-        let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
-        if (available.length > 1) {
-            game.pendingLoopDecision = true;
-            let overlay = document.getElementById('loop-decision-overlay');
-            if (overlay) overlay.classList.toggle('active', true);
-            updateLoopDecisionOverlayUi();
-            if (typeof addLog === 'function') addLog('진행할 루프 경로를 선택하세요.', 'season-up');
-            return;
-        }
-        triggerSeasonReset();
-        return;
-    }
-    if (typeof addLog === 'function') addLog('아직 루프 진행 조건을 달성하지 못했습니다.', 'attack-monster');
-}
 
 function buildCraftActionButtons(item) {
     let v = getCraftActionValidators(item);
@@ -11496,11 +11661,18 @@ function buildCraftActionButtons(item) {
     if ((game.currencies.fossil || 0) > 0) fossilButtons.push(`<button onclick="applyFossilCraft()">기본 화석 정제 (${game.currencies.fossil || 0})</button>`);
     if ((game.currencies.fossilPrimal || 0) > 0) fossilButtons.push(`<button onclick="restorePrimalFossil('normal')" ${mycologistLv < 4 ? 'disabled' : ''}>원시 화석 복원 (${game.currencies.fossilPrimal || 0})${mycologistLv < 4 ? ' · 균사학자 Lv.4 필요' : ''}</button>`);
     if ((game.currencies.fossilAncientPrimal || 0) > 0) fossilButtons.push(`<button onclick="restorePrimalFossil('ancient')" ${mycologistLv < 5 ? 'disabled' : ''}>원시 고대 화석 복원 (${game.currencies.fossilAncientPrimal || 0})${mycologistLv < 5 ? ' · 균사학자 Lv.5 필요' : ''}</button>`);
+    ['fossil', ...FOSSIL_DB.map(fossil => fossil.key)].forEach(fossilKey => {
+        let surplusCost = typeof getFossilSurplusRefiningCost === 'function' ? getFossilSurplusRefiningCost(fossilKey) : null;
+        let owned = Math.max(0, Math.floor(game.currencies[fossilKey] || 0));
+        if (!surplusCost || owned <= 0) return;
+        let sourceName = fossilKey === 'fossil' ? '미궁 화석' : ((FOSSIL_DB.find(row => row.key === fossilKey) || {}).name || fossilKey);
+        fossilButtons.push(`<button onclick="refineFossilSurplus('${fossilKey}')" ${mycologistLv < 4 || owned < surplusCost ? 'disabled' : ''}>${sourceName} 잉여 정제 (${owned}/${surplusCost})</button>`);
+    });
     FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).forEach(fossil => {
         fossilButtons.push(`<button onclick="applyFossilChaosCraft('${fossil.key}')" ${!selectedItem ? 'disabled' : ''}>${fossil.name} 사용 (${game.currencies[fossil.key] || 0})</button>`);
     });
     document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:var(--copy-muted);">보유한 화석이 없습니다.</div>`;
-    document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:var(--copy-muted);">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:var(--copy-bright);">기본 화석 정제는 항상 가능하며, 균사학자 Lv.4부터 원시 화석(복원 전용), Lv.5부터 원시 고대 화석(태고 화석 추가/고급 재화 확률 증가)이 미궁에서 드랍됩니다. 화석 전용 옵션은 Lv.6부터 제작이 아니라 장비 드랍 시 일정 확률로 붙습니다.</div>`;
+    document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:var(--copy-muted);">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:var(--copy-bright);">기본 화석 정제는 항상 가능하며, 균사학자 Lv.4부터 남는 화석 여러 개를 원시 화석 1개로 압축할 수 있습니다. 원시 화석은 복원 전용이며, Lv.5부터 원시 고대 화석이 드랍됩니다. 화석 전용 옵션은 Lv.6부터 제작이 아니라 장비 드랍 시 일정 확률로 붙습니다.</div>`;
 
     let hiddenCurrencyKeys = new Set(['timeRemnant', 'chaosKey', 'coreKey', 'bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'rivalKey', 'cosmosSovereignKey', 'bossCore', 'skyEssence', 'gemShard', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos', 'reefFragment', 'oceanRerollShard']);
     hiddenCurrencyKeys.add('condensedSkyPower');
@@ -13601,7 +13773,7 @@ function mergeDefaults(save) {
     });
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
-    merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
+    merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-hall', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
     merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-research','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
     merged.skillAutoRules = Array.isArray(merged.skillAutoRules) ? merged.skillAutoRules : [];
     merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
@@ -13649,10 +13821,13 @@ function mergeDefaults(save) {
     }
     merged.talismanUnlockPickMode = !!merged.talismanUnlockPickMode;
     merged.talismanSubtab = merged.talismanSubtab === 'talisman-sub-colony-ward' ? 'talisman-sub-colony-ward' : 'talisman-sub-board';
-    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.shape && (t.stat || (Array.isArray(t.stats) && t.stats.length > 0) || t.special || t.isUnique)).map(t => ({ ...t, locked: !!t.locked, waxedByBeeswax: !!t.waxedByBeeswax })) : [];
+    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.shape && (t.stat || (Array.isArray(t.stats) && t.stats.length > 0) || t.special || t.isUnique)).map(t => ensureTalismanName({ ...t, locked: !!t.locked, waxedByBeeswax: !!t.waxedByBeeswax })) : [];
     merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
     while (merged.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) merged.talismanBoard.push(null);
     merged.talismanPlacements = (merged.talismanPlacements && typeof merged.talismanPlacements === 'object') ? merged.talismanPlacements : {};
+    Object.values(merged.talismanPlacements).forEach(entry => {
+        if (entry && entry.talisman) ensureTalismanName(entry.talisman);
+    });
     merged.talismanSelectedId = Number.isFinite(merged.talismanSelectedId) ? merged.talismanSelectedId : null;
     merged.talismanUnseal = (merged.talismanUnseal && merged.talismanUnseal.current) ? merged.talismanUnseal : null;
     if (merged.talismanUnlocked) merged.unlocks.talisman = true;
@@ -13722,6 +13897,7 @@ function mergeDefaults(save) {
     merged.passiveStarEvolution = !!merged.passiveStarEvolution;
     merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
     merged.settings.themeMode = merged.settings.themeMode === 'light' ? 'light' : 'dark';
+    merged.settings.uiSkin = normalizeUiSkin(merged.settings.uiSkin);
     merged.settings.twoRowTabs = !!merged.settings.twoRowTabs;
     merged.settings.leftPaneCollapsed = !!merged.settings.leftPaneCollapsed;
     merged.settings.combatLogCollapsed = !!merged.settings.combatLogCollapsed;
@@ -13798,6 +13974,7 @@ function mergeDefaults(save) {
     merged.inventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.inventoryExpandLevel, defaultGame.inventoryExpandLevel, 0)));
     merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
     merged.growthInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.growthInventoryExpandLevel, defaultGame.growthInventoryExpandLevel, 0)));
+    merged.growthEssenceExpandLevel = Math.max(0, Math.min(12, Math.floor(clampFiniteNumber(merged.growthEssenceExpandLevel, 0, 0, 12))));
     merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
     merged.settings.passiveTreeShowLabels = merged.settings.passiveTreeShowLabels !== false;
     if (typeof normalizePassiveTreePlannerState === 'function') {
@@ -15953,6 +16130,8 @@ function init() {
     let cameraShakeCheckboxInit = document.getElementById('chk-camera-shake');
     if (cameraShakeCheckboxInit) cameraShakeCheckboxInit.checked = game.settings.cameraShake !== false;
     document.getElementById('chk-log-combat').checked = game.settings.showCombatLog !== false;
+    let detailedDamageLogCheckboxInit = document.getElementById('chk-log-damage-detail');
+    if (detailedDamageLogCheckboxInit) detailedDamageLogCheckboxInit.checked = game.settings.showDetailedDamageLog === true;
     document.getElementById('chk-log-aggregate').checked = game.settings.combatLogAggregate !== false;
     document.getElementById('chk-log-rate-limit').checked = game.settings.combatLogRateLimit !== false;
     document.getElementById('chk-log-spawn').checked = game.settings.showSpawnLog !== false;
@@ -15991,7 +16170,9 @@ function init() {
     document.getElementById('sel-loop-map-complete-action').value = getMapCompleteActionOption(game.settings.postLoopMapCompleteAction).value;
     document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
     document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
+    document.getElementById('sel-ui-skin').value = normalizeUiSkin(game.settings.uiSkin);
     applyThemeMode(game.settings.themeMode);
+    applyUiSkin(game.settings.uiSkin);
     syncMapCompleteActionQuickControl();
     ensureInitialHeroSelection();
     renderHeroSelectionControls();
@@ -16449,8 +16630,7 @@ function checkUnlocks() {
     // 도감이 잠겨 있을 때만 인벤토리 전체를 훑는다. (이미 해금된 뒤에도 매 드랍마다
     // O(인벤토리) 스캔을 돌면 대량 처치/드랍 시 스파이크가 생긴다.)
     if (!u.codex) {
-        let growthUniqueSeen = (game.recentGrowthDrops || []).some(item => item && item.rarity === 'unique')
-            || (game.growthInventory || []).some(item => item && item.rarity === 'unique');
+        let growthUniqueSeen = (game.growthInventory || []).some(item => item && item.rarity === 'unique');
         if (isCodexTabUnlockReady() || growthUniqueSeen) {
             u.codex = true;
             game.noti.codex = true;

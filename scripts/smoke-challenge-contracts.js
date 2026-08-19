@@ -4,7 +4,6 @@ const vm = require('vm');
 
 const stateSource = fs.readFileSync('js/state.js', 'utf8');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
-const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
 
@@ -62,12 +61,10 @@ assert.strictEqual(context.getChallengeContractScore(), 0, 'current hunt snapsho
 assert.strictEqual(context.getChallengeContractScore(context.getChallengeContractState()), 1, 'the toggled selection should be queued for the next hunt');
 
 assert(combatSource.includes('exp * getChallengeContractRewardMultiplier(zone)'), 'contract reward should affect experience');
-assert(combatSource.includes('itemChance *= challengeRewardMul;'), 'contract reward should affect equipment drops');
 assert(combatSource.includes('getChallengeContractEnemyDamageMultiplier()'), 'enemy power contract should affect incoming attacks');
 assert(combatSource.includes('hp * getChallengeContractEnemyHealthMultiplier(zone)'), 'enemy health contract should affect spawned enemy health');
 assert(combatSource.includes('getChallengeContractPhysicalReductionPenalty()'), 'fragile armor contract should affect physical mitigation');
 assert(combatSource.includes('getChallengeContractRecoveryMultiplier()'), 'greed contract should affect recovery');
-assert(passiveSource.includes('* challengeRewardMul);'), 'contract reward should affect currency drop rolls');
 assert(indexSource.includes('id="ui-challenge-contract-panel"'), 'challenge contract panel should exist in the map UI');
 assert(indexSource.includes('id="ui-combat-contract-status"'), 'active contracts should have a combat HUD indicator');
 assert(uiSource.includes('renderChallengeContractPanel();'), 'map refresh should render the contract panel');

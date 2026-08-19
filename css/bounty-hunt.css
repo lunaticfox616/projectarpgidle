@@ -31,6 +31,10 @@
     box-sizing: border-box;
 }
 
+.bounty-hud-active {
+    justify-content: center;
+}
+
 .bounty-hud-progress span,
 .bounty-hud-active span,
 .bounty-hud-offer span { color: #c7b88e; font-size: .76rem; white-space: nowrap; }

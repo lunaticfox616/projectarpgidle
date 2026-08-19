@@ -1,4 +1,4 @@
-// 생장판 도메인: 형태 기하(회전/정규화), 보드 상태, 배치 검증/적용, 칸 해금, 세팅(로드아웃), 최근 획득함.
+// 생장판 도메인: 형태 기하(회전/정규화), 보드 상태, 배치 검증/적용, 칸 해금, 세팅(로드아웃), 보관함.
 // UI에 의존하지 않는다. 데이터(data/growth-items.js)·상태(game)·유틸리티만 사용한다.
 
 /** @param {Array<[number,number]>} cells @param {number} rotation 0|1|2|3 (90도 단위) */
@@ -79,6 +79,15 @@ function ensureGrowthBoardState() {
     board.activeLoadout = Math.max(0, Math.min(2, Math.floor(Number(board.activeLoadout) || 0)));
     if (!Array.isArray(game.recentGrowthDrops)) game.recentGrowthDrops = [];
     if (!Array.isArray(game.growthInventory)) game.growthInventory = [];
+    // 이전 저장본의 최근 획득함은 한 번만 직접 보관함으로 이관한다. 새 시스템은
+    // 별도 대기함을 만들지 않으며 이후 이 배열은 호환용 빈 필드로만 남는다.
+    if (game.recentGrowthDrops.length > 0) {
+        let legacyDrops = game.recentGrowthDrops.splice(0);
+        legacyDrops.forEach(item => storeGrowthItemDirectly(item, {
+            silent: true,
+            guaranteedKeep: !!(item && (item.locked || item.rarity === 'unique'))
+        }));
+    }
     return board;
 }
 
@@ -144,11 +153,9 @@ function findGrowthItemById(itemId) {
     return (game.growthInventory || []).find(item => item && item.id === itemId && isGrowthItem(item)) || null;
 }
 
-/** 제작 선택 등에서 쓰는 조회: 보관함과 최근 획득함을 모두 본다. */
+/** 제작 선택 등에서 쓰는 조회: 생장 보관함을 조회한다. */
 function findAnyGrowthItemById(itemId) {
-    return findGrowthItemById(itemId)
-        || (game.recentGrowthDrops || []).find(item => item && item.id === itemId && isGrowthItem(item))
-        || null;
+    return findGrowthItemById(itemId);
 }
 
 /** 활성 세팅의 배치 목록: [{ item, placement:{x,y,rotation}, cells:[[x,y]...] }] (유효한 것만) */
@@ -405,19 +412,25 @@ function renameGrowthLoadout(idx, name) {
     return true;
 }
 
-function getGrowthSalvageEssenceYield(item) {
+const GROWTH_NORMAL_ESSENCE_CHANCE = 0.6;
+
+function getGrowthSalvageEssenceYield(item, randomSource) {
     if (!isGrowthItem(item)) return 0;
-    let rarityYield = { normal: 1, magic: 2, rare: 4, unique: 10 };
+    let random = typeof randomSource === 'function' ? randomSource : Math.random;
+    let roll = Math.max(0, Math.min(0.999999, Number(random()) || 0));
+    if (item.rarity === 'normal' && roll >= GROWTH_NORMAL_ESSENCE_CHANCE) return 0;
+    let rarityYield = { normal: 1, magic: roll < 0.8 ? 1 : 2, rare: 1 + Math.floor(roll * 3), unique: 3 + Math.floor(roll * 5) };
     let footprint = Math.max(1, getGrowthItemCells(item, 0).length);
-    let slabBonus = isGrowthSlab(item) ? 2 + Math.floor(Math.max(1, Number(item.itemTier) || 1) / 5) : 0;
-    return Math.max(1, (rarityYield[item.rarity] || 1) + footprint - 1 + slabBonus);
+    let footprintBonus = Math.floor(Math.max(0, footprint - 1) / 2);
+    let slabBonus = isGrowthSlab(item) ? 1 + Math.floor(Math.max(1, Number(item.itemTier) || 1) / 10) : 0;
+    return Math.max(1, (rarityYield[item.rarity] || 1) + footprintBonus + slabBonus);
 }
 
 /** 기존 해체 보상과 생장 정수를 한 트랜잭션으로 지급한다. */
 function salvageGrowthItemObject(item, silent, options) {
     if (!item) return {};
     let rewards = salvageItemObject(item, true, options) || {};
-    let essence = getGrowthSalvageEssenceYield(item);
+    let essence = getGrowthSalvageEssenceYield(item, options && options.essenceRandom);
     if (essence > 0) {
         game.currencies = game.currencies || {};
         game.currencies.growthEssence = (game.currencies.growthEssence || 0) + essence;
@@ -429,65 +442,6 @@ function salvageGrowthItemObject(item, silent, options) {
         addLog(`🧪 [${item.name}] 해체 · ${summary}`, 'loot-normal');
     }
     return rewards;
-}
-
-// ── 최근 획득함 ──────────────────────────────────────────────────────────
-const RECENT_GROWTH_DROPS_CAP = 24;
-
-// 최근 획득함이 넘칠 때 무엇부터 녹일지 정하는 등급.
-// 2 = 자동 해체 금지(잠금·고유). 방치 중에 사라지면 안 되는 것들.
-// 1 = 최근함과 보관함이 둘 다 가득 찼을 때만 양보(희귀·처음 보는 베이스).
-// 0 = 가장 먼저 녹인다(이미 가진 베이스의 일반/매직).
-const GROWTH_KEEP_NONE = 0;
-const GROWTH_KEEP_SOFT = 1;
-const GROWTH_KEEP_HARD = 2;
-
-function getRecentGrowthDropKeepTier(item) {
-    if (!item) return GROWTH_KEEP_NONE;
-    if (item.locked || item.rarity === 'unique') return GROWTH_KEEP_HARD;
-    // 희귀는 생장판에서 가장 좋은 비고유 등급이다. 예전에는 이미 가진 베이스라는
-    // 이유만으로 방치 중에 조용히 녹아, 자고 일어나면 쓸 만한 것이 남지 않았다.
-    if (item.rarity === 'rare') return GROWTH_KEEP_SOFT;
-    // 새로운 베이스: 보관함/배치/최근함 어디에도 같은 베이스가 없으면 보호.
-    let baseId = item.growthBaseId;
-    if (!baseId) return GROWTH_KEEP_NONE;
-    let ownedSame = (game.growthInventory || []).some(row => row && row.growthBaseId === baseId)
-        || (game.recentGrowthDrops || []).some(row => row && row !== item && row.growthBaseId === baseId);
-    return ownedSame ? GROWTH_KEEP_NONE : GROWTH_KEEP_SOFT;
-}
-
-function isProtectedRecentGrowthDrop(item) {
-    return getRecentGrowthDropKeepTier(item) > GROWTH_KEEP_NONE;
-}
-
-// 지정한 등급의 가장 오래된 아이템 하나를 녹인다. 녹였으면 true.
-function meltOldestRecentGrowthDrop(tier) {
-    let idx = game.recentGrowthDrops.findIndex(row => getRecentGrowthDropKeepTier(row) === tier);
-    if (idx < 0) return false;
-    let victim = game.recentGrowthDrops.splice(idx, 1)[0];
-    salvageGrowthItemObject(victim, true, { noDivine: true });
-    if (game.settings.showLootLog) addLog(`🧪 최근 획득함 초과 자동해체: [${victim.name}]`, 'loot-normal');
-    return true;
-}
-
-/**
- * 최근 획득함을 상한까지 줄인다.
- * 예전에는 보호 대상만 남으면 보관함 상한을 무시하고 밀어 넣어, 방치하면 보관함이
- * 40칸 제한을 넘어 수백 개까지 불어났다(상한·확장 아이템이 무의미해진다).
- * 이제는 보관함이 가득 차면 약한 보호부터 양보하고, 잠금·고유만 남으면 새 드랍을 받지 않는다.
- * @returns {boolean} 상한 안으로 줄였으면 true, 더 비울 곳이 없으면 false
- */
-function trimRecentGrowthDrops() {
-    while (game.recentGrowthDrops.length > RECENT_GROWTH_DROPS_CAP) {
-        if (meltOldestRecentGrowthDrop(GROWTH_KEEP_NONE)) continue;
-        if (game.growthInventory.length < getGrowthInventoryLimit()) {
-            game.growthInventory.push(game.recentGrowthDrops.shift());
-            continue;
-        }
-        if (meltOldestRecentGrowthDrop(GROWTH_KEEP_SOFT)) continue;
-        return false;
-    }
-    return true;
 }
 
 let _growthFullLogAt = 0;
@@ -508,10 +462,32 @@ function logGrowthStorageFull() {
     let now = Date.now();
     if (now - _growthFullLogAt < GROWTH_FULL_LOG_INTERVAL_MS) return;
     _growthFullLogAt = now;
-    addLog(`🌱 최근 획득함과 생장 보관함이 잠금/고유 아이템으로 가득 차 새 생장 아이템을 받지 못했습니다. (보관함 ${game.growthInventory.length}/${getGrowthInventoryLimit()})`, 'attack-monster');
+    addLog(`🌱 생장 보관함이 가득 찼습니다. 새 드랍은 품질 비교 없이 자동 해체됩니다. (${game.growthInventory.length}/${getGrowthInventoryLimit()})`, 'attack-monster');
 }
 
-// 전투/백그라운드 드랍 진입점. 가득 차도 전투를 멈추지 않는다(오래된 비보호 아이템 자동 해체).
+/** 보관함 직접 습득. 가득 차면 새 드랍을 비교·교체하지 않고 그대로 해체한다. */
+function storeGrowthItemDirectly(item, options) {
+    if (!item) return false;
+    let limit = getGrowthInventoryLimit();
+    if (game.growthInventory.length < limit) {
+        game.growthInventory.push(item);
+        return true;
+    }
+    if (options && options.guaranteedKeep) {
+        // 명시적인 보상·반환 아이템은 유실시키지 않는다. 일반 전투 드랍만 아래에서 해체한다.
+        game.growthInventory.push(item);
+        logGrowthStorageFull();
+        return true;
+    }
+    salvageGrowthItemObject(item, true, { noDivine: true });
+    if (!(options && options.silent) && game.settings.showLootLog) {
+        addLog(`🧪 생장 보관함 초과 자동해체: [${item.name}]`, 'loot-normal');
+    }
+    logGrowthStorageFull();
+    return false;
+}
+
+// 전투/백그라운드 드랍 진입점. 가득 차도 전투를 멈추지 않고 새 드랍을 자동 해체한다.
 function addDroppedGrowthItem(item, options) {
     if (!item) return false;
     if (!isGrowthBoardUnlocked()) return false;
@@ -534,57 +510,9 @@ function addDroppedGrowthItem(item, options) {
     }
     ensureGrowthBoardState();
     if (item.rarity === 'unique' && typeof registerUniqueToCodexOnAcquire === 'function') registerUniqueToCodexOnAcquire(item);
-    // 자동 이송을 켜면 최근 획득함을 거치지 않고 바로 보관함으로 간다.
-    // 최근 획득함은 "쓸모없는 것을 걸러내는 대기실"이라 기본은 꺼 두되,
-    // 매 전투마다 [전부 보관함으로]를 누르는 반복이 싫은 사람에게 선택지를 준다.
-    if (game.settings.growthAutoClaim && game.growthInventory.length < getGrowthInventoryLimit()) {
-        game.growthInventory.push(item);
-        if (game.noti) game.noti.items = true;
-        return true;
-    }
-    game.recentGrowthDrops.push(item);
-    if (!trimRecentGrowthDrops()) {
-        let idx = game.recentGrowthDrops.indexOf(item);
-        if (idx >= 0) game.recentGrowthDrops.splice(idx, 1);
-        logGrowthStorageFull();
-        return false;
-    }
-    if (game.noti) game.noti.items = true;
-    return true;
-}
-
-// 최근 획득함 → 보관함 이동.
-function claimRecentGrowthDrop(itemId) {
-    ensureGrowthBoardState();
-    let idx = game.recentGrowthDrops.findIndex(row => row && row.id === itemId);
-    if (idx < 0) return false;
-    if (game.growthInventory.length >= getGrowthInventoryLimit()) { addLog('생장 보관함이 가득 찼습니다.', 'attack-monster'); return false; }
-    game.growthInventory.push(game.recentGrowthDrops.splice(idx, 1)[0]);
-    updateStaticUI();
-    return true;
-}
-
-function claimAllRecentGrowthDrops() {
-    ensureGrowthBoardState();
-    let moved = 0;
-    while (game.recentGrowthDrops.length > 0 && game.growthInventory.length < getGrowthInventoryLimit()) {
-        game.growthInventory.push(game.recentGrowthDrops.shift());
-        moved++;
-    }
-    let left = game.recentGrowthDrops.length;
-    // 보관함이 꽉 차 일부만 옮겨진 경우를 분명히 알린다. 예전에는 "가득 찼습니다" 한 줄뿐이라
-    // 최근 획득함에 남은 것이 계속 자동 해체로 사라져도 이유를 알기 어려웠다.
-    if (moved > 0 && left > 0) {
-        addLog(`🌱 ${moved}개를 옮겼지만 생장 보관함이 가득 차 ${left}개가 남았습니다. 보관함을 정리하세요. (남은 아이템은 새 드랍에 밀려 자동 해체됩니다)`, 'attack-monster');
-    } else if (moved > 0) {
-        addLog(`🌱 최근 획득함에서 ${moved}개를 생장 보관함으로 옮겼습니다.`, 'loot-normal');
-    } else if (left > 0) {
-        addLog(`🌱 생장 보관함이 가득 찼습니다 (${game.growthInventory.length}/${getGrowthInventoryLimit()}). 해체하거나 배치해 자리를 비우세요.`, 'attack-monster');
-    } else {
-        addLog('옮길 아이템이 없습니다.', 'attack-monster');
-    }
-    updateStaticUI();
-    return moved;
+    let stored = storeGrowthItemDirectly(item, options);
+    if (stored && game.noti) game.noti.items = true;
+    return stored;
 }
 
 /**
@@ -787,18 +715,6 @@ function unplaceAllGrowthItems() {
     return count;
 }
 
-function salvageRecentGrowthDrop(itemId) {
-    ensureGrowthBoardState();
-    let idx = game.recentGrowthDrops.findIndex(row => row && row.id === itemId);
-    if (idx < 0) return false;
-    let item = game.recentGrowthDrops[idx];
-    if (item.locked) { addLog('잠금된 아이템은 해체할 수 없습니다.', 'attack-monster'); return false; }
-    game.recentGrowthDrops.splice(idx, 1);
-    salvageGrowthItemObject(item, false);
-    updateStaticUI();
-    return true;
-}
-
 safeExposeGlobals({
     rotateGrowthCells, normalizeGrowthCells, getGrowthShapeDef, getGrowthBaseDef, isGrowthItem, isGrowthSlab,
     getGrowthItemCells,
@@ -808,8 +724,7 @@ safeExposeGlobals({
     removeGrowthPlacement, rotatePlacedGrowthItem, validateGrowthPlacements, validateGrowthLoadoutPlacements,
     switchGrowthLoadout, renameGrowthLoadout, purgeGrowthItemFromAllLoadouts, isGrowthItemPlacedAnywhere,
     resetGrowthBoardForLoop,
-    addDroppedGrowthItem, claimRecentGrowthDrop, claimAllRecentGrowthDrops, salvageRecentGrowthDrop,
-    isProtectedRecentGrowthDrop, getRecentGrowthDropKeepTier, trimRecentGrowthDrops,
+    addDroppedGrowthItem, storeGrowthItemDirectly,
     isGrowthBoardUnlocked, getGrowthInventoryLimit, findAnyGrowthItemById,
     salvageGrowthInventoryItem, bulkSalvageGrowthInventory, tryAutoPlaceGrowthItem,
     autoFillGrowthBoard, unplaceAllGrowthItems, isGrowthItemPlacedInLoadout, tryPlaceSlabAtBestCell,

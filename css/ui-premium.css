@@ -5,9 +5,9 @@
 
 /* ── GLOBAL BUTTON ──────────────────────────────────────────── */
 body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option) {
-  background: linear-gradient(180deg, #1e2d3f 0%, #16222f 100%);
-  border: 1px solid #2e4459;
-  color: #ffffff;
+  background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel) 100%);
+  border: 1px solid var(--skin-line);
+  color: var(--ui-text);
   border-radius: 6px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -18,8 +18,8 @@ body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-bt
   overflow: hidden;
 }
 body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):hover:not(:disabled) {
-  background: linear-gradient(180deg, #26394f 0%, #1c2e41 100%);
-  border-color: #4a6a8a;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--skin-control), var(--skin-accent) 8%) 0%, var(--skin-panel-raised) 100%);
+  border-color: var(--skin-line-strong);
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
 }
@@ -28,9 +28,9 @@ body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-bt
   box-shadow: 0 0 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.25);
 }
 body:not(.light-mode) button:disabled:not(.gem-engrave-option) {
-  background: #0e1520 !important;
-  border-color: #1c2a38 !important;
-  color: #3a4f63 !important;
+  background: color-mix(in srgb, var(--skin-canvas), #000 18%) !important;
+  border-color: color-mix(in srgb, var(--skin-line), #000 24%) !important;
+  color: var(--ui-text-3) !important;
   box-shadow: none !important;
 }
 
@@ -58,8 +58,8 @@ body:not(.light-mode) button[onclick*="salvage"]:not(.subtab-btn):hover:not(:dis
 
 /* ── HP BARS ────────────────────────────────────────────────── */
 body:not(.light-mode) .hp-bar-bg {
-  background: #080e16;
-  border: 1px solid #1a2a3a;
+  background: var(--skin-canvas);
+  border: 1px solid var(--skin-line);
   border-radius: 6px;
   height: 18px;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.03);
@@ -109,8 +109,8 @@ body:not(.light-mode) .hp-text {
 
 /* ── ENEMY CARD ─────────────────────────────────────────────── */
 body:not(.light-mode) .enemy-card {
-  background: linear-gradient(180deg, #131825 0%, #0d1018 100%);
-  border: 1px solid #252f42;
+  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 10px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.35);
   transition: border-color .15s ease, box-shadow .15s ease;
@@ -128,16 +128,16 @@ body:not(.light-mode) .enemy-name {
 
 /* ── COMBAT FEED ────────────────────────────────────────────── */
 body:not(.light-mode) .combat-feed {
-  background: linear-gradient(180deg, #0d1420 0%, #090e17 100%);
-  border: 1px solid #1e2f42;
+  background: linear-gradient(180deg, var(--skin-panel) 0%, var(--skin-canvas) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 12px;
   box-shadow: inset 0 0 24px rgba(0,0,0,0.35), 0 4px 14px rgba(0,0,0,0.3);
 }
 body:not(.light-mode) .combat-feed-title {
-  color: #6ab4f5;
+  color: var(--skin-accent);
   font-size: 0.8em;
   letter-spacing: 0.07em;
-  border-bottom: 1px solid rgba(100,150,200,0.15);
+  border-bottom: 1px solid color-mix(in srgb, var(--skin-line), transparent 28%);
   padding-bottom: 6px;
   margin-bottom: 8px;
 }
@@ -149,22 +149,22 @@ body:not(.light-mode) #log {
 
 /* ── PLAYER PANEL ───────────────────────────────────────────── */
 body:not(.light-mode) .player-panel {
-  background: linear-gradient(180deg, #0f1823 0%, #0a1118 100%);
-  border: 1px solid #1e2e42;
+  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(180,220,255,0.04);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
 /* ── STAT GRID ──────────────────────────────────────────────── */
 body:not(.light-mode) .stat-grid {
-  background: linear-gradient(180deg, #0d1520 0%, #0a111a 100%);
-  border: 1px solid #1e2f42;
+  background: linear-gradient(180deg, var(--skin-panel) 0%, var(--skin-canvas) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 10px;
   padding: 12px 14px;
-  box-shadow: inset 0 1px 0 rgba(180,220,255,0.03);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
 }
 body:not(.light-mode) .stat-item {
-  border-bottom: 1px solid rgba(50,80,110,0.3);
+  border-bottom: 1px solid color-mix(in srgb, var(--skin-line), transparent 30%);
   padding: 5px 0;
 }
 body:not(.light-mode) .stat-label { color: #eef2f6; }
@@ -173,16 +173,16 @@ body:not(.light-mode) .stat-unit  { color: #eef2f6; }
 
 /* ── EQUIPMENT SLOTS (paperdoll) ────────────────────────────── */
 body:not(.light-mode) .slot-box {
-  background: linear-gradient(180deg, #0f1b28 0%, #0a1320 100%);
-  border: 1px solid #223244;
+  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 8px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 6px rgba(0,0,0,0.35);
   transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
 body:not(.light-mode) .slot-box:hover {
-  background: linear-gradient(180deg, #162638 0%, #101e2d 100%);
-  border-color: #3a5878;
-  box-shadow: 0 0 0 1px rgba(100,160,220,0.15), 0 4px 12px rgba(0,0,0,0.3);
+  background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel-raised) 100%);
+  border-color: var(--skin-line-strong);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--skin-accent), transparent 82%), 0 4px 12px rgba(0,0,0,0.3);
 }
 body:not(.light-mode) .slot-box.selected {
   border-color: #c09030;
@@ -193,31 +193,31 @@ body:not(.light-mode) .slot-box.selected {
 body:not(.light-mode) #item-tab-equip .paperdoll {
   padding: 10px;
   border-radius: 12px;
-  background: linear-gradient(180deg, #0a111a 0%, #080e16 100%);
-  border: 1px solid #1f3247;
+  background: linear-gradient(180deg, var(--skin-panel) 0%, var(--skin-canvas) 100%);
+  border: 1px solid var(--skin-line);
 }
 body:not(.light-mode) #item-tab-equip .slot-box {
-  background: linear-gradient(180deg, #16263a 0%, #0f1a2a 100%);
-  border-color: #3d5876;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px rgba(110,156,210,0.12), 0 3px 10px rgba(0,0,0,0.35);
+  background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel) 100%);
+  border-color: var(--skin-line);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 1px color-mix(in srgb, var(--skin-accent), transparent 88%), 0 3px 10px rgba(0,0,0,0.35);
 }
 body:not(.light-mode) #item-tab-equip .slot-box:hover {
-  background: linear-gradient(180deg, #1b3048 0%, #14233a 100%);
-  border-color: #5e84af;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--skin-control), var(--skin-accent) 8%) 0%, var(--skin-panel-raised) 100%);
+  border-color: var(--skin-line-strong);
 }
 
 /* ── ITEM CARD ──────────────────────────────────────────────── */
 body:not(.light-mode) .item-card {
-  background: linear-gradient(180deg, #111b28 0%, #0d1520 100%);
-  border: 1px solid #223040;
+  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 10px;
   box-shadow: 0 3px 10px rgba(0,0,0,0.3);
   transition: border-color .14s ease, box-shadow .14s ease, background .14s ease;
 }
 body:not(.light-mode) .item-card:hover {
-  background: linear-gradient(180deg, #162438 0%, #111e2e 100%);
-  border-color: #3a5878;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.35), 0 0 0 1px rgba(80,140,200,0.1);
+  background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel-raised) 100%);
+  border-color: var(--skin-line-strong);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35), 0 0 0 1px color-mix(in srgb, var(--skin-accent), transparent 90%);
 }
 body:not(.light-mode) .item-card.selected {
   border-color: #c09030;
@@ -226,37 +226,37 @@ body:not(.light-mode) .item-card.selected {
 
 /* ── FORGE / CRAFT PANEL ────────────────────────────────────── */
 body:not(.light-mode) .forge-panel {
-  background: linear-gradient(180deg, #0f1a26 0%, #0a1220 100%);
-  border: 1px solid #2a3f58;
+  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(180,220,255,0.03);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.03);
 }
 body:not(.light-mode) .craft-selected {
-  background: linear-gradient(180deg, #0d1824 0%, #09121c 100%);
-  border: 1px solid #243648;
+  background: linear-gradient(180deg, var(--skin-panel) 0%, var(--skin-canvas) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 10px;
   box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
 }
 body:not(.light-mode) .craft-orb-card {
-  background: linear-gradient(180deg, #13202e 0%, #0e1824 100%) !important;
-  border: 1px solid #2a3f58 !important;
+  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%) !important;
+  border: 1px solid var(--skin-line) !important;
   border-radius: 8px;
   transition: border-color .14s ease, box-shadow .14s ease, background .14s ease;
 }
 body:not(.light-mode) .craft-orb-card:hover:not(.disabled) {
-  background: linear-gradient(180deg, #1a2e42 0%, #12233a 100%) !important;
-  border-color: #4a6a8a !important;
-  box-shadow: 0 0 0 1px rgba(100,160,220,0.12), 0 4px 12px rgba(0,0,0,0.3) !important;
+  background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel-raised) 100%) !important;
+  border-color: var(--skin-line-strong) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--skin-accent), transparent 86%), 0 4px 12px rgba(0,0,0,0.3) !important;
 }
 body:not(.light-mode) .craft-orb-name { color: #ffffff; }
-body:not(.light-mode) .craft-orb-count { color: #7fc0ff !important; }
+body:not(.light-mode) .craft-orb-count { color: var(--skin-accent) !important; }
 
 /* ── BATTLEFIELD ────────────────────────────────────────────── */
 body:not(.light-mode) .battlefield-wrap {
-  background: linear-gradient(180deg, #0e1c2e 0%, #081018 60%, #0a1118 100%);
-  border: 1px solid #1e3048;
+  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-canvas) 60%, var(--skin-panel) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 14px;
-  box-shadow: inset 0 0 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(100,160,220,0.06);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
 }
 
 
@@ -273,8 +273,8 @@ body:not(.light-mode) .battlefield-wrap {
 
 /* ── 그룹 카드 ── */
 .cfg-group {
-  background: linear-gradient(180deg, #0f1b28 0%, #0a1320 100%);
-  border: 1px solid #1e3044;
+  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;
@@ -362,9 +362,9 @@ body:not(.light-mode) .battlefield-wrap {
   max-width: 100%;
 }
 .cfg-select {
-  background: #0b1421;
-  color: #ffffff;
-  border: 1px solid #2a3f58;
+  background: var(--skin-canvas);
+  color: var(--ui-text);
+  border: 1px solid var(--skin-line);
   border-radius: 6px;
   padding: 5px 8px;
   font-size: 0.84em;
@@ -373,7 +373,7 @@ body:not(.light-mode) .battlefield-wrap {
   transition: border-color .12s ease;
 }
 .cfg-select:hover, .cfg-select:focus {
-  border-color: #4a6a8a;
+  border-color: var(--skin-line-strong);
   outline: none;
 }
 
@@ -387,13 +387,13 @@ body:not(.light-mode) .battlefield-wrap {
   border-radius: 7px;
 }
 .cfg-sublabel {
-  color: #eef2f6;
+  color: var(--ui-text-2);
   font-size: 0.84em;
 }
 .cfg-number {
-  background: #0b1421;
-  color: #ffffff;
-  border: 1px solid #2a3f58;
+  background: var(--skin-canvas);
+  color: var(--ui-text);
+  border: 1px solid var(--skin-line);
   border-radius: 6px;
   padding: 4px 8px;
   width: 66px;
@@ -403,7 +403,7 @@ body:not(.light-mode) .battlefield-wrap {
   transition: border-color .12s ease;
 }
 .cfg-number:hover, .cfg-number:focus {
-  border-color: #4a6a8a;
+  border-color: var(--skin-line-strong);
   outline: none;
 }
 
@@ -425,24 +425,24 @@ body:not(.light-mode) .battlefield-wrap {
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  border: 1px solid #2a3f58;
+  border: 1px solid var(--skin-line);
   border-radius: 999px;
-  background: #0f1a28;
-  color: #eef2f6;
+  background: var(--skin-panel);
+  color: var(--ui-text-2);
   font-size: 0.82em;
   cursor: pointer;
   transition: border-color .12s, background .12s, color .12s;
   user-select: none;
 }
-.cfg-grade-chip:hover { border-color: #4a6a8a; color: #ffffff; }
-.cfg-grade-chip input { accent-color: #7fc0ff; width: 13px; height: 13px; }
+.cfg-grade-chip:hover { border-color: var(--skin-line-strong); color: #ffffff; }
+.cfg-grade-chip input { accent-color: var(--skin-accent); width: 13px; height: 13px; }
 .cfg-grade-rare  { border-color: #6a5520; color: #c8a040; }
 .cfg-grade-unique { border-color: #7a4a18; color: #e0843a; }
 
 /* ── 히어로 재능 요약 ── */
 .cfg-hero-talent {
   font-size: 0.82em;
-  color: #7ab0cf;
+  color: var(--ui-text-2);
   padding: 4px 10px 2px;
   line-height: 1.55;
 }
@@ -472,12 +472,12 @@ body:not(.light-mode) .battlefield-wrap {
   font-weight: 700;
 }
 .cfg-btn--neutral {
-  background: linear-gradient(180deg, #1e2d3f 0%, #14202e 100%);
-  border-color: #2e4459;
-  color: #eef2f6;
+  background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel) 100%);
+  border-color: var(--skin-line);
+  color: var(--ui-text-2);
 }
 .cfg-btn--neutral:hover {
-  border-color: #4a6a8a;
+  border-color: var(--skin-line-strong);
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
@@ -506,20 +506,20 @@ body:not(.light-mode) .battlefield-wrap {
 body:not(.light-mode) .cloud-panel {
   margin-top: 14px;
   max-width: 900px;
-  background: linear-gradient(180deg, #0d1824 0%, #09121e 100%);
-  border: 1px solid #1e3044;
+  background: linear-gradient(180deg, var(--skin-panel-raised) 0%, var(--skin-panel) 100%);
+  border: 1px solid var(--skin-line);
   border-radius: 12px;
 }
-body:not(.light-mode) .cloud-title { color: #7fc9ff; }
-body:not(.light-mode) .cloud-subtitle { color: #eef2f6; }
+body:not(.light-mode) .cloud-title { color: var(--skin-accent); }
+body:not(.light-mode) .cloud-subtitle { color: var(--ui-text-2); }
 body:not(.light-mode) .cloud-meta {
-  background: #080f18;
-  border-color: #1a2e42;
+  background: var(--skin-canvas);
+  border-color: var(--skin-line);
   border-radius: 8px;
-  color: #eef2f6;
+  color: var(--ui-text-2);
 }
 body:not(.light-mode) .cloud-meta strong { color: #ffffff; }
-body:not(.light-mode) .cloud-note { color: #eef2f6; }
+body:not(.light-mode) .cloud-note { color: var(--ui-text-2); }
 
 /* ── 라이트모드 기본 호환 ── */
 body.light-mode .cfg-group {

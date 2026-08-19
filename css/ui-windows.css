@@ -96,7 +96,7 @@
   body.desktop-windowed-ui .combat-zone-actions { display: flex; justify-content: flex-end; gap: 6px; pointer-events: auto; }
   body.desktop-windowed-ui .combat-zone-actions .combat-action-btn { min-height: 26px; padding: 4px 9px; font-size: 11px; }
   body.desktop-windowed-ui .map-progress-row { display: grid; grid-template-columns: auto minmax(150px, 1fr); align-items: center; gap: 8px; pointer-events: none; }
-  body.desktop-windowed-ui .map-progress-row #ui-progress-label { font-size: 11px !important; color: #82c7ff !important; white-space: nowrap; }
+  body.desktop-windowed-ui .map-progress-row #ui-progress-label { font-size: 11px !important; color: var(--ui-accent, #d7b36f) !important; white-space: nowrap; }
   body.desktop-windowed-ui .map-progress-row .hp-bar-bg { height: 6px !important; margin: 0; }
   body.desktop-windowed-ui .map-progress-row .hp-text { font-size: 0; }
 
@@ -243,7 +243,6 @@
   body.desktop-windowed-ui .ui-community-dock .social-toolbar button { font-size: 0.78em; padding: 5px 8px; }
   body.desktop-windowed-ui .ui-community-dock .social-chat-wrap { flex: 1 1 auto; min-height: 0; }
   body.desktop-windowed-ui .ui-community-dock .social-chat-list { flex: 1 1 auto; height: auto; min-height: 0; }
-  body.desktop-windowed-ui .ui-community-resize { position: absolute; left: -5px; top: 0; bottom: 0; width: 8px; cursor: ew-resize; z-index: 2; }
   body.desktop-windowed-ui.community-overlay-open::after { content: ''; position: fixed; inset: 0; z-index: 1240; background: rgba(0, 0, 0, 0.28); pointer-events: auto; }
   body.desktop-windowed-ui #tab-social.ui-community-overlay { display: flex; flex-direction: column; position: fixed; top: 0; right: 0; bottom: 0; z-index: 1300; padding: 0; border-left: 1px solid rgba(90, 120, 156, 0.68); border-radius: 0; background: linear-gradient(178deg, rgba(14, 21, 33, 0.99), rgba(9, 14, 22, 0.99)); pointer-events: auto; overflow: hidden; }
 

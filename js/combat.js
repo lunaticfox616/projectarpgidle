@@ -694,7 +694,7 @@ function rollGrowthItemDrop(enemy, growthDropChance) {
     addBattleFx('lootPickup', { enemyId: enemy.id, color: growthDropColor, duration: item.growthChase ? 1200 : 780 });
     if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: growthDropColor, duration: item.growthChase ? 2200 : 1200 });
     let chaseLabel = item.growthChase ? ' <span style="color:#d7a7ff;font-weight:900;">✦ 체이싱</span>' : '';
-    addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${chaseLabel}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득! (최근 획득함)`);
+    addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${chaseLabel}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
 }
 
 
@@ -6323,6 +6323,60 @@ function createEnemy(zone, marker, groupIndex) {
     return enemy;
 }
 
+const getChaosRealmEncounterProfile = function (zone) {
+    let floor = Math.max(1, Math.floor(zone.floor || 1));
+    return {
+        markerCount: Math.min(16, 4 + Math.floor(floor / 8)),
+        minPack: 2,
+        maxPack: Math.min(8, 3 + Math.floor(floor / 6)),
+        eliteChance: 0.35,
+        bossAdds: Math.min(6, 2 + Math.floor(floor / 12)),
+        label: `혼돈계 ${floor}층`
+    };
+};
+
+const getUnderworldEncounterProfile = function (zone) {
+    let floor = Math.max(1, Math.floor(zone.floor || 1));
+    let minPack = Math.min(7, 3 + Math.floor(floor / 12));
+    let maxPack = Math.max(minPack, Math.min(9, minPack + 2 + Math.floor(floor / 20)));
+    return {
+        markerCount: Math.min(16, 5 + Math.floor(floor / 8)), minPack, maxPack,
+        eliteChance: Math.min(0.55, 0.2 + floor * 0.012),
+        bossAdds: Math.min(6, 2 + Math.floor(floor / 20)), label: `지하계 ${floor}층`
+    };
+};
+
+const getLabyrinthEncounterProfile = function (zone) {
+    let floor = Math.max(1, Math.floor(zone.floor || 1));
+    let minPack = Math.min(7, 2 + Math.floor(floor / 10));
+    let maxPack = Math.max(minPack, Math.min(9, minPack + 2));
+    return {
+        markerCount: Math.min(18, 5 + Math.floor(floor / 5)), minPack, maxPack,
+        eliteChance: Math.min(0.46, 0.14 + floor * 0.009),
+        bossAdds: floor % 5 === 0 ? 2 : 1, label: `미궁 ${floor}층`
+    };
+};
+
+const getAbyssEncounterProfile = function (zone) {
+    let scale = getAbyssMonsterScales(zone);
+    let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
+    let minPack = Math.max(1, Math.floor((2 + Math.floor(zone.tier / 7)) * (scale.hordeMul || 1)));
+    let maxPack = Math.max(minPack, Math.floor(Math.min(10, 4 + Math.floor(zone.tier * 0.42)) * (scale.hordeMul || 1)));
+    let markerCount = Math.max(6, Math.floor((8 + Math.floor(zone.tier * 0.48)) * (scale.mapLengthMul || 1)));
+    let bossAdds = 2 + Math.floor(zone.tier / 4);
+    if (depth >= 21) {
+        minPack = Math.min(7, minPack);
+        maxPack = Math.max(minPack, Math.min(11, maxPack));
+        markerCount = Math.min(20, markerCount);
+        bossAdds = Math.min(7, bossAdds);
+    }
+    return {
+        markerCount, minPack, maxPack,
+        eliteChance: Math.min(0.8, 0.13 + zone.tier * 0.012 + (scale.eliteBonus || 0)),
+        bossAdds, label: `${minPack}-${maxPack}기`
+    };
+};
+
 function getZoneEncounterProfile(zone) {
     if (zone.type === 'cosmos') {
         let gravity = Math.max(1, Number(zone.gravity || 1));
@@ -6332,27 +6386,14 @@ function getZoneEncounterProfile(zone) {
         let maxPack = Math.max(minPack, Math.min(9, minPack + 2 + Math.floor((gravity - 1) * 2)));
         return { markerCount, minPack, maxPack, eliteChance: Math.min(0.75, 0.16 + sizeClass * 0.05), bossAdds: 2 + Math.floor(sizeClass / 2), label: zone.name || '우주계' };
     }
-    if (zone.type === 'chaosRealm') return { markerCount: 4 + Math.floor((zone.floor || 1) / 8), minPack: 2, maxPack: Math.min(8, 3 + Math.floor((zone.floor || 1) / 6)), eliteChance: 0.35, bossAdds: 2 + Math.floor((zone.floor || 1) / 12), label: `혼돈계 ${zone.floor || 1}층` };
+    if (zone.type === 'chaosRealm') return getChaosRealmEncounterProfile(zone);
     if (zone.type === 'skyTower') {
         let floor = Math.max(1, Math.floor(zone.floor || 1));
         let minPack = Math.min(9, 2 + Math.floor(floor / 10));
         let maxPack = Math.min(10, minPack + 2 + Math.floor(floor / 18));
         return { markerCount: 40 + Math.floor(floor / 3), minPack: minPack, maxPack: Math.max(minPack, maxPack), eliteChance: Math.min(0.5, 0.18 + floor * 0.006), bossAdds: 2 + Math.floor(floor / 12), label: `창공의 탑 ${floor}층` };
     }
-    if (zone.type === 'underworld') {
-        let floor = Math.max(1, Math.floor(zone.floor || 1));
-        let minPack = Math.min(10, 3 + Math.floor(floor / 7));
-        let maxPack = Math.min(10, minPack + 2 + Math.floor(floor / 14));
-        maxPack = Math.max(minPack, maxPack);
-        return {
-            markerCount: 5 + Math.floor(floor / 6),
-            minPack: minPack,
-            maxPack: maxPack,
-            eliteChance: Math.min(0.55, 0.2 + floor * 0.012),
-            bossAdds: 2 + Math.floor(floor / 10),
-            label: `지하계 ${floor}층`
-        };
-    }
+    if (zone.type === 'underworld') return getUnderworldEncounterProfile(zone);
     if (zone.type === 'meteor') return { markerCount: 2, minPack: 2, maxPack: 3, eliteChance: 1, bossAdds: 2, label: '운석' };
     if (zone.type === 'trial') return { markerCount: 3, minPack: 1, maxPack: 2, eliteChance: 1, bossAdds: 2, label: '시련' };
     if (zone.type === 'timeRift') {
@@ -6360,27 +6401,8 @@ function getZoneEncounterProfile(zone) {
         return { markerCount: 3 + Math.floor(pressure / 3), minPack: 2, maxPack: Math.min(6, 3 + Math.floor(pressure / 4)), eliteChance: Math.min(0.8, 0.3 + pressure * 0.05), bossAdds: 1 + Math.floor(pressure / 5), label: `시간의 균열 (시간압 ${pressure})` };
     }
     if (zone.type === 'seasonBoss') return { markerCount: 1, minPack: 1, maxPack: 1, eliteChance: 1, bossAdds: 0, label: '보스' };
-    if (zone.type === 'labyrinth') {
-        let floor = Math.max(1, zone.floor || 1);
-        let minPack = 2 + Math.floor(floor / 10);
-        let maxPack = Math.min(9, minPack + 2);
-        return { markerCount: 5 + Math.floor(floor / 5), minPack: minPack, maxPack: maxPack, eliteChance: Math.min(0.46, 0.14 + floor * 0.009), bossAdds: floor % 5 === 0 ? 2 : 1, label: `미궁 ${floor}층` };
-    }
-    if (zone.type === 'abyss') {
-        let abyssScale = getAbyssMonsterScales(zone);
-        let minPack = 2 + Math.floor(zone.tier / 7);
-        let maxPack = Math.min(10, 4 + Math.floor(zone.tier * 0.42));
-        minPack = Math.max(1, Math.floor(minPack * (abyssScale.hordeMul || 1)));
-        maxPack = Math.max(minPack, Math.floor(maxPack * (abyssScale.hordeMul || 1)));
-        return {
-            markerCount: Math.max(6, Math.floor((8 + Math.floor(zone.tier * 0.48)) * (abyssScale.mapLengthMul || 1))),
-            minPack: minPack,
-            maxPack: maxPack,
-            eliteChance: Math.min(0.8, 0.13 + zone.tier * 0.012 + (abyssScale.eliteBonus || 0)),
-            bossAdds: 2 + Math.floor(zone.tier / 4),
-            label: `${minPack}-${maxPack}기`
-        };
-    }
+    if (zone.type === 'labyrinth') return getLabyrinthEncounterProfile(zone);
+    if (zone.type === 'abyss') return getAbyssEncounterProfile(zone);
     if (zone.type === 'oceanDepth') {
         let depthTier = Math.max(0, Math.floor(zone.depthTier || 0));
         let minPack = Math.min(6, 2 + Math.floor(depthTier / 4));
@@ -6587,14 +6609,14 @@ function getFrequentSpawnEncounterProfile(zone) {
     let difficulty = getEncounterDifficultyValue(zone);
     if (difficulty < 8 || profile.markerCount <= 0) return profile;
     let ramp = clampNumber((difficulty - 8) / 24, 0, 1);
-    let markerCap = 19;
+    let markerCap = 20;
     let baseMarkerCount = profile.markerCount;
     if (profile.markerCount < markerCap) {
         let targetMarkers = Math.round(profile.markerCount * (1.35 + ramp * 1.35));
         profile.markerCount = clampNumber(targetMarkers, profile.markerCount + 1, markerCap);
     }
     if (profile.markerCount > baseMarkerCount) {
-        let packMul = 1 - ramp * 0.45;
+        let packMul = 1 - ramp * 0.25;
         profile.minPack = Math.max(1, Math.floor(profile.minPack * packMul));
         profile.maxPack = Math.max(profile.minPack, Math.floor(profile.maxPack * packMul));
     }
@@ -6691,6 +6713,12 @@ function resetBattleRuntimeVisuals() {
         playerHurtBlend: 0,
         playerDownBlend: 0,
         lastNow: 0,
+        visualNow: 0,
+        lastWallNow: 0,
+        frameTimeEma: 16.7,
+        vfxDensity: 1,
+        hitStopRemainingMs: 0,
+        lastHitStopFxId: 0,
         advanceDesired: false,
         advanceChangedAt: 0,
         shrineHitbox: null,
@@ -8025,12 +8053,11 @@ function rollLootForEnemy(enemy) {
     itemChance *= 0.7; // 장비 드랍 확률 30% 감소
     let codexDropMul = 1 + (getCodexBonusPct() / 100);
     let abyssDropMul = Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
-    itemChance *= codexDropMul;
-    growthItemChance *= codexDropMul;
-    itemChance *= abyssDropMul;
-    growthItemChance *= abyssDropMul;
-    itemChance *= challengeRewardMul;
-    growthItemChance *= challengeRewardMul;
+    let itemDropMultiplier = capEndlessContentDropMultiplier(
+        zone, codexDropMul * abyssDropMul * challengeRewardMul
+    );
+    itemChance *= itemDropMultiplier;
+    growthItemChance *= itemDropMultiplier;
     if (zone.type === 'labyrinth') {
         let floor = Math.max(1, Math.floor(zone.floor || 1));
         let softCapFloor = 30;
@@ -9969,7 +9996,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 skillName: skillName,
                 damage: dealtToEnemy,
                 rawDamage: dmg,
-                damageTextGroupId: addedProjectileRepeatCount > 0 ? options.damageTextGroupId : '',
+                damageTextGroupId: options.damageTextGroupId || '',
                 duration: 320,
                 element: hitElement,
                 syncToSwing: !isStageReplay
@@ -10038,33 +10065,31 @@ function performPlayerAttack(pStats, attackOptions) {
     if (firstResolvedSkillHit && isCrit && hitSummary.totalDamage > 0) advanceEnergyShieldRechargeOnCrit(pStats, Date.now());
 
     if (game.settings.showCombatLog) {
-        let dotInfo = '';
-        if (isDotSkill) {
-            let maxDotStack = targets.reduce((max, hit) => Math.max(max, (hit.enemy && hit.enemy.dotStacks) || 0), 0);
-            if (maxDotStack > 0) dotInfo = ` · 도트중첩 ${maxDotStack}/${DOT_STACK_MAX} (${getDotStackMultiplier(maxDotStack).toFixed(2)}x)`;
-        }
-        let hitPrefix = isDotSkill ? '⚔️ 직격' : '⚔️';
-        let totalDamageText = `${Math.floor(hitSummary.totalDamage)} 피해`;
-        let showHitCount = hitSummary.totalHits >= 2;
-        let showTargetCount = hitSummary.uniqueTargets.size >= 2;
-        let lineCore = [totalDamageText];
-        if (showHitCount) lineCore.push(`${hitSummary.totalHits}히트`);
-        if (showTargetCount) lineCore.push(`대상 ${hitSummary.uniqueTargets.size}`);
-        let line = `${hitPrefix} ${lineCore.join(' / ')}`;
-        line += dotInfo;
-        if (isCrit) line = `💥 ${line}`;
-        let scales = pStats.damageScales || {};
-        let hiddenScaleTags = Array.isArray(pStats.sSkill.hideCombatScales) ? pStats.sSkill.hideCombatScales : [];
-        let scaleLabels = [];
-        if ((scales.hpFlatBonus || 0) > 0) scaleLabels.push(`생명력추가+${Math.floor(scales.hpFlatBonus || 0)}`);
-        if (!hiddenScaleTags.includes('regen') && (scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
-        if (!hiddenScaleTags.includes('fireRes') && (scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
-        if (scaleLabels.length > 0) line += ` [계수 ${scaleLabels.join(' / ')}]`;
-        if (instantLeechRecovered > 0) {
-            let instantLeechText = instantLeechRecovered < 1
-                ? instantLeechRecovered.toFixed(2)
-                : (instantLeechRecovered < 10 ? instantLeechRecovered.toFixed(1).replace(/\.0$/, '') : `${Math.floor(instantLeechRecovered)}`);
-            line += ` · 즉시흡수 +${instantLeechText}`;
+        let line = `${getDamageElementIcon(swingElement)} ${formatNumberKR(hitSummary.totalDamage)} 피해`;
+        if (game.settings.showDetailedDamageLog === true) {
+            let dotInfo = '';
+            if (isDotSkill) {
+                let maxDotStack = targets.reduce((max, hit) => Math.max(max, (hit.enemy && hit.enemy.dotStacks) || 0), 0);
+                if (maxDotStack > 0) dotInfo = ` · 도트중첩 ${maxDotStack}/${DOT_STACK_MAX} (${getDotStackMultiplier(maxDotStack).toFixed(2)}x)`;
+            }
+            let lineCore = [`${formatNumberKR(hitSummary.totalDamage)} 피해`];
+            if (hitSummary.totalHits >= 2) lineCore.push(`${hitSummary.totalHits}히트`);
+            if (hitSummary.uniqueTargets.size >= 2) lineCore.push(`대상 ${hitSummary.uniqueTargets.size}`);
+            line = `${isDotSkill ? '⚔️ 직격' : '⚔️'} ${lineCore.join(' / ')}${dotInfo}`;
+            if (isCrit) line = `💥 ${line}`;
+            let scales = pStats.damageScales || {};
+            let hiddenScaleTags = Array.isArray(pStats.sSkill.hideCombatScales) ? pStats.sSkill.hideCombatScales : [];
+            let scaleLabels = [];
+            if ((scales.hpFlatBonus || 0) > 0) scaleLabels.push(`생명력추가+${Math.floor(scales.hpFlatBonus || 0)}`);
+            if (!hiddenScaleTags.includes('regen') && (scales.regen || 1) > 1.0001) scaleLabels.push(`재생x${(scales.regen || 1).toFixed(2)}`);
+            if (!hiddenScaleTags.includes('fireRes') && (scales.fireRes || 1) > 1.0001) scaleLabels.push(`화저x${(scales.fireRes || 1).toFixed(2)}`);
+            if (scaleLabels.length > 0) line += ` [계수 ${scaleLabels.join(' / ')}]`;
+            if (instantLeechRecovered > 0) {
+                let instantLeechText = instantLeechRecovered < 1
+                    ? instantLeechRecovered.toFixed(2)
+                    : (instantLeechRecovered < 10 ? instantLeechRecovered.toFixed(1).replace(/\.0$/, '') : `${Math.floor(instantLeechRecovered)}`);
+                line += ` · 즉시흡수 +${instantLeechText}`;
+            }
         }
         addLog(line, isCrit ? 'attack-crit' : 'attack-player', { rateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', minIntervalMs: isCrit ? 120 : 180, aggregateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', aggregateWindowMs: 500 });
     }
@@ -11075,13 +11100,17 @@ function performMonsterAttacks(pStats) {
             damageBreakdown.forEach(row => recordIncomingDamage(row.ele, row.amount, enemy.name));
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected });
             if (game.settings.showCombatLog) {
-                let breakdownText = damageBreakdown
-                    .filter(row => row.amount > 0)
-                    .sort((a, b) => b.amount - a.amount)
-                    .map(row => `${getDamageElementLabel(row.ele)} ${Math.floor(row.amount)}`)
-                    .join(' / ');
-                let deflectText = deflected ? ` · 🪶비껴냄 -${deflectReducePct}%` : '';
-                addLog(`🩸 [${getDamageElementLabel(topDamageEntry.ele)}] 피격 (${dmg} 피해 · ${breakdownText}${deflectText})`, "attack-monster");
+                let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${formatNumberKR(dmg)} 피해`;
+                if (game.settings.showDetailedDamageLog === true) {
+                    let breakdownText = damageBreakdown
+                        .filter(row => row.amount > 0)
+                        .sort((a, b) => b.amount - a.amount)
+                        .map(row => `${getDamageElementLabel(row.ele)} ${formatNumberKR(row.amount)}`)
+                        .join(' / ');
+                    let deflectText = deflected ? ` · 🪶비껴냄 -${deflectReducePct}%` : '';
+                    damageLog = `🩸 [${getDamageElementLabel(topDamageEntry.ele)}] 피격 (${formatNumberKR(dmg)} 피해 · ${breakdownText}${deflectText})`;
+                }
+                addLog(damageLog, "attack-monster");
             }
             if (game.playerHp <= 0) {
                 handlePlayerDefeat(zone, pStats, null, { fatalElement: topDamageEntry.ele, sourceName: enemy.name });
@@ -11366,10 +11395,8 @@ function triggerSeasonReset(options) {
         if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
     });
     let preservedSealedInventory = (game.inventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
-    // 생장판: 해금된 칸 수와 소형 베이스 도감은 영구 성장이라 루프를 건너 유지한다 (spec 20).
-    // 봉인된 생장 아이템은 최근 획득함에 남아 있어도 보존한다.
+    // 생장판: 해금된 칸 수와 봉인 아이템은 영구 성장이라 루프를 건너 유지한다.
     let preservedGrowthUnlockedCells = Math.max(0, Math.floor(((game.growthBoard || {}).unlockedCellCount) || 0));
-    let preservedSealedRecentDrops = (game.recentGrowthDrops || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
     let preservedSealedGrowthInventory = (game.growthInventory || []).filter(it => it && it.loopSealed).map(it => JSON.parse(JSON.stringify(it)));
     let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.ouroboros) || 0));
     let preservedTimeRemnant = Math.max(0, Math.floor((game.currencies && game.currencies.timeRemnant) || 0));
@@ -11465,7 +11492,7 @@ function triggerSeasonReset(options) {
     if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory);
     // 생장판 초기화: 배치는 비우되 해금 칸(영구 성장)과 봉인 아이템은 유지한다.
     if (typeof resetGrowthBoardForLoop === 'function') resetGrowthBoardForLoop(preservedGrowthUnlockedCells);
-    game.recentGrowthDrops = preservedSealedRecentDrops;
+    game.recentGrowthDrops = [];
     game.growthInventory = preservedSealedGrowthInventory;
     if (preservedWoodsmanTouch > 0) game.currencies.ouroboros = preservedWoodsmanTouch;
     game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;

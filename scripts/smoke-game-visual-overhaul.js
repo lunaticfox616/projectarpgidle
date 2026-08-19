@@ -124,6 +124,17 @@ heroWalkMotion.moving.forEach((motion, index) => {
 });
 assert.ok(Math.abs(heroWalkMotion.moving[4].y) > Math.abs(heroWalkMotion.moving[0].y),
   '성기사 같은 중장 캐릭터는 가벼운 캐릭터보다 보폭이 분명해야 한다');
+const adaptiveVfx = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+  battleVisualState.frameTimeEma = 16.7;
+  battleVisualState.vfxDensity = 1;
+  for (let frame = 0; frame < 12; frame++) updateBattleVfxDensity(34, 6);
+  const pressured = battleVisualState.vfxDensity;
+  for (let frame = 0; frame < 12; frame++) updateBattleVfxDensity(8, 1);
+  return { pressured, recovered: battleVisualState.vfxDensity };
+})())`, context));
+assert.ok(adaptiveVfx.pressured < 0.7, 'slow crowded frames must lower cosmetic VFX density');
+assert.ok(adaptiveVfx.recovered > adaptiveVfx.pressured && adaptiveVfx.recovered <= 1,
+  'VFX density must recover gradually when the battlefield becomes cheap again');
 const shake = vm.runInContext(`(() => { game.settings.cameraShake = false; battleFx = [{ type: 'hit', start: 900, crit: true }]; return getBattleCameraShake(1000); })()`, context);
 assert.strictEqual(Math.abs(shake.x) + Math.abs(shake.y), 0, 'camera shake toggle should fully disable translation');
 const impactFeedback = vm.runInContext(`(() => {
@@ -145,7 +156,7 @@ const backlogGuard = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
   addBattleFx('hit', { damage: 1 });
   const hiddenCount = battleFx.length;
   document.hidden = false;
-  for (let index = 0; index < 300; index++) addBattleFx('hit', { damage: 1 });
+  for (let index = 0; index < 300; index++) addBattleFx('hit', { enemyId: 'queue-' + index, damage: 1 });
   const cappedCount = battleFx.length;
   setBattleFxSuppressed(true);
   addBattleFx('hit', { damage: 1 });
@@ -153,7 +164,7 @@ const backlogGuard = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
   setBattleFxSuppressed(false);
   return { hiddenCount, cappedCount, suppressedCount };
 })()`, context)));
-assert.deepStrictEqual(backlogGuard, { hiddenCount: 0, cappedCount: 240, suppressedCount: 0 }, 'hidden/background combat must discard visual effects and cap any foreground backlog');
+assert.deepStrictEqual(backlogGuard, { hiddenCount: 0, cappedCount: 160, suppressedCount: 0 }, 'hidden/background combat must discard visual effects and cap any foreground backlog');
 const blizzardFieldQueue = vm.runInContext(`(() => {
   battleFx = [];
   addBattleFx('combatTravel', { patternKind: 'field', skillName: '난타 눈보라', duration: 1400 });
@@ -422,7 +433,6 @@ assert.ok(!battlefieldSource.includes('let arc = Math.sin(t * Math.PI)'), 'proje
 assert.ok(!battlefieldSource.includes('let connector = family === \'projectile\''), 'projectile art should no longer use a full-distance connector');
 assert.ok(battlefieldSource.includes("stageKind === 'chainJump'"), 'secondary chain hits should use their connector image');
 assert.ok(battlefieldSource.includes("stageKind === 'slamAftershock'"), 'delayed slam aftershocks should use their own image');
-assert.ok(battlefieldSource.includes('if (list.length > 96)'), 'skill image effects should retain a hard runtime allocation cap');
 const combatPatternImages = vm.runInContext(`[
   getCombatTravelImageKey({ patternKind: 'field' }),
   getCombatTravelImageKey({ patternKind: 'moving' }),
@@ -665,7 +675,18 @@ assert.ok(stagedSkillVfx.imageKeys.includes('skillFxChainJump'), 'chain jumps sh
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSlamAftershock'), 'slam aftershocks should use the delayed fracture image asset');
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSummonStrike'), 'summon attacks should use the spectral strike image asset');
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSlash'), 'lightning strike primary should use a lightning-tinted melee slash');
-assert.ok(stagedSkillVfx.count <= 96, 'skill image effect queue should stay bounded during rapid attacks');
+assert.ok(stagedSkillVfx.count <= 56, 'skill image effect queue should stay bounded during rapid attacks');
+const aggregateSlamVfxCount = vm.runInContext(`(() => {
+  battleVisualState.skillEffects = [];
+  const player = { x: 100, y: 220 };
+  const first = { x: 220, y: 210, enemy: { id: 'a' } };
+  const second = { x: 280, y: 210, enemy: { id: 'b' } };
+  queueSkillGemVfx({ id: 150, skillName: '지진 파쇄', stageKind: 'slamAftershock', element: 'phys', damageTextGroupId: 'quake:1' }, first, player, {}, 1000, 1);
+  queueSkillGemVfx({ id: 151, skillName: '지진 파쇄', stageKind: 'slamAftershock', element: 'phys', damageTextGroupId: 'quake:1' }, second, player, {}, 1000, 1);
+  return battleVisualState.skillEffects.length;
+})()`, context);
+assert.strictEqual(aggregateSlamVfxCount, 1,
+  'an earthquake stage must render one shared fracture instead of one full effect per target');
 const travellingProjectile = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
   const swing = { id: 200, projectile: true, skillName: '얼음 창', element: 'cold', start: 1000, duration: 400, impactAt: 1400 };

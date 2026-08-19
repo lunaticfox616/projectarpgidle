@@ -2649,26 +2649,17 @@ function advanceOceanDiveFromKill(zone) {
     let st = ensureOceanState();
     if (!st.unlocked || !st.diving) return;
     if (Math.random() < 0.06) awardCurrency('reefFragment', 1);
-    // 전투 진행도 보상: 웨이브를 클리어할 때마다 수심이 추가로 전진한다.
-    // 시간 기반 진행(tickOceanDepth)은 방치용 바닥값으로 남고, 빠르게/강하게 클리어할수록 더 깊이 내려간다.
-    let gearDepthGainPct = 0;
-    try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
-    let clearBurst = (14 + getOceanDepthTier(st.depthM)) * (1 + gearDepthGainPct / 100);
-    applyOceanDepthGain(st, clearBurst);
+    // 수심은 한 지역 안에서 실제 잠수 시간만큼 연속 진행한다. 웨이브 종료 때
+    // 수십 m를 순간 가산하면 다시 구역 단위 진행처럼 보이므로 보상은 낚시만 준다.
     gainOceanFishingGaugeFromCombat(zone);
 }
 
 function consumeOceanOxygenOnAttack() {
     let st = ensureOceanState();
-    if (!st.unlocked || !st.diving) return;
-    if (!isInOceanZone()) return;
-    let cost = typeof getOceanOxygenPerAttackCost === 'function' ? getOceanOxygenPerAttackCost() : 0.5;
-    let savingPct = 0;
-    try { if (typeof getPlayerStats === 'function') savingPct = Math.max(0, Math.min(90, Number(getPlayerStats().oceanOxygenAttackSavingPct) || 0)); } catch (e) { console.warn('failed to read ocean oxygen saving stat:', e); }
-    cost *= (1 - savingPct / 100);
-    cost *= Math.max(0.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
-    st.oxygenCur = Math.max(0, Math.min(st.oxygenMax, (st.oxygenCur || 0) - cost));
-    // 산소가 0이 되어도 즉시 귀환하지 않는다. 익사 피해는 tickOceanOxygen 에서 시간에 따라 누적된다.
+    if (!st.unlocked || !st.diving || !isInOceanZone()) return 0;
+    // 호환용 공개 진입점은 유지하되 공격 속도에 따른 산소 페널티는 적용하지 않는다.
+    // 실제 소모는 tickOceanOxygen의 시간 기반 배수 한 곳에서만 처리한다.
+    return 0;
 }
 
 function gainOceanFishingGaugeFromCombat(zone) {
@@ -2900,7 +2891,9 @@ function tickOceanDepth(st, dtSec) {
     let speedBonus = typeof getOceanMoveSpeedDepthBonus === 'function' ? getOceanMoveSpeedDepthBonus() : 1;
     let gearDepthGainPct = 0;
     try { if (typeof getPlayerStats === 'function') gearDepthGainPct = Math.max(0, Number(getPlayerStats().oceanDepthGainPct) || 0); } catch (e) { console.warn('failed to read ocean depth gain stat:', e); }
-    let depthPerSec = 3 * speedBonus * (1 + gearDepthGainPct / 100);
+    // 기본 장비로 약 2분 안에 첫 500m 경계에 닿고 산소가 남도록 잡았다.
+    // 이후에는 수압·해류와 영구 업그레이드가 장기 잠수의 성장축이 된다.
+    let depthPerSec = 4 * speedBonus * (1 + gearDepthGainPct / 100);
     applyOceanDepthGain(st, depthPerSec * dtSec);
 }
 
@@ -3940,7 +3933,7 @@ let pendingHeavyUiRefresh = false;
 let battleFx = [];
 let battleFxId = 0;
 let battleFxSuppressed = false;
-const BATTLE_FX_QUEUE_CAP = 240;
+const BATTLE_FX_QUEUE_CAP = 160;
 let battleVisualState = {
     projectiles: [],
     damageTexts: [],
@@ -3959,6 +3952,8 @@ let battleVisualState = {
     lastNow: 0,
     visualNow: 0,
     lastWallNow: 0,
+    frameTimeEma: 16.7,
+    vfxDensity: 1,
     hitStopRemainingMs: 0,
     lastHitStopFxId: 0,
     advanceDesired: false,
@@ -4235,6 +4230,31 @@ function getBattleFxStart(type, data, now) {
     return now;
 }
 
+function mergePendingBattleHitFx(payload, now) {
+    if (!payload.damageTextGroupId || payload.enemyId === undefined || payload.enemyId === null) return false;
+    let liveEnemies = (game.enemies || []).reduce((count, enemy) => count + (enemy && enemy.hp > 0 ? 1 : 0), 0);
+    if (liveEnemies < 5) return false;
+    let existing = [...battleFx].reverse().find(fx => fx && fx.type === 'hit'
+        && fx.damageTextGroupId === payload.damageTextGroupId
+        && fx.enemyId === payload.enemyId
+        && String(fx.stageKind || '') === String(payload.stageKind || '')
+        && now - (Number(fx.queuedAt) || 0) <= 180);
+    if (!existing) return false;
+    existing.damage = Math.max(0, Number(existing.damage) || 0) + Math.max(0, Number(payload.damage) || 0);
+    existing.rawDamage = Math.max(0, Number(existing.rawDamage) || 0) + Math.max(0, Number(payload.rawDamage) || 0);
+    existing.crit = !!(existing.crit || payload.crit);
+    existing.duration = Math.max(Number(existing.duration) || 0, Number(payload.duration) || 0);
+    Object.assign(existing, getBattleHitFeedback(existing));
+    return true;
+}
+
+function getCurrentBattleFxQueueCap() {
+    let liveEnemies = (game.enemies || []).reduce((count, enemy) => count + (enemy && enemy.hp > 0 ? 1 : 0), 0);
+    if (liveEnemies >= 8) return 80;
+    if (liveEnemies >= 5) return 104;
+    return BATTLE_FX_QUEUE_CAP;
+}
+
 function addBattleFx(type, data) {
     if (battleFxSuppressed || (typeof document !== 'undefined' && document.hidden)) return;
     let payload = data || {};
@@ -4255,16 +4275,19 @@ function addBattleFx(type, data) {
         battleFx = battleFx.filter(fx => !(fx && fx.type === type
             && fx.patternKind === payload.patternKind && fx.skillName === payload.skillName));
     }
+    if (type === 'hit' && mergePendingBattleHitFx(payload, now)) return;
+    let start = getBattleFxStart(type, payload, now);
     battleFx.push({
         id: ++battleFxId,
         type: type,
-        start: getBattleFxStart(type, payload, now),
+        start: start,
         queuedAt: now,
         duration: payload.duration || 260,
         ...getBattleHitFeedback(payload),
         ...payload
     });
-    if (battleFx.length > BATTLE_FX_QUEUE_CAP) battleFx.splice(0, battleFx.length - BATTLE_FX_QUEUE_CAP);
+    let queueCap = getCurrentBattleFxQueueCap();
+    if (battleFx.length > queueCap) battleFx.splice(0, battleFx.length - queueCap);
 }
 
 function clearBattleVisualBacklog() {
@@ -4281,6 +4304,8 @@ function clearBattleVisualBacklog() {
     battleVisualState.lastNow = 0;
     battleVisualState.visualNow = 0;
     battleVisualState.lastWallNow = 0;
+    battleVisualState.frameTimeEma = 16.7;
+    battleVisualState.vfxDensity = 1;
 }
 
 function setBattleFxSuppressed(suppressed) {
@@ -4463,7 +4488,7 @@ function formatDamageNumberForDisplay(value, format) {
     return amount.toLocaleString();
 }
 
-const MAX_BATTLE_DAMAGE_TEXTS = 72;
+const MAX_BATTLE_DAMAGE_TEXTS = 48;
 const DAMAGE_TEXT_STACK_WINDOW_MS = 520;
 const DAMAGE_TEXT_STACK_SPACING = 18;
 const DAMAGE_TEXT_STACK_SHIFT_MS = 90;
@@ -5576,6 +5601,10 @@ function normalizeDamageElementKey(ele) {
 
 function getDamageElementLabel(ele) {
     return DAMAGE_ELEMENT_LABELS[normalizeDamageElementKey(ele)] || DAMAGE_ELEMENT_LABELS.phys;
+}
+
+function getDamageElementIcon(ele) {
+    return DAMAGE_ELEMENT_ICONS[normalizeDamageElementKey(ele)] || DAMAGE_ELEMENT_ICONS.phys;
 }
 
 const CUSTOM_HERO_SHEET_STORAGE_KEY = 'projectidle_custom_hero_sheet';
@@ -9016,12 +9045,25 @@ function getMappingTicketDrops(enemy, zone, mappingOpened) {
     return drops;
 }
 
+function getUnderworldResourceDropChances(enemy) {
+    if (enemy && enemy.isBoss) {
+        return { fossil: 0.22, typedFossil: 0.075, tool: 0.05, rune: 0.18, blurredPower: 0.02 };
+    }
+    if (enemy && enemy.isElite) {
+        return { fossil: 0.025, typedFossil: 0.006, tool: 0.005, rune: 0.008, blurredPower: 0.001 };
+    }
+    return { fossil: 0.005, typedFossil: 0.0012, tool: 0.001, rune: 0.0015, blurredPower: 0.0001 };
+}
+
 function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let dropBonus = getCodexBonusPct() / 100;
     let abyssScale = getAbyssMonsterScales(zone);
     let challengeRewardMul = typeof getChallengeContractRewardMultiplier === 'function' ? getChallengeContractRewardMultiplier(zone) : 1;
-    let bonusRoll = chance => Math.random() < Math.min(0.95, chance * (1 + dropBonus) * (abyssScale.dropMul || 1) * (enemy && enemy.dropMul ? enemy.dropMul : 1) * challengeRewardMul);
+    let rawDropMultiplier = (1 + dropBonus) * (abyssScale.dropMul || 1)
+        * (enemy && enemy.dropMul ? enemy.dropMul : 1) * challengeRewardMul;
+    let dropMultiplier = capEndlessContentDropMultiplier(zone, rawDropMultiplier);
+    let bonusRoll = chance => Math.random() < Math.min(0.95, chance * dropMultiplier);
     let drops = [];
     if (enemy.isBoss) {
         if (bonusRoll(0.47)) drops.push(['magicBud', 1]);
@@ -9068,13 +9110,14 @@ function getCurrencyDrops(enemy) {
     }
     if (zone.type === 'underworld') {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
+        let resourceChance = getUnderworldResourceDropChances(enemy);
         let coreKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
         if (Math.random() < coreKeyChance) drops.push(['coreKey', 1]);
-        if (Math.random() < 0.05) drops.push(['fossil', 1]);
-        if (Math.random() < 0.018) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
-        if (Math.random() < 0.012) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
-        if (underFloor >= 10 && Math.random() < 0.009) drops.push(['runeShard', enemy.isBoss ? 2 : 1]);
-        if (typeof canDropCoreCubeBlurred45 === 'function' && canDropCoreCubeBlurred45() && Math.random() < (enemy.isBoss ? 0.18 : (enemy.isElite ? 0.055 : 0.018))) drops.push(['blurred45', 1]);
+        if (Math.random() < resourceChance.fossil) drops.push(['fossil', 1]);
+        if (Math.random() < resourceChance.typedFossil) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
+        if (Math.random() < resourceChance.tool) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
+        if (underFloor >= 10 && Math.random() < resourceChance.rune) drops.push(['runeShard', enemy.isBoss ? 2 : 1]);
+        if (typeof canDropCoreCubeBlurred45 === 'function' && canDropCoreCubeBlurred45() && Math.random() < resourceChance.blurredPower) drops.push(['blurred45', 1]);
         if (Math.random() < 0.0032) drops.push(['underCopper', 1]);
         if (Math.random() < 0.0018) drops.push(['underSilver', 1]);
         if (Math.random() < 0.0009) drops.push(['underGold', 1]);
@@ -9786,7 +9829,6 @@ function destroySelectedCraftItem(item) {
     else {
         game.inventory = (game.inventory || []).filter(entry => entry !== item);
         game.growthInventory = (game.growthInventory || []).filter(entry => entry !== item);
-        game.recentGrowthDrops = (game.recentGrowthDrops || []).filter(entry => entry !== item);
     }
     if (item && typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     if (typeof clearCraftSelection === 'function') clearCraftSelection();

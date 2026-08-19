@@ -42,12 +42,19 @@ const expectedSkins = new Map([
   ['assets/ui/menu-tab-active-v1.png', [384, 384]],
   ['assets/ui/menu-tab-pressed-v1.png', [384, 384]],
   ['assets/ui/menu-tab-disabled-v1.png', [384, 384]],
+  ['assets/ui/reliquary/progress-frame-v3.png', [2172, 724]],
+  ['assets/ui/reliquary/health-player-five-v3.png', [2172, 724]],
+  ['assets/ui/reliquary/combat-hud-frame-v1.png', [2166, 304]],
+  ['assets/ui/reliquary/combat-hud-mobile-v1.png', [2187, 441]],
 ]);
 
 for (const [file, expectedSize] of expectedSkins) {
   assert.ok(fs.existsSync(file), `${file} must exist`);
   assert.deepStrictEqual(readPngSize(file), expectedSize, `${file} must keep its source dimensions`);
 }
+['assets/ui/reliquary/progress-frame-v3.png', 'assets/ui/reliquary/health-player-five-v3.png', 'assets/ui/reliquary/combat-hud-frame-v1.png', 'assets/ui/reliquary/combat-hud-mobile-v1.png'].forEach(file => {
+  assert.strictEqual(readPngColorType(file), 6, `${file} must keep real RGBA transparency`);
+});
 
 const html = fs.readFileSync('index.html', 'utf8');
 const ui = fs.readFileSync('js/ui.js', 'utf8');
@@ -55,6 +62,7 @@ const items = fs.readFileSync('data/items.js', 'utf8');
 const css = fs.readFileSync('css/ui-asset-skins.css', 'utf8');
 const menuCss = fs.readFileSync('css/ui-menu-sockets.css', 'utf8');
 const polishCss = fs.readFileSync('css/ui-polish.css', 'utf8');
+const reliquaryCss = fs.readFileSync('css/ui-reliquary-shell.css', 'utf8');
 const windowManager = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 
 assert.ok(html.includes('css/ui-asset-skins.css?v=20260722-merged-tabs-timers1'), 'asset skin CSS must be cache-versioned');
@@ -66,7 +74,15 @@ assert.ok(html.includes('js/ui.js?v=20260723-merged-tab-window-fix2'), 'combat H
 assert.ok(html.includes('js/combat.js?v=20260806-loot-tiers1'), 'combat effect state fixes must be cache-versioned');
 assert.ok(html.includes('js/ui-window-manager.js?v=20260723-merged-tab-window-fix2'), 'menu socket JavaScript must be cache-versioned');
 assert.ok(html.indexOf('css/ui-asset-skins.css') > html.indexOf('typography-readability.css'), 'asset skins must load after legacy UI rules');
-assert.ok(html.includes('<img class="player-health-frame-art" src="assets/ui/health-player-v1.png"'), 'the player HUD must use one real frame image');
+assert.ok(reliquaryCss.includes("url('../assets/ui/reliquary/combat-hud-frame-v1.png')"), 'the lower HUD must use one continuous generated frame');
+assert.ok(reliquaryCss.includes("url('../assets/ui/reliquary/combat-hud-mobile-v1.png')"),
+  'mobile vitals must use a compact asset instead of shrinking the desktop utility wings');
+assert.ok(!html.includes('player-health-frame-art'), 'the lower HUD must not retain a hidden legacy frame element');
+assert.ok(reliquaryCss.includes("url('../assets/ui/reliquary/progress-frame-v3.png')"), 'the area progress gauge must share the combat HUD pixel-art family');
+assert.ok(!reliquaryCss.includes('health-player-mobile-v1.svg'), 'mobile and desktop HUDs must not drift into separate art styles');
+assert.ok(fs.existsSync('assets/ui/reliquary/menu-icons-v1.svg'), 'the desktop rail must use a dedicated game icon atlas');
+assert.ok(reliquaryCss.includes("background-image: url('../assets/ui/reliquary/menu-icons-v1.svg')"), 'rail buttons must consume the shared icon atlas');
+assert.ok(reliquaryCss.includes('background-size: 100% 1800%'), 'the rail atlas must expose exactly one of its eighteen icon cells');
 assert.ok(html.indexOf('player-health-frame') < html.indexOf('id="ui-hp-bar"'), 'the live player HP bar must remain inside its art frame');
 const hpTrackStart = html.indexOf('class="hp-bar-bg combat-hp-bar"');
 const expTrackStart = html.indexOf('class="hp-bar-bg combat-exp-bar"', hpTrackStart);
@@ -99,12 +115,40 @@ assert.ok(css.includes('left: 14.45%') && css.includes('right: 14.45%'), 'player
   'gauge-mob-hp-v1.png', 'gauge-elite-hp-v1.png', 'gauge-boss-hp-v1.png'
 ].forEach(file => assert.ok(css.includes(file), `${file} must provide a live gauge texture`));
 assert.ok(css.includes('clip-path: inset(0 calc(100% - var(--gauge-fill, 0%)) 0 0)'), 'live gauge percentages must clip rather than rescale the extracted textures');
-assert.ok(css.includes('.combat-flask-mini.overflow'), 'extra flask status must stay inside the three-orb art');
-assert.ok(css.includes('.combat-flask-mini.empty'), 'unequipped utility art sockets must be masked');
-assert.ok(/\.player-health-frame \.combat-flask-mini \{[\s\S]*?position: absolute !important;/.test(css), 'dark theme button chrome must not displace flask sockets');
-assert.ok(/\.player-health-frame \.combat-flask-mini \{[\s\S]*?overflow: visible !important;/.test(css), 'flask charge badges must not be clipped by their circular sockets');
-assert.ok(css.includes('.player-hud-shell > .player-hud-identity-row') && css.includes('right: calc(100% + 6px)') && css.includes('bottom: 24%'),
-  'desktop identity text must occupy the dedicated lower-left panel beside health');
+assert.ok(reliquaryCss.includes('.player-hud-flask-rack') && reliquaryCss.includes('position: static !important'),
+  'equipped flasks must use their own flow-based rack instead of shifting the health track');
+assert.ok(reliquaryCss.includes('background-image: linear-gradient(180deg, #b83a43 0%, #941f2b 42%, #6d0f19 100%) !important'),
+  'player health must use a clean red material instead of repeating the noisy enemy texture');
+assert.ok(reliquaryCss.includes('.player-hud-skill-rack') && html.includes('id="ui-combat-skill-gems"'),
+  'the lower HUD must reserve a dedicated right-side rack for equipped skill gems');
+assert.ok(reliquaryCss.includes('health-player-five-v3.png'),
+  'desktop equipped flasks must reuse the supplied five-socket artwork');
+assert.ok(!html.includes('player-hud-rack-title'),
+  'the equipped-gem artwork must not repeat a title beside the icons');
+assert.ok(reliquaryCss.includes('left: 1.9% !important') && reliquaryCss.includes('right: 3.1% !important'),
+  'the live HP track must remain aligned with the central opening in the continuous frame');
+assert.strictEqual((html.match(/<span class="combat-flask-mini/g) || []).length, 1, 'the boot HUD must expose only the always-equipped health flask before live state renders');
+assert.ok(/\.player-hud-flask-rack \.combat-flask-mini \{[\s\S]*?position: relative !important;/.test(reliquaryCss),
+  'flask sockets must participate in the left HUD layout instead of using painted absolute coordinates');
+assert.ok(/\.player-hud-flask-rack \.combat-flask-mini \{[\s\S]*?overflow: visible !important;/.test(reliquaryCss),
+  'flask charge badges must not be clipped by their circular sockets');
+assert.ok(reliquaryCss.includes('--flask-slot-edge') && reliquaryCss.includes('0 0 0 3px var(--flask-slot-edge)'),
+  'each equipped potion must sit in a visibly separate metal socket');
+assert.ok(reliquaryCss.includes('--flask-liquid')
+  && /\.player-hud-flask-rack \.combat-flask-mini::before \{[\s\S]*?clip-path: polygon\(/.test(reliquaryCss)
+  && /\.player-hud-flask-rack \.combat-flask-mini::after \{[\s\S]*?#c39b60[\s\S]*?rgba\(205, 222, 216, \.3\)/.test(reliquaryCss),
+  'each flask socket must draw a shouldered glass bottle with liquid, reflection, and a corked neck');
+const skinSourceStart = ui.indexOf('const UI_SKIN_IDS =');
+const skinSourceEnd = ui.indexOf('function getHeroSelectionDef(', skinSourceStart);
+const skinContext = { document: { body: { dataset: {} } } };
+vm.createContext(skinContext);
+vm.runInContext(ui.slice(skinSourceStart, skinSourceEnd), skinContext, { filename: 'ui-skins.js' });
+assert.strictEqual(skinContext.normalizeUiSkin('verdigris'), 'verdigris', 'a supported skin must survive normalization');
+assert.strictEqual(skinContext.normalizeUiSkin('missing'), 'reliquary', 'an unknown saved skin must fall back safely');
+skinContext.applyUiSkin('crimson');
+assert.strictEqual(skinContext.document.body.dataset.uiSkin, 'crimson', 'skin selection must update one body-level theme boundary');
+assert.ok(reliquaryCss.includes('.player-hud-left-wing .player-hud-identity-row') && reliquaryCss.includes('position: static !important'),
+  'desktop identity text must occupy the dedicated lower-left wing beside health');
 assert.ok(css.includes('body.desktop-windowed-ui .combat-panel { overflow: visible; }'),
   'desktop identity panel must remain visible outside the combat panel padding box');
 assert.ok(css.includes('.player-exp-percent') && css.includes('.player-exp-values { display: none; }'), 'experience percent must sit above the art while exact values remain hover-only');

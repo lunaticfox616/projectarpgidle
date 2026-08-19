@@ -107,7 +107,7 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '독창 투척': { family: 'projectile', scale: 0.82, sigil: 9 },
     '서리 폭발': { family: 'burst', scale: 1.04, aggregateImpact: true, impactVfx: false, sigil: 10 },
     '번개 창': { family: 'projectile', scale: 0.9, aggregateImpact: true, impactVfx: false, sigilVfx: false, sigil: 11 },
-    '지진 파쇄': { family: 'slam', scale: 1.08, sigil: 12 },
+    '지진 파쇄': { family: 'slam', scale: 1.08, aggregateImpact: true, impactParticles: false, sigilVfx: false, sigil: 12 },
     '용암 강타': { family: 'slam', scale: 1.0, sigil: 13 },
     '관통 사격': { family: 'projectile', scale: 0.86, sigil: 14 },
     '연쇄 폭풍': { family: 'chain', scale: 1.0, sigil: 15 },

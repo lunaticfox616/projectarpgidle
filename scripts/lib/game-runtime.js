@@ -19,7 +19,7 @@ const LOAD_ORDER = [
     'js/skills.js', 'js/passives.js', 'js/shrines.js', 'js/growth-board.js', 'js/growth-effects.js',
     'js/growth-generation.js', 'js/bounties.js', 'js/core-cube.js', 'js/combat-grid.js', 'js/severed-wanderers.js',
     'js/combat-patterns.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-battlefield.js',
-    'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/crafting-result-ui.js', 'js/bounty-ui.js', 'js/ui.js', 'js/salvage-recovery-ui.js', 'js/unique-hunt-ui.js', 'js/equipment-loadouts-ui.js', 'js/growth-ui.js',
+    'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/crafting-result-ui.js', 'js/bounty-ui.js', 'js/loop-ui.js', 'js/ui.js', 'js/salvage-recovery-ui.js', 'js/unique-hunt-ui.js', 'js/equipment-loadouts-ui.js', 'js/growth-ui.js',
     'js/skills-ui.js', 'js/offline-progress-ui.js', 'js/records-ui.js'
 ];
 // 여기까지만 올린다. index.html은 뒤에 ui-window-manager·goal-system·main 등을 더

@@ -35,6 +35,28 @@ function watchRuntimeFailures(page) {
     return failures;
 }
 
+test('entry screen establishes the reliquary palette without horizontal overflow', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await page.route('https://**', route => route.fulfill({ status: 204, contentType: 'text/javascript', body: '' }));
+    await page.goto('/');
+    await expect(page.locator('#startup-overlay')).toHaveClass(/active/);
+    const result = await page.evaluate(() => {
+        const values = ['.startup-auth-kicker', '#startup-email', '.startup-status'].flatMap(selector => {
+            const style = getComputedStyle(document.querySelector(selector));
+            return [style.color, style.backgroundColor, style.borderTopColor, style.backgroundImage];
+        });
+        const isBlue = value => [...String(value || '').matchAll(/rgba?\((\d+)[, ]+(\d+)[, ]+(\d+)/g)]
+            .some(match => Number(match[3]) - Number(match[1]) >= 24 && Number(match[3]) - Number(match[2]) >= 12);
+        return {
+            legacyBlue: values.some(isBlue),
+            overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+        };
+    });
+    expect(result.legacyBlue).toBe(false);
+    expect(result.overflow).toBeLessThanOrEqual(1);
+    expect(failures).toEqual([]);
+});
+
 test('guest mode is local-only and survives reload', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
@@ -45,6 +67,26 @@ test('guest mode is local-only and survives reload', async ({ page }) => {
     await page.reload();
     await page.locator('#btn-startup-guest').click();
     await expect.poll(() => page.evaluate(() => game.level)).toBe(37);
+    expect(failures).toEqual([]);
+});
+
+test('manual loop advance asks once and cancel preserves the ready state', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.pendingLoopReady = true;
+        game.pendingLoopDecision = false;
+        game.combatHalted = true;
+        updateStaticUI();
+    });
+    await page.locator('#btn-combat-loop-advance').click();
+    await expect(page.locator('#game-dialog-overlay')).toHaveClass(/active/);
+    await expect(page.locator('#game-dialog-message')).toContainText('정말 지금 루프하시겠습니까?');
+    expect(await page.evaluate(() => game.pendingLoopReady)).toBe(true);
+    await page.locator('#game-dialog-cancel').click();
+    await expect(page.locator('#game-dialog-overlay')).not.toHaveClass(/active/);
+    expect(await page.evaluate(() => ({ ready: game.pendingLoopReady, decision: game.pendingLoopDecision })))
+        .toEqual({ ready: true, decision: false });
     expect(failures).toEqual([]);
 });
 
@@ -315,7 +357,7 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
         updateStaticUI();
     });
     const groups = [
-        ['tab-items', 'switchItemSubtab', ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-infuser']],
+        ['tab-items', 'switchItemSubtab', ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-hall', 'item-tab-infuser']],
         ['tab-skills', 'switchSkillSubtab', ['skill-tab-equip', 'skill-tab-enhance', 'skill-tab-research', 'skill-tab-condition']],
         ['tab-map', 'switchMapSubtab', ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp']],
         ['tab-talisman', 'switchTalismanSubtab', ['talisman-sub-board', 'talisman-sub-colony-ward']]
@@ -475,6 +517,7 @@ test('salvaged equipment can be recovered for its exact reward on desktop and mo
 
     const shortcut = page.locator('#btn-salvage-recovery');
     await expect(shortcut).toHaveAttribute('aria-label', /복구 가능 장비 1개/);
+    if (!await shortcut.isVisible()) await page.locator('#item-tab-equip .bulk-manager > summary').click();
     await shortcut.click();
     const overlay = page.locator('#salvage-recovery-overlay');
     await expect(overlay).toBeVisible();
@@ -589,8 +632,9 @@ test('bounty HUD card reveals its reward and owns the cancel action', async ({ p
     await page.locator('.game-choice-option').first().click();
     await expect(page.locator('#game-dialog-overlay')).not.toHaveClass(/active/);
 
-    const active = hud.getByRole('button', { name: /현상금 보상 확인 및 취소/ });
-    await expect(active).toContainText('다음 사냥에 출현');
+    const active = hud.getByRole('button', { name: /현상금 추적 정보 및 취소/ });
+    await expect(active).toContainText(/.+ 추적 중/);
+    await expect(active).not.toContainText('보상 확인');
     await expect(hud.locator('.bounty-hud-dismiss')).toHaveCount(0);
     await active.click();
     const dialog = page.locator('#game-dialog-overlay');
@@ -607,6 +651,7 @@ test('bounty HUD card reveals its reward and owns the cancel action', async ({ p
         abandoned: game.bountyHunt.abandoned }));
     expect(state).toEqual({ activeId: null, abandoned: 1 });
     await expect(hud).toContainText('현상금 흔적');
+    await expect(hud).not.toContainText('🎯');
     expect(failures).toEqual([]);
 });
 
@@ -917,10 +962,12 @@ test('equipment hall shows server appraisal, ownership rules, and rankings', asy
         game.season = 20;
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         updateStaticUI();
-        switchTab('tab-map');
-        switchMapSubtab('map-tab-pvp');
-        switchPlayerArenaSection('hall');
+        switchTab('tab-items');
+        switchItemSubtab('item-tab-hall');
     });
+    await expect(page.locator('#item-tab-hall')).toHaveClass(/active/);
+    await expect(page.locator('#tab-map #map-player-hall')).toHaveCount(0);
+    await expect(page.locator('#tab-items #map-player-hall')).toBeVisible();
     await expect(page.locator('#map-player-hall')).toContainText('서릿빛 검');
     await page.getByRole('button', { name: '전당 등록 선택' }).click();
     await expect(page.locator('#map-player-hall')).toContainText('전시 등록 0/3');
@@ -929,6 +976,10 @@ test('equipment hall shows server appraisal, ownership rules, and rankings', asy
     await expect(page.locator('#map-player-hall')).toContainText('명예 19');
     await expect(page.getByRole('button', { name: '서버 감정 후 전시' })).toBeVisible();
 
+    await page.evaluate(() => {
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-pvp');
+    });
     await page.getByRole('button', { name: '루프·DPS 순위' }).click();
     await expect(page.locator('#map-player-ranking')).toContainText('17 루프');
     await expect(page.locator('#map-player-ranking')).toContainText('123,456');
@@ -979,6 +1030,128 @@ test('boss trait ticker keeps its DOM and animation position across combat UI up
     expect(failures).toEqual([]);
 });
 
+test('mobile primary navigation keeps core tabs reachable and secondary tabs in a stable drawer', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile navigation assertion');
+    const failures = watchRuntimeFailures(page);
+    await page.setViewportSize({ width: 393, height: 852 });
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.level = 100;
+        game.season = 31;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.settings.twoRowTabs = false;
+        updateTabUnlockButtons();
+        applyTabHeaderOrder();
+        updateTabNotificationDots();
+    });
+
+    const body = page.locator('body');
+    const bottom = page.locator('#tab-header-bottom');
+    const drawer = page.locator('#tab-header-main');
+    await expect(body).toHaveClass(/mobile-primary-navigation/);
+    await expect(bottom).toBeVisible();
+    await expect(drawer).toBeHidden();
+    await expect(page.locator('#btn-mobile-nav-more')).toHaveAttribute('aria-expanded', 'false');
+    const parentIds = await page.evaluate(() => Object.fromEntries(
+        ['btn-tab-battle', 'btn-tab-character', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-tab-settings']
+            .map(id => [id, document.getElementById(id).parentElement.id])
+    ));
+    expect(parentIds).toEqual({
+        'btn-tab-battle': 'tab-header-bottom',
+        'btn-tab-character': 'tab-header-bottom',
+        'btn-tab-items': 'tab-header-bottom',
+        'btn-tab-skills': 'tab-header-bottom',
+        'btn-tab-map': 'tab-header-bottom',
+        'btn-tab-settings': 'tab-header-main'
+    });
+    expect(await bottom.locator(':scope > :visible').evaluateAll(elements => elements.map(element => element.id))).toEqual([
+        'btn-tab-battle', 'btn-tab-character', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-mobile-nav-more'
+    ]);
+
+    await page.evaluate(() => presentGoalDrawer({
+        id: 'mobile-nav-goal', title: '혼돈 심화 41층 돌파', current: 12, target: 41,
+        actionLabel: '지도 열기', actionTabId: 'tab-map', mandatory: true
+    }));
+    await expect(page.locator('#ui-goal-toggle')).toBeHidden();
+    await expect(page.locator('#btn-combat-goal-toggle')).toBeVisible();
+    await page.locator('#btn-combat-goal-toggle').click();
+    await expect(page.locator('#ui-goal-drawer')).toHaveClass(/expanded/);
+    const goalSheetGeometry = await page.evaluate(() => {
+        const sheet = document.getElementById('ui-goal-drawer').getBoundingClientRect();
+        const nav = document.getElementById('tab-header-bottom').getBoundingClientRect();
+        return { sheetBottom: sheet.bottom, navTop: nav.top, sheetLeft: sheet.left, sheetRight: sheet.right, viewportWidth: innerWidth };
+    });
+    expect(goalSheetGeometry.sheetBottom).toBeLessThanOrEqual(goalSheetGeometry.navTop + 1);
+    expect(goalSheetGeometry.sheetLeft).toBeGreaterThanOrEqual(0);
+    expect(goalSheetGeometry.sheetRight).toBeLessThanOrEqual(goalSheetGeometry.viewportWidth);
+    await page.evaluate(() => toggleGoalDrawer(false));
+
+    await page.locator('#btn-mobile-nav-more').click();
+    await expect(body).toHaveClass(/mobile-tab-drawer-open/);
+    await expect(drawer).toBeVisible();
+    await expect(drawer).toHaveAttribute('aria-hidden', 'false');
+    await expect(drawer).toHaveAttribute('role', 'dialog');
+    await expect(page.locator('#mobile-tab-drawer-backdrop')).toBeVisible();
+    expect(await drawer.locator(':scope > .tab-btn:visible').count()).toBeGreaterThanOrEqual(8);
+    expect((await drawer.boundingBox()).height).toBeGreaterThan(150);
+    await expect(page.locator('#btn-mobile-nav-goal')).toBeVisible();
+    await expect(page.locator('#btn-mobile-nav-goal')).toHaveClass(/mandatory/);
+    await page.locator('#btn-mobile-nav-goal').click();
+    await expect(body).not.toHaveClass(/mobile-tab-drawer-open/);
+    await expect(page.locator('#ui-goal-drawer')).toHaveClass(/expanded/);
+    await page.evaluate(() => toggleGoalDrawer(false));
+    await page.locator('#btn-mobile-nav-more').click();
+    expect(await page.locator('#btn-map-complete-action-picker').evaluate(element => {
+        if (element.hidden || getComputedStyle(element).display === 'none') return true;
+        const pseudo = getComputedStyle(element, '::before');
+        const hasText = element.textContent.trim().length > 0 && parseFloat(getComputedStyle(element).fontSize) > 0;
+        const hasCompactLabel = pseudo.content !== 'none' && pseudo.content !== '""' && parseFloat(pseudo.fontSize) > 0;
+        return hasText || hasCompactLabel;
+    })).toBe(true);
+    await page.locator('#btn-tab-settings').click();
+    await expect(page.locator('#tab-settings')).toHaveClass(/active/);
+    await expect(body).not.toHaveClass(/mobile-tab-drawer-open/);
+
+    await page.evaluate(() => {
+        game.noti.social = true;
+        updateTabNotificationDots();
+    });
+    await expect(page.locator('#btn-mobile-nav-more > .noti-dot')).toBeVisible();
+    await expect(page.locator('#btn-mobile-nav-more')).toHaveClass(/active/);
+
+    await page.evaluate(() => {
+        game.settings.twoRowTabs = true;
+        applyTabHeaderOrder();
+    });
+    await expect(body).not.toHaveClass(/mobile-primary-navigation/);
+    await expect(page.locator('#btn-mobile-nav-more')).toHaveCount(0);
+    await expect(drawer).not.toHaveAttribute('aria-hidden', /.+/);
+
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.evaluate(() => {
+        game.settings.twoRowTabs = false;
+        applyTabHeaderOrder();
+    });
+    const geometry = await bottom.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        const visibleButtons = Array.from(element.children).filter(child => getComputedStyle(child).display !== 'none');
+        return {
+            left: rect.left,
+            right: rect.right,
+            bottom: rect.bottom,
+            viewportWidth: document.documentElement.clientWidth,
+            visibleButtons: visibleButtons.length,
+            overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+        };
+    });
+    expect(geometry.left).toBeGreaterThanOrEqual(-1);
+    expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth + 1);
+    expect(geometry.bottom).toBeLessThanOrEqual(801);
+    expect(geometry.visibleButtons).toBe(6);
+    expect(geometry.overflow).toBeLessThanOrEqual(1);
+    expect(failures).toEqual([]);
+});
+
 test('mobile battle HUD stays within the viewport and exposes combat log', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
     const failures = watchRuntimeFailures(page);
@@ -995,6 +1168,8 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
             const rect = selector => document.querySelector(selector).getBoundingClientRect();
             const overlaps = (left, right) => left.right > right.left + 1
                 && left.left < right.right - 1 && left.bottom > right.top + 1 && left.top < right.bottom - 1;
+            const horizontallyContained = (inner, outer, inset = 0) => inner.left >= outer.left + inset - 1
+                && inner.right <= outer.right - inset + 1;
             const zoneTitle = document.getElementById('ui-combat-zone-inline');
             const action = document.getElementById('btn-map-complete-action-picker');
             const settingsTab = document.getElementById('btn-tab-settings');
@@ -1004,6 +1179,15 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
             const actionsRect = rect('.combat-zone-actions');
             const playerRect = rect('.player-hud');
             const battlefieldRect = rect('.battlefield-wrap');
+            const hpTrackRect = rect('.player-health-frame .combat-hp-bar');
+            const hpText = document.querySelector('.player-health-frame .combat-hp-bar .hp-text');
+            const hpTextRect = hpText.getBoundingClientRect();
+            const expTrackRect = rect('.player-health-frame .combat-exp-bar');
+            const expCopyRect = rect('.player-health-frame .player-exp-percent');
+            const progressGaugeRect = rect('.map-progress-gauge');
+            const progressCopyRect = rect('.map-progress-gauge .hp-text');
+            const identityRect = rect('.player-hud-identity-row');
+            const leftWingRect = rect('.player-hud-left-wing');
             action.scrollIntoView({ block: 'nearest', inline: 'end' });
             return {
                 pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -1016,7 +1200,12 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
                 goalOverlapsZoneTitle: overlaps(goalRect, zoneRect),
                 progressOverlapsActions: overlaps(progressRect, actionsRect),
                 playerHudWidth: playerRect.width,
-                battlefieldWidth: battlefieldRect.width
+                battlefieldWidth: battlefieldRect.width,
+                hpCopyContained: horizontallyContained(hpTextRect, hpTrackRect, 6),
+                hpCopyClipped: hpText.scrollWidth > hpText.clientWidth + 1,
+                expCopyContained: horizontallyContained(expCopyRect, expTrackRect),
+                progressCopyContained: horizontallyContained(progressCopyRect, progressGaugeRect, 16),
+                identityContained: horizontallyContained(identityRect, leftWingRect)
             };
         });
         expect(compactHud.pageOverflow).toBeLessThanOrEqual(1);
@@ -1027,14 +1216,389 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
         expect(compactHud.goalOverlapsZoneTitle).toBe(false);
         expect(compactHud.progressOverlapsActions).toBe(false);
         expect(compactHud.playerHudWidth).toBeGreaterThanOrEqual(compactHud.battlefieldWidth - 1);
+        expect(compactHud.hpCopyContained).toBe(true);
+        expect(compactHud.hpCopyClipped).toBe(false);
+        expect(compactHud.expCopyContained).toBe(true);
+        expect(compactHud.progressCopyContained).toBe(true);
+        expect(compactHud.identityContained).toBe(true);
     }
     await expect(page.locator('.player-health-frame')).toBeVisible();
+    const mobileHudAsset = await page.locator('.player-health-frame').evaluate(element => getComputedStyle(element, '::before').backgroundImage);
+    expect(mobileHudAsset).toContain('combat-hud-mobile-v1.png');
+    const effectGeometry = await page.evaluate(() => {
+        let strip = document.getElementById('ui-player-ailments-under');
+        strip.innerHTML = '<span class="combat-effect-icon" aria-hidden="true"></span>';
+        let identity = document.querySelector('.player-hud-identity-row').getBoundingClientRect();
+        let effects = strip.getBoundingClientRect();
+        return {
+            overlaps: identity.left < effects.right && identity.right > effects.left
+                && identity.top < effects.bottom && identity.bottom > effects.top
+        };
+    });
+    expect(effectGeometry.overlaps).toBe(false);
     await expect(page.locator('#btn-combat-log-toggle')).toBeVisible();
     await page.evaluate(() => {
         let feed = document.querySelector('.combat-feed');
         if (feed && feed.classList.contains('collapsed')) toggleCombatLogCollapse();
     });
     await expect(page.locator('#log')).toBeVisible();
+    expect(failures).toEqual([]);
+});
+
+test('combat HUD reveals potion sockets only when flasks are equipped', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const layout = await page.evaluate(() => {
+        game.equipment['허리띠'] = {
+            rarity: 'rare',
+            baseStats: [{ id: 'flaskUtilSlots', val: 2 }]
+        };
+        let st = ensureFlaskState();
+        let host = document.getElementById('ui-combat-flasks');
+        st.utils = [];
+        host.dataset.signature = '';
+        renderCombatFlaskHud();
+        let one = {
+            slots: host.querySelectorAll('.combat-flask-mini').length,
+            visible: host.dataset.visibleSlots,
+            hpLeft: document.querySelector('.player-health-frame .combat-hp-bar').getBoundingClientRect().left
+        };
+        st.utils = ['granite1', 'quicksilver1'].map(key => ({
+            key,
+            charges: FLASK_UTILITY_POOL[key].maxCharges,
+            chargeProgress: 0,
+            until: 0,
+            trigger: 'combat'
+        }));
+        host.dataset.signature = '';
+        renderCombatFlaskHud();
+        let three = {
+            slots: host.querySelectorAll('.combat-flask-mini').length,
+            visible: host.dataset.visibleSlots,
+            hpLeft: document.querySelector('.player-health-frame .combat-hp-bar').getBoundingClientRect().left
+        };
+        return { one, three };
+    });
+    expect(layout.one).toMatchObject({ slots: 1, visible: '1' });
+    expect(layout.three).toMatchObject({ slots: 3, visible: '3' });
+    expect(Math.abs(layout.three.hpLeft - layout.one.hpLeft)).toBeLessThanOrEqual(1);
+    const vitalsChrome = await page.evaluate(() => {
+        let frame = getComputedStyle(document.querySelector('.player-health-frame'));
+        let ornament = getComputedStyle(document.querySelector('.player-hud-shell'), '::before');
+        let track = document.querySelector('.player-health-frame .combat-hp-bar').getBoundingClientRect();
+        let expTrack = document.querySelector('.player-health-frame .combat-exp-bar').getBoundingClientRect();
+        let lastFlask = document.querySelector('.player-hud-flask-rack .combat-flask-mini:last-child').getBoundingClientRect();
+        let flaskRack = document.querySelector('.player-hud-flask-rack').getBoundingClientRect();
+        let hudShell = document.querySelector('.player-hud-shell').getBoundingClientRect();
+        let leftWing = document.querySelector('.player-hud-left-wing').getBoundingClientRect();
+        let skillRack = document.querySelector('.player-hud-skill-rack').getBoundingClientRect();
+        let skillSlot = document.querySelector('.player-hud-skill-slot').getBoundingClientRect();
+        let frameRect = document.querySelector('.player-health-frame').getBoundingClientRect();
+        let hpCopy = document.querySelector('.player-health-frame .combat-hp-bar .hp-text').getBoundingClientRect();
+        let expCopy = document.querySelector('.player-health-frame .player-exp-percent').getBoundingClientRect();
+        let identityName = document.querySelector('.player-hud-identity-row strong');
+        let identity = document.querySelector('.player-hud-identity-row').getBoundingClientRect();
+        let identityClass = document.getElementById('ui-player-class-label').getBoundingClientRect();
+        let identityLevel = document.getElementById('ui-exp-level-label').getBoundingClientRect();
+        let desktop = window.matchMedia('(min-width: 1081px)').matches;
+        let fill = getComputedStyle(document.getElementById('ui-hp-bar'));
+        let firstFlask = document.querySelector('.player-hud-flask-rack .combat-flask-mini');
+        let flaskBody = getComputedStyle(firstFlask, '::before');
+        let flaskNeck = getComputedStyle(firstFlask, '::after');
+        return {
+            frameBackground: frame.backgroundColor,
+            ornamentImage: ornament.backgroundImage,
+            flaskContained: desktop
+                ? lastFlask.left >= flaskRack.left - 1 && lastFlask.right <= flaskRack.right + 1
+                    && lastFlask.top >= flaskRack.top - 1 && lastFlask.bottom <= flaskRack.bottom + 1
+                : lastFlask.left >= leftWing.left - 1 && lastFlask.right <= leftWing.right + 1,
+            desktopFlaskDocked: !desktop || (
+                Math.abs(flaskRack.bottom - leftWing.top) <= 2
+                && Math.abs(flaskRack.left - hudShell.left) <= 4
+            ),
+            healthContained: track.left >= frameRect.left - 1 && track.right <= frameRect.right + 1,
+            skillContained: skillSlot.left >= skillRack.left - 1 && skillSlot.right <= skillRack.right + 1,
+            expTrackHeight: expTrack.height,
+            trackHeight: track.height,
+            fillImage: fill.backgroundImage,
+            flaskBodyImage: flaskBody.backgroundImage,
+            flaskBodyRadius: flaskBody.borderRadius,
+            flaskNeckContent: flaskNeck.content,
+            skillSlots: document.querySelectorAll('#ui-combat-skill-gems .player-hud-skill-slot').length,
+            desktopCopySafe: !desktop || (expCopy.top >= track.bottom + 1 && expCopy.bottom <= expTrack.top - 1),
+            identityFontReadable: !desktop || parseFloat(getComputedStyle(identityName).fontSize) >= 12,
+            identityDetailsCentered: !desktop || Math.abs(
+                ((identityClass.left + identityLevel.right) / 2) - (identity.left + identity.width / 2)
+            ) <= 3,
+            identityDetailsAligned: !desktop || Math.abs(identityClass.top - identityLevel.top) <= 1,
+            gemRackTitleCount: document.querySelectorAll('.player-hud-rack-title').length
+        };
+    });
+    expect(vitalsChrome.frameBackground).toBe('rgba(0, 0, 0, 0)');
+    expect(vitalsChrome.ornamentImage).toContain('combat-hud-frame-v1.png');
+    expect(vitalsChrome.flaskContained).toBe(true);
+    expect(vitalsChrome.desktopFlaskDocked).toBe(true);
+    expect(vitalsChrome.healthContained).toBe(true);
+    expect(vitalsChrome.skillContained).toBe(true);
+    expect(vitalsChrome.expTrackHeight).toBeGreaterThanOrEqual(4);
+    expect(vitalsChrome.trackHeight).toBeLessThanOrEqual(50);
+    expect(vitalsChrome.fillImage).toContain('linear-gradient');
+    expect(vitalsChrome.fillImage).not.toContain('gauge-boss-hp-v1.png');
+    expect(vitalsChrome.flaskBodyImage).toContain('linear-gradient');
+    expect(vitalsChrome.flaskBodyRadius).not.toBe('50%');
+    expect(vitalsChrome.flaskNeckContent).not.toBe('none');
+    expect(vitalsChrome.skillSlots).toBeGreaterThanOrEqual(1);
+    expect(vitalsChrome.desktopCopySafe).toBe(true);
+    expect(vitalsChrome.identityFontReadable).toBe(true);
+    expect(vitalsChrome.identityDetailsCentered).toBe(true);
+    expect(vitalsChrome.identityDetailsAligned).toBe(true);
+    expect(vitalsChrome.gemRackTitleCount).toBe(0);
+    expect(failures).toEqual([]);
+});
+
+test('damage log detail is opt-in and persists through the settings control', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => switchTab('tab-settings'));
+    const detailToggle = page.locator('#chk-log-damage-detail');
+    await expect(detailToggle).not.toBeChecked();
+    await detailToggle.check();
+    expect(await page.evaluate(() => game.settings.showDetailedDamageLog)).toBe(true);
+    await detailToggle.uncheck();
+    expect(await page.evaluate(() => game.settings.showDetailedDamageLog)).toBe(false);
+    expect(failures).toEqual([]);
+});
+
+test('representative battle and equipment layouts preserve the primary task hierarchy', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.level = 100;
+        game.season = 30;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.enemies = [];
+        updateStaticUI();
+    });
+
+    const isMobile = testInfo.project.name.startsWith('mobile');
+    if (isMobile) {
+        const emptyTarget = page.locator('#ui-enemy-list .enemy-empty');
+        await expect(emptyTarget).toBeVisible();
+        expect((await emptyTarget.boundingBox()).height).toBeLessThanOrEqual(52);
+    } else {
+        await page.evaluate(() => presentGoalDrawer({
+            id: 'desktop-goal-dock-check', title: '다음 루프 조건 달성', description: '혼돈 15층을 돌파하세요.',
+            current: 12, target: 15, mandatory: true, actionLabel: '지도 열기', actionTabId: 'tab-map',
+            notices: [{ text: '혼돈 심화 41층 돌파', actionTabId: 'tab-map' }]
+        }));
+        const goalTracker = page.locator('.battlefield-wrap > #ui-goal-drawer');
+        await expect(goalTracker).toBeVisible();
+        await expect(goalTracker.locator('#ui-goal-toggle')).toContainText('목표');
+        await expect(goalTracker.locator('#ui-goal-toggle')).toContainText('2개');
+        await expect(goalTracker.locator('#ui-goal-body')).toContainText('다음 루프 조건 달성');
+        const layoutCheck = await page.evaluate(() => {
+            presentGoalDrawer({
+                id: 'desktop-goal-dock-check', title: '다음 루프 조건 달성', description: '혼돈 15층을 돌파하세요.',
+                current: 12, target: 15, mandatory: true, actionLabel: '지도 열기', actionTabId: 'tab-map',
+                notices: [{ text: '혼돈 심화 41층 돌파', actionTabId: 'tab-map' }]
+            });
+            const presentation = target => {
+                const style = getComputedStyle(target);
+                return [style.backgroundColor, style.borderTopWidth, style.boxShadow];
+            };
+            const panel = document.querySelector('#ui-goal-drawer .ui-goal-panel');
+            const battlefield = document.getElementById('battlefield-wrap').getBoundingClientRect();
+            const goal = document.getElementById('ui-goal-drawer').getBoundingClientRect();
+            toggleGoalDrawer();
+            return {
+                goalChrome: {
+                    panel: presentation(panel),
+                    action: presentation(panel.querySelector('.ui-goal-action')),
+                    notice: presentation(panel.querySelector('.ui-goal-notice-action')),
+                    titleShadow: getComputedStyle(panel.querySelector('.ui-goal-title')).textShadow
+                },
+                shellWidths: {
+                    rail: document.querySelector('.tab-header').getBoundingClientRect().width,
+                    log: document.querySelector('.combat-feed').getBoundingClientRect().width,
+                    goalParent: document.getElementById('ui-goal-drawer').parentElement.className,
+                    battlefieldRect: { left: battlefield.left, top: battlefield.top, right: battlefield.right, bottom: battlefield.bottom },
+                    goalRect: { left: goal.left, top: goal.top, right: goal.right, bottom: goal.bottom },
+                    goalInsideBattlefield: goal.left >= battlefield.left && goal.top >= battlefield.top
+                        && goal.right <= battlefield.right && goal.bottom <= battlefield.bottom
+                },
+                collapsed: !document.getElementById('ui-goal-drawer').classList.contains('expanded'),
+                bodyHidden: getComputedStyle(document.getElementById('ui-goal-body')).display === 'none'
+            };
+        });
+        const { goalChrome, shellWidths } = layoutCheck;
+        expect(goalChrome).toMatchObject({
+            panel: ['rgba(0, 0, 0, 0)', '0px', 'none'],
+            action: ['rgba(0, 0, 0, 0)', '0px', 'none'],
+            notice: ['rgba(0, 0, 0, 0)', '0px', 'none']
+        });
+        expect(goalChrome.titleShadow).not.toBe('none');
+        expect(shellWidths.rail).toBeLessThanOrEqual(190);
+        expect(shellWidths.log).toBeLessThanOrEqual(320);
+        expect(shellWidths.goalParent).toContain('battlefield-wrap');
+        expect(shellWidths.goalInsideBattlefield, JSON.stringify({ battlefield: shellWidths.battlefieldRect, goal: shellWidths.goalRect })).toBe(true);
+        expect(layoutCheck.collapsed).toBe(true);
+        expect(layoutCheck.bodyHidden).toBe(true);
+    }
+
+    await page.evaluate(() => {
+        switchTab('tab-items');
+        switchItemSubtab('item-tab-equip');
+        updateStaticUI();
+        if (window.matchMedia('(max-width: 1080px)').matches) setEquipmentMobilePane('inventory');
+    });
+    await expect(page.locator('.equipment-inventory-panel')).toBeVisible();
+
+    if (isMobile) {
+        await expect(page.locator('#item-tab-equip .bulk-manager')).not.toHaveAttribute('open', /.+/);
+        const managementFlow = await page.evaluate(() => {
+            const pip = document.getElementById('mobile-battle-pip').getBoundingClientRect();
+            const subtabs = document.querySelector('#tab-items > .subtab-row').getBoundingClientRect();
+            const switcher = document.querySelector('#item-tab-equip .equipment-mobile-switch').getBoundingClientRect();
+            return {
+                pipBottom: pip.bottom,
+                subtabsTop: subtabs.top,
+                subtabsBottom: subtabs.bottom,
+                switcherTop: switcher.top
+            };
+        });
+        expect(managementFlow.pipBottom).toBeLessThanOrEqual(managementFlow.subtabsTop + 1);
+        expect(managementFlow.switcherTop).toBeGreaterThanOrEqual(managementFlow.subtabsBottom - 1);
+        await page.locator('#item-tab-equip .bulk-manager > summary').click();
+        const actionLayout = await page.locator('#item-tab-equip .equipment-salvage-actions').evaluate(element => {
+            const buttons = Array.from(element.querySelectorAll('button')).slice(0, 2);
+            const boxes = buttons.map(button => button.getBoundingClientRect());
+            return { sameRow: Math.abs(boxes[0].top - boxes[1].top) <= 2, minHeight: Math.min(...boxes.map(box => box.height)) };
+        });
+        expect(actionLayout.sameRow).toBe(true);
+        expect(actionLayout.minHeight).toBeGreaterThanOrEqual(42);
+    } else {
+        const columns = await page.locator('.equipment-workspace').evaluate(element =>
+            getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
+        expect(columns).toBe(2);
+    }
+
+    const horizontalOverflow = await page.evaluate(() =>
+        Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth));
+    expect(horizontalOverflow).toBeLessThanOrEqual(1);
+    expect(failures).toEqual([]);
+});
+
+test('desktop combat log and chat share one dock without resizing the battlefield twice', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'desktop shared-dock assertion');
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+
+    const combatDock = page.locator('.combat-feed');
+    const chatDock = page.locator('#tab-social');
+    await expect(combatDock).toBeVisible();
+    const combatRect = await combatDock.boundingBox();
+    const battlefieldWidth = await page.locator('#battlefield-wrap').evaluate(element => element.getBoundingClientRect().width);
+
+    await page.locator('#btn-combat-chat-tab').click();
+    await expect(page.locator('body')).toHaveClass(/community-dock-open/);
+    await expect(chatDock).toBeVisible();
+    await expect(combatDock).toBeHidden();
+    await expect(chatDock.getByRole('button', { name: '설정에서 로그인' })).toBeVisible();
+    const chatRect = await chatDock.boundingBox();
+    const chatBattlefieldWidth = await page.locator('#battlefield-wrap').evaluate(element => element.getBoundingClientRect().width);
+
+    expect(combatRect).not.toBeNull();
+    expect(chatRect).not.toBeNull();
+    expect(Math.abs(chatRect.width - combatRect.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs((chatRect.x + chatRect.width) - (combatRect.x + combatRect.width))).toBeLessThanOrEqual(2);
+    expect(Math.abs(chatRect.y - combatRect.y)).toBeLessThanOrEqual(2);
+    expect(Math.abs((chatRect.y + chatRect.height) - (combatRect.y + combatRect.height))).toBeLessThanOrEqual(2);
+    expect(Math.abs(chatBattlefieldWidth - battlefieldWidth)).toBeLessThanOrEqual(2);
+    await expect(chatDock.locator('.ui-context-dock-tab[aria-selected="true"]')).toHaveText('채팅');
+
+    await chatDock.locator('.ui-context-dock-tab').first().click();
+    await expect(page.locator('body')).not.toHaveClass(/community-dock-open/);
+    await expect(chatDock).toBeHidden();
+    await expect(combatDock).toBeVisible();
+    expect(failures).toEqual([]);
+});
+
+test('logged-in community content keeps readable rows, presence, and item links', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    if (testInfo.project.name.startsWith('mobile')) await page.evaluate(() => switchTab('tab-social'));
+    else await page.locator('#btn-combat-chat-tab').click();
+
+    await page.evaluate(async () => {
+        cloudState.user = { id: 'browser-self' };
+        window.cloudJsonRequest = async () => [];
+        setMyNicknameLocal('브라우저궁수');
+        renderSocialTab();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        stopChatPolling();
+        stopHeartbeat();
+        let now = Date.now();
+        renderOnlineUsers([
+            { user_id: 'browser-self', nickname: '브라우저궁수', last_seen: new Date(now - 1000).toISOString() },
+            { user_id: 'browser-friend', nickname: '뿌리추적자', last_seen: new Date(now - 600000).toISOString() }
+        ], now);
+        socialState.lastChatRenderKey = '';
+        renderChatMessages([
+            { id: 701, user_id: 'browser-friend', nickname: '뿌리추적자', body: '냉기 저항을 챙겨보세요.', created_at: new Date(now - 60000).toISOString() },
+            { id: 702, user_id: 'browser-self', nickname: '브라우저궁수', body: '획득 ⟦0⟧', created_at: new Date(now).toISOString(), payload: { items: [{ kind: 'equipment', name: '검증용 장궁', rarity: 'rare', slot: '무기', stats: [] }] } }
+        ], true);
+    });
+
+    const chatRows = page.locator('#social-chat-list .social-chat-msg');
+    await expect(chatRows).toHaveCount(2);
+    await expect(chatRows.first().locator('.social-chat-avatar')).toHaveText('뿌');
+    await expect(chatRows.last()).toHaveClass(/mine/);
+    await expect(chatRows.last().locator('.social-chat-self')).toHaveText('나');
+    await expect(chatRows.last().locator('.social-item-link')).toContainText('검증용 장궁');
+    await expect(page.locator('#social-online .social-presence-dot.active')).toHaveCount(2);
+    await expect(page.locator('#social-online .social-presence-dot.recent')).toHaveCount(2);
+    const overflow = await page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth));
+    expect(overflow).toBeLessThanOrEqual(1);
+    expect(failures).toEqual([]);
+});
+
+test('mobile chat opens as a bounded bottom sheet and returns to battle', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile chat-sheet assertion');
+    const failures = watchRuntimeFailures(page);
+    await page.setViewportSize({ width: 393, height: 852 });
+    await openLocalGame(page);
+
+    await page.evaluate(() => switchTab('tab-social'));
+    const chatSheet = page.locator('#tab-social');
+    await expect(chatSheet).toBeVisible();
+    await expect(page.locator('body')).toHaveClass(/mobile-community-sheet-open/);
+    await expect(page.locator('.combat-feed')).toHaveCSS('display', 'none');
+    await expect(page.locator('.combat-feed')).toHaveCSS('visibility', 'hidden');
+    await expect(page.locator('.combat-feed .log-msg').first()).toHaveCSS('visibility', 'hidden');
+    await expect(page.locator('#mobile-toast-root')).toHaveCSS('display', 'none');
+    const geometry = await chatSheet.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+            position: style.position,
+            bottomGap: window.innerHeight - rect.bottom,
+            top: rect.top,
+            left: rect.left,
+            right: window.innerWidth - rect.right,
+            overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+        };
+    });
+    expect(geometry.position).toBe('fixed');
+    expect(Math.abs(geometry.bottomGap)).toBeLessThanOrEqual(1);
+    expect(geometry.top).toBeGreaterThanOrEqual(70);
+    expect(geometry.left).toBeGreaterThanOrEqual(7);
+    expect(geometry.right).toBeGreaterThanOrEqual(7);
+    expect(geometry.overflow).toBeLessThanOrEqual(1);
+
+    await chatSheet.locator('.social-mobile-sheet-header button').click();
+    await expect(chatSheet).toBeHidden();
+    await expect(page.locator('body')).not.toHaveClass(/mobile-community-sheet-open/);
+    await expect(page.locator('#mobile-toast-root')).not.toHaveCSS('display', 'none');
     expect(failures).toEqual([]);
 });
 
@@ -1063,6 +1627,50 @@ test('map cards show readiness grades and keep approximate numbers in the toolti
     else await power.hover();
     await expect(page.locator('#info-tooltip')).toContainText('내 DPS 약');
     await expect(page.locator('#info-tooltip')).toContainText('내 EHP 약');
+    expect(failures).toEqual([]);
+});
+
+test('mobile map navigation stays compact and new goals do not cover the map', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile layout assertion');
+    const failures = watchRuntimeFailures(page);
+    await page.setViewportSize({ width: 393, height: 852 });
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.level = 100;
+        game.season = 31;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        presentGoalDrawer({
+            id: 'mobile-map-layout-check', title: '혼돈 심화 41층을 돌파하세요',
+            current: 0, target: 41, actionLabel: '혼돈 지도 열기', actionTabId: 'tab-map'
+        });
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-zones');
+        switchMapExploreSubtab('map-explore-hunting');
+        performUpdateStaticUI();
+    });
+    await expect(page.locator('#ui-goal-drawer')).not.toHaveClass(/expanded/);
+    await expect(page.locator('#ui-goal-toggle')).toHaveAttribute('aria-expanded', 'false');
+
+    const navigation = await page.evaluate(() => {
+        const primary = document.querySelector('.map-primary-tabs');
+        const explorer = document.querySelector('.vertical-tab-sidebar');
+        const visiblePrimary = Array.from(primary.querySelectorAll('.subtab-btn'))
+            .filter(button => getComputedStyle(button).display !== 'none');
+        const visibleExplorer = Array.from(explorer.querySelectorAll('.vertical-tab-btn'))
+            .filter(button => getComputedStyle(button).display !== 'none');
+        return {
+            primaryColumns: getComputedStyle(primary).gridTemplateColumns.split(' ').filter(Boolean).length,
+            explorerColumns: getComputedStyle(explorer).gridTemplateColumns.split(' ').filter(Boolean).length,
+            primaryVisible: visiblePrimary.length,
+            explorerVisible: visibleExplorer.length,
+            pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
+        };
+    });
+    expect(navigation.primaryColumns).toBe(4);
+    expect(navigation.explorerColumns).toBe(4);
+    expect(navigation.primaryVisible).toBeGreaterThanOrEqual(6);
+    expect(navigation.explorerVisible).toBeGreaterThanOrEqual(6);
+    expect(navigation.pageOverflow).toBeLessThanOrEqual(1);
     expect(failures).toEqual([]);
 });
 
@@ -1241,5 +1849,66 @@ test('market exchange selector survives auto-salvage currency updates', async ({
     await expect(selector).toHaveValue('magicBud');
     await selector.blur();
     await expect(page.locator('[data-market-exchange-balance]')).toContainText('보유 24개');
+    expect(failures).toEqual([]);
+});
+
+test('reliquary gauges and alternate skins share one stable UI contract', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const result = await page.evaluate(() => {
+        applyUiSkin('verdigris');
+        const progress = document.querySelector('.map-progress-gauge');
+        const equipped = document.getElementById('ui-equip-list');
+        const presets = document.getElementById('ui-equipment-presets');
+        return {
+            skin: document.body.dataset.uiSkin,
+            progressArt: getComputedStyle(progress, '::before').backgroundImage,
+            gearBeforePresets: !!(equipped.compareDocumentPosition(presets) & Node.DOCUMENT_POSITION_FOLLOWING),
+            skinOptions: document.getElementById('sel-ui-skin').options.length
+        };
+    });
+    expect(result.skin).toBe('verdigris');
+    expect(result.progressArt).toContain('progress-frame-v3.png');
+    expect(result.gearBeforePresets).toBe(true);
+    expect(result.skinOptions).toBeGreaterThanOrEqual(3);
+    expect(failures).toEqual([]);
+});
+
+test('representative dark-theme chrome does not regress to the legacy blue palette', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const offenders = await page.evaluate(() => {
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        const tabIds = ['tab-items', 'tab-skills', 'tab-char', 'tab-flask', 'tab-journal', 'tab-expertise', 'tab-map', 'tab-settings'];
+        tabIds.forEach(tabId => switchTab(tabId));
+        const selector = [
+            '.ui-window-actions button', '.subtab-row button', '.cfg-group', '.cfg-group button',
+            '.cloud-panel', '.cloud-panel button:not(.social-login-image-btn)', '.passive-search-panel',
+            '.passive-search-panel input', '.passive-search-panel button', '.search-filter-panel',
+            '.search-filter-panel input', '.search-filter-panel button', '.inventory-browse-toolbar',
+            '.inventory-browse-toolbar :is(button, select)', '.equipment-triage-host',
+            '.equipment-triage-host :is(button, select)', '.forge-panel', '.player-exchange-card',
+            '.player-exchange-card button', '.equipment-preset-panel', '.ui-window-titlebar',
+            '.combat-log-toggle', '.patch-notes-open-btn', '.combat-panel', '.combat-zone-row'
+        ].join(',');
+        const isBlue = value => [...String(value || '').matchAll(/rgba?\((\d+)[, ]+(\d+)[, ]+(\d+)/g)]
+            .some(match => Number(match[3]) >= 55 && Number(match[3]) - Number(match[1]) >= 24 && Number(match[3]) - Number(match[2]) >= 12);
+        const entries = [...document.querySelectorAll(selector)].filter(element => {
+            if (!element.getClientRects().length || element.matches('.item-card, .gem-library-card, [class*="rarity"], [class*="element"]')) return false;
+            const style = getComputedStyle(element);
+            return [style.backgroundColor, style.backgroundImage, style.borderTopColor, style.borderRightColor].some(isBlue);
+        }).map(element => {
+            const style = getComputedStyle(element);
+            return {
+                node: `${element.tagName.toLowerCase()}#${element.id}.${element.className}`,
+                parent: `${element.parentElement && element.parentElement.id}.${element.parentElement && element.parentElement.className}`,
+                background: style.backgroundColor,
+                image: style.backgroundImage,
+                border: style.borderTopColor
+            };
+        });
+        return { count: entries.length, samples: entries.slice(0, 24) };
+    });
+    expect(offenders).toEqual({ count: 0, samples: [] });
     expect(failures).toEqual([]);
 });

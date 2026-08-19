@@ -3,8 +3,8 @@ const fs = require('fs');
 const vm = require('vm');
 
 const indexHtml = fs.readFileSync('index.html', 'utf8');
-assert.match(indexHtml, /id="loop-decision-cosmos-btn"[^>]+onclick="chooseLoopAdvancePath\('cosmos'\)"/, 'pending loop prompt should expose a cosmos-loop choice');
-assert.match(indexHtml, /id="loop-decision-chaos-btn"[^>]+onclick="chooseLoopAdvancePath\('chaos'\)"/, 'pending loop prompt should expose a chaos-loop choice');
+assert.match(indexHtml, /id="loop-decision-cosmos-btn"[^>]+onclick="handleLoopDecisionAdvanceButton\('cosmos'\)"/, 'cosmos-loop choice should pass through manual confirmation');
+assert.match(indexHtml, /id="loop-decision-chaos-btn"[^>]+onclick="handleLoopDecisionAdvanceButton\('chaos'\)"/, 'chaos-loop choice should pass through manual confirmation');
 
 const context = {
   console,

@@ -195,7 +195,9 @@ function buildTalismanSnapshot(t) {
     if (t.special && typeof getTalismanSpecialDescription === 'function') {
         let d = getTalismanSpecialDescription(t); if (d) effects.push(d);
     }
-    let name = (typeof getTalismanDisplayName === 'function') ? getTalismanDisplayName(t) : (t.name || '부적');
+    let name = (typeof getTalismanDisplayName === 'function')
+        ? getTalismanDisplayName(t)
+        : (t.name || (t.statName ? `${t.statName} 부적` : '이름 없는 부적'));
     let cells = Array.isArray(t.cells) ? t.cells.map(c => ({ x: c.x || 0, y: c.y || 0 })) : [];
     return { kind: 'talisman', name, rarity: t.rarity || 'normal', shape: t.shape || null, cells, stats, effects };
 }
@@ -499,7 +501,9 @@ function renderOnlineUsers(users, now = Date.now()) {
     host.style.display = 'block';
     let myId = socialLoggedInUserId();
     let visible = (users || []).map(user => ({ user, state: getSocialPresenceState(user.last_seen, now) })).filter(row => row.state);
-    let key = visible.length ? visible.map(row => `${row.user.user_id}:${row.state}`).join(',') : 'empty';
+    let key = visible.length
+        ? visible.map(row => `${row.user.user_id}:${row.user.nickname || ''}:${row.state}`).join(',')
+        : 'empty';
     if (key === socialState.lastOnlineRenderKey) return;
     socialState.lastOnlineRenderKey = key;
     let activeCount = visible.filter(row => row.state === 'active').length;
@@ -508,11 +512,15 @@ function renderOnlineUsers(users, now = Date.now()) {
         ? visible.map(row => {
             let u = row.user;
             let me = u.user_id === myId;
-            let dot = row.state === 'active' ? '🟢' : '🟡';
-            return `<span class="social-online-chip ${row.state}${me ? ' me' : ''}" onclick="openPlayerProfile('${socialEscape(u.user_id)}')">${dot} ${socialEscape(u.nickname || '익명')}${me ? ' (나)' : ''}</span>`;
+            return `<button type="button" class="social-online-chip ${row.state}${me ? ' me' : ''}" onclick="openPlayerProfile('${socialEscape(u.user_id)}')">`
+                + `<span class="social-presence-dot ${row.state}" aria-hidden="true"></span>`
+                + `<span>${socialEscape(u.nickname || '익명')}</span>${me ? '<em>나</em>' : ''}</button>`;
         }).join('')
-        : `<span class="social-online-empty">접속 중인 플레이어가 없습니다.</span>`;
-    host.innerHTML = `<div class="social-online-title">접속 상태 · 🟢 ${activeCount} · 🟡 ${recentCount}</div><div class="social-online-list">${chips}</div>`;
+        : `<span class="social-online-empty">지금은 조용합니다.</span>`;
+    host.innerHTML = `<div class="social-online-title"><span>접속 상태</span><span class="social-presence-summary">`
+        + `<span><i class="social-presence-dot active"></i>${activeCount}</span>`
+        + `<span><i class="social-presence-dot recent"></i>${recentCount}</span></span></div>`
+        + `<div class="social-online-list">${chips}</div>`;
 }
 async function refreshOnlineUsers() {
     if (socialState.onlineLoading || !socialState.onlineSupported) return;
@@ -845,7 +853,7 @@ function renderChatBody(m) {
             let key = `${m.id}:${n}`;
             socialState.chatTips[key] = renderProfileItemCard(snap);
             let color = socialRarityColor(snap.rarity);
-            out += `<span class="social-item-link" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'chat','${socialEscape(key)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('chat','${socialEscape(key)}')">🔗 ${socialEscape(snap.name)}</span>`;
+            out += `<span class="social-item-link" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'chat','${socialEscape(key)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('chat','${socialEscape(key)}')">◇ ${socialEscape(snap.name)}</span>`;
         } else { out += socialEscape(match[0]); }
         lastIndex = match.index + match[0].length;
     }
@@ -889,17 +897,21 @@ function renderChatMessages(messages, forceScroll) {
     }
     socialState.lastChatRenderKey = key;
     if (!messages.length) {
-        listEl.innerHTML = `<div class="social-chat-empty">아직 메시지가 없습니다. 첫 메시지를 남겨보세요!</div>`;
+        listEl.innerHTML = `<div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>아직 조용합니다</strong><small>첫 메시지를 남겨보세요.</small></div>`;
         socialState.scrollChatToLatestOnNextRender = false;
         return;
     }
     socialState.chatTips = {};
     listEl.innerHTML = messages.map(m => {
         let mine = m.user_id === myId;
-        return `<div class="social-chat-msg${mine ? ' mine' : ''}">`
-            + `<span class="social-chat-nick" onclick="openPlayerProfile('${socialEscape(m.user_id)}')">${socialEscape(m.nickname || '익명')}</span>`
-            + `<span class="social-chat-time">${formatChatTime(m.created_at)}</span>`
-            + `<div class="social-chat-body">${renderChatBody(m)}</div></div>`;
+        let nickname = String(m.nickname || '익명');
+        let initial = Array.from(nickname.trim())[0] || '?';
+        return `<article class="social-chat-msg${mine ? ' mine' : ''}">`
+            + `<header class="social-chat-head"><button type="button" class="social-chat-author" onclick="openPlayerProfile('${socialEscape(m.user_id)}')">`
+            + `<span class="social-chat-avatar" aria-hidden="true">${socialEscape(initial)}</span>`
+            + `<span class="social-chat-nick">${socialEscape(nickname)}</span></button>`
+            + `${mine ? '<span class="social-chat-self">나</span>' : ''}<time class="social-chat-time">${formatChatTime(m.created_at)}</time></header>`
+            + `<div class="social-chat-body">${renderChatBody(m)}</div></article>`;
     }).join('');
     if (shouldScroll) scrollSocialChatToLatest(listEl);
     socialState.scrollChatToLatestOnNextRender = false;
@@ -1278,21 +1290,23 @@ function renderSocialTab() {
             && (cloudState.busy || cloudState.initialized === false);
         root.innerHTML = checkingCloud
             ? `<h2>💬 커뮤니티</h2><div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
-            : `<h2>💬 커뮤니티</h2><div class="social-notice">채팅·접속자·프로필 구경 기능은 <strong>클라우드 로그인</strong>이 필요합니다.<br>설정 탭에서 로그인하면 이 화면이 자동으로 갱신됩니다.</div>`;
+            : `<h2>💬 커뮤니티</h2><div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필 기능이 이 도크에서 바로 열립니다.</p><button type="button" onclick="closeCommunityDock(); switchTab('tab-settings')">설정에서 로그인</button></div>`;
         stopChatPolling();
         return;
     }
     root.innerHTML = `
         <h2>💬 커뮤니티</h2>
         <div class="social-toolbar">
-            <span class="social-mynick">내 닉네임: <strong>${nickname ? socialEscape(nickname) : '<span style="color:#e88;">미설정</span>'}</strong></span>
-            <button onclick="promptAndSetNickname()">${nickname ? '닉네임 변경' : '닉네임 설정'}</button>
-            <button onclick="openMyProfilePreview()">내 프로필 미리보기</button>
-            <button onclick="syncPlayerProfile()" title="현재 장비/스탯을 공개 프로필에 반영">프로필 갱신</button>
+            <div class="social-profile-summary"><span>현재 사용자</span><strong>${nickname ? socialEscape(nickname) : '<em>미설정</em>'}</strong></div>
+            <div class="social-toolbar-actions">
+                <button onclick="promptAndSetNickname()">${nickname ? '닉네임' : '닉네임 설정'}</button>
+                <button onclick="openMyProfilePreview()">프로필</button>
+                <button onclick="syncPlayerProfile()" title="현재 장비/스탯을 공개 프로필에 반영">동기화</button>
+            </div>
         </div>
         <div id="social-online" class="social-online" style="display:none;"></div>
         <div class="social-chat-wrap">
-            <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty">불러오는 중…</div></div>
+            <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>대화를 불러오는 중</strong></div></div>
             <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
             <div class="social-chat-inputbar">
                 <button class="social-attach-btn" onclick="openItemPicker()" title="아이템 첨부" aria-label="아이템 첨부" ${nickname ? '' : 'disabled'}><span aria-hidden="true">＋</span> 첨부</button>
@@ -1324,26 +1338,30 @@ function injectSocialStyles() {
     .social-notice{color:var(--copy-bright);font-size:0.86em;line-height:1.5;}
     .social-notice{background:rgba(20,34,56,0.6);border:1px solid #24344f;border-radius:8px;padding:12px;margin-top:8px;}
     .social-notice-loading{border-color:#386383;background:linear-gradient(110deg,rgba(20,46,67,.72),rgba(17,29,48,.72));box-shadow:inset 3px 0 #64b5e5;}
-    .social-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0;}
-    .social-toolbar .social-mynick{margin-right:auto;color:var(--copy-bright);}
-    .social-online{background:rgba(16,28,46,0.6);border:1px solid #24344f;border-radius:8px;padding:8px 10px;margin-bottom:8px;}
-    .social-online-title{color:var(--copy-bright);font-size:0.82em;font-weight:700;margin-bottom:6px;}
+    .social-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:10px 0;}
+    .social-profile-summary{display:grid;gap:1px;min-width:0;}.social-profile-summary>span{color:var(--copy-muted);font-size:.72em;}.social-profile-summary>strong{overflow:hidden;color:#e8d7b6;text-overflow:ellipsis;white-space:nowrap;}.social-profile-summary em{color:#d58478;font-style:normal;}
+    .social-toolbar-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;}
+    .social-online{background:rgba(13,15,13,.72);border:1px solid #40392e;border-radius:5px;padding:8px 10px;margin-bottom:8px;}
+    .social-online-title{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--copy-bright);font-size:0.82em;font-weight:700;margin-bottom:6px;}
+    .social-presence-summary{display:flex;gap:8px;color:var(--copy-muted);font-weight:500;}.social-presence-summary>span{display:inline-flex;align-items:center;gap:4px;}
+    .social-presence-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#767169;box-shadow:0 0 0 1px rgba(0,0,0,.7);}.social-presence-dot.active{background:#62b36f;box-shadow:0 0 6px rgba(98,179,111,.38);}.social-presence-dot.recent{background:#c8a64f;}
     .social-online-list{display:flex;flex-wrap:wrap;gap:6px;}
-    .social-online-chip{font-size:0.8em;background:#13202f;border:1px solid;border-radius:14px;padding:2px 9px;color:#ffffff;cursor:pointer;}
-    .social-online-chip.active{border-color:#2f7547;}
-    .social-online-chip.recent{border-color:#8a7332;color:#e7dcaa;opacity:.82;}
+    .social-online-chip{display:inline-flex;align-items:center;gap:6px;min-height:26px;font-size:0.8em;background:#11130f;border:1px solid #3d382e;border-radius:3px;padding:2px 8px;color:#ddd5c8;cursor:pointer;}.social-online-chip em{padding-left:5px;border-left:1px solid #454036;color:#bfa36d;font-size:.78em;font-style:normal;}
+    .social-online-chip.active{border-color:#3f6744;}
+    .social-online-chip.recent{border-color:#6b5b32;color:#c8bfaa;opacity:.88;}
     .social-online-chip:hover{filter:brightness(1.18);}
-    .social-online-chip.me{border-color:#3a6ea5;}
+    .social-online-chip.me{border-color:#8b6838;box-shadow:inset 0 0 0 1px rgba(213,174,105,.08);}
     .social-online-empty{color:var(--copy-muted);font-size:0.82em;}
     .social-chat-wrap{display:flex;flex-direction:column;gap:8px;}
     .social-chat-list{height:46vh;min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
-    .social-chat-empty{color:var(--copy-muted);text-align:center;margin:auto;font-size:0.9em;}
-    .social-chat-msg{max-width:82%;align-self:flex-start;background:#16243a;border:1px solid #233957;border-radius:10px;padding:6px 10px;}
-    .social-chat-msg.mine{align-self:flex-end;background:#1d3350;border-color:#2f5180;}
-    .social-chat-nick{color:#7fc1ff;font-weight:700;font-size:0.86em;cursor:pointer;}
+    .social-chat-empty{display:grid;justify-items:center;gap:5px;color:var(--copy-muted);text-align:center;margin:auto;font-size:0.9em;}.social-chat-empty>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #5b4a31;border-radius:50%;color:#d6b572;font-size:18px;}.social-chat-empty strong{color:#cfc5b5;}.social-chat-empty small{font-size:.8em;}
+    .social-chat-msg{max-width:82%;align-self:flex-start;background:#141713;border:1px solid #343229;border-radius:6px;padding:7px 9px;}
+    .social-chat-msg.mine{align-self:flex-end;background:#1b1914;border-color:#5b4930;}
+    .social-chat-head{display:flex;align-items:center;gap:6px;min-width:0;}.social-chat-author{display:inline-flex;align-items:center;gap:7px;min-width:0;padding:0;border:0;background:none;color:inherit;cursor:pointer;}.social-chat-avatar{display:grid;place-items:center;flex:0 0 24px;width:24px;height:24px;border:1px solid #675132;border-radius:50%;color:#dfbd7b;background:#0b0c0a;font-size:.78em;}.social-chat-self{padding:1px 4px;border:1px solid #675132;border-radius:2px;color:#c9aa70;font-size:.65em;}
+    .social-chat-nick{overflow:hidden;color:#d6b572;font-weight:700;font-size:0.86em;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
     .social-chat-nick:hover{text-decoration:underline;}
-    .social-chat-time{color:var(--copy-muted);font-size:0.72em;margin-left:6px;}
-    .social-chat-body{color:var(--copy-bright);margin-top:3px;white-space:pre-wrap;word-break:break-word;}
+    .social-chat-time{margin-left:auto;color:var(--copy-muted);font-size:0.68em;white-space:nowrap;}
+    .social-chat-body{color:var(--copy-bright);margin:3px 0 0 31px;white-space:pre-wrap;word-break:break-word;}
     .social-chat-inputbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:stretch;}
     .social-chat-input-shell{position:relative;min-width:0;}
     .social-chat-input-shell input{box-sizing:border-box;width:100%;height:100%;min-height:38px;padding:8px 52px 8px 11px;background:#0e1726;border:1px solid #2a3e5c;border-radius:7px;color:#ffffff;}

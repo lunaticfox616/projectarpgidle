@@ -54,18 +54,19 @@ const affixCounts = JSON.parse(run(`JSON.stringify((function () {
 })())`));
 assert.deepStrictEqual(affixCounts, { magic: 1, rare: 2 }, '마법 1줄·희귀 2줄 계약이 실제 생성에 적용되어야 한다');
 
-// 해체는 기존 보상과 별개로 전용 정수를 지급하며, 큰/희귀 아이템일수록 더 준다.
+// 해체는 기존 보상과 별개로 전용 정수를 지급하되, 대량 드랍에서 과잉 축적되지 않게 제한한다.
 const salvage = JSON.parse(run(`JSON.stringify((function () {
     let small = { id: 2001, name: '작은 판', rarity: 'normal', itemTier: 1, slot: '무기',
         growthShapeId: 'dot1', growthCategory: 'flower', growthBaseId: 'gf_sun_bloom', baseStats: [], stats: [] };
     let large = { id: 2002, name: '큰 판', rarity: 'rare', itemTier: 12, slot: '반지',
         growthShapeId: 'square4', growthCategory: 'seed', growthBaseId: 'gsd_world_kernel', baseStats: [], stats: [] };
-    let first = salvageGrowthItemObject(small, true);
-    let second = salvageGrowthItemObject(large, true);
+    let first = salvageGrowthItemObject(small, true, { essenceRandom: () => 0 });
+    let second = salvageGrowthItemObject(large, true, { essenceRandom: () => 0.5 });
     return { first: first.growthEssence, second: second.growthEssence, total: game.currencies.growthEssence };
 })())`));
-assert.strictEqual(salvage.first, 1, '일반 1칸 생장판은 정수 1개를 줘야 한다');
+assert.strictEqual(salvage.first, 1, '일반 1칸 생장판은 성공 판정 시 정수 1개를 줘야 한다');
 assert.ok(salvage.second > salvage.first, '희귀 다칸 생장판은 더 많은 정수를 줘야 한다');
+assert.ok(salvage.second <= 4, '희귀 다칸 생장판도 정수를 과도하게 지급하면 안 된다');
 assert.strictEqual(salvage.total, salvage.first + salvage.second, '전용 정수 지급량이 상태에 정확히 반영되어야 한다');
 
 // 기존 제작 재화는 생장판 제작대에서만 10개 단위로 1회분을 교환한다.
@@ -73,9 +74,30 @@ run('game.currencies.magicBud = 10; exchangeGrowthCraftCurrency("magicBud");');
 assert.strictEqual(run('game.currencies.magicBud'), 0, '기존 재화 10개를 정확히 소모해야 한다');
 assert.strictEqual(run('game.currencies.growthEssence'), salvage.total + 1, '마법 제작 1회분 정수를 받아야 한다');
 
+const essenceRolls = JSON.parse(run(`JSON.stringify((function () {
+    let normal = { growthShapeId: 'dot1', growthCategory: 'flower', rarity: 'normal', itemTier: 1 };
+    let magic = { ...normal, rarity: 'magic' };
+    let rare = { ...normal, rarity: 'rare' };
+    let unique = { ...normal, rarity: 'unique' };
+    return {
+        normalSuccess: getGrowthSalvageEssenceYield(normal, () => 0.59),
+        normalFailure: getGrowthSalvageEssenceYield(normal, () => 0.6),
+        magicLow: getGrowthSalvageEssenceYield(magic, () => 0),
+        magicHigh: getGrowthSalvageEssenceYield(magic, () => 0.99),
+        rareLow: getGrowthSalvageEssenceYield(rare, () => 0),
+        rareHigh: getGrowthSalvageEssenceYield(rare, () => 0.99),
+        uniqueLow: getGrowthSalvageEssenceYield(unique, () => 0),
+        uniqueHigh: getGrowthSalvageEssenceYield(unique, () => 0.99)
+    };
+})())`));
+assert.deepStrictEqual(essenceRolls, {
+    normalSuccess: 1, normalFailure: 0, magicLow: 1, magicHigh: 2,
+    rareLow: 1, rareHigh: 3, uniqueLow: 3, uniqueHigh: 7
+}, '생장 정수는 등급별 범위에서 굴리고 일반 등급은 60% 획득이어야 한다');
+
 const slabYield = run(`getGrowthSalvageEssenceYield({
     growthShapeId: 'dot1', growthCategory: 'slab', rarity: 'normal', itemTier: 10
-})`);
-assert.ok(slabYield >= 4, '석판 해체는 일반 1칸 생장판보다 많은 전용 정수를 줘야 한다');
+}, () => 0)`);
+assert.strictEqual(slabYield, 3, 'T10 일반 석판은 획득 판정 성공 시 구조 보너스를 받아야 한다');
 
 console.log('smoke-growth-overhaul passed');

@@ -65,9 +65,8 @@
         });
     }
 
-    // 생장판은 루프 25에 조용히 열린다. 드랍은 최근 획득함에 쌓이고, 배치하지 않으면
-    // 아무 효과도 없다. 장비에는 "장착 가능한 장비가 있습니다" 안내가 있는데 생장판에는
-    // 아무 신호가 없어, 판이 빈 채로 계속 굴러가기 쉬웠다.
+    // 생장판은 루프 25에 조용히 열린다. 직접 보관된 아이템도 배치하지 않으면 효과가 없으므로
+    // 빈 판과 가득 찬 보관함을 목표 안내에서 놓치지 않게 한다.
     function isGrowthGoalReady() {
         return typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked();
     }
@@ -246,14 +245,14 @@
                     icon: '⚔️',
                     categoryLabel: '스토리',
                     title,
-                    description: onFrontier
-                        ? '진행도가 100%가 되면 보스가 등장하고, 처치하면 다음 액트가 열립니다.'
-                        : '지도에서 최전선 지역으로 이동해 진행하세요.'
+                    description: onFrontier ? '' : '지도에서 최전선 지역으로 이동해 진행하세요.'
                 };
                 if (onFrontier) {
                     goal.current = Math.max(0, Math.min(100, Math.floor(Number(g.runProgress) || 0)));
                     goal.target = 100;
                     goal.progressPct = goal.current;
+                    // 진행 상태는 바로만 보여 주고, 목표 카드의 중복 수치 문구는 생략한다.
+                    goal.progressText = '';
                 }
                 return buildTabAction(goal, '사냥터 열기', 'tab-map', 'map-explore-hunting');
             }
@@ -504,14 +503,12 @@
             matches(g) {
                 if (!isGrowthGoalReady() || typeof getGrowthInventoryLimit !== 'function') return false;
                 let stored = Array.isArray(g.growthInventory) ? g.growthInventory.length : 0;
-                return stored >= Math.floor(getGrowthInventoryLimit()) || (g.recentGrowthDrops || []).length > 0;
+                return stored >= Math.floor(getGrowthInventoryLimit());
             },
             build(g) {
-                // 보관함이 가득 차면 새 드랍이 거절되므로 그쪽을 먼저 알린다.
                 let stored = Array.isArray(g.growthInventory) ? g.growthInventory.length : 0;
                 let limit = Math.floor(getGrowthInventoryLimit());
-                if (stored >= limit) return buildNotice(`생장 보관함 ${stored}/${limit} · 비우지 않으면 새 드랍을 받지 못합니다`, 'tab-growthboard');
-                return buildNotice(`최근 획득함에 생장 아이템 ${(g.recentGrowthDrops || []).length}개 대기`, 'tab-growthboard');
+                return buildNotice(`생장 보관함 ${stored}/${limit} · 새 드랍은 비교 없이 자동 해체됩니다`, 'tab-growthboard');
             }
         }
     ];
