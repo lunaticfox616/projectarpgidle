@@ -75,7 +75,11 @@ function refreshItemIdCounter() {
     let altarIds = [rift.altarUnique, rift.altarRare].filter(Boolean).map(item => item.id || 0);
     // 생장 보관함과 아직 마이그레이션되지 않은 예전 최근 획득함도 id 공간을 점유한다.
     let growthIds = (game.growthInventory || []).concat(game.recentGrowthDrops || []).filter(Boolean).map(item => item.id || 0);
-    itemIdCounter = Math.max(0, ...(game.inventory || []).map(item => item.id || 0), ...Object.values(game.equipment || {}).filter(Boolean).map(item => item.id || 0), ...altarIds, ...growthIds);
+    let offline = game.offlineProgress && typeof game.offlineProgress === 'object' ? game.offlineProgress : {};
+    let offlineIds = (offline.stash || []).concat(offline.protectedOverflow || []).filter(Boolean).map(item => item.id || 0);
+    let presetIds = (((game.equipmentLoadouts || {}).presets) || []).flatMap(preset => preset && preset.slots
+        ? Object.values(preset.slots).filter(Boolean).map(row => row.id || 0) : []);
+    itemIdCounter = Math.max(0, ...(game.inventory || []).map(item => item.id || 0), ...Object.values(game.equipment || {}).filter(Boolean).map(item => item.id || 0), ...altarIds, ...growthIds, ...offlineIds, ...presetIds);
 }
 
 function createSaveSnapshot(sourceGame) {

@@ -1,5 +1,10 @@
         .map-item-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
         .map-item-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .map-item--act .map-item-actions { gap: 5px; }
+        .map-item--act .map-state-badge,
+        .map-item--act .map-reward-btn,
+        .map-item--act .map-enter-btn { min-height: 28px; padding: 4px 8px; white-space: nowrap; }
+        .map-state-badge.reward-claimed { color: #a9d9bd; border-color: rgba(105, 184, 137, .5); }
         .map-reward-btn { background: linear-gradient(180deg, #6e5420 0%, #4a3815 100%); border-color: #b88a2b; color: #ffe7a2; font-size: 0.78em; padding: 5px 10px; }
         .map-reward-btn.claimed { background: #263544; border-color: #3a536c; color: #ffffff; }
         .map-zone-status { color: var(--copy-muted); font-size: 0.78em; font-weight: normal; }

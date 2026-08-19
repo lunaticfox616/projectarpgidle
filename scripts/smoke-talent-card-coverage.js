@@ -35,8 +35,11 @@ const cardIds = Object.keys(defs);
 assert.strictEqual(cardIds.length, 120, '재능 카드 정의는 120종이어야 한다');
 
 context.HERO_SELECTION_ORDER = ['hero1', 'hero2'];
+context.HERO_SELECTION_DEFS = { hero1: {}, hero2: {} };
 context.CLASS_TEMPLATES = { warrior: { name: '전사' }, ranger: { name: '레인저' } };
 context.getHeroSelectionDef = heroId => ({ label: heroId === 'hero1' ? '궁수' : '전사 재능' });
+context.game.selectedHeroId = 'hero1';
+context.game.ascendClass = 'warrior';
 context.game.talentCards = {
   hero1__warrior: { level: 3, score: 20, count: 1 },
   hero2__warrior: { level: 2, score: 10, count: 1 },
@@ -52,6 +55,26 @@ assert.deepStrictEqual(dimensionRows.map(row => [row.id, row.count]), [['warrior
 const slotHtml = vm.runInContext("renderTalentLoadoutSlot(0, true, 'hero1__warrior', game.talentCards)", context);
 assert(slotHtml.includes('아방가르드') && slotHtml.includes('궁수 × 전사'),
   '장착 슬롯은 혼합 재능명과 원본 재능·직업을 함께 표시해야 한다');
+
+context.game.talentCards = Object.fromEntries(Array.from({ length: 39 }, (_, index) => [`owned-${index}`, { level: 1 }]));
+assert.strictEqual(context.getUnlockedTalentSlotCount(), 4, '개화 카드 39장까지는 장착 슬롯 4칸이어야 한다');
+context.game.talentCards['owned-39'] = { level: 1 };
+assert.strictEqual(context.getUnlockedTalentSlotCount(), 5, '개화 카드 40장에서 5번째 슬롯이 열려야 한다');
+for (let index = 40; index < 59; index += 1) context.game.talentCards[`owned-${index}`] = { level: 1 };
+assert.strictEqual(context.getUnlockedTalentSlotCount(), 5, '개화 카드 59장까지는 장착 슬롯 5칸이어야 한다');
+context.game.talentCards['owned-59'] = { level: 1 };
+assert.strictEqual(context.getUnlockedTalentSlotCount(), 6, '개화 카드 60장에서 6번째 슬롯이 열려야 한다');
+
+context.game.talentCards = { hero1__warrior: { level: 3, score: 20, count: 1 } };
+context.setTalentCardView('talent');
+const combinationHtml = context.renderTalentCombinationStatus(context.game.talentCards);
+assert(combinationHtml.includes("showTalentCombinationTooltip(event,'hero1__warrior')"),
+  '개화 완료 조합은 커스텀 효과 툴팁 호버를 제공해야 한다');
+let talentTooltip = null;
+context.showInfoTooltipHtml = (x, y, html) => { talentTooltip = { x, y, html }; };
+context.showTalentCombinationTooltip({ clientX: 12, clientY: 34 }, 'hero1__warrior');
+assert(talentTooltip && talentTooltip.html.includes('아방가르드') && talentTooltip.html.includes('[표면]'),
+  '개화 현황 툴팁은 조합명과 현재 레벨 효과를 보여야 한다');
 
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 const talentSource = fs.readFileSync('js/talent-cards.js', 'utf8');

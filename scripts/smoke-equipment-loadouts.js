@@ -8,8 +8,8 @@ const copy = value => JSON.parse(JSON.stringify(value));
 const logs = [];
 context.addLog = message => logs.push(String(message));
 
-function makeItem(id, name, slot) {
-    return { id, name, slot, rarity: 'rare', baseStats: [], stats: [], itemTier: 10, hiddenTier: 10 };
+function makeItem(id, name, slot, instanceId = `item-${id}`) {
+    return { id, instanceId, name, slot, baseId: `base-${slot}`, baseName: `${slot} 베이스`, rarity: 'rare', baseStats: [], stats: [], itemTier: 10, hiddenTier: 10 };
 }
 
 function loadGame(save = {}) {
@@ -28,6 +28,20 @@ function loadGame(save = {}) {
     assert.strictEqual(state.equipmentLoadouts.presets[0].slots['무기'].id, 7, '유효한 장비 참조는 보존해야 한다');
     assert.strictEqual(state.equipmentLoadouts.presets[0].slots['투구'], null, '손상된 장비 참조는 제거해야 한다');
     assert.strictEqual(state.equipmentLoadouts.presets[1], null, '손상된 프리셋은 비워야 한다');
+}
+
+{
+    const legacySword = makeItem(71, '예전 프리셋 검', '무기', null);
+    const state = loadGame({
+        inventory: [legacySword],
+        equipmentLoadouts: { selectedSlot: 0, presets: [{ name: '예전 세팅', slots: {
+            '무기': { id: legacySword.id, name: legacySword.name }
+        } }] }
+    });
+    assert.ok(state.equipmentLoadouts.presets[0].slots['무기'].instanceId,
+        '구버전 프리셋은 숫자 ID가 유일하게 일치하는 보유 장비의 인스턴스 식별자를 승계해야 한다');
+    assert.strictEqual(state.equipmentLoadouts.presets[0].slots['무기'].instanceId, state.inventory[0].instanceId,
+        '구버전 프리셋 마이그레이션이 다른 장비를 가리키면 안 된다');
 }
 
 {
@@ -88,7 +102,7 @@ function loadGame(save = {}) {
     const sword = makeItem(450, '중복 검', '무기');
     state.equipment['무기'] = sword;
     context.equipmentLoadoutRuntime.save(0, '손상 세팅', state);
-    state.equipmentLoadouts.presets[0].slots['투구'] = { id: sword.id, name: sword.name };
+    state.equipmentLoadouts.presets[0].slots['투구'] = { id: sword.id, instanceId: sword.instanceId, name: sword.name };
     const result = context.equipmentLoadoutRuntime.apply(0, state);
     assert.strictEqual(result.ok, false, '같은 장비를 두 슬롯에 저장한 손상 프리셋을 거부해야 한다');
     assert.ok(result.reason.includes('같은 장비'), '중복 장비 참조 오류를 명시해야 한다');
@@ -102,7 +116,7 @@ function loadGame(save = {}) {
     state.equipment['무기'] = sword;
     state.inventory = [boots];
     context.equipmentLoadoutRuntime.save(0, '슬롯 검사', state);
-    state.equipmentLoadouts.presets[0].slots['무기'] = { id: boots.id, name: boots.name };
+    state.equipmentLoadouts.presets[0].slots['무기'] = { id: boots.id, instanceId: boots.instanceId, name: boots.name };
     const before = copy({ equipment: state.equipment, inventory: state.inventory });
     const result = context.equipmentLoadoutRuntime.apply(0, state);
     assert.strictEqual(result.ok, false, '슬롯과 맞지 않는 장비가 저장된 프리셋을 거부해야 한다');
@@ -125,6 +139,20 @@ function loadGame(save = {}) {
     assert.ok(logs.some(message => message.includes('장비 세팅')), '해체가 막힌 이유를 알려야 한다');
     context.equipmentLoadoutRuntime.clear(0, state);
     assert.strictEqual(context.isBulkSalvageProtectedItem(sword), false, '프리셋을 비우면 자동 보호도 해제해야 한다');
+}
+
+{
+    const state = loadGame();
+    const savedSword = makeItem(550, '저장한 검', '무기', 'instance-saved');
+    const sameBaseSword = makeItem(550, '같은 베이스의 새 검', '무기', 'instance-new');
+    state.equipment['무기'] = savedSword;
+    context.equipmentLoadoutRuntime.save(0, '인스턴스 보호', state);
+    state.equipment['무기'] = sameBaseSword;
+    state.inventory = [savedSword, sameBaseSword];
+    assert.strictEqual(context.isBulkSalvageProtectedItem(savedSword), true,
+        '프리셋에 저장한 정확한 장비 인스턴스는 보호해야 한다');
+    assert.strictEqual(context.isBulkSalvageProtectedItem(sameBaseSword), false,
+        '베이스와 숫자 ID가 같아도 다른 장비 인스턴스까지 보호하면 안 된다');
 }
 
 {

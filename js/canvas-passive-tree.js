@@ -635,7 +635,7 @@ function renderInventoryCard(item, idx, mode, triageResult) {
     let lockIcon = item.locked ? ' 🔒' : '';
     let lockBtnLabel = item.locked ? '잠금해제' : '잠금';
     let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined'
-        && equipmentLoadoutRuntime.isReferenced(item.id);
+        && equipmentLoadoutRuntime.isReferenced(item);
     let presetBadge = presetProtected ? '<span class="equipment-preset-protected">세팅 보호</span>' : '';
     // 장비 칸 단순화: 카드에는 옵션을 나열하지 않고 이름/베이스/등급만 보여준다.
     // 전체 옵션은 호버 시 커스텀 툴팁(showItemTooltip)에서 확인한다.

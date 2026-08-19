@@ -367,10 +367,30 @@ function renderTalentCombinationStatus(owned) {
         let counterpart = dimension === 'talent' ? names.classLabel : names.heroLabel;
         let isCurrent = current.key === key;
         let classes = `talent-combo-cell ${card ? 'unlocked' : 'locked'}${isCurrent ? ' current' : ''}`;
-        return `<div class="${classes}"><span>${escapeTalentHtml(counterpart)}</span><strong>${escapeTalentHtml(names.bloomName)}</strong><small>${card ? `Lv.${Math.max(1, Math.floor(card.level || 1))} 개화` : '미개화'}</small></div>`;
+        let tooltip = card ? ` data-info-tooltip-anchor="1" onmouseenter="showTalentCombinationTooltip(event,'${key}')" onmousemove="showTalentCombinationTooltip(event,'${key}')" onmouseleave="hideInfoTooltip()"` : '';
+        return `<div class="${classes}"${tooltip}><span>${escapeTalentHtml(counterpart)}</span><strong>${escapeTalentHtml(names.bloomName)}</strong><small>${card ? `Lv.${Math.max(1, Math.floor(card.level || 1))} 개화` : '미개화'}</small></div>`;
     }).join('');
     let focusLabel = dimension === 'talent' ? getHeroSelectionDef(focusId).label : CLASS_TEMPLATES[focusId].name;
     return `<div class="talent-combo-status"><div class="talent-combo-status-head"><strong>${escapeTalentHtml(focusLabel)} 조합</strong><span>밝은 카드는 개화 완료 · 테두리는 현재 조합</span></div><div class="talent-combo-grid">${cells}</div></div>`;
+}
+
+function buildTalentCombinationTooltipHtml(comboKey) {
+    let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
+    let card = owned[comboKey];
+    if (!card) return '';
+    let { heroId, classKey } = parseTalentComboKey(comboKey);
+    let names = getTalentCardName(heroId, classKey);
+    let level = Math.max(1, Math.floor(card.level || 1));
+    let effects = getTalentCardEffectLines(heroId, classKey, level);
+    return `<div class="tooltip-title" style="color:#fff1a8;">${escapeTalentHtml(names.bloomName)}</div>`
+        + `<div class="tooltip-line" style="color:#cdb8df;">${escapeTalentHtml(names.heroLabel)} × ${escapeTalentHtml(names.classLabel)} · Lv.${level}</div>`
+        + `<div class="tooltip-line">${effects.join('<br>')}</div>`;
+}
+
+function showTalentCombinationTooltip(event, comboKey) {
+    if (!event || typeof showInfoTooltipHtml !== 'function') return;
+    let html = buildTalentCombinationTooltipHtml(comboKey);
+    if (html) showInfoTooltipHtml(event.clientX, event.clientY, html, '#dcaeff', `talent-combo:${comboKey}`);
 }
 
 function renderTalentBloomNavigator(owned) {
@@ -409,7 +429,7 @@ function getOwnedTalentCardCount() {
 
 // ---- 장착 슬롯 (P4) ----
 // 슬롯은 보유 카드 수가 다음 임계값에 도달할 때마다 1칸씩 열린다.
-const TALENT_CARD_SLOT_UNLOCKS = [1, 4, 12, 25, 50, 100];
+const TALENT_CARD_SLOT_UNLOCKS = [1, 4, 12, 25, 40, 60];
 const TALENT_CARD_SLOT_COUNT = TALENT_CARD_SLOT_UNLOCKS.length;
 
 function ensureTalentCardLoadout() {
@@ -942,5 +962,6 @@ safeExposeGlobals({
     markTalentExecutionOrder,
     getTalentFenrirConfig,
     isTalentFenrirEngravingEnabled,
-    clearTalentCardRuntimeState
+    clearTalentCardRuntimeState,
+    showTalentCombinationTooltip
 });

@@ -352,6 +352,29 @@ function transmuteCoreCubePower(powerNo) {
     return gained;
 }
 
+function getCoreCubeRecyclablePowers() {
+    let powers = ensureCoreCubeState().powers || {};
+    return Object.keys(powers).map(Number).filter(no => no >= CORE_CUBE_POWER_MIN
+        && no <= CORE_CUBE_POWER_MAX && Math.floor(Number(powers[no]) || 0) >= 5).sort((a, b) => a - b);
+}
+
+async function requestCoreCubePowerRecycle() {
+    let recyclable = getCoreCubeRecyclablePowers();
+    if (recyclable.length === 0) {
+        addLog('재활용할 같은 번호의 동력원 5개가 필요합니다.', 'attack-monster');
+        return null;
+    }
+    let selected = await requestGameChoice({
+        title: '동력원 재활용',
+        message: '소모할 동력원 번호를 선택하세요. 같은 번호 5개를 미보유 번호 1개로 우선 재배열합니다.',
+        confirmLabel: '재활용',
+        submitOnChoice: true,
+        choices: recyclable.map(no => ({ value: no, label: `${no}번 동력원`, detail: `보유 ${ensureCoreCubeState().powers[no]}개 · 5개 소모` }))
+    });
+    if (selected === null) return null;
+    return transmuteCoreCubePower(selected);
+}
+
 function pickRandomCoreCubePowerFromState(st) {
     let total = Object.values((st && st.powers) || {}).reduce((sum, count) => sum + Math.max(0, Math.floor(count || 0)), 0);
     if (total <= 0) return null;
@@ -1155,7 +1178,7 @@ function renderCoreCubePanel(options) {
         : '<div class="core-cube-muted">보유 동력원이 없습니다.</div>';
     let transmuteEntries = powerEntries.filter(no => Math.max(0, Math.floor(st.powers[no] || 0)) >= 5);
     let transmuteHtml = transmuteEntries.length
-        ? `<div class="core-cube-row">${transmuteEntries.map(no => `<button type="button" onclick="transmuteCoreCubePower(${no})">${no}번 ×5 변환</button>`).join('')}</div>`
+        ? `<div class="core-cube-row"><button type="button" onclick="requestCoreCubePowerRecycle()">재활용</button><span class="core-cube-muted">가능 번호 ${transmuteEntries.join(', ')}</span></div>`
         : '<div class="core-cube-muted">같은 번호가 5개 모이면 미보유 동력원으로 재배열할 수 있습니다.</div>';
     let comboText = st.faces.every(v => v !== null) ? st.faces.slice().sort((a, b) => a - b).join(' / ') : '6면 각인 필요';
     let optionsHtml = (st.revealedOptions || []).length ? st.revealedOptions.map(row => `<div class="core-cube-option">${row.text || formatCoreCubeOption(row)}</div>`).join('') : '<div class="core-cube-muted">큐브를 완성하면 옵션 4줄이 발현됩니다.</div>';
@@ -1188,5 +1211,5 @@ function renderCoreCubePanel(options) {
 }
 
 safeExposeGlobals({ getCoreCubeDefaultState, normalizeCoreCubeState, ensureCoreCubeState, getCoreCubeUnlockInfo, isCoreCubeUnlocked, maybeUnlockCoreCube, relockCoreCubeForLoop, canDropCoreCubeBlurred45, addCoreCubeBlurred45, addCoreCubePower, useCoreCubeBlurred45, selectCoreCubeFace, socketCoreCubePower, socketRandomCoreCubePower, resetCoreCube, completeCoreCube,
-    saveCoreCubePreset, applyCoreCubePreset, clearCoreCubePreset, isCoreCubePresetSlotUnlocked, getCoreCubeUsedPowerCount, transmuteCoreCubePower,
+    saveCoreCubePreset, applyCoreCubePreset, clearCoreCubePreset, isCoreCubePresetSlotUnlocked, getCoreCubeUsedPowerCount, transmuteCoreCubePower, requestCoreCubePowerRecycle,
     markCoreCubePowerUsed, syncCoreCubePresetSlotUnlock, renderCoreCubeMissingPowers, generateCoreCubeOptions, getCoreCubeActiveStats, renderCoreCubePanel });
