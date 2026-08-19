@@ -8393,7 +8393,7 @@ function getChaosInfuserOption(optionId) {
 function getChaosInfusionCost(option, item) {
     if (!option) return null;
     let costs = [{ key: option.currency, amount: option.cost }];
-    if (item && item.chaosInfusion) costs.push({ key: 'scour', amount: 1 });
+    if (item && item.chaosInfusion) costs.push({ key: 'blightSpore', amount: 1 });
     return costs;
 }
 function canPayCurrencyCosts(costs) {
@@ -8428,8 +8428,8 @@ function applyChaosInfusionToSelectedItem(optionId) { if (game.woodsmanBuildLock
 function removeChaosInfusionFromSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item || !item.chaosInfusion) return;
-    let costs = [{ key: 'scour', amount: 1 }];
-    if (!canPayCurrencyCosts(costs)) return addLog(`혼돈 주입 제거에는 ${(ORB_DB.scour || {}).name || '정화의 오브'} 1개가 필요합니다.`, 'attack-monster');
+    let costs = [{ key: 'blightSpore', amount: 1 }];
+    if (!canPayCurrencyCosts(costs)) return addLog(`혼돈 주입 제거에는 ${ORB_DB.blightSpore.name} 1개가 필요합니다.`, 'attack-monster');
     if (!payCurrencyCosts(costs)) return;
     item.chaosInfusion = null;
     addLog(`🧼 혼돈 주입 제거: [${item.name}]`, 'loot-normal');
