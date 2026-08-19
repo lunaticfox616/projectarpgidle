@@ -9078,12 +9078,15 @@ function getCurrencyDrops(enemy) {
     } else if (bonusRoll(0.02)) {
         drops.push([[ 'magicBud', 'magicBud', 'magicBud', 'magicBud', 'blightSpore' ][Math.floor(Math.random() * 5)], 1]);
     }
-    // 신성한 오브: 일반 0.01375% / 정예 0.0825% / 보스 1.25%. 엑잘티드는 신성의 2배. 나무꾼의 손길은 신성 확률의 1/1200(극악).
+    // 신성한 오브: 일반 0.01375% / 정예 0.0825% / 보스 1.25%. 엑잘티드는 신성의 2배. 우로보로스는 기본적으로 신성 확률의 1/1200(극악).
     let divineChance = enemy.isBoss ? 0.0125 : (enemy.isElite ? 0.000825 : 0.0001375);
     if (bonusRoll(divineChance)) drops.push(['goldenRule', 1]);
     if (bonusRoll(divineChance / 20)) drops.push(['fairyRing', 1]);
     if (bonusRoll(divineChance * 2)) drops.push(['sapBud', 1]);
-    if (bonusRoll(divineChance / 1200)) drops.push(['ouroboros', 1]);
+    let isRepeatMasterwork = enemy.isBoss && zone.id === 'rival_masterwork'
+        && Array.isArray(game.clearedRootBosses) && game.clearedRootBosses.includes(zone.id);
+    let ouroborosChance = (divineChance / 1200) * (isRepeatMasterwork ? 2.5 : 1);
+    if (bonusRoll(ouroborosChance)) drops.push(['ouroboros', 1]);
     let mappingOpened = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
     drops.push(...getMappingTicketDrops(enemy, zone, mappingOpened));
     if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['pruningShears', 1]);

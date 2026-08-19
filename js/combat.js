@@ -8822,7 +8822,8 @@ function finishEncounterRun() {
             addItemToInventory(astraUnique);
             addLog(`👑 [${astraUnique.name}] 획득!`, 'loot-unique');
         } else {
-            if (Math.random() < 0.5) awardCurrency(zone.reward || 'bossCore', 1);
+            let grantsClearCurrency = zone.capstoneRival ? firstRootBossClear : Math.random() < 0.5;
+            if (grantsClearCurrency) awardCurrency(zone.reward || 'bossCore', 1);
             if (Math.random() < 0.4) {
                 let bossUnique = generateUniqueItem(zone.tier || 12);
                 addItemToInventory(bossUnique);

@@ -236,6 +236,39 @@ const cfg = context.COMBAT_GRID_CONFIG;
   context.game.inTicketBossFight = true;
   context.finishEncounterRun();
   assert.strictEqual(context.game.currencies.goldenRule, 2, '무료 재도전으로 최초 격파 보상을 반복 획득하면 안 된다');
+
+  const ouroborosRewardBosses = context.SEASON_BOSS_ZONES.filter(zone => zone.reward === 'woodsmanTouch' || zone.reward === 'ouroboros');
+  assert.strictEqual(ouroborosRewardBosses.length, 1, '우로보로스 전용 보상을 가진 특정 보스는 하나뿐이어야 한다');
+  assert.strictEqual(ouroborosRewardBosses[0].id, 'rival_masterwork', '우로보로스 전용 보상은 일곱 번째 날 「완성작」만 가져야 한다');
+  resetGame();
+  context.game.season = 31;
+  context.game.currentZoneId = 'rival_masterwork';
+  context.game.inTicketBossFight = true;
+  context.game.autoRepeatSeasonBoss = false;
+  context.game.currencies.ouroboros = 0;
+  const originalRandom = context.Math.random;
+  try {
+    context.Math.random = () => 0.99;
+    context.finishEncounterRun();
+    assert.ok(context.game.clearedRootBosses.includes('rival_masterwork'), '완성작 최초 격파는 영구 기록되어야 한다');
+    assert.strictEqual(context.game.currencies.ouroboros, 1, '완성작 최초 격파는 우로보로스 1개를 확정 지급해야 한다');
+    context.game.currentZoneId = 'rival_masterwork';
+    context.game.inTicketBossFight = true;
+    context.Math.random = () => 0.99;
+    context.finishEncounterRun();
+    assert.strictEqual(context.game.currencies.ouroboros, 1, '완성작 반복 격파는 기존 50% 클리어 보상을 지급하면 안 된다');
+
+    context.game.currentZoneId = 'rival_masterwork';
+    context.game.clearedRootBosses = [];
+    context.Math.random = () => 0.00002;
+    const firstClearDrops = context.getCurrencyDrops({ isBoss: true, isElite: false });
+    assert.ok(!firstClearDrops.some(drop => drop[0] === 'ouroboros'), '최초 격파 전에는 완성작의 우로보로스 드랍 보정이 적용되면 안 된다');
+    context.game.clearedRootBosses = ['rival_masterwork'];
+    const repeatDrops = context.getCurrencyDrops({ isBoss: true, isElite: false });
+    assert.ok(repeatDrops.some(drop => drop[0] === 'ouroboros'), '완성작 반복 격파는 일반 보스 우로보로스 확률의 2.5배를 적용해야 한다');
+  } finally {
+    context.Math.random = originalRandom;
+  }
   context.game.loopCount = 30;
 
   const cosmosBossSteps = [
