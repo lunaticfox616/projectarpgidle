@@ -395,6 +395,8 @@ assert.ok(windowCss.includes('align-items: center;'), 'health text should remain
 const indexSource = fs.readFileSync('index.html', 'utf8');
 assert.ok(indexSource.includes('<body class="startup-active">'), 'the game body must begin in its startup state before any gameplay UI can paint');
 assert.ok(indexSource.includes('id="startup-overlay" class="startup-overlay active"'), 'the startup screen must be visible in the initial HTML paint');
+assert.ok(indexSource.includes('<title>Rignin</title>'), 'the browser tab should use the Rignin game title');
+assert.ok(indexSource.includes('<span class="startup-wordmark-accent">Rignin</span>'), 'the startup wordmark should use the Rignin game title');
 assert.ok(indexSource.includes('body.startup-active #left-pane') && indexSource.includes('body.startup-active #right-pane'), 'startup paint must hide legacy gameplay panes instead of briefly showing them behind the title screen');
 assert.ok(indexSource.includes('<html lang="ko" class="app-preload">'), 'the document must begin behind the critical preload curtain');
 assert.ok(indexSource.includes('html.app-preload body > :not(#startup-overlay)') && indexSource.includes("classList.remove('app-preload')"), 'the preload curtain must hide unstyled gameplay and release after the styled load frame');
