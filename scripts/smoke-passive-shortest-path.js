@@ -14,6 +14,7 @@ const files = [
   'data/bosses.js',
   'data/rewards.js',
   'data/talent-cards.js',
+  'data/endgame-progression.js',
   'js/utils.js',
   'js/state.js',
   'js/passives.js',

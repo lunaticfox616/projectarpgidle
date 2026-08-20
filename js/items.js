@@ -20,6 +20,33 @@ const BLACK_MARKET_MAX_LOCKED_OFFERS = 3;
 const BLACK_MARKET_INSIGHT_TARGET = 5;
 const BLACK_MARKET_EQUIPMENT_SLOTS = ['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패'];
 
+function getInventoryItemVisualAsset(item, kind) {
+    let visuals = typeof ITEM_VISUAL_ASSET_DB !== 'undefined' ? ITEM_VISUAL_ASSET_DB : null;
+    if (!visuals) return '';
+    if (kind === 'jewel') return visuals.jewel;
+    if (kind === 'talisman') return visuals.talisman;
+    if (kind === 'growth') {
+        let category = item && (item.growthCategory || (item.slabType ? 'slab' : ''));
+        return visuals.growth[category] || visuals.growth.default;
+    }
+    let slot = item && item.slot;
+    if (slot === '무기') {
+        let searchable = `${item.name || ''} ${item.baseName || ''}`.toLowerCase();
+        let match = visuals.weaponKeywords.find(row => row.terms.some(term => searchable.includes(term)));
+        if (match) return match.asset;
+    }
+    return visuals.equipment[slot] || visuals.equipment.default;
+}
+
+function renderInventoryItemVisual(item, kind, className) {
+    let asset = getInventoryItemVisualAsset(item, kind);
+    if (!asset) return '';
+    let label = (item && (item.name || item.baseName)) || '아이템';
+    return `<img class="${className || 'inventory-item-visual'}" src="${asset}" alt="" aria-hidden="true" data-item-visual-label="${typeof escapeHTML === 'function' ? escapeHTML(label) : label}">`;
+}
+
+safeExposeGlobals({ getInventoryItemVisualAsset, renderInventoryItemVisual });
+
 function getAverageExplicitAffixTier(items) {
     let tiers = (Array.isArray(items) ? items : []).flatMap(item => {
         if (!item || item.rarity === 'unique') return [];

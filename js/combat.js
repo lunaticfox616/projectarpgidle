@@ -673,22 +673,6 @@ function isDualWielding() {
 }
 
 /**
- * 스탯을 제공하는 아이템 목록 = 고정 슬롯 장비 + 생장판에 배치된 아이템.
- * 생장판은 장비를 대체하지 않는 추가 시스템이므로 두 출처가 함께 합산된다.
- * @returns {Array<[string, object]>} [소스 키, 아이템]
- */
-function getStatSourceItemEntries() {
-    let entries = [];
-    if (typeof getPlacedGrowthEntries === 'function') {
-        getPlacedGrowthEntries().forEach(entry => entries.push([`growth:${entry.item.id}`, entry.item]));
-    }
-    Object.entries(game.equipment || {}).forEach(([slotKey, item]) => {
-        if (item) entries.push([slotKey, item]);
-    });
-    return entries;
-}
-
-/**
  * 생장 아이템 드랍. 기존 장비 드랍과 독립된 별도 굴림이라 장비 파밍 리듬을 바꾸지 않는다.
  * 루프 25(생장판 해금) 전에는 아무것도 굴리지 않는다.
  */
@@ -908,21 +892,9 @@ function runConditionGemAutoRules(pStats) {
     game.playerConditionBuffs = Array.isArray(game.playerConditionBuffs) ? game.playerConditionBuffs : [];
     let rules = game.skillAutoRules.filter(r => r && r.enabled).sort((a,b)=>(a.priority||0)-(b.priority||0));
     for (let rule of rules) {
-        let hpPct = (pStats.maxHp || 1) > 0 ? (game.playerHp / pStats.maxHp * 100) : 100;
-        let esPct = (pStats.energyShield || 0) > 0 ? ((game.playerEnergyShield || 0) / Math.max(1, pStats.energyShield) * 100) : 0;
-        let trigger = rule.triggerType || 'hp_below';
-        let threshold = rule.hpThreshold || 40;
-        let liveEnemies = (game.enemies || []).filter(e => e && e.hp > 0);
-        let liveCount = liveEnemies.length;
-        let hasLiveBoss = liveEnemies.some(e => e.isBoss);
-        if (trigger === 'hp_below' && hpPct > threshold) continue;
-        if (trigger === 'hp_above' && hpPct < threshold) continue;
-        if (trigger === 'enemy_many' && liveCount < threshold) continue;
-        if (trigger === 'enemy_few' && (liveCount <= 0 || liveCount > threshold)) continue;
-        if (trigger === 'es_below' && esPct > threshold) continue;
-        if (trigger === 'es_above' && esPct < threshold) continue;
-        if (trigger === 'boss_present' && !hasLiveBoss) continue;
-        if (trigger === 'boss_absent' && (liveCount <= 0 || hasLiveBoss)) continue;
+        normalizeConditionPatternRule(rule);
+        if (rule.actionType !== 'condition_gem') continue;
+        if (!evaluateConditionPatternRule(rule, pStats, game, now)) continue;
         let gemName = (rule.skillName || '').trim();
         if (!gemName || !(game.conditionGemPool || []).includes(gemName)) continue;
         let entry = getAllConditionGemEntriesForCombat().find(e => e.name === gemName);
@@ -2249,6 +2221,7 @@ function tickFlaskAutoUse(pStats) {
     // 아이콘으로 표시하고 상세 정보는 그 커스텀 툴팁(showPlayerFlaskTooltip)에서 보여준다.
     if (inCombat && st.healCharges > 0 && st.healOverTimeUntil <= now && game.playerHp > 0 && (game.playerHp / hpCap) * 100 <= healDef.autoBelowHpPct) {
         st.healCharges--;
+        trackHiddenJournalFlaskUse();
         let healDurationMs = Math.max(500, Math.floor(healDef.durationMs || 4000));
         let durSec = Math.max(0.5, healDurationMs / 1000);
         let totalHeal = Math.max(1, Math.floor(hpCap * getFlaskEffectiveHealPct(healDef) / 100));
@@ -2268,6 +2241,7 @@ function tickFlaskAutoUse(pStats) {
         let alreadyUsedThisEncounter = trigger !== 'lowHp' && u.lastAutoEncounter === st.encounterSerial;
         if (!alreadyUsedThisEncounter && u.charges > 0 && u.until <= now && shouldAutoUseUtilityFlask(trigger, aliveEnemies, hpPct)) {
             u.charges--;
+            trackHiddenJournalFlaskUse();
             u.until = now + getFlaskEffectiveDurationMs(def);
             if (trigger !== 'lowHp') u.lastAutoEncounter = st.encounterSerial;
             syncUtilityFlaskChargeBank(st, u);
@@ -2961,35 +2935,6 @@ function isDeferredTalentProjectileTargetEffect(effect) {
 }
 
 
-function getOppositeRingSlotKey(slotKey) {
-    if (slotKey === '반지1') return '반지2';
-    if (slotKey === '반지2') return '반지1';
-    return null;
-}
-
-function getMirrorRingSourceItem(equipSlotKey, item) {
-    let otherSlot = getMirrorRingSourceSlot(equipSlotKey, item);
-    return otherSlot ? game.equipment[otherSlot] : null;
-}
-
-function getMirrorRingSourceSlot(equipSlotKey, item) {
-    if (!item || item.uniqueEffectKey !== 'mirrorOppositeRing') return null;
-    let otherSlot = getOppositeRingSlotKey(equipSlotKey);
-    let other = otherSlot && game.equipment ? game.equipment[otherSlot] : null;
-    if (!other || other.uniqueEffectKey === 'mirrorOppositeRing') return null;
-    return otherSlot;
-}
-
-function cloneItemStatList(stats) {
-    return (Array.isArray(stats) ? stats : []).filter(Boolean).map(stat => ({ ...stat }));
-}
-
-function getKaleidoscopeExplicitMultiplier(item) {
-    if (!item || item.uniqueEffectKey !== 'kaleidoscopeShield') return 1;
-    let params = item.uniqueEffectParams || {};
-    return Math.max(1, Number(params.explicitStatMultiplier || 2));
-}
-
 function applyEliteTraitBuffStats(buff, bucket) {
     if (!buff || (buff.expiresAt || 0) <= Date.now()) return;
     let trait = buff.trait || {};
@@ -3045,42 +2990,18 @@ function getPlayerStats() {
     let shieldBlockChancePct = 0;
     let shieldBlockChanceFlat = 0;
     let equippedUniqueEffects = [];
-    let warriorDualWeaponEffectMultiplier = (game.ascendClass === 'warrior' && hasKeystone('w6') && isDualWielding()) ? 1.5 : 1;
-    let scaleStatList = (stats, multiplier) => multiplier === 1 ? (stats || []) : (stats || []).map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number(stat.val) * multiplier } : stat);
-    getStatSourceItemEntries().forEach(([equipSlotKey, item]) => {
+    getPlayerStatSourceItemEntries().forEach(([equipSlotKey, item]) => {
         if (!item) return;
-        let growthItem = typeof isGrowthItem === 'function' && isGrowthItem(item);
+        let resolvedItem = getResolvedEquipmentStatLists(equipSlotKey, item, game, true);
+        let growthItem = resolvedItem.growthItem;
         let isEquippedWeapon = !growthItem && item.slot === '무기';
         if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && isEquippedWeapon) return;
-        let mirrorSourceItem = getMirrorRingSourceItem(equipSlotKey, item);
+        let mirrorSourceItem = resolvedItem.mirrorSourceItem;
         if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '', sourceSlot: equipSlotKey });
-        if (mirrorSourceItem && mirrorSourceItem.rarity === 'unique' && mirrorSourceItem.uniqueEffectKey) equippedUniqueEffects.push({ key: mirrorSourceItem.uniqueEffectKey, params: mirrorSourceItem.uniqueEffectParams || null, itemName: mirrorSourceItem.name || '', sourceSlot: getOppositeRingSlotKey(equipSlotKey) });
-        // 생장판: 공간 효과가 부여하는 아이템 단위 배율(공허 고리 2배 등)과 베이스 전용 배율(중계 덩굴손).
-        let growthStatMultiplier = (typeof getGrowthItemStatMultiplier === 'function' && growthItem) ? getGrowthItemStatMultiplier(item.id) : 1;
-        let growthBaseMultiplier = (typeof getGrowthItemBaseMultiplier === 'function' && growthItem) ? getGrowthItemBaseMultiplier(item.id) : 1;
-        let itemStatMultiplier = (isEquippedWeapon ? warriorDualWeaponEffectMultiplier : 1) * growthStatMultiplier;
-        let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
-        let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(item.quality || 0)));
-        let qualityMul = 1 + (qualityValue / 100);
-        let qualityMode = typeof getItemQualityAttributeMode === 'function' ? getItemQualityAttributeMode(item) : 'base';
-        let baseQualityMul = (qualityMode === 'base' ? qualityMul : 1) * growthBaseMultiplier;
-        let baseSourceStats = cloneItemStatList(item.baseStats).concat(mirrorSourceItem ? cloneItemStatList(mirrorSourceItem.baseStats) : []);
-        let itemBaseStats = scaleStatList(baseSourceStats.map(stat => stat && Number.isFinite(Number(stat.val)) ? { ...stat, val: Number((Number(stat.val) * baseQualityMul).toFixed(2)) } : stat), itemStatMultiplier);
+        if (mirrorSourceItem && mirrorSourceItem.rarity === 'unique' && mirrorSourceItem.uniqueEffectKey) equippedUniqueEffects.push({ key: mirrorSourceItem.uniqueEffectKey, params: mirrorSourceItem.uniqueEffectParams || null, itemName: mirrorSourceItem.name || '', sourceSlot: resolvedItem.mirrorSourceSlot });
+        let itemBaseStats = resolvedItem.baseStats;
         applyStatsToBucket(gearBase, itemBaseStats);
-        let immutableSpecialStats = typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [];
-        let riftAmpRow = (item.stats || []).find(stat => stat && stat.id === 'fossilRiftAmp');
-        let riftAmpMul = 1 + (Math.max(0, Number(riftAmpRow && riftAmpRow.val) || 0) / 100);
-        let explicitMultiplier = getKaleidoscopeExplicitMultiplier(item);
-        let explicitSourceStats = cloneItemStatList(item.stats).concat(mirrorSourceItem ? cloneItemStatList(mirrorSourceItem.stats) : []);
-        let adjustedExplicitStats = explicitSourceStats.map(stat => {
-            if (!stat) return stat;
-            if (stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp') return stat;
-            if (!Number.isFinite(Number(stat.val))) return stat;
-            let explicitQualityMul = qualityMode !== 'base' && typeof isQualityAttributeStat === 'function' && isQualityAttributeStat(qualityMode, stat.id) ? qualityMul : 1;
-            return { ...stat, val: Number((Number(stat.val) * riftAmpMul * explicitQualityMul * explicitMultiplier).toFixed(2)) };
-        });
-        let copiedSpecialStats = mirrorSourceItem ? cloneItemStatList([mirrorSourceItem.underEnchant, mirrorSourceItem.chaosInfusion]) : [];
-        let explicitItemStats = scaleStatList(adjustedExplicitStats.concat(item.underEnchant ? [item.underEnchant] : [], item.chaosInfusion ? [item.chaosInfusion] : [], copiedSpecialStats, immutableSpecialStats), itemStatMultiplier);
+        let explicitItemStats = resolvedItem.explicitStats;
         applyStatsToBucket(gearExplicit, explicitItemStats);
         let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
         let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
@@ -3458,6 +3379,8 @@ function getPlayerStats() {
     safeJournalBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
+    getArcanaDeckStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
+    getPruningTreeStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
     let heroDef = getHeroSelectionDef(game.selectedHeroId);
     (heroDef.stats || []).forEach(row => {
         if (row && row.stat) addStatToBucket(reward, row.stat, row.value);
@@ -5390,7 +5313,7 @@ function getSkillTargets(pStats) {
         skill = { ...skill, targets: rays, projectilePattern: { ...pattern, rays } };
     }
     let now = Date.now();
-    let tactics = game.combatTacticsUnlocked ? normalizeCombatTacticsSettings(game.settings) : null;
+    let tactics = game.combatTacticsUnlocked ? resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, now) : null;
     let options = tactics ? {
         targetPriority: tactics.targetPriority,
         preferredEnemyId: now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null
@@ -5404,7 +5327,7 @@ function getSkillTargets(pStats) {
 }
 
 function getPlayerTacticalMovePlan(pStats, target) {
-    let tactics = normalizeCombatTacticsSettings(game.settings);
+    let tactics = resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, Date.now());
     if (tactics.positionMode === 'auto') return null;
     let profile = getSkillGridProfile(game.activeSkill, pStats.sSkill);
     let distance = gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, target.gx, target.gy);
@@ -6365,6 +6288,7 @@ function createEnemy(zone, marker, groupIndex) {
     if (marker.bountyId && typeof bountyRuntime !== 'undefined') bountyRuntime.applyTargetToEnemy(enemy, marker.bountyId);
     assignEnemyGridCombatProfile(enemy);
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, isElite, isBoss);
+    if (enemy.isBoss) startHiddenJournalBossRun(enemy, zone);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
     return enemy;
 }
@@ -7300,6 +7224,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
                 row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
             }
         } else enemy.ailments.push(payload);
+        trackHiddenJournalAilment(type, enemy);
         return true;
     }
     applyAilmentType(primaryType, opts.primaryAilmentChance);
@@ -8093,6 +8018,16 @@ function rollLootForEnemy(enemy) {
         if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${drop[1]}`, drop[0] === 'goldenRule' || drop[0] === 'sapBud' ? 'loot-unique' : 'loot-magic');
     });
 
+    let arcanaDrop = tryDropSealedArcanaCard(zone, enemy, game);
+    if (arcanaDrop.dropped) {
+        if (typeof unlockJournalEntry === 'function') unlockJournalEntry('arcana_first_seal');
+        if (arcanaDrop.unlockedNow && typeof queueTutorialNotice === 'function') {
+            queueTutorialNotice('unlock_arcana', '아르카나 해금', '봉인된 카드를 발견했습니다. 아르카나 탭에서 봉인을 풀고 덱 또는 장비 슬롯에 배치하세요.', 'tab-arcana');
+        }
+        addBattleFx('lootCelebration', { enemyId: enemy.id, color: '#d5adff', tier: 'unique', duration: 1420 });
+        addLog('🂠 봉인된 아르카나 카드를 발견했습니다.', 'loot-unique');
+    }
+
     rollFlaskDiscoveryDrop(enemy);
 
     let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
@@ -8291,6 +8226,7 @@ function handleEnemyDeath(enemy, pStats) {
     enemy = liveRef;
     transferSkillDotOnDeath(enemy);
     let zone = getZone(game.currentZoneId);
+    if (enemy.isBoss) completeHiddenJournalBossRun(enemy, zone, pStats);
     // 재능 개화 미궁의 보스를 실제로 처치한 경우에만 개화 완료를 허용하기 위해 기록한다.
     if (enemy.isBoss && zone && zone.type === 'trial' && zone.bloomTrial) game.bloomBossDefeated = true;
     let grand = (game.voidRift || {}).grandRun;
@@ -10158,6 +10094,7 @@ function getDefeatRecoveryZoneId() {
 function handlePlayerDefeat(zone, pStats, message, options) {
     let opts = options || {};
     let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+    resetHiddenJournalBossRun();
     refillAllFlaskCharges();
     addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
     dispatchRuntimeEvent('player-defeated', {
@@ -10372,6 +10309,7 @@ function tickAilments(pStats, dt) {
                 burn = absorbDamageWithTalentStoneShield(burn);
                 burn = absorbDamageWithRealmDeathWard(burn, pStats);
                 game.playerHp -= burn;
+                trackHiddenJournalPlayerDamage(burn);
                 recordIncomingDamage('fire', burn, '점화');
             }
         } else if (ail.type === 'poison') {
@@ -10387,6 +10325,7 @@ function tickAilments(pStats, dt) {
                     poison = absorbDamageWithTalentStoneShield(poison);
                     poison = absorbDamageWithRealmDeathWard(poison, pStats);
                     game.playerHp -= poison;
+                    trackHiddenJournalPlayerDamage(poison);
                     recordIncomingDamage('chaos', poison, '중독');
                 }
             }
@@ -10402,6 +10341,7 @@ function tickAilments(pStats, dt) {
                 bleed = absorbDamageWithTalentStoneShield(bleed);
                 bleed = absorbDamageWithRealmDeathWard(bleed, pStats);
                 game.playerHp -= bleed;
+                trackHiddenJournalPlayerDamage(bleed);
                 recordIncomingDamage('phys', bleed, '출혈');
             }
         } else if (ail.type === 'chill') {
@@ -11105,6 +11045,7 @@ function performMonsterAttacks(pStats) {
                 addBattleFx('statusText', { text: '죽음 저항!', color: '#d7b8ff', duration: 420 });
             }
             game.playerHp = nextPlayerHp;
+            trackHiddenJournalPlayerDamage(remaining);
             if (remaining > 0 && pStats.uniqueLifeRecoupTakenDamage) {
                 let cfg = pStats.uniqueLifeRecoupTakenDamage || {};
                 addPlayerRecoupInstance(remaining * Math.max(0, Number(cfg.pct || 25)) / 100, Math.max(1, Number(cfg.duration || 4)));
@@ -11457,6 +11398,7 @@ function triggerSeasonReset(options) {
     if (loopPath === 'cosmos') game.cosmosLoopCount = Math.max(0, Math.floor(game.cosmosLoopCount || 0)) + 1;
     game.lastLoopAdvancePath = loopPath;
     game.season++;
+    let pruningAdvance = advancePruningTreeForLoop(game);
     if (typeof resetExpertiseLoopCaps === 'function') resetExpertiseLoopCaps();
     if (typeof grantLoopBaseExpertExp === 'function') grantLoopBaseExpertExp();
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
@@ -11471,6 +11413,10 @@ function triggerSeasonReset(options) {
     if (game.season === 31 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n지도의 뿌리 보스 목록에서 결투에 도전하세요. (도전권: 심층 보스가 드랍하는 [표식: 버려진 날])\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');
     }
+    if (game.season === PRUNING_TREE_UNLOCK_LOOP && typeof queueTutorialNotice === 'function') {
+        queueTutorialNotice('unlock_pruning_tree', '성장 나무 해금', '나무에 첫 나이테가 생겼습니다. 가지치기 탭에서 성장 방향과 감당할 부담을 선택하세요.', 'tab-pruning');
+    }
+    if (pruningAdvance.changed && game.season > PRUNING_TREE_UNLOCK_LOOP) addLog(`🌳 성장 나무가 자라 성장점 +${pruningAdvance.granted}`, 'season-up');
     addLog(`🧬 심화 루프 정산: +${loopReward.bonus}pt (혼돈 심화 +${loopReward.depthGain}, 미궁 +${loopReward.labGain}, 특수보스 +${loopReward.bossGain}, 나무꾼 +${loopReward.woodsmanGain || 0})`, loopReward.bonus > 0 ? 'season-up' : 'attack-monster');
     game.level = 1;
     game.exp = 0;
@@ -11503,9 +11449,8 @@ function triggerSeasonReset(options) {
     game.supports = [];
     game.equippedSupports = [];
     game.supportGemData = {};
-    // 컨디션 젬은 한 번 해금되면 영구 해금이며, 보유 풀도 루프 간 유지된다(재해금 버그 방지).
+    // 컨디션 젬과 전술 패턴은 영구 빌드 설정이다. 루프는 쿨타임만 비우고 규칙 자체는 보존한다.
     game.pendingConditionGemChoices = null;
-    game.skillAutoRules = [];
     game.conditionGemCooldowns = {};
     game.enemyConditionDebuffs = {};
     game.playerConditionBuffs = [];

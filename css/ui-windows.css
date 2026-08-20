@@ -46,6 +46,8 @@
   body.desktop-windowed-ui #btn-tab-character::before { content: '🧬'; }
   body.desktop-windowed-ui #btn-tab-char::before { content: '🌌'; }
   body.desktop-windowed-ui #btn-tab-season::before { content: '🔄'; }
+  body.desktop-windowed-ui #btn-tab-pruning::before { content: '🌿'; }
+  body.desktop-windowed-ui #btn-tab-arcana::before { content: '🂠'; }
   body.desktop-windowed-ui #btn-tab-expertise::before { content: '🧠'; }
   body.desktop-windowed-ui #btn-tab-traits::before { content: '👑'; }
   body.desktop-windowed-ui #btn-tab-talent::before { content: '🌸'; }

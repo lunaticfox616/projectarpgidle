@@ -563,6 +563,8 @@ body:not(.light-mode) :where(
   body.desktop-windowed-ui #btn-tab-character::before { background-position: 50% 0; }
   body.desktop-windowed-ui #btn-tab-char::before { background-position: 50% 5.882%; }
   body.desktop-windowed-ui #btn-tab-season::before { background-position: 50% 11.765%; }
+  body.desktop-windowed-ui #btn-tab-pruning::before { background-position: 50% 94.118%; }
+  body.desktop-windowed-ui #btn-tab-arcana::before { background-position: 50% 52.941%; }
   body.desktop-windowed-ui #btn-tab-expertise::before { background-position: 50% 17.647%; }
   body.desktop-windowed-ui #btn-tab-traits::before { background-position: 50% 23.529%; }
   body.desktop-windowed-ui #btn-tab-talent::before { background-position: 50% 29.412%; }

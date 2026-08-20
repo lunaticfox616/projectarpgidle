@@ -1,5 +1,28 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/items.js');
 
+const ITEM_VISUAL_ASSET_DB = Object.freeze({
+    equipment: Object.freeze({
+        default: 'assets/items/root-sword-v3.png',
+        무기: 'assets/items/root-sword-v3.png', 방패: 'assets/items/tower-shield-v3.png',
+        투구: 'assets/items/antler-helmet-v3.png', 갑옷: 'assets/items/root-armor-v3.png',
+        장갑: 'assets/items/claw-gauntlets-v3.png', 신발: 'assets/items/travel-boots-v3.png',
+        허리띠: 'assets/items/engraved-belt-v3.png', 반지: 'assets/items/ruby-ring-v3.png',
+        목걸이: 'assets/items/violet-amulet-v3.png'
+    }),
+    weaponKeywords: Object.freeze([
+        { terms: ['활', 'bow'], asset: 'assets/items/thorn-bow-v3.png' },
+        { terms: ['지팡이', '지팡', 'staff', '봉'], asset: 'assets/items/branch-staff-v3.png' }
+    ]),
+    jewel: 'assets/items/chaos-jewel-v3.png',
+    talisman: 'assets/items/seed-talisman-v3.png',
+    growth: Object.freeze({
+        flower: 'assets/items/flower-growth-v3.png',
+        thorn: 'assets/items/thorn-growth-v3.png', root: 'assets/items/thorn-growth-v3.png',
+        vine: 'assets/items/thorn-growth-v3.png', slab: 'assets/items/cosmic-slab-v3.png',
+        default: 'assets/items/seed-talisman-v3.png'
+    })
+});
+
 // Phase-1 extracted data (global compatibility).
 const UNIQUE_DB = [
     { name: "첫 계약", slots: ["무기"], reqTier: 1, uniqueEffect: "소환수 최대 한도 +1", uniqueEffectKey: "summonCapBonus", uniqueEffectParams: { cap: 1 }, stats: [{ id: "summonFlatDmg", min: 4, max: 8 }, { id: "summonPctDmg", min: 12, max: 18 }, { id: "summonEfficiency", min: 6, max: 10 }, { id: 'summonResPen', min: 14.7, max: 16.8 }, { id: 'critDmg', min: 46.7, max: 53.1 }] },
@@ -673,4 +696,4 @@ const MARKET_EXCHANGES = [
     { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
 ];
 
-safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT });
+safeExposeData({ UNIQUE_DB, FLASK_DB, FLASK_HEAL_TIERS, FLASK_UTILITY_POOL, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });

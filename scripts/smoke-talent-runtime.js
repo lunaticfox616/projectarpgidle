@@ -211,6 +211,8 @@ resetGame();
 equipCard('hero2__warrior', 10);
 const warcryName = vm.runInContext('CONDITION_GEM_DB.warcry[0].name', context);
 context.game.conditionGemUnlocked = true;
+context.game.season = 2;
+context.game.loopCount = 1;
 context.game.conditionGemPool = [warcryName];
 context.game.skillAutoRules = [{ enabled: true, priority: 0, skillName: warcryName, triggerType: 'hp_below', hpThreshold: 100 }];
 context.game.playerHp = 100;

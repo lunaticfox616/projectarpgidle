@@ -4084,6 +4084,8 @@ const battleImageCanvasCache = new WeakMap();
 const TAB_UNLOCK_GATES = {
     'tab-char': 'char',
     'tab-season': 'season',
+    'tab-pruning': 'pruning',
+    'tab-arcana': 'arcana',
     'tab-items': 'items',
     'tab-jewel': 'jewel',
     'tab-skills': 'skills',
@@ -4091,6 +4093,7 @@ const TAB_UNLOCK_GATES = {
     'tab-talisman': 'talisman',
     'tab-cube': 'cube',
     'tab-map': 'map',
+    'tab-hideout': 'hideout',
     'tab-traits': 'traits',
     'tab-talent': 'talent',
     'tab-expertise': 'expertise'
@@ -5851,7 +5854,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260718-motion2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bgAct') || key.startsWith('bgChaos') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key === 'shrineInteractable'));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key === 'shrineInteractable'));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
@@ -5927,7 +5930,7 @@ function initBattleAssets() {
 
     function storeLoadedBattleImage(key, image) {
         try {
-            if (key.startsWith('backdrop') || key.startsWith('bgAct') || key.startsWith('bgChaos')) {
+            if (key.startsWith('backdrop') || key.startsWith('bg')) {
                 battleAssets.backdrops[key] = image;
             } else {
                 let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || (key === 'heroLegacy' && heroSheetHasTransparency(image));

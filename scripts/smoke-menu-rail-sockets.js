@@ -167,8 +167,8 @@ function createElement(tagName) {
 }
 
 const PRIMARY_TAB_IDS = [
-    'character', 'char', 'season', 'expertise', 'traits', 'talent', 'items', 'jewel',
-    'flask', 'map', 'skills', 'journal', 'codex', 'talisman', 'cube'
+    'character', 'char', 'season', 'pruning', 'arcana', 'expertise', 'traits', 'talent', 'items', 'jewel',
+    'flask', 'map', 'hideout', 'skills', 'journal', 'codex', 'talisman', 'cube'
 ];
 
 function createTabHeader(body, openedTabs) {
@@ -272,7 +272,7 @@ assert.strictEqual(menu.findById('btn-map-complete-action-picker').parentElement
 assert.strictEqual(miscTrigger.parentElement, closeAll.parentElement, 'misc and window cleanup must share the outside control row');
 assert.strictEqual(miscTrigger.dataset.railSlot, undefined);
 assert.strictEqual(closeAll.dataset.railSlot, undefined);
-assert.strictEqual(miscPanel.dataset.railOverflow, '4', 'tabs beyond the eleven real circles must remain directly accessible from misc');
+assert.strictEqual(miscPanel.dataset.railOverflow, String(PRIMARY_TAB_IDS.length - 11), 'tabs beyond the eleven real circles must remain directly accessible from misc');
 assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.battlefieldWrap, 'desktop goals must mount inside the battlefield canvas frame');
 
 assert.strictEqual(miscPanel.hidden, true);

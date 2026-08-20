@@ -1460,8 +1460,8 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'growthboard', 'map', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
-const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'traits', 'talent', 'expertise'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'growthboard', 'map', 'hideout', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
+const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'hideout', 'traits', 'talent', 'expertise'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
     utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '루프 25에 해금. 열 가지 생장판과 석판을 배치합니다.' }] },
@@ -1473,8 +1473,8 @@ const MERGED_TAB_GROUPS = Object.freeze({
 const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
-    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season', 'tab-skills'] },
-    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
+    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season', 'tab-pruning', 'tab-arcana', 'tab-skills'] },
+    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-hideout', 'tab-codex', 'tab-journal', 'tab-records'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube', 'tab-growthboard'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
@@ -2351,7 +2351,9 @@ function getDefaultSkillAutoRule() {
         enabled: true,
         priority: ((game.skillAutoRules || []).length + 1),
         hpThreshold: 40,
+        triggerValue: 40,
         triggerType: 'hp_below',
+        actionType: 'condition_gem',
         skillName: ''
     };
 }
@@ -2570,6 +2572,51 @@ function showConditionGemTooltip(event, name) {
     showInfoTooltipHtml(event.clientX, event.clientY, getConditionGemTooltipHtml(entry), '#ff5252');
 }
 
+function setConditionPatternTrigger(index, triggerType) {
+    let rule = normalizeConditionPatternRule((game.skillAutoRules || [])[index]);
+    let trigger = getConditionPatternTriggers(game, false).find(row => row.id === triggerType);
+    if (!rule || !trigger) return;
+    rule.triggerType = trigger.id;
+    normalizeConditionPatternRule(rule);
+    renderSkillAutoRulePanel();
+}
+
+function setConditionPatternAction(index, actionType) {
+    let rule = normalizeConditionPatternRule((game.skillAutoRules || [])[index]);
+    let action = getConditionPatternActions(game, false).find(row => row.id === actionType);
+    if (!rule || !action) return;
+    rule.actionType = action.id;
+    renderSkillAutoRulePanel();
+}
+
+function setConditionPatternValue(index, value) {
+    let rule = normalizeConditionPatternRule((game.skillAutoRules || [])[index]);
+    if (!rule) return;
+    rule.triggerValue = Number(value);
+    rule.hpThreshold = rule.triggerValue;
+}
+
+function renderConditionPatternValueControl(rule, index, trigger) {
+    if (!trigger || trigger.valueKind === 'none') return '';
+    if (trigger.valueKind === 'ailment') {
+        let values = [['any', '아무 상태이상'], ['ignite', '점화'], ['chill', '냉각'], ['freeze', '동결'], ['shock', '감전'], ['poison', '중독'], ['bleed', '출혈']];
+        return `<select onchange="game.skillAutoRules[${index}].ailmentType=this.value;">${values.map(([value, label]) => `<option value="${value}" ${rule.ailmentType === value ? 'selected' : ''}>${label}</option>`).join('')}</select>`;
+    }
+    let config = trigger.valueKind === 'cells' ? { min:1, max:7, suffix:'칸' }
+        : (trigger.valueKind === 'seconds' ? { min:1, max:10, suffix:'초 이내' }
+            : (trigger.valueKind === 'count' ? { min:1, max:30, suffix:'마리' } : { min:1, max:100, suffix:'%' }));
+    return `<input type="number" min="${config.min}" max="${config.max}" value="${rule.triggerValue}" onchange="setConditionPatternValue(${index},Math.min(${config.max},Math.max(${config.min},Number(this.value)||${config.min})));"><span>${config.suffix}</span>`;
+}
+
+function renderConditionPatternRoadmap() {
+    let lockedTriggers = getConditionPatternTriggers(game, true).filter(row => !isConditionPatternRequirementMet(row.unlock, game));
+    let lockedActions = getConditionPatternActions(game, true).filter(row => !isConditionPatternRequirementMet(row.unlock, game));
+    let entries = lockedTriggers.map(row => `${row.label} · ${getConditionPatternRequirementLabel(row.unlock)}`)
+        .concat(lockedActions.map(row => `${row.label} · ${getConditionPatternRequirementLabel(row.unlock)}`));
+    if (entries.length === 0) return '<div class="condition-pattern-roadmap is-complete">모든 조건과 행동 패턴을 해금했습니다.</div>';
+    return `<details class="condition-pattern-roadmap"><summary>다음 패턴 해금 ${entries.length}개</summary><div>${entries.map(text => `<span>${escapeHTML(text)}</span>`).join('')}</div></details>`;
+}
+
 function openConditionGemChoiceOverlay() {
     let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
     if (pending.length <= 0 || document.getElementById('condition-gem-overlay')) return;
@@ -2612,11 +2659,15 @@ function renderSkillAutoRulePanel() {
     let owned = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
     let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
     if (!unlocked) {
-        panel.innerHTML = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프2 뿌리 보스를 처음 처치하면 컨디션 젬이 해금됩니다.</div>`;
+        let html = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프2 뿌리 보스를 처음 처치하면 컨디션 젬이 해금됩니다.</div>`;
+        if (panel.__lastHtml !== html) {
+            panel.innerHTML = html;
+            panel.__lastHtml = html;
+        }
         return;
     }
-    game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
-    let summary = `<div style="background:#101722; border:1px solid #324a66; border-radius:8px; padding:10px;">해금 젬 수: <strong>${owned.length}</strong> / ${getAllConditionGemEntries().length} · 군주의 핵: <strong>${game.currencies.bossCore || 0}</strong> · 선택지 <strong>3</strong>개 <button style="margin-left:8px;" onclick="rollConditionGemChoices()">군주의 핵으로 컨디션 젬 가공</button></div>`;
+    game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules.map(normalizeConditionPatternRule) : [];
+    let summary = `<div class="condition-pattern-summary"><div><strong>전술 패턴</strong><span>위 규칙부터 검사해 처음 실행 가능한 행동을 적용합니다.</span></div><div>젬 <strong>${owned.length}</strong>/${getAllConditionGemEntries().length} · 군주의 핵 <strong>${game.currencies.bossCore || 0}</strong><button onclick="rollConditionGemChoices()">컨디션 젬 가공</button></div></div>${renderConditionPatternRoadmap()}`;
     let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
     let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
     let ownedHtml = ownedEntries.length > 0 ? `<details class="progression-workbench" open><summary>보유 컨디션 젬 ${ownedEntries.length}개</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;">${ownedEntries.map(entry => {
@@ -2625,11 +2676,20 @@ function renderSkillAutoRulePanel() {
     }).join('')}</div></details>` : '';
 
     if (game.skillAutoRules.length === 0) {
-        panel.innerHTML = summary + choiceHtml + ownedHtml + `<div style="color:var(--copy-muted); border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
+        let html = summary + choiceHtml + ownedHtml + `<div style="color:var(--copy-muted); border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
+        if (panel.__lastHtml !== html) {
+            panel.innerHTML = html;
+            panel.__lastHtml = html;
+        }
         return;
     }
-    panel.innerHTML = summary + choiceHtml + ownedHtml + game.skillAutoRules.map((rule, idx) => `
-        <div style="background:#111722; border:1px solid #304a67; border-radius:10px; padding:10px; display:grid; gap:6px;">
+    let triggers = getConditionPatternTriggers(game, false);
+    let actions = getConditionPatternActions(game, false);
+    let html = summary + choiceHtml + ownedHtml + game.skillAutoRules.map((rule, idx) => {
+        let trigger = triggers.find(row => row.id === rule.triggerType) || triggers[0];
+        let action = actions.find(row => row.id === rule.actionType) || actions[0];
+        return `
+        <div class="condition-pattern-rule">
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked;"> 사용</label>
                 <span>우선순위 ${idx + 1}</span>
@@ -2639,26 +2699,24 @@ function renderSkillAutoRulePanel() {
             </div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; color:var(--copy-bright);">
                 <span>IF</span>
-                <select onchange="game.skillAutoRules[${idx}].triggerType=this.value; renderSkillAutoRulePanel();">
-                    <option value="hp_below" ${(rule.triggerType||'hp_below')==='hp_below'?'selected':''}>HP ≤</option>
-                    <option value="hp_above" ${(rule.triggerType||'hp_below')==='hp_above'?'selected':''}>HP ≥</option>
-                    <option value="enemy_many" ${(rule.triggerType||'hp_below')==='enemy_many'?'selected':''}>적 수 ≥</option>
-                    <option value="enemy_few" ${(rule.triggerType||'hp_below')==='enemy_few'?'selected':''}>적 수 ≤</option>
-                    <option value="es_below" ${(rule.triggerType||'hp_below')==='es_below'?'selected':''}>ES ≤</option>
-                    <option value="es_above" ${(rule.triggerType||'hp_below')==='es_above'?'selected':''}>ES ≥</option>
-                    <option value="boss_present" ${(rule.triggerType||'hp_below')==='boss_present'?'selected':''}>보스 등장 시</option>
-                    <option value="boss_absent" ${(rule.triggerType||'hp_below')==='boss_absent'?'selected':''}>보스 없음</option>
-                </select>
-                ${['boss_present', 'boss_absent'].includes(rule.triggerType) ? '' : `<input type="number" min="1" max="100" value="${rule.hpThreshold || 40}" style="width:64px;" onchange="game.skillAutoRules[${idx}].hpThreshold=Math.min(100,Math.max(1,Math.floor(this.value||40)));"><span>${['enemy_many', 'enemy_few'].includes(rule.triggerType) ? '마리' : '%'}</span>`}
+                <select onchange="setConditionPatternTrigger(${idx},this.value);">${triggers.map(row => `<option value="${row.id}" ${trigger && trigger.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('')}</select>
+                ${renderConditionPatternValueControl(rule, idx, trigger)}
                 <span>THEN</span>
-                <select onchange="game.skillAutoRules[${idx}].skillName=this.value;" style="min-width:180px;">
+                <select onchange="setConditionPatternAction(${idx},this.value);">${actions.map(row => `<option value="${row.id}" ${action && action.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('')}</select>
+                ${rule.actionType === 'condition_gem' ? `<select onchange="game.skillAutoRules[${idx}].skillName=this.value;" style="min-width:180px;">
                     <option value="">사용할 젬 선택</option>
                     ${ownedEntries.map(entry => `<option value="${entry.name}" title="${escapeHTML(getConditionGemTooltip(entry))}" ${rule.skillName===entry.name?'selected':''}>${entry.name} (${entry.type})</option>`).join('')}
-                </select>
+                </select>` : ''}
             </div>
-            ${rule.skillName && owned.includes(rule.skillName) ? '' : '<div class="condition-rule-warning">사용할 젬이 선택되지 않아 이 규칙은 실행되지 않습니다.</div>'}
-        </div>`).join('');
+            ${rule.actionType !== 'condition_gem' || (rule.skillName && owned.includes(rule.skillName)) ? '' : '<div class="condition-rule-warning">사용할 젬이 선택되지 않아 이 규칙은 실행되지 않습니다.</div>'}
+        </div>`;
+    }).join('');
+    if (panel.__lastHtml === html) return;
+    panel.innerHTML = html;
+    panel.__lastHtml = html;
 }
+
+safeExposeGlobals({ setConditionPatternTrigger, setConditionPatternAction, setConditionPatternValue });
 
 function switchSkillSubtab(subtabId) {
     if (subtabId === game.skillSubtab) {
@@ -7841,46 +7899,31 @@ function getBattleGroundFrames(zone) {
     return { floor: frames.grass, path: frames.stone, pathAlt: frames.moss, prop: frames.grassDeep };
 }
 
-function getBattleBackdropKeyForZone(zone) {
-    if (!zone) return 'bgAct1';
-    if (zone.type === 'chaosRealm') {
-        let floor = Math.max(1, Number(zone.floor || zone.stage || zone.id || 1) || 1);
-        return floor % 20 === 0 ? 'bgChaos18' : `bgChaos${(floor - 1) % 18}`;
-    }
-    if (zone.type === 'act') {
-        let actNo = Math.max(1, Math.min(10, (Number(zone.id) || 0) + 1));
-        return `bgAct${actNo}`;
-    }
-    if (zone.type === 'labyrinth') return 'bgAct5';
-    if (zone.type === 'abyss' || zone.type === 'seasonBoss') return 'bgAct10';
-    if (zone.ele === 'fire') return 'bgAct2';
-    if (zone.ele === 'cold') return 'bgAct3';
-    if (zone.ele === 'light') return 'bgAct4';
-    if (zone.ele === 'chaos') return 'bgAct9';
-    return 'bgAct1';
-}
-
 function getBattleBackdropForZone(zone) {
     let list = (battleAssets.backdrops || {});
     let key = getBattleBackdropKeyForZone(zone);
+    if (!list[key]) requestSpecialBattleBackdrop(key);
     let fallbackLegacy = { bgAct1:'backdropAct1', bgAct2:'backdropAct2_6', bgAct3:'backdropAct3_7', bgAct4:'backdropAct4_8', bgAct5:'backdropAct5', bgAct6:'backdropAct2_6', bgAct7:'backdropAct3_7', bgAct8:'backdropAct4_8', bgAct9:'backdropAct9_10', bgAct10:'backdropAct9_10' };
     let image = list[key] || list[fallbackLegacy[key]] || list.backdropAct1 || Object.values(list)[0];
     if (!image) return null;
     let zoneSeed = Number.isFinite(zone && zone.id) ? zone.id : 0;
     if (!zoneSeed && zone && zone.name) zoneSeed = zone.name.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
     let variant = BATTLE_BACKDROP_VARIANTS[Math.abs(zoneSeed) % BATTLE_BACKDROP_VARIANTS.length] || BATTLE_BACKDROP_VARIANTS[0];
-    return { image: image, variant: variant };
+    return { image: image, variant: variant, key: key };
 }
 
-// 액트 배경(512x512 아이소 디오라마)의 바닥 다이아몬드 보정값.
-// centerX/centerY는 바닥 다이아몬드 중심의 이미지 내 위치(비율), halfWidthFrac는
-// 바닥 다이아몬드 반폭이 이미지 폭에서 차지하는 비율이다. 배경 세트가 동일한 구도로
-// 제작되어 공통 보정값을 쓰며, 전장 그리드가 이 다이아몬드 중앙에 얹히도록 정렬한다.
-const BATTLE_BACKDROP_FLOOR = { centerX: 0.5, centerY: 0.5, halfWidthFrac: 0.39 };
+// 배경마다 바닥 다이아몬드의 크기와 중심이 달라 그리드 정렬값을 따로 유지한다.
+const BATTLE_BACKDROP_FLOORS = Object.freeze({
+    default: { centerX: 0.5, centerY: 0.5, halfWidthFrac: 0.39 },
+    bgSkyTower: { centerX: 0.5, centerY: 0.51, halfWidthFrac: 0.43 },
+    bgUnderworld: { centerX: 0.5, centerY: 0.5, halfWidthFrac: 0.44 },
+    bgOceanDepth: { centerX: 0.5, centerY: 0.48, halfWidthFrac: 0.48 },
+    bgCosmos: { centerX: 0.5, centerY: 0.48, halfWidthFrac: 0.42 }
+});
 
 // 배경 이미지를 두 겹으로 그린다: (1) 캔버스 전체를 채우는 어두운 cover 언더레이,
 // (2) 바닥 다이아몬드가 8x8 그리드와 일치하도록 그리드 투영에 정렬한 본 이미지.
-function drawGridAlignedBackdrop(ctx, width, height, image, gridProj) {
+function drawGridAlignedBackdrop(ctx, width, height, image, gridProj, backdropKey) {
     let srcW = image.width || width;
     let srcH = image.height || height;
     let coverScale = Math.max(width / srcW, height / srcH) * 1.2;
@@ -7899,15 +7942,16 @@ function drawGridAlignedBackdrop(ctx, width, height, image, gridProj) {
     let cellLast = gridProj.cellToScreen(COMBAT_GRID_CONFIG.size - 1, COMBAT_GRID_CONFIG.size - 1);
     let gridCenterY = (cellFirst.y + cellLast.y) / 2;
     let gridHalfW = gridProj.tileW * (COMBAT_GRID_CONFIG.size / 2);
-    let drawW = gridHalfW / BATTLE_BACKDROP_FLOOR.halfWidthFrac;
+    let floor = BATTLE_BACKDROP_FLOORS[backdropKey] || BATTLE_BACKDROP_FLOORS.default;
+    let drawW = gridHalfW / floor.halfWidthFrac;
     let drawH = drawW * (srcH / srcW);
-    ctx.drawImage(image, width / 2 - drawW * BATTLE_BACKDROP_FLOOR.centerX, gridCenterY - drawH * BATTLE_BACKDROP_FLOOR.centerY, drawW, drawH);
+    ctx.drawImage(image, width / 2 - drawW * floor.centerX, gridCenterY - drawH * floor.centerY, drawW, drawH);
 }
 
 function drawBattleBackdrop(ctx, width, height, theme, now, zone, gridProj) {
     let backdropEntry = getBattleBackdropForZone(zone);
     if (backdropEntry && backdropEntry.image) {
-        drawGridAlignedBackdrop(ctx, width, height, backdropEntry.image, gridProj);
+        drawGridAlignedBackdrop(ctx, width, height, backdropEntry.image, gridProj, backdropEntry.key);
         return true;
     }
 
@@ -10426,7 +10470,7 @@ function performUpdateStaticUI() {
                 : (quality.optionCount > 0 ? `옵션 ${quality.optionCount}개 · 평균 T${quality.averageTier.toFixed(1)} · 품질 ${quality.qualityPct}%` : '미가공 · 오브 제작 가능');
             let equipSlotBtns = Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => `<button onclick="equipJewel(${idx}, ${slotIdx})">슬롯${slotIdx + 1}</button>`).join('');
             let manageActions = `<button onclick="selectJewelWorkbenchTarget(${idx},false)">제작대상</button><button onclick="selectJewelWorkbenchTarget(${idx},true)">융합선택</button>${jewel.waxedByBeeswax ? `<button disabled>밀랍</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="toggleJewelLock(${idx})">${jewel.locked ? '🔒 잠금' : '🔓 잠금'}</button><button onclick="salvageJewel(${idx})" ${jewel.locked ? 'disabled' : ''}>해체 +${getJewelSalvageShardGain(jewel)}</button>`;
-            return `<div class="item-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="jewel-quality-line">${qualityText}</div><div class="item-stats" style="line-height:1.45;color:var(--copy-bright);">${desc || '<span style="color:var(--copy-muted);">옵션 없음</span>'}</div><div class="item-actions">${equipSlotBtns}${manageActions}</div></div>`;
+            return `<div class="item-card jewel-inventory-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()">${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(jewel, 'jewel', 'jewel-card-visual') : ''}<div class="jewel-card-copy"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="jewel-quality-line">${qualityText}</div><div class="item-stats" style="line-height:1.45;color:var(--copy-bright);">${desc || '<span style="color:var(--copy-muted);">옵션 없음</span>'}</div><div class="item-actions">${equipSlotBtns}${manageActions}</div></div></div>`;
         }).join('');
         renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:var(--copy-muted);">주얼 인벤토리가 비었습니다.</div>`, '');
     }
@@ -12070,8 +12114,12 @@ function buildCraftActionButtons(item) {
     }).join('') : '';
     let innerCircle = seasonEvolved ? '<div class="loop-magic-circle" aria-hidden="true"><span class="loop-magic-runes"></span><span class="loop-magic-core"></span></div>' : '';
     document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="loop-passive-orbit ${seasonEvolved ? 'complete' : ''}"><div class="loop-orbit-ambient" aria-hidden="true"></div><span class="loop-ouroboros-silhouette" aria-hidden="true"></span>${innerCircle}${ringNodes}${innerNodes}</div>`;
-
     }
+
+    if (isTabRendering('tab-pruning')) renderPruningTreePanel();
+    if (isTabRendering('tab-arcana')) renderArcanaPanel();
+
+    if (isTabRendering('tab-hideout')) renderHideout();
 
     if (isTabRendering('tab-traits')) {
     if (game.ascendClass) {
@@ -12204,7 +12252,7 @@ function buildCraftActionButtons(item) {
         let rollQuality = getTalismanRollQuality(t);
         let qualityBadge = rollQuality === null ? '' : `<span class="talisman-quality-badge ${rollQuality >= 75 ? 'high' : (rollQuality < 40 ? 'low' : '')}">품질 ${rollQuality}%</span>`;
         let manage = `<button onclick="event.stopPropagation(); toggleTalismanLock(${t.id})">${getLockButtonLabel(t)}</button>${t.waxedByBeeswax ? '<button disabled>밀랍</button>' : `<button onclick="event.stopPropagation(); applyBeeswaxToTalisman(${t.id})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" ${isLockedInventoryObject(t) ? 'disabled' : ''}>해체</button>`;
-        return `<div class="item-card ${selected ? 'selected' : ''} ${talismanCardClass}" role="group" tabindex="0" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectTalismanInventoryItem(${t.id});}" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${talismanTitleClass}" style="${isUniqueTalisman ? '' : `color:${shapeStyle.color};`}">${isLockedInventoryObject(t) ? '🔒 ' : ''}${talismanUniqueBadge}${highlightSearchText(getTalismanDisplayName(t), q)} ${t.stat ? ` · ${highlightSearchText(t.statName, q)} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:var(--copy-bright);">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${qualityBadge} ${t.special ? `· 효과: ${highlightSearchText(getTalismanSpecialDescription(t), q)}` : ''}</div></div></div><div class="item-actions"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})">회전</button>${manage}</div></div></div>`;
+        return `<div class="item-card talisman-inventory-card ${selected ? 'selected' : ''} ${talismanCardClass}" role="group" tabindex="0" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectTalismanInventoryItem(${t.id});}" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()">${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(t, 'talisman', 'talisman-card-visual') : ''}<div class="talisman-card-copy"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${talismanTitleClass}" style="${isUniqueTalisman ? '' : `color:${shapeStyle.color};`}">${isLockedInventoryObject(t) ? '🔒 ' : ''}${talismanUniqueBadge}${highlightSearchText(getTalismanDisplayName(t), q)} ${t.stat ? ` · ${highlightSearchText(t.statName, q)} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:var(--copy-bright);">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${qualityBadge} ${t.special ? `· 효과: ${highlightSearchText(getTalismanSpecialDescription(t), q)}` : ''}</div></div></div><div class="item-actions"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})">회전</button>${manage}</div></div></div></div>`;
     }).join('');
     renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanRowsHtml, `<div style="grid-column:1/-1; color:var(--copy-muted);">보유한 부적이 없습니다.</div>`, '');
     let selectedPlacementTalisman = (game.talismanInventory || []).find(row => row && row.id === game.talismanSelectedId) || null;
@@ -13792,10 +13840,24 @@ function mergeDefaults(save) {
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
     merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-hall', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
     merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-research','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
-    merged.skillAutoRules = Array.isArray(merged.skillAutoRules) ? merged.skillAutoRules : [];
+    merged.skillAutoRules = Array.isArray(merged.skillAutoRules)
+        ? merged.skillAutoRules.filter(rule => rule && typeof rule === 'object').map(rule => normalizeConditionPatternRule({ ...rule }))
+        : [];
     merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
     merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
+    merged.arcana = normalizeArcanaState(merged.arcana);
+    let arcanaQuestMigration = reconcileArcanaQuestFromCosmos(merged);
+    if (arcanaQuestMigration.completedNow) {
+        merged.journalEntries = Array.isArray(merged.journalEntries) ? merged.journalEntries : [];
+        if (!merged.journalEntries.includes('arcana_first_seal')) merged.journalEntries.push('arcana_first_seal');
+    }
+    merged.pruningTree = normalizePruningTreeState(merged.pruningTree, merged);
+    advancePruningTreeForLoop(merged);
+    if (merged.arcana.unlocked) merged.unlocks.arcana = true;
+    delete merged.worldDeck;
+    merged.hideout = normalizeHideoutState(merged.hideout, merged);
+    if (isHideoutUnlocked(merged)) merged.unlocks.hideout = true;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
     // 과거 루프 정산 시 컨디션 젬 해금이 잘못 초기화되던 버그로 잠긴 기존 플레이어 복구:
     // 뿌리 보스를 한 번이라도 클리어한 적이 있다면 영구 해금 처리한다.
@@ -13899,6 +13961,9 @@ function mergeDefaults(save) {
         ? merged.starterGemTutorialPending
         : null;
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
+    // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해·플라스크 사용을
+    // 잃은 기록으로 업적을 잘못 판정하지 않도록 새 조우에서만 다시 시작한다.
+    merged.hiddenJournalBossRun = null;
     // 전적: 기존 세이브에는 과거 시간 데이터가 없다. 지어내지 않고 지금부터 기록을 시작하며,
     // startedAt이 남으므로 화면이 "언제부터의 기록인지"를 그대로 밝힐 수 있다.
     if (typeof ensureRecordsState === 'function') ensureRecordsState(merged);
@@ -16603,6 +16668,8 @@ function syncDerivedTabUnlock(tabId) {
         game.noti.jewel = true;
     }
     if (tabId === 'tab-cube' && typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
+    if (tabId === 'tab-pruning' && game.unlocks && ensurePruningTreeState(game).unlocked) game.unlocks.pruning = true;
+    if (tabId === 'tab-arcana' && game.unlocks && ensureArcanaState(game).unlocked) game.unlocks.arcana = true;
 }
 
 function checkUnlocks() {
@@ -16667,11 +16734,26 @@ function checkUnlocks() {
         game.noti.items = true;
         queueTutorialNotice('unlock_market', '거래소 개방', '액트 5를 클리어해 거래소가 열렸습니다.\n장비/제작 탭의 거래소에서 재화 교환과 특수 서비스를 이용할 수 있습니다.', 'tab-items', 'item-tab-market');
     }
+    if (isHideoutUnlocked(game) && !u.hideout) {
+        u.hideout = true;
+        game.noti.hideout = true;
+        queueTutorialNotice('unlock_hideout', '뿌리 성소 해금', '액트 5 이후 버려진 뿌리 성소를 은신처로 사용할 수 있습니다. 시설을 배치하고 전리품을 전시하며 주요 화면으로 바로 이동하세요.', 'tab-hideout');
+    }
     if (typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
     if (game.season > 1 && !u.season) {
         u.season = true;
         game.noti.season = true;
         queueTutorialNotice('unlock_season_tab', '루프 탭 개방', `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`, 'tab-season');
+    }
+    if (ensurePruningTreeState(game).unlocked && !u.pruning) {
+        u.pruning = true;
+        game.noti.pruning = true;
+        queueTutorialNotice('unlock_pruning_tree', '성장 나무 해금', '나무에 첫 나이테가 생겼습니다. 가지치기 탭에서 성장 방향과 감당할 부담을 선택하세요.', 'tab-pruning');
+    }
+    if (ensureArcanaState(game).unlocked && !u.arcana) {
+        u.arcana = true;
+        game.noti.arcana = true;
+        queueTutorialNotice('unlock_arcana', '아르카나 해금', '봉인된 카드를 발견했습니다. 아르카나 탭에서 봉인을 풀고 덱 또는 장비 슬롯에 배치하세요.', 'tab-arcana');
     }
     if (((game.completedTrials || []).length > 0 || game.ascendPoints > 0 || !!game.ascendClass) && !u.traits) {
         u.traits = true;
@@ -17087,6 +17169,7 @@ function buyAscend(id) { if (!assertBuildEditable()) return;
 function getLockedTabMessage(tabId) {
     if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
     if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
+    if (tabId === 'tab-pruning') return `루프 ${PRUNING_TREE_UNLOCK_LOOP}에 도달하면 가지치기가 열립니다.`;
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
     if (tabId === 'tab-jewel') return '루프 5에 도달하거나 주얼 또는 주얼 결정을 얻으면 주얼 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';
@@ -17094,6 +17177,7 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-talisman') return '봉인편린을 획득하면 부적 탭이 열립니다.';
     if (tabId === 'tab-cube') return '지하계 10층을 클리어하고 루프 20에 도달하면 큐브 탭이 열립니다.';
     if (tabId === 'tab-map') return '새 사냥터를 발견하면 지도 탭이 열립니다.';
+    if (tabId === 'tab-hideout') return '액트 5를 완료하면 은신처가 열립니다.';
     if (tabId === 'tab-traits') return '전직 시련을 통과하면 직업전직 탭이 열립니다.';
     if (tabId === 'tab-talent') return '재능 개화 시련을 클리어하면 재능 탭이 열립니다.';
     return '아직 해금되지 않은 탭입니다.';

@@ -853,19 +853,30 @@ function getTalismanGemBonusSources(activeTags) {
     return total;
 }
 
+function getGemLevelValueFromStatLines(stats, activeTags) {
+    let total = 0;
+    let visit = stat => {
+        if (!stat || typeof stat !== 'object') return;
+        let value = Number(stat.val);
+        if (Number.isFinite(value) && stat.id === 'gemLevel') total += value;
+        GEM_LEVEL_TAG_RULES.forEach(rule => {
+            if (Number.isFinite(value) && stat.id === rule.stat && activeTags.includes(rule.tag)) total += value;
+        });
+        (stat.extraStats || []).forEach(visit);
+    };
+    (stats || []).forEach(visit);
+    return total;
+}
+
 function getGemBonusSources(target) {
     let gear = 0;
     let passive = 0;
     let reward = 0;
     let activeTags = getGemLevelTargetTags(target);
-    Object.values(game.equipment || {}).forEach(item => {
+    getPlayerStatSourceItemEntries().forEach(([slotKey, item]) => {
         if (!item) return;
-        [...(item.baseStats || []), ...(item.stats || []), ...(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [])].forEach(stat => {
-            if (stat.id === 'gemLevel') gear += stat.val;
-            GEM_LEVEL_TAG_RULES.forEach(rule => {
-                if (stat.id === rule.stat && activeTags.includes(rule.tag)) gear += stat.val;
-            });
-        });
+        let resolved = getResolvedEquipmentStatLists(slotKey, item, game, true);
+        gear += getGemLevelValueFromStatLines([...resolved.baseStats, ...resolved.explicitStats], activeTags);
     });
     (game.passives || []).forEach(id => {
         let node = PASSIVE_TREE.nodes[id];

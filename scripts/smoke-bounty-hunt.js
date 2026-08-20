@@ -96,8 +96,8 @@ run('__bountyOriginalRandom = Math.random; Math.random = () => 0.999;');
         currentZoneId: 0,
         bountyHunt: { offerIds: ['iron_collector'] },
         loopStarterGemGranted: true,
-        seenTutorials: ['unlock_growth_board', 'tutorial_battle_basics'],
-        unlocks: { char: true, items: true, jewel: true, skills: true, season: true, codex: true, map: true, traits: true, expertise: true }
+        seenTutorials: ['unlock_growth_board', 'unlock_hideout', 'tutorial_battle_basics'],
+        unlocks: { char: true, items: true, jewel: true, skills: true, season: true, codex: true, map: true, hideout: true, traits: true, expertise: true }
     });
     assert.strictEqual(context.bountyRuntime.acceptOffer('iron_collector', state).accepted, true, '통합 전투용 표적을 수락해야 한다');
     run('startEncounterRun();');

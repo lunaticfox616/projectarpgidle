@@ -29,11 +29,13 @@ const context = {
     getPlayerStats() { return {}; },
     formatNumberKR(n) { return String(n); },
     getConditionGemStatDelta() { return {}; },
-    safeExposeData(map) { Object.assign(context, map); }
+    safeExposeData(map) { Object.assign(context, map); },
+    safeExposeGlobals(map) { Object.assign(context, map); }
 };
 context.window = context;
 vm.createContext(context);
 vm.runInContext(skillsSource, context, { filename: 'data/skills.js' });
+vm.runInContext(fs.readFileSync('js/condition-patterns.js', 'utf8'), context, { filename: 'js/condition-patterns.js' });
 context.window.CONDITION_GEM_DB = context.CONDITION_GEM_DB;
 ['cleanupConditionGemStates', 'getAllConditionGemEntriesForCombat', 'runConditionGemAutoRules'].forEach(name => {
     vm.runInContext(`${readFunctionSource(combatSource, name)}; this.${name} = ${name};`, context, { filename: name });
@@ -45,6 +47,8 @@ const warcryName = context.CONDITION_GEM_DB.warcry[0].name;
 function freshGame(now) {
     return {
         playerHp: 100,
+        season: 2,
+        loopCount: 1,
         conditionGemUnlocked: true,
         conditionGemPool: [warcryName],
         skillAutoRules: [{ enabled: true, priority: 0, triggerType: 'hp_above', hpThreshold: 0, skillName: warcryName }],

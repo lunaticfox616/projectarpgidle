@@ -2356,6 +2356,7 @@
         const capstoneAction = capstone.ready
             ? `<button type="button" class="cosmos-capstone-action" onclick="openCosmosCapstoneBossPanel()">잔향체 아스트라 위치 열기</button>`
             : '';
+        const arcanaQuest = renderArcanaQuestProgress();
         ATLAS.summary.innerHTML = `
             <div class="cosmos-summary-metrics">
                 <div><span>탐사 완료</span><strong>${cleared}<small> / ${ATLAS.nodes.length}</small></strong></div>
@@ -2365,12 +2366,25 @@
             </div>
             <div class="cosmos-progress-overview"><div class="cosmos-galaxy-progress">${galaxyProgress}</div>
                 <div class="cosmos-resource-line"><span>행성 ${planetsCleared}/50 · 소행성 ${asteroidsCleared}/75</span><span>보스 유물 ${(state.bossRelics || []).length} · 우주석 ${getEquippedCosmosStoneCount(state)}/${hasSixthCosmosStoneUnlock() ? 6 : 5}</span></div></div>
+            ${arcanaQuest}
             <details class="cosmos-capstone-card ${capstoneState}">
                 <summary class="cosmos-capstone-head"><span>최종 관문</span><strong>잔향체 아스트라 ${capstone.clearedCount}/${capstone.total} · 표식 ${capstone.keyCount}</strong></summary>
                 <div class="cosmos-capstone-bosses">${capstoneBosses}</div>
                 <p>${escapeHtml(capstoneMessage)}</p>
                 <div class="cosmos-capstone-footer"><span>표식: 잔향 <b>${capstone.keyCount}</b></span>${capstoneAction}</div>
             </details>`;
+    }
+
+    function renderArcanaQuestProgress() {
+        if (typeof window.getArcanaQuestProgress !== 'function') return '';
+        const quest = window.getArcanaQuestProgress(window.game);
+        const progress = quest.started ? quest.current : 0;
+        const pct = quest.rewarded ? 100 : Math.floor(progress / Math.max(1, quest.target) * 100);
+        const stateClass = quest.rewarded ? 'complete' : (quest.started ? 'active' : 'dormant');
+        const title = quest.started ? quest.stage.name : '낯선 패의 흔적';
+        const description = quest.started ? quest.stage.description : '첫 우주계 탐사를 완료하면 봉인의 흔적을 발견할 수 있습니다.';
+        const count = quest.rewarded ? '복원 완료' : `${progress}/${quest.target} 탐사`;
+        return `<section class="cosmos-arcana-quest ${stateClass}"><div><span>ARCANA QUEST</span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(description)}</small></div><div class="cosmos-arcana-progress"><b>${count}</b><i><em style="width:${pct}%"></em></i><small>보상 · 봉인된 아르카나 카드 1장</small></div></section>`;
     }
 
     function focusCosmosCapstoneBoss(nodeId) {
@@ -2503,6 +2517,7 @@
             return;
         }
         if (status === 'available' && !state.cleared.includes(node.id)) state.cleared.push(node.id);
+        if (firstClear) updateArcanaQuestAfterExploration(node);
         if (firstClear && node.kind === 'planet' && typeof window.markLoopCosmosPlanetClear === 'function') {
             const completedLoopGate = window.markLoopCosmosPlanetClear(node.id);
             if (completedLoopGate && typeof window.addLog === 'function') window.addLog('🪐 루프 대체 경로 달성: 우주계 에니프론 행성 돌파', 'season-up');
@@ -2559,6 +2574,26 @@
             try { window.saveGame({ auto: true, silent: true }); } catch (error) { console.error('cosmos atlas save failed:', error); }
         }
         renderCosmosAtlas();
+    }
+
+    function updateArcanaQuestAfterExploration(node) {
+        if (!node || typeof window.recordArcanaQuestCosmosExploration !== 'function') return;
+        const result = window.recordArcanaQuestCosmosExploration(node.id, window.game);
+        if (!result.changed) return;
+        if (result.startedNow && typeof window.addLog === 'function') {
+            window.addLog(`🂠 퀘스트 시작: 별길의 잔흔 · 서로 다른 우주계 탐사 ${result.current}/${result.target}`, 'season-up');
+        } else if (result.stageChanged && !result.completedNow && typeof window.addLog === 'function') {
+            window.addLog(`🂠 퀘스트 갱신: ${result.stage.name} · ${result.current}/${result.target}`, 'season-up');
+        } else if (!result.completedNow && typeof window.addLog === 'function') {
+            window.addLog(`🂠 아르카나 봉인 복원 ${result.current}/${result.target}`, 'loot-magic');
+        }
+        if (!result.completedNow) return;
+        if (typeof window.unlockJournalEntry === 'function') window.unlockJournalEntry('arcana_first_seal');
+        if (typeof window.queueTutorialNotice === 'function') {
+            window.queueTutorialNotice('unlock_arcana', '아르카나 해금', '별길의 봉인을 복원했습니다. 아르카나 탭에서 카드를 확인하세요.', 'tab-arcana');
+        }
+        if (typeof window.addLog === 'function') window.addLog('🂠 무명의 패 복원 완료: 봉인된 아르카나 카드 1장 획득', 'loot-unique');
+        if (typeof window.showGameToast === 'function') window.showGameToast('아르카나 퀘스트 완료 · 봉인 카드 1장', { tone:'success', duration:4200 });
     }
 
 

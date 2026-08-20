@@ -372,6 +372,7 @@ function renderGrowthItemCard(item) {
     let cardActivation = ` role="group" tabindex="0" onclick="openGrowthCrafting(${item.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openGrowthCrafting(${item.id});}"`;
     return `<div class="growth-item-card${selected ? ' selected' : ''}${crafting ? ' craft-target' : ''}${placement ? ' placed' : ''}${item.growthChase ? ' growth-chase' : ''}" data-info-tooltip-anchor="1" data-growth-drag-id="${item.id}"${cardActivation}
         onmouseenter="setGrowthBoardItemHover(${item.id});showGrowthItemTooltip(event, ${item.id})" onmousemove="showGrowthItemTooltip(event, ${item.id})" onmouseleave="clearGrowthBoardItemHover();hideInfoTooltip()">
+        ${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(item, 'growth', 'growth-card-visual') : ''}
         <div class="growth-item-head">
             <span class="item-title loot-${item.rarity || 'normal'}">${item.growthChase ? '✦ ' : ''}${info.icon} ${escapeHTML(item.name || '')}</span>
             <span class="growth-item-size">${isGrowthSlab(item) ? '석판' : `${info.label} · ${escapeHTML(getGrowthShapeDef(item.growthShapeId).label)}`}${levelBadge}</span>

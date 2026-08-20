@@ -5,7 +5,7 @@ const vm = require('vm');
 const passiveFiles = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
   'data/skills.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/bosses.js',
-  'data/rewards.js', 'data/talent-cards.js', 'js/utils.js', 'js/state.js', 'js/passives.js',
+  'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/passives.js',
 ];
 
 function createElement() {
