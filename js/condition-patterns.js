@@ -69,6 +69,7 @@ function getConditionPatternContext(state, pStats, now) {
     return {
         hpPct: Math.max(0, Number(source.playerHp) || 0) / maxHp * 100,
         esPct: maxEs > 0 ? Math.max(0, Number(source.playerEnergyShield) || 0) / maxEs * 100 : 0,
+        hasEnergyShield: maxEs > 0,
         liveEnemies,
         bosses: liveEnemies.filter(enemy => enemy.isBoss),
         nearestDistance,
@@ -81,8 +82,8 @@ function doesConditionPatternMatch(rule, context) {
     let value = Math.max(0, Number(rule.triggerValue) || 0);
     if (rule.triggerType === 'hp_below') return context.hpPct <= value;
     if (rule.triggerType === 'hp_above') return context.hpPct >= value;
-    if (rule.triggerType === 'es_below') return context.esPct <= value;
-    if (rule.triggerType === 'es_above') return context.esPct >= value;
+    if (rule.triggerType === 'es_below') return context.hasEnergyShield && context.esPct <= value;
+    if (rule.triggerType === 'es_above') return context.hasEnergyShield && context.esPct >= value;
     if (rule.triggerType === 'enemy_many') return context.liveEnemies.length >= value;
     if (rule.triggerType === 'enemy_few') return context.liveEnemies.length > 0 && context.liveEnemies.length <= value;
     if (rule.triggerType === 'boss_present') return context.bosses.length > 0;

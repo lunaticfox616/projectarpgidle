@@ -20,7 +20,7 @@ const assets = [
   'antler-helmet-v1', 'root-armor-v1', 'claw-gauntlets-v1', 'travel-boots-v1',
   'engraved-belt-v1', 'ruby-ring-v1', 'violet-amulet-v1', 'chaos-jewel-v1',
   'seed-talisman-v1', 'flower-growth-v1', 'thorn-growth-v1', 'cosmic-slab-v1'
-].map(name => `assets/items/${name}.png`);
+].map(name => `assets/items/${name.replace('-v1', '-v3')}.png`);
 
 assets.forEach(file => {
   assert(fs.existsSync(file), `${file} must exist`);
@@ -43,12 +43,12 @@ vm.runInContext(`${dataSource.slice(mappingStart, mappingEnd)}\nthis.ITEM_VISUAL
 vm.runInContext(`${readFunctionSource(itemsSource, 'getInventoryItemVisualAsset')}\nthis.getInventoryItemVisualAsset = getInventoryItemVisualAsset;`, context);
 
 const resolve = context.getInventoryItemVisualAsset;
-assert.strictEqual(resolve({ slot: '무기', baseName: '고목 활' }, 'equipment'), 'assets/items/thorn-bow-v1.png');
-assert.strictEqual(resolve({ slot: '무기', name: '제의 지팡이' }, 'equipment'), 'assets/items/branch-staff-v1.png');
-assert.strictEqual(resolve({ slot: '방패' }, 'equipment'), 'assets/items/tower-shield-v1.png');
-assert.strictEqual(resolve({}, 'jewel'), 'assets/items/chaos-jewel-v1.png');
-assert.strictEqual(resolve({}, 'talisman'), 'assets/items/seed-talisman-v1.png');
-assert.strictEqual(resolve({ growthCategory: 'flower' }, 'growth'), 'assets/items/flower-growth-v1.png');
-assert.strictEqual(resolve({ growthCategory: 'slab' }, 'growth'), 'assets/items/cosmic-slab-v1.png');
+assert.strictEqual(resolve({ slot: '무기', baseName: '고목 활' }, 'equipment'), 'assets/items/thorn-bow-v3.png');
+assert.strictEqual(resolve({ slot: '무기', name: '제의 지팡이' }, 'equipment'), 'assets/items/branch-staff-v3.png');
+assert.strictEqual(resolve({ slot: '방패' }, 'equipment'), 'assets/items/tower-shield-v3.png');
+assert.strictEqual(resolve({}, 'jewel'), 'assets/items/chaos-jewel-v3.png');
+assert.strictEqual(resolve({}, 'talisman'), 'assets/items/seed-talisman-v3.png');
+assert.strictEqual(resolve({ growthCategory: 'flower' }, 'growth'), 'assets/items/flower-growth-v3.png');
+assert.strictEqual(resolve({ growthCategory: 'slab' }, 'growth'), 'assets/items/cosmic-slab-v3.png');
 
 console.log('smoke-item-visual-assets: ok');

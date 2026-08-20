@@ -2,17 +2,19 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$SourcePath,
     [Parameter(Mandatory = $true)]
-    [string]$OutputDirectory
+    [string]$OutputDirectory,
+    [ValidatePattern('^v[0-9]+$')]
+    [string]$Version = 'v1'
 )
 
 Add-Type -AssemblyName System.Drawing
 
 $iconNames = @(
-    'root-sword-v1', 'thorn-bow-v1', 'branch-staff-v1', 'tower-shield-v1',
-    'antler-helmet-v1', 'root-armor-v1', 'claw-gauntlets-v1', 'travel-boots-v1',
-    'engraved-belt-v1', 'ruby-ring-v1', 'violet-amulet-v1', 'chaos-jewel-v1',
-    'seed-talisman-v1', 'flower-growth-v1', 'thorn-growth-v1', 'cosmic-slab-v1'
-)
+    'root-sword', 'thorn-bow', 'branch-staff', 'tower-shield',
+    'antler-helmet', 'root-armor', 'claw-gauntlets', 'travel-boots',
+    'engraved-belt', 'ruby-ring', 'violet-amulet', 'chaos-jewel',
+    'seed-talisman', 'flower-growth', 'thorn-growth', 'cosmic-slab'
+) | ForEach-Object { "$_-$Version" }
 
 function Test-AtlasBackgroundPixel {
     param([byte[]]$Pixels, [int]$Offset)
@@ -67,7 +69,12 @@ function Get-OpaqueBounds {
     $top = $Cell.Bottom
     $right = $Cell.Left
     $bottom = $Cell.Top
-    $bitmapData = $Bitmap.LockBits($Cell, [Drawing.Imaging.ImageLockMode]::ReadOnly, [Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    # LockBits on a sub-rectangle can retain the parent bitmap stride. Copying
+    # Cell.Height * stride bytes from that offset overruns the final atlas cells.
+    # Clone the cell first so its buffer and stride are local and contiguous.
+    $cellBitmap = $Bitmap.Clone($Cell, [Drawing.Imaging.PixelFormat]::Format32bppArgb)
+    $localRect = [Drawing.Rectangle]::new(0, 0, $Cell.Width, $Cell.Height)
+    $bitmapData = $cellBitmap.LockBits($localRect, [Drawing.Imaging.ImageLockMode]::ReadOnly, [Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $stride = $bitmapData.Stride
     $pixels = [byte[]]::new($stride * $Cell.Height)
     [Runtime.InteropServices.Marshal]::Copy($bitmapData.Scan0, $pixels, 0, $pixels.Length)
@@ -82,7 +89,8 @@ function Get-OpaqueBounds {
             $bottom = [Math]::Max($bottom, $y)
         }
     }
-    $Bitmap.UnlockBits($bitmapData)
+    $cellBitmap.UnlockBits($bitmapData)
+    $cellBitmap.Dispose()
     if ($right -lt $left) { return $Cell }
     return [Drawing.Rectangle]::FromLTRB($left, $top, $right + 1, $bottom + 1)
 }
@@ -93,8 +101,8 @@ function Export-AtlasCell {
     $canvas = [Drawing.Bitmap]::new(256, 256, [Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $graphics = [Drawing.Graphics]::FromImage($canvas)
     $graphics.Clear([Drawing.Color]::Transparent)
-    $graphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $graphics.PixelOffsetMode = [Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+    $graphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
+    $graphics.PixelOffsetMode = [Drawing.Drawing2D.PixelOffsetMode]::Half
     $scale = [Math]::Min(224 / $bounds.Width, 224 / $bounds.Height)
     $drawWidth = [Math]::Max(1, [Math]::Round($bounds.Width * $scale))
     $drawHeight = [Math]::Max(1, [Math]::Round($bounds.Height * $scale))

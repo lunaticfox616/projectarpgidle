@@ -30,6 +30,8 @@
         'tab-hideout': { title: '뿌리 성소', x: 110, y: 46, width: 1080, height: 760, minWidth: 760, minHeight: 500 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-season': { title: '루프', x: 300, y: 90, width: 740, height: 640, minWidth: 500, minHeight: 380 },
+        'tab-pruning': { title: '성장 나무 · 가지치기', x: 210, y: 70, width: 980, height: 760, minWidth: 620, minHeight: 460 },
+        'tab-arcana': { title: '아르카나', x: 230, y: 72, width: 920, height: 740, minWidth: 620, minHeight: 460 },
         // 보조장비 창은 주얼·부적·플라스크뿐 아니라 코어 큐브와 생장판까지 담는다.
         // 큐브를 별도 WINDOW_DEFS에 등록하면 병합 패널 안에 창 크롬이 한 번 더 씌워지므로,
         // 실제 창 소유자는 이 런처 하나뿐이다. 큐브의 2열 그리드에 맞춰 최소 폭도 보장한다.

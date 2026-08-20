@@ -5,35 +5,21 @@
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
-
-// combat.js에서 계약에 해당하는 함수만 떼어 실행한다(전체 로드는 다른 스모크가 담당).
-function loadStatSourceContract(gameState) {
-    const source = fs.readFileSync('js/combat.js', 'utf8');
-    const start = source.indexOf('function getStatSourceItemEntries()');
-    const end = source.indexOf('function rollGrowthItemDrop(');
-    assert(start >= 0 && end > start, 'stat source contract functions not found');
-    const context = {
-        console,
-        game: gameState,
-        getPlacedGrowthEntries: () => (gameState.__placed || []).map(item => ({ item }))
-    };
-    vm.createContext(context);
-    vm.runInContext(source.slice(start, end), context);
-    return context;
-}
+const { buildGameRuntime } = require('./lib/game-runtime');
 
 // ── 스탯 소스: 장비와 생장판이 함께 합산된다 ──────────────────────────────
 {
     const weapon = { id: 1, slot: '무기', name: '검' };
     const boots = { id: 2, slot: '신발', name: '장화' };
-    const flower = { id: 10, slot: '무기', name: '꽃', growthCategory: 'flower', growthShapeId: 'dot1' };
-    const state = {
-        equipment: { '무기': weapon, '신발': boots, '갑옷': null },
-        __placed: [flower]
-    };
-    const ctx = loadStatSourceContract(state);
-    // VM 컨텍스트의 배열은 프로토타입이 달라 deepStrictEqual이 실패한다. 직렬화해서 비교한다.
-    const entries = vm.runInContext('getStatSourceItemEntries()', ctx);
+    const flower = { id: 10, slot: '무기', name: '꽃', growthCategory: 'flower', growthShapeId: 'dot1', baseStats: [], stats: [] };
+    const runtime = buildGameRuntime();
+    vm.runInContext(`
+        game.equipment = ${JSON.stringify({ '무기': weapon, '신발': boots, '갑옷': null })};
+        game.growthInventory = ${JSON.stringify([flower])};
+        game.growthBoard = { width:GROWTH_BOARD_W, height:GROWTH_BOARD_H, unlockedCellCount:1, activeLoadout:0,
+            loadouts:[{ name:'세팅 1', placements:{ 10:{ x:0, y:0, rotation:0 } } }] };
+    `, runtime);
+    const entries = vm.runInContext('getPlayerStatSourceItemEntries()', runtime);
     const names = Array.from(entries).map(row => row[1].name).sort();
     assert.strictEqual(JSON.stringify(names), JSON.stringify(['검', '꽃', '장화']), '장비와 생장 배치가 모두 스탯 소스여야 한다');
 
@@ -42,14 +28,13 @@ function loadStatSourceContract(gameState) {
     assert.ok(keys.some(key => String(key).startsWith('growth:')), '생장 배치는 growth: 접두 키를 써야 한다');
 
     // 생장판이 비어도 장비 스탯은 그대로 나온다(대체가 아니라 추가라는 계약).
-    state.__placed = [];
-    const equipOnly = Array.from(vm.runInContext('getStatSourceItemEntries()', ctx)).map(row => row[1].name).sort();
+    vm.runInContext('game.growthBoard.loadouts[0].placements = {};', runtime);
+    const equipOnly = Array.from(vm.runInContext('getPlayerStatSourceItemEntries()', runtime)).map(row => row[1].name).sort();
     assert.strictEqual(JSON.stringify(equipOnly), JSON.stringify(['검', '장화']), '생장판이 비어도 장비 스탯 소스는 유지되어야 한다');
 
     // 반대로 장비를 모두 벗어도 생장 배치는 계속 기여한다.
-    state.equipment = { '무기': null, '신발': null };
-    state.__placed = [flower];
-    const growthOnly = Array.from(vm.runInContext('getStatSourceItemEntries()', ctx)).map(row => row[1].name);
+    vm.runInContext(`game.equipment = { '무기':null, '신발':null }; game.growthBoard.loadouts[0].placements = { 10:{ x:0, y:0, rotation:0 } };`, runtime);
+    const growthOnly = Array.from(vm.runInContext('getPlayerStatSourceItemEntries()', runtime)).map(row => row[1].name);
     assert.strictEqual(JSON.stringify(growthOnly), JSON.stringify(['꽃']), '장비가 없어도 생장 배치는 스탯을 제공해야 한다');
 }
 

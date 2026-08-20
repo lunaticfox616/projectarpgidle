@@ -1460,8 +1460,8 @@ let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
-const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'growthboard', 'map', 'hideout', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
-const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'hideout', 'traits', 'talent', 'expertise'];
+const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'flask', 'codex', 'talisman', 'cube', 'growthboard', 'map', 'hideout', 'traits', 'talent', 'expertise', 'jewel', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social'];
+const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 'skills', 'codex', 'talisman', 'cube', 'map', 'hideout', 'traits', 'talent', 'expertise'];
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
     utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '루프 25에 해금. 열 가지 생장판과 석판을 배치합니다.' }] },
@@ -1473,7 +1473,7 @@ const MERGED_TAB_GROUPS = Object.freeze({
 const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
-    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season', 'tab-skills'] },
+    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season', 'tab-pruning', 'tab-arcana', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-hideout', 'tab-codex', 'tab-journal', 'tab-records'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube', 'tab-growthboard'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
@@ -7899,46 +7899,31 @@ function getBattleGroundFrames(zone) {
     return { floor: frames.grass, path: frames.stone, pathAlt: frames.moss, prop: frames.grassDeep };
 }
 
-function getBattleBackdropKeyForZone(zone) {
-    if (!zone) return 'bgAct1';
-    if (zone.type === 'chaosRealm') {
-        let floor = Math.max(1, Number(zone.floor || zone.stage || zone.id || 1) || 1);
-        return floor % 20 === 0 ? 'bgChaos18' : `bgChaos${(floor - 1) % 18}`;
-    }
-    if (zone.type === 'act') {
-        let actNo = Math.max(1, Math.min(10, (Number(zone.id) || 0) + 1));
-        return `bgAct${actNo}`;
-    }
-    if (zone.type === 'labyrinth') return 'bgAct5';
-    if (zone.type === 'abyss' || zone.type === 'seasonBoss') return 'bgAct10';
-    if (zone.ele === 'fire') return 'bgAct2';
-    if (zone.ele === 'cold') return 'bgAct3';
-    if (zone.ele === 'light') return 'bgAct4';
-    if (zone.ele === 'chaos') return 'bgAct9';
-    return 'bgAct1';
-}
-
 function getBattleBackdropForZone(zone) {
     let list = (battleAssets.backdrops || {});
     let key = getBattleBackdropKeyForZone(zone);
+    if (!list[key]) requestSpecialBattleBackdrop(key);
     let fallbackLegacy = { bgAct1:'backdropAct1', bgAct2:'backdropAct2_6', bgAct3:'backdropAct3_7', bgAct4:'backdropAct4_8', bgAct5:'backdropAct5', bgAct6:'backdropAct2_6', bgAct7:'backdropAct3_7', bgAct8:'backdropAct4_8', bgAct9:'backdropAct9_10', bgAct10:'backdropAct9_10' };
     let image = list[key] || list[fallbackLegacy[key]] || list.backdropAct1 || Object.values(list)[0];
     if (!image) return null;
     let zoneSeed = Number.isFinite(zone && zone.id) ? zone.id : 0;
     if (!zoneSeed && zone && zone.name) zoneSeed = zone.name.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
     let variant = BATTLE_BACKDROP_VARIANTS[Math.abs(zoneSeed) % BATTLE_BACKDROP_VARIANTS.length] || BATTLE_BACKDROP_VARIANTS[0];
-    return { image: image, variant: variant };
+    return { image: image, variant: variant, key: key };
 }
 
-// 액트 배경(512x512 아이소 디오라마)의 바닥 다이아몬드 보정값.
-// centerX/centerY는 바닥 다이아몬드 중심의 이미지 내 위치(비율), halfWidthFrac는
-// 바닥 다이아몬드 반폭이 이미지 폭에서 차지하는 비율이다. 배경 세트가 동일한 구도로
-// 제작되어 공통 보정값을 쓰며, 전장 그리드가 이 다이아몬드 중앙에 얹히도록 정렬한다.
-const BATTLE_BACKDROP_FLOOR = { centerX: 0.5, centerY: 0.5, halfWidthFrac: 0.39 };
+// 배경마다 바닥 다이아몬드의 크기와 중심이 달라 그리드 정렬값을 따로 유지한다.
+const BATTLE_BACKDROP_FLOORS = Object.freeze({
+    default: { centerX: 0.5, centerY: 0.5, halfWidthFrac: 0.39 },
+    bgSkyTower: { centerX: 0.5, centerY: 0.51, halfWidthFrac: 0.43 },
+    bgUnderworld: { centerX: 0.5, centerY: 0.5, halfWidthFrac: 0.44 },
+    bgOceanDepth: { centerX: 0.5, centerY: 0.48, halfWidthFrac: 0.48 },
+    bgCosmos: { centerX: 0.5, centerY: 0.48, halfWidthFrac: 0.42 }
+});
 
 // 배경 이미지를 두 겹으로 그린다: (1) 캔버스 전체를 채우는 어두운 cover 언더레이,
 // (2) 바닥 다이아몬드가 8x8 그리드와 일치하도록 그리드 투영에 정렬한 본 이미지.
-function drawGridAlignedBackdrop(ctx, width, height, image, gridProj) {
+function drawGridAlignedBackdrop(ctx, width, height, image, gridProj, backdropKey) {
     let srcW = image.width || width;
     let srcH = image.height || height;
     let coverScale = Math.max(width / srcW, height / srcH) * 1.2;
@@ -7957,15 +7942,16 @@ function drawGridAlignedBackdrop(ctx, width, height, image, gridProj) {
     let cellLast = gridProj.cellToScreen(COMBAT_GRID_CONFIG.size - 1, COMBAT_GRID_CONFIG.size - 1);
     let gridCenterY = (cellFirst.y + cellLast.y) / 2;
     let gridHalfW = gridProj.tileW * (COMBAT_GRID_CONFIG.size / 2);
-    let drawW = gridHalfW / BATTLE_BACKDROP_FLOOR.halfWidthFrac;
+    let floor = BATTLE_BACKDROP_FLOORS[backdropKey] || BATTLE_BACKDROP_FLOORS.default;
+    let drawW = gridHalfW / floor.halfWidthFrac;
     let drawH = drawW * (srcH / srcW);
-    ctx.drawImage(image, width / 2 - drawW * BATTLE_BACKDROP_FLOOR.centerX, gridCenterY - drawH * BATTLE_BACKDROP_FLOOR.centerY, drawW, drawH);
+    ctx.drawImage(image, width / 2 - drawW * floor.centerX, gridCenterY - drawH * floor.centerY, drawW, drawH);
 }
 
 function drawBattleBackdrop(ctx, width, height, theme, now, zone, gridProj) {
     let backdropEntry = getBattleBackdropForZone(zone);
     if (backdropEntry && backdropEntry.image) {
-        drawGridAlignedBackdrop(ctx, width, height, backdropEntry.image, gridProj);
+        drawGridAlignedBackdrop(ctx, width, height, backdropEntry.image, gridProj, backdropEntry.key);
         return true;
     }
 
@@ -12128,9 +12114,10 @@ function buildCraftActionButtons(item) {
     }).join('') : '';
     let innerCircle = seasonEvolved ? '<div class="loop-magic-circle" aria-hidden="true"><span class="loop-magic-runes"></span><span class="loop-magic-core"></span></div>' : '';
     document.getElementById('ui-season-tree').innerHTML = `${seasonSummary}<div class="loop-passive-orbit ${seasonEvolved ? 'complete' : ''}"><div class="loop-orbit-ambient" aria-hidden="true"></div><span class="loop-ouroboros-silhouette" aria-hidden="true"></span>${innerCircle}${ringNodes}${innerNodes}</div>`;
-    renderWorldDeckPanel();
-
     }
+
+    if (isTabRendering('tab-pruning')) renderPruningTreePanel();
+    if (isTabRendering('tab-arcana')) renderArcanaPanel();
 
     if (isTabRendering('tab-hideout')) renderHideout();
 
@@ -13859,8 +13846,16 @@ function mergeDefaults(save) {
     merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
     merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
     merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
-    merged.worldDeck = normalizeWorldDeckState(merged.worldDeck, merged);
-    advanceWorldDeckForLoop(merged);
+    merged.arcana = normalizeArcanaState(merged.arcana);
+    let arcanaQuestMigration = reconcileArcanaQuestFromCosmos(merged);
+    if (arcanaQuestMigration.completedNow) {
+        merged.journalEntries = Array.isArray(merged.journalEntries) ? merged.journalEntries : [];
+        if (!merged.journalEntries.includes('arcana_first_seal')) merged.journalEntries.push('arcana_first_seal');
+    }
+    merged.pruningTree = normalizePruningTreeState(merged.pruningTree, merged);
+    advancePruningTreeForLoop(merged);
+    if (merged.arcana.unlocked) merged.unlocks.arcana = true;
+    delete merged.worldDeck;
     merged.hideout = normalizeHideoutState(merged.hideout, merged);
     if (isHideoutUnlocked(merged)) merged.unlocks.hideout = true;
     merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
@@ -16673,6 +16668,8 @@ function syncDerivedTabUnlock(tabId) {
         game.noti.jewel = true;
     }
     if (tabId === 'tab-cube' && typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
+    if (tabId === 'tab-pruning' && game.unlocks && ensurePruningTreeState(game).unlocked) game.unlocks.pruning = true;
+    if (tabId === 'tab-arcana' && game.unlocks && ensureArcanaState(game).unlocked) game.unlocks.arcana = true;
 }
 
 function checkUnlocks() {
@@ -16747,6 +16744,16 @@ function checkUnlocks() {
         u.season = true;
         game.noti.season = true;
         queueTutorialNotice('unlock_season_tab', '루프 탭 개방', `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`, 'tab-season');
+    }
+    if (ensurePruningTreeState(game).unlocked && !u.pruning) {
+        u.pruning = true;
+        game.noti.pruning = true;
+        queueTutorialNotice('unlock_pruning_tree', '성장 나무 해금', '나무에 첫 나이테가 생겼습니다. 가지치기 탭에서 성장 방향과 감당할 부담을 선택하세요.', 'tab-pruning');
+    }
+    if (ensureArcanaState(game).unlocked && !u.arcana) {
+        u.arcana = true;
+        game.noti.arcana = true;
+        queueTutorialNotice('unlock_arcana', '아르카나 해금', '봉인된 카드를 발견했습니다. 아르카나 탭에서 봉인을 풀고 덱 또는 장비 슬롯에 배치하세요.', 'tab-arcana');
     }
     if (((game.completedTrials || []).length > 0 || game.ascendPoints > 0 || !!game.ascendClass) && !u.traits) {
         u.traits = true;
@@ -17162,6 +17169,7 @@ function buyAscend(id) { if (!assertBuildEditable()) return;
 function getLockedTabMessage(tabId) {
     if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
     if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
+    if (tabId === 'tab-pruning') return `루프 ${PRUNING_TREE_UNLOCK_LOOP}에 도달하면 가지치기가 열립니다.`;
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비/제작 탭이 열립니다.';
     if (tabId === 'tab-jewel') return '루프 5에 도달하거나 주얼 또는 주얼 결정을 얻으면 주얼 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬 젬이나 보조 젬을 획득하면 스킬 젬 탭이 열립니다.';

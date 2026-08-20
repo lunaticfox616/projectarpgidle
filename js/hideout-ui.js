@@ -13,7 +13,7 @@ function renderHideoutPlacedDecor(placement) {
     if (!decor) return '';
     let action = decor.action ? `<button type="button" onclick="event.stopPropagation();activateHideoutDecor('${decor.id}')">사용</button>` : '';
     return `<div class="hideout-placed-decor kind-${decor.kind}" draggable="true" ondragstart="beginHideoutDrag(event,'${decor.id}')" onclick="selectHideoutDecor('${decor.id}')" ondblclick="activateHideoutDecor('${decor.id}')">
-        <img src="${decor.asset}" alt=""><strong>${escapeHTML(decor.name)}</strong><div>${action}<button type="button" onclick="event.stopPropagation();removeHideoutDecor('${decor.id}')">회수</button></div>
+        <img src="${decor.asset}" alt=""><strong>${escapeHTML(decor.name)}</strong><div>${action}<button type="button" onclick="event.stopPropagation();recoverHideoutDecor('${decor.id}')">회수</button></div>
     </div>`;
 }
 
@@ -34,7 +34,23 @@ function beginHideoutDrag(event, decorId) {
 function dropHideoutDecor(event, cell) {
     event.preventDefault();
     let decorId = event.dataTransfer ? event.dataTransfer.getData('text/hideout-decor') : '';
-    if (decorId) placeHideoutDecor(decorId, cell);
+    if (decorId && placeHideoutDecor(decorId, cell)) saveHideoutChange();
+}
+
+function saveHideoutChange() {
+    if (typeof saveGame === 'function') saveGame();
+}
+
+function placeSelectedHideoutDecorAndSave(cell) {
+    if (!placeSelectedHideoutDecor(cell)) return false;
+    saveHideoutChange();
+    return true;
+}
+
+function recoverHideoutDecor(decorId) {
+    if (!removeHideoutDecor(decorId)) return false;
+    saveHideoutChange();
+    return true;
 }
 
 function renderHideout() {
@@ -45,7 +61,7 @@ function renderHideout() {
     let placementByCell = new Map(state.placements.map(row => [row.cell, row]));
     let cells = Array.from({ length:HIDEOUT_GRID_COLUMNS * HIDEOUT_GRID_ROWS }, (_, cell) => {
         let placement = placementByCell.get(cell);
-        return `<div class="hideout-cell ${placement ? 'occupied' : ''}" data-cell="${cell}" onclick="placeSelectedHideoutDecor(${cell})" ondragover="event.preventDefault()" ondrop="dropHideoutDecor(event,${cell})">${placement ? renderHideoutPlacedDecor(placement) : '<span></span>'}</div>`;
+        return `<div class="hideout-cell ${placement ? 'occupied' : ''}" data-cell="${cell}" onclick="placeSelectedHideoutDecorAndSave(${cell})" ondragover="event.preventDefault()" ondrop="dropHideoutDecor(event,${cell})">${placement ? renderHideoutPlacedDecor(placement) : '<span></span>'}</div>`;
     }).join('');
     let library = unlocked.map(decor => renderHideoutLibraryCard(decor, state)).join('');
     let locked = HIDEOUT_DECOR_DB.filter(decor => !isHideoutRequirementMet(decor.unlock, game));
@@ -57,4 +73,7 @@ function renderHideout() {
     panel.__lastHtml = html;
 }
 
-safeExposeGlobals({ renderHideout, beginHideoutDrag, dropHideoutDecor });
+safeExposeGlobals({
+    renderHideout, beginHideoutDrag, dropHideoutDecor,
+    placeSelectedHideoutDecorAndSave, recoverHideoutDecor
+});

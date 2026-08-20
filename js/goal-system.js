@@ -389,6 +389,18 @@
             build(g) { return buildNotice(`선택하지 않은 액트 보상 ${g.claimableActRewards.length}개`, 'tab-map', 'map-explore-hunting'); }
         },
         {
+            id: 'arcana-first-seal-notice',
+            matches(g) {
+                if (typeof getArcanaQuestProgress !== 'function') return false;
+                let quest = getArcanaQuestProgress(g);
+                return quest.started && !quest.rewarded;
+            },
+            build(g) {
+                let quest = getArcanaQuestProgress(g);
+                return buildNotice(`봉인된 별길 · 우주계 탐사 ${quest.current}/${quest.target}`, 'tab-map', 'map-tab-cosmos');
+            }
+        },
+        {
             id: 'cosmos-journey-notice',
             matches(g, primary) {
                 let journey = getCosmosJourney(g);

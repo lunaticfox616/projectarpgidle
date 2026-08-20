@@ -2,24 +2,24 @@ if (typeof safeExposeData !== 'function') throw new Error('data/constants.js mus
 
 const ITEM_VISUAL_ASSET_DB = Object.freeze({
     equipment: Object.freeze({
-        default: 'assets/items/root-sword-v1.png',
-        무기: 'assets/items/root-sword-v1.png', 방패: 'assets/items/tower-shield-v1.png',
-        투구: 'assets/items/antler-helmet-v1.png', 갑옷: 'assets/items/root-armor-v1.png',
-        장갑: 'assets/items/claw-gauntlets-v1.png', 신발: 'assets/items/travel-boots-v1.png',
-        허리띠: 'assets/items/engraved-belt-v1.png', 반지: 'assets/items/ruby-ring-v1.png',
-        목걸이: 'assets/items/violet-amulet-v1.png'
+        default: 'assets/items/root-sword-v3.png',
+        무기: 'assets/items/root-sword-v3.png', 방패: 'assets/items/tower-shield-v3.png',
+        투구: 'assets/items/antler-helmet-v3.png', 갑옷: 'assets/items/root-armor-v3.png',
+        장갑: 'assets/items/claw-gauntlets-v3.png', 신발: 'assets/items/travel-boots-v3.png',
+        허리띠: 'assets/items/engraved-belt-v3.png', 반지: 'assets/items/ruby-ring-v3.png',
+        목걸이: 'assets/items/violet-amulet-v3.png'
     }),
     weaponKeywords: Object.freeze([
-        { terms: ['활', 'bow'], asset: 'assets/items/thorn-bow-v1.png' },
-        { terms: ['지팡이', '지팡', 'staff', '봉'], asset: 'assets/items/branch-staff-v1.png' }
+        { terms: ['활', 'bow'], asset: 'assets/items/thorn-bow-v3.png' },
+        { terms: ['지팡이', '지팡', 'staff', '봉'], asset: 'assets/items/branch-staff-v3.png' }
     ]),
-    jewel: 'assets/items/chaos-jewel-v1.png',
-    talisman: 'assets/items/seed-talisman-v1.png',
+    jewel: 'assets/items/chaos-jewel-v3.png',
+    talisman: 'assets/items/seed-talisman-v3.png',
     growth: Object.freeze({
-        flower: 'assets/items/flower-growth-v1.png',
-        thorn: 'assets/items/thorn-growth-v1.png', root: 'assets/items/thorn-growth-v1.png',
-        vine: 'assets/items/thorn-growth-v1.png', slab: 'assets/items/cosmic-slab-v1.png',
-        default: 'assets/items/seed-talisman-v1.png'
+        flower: 'assets/items/flower-growth-v3.png',
+        thorn: 'assets/items/thorn-growth-v3.png', root: 'assets/items/thorn-growth-v3.png',
+        vine: 'assets/items/thorn-growth-v3.png', slab: 'assets/items/cosmic-slab-v3.png',
+        default: 'assets/items/seed-talisman-v3.png'
     })
 });
 

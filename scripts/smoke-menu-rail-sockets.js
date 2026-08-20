@@ -167,7 +167,7 @@ function createElement(tagName) {
 }
 
 const PRIMARY_TAB_IDS = [
-    'character', 'char', 'season', 'expertise', 'traits', 'talent', 'items', 'jewel',
+    'character', 'char', 'season', 'pruning', 'arcana', 'expertise', 'traits', 'talent', 'items', 'jewel',
     'flask', 'map', 'hideout', 'skills', 'journal', 'codex', 'talisman', 'cube'
 ];
 

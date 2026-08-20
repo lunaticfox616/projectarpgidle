@@ -35,6 +35,14 @@ function watchRuntimeFailures(page) {
     return failures;
 }
 
+async function dismissVisibleTutorials(page) {
+    const overlay = page.locator('#tutorial-overlay.active');
+    for (let attempt = 0; attempt < 20 && await overlay.isVisible(); attempt++) {
+        await page.locator('#tutorial-dismiss-btn').click();
+    }
+    await expect(overlay).not.toBeVisible();
+}
+
 test('entry screen establishes the reliquary palette without horizontal overflow', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await page.route('https://**', route => route.fulfill({ status: 204, contentType: 'text/javascript', body: '' }));
@@ -131,7 +139,7 @@ test('unlocked secondary tabs render after cross-tab navigation', async ({ page 
         updateStaticUI();
     });
     const tabIds = [
-        'tab-character', 'tab-char', 'tab-season', 'tab-expertise', 'tab-traits', 'tab-talent',
+        'tab-character', 'tab-char', 'tab-season', 'tab-pruning', 'tab-arcana', 'tab-expertise', 'tab-traits', 'tab-talent',
         'tab-items', 'tab-jewel', 'tab-map', 'tab-skills', 'tab-codex', 'tab-records',
         'tab-talisman', 'tab-cube', 'tab-growthboard', 'tab-settings'
     ];
@@ -145,15 +153,20 @@ test('unlocked secondary tabs render after cross-tab navigation', async ({ page 
     expect(failures).toEqual([]);
 });
 
-test('condition patterns, world cards and the hideout render as one endgame progression path', async ({ page }) => {
+test('condition patterns, Arcana, pruning and the hideout render as one endgame progression path', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
         game.season = 50;
         game.loopCount = 49;
         game.maxZoneId = 10;
+        game.settings.showDeathNotice = false;
+        game.settings.mapCompleteAction = 'stop';
+        game.combatHalted = true;
+        game.moveTimer = 0;
+        closeDeathOverlay();
         game.journalEntries = Array.from(new Set([...(game.journalEntries || []), 'act_5', 'woodsman', 'cosmos_astra']));
-        game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_hideout']));
+        game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_hideout', 'unlock_arcana']));
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.conditionGemUnlocked = true;
         const firstGem = getAllConditionGemEntries()[0].name;
@@ -162,11 +175,24 @@ test('condition patterns, world cards and the hideout render as one endgame prog
             enabled:true, priority:0, triggerType:'enemy_many', triggerValue:3,
             actionType:'target_weakest', skillName:''
         }];
-        advanceWorldDeckForLoop(game, () => 0.42);
+        game.arcana = createDefaultArcanaState();
+        grantSealedArcanaCard(2, game);
+        const firstCard = unsealArcanaCard(game, () => 0);
+        unsealArcanaCard(game, () => 0.05);
+        equipArcanaCard(firstCard.copy.uid, 'deck', 0, game);
+        game.equipment['무기'] = {
+            id: 990501, slot:'무기', name:'아르카나 검증 무기', rarity:'rare',
+            quality:20, baseStats:[], stats:[{ id:'spellPctDmg', val:100 }, { id:'fossilRiftAmp', val:50 }]
+        };
+        game.activeSkill = '서리 파동';
+        if (!game.skills.includes('서리 파동')) game.skills.push('서리 파동');
+        game.gemData['서리 파동'] = normalizeGemRecord(game.gemData['서리 파동']);
+        game.pruningTree = createDefaultPruningTreeState();
+        advancePruningTreeForLoop(game);
         updateStaticUI();
     });
 
-    await page.evaluate(() => switchTab('tab-hideout'));
+    await page.evaluate(() => window.switchTab('tab-hideout'));
     await expect(page.locator('.hideout-scene')).toBeVisible();
     await expect(page.locator('.hideout-cell')).toHaveCount(24);
     expect(await page.locator('.hideout-placed-decor').count()).toBeGreaterThanOrEqual(3);
@@ -181,19 +207,64 @@ test('condition patterns, world cards and the hideout render as one endgame prog
     const viewport = page.viewportSize();
     expect(hideoutBounds.x + hideoutBounds.width).toBeLessThanOrEqual(viewport.width + 1);
 
-    await page.evaluate(() => switchTab('tab-season'));
-    await expect(page.locator('#world-card-section')).toBeVisible();
-    await expect(page.locator('.world-card.choice')).toHaveCount(3);
-    await expect(page.locator('.world-card-pruning')).toContainText('가지치기');
-    const cardNodeStable = await page.evaluate(() => {
-        const before = document.querySelector('.world-card.choice');
-        updateStaticUI();
-        return before === document.querySelector('.world-card.choice');
+    await expect(page.locator('#tab-season #pruning-tree-section')).toHaveCount(0);
+    const mobileMoreButton = page.locator('#btn-mobile-nav-more');
+    if (await mobileMoreButton.isVisible()) await mobileMoreButton.click();
+    await expect(page.locator('#btn-tab-pruning')).toBeVisible();
+    await page.evaluate(() => window.switchTab('tab-pruning'));
+    await expect(page.locator('#pruning-tree-section')).toBeVisible();
+    await expect(page.locator('.pruning-node')).toHaveCount(11);
+    const pruningNodesStayInTree = await page.locator('.pruning-tree').evaluate(tree => {
+        const bounds = tree.getBoundingClientRect();
+        return Array.from(tree.querySelectorAll('.pruning-node')).every(node => {
+            const rect = node.getBoundingClientRect();
+            return getComputedStyle(node).position === 'absolute'
+                && rect.left >= bounds.left && rect.right <= bounds.right
+                && rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+        });
     });
-    expect(cardNodeStable).toBe(true);
+    expect(pruningNodesStayInTree).toBe(true);
+    await expect(page.locator('.pruning-choice-panel')).toHaveCSS('position', 'sticky');
+    await page.locator('.pruning-choice-actions').getByRole('button', { name:/부담을 안고 성장/ }).click();
+    await expect(page.locator('.pruning-choice-effects')).toContainText('부담 1단계');
+    await expect(page.locator('.pruning-stat-summary .gain')).toContainText('최대 생명력 +4');
+    await expect(page.locator('.pruning-stat-summary .burden')).toContainText('이동 속도(%) -0.05');
+    await page.locator('.pruning-choice-actions').getByRole('button', { name:/부담 가지치기/ }).click();
+    await expect(page.locator('.pruning-choice-effects')).toContainText('부담 0단계');
+    expect(await page.evaluate(() => game.pruningTree.nodeRanks.first_ring)).toBe(1);
+    const pruningNodeStable = await page.evaluate(() => {
+        const before = document.querySelector('.pruning-node');
+        updateStaticUI();
+        return before === document.querySelector('.pruning-node');
+    });
+    expect(pruningNodeStable).toBe(true);
+
+    await page.evaluate(() => window.switchTab('tab-arcana'));
+    await expect(page.locator('.arcana-deck .arcana-destination')).toHaveCount(4);
+    await expect(page.locator('.arcana-equipment-grid .arcana-destination')).toHaveCount(12);
+    await expect(page.locator('.arcana-collection .arcana-card')).toHaveCount(1);
+    await expect(page.locator('#ui-arcana-panel section').last().locator('h3 small')).toHaveText('1장 보유');
+    const arcanaNodeStable = await page.evaluate(() => {
+        const before = document.querySelector('.arcana-destination');
+        updateStaticUI();
+        return before === document.querySelector('.arcana-destination');
+    });
+    expect(arcanaNodeStable).toBe(true);
+    await dismissVisibleTutorials(page);
+    const dpsBeforeArcana = await page.evaluate(() => getPlayerStats().dps);
+    await page.locator('.arcana-collection .arcana-card button').click();
+    const weaponArcanaSlot = page.locator('.arcana-equipment-grid .arcana-destination').filter({ hasText:'무기' });
+    await expect(weaponArcanaSlot).toContainText('1개 옵션 증폭');
+    await expect(weaponArcanaSlot).toContainText('+12');
+    await page.locator('.arcana-equipment-grid .arcana-destination').filter({ hasText:'무기' }).click();
+    await expect(page.locator('.arcana-collection .arcana-card')).toHaveCount(0);
+    await expect(page.locator('#ui-arcana-panel section').last().locator('h3 small')).toHaveText('0장 보유');
+    await expect.poll(() => page.evaluate(() => game.arcana.equipmentSlots['무기'])).not.toBeNull();
+    const dpsAfterArcana = await page.evaluate(() => getPlayerStats().dps);
+    expect(dpsAfterArcana).toBeGreaterThan(dpsBeforeArcana);
 
     await page.evaluate(() => {
-        switchTab('tab-skills');
+        window.switchTab('tab-skills');
         switchSkillSubtab('skill-tab-condition');
         renderSkillAutoRulePanel();
     });
@@ -207,6 +278,41 @@ test('condition patterns, world cards and the hideout render as one endgame prog
         return before === document.querySelector('.condition-pattern-rule select');
     });
     expect(conditionSelectStable).toBe(true);
+    expect(failures).toEqual([]);
+});
+
+test('the guaranteed Arcana quest credits distinct Cosmos exploration and renders its stages', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const firstStage = await page.evaluate(() => {
+        game.season = 31;
+        game.loopCount = 30;
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.arcana = createDefaultArcanaState();
+        game.cosmosAtlas = { ...(game.cosmosAtlas || {}), cleared:['planet-0', 'asteroid-0'] };
+        reconcileArcanaQuestFromCosmos(game);
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-cosmos');
+        renderCosmosAtlas();
+        return getArcanaQuestProgress(game);
+    });
+    expect(firstStage).toMatchObject({ started:true, rewarded:false, current:2, target:12 });
+    await expect(page.locator('.cosmos-arcana-quest.active')).toContainText('2/12 탐사');
+    await expect(page.locator('.cosmos-arcana-quest.active')).toContainText('별길의 잔흔');
+
+    const completed = await page.evaluate(() => {
+        for (let index = 2; index < ARCANA_QUEST_EXPLORATION_TARGET; index++) {
+            recordArcanaQuestCosmosExploration(`quest-browser-${index}`, game);
+        }
+        renderCosmosAtlas();
+        return { progress:getArcanaQuestProgress(game), sealed:game.arcana.sealedCards };
+    });
+    expect(completed).toEqual(expect.objectContaining({
+        progress:expect.objectContaining({ rewarded:true, current:12 }),
+        sealed:1
+    }));
+    await expect(page.locator('.cosmos-arcana-quest.complete')).toContainText('복원 완료');
+    await expect(page.locator('.cosmos-arcana-quest.complete')).toContainText('봉인된 아르카나 카드 1장');
     expect(failures).toEqual([]);
 });
 

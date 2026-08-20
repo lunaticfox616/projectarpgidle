@@ -2286,11 +2286,14 @@ const defaultGame = {
     conditionGemPool: [],
     conditionGemLevels: {},
     pendingConditionGemChoices: null,
-    worldDeck: {
-        unlocked: false, pruningUnlocked: false, collection: {}, activeCardId: null,
-        pendingChoices: [], pruningPoints: 0, prunedCardIds: [], lastOfferLoop: 0,
-        lastPruningGrantLoop: 49
+    arcana: {
+        version: 2, unlocked: false, sealedCards: 0, totalSealedFound: 0,
+        cards: [], deckSlots: Array(ARCANA_DECK_SLOT_COUNT).fill(null),
+        equipmentSlots: Object.fromEntries(ARCANA_EQUIPMENT_SLOT_KEYS.map(slot => [slot, null])),
+        nextCardUid: 1,
+        quest: { started: false, exploredNodeIds: [], rewarded: false }
     },
+    pruningTree: { version: 2, unlocked: false, growthPoints: 0, nodeRanks: {}, prunedPenaltyRanks: {}, lastGrantedLoop: PRUNING_TREE_UNLOCK_LOOP - 1 },
     hideout: { initialized: false, placements: [], selectedDecorId: null },
     clearedRootBosses: [],
     timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
@@ -2430,8 +2433,8 @@ const defaultGame = {
         selectedWedgeId: null
     },
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0 },
-    unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false, hideout: false },
-    noti: { char: false, season: false, items: false, skills: false, flask: false, map: false, hideout: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
+    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false, hideout: false, arcana: false },
+    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, hideout: false, arcana: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }

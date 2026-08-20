@@ -37,6 +37,10 @@ assert(context.getConditionPatternTriggers(context.game, false).some(row => row.
 assert(!context.getConditionPatternTriggers(context.game, false).some(row => row.id === 'elite_present'), 'elite condition must remain locked before loop 5');
 assert(context.evaluateConditionPatternRule({ triggerType: 'hp_below', triggerValue: 35 }, stats, context.game, Date.now()), 'HP threshold must evaluate against current life');
 assert(!context.evaluateConditionPatternRule({ triggerType: 'hp_below', triggerValue: 20 }, stats, context.game, Date.now()), 'HP threshold must reject unmet values');
+context.game.playerEnergyShield = 0;
+assert(!context.evaluateConditionPatternRule({ triggerType: 'es_below', triggerValue: 50 }, { maxHp:100, energyShield:0 }, context.game, Date.now()), 'ES thresholds must not fire for builds without energy shield');
+assert(!context.evaluateConditionPatternRule({ triggerType: 'es_above', triggerValue: 0 }, { maxHp:100, energyShield:0 }, context.game, Date.now()), 'zero maximum ES must not satisfy above-threshold rules');
+context.game.playerEnergyShield = 10;
 
 const legacy = context.normalizeConditionPatternRule({ triggerType: 'enemy_many', hpThreshold: 3, skillName: '전장의 함성' });
 assert.strictEqual(legacy.actionType, 'condition_gem', 'legacy rules must migrate to condition gem actions');

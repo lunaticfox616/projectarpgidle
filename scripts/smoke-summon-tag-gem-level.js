@@ -1,77 +1,87 @@
 const assert = require('assert');
-const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
-function readFunctionSource(source, name) {
-  const start = source.indexOf(`function ${name}`);
-  assert.ok(start >= 0, `${name} must exist`);
-  let depth = 0;
-  for (let index = source.indexOf('{', start); index < source.length; index++) {
-    if (source[index] === '{') depth++;
-    if (source[index] !== '}') continue;
-    depth--;
-    if (depth === 0) return source.slice(start, index + 1);
-  }
-  throw new Error(`${name} must have a closing brace`);
-}
+const runtime = buildGameRuntime();
 
-const context = {
-  game: {
-    activeSkill: 'voidSummon',
-    equipment: {},
-    passives: ['genericGemNode', 'chaosGemNode', 'elementalGemNode'],
-    gemData: {
-      voidSummon: { level: 5 },
-      fireSummon: { level: 5 },
-      materialSummon: { level: 4, bossCoreLevel: 2, skyCoreLevel: 1, awakened: true }
-    },
-    supportGemData: { summonSupport: { level: 3, bossCoreLevel: 5 } },
-    actRewardBonuses: [],
-    journalBonuses: [],
-    talismanPlacements: {},
-    starWedge: {}
-  },
-  SKILL_DB: {
-    voidSummon: { isGem: true, tags: ['summon', 'summon_attack', 'chaos'] },
-    fireSummon: { isGem: true, tags: ['summon', 'summon_attack', 'fire', 'elemental'] },
-    materialSummon: { isGem: true, tags: ['summon', 'summon_attack', 'physical'] }
-  },
-  SUPPORT_GEM_DB: { summonSupport: { tags: ['summon'] } },
-  PASSIVE_TREE: {
-    nodes: {
-      genericGemNode: { stat: 'gemLevel', val: 2 },
-      chaosGemNode: { stat: 'chaosGemLevel', val: 3 },
-      elementalGemNode: { stat: 'elementalGemLevel', val: 1 }
-    }
-  },
-  getTargetGemBonusSources(name) { return context.getGemBonusSources(name); },
-  getGemSkyEnhanceGemLevelBonus() { return 0; },
-  getSkyTowerGemBoostLevel(name) { return name === 'materialSummon' ? 3 : 0; },
-  safeExposeGlobals(map) { Object.assign(context, map); }
-};
-context.window = context;
-context.globalThis = context;
-vm.createContext(context);
+const tagResult = vm.runInContext(`(() => {
+  let generic = Object.entries(PASSIVE_TREE.nodes).find(([, node]) => node.stat === 'gemLevel');
+  let chaos = Object.entries(PASSIVE_TREE.nodes).find(([, node]) => node.stat === 'chaosGemLevel');
+  if (!generic || !chaos) throw new Error('required passive gem-level nodes are missing');
+  game.equipment = {};
+  game.growthInventory = [];
+  game.growthBoard = { width:GROWTH_BOARD_W, height:GROWTH_BOARD_H, unlockedCellCount:0, activeLoadout:0, loadouts:[] };
+  game.arcana = createDefaultArcanaState();
+  game.passives = [generic[0], chaos[0]];
+  game.starWedge = {};
+  game.actRewardBonuses = [];
+  game.journalBonuses = [];
+  game.talismanPlacements = {};
+  game.jewelSlots = [];
+  game.ascendClass = null;
+  game.ascendNodes = [];
+  game.gemData = {
+    '공허 유충 소환': { level:5 },
+    '불곰 소환': { level:5 },
+    '칼날까마귀 소환': { level:4, bossCoreLevel:2, skyCoreLevel:1, awakened:true }
+  };
+  let genericValue = Number(generic[1].val || 0);
+  let chaosValue = Number(chaos[1].val || 0);
+  return {
+    genericValue,
+    chaosValue,
+    voidBonus:getGemBonusSources('공허 유충 소환').total,
+    fireBonus:getGemBonusSources('불곰 소환').total,
+    voidLevel:getSummonGemLevel('공허 유충 소환', 'skill'),
+    materialLevel:getSummonGemLevel('칼날까마귀 소환', 'skill')
+  };
+})()`, runtime);
 
-vm.runInContext(fs.readFileSync('js/skills.js', 'utf8'), context, { filename: 'js/skills.js' });
-const combatSource = fs.readFileSync('js/combat.js', 'utf8');
-vm.runInContext(`${readFunctionSource(combatSource, 'getSummonGemLevel')}; this.getSummonGemLevel = getSummonGemLevel;`, context, { filename: 'getSummonGemLevel' });
+assert.strictEqual(tagResult.voidBonus, tagResult.genericValue + tagResult.chaosValue,
+  'chaos summon gems must receive both generic and chaos passive gem levels');
+assert.strictEqual(tagResult.fireBonus, tagResult.genericValue,
+  'non-chaos summon gems must not receive chaos-only passive gem levels');
+assert.strictEqual(tagResult.voidLevel, 5 + tagResult.genericValue + tagResult.chaosValue,
+  'summon combat level must use the same tag-matched passive bonus');
+assert.strictEqual(tagResult.materialLevel, 4 + tagResult.genericValue + 2 + 1 + 2,
+  'boss core, sky core, and awakening investments must affect the actual summon combat level');
 
-assert.strictEqual(context.getGemBonusSources('voidSummon').total, 5, 'chaos summon gems must receive generic and chaos passive gem levels');
-assert.strictEqual(context.getSummonGemLevel('voidSummon', 'skill'), 10, 'summon runtime level must include chaos passive gem levels');
-assert.strictEqual(context.getGemBonusSources('fireSummon').total, 3, 'non-chaos summon gems must not receive chaos-only passive gem levels');
-assert.strictEqual(context.getSummonGemLevel('fireSummon', 'skill'), 8, 'elemental summon runtime level must keep matching tag bonuses');
+const equipmentResult = vm.runInContext(`(() => {
+  game.passives = [];
+  game.arcana = createDefaultArcanaState();
+  game.arcana.cards.push({ uid:1, cardId:'star', obtainedLoop:1 });
+  game.arcana.equipmentSlots['무기'] = 1;
+  game.equipment = { '무기':{
+    slot:'무기', quality:20,
+    baseStats:[{ id:'gemLevel', val:10 }],
+    stats:[{ id:'elementalGemLevel', val:5 }, { id:'fossilRiftAmp', val:50 }, { id:'flatHp', val:100, extraStats:[{ id:'fireGemLevel', val:1 }] }],
+    underEnchant:{ id:'fireGemLevel', val:1 },
+    chaosInfusion:{ id:'summonGemLevel', val:2 }
+  }};
+  let raw = getResolvedEquipmentStatLists('무기', game.equipment['무기'], game, false);
+  let rawTotal = [...raw.baseStats, ...raw.explicitStats]
+    .filter(stat => ['gemLevel', 'elementalGemLevel', 'fireGemLevel', 'summonGemLevel'].includes(stat.id))
+    .reduce((sum, stat) => sum + stat.val, 0);
+  return { rawTotal, amplified:getGemBonusSources('불곰 소환').gear };
+})()`, runtime);
 
-// 군주의핵(bossCoreLevel)·창공의힘(skyCoreLevel)·각성(awakened)·응축창공(getSkyTowerGemBoostLevel)으로
-// 투자한 재료 보너스는 getGemPresentation()의 활성 스킬 젬 총 레벨에 그대로 반영되는데,
-// 소환 공격 젬의 실제 전투 레벨(getSummonGemLevel)에서도 똑같이 반영되어야 한다.
-// baseLevel 4 + bonus 2(genericGemNode는 태그 무관 공통 젬 레벨) + engrave 0
-// + materialBonus(bossCore 2 + skyCore 1 + awakened 2 + skyTower 3 = 8) = 14
-assert.strictEqual(context.getSummonGemLevel('materialSummon', 'skill'), 14, '군주의핵/창공의힘/각성/응축창공 보너스가 소환수 실제 레벨에 반영되어야 한다');
+assert.strictEqual(equipmentResult.rawTotal, 22.5,
+  'the shared equipment resolver must apply quality and Rift amplification before Arcana');
+assert(Math.abs(equipmentResult.amplified - 24.91) < 1e-9,
+  'the Star must amplify the same resolved gem-level values and compound lines used by combat');
 
-// 보조 젬(support)에는 애초에 군주의핵/창공의힘/각성 시스템이 적용되지 않으므로(getGemPresentation의
-// support 분기에는 materialBonus가 없음), 소환 보조 젬에도 이 보너스를 더하면 안 된다.
-// baseLevel 3 + bonus 2(genericGemNode) + materialBonus 0(보조 젬은 제외) = 5 — bossCoreLevel 5는 무시되어야 한다.
-assert.strictEqual(context.getSummonGemLevel('summonSupport', 'support'), 5, '보조 젬은 materialBonus 없이 기본 레벨+공통 보너스만 반영해야 한다');
+const growthResult = vm.runInContext(`(() => {
+  game.equipment = {};
+  game.arcana = createDefaultArcanaState();
+  game.growthInventory = [{ id:9001, name:'젬 새싹', growthCategory:'flower', growthShapeId:'dot1', baseStats:[], stats:[{ id:'gemLevel', val:3 }] }];
+  game.growthBoard = { width:GROWTH_BOARD_W, height:GROWTH_BOARD_H, unlockedCellCount:1, activeLoadout:0,
+    loadouts:[{ name:'세팅 1', placements:{ 9001:{ x:0, y:0, rotation:0 } } }] };
+  let placed = getPlacedGrowthEntries();
+  let bonus = getGemBonusSources('불곰 소환');
+  return { placed:placed.length, gear:bonus.gear };
+})()`, runtime);
+
+assert.strictEqual(growthResult.placed, 1, 'the real growth board must expose the placed item');
+assert.strictEqual(growthResult.gear, 3, 'a placed growth item gem-level affix must affect the actual gem level');
 
 console.log('smoke-summon-tag-gem-level passed');
