@@ -1385,8 +1385,15 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 
 .equipment-card-visual,
 .jewel-card-visual,
-.talisman-card-visual,
 .growth-card-visual {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .68));
+}
+
+.talisman-card-visual {
     width: 58px;
     height: 58px;
     flex: 0 0 58px;
@@ -1395,7 +1402,13 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 }
 
 .equipment-item-card,
-.jewel-inventory-card,
+.jewel-inventory-card {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+}
+
 .talisman-inventory-card {
     display: grid;
     grid-template-columns: 58px minmax(0, 1fr);
@@ -1407,18 +1420,18 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .jewel-card-copy,
 .talisman-card-copy { min-width: 0; }
 
-.growth-item-card { padding-left: 67px; min-height: 66px; }
-.growth-card-visual { position: absolute; left: 6px; top: 5px; }
+.growth-item-card { padding-left: 52px; min-height: 56px; }
+.growth-card-visual { position: absolute; left: 6px; top: 6px; }
 
 @media (max-width: 640px) {
     .equipment-card-visual,
     .jewel-card-visual,
-    .talisman-card-visual,
-    .growth-card-visual { width: 48px; height: 48px; flex-basis: 48px; }
+    .growth-card-visual { width: 36px; height: 36px; flex-basis: 36px; }
     .equipment-item-card,
-    .jewel-inventory-card,
+    .jewel-inventory-card { grid-template-columns: 36px minmax(0, 1fr); gap: 7px; }
+    .growth-item-card { padding-left: 46px; min-height: 50px; }
+    .talisman-card-visual { width: 48px; height: 48px; flex-basis: 48px; }
     .talisman-inventory-card { grid-template-columns: 48px minmax(0, 1fr); gap: 7px; }
-    .growth-item-card { padding-left: 57px; }
 }
 
 .condition-pattern-summary {

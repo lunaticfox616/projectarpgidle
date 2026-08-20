@@ -246,6 +246,22 @@ function getArcanaCardSlotAmplifier(uid, ownerState) {
     return card && card.slotAmp ? { uid: copy.uid, cardId: card.id, pct: card.slotAmp.pct, statIds: card.slotAmp.statIds.slice() } : null;
 }
 
+function getArcanaCardGemDamageRule(uid, ownerState) {
+    let arcana = ensureArcanaState(ownerState || game);
+    let copy = arcana.cards.find(row => row.uid === Math.floor(Number(uid) || 0));
+    let card = copy ? ARCANA_CARD_DB.find(row => row.id === copy.cardId) : null;
+    let rule = card && card.slotGemDamage;
+    if (!rule) return null;
+    return { uid: copy.uid, cardId: card.id, perLevelPct: Number(rule.perLevelPct) || 0, capPct: Number(rule.capPct) || 0 };
+}
+
+function getArcanaEquipmentGemDamageRule(slotKey, ownerState) {
+    let source = ownerState || game;
+    let arcana = ensureArcanaState(source);
+    let uid = arcana.equipmentSlots[slotKey];
+    return uid ? getArcanaCardGemDamageRule(uid, source) : null;
+}
+
 function getArcanaAmplificationPreview(stats, amplifier) {
     if (!amplifier) return { pct: 0, lines: [] };
     let affected = new Set(amplifier.statIds);
@@ -403,6 +419,7 @@ safeExposeGlobals({
     getArcanaQuestProgress, recordArcanaQuestCosmosExploration, reconcileArcanaQuestFromCosmos,
     getArcanaDeckStats, getArcanaEquipmentSlotAmplifier, getArcanaCardSlotAmplifier,
     getArcanaAmplificationPreview, applyArcanaSlotAmplification,
+    getArcanaCardGemDamageRule, getArcanaEquipmentGemDamageRule,
     getSealedArcanaCardDropChance, tryDropSealedArcanaCard,
     createDefaultPruningTreeState, normalizePruningTreeState, advancePruningTreeForLoop,
     ensurePruningTreeState, isPruningNodeRequirementMet, investPruningNode,

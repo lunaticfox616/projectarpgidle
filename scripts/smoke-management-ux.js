@@ -81,4 +81,27 @@ assert(overhaulCss.includes('#tab-skills .skill-subtab-row { display: grid; grid
 assert(overhaulCss.includes('#tab-skills .skill-subtab-row { grid-template-columns: repeat(2, minmax(0, 1fr));'), 'narrow skill navigation must use a balanced two-by-two grid');
 assert(premiumCss.includes('button[onclick*="equip"]:not(.subtab-btn)'), 'equipment action emphasis must not make inactive skill navigation look selected');
 
+vm.runInContext('game.season=25; game.unlockedSeasonContents=[]; game.seenSeasonContentNotices=[]; applySeasonContentProgression({silent:true});', runtime);
+assert.strictEqual(vm.runInContext("game.unlockedSeasonContents.includes('season_25')", runtime), true, 'loop milestones must extend through the growth-board unlock');
+assert.strictEqual(vm.runInContext('game.unlockedSeasonContents.length', runtime), 25, 'milestone reconciliation must register every loop through 25 exactly once');
+[
+    [2, '현상금 사냥'], [11, '심해 / 낚시'], [15, '군락지 / 군락지 액막이'],
+    [18, '가지치기'], [20, '코어 큐브'], [25, '생장판 / 생장 아이템 드랍']
+].forEach(([loop, label]) => {
+    assert.strictEqual(vm.runInContext(`SEASON_CONTENT_ROADMAP[${loop}].features.some(line => line.includes('${label}'))`, runtime), true,
+        `loop ${loop} milestone must list ${label}`);
+});
+vm.runInContext('game.season=50; applySeasonContentProgression({silent:true});', runtime);
+assert.strictEqual(vm.runInContext("game.unlockedSeasonContents.includes('season_50')", runtime), true, 'late growth-board milestones must reconcile through loop 50');
+assert.strictEqual(vm.runInContext('game.unlockedSeasonContents.length', runtime), 50, 'milestone reconciliation must register every loop through 50 exactly once');
+[
+    [28, '생장판 확장: 11칸'], [31, '버려진 날붙이 / 단절된 방랑자'],
+    [32, '생장판 시너지 해금: 행과 열'], [38, '생장판 시너지 해금: 태그 공명'],
+    [40, '생장판 확장: 23칸'], [45, '생장판 시너지 해금: 복합 시너지'],
+    [50, '생장판 확장: 32칸']
+].forEach(([loop, label]) => {
+    assert.strictEqual(vm.runInContext(`SEASON_CONTENT_ROADMAP[${loop}].features.some(line => line.includes('${label}'))`, runtime), true,
+        `loop ${loop} milestone must list ${label}`);
+});
+
 console.log('smoke-management-ux passed');

@@ -12041,7 +12041,7 @@ function buildCraftActionButtons(item) {
             }
         }
     }
-    let seasonRoadmapKeys = (game.unlockedSeasonContents || []).map(id => parseInt(String(id).replace('season_', ''), 10)).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
+    let seasonRoadmapKeys = Object.keys(SEASON_CONTENT_ROADMAP).map(Number).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
     let collapsePast = game.settings.collapsePastLoopMilestones !== false;
     let roadmapToggle = document.getElementById('btn-toggle-past-loop-milestones');
     if (roadmapToggle) roadmapToggle.innerText = collapsePast ? '지난 루프 펼치기' : '지난 루프 접기';
@@ -12060,7 +12060,7 @@ function buildCraftActionButtons(item) {
         let hiddenStyle = collapsePast && unlocked && !current ? 'display:none;' : '';
         return `<div style="${hiddenStyle}background:#121822; border:1px solid ${stateColor}; border-radius:8px; padding:10px 12px;">
             <div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:4px;">
-                <strong style="color:${stateColor};">루프 ${seasonNum} - ${def.title}</strong><span style="color:${stateColor}; font-size:0.8em;">${stateText}</span>
+                <strong style="color:${stateColor};">${def.title}</strong><span style="color:${stateColor}; font-size:0.8em;">${stateText}</span>
             </div>
             <div style="color:var(--copy-bright); font-size:0.82em; line-height:1.5;">• ${reqText}<br>${(def.features || []).map(v => `• ${v}`).join('<br>')}</div>
         </div>`;

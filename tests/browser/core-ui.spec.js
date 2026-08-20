@@ -153,6 +153,45 @@ test('unlocked secondary tabs render after cross-tab navigation', async ({ page 
     expect(failures).toEqual([]);
 });
 
+test('inventory artwork stays compact and does not include the next sprite row', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const expectedWidth = page.viewportSize().width <= 640 ? '36px' : '42px';
+    const result = await page.evaluate(async () => {
+        const host = document.createElement('div');
+        host.innerHTML = [
+            renderInventoryItemVisual({ slot:'반지', name:'반지' }, 'equipment', 'equipment-card-visual'),
+            renderInventoryItemVisual({ name:'주얼' }, 'jewel', 'jewel-card-visual'),
+            renderInventoryItemVisual({ growthCategory:'flower', name:'꽃' }, 'growth', 'growth-card-visual')
+        ].join('');
+        document.body.appendChild(host);
+        await Promise.all(Array.from(host.querySelectorAll('img')).map(image => image.decode()));
+        const widths = Array.from(host.querySelectorAll('img')).map(image => getComputedStyle(image).width);
+        const hasBottomPixels = async asset => {
+            const image = new Image();
+            image.src = asset;
+            await image.decode();
+            const canvas = document.createElement('canvas');
+            canvas.width = image.naturalWidth;
+            canvas.height = image.naturalHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(image, 0, 0);
+            const pixels = context.getImageData(0, 215, canvas.width, canvas.height - 215).data;
+            return pixels.some((value, index) => index % 4 === 3 && value !== 0);
+        };
+        const bleed = await Promise.all([
+            'assets/items/chaos-jewel-v3.png',
+            'assets/items/engraved-belt-v3.png',
+            'assets/items/ruby-ring-v3.png'
+        ].map(hasBottomPixels));
+        host.remove();
+        return { widths, bleed };
+    });
+    expect(result.widths).toEqual([expectedWidth, expectedWidth, expectedWidth]);
+    expect(result.bleed).toEqual([false, false, false]);
+    expect(failures).toEqual([]);
+});
+
 test('condition patterns, Arcana, pruning and the hideout render as one endgame progression path', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
@@ -178,17 +217,18 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
         game.arcana = createDefaultArcanaState();
         grantSealedArcanaCard(2, game);
         const firstCard = unsealArcanaCard(game, () => 0);
-        unsealArcanaCard(game, () => 0.05);
+        unsealArcanaCard(game, () => 17 / ARCANA_CARD_DB.length);
         equipArcanaCard(firstCard.copy.uid, 'deck', 0, game);
         game.equipment['무기'] = {
             id: 990501, slot:'무기', name:'아르카나 검증 무기', rarity:'rare',
-            quality:20, baseStats:[], stats:[{ id:'spellPctDmg', val:100 }, { id:'fossilRiftAmp', val:50 }]
+            quality:20, baseStats:[], stats:[{ id:'spellGemLevel', val:5 }]
         };
         game.activeSkill = '서리 파동';
         if (!game.skills.includes('서리 파동')) game.skills.push('서리 파동');
         game.gemData['서리 파동'] = normalizeGemRecord(game.gemData['서리 파동']);
         game.pruningTree = createDefaultPruningTreeState();
         advancePruningTreeForLoop(game);
+        applySeasonContentProgression({ silent:true });
         updateStaticUI();
     });
 
@@ -206,6 +246,27 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
     const hideoutBounds = await page.locator('.hideout-layout').boundingBox();
     const viewport = page.viewportSize();
     expect(hideoutBounds.x + hideoutBounds.width).toBeLessThanOrEqual(viewport.width + 1);
+
+    await page.evaluate(() => window.switchTab('tab-season'));
+    await dismissVisibleTutorials(page);
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('완료한 지난 루프 이정표 49개');
+    await page.locator('#season-content-section > summary').click();
+    await page.locator('#btn-toggle-past-loop-milestones').click();
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('루프 18');
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('해금: 가지치기');
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('루프 25');
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('해금: 생장판 / 생장 아이템 드랍');
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('루프 31');
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('해금: 버려진 날붙이 / 단절된 방랑자');
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('루프 40');
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('생장판 확장: 23칸');
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('루프 50');
+    await expect(page.locator('#ui-season-content-roadmap')).toContainText('생장판 확장: 32칸 · 완전한 수관');
+    await page.evaluate(() => { game.season = 17; updateStaticUI(); });
+    const futureLoop = page.locator('#ui-season-content-roadmap > div').filter({ hasText:'루프 50' });
+    await expect(futureLoop).toBeVisible();
+    await expect(futureLoop).toContainText('잠김');
+    await page.evaluate(() => { game.season = 50; updateStaticUI(); });
 
     await expect(page.locator('#tab-season #pruning-tree-section')).toHaveCount(0);
     const mobileMoreButton = page.locator('#btn-mobile-nav-more');
@@ -254,8 +315,8 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
     const dpsBeforeArcana = await page.evaluate(() => getPlayerStats().dps);
     await page.locator('.arcana-collection .arcana-card button').click();
     const weaponArcanaSlot = page.locator('.arcana-equipment-grid .arcana-destination').filter({ hasText:'무기' });
-    await expect(weaponArcanaSlot).toContainText('1개 옵션 증폭');
-    await expect(weaponArcanaSlot).toContainText('+12');
+    await expect(weaponArcanaSlot).toContainText('서리 파동 기준 젬 레벨 5');
+    await expect(weaponArcanaSlot).toContainText('피해 +15%');
     await page.locator('.arcana-equipment-grid .arcana-destination').filter({ hasText:'무기' }).click();
     await expect(page.locator('.arcana-collection .arcana-card')).toHaveCount(0);
     await expect(page.locator('#ui-arcana-panel section').last().locator('h3 small')).toHaveText('0장 보유');

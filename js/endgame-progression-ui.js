@@ -34,6 +34,13 @@ function getArcanaEquipmentPreviewStats(slotKey) {
 function renderArcanaEquipmentPreview(slotKey, uid) {
     let stats = getArcanaEquipmentPreviewStats(slotKey);
     if (!stats) return '<small class="arcana-slot-preview empty">현재 장비 없음</small>';
+    let gemRule = getArcanaCardGemDamageRule(uid, game);
+    if (gemRule) {
+        let skill = SKILL_DB[game.activeSkill];
+        if (!skill || !skill.isGem) return `<small class="arcana-slot-preview">젬 레벨 1당 피해 +${gemRule.perLevelPct}% · 최대 ${gemRule.capPct}%</small>`;
+        let result = getArcanaGemDamageFromStats(stats, game.activeSkill, gemRule);
+        return `<small class="arcana-slot-preview">${escapeHTML(game.activeSkill)} 기준 젬 레벨 ${result.gemLevels} · 피해 +${result.pct}%</small>`;
+    }
     let preview = getArcanaAmplificationPreview(stats, getArcanaCardSlotAmplifier(uid, game));
     if (preview.lines.length <= 0) return '<small class="arcana-slot-preview empty">적용되는 옵션 없음</small>';
     let lines = preview.lines.slice(0, 3).map(line => {

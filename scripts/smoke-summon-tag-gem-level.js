@@ -62,13 +62,42 @@ const equipmentResult = vm.runInContext(`(() => {
   let rawTotal = [...raw.baseStats, ...raw.explicitStats]
     .filter(stat => ['gemLevel', 'elementalGemLevel', 'fireGemLevel', 'summonGemLevel'].includes(stat.id))
     .reduce((sum, stat) => sum + stat.val, 0);
-  return { rawTotal, amplified:getGemBonusSources('불곰 소환').gear };
+  let fireGemGear = getGemBonusSources('불곰 소환').gear;
+  let arcanaDamage = getArcanaGemDamageBonus('불곰 소환');
+  game.activeSkill = '화염 참격';
+  game.gemData['화염 참격'] = { level:5, quality:0 };
+  let activeSkillWithStar = getActiveSkillStats(getGemBonusSources('화염 참격').total);
+  let playerDpsWithStar = getPlayerStats().dps;
+  let summon = { gemName:'불곰 소환', ele:'fire', baseDamage:100, crit:0, critDmg:140, dmgRollMinPct:100 };
+  let summonStats = { summonPctDmg:0, summonEfficiency:0, summonCrit:0, summonCritDmg:0,
+    summonSharedPctDmg:0, summonSharedTaggedPctDmg:{}, resPen:0, physIgnore:0,
+    finalDamageMultiplier:1, bossDamageDealtMultiplier:1, uniqueSummonNonCritNoDamage:false };
+  let summonWithStar = getSummonHitDamageInfo(summon, summonStats, null, { rollOverridePct:100, forceCrit:false }).damage;
+  game.arcana.equipmentSlots['무기'] = null;
+  let activeSkillWithoutStar = getActiveSkillStats(getGemBonusSources('화염 참격').total);
+  let playerDpsWithoutStar = getPlayerStats().dps;
+  let summonWithoutStar = getSummonHitDamageInfo(summon, summonStats, null, { rollOverridePct:100, forceCrit:false }).damage;
+  return { rawTotal, fireGemGear, arcanaDamage,
+    activeArcanaPct:activeSkillWithStar.arcanaGemDamagePct, inactiveArcanaPct:activeSkillWithoutStar.arcanaGemDamagePct,
+    playerDpsWithStar, playerDpsWithoutStar, summonWithStar, summonWithoutStar };
 })()`, runtime);
 
 assert.strictEqual(equipmentResult.rawTotal, 22.5,
   'the shared equipment resolver must apply quality and Rift amplification before Arcana');
-assert(Math.abs(equipmentResult.amplified - 24.91) < 1e-9,
-  'the Star must amplify the same resolved gem-level values and compound lines used by combat');
+assert(Math.abs(equipmentResult.fireGemGear - 23.5) < 1e-9,
+  'the Star must no longer turn integer gem levels into fractional gem levels');
+assert.strictEqual(equipmentResult.arcanaDamage.gemLevels, 23.5,
+  'the Star must count the same resolved and compound gem-level lines used by combat');
+assert.strictEqual(equipmentResult.arcanaDamage.pct, 15,
+  'the Star damage bonus must respect its global 15% cap');
+assert.strictEqual(equipmentResult.activeArcanaPct, 15,
+  'the active gem must expose the Star bonus to the additive damage pipeline');
+assert.strictEqual(equipmentResult.inactiveArcanaPct, 0,
+  'removing the Star must remove its active gem damage contribution');
+assert(equipmentResult.playerDpsWithStar > equipmentResult.playerDpsWithoutStar,
+  'the additive Star contribution must increase the actual player DPS result');
+assert(equipmentResult.summonWithStar > equipmentResult.summonWithoutStar,
+  'the Star must increase actual summon gem hit damage without changing summon gem levels');
 
 const growthResult = vm.runInContext(`(() => {
   game.equipment = {};

@@ -1280,10 +1280,20 @@ function getRepresentativeSummonAttackPower(summonStats) {
         let gemLv = getSummonGemLevel(name, 'skill', summonStats);
         let base = getSummonScaledBaseDamage(profile, gemLv, summonStats);
         let sharedInc = getSummonSharedDamageIncreasePct({ gemName: name }, summonStats);
-        let ownMul = (1 + ((summonStats.summonPctDmg || 0) + sharedInc) / 100) * (1 + ((summonStats.summonEfficiency || 0) / 100));
+        let arcanaPct = getSummonArcanaGemDamagePct({ gemName: name }, summonStats);
+        let ownMul = (1 + ((summonStats.summonPctDmg || 0) + sharedInc + arcanaPct) / 100) * (1 + ((summonStats.summonEfficiency || 0) / 100));
         best = Math.max(best, base * ownMul);
     });
     return Math.max(0, best);
+}
+
+function getSummonArcanaGemDamagePct(summon, pStats) {
+    let name = summon && summon.gemName;
+    let cached = pStats && pStats.summonArcanaGemDamagePctByName;
+    if (name && cached && Object.prototype.hasOwnProperty.call(cached, name)) {
+        return Math.max(0, Number(cached[name]) || 0);
+    }
+    return name ? getArcanaGemDamageBonusPct(name, game) : 0;
 }
 
 const SUMMON_REGEN_PCT_PER_SEC = 0.75;
@@ -1348,6 +1358,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
         crit: Math.max(0, profile.baseCrit || 0),
         critDmg: Math.max(100, profile.baseCritDmg || 140),
         dmgRollMinPct: Math.max(1, Math.min(100, Math.floor(profile.dmgRollMinPct || 40))),
+        arcanaGemDamagePct: getSummonArcanaGemDamagePct({ gemName: row.name }, pStats),
         gridRange: Math.max(1, Math.floor(profile.gridRange || 1)),
         alive: true,
         respawnAt: 0,
@@ -1407,7 +1418,9 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let sharedIncreasePct = getSummonSharedDamageIncreasePct(s, pStats);
     // 소환수 효율은 피해 증가(소환수 피해/공유)와 합산이 아니라 별도 곱연산으로 적용합니다.
     let talentSummonMul = typeof getTalentSummonDamageMultiplier === 'function' ? getTalentSummonDamageMultiplier() : 1;
-    let dmgMul = (1 + ((pStats.summonPctDmg || 0) / 100) + (sharedIncreasePct / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100)) * talentSummonMul;
+    let arcanaIncreasePct = Number.isFinite(Number(s.arcanaGemDamagePct))
+        ? Math.max(0, Number(s.arcanaGemDamagePct)) : getSummonArcanaGemDamagePct(s, pStats);
+    let dmgMul = (1 + ((pStats.summonPctDmg || 0) + sharedIncreasePct + arcanaIncreasePct) / 100) * (1 + ((pStats.summonEfficiency || 0) / 100)) * talentSummonMul;
     let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     let effectiveCritChance = typeof getTalentSummonCritChance === 'function' ? getTalentSummonCritChance(critChance) : critChance;
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
@@ -1573,13 +1586,14 @@ function estimateSummonDps(pStats) {
         if (!groups.has(row.name)) {
             let flat = Math.max(0, (pStats && pStats.summonFlatDmg) || 0);
             let sharedInc = getSummonSharedDamageIncreasePct(s, pStats);
-            let dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
+            let arcanaPct = getSummonArcanaGemDamagePct(s, pStats);
+            let dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc + arcanaPct) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
             let ownAttackPower = (s.baseDamage * dmgMul) + sbShare;
             let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
             let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
             let aps = 1000 / getSummonAttackIntervalMs(pStats, s);
             let penResPen = getLimitedSummonPenetrationStats(pStats, s).resPen;
-            groups.set(row.name, { profile, gemLv, s, flat, sharedInc, dmgMul, ownAttackPower, critChance, critMul, aps, penResPen, hit, dps, count: 0 });
+            groups.set(row.name, { profile, gemLv, s, flat, sharedInc, arcanaPct, dmgMul, ownAttackPower, critChance, critMul, aps, penResPen, hit, dps, count: 0 });
         }
         groups.get(row.name).count++;
     });
@@ -1588,7 +1602,8 @@ function estimateSummonDps(pStats) {
         let mute = (txt) => `<span style="color:var(--copy-muted);">${txt}</span>`;
         lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span> · 젬 Lv.${g.gemLv} · ${eleLabel(g.s.ele)}`);
         lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
-        lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
+        let arcanaText = g.arcanaPct > 0 ? ` + 별 아르카나 ${Math.floor(g.arcanaPct)}%` : '';
+        lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc + g.arcanaPct)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%${arcanaText}) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
         lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}% · 공속 ${g.aps.toFixed(2)}/초 · 저항 관통 ${Math.floor(g.penResPen)}%`));
         lines.push(mute(`&nbsp;&nbsp;기대 타격 ${Math.floor(g.hit.damage)} → 1기당 ${Math.floor(g.dps)} DPS (적 저항·제한 계수 반영)`));
     });
@@ -3563,7 +3578,16 @@ function getPlayerStats() {
     let weaponBaseDmgPct = Math.max(0, gearBase.weaponFlatDmgPct + gearExplicit.weaponFlatDmgPct);
     let gearFlatDmg = (gearBase.flatDmg * (1 + weaponBaseDmgPct / 100)) + gearExplicit.flatDmg;
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
-    let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg;
+    let activeArcanaGemDamagePct = Math.max(0, Number(skill.arcanaGemDamagePct) || 0);
+    let summonArcanaGemDamagePctByName = {};
+    Array.from(new Set(Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [])).forEach(name => {
+        let def = SKILL_DB[name];
+        if (def && Array.isArray(def.tags) && def.tags.includes('summon_attack')) {
+            summonArcanaGemDamagePctByName[name] = getArcanaGemDamageBonusPct(name, game);
+        }
+    });
+    let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg + activeArcanaGemDamagePct;
+    let summonSharedGeneralPctDmg = Math.max(0, generalPctDmg - activeArcanaGemDamagePct);
     let dotPctDmg = gearBase.dotPctDmg + gearExplicit.dotPctDmg + passive.dotPctDmg + season.dotPctDmg + ascend.dotPctDmg + support.dotPctDmg + reward.dotPctDmg;
     function sumAilmentChanceStat(statId) {
         return (gearBase[statId] || 0) + (gearExplicit[statId] || 0) + (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (support[statId] || 0) + (reward[statId] || 0) + (starBlessing[statId] || 0);
@@ -4275,7 +4299,8 @@ function getPlayerStats() {
                 summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
                 summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)),
                 summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
-                summonSharedPctDmg: Math.max(0, generalPctDmg),
+                summonSharedPctDmg: summonSharedGeneralPctDmg,
+                summonArcanaGemDamagePctByName: summonArcanaGemDamagePctByName,
                 summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId))]))
             };
             sbSummonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare);
@@ -4595,6 +4620,7 @@ function getPlayerStats() {
                 isSpellSkill ? null : makeSourceLine('패시브', passiveFlatDmg),
                 makeSourceLine('성좌 각성', starBlessing.pctDmg, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('총 피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
+                makeSourceLine('별 아르카나', activeArcanaGemDamagePct, '%', value => `${Number(value.toFixed(2))}%`),
                 makeSourceLine('태그 보너스', baseTaggedTotal, '%', value => `${Math.floor(value)}%`),
                 talentLine('pctDmg'),
                 crusaderThunderDoctrinePct > 0 ? makeSourceLine('천뢰 교리(화염/냉기 → 번개)', crusaderThunderDoctrinePct, '%', value => `${Math.floor(value)}%`) : null,
@@ -5182,7 +5208,8 @@ function getPlayerStats() {
         supportScaleBases: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumNonSupportStat(statId))])),
         summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
         summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0) + (((game.summonDeathDamageBuffExpiresAt || 0) > Date.now()) ? Math.max(0, Number(game.summonDeathDamageBuffPct || 0)) : 0)),
-        summonSharedPctDmg: Math.max(0, generalPctDmg),
+        summonSharedPctDmg: summonSharedGeneralPctDmg,
+        summonArcanaGemDamagePctByName: summonArcanaGemDamagePctByName,
         summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId))])),
         summonAspd: Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0) + sbSummonAspdBonus + (((game.summonCritAspdExpiresAt || 0) > Date.now()) ? Math.max(0, Math.floor(game.summonCritAspdStacks || 0)) * Math.max(0, Number(game.summonCritAspdPerStack || 0)) : 0)),
         summonHpPct: Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0)),
@@ -5293,6 +5320,7 @@ function getGemPresentation(name, isSupport, statsOverride) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     skill.dmg *= qualityMul;
     skill.spd *= qualityMul;
+    skill.arcanaGemDamagePct = db.isGem ? getArcanaGemDamageBonusPct(name, game) : 0;
     let activePattern = name === game.activeSkill && stats.sSkill && stats.sSkill.projectilePatternSource
         ? stats.sSkill : null;
     let patternMode = activePattern && activePattern.projectilePattern
