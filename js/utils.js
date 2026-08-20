@@ -115,7 +115,11 @@ const SKILL_TAG_LABELS = {
     mine: '지뢰',
     potion: '포션',
     mobility: '기동',
-    channeling: '채널링'
+    channeling: '채널링',
+    curse: '저주',
+    warcry: '함성',
+    guard: '수호',
+    utility: '기능'
 };
 const TAGGED_DAMAGE_STAT_BY_TAG = {
     melee: 'meleePctDmg',

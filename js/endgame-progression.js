@@ -316,7 +316,26 @@ function tryDropSealedArcanaCard(zone, enemy, ownerState, randomFn) {
 }
 
 function createDefaultPruningTreeState() {
-    return { version: 2, unlocked: false, growthPoints: 0, nodeRanks: {}, prunedPenaltyRanks: {}, lastGrantedLoop: PRUNING_TREE_UNLOCK_LOOP - 1 };
+    return { version: PRUNING_TREE_STATE_VERSION, unlocked: false, growthPoints: 0, nodeRanks: {}, prunedPenaltyRanks: {}, lastGrantedLoop: PRUNING_TREE_UNLOCK_LOOP - 1 };
+}
+
+function getPruningTreeSpentPoints(tree) {
+    return PRUNING_TREE_DB.reduce((sum, node) => {
+        let rank = Math.max(0, Math.floor(Number((tree.nodeRanks || {})[node.id]) || 0));
+        let pruned = Math.max(0, Math.floor(Number((tree.prunedPenaltyRanks || {})[node.id]) || 0));
+        return sum + (rank + pruned) * Math.max(1, Math.floor(Number(node.cost) || 1));
+    }, 0);
+}
+
+function reconcileLegacyPruningPoints(tree, source, ownerState) {
+    if (Math.floor(Number(source.version) || 0) >= PRUNING_TREE_STATE_VERSION) return;
+    let loop = getEndgameProgressLoop(ownerState || game);
+    let creditedLoop = Math.min(loop, Math.max(PRUNING_TREE_UNLOCK_LOOP - 1, tree.lastGrantedLoop));
+    let entitlement = Math.max(0, creditedLoop - PRUNING_TREE_UNLOCK_LOOP + 1);
+    let spent = getPruningTreeSpentPoints(tree);
+    tree.growthPoints = Math.min(tree.growthPoints, Math.max(0, entitlement - spent));
+    if (spent > entitlement) tree.lastGrantedLoop = Math.max(tree.lastGrantedLoop, loop + spent - entitlement);
+    tree.unlocked = loop >= PRUNING_TREE_UNLOCK_LOOP;
 }
 
 function normalizePruningTreeState(value, ownerState) {
@@ -331,6 +350,7 @@ function normalizePruningTreeState(value, ownerState) {
     normalized.growthPoints = Math.max(0, Math.floor(Number(source.growthPoints) || 0));
     normalized.lastGrantedLoop = Math.max(PRUNING_TREE_UNLOCK_LOOP - 1, Math.floor(Number(source.lastGrantedLoop) || PRUNING_TREE_UNLOCK_LOOP - 1));
     normalized.unlocked = !!source.unlocked || getEndgameProgressLoop(ownerState || game) >= PRUNING_TREE_UNLOCK_LOOP;
+    reconcileLegacyPruningPoints(normalized, source, ownerState);
     return normalized;
 }
 
@@ -354,7 +374,7 @@ function advancePruningTreeForLoop(ownerState) {
 
 function ensurePruningTreeState(ownerState) {
     let source = ownerState || game;
-    if (source.pruningTree && source.pruningTree.version === 2 && source.pruningTree.prunedPenaltyRanks) return source.pruningTree;
+    if (source.pruningTree && source.pruningTree.version === PRUNING_TREE_STATE_VERSION && source.pruningTree.prunedPenaltyRanks) return source.pruningTree;
     return advancePruningTreeForLoop(source).tree;
 }
 

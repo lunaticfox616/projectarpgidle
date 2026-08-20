@@ -2294,7 +2294,7 @@ const defaultGame = {
         nextCardUid: 1,
         quest: { started: false, exploredNodeIds: [], rewarded: false }
     },
-    pruningTree: { version: 2, unlocked: false, growthPoints: 0, nodeRanks: {}, prunedPenaltyRanks: {}, lastGrantedLoop: PRUNING_TREE_UNLOCK_LOOP - 1 },
+    pruningTree: { version: PRUNING_TREE_STATE_VERSION, unlocked: false, growthPoints: 0, nodeRanks: {}, prunedPenaltyRanks: {}, lastGrantedLoop: PRUNING_TREE_UNLOCK_LOOP - 1 },
     hideout: { initialized: false, placements: [], selectedDecorId: null },
     clearedRootBosses: [],
     timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },

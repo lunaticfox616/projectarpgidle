@@ -35,6 +35,7 @@ const ARCANA_CARD_DB = Object.freeze([
     { id:'world', no:21, name:'세계', glyph:'◎', deckEffect:'피해·생명력 +1%, 모든 저항 +0.25%', deckStats:[{ id:'pctDmg', val:1 },{ id:'pctHp', val:1 },{ id:'resAll', val:0.25 }], slotEffect:'피해 종류 옵션 4% 증폭', slotAmp:{ statIds:['pctDmg','physPctDmg','elementalPctDmg','firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg'], pct:4 } }
 ]);
 
+const PRUNING_TREE_STATE_VERSION = 3;
 const PRUNING_TREE_UNLOCK_LOOP = 18;
 const PRUNING_TREE_DB = Object.freeze([
     { id:'first_ring', name:'첫 나이테', maxRank:5, cost:1, x:50, y:89, stats:[{ id:'flatHp', val:4 }], penaltyStats:[{ id:'move', val:-0.05 }], effect:'최대 생명력 +4/단계', penaltyEffect:'이동 속도 -0.05%/부담' },
@@ -74,6 +75,6 @@ const HIDEOUT_DECOR_DB = Object.freeze([
 safeExposeData({
     ARCANA_DECK_SLOT_COUNT, ARCANA_SEALED_CARD_DROP_CHANCE, ARCANA_GALAXY_BOSS_DROP_CHANCE,
     ARCANA_CAPSTONE_DROP_CHANCE, ARCANA_QUEST_EXPLORATION_TARGET, ARCANA_EQUIPMENT_SLOT_KEYS, ARCANA_CARD_DB,
-    PRUNING_TREE_UNLOCK_LOOP, PRUNING_TREE_DB,
+    PRUNING_TREE_STATE_VERSION, PRUNING_TREE_UNLOCK_LOOP, PRUNING_TREE_DB,
     HIDEOUT_UNLOCK_ACT, HIDEOUT_GRID_COLUMNS, HIDEOUT_GRID_ROWS, HIDEOUT_DECOR_DB
 });
