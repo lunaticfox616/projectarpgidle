@@ -28,14 +28,14 @@ const ARCANA_CARD_DB = Object.freeze([
     { id:'temperance', no:14, name:'절제', glyph:'⚗', deckEffect:'초당 재생 +0.2%', deckStats:[{ id:'regen', val:0.2 }], slotEffect:'재생·흡수 옵션 8% 증폭', slotAmp:{ statIds:['regen','regenFlat','leech'], pct:8 } },
     { id:'devil', no:15, name:'악마', glyph:'♈', deckEffect:'치명타 피해 +4%', deckStats:[{ id:'critDmg', val:4 }], slotEffect:'치명타·공격 속도 옵션 7% 증폭', slotAmp:{ statIds:['crit','critDmg','aspd'], pct:7 } },
     { id:'tower', no:16, name:'탑', glyph:'♜', deckEffect:'물리 피해 감소 +0.5%', deckStats:[{ id:'dr', val:0.5 }], slotEffect:'방어 수치 옵션 5% 증폭', slotAmp:{ statIds:['armor','armorPct','evasion','evasionPct','energyShield','energyShieldPct'], pct:5 } },
-    { id:'star', no:17, name:'별', glyph:'★', deckEffect:'원소 피해 +1.5%', deckStats:[{ id:'elementalPctDmg', val:1.5 }], slotEffect:'모든 젬 레벨 옵션 6% 증폭', slotAmp:{ statIds:['gemLevel','elementalGemLevel','fireGemLevel','coldGemLevel','lightGemLevel','chaosGemLevel','physGemLevel','projectileGemLevel','meleeGemLevel','slamGemLevel','spellGemLevel','dotGemLevel','aoeGemLevel','summonGemLevel'], pct:6 } },
+    { id:'star', no:17, name:'별', glyph:'★', deckEffect:'원소 피해 +1.5%', deckStats:[{ id:'elementalPctDmg', val:1.5 }], slotEffect:'장비의 유효 젬 레벨 1당 해당 젬 피해 3% 증가 (최대 15%)', slotGemDamage:{ perLevelPct:3, capPct:15 } },
     { id:'moon', no:18, name:'달', glyph:'☽', deckEffect:'비껴내기 확률 +0.5%', deckStats:[{ id:'deflectChance', val:0.5 }], slotEffect:'회피·카오스 방어 옵션 8% 증폭', slotAmp:{ statIds:['evasion','evasionPct','resChaos','deflectChance'], pct:8 } },
     { id:'sun', no:19, name:'태양', glyph:'☼', deckEffect:'화염 피해 +2%', deckStats:[{ id:'firePctDmg', val:2 }], slotEffect:'화염 피해 옵션 8% 증폭', slotAmp:{ statIds:['fireFlatDmg','firePctDmg','igniteChance'], pct:8 } },
     { id:'judgment', no:20, name:'심판', glyph:'♬', deckEffect:'보스 피해 +2%', deckStats:[{ id:'bossDamagePct', val:2 }], slotEffect:'보스·정예 피해 옵션 8% 증폭', slotAmp:{ statIds:['bossDamagePct','eliteDamagePct'], pct:8 } },
     { id:'world', no:21, name:'세계', glyph:'◎', deckEffect:'피해·생명력 +1%, 모든 저항 +0.25%', deckStats:[{ id:'pctDmg', val:1 },{ id:'pctHp', val:1 },{ id:'resAll', val:0.25 }], slotEffect:'피해 종류 옵션 4% 증폭', slotAmp:{ statIds:['pctDmg','physPctDmg','elementalPctDmg','firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg'], pct:4 } }
 ]);
 
-const PRUNING_TREE_UNLOCK_LOOP = 5;
+const PRUNING_TREE_UNLOCK_LOOP = 18;
 const PRUNING_TREE_DB = Object.freeze([
     { id:'first_ring', name:'첫 나이테', maxRank:5, cost:1, x:50, y:89, stats:[{ id:'flatHp', val:4 }], penaltyStats:[{ id:'move', val:-0.05 }], effect:'최대 생명력 +4/단계', penaltyEffect:'이동 속도 -0.05%/부담' },
     { id:'deep_root', name:'깊은 뿌리', maxRank:5, cost:1, x:29, y:72, requires:{ first_ring:3 }, stats:[{ id:'resAll', val:0.15 }], penaltyStats:[{ id:'pctDmg', val:-0.1 }], effect:'모든 저항 +0.15%/단계', penaltyEffect:'피해 -0.1%/부담' },

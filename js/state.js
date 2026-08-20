@@ -939,7 +939,8 @@ function applySeasonContentProgression(options) {
     let opts = options || {};
     game.unlockedSeasonContents = Array.isArray(game.unlockedSeasonContents) ? game.unlockedSeasonContents : [];
     game.seenSeasonContentNotices = Array.isArray(game.seenSeasonContentNotices) ? game.seenSeasonContentNotices : [];
-    let maxSeason = Math.max(1, Math.min(20, game.season || 1));
+    let roadmapMaxLoop = Math.max(...Object.keys(SEASON_CONTENT_ROADMAP).map(Number));
+    let maxSeason = Math.max(1, Math.min(roadmapMaxLoop, game.season || 1));
     for (let s = 1; s <= maxSeason; s++) {
         let key = `season_${s}`;
         if (!game.unlockedSeasonContents.includes(key)) game.unlockedSeasonContents.push(key);

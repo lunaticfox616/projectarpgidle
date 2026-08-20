@@ -76,10 +76,9 @@ assert.strictEqual(amplified[1].extraStats[0].val, 5.5, 'matching sub-lines on c
 
 const starOwner = { arcana:context.createDefaultArcanaState() };
 starOwner.arcana.cards.push({ uid:1, cardId:'star', obtainedLoop:31 });
-const starPreview = context.getArcanaAmplificationPreview([
-  { id:'fireGemLevel', val:2 }, { id:'summonGemLevel', val:1 }, { id:'flatHp', val:100 }
-], context.getArcanaCardSlotAmplifier(1, starOwner));
-assert.deepStrictEqual(Array.from(starPreview.lines, line => line.id), ['fireGemLevel', 'summonGemLevel'], 'the Star must cover every documented gem-level family without affecting unrelated stats');
+const starRule = context.getArcanaCardGemDamageRule(1, starOwner);
+assert.deepStrictEqual(Array.from([starRule.perLevelPct, starRule.capPct]), [3, 15], 'the Star must convert effective gem levels into capped gem damage');
+assert.strictEqual(context.getArcanaCardSlotAmplifier(1, starOwner), null, 'the Star must not retain its obsolete fractional level amplifier');
 const strength = context.ARCANA_CARD_DB.find(card => card.id === 'strength');
 const temperance = context.ARCANA_CARD_DB.find(card => card.id === 'temperance');
 const tower = context.ARCANA_CARD_DB.find(card => card.id === 'tower');
@@ -96,12 +95,12 @@ const corrupted = context.normalizeArcanaState({
 assert.deepStrictEqual(Array.from(corrupted.deckSlots), [1, null, null, null], 'normalization removes duplicate deck identities');
 assert.strictEqual(corrupted.equipmentSlots['무기'], null, 'normalization enforces one destination per physical copy');
 
-const treeOwner = { season: 4, loopCount: 3 };
+const treeOwner = { season: 17, loopCount: 16 };
 let advance = context.advancePruningTreeForLoop(treeOwner);
-assert.strictEqual(advance.tree.unlocked, false, 'pruning stays locked before loop 5');
-treeOwner.season = 5;
+assert.strictEqual(advance.tree.unlocked, false, 'pruning stays locked before loop 18');
+treeOwner.season = 18;
 advance = context.advancePruningTreeForLoop(treeOwner);
-assert.strictEqual(advance.granted, 1, 'loop 5 grants the first growth point');
+assert.strictEqual(advance.granted, 1, 'loop 18 grants the first growth point');
 assert.strictEqual(context.advancePruningTreeForLoop(treeOwner).granted, 0, 'repeated reconciliation cannot duplicate growth points');
 treeOwner.pruningTree.growthPoints = 10;
 assert.strictEqual(context.investPruningNode('deep_root', treeOwner).code, 'requirements', 'child branches require their parent ranks');
@@ -122,7 +121,7 @@ assert(!prunedStats.some(stat => stat.id === 'pctDmg'), 'pruning the only burden
 assert(prunedStats.some(stat => stat.id === 'resAll' && stat.val === 0.15), 'pruning must preserve the branch benefit');
 assert.strictEqual(context.prunePruningNodePenalty('deep_root', treeOwner).code, 'no_penalty', 'a removed burden cannot be pruned twice');
 
-const catchupOwner = { season: 8, loopCount: 7 };
+const catchupOwner = { season: 21, loopCount: 20 };
 assert.strictEqual(context.advancePruningTreeForLoop(catchupOwner).granted, 4, 'older saves receive each missed loop growth point exactly once');
 assert.strictEqual(context.advancePruningTreeForLoop(catchupOwner).granted, 0);
 

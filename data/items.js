@@ -6,14 +6,14 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
         무기: 'assets/items/root-sword-v3.png', 방패: 'assets/items/tower-shield-v3.png',
         투구: 'assets/items/antler-helmet-v3.png', 갑옷: 'assets/items/root-armor-v3.png',
         장갑: 'assets/items/claw-gauntlets-v3.png', 신발: 'assets/items/travel-boots-v3.png',
-        허리띠: 'assets/items/engraved-belt-v3.png', 반지: 'assets/items/ruby-ring-v3.png',
+        허리띠: 'assets/items/engraved-belt-v3.png?v=20260821-1', 반지: 'assets/items/ruby-ring-v3.png?v=20260821-1',
         목걸이: 'assets/items/violet-amulet-v3.png'
     }),
     weaponKeywords: Object.freeze([
         { terms: ['활', 'bow'], asset: 'assets/items/thorn-bow-v3.png' },
         { terms: ['지팡이', '지팡', 'staff', '봉'], asset: 'assets/items/branch-staff-v3.png' }
     ]),
-    jewel: 'assets/items/chaos-jewel-v3.png',
+    jewel: 'assets/items/chaos-jewel-v3.png?v=20260821-1',
     talisman: 'assets/items/seed-talisman-v3.png',
     growth: Object.freeze({
         flower: 'assets/items/flower-growth-v3.png',

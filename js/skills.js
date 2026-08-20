@@ -868,6 +868,36 @@ function getGemLevelValueFromStatLines(stats, activeTags) {
     return total;
 }
 
+function getArcanaGemDamageFromStats(stats, target, rule) {
+    if (!rule) return { gemLevels: 0, pct: 0, capPct: 0 };
+    let tags = getGemLevelTargetTags(target);
+    let gemLevels = Math.max(0, getGemLevelValueFromStatLines(stats, tags));
+    let capPct = Math.max(0, Number(rule.capPct) || 0);
+    let pct = Math.min(capPct, gemLevels * Math.max(0, Number(rule.perLevelPct) || 0));
+    return { gemLevels: Number(gemLevels.toFixed(4)), pct: Number(pct.toFixed(4)), capPct };
+}
+
+function getArcanaGemDamageBonus(target, ownerState) {
+    let source = ownerState || game;
+    let totalPct = 0;
+    let totalLevels = 0;
+    let capPct = 0;
+    Object.entries(source.equipment || {}).forEach(([slotKey, item]) => {
+        let rule = getArcanaEquipmentGemDamageRule(slotKey, source);
+        if (!item || !rule) return;
+        let resolved = getResolvedEquipmentStatLists(slotKey, item, source, false);
+        let result = getArcanaGemDamageFromStats([...resolved.baseStats, ...resolved.explicitStats], target, rule);
+        totalLevels += result.gemLevels;
+        totalPct += result.pct;
+        capPct = Math.max(capPct, result.capPct);
+    });
+    return { gemLevels: Number(totalLevels.toFixed(4)), pct: Number(Math.min(capPct, totalPct).toFixed(4)), capPct };
+}
+
+function getArcanaGemDamageBonusPct(target, ownerState) {
+    return getArcanaGemDamageBonus(target, ownerState).pct;
+}
+
 function getGemBonusSources(target) {
     let gear = 0;
     let passive = 0;
@@ -936,6 +966,7 @@ function getActiveSkillStats(bonusLevel) {
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
     stats.dmg *= qualityMul;
     stats.spd *= qualityMul;
+    stats.arcanaGemDamagePct = skill.isGem ? getArcanaGemDamageBonusPct(game.activeSkill, game) : 0;
     if (usesGemProgression && gem.level >= 20) {
         if (game.activeSkill === '연속 베기') stats.spd *= 1.2;
         if (game.activeSkill === '흡혈 타격') stats.leech *= 2;
@@ -983,7 +1014,10 @@ function getActiveSkillStats(bonusLevel) {
     return stats;
 }
 
-safeExposeGlobals({ hasEquippedShield, canUseSkillWithCurrentEquipment });
+safeExposeGlobals({
+    hasEquippedShield, canUseSkillWithCurrentEquipment,
+    getArcanaGemDamageFromStats, getArcanaGemDamageBonus, getArcanaGemDamageBonusPct
+});
 
 
 safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
