@@ -2473,6 +2473,31 @@ function getAllConditionGemEntries() {
     return [].concat(db.curse || [], db.warcry || [], db.guard || [], db.utility || []);
 }
 
+function getConditionGemTypePresentation(entry) {
+    let type = ['curse', 'warcry', 'guard', 'utility'].includes(entry && entry.type) ? entry.type : 'buff';
+    return { type, visual: getUiCombatEffectPresentation(type) };
+}
+
+function renderConditionGemIdentity(entry, options) {
+    let opts = options || {};
+    let presentation = getConditionGemTypePresentation(entry);
+    let level = Math.max(1, Math.min(5, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))));
+    let levelBadge = opts.showLevel === false ? '' : `<span class="condition-gem-level">Lv.${level}</span>`;
+    return `${renderCombatEffectIcon({ key: presentation.type, label: presentation.visual.label })}
+        <span class="condition-gem-copy"><small>${escapeHTML(presentation.visual.label)} 컨디션</small><strong>${escapeHTML(entry.name)}</strong><span class="gem-card-tags">${renderGemTagChips(entry, 4)}</span></span>${levelBadge}`;
+}
+
+function renderOwnedConditionGemCard(entry) {
+    let safeName = String(entry.name || '').replace(/'/g, "\\'");
+    let presentation = getConditionGemTypePresentation(entry);
+    return `<article class="condition-gem-card condition-gem-${presentation.type}" style="--condition-tone:${presentation.visual.color};" data-info-tooltip-anchor="1" onmouseenter="showConditionGemTooltip(event,'${safeName}')" onmousemove="showConditionGemTooltip(event,'${safeName}')" onmouseleave="hideInfoTooltip()">${renderConditionGemIdentity(entry)}</article>`;
+}
+
+function renderConditionGemChoice(entry) {
+    let presentation = getConditionGemTypePresentation(entry);
+    return `<button type="button" class="condition-gem-choice condition-gem-${presentation.type}" style="--condition-tone:${presentation.visual.color};" onclick="pickConditionGem('${entry.name}')"><span class="condition-gem-choice-head">${renderConditionGemIdentity(entry)}</span><span class="condition-gem-choice-effect">${escapeHTML(getConditionGemDetail(entry))}</span></button>`;
+}
+
 function rollConditionGemChoices() {
     if (!game.conditionGemUnlocked) return addLog('컨디션 젬이 아직 잠겨 있습니다. 루프2 뿌리 보스를 먼저 쓰러뜨리세요.', 'attack-monster');
     if ((game.currencies.bossCore || 0) <= 0) return addLog('군주의 핵이 부족합니다.', 'attack-monster');
@@ -2546,21 +2571,23 @@ function getConditionGemDetail(entry) {
 }
 function getConditionGemTooltip(entry) {
     if (!entry) return '';
+    let presentation = getConditionGemTypePresentation(entry);
     let cast = Number(entry.castTime || 1).toFixed(1);
     let duration = Number(entry.duration || 4).toFixed(1);
     let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
-    return `${entry.name}\n유형: ${entry.type}\n시전 시간: ${cast}초\n지속 시간: ${duration}초\n쿨타임: ${cooldown}초\n효과: ${getConditionGemDetail(entry)}`;
+    return `${entry.name}\n유형: ${presentation.visual.label}\n시전 시간: ${cast}초\n지속 시간: ${duration}초\n쿨타임: ${cooldown}초\n효과: ${getConditionGemDetail(entry)}`;
 }
 
 
 function getConditionGemTooltipHtml(entry) {
     if (!entry) return '';
+    let presentation = getConditionGemTypePresentation(entry);
     let cast = Number(entry.castTime || 1).toFixed(1);
     let duration = Number(entry.duration || 4).toFixed(1);
     let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
     let lv = Math.max(1, Math.min(5, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))));
     let html = `<div class="tooltip-title">${entry.name} · Lv.${lv}</div>`;
-    html += `<div class="tooltip-line">${entry.desc || '컨디션 젬 효과'}</div>`;
+    html += `<div class="tooltip-line">${presentation.visual.label} · ${entry.desc || '컨디션 젬 효과'}</div>`;
     html += `<div class="tooltip-line" style="margin-top:6px;">시전 시간 ${cast}초 · 지속 ${duration}초 · 쿨타임 ${cooldown}초</div>`;
     html += `<div class="tooltip-line">효과: ${getConditionGemDetail(entry)}</div>`;
     if ((entry.tags || []).length > 0) html += `<div class="tooltip-line">태그: <span class="gem-card-tags gem-tooltip-tags">${renderGemTagChips(entry, entry.tags.length)}</span></div>`;
@@ -2620,10 +2647,10 @@ function renderConditionPatternRoadmap() {
 function openConditionGemChoiceOverlay() {
     let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
     if (pending.length <= 0 || document.getElementById('condition-gem-overlay')) return;
-    let html = `<div id="condition-gem-overlay" style="position:fixed;inset:0;background:rgba(9,12,20,.72);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;">
-        <div style="width:min(980px,95vw);background:#0f1520;border:1px solid #3e5472;border-radius:12px;padding:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>군주의 핵 컨디션 젬 가공</strong><button onclick="closeConditionGemChoiceOverlay()">닫기</button></div>
-            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">${pending.map(e => `<button onclick="pickConditionGem('${e.name}')" style="text-align:left;padding:10px;"><div><strong>${e.name}</strong></div><div style="color:var(--copy-bright);font-size:.82em;">${e.type} · ${(e.tags||[]).join('/')}</div><div style="color:#f2d79c;font-size:.8em;margin-top:4px;">${getConditionGemDetail(e)}</div></button>`).join('')}</div>
+    let html = `<div id="condition-gem-overlay" class="selection-overlay condition-gem-overlay" onclick="if(event.target===this)closeConditionGemChoiceOverlay()">
+        <div class="selection-overlay-panel condition-gem-overlay-panel">
+            <div class="selection-overlay-header"><strong class="selection-overlay-title">군주의 핵 컨디션 젬 가공</strong><button type="button" onclick="closeConditionGemChoiceOverlay()">닫기</button></div>
+            <div class="condition-gem-choice-grid">${pending.map(renderConditionGemChoice).join('')}</div>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
@@ -2668,12 +2695,9 @@ function renderSkillAutoRulePanel() {
     }
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules.map(normalizeConditionPatternRule) : [];
     let summary = `<div class="condition-pattern-summary"><div><strong>전술 패턴</strong><span>위 규칙부터 검사해 처음 실행 가능한 행동을 적용합니다.</span></div><div>젬 <strong>${owned.length}</strong>/${getAllConditionGemEntries().length} · 군주의 핵 <strong>${game.currencies.bossCore || 0}</strong><button onclick="rollConditionGemChoices()">컨디션 젬 가공</button></div></div>${renderConditionPatternRoadmap()}`;
-    let choiceHtml = pending.length > 0 ? `<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">${pending.map(entry => `<button onclick="pickConditionGem('${entry.name}')"><strong>${entry.name}</strong><br><small>${entry.type} · ${entry.tags.join('/')}</small></button>`).join('')}</div>` : '';
+    let choiceHtml = pending.length > 0 ? `<div class="condition-gem-choice-grid inline">${pending.map(renderConditionGemChoice).join('')}</div>` : '';
     let ownedEntries = getAllConditionGemEntries().filter(entry => owned.includes(entry.name));
-    let ownedHtml = ownedEntries.length > 0 ? `<details class="progression-workbench" open><summary>보유 컨디션 젬 ${ownedEntries.length}개</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px;">${ownedEntries.map(entry => {
-        let safeName = String(entry.name || '').replace(/'/g, "\\'");
-        return `<div class="condition-gem-card" style="border:1px solid #314761;border-radius:8px;padding:7px; cursor:help;" onmouseover="showConditionGemTooltip(event,'${safeName}')" onmouseenter="showConditionGemTooltip(event,'${safeName}')" onmousemove="showConditionGemTooltip(event,'${safeName}')" onmouseleave="hideInfoTooltip()"><strong>${entry.name}</strong><small style="margin-left:6px;color:var(--copy-bright);">Lv.${Math.max(1,Math.min(5,Math.floor(((game.conditionGemLevels||{})[entry.name]||1))))}</small></div>`;
-    }).join('')}</div></details>` : '';
+    let ownedHtml = ownedEntries.length > 0 ? `<details class="progression-workbench" open><summary>보유 컨디션 젬 ${ownedEntries.length}개</summary><div class="condition-gem-grid">${ownedEntries.map(renderOwnedConditionGemCard).join('')}</div></details>` : '';
 
     if (game.skillAutoRules.length === 0) {
         let html = summary + choiceHtml + ownedHtml + `<div style="color:var(--copy-muted); border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
@@ -5203,7 +5227,7 @@ function renderGemTagChips(def, maxTags) {
     let getTone = tag => {
         if (['fire', 'cold', 'light', 'lightning', 'chaos', 'phys', 'physical'].includes(tag)) return tag === 'light' ? 'lightning' : tag === 'phys' ? 'physical' : tag;
         if (['summon_attack', 'minion', 'summon'].includes(tag)) return 'summon';
-        if (['spell', 'projectile', 'melee', 'slam', 'chain', 'pierce', 'dot', 'aoe', 'utility'].includes(tag)) return tag;
+        if (['spell', 'projectile', 'melee', 'slam', 'chain', 'pierce', 'dot', 'aoe', 'utility', 'curse', 'warcry', 'guard'].includes(tag)) return tag;
         return 'neutral';
     };
     return rawTags.slice(0, maxTags || 4).map(tag => {
@@ -8846,8 +8870,9 @@ const UI_COMBAT_EFFECT_PRESENTATION = Object.freeze({
     cosmos_res_down: { sprite: 13, label: '저항 감소', color: '#d89cff' },
     cosmos_aspd_down: { sprite: 14, label: '공격 속도 감소', color: '#d89cff' },
     curse: { sprite: 15, label: '저주', color: '#d0a8ff' },
-    guard: { sprite: 16, label: '가드', color: '#9be7ff' },
+    guard: { sprite: 16, label: '수호', color: '#9be7ff' },
     warcry: { sprite: 17, label: '함성', color: '#ffd36b' },
+    utility: { sprite: 18, label: '기능', color: '#8fe3b0' },
     buff: { sprite: 18, label: '강화 효과', color: '#8fe3b0' },
     healFlask: { sprite: 19, label: '생명력 플라스크', color: '#7fd99a' },
     utilityFlask: { sprite: 20, label: '유틸리티 플라스크', color: '#ffd27a' },
@@ -11027,7 +11052,7 @@ function renderFlaskPanel() {
             <div class="flask-slot-name">${def ? def.name : '빈 플라스크 슬롯'}</div>
             <div class="flask-slot-status">${status}</div>
             ${def ? `<div class="flask-slot-effect">${def.desc} · 품질 +${quality}%</div>${renderFlaskChargeMeter(cur.charges, def.maxCharges, cur.chargeProgress, getFlaskEffectiveChargesPerKills(def.chargesPerKills))}` : ''}
-            <div class="flask-slot-actions">
+            <div class="flask-slot-actions ${def ? 'three-actions' : 'two-actions'}">
                 <button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('utility', ${idx})" ${def ? `data-info-tooltip-anchor="1" onmouseenter="showPlayerFlaskTooltip(event,'util','${def.key}')" onmousemove="showPlayerFlaskTooltip(event,'util','${def.key}')" onmouseleave="hideInfoTooltip()"` : ''}>변경</button>
                 <button type="button" class="flask-trigger-select" onclick="cycleUtilityFlaskTrigger(${idx})" ${cur ? '' : 'disabled'}>자동: ${triggerLabel}</button>
                 ${def ? `<button type="button" onclick="upgradeFlaskQuality('${def.key}')" ${quality >= 20 || st.alchemyGlass < qualityCost ? 'disabled' : ''}>품질 +1 · 유리 ${qualityCost}</button>` : ''}
@@ -11050,7 +11075,7 @@ function renderFlaskPanel() {
     }).join('');
     let healQuality = typeof getFlaskQuality === 'function' ? getFlaskQuality(healDef.key) : 0;
     let healQualityCost = typeof getFlaskQualityUpgradeCost === 'function' ? getFlaskQualityUpgradeCost(healDef.key) : 0;
-    host.innerHTML = `<div class="flask-overview">
+    let html = `<div class="flask-overview">
         <div><span>발견</span><strong>${found.length}/${totalFlasks}</strong></div>
         <div><span>장착</span><strong>${activeSlots}/${1 + maxUtilSlots}</strong></div>
         <div><span>충전 속도</span><strong>${chargeRateBonus > 0 ? `+${chargeRateBonus}%` : '기본'}</strong></div>
@@ -11061,12 +11086,14 @@ function renderFlaskPanel() {
             <div class="flask-slot-status">${healActive ? `회복 중 · ${Math.ceil((st.healOverTimeUntil - now) / 1000)}초` : `생명력 ${healDef.autoBelowHpPct}% 이하 자동 사용`}</div>
             <div class="flask-slot-effect">최대 생명력의 ${(typeof getFlaskEffectiveHealPct === 'function' ? getFlaskEffectiveHealPct(healDef) : healDef.healPct).toFixed(1)}%를 ${Math.round(healDef.durationMs / 1000)}초에 걸쳐 회복 · 품질 +${healQuality}%</div>
             ${renderFlaskChargeMeter(st.healCharges, healDef.maxCharges, st.healChargeProgress, getFlaskEffectiveChargesPerKills(healDef.chargesPerKills))}
-            <div class="flask-slot-actions"><button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('heal')">변경</button><button type="button" onclick="upgradeFlaskQuality('${healDef.key}')" ${healQuality >= 20 || st.alchemyGlass < healQualityCost ? 'disabled' : ''}>품질 +1 · 유리 ${healQualityCost}</button></div>
+            <div class="flask-slot-actions two-actions"><button type="button" class="flask-slot-select" onclick="openFlaskPickerOverlay('heal')">변경</button><button type="button" onclick="upgradeFlaskQuality('${healDef.key}')" ${healQuality >= 20 || st.alchemyGlass < healQualityCost ? 'disabled' : ''}>품질 +1 · 유리 ${healQualityCost}</button></div>
         </div>
         ${utilSlots}${beltHint}
     </div>
     <details class="flask-workbench progression-workbench"><summary>ALCHEMY BENCH · 제작 가능한 플라스크 ${craftCandidates.length}개 · 연금 유리 ${st.alchemyGlass}</summary><div class="flask-workbench-head"><div><span>ALCHEMY BENCH</span><strong>플라스크 제작·품질</strong><small>연금 유리로 다음 단계를 제작하거나 장착 플라스크 품질을 최대 20%까지 올립니다. 회복 품질은 총 회복량, 유틸리티 품질은 지속시간을 높입니다.</small></div><div class="flask-glass-balance"><span>연금 유리</span><b>${st.alchemyGlass}</b></div></div><div class="flask-craft-grid">${craftCards || '<div class="gem-process-empty">현재 레벨에서 제작 가능한 다음 단계가 없습니다.</div>'}</div></details>
     <div class="flask-help-text"><strong>운용 안내</strong> 낮은 단계는 전투에서 비교적 쉽게 발견되지만 높은 단계일수록 드랍 확률이 낮아집니다. 제작은 무작위 발견을 보완하며, 같은 계열은 앞 단계부터 순서대로 진행합니다(미발견 ${undiscoveredCount}종).</div>`;
+    if (host.__lastHtml !== html) host.innerHTML = html;
+    host.__lastHtml = html;
 }
 
 // 플라스크 선택 오버레이: 스크롤 드롭다운 대신 카드 그리드로 고른다. 발견하지 못했거나

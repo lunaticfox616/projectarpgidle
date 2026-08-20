@@ -23,12 +23,29 @@ assert.strictEqual(vm.runInContext("game.skillAutoRules.map(rule=>rule.priority)
 
 const ownedPanel = { innerHTML: '' };
 runtime.document.getElementById = id => id === 'ui-skill-rules-panel' ? ownedPanel : null;
-vm.runInContext('game.skillAutoRules=[]; game.conditionGemPool=[getAllConditionGemEntries()[0].name]; renderSkillAutoRulePanel();', runtime);
+vm.runInContext(`game.skillAutoRules=[]; game.conditionGemPool=[
+    CONDITION_GEM_DB.curse[0].name,
+    CONDITION_GEM_DB.warcry[0].name,
+    CONDITION_GEM_DB.guard[0].name,
+    CONDITION_GEM_DB.utility[0].name
+]; renderSkillAutoRulePanel();`, runtime);
 assert(ownedPanel.innerHTML.includes('<details class="progression-workbench" open>'), 'owned condition gems must stay expanded after a rerender');
+assert.strictEqual((ownedPanel.innerHTML.match(/class="condition-gem-card /g) || []).length, 4,
+    'each condition gem type must render as a visual card');
+assert.strictEqual((ownedPanel.innerHTML.match(/class="combat-effect-icon /g) || []).length, 4,
+    'condition gem cards must reuse the status icon atlas');
+['curse', 'warcry', 'guard', 'utility'].forEach(type => {
+    assert(ownedPanel.innerHTML.includes(`condition-gem-${type}`), `${type} gems must expose a distinct visual type`);
+    assert(ownedPanel.innerHTML.includes(`gem-tag--${type}`), `${type} tags must use their semantic chip style`);
+});
 const elementalTooltip = vm.runInContext("getConditionGemTooltipHtml({name:'시험 젬',tags:['physical','fire','cold','lightning','chaos'],desc:'',detail:{}})", runtime);
 ['physical', 'fire', 'cold', 'lightning', 'chaos'].forEach(element => {
     assert(elementalTooltip.includes(`gem-tag--${element}`), `${element} tooltip tag must use its element color`);
 });
+assert.strictEqual(vm.runInContext("translateSkillTag('curse')", runtime), '저주', 'condition gem type tags must be localized');
+assert.strictEqual(vm.runInContext("translateSkillTag('warcry')", runtime), '함성', 'warcry tags must be localized');
+assert.strictEqual(vm.runInContext("translateSkillTag('guard')", runtime), '수호', 'guard tags must be localized');
+assert.strictEqual(vm.runInContext("translateSkillTag('utility')", runtime), '기능', 'utility tags must be localized');
 const favorHtml = vm.runInContext("game.expertise.levels.mycologist=10; game.expertise.favors.mycologist=getExpertFavorOptions('mycologist')[0].id; getExpertiseCardHtml('mycologist')", runtime);
 assert(favorHtml.includes('현재 선택') && favorHtml.includes('✓ 선택됨'), 'expert favor must name and badge the active choice');
 

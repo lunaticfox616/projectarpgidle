@@ -208,8 +208,12 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
         game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_hideout', 'unlock_arcana']));
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.conditionGemUnlocked = true;
-        const firstGem = getAllConditionGemEntries()[0].name;
-        game.conditionGemPool = [firstGem];
+        game.conditionGemPool = [
+            CONDITION_GEM_DB.curse[0].name,
+            CONDITION_GEM_DB.warcry[0].name,
+            CONDITION_GEM_DB.guard[0].name,
+            CONDITION_GEM_DB.utility[0].name
+        ];
         game.skillAutoRules = [{
             enabled:true, priority:0, triggerType:'enemy_many', triggerValue:3,
             actionType:'target_weakest', skillName:''
@@ -286,12 +290,22 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
     });
     expect(pruningNodesStayInTree).toBe(true);
     await expect(page.locator('.pruning-choice-panel')).toHaveCSS('position', 'sticky');
+    const pruningActionOffsets = async () => page.locator('.pruning-choice-panel').evaluate(panel => {
+        const panelRect = panel.getBoundingClientRect();
+        return Array.from(panel.querySelectorAll('.pruning-choice-actions button')).map(button => {
+            const rect = button.getBoundingClientRect();
+            return { left:Math.round(rect.left - panelRect.left), top:Math.round(rect.top - panelRect.top) };
+        });
+    });
+    const pruningActionsBefore = await pruningActionOffsets();
     await page.locator('.pruning-choice-actions').getByRole('button', { name:/부담을 안고 성장/ }).click();
     await expect(page.locator('.pruning-choice-effects')).toContainText('부담 1단계');
     await expect(page.locator('.pruning-stat-summary .gain')).toContainText('최대 생명력 +4');
     await expect(page.locator('.pruning-stat-summary .burden')).toContainText('이동 속도(%) -0.05');
+    expect(await pruningActionOffsets()).toEqual(pruningActionsBefore);
     await page.locator('.pruning-choice-actions').getByRole('button', { name:/부담 가지치기/ }).click();
     await expect(page.locator('.pruning-choice-effects')).toContainText('부담 0단계');
+    expect(await pruningActionOffsets()).toEqual(pruningActionsBefore);
     expect(await page.evaluate(() => game.pruningTree.nodeRanks.first_ring)).toBe(1);
     const pruningNodeStable = await page.evaluate(() => {
         const before = document.querySelector('.pruning-node');
@@ -333,6 +347,12 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
     await expect(page.locator('.condition-pattern-rule')).toHaveCount(1);
     await expect(page.locator('.condition-pattern-rule')).toContainText('IF');
     await expect(page.locator('.condition-pattern-rule')).toContainText('THEN');
+    await expect(page.locator('.condition-gem-card')).toHaveCount(4);
+    await expect(page.locator('.condition-gem-card .combat-effect-icon')).toHaveCount(4);
+    for (const type of ['curse', 'warcry', 'guard', 'utility']) {
+        await expect(page.locator(`.condition-gem-card.condition-gem-${type}`)).toHaveCount(1);
+        await expect(page.locator(`.condition-gem-card .gem-tag--${type}`)).toHaveCount(1);
+    }
     const conditionSelectStable = await page.evaluate(() => {
         const before = document.querySelector('.condition-pattern-rule select');
         updateStaticUI();
@@ -1585,6 +1605,47 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
     expect(vitalsChrome.identityDetailsCentered).toBe(true);
     expect(vitalsChrome.identityDetailsAligned).toBe(true);
     expect(vitalsChrome.gemRackTitleCount).toBe(0);
+    expect(failures).toEqual([]);
+});
+
+test('flask controls stay in place when their trigger label changes', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.equipment['허리띠'] = {
+            rarity:'rare',
+            baseStats:[{ id:'flaskUtilSlots', val:1 }]
+        };
+        const state = ensureFlaskState();
+        state.alchemyGlass = 999;
+        state.foundKeys = Array.from(new Set([...(state.foundKeys || []), 'granite1']));
+        state.utils = [{
+            key:'granite1',
+            charges:FLASK_UTILITY_POOL.granite1.maxCharges,
+            chargeProgress:0,
+            until:0,
+            trigger:'combat'
+        }];
+        openTabPane('tab-flask');
+        updateStaticUI();
+    });
+    const utilitySlot = page.locator('.flask-slot-box.utility').first();
+    await expect(utilitySlot).toBeVisible();
+    const getControlOffsets = async () => utilitySlot.evaluate(slot => {
+        const actions = slot.querySelector('.flask-slot-actions');
+        const actionsRect = actions.getBoundingClientRect();
+        return Array.from(actions.querySelectorAll('button')).map(button => {
+            const rect = button.getBoundingClientRect();
+            return { left:Math.round(rect.left - actionsRect.left), top:Math.round(rect.top - actionsRect.top) };
+        });
+    });
+    const before = await getControlOffsets();
+    const trigger = utilitySlot.locator('.flask-trigger-select');
+    const oldLabel = await trigger.textContent();
+    await trigger.click();
+    await expect(trigger).not.toHaveText(oldLabel);
+    expect(await getControlOffsets()).toEqual(before);
     expect(failures).toEqual([]);
 });
 

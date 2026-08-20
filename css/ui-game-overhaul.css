@@ -750,11 +750,16 @@ body:not(.light-mode).desktop-windowed-ui #btn-tab-journal::before { content: 'â
 }
 
 .flask-slot-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 5px;
-  margin-top: 4px;
+  margin-top: auto;
+  padding-top: 8px;
 }
+
+.flask-slot-actions.two-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.flask-slot-actions button { width: 100%; min-width: 0; min-height: 44px; padding: 5px 4px; line-height: 1.2; overflow-wrap: anywhere; }
+.flask-slot-box { display: flex; flex-direction: column; }
 
 .flask-overview {
   display: grid;
@@ -1463,6 +1468,54 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 
 .condition-pattern-rule input[type="number"] { width: 68px; }
 
+.condition-gem-grid,
+.condition-gem-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; padding: 8px; }
+.condition-gem-choice-grid.inline { margin: 7px 0; padding: 0; }
+.condition-gem-card,
+.condition-gem-choice-head {
+    position: relative;
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+}
+.condition-gem-card {
+    min-height: 68px;
+    padding: 9px;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, var(--condition-tone) 62%, #4b4035);
+    border-radius: 8px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--condition-tone) 14%, #17191b), rgba(13, 15, 18, .96) 62%);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--condition-tone) 76%, transparent);
+    cursor: help;
+}
+.condition-gem-card .combat-effect-icon,
+.condition-gem-choice-head .combat-effect-icon { width: 36px; height: 36px; pointer-events: none; }
+.condition-gem-card .combat-effect-icon:hover,
+.condition-gem-choice-head .combat-effect-icon:hover { transform: none; }
+.condition-gem-copy { display: grid; gap: 2px; min-width: 0; }
+.condition-gem-copy > small { color: color-mix(in srgb, var(--condition-tone) 76%, #e6d7c2); font-size: .66em; font-weight: 800; letter-spacing: .08em; }
+.condition-gem-copy > strong { overflow: hidden; color: #f4eadb; font-size: .86em; text-overflow: ellipsis; white-space: nowrap; }
+.condition-gem-copy .gem-card-tags { min-height: 16px; }
+.condition-gem-level { align-self: start; padding: 2px 5px; border: 1px solid rgba(206, 177, 128, .38); border-radius: 99px; color: #e5cfaa; font-size: .65em; font-weight: 900; }
+.condition-gem-choice {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    min-height: 114px;
+    padding: 10px;
+    text-align: left;
+    border-color: color-mix(in srgb, var(--condition-tone) 62%, #514638);
+    background: linear-gradient(145deg, color-mix(in srgb, var(--condition-tone) 13%, #1c1b1a), #111316 66%);
+}
+.condition-gem-choice:hover { border-color: var(--condition-tone); box-shadow: 0 0 14px color-mix(in srgb, var(--condition-tone) 24%, transparent); }
+.condition-gem-choice-effect { color: #d9c49f; font-size: .72em; line-height: 1.35; }
+.condition-gem-overlay-panel { width: min(980px, 95vw); }
+.gem-card-tags .gem-tag--curse { color: #e0bdff; border-color: rgba(157, 92, 203, .68); background: rgba(54, 22, 75, .74); }
+.gem-card-tags .gem-tag--warcry { color: #ffd591; border-color: rgba(205, 139, 58, .68); background: rgba(76, 40, 13, .74); }
+.gem-card-tags .gem-tag--guard { color: #b9eaff; border-color: rgba(78, 161, 196, .68); background: rgba(14, 48, 65, .74); }
+
 .arcana-vault-head,
 .pruning-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid rgba(157, 121, 75, .58); background: linear-gradient(90deg, rgba(31, 23, 25, .98), rgba(18, 19, 23, .98)); }
 .arcana-vault-head > div,
@@ -1511,16 +1564,16 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .pruning-stat-summary .gain p span { color: #a9d39d; }
 .pruning-stat-summary .burden p span { color: #dda496; }
 .pruning-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 29%); gap: 10px; align-items: start; }
-.pruning-choice-panel { position: sticky; top: 8px; z-index: 4; display: grid; gap: 12px; align-items: center; padding: 12px; border: 1px solid rgba(120, 91, 57, .72); background: rgba(18, 19, 17, .97); box-shadow: 0 8px 24px rgba(0, 0, 0, .32); }
+.pruning-choice-panel { position: sticky; top: 8px; z-index: 4; display: grid; grid-template-rows: 62px 72px auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid rgba(120, 91, 57, .72); background: rgba(18, 19, 17, .97); box-shadow: 0 8px 24px rgba(0, 0, 0, .32); }
 .pruning-choice-panel > div:first-child { display: grid; gap: 2px; }
 .pruning-choice-panel > div:first-child span { color: #9c8260; font-size: .7em; letter-spacing: .12em; }
 .pruning-choice-panel > div:first-child strong { color: #e3cfaa; }
 .pruning-choice-panel > div:first-child small { color: #b68e78; font-size: .7em; }
-.pruning-choice-effects { display: grid; gap: 3px; font-size: .78em; }
+.pruning-choice-effects { align-content: start; display: grid; gap: 3px; min-height: 72px; font-size: .78em; }
 .pruning-choice-effects .gain { color: #a9d39d; }
 .pruning-choice-effects .burden { color: #dda496; }
-.pruning-choice-actions { display: grid; grid-template-columns: 1fr; gap: 6px; }
-.pruning-choice-actions button { display: grid; gap: 1px; min-width: 0; }
+.pruning-choice-actions { align-self: end; display: grid; grid-template-columns: 1fr; gap: 6px; }
+.pruning-choice-actions button { display: grid; gap: 1px; min-width: 0; min-height: 44px; place-content: center; }
 .pruning-choice-actions small { color: inherit; opacity: .7; }
 .pruning-tree { position: relative; width: 100%; min-width: 0; height: clamp(500px, 70vw, 610px); overflow: hidden; background: radial-gradient(ellipse at 50% 100%, rgba(82, 64, 39, .55), transparent 38%), linear-gradient(#151815, #0b0e0d); }
 .pruning-tree::before { position: absolute; inset: 8% 38% 0; content: ''; background: linear-gradient(90deg, transparent, rgba(119, 89, 50, .35), transparent); clip-path: polygon(45% 100%, 55% 100%, 62% 0, 38% 0); }
@@ -1590,6 +1643,8 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 @media (max-width: 640px) {
     .condition-pattern-summary { align-items: flex-start; flex-direction: column; }
     .condition-pattern-rule select { max-width: 100%; }
+    .condition-gem-grid,
+    .condition-gem-choice-grid { grid-template-columns: 1fr; }
     .arcana-vault-head,
     .pruning-head { align-items: flex-start; flex-direction: column; }
     .arcana-deck,

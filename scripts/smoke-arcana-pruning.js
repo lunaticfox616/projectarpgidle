@@ -125,6 +125,31 @@ const catchupOwner = { season: 21, loopCount: 20 };
 assert.strictEqual(context.advancePruningTreeForLoop(catchupOwner).granted, 4, 'older saves receive each missed loop growth point exactly once');
 assert.strictEqual(context.advancePruningTreeForLoop(catchupOwner).granted, 0);
 
+const earlyUnlockOwner = {
+  season:30, loopCount:29, unlocks:{ pruning:true }, noti:{},
+  pruningTree:{ version:2, unlocked:true, growthPoints:26, nodeRanks:{}, prunedPenaltyRanks:{}, lastGrantedLoop:30 }
+};
+const reclaimed = context.advancePruningTreeForLoop(earlyUnlockOwner);
+assert.strictEqual(reclaimed.granted, 0, 'reclaiming legacy points must not issue another loop reward');
+assert.strictEqual(reclaimed.tree.growthPoints, 13, 'loop 30 keeps only the loop 18 through 30 entitlement');
+assert.strictEqual(reclaimed.tree.version, context.PRUNING_TREE_STATE_VERSION, 'the one-time point reclaim must migrate the tree state');
+assert.strictEqual(context.advancePruningTreeForLoop(earlyUnlockOwner).granted, 0, 'the point reclaim must be idempotent');
+
+const investedLegacyOwner = {
+  season:30, loopCount:29, unlocks:{ pruning:true }, noti:{},
+  pruningTree:{ version:2, unlocked:true, growthPoints:11, nodeRanks:{ first_ring:5, deep_root:5, red_root:5 }, prunedPenaltyRanks:{}, lastGrantedLoop:30 }
+};
+const investedMigration = context.advancePruningTreeForLoop(investedLegacyOwner);
+assert.strictEqual(investedMigration.tree.growthPoints, 0, 'spent legacy points above the new entitlement cannot remain spendable');
+assert.strictEqual(investedMigration.tree.nodeRanks.first_ring, 5, 'the reclaim must not destroy an already built tree');
+assert.strictEqual(investedMigration.tree.lastGrantedLoop, 32, 'excess invested points defer future grants until the entitlement catches up');
+investedLegacyOwner.season = 32;
+investedLegacyOwner.loopCount = 31;
+assert.strictEqual(context.advancePruningTreeForLoop(investedLegacyOwner).granted, 0, 'legacy point debt cannot grant another point early');
+investedLegacyOwner.season = 33;
+investedLegacyOwner.loopCount = 32;
+assert.strictEqual(context.advancePruningTreeForLoop(investedLegacyOwner).granted, 1, 'point grants resume when the new entitlement exceeds prior spending');
+
 context.game = { season: 31, loopCount: 30, unlocks: {}, noti: {} };
 context.grantSealedArcanaCard(1, context.game);
 const uiCard = context.unsealArcanaCard(context.game, () => 0);
