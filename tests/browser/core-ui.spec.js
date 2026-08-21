@@ -1895,7 +1895,10 @@ test('representative battle and equipment layouts preserve the primary task hier
         game.season = 30;
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         setHideoutActive(false, game);
-        game.combatHalted = false;
+        game.settings.mapCompleteAction = 'stop';
+        game.combatHalted = true;
+        game.moveTimer = 0;
+        game.isTownReturning = false;
         game.enemies = [];
         updateStaticUI();
     });
