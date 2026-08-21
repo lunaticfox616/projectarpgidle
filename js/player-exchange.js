@@ -1,5 +1,5 @@
 const playerExchangeState = {
-    section: 'ghost', data: null, loading: false, message: '', selectedItemId: null, itemTips: new Map()
+    data: null, loading: false, message: '', selectedItemId: null, itemTips: new Map()
 };
 
 function isPlayerExchangeServerReady() {
@@ -24,7 +24,7 @@ function getPlayerExchangeError(error) {
         HALL_SOCKET_NOT_EMPTY: '심연 주얼이 장착된 장비는 전당에 등록할 수 없습니다.', HALL_ITEM_OWNERSHIP: '장비의 서버 소유권을 확인할 수 없습니다.',
         HALL_LISTING_NOT_ACTIVE: '전시가 종료되었거나 회수된 장비입니다.', HALL_SELF_PURCHASE: '자신이 전시한 장비는 구매할 수 없습니다.',
         HALL_ALREADY_COLLECTED: '같은 전시품은 계정당 한 번만 구매할 수 있습니다.', HALL_CURRENCY_SHORTAGE: '황금률이 부족합니다.',
-        HALL_INVENTORY_FULL: '인벤토리 공간이 부족합니다.', RANKING_DAILY_LIMIT: '랭킹 기록은 한국 시간 기준 하루에 한 번 등록할 수 있습니다.'
+        HALL_INVENTORY_FULL: '인벤토리 공간이 부족합니다.'
     };
     let code = Object.keys(messages).find(key => raw.includes(key));
     return code ? messages[code] : raw;
@@ -189,27 +189,6 @@ async function runPlayerExchangeMutation(reason, path, body, mutation, successMe
     }
 }
 
-async function submitPlayerRanking() {
-    if (playerExchangeState.loading) return;
-    playerExchangeState.loading = true;
-    renderPlayerExchange();
-    try {
-        await preparePlayerExchangeMutation('ranking-submit');
-        let stats = getPlayerStats();
-        let dps = Math.max(0, Math.floor(Number(stats.totalDps) || Number(stats.dps) || 0));
-        await cloudJsonRequest('/rest/v1/rpc/submit_player_ranking', {
-            method: 'POST', body: { p_dps: dps, p_expected_revision: getPlayerExchangeRevision() }
-        });
-        playerExchangeState.message = `현재 루프와 DPS ${dps.toLocaleString()}를 갱신했습니다.`;
-        await reloadPlayerExchangeData();
-    } catch (error) {
-        playerExchangeState.message = getPlayerExchangeError(error);
-    } finally {
-        playerExchangeState.loading = false;
-        renderPlayerExchange();
-    }
-}
-
 async function reloadPlayerExchangeData() {
     playerExchangeState.data = await cloudJsonRequest('/rest/v1/rpc/get_player_hall', { method: 'POST', body: {} });
 }
@@ -217,14 +196,6 @@ async function reloadPlayerExchangeData() {
 function setPlayerExchangeMessage(message) {
     playerExchangeState.message = message;
     renderPlayerExchange();
-}
-
-function switchPlayerArenaSection(section) {
-    playerExchangeState.section = ['ghost', 'ranking'].includes(section) ? section : 'ghost';
-    document.querySelectorAll('.player-arena-panel').forEach(panel => panel.classList.toggle('active', panel.dataset.arenaPanel === playerExchangeState.section));
-    document.querySelectorAll('.player-arena-tab').forEach(button => button.classList.toggle('active', button.dataset.arenaTab === playerExchangeState.section));
-    if (playerExchangeState.section === 'ghost' && typeof renderGhostArena === 'function') renderGhostArena();
-    if (playerExchangeState.section !== 'ghost') loadPlayerExchange();
 }
 
 function getPlayerHallListings() {
@@ -286,27 +257,13 @@ function renderPlayerHallPanel() {
     return `<section class="player-exchange-card hall-summary"><header><div><strong>장비 전당</strong><small>희귀·고유 원본 전시 · 서버 감정가 · 귀속 복제품 최대 5개</small></div><span>명예 ${Number(data.honor || 0).toLocaleString()} · 소장 ${Number(data.collectionCount || 0).toLocaleString()}</span></header><p>희귀는 베이스 종류·티어와 옵션 티어/롤, 고유는 옵션 롤과 타락 결과까지 서버가 감정합니다. 판매자는 재화 대신 구매자마다 명예를 얻고 구매 비용은 전부 소각됩니다.</p></section><section class="player-exchange-card"><header><div><strong>전시 등록 ${activeCount}/3</strong><small>원본은 전시 종료 시 직접 회수할 수 있습니다.</small></div><span>보유 황금률 ${Math.floor(game.currencies.goldenRule || 0).toLocaleString()}</span></header><div class="player-trade-register"><div class="player-trade-picker">${renderHallPicker()}</div><button onclick="createPlayerHallListing()" ${playerExchangeState.loading || activeCount >= 3 ? 'disabled' : ''}>서버 감정 후 전시</button></div></section><section class="player-exchange-card"><header><strong>전당 소장품</strong><button onclick="loadPlayerExchange()" ${playerExchangeState.loading ? 'disabled' : ''}>새로고침</button></header><div class="player-trade-grid">${renderHallMarket()}</div></section><section class="player-exchange-card"><header><strong>내 전시 원본</strong><span>공유 ${Number(data.copiesShared || 0).toLocaleString()}회</span></header><div class="player-trade-grid compact">${renderMyHallListings()}</div></section>`;
 }
 
-function renderRankingRows(rows, valueKey) {
-    if (!Array.isArray(rows) || rows.length <= 0) return '<div class="player-exchange-empty">등록된 기록이 없습니다.</div>';
-    return rows.slice(0, 50).map((row, index) => `<div class="player-ranking-row"><b>${index + 1}</b><span><strong>${escapeHTML(row.nickname || '익명')}</strong><small>${escapeHTML(row.ascend_class || '미전직')} · ${escapeHTML(row.active_skill || '기본 공격')}</small></span><em>${valueKey === 'dps' ? Math.floor(Number(row.dps) || 0).toLocaleString() : `${Math.floor(Number(row.loop_count) || 1)} 루프`}</em></div>`).join('');
-}
-
-function renderPlayerRankingPanel() {
-    if (!isPlayerExchangeServerReady()) return '<div class="player-exchange-empty">클라우드 로그인과 랭킹 SQL 적용 후 이용할 수 있습니다.</div>';
-    let data = playerExchangeState.data || {};
-    let submitted = data.rankingSubmittedToday === true;
-    return `<section class="player-exchange-card ranking-head"><div><strong>오늘의 루프 · DPS 랭킹</strong><small>매일 00:00 KST 초기화 · 오늘 1회 등록 · 보상 없음</small></div><button onclick="submitPlayerRanking()" ${playerExchangeState.loading || submitted ? 'disabled' : ''}>${submitted ? '오늘 등록 완료' : '오늘 기록 등록'}</button></section><div class="player-ranking-columns"><section class="player-exchange-card"><header><strong>루프 순위</strong></header>${renderRankingRows(data.loopRanking, 'loop')}</section><section class="player-exchange-card"><header><strong>DPS 순위</strong></header>${renderRankingRows(data.dpsRanking, 'dps')}</section></div>`;
-}
-
 function renderPlayerExchange() {
     let hallHost = document.getElementById('map-player-hall');
-    let rankingHost = document.getElementById('map-player-ranking');
-    if (!hallHost || !rankingHost) return;
+    if (!hallHost) return;
     let message = playerExchangeState.message ? `<p class="player-exchange-message">${escapeHTML(playerExchangeState.message)}</p>` : '';
     hallHost.innerHTML = message + renderPlayerHallPanel();
-    rankingHost.innerHTML = message + renderPlayerRankingPanel();
 }
 
-safeExposeGlobals({ switchPlayerArenaSection, loadPlayerExchange, renderPlayerExchange, selectPlayerHallItem,
-    createPlayerHallListing, buyPlayerHallReplica, withdrawPlayerHallListing, submitPlayerRanking,
+safeExposeGlobals({ loadPlayerExchange, renderPlayerExchange, selectPlayerHallItem,
+    createPlayerHallListing, buyPlayerHallReplica, withdrawPlayerHallListing,
     showPlayerHallTooltip });

@@ -2279,6 +2279,7 @@ function expireActiveFlaskEffects() {
 }
 
 function coreLoop() {
+    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return;
     if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     tickWoodsmanCurse();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
@@ -2451,15 +2452,7 @@ function coreLoop() {
             markPlayerMovementCompleted();
             if (game.isTownReturning) {
                 game.isTownReturning = false;
-                if ((game.settings.townReturnAction || 'retry') === 'stop') {
-                    game.combatHalted = true;
-                    game.enemies = [];
-                    game.encounterPlan = [];
-                    game.encounterIndex = 0;
-                    game.runProgress = 0;
-                    updateStaticUI();
-                    return;
-                }
+                if (finishTownReturnAction()) return;
             }
             if (!finishWoodsmanEntrance()) startEncounterRun();
         }
@@ -6720,7 +6713,9 @@ function resetBattleRuntimeVisuals() {
         advanceDesired: false,
         advanceChangedAt: 0,
         shrineHitbox: null,
-        shrineHovered: false
+        shrineHovered: false,
+        hideoutDecorHitboxes: [],
+        hideoutDecorHoveredId: null
     };
     crowdPauseActive = false;
     trialHazardTimer = 0;
@@ -7510,6 +7505,7 @@ function applyCosmosAstraStance(enemy) {
 }
 
 function startEncounterRun() {
+    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return;
     pTimer = 0;
     resetCombatTacticsRuntime();
     resetCombatChannelRuntime();
@@ -7539,6 +7535,7 @@ function startEncounterRun() {
 }
 
 function startMoving(isTown) {
+    if (!isTown && typeof setHideoutActive === 'function') setHideoutActive(false, game);
     dispatchRuntimeEvent('movement-started', { background: !!game.isBackgroundCalculation });
     if (typeof bountyRuntime !== 'undefined') bountyRuntime.requeueInterrupted();
     pTimer = 0;
@@ -7579,20 +7576,64 @@ function startMoving(isTown) {
     }
 }
 
+function enterHideoutIdleState() {
+    if (typeof setHideoutActive !== 'function' || !setHideoutActive(true, game)) {
+        addLog('⚠️ 은신처는 액트 5 진행 후 이용할 수 있습니다.', 'warning');
+        return false;
+    }
+    game.combatHalted = true;
+    game.moveTimer = 0;
+    game.moveTotalTime = 0;
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    game.playerAilments = [];
+    game.playerLeechInstances = [];
+    resetBattleRuntimeVisuals();
+    resetPlayerGridPosition();
+    addLog('🌿 뿌리 성소에 돌아와 휴식을 시작합니다.', 'season-up');
+    if (typeof queueImportantSave === 'function') queueImportantSave(180);
+    updateStaticUI();
+    return true;
+}
+
+function finishTownReturnAction() {
+    let action = (game.settings && game.settings.townReturnAction) || 'retry';
+    if (action === 'hideout') return enterHideoutIdleState();
+    if (action !== 'stop') return false;
+    game.combatHalted = true;
+    game.enemies = [];
+    game.encounterPlan = [];
+    game.encounterIndex = 0;
+    game.runProgress = 0;
+    updateStaticUI();
+    return true;
+}
+
 
 function returnToTown() {
+    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) {
+        setHideoutActive(false, game);
+        addLog('⚔️ 은신처를 떠나 전투로 복귀합니다.', 'season-up');
+        startMoving(false);
+        updateStaticUI();
+        return;
+    }
     if (game.isTownReturning && game.moveTimer > 0) return;
     let pStats = getPlayerStats();
     game.playerHp = getPlayerHpCap(pStats);
     game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     game.playerLeechInstances = [];
     pTimer = 0;
-    addLog("⛺ 마을 귀환", "season-up");
+    let destination = game.settings && game.settings.townReturnAction === 'hideout' ? '은신처' : '마을';
+    addLog(`⛺ ${destination} 귀환`, "season-up");
     startMoving(true);
     updateStaticUI();
 }
 
 function ensureEncounterRun() {
+    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return;
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
 }
 
@@ -7604,6 +7645,7 @@ function isRegularAutoProgressZone(zone) {
 }
 
 function reconcileMapProgressRuntimeState() {
+    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return false;
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (!zone) return false;
     if (typeof reconcileBeehiveRunState === 'function') reconcileBeehiveRunState();
@@ -7699,6 +7741,7 @@ function getMapProgressGainMultiplier(zone) {
 }
 
 function advanceMapProgress(pStats) {
+    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return;
     if (game.moveTimer > 0) return;
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone && zone.type === 'outsideChaos' && game.woodsmanEntrancePending) return;

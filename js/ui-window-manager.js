@@ -678,7 +678,7 @@
     function syncGoalAccessButtons(goal) {
         let drawer = document.getElementById('ui-goal-drawer');
         let expanded = !!(drawer && drawer.classList.contains('expanded'));
-        ['btn-combat-goal-toggle', 'btn-mobile-nav-goal'].forEach(id => {
+        ['btn-combat-goal-toggle'].forEach(id => {
             let access = document.getElementById(id);
             if (!access) return;
             access.hidden = !goal;

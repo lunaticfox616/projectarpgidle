@@ -1,4 +1,5 @@
 const SPECIAL_BATTLE_BACKDROP_SOURCES = Object.freeze({
+    bgHideout: 'assets/hideout/root-sanctum-wood-v2.webp',
     bgSkyTower: 'assets/background/sky-tower-v1.webp',
     bgUnderworld: 'assets/background/underworld-v1.webp',
     bgOceanDepth: 'assets/background/ocean-depth-v1.webp',
@@ -9,6 +10,7 @@ const SPECIAL_BATTLE_BACKDROP_RETRY_MS = 5000;
 const specialBattleBackdropLoads = new Map();
 
 function getBattleBackdropKeyForZone(zone) {
+    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return 'bgHideout';
     if (!zone) return 'bgAct1';
     if (zone.type === 'skyTower' || zone.pinnacleTrack === 'sky') return 'bgSkyTower';
     if (zone.type === 'underworld' || zone.pinnacleTrack === 'underworld') return 'bgUnderworld';

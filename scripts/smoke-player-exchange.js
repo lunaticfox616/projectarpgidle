@@ -5,9 +5,16 @@ const { webcrypto } = require('crypto');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
 async function runScenario() {
+    const hallSql = fs.readFileSync('db/equipment-hall.sql', 'utf8');
+    assert.match(hallSql, /drop function if exists public\.submit_player_ranking\(bigint, bigint\)/,
+        '전당 SQL 재적용 시 기존 랭킹 등록 RPC를 제거해야 한다');
+    assert.match(hallSql, /drop table if exists public\.player_rankings/,
+        '전당 SQL 재적용 시 기존 랭킹 데이터를 제거해야 한다');
+    assert.doesNotMatch(hallSql, /create (?:table|or replace function)[^;]*player_rankings?/s,
+        '전당 SQL이 제거한 랭킹 테이블이나 RPC를 다시 만들면 안 된다');
     const context = buildGameRuntime();
     const calls = [];
-    const hosts = { 'map-player-hall': { innerHTML: '' }, 'map-player-ranking': { innerHTML: '' } };
+    const hosts = { 'map-player-hall': { innerHTML: '' } };
     context.crypto = webcrypto;
     context.document.getElementById = id => hosts[id] || null;
     context.document.querySelectorAll = () => [];
@@ -54,11 +61,7 @@ async function runScenario() {
                 score: 7200, price: 400, copiesSold: 0, copyCap: 5, status: 'open' },
             { id: 10, item: { name: '공유 완료 원본', rarity: 'unique', slot: '무기', hiddenTier: 16 },
                 score: 14200, price: 1000, copiesSold: 5, copyCap: 5, status: 'sold_out' }],
-            honor: 14, copiesShared: 4, collectionCount: 2, loopRanking: [], dpsRanking: [],
-            rankingDay: '2026-08-18', rankingSubmittedToday: false
-        };
-        if (path.endsWith('submit_player_ranking')) {
-            return { loopCount: 3, dps: options.body.p_dps, saveRevision: 8, rankingDay: '2026-08-18' };
+            honor: 14, copiesShared: 4, collectionCount: 2
         }
         throw new Error(`unexpected ${path}`);
     };
@@ -101,12 +104,7 @@ async function runScenario() {
     assert.match(hosts['map-player-hall'].innerHTML, /명예 14/, '재화 대신 전당 명예를 보여줘야 한다');
     assert.match(hosts['map-player-hall'].innerHTML, /황금률 470/, '서버 감정가를 전당 카드에 보여줘야 한다');
 
-    const stats = context.getPlayerStats();
-    const expectedDps = Math.max(0, Math.floor(Number(stats.totalDps) || Number(stats.dps) || 0));
-    await context.submitPlayerRanking();
-    const rankCall = calls.find(call => call.path && call.path.endsWith('submit_player_ranking'));
-    assert.strictEqual(rankCall.options.body.p_dps, expectedDps, '실제 전투 계산기의 현재 DPS를 등록해야 한다');
-    assert.match(hosts['map-player-ranking'].innerHTML, /매일 00:00 KST 초기화/, '한국 시간 일일 랭킹 규칙을 표시해야 한다');
+    assert.ok(hosts['map-player-hall'].innerHTML.length > 0, '랭킹 호스트 없이도 장비 전당을 렌더링해야 한다');
 }
 
 runScenario().then(() => console.log('smoke-player-exchange passed'))

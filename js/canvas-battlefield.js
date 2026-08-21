@@ -1397,14 +1397,35 @@ function drawLevelUpFx(ctx, fx, t, playerPos) {
     ctx.restore();
 }
 
+function getBattlefieldClientPoint(canvas, clientX, clientY) {
+    if (!canvas) return null;
+    let rect = canvas.getBoundingClientRect();
+    return {
+        x:(clientX - rect.left) * ((canvas.clientWidth || rect.width) / Math.max(1, rect.width)),
+        y:(clientY - rect.top) * ((canvas.clientHeight || rect.height) / Math.max(1, rect.height))
+    };
+}
+
 function getBattlefieldShrineAtClientPosition(canvas, clientX, clientY) {
     let hitbox = battleVisualState.shrineHitbox;
-    if (!canvas || !hitbox) return null;
-    let rect = canvas.getBoundingClientRect();
-    let x = (clientX - rect.left) * ((canvas.clientWidth || rect.width) / Math.max(1, rect.width));
-    let y = (clientY - rect.top) * ((canvas.clientHeight || rect.height) / Math.max(1, rect.height));
-    return x >= hitbox.x && x <= hitbox.x + hitbox.width && y >= hitbox.y && y <= hitbox.y + hitbox.height
+    let point = getBattlefieldClientPoint(canvas, clientX, clientY);
+    if (!point || !hitbox) return null;
+    return point.x >= hitbox.x && point.x <= hitbox.x + hitbox.width && point.y >= hitbox.y && point.y <= hitbox.y + hitbox.height
         ? hitbox.encounter : null;
+}
+
+function getHideoutDecorAtClientPosition(canvas, clientX, clientY) {
+    if (typeof isHideoutActive !== 'function' || !isHideoutActive(game)) return null;
+    let point = getBattlefieldClientPoint(canvas, clientX, clientY);
+    let hitboxes = Array.isArray(battleVisualState.hideoutDecorHitboxes)
+        ? battleVisualState.hideoutDecorHitboxes : [];
+    if (!point) return null;
+    for (let index = hitboxes.length - 1; index >= 0; index--) {
+        let hitbox = hitboxes[index];
+        if (point.x < hitbox.x || point.x > hitbox.x + hitbox.width) continue;
+        if (point.y >= hitbox.y && point.y <= hitbox.y + hitbox.height) return hitbox.decor;
+    }
+    return null;
 }
 
 function drawShrineFallback(ctx, width, height, color) {
@@ -1514,6 +1535,101 @@ function getPlayableHeroWalkMotion(heroId, now, cycleDuration, advanceBlend) {
     };
 }
 
+function getHideoutDecorDrawEntries(gridProj) {
+    let state = game.hideout && typeof game.hideout === 'object' ? game.hideout : {};
+    return (Array.isArray(state.placements) ? state.placements : []).map(placement => {
+        let decor = HIDEOUT_DECOR_DB.find(row => row.id === placement.decorId);
+        let cell = Math.floor(Number(placement.cell));
+        let footprint = getHideoutDecorFootprint(placement.decorId, placement.rotation);
+        let gridX = cell % HIDEOUT_GRID_COLUMNS + (footprint.columns - 1) / 2;
+        let gridY = Math.floor(cell / HIDEOUT_GRID_COLUMNS) + (footprint.rows - 1) / 2;
+        let image = decor && battleAssets.images[`hideoutDecor_${decor.id}`];
+        if (!decor || !image || gridY < 0 || gridY >= HIDEOUT_GRID_ROWS) return null;
+        return { decor, image, footprint, rotation:normalizeHideoutRotation(placement.rotation), gridX, gridY,
+            depth:Math.ceil(gridX + gridY), position:gridProj.cellToScreen(gridX, gridY) };
+    }).filter(Boolean).sort((left, right) => left.depth - right.depth || left.gridX - right.gridX);
+}
+
+function getHideoutDirectionalSource(entry) {
+    if (!entry.decor.directionalAsset) return null;
+    let spriteCell = getHideoutDecorSpriteCell(entry.rotation);
+    let width = entry.image.naturalWidth / 2;
+    let height = entry.image.naturalHeight / 2;
+    return { x:spriteCell.column * width, y:spriteCell.row * height, width, height };
+}
+
+function drawHideoutDecorLayer(ctx, entries, playerDepth, foreground, tileWidth, tileHeight) {
+    entries.forEach(entry => {
+        let isForeground = entry.depth > playerDepth;
+        if (isForeground !== foreground) return;
+        let footprintSpan = entry.footprint.columns + entry.footprint.rows;
+        let footprintSize = tileWidth * footprintSpan / 2 * 0.92;
+        let footprintHeight = tileHeight * footprintSpan / 2 * 0.92;
+        let artScale = clampNumber(Number(entry.decor.renderScale) || 0.6, 0.35, 1);
+        let drawSize = footprintSize * artScale;
+        let drawX = entry.position.x - drawSize / 2;
+        let drawY = entry.position.y + footprintHeight / 2 - drawSize;
+        let hovered = battleVisualState.hideoutDecorHoveredId === entry.decor.id;
+        let directionalSource = getHideoutDirectionalSource(entry);
+        ctx.save();
+        ctx.shadowColor = hovered ? 'rgba(255, 213, 132, 0.94)' : 'rgba(29, 16, 7, 0.48)';
+        ctx.shadowBlur = hovered ? Math.max(5, tileWidth * 0.13) : Math.max(2, tileWidth * 0.04);
+        ctx.translate(entry.position.x, 0);
+        if (directionalSource) {
+            ctx.drawImage(entry.image, directionalSource.x, directionalSource.y,
+                directionalSource.width, directionalSource.height, -drawSize / 2, drawY, drawSize, drawSize);
+        } else {
+            ctx.scale(entry.rotation % 2 === 0 ? 1 : -1, 1);
+            ctx.drawImage(entry.image, -drawSize / 2, drawY, drawSize, drawSize);
+        }
+        if (hovered) {
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(255, 218, 148, 0.96)';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(-drawSize / 2, drawY, drawSize, drawSize);
+        }
+        ctx.restore();
+        battleVisualState.hideoutDecorHitboxes.push({
+            x:drawX, y:drawY, width:drawSize, height:drawSize, decor:entry.decor
+        });
+    });
+}
+
+function renderHideoutIdleBattlefield(ctx, gridProj, now, width, height) {
+    battleVisualState.hideoutDecorHitboxes = [];
+    if (typeof isHideoutActive !== 'function' || !isHideoutActive(game)) {
+        battleVisualState.hideoutDecorHoveredId = null;
+        return false;
+    }
+    let playerCell = hasGridCell(game.gridPlayer) ? game.gridPlayer : COMBAT_GRID_CONFIG.playerSpawn;
+    let playerPosition = gridProj.cellToScreen(playerCell.gx, playerCell.gy);
+    let playerDepth = playerCell.gx + playerCell.gy;
+    let entries = getHideoutDecorDrawEntries(gridProj);
+    let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.62, 1.3);
+    drawHideoutDecorLayer(ctx, entries, playerDepth, false, gridProj.tileW, gridProj.tileH);
+    let currentSkill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
+    drawPlayerSprite(ctx, playerPosition.x, playerPosition.y, 2.15 * gridUnitScale, false, 0, getBattleSkillVisual(game.activeSkill, currentSkill), now, {
+        advanceBlend:0, attackBlend:0, attackProgress:0, hurtBlend:0, downBlend:0
+    });
+    drawHideoutDecorLayer(ctx, entries, playerDepth, true, gridProj.tileW, gridProj.tileH);
+    ctx.save();
+    let vignette = ctx.createRadialGradient(width / 2, height * 0.5, height * 0.12, width / 2, height * 0.5, width * 0.68);
+    vignette.addColorStop(0, 'rgba(255, 224, 162, 0.02)');
+    vignette.addColorStop(1, 'rgba(35, 20, 8, 0.28)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+    let caption = document.getElementById('ui-battlefield-caption');
+    let hoveredDecor = entries.find(entry => entry.decor.id === battleVisualState.hideoutDecorHoveredId);
+    if (caption) {
+        let actionLabel = hoveredDecor && hoveredDecor.decor.action && hoveredDecor.decor.action.label;
+        caption.innerText = hoveredDecor
+            ? `${hoveredDecor.decor.name} · ${actionLabel ? `${actionLabel} 열기` : '은신처 편집'}`
+            : '휴식 중';
+    }
+    return true;
+}
+
 // Phase-2 extracted battlefield canvas renderer block.
 function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
@@ -1594,6 +1710,7 @@ function renderBattlefield(forceWhenHidden) {
         document.getElementById('ui-battlefield-caption').innerText = '전장 에셋 로딩 중...';
         return;
     }
+    if (renderHideoutIdleBattlefield(ctx, gridProj, now, width, height)) return;
 
     let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
     let swingPower = swingFx ? Math.sin(((now - swingFx.start) / (swingFx.duration * attackAnimationDurationScale)) * Math.PI) : 0;
@@ -2260,6 +2377,7 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
         ctx.lineWidth = 2.4;
         ctx.stroke();
     };
+    const hideoutActive = typeof isHideoutActive === 'function' && isHideoutActive(game);
     ctx.save();
     for (let gx = 0; gx < size; gx++) {
         for (let gy = 0; gy < size; gy++) {
@@ -2270,13 +2388,19 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
                 ctx.fillStyle = (gx + gy) % 2 === 0 ? theme.pathA : theme.pathB;
                 ctx.fill();
             }
-            ctx.globalAlpha = backdropActive ? 0.3 : 0.62;
-            ctx.strokeStyle = backdropActive ? 'rgba(214, 230, 246, 0.5)' : 'rgba(8, 12, 18, 0.6)';
+            ctx.globalAlpha = hideoutActive ? 0.16 : (backdropActive ? 0.3 : 0.62);
+            ctx.strokeStyle = hideoutActive ? 'rgba(255, 231, 187, 0.52)' : (backdropActive ? 'rgba(214, 230, 246, 0.5)' : 'rgba(8, 12, 18, 0.6)');
             ctx.lineWidth = backdropActive ? 1 : 1.3;
             ctx.stroke();
         }
     }
-    ctx.globalAlpha = backdropActive ? 0.24 : 0.4;
+    if (hideoutActive) fillCell(game.gridPlayer, 'rgba(145, 209, 124, 0.22)', 'rgba(215, 244, 190, 0.76)', 0.28);
+    else drawBattleGridCombatOccupants(ctx, tilePath, fillCell, { backdropActive, skillTargets, skillAreaCells });
+    ctx.restore();
+}
+
+function drawBattleGridCombatOccupants(ctx, tilePath, fillCell, layers) {
+    ctx.globalAlpha = layers.backdropActive ? 0.24 : 0.4;
     tilePath(COMBAT_GRID_CONFIG.playerSpawn.gx, COMBAT_GRID_CONFIG.playerSpawn.gy);
     ctx.fillStyle = 'rgba(120, 202, 255, 0.4)';
     ctx.fill();
@@ -2289,10 +2413,9 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
     (game.summons || []).forEach(summon => {
         if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) fillCell(summon, 'rgba(126, 255, 173, 0.26)', 'rgba(154, 255, 192, 0.76)', 0.32);
     });
-    (skillAreaCells || []).forEach(cell => fillCell(cell, 'rgba(124, 255, 214, 0.2)', 'rgba(124, 255, 214, 0.72)', 0.26));
-    (skillTargets || []).forEach(hit => fillCell(hit && hit.enemy, 'rgba(255, 211, 91, 0.5)', 'rgba(255, 238, 153, 0.95)', 0.54));
+    (layers.skillAreaCells || []).forEach(cell => fillCell(cell, 'rgba(124, 255, 214, 0.2)', 'rgba(124, 255, 214, 0.72)', 0.26));
+    (layers.skillTargets || []).forEach(hit => fillCell(hit && hit.enemy, 'rgba(255, 211, 91, 0.5)', 'rgba(255, 238, 153, 0.95)', 0.54));
     fillCell(game.gridPlayer, 'rgba(107, 190, 255, 0.5)', 'rgba(168, 226, 255, 0.98)', 0.56);
-    ctx.restore();
 }
 
 function getCanvasSkillAreaCells(skillName, skillDef, skillTargets) {
@@ -2365,4 +2488,7 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
 }
 
 
-safeExposeGlobals({ renderBattlefield, getPlayableHeroWalkMotion, getBattlefieldShrineAtClientPosition });
+safeExposeGlobals({
+    renderBattlefield, getPlayableHeroWalkMotion,
+    getBattlefieldShrineAtClientPosition, getHideoutDecorAtClientPosition
+});

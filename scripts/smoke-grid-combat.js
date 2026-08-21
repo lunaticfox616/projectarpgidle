@@ -21,6 +21,7 @@ const files = [
   'data/offline-progress.js',
   'js/utils.js',
   'js/state.js',
+  'js/hideout.js',
   'js/offline-progress.js',
   'js/endgame-progression.js',
   'js/save.js',
@@ -1958,6 +1959,49 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '적이 0명인 일반 지역 진행도는 기존 이동량의 정확히 2배여야 한다');
   assert.ok(Math.abs(fastTravelGain - normalTravelGain * 2) < 0.000001,
     '이동 속도 배율을 먼저 적용한 뒤 빈 구간 2배 가속을 적용해야 한다');
+}
+
+// ── 귀환 설정은 전투 캔버스를 은신처 대기 장면으로 전환한다 ──
+{
+  resetGame();
+  const g = context.game;
+  g.heroSelectionInitialized = true;
+  g.maxZoneId = 5;
+  g.journalEntries = ['act_5'];
+  g.settings.townReturnAction = 'hideout';
+  context.returnToTown();
+  assert.strictEqual(g.isTownReturning, true, '귀환 버튼은 먼저 귀환 이동을 시작해야 한다');
+  g.moveTimer = 0.01;
+  context.coreLoop();
+  assert.strictEqual(context.isHideoutActive(g), true, '귀환 이동 완료 후 은신처 대기 옵션을 적용해야 한다');
+  assert.strictEqual(g.combatHalted, true, '은신처에서는 전투가 정지해야 한다');
+  assert.strictEqual(g.enemies.length, 0, '은신처에는 적이 남지 않아야 한다');
+  assert.strictEqual(g.encounterPlan.length, 0, '은신처에서는 새 조우를 예약하지 않아야 한다');
+  const idleProgress = g.runProgress;
+  context.coreLoop();
+  assert.strictEqual(g.runProgress, idleProgress, '은신처 대기 중에는 지역 진행도가 변하지 않아야 한다');
+  context.returnToTown();
+  assert.strictEqual(context.isHideoutActive(g), false, '은신처의 귀환 버튼은 전투 재개 동작이어야 한다');
+  assert.strictEqual(g.isTownReturning, false, '전투 재개 이동은 마을 귀환으로 취급하지 않아야 한다');
+  assert(g.moveTimer > 0, '전투 재개는 다음 구간 이동을 시작해야 한다');
+}
+
+// ── 해금 전 은신처 귀환 설정은 전투 중단 대신 기존 재전투로 복귀한다 ──
+{
+  resetGame();
+  const g = context.game;
+  g.heroSelectionInitialized = true;
+  g.maxZoneId = 1;
+  g.journalEntries = [];
+  g.claimedActRewards = [];
+  g.settings.townReturnAction = 'hideout';
+  context.returnToTown();
+  g.moveTimer = 0.01;
+  context.coreLoop();
+  assert.strictEqual(context.isHideoutActive(g), false, '해금 전에는 은신처 대기 상태로 들어가면 안 된다');
+  assert.strictEqual(g.combatHalted, false, '해금 실패를 전투 중단으로 처리하면 안 된다');
+  assert.ok(g.encounterPlan.length > 0 || g.moveTimer > 0,
+    '해금 실패 후에는 기존 재전투 흐름을 계속해야 한다');
 }
 
 // ── 걷기 모션 상태: 지역 이동뿐 아니라 전투 중 칸 이동에서도 걸어야 한다 ──

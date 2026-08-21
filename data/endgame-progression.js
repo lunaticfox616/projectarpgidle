@@ -52,29 +52,32 @@ const PRUNING_TREE_DB = Object.freeze([
 ]);
 
 const HIDEOUT_UNLOCK_ACT = 5;
-const HIDEOUT_GRID_COLUMNS = 6;
-const HIDEOUT_GRID_ROWS = 4;
+const HIDEOUT_GRID_VERSION = 2;
+const HIDEOUT_GRID_COLUMNS = COMBAT_GRID_CONFIG.size;
+const HIDEOUT_GRID_ROWS = COMBAT_GRID_CONFIG.size;
+const HIDEOUT_PLAYER_CELL = COMBAT_GRID_CONFIG.playerSpawn.gy * HIDEOUT_GRID_COLUMNS + COMBAT_GRID_CONFIG.playerSpawn.gx;
 const HIDEOUT_DECOR_DB = Object.freeze([
-    { id:'stash', name:'방랑자의 보관함', kind:'station', asset:'assets/items/root-armor-v3.png', action:{ tabId:'tab-items', subtab:'item-tab-equip' }, unlock:{ act:5 }, defaultCell:18 },
-    { id:'forge', name:'뿌리 제련대', kind:'station', asset:'assets/items/root-sword-v3.png', action:{ tabId:'tab-items', subtab:'item-tab-craft' }, unlock:{ act:5 }, defaultCell:20 },
-    { id:'map_device', name:'상처의 지도대', kind:'station', asset:'assets/items/cosmic-slab-v3.png', action:{ tabId:'tab-map' }, unlock:{ act:5 }, defaultCell:22 },
-    { id:'gem_altar', name:'공명 제단', kind:'station', asset:'assets/items/chaos-jewel-v3.png', action:{ tabId:'tab-skills' }, unlock:{ loop:2 }, defaultCell:14 },
-    { id:'condition_loom', name:'조건 직조기', kind:'station', asset:'assets/items/violet-amulet-v3.png', action:{ tabId:'tab-skills', subtab:'skill-tab-condition' }, unlock:{ loop:10 }, defaultCell:16 },
-    { id:'growth_basin', name:'생장 수반', kind:'station', asset:'assets/items/flower-growth-v3.png', action:{ tabId:'tab-growthboard' }, unlock:{ loop:25 }, defaultCell:8 },
-    { id:'woodsman_trophy', name:'나무꾼의 부러진 날', kind:'trophy', asset:'assets/items/claw-gauntlets-v3.png', unlock:{ journal:'woodsman' } },
-    { id:'astra_trophy', name:'아스트라의 꺼진 별', kind:'trophy', asset:'assets/items/violet-amulet-v3.png', unlock:{ journal:'cosmos_astra' } },
-    { id:'underking_trophy', name:'모르그란의 심핵', kind:'trophy', asset:'assets/items/tower-shield-v3.png', unlock:{ journal:'pinnacle_underking' } },
-    { id:'leviathan_trophy', name:'탈라사의 무광 비늘', kind:'trophy', asset:'assets/items/thorn-growth-v3.png', unlock:{ journal:'pinnacle_leviathan' } },
-    { id:'observer_trophy', name:'베일라의 관측안', kind:'trophy', asset:'assets/items/cosmic-slab-v3.png', unlock:{ journal:'pinnacle_observer' } },
-    { id:'last_breath_trophy', name:'꺼지지 않은 심장', kind:'trophy', asset:'assets/items/ruby-ring-v3.png', unlock:{ journal:'hidden_last_breath' } },
-    { id:'unscarred_trophy', name:'무흠의 방패', kind:'trophy', asset:'assets/items/tower-shield-v3.png', unlock:{ journal:'hidden_unscarred' } },
-    { id:'dry_vial_trophy', name:'봉인된 약병', kind:'trophy', asset:'assets/items/violet-amulet-v3.png', unlock:{ journal:'hidden_dry_vial' } },
-    { id:'fourfold_trophy', name:'사중 공명석', kind:'trophy', asset:'assets/items/chaos-jewel-v3.png', unlock:{ journal:'hidden_fourfold_affliction' } }
+    { id:'stash', name:'방랑자의 보관함', kind:'station', footprint:{ columns:2, rows:1 }, renderScale:0.88, asset:'assets/hideout/decor/stash-v1.webp', directionalAsset:'assets/hideout/decor/directions/stash-directions-v1.webp', action:{ tabId:'tab-items', subtab:'item-tab-equip', label:'장비 탭' }, unlock:{ act:5 }, defaultCell:53 },
+    { id:'forge', name:'뿌리 제련대', kind:'station', footprint:{ columns:2, rows:2 }, renderScale:0.88, asset:'assets/hideout/decor/forge-v1.webp', directionalAsset:'assets/hideout/decor/directions/forge-directions-v1.webp', action:{ tabId:'tab-items', subtab:'item-tab-craft', label:'제작 탭' }, unlock:{ act:5 }, defaultCell:50 },
+    { id:'map_device', name:'상처의 지도대', kind:'station', footprint:{ columns:2, rows:2 }, renderScale:0.88, asset:'assets/hideout/decor/map-device-v1.webp', directionalAsset:'assets/hideout/decor/directions/map-device-directions-v1.webp', action:{ tabId:'tab-map', label:'지도 탭' }, unlock:{ act:5 }, defaultCell:29 },
+    { id:'gem_altar', name:'공명 제단', kind:'station', footprint:{ columns:1, rows:1 }, renderScale:0.84, asset:'assets/hideout/decor/gem-altar-v1.webp', directionalAsset:'assets/hideout/decor/directions/gem-altar-directions-v1.webp', action:{ tabId:'tab-skills', label:'스킬 젬 탭' }, unlock:{ loop:2 }, defaultCell:26 },
+    { id:'condition_loom', name:'조건 직조기', kind:'station', footprint:{ columns:2, rows:1 }, renderScale:0.88, asset:'assets/hideout/decor/condition-loom-v1.webp', directionalAsset:'assets/hideout/decor/directions/condition-loom-directions-v1.webp', action:{ tabId:'tab-skills', subtab:'skill-tab-condition', label:'조건 젬 탭' }, unlock:{ loop:10 }, defaultCell:44 },
+    { id:'growth_basin', name:'생장 수반', kind:'station', footprint:{ columns:2, rows:2 }, renderScale:0.9, asset:'assets/hideout/decor/growth-basin-v1.webp', directionalAsset:'assets/hideout/decor/directions/growth-basin-directions-v1.webp', action:{ tabId:'tab-growthboard', label:'생장판 탭' }, unlock:{ loop:25 }, defaultCell:33 },
+    { id:'woodsman_trophy', name:'나무꾼의 부러진 날', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/woodsman-trophy-v1.webp', unlock:{ journal:'woodsman' } },
+    { id:'astra_trophy', name:'아스트라의 꺼진 별', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/astra-trophy-v1.webp', unlock:{ journal:'cosmos_astra' } },
+    { id:'underking_trophy', name:'모르그란의 심핵', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/underking-trophy-v1.webp', unlock:{ journal:'pinnacle_underking' } },
+    { id:'leviathan_trophy', name:'탈라사의 무광 비늘', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/leviathan-trophy-v1.webp', unlock:{ journal:'pinnacle_leviathan' } },
+    { id:'observer_trophy', name:'베일라의 관측안', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/observer-trophy-v1.webp', unlock:{ journal:'pinnacle_observer' } },
+    { id:'last_breath_trophy', name:'꺼지지 않은 심장', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/last-breath-trophy-v1.webp', unlock:{ journal:'hidden_last_breath' } },
+    { id:'unscarred_trophy', name:'무흠의 방패', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/unscarred-trophy-v1.webp', unlock:{ journal:'hidden_unscarred' } },
+    { id:'dry_vial_trophy', name:'봉인된 약병', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/dry-vial-trophy-v1.webp', unlock:{ journal:'hidden_dry_vial' } },
+    { id:'fourfold_trophy', name:'사중 공명석', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/fourfold-trophy-v1.webp', unlock:{ journal:'hidden_fourfold_affliction' } }
 ]);
 
 safeExposeData({
     ARCANA_DECK_SLOT_COUNT, ARCANA_SEALED_CARD_DROP_CHANCE, ARCANA_GALAXY_BOSS_DROP_CHANCE,
     ARCANA_CAPSTONE_DROP_CHANCE, ARCANA_QUEST_EXPLORATION_TARGET, ARCANA_EQUIPMENT_SLOT_KEYS, ARCANA_CARD_DB,
     PRUNING_TREE_STATE_VERSION, PRUNING_TREE_UNLOCK_LOOP, PRUNING_TREE_DB,
-    HIDEOUT_UNLOCK_ACT, HIDEOUT_GRID_COLUMNS, HIDEOUT_GRID_ROWS, HIDEOUT_DECOR_DB
+    HIDEOUT_UNLOCK_ACT, HIDEOUT_GRID_VERSION, HIDEOUT_GRID_COLUMNS, HIDEOUT_GRID_ROWS,
+    HIDEOUT_PLAYER_CELL, HIDEOUT_DECOR_DB
 });

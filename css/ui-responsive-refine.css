@@ -1,0 +1,224 @@
+.scroll-to-top-button {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(var(--bottom-tab-height, 0px) + 12px);
+  z-index: 14000;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: 1px solid rgba(200, 157, 86, .72);
+  border-radius: 50%;
+  color: #f0d7aa;
+  background: rgba(13, 13, 11, .9);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 240, 207, .08);
+  font-size: 20px;
+  line-height: 1;
+  opacity: .88;
+  cursor: pointer;
+}
+
+.scroll-to-top-button[hidden] { display: none !important; }
+.scroll-to-top-button:hover { color: #fff1d2; opacity: 1; transform: translateY(-1px); }
+
+@media (max-width: 1080px) {
+  body.mobile-primary-navigation { --mobile-primary-nav-height: 58px; }
+
+  body.mobile-primary-navigation #tab-header-bottom {
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scroll-snap-type: x proximity;
+  }
+
+  body.mobile-primary-navigation #tab-header-bottom > :where(.tab-btn, .mobile-nav-more) {
+    flex: 0 0 74px;
+    min-width: 74px !important;
+    min-height: 52px;
+    scroll-snap-align: start;
+  }
+
+  body.mobile-primary-navigation.mobile-tab-drawer-open #tab-header-main {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 220px;
+  }
+
+  body.mobile-primary-navigation #tab-header-main > .mobile-tab-drawer-head {
+    grid-column: 1 / -1;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-hud { margin-bottom: 4px !important; }
+
+  body.mobile-battle-tab #tab-battle .player-hud-shell {
+    grid-template-columns: minmax(92px, .9fr) minmax(118px, 1.4fr) auto !important;
+    gap: 3px !important;
+    width: 100%;
+    min-height: 36px;
+    aspect-ratio: auto !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-hud-shell::before,
+  body.mobile-battle-tab #tab-battle .player-health-frame::before {
+    content: none !important;
+    background-image: none !important;
+  }
+
+  body.mobile-battle-tab #tab-battle :is(.player-hud-left-wing, .player-hud-skill-rack) {
+    grid-row: 1 !important;
+    height: 36px !important;
+    margin: 0 !important;
+    padding: 3px 4px !important;
+    border-radius: 3px;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-hud-left-wing {
+    grid-column: 1 !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-content: center !important;
+    gap: 2px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-hud-left-wing .player-hud-identity-row {
+    display: flex !important;
+    gap: 0 4px !important;
+    flex-wrap: wrap;
+    overflow: hidden !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-hud-left-wing .player-hud-identity-row strong {
+    flex: 1 0 100%;
+    font-size: 10px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-hud-left-wing .player-hud-identity-row span {
+    flex: 0 1 auto;
+    font-size: 8px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-hud-flask-rack {
+    flex: none;
+    gap: 1px;
+    width: auto !important;
+    height: 18px !important;
+    padding: 0 !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-hud-flask-rack .combat-flask-mini {
+    flex-basis: 16px !important;
+    width: 16px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    min-height: 16px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-health-frame {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    align-self: stretch;
+    width: 100% !important;
+    min-width: 0;
+    height: 36px !important;
+    min-height: 36px !important;
+    aspect-ratio: auto !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(112, 82, 48, .58) !important;
+    border-radius: 3px;
+    background: rgba(7, 9, 7, .94) !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-health-frame .player-hud-vitals {
+    position: static !important;
+    display: block !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-health-frame .combat-hp-bar {
+    position: absolute !important;
+    inset: 4px 4px auto !important;
+    width: auto !important;
+    height: 22px !important;
+    min-height: 22px !important;
+    margin: 0 !important;
+    border-radius: 3px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-health-frame .combat-hp-bar .hp-text {
+    font-size: 10px !important;
+    line-height: 22px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-health-frame .combat-es-text,
+  body.mobile-battle-tab #tab-battle .player-health-frame .player-exp-percent { display: none !important; }
+
+  body.mobile-battle-tab #tab-battle .player-health-frame .combat-exp-bar {
+    position: absolute !important;
+    inset: auto 4px 3px !important;
+    width: auto !important;
+    height: 3px !important;
+    min-height: 3px !important;
+    border-radius: 2px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-hud-skill-rack {
+    grid-column: 3 !important;
+    width: auto;
+    max-width: 50px;
+  }
+
+  body.mobile-battle-tab #tab-battle .player-hud-skill-slots { min-height: 22px !important; }
+  body.mobile-battle-tab #tab-battle .player-hud-skill-slot {
+    flex-basis: 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed {
+    min-height: 230px !important;
+    height: clamp(230px, 34svh, 360px) !important;
+    max-height: 360px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed.collapsed {
+    min-height: 230px !important;
+    height: clamp(230px, 34svh, 360px) !important;
+    max-height: 360px !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed-title {
+    min-height: 25px;
+    justify-content: flex-start;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed-title::before {
+    content: '전투 로그';
+    color: #ead8b8;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed-title > :where(.ui-context-dock-tab, .combat-log-toggle) {
+    display: none !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed #log,
+  body.mobile-battle-tab #tab-battle .combat-feed.collapsed #log {
+    display: block !important;
+    flex: 1 1 auto;
+    max-height: none !important;
+    overflow-y: auto !important;
+  }
+
+  body.mobile-battle-tab #tab-battle .combat-feed.collapsed #log > div { display: block !important; }
+}
+
+@media (max-width: 360px) {
+  body.mobile-battle-tab #tab-battle .player-hud-shell {
+    grid-template-columns: minmax(82px, .85fr) minmax(106px, 1.35fr) auto !important;
+  }
+  body.mobile-battle-tab #tab-battle .player-hud-skill-rack { max-width: 44px; }
+}
