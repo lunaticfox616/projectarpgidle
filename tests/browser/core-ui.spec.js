@@ -418,6 +418,21 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
         });
     });
     expect(pruningNodesStayInTree).toBe(true);
+    const pruningNode = page.locator('.pruning-node:not(:disabled)').first();
+    await pruningNode.hover();
+    const pruningCenterBeforePress = await pruningNode.evaluate(node => {
+        const rect = node.getBoundingClientRect();
+        return { x:rect.left + rect.width / 2, y:rect.top + rect.height / 2 };
+    });
+    await page.mouse.down();
+    const pruningCenterWhilePressed = await pruningNode.evaluate(node => {
+        const rect = node.getBoundingClientRect();
+        return { x:rect.left + rect.width / 2, y:rect.top + rect.height / 2 };
+    });
+    await page.mouse.move(0, 0);
+    await page.mouse.up();
+    expect(Math.abs(pruningCenterWhilePressed.x - pruningCenterBeforePress.x)).toBeLessThanOrEqual(.5);
+    expect(Math.abs(pruningCenterWhilePressed.y - pruningCenterBeforePress.y)).toBeLessThanOrEqual(.5);
     await expect(page.locator('.pruning-choice-panel')).toHaveCSS('position', 'sticky');
     const pruningActionOffsets = async () => page.locator('.pruning-choice-panel').evaluate(panel => {
         const panelRect = panel.getBoundingClientRect();
@@ -608,14 +623,23 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     await page.evaluate(ids => {
         const savedSword = game.equipment['무기'];
         const bossSword = game.inventory.find(item => item.id === ids.bossSwordId);
+        const copiedSword = JSON.parse(JSON.stringify(savedSword));
+        copiedSword.id = Math.max(ids.swordId, ids.helmetId, ids.bossSwordId) + 1000;
         game.equipment['무기'] = bossSword;
-        game.inventory = [savedSword];
+        game.inventory = [savedSword, copiedSword];
         selectForCrafting('무기', true);
         updateStaticUI();
     }, initial);
     await expect(panel.locator('.equipment-preset-slot').first()).not.toContainText('현재 적용');
     await expect(page.locator('#ui-inventory-list .equipment-preset-protected')).toHaveText('세팅 보호');
-    await expect(page.locator('#ui-inventory-list .equipment-card-danger')).toBeDisabled();
+    await expect(page.locator('#ui-inventory-list .equipment-card-danger:disabled')).toHaveCount(1);
+    const mobileInventoryButton = page.locator('#btn-equipment-mobile-inventory');
+    if (await mobileInventoryButton.isVisible()) await mobileInventoryButton.click();
+    const sameNameSalvage = page.locator('#ui-inventory-list .equipment-card-danger:not(:disabled)');
+    await expect(sameNameSalvage).toHaveCount(1);
+    await sameNameSalvage.click();
+    await expect(page.locator('#ui-inventory-list .equipment-item-card')).toHaveCount(1);
+    if (await mobileLoadoutButton.isVisible()) await mobileLoadoutButton.click();
     await panel.getByRole('button', { name: '세팅 불러오기' }).click();
 
     const applied = await page.evaluate(ids => ({
@@ -763,6 +787,33 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
         await page.evaluate(id => switchMapExploreSubtab(id), panelId);
         await expect(page.locator(`#${panelId}`)).toHaveClass(/active/);
     }
+    expect(failures).toEqual([]);
+});
+
+test('ascension trials visibly distinguish completed and pending clears', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.maxZoneId = 20;
+        game.unlocks.map = true;
+        game.completedTrials = ['trial_1'];
+        game.unlockedTrials = ['trial_1', 'trial_2'];
+        switchTab('tab-map');
+        switchMapSubtab('map-tab-zones');
+        switchMapExploreSubtab('map-explore-trials');
+        updateStaticUI();
+    });
+    const completed = page.locator('[data-trial-id="trial_1"]');
+    const pending = page.locator('[data-trial-id="trial_2"]');
+    await expect(completed).toHaveClass(/trial-completed/);
+    await expect(pending).toHaveClass(/trial-pending/);
+    await expect(completed.locator('.trial-state-badge')).toHaveText('완료');
+    await expect(pending.locator('.trial-state-badge')).toHaveText('미완료');
+    const colors = await page.evaluate(() => ['trial_1', 'trial_2'].map(id => {
+        let style = getComputedStyle(document.querySelector(`[data-trial-id="${id}"]`));
+        return { border:style.borderColor, color:style.color, background:style.backgroundImage };
+    }));
+    expect(colors[0]).not.toEqual(colors[1]);
     expect(failures).toEqual([]);
 });
 
@@ -1685,6 +1736,21 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
     expect(layout.one).toMatchObject({ slots: 1, visible: '1' });
     expect(layout.three).toMatchObject({ slots: 3, visible: '3' });
     expect(Math.abs(layout.three.hpLeft - layout.one.hpLeft)).toBeLessThanOrEqual(1);
+    const combatFlask = page.locator('.player-hud-flask-rack .combat-flask-mini:not(:disabled)').first();
+    await combatFlask.hover();
+    const flaskCenterBeforePress = await combatFlask.evaluate(button => {
+        const rect = button.getBoundingClientRect();
+        return { x:rect.left + rect.width / 2, y:rect.top + rect.height / 2 };
+    });
+    await page.mouse.down();
+    const flaskCenterWhilePressed = await combatFlask.evaluate(button => {
+        const rect = button.getBoundingClientRect();
+        return { x:rect.left + rect.width / 2, y:rect.top + rect.height / 2 };
+    });
+    await page.mouse.move(0, 0);
+    await page.mouse.up();
+    expect(Math.abs(flaskCenterWhilePressed.x - flaskCenterBeforePress.x)).toBeLessThanOrEqual(.5);
+    expect(Math.abs(flaskCenterWhilePressed.y - flaskCenterBeforePress.y)).toBeLessThanOrEqual(.5);
     const vitalsChrome = await page.evaluate(() => {
         let frame = getComputedStyle(document.querySelector('.player-health-frame'));
         let ornament = getComputedStyle(document.querySelector('.player-hud-shell'), '::before');
@@ -2050,6 +2116,44 @@ test('public profile separates the growth board from equipped gear', async ({ pa
     await expect(modal.locator('.social-growth-cell[data-growth="0"]')).toHaveCount(2);
     await modal.locator('.social-growth-cell[data-growth="0"]').first().hover();
     await expect(page.locator('#social-tooltip')).toContainText('황혼의 해바라기');
+    expect(failures).toEqual([]);
+});
+
+test('growth layout changes publish the latest occupied cells to the public profile', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const uploads = [];
+    await page.route('https://**/rest/v1/player_profiles**', async route => {
+        if (route.request().method() === 'POST') uploads.push(route.request().postDataJSON());
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    });
+    const expected = await page.evaluate(() => {
+        cloudState.user = { id: 'growth-profile-sync-user' };
+        cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
+        setMyNicknameLocal('배치동기화');
+        game.season = 60;
+        let board = ensureGrowthBoardState();
+        board.unlockedCellCount = GROWTH_BOARD_W * GROWTH_BOARD_H;
+        board.activeLoadout = 0;
+        board.loadouts[0].placements = {};
+        let base = GROWTH_BASE_DB.find(row => row.shapeId === 'domino2');
+        let item = createGrowthItemFromBase(base, 'rare', 20);
+        game.growthInventory = [item];
+        selectGrowthItem(item.id, 'inventory');
+        handleGrowthCellClick(2, 1);
+        selectGrowthItem(item.id, 'board');
+        rotateGrowthSelection();
+        return { name:item.name, cells:getPlacedGrowthEntries()[0].cells };
+    });
+    expect(expected.cells).toEqual([[2, 1], [2, 2]]);
+    await expect.poll(() => uploads.length).toBe(1);
+    await page.waitForTimeout(900);
+    expect(uploads).toHaveLength(1);
+    const snapshot = uploads[0].profile_data;
+    expect(snapshot.growthItems).toHaveLength(1);
+    expect(snapshot.growthItems[0].name).toBe(expected.name);
+    expect(snapshot.growthItems[0].rotation).toBe(1);
+    expect(snapshot.growthItems[0].cells).toEqual(expected.cells);
     expect(failures).toEqual([]);
 });
 

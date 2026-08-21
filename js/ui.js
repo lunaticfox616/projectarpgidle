@@ -188,12 +188,13 @@ function buildTrialMapItemHtml(trial) {
     let isCompleted = game.completedTrials.includes(trial.id);
     let needsTicket = isCompleted && (trial.id === 'trial_3' || trial.id === 'trial_4');
     let hasTicket = (game.currencies.trialKey3 || 0) > 0;
-    let cls = isCompleted ? '' : (isCurrent ? 'current' : 'trial');
+    let cls = `${isCompleted ? 'trial-completed' : 'trial-pending'}${isCurrent ? ' current' : ''}`;
     let action = (isCompleted && needsTicket) ? `enterTrialWithTicket('${trial.id}')` : `changeZone('${trial.id}')`;
     let repeatGemChance = typeof getTrialSkillGemRewardChance === 'function' ? getTrialSkillGemRewardChance(trial, false) : 0;
     let repeatReward = repeatGemChance >= 1 ? '젬 확정' : `젬 ${Math.round(repeatGemChance * 100)}%`;
     let status = isCompleted ? (needsTicket ? `재도전권 ${game.currencies.trialKey3 || 0} · ${repeatReward}` : `무료 재도전 · ${repeatReward}`) : '도전하기';
-    return `<div class="map-item ${cls}" ${(isCompleted && needsTicket && !hasTicket) ? '' : `onclick="${action}"`}><span>${trial.name} ${isCompleted ? '(완료)' : ''}<br><span class="map-zone-status">${trial.trialDesc || '수호자와 함정을 돌파하세요'}</span><br>${buildMapPowerEstimateHtml(trial)}</span><span style="font-size:0.8em; font-weight:normal;">${isCompleted ? status : `첫 클리어 보상 · ${status}`}</span></div>`;
+    let state = isCompleted ? '완료' : '미완료';
+    return `<div class="map-item ${cls}" data-trial-id="${trial.id}" ${(isCompleted && needsTicket && !hasTicket) ? '' : `onclick="${action}"`}><span>${trial.name}<br><span class="map-zone-status">${trial.trialDesc || '수호자와 함정을 돌파하세요'}</span><br>${buildMapPowerEstimateHtml(trial)}</span><span class="trial-card-meta"><span class="trial-state-badge">${state}</span><span>${isCompleted ? status : `첫 클리어 보상 · ${status}`}</span></span></div>`;
 }
 
 safeExposeGlobals({ showMapPowerEstimateTooltip });

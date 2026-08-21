@@ -39,13 +39,46 @@ function normalizeEquipmentLoadoutPreset(preset, index) {
     return { name, slots, savedAtLoop: Math.max(1, Math.floor(Number(preset.savedAtLoop) || 1)) };
 }
 
+function getEquipmentLoadoutOwnedItems(targetGame) {
+    return Array.from(new Set((targetGame.inventory || []).concat(Object.values(targetGame.equipment || {}).filter(Boolean))));
+}
+
+function repairEquipmentLoadoutDuplicateIdentities(targetGame, presets) {
+    let savedRows = presets.flatMap(preset => preset
+        ? EQUIPMENT_LOADOUT_SLOT_KEYS.map(slot => preset.slots[slot]).filter(Boolean)
+        : []);
+    let groups = new Map();
+    getEquipmentLoadoutOwnedItems(targetGame).forEach(item => {
+        let identity = getEquipmentLoadoutItemIdentity(item);
+        if (!identity) return;
+        let group = groups.get(identity) || [];
+        group.push(item);
+        groups.set(identity, group);
+    });
+    groups.forEach((items, identity) => {
+        if (items.length < 2) return;
+        let savedForIdentity = savedRows.filter(row => getEquipmentLoadoutSavedIdentity(row) === identity);
+        let keeper = items.find(item => savedForIdentity.some(row => Number(row.id) === Number(item.id))) || items[0];
+        items.forEach(item => {
+            if (item === keeper) return;
+            item.instanceId = null;
+            let replacement = ensureEquipmentLoadoutItemIdentity(item);
+            let itemIdIsUnique = items.filter(candidate => Number(candidate.id) === Number(item.id)).length === 1;
+            savedForIdentity.forEach(row => {
+                if (itemIdIsUnique && Number(row.id) === Number(item.id)) row.instanceId = replacement;
+            });
+        });
+    });
+}
+
 function ensureEquipmentLoadoutState(targetGame = game) {
     let source = targetGame.equipmentLoadouts && typeof targetGame.equipmentLoadouts === 'object'
         ? targetGame.equipmentLoadouts : {};
     let presets = Array.from({ length: EQUIPMENT_LOADOUT_PRESET_LIMIT }, (_, index) =>
         normalizeEquipmentLoadoutPreset((Array.isArray(source.presets) ? source.presets : [])[index], index));
+    repairEquipmentLoadoutDuplicateIdentities(targetGame, presets);
     if (Math.floor(Number(source.identityVersion) || 0) < EQUIPMENT_LOADOUT_IDENTITY_VERSION) {
-        let owned = (targetGame.inventory || []).concat(Object.values(targetGame.equipment || {}).filter(Boolean));
+        let owned = getEquipmentLoadoutOwnedItems(targetGame);
         presets.forEach(preset => {
             if (!preset) return;
             EQUIPMENT_LOADOUT_SLOT_KEYS.forEach(slot => {
@@ -73,8 +106,7 @@ function getEquipmentLoadoutOwnedIndex(targetGame = game) {
         if (items.has(identity)) duplicateIdentity = identity;
         items.set(identity, item);
     };
-    (targetGame.inventory || []).forEach(add);
-    Object.values(targetGame.equipment || {}).forEach(add);
+    getEquipmentLoadoutOwnedItems(targetGame).forEach(add);
     return { items, duplicateIdentity };
 }
 

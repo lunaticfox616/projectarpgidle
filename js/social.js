@@ -21,6 +21,7 @@ const SOCIAL_NICK_MAX = 16;
 const SOCIAL_SEND_MIN_INTERVAL_MS = 1500;
 const SOCIAL_SEND_MAX_PER_MIN = 12;
 const SOCIAL_MAX_ITEMS_PER_MSG = 3;
+const SOCIAL_PROFILE_SYNC_DELAY_MS = 700;
 const SOCIAL_HEARTBEAT_MS = 30000;
 const SOCIAL_ONLINE_WINDOW_S = 300;
 const SOCIAL_RECENT_WINDOW_S = 1800;
@@ -47,6 +48,8 @@ let socialState = {
     lastOnlineRenderKey: '',
     profileUploadPromise: null,
     profileUploadUserId: null,
+    profileSyncTimer: null,
+    profileBootSyncUserId: null,
     lastProfileUploadAt: 0,
     onlineSupported: true,
     pendingChatItems: [],
@@ -85,6 +88,7 @@ function syncSocialIdentityUser() {
     socialState.nicknameUserId = userId || null;
     socialState.identityCheckedUserId = null;
     socialState.identityCheckPromise = null;
+    socialState.profileBootSyncUserId = null;
     try {
         if (typeof localStorage !== 'undefined' && typeof localStorage.removeItem === 'function') localStorage.removeItem(SOCIAL_NICK_KEY);
     } catch (error) {
@@ -396,9 +400,33 @@ async function uploadPlayerProfile(options = {}) {
         }
     }
 }
+async function flushPlayerProfileQuiet() {
+    socialState.profileSyncTimer = null;
+    if (!socialCloudReady() || !getMyNickname()) return false;
+    let inFlight = socialState.profileUploadPromise;
+    if (inFlight) {
+        try { await inFlight; } catch (error) { console.warn('이전 공개 프로필 갱신 실패:', error); }
+    }
+    if (!socialCloudReady() || !getMyNickname()) return false;
+    return uploadPlayerProfile({ silent: true });
+}
 function syncPlayerProfileQuiet() {
-    if (!socialCloudReady() || !getMyNickname()) return;
-    Promise.resolve(uploadPlayerProfile({ silent: true })).catch(() => {});
+    if (!socialCloudReady() || !getMyNickname()) return false;
+    if (socialState.profileSyncTimer && typeof clearTimeout === 'function') clearTimeout(socialState.profileSyncTimer);
+    if (typeof setTimeout !== 'function') {
+        Promise.resolve(flushPlayerProfileQuiet()).catch(error => console.warn('공개 프로필 자동 갱신 실패:', error));
+        return true;
+    }
+    socialState.profileSyncTimer = setTimeout(() => {
+        Promise.resolve(flushPlayerProfileQuiet()).catch(error => console.warn('공개 프로필 자동 갱신 실패:', error));
+    }, SOCIAL_PROFILE_SYNC_DELAY_MS);
+    return true;
+}
+function syncInitialPlayerProfile() {
+    let userId = socialLoggedInUserId();
+    if (!userId || !getMyNickname() || socialState.profileBootSyncUserId === userId) return;
+    socialState.profileBootSyncUserId = userId;
+    syncPlayerProfileQuiet();
 }
 async function syncPlayerProfile() {
     if (!socialCloudReady()) return showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning');
@@ -674,11 +702,17 @@ function syncSocialBackgroundTasks() {
         return;
     }
     ensureSocialNotificationPolling();
-    if (getMyNickname()) ensureHeartbeat();
+    if (getMyNickname()) {
+        ensureHeartbeat();
+        syncInitialPlayerProfile();
+    }
     else stopHeartbeat();
     if (socialState.identityCheckedUserId !== socialLoggedInUserId()) {
         Promise.resolve(restoreNicknameFromServer()).then(nickname => {
-            if (nickname && socialCloudReady()) ensureHeartbeat();
+            if (nickname && socialCloudReady()) {
+                ensureHeartbeat();
+                syncInitialPlayerProfile();
+            }
         }).catch(error => console.warn('소셜 계정 정보 동기화 실패:', error));
     }
 }

@@ -13,7 +13,7 @@ body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-bt
   letter-spacing: 0.02em;
   font-size: 0.85em;
   box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
-  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
+  transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease, filter .08s ease;
   position: relative;
   overflow: hidden;
 }
@@ -24,7 +24,7 @@ body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-bt
   box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):active:not(:disabled) {
-  transform: translateY(1px);
+  filter: brightness(.9);
   box-shadow: 0 0 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.25);
 }
 body:not(.light-mode) button:disabled:not(.gem-engrave-option) {
