@@ -1,21 +1,21 @@
 .scroll-to-top-button {
   position: fixed;
-  right: max(12px, env(safe-area-inset-right));
-  bottom: calc(var(--bottom-tab-height, 0px) + 12px);
+  right: max(10px, env(safe-area-inset-right));
+  bottom: calc(var(--bottom-tab-height, 0px) + 10px);
   z-index: 14000;
   display: grid;
   place-items: center;
-  width: 38px;
-  min-width: 38px;
-  height: 38px;
-  min-height: 38px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
   padding: 0;
   border: 1px solid rgba(200, 157, 86, .72);
   border-radius: 50%;
   color: #f0d7aa;
   background: rgba(13, 13, 11, .9);
   box-shadow: 0 6px 18px rgba(0, 0, 0, .48), inset 0 1px rgba(255, 240, 207, .08);
-  font-size: 20px;
+  font-size: 16px;
   line-height: 1;
   opacity: .88;
   cursor: pointer;
@@ -23,6 +23,15 @@
 
 .scroll-to-top-button[hidden] { display: none !important; }
 .scroll-to-top-button:hover { color: #fff1d2; opacity: 1; transform: translateY(-1px); }
+
+@media (min-width: 1081px) {
+  .tab-content.scroll-top-host > .scroll-to-top-button {
+    position: absolute !important;
+    inset: auto 10px 10px auto !important;
+  }
+
+  body:not(.desktop-windowed-ui) .tab-content.scroll-top-host { position: relative; }
+}
 
 @media (max-width: 1080px) {
   body.mobile-primary-navigation { --mobile-primary-nav-height: 58px; }

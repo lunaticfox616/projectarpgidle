@@ -1672,34 +1672,52 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
     expect(failures).toEqual([]);
 });
 
-test('long scroll surfaces reveal a compact back-to-top control', async ({ page }) => {
+test('long tab scrolls reveal an in-tab back-to-top control but chat scrolls do not', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
-    await page.evaluate(() => {
-        const surface = document.createElement('div');
-        surface.id = 'scroll-top-test-surface';
-        surface.style.cssText = 'position:fixed;inset:20px;width:240px;height:180px;overflow:auto;z-index:12000;background:#111';
+    const scrollContext = await page.evaluate(() => {
+        switchTab('tab-settings');
+        const tab = document.getElementById('tab-settings');
+        const surface = tab.querySelector(':scope > .ui-window-body') || tab;
+        surface.dataset.scrollTopTestSurface = 'true';
+        surface.style.height = '180px';
+        surface.style.overflowY = 'auto';
         const content = document.createElement('div');
         content.style.height = '1400px';
         surface.appendChild(content);
-        document.body.appendChild(surface);
         surface.scrollTop = 760;
         surface.dispatchEvent(new Event('scroll'));
+        return { tabId:tab.id, surfaceClass:surface.className };
     });
+    expect(scrollContext.tabId).toBe('tab-settings');
     await expect(page.locator('.scroll-to-top-button')).toBeVisible();
-    await page.evaluate(() => {
-        document.getElementById('scroll-top-test-surface').style.display = 'none';
-        document.body.dispatchEvent(new MouseEvent('click', { bubbles:true }));
-    });
+    expect(await page.locator('.scroll-to-top-button').evaluate(button => button.closest('.tab-content').id)).toBe('tab-settings');
+    if (testInfo.project.name.startsWith('desktop')) {
+        const placement = await page.evaluate(() => {
+            const tabRect = document.getElementById('tab-settings').getBoundingClientRect();
+            const buttonRect = document.querySelector('.scroll-to-top-button').getBoundingClientRect();
+            return {
+                rightInset:tabRect.right - buttonRect.right,
+                bottomInset:tabRect.bottom - buttonRect.bottom
+            };
+        });
+        expect(placement.rightInset).toBeGreaterThanOrEqual(8);
+        expect(placement.rightInset).toBeLessThanOrEqual(12);
+        expect(placement.bottomInset).toBeGreaterThanOrEqual(8);
+        expect(placement.bottomInset).toBeLessThanOrEqual(12);
+    }
+    await page.locator('.scroll-to-top-button').click();
+    await expect.poll(() => page.locator('[data-scroll-top-test-surface="true"]').evaluate(element => element.scrollTop)).toBeLessThan(5);
     await expect(page.locator('.scroll-to-top-button')).toBeHidden();
     await page.evaluate(() => {
-        const surface = document.getElementById('scroll-top-test-surface');
-        surface.style.display = 'block';
-        surface.dispatchEvent(new Event('scroll'));
+        switchTab('tab-battle');
+        const log = document.getElementById('log');
+        const filler = document.createElement('div');
+        filler.style.height = '1400px';
+        log.appendChild(filler);
+        log.scrollTop = 760;
+        log.dispatchEvent(new Event('scroll'));
     });
-    await expect(page.locator('.scroll-to-top-button')).toBeVisible();
-    await page.locator('.scroll-to-top-button').click();
-    await expect.poll(() => page.locator('#scroll-top-test-surface').evaluate(element => element.scrollTop)).toBeLessThan(5);
     await expect(page.locator('.scroll-to-top-button')).toBeHidden();
     expect(failures).toEqual([]);
 });
