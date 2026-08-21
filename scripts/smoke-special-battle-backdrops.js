@@ -8,6 +8,7 @@ const assets = [
   'assets/background/ocean-depth-v1.webp',
   'assets/background/cosmos-v1.webp'
 ];
+const hideoutAsset = 'assets/hideout/root-sanctum-wood-v2.webp';
 
 function readLossyWebpDimensions(file) {
   const bytes = fs.readFileSync(file);
@@ -32,11 +33,19 @@ assets.forEach(file => {
   totalBytes += dimensions.bytes;
 });
 assert(totalBytes < 512 * 1024, 'the four special backdrops must stay below 512 KiB combined');
+const hideoutDimensions = readLossyWebpDimensions(hideoutAsset);
+assert.deepStrictEqual(
+  { width:hideoutDimensions.width, height:hideoutDimensions.height },
+  { width:1600, height:900 },
+  'the hideout backdrop must remain a 16:9 battlefield image'
+);
+assert(hideoutDimensions.bytes < 300 * 1024, 'the compressed hideout backdrop must stay below 300 KiB');
 
 const createdImages = [];
 let renderCount = 0;
 let now = 1000;
 let failNextImage = false;
+let hideoutActive = false;
 class FakeImage {
   constructor() { createdImages.push(this); }
   set src(value) {
@@ -57,6 +66,8 @@ const context = {
   Promise,
   Date: { now: () => now },
   battleAssets: { backdrops: {}, loadTicket: 1 },
+  game: {},
+  isHideoutActive: () => hideoutActive,
   isLocalFileProtocol: () => false,
   renderBattlefield: () => { renderCount += 1; },
   safeExposeGlobals(values) { Object.assign(context, values); }
@@ -66,6 +77,9 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync('js/battle-backdrops.js', 'utf8'), context, { filename:'js/battle-backdrops.js' });
 
 async function run() {
+  hideoutActive = true;
+  assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'act', id:0 }), 'bgHideout');
+  hideoutActive = false;
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'skyTower' }), 'bgSkyTower');
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'underworld' }), 'bgUnderworld');
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'oceanDepth' }), 'bgOceanDepth');
@@ -96,6 +110,9 @@ async function run() {
   const retried = await context.requestSpecialBattleBackdrop('bgOceanDepth');
   assert(retried && retried.resolvedSrc.endsWith('ocean-depth-v1.webp'), 'a temporary image failure becomes retryable');
   assert.strictEqual(createdImages.length, 3);
+  const hideoutLoaded = await context.requestSpecialBattleBackdrop('bgHideout');
+  assert.strictEqual(hideoutLoaded.resolvedSrc, hideoutAsset, 'the hideout battlefield must load its dedicated compressed backdrop');
+  assert.strictEqual(createdImages.length, 4);
 
   const eagerManifest = fs.readFileSync('js/passives.js', 'utf8');
   assets.forEach(file => assert(!eagerManifest.includes(file), `${file} must not return to the eager battle manifest`));

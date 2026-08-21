@@ -238,9 +238,81 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
 
     await page.evaluate(() => window.switchTab('tab-hideout'));
     await expect(page.locator('.hideout-scene')).toBeVisible();
-    await expect(page.locator('.hideout-cell')).toHaveCount(24);
+    await expect(page.locator('.hideout-cell')).toHaveCount(64);
+    await expect(page.locator('.hideout-cell.reserved')).toHaveCount(1);
     expect(await page.locator('.hideout-placed-decor').count()).toBeGreaterThanOrEqual(3);
-    await expect.poll(() => page.locator('.hideout-placed-decor img').first().evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+    await expect.poll(() => page.locator('.hideout-directional-art').first().evaluate(art => {
+        const image = getComputedStyle(art).backgroundImage;
+        return image.includes('/assets/hideout/decor/directions/') && image.includes('.webp');
+    })).toBe(true);
+    expect(await page.evaluate(() => {
+        const placement = ensureHideoutState(game).placements.find(row => row.decorId === 'stash');
+        return getHideoutDecorStyle(placement).includes("url('../assets/hideout/decor/directions/");
+    })).toBe(true);
+    const decorFitsFootprints = await page.evaluate(() => ensureHideoutState(game).placements.every(placement => {
+        const decor = document.querySelector(`.hideout-placed-decor[data-decor-id="${placement.decorId}"]`);
+        const cells = getHideoutPlacementCells(placement).map(cell => document.querySelector(`.hideout-cell[data-cell="${cell}"]`));
+        if (!decor || cells.some(cell => !cell)) return false;
+        const decorRect = decor.getBoundingClientRect();
+        const cellRects = cells.map(cell => cell.getBoundingClientRect());
+        const footprintRect = {
+            left:Math.min(...cellRects.map(rect => rect.left)),
+            right:Math.max(...cellRects.map(rect => rect.right)),
+            top:Math.min(...cellRects.map(rect => rect.top)),
+            bottom:Math.max(...cellRects.map(rect => rect.bottom))
+        };
+        return decorRect.left >= footprintRect.left - 1 && decorRect.right <= footprintRect.right + 1
+            && decorRect.top >= footprintRect.top - 1 && decorRect.bottom <= footprintRect.bottom + 1;
+    }));
+    expect(decorFitsFootprints).toBe(true);
+    expect(await page.locator('.hideout-library-card.placed .hideout-library-actions').count()).toBeGreaterThanOrEqual(3);
+    const stashDecor = page.locator('.hideout-placed-decor[data-decor-id="stash"]');
+    await stashDecor.hover();
+    await expect(stashDecor.locator('strong')).toContainText('장비 탭 열기');
+    await expect(page.locator('.hideout-cell.hover-target[data-occupied-decor="stash"]')).toHaveCount(2);
+    const directionalArtMatchesFootprints = await page.evaluate(() => ensureHideoutState(game).placements.every(placement => {
+        const decorDefinition = HIDEOUT_DECOR_DB.find(row => row.id === placement.decorId);
+        if (!decorDefinition || !decorDefinition.directionalAsset) return true;
+        const decor = document.querySelector(`.hideout-placed-decor[data-decor-id="${placement.decorId}"]`);
+        const art = decor && decor.querySelector('.hideout-directional-art');
+        if (!decor || !art) return false;
+        const decorRect = decor.getBoundingClientRect();
+        const artRect = art.getBoundingClientRect();
+        const spriteCell = getHideoutDecorSpriteCell(placement.rotation);
+        const expectedPosition = `${spriteCell.column * 100}% ${spriteCell.row * 100}%`;
+        const actualScale = artRect.width / decorRect.width;
+        return artRect.left >= decorRect.left - 1 && artRect.right <= decorRect.right + 1
+            && Math.abs(artRect.bottom - decorRect.bottom) <= 1
+            && Math.abs(actualScale - decorDefinition.renderScale) <= 0.02
+            && getComputedStyle(art).backgroundPosition === expectedPosition;
+    }));
+    expect(directionalArtMatchesFootprints).toBe(true);
+    const stashDirectionBefore = await stashDecor.locator('.hideout-directional-art')
+        .evaluate(art => getComputedStyle(art).backgroundPosition);
+    const editorDecorScales = await page.evaluate(() => {
+        const tileWidth = document.querySelector('.hideout-cell').getBoundingClientRect().width;
+        return Object.fromEntries(Array.from(document.querySelectorAll('.hideout-placed-decor'), decor => {
+            const art = decor.querySelector('.hideout-directional-art');
+            return [decor.dataset.decorId, art ? art.getBoundingClientRect().width / tileWidth : 0];
+        }));
+    });
+    const stashBefore = await page.evaluate(() => {
+        const placement = ensureHideoutState(game).placements.find(row => row.decorId === 'stash');
+        return { rotation:placement.rotation, cells:getHideoutPlacementCells(placement) };
+    });
+    await stashDecor.locator('button', { hasText:'회전' }).click();
+    const stashAfter = await page.evaluate(() => {
+        const placement = ensureHideoutState(game).placements.find(row => row.decorId === 'stash');
+        return { rotation:placement.rotation, cells:getHideoutPlacementCells(placement) };
+    });
+    expect(stashAfter.rotation).toBe((stashBefore.rotation + 1) % 4);
+    expect(stashAfter.cells).not.toEqual(stashBefore.cells);
+    const stashDirectionAfter = await stashDecor.locator('.hideout-directional-art')
+        .evaluate(art => getComputedStyle(art).backgroundPosition);
+    expect(stashDirectionAfter).not.toBe(stashDirectionBefore);
+    await page.locator('.hideout-placed-decor[data-decor-id="stash"]').click();
+    await expect(page.locator('#tab-items')).toHaveClass(/active/);
+    await page.evaluate(() => window.switchTab('tab-hideout'));
     const hideoutNodeStable = await page.evaluate(() => {
         const before = document.querySelector('.hideout-placed-decor');
         updateStaticUI();
@@ -250,6 +322,63 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
     const hideoutBounds = await page.locator('.hideout-layout').boundingBox();
     const viewport = page.viewportSize();
     expect(hideoutBounds.x + hideoutBounds.width).toBeLessThanOrEqual(viewport.width + 1);
+
+    await page.evaluate(() => {
+        game.settings.townReturnAction = 'hideout';
+        game.settings.mapCompleteAction = 'stop';
+        game.combatHalted = false;
+        returnToTown();
+        game.moveTimer = 0.01;
+        coreLoop();
+        updateCombatUI(getPlayerStats());
+        renderBattlefield(true);
+    });
+    await expect.poll(() => page.evaluate(() => isHideoutActive(game))).toBe(true);
+    await page.evaluate(() => window.switchTab('tab-battle'));
+    await expect(page.locator('#ui-combat-zone')).toHaveText('뿌리 성소 · 은신처');
+    await expect(page.locator('#ui-progress-label')).toContainText('은신처');
+    await expect(page.locator('#ui-move-time-text')).toHaveText('휴식 중');
+    await expect(page.locator('#btn-combat-return')).toHaveText('전투 재개');
+    await expect(page.locator('#ui-battlefield-caption')).toHaveText('휴식 중');
+    await expect(page.locator('#ui-bounty-box')).toBeHidden();
+    await expect(page.locator('#ui-goal-drawer')).toBeHidden();
+    await expect(page.locator('#enemy-area')).toBeHidden();
+    const idleSnapshot = await page.evaluate(() => ({ progress:game.runProgress, enemies:game.enemies.length }));
+    await page.waitForTimeout(250);
+    expect(await page.evaluate(() => ({ progress:game.runProgress, enemies:game.enemies.length }))).toEqual(idleSnapshot);
+    const stashHitbox = await page.evaluate(() => {
+        renderBattlefield(true);
+        const hitbox = battleVisualState.hideoutDecorHitboxes.find(row => row.decor.id === 'stash');
+        const canvas = document.getElementById('battlefield-canvas').getBoundingClientRect();
+        return hitbox ? { x:canvas.left + hitbox.x + hitbox.width / 2, y:canvas.top + hitbox.y + hitbox.height / 2 } : null;
+    });
+    expect(stashHitbox).not.toBeNull();
+    const battleDecorScales = await page.evaluate(() => {
+        const canvas = document.getElementById('battlefield-canvas').getBoundingClientRect();
+        const tileWidth = Math.min(canvas.width * 0.115, canvas.height * 0.185);
+        return Object.fromEntries(battleVisualState.hideoutDecorHitboxes.map(hitbox => [
+            hitbox.decor.id, hitbox.width / tileWidth
+        ]));
+    });
+    Object.entries(editorDecorScales).forEach(([decorId, editorScale]) => {
+        expect(Math.abs(battleDecorScales[decorId] - editorScale)).toBeLessThan(0.01);
+    });
+    await page.evaluate(point => {
+        document.getElementById('battlefield-canvas').dispatchEvent(new PointerEvent('pointermove', {
+            bubbles:true, clientX:point.x, clientY:point.y
+        }));
+    }, stashHitbox);
+    await expect(page.locator('#ui-battlefield-caption')).toContainText('장비 탭 열기');
+    await page.evaluate(point => {
+        document.getElementById('battlefield-canvas').dispatchEvent(new MouseEvent('click', {
+            bubbles:true, clientX:point.x, clientY:point.y
+        }));
+    }, stashHitbox);
+    await expect(page.locator('#tab-items')).toHaveClass(/active/);
+    await page.evaluate(() => window.switchTab('tab-battle'));
+    await page.evaluate(() => returnToTown());
+    await expect.poll(() => page.evaluate(() => isHideoutActive(game))).toBe(false);
+    await expect(page.locator('#btn-combat-return')).toHaveText('귀환');
 
     await page.evaluate(() => window.switchTab('tab-season'));
     await dismissVisibleTutorials(page);
@@ -1188,7 +1317,7 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
     expect(failures).toEqual([]);
 });
 
-test('equipment hall shows server appraisal, ownership rules, and rankings', async ({ page }) => {
+test('equipment hall shows server appraisal and ownership rules', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.route('https://**/rest/v1/rpc/get_player_hall', route => route.fulfill({
@@ -1196,10 +1325,7 @@ test('equipment hall shows server appraisal, ownership rules, and rankings', asy
             listings: [{ id: 41, curatorName: '상대', score: 9180, price: 620, honorPerCopy: 4,
                 copiesSold: 2, copyCap: 5, isMine: false, alreadyCollected: false,
                 item: { id: 9100000000041, name: '서릿빛 검', baseId: 'rusted_blade', slot: '무기', rarity: 'rare', hiddenTier: 15, stats: [{ id: 'flatDmg', val: 18 }] } }],
-            mine: [],
-            honor: 19, copiesShared: 6, collectionCount: 3,
-            loopRanking: [{ nickname: '순환자', loop_count: 17, dps: 88000, ascend_class: '검투사', active_skill: '연속 베기' }],
-            dpsRanking: [{ nickname: '화력왕', loop_count: 12, dps: 123456, ascend_class: '원소술사', active_skill: '유성 낙화' }]
+            mine: [], honor: 19, copiesShared: 6, collectionCount: 3
         })
     }));
     await page.evaluate(() => {
@@ -1228,16 +1354,7 @@ test('equipment hall shows server appraisal, ownership rules, and rankings', asy
     await expect(page.locator('#map-player-hall')).toContainText('명예 19');
     await expect(page.getByRole('button', { name: '서버 감정 후 전시' })).toBeVisible();
 
-    await page.evaluate(() => {
-        switchTab('tab-map');
-        switchMapSubtab('map-tab-pvp');
-    });
-    await page.getByRole('button', { name: '루프·DPS 순위' }).click();
-    await expect(page.locator('#map-player-ranking')).toContainText('17 루프');
-    await expect(page.locator('#map-player-ranking')).toContainText('123,456');
-    const viewportWidth = await page.evaluate(() => document.documentElement.clientWidth);
-    const rightEdge = await page.locator('#map-tab-pvp').evaluate(element => element.getBoundingClientRect().right);
-    expect(rightEdge).toBeLessThanOrEqual(viewportWidth + 1);
+    await expect(page.locator('#map-player-ranking')).toHaveCount(0);
     expect(failures).toEqual([]);
 });
 
@@ -1282,7 +1399,7 @@ test('boss trait ticker keeps its DOM and animation position across combat UI up
     expect(failures).toEqual([]);
 });
 
-test('mobile primary navigation keeps core tabs reachable and secondary tabs in a stable drawer', async ({ page }, testInfo) => {
+test('mobile navigation exposes all game tabs in a horizontal rail and keeps only misc controls grouped', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile navigation assertion');
     const failures = watchRuntimeFailures(page);
     await page.setViewportSize({ width: 393, height: 852 });
@@ -1305,7 +1422,7 @@ test('mobile primary navigation keeps core tabs reachable and secondary tabs in 
     await expect(drawer).toBeHidden();
     await expect(page.locator('#btn-mobile-nav-more')).toHaveAttribute('aria-expanded', 'false');
     const parentIds = await page.evaluate(() => Object.fromEntries(
-        ['btn-tab-battle', 'btn-tab-character', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-tab-settings']
+        ['btn-tab-battle', 'btn-tab-character', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker']
             .map(id => [id, document.getElementById(id).parentElement.id])
     ));
     expect(parentIds).toEqual({
@@ -1314,11 +1431,20 @@ test('mobile primary navigation keeps core tabs reachable and secondary tabs in 
         'btn-tab-items': 'tab-header-bottom',
         'btn-tab-skills': 'tab-header-bottom',
         'btn-tab-map': 'tab-header-bottom',
-        'btn-tab-settings': 'tab-header-main'
+        'btn-tab-social': 'tab-header-bottom',
+        'btn-tab-settings': 'tab-header-main',
+        'btn-map-complete-action-picker': 'tab-header-main'
     });
-    expect(await bottom.locator(':scope > :visible').evaluateAll(elements => elements.map(element => element.id))).toEqual([
-        'btn-tab-battle', 'btn-tab-character', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-mobile-nav-more'
-    ]);
+    const railState = await bottom.evaluate(element => ({
+        ids: Array.from(element.children).filter(child => getComputedStyle(child).display !== 'none').map(child => child.id),
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth
+    }));
+    expect(railState.ids).toEqual(expect.arrayContaining([
+        'btn-tab-battle', 'btn-tab-character', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-tab-social', 'btn-mobile-nav-more'
+    ]));
+    expect(railState.ids.length).toBeGreaterThanOrEqual(10);
+    expect(railState.scrollWidth).toBeGreaterThan(railState.clientWidth);
 
     await page.evaluate(() => presentGoalDrawer({
         id: 'mobile-nav-goal', title: '혼돈 심화 41층 돌파', current: 12, target: 41,
@@ -1326,6 +1452,7 @@ test('mobile primary navigation keeps core tabs reachable and secondary tabs in 
     }));
     await expect(page.locator('#ui-goal-toggle')).toBeHidden();
     await expect(page.locator('#btn-combat-goal-toggle')).toBeVisible();
+    await expect(page.locator('#btn-mobile-nav-goal')).toHaveCount(0);
     await page.locator('#btn-combat-goal-toggle').click();
     await expect(page.locator('#ui-goal-drawer')).toHaveClass(/expanded/);
     const goalSheetGeometry = await page.evaluate(() => {
@@ -1344,15 +1471,10 @@ test('mobile primary navigation keeps core tabs reachable and secondary tabs in 
     await expect(drawer).toHaveAttribute('aria-hidden', 'false');
     await expect(drawer).toHaveAttribute('role', 'dialog');
     await expect(page.locator('#mobile-tab-drawer-backdrop')).toBeVisible();
-    expect(await drawer.locator(':scope > .tab-btn:visible').count()).toBeGreaterThanOrEqual(8);
-    expect((await drawer.boundingBox()).height).toBeGreaterThan(150);
-    await expect(page.locator('#btn-mobile-nav-goal')).toBeVisible();
-    await expect(page.locator('#btn-mobile-nav-goal')).toHaveClass(/mandatory/);
-    await page.locator('#btn-mobile-nav-goal').click();
-    await expect(body).not.toHaveClass(/mobile-tab-drawer-open/);
-    await expect(page.locator('#ui-goal-drawer')).toHaveClass(/expanded/);
-    await page.evaluate(() => toggleGoalDrawer(false));
-    await page.locator('#btn-mobile-nav-more').click();
+    expect(await drawer.locator(':scope > .tab-btn:visible').evaluateAll(elements => elements.map(element => element.id))).toEqual([
+        'btn-tab-settings', 'btn-map-complete-action-picker'
+    ]);
+    expect((await drawer.boundingBox()).height).toBeGreaterThan(70);
     expect(await page.locator('#btn-map-complete-action-picker').evaluate(element => {
         if (element.hidden || getComputedStyle(element).display === 'none') return true;
         const pseudo = getComputedStyle(element, '::before');
@@ -1368,8 +1490,8 @@ test('mobile primary navigation keeps core tabs reachable and secondary tabs in 
         game.noti.social = true;
         updateTabNotificationDots();
     });
-    await expect(page.locator('#btn-mobile-nav-more > .noti-dot')).toBeVisible();
     await expect(page.locator('#btn-mobile-nav-more')).toHaveClass(/active/);
+    await expect(page.locator('#noti-social')).toBeVisible();
 
     await page.evaluate(() => {
         game.settings.twoRowTabs = true;
@@ -1399,7 +1521,7 @@ test('mobile primary navigation keeps core tabs reachable and secondary tabs in 
     expect(geometry.left).toBeGreaterThanOrEqual(-1);
     expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth + 1);
     expect(geometry.bottom).toBeLessThanOrEqual(801);
-    expect(geometry.visibleButtons).toBe(6);
+    expect(geometry.visibleButtons).toBeGreaterThanOrEqual(10);
     expect(geometry.overflow).toBeLessThanOrEqual(1);
     expect(failures).toEqual([]);
 });
@@ -1435,7 +1557,6 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
             const hpText = document.querySelector('.player-health-frame .combat-hp-bar .hp-text');
             const hpTextRect = hpText.getBoundingClientRect();
             const expTrackRect = rect('.player-health-frame .combat-exp-bar');
-            const expCopyRect = rect('.player-health-frame .player-exp-percent');
             const progressGaugeRect = rect('.map-progress-gauge');
             const progressCopyRect = rect('.map-progress-gauge .hp-text');
             const identityRect = rect('.player-hud-identity-row');
@@ -1455,7 +1576,7 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
                 battlefieldWidth: battlefieldRect.width,
                 hpCopyContained: horizontallyContained(hpTextRect, hpTrackRect, 6),
                 hpCopyClipped: hpText.scrollWidth > hpText.clientWidth + 1,
-                expCopyContained: horizontallyContained(expCopyRect, expTrackRect),
+                expTrackHeight: expTrackRect.height,
                 progressCopyContained: horizontallyContained(progressCopyRect, progressGaugeRect, 16),
                 identityContained: horizontallyContained(identityRect, leftWingRect)
             };
@@ -1470,13 +1591,13 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
         expect(compactHud.playerHudWidth).toBeGreaterThanOrEqual(compactHud.battlefieldWidth - 1);
         expect(compactHud.hpCopyContained).toBe(true);
         expect(compactHud.hpCopyClipped).toBe(false);
-        expect(compactHud.expCopyContained).toBe(true);
+        expect(compactHud.expTrackHeight).toBeLessThanOrEqual(4);
         expect(compactHud.progressCopyContained).toBe(true);
         expect(compactHud.identityContained).toBe(true);
     }
     await expect(page.locator('.player-health-frame')).toBeVisible();
     const mobileHudAsset = await page.locator('.player-health-frame').evaluate(element => getComputedStyle(element, '::before').backgroundImage);
-    expect(mobileHudAsset).toContain('combat-hud-mobile-v1.png');
+    expect(mobileHudAsset).toBe('none');
     const effectGeometry = await page.evaluate(() => {
         let strip = document.getElementById('ui-player-ailments-under');
         strip.innerHTML = '<span class="combat-effect-icon" aria-hidden="true"></span>';
@@ -1488,12 +1609,42 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
         };
     });
     expect(effectGeometry.overlaps).toBe(false);
-    await expect(page.locator('#btn-combat-log-toggle')).toBeVisible();
-    await page.evaluate(() => {
-        let feed = document.querySelector('.combat-feed');
-        if (feed && feed.classList.contains('collapsed')) toggleCombatLogCollapse();
-    });
+    await expect(page.locator('#btn-combat-log-toggle')).toBeHidden();
+    await expect(page.locator('#btn-combat-chat-tab')).toBeHidden();
     await expect(page.locator('#log')).toBeVisible();
+    expect(await page.locator('.combat-feed').evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(229);
+    expect(failures).toEqual([]);
+});
+
+test('long scroll surfaces reveal a compact back-to-top control', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        const surface = document.createElement('div');
+        surface.id = 'scroll-top-test-surface';
+        surface.style.cssText = 'position:fixed;inset:20px;width:240px;height:180px;overflow:auto;z-index:12000;background:#111';
+        const content = document.createElement('div');
+        content.style.height = '1400px';
+        surface.appendChild(content);
+        document.body.appendChild(surface);
+        surface.scrollTop = 760;
+        surface.dispatchEvent(new Event('scroll'));
+    });
+    await expect(page.locator('.scroll-to-top-button')).toBeVisible();
+    await page.evaluate(() => {
+        document.getElementById('scroll-top-test-surface').style.display = 'none';
+        document.body.dispatchEvent(new MouseEvent('click', { bubbles:true }));
+    });
+    await expect(page.locator('.scroll-to-top-button')).toBeHidden();
+    await page.evaluate(() => {
+        const surface = document.getElementById('scroll-top-test-surface');
+        surface.style.display = 'block';
+        surface.dispatchEvent(new Event('scroll'));
+    });
+    await expect(page.locator('.scroll-to-top-button')).toBeVisible();
+    await page.locator('.scroll-to-top-button').click();
+    await expect.poll(() => page.locator('#scroll-top-test-surface').evaluate(element => element.scrollTop)).toBeLessThan(5);
+    await expect(page.locator('.scroll-to-top-button')).toBeHidden();
     expect(failures).toEqual([]);
 });
 
@@ -1558,6 +1709,7 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
         let flaskBody = getComputedStyle(firstFlask, '::before');
         let flaskNeck = getComputedStyle(firstFlask, '::after');
         return {
+            desktop,
             frameBackground: frame.backgroundColor,
             ornamentImage: ornament.backgroundImage,
             flaskContained: desktop
@@ -1586,13 +1738,15 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
             gemRackTitleCount: document.querySelectorAll('.player-hud-rack-title').length
         };
     });
-    expect(vitalsChrome.frameBackground).toBe('rgba(0, 0, 0, 0)');
-    expect(vitalsChrome.ornamentImage).toContain('combat-hud-frame-v1.png');
+    expect(vitalsChrome.frameBackground).toBe(vitalsChrome.desktop ? 'rgba(0, 0, 0, 0)' : 'rgba(7, 9, 7, 0.94)');
+    if (vitalsChrome.desktop) expect(vitalsChrome.ornamentImage).toContain('combat-hud-frame-v1.png');
+    else expect(vitalsChrome.ornamentImage).toBe('none');
     expect(vitalsChrome.flaskContained).toBe(true);
     expect(vitalsChrome.desktopFlaskDocked).toBe(true);
     expect(vitalsChrome.healthContained).toBe(true);
     expect(vitalsChrome.skillContained).toBe(true);
-    expect(vitalsChrome.expTrackHeight).toBeGreaterThanOrEqual(4);
+    if (vitalsChrome.desktop) expect(vitalsChrome.expTrackHeight).toBeGreaterThanOrEqual(4);
+    else expect(vitalsChrome.expTrackHeight).toBeLessThanOrEqual(4);
     expect(vitalsChrome.trackHeight).toBeLessThanOrEqual(50);
     expect(vitalsChrome.fillImage).toContain('linear-gradient');
     expect(vitalsChrome.fillImage).not.toContain('gauge-boss-hp-v1.png');

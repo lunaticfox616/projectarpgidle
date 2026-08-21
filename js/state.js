@@ -2295,7 +2295,7 @@ const defaultGame = {
         quest: { started: false, exploredNodeIds: [], rewarded: false }
     },
     pruningTree: { version: PRUNING_TREE_STATE_VERSION, unlocked: false, growthPoints: 0, nodeRanks: {}, prunedPenaltyRanks: {}, lastGrantedLoop: PRUNING_TREE_UNLOCK_LOOP - 1 },
-    hideout: { initialized: false, placements: [], selectedDecorId: null },
+    hideout: { gridVersion: HIDEOUT_GRID_VERSION, initialized: false, active: false, placements: [], selectedDecorId: null },
     clearedRootBosses: [],
     timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
     // 유틸리티 슬롯은 이제 허리띠(숨겨진 티어/고유 효과)가 결정하므로 기본은 회복 슬롯 1개뿐이다.

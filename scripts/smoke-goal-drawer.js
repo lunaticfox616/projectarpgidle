@@ -215,23 +215,19 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
     assert.deepStrictEqual(m.skillSubtabCalls, ['skill-tab-enhance'], '강화 세부 탭으로 이동한다');
 }
 
-// 8) 전투·모바일 메뉴의 목표 진입점은 같은 목표 상태와 펼침 상태를 공유한다.
+// 8) 모바일 목표 진입점은 전투 화면에만 있고 목표 상태와 펼침 상태를 공유한다.
 {
     const m = bootManager();
     const combatAccess = m.context.document.createElement('button');
     combatAccess.id = 'btn-combat-goal-toggle';
-    const menuAccess = m.context.document.createElement('button');
-    menuAccess.id = 'btn-mobile-nav-goal';
     m.exposed.presentGoalDrawer({ ...goal('g6'), mandatory: true });
     assert.strictEqual(combatAccess.hidden, false, '전투 목표 버튼 표시');
-    assert.strictEqual(menuAccess.hidden, false, '모바일 메뉴 목표 버튼 표시');
     assert.strictEqual(combatAccess.attrs['aria-expanded'], 'true', '자동 펼침 상태 동기화');
     assert(combatAccess.classList.contains('mandatory'), '필수 목표 강조 동기화');
     m.exposed.toggleGoalDrawer(false);
-    assert.strictEqual(menuAccess.attrs['aria-expanded'], 'false', '수납 상태 동기화');
+    assert.strictEqual(combatAccess.attrs['aria-expanded'], 'false', '수납 상태 동기화');
     m.exposed.presentGoalDrawer(null);
     assert.strictEqual(combatAccess.hidden, true, '목표가 없으면 진입점 숨김');
-    assert.strictEqual(menuAccess.hidden, true, '목표가 없으면 메뉴 진입점 숨김');
 }
 
 console.log('smoke-goal-drawer passed');

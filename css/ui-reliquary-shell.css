@@ -1815,18 +1815,8 @@ body:not(.light-mode) #tab-map .map-state-badge.recommended {
     gap: 5px;
   }
 
-  body.mobile-primary-navigation #btn-mobile-nav-goal[hidden] {
-    display: none !important;
-  }
-
-  body.mobile-primary-navigation #btn-mobile-nav-goal.mandatory {
-    border-color: #a97d41;
-    color: #f2d5a1;
-    box-shadow: inset 0 0 0 1px rgba(216, 174, 104, .1);
-  }
-
   /* The old collapsed goal handle covered combat and management content. Mobile
-     now enters goals from the battle feed or the full-menu header. */
+     now enters goals only from the battle feed. */
   body.mobile-primary-navigation .ui-goal-drawer:not(.expanded) {
     display: none !important;
   }
@@ -2408,8 +2398,7 @@ body:not(.light-mode) :where(
   .bulk-manager button,
   .inventory-expand-shortcut,
   .selection-overlay-panel button,
-  .player-exchange-card button,
-  .player-arena-tab
+  .player-exchange-card button
 ) {
   border-color: var(--skin-line) !important;
   color: var(--ui-text-2) !important;
@@ -2510,8 +2499,7 @@ body:not(.light-mode) .passive-search-panel button {
 body:not(.light-mode) :where(
   .equipment-mobile-switch button[aria-pressed="true"],
   .selection-overlay-option.selected,
-  .player-exchange-card button.active,
-  .player-arena-tab.active
+  .player-exchange-card button.active
 ) {
   border-color: var(--skin-line-strong) !important;
   color: #fff0d2 !important;
@@ -2520,7 +2508,6 @@ body:not(.light-mode) :where(
 }
 
 body:not(.light-mode) .equipment-preset-panel,
-body:not(.light-mode) .player-arena-tabs,
 body:not(.light-mode) .player-exchange-card,
 body:not(.light-mode) .time-rift-panel,
 body:not(.light-mode) .time-rift-altar,
@@ -2572,8 +2559,7 @@ body:not(.light-mode) .equipment-preset-actions button.primary {
   background: linear-gradient(180deg, var(--skin-accent-strong), #2a1c10) !important;
 }
 
-body:not(.light-mode) .player-exchange-card > header,
-body:not(.light-mode) .ranking-head {
+body:not(.light-mode) .player-exchange-card > header {
   border-color: var(--skin-line);
   background: color-mix(in srgb, var(--skin-panel-raised), var(--skin-accent) 5%);
 }

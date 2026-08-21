@@ -3959,7 +3959,9 @@ let battleVisualState = {
     advanceDesired: false,
     advanceChangedAt: 0,
     shrineHitbox: null,
-    shrineHovered: false
+    shrineHovered: false,
+    hideoutDecorHitboxes: [],
+    hideoutDecorHoveredId: null
 };
 const DEBUG_BATTLE_ANCHORS = false;
 const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92 };
@@ -5849,12 +5851,15 @@ function initBattleAssets() {
         summon1: 'assets/summon/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
+    HIDEOUT_DECOR_DB.forEach(decor => {
+        manifest[`hideoutDecor_${decor.id}`] = decor.directionalAsset || decor.asset;
+    });
     Object.keys(manifest).forEach(key => {
         if (key.startsWith('hero') && typeof manifest[key] === 'string' && manifest[key].startsWith('assets/playable/')) {
             manifest[key] += '?v=20260718-motion2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key === 'shrineInteractable'));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bg') || key.startsWith('hideoutDecor') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key === 'shrineInteractable'));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
@@ -5933,7 +5938,7 @@ function initBattleAssets() {
             if (key.startsWith('backdrop') || key.startsWith('bg')) {
                 battleAssets.backdrops[key] = image;
             } else {
-                let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
+                let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('hideoutDecor') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
                 battleAssets.images[key] = image;
                 if (!keepOriginalSheet) queueBattleSheetSanitization(key, image);
             }

@@ -10,6 +10,7 @@ const context = {
 };
 context.window = context;
 vm.createContext(context);
+vm.runInContext(fs.readFileSync('data/constants.js', 'utf8'), context);
 vm.runInContext(fs.readFileSync('data/endgame-progression.js', 'utf8'), context);
 vm.runInContext(fs.readFileSync('js/endgame-progression.js', 'utf8'), context);
 

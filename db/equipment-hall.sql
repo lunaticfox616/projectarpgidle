@@ -1,9 +1,14 @@
--- 장비 전당과 참고용 루프/DPS 랭킹.
+-- 장비 전당.
 -- db/cloud-and-playtest.sql, db/social.sql 실행 후 Supabase SQL Editor에서 한 번 실행한다.
 -- 전당 등록·구매·회수는 서버의 클라우드 저장을 잠그고 처리한다.
 -- 기존 PTP 거래가 설치되어 있으면 열린 장비와 미수령 판매금을 먼저 돌려준 뒤 테이블과 RPC를 제거한다.
+-- 기존 일일 루프/DPS 랭킹이 설치되어 있으면 관련 RPC와 데이터를 함께 제거한다.
 
 begin;
+
+drop function if exists public.get_player_hall();
+drop function if exists public.submit_player_ranking(bigint, bigint);
+drop table if exists public.player_rankings;
 
 do $$
 begin
@@ -108,37 +113,14 @@ create index if not exists hall_listing_curator_idx
 create index if not exists hall_purchase_buyer_idx
     on public.hall_purchases(buyer_id, purchased_at desc);
 
-create table if not exists public.player_rankings (
-    user_id uuid primary key references auth.users(id) on delete cascade,
-    nickname text not null,
-    loop_count integer not null check (loop_count between 1 and 100000),
-    dps bigint not null check (dps between 0 and 9000000000000000),
-    ascend_class text,
-    active_skill text,
-    save_revision bigint not null,
-    ranking_day date not null default ((now() at time zone 'Asia/Seoul')::date),
-    updated_at timestamptz not null default now()
-);
-
-alter table public.player_rankings add column if not exists ranking_day date;
-update public.player_rankings set ranking_day = (updated_at at time zone 'Asia/Seoul')::date where ranking_day is null;
-alter table public.player_rankings alter column ranking_day set not null;
-alter table public.player_rankings alter column ranking_day set default ((now() at time zone 'Asia/Seoul')::date);
-create index if not exists player_rankings_daily_loop_idx
-    on public.player_rankings(ranking_day, loop_count desc, dps desc, updated_at asc);
-create index if not exists player_rankings_daily_dps_idx
-    on public.player_rankings(ranking_day, dps desc, loop_count desc, updated_at asc);
-
 alter table public.hall_item_registry enable row level security;
 alter table public.hall_listings enable row level security;
 alter table public.hall_purchases enable row level security;
 alter table public.hall_curator_profiles enable row level security;
-alter table public.player_rankings enable row level security;
 revoke all on public.hall_item_registry from anon, authenticated;
 revoke all on public.hall_listings from anon, authenticated;
 revoke all on public.hall_purchases from anon, authenticated;
 revoke all on public.hall_curator_profiles from anon, authenticated;
-revoke all on public.player_rankings from anon, authenticated;
 
 create or replace function public.hall_inventory_limit(save_data jsonb)
 returns integer language sql immutable set search_path = public as $$
@@ -474,44 +456,10 @@ begin
 end;
 $$;
 
-create or replace function public.submit_player_ranking(p_dps bigint, p_expected_revision bigint)
-returns jsonb language plpgsql security definer set search_path = public as $$
-declare
-    account_id uuid := auth.uid();
-    save_row public.cloud_saves%rowtype;
-    profile_name text;
-    loop_value integer;
-    ranking_today date := (now() at time zone 'Asia/Seoul')::date;
-    affected_rows integer;
-begin
-    if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
-    if p_dps < 0 or p_dps > 9000000000000000 then raise exception 'RANKING_INVALID_DPS'; end if;
-    select * into save_row from public.cloud_saves where user_id = account_id;
-    if not found or save_row.revision <> greatest(0, p_expected_revision) then raise exception 'CLOUD_REVISION_CONFLICT'; end if;
-    loop_value := greatest(1, least(100000, coalesce(
-        case when jsonb_typeof(save_row.save_data -> 'season') = 'number'
-             then (save_row.save_data ->> 'season')::integer end, 1)));
-    select nickname into profile_name from public.player_profiles where user_id = account_id;
-    insert into public.player_rankings(user_id, nickname, loop_count, dps, ascend_class, active_skill, save_revision, ranking_day, updated_at)
-    values (account_id, left(coalesce(nullif(trim(profile_name), ''), '익명'), 24), loop_value, p_dps,
-        left(coalesce(save_row.save_data ->> 'ascendClass', ''), 32),
-        left(coalesce(save_row.save_data ->> 'activeSkill', ''), 48), save_row.revision, ranking_today, now())
-    on conflict (user_id) do update set nickname = excluded.nickname, loop_count = excluded.loop_count,
-        dps = excluded.dps, ascend_class = excluded.ascend_class, active_skill = excluded.active_skill,
-        save_revision = excluded.save_revision, ranking_day = excluded.ranking_day, updated_at = excluded.updated_at
-        where player_rankings.ranking_day < excluded.ranking_day;
-    get diagnostics affected_rows = row_count;
-    if affected_rows = 0 then raise exception 'RANKING_DAILY_LIMIT'; end if;
-    return jsonb_build_object('loopCount', loop_value, 'dps', p_dps,
-        'saveRevision', save_row.revision, 'rankingDay', ranking_today);
-end;
-$$;
-
 create or replace function public.get_player_hall()
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare
     account_id uuid := auth.uid();
-    ranking_today date := (now() at time zone 'Asia/Seoul')::date;
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     return jsonb_build_object(
@@ -534,18 +482,7 @@ begin
              order by listing.created_at desc limit 20) mine_rows), '[]'::jsonb),
         'honor', coalesce((select honor from public.hall_curator_profiles where user_id = account_id), 0),
         'copiesShared', coalesce((select copies_shared from public.hall_curator_profiles where user_id = account_id), 0),
-        'collectionCount', (select count(*) from public.hall_purchases where buyer_id = account_id),
-        'loopRanking', coalesce((select jsonb_agg(to_jsonb(ranked) - 'user_id') from (
-            select nickname, loop_count, dps, ascend_class, active_skill, updated_at
-              from public.player_rankings where ranking_day = ranking_today
-             order by loop_count desc, dps desc, updated_at asc limit 50) ranked), '[]'::jsonb),
-        'dpsRanking', coalesce((select jsonb_agg(to_jsonb(ranked) - 'user_id') from (
-            select nickname, loop_count, dps, ascend_class, active_skill, updated_at
-              from public.player_rankings where ranking_day = ranking_today
-             order by dps desc, loop_count desc, updated_at asc limit 50) ranked), '[]'::jsonb),
-        'rankingDay', ranking_today,
-        'rankingSubmittedToday', exists(select 1 from public.player_rankings
-            where user_id = account_id and ranking_day = ranking_today)
+        'collectionCount', (select count(*) from public.hall_purchases where buyer_id = account_id)
     );
 end;
 $$;
@@ -564,13 +501,11 @@ revoke all on function public.quote_hall_item(uuid, bigint) from public, anon;
 revoke all on function public.create_hall_listing(uuid, bigint) from public, anon;
 revoke all on function public.withdraw_hall_listing(bigint, bigint) from public, anon;
 revoke all on function public.buy_hall_replica(bigint, bigint) from public, anon;
-revoke all on function public.submit_player_ranking(bigint, bigint) from public, anon;
 revoke all on function public.get_player_hall() from public, anon;
 grant execute on function public.quote_hall_item(uuid, bigint) to authenticated;
 grant execute on function public.create_hall_listing(uuid, bigint) to authenticated;
 grant execute on function public.withdraw_hall_listing(bigint, bigint) to authenticated;
 grant execute on function public.buy_hall_replica(bigint, bigint) to authenticated;
-grant execute on function public.submit_player_ranking(bigint, bigint) to authenticated;
 grant execute on function public.get_player_hall() to authenticated;
 
 commit;

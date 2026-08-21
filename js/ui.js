@@ -1281,25 +1281,38 @@ function setupBattlefieldShrineInteraction() {
     if (!canvas || canvas.dataset.shrineInteractionBound === 'true') return;
     canvas.dataset.shrineInteractionBound = 'true';
     canvas.addEventListener('pointermove', event => {
-        let hovered = !!getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY);
-        battleVisualState.shrineHovered = hovered;
-        canvas.style.cursor = hovered ? 'pointer' : '';
+        let shrineHovered = !!getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY);
+        let hoveredDecor = typeof getHideoutDecorAtClientPosition === 'function'
+            ? getHideoutDecorAtClientPosition(canvas, event.clientX, event.clientY) : null;
+        battleVisualState.shrineHovered = shrineHovered;
+        battleVisualState.hideoutDecorHoveredId = hoveredDecor ? hoveredDecor.id : null;
+        canvas.style.cursor = shrineHovered || hoveredDecor ? 'pointer' : '';
     });
     canvas.addEventListener('pointerleave', () => {
         battleVisualState.shrineHovered = false;
+        battleVisualState.hideoutDecorHoveredId = null;
         canvas.style.cursor = '';
     });
     canvas.addEventListener('click', event => {
+        let decor = typeof getHideoutDecorAtClientPosition === 'function'
+            ? getHideoutDecorAtClientPosition(canvas, event.clientX, event.clientY) : null;
+        if (decor) {
+            event.preventDefault();
+            if (!activateHideoutDecor(decor.id)) openTabPane('tab-hideout');
+            return;
+        }
         if (!getBattlefieldShrineAtClientPosition(canvas, event.clientX, event.clientY)) return;
         event.preventDefault();
         claimBattlefieldShrine();
     });
 }
 
-const MOBILE_PRIMARY_TAB_IDS = Object.freeze([
-    'btn-tab-battle', 'btn-tab-character', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map'
-]);
+const MOBILE_MISC_CONTROL_IDS = Object.freeze(['btn-tab-settings', 'btn-map-complete-action-picker']);
 let mobileNavigationKeyBound = false;
+
+function isMobileMiscControlId(id) {
+    return MOBILE_MISC_CONTROL_IDS.includes(id);
+}
 
 function isMobilePrimaryNavigationEnabled() {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
@@ -1330,31 +1343,15 @@ function createMobileTabDrawerHead() {
     let head = document.createElement('div');
     head.className = 'mobile-tab-drawer-head';
     let title = document.createElement('strong');
-    title.textContent = '전체 메뉴';
+    title.textContent = '기타';
     let actions = document.createElement('span');
     actions.className = 'mobile-tab-drawer-actions';
-    let goal = document.createElement('button');
-    goal.id = 'btn-mobile-nav-goal';
-    goal.type = 'button';
-    goal.textContent = '목표';
-    goal.setAttribute('aria-controls', 'ui-goal-drawer');
-    let drawer = document.getElementById('ui-goal-drawer');
-    let goalTitle = document.getElementById('ui-goal-title');
-    let titleText = goalTitle ? goalTitle.textContent.trim() : '';
-    goal.hidden = !drawer || drawer.style.display === 'none' || !titleText;
-    goal.title = titleText ? `목표: ${titleText}` : '목표';
-    goal.classList.toggle('mandatory', !!(drawer && drawer.classList.contains('ui-goal-mandatory')));
-    goal.setAttribute('aria-expanded', drawer && drawer.classList.contains('expanded') ? 'true' : 'false');
-    goal.addEventListener('click', () => {
-        setMobileTabDrawerOpen(false);
-        if (typeof toggleGoalDrawer === 'function') toggleGoalDrawer(true);
-    });
     let close = document.createElement('button');
     close.type = 'button';
     close.textContent = '닫기';
-    close.setAttribute('aria-label', '전체 메뉴 닫기');
+    close.setAttribute('aria-label', '기타 메뉴 닫기');
     close.addEventListener('click', () => setMobileTabDrawerOpen(false));
-    actions.append(goal, close);
+    actions.append(close);
     head.append(title, actions);
     return head;
 }
@@ -1366,8 +1363,8 @@ function createMobileMoreButton() {
     button.className = 'mobile-nav-more';
     button.setAttribute('aria-controls', 'tab-header-main');
     button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', '전체 메뉴 열기');
-    button.innerHTML = '<span class="mobile-nav-more-icon" aria-hidden="true"></span><span>메뉴</span><span class="noti-dot"></span>';
+    button.setAttribute('aria-label', '기타 메뉴 열기');
+    button.innerHTML = '<span class="mobile-nav-more-icon" aria-hidden="true"></span><span>기타</span><span class="noti-dot"></span>';
     button.addEventListener('click', toggleMobileTabDrawer);
     return button;
 }
@@ -1377,10 +1374,10 @@ function ensureMobilePrimaryNavigation(topHeader, bottomHeader) {
     document.body.classList.add('mobile-primary-navigation', 'has-bottom-tabs');
     topHeader.setAttribute('role', 'dialog');
     topHeader.setAttribute('aria-modal', 'true');
-    topHeader.setAttribute('aria-label', '전체 메뉴');
+    topHeader.setAttribute('aria-label', '기타 메뉴');
     topHeader.setAttribute('aria-hidden', 'true');
     bottomHeader.setAttribute('role', 'navigation');
-    bottomHeader.setAttribute('aria-label', '핵심 메뉴');
+    bottomHeader.setAttribute('aria-label', '전체 탭 메뉴');
     let head = topHeader.querySelector(':scope > .mobile-tab-drawer-head');
     if (!head) topHeader.prepend(createMobileTabDrawerHead());
     let more = document.getElementById('btn-mobile-nav-more');
@@ -1391,7 +1388,7 @@ function ensureMobilePrimaryNavigation(topHeader, bottomHeader) {
         backdrop = document.createElement('button');
         backdrop.id = 'mobile-tab-drawer-backdrop';
         backdrop.type = 'button';
-        backdrop.setAttribute('aria-label', '전체 메뉴 닫기');
+        backdrop.setAttribute('aria-label', '기타 메뉴 닫기');
         backdrop.addEventListener('click', () => setMobileTabDrawerOpen(false));
         document.body.appendChild(backdrop);
     }
@@ -1429,7 +1426,7 @@ function syncMobilePrimaryNavigationState() {
     let more = document.getElementById('btn-mobile-nav-more');
     let topHeader = document.getElementById('tab-header-main');
     if (!more || !topHeader) return;
-    let activeSecondary = !!lastActiveTabId && !MOBILE_PRIMARY_TAB_IDS.includes('btn-' + lastActiveTabId);
+    let activeSecondary = !!topHeader.querySelector(':scope > .tab-btn.active');
     more.classList.toggle('active', activeSecondary);
     let hasNotice = Array.from(topHeader.querySelectorAll('.tab-btn .noti-dot'))
         .some(dot => dot.style.display !== 'none' && getComputedStyle(dot).display !== 'none');
@@ -1451,7 +1448,7 @@ function renderTabOrderSettings() {
         return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button>${placement}</span></div>`;
     }).join('');
     let groupSection = usesFlatDesktopRail ? '' : `<div style="font-weight:800;color:#f1c40f;margin-bottom:2px;">상위 그룹 탭</div>${groupRows}`;
-    let mobileNotice = usesMobilePrimaryNav ? '<div class="ui-inline-notice">모바일 핵심 메뉴 사용 중 · 탭 2줄을 켜면 직접 배치로 전환됩니다.</div>' : '';
+    let mobileNotice = usesMobilePrimaryNav ? '<div class="ui-inline-notice">모바일 가로 스크롤 탭 사용 중 · 설정과 전투 완료 행동은 기타에 표시됩니다.</div>' : '';
     tabOrderEl.innerHTML = `${mobileNotice}${groupSection}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
@@ -1829,16 +1826,15 @@ function applyTabHeaderOrder(shouldRenderSettings){
     order.forEach(id=>{
         if(!map[id]) return;
         let target = mobilePrimary
-            ? (MOBILE_PRIMARY_TAB_IDS.includes(id) ? bottomHeader : topHeader)
+            ? (isMobileMiscControlId(id) ? topHeader : bottomHeader)
             : ((game.settings.twoRowTabs && game.settings.tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader);
         target.appendChild(map[id]);
     });
     ids.forEach(id=>{
         if(order.includes(id) || !map[id]) return;
-        let target = mobilePrimary && MOBILE_PRIMARY_TAB_IDS.includes(id) ? bottomHeader : topHeader;
+        let target = mobilePrimary && !isMobileMiscControlId(id) ? bottomHeader : topHeader;
         target.appendChild(map[id]);
     });
-    if (mobilePrimary) MOBILE_PRIMARY_TAB_IDS.forEach(id => { if (map[id]) bottomHeader.appendChild(map[id]); });
     if (bottomHeader) {
         let more = document.getElementById('btn-mobile-nav-more');
         if (more) bottomHeader.appendChild(more);
@@ -2246,8 +2242,7 @@ function switchTab(tabId) {
     activeBtn.classList.add('active');
     if (mergedEntry) renderMergedTabSubtabs(mergedEntry[0]);
     syncMergedTabLauncherState();
-    if (activeBtn && activeBtn.scrollIntoView && window.matchMedia('(max-width: 1080px)').matches
-        && !document.body.classList.contains('mobile-primary-navigation')) {
+    if (activeBtn && activeBtn.scrollIntoView && window.matchMedia('(max-width: 1080px)').matches) {
         try {
             activeBtn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
         } catch (error) {
@@ -6680,7 +6675,8 @@ function updateSettings() {
     let postLoopMapCompleteAction = document.getElementById('sel-loop-map-complete-action');
     game.settings.disableItemAutomationAfterLoop = !disableItemAutomationAfterLoop || disableItemAutomationAfterLoop.checked;
     game.settings.postLoopMapCompleteAction = getMapCompleteActionOption(postLoopMapCompleteAction ? postLoopMapCompleteAction.value : game.settings.postLoopMapCompleteAction).value;
-    game.settings.townReturnAction = (document.getElementById('sel-town-return-action') || {}).value || 'retry';
+    let townReturnValue = (document.getElementById('sel-town-return-action') || {}).value;
+    game.settings.townReturnAction = ['retry', 'stop', 'hideout'].includes(townReturnValue) ? townReturnValue : 'retry';
     let themeSelect = document.getElementById('sel-theme-mode');
     game.settings.themeMode = themeSelect ? themeSelect.value : (game.settings.themeMode || 'dark');
     let skinSelect = document.getElementById('sel-ui-skin');
@@ -7939,6 +7935,7 @@ function getBattleBackdropForZone(zone) {
 // 배경마다 바닥 다이아몬드의 크기와 중심이 달라 그리드 정렬값을 따로 유지한다.
 const BATTLE_BACKDROP_FLOORS = Object.freeze({
     default: { centerX: 0.5, centerY: 0.5, halfWidthFrac: 0.39 },
+    bgHideout: { centerX: 0.5, centerY: 0.49, halfWidthFrac: 0.35 },
     bgSkyTower: { centerX: 0.5, centerY: 0.51, halfWidthFrac: 0.43 },
     bgUnderworld: { centerX: 0.5, centerY: 0.5, halfWidthFrac: 0.44 },
     bgOceanDepth: { centerX: 0.5, centerY: 0.48, halfWidthFrac: 0.48 },
@@ -9612,14 +9609,19 @@ function updateCombatUI(pStats) {
     }
 
     let zone = getZone(game.currentZoneId);
-    let combatTitle = zone.name;
-    if (zone.type === 'act') {
+    let hideoutActive = typeof isHideoutActive === 'function' && isHideoutActive(game);
+    let battlefieldWrap = document.getElementById('battlefield-wrap');
+    if (battlefieldWrap) battlefieldWrap.classList.toggle('hideout-active', hideoutActive);
+    let battleColumn = document.getElementById('battle-column');
+    if (battleColumn) battleColumn.classList.toggle('hideout-active', hideoutActive);
+    let combatTitle = hideoutActive ? '뿌리 성소 · 은신처' : zone.name;
+    if (!hideoutActive && zone.type === 'act') {
         let storyAct = getStoryActByZoneId(zone.id);
         if (storyAct) combatTitle = `⚔️ 전투 ${formatStoryActLabel(storyAct)}: ${storyAct.title}`;
-    } else if (zone.type !== 'trial') {
+    } else if (!hideoutActive && zone.type !== 'trial') {
         combatTitle = `⚔️ 전투 ${zone.name}`;
     }
-    let zoneText = zone.type === 'trial' ? zone.name : combatTitle;
+    let zoneText = !hideoutActive && zone.type === 'trial' ? zone.name : combatTitle;
     let compactZoneText = zoneText.replace(/^⚔️\s*전투\s*/,'');
     setTextById('ui-combat-zone', compactZoneText);
     let inlineZoneEl = document.getElementById('ui-combat-zone-inline');
@@ -9628,13 +9630,19 @@ function updateCombatUI(pStats) {
     let contractStatus = document.getElementById('ui-combat-contract-status');
     if (contractStatus) {
         let contractScore = getChallengeContractScore();
-        let contractActive = isChallengeContractEligibleZone(zone) && contractScore > 0;
+        let contractActive = !hideoutActive && isChallengeContractEligibleZone(zone) && contractScore > 0;
         contractStatus.style.display = contractActive ? 'inline-flex' : 'none';
         if (contractActive) contractStatus.innerText = `📜 계약 ${contractScore} · 보상 +${Math.round((getChallengeContractRewardMultiplier(zone) - 1) * 100)}%`;
     }
 
+    let returnButton = document.getElementById('btn-combat-return');
+    if (returnButton) returnButton.innerText = hideoutActive ? '전투 재개' : '귀환';
     let pendingWoodsmanEntrance = !!game.woodsmanEntrancePending && zone && zone.type === 'outsideChaos';
-    if (pendingWoodsmanEntrance) {
+    if (hideoutActive) {
+        setTextById('ui-progress-label', '🌿 은신처');
+        setTextById('ui-move-time-text', '휴식 중');
+        document.getElementById('ui-move-bar').style.width = '0%';
+    } else if (pendingWoodsmanEntrance) {
         let totalTime = Math.max(0.1, Number(game.moveTotalTime) || 3);
         let readyPct = Math.min(100, Math.max(0, (1 - Math.max(0, game.moveTimer || 0) / totalTime) * 100));
         setTextById('ui-progress-label', '☠️ 나무꾼 등장 대기');
@@ -14020,7 +14028,7 @@ function mergeDefaults(save) {
     merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
     merged.settings.disableItemAutomationAfterLoop = merged.settings.disableItemAutomationAfterLoop !== false;
     merged.settings.postLoopMapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.postLoopMapCompleteAction) ? merged.settings.postLoopMapCompleteAction : 'nextLoopBestPlusOne';
-    merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
+    merged.settings.townReturnAction = ['retry', 'stop', 'hideout'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
     merged.heroSelectionInitialized = !!merged.heroSelectionInitialized;
     merged.selectedHeroId = HERO_SELECTION_DEFS[merged.selectedHeroId] ? merged.selectedHeroId : 'hero1';
     merged.appearanceHeroId = HERO_SELECTION_DEFS[merged.appearanceHeroId] ? merged.appearanceHeroId : null;
