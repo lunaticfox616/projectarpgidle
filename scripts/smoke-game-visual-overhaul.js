@@ -574,6 +574,30 @@ assert.ok(aggregatedBurstVfx.lines <= 8 && aggregatedBurstVfx.flames <= 8, '합�
 assert.strictEqual(aggregatedBurstVfx.impactEffectCount, 0, '범위 폭발은 각 대상마다 별도 적중 이미지를 할당하면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.frostParticles, null, '서리 폭발은 대상별 보조 입자를 중복 생성하면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.triParticles, null, '삼원 파동은 대상별 보조 입자를 중복 생성하면 안 된다');
+const boundedCrowdedSkillVfx = vm.runInContext(`(() => {
+  battleVisualState.skillEffects = [];
+  const targets = Array.from({ length: 8 }, (_, index) => ({
+    x: 120 + index * 24, y: 180 + (index % 2) * 32, enemy: { id: index + 1 }
+  }));
+  battleFx = targets.map((target, index) => ({
+    id: 1200 + index, type: 'hit', skillName: '연속 베기', stageKind: 'primary',
+    damageTextGroupId: 'crowded:1', enemyId: target.enemy.id, element: 'phys'
+  }));
+  targets.forEach((target, index) => queueSkillGemVfx(battleFx[index], target, { x: 20, y: 220 }, {}, 1230, 1));
+  return {
+    impactEffectCount: battleVisualState.skillEffects.length,
+    skillParticles: getAttackFxSpawnOpts({ skillName: '기본 공격', element: 'phys' }, targets[0].enemy, {}, 1),
+    fallbackParticles: getAttackFxSpawnOpts({ element: 'phys' }, targets[0].enemy, {}, 1)
+  };
+})()`, context);
+assert.strictEqual(boundedCrowdedSkillVfx.impactEffectCount, 1,
+  '같은 공격 단계가 다섯 대상을 넘겨도 전용 적중 이미지는 한 번만 생성해야 한다');
+assert.strictEqual(boundedCrowdedSkillVfx.skillParticles, null,
+  '스킬 전용 적중 이미지 위에 별도 입자 엔진을 중복 실행하면 안 된다');
+assert.ok(boundedCrowdedSkillVfx.fallbackParticles,
+  '전용 스킬 프로필이 없는 독립 적중은 입자 피드백을 유지해야 한다');
+assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['중력 붕괴'].aggregateImpact, true,
+  '중력 붕괴의 범위 적중은 대상별 이미지가 아니라 공유 범위 이미지여야 한다');
 const optimizedLightningSpearVfx = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
   const target = { x: 250, y: 210, enemy: { id: 'lightning-target' } };
