@@ -1909,16 +1909,6 @@ test('representative battle and equipment layouts preserve the primary task hier
         await expect(emptyTarget).toBeVisible();
         expect((await emptyTarget.boundingBox()).height).toBeLessThanOrEqual(52);
     } else {
-        await page.evaluate(() => presentGoalDrawer({
-            id: 'desktop-goal-dock-check', title: '다음 루프 조건 달성', description: '혼돈 15층을 돌파하세요.',
-            current: 12, target: 15, mandatory: true, actionLabel: '지도 열기', actionTabId: 'tab-map',
-            notices: [{ text: '혼돈 심화 41층 돌파', actionTabId: 'tab-map' }]
-        }));
-        const goalTracker = page.locator('.battlefield-wrap > #ui-goal-drawer');
-        await expect(goalTracker).toBeVisible();
-        await expect(goalTracker.locator('#ui-goal-toggle')).toContainText('목표');
-        await expect(goalTracker.locator('#ui-goal-toggle')).toContainText('2개');
-        await expect(goalTracker.locator('#ui-goal-body')).toContainText('다음 루프 조건 달성');
         const layoutCheck = await page.evaluate(() => {
             presentGoalDrawer({
                 id: 'desktop-goal-dock-check', title: '다음 루프 조건 달성', description: '혼돈 15층을 돌파하세요.',
@@ -1929,11 +1919,19 @@ test('representative battle and equipment layouts preserve the primary task hier
                 const style = getComputedStyle(target);
                 return [style.backgroundColor, style.borderTopWidth, style.boxShadow];
             };
-            const panel = document.querySelector('#ui-goal-drawer .ui-goal-panel');
+            const drawer = document.getElementById('ui-goal-drawer');
+            const panel = drawer.querySelector('.ui-goal-panel');
             const battlefield = document.getElementById('battlefield-wrap').getBoundingClientRect();
-            const goal = document.getElementById('ui-goal-drawer').getBoundingClientRect();
+            const goal = drawer.getBoundingClientRect();
+            const drawerStyle = getComputedStyle(drawer);
+            const goalContent = {
+                visible: drawerStyle.display !== 'none' && drawerStyle.visibility !== 'hidden' && goal.width > 0 && goal.height > 0,
+                toggle: drawer.querySelector('#ui-goal-toggle').textContent,
+                body: drawer.querySelector('#ui-goal-body').textContent
+            };
             toggleGoalDrawer();
             return {
+                goalContent,
                 goalChrome: {
                     panel: presentation(panel),
                     action: presentation(panel.querySelector('.ui-goal-action')),
@@ -1953,7 +1951,11 @@ test('representative battle and equipment layouts preserve the primary task hier
                 bodyHidden: getComputedStyle(document.getElementById('ui-goal-body')).display === 'none'
             };
         });
-        const { goalChrome, shellWidths } = layoutCheck;
+        const { goalContent, goalChrome, shellWidths } = layoutCheck;
+        expect(goalContent.visible).toBe(true);
+        expect(goalContent.toggle).toContain('목표');
+        expect(goalContent.toggle).toContain('2개');
+        expect(goalContent.body).toContain('다음 루프 조건 달성');
         expect(goalChrome).toMatchObject({
             panel: ['rgba(0, 0, 0, 0)', '0px', 'none'],
             action: ['rgba(0, 0, 0, 0)', '0px', 'none'],
