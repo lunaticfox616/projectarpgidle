@@ -13,6 +13,7 @@ async function openLocalGame(page, path = '/') {
         await heroOverlay.locator('[data-hero-id]').first().click();
         await expect(heroOverlay).not.toHaveClass(/active/);
     }
+    await dismissVisibleTutorials(page);
     await expect(page.locator('#tab-battle')).toHaveClass(/active/);
 }
 
@@ -36,11 +37,11 @@ function watchRuntimeFailures(page) {
 }
 
 async function dismissVisibleTutorials(page) {
-    const overlay = page.locator('#tutorial-overlay.active');
-    for (let attempt = 0; attempt < 20 && await overlay.isVisible(); attempt++) {
-        await page.locator('#tutorial-dismiss-btn').click();
-    }
-    await expect(overlay).not.toBeVisible();
+    await page.evaluate(() => {
+        tutorialQueue.length = 0;
+        if (activeTutorial) dismissTutorial(false);
+    });
+    await expect(page.locator('#tutorial-overlay.active')).not.toBeVisible();
 }
 
 test('entry screen establishes the reliquary palette without horizontal overflow', async ({ page }) => {
@@ -235,6 +236,7 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
         applySeasonContentProgression({ silent:true });
         updateStaticUI();
     });
+    await dismissVisibleTutorials(page);
 
     await page.evaluate(() => window.switchTab('tab-hideout'));
     await expect(page.locator('.hideout-scene')).toBeVisible();
@@ -609,6 +611,7 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
         updateStaticUI();
         return { swordId: sword.id, helmetId: helmet.id, bossSwordId: bossSword.id };
     });
+    await dismissVisibleTutorials(page);
 
     const panel = page.locator('.equipment-preset-panel');
     expect(failures).toEqual([]);
@@ -698,6 +701,7 @@ test('endgame support screens keep primary actions and interaction state visible
         switchMapSubtab('map-tab-underworld');
         updateStaticUI();
     });
+    await dismissVisibleTutorials(page);
     await page.evaluate(() => toggleGoalDrawer(false));
 
     await expect(page.locator('.underworld-entry-card')).toBeVisible();
@@ -851,6 +855,7 @@ test('ocean fishing exposes strategy, collection growth and explicit crafting ta
         switchMapSubtab('map-tab-fishing');
         updateStaticUI();
     });
+    await dismissVisibleTutorials(page);
 
     await expect(page.locator('.ocean-strategy-card')).toHaveCount(3);
     await expect(page.locator('.ocean-fish-card')).toHaveCount(8);
@@ -1889,6 +1894,8 @@ test('representative battle and equipment layouts preserve the primary task hier
         game.level = 100;
         game.season = 30;
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        setHideoutActive(false, game);
+        game.combatHalted = false;
         game.enemies = [];
         updateStaticUI();
     });
@@ -2105,6 +2112,7 @@ test('public profile separates the growth board from equipped gear', async ({ pa
         cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
     });
     await page.evaluate(id => openPlayerProfile(id), targetId);
+    await dismissVisibleTutorials(page);
     const modal = page.locator('#social-profile-modal');
     await expect(modal).toBeVisible();
     await expect(modal.locator('#social-profile-tabs button')).toHaveText(['장비', '주얼', '부적', '생장판']);

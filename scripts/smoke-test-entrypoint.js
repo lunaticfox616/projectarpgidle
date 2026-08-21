@@ -25,6 +25,11 @@ assert.ok(/on:\s*[\s\S]*push:/.test(workflow), 'CI는 푸시에서 실행되어�
 assert.ok(/pull_request:/.test(workflow), 'CI는 PR에서 실행되어야 한다');
 assert.ok(/run:\s*npm test/.test(workflow), 'CI는 로컬과 같은 npm test를 실행해야 한다');
 if (pkg.scripts['test:browser']) assert.ok(/run:\s*npm run test:browser/.test(workflow), 'CI는 실제 브라우저 검사도 실행해야 한다');
+if (pkg.scripts['test:browser']) {
+    assert.ok(/shard:\s*\[1, 2, 3, 4\]/.test(workflow), 'CI는 브라우저 검사를 4개 러너로 나눠야 한다');
+    assert.ok(/npm run test:browser -- --shard=\$\{\{ matrix\.shard \}\}\/4/.test(workflow),
+        '각 브라우저 러너는 자신의 Playwright 샤드만 실행해야 한다');
+}
 assert.ok(/timeout-minutes:/.test(workflow), '매달린 실행이 러너를 붙잡지 않도록 타임아웃이 있어야 한다');
 
 const engines = (pkg.engines && pkg.engines.node) || '';
