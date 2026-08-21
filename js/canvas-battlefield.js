@@ -77,8 +77,9 @@ function trimBattleSkillEffects(list) {
 // unavailable (ghost/fallback position) we fall back to a much smaller scale.
 function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
     const skillProfile = fx.skillName ? getSkillGemVfxProfile(fx.skillName) : null;
-    // 범위 전체를 한 장면으로 그리는 스킬은 대상마다 별도 입자를 만들지 않는다.
-    if (skillProfile && (skillProfile.aggregateImpact || skillProfile.impactParticles === false)) return null;
+    // 스킬 전용 이미지/절차형 이펙트가 적중 실루엣을 이미 담당한다. 같은 적중에
+    // 입자 엔진까지 겹치면 단일 공격부터 고해상도 캔버스 비용이 두 배로 뛴다.
+    if (skillProfile) return null;
     let variant = (skillVisual && skillVisual.variant) || 'melee';
     if (fx.chain) variant = 'chain';
     else if (fx.pierce || fx.penetrate) variant = 'pierce';
@@ -98,11 +99,6 @@ function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
         // 크게 키우면 다중 처치 순간 할당량이 폭증하므로 크기와 밀도를 오히려 낮춘다.
         opts.scale *= 0.82;
         opts.densityMul = 0.48;
-    }
-    if (skillProfile) {
-        // 생성 이미지가 주 실루엣을 담당하므로 기존 입자는 적중점의 짧은 보조광만 남긴다.
-        opts.scale *= 0.72;
-        opts.densityMul = (Number(opts.densityMul) || 1) * 0.5;
     }
     opts.densityMul = (Number(opts.densityMul) || 1) * getBattleVfxDensity();
     return opts;
@@ -331,6 +327,15 @@ function reuseStormStrikeImpact(list, profile, fx, target, now) {
     return true;
 }
 
+function getBattleHitVfxGroupSize(fx, stageKind) {
+    if (!fx || !fx.damageTextGroupId) return 0;
+    return (battleFx || []).reduce((count, row) => count + (row
+        && row.type === 'hit'
+        && row.damageTextGroupId === fx.damageTextGroupId
+        && row.skillName === fx.skillName
+        && String(row.stageKind || 'primary') === stageKind ? 1 : 0), 0);
+}
+
 function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportScale) {
     if (!fx || fx.dot || !fx.skillName) return;
     let profile = getSkillGemVfxProfile(fx.skillName);
@@ -338,7 +343,8 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
     let stageKind = String(fx.stageKind || 'primary');
     if (profile.impactVfx === false || stageKind.startsWith('meteor')) return;
     let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
-    if (profile.aggregateImpact && fx.damageTextGroupId && list.some(effect => effect
+    let sharedImpact = profile.aggregateImpact || getBattleHitVfxGroupSize(fx, stageKind) >= 5;
+    if (sharedImpact && fx.damageTextGroupId && list.some(effect => effect
         && effect.vfxGroupId === fx.damageTextGroupId
         && effect.skillName === fx.skillName
         && effect.stageKind === stageKind)) return;
@@ -371,6 +377,7 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
     let scale = Math.max(0.45, Number(profile.scale) || 1) * clampNumber(Number(viewportScale) || 1, 0.7, 1.16);
     if (target.enemy && target.enemy.isBoss) scale *= 1.08;
     let repeatCount = Math.max(1, Math.min(3, Math.floor(Number(profile.repeats) || 1)));
+    if (sharedImpact) repeatCount = 1;
     if (getBattleVfxDensity() < 0.84) repeatCount = 1;
     if (stageKind === 'chainJump' || stageKind === 'slamAftershock' || stageKind === 'slamPrimary' || family === 'whirlwind') repeatCount = 1;
     let seed = Math.max(1, Number(fx.id) || 1);
