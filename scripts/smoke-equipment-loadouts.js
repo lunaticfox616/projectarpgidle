@@ -157,6 +157,22 @@ function loadGame(save = {}) {
 
 {
     const state = loadGame();
+    const savedSword = makeItem(560, '이름이 같은 검', '무기', 'copied-identity');
+    const copiedSword = makeItem(561, '이름이 같은 검', '무기', 'copied-identity');
+    state.equipment['무기'] = savedSword;
+    context.equipmentLoadoutRuntime.save(0, '복제 식별자 복구', state);
+    state.equipment['무기'] = null;
+    state.inventory = [savedSword, copiedSword];
+    assert.strictEqual(context.equipmentLoadoutRuntime.isReferenced(savedSword), true,
+        '프리셋에 저장한 원본 장비는 복제 식별자 복구 뒤에도 보호해야 한다');
+    assert.strictEqual(context.equipmentLoadoutRuntime.isReferenced(copiedSword), false,
+        '이름이 같아도 숫자 ID가 다른 복제 장비까지 프리셋 보호하면 안 된다');
+    assert.notStrictEqual(savedSword.instanceId, copiedSword.instanceId,
+        '서로 다른 보유 장비가 같은 인스턴스 식별자를 계속 공유하면 안 된다');
+}
+
+{
+    const state = loadGame();
     state.equipment['무기'] = makeItem(601, '렌더 검', '무기');
     context.equipmentLoadoutRuntime.save(0, '렌더 검사', state);
     let writes = 0;

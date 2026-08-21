@@ -1612,6 +1612,32 @@ body:not(.light-mode) #tab-map .map-item.current {
   box-shadow: inset 3px 0 #d0a258;
 }
 
+body:not(.light-mode) #tab-map .map-item.trial-pending:not(.current) {
+  border-color: #9b7435;
+  color: #e7c477;
+  background: linear-gradient(155deg, #2a2112, #11100c);
+  box-shadow: inset 3px 0 #c69643;
+}
+
+body:not(.light-mode) #tab-map .map-item.trial-completed:not(.current) {
+  border-color: #4f765b;
+  color: #b6d9bf;
+  background: linear-gradient(155deg, #18251b, #0c100d);
+  box-shadow: inset 3px 0 #60936e;
+}
+
+body:not(.light-mode) #tab-map .trial-pending .trial-state-badge {
+  border-color: #9b7435;
+  color: #efca76;
+  background: rgba(92, 66, 23, .44);
+}
+
+body:not(.light-mode) #tab-map .trial-completed .trial-state-badge {
+  border-color: #50745a;
+  color: #bde1c5;
+  background: rgba(31, 69, 42, .5);
+}
+
 body:not(.light-mode) #tab-map .map-state-badge {
   border-color: #4b4032;
   border-radius: 2px;

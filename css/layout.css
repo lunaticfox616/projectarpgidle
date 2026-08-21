@@ -235,6 +235,12 @@
             100% { opacity: 1; transform: scale(1); filter: brightness(1); }
         }
         .map-item.trial { border-color: #f1c40f; color: #f39c12; background: #2c2c1a; }
+        .map-item.trial-pending:not(.current) { border-color: #a97820; color: #795212; background: #fff8e2; }
+        .map-item.trial-completed:not(.current) { border-color: #4d8060; color: #315d3f; background: #edf8ef; }
+        .trial-card-meta { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 5px; max-width: 42%; margin-left: auto; color: var(--copy-muted); font-size: .8em; font-weight: normal; text-align: right; }
+        .trial-state-badge { display: inline-flex; min-height: 21px; align-items: center; padding: 2px 7px; border: 1px solid currentColor; border-radius: 999px; color: inherit; font-size: .78em; font-weight: 900; letter-spacing: .04em; }
+        .trial-pending .trial-state-badge { color: #9a6818; background: rgba(241, 196, 15, .12); }
+        .trial-completed .trial-state-badge { color: #3f7651; background: rgba(70, 145, 91, .12); }
         .summon-gem-controls { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; vertical-align: middle; }
         .summon-gem-count { min-width: 44px; text-align: center; font-size: 0.74em; font-weight: 800; color: #dffaf0; background: rgba(18, 74, 58, 0.72); border: 1px solid rgba(120, 230, 193, 0.55); border-radius: 999px; padding: 2px 7px; }
         .summon-gem-count-btn { width: 22px; min-height: 22px; padding: 0; border-radius: 50%; font-size: 0.82em; font-weight: 900; line-height: 1; background: #173b35; border: 1px solid #45a889; color: #dffaf0; }

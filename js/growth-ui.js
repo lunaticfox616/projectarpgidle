@@ -6,6 +6,10 @@ let growthCraftItemId = null;
 let growthHoverItemId = null;
 let growthDisclosureState = {};
 
+function queueGrowthProfileSync() {
+    if (typeof syncPlayerProfileQuiet === 'function') syncPlayerProfileQuiet();
+}
+
 function captureGrowthDisclosureState(host) {
     if (!host) return;
     host.querySelectorAll('details[data-growth-disclosure]').forEach(details => {
@@ -65,6 +69,7 @@ function rotateGrowthSelection() {
         let result = rotatePlacedGrowthItem(growthSelection.itemId);
         if (!result.ok) return addLog(result.reason, 'attack-monster');
         growthSelection.rotation = placement.rotation;
+        queueGrowthProfileSync();
     } else {
         growthSelection.rotation = (growthSelection.rotation + 1) % 4;
     }
@@ -88,6 +93,7 @@ function handleGrowthCellClick(x, y) {
     growthSelection = { itemId: null, source: null, rotation: 0, hoverCell: null };
     let action = result.mode === 'swap' ? '위치 교환' : (result.mode === 'replace' ? '교체 배치' : '배치');
     addLog(`🌱 [${item.name}] ${action}`, 'loot-normal');
+    queueGrowthProfileSync();
     updateStaticUI();
 }
 
@@ -103,6 +109,7 @@ function unplaceGrowthItem(itemId) {
     if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     if (!removeGrowthPlacement(itemId)) return;
     growthSelection = { itemId: null, source: null, rotation: 0, hoverCell: null };
+    queueGrowthProfileSync();
     updateStaticUI();
 }
 
@@ -313,7 +320,21 @@ function renderGrowthLoadoutBar() {
 }
 
 function switchGrowthLoadoutFromUi(idx) {
-    if (switchGrowthLoadout(idx)) updateStaticUI();
+    if (!switchGrowthLoadout(idx)) return;
+    queueGrowthProfileSync();
+    updateStaticUI();
+}
+
+function autoFillGrowthBoardFromUi() {
+    let placed = autoFillGrowthBoard();
+    if (placed > 0) queueGrowthProfileSync();
+    return placed;
+}
+
+function unplaceAllGrowthItemsFromUi() {
+    let removed = unplaceAllGrowthItems();
+    if (removed > 0) queueGrowthProfileSync();
+    return removed;
 }
 
 async function renameGrowthLoadoutFromUi() {
@@ -768,6 +789,7 @@ async function craftGrowthItem(actionKey) {
     let consumed = (game.currencies[action.key] || 0) <= originalCurrency;
     game.currencies[action.key] = originalCurrency;
     if (!consumed) game.currencies.growthEssence += action.cost;
+    if (consumed) queueGrowthProfileSync();
     renderGrowthTab({ force: true });
 }
 
@@ -817,6 +839,7 @@ function reforgeGrowthShapeAtBench() {
     }
     let shape = getGrowthShapeDef(result.shapeId);
     addLog(`🧩 [${item.name}] 형태 재배열 → ${shape.label} (생장 정수 -${result.cost})`, 'loot-normal');
+    queueGrowthProfileSync();
     renderGrowthTab({ force: true });
 }
 
@@ -831,6 +854,7 @@ function reforgeGrowthSlabAtBench() {
     invalidateGrowthEffects();
     if (typeof queueImportantSave === 'function') queueImportantSave(300);
     addLog(`🔨 석판 문양 재각인 → [${def.name}] (생장 정수 -${GROWTH_SLAB_REFORGE_COST})`, 'loot-normal');
+    queueGrowthProfileSync();
     renderGrowthTab({ force: true });
 }
 
@@ -885,8 +909,8 @@ function renderGrowthBoardPanel() {
             <span class="growth-selection-label">${selectedItem ? `선택: <strong>${escapeHTML(selectedItem.name)}</strong>` : '아이템을 선택한 뒤 칸을 클릭해 배치하세요.'}</span>
             <span class="growth-control-actions">
                 <button type="button" onclick="rotateGrowthSelection()" ${selectedItem ? '' : 'disabled'}>회전 (${growthSelection.rotation * 90}°)</button>
-                <button type="button" onclick="autoFillGrowthBoard()">빈 칸 자동 배치</button>
-                <button type="button" onclick="unplaceAllGrowthItems()" ${Object.keys(getActiveGrowthLoadout().placements || {}).length > 0 ? '' : 'disabled'}>전부 내리기</button>
+                <button type="button" onclick="autoFillGrowthBoardFromUi()">빈 칸 자동 배치</button>
+                <button type="button" onclick="unplaceAllGrowthItemsFromUi()" ${Object.keys(getActiveGrowthLoadout().placements || {}).length > 0 ? '' : 'disabled'}>전부 내리기</button>
             </span>
             <span class="growth-context-hints">
                 <span id="ui-growth-hover-hint" class="growth-hover-hint"></span>
@@ -1019,7 +1043,7 @@ function syncGrowthTabVisibility() {
 safeExposeGlobals({
     selectGrowthItem, rotateGrowthSelection, handleGrowthCellClick, unplaceGrowthItem,
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
-    renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, buildGrowthComparison,
+    renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, autoFillGrowthBoardFromUi, unplaceAllGrowthItemsFromUi, buildGrowthComparison,
     renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
     toggleGrowthInventoryCategory, selectAllGrowthInventoryCategories, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, renderGrowthDropSettings,
     renderGrowthHoverHint, bindGrowthDragOnce, openGrowthCrafting, craftGrowthItem, exchangeGrowthCraftCurrency, getGrowthEssenceExpansionCost, expandGrowthInventoryWithEssence,
