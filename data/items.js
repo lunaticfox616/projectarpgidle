@@ -143,7 +143,7 @@ const UNIQUE_DB = [
     { name: "만화경", slots: ["방패"], reqTier: 20, ultraRare: true, dropOnly: { type: 'chaosRealm' }, uniqueEffect: "추가 옵션 0개로 드랍, 모든 부위 옵션 등장 가능, 추가 옵션 6개 이하이면 타락의 오브 계속 사용 가능, 모든 추가 옵션 효과 2배", uniqueEffectKey: "kaleidoscopeShield", uniqueEffectParams: { explicitStatMultiplier: 2, allowAllSlotMods: true, taintedMaxOptions: 6 }, stats: [] },
     { name: "무한한 허기", slots: ["허리띠"], reqTier: 20, ultraRare: true, dropOnly: { type: 'underworld' }, uniqueEffect: "정예 몬스터 처치 시 해당 적의 특성 중 하나를 30초간 획득", uniqueEffectKey: "stealEliteTrait", uniqueEffectParams: { duration: 30 }, stats: [{ id: "flatHp", min: 140, max: 210 }, { id: "pctHp", min: 24, max: 36 }, { id: "dr", min: 10, max: 16 }, { id: "resAll", min: 16, max: 24 }, { id: "move", min: 10, max: 16 }, { id: "aspd", min: 12, max: 18 }] },
     { name: "거울 반지", slots: ["반지"], reqTier: 20, ultraRare: true, dropOnly: { type: 'cosmos' }, uniqueEffect: "반대편 반지의 모든 효과를 복사", uniqueEffectKey: "mirrorOppositeRing", stats: [] },
-    { name: "아스트라의 파편", slots: ["목걸이"], reqTier: 30, ultraRare: true, dropOnly: { type: 'seasonBoss', id: 'cosmos_astra' }, uniqueEffect: "장착한 다른 고유(유니크) 장비 1개당 모든 피해 +5% (최대 8개)", uniqueEffectKey: "astraUniqueConvergence", uniqueEffectParams: { pctPerUnique: 5, capCount: 8 }, stats: [{ id: "flatHp", min: 150, max: 220 }, { id: "resAll", min: 16, max: 24 }, { id: "critDmg", min: 50, max: 75 }, { id: "resPen", min: 10, max: 16 }, { id: "energyShield", min: 100, max: 160 }] }
+    { name: "아스트라의 파편", slots: ["목걸이"], reqTier: 30, ultraRare: true, dropOnly: { type: 'seasonBoss', id: 'cosmos_astra', bossDropChance: 0.08 }, uniqueEffect: "장착한 다른 고유(유니크) 장비 1개당 모든 피해 +5% (최대 8개)", uniqueEffectKey: "astraUniqueConvergence", uniqueEffectParams: { pctPerUnique: 5, capCount: 8 }, stats: [{ id: "flatHp", min: 150, max: 220 }, { id: "resAll", min: 16, max: 24 }, { id: "critDmg", min: 50, max: 75 }, { id: "resPen", min: 10, max: 16 }, { id: "energyShield", min: 100, max: 160 }] }
 ];
 
 const REALM_UNIQUE_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
@@ -249,9 +249,15 @@ const REALM_STAT_PACKS = {
         [{ id: 'move', min: 14, max: 22 }, { id: 'critDmg', min: 22, max: 42 }, { id: 'resChaos', min: 10, max: 18 }, { id: 'flatHp', min: 90, max: 100.7 }, { id: 'resAll', min: 18, max: 20.1 }]
     ]
 };
+const REALM_UNIQUE_DROP_TIER_RANGES = {
+    chaos: { min: 12, max: 15 },
+    underworld: { min: 13, max: 15 },
+    cosmos: { min: 16, max: 20 }
+};
 function pushRealmUniqueSet(realm, entries, tierStart) {
     let packs = REALM_STAT_PACKS[realm] || REALM_STAT_PACKS.cosmos;
     let dropTypeByRealm = { chaos: 'chaosRealm', underworld: 'underworld', cosmos: 'cosmos' };
+    let dropTierRange = REALM_UNIQUE_DROP_TIER_RANGES[realm] || REALM_UNIQUE_DROP_TIER_RANGES.cosmos;
     entries.forEach((entry, i) => {
         let cosmosEffect = (realm === 'cosmos' && entry.uniqueEffectKey) ? { key: entry.uniqueEffectKey, params: entry.uniqueEffectParams } : null;
         let realmEffectMap = {
@@ -277,13 +283,14 @@ function pushRealmUniqueSet(realm, entries, tierStart) {
             '중핵 결속대': { key: 'realmAllMaxRes', params: { maxRes: 3 } }
         };
         let realmNamed = realmEffectMap[entry.name] || null;
+        let dropTier = dropTierRange.min + Math.floor((i * (dropTierRange.max - dropTierRange.min + 1)) / entries.length);
         UNIQUE_DB.push({
             name: entry.name,
             slots: [REALM_UNIQUE_SLOTS[i % REALM_UNIQUE_SLOTS.length]],
             reqTier: tierStart + Math.floor(i / 4),
             realmCodexOnly: true,
             realm,
-            dropOnly: { type: dropTypeByRealm[realm] || 'cosmos' },
+            dropOnly: { type: dropTypeByRealm[realm] || 'cosmos', minTier: dropTier },
             uniqueEffect: entry.effect,
             uniqueEffectKey: realmNamed ? realmNamed.key : (cosmosEffect ? cosmosEffect.key : undefined),
             uniqueEffectParams: realmNamed ? realmNamed.params : (cosmosEffect ? cosmosEffect.params : undefined),
