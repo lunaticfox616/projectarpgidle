@@ -5416,8 +5416,10 @@ function getGemPresentation(name, isSupport, statsOverride) {
     let permanentSkyBonus = db.isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(name) : 0;
     let materialBonus = db.isGem ? (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0) + (gem.awakened ? 2 : 0) + permanentSkyBonus : 0;
     let levelBonus = db.isGem ? targetGemSources.total : 0;
-    let totalLevel = gem.level + levelBonus + materialBonus;
-    let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus;
+    let talentBonus = db.isGem && Array.isArray(db.tags) && db.tags.includes('summon_attack')
+        ? Math.max(0, Math.floor(Number(stats.talentSummonGemLevelBonus) || 0)) : 0;
+    let totalLevel = gem.level + levelBonus + materialBonus + talentBonus;
+    let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + talentBonus;
     let skill = { ...db };
     skill.dmg = skill.baseDmg + ((finalLevel - 1) * skill.dmgScale);
     skill.spd = skill.baseSpd + ((finalLevel - 1) * skill.spdScale);
@@ -5431,7 +5433,7 @@ function getGemPresentation(name, isSupport, statsOverride) {
     let patternMode = activePattern && activePattern.projectilePattern
         ? activePattern.projectilePattern.mode : getSkyProjectilePatternMode(name);
     if (patternMode) skill = applyProjectilePatternMode(skill, patternMode, activePattern ? activePattern.projectilePatternSource : '창공 각인', activePattern ? activePattern.projectilePatternDamageMultiplier : null);
-    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, permanentSkyBonus: permanentSkyBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources };
+    return { baseLevel: gem.level, totalLevel: totalLevel, finalLevel: finalLevel, materialBonus: materialBonus, talentBonus: talentBonus, permanentSkyBonus: permanentSkyBonus, bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened, desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources };
 }
 
 function getSkillTargets(pStats) {
@@ -5679,11 +5681,13 @@ function getEnemyElementResistance(skillEle, zoneTier, enemy) {
     if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') baseRes = 5 + Math.floor(20 * curved);
     else if (skillEle === 'chaos') baseRes = 5 + Math.floor(20 * curved);
     if (!enemy) return baseRes;
-    if (skillEle === 'fire') return baseRes + (enemy.resF || 0);
-    if (skillEle === 'cold') return baseRes + (enemy.resC || 0);
-    if (skillEle === 'light') return baseRes + (enemy.resL || 0);
-    if (skillEle === 'chaos') return baseRes + (enemy.resChaos || 0);
-    if (skillEle === 'phys') return baseRes + (enemy.dr || 0);
+    // 생성된 적의 저항에는 지역 단계·등급·특성·콘텐츠 보너스가 이미 합산되어 있다.
+    // 실제 대상을 계산할 때 baseRes를 다시 더하면 지역 저항이 이중 적용된다.
+    if (skillEle === 'fire') return enemy.resF || 0;
+    if (skillEle === 'cold') return enemy.resC || 0;
+    if (skillEle === 'light') return enemy.resL || 0;
+    if (skillEle === 'chaos') return enemy.resChaos || 0;
+    if (skillEle === 'phys') return enemy.dr || 0;
     return baseRes;
 }
 

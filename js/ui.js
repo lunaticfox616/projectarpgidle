@@ -7350,7 +7350,8 @@ function showGemTooltip(event, type, name) {
         if (type === 'support') {
             html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${gemBonusSources.passive} + 장비 ${gemBonusSources.gear} + 보상 ${gemBonusSources.reward})</div>`;
         } else {
-            html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${gemBonusSources.passive} + 장비 ${gemBonusSources.gear} + 보상 ${gemBonusSources.reward} + 군주의핵 ${info.bossCoreLevel || 0} + 창공의힘 ${info.skyCoreLevel || 0} + 응축창공 ${info.permanentSkyBonus || 0})</div>`;
+            let talentLevelText = info.talentBonus ? ` + 재능 ${info.talentBonus}` : '';
+            html += `<div class="tooltip-line">(Lv.${info.baseLevel} + 패시브 ${gemBonusSources.passive} + 장비 ${gemBonusSources.gear} + 보상 ${gemBonusSources.reward}${talentLevelText} + 군주의핵 ${info.bossCoreLevel || 0} + 창공의힘 ${info.skyCoreLevel || 0} + 응축창공 ${info.permanentSkyBonus || 0})</div>`;
         }
     }
     let border = type === 'support' ? '#2bcbba' : '#ff5252';
