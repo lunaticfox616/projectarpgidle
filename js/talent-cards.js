@@ -36,6 +36,11 @@ function makeTalentComboKey(heroId, classKey) {
     return `${heroId || 'hero1'}__${classKey || 'none'}`;
 }
 
+function getTalentPreciseRule(comboKey) {
+    if (typeof TALENT_PRECISE_CARD_RULES === 'undefined') return null;
+    return TALENT_PRECISE_CARD_RULES[String(comboKey || '')] || null;
+}
+
 // 계정 진행도 기반 개화 점수. (무한 콘텐츠 최고층 합 + 나무꾼 잔상 전투력 로그 환산)
 function getTalentBloomScore() {
     let deepChaos = Math.max(0, Math.floor(Number(game.abyssEndlessDepth) || 0));
@@ -85,11 +90,8 @@ function recordTalentBloomCard(comboKey) {
     return { card, leveledUp: card.level > prevLevel, score };
 }
 
-// ── 표면효과 = 키스톤(설명 표시), 이면효과 = 실제 스탯(배열, lv10 = 만렙 수치, 레벨 비례) ──
-// surface 스키마: { desc } (표시 전용). hidden: [{ stat, lv10 }]
-function scaleTalentOps(ops, lv, kind) {
-    return (ops || []).filter(o => o && o.stat).map(o => ({ stat: o.stat, val: (o.perLevel || 0) * lv, kind }));
-}
+// ── 표면효과 = 실제 적용 키스톤, 이면효과 = 실제 스탯(배열, lv10 = 만렙 수치, 레벨 비례) ──
+// surface.desc는 기획 원문이며, 실제 합산 수치는 TALENT_PRECISE_CARD_RULES만 사용한다.
 
 function talentHiddenList(def) {
     if (!def || !def.hidden) return [];
@@ -102,27 +104,18 @@ function talentHiddenVal(h, lv) {
     return Math.round(base * 100) / 100;
 }
 
-// 장착 스탯 합산용: 이면 스탯들(레벨 비례). (표면은 설명 표시 전용이라 스탯 미반영)
+// 장착 스탯 합산용: 이면 및 표면 ops 스탯들(레벨 비례).
 function getTalentCardStatBonuses(heroId, classKey, level) {
     let lv = Math.max(1, Math.min(TALENT_CARD_MAX_LEVEL, Math.floor(level || 1)));
     let def = getTalentCardDef(heroId, classKey);
     if (!def) return [];
     let out = [];
     talentHiddenList(def).forEach(h => { if (h && h.stat) out.push({ stat: h.stat, val: talentHiddenVal(h, lv), kind: 'hidden' }); });
-    if (def.surface) {
-        if (Array.isArray(def.surface.ops)) out.push(...scaleTalentOps(def.surface.ops, lv, 'surface'));
-        else if (def.surface.stat) out.push({ stat: def.surface.stat, val: (def.surface.perLevel || 0) * lv, kind: 'surface' });
-    }
+    let rule = getTalentPreciseRule(makeTalentComboKey(heroId, classKey));
+    Object.entries((rule && rule.stats) || {}).forEach(([stat, valueAtLevel10]) => {
+        out.push({ stat, val: (Number(valueAtLevel10) || 0) * lv / TALENT_CARD_MAX_LEVEL, kind: 'surface' });
+    });
     return out;
-}
-
-// 표면 키스톤의 조건부 피해 배율 설정(레벨 반영). 없으면 null.
-function getTalentCardKeystoneDamage(heroId, classKey, level) {
-    let lv = Math.max(1, Math.min(TALENT_CARD_MAX_LEVEL, Math.floor(level || 1)));
-    let def = getTalentCardDef(heroId, classKey);
-    if (!def || !def.surface || !def.surface.dmg) return null;
-    let d = def.surface.dmg;
-    return { moreMul: (d.perLevel || 0) * lv, when: d.when || 'always', threshold: d.threshold };
 }
 
 const TALENT_STAT_LABELS = {
@@ -140,26 +133,14 @@ const TALENT_STAT_LABELS = {
     ailResIgnite: '점화 저항 확률', ailResShock: '감전 저항 확률', ailResFreeze: '동결 저항 확률',
     ailResPoison: '중독 저항 확률', ailResBleed: '출혈 저항 확률',
     summonAspd: '소환수 공격 속도', summonHpPct: '소환수 생명력', summonResPen: '소환수 저항 관통',
-    summonCritDmg: '소환수 치명타 피해', summonCrit: '소환수 치명타 확률', summonEfficiency: '소환수 효율'
+    summonCritDmg: '소환수 치명타 피해', summonCrit: '소환수 치명타 확률', summonEfficiency: '소환수 효율',
+    addedFireDamagePct: '추가 화염 피해', addedColdDamagePct: '추가 냉기 피해', addedLightDamagePct: '추가 번개 피해'
 };
 function getTalentStatLabel(stat) {
     if (TALENT_STAT_LABELS[stat]) return TALENT_STAT_LABELS[stat];
     if (typeof P_STATS !== 'undefined' && P_STATS[stat] && P_STATS[stat].name) return P_STATS[stat].name;
     if (typeof getStatName === 'function') return getStatName(stat);
     return stat;
-}
-
-function getTalentKeystoneConditionText(when, threshold) {
-    switch (when) {
-        case 'lowLife': return `생명력 ${threshold || 50}% 이하에서 `;
-        case 'highLife': return `생명력 ${threshold || 80}% 이상에서 `;
-        case 'vsBoss': return '보스에게 ';
-        case 'onCrit': return '치명타 시 ';
-        case 'fewEnemies': return `적이 ${threshold || 3} 이하일 때 `;
-        case 'manyEnemies': return `적이 ${threshold || 5} 이상일 때 `;
-        case 'moving': return '이동 중 ';
-        default: return '';
-    }
 }
 
 function getTalentRuntimeAppliedText(runtime, level) {
@@ -178,7 +159,9 @@ function getTalentRuntimeAppliedText(runtime, level) {
     if (runtime.key === 'ailmentWhitelist') return '적에게 점화·중독만 부여 가능';
     if (runtime.key === 'shadowSlayer') return `치명타 피해 배율 무작위 ×1.0~×${(1 + (runtime.maxMultiplierAtLevel10 - 1) * levelRatio).toFixed(2)}`;
     if (runtime.key === 'summonCritLucky') return '소환수 치명타 확률 행운 판정';
-    if (runtime.key === 'instantWarcry') return '함성 시전 시간 0초';
+    if (runtime.key === 'instantWarcry') return runtime.latestEffectOnly
+        ? '함성 시전 시간 0초 · 마지막 함성 하나의 고유 효과만 유효 · 활성 함성 수 판정은 모두 유지'
+        : '함성 시전 시간 0초';
     if (runtime.key === 'rangerCharge') return `돌격 명중 시 공격·이동 속도 ${runtime.speedPctAtLevel10 * levelRatio}% 증폭`;
     if (runtime.key === 'fenrirTooth') return `펜리르의 맹독: 중독 확률 +${runtime.poisonChanceAtLevel10 * levelRatio}%`;
     if (runtime.key === 'executionOrder') return `집행 명령 대상이 받는 피해 +${runtime.damagePctAtLevel10 * levelRatio}%`;
@@ -191,44 +174,38 @@ function getTalentRuntimeAppliedText(runtime, level) {
 function escapeTalentHtml(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+function getTalentPreciseAppliedTexts(comboKey, surface, level) {
+    let applied = [];
+    let rule = getTalentPreciseRule(comboKey);
+    Object.entries((rule && rule.stats) || {}).forEach(([stat, levelTenValue]) => {
+        let value = Math.round((Number(levelTenValue) || 0) * level / TALENT_CARD_MAX_LEVEL * 100) / 100;
+        applied.push(`${getTalentStatLabel(stat)} ${value >= 0 ? '+' : ''}${value}%`);
+    });
+    ((rule && rule.uniques) || []).forEach(unique => {
+        if (!unique || !unique.key) return;
+        let params = Object.assign({}, unique.params || {});
+        if (unique.perLevelParams) Object.keys(unique.perLevelParams).forEach(key => {
+            params[key] = (Number(unique.perLevelParams[key]) || 0) * level;
+        });
+        applied.push(getTalentUniqLabel(unique.key, params));
+    });
+    let runtimeText = getTalentRuntimeAppliedText(surface.runtime, level);
+    if (runtimeText) applied.push(runtimeText);
+    return applied;
+}
+
 function getTalentCardEffectLines(heroId, classKey, level) {
     let lv = Math.max(1, Math.min(TALENT_CARD_MAX_LEVEL, Math.floor(level || 1)));
     let def = getTalentCardDef(heroId, classKey);
     if (!def) return [];
     let lines = [];
-    // 표면효과: 설명 표시(기획 텍스트)
-    if (def.surface && def.surface.desc) {
-        lines.push(`<span style="color:#ffd36b;">⭐ [표면] ${escapeTalentHtml(def.surface.desc)}</span>`);
-        let applied = [];
-        (def.surface.ops || []).forEach(op => {
-            if (!op || !op.stat) return;
-            let value = Math.round(((Number(op.perLevel) || 0) * lv) * 100) / 100;
-            applied.push(`${getTalentStatLabel(op.stat)} ${value >= 0 ? '+' : ''}${value}%`);
-        });
-        (def.surface.uniq || []).forEach(u => {
-            if (!u || !u.key) return;
-            let params = Object.assign({}, u.params || {});
-            if (u.perLevelParams) Object.keys(u.perLevelParams).forEach(key => { params[key] = (Number(u.perLevelParams[key]) || 0) * lv; });
-            applied.push(getTalentUniqLabel(u.key, params));
-        });
-        if (def.surface.dmg) {
-            let more = Math.round(((Number(def.surface.dmg.perLevel) || 0) * lv) * 100) / 100;
-            applied.push(`${getTalentKeystoneConditionText(def.surface.dmg.when, def.surface.dmg.threshold)}피해 ${more >= 0 ? '+' : ''}${more}%`);
+    if (def.surface) {
+        if (def.surface.desc) {
+            lines.push(`<span style="color:#ffd36b;">⭐ [표면] ${escapeTalentHtml(def.surface.desc)}</span>`);
         }
-        let runtimeText = getTalentRuntimeAppliedText(def.surface.runtime, lv);
-        if (runtimeText) applied.push(runtimeText);
-        if (applied.length) lines.push(`<span style="color:#d6c8a3;">[현재 적용] ${applied.map(escapeTalentHtml).join(' · ')}</span>`);
-    } else if (def.surface) {
-        // 구버전(uniq/dmg/ops) 호환 표시
-        let pos = [];
-        (def.surface.uniq || []).forEach(u => {
-            if (!u || !u.key) return;
-            let p = Object.assign({}, u.params || {});
-            if (u.perLevelParams) Object.keys(u.perLevelParams).forEach(k => { p[k] = (u.perLevelParams[k] || 0) * lv; });
-            pos.push(getTalentUniqLabel(u.key, p));
-        });
-        if (def.surface.dmg) pos.push(`${getTalentKeystoneConditionText(def.surface.dmg.when, def.surface.dmg.threshold)}모든 피해 +${(def.surface.dmg.perLevel || 0) * lv}%`);
-        if (pos.length) lines.push(`<span style="color:#ffd36b;">⭐ ${pos.join(' · ')}</span>`);
+        let applied = getTalentPreciseAppliedTexts(makeTalentComboKey(heroId, classKey), def.surface, lv);
+        if (applied.length) lines.push(`<span style="color:#ffe7a8;">[현재 Lv.${lv}] ${applied.map(escapeTalentHtml).join(' · ')}</span>`);
     }
     // 이면효과: 실제 스탯(레벨 비례)
     let hid = talentHiddenList(def).filter(h => h && h.stat);
@@ -511,39 +488,6 @@ function getActiveTalentCardStatBonuses() {
     return out;
 }
 
-// 전투 호출용: 장착된 표면 키스톤들의 조건부 피해 배율 곱. (calcDamage 최종 배율 단계에서 적용)
-function getTalentKeystoneDamageMul(target, ele, crit, pStats) {
-    let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
-    let loadout = Array.isArray(game.talentCardLoadout) ? game.talentCardLoadout : [];
-    let unlocked = getUnlockedTalentSlotCount();
-    if (unlocked <= 0) return 1;
-    let maxHp = Math.max(1, (pStats && pStats.maxHp) || 1);
-    let lifeRatio = Math.max(0, Math.min(1, (game.playerHp || 0) / maxHp));
-    let aliveEnemies = (game.enemies || []).filter(e => e && e.hp > 0).length;
-    let mul = 1;
-    for (let i = 0; i < Math.min(unlocked, loadout.length); i++) {
-        let key = loadout[i];
-        if (!key || !owned[key]) continue;
-        let { heroId, classKey } = parseTalentComboKey(key);
-        let ks = getTalentCardKeystoneDamage(heroId, classKey, owned[key].level);
-        if (!ks || !(ks.moreMul > 0)) continue;
-        let ok = false;
-        switch (ks.when) {
-            case 'always': ok = true; break;
-            case 'lowLife': ok = lifeRatio <= ((ks.threshold || 50) / 100); break;
-            case 'highLife': ok = lifeRatio >= ((ks.threshold || 80) / 100); break;
-            case 'vsBoss': ok = !!(target && target.isBoss); break;
-            case 'onCrit': ok = !!crit; break;
-            case 'fewEnemies': ok = aliveEnemies <= (ks.threshold || 3); break;
-            case 'manyEnemies': ok = aliveEnemies >= (ks.threshold || 5); break;
-            case 'moving': ok = (game.moveTimer || 0) > 0; break;
-            default: ok = false;
-        }
-        if (ok) mul *= (1 + ks.moreMul / 100);
-    }
-    return mul;
-}
-
 function getTalentCardRuntimeState() {
     if (!game.talentCardRuntime || typeof game.talentCardRuntime !== 'object') game.talentCardRuntime = {};
     return game.talentCardRuntime;
@@ -596,7 +540,7 @@ function getTalentMoonReturnConfig(targets) {
 function canTalentCardApplyEnemyAilment(type) {
     if (!isTalentCardActive('hero10__catalyst')) return true;
     let ailmentType = String(type || '').toLowerCase();
-    let standardTypes = ['ignite', 'poison', 'bleed', 'chill', 'freeze', 'shock', 'flamedecay'];
+    let standardTypes = ['ignite', 'poison', 'bleed', 'chill', 'freeze', 'shock', 'scorch', 'brittle', 'sap', 'flamedecay'];
     if (!standardTypes.includes(ailmentType)) return true;
     let config = getTalentCardRuntimeDefinition('hero10__catalyst');
     return config.allowed.includes(ailmentType);
@@ -769,9 +713,10 @@ function talentOnPlayerAttack(pStats, isCrit) {
 
 // 23 산맥추적자: 생명력이 최대인 적 첫 타격 시 적 최대 생명력 비례 추가 피해(보스 4%, 그 외 8%).
 function getTalentFullLifeBurst(enemy, wasFull) {
-    if (!wasFull || !enemy) return 0;
+    if (!wasFull || !enemy || enemy.talentFullLifeBurstConsumed) return 0;
     let lv = isTalentCardActive('hero2__hunter');
     if (!lv) return 0;
+    enemy.talentFullLifeBurstConsumed = true;
     let pct = (enemy.isBoss ? 0.04 : 0.08) * (lv / TALENT_CARD_MAX_LEVEL);
     return Math.max(0, Math.floor((enemy.maxHp || enemy.hp || 0) * pct));
 }
@@ -782,16 +727,15 @@ function getTalentEnemyTakenMul(enemy, ele, crit) {
     let a = (enemy && Array.isArray(enemy.ailments)) ? enemy.ailments : [];
     let has = t => a.some(x => x && x.type === t && (x.time || 0) > 0);
     let m = 1;
-    if (isTalentCardActive('hero1__elementalist')) {           // 5: 냉기→허약, 점화→그을림
-        if (crit && (has('chill') || has('freeze'))) m *= 1.15;
-        if (ele === 'fire' && has('ignite')) m *= 1.20;
+    if (isTalentCardActive('hero1__elementalist') && ele === 'fire' && has('scorch')) {
+        m *= 1 + 0.20 * isTalentCardActive('hero1__elementalist') / TALENT_CARD_MAX_LEVEL;
     }
     if (isTalentCardActive('hero3__elementalist') && ele !== 'phys' && ele !== 'chaos'
-        && has('ignite') && has('freeze') && has('shock')) {   // 29: 세 상태이상 → 원소 피해 +20%
-        m *= 1.20;
+        && has('warmSeed') && has('frostSeed') && has('stormSeed')) {
+        m *= 1 + 0.20 * isTalentCardActive('hero3__elementalist') / TALENT_CARD_MAX_LEVEL;
     }
     if (isTalentCardActive('hero9__assassin') && (has('chill') || has('freeze'))) { // 99: 냉각된 적 받는 피해 +
-        m *= 1.12;
+        m *= 1 + 0.12 * isTalentCardActive('hero9__assassin') / TALENT_CARD_MAX_LEVEL;
     }
     return m;
 }
@@ -804,7 +748,6 @@ function getTalentAlwaysHit() {
 // 재능 처형: 활성 카드 중 "낮은 체력 일반 몬스터 마무리" 임계값(체력 비율). 없으면 0.
 function getTalentExecuteThreshold() {
     let t = 0;
-    if (isTalentCardActive('hero2__assassin')) t = Math.max(t, 0.30); // 15 도살자
     if (isTalentCardActive('hero6__hunter')) t = Math.max(t, 0.25);   // 71 하운드
     return t;
 }
@@ -817,24 +760,6 @@ function getTalentAttackDamageMul() {
     return mul;
 }
 
-// DPS 표시용: 장착 키스톤 조건부 배율 요약(상시분 곱 + 조건부 목록).
-function getTalentKeystoneDamageSummary() {
-    let owned = (game.talentCards && typeof game.talentCards === 'object') ? game.talentCards : {};
-    let loadout = Array.isArray(game.talentCardLoadout) ? game.talentCardLoadout : [];
-    let unlocked = getUnlockedTalentSlotCount();
-    let alwaysMul = 1, conditional = [];
-    for (let i = 0; i < Math.min(unlocked, loadout.length); i++) {
-        let key = loadout[i];
-        if (!key || !owned[key]) continue;
-        let { heroId, classKey } = parseTalentComboKey(key);
-        let ks = getTalentCardKeystoneDamage(heroId, classKey, owned[key].level);
-        if (!ks || !(ks.moreMul > 0)) continue;
-        if (ks.when === 'always') alwaysMul *= (1 + ks.moreMul / 100);
-        else conditional.push({ when: ks.when, threshold: ks.threshold, moreMul: ks.moreMul });
-    }
-    return { alwaysMul, conditional };
-}
-
 // 장착 카드들의 이면+표면 스탯 기여 합산 맵 {statId: val} (브레이크다운 표기용).
 function getActiveTalentStatMap() {
     let map = {};
@@ -842,14 +767,14 @@ function getActiveTalentStatMap() {
     return map;
 }
 
-// 표면 키스톤이 부여하는 "고유 효과"(게임의 unique-effect 엔진 키)들을 레벨 반영해 반환.
-// surface.uniq: [{ key, perLevelParams?: { paramName: perLevelValue }, params?: { 고정값 } }]
+// 정밀 규칙이 부여하는 "고유 효과"(게임의 unique-effect 엔진 키)들을 레벨 반영해 반환.
 function getTalentCardUniqEffects(heroId, classKey, level) {
     let lv = Math.max(1, Math.min(TALENT_CARD_MAX_LEVEL, Math.floor(level || 1)));
     let def = getTalentCardDef(heroId, classKey);
-    if (!def || !def.surface || !Array.isArray(def.surface.uniq)) return [];
+    let rule = getTalentPreciseRule(makeTalentComboKey(heroId, classKey));
+    if (!def || !rule || !Array.isArray(rule.uniques)) return [];
     let cardName = def.name || `${heroId} ${classKey}`;
-    return def.surface.uniq.map(u => {
+    return rule.uniques.map(u => {
         if (!u || !u.key) return null;
         let params = Object.assign({}, u.params || {});
         if (u.perLevelParams) Object.keys(u.perLevelParams).forEach(p => { params[p] = (u.perLevelParams[p] || 0) * lv; });

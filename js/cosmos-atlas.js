@@ -1540,7 +1540,7 @@
         else window.game.inventory.push(item);
         window.game.noti = window.game.noti || {};
         window.game.noti.items = true;
-        if (typeof window.addLog === 'function') window.addLog(`🌌 우주계 보스 전용 고유 장비 획득: ${item.name}`, 'loot-unique');
+        if (typeof window.addLog === 'function') window.addLog(`🌌 우주계 보스 전용 고유 장비 획득: ${item.name}`, 'loot-unique', { item });
         return true;
     }
 
@@ -1554,7 +1554,7 @@
         window.game.jewelInventory.push(jewel);
         window.game.noti = window.game.noti || {};
         window.game.noti.jewel = true;
-        if (typeof window.addLog === 'function') window.addLog(`💠 우주계 보스 전용 주얼 획득: ${jewel.name}${overflow ? ' (공간 부족 보호)' : ''}`, 'loot-unique');
+        if (typeof window.addLog === 'function') window.addLog(`💠 우주계 보스 전용 주얼 획득: ${jewel.name}${overflow ? ' (공간 부족 보호)' : ''}`, 'loot-unique', { item:jewel, itemKind:'jewel' });
         return true;
     }
 
@@ -1567,7 +1567,7 @@
         window.game.talismanInventory.push(talisman);
         window.game.noti = window.game.noti || {};
         window.game.noti.talisman = true;
-        if (typeof window.addLog === 'function') window.addLog(`🧿 우주계 보스 전용 부적 획득: ${talisman.name}`, 'loot-unique');
+        if (typeof window.addLog === 'function') window.addLog(`🧿 우주계 보스 전용 부적 획득: ${talisman.name}`, 'loot-unique', { item:talisman, itemKind:'talisman' });
         return true;
     }
 
@@ -2636,6 +2636,17 @@
     }
 
     function continueCosmosChallengeAfterClear(mapAction) {
+        if (mapAction === 'repeatZone') {
+            const state = getState();
+            const currentId = state.activeChallenge && state.activeChallenge.nodeId;
+            const currentNode = currentId ? ATLAS.byId.get(currentId) : null;
+            if (!currentNode || !canChallengeNode(currentNode)) return false;
+            ATLAS.selectedId = currentNode.id;
+            state.selectedId = currentNode.id;
+            if (typeof window.addLog === 'function') window.addLog(`우주계 반복 탐사: ${currentNode.name}`, 'season-up');
+            startCosmosBattle(currentNode);
+            return true;
+        }
         if (mapAction !== 'nextZone' && mapAction !== 'nextLoopBestPlusOne') return false;
         const guide = getCosmosProgressGuide();
         const node = guide.targetId ? ATLAS.byId.get(guide.targetId) : null;

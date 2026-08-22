@@ -66,6 +66,11 @@ assert.strictEqual(context.continueCosmosChallengeAfterClear('nextZone'), true,
 assert.strictEqual(context.game.currentZoneId, 'cosmos_challenge');
 assert(context.game.cosmosAtlas.activeChallenge && context.game.cosmosAtlas.activeChallenge.nodeId !== 'planet-0',
     'automatic continuation must advance beyond the cleared gateway');
+const repeatedNodeId = context.game.cosmosAtlas.activeChallenge.nodeId;
+assert.strictEqual(context.continueCosmosChallengeAfterClear('repeatZone'), true,
+    'repeat completion mode must restart the current cosmos node');
+assert.strictEqual(context.game.cosmosAtlas.activeChallenge.nodeId, repeatedNodeId,
+    'cosmos repeat must not move to a different node');
 
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
@@ -73,6 +78,8 @@ assert(cosmosSource.includes("state.bossExclusiveMisses[node.id] = granted ? 0")
 assert(cosmosSource.includes("node.orbit === galaxy && state.cleared.includes(node.id)).length"), 'galaxy summary must count clears, not total nodes twice');
 assert(combatSource.includes("window.getCosmosMasteryValue('resonanceDrive')"), 'resonance mastery must affect combat damage');
 assert(combatSource.includes('cosmosMasteryTakenLessPct'), 'rift guard mastery must reduce incoming cosmos damage');
+assert(combatSource.indexOf('continueCosmosChallengeAfterClear(mapAction)') < combatSource.indexOf('game.cosmosAtlas.activeChallenge = null'),
+    'combat completion must preserve the active cosmos node until repeat/continue routing is decided');
 assert(combatSource.includes("window.getCosmosMasteryValue('gravityHarness')"), 'gravity mastery must reduce gravity pressure');
 
 console.log('smoke-cosmos-progression-integrity passed');

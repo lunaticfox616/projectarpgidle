@@ -4,7 +4,6 @@ const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
 const context = buildGameRuntime();
-vm.runInContext(fs.readFileSync('js/talent-cards.js', 'utf8'), context, { filename: 'js/talent-cards.js' });
 
 function resetGame() {
   vm.runInContext('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;', context);
@@ -74,6 +73,20 @@ for (let index = 1; index < 12; index++) vm.runInContext('recordTalentMistralAtt
 assert.strictEqual(sumStat('aspd'), 4, '미스트랄은 10중첩을 넘지 않아야 한다');
 context.game.talentCardRuntime.mistralExpiresAt = Date.now() - 1;
 assert.strictEqual(sumStat('aspd'), 0, '미스트랄은 2초가 지나면 만료되어야 한다');
+
+resetGame();
+equipCard('hero1__gladiator', 10);
+const fletcherTarget = makeEnemy(1, { hp: 100000, maxHp: 100000 });
+const fletcherStats = prepareBasicAttack([fletcherTarget]);
+const fletcherDamage = [];
+for (let attack = 0; attack < 3; attack++) {
+  const before = fletcherTarget.hp;
+  withRandom(0.5, () => { context.performPlayerAttack(fletcherStats); flushAttackStages(); });
+  fletcherDamage.push(before - fletcherTarget.hp);
+}
+assert.strictEqual(fletcherDamage[0], fletcherDamage[1], '플레쳐의 첫 두 공격은 같은 피해를 줘야 한다');
+assert.ok(fletcherDamage[2] / fletcherDamage[0] >= 1.30 && fletcherDamage[2] / fletcherDamage[0] <= 1.35,
+  '플레쳐의 세 번째 공격 피해 +33%는 한 번만 적용되어야 한다');
 
 resetGame();
 equipCard('hero2__guardian', 10);
@@ -256,6 +269,13 @@ const fenrirPoison = fenrirTarget.ailments.find(row => row.type === 'poison');
 assert.ok(fenrirPoison && fenrirPoison.talentDamageMorePct === 20, '펜리르 중독은 Lv.10에서 피해가 20% 증폭되어야 한다');
 const spreadFenrirPoison = context.cloneEnemyAilmentForSpread(fenrirPoison, fenrirStats);
 assert.strictEqual(spreadFenrirPoison.talentDamageMorePct, 20, '펜리르 중독이 확산될 때 전용 피해 증폭이 유실되면 안 된다');
+context.game.talentCards.hero5__warlock = { level: 10, score: 600, count: 1 };
+for (let index = 0; index < 8; index++) context.game.talentCards[`slot_unlock_${index}`] = { level: 1, score: 0, count: 1 };
+context.game.talentCardLoadout = ['hero2__warlock', 'hero5__warlock', null, null, null, null];
+const infiniteFenrirTarget = makeEnemy(2);
+context.applyTalentFenrirVenomCurse(infiniteFenrirTarget, fenrirStats, 1000, Date.now());
+assert.strictEqual(infiniteFenrirTarget.ailments[0].expiresAt, Number.MAX_SAFE_INTEGER,
+  '녹턴은 펜리르의 맹독처럼 상태이상으로 구현된 저주도 무제한으로 유지해야 한다');
 context.game.talentCardLoadout = [null, null, null, null, null, null];
 context.afterTalentLoadoutChange();
 assert.ok(!context.getEquippedEnhanceableGemNames().includes('기본 공격'), '펜리르 해제 후 기본 공격은 각인 대상에서 빠져야 한다');
@@ -269,6 +289,28 @@ assert.strictEqual(context.markTalentExecutionOrder(executionBoss), true, '보�
 assert.ok(Math.abs(context.getTalentExecutionOrderMultiplier(executionBoss) - 1.05) < 0.0001, '집행 명령 이후 피해는 Lv.10에서 5% 증폭되어야 한다');
 assert.strictEqual(context.markTalentExecutionOrder(executionBoss), false, '집행 명령은 같은 적에게 중첩되면 안 된다');
 assert.strictEqual(context.markTalentExecutionOrder(makeEnemy(2)), false, '일반 적에게 집행 명령을 새기면 안 된다');
+
+resetGame();
+equipCard('hero2__assassin', 10);
+const butcherTarget = makeEnemy(1, { hp: 300, maxHp: 1000 });
+const butcherStats = prepareBasicAttack([butcherTarget]);
+butcherStats.baseDmg = 1;
+for (let hit = 0; hit < 4; hit++) {
+  withRandom(0.5, () => { context.performPlayerAttack(butcherStats); flushAttackStages(); });
+}
+assert.ok(butcherTarget.hp > 0, '도살자는 표식을 완성하는 4번째 공격에서 즉시 마무리하면 안 된다');
+withRandom(0.5, () => { context.performPlayerAttack(butcherStats); flushAttackStages(); });
+assert.strictEqual(butcherTarget.hp, 0, '도살자는 4회 표식 이후 다음 공격에서 생명력 30% 이하 일반 적을 마무리해야 한다');
+assert.strictEqual(context.canApplyTalentExecuteThreshold(makeEnemy(2), 0.2), true,
+  '도살자 장착이 다른 스킬의 처형 조건까지 4회 표식으로 제한하면 안 된다');
+
+resetGame();
+equipCard('hero6__hunter', 10);
+const houndElite = makeEnemy(1, { hp: 250, maxHp: 1000, isElite: true });
+const houndStats = prepareBasicAttack([houndElite]);
+houndStats.baseDmg = 1;
+withRandom(0.5, () => { context.performPlayerAttack(houndStats); flushAttackStages(); });
+assert.ok(houndElite.hp > 0, '하운드의 25% 마무리 타격은 정예 몬스터에게 적용되면 안 된다');
 resetGame();
 equipCard('hero2__inquisitor', 10);
 const executionTarget = makeEnemy(1, { isBoss: true });
@@ -325,5 +367,87 @@ context.tickAilments(sunOathStats, 0.1);
 const normalPoisonDamage = 501 - context.game.playerHp;
 assert.ok(reducedPoisonDamage > 0 && reducedPoisonDamage < normalPoisonDamage,
   '태양서약은 직접 피격뿐 아니라 지속 피해도 감소시켜야 한다');
+
+resetGame();
+equipCard('hero2__hunter', 10);
+const mountainTarget = makeEnemy(1, {
+  hp: 100000, maxHp: 100000, energyShield: 100000, maxEnergyShield: 100000
+});
+const mountainStats = prepareBasicAttack([mountainTarget]);
+const mountainBefore = mountainTarget.hp + mountainTarget.energyShield;
+withRandom(0.5, () => { context.performPlayerAttack(mountainStats); flushAttackStages(); });
+const mountainFirstDamage = mountainBefore - mountainTarget.hp - mountainTarget.energyShield;
+const mountainAfterFirst = mountainTarget.hp + mountainTarget.energyShield;
+withRandom(0.5, () => { context.performPlayerAttack(mountainStats); flushAttackStages(); });
+const mountainSecondDamage = mountainAfterFirst - mountainTarget.hp - mountainTarget.energyShield;
+assert.strictEqual(mountainFirstDamage - mountainSecondDamage, 8000,
+  '산맥추적자는 일반 적의 첫 최대 생명력 타격에 최대 생명력의 8%를 한 번만 추가해야 한다');
+const mountainBoss = makeEnemy(2, { hp: 100000, maxHp: 100000, isBoss: true });
+assert.strictEqual(context.getTalentFullLifeBurst(mountainBoss, true), 4000,
+  '산맥추적자는 보스에게 최대 생명력의 4%만 추가해야 한다');
+assert.strictEqual(context.getTalentFullLifeBurst(mountainBoss, true), 0,
+  '산맥추적자의 최대 생명력 추가 피해는 같은 적에게 반복 발동하면 안 된다');
+
+resetGame();
+equipCard('hero5__warrior', 10);
+const dawnTarget = makeEnemy(1, { hp: 100000, maxHp: 100000, resL: 45 });
+const dawnStats = prepareBasicAttack([dawnTarget]);
+dawnStats.sSkill.ele = 'light';
+dawnStats.crit = 100;
+dawnStats.critDmg = 200;
+const dawnDamage = [];
+for (let attack = 0; attack < 4; attack++) {
+  const before = dawnTarget.hp;
+  withRandom(0.5, () => {
+    context.performPlayerAttack(dawnStats, {
+      stageReplay: true, forcedCrit: true, targetEntries: [{ enemyId: 1, mult: 1 }], skillName: '기본 공격'
+    });
+  });
+  dawnDamage.push(before - dawnTarget.hp);
+}
+assert.deepStrictEqual(dawnDamage.slice(0, 3), [1500, 1500, 1500],
+  '새벽의 기사는 몬스터별 처음 세 타격의 치명타를 막고 번개 저항을 반대로 적용해야 한다');
+assert.strictEqual(dawnDamage[3], 1000,
+  '새벽의 기사 네 번째 타격부터는 치명타와 원래 번개 저항을 정상 적용해야 한다');
+
+context.game.talentCards.hero3__inquisitor = { level: 10, score: 600, count: 1 };
+for (let index = 0; index < 8; index++) context.game.talentCards[`dawn_slot_${index}`] = { level: 1, score: 0, count: 1 };
+context.game.talentCardLoadout = ['hero5__warrior', 'hero3__inquisitor', null, null, null, null];
+const combinedInvertTarget = makeEnemy(2, { hp: 100000, maxHp: 100000, resL: 45 });
+context.game.enemies = [combinedInvertTarget];
+withRandom(0, () => {
+  context.performPlayerAttack(dawnStats, {
+    stageReplay: true, forcedCrit: true, targetEntries: [{ enemyId: 2, mult: 1 }], skillName: '기본 공격'
+  });
+});
+assert.strictEqual(combinedInvertTarget.maxHp - combinedInvertTarget.hp, 1500,
+  '새벽빛과 푸른 심판이 동시에 발동해도 저항 반전이 서로 상쇄되면 안 된다');
+
+resetGame();
+equipCard('hero3__assassin', 10);
+const moonShadowTarget = makeEnemy(1, {
+  hp: 100000, maxHp: 100000, energyShield: 100000, maxEnergyShield: 100000, dr: 50
+});
+const moonShadowStats = prepareBasicAttack([moonShadowTarget]);
+moonShadowStats.crit = 100;
+moonShadowStats.critDmg = 200;
+const moonShadowBefore = moonShadowTarget.hp + moonShadowTarget.energyShield;
+withRandom(0.5, () => {
+  context.performPlayerAttack(moonShadowStats, {
+    stageReplay: true, forcedCrit: true, targetEntries: [{ enemyId: 1, mult: 1 }], skillName: '기본 공격'
+  });
+});
+assert.strictEqual(moonShadowBefore - moonShadowTarget.hp - moonShadowTarget.energyShield, 1200,
+  '달그림자는 보호막 대상에서도 피해의 20%만 고정 피해로 전환하고 일반 피해를 중복 적용하면 안 된다');
+
+resetGame();
+equipCard('hero5__gladiator', 10);
+const holyPrimary = makeEnemy(1, { hp: 100, maxHp: 100 });
+const holyOther = makeEnemy(2, { hp: 100000, maxHp: 100000, gx: 2, gy: 5 });
+const holyStats = prepareBasicAttack([holyPrimary, holyOther]);
+withRandom(0.5, () => { context.performPlayerAttack(holyStats); flushAttackStages(); });
+assert.strictEqual(holyPrimary.hp, 0, '아레나 템플러 검증용 본 타격은 주 대상을 처치해야 한다');
+assert.strictEqual(holyOther.maxHp - holyOther.hp, 20,
+  '아레나 템플러는 주 대상이 죽어도 남은 적에게 본 타격 피해의 20% 신성 파동을 보내야 한다');
 
 console.log('smoke-talent-runtime passed');

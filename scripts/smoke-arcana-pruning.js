@@ -111,15 +111,18 @@ assert(context.investPruningNode('first_ring', treeOwner).ok);
 assert(context.investPruningNode('deep_root', treeOwner).ok);
 const treeStats = Array.from(context.getPruningTreeStats(treeOwner));
 assert(treeStats.some(stat => stat.id === 'flatHp' && stat.val === 12), 'node ranks must aggregate conservative permanent stats');
-assert(treeStats.some(stat => stat.id === 'resAll' && stat.val === 0.15));
-assert(treeStats.some(stat => stat.id === 'move' && stat.val === -0.15), 'each growth rank must add its burden at the same time');
-assert(treeStats.some(stat => stat.id === 'pctDmg' && stat.val === -0.1), 'child growth must also contribute its declared burden');
+assert(treeStats.some(stat => stat.id === 'resAll' && stat.val === 0.2));
+assert(treeStats.some(stat => stat.id === 'move' && stat.val === -0.6), 'each growth rank must add its burden at the same time');
+assert(treeStats.some(stat => stat.id === 'pctDmg' && stat.val === -0.2), 'child growth must also contribute its declared burden');
+context.PRUNING_TREE_DB.forEach(node => node.stats.concat(node.penaltyStats || []).forEach(stat => {
+  assert(Number.isInteger(Math.abs(stat.val) * node.maxRank), `${node.id}:${stat.id} must total a whole number at rank 5`);
+}));
 const deepRankBeforePrune = treeOwner.pruningTree.nodeRanks.deep_root;
 assert(context.prunePruningNodePenalty('deep_root', treeOwner).ok, 'a player may spend a growth point to prune one active burden');
 assert.strictEqual(treeOwner.pruningTree.nodeRanks.deep_root, deepRankBeforePrune, 'pruning a burden must preserve the earned positive rank');
 const prunedStats = Array.from(context.getPruningTreeStats(treeOwner));
 assert(!prunedStats.some(stat => stat.id === 'pctDmg'), 'pruning the only burden rank removes that penalty from final stats');
-assert(prunedStats.some(stat => stat.id === 'resAll' && stat.val === 0.15), 'pruning must preserve the branch benefit');
+assert(prunedStats.some(stat => stat.id === 'resAll' && stat.val === 0.2), 'pruning must preserve the branch benefit');
 assert.strictEqual(context.prunePruningNodePenalty('deep_root', treeOwner).code, 'no_penalty', 'a removed burden cannot be pruned twice');
 
 const catchupOwner = { season: 21, loopCount: 20 };

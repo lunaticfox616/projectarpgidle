@@ -20,7 +20,8 @@ const LOAD_ORDER = [
     'js/growth-generation.js', 'js/equipment-stat-resolution.js', 'js/skills.js', 'js/bounties.js', 'js/core-cube.js', 'js/combat-grid.js', 'js/condition-patterns.js', 'js/hidden-journal.js', 'js/severed-wanderers.js',
     'js/combat-patterns.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-battlefield.js',
     'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/crafting-result-ui.js', 'js/bounty-ui.js', 'js/loop-ui.js', 'js/endgame-progression-ui.js', 'js/hideout-ui.js', 'js/ui.js', 'js/salvage-recovery-ui.js', 'js/unique-hunt-ui.js', 'js/equipment-loadouts-ui.js', 'js/growth-ui.js',
-    'js/skills-ui.js', 'js/offline-progress-ui.js', 'js/records-ui.js'
+    'js/skills-ui.js', 'js/offline-progress-ui.js', 'js/records-ui.js',
+    'js/talent-cards.js', 'js/talent-precise.js', 'js/talent-hit-effects.js', 'js/talent-recovery.js'
 ];
 // 여기까지만 올린다. index.html은 뒤에 ui-window-manager·goal-system·main 등을 더
 // 불러오지만, 그쪽은 로드 시점에 실제 DOM 노드를 찾아 이벤트를 건다(초기화까지 실행).

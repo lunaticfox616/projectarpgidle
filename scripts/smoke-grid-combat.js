@@ -197,9 +197,14 @@ const cfg = context.COMBAT_GRID_CONFIG;
   assert.strictEqual(context.getSeasonBossProgressGate(underking, context.game).met, true,
     '지하계 30층을 돌파하면 지핵군주가 영구 해금되어야 한다');
   const currenciesBeforePinnacleEntry = JSON.stringify(context.game.currencies);
+  context.game.maxZoneId = Math.max(5, Number(context.game.maxZoneId) || 0);
+  context.game.settings.townReturnAction = 'hideout';
+  assert(context.setHideoutActive(true, context.game), 'an unlocked character may wait in the hideout before choosing a map');
   context.game.currentZoneId = 0;
   context.changeZone('pinnacle_underking');
   assert.strictEqual(context.game.currentZoneId, 'pinnacle_underking', '해금된 최종 관문은 별도 입장권 없이 진입해야 한다');
+  assert.strictEqual(context.isHideoutActive(context.game), false, 'choosing another map must leave hideout idle mode immediately');
+  assert.strictEqual(context.game.isTownReturning, false, 'map entry must start combat travel instead of another town return');
   assert.strictEqual(JSON.stringify(context.game.currencies), currenciesBeforePinnacleEntry,
     '이정표 최종 관문 진입은 어떤 재화도 소모하면 안 된다');
   context.game.ocean = { bossClearM: 1000 };

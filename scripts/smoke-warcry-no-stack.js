@@ -23,12 +23,14 @@ const skillsSource = fs.readFileSync('data/skills.js', 'utf8');
 
 const context = {
     console,
+    earthshakerActive: false,
     getAliveEnemyByRuntimeKey() { return null; },
     addLog() {},
     handleEnemyDeath() {},
     getPlayerStats() { return {}; },
     formatNumberKR(n) { return String(n); },
     getConditionGemStatDelta() { return {}; },
+    isTalentInstantWarcryActive() { return context.earthshakerActive; },
     safeExposeData(map) { Object.assign(context, map); },
     safeExposeGlobals(map) { Object.assign(context, map); }
 };
@@ -37,7 +39,7 @@ vm.createContext(context);
 vm.runInContext(skillsSource, context, { filename: 'data/skills.js' });
 vm.runInContext(fs.readFileSync('js/condition-patterns.js', 'utf8'), context, { filename: 'js/condition-patterns.js' });
 context.window.CONDITION_GEM_DB = context.CONDITION_GEM_DB;
-['cleanupConditionGemStates', 'getAllConditionGemEntriesForCombat', 'runConditionGemAutoRules'].forEach(name => {
+['cleanupConditionGemStates', 'getAllConditionGemEntriesForCombat', 'getEffectivePlayerConditionBuffs', 'runConditionGemAutoRules'].forEach(name => {
     vm.runInContext(`${readFunctionSource(combatSource, name)}; this.${name} = ${name};`, context, { filename: name });
 });
 
@@ -91,6 +93,23 @@ if (Array.isArray(context.CONDITION_GEM_DB.warcry) && context.CONDITION_GEM_DB.w
     context.__fakeNow = later + 2000;
     context.runConditionGemAutoRules({ maxHp: 100 });
     assert.strictEqual(context.game.playerConditionBuffs.length, 2, '서로 다른 함성은 함께 걸려 있어야 한다');
+    context.earthshakerActive = true;
+    assert.deepStrictEqual(
+        Array.from(context.getEffectivePlayerConditionBuffs(context.__fakeNow), buff => buff.name),
+        [secondWarcry],
+        '땅울림은 가장 최근에 외친 함성 하나의 고유 효과만 계산해야 한다'
+    );
+    assert.strictEqual(context.game.playerConditionBuffs.length, 2,
+        '땅울림이 이전 함성 행을 제거해 함성 개수 시너지를 깨면 안 된다');
+    context.game.playerConditionBuffs[0].appliedAt = context.__fakeNow + 1;
+    assert.deepStrictEqual(
+        Array.from(context.getEffectivePlayerConditionBuffs(context.__fakeNow), buff => buff.name),
+        [warcryName],
+        '기존 함성을 다시 외치면 그 함성이 마지막 효과로 교체되어야 한다'
+    );
+    context.earthshakerActive = false;
+    assert.strictEqual(context.getEffectivePlayerConditionBuffs(context.__fakeNow).length, 2,
+        '땅울림을 장착하지 않았으면 서로 다른 함성 효과가 모두 적용되어야 한다');
 }
 
 console.log('smoke-warcry-no-stack passed');

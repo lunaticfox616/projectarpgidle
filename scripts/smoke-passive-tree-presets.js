@@ -63,4 +63,30 @@ assert.deepStrictEqual(Array.from(vm.runInContext('game.passives', context)), ['
 const secondRun = vm.runInContext('runPassiveTreeAutoInvest()', context);
 assert.deepStrictEqual({ nodes: secondRun.nodes, points: secondRun.points }, { nodes: 0, points: 0 }, '완료된 프리셋은 재실행해도 중복 투자하지 않는다');
 
+vm.runInContext(`
+  Object.keys(PASSIVE_TREE.nodes).forEach(id => delete PASSIVE_TREE.nodes[id]);
+  PASSIVE_TREE.edges.length = 0;
+  PASSIVE_TREE.nodes.n0 = { id:'n0', kind:'root', x:-200, y:0, stat:'flatDmg', val:1 };
+  PASSIVE_TREE.nodes.h1 = { id:'h1', kind:'hub', socketType:'star_wedge', x:0, y:0, stat:'pctDmg', val:5 };
+  PASSIVE_TREE.nodes.h2 = { id:'h2', kind:'hub', socketType:'star_wedge', x:300, y:0, stat:'pctHp', val:5 };
+  PASSIVE_TREE.nodes.supp = { id:'supp', kind:'path', x:400, y:0, stat:'suppCap', val:1 };
+  PASSIVE_TREE.edges.push({from:'n0',to:'h1'}, {from:'h2',to:'supp'});
+  game.passives = ['n0']; game.passivePoints = 1;
+  game.starWedge = {
+    wedges: [{ id:1, unique:true, uniqueType:'black_hole', recordedHubNodeId:'h2', lines:[] }],
+    sockets: [{ nodeId:'h1', wedgeId:1 }]
+  };
+  game.settings.passiveTreePlanner = {
+    layoutVersion:PASSIVE_LAYOUT_VERSION, activeSlot:0, autoInvest:true,
+    presets:[{name:'가상 거점 경로',nodeIds:['h2','supp'],attributeChoices:{}},null,null]
+  };
+  recalculateStarWedgeMutations(true);
+  calculateReachableNodes();
+`, context);
+const virtualHubInvest = vm.runInContext('runPassiveTreeAutoInvest()', context);
+assert.deepStrictEqual({ nodes: virtualHubInvest.nodes, points: virtualHubInvest.points }, { nodes: 1, points: 1 },
+  '프리셋의 무료 연결 거점은 소비된 대상으로 보고 다음 능력치 노드를 계속 투자해야 한다');
+assert.ok(vm.runInContext("game.passives.includes('supp')", context),
+  '가상 연결 거점 뒤의 보조 젬 한도 노드는 실제 패시브로 활성화되어야 한다');
+
 console.log('smoke-passive-tree-presets passed');

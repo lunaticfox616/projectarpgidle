@@ -4816,7 +4816,7 @@ function acceptCurrentTalisman() {
     game.talismanInventory.push(state.current);
     game.noti = game.noti || {};
     game.noti.talisman = true;
-    addLog(`✅ 부적 획득: ${getTalismanDisplayName(state.current)}${state.current.stat ? ` +${formatValue(state.current.stat, state.current.value)}` : ''}`, 'loot-rare');
+    addLog(`✅ 부적 획득: ${getTalismanDisplayName(state.current)}${state.current.stat ? ` +${formatValue(state.current.stat, state.current.value)}` : ''}`, 'loot-rare', { item:state.current, itemKind:'talisman' });
     game.talismanUnseal = null;
     updateStaticUI();
 }
@@ -6115,6 +6115,49 @@ function decorateCombatLogItemMessage(msg, item) {
     return String(msg).replace(label, link);
 }
 
+function stripCombatLogEmoji(raw) {
+    return String(raw || '').replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, '').trim();
+}
+
+function getCombatLogElementFromText(message) {
+    let text = String(message || '');
+    if (/(화염|점화)/.test(text)) return 'fire';
+    if (/(냉기|한기|동결)/.test(text)) return 'cold';
+    if (/(번개|감전)/.test(text)) return 'light';
+    if (/(카오스|중독|독)/.test(text)) return 'chaos';
+    if (/(물리|출혈)/.test(text)) return 'phys';
+    return '';
+}
+
+function getCombatLogIconKind(message, cls, options) {
+    let opts = options || {};
+    if (opts.item) return 'item';
+    if (['attack', 'phys', 'fire', 'cold', 'light', 'chaos'].includes(opts.logIcon)) return opts.logIcon;
+    if (['phys', 'fire', 'cold', 'light', 'chaos'].includes(opts.element)) return opts.element;
+    let text = String(message || '');
+    let element = getCombatLogElementFromText(message);
+    if (element && /(피격|피해|상태이상|점화|냉각|동결|감전|중독|출혈)/.test(text)) return element;
+    if ((cls === 'attack-player' || cls === 'attack-crit') && /(피해|타격|공격)/.test(text)) return 'attack';
+    if (cls === 'attack-monster' && /피해/.test(text)) return element || 'phys';
+    return '';
+}
+
+function renderCombatLogIcon(kind, options) {
+    let opts = options || {};
+    if (kind === 'item') {
+        let asset = typeof getInventoryItemVisualAsset === 'function'
+            ? getInventoryItemVisualAsset(opts.item, opts.itemKind) : '';
+        return asset ? `<img class="combat-log-icon combat-log-item-icon" src="${escapeHTML(asset)}" alt="" aria-hidden="true">` : '';
+    }
+    return kind ? `<span class="combat-log-icon combat-log-icon--${kind}" aria-hidden="true"></span>` : '';
+}
+
+function decorateCombatLogMessage(message, cls, options) {
+    let cleanMessage = stripCombatLogEmoji(message);
+    let icon = renderCombatLogIcon(getCombatLogIconKind(cleanMessage, cls, options), options);
+    return `${icon}${cleanMessage}`;
+}
+
 function captureCombatLogScroll(log) {
     let bottomGap = log.scrollHeight - log.scrollTop - log.clientHeight;
     return {
@@ -6164,6 +6207,7 @@ function addLog(msg, cls, opts = {}) {
         combatLogRateState[opts.rateKey] = now + interval;
     }
     if (opts.item) msg = decorateCombatLogItemMessage(msg, opts.item);
+    msg = decorateCombatLogMessage(msg, cls, opts);
     if (opts.aggregateKey && settings.combatLogAggregate !== false) {
         let key = `${opts.aggregateKey}:${cls || ''}`;
         let state = combatLogAggregateState[key];
@@ -7055,10 +7099,13 @@ function showPlayerCosmosDebuffTooltip(event, type, value, remainSec, label) {
         + `<div class="tooltip-line">${safeLabel} -${Math.max(0, Number(value || 0)).toFixed(0)}%</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, visual.color);
 }
-function showPlayerBuffTooltip(event, name, type, remainSec) {
+function showPlayerBuffTooltip(event, name, type, remainSec, suppressed) {
     let entry = getAllConditionGemEntries().find(row => row && row.name === name) || { name, type: type || 'buff' };
     let typeLabel = { curse: '저주', warcry: '함성', guard: '가드', buff: '버프' }[type || entry.type] || (type || entry.type || '버프');
-    let html = `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">분류: ${escapeHTML(typeLabel)}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">효과: ${escapeHTML(getConditionGemDetail(entry))}</div>`;
+    let detail = suppressed
+        ? '땅울림으로 고유 효과 무효 · 활성 함성 수 판정에는 포함'
+        : getConditionGemDetail(entry);
+    let html = `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">분류: ${escapeHTML(typeLabel)}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(remainSec||0)))}초</div><div class="tooltip-line">효과: ${escapeHTML(detail)}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#7fb3ff');
 }
 // 플라스크 발동은 전투 중 자주 반복되어 전투 로그에 띄우면 스팸이 되므로, 캐릭터 효과
@@ -9079,13 +9126,17 @@ function buildPlayerConditionEffectIcons(now) {
         let tooltip = `showPlayerRuntimeEffectTooltip(event,'woodsmanCurse',${taken.toFixed(2)},0,0)`;
         icons.push(renderCombatEffectIcon({ key: 'woodsmanCurse', tooltip }));
     }
-    (game.playerConditionBuffs || []).filter(buff => buff && (buff.expiresAt || 0) > now).forEach(buff => {
+    let activeBuffs = (game.playerConditionBuffs || []).filter(buff => buff && (buff.expiresAt || 0) > now);
+    let effectiveBuffs = typeof getEffectivePlayerConditionBuffs === 'function'
+        ? new Set(getEffectivePlayerConditionBuffs(now)) : new Set(activeBuffs);
+    activeBuffs.forEach(buff => {
         let remain = Math.ceil(Math.max(0, ((buff.expiresAt || 0) - now) / 1000));
         let nameArg = escapeHTML(JSON.stringify(String(buff.name || '')));
         let typeArg = escapeHTML(JSON.stringify(String(buff.type || 'buff')));
-        let tooltip = `showPlayerBuffTooltip(event,${nameArg},${typeArg},${remain})`;
+        let suppressed = buff.type === 'warcry' && !effectiveBuffs.has(buff);
+        let tooltip = `showPlayerBuffTooltip(event,${nameArg},${typeArg},${remain},${suppressed})`;
         let key = ['guard', 'warcry'].includes(buff.type) ? buff.type : 'buff';
-        icons.push(renderCombatEffectIcon({ key, label: buff.name, tooltip, remainingSec: remain, durationSec: Number(buff.durationMs) / 1000 }));
+        icons.push(renderCombatEffectIcon({ key, label: buff.name, tooltip, badge: suppressed ? '×' : '', remainingSec: remain, durationSec: Number(buff.durationMs) / 1000 }));
     });
     (game.cosmosPlayerDebuffs || []).filter(row => row && (row.expiresAt || 0) > now).forEach(row => {
         let remain = Math.ceil(Math.max(0, ((row.expiresAt || 0) - now) / 1000));
@@ -10504,7 +10555,7 @@ function performUpdateStaticUI() {
                 : (quality.optionCount > 0 ? `옵션 ${quality.optionCount}개 · 평균 T${quality.averageTier.toFixed(1)} · 품질 ${quality.qualityPct}%` : '미가공 · 오브 제작 가능');
             let equipSlotBtns = Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => `<button onclick="equipJewel(${idx}, ${slotIdx})">슬롯${slotIdx + 1}</button>`).join('');
             let manageActions = `<button onclick="selectJewelWorkbenchTarget(${idx},false)">제작대상</button><button onclick="selectJewelWorkbenchTarget(${idx},true)">융합선택</button>${jewel.waxedByBeeswax ? `<button disabled>밀랍</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="toggleJewelLock(${idx})">${jewel.locked ? '🔒 잠금' : '🔓 잠금'}</button><button onclick="salvageJewel(${idx})" ${jewel.locked ? 'disabled' : ''}>해체 +${getJewelSalvageShardGain(jewel)}</button>`;
-            return `<div class="item-card jewel-inventory-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()">${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(jewel, 'jewel', 'jewel-card-visual') : ''}<div class="jewel-card-copy"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="jewel-quality-line">${qualityText}</div><div class="item-stats" style="line-height:1.45;color:var(--copy-bright);">${desc || '<span style="color:var(--copy-muted);">옵션 없음</span>'}</div><div class="item-actions">${equipSlotBtns}${manageActions}</div></div></div>`;
+            return `<div class="item-card jewel-inventory-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()">${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(jewel, 'jewel', 'jewel-card-visual') : ''}<div class="jewel-card-copy"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="jewel-quality-line">${qualityText}</div><div class="item-stats" style="line-height:1.45;color:var(--copy-bright);">${desc || '<span style="color:var(--copy-muted);">옵션 없음</span>'}</div></div><div class="item-actions jewel-card-actions">${equipSlotBtns}${manageActions}</div></div>`;
         }).join('');
         renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:var(--copy-muted);">주얼 인벤토리가 비었습니다.</div>`, '');
     }
@@ -13595,8 +13646,8 @@ function mergeDefaults(save) {
         let unlockedSlots = (typeof TALENT_CARD_SLOT_UNLOCKS !== 'undefined' ? TALENT_CARD_SLOT_UNLOCKS : [])
             .filter(requirement => ownedCards.length >= requirement).length;
         (state && Array.isArray(state.talentCardLoadout) ? state.talentCardLoadout.slice(0, unlockedSlots) : []).forEach(comboKey => {
-            let def = typeof TALENT_BLOOM_CARD_DEFS !== 'undefined' ? TALENT_BLOOM_CARD_DEFS[comboKey] : null;
-            ((def && def.surface && def.surface.uniq) || []).forEach(effect => {
+            let rule = typeof TALENT_PRECISE_CARD_RULES !== 'undefined' ? TALENT_PRECISE_CARD_RULES[comboKey] : null;
+            ((rule && rule.uniques) || []).forEach(effect => {
                 if (effect && effect.key === 'summonCapBonus') bonus += Number((effect.params || {}).cap) || 1;
             });
         });

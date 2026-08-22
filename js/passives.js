@@ -3546,7 +3546,9 @@ function runPassiveTreeAutoInvest() {
     while (guard-- > 0 && game.passivePoints > 0) {
         // 저장 당시의 투자 순서를 지킨다. 중간 노드를 건너뛰어 예상 밖 최단 경로를
         // 구매하거나, 매 포인트마다 모든 노드에 BFS를 반복하는 일을 피한다.
-        let targetId = preset.nodeIds.find(id => !(game.passives || []).includes(id));
+        // 블랙홀 별쐐기의 무료 연결 거점은 실제 투자 목록에는 없지만 이미 경로가 열린
+        // 노드다. 이를 첫 미투자 대상으로 고르면 비용 0에서 멈춰 뒤 능력치 노드를 건너뛴다.
+        let targetId = preset.nodeIds.find(id => !(game.passives || []).includes(id) && !isPassiveNodeVirtuallyLearned(id));
         if (!targetId) break;
         let path = getPassiveActivationPath(targetId);
         if (path.length <= 0 || path.length > game.passivePoints) break;
@@ -10070,7 +10072,7 @@ function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ �
     }
     game.jewelInventory.push(jewel);
     let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
-    addLog(`🎰 주얼 가공: ${getJewelRarityLabel(jewel.rarity)} [${jewel.name}] 획득! (${lineText})`, jewel.rarity === 'unique' ? 'loot-unique' : 'loot-rare');
+    addLog(`🎰 주얼 가공: ${getJewelRarityLabel(jewel.rarity)} [${jewel.name}] 획득! (${lineText})`, jewel.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item:jewel, itemKind:'jewel' });
     updateStaticUI();
 }
 

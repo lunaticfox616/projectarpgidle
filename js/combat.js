@@ -317,7 +317,9 @@ function applyInstantPlayerLeech(rawAmount, pStats, target) {
     let hpCap = getPlayerRecoveryHpCap(pStats);
     let before = Math.max(0, Number(game.playerHp) || 0);
     game.playerHp = Math.min(hpCap, before + instantAmount);
-    return Math.max(0, game.playerHp - before);
+    let recovered = Math.max(0, game.playerHp - before);
+    if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(recovered);
+    return recovered;
 }
 function tickPlayerLeech(pStats, dt) {
     let instances = getActiveLeechInstances();
@@ -325,6 +327,7 @@ function tickPlayerLeech(pStats, dt) {
     let hpCap = getPlayerRecoveryHpCap(pStats);
     let esCap = getPlayerEnergyShieldRecoveryCap(pStats);
     let healed = 0;
+    let lifeHealed = 0;
     let next = [];
     instances.forEach(inst => {
         let tick = Math.min(inst.remaining, inst.rate * dt);
@@ -343,12 +346,14 @@ function tickPlayerLeech(pStats, dt) {
             game.playerHp = Math.min(hpCap, before + tick);
             let gained = Math.max(0, game.playerHp - before);
             healed += gained;
+            lifeHealed += gained;
             consumed = gained > 0 || !(pStats && pStats.leechKeepFullLife) ? tick : 0;
         }
         inst.remaining = Math.max(0, inst.remaining - consumed);
         if (inst.remaining > 0) next.push(inst);
     });
     game.playerLeechInstances = next;
+    if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(lifeHealed);
     return healed;
 }
 
@@ -385,6 +390,7 @@ function tickPlayerRecoup(pStats, dt) {
         if (inst.remaining > 0) next.push(inst);
     });
     game.playerRecoupInstances = next;
+    if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(healed);
     return healed;
 }
 
@@ -589,19 +595,6 @@ function prepareTalentPlayerAttackContext(pStats) {
     pStats.sSkill.targets = Math.min(12, Math.max(1, Math.floor(pStats.sSkill.targets || 1)) + 3);
 }
 
-function getTalentPlayerHitDamageMultiplier(targetEnemy, hitElement, hitCrit, pStats) {
-    function coerceTalentMultiplier(value) {
-        let numericValue = Number(value);
-        if (!Number.isFinite(numericValue)) return 1;
-        return Math.max(0, numericValue);
-    }
-    let mul = 1;
-    if (typeof window.getTalentKeystoneDamageMul === 'function') {
-        mul *= coerceTalentMultiplier(window.getTalentKeystoneDamageMul(targetEnemy, hitElement, hitCrit, pStats));
-    }
-    return mul;
-}
-
 function getTalentPlayerAttackDamageMultiplier() {
     let mul = typeof window.getTalentAttackDamageMul === 'function' ? Number(window.getTalentAttackDamageMul()) : 1;
     if (!Number.isFinite(mul)) return 1;
@@ -633,7 +626,7 @@ function performTalentMoonReturn(pStats, options, didHit) {
 
 function updateTalentButcherHitMark(enemy) {
     if (getCombatTalentCardLevel('hero2__assassin') <= 0) return;
-    if (!enemy || enemy.isBoss) return;
+    if (!enemy) return;
     game.talentButcherMarks = game.talentButcherMarks || {};
     let row = game.talentButcherMarks[enemy.id] || { hits: 0 };
     row.hits = Math.max(0, Math.floor(row.hits || 0)) + 1;
@@ -642,9 +635,7 @@ function updateTalentButcherHitMark(enemy) {
 
 function canApplyTalentExecuteThreshold(enemy, threshold) {
     if (!enemy || enemy.isBoss || threshold <= 0) return false;
-    if (getCombatTalentCardLevel('hero2__assassin') <= 0) return true;
-    let row = game.talentButcherMarks && game.talentButcherMarks[enemy.id];
-    return Math.max(0, Math.floor((row && row.hits) || 0)) >= 4;
+    return true;
 }
 
 function getPlayerHpCap(pStats) {
@@ -657,7 +648,11 @@ function getPlayerRecoveryHpCap(pStats) {
     let baseCap = getPlayerHpCap(pStats);
     if (game.ascendClass === 'warrior' && hasKeystone('w8')) return baseCap;
     let overhealPct = Math.max(0, Number(pStats && pStats.uniqueOverhealCapPct) || 0);
-    return baseCap * (100 + overhealPct) / 100;
+    let cap = baseCap * (100 + overhealPct) / 100;
+    let mossRows = game.talentCardRuntime && Array.isArray(game.talentCardRuntime.mossRecoveries)
+        ? game.talentCardRuntime.mossRecoveries : [];
+    let occupied = mossRows.reduce((sum, row) => sum + Math.max(0, Number(row && row.amount) || 0), 0);
+    return Math.max(1, cap - occupied);
 }
 
 function getPlayerEnergyShieldRecoveryCap(pStats) {
@@ -697,7 +692,7 @@ function rollGrowthItemDrop(enemy, growthDropChance) {
     addBattleFx('lootPickup', { enemyId: enemy.id, color: growthDropColor, duration: item.growthChase ? 1200 : 780 });
     if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: growthDropColor, duration: item.growthChase ? 2200 : 1200 });
     let chaseLabel = item.growthChase ? ' <span style="color:#d7a7ff;font-weight:900;">✦ 체이싱</span>' : '';
-    addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${chaseLabel}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`);
+    addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${chaseLabel}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`, '', { item, itemKind:'growth' });
 }
 
 
@@ -879,6 +874,21 @@ function getAllConditionGemEntriesForCombat() {
     return [].concat(db.curse || [], db.warcry || [], db.guard || [], db.utility || []);
 }
 
+function getEffectivePlayerConditionBuffs(now) {
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let buffs = (Array.isArray(game.playerConditionBuffs) ? game.playerConditionBuffs : [])
+        .filter(buff => buff && (buff.expiresAt || 0) > timestamp);
+    if (typeof isTalentInstantWarcryActive !== 'function' || !isTalentInstantWarcryActive()) return buffs;
+    let latestWarcry = null;
+    buffs.forEach(buff => {
+        if (buff.type !== 'warcry') return;
+        let appliedAt = Number(buff.appliedAt) || 0;
+        if (!latestWarcry || appliedAt >= latestWarcry.appliedAt) latestWarcry = { buff, appliedAt };
+    });
+    if (!latestWarcry) return buffs;
+    return buffs.filter(buff => buff.type !== 'warcry' || buff === latestWarcry.buff);
+}
+
 function runConditionGemAutoRules(pStats) {
     let now = Date.now();
     cleanupConditionGemStates(now);
@@ -903,7 +913,8 @@ function runConditionGemAutoRules(pStats) {
         if (now < until) continue;
         let castTargetId = null;
         if (entry.type === 'curse') {
-            let target = (game.enemies || []).find(e => e && e.hp > 0 && !e.curseImmune);
+            let bypassCurseImmunity = typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero3__warlock');
+            let target = (game.enemies || []).find(e => e && e.hp > 0 && (!e.curseImmune || bypassCurseImmunity));
             if (!target) continue;
             castTargetId = target.id;
             let limit = Math.max(1, Math.floor((pStats.curseCap || 1)));
@@ -911,6 +922,7 @@ function runConditionGemAutoRules(pStats) {
             let existingIdx = list.findIndex(row => row && row.name === gemName);
             let durMul=1+Math.max(0,Number(pStats&&pStats.uniqueConditionManual&&pStats.uniqueConditionManual.durationPct)||0)/100;
             let nextExpire = now + Math.floor((entry.duration || 6) * 1000 * durMul);
+            if (typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero5__warlock')) nextExpire = Number.MAX_SAFE_INTEGER;
             let durationMs = nextExpire - now;
             if (existingIdx >= 0) {
                 list[existingIdx].expiresAt = nextExpire;
@@ -940,8 +952,13 @@ function runConditionGemAutoRules(pStats) {
             // 저주와 동일하게, 같은 함성/가드/유틸 젬이 이미 걸려 있으면 중복으로 쌓지 않고
             // 지속시간만 갱신한다(서로 다른 종류는 그대로 함께 유지되어 공명 등 보너스에 반영됨).
             let existingBuff = game.playerConditionBuffs.find(b => b && b.name === gemName);
-            if (existingBuff) { existingBuff.expiresAt = nextExpire; existingBuff.durationMs = durationMs; }
-            else game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: nextExpire, durationMs });
+            if (existingBuff) {
+                existingBuff.expiresAt = nextExpire;
+                existingBuff.durationMs = durationMs;
+                existingBuff.appliedAt = now;
+            } else {
+                game.playerConditionBuffs.push({ name: gemName, type: entry.type, expiresAt: nextExpire, durationMs, appliedAt: now });
+            }
             let castDelta = getConditionGemStatDelta(gemName, entry.type);
             if (castDelta.hpSacrificePct) game.playerHp = Math.max(1, game.playerHp * (1 - castDelta.hpSacrificePct / 100));
         }
@@ -950,6 +967,7 @@ function runConditionGemAutoRules(pStats) {
         if (gemName === '귀환 젬') returnToTown();
         let castDelayMs = Math.max(0, Math.floor((entry.castTime || 0) * 1000));
         if (entry.type === 'warcry' && typeof isTalentInstantWarcryActive === 'function' && isTalentInstantWarcryActive()) castDelayMs = 0;
+        if (entry.type === 'curse' && typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero10__warlock')) castDelayMs = 0;
         game.playerCastDelayUntil = Math.max(now, Math.floor(game.playerCastDelayUntil || 0), now + castDelayMs);
         game.lastConditionGemCast = { name: gemName, type: entry.type, targetId: castTargetId, expiresAt: now + 1100 };
         if (!game.settings || game.settings.showCombatLog !== false) addLog(`🧠 [${gemName}] 발동`, 'attack-monster', { noToast: true });
@@ -1240,7 +1258,8 @@ function getSummonGemLevel(gemName, source, pStats) {
     let isGem = !isSupport && typeof SKILL_DB !== 'undefined' && SKILL_DB[gemName] && SKILL_DB[gemName].isGem;
     let permanentSkyBonus = isGem && typeof getSkyTowerGemBoostLevel === 'function' ? getSkyTowerGemBoostLevel(gemName) : 0;
     let materialBonus = isGem ? Number(record.bossCoreLevel || 0) + Number(record.skyCoreLevel || 0) + (record.awakened ? 2 : 0) + permanentSkyBonus : 0;
-    return Math.max(1, baseLevel + bonus + engraveBonus + materialBonus);
+    let talentBonus = !isSupport ? Math.max(0, Math.floor(Number(pStats && pStats.talentSummonGemLevelBonus) || 0)) : 0;
+    return Math.max(1, baseLevel + bonus + engraveBonus + materialBonus + talentBonus);
 }
 
 function getAttackSummonGrowthSteps(gemLv) {
@@ -1341,7 +1360,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
         trait: profile.trait || '',
         hp: maxHp,
         maxHp: maxHp,
-        regenPerSec: getSummonRegenPerSec(maxHp),
+        regenPerSec: getSummonRegenPerSec(maxHp) + maxHp * Math.max(0, Number(pStats && pStats.talentSummonRegenPct) || 0) / 100,
         armor: Math.max(0, Math.floor((profile.baseArmor || 0) * armorGrowth)),
         evasion: getSummonEvasionRating(profile, gemLv, pStats),
         resFire: Math.max(-60, Math.min(90, profile.baseRes.fire || 0)),
@@ -1390,6 +1409,9 @@ function getLimitedSummonBossDamageMultiplier(pStats, target) {
 }
 
 function getSummonAttackIntervalMs(pStats, summon) {
+    if (typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero3__soulbinder')) {
+        return Math.max(120, Math.floor(1000 / Math.max(0.1, Number(pStats && pStats.aspd) || 1)));
+    }
     let profileMul = Math.max(0.1, Number((summon && summon.attackSpeedMul) || 1));
     let summonAspdMul = 1 + Math.max(0, ((pStats && pStats.summonAspd) || 0) / 100);
     return Math.max(120, Math.floor(1000 / (summonAspdMul * profileMul)));
@@ -1420,10 +1442,27 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let talentSummonMul = typeof getTalentSummonDamageMultiplier === 'function' ? getTalentSummonDamageMultiplier() : 1;
     let arcanaIncreasePct = Number.isFinite(Number(s.arcanaGemDamagePct))
         ? Math.max(0, Number(s.arcanaGemDamagePct)) : getSummonArcanaGemDamagePct(s, pStats);
-    let dmgMul = (1 + ((pStats.summonPctDmg || 0) + sharedIncreasePct + arcanaIncreasePct) / 100) * (1 + ((pStats.summonEfficiency || 0) / 100)) * talentSummonMul;
+    let elementalCaller = 0;
+    if (typeof getPreciseTalentRatio === 'function' && ['fire', 'cold', 'light'].includes(ele)) {
+        let source = pStats.talentSourceStats || {};
+        elementalCaller = Math.max(0, Number(source[`${ele}Pct`]) || 0) * 0.25 * getPreciseTalentRatio('hero7__elementalist');
+    }
+    let targetLinkedBonus = 0;
+    if (typeof getPreciseTalentRatio === 'function' && target && target.id === game.talentLastPlayerTargetId) {
+        targetLinkedBonus = 16 * getPreciseTalentRatio('hero6__soulbinder');
+    }
+    let citadelIncrease = 0;
+    if (typeof getPreciseTalentRatio === 'function' && getPreciseTalentLevel('hero7__guardian') && (game.playerEnergyShield || 0) > 0) {
+        citadelIncrease = 12 * getPreciseTalentRatio('hero7__guardian');
+    }
+    let dmgMul = (1 + ((pStats.summonPctDmg || 0) + sharedIncreasePct + arcanaIncreasePct
+        + elementalCaller + targetLinkedBonus + citadelIncrease) / 100)
+        * (1 + ((pStats.summonEfficiency || 0) / 100)) * talentSummonMul;
     let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
+    if (typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero7__gladiator')) critChance = 0.50;
     let effectiveCritChance = typeof getTalentSummonCritChance === 'function' ? getTalentSummonCritChance(critChance) : critChance;
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
+    if (typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero7__gladiator')) critMul = Math.min(2, critMul);
     let crit = false;
     let dmg = Math.max(1, base * dmgMul);
     let ailmentSourceDmg = Math.max(1, base * dmgMul);
@@ -1473,7 +1512,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     if (ele === 'light') enemyRes -= (curseFx.resLShred || 0);
     if (ele === 'chaos') enemyRes -= (curseFx.resChaosShred || 0);
     if (ele === 'phys') enemyRes -= (curseFx.physDrShred || 0);
-    if (!expected && target && resolveEntropyEvasion(target, target.evasionChance || 0, Date.now())) {
+    if (!expected && target && !pStats.talentSummonAlwaysHit && resolveEntropyEvasion(target, target.evasionChance || 0, Date.now())) {
         dmg = 0;
         ailmentSourceDmg = 0;
         addBattleFx('enemyEvade', { enemyId: target.id, text: '회피!', color: '#9fb4c8', duration: 260 });
@@ -1512,15 +1551,6 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let finalMul = getLimitedSummonFinalDamageMultiplier(pStats);
     dmg = Math.floor(dmg * finalMul);
     ailmentSourceDmg = Math.floor(ailmentSourceDmg * finalMul);
-    // 재능 개화 표면 키스톤은 소환수에도 적용하되, 플레이어의 일회성 공격 배율은 넘기지 않는다.
-    // 그렇지 않으면 플레쳐의 3번째 공격 직후 소환수 실피해와 DPS 표시가 함께 33% 뛰고 다음 공격까지 유지된다.
-    if (typeof getTalentKeystoneDamageMul === 'function') {
-        let ksMul = getTalentKeystoneDamageMul(target, ele, crit, pStats);
-        if (ksMul !== 1) {
-            dmg = Math.floor(dmg * ksMul);
-            ailmentSourceDmg = Math.floor(ailmentSourceDmg * ksMul);
-        }
-    }
     return { damage: Math.max(0, Math.floor(dmg)), ailmentSourceDamage: Math.max(0, Math.floor(ailmentSourceDmg)), crit: crit, critChance: effectiveCritChance, element: ele };
 }
 
@@ -1720,8 +1750,22 @@ function resolveSummonHit(summon, pStats, target, canGrantCritStack) {
     let hit = getSummonHitDamageInfo(summon, pStats, target);
     let damage = Math.max(0, hit.damage || 0);
     let dealt = applyDamageToEnemyResource(target, damage);
-    let leech = Math.max(0, Number(pStats.leech) || 0);
+    let commanderLeech = typeof getPreciseTalentRatio === 'function' ? 1.2 * getPreciseTalentRatio('hero7__crusader') : 0;
+    let leech = Math.max(0, Number(pStats.leech) || 0) + commanderLeech;
     if (dealt > 0 && leech > 0) summon.hp = Math.min(summon.maxHp || 1, summon.hp + (dealt * leech / 100));
+    if (dealt > 0 && commanderLeech > 0) {
+        let before = game.playerHp;
+        game.playerHp = Math.min(getPlayerRecoveryHpCap(pStats), game.playerHp + dealt * commanderLeech / 100);
+        shareTalentPlayerRecoveryWithSummons(Math.max(0, game.playerHp - before));
+    }
+    if (dealt > 0) {
+        game.talentSummonTargetIds = game.talentSummonTargetIds || {};
+        game.talentSummonTargetIds[summon.id] = target.id;
+        if (hit.crit && typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero7__assassin')) {
+            game.talentShadowCallerMarks = game.talentShadowCallerMarks || {};
+            game.talentShadowCallerMarks[target.id] = true;
+        }
+    }
     if (canGrantCritStack && hit.crit && pStats.uniqueSummonCritAspdStacks) {
         let cfg = pStats.uniqueSummonCritAspdStacks || {};
         let maxStacks = Math.max(1, Math.floor(cfg.maxStacks || 3));
@@ -2209,7 +2253,11 @@ function applyFlaskHealProgress(st, hpCap, now) {
     let targetApplied = Math.floor(st.healOverTimeTotal * (elapsed / duration));
     if (now >= st.healOverTimeUntil) targetApplied = st.healOverTimeTotal;
     let amount = Math.max(0, targetApplied - Math.max(0, st.healOverTimeApplied || 0));
-    if (amount > 0 && game.playerHp > 0) game.playerHp = Math.min(hpCap, game.playerHp + amount * getChallengeContractRecoveryMultiplier());
+    if (amount > 0 && game.playerHp > 0) {
+        let beforeTalentFlaskHeal = game.playerHp;
+        game.playerHp = Math.min(hpCap, game.playerHp + amount * getChallengeContractRecoveryMultiplier());
+        if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(game.playerHp - beforeTalentFlaskHeal);
+    }
     st.healOverTimeApplied = targetApplied;
     if (now >= st.healOverTimeUntil) {
         st.healOverTimeUntil = 0;
@@ -2285,6 +2333,7 @@ function coreLoop() {
     if (ensurePendingLoopHeroSelectionPrompt()) return;
     if (typeof trackRecordBests === 'function') trackRecordBests();
     const pStats = getPlayerStats();
+    if (typeof enforceTalentCombatState === 'function') enforceTalentCombatState(pStats);
     refreshRealmDeathWard(pStats);
     game.lastCombatStats = pStats;
     game.lastCombatStatsAt = Date.now();
@@ -2320,7 +2369,7 @@ function coreLoop() {
     });
     if (ailmentMap.chill) pStats.aspd *= 0.68;
     pStats.playerShockTakenDamageIncreasePct = activePlayerShock ? getPlayerShockTakenDamageIncreasePct(pStats, activePlayerShock.power) : 0;
-    (game.playerConditionBuffs || []).forEach(buff => {
+    getEffectivePlayerConditionBuffs(Date.now()).forEach(buff => {
         let delta = getConditionGemStatDelta(buff.name, buff.type);
         if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
         if (delta.aspd) pStats.aspd *= (1 + delta.aspd / 100);
@@ -2408,16 +2457,21 @@ function coreLoop() {
         if (beehivePause || game.inTicketBossFight || manualStopState) return;
         game.combatHalted = false;
     }
+    if (typeof processTalentMossBarkRecovery === 'function') processTalentMossBarkRecovery(pStats, Date.now());
     let recoveryHpCap = getPlayerRecoveryHpCap(pStats);
     if (game.playerHp > 0 && game.playerHp < recoveryHpCap) {
         let hpCap = recoveryHpCap;
         let bloomRegenMul = Math.max(0.05, 1 - Math.max(0, Math.min(0.95, game.bloomTrialRegenSuppress || 0)));
+        let beforeTalentRegen = game.playerHp;
         game.playerHp = Math.min(hpCap, game.playerHp + (pStats.maxHp * (pStats.regen / 100)) * 0.1 * bloomRegenMul * getChallengeContractRecoveryMultiplier());
+        if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(game.playerHp - beforeTalentRegen);
     }
     if ((game.delayedGuardHealPool || 0) > 0) {
         let tickHeal = Math.max(0, (game.delayedGuardHealPool / 4) * 0.1);
         let hpCap = recoveryHpCap;
+        let beforeTalentGuardHeal = game.playerHp;
         game.playerHp = Math.min(hpCap, game.playerHp + tickHeal * getChallengeContractRecoveryMultiplier());
+        if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(game.playerHp - beforeTalentGuardHeal);
         game.delayedGuardHealPool = Math.max(0, game.delayedGuardHealPool - tickHeal);
     }
     tickPlayerLeech(pStats, 0.1);
@@ -3221,7 +3275,10 @@ function getPlayerStats() {
         else if (effect.key === 'immuneFreeze') uniqueImmuneFreeze = true;
         else if (effect.key === 'lifePctAsEnergyShield') addStatToBucket(reward, 'energyShield', Math.floor(Math.max(0, baseHp) * Math.max(0, Number(ep.pct || 10)) / 100));
         else if (effect.key === 'overhealCapPct') uniqueOverhealCapPct = Math.max(uniqueOverhealCapPct, Number(ep.pct || 0));
-        else if (effect.key === 'dsAndTargetAnyBonus') { addStatToBucket(reward, 'ds', Number(ep.ds || 8)); addStatToBucket(reward, 'targetAny', Number(ep.target || 1)); }
+        else if (effect.key === 'dsAndTargetAnyBonus') {
+            addStatToBucket(reward, 'ds', Number(ep.ds !== undefined ? ep.ds : 8));
+            addStatToBucket(reward, 'targetAny', Number(ep.target !== undefined ? ep.target : 1));
+        }
         else if (effect.key === 'poisonDamageMorePct') addStatToBucket(reward, 'poisonDamageMultiplierPct', Number(ep.pct || 25));
         else if (effect.key === 'uniqueMinDmgRoll') addStatToBucket(reward, 'minDmgRoll', Number(ep.pct || 5));
         else if (effect.key === 'hitShockedEnemyDamageMorePct') addStatToBucket(reward, 'shockedEnemyHitDamageMorePct', Number(ep.pct || 50));
@@ -3484,6 +3541,8 @@ function getPlayerStats() {
     // 재능: 1 아방가르드 — 물리/투사체 스킬 관통(대상 최대화)
     if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__warrior') && (skill.ele === 'phys' || (Array.isArray(skill.tags) && skill.tags.includes('projectile')))) {
         skill.targets = 6;
+        skill.pierceOverkillCarry = true;
+        if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) skill.targetMode = 'pierce';
     }
     // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
     let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
@@ -3568,7 +3627,8 @@ function getPlayerStats() {
         if (randomElementSummary.length > 0) taggedSummary.push(`무작위 원소별 적용: ${randomElementSummary.join(' / ')}`);
     }
 
-    let weaponBaseDmgPct = Math.max(0, gearBase.weaponFlatDmgPct + gearExplicit.weaponFlatDmgPct);
+    let weaponBaseDmgPct = Math.max(0, gearBase.weaponFlatDmgPct + gearExplicit.weaponFlatDmgPct
+        + passive.weaponFlatDmgPct + season.weaponFlatDmgPct + ascend.weaponFlatDmgPct + reward.weaponFlatDmgPct);
     let gearFlatDmg = (gearBase.flatDmg * (1 + weaponBaseDmgPct / 100)) + gearExplicit.flatDmg;
     let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
     let activeArcanaGemDamagePct = Math.max(0, Number(skill.arcanaGemDamagePct) || 0);
@@ -3651,6 +3711,26 @@ function getPlayerStats() {
     if (skill.shieldArmorDamageRatio) {
         scaledFlatDmg = Math.max(1, shieldArmorForDamage * Math.max(0, Number(skill.shieldArmorDamageRatio) || 0));
     }
+    let talentSourceStats = {
+        armorPct: sumStatAcrossBuckets('armorPct'),
+        aspdPct: sumStatAcrossBuckets('aspd'),
+        movePct: sumStatAcrossBuckets('move'),
+        hpPct: sumStatAcrossBuckets('pctHp'),
+        dotPct: sumStatAcrossBuckets('dotPctDmg'),
+        generalPct: sumStatAcrossBuckets('pctDmg'),
+        elementalPct: sumStatAcrossBuckets('elementalPctDmg'),
+        firePct: sumStatAcrossBuckets('firePctDmg'),
+        coldPct: sumStatAcrossBuckets('coldPctDmg'),
+        lightPct: sumStatAcrossBuckets('lightPctDmg'),
+        summonPct: sumStatAcrossBuckets('summonPctDmg'),
+        summonHp: sumStatAcrossBuckets('summonHpPct'),
+        summonAspd: sumStatAcrossBuckets('summonAspd'),
+        regen: sumStatAcrossBuckets('regen')
+    };
+    let preciseTalentDerived = typeof getTalentPreciseDerivedBonuses === 'function'
+        ? getTalentPreciseDerivedBonuses({ ...talentSourceStats, skill })
+        : { skillIncreasePct: 0, aspdIncreasePct: 0 };
+    taggedTotal += Math.max(0, Number(preciseTalentDerived.skillIncreasePct) || 0);
     let baseDamageIncreaseMultiplier = (1 + (generalPctDmg + taggedTotal) / 100) * (skill.dmg || skill.baseDmg || 1) * codexBonusRatio;
     baseDamageIncreaseMultiplier *= (1 + Math.max(0, Number(skill.flatSkillDmgPct) || 0) / 100);
     let finalBaseDmg = Math.floor(scaledFlatDmg * baseDamageIncreaseMultiplier);
@@ -3661,10 +3741,11 @@ function getPlayerStats() {
 
     let gearAspd = gearBase.aspd + gearExplicit.aspd;
     let passiveAspd = passive.aspd + season.aspd + ascend.aspd + reward.aspd;
-    let totalAspdPct = gearAspd + passiveAspd + support.aspd;
+    let totalAspdPct = gearAspd + passiveAspd + support.aspd + Math.max(0, Number(preciseTalentDerived.aspdIncreasePct) || 0);
     let rawAspd = (1.0 + glovePairAspdBonus) * (1 + totalAspdPct / 100) * (skill.spd || skill.baseSpd || 1) * 0.88;
     // 극한의 속사(레인저 r9): 공격 속도 소프트캡 기준치 +2
     let aspdSoftCapKnee = (game.ascendClass === 'ranger' && hasKeystone('r9')) ? 7 : 5;
+    if (typeof getTalentAttackSpeedSoftcapKnee === 'function') aspdSoftCapKnee = getTalentAttackSpeedSoftcapKnee(aspdSoftCapKnee);
     let finalAspd = rawAspd <= aspdSoftCapKnee ? rawAspd : (aspdSoftCapKnee + Math.pow(Math.max(0, rawAspd - aspdSoftCapKnee), 0.72));
     finalAspd = Math.min(12, finalAspd);
 
@@ -4351,7 +4432,8 @@ function getPlayerStats() {
     damageScales.dotDurationMultiplier = dotDurationMultiplier;
     damageScales.warlockElementalOvercapToChaos = warlockElementalOvercapToChaos;
 
-    if (game.ascendClass === 'hunter' && hasKeystone('h8')) finalCrit = Math.min(1000, finalCrit);
+    if ((game.ascendClass === 'hunter' && hasKeystone('h8'))
+        || (typeof getPreciseTalentLevel === 'function' && (getPreciseTalentLevel('hero4__assassin') || getPreciseTalentLevel('hero6__ranger')))) finalCrit = Math.min(1000, finalCrit);
     else finalCrit = Math.min(100, finalCrit);
     if (skill.cannotCrit && !(game.ascendClass === 'catalyst' && hasKeystone('ct7') && Array.isArray(skill.tags) && skill.tags.includes('attack'))) finalCrit = 0;
     // 신성한 맹세: 번개 스킬의 기본 피해가 최대 에너지 보호막 100당 +1%
@@ -4426,9 +4508,6 @@ function getPlayerStats() {
         : 1;
     if (skillSequenceDpsMultiplier > 1) damageScales.skillSequenceMultiplier = skillSequenceDpsMultiplier;
     let finalPlayerSkillDps = finalDpsWithProjectileShots * skillSequenceDpsMultiplier + estimatedSkillDotDps;
-    // 재능 개화 키스톤: 상시 피해 배율을 표시 DPS에 반영(조건부는 툴팁에 별도 표기)
-    let talentDpsSummary = (typeof getTalentKeystoneDamageSummary === 'function') ? getTalentKeystoneDamageSummary() : { alwaysMul: 1, conditional: [] };
-    if (talentDpsSummary.alwaysMul !== 1) finalPlayerSkillDps *= talentDpsSummary.alwaysMul;
     let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
     let flameDecayDpsLines = [];
     if (skill.flameDecayDebuff) {
@@ -4974,9 +5053,7 @@ function getPlayerStats() {
                 isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps}, 발당 ${Math.round(projectileBonusShotDamagePct)}% 피해)` : null,
                 skillSequenceDpsMultiplier > 1 ? `강타 여진 기대값 x${skillSequenceDpsMultiplier.toFixed(2)} (본 타격 후 독립 여진)` : null,
                 estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
-                talentDpsSummary.alwaysMul !== 1 ? `🌸 재능 개화 키스톤(상시) x${talentDpsSummary.alwaysMul.toFixed(2)}` : null,
                 warriorPhysicalDpsMultiplier > 1 ? `격노 순환 x${warriorPhysicalDpsMultiplier.toFixed(2)} (${getWarriorRageStacks(Date.now())}/${WARRIOR_RAGE_STACK_MAX}중첩)` : null,
-                (talentDpsSummary.conditional && talentDpsSummary.conditional.length) ? `🌸 재능 개화 키스톤(조건부): ${talentDpsSummary.conditional.map(c => `${(typeof getTalentKeystoneConditionText === 'function' ? getTalentKeystoneConditionText(c.when, c.threshold) : '')}+${Math.floor(c.moreMul)}%`).join(', ')} (상황별 추가 적용)` : null,
                 (game.ascendClass === 'soulbinder' && hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? `상호 보완: 소환수 공격력 공유로 기본 피해 +${Math.floor(sbSummonShareToPlayer)} 반영 (DPS 포함)` : null
             ].concat(flameDecayDpsLines).filter(Boolean),
             final: `${Math.floor(finalPlayerSkillDps)}`
@@ -4997,10 +5074,12 @@ function getPlayerStats() {
         underworldGravityReductionPct: Math.max(0, Math.min(75,
             typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)),
         baseDmg: finalBaseDmg,
+        damageIncreasePct: Math.max(0, generalPctDmg + taggedTotal),
         maxHp: finalMaxHp,
         lifeRecoveryCap: getPlayerRecoveryHpCap({ maxHp: finalMaxHp, uniqueOverhealCapPct: uniqueOverhealCapPct }),
         aspd: finalAspd || 1.0,
         crit: finalCrit,
+        rawCrit: finalCrit,
         moveSpeed: finalMove,
         chillEffectReducePct: finalChillEffectReducePct,
         freezeDurationReducePct: finalFreezeDurationReducePct,
@@ -5021,6 +5100,7 @@ function getPlayerStats() {
         skillDotDps: estimatedSkillDotDps || 0,
         dpsBaseNoProjectileShots: finalDpsAdjusted || 0,
         critDmg: finalCritDmg,
+        rawCritDmg: rawFinalCritDmg,
         regen: finalRegen,
         regenSuppress: finalRegenSuppress,
         leech: finalLeech,
@@ -5121,6 +5201,7 @@ function getPlayerStats() {
         energyShield: finalEnergyShield,
         armorReduction: armorReduction,
         evadeChance: evadeChance,
+        enemyAccuracy: enemyAccuracy,
         accuracy: playerAccuracy,
         strength: totalStrength,
         dexterity: totalDexterity,
@@ -5197,7 +5278,7 @@ function getPlayerStats() {
         uniquePoisonExtraStacks: uniqueVenomStride ? Math.max(0, Math.floor(uniqueVenomStride.poisonExtraStack || 0)) : 0,
         runeCorpseExplodeChance: runeCorpseExplodeChance,
         runeCorpseExplodeLifePct: runeCorpseExplodeLifePct,
-        runeResonancePower: runeResonancePower,
+        runeResonancePower: runeResonancePower + Math.max(0, Number(reward.runeResonancePower) || 0),
         supportScaleBases: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumNonSupportStat(statId))])),
         summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
         summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0) + (((game.summonDeathDamageBuffExpiresAt || 0) > Date.now()) ? Math.max(0, Number(game.summonDeathDamageBuffPct || 0)) : 0)),
@@ -5228,6 +5309,8 @@ function getPlayerStats() {
         chaosErosion: Math.max(0, sumStatAcrossBuckets('chaosErosion')),
         chaosErosionCap: Math.max(0, sumStatAcrossBuckets('chaosErosionCap'))
     };
+    enemy.talentSourceStats = talentSourceStats;
+    if (typeof applyTalentPrecisePostStats === 'function') applyTalentPrecisePostStats(enemy);
     let summonEstimate = estimateSummonDps(enemy);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
     enemy.directDps = Math.max(0, enemy.dps || 0);
@@ -6851,7 +6934,8 @@ function applyTalentFenrirVenomCurse(enemy, pStats, hitDamage, now) {
     let active = typeof getTalentFenrirConfig === 'function' ? getTalentFenrirConfig() : null;
     if (!active || !enemy || enemy.hp <= 0 || !pStats || !pStats.sSkill || !pStats.sSkill.fenrirTooth) return null;
     let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
-    let durationMs = Math.max(1, Number(active.config.curseDurationMs) || 1);
+    let infinite = typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero5__warlock');
+    let durationMs = infinite ? Number.MAX_SAFE_INTEGER : Math.max(1, Number(active.config.curseDurationMs) || 1);
     let effect = {
         poisonChance: active.config.poisonChanceAtLevel10 * active.levelRatio,
         poisonDamageMorePct: active.config.poisonDamageMorePctAtLevel10 * active.levelRatio
@@ -6859,7 +6943,8 @@ function applyTalentFenrirVenomCurse(enemy, pStats, hitDamage, now) {
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
     let row = enemy.ailments.find(ail => ail && ail.type === 'fenrirVenomCurse');
     let payload = { type: 'fenrirVenomCurse', time: durationMs / 1000, duration: durationMs / 1000,
-        expiresAt: timestamp + durationMs, power: effect.poisonChance, sourceHitDamage: Math.max(1, Math.floor(hitDamage || 1)) };
+        expiresAt: infinite ? Number.MAX_SAFE_INTEGER : timestamp + durationMs,
+        power: effect.poisonChance, sourceHitDamage: Math.max(1, Math.floor(hitDamage || 1)) };
     if (row) Object.assign(row, payload);
     else enemy.ailments.push(payload);
     return effect;
@@ -7043,12 +7128,13 @@ function getDamageAilmentScore(sourceDamage, critDotBonusPct, scale, critDotBonu
     return source * getDamageAilmentEffectiveDotScale(scale, critDotBonusPct, critDotBonusScale);
 }
 
-function getEnemyDamageAilmentDps(ail, pStats) {
+function getEnemyDamageAilmentDps(ail, pStats, enemy) {
     let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
     let dps = getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
     if (ail && ail.type === 'ignite') dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.igniteDamageMultiplierPct) || 0) / 100));
     if (ail && ail.type === 'poison') dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.poisonDamageMultiplierPct) || 0) / 100));
     if (ail && (ail.talentDamageMorePct || 0) > 0) dps = Math.floor(dps * (1 + ail.talentDamageMorePct / 100));
+    if (typeof getTalentDotDamageMultiplier === 'function') dps = Math.floor(dps * getTalentDotDamageMultiplier(enemy));
     return dps;
 }
 
@@ -7201,15 +7287,18 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     let hitPower = Math.sqrt(Math.max(1, ailmentPowerSourceDamage)) * 0.01;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
     function applyAilmentType(type, forceChance) {
-        if (typeof canTalentCardApplyEnemyAilment === 'function' && !canTalentCardApplyEnemyAilment(type)) return false;
-        let baseChance = (Number.isFinite(forceChance) ? forceChance : getPlayerAilmentChance(pStats, type));
+        let sourceType = type;
+        let appliedType = typeof getTalentAilmentReplacement === 'function' ? getTalentAilmentReplacement(sourceType) : sourceType;
+        if (typeof canTalentCardApplyEnemyAilment === 'function' && !canTalentCardApplyEnemyAilment(appliedType)) return false;
+        let baseChance = (Number.isFinite(forceChance) ? forceChance : getPlayerAilmentChance(pStats, sourceType));
         let tryProc = Math.max(0, Math.min(1, baseChance + (isCrit ? 0.25 : 0)));
         if (Math.random() >= tryProc) return false;
-        let resKey = 'ailRes' + type.charAt(0).toUpperCase() + type.slice(1);
+        let resKey = 'ailRes' + sourceType.charAt(0).toUpperCase() + sourceType.slice(1);
         let ailResPen = (pStats && pStats.ailmentResistPenPct) || 0;
         let resistChance = Math.max(0, Math.min(0.95, ((enemy[resKey] || 0) - ailResPen) / 100));
         if (Math.random() < resistChance) return false;
-        if (type === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(hitRatio, enemy.maxHp || 1)) return false;
+        if (sourceType === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(hitRatio, enemy.maxHp || 1)) return false;
+        type = appliedType;
         let damageAilment = isDamageAilmentType(type);
         let power = damageAilment
             ? 0.90
@@ -7228,6 +7317,13 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
             payload.ailmentDotScore = ailmentDotScore * (1 + damageMorePct / 100);
             payload.talentDamageMorePct = damageMorePct;
         }
+        if (typeof decorateTalentAilmentPayload === 'function') decorateTalentAilmentPayload(type, payload, pStats);
+        if (row && typeof enhanceTalentAilmentReapplication === 'function'
+            && enhanceTalentAilmentReapplication(enemy, row, type, pStats)) {
+            trackHiddenJournalAilment(type, enemy);
+            if (typeof afterTalentAilmentApplied === 'function') afterTalentAilmentApplied(enemy, sourceType, pStats);
+            return true;
+        }
         if (row) {
             row.time = Math.max(row.time || 0, dur);
             row.duration = row.time;
@@ -7239,7 +7335,8 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
                     row.sourceHitDamage = ailmentPowerSourceDamage;
                     row.critDotBonusPct = critDotBonusPct;
                     row.ailmentDotScore = incomingScore;
-                    row.talentDamageMorePct = damageMorePct;
+                    row.talentDamageMorePct = Math.max(0, Number(payload.talentDamageMorePct) || 0);
+                    row.talentNitroAmplified = !!payload.talentNitroAmplified;
                 }
             }
             if (damageAilment) {
@@ -7248,10 +7345,11 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
             }
         } else enemy.ailments.push(payload);
         trackHiddenJournalAilment(type, enemy);
+        if (typeof afterTalentAilmentApplied === 'function') afterTalentAilmentApplied(enemy, sourceType, pStats);
         return true;
     }
     applyAilmentType(primaryType, opts.primaryAilmentChance);
-    if (ele === 'cold') applyAilmentType('freeze');
+    if (ele === 'cold' && !(typeof shouldTalentSkipColdFreeze === 'function' && shouldTalentSkipColdFreeze())) applyAilmentType('freeze');
     Object.entries(opts.additionalAilmentChances || {}).forEach(([type, chance]) => {
         if (type !== primaryType) applyAilmentType(type, chance);
     });
@@ -7267,7 +7365,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
                 let burst = 0;
                 (enemy.ailments || []).forEach(a => {
                     if (!a || !['ignite','poison','bleed'].includes(a.type) || (a.time || 0) <= 0) return;
-                    let dps = getEnemyDamageAilmentDps(a, pStats);
+                    let dps = getEnemyDamageAilmentDps(a, pStats, enemy);
                     burst += Math.max(0, Math.floor(dps * Math.min(2, a.time || 0)));
                     a.time = 0;
                 });
@@ -7292,13 +7390,14 @@ function tickEnemyAilments(pStats, dt) {
         if (enemy.ailments.length <= 0) return;
         let next = [];
         enemy.ailments.forEach(ail => {
+            let previousAilmentTime = Math.max(0, Number(ail.time) || 0);
             ail.time = Math.max(0, (ail.time || 0) - dt);
             let power = Math.max(0, ail.power || 0);
             let type = ail.type;
         if (ail.time > 0 && (type === 'ignite' || type === 'poison' || type === 'bleed')) {
                 let ele = type === 'ignite' ? 'fire' : (type === 'poison' ? 'chaos' : 'phys');
                 let enemyRes = getEffectiveEnemyMitigation(ele, zoneTier, enemy, pStats);
-                let dps = getEnemyDamageAilmentDps(ail, pStats);
+                let dps = getEnemyDamageAilmentDps(ail, pStats, enemy);
                 let igniteMul = (type === 'ignite' && (enemy.ailments || []).some(row => row && row.type === 'flameDecay' && (row.time || 0) > 0)) ? getFlameDecayIgniteTakenMultiplier(pStats) : 1;
                 let stackMul = Math.max(1, Math.floor(ail.stacks || 1));
                 let dotDmg = dps > 0 ? Math.max(1, Math.floor(dps * stackMul * dt * (1 - enemyRes / 100) * abyssPlayerMul * igniteMul)) : 0;
@@ -7314,6 +7413,10 @@ function tickEnemyAilments(pStats, dt) {
                     fxState[fxKey] = now;
                     addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(ele), damage: dealt, duration: 160, element: ele, noLine: true, dot: true });
                 }
+            }
+            if (previousAilmentTime > 0 && ail.time <= 0 && typeof storeExpiredTalentAilmentSeed === 'function') {
+                let remainingAtExpiry = getEnemyDamageAilmentDps(ail, pStats, enemy) * previousAilmentTime * Math.max(1, ail.stacks || 1);
+                storeExpiredTalentAilmentSeed(enemy, ail, remainingAtExpiry);
             }
             if (ail.time > 0) next.push(ail);
             if (type === 'poison' && enemy.hp <= 0) enemy.lastHitElement = 'chaos';
@@ -8154,7 +8257,7 @@ function rollLootForEnemy(enemy) {
             addBattleFx('lootPickup', { enemyId: enemy.id, color: jewelTier === 'unique' ? '#dca6ff' : '#78cfff', tier: jewelTier, duration: jewelTier === 'unique' ? 1040 : 820 });
             if (jewelTier === 'unique' || jewelTier === 'rare') addBattleFx('lootCelebration', { enemyId: enemy.id, color: jewelTier === 'unique' ? '#dca6ff' : '#78cfff', tier: jewelTier, duration: jewelTier === 'unique' ? 1360 : 940 });
             let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
-            if (game.settings.showLootLog) addLog(`💠 ${getJewelRarityLabel(jewel.rarity)} 주얼 [${jewel.name}] 획득!${protectOverflow ? ' <span style="color:#ffb86b;">(공간 부족 보호)</span>' : ''} (${lineText || '미가공'})`, protectOverflow ? 'loot-unique' : 'loot-rare');
+            if (game.settings.showLootLog) addLog(`💠 ${getJewelRarityLabel(jewel.rarity)} 주얼 [${jewel.name}] 획득!${protectOverflow ? ' <span style="color:#ffb86b;">(공간 부족 보호)</span>' : ''} (${lineText || '미가공'})`, protectOverflow ? 'loot-unique' : 'loot-rare', { item:jewel, itemKind:'jewel' });
         }
     }
     let beeUnlocked = !!(game.beehive && game.beehive.unlockedPermanent);
@@ -8457,7 +8560,7 @@ function handleEnemyDeath(enemy, pStats) {
                 if (typeof generateColonyWard === 'function') {
                     let ward = generateColonyWard();
                     c.wardInventory.push(ward);
-                    addLog(`🛡️ 군락지 액막이 부적 획득: ${ward.name}`, 'loot-rare');
+                    addLog(`🛡️ 군락지 액막이 부적 획득: ${ward.name}`, 'loot-rare', { item:ward, itemKind:'talisman' });
                 }
             }
             game.colony.wave = Math.max(1, Math.floor((game.colony.wave || 1) + 1));
@@ -8875,14 +8978,14 @@ function finishEncounterRun() {
             awardCurrency(zone.reward || 'goldenRule', 2);
             let astraUnique = generateUniqueItem(zone.tier || 34, null, '아스트라의 파편');
             addItemToInventory(astraUnique);
-            addLog(`👑 [${astraUnique.name}] 획득!`, 'loot-unique');
+            addLog(`👑 [${astraUnique.name}] 획득!`, 'loot-unique', { item:astraUnique });
         } else {
             let grantsClearCurrency = zone.capstoneRival ? firstRootBossClear : Math.random() < 0.5;
             if (grantsClearCurrency) awardCurrency(zone.reward || 'bossCore', 1);
             if (Math.random() < 0.4) {
                 let bossUnique = generateUniqueItem(zone.tier || 12);
                 addItemToInventory(bossUnique);
-                addLog(`👑 [${bossUnique.name}] 획득!`, 'loot-unique');
+                addLog(`👑 [${bossUnique.name}] 획득!`, 'loot-unique', { item:bossUnique });
             }
         }
         addLog(`🗝️ [${zone.name}] 토벌 완료!`, 'loot-unique');
@@ -9002,13 +9105,13 @@ function finishEncounterRun() {
         if (typeof window.exploreSelectedCosmosNode === 'function') {
             window.exploreSelectedCosmosNode(zone.cosmosNodeId || null);
         }
-        if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') game.cosmosAtlas.activeChallenge = null;
         if (typeof window.continueCosmosChallengeAfterClear === 'function'
             && window.continueCosmosChallengeAfterClear(mapAction)) {
             updateStaticUI();
             queueImportantSave(200);
             return;
         }
+        if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') game.cosmosAtlas.activeChallenge = null;
         game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
         game.killsInZone = 0;
         if (mapAction === 'stop') game.combatHalted = true;
@@ -9206,6 +9309,7 @@ function performPlayerAttack(pStats, attackOptions) {
     // 예약된 시간차 타격은 같은 카운터를 공유하되, 다음 공격은 항상 새 카운터로 시작한다.
     let attackHitGuardCounts = options.attackHitGuardCounts instanceof Map ? options.attackHitGuardCounts : new Map();
     let isStageReplay = !!options.stageReplay;
+    if (!isStageReplay && typeof isTalentPlayerAttackDisabled === 'function' && isTalentPlayerAttackDisabled()) return;
     let skillName = options.skillName || game.activeSkill;
     let channelContinuationRequested = !isStageReplay && consumeCombatChannelContinuation(skillName);
     if (!isStageReplay && typeof consumeOceanOxygenOnAttack === 'function') consumeOceanOxygenOnAttack();
@@ -9264,7 +9368,8 @@ function performPlayerAttack(pStats, attackOptions) {
     // 키스톤으로 보장된 치명타(암살자 a5, 촉매 ct7 공격 스킬)는 적 치명타 저항 굴림도 무시한다.
     let guaranteedCrit = (game.ascendClass === 'assassin' && hasKeystone('a5'))
         || (game.ascendClass === 'catalyst' && hasKeystone('ct7') && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('attack'));
-    let isCrit = options.forcedCrit !== undefined ? !!options.forcedCrit : (guaranteedCrit || Math.random() < (pStats.crit / 100));
+    let isCrit = options.forcedCrit !== undefined ? !!options.forcedCrit
+        : (guaranteedCrit || (typeof rollTalentPlayerCrit === 'function' ? rollTalentPlayerCrit(pStats.crit) : Math.random() < (pStats.crit / 100)));
     if (!isStageReplay && typeof talentOnPlayerAttack === 'function') talentOnPlayerAttack(pStats, isCrit);
     if (!isStageReplay && game.ascendClass === 'warrior' && hasKeystone('w2') && isCrit) {
         let now = Date.now();
@@ -9311,6 +9416,7 @@ function performPlayerAttack(pStats, attackOptions) {
     };
     let swingElement = options.forcedElement || getHitElement();
     if (!['phys','fire','cold','light','chaos'].includes(swingElement)) swingElement = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
+    if (typeof getTalentDamageConversion === 'function') swingElement = getTalentDamageConversion(swingElement, pStats).element;
     game.lastSkillHitElement = swingElement;
     let talentAttackMul = Number.isFinite(Number(options.talentAttackMultiplier))
         ? Math.max(0, Number(options.talentAttackMultiplier))
@@ -9364,7 +9470,7 @@ function performPlayerAttack(pStats, attackOptions) {
     let slamEchoGuaranteed = false;
     let passiveSlamEchoChance = Math.max(0, Math.min(100, pStats.slamEchoChance || 0)) / 100;
     if (passiveSlamEchoChance > 0 && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('slam')) slamEchoPct = Math.max(slamEchoPct, Math.max(0.25, (Number(pStats.slamEchoDamagePct || 0) / 100)));
-    (game.playerConditionBuffs || []).forEach(buff => {
+    getEffectivePlayerConditionBuffs(Date.now()).forEach(buff => {
         let delta = getConditionGemStatDelta(buff.name, buff.type);
         if (delta.slamEchoPct) { slamEchoPct = Math.max(slamEchoPct, delta.slamEchoPct); slamEchoGuaranteed = true; }
         if (delta.slamEchoDelaySec) slamEchoDelayMs = Math.max(100, Math.floor(delta.slamEchoDelaySec * 1000));
@@ -9483,6 +9589,7 @@ function performPlayerAttack(pStats, attackOptions) {
             let hitElement = swingElement;
             let curseFx = getEnemyConditionDebuffFactor(targetEnemy, pStats);
             let enemyRes = getEffectiveEnemyMitigation(hitElement, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
+            if (typeof getTalentTargetPenetrationBonus === 'function') enemyRes -= getTalentTargetPenetrationBonus(targetEnemy);
             if (hitElement === 'fire') enemyRes -= (curseFx.resFShred || 0);
             if (hitElement === 'cold') enemyRes -= (curseFx.resCShred || 0);
             if (hitElement === 'light') enemyRes -= (curseFx.resLShred || 0);
@@ -9491,6 +9598,10 @@ function performPlayerAttack(pStats, attackOptions) {
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let cj = targetEnemy.ailments.find(a => a && a.type === 'cosmosJudgment' && (a.time || 0) > 0); if (cj) enemyRes -= Math.max(0, Number(cj.power || 0)); }
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let rs = targetEnemy.ailments.find(a => a && a.type === 'realmAllResDown' && (a.time || 0) > 0); if (rs) enemyRes -= Math.max(0, Math.floor(rs.stacks || 0)) * Math.max(0, Number((pStats.uniqueAllResDownOnHit && pStats.uniqueAllResDownOnHit.perHit) || 0)); }
             let hitCrit = isCrit;
+            if (!hitCrit && typeof getTalentBrittleCritRetryChance === 'function' && hasTalentEnemyAilment(targetEnemy, 'brittle')) {
+                hitCrit = Math.random() < getTalentBrittleCritRetryChance(pStats.crit);
+            }
+            let invertEnemyResistance = false;
             // 49 새벽의기사: 몬스터별 처음 3타는 치명 불가 + 번개 저항 반대로 간주
             if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero5__warrior')) {
                 game.talentDawnHits = (game.talentDawnHits && typeof game.talentDawnHits === 'object') ? game.talentDawnHits : {};
@@ -9498,9 +9609,12 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (dh < 3) {
                     game.talentDawnHits[targetEnemy.id] = dh + 1;
                     hitCrit = false;
-                    if (hitElement === 'light') enemyRes = -enemyRes;
+                    if (hitElement === 'light') invertEnemyResistance = true;
                 }
             }
+            if (['fire', 'cold', 'light'].includes(hitElement) && typeof getPreciseTalentRatio === 'function'
+                && Math.random() < 0.15 * getPreciseTalentRatio('hero3__inquisitor')) invertEnemyResistance = true;
+            if (invertEnemyResistance) enemyRes = -enemyRes;
             if (pStats.uniqueAllResDownOnHit && targetEnemy) {
                 let now = Date.now();
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
@@ -9534,6 +9648,9 @@ function performPlayerAttack(pStats, attackOptions) {
             let talentCritDmgMultiplier = typeof getTalentShadowCritDamageMultiplier === 'function'
                 ? getTalentShadowCritDamageMultiplier(hitCrit)
                 : 1;
+            if (typeof getTalentCritDamageMultiplier === 'function') {
+                talentCritDmgMultiplier *= getTalentCritDamageMultiplier(targetEnemy, hitCrit, pStats);
+            }
             if (talentCritDmgMultiplier !== 1) hitBaseDamage = Math.floor(hitBaseDamage * talentCritDmgMultiplier);
             if (hitCrit && (targetEnemy.critDamageResistPct || 0) > 0) {
                 let critResist = Math.max(0, Math.min(95, Number(targetEnemy.critDamageResistPct || 0))) / 100;
@@ -9585,8 +9702,12 @@ function performPlayerAttack(pStats, attackOptions) {
                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * 1.30);
                 game.gladiatorSwiftOpeningReady = false;
             }
-            let talentKeystoneMul = getTalentPlayerHitDamageMultiplier(targetEnemy, hitElement, hitCrit, pStats);
-            let talentHitMul = talentAttackMul * talentKeystoneMul;
+            let talentKeystoneMul = 1;
+            if (typeof getTalentPrecisePlayerHitMultiplier === 'function') {
+                talentKeystoneMul *= getTalentPrecisePlayerHitMultiplier(targetEnemy, hitElement, pStats);
+            }
+            if (typeof getTalentButcherBossMultiplier === 'function') talentKeystoneMul *= getTalentButcherBossMultiplier(targetEnemy);
+            let talentHitMul = talentAttackMul * talentKeystoneMul * (colosseumStrikeMul || 1);
             hitBaseDamage = Math.floor(hitBaseDamage * talentHitMul);
             ailmentBaseDamage = Math.floor(ailmentBaseDamage * talentHitMul);
             if (pStats.cosmosOrbitCycle && targetEnemy) {
@@ -9612,6 +9733,7 @@ function performPlayerAttack(pStats, attackOptions) {
             let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
             let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
             let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
+            if (typeof getTalentLuckyDamageRoll === 'function') rollPct = getTalentLuckyDamageRoll(rollPct, minRoll, maxRoll, hitElement);
             if (pStats.uniqueCeilingSmashDouble && rollPct >= 140 && Math.random() < 0.15) {
                 dmg *= 2;
                 ailmentSourceDamage *= 2;
@@ -9669,10 +9791,14 @@ function performPlayerAttack(pStats, attackOptions) {
                 return;
             }
             if ((targetEnemy.hitRateGuard || 0) > 0) attackHitGuardCounts.set(targetEnemy.id, priorGuardedHits + 1);
-            dmg = Math.floor(dmg * (1 - (enemyRes / 100)));
+            let talentConversion = typeof getTalentDamageConversion === 'function'
+                ? getTalentDamageConversion(hitElement, pStats)
+                : { mainPct: 1, added: {} };
+            dmg = Math.floor(dmg * Math.max(0, Number(talentConversion.mainPct) || 0) * (1 - (enemyRes / 100)));
             let addedDamagePctByElement = (pStats && pStats.addedDamagePctByElement) || {};
             ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(addEle => {
-                let addPct = Math.max(0, Number(addedDamagePctByElement[addEle] || 0));
+                let addPct = Math.max(0, Number(addedDamagePctByElement[addEle] || 0)
+                    + Number(talentConversion.added && talentConversion.added[addEle] || 0));
                 let rawAdded = Math.floor(damageBeforeMitigation * addPct / 100);
                 if (rawAdded <= 0) return;
                 let addRes = getEffectiveEnemyMitigation(addEle, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
@@ -9803,14 +9929,6 @@ function performPlayerAttack(pStats, attackOptions) {
             let finalDamageMul = Math.max(0, Number(pStats.finalDamageMultiplier) || 1);
             dmg = Math.floor(dmg * finalDamageMul);
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * finalDamageMul);
-            // 재능 정밀 공격 배율(2 플레쳐 매3타, 14 콜로세움 투기장 일격) — 인라인 경로 적용
-            if (typeof getTalentAttackDamageMul === 'function') {
-                let tAtkMul = talentAttackMul * (colosseumStrikeMul || 1);
-                if (tAtkMul !== 1) {
-                    dmg = Math.floor(dmg * tAtkMul);
-                    ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * tAtkMul);
-                }
-            }
             if (!Number.isFinite(dmg) || dmg < 0) dmg = 0;
             if (game.ascendClass === 'hunter' && hasKeystone('h2') && targetEnemy) {
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
@@ -9856,7 +9974,18 @@ function performPlayerAttack(pStats, attackOptions) {
                 ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * firstStrikeMul);
             }
             targetEnemy.lastHitElement = hitElement;
-            let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, dmg);
+            let moonShadowRatio = hitCrit && typeof getPreciseTalentRatio === 'function'
+                ? 0.20 * getPreciseTalentRatio('hero3__assassin') : 0;
+            let normalDamage = moonShadowRatio > 0 ? Math.floor(dmg * (1 - moonShadowRatio)) : dmg;
+            let dealtToEnemy = applyDamageToEnemyResource(targetEnemy, normalDamage);
+            if (moonShadowRatio > 0) {
+                let trueDamage = Math.max(0, Math.floor(damageBeforeMitigation * moonShadowRatio));
+                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, trueDamage);
+            }
+            if (typeof applyTalentPostHitEffects === 'function' && dealtToEnemy > 0) {
+                let primaryTalentHit = hitIdx === 0 && targets[0] && targets[0].enemy === targetEnemy;
+                dealtToEnemy += applyTalentPostHitEffects(targetEnemy, dealtToEnemy, damageBeforeMitigation, hitElement, pStats, primaryTalentHit);
+            }
             if (dealtToEnemy > 0 && rangerGuaranteedHit && typeof recordTalentRangerChargeHit === 'function') {
                 recordTalentRangerChargeHit(targetEnemy, Date.now());
             }
@@ -9893,16 +10022,16 @@ function performPlayerAttack(pStats, attackOptions) {
                 dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
             }
             // 재능 처형(15 도살자/71 하운드): 낮은 체력 일반 몬스터 마무리
-            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof getTalentExecuteThreshold === 'function') {
+            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.isElite && !targetEnemy.elite
+                && typeof getTalentExecuteThreshold === 'function') {
                 let exThr = getTalentExecuteThreshold();
                 if (exThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= exThr) {
                     dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
                 }
             }
-            // 10 스팅어: 지속 피해가 걸린 일반 몬스터가 저체력이면 마무리(지속피해 점유 처형)
-            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.elite && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__catalyst')
-                && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && ['poison', 'ignite', 'bleed'].includes(a.type) && (a.time || 0) > 0)
-                && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= 0.20) {
+            // 스팅어: 남아 있는 지속 피해 총량이 현재 생명력을 덮으면 즉시 마무리한다.
+            if (dmg > 0 && targetEnemy.hp > 0 && typeof getTalentDotOccupancyDamage === 'function'
+                && getTalentDotOccupancyDamage(targetEnemy, pStats) >= targetEnemy.hp) {
                 dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
             }
             // 8 심문궁: 표식 누적(쿨타임 아닐 때), 5초 후 processTalentInquisitorMarks에서 폭발
@@ -9912,7 +10041,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 let mk = game.talentInquisitorMarks[targetEnemy.id] || { accumulated: 0, explodeAt: 0, cooldownUntil: 0 };
                 if ((mk.cooldownUntil || 0) <= nowMk) {
                     if (!mk.explodeAt) mk.explodeAt = nowMk + 5000;
-                    mk.accumulated = (mk.accumulated || 0) + dmg;
+                    mk.accumulated = (mk.accumulated || 0) + dealtToEnemy;
                     game.talentInquisitorMarks[targetEnemy.id] = mk;
                 }
             }
@@ -9920,10 +10049,12 @@ function performPlayerAttack(pStats, attackOptions) {
             if (dmg > 0 && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__warlock')
                 && game.enemyConditionDebuffs && Array.isArray(game.enemyConditionDebuffs[targetEnemy.id])
                 && game.enemyConditionDebuffs[targetEnemy.id].some(d => d && (d.expiresAt || 0) > Date.now())) {
-                game.enemyConditionDebuffs[targetEnemy.id] = [];
+                let activeCurses = game.enemyConditionDebuffs[targetEnemy.id];
+                let consumedCurseIndex = activeCurses.findIndex(d => d && (d.expiresAt || 0) > Date.now());
+                if (consumedCurseIndex >= 0) activeCurses.splice(consumedCurseIndex, 1);
                 let splash = Math.max(1, Math.floor(dmg * 0.2));
                 (game.enemies || []).forEach(e => {
-                    if (!e || e.hp <= 0 || e.id === targetEnemy.id) return;
+                    if (!e || e.hp <= 0) return;
                     e.hp = Math.max(0, e.hp - splash);
                     addBattleFx('hit', { enemyId: e.id, color: getElementColor('chaos'), damage: splash, duration: 220, syncToSwing: true });
                     if (e.hp <= 0) handleEnemyDeath(e, pStats);
@@ -9974,6 +10105,12 @@ function performPlayerAttack(pStats, attackOptions) {
                 });
             }
             if ((pStats.damageScales || {}).talismanBossFinalDmgBonusPct && targetEnemy.hp > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) <= 0.05) targetEnemy.hp = 0;
+            if (targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.isElite && !targetEnemy.elite
+                && getCombatTalentCardLevel('hero2__assassin') > 0) {
+                let butcherRow = game.talentButcherMarks && game.talentButcherMarks[targetEnemy.id];
+                let butcherLifeRatio = targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp);
+                if (butcherRow && butcherRow.hits >= 4 && butcherLifeRatio <= 0.30) targetEnemy.hp = 0;
+            }
             updateTalentButcherHitMark(targetEnemy);
             if (canApplyTalentExecuteThreshold(targetEnemy, pStats.sSkill.executeThreshold) && targetEnemy.hp > 0
                 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) < pStats.sSkill.executeThreshold) targetEnemy.hp = 0;
@@ -10102,15 +10239,17 @@ function performPlayerAttack(pStats, attackOptions) {
         });
     }
     let instantLeechRecovered = 0;
+    let playerLeechTarget = (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0)
+        ? 'energyShield' : 'life';
+    if (typeof getTalentPlayerLeechTarget === 'function') playerLeechTarget = getTalentPlayerLeechTarget(playerLeechTarget);
     if ((pStats.uniqueChaosDamageInstantLeechPct || 0) > 0 && totalChaosDamage > 0) {
-        instantLeechRecovered += applyInstantPlayerLeech(totalChaosDamage * Math.max(0, Number(pStats.uniqueChaosDamageInstantLeechPct) || 0) / 100, pStats, 'life');
+        instantLeechRecovered += applyInstantPlayerLeech(totalChaosDamage * Math.max(0, Number(pStats.uniqueChaosDamageInstantLeechPct) || 0) / 100, pStats, playerLeechTarget);
     }
     if (pStats.leech > 0 && totalLeechableDamage > 0) {
         let leechAmount = (totalLeechableDamage * (pStats.leech / 100));
-        let leechTarget = (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0) ? 'energyShield' : 'life';
-        if ((pStats.uniqueInstantLeechPct || 0) > 0) instantLeechRecovered += applyInstantPlayerLeech(leechAmount * ((pStats.uniqueInstantLeechPct || 0) / 100), pStats, leechTarget);
-        if (pStats.sSkill && pStats.sSkill.instantLeech) instantLeechRecovered += applyInstantPlayerLeech(leechAmount, pStats, leechTarget);
-        else addPlayerLeechInstance(leechAmount, pStats, leechTarget);
+        if ((pStats.uniqueInstantLeechPct || 0) > 0) instantLeechRecovered += applyInstantPlayerLeech(leechAmount * ((pStats.uniqueInstantLeechPct || 0) / 100), pStats, playerLeechTarget);
+        if (pStats.sSkill && pStats.sSkill.instantLeech) instantLeechRecovered += applyInstantPlayerLeech(leechAmount, pStats, playerLeechTarget);
+        else addPlayerLeechInstance(leechAmount, pStats, playerLeechTarget);
     }
 
     if (!isStageReplay && isCrit && (pStats.uniqueEsRecoverOnCritPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
@@ -10147,7 +10286,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 line += ` · 즉시흡수 +${instantLeechText}`;
             }
         }
-        addLog(line, isCrit ? 'attack-crit' : 'attack-player', { rateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', minIntervalMs: isCrit ? 120 : 180, aggregateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', aggregateWindowMs: 500 });
+        addLog(line, isCrit ? 'attack-crit' : 'attack-player', { logIcon:'attack', rateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', minIntervalMs: isCrit ? 120 : 180, aggregateKey: isCrit ? 'combat:hit-crit' : 'combat:hit', aggregateWindowMs: 500 });
     }
 
     performTalentMoonReturn(pStats, options, talentMoonPrimaryHit);
@@ -10389,7 +10528,11 @@ function tickAilments(pStats, dt) {
                 poison = Math.max(1, Math.floor(poison * dt * (1 - Math.max(0, Math.min(0.75, (pStats.resChaos || 0) / 100))) * getWoodsmanCurseDamageTakenMul()));
                 poison = Math.max(0, Math.floor(poison * (1 - Math.max(0, Math.min(0.9, (pStats.dotTakenDamageReducePct || 0) / 100)))));
                 poison = Math.max(0, Math.floor(poison * (1 - Math.max(0, Math.min(0.9, (pStats.poisonDamageReducePct || 0) / 100)))));
-                if (pStats.poisonToHeal) game.playerHp = Math.min(getPlayerRecoveryHpCap(pStats), game.playerHp + poison * getChallengeContractRecoveryMultiplier());
+                if (pStats.poisonToHeal) {
+                    let beforeTalentPoisonHeal = game.playerHp;
+                    game.playerHp = Math.min(getPlayerRecoveryHpCap(pStats), game.playerHp + poison * getChallengeContractRecoveryMultiplier());
+                    if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(game.playerHp - beforeTalentPoisonHeal);
+                }
                 else {
                     if (Date.now() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) poison = 0;
                     poison = applyTalentIncomingDamageMultiplier(poison, pStats);
@@ -10655,7 +10798,8 @@ function performMonsterAttacks(pStats) {
             let suppress = Math.max(0, Math.min(95, enemy.regenSuppressPct || 0));
             let curseFx = getEnemyConditionDebuffFactor(enemy);
             let uniqueRegenCut = (pStats && pStats.uniqueEnemyRegenCutAndMinRoll) ? Math.max(0, Number(pStats.uniqueEnemyRegenCutAndMinRoll.enemyRegenRateMul || 1)) : 1;
-            let effectiveRegenRate = Math.max(0, enemy.regenRate * (1 - suppress / 100) * (curseFx.enemyRegenRateMul || 1) * uniqueRegenCut);
+            let talentRegenMul = typeof getTalentEnemyRegenMultiplier === 'function' ? getTalentEnemyRegenMultiplier(enemy) : 1;
+            let effectiveRegenRate = Math.max(0, enemy.regenRate * (1 - suppress / 100) * (curseFx.enemyRegenRateMul || 1) * uniqueRegenCut * talentRegenMul);
             let maxHp = Math.max(1, enemy.maxHp || enemy.hp || 1);
             let rawRegen = Math.max(0, maxHp * effectiveRegenRate);
             let wholeRegen = Math.floor(rawRegen);
@@ -10827,10 +10971,19 @@ function performMonsterAttacks(pStats) {
                 if (row.ele === 'fire') less = pStats.fireTakenDamageReducePct || 0;
                 else if (row.ele === 'cold') less = pStats.coldTakenDamageReducePct || 0;
                 else if (row.ele === 'light') less = pStats.lightTakenDamageReducePct || 0;
-                else if (row.ele === 'chaos') less = pStats.chaosTakenDamageReducePct || 0;
+                else if (row.ele === 'chaos') {
+                    less = (pStats.chaosTakenDamageReducePct || 0) + (pStats.uniqueChaosTakenDamageReducePct || 0);
+                }
                 if (less > 0) return { ele: row.ele, amount: Math.max(0, Math.floor((row.amount || 0) * (1 - Math.max(0, Math.min(0.9, less / 100))))) };
                 return row;
             }).filter(row => row.amount > 0);
+            if (typeof getTalentElementalArmorReductionPct === 'function') {
+                damageBreakdown = damageBreakdown.map(row => {
+                    if (!row || !['fire', 'cold', 'light'].includes(row.ele)) return row;
+                    let reduction = getTalentElementalArmorReductionPct(pStats, row.amount);
+                    return { ele: row.ele, amount: Math.max(0, Math.floor(row.amount * (1 - reduction / 100))) };
+                }).filter(row => row && row.amount > 0);
+            }
             if (game.ascendClass === 'crusader' && hasKeystone('cr4')) {
                 let converted = [];
                 damageBreakdown.forEach(row => {
@@ -10919,16 +11072,15 @@ function performMonsterAttacks(pStats) {
                 dmg = Math.max(1, sumBreakdown());
             }
             dmg = Math.max(1, Math.floor(dmg * getWoodsmanCurseDamageTakenMul() * Math.max(0, Number(pStats.warriorTakenDamageMultiplier) || 1) * Math.max(0, Number(pStats.genericTakenDamageMultiplier) || 1)));
+            if (typeof getTalentIncomingDamageMultiplier === 'function') {
+                dmg = scaleBreakdownToTotal(Math.max(1, Math.floor(dmg * getTalentIncomingDamageMultiplier(enemy, pStats))));
+            }
             if (enemy.isBoss) dmg = Math.max(1, Math.floor(dmg * Math.max(0, Number(pStats.bossTakenDamageMultiplier) || 1)));
             if (pStats.uniqueGuardianArmor) {
                 let less = enemy.isBoss
                     ? Math.max(0, Math.min(95, Number(pStats.uniqueGuardianArmor.bossTakenLessPct || 0)))
                     : Math.max(0, Math.min(95, Number(pStats.uniqueGuardianArmor.takenLessPct || 0)));
                 dmg = Math.max(1, Math.floor(dmg * (1 - less / 100)));
-            }
-            if ((pStats.uniqueChaosTakenDamageReducePct || 0) > 0 && enemy.ele === 'chaos') {
-                let chaosLess = Math.max(0, Math.min(95, Number(pStats.uniqueChaosTakenDamageReducePct || 0)));
-                dmg = Math.max(1, Math.floor(dmg * (1 - chaosLess / 100)));
             }
             if (pStats.uniquePhysDrHalfTakenAsMore && enemy.ele === 'phys') {
                 let ratio = Math.max(0, Number(pStats.uniquePhysDrHalfTakenAsMore.ratio || 0.5));
@@ -10952,7 +11104,8 @@ function performMonsterAttacks(pStats) {
                 game.catalystEvadeBoostReady = false;
             }
             if (game.ascendClass === 'hunter' && hasKeystone('h3')) evadeChance = 100 - Math.pow(1 - evadeChance / 100, 2) * 100;
-            if (resolveEntropyEvasion(game, evadeChance, Date.now())) {
+            if (!(typeof isTalentMonsterAlwaysHit === 'function' && isTalentMonsterAlwaysHit())
+                && resolveEntropyEvasion(game, evadeChance, Date.now())) {
                 addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260, bodyCue: true });
                 addEvasionCombatLog(null, true);
                 recordPlayerEvadeUniqueEffects(pStats, aliveEnemies, Date.now());
@@ -10972,6 +11125,7 @@ function performMonsterAttacks(pStats) {
             if (gladiatorBattleLuck) blockRoll = Math.min(blockRoll, Math.random() * 100);
             let wasBlocked = blockRoll < blockRollChance;
             if (wasBlocked) {
+                if (typeof recordTalentBlock === 'function') recordTalentBlock();
                 // 7 에이기스: 막기 성공 → 다음 회피 10% 증폭
                 if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisEvadeAmp = true; }
                 if ((pStats.uniqueBlockRecoverEnergyShieldPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
@@ -11036,10 +11190,18 @@ function performMonsterAttacks(pStats) {
                     ailmentSourceDamage: ailmentSourceDamageBeforeCrit,
                     critDotBonusPct: enemyCritDotBonusPct
                 });
-                if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각' : ail === 'shock' ? '감전' : '중독'} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster');
+                if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각' : ail === 'shock' ? '감전' : '중독'} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster', { element:enemy.ele });
             }
 
             grantWarriorRageOnHit(Date.now());
+            if (typeof getPreciseTalentRatio === 'function' && getPreciseTalentLevel('hero5__guardian')) {
+                let missingLife = Math.max(0, getPlayerRecoveryHpCap(pStats) - Math.max(0, game.playerHp || 0));
+                let preHitRecovery = missingLife * 0.04 * getPreciseTalentRatio('hero5__guardian');
+                if (preHitRecovery > 0) {
+                    game.playerHp = Math.min(getPlayerRecoveryHpCap(pStats), game.playerHp + preHitRecovery);
+                    shareTalentPlayerRecoveryWithSummons(preHitRecovery);
+                }
+            }
             let remaining = dmg;
             let guardRedirectPct = Math.max(0, Math.min(100, Math.floor(pStats.summonGuardRedirectPct || 0)));
             let soulbinderShare = game.ascendClass === 'soulbinder' && hasKeystone('sb2');
@@ -11116,6 +11278,7 @@ function performMonsterAttacks(pStats) {
                 addBattleFx('statusText', { text: '죽음 저항!', color: '#d7b8ff', duration: 420 });
             }
             game.playerHp = nextPlayerHp;
+            if (remaining > 0 && typeof addTalentMossBarkRecovery === 'function') addTalentMossBarkRecovery(remaining, Date.now());
             trackHiddenJournalPlayerDamage(remaining);
             if (remaining > 0 && pStats.uniqueLifeRecoupTakenDamage) {
                 let cfg = pStats.uniqueLifeRecoupTakenDamage || {};
@@ -11171,7 +11334,7 @@ function performMonsterAttacks(pStats) {
                     let deflectText = deflected ? ` · 🪶비껴냄 -${deflectReducePct}%` : '';
                     damageLog = `🩸 [${getDamageElementLabel(topDamageEntry.ele)}] 피격 (${formatNumberKR(dmg)} 피해 · ${breakdownText}${deflectText})`;
                 }
-                addLog(damageLog, "attack-monster");
+                addLog(damageLog, "attack-monster", { element:topDamageEntry.ele });
             }
             if (game.playerHp <= 0) {
                 handlePlayerDefeat(zone, pStats, null, { fatalElement: topDamageEntry.ele, sourceName: enemy.name });
@@ -11233,7 +11396,7 @@ function applyTrialTrapTick(pStats) {
         game.bloomTrialRegenSuppress = getBloomTrialRegenSuppressNext(zone, game.bloomTrialRegenSuppress);
         addLog(`❄️ 혹독한 한기: 생명력 재생 억제 ${Math.round((game.bloomTrialRegenSuppress || 0) * 100)}%`, 'attack-monster', { noToast: true });
     }
-    addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel(trapElement)}] (${trapDamage} 피해)`, 'attack-monster', { noToast: true });
+    addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel(trapElement)}] (${trapDamage} 피해)`, 'attack-monster', { noToast:true, element:trapElement });
     if (game.playerHp <= 0) {
         handlePlayerDefeat(zone, pStats, "☠️ 시련 함정에 쓰러졌습니다. 마을로 귀환합니다.", { fatalElement: trapElement, sourceName: '시련 함정', noToast: true });
     }
@@ -11704,5 +11867,7 @@ function chooseLoopAdvance(shouldLoop) {
 }
 
 safeExposeGlobals({ estimateMapZonePowerRequirements });
+
+safeExposeGlobals({ getEffectivePlayerConditionBuffs });
 
 safeExposeGlobals({ isPlayerWalkingForAnimation, getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, resetCombatChannelRuntime, updateCombatChannelRuntime, cancelCombatChannel, applySkillMobilityBeforeAttack, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });
