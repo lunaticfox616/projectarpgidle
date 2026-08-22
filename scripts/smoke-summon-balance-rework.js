@@ -51,7 +51,23 @@ const burstMin = runtime.getSummonHitDamageInfo(burstProfile, pStats, null, { ro
 const consistentMin = runtime.getSummonHitDamageInfo(consistentProfile, pStats, null, { rollOverridePct: 50, forceCrit: false });
 assert.ok(burstMin.damage < consistentMin.damage, '버스트형(dmgRollMinPct 30)의 최소 굴림 피해는 연사형(50)보다 낮아야 한다');
 
-// ── 4. 레벨 21~30, 31+ 성장 스텝이 예전보다 가팔라야 하고, 31+ 쪽이 21~30보다 스텝당 증가폭이 커야 한다 ──
+// ── 4. 실제 적의 저항은 생성 시 지역 방어도를 이미 포함하므로 지역 기본 저항을 다시 더하지 않는다 ──
+vm.runInContext('game.currentZoneId = getAbyssZoneIdForDepth(20)', runtime);
+const lightningProfile = { ...hitProfile, ele: 'light', baseDamage: 1000, resPenBonus: 18, dmgRollMinPct: 100 };
+const lightningStats = { ...pStats, resPen: 0, physIgnore: 0, finalDamageMultiplier: 1, bossDamageDealtMultiplier: 1 };
+const zoneBaselineHit = runtime.getSummonHitDamageInfo(lightningProfile, lightningStats, null, { rollOverridePct: 100, forceCrit: false });
+const normalTargetHit = runtime.getSummonHitDamageInfo(lightningProfile, lightningStats, {
+    id: 901, hp: 10000, maxHp: 10000, resL: 25, isBoss: false, evasionChance: 0, ailments: []
+}, { rollOverridePct: 100, forceCrit: false });
+const bossTargetHit = runtime.getSummonHitDamageInfo(lightningProfile, lightningStats, {
+    id: 902, hp: 10000, maxHp: 10000, resL: 80, isBoss: true, evasionChance: 0, ailments: []
+}, { rollOverridePct: 100, forceCrit: false });
+assert.strictEqual(normalTargetHit.damage, zoneBaselineHit.damage,
+    'tier 20 일반 적의 최종 저항 25%는 지역 기본 저항 25%와 중복 합산되면 안 된다');
+assert.strictEqual(bossTargetHit.damage, 380,
+    '저항 80% 보스에게 소환수 관통 18%를 적용하면 유효 저항 62%의 피해가 나와야 한다');
+
+// ── 5. 레벨 21~30, 31+ 성장 스텝이 예전보다 가팔라야 하고, 31+ 쪽이 21~30보다 스텝당 증가폭이 커야 한다 ──
 const step20to21 = runtime.getAttackSummonGrowthSteps(21) - runtime.getAttackSummonGrowthSteps(20);
 const step29to30 = runtime.getAttackSummonGrowthSteps(30) - runtime.getAttackSummonGrowthSteps(29);
 const step30to31 = runtime.getAttackSummonGrowthSteps(31) - runtime.getAttackSummonGrowthSteps(30);

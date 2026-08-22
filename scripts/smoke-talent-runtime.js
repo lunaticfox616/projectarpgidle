@@ -405,9 +405,9 @@ for (let attack = 0; attack < 4; attack++) {
   });
   dawnDamage.push(before - dawnTarget.hp);
 }
-assert.deepStrictEqual(dawnDamage.slice(0, 3), [1500, 1500, 1500],
+assert.deepStrictEqual(dawnDamage.slice(0, 3), [1450, 1450, 1450],
   '새벽의 기사는 몬스터별 처음 세 타격의 치명타를 막고 번개 저항을 반대로 적용해야 한다');
-assert.strictEqual(dawnDamage[3], 1000,
+assert.strictEqual(dawnDamage[3], 1100,
   '새벽의 기사 네 번째 타격부터는 치명타와 원래 번개 저항을 정상 적용해야 한다');
 
 context.game.talentCards.hero3__inquisitor = { level: 10, score: 600, count: 1 };
@@ -420,7 +420,7 @@ withRandom(0, () => {
     stageReplay: true, forcedCrit: true, targetEntries: [{ enemyId: 2, mult: 1 }], skillName: '기본 공격'
   });
 });
-assert.strictEqual(combinedInvertTarget.maxHp - combinedInvertTarget.hp, 1500,
+assert.strictEqual(combinedInvertTarget.maxHp - combinedInvertTarget.hp, 1450,
   '새벽빛과 푸른 심판이 동시에 발동해도 저항 반전이 서로 상쇄되면 안 된다');
 
 resetGame();
