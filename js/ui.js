@@ -2546,6 +2546,7 @@ function getConditionGemDetail(entry) {
     if (d.pctDmg) out.push(`피해 +${Math.round(d.pctDmg)}%`);
     if (d.aspd) out.push(`공속 ${signed(d.aspd)}%`);
     if (d.dr) out.push(`물피감 ${signed(d.dr)}%`);
+    if (d.drCapBonus) out.push(`물피감 최대치 +${Math.round(d.drCapBonus)}%`);
     if (d.move) out.push(`이속 ${signed(d.move)}%`);
     if (d.regen) out.push(`재생 +${d.regen}%/s`);
     if (d.leech) out.push(`흡수 +${d.leech}%`);
