@@ -894,17 +894,19 @@ function getEffectivePlayerConditionBuffs(now) {
 }
 
 function getConditionPhysicalReductionCap(conditionEffects) {
-    let cap = PLAYER_PHYSICAL_REDUCTION_CAP_PCT;
+    let hasGuardCap = false;
+    let warcryCapBonus = 0;
     conditionEffects.forEach(({ buff, delta }) => {
         if (!delta || !(delta.dr > 0)) return;
         if (buff.type !== 'warcry') {
-            cap = CONDITION_GUARD_PHYSICAL_REDUCTION_CAP_PCT;
+            hasGuardCap = true;
             return;
         }
         let bonus = Math.min(WARCRY_PHYSICAL_REDUCTION_CAP_BONUS_PCT, Math.max(0, Number(delta.drCapBonus) || 0));
-        cap = Math.max(cap, PLAYER_PHYSICAL_REDUCTION_CAP_PCT + bonus);
+        warcryCapBonus += bonus;
     });
-    return cap;
+    if (hasGuardCap) return CONDITION_GUARD_PHYSICAL_REDUCTION_CAP_PCT;
+    return Math.min(CONDITION_GUARD_PHYSICAL_REDUCTION_CAP_PCT, PLAYER_PHYSICAL_REDUCTION_CAP_PCT + warcryCapBonus);
 }
 
 function applyConditionPhysicalReductionEffects(pStats, conditionEffects) {

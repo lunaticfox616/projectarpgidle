@@ -30,9 +30,14 @@ const stackedWarcryCap = applyEffects(stackedWarcryStats, [
     { buff: { type: 'warcry' }, delta: battleCry },
     { buff: { type: 'warcry' }, delta: glacierCry }
 ]);
-assert.strictEqual(stackedWarcryCap, 78, '서로 다른 함성을 겹쳐도 최대치 증가가 합산되면 안 된다');
-assert.strictEqual(stackedWarcryStats.dr, 78, '함성으로 적용되는 물리 피해 감소는 78%를 넘지 않아야 한다');
+assert.strictEqual(stackedWarcryCap, 81, '서로 다른 방어 함성의 최대치 +3%는 각각 합산되어야 한다');
+assert.strictEqual(stackedWarcryStats.dr, 81, '방어 함성 두 개가 겹치면 물리 피해 감소 최대치는 81%여야 한다');
 assert.strictEqual(stackedWarcryStats.rawDr, 121, '상한 전 합계는 캐릭터 정보 표기용으로 보존해야 한다');
+
+const singleWarcryStats = { dr: 75, rawDr: 100 };
+assert.strictEqual(applyEffects(singleWarcryStats, [{ buff: { type: 'warcry' }, delta: battleCry }]), 78,
+    '마지막 함성 하나만 유효한 경우 최대치는 78%여야 한다');
+assert.strictEqual(singleWarcryStats.dr, 78, '방어 함성 하나의 적용 물리 피해 감소는 78%를 넘지 않아야 한다');
 
 const penaltyStats = { dr: 75, rawDr: 75 };
 applyEffects(penaltyStats, [{ buff: { type: 'warcry' }, delta: getDelta('결전 신호') }]);
