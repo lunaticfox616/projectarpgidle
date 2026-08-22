@@ -3266,6 +3266,10 @@ body:not(.light-mode) .player-health-frame .player-exp-percent {
   font-size: 14px;
 }
 
+.combat-skill-gem-art .gem-art-fallback {
+  display: none;
+}
+
 @media (min-width: 1081px) {
   body.desktop-windowed-ui .player-hud {
     left: calc((100% - var(--combat-log-width) - 24px) / 2) !important;

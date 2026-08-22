@@ -4,6 +4,7 @@ const vm = require('vm');
 
 const html = fs.readFileSync('index.html', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const reliquaryCss = fs.readFileSync('css/ui-reliquary-shell.css', 'utf8');
 
 function countHtmlId(id) {
   return (html.match(new RegExp(`id="${id}"`, 'g')) || []).length;
@@ -42,6 +43,8 @@ assert(html.indexOf('id="ui-combat-skill-gems"', skillRackStart) < oxygenStart,
   'equipped skill gems must have a dedicated right-side rack');
 assert(!html.includes('player-hud-rack-title'),
   'the right-side gem rack must use icons without a redundant title inside the artwork');
+assert(/\.combat-skill-gem-art \.gem-art-fallback \{\s*display: none;\s*\}/.test(reliquaryCss),
+  'combat gem slots must hide fallback element symbols');
 assert(html.indexOf('id="ui-player-ailments-under"', frameStart) < hpTrackStart, 'active effects must share the supplied player frame');
 assert(hpTrackStart >= 0 && expTrackStart > hpTrackStart, 'the player frame must retain health and experience tracks');
 assert(esTrackStart > hpTrackStart && esTrackStart < expTrackStart, 'energy shield must overlay the health track instead of occupying a separate segment');
