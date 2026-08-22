@@ -8747,6 +8747,25 @@ function grantMilestonePinnacleClearRewards(zone, firstClear) {
     addLog(`${prefix} [${zone.name}] 최초 격파${rewardText}`, 'loot-unique');
 }
 
+/**
+ * @param {{id?: string, tier?: number, cosmosCapstone?: boolean}|null} zone
+ * @param {() => number} [randomFn]
+ * @returns {{name:string, slot:string, rarity:string}|null}
+ */
+const rollCosmosAstraUniqueDrop = (zone, randomFn) => {
+    if (!zone || !zone.cosmosCapstone) return null;
+    const definition = UNIQUE_DB.find(unique => unique && unique.dropOnly
+        && unique.dropOnly.id === zone.id && Number.isFinite(Number(unique.dropOnly.bossDropChance)));
+    if (!definition) return null;
+    const chance = Math.max(0, Math.min(1, Number(definition.dropOnly.bossDropChance)));
+    const roll = typeof randomFn === 'function' ? randomFn : Math.random;
+    if (roll() >= chance) return null;
+    const item = generateUniqueItem(zone.tier || definition.reqTier || 1, null, definition.name);
+    if (!item || !addItemToInventory(item, { guaranteedKeep: true })) return null;
+    addLog(`👑 [${item.name}] 획득!`, 'loot-unique', { item });
+    return item;
+};
+
 function finishEncounterRun() {
     expireActiveFlaskEffects();
     let zone = getZone(game.currentZoneId);
@@ -8976,9 +8995,7 @@ function finishEncounterRun() {
             if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
             addLog('🌌 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.', 'loot-unique');
             awardCurrency(zone.reward || 'goldenRule', 2);
-            let astraUnique = generateUniqueItem(zone.tier || 34, null, '아스트라의 파편');
-            addItemToInventory(astraUnique);
-            addLog(`👑 [${astraUnique.name}] 획득!`, 'loot-unique', { item:astraUnique });
+            rollCosmosAstraUniqueDrop(zone);
         } else {
             let grantsClearCurrency = zone.capstoneRival ? firstRootBossClear : Math.random() < 0.5;
             if (grantsClearCurrency) awardCurrency(zone.reward || 'bossCore', 1);
