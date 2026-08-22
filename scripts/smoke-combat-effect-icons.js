@@ -70,6 +70,7 @@ const context = {
   },
   getFlaskHealDef() { return { key: 'heal', name: '생명력 플라스크' }; },
   getMaxFlaskUtilitySlotCount() { return 1; },
+  getEffectivePlayerConditionBuffs() { return context.game.playerConditionBuffs; },
   hasKeystone(id) { return ownedKeystones.has(id); },
   isTalentCardActive(id) {
     return ['hero1__guardian', 'hero1__gladiator', 'hero2__gladiator', 'hero5__warrior'].includes(id) ? 1 : 0;
@@ -239,6 +240,21 @@ const buffHandlerContext = {
 vm.runInNewContext(getMouseEnterHandler(context.buildPlayerConditionEffectIcons(now)), buffHandlerContext);
 assert.strictEqual(receivedBuffName, injectedType, 'dynamic buff names must survive safe serialization');
 assert.strictEqual(buffHandlerContext.__effectInjected, undefined, 'dynamic buff names must not execute injected code');
+
+context.game.playerConditionBuffs = [
+  { name: '전장의 함성', type: 'warcry', expiresAt: 13000 },
+  { name: '피의 함성', type: 'warcry', expiresAt: 14000 }
+];
+context.getEffectivePlayerConditionBuffs = () => [context.game.playerConditionBuffs[1]];
+let suppressedWarcry;
+const warcryHandlerContext = {
+  event: {},
+  showPlayerBuffTooltip(...args) { suppressedWarcry = args[4]; }
+};
+const warcryMarkup = context.buildPlayerConditionEffectIcons(now);
+vm.runInNewContext(getMouseEnterHandler(warcryMarkup), warcryHandlerContext);
+assert.strictEqual(suppressedWarcry, true, 'older Earthshaker warcries must remain visible but report their intrinsic effect as suppressed');
+assert(warcryMarkup.includes('combat-effect-badge">×'), 'suppressed warcries need a compact inactive badge');
 
 let receivedNamedEffect;
 const namedHandlerContext = {

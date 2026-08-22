@@ -1422,6 +1422,7 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 }
 
 .equipment-item-card > .equipment-card-actions { grid-column: 1 / -1; }
+.jewel-inventory-card > .jewel-card-actions { grid-column: 1 / -1; }
 .jewel-card-copy,
 .talisman-card-copy { min-width: 0; }
 

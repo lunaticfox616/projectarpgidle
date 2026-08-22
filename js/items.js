@@ -714,7 +714,9 @@ function changeZone(id) {
     game.currentZoneId = id;
     game.killsInZone = 0;
     addLog(`🗺️ ${zone.name} 이동`, "season-up");
-    runItemStartMoving(true);
+    // 지도 선택은 귀환 완료가 아니라 새 전투로 출발하는 이동이다. true로 시작하면
+    // townReturnAction=hideout 설정이 이동 완료 시 다시 실행되어 선택한 지도를 덮어쓴다.
+    runItemStartMoving(false);
     updateStaticUI();
 }
 

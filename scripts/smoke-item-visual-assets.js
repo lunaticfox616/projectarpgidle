@@ -53,4 +53,10 @@ assert.strictEqual(resolve({}, 'talisman'), 'assets/items/seed-talisman-v3.png')
 assert.strictEqual(resolve({ growthCategory: 'flower' }, 'growth'), 'assets/items/flower-growth-v3.png');
 assert.strictEqual(resolve({ growthCategory: 'slab' }, 'growth'), 'assets/items/cosmic-slab-v3.png');
 
+const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const uiCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
+assert(uiSource.includes('item-actions jewel-card-actions'), 'jewel action buttons must render outside the icon-and-copy row');
+assert(uiCss.includes('.jewel-inventory-card > .jewel-card-actions { grid-column: 1 / -1; }'),
+  'jewel actions must span the full card width instead of inheriting the icon column offset');
+
 console.log('smoke-item-visual-assets: ok');

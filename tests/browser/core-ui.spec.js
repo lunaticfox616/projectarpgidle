@@ -447,7 +447,7 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
     await page.locator('.pruning-choice-actions').getByRole('button', { name:/부담을 안고 성장/ }).click();
     await expect(page.locator('.pruning-choice-effects')).toContainText('부담 1단계');
     await expect(page.locator('.pruning-stat-summary .gain')).toContainText('최대 생명력 +4');
-    await expect(page.locator('.pruning-stat-summary .burden')).toContainText('이동 속도(%) -0.05');
+    await expect(page.locator('.pruning-stat-summary .burden')).toContainText('이동 속도(%) -0.2');
     expect(await pruningActionOffsets()).toEqual(pruningActionsBefore);
     await page.locator('.pruning-choice-actions').getByRole('button', { name:/부담 가지치기/ }).click();
     await expect(page.locator('.pruning-choice-effects')).toContainText('부담 0단계');
