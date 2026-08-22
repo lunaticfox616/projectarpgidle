@@ -8824,7 +8824,6 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     let zone = getZone(game.currentZoneId) || {};
     let canDropUniqueInZone = (unique) => {
         if (!unique) return false;
-        if (unique.realmCodexOnly) return false;
         if (!unique.dropOnly) return true;
         let dropOnly = unique.dropOnly;
         if (dropOnly.type && zone.type !== dropOnly.type) return false;
@@ -8832,16 +8831,17 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         if (dropOnly.minFloor && Math.floor(zone.floor || 0) < dropOnly.minFloor) return false;
         return true;
     };
+    let meetsUniqueTier = unique => !!unique && zoneTier >= ((unique.dropOnly && unique.dropOnly.minTier) || unique.reqTier || 1);
     let forcedUnique = forcedUniqueName ? UNIQUE_DB.find(unique => unique && unique.name === forcedUniqueName) : null;
     let slot = (forcedUnique && forcedUnique.slots && forcedUnique.slots[0]) || preferredSlot || rndChoice(EQUIPMENT_DROP_SLOTS);
     let normalOptions = UNIQUE_DB.filter(unique => !unique.ultraRare && canDropUniqueInZone(unique));
     let chaseOptions = UNIQUE_DB.filter(unique => unique.ultraRare
         && canDropUniqueInZone(unique)
-        && zoneTier >= (unique.reqTier || 1));
+        && meetsUniqueTier(unique));
     let canRollChase = !forcedUnique && chaseOptions.length > 0 && Math.random() < 0.0016;
     let poolSource = canRollChase ? chaseOptions : normalOptions;
-    let options = poolSource.filter(unique => unique.slots.includes(slot) && zoneTier >= (unique.reqTier || 1));
-    if (options.length === 0) options = poolSource.filter(unique => zoneTier >= (unique.reqTier || 1));
+    let options = poolSource.filter(unique => unique.slots.includes(slot) && meetsUniqueTier(unique));
+    if (options.length === 0) options = poolSource.filter(meetsUniqueTier);
     if (options.length === 0) options = poolSource.length > 0 ? poolSource : UNIQUE_DB.filter(unique => canDropUniqueInZone(unique));
     if (options.length === 0) options = UNIQUE_DB.filter(unique => canDropUniqueInZone(unique));
     let unique = forcedUnique || rndChoice(options);

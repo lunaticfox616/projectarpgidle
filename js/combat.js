@@ -18,6 +18,9 @@ const PLAYER_ACCURACY_PER_LEVEL = 3;
 const PLAYER_ACCURACY_PER_DEXTERITY = 5;
 const MIN_PENETRATED_RESISTANCE = -200;
 const CRIT_DAMAGE_BASE_MULTIPLIER = 125;
+const PLAYER_PHYSICAL_REDUCTION_CAP_PCT = 75;
+const CONDITION_GUARD_PHYSICAL_REDUCTION_CAP_PCT = 90;
+const WARCRY_PHYSICAL_REDUCTION_CAP_BONUS_PCT = 3;
 const PENDING_SKILL_STAGE_CAP = 160;
 const COMBAT_PROJECTILE_MIN_TRAVEL_MS = 120;
 const COMBAT_PROJECTILE_MS_PER_CELL = 55;
@@ -778,11 +781,11 @@ function getConditionGemStatDelta(name, type) {
         '상처 악화': { enemyRegenRateMul: 0.60 },
         '약점 조준': { enemyProjectileTakenMul: 1.10, projectileExtraHits: 2 },
         // Warcries
-        '전장의 함성': { pctDmg: 16, aspd: 12, dr: 6, move: 8 },
+        '전장의 함성': { pctDmg: 16, aspd: 12, dr: 6, drCapBonus: 3, move: 8 },
         '피의 함성': { pctDmg: 22, leech: 0.9, hpSacrificePct: 6 },
         '추적자의 함성': { aspd: 14, targetAny: 1, crit: 6, move: 12 },
         '용광의 외침': { pctDmg: 15, fireBonus: 0.12, leech: 0.4, regen: 0.8 },
-        '빙하의 포효': { pctDmg: 13, coldBonus: 0.12, dr: 8, energyShieldRegen: 2 },
+        '빙하의 포효': { pctDmg: 13, coldBonus: 0.12, dr: 8, drCapBonus: 3, energyShieldRegen: 2 },
         '폭풍의 고함': { aspd: 16, crit: 5 },
         '공허의 외침': { pctDmg: 17, chaosBonus: 0.15, resPen: 8, leech: 0.7 },
         '결전 신호': { pctDmg: 18, dr: -4, critDmg: 30, resPen: 6 },
@@ -811,6 +814,7 @@ function getConditionGemStatDelta(name, type) {
     Object.keys(base).forEach(key => {
         let val = base[key];
         if (typeof val !== 'number') { out[key] = val; return; }
+        if (key === 'drCapBonus') { out[key] = val; return; }
         if (['enemyTakenMul', 'igniteTakenMul', 'chillTakenMul', 'freezeTakenMul', 'shockTakenMul', 'poisonTakenMul', 'bleedTakenMul', 'fireDotTakenMul', 'enemyProjectileTakenMul', 'enemyLightTakenMul', 'enemyChaosTakenMul', 'enemyCritDmgTakenMul', 'enemyDmgMul', 'enemyRegenRateMul'].includes(key)) {
             out[key] = val >= 1 ? 1 + ((val - 1) * scale) : 1 - ((1 - val) * scale);
         }
@@ -887,6 +891,35 @@ function getEffectivePlayerConditionBuffs(now) {
     });
     if (!latestWarcry) return buffs;
     return buffs.filter(buff => buff.type !== 'warcry' || buff === latestWarcry.buff);
+}
+
+function getConditionPhysicalReductionCap(conditionEffects) {
+    let hasGuardCap = false;
+    let warcryCapBonus = 0;
+    conditionEffects.forEach(({ buff, delta }) => {
+        if (!delta || !(delta.dr > 0)) return;
+        if (buff.type !== 'warcry') {
+            hasGuardCap = true;
+            return;
+        }
+        let bonus = Math.min(WARCRY_PHYSICAL_REDUCTION_CAP_BONUS_PCT, Math.max(0, Number(delta.drCapBonus) || 0));
+        warcryCapBonus += bonus;
+    });
+    if (hasGuardCap) return CONDITION_GUARD_PHYSICAL_REDUCTION_CAP_PCT;
+    return Math.min(CONDITION_GUARD_PHYSICAL_REDUCTION_CAP_PCT, PLAYER_PHYSICAL_REDUCTION_CAP_PCT + warcryCapBonus);
+}
+
+function applyConditionPhysicalReductionEffects(pStats, conditionEffects) {
+    let cap = getConditionPhysicalReductionCap(conditionEffects);
+    let rawDr = Number.isFinite(Number(pStats.rawDr)) ? Number(pStats.rawDr) : (Number(pStats.dr) || 0);
+    conditionEffects.forEach(({ delta }) => { rawDr += Number(delta && delta.dr) || 0; });
+    conditionEffects.forEach(({ delta }) => {
+        let armorMultiplier = Number(delta && delta.armorMul) || 0;
+        if (armorMultiplier > 0) rawDr += Math.max(0, Math.min(cap, rawDr) * armorMultiplier);
+    });
+    pStats.rawDr = rawDr;
+    pStats.dr = Math.min(cap, rawDr);
+    return cap;
 }
 
 function runConditionGemAutoRules(pStats) {
@@ -2369,16 +2402,14 @@ function coreLoop() {
     });
     if (ailmentMap.chill) pStats.aspd *= 0.68;
     pStats.playerShockTakenDamageIncreasePct = activePlayerShock ? getPlayerShockTakenDamageIncreasePct(pStats, activePlayerShock.power) : 0;
-    getEffectivePlayerConditionBuffs(Date.now()).forEach(buff => {
-        let delta = getConditionGemStatDelta(buff.name, buff.type);
+    let activeConditionEffects = getEffectivePlayerConditionBuffs(Date.now()).map(buff => ({
+        buff,
+        delta: getConditionGemStatDelta(buff.name, buff.type)
+    }));
+    applyConditionPhysicalReductionEffects(pStats, activeConditionEffects);
+    activeConditionEffects.forEach(({ delta }) => {
         if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
         if (delta.aspd) pStats.aspd *= (1 + delta.aspd / 100);
-        if (delta.dr) {
-            // 컨디션 젬 버프는 상한 90까지 올린다. 캐릭터 탭 표기가 "적용값 (비-제한값)"을
-            // 유지하도록 상한 전 합계도 같이 밀어 준다.
-            pStats.rawDr = (pStats.rawDr || pStats.dr || 0) + delta.dr;
-            pStats.dr = Math.min(90, (pStats.dr || 0) + delta.dr);
-        }
         if (delta.regen) pStats.regen += delta.regen;
         if (delta.crit) pStats.crit += delta.crit;
         if (delta.critDmg) pStats.critDmg += delta.critDmg;
@@ -2406,7 +2437,6 @@ function coreLoop() {
         if (delta.poisonToHeal) pStats.poisonToHeal = true;
         if (delta.disableEnemyLeech) pStats.disableEnemyLeech = true;
         if (delta.delayedRegenFromTakenDamage) pStats.delayedRegenFromTakenDamage = Math.max(pStats.delayedRegenFromTakenDamage || 0, delta.delayedRegenFromTakenDamage);
-        if (delta.armorMul) pStats.dr += Math.max(0, (pStats.dr || 0) * delta.armorMul);
         if (delta.immuneIgnite) pStats.immuneIgnite = true;
         if (delta.immuneChill) pStats.immuneChill = true;
         if (delta.immuneFreeze) pStats.immuneFreeze = true;
@@ -3851,9 +3881,8 @@ function getPlayerStats() {
     }
     // 저항과 같은 방식으로 상한 적용 전 합계(rawDr)를 함께 들고 다닌다.
     // 캐릭터 탭이 "적용값 (비-제한값)"으로 표기하려면 잘리기 전 값이 필요하다.
-    const DR_CAP_PCT = 75;
     let rawDr = gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr;
-    let finalDr = Math.min(DR_CAP_PCT, rawDr);
+    let finalDr = Math.min(PLAYER_PHYSICAL_REDUCTION_CAP_PCT, rawDr);
     let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
     let allowNegativePhysIgnore = false;
     let warriorPhysDamageMultiplier = 1;
@@ -4092,7 +4121,7 @@ function getPlayerStats() {
             if (crowdCount >= 3) {
                 finalBaseDmg = Math.floor(finalBaseDmg * 1.20);
                 rawDr += 20;
-                finalDr = Math.min(DR_CAP_PCT, rawDr);
+                finalDr = Math.min(PLAYER_PHYSICAL_REDUCTION_CAP_PCT, rawDr);
             }
         }
         if (hasKeystone('g5')) {
@@ -4574,7 +4603,7 @@ function getPlayerStats() {
     evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
     finalEnergyShield += (colonyWardBonus.energyShield || 0);
     rawDr += (colonyWardBonus.dr || 0);
-    finalDr = Math.min(DR_CAP_PCT, rawDr);
+    finalDr = Math.min(PLAYER_PHYSICAL_REDUCTION_CAP_PCT, rawDr);
     finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
     finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
     finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
@@ -4836,7 +4865,7 @@ function getPlayerStats() {
                 makeSourceLine('패시브', passive.dr + season.dr + ascend.dr + reward.dr, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조 젬', support.dr, '%', value => `${Math.floor(value)}%`)
             ].filter(Boolean),
-            final: rawDr > finalDr ? `${Math.floor(finalDr)}% (상한 ${DR_CAP_PCT}% 적용 · 합계 ${Math.floor(rawDr)}%)` : `${Math.floor(finalDr)}%`
+            final: rawDr > finalDr ? `${Math.floor(finalDr)}% (상한 ${PLAYER_PHYSICAL_REDUCTION_CAP_PCT}% 적용 · 합계 ${Math.floor(rawDr)}%)` : `${Math.floor(finalDr)}%`
         },
         armor: {
             title: '방어도',
@@ -8747,6 +8776,25 @@ function grantMilestonePinnacleClearRewards(zone, firstClear) {
     addLog(`${prefix} [${zone.name}] 최초 격파${rewardText}`, 'loot-unique');
 }
 
+/**
+ * @param {{id?: string, tier?: number, cosmosCapstone?: boolean}|null} zone
+ * @param {() => number} [randomFn]
+ * @returns {{name:string, slot:string, rarity:string}|null}
+ */
+const rollCosmosAstraUniqueDrop = (zone, randomFn) => {
+    if (!zone || !zone.cosmosCapstone) return null;
+    const definition = UNIQUE_DB.find(unique => unique && unique.dropOnly
+        && unique.dropOnly.id === zone.id && Number.isFinite(Number(unique.dropOnly.bossDropChance)));
+    if (!definition) return null;
+    const chance = Math.max(0, Math.min(1, Number(definition.dropOnly.bossDropChance)));
+    const roll = typeof randomFn === 'function' ? randomFn : Math.random;
+    if (roll() >= chance) return null;
+    const item = generateUniqueItem(zone.tier || definition.reqTier || 1, null, definition.name);
+    if (!item || !addItemToInventory(item, { guaranteedKeep: true })) return null;
+    addLog(`👑 [${item.name}] 획득!`, 'loot-unique', { item });
+    return item;
+};
+
 function finishEncounterRun() {
     expireActiveFlaskEffects();
     let zone = getZone(game.currentZoneId);
@@ -8976,9 +9024,7 @@ function finishEncounterRun() {
             if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
             addLog('🌌 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.', 'loot-unique');
             awardCurrency(zone.reward || 'goldenRule', 2);
-            let astraUnique = generateUniqueItem(zone.tier || 34, null, '아스트라의 파편');
-            addItemToInventory(astraUnique);
-            addLog(`👑 [${astraUnique.name}] 획득!`, 'loot-unique', { item:astraUnique });
+            rollCosmosAstraUniqueDrop(zone);
         } else {
             let grantsClearCurrency = zone.capstoneRival ? firstRootBossClear : Math.random() < 0.5;
             if (grantsClearCurrency) awardCurrency(zone.reward || 'bossCore', 1);
