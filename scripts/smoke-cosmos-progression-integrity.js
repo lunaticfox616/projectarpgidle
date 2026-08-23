@@ -1,19 +1,15 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
-const context = {
-    console,
-    window: null,
-    globalThis: null,
-    document: { readyState: 'loading', addEventListener() {} },
-    addEventListener() {},
-    requestAnimationFrame(callback) { context.requestedFrames.push(callback); },
-    requestedFrames: [],
-    logs: [],
-    addLog(message, type) { context.logs.push({ message, type }); },
-    safeExposeGlobals(fns) { Object.assign(context, fns); },
-    game: {
+const context = buildGameRuntime();
+context.document.readyState = 'loading';
+context.requestedFrames = [];
+context.logs = [];
+context.requestAnimationFrame = callback => { context.requestedFrames.push(callback); };
+context.addLog = (message, type) => { context.logs.push({ message, type }); };
+context.__cosmosTestGame = {
         season: 31,
         currencies: { starDust: 0 },
         jewelSlots: [],
@@ -27,11 +23,8 @@ const context = {
             selectedDirectives: ['rift'],
             directiveCycles: [7]
         }
-    }
 };
-context.window = context;
-context.globalThis = context;
-vm.createContext(context);
+vm.runInContext('game = __cosmosTestGame; window.game = game;', context);
 vm.runInContext(fs.readFileSync('js/cosmos-atlas.js', 'utf8'), context, { filename: 'js/cosmos-atlas.js' });
 
 assert.strictEqual(context.getCosmosMasteryValue('resonanceDrive'), 3, 'mastery lookup must be available to combat');

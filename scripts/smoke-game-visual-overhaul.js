@@ -261,44 +261,24 @@ assert.ok(fs.existsSync('assets/effects/boss-telegraph-pulse-v1.png'), 'generate
   'skill-chaos-boomerang-v1.png', 'skill-burst-v1.png', 'skill-dot-field-v1.png',
   'skill-summon-strike-v1.png',
 ].forEach(file => assert.ok(fs.existsSync(`assets/effects/${file}`), `generated skill VFX ${file} should exist`));
+const channelVfxAssets = [
+  'channel-focus-beam-v1.webp', 'channel-dragon-breath-v1.webp', 'channel-void-cutter-v1.webp',
+];
+channelVfxAssets.forEach(file => {
+  const bytes = fs.readFileSync(`assets/effects/${file}`);
+  assert.strictEqual(bytes.subarray(0, 4).toString(), 'RIFF', `${file} should be a real WebP asset`);
+  assert.strictEqual(bytes.subarray(8, 12).toString(), 'WEBP', `${file} should keep WebP compression`);
+  assert.ok(bytes.length <= 32768, `${file} should stay below the 32 KiB channel VFX budget`);
+});
 const skillVfxCoverage = vm.runInContext(`(() => {
   const gems = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
-  const specs = gems.map(name => JSON.stringify(getSkillGemSigilSpec(name)));
   return {
     count: gems.length,
     missing: gems.filter(name => !SKILL_GEM_VFX_PROFILES[name]),
-    missingSigil: gems.filter(name => !getSkillGemSigilSpec(name)),
-    uniqueSigils: new Set(specs).size,
   };
 })()`, context);
 assert.ok(skillVfxCoverage.count >= 41, 'the active skill-gem roster should remain fully represented');
 assert.deepStrictEqual(Array.from(skillVfxCoverage.missing), [], 'every active skill gem should have an explicit image VFX profile');
-assert.deepStrictEqual(Array.from(skillVfxCoverage.missingSigil), [], 'every active skill gem should have a visible procedural sigil');
-assert.strictEqual(skillVfxCoverage.uniqueSigils, skillVfxCoverage.count, 'active skill gems should not share the same combat sigil');
-const sigilDrawCounts = vm.runInContext(`(() => {
-  function makeCtx() {
-    return { globalAlpha: 1, strokes: 0, fills: 0, save() {}, restore() {}, rotate() {}, beginPath() {},
-      arc() {}, moveTo() {}, lineTo() {}, stroke() { this.strokes++; }, fill() { this.fills++; } };
-  }
-  const slash = makeCtx();
-  const slam = makeCtx();
-  const venom = makeCtx();
-  const lightning = makeCtx();
-  const fire = makeCtx();
-  const cold = makeCtx();
-  drawSkillGemSigil(slash, '연속 베기', 80, 0.5, 'phys');
-  drawSkillGemSigil(slam, '묵직한 강타', 80, 0.5, 'phys');
-  drawSkillGemSigil(venom, '독니 사출', 80, 0.5, 'chaos');
-  drawSkillGemSigil(lightning, '번개 타격', 80, 0.5, 'light');
-  drawSkillGemSigil(fire, '화염 참격', 80, 0.5, 'fire');
-  drawSkillGemSigil(cold, '서리 파동', 80, 0.5, 'cold');
-  return { slash: [slash.strokes, slash.fills], slam: [slam.strokes, slam.fills], venom: [venom.strokes, venom.fills], lightning: [lightning.strokes, lightning.fills], fire: [fire.strokes, fire.fills], cold: [cold.strokes, cold.fills] };
-})()`, context);
-assert.notDeepStrictEqual(Array.from(sigilDrawCounts.slash), Array.from(sigilDrawCounts.slam), 'different gems should render different sigil geometry');
-assert.deepStrictEqual(Array.from(sigilDrawCounts.venom), [0, 0], 'venom fang should not add a procedural rune over its dedicated projectile image');
-assert.deepStrictEqual(Array.from(sigilDrawCounts.lightning), [0, 0], 'lightning hits should not add a circular procedural sigil');
-assert.deepStrictEqual(Array.from(sigilDrawCounts.fire), [0, 0], 'fire hits should not add the shared circular procedural sigil');
-assert.deepStrictEqual(Array.from(sigilDrawCounts.cold), [0, 0], 'cold hits should not add the shared circular procedural sigil');
 const elementalImpactDraw = vm.runInContext(`(() => {
   const calls = { arcs: 0, lines: 0, radialGradients: 0 };
   const gradient = { addColorStop() {} };
@@ -363,6 +343,9 @@ assert.ok(passiveSource.includes("skillFxFrostField: 'assets/effects/skill-frost
 assert.ok(passiveSource.includes("skillFxBlizzardAmbient: 'assets/effects/skill-bludgeoning-blizzard-ambient-sheet-v1.png'"), 'battle asset loader should preload the blizzard ambient sprite sheet');
 assert.ok(passiveSource.includes("skillFxBlizzardImpact: 'assets/effects/skill-bludgeoning-blizzard-impact-sheet-v1.png'"), 'battle asset loader should preload the blizzard impact sprite sheet');
 assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v2.png'"), 'battle asset loader should preload the supplied sharp venom projectile image');
+assert.ok(passiveSource.includes("skillFxFocusBeam: 'assets/effects/channel-focus-beam-v1.webp'"), 'battle asset loader should preload the focused beam image');
+assert.ok(passiveSource.includes("skillFxDragonBreath: 'assets/effects/channel-dragon-breath-v1.webp'"), 'battle asset loader should preload the dragon breath image');
+assert.ok(passiveSource.includes("skillFxVoidCutter: 'assets/effects/channel-void-cutter-v1.webp'"), 'battle asset loader should preload the void cutter image');
 ['ambient', 'impact'].forEach(kind => {
   const bytes = fs.readFileSync(`assets/effects/skill-bludgeoning-blizzard-${kind}-sheet-v1.png`);
   assert.deepStrictEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], [1024, 1024],
@@ -567,10 +550,10 @@ const aggregatedBurstVfx = vm.runInContext(`(() => {
     triParticles: getAttackFxSpawnOpts({ skillName: '삼원 파동' }, {}, {}, 1)
   };
 })()`, context);
-assert.strictEqual(aggregatedBurstVfx.images, 0, '화염과 냉기 범위 타격은 같은 공용 원형 이미지를 색만 바꿔 쓰면 안 된다');
-assert.strictEqual(aggregatedBurstVfx.arcs, 0, '화염과 냉기 범위 타격은 원형 또는 호를 그리면 안 된다');
-assert.ok(aggregatedBurstVfx.lines > 0 && aggregatedBurstVfx.flames > 0, '냉기는 각진 결정선, 화염은 불꽃 곡선으로 구분되어야 한다');
-assert.ok(aggregatedBurstVfx.lines <= 8 && aggregatedBurstVfx.flames <= 8, '합성 범위 타격은 대상마다 같은 이펙트를 중복 그리면 안 된다');
+assert.strictEqual(aggregatedBurstVfx.images, 2, '화염과 냉기 범위 타격은 각각 범위 전체에 이미지 한 장만 그려야 한다');
+assert.strictEqual(aggregatedBurstVfx.arcs, 0, '이미지 기반 범위 타격은 원형 또는 호를 다시 그리면 안 된다');
+assert.strictEqual(aggregatedBurstVfx.lines, 0, '이미지 기반 범위 타격은 결정선을 매 프레임 만들면 안 된다');
+assert.strictEqual(aggregatedBurstVfx.flames, 0, '이미지 기반 범위 타격은 불꽃 곡선을 매 프레임 만들면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.impactEffectCount, 0, '범위 폭발은 각 대상마다 별도 적중 이미지를 할당하면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.frostParticles, null, '서리 폭발은 대상별 보조 입자를 중복 생성하면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.triParticles, null, '삼원 파동은 대상별 보조 입자를 중복 생성하면 안 된다');
@@ -657,27 +640,28 @@ assert.strictEqual(boundedThundercloudVfx.thundercloudArcCount, 0, '뇌운 낙�
 assert.strictEqual(boundedThundercloudVfx.genericLightningArcCount, 0, '일반 번개 강타도 공통 원형 충격파를 그리면 안 된다');
 assert.ok(boundedThundercloudVfx.ordinaryHeavyArcCount > 0, '다른 강한 타격의 공통 충격파까지 제거하면 안 된다');
 assert.ok(boundedThundercloudVfx.boltStrokeCount <= 2 && boundedThundercloudVfx.boltLineCount <= 7, '뇌운 낙뢰 한 개의 그리기 명령 수는 작게 유지되어야 한다');
-const compactFireCoreVfx = vm.runInContext(`(() => {
-  const counts = { arcs: 0, maxRadius: 0, flames: 0, strokes: 0 };
+const imageBasedAreaVfx = vm.runInContext(`(() => {
+  battleAssets.images.skillFxDotField = { complete: true, naturalWidth: 512 };
+  battleAssets.images.skillFxBurst = { complete: true, naturalWidth: 512 };
+  const counts = { images: 0, fills: 0, composites: [] };
   const ctx = {
-    save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, moveTo() {}, closePath() {}, fill() {},
-    arc(x, y, radius) { counts.arcs++; counts.maxRadius = Math.max(counts.maxRadius, radius); },
-    bezierCurveTo() { counts.flames++; }, stroke() { counts.strokes++; }
+    globalAlpha: 1, save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, moveTo() {}, lineTo() {}, arc() {}, stroke() {},
+    drawImage() { counts.images++; }, fillRect() { counts.fills++; },
+    set globalCompositeOperation(value) { counts.composites.push(value); }, set filter(value) {}
   };
   const targets = [{ x: 120, y: 160 }, { x: 320, y: 280 }];
   drawCombatCellFx(ctx, {
     start: 1000, duration: 900, patternKind: 'field', skillName: '화염 폭풍핵'
   }, 1230, 1460, targets, 'skillFxDotField', 'fire');
-  battleVisualState.skillEffects = [];
-  queueSkillGemVfx({ id: 701, skillName: '화염 폭풍핵', stageKind: 'fieldTick', element: 'fire' },
-    targets[0], { x: 20, y: 220 }, {}, 1230, 1);
-  return { ...counts, impactEffectCount: battleVisualState.skillEffects.length };
+  const mineTargets = [{ x: 120, y: 160 }, { x: 180, y: 160 }, { x: 240, y: 160 }, { x: 300, y: 160 }];
+  drawCombatCellFx(ctx, {
+    start: 1000, duration: 900, patternKind: 'mine', skillName: '룬 지뢰'
+  }, 1230, 1460, mineTargets, 'skillFxBurst', 'light');
+  return counts;
 })()`, context);
-assert.strictEqual(compactFireCoreVfx.arcs, 1, '화염 폭풍핵은 작은 중심 핵 하나만 그려야 한다');
-assert.ok(compactFireCoreVfx.maxRadius <= 12, '화염 폭풍핵 중심광이 전장 범위만큼 커지면 안 된다');
-assert.strictEqual(compactFireCoreVfx.flames, 12, '화염 폭풍핵은 중심 주위의 작은 불꽃 조각으로 회전감을 표현해야 한다');
-assert.strictEqual(compactFireCoreVfx.strokes, 0, '화염 폭풍핵에 눈부신 원형 선을 그리면 안 된다');
-assert.strictEqual(compactFireCoreVfx.impactEffectCount, 0, '화염 폭풍핵 매 타격마다 큰 핵 이펙트를 중복 생성하면 안 된다');
+assert.strictEqual(imageBasedAreaVfx.images, 2, '장판과 지뢰는 범위별 절차형 조각 대신 각각 이미지 한 장만 그려야 한다');
+assert.strictEqual(imageBasedAreaVfx.fills, 0, '이미지가 준비된 범위 공격은 추가 도형 이펙트를 겹치면 안 된다');
+assert.ok(imageBasedAreaVfx.composites.every(mode => mode === 'source-over'), '공격 이미지는 고비용 screen 합성을 사용하면 안 된다');
 assert.ok(battlefieldSource.includes('bodyCue: true') && battlefieldSource.includes('bodyCue: bodyCue'),
   '플레이어와 적의 회피 피드백은 피해 숫자가 아닌 본체 주변 cue로 연결되어야 한다');
 const stagedSkillVfx = vm.runInContext(`(() => {
@@ -732,35 +716,48 @@ const fanProjectiles = vm.runInContext(`(() => {
 })()`, context);
 assert.strictEqual(fanProjectiles.length, 3, '산탄은 선택된 방향마다 실제 투사체 하나를 생성해야 한다');
 assert.strictEqual(new Set(fanProjectiles.map(effect => `${effect.toX},${effect.toY}`)).size, 3, '산탄 투사체는 서로 다른 방향으로 날아가야 한다');
-const breathQueue = vm.runInContext(`(() => {
+const channelImageVfx = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
+  battleAssets.images.skillFxFocusBeam = { complete: true, naturalWidth: 512 };
+  battleAssets.images.skillFxDragonBreath = { complete: true, naturalWidth: 512 };
+  battleAssets.images.skillFxVoidCutter = { complete: true, naturalWidth: 512 };
   const player = { x: 100, y: 220 };
-  const first = { x: 250, y: 210, enemy: { id: 'a' } };
-  const second = { x: 230, y: 260, enemy: { id: 'b' } };
-  queueSkillGemVfx({ id: 301, skillName: '용화 숨결', stageKind: 'channelTick', element: 'fire' }, first, player, {}, 1000, 1);
-  queueSkillGemVfx({ id: 302, skillName: '용화 숨결', stageKind: 'channelTick', element: 'fire' }, second, player, {}, 1000, 1);
-  return battleVisualState.skillEffects;
-})()`, context);
-assert.strictEqual(breathQueue.length, 1, '한 채널 타격의 다중 대상은 화염 호흡을 중복 생성하면 안 된다');
-assert.strictEqual(breathQueue[0].duration, 380, '화염 호흡은 다음 채널 타격까지 자연스럽게 이어져야 한다');
-assert.ok(breathQueue[0].fromX > 100 && breathQueue[0].fromY < 220, '화염 호흡은 캐릭터 중심이 아니라 얼굴 앞에서 시작해야 한다');
-const breathDrawing = vm.runInContext(`(() => {
-  const calls = { bezier: 0, arcs: 0, fills: 0, lines: 0, rects: 0 };
+  const impactTargets = Array.from({ length: 8 }, (_, index) => ({
+    x: 230 + index * 12, y: 180 + (index % 3) * 40, enemy: { id: index + 1 }
+  }));
+  ['집중 광선', '용화 숨결', '공허 절삭광'].forEach((skillName, skillIndex) => {
+    impactTargets.forEach((target, targetIndex) => {
+      queueSkillGemVfx({ id: 301 + skillIndex * 10 + targetIndex, skillName, stageKind: 'channelTick', element: 'fire' },
+        target, player, {}, 1000, 1);
+    });
+  });
+  const calls = { images: [], rects: 0, composites: [], filters: [] };
   const ctx = {
-    globalAlpha: 0.7, translate() {}, rotate() {}, beginPath() {}, moveTo() {}, closePath() {},
-    bezierCurveTo() { calls.bezier++; }, arc() { calls.arcs++; }, fill() { calls.fills++; },
-    lineTo() { calls.lines++; }, fillRect() { calls.rects++; }
+    globalAlpha: 1, shadowBlur: 0, save() {}, restore() {}, translate() {}, rotate() {},
+    drawImage(image, x, y, width, height) { calls.images.push({ image, x, y, width, height }); },
+    fillRect() { calls.rects++; },
+    set globalCompositeOperation(value) { calls.composites.push(value); },
+    set filter(value) { calls.filters.push(value); }
   };
-  const handled = drawProceduralSkillImpact(ctx, {
-    family: 'breath', element: 'fire', seed: 33, size: 82,
-    fromX: 100, fromY: 200, toX: 260, toY: 220
-  }, 0.5);
-  return { ...calls, handled };
+  const baseFx = { start: 1000, duration: 900, screenSource: { x: 100, y: 200 }, screenAim: { x: 300, y: 200 } };
+  drawChannelCombatFx(ctx, { ...baseFx, skillName: '집중 광선', element: 'light' }, 1300,
+    [{ x: 180, y: 200 }, { x: 260, y: 200 }, { x: 340, y: 200 }]);
+  drawChannelCombatFx(ctx, { ...baseFx, skillName: '용화 숨결', element: 'fire' }, 1300,
+    [{ x: 220, y: 145 }, { x: 300, y: 120 }, { x: 340, y: 200 }, { x: 300, y: 280 }, { x: 220, y: 255 }]);
+  drawChannelCombatFx(ctx, { ...baseFx, skillName: '공허 절삭광', element: 'chaos' }, 1300,
+    [{ x: 180, y: 200 }, { x: 260, y: 200 }, { x: 330, y: 200 }]);
+  return { calls, queuedImpacts: battleVisualState.skillEffects.length, shadowBlur: ctx.shadowBlur };
 })()`, context);
-assert.strictEqual(breathDrawing.handled, true, '용화 숨결은 전용 절차형 이펙트가 처리해야 한다');
-assert.ok(breathDrawing.bezier >= 24 && breathDrawing.fills >= 16, '화염 호흡은 여러 굽은 불꽃 혀로 보여야 한다');
-assert.strictEqual(breathDrawing.lines, 0, '화염 호흡은 광선이나 삼각형 윤곽선을 그리면 안 된다');
-assert.strictEqual(breathDrawing.rects, 0, '화염 호흡은 직사각형 광선을 그리면 안 된다');
+assert.strictEqual(channelImageVfx.queuedImpacts, 0, '채널 틱은 여덟 대상을 맞혀도 대상별 적중 이펙트를 생성하면 안 된다');
+assert.strictEqual(channelImageVfx.calls.images.length, 7,
+  '직선 채널은 이미지 한 장, 용화 숨결은 대상 수와 무관한 고정 5방향 이미지로 그려야 한다');
+assert.strictEqual(channelImageVfx.calls.rects, 0, '채널 이미지가 준비되면 절차형 직사각형 빔을 겹치면 안 된다');
+assert.ok(channelImageVfx.calls.composites.every(mode => mode === 'source-over'), '채널 이미지는 screen 합성으로 glow를 만들면 안 된다');
+assert.ok(channelImageVfx.calls.filters.every(value => value === 'none'), '채널 이미지는 매 프레임 필터를 적용하면 안 된다');
+assert.strictEqual(channelImageVfx.shadowBlur, 0, '채널 이미지에 실시간 shadow blur를 적용하면 안 된다');
+assert.ok(channelImageVfx.calls.images[0].width >= 260, '집중 광선 이미지는 첫 대상이 아니라 직선 범위 끝까지 이어져야 한다');
+assert.ok(channelImageVfx.calls.images.slice(1, 6).every(call => call.height >= 34 && call.height <= 62),
+  '용화 숨결의 각 방향 이미지는 칸 폭을 넘는 화염벽으로 커지면 안 된다');
 const shieldChargeImpact = vm.runInContext(`(() => {
   const calls = { curves: 0, shards: 0, groundDust: 0, triangleLines: 0 };
   const ctx = {

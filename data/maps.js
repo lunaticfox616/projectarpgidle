@@ -52,6 +52,18 @@ const OCEAN_UNLOCK_LOOP = 11;
 
 const OCEAN_ZONE_ID = 'ocean_depth';
 
+const MAP_PRIMARY_CONTENTS = Object.freeze([
+    { id: 'map-tab-zones', label: '탐험', initiallyUnlocked: true },
+    { id: 'map-tab-abyss', label: '혼돈 패시브', noticeKey: 'unlock_map_abyss', noticeTitle: '혼돈 패시브 해금', noticeBody: '혼돈 진행으로 얻은 포인트를 지도에서 배분할 수 있습니다.' },
+    { id: 'map-tab-chaos-realm', label: '혼돈계', noticeKey: 'unlock_chaos_realm', noticeTitle: '혼돈계 해금', noticeBody: '루프 밖에서 이어지는 혼돈계 영구 등반이 열렸습니다.' },
+    { id: 'map-tab-sky', label: '창공', noticeKey: 'unlock_sky_tower', noticeTitle: '창공의 탑 해금', noticeBody: '창공의 탑이 열렸습니다. 이후 루프에서는 혼돈 입성부터 다시 도전할 수 있습니다.' },
+    { id: 'map-tab-underworld', label: '지하계', noticeKey: 'unlock_underworld', noticeTitle: '지하계 해금', noticeBody: '지하계가 열렸습니다. 룬과 영구 강화 진행도는 루프 후에도 유지됩니다.' },
+    { id: 'map-tab-cosmos', label: '우주계', noticeKey: 'unlock_cosmos', noticeTitle: '우주계 해금', noticeBody: '지하계 너머 우주계 관문이 열렸습니다.' },
+    { id: 'map-tab-ocean', label: '심해', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시 해금', noticeBody: '심해 탐사와 낚시가 열렸습니다.', noticeTargetId: 'map-tab-ocean' },
+    { id: 'map-tab-fishing', label: '낚시', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시 해금', noticeBody: '심해 탐사와 낚시가 열렸습니다.', noticeTargetId: 'map-tab-ocean' },
+    { id: 'map-tab-pvp', label: '대전', initiallyUnlocked: true }
+].map(Object.freeze));
+
 // 우주계 적 특성의 단일 정의. 전투 효과는 id로, 아틀라스의 사전 안내는 설명·대응법으로 소비한다.
 const COSMOS_MECHANIC_DB = Object.freeze([
     { id: 'critResist', name: '성운 굴절', summary: '치명타 확률과 치명타 피해를 크게 억제합니다.', counter: '관통·비치명타 피해·저항 감소를 준비하세요.', element: 'light', tags: ['crit', 'toxiccrit', 'mirror', 'reflect', 'balance', 'judgement'] },
@@ -306,4 +318,4 @@ const ABYSS_PASSIVE_NODES = [
     { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +20%' }
 ];
 
-safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });
+safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

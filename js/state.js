@@ -132,26 +132,105 @@ function getChaosRealmAffixes(floor) {
     return out;
 }
 
-function hasCurrentLoopChaos20Clear() {
-    return !!(game && game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared)
-        || (Array.isArray(game && game.abyssClearedDepths) && game.abyssClearedDepths.map(v => Math.floor(v || 0)).includes(20));
+function hasCurrentLoopChaos20Clear(source) {
+    let state = source || game;
+    return !!(state && state.loopProgressCurrent && state.loopProgressCurrent.chaos20Cleared)
+        || (Array.isArray(state && state.abyssClearedDepths) && state.abyssClearedDepths.map(v => Math.floor(v || 0)).includes(20));
 }
 function canEnterChaosRealm() {
     return !!ensureChaosRealmState().unlocked && hasCurrentLoopChaos20Clear();
 }
-function canEnterUnderworld() {
-    let st = ensureChaosRealmState();
-    let hasCerberusClear = Array.isArray(game && game.clearedRootBosses) && game.clearedRootBosses.includes('s6_beast_cerberus');
-    let deepMax = getHighestUnlockedEndlessChaosDepth();
-    let labFloor = Math.max(1, Math.floor((game && game.labyrinthUnlockedMaxFloor) || (game && game.labyrinthFloor) || 1));
-    return !!st.unlocked && hasCurrentLoopChaos20Clear() && hasCerberusClear && deepMax >= 30 && labFloor >= 100;
+function getUnderworldEntryLockReason(source) {
+    let state = source || game;
+    let chaosRealm = state && state.chaosRealm;
+    if (!(chaosRealm && chaosRealm.unlocked)) return '혼돈계 해금 필요';
+    if (!hasCurrentLoopChaos20Clear(state)) return '이번 루프 혼돈 20 클리어 필요';
+    let rootBosses = Array.isArray(state && state.clearedRootBosses) ? state.clearedRootBosses : [];
+    if (!rootBosses.includes('s6_beast_cerberus')) return '이번 루프 케르베로스 처치 필요';
+    let deepMax = getHighestUnlockedEndlessChaosDepth(state);
+    if (deepMax < 30) return `혼돈 심화 30층 필요 (현재 ${deepMax})`;
+    let labFloor = Math.max(1, Math.floor((state && state.labyrinthUnlockedMaxFloor) || (state && state.labyrinthFloor) || 1));
+    if (labFloor < 100) return `고대 미궁 100층 필요 (현재 ${labFloor})`;
+    return '';
 }
-function isUnderworldUnlockedPermanent() {
-    let st = ensureChaosRealmState();
-    let hasCerberusClear = Array.isArray(game && game.clearedRootBosses) && game.clearedRootBosses.includes('s6_beast_cerberus');
-    let deepMax = getHighestUnlockedEndlessChaosDepth();
-    let labFloor = Math.max(1, Math.floor((game && game.labyrinthUnlockedMaxFloor) || (game && game.labyrinthFloor) || 1));
-    return !!st.unlocked && hasCerberusClear && deepMax >= 30 && labFloor >= 100;
+function canEnterUnderworld() {
+    return getUnderworldEntryLockReason(game) === '';
+}
+function isUnderworldUnlockReady(source) {
+    let state = source || game;
+    let progress = state && state.underworldProgress;
+    let runes = state && state.underworldRunes;
+    let hasProgress = Math.max(1, Math.floor((progress && progress.highestFloor) || 1)) > 1
+        || !!(progress && progress.floor10Cleared)
+        || Math.max(0, Math.floor((runes && runes.unlockedSlots) || 0)) > 0
+        || !!(state && state.coreCube && state.coreCube.everUnlocked);
+    if (hasProgress) return true;
+    let chaosRealm = state && state.chaosRealm;
+    let rootBosses = Array.isArray(state && state.clearedRootBosses) ? state.clearedRootBosses : [];
+    let labFloor = Math.max(1, Math.floor((state && state.labyrinthUnlockedMaxFloor) || (state && state.labyrinthFloor) || 1));
+    return !!(chaosRealm && chaosRealm.unlocked) && rootBosses.includes('s6_beast_cerberus')
+        && getHighestUnlockedEndlessChaosDepth(state) >= 30 && labFloor >= 100;
+}
+function isCosmosContentUnlockReady(source) {
+    let state = source || game;
+    let atlas = state && state.cosmosAtlas;
+    let hasAtlasProgress = !!(atlas && atlas.unlocked)
+        || (Array.isArray(atlas && atlas.cleared) && atlas.cleared.length > 0)
+        || (Array.isArray(atlas && atlas.bossClears) && atlas.bossClears.length > 0);
+    if (hasAtlasProgress) return true;
+    let journal = Array.isArray(state && state.journalEntries) ? state.journalEntries : [];
+    let underworld = state && state.underworldProgress;
+    let highestFloor = Math.max(1, Math.floor((underworld && underworld.highestFloor) || 1));
+    return journal.includes('woodsman') && highestFloor >= 30;
+}
+
+function isMapPrimaryContentUnlockReady(contentId, source) {
+    let state = source || game;
+    if (contentId === 'map-tab-zones' || contentId === 'map-tab-pvp') return true;
+    if (contentId === 'map-tab-abyss') {
+        return Math.max(0, Math.floor((state && state.maxZoneId) || 0)) >= ABYSS_START_ZONE_ID
+            || (Array.isArray(state && state.abyssClearedDepths) && state.abyssClearedDepths.length > 0)
+            || Math.max(0, Math.floor((state && state.abyssPassivePoints) || 0)) > 0
+            || Math.max(20, Math.floor((state && state.abyssEndlessDepth) || 20)) > 20;
+    }
+    if (contentId === 'map-tab-chaos-realm') return !!(state && state.chaosRealm && state.chaosRealm.unlocked);
+    if (contentId === 'map-tab-sky') return !!(state && state.skyTower && state.skyTower.unlocked);
+    if (contentId === 'map-tab-underworld') return isUnderworldUnlockReady(state);
+    if (contentId === 'map-tab-cosmos') return isCosmosContentUnlockReady(state);
+    if (contentId === 'map-tab-ocean' || contentId === 'map-tab-fishing') {
+        return !!(state && state.ocean && state.ocean.unlocked) || Math.max(1, Math.floor((state && state.season) || 1)) >= OCEAN_UNLOCK_LOOP;
+    }
+    return false;
+}
+
+function isMapPrimaryContentUnlocked(source, contentId) {
+    let unlocked = Array.isArray(source && source.unlockedMapContents) ? source.unlockedMapContents : [];
+    return unlocked.includes(contentId);
+}
+
+function reconcileMapPrimaryContentUnlocks(source) {
+    if (!source || typeof source !== 'object') return [];
+    let validIds = new Set(MAP_PRIMARY_CONTENTS.map(def => def.id));
+    let savedIds = Array.isArray(source.unlockedMapContents) ? source.unlockedMapContents : [];
+    let unlocked = new Set(savedIds.filter(id => validIds.has(id)));
+    let newlyUnlocked = [];
+    MAP_PRIMARY_CONTENTS.forEach(def => {
+        if (unlocked.has(def.id) || !isMapPrimaryContentUnlockReady(def.id, source)) return;
+        unlocked.add(def.id);
+        newlyUnlocked.push(def.id);
+    });
+    source.unlockedMapContents = MAP_PRIMARY_CONTENTS.map(def => def.id).filter(id => unlocked.has(id));
+    return newlyUnlocked;
+}
+
+function getMapPrimaryContentEntryCondition(contentId, source) {
+    let state = source || game;
+    if (!isMapPrimaryContentUnlocked(state, contentId)) return '';
+    if (contentId === 'map-tab-abyss' && !hasCurrentLoopChaosAccess(state)) return '액트 10 돌파 필요';
+    if (contentId === 'map-tab-chaos-realm' && !hasCurrentLoopChaos20Clear(state)) return '혼돈 20 필요';
+    if (contentId === 'map-tab-sky' && !hasCurrentLoopChaosAccess(state)) return '혼돈 진입 필요';
+    if (contentId === 'map-tab-underworld') return getUnderworldEntryLockReason(state);
+    return '';
 }
 
 
@@ -389,13 +468,14 @@ function getSkyTowerRemainingClears() {
     let st = ensureSkyTowerState();
     return Math.max(0, getSkyTowerLoopClearLimit() - Math.max(0, Math.floor(st.clearedThisLoop || 0)));
 }
-function hasCurrentLoopChaosAccess() {
-    if (hasCurrentLoopChaos20Clear()) return true;
-    if (typeof game === 'undefined' || !game) return false;
-    let maxZone = Number.isFinite(game.maxZoneId) ? game.maxZoneId : 0;
+function hasCurrentLoopChaosAccess(source) {
+    let state = source || game;
+    if (hasCurrentLoopChaos20Clear(state)) return true;
+    if (!state) return false;
+    let maxZone = Number.isFinite(state.maxZoneId) ? state.maxZoneId : 0;
     if (maxZone >= ABYSS_START_ZONE_ID) return true;
-    if (Array.isArray(game.abyssClearedDepths) && game.abyssClearedDepths.length > 0) return true;
-    let currentDepth = typeof game.currentZoneId !== 'string' ? getAbyssDepthFromZoneId(game.currentZoneId) : 0;
+    if (Array.isArray(state.abyssClearedDepths) && state.abyssClearedDepths.length > 0) return true;
+    let currentDepth = typeof state.currentZoneId !== 'string' ? getAbyssDepthFromZoneId(state.currentZoneId) : 0;
     return currentDepth >= 1;
 }
 function maybeUnlockSkyTowerFromChaos20() {
@@ -831,12 +911,13 @@ function getVisibleHuntingMapCapZoneId() {
     return Math.min(getCurrentSeasonFinalZoneId(), getAbyssZoneIdForDepth(20));
 }
 
-function getHighestUnlockedEndlessChaosDepth() {
+function getHighestUnlockedEndlessChaosDepth(source) {
+    let state = source || game;
     let depths = [];
-    if (Array.isArray(game && game.abyssUnlockedDepths)) {
-        depths = game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21);
+    if (Array.isArray(state && state.abyssUnlockedDepths)) {
+        depths = state.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21);
     }
-    let currentDepth = Math.floor((game && game.abyssEndlessDepth) || 0);
+    let currentDepth = Math.floor((state && state.abyssEndlessDepth) || 0);
     if (currentDepth >= 21) depths.push(currentDepth);
     return depths.length > 0 ? Math.max(...depths) : 0;
 }
@@ -1907,7 +1988,12 @@ let pendingMapRevealToken = 0;
 let lastRenderedMapListHtml = '';
 let lastRenderedChaosMapListHtml = '';
 
-safeExposeGlobals({ getUnderworldGravityActionMultiplier });
+safeExposeGlobals({
+    getUnderworldGravityActionMultiplier, getUnderworldEntryLockReason,
+    isCosmosContentUnlockReady,
+    isMapPrimaryContentUnlockReady, isMapPrimaryContentUnlocked,
+    reconcileMapPrimaryContentUnlocks, getMapPrimaryContentEntryCondition
+});
 safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
@@ -2309,6 +2395,7 @@ const defaultGame = {
         encounterSerial: 0, wasInCombat: false, foundKeys: ['h1']
     },
     mapSubtab: 'map-tab-zones',
+    unlockedMapContents: ['map-tab-zones', 'map-tab-pvp'],
     mapExploreSubtab: 'map-explore-hunting',
     gemFoldInactiveAttack: false,
     gemFoldInactiveSupport: false,

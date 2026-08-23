@@ -4893,10 +4893,6 @@ const TUTORIAL_GUIDES = {
     unlock_core_cube: [
         { title: '코어 큐브', body: '지하계에서 얻는 면체 재료를 조합해 장기 보너스를 만드는 후반 성장 시스템입니다.', bullets: ['흐릿한 면체는 지하계 드랍으로 획득합니다.', '면과 연결 규칙에 따라 효과가 달라집니다.', '완성 전 미리보기로 결과를 확인할 수 있습니다.'], tip: '희귀 재료는 목표 조합을 정한 뒤 사용하세요.' },
         { title: '첫 조합', body: '보유 면체와 활성 가능한 면을 확인한 뒤 작은 조합부터 시작하세요.', bullets: ['재료 수량 확인', '연결 조건 확인', '적용 전 최종 효과 비교'], tip: '마지막 단계에서 큐브 탭을 바로 엽니다.' }
-    ],
-    unlock_chaos_realm: [
-        { title: '혼돈계', body: '루프 밖에서 계속 이어지는 별도 등반 지역으로, 층이 오를수록 적과 보상이 함께 강해집니다.', bullets: ['혼돈 구간은 전용 배경과 진행도를 사용합니다.', '일반 액트와 다른 특수 재화가 드랍됩니다.', '현재 빌드의 생존 한계를 넘으면 이전 층을 반복할 수 있습니다.'], tip: '빛기둥이 뜨는 희귀 드랍은 혼돈계 후반 성장의 핵심 재료일 수 있습니다.' },
-        { title: '등반 기준', body: '처치 속도와 받는 피해를 함께 보며 안정적으로 반복 가능한 구간을 찾으세요.', bullets: ['보스에서 급사하면 방어·저항 보강', '일반 적 처치가 느리면 공격 태그 점검', '필요 재화의 드랍 층 확인'], tip: '최고층보다 안정적인 반복층이 실제 성장 속도는 더 빠를 수 있습니다.' }
     ]
 };
 
@@ -4966,7 +4962,7 @@ function renderTutorialStep() {
     document.getElementById('tutorial-kicker').innerText = '새 콘텐츠';
     document.getElementById('tutorial-title').innerText = activeTutorial.title;
     document.getElementById('tutorial-body').innerHTML = `<p class="tutorial-summary">${escapeTutorialText(activeTutorial.body)}</p>`;
-    const hasShortcut = !!activeTutorial.tabId || !!activeTutorial.itemSubtabId;
+    const hasShortcut = !!activeTutorial.tabId || !!activeTutorial.subtabId;
     const openButton = document.getElementById('tutorial-open-btn');
     const dismissButton = document.getElementById('tutorial-dismiss-btn');
     openButton.style.display = hasShortcut ? 'inline-block' : 'none';
@@ -4974,11 +4970,11 @@ function renderTutorialStep() {
     dismissButton.innerText = '확인';
 }
 
-function queueTutorialNotice(key, title, body, tabId, itemSubtabId) {
+function queueTutorialNotice(key, title, body, tabId, subtabId) {
     game.seenTutorials = game.seenTutorials || [];
     if (game.seenTutorials.includes(key)) return;
     game.seenTutorials.push(key);
-    tutorialQueue.push({ key, title, body, tabId: tabId || null, itemSubtabId: itemSubtabId || null });
+    tutorialQueue.push({ key, title, body, tabId: tabId || null, subtabId: subtabId || null });
     showNextTutorial();
 }
 function showNextTutorial() {
@@ -5001,13 +4997,14 @@ function goBackTutorialStep() {
 function dismissTutorial(openTarget) {
     if (!activeTutorial) return;
     let tabId = openTarget ? activeTutorial.tabId : null;
-    let itemSubtabId = openTarget ? activeTutorial.itemSubtabId : null;
+    let subtabId = openTarget ? activeTutorial.subtabId : null;
     document.getElementById('tutorial-overlay').classList.remove('active');
     activeTutorial = null;
     activeTutorialStep = 0;
     lastTime = Date.now();
     if (tabId) switchTab(tabId);
-    if (itemSubtabId && tabId === 'tab-items') switchItemSubtab(itemSubtabId);
+    if (subtabId && tabId === 'tab-items') switchItemSubtab(subtabId);
+    if (subtabId && tabId === 'tab-map') switchMapSubtab(subtabId);
     if (tutorialQueue.length > 0) setTimeout(showNextTutorial, 40);
 }
 function showDivineDropBanner(amount) {
@@ -5813,6 +5810,9 @@ function initBattleAssets() {
         skillFxBurst: 'assets/effects/skill-burst-v1.png',
         skillFxDotField: 'assets/effects/skill-dot-field-v1.png',
         skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
+        skillFxFocusBeam: 'assets/effects/channel-focus-beam-v1.webp',
+        skillFxDragonBreath: 'assets/effects/channel-dragon-breath-v1.webp',
+        skillFxVoidCutter: 'assets/effects/channel-void-cutter-v1.webp',
         shrineInteractable: 'assets/effects/battlefield-shrine-v1.png',
         backdropAct1: 'assets/battlefield-act1.png',
         backdropAct2_6: 'assets/battlefield-act2-6.png',

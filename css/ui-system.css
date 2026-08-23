@@ -518,6 +518,12 @@ body:not(.light-mode) #item-tab-equip .equipment-inventory-toolbar {
     white-space: normal;
   }
 
+  #tab-map .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked {
+    height: auto !important;
+    min-height: 52px !important;
+    padding-block: 5px !important;
+  }
+
   #tab-map .map-explore-layout { display: block; }
   #tab-map .vertical-tab-sidebar {
     display: grid;
