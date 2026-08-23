@@ -2773,6 +2773,8 @@ function addPendingSkillTravelFx(row, attackContext, now) {
         delivery: row.delivery,
         patternKind: row.patternKind,
         sourceCell: row.sourceCell,
+        aimCell: copyCombatGridCell((game.enemies || []).find(enemy => enemy
+            && row.targetEntries[0] && String(enemy.id) === String(row.targetEntries[0].enemyId))) || visualTargetCells[0],
         targetCells: visualTargetCells,
         targetIds: visualTargetIds,
         skillName: attackContext.skillName,
@@ -5623,7 +5625,7 @@ function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
         st.highestFloor = Math.max(1, Math.floor(st.highestFloor || 0));
         game.noti.map = true;
         addLog('🌌 나무꾼의 경계가 갈라지며 혼돈계가 해금되었습니다.', 'loot-unique');
-        if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_chaos_realm', '혼돈계 해금', '혼돈 밖 나무꾼에게 최대 생명력 10% 이상의 피해를 준 전투가 종료되었습니다.\n지도 탭의 혼돈계에서 루프 밖 영구 등반을 시작하세요.', 'tab-map');
+        if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_chaos_realm', '혼돈계 해금', '혼돈계 영구 등반이 열렸습니다.', 'tab-map', 'map-tab-chaos-realm');
     }
     if (options && options.log) {
         addLog(`🪓 나무꾼 피해율 기록: ${st.woodsmanBestDamagePct.toFixed(1)}% / 해금 조건 10%`, st.woodsmanBestDamagePct >= 10 ? 'season-up' : 'attack-monster');

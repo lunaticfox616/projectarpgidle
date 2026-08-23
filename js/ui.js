@@ -20,6 +20,7 @@ let tooltipPositionFrame = null;
 let pendingTooltipPositions = new Map();
 let tooltipSizeCache = new WeakMap();
 let mapZoneGroupCollapseState = { hunting: false, chaos: false, rootBosses: false, rivalBosses: false, pinnacleBosses: false };
+let pendingMapPrimaryTabReveals = new Set();
 
 let mobilePipCanvas = null;
 var lod = 1; // fallback for any legacy FX paths
@@ -3903,6 +3904,7 @@ function renderUnderworldMapPanel() {
     let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
     let highest = Math.max(1, Math.floor(uw.highestFloor || 1));
     let canEnter = typeof canEnterUnderworld === 'function' && canEnterUnderworld();
+    let entryLockReason = typeof getUnderworldEntryLockReason === 'function' ? getUnderworldEntryLockReason(game) : '';
     let runeState = game.underworldRunes || { unlockedSlots: 0, unlockedRunesMaxNumber: 0 };
     let runeCountMap = getUnderworldRuneCountMap(runeState.obtainedRunes);
     let runeLine = Object.keys(runeCountMap).sort((a,b)=>Number(a)-Number(b)).slice(0, 12).map(k => {
@@ -3937,7 +3939,7 @@ function renderUnderworldMapPanel() {
     let powerEstimate = buildMapPowerEstimateHtml(getZone(UNDERWORLD_ZONE_ID));
     let currentFloorButton = floor === highest ? '' : `<button type="button" onclick="enterUnderworldFloor(${floor})" ${canEnter ? '' : 'disabled'}>${floor}층 입장</button>`;
     list.innerHTML = `<section class="underworld-entry-card ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}"><div class="underworld-entry-copy"><span>현재 선택 ${floor}층</span><strong>도달 최고 ${highest}층</strong><div>${powerEstimate}</div></div><div class="underworld-entry-actions"><button type="button" class="underworld-primary-action" onclick="enterUnderworldFloor(${highest})" ${canEnter ? '' : 'disabled'}>최고층 ${highest} 입장</button>${currentFloorButton}<button type="button" onclick="enterUnderworldPrompt()" ${canEnter ? '' : 'disabled'}>다른 층…</button></div></section>`;
-    panel.innerHTML = `<div class="underworld-panel-head"><div><strong>룬 장착과 영구 강화</strong><span class="${canEnter ? '' : 'locked'}">${canEnter ? '입장 가능' : '이번 루프 혼돈 20 클리어 필요'} · 15층부터 지속 피해</span></div><div class="underworld-resource-strip"><span>룬 조각 <b>${runeShardCount}</b></span><span>구리 <b>${Math.floor((game.currencies||{}).underCopper||0)}</b></span><span>은 <b>${Math.floor((game.currencies||{}).underSilver||0)}</b></span><span>금 <b>${Math.floor((game.currencies||{}).underGold||0)}</b></span></div></div>
+    panel.innerHTML = `<div class="underworld-panel-head"><div><strong>룬 장착과 영구 강화</strong><span class="${canEnter ? '' : 'locked'}">${canEnter ? '입장 가능' : entryLockReason} · 15층부터 지속 피해</span></div><div class="underworld-resource-strip"><span>룬 조각 <b>${runeShardCount}</b></span><span>구리 <b>${Math.floor((game.currencies||{}).underCopper||0)}</b></span><span>은 <b>${Math.floor((game.currencies||{}).underSilver||0)}</b></span><span>금 <b>${Math.floor((game.currencies||{}).underGold||0)}</b></span></div></div>
         <section class="underworld-rune-console"><div class="underworld-section-head"><div><strong>장착 룬</strong><span>${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 슬롯 · 룬 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))} 해금</span></div><small>슬롯을 눌러 즉시 교체</small></div><div class="underworld-rune-slots">${slots}</div></section>
         <div class="underworld-action-grid"><button onclick="craftUnderworldRune()"><strong>룬 가공</strong><span>조각 10</span></button><button onclick="openUnderworldRuneUpgradeOverlay()"><strong>룬 승급</strong><span>동일 룬 3개</span></button><button onclick="enhanceUnderworldRune()"><strong>룬 강화</strong><span>수치 성장</span></button><button onclick="rerollUnderworldRuneBonus()"><strong>옵션 리롤</strong><span>추가 옵션 변경</span></button><button onclick="applyUnderworldEnchant()"><strong>장비 인챈트</strong><span>지하계 제작</span></button><button onclick="attemptUnderworldLimitBreak()"><strong>한계돌파</strong><span>성공률 20%</span></button></div>
         <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card" data-ui-disclosure="underworld-rune-inventory"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개 · 우버 입장권 확인</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}${Object.keys(runeCountMap).length > 12 ? '<span class="core-cube-muted">...</span>' : ''}</div><p>우버 뿌리 입장권 · ${ticketLine}</p></details></div>`;
@@ -4115,7 +4117,63 @@ function upgradeUnderworldRune(fromNo) {
     updateStaticUI();
 }
 
+function getMapPrimaryTabEntryCondition(contentId) {
+    let condition = getMapPrimaryContentEntryCondition(contentId, game);
+    if (contentId !== 'map-tab-pvp') return condition;
+    if (typeof socialCloudReady !== 'function' || !socialCloudReady()) return '로그인 필요';
+    if (typeof getMyNickname === 'function' && !getMyNickname()) return '닉네임 설정 필요';
+    return '';
+}
+
+function revealMapPrimaryTab(button, contentId) {
+    if (!button || !pendingMapPrimaryTabReveals.has(contentId)) return;
+    pendingMapPrimaryTabReveals.delete(contentId);
+    button.classList.add('map-primary-tab-unlock-reveal');
+    button.addEventListener('animationend', () => {
+        button.classList.remove('map-primary-tab-unlock-reveal');
+    }, { once: true });
+    setTimeout(() => button.classList.remove('map-primary-tab-unlock-reveal'), 1400);
+}
+
+function syncMapPrimaryContentTabs() {
+    let activeUnlocked = false;
+    MAP_PRIMARY_CONTENTS.forEach(def => {
+        let button = document.getElementById('btn-' + def.id);
+        let unlocked = isMapPrimaryContentUnlocked(game, def.id);
+        if (def.id === game.mapSubtab) activeUnlocked = unlocked;
+        if (!button) return;
+        button.style.display = unlocked ? '' : 'none';
+        let condition = unlocked ? getMapPrimaryTabEntryCondition(def.id) : '';
+        button.classList.toggle('map-primary-tab--entry-locked', !!condition);
+        button.dataset.entryCondition = condition;
+        button.setAttribute('aria-label', condition ? `${def.label}, ${condition}` : def.label);
+        if (condition) button.title = condition;
+        else button.removeAttribute('title');
+        if (unlocked) revealMapPrimaryTab(button, def.id);
+    });
+    if (!activeUnlocked && game.mapSubtab !== 'map-tab-zones') switchMapSubtab('map-tab-zones');
+}
+
+function announceMapPrimaryContentUnlocks() {
+    let newlyUnlocked = reconcileMapPrimaryContentUnlocks(game);
+    if (newlyUnlocked.length === 0) return newlyUnlocked;
+    game.noti.map = true;
+    newlyUnlocked.forEach(id => pendingMapPrimaryTabReveals.add(id));
+    let queuedKeys = new Set();
+    newlyUnlocked.forEach(id => {
+        let def = MAP_PRIMARY_CONTENTS.find(row => row.id === id);
+        if (!def || !def.noticeKey || queuedKeys.has(def.noticeKey)) return;
+        queuedKeys.add(def.noticeKey);
+        queueTutorialNotice(def.noticeKey, def.noticeTitle, def.noticeBody, 'tab-map', def.noticeTargetId || def.id);
+    });
+    syncMapPrimaryContentTabs();
+    return newlyUnlocked;
+}
+
+safeExposeGlobals({ syncMapPrimaryContentTabs });
+
 function switchMapSubtab(subtabId) {
+    if (!isMapPrimaryContentUnlocked(game, subtabId)) subtabId = 'map-tab-zones';
     if (subtabId === game.mapSubtab) {
         let currentPanel = document.getElementById(subtabId);
         let currentBtn = document.getElementById('btn-' + subtabId);
@@ -10327,6 +10385,8 @@ function matchSearchQuery(raw, query) {
 function performUpdateStaticUI() {
     updateInventoryFullWarnings();
     syncInventoryExpansionShortcuts();
+    announceMapPrimaryContentUnlocks();
+    syncMapPrimaryContentTabs();
     // 진단용 단계별 타이밍. 한 번의 갱신이 150ms를 넘으면(또는 window.__perfLog가 켜져
     // 있으면) 어느 단계가 느린지 콘솔에 한 줄 남긴다. 정상 갱신에는 거의 영향이 없다.
     const __perfNow = (typeof performance !== 'undefined' && performance.now) ? () => performance.now() : () => Date.now();
@@ -11880,10 +11940,6 @@ function buildCraftActionButtons(item) {
     if (infuserTabBtn) infuserTabBtn.style.display = chaosInfuserOpen ? 'block' : 'none';
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
     if (!chaosInfuserOpen && game.itemSubtab === 'item-tab-infuser') switchItemSubtab('item-tab-equip');
-    let underworldBtn = document.getElementById('btn-map-tab-underworld');
-    let underworldUnlocked = (typeof isUnderworldUnlockedPermanent === 'function') && isUnderworldUnlockedPermanent();
-    if (underworldBtn) underworldBtn.style.display = underworldUnlocked ? 'block' : 'none';
-    if (game.mapSubtab === 'map-tab-underworld' && !underworldUnlocked) switchMapSubtab('map-tab-zones');
     __mark('midRender');
     renderMarketUI();
     renderExpertiseUI();
@@ -12053,10 +12109,7 @@ function buildCraftActionButtons(item) {
     }
     __mark('mapPanels');
 
-    let mapAbyssUnlocked = (game.maxZoneId || 0) >= ABYSS_START_ZONE_ID;
-    let mapAbyssBtn = document.getElementById('btn-map-tab-abyss');
-    if (mapAbyssBtn) mapAbyssBtn.style.display = mapAbyssUnlocked ? 'block' : 'none';
-    if (!mapAbyssUnlocked && game.mapSubtab === 'map-tab-abyss') game.mapSubtab = 'map-tab-zones';
+    let mapAbyssUnlocked = isMapPrimaryContentUnlocked(game, 'map-tab-abyss');
 
     if (isTabRendering('tab-season') || (isTabRendering('tab-map') && game.mapSubtab === 'map-tab-abyss')) {
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
@@ -13819,6 +13872,7 @@ function mergeDefaults(save) {
     });
     merged.unlockedSeasonContents = Array.isArray(merged.unlockedSeasonContents) ? merged.unlockedSeasonContents.filter(id => typeof id === 'string') : ['season_1'];
     merged.seenSeasonContentNotices = Array.isArray(merged.seenSeasonContentNotices) ? merged.seenSeasonContentNotices.filter(id => typeof id === 'string') : ['season_1'];
+    merged.unlockedMapContents = Array.isArray(merged.unlockedMapContents) ? merged.unlockedMapContents.filter(id => typeof id === 'string') : [];
     merged.labyrinthFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.labyrinthFloor, defaultGame.labyrinthFloor || 1, 1)));
     merged.labyrinthUnlockedMaxFloor = Math.max(
         merged.labyrinthFloor,
@@ -14328,6 +14382,8 @@ function mergeDefaults(save) {
     if ((merged.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT) {
         merged.starWedge.unlocked = true;
     }
+    reconcileMapPrimaryContentUnlocks(merged);
+    if (!isMapPrimaryContentUnlocked(merged, merged.mapSubtab)) merged.mapSubtab = 'map-tab-zones';
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
     merged.saveVersion = defaultGame.saveVersion;
     merged.bountyHunt = { ...defaultGame.bountyHunt, ...((merged.bountyHunt && typeof merged.bountyHunt === 'object') ? merged.bountyHunt : {}) };
@@ -16883,6 +16939,7 @@ function checkUnlocks() {
         addLog('🏛️ Lv.100 달성으로 4차 전직 미궁 시련이 개방되었습니다!', 'loot-unique');
     }
     detectNewMapUnlockAlarms();
+    announceMapPrimaryContentUnlocks();
 }
 
 function isSeasonNodeRequirementMet(node) {

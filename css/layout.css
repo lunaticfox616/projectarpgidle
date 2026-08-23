@@ -237,10 +237,21 @@
         .map-item:hover { filter: brightness(1.2); }
         .map-item.current { background: color-mix(in srgb, var(--ui-accent-strong, #a9783c), #17120c 45%); border-color: var(--ui-line-strong, #705938); color: #fff0d2; box-shadow: inset 3px 0 var(--ui-accent, #d7b36f); }
         .map-item.map-unlock-reveal { animation: mapUnlockReveal 0.8s ease-out 1; border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241,196,15,0.45), 0 0 16px rgba(241,196,15,0.35); }
+        .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked { flex-direction: column; gap: 2px; border-color: rgba(230, 169, 107, .62); }
+        .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked::after { content: attr(data-entry-condition); display: block; color: #ffcf8a; font-size: .66em; font-weight: 800; line-height: 1.1; letter-spacing: 0; text-transform: none; }
+        .map-primary-tabs .subtab-btn.map-primary-tab-unlock-reveal { animation: mapPrimaryTabUnlockReveal .9s cubic-bezier(.2,.85,.25,1) 1; border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241,196,15,.48), 0 0 18px rgba(241,196,15,.38); }
         @keyframes mapUnlockReveal {
             0% { opacity: 0; transform: scale(0.95); filter: brightness(1.5); }
             45% { opacity: 1; transform: scale(1.03); filter: brightness(1.25); }
             100% { opacity: 1; transform: scale(1); filter: brightness(1); }
+        }
+        @keyframes mapPrimaryTabUnlockReveal {
+            0% { opacity: 0; transform: translateY(8px) scale(.88); filter: brightness(1.7); }
+            55% { opacity: 1; transform: translateY(-2px) scale(1.06); filter: brightness(1.25); }
+            100% { opacity: 1; transform: translateY(0) scale(1); filter: brightness(1); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .map-primary-tabs .subtab-btn.map-primary-tab-unlock-reveal { animation: none; }
         }
         .map-item.trial { border-color: #f1c40f; color: #f39c12; background: #2c2c1a; }
         .map-item.trial-pending:not(.current) { border-color: #a97820; color: #795212; background: #fff8e2; }

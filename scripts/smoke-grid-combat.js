@@ -660,6 +660,15 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   hits = context.selectGridSkillTargets('회오리바람', { targets: 8, targetMode: 'whirl' }, attacker, adjacentEight);
   assert.strictEqual(hits.length, 8, '회오리바람의 사각형 범위는 플레이어 주변 8칸을 모두 덮어야 한다');
 
+  const vibrationTargets = [
+    makeEnemy(148, 2, 6), makeEnemy(149, 3, 6), makeEnemy(150, 3, 4), makeEnemy(151, 1, 4),
+  ];
+  hits = context.selectGridSkillTargets('불멸의 진동', context.SKILL_DB['불멸의 진동'], attacker, vibrationTargets);
+  assert.strictEqual(context.getSkillGridProfile('불멸의 진동', context.SKILL_DB['불멸의 진동']).shape, 'square',
+    '불멸의 진동은 인접 칸이 비는 고리 판정을 사용하면 안 된다');
+  assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [148, 149, 150, 151],
+    '불멸의 진동은 바로 옆 적부터 2칸 안의 적까지 빠짐없이 공격해야 한다');
+
   // 전이 타격: 남는 타겟 수만큼 이미 맞은 적의 인접 1칸 적에게 번진다(근접 단일 + 타겟 수 옵션)
   const sp1 = makeEnemy(20, 2, 6);  // 공격자 인접
   const sp2 = makeEnemy(21, 3, 6);  // sp1 인접
@@ -1905,6 +1914,11 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   target.gx = 5; target.gy = 6; target.hp = target.maxHp;
   const pStats = context.getPlayerStats();
   context.performPlayerAttack(pStats);
+  const channelTravel = vm.runInContext(`battleFx.find(fx => fx.type === 'combatTravel' && fx.skillName === '집중 광선')`, context);
+  assert.deepStrictEqual([channelTravel.aimCell.gx, channelTravel.aimCell.gy], [5, 6],
+    '채널 이미지는 범위 중앙이 아니라 실제로 조준한 1차 대상 방향을 보존해야 한다');
+  assert.ok(channelTravel.targetCells.some(cell => cell.gx === 7 && cell.gy === 6),
+    '집중 광선 시각 범위는 첫 대상에서 끝나지 않고 실제 직선 판정 끝까지 전달되어야 한다');
   context.game.playerAilments = [{ type: 'freeze', time: 1, duration: 1, power: 1 }];
   context.updateCombatChannelRuntime(Date.now());
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);

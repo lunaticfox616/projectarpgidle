@@ -132,66 +132,15 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     chaosBoomerang: 'skillFxChaosBoomerang',
     burst: 'skillFxBurst',
     dot: 'skillFxDotField',
-    summon: 'skillFxSummonStrike'
+    summon: 'skillFxSummonStrike',
+    focusBeam: 'skillFxFocusBeam',
+    dragonBreath: 'skillFxDragonBreath',
+    voidCutter: 'skillFxVoidCutter'
 });
 
 function getSkillGemVfxProfile(skillName) {
     let profiles = typeof SKILL_GEM_VFX_PROFILES !== 'undefined' ? SKILL_GEM_VFX_PROFILES : null;
     return profiles && profiles[skillName] ? profiles[skillName] : null;
-}
-
-function getSkillGemSigilSpec(skillName) {
-    let profile = getSkillGemVfxProfile(skillName);
-    let code = Math.max(0, Math.floor(Number(profile && profile.sigil) || 0));
-    if (code <= 0) return null;
-    let index = code - 1;
-    return {
-        spokes: 2 + (index % 5),
-        rings: 1 + (Math.floor(index / 5) % 3),
-        orbitals: 1 + (Math.floor(index / 15) % 3),
-        twist: code % 2 ? 1 : -1
-    };
-}
-
-function drawSkillGemSigil(ctx, skillName, size, progress, element) {
-    let profile = getSkillGemVfxProfile(skillName);
-    if (profile && profile.sigilVfx === false) return;
-    if (['fire', 'cold', 'light'].includes(normalizeSkillGemVfxElement(element, profile && profile.accent))) return;
-    let spec = getSkillGemSigilSpec(skillName);
-    if (!spec) return;
-    let colorKey = normalizeSkillGemVfxElement(element, profile && profile.accent);
-    let color = colorKey === 'blood' ? '#ff537e' : getElementColor(colorKey);
-    let pulse = 0.9 + Math.sin(progress * Math.PI) * 0.12;
-    let radius = Math.max(8, size * 0.22 * pulse);
-    ctx.save();
-    ctx.filter = 'none';
-    ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha *= 0.66;
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = Math.max(1, size * 0.014);
-    ctx.shadowColor = color;
-    ctx.shadowBlur = Math.max(3, size * 0.07);
-    ctx.rotate(spec.twist * progress * 1.35);
-    for (let ring = 1; ring <= spec.rings; ring++) {
-        ctx.beginPath();
-        ctx.arc(0, 0, radius * ring / spec.rings, ring * 0.22, Math.PI * 2 - ring * 0.16);
-        ctx.stroke();
-    }
-    for (let spoke = 0; spoke < spec.spokes; spoke++) {
-        let angle = spoke * Math.PI * 2 / spec.spokes;
-        ctx.beginPath();
-        ctx.moveTo(Math.cos(angle) * radius * 0.35, Math.sin(angle) * radius * 0.35);
-        ctx.lineTo(Math.cos(angle) * radius * 1.2, Math.sin(angle) * radius * 1.2);
-        ctx.stroke();
-    }
-    for (let dot = 0; dot < spec.orbitals; dot++) {
-        let angle = dot * Math.PI * 2 / spec.orbitals + progress * spec.twist * 2.4;
-        ctx.beginPath();
-        ctx.arc(Math.cos(angle) * radius * 1.42, Math.sin(angle) * radius * 1.42, Math.max(1.5, size * 0.026), 0, Math.PI * 2);
-        ctx.fill();
-    }
-    ctx.restore();
 }
 
 function getSkillGemVfxImage(imageKey) {
@@ -224,8 +173,7 @@ function drawPolygonPath(ctx, points) {
 function drawElementProjectileVfx(ctx, style, width, height, progress) {
     let color = getElementColor(style === 'shield' ? 'phys' : style);
     ctx.filter = 'none';
-    ctx.shadowColor = color;
-    ctx.shadowBlur = Math.max(3, height * 0.24);
+    ctx.shadowBlur = 0;
     ctx.fillStyle = color;
     ctx.strokeStyle = color;
     ctx.lineWidth = Math.max(1.5, height * 0.09);
@@ -539,7 +487,7 @@ function drawSpriteSheetFrame(ctx, image, frameIndex, columns, rows, x, y, width
 
 function drawBlizzardFallbackFx(ctx, bounds, now) {
     ctx.save();
-    ctx.globalCompositeOperation = 'screen';
+    ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = '#ccefff';
     ctx.lineWidth = 2;
     for (let streak = 0; streak < 4; streak++) {
@@ -564,7 +512,7 @@ function drawBlizzardCombatFx(ctx, fx, now, arriveAt, targets) {
     let fadeOut = clampNumber((fx.start + fx.duration - now) / 180, 0, 1);
     if (ambient) {
         ctx.save();
-        ctx.globalCompositeOperation = 'screen';
+        ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 0.34 * fadeIn * fadeOut;
         let ambientFrame = Math.floor(now / 90) % 16;
         drawSpriteSheetFrame(ctx, ambient, ambientFrame, 4, 4, bounds.x, bounds.y, width, height);
@@ -587,7 +535,7 @@ function drawBlizzardCombatFx(ctx, fx, now, arriveAt, targets) {
         ctx.save();
         ctx.translate(target.x + direction * (1 - arrival) * 24, target.y - 8 - (1 - arrival) * 42);
         ctx.rotate(direction * (1 - arrival) * 0.14);
-        ctx.globalCompositeOperation = 'screen';
+        ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = Math.min(0.86, Math.sin(Math.PI * phase) * 1.05) * fadeOut;
         drawSpriteSheetFrame(ctx, impact, impactFrame, 4, 4,
             0, 0, impactSize * (0.62 + arrival * 0.48), impactSize * (0.62 + arrival * 0.48));
@@ -595,153 +543,90 @@ function drawBlizzardCombatFx(ctx, fx, now, arriveAt, targets) {
     }
 }
 
-function drawFireCoreCombatFx(ctx, now, targets) {
-    let bounds = getCombatAreaBounds(targets);
-    let span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
-    let radius = clampNumber(16 + span * 0.06, 16, 26);
-    let pulse = 0.92 + Math.sin(now / 170) * 0.06;
-    ctx.save();
-    ctx.translate(bounds.x, bounds.y);
-    ctx.rotate(now / 1700);
-    ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = '#ff9a3d';
-    ctx.shadowColor = '#ff4d24';
-    ctx.shadowBlur = 5;
-    ctx.globalAlpha = 0.3;
-    ctx.beginPath(); ctx.arc(0, 0, radius * 0.42 * pulse, 0, Math.PI * 2); ctx.fill();
-    for (let flame = 0; flame < 6; flame++) {
-        let angle = flame * Math.PI / 3 + Math.sin(now / 230 + flame) * 0.16;
-        let distance = radius * (0.58 + Math.sin(now / 180 + flame * 1.9) * 0.08);
-        let size = radius * (0.2 + (flame % 2) * 0.045);
-        ctx.save();
-        ctx.translate(Math.cos(angle) * distance, Math.sin(angle) * distance);
-        ctx.rotate(angle);
-        ctx.globalAlpha = 0.22 + (flame % 3) * 0.045;
-        ctx.fillStyle = flame % 2 ? '#ffcc62' : '#ff6a2d';
-        ctx.beginPath();
-        ctx.moveTo(size, 0);
-        ctx.bezierCurveTo(size * 0.15, -size * 0.72, -size * 1.3, -size * 0.5, -size * 1.72, 0);
-        ctx.bezierCurveTo(-size * 1.18, size * 0.5, size * 0.18, size * 0.72, size, 0);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-    }
-    ctx.restore();
+function getChannelEffectGeometry(source, aim, targets) {
+    let dx = aim.x - source.x;
+    let dy = aim.y - source.y;
+    let aimLength = Math.max(1, Math.hypot(dx, dy));
+    let unitX = dx / aimLength;
+    let unitY = dy / aimLength;
+    let length = aimLength;
+    let halfWidth = 18;
+    targets.forEach(target => {
+        let offsetX = target.x - source.x;
+        let offsetY = target.y - source.y;
+        length = Math.max(length, offsetX * unitX + offsetY * unitY + 26);
+        halfWidth = Math.max(halfWidth, Math.abs(offsetX * unitY - offsetY * unitX) + 22);
+    });
+    length = Math.max(52, length);
+    return {
+        x: source.x + unitX * length / 2,
+        y: source.y + unitY * length / 2,
+        angle: Math.atan2(dy, dx),
+        length,
+        width: halfWidth * 2
+    };
 }
 
-function drawRuneMineCombatFx(ctx, fx, now, arriveAt, targets) {
-    let bounds = getCombatAreaBounds(targets);
-    let armed = now >= arriveAt;
-    let radius = Math.max(30, Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) / 2 + 20);
-    let fade = armed ? clampNumber((fx.start + fx.duration - now) / 220, 0, 1) : 0.42;
-    ctx.save();
-    ctx.translate(bounds.x, bounds.y);
-    ctx.rotate(now / 1800);
-    ctx.globalCompositeOperation = 'screen';
-    ctx.strokeStyle = armed ? '#fff2a1' : '#9ad8ff';
-    ctx.lineWidth = armed ? 4 : 2;
-    ctx.globalAlpha = fade;
-    ctx.beginPath(); ctx.arc(0, 0, radius * (armed ? 1 : 0.48), 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-radius, 0); ctx.lineTo(radius, 0); ctx.moveTo(0, -radius); ctx.lineTo(0, radius); ctx.stroke();
-    ctx.restore();
+function getChannelBreathRays(source, targets) {
+    let rays = [];
+    targets.forEach(target => {
+        let offsetX = target.x - source.x;
+        let offsetY = target.y - source.y;
+        let distance = Math.hypot(offsetX, offsetY);
+        if (distance < 8) return;
+        let angle = Math.atan2(offsetY, offsetX);
+        let ray = rays.find(candidate => Math.abs(Math.atan2(
+            Math.sin(candidate.angle - angle), Math.cos(candidate.angle - angle))) < 0.035);
+        if (!ray) {
+            rays.push({ angle, distance });
+            return;
+        }
+        ray.distance = Math.max(ray.distance, distance);
+    });
+    return rays.sort((a, b) => a.angle - b.angle).slice(0, 5);
+}
+
+function drawChannelBreathImage(ctx, image, source, targets, fadeOut) {
+    let rays = getChannelBreathRays(source, targets);
+    if (rays.length <= 0) return false;
+    rays.forEach(ray => {
+        let length = Math.max(52, ray.distance * 1.06);
+        let width = clampNumber(length * 0.22, 34, 62);
+        ctx.save();
+        ctx.translate(source.x, source.y);
+        ctx.rotate(ray.angle);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 0.31 * fadeOut;
+        ctx.filter = 'none';
+        ctx.drawImage(image, 0, -width / 2, length, width);
+        ctx.restore();
+    });
+    return true;
 }
 
 function drawChannelCombatFx(ctx, fx, now, targets) {
     let source = fx.screenSource;
     if (!source || targets.length <= 0) return;
-    let bounds = getCombatAreaBounds(targets);
-    let dx = bounds.x - source.x;
-    let dy = bounds.y - source.y;
-    let length = Math.max(20, Math.hypot(dx, dy));
-    let pulse = 0.7 + Math.sin(now / 55) * 0.22;
+    let aim = fx.screenAim || targets[0];
+    let geometry = getChannelEffectGeometry(source, aim, targets);
+    let profile = getSkillGemVfxProfile(fx.skillName);
+    let imageKey = profile && SKILL_GEM_VFX_IMAGE_KEYS[profile.channelAsset];
+    let image = getSkillGemVfxImage(imageKey);
+    let fadeOut = clampNumber((fx.start + fx.duration - now) / 160, 0, 1);
+    let isBreath = !!(profile && profile.family === 'breath');
+    if (isBreath && image && drawChannelBreathImage(ctx, image, source, targets, fadeOut)) return;
     ctx.save();
-    ctx.translate((source.x + bounds.x) / 2, (source.y + bounds.y) / 2);
-    ctx.rotate(Math.atan2(dy, dx));
-    ctx.globalCompositeOperation = 'screen';
-    ctx.fillStyle = getElementColor(fx.element);
-    ctx.shadowColor = ctx.fillStyle;
-    ctx.shadowBlur = 10;
-    ctx.globalAlpha = 0.38;
-    ctx.fillRect(-length / 2, -4 * pulse, length, 8 * pulse);
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(-length / 2, -1, length, 2);
-    ctx.restore();
-}
-
-function drawLightningCombatFx(ctx, targets, progress) {
-    targets.forEach((target, index) => {
-        let height = 46 + (index % 3) * 7;
-        let phase = Math.floor(progress * 8) + index;
-        ctx.save();
-        ctx.globalCompositeOperation = 'screen';
-        ctx.globalAlpha = 0.42 + Math.sin(progress * Math.PI) * 0.38;
-        ctx.strokeStyle = '#f8f2a0';
-        ctx.lineWidth = 2.2;
-        ctx.shadowColor = '#79bfff';
-        ctx.shadowBlur = 5;
-        ctx.beginPath();
-        for (let step = 0; step <= 5; step++) {
-            let y = target.y - height + height * step / 5;
-            let x = target.x + (step === 0 || step === 5 ? 0 : ((step + phase) % 2 ? -7 : 7));
-            if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-        ctx.restore();
-    });
-}
-
-function drawFireCombatFx(ctx, targets, progress) {
-    targets.forEach((target, index) => {
-        ctx.save();
-        ctx.translate(target.x, target.y + 5);
-        ctx.globalCompositeOperation = 'screen';
-        ctx.globalAlpha = 0.3 + Math.sin(progress * Math.PI) * 0.42;
-        for (let flame = 0; flame < 4; flame++) {
-            let offset = (flame - 1.5) * 7;
-            let height = 24 + ((flame + index) % 3) * 8;
-            ctx.fillStyle = flame % 2 ? '#ffcf63' : '#ff642c';
-            ctx.beginPath();
-            ctx.moveTo(offset - 5, 0);
-            ctx.bezierCurveTo(offset - 9, -height * 0.42, offset + 6, -height * 0.7, offset, -height);
-            ctx.bezierCurveTo(offset + 11, -height * 0.5, offset + 8, -height * 0.18, offset + 5, 0);
-            ctx.closePath();
-            ctx.fill();
-        }
-        ctx.restore();
-    });
-}
-
-function drawColdCombatFx(ctx, targets, progress) {
-    targets.forEach((target, index) => {
-        ctx.save();
-        ctx.globalCompositeOperation = 'screen';
-        ctx.globalAlpha = 0.34 + Math.sin(progress * Math.PI) * 0.44;
-        ctx.strokeStyle = '#d9f8ff';
-        ctx.lineWidth = 1.8;
-        for (let shard = 0; shard < 6; shard++) {
-            let angle = shard * Math.PI / 3 + index * 0.17;
-            let length = 18 + ((shard + index) % 3) * 7;
-            ctx.beginPath();
-            ctx.moveTo(target.x + Math.cos(angle) * 4, target.y + Math.sin(angle) * 4);
-            ctx.lineTo(target.x + Math.cos(angle) * length, target.y + Math.sin(angle) * length);
-            ctx.stroke();
-        }
-        ctx.restore();
-    });
-}
-
-function drawElementalCombatFx(ctx, profile, element, targets, progress) {
-    let drawTargets = targets;
-    if (profile && profile.aggregateImpact && targets.length > 1) {
-        let bounds = getCombatAreaBounds(targets);
-        drawTargets = [{ x: bounds.x, y: bounds.y }];
+    ctx.translate(geometry.x, geometry.y);
+    ctx.rotate(geometry.angle);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = (isBreath ? 0.42 : 0.68) * fadeOut;
+    ctx.filter = 'none';
+    if (image) ctx.drawImage(image, -geometry.length / 2, -geometry.width / 2, geometry.length, geometry.width);
+    else {
+        ctx.fillStyle = getElementColor(fx.element);
+        ctx.fillRect(-geometry.length / 2, -3, geometry.length, 6);
     }
-    if (element === 'light') drawLightningCombatFx(ctx, drawTargets, progress);
-    else if (element === 'fire') drawFireCombatFx(ctx, drawTargets, progress);
-    else if (element === 'cold') drawColdCombatFx(ctx, drawTargets, progress);
-    else return false;
-    return true;
+    ctx.restore();
 }
 
 function drawMeteorDescent(ctx, bounds, progress) {
@@ -752,7 +637,7 @@ function drawMeteorDescent(ctx, bounds, progress) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(Math.atan2(120, 54));
-    ctx.globalCompositeOperation = image ? 'screen' : 'source-over';
+    ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 0.72 + progress * 0.24;
     if (image) {
         ctx.drawImage(image, -104, -28, 128, 34);
@@ -780,7 +665,7 @@ function drawMeteorBurningGround(ctx, bounds, now, endAt) {
     let spanY = bounds.maxY - bounds.minY;
     let width = clampNumber(Math.max(spanX + 82, (spanY + 48) * 2.2), 150, 330);
     let height = width * 173 / 448;
-    ctx.save(); ctx.translate(bounds.x, bounds.y); ctx.globalCompositeOperation = 'screen';
+    ctx.save(); ctx.translate(bounds.x, bounds.y); ctx.globalCompositeOperation = 'source-over';
     if (image) {
         ctx.globalAlpha = fade * (0.58 + Math.sin(now / 130) * 0.04);
         ctx.drawImage(image, -width / 2, -height / 2 + 8, width, height);
@@ -811,7 +696,7 @@ function drawMeteorImpact(ctx, bounds, now, arriveAt) {
     let span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
     let width = clampNumber(154 + span * 0.28, 154, 224) * (0.78 + burst * 0.22);
     let height = width * 281 / 384;
-    ctx.save(); ctx.translate(bounds.x, bounds.y); ctx.globalCompositeOperation = 'screen';
+    ctx.save(); ctx.translate(bounds.x, bounds.y); ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = Math.pow(1 - burst, 0.72);
     if (image) {
         ctx.drawImage(image, -width / 2, -height * 0.68, width, height);
@@ -858,39 +743,29 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
         drawBlizzardCombatFx(ctx, fx, now, arriveAt, targets);
         return;
     }
-    if (fx.patternKind === 'field' && fx.skillName === '화염 폭풍핵') {
-        drawFireCoreCombatFx(ctx, now, targets);
-        return;
-    }
-    if (fx.patternKind === 'mine') {
-        drawRuneMineCombatFx(ctx, fx, now, arriveAt, targets);
-        return;
-    }
     if (fx.patternKind === 'channel') {
         drawChannelCombatFx(ctx, fx, now, targets);
         return;
     }
-    let elementalProgress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
-    if (drawElementalCombatFx(ctx, profile, element, targets, elementalProgress)) return;
     let image = getSkillGemVfxImage(imageKey);
     let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
     let fade = now <= arriveAt ? 0.24 + progress * 0.42
         : clampNumber((fx.start + fx.duration - now) / 260, 0, 1) * 0.48;
     let drawTargets = targets;
     let size = fx.owner === 'enemy' ? 92 : 78;
-    let aggregateImpact = !!(profile && profile.aggregateImpact && targets.length > 1);
+    let aggregateImpact = targets.length >= 4 || !!(profile && profile.aggregateImpact && targets.length > 1);
     if (fx.patternKind === 'field' || aggregateImpact) {
         let bounds = getCombatAreaBounds(targets);
         drawTargets = [{ x: bounds.x, y: bounds.y }];
         let span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
-        size = fx.patternKind === 'field' ? Math.max(110, span + 78) : clampNumber(82 + span * 0.45, 92, 148);
+        size = clampNumber(span + 78, 110, 360);
         if (fx.patternKind === 'field') fade = 0.38 + Math.sin(now / 150) * 0.06;
     }
     drawTargets.forEach(target => {
         ctx.save();
         ctx.translate(target.x, target.y);
         ctx.rotate(fx.patternKind === 'field' || aggregateImpact ? now / 9000 : progress * 0.2);
-        ctx.globalCompositeOperation = 'screen';
+        ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = fade;
         ctx.filter = isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
         if (image) ctx.drawImage(image, -size / 2, -size / 2, size, size);
@@ -909,7 +784,6 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
             }
             ctx.stroke();
         }
-        drawSkillGemSigil(ctx, fx.skillName, Math.min(size, 130), progress, element);
         ctx.restore();
     });
 }
@@ -921,7 +795,7 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
     let image = getSkillGemVfxImage(imageKey);
     let dedicatedProjectileImage = !!(profile && profile.projectileAsset);
     let playerProjectile = fx.owner === 'player' && String(fx.delivery || '').startsWith('projectile');
-    let useProjectileImage = !!image && (!playerProjectile || !(profile && profile.projectileStyle));
+    let useProjectileImage = !!image;
     let width = dedicatedProjectileImage ? (Number(profile.projectileWidth) || 58) : (fx.patternKind === 'moving' ? 112 : (fx.patternKind === 'boomerang' ? 72 : 64));
     let height = dedicatedProjectileImage ? (Number(profile.projectileHeight) || 26) : (fx.patternKind === 'moving' ? 58 : (fx.patternKind === 'boomerang' ? 48 : 24));
     targets.forEach(target => {
@@ -932,13 +806,12 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
         ctx.translate(x, y);
         ctx.rotate(angle);
         if (fx.patternKind === 'boomerang' && !useProjectileImage) ctx.rotate(progress * Math.PI * 3);
-        ctx.globalCompositeOperation = useProjectileImage ? 'source-over' : 'screen';
+        ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = useProjectileImage ? 0.94 : 0.82;
         ctx.filter = dedicatedProjectileImage || isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
         if (useProjectileImage) ctx.drawImage(image, -width / 2, -height / 2, width, height);
         else if (playerProjectile) drawElementProjectileVfx(ctx, getSkillProjectileVfxStyle(fx.skillName, element), width, height, progress);
         else { ctx.fillStyle = getElementColor(element); ctx.fillRect(-12, -3, 24, 6); }
-        drawSkillGemSigil(ctx, fx.skillName, Math.min(width, 84), progress, element);
         ctx.restore();
     });
 }
@@ -956,6 +829,7 @@ function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
     let element = normalizeSkillGemVfxElement(fx.element, fx.element);
     if (fx.delivery === 'magicCell') {
         fx.screenSource = source;
+        fx.screenAim = getCombatTravelScreenPos(gridProj, fx.aimCell, targets[0]);
         drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element);
     }
     else drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, imageKey, element);
@@ -1141,8 +1015,7 @@ function drawPlayerMobilityFx(ctx, fx, progress, gridProj) {
 
 function drawSkillGemVfxLayer(ctx, now) {
     let list = battleVisualState.skillEffects || [];
-    let density = getBattleVfxDensity();
-    list.forEach((effect, effectIndex) => {
+    list.forEach(effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
         let elapsed = now - effect.startAt;
         if (elapsed < 0 || elapsed > effect.duration) return;
@@ -1152,7 +1025,7 @@ function drawSkillGemVfxLayer(ctx, now) {
         if (effect.travel) fade = Math.min(1, t / 0.12) * Math.min(1, (1 - t) / 0.1);
         ctx.save();
         let imageProjectile = !!(effect.travel && effect.imageProjectile);
-        ctx.globalCompositeOperation = imageProjectile || effect.stageKind === 'slamPrimary' || effect.stageKind === 'slamAftershock' ? 'source-over' : 'screen';
+        ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, imageProjectile ? 0.94 : 0.82);
         ctx.filter = imageProjectile ? 'none' : (effect.filter || 'none');
         if (effect.travel) {
@@ -1182,14 +1055,11 @@ function drawSkillGemVfxLayer(ctx, now) {
             let width = effect.size * grow;
             let height = width;
             if (effect.family === 'slash' || effect.family === 'summon') height *= 0.88;
-            if (!drawProceduralSkillImpact(ctx, effect, t) && image) {
+            if (image) {
                 ctx.translate(effect.x, effect.y);
                 ctx.rotate(effect.rotation || 0);
                 ctx.drawImage(image, -width / 2, -height / 2, width, height);
-            }
-        }
-        if (effect.family !== 'breath' && (density >= 0.68 || effectIndex % 2 === 0)) {
-            drawSkillGemSigil(ctx, effect.skillName, Math.min(effect.size, 104), t, effect.element);
+            } else drawProceduralSkillImpact(ctx, effect, t);
         }
         ctx.restore();
     });

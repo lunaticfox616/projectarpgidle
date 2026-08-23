@@ -833,14 +833,8 @@
 
     function isCosmosUnlocked() {
         if (!window.game) return false;
-        if (window.game.cosmosAtlas && window.game.cosmosAtlas.unlocked) return true;
-        const woodsmanCleared = Array.isArray(window.game.journalEntries)
-            && window.game.journalEntries.includes('woodsman');
-        const underworld = (window.game.underworldProgress && typeof window.game.underworldProgress === 'object')
-            ? window.game.underworldProgress
-            : null;
-        const highestFloor = underworld ? Math.max(1, Math.floor(underworld.highestFloor || 1)) : 1;
-        return woodsmanCleared && highestFloor >= 30;
+        return window.isMapPrimaryContentUnlocked(window.game, 'map-tab-cosmos')
+            || window.isCosmosContentUnlockReady(window.game);
     }
 
     function getNodeStatus(node) {
@@ -1679,6 +1673,7 @@
             btn.id = 'btn-map-tab-cosmos';
             btn.type = 'button';
             btn.textContent = '🌠 우주계';
+            btn.style.display = 'none';
             btn.onclick = function() {
                 if (typeof window.switchMapSubtab === 'function') window.switchMapSubtab('map-tab-cosmos');
                 else activateCosmosSubtab();
@@ -2009,13 +2004,7 @@
     }
 
     function syncCosmosTabVisibility() {
-        const btn = document.getElementById('btn-map-tab-cosmos');
-        const unlocked = isCosmosUnlocked();
-        if (btn) btn.style.display = unlocked ? '' : 'none';
-        if (!unlocked && window.game && window.game.mapSubtab === 'map-tab-cosmos') {
-            if (typeof window.switchMapSubtab === 'function') window.switchMapSubtab('map-tab-zones');
-            else window.game.mapSubtab = 'map-tab-zones';
-        }
+        window.syncMapPrimaryContentTabs();
     }
 
     function renderCosmosAtlas() {

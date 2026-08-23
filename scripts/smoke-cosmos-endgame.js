@@ -1,14 +1,11 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
-const context = {
-    console,
-    window: null,
-    globalThis: null,
-    document: { readyState: 'loading', addEventListener() {}, getElementById() { return null; } },
-    addEventListener() {},
-    game: {
+const context = buildGameRuntime();
+context.document.readyState = 'loading';
+context.__cosmosTestGame = {
         season: 31,
         loopCount: 30,
         currencies: { starDust: 0 },
@@ -17,26 +14,27 @@ const context = {
         currentZoneId: 0,
         underworldProgress: { highestFloor: 30 },
         cosmosAtlas: { layoutVersion: 20260601, cleared: ['planet-0'], bossClears: [], mastery: {} }
-    },
-    getChaosRealmTier(floor) {
+};
+vm.runInContext(`
+    game = __cosmosTestGame;
+    window.game = game;
+    getChaosRealmTier = function (floor) {
         const safe = Math.max(1, Math.floor(floor || 1));
         return 30 + Math.floor((safe - 1) * 0.85) + Math.floor(Math.max(0, safe - 10) * 0.18);
-    },
-    getZone() { return { type: 'act' }; },
-    getPlayerStats() { return { totalDps: 900000, maxHp: 5000, energyShield: 1000 }; },
-    calculatePlayerEhpProfile() {
+    };
+    getZone = function () { return { type: 'act' }; };
+    getPlayerStats = function () { return { totalDps: 900000, maxHp: 5000, energyShield: 1000 }; };
+    calculatePlayerEhpProfile = function () {
         return { elements: { phys: { entropy: 18000 }, fire: { entropy: 24000 }, cold: { entropy: 23000 }, light: { entropy: 22000 }, chaos: { entropy: 16000 } } };
-    }
-};
-context.window = context;
-context.globalThis = context;
-context.safeExposeData = values => Object.assign(context, values);
-context.safeExposeGlobals = values => Object.assign(context, values);
-vm.createContext(context);
-vm.runInContext(fs.readFileSync('data/constants.js', 'utf8'), context, { filename: 'data/constants.js' });
-vm.runInContext(fs.readFileSync('data/maps.js', 'utf8'), context, { filename: 'data/maps.js' });
-vm.runInContext(fs.readFileSync('js/utils.js', 'utf8'), context, { filename: 'js/utils.js' });
-vm.runInContext(fs.readFileSync('js/combat-patterns.js', 'utf8'), context, { filename: 'js/combat-patterns.js' });
+    };
+    estimateMapZonePowerRequirements = undefined;
+    getMapPowerReadiness = undefined;
+    addLog = undefined;
+    showGameToast = undefined;
+    saveGame = undefined;
+    recordArcanaQuestCosmosExploration = undefined;
+    updateStaticUI = undefined;
+`, context);
 vm.runInContext(fs.readFileSync('js/cosmos-rules.js', 'utf8'), context, { filename: 'js/cosmos-rules.js' });
 vm.runInContext(fs.readFileSync('js/cosmos-atlas.js', 'utf8'), context, { filename: 'js/cosmos-atlas.js' });
 

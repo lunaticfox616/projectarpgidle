@@ -518,6 +518,7 @@ test('the guaranteed Arcana quest credits distinct Cosmos exploration and render
         game.arcana = createDefaultArcanaState();
         game.cosmosAtlas = { ...(game.cosmosAtlas || {}), cleared:['planet-0', 'asteroid-0'] };
         reconcileArcanaQuestFromCosmos(game);
+        reconcileMapPrimaryContentUnlocks(game);
         switchTab('tab-map');
         switchMapSubtab('map-tab-cosmos');
         renderCosmosAtlas();
@@ -697,6 +698,7 @@ test('endgame support screens keep primary actions and interaction state visible
         let base = GROWTH_BASE_DB.find(row => row.category === 'flower');
         game.growthInventory = [createGrowthItemFromBase(base, 'rare', 12)];
         game.recentGrowthDrops = [];
+        reconcileMapPrimaryContentUnlocks(game);
         switchTab('tab-map');
         switchMapSubtab('map-tab-underworld');
         updateStaticUI();
@@ -763,6 +765,7 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
         game.chaosInfuserUnlocked = true;
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.conditionGemUnlocked = true;
+        game.unlockedMapContents = MAP_PRIMARY_CONTENTS.map(def => def.id);
         updateStaticUI();
     });
     const groups = [
@@ -829,6 +832,7 @@ test('ocean fishing exposes strategy, collection growth and explicit crafting ta
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.ocean = createDefaultOceanState();
         game.ocean.unlocked = true;
+        reconcileMapPrimaryContentUnlocks(game);
         game.ocean.depthM = 720;
         game.ocean.checkpointM = 700;
         game.ocean.pressureLevel = 7;
@@ -2265,6 +2269,7 @@ test('mobile map navigation stays compact and new goals do not cover the map', a
         game.level = 100;
         game.season = 31;
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        game.unlockedMapContents = MAP_PRIMARY_CONTENTS.map(def => def.id);
         presentGoalDrawer({
             id: 'mobile-map-layout-check', title: '혼돈 심화 41층을 돌파하세요',
             current: 0, target: 41, actionLabel: '혼돈 지도 열기', actionTabId: 'tab-map'
@@ -2344,6 +2349,7 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
         game.journalEntries = Array.from(new Set([...(game.journalEntries || []), 'woodsman']));
         game.underworldProgress = { ...(game.underworldProgress || {}), highestFloor: 30, currentFloor: 30 };
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
+        reconcileMapPrimaryContentUnlocks(game);
         switchTab('tab-map');
         switchMapSubtab('map-tab-cosmos');
         focusCosmosCapstoneBoss('planet-46');
@@ -2394,6 +2400,7 @@ test('cosmos expedition signals change risk and persist into the battle contract
             bossClears: ['planet-46'], bossKills: { 'planet-46': 1 }, selectedId: 'planet-46',
             selectedDirectives: {}, directiveCycles: {}
         };
+        reconcileMapPrimaryContentUnlocks(game);
         game.combatHalted = true;
         switchTab('tab-map');
         switchMapSubtab('map-tab-cosmos');
