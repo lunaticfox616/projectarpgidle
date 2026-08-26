@@ -20,6 +20,67 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
         thorn: 'assets/items/thorn-growth-v3.png', root: 'assets/items/thorn-growth-v3.png',
         vine: 'assets/items/thorn-growth-v3.png', slab: 'assets/items/cosmic-slab-v3.png',
         default: 'assets/items/seed-talisman-v3.png'
+    }),
+    equipmentGrid: Object.freeze({
+        baseAssets: Object.freeze({
+            rusted_blade: 'assets/items/grid/item-short-sword-v1.webp',
+            apprentice_familiar_wand: 'assets/items/grid/item-summoner-wand-v1.webp',
+            hunter_axe: 'assets/items/grid/item-broad-axe-v1.webp',
+            abyss_spear: 'assets/items/grid/item-long-spear-v1.webp',
+            bloodletter_blade: 'assets/items/grid/item-blood-sword-v1.webp',
+            gale_fang_spear: 'assets/items/grid/item-tempest-lance-v1.webp',
+            executioner_blade: 'assets/items/grid/item-executioner-greatsword-v1.webp',
+            tempest_pike: 'assets/items/grid/item-war-pike-v1.webp',
+            windlash_bow: 'assets/items/grid/item-recurve-bow-v1.webp',
+            stormbolt_launcher: 'assets/items/grid/item-compact-crossbow-v1.webp',
+            starfall_ballista: 'assets/items/grid/item-repeating-ballista-v1.webp',
+            nova_rod: 'assets/items/grid/item-arcane-rod-v1.webp',
+            rift_scepter: 'assets/items/grid/item-ornate-scepter-v1.webp',
+            void_archon_staff: 'assets/items/grid/item-void-staff-v1.webp',
+            ember_wand: 'assets/items/grid/item-crystal-wand-v1.webp',
+            ritual_familiar_staff: 'assets/items/grid/item-ritual-staff-v1.webp',
+            abyss_chant_staff: 'assets/items/grid/item-bone-staff-v1.webp',
+            apocalypse_greatblade: 'assets/items/grid/item-star-greatblade-v1.webp',
+            cyclone_glaive: 'assets/items/grid/item-glaive-v1.webp',
+            meteor_repeater: 'assets/items/grid/item-meteor-launcher-v1.webp'
+        }),
+        slotAssets: Object.freeze({
+            무기: Object.freeze([
+                'assets/items/grid/item-short-sword-v1.webp', 'assets/items/grid/item-broad-axe-v1.webp',
+                'assets/items/grid/item-long-spear-v1.webp', 'assets/items/grid/item-recurve-bow-v1.webp',
+                'assets/items/grid/item-compact-crossbow-v1.webp', 'assets/items/grid/item-summoner-wand-v1.webp',
+                'assets/items/grid/item-crystal-wand-v1.webp', 'assets/items/grid/item-ornate-scepter-v1.webp',
+                'assets/items/grid/item-ritual-staff-v1.webp', 'assets/items/grid/item-void-staff-v1.webp',
+                'assets/items/grid/item-executioner-greatsword-v1.webp', 'assets/items/grid/item-glaive-v1.webp',
+                'assets/items/grid/item-war-pike-v1.webp', 'assets/items/grid/item-repeating-ballista-v1.webp',
+                'assets/items/grid/item-arcane-rod-v1.webp', 'assets/items/grid/item-meteor-launcher-v1.webp',
+                'assets/items/grid/item-blood-sword-v1.webp', 'assets/items/grid/item-tempest-lance-v1.webp',
+                'assets/items/grid/item-bone-staff-v1.webp', 'assets/items/grid/item-star-greatblade-v1.webp'
+            ]),
+            투구: Object.freeze([
+                'assets/items/grid/item-cloth-hood-v1.webp', 'assets/items/grid/item-war-helmet-v1.webp',
+                'assets/items/grid/item-antler-crown-v1.webp', 'assets/items/grid/item-astral-circlet-v1.webp',
+                'assets/items/grid/item-full-plate-helm-v1.webp'
+            ]),
+            갑옷: Object.freeze([
+                'assets/items/grid/item-leather-vest-v1.webp', 'assets/items/grid/item-plate-cuirass-v1.webp',
+                'assets/items/grid/item-ranger-coat-v1.webp', 'assets/items/grid/item-arcane-robe-v1.webp',
+                'assets/items/grid/item-templar-mail-v1.webp'
+            ]),
+            장갑: Object.freeze([
+                'assets/items/grid/item-hide-gloves-v1.webp', 'assets/items/grid/item-steel-gauntlets-v1.webp',
+                'assets/items/grid/item-claw-gloves-v1.webp'
+            ]),
+            신발: Object.freeze([
+                'assets/items/grid/item-cloth-boots-v1.webp', 'assets/items/grid/item-armored-greaves-v1.webp'
+            ]),
+            방패: Object.freeze([
+                'assets/items/grid/item-round-buckler-v1.webp', 'assets/items/grid/item-tower-shield-v1.webp'
+            ]),
+            허리띠: Object.freeze(['assets/items/grid/item-engraved-belt-v1.webp']),
+            반지: Object.freeze(['assets/items/grid/item-ruby-ring-v1.webp']),
+            목걸이: Object.freeze(['assets/items/grid/item-violet-pendant-v1.webp'])
+        })
     })
 });
 

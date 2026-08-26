@@ -621,7 +621,74 @@ function renderPaperdoll(targetId, forCrafting) {
     document.getElementById(targetId).innerHTML = html;
 }
 
+let focusedEquipmentInventoryItemId = null;
+
+function renderEquipmentGridItem(item, idx, triageResult) {
+    let footprint = getEquipmentInventoryFootprint(item);
+    let asset = getEquipmentGridVisualAsset(item);
+    let sourceMeta = getDropOnlyItemSourceMeta(item);
+    let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
+    let selected = focusedEquipmentInventoryItemId === item.id;
+    let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || '일반';
+    let badges = `${item.locked ? '<span>잠금</span>' : ''}${presetProtected ? '<span>세팅</span>' : ''}`;
+    if (triageResult && triageResult.dpsGainPct >= 1) badges += `<span>공격 +${triageResult.dpsGainPct}%</span>`;
+    if (triageResult && triageResult.ehpGainPct >= 1) badges += `<span>생존 +${triageResult.ehpGainPct}%</span>`;
+    if (triageResult && triageResult.special) badges += '<span>특수</span>';
+    let label = `${rarityLabel} ${item.name || item.baseName || '장비'} · ${footprint.columns}×${footprint.rows}`;
+    return `<button type="button" class="equipment-grid-item rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceMeta ? sourceMeta.toneClass : ''}"
+        style="--item-grid-columns:${footprint.columns};--item-grid-rows:${footprint.rows};" data-equipment-grid-id="${item.id}"
+        aria-pressed="${selected ? 'true' : 'false'}" aria-label="${escapeHTML(label)}"
+        onclick="event.stopPropagation();focusEquipmentGridItem(${item.id});showItemTooltip(event,${idx},false)"
+        ondblclick="event.stopPropagation();handleInventoryCardDoubleClick(${item.id},'equip')"
+        onmouseenter="showItemTooltip(event,${idx},false)" onmousemove="showItemTooltip(event,${idx},false)" onmouseleave="hideItemTooltip(event)">
+        <img src="${asset}" alt="" aria-hidden="true"><span class="equipment-grid-item-name">${escapeHTML(item.name || item.baseName || '장비')}</span>
+        <span class="equipment-grid-item-badges">${badges}</span>
+    </button>`;
+}
+
+function renderEquipmentInventoryInspector(rows) {
+    let root = document.getElementById('ui-equipment-inventory-inspector');
+    if (!root) return;
+    let visibleItems = (Array.isArray(rows) ? rows : []).map(row => row.item).filter(Boolean);
+    let item = visibleItems.find(row => row.id === focusedEquipmentInventoryItemId) || visibleItems[0] || null;
+    if (!item) {
+        focusedEquipmentInventoryItemId = null;
+        let emptyHtml = '<div class="equipment-grid-inspector-empty">표시할 장비가 없습니다.</div>';
+        if (root.__lastHtml !== emptyHtml) root.innerHTML = root.__lastHtml = emptyHtml;
+        return;
+    }
+    focusedEquipmentInventoryItemId = item.id;
+    let footprint = getEquipmentInventoryFootprint(item);
+    let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
+    let salvageDisabled = item.locked || presetProtected;
+    let salvageTitle = presetProtected ? '장비 세팅 프리셋에서 제거한 뒤 해체할 수 있습니다.' : '장비를 해체합니다.';
+    let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || '일반';
+    let html = `<div class="equipment-grid-inspector-copy">
+        <img src="${getEquipmentGridVisualAsset(item)}" alt=""><div><span>${rarityLabel} · ${escapeHTML(item.slot || '장비')} · ${footprint.columns}×${footprint.rows}칸</span>
+        <strong class="${item.rarity || 'normal'}">${escapeHTML(item.name || item.baseName || '장비')}</strong><small>${escapeHTML(item.baseName || '')}${presetProtected ? ' · 세팅 보호' : ''}${item.locked ? ' · 잠금' : ''}</small></div>
+    </div><div class="equipment-grid-inspector-actions">
+        <button class="equipment-card-primary" onclick="equipItemById(${item.id})">장착</button>
+        <button onclick="craftSelectInventoryItemById(${item.id})">제작</button>
+        <button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})">${item.locked ? '잠금해제' : '잠금'}</button>
+        <button class="equipment-card-danger" title="${salvageTitle}" onclick="salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button>
+    </div>`;
+    if (root.__lastHtml !== html) root.innerHTML = root.__lastHtml = html;
+}
+
+function focusEquipmentGridItem(itemId) {
+    focusedEquipmentInventoryItemId = itemId;
+    document.querySelectorAll('[data-equipment-grid-id]').forEach(card => {
+        let selected = Number(card.dataset.equipmentGridId) === Number(itemId);
+        card.classList.toggle('selected', selected);
+        card.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+    renderEquipmentInventoryInspector(game.inventory.map((item, idx) => ({ item, idx })));
+}
+
+safeExposeGlobals({ focusEquipmentGridItem, renderEquipmentInventoryInspector });
+
 function renderInventoryCard(item, idx, mode, triageResult) {
+    if (mode === 'equip') return renderEquipmentGridItem(item, idx, triageResult);
     let selected = !isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === item.id;
     let query = getEquipSearchQueryLocal();
     let hi = (text) => {
@@ -656,11 +723,9 @@ function renderInventoryCard(item, idx, mode, triageResult) {
         : (typeof getItemSalvagePreviewText === 'function' ? getItemSalvagePreviewText(item, false) : '장비를 해체합니다.');
     let salvageDisabled = item.locked || presetProtected;
     let actions = '';
-    if (mode === 'equip') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button></div>`;
-    else if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
+    if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
     else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button></div>`;
-    let doubleClick = mode === 'equip' ? ` ondblclick="event.stopPropagation(); handleInventoryCardDoubleClick(${item.id}, 'equip')"` : '';
-    let cardClick = mode === 'equip' ? `showItemTooltip(event, ${idx}, false)` : `selectForCrafting(${item.id}, false)`;
+    let cardClick = `selectForCrafting(${item.id}, false)`;
     let recordedTag = '';
     if (item.rarity === 'unique') {
         let key = `${item.slot}|${item.name}`;
@@ -672,7 +737,7 @@ function renderInventoryCard(item, idx, mode, triageResult) {
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || item.rarity || '일반';
-    return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" role="group" tabindex="0" data-item-tooltip-anchor="1" onclick="${cardClick}"${doubleClick} onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${cardClick};}" onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
+    return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" role="group" tabindex="0" data-item-tooltip-anchor="1" onclick="${cardClick}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${cardClick};}" onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
         ${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(item, 'equipment', 'equipment-card-visual') : ''}
         <div class="equipment-card-main">
             <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(item) : item.slot)}</span>${presetBadge}<span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>

@@ -51,8 +51,11 @@ assert(favorHtml.includes('현재 선택') && favorHtml.includes('✓ 선택됨'
 
 const equipmentCardHtml = runtime.renderInventoryCard({ id: 9910, slot: 'weapon', name: 'Test Sword', baseName: 'Test Sword', rarity: 'normal', baseStats: [], stats: [] }, 0, 'equip');
 assert(!equipmentCardHtml.includes('<details'), 'equipment card actions must not be split behind a management disclosure');
+const equipmentInspector = { innerHTML: '' };
+runtime.document.getElementById = id => id === 'ui-equipment-inventory-inspector' ? equipmentInspector : null;
+runtime.renderEquipmentInventoryInspector([{ item: { id: 9910, slot: 'weapon', name: 'Test Sword', baseName: 'Test Sword', rarity: 'normal', baseStats: [], stats: [] } }]);
 ['equipItemById(9910)', 'craftSelectInventoryItemById(9910)', 'toggleItemLockById(9910)', 'salvageItemById(9910)'].forEach(action => {
-    assert(equipmentCardHtml.includes(action), `equipment card must expose ${action} directly`);
+    assert(equipmentInspector.innerHTML.includes(action), `the focused equipment inspector must expose ${action} directly`);
 });
 
 const html = fs.readFileSync('index.html', 'utf8');

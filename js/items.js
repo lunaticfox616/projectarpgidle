@@ -47,6 +47,35 @@ function renderInventoryItemVisual(item, kind, className) {
 
 safeExposeGlobals({ getInventoryItemVisualAsset, renderInventoryItemVisual });
 
+function getEquipmentGridVisualAsset(item) {
+    let grid = typeof ITEM_VISUAL_ASSET_DB !== 'undefined' ? ITEM_VISUAL_ASSET_DB.equipmentGrid : null;
+    if (!grid || !item) return getInventoryItemVisualAsset(item, 'equipment');
+    let exact = grid.baseAssets && grid.baseAssets[item.baseId];
+    if (exact) return exact;
+    let slot = String(item.slot || '').replace(/[123]$/, '');
+    let pool = grid.slotAssets && grid.slotAssets[slot];
+    if (!Array.isArray(pool) || pool.length <= 0) return getInventoryItemVisualAsset(item, 'equipment');
+    let identity = item.baseId || item.baseName || item.name || slot;
+    return pool[hashSeed(identity) % pool.length];
+}
+
+/** @returns {{columns:number, rows:number}} */
+function getEquipmentInventoryFootprint(item) {
+    let slot = String((item && item.slot) || '').replace(/[123]$/, '');
+    if (slot === '반지' || slot === '목걸이') return { columns: 1, rows: 1 };
+    if (slot === '허리띠') return { columns: 2, rows: 1 };
+    if (slot === '투구' || slot === '장갑' || slot === '신발' || slot === '방패') return { columns: 2, rows: 2 };
+    if (slot === '갑옷') return { columns: 2, rows: 3 };
+    if (slot !== '무기') return { columns: 1, rows: 1 };
+    let label = `${item && item.baseId || ''} ${item && item.baseName || ''} ${item && item.name || ''}`.toLowerCase();
+    if (/완드|wand|scepter|셉터|초점|focus|로드|rod|봉|홀$/.test(label)) return { columns: 1, rows: 2 };
+    if (/활|궁|bow|석궁|crossbow|발리스타|ballista|창|spear|pike|lance|staff|지팡이|대검|great|glaive|글레이브|railgun|레일건|launcher|발사기|repeater|연사/.test(label)) return { columns: 2, rows: 3 };
+    if (/도끼|axe/.test(label)) return { columns: 2, rows: 2 };
+    return { columns: 1, rows: 3 };
+}
+
+safeExposeGlobals({ getEquipmentGridVisualAsset, getEquipmentInventoryFootprint });
+
 function getAverageExplicitAffixTier(items) {
     let tiers = (Array.isArray(items) ? items : []).flatMap(item => {
         if (!item || item.rarity === 'unique') return [];

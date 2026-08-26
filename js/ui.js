@@ -10528,6 +10528,7 @@ function performUpdateStaticUI() {
         window.equipmentTriage.render();
     }
     const equipInvRows = getSortedEquipmentInventoryRows(sf.equip);
+    renderEquipmentInventoryInspector(equipInvRows);
     renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', equipInvRows.map(row => renderInventoryCard(row.item, row.idx, 'equip', window.equipmentTriage ? window.equipmentTriage.getResult(row.item) : null)).join(''), '', '');
     const visibleInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isItemRarityVisible(row.item));
     document.getElementById('ui-craft-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
