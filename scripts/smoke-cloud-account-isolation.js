@@ -3,6 +3,8 @@ const fs = require('fs');
 const vm = require('vm');
 
 const source = fs.readFileSync('js/ui.js', 'utf8');
+const indexSource = fs.readFileSync('index.html', 'utf8');
+assert.match(indexSource, /js\/ui\.js[^\"]*save-guard=20260826-1/, 'save rollback guard must invalidate cached cloud reconciliation code');
 
 function sourceBetween(startMarker, endMarker) {
   const start = source.indexOf(startMarker);
@@ -13,6 +15,8 @@ function sourceBetween(startMarker, endMarker) {
 
 const ownershipSource = sourceBetween('function getCloudSaveOwnerId', 'function applyExternalSave');
 const loopGuardSource = sourceBetween('function getSaveLoopNumber', 'function shouldPreferRemoteOverBootstrapLocal');
+const staleGuardSource = sourceBetween('async function guardAgainstStaleLocalOverwrite', 'async function commitCloudSavePayload');
+const revisionResolutionSource = sourceBetween('async function resolveCloudRevisionConflict', 'async function reconcileCloudSaveState');
 const reconcileSource = sourceBetween('async function reconcileCloudSaveState', 'let cloudSyncTimer');
 
 function createContext(localSave, remoteRecord) {
@@ -21,17 +25,29 @@ function createContext(localSave, remoteRecord) {
   const context = {
     JSON, Math, Number, Date,
     game: JSON.parse(JSON.stringify(localSave)),
-    defaultGame: { level: 1, saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, cloudUserId: null } },
-    cloudState: { user: { id: 'account-b' }, lastRemoteUpdatedAt: 0 },
+    defaultGame: { level: 1, saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, cloudUserId: null, cloudRevision: 0 } },
+    cloudState: {
+      user: { id: 'account-b' },
+      lastRemoteUpdatedAt: 0,
+      lastRemoteRevision: remoteRecord && Number.isFinite(Number(remoteRecord.revision)) ? Number(remoteRecord.revision) : 0,
+      revisionSupported: !!(remoteRecord && Object.prototype.hasOwnProperty.call(remoteRecord, 'revision'))
+    },
     cloneDefaultGame() { return JSON.parse(JSON.stringify(context.defaultGame)); },
     ensureSaveMeta() {
       if (!context.game.saveMeta || typeof context.game.saveMeta !== 'object') context.game.saveMeta = {};
       if (!Number.isFinite(context.game.saveMeta.lastModifiedAt)) context.game.saveMeta.lastModifiedAt = 0;
       if (!Number.isFinite(context.game.saveMeta.lastCloudSyncAt)) context.game.saveMeta.lastCloudSyncAt = 0;
+      context.game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(context.game.saveMeta.cloudRevision) || 0));
     },
     persistLocalSave() { writes.push(JSON.parse(JSON.stringify(context.game))); return true; },
-    fetchCloudSaveRecord: async () => remoteRecord,
+    fetchCloudSaveRecord: async () => {
+      if (remoteRecord && Object.prototype.hasOwnProperty.call(remoteRecord, 'revision')) {
+        context.cloudState.lastRemoteRevision = Math.max(0, Math.floor(Number(remoteRecord.revision) || 0));
+      }
+      return remoteRecord;
+    },
     getLocalSaveStamp() { return context.game.saveMeta.lastModifiedAt || 0; },
+    getLocalCloudRevision() { context.ensureSaveMeta(); return context.game.saveMeta.cloudRevision; },
     getRemoteSaveStamp(record) { return new Date(record.updated_at).getTime(); },
     applyExternalSave(snapshot) {
       context.game = JSON.parse(JSON.stringify(snapshot));
@@ -40,13 +56,17 @@ function createContext(localSave, remoteRecord) {
       context.persistLocalSave();
     },
     pushCloudSave: async () => { pushes += 1; },
+    requestGameConfirmation: async () => false,
     setCloudMessage() {},
     addLog() {},
-    CLOUD_REMOTE_TIME_SKEW_MS: 0
+    CLOUD_REMOTE_TIME_SKEW_MS: 0,
+    CLOUD_STALE_OVERWRITE_GUARD_MS: 5000
   };
   vm.createContext(context);
   vm.runInContext(ownershipSource, context, { filename: 'cloud-ownership.js' });
   vm.runInContext(loopGuardSource, context, { filename: 'cloud-loop-guards.js' });
+  vm.runInContext(staleGuardSource, context, { filename: 'cloud-stale-guard.js' });
+  vm.runInContext(revisionResolutionSource, context, { filename: 'cloud-revision-resolution.js' });
   vm.runInContext(reconcileSource, context, { filename: 'cloud-reconcile.js' });
   return { context, writes, getPushes: () => pushes };
 }
@@ -97,7 +117,7 @@ async function run() {
     'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
     newerOwnedCase.context
   );
-  assert.strictEqual(newerOwnedStatus, 'pushed-local-newer-than-remote-resume');
+  assert.strictEqual(newerOwnedStatus, 'pushed-local-higher-loop');
   assert.strictEqual(newerOwnedCase.context.game.level, 42, 're-login must keep a newer local save owned by the same account');
   assert.strictEqual(newerOwnedCase.getPushes(), 1, 'newer same-account local progress must update the cloud save');
 
@@ -124,6 +144,41 @@ async function run() {
   assert.strictEqual(lowerLoopStatus, 'pulled-remote-higher-loop');
   assert.strictEqual(lowerLoopCase.context.game.season, 4, 'a newer timestamp must not let a lower-loop local save replace higher-loop cloud progress');
   assert.strictEqual(lowerLoopCase.getPushes(), 0, 'the real loop guard must block lower-loop local uploads');
+
+  const lowerLoopNewerRemote = {
+    updated_at: '2026-07-25T00:00:00Z',
+    revision: 8,
+    save_data: { level: 70, season: 6, loopCount: 5, saveMeta: { lastModifiedAt: 800, cloudRevision: 8 } }
+  };
+  const higherLoopOlderLocal = {
+    level: 90, season: 8, loopCount: 7,
+    saveMeta: { lastModifiedAt: new Date('2026-07-24T00:00:00Z').getTime(), cloudUserId: 'account-b', cloudRevision: 8 }
+  };
+  const monotonicResumeCase = createContext(higherLoopOlderLocal, lowerLoopNewerRemote);
+  const monotonicResumeStatus = await vm.runInContext(
+    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
+    monotonicResumeCase.context
+  );
+  assert.strictEqual(monotonicResumeStatus, 'pushed-local-higher-loop');
+  assert.strictEqual(monotonicResumeCase.context.game.season, 8, 'a newer cloud timestamp must never roll back a higher-loop local save');
+  assert.strictEqual(monotonicResumeCase.getPushes(), 1, 'the higher-loop local save should repair the stale cloud save');
+
+  const autoSyncGuardCase = createContext(higherLoopOlderLocal, lowerLoopNewerRemote);
+  const autoSyncGuard = await vm.runInContext('guardAgainstStaleLocalOverwrite({ automatic: true })', autoSyncGuardCase.context);
+  assert.strictEqual(autoSyncGuard.status, 'safe-to-push-higher-loop');
+  assert.strictEqual(autoSyncGuardCase.context.game.season, 8, 'automatic sync must not replace a higher-loop local save by timestamp');
+
+  const revisionConflictLocal = JSON.parse(JSON.stringify(higherLoopOlderLocal));
+  revisionConflictLocal.saveMeta.cloudRevision = 7;
+  const revisionConflictCase = createContext(revisionConflictLocal, lowerLoopNewerRemote);
+  const revisionConflictStatus = await vm.runInContext(
+    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
+    revisionConflictCase.context
+  );
+  assert.strictEqual(revisionConflictStatus, 'pushed-local-higher-loop-conflict');
+  assert.strictEqual(revisionConflictCase.context.game.season, 8, 'a cloud revision conflict must preserve the higher-loop local save');
+  assert.strictEqual(revisionConflictCase.context.game.saveMeta.cloudRevision, 8, 'the protected local save should advance to the checked remote revision');
+  assert.strictEqual(revisionConflictCase.getPushes(), 1);
 
   const bootstrapOwnedLocal = { level: 1, season: 1, loopCount: 0, saveMeta: { lastModifiedAt: remoteStamp + 3000, cloudUserId: 'account-b' } };
   const bootstrapOwnedCase = createContext(bootstrapOwnedLocal, remoteRecord);
