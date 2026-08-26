@@ -15551,6 +15551,9 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
         if (!options.silentLog) addLog('클라우드 루프가 더 높아 로컬 저장으로 서버를 덮어쓰지 않았습니다.', 'loot-magic');
         return { record, status: 'pulled-remote-higher-loop' };
     }
+    if (loopGuard.localLoop > loopGuard.remoteLoop) {
+        return { record, status: 'safe-to-push-higher-loop' };
+    }
     if (remoteStamp > localStamp + CLOUD_STALE_OVERWRITE_GUARD_MS) {
         applyExternalSave(record.save_data, remoteStamp);
         setCloudMessage(options.automatic ? '클라우드 저장이 더 최신이라 로컬에 먼저 반영했습니다.' : '클라우드 저장이 더 최신이라 덮어쓰기를 막고 자동으로 불러왔습니다.');
@@ -15666,6 +15669,14 @@ async function resolveCloudRevisionConflict(record, options = {}) {
     if (cloudState.revisionSupported !== true || !record || !record.save_data) return null;
     if (getLocalCloudRevision() === cloudState.lastRemoteRevision) return null;
     if (!options.preferRemoteOnResume) return null;
+    let loopSummary = getLoopCompareSummary(record);
+    if (loopSummary.localLoop > loopSummary.remoteLoop) {
+        ensureSaveMeta();
+        game.saveMeta.cloudRevision = cloudState.lastRemoteRevision;
+        await pushCloudSave({ touchModifiedAt: false });
+        setCloudMessage(`로컬 루프(${loopSummary.localLoop})가 클라우드 루프(${loopSummary.remoteLoop})보다 높아 로컬 진행을 보존했습니다.`);
+        return 'pushed-local-higher-loop-conflict';
+    }
     let localStamp = getLocalSaveStamp();
     let remoteStamp = getRemoteSaveStamp(record);
     let keepLocal = false;
@@ -15727,6 +15738,13 @@ async function reconcileCloudSaveState(options = {}) {
     let revisionResolution = cloudState.revisionSupported === true
         ? await resolveCloudRevisionConflict(record, options) : null;
     if (revisionResolution) return revisionResolution;
+    let loopSummary = getLoopCompareSummary(record);
+    if (loopSummary.localLoop > loopSummary.remoteLoop) {
+        await pushCloudSave({ touchModifiedAt: false });
+        setCloudMessage(`로컬 루프(${loopSummary.localLoop})가 클라우드 루프(${loopSummary.remoteLoop})보다 높아 로컬 진행을 보존했습니다.`);
+        if (!options.silent) addLog('더 높은 로컬 루프를 클라우드에 저장했습니다.', 'loot-magic');
+        return 'pushed-local-higher-loop';
+    }
     if (preferRemoteOnResume) {
         if (remoteStamp >= localStamp) {
             applyExternalSave(record.save_data, remoteStamp);
@@ -15734,7 +15752,6 @@ async function reconcileCloudSaveState(options = {}) {
             if (!options.silent) addLog('이어하기(클라우드 우선)로 서버 저장을 적용했습니다.', 'loot-magic');
             return 'pulled-remote-resume-preferred';
         }
-        let loopSummary = getLoopCompareSummary(record);
         if (!loopSummary.safeToPush) {
             applyExternalSave(record.save_data, remoteStamp);
             setCloudMessage(`클라우드 루프(${loopSummary.remoteLoop})가 로컬 루프(${loopSummary.localLoop})보다 높아 클라우드를 적용했습니다.`);
@@ -15759,7 +15776,6 @@ async function reconcileCloudSaveState(options = {}) {
         return 'pulled-remote';
     }
     if (localStamp > remoteStamp) {
-        let loopSummary = getLoopCompareSummary(record);
         if (!loopSummary.safeToPush) {
             applyExternalSave(record.save_data, remoteStamp);
             setCloudMessage(`클라우드 루프(${loopSummary.remoteLoop})가 로컬 루프(${loopSummary.localLoop})보다 높아 클라우드를 적용했습니다.`);
