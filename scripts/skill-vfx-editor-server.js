@@ -13,7 +13,7 @@ const EDITOR_ROOT = path.join(ROOT, 'tools', 'skill-vfx-editor');
 const BACKUP_ROOT = path.join(ROOT, 'artifacts', 'skill-vfx-backups');
 const PORT = Math.max(1, Number(process.env.SKILL_VFX_EDITOR_PORT) || 4176);
 const MAX_BODY_BYTES = 24 * 1024 * 1024;
-const GAME_STATIC_ROOTS = new Set(['assets', 'css', 'data', 'js']);
+const GAME_STATIC_ROOTS = new Set(['assets', 'css', 'data', 'js', 'legal']);
 
 function sendJson(response, status, payload) {
     const body = JSON.stringify(payload);

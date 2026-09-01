@@ -15119,6 +15119,7 @@ function sanitizeKakaoScopeInUrl(rawUrl) {
 }
 
 async function loginWithOAuthProvider(provider) {
+    if (!requireLegalPolicyConsent()) return;
     let client = getSupabaseClient();
     if (!client) return setCloudMessage('OAuth 클라이언트를 초기화하지 못했습니다.');
     if (cloudState.busy) return;
@@ -15433,6 +15434,18 @@ function collectCloudCredentials() {
     };
 }
 
+function hasAcceptedRequiredLegalPolicies() {
+    let terms = document.getElementById('startup-terms-consent');
+    let privacy = document.getElementById('startup-privacy-consent');
+    return !!(terms && terms.checked && privacy && privacy.checked);
+}
+
+function requireLegalPolicyConsent() {
+    if (hasAcceptedRequiredLegalPolicies()) return true;
+    setCloudMessage('회원가입 또는 소셜 로그인을 이용하려면 필수 약관 두 항목에 동의해주세요.');
+    return false;
+}
+
 function clearCloudPasswordInput() {
     let passwordEl = document.getElementById('startup-password');
     if (passwordEl) passwordEl.value = '';
@@ -15555,6 +15568,7 @@ function startupLogin() {
 }
 
 function startupSignUp() {
+    if (!requireLegalPolicyConsent()) return;
     cloudSignUp({ source: 'startup', enterGame: true });
 }
 

@@ -537,6 +537,7 @@ function drawSpriteSheetFrame(ctx, image, frameIndex, columns, rows, x, y, width
     let frame = Math.max(0, Math.floor(frameIndex)) % (columns * rows);
     let sourceX = (frame % columns) * sourceWidth;
     let sourceY = Math.floor(frame / columns) * sourceHeight;
+    ctx.imageSmoothingEnabled = false;
     ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight,
         x - width / 2, y - height / 2, width, height);
 }
@@ -654,6 +655,7 @@ function drawChannelBreathImage(ctx, image, source, targets, fadeOut) {
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 0.31 * fadeOut;
         ctx.filter = 'none';
+        ctx.imageSmoothingEnabled = false;
         ctx.drawImage(image, 0, -width / 2, length, width);
         ctx.restore();
     });
@@ -677,6 +679,7 @@ function drawChannelCombatFx(ctx, fx, now, targets) {
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = (isBreath ? 0.42 : 0.68) * fadeOut;
     ctx.filter = 'none';
+    ctx.imageSmoothingEnabled = false;
     if (image) ctx.drawImage(image, -geometry.length / 2, -geometry.width / 2, geometry.length, geometry.width);
     else {
         ctx.fillStyle = getElementColor(fx.element);
@@ -695,6 +698,7 @@ function drawMeteorDescent(ctx, bounds, progress) {
     ctx.rotate(Math.atan2(120, 54));
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 0.72 + progress * 0.24;
+    ctx.imageSmoothingEnabled = false;
     if (image) {
         ctx.drawImage(image, -104, -28, 128, 34);
         ctx.restore();
@@ -722,6 +726,7 @@ function drawMeteorBurningGround(ctx, bounds, now, endAt) {
     let width = clampNumber(Math.max(spanX + 82, (spanY + 48) * 2.2), 150, 330);
     let height = width * 173 / 448;
     ctx.save(); ctx.translate(bounds.x, bounds.y); ctx.globalCompositeOperation = 'source-over';
+    ctx.imageSmoothingEnabled = false;
     if (image) {
         ctx.globalAlpha = fade * (0.58 + Math.sin(now / 130) * 0.04);
         ctx.drawImage(image, -width / 2, -height / 2 + 8, width, height);
@@ -754,6 +759,7 @@ function drawMeteorImpact(ctx, bounds, now, arriveAt) {
     let height = width * 281 / 384;
     ctx.save(); ctx.translate(bounds.x, bounds.y); ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = Math.pow(1 - burst, 0.72);
+    ctx.imageSmoothingEnabled = false;
     if (image) {
         ctx.drawImage(image, -width / 2, -height * 0.68, width, height);
         ctx.restore();
@@ -827,6 +833,7 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = fade;
         ctx.filter = isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
+        ctx.imageSmoothingEnabled = false;
         if (image) ctx.drawImage(image, -size / 2, -size / 2, size, size);
         else {
             ctx.strokeStyle = getElementColor(element);
@@ -868,6 +875,7 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = useProjectileImage ? 0.94 : 0.82;
         ctx.filter = dedicatedProjectileImage || isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
+        ctx.imageSmoothingEnabled = false;
         if (useProjectileImage) ctx.drawImage(image, -width / 2, -height / 2, width, height);
         else if (playerProjectile) drawElementProjectileVfx(ctx, getSkillProjectileVfxStyle(fx.skillName, element), width, height, progress);
         else { ctx.fillStyle = getElementColor(element); ctx.fillRect(-12, -3, 24, 6); }
@@ -1118,6 +1126,7 @@ function drawSkillGemVfxLayer(ctx, now) {
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, imageProjectile ? 0.94 : 0.82);
         ctx.filter = imageProjectile ? 'none' : (effect.filter || 'none');
+        ctx.imageSmoothingEnabled = false;
         if (effect.travel) {
             // 모든 플레이어 투사체는 포물선 없이 실제 발사선 위를 빠르게 이동한다.
             let travelProgress = t;

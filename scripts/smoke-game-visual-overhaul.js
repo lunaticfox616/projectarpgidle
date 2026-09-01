@@ -335,19 +335,20 @@ assert.ok(fs.existsSync('assets/effects/boss-telegraph-ring-v1.png'), 'generated
 assert.ok(fs.existsSync('assets/effects/boss-telegraph-fan-v1.png'), 'generated boss fan telegraph should exist');
 assert.ok(fs.existsSync('assets/effects/boss-telegraph-pulse-v1.png'), 'generated boss pulse telegraph should exist');
 [
-  'skill-whirlwind-v1.png', 'skill-chain-primary-v1.png', 'skill-chain-jump-v1.png',
-  'skill-slam-primary-v1.png', 'skill-slam-aftershock-v1.png', 'skill-slash-v1.png',
-  'skill-projectile-v1.png', 'skill-venom-fang-v2.png', 'skill-frost-field-v1.png', 'skill-frost-wave-v1.png',
-  'skill-chaos-boomerang-v1.png', 'skill-burst-v1.png', 'skill-dot-field-v1.png',
+  'skill-whirlwind-v2.png', 'skill-chain-primary-v2.png', 'skill-chain-jump-v1.png',
+  'skill-slam-primary-v2.png', 'skill-slam-aftershock-v2.png', 'skill-slash-v2.png',
+  'skill-projectile-v2.png', 'skill-venom-fang-v3.png', 'skill-frost-field-v2.png', 'skill-frost-wave-v2.png',
+  'skill-chaos-boomerang-v2.png', 'skill-burst-v2.png', 'skill-dot-field-v2.png',
+  'skill-meteor-projectile-v2.png', 'skill-meteor-impact-v2.png', 'skill-meteor-ground-v2.png',
   'skill-summon-strike-v1.png',
 ].forEach(file => assert.ok(fs.existsSync(`assets/effects/${file}`), `generated skill VFX ${file} should exist`));
 const channelVfxAssets = [
-  'channel-focus-beam-v1.webp', 'channel-dragon-breath-v1.webp', 'channel-void-cutter-v1.webp',
+  'channel-focus-beam-v2.png', 'channel-dragon-breath-v2.png', 'channel-void-cutter-v2.png',
 ];
 channelVfxAssets.forEach(file => {
   const bytes = fs.readFileSync(`assets/effects/${file}`);
-  assert.strictEqual(bytes.subarray(0, 4).toString(), 'RIFF', `${file} should be a real WebP asset`);
-  assert.strictEqual(bytes.subarray(8, 12).toString(), 'WEBP', `${file} should keep WebP compression`);
+  assert.strictEqual(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a', `${file} should be a real PNG asset`);
+  assert.strictEqual(bytes.readUInt8(25), 6, `${file} should retain RGBA transparency`);
   assert.ok(bytes.length <= 32768, `${file} should stay below the 32 KiB channel VFX budget`);
 });
 const skillVfxCoverage = vm.runInContext(`(() => {
@@ -418,23 +419,23 @@ assert.deepStrictEqual(Array.from(skillGemArtCoverage.missing), [], 'every activ
 assert.strictEqual(new Set(skillGemArtCoverage.paths).size, skillGemArtCoverage.count, 'active skill gems should not share the same portrait asset');
 skillGemArtCoverage.paths.forEach(file => assert.ok(fs.existsSync(file), `skill gem portrait ${file} should exist`));
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
-assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v1.png'"), 'battle asset loader should preload skill VFX images');
-assert.ok(passiveSource.includes("skillFxFrostField: 'assets/effects/skill-frost-field-v1.png'"), 'battle asset loader should preload specialized combat pattern images');
-assert.ok(passiveSource.includes("skillFxBlizzardAmbient: 'assets/effects/skill-bludgeoning-blizzard-ambient-sheet-v1.png'"), 'battle asset loader should preload the blizzard ambient sprite sheet');
-assert.ok(passiveSource.includes("skillFxBlizzardImpact: 'assets/effects/skill-bludgeoning-blizzard-impact-sheet-v1.png'"), 'battle asset loader should preload the blizzard impact sprite sheet');
-assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v2.png'"), 'battle asset loader should preload the supplied sharp venom projectile image');
-assert.ok(passiveSource.includes("skillFxFocusBeam: 'assets/effects/channel-focus-beam-v1.webp'"), 'battle asset loader should preload the focused beam image');
-assert.ok(passiveSource.includes("skillFxDragonBreath: 'assets/effects/channel-dragon-breath-v1.webp'"), 'battle asset loader should preload the dragon breath image');
-assert.ok(passiveSource.includes("skillFxVoidCutter: 'assets/effects/channel-void-cutter-v1.webp'"), 'battle asset loader should preload the void cutter image');
+assert.ok(passiveSource.includes("skillFxWhirlwind: 'assets/effects/skill-whirlwind-v2.png'"), 'battle asset loader should preload pixel skill VFX images');
+assert.ok(passiveSource.includes("skillFxFrostField: 'assets/effects/skill-frost-field-v2.png'"), 'battle asset loader should preload pixel combat pattern images');
+assert.ok(passiveSource.includes("skillFxBlizzardAmbient: 'assets/effects/skill-bludgeoning-blizzard-ambient-sheet-v2.png'"), 'battle asset loader should preload the pixel blizzard ambient sprite sheet');
+assert.ok(passiveSource.includes("skillFxBlizzardImpact: 'assets/effects/skill-bludgeoning-blizzard-impact-sheet-v2.png'"), 'battle asset loader should preload the pixel blizzard impact sprite sheet');
+assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v3.png'"), 'battle asset loader should preload the pixel venom projectile image');
+assert.ok(passiveSource.includes("skillFxFocusBeam: 'assets/effects/channel-focus-beam-v2.png'"), 'battle asset loader should preload the pixel focused beam image');
+assert.ok(passiveSource.includes("skillFxDragonBreath: 'assets/effects/channel-dragon-breath-v2.png'"), 'battle asset loader should preload the pixel dragon breath image');
+assert.ok(passiveSource.includes("skillFxVoidCutter: 'assets/effects/channel-void-cutter-v2.png'"), 'battle asset loader should preload the pixel void cutter image');
 ['ambient', 'impact'].forEach(kind => {
-  const bytes = fs.readFileSync(`assets/effects/skill-bludgeoning-blizzard-${kind}-sheet-v1.png`);
-  assert.deepStrictEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], [1024, 1024],
-    `blizzard ${kind} sheet should retain its 4x4 frame grid`);
+  const bytes = fs.readFileSync(`assets/effects/skill-bludgeoning-blizzard-${kind}-sheet-v2.png`);
+  assert.ok(bytes.readUInt32BE(16) >= 600 && bytes.readUInt32BE(20) >= 600,
+    `blizzard ${kind} sheet should retain enough source pixels for its 4x4 frame grid`);
   assert.strictEqual(bytes.readUInt8(25), 6, `blizzard ${kind} sheet should retain RGBA transparency`);
 });
-const venomVfxBytes = fs.readFileSync('assets/effects/skill-venom-fang-v2.png');
-assert.deepStrictEqual([venomVfxBytes.readUInt32BE(16), venomVfxBytes.readUInt32BE(20)], [512, 160],
-  'the supplied venom projectile must keep its optimized combat dimensions');
+const venomVfxBytes = fs.readFileSync('assets/effects/skill-venom-fang-v3.png');
+assert.deepStrictEqual([venomVfxBytes.readUInt32BE(16), venomVfxBytes.readUInt32BE(20)], [579, 189],
+  'the supplied pixel venom projectile must keep its authored combat dimensions');
 assert.strictEqual(venomVfxBytes.readUInt8(25), 6, 'the supplied venom projectile must retain RGBA transparency');
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
 assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
