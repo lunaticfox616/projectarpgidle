@@ -12,9 +12,8 @@
         .startup-summary-card { margin-top: 8px; padding: 13px 14px; border-radius: 16px; border: 1px solid #233649; background: rgba(9, 14, 21, 0.76); display: grid; gap: 10px; }
         .startup-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .startup-summary-title { color: #f1c46b; font-weight: bold; font-size: 0.88em; }
-        .startup-patch-note-action { display: flex; align-items: center; gap: 8px; }
-        .startup-patch-note-link { min-height: 0; margin: 0; padding: 4px 7px; font-size: 0.72rem; }
-        .startup-latest-patch-date { color: var(--copy-muted); font-size: 0.68rem; letter-spacing: 0.04em; white-space: nowrap; }
+        .startup-patch-note-link { min-height: 0; margin: 0; padding: 4px 7px; font-size: 0.72rem; white-space: nowrap; }
+        .startup-latest-patch-date { margin-left: 3px; color: var(--copy-muted); font-size: 0.68rem; letter-spacing: 0.02em; }
         .startup-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
         .startup-summary-item { min-height: 84px; padding: 12px 14px; border-radius: 12px; background: rgba(16, 23, 31, 0.95); border: 1px solid #1c2f43; }
         .startup-summary-label { color: var(--copy-muted); font-size: 0.74em; text-transform: uppercase; letter-spacing: 0.08em; }
@@ -89,15 +88,22 @@
         .startup-local-save-warning { color: #d7b579; font-size: 0.76em; line-height: 1.45; text-align: center; }
         .startup-legal-consent { display: grid; gap: 7px; padding: 10px 12px; border: 1px solid rgba(201, 166, 92, 0.3); background: rgba(13, 17, 23, 0.72); color: #b9b3a4; font-size: 0.74em; line-height: 1.45; }
         .startup-legal-consent[hidden] { display: none; }
-        .startup-policy-scroll { max-height: 190px; padding: 10px 12px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid rgba(201, 166, 92, 0.2); background: rgba(3, 5, 7, 0.56); scrollbar-color: rgba(201, 166, 92, 0.55) rgba(255, 255, 255, 0.04); }
+        .startup-policy-scroll { max-height: 230px; padding: 10px 12px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid rgba(201, 166, 92, 0.2); background: rgba(3, 5, 7, 0.56); scrollbar-color: rgba(201, 166, 92, 0.55) rgba(255, 255, 255, 0.04); }
         .startup-policy-scroll section + section { margin-top: 14px; padding-top: 13px; border-top: 1px solid rgba(201, 166, 92, 0.18); }
-        .startup-policy-scroll h3 { margin: 0; color: #e3c879; font-size: 0.92rem; }
-        .startup-policy-scroll p { margin: 4px 0 0; }
+        .startup-policy-scroll h1 { margin: 0; color: #e3c879; font-size: 0.96rem; }
+        .startup-policy-scroll h2 { margin: 16px 0 5px; color: #d5bd76; font-size: 0.82rem; }
+        .startup-policy-scroll p { margin: 5px 0 0; }
         .startup-policy-scroll ul { margin: 7px 0 0; padding-left: 18px; }
         .startup-policy-scroll li + li { margin-top: 5px; }
-        .startup-policy-effective { color: #7f8892; font-size: 0.7rem; }
-        .startup-legal-consent label { display: flex; align-items: flex-start; gap: 6px; cursor: pointer; }
-        .startup-legal-consent input { flex: 0 0 15px; width: 15px; min-width: 15px; height: 15px; min-height: 15px; padding: 0; margin: 3px 0 0; accent-color: #c9a84d; }
+        .startup-policy-scroll .effective { margin-bottom: 12px; color: #7f8892; font-size: 0.7rem; }
+        .startup-policy-scroll .note { color: #9f9b91; font-size: 0.72rem; }
+        .startup-policy-scroll table { width: 100%; margin-top: 7px; border-collapse: collapse; table-layout: fixed; font-size: 0.68rem; }
+        .startup-policy-scroll th, .startup-policy-scroll td { padding: 6px; border: 1px solid rgba(201, 166, 92, 0.16); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+        .startup-policy-scroll th { color: #d5bd76; background: rgba(201, 166, 92, 0.07); }
+        .startup-policy-scroll a { color: #e3c879; }
+        .startup-legal-consent label { display: grid; grid-template-columns: 15px minmax(0, 1fr); align-items: center; gap: 7px; cursor: pointer; }
+        .startup-legal-consent label span { line-height: 1.3; }
+        .startup-legal-consent input { width: 15px; min-width: 15px; height: 15px; min-height: 15px; padding: 0; margin: 0; accent-color: #c9a84d; }
         .startup-legal-consent a, .startup-policy-links a, .cloud-policy-links a { color: #e3c879; text-decoration: underline; text-underline-offset: 2px; }
         .startup-policy-links { display: flex; justify-content: center; gap: 7px; color: #756f63; font-size: 0.74em; }
         .cloud-policy-links { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; font-size: 0.8em; }

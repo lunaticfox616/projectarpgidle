@@ -23,6 +23,7 @@ const html = fs.readFileSync('index.html', 'utf8');
 const ui = fs.readFileSync('js/ui.js', 'utf8');
 const terms = fs.readFileSync('legal/terms.html', 'utf8');
 const privacy = fs.readFileSync('legal/privacy.html', 'utf8');
+const policyContent = fs.readFileSync('legal/policies-content.js', 'utf8');
 const changelog = fs.readFileSync('changelog.md', 'utf8');
 const vfxServer = fs.readFileSync('scripts/skill-vfx-editor-server.js', 'utf8');
 
@@ -31,22 +32,26 @@ assert(html.includes('id="startup-signup-consent" hidden')
     && html.includes('id="startup-privacy-consent"'),
     'startup account creation must keep separate required policy consents hidden until signup is selected');
 assert(html.includes('class="startup-policy-scroll"')
-    && html.includes('<h3>이용약관</h3>')
-    && html.includes('<h3>개인정보 수집·이용</h3>'),
+    && html.includes('data-legal-policy="terms"')
+    && html.includes('data-legal-policy="privacy"')
+    && html.includes('legal/policies-content.js'),
     'signup must present both required policies in one scrollable panel');
 assert(html.includes('legal/terms.html') && html.includes('legal/privacy.html'),
     'policies must remain accessible from the game UI');
 assert(html.includes('계정·데이터 삭제 요청') && html.includes('pjh4611274@gmail.com'),
     'settings must expose a working account deletion request path');
-assert(terms.includes('만 14세 이상') && terms.includes('게스트 저장'),
+assert(terms.includes('data-legal-policy="terms"') && terms.includes('policies-content.js')
+    && policyContent.includes('만 14세 이상') && policyContent.includes('게스트 저장'),
     'terms must state the age gate and local-only guest save limitation');
-assert(privacy.includes('Supabase, Inc.') && privacy.includes('대한민국(서울 리전)'),
+assert(privacy.includes('data-legal-policy="privacy"') && privacy.includes('policies-content.js')
+    && policyContent.includes('Supabase, Inc.') && policyContent.includes('대한민국(서울 리전)'),
     'privacy policy must disclose the configured cloud processor and region');
-assert(privacy.includes('최대 3일') && privacy.includes('최대 30일'),
+assert(policyContent.includes('최대 3일') && policyContent.includes('최대 30일'),
     'privacy retention periods must match chat and telemetry cleanup behavior');
 assert(vfxServer.includes("'legal'"), 'the local VFX game preview must serve policy pages linked from the game');
-const latestPatchDate = (changelog.match(/^##\s+.+?\s+[—–-]\s+(\d{4})-(\d{2})-(\d{2})/m) || []).slice(1).join('.');
-assert(latestPatchDate && html.includes(`aria-label="최신 패치 날짜">${latestPatchDate}</span>`),
+const latestPatchParts = (changelog.match(/^##\s+.+?\s+[—–-]\s+(\d{4})-(\d{2})-(\d{2})/m) || []).slice(1);
+const latestPatchDate = latestPatchParts.length === 3 ? `${latestPatchParts[0].slice(2)}-${latestPatchParts[1]}-${latestPatchParts[2]}` : '';
+assert(latestPatchDate && html.includes(`aria-hidden="true">(${latestPatchDate})</span>`),
     'the startup patch date must match the latest documented changelog entry');
 
 const elements = {

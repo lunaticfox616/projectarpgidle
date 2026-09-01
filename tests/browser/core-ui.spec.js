@@ -56,7 +56,9 @@ test('entry screen establishes the reliquary palette without horizontal overflow
     await expect(page.locator('#btn-startup-signup')).toHaveText('동의하고 회원가입');
     const policyScroll = page.locator('.startup-policy-scroll');
     await expect(policyScroll.getByText('이용약관', { exact: true })).toBeVisible();
-    await expect(policyScroll.getByText('개인정보 수집·이용', { exact: true })).toBeVisible();
+    await expect(policyScroll.getByText('개인정보처리방침', { exact: true })).toBeVisible();
+    await expect(policyScroll.locator('h2')).toHaveCount(14);
+    await expect(policyScroll.locator('table')).toHaveCount(2);
     expect(await policyScroll.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
     await page.locator('#btn-startup-login').click();
     await expect(signupConsent).toBeHidden();
