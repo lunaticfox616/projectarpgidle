@@ -5,11 +5,23 @@ const html = fs.readFileSync('index.html', 'utf8');
 const mobileCss = fs.readFileSync('css/mobile.css', 'utf8');
 const gameCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 const assetCss = fs.readFileSync('css/ui-asset-skins.css', 'utf8');
+const responsiveCss = fs.readFileSync('css/ui-responsive-refine.css', 'utf8');
 const ui = fs.readFileSync('js/ui.js', 'utf8');
 const responsiveLayoutCss = mobileCss.slice(mobileCss.indexOf('@media (max-width: 1080px)'), mobileCss.indexOf('@media (max-width: 720px)'));
 
 assert.ok(html.includes('id="ui-combat-flasks"'), 'combat HUD should expose the flask charge strip');
-assert.ok(mobileCss.includes('height: clamp(210px, 42svh, 360px) !important'), 'phone battlefields need a playable viewport height');
+assert.ok(/body\.mobile-battle-tab #tab-battle \.battlefield-wrap\s*\{[^}]*width:\s*min\(100%,\s*816px\);[^}]*height:\s*clamp\(320px,\s*48svh,\s*520px\)\s*!important;[^}]*aspect-ratio:\s*auto;/.test(mobileCss),
+  'phone battlefields need extra vertical room for a contained full-map view');
+assert.ok(/orientation:\s*landscape[^}]*max-height:\s*600px[\s\S]*?\.battlefield-wrap\s*\{[^}]*width:\s*min\(100%,\s*81\.08svh\);[^}]*height:\s*min\(76svh,\s*360px\)\s*!important;/.test(mobileCss),
+  'short landscape phones need a bounded but still vertical battlefield');
+assert.ok(/\.battlefield-wrap\.compressed\s*\{[^}]*height:\s*0\s*!important;[^}]*aspect-ratio:\s*auto;/.test(mobileCss),
+  'collapsed battlefields must stay collapsed after the mobile ratio rule');
+assert.ok(/body\.mobile-battle-tab #tab-battle \.enemy-empty\s*\{\s*display:\s*none\s*!important;\s*}/.test(responsiveCss),
+  'the empty enemy HUD must not push the mobile battlefield below the fold');
+assert.ok(/#enemy-area\s*\{[^}]*position:\s*absolute;[^}]*z-index:\s*30;/.test(responsiveCss),
+  'mobile enemy identity and health must overlay the battlefield instead of consuming a layout row');
+assert.ok(/#ui-progress-label\s*\{\s*display:\s*none\s*!important;\s*}/.test(responsiveCss),
+  'the percent text makes the separate mobile progress label redundant');
 assert.ok(mobileCss.includes('grid-template-columns: repeat(2, minmax(0, 1fr)) !important'), 'dense mobile map layouts should collapse to two columns');
 assert.ok(mobileCss.includes('@media (max-width: 480px)'), 'small phones need a dedicated one-column breakpoint');
 assert.ok(mobileCss.includes('min-height: 48px'), 'mobile tab rails need enough height for touch controls');
@@ -24,8 +36,35 @@ assert.ok(!ui.includes('host.style.cssText = \'position:fixed'), 'mobile battle 
 assert.ok(responsiveLayoutCss.includes('.equipment-mobile-switch {'), 'tablet-width one-column equipment layouts need the inventory/loadout switch');
 assert.ok(ui.includes("host.setAttribute('aria-label', '전투 화면으로 이동')"), 'mobile battle PiP needs an accessible action name');
 assert.ok(mobileCss.includes('.combat-dashboard { display: contents !important; }'), 'mobile combat HUD sections should share one explicit vertical order');
-assert.ok(mobileCss.includes('#enemy-area { order: -2; }'), 'the enemy gauge should render above the battlefield on mobile');
+assert.ok(responsiveCss.includes("grid-template-areas: 'zone progress actions' !important"),
+  'mobile zone, progress, and combat actions should share one compact row');
 assert.ok(mobileCss.includes('.player-hud { order: 2; }'), 'the player gauge and flasks should render below the battlefield on mobile');
+assert.ok(/\.player-hud-shell\s*\{[^}]*grid-template-rows:\s*36px 24px\s*!important;[^}]*height:\s*66px\s*!important;[^}]*overflow:\s*hidden/.test(responsiveCss),
+  'the mobile player HUD must reserve a fixed effect row inside one stable box');
+assert.ok(/\.player-hud-shell > \.player-combat-effect-strip\s*\{[^}]*position:\s*relative\s*!important;[^}]*grid-column:\s*1 \/ -1;[^}]*grid-row:\s*2;/.test(responsiveCss),
+  'mobile effects must participate in the integrated HUD layout instead of floating above health');
+assert.ok(/\.player-hud-shell > \.player-combat-effect-strip:empty\s*\{\s*display:\s*flex\s*!important;/.test(responsiveCss),
+  'the reserved mobile effect row must not collapse when no effect is active');
+assert.ok(/#enemy-area \.enemy-card\.targeted > \.enemy-combat-effect-strip \.combat-effect-icon\s*\{[^}]*width:\s*18px\s*!important;[^}]*height:\s*18px\s*!important;/.test(responsiveCss),
+  'mobile monster effects must remain compact above the enlarged battlefield');
+assert.ok(/\.combat-feed-title\s*\{[^}]*display:\s*none\s*!important;/.test(responsiveCss),
+  'the mobile combat log must not spend a row on a redundant title');
+assert.ok(/\.combat-feed\s*\{[^}]*height:\s*168px\s*!important;[^}]*overflow:\s*hidden\s*!important;/.test(responsiveCss),
+  'the mobile combat log must use the requested doubled compact height');
+assert.ok(/\.combat-feed #log,[\s\S]*?\.combat-feed\.collapsed #log\s*\{[^}]*overflow-y:\s*auto\s*!important;/.test(responsiveCss),
+  'the mobile combat log must retain access to its full history by scrolling');
+assert.ok(!responsiveCss.includes('#log > .log-msg:nth-last-child(n+4)'),
+  'mobile combat history must not hide older entries');
+assert.ok(/id="ui-bounty-box"[^>]*><\/div>\s*<button id="btn-combat-goal-toggle"[\s\S]*?<\/button>\s*<\/div>/.test(html),
+  'the mobile goal button must live inside the battlefield so it can occupy the top-right corner');
+assert.ok(/#battlefield-wrap > #btn-combat-goal-toggle:not\(\[hidden\]\)\s*\{[^}]*position:\s*absolute;[^}]*top:\s*6px;[^}]*right:\s*6px;/.test(responsiveCss),
+  'the visible mobile goal button must anchor to the battlefield top-right corner');
+assert.ok(/\.battlefield-wrap\s*\{[^}]*border:\s*0\s*!important;[^}]*box-shadow:\s*none\s*!important;/.test(responsiveCss),
+  'the mobile battlefield must not leak a bright border or outer shadow along its right and bottom edges');
+assert.ok(/\.battlefield-wrap\s*\{[^}]*background:\s*#070b12\s*!important;/.test(responsiveCss),
+  'the mobile battlefield wrapper must match the canvas underlay so subpixel seams stay dark');
+assert.ok(!/player-health-frame:has\([^}]*margin-top:\s*32px/.test(responsiveCss),
+  'effect changes must never push the mobile health frame vertically');
 assert.ok(mobileCss.includes('.combat-feed.collapsed #log { display: block;'), 'a collapsed mobile combat log must keep recent entries visible');
 assert.ok(/player-hud-identity-row\s*\{[\s\S]*?position:\s*static;[\s\S]*?width:\s*100%;/.test(assetCss), 'mobile player identity text should use the full HUD width instead of clipping inside the desktop frame slot');
 assert.ok(/\.startup-panel\.hero,[\s\S]*?\.startup-hero-copy\s*\{\s*display:\s*contents;/.test(gameCss), 'mobile startup content should be reorderable without duplicating the login form');

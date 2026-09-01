@@ -52,7 +52,32 @@ if (typeof HTMLCollection !== 'undefined' && !HTMLCollection.prototype.forEach) 
 
 // Phase-3 extracted shared utility/stat formatting helpers.
 function clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); }
-function getInventoryLimit() { return 30 + (Math.max(0, Math.floor(game.inventoryExpandLevel || 0)) * 5); }
+function getEquipmentInventoryPageCount(targetGame) {
+    let state = targetGame || game;
+    let loop = Math.max(1, Math.floor(Number(state.season) || 1), Math.floor(Number(state.loopCount) || 0) + 1);
+    let earnedPages = loop < 30 ? Math.floor(loop / 5) : 6 + Math.floor((loop - 30) / 10);
+    return Math.max(1, Math.min(EQUIPMENT_INVENTORY_MAX_PAGES, 1 + earnedPages));
+}
+function getInventoryLimit(targetGame) {
+    return getEquipmentInventoryPageCount(targetGame) * EQUIPMENT_INVENTORY_CELLS_PER_PAGE;
+}
+function getInventoryUsedCellCount(targetGame) {
+    let state = targetGame || game;
+    return (Array.isArray(state.inventory) ? state.inventory : []).reduce(function (sum, item) {
+        let footprint = typeof getEquipmentInventoryFootprint === 'function' ? getEquipmentInventoryFootprint(item) : { columns: 1, rows: 1 };
+        return sum + Math.max(1, Math.floor(Number(footprint.columns) || 1)) * Math.max(1, Math.floor(Number(footprint.rows) || 1));
+    }, 0);
+}
+function canStoreEquipmentItems(items, targetGame) {
+    let incoming = (Array.isArray(items) ? items : [items]).filter(Boolean);
+    let state = targetGame || game;
+    if (typeof equipmentInventoryGridRuntime !== 'undefined') return equipmentInventoryGridRuntime.canStoreItems(incoming, state);
+    let incomingCells = incoming.reduce(function (sum, item) {
+        let footprint = typeof getEquipmentInventoryFootprint === 'function' ? getEquipmentInventoryFootprint(item) : { columns: 1, rows: 1 };
+        return sum + Math.max(1, Math.floor(Number(footprint.columns) || 1)) * Math.max(1, Math.floor(Number(footprint.rows) || 1));
+    }, 0);
+    return getInventoryUsedCellCount(state) + incomingCells <= getInventoryLimit(state);
+}
 function getJewelInventoryLimit() { return JEWEL_INVENTORY_LIMIT + (Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)) * 5); }
 function getJewelMarketExpandCost() { return 1 + Math.max(0, Math.floor(game.jewelInventoryExpandLevel || 0)); }
 function getGrowthMarketExpandCost() { return 2 + Math.max(0, Math.floor(game.growthInventoryExpandLevel || 0)); }
@@ -218,8 +243,13 @@ function formatSupportGemEffectValue(value) {
 }
 
 function formatValue(statId, value) {
-    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) return Number(value).toFixed(1);
-    return Math.floor(value);
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '0';
+    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+        return numeric.toFixed(1);
+    }
+    const rounded = Math.round(numeric * 100) / 100;
+    return Number.isInteger(rounded) ? rounded : String(rounded);
 }
 function formatPercentMultiplier(value) {
     return `${Math.round(value * 100)}%`;
@@ -384,6 +414,7 @@ function createEmptyStatBucket() {
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellPctDmg: 0, shieldPctDmg: 0, minePctDmg: 0, potionPctDmg: 0, mobilityPctDmg: 0, channelingPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, shockChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
         targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
         strength: 0, dexterity: 0, intelligence: 0, accuracy: 0,
+        mystique: 0, devotion: 0, cycle: 0, ailmentDamagePct: 0, ailmentPotencyPct: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0, deflectChance: 0, deflectDamageReduce: 0, blockChance: 0, blockChancePct: 0,
         ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
@@ -429,6 +460,11 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'dexterity') bucket.dexterity += value;
     else if (statId === 'intelligence') bucket.intelligence += value;
     else if (statId === 'accuracy') bucket.accuracy += value;
+    else if (statId === 'mystique') bucket.mystique += value;
+    else if (statId === 'devotion') bucket.devotion += value;
+    else if (statId === 'cycle') bucket.cycle += value;
+    else if (statId === 'ailmentDamagePct') bucket.ailmentDamagePct += value;
+    else if (statId === 'ailmentPotencyPct') bucket.ailmentPotencyPct += value;
     else if (statId === 'flatHp') bucket.flatHp += value;
     else if (statId === 'pctHp') bucket.pctHp += value;
     else if (statId === 'aspd') bucket.aspd += value;
@@ -637,6 +673,13 @@ function makeSourceLine(label, value, suffix, formatter) {
     return `${label} +${rendered}`;
 }
 
+function stripDecorativeEmoji(value) {
+    return String(value == null ? '' : value)
+        .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+}
+
 function dispatchRuntimeEvent(name, detail = {}) {
     if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function' || typeof window.CustomEvent !== 'function') return false;
     window.dispatchEvent(new window.CustomEvent(`project-idle:${name}`, { detail }));
@@ -658,7 +701,7 @@ let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 
-safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, getGrowthMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, dispatchRuntimeEvent });
+safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, getGrowthMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, stripDecorativeEmoji, dispatchRuntimeEvent });
 
 window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
 

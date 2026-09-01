@@ -11,6 +11,7 @@ const files = [
   'data/items.js',
   'data/growth-items.js',
   'data/passives.js',
+  'data/passive-tree-v22.js',
   'data/bosses.js',
   'data/rewards.js',
   'data/talent-cards.js',

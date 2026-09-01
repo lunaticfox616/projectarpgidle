@@ -266,9 +266,9 @@ body:not(.light-mode) .battlefield-wrap {
 
 #tab-settings .settings-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 12px;
-  max-width: 900px;
+  max-width: 1040px;
 }
 
 /* ── 그룹 카드 ── */
@@ -285,6 +285,68 @@ body:not(.light-mode) .battlefield-wrap {
   border-color: #2a1e1e;
   background: linear-gradient(180deg, #140f0f 0%, #0f0a0a 100%);
 }
+.cfg-group--wide { grid-column: 1 / -1; }
+
+.cfg-disclosure {
+  border-top: 1px solid rgba(232, 194, 106, 0.12);
+  padding-top: 7px;
+}
+.cfg-disclosure > summary {
+  position: relative;
+  padding: 6px 24px 6px 8px;
+  border-radius: 7px;
+  color: var(--copy-muted);
+  font-size: 0.84em;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.cfg-disclosure > summary::-webkit-details-marker { display: none; }
+.cfg-disclosure > summary::after {
+  content: '＋';
+  position: absolute;
+  right: 7px;
+  color: #e8c26a;
+}
+.cfg-disclosure[open] > summary::after { content: '－'; }
+.cfg-disclosure > summary:hover { background: rgba(255, 255, 255, 0.04); color: #fff; }
+.cfg-disclosure > .cfg-rows,
+.cfg-disclosure > .cfg-sublabel { margin-top: 7px; }
+.cfg-disclosure--tab-order { border-top: 0; padding-top: 0; }
+.cfg-disclosure--tab-order > summary {
+  color: #e8c26a;
+  font-size: 0.9em;
+  letter-spacing: 0.04em;
+}
+.cfg-disclosure--card { border-top: 0; padding-top: 0; }
+.cfg-disclosure--card > summary {
+  color: #e8c26a;
+  font-size: 0.82em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.settings-cloud-disclosure {
+  max-width: 1040px;
+  margin-top: 12px;
+}
+.settings-cloud-disclosure > summary {
+  position: relative;
+  padding: 11px 38px 11px 14px;
+  border: 1px solid var(--skin-line);
+  border-radius: 10px;
+  background: var(--skin-panel);
+  color: #e8c26a;
+  font-size: 0.84em;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.settings-cloud-disclosure > summary::-webkit-details-marker { display: none; }
+.settings-cloud-disclosure > summary::after { content: '＋'; position: absolute; right: 14px; }
+.settings-cloud-disclosure[open] > summary::after { content: '－'; }
+.settings-cloud-disclosure[open] > summary { border-radius: 10px 10px 0 0; }
+.settings-cloud-disclosure > .cloud-panel { margin-top: 0; border-radius: 0 0 10px 10px; }
 
 /* ── 그룹 타이틀 ── */
 .cfg-group-title {
@@ -557,6 +619,16 @@ body.light-mode .cfg-grade-chip { background: #fff; border-color: #c0d0e4; color
 .cfg-group--danger-bottom {
   margin-top: 18px;
   opacity: 0.92;
+}
+
+.cfg-mobile-only { display: none; }
+
+@media (max-width: 1080px) {
+  .cfg-mobile-only { display: flex; }
+}
+
+@media (max-width: 680px) {
+  #tab-settings .settings-layout { grid-template-columns: minmax(0, 1fr); }
 }
 /* 고유 주얼/부적은 일반 장비의 고유 카드처럼 인벤토리에서 즉시 구분한다. */
 .item-card.item-card--unique-special {

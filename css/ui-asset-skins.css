@@ -173,7 +173,7 @@
   pointer-events: none;
 }
 
-.player-health-frame .player-combat-effect-strip {
+.player-hud-shell > .player-combat-effect-strip {
   position: absolute;
   top: auto;
   right: auto;
@@ -192,7 +192,7 @@
   transform: translateX(-50%);
 }
 
-.player-health-frame .player-combat-effect-strip .combat-effect-icon {
+.player-hud-shell > .player-combat-effect-strip .combat-effect-icon {
   flex: 0 0 32px;
   width: 32px;
   min-width: 32px;
@@ -416,10 +416,10 @@
   --health-frame-ratio: 153 / 23;
   --health-art-height: 221.739%;
   --health-art-top: -65.217%;
-  --health-track-left: 11.76%;
-  --health-track-right: 11.11%;
-  --health-track-top: 30.43%;
-  --health-track-height: 26.09%;
+  --health-track-left: 10.22%;
+  --health-track-right: 10.13%;
+  --health-track-top: 27.85%;
+  --health-track-height: 9.5%;
 }
 
 .enemy-card.targeted.enemy-elite {
@@ -427,10 +427,10 @@
   --health-frame-ratio: 236 / 48;
   --health-art-height: 162.5%;
   --health-art-top: -35.417%;
-  --health-track-left: 18.22%;
-  --health-track-right: 18.22%;
-  --health-track-top: 20.83%;
-  --health-track-height: 20.83%;
+  --health-track-left: 16.25%;
+  --health-track-right: 16.25%;
+  --health-track-top: 24.05%;
+  --health-track-height: 13.7%;
 }
 
 .enemy-card.targeted.enemy-boss {
@@ -438,10 +438,10 @@
   --health-frame-ratio: 309 / 86;
   --health-art-height: 122.093%;
   --health-art-top: -12.791%;
-  --health-track-left: 14.89%;
-  --health-track-right: 15.21%;
-  --health-track-top: 20.93%;
-  --health-track-height: 9.3%;
+  --health-track-left: 13.94%;
+  --health-track-right: 14.16%;
+  --health-track-top: 17.14%;
+  --health-track-height: 11.11%;
 }
 
 #enemy-area .enemy-card.targeted {
@@ -524,8 +524,8 @@
   left: var(--health-track-left);
   z-index: 2;
   height: var(--health-track-height);
-  min-height: 14px;
-  overflow: hidden;
+  min-height: 0;
+  overflow: visible;
   border-radius: 2px;
   background: #170709;
   box-shadow: inset 0 0 6px #000;
@@ -681,14 +681,14 @@
 
 #enemy-area .enemy-card.enemy-boss .enemy-traits {
   position: absolute;
-  top: 41%;
+  top: 36%;
   left: 34%;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32%;
   max-width: 32%;
-  height: 17%;
+  height: 16%;
   min-height: 0;
   margin: 0;
   padding: 0 5px;
@@ -834,20 +834,19 @@
     aspect-ratio: 1;
   }
   body.mobile-battle-tab #tab-battle .enemy-card.targeted { padding: 3px 4px 5px; }
-  body.mobile-battle-tab #tab-battle .enemy-card.targeted .health-skin-track { min-height: 12px; }
-  body.mobile-battle-tab #tab-battle .enemy-card.enemy-boss .health-skin-track { min-height: 0; }
+  body.mobile-battle-tab #tab-battle .enemy-card.targeted .health-skin-track { min-height: 0; }
   body.mobile-battle-tab #tab-battle .enemy-card.enemy-boss .health-skin-track > .hp-text {
     font-size: clamp(8px, 2.5vw, 11px) !important;
   }
   body.mobile-battle-tab #tab-battle .enemy-card.enemy-boss .enemy-traits {
-    top: 41%;
+    top: 36%;
     left: 34%;
     display: flex;
     align-items: center;
     justify-content: center;
     width: 32%;
     max-width: 32%;
-    height: 17%;
+    height: 16%;
     padding: 0 3px;
     overflow: hidden;
     font-size: clamp(7px, 2.15vw, 9px) !important;

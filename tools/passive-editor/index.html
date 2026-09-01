@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Rignin 패시브 트리 편집기</title>
+    <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+    <header class="editor-header">
+        <div class="brand-block">
+            <strong>패시브 트리 편집기</strong>
+            <span id="source-label">원본 불러오는 중…</span>
+        </div>
+        <div class="header-actions">
+            <button id="undo-button" type="button" title="Ctrl+Z">실행 취소</button>
+            <button id="redo-button" type="button" title="Ctrl+Shift+Z">다시 실행</button>
+            <button id="save-button" type="button">원본 저장</button>
+            <button id="apply-button" type="button" class="primary">게임에 적용</button>
+            <a class="button-link" href="/game/index.html" target="_blank">게임 열기</a>
+        </div>
+    </header>
+
+    <section class="editor-toolbar" aria-label="편집 도구">
+        <label class="search-field"><span>검색</span><input id="search-input" type="search" placeholder="이름, ID, 효과"></label>
+        <button id="add-node-button" type="button">노드 추가</button>
+        <button id="connect-button" type="button" aria-pressed="false">연결 편집</button>
+        <button id="delete-button" type="button" class="danger" disabled>선택 삭제</button>
+        <label class="compact-field">격자 <input id="grid-size-input" type="number" min="5" max="200" step="5" value="20"></label>
+        <label class="toggle-field"><input id="snap-input" type="checkbox" checked> 격자 맞춤</label>
+        <button id="fit-button" type="button">전체 보기</button>
+        <div class="tree-summary" id="tree-summary"></div>
+    </section>
+
+    <main class="editor-main">
+        <section class="canvas-shell">
+            <canvas id="tree-editor-canvas"></canvas>
+            <div class="canvas-help">빈 공간 드래그: 이동 · 휠: 확대 · 노드 드래그: 배치 · Shift: 다중 선택</div>
+            <div id="connection-hint" class="connection-hint" hidden>연결할 첫 노드를 선택하세요.</div>
+        </section>
+
+        <aside class="inspector" id="inspector">
+            <div class="empty-inspector" id="empty-inspector">
+                <strong>노드를 선택하세요</strong>
+                <p>캔버스의 노드를 클릭하면 구조, 효과, 이미지와 원본 메타데이터를 수정할 수 있습니다.</p>
+            </div>
+            <form id="node-form" hidden autocomplete="off">
+                <div class="inspector-heading">
+                    <div><small>선택한 노드</small><strong id="selected-node-title"></strong></div>
+                    <span id="selected-count-badge"></span>
+                </div>
+
+                <fieldset>
+                    <legend>구조</legend>
+                    <label>ID <input id="node-id" readonly></label>
+                    <div class="two-columns">
+                        <label>X <input id="node-x" type="number" step="0.1"></label>
+                        <label>Y <input id="node-y" type="number" step="0.1"></label>
+                    </div>
+                    <div class="two-columns">
+                        <label>종류 <select id="node-type"></select></label>
+                        <label>분류 <input id="node-cat" list="category-list"></label>
+                    </div>
+                    <label>이름 <input id="node-name"></label>
+                    <label>아키타입 <input id="node-archetype"></label>
+                    <label>선택지/뭉치 성격 <input id="node-option-profile"></label>
+                    <label>설명 <textarea id="node-desc" rows="4"></textarea></label>
+                    <div class="inline-actions">
+                        <button id="generate-description-button" type="button">효과로 설명 생성</button>
+                        <label><input id="node-auto-name" type="checkbox"> 자동 이름</label>
+                        <label><input id="node-no-effect" type="checkbox"> 의도적 무효</label>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>효과</legend>
+                    <div id="effect-list" class="effect-list"></div>
+                    <button id="add-effect-button" type="button">효과 줄 추가</button>
+                </fieldset>
+
+                <fieldset>
+                    <legend>이미지</legend>
+                    <label>기본 아이콘 계열 <select id="node-icon-family"></select></label>
+                    <div id="icon-family-gallery" class="icon-family-gallery"></div>
+                    <div class="custom-icon-row">
+                        <div id="custom-icon-preview" class="custom-icon-preview">사용 안 함</div>
+                        <div>
+                            <label class="file-button">새 이미지 업로드<input id="custom-icon-input" type="file" accept="image/png,image/webp"></label>
+                            <button id="clear-custom-icon-button" type="button">커스텀 해제</button>
+                        </div>
+                    </div>
+                    <small>업로드 이미지는 브라우저에서 128×128 투명 WebP로 정리해 저장합니다.</small>
+                </fieldset>
+
+                <details class="advanced-panel">
+                    <summary>고급 메타데이터</summary>
+                    <p><code>cat</code>, 효과 및 기본 필드를 제외한 모든 태그입니다. 기존 필드를 임의로 지우지 않고 그대로 불러옵니다.</p>
+                    <textarea id="node-metadata" rows="12" spellcheck="false"></textarea>
+                    <button id="apply-metadata-button" type="button">메타데이터 적용</button>
+                </details>
+            </form>
+        </aside>
+    </main>
+
+    <footer class="status-bar">
+        <span id="status-message">준비 중…</span>
+        <span id="dirty-state">저장됨</span>
+    </footer>
+
+    <datalist id="category-list">
+        <option value="atk"><option value="def"><option value="int"><option value="dex"><option value="str">
+        <option value="physical"><option value="spell"><option value="projectile"><option value="ailment">
+        <option value="mystique"><option value="devotion"><option value="cycle"><option value="none">
+    </datalist>
+    <script type="module" src="editor.js"></script>
+</body>
+</html>

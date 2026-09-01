@@ -4,7 +4,8 @@ const vm = require('vm');
 
 const context = vm.createContext({
     console,
-    game: { activeSkill: '독니 사출', selectedHeroId: 'hero6', ascendClass: 'assassin' },
+    game: { activeSkill: '독니 사출', selectedHeroId: 'hero6', selectedClassId: 'wanderer', ascendClass: 'assassin' },
+    PLAYER_CLASS_DEFS: { wanderer: { recommendedTalentHeroId: 'hero4' } },
     SKILL_DB: { '독니 사출': { ele: 'chaos', tags: ['attack', 'projectile', 'chaos'] } },
     clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); },
     calculatePlayerEhpProfile() {
@@ -13,7 +14,7 @@ const context = vm.createContext({
             light: { direct: 1400 }, chaos: { direct: 900 }
         } };
     },
-    getHeroAppearanceId() { return 'hero4'; },
+    getHeroAppearanceId() { return 'wanderer'; },
     safeExposeGlobals(entries) { Object.assign(context, entries); }
 });
 
@@ -58,9 +59,10 @@ async function verifyDirectRegistrationFromCurrentBuild() {
         console,
         cloudState: { user: { id: 'ghost-user' } },
         game: {
-            activeSkill: '독니 사출', selectedHeroId: 'hero6', season: 8,
+            activeSkill: '독니 사출', selectedHeroId: 'hero6', selectedClassId: 'wanderer', season: 8,
             currentZoneId: 4, ascendClass: 'assassin'
         },
+        PLAYER_CLASS_DEFS: context.PLAYER_CLASS_DEFS,
         SKILL_DB: context.SKILL_DB,
         document: {
             readyState: 'complete',

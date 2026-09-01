@@ -15,16 +15,16 @@
     // 최고 도달 지점 표. 값이 0이면 아직 가보지 않은 콘텐츠라 행 자체를 숨긴다
     // (해보지 않은 콘텐츠를 "0층"으로 보여주면 스포일러이자 소음이다).
     const BEST_ROWS = [
-        { key: 'loop', icon: '🔁', label: '최고 루프', unit: '' },
-        { key: 'level', icon: '⭐', label: '최고 레벨', unit: '' },
-        { key: 'actZone', icon: '🗺️', label: '최고 도달 사냥터', unit: '', format: value => `구역 ${value}` },
-        { key: 'abyssDepth', icon: '🌌', label: '혼돈 심화', unit: '층' },
-        { key: 'chaosRealmFloor', icon: '🌀', label: '혼돈계', unit: '층' },
-        { key: 'labyrinthFloor', icon: '🏛️', label: '고대 미궁', unit: '층' },
-        { key: 'skyFloor', icon: '☁️', label: '창공의 탑', unit: '층' },
-        { key: 'underworldFloor', icon: '🕳️', label: '지하계', unit: '층' },
-        { key: 'oceanBoundary', icon: '🌊', label: '심해', unit: 'm' },
-        { key: 'colonyWave', icon: '🐝', label: '군락지 방어', unit: '파도' }
+        { key: 'loop', label: '최고 루프', unit: '' },
+        { key: 'level', label: '최고 레벨', unit: '' },
+        { key: 'actZone', label: '최고 도달 사냥터', unit: '', format: value => `구역 ${value}` },
+        { key: 'abyssDepth', label: '혼돈 심화', unit: '층' },
+        { key: 'chaosRealmFloor', label: '혼돈계', unit: '층' },
+        { key: 'labyrinthFloor', label: '고대 미궁', unit: '층' },
+        { key: 'skyFloor', label: '창공의 탑', unit: '층' },
+        { key: 'underworldFloor', label: '지하계', unit: '층' },
+        { key: 'oceanBoundary', label: '심해', unit: 'm' },
+        { key: 'colonyWave', label: '군락지 방어', unit: '파도' }
     ];
 
     function escape(value) {
@@ -61,8 +61,10 @@
         return `구역 ${id}`;
     }
 
-    function statCard(icon, label, value, sub) {
-        return `<div class="records-stat"><span class="records-stat-icon" aria-hidden="true">${icon}</span>`
+    function statCard(iconKind, label, value, sub) {
+        let icon = ['attack', 'phys', 'fire', 'cold', 'light', 'chaos'].includes(iconKind)
+            ? `<span class="records-stat-icon combat-log-icon combat-log-icon--${iconKind}" aria-hidden="true"></span>` : '';
+        return `<div class="records-stat">${icon}`
             + `<span class="records-stat-label">${escape(label)}</span>`
             + `<strong class="records-stat-value">${escape(value)}</strong>`
             + (sub ? `<small class="records-stat-sub">${escape(sub)}</small>` : '')
@@ -74,9 +76,9 @@
         return `<section class="records-section records-header">
             <div class="records-section-title">진행 중인 루프</div>
             <div class="records-stat-row">
-                ${statCard('🔁', '현재 루프', `루프 ${formatCount(view.currentLoop.loop)}`, '')}
-                ${statCard('⏱️', '이번 루프 진행', formatDuration(view.currentLoop.activeMs), `실제 경과 ${formatDuration(view.currentLoop.elapsedMs)}`)}
-                ${statCard('📅', '기록 시작', formatDate(view.startedAt), `${formatDuration(view.trackedForMs)} 동안 기록`)}
+                ${statCard('', '현재 루프', `루프 ${formatCount(view.currentLoop.loop)}`, '')}
+                ${statCard('', '이번 루프 진행', formatDuration(view.currentLoop.activeMs), `실제 경과 ${formatDuration(view.currentLoop.elapsedMs)}`)}
+                ${statCard('', '기록 시작', formatDate(view.startedAt), `${formatDuration(view.trackedForMs)} 동안 기록`)}
             </div>
             <p class="records-note">시간 기록은 이 기능이 추가된 시점부터 쌓입니다. 그 전의 루프는 남아 있지 않습니다.<br>
             <strong>진행</strong>은 게임이 실제로 굴러간 시간이고, <strong>실제 경과</strong>는 자리를 비운 시간까지 포함한 벽시계 시간입니다. 루프 비교는 진행 시간으로 합니다.</p>
@@ -86,9 +88,9 @@
     function renderLoopSection(view) {
         let summary = view.loopSummary;
         let summaryRow = `<div class="records-stat-row">
-            ${statCard('✅', '완료한 루프', `${formatCount(summary.count)}회`, '기록 시작 이후')}
-            ${statCard('⚡', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '—', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)} · 진행 시간` : '아직 없음')}
-            ${statCard('📊', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '—', '진행 시간')}
+            ${statCard('', '완료한 루프', `${formatCount(summary.count)}회`, '기록 시작 이후')}
+            ${statCard('', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '—', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)} · 진행 시간` : '아직 없음')}
+            ${statCard('', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '—', '진행 시간')}
         </div>`;
 
         if (!view.loops.length) {
@@ -160,7 +162,7 @@
             .map(row => {
                 let value = Math.floor(Number(view.best[row.key]) || 0);
                 let text = row.format ? row.format(value) : `${value.toLocaleString()}${row.unit}`;
-                return statCard(row.icon, row.label, text, '');
+                return statCard('', row.label, text, '');
             }).join('');
         if (!cards) {
             return `<section class="records-section">
@@ -185,9 +187,9 @@
         return `<section class="records-section">
             <div class="records-section-title">나무꾼의 잔상<span>30초 허수아비 측정</span></div>
             <div class="records-stat-row">
-                ${statCard('🪵', '최고 DPS', formatCount(echo.bestDps), '')}
-                ${statCard('💥', '최고 총 피해', formatCount(echo.bestDamage), '30초 누적')}
-                ${statCard('🔁', '측정 횟수', `${formatCount(echo.runs)}회`, `마지막 ${formatDate(echo.lastAt)}`)}
+                ${statCard('attack', '최고 DPS', formatCount(echo.bestDps), '')}
+                ${statCard('attack', '최고 총 피해', formatCount(echo.bestDamage), '30초 누적')}
+                ${statCard('', '측정 횟수', `${formatCount(echo.runs)}회`, `마지막 ${formatDate(echo.lastAt)}`)}
             </div>
         </section>`;
     }

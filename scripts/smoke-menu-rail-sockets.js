@@ -4,6 +4,7 @@ const vm = require('vm');
 
 const source = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const utilitySource = fs.readFileSync('js/utils.js', 'utf8');
 const menuCss = fs.readFileSync('css/ui-menu-sockets.css', 'utf8');
 const reliquaryCss = fs.readFileSync('css/ui-reliquary-shell.css', 'utf8');
 
@@ -168,7 +169,7 @@ function createElement(tagName) {
 
 const PRIMARY_TAB_IDS = [
     'character', 'char', 'season', 'pruning', 'arcana', 'expertise', 'traits', 'talent', 'items', 'jewel',
-    'flask', 'map', 'hideout', 'skills', 'journal', 'codex', 'talisman', 'cube'
+    'flask', 'map', 'skills', 'journal', 'codex', 'talisman', 'cube'
 ];
 
 function createTabHeader(body, openedTabs) {
@@ -253,6 +254,10 @@ function socketButtons(menu) {
 const menu = bootMenu();
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 1, 'menu art must be one real image');
 assert.strictEqual(menu.header.querySelector(':scope > .ui-rail-art').src, 'assets/ui/reliquary/menu-rail-v1.svg');
+const brokenMenu = bootMenu();
+brokenMenu.header.querySelector(':scope > .ui-rail-art').handlers.error();
+assert.strictEqual(brokenMenu.header.querySelectorAll(':scope > .ui-rail-art').length, 0,
+    'failed menu art must be removed instead of leaving a broken image indicator');
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-category-btn')), false, 'group buttons must be removed');
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-group')), false, 'group layers must be removed');
 assert.deepStrictEqual(socketButtons(menu).map(button => button.dataset.railSlot), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
@@ -391,6 +396,11 @@ assert(menuCss.includes('min(29.2svh, 18vw)'), 'the single artwork must remain r
 assert(menuCss.includes('.ui-rail-tab-layer .ui-rail-label') && menuCss.includes('overflow-wrap: anywhere'), 'circle labels must stay clipped independently of notice badges');
 assert(menuCss.includes('.ui-rail-tab-layer .noti-dot') && menuCss.includes('top: -3px !important'), 'tab notices must remain visible beyond the circle edge');
 assert(!menuCss.includes('.tab-header > .ui-goal-drawer'), 'menu rail must not retain the obsolete lower-left goal handle');
+assert(/\.battlefield-wrap > \.ui-goal-drawer \{[\s\S]*?z-index: 80;/.test(reliquaryCss), 'battlefield goals must render above the enemy health overlay');
+assert(reliquaryCss.includes('isolation: auto !important;'), 'battlefield isolation must not trap goals beneath the enemy health overlay');
+assert(reliquaryCss.includes('inset: 0 4px auto auto;') && reliquaryCss.includes('max-width: 220px;'), 'battlefield goals must stay above and to the right of the enemy health overlay');
+assert(!reliquaryCss.includes('.combat-stage:has(.ui-goal-drawer.expanded) #enemy-area'), 'opening goals must not move the enemy health overlay');
+assert(!source.includes('ui-goal-next-unlock') && !reliquaryCss.includes('.ui-goal-next-unlock'), 'battlefield goals must not render a separate content-unlock card');
 
 const orderSettingsHost = { innerHTML: '' };
 let orderedGroupReads = 0;
@@ -424,15 +434,18 @@ const inventoryElements = {
 let railSyncs = 0;
 const inventoryContext = {
     game: { inventory: [], jewelInventory: [] },
+    EQUIPMENT_INVENTORY_MAX_PAGES: 1,
+    EQUIPMENT_INVENTORY_CELLS_PER_PAGE: 2,
     document: {
         body: { classList: { contains: name => name === 'desktop-windowed-ui' } },
         getElementById: id => inventoryElements[id] || null
     },
-    getInventoryLimit: () => 2,
     getJewelInventoryLimit: () => 1,
     syncDesktopRailGroups: () => { railSyncs += 1; }
 };
 vm.createContext(inventoryContext);
+['getEquipmentInventoryPageCount', 'getInventoryLimit', 'getInventoryUsedCellCount']
+    .forEach(name => vm.runInContext(readFunctionSource(utilitySource, name), inventoryContext));
 vm.runInContext(uiSource.slice(inventoryStart, inventoryEnd), inventoryContext, { filename: 'inventory-rail-warning.js' });
 inventoryContext.updateInventoryFullWarnings();
 assert.strictEqual(railSyncs, 0, 'unchanged capacity warnings must not rescan the rail');

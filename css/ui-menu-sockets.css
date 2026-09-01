@@ -180,6 +180,7 @@ body.desktop-windowed-ui .ui-window-body > .merged-tab-shell {
   min-height: 0;
 }
 body.desktop-windowed-ui .merged-tab-shell > .merged-tab-subtabs { flex: 0 0 auto; }
+body.desktop-windowed-ui .merged-tab-shell > .merged-tab-subtabs[hidden] { display: none !important; }
 body.desktop-windowed-ui .merged-tab-shell > .merged-tab-panels {
   flex: 1 1 auto;
   min-height: 0;

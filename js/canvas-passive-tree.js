@@ -47,6 +47,7 @@ function syncPassiveTreeOverlay(displayWidth, displayHeight, visibleNodes, hover
         visibleNodes.forEach(node => {
             const visibility = getPassiveVisibility(node.id);
             if (visibility === 'hidden') return;
+            if (typeof isPassiveImageSlotNode === 'function' && isPassiveImageSlotNode(node)) return;
             const hoverCurrent = !!(hoverNode && hoverNode.id === node.id);
             const hoverLinked = !!(hoverNode && hoverNode.id !== node.id && (hoveredLinkedIds.has(node.id) || hoveredPathNodeIds.has(node.id)));
             if (hoverCurrent || hoverLinked) {
@@ -178,10 +179,8 @@ function getPassiveNodeEffectShortLabel(node) {
     return label.length > 6 ? label.slice(0, 6) : label;
 }
 
-// 효과 텍스트를 볼 수 있는 최소 배율. 기존 0.46의 절반이라 두 배 멀리서도 읽힌다.
-// 간소화(zoomedOutMode) 구간에도 그리되, 아래 겹침 컬링과 도달/활성 필터가
-// 실제로 그려지는 개수를 제한하므로 먼 배율에서 라벨이 폭증하지는 않는다.
-const PASSIVE_EFFECT_LABEL_MIN_ZOOM = 0.23;
+// 상시 문구를 직접 켠 경우에도 가까운 배율에서만 표시한다. 검색과 호버 정보는 별도 UI가 맡는다.
+const PASSIVE_EFFECT_LABEL_MIN_ZOOM = 0.62;
 
 function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility) {
     if (game && game.settings && game.settings.passiveTreeShowLabels === false) return;
@@ -238,24 +237,21 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
 
 function getHoveredPassivePathNodeIds(hoveredNodeId) {
     if (!hoveredNodeId) return new Set();
-    let edges = passiveRenderCache && Array.isArray(passiveRenderCache.edges) ? passiveRenderCache.edges : [];
-    if (!edges.length) return new Set([hoveredNodeId]);
-    let adj = new Map();
-    edges.forEach(edge => {
-        if (!adj.has(edge.from)) adj.set(edge.from, []);
-        if (!adj.has(edge.to)) adj.set(edge.to, []);
-        adj.get(edge.from).push(edge.to);
-        adj.get(edge.to).push(edge.from);
-    });
+    const cacheKey = String(hoveredNodeId);
+    const cached = passiveRenderCache && passiveRenderCache.hoverPath;
+    if (cached && cached.nodeId === cacheKey && cached.stateSignature === passiveRenderCache.stateSignature) return cached.path;
+    const adj = passiveRenderCache && passiveRenderCache.adjacency;
+    if (!(adj instanceof Map) || adj.size === 0) return new Set([hoveredNodeId]);
     let owned = typeof getPassiveConnectionNodeIds === 'function'
         ? getPassiveConnectionNodeIds()
         : new Set((game.passives || []).filter(Boolean));
-    owned.add('n0');
+    owned.add(typeof getPassiveTreeRootNodeId === 'function' ? getPassiveTreeRootNodeId() : 'n0');
     let queue = [hoveredNodeId];
+    let queueIndex = 0;
     let prev = new Map([[hoveredNodeId, null]]);
     let target = owned.has(hoveredNodeId) ? hoveredNodeId : null;
-    while (queue.length && !target) {
-        let cur = queue.shift();
+    while (queueIndex < queue.length && !target) {
+        let cur = queue[queueIndex++];
         let nextList = adj.get(cur) || [];
         for (let next of nextList) {
             if (prev.has(next)) continue;
@@ -271,8 +267,40 @@ function getHoveredPassivePathNodeIds(hoveredNodeId) {
         path.add(cur);
         cur = prev.get(cur);
     }
+    passiveRenderCache.hoverPath = { nodeId: cacheKey, stateSignature: passiveRenderCache.stateSignature, path };
     return path;
 }
+
+function drawPassiveAstralBackdrop(ctx, lightweightMode) {
+    ctx.save();
+    ctx.lineWidth = lightweightMode ? 2 : 3;
+    ctx.strokeStyle = 'rgba(105,126,140,0.07)';
+    [720, 1440, 2160, 2880].forEach(radius => {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.stroke();
+    });
+    ctx.lineWidth = lightweightMode ? 1.4 : 2.2;
+    ctx.strokeStyle = 'rgba(178,143,83,0.055)';
+    for (let index = 0; index < 6; index++) {
+        const angle = -Math.PI / 2 + index * Math.PI / 3;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * 260, Math.sin(angle) * 260);
+        ctx.lineTo(Math.cos(angle) * 3400, Math.sin(angle) * 3400);
+        ctx.stroke();
+    }
+    if (!lightweightMode) {
+        ctx.strokeStyle = 'rgba(205,174,112,0.09)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 235, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.rotate(Math.PI / 4);
+        ctx.strokeRect(-118, -118, 236, 236);
+    }
+    ctx.restore();
+}
+
 function drawPassiveTree() {
     cleanupPassiveBursts();
     ensurePassiveRenderCache();
@@ -302,9 +330,9 @@ function drawPassiveTree() {
 
     // 화면 배경
     const screenBg = ctx.createLinearGradient(0, 0, 0, displayHeight);
-    screenBg.addColorStop(0, '#090c12');
-    screenBg.addColorStop(0.45, '#06080d');
-    screenBg.addColorStop(1, '#030407');
+    screenBg.addColorStop(0, '#0a0d11');
+    screenBg.addColorStop(0.45, '#05080b');
+    screenBg.addColorStop(1, '#020304');
     ctx.fillStyle = screenBg;
     ctx.fillRect(0, 0, displayWidth, displayHeight);
 
@@ -313,21 +341,7 @@ function drawPassiveTree() {
     ctx.translate(displayWidth / 2 + camX, displayHeight / 2 + camY);
     ctx.scale(camZoom, camZoom);
 
-    // 월드 배경 성운/별
-    if (!lightweightMode && !zoomedOutMode) drawPassiveStarfield(ctx, PASSIVE_BOUNDS);
-
-    // 중심 오라
-    const passiveRoot = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };
-    const rootGlow = ctx.createRadialGradient(passiveRoot.x, passiveRoot.y, 0, passiveRoot.x, passiveRoot.y, 520);
-    rootGlow.addColorStop(0, 'rgba(182,148,83,0.12)');
-    rootGlow.addColorStop(0.35, 'rgba(67,89,126,0.08)');
-    rootGlow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = rootGlow;
-    ctx.beginPath();
-    ctx.arc(passiveRoot.x, passiveRoot.y, 560, 0, Math.PI * 2);
-    ctx.fill();
-
-    if (!lightweightMode && !zoomedOutMode) drawPassiveEvolutionAura(ctx);
+    drawPassiveAstralBackdrop(ctx, lightweightMode);
 
     // 리빌 펄스는 CSS overlay에서 animationend까지 GPU compositor로 처리한다.
 
@@ -344,6 +358,7 @@ function drawPassiveTree() {
     // 링크
     drawPassiveBranchUnderlay(ctx, visibleEdges, lightweightMode);
 
+    const allocatedNodeIds = new Set(game.passives || []);
     visibleEdges.forEach(edge => {
         const a = edge.a;
         const b = edge.b;
@@ -358,8 +373,8 @@ function drawPassiveTree() {
         const visibleB = getPassiveVisibility(b.id);
         if ((visibleA === 'hidden' || visibleB === 'hidden') && !hoverRelatedEdge) return;
         const alpha = Math.min(getNodeRevealAmount(a), getNodeRevealAmount(b));
-        const activeA = (game.passives || []).includes(a.id) || (typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(a.id));
-        const activeB = (game.passives || []).includes(b.id) || (typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(b.id));
+        const activeA = allocatedNodeIds.has(a.id) || (typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(a.id));
+        const activeB = allocatedNodeIds.has(b.id) || (typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(b.id));
         const activeLink = activeA && activeB;
         const reachableLink = reachableNodes.has(a.id) || reachableNodes.has(b.id);
         const previewLink = visibleA === 'preview' || visibleB === 'preview';
@@ -372,44 +387,32 @@ function drawPassiveTree() {
         if (ultraZoomedOutMode) {
             drawPassiveLink(ctx, a, b, {
                 stroke: activeLink ? 'rgba(160,130,82,0.78)' : (crossBranchLink ? 'rgba(80,98,115,0.2)' : 'rgba(80,98,115,0.5)'),
-                innerStroke: activeLink ? 'rgba(240,220,170,0.32)' : (crossBranchLink ? 'rgba(130,150,168,0.05)' : 'rgba(130,150,168,0.12)'),
-                width: activeLink ? 3.2 : (crossBranchLink ? 1 : (sameDepthLink ? 1.25 : 1.6))
+                width: activeLink ? 2.6 : (crossBranchLink ? 0.7 : (sameDepthLink ? 0.9 : 1.1))
             });
         } else if (hoveredLink || linkedHoverChain || onHoveredPath) {
             drawPassiveLink(ctx, a, b, {
                 stroke: hoveredLink ? 'rgba(238,248,255,0.98)' : (onHoveredPath ? 'rgba(255,216,120,0.95)' : 'rgba(112,165,214,0.82)'),
-                innerStroke: hoveredLink ? 'rgba(255,255,255,0.96)' : (onHoveredPath ? 'rgba(255,244,196,0.82)' : 'rgba(198,228,255,0.58)'),
-                width: hoveredLink ? 5.4 : (onHoveredPath ? 4.8 : 3.8),
-                shadow: lightweightMode ? 'transparent' : (hoveredLink ? 'rgba(238,248,255,0.38)' : (onHoveredPath ? 'rgba(255,216,120,0.42)' : 'rgba(151,206,255,0.38)')),
-                blur: lightweightMode ? 0 : 15
+                width: hoveredLink ? 3 : (onHoveredPath ? 2.6 : 2.2)
             });
         } else if (activeLink) {
             drawPassiveLink(ctx, a, b, {
-                stroke: 'rgba(130,95,44,0.95)',
-                innerStroke: 'rgba(244,223,171,0.88)',
-                width: 5,
-                shadow: lightweightMode ? 'transparent' : 'rgba(244,223,171,0.22)',
-                blur: lightweightMode ? 0 : 12
+                stroke: 'rgba(226,194,129,0.9)',
+                width: 2.4
             });
         } else if (reachableLink) {
             drawPassiveLink(ctx, a, b, {
-                stroke: crossBranchLink ? 'rgba(79,109,130,0.38)' : 'rgba(79,109,130,0.72)',
-                innerStroke: crossBranchLink ? 'rgba(145,186,214,0.12)' : 'rgba(145,186,214,0.28)',
-                width: crossBranchLink ? 1.5 : (sameDepthLink ? 1.9 : 2.4),
-                shadow: lightweightMode ? 'transparent' : 'rgba(118,165,194,0.12)',
-                blur: lightweightMode ? 0 : 7
+                stroke: crossBranchLink ? 'rgba(116,128,137,0.3)' : 'rgba(157,170,179,0.66)',
+                width: crossBranchLink ? 0.8 : (sameDepthLink ? 1 : 1.3)
             });
         } else if (previewLink) {
             drawPassiveLink(ctx, a, b, {
                 stroke: crossBranchLink ? 'rgba(67,85,98,0.1)' : 'rgba(67,85,98,0.24)',
-                innerStroke: crossBranchLink ? 'rgba(108,130,145,0.04)' : 'rgba(108,130,145,0.10)',
-                width: crossBranchLink ? 0.9 : (sameDepthLink ? 1.15 : 1.5)
+                width: crossBranchLink ? 0.6 : (sameDepthLink ? 0.8 : 1)
             });
         } else {
             drawPassiveLink(ctx, a, b, {
-                stroke: crossBranchLink ? 'rgba(43,53,63,0.2)' : (sameDepthLink ? 'rgba(43,53,63,0.36)' : 'rgba(43,53,63,0.55)'),
-                innerStroke: crossBranchLink ? 'rgba(92,107,120,0.03)' : (sameDepthLink ? 'rgba(92,107,120,0.06)' : 'rgba(92,107,120,0.10)'),
-                width: crossBranchLink ? 0.9 : (sameDepthLink ? 1.2 : 1.6)
+                stroke: crossBranchLink ? 'rgba(65,72,78,0.2)' : (sameDepthLink ? 'rgba(79,87,94,0.42)' : 'rgba(94,102,109,0.56)'),
+                width: crossBranchLink ? 0.5 : (sameDepthLink ? 0.7 : 0.9)
             });
         }
 
@@ -426,15 +429,28 @@ function drawPassiveTree() {
         const searchInfo = (typeof getPassiveNodeSearchMatch === 'function') ? getPassiveNodeSearchMatch(node) : { active: false, matches: true };
         const revealAlpha = hiddenSilhouette ? (searchInfo.active && searchInfo.matches ? 0.18 : 0.12) : getNodeRevealAmount(node);
         const virtualActive = !hiddenSilhouette && typeof isPassiveNodeVirtuallyLearned === 'function' && isPassiveNodeVirtuallyLearned(node.id);
-        const active = !hiddenSilhouette && ((game.passives || []).includes(node.id) || virtualActive);
+        const active = !hiddenSilhouette && (allocatedNodeIds.has(node.id) || virtualActive);
         const effectDisabled = !hiddenSilhouette && typeof isPassiveNodeEffectDisabled === 'function' && isPassiveNodeEffectDisabled(node.id);
         const reachable = !hiddenSilhouette && reachableNodes.has(node.id);
         const radius = getPassiveNodeVisualRadius(node) + ((hoverNode && hoverNode.id === node.id) ? 1.5 : 0);
         const palette = getPassiveNodePalette(node, active, reachable, visibility);
         const searchDimmed = searchInfo.active && !searchInfo.matches;
         const nodeAlpha = revealAlpha * (searchDimmed ? 0.28 : 1);
+        const framedNode = typeof isPassiveFramedNode === 'function' && isPassiveFramedNode(node);
+        const detailedArt = !hiddenSilhouette && !searchDimmed && !ultraZoomedOutMode;
+        const artOpacity = nodeAlpha * (active ? 1 : (reachable ? 0.94 : 0.86));
+        const imageSlot = detailedArt && typeof isPassiveImageSlotNode === 'function'
+            && typeof getPassiveNodeSlotImage === 'function'
+            && isPassiveImageSlotNode(node) && !!getPassiveNodeSlotImage(node);
+        const imageFramed = detailedArt && framedNode && !imageSlot && !!getPassiveNodeFrameImage(node);
 
-        drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, nodeAlpha, lightweightMode || hiddenSilhouette || searchDimmed);
+        drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, nodeAlpha, {
+            lightweight: lightweightMode || zoomedOutMode || hiddenSilhouette || searchDimmed,
+            imageFramed,
+            imageSlot
+        });
+        if (imageFramed) drawPassiveNodeFrameArt(ctx, node, radius, active, artOpacity);
+        if (detailedArt) drawPassiveNodeImageArt(ctx, node, radius, artOpacity);
         if (!searchDimmed && (virtualActive || effectDisabled)) {
             ctx.save();
             ctx.globalAlpha = nodeAlpha;
@@ -452,16 +468,6 @@ function drawPassiveTree() {
         // reachable/hover rings are maintained in the CSS overlay below.
     });
 
-    // 미개척 안개는 과도한 블랙아웃을 피하기 위해 최소 수준으로만 적용
-    const fogX = PASSIVE_BOUNDS.minX - 1000;
-    const fogY = PASSIVE_BOUNDS.minY - 1000;
-    const fogW = PASSIVE_BOUNDS.maxX - PASSIVE_BOUNDS.minX + 2000;
-    const fogH = PASSIVE_BOUNDS.maxY - PASSIVE_BOUNDS.minY + 2000;
-    ctx.save();
-    ctx.fillStyle = PASSIVE_STYLE.fog;
-    ctx.fillRect(fogX, fogY, fogW, fogH);
-    ctx.restore();
-
     ctx.restore();
 
     syncPassiveTreeOverlay(displayWidth, displayHeight, visibleNodes, hoveredLinkedIds, hoveredPathNodeIds, ultraZoomedOutMode);
@@ -474,12 +480,6 @@ function handleEquipmentSlotDoubleClick(slot, forCrafting) {
     }
     unequipItem(slot);
 }
-
-function handleInventoryCardDoubleClick(itemId, mode) {
-    if (mode !== 'equip') return;
-    equipItemById(itemId);
-}
-
 
 function getDropOnlyItemSourceMeta(item) {
     if (!item) return null;
@@ -556,7 +556,6 @@ function highlightEquipTextLocal(text, query) {
 function renderPaperdoll(targetId, forCrafting) {
     let html = '';
     let query = getEquipSearchQueryLocal();
-    const slotIcons = { '무기': '⚔', '투구': '♜', '목걸이': '◇', '장갑1': '✦', '장갑2': '✦', '갑옷': '🛡', '방패': '◈', '반지1': '○', '반지2': '○', '반지3': '○', '허리띠': '▬', '신발': '♟' };
     let hi = (text) => {
         try {
             if (typeof highlightSearchText === 'function') return highlightSearchText(text, query);
@@ -570,49 +569,24 @@ function renderPaperdoll(targetId, forCrafting) {
         let displaySlot = slot.replace(/[12]/, '');
         let selected = isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === slot;
         if (item) {
-            let displayStats = (item.baseStats || []).concat(item.stats || [], item.underEnchant ? [item.underEnchant] : []);
-            if (item.chaosInfusion) displayStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
-            if (typeof getImmutableItemSpecialStats === 'function') displayStats = displayStats.concat(getImmutableItemSpecialStats(item));
-            else if (item.encroached && !item.encroached.liberated) displayStats.push({ id: 'encroached', val: 0, statName: '[잠식] 해방 전' });
-            let shieldBaseSummaryIds = new Set(['armor', 'evasion', 'energyShield', 'baseBlockChance']);
-            let summaryStats = slot === '방패' ? displayStats.filter(stat => stat && !shieldBaseSummaryIds.has(stat.id)) : displayStats;
-            let statLines = summaryStats.slice(0, 2).map(stat => `${hi(stat.statName || getStatName(stat.id))} +${formatValue(stat.id, stat.val)}`);
-            if (slot === '방패') {
-                let baseArmor = displayStats.filter(s => s && s.id === 'armor').reduce((a, b) => a + Number(b.val || 0), 0);
-                let baseEvasion = displayStats.filter(s => s && s.id === 'evasion').reduce((a, b) => a + Number(b.val || 0), 0);
-                let baseEs = displayStats.filter(s => s && s.id === 'energyShield').reduce((a, b) => a + Number(b.val || 0), 0);
-                let armorPct = displayStats.filter(s => s && s.id === 'armorPct').reduce((a, b) => a + Number(b.val || 0), 0);
-                let evasionPct = displayStats.filter(s => s && s.id === 'evasionPct').reduce((a, b) => a + Number(b.val || 0), 0);
-                let esPct = displayStats.filter(s => s && s.id === 'energyShieldPct').reduce((a, b) => a + Number(b.val || 0), 0);
-                let baseBlock = displayStats.filter(s => s && s.id === 'baseBlockChance').reduce((a, b) => a + Number(b.val || 0), 0);
-                let blockPct = displayStats.filter(s => s && s.id === 'blockChancePct').reduce((a, b) => a + Number(b.val || 0), 0);
-                let blockFlat = displayStats.filter(s => s && s.id === 'blockChance').reduce((a, b) => a + Number(b.val || 0), 0);
-                if (baseArmor > 0) statLines.push(`${hi('방어도')} ${Math.floor(baseArmor * (1 + armorPct / 100))} (${Math.floor(baseArmor)})`);
-                if (baseEvasion > 0) statLines.push(`${hi('회피')} ${Math.floor(baseEvasion * (1 + evasionPct / 100))} (${Math.floor(baseEvasion)})`);
-                if (baseEs > 0) statLines.push(`${hi('에너지 보호막')} ${Math.floor(baseEs * (1 + esPct / 100))} (${Math.floor(baseEs)})`);
-                if (baseBlock > 0) statLines.push(`${hi('막기 확률')} ${(baseBlock * (1 + blockPct / 100) + blockFlat).toFixed(1)}% (${baseBlock.toFixed(1)}%)`);
-            }
-            statLines = statLines.slice(0, 2);
-            let statsHtml = statLines.join('<br>');
-            let canSelectFromEquipTab = !forCrafting && targetId === 'ui-equip-list';
-            let click = (forCrafting || canSelectFromEquipTab) ? `selectForCrafting('${slot}', true)` : '';
-            let doubleClick = `event.stopPropagation(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
+            let click = forCrafting
+                ? `selectForCrafting('${slot}', true)`
+                : `equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')`;
+            let doubleClick = `event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
             let footer = forCrafting
                 ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">제작 선택</button>`
                 : `<button class="equipment-slot-action" onclick="event.stopPropagation(); unequipItem('${slot}')">장착 해제</button>`;
             let sourceMeta = getDropOnlyItemSourceMeta(item);
-            let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
             let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
-            let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
             html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmousemove="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip(event)">
-                <div class="equipment-slot-head"><span class="equipment-slot-icon">${slotIcons[slot] || '◆'}</span><span>${displaySlot}</span></div>
-                <div class="item-title equipment-slot-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${sourceBadge}</div>
-                <div class="item-stats equipment-slot-stats">${statsHtml || '<span>옵션 정보 없음</span>'}</div>
+                <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false"></div>
+                <div class="item-title equipment-slot-name ${item.rarity}">${hi(item.name)}</div>
                 ${footer}
             </div>`;
         } else {
-            html += `<div class="slot-box equipment-slot equipment-slot-empty slot-${slot}" data-slot="${slot}">
-                <div class="equipment-slot-head"><span class="equipment-slot-icon">${slotIcons[slot] || '◆'}</span><span>${displaySlot}</span></div>
+            let emptyClick = forCrafting ? '' : ` onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')"`;
+            html += `<div class="slot-box equipment-slot equipment-slot-empty slot-${slot}" data-slot="${slot}"${emptyClick}>
+                <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual empty"><img src="${getEquipmentGridVisualAsset({ slot: displaySlot, baseId: `empty-${displaySlot}` })}" alt="" aria-hidden="true" draggable="false"></div>
                 <div class="equipment-empty-mark">＋</div>
                 <div class="equipment-empty-label">비어 있음</div>
             </div>`;
@@ -621,7 +595,99 @@ function renderPaperdoll(targetId, forCrafting) {
     document.getElementById(targetId).innerHTML = html;
 }
 
+function renderEquipmentGridItem(item, idx, triageResult, placement, filterState) {
+    let size = getEquipmentInventoryFootprint(item);
+    let footprint = placement || { column: 0, row: 0, columns: size.columns, rows: size.rows };
+    let asset = getEquipmentGridVisualAsset(item);
+    let sourceMeta = getDropOnlyItemSourceMeta(item);
+    let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
+    let itemKey = placement ? placement.key : equipmentInventoryGridRuntime.getItemKey(item);
+    let selected = equipmentInventoryInteraction.getFocusedKey() === itemKey;
+    let carried = equipmentInventoryInteraction.isCarryingKey(itemKey);
+    let filterClass = filterState && filterState.filterActive
+        ? (filterState.filterMatched ? 'is-filter-match' : 'is-filter-muted') : '';
+    let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || '일반';
+    let badges = `${item.locked ? '<span>잠금</span>' : ''}${presetProtected ? '<span>세팅</span>' : ''}`;
+    if (triageResult && triageResult.dpsGainPct >= 1) badges += `<span>공격 +${triageResult.dpsGainPct}%</span>`;
+    if (triageResult && triageResult.ehpGainPct >= 1) badges += `<span>생존 +${triageResult.ehpGainPct}%</span>`;
+    if (triageResult && triageResult.special) badges += '<span>특수</span>';
+    let label = `${rarityLabel} ${item.name || item.baseName || '장비'} · ${footprint.columns}×${footprint.rows}`;
+    return `<button type="button" class="equipment-grid-item rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${carried ? 'is-carried' : ''} ${filterClass} ${sourceMeta ? sourceMeta.toneClass : ''}"
+        style="grid-column:${footprint.column + 1}/span ${footprint.columns};grid-row:${footprint.row + 1}/span ${footprint.rows};--item-grid-columns:${footprint.columns};--item-grid-rows:${footprint.rows};" data-equipment-grid-key="${escapeHTML(itemKey)}"
+        aria-pressed="${selected ? 'true' : 'false'}" aria-label="${escapeHTML(label)}"
+        onclick="equipmentInventoryInteraction.handleItemClick(event,this.dataset.equipmentGridKey,${idx})"
+        ondblclick="equipmentInventoryInteraction.handleItemDoubleClick(event,this.dataset.equipmentGridKey,${item.id})"
+        onmouseenter="if(!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)" onmousemove="if(!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)" onmouseleave="hideItemTooltip(event)">
+        <img src="${asset}" alt="" aria-hidden="true" draggable="false"><span class="equipment-grid-item-name">${escapeHTML(item.name || item.baseName || '장비')}</span>
+        <span class="equipment-grid-item-badges">${badges}</span>
+    </button>`;
+}
+
+function renderEquipmentGridCells(layout, visibleKeys) {
+    let hiddenOccupied = new Set();
+    layout.entries.filter(entry => !visibleKeys.has(entry.key)).forEach(entry => {
+        for (let row = entry.row; row < entry.row + entry.rows; row++) {
+            for (let column = entry.column; column < entry.column + entry.columns; column++) hiddenOccupied.add(`${column}:${row}`);
+        }
+    });
+    let cells = [];
+    for (let row = 0; row < layout.rows; row++) {
+        for (let column = 0; column < layout.columns; column++) {
+            let hiddenClass = hiddenOccupied.has(`${column}:${row}`) ? ' occupied-filtered' : '';
+            cells.push(`<button type="button" class="equipment-grid-cell${hiddenClass}" style="grid-column:${column + 1};grid-row:${row + 1};" data-grid-column="${column}" data-grid-row="${row}" aria-label="${column + 1}열 ${row + 1}행으로 이동" onclick="equipmentInventoryInteraction.moveFocusedTo(event,${column},${row})"></button>`);
+        }
+    }
+    return cells.join('');
+}
+
+function renderEquipmentInventoryGrid(layout, rows) {
+    let byKey = new Map(layout.entries.map(entry => [entry.key, entry]));
+    let visibleKeys = new Set(rows.map(row => equipmentInventoryGridRuntime.getItemKey(row.item)));
+    let itemHtml = rows.map(row => {
+        let key = equipmentInventoryGridRuntime.getItemKey(row.item);
+        let placement = byKey.get(key);
+        if (!placement) return '';
+        let triageResult = window.equipmentTriage ? window.equipmentTriage.getResult(row.item) : null;
+        return renderEquipmentGridItem(row.item, row.idx, triageResult, placement, row);
+    }).join('');
+    return renderEquipmentGridCells(layout, visibleKeys) + itemHtml;
+}
+
+function renderEquipmentInventoryInspector(rows) {
+    let root = document.getElementById('ui-equipment-inventory-inspector');
+    if (!root) return;
+    let visibleItems = (Array.isArray(rows) ? rows : []).map(row => row.item).filter(Boolean);
+    let focusedKey = equipmentInventoryInteraction.getFocusedKey();
+    let item = visibleItems.find(row => equipmentInventoryGridRuntime.getItemKey(row) === focusedKey) || null;
+    if (!item) {
+        equipmentInventoryInteraction.setFocusedKey(null);
+        let message = visibleItems.length ? '장비를 선택하면 세부 작업을 할 수 있습니다.' : '표시할 장비가 없습니다.';
+        let emptyHtml = `<div class="equipment-grid-inspector-empty">${message}</div>`;
+        if (root.__lastHtml !== emptyHtml) root.innerHTML = root.__lastHtml = emptyHtml;
+        return;
+    }
+    equipmentInventoryInteraction.setFocusedKey(equipmentInventoryGridRuntime.getItemKey(item));
+    let footprint = getEquipmentInventoryFootprint(item);
+    let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
+    let salvageDisabled = item.locked || presetProtected;
+    let salvageTitle = presetProtected ? '장비 세팅 프리셋에서 제거한 뒤 해체할 수 있습니다.' : '장비를 해체합니다.';
+    let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || '일반';
+    let html = `<div class="equipment-grid-inspector-copy rarity-${item.rarity || 'normal'}">
+        <img src="${getEquipmentGridVisualAsset(item)}" alt=""><div><span>${rarityLabel} · ${escapeHTML(item.slot || '장비')} · ${footprint.columns}×${footprint.rows}칸</span>
+        <strong class="${item.rarity || 'normal'}">${escapeHTML(item.name || item.baseName || '장비')}</strong><small>${escapeHTML(item.baseName || '')}${presetProtected ? ' · 세팅 보호' : ''}${item.locked ? ' · 잠금' : ''}</small></div>
+    </div><div class="equipment-grid-inspector-actions">
+        <button class="equipment-card-primary" onclick="equipmentInventoryInteraction.cancelCarry();equipItemById(${item.id})">장착</button>
+        <button onclick="craftSelectInventoryItemById(${item.id})">제작</button>
+        <button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})">${item.locked ? '잠금해제' : '잠금'}</button>
+        <button class="equipment-card-danger" title="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button>
+    </div>`;
+    if (root.__lastHtml !== html) root.innerHTML = root.__lastHtml = html;
+}
+
+safeExposeGlobals({ renderEquipmentInventoryGrid, renderEquipmentInventoryInspector });
+
 function renderInventoryCard(item, idx, mode, triageResult) {
+    if (mode === 'equip') return renderEquipmentGridItem(item, idx, triageResult);
     let selected = !isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === item.id;
     let query = getEquipSearchQueryLocal();
     let hi = (text) => {
@@ -656,11 +722,9 @@ function renderInventoryCard(item, idx, mode, triageResult) {
         : (typeof getItemSalvagePreviewText === 'function' ? getItemSalvagePreviewText(item, false) : '장비를 해체합니다.');
     let salvageDisabled = item.locked || presetProtected;
     let actions = '';
-    if (mode === 'equip') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button onclick="event.stopPropagation(); craftSelectInventoryItemById(${item.id})">제작</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button></div>`;
-    else if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
+    if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
     else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button></div>`;
-    let doubleClick = mode === 'equip' ? ` ondblclick="event.stopPropagation(); handleInventoryCardDoubleClick(${item.id}, 'equip')"` : '';
-    let cardClick = mode === 'equip' ? `showItemTooltip(event, ${idx}, false)` : `selectForCrafting(${item.id}, false)`;
+    let cardClick = `selectForCrafting(${item.id}, false)`;
     let recordedTag = '';
     if (item.rarity === 'unique') {
         let key = `${item.slot}|${item.name}`;
@@ -672,7 +736,7 @@ function renderInventoryCard(item, idx, mode, triageResult) {
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || item.rarity || '일반';
-    return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" role="group" tabindex="0" data-item-tooltip-anchor="1" onclick="${cardClick}"${doubleClick} onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${cardClick};}" onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
+    return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" role="group" tabindex="0" data-item-tooltip-anchor="1" onclick="${cardClick}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${cardClick};}" onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
         ${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(item, 'equipment', 'equipment-card-visual') : ''}
         <div class="equipment-card-main">
             <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(item) : item.slot)}</span>${presetBadge}<span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>

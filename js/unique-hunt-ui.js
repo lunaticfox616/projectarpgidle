@@ -55,7 +55,7 @@ function renderUniqueHuntPanel() {
         cards.push('<div class="unique-hunt-empty-slot"><span>＋</span><small>도감 카드에서<br>파밍 목표 지정</small></div>');
     }
     root.innerHTML = `<section class="unique-hunt-panel">
-        <header><div><span>HUNT WISHLIST</span><strong>🎯 고유 파밍 추적</strong><small>목표 드랍은 필터·자동해체·인벤토리 초과로 유실되지 않습니다.</small></div><b>${targets.length}/${uniqueHuntRuntime.limit}</b></header>
+        <header><div><span>HUNT WISHLIST</span><strong>고유 파밍 추적</strong><small>목표 드랍은 필터·자동해체·인벤토리 초과로 유실되지 않습니다.</small></div><b>${targets.length}/${uniqueHuntRuntime.limit}</b></header>
         <div class="unique-hunt-targets">${cards.join('')}</div>
     </section>`;
 }
@@ -65,7 +65,7 @@ function renderUniqueHuntCardAction(entry) {
     let key = uniqueHuntRuntime.getKey(entry);
     let tracked = uniqueHuntRuntime.ensureState().includes(key);
     let encoded = encodeURIComponent(key).replace(/'/g, '%27');
-    return `<button type="button" class="codex-hunt-toggle${tracked ? ' active' : ''}" aria-pressed="${tracked}" onclick="uniqueHuntUi.toggle('${encoded}')">${tracked ? '🎯 추적 중' : '＋ 파밍 추적'}</button>`;
+    return `<button type="button" class="codex-hunt-toggle${tracked ? ' active' : ''}" aria-pressed="${tracked}" onclick="uniqueHuntUi.toggle('${encoded}')">${tracked ? '추적 중' : '＋ 파밍 추적'}</button>`;
 }
 
 function toggleUniqueHuntFromUi(encodedKey) {

@@ -15,67 +15,16 @@ window.GameModules.passives = {
 // Phase-3 extracted passive runtime block.
 let passiveRevealBursts = [];
 
-const PASSIVE_NODE_FRAME_SOURCES = Object.freeze({
-    'major:active': 'assets/ui/passive-node-major-v2-active.png',
-    'major:inactive': 'assets/ui/passive-node-major-v2-inactive.png',
-    'void:active': 'assets/ui/passive-node-void-v2-active.png',
-    'void:inactive': 'assets/ui/passive-node-void-v2-inactive.png',
-    'starWedge:active': 'assets/ui/passive-node-star-wedge-v2-active.png',
-    'starWedge:inactive': 'assets/ui/passive-node-star-wedge-v2-inactive.png',
-    'path:active': 'assets/ui/passive-node-path-v2-active.png',
-    'path:inactive': 'assets/ui/passive-node-path-v2-inactive.png'
-});
-const passiveNodeFrameImages = {};
-const passiveNodeFrameReady = {};
-if (typeof Image !== 'undefined') {
-    Object.entries(PASSIVE_NODE_FRAME_SOURCES).forEach(([key, src]) => {
-        const image = new Image();
-        passiveNodeFrameImages[key] = image;
-        passiveNodeFrameReady[key] = false;
-        image.onload = function() {
-            passiveNodeFrameReady[key] = true;
-            if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty(`${key}-frame-ready`);
-        };
-        image.src = src;
-    });
-}
-
-function getPassiveNodeFrameKey(node) {
-    if (!node) return null;
-    if (node.kind === 'void') return 'void';
-    if (node.socketType === 'star_wedge') return 'starWedge';
-    if (node.kind === 'path') return 'path';
-    if (node.kind === 'core' || node.kind === 'hub' || node.kind === 'apex'
-        || node.kind === 'transcendent' || node.kind === 'keystone' || node.kind === 'major' || node.tier >= 3) return 'major';
-    return null;
-}
-
-function getPassiveNodeFrameAssetKey(frameKey, active) {
-    return frameKey ? `${frameKey}:${active ? 'active' : 'inactive'}` : null;
-}
-
-function isPassiveNodeFrameReady(frameKey, active) {
-    const assetKey = getPassiveNodeFrameAssetKey(frameKey, active);
-    return !!(assetKey && passiveNodeFrameReady[assetKey]);
-}
-
-
-
-
-
-
-
-
-
-
 function getPassiveNodeDisplayName(node) {
     if (!node) return '미확인 성좌';
+    if (node.intentionalNoEffect) return '무효';
     if (node.title) return node.title;
     return (P_STATS[node.stat] || {}).name || '미확인 성좌';
 }
 
 function getPassiveEffectLabel(node) {
     if (!node) return '';
+    if (node.intentionalNoEffect) return '효과 없음';
     if (game && game.starWedge && game.starWedge.disabledNodeEffects && game.starWedge.disabledNodeEffects[String(node.id)]) return '효과 비활성';
     let mutation = game && game.starWedge && game.starWedge.nodeMutations ? game.starWedge.nodeMutations[node.id] : null;
     if (mutation && mutation.currentStat) {
@@ -84,6 +33,23 @@ function getPassiveEffectLabel(node) {
     }
     if (node.effectLabel) return node.effectLabel;
     if (node.kind === 'void') return getVoidPassiveEffectLabel(node.id);
+    if (node.kind === 'keystone') return node.desc || '키스톤 효과';
+    if (Array.isArray(node.effects) && node.effects.length > 0) {
+        const labels = node.effects.map(effect => {
+            const statInfo = P_STATS[effect.stat] || {};
+            const sign = Number(effect.val) >= 0 ? '+' : '';
+            const statName = String(statInfo.name || effect.stat).replace(/\s*\(%\)\s*/g, '').trim();
+            return `${statName} ${sign}${formatValue(effect.stat, effect.val)}${statInfo.isPct ? '%' : ''}`;
+        });
+        if (node.activationRequirement) {
+            const state = getPassiveNodeActivationState(node);
+            const statName = state.statId === 'devotion' ? '계시' : getStatName(state.statId);
+            const color = state.active ? '#9fe5bb' : '#ffaaaa';
+            labels.push(`<span style="color:${color};">${state.active ? '활성' : '비활성'} · ${statName} ${state.available}/${state.required}</span>`);
+        }
+        return labels.join('<br>');
+    }
+    if (!node.stat) return '';
     if (node.stat === 'chaosResElemPenalty') {
         let value = formatValue(node.stat, node.val);
         return `카오스 저항 +${value}% 및 모든 원소 저항 -${value}%`;
@@ -95,15 +61,20 @@ function getPassiveEffectLabel(node) {
 
 function getPassiveKindLabel(node) {
     if (!node) return '성좌';
+    if (node.kind === 'start') return '직업 시작점';
     if (node.kind === 'apex') return '별끝 특수 노드';
     if (node.kind === 'evolved') return '각성 성좌';
     if (node.kind === 'transcendent') return '초월 성좌';
     if (node.kind === 'core') return '핵심 성좌';
     if (node.kind === 'deadend') return '막다른 길 거점';
     if (node.kind === 'void') return '공허 패시브';
-    if (node.kind === 'hub') return node.socketType === 'star_wedge' ? '별쐐기 슬롯' : '별쐐기 슬롯 후보';
-    if (node.tier >= 3 || node.kind === 'major') return '중심 노드';
-    if (node.kind === 'path') return '경로 노드';
+    if (node.kind === 'hub') return node.starWedgeMode === 'constellation' ? '외곽 성률' : '중앙 성률';
+    if (node.sourceType === 'keystone' || node.kind === 'keystone') return '키스톤';
+    if (node.sourceType === 'major' || node.kind === 'major') return '주요 패시브';
+    if (node.sourceType === 'normal' || node.kind === 'node') return '일반 패시브';
+    if (node.sourceType === 'minor' || node.sourceType === 'assist'
+        || node.kind === 'path' || node.kind === 'assist') return '소형 패시브';
+    if (node.sourceType === 'star_option' || node.kind === 'star_option') return '성률 패시브';
     return '보조 노드';
 }
 
@@ -114,31 +85,31 @@ function angleDistance(a, b) {
     return Math.abs(diff);
 }
 
-function traceStarShape(ctx, outerRadius, innerRadius, points) {
-    for (let i = 0; i < points * 2; i++) {
-        let angle = -Math.PI / 2 + (i / (points * 2)) * Math.PI * 2;
-        let radius = i % 2 === 0 ? outerRadius : innerRadius;
-        let px = Math.cos(angle) * radius;
-        let py = Math.sin(angle) * radius;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-}
+const PASSIVE_NODE_KIND_RADIUS = Object.freeze({
+    start: 30,
+    transcendent: 28,
+    keystone: 27,
+    void: 26,
+    apex: 24,
+    core: 22,
+    deadend: 21,
+    evolved: 21,
+    major: 21,
+    assist: 7
+});
+
+const PASSIVE_NODE_SOURCE_RADIUS = Object.freeze({ major: 21, normal: 13.5, assist: 7, minor: 7 });
 
 function getPassiveNodeVisualRadius(node) {
-    if (!node) return 8;
-    if (node.tier === 0) return 24;
-    if (node.kind === 'transcendent') return 20;
-    if (node.kind === 'apex') return 18;
-    if (node.kind === 'evolved') return 13;
-    if (node.kind === 'core') return 18;
-    if (node.kind === 'void') return 22;
-    if (node.kind === 'deadend') return 16;
-    if (node.kind === 'hub') return node.socketType === 'star_wedge' ? 22 : 20;
-    if (node.tier === 3 || node.kind === 'major') return 15;
-    if (node.tier === 2 || node.kind === 'ring' || node.kind === 'inner') return 10;
-    if (node.kind === 'path') return 8.5;
+    if (!node) return 6;
+    if (node.kind === 'hub') return node.socketType === 'star_wedge' ? 25 : 23;
+    const kindRadius = PASSIVE_NODE_KIND_RADIUS[node.kind];
+    if (kindRadius) return kindRadius;
+    const sourceRadius = PASSIVE_NODE_SOURCE_RADIUS[node.sourceType];
+    if (sourceRadius) return sourceRadius;
+    if (node.tier === 0) return 30;
+    if (node.tier >= 3) return 21;
+    if (node.tier === 2 || node.kind === 'ring' || node.kind === 'inner') return 13.5;
     return 7;
 }
 
@@ -242,149 +213,61 @@ function getPassiveNodePalette(node, active, reachable, visibility) {
     }
     if (active) {
         return {
-            outer: accent.activeOuter,
-            mid: accent.activeMid,
-            inner: '#fff3d6',
-            glow: accent.activeGlow,
+            outer: '#f1d28a',
+            mid: '#5e4726',
+            inner: '#18130b',
+            icon: accent.activeOuter,
+            glow: 'rgba(241,210,138,0.28)',
             text: accent.text
         };
     }
     if (reachable) {
         return {
-            outer: accent.reachOuter,
-            mid: accent.reachMid,
-            inner: '#24303b',
+            outer: '#a8b6c0',
+            mid: '#28333d',
+            inner: '#10171e',
+            icon: accent.reachOuter,
             glow: 'rgba(0,0,0,0)',
             text: accent.text
         };
     }
     if (visibility === 'preview') {
         return {
-            outer: accent.previewOuter,
-            mid: accent.previewMid,
-            inner: 'rgba(34,43,53,0.9)',
+            outer: 'rgba(98,108,117,0.62)',
+            mid: 'rgba(24,31,38,0.9)',
+            inner: 'rgba(13,18,24,0.94)',
+            icon: 'rgba(112,124,134,0.72)',
             glow: accent.previewGlow,
             text: accent.text
         };
     }
     return {
-        outer: accent.idleOuter,
-        mid: accent.idleMid,
-        inner: accent.idleInner,
+        outer: 'rgba(91,101,110,0.82)',
+        mid: 'rgba(21,28,35,0.96)',
+        inner: 'rgba(10,15,20,0.98)',
+        icon: 'rgba(103,114,123,0.88)',
         glow: 'rgba(0,0,0,0)',
-        text: accent.text
+        text: '#aeb8c0'
     };
-}
-
-function drawPassiveStarfield(ctx, bounds) {
-    const w = bounds.maxX - bounds.minX;
-    const h = bounds.maxY - bounds.minY;
-
-    for (let i = 0; i < 180; i++) {
-        const px = bounds.minX + ((i * 137.531) % w);
-        const py = bounds.minY + ((i * 91.173) % h);
-        const s = (i % 7 === 0) ? 2.2 : ((i % 3 === 0) ? 1.4 : 0.8);
-        const a = (i % 5 === 0) ? 0.45 : 0.2;
-        ctx.beginPath();
-        ctx.arc(px, py, s, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(210,225,255,${a})`;
-        ctx.fill();
-    }
-
-    for (let i = 0; i < 28; i++) {
-        const px = bounds.minX + ((i * 301.17) % w);
-        const py = bounds.minY + ((i * 211.71) % h);
-        const g = ctx.createRadialGradient(px, py, 0, px, py, 80 + (i % 4) * 18);
-        g.addColorStop(0, 'rgba(90,120,170,0.09)');
-        g.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(px, py, 100, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-function drawPassiveEvolutionAura(ctx) {
-    if (!game || !game.passiveStarEvolution) return;
-    let tips = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'transcendent');
-    if (tips.length === 0) return;
-
-    const root = PASSIVE_TREE.nodes.n0 || { x: 0, y: 0 };
-    ctx.save();
-    ctx.globalAlpha = 0.88;
-    tips.forEach(node => {
-        ctx.beginPath();
-        ctx.moveTo(root.x, root.y);
-        ctx.quadraticCurveTo(root.x + (node.x - root.x) * 0.42, root.y + (node.y - root.y) * 0.42, node.x, node.y);
-        ctx.strokeStyle = 'rgba(120,151,205,0.08)';
-        ctx.lineWidth = 11;
-        ctx.shadowColor = 'rgba(238,222,172,0.15)';
-        ctx.shadowBlur = 18;
-        ctx.stroke();
-    });
-    ctx.shadowBlur = 0;
-
-    let sortedTips = [...tips].sort((a, b) => Math.atan2(a.y, a.x) - Math.atan2(b.y, b.x));
-    let outlineTips = sortedTips;
-    if (sortedTips.length === 5) {
-        outlineTips = [];
-        let cursor = 0;
-        for (let i = 0; i < 5; i++) {
-            outlineTips.push(sortedTips[cursor]);
-            cursor = (cursor + 2) % 5;
-        }
-    }
-    ctx.beginPath();
-    outlineTips.forEach((node, index) => {
-        if (index === 0) ctx.moveTo(node.x, node.y);
-        else ctx.lineTo(node.x, node.y);
-    });
-    ctx.closePath();
-    ctx.strokeStyle = 'rgba(248,227,168,0.15)';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-
-    sortedTips.forEach(node => {
-        let glow = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, 120);
-        glow.addColorStop(0, 'rgba(247,228,181,0.18)');
-        glow.addColorStop(0.45, 'rgba(104,142,204,0.10)');
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, 120, 0, Math.PI * 2);
-        ctx.fill();
-    });
-    ctx.restore();
 }
 
 function drawPassiveLink(ctx, a, b, style) {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
-    const len = Math.max(1, Math.hypot(dx, dy));
-    const nx = -dy / len;
-    const ny = dx / len;
-    const bend = Math.min(34, len * 0.08);
-    const mx = (a.x + b.x) / 2 + nx * bend;
-    const my = (a.y + b.y) / 2 + ny * bend;
-
+    const distance = Math.hypot(dx, dy);
+    if (!Number.isFinite(distance) || distance <= 0) return false;
+    const startInset = getPassiveNodeVisualRadius(a) + 2;
+    const endInset = getPassiveNodeVisualRadius(b) + 2;
+    if (distance <= startInset + endInset) return false;
+    const ux = dx / distance;
+    const uy = dy / distance;
     ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.quadraticCurveTo(mx, my, b.x, b.y);
+    ctx.moveTo(a.x + ux * startInset, a.y + uy * startInset);
+    ctx.lineTo(b.x - ux * endInset, b.y - uy * endInset);
     ctx.strokeStyle = style.stroke;
     ctx.lineWidth = style.width;
-    ctx.shadowColor = style.shadow || 'transparent';
-    ctx.shadowBlur = style.blur || 0;
     ctx.stroke();
-
-    if (style.innerStroke) {
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.quadraticCurveTo(mx, my, b.x, b.y);
-        ctx.strokeStyle = style.innerStroke;
-        ctx.lineWidth = Math.max(1, style.width * 0.38);
-        ctx.shadowBlur = 0;
-        ctx.stroke();
-    }
+    return true;
 }
 
 function drawPassiveBranchUnderlay(ctx, edges, lightweightMode) {
@@ -399,26 +282,11 @@ function drawPassiveBranchUnderlay(ctx, edges, lightweightMode) {
         const visibleA = getPassiveVisibility(a.id);
         const visibleB = getPassiveVisibility(b.id);
         const hiddenBranch = visibleA === 'hidden' || visibleB === 'hidden';
-        const depth = Math.max(0, Math.min(Number(a.depth) || 0, Number(b.depth) || 0));
         const crossBranch = Boolean(a.treeBranchRoot && b.treeBranchRoot && a.treeBranchRoot !== b.treeBranchRoot);
-        const sameDepth = Number(a.depth) === Number(b.depth);
-        const structuralWeight = crossBranch ? 0.3 : (sameDepth ? 0.58 : 1);
-        const width = Math.max(1.2, Math.max(2.1, 9.4 - depth * 0.42) * structuralWeight)
-            * (hiddenBranch ? 0.62 : 1);
         drawPassiveLink(ctx, a, b, {
-            stroke: hiddenBranch
-                ? 'rgba(19,17,16,0.22)'
-                : (crossBranch ? 'rgba(31,27,24,0.28)' : (sameDepth ? 'rgba(27,21,17,0.56)' : 'rgba(22,16,13,0.9)')),
-            innerStroke: hiddenBranch
-                ? 'rgba(91,68,46,0.09)'
-                : (crossBranch
-                    ? 'rgba(117,87,58,0.08)'
-                    : (sameDepth ? 'rgba(110,76,49,0.2)' : (depth < 7 ? 'rgba(117,76,42,0.52)' : 'rgba(92,63,42,0.34)'))),
-            width: width,
-            shadow: !lightweightMode && !hiddenBranch && !crossBranch && !sameDepth && depth < 5
-                ? 'rgba(213,151,72,0.12)'
-                : 'transparent',
-            blur: !lightweightMode && !hiddenBranch && !crossBranch && !sameDepth && depth < 5 ? 8 : 0
+            stroke: hiddenBranch ? 'rgba(8,12,16,0.2)'
+                : (crossBranch ? 'rgba(8,13,18,0.72)' : 'rgba(7,11,15,0.9)'),
+            width: lightweightMode ? 1.8 : (crossBranch ? 2.2 : 3.6)
         });
     });
     ctx.restore();
@@ -428,10 +296,11 @@ function tracePassiveNodeFramePath(ctx, node, radius) {
     const x = node.x;
     const y = node.y;
     let sides = 0;
-    let rotation = -Math.PI / 2;
-    if (node.kind === 'hub') { sides = 4; rotation = Math.PI / 4; }
-    else if (node.kind === 'apex' || node.kind === 'transcendent' || node.kind === 'void') sides = 8;
-    else if (node.kind === 'major' || node.kind === 'core' || node.kind === 'keystone' || node.tier >= 3) sides = 6;
+    let rotation = Math.PI / 4;
+    if (node.kind === 'start') sides = 8;
+    else if (node.kind === 'hub' || node.kind === 'void') sides = 4;
+    else if (node.kind === 'keystone') { sides = 8; rotation = Math.PI / 8; }
+    else if (node.kind === 'major' || node.kind === 'core' || node.tier >= 3) { sides = 8; rotation = Math.PI / 8; }
     ctx.beginPath();
     if (!sides) {
         ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -447,149 +316,302 @@ function tracePassiveNodeFramePath(ctx, node, radius) {
     ctx.closePath();
 }
 
-function drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode) {
-    if (lightweightMode) return;
-    const dedicatedFrame = getPassiveNodeFrameKey(node);
-    if (dedicatedFrame && dedicatedFrame !== 'major' && isPassiveNodeFrameReady(dedicatedFrame, active)) return;
+const PASSIVE_ICON_FAMILY = Object.freeze({
+    mystique: 'mystique', devotion: 'devotion', cycle: 'cycle', projectilePctDmg: 'projectile', projectileExtraShots: 'projectile',
+    accuracy: 'projectile', accuracyBonusPct: 'projectile', meleePctDmg: 'blade', physPctDmg: 'blade', slamPctDmg: 'blade', flatDmg: 'blade',
+    strength: 'strength', pctDmg: 'blade', bleedChance: 'blade', physIgnore: 'blade', doubleDamageChance: 'blade', addedPhysDamagePct: 'blade',
+    blockChance: 'shield', blockChanceMax: 'shield', shieldPctDmg: 'shield', armor: 'shield', armorPct: 'shield', dr: 'shield', deflectChance: 'shield',
+    takenDamageReduceWhen1EnemyPct: 'shield', takenDamageReduceWhen2EnemiesPct: 'shield',
+    potionPctDmg: 'potion', poisonChance: 'potion', summonPctDmg: 'summon', summonHpPct: 'summon', summonGemLevel: 'summon',
+    summonCrit: 'summon', summonCritDmg: 'summon', summonFlatDmg: 'summon', summonAspd: 'summon', summonResPen: 'summon',
+    firePctDmg: 'elemental', coldPctDmg: 'elemental', lightPctDmg: 'elemental', elementalPctDmg: 'elemental', resPen: 'elemental',
+    igniteChance: 'elemental', chillChance: 'elemental', shockChance: 'elemental', resAll: 'elemental', aoePctDmg: 'elemental',
+    igniteDamageMultiplierPct: 'elemental', shockedEnemyHitDamageMorePct: 'elemental', addedFireDamagePct: 'elemental',
+    addedColdDamagePct: 'elemental', addedLightDamagePct: 'elemental', physTakenAsFire: 'elemental', physTakenAsCold: 'elemental', physTakenAsLight: 'elemental',
+    chaosPctDmg: 'chaos', dotPctDmg: 'chaos', resChaos: 'chaos', poisonDamageMultiplierPct: 'chaos', addedChaosDamagePct: 'chaos', physTakenAsChaos: 'chaos',
+    flatHp: 'life', pctHp: 'life', regen: 'life', leechTotalCap: 'life', energyShield: 'arcane', energyShieldPct: 'arcane',
+    energyShieldRegen: 'arcane', energyShieldRechargeFaster: 'arcane', spellPctDmg: 'arcane',
+    intelligence: 'intelligence', dexterity: 'dexterity', crit: 'precision', critDmg: 'precision', aspd: 'precision',
+    evasion: 'wind', evasionPct: 'wind', move: 'wind', mobilityPctDmg: 'wind'
+});
+
+const PASSIVE_START_ICON_FAMILY = Object.freeze({
+    occultist: 'mystique',
+    wanderer: 'blade',
+    cleric: 'devotion',
+    archer: 'projectile',
+    alchemist: 'potion',
+    warrior: 'blade'
+});
+
+const PASSIVE_ICON_ATLAS_CELL = Object.freeze({
+    blade: [0, 0], projectile: [1, 0], shield: [2, 0], potion: [3, 0], strength: [4, 0],
+    mystique: [0, 1], devotion: [1, 1], cycle: [2, 1], elemental: [3, 1], dexterity: [4, 1],
+    chaos: [0, 2], life: [1, 2], arcane: [2, 2], summon: [3, 2], intelligence: [4, 2],
+    precision: [0, 3], wind: [1, 3], void: [2, 3], constellation: [3, 3]
+});
+const PASSIVE_ICON_ATLAS_COLUMNS = 5;
+const PASSIVE_ICON_ATLAS_ROWS = 4;
+
+function getPassiveNodeIconFamily(node) {
+    if (!node) return null;
+    if (node.kind === 'void') return 'void';
+    if (node.socketType === 'star_wedge' || node.starWedgeMode) return 'constellation';
+    return (node.iconFamily && PASSIVE_ICON_ATLAS_CELL[node.iconFamily] ? node.iconFamily : null)
+        || PASSIVE_ICON_FAMILY[node.stat]
+        || PASSIVE_ICON_FAMILY[node.archetype]
+        || PASSIVE_ICON_FAMILY[node.cat]
+        || PASSIVE_START_ICON_FAMILY[node.startClassId]
+        || null;
+}
+
+function getPassiveTreeArtImage(key) {
+    const image = battleAssets && battleAssets.images ? battleAssets.images[key] : null;
+    if (!image || !image.complete || !(image.naturalWidth || image.width)) return null;
+    return image;
+}
+
+function canUsePassiveNodeImageArt(node) {
+    if (getPassiveTreeArtImage(`passiveTreeCustom_${node && node.id}`)) return true;
+    const family = getPassiveNodeIconFamily(node);
+    return !!(family && PASSIVE_ICON_ATLAS_CELL[family] && getPassiveTreeArtImage('passiveTreeIcons'));
+}
+
+function isPassiveFramedNode(node) {
+    if (!node) return false;
+    return node.kind === 'start' || node.kind === 'keystone' || node.kind === 'void'
+        || node.kind === 'hub' || node.kind === 'apex' || node.kind === 'core'
+        || node.kind === 'major' || node.tier >= 3;
+}
+
+function isPassiveImageSlotNode(node) {
+    return !!node && (node.kind === 'void' || node.kind === 'hub');
+}
+
+function getPassiveNodeSlotImage(node) {
+    if (!isPassiveImageSlotNode(node)) return null;
+    const key = node.kind === 'void' ? 'passiveTreeVoidSlot' : 'passiveTreeConstellationSlot';
+    return getPassiveTreeArtImage(key);
+}
+
+function getPassiveNodeFrameImage(node) {
+    if (isPassiveImageSlotNode(node)) return null;
+    if (!isPassiveFramedNode(node)) return null;
+    const key = (node.kind === 'keystone' || node.kind === 'void' || node.kind === 'hub')
+        ? 'passiveTreeKeystoneFrame' : 'passiveTreeNotableFrame';
+    return getPassiveTreeArtImage(key);
+}
+
+function drawPassiveNodeImageArt(ctx, node, radius, opacity) {
+    const slotImage = getPassiveNodeSlotImage(node);
+    const customImage = getPassiveTreeArtImage(`passiveTreeCustom_${node && node.id}`);
+    const standaloneImage = customImage || slotImage;
+    const image = standaloneImage || getPassiveTreeArtImage('passiveTreeIcons');
+    const cell = PASSIVE_ICON_ATLAS_CELL[getPassiveNodeIconFamily(node)];
+    if (!image || (!standaloneImage && !cell)) return false;
+    const sourceWidth = (image.naturalWidth || image.width) / PASSIVE_ICON_ATLAS_COLUMNS;
+    const sourceHeight = (image.naturalHeight || image.height) / PASSIVE_ICON_ATLAS_ROWS;
+    const halfSize = radius * (slotImage ? 1.12 : (node.kind === 'start' ? 0.58 : 0.78));
+    const drawY = node.y - halfSize - (slotImage ? 0 : radius * 0.06);
     ctx.save();
-    ctx.translate(node.x, node.y);
-
-    if (node.tier === 0) {
-        ctx.restore();
-        return;
-    } else if (node.kind === 'void') {
-        // 공허 노드: 이중 회전 링 + 보라색 맥동 후광으로 크고 눈에 띄게 강조한다.
-        let t = performance.now();
-        let pulse = 0.5 + 0.5 * Math.sin(t * 0.0022);
-        ctx.beginPath();
-        ctx.arc(0, 0, radius + 7 + pulse * 3, 0, Math.PI * 2);
-        let halo = ctx.createRadialGradient(0, 0, radius * 0.4, 0, 0, radius + 12 + pulse * 3);
-        halo.addColorStop(0, active ? 'rgba(196,132,255,0.55)' : 'rgba(150,100,220,0.32)');
-        halo.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = halo;
-        ctx.fill();
-        ctx.rotate(t * 0.0004);
-        ctx.beginPath();
-        ctx.arc(0, 0, radius + 5, 0, Math.PI * 2);
-        ctx.strokeStyle = active ? 'rgba(224,178,255,0.95)' : 'rgba(176,132,255,0.7)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([radius * 0.9, radius * 0.55]);
-        ctx.stroke();
-        ctx.rotate(-t * 0.0009);
-        ctx.beginPath();
-        ctx.arc(0, 0, radius + 9, 0, Math.PI * 2);
-        ctx.strokeStyle = active ? 'rgba(255,214,255,0.8)' : 'rgba(146,108,214,0.55)';
-        ctx.lineWidth = 1.25;
-        ctx.setLineDash([radius * 0.5, radius * 0.75]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-    } else if (node.kind === 'apex' || node.kind === 'transcendent') {
-        ctx.rotate(performance.now() * (node.kind === 'transcendent' ? 0.00012 : 0.00008));
-        ctx.beginPath();
-        traceStarShape(ctx, radius + (node.kind === 'transcendent' ? 6 : 4), radius * 0.58, 5);
-        ctx.strokeStyle = active ? '#fff1c7' : 'rgba(186,163,120,0.8)';
-        ctx.lineWidth = node.kind === 'transcendent' ? 1.5 : 1.25;
-        ctx.stroke();
-    } else if (node.kind === 'evolved') {
-        ctx.rotate(Math.PI / 6);
-        ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-            let ang = (i / 6) * Math.PI * 2;
-            let px = Math.cos(ang) * (radius + 3);
-            let py = Math.sin(ang) * (radius + 3);
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.strokeStyle = active ? '#ffe4ab' : 'rgba(140,151,167,0.65)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-    } else if (node.kind === 'hub') {
-        ctx.rotate(Math.PI / 4);
-        ctx.strokeStyle = palette.outer;
-        ctx.lineWidth = 1.25;
-        ctx.strokeRect(-radius - 5, -radius - 5, (radius + 5) * 2, (radius + 5) * 2);
-        ctx.rotate(-Math.PI / 4);
-    } else if (node.tier >= 3 || node.kind === 'major') {
-        ctx.beginPath();
-        for (let i = 0; i < 8; i++) {
-            const ang = -Math.PI / 2 + (i / 8) * Math.PI * 2;
-            const rr = i % 2 === 0 ? radius + 4 : radius + 1.5;
-            const px = Math.cos(ang) * rr;
-            const py = Math.sin(ang) * rr;
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.strokeStyle = active ? '#f5dfad' : 'rgba(163,133,88,0.72)';
-        ctx.lineWidth = 1.1;
-        ctx.stroke();
+    ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+    ctx.imageSmoothingEnabled = true;
+    if (standaloneImage) {
+        ctx.drawImage(image, node.x - halfSize, drawY, halfSize * 2, halfSize * 2);
+    } else {
+        ctx.drawImage(image, cell[0] * sourceWidth, cell[1] * sourceHeight, sourceWidth, sourceHeight,
+            node.x - halfSize, drawY, halfSize * 2, halfSize * 2);
     }
+    ctx.restore();
+    return true;
+}
 
+function drawPassiveNodeFrameArt(ctx, node, radius, active, opacity) {
+    const image = getPassiveNodeFrameImage(node);
+    if (!image) return false;
+    const halfSize = radius * (node.kind === 'start' ? 1.55 : 1.48);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, opacity * (active ? 1 : 0.76)));
+    ctx.drawImage(image, node.x - halfSize, node.y - halfSize, halfSize * 2, halfSize * 2);
+    ctx.restore();
+    return true;
+}
+
+function tracePassiveBladeIcon(ctx, r) {
+    ctx.moveTo(0, -r); ctx.lineTo(0, r * 0.45);
+    ctx.moveTo(-r * 0.45, r * 0.22); ctx.lineTo(r * 0.45, r * 0.22);
+    ctx.moveTo(-r * 0.18, r); ctx.lineTo(0, r * 0.45); ctx.lineTo(r * 0.18, r);
+}
+
+function tracePassiveProjectileIcon(ctx, r) {
+    ctx.moveTo(-r, r * 0.5); ctx.lineTo(r, -r * 0.5);
+    ctx.moveTo(r, -r * 0.5); ctx.lineTo(r * 0.35, -r * 0.62);
+    ctx.moveTo(r, -r * 0.5); ctx.lineTo(r * 0.62, r * 0.05);
+}
+
+function tracePassiveShieldIcon(ctx, r) {
+    ctx.moveTo(0, -r); ctx.lineTo(r * 0.72, -r * 0.52); ctx.lineTo(r * 0.56, r * 0.45);
+    ctx.lineTo(0, r); ctx.lineTo(-r * 0.56, r * 0.45); ctx.lineTo(-r * 0.72, -r * 0.52); ctx.closePath();
+}
+
+function tracePassivePotionIcon(ctx, r) {
+    ctx.moveTo(-r * 0.34, -r); ctx.lineTo(r * 0.34, -r); ctx.lineTo(r * 0.3, -r * 0.42);
+    ctx.lineTo(r * 0.72, r * 0.62); ctx.lineTo(r * 0.45, r); ctx.lineTo(-r * 0.45, r);
+    ctx.lineTo(-r * 0.72, r * 0.62); ctx.lineTo(-r * 0.3, -r * 0.42); ctx.closePath();
+}
+
+function tracePassiveEyeIcon(ctx, r) {
+    ctx.moveTo(-r, 0); ctx.lineTo(0, -r * 0.62); ctx.lineTo(r, 0); ctx.lineTo(0, r * 0.62); ctx.closePath();
+    ctx.moveTo(r * 0.28, 0); ctx.arc(0, 0, r * 0.28, 0, Math.PI * 2);
+}
+
+function tracePassiveCubeIcon(ctx, r) {
+    ctx.moveTo(0, -r); ctx.lineTo(r * 0.82, -r * 0.45); ctx.lineTo(r * 0.82, r * 0.45);
+    ctx.lineTo(0, r); ctx.lineTo(-r * 0.82, r * 0.45); ctx.lineTo(-r * 0.82, -r * 0.45); ctx.closePath();
+    ctx.moveTo(0, 0); ctx.lineTo(0, r); ctx.moveTo(0, 0); ctx.lineTo(r * 0.82, -r * 0.45); ctx.moveTo(0, 0); ctx.lineTo(-r * 0.82, -r * 0.45);
+}
+
+function tracePassiveCycleIcon(ctx, r) {
+    ctx.arc(0, 0, r * 0.72, -Math.PI * 0.15, Math.PI * 1.25);
+    ctx.moveTo(-r * 0.62, -r * 0.45); ctx.lineTo(-r * 0.92, -r * 0.16); ctx.lineTo(-r * 0.48, -r * 0.08);
+}
+
+function tracePassiveElementIcon(ctx, r) {
+    ctx.moveTo(0, -r); ctx.lineTo(r * 0.7, r * 0.48); ctx.lineTo(0, r); ctx.lineTo(-r * 0.7, r * 0.48); ctx.closePath();
+    ctx.moveTo(0, -r * 0.42); ctx.lineTo(r * 0.25, r * 0.32); ctx.lineTo(-r * 0.25, r * 0.32); ctx.closePath();
+}
+
+function tracePassiveChaosIcon(ctx, r) {
+    ctx.moveTo(-r * 0.9, -r * 0.2); ctx.lineTo(-r * 0.25, -r * 0.72); ctx.lineTo(r * 0.5, -r * 0.5);
+    ctx.lineTo(r * 0.9, r * 0.18); ctx.lineTo(r * 0.2, r * 0.76); ctx.lineTo(-r * 0.58, r * 0.5); ctx.closePath();
+    ctx.moveTo(r * 0.24, 0); ctx.arc(0, 0, r * 0.24, 0, Math.PI * 2);
+}
+
+function tracePassiveLifeIcon(ctx, r) {
+    ctx.moveTo(0, r); ctx.lineTo(-r * 0.82, r * 0.06); ctx.lineTo(-r * 0.58, -r * 0.62);
+    ctx.lineTo(0, -r * 0.28); ctx.lineTo(r * 0.58, -r * 0.62); ctx.lineTo(r * 0.82, r * 0.06); ctx.closePath();
+}
+
+function tracePassiveArcaneIcon(ctx, r) {
+    ctx.moveTo(0, -r); ctx.lineTo(r * 0.86, r * 0.52); ctx.lineTo(-r * 0.86, r * 0.52); ctx.closePath();
+    ctx.moveTo(0, -r * 0.38); ctx.lineTo(0, r * 0.52);
+}
+
+function tracePassiveSummonIcon(ctx, r) {
+    ctx.moveTo(r * 0.45, r * 0.3); ctx.arc(0, r * 0.3, r * 0.45, 0, Math.PI * 2);
+    [-0.58, -0.2, 0.2, 0.58].forEach(x => { ctx.moveTo(x * r + r * 0.18, -r * 0.38); ctx.arc(x * r, -r * 0.38, r * 0.18, 0, Math.PI * 2); });
+}
+
+function tracePassivePrecisionIcon(ctx, r) {
+    ctx.moveTo(r, 0); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.moveTo(r * 0.42, 0); ctx.arc(0, 0, r * 0.42, 0, Math.PI * 2);
+    ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r);
+}
+
+function tracePassiveWindIcon(ctx, r) {
+    ctx.moveTo(-r, -r * 0.48); ctx.lineTo(r * 0.55, -r * 0.48); ctx.lineTo(r, -r * 0.2);
+    ctx.moveTo(-r * 0.7, 0); ctx.lineTo(r * 0.35, 0); ctx.lineTo(r * 0.72, r * 0.25);
+    ctx.moveTo(-r, r * 0.48); ctx.lineTo(r * 0.58, r * 0.48);
+}
+
+function tracePassiveAttributeIcon(ctx, r) {
+    ctx.moveTo(0, -r); ctx.lineTo(r * 0.3, -r * 0.28); ctx.lineTo(r, 0);
+    ctx.lineTo(r * 0.3, r * 0.28); ctx.lineTo(0, r); ctx.lineTo(-r * 0.3, r * 0.28);
+    ctx.lineTo(-r, 0); ctx.lineTo(-r * 0.3, -r * 0.28); ctx.closePath();
+}
+
+function tracePassiveVoidIcon(ctx, r) {
+    ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath();
+    ctx.moveTo(r * 0.48, 0); ctx.arc(0, 0, r * 0.48, 0, Math.PI * 2);
+}
+
+function tracePassiveConstellationIcon(ctx, r) {
+    const points = [[-0.72, -0.32], [0.12, -0.72], [0.72, 0.1], [-0.18, 0.72]];
+    points.forEach(([x, y], index) => {
+        const next = points[(index + 1) % points.length];
+        ctx.moveTo(x * r, y * r); ctx.lineTo(next[0] * r, next[1] * r);
+        ctx.moveTo(x * r + r * 0.12, y * r); ctx.arc(x * r, y * r, r * 0.12, 0, Math.PI * 2);
+    });
+}
+
+const PASSIVE_ICON_TRACERS = Object.freeze({
+    blade: tracePassiveBladeIcon, projectile: tracePassiveProjectileIcon, shield: tracePassiveShieldIcon,
+    potion: tracePassivePotionIcon, mystique: tracePassiveEyeIcon, devotion: tracePassiveCubeIcon,
+    cycle: tracePassiveCycleIcon, elemental: tracePassiveElementIcon, chaos: tracePassiveChaosIcon,
+    life: tracePassiveLifeIcon, arcane: tracePassiveArcaneIcon, summon: tracePassiveSummonIcon,
+    precision: tracePassivePrecisionIcon, wind: tracePassiveWindIcon,
+    strength: tracePassiveAttributeIcon, dexterity: tracePassiveAttributeIcon, intelligence: tracePassiveAttributeIcon,
+    void: tracePassiveVoidIcon, constellation: tracePassiveConstellationIcon
+});
+
+function drawPassiveNodeIcon(ctx, node, radius, color) {
+    const tracer = PASSIVE_ICON_TRACERS[getPassiveNodeIconFamily(node)];
+    if (!tracer) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1.1, radius * 0.1);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    tracer(ctx, radius * 0.48);
+    ctx.stroke();
     ctx.restore();
 }
 
-function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, revealAlpha, lightweightMode) {
+function drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode) {
+    if (lightweightMode) return;
+    ctx.save();
+    ctx.translate(node.x, node.y);
+    ctx.strokeStyle = active ? '#f7e5b4' : palette.outer;
+    ctx.lineWidth = node.kind === 'keystone' ? 2 : 1.25;
+    if (node.kind === 'start') {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.66, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (node.kind === 'void') {
+        ctx.strokeRect(-radius * 0.34, -radius * 0.34, radius * 0.68, radius * 0.68);
+    } else if (node.kind === 'hub') {
+        const span = radius * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(-span, 0); ctx.lineTo(span, 0);
+        ctx.moveTo(0, -span); ctx.lineTo(0, span);
+        ctx.stroke();
+    } else if (node.kind === 'keystone') {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.62, 0, Math.PI * 2);
+        ctx.stroke();
+    } else if (node.tier >= 3 || node.kind === 'major') {
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.72, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    if (!['void', 'hub'].includes(node.kind) && !canUsePassiveNodeImageArt(node)) {
+        drawPassiveNodeIcon(ctx, node, radius, palette.icon || palette.outer);
+    }
+    ctx.restore();
+}
+
+function drawPassiveNodeShape(ctx, node, radius, palette, active, reachable, visibility, revealAlpha, renderOptions) {
+    const options = renderOptions && typeof renderOptions === 'object'
+        ? renderOptions
+        : { lightweight: !!renderOptions, imageFramed: false };
+    const lightweightMode = !!options.lightweight;
+    const imageFramed = !!options.imageFramed;
+    const imageSlot = !!options.imageSlot;
     ctx.save();
     ctx.globalAlpha = revealAlpha;
-
-    if (!lightweightMode && palette.glow && palette.glow !== 'rgba(0,0,0,0)') {
-        const glowRadius = active ? radius + 16 : radius + (node.tier >= 3 ? 12 : 8);
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, glowRadius, 0, Math.PI * 2);
-        const glow = ctx.createRadialGradient(node.x, node.y, Math.max(1, radius * 0.35), node.x, node.y, glowRadius + 6);
-        glow.addColorStop(0, palette.glow);
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
+    if (!imageSlot) {
+        tracePassiveNodeFramePath(ctx, node, radius);
+        ctx.fillStyle = palette.mid;
         ctx.fill();
+        if (!imageFramed) {
+            ctx.strokeStyle = palette.outer;
+            ctx.lineWidth = active ? 2.4 : (reachable ? 1.8 : 1.1);
+            ctx.stroke();
+            drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode);
+        }
     }
-
-    const outerR = radius;
-    const midR = Math.max(2, radius - 2.8);
-    const innerR = Math.max(1.5, radius - 5.4);
-
-    tracePassiveNodeFramePath(ctx, node, outerR);
-    ctx.fillStyle = palette.outer;
-    ctx.fill();
-
-    tracePassiveNodeFramePath(ctx, node, midR);
-    ctx.fillStyle = palette.mid;
-    ctx.fill();
-
-    const core = ctx.createRadialGradient(node.x - radius * 0.28, node.y - radius * 0.35, 1, node.x, node.y, innerR + 1);
-    core.addColorStop(0, active ? '#fff6de' : (reachable ? '#344454' : '#1f2730'));
-    core.addColorStop(1, palette.inner);
-    tracePassiveNodeFramePath(ctx, node, innerR);
-    ctx.fillStyle = core;
-    ctx.fill();
-
-    if (active || reachable) {
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, innerR * (active ? 0.55 : 0.42), 0, Math.PI * 2);
-        ctx.fillStyle = active ? '#fff8e7' : 'rgba(166,205,228,0.55)';
-        ctx.fill();
-    }
-
-    drawNodeOrnament(ctx, node, radius, palette, active, lightweightMode);
-
-    const frameKey = getPassiveNodeFrameKey(node);
-    const frameAssetKey = getPassiveNodeFrameAssetKey(frameKey, active);
-    const frameImage = frameAssetKey ? passiveNodeFrameImages[frameAssetKey] : null;
-    if (frameAssetKey && passiveNodeFrameReady[frameAssetKey] && frameImage) {
-        const frameScale = frameKey === 'path' ? 1.48
-            : (frameKey === 'void' ? 1.58
-                : (frameKey === 'starWedge' ? 1.62
-                    : (node.kind === 'apex' || node.kind === 'transcendent' ? 1.72 : 1.55)));
-        const frameRadius = radius * frameScale;
-        ctx.save();
-        ctx.globalAlpha = revealAlpha * (active ? 1 : (reachable ? 0.96 : 0.9));
-        ctx.drawImage(frameImage, node.x - frameRadius, node.y - frameRadius, frameRadius * 2, frameRadius * 2);
-        ctx.restore();
-    }
-
-    if (hoverNode && hoverNode.id === node.id) {
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius + 8, 0, Math.PI * 2);
+    if (!imageSlot && hoverNode && hoverNode.id === node.id) {
+        tracePassiveNodeFramePath(ctx, node, radius + 6);
         ctx.strokeStyle = active ? 'rgba(255,244,210,0.75)' : 'rgba(141,187,219,0.48)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
@@ -1831,7 +1853,562 @@ function applyPassiveSpecializations() {
         node.effectLabel = `${getStatName(config.stat)} +${formatValue(config.stat, config.val)}${P_STATS[config.stat] && P_STATS[config.stat].isPct ? '%' : ''}`;
     });
 }
+
+function hasAuthoredPassiveTreeSource() {
+    return typeof PASSIVE_TREE_V22 !== 'undefined' && PASSIVE_TREE_V22
+        && PASSIVE_TREE_V22.nodes && PASSIVE_TREE_V22.edges;
+}
+
+function hasAuthoredPassiveTree() {
+    if (!hasAuthoredPassiveTreeSource() || PASSIVE_TREE.layoutVersion !== PASSIVE_TREE_V22.version) return false;
+    return Object.values(PASSIVE_TREE_V22.classStarts || {}).some(nodeId => !!PASSIVE_TREE.nodes[nodeId]);
+}
+
+function loadAuthoredPassiveTree() {
+    Object.keys(PASSIVE_TREE.nodes).forEach(key => delete PASSIVE_TREE.nodes[key]);
+    PASSIVE_TREE.edges.length = 0;
+    Object.entries(PASSIVE_TREE_V22.nodes).forEach(([id, source]) => {
+        const node = { ...source, effects: (source.effects || []).map(effect => ({ ...effect })) };
+        node.depth = Number.isFinite(node.distanceFromClassStart) ? node.distanceFromClassStart : Infinity;
+        if (node.choiceGroup) node.choiceGroup = JSON.parse(JSON.stringify(node.choiceGroup));
+        if (Array.isArray(node.hiddenRouteNodeIds)) node.hiddenRouteNodeIds = node.hiddenRouteNodeIds.slice();
+        PASSIVE_TREE.nodes[id] = node;
+    });
+    PASSIVE_TREE.edges.push(...PASSIVE_TREE_V22.edges.map(edge => ({ ...edge })));
+    PASSIVE_TREE.layoutVersion = PASSIVE_TREE_V22.version;
+    const nodes = Object.values(PASSIVE_TREE.nodes);
+    PASSIVE_BOUNDS.minX = Math.min(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.maxX = Math.max(...nodes.map(node => node.x));
+    PASSIVE_BOUNDS.minY = Math.min(...nodes.map(node => node.y));
+    PASSIVE_BOUNDS.maxY = Math.max(...nodes.map(node => node.y));
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('authored-tree');
+}
+
+function getPassiveTreeRootNodeId(state) {
+    if (!hasAuthoredPassiveTree()) return 'n0';
+    const source = state || (typeof game !== 'undefined' ? game : null) || {};
+    const classId = source.selectedClassId || 'warrior';
+    return PASSIVE_TREE_V22.classStarts[classId] || PASSIVE_TREE_V22.classStarts.warrior;
+}
+
+function getPassiveTreeRootNode(state) {
+    return PASSIVE_TREE.nodes[getPassiveTreeRootNodeId(state)] || null;
+}
+
+var passiveTreeAdjacencyCache = { signature: '', map: new Map() };
+
+function isPassiveTreeEdgeAvailable(edge, allocatedNodeIds) {
+    const requiredId = String(edge && edge.requiresAllocatedNodeId || '');
+    if (!requiredId) return true;
+    const allocated = allocatedNodeIds === undefined
+        ? (game && Array.isArray(game.passives) ? game.passives : [])
+        : allocatedNodeIds;
+    if (allocated instanceof Set) return allocated.has(requiredId);
+    return Array.isArray(allocated) && allocated.includes(requiredId);
+}
+
+/**
+ * Returns the shared read-only adjacency map for the current passive layout.
+ * @param {Set<string>|string[]=} allocatedNodeIds
+ * @returns {Map<string, string[]>}
+ */
+function getPassiveTreeAdjacency(allocatedNodeIds) {
+    const nodeCount = Object.keys(PASSIVE_TREE.nodes || {}).length;
+    const edges = Array.isArray(PASSIVE_TREE.edges) ? PASSIVE_TREE.edges : [];
+    const unlockSignature = edges.filter(edge => edge.requiresAllocatedNodeId)
+        .map(edge => `${edge.requiresAllocatedNodeId}:${isPassiveTreeEdgeAvailable(edge) ? 1 : 0}`).join('|');
+    const signature = allocatedNodeIds === undefined
+        ? `${PASSIVE_TREE.layoutVersion || 0}:${nodeCount}:${edges.length}:${unlockSignature}` : '';
+    if (signature && passiveTreeAdjacencyCache.signature === signature) return passiveTreeAdjacencyCache.map;
+    const adjacency = new Map(Object.keys(PASSIVE_TREE.nodes || {}).map(id => [String(id), []]));
+    edges.forEach(edge => {
+        if (!isPassiveTreeEdgeAvailable(edge, allocatedNodeIds)) return;
+        const from = String(edge.from), to = String(edge.to);
+        if (!adjacency.has(from)) adjacency.set(from, []);
+        if (!adjacency.has(to)) adjacency.set(to, []);
+        adjacency.get(from).push(to);
+        adjacency.get(to).push(from);
+    });
+    if (signature) passiveTreeAdjacencyCache = { signature, map: adjacency };
+    return adjacency;
+}
+
+function rebasePassiveTreeForClassChange(previousClassId, nextClassId) {
+    if (!hasAuthoredPassiveTree() || previousClassId === nextClassId) return 0;
+    const previousRoot = PASSIVE_TREE_V22.classStarts[previousClassId];
+    const nextRoot = PASSIVE_TREE_V22.classStarts[nextClassId];
+    if (!previousRoot || !nextRoot || previousRoot === nextRoot) return 0;
+    const invested = (Array.isArray(game.passives) ? game.passives : [])
+        .filter(nodeId => PASSIVE_TREE.nodes[nodeId] && PASSIVE_TREE.nodes[nodeId].kind !== 'start');
+    game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + invested.length;
+    game.passives = [];
+    game.passiveAttributeChoices = {};
+    game.discoveredPassives = [nextRoot];
+    if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
+    return invested.length;
+}
+
+const PASSIVE_REVELATION_IDS = Object.freeze(['combat', 'guard', 'life']);
+const PASSIVE_REVELATION_LABELS = Object.freeze({
+    combat: '전투의 계시', guard: '수호의 계시', life: '생명의 성약', fanaticism: '광신'
+});
+const PASSIVE_WISDOM_ELEMENTS = Object.freeze(['fire', 'cold', 'lightning', 'chaos']);
+const PASSIVE_AILMENT_BY_ELEMENT = Object.freeze({ phys: 'bleed', fire: 'ignite', cold: 'chill', light: 'shock', chaos: 'poison' });
+const PASSIVE_KARMA_PER_TARGET_CAP = 500;
+const PASSIVE_KEYSTONE_NODE_ID_BY_TITLE = Object.freeze({
+    '금단의 만상': 'pt_core_keystone_01',
+    '타락한 복음': 'pt_core_keystone_02',
+    '육신과 정신의 성약': 'pt_core_keystone_03',
+    '카르마': 'pt_core_keystone_04',
+    '아슈라': 'pt_core_keystone_05',
+    '사중합일': 'pt_core_keystone_06',
+    '순환의 원석': 'npqq5m7h2ri',
+    '야만': 'n39ip40yc3d',
+    '헌신의 서약': 'nv67fzprmet',
+    '몰아의 통로': 'nkr7zwrymol',
+    '최후방 사격': 'nxsxdk1yr2y',
+    '결투의 규율': 'n2c51dapljo',
+    '지혜의 도약': 'nkf64engb6m',
+    '혼의 성소': 'backbone_branch_occultist_cleric_center_occultist_cleric_channel_guard_keystone',
+    '움직이는 성벽': 'backbone_branch_cleric_warrior_center_cleric_warrior_guard_regen_keystone',
+    '피의 가속': 'backbone_branch_warrior_wanderer_center_warrior_wanderer_roll_speed_keystone',
+    '선제 사냥': 'backbone_branch_wanderer_archer_center_wanderer_archer_range_roll_keystone',
+    '오염된 탄두': 'backbone_branch_archer_alchemist_center_archer_alchemist_area_projectile_keystone',
+    '검은 증류': 'backbone_branch_alchemist_occultist_center_alchemist_occultist_energy_poison_keystone',
+    '단일 해석': 'backbone_branch_occultist_outer_2_mystique_single_keystone',
+    '남겨진 잠식': 'backbone_branch_occultist_outer_4_occultist_summon_keystone',
+    '삼중 계시': 'backbone_branch_cleric_outer_1_devotion_triple_keystone',
+    '대리 성약': 'backbone_branch_cleric_outer_4_cleric_summon_efficiency_keystone',
+    '역행 순환': 'backbone_branch_warrior_outer_1_cycle_reverse_keystone',
+    '한 번의 중량': 'backbone_branch_warrior_outer_4_warrior_bleed_keystone',
+    '완전 회피': 'backbone_branch_wanderer_outer_4_wanderer_duel_keystone',
+    '관통 행렬': 'backbone_branch_archer_outer_4_archer_physical_keystone',
+    '과잉 투여': 'backbone_branch_alchemist_outer_1_universal_flask_keystone',
+    '단 하나의 사역': 'backbone_branch_alchemist_outer_2_universal_summon_keystone',
+    '폭발성 증류': 'backbone_branch_alchemist_outer_4_alchemist_resist_keystone'
+});
+const PASSIVE_CYCLE_BUFF_EFFECTS = Object.freeze({
+    ignite: [{ stat: 'firePctDmg', perCycle: 2 }],
+    chill: [{ stat: 'coldPctDmg', perCycle: 2 }, { stat: 'move', perCycle: 0.5 }],
+    freeze: [{ stat: 'coldPctDmg', perCycle: 2 }, { stat: 'energyShieldPct', perCycle: 1 }],
+    shock: [{ stat: 'lightPctDmg', perCycle: 2 }, { stat: 'aspd', perCycle: 0.5 }],
+    poison: [{ stat: 'chaosPctDmg', perCycle: 2 }, { stat: 'regen', perCycle: 0.1 }],
+    bleed: [{ stat: 'physPctDmg', perCycle: 2 }, { stat: 'armorPct', perCycle: 1 }]
+});
+
+function normalizePassiveSpecializationState(value) {
+    let source = value && typeof value === 'object' ? value : {};
+    let revelation = PASSIVE_REVELATION_IDS.includes(source.revelation) ? source.revelation : 'combat';
+    let choices = source.keystoneChoices && typeof source.keystoneChoices === 'object' ? source.keystoneChoices : {};
+    let wisdom = PASSIVE_WISDOM_ELEMENTS.includes(choices.wisdom_leap_element) ? choices.wisdom_leap_element : 'fire';
+    let fanaticism = source.fanaticism && typeof source.fanaticism === 'object' ? source.fanaticism : {};
+    let karmaSource = source.karma && typeof source.karma === 'object' ? source.karma : {};
+    let karmaByEnemy = karmaSource.byEnemy && typeof karmaSource.byEnemy === 'object' ? karmaSource.byEnemy : {};
+    let normalizedKarma = {};
+    Object.keys(karmaByEnemy).forEach(enemyId => {
+        const amount = Math.max(0, Math.floor(Number(karmaByEnemy[enemyId]) || 0));
+        if (amount > 0) normalizedKarma[String(enemyId)] = amount;
+    });
+    let karmaBuff = karmaSource.buff && typeof karmaSource.buff === 'object' ? karmaSource.buff : null;
+    if (karmaBuff) {
+        karmaBuff = {
+            targetId: String(karmaBuff.targetId || ''),
+            morePct: Math.max(0, Number(karmaBuff.morePct) || 0),
+            expiresAt: Math.max(0, Number(karmaBuff.expiresAt) || 0),
+            actionsLeft: Math.max(0, Math.floor(Number(karmaBuff.actionsLeft) || 0))
+        };
+        if (!karmaBuff.targetId || karmaBuff.morePct <= 0 || karmaBuff.actionsLeft <= 0) karmaBuff = null;
+    }
+    let cycleBuffs = (Array.isArray(source.cycleBuffs) ? source.cycleBuffs : []).filter(buff => buff
+        && PASSIVE_CYCLE_BUFF_EFFECTS[buff.type] && Number.isFinite(Number(buff.cycle)) && Number.isFinite(Number(buff.expiresAt)))
+        .map(buff => ({ type: buff.type, cycle: Math.max(0, Number(buff.cycle)), expiresAt: Math.max(0, Number(buff.expiresAt)) }));
+    return {
+        revelation,
+        keystoneChoices: { ...choices, wisdom_leap_element: wisdom },
+        cycleBuffs,
+        fanaticism: { skillName: String(fanaticism.skillName || ''), stacks: Math.max(0, Math.floor(fanaticism.stacks || 0)) },
+        karma: { byEnemy: normalizedKarma, buff: karmaBuff }
+    };
+}
+
+function ensurePassiveSpecializationState() {
+    game.passiveSpecialization = normalizePassiveSpecializationState(game.passiveSpecialization);
+    return game.passiveSpecialization;
+}
+
+function getPassiveNodeRawEffects(node, mutation) {
+    if (!node) return [];
+    if (mutation && mutation.currentStat) {
+        return [{ stat: mutation.currentStat, val: Number(mutation.currentVal) || 0 }];
+    }
+    if (Array.isArray(node.effects) && node.effects.length > 0) return node.effects;
+    if (!node.stat) return [];
+    const stat = node.kind === 'attribute' && typeof getPassiveAttributeNodeStat === 'function'
+        ? getPassiveAttributeNodeStat(node) : node.stat;
+    return [{ stat, val: Number(node.val) || 0 }];
+}
+
+function getPassiveSpecialStatReserve(statId, excludedNodeId) {
+    const starState = game && game.starWedge || {};
+    const disabled = starState.disabledNodeEffects || {}, mutations = starState.nodeMutations || {};
+    return (game && game.passives || []).reduce((total, nodeId) => {
+        const node = PASSIVE_TREE.nodes[nodeId], key = String(nodeId);
+        if (!node || key === String(excludedNodeId) || disabled[key]) return total;
+        if (node.kind === 'void' || node.intentionalNoEffect || node.activationRequirement) return total;
+        return total + getPassiveNodeRawEffects(node, mutations[key])
+            .filter(effect => effect && effect.stat === statId)
+            .reduce((sum, effect) => sum + (Number(effect.val) || 0), 0);
+    }, 0);
+}
+
+function getPassiveNodeActivationState(node) {
+    const requirement = node && node.activationRequirement;
+    if (!requirement || requirement.type !== 'special-stat-reserve') {
+        return { active: true, statId: null, available: 0, required: 0 };
+    }
+    const required = Math.max(0, Number(requirement.minimum) || 0);
+    const available = Math.max(0, getPassiveSpecialStatReserve(requirement.statId, node.id));
+    return { active: available >= required, statId: requirement.statId, available, required };
+}
+
+function getEffectivePassiveNodeEffects(node, mutation) {
+    if (!getPassiveNodeActivationState(node).active) return [];
+    return getPassiveNodeRawEffects(node, mutation);
+}
+
+safeExposeGlobals({ getPassiveNodeActivationState, getEffectivePassiveNodeEffects });
+
+function getAllocatedPassiveStatValue(statId) {
+    const starState = game && game.starWedge || {};
+    const disabled = starState.disabledNodeEffects || {}, mutations = starState.nodeMutations || {};
+    const totals = {};
+    (game && game.passives || []).forEach(nodeId => {
+        if (disabled[String(nodeId)]) return;
+        const node = PASSIVE_TREE.nodes[nodeId], mutation = mutations[String(nodeId)];
+        if (!node || node.kind === 'void' || node.intentionalNoEffect) return;
+        const effects = getEffectivePassiveNodeEffects(node, mutation);
+        effects.forEach(effect => {
+            if (!effect || !effect.stat) return;
+            totals[effect.stat] = (totals[effect.stat] || 0) + (Number(effect.val) || 0);
+        });
+    });
+    if (statId !== 'devotion') return Math.max(0, Number(totals[statId]) || 0);
+    let devotion = Math.max(0, Number(totals.devotion) || 0);
+    if (findAllocatedPassiveKeystone('육신과 정신의 성약')) {
+        devotion += Math.floor(Math.max(0, totals.strength || 0) / 10) + Math.floor(Math.max(0, totals.intelligence || 0) / 10);
+    }
+    const covenant = findAllocatedPassiveKeystone('헌신의 서약');
+    if (covenant) devotion += countCovenantAttributeConnections(covenant);
+    return devotion;
+}
+
+function setPassiveRevelation(revelationId) {
+    if (!PASSIVE_REVELATION_IDS.includes(revelationId)) return false;
+    if (getAllocatedPassiveStatValue('devotion') < 1) return false;
+    if (findAllocatedPassiveKeystone('삼중 계시')) return false;
+    ensurePassiveSpecializationState().revelation = revelationId;
+    return true;
+}
+
+function setPassiveKeystoneChoice(choiceId, value) {
+    if (choiceId !== 'wisdom_leap_element' || !PASSIVE_WISDOM_ELEMENTS.includes(value)) return false;
+    ensurePassiveSpecializationState().keystoneChoices[choiceId] = value;
+    return true;
+}
+
+function hasAuthoredPassiveKeystone(nodeId) {
+    let node = PASSIVE_TREE.nodes[nodeId];
+    return !!(node && node.kind === 'keystone' && (game.passives || []).includes(nodeId));
+}
+
+function findAllocatedPassiveKeystone(title) {
+    const authoredNodeId = PASSIVE_KEYSTONE_NODE_ID_BY_TITLE[String(title)] || String(title || '');
+    const authoredNode = PASSIVE_TREE.nodes[authoredNodeId];
+    if (authoredNode && authoredNode.kind === 'keystone' && (game.passives || []).includes(authoredNodeId)) {
+        return authoredNode;
+    }
+    return (game.passives || []).map(id => PASSIVE_TREE.nodes[id])
+        .find(node => node && node.kind === 'keystone' && node.title === title) || null;
+}
+
+function getMystiqueAffinity(mystique, damageByElement) {
+    const amount = Math.max(0, Number(mystique) || 0);
+    const elements = ['phys', 'fire', 'cold', 'light', 'chaos'];
+    const totals = damageByElement && typeof damageByElement === 'object' ? damageByElement : {};
+    const element = elements.reduce((best, current) => Number(totals[current] || 0) > Number(totals[best] || 0) ? current : best, 'phys');
+    return { element, ailment: PASSIVE_AILMENT_BY_ELEMENT[element], damagePct: amount,
+        potencyPct: amount, chancePct: Math.floor(amount / 3) };
+}
+
+function recordPassiveCycleAilmentEnd(ailmentType, cycle, now) {
+    if (findAllocatedPassiveKeystone('역행 순환')) return false;
+    if (!PASSIVE_CYCLE_BUFF_EFFECTS[ailmentType] || !(Number(cycle) > 0)) return false;
+    const state = ensurePassiveSpecializationState(), timestamp = Number.isFinite(now) ? now : Date.now();
+    state.cycleBuffs = state.cycleBuffs.filter(buff => buff && buff.type !== ailmentType && buff.expiresAt > timestamp);
+    state.cycleBuffs.push({ type: ailmentType, cycle: Math.max(0, Number(cycle)), expiresAt: timestamp + 6000 });
+    return true;
+}
+
+function recordPassiveCycleAilmentStart(ailmentType, cycle, now) {
+    if (!findAllocatedPassiveKeystone('역행 순환')) return false;
+    if (!PASSIVE_CYCLE_BUFF_EFFECTS[ailmentType] || !(Number(cycle) > 0)) return false;
+    const state = ensurePassiveSpecializationState(), timestamp = Number.isFinite(now) ? now : Date.now();
+    state.cycleBuffs = [{ type: ailmentType, cycle: Math.max(0, Number(cycle)) * 0.5, expiresAt: timestamp + 6000 }];
+    return true;
+}
+
+function getActivePassiveCycleBuffEffects(now) {
+    const state = ensurePassiveSpecializationState(), timestamp = Number.isFinite(now) ? now : Date.now();
+    state.cycleBuffs = state.cycleBuffs.filter(buff => buff && buff.expiresAt > timestamp);
+    return state.cycleBuffs.flatMap(buff => (PASSIVE_CYCLE_BUFF_EFFECTS[buff.type] || [])
+        .map(effect => ({ stat: effect.stat, val: effect.perCycle * buff.cycle, source: buff.type })));
+}
+
+function recordPassiveFanaticSkillUse(skillName, devotion) {
+    const state = ensurePassiveSpecializationState(), cap = Math.max(0, Math.floor(Number(devotion) || 0));
+    if (!findAllocatedPassiveKeystone('타락한 복음') || cap <= 0) {
+        state.fanaticism = { skillName: '', stacks: 0 };
+        return 0;
+    }
+    const normalizedName = String(skillName || '');
+    const stacks = state.fanaticism.skillName === normalizedName ? state.fanaticism.stacks + 1 : 1;
+    state.fanaticism = { skillName: normalizedName, stacks: Math.min(cap, stacks) };
+    return state.fanaticism.stacks;
+}
+
+function isPassiveKarmaTarget(enemy) {
+    return !!(enemy && (enemy.isBoss || enemy.isElite || enemy.elite));
+}
+
+function recordPassiveKarmaLoss(enemy, resourceLost) {
+    if (!findAllocatedPassiveKeystone('카르마') || !isPassiveKarmaTarget(enemy)) return 0;
+    const amount = Math.max(0, Math.floor(Number(resourceLost) || 0));
+    if (amount <= 0) return 0;
+    const karma = ensurePassiveSpecializationState().karma;
+    const targetId = String(enemy.id);
+    karma.byEnemy[targetId] = Math.min(PASSIVE_KARMA_PER_TARGET_CAP,
+        Math.max(0, Math.floor(karma.byEnemy[targetId] || 0)) + amount);
+    return karma.byEnemy[targetId];
+}
+
+function beginPassiveKarmaAttack(enemy, now) {
+    const timestamp = Number.isFinite(now) ? now : Date.now();
+    const state = ensurePassiveSpecializationState(), karma = state.karma;
+    if (!findAllocatedPassiveKeystone('카르마') || !isPassiveKarmaTarget(enemy)) {
+        if (!findAllocatedPassiveKeystone('카르마')) karma.buff = null;
+        return { targetId: '', multiplier: 1, morePct: 0 };
+    }
+    const targetId = String(enemy.id), stored = Math.max(0, Math.floor(karma.byEnemy[targetId] || 0));
+    if (stored > 0) {
+        karma.buff = { targetId, morePct: Math.floor(stored / 5), expiresAt: timestamp + 4000, actionsLeft: 5 };
+        delete karma.byEnemy[targetId];
+    }
+    let buff = karma.buff;
+    if (!buff || buff.targetId !== targetId || buff.expiresAt <= timestamp || buff.actionsLeft <= 0) {
+        if (buff && (buff.expiresAt <= timestamp || buff.actionsLeft <= 0)) karma.buff = null;
+        return { targetId, multiplier: 1, morePct: 0 };
+    }
+    const result = { targetId, multiplier: 1 + buff.morePct / 100, morePct: buff.morePct };
+    buff.actionsLeft -= 1;
+    if (buff.actionsLeft <= 0) karma.buff = null;
+    return result;
+}
+
+function getPassiveAshuraAilmentChance(baseChance, cycle) {
+    const base = Math.max(0, Number(baseChance) || 0), cycleChance = Math.max(0, Number(cycle) || 0) / 100;
+    return Math.min(1, base + cycleChance);
+}
+
+function getPassiveAshuraDamageMultiplier(element, ailments, cycle) {
+    const ailmentType = PASSIVE_AILMENT_BY_ELEMENT[element];
+    const active = (Array.isArray(ailments) ? ailments : []).find(ailment => ailment
+        && ailment.type === ailmentType && Number(ailment.time) > 0);
+    if (!active) return 1;
+    const remainingSeconds = Math.max(0, Number(active.time) || 0);
+    const lessPct = Math.min(50, Math.max(0, Number(cycle) || 0) * remainingSeconds / 10);
+    return 1 - lessPct / 100;
+}
+
+function applyPassiveAshuraDamageBreakdown(breakdown, ailments, cycle) {
+    return (Array.isArray(breakdown) ? breakdown : []).map(row => ({
+        ele: row.ele,
+        amount: Math.max(0, Math.floor((Number(row.amount) || 0)
+            * getPassiveAshuraDamageMultiplier(row.ele, ailments, cycle)))
+    })).filter(row => row.amount > 0);
+}
+
+function sumPassiveRuleStat(buckets, stat) {
+    return Object.values(buckets).reduce((sum, bucket) => sum + Number(bucket && bucket[stat] || 0), 0);
+}
+
+function countCovenantAttributeConnections(keystone) {
+    if (!keystone) return 0;
+    const neighborIds = getPassiveTreeAdjacency().get(String(keystone.id)) || [];
+    const owned = new Set(game.passives || []);
+    return neighborIds.filter(id => {
+        const node = PASSIVE_TREE.nodes[id];
+        return owned.has(id) && (node.effects || []).some(effect => ['strength', 'dexterity', 'intelligence'].includes(effect.stat));
+    }).length;
+}
+
+function zeroPassiveRuleStats(buckets, statIds) {
+    Object.values(buckets).forEach(bucket => statIds.forEach(statId => { bucket[statId] = 0; }));
+}
+
+function convertPassiveRuleStat(buckets, sourceStat, targetStat) {
+    Object.values(buckets).forEach(bucket => {
+        bucket[targetStat] += Number(bucket[sourceStat]) || 0;
+        bucket[sourceStat] = 0;
+    });
+}
+
+function applyPassiveDefenseKeystoneRules(buckets) {
+    const passive = buckets.passive;
+    if (findAllocatedPassiveKeystone('대리 성약')) {
+        passive.summonGuardRedirectPct += 50;
+        zeroPassiveRuleStats(buckets, ['blockChance', 'blockChancePct', 'baseBlockChance', 'deflectChance']);
+    }
+    if (findAllocatedPassiveKeystone('완전 회피')) {
+        zeroPassiveRuleStats(buckets, ['armor', 'armorPct', 'blockChance', 'blockChancePct', 'baseBlockChance']);
+    }
+    if (findAllocatedPassiveKeystone('움직이는 성벽')) {
+        convertPassiveRuleStat(buckets, 'evasion', 'armor');
+        convertPassiveRuleStat(buckets, 'evasionPct', 'armorPct');
+        zeroPassiveRuleStats(buckets, ['deflectChance']);
+        passive.blockChanceMax += 5;
+        passive.move -= 10;
+    }
+}
+
+function applyPassiveRecoveryKeystoneRules(buckets) {
+    const passive = buckets.passive;
+    if (findAllocatedPassiveKeystone('혼의 성소')) {
+        const regen = sumPassiveRuleStat(buckets, 'regen');
+        zeroPassiveRuleStats(buckets, ['regen', 'regenFlat']);
+        passive.energyShieldRegen += regen;
+    }
+    if (findAllocatedPassiveKeystone('피의 가속')) {
+        zeroPassiveRuleStats(buckets, ['regen', 'regenFlat']);
+        passive.leechKeepFullLife += 1;
+    }
+}
+
+function applyPassiveKeystoneBucketRules(buckets) {
+    const passive = buckets.passive;
+    if (findAllocatedPassiveKeystone('육신과 정신의 성약')) {
+        passive.devotion += Math.floor(Math.max(0, passive.strength) / 10) + Math.floor(Math.max(0, passive.intelligence) / 10);
+        passive.strength = 0;
+        passive.intelligence = 0;
+    }
+    const covenant = findAllocatedPassiveKeystone('헌신의 서약');
+    if (covenant) passive.devotion += countCovenantAttributeConnections(covenant);
+    if (findAllocatedPassiveKeystone('관통 행렬')) passive.targetProjectile += 2;
+    if (findAllocatedPassiveKeystone('남겨진 잠식')) passive.chaosErosionCap += 20;
+    if (findAllocatedPassiveKeystone('야만')) {
+        Object.values(buckets).forEach(bucket => {
+            bucket.strength += Math.max(0, bucket.dexterity) + Math.max(0, bucket.intelligence);
+            bucket.dexterity = 0;
+            bucket.intelligence = 0;
+        });
+        passive.flatDmg += Math.max(1, Math.floor(game.level || 1)) * 5 + Math.floor(sumPassiveRuleStat(buckets, 'strength') / 10);
+    }
+    if (findAllocatedPassiveKeystone('순환의 원석')) {
+        const strength = sumPassiveRuleStat(buckets, 'strength');
+        passive.cycle += Math.floor(strength / 30);
+        passive.armorPct += Math.floor(Math.max(0, sumPassiveRuleStat(buckets, 'cycle')) / 5) * 5;
+    }
+    applyPassiveDefenseKeystoneRules(buckets);
+    applyPassiveRecoveryKeystoneRules(buckets);
+}
+
+function getPassiveKeystoneCombatFlags(skillTags) {
+    const tags = new Set(Array.isArray(skillTags) ? skillTags : []);
+    return {
+        farshot: tags.has('projectile') && !!findAllocatedPassiveKeystone('최후방 사격'),
+        duel: tags.has('melee') && !!findAllocatedPassiveKeystone('결투의 규율'),
+        channelPath: !!findAllocatedPassiveKeystone('몰아의 통로'),
+        erosionLegacy: !!findAllocatedPassiveKeystone('남겨진 잠식'),
+        proxyCovenant: !!findAllocatedPassiveKeystone('대리 성약'),
+        maximumRoll: tags.has('attack') && !!findAllocatedPassiveKeystone('한 번의 중량'),
+        fullEvasion: !!findAllocatedPassiveKeystone('완전 회피'),
+        projectileFormation: tags.has('projectile') && !!findAllocatedPassiveKeystone('관통 행렬'),
+        explosiveDistill: tags.has('potion') && !!findAllocatedPassiveKeystone('폭발성 증류'),
+        soulSanctuary: !!findAllocatedPassiveKeystone('혼의 성소'),
+        movingWall: !!findAllocatedPassiveKeystone('움직이는 성벽'),
+        bloodAcceleration: !!findAllocatedPassiveKeystone('피의 가속'),
+        openingHunt: !!findAllocatedPassiveKeystone('선제 사냥'),
+        taintedWarhead: tags.has('projectile') && !!findAllocatedPassiveKeystone('오염된 탄두'),
+        blackDistill: !!findAllocatedPassiveKeystone('검은 증류'),
+        singleMystique: !!findAllocatedPassiveKeystone('단일 해석'),
+        soleMinion: !!findAllocatedPassiveKeystone('단 하나의 사역'),
+        flaskOverdose: !!findAllocatedPassiveKeystone('과잉 투여')
+    };
+}
+
+function applyPassiveConditionalAilmentRules(passive, flags) {
+    if (flags.explosiveDistill) {
+        ['igniteChance', 'chillChance', 'freezeChance', 'shockChance', 'poisonChance', 'bleedChance']
+            .forEach(statId => { passive[statId] += 25; });
+    }
+    if (flags.taintedWarhead) {
+        passive.igniteChance += 20;
+        passive.poisonChance += 20;
+        passive.bleedChance += 20;
+    }
+    if (flags.blackDistill) passive.poisonChance += 20;
+}
+
+function applyAuthoredPassiveStatRules(options) {
+    const buckets = options.buckets, passive = buckets.passive, reward = buckets.reward;
+    applyPassiveKeystoneBucketRules(buckets);
+    const flags = getPassiveKeystoneCombatFlags(options.skillTags);
+    applyPassiveConditionalAilmentRules(passive, flags);
+    const activeCycleBuffEffects = getActivePassiveCycleBuffEffects(options.now);
+    activeCycleBuffEffects.forEach(effect => addStatToBucket(reward, effect.stat, effect.val));
+    const damageByElement = {
+        phys: sumPassiveRuleStat(buckets, 'physPctDmg'), fire: sumPassiveRuleStat(buckets, 'firePctDmg'),
+        cold: sumPassiveRuleStat(buckets, 'coldPctDmg'), light: sumPassiveRuleStat(buckets, 'lightPctDmg'),
+        chaos: sumPassiveRuleStat(buckets, 'chaosPctDmg')
+    };
+    if (damageByElement[options.skillElement] !== undefined) damageByElement[options.skillElement] += 0.01;
+    const mystique = getMystiqueAffinity(passive.mystique, damageByElement);
+    if (flags.singleMystique) {
+        mystique.damagePct *= 2;
+        mystique.potencyPct *= 2;
+        mystique.chancePct *= 2;
+    }
+    addStatToBucket(passive, `${mystique.ailment}Chance`, mystique.chancePct);
+    const state = ensurePassiveSpecializationState(), corrupted = !!findAllocatedPassiveKeystone('타락한 복음');
+    const triple = !corrupted && !!findAllocatedPassiveKeystone('삼중 계시');
+    const devotion = Math.max(0, sumPassiveRuleStat(buckets, 'devotion'));
+    const cycle = Math.max(0, sumPassiveRuleStat(buckets, 'cycle'));
+    const revelation = corrupted ? 'fanaticism' : (triple ? 'triple' : state.revelation);
+    if (revelation === 'life') {
+        passive.pctHp += devotion * 0.5;
+        passive.energyShieldPct += devotion * 0.5;
+        passive.regen += devotion * 0.5;
+    }
+    if (triple) {
+        passive.pctHp += devotion * 0.2;
+        passive.energyShieldPct += devotion * 0.2;
+        passive.regen += devotion * 0.2;
+    }
+    const wisdomElement = state.keystoneChoices.wisdom_leap_element;
+    return { mystique, devotion, cycle, revelation, wisdomElement,
+        revelationLabel: triple ? '삼중 계시' : (PASSIVE_REVELATION_LABELS[revelation] || '계시'),
+        combatDamageMorePct: revelation === 'combat' ? devotion : (triple ? devotion * 0.4 : 0),
+        guardTakenLessPct: revelation === 'guard' ? Math.min(50, Math.floor(devotion / 5)) : (triple ? Math.min(20, Math.floor(devotion / 5) * 0.4) : 0),
+        lifeBonusPct: revelation === 'life' ? devotion * 0.5 : (triple ? devotion * 0.2 : 0),
+        cycleAddedFireFromPhysicalPct: findAllocatedPassiveKeystone('순환의 원석') ? cycle * 3 : 0,
+        fanaticismStacks: corrupted ? Math.min(devotion, Math.max(0, state.fanaticism.stacks)) : 0,
+        activeCycleBuffEffects, flags };
+}
+
 function bootstrapPassiveTreeOnceReady() {
+    if (hasAuthoredPassiveTreeSource()) {
+        loadAuthoredPassiveTree();
+        return true;
+    }
     generateOrganicTree();
     applyPassiveSpecializations();
     assignStarWedgeSockets();
@@ -1845,7 +2422,10 @@ bootstrapPassiveTreeOnceReady();
 
 function isPassiveNodeAvailable(nodeOrId) {
     let node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
-    return !!node && (!node.requiresEvolution || !!(game && game.passiveStarEvolution));
+    if (!node || (node.requiresEvolution && !(game && game.passiveStarEvolution))) return false;
+    if (node.kind === 'star_option' && !node.starWedgeOptionActive) return false;
+    if (node.hiddenByKeystoneId && !(game && (game.passives || []).includes(node.hiddenByKeystoneId))) return false;
+    return true;
 }
 
 function getPassiveApexNodeIds() {
@@ -1854,17 +2434,38 @@ function getPassiveApexNodeIds() {
         .map(node => node.id);
 }
 
+function getPassiveConstellationAwakeningProgress() {
+    const outerHubs = Object.values(PASSIVE_TREE.nodes || {})
+        .filter(node => node.kind === 'hub' && node.starWedgeMode === 'constellation');
+    if (outerHubs.length === 0) {
+        const apexIds = getPassiveApexNodeIds(), owned = new Set(game && game.passives || []);
+        return { mode: 'legacy_apex', required: apexIds.length,
+            completed: apexIds.filter(id => owned.has(id)).length, socketed: 0 };
+    }
+    const allocated = new Set(game && game.passives || []);
+    const sockets = new Set(((game && game.starWedge && game.starWedge.sockets) || [])
+        .map(entry => String(entry && entry.nodeId || '')));
+    const completedHubs = new Set(Object.values(PASSIVE_TREE.nodes || {})
+        .filter(node => node.kind === 'star_option' && allocated.has(node.id))
+        .map(node => String(node.requiresStarWedgeSocketNodeId || '')));
+    return { mode: 'outer_constellation', required: outerHubs.length,
+        completed: outerHubs.filter(node => completedHubs.has(String(node.id))).length,
+        socketed: outerHubs.filter(node => sockets.has(String(node.id))).length };
+}
+
 function unlockPassiveStarEvolution(options) {
     options = options || {};
     if (!game || game.passiveStarEvolution) return false;
-    let apexIds = getPassiveApexNodeIds();
-    if (apexIds.length === 0) return false;
-    let owned = new Set(game.passives || []);
-    if (!apexIds.every(id => owned.has(id))) return false;
+    const progress = getPassiveConstellationAwakeningProgress();
+    if (progress.required <= 0 || progress.completed < progress.required) return false;
 
     game.passiveStarEvolution = true;
+    game.passiveStarEvolutionSource = progress.mode;
     unlockJournalEntry('passive_star_evolution');
-    apexIds.forEach(id => revealAroundNode(id, {
+    const revealIds = progress.mode === 'outer_constellation'
+        ? Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'hub' && node.starWedgeMode === 'constellation').map(node => node.id)
+        : getPassiveApexNodeIds();
+    revealIds.forEach(id => revealAroundNode(id, {
         forcePulse: !options.silent,
         noBurst: !!options.silent,
         radius: PASSIVE_DISCOVERY_RADIUS + 240,
@@ -1876,8 +2477,10 @@ function unlockPassiveStarEvolution(options) {
         addLog('✨ 별의 공명이 일어납니다.', 'loot-rare');
         queueTutorialNotice(
             'passive_star_evolution',
-            '성좌 진화',
-            '별끝 특수 노드 5개를 모두 활성화 했습니다.\n외곽 노드가 확장되며 훨씬 강한 패시브가 드러납니다.\n동시에 별의 공명 효과로 피해, 생명력, 이동 속도가 추가로 상승합니다.',
+            '성좌 각성',
+            progress.mode === 'outer_constellation'
+                ? '여섯 외곽 성률의 별자리에서 패시브를 하나 이상 받아들였습니다.\n성좌 각성은 영구 유지되며 별의 공명으로 피해, 생명력, 이동 속도가 상승합니다.'
+                : '별끝 특수 노드를 모두 활성화했습니다.\n성좌 각성은 영구 유지되며 별의 공명으로 피해, 생명력, 이동 속도가 상승합니다.',
             'tab-char'
         );
     }
@@ -2154,10 +2757,17 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
 
 function isStarWedgeNodeMutable(node) {
     if (!node) return false;
-    if (node.id === 'n0') return false;
+    if (node.intentionalNoEffect) return false;
+    if (node.activationRequirement) return false;
+    if (node.id === getPassiveTreeRootNodeId()) return false;
     if (node.socketType === 'star_wedge') return false;
-    if (['apex', 'evolved', 'transcendent', 'core', 'hub', 'keystone', 'void'].includes(node.kind)) return false;
+    if (['apex', 'evolved', 'transcendent', 'core', 'hub', 'keystone', 'void', 'star_option'].includes(node.kind)) return false;
     return true;
+}
+
+function getStarWedgeRadiusTier(distance) {
+    const tiers = Array.isArray(STAR_WEDGE_RADIUS_TIERS) ? STAR_WEDGE_RADIUS_TIERS : [];
+    return tiers.findIndex(radius => distance <= radius);
 }
 
 
@@ -2188,10 +2798,12 @@ function assignStarWedgeSockets() {
     let unlocked = !!st.unlocked;
     let hubs = Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'hub');
     hubs.forEach(node => {
-        node.title = '별쐐기 슬롯';
-        node.desc = unlocked
-            ? '별쐐기를 장착할 수 있는 슬롯입니다. 장착 시 주변 노드(1~3경로)와 슬롯 자신을 변성시킬 수 있습니다.'
-            : '별쐐기 해금 후 별쐐기를 장착할 수 있는 슬롯입니다.';
+        if (!node.starWedgeMode) node.title = '별쐐기 슬롯';
+        if (!node.starWedgeMode) {
+            node.desc = unlocked
+                ? '별쐐기를 장착할 수 있는 슬롯입니다. 장착 시 원형 반경 1~3단계의 노드와 슬롯 자신을 변성시킬 수 있습니다.'
+                : '별쐐기 해금 후 별쐐기를 장착할 수 있는 슬롯입니다.';
+        }
         node.socketType = unlocked ? 'star_wedge' : null;
     });
     let hubIdSet = new Set(hubs.map(node => String(node.id)));
@@ -2323,6 +2935,28 @@ function getStarWedgeById(wedgeId) {
     return (st.wedges || []).find(w => w.id === normalizedWedgeId) || null;
 }
 
+function refreshStarWedgeConstellationNodes(st, wedgeMap) {
+    const socketByNode = new Map((st.sockets || []).map(socket => [String(socket.nodeId), wedgeMap.get(socket.wedgeId)]));
+    const inactiveOwned = new Set();
+    Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'star_option').forEach(node => {
+        const wedge = socketByNode.get(String(node.requiresStarWedgeSocketNodeId));
+        const line = wedge && Array.isArray(wedge.lines) ? wedge.lines[node.starWedgeLineIndex] : null;
+        const active = !!(line && line.stat && !line.disabled);
+        node.starWedgeOptionActive = active;
+        node.effects = active ? [{ stat: line.stat, val: Number(line.val) || 0 }] : [];
+        node.stat = active ? line.stat : null;
+        node.val = active ? Number(line.val) || 0 : 0;
+        node.title = active ? `성률 · ${getStatName(line.stat)}` : '미장착 성률 옵션';
+        node.desc = active ? `${getStatName(line.stat)} +${formatValue(line.stat, node.val)}${P_STATS[line.stat] && P_STATS[line.stat].isPct ? '%' : ''}`
+            : '외곽 성률에 별쐐기를 장착하면 이 패시브가 나타납니다.';
+        if (!active && (game.passives || []).includes(node.id)) inactiveOwned.add(node.id);
+    });
+    if (inactiveOwned.size === 0) return 0;
+    game.passives = (game.passives || []).filter(id => !inactiveOwned.has(id));
+    game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + inactiveOwned.size;
+    return inactiveOwned.size;
+}
+
 function recalculateStarWedgeMutations(force) {
     let st = ensureStarWedgeState();
     let wedgeMap = new Map((st.wedges || []).map(wedge => [wedge.id, wedge]));
@@ -2343,22 +2977,15 @@ function recalculateStarWedgeMutations(force) {
     st.disabledNodeEffects = {};
     st.disabledNodeEffectSources = {};
     st.mutationConflictSources = {};
+    st.constellationRefunded = refreshStarWedgeConstellationNodes(st, wedgeMap);
     let conflictNodes = new Set();
     const allNodes = Object.values(PASSIVE_TREE.nodes || {}).filter(Boolean);
     const radialNodes = allNodes.filter(n => Number.isFinite(Number(n.x)) && Number.isFinite(Number(n.y)));
-    const adjacency = new Map();
-    allNodes.forEach(node => adjacency.set(String(node.id), []));
-    (PASSIVE_TREE.edges || []).forEach(edge => {
-        let from = String(edge.from), to = String(edge.to);
-        if (!adjacency.has(from)) adjacency.set(from, []);
-        if (!adjacency.has(to)) adjacency.set(to, []);
-        adjacency.get(from).push(to);
-        adjacency.get(to).push(from);
-    });
     (st.sockets || []).forEach(socket => {
         let wedge = wedgeMap.get(socket.wedgeId);
         let center = PASSIVE_TREE.nodes[socket.nodeId];
         if (!wedge || !center) return;
+        if (center.starWedgeMode === 'constellation') return;
         const centerX = Number(center.x || 0), centerY = Number(center.y || 0);
         const radialDist = (n) => Math.hypot(Number(n.x||0)-centerX, Number(n.y||0)-centerY);
 
@@ -2400,30 +3027,22 @@ function recalculateStarWedgeMutations(force) {
             return;
         }
 
-        let queue = [{ id: center.id, dist: 0 }];
-        let seen = new Set([center.id]);
-        while (queue.length) {
-            let cur = queue.shift();
-            (adjacency.get(String(cur.id)) || []).forEach(next => {
-                if (!next || seen.has(next)) return;
-                let nextDist = cur.dist + 1;
-                if (nextDist > STAR_WEDGE_RADIUS) return;
-                seen.add(next);
-                queue.push({ id: next, dist: nextDist });
-                let line = wedge.lines[nextDist - 1];
-                let node = PASSIVE_TREE.nodes[next];
-                if (!line || !isStarWedgeNodeMutable(node)) return;
-                injectMutation(st, conflictNodes, next, {
-                    wedgeId: wedge.id,
-                    socketNodeId: center.id,
-                    lineIndex: nextDist - 1,
-                    originalStat: node.stat,
-                    originalVal: node.val,
-                    currentStat: line.stat,
-                    currentVal: line.val
-                });
+        radialNodes.forEach(node => {
+            if (String(node.id) === String(center.id) || !isStarWedgeNodeMutable(node)) return;
+            const lineIndex = getStarWedgeRadiusTier(radialDist(node));
+            if (lineIndex < 0) return;
+            const line = wedge.lines[lineIndex];
+            if (!line || !line.stat || line.disabled) return;
+            injectMutation(st, conflictNodes, node.id, {
+                wedgeId: wedge.id,
+                socketNodeId: center.id,
+                lineIndex,
+                originalStat: node.stat,
+                originalVal: node.val,
+                currentStat: line.stat,
+                currentVal: line.val
             });
-        }
+        });
         let coreLine = Array.isArray(wedge.lines) ? wedge.lines[3] : null;
         if (coreLine && coreLine.stat) {
             injectMutation(st, conflictNodes, center.id, {
@@ -2454,6 +3073,8 @@ function isPassiveNodeEffectDisabled(nodeId) {
 function getPassiveConnectionNodeIds() {
     recalculateStarWedgeMutations();
     let result = new Set((game && Array.isArray(game.passives) ? game.passives : []).filter(id => isPassiveNodeAvailable(id)).map(String));
+    const rootId = getPassiveTreeRootNodeId();
+    if (isPassiveNodeAvailable(rootId)) result.add(rootId);
     Object.keys((game.starWedge && game.starWedge.virtualLearnNodes) || {}).forEach(id => {
         if (isPassiveNodeAvailable(id)) result.add(String(id));
     });
@@ -3390,27 +4011,26 @@ function beginStarWedgeSocketSelection(wedgeId) {
  */
 function getPassiveActivationPath(targetNodeId) {
     if (!game || !targetNodeId || !isPassiveNodeAvailable(targetNodeId)) return [];
+    const targetNode = PASSIVE_TREE.nodes[targetNodeId];
+    if (targetNode && targetNode.kind === 'start') return [];
+    if (targetNode && targetNode.kind === 'star_option') {
+        return (game.passives || []).includes(targetNodeId) ? [] : [targetNodeId];
+    }
     let owned = new Set((game.passives || []).filter(id => isPassiveNodeAvailable(id)));
     let connectionNodes = getPassiveConnectionNodeIds();
     if (connectionNodes.has(String(targetNodeId))) return [];
-    // BFS는 n0에서부터 시작해야 하지만(트리의 유일한 진입점), n0을 아직 실제로 소유하지
-    // 않았다면 그 1포인트 비용도 경로에 포함되어야 한다. 그래서 "탐색 시작점"과 "이미 소유해
-    // 비용이 없는 경계(owned)"를 분리한다 — n0을 owned에 넣지 않고 시작 노드로만 쓴다.
-    // (owned에 넣으면 n1~타깃까지는 정상 과금되지만 n0 자체가 무료로 활성화 없이 건너뛰어져,
-    // 소유하지 않은 n0에 인접한 노드들이 소유된 상태가 되는 트리 정합성 버그가 생긴다.)
-    let startNodes = connectionNodes.size > 0 ? Array.from(connectionNodes) : (isPassiveNodeAvailable('n0') ? ['n0'] : []);
+    let rootId = getPassiveTreeRootNodeId();
+    let startNodes = connectionNodes.size > 0 ? Array.from(connectionNodes) : (isPassiveNodeAvailable(rootId) ? [rootId] : []);
     if (startNodes.length === 0) return [];
 
     let queue = startNodes.slice();
+    let queueIndex = 0;
     let previous = new Map(queue.map(id => [id, null]));
-    let passiveEdges = Array.isArray(PASSIVE_TREE.edges) ? PASSIVE_TREE.edges : [];
-    while (queue.length > 0 && !previous.has(targetNodeId)) {
-        let current = queue.shift();
-        passiveEdges.forEach(edge => {
-            let next = null;
-            if (edge.from === current) next = edge.to;
-            else if (edge.to === current) next = edge.from;
-            if (!next || previous.has(next) || !isPassiveNodeAvailable(next)) return;
+    const adjacency = getPassiveTreeAdjacency();
+    while (queueIndex < queue.length && !previous.has(targetNodeId)) {
+        let current = queue[queueIndex++];
+        (adjacency.get(String(current)) || []).forEach(next => {
+            if (previous.has(next) || !isPassiveNodeAvailable(next)) return;
             previous.set(next, current);
             queue.push(next);
         });
@@ -3426,9 +4046,21 @@ function getPassiveActivationPath(targetNodeId) {
     return path.reverse();
 }
 
+function getPassiveKeystoneConflict(path) {
+    const owned = new Set(game.passives || []), pending = new Set(path || []);
+    const corruptId = PASSIVE_KEYSTONE_NODE_ID_BY_TITLE['타락한 복음'];
+    const tripleId = PASSIVE_KEYSTONE_NODE_ID_BY_TITLE['삼중 계시'];
+    if ((owned.has(corruptId) && pending.has(tripleId)) || (owned.has(tripleId) && pending.has(corruptId))) {
+        return '타락한 복음과 삼중 계시는 동시에 할당할 수 없습니다.';
+    }
+    return '';
+}
+
 function activatePassivePath(targetNodeId, options) {
     let path = getPassiveActivationPath(targetNodeId);
     if (path.length === 0) return { activated: false, cost: 0, path: [] };
+    let conflict = getPassiveKeystoneConflict(path);
+    if (conflict) return { activated: false, cost: path.length, path: path.slice(), reason: 'conflict', message: conflict };
     if (Math.max(0, Math.floor(game.passivePoints || 0)) < path.length) {
         return { activated: false, cost: path.length, path: path.slice(), reason: 'points' };
     }
@@ -3448,11 +4080,32 @@ function activatePassivePath(targetNodeId, options) {
 
 const PASSIVE_TREE_PRESET_SLOTS = 3;
 
+function getCurrentPassiveNodeId(rawId) {
+    if (typeof rawId !== 'string') return rawId;
+    if (typeof PASSIVE_NODE_ID_MIGRATIONS !== 'object') return rawId;
+    return PASSIVE_NODE_ID_MIGRATIONS[rawId] || rawId;
+}
+
+function migratePassiveNodeIdList(rawIds) {
+    let ids = Array.isArray(rawIds) ? rawIds : [];
+    return Array.from(new Set(ids.map(getCurrentPassiveNodeId)));
+}
+
+function migratePassiveNodeIdRecord(rawRecord) {
+    if (!rawRecord || typeof rawRecord !== 'object' || Array.isArray(rawRecord)) return {};
+    let migrated = {};
+    Object.entries(rawRecord).forEach(([rawId, value]) => {
+        let id = getCurrentPassiveNodeId(rawId);
+        if (id === rawId || !Object.prototype.hasOwnProperty.call(migrated, id)) migrated[id] = value;
+    });
+    return migrated;
+}
+
 function normalizePassiveTreePreset(raw, slotIndex) {
     if (!raw || typeof raw !== 'object') return null;
-    let nodeIds = Array.from(new Set((Array.isArray(raw.nodeIds) ? raw.nodeIds : [])
-        .filter(id => typeof id === 'string' && id !== 'n0' && PASSIVE_TREE.nodes[id])));
-    let choices = raw.attributeChoices && typeof raw.attributeChoices === 'object' ? raw.attributeChoices : {};
+    let nodeIds = migratePassiveNodeIdList(raw.nodeIds)
+        .filter(id => typeof id === 'string' && PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind !== 'start');
+    let choices = migratePassiveNodeIdRecord(raw.attributeChoices);
     let attributeChoices = {};
     nodeIds.forEach(id => {
         if (PASSIVE_TREE.nodes[id].kind !== 'attribute') return;
@@ -3483,7 +4136,7 @@ function ensurePassiveTreePlannerState() {
 function saveCurrentPassiveTreePreset(slotIndex, name) {
     let planner = ensurePassiveTreePlannerState();
     let slot = Math.max(0, Math.min(PASSIVE_TREE_PRESET_SLOTS - 1, Math.floor(Number(slotIndex) || 0)));
-    let nodeIds = (game.passives || []).filter(id => id !== 'n0' && PASSIVE_TREE.nodes[id]);
+    let nodeIds = (game.passives || []).filter(id => PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind !== 'start');
     let attributeChoices = {};
     nodeIds.forEach(id => {
         let stat = (game.passiveAttributeChoices || {})[id];
@@ -3571,20 +4224,33 @@ function runPassiveTreeAutoInvest() {
 }
 
 safeExposeGlobals({
+    getCurrentPassiveNodeId, migratePassiveNodeIdList, migratePassiveNodeIdRecord,
     normalizePassiveTreePlannerState, ensurePassiveTreePlannerState, saveCurrentPassiveTreePreset,
     setActivePassiveTreePreset, setPassiveTreeAutoInvest, encodePassiveTreePreset,
-    importPassiveTreePreset, runPassiveTreeAutoInvest
+    importPassiveTreePreset, runPassiveTreeAutoInvest, getPassiveTreeRootNodeId, getPassiveTreeRootNode,
+    rebasePassiveTreeForClassChange, normalizePassiveSpecializationState, ensurePassiveSpecializationState,
+    getPassiveTreeAdjacency, isPassiveTreeEdgeAvailable, getAllocatedPassiveStatValue, setPassiveRevelation,
+    setPassiveKeystoneChoice, hasAuthoredPassiveKeystone, findAllocatedPassiveKeystone,
+    getMystiqueAffinity, recordPassiveCycleAilmentStart, recordPassiveCycleAilmentEnd, getActivePassiveCycleBuffEffects,
+    recordPassiveFanaticSkillUse, recordPassiveKarmaLoss, beginPassiveKarmaAttack,
+    getPassiveAshuraAilmentChance, getPassiveAshuraDamageMultiplier, applyPassiveAshuraDamageBreakdown,
+    applyAuthoredPassiveStatRules, getPassiveConstellationAwakeningProgress, unlockPassiveStarEvolution
 });
 
 function calculateReachableNodes() {
     reachableNodes.clear();
-    if (isPassiveNodeAvailable('n0')) reachableNodes.add('n0');
+    const rootId = getPassiveTreeRootNodeId();
+    if (isPassiveNodeAvailable(rootId)) reachableNodes.add(rootId);
     if (!game) return;
     let connectionNodes = getPassiveConnectionNodeIds();
     connectionNodes.forEach(id => {
         if (isPassiveNodeAvailable(id)) reachableNodes.add(id);
     });
+    Object.values(PASSIVE_TREE.nodes || {}).forEach(node => {
+        if (node && node.kind === 'star_option' && isPassiveNodeAvailable(node)) reachableNodes.add(node.id);
+    });
     PASSIVE_TREE.edges.forEach(edge => {
+        if (!isPassiveTreeEdgeAvailable(edge)) return;
         if (!isPassiveNodeAvailable(edge.from) || !isPassiveNodeAvailable(edge.to)) return;
         if (connectionNodes.has(String(edge.from))) reachableNodes.add(edge.to);
         if (connectionNodes.has(String(edge.to))) reachableNodes.add(edge.from);
@@ -3598,16 +4264,13 @@ function getPassiveLinkedNodeIds(nodeId, maxDepth) {
     if (!isPassiveNodeAvailable(rootId)) return [];
     let visited = new Set([rootId]);
     let frontier = [rootId];
+    const adjacency = getPassiveTreeAdjacency();
     let depthLimit = Math.max(0, maxDepth || 0);
     for (let depth = 0; depth < depthLimit; depth++) {
         let nextFrontier = [];
         frontier.forEach(current => {
-            PASSIVE_TREE.edges.forEach(edge => {
-                let next = null;
-                if (edge.from === current) next = edge.to;
-                else if (edge.to === current) next = edge.from;
-                if (!isPassiveNodeAvailable(next)) return;
-                if (!next || visited.has(next)) return;
+            (adjacency.get(String(current)) || []).forEach(next => {
+                if (visited.has(next) || !isPassiveNodeAvailable(next)) return;
                 visited.add(next);
                 nextFrontier.push(next);
             });
@@ -3622,40 +4285,15 @@ function getPassiveLinkedNodeIds(nodeId, maxDepth) {
 function isPassiveLocalReveal(origin, node, radius, maxDepthGap) {
     if (!origin || !node || origin.id === node.id) return false;
     if (Math.hypot(node.x - origin.x, node.y - origin.y) > radius) return false;
-    if (origin.id === 'n0') return (node.depth || 0) <= 1;
+    if (origin.id === getPassiveTreeRootNodeId()) return (node.depth || 0) <= 1;
     if (!origin.sector || !node.sector || origin.sector !== node.sector) return false;
     return Math.abs((origin.depth || 0) - (node.depth || 0)) <= maxDepthGap;
 }
 
 function refreshPassiveVisibility() {
-    if (!game) {
-        discoveredPassiveNodes = new Set(['n0']);
-        previewPassiveNodes = new Set(['n0']);
-        return;
-    }
-    discoveredPassiveNodes = new Set((game.discoveredPassives || []).filter(id => isPassiveNodeAvailable(id)));
-    discoveredPassiveNodes.add('n0');
-    let connectionNodes = getPassiveConnectionNodeIds();
-    connectionNodes.forEach(id => {
-        if (isPassiveNodeAvailable(id)) discoveredPassiveNodes.add(id);
-    });
-    let allNodes = Object.values(PASSIVE_TREE.nodes).filter(node => isPassiveNodeAvailable(node));
-    if ((game.passives || []).includes('n0')) {
-        getPassiveLinkedNodeIds('n0', PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH).forEach(id => discoveredPassiveNodes.add(id));
-    }
-    previewPassiveNodes = new Set(discoveredPassiveNodes);
-    let previewSeeds = Array.from(connectionNodes).filter(id => isPassiveNodeAvailable(id));
-    previewSeeds.forEach(id => {
-        let src = PASSIVE_TREE.nodes[id];
-        if (!src) return;
-        getPassiveLinkedNodeIds(id, PASSIVE_PREVIEW_EDGE_DEPTH).forEach(linkedId => {
-            if (!discoveredPassiveNodes.has(linkedId)) previewPassiveNodes.add(linkedId);
-        });
-        allNodes.forEach(node => {
-            if (discoveredPassiveNodes.has(node.id)) return;
-            if (isPassiveLocalReveal(src, node, PASSIVE_PREVIEW_RADIUS, 1)) previewPassiveNodes.add(node.id);
-        });
-    });
+    const availableNodes = Object.values(PASSIVE_TREE.nodes).filter(isPassiveNodeAvailable);
+    discoveredPassiveNodes = new Set(availableNodes.map(node => node.id));
+    previewPassiveNodes = new Set();
     // visibility 집합 변경 시 상태 캐시 갱신
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
 }
@@ -3665,10 +4303,11 @@ function revealAroundNode(nodeId, options) {
     let origin = PASSIVE_TREE.nodes[nodeId];
     if (!origin || !isPassiveNodeAvailable(origin)) return;
     let radius = options.radius || PASSIVE_DISCOVERY_RADIUS;
-    let edgeDepth = options.edgeDepth !== undefined ? options.edgeDepth : (nodeId === 'n0' ? PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH : PASSIVE_DISCOVERY_EDGE_DEPTH);
+    const rootId = getPassiveTreeRootNodeId();
+    let edgeDepth = options.edgeDepth !== undefined ? options.edgeDepth : (nodeId === rootId ? PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH : PASSIVE_DISCOVERY_EDGE_DEPTH);
     let newlyDiscovered = [];
     let discoverIds = new Set([nodeId]);
-    if (nodeId === 'n0') {
+    if (nodeId === rootId) {
         getPassiveLinkedNodeIds(nodeId, edgeDepth).forEach(id => discoverIds.add(id));
         Object.values(PASSIVE_TREE.nodes).forEach(node => {
             if (!isPassiveNodeAvailable(node)) return;
@@ -3872,9 +4511,9 @@ function getClassTreeDef(clsKey) {
         tree.n11 = { stat: cores[0].stat, val: cores[0].val, req: 'n10', exclusive: 'n12' };
         tree.n12 = { stat: cores[1].stat, val: cores[1].val, req: 'n10', exclusive: 'n11' };
     }
-    // 5차 재능 개화 노드: 이번 루프에 해당 직업으로 재능 개화에 성공하면 열린다(영구 아님, 루프마다 초기화).
-    // 선택한 4차 핵심을 찍으면 진입 가능. 재능특화 2개(n13a/n13b) 중 1개, 전직특화 2개(n13c/n13d) 중 1개를 선택.
-    if (game.bloomedClassThisLoop === clsKey) {
+    // 5차 재능 개화 노드: 이번 루프 최초 개화 때 확정한 재능×전직 조합으로 열린다.
+    // 이후 활성 재능을 자유롭게 바꾸거나 다른 카드를 개화해도 이미 열린 노드의 효과는 변하지 않는다.
+    if (game.bloomedClassThisLoop === clsKey && TALENT_BLOOM_SPECIALIZATION_DEFS[game.bloomedTalentThisLoop]) {
         const jobByClass = {
             warrior: [{ stat: 'aspd', val: 16 }, { stat: 'dr', val: 12 }],
             gladiator: [{ stat: 'critDmg', val: 55 }, { stat: 'evasionPct', val: 18 }],
@@ -3890,8 +4529,9 @@ function getClassTreeDef(clsKey) {
             crusader: [{ stat: 'lightPctDmg', val: 50 }, { stat: 'armorPct', val: 20 }]
         };
         let jobs = jobByClass[clsKey] || [{ stat: 'pctDmg', val: 40 }, { stat: 'pctHp', val: 20 }];
-        tree.n13a = { stat: 'pctDmg', val: 35, req: ['n11', 'n12'], exclusive: 'n13b' };
-        tree.n13b = { stat: 'pctHp', val: 35, req: ['n11', 'n12'], exclusive: 'n13a' };
+        let talents = TALENT_BLOOM_SPECIALIZATION_DEFS[game.bloomedTalentThisLoop];
+        tree.n13a = { stat: talents[0].stat, val: talents[0].val, req: ['n11', 'n12'], exclusive: 'n13b' };
+        tree.n13b = { stat: talents[1].stat, val: talents[1].val, req: ['n11', 'n12'], exclusive: 'n13a' };
         tree.n13c = { stat: jobs[0].stat, val: jobs[0].val, req: ['n11', 'n12'], exclusive: 'n13d' };
         tree.n13d = { stat: jobs[1].stat, val: jobs[1].val, req: ['n11', 'n12'], exclusive: 'n13c' };
     }
@@ -3899,6 +4539,7 @@ function getClassTreeDef(clsKey) {
 }
 
 game = JSON.parse(JSON.stringify(defaultGame));
+window.GameState.game = game;
 let pTimer = 0;
 let progressStallTicks = 0;
 let itemIdCounter = 0;
@@ -3922,6 +4563,8 @@ var passiveRenderCache = {
     glowNodes: [],
     activeEdges: [],
     hoverGrid: new Map(),
+    adjacency: new Map(),
+    hoverPath: null,
     cellSize: 180,
     stateSignature: ''
 };
@@ -3947,8 +4590,9 @@ let battleVisualState = {
     processedFxIds: new Set(),
     enemyGhostPos: {},
     playerPos: null,
-    playerAdvanceBlend: 0,
+    playerGridMotion: null,
     playerAttackBlend: 0,
+    playerAttackMotionSeed: 0,
     playerHurtBlend: 0,
     playerDownBlend: 0,
     lastNow: 0,
@@ -3958,12 +4602,8 @@ let battleVisualState = {
     vfxDensity: 1,
     hitStopRemainingMs: 0,
     lastHitStopFxId: 0,
-    advanceDesired: false,
-    advanceChangedAt: 0,
     shrineHitbox: null,
-    shrineHovered: false,
-    hideoutDecorHitboxes: [],
-    hideoutDecorHoveredId: null
+    shrineHovered: false
 };
 const DEBUG_BATTLE_ANCHORS = false;
 const HERO_SPRITE_CONFIG = { cols: 6, rows: 5, drawHeight: 58, anchorX: 0.5, anchorY: 0.92 };
@@ -4046,7 +4686,6 @@ const SKILL_WEAPON_OFFSETS = {
     magic_cast: [{ x: -4, y: 4, rotation: -0.2, scale: 1 }, { x: 2, y: -4, rotation: 0.0, scale: 1.05 }, { x: 8, y: -4, rotation: 0.15, scale: 1.1 }, { x: 4, y: 2, rotation: 0.1, scale: 1 }]
 };
 let crowdPauseActive = false;
-let trialHazardTimer = 0;
 let tutorialQueue = [];
 let activeTutorial = null;
 let activeTutorialStep = 0;
@@ -4097,7 +4736,6 @@ const TAB_UNLOCK_GATES = {
     'tab-talisman': 'talisman',
     'tab-cube': 'cube',
     'tab-map': 'map',
-    'tab-hideout': 'hideout',
     'tab-traits': 'traits',
     'tab-talent': 'talent',
     'tab-expertise': 'expertise'
@@ -4137,12 +4775,26 @@ function clampPassiveCamera() {
 
 // 첫 진입 시 전체 트리(1000개+ 노드, 우주계까지 포함하는 광대한 범위)를
 // 한 화면에 맞추면 배율이 극단적으로 작아져 노드가 사실상 보이지 않는다.
-// 실제로 지금 다룰 수 있는 범위(투자한 노드 + 바로 다음 구매 가능한 노드)만
-// 화면에 맞춰, 열자마자 무엇을 누를 수 있는지 보이게 한다.
+// 실제로 지금 다룰 수 있는 범위(투자한 경로 또는 시작점 주변 군집)만 화면에 맞춰,
+// 열자마자 선택지와 다음 목적지를 함께 읽을 수 있게 한다.
 function getPassiveActiveViewBoundsIds() {
-    let ids = new Set(['n0']);
-    (Array.isArray(game && game.passives) ? game.passives : []).forEach(id => ids.add(id));
+    let ids = new Set([getPassiveTreeRootNodeId()]);
+    const invested = Array.isArray(game && game.passives) ? game.passives : [];
+    invested.forEach(id => ids.add(id));
     reachableNodes.forEach(id => ids.add(id));
+    if (invested.length > 0) return ids;
+    const adjacency = getPassiveTreeAdjacency();
+    const queue = Array.from(ids, id => ({ id, depth: 0 }));
+    let queueIndex = 0;
+    while (queueIndex < queue.length) {
+        const current = queue[queueIndex++];
+        if (current.depth >= 3) continue;
+        (adjacency.get(current.id) || []).forEach(nextId => {
+            if (ids.has(nextId)) return;
+            ids.add(nextId);
+            queue.push({ id: nextId, depth: current.depth + 1 });
+        });
+    }
     return ids;
 }
 
@@ -4161,18 +4813,20 @@ function fitPassiveCameraToBounds(force) {
         minY = Math.min(...viewNodes.map(n => n.y));
         maxY = Math.max(...viewNodes.map(n => n.y));
     } else {
-        minX = maxX = PASSIVE_TREE.nodes.n0.x;
-        minY = maxY = PASSIVE_TREE.nodes.n0.y;
+        const root = getPassiveTreeRootNode() || { x: 0, y: 0 };
+        minX = maxX = root.x;
+        minY = maxY = root.y;
     }
-    const viewPadding = 220;
+    const viewPadding = 120;
     const spanX = Math.max(1, (maxX - minX) + viewPadding * 2);
     const spanY = Math.max(1, (maxY - minY) + viewPadding * 2);
     const defaultZoom = Math.min((width - 64) / spanX, (height - 72) / spanY);
     camZoom = clampNumber(defaultZoom, 0.14, 0.72);
     const boundsCenterX = (minX + maxX) * 0.5;
     const boundsCenterY = (minY + maxY) * 0.5;
+    const toolbarOffsetY = Array.isArray(game && game.passives) && game.passives.length === 0 ? 56 : 0;
     camX = -boundsCenterX * camZoom;
-    camY = -boundsCenterY * camZoom;
+    camY = -boundsCenterY * camZoom + toolbarOffsetY;
     passiveCameraInitialized = true;
 }
 
@@ -4276,7 +4930,7 @@ function addBattleFx(type, data) {
         let requestedDelay = Number(payload.impactDelayMs);
         let delay = Number.isFinite(requestedDelay) ? Math.max(0, requestedDelay) : (payload.projectile ? 260 : 205);
         latestPlayerSwingImpactAt = now + delay;
-        payload = { ...payload, impactAt: latestPlayerSwingImpactAt };
+        payload = { ...payload, impactAt: latestPlayerSwingImpactAt, motionVariantSeed: Math.random() };
     }
     if (type === 'combatTravel' && payload.patternKind === 'field' && payload.skillName === '난타 눈보라') {
         battleFx = battleFx.filter(fx => !(fx && fx.type === type
@@ -4883,8 +5537,7 @@ const TUTORIAL_GUIDES = {
         { title: '다음 루프 준비', body: '현재 루프에서 얻을 수 있는 핵심 보상을 챙긴 뒤 전환하는 것이 좋습니다.', bullets: ['미완료 시련과 보스 확인', '보존 가능한 장비와 자원 정리', '다음 루프 목표 빌드 결정'], tip: '무조건 빠른 루프보다 필요한 영구 보상을 챙기는 편이 유리할 수 있습니다.' }
     ],
     unlock_traits: [
-        { title: '직업전직', body: '시련으로 얻은 포인트를 사용해 캐릭터의 전문 직업과 고유 규칙을 선택하는 시스템입니다.', bullets: ['전직 클래스는 빌드 방향을 크게 바꿉니다.', '일반 전직 노드와 핵심 노드의 포인트가 다릅니다.', '요구 노드를 만족해야 다음 단계가 열립니다.'], tip: '현재 스킬 태그와 전직 핵심 효과가 맞는지 먼저 확인하세요.' },
-        { title: '노드 선택 순서', body: '핵심 효과를 먼저 정하고 그 효과까지 이어지는 필수 경로를 계산합니다.', bullets: ['주력 공격과 맞는 클래스 선택', '생존 보완 노드 확인', '남은 포인트로 보조 효과 확보'], tip: '되돌리기 비용이 있다면 미리 전체 경로를 확인하세요.' }
+        { title: '전직 화면 안내', body: '전직 화면에서는 직업을 선택하고 두 종류의 전직 포인트를 사용할 수 있습니다.', bullets: ['직업 선택: 캐릭터의 전문화 결정', '전직 패시브 포인트: 연결된 전직 노드 활성화', '키스톤 포인트: 빌드 규칙을 바꾸는 키스톤 활성화'], tip: '전직 패시브 포인트와 키스톤 포인트는 서로 다른 자원입니다.' }
     ],
     unlock_expertise: [
         { title: '전문가 시스템', body: '특정 콘텐츠에서 만난 전문가를 성장시켜 제작·수집·전투 보조 기능을 여는 시스템입니다.', bullets: ['전문가마다 경험치를 얻는 콘텐츠가 다릅니다.', '중앙 공용 노드와 전문가 전용 가지가 있습니다.', '해금 효과는 관련 콘텐츠 화면에도 반영됩니다.'], tip: '현재 가장 자주 플레이하는 콘텐츠의 전문가부터 성장시키세요.' },
@@ -4924,19 +5577,19 @@ function buildTutorialBattlePreview(kind) {
     let status = kind === 'growth' ? '방어가 부족합니다' : (kind === 'skills' ? '스킬 범위 확인' : '교전 중 · 3기');
     return `<div class="tutorial-game-preview is-${kind}">
         <div class="tutorial-mini-status"><span>${status}</span><span class="tutorial-mini-hp"><i></i></span></div>
-        <div class="tutorial-mini-field"><div class="tutorial-mini-grid">${grid}</div><div class="tutorial-mini-hero">🏹</div><div class="tutorial-mini-enemy">👹</div><div class="tutorial-mini-target"></div><div class="tutorial-mini-damage">12,480</div></div>
+        <div class="tutorial-mini-field"><div class="tutorial-mini-grid">${grid}</div><div class="tutorial-mini-hero">아군</div><div class="tutorial-mini-enemy">적</div><div class="tutorial-mini-target"></div><div class="tutorial-mini-damage">12,480</div></div>
         <div class="tutorial-mini-skillbar"><span>사용 중</span><i class="tutorial-mini-skill">1</i><i class="tutorial-mini-skill">2</i><i class="tutorial-mini-skill">3</i><span>${kind === 'skills' ? '청록 칸 = 유효 범위' : '자동 공격'}</span></div>
     </div>`;
 }
 
 function getTutorialPanelModel(kind) {
     const models = {
-        passive: { icon: '🌳', tabs: ['캐릭터', '패시브'], rows: ['생명력 가지', '공격 속도 노드', '다음 연결 노드'] },
-        items: { icon: '🛡️', tabs: ['장비 창', '제작실'], rows: ['장착 장비 비교', '아이템 등급과 옵션', '필요 재화 확인'] },
-        'skills-panel': { icon: '💎', tabs: ['공격 젬', '보조 젬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그 · 범위 확인'] },
-        map: { icon: '🗺️', tabs: ['현재 지역', '다음 지역'], rows: ['몬스터 속성', '주요 보상', '보스 위험도'] },
-        class: { icon: '🌸', tabs: ['전직', '재능'], rows: ['빌드 방향 선택', '핵심 노드 경로', '개화 효과 확인'] },
-        system: { icon: '✦', tabs: ['새 콘텐츠', '가이드'], rows: ['해금 조건 확인', '관련 화면 열기', '진행 목표 추적'] }
+        passive: { focus: '패시브', tabs: ['캐릭터', '패시브'], rows: ['생명력 가지', '공격 속도 노드', '다음 연결 노드'] },
+        items: { focus: '장비', tabs: ['장비 창', '제작실'], rows: ['장착 장비 비교', '아이템 등급과 옵션', '필요 재화 확인'] },
+        'skills-panel': { focus: '스킬', tabs: ['공격 젬', '보조 젬'], rows: ['주 공격 스킬', '연결 가능한 보조', '태그 · 범위 확인'] },
+        map: { focus: '지도', tabs: ['현재 지역', '다음 지역'], rows: ['몬스터 속성', '주요 보상', '보스 위험도'] },
+        class: { focus: '전직', tabs: ['전직', '재능'], rows: ['빌드 방향 선택', '핵심 노드 경로', '개화 효과 확인'] },
+        system: { focus: '안내', tabs: ['새 콘텐츠', '가이드'], rows: ['해금 조건 확인', '관련 화면 열기', '진행 목표 추적'] }
     };
     return models[kind] || models.system;
 }
@@ -4945,7 +5598,7 @@ function buildTutorialPanelPreview(kind, stepIndex) {
     let model = getTutorialPanelModel(kind);
     let tabs = model.tabs.map((label, index) => `<span class="${index === Math.min(1, stepIndex) ? 'active' : ''}">${label}</span>`).join('');
     let rows = model.rows.map((label, index) => `<div class="tutorial-panel-row ${index === Math.min(2, stepIndex) ? 'active' : ''}"><span>${label}</span><b>${index === Math.min(2, stepIndex) ? '◀ 지금 확인' : '·'}</b></div>`).join('');
-    return `<div class="tutorial-panel-preview"><div class="tutorial-panel-tabs">${tabs}</div><div class="tutorial-panel-body"><div class="tutorial-panel-focus">${model.icon}</div><div class="tutorial-panel-list">${rows}</div></div></div>`;
+    return `<div class="tutorial-panel-preview"><div class="tutorial-panel-tabs">${tabs}</div><div class="tutorial-panel-body"><div class="tutorial-panel-focus">${model.focus}</div><div class="tutorial-panel-list">${rows}</div></div></div>`;
 }
 
 function renderTutorialVisual() {
@@ -4961,7 +5614,27 @@ function renderTutorialStep() {
     if (!activeTutorial) return;
     document.getElementById('tutorial-kicker').innerText = '새 콘텐츠';
     document.getElementById('tutorial-title').innerText = activeTutorial.title;
-    document.getElementById('tutorial-body').innerHTML = `<p class="tutorial-summary">${escapeTutorialText(activeTutorial.body)}</p>`;
+    let pauseEnabled = game.settings.pauseGameOnOverlay !== false;
+    let pauseControl = activeTutorial.key === 'tutorial_battle_basics' ? `
+        <label class="cfg-toggle tutorial-pause-toggle">
+            <input type="checkbox" id="tutorial-pause-overlay-toggle" ${pauseEnabled ? 'checked' : ''}>
+            <span class="cfg-label"><b>안내 중 전투 일시 정지</b><small>이후 기타 → 설정에서 언제든 변경할 수 있습니다.</small></span>
+            <strong id="tutorial-pause-overlay-status">${pauseEnabled ? '켜짐' : '꺼짐'}</strong>
+        </label>` : '';
+    document.getElementById('tutorial-body').innerHTML = `<p class="tutorial-summary">${escapeTutorialText(activeTutorial.body)}</p>${pauseControl}`;
+    let pauseToggle = document.getElementById('tutorial-pause-overlay-toggle');
+    if (pauseToggle) {
+        pauseToggle.checked = pauseEnabled;
+        pauseToggle.addEventListener('change', () => {
+            let enabled = !!pauseToggle.checked;
+            game.settings.pauseGameOnOverlay = enabled;
+            let settingsToggle = document.getElementById('chk-pause-overlay');
+            let status = document.getElementById('tutorial-pause-overlay-status');
+            if (settingsToggle) settingsToggle.checked = enabled;
+            if (status) status.innerText = enabled ? '켜짐' : '꺼짐';
+            if (typeof queueImportantSave === 'function') queueImportantSave(0);
+        });
+    }
     const hasShortcut = !!activeTutorial.tabId || !!activeTutorial.subtabId;
     const openButton = document.getElementById('tutorial-open-btn');
     const dismissButton = document.getElementById('tutorial-dismiss-btn');
@@ -4974,11 +5647,26 @@ function queueTutorialNotice(key, title, body, tabId, subtabId) {
     game.seenTutorials = game.seenTutorials || [];
     if (game.seenTutorials.includes(key)) return;
     game.seenTutorials.push(key);
-    tutorialQueue.push({ key, title, body, tabId: tabId || null, subtabId: subtabId || null });
+    tutorialQueue.push({
+        key,
+        title: stripDecorativeEmoji(title),
+        body: stripDecorativeEmoji(body),
+        tabId: tabId || null,
+        subtabId: subtabId || null
+    });
     showNextTutorial();
 }
+
+function isTutorialPresentationBlocked() {
+    if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return true;
+    if (typeof isLoadingOverlayOpen === 'function' && isLoadingOverlayOpen()) return true;
+    if (typeof isRewardOpen === 'function' && isRewardOpen()) return true;
+    if (typeof isDeathOverlayOpen === 'function' && isDeathOverlayOpen()) return true;
+    return typeof isLoopHeroSelectOpen === 'function' && isLoopHeroSelectOpen();
+}
+
 function showNextTutorial() {
-    if (activeTutorial || tutorialQueue.length === 0) return;
+    if (activeTutorial || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;
     activeTutorial = tutorialQueue.shift();
     activeTutorialStep = 0;
     renderTutorialStep();
@@ -5010,7 +5698,7 @@ function dismissTutorial(openTarget) {
 function showDivineDropBanner(amount) {
     let el = document.getElementById('divine-drop-banner');
     if (!el) return;
-    el.innerText = `✨ ${ORB_DB.goldenRule.name} 획득! +${amount} ✨`;
+    el.innerText = `${ORB_DB.goldenRule.name} 획득! +${amount}`;
     el.classList.add('show');
     if (divineBannerTimer) clearTimeout(divineBannerTimer);
     divineBannerTimer = setTimeout(() => {
@@ -5026,14 +5714,15 @@ function closeRewardOverlay() {
     document.getElementById('reward-overlay').classList.remove('active');
     activeRewardZoneId = null;
     lastTime = Date.now();
+    showNextTutorial();
 }
 
 function getHeroAppearanceId() {
-    let followsLoopTalent = !game || !game.settings || game.settings.heroAppearanceMode !== 'fixed';
-    if (followsLoopTalent) return game && HERO_SELECTION_DEFS[game.selectedHeroId] ? game.selectedHeroId : 'hero1';
-    let cosmeticId = game && HERO_SELECTION_DEFS[game.appearanceHeroId] ? game.appearanceHeroId : null;
+    let followsLoopClass = !game || !game.settings || game.settings.heroAppearanceMode !== 'fixed';
+    if (followsLoopClass) return game && PLAYER_CLASS_DEFS[game.selectedClassId] ? game.selectedClassId : 'archer';
+    let cosmeticId = game && PLAYER_CLASS_DEFS[game.appearanceClassId] ? game.appearanceClassId : null;
     if (cosmeticId) return cosmeticId;
-    return game && HERO_SELECTION_DEFS[game.selectedHeroId] ? game.selectedHeroId : 'hero1';
+    return game && PLAYER_CLASS_DEFS[game.selectedClassId] ? game.selectedClassId : 'archer';
 }
 
 function isLoopHeroSelectOpen() {
@@ -5041,17 +5730,17 @@ function isLoopHeroSelectOpen() {
     return !!overlay && overlay.classList.contains('active');
 }
 
-function buildHeroChoiceTooltipHtml(heroId, experienced) {
-    let def = HERO_SELECTION_DEFS[heroId];
+function buildHeroChoiceTooltipHtml(classId, experienced) {
+    let def = PLAYER_CLASS_DEFS[classId];
     if (!def) return '';
     return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
-        <div class="tooltip-line" style="color:#f6c461;">재능 효과</div>
-        <div class="tooltip-line">${escapeHTML(def.talentsText)}</div>`;
+        <div class="tooltip-line" style="color:#f6c461;">직업 특징</div>
+        <div class="tooltip-line">${escapeHTML(def.description)}</div>`;
 }
 
-function showHeroChoiceTooltip(event, heroId, experienced) {
+function showHeroChoiceTooltip(event, classId, experienced) {
     if (typeof showInfoTooltipHtml !== 'function') return;
-    showInfoTooltipHtml(event.clientX, event.clientY, buildHeroChoiceTooltipHtml(heroId, !!experienced), '#f6c461');
+    showInfoTooltipHtml(event.clientX, event.clientY, buildHeroChoiceTooltipHtml(classId, !!experienced), '#f6c461');
 }
 
 function openLoopHeroSelection(onSelect, options = {}) {
@@ -5061,35 +5750,36 @@ function openLoopHeroSelection(onSelect, options = {}) {
     let titleEl = document.getElementById('loop-hero-select-title');
     let bodyEl = document.getElementById('loop-hero-select-body');
     if (!overlay || !grid) {
-        let fallbackHero = game.selectedHeroId || 'hero1';
-        applyHeroSelection(fallbackHero, { silent: true, skipSave: true });
-        if (typeof onSelect === 'function') onSelect(fallbackHero);
+        let fallbackClass = PLAYER_CLASS_DEFS[game.selectedClassId] ? game.selectedClassId : 'archer';
+        applyHeroSelection(fallbackClass, { silent: true, skipSave: true, alignTalent: true });
+        if (typeof onSelect === 'function') onSelect(fallbackClass);
         return;
     }
     loopHeroSelectionCallback = typeof onSelect === 'function' ? onSelect : null;
     if (kickerEl) kickerEl.innerText = options.kicker || 'Loop Selection';
-    if (titleEl) titleEl.innerText = options.title || '다음 루프 캐릭터 선택';
-    if (bodyEl) bodyEl.innerText = options.body || '이번 루프에서 사용할 캐릭터를 선택하세요.';
-    let experiencedSet = new Set(game.heroSelectionInitialized && Array.isArray(game.discoveredHeroIds) ? game.discoveredHeroIds : []);
-    grid.innerHTML = HERO_SELECTION_ORDER.map(id => {
-        let def = HERO_SELECTION_DEFS[id];
+    if (titleEl) titleEl.innerText = options.title || '다음 루프 직업 선택';
+    if (bodyEl) bodyEl.innerText = options.body || '이번 루프에서 사용할 직업을 선택하세요.';
+    let experiencedSet = new Set(game.heroSelectionInitialized && Array.isArray(game.discoveredClassIds) ? game.discoveredClassIds : []);
+    grid.innerHTML = PLAYER_CLASS_ORDER.map(id => {
+        let def = PLAYER_CLASS_DEFS[id];
         let experienced = experiencedSet.has(id);
-        let summary = String(def.talentsText || '').split(',').slice(0, 2).join(' ·');
+        let summary = def.description || '';
         let badge = experienced ? '<span class="hero-choice-badge">경험함</span>' : '';
-        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-hero-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
+        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
     }).join('');
     overlay.classList.add('active');
 }
 
-function chooseLoopHero(heroId) {
-    if (!HERO_SELECTION_DEFS[heroId]) return;
-    applyHeroSelection(heroId, { silent: true, skipSave: true });
+function chooseLoopHero(classId) {
+    if (!PLAYER_CLASS_DEFS[classId]) return;
+    applyHeroSelection(classId, { silent: true, skipSave: true, alignTalent: true });
     let overlay = document.getElementById('loop-hero-select-overlay');
     if (overlay) overlay.classList.remove('active');
     let callback = loopHeroSelectionCallback;
     loopHeroSelectionCallback = null;
-    if (typeof callback === 'function') callback(heroId);
+    if (typeof callback === 'function') callback(classId);
     lastTime = Date.now();
+    showNextTutorial();
 }
 
 function openRingSlotOverlay(invIdx) {
@@ -5240,6 +5930,7 @@ function closeDeathOverlay() {
     if (overlay) overlay.classList.remove('active');
     deathOverlayActive = false;
     lastTime = Date.now();
+    showNextTutorial();
 }
 
 function openDeathOverlay(log) {
@@ -5771,6 +6462,83 @@ function initBattleAssets() {
         hero10Attack: 'assets/playable/hero10/attack.png',
         hero10Hurt: 'assets/playable/hero10/idle.png',
         hero10Death: 'assets/playable/hero10/idle.png',
+        playerClassOccultistIdle: 'assets/playable/classes/occultist/idle.webp',
+        playerClassOccultistIdleNorth: 'assets/playable/classes/occultist/idle-north.webp',
+        playerClassOccultistIdleSouth: 'assets/playable/classes/occultist/idle-south.webp',
+        playerClassOccultistWalk: 'assets/playable/classes/occultist/walk.webp',
+        playerClassOccultistWalkNorth: 'assets/playable/classes/occultist/walk-north.webp',
+        playerClassOccultistWalkSouth: 'assets/playable/classes/occultist/walk-south.webp',
+        playerClassOccultistWalkWest: 'assets/playable/classes/occultist/walk-west.webp',
+        playerClassOccultistAttack: 'assets/playable/classes/occultist/attack.webp',
+        playerClassOccultistAttack2: 'assets/playable/classes/occultist/attack-2.webp',
+        playerClassOccultistAttackNorth: 'assets/playable/classes/occultist/attack-north.webp',
+        playerClassOccultistAttack2North: 'assets/playable/classes/occultist/attack-2-north.webp',
+        playerClassOccultistAttackSouth: 'assets/playable/classes/occultist/attack-south.webp',
+        playerClassOccultistAttack2South: 'assets/playable/classes/occultist/attack-2-south.webp',
+        playerClassWandererIdle: 'assets/playable/classes/wanderer/idle.webp',
+        playerClassWandererIdleNorth: 'assets/playable/classes/wanderer/idle-north.webp',
+        playerClassWandererIdleSouth: 'assets/playable/classes/wanderer/idle-south.webp',
+        playerClassWandererWalk: 'assets/playable/classes/wanderer/walk.webp',
+        playerClassWandererWalkNorth: 'assets/playable/classes/wanderer/walk-north.webp',
+        playerClassWandererWalkSouth: 'assets/playable/classes/wanderer/walk-south.webp',
+        playerClassWandererWalkWest: 'assets/playable/classes/wanderer/walk-west.webp',
+        playerClassWandererAttack: 'assets/playable/classes/wanderer/attack.webp',
+        playerClassWandererAttack2: 'assets/playable/classes/wanderer/attack-2.webp',
+        playerClassWandererAttackNorth: 'assets/playable/classes/wanderer/attack-north.webp',
+        playerClassWandererAttackSouth: 'assets/playable/classes/wanderer/attack-south.webp',
+        playerClassWandererAttack2South: 'assets/playable/classes/wanderer/attack-2-south.webp',
+        playerClassClericIdle: 'assets/playable/classes/cleric/idle.webp',
+        playerClassClericIdleNorth: 'assets/playable/classes/cleric/idle-north.webp',
+        playerClassClericIdleSouth: 'assets/playable/classes/cleric/idle-south.webp',
+        playerClassClericWalk: 'assets/playable/classes/cleric/walk.webp',
+        playerClassClericWalkNorth: 'assets/playable/classes/cleric/walk-north.webp',
+        playerClassClericWalkSouth: 'assets/playable/classes/cleric/walk-south.webp',
+        playerClassClericWalkWest: 'assets/playable/classes/cleric/walk-west.webp',
+        playerClassClericAttack: 'assets/playable/classes/cleric/attack.webp',
+        playerClassClericAttackNorth: 'assets/playable/classes/cleric/attack-north.webp',
+        playerClassClericAttackSouth: 'assets/playable/classes/cleric/attack-south.webp',
+        playerClassArcherIdle: 'assets/playable/classes/archer/idle.webp',
+        playerClassArcherIdleNorth: 'assets/playable/classes/archer/idle-north.webp',
+        playerClassArcherIdleSouth: 'assets/playable/classes/archer/idle-south.webp',
+        playerClassArcherWalk: 'assets/playable/classes/archer/walk.webp',
+        playerClassArcherWalkNorth: 'assets/playable/classes/archer/walk-north.webp',
+        playerClassArcherWalkSouth: 'assets/playable/classes/archer/walk-south.webp',
+        playerClassArcherWalkWest: 'assets/playable/classes/archer/walk-west.webp',
+        playerClassArcherAttack: 'assets/playable/classes/archer/attack.webp',
+        playerClassArcherAttack2: 'assets/playable/classes/archer/attack-2.webp',
+        playerClassArcherAttackNorth: 'assets/playable/classes/archer/attack-north.webp',
+        playerClassArcherAttack2North: 'assets/playable/classes/archer/attack-2-north.webp',
+        playerClassArcherAttackSouth: 'assets/playable/classes/archer/attack-south.webp',
+        playerClassArcherAttack2South: 'assets/playable/classes/archer/attack-2-south.webp',
+        playerClassAlchemistIdle: 'assets/playable/classes/alchemist/idle.webp',
+        playerClassAlchemistIdleNorth: 'assets/playable/classes/alchemist/idle-north.webp',
+        playerClassAlchemistIdleSouth: 'assets/playable/classes/alchemist/idle-south.webp',
+        playerClassAlchemistWalk: 'assets/playable/classes/alchemist/walk.webp',
+        playerClassAlchemistWalkNorth: 'assets/playable/classes/alchemist/walk-north.webp',
+        playerClassAlchemistWalkSouth: 'assets/playable/classes/alchemist/walk-south.webp',
+        playerClassAlchemistWalkWest: 'assets/playable/classes/alchemist/walk-west.webp',
+        playerClassAlchemistAttack: 'assets/playable/classes/alchemist/attack.webp',
+        playerClassAlchemistAttack2: 'assets/playable/classes/alchemist/attack-2.webp',
+        playerClassAlchemistAttack3: 'assets/playable/classes/alchemist/attack-3.webp',
+        playerClassAlchemistAttackNorth: 'assets/playable/classes/alchemist/attack-north.webp',
+        playerClassAlchemistAttack2North: 'assets/playable/classes/alchemist/attack-2-north.webp',
+        playerClassAlchemistAttackSouth: 'assets/playable/classes/alchemist/attack-south.webp',
+        playerClassWarriorIdle: 'assets/playable/classes/warrior/idle.webp',
+        playerClassWarriorIdleNorth: 'assets/playable/classes/warrior/idle-north.webp',
+        playerClassWarriorIdleSouth: 'assets/playable/classes/warrior/idle-south.webp',
+        playerClassWarriorWalk: 'assets/playable/classes/warrior/walk.webp',
+        playerClassWarriorWalkNorth: 'assets/playable/classes/warrior/walk-north.webp',
+        playerClassWarriorWalkSouth: 'assets/playable/classes/warrior/walk-south.webp',
+        playerClassWarriorWalkWest: 'assets/playable/classes/warrior/walk-west.webp',
+        playerClassWarriorAttack: 'assets/playable/classes/warrior/attack.webp',
+        playerClassWarriorAttack2: 'assets/playable/classes/warrior/attack-2.webp',
+        playerClassWarriorAttack3: 'assets/playable/classes/warrior/attack-3.webp',
+        playerClassWarriorAttackNorth: 'assets/playable/classes/warrior/attack-north.webp',
+        playerClassWarriorAttack2North: 'assets/playable/classes/warrior/attack-2-north.webp',
+        playerClassWarriorAttack3North: 'assets/playable/classes/warrior/attack-3-north.webp',
+        playerClassWarriorAttackSouth: 'assets/playable/classes/warrior/attack-south.webp',
+        playerClassWarriorAttack2South: 'assets/playable/classes/warrior/attack-2-south.webp',
+        playerClassWarriorAttack3South: 'assets/playable/classes/warrior/attack-3-south.webp',
         ...(defaultHeroSrc ? { heroLegacy: defaultHeroSrc } : {}),
         enemies: 'assets/battle-enemies-v1.png',
         enemies2: 'assets/battle-enemies-v2.png',
@@ -5787,7 +6555,6 @@ function initBattleAssets() {
         woodEnemyPuppet6: 'assets/enemies/wood/wood-puppet/frame_006.png',
         woodEnemyPuppet7: 'assets/enemies/wood/wood-puppet/frame_007.png',
         woodEnemyPuppet8: 'assets/enemies/wood/wood-puppet/frame_008.png',
-        effects: 'assets/battle-effects-v1.png',
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
         bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
         bossTelegraphPulse: 'assets/effects/boss-telegraph-pulse-v1.png',
@@ -5813,6 +6580,11 @@ function initBattleAssets() {
         skillFxFocusBeam: 'assets/effects/channel-focus-beam-v1.webp',
         skillFxDragonBreath: 'assets/effects/channel-dragon-breath-v1.webp',
         skillFxVoidCutter: 'assets/effects/channel-void-cutter-v1.webp',
+        passiveTreeIcons: 'assets/ui/passive-tree-icons-v3.webp',
+        passiveTreeVoidSlot: 'assets/ui/passive-tree-slot-void-v3.webp',
+        passiveTreeConstellationSlot: 'assets/ui/passive-tree-slot-constellation-v2.webp',
+        passiveTreeNotableFrame: 'assets/ui/passive-tree-frame-notable-v1.webp',
+        passiveTreeKeystoneFrame: 'assets/ui/passive-tree-frame-keystone-v1.webp',
         shrineInteractable: 'assets/effects/battlefield-shrine-v1.png',
         backdropAct1: 'assets/battlefield-act1.png',
         backdropAct2_6: 'assets/battlefield-act2-6.png',
@@ -5821,16 +6593,7 @@ function initBattleAssets() {
         backdropAct5: 'assets/battlefield-act5.png',
         backdropAct9_10: 'assets/battlefield-act9-10.png',
 
-        bgAct1: 'assets/background/act1.png',
-        bgAct2: 'assets/background/act2.png',
-        bgAct3: 'assets/background/act3.png',
-        bgAct4: 'assets/background/act4.png',
-        bgAct5: 'assets/background/act5.png',
-        bgAct6: 'assets/background/act6.png',
-        bgAct7: 'assets/background/act7.png',
-        bgAct8: 'assets/background/act8.png',
-        bgAct9: 'assets/background/act9.png',
-        bgAct10: 'assets/background/act10.png',
+        ...ACT_BATTLE_MAP_SOURCES,
         bgChaos0: 'assets/background/chaos/endgame-0.png',
         bgChaos1: 'assets/background/chaos/endgame-1.png',
         bgChaos2: 'assets/background/chaos/endgame-2.png',
@@ -5853,19 +6616,27 @@ function initBattleAssets() {
         summon1: 'assets/summon/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
-    HIDEOUT_DECOR_DB.forEach(decor => {
-        manifest[`hideoutDecor_${decor.id}`] = decor.directionalAsset || decor.asset;
+    Object.values((typeof PASSIVE_TREE_V22 !== 'undefined' && PASSIVE_TREE_V22.nodes) || {}).forEach(node => {
+        const source = String(node && node.iconAsset || '');
+        if (!/^assets\/ui\/passive-custom-icons\/[a-zA-Z0-9._-]+\.webp$/.test(source)) return;
+        manifest[`passiveTreeCustom_${node.id}`] = source;
     });
     Object.keys(manifest).forEach(key => {
-        if (key.startsWith('hero') && typeof manifest[key] === 'string' && manifest[key].startsWith('assets/playable/')) {
-            manifest[key] += '?v=20260718-motion2';
+        if ((key.startsWith('hero') || key.startsWith('playerClass'))
+            && typeof manifest[key] === 'string' && manifest[key].startsWith('assets/playable/')) {
+            manifest[key] += '?v=20260902-directional-poses2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('bg') || key.startsWith('hideoutDecor') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key === 'shrineInteractable'));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key === 'shrineInteractable'));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
-    const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1');
-    const selectedHeroKeys = new Set(Object.values((HERO_SELECTION_DEFS[selectedHeroId] || HERO_SELECTION_DEFS.hero1 || {}).strips || {}));
+    const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && PLAYER_CLASS_DEFS[game.selectedClassId]) ? game.selectedClassId : 'archer');
+    const selectedHeroDef = typeof getHeroSelectionDef === 'function'
+        ? getHeroSelectionDef(selectedHeroId)
+        : (PLAYER_CLASS_DEFS[selectedHeroId] || PLAYER_CLASS_DEFS.archer);
+    const selectedHeroKeys = new Set(Object.values((selectedHeroDef || {}).strips || {})
+        .flatMap(value => Array.isArray(value) ? value : ((value && typeof value === 'object') ? Object.values(value) : [value]))
+        .filter(value => typeof value === 'string' && value));
     const criticalManifestKeys = new Set(['enemies', 'woodEnemySlimes', 'woodEnemySpider', 'woodEnemyLeeches', 'woodEnemyPuppet0', 'effects', 'summon1', ...selectedHeroKeys]);
     const manifestGroupsBySrc = new Map();
     Object.entries(manifest).forEach(([key, src]) => {
@@ -5940,7 +6711,7 @@ function initBattleAssets() {
             if (key.startsWith('backdrop') || key.startsWith('bg')) {
                 battleAssets.backdrops[key] = image;
             } else {
-                let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('hideoutDecor') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
+                let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
                 battleAssets.images[key] = image;
                 if (!keepOriginalSheet) queueBattleSheetSanitization(key, image);
             }
@@ -6476,6 +7247,15 @@ function detectSpriteComponents(image, minArea) {
     return components;
 }
 
+function resolveHeroMotionStripAnchor(baseAnchor, motionAnchors, motion, variantIndex) {
+    if (!baseAnchor) return null;
+    let configured = motion === 'attack' && motionAnchors && Array.isArray(motionAnchors.attacks)
+        ? motionAnchors.attacks[variantIndex]
+        : (motionAnchors && motionAnchors[motion]);
+    if (!Number.isFinite(configured)) return baseAnchor;
+    return { ...baseAnchor, anchorY: configured };
+}
+
 function buildBattleAssetAtlas() {
     const heroParts = [
         { x: 212, y: 402, width: 161, height: 206 },
@@ -6500,24 +7280,6 @@ function buildBattleAssetAtlas() {
         boss: { x: 603, y: 497, width: 376, height: 342 },
         skeleton: { x: 1024, y: 561, width: 297, height: 271 }
     };
-    const effectParts = [
-        { x: 121, y: 137, width: 216, height: 189 },
-        { x: 379, y: 151, width: 250, height: 171 },
-        { x: 686, y: 150, width: 215, height: 161 },
-        { x: 949, y: 150, width: 179, height: 152 },
-        { x: 1023, y: 181, width: 176, height: 184 },
-        { x: 1201, y: 132, width: 249, height: 182 },
-        { x: 97, y: 413, width: 183, height: 84 },
-        { x: 363, y: 417, width: 177, height: 122 },
-        { x: 668, y: 390, width: 190, height: 154 },
-        { x: 944, y: 402, width: 185, height: 139 },
-        { x: 1210, y: 394, width: 182, height: 156 },
-        { x: 618, y: 792, width: 194, height: 124 },
-        { x: 859, y: 734, width: 163, height: 183 },
-        { x: 1074, y: 740, width: 120, height: 172 },
-        { x: 1213, y: 802, width: 214, height: 101 },
-        { x: 116, y: 747, width: 167, height: 168 }
-    ];
     const tileParts = [
         { x: 151, y: 180, width: 170, height: 186 },
         { x: 364, y: 181, width: 174, height: 185 },
@@ -6582,7 +7344,16 @@ function buildBattleAssetAtlas() {
         hero7Idle: 1, hero7Walk: 17, hero7Attack: 7, hero7Hurt: 1, hero7Death: 1,
         hero8Idle: 1, hero8Walk: 15, hero8Attack: 7, hero8Hurt: 1, hero8Death: 1,
         hero9Idle: 1, hero9Walk: 13, hero9Attack: 7, hero9Hurt: 1, hero9Death: 1,
-        hero10Idle: 1, hero10Walk: 11, hero10Attack: 7, hero10Hurt: 1, hero10Death: 1
+        hero10Idle: 1, hero10Walk: 11, hero10Attack: 7, hero10Hurt: 1, hero10Death: 1,
+        playerClassOccultistIdle: 1, playerClassOccultistWalk: 9, playerClassOccultistAttack: 9, playerClassOccultistAttack2: 9,
+        playerClassWandererIdle: 1, playerClassWandererWalk: 9, playerClassWandererAttack: 7, playerClassWandererAttack2: 7,
+        playerClassClericIdle: 1, playerClassClericWalk: 9, playerClassClericAttack: 9,
+        playerClassArcherIdle: 1, playerClassArcherWalk: 9, playerClassArcherAttack: 9, playerClassArcherAttack2: 9,
+        playerClassAlchemistIdle: 1, playerClassAlchemistWalk: 9, playerClassAlchemistAttack: 8,
+        playerClassAlchemistAttack2: 9, playerClassAlchemistAttack3: 4,
+        playerClassWarriorIdle: 1, playerClassWarriorWalk: 9, playerClassWarriorAttack: 8,
+        playerClassWarriorAttack2: 9, playerClassWarriorAttack3: 9,
+        playerClassArcherWalkSouth: 8
     };
     function buildFixedStripFramesFromImage(image, frameCount) {
         if (!image || !Number.isFinite(frameCount) || frameCount <= 0) return [];
@@ -6619,8 +7390,8 @@ function buildBattleAssetAtlas() {
         let content = trimRectToContent(image, raw, 1) || raw;
         return {
             xRatio: 0.5,
-            yRatio: clampNumber((content.y + content.height - raw.y) / raw.height, 0.1, 1),
-            basisHeightRatio: clampNumber(content.height / raw.height, 0.1, 1)
+            anchorY: content.y + content.height - raw.y,
+            basisHeight: Math.max(1, content.height)
         };
     }
     function buildAnchoredHeroStripFrames(image, frameCount, anchor) {
@@ -6633,28 +7404,68 @@ function buildBattleAssetAtlas() {
             frames.push(withImageRef(image, {
                 ...raw,
                 anchorX: raw.width * anchor.xRatio,
-                anchorY: raw.height * anchor.yRatio,
-                basisHeight: raw.height * anchor.basisHeightRatio
+                anchorY: anchor.anchorY,
+                basisHeight: anchor.basisHeight
             }));
         }
         return frames.filter(Boolean);
     }
+    function buildDirectionalHeroAttackFrames(directionKeys, anchor, motionAnchors) {
+        let result = {};
+        Object.entries(directionKeys || {}).forEach(([direction, keys]) => {
+            let variants = (Array.isArray(keys) ? keys : []).map((key, index) => {
+                let image = battleAssets.images[key];
+                let frameCount = heroStripFrameCounts[key] || inferStripFallbackColumns(image);
+                let motionAnchor = resolveHeroMotionStripAnchor(anchor, motionAnchors, 'attack', index);
+                return buildAnchoredHeroStripFrames(image, frameCount, motionAnchor);
+            }).filter(frames => frames.length > 0);
+            if (variants.length > 0) result[direction] = variants;
+        });
+        return result;
+    }
     function buildHeroFrameSetFromStripKeys(stripKeys, heroId) {
         if (!stripKeys) return null;
+        let motionDefinition = typeof PLAYER_CLASS_DEFS === 'object'
+            ? PLAYER_CLASS_DEFS[heroId]
+            : null;
+        let motionAnchors = motionDefinition && motionDefinition.motionAnchors;
         let idleImage = battleAssets.images[stripKeys.idle];
         let idleCount = heroStripFrameCounts[stripKeys.idle];
         let anchor = getHeroStripAnchor(idleImage, idleCount);
-        let idleFrames = buildAnchoredHeroStripFrames(idleImage, idleCount, anchor);
-        let walkFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.walk], heroStripFrameCounts[stripKeys.walk], anchor);
-        let attackFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.attack], heroStripFrameCounts[stripKeys.attack], anchor);
-        let hurtFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.hurt], heroStripFrameCounts[stripKeys.hurt], anchor);
-        let downFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.death], heroStripFrameCounts[stripKeys.death], anchor);
+        let idleAnchor = resolveHeroMotionStripAnchor(anchor, motionAnchors, 'idle', 0);
+        let walkAnchor = resolveHeroMotionStripAnchor(anchor, motionAnchors, 'walk', 0);
+        let idleFrames = buildAnchoredHeroStripFrames(idleImage, idleCount, idleAnchor);
+        let idleDirections = Object.fromEntries(Object.entries(stripKeys.idleDirections || {}).map(([direction, key]) => [
+            direction,
+            buildAnchoredHeroStripFrames(battleAssets.images[key], heroStripFrameCounts[key] || idleCount, idleAnchor)
+        ]).filter(entry => entry[1].length > 0));
+        let walkFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.walk], heroStripFrameCounts[stripKeys.walk], walkAnchor);
+        let walkDirections = Object.fromEntries(Object.entries(stripKeys.walkDirections || {}).map(([direction, key]) => [
+            direction,
+            buildAnchoredHeroStripFrames(battleAssets.images[key], heroStripFrameCounts[key] || heroStripFrameCounts[stripKeys.walk], walkAnchor)
+        ]).filter(entry => entry[1].length > 0));
+        let attackKeys = Array.isArray(stripKeys.attacks) && stripKeys.attacks.length > 0 ? stripKeys.attacks : [stripKeys.attack];
+        let attackVariants = attackKeys.map((key, index) => buildAnchoredHeroStripFrames(
+            battleAssets.images[key], heroStripFrameCounts[key],
+            resolveHeroMotionStripAnchor(anchor, motionAnchors, 'attack', index)
+        )).filter(frames => frames.length > 0);
+        let attackDirections = buildDirectionalHeroAttackFrames(stripKeys.attackDirections, anchor, motionAnchors);
+        let attackVariantWeights = motionDefinition && Array.isArray(motionDefinition.attackVariantWeights)
+            && motionDefinition.attackVariantWeights.length === attackVariants.length
+            ? motionDefinition.attackVariantWeights.slice()
+            : null;
+        let attackFrames = attackVariants[0] || [];
+        let hurtFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.hurt], heroStripFrameCounts[stripKeys.hurt], idleAnchor);
+        let downFrames = buildAnchoredHeroStripFrames(battleAssets.images[stripKeys.death], heroStripFrameCounts[stripKeys.death], idleAnchor);
         if (idleFrames.length === 0 || walkFrames.length === 0 || attackFrames.length === 0) return null;
         let hold = idleFrames[0] || walkFrames[0] || attackFrames[0];
         return {
             characterAnimations: {
                 idle: idleFrames,
+                idleDirections: idleDirections,
                 walk_or_run: walkFrames,
+                walkDirections: walkDirections,
+                attackDirections: attackDirections,
                 sword_attack_body: attackFrames,
                 cast_body: attackFrames,
                 hurt: hurtFrames.length > 0 ? hurtFrames : [hold].filter(Boolean),
@@ -6671,8 +7482,12 @@ function buildBattleAssetAtlas() {
                 bow_attack_body: false
             },
             idle: idleFrames,
+            idleDirections: idleDirections,
             walk: walkFrames,
             run: walkFrames,
+            attackVariants: attackVariants,
+            attackDirections: attackDirections,
+            attackVariantWeights: attackVariantWeights,
             swordCombo: attackFrames,
             castCombo: attackFrames,
             projectileCombo: attackFrames,
@@ -7188,9 +8003,9 @@ function buildBattleAssetAtlas() {
     }
     let heroFrameSetSource = selectedHeroDef.id;
     let heroFrameSet = buildHeroFrameSetFromStripKeys(selectedHeroDef.strips, selectedHeroDef.id);
-    if (!heroFrameSet && selectedHeroDef.id !== 'hero1') {
-        heroFrameSet = buildHeroFrameSetFromStripKeys(HERO_SELECTION_DEFS.hero1.strips, 'hero1');
-        if (heroFrameSet) heroFrameSetSource = 'hero1';
+    if (!heroFrameSet && selectedHeroDef.id !== 'archer') {
+        heroFrameSet = buildHeroFrameSetFromStripKeys(PLAYER_CLASS_DEFS.archer.strips, 'archer');
+        if (heroFrameSet) heroFrameSetSource = 'archer';
     }
     if (!heroFrameSet && heroFramesLegacy.length > 0) {
         heroFrameSet = buildHeroFrameSet(heroFramesLegacy);
@@ -7223,7 +8038,7 @@ function buildBattleAssetAtlas() {
     }
     function resolveHeroImageForFrameSet() {
         if (heroFrameSetSource === 'legacy') return legacyHeroImage;
-        let sourceDef = HERO_SELECTION_DEFS[heroFrameSetSource] || selectedHeroDef || HERO_SELECTION_DEFS.hero1;
+        let sourceDef = getHeroSelectionDef(heroFrameSetSource) || selectedHeroDef || PLAYER_CLASS_DEFS.archer;
         let strips = (sourceDef && sourceDef.strips) || {};
         return battleAssets.images[strips.idle]
             || battleAssets.images[strips.walk]
@@ -7386,36 +8201,6 @@ function buildBattleAssetAtlas() {
                 shadow: enemyFrames.shadow,
                 boss: enemyFrames.boss,
                 skeleton: enemyFrames.skeleton
-            }
-        },
-        effects: {
-            image: battleAssets.images.effects,
-            frames: {
-                slash: effectParts[0],
-                flurry: effectParts[1],
-                fireball: effectParts[2],
-                iceLance: effectParts[3],
-                chain: effectParts[4],
-                poison: effectParts[5],
-                frostWave: effectParts[6],
-                lightningBurst: effectParts[7],
-                voidSlash: effectParts[8],
-                magma: effectParts[9],
-                voidOrb: effectParts[10],
-                whirl: effectParts[11],
-                quake: effectParts[12],
-                eruption: effectParts[13],
-                drain: effectParts[14],
-                crimsonSlash: effectParts[15]
-            },
-            animations: {
-                sword_slash_vfx: [],
-                dark_magic_projectile_vfx: [effectParts[10]].filter(Boolean),
-                lightning_vfx: [effectParts[4], effectParts[7]].filter(Boolean),
-                fireball_vfx: [padSpriteRect(effectParts[2], battleAssets.images.effects, 6), effectParts[13]].filter(Boolean),
-                ice_projectile_vfx: [effectParts[3], effectParts[6]].filter(Boolean),
-                arrow_projectile_vfx: [],
-                impact_vfx: [effectParts[8], effectParts[12], effectParts[13], effectParts[15]].filter(Boolean)
             }
         },
         tiles: {
@@ -8921,7 +9706,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
 }
 
 function generateEquipmentDrop(enemy, options) {
-    let zone = getZone(game.currentZoneId) || {};
+    let zone = options && options.zone ? options.zone : (getZone(game.currentZoneId) || {});
     let hiddenTierCap = getRealmEquipmentHiddenTierCap(zone);
     let dropTier = rollRealmItemDropTier(zone, enemy);
     let affixTierCap = getRealmEquipmentAffixTierCap(zone, dropTier);
@@ -8950,7 +9735,7 @@ function generateEquipmentDrop(enemy, options) {
     });
     maybeApplyExceptionalBase(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
-    return maybeApplyChaosRealmEncroachment(item, enemy, getZone(game.currentZoneId));
+    return maybeApplyChaosRealmEncroachment(item, enemy, zone);
 }
 
 // 장비 드랍 시, 각 베이스 옵션 줄마다 독립적으로 1% 확률로 '특출'해진다(최대 롤 +20%).
@@ -9180,10 +9965,10 @@ function addItemToInventory(item, options) {
         if (route.action === 'normal' && route.protected) {
             ignoreAutoSalvage = true;
             guaranteedKeep = true;
-            if ((game.inventory || []).length >= getInventoryLimit()) game.backgroundStopReason = 'protected-storage-full';
+            if (!canStoreEquipmentItems([item], game)) game.backgroundStopReason = 'protected-storage-full';
         }
     }
-    if ((game.inventory || []).length >= getInventoryLimit()) {
+    if (!canStoreEquipmentItems([item], game)) {
         if (!guaranteedKeep) {
             let overflowRewards = salvageItemObject(item, true, { noDivine: true });
             if (game.isBackgroundCalculation) {
@@ -11220,10 +12005,6 @@ function removeGrowthDropOverflowAffix(item) {
 
 function isMarketUnlocked() {
     return (game.maxZoneId || 0) >= 5;
-}
-
-function getMarketInventoryExpandCost() {
-    return 2 + Math.max(0, Math.floor(game.inventoryExpandLevel || 0));
 }
 
 async function exchangeAtMarket(exchangeId, exchangeAll) {

@@ -69,14 +69,14 @@ async function main() {
     assert.deepStrictEqual(chaosProfile, {
         markerCount: 16, minPack: 2, maxPack: 8, eliteChance: 0.35, bossAdds: 6, label: '혼돈계 300층'
     }, 'chaos realm high floors must stop adding markers and boss escorts');
-    run(`game.abyssPassives = { power: 0, tenacity: 0, horde: 20, frailty: 0, weakness: 0,
-        resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 1 };`);
     const abyssProfile = JSON.parse(run("JSON.stringify(getZoneEncounterProfile({ type: 'abyss', id: 999, depth: 300, tier: 20 }))"));
     assert.deepStrictEqual(abyssProfile, {
-        markerCount: 20, minPack: 7, maxPack: 11, eliteChance: 0.37, bossAdds: 7, label: '7-11기'
+        markerCount: 17, minPack: 4, maxPack: 10, eliteChance: 0.37, bossAdds: 7, label: '4-10기'
     }, 'deep chaos must preserve a dense horde while capping multiplicative monster growth');
     assert.strictEqual(run("capEndlessContentDropMultiplier({ type: 'underworld' }, 99)"), 2.25,
         'endless content must cap the final stacked drop multiplier');
+    assert.strictEqual(run("capEndlessContentDropMultiplier({ type: 'beyondBoundary' }, 99)"), 2.25,
+        'boundary farming must use the same bounded multiplier as other endless content');
     assert.strictEqual(run("capEndlessContentDropMultiplier({ type: 'act' }, 99)"), 99,
         'the endless-content cap must not affect ordinary maps');
     const chances = JSON.parse(run(`JSON.stringify({
@@ -99,6 +99,75 @@ async function main() {
         `floor 300 should not average a double-digit fossil flood per run (${expectedFossils.toFixed(2)})`);
 
     run(`(function () {
+        game.season = 50;
+        game.clearedRootBosses = [];
+        game.beyondBoundary = null;
+    })()`);
+    assert.strictEqual(run('reconcileBeyondBoundaryUnlock(game)'), false,
+        'loop 50 alone must not unlock the postgame challenge before the Observer falls');
+    run("game.clearedRootBosses.push('pinnacle_observer')");
+    assert.strictEqual(run('reconcileBeyondBoundaryUnlock(game)'), true,
+        'the Observer clear and complete crown should unlock Beyond the Boundary together');
+    assert.strictEqual(run("selectBeyondBoundaryRewardFocus('currency', game)"), true,
+        'the player must be able to focus completion rewards before entering');
+    assert.strictEqual(run("selectBeyondBoundaryIntensity('etched', game)"), true,
+        'the player must be able to select a paid run intensity before entering');
+    run('game.currencies.formlessDew = 2');
+    assert.strictEqual(run('startBeyondBoundaryRun(99, game).code'), 'cost',
+        'a paid intensity must reject entry atomically when its crafting currency is short');
+    assert.strictEqual(run('ensureBeyondBoundaryState(game).activeRun'), null,
+        'a failed entry payment must not leave a partial boundary run');
+    assert.strictEqual(run('game.currencies.formlessDew'), 2,
+        'a failed entry payment must not consume any currency');
+    run('game.currencies.formlessDew = 5');
+    assert.strictEqual(run('startBeyondBoundaryRun(99, game).run.tier'), 1,
+        'a run may only start at a tier that has actually been unlocked');
+    assert.strictEqual(run('game.currencies.formlessDew'), 2,
+        'the selected intensity must consume its exact entry cost once');
+    assert.deepStrictEqual(JSON.parse(run('JSON.stringify(ensureBeyondBoundaryState(game).activeRun)')).rewardFocusId, 'currency',
+        'an active run must snapshot its reward focus so later UI changes cannot replace it');
+    const tunedZone = JSON.parse(run("JSON.stringify(getZone('beyond_boundary'))"));
+    assert(tunedZone.boundaryHpMul > 1.1 && tunedZone.boundaryDamageMul > 1.1,
+        'paid intensity and reward focus risk must affect the actual enemy difficulty profile');
+    const openingPlan = JSON.parse(run("JSON.stringify(generateEncounterPlan(getZone('beyond_boundary')))"));
+    assert.strictEqual(openingPlan.some(marker => marker.boss), false,
+        'the opening boundary encounter should be a pack test rather than five repeated boss fights');
+    for (let wave = 2; wave <= 5; wave++) {
+        const progress = JSON.parse(run('JSON.stringify(completeBeyondBoundaryEncounter(game))'));
+        assert.strictEqual(progress.completed, false);
+        assert.strictEqual(progress.wave, wave);
+    }
+    const bossPlan = JSON.parse(run("JSON.stringify(generateEncounterPlan(getZone('beyond_boundary')))"));
+    assert.strictEqual(bossPlan[bossPlan.length - 1].boss, true,
+        'the fifth encounter must end in a boss');
+    const completion = JSON.parse(run('JSON.stringify(completeBeyondBoundaryEncounter(game))'));
+    assert.strictEqual(completion.completed, true);
+    assert.strictEqual(run(`getBeyondBoundaryCompletionRewardContext(${JSON.stringify(completion)}).zone.boundaryTier`), 1,
+        'completion loot must use the cleared tier rather than the newly unlocked next tier');
+    const focusedReward = JSON.parse(run(`JSON.stringify(grantBeyondBoundaryFocusedReward(${JSON.stringify(completion)}))`));
+    assert.strictEqual(focusedReward.focusId, 'currency');
+    assert.match(focusedReward.summary, /마법의 새싹.*형체 없는 이슬/,
+        'the chosen focus must grant a concrete completion reward from that economy lane');
+    assert.strictEqual(run('game.currencies.formlessDew'), 5,
+        'tier-one etched currency focus should return three dew after the three-dew entry sink');
+    assert.strictEqual(completion.sealResult.level, 1,
+        'the first full clear should immediately upgrade the chosen boundary seal');
+    assert.strictEqual(run('ensureBeyondBoundaryState(game).highestTier'), 2,
+        'a clear must unlock exactly the next challenge tier');
+    assert.deepStrictEqual(JSON.parse(run('JSON.stringify(getBeyondBoundaryGlobalStats(game))')), [
+        { id: 'bossDamagePct', val: 0.5 }, { id: 'eliteDamagePct', val: 0.5 }
+    ], 'earned seal ranks must feed the real player-stat pipeline');
+    run(`(function () {
+        window.__boundaryPanel = { innerHTML: '' };
+        document.getElementById = id => id === 'ui-beyond-boundary-panel' ? window.__boundaryPanel : null;
+        renderBeyondBoundaryPanel();
+    })()`);
+    const boundaryMarkup = run('window.__boundaryPanel.innerHTML');
+    assert(boundaryMarkup.includes('2단계 도전 시작') && boundaryMarkup.includes('경계 인장 성장')
+        && boundaryMarkup.includes('완료 보상 집중') && boundaryMarkup.includes('새김 조율'),
+        'the unlocked boundary panel must render the next tier, farming focus, intensity, and seal progression');
+
+    run(`(function () {
         battleFx = [];
         game.enemies = Array.from({ length: 5 }, (_, id) => ({ id: id + 1, hp: 100, maxHp: 100 }));
         for (let i = 0; i < 10; i++) addBattleFx('hit', {
@@ -109,8 +178,8 @@ async function main() {
         'five-enemy combat should merge repeated visual hits before they flood the render queue');
     assert.strictEqual(run("battleFx.find(fx => fx.type === 'hit').rawDamage"), 100,
         'merged hit feedback must preserve the displayed damage total');
-    assert.strictEqual(run("SKILL_GEM_VFX_PROFILES['지진 파쇄'].aggregateImpact"), true,
-        'earthquake shatter must aggregate its impact across all targets');
+    assert.strictEqual(run("SKILL_GEM_VFX_PROFILES['지진 파쇄'].aggregateImpact"), undefined,
+        'earthquake shatter must keep one impact position per damaged target');
     assert.strictEqual(run("SKILL_GEM_VFX_PROFILES['지진 파쇄'].impactParticles"), false,
         'earthquake shatter must not create one particle burst per target');
 

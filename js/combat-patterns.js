@@ -31,6 +31,20 @@
         return Math.max(...Object.values(BOSS_PATTERN_PEAK_DAMAGE_MULTIPLIERS));
     }
 
+    function getBossPatternModesForLoop(loopValue) {
+        const loop = Math.max(1, Math.floor(Number(loopValue) || 1));
+        if (loop < 6) return [];
+        if (loop === 6) return ['ramp'];
+        if (loop === 7) return ['ramp', 'burst'];
+        return ['ramp', 'burst', 'slam'];
+    }
+
+    function getMaximumBossPatternDamageMultiplierForLoop(loopValue) {
+        const modes = getBossPatternModesForLoop(loopValue);
+        if (modes.length === 0) return 1;
+        return Math.max(...modes.map(getBossPatternPeakDamageMultiplier));
+    }
+
     function normalizeAttackCount(enemy) {
         return Math.max(0, Math.floor(Number(enemy && enemy.patternAttackCount) || 0));
     }
@@ -163,6 +177,8 @@
         getBossPatternDescription,
         getBossPatternPeakDamageMultiplier,
         getMaximumBossPatternDamageMultiplier,
+        getBossPatternModesForLoop,
+        getMaximumBossPatternDamageMultiplierForLoop,
         updateBossPatternTelegraph
     });
 }());

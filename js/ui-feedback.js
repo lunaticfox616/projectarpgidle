@@ -5,6 +5,7 @@
     let activeDialog = null;
     let previousFocus = null;
     let audioContext = null;
+    let lastCombatDeathSoundAt = -Infinity;
 
     function escapeFeedbackHtml(value) {
         return String(value == null ? '' : value)
@@ -46,6 +47,11 @@
 
     function playUiFeedbackSound(kind) {
         if (typeof game !== 'undefined' && game && game.settings && game.settings.uiSounds === false) return;
+        let feedbackNow = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+        if (String(kind).startsWith('kill')) {
+            if (kind !== 'killBoss' && feedbackNow - lastCombatDeathSoundAt < 80) return;
+            lastCombatDeathSoundAt = feedbackNow;
+        }
         let AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
         try {
@@ -58,12 +64,16 @@
                 confirm: [520, 0.024, 0.07],
                 cancel: [220, 0.018, 0.055],
                 danger: [145, 0.028, 0.09],
-                success: [660, 0.022, 0.08]
+                success: [660, 0.022, 0.08],
+                kill: [115, 0.012, 0.045],
+                killElite: [155, 0.017, 0.065],
+                killBoss: [92, 0.024, 0.12]
             };
             let spec = map[kind] || map.open;
-            osc.type = kind === 'danger' ? 'sawtooth' : 'sine';
+            osc.type = kind === 'danger' ? 'sawtooth' : (String(kind).startsWith('kill') ? 'triangle' : 'sine');
             osc.frequency.setValueAtTime(spec[0], now);
             if (kind === 'success') osc.frequency.exponentialRampToValueAtTime(880, now + spec[2]);
+            else if (String(kind).startsWith('kill')) osc.frequency.exponentialRampToValueAtTime(spec[0] * 0.55, now + spec[2]);
             gain.gain.setValueAtTime(spec[1], now);
             gain.gain.exponentialRampToValueAtTime(0.0001, now + spec[2]);
             osc.connect(gain);

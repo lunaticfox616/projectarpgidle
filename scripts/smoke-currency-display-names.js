@@ -54,7 +54,7 @@ vm.runInContext([
 awardContext.awardCurrency('divine', 2);
 assert.strictEqual(awardContext.game.currencies.goldenRule, 2, 'legacy divine rewards must enter the consolidated balance');
 assert.strictEqual(awardContext.game.currencies.divine, undefined, 'deleted balances must not be recreated');
-assert.strictEqual(banner.innerText, '✨ 황금률 획득! +2 ✨');
+assert.strictEqual(banner.innerText, '황금률 획득! +2');
 assert(logs.some(message => message.includes('황금률 +2') && !message.includes('신성한 오브')), 'drop logs must use the current currency name');
 
 const infusionItem = { name: '테스트 갑옷', chaosInfusion: { id: 'res_fire', val: 5 } };

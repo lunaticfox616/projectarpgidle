@@ -29,6 +29,9 @@ const expectedSkins = new Map([
   ['assets/ui/health-boss-v1.png', [309, 105]],
   ['assets/ui/health-elite-v1.png', [236, 78]],
   ['assets/ui/health-mob-v1.png', [153, 51]],
+  ['assets/ui/health-boss-v2.png', [2203, 714]],
+  ['assets/ui/health-elite-v2.png', [2172, 724]],
+  ['assets/ui/health-mob-v2.png', [2172, 724]],
   ['assets/ui/health-player-v1.png', [512, 84]],
   ['assets/ui/menu-rail-v1.png', [216, 532]],
   ['assets/ui/gauge-player-hp-v1.png', [120, 23]],
@@ -52,7 +55,15 @@ for (const [file, expectedSize] of expectedSkins) {
   assert.ok(fs.existsSync(file), `${file} must exist`);
   assert.deepStrictEqual(readPngSize(file), expectedSize, `${file} must keep its source dimensions`);
 }
-['assets/ui/reliquary/progress-frame-v3.png', 'assets/ui/reliquary/health-player-five-v3.png', 'assets/ui/reliquary/combat-hud-frame-v1.png', 'assets/ui/reliquary/combat-hud-mobile-v1.png'].forEach(file => {
+[
+  'assets/ui/health-boss-v2.png',
+  'assets/ui/health-elite-v2.png',
+  'assets/ui/health-mob-v2.png',
+  'assets/ui/reliquary/progress-frame-v3.png',
+  'assets/ui/reliquary/health-player-five-v3.png',
+  'assets/ui/reliquary/combat-hud-frame-v1.png',
+  'assets/ui/reliquary/combat-hud-mobile-v1.png',
+].forEach(file => {
   assert.strictEqual(readPngColorType(file), 6, `${file} must keep real RGBA transparency`);
 });
 
@@ -79,6 +90,16 @@ assert.ok(reliquaryCss.includes("url('../assets/ui/reliquary/combat-hud-mobile-v
   'mobile vitals must use a compact asset instead of shrinking the desktop utility wings');
 assert.ok(!html.includes('player-health-frame-art'), 'the lower HUD must not retain a hidden legacy frame element');
 assert.ok(reliquaryCss.includes("url('../assets/ui/reliquary/progress-frame-v3.png')"), 'the area progress gauge must share the combat HUD pixel-art family');
+assert.ok(html.includes('class="map-progress-ticks"'), 'the area progress gauge must expose fixed ten-percent tick marks');
+assert.ok(reliquaryCss.includes('background-size: 10% 100%, 10% 100%'), 'progress tick marks must divide the live track into ten equal intervals');
+assert.ok(reliquaryCss.includes('var(--progress-fill, 0%)'), 'progress ticks must reveal only after the live fill reaches them');
+assert.ok(reliquaryCss.includes('inset: 7px 30px'),
+  'desktop progress ticks must match both visible endpoints inside the frame ornaments');
+assert.ok(reliquaryCss.includes('padding: 7px 30px'),
+  'desktop progress fill must use the exact same shortened inner-track geometry as its ticks');
+assert.ok(reliquaryCss.includes("url('../assets/ui/gauge-player-hp-v1.png')"), 'the progress fill must use a textured gauge material');
+assert.ok(!reliquaryCss.includes('radial-gradient(ellipse at center, rgba(3, 4, 3, .96)'),
+  'the progress percentage must not paint an unrelated black center medallion');
 assert.ok(!reliquaryCss.includes('health-player-mobile-v1.svg'), 'mobile and desktop HUDs must not drift into separate art styles');
 assert.ok(fs.existsSync('assets/ui/reliquary/menu-icons-v1.svg'), 'the desktop rail must use a dedicated game icon atlas');
 assert.ok(reliquaryCss.includes("background-image: url('../assets/ui/reliquary/menu-icons-v1.svg')"), 'rail buttons must consume the shared icon atlas');
@@ -91,7 +112,7 @@ assert.ok(hpTrackStart >= 0 && esTrackStart > hpTrackStart && esTrackStart < exp
 assert.ok(!html.includes('combat-es-bar'), 'energy shield must not reserve a separate horizontal segment');
 assert.ok(ui.includes('<div class="health-skin-track">'), 'enemy fills must be clipped separately from their art');
 assert.ok(ui.includes("? 'boss' : (focusedEnemy.isElite ? 'elite' : 'mob')"), 'boss, elite, and normal enemies must select distinct art tiers');
-assert.ok(ui.includes('src="assets/ui/health-${enemyHudTier}-v1.png"'), 'enemy frames must use one real image selected by tier');
+assert.ok(ui.includes('src="assets/ui/health-${enemyHudTier}-v2.png"'), 'enemy frames must use the high-resolution art selected by tier');
 assert.ok(ui.includes('class="enemy-trait-marquee"'), 'enemy traits must have one clipped marquee track per tier');
 assert.ok(ui.includes("let effectMarkup = '<div class=\"enemy-tags muted enemy-ailments combat-effect-strip enemy-combat-effect-strip\""),
   'enemy effects must have one DOM owner per tier');
@@ -107,6 +128,8 @@ assert.ok(/#enemy-area \.enemy-hud-meta \{[\s\S]*?flex-direction: column;[\s\S]*
   'enemy traits and effect icons must occupy separate stacked rows');
 assert.ok(css.includes('.player-health-frame #ui-hp-bar'), 'player HP must have its own green live fill');
 assert.ok(css.includes('.player-health-frame #ui-es-bar'), 'player energy shield must have its own blue live fill');
+assert.ok(/body:not\(\.light-mode\)\.desktop-windowed-ui \.player-health-frame \.combat-hp-bar::after \{[\s\S]*?right: auto;[\s\S]*?z-index: 4;/.test(reliquaryCss),
+  'the red life endpoint marker must override the legacy inset and stay beneath the energy-shield overlay');
 assert.ok(css.includes('.player-health-frame #ui-exp-bar'), 'player experience must have its own live fill');
 assert.ok(css.includes('left: 29.88%') && css.includes('right: 9.77%'), 'health and energy shield must share the complete supplied art track');
 assert.ok(css.includes('left: 14.45%') && css.includes('right: 14.45%'), 'player experience must cover only the supplied art track');
@@ -126,7 +149,7 @@ assert.ok(reliquaryCss.includes('health-player-five-v3.png'),
 assert.ok(!html.includes('player-hud-rack-title'),
   'the equipped-gem artwork must not repeat a title beside the icons');
 assert.ok(reliquaryCss.includes('left: 1.9% !important') && reliquaryCss.includes('right: 3.1% !important'),
-  'the live HP track must remain aligned with the central opening in the continuous frame');
+  'the live HP and energy-shield layers must retain their original shared track geometry');
 assert.strictEqual((html.match(/<span class="combat-flask-mini/g) || []).length, 1, 'the boot HUD must expose only the always-equipped health flask before live state renders');
 assert.ok(/\.player-hud-flask-rack \.combat-flask-mini \{[\s\S]*?position: relative !important;/.test(reliquaryCss),
   'flask sockets must participate in the left HUD layout instead of using painted absolute coordinates');
@@ -167,20 +190,20 @@ assert.ok(/\.combat-effect-art \{[\s\S]*?overflow: hidden;/.test(css)
 assert.ok(css.includes('.effect-lifeLeech .combat-effect-art::before')
   && css.includes('.effect-gladiatorFlurry .combat-effect-art::before') && css.includes('transform: scale(.94);'),
   'the leech and flurry artwork must receive their per-icon framing correction');
-assert.ok(/\.player-health-frame \.player-combat-effect-strip \{[\s\S]*?bottom: calc\(100% \+ 4px\);[\s\S]*?flex-wrap: wrap-reverse;/.test(css),
+assert.ok(/\.player-hud-shell > \.player-combat-effect-strip \{[\s\S]*?bottom: calc\(100% \+ 4px\);[\s\S]*?flex-wrap: wrap-reverse;/.test(css),
   'player effects must occupy a wrapped shelf above the health frame instead of covering its gauge');
-assert.ok(/\.player-health-frame \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 32px;/.test(css),
+assert.ok(/\.player-hud-shell > \.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?min-width: 32px;/.test(css),
   'player effects must remain recognizable instead of shrinking below their icon art');
-assert.ok(/\.player-health-frame \.player-combat-effect-strip \{[\s\S]*?width: max-content;[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/.test(css),
+assert.ok(/\.player-hud-shell > \.player-combat-effect-strip \{[\s\S]*?width: max-content;[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/.test(css),
   'player effects must not reserve an opaque strip over the battlefield');
 assert.ok(/\.player-combat-effect-strip \.combat-effect-icon \{[\s\S]*?flex: 0 0 clamp\(24px, 5\.8vw, 28px\);[\s\S]*?aspect-ratio: 1;/.test(css),
   'mobile player effects must remain square so atlas rows cannot bleed together');
 assert.ok(css.includes('.enemy-card.enemy-boss .enemy-traits'), 'boss traits must occupy the lower frame panel');
 assert.ok(css.includes('--health-frame-width: 520px') && css.includes('.enemy-card.enemy-boss .enemy-hud-meta'),
   'boss health and traits must use the compact integrated frame');
-assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 41%;[\s\S]*?left: 34%;[\s\S]*?width: 32%;[\s\S]*?height: 17%;/.test(css),
+assert.ok(/\.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?position: absolute;[\s\S]*?top: 36%;[\s\S]*?left: 34%;[\s\S]*?width: 32%;[\s\S]*?height: 16%;/.test(css),
   'boss traits must stay centered within the supplied pink trait panel');
-assert.ok(/body\.mobile-battle-tab #tab-battle \.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?display: flex;[\s\S]*?align-items: center;[\s\S]*?height: 17%;/.test(css),
+assert.ok(/body\.mobile-battle-tab #tab-battle \.enemy-card\.enemy-boss \.enemy-traits \{[\s\S]*?top: 36%;[\s\S]*?display: flex;[\s\S]*?align-items: center;[\s\S]*?height: 16%;/.test(css),
   'mobile boss traits must keep the frame-panel centering contract');
 assert.ok(css.includes('@keyframes boss-trait-marquee') && css.includes('animation-play-state: paused')
   && css.includes('mask-image: linear-gradient') && css.includes('translate3d(-50%, 0, 0)')
@@ -194,8 +217,13 @@ assert.ok(css.includes('.enemy-card.enemy-elite .enemy-traits') && css.includes(
 assert.ok(/#enemy-area \.enemy-ailments \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/.test(css), 'enemy effects must no longer use a text box');
 assert.ok(/#enemy-area \.enemy-card\.targeted > \.enemy-combat-effect-strip \{[\s\S]*?overflow: visible;[\s\S]*?background: rgba\(7, 9, 13, \.9\);/.test(css),
   'enemy effect icons must remain visible on their own unclipped shelf');
-assert.ok(css.includes('.enemy-card.enemy-boss .health-skin-track { min-height: 0; }'), 'the mobile boss gauge must not expand over its frame');
-assert.ok(css.includes('--health-track-left:'), 'baked health colors must be covered by a live clipped track');
+assert.ok(/#enemy-area \.enemy-card\.targeted > \.enemy-combat-effect-strip \.combat-effect-icon \{[\s\S]*?width: 34px;[\s\S]*?height: 34px;/.test(css),
+  'desktop enemy effect icons must keep their established readable size');
+assert.ok(/\.enemy-card\.targeted \.health-skin-track \{[\s\S]*?min-height: 0;[\s\S]*?overflow: visible;/.test(css),
+  'enemy gauges must follow the generated opening while keeping their numeric label readable');
+assert.ok(css.includes('--health-track-left: 10.22%') && css.includes('--health-track-left: 16.25%')
+  && css.includes('--health-track-left: 13.94%'),
+  'normal, elite, and boss gauges must each use their measured high-resolution opening');
 assert.ok(/\.enemy-card\.targeted \.hp-bar-bg \{[\s\S]*?z-index: 2;/.test(css), 'the live enemy gauge layer must render above the frame artwork');
 assert.ok(css.includes('@media (max-width: 1080px)'), 'the integrated player frame must retain a mobile layout');
 assert.ok(css.includes('.enemy-card.targeted.enemy-mob { margin-top: 34px; }'), 'normal enemy names must clear the progress row');

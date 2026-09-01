@@ -183,7 +183,7 @@ function buildEquipmentLoadoutSwap(preset, slotIndex, targetGame) {
         inventoryItems.add(item);
         if (identity) inventoryIdentities.add(identity);
     });
-    if (nextInventory.length > getInventoryLimit()) return { ok: false, reason: `세팅 전환 후 인벤토리가 ${nextInventory.length - getInventoryLimit()}칸 초과합니다.` };
+    if (!equipmentInventoryGridRuntime.canFitItems(nextInventory, targetGame)) return { ok: false, reason: '세팅 전환 후 인벤토리 배치 공간이 부족합니다.' };
     return { ok: true, equipment: nextEquipment, inventory: nextInventory, inspection };
 }
 
@@ -235,7 +235,9 @@ const equipmentLoadoutRuntime = Object.freeze({
     apply: applyEquipmentLoadoutPreset,
     rename: renameEquipmentLoadoutPreset,
     clear: clearEquipmentLoadoutPreset,
-    isReferenced: isEquipmentLoadoutItemReferenced
+    isReferenced: isEquipmentLoadoutItemReferenced,
+    getItemIdentity: getEquipmentLoadoutItemIdentity,
+    ensureItemIdentity: ensureEquipmentLoadoutItemIdentity
 });
 
 safeExposeGlobals({ equipmentLoadoutRuntime });

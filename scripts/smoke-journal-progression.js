@@ -11,6 +11,7 @@ function extract(source, startNeedle, endNeedle) {
 
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const mapsSource = fs.readFileSync('data/maps.js', 'utf8');
 const htmlSource = fs.readFileSync('index.html', 'utf8');
 
 const journalRuntimeBlock = extract(passiveSource, 'function getClaimedJournalPassivePointTotal', 'function markActRewardReady');
@@ -75,12 +76,14 @@ const calls = [];
 const actionRuntime = {
     game: {
         season: 31,
+        maxZoneId: 10,
         unlocks: { map: true, char: true },
         starWedge: { unlocked: true },
         chaosRealm: { unlocked: true },
         cosmosAtlas: {}
     },
     STAR_WEDGE_UNLOCK_LOOP: 7,
+    ABYSS_START_ZONE_ID: 10,
     OCEAN_UNLOCK_LOOP: 11,
     TIME_RIFT_UNLOCK_LOOP: 13,
     getCosmosCapstoneProgress: () => ({ canChallenge: false }),
@@ -102,6 +105,33 @@ assert.deepStrictEqual(calls, [
 
 actionRuntime.getCosmosCapstoneProgress = () => ({ canChallenge: true });
 assert.strictEqual(actionRuntime.getJournalEntryAction('cosmos_astra').subtabId, 'map-explore-root-boss');
+
+const storyEntries = [
+    { id: 'act_1', def: { requiresJournal: ['prologue'] } },
+    { id: 'act_2', def: { requiresJournal: ['act_1'] } },
+    { id: 'act_3', def: { requiresJournal: ['act_2'] } }
+];
+assert.strictEqual(actionRuntime.getJournalEntryAvailability(storyEntries[0], ['prologue']), 'available');
+assert.strictEqual(actionRuntime.getJournalEntryAvailability(storyEntries[1], ['prologue']), 'prerequisite-locked');
+assert.strictEqual(actionRuntime.getJournalEntryAvailability(storyEntries[2], ['prologue']), 'prerequisite-locked');
+assert.strictEqual(actionRuntime.getJournalEntryAvailability(storyEntries[1], ['prologue', 'act_1']), 'available');
+
+const independentEntries = [{ id: 'beehive_queen', def: {} }, { id: 'void_grand_breach', def: {} }];
+actionRuntime.game.season = 9;
+assert.deepStrictEqual(
+    independentEntries.map(entry => actionRuntime.getJournalEntryAvailability(entry, [])),
+    ['available', 'available'],
+    'all independently accessible records must be shown instead of only the first record in a category'
+);
+actionRuntime.game.season = 1;
+assert.strictEqual(actionRuntime.getJournalEntryAvailability(independentEntries[0], []), 'content-locked');
+assert.strictEqual(actionRuntime.getJournalEntryAvailability({ id: 'immortal', def: { hidden: true } }, []), 'hidden');
+assert.strictEqual(actionRuntime.getJournalEntryAvailability({ id: 'immortal', def: { hidden: true } }, ['immortal']), 'unlocked');
+assert(mapsSource.includes("requiresJournal: ['act_4']"), 'story journal dependencies must be data-owned');
+assert.strictEqual(actionRuntime.getJournalContentUnlockHint('beehive_queen'), '루프 8 도달');
+assert.strictEqual(actionRuntime.getJournalLockedHint('content-locked', 'beehive_queen'), '루프 8 도달');
+assert.strictEqual(actionRuntime.getJournalLockedHint('prerequisite-locked', 'act_2'), '???');
+assert.strictEqual(actionRuntime.getJournalLockedHint('hidden', 'immortal'), '???');
 
 assert(htmlSource.includes('id="noti-journal"'), 'the journal tab needs a visible notification dot');
 assert(uiSource.includes("if (id === 'cosmos_astra') return '우주계 기록'"), 'Astra must not be categorized as an abandoned blade');

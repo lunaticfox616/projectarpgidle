@@ -6,7 +6,9 @@
   "scripts": {
     "test": "node scripts/run-smoke.js",
     "test:browser": "playwright test",
-    "pr:check": "node scripts/check-pr-state.js"
+    "pr:check": "node scripts/check-pr-state.js",
+    "passive:edit": "node scripts/passive-tree-editor-server.js",
+    "vfx:edit": "node scripts/skill-vfx-editor-server.js"
   },
   "engines": {
     "node": ">=20"

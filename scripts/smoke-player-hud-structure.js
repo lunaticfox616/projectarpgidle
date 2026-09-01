@@ -14,9 +14,11 @@ const shellStart = html.indexOf('<div class="player-hud-shell">');
 const leftWingStart = html.indexOf('<div class="player-hud-left-wing">', shellStart);
 const frameStart = html.indexOf('<div class="player-health-frame"', shellStart);
 const skillRackStart = html.indexOf('<div class="player-hud-skill-rack"', frameStart);
+const effectsStart = html.indexOf('id="ui-player-ailments-under"', skillRackStart);
 const oxygenStart = html.indexOf('id="ui-ocean-oxygen-box"', shellStart);
-assert(shellStart >= 0 && leftWingStart > shellStart && frameStart > leftWingStart && skillRackStart > frameStart && oxygenStart > skillRackStart,
-  'identity, flasks, vitals, equipped gems, and oxygen must share one ordered HUD shell');
+assert(shellStart >= 0 && leftWingStart > shellStart && frameStart > leftWingStart && skillRackStart > frameStart
+  && effectsStart > skillRackStart && oxygenStart > effectsStart,
+  'identity, flasks, vitals, equipped gems, effects, and oxygen must share one ordered HUD shell');
 assert(!html.includes('player-hud-info-box'), 'identity and experience must not float in a separate box');
 assert(html.includes('css/ui-reliquary-shell.css?v=20260819-commercial-hud6'),
   'the continuous combat HUD must invalidate the deployed stylesheet cache');
@@ -45,7 +47,8 @@ assert(!html.includes('player-hud-rack-title'),
   'the right-side gem rack must use icons without a redundant title inside the artwork');
 assert(/\.combat-skill-gem-art \.gem-art-fallback \{\s*display: none;\s*\}/.test(reliquaryCss),
   'combat gem slots must hide fallback element symbols');
-assert(html.indexOf('id="ui-player-ailments-under"', frameStart) < hpTrackStart, 'active effects must share the supplied player frame');
+assert(effectsStart > skillRackStart && effectsStart < oxygenStart,
+  'active effects must own a fixed row in the integrated HUD instead of moving the health frame');
 assert(hpTrackStart >= 0 && expTrackStart > hpTrackStart, 'the player frame must retain health and experience tracks');
 assert(esTrackStart > hpTrackStart && esTrackStart < expTrackStart, 'energy shield must overlay the health track instead of occupying a separate segment');
 assert(esBarStart > esTrackStart && esBarStart < expTrackStart, 'the shared health track must retain a live energy-shield fill');

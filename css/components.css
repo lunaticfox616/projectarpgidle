@@ -1500,8 +1500,14 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     padding: 9px 11px 11px;
 }
 .passive-investment-summary.collapsed .passive-investment-summary-body { display: none; }
+.passive-investment-summary.collapsed { width: auto; min-width: 132px; }
 .passive-investment-summary.collapsed .passive-summary-chevron { transform: rotate(180deg); }
 .passive-summary-meta { color: var(--copy-muted); font-size: 0.72rem; margin-bottom: 7px; }
+.passive-specialization-controls { display: grid; gap: 6px; margin: 0 0 9px; }
+.passive-specialization-controls label { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; color: #c7a9ee; font-size: 0.72rem; }
+.passive-specialization-controls select { min-width: 118px; padding: 3px 6px; border: 1px solid rgba(199, 169, 238, 0.35); border-radius: 5px; background: rgba(11, 18, 30, 0.9); color: var(--copy-bright); }
+.passive-specialization-controls select:disabled { opacity: .48; cursor: not-allowed; }
+.passive-specialization-locked { color: #9ba8b4; font-size: .68rem; line-height: 1.35; }
 .passive-summary-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; font-size: 0.75rem; }
 .passive-summary-grid span:nth-child(odd) { color: var(--copy-bright); overflow-wrap: anywhere; }
 .passive-summary-grid strong { color: #f2d88f; text-align: right; font-variant-numeric: tabular-nums; }
@@ -1895,3 +1901,30 @@ html, body { overflow: hidden; }
 .records-table tbody tr:nth-child(odd) { background: rgba(255, 255, 255, 0.03); }
 .records-table td.records-num { text-align: right; font-variant-numeric: tabular-nums; }
 .records-table td.is-best { color: #8fe7b0; font-weight: 800; }
+
+.active-talent-control {
+    display: grid;
+    grid-template-columns: minmax(180px, auto) minmax(150px, 220px) minmax(240px, 1fr);
+    gap: 10px;
+    align-items: center;
+    margin: 0 0 10px;
+    padding: 9px 12px;
+    border: 1px solid rgba(151, 116, 210, 0.45);
+    border-radius: 9px;
+    background: rgba(31, 23, 48, 0.82);
+}
+.active-talent-control div { display: grid; gap: 2px; }
+.active-talent-control strong { color: #e8d6ff; font-size: 0.9rem; }
+.active-talent-control span, .active-talent-control small { color: var(--copy-muted); font-size: 0.75rem; }
+.active-talent-control select {
+    min-height: 34px;
+    color: var(--copy-bright);
+    border: 1px solid #5e4a83;
+    border-radius: 7px;
+    background: #171225;
+    padding: 5px 8px;
+}
+@media (max-width: 720px) {
+    .active-talent-control { grid-template-columns: 1fr 1fr; }
+    .active-talent-control small { grid-column: 1 / -1; }
+}

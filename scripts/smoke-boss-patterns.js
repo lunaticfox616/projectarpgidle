@@ -72,6 +72,18 @@ assert.strictEqual(exposed.getBossPatternPeakDamageMultiplier('slam'), 1.55,
     'slam readiness should use its actual peak hit multiplier');
 assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplier(), 1.55,
     'unknown boss patterns should use the strongest possible special hit');
+assert.deepStrictEqual(Array.from(exposed.getBossPatternModesForLoop(5)), [],
+    'boss patterns should remain locked through loop 5');
+assert.deepStrictEqual(Array.from(exposed.getBossPatternModesForLoop(6)), ['ramp'],
+    'loop 6 should introduce the gentlest boss pattern first');
+assert.deepStrictEqual(Array.from(exposed.getBossPatternModesForLoop(7)), ['ramp', 'burst'],
+    'loop 7 should add burst without introducing slam yet');
+assert.deepStrictEqual(Array.from(exposed.getBossPatternModesForLoop(8)), ['ramp', 'burst', 'slam'],
+    'loop 8 should unlock the complete ordinary boss pattern set');
+assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplierForLoop(5), 1);
+assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplierForLoop(6), 1.21);
+assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplierForLoop(7), 1.30);
+assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplierForLoop(8), 1.55);
 assert.strictEqual(exposed.getBossPatternPreview({ isBoss: false, patternMode: 'slam' }), null);
 assert.strictEqual(exposed.getBossPatternModeLabel('burst'), '연속 참격');
 assert.ok(exposed.getBossPatternDescription('slam').includes('3번째 공격'), 'boss pattern descriptions should explain their trigger rule');

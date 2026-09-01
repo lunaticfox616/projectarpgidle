@@ -47,8 +47,7 @@ const context = {
     getAnnulmentRemovableStats: item => item.stats.map((stat, index) => ({ stat, index })),
     getStatName: id => id,
     formatValue: (id, value) => value,
-    getMarketInventoryExpandCost: () => 2,
-    getInventoryLimit: () => 40,
+    getEquipmentInventoryPageCount: () => 7,
     getJewelMarketExpandCost: () => 2,
     getJewelInventoryLimit: () => 30,
     getGrowthMarketExpandCost: () => 2,
@@ -68,7 +67,7 @@ vm.runInContext(readFunctionSource('updateMarketExchangeAvailability'), context,
 vm.runInContext(readFunctionSource('renderMarketExchangePicker'), context, { filename: 'market-exchange-picker.js' });
 vm.runInContext(readFunctionSource('renderMarketUI'), context, { filename: 'market-golden-rule-services.js' });
 vm.runInContext(readFunctionSource('buildGoldenRuleSpendPrompt'), context, { filename: 'golden-rule-spend-prompt.js' });
-['marketExpandInventoryByDivine', 'marketExpandJewelInventoryByDivine', 'marketExpandGrowthInventoryByDivine']
+['marketExpandJewelInventoryByDivine', 'marketExpandGrowthInventoryByDivine']
     .forEach(name => vm.runInContext(readFunctionSource(name), context, { filename: `${name}.js` }));
 
 context.renderMarketUI();
@@ -102,15 +101,16 @@ const serviceHtml = [
     elements['ui-market-service-jewel-inv'].innerHTML
 ].join('\n');
 assert(!serviceHtml.includes('신성한 오브'), 'golden-rule services must not show the obsolete currency name');
-assert.strictEqual((serviceHtml.match(/황금률/g) || []).length, 4, 'every golden-rule service must show its actual currency');
+assert.strictEqual((serviceHtml.match(/황금률/g) || []).length, 3, 'every remaining golden-rule service must show its actual currency');
 assert(!serviceHtml.includes('<button onclick="marketResetPassiveTreeByDivine()" disabled'), 'golden-rule balance must enable passive reset');
-assert(!serviceHtml.includes('marketExpandInventoryByDivine()" disabled'), 'golden-rule balance must enable inventory expansion');
+assert(!serviceHtml.includes('marketExpandInventoryByDivine'), 'equipment inventory expansion purchases must be removed');
+assert(elements['ui-market-service-inv'].innerHTML.includes('7페이지') && elements['ui-market-service-inv'].innerHTML.includes('루프 진행'),
+    'the market must explain loop-based equipment storage pages without a purchase button');
 
 Promise.resolve().then(async () => {
-    await context.marketExpandInventoryByDivine();
     await context.marketExpandJewelInventoryByDivine();
     await context.marketExpandGrowthInventoryByDivine();
-    assert.strictEqual(context.confirmationPrompts.length, 3, '모든 황금률 인벤토리 확장창을 열어야 한다');
+    assert.strictEqual(context.confirmationPrompts.length, 2, '주얼과 생장 보관함 확장창만 열어야 한다');
     context.confirmationPrompts.forEach(prompt => {
         assert(prompt.includes('현재 보유: 황금률 3개'), '확장창은 현재 황금률 보유량을 표시해야 한다');
     });
@@ -118,7 +118,7 @@ Promise.resolve().then(async () => {
     context.game.currencies.goldenRule = 0;
     context.renderMarketUI();
     assert(elements['ui-market-service-passive'].innerHTML.includes('disabled'), 'zero golden rule must disable passive reset');
-    assert(elements['ui-market-service-inv'].innerHTML.includes('disabled'), 'zero golden rule must disable inventory expansion');
+    assert(!elements['ui-market-service-inv'].innerHTML.includes('<button'), 'equipment storage information must never render an expansion button');
     assert(elements['ui-market-service-jewel-inv'].innerHTML.includes('disabled'), 'zero golden rule must disable jewel expansion');
 
     console.log('smoke-market-golden-rule-services passed');

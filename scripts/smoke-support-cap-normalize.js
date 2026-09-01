@@ -5,6 +5,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
 function loadNormalizer(statsProvider, gameState) {
     const source = fs.readFileSync('js/skills.js', 'utf8');
@@ -80,6 +81,23 @@ function loadNormalizer(statsProvider, gameState) {
         '폴백 스탯(suppCap 0)은 넘기면 안 된다. 넘기면 부팅 중 보조 젬이 전부 해제된다');
     assert.ok(/normalizeSupportLoadout\([^)]*\)\)\s*pStats = getUiPlayerStats\(\)/.test(block),
         '정리로 젬이 빠졌으면 스탯을 다시 계산해야 한다');
+}
+
+// ── 장착 실패는 카드와 즉시 알림 양쪽에서 이유를 보여준다 ───────────────
+{
+    const runtime = buildGameRuntime();
+    const logs = [];
+    runtime.normalizeSupportLoadout = () => false;
+    runtime.getUiPlayerStats = () => ({ suppCap: 0 });
+    runtime.updateStaticUI = () => {};
+    runtime.addLog = (...args) => logs.push(args);
+    const supportName = vm.runInContext("Object.keys(SUPPORT_GEM_DB).find(name => !isSummonGuardSupport(name))", runtime);
+    vm.runInContext('game.equippedSupports = []', runtime);
+    const card = vm.runInContext(`renderSupportGemCard(${JSON.stringify(supportName)}, ${JSON.stringify(supportName)}, { suppCap: 0 })`, runtime);
+    assert(card.includes('장착 한도 부족 (0/0)'), 'support cards must explain a full-slot failure before the click');
+    vm.runInContext(`toggleSupport(${JSON.stringify(supportName)})`, runtime);
+    assert(logs.some(args => String(args[0]).includes('장착 한도 부족') && args[2] && args[2].toast === true),
+        'support equip failure must create an immediate toast instead of a silent return');
 }
 
 console.log('smoke-support-cap-normalize passed');

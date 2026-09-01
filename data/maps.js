@@ -1,5 +1,30 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/maps.js');
 
+const ACT_BATTLE_MAP_SOURCES = Object.freeze({
+    bgAct1: 'assets/background/world-tree/act01-filled-v1.webp',
+    bgAct2: 'assets/background/world-tree/act02-filled-v1.webp',
+    bgAct3: 'assets/background/world-tree/act03-filled-v1.webp',
+    bgAct4: 'assets/background/world-tree/act04-filled-v1.webp',
+    bgAct5: 'assets/background/world-tree/act05-filled-v1.webp',
+    bgAct6: 'assets/background/world-tree/act06-filled-v1.webp',
+    bgAct7: 'assets/background/world-tree/act07-filled-v1.webp',
+    bgAct8: 'assets/background/world-tree/act08-filled-v1.webp',
+    bgAct9: 'assets/background/world-tree/act09-filled-v1.webp',
+    bgAct10: 'assets/background/world-tree/act10-filled-v1.webp'
+});
+
+const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
+    width: 816,
+    height: 624,
+    gridOriginX: 192,
+    gridOriginY: 144,
+    cellWidth: 48,
+    cellHeight: 48,
+    columns: 9,
+    rows: 8,
+    viewScale: 1.06
+});
+
 // Phase-1 extracted map/season/journal data.
 const STORY_ACTS = [
     { id: 'root_tip_sanctuary', order: 1, displayAct: '1', title: '뿌리끝 성소', subtitle: '썩은 잔뿌리를 베며 중간계로 돌아갈 길을 연다.', description: '뿌리없는 자는 뿌리끝의 드루이드에게 거두어져 뿌리길을 되살릴 사냥을 시작한다.', areaTheme: '축축한 뿌리, 곰팡이, 죽은 수액, 지하 성소', bossId: 'rotten_mane_rootlet', bossName: '썩은갈기의 잔뿌리', clearText: '썩은 잔뿌리가 잘려나가자, 오래 막혀 있던 뿌리길이 다시 열린다.', unlockText: '뿌리길의 봉인이 열리며 가지치기의 중정이 드러난다.', specialType: 'normal', tier: 1, maxKills: 1, ele: 'phys' },
@@ -29,11 +54,11 @@ const WORLD_MAP_HOTSPOTS = [
 ];
 
 const TRIAL_ZONES = [
-    { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3, ele: 'phys', repeatGemChance: 0.05, fixedDifficultyMul: 1, trapElements: ['phys'], trialDesc: '칼날 함정 · 방어도와 물리 피해 감소 점검' },
-    { id: 'trial_2', name: "2차 전직 시련", type: "trial", tier: 6, maxKills: 1, reqZone: 8, ele: 'fire', repeatGemChance: 0.08, fixedDifficultyMul: 1, trapElements: ['fire', 'cold', 'light'], trialDesc: '삼원 함정 · 화염·냉기·번개 저항 점검' },
-    { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['chaos'], trialDesc: '여신의 독무 · 카오스 저항과 회복력 점검' },
-    { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['phys', 'chaos'], trialDesc: '피와 공허의 회랑 · 물리·카오스 방어 복합 점검' },
-    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", tier: 57, maxKills: 1, reqZone: -1, bloomTrial: true, difficultyBenchmark: 'underworld1', underworldPenaltyFloor: 1, trapDamageMul: 0.72, trapRegenSuppressPct: 1, trapRegenSuppressCap: 0.3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialDesc: '혹한 함정 · 지하계 1층급 수호자와 파쇄 강타 점검', bossMods: { hpMul: 0.9, damageMul: 0.84, patternMode: 'slam', traitName: '백야의 심장 — 파쇄 강타를 버티고 함정 사이에 회복하세요' } }
+    { id: 'trial_1', name: "1차 전직 시련", type: "trial", tier: 3, maxKills: 1, reqZone: 3, ele: 'phys', repeatGemChance: 0.05, fixedDifficultyMul: 1, trapElements: ['phys'], trialHazard: { pattern: 'line', warningMs: 1800, intervalMs: 6800, initialDelayMs: 2400, avoidThresholdMul: 1.1 }, trialDesc: '칼날 직선 함정 · 한 칸 회피와 방어도 점검' },
+    { id: 'trial_2', name: "2차 전직 시련", type: "trial", tier: 6, maxKills: 1, reqZone: 8, ele: 'fire', repeatGemChance: 0.08, fixedDifficultyMul: 1, trapElements: ['fire', 'cold', 'light'], trialHazard: { pattern: 'doubleLine', warningMs: 1750, intervalMs: 6200, initialDelayMs: 2300, avoidThresholdMul: 1 }, trialDesc: '삼원 이중 함정 · 경고 속성과 저항 점검' },
+    { id: 'trial_3', name: "3차 전직 시련 (여신)", type: "trial", tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['chaos'], trialHazard: { pattern: 'pool', warningMs: 1650, intervalMs: 5600, initialDelayMs: 2200, avoidThresholdMul: 0.9 }, trialDesc: '여신의 독무 · 오염 지대를 벗어나 회복할 자리 확보' },
+    { id: 'trial_4', name: "4차 전직 미궁 시련", type: "trial", tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['phys', 'chaos'], trialHazard: { pattern: 'cross', warningMs: 1550, intervalMs: 5000, initialDelayMs: 2100, avoidThresholdMul: 0.8 }, trialDesc: '피와 공허의 십자 회랑 · 대각선 탈출과 복합 방어 점검' },
+    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", tier: 57, maxKills: 1, reqZone: -1, bloomTrial: true, difficultyBenchmark: 'underworld1', underworldPenaltyFloor: 1, trapDamageMul: 0.72, trapRegenSuppressPct: 1, trapRegenSuppressCap: 0.3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialHazard: { pattern: 'block', warningMs: 1550, intervalMs: 4600, initialDelayMs: 2000, avoidThresholdMul: 0.7 }, trialDesc: '혹한 봉쇄 · 두 칸 탈출과 지하계 1층급 수호자 점검', bossMods: { hpMul: 0.9, damageMul: 0.84, patternMode: 'slam', traitName: '백야의 심장 — 파쇄 강타를 버티고 함정 사이에 회복하세요' } }
 ];
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
@@ -42,7 +67,7 @@ const MAX_STAR_WEDGES = 3;
 
 const MAX_STAR_WEDGES_HARD_CAP = 8;
 
-const STAR_WEDGE_RADIUS = 3;
+const STAR_WEDGE_RADIUS_TIERS = Object.freeze([160, 240, 320]);
 
 const STAR_WEDGE_UNLOCK_LOOP = 7;
 
@@ -54,7 +79,6 @@ const OCEAN_ZONE_ID = 'ocean_depth';
 
 const MAP_PRIMARY_CONTENTS = Object.freeze([
     { id: 'map-tab-zones', label: '탐험', initiallyUnlocked: true },
-    { id: 'map-tab-abyss', label: '혼돈 패시브', noticeKey: 'unlock_map_abyss', noticeTitle: '혼돈 패시브 해금', noticeBody: '혼돈 진행으로 얻은 포인트를 지도에서 배분할 수 있습니다.' },
     { id: 'map-tab-chaos-realm', label: '혼돈계', noticeKey: 'unlock_chaos_realm', noticeTitle: '혼돈계 해금', noticeBody: '루프 밖에서 이어지는 혼돈계 영구 등반이 열렸습니다.' },
     { id: 'map-tab-sky', label: '창공', noticeKey: 'unlock_sky_tower', noticeTitle: '창공의 탑 해금', noticeBody: '창공의 탑이 열렸습니다. 이후 루프에서는 혼돈 입성부터 다시 도전할 수 있습니다.' },
     { id: 'map-tab-underworld', label: '지하계', noticeKey: 'unlock_underworld', noticeTitle: '지하계 해금', noticeBody: '지하계가 열렸습니다. 룬과 영구 강화 진행도는 루프 후에도 유지됩니다.' },
@@ -262,18 +286,18 @@ const LABYRINTH_ZONE_ID = 'labyrinth_endless';
 
 const JOURNAL_DB = {
     prologue: { title: '프롤로그 - 정원사의 판단', lines: ['“이 나무에 뿌리내리지 못한 것은 열매가 될 수 없다.”', '“너는 가지가 아니다. 잎도, 씨앗도, 벌레도 아니다.”', '“그렇다면 남은 이름은 하나뿐이다. 밑거름.”'] },
-    act_1: { title: '액트 1 - 뿌리의 드루이드', lines: ['“뿌리가 없다는 건 저주가 아니다.”', '“어쩌면 이 세계에서 가장 자유로운 형벌이지.”', '“중간계로 돌아가고 싶다면, 썩은 잔뿌리들을 베어라.”', '“길은 언제나 상처를 따라 열린다.”'], bonus: { stat: 'flatHp', value: 5, label: '최대 생명력 +5' } },
-    act_2: { title: '액트 2 - 정원사의 불멸', lines: ['“나는 내가 살아 있는 것이 아니다.”', '“가지들이 나를 살린다.”', '“나를 베고 싶다면, 먼저 이 나무가 나를 잊게 만들어라.”'], bonus: { stat: 'flatDmg', value: 1, label: '기본 피해 +1' } },
-    act_3: { title: '액트 3 - 드루이드의 경고', lines: ['“널 추방한 자가 정원사라면, 그는 나뭇가지들의 호혜를 받고 있다.”', '“기근의 뿌리를 끊으면 정원사에게 닿는 호혜도 함께 마를 것이다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
-    act_4: { title: '액트 4 (4-1/4-2) - 갈림과 축적', lines: ['“네가 돌아갈 곳은 없다.”', '“그는 너를 길렀다고? 아니다. 그는 너를 벼렸다.”'], bonus: { stat: 'move', value: 2, label: '이동 속도 +2%' } },
-    act_5: { title: '액트 5 - 지주근의 진실', lines: ['“나는 이 나무를 버틴 자다.”', '“너는… 베는 자의 조각이다.”', '“나무꾼의 손에서 빠진, 첫 번째 날붙이였구나.”'], bonus: { stat: 'flatHp', value: 8, label: '최대 생명력 +8' } },
-    act_6: { title: '액트 6 - 정원사의 붕괴', lines: ['“왜 가지들이 대답하지 않지?”', '“왜 내 상처가 닫히지 않는 거지?”', '“너는 대체 무엇이냐.”'], bonus: { stat: 'pctDmg', value: 1, label: '피해 +1%' } },
-    act_7: { title: '액트 7 - 삽목들의 논리', lines: ['“우리는 썩어가는 나무에 남지 않겠다.”', '“떨어져 나가는 것은 배신이 아니다. 번식이다.”'], bonus: { stat: 'dr', value: 1, label: '물리 피해 감소 +1%' } },
-    act_8: { title: '액트 8 - 끝없는 장막', lines: ['“처음 본 길인데도, 발자국은 이미 나 있다.”'], bonus: { stat: 'resAll', value: 1, label: '모든 저항 +1%' } },
-    act_9: { title: '액트 9 - 비탄의 교차', lines: ['“살아남으려는 가지의 울음은 죄가 아니다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' } },
-    act_10: { title: '액트 10 - 합일의 차륜', lines: ['“왕관은 부서져도, 선택은 남는다.”'], bonus: { stat: 'flatHp', value: 12, label: '최대 생명력 +12' } },
-    woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'] },
-    woodsman_echo: { title: '나무꾼 격파 (잔상)', lines: ['“남은 것은 도끼의 잔향뿐.”', '“흔들리지 않는 표적 앞에서, 너의 날은 수치로 증명된다.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '혼돈 밖에서 나무꾼을 완전히 격파하라' },
+    act_1: { title: '액트 1 - 뿌리의 드루이드', lines: ['“뿌리가 없다는 건 저주가 아니다.”', '“어쩌면 이 세계에서 가장 자유로운 형벌이지.”', '“중간계로 돌아가고 싶다면, 썩은 잔뿌리들을 베어라.”', '“길은 언제나 상처를 따라 열린다.”'], bonus: { stat: 'flatHp', value: 5, label: '최대 생명력 +5' }, requiresJournal: ['prologue'] },
+    act_2: { title: '액트 2 - 정원사의 불멸', lines: ['“나는 내가 살아 있는 것이 아니다.”', '“가지들이 나를 살린다.”', '“나를 베고 싶다면, 먼저 이 나무가 나를 잊게 만들어라.”'], bonus: { stat: 'flatDmg', value: 1, label: '기본 피해 +1' }, requiresJournal: ['act_1'] },
+    act_3: { title: '액트 3 - 드루이드의 경고', lines: ['“널 추방한 자가 정원사라면, 그는 나뭇가지들의 호혜를 받고 있다.”', '“기근의 뿌리를 끊으면 정원사에게 닿는 호혜도 함께 마를 것이다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' }, requiresJournal: ['act_2'] },
+    act_4: { title: '액트 4 (4-1/4-2) - 갈림과 축적', lines: ['“네가 돌아갈 곳은 없다.”', '“그는 너를 길렀다고? 아니다. 그는 너를 벼렸다.”'], bonus: { stat: 'move', value: 2, label: '이동 속도 +2%' }, requiresJournal: ['act_3'] },
+    act_5: { title: '액트 5 - 지주근의 진실', lines: ['“나는 이 나무를 버틴 자다.”', '“너는… 베는 자의 조각이다.”', '“나무꾼의 손에서 빠진, 첫 번째 날붙이였구나.”'], bonus: { stat: 'flatHp', value: 8, label: '최대 생명력 +8' }, requiresJournal: ['act_4'] },
+    act_6: { title: '액트 6 - 정원사의 붕괴', lines: ['“왜 가지들이 대답하지 않지?”', '“왜 내 상처가 닫히지 않는 거지?”', '“너는 대체 무엇이냐.”'], bonus: { stat: 'pctDmg', value: 1, label: '피해 +1%' }, requiresJournal: ['act_5'] },
+    act_7: { title: '액트 7 - 삽목들의 논리', lines: ['“우리는 썩어가는 나무에 남지 않겠다.”', '“떨어져 나가는 것은 배신이 아니다. 번식이다.”'], bonus: { stat: 'dr', value: 1, label: '물리 피해 감소 +1%' }, requiresJournal: ['act_6'] },
+    act_8: { title: '액트 8 - 끝없는 장막', lines: ['“처음 본 길인데도, 발자국은 이미 나 있다.”'], bonus: { stat: 'resAll', value: 1, label: '모든 저항 +1%' }, requiresJournal: ['act_7'] },
+    act_9: { title: '액트 9 - 비탄의 교차', lines: ['“살아남으려는 가지의 울음은 죄가 아니다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' }, requiresJournal: ['act_8'] },
+    act_10: { title: '액트 10 - 합일의 차륜', lines: ['“왕관은 부서져도, 선택은 남는다.”'], bonus: { stat: 'flatHp', value: 12, label: '최대 생명력 +12' }, requiresJournal: ['act_9'] },
+    woodsman: { title: '나무꾼', lines: ['“종착점에 도착했구나, 나의 피조물아.”', '“선택해라. 도구로 남을 것인지, 날이 될 것인지.”'], requiresJournal: ['act_10'] },
+    woodsman_echo: { title: '나무꾼 격파 (잔상)', lines: ['“남은 것은 도끼의 잔향뿐.”', '“흔들리지 않는 표적 앞에서, 너의 날은 수치로 증명된다.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '혼돈 밖에서 나무꾼을 완전히 격파하라', requiresJournal: ['woodsman'] },
     star_wedge: { title: '별쐐기', lines: ['“나무 바깥에서 떨어진 검은 별의 파편.”', '“패시브 트리에 박아 넣으면 주변 노드의 성장 규칙을 비틀 수 있다.”'] },
     arcana_first_seal: { title: '봉인된 아르카나', lines: ['“별길마다 남은 문양을 맞추자 이름 없는 패가 모습을 드러냈다.”', '“봉인은 힘을 감추는 동시에, 그 힘이 머물 자리를 고른다.”'], displayEffect: '아르카나 탭 해금', hidden: true, hint: '첫 우주계 탐험 후 서로 다른 별길을 충분히 조사하면 봉인된 패를 복원할 수 있다' },
     immortal: { title: '히든저널 - 불사자', lines: ['“한 번도 무너지지 않고, 끝까지 걸어온 칼날.”', '“죽음을 허락하지 않은 루프의 기록.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, hidden: true, hint: '한 루프에서 죽지 않고 액트 10 클리어' },
@@ -285,37 +309,24 @@ const JOURNAL_DB = {
     time_rift_fusion: { title: '시간의 균열 - 남겨진 기억', lines: ['“과거의 이름과 미래의 상처가 한 몸에 남았다.”', '“융합은 복원이 아니다. 잃어버린 두 가능성 중 하나를 선택하는 일이다.”'] },
     colony_wave_10: { title: '군락지 - 열 번째 파동', lines: ['“군락은 개체를 세지 않는다. 살아남은 형태만을 기억한다.”', '“열 번의 파동을 견딘 방벽에는 벌레가 아니라 의지가 들러붙었다.”'] },
     level_200: { title: '히든저널 - 초월의 가지', lines: ['“성장이 숫자를 넘어 이름이 되는 순간.”', '“두 번째 백의 고리를 넘은 칼날은, 더 빠르게 다음 계절을 배운다.”'], bonus: { stat: 'expGain', value: 2, label: '경험치 획득 +2%' }, hidden: true, hint: '레벨 200 달성' },
-    passive_star_evolution: { title: '히든저널 - 성좌 각성', lines: ['“별끝 다섯 자리가 하나의 문양으로 맞물렸다.”', '“각성한 성좌는 피해, 생명력, 발걸음에 영구적인 공명을 남긴다.”'], displayEffect: '성좌 각성 효과: 피해 +24%, 최대 생명력 +140, 이동 속도 +10%', hidden: true, hint: '별끝 특수 노드 5개를 모두 활성화' },
-    hidden_last_breath: { title: '히든저널 - 마지막 숨', lines: ['“심장은 거의 멎었으나, 칼날은 먼저 멎지 않았다.”', '“끝에 가까울수록 한 번의 선택은 더 무거워진다.”'], displayEffect: '은신처 전시물: 꺼지지 않은 심장', hidden: true, hint: '종반 보스를 생명력 5% 이하인 상태로 처치' },
-    hidden_unscarred: { title: '히든저널 - 상처 없는 승리', lines: ['“방벽은 흔들렸으나, 피는 한 방울도 땅에 닿지 않았다.”', '“살아남은 것이 아니라 닿게 두지 않은 기록.”'], displayEffect: '은신처 전시물: 무흠의 방패', hidden: true, hint: '최종 관문 보스를 생명력 피해 없이 처치' },
-    hidden_dry_vial: { title: '히든저널 - 빈 병의 맹세', lines: ['“구원은 허리춤에 있었으나 끝내 손이 가지 않았다.”', '“준비한 생존 수단을 포기한 채 증명한 완성.”'], displayEffect: '은신처 전시물: 봉인된 약병', hidden: true, hint: '최종 관문 보스를 플라스크 발동 없이 처치' },
-    hidden_fourfold_affliction: { title: '히든저널 - 네 겹의 흉터', lines: ['“불과 서리, 독과 번개가 한 몸 위에서 서로의 이름을 배웠다.”', '“한 가지 답으로는 열리지 않는 상처도 있다.”'], displayEffect: '은신처 전시물: 사중 공명석', hidden: true, hint: '한 종반 보스에게 서로 다른 상태이상 4종을 부여한 뒤 처치' },
+    passive_star_evolution: { title: '히든저널 - 성좌 각성', lines: ['“여섯 외곽 성률의 별자리가 하나의 문양으로 맞물렸다.”', '“각성한 성좌는 피해, 생명력, 발걸음에 영구적인 공명을 남긴다.”'], displayEffect: '성좌 각성 효과: 피해 +24%, 최대 생명력 +140, 이동 속도 +10%', hidden: true, hint: '여섯 외곽 성률에서 생성된 패시브를 하나씩 활성화' },
+    hidden_last_breath: { title: '히든저널 - 마지막 숨', lines: ['“심장은 거의 멎었으나, 칼날은 먼저 멎지 않았다.”', '“끝에 가까울수록 한 번의 선택은 더 무거워진다.”'], hidden: true, hint: '종반 보스를 생명력 5% 이하인 상태로 처치' },
+    hidden_unscarred: { title: '히든저널 - 상처 없는 승리', lines: ['“방벽은 흔들렸으나, 피는 한 방울도 땅에 닿지 않았다.”', '“살아남은 것이 아니라 닿게 두지 않은 기록.”'], hidden: true, hint: '최종 관문 보스를 생명력 피해 없이 처치' },
+    hidden_dry_vial: { title: '히든저널 - 빈 병의 맹세', lines: ['“구원은 허리춤에 있었으나 끝내 손이 가지 않았다.”', '“준비한 생존 수단을 포기한 채 증명한 완성.”'], hidden: true, hint: '최종 관문 보스를 플라스크 발동 없이 처치' },
+    hidden_fourfold_affliction: { title: '히든저널 - 네 겹의 흉터', lines: ['“불과 서리, 독과 번개가 한 몸 위에서 서로의 이름을 배웠다.”', '“한 가지 답으로는 열리지 않는 상처도 있다.”'], hidden: true, hint: '한 종반 보스에게 서로 다른 상태이상 4종을 부여한 뒤 처치' },
     rival_overheat: { title: '버려진 날 - 과열', lines: ['“나는 가장 빨리 베었다. 그래서 가장 먼저 버려졌다.”', '“속도만 남은 날은, 결국 제 손잡이를 태운다.”'], bonus: { stat: 'aspd', value: 1, label: '공격 속도 +1%' } },
     rival_dull: { title: '버려진 날 - 무딤', lines: ['“부러지지 않는 것이 나의 전부였다.”', '“그러나 베지 못하는 날을, 누가 날이라 부르지.”'], bonus: { stat: 'dr', value: 1, label: '물리 피해 감소 +1%' } },
     rival_glutton: { title: '버려진 날 - 탐식', lines: ['“상처는 전부 내 몫이었다. 그래서 전부 삼켰다.”', '“아무는 날은 갈리지 않는다. 그는 그것을 결함이라 불렀다.”'], bonus: { stat: 'flatHp', value: 10, label: '최대 생명력 +10' } },
     rival_afterimage: { title: '버려진 날 - 잔영', lines: ['“맞지 않으면 지지 않는다고 믿었다.”', '“닿지 않는 날은, 아무것도 바꾸지 못했다.”'], bonus: { stat: 'crit', value: 1, label: '치명타 확률 +1%' } },
     rival_backedge: { title: '버려진 날 - 역린', lines: ['“나는 갑옷 안쪽부터 베었다.”', '“그는 말했다. 방식이 아니라 방향이 틀렸다고.”'], bonus: { stat: 'pctDmg', value: 1, label: '피해 +1%' } },
-    rival_masterwork: { title: '일곱 번째 날 - 완성작', lines: ['“내가 완성이라면, 너는 무엇이지.”', '“그가 끝내 손에서 놓지 않은 날이, 처음으로 물었다.”', '“…어째서 버려진 쪽이 더 날카로운가.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' } },
+    rival_masterwork: { title: '일곱 번째 날 - 완성작', lines: ['“내가 완성이라면, 너는 무엇이지.”', '“그가 끝내 손에서 놓지 않은 날이, 처음으로 물었다.”', '“…어째서 버려진 쪽이 더 날카로운가.”'], bonus: { stat: 'passivePoint', value: 1, label: '영구 패시브 포인트 +1' }, requiresJournal: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'] },
     cosmos_astra: { title: '잔향체 - 아스트라', lines: ['“다섯 개의 별이 사라진 자리에, 하나의 메아리가 남았다.”', '“하말리스의 굳음, 디프다르의 굶주림, 주베누비아의 저울, 주벤샤말의 심판, 에니프론의 충격.”', '“모든 것을 삼킨 별은 마지막으로 하나의 질문을 남긴다 — 너는 그 다섯 조각들보다 온전한가.”'], bonus: { stat: 'passivePoint', value: 2, label: '영구 패시브 포인트 +2' } },
     pinnacle_underking: { title: '지핵군주 - 모르그란', lines: ['“지하계의 끝은 바닥이 아니었다. 아래를 떠받치던 심장이었다.”', '“모르그란이 무너지자 뿌리 아래의 침묵이 처음으로 갈라졌다.”'] },
     pinnacle_leviathan: { title: '무광해의 포식자 - 탈라사', lines: ['“빛이 사라진 바다는 스스로 굶주림을 낳았다.”', '“천 미터 아래에서 돌아온 칼날에는 검은 조류의 기억이 남았다.”'] },
     pinnacle_sky: { title: '빈 왕좌의 집행자 - 카엘룸', lines: ['“하늘의 왕좌는 오래전부터 비어 있었다.”', '“왕이 없는 질서를 지키던 집행자만이 마지막 번개로 길을 막았다.”'] },
-    pinnacle_observer: { title: '경계의 관측자 - 베일라', lines: ['“땅 아래, 바다 아래, 하늘 위, 별 너머의 죽음을 모두 보았다.”', '“관측이 끝난 순간, 세계는 뿌리없는 자를 더 이상 우연이라 부를 수 없었다.”'] }
+    pinnacle_observer: { title: '경계의 관측자 - 베일라', lines: ['“땅 아래, 바다 아래, 하늘 위, 별 너머의 죽음을 모두 보았다.”', '“관측이 끝난 순간, 세계는 뿌리없는 자를 더 이상 우연이라 부를 수 없었다.”'], requiresJournal: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'] }
 };
 
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'star_wedge', 'arcana_first_seal', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_dry_vial', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
-const ABYSS_PASSIVE_NODES = [
-    { key: 'power', name: '강력함', max: 20, desc: '몬스터 피해 +2%, 재화 드랍률 +1%/pt' },
-    { key: 'tenacity', name: '끈질김', max: 20, desc: '몬스터 생명력 +2%, 경험치/장비 드랍률 +1%/pt' },
-    { key: 'horde', name: '대규모', max: 20, desc: '무리규모 +3%, 몬스터 경험치 -2%/pt, 드랍률 -1%/pt' },
-    { key: 'frailty', name: '허약함', max: 20, desc: '플레이어 피격 +1%, 드랍률 +1%/pt' },
-    { key: 'weakness', name: '나약함', max: 20, desc: '몬스터 받는 피해 1% 감소, 경험치 +2%/pt' },
-    { key: 'resistance', name: '저항', max: 20, desc: '몬스터 모든 저항/물피감 +1%, 드랍률 +1%/pt' },
-    { key: 'elite', name: '정예', max: 20, desc: '희귀 몬스터 등장 확률 +2%/pt' },
-    { key: 'coreRaid', name: '핵심: 수뇌부 공략', max: 1, cost: 5, desc: '보스 생명력/피해 10% 감소' },
-    { key: 'arrogance', name: '핵심: 오만', max: 1, cost: 5, desc: '보스 생명력/피해 20% 증가, 보스 특수재화 확률 +5%' },
-    { key: 'magnifier', name: '핵심: 확대경', max: 1, cost: 5, desc: '맵 길이 2배(진행속도 절반), 무리규모 +20%' }
-];
-
-safeExposeData({ STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, ABYSS_PASSIVE_NODES, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });
+safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, MAX_STAR_WEDGES, MAX_STAR_WEDGES_HARD_CAP, STAR_WEDGE_RADIUS_TIERS, STAR_WEDGE_UNLOCK_LOOP, STAR_WEDGE_UNLOCK_ACT, STAR_WEDGE_OPTION_POOL, STAR_WEDGE_CORE_OPTION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

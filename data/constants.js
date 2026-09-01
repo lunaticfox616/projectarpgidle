@@ -5,7 +5,7 @@ function safeExposeData(map) {
 }
 
 // Phase-1 extracted runtime constants (kept global for backward compatibility).
-const PASSIVE_LAYOUT_VERSION = 21;
+const PASSIVE_LAYOUT_VERSION = 22;
 const LOCAL_SAVE_KEY = 'poeIdleSaveData_v9';
 const LEGACY_SAVE_KEYS = ['poeIdleSaveData_v8', 'poeIdleSaveData_v7'];
 const CLOUD_SESSION_STORAGE_KEY = 'poeIdleCloudSession_v1';
@@ -14,6 +14,10 @@ const CLOUD_REMOTE_TIME_SKEW_MS = 60 * 1000;
 const CLOUD_STALE_OVERWRITE_GUARD_MS = 5000;
 const ENEMY_CRITICAL_DAMAGE_MULTIPLIER = 1.55;
 const EMPTY_TRAVEL_PROGRESS_MULTIPLIER = 2;
+const EQUIPMENT_INVENTORY_COLUMNS = 10;
+const EQUIPMENT_INVENTORY_ROWS_PER_PAGE = 12;
+const EQUIPMENT_INVENTORY_MAX_PAGES = 12;
+const EQUIPMENT_INVENTORY_CELLS_PER_PAGE = EQUIPMENT_INVENTORY_COLUMNS * EQUIPMENT_INVENTORY_ROWS_PER_PAGE;
 const UNDERWORLD_DIFFICULTY_CONFIG = Object.freeze({
     flatDamageThroughFloor: 100,
     mediumDamageThroughFloor: 200,
@@ -48,13 +52,14 @@ const DEATH_REASON_TEXT = {
     other: '예기치 못한 피해가 한꺼번에 몰아쳤습니다.'
 };
 
-// 8x8 아이소메트릭 전장 그리드 설정.
-// 좌표계: gx(0~7), gy(0~7). 아이소 투영에서 (gx - gy)가 화면 가로, (gx + gy)가 화면 세로.
-// playerSpawn/bossSpawn은 대각 방향으로 좌/우 끝에 가깝고 화면상 같은 높이(gx+gy 동일)에 놓인다.
+// 9x8 직교 전장 그리드 설정. 첨부된 ACT 맵의 중앙 9x8 타일과 좌표·판정을 공유한다.
+// 좌표계: gx(0~8)는 오른쪽, gy(0~7)는 아래쪽. 이동은 상하좌우 4방향만 허용한다.
 const COMBAT_GRID_CONFIG = {
-    size: 8,
-    playerSpawn: { gx: 1, gy: 6 },
-    bossSpawn: { gx: 6, gy: 1 },
+    columns: 9,
+    rows: 8,
+    playerSpawn: { gx: 1, gy: 4 },
+    bossSpawn: { gx: 7, gy: 4 },
+    bossFootprint: { columns: 2, rows: 2 },
     meleeEnemyChance: 0.3,          // 일반/정예 스폰 시 근접형 확률(나머지는 원거리형)
     meleeAttackRange: 1,            // 근접 공격 사거리(체비셰프 거리, 대각 포함)
     rangedEnemyMinRange: 3,         // 원거리형 최소 사거리(칸)
@@ -69,5 +74,7 @@ const COMBAT_GRID_CONFIG = {
 safeExposeData({
   PASSIVE_LAYOUT_VERSION, LOCAL_SAVE_KEY, LEGACY_SAVE_KEYS, CLOUD_SESSION_STORAGE_KEY,
   CLOUD_SYNC_MIN_INTERVAL_MS, CLOUD_REMOTE_TIME_SKEW_MS, CLOUD_STALE_OVERWRITE_GUARD_MS, DAMAGE_ELEMENT_LABELS, DAMAGE_ELEMENT_ICONS, DEATH_REASON_TEXT,
-  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, UNDERWORLD_DIFFICULTY_CONFIG
+  COMBAT_GRID_CONFIG, ENEMY_CRITICAL_DAMAGE_MULTIPLIER, EMPTY_TRAVEL_PROGRESS_MULTIPLIER, UNDERWORLD_DIFFICULTY_CONFIG,
+  EQUIPMENT_INVENTORY_COLUMNS, EQUIPMENT_INVENTORY_ROWS_PER_PAGE, EQUIPMENT_INVENTORY_MAX_PAGES,
+  EQUIPMENT_INVENTORY_CELLS_PER_PAGE
 });

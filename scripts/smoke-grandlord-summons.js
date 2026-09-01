@@ -31,7 +31,7 @@ const context = {
       { id: 6, alive: true, hp: 5, maxHp: 100 }
     ]
   },
-  COMBAT_GRID_CONFIG: { size: 8 },
+  COMBAT_GRID_CONFIG: { columns: 9, rows: 8 },
   hasKeystone(id) { return id === 'sb9'; }
 };
 vm.createContext(context);
@@ -49,7 +49,11 @@ vm.createContext(context);
   'isGridCellInBounds',
   'gridChebyshevDist',
   'gridCellKey',
+  'getGridUnitFootprint',
+  'getGridFootprintCells',
   'hasGridCell',
+  'getGridUnitCells',
+  'getGridUnitDistance',
   'getGridBlockedCells'
 ].forEach(name => vm.runInContext(readFunction(gridSource, name), context, { filename: name }));
 

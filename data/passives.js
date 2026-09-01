@@ -187,6 +187,116 @@ const HERO_SELECTION_DEFS = {
     }
 };
 
+// 플레이어가 고르는 6직업의 표시·전투 외형 정의다. 직업 선택 시 recommendedTalentHeroId로
+// 시작 재능과 보상을 맞춘 뒤, 플레이어는 패시브 화면에서 재능만 다시 바꿀 수 있다.
+const PLAYER_CLASS_DEFS = Object.freeze({
+    occultist: {
+        id: 'occultist', label: '비술사', blindLabel: '비술사',
+        portrait: 'assets/portraits/classes/occultist.png',
+        description: '주문과 공허의 힘을 다루는 지식형 직업', recommendedTalentHeroId: 'hero9',
+        attackAnimationDurationScale: 1.2,
+        strips: { idle: 'playerClassOccultistIdle',
+            idleDirections: { north: 'playerClassOccultistIdleNorth', east: 'playerClassOccultistIdle', south: 'playerClassOccultistIdleSouth' }, walk: 'playerClassOccultistWalk',
+            walkDirections: { north: 'playerClassOccultistWalkNorth', east: 'playerClassOccultistWalk', south: 'playerClassOccultistWalkSouth', west: 'playerClassOccultistWalkWest' }, attack: 'playerClassOccultistAttack',
+            attacks: ['playerClassOccultistAttack', 'playerClassOccultistAttack2'],
+            attackDirections: {
+                north: ['playerClassOccultistAttackNorth', 'playerClassOccultistAttack2North'],
+                east: ['playerClassOccultistAttack', 'playerClassOccultistAttack2'],
+                south: ['playerClassOccultistAttackSouth', 'playerClassOccultistAttack2South']
+            }, hurt: 'playerClassOccultistIdle', death: 'playerClassOccultistIdle' }
+    },
+    wanderer: {
+        id: 'wanderer', label: '방랑자', blindLabel: '방랑자',
+        portrait: 'assets/portraits/classes/wanderer.png',
+        description: '기민한 움직임과 근접 공격에 능한 유랑 전투원', recommendedTalentHeroId: 'hero4',
+        strips: { idle: 'playerClassWandererIdle',
+            idleDirections: { north: 'playerClassWandererIdleNorth', east: 'playerClassWandererIdle', south: 'playerClassWandererIdleSouth' }, walk: 'playerClassWandererWalk',
+            walkDirections: { north: 'playerClassWandererWalkNorth', east: 'playerClassWandererWalk', south: 'playerClassWandererWalkSouth', west: 'playerClassWandererWalkWest' }, attack: 'playerClassWandererAttack',
+            attacks: ['playerClassWandererAttack', 'playerClassWandererAttack2'],
+            attackDirections: {
+                north: ['playerClassWandererAttackNorth'],
+                east: ['playerClassWandererAttack', 'playerClassWandererAttack2'],
+                south: ['playerClassWandererAttackSouth', 'playerClassWandererAttack2South']
+            }, hurt: 'playerClassWandererIdle', death: 'playerClassWandererIdle' }
+    },
+    cleric: {
+        id: 'cleric', label: '성직자', blindLabel: '성직자',
+        portrait: 'assets/portraits/classes/cleric.png',
+        description: '신성한 힘으로 자신을 지키며 전선을 유지하는 직업', recommendedTalentHeroId: 'hero5',
+        attackAnimationDurationScale: 1.2,
+        strips: { idle: 'playerClassClericIdle',
+            idleDirections: { north: 'playerClassClericIdleNorth', east: 'playerClassClericIdle', south: 'playerClassClericIdleSouth' }, walk: 'playerClassClericWalk',
+            walkDirections: { north: 'playerClassClericWalkNorth', east: 'playerClassClericWalk', south: 'playerClassClericWalkSouth', west: 'playerClassClericWalkWest' }, attack: 'playerClassClericAttack',
+            attackDirections: { north: ['playerClassClericAttackNorth'], east: ['playerClassClericAttack'], south: ['playerClassClericAttackSouth'] },
+            hurt: 'playerClassClericIdle', death: 'playerClassClericIdle' }
+    },
+    archer: {
+        id: 'archer', label: '궁수', blindLabel: '궁수',
+        portrait: 'assets/portraits/classes/archer.png',
+        description: '거리와 위치를 활용해 투사체를 쏟아붓는 직업', recommendedTalentHeroId: 'hero1',
+        attackAnimationDurationScale: 1.2,
+        strips: { idle: 'playerClassArcherIdle',
+            idleDirections: { north: 'playerClassArcherIdleNorth', east: 'playerClassArcherIdle', south: 'playerClassArcherIdleSouth' }, walk: 'playerClassArcherWalk',
+            walkDirections: { north: 'playerClassArcherWalkNorth', east: 'playerClassArcherWalk', south: 'playerClassArcherWalkSouth', west: 'playerClassArcherWalkWest' }, attack: 'playerClassArcherAttack',
+            attacks: ['playerClassArcherAttack', 'playerClassArcherAttack2'],
+            attackDirections: {
+                north: ['playerClassArcherAttackNorth', 'playerClassArcherAttack2North'],
+                east: ['playerClassArcherAttack', 'playerClassArcherAttack2'],
+                south: ['playerClassArcherAttackSouth', 'playerClassArcherAttack2South']
+            }, hurt: 'playerClassArcherIdle', death: 'playerClassArcherIdle' }
+    },
+    alchemist: {
+        id: 'alchemist', label: '연금술사', blindLabel: '연금술사',
+        portrait: 'assets/portraits/classes/alchemist.png',
+        description: '시약과 상태 이상을 조합해 전장을 변화시키는 직업', recommendedTalentHeroId: 'hero10',
+        attackAnimationDurationScale: 1.15,
+        attackVariantWeights: [49, 49, 2],
+        strips: { idle: 'playerClassAlchemistIdle',
+            idleDirections: { north: 'playerClassAlchemistIdleNorth', east: 'playerClassAlchemistIdle', south: 'playerClassAlchemistIdleSouth' }, walk: 'playerClassAlchemistWalk',
+            walkDirections: { north: 'playerClassAlchemistWalkNorth', east: 'playerClassAlchemistWalk', south: 'playerClassAlchemistWalkSouth', west: 'playerClassAlchemistWalkWest' }, attack: 'playerClassAlchemistAttack',
+            attacks: ['playerClassAlchemistAttack', 'playerClassAlchemistAttack2', 'playerClassAlchemistAttack3'],
+            attackDirections: {
+                north: ['playerClassAlchemistAttackNorth', 'playerClassAlchemistAttack2North'],
+                east: ['playerClassAlchemistAttack', 'playerClassAlchemistAttack2', 'playerClassAlchemistAttack3'],
+                south: ['playerClassAlchemistAttackSouth']
+            }, hurt: 'playerClassAlchemistIdle', death: 'playerClassAlchemistIdle' }
+    },
+    warrior: {
+        id: 'warrior', label: '전사', blindLabel: '전사',
+        portrait: 'assets/portraits/classes/warrior.png',
+        description: '튼튼한 생명력과 강한 근접 공격으로 밀어붙이는 직업', recommendedTalentHeroId: 'hero2',
+        attackAnimationDurationScale: 1.15,
+        motionAnchors: { idle: 78, walk: 80, attacks: [90, 90, 91] },
+        strips: { idle: 'playerClassWarriorIdle',
+            idleDirections: { north: 'playerClassWarriorIdleNorth', east: 'playerClassWarriorIdle', south: 'playerClassWarriorIdleSouth' }, walk: 'playerClassWarriorWalk',
+            walkDirections: { north: 'playerClassWarriorWalkNorth', east: 'playerClassWarriorWalk', south: 'playerClassWarriorWalkSouth', west: 'playerClassWarriorWalkWest' }, attack: 'playerClassWarriorAttack',
+            attacks: ['playerClassWarriorAttack', 'playerClassWarriorAttack2', 'playerClassWarriorAttack3'],
+            attackDirections: {
+                north: ['playerClassWarriorAttackNorth', 'playerClassWarriorAttack2North', 'playerClassWarriorAttack3North'],
+                east: ['playerClassWarriorAttack', 'playerClassWarriorAttack2', 'playerClassWarriorAttack3'],
+                south: ['playerClassWarriorAttackSouth', 'playerClassWarriorAttack2South', 'playerClassWarriorAttack3South']
+            }, hurt: 'playerClassWarriorIdle', death: 'playerClassWarriorIdle' }
+    }
+});
+
+const LEGACY_HERO_TO_PLAYER_CLASS = Object.freeze({
+    hero1: 'archer', hero2: 'warrior', hero3: 'alchemist', hero4: 'wanderer', hero5: 'cleric',
+    hero6: 'archer', hero7: 'occultist', hero8: 'cleric', hero9: 'occultist', hero10: 'alchemist'
+});
+
+const TALENT_BLOOM_SPECIALIZATION_DEFS = Object.freeze({
+    hero1: Object.freeze([{ stat: 'projectilePctDmg', val: 35 }, { stat: 'aspd', val: 18 }]),
+    hero2: Object.freeze([{ stat: 'physPctDmg', val: 35 }, { stat: 'pctHp', val: 22 }]),
+    hero3: Object.freeze([{ stat: 'elementalPctDmg', val: 35 }, { stat: 'regen', val: 1.8 }]),
+    hero4: Object.freeze([{ stat: 'chaosPctDmg', val: 35 }, { stat: 'move', val: 18 }]),
+    hero5: Object.freeze([{ stat: 'lightPctDmg', val: 35 }, { stat: 'armorPct', val: 22 }]),
+    hero6: Object.freeze([{ stat: 'projectilePctDmg', val: 35 }, { stat: 'critDmg', val: 60 }]),
+    hero7: Object.freeze([{ stat: 'summonPctDmg', val: 45 }, { stat: 'summonEfficiency', val: 25 }]),
+    hero8: Object.freeze([{ stat: 'pctHp', val: 28 }, { stat: 'dr', val: 10 }]),
+    hero9: Object.freeze([{ stat: 'elementalPctDmg', val: 40 }, { stat: 'resPen', val: 14 }]),
+    hero10: Object.freeze([{ stat: 'dotPctDmg', val: 40 }, { stat: 'evasionPct', val: 22 }])
+});
+
 const PASSIVE_TREE = { nodes: {}, edges: [] };
 
 const PASSIVE_TARGET_NODES = 1230;
@@ -218,22 +328,6 @@ const PASSIVE_SECTOR_TITLES = {
     ranger: '유격수의 길',
     duelist: '결투가의 원',
     marauder: '전사의 틈'
-};
-
-const PASSIVE_STYLE = {
-    bg: '#05070b',
-    bg2: '#0c1017',
-    gold: '#d6b36a',
-    goldBright: '#f5dfad',
-    bronze: '#8a6335',
-    steel: '#7e95a8',
-    steelDim: '#31404d',
-    inactiveFill: '#11161d',
-    hiddenFill: '#0a0d12',
-    reachableGlow: 'rgba(120,170,205,0.22)',
-    activeGlow: 'rgba(245,223,173,0.34)',
-    previewGlow: 'rgba(111,149,173,0.16)',
-    fog: 'rgba(2,3,6,0.18)'
 };
 
 const PASSIVE_CORE_GENERIC_STATS = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move', 'crit', 'regen', 'pctHp', 'energyShieldPct', 'evasionPct', 'armorPct', 'projectilePctDmg', 'meleePctDmg', 'physPctDmg'];
@@ -317,4 +411,4 @@ const PASSIVE_SPECIAL_NODE_CONFIGS = [
     { sector: 'marauder', kinds: ['major', 'keystone'], stat: 'maxDmgRoll', val: 4, title: '상한 폭발', desc: '강타의 최고 피해를 끌어올립니다.' }
 ];
 
-safeExposeData({ GEM_SKY_ENHANCEMENTS, TALISMAN_SHAPES, TALISMAN_SHAPE_STYLE, TALISMAN_OPTION_POOL, HERO_SELECTION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_STYLE, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });
+safeExposeData({ GEM_SKY_ENHANCEMENTS, TALISMAN_SHAPES, TALISMAN_SHAPE_STYLE, TALISMAN_OPTION_POOL, HERO_SELECTION_DEFS, PLAYER_CLASS_DEFS, LEGACY_HERO_TO_PLAYER_CLASS, TALENT_BLOOM_SPECIALIZATION_DEFS, PASSIVE_TREE, PASSIVE_TARGET_NODES, PASSIVE_DISCOVERY_RADIUS, PASSIVE_ROOT_DISCOVERY_EDGE_DEPTH, PASSIVE_DISCOVERY_EDGE_DEPTH, PASSIVE_PREVIEW_RADIUS, PASSIVE_PREVIEW_EDGE_DEPTH, PASSIVE_THEME_POOLS, PASSIVE_SECTOR_TITLES, PASSIVE_CORE_GENERIC_STATS, PASSIVE_STAR_BLESSING, PASSIVE_APEX_CONFIGS, PASSIVE_SPECIAL_NODE_CONFIGS });

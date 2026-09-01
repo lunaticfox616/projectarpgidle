@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
 const files = [
   'js/bootstrap.js',
@@ -15,13 +16,13 @@ const files = [
   'data/items.js',
   'data/growth-items.js',
   'data/passives.js',
+  'data/passive-tree-v22.js',
   'data/bosses.js',
   'data/rewards.js',
   'data/talent-cards.js',
   'data/offline-progress.js',
   'js/utils.js',
   'js/state.js',
-  'js/hideout.js',
   'js/offline-progress.js',
   'js/endgame-progression.js',
   'js/save.js',
@@ -111,6 +112,7 @@ files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { 
 context.getHeroSelectionDef = () => ({ label: '테스트 영웅', classId: null });
 context.getCodexBonusPct = () => 0;
 context.addLog = () => {};
+context.checkUnlocks = () => {};
 context.updateStaticUI = () => {};
 
 function resetGame() {
@@ -155,6 +157,23 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const looped = context.estimateMapZonePowerRequirements({ id: 9, type: 'act', tier: 7, ele: 'chaos' });
   assert.ok(looped.dps > finale.dps && looped.ehp > finale.ehp, '같은 지역도 루프가 오르면 예상 DPS/EHP가 함께 올라야 한다');
 
+  const loopFinaleCurve = Array.from({ length: 40 }, (_, index) => {
+    const loop = index + 1;
+    context.game.season = loop;
+    context.game.loopCount = loop - 1;
+    return context.estimateMapZonePowerRequirements(context.getZone(context.getCurrentSeasonFinalZoneId()));
+  });
+  loopFinaleCurve.forEach((estimate, index) => {
+    assert.ok(Number.isFinite(estimate.dps) && estimate.dps > 0, `루프 ${index + 1} 최종 지역 예상 DPS가 유효해야 한다`);
+    assert.ok(Number.isFinite(estimate.ehp) && estimate.ehp > 0, `루프 ${index + 1} 최종 지역 예상 EHP가 유효해야 한다`);
+    if (index === 0) return;
+    const previous = loopFinaleCurve[index - 1];
+    assert.ok(estimate.dps >= previous.dps, `루프 ${index + 1} 최종 지역 DPS가 이전 루프보다 낮아지면 안 된다`);
+    assert.ok(estimate.ehp >= previous.ehp, `루프 ${index + 1} 최종 지역 EHP가 이전 루프보다 낮아지면 안 된다`);
+  });
+  assert.ok(loopFinaleCurve[5].ehp / loopFinaleCurve[4].ehp <= 2.35,
+    '첫 보스 패턴이 열리는 루프 6의 권장 EHP가 한 번에 2.35배보다 크게 뛰면 안 된다');
+
   context.game.season = 31;
   context.game.loopCount = 30;
   context.game.underworldProgress = { currentFloor: 1, highestFloor: 1 };
@@ -198,12 +217,9 @@ const cfg = context.COMBAT_GRID_CONFIG;
     '지하계 30층을 돌파하면 지핵군주가 영구 해금되어야 한다');
   const currenciesBeforePinnacleEntry = JSON.stringify(context.game.currencies);
   context.game.maxZoneId = Math.max(5, Number(context.game.maxZoneId) || 0);
-  context.game.settings.townReturnAction = 'hideout';
-  assert(context.setHideoutActive(true, context.game), 'an unlocked character may wait in the hideout before choosing a map');
   context.game.currentZoneId = 0;
   context.changeZone('pinnacle_underking');
   assert.strictEqual(context.game.currentZoneId, 'pinnacle_underking', '해금된 최종 관문은 별도 입장권 없이 진입해야 한다');
-  assert.strictEqual(context.isHideoutActive(context.game), false, 'choosing another map must leave hideout idle mode immediately');
   assert.strictEqual(context.game.isTownReturning, false, 'map entry must start combat travel instead of another town return');
   assert.strictEqual(JSON.stringify(context.game.currencies), currenciesBeforePinnacleEntry,
     '이정표 최종 관문 진입은 어떤 재화도 소모하면 안 된다');
@@ -554,6 +570,51 @@ const cfg = context.COMBAT_GRID_CONFIG;
 }
 
 // ── 1. 모든 스킬 젬에 유효한 그리드 범위 프로필이 있어야 한다 ──
+assert.strictEqual(context.COMBAT_GRID_CONFIG.columns, 9, '전장은 ACT 맵의 가로 9칸을 사용해야 한다');
+assert.strictEqual(context.COMBAT_GRID_CONFIG.rows, 8, '전장은 ACT 맵의 세로 8칸을 사용해야 한다');
+assert.strictEqual(context.isGridCellInBounds(8, 7), true, '9x8 전장의 오른쪽 아래 칸은 유효해야 한다');
+assert.strictEqual(context.isGridCellInBounds(9, 7), false, '가로 9칸을 벗어난 좌표는 거부해야 한다');
+assert.strictEqual(context.isGridCellInBounds(8, 8), false, '세로 8칸을 벗어난 좌표는 거부해야 한다');
+const renderRuntime = buildGameRuntime();
+const sourceProjection = renderRuntime.getBattleGridProjection(816, 624);
+const sourceFirstCell = sourceProjection.cellToScreen(0, 0);
+const sourceLastCell = sourceProjection.cellToScreen(8, 7);
+assert.strictEqual(sourceProjection.tileW, 50.88, '전투 칸은 원본 48px보다 6% 크게 표시되어야 한다');
+assert.strictEqual(sourceProjection.tileH, 50.88, '확대한 직교 전장의 칸은 정사각형이어야 한다');
+assert.strictEqual(sourceProjection.actorGroundOffsetY, 11, '유닛의 발 기준점은 타일 중심보다 아래쪽에 있어야 한다');
+const groundedEnemy = renderRuntime.getBattleLayout([{ id: 1, gx: 0, gy: 0 }], 816, 624)[0];
+assert.strictEqual(groundedEnemy.y, sourceFirstCell.y + sourceProjection.actorGroundOffsetY,
+  '적의 발 기준점은 플레이어와 같은 타일 하단 기준을 사용해야 한다');
+assert.ok(Math.abs(sourceLastCell.x - sourceFirstCell.x - sourceProjection.tileW * 8) < 1e-9,
+  '확대 후에도 첫 칸과 마지막 칸의 가로 간격은 타일 좌표와 일치해야 한다');
+assert.ok(Math.abs(sourceLastCell.y - sourceFirstCell.y - sourceProjection.tileH * 7) < 1e-9,
+  '확대 후에도 첫 칸과 마지막 칸의 세로 간격은 타일 좌표와 일치해야 한다');
+const mobileProjection = renderRuntime.getBattleGridProjection(360, 384, 'contain');
+assert.ok(mobileProjection.mapX >= 0 && mobileProjection.mapY >= 0,
+  '모바일 contain 투영은 맵의 위쪽이나 왼쪽을 잘라내면 안 된다');
+assert.ok(mobileProjection.mapX + mobileProjection.mapWidth <= 360 + 1e-9
+  && mobileProjection.mapY + mobileProjection.mapHeight <= 384 + 1e-9,
+  '모바일 contain 투영은 전체 맵을 전투 화면 안에 보여야 한다');
+assert.ok(Math.abs(mobileProjection.mapY + mobileProjection.mapHeight - 384) < 1e-9,
+  '모바일 전체 맵은 아래에 맞추고 위쪽 여백을 적 HUD 공간으로 사용해야 한다');
+const mobileGridProjection = renderRuntime.getBattleGridProjection(360, 384, 'grid-contain');
+const mobileFirstCell = mobileGridProjection.cellToScreen(0, 0);
+const mobileLastCell = mobileGridProjection.cellToScreen(8, 7);
+const mobileGridLeft = mobileFirstCell.x - mobileGridProjection.tileW / 2;
+const mobileGridRight = mobileLastCell.x + mobileGridProjection.tileW / 2;
+const mobileGridTop = mobileFirstCell.y - mobileGridProjection.tileH / 2;
+const mobileGridBottom = mobileLastCell.y + mobileGridProjection.tileH / 2;
+assert.ok(mobileGridLeft >= 0 && mobileGridRight <= 360 && mobileGridTop >= 0 && mobileGridBottom <= 384,
+  '모바일 확대 투영은 배경을 잘라도 플레이 가능한 9x8칸은 모두 보여야 한다');
+assert.ok(mobileGridProjection.tileW >= 30 && mobileGridProjection.tileW <= 34,
+  '모바일 확대 투영은 360px 화면에서 한 칸을 약 32px로 키워야 한다');
+assert.ok(mobileGridProjection.mapX < 0 || mobileGridProjection.mapX + mobileGridProjection.mapWidth > 360,
+  '전투 칸 확대를 위해 모바일에서는 장식 배경의 좌우 일부를 잘라야 한다');
+const actBattleMapSources = Object.values(context.ACT_BATTLE_MAP_SOURCES);
+assert.strictEqual(actBattleMapSources.length, 10, 'ACT 1~10은 각각 하나의 전투 맵을 가져야 한다');
+assert(actBattleMapSources.every(source => source.endsWith('.webp') && fs.existsSync(source)), '모든 ACT 전투 맵은 압축된 WebP로 존재해야 한다');
+assert(actBattleMapSources.reduce((sum, source) => sum + fs.statSync(source).size, 0) < 2200000,
+  'ACT 전투 맵 10장의 합계 용량은 2.2MB 미만이어야 한다');
 const validKinds = new Set(['melee', 'arc', 'nova', 'line', 'chain', 'blast', 'fan', 'summon']);
 const validShapes = new Set(['diamond', 'square', 'cross', 'diagonal', 'ring']);
 Object.keys(context.SKILL_DB).forEach(name => {
@@ -573,7 +634,7 @@ assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKI
 const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile'));
 assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 젬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
 assert.ok(projectileGems.every(([name, skill]) => context.describeSkillGridProfile(name, skill).startsWith('발사 방식:')), '모든 투사체 젬 툴팁은 공격 범위 대신 발사 방식을 표시해야 한다');
-assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= 7, '스킬 최대 사거리는 8x8 전장의 끝을 넘지 않아야 한다');
+assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= 8, '스킬 최대 사거리는 9x8 전장의 긴 축을 넘지 않아야 한다');
 const radiusOneCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 1 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
 const radiusTwoCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 2 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
 assert.strictEqual(radiusOneCells.length, 5, '반경 1은 중심과 상하좌우 4칸만 덮어야 한다');
@@ -617,6 +678,14 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(hits[0].enemy.id, 2);
   assert.strictEqual(hits[0].mult, 1);
 
+  const adjacentBoss = makeEnemy(2000, 2, 5, { isBoss: true });
+  assert.deepStrictEqual(Array.from(context.getGridUnitCells(adjacentBoss), cell => `${cell.gx},${cell.gy}`),
+    ['2,5', '2,6', '3,5', '3,6'], '보스의 기준 좌표는 2x2 점유 영역의 왼쪽 위 칸이어야 한다');
+  assert.strictEqual(context.getGridUnitDistance(attacker, adjacentBoss), 1,
+    '보스의 네 점유 칸 중 가까운 가장자리를 기준으로 거리를 계산해야 한다');
+  hits = context.selectGridSkillTargets('기본 공격', { targets: 1, targetMode: 'single' }, attacker, [adjacentBoss]);
+  assert.strictEqual(hits[0].enemy.id, adjacentBoss.id, '보스의 가까운 가장자리에는 근접 공격이 닿아야 한다');
+
   // 폭발(서리 폭발, 사거리 5·반경 2): 대상 주변의 적이 함께 맞고, 반경 밖은 안 맞는다
   const inBlast = makeEnemy(3, 4, 4);
   const splash = makeEnemy(4, 6, 6);   // 대상 중심 5x5 사각형의 대각선 끝
@@ -625,6 +694,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const hitIds = hits.map(h => h.enemy.id).sort().join(',');
   assert.strictEqual(hitIds, '3,4', '서리 폭발은 다이아몬드 밖 사각형 모서리까지 맞혀야 한다');
   assert.ok(hits.every(h => h.mult === 1), 'all 모드 부가 타격 배율은 1이어야 한다');
+
+  const footprintPrimary = makeEnemy(2001, 6, 6);
+  const footprintSplashBoss = makeEnemy(2002, 3, 5, { isBoss: true });
+  hits = context.selectGridSkillTargets('서리 폭발', { targets: 99, targetMode: 'all' },
+    { gx: 8, gy: 6 }, [footprintPrimary, footprintSplashBoss]);
+  assert.ok(hits.some(hit => hit.enemy.id === footprintSplashBoss.id),
+    '보스 기준 좌표가 범위 밖이어도 2x2 점유 칸이 닿으면 광역 공격에 맞아야 한다');
 
   // 직선 관통(관통 사격): 1차 대상 뒤 같은 직선의 적이 함께 맞는다
   const front = makeEnemy(6, 3, 6);
@@ -680,6 +756,23 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(hits.length, 1, '타겟 수 1이면 전이되지 않아야 한다');
   hits = context.selectGridSkillTargets('기본 공격', { targets: 4, targetMode: 'single' }, attacker, [sp1, spFar]);
   assert.strictEqual(hits.length, 1, '인접하지 않은 적으로는 전이되지 않아야 한다');
+
+  const diagonalAttacker = { gx: 3, gy: 3 };
+  const diagonalPrimary = makeEnemy(30, 4, 4);
+  const diagonalSide = makeEnemy(31, 5, 4);
+  const diagonalSecond = makeEnemy(32, 5, 5);
+  const diagonalThird = makeEnemy(33, 6, 6);
+  hits = context.selectGridSkillTargets('기본 공격', { targets: 4, targetMode: 'single' }, diagonalAttacker,
+    [diagonalPrimary, diagonalSide, diagonalSecond, diagonalThird]);
+  assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [30, 32, 33],
+    '일반 근접 공격의 대각선 추가 타격은 첫 공격과 같은 대각선 직선으로만 이어져야 한다');
+
+  const arcSideA = makeEnemy(34, 4, 3);
+  const arcSideB = makeEnemy(35, 3, 4);
+  hits = context.selectGridSkillTargets('연속 베기', { targets: 3, targetMode: 'cleave', tags: ['attack', 'melee'] },
+    diagonalAttacker, [diagonalPrimary, arcSideA, arcSideB]);
+  assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [30, 34, 35],
+    '명시된 부채꼴 스킬은 대각선 공격에서도 고유 범위를 유지해야 한다');
 }
 
 // ── 3-1. 전투 전술: 소급 해금 / 대상 우선순위 / 재배치 지연 ──
@@ -747,6 +840,115 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const heldCell = { gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy };
   assert.strictEqual(context.updatePlayerGridEngagement({ sSkill: context.SKILL_DB['얼음 창'], moveSpeed: 100 }), true, '연속 두 번 후퇴한 뒤에는 이동을 멈추고 공격 기회를 내줘야 한다');
   assert.deepStrictEqual({ gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy }, heldCell, '후퇴 상한 뒤에는 같은 틱에 추가 이동하면 안 된다');
+  context.Date = NativeDate;
+}
+
+// ── 3-1-1. 전직 시련: 칸 경고 / 위험 기반 자동 회피 / 감수 선택 ──
+{
+  resetGame();
+  const origin = { gx: 3, gy: 3 };
+  const expectedCellCounts = { trial_1: 9, trial_2: 18, trial_3: 5, trial_4: 16, trial_5: 9 };
+  Object.entries(expectedCellCounts).forEach(([zoneId, expectedCount]) => {
+    const zone = context.getZone(zoneId);
+    const cells = context.buildTrialHazardCells(zone, origin, 0);
+    assert.strictEqual(cells.length, expectedCount, `${zone.name} 함정 패턴은 의도한 칸 수를 경고해야 한다`);
+    assert.ok(cells.some(cell => cell.gx === origin.gx && cell.gy === origin.gy), `${zone.name} 경고는 현재 플레이어 칸을 포함해야 한다`);
+  });
+
+  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(301, 7, 7)];
+  const blockCells = context.buildTrialHazardCells(context.getZone('trial_5'), origin, 0);
+  let escapeResult;
+  for (let tick = 0; tick < 13; tick++) {
+    escapeResult = context.advanceGridHazardEscape(context.game.gridPlayer, blockCells, 0.1, 0.6);
+  }
+  assert.strictEqual(escapeResult.safe, true, '3×3 봉쇄는 기본 이동 속도로 경고 시간 안에 두 칸을 이동해 벗어날 수 있어야 한다');
+
+  const NativeDate = context.Date;
+  let hazardNow = 10000;
+  context.Date = class extends NativeDate { static now() { return hazardNow; } };
+  const trial = context.getZone('trial_1');
+  const stats = { maxHp: 1000, armor: 0, dr: 0, moveSpeed: 100, energyShield: 0 };
+  context.game.currentZoneId = trial.id;
+  context.game.settings.combatPositionMode = 'auto';
+  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(302, 7, 7)];
+  context.game.playerHp = 50;
+  context.game.playerEnergyShield = 0;
+  context.primeTrialHazardTimer(trial);
+  hazardNow += trial.trialHazard.initialDelayMs;
+  const hpBeforeAvoidance = context.game.playerHp;
+  let avoidedByMovement = false;
+  for (let tick = 0; tick < 7; tick++) avoidedByMovement = context.applyTrialTrapTick(stats) || avoidedByMovement;
+  assert.strictEqual(avoidedByMovement, true, '치명적인 함정은 공격보다 자동 이동을 우선해야 한다');
+  assert.notStrictEqual(context.game.gridPlayer.gy, 3, '자동 회피는 경고된 직선 밖의 실제 그리드 칸으로 이동해야 한다');
+  const heldSafeCell = { gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy };
+  context.game.enemies = [makeEnemy(304, heldSafeCell.gx, heldSafeCell.gy + 2)];
+  for (let tick = 0; tick < 6; tick++) {
+    context.updatePlayerGridEngagement(
+      { ...stats, sSkill: context.SKILL_DB['기본 공격'] },
+      { holdPosition: context.isTrialHazardPositionHeld() }
+    );
+  }
+  assert.deepStrictEqual(
+    { gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy },
+    heldSafeCell,
+    '함정 회피 후에는 충돌 시점까지 일반 추적 AI가 경고 칸으로 되돌아가면 안 된다'
+  );
+  assert.strictEqual(
+    context.updatePlayerGridEngagement(
+      { ...stats, sSkill: context.SKILL_DB['그림자 점멸'] },
+      { holdPosition: context.isTrialHazardPositionHeld() }
+    ),
+    false,
+    '안전 위치를 유지하는 동안 이동 스킬이 경고 칸으로 재진입하면 안 된다'
+  );
+  hazardNow += trial.trialHazard.warningMs;
+  context.applyTrialTrapTick(stats);
+  assert.strictEqual(context.game.playerHp, hpBeforeAvoidance, '안전 칸으로 벗어난 함정은 피해를 주면 안 된다');
+
+  context.game.settings.combatPositionMode = 'auto';
+  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(305, 7, 7)];
+  context.game.playerHp = 1000;
+  context.primeTrialHazardTimer(trial);
+  hazardNow += trial.trialHazard.initialDelayMs;
+  assert.strictEqual(context.applyTrialTrapTick(stats), false, '충분한 생명력일 때는 낮은 피해 함정을 감수할 수 있어야 한다');
+  context.game.playerHp = 1;
+  let reactedToHealthDrop = false;
+  for (let tick = 0; tick < 7; tick++) reactedToHealthDrop = context.applyTrialTrapTick(stats) || reactedToHealthDrop;
+  assert.strictEqual(reactedToHealthDrop, true, '경고 중 생명력이 치명 범위로 감소하면 회피 판단을 갱신해야 한다');
+  assert.notStrictEqual(context.game.gridPlayer.gy, 3, '생명력 급감 뒤 실제 안전 칸으로 이동해야 한다');
+
+  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
+  context.game.playerHp = 50;
+  const surroundingEnemies = [
+    [-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]
+  ].map((offset, index) => makeEnemy(310 + index, 3 + offset[0], 3 + offset[1]));
+  context.game.enemies = [makeEnemy(309, 7, 7), ...surroundingEnemies];
+  context.primeTrialHazardTimer(trial);
+  hazardNow += trial.trialHazard.initialDelayMs;
+  assert.strictEqual(context.applyTrialTrapTick(stats), true, '탈출로가 잠시 막혀도 위험 회피 상태는 유지해야 한다');
+  context.game.enemies = [makeEnemy(309, 7, 7)];
+  let escapedAfterOpening = false;
+  for (let tick = 0; tick < 7; tick++) escapedAfterOpening = context.applyTrialTrapTick(stats) || escapedAfterOpening;
+  assert.strictEqual(escapedAfterOpening, true, '막혔던 탈출로가 열리면 충돌 전에 다시 이동을 시도해야 한다');
+  assert.notStrictEqual(context.game.gridPlayer.gy, 3, '재탐색한 탈출로를 따라 실제 경고 칸을 벗어나야 한다');
+
+  context.game.settings.combatPositionMode = 'pressure';
+  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0.6 };
+  context.game.enemies = [makeEnemy(303, 7, 7)];
+  context.game.playerHp = 10000;
+  context.game.playerEnergyShield = 0;
+  const sturdyStats = { ...stats, maxHp: 10000 };
+  context.primeTrialHazardTimer(trial);
+  hazardNow += trial.trialHazard.initialDelayMs;
+  const tankCellBeforeWarning = { gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy };
+  assert.strictEqual(context.applyTrialTrapTick(sturdyStats), false, '압박 전술은 감당 가능한 함정까지 무조건 피하면 안 된다');
+  assert.deepStrictEqual({ gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy }, tankCellBeforeWarning, '함정 경고 생성 자체가 이동 타이머를 소비해 캐릭터를 움직이면 안 된다');
+  hazardNow += trial.trialHazard.warningMs;
+  context.applyTrialTrapTick(sturdyStats);
+  assert.ok(context.game.playerHp < 10000, '감수하기로 한 함정은 예고된 칸에 남아 있을 때 실제 피해를 줘야 한다');
   context.Date = NativeDate;
 }
 
@@ -1386,12 +1588,15 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   ['grantCodexLegacyStarterUniques', 'renderCosmosAtlas', 'updateStaticUI', 'renderPassiveTree', 'checkUnlocks', 'renderSkills', 'renderInventory', 'renderEquipment', 'updateCombatUI', 'renderMapList', 'syncBattleTabLayout', 'renderTalentCards', 'closeRewardOverlay', 'renderFlaskPanel', 'updateCloudSaveUI', 'renderConditionGems', 'renderSupports', 'updateHeroSelectionUI', 'renderCoreCube'].forEach(name => {
     if (typeof context[name] !== 'function') context[name] = () => {};
   });
+  const tutorialNotices = [];
+  context.queueTutorialNotice = (...args) => tutorialNotices.push(args);
   context.triggerSeasonReset();
   const afterFound = context.ensureFlaskFoundKeys();
   assert.ok(afterFound.length < beforeFound, '루프 시 발견한 플라스크가 기본 지급분으로 리셋되어야 한다');
   assert.strictEqual(context.game.offlineProgress.stash.length, 0, '루프 시 방치 보관함이 초기화되어야 한다');
   assert.strictEqual(context.game.offlineProgress.protectedOverflow.length, 0, '루프 시 방치 보호 대기열도 초기화되어야 한다');
   assert.strictEqual(context.game.settings.mapCompleteAction, 'nextLoopBestPlusOne', '루프 후 전투 완료 행동은 기본적으로 최고층으로 변경되어야 한다');
+  assert.ok(tutorialNotices.some(args => args[0] === 'unlock_spore_crafting'), '루프 2 진입 즉시 홀씨 제작 해금 안내가 표시되어야 한다');
 
   resetGame();
   context.game.season = 1;
@@ -1546,6 +1751,37 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(context.game.playerHp >= 29 && context.game.playerHp <= 31, '지속 회복은 고정 틱이 아니라 실제 경과 시간 비율로 적용되어야 한다');
 }
 
+// ── 시작 지점 복귀: 먼 칸에서 새 조우를 시작할 때만 워프 연출 ──
+{
+  resetGame();
+  context.game.gridPlayer = { gx: 5, gy: 3, gridMoveTimer: 0 };
+  context.startMoving(true);
+  const returnDeparture = vm.runInContext("battleFx.find(fx => fx.type === 'playerReturnDepart')", context);
+  assert.ok(returnDeparture && returnDeparture.duration >= 500,
+    '귀환을 시작하면 실제 이동 시간 동안 상승하는 빛 연출을 예약해야 한다');
+  assert.deepStrictEqual({ gx: returnDeparture.cell.gx, gy: returnDeparture.cell.gy }, { gx: 5, gy: 3 },
+    '귀환 출발 연출은 귀환 직전 캐릭터가 서 있던 칸에 고정되어야 한다');
+
+  resetGame();
+  context.game.gridPlayer = { gx: 6, gy: 2, gridMoveTimer: 0 };
+  context.startEncounterRun();
+  const returnWarp = vm.runInContext("battleFx.find(fx => fx.type === 'playerReturnWarp')", context);
+  assert.ok(returnWarp && returnWarp.duration === 720, '먼 칸에서 시작 지점으로 복귀하면 소환 연출을 한 번 예약해야 한다');
+  assert.deepStrictEqual({ gx: returnWarp.cell.gx, gy: returnWarp.cell.gy },
+    { gx: cfg.playerSpawn.gx, gy: cfg.playerSpawn.gy }, '복귀 고리는 이후 이동과 무관하게 시작 칸에 고정되어야 한다');
+  assert.deepStrictEqual(
+    { gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy },
+    { gx: cfg.playerSpawn.gx, gy: cfg.playerSpawn.gy },
+    '워프 연출과 무관하게 전투 좌표는 즉시 시작 지점으로 초기화되어야 한다'
+  );
+
+  resetGame();
+  context.resetPlayerGridPosition();
+  context.startEncounterRun();
+  const stationaryWarpCount = vm.runInContext("battleFx.filter(fx => fx.type === 'playerReturnWarp').length", context);
+  assert.strictEqual(stationaryWarpCount, 0, '이미 시작 지점에 있거나 최초 진입한 경우에는 복귀 연출을 반복하면 안 된다');
+}
+
 // ── 4. 스폰 배치: 보스 고정 칸, 중복 없는 무작위 배치 ──
 {
   resetGame();
@@ -1555,7 +1791,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.assignEnemyGridSpawn(boss, blocked);
   assert.strictEqual(boss.gx, cfg.bossSpawn.gx);
   assert.strictEqual(boss.gy, cfg.bossSpawn.gy);
-  const seen = new Set([`${boss.gx},${boss.gy}`, `${cfg.playerSpawn.gx},${cfg.playerSpawn.gy}`]);
+  const bossCells = Array.from(context.getGridUnitCells(boss), cell => `${cell.gx},${cell.gy}`);
+  assert.deepStrictEqual(bossCells, ['7,4', '7,5', '8,4', '8,5'], '보스는 스폰 지점부터 2x2 네 칸을 점유해야 한다');
+  const seen = new Set([...bossCells, `${cfg.playerSpawn.gx},${cfg.playerSpawn.gy}`]);
   for (let i = 0; i < 20; i++) {
     const mob = { id: 101 + i, hp: 100 };
     context.assignEnemyGridSpawn(mob, blocked);
@@ -1566,7 +1804,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   // 보스 스폰 칸이 점유된 경우 인접 빈 칸으로 밀려난다
   const boss2 = { id: 200, hp: 1000, isBoss: true };
   context.assignEnemyGridSpawn(boss2, blocked);
-  assert.ok(context.isGridCellInBounds(boss2.gx, boss2.gy));
+  const boss2Cells = context.getGridUnitCells(boss2);
+  assert.strictEqual(boss2Cells.length, 4, '밀려난 보스도 전장 안에서 2x2 공간을 확보해야 한다');
+  assert.ok(boss2Cells.every(cell => !seen.has(`${cell.gx},${cell.gy}`)), '밀려난 보스의 네 칸은 기존 유닛과 겹치면 안 된다');
   assert.ok(!(boss2.gx === cfg.bossSpawn.gx && boss2.gy === cfg.bossSpawn.gy), '점유된 보스 칸에는 겹쳐 스폰되면 안 된다');
 }
 
@@ -1634,9 +1874,19 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   // 점유 칸으로는 들어가지 않는다
   const blockerSet = new Set([context.gridCellKey(3, 6)]);
   const stepper = { gx: 4, gy: 6, gridMoveTimer: 0 };
+  const stepperOrigin = { gx: stepper.gx, gy: stepper.gy };
   context.gridStepToward(stepper, 1, 6, blockerSet);
   assert.ok(!(stepper.gx === 3 && stepper.gy === 6), '점유 칸으로 이동하면 안 된다');
-  assert.ok(context.gridChebyshevDist(stepper.gx, stepper.gy, 1, 6) < 3, '우회로로라도 접근해야 한다');
+  assert.strictEqual(Math.abs(stepper.gx - stepperOrigin.gx) + Math.abs(stepper.gy - stepperOrigin.gy), 1,
+    '우회 첫걸음도 대각선이 아닌 상하좌우 한 칸이어야 한다');
+  for (let step = 0; step < 3; step++) context.gridStepToward(stepper, 1, 6, blockerSet);
+  assert.ok(context.gridChebyshevDist(stepper.gx, stepper.gy, 1, 6) < 3, '상하좌우 경로로 점유 칸을 우회해 접근해야 한다');
+
+  const diagonalTarget = { gx: 3, gy: 3 };
+  const cardinalWalker = { gx: 1, gy: 1, gridMoveTimer: 0 };
+  context.gridStepToward(cardinalWalker, diagonalTarget.gx, diagonalTarget.gy, new Set());
+  assert.strictEqual(Math.abs(cardinalWalker.gx - 1) + Math.abs(cardinalWalker.gy - 1), 1,
+    '대각선 목표를 향할 때도 한 축만 변경되어야 한다');
 }
 
 // ── 7. 그리드 런타임 복구: 구버전 저장(칸/유형 없음)도 배치된다 ──
@@ -1658,9 +1908,11 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(context.hasGridCell(context.game.summons[0]), '소환수 칸이 복구되어야 한다');
   const keys = new Set();
   [context.game.gridPlayer, ...context.game.enemies, ...context.game.summons].forEach(unit => {
-    const key = context.gridCellKey(unit.gx, unit.gy);
-    assert.ok(!keys.has(key), '복구 배치도 칸이 겹치면 안 된다');
-    keys.add(key);
+    context.getGridUnitCells(unit).forEach(cell => {
+      const key = context.gridCellKey(cell.gx, cell.gy);
+      assert.ok(!keys.has(key), '복구 배치도 2x2 보스 점유 칸까지 겹치면 안 된다');
+      keys.add(key);
+    });
   });
 }
 
@@ -1699,7 +1951,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const start = { ...context.game.gridPlayer };
   let engaged = context.updatePlayerGridEngagement(pStats);
   assert.strictEqual(engaged, false, '근접 스킬 사거리 밖이면 공격 불가');
-  for (let i = 0; i < 40 && !engaged; i++) engaged = context.updatePlayerGridEngagement(pStats);
+  for (let i = 0; i < 60 && !engaged; i++) engaged = context.updatePlayerGridEngagement(pStats);
   assert.strictEqual(engaged, true, '자동 이동으로 접근해 결국 교전해야 한다');
   const moved = context.gridChebyshevDist(start.gx, start.gy, context.game.gridPlayer.gx, context.game.gridPlayer.gy);
   assert.ok(moved > 0, '플레이어가 실제로 이동했어야 한다');
@@ -1980,98 +2232,15 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '이동 속도 배율을 먼저 적용한 뒤 빈 구간 2배 가속을 적용해야 한다');
 }
 
-// ── 귀환 설정은 전투 캔버스를 은신처 대기 장면으로 전환한다 ──
-{
-  resetGame();
-  const g = context.game;
-  g.heroSelectionInitialized = true;
-  g.maxZoneId = 5;
-  g.journalEntries = ['act_5'];
-  g.settings.townReturnAction = 'hideout';
-  context.returnToTown();
-  assert.strictEqual(g.isTownReturning, true, '귀환 버튼은 먼저 귀환 이동을 시작해야 한다');
-  g.moveTimer = 0.01;
-  context.coreLoop();
-  assert.strictEqual(context.isHideoutActive(g), true, '귀환 이동 완료 후 은신처 대기 옵션을 적용해야 한다');
-  assert.strictEqual(g.combatHalted, true, '은신처에서는 전투가 정지해야 한다');
-  assert.strictEqual(g.enemies.length, 0, '은신처에는 적이 남지 않아야 한다');
-  assert.strictEqual(g.encounterPlan.length, 0, '은신처에서는 새 조우를 예약하지 않아야 한다');
-  const idleProgress = g.runProgress;
-  context.coreLoop();
-  assert.strictEqual(g.runProgress, idleProgress, '은신처 대기 중에는 지역 진행도가 변하지 않아야 한다');
-  context.returnToTown();
-  assert.strictEqual(context.isHideoutActive(g), false, '은신처의 귀환 버튼은 전투 재개 동작이어야 한다');
-  assert.strictEqual(g.isTownReturning, false, '전투 재개 이동은 마을 귀환으로 취급하지 않아야 한다');
-  assert(g.moveTimer > 0, '전투 재개는 다음 구간 이동을 시작해야 한다');
-}
-
-// ── 해금 전 은신처 귀환 설정은 전투 중단 대신 기존 재전투로 복귀한다 ──
-{
-  resetGame();
-  const g = context.game;
-  g.heroSelectionInitialized = true;
-  g.maxZoneId = 1;
-  g.journalEntries = [];
-  g.claimedActRewards = [];
-  g.settings.townReturnAction = 'hideout';
-  context.returnToTown();
-  g.moveTimer = 0.01;
-  context.coreLoop();
-  assert.strictEqual(context.isHideoutActive(g), false, '해금 전에는 은신처 대기 상태로 들어가면 안 된다');
-  assert.strictEqual(g.combatHalted, false, '해금 실패를 전투 중단으로 처리하면 안 된다');
-  assert.ok(g.encounterPlan.length > 0 || g.moveTimer > 0,
-    '해금 실패 후에는 기존 재전투 흐름을 계속해야 한다');
-}
-
-// ── 걷기 모션 상태: 지역 이동뿐 아니라 전투 중 칸 이동에서도 걸어야 한다 ──
-{
-  const g = context.game;
-  // 적이 없고 지역 이동 중 → 걷기
-  g.enemies = [];
-  g.moveTimer = 0;
-  g.runProgress = 10;
-  assert.strictEqual(context.isPlayerWalkingForAnimation(), true, '적이 없고 지역 이동 중이면 걷는 상태여야 한다');
-
-  // 적이 없고 도착 → 정지
-  g.runProgress = 100;
-  assert.strictEqual(context.isPlayerWalkingForAnimation(), false, '지역 이동이 끝나면 걷는 상태가 아니어야 한다');
-
-  // 전투 중 멀리 있는 적에게 칸을 좁히는 동안 → 걷기
-  context.resetPlayerGridPosition();
-  g.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
-  const chased = makeEnemy(90, 6, 6);
-  chased.hp = 10000;
-  g.enemies = [chased];
-  const pStats = context.getPlayerStats();
-  context.updatePlayerGridEngagement(pStats);
-  assert.strictEqual(context.isPlayerWalkingForAnimation(), true, '사거리 밖 적에게 접근하는 동안 걷는 상태여야 한다');
-
-  // 붙어 있어 더 좁힐 칸이 없으면 제자리걸음이므로 걷지 않는다
-  g.gridPlayer = { gx: 5, gy: 6, gridMoveTimer: 0 };
-  context.updatePlayerGridEngagement(context.getPlayerStats());
-  assert.strictEqual(context.isPlayerWalkingForAnimation(), false, '이미 붙어 있으면 걷는 상태가 아니어야 한다');
-
-  // 전투가 끝나고 지역 이동도 아니면 정지
-  chased.hp = 0;
-  g.runProgress = 100;
-  context.updatePlayerGridEngagement(context.getPlayerStats());
-  assert.strictEqual(context.isPlayerWalkingForAnimation(), false, '적이 전멸하고 이동도 없으면 걷는 상태가 아니어야 한다');
-
-  // 사망·지역 전환 경계에서 접근 플래그가 굳으면 걷기 모션이 그대로 남는다
-  g.enemies = [makeEnemy(91, 7, 7, { hp: 10000 })];
-  g.gridPlayer = { gx: 0, gy: 0, gridMoveTimer: 0 };
-  context.updatePlayerGridEngagement(context.getPlayerStats());
-  assert.strictEqual(g.gridPlayerPursuing, true, '사전 조건: 접근 플래그가 켜져 있어야 한다');
-  context.resetPlayerGridPosition();
-  assert.strictEqual(g.gridPlayerPursuing, false, '그리드 초기화는 접근 플래그를 내려야 한다');
-}
-
-// 두 렌더 경로가 같은 판단을 써야 한다(전장 캔버스 / 스프라이트 선택).
+// 전장 좌표 변화와 걷기 프레임은 같은 이동 진행도를 공유해야 한다.
 {
   const battlefield = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
   const ui = fs.readFileSync('js/ui.js', 'utf8');
-  assert.ok(battlefield.includes('isPlayerWalkingForAnimation'), '전장 캔버스가 공용 걷기 판단을 써야 한다');
-  assert.ok(ui.includes('isPlayerWalkingForAnimation'), '스프라이트 선택이 공용 걷기 판단을 써야 한다');
+  assert.ok(battlefield.includes('updatePlayerGridVisualMotion'), '전장 캔버스가 실제 칸 변경을 화면 이동으로 변환해야 한다');
+  assert.ok(ui.includes('pickProgressFrame(runCycle, moveProgress)'),
+    '스프라이트는 칸 이동 진행도로 걷기 프레임을 골라 도착 시 마지막 프레임에 맞춰야 한다');
+  assert.ok(!battlefield.includes('isPlayerWalkingForAnimation') && !ui.includes('isPlayerWalkingForAnimation'),
+    '진행도나 접근 플래그만으로 제자리 걷기를 켜는 이전 판정은 남지 않아야 한다');
   assert.ok(ui.includes('estimateMapZonePowerRequirements(zone)') && ui.includes('예상 DPS ${model.dps.label} · 권장 EHP ${model.ehp.label}'),
     '지도 지역 카드는 원시 수치 대신 개인화된 DPS/EHP 등급을 표시해야 한다');
   assert.ok((ui.match(/buildMapPowerEstimateHtml\(/g) || []).length >= 14, '특수 지도 패널도 예상 DPS/EHP 표시를 공유해야 한다');

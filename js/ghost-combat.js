@@ -49,11 +49,12 @@ function getGhostCombatSnapshot(suppliedStats) {
     let dotDps = clampNumber(Number(stats.skillDotDps) || 0, 0, totalDps);
     let summonDps = clampNumber(Number(stats.summonDps) || 0, 0, totalDps);
     let directDps = Math.max(0, totalDps - dotDps - summonDps);
-    let appearance = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId;
+    let appearance = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedClassId;
+    let appearanceDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[appearance] : null;
     return {
         schemaVersion: GHOST_COMBAT_SNAPSHOT_VERSION,
         ascendClass: game && game.ascendClass ? String(game.ascendClass).slice(0, 80) : null,
-        heroId: /^hero(?:10|[1-9])$/.test(String(appearance || '')) ? appearance : 'hero1',
+        heroId: appearanceDef ? appearanceDef.recommendedTalentHeroId : 'hero1',
         talentHeroId: /^hero(?:10|[1-9])$/.test(String(game.selectedHeroId || '')) ? game.selectedHeroId : 'hero1',
         activeSkill, skillElement: element, style: getGhostCombatStyle(skill),
         tags: (Array.isArray(skill.tags) ? skill.tags : []).filter(tag => GHOST_COMBAT_TAGS.has(tag)).slice(0, 8),

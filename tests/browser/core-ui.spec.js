@@ -10,7 +10,7 @@ async function openLocalGame(page, path = '/') {
     await expect(page.locator('#loading-overlay')).not.toHaveClass(/active/, { timeout: 20_000 });
     const heroOverlay = page.locator('#loop-hero-select-overlay');
     if (await heroOverlay.isVisible()) {
-        await heroOverlay.locator('[data-hero-id]').first().click();
+        await heroOverlay.locator('[data-class-id]').first().click();
         await expect(heroOverlay).not.toHaveClass(/active/);
     }
     await dismissVisibleTutorials(page);
@@ -193,7 +193,7 @@ test('inventory artwork stays compact and does not include the next sprite row',
     expect(failures).toEqual([]);
 });
 
-test('condition patterns, Arcana, pruning and the hideout render as one endgame progression path', async ({ page }) => {
+test('condition patterns, Arcana and pruning render as one endgame progression path', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
@@ -206,7 +206,7 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
         game.moveTimer = 0;
         closeDeathOverlay();
         game.journalEntries = Array.from(new Set([...(game.journalEntries || []), 'act_5', 'woodsman', 'cosmos_astra']));
-        game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_hideout', 'unlock_arcana']));
+        game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_arcana']));
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.conditionGemUnlocked = true;
         game.conditionGemPool = [
@@ -237,150 +237,7 @@ test('condition patterns, Arcana, pruning and the hideout render as one endgame 
         updateStaticUI();
     });
     await dismissVisibleTutorials(page);
-
-    await page.evaluate(() => window.switchTab('tab-hideout'));
-    await expect(page.locator('.hideout-scene')).toBeVisible();
-    await expect(page.locator('.hideout-cell')).toHaveCount(64);
-    await expect(page.locator('.hideout-cell.reserved')).toHaveCount(1);
-    expect(await page.locator('.hideout-placed-decor').count()).toBeGreaterThanOrEqual(3);
-    await expect.poll(() => page.locator('.hideout-directional-art').first().evaluate(art => {
-        const image = getComputedStyle(art).backgroundImage;
-        return image.includes('/assets/hideout/decor/directions/') && image.includes('.webp');
-    })).toBe(true);
-    expect(await page.evaluate(() => {
-        const placement = ensureHideoutState(game).placements.find(row => row.decorId === 'stash');
-        return getHideoutDecorStyle(placement).includes("url('../assets/hideout/decor/directions/");
-    })).toBe(true);
-    const decorFitsFootprints = await page.evaluate(() => ensureHideoutState(game).placements.every(placement => {
-        const decor = document.querySelector(`.hideout-placed-decor[data-decor-id="${placement.decorId}"]`);
-        const cells = getHideoutPlacementCells(placement).map(cell => document.querySelector(`.hideout-cell[data-cell="${cell}"]`));
-        if (!decor || cells.some(cell => !cell)) return false;
-        const decorRect = decor.getBoundingClientRect();
-        const cellRects = cells.map(cell => cell.getBoundingClientRect());
-        const footprintRect = {
-            left:Math.min(...cellRects.map(rect => rect.left)),
-            right:Math.max(...cellRects.map(rect => rect.right)),
-            top:Math.min(...cellRects.map(rect => rect.top)),
-            bottom:Math.max(...cellRects.map(rect => rect.bottom))
-        };
-        return decorRect.left >= footprintRect.left - 1 && decorRect.right <= footprintRect.right + 1
-            && decorRect.top >= footprintRect.top - 1 && decorRect.bottom <= footprintRect.bottom + 1;
-    }));
-    expect(decorFitsFootprints).toBe(true);
-    expect(await page.locator('.hideout-library-card.placed .hideout-library-actions').count()).toBeGreaterThanOrEqual(3);
-    const stashDecor = page.locator('.hideout-placed-decor[data-decor-id="stash"]');
-    await stashDecor.hover();
-    await expect(stashDecor.locator('strong')).toContainText('장비 탭 열기');
-    await expect(page.locator('.hideout-cell.hover-target[data-occupied-decor="stash"]')).toHaveCount(2);
-    const directionalArtMatchesFootprints = await page.evaluate(() => ensureHideoutState(game).placements.every(placement => {
-        const decorDefinition = HIDEOUT_DECOR_DB.find(row => row.id === placement.decorId);
-        if (!decorDefinition || !decorDefinition.directionalAsset) return true;
-        const decor = document.querySelector(`.hideout-placed-decor[data-decor-id="${placement.decorId}"]`);
-        const art = decor && decor.querySelector('.hideout-directional-art');
-        if (!decor || !art) return false;
-        const decorRect = decor.getBoundingClientRect();
-        const artRect = art.getBoundingClientRect();
-        const spriteCell = getHideoutDecorSpriteCell(placement.rotation);
-        const expectedPosition = `${spriteCell.column * 100}% ${spriteCell.row * 100}%`;
-        const actualScale = artRect.width / decorRect.width;
-        return artRect.left >= decorRect.left - 1 && artRect.right <= decorRect.right + 1
-            && Math.abs(artRect.bottom - decorRect.bottom) <= 1
-            && Math.abs(actualScale - decorDefinition.renderScale) <= 0.02
-            && getComputedStyle(art).backgroundPosition === expectedPosition;
-    }));
-    expect(directionalArtMatchesFootprints).toBe(true);
-    const stashDirectionBefore = await stashDecor.locator('.hideout-directional-art')
-        .evaluate(art => getComputedStyle(art).backgroundPosition);
-    const editorDecorScales = await page.evaluate(() => {
-        const tileWidth = document.querySelector('.hideout-cell').getBoundingClientRect().width;
-        return Object.fromEntries(Array.from(document.querySelectorAll('.hideout-placed-decor'), decor => {
-            const art = decor.querySelector('.hideout-directional-art');
-            return [decor.dataset.decorId, art ? art.getBoundingClientRect().width / tileWidth : 0];
-        }));
-    });
-    const stashBefore = await page.evaluate(() => {
-        const placement = ensureHideoutState(game).placements.find(row => row.decorId === 'stash');
-        return { rotation:placement.rotation, cells:getHideoutPlacementCells(placement) };
-    });
-    await stashDecor.locator('button', { hasText:'회전' }).click();
-    const stashAfter = await page.evaluate(() => {
-        const placement = ensureHideoutState(game).placements.find(row => row.decorId === 'stash');
-        return { rotation:placement.rotation, cells:getHideoutPlacementCells(placement) };
-    });
-    expect(stashAfter.rotation).toBe((stashBefore.rotation + 1) % 4);
-    expect(stashAfter.cells).not.toEqual(stashBefore.cells);
-    const stashDirectionAfter = await stashDecor.locator('.hideout-directional-art')
-        .evaluate(art => getComputedStyle(art).backgroundPosition);
-    expect(stashDirectionAfter).not.toBe(stashDirectionBefore);
-    await page.locator('.hideout-placed-decor[data-decor-id="stash"]').click();
-    await expect(page.locator('#tab-items')).toHaveClass(/active/);
-    await page.evaluate(() => window.switchTab('tab-hideout'));
-    const hideoutNodeStable = await page.evaluate(() => {
-        const before = document.querySelector('.hideout-placed-decor');
-        updateStaticUI();
-        return before === document.querySelector('.hideout-placed-decor');
-    });
-    expect(hideoutNodeStable).toBe(true);
-    const hideoutBounds = await page.locator('.hideout-layout').boundingBox();
-    const viewport = page.viewportSize();
-    expect(hideoutBounds.x + hideoutBounds.width).toBeLessThanOrEqual(viewport.width + 1);
-
-    await page.evaluate(() => {
-        game.settings.townReturnAction = 'hideout';
-        game.settings.mapCompleteAction = 'stop';
-        game.combatHalted = false;
-        returnToTown();
-        game.moveTimer = 0.01;
-        coreLoop();
-        updateCombatUI(getPlayerStats());
-        renderBattlefield(true);
-    });
-    await expect.poll(() => page.evaluate(() => isHideoutActive(game))).toBe(true);
-    await page.evaluate(() => window.switchTab('tab-battle'));
-    await expect(page.locator('#ui-combat-zone')).toHaveText('뿌리 성소 · 은신처');
-    await expect(page.locator('#ui-progress-label')).toContainText('은신처');
-    await expect(page.locator('#ui-move-time-text')).toHaveText('휴식 중');
-    await expect(page.locator('#btn-combat-return')).toHaveText('전투 재개');
-    await expect(page.locator('#ui-battlefield-caption')).toHaveText('휴식 중');
-    await expect(page.locator('#ui-bounty-box')).toBeHidden();
-    await expect(page.locator('#ui-goal-drawer')).toBeHidden();
-    await expect(page.locator('#enemy-area')).toBeHidden();
-    const idleSnapshot = await page.evaluate(() => ({ progress:game.runProgress, enemies:game.enemies.length }));
-    await page.waitForTimeout(250);
-    expect(await page.evaluate(() => ({ progress:game.runProgress, enemies:game.enemies.length }))).toEqual(idleSnapshot);
-    const stashHitbox = await page.evaluate(() => {
-        renderBattlefield(true);
-        const hitbox = battleVisualState.hideoutDecorHitboxes.find(row => row.decor.id === 'stash');
-        const canvas = document.getElementById('battlefield-canvas').getBoundingClientRect();
-        return hitbox ? { x:canvas.left + hitbox.x + hitbox.width / 2, y:canvas.top + hitbox.y + hitbox.height / 2 } : null;
-    });
-    expect(stashHitbox).not.toBeNull();
-    const battleDecorScales = await page.evaluate(() => {
-        const canvas = document.getElementById('battlefield-canvas').getBoundingClientRect();
-        const tileWidth = Math.min(canvas.width * 0.115, canvas.height * 0.185);
-        return Object.fromEntries(battleVisualState.hideoutDecorHitboxes.map(hitbox => [
-            hitbox.decor.id, hitbox.width / tileWidth
-        ]));
-    });
-    Object.entries(editorDecorScales).forEach(([decorId, editorScale]) => {
-        expect(Math.abs(battleDecorScales[decorId] - editorScale)).toBeLessThan(0.01);
-    });
-    await page.evaluate(point => {
-        document.getElementById('battlefield-canvas').dispatchEvent(new PointerEvent('pointermove', {
-            bubbles:true, clientX:point.x, clientY:point.y
-        }));
-    }, stashHitbox);
-    await expect(page.locator('#ui-battlefield-caption')).toContainText('장비 탭 열기');
-    await page.evaluate(point => {
-        document.getElementById('battlefield-canvas').dispatchEvent(new MouseEvent('click', {
-            bubbles:true, clientX:point.x, clientY:point.y
-        }));
-    }, stashHitbox);
-    await expect(page.locator('#tab-items')).toHaveClass(/active/);
-    await page.evaluate(() => window.switchTab('tab-battle'));
-    await page.evaluate(() => returnToTown());
-    await expect.poll(() => page.evaluate(() => isHideoutActive(game))).toBe(false);
-    await expect(page.locator('#btn-combat-return')).toHaveText('귀환');
+    await expect(page.locator('#tab-hideout, #btn-tab-hideout')).toHaveCount(0);
 
     await page.evaluate(() => window.switchTab('tab-season'));
     await dismissVisibleTutorials(page);
@@ -572,7 +429,7 @@ test('equipment triage classifies the current build without destabilizing select
     await expect(triage).toContainText('호버 대신');
     await triage.getByRole('button', { name: '일괄 분석' }).click();
     await expect(triage).toContainText('3개 완료');
-    const cards = page.locator('#ui-inventory-list .equipment-item-card');
+    const cards = page.locator('#ui-inventory-list .equipment-grid-item');
     await expect(cards).toHaveCount(3);
     await expect(page.locator('#ui-inventory-list')).toContainText('공격 +');
     await expect(page.locator('#ui-inventory-list')).toContainText('생존 +');
@@ -635,14 +492,21 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
         updateStaticUI();
     }, initial);
     await expect(panel.locator('.equipment-preset-slot').first()).not.toContainText('현재 적용');
-    await expect(page.locator('#ui-inventory-list .equipment-preset-protected')).toHaveText('세팅 보호');
-    await expect(page.locator('#ui-inventory-list .equipment-card-danger:disabled')).toHaveCount(1);
     const mobileInventoryButton = page.locator('#btn-equipment-mobile-inventory');
     if (await mobileInventoryButton.isVisible()) await mobileInventoryButton.click();
-    const sameNameSalvage = page.locator('#ui-inventory-list .equipment-card-danger:not(:disabled)');
+    const inventoryItems = page.locator('#ui-inventory-list .equipment-grid-item');
+    const protectedItem = inventoryItems.filter({ hasText:'세팅' });
+    await expect(protectedItem).toHaveCount(1);
+    await protectedItem.click();
+    await expect(page.locator('#ui-equipment-inventory-inspector')).toContainText('세팅 보호');
+    await expect(page.locator('#ui-equipment-inventory-inspector .equipment-card-danger:disabled')).toHaveCount(1);
+    await page.keyboard.press('Escape');
+    const sameNameSalvage = inventoryItems.filter({ hasNotText:'세팅' });
     await expect(sameNameSalvage).toHaveCount(1);
     await sameNameSalvage.click();
-    await expect(page.locator('#ui-inventory-list .equipment-item-card')).toHaveCount(1);
+    await expect(page.locator('#ui-equipment-inventory-inspector')).not.toContainText('세팅 보호');
+    await page.locator('#ui-equipment-inventory-inspector .equipment-card-danger:not(:disabled)').click();
+    await expect(page.locator('#ui-inventory-list .equipment-grid-item')).toHaveCount(1);
     if (await mobileLoadoutButton.isVisible()) await mobileLoadoutButton.click();
     await panel.getByRole('button', { name: '세팅 불러오기' }).click();
 
@@ -771,7 +635,7 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
     const groups = [
         ['tab-items', 'switchItemSubtab', ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-hall', 'item-tab-infuser']],
         ['tab-skills', 'switchSkillSubtab', ['skill-tab-equip', 'skill-tab-enhance', 'skill-tab-research', 'skill-tab-condition']],
-        ['tab-map', 'switchMapSubtab', ['map-tab-zones', 'map-tab-abyss', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp']],
+        ['tab-map', 'switchMapSubtab', ['map-tab-zones', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp']],
         ['tab-talisman', 'switchTalismanSubtab', ['talisman-sub-board', 'talisman-sub-colony-ward']]
     ];
     for (const [tabId, switcher, panels] of groups) {
@@ -1244,6 +1108,7 @@ test('cloud history and admin operations render through authenticated RPCs', asy
         cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
     });
     await page.evaluate(() => switchTab('tab-settings'));
+    await page.locator('details.settings-cloud-disclosure > summary').click();
     await page.getByRole('button', { name: '저장 이력' }).click();
     await expect(page.locator('#cloud-tools-dialog')).toBeVisible();
     await expect(page.locator('#cloud-tools-body')).toContainText('리비전 8');
@@ -1557,9 +1422,9 @@ test('mobile navigation exposes all game tabs in a horizontal rail and keeps onl
         game.settings.twoRowTabs = true;
         applyTabHeaderOrder();
     });
-    await expect(body).not.toHaveClass(/mobile-primary-navigation/);
-    await expect(page.locator('#btn-mobile-nav-more')).toHaveCount(0);
-    await expect(drawer).not.toHaveAttribute('aria-hidden', /.+/);
+    await expect(body).toHaveClass(/mobile-primary-navigation/);
+    await expect(page.locator('#btn-mobile-nav-more')).toHaveCount(1);
+    await expect(drawer).toHaveAttribute('aria-hidden', 'true');
 
     await page.setViewportSize({ width: 320, height: 800 });
     await page.evaluate(() => {
@@ -1608,7 +1473,7 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
             const action = document.getElementById('btn-map-complete-action-picker');
             const settingsTab = document.getElementById('btn-tab-settings');
             const zoneRect = zoneTitle.getBoundingClientRect();
-            const goalRect = rect('#ui-goal-toggle');
+            const goalRect = rect('#btn-combat-goal-toggle');
             const progressRect = rect('.map-progress-row');
             const actionsRect = rect('.combat-zone-actions');
             const playerRect = rect('.player-hud');
@@ -1624,8 +1489,10 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
             action.scrollIntoView({ block: 'nearest', inline: 'end' });
             return {
                 pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-                zoneTitleClipped: zoneTitle.scrollWidth > zoneTitle.clientWidth + 1
-                    || zoneTitle.scrollHeight > zoneTitle.clientHeight + 1,
+                zoneTitleOverflowManaged: zoneTitle.scrollWidth <= zoneTitle.clientWidth + 1
+                    || (getComputedStyle(zoneTitle).overflow === 'hidden'
+                        && getComputedStyle(zoneTitle).textOverflow === 'ellipsis'
+                        && getComputedStyle(zoneTitle).whiteSpace === 'nowrap'),
                 settingsTextClipped: settingsTab.scrollWidth > settingsTab.clientWidth + 1,
                 actionTextClipped: action.scrollWidth > action.clientWidth + 1,
                 actionRight: action.getBoundingClientRect().right,
@@ -1637,12 +1504,12 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
                 hpCopyContained: horizontallyContained(hpTextRect, hpTrackRect, 6),
                 hpCopyClipped: hpText.scrollWidth > hpText.clientWidth + 1,
                 expTrackHeight: expTrackRect.height,
-                progressCopyContained: horizontallyContained(progressCopyRect, progressGaugeRect, 16),
+                progressCopyContained: horizontallyContained(progressCopyRect, progressGaugeRect, 4),
                 identityContained: horizontallyContained(identityRect, leftWingRect)
             };
         });
         expect(compactHud.pageOverflow).toBeLessThanOrEqual(1);
-        expect(compactHud.zoneTitleClipped).toBe(false);
+        expect(compactHud.zoneTitleOverflowManaged).toBe(true);
         expect(compactHud.settingsTextClipped).toBe(false);
         expect(compactHud.actionTextClipped).toBe(false);
         expect(compactHud.actionRight).toBeLessThanOrEqual(compactHud.viewportWidth + 1);
@@ -1671,8 +1538,18 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
     expect(effectGeometry.overlaps).toBe(false);
     await expect(page.locator('#btn-combat-log-toggle')).toBeHidden();
     await expect(page.locator('#btn-combat-chat-tab')).toBeHidden();
+    await expect(page.locator('.combat-feed-title')).toBeHidden();
     await expect(page.locator('#log')).toBeVisible();
-    expect(await page.locator('.combat-feed').evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(229);
+    const compactLog = await page.locator('.combat-feed').evaluate(element => ({
+        height: element.getBoundingClientRect().height,
+        overflow: getComputedStyle(element.querySelector('#log')).overflowY,
+        totalEntries: element.querySelectorAll('.log-msg').length,
+        visibleEntries: Array.from(element.querySelectorAll('.log-msg')).filter(entry => getComputedStyle(entry).display !== 'none').length
+    }));
+    expect(compactLog.height).toBeGreaterThanOrEqual(167);
+    expect(compactLog.height).toBeLessThanOrEqual(169);
+    expect(compactLog.overflow).toBe('auto');
+    expect(compactLog.visibleEntries).toBe(compactLog.totalEntries);
     expect(failures).toEqual([]);
 });
 
@@ -1780,6 +1657,7 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
     expect(Math.abs(flaskCenterWhilePressed.y - flaskCenterBeforePress.y)).toBeLessThanOrEqual(.5);
     const vitalsChrome = await page.evaluate(() => {
         let frame = getComputedStyle(document.querySelector('.player-health-frame'));
+        let shell = getComputedStyle(document.querySelector('.player-hud-shell'));
         let ornament = getComputedStyle(document.querySelector('.player-hud-shell'), '::before');
         let track = document.querySelector('.player-health-frame .combat-hp-bar').getBoundingClientRect();
         let expTrack = document.querySelector('.player-health-frame .combat-exp-bar').getBoundingClientRect();
@@ -1804,6 +1682,7 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
         return {
             desktop,
             frameBackground: frame.backgroundColor,
+            shellBackground: shell.backgroundImage,
             ornamentImage: ornament.backgroundImage,
             flaskContained: desktop
                 ? lastFlask.left >= flaskRack.left - 1 && lastFlask.right <= flaskRack.right + 1
@@ -1831,9 +1710,12 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
             gemRackTitleCount: document.querySelectorAll('.player-hud-rack-title').length
         };
     });
-    expect(vitalsChrome.frameBackground).toBe(vitalsChrome.desktop ? 'rgba(0, 0, 0, 0)' : 'rgba(7, 9, 7, 0.94)');
+    expect(vitalsChrome.frameBackground).toBe('rgba(0, 0, 0, 0)');
     if (vitalsChrome.desktop) expect(vitalsChrome.ornamentImage).toContain('combat-hud-frame-v1.png');
-    else expect(vitalsChrome.ornamentImage).toBe('none');
+    else {
+        expect(vitalsChrome.ornamentImage).toBe('none');
+        expect(vitalsChrome.shellBackground).toContain('linear-gradient');
+    }
     expect(vitalsChrome.flaskContained).toBe(true);
     expect(vitalsChrome.desktopFlaskDocked).toBe(true);
     expect(vitalsChrome.healthContained).toBe(true);
@@ -1901,6 +1783,7 @@ test('damage log detail is opt-in and persists through the settings control', as
     await openLocalGame(page);
     await page.evaluate(() => switchTab('tab-settings'));
     const detailToggle = page.locator('#chk-log-damage-detail');
+    await detailToggle.locator('xpath=ancestor::details').locator('summary').click();
     await expect(detailToggle).not.toBeChecked();
     await detailToggle.check();
     expect(await page.evaluate(() => game.settings.showDetailedDamageLog)).toBe(true);
@@ -1916,7 +1799,6 @@ test('representative battle and equipment layouts preserve the primary task hier
         game.level = 100;
         game.season = 30;
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
-        setHideoutActive(false, game);
         game.settings.mapCompleteAction = 'stop';
         game.combatHalted = true;
         game.moveTimer = 0;
@@ -1928,8 +1810,7 @@ test('representative battle and equipment layouts preserve the primary task hier
     const isMobile = testInfo.project.name.startsWith('mobile');
     if (isMobile) {
         const emptyTarget = page.locator('#ui-enemy-list .enemy-empty');
-        await expect(emptyTarget).toBeVisible();
-        expect((await emptyTarget.boundingBox()).height).toBeLessThanOrEqual(52);
+        await expect(emptyTarget).toBeHidden();
     } else {
         const layoutCheck = await page.evaluate(() => {
             presentGoalDrawer({

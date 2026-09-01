@@ -39,12 +39,13 @@ let combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
 let combatChannelResumeSkillName = '';
 let nextCombatChannelId = 1;
 let nextPlayerDamageTextGroupId = 1;
+let trialHazardRuntime = { nextAt: 0, active: null };
 
 function createCombatTacticsRuntime(now) {
     let timestamp = Number.isFinite(now) ? now : Date.now();
     return {
         encounterKey: '', targetId: null, targetLockedUntil: 0,
-        attackDelayUntil: 0, nextMoveAt: 0, walkingUntil: 0,
+        attackDelayUntil: 0, nextMoveAt: 0,
         lastAttackAt: timestamp, previousCell: null, consecutiveRetreats: 0
     };
 }
@@ -57,6 +58,7 @@ function resetCombatChannelRuntime() {
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
     combatChannelResumeSkillName = '';
     pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
+    if (game) game.passiveChannelPath = null;
 }
 
 function hasPlayerChannelBreakingAilment() {
@@ -70,6 +72,7 @@ function cancelCombatChannel(reason) {
     pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || row.channelId !== channelId);
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
     combatChannelResumeSkillName = '';
+    game.passiveChannelPath = null;
     if (reason) addBattleFx('statusText', { text: `집중 취소 · ${reason}`, color: '#d7b8ff', duration: 480 });
     return true;
 }
@@ -475,6 +478,21 @@ function hasKeystone(id) {
 const WARRIOR_RAGE_STACK_MAX = 5;
 const WARRIOR_RAGE_STACK_DAMAGE_PCT = 10;
 const WARRIOR_RAGE_DURATION_MS = 5000;
+const ELEMENTALIST_OVERLOAD_STACK_MAX = 20;
+
+function getElementalistOverloadStacks() {
+    return Math.max(0, Math.min(ELEMENTALIST_OVERLOAD_STACK_MAX,
+        Math.floor(game.elementalistOverloadStacks || 0)));
+}
+
+function recordElementalistOverloadAttack(isCrit) {
+    if (game.ascendClass !== 'elementalist' || !hasKeystone('e8')) return getElementalistOverloadStacks();
+    game.elementalistOverloadStacks = isCrit
+        ? Math.min(ELEMENTALIST_OVERLOAD_STACK_MAX, getElementalistOverloadStacks() + 1)
+        : 0;
+    game.elementalistOverloadExpiresAt = 0;
+    return game.elementalistOverloadStacks;
+}
 
 function getWarriorRageStacks(now) {
     let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
@@ -1174,6 +1192,7 @@ function getSummonProfile(gemName) {
 }
 
 function getSummonRuntimeCap(pStats) {
+    if (pStats && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soleMinion) return 1;
     return Math.max(1, Math.min(getSummonCapMaximum(), Math.floor((pStats && pStats.summonCap) || 1)));
 }
 
@@ -1200,6 +1219,12 @@ function applyGrandlordGhostState() {
 function buildActiveSummonRuntimeDefs(pStats) {
     let maxCap = getSummonRuntimeCap(pStats);
     let defs = getActiveSummonGemDefs();
+    if (pStats && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soleMinion) {
+        let guardDefs = defs.filter(row => getSummonProfile(row.name).role === 'guard');
+        let attackDef = defs.find(row => getSummonProfile(row.name).role === 'attack');
+        defs = [...(attackDef ? [attackDef] : []), ...guardDefs];
+        return defs.map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: row.duplicateIndex || 0 }));
+    }
     return defs.slice(0, maxCap).map((row, idx) => ({ ...row, slotIdx: idx, duplicateIndex: row.duplicateIndex || 0 }));
 }
 
@@ -1355,6 +1380,9 @@ function getSummonMaxHp(profile, gemLevel, pStats) {
     let hpGrowth = 1 + (Math.pow(levelSteps, profile.hpScaleExp || 1.12) * (profile.hpScaleBase || 0.04));
     let hpMul = 1 + ((pStats.summonHpPct || 0) / 100);
     let effMul = 1 + ((pStats.summonEfficiency || 0) / 100);
+    let flags = (pStats && pStats.passiveKeystoneFlags) || {};
+    if (flags.proxyCovenant && profile.role === 'guard') hpMul *= 2;
+    if (flags.soleMinion && profile.role === 'attack') hpMul *= 1 + Math.max(0, pStats.passiveSoleMinionLostCap || 0) * 0.5;
     return Math.max(1, Math.floor(profile.baseHp * hpGrowth * hpMul * effMul));
 }
 
@@ -1401,7 +1429,9 @@ function buildSummonRuntimeStats(row, pStats, now) {
         resLight: Math.max(-60, Math.min(90, profile.baseRes.light || 0)),
         resChaos: Math.max(-60, Math.min(90, profile.baseRes.chaos || 0)),
         redirectPct: isGuard ? 100 : Math.max(0, Math.min(100, profile.redirectPct || 0)),
-        respawnMs: Math.max(4000, Math.floor(profile.respawnMs || (isGuard ? 8000 : 4000))),
+        respawnMs: Math.max(4000, Math.floor((profile.respawnMs || (isGuard ? 8000 : 4000))
+            * (((isGuard && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.proxyCovenant)
+                || (!isGuard && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soleMinion)) ? 2 : 1))),
         baseDamage: getSummonScaledBaseDamage(profile, gemLv, pStats),
         ele: profile.ele || 'phys',
         attackSpeedMul: Math.max(0, Number(profile.attackSpeedMul || 1)),
@@ -1491,6 +1521,9 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     let dmgMul = (1 + ((pStats.summonPctDmg || 0) + sharedIncreasePct + arcanaIncreasePct
         + elementalCaller + targetLinkedBonus + citadelIncrease) / 100)
         * (1 + ((pStats.summonEfficiency || 0) / 100)) * talentSummonMul;
+    if (s.role === 'attack' && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soleMinion) {
+        dmgMul *= 1 + Math.max(0, Number(pStats.passiveSoleMinionLostCap) || 0) * 0.75;
+    }
     let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
     if (typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero7__gladiator')) critChance = 0.50;
     let effectiveCritChance = typeof getTalentSummonCritChance === 'function' ? getTalentSummonCritChance(critChance) : critChance;
@@ -1816,7 +1849,7 @@ function resolveSummonHit(summon, pStats, target, canGrantCritStack) {
 function getSummonPierceTargets(target, enemies) {
     if (!hasGridCell(target)) return [];
     return enemies.filter(enemy => enemy && enemy !== target && enemy.hp > 0 && hasGridCell(enemy)
-        && gridChebyshevDist(target.gx, target.gy, enemy.gx, enemy.gy) <= 1);
+        && getGridUnitDistance(target, enemy) <= 1);
 }
 
 function runSummonAttackTick(pStats) {
@@ -2077,6 +2110,16 @@ const LEGACY_FLASK_UTILITY_KEYS = ['granite', 'quicksilver', 'amethyst', 'bismut
 function remapLegacyFlaskKey(key) {
     return LEGACY_FLASK_UTILITY_KEYS.includes(key) ? `${key}1` : key;
 }
+function getPassiveUtilityFlaskMaxCharges(def) {
+    let maxCharges = Math.max(1, Math.floor(Number(def && def.maxCharges) || 1));
+    let overdose = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('과잉 투여');
+    return overdose ? Math.max(1, Math.floor(maxCharges * 0.5)) : maxCharges;
+}
+function getPassiveUtilityFlaskChargeKills(def) {
+    let chargeKills = getFlaskEffectiveChargesPerKills(def && def.chargesPerKills);
+    let overdose = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('과잉 투여');
+    return overdose ? Math.max(1, Math.ceil(chargeKills * 2)) : chargeKills;
+}
 function ensureFlaskState() {
     if (!game.flasks || typeof game.flasks !== 'object') game.flasks = {};
     let st = game.flasks;
@@ -2132,17 +2175,18 @@ function ensureFlaskState() {
     st.utilityChargeBank = (st.utilityChargeBank && typeof st.utilityChargeBank === 'object') ? st.utilityChargeBank : {};
     st.utils.forEach(u => {
         let def = FLASK_UTILITY_POOL[u.key];
+        let maxCharges = getPassiveUtilityFlaskMaxCharges(def);
         let saved = st.utilityChargeBank[u.key];
         if (!saved || typeof saved !== 'object') {
             saved = {
-                charges: Number.isFinite(u.charges) ? Math.floor(u.charges) : def.maxCharges,
+                charges: Number.isFinite(u.charges) ? Math.floor(u.charges) : maxCharges,
                 progress: Math.floor(Number(u.chargeProgress) || 0)
             };
             st.utilityChargeBank[u.key] = saved;
         }
-        let chargeNeed = getFlaskEffectiveChargesPerKills(def.chargesPerKills);
-        saved.charges = Math.max(0, Math.min(def.maxCharges, Math.floor(Number(saved.charges) || 0)));
-        saved.progress = saved.charges >= def.maxCharges ? 0 : Math.max(0, Math.min(chargeNeed - 1, Math.floor(Number(saved.progress) || 0)));
+        let chargeNeed = getPassiveUtilityFlaskChargeKills(def);
+        saved.charges = Math.max(0, Math.min(maxCharges, Math.floor(Number(saved.charges) || 0)));
+        saved.progress = saved.charges >= maxCharges ? 0 : Math.max(0, Math.min(chargeNeed - 1, Math.floor(Number(saved.progress) || 0)));
         u.charges = saved.charges;
         u.chargeProgress = saved.progress;
         u.until = Math.max(0, Math.floor(u.until || 0));
@@ -2174,12 +2218,12 @@ function refillAllFlaskCharges() {
     ensureFlaskFoundKeys().forEach(key => {
         let def = FLASK_UTILITY_POOL[key];
         if (!def) return;
-        st.utilityChargeBank[key] = { charges: def.maxCharges, progress: 0 };
+        st.utilityChargeBank[key] = { charges: getPassiveUtilityFlaskMaxCharges(def), progress: 0 };
     });
     st.utils.forEach(utility => {
         let def = utility && FLASK_UTILITY_POOL[utility.key];
         if (!def) return;
-        utility.charges = def.maxCharges;
+        utility.charges = getPassiveUtilityFlaskMaxCharges(def);
         utility.chargeProgress = 0;
         syncUtilityFlaskChargeBank(st, utility);
     });
@@ -2223,7 +2267,7 @@ function equipUtilityFlask(slotIndex, flaskKey) {
     }
     st.utils[idx] = {
         key: flaskKey,
-        charges: Math.min(def.maxCharges, Math.max(0, Math.floor(saved.charges || 0))),
+        charges: Math.min(getPassiveUtilityFlaskMaxCharges(def), Math.max(0, Math.floor(saved.charges || 0))),
         chargeProgress: Math.max(0, Math.floor(saved.progress || 0)),
         until: 0,
         trigger: normalizeUtilityFlaskTrigger(previousTrigger),
@@ -2264,8 +2308,9 @@ function tickFlaskChargesOnKill() {
     st.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
         let def = FLASK_UTILITY_POOL[u.key];
         if (!def) return;
-        let chargesPerKills = getFlaskEffectiveChargesPerKills(def.chargesPerKills);
-        if (u.charges < def.maxCharges) {
+        let maxCharges = getPassiveUtilityFlaskMaxCharges(def);
+        let chargesPerKills = getPassiveUtilityFlaskChargeKills(def);
+        if (u.charges < maxCharges) {
             u.chargeProgress = Math.max(0, Math.floor(u.chargeProgress || 0)) + 1;
             if (u.chargeProgress >= chargesPerKills) {
                 u.charges++;
@@ -2360,7 +2405,6 @@ function expireActiveFlaskEffects() {
 }
 
 function coreLoop() {
-    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return;
     if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     tickWoodsmanCurse();
     if (ensurePendingLoopHeroSelectionPrompt()) return;
@@ -2445,11 +2489,13 @@ function coreLoop() {
         if (delta.cleanseIgnite || delta.cleanseChill || delta.cleanseFreeze || delta.cleanseShock || delta.cleanseBleed) {
             game.playerAilments = (game.playerAilments || []).filter(ail => {
                 if (!ail) return false;
-                if (delta.cleanseIgnite && ail.type === 'ignite') return false;
-                if (delta.cleanseChill && ail.type === 'chill') return false;
-                if (delta.cleanseFreeze && ail.type === 'freeze') return false;
-                if (delta.cleanseShock && ail.type === 'shock') return false;
-                if (delta.cleanseBleed && ail.type === 'bleed') return false;
+                let cleansed = (delta.cleanseIgnite && ail.type === 'ignite') || (delta.cleanseChill && ail.type === 'chill')
+                    || (delta.cleanseFreeze && ail.type === 'freeze') || (delta.cleanseShock && ail.type === 'shock')
+                    || (delta.cleanseBleed && ail.type === 'bleed');
+                if (cleansed && typeof recordPassiveCycleAilmentEnd === 'function') {
+                    recordPassiveCycleAilmentEnd(ail.type, pStats.cycle, Date.now());
+                }
+                if (cleansed) return false;
                 return true;
             });
         }
@@ -2583,6 +2629,8 @@ function coreLoop() {
     } else {
         progressStallTicks = 0;
     }
+    let trialAvoiding = game.playerHp > 0 ? applyTrialTrapTick(pStats) : false;
+    if (game.playerHp <= 0) return;
     if ((game.enemies || []).length > 0) {
         tickEnemyDotEffects(pStats, 0.1);
         tickEnemyAilments(pStats, 0.1);
@@ -2591,8 +2639,11 @@ function coreLoop() {
         let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0, channelGate.endAt);
         if (!Number.isFinite(castUntil) || castUntil < 0) castUntil = 0;
         if (castUntil > nowCast + 5000) { castUntil = nowCast + 500; game.playerCastDelayUntil = castUntil; }
-        let castBlocked = nowCast < castUntil;
-        let inSkillRange = channelGate.locked ? channelGate.hasTargets : updatePlayerGridEngagement(pStats);
+        let castBlocked = nowCast < castUntil || trialAvoiding;
+        let trialPositionHeld = isTrialHazardPositionHeld();
+        let inSkillRange = trialAvoiding ? false : (channelGate.locked
+            ? channelGate.hasTargets
+            : updatePlayerGridEngagement(pStats, { holdPosition: trialPositionHeld }));
         if (!castBlocked) {
             pTimer += 0.1 * pStats.aspd;
             // 사거리 밖이면 스윙 게이지를 1회분까지만 모아 두고, 붙는 즉시 공격한다.
@@ -2679,7 +2730,6 @@ function coreLoop() {
         let hasBossAlive = (game.enemies || []).some(enemy => enemy.isBoss && enemy.hp > 0);
         if (hasBossAlive && currentStoryAct && currentStoryAct.specialType === 'loop_gate' && handleStoryActSpecialDefeat(currentZone, pStats)) return;
     }
-    if (game.playerHp > 0) applyTrialTrapTick(pStats);
     if (game.playerHp <= 0) {
         handlePlayerDefeat(getZone(game.currentZoneId), pStats, "☠️ 상태이상으로 쓰러졌습니다.", { fatalElement: 'other', sourceName: '상태이상' });
         return;
@@ -2851,7 +2901,8 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
                 attackHitGuardCounts: attackContext.attackHitGuardCounts,
                 damageTextGroupId: attackContext.damageTextGroupId ? `${attackContext.damageTextGroupId}:${stageOffset}` : '',
                 hitDamageMultiplier: Math.max(0, Number(stage.damageMultiplier) || 0),
-                attackDamageMultiplier: Number.isFinite(Number(attackContext.attackDamageMultiplier)) ? Math.max(0, Number(attackContext.attackDamageMultiplier)) : 1
+                attackDamageMultiplier: Number.isFinite(Number(attackContext.attackDamageMultiplier)) ? Math.max(0, Number(attackContext.attackDamageMultiplier)) : 1,
+                passiveKarmaContext: attackContext.passiveKarmaContext || null
             }
         };
         pendingSkillStageHits.push(row);
@@ -3052,6 +3103,51 @@ function grantEliteTraitBuffFromEnemy(enemy, pStats) {
     if (game.settings && game.settings.showCombatLog !== false) addLog(`🩸 무한한 허기: ${trait.name || '정예 특성'} 획득`, 'loot-unique', { noToast: true });
 }
 
+const getPassiveSpecialStatBreakdowns = function(rules) {
+    const mystique = Math.max(0, Number(rules.mystique && rules.mystique.damagePct) || 0);
+    const cycle = Math.max(0, Number(rules.cycle) || 0);
+    const devotion = Math.max(0, Number(rules.devotion) || 0);
+    const ailmentLabel = getAilmentDisplayLabel(rules.mystique && rules.mystique.ailment);
+    const activeCycleLines = (rules.activeCycleBuffEffects || []).map(effect => {
+        const stat = P_STATS[effect.stat] || {};
+        const suffix = stat.isPct ? '%' : '';
+        return `${getAilmentDisplayLabel(effect.source)} 종료 효과: ${getStatName(effect.stat)} +${formatValue(effect.stat, effect.val)}${suffix}`;
+    });
+    let revelationEffect = '헌신을 1 이상 확보하면 계시를 선택할 수 있습니다.';
+    if (devotion > 0 && rules.revelation === 'combat') {
+        revelationEffect = `주는 피해 ${rules.combatDamageMorePct}% 증폭`;
+    } else if (devotion > 0 && rules.revelation === 'guard') {
+        revelationEffect = `받는 피해 ${rules.guardTakenLessPct}% 감폭`;
+    } else if (devotion > 0 && rules.revelation === 'life') {
+        revelationEffect = `최대 생명력·에너지 보호막·초당 재생 각각 +${formatValue('regen', rules.lifeBonusPct)}%`;
+    } else if (devotion > 0 && rules.revelation === 'fanaticism') {
+        revelationEffect = `열광 ${rules.fanaticismStacks}/${Math.floor(devotion)} · 1당 피해 1.5%, 스킬 속도 0.5% 증가`;
+    }
+    return {
+        mystique: {
+            title: '신비',
+            lines: [`가장 높은 피해 속성에 대응하는 ${ailmentLabel} 강화`,
+                `${ailmentLabel} 피해 +${formatValue('mystique', mystique)}% · 위력 +${formatValue('mystique', mystique)}%`,
+                `${ailmentLabel} 유발 확률 +${Math.floor(mystique / 3)}%p`],
+            final: formatValue('mystique', mystique)
+        },
+        cycle: {
+            title: '순환',
+            lines: ['적에게 적용한 상태이상이 종료되면 해당 유형에 따른 강화가 6초간 적용됩니다.',
+                '순환 1당 대응 속성 피해 +2%와 유형별 보조 효과를 얻습니다.',
+                ...(activeCycleLines.length > 0 ? activeCycleLines : ['현재 활성화된 순환 강화 없음']),
+                rules.cycleAddedFireFromPhysicalPct > 0 ? `순환의 원석: 물리 피해의 ${rules.cycleAddedFireFromPhysicalPct}%를 화염 피해로 추가` : null
+            ].filter(Boolean),
+            final: formatValue('cycle', cycle)
+        },
+        revelation: {
+            title: '계시',
+            lines: [`계시 수치(헌신) ${formatValue('devotion', devotion)}`, revelationEffect],
+            final: devotion > 0 ? rules.revelationLabel : '미해금'
+        }
+    };
+};
+
 function getPlayerStats() {
     recomputeCosmosTwinKeystones();
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
@@ -3084,8 +3180,12 @@ function getPlayerStats() {
     let shieldBlockChancePct = 0;
     let shieldBlockChanceFlat = 0;
     let equippedUniqueEffects = [];
+    let barbarismKeystone = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('야만');
+    let knowledgePathKeystone = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('지식의 통로');
     getPlayerStatSourceItemEntries().forEach(([equipSlotKey, item]) => {
         if (!item) return;
+        if (barbarismKeystone && item.slot === '무기') return;
+        if (knowledgePathKeystone && item.slot === '투구') return;
         let resolvedItem = getResolvedEquipmentStatLists(equipSlotKey, item, game, true);
         let growthItem = resolvedItem.growthItem;
         let isEquippedWeapon = !growthItem && item.slot === '무기';
@@ -3394,9 +3494,10 @@ function getPlayerStats() {
             if (tr && tr.id === 'seasoned') addStatToBucket(passive, 'critDmg', Number(tr.value || 0) * Math.max(0, Math.floor(game.loopCount || 0)));
             return;
         }
+        if (node.intentionalNoEffect) return;
         let mut = mutationMap[id];
-        if (mut && mut.currentStat) addStatToBucket(passive, mut.currentStat, mut.currentVal);
-        else addStatToBucket(passive, node.kind === 'attribute' && typeof getPassiveAttributeNodeStat === 'function' ? getPassiveAttributeNodeStat(node) : node.stat, node.val);
+        getEffectivePassiveNodeEffects(node, mut)
+            .forEach(effect => addStatToBucket(passive, effect.stat, effect.val));
     });
     let ownedPassiveSet = new Set(safePassives);
     Object.keys(mutationMap).forEach(nodeId => {
@@ -3478,6 +3579,7 @@ function getPlayerStats() {
     });
     getArcanaDeckStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
     getPruningTreeStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
+    getBeyondBoundaryGlobalStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
     let heroDef = getHeroSelectionDef(game.selectedHeroId);
     (heroDef.stats || []).forEach(row => {
         if (row && row.stat) addStatToBucket(reward, row.stat, row.value);
@@ -3536,6 +3638,17 @@ function getPlayerStats() {
     }
     let favorFx = (typeof getExpertFavorEffectTotals === 'function') ? getExpertFavorEffectTotals() : {};
     Object.keys(favorFx).forEach(statKey => addStatToBucket(reward, statKey, favorFx[statKey] || 0));
+    let authoredPassiveRules = typeof applyAuthoredPassiveStatRules === 'function'
+        ? applyAuthoredPassiveStatRules({
+            buckets: { gearBase, gearExplicit, passive, support, season, ascend, reward, starBlessing },
+            skillElement: skill.ele,
+            skillTags: skill.tags,
+            now: Date.now()
+        })
+        : { mystique: { ailment: 'bleed', damagePct: 0, potencyPct: 0 }, devotion: 0, cycle: 0,
+            revelation: 'combat', revelationLabel: '전투의 계시', wisdomElement: 'fire',
+            combatDamageMorePct: 0, guardTakenLessPct: 0, lifeBonusPct: 0,
+            cycleAddedFireFromPhysicalPct: 0, fanaticismStacks: 0, activeCycleBuffEffects: [], flags: {} };
     // 범용 스탯 전환 — 힘: 1당 생명력 +2, 5당 물리 피해 +1% / 민첩: 1당 회피 +3, 1당 정확도 +5, 5당 투사체 피해 +1%
     // / 지능: 1당 ES +2, 5당 주문 피해 +1%. 어떤 출처(장비/패시브/보상)의 스탯이든 합산 후 전환된다.
     let totalStrength = Math.max(0, sumStatAcrossBuckets('strength'));
@@ -3556,12 +3669,13 @@ function getPlayerStats() {
         flaskState.utils.slice(0, getMaxFlaskUtilitySlotCount()).forEach(u => {
             if (!u || (u.until || 0) <= nowFlask) return;
             let flaskDef = (typeof FLASK_UTILITY_POOL !== 'undefined' && FLASK_UTILITY_POOL[u.key]) || {};
-            if (flaskDef.armorPct) addStatToBucket(reward, 'armorPct', flaskDef.armorPct);
-            if (flaskDef.aspd) addStatToBucket(reward, 'aspd', flaskDef.aspd);
-            if (flaskDef.move) addStatToBucket(reward, 'move', flaskDef.move);
-            if (flaskDef.resAll) addStatToBucket(reward, 'resAll', flaskDef.resAll);
-            if (flaskDef.pctDmg) addStatToBucket(reward, 'pctDmg', flaskDef.pctDmg);
-            if (flaskDef.genericTakenReducePct) addStatToBucket(reward, 'genericTakenDamageReducePct', flaskDef.genericTakenReducePct);
+            let effectMultiplier = authoredPassiveRules.flags.flaskOverdose ? 1.5 : 1;
+            if (flaskDef.armorPct) addStatToBucket(reward, 'armorPct', flaskDef.armorPct * effectMultiplier);
+            if (flaskDef.aspd) addStatToBucket(reward, 'aspd', flaskDef.aspd * effectMultiplier);
+            if (flaskDef.move) addStatToBucket(reward, 'move', flaskDef.move * effectMultiplier);
+            if (flaskDef.resAll) addStatToBucket(reward, 'resAll', flaskDef.resAll * effectMultiplier);
+            if (flaskDef.pctDmg) addStatToBucket(reward, 'pctDmg', flaskDef.pctDmg * effectMultiplier);
+            if (flaskDef.genericTakenReducePct) addStatToBucket(reward, 'genericTakenDamageReducePct', flaskDef.genericTakenReducePct * effectMultiplier);
         });
     }
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
@@ -3780,11 +3894,18 @@ function getPlayerStats() {
     if (typeof getTalentAttackSpeedSoftcapKnee === 'function') aspdSoftCapKnee = getTalentAttackSpeedSoftcapKnee(aspdSoftCapKnee);
     let finalAspd = rawAspd <= aspdSoftCapKnee ? rawAspd : (aspdSoftCapKnee + Math.pow(Math.max(0, rawAspd - aspdSoftCapKnee), 0.72));
     finalAspd = Math.min(12, finalAspd);
+    if (authoredPassiveRules.flags.maximumRoll) finalAspd = Math.max(0.1, finalAspd * 0.7);
+    if (authoredPassiveRules.flags.bloodAcceleration && Array.isArray(game.playerLeechInstances)
+        && game.playerLeechInstances.some(instance => instance && Number(instance.remaining) > 0)) {
+        finalAspd = Math.min(12, finalAspd * 1.15);
+    }
 
     let gearCrit = gearBase.crit + gearExplicit.crit;
     let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
     let finalCrit = (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82;
     let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
+    if (authoredPassiveRules.flags.bloodAcceleration && Array.isArray(game.playerLeechInstances)
+        && game.playerLeechInstances.some(instance => instance && Number(instance.remaining) > 0)) finalMove *= 1.15;
     let danceState = game.uniqueEvasionDanceState || {};
     let activeEvasionDanceStacks = uniqueEvasionDance && (danceState.expiresAt || 0) > Date.now()
         ? Math.max(0, Math.min(uniqueEvasionDance.maxStacks, Math.floor(danceState.stacks || 0)))
@@ -3833,6 +3954,13 @@ function getPlayerStats() {
     let cosmosMasteryTakenLessPct = activeCosmosMastery ? Math.max(0, Number(window.getCosmosMasteryValue('riftGuard')) || 0) * 0.7 : 0;
     let cosmosMasteryBossDamagePct = activeCosmosMastery ? Math.max(0, Number(window.getCosmosMasteryValue('starbreaker')) || 0) * 1.8 : 0;
     let finalDamageMultiplier = (1 + cosmosMasteryFinalDamagePct / 100) * oceanPressureDamageMul;
+    finalDamageMultiplier *= 1 + Math.max(0, authoredPassiveRules.combatDamageMorePct) / 100;
+    if (typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('지혜의 도약')) {
+        finalDamageMultiplier *= skill.ele === authoredPassiveRules.wisdomElement ? 1.2 : 0;
+    }
+    if (authoredPassiveRules.fanaticismStacks > 0) {
+        finalDamageMultiplier *= 1 + authoredPassiveRules.fanaticismStacks * 0.015;
+    }
     cosmosBossDamageMorePct = Math.max(cosmosBossDamageMorePct, cosmosMasteryBossDamagePct);
     if (uniqueLabyrinthShackles) {
         finalDamageMultiplier *= getLabyrinthShacklesDamageMultiplier(finalMove);
@@ -3852,6 +3980,10 @@ function getPlayerStats() {
     let finalArmor = Math.max(0, Math.floor(gearArmor * (1 + totalArmorPct / 100)));
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
+    let omniscientKeystone = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('사중합일');
+    let omniscientActive = !!omniscientKeystone && totalStrength >= 20 && totalStrength === totalDexterity
+        && totalDexterity === totalIntelligence && totalIntelligence === Math.max(0, passive.mystique);
+    if (omniscientActive) finalEnergyShield += Math.floor((totalStrength + totalDexterity + totalIntelligence + passive.mystique) * 2);
     if (uniqueGrandBreachCrown) finalEnergyShield = Math.max(0, Math.floor(finalEnergyShield * (1 + Math.max(0, uniqueGrandBreachCrown.esPct || 30) / 100)));
     if (uniqueEsAmpPct > 0) finalEnergyShield = Math.floor(finalEnergyShield * (1 + uniqueEsAmpPct / 100));
     let finalEnergyShieldRegenRate = Math.max(0, 12.5 + gearBase.energyShieldRegen + gearExplicit.energyShieldRegen + passive.energyShieldRegen + season.energyShieldRegen + ascend.energyShieldRegen + support.energyShieldRegen + reward.energyShieldRegen);
@@ -3890,6 +4022,21 @@ function getPlayerStats() {
     let warriorPhysDamageMultiplier = 1;
     let warriorTakenDamageMultiplier = 1;
     let genericTakenDamageMultiplier = 1;
+    genericTakenDamageMultiplier *= 1 - Math.max(0, authoredPassiveRules.guardTakenLessPct) / 100;
+    let forbiddenManifestation = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('금단의 만상');
+    if (forbiddenManifestation) {
+        finalArmor = Math.floor(finalArmor * 0.4);
+        finalEvasion = Math.floor(finalEvasion * 0.4);
+        finalEnergyShield = Math.floor(finalEnergyShield * 0.4);
+        finalDeflectChance = Math.min(25, finalDeflectChance);
+    }
+    if (authoredPassiveRules.fanaticismStacks > 0) {
+        let defenseMultiplier = Math.max(0, 1 - authoredPassiveRules.fanaticismStacks * 0.0075);
+        finalArmor = Math.floor(finalArmor * defenseMultiplier);
+        finalEvasion = Math.floor(finalEvasion * defenseMultiplier);
+        finalEnergyShield = Math.floor(finalEnergyShield * defenseMultiplier);
+        finalAspd = Math.min(12, finalAspd * (1 + authoredPassiveRules.fanaticismStacks * 0.005));
+    }
     let genericTakenDamageReducePct = Math.max(0, Math.min(90, (gearBase.genericTakenDamageReducePct || 0) + (gearExplicit.genericTakenDamageReducePct || 0) + (passive.genericTakenDamageReducePct || 0) + (season.genericTakenDamageReducePct || 0) + (ascend.genericTakenDamageReducePct || 0) + (support.genericTakenDamageReducePct || 0) + (reward.genericTakenDamageReducePct || 0)));
     genericTakenDamageMultiplier *= (1 - genericTakenDamageReducePct / 100);
     let bossDamageDealtMultiplier = 1;
@@ -3938,11 +4085,13 @@ function getPlayerStats() {
     let finalDotTakenDamageReducePct = gearBase.dotTakenDamageReducePct + gearExplicit.dotTakenDamageReducePct + passive.dotTakenDamageReducePct + season.dotTakenDamageReducePct + ascend.dotTakenDamageReducePct + support.dotTakenDamageReducePct + reward.dotTakenDamageReducePct;
     let finalTakenDamageReduceWhen2EnemiesPct = gearBase.takenDamageReduceWhen2EnemiesPct + gearExplicit.takenDamageReduceWhen2EnemiesPct + passive.takenDamageReduceWhen2EnemiesPct + season.takenDamageReduceWhen2EnemiesPct + ascend.takenDamageReduceWhen2EnemiesPct + support.takenDamageReduceWhen2EnemiesPct + reward.takenDamageReduceWhen2EnemiesPct;
     let finalTakenDamageReduceWhen1EnemyPct = gearBase.takenDamageReduceWhen1EnemyPct + gearExplicit.takenDamageReduceWhen1EnemyPct + passive.takenDamageReduceWhen1EnemyPct + season.takenDamageReduceWhen1EnemyPct + ascend.takenDamageReduceWhen1EnemyPct + support.takenDamageReduceWhen1EnemyPct + reward.takenDamageReduceWhen1EnemyPct;
+    if (authoredPassiveRules.flags.duel) finalTakenDamageReduceWhen1EnemyPct += 10;
     let finalIgniteDamageMultiplierPct = gearBase.igniteDamageMultiplierPct + gearExplicit.igniteDamageMultiplierPct + passive.igniteDamageMultiplierPct + season.igniteDamageMultiplierPct + ascend.igniteDamageMultiplierPct + support.igniteDamageMultiplierPct + reward.igniteDamageMultiplierPct;
     let finalPoisonDamageMultiplierPct = gearExplicit.poisonDamageMultiplierPct + passive.poisonDamageMultiplierPct + season.poisonDamageMultiplierPct + ascend.poisonDamageMultiplierPct + support.poisonDamageMultiplierPct + reward.poisonDamageMultiplierPct;
     let finalShockEffectBonusPct = (gearExplicit.shockEffect || 0) + (passive.shockEffect || 0) + (season.shockEffect || 0) + (ascend.shockEffect || 0) + (reward.shockEffect || 0) + Math.max(0, Number(uniqueShockTracer && uniqueShockTracer.shockEffectPct || 0));
     let finalMinDmgRoll = Math.max(5, 80 + gearBase.minDmgRoll + gearExplicit.minDmgRoll + passive.minDmgRoll + season.minDmgRoll + ascend.minDmgRoll + support.minDmgRoll + reward.minDmgRoll);
     let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
+    if (authoredPassiveRules.flags.maximumRoll) finalMinDmgRoll = finalMaxDmgRoll;
     if (uniqueMaxHpPct) finalMaxHp = Math.floor(finalMaxHp * (1 + Math.max(0, uniqueMaxHpPct) / 100));
     if (uniqueMeleeArmorAmp && (game.uniqueMeleeArmorAmpExpiresAt || 0) > Date.now()) {
         let stacks = Math.max(0, Math.min(Math.floor(uniqueMeleeArmorAmp.maxStacks || 3), Math.floor(game.uniqueMeleeArmorAmpStacks || 0)));
@@ -4278,7 +4427,7 @@ function getPlayerStats() {
         // 9) 절대 관통: 원소 저항 관통 +100% (관통 하한은 -300%까지, 적용은 mitigation 계산부)
         if (hasKeystone('e9')) finalResPen += 100;
         if (hasKeystone('e8')) {
-            let stacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0));
+            let stacks = getElementalistOverloadStacks();
             finalDamageMultiplier *= (1 + stacks * 0.04);
             finalCrit = Math.max(0, finalCrit - stacks);
         }
@@ -4450,8 +4599,14 @@ function getPlayerStats() {
         finalRegen = finalRegen * quicksilver.regenMultiplier - quicksilver.regenPointPenalty;
     }
     finalCritDmg = Math.max(0, finalCritDmg);
+    if (authoredPassiveRules.flags.movingWall) {
+        finalArmor = Math.max(0, finalArmor + finalEvasion);
+        finalEvasion = 0;
+    }
+    if (authoredPassiveRules.flags.fullEvasion) finalArmor = 0;
     armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
     evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
+    if (authoredPassiveRules.flags.fullEvasion) evadeChance = Math.min(90, evadeChance + 15);
 
     damageScales.dot = dotMultiplier;
     damageScales.dotStat = dotStatMultiplier;
@@ -4677,8 +4832,9 @@ function getPlayerStats() {
         guardianBlockChance + gearBase.blockChancePct + passive.blockChancePct + season.blockChancePct + ascend.blockChancePct + support.blockChancePct + reward.blockChancePct
     );
     let flatBlockChanceBonus = Math.max(0, shieldBlockChanceFlat + gearBase.blockChance + passive.blockChance + season.blockChance + ascend.blockChance + support.blockChance + reward.blockChance);
-    let finalBlockChanceCap = Math.max(50, Math.min(75, 50 + Math.max(0, sumStatAcrossBuckets('blockChanceMax'))));
+    let finalBlockChanceCap = forbiddenManifestation ? 25 : Math.max(50, Math.min(75, 50 + Math.max(0, sumStatAcrossBuckets('blockChanceMax'))));
     let finalBlockChance = Math.min(finalBlockChanceCap, Math.max(0, effectiveShieldBaseBlockChance + (shieldBaseBlockChance * blockChanceFromOtherPct / 100) + flatBlockChanceBonus));
+    if (authoredPassiveRules.flags.fullEvasion || authoredPassiveRules.flags.proxyCovenant) finalBlockChance = 0;
 
     function formatSignedPercentagePointLine(label, value) {
         let amount = Number(value || 0);
@@ -4715,6 +4871,7 @@ function getPlayerStats() {
     }
 
     let breakdowns = {
+        ...getPassiveSpecialStatBreakdowns(authoredPassiveRules),
         atk: {
             title: '공격력',
             lines: [
@@ -5208,6 +5365,24 @@ function getPlayerStats() {
         instantDamageMultiplier: instantDamageMultiplier,
         finalDamageMultiplier: finalDamageMultiplier,
         ailmentPowerMultiplier: ailmentPowerMultiplier,
+        mystique: Math.max(0, passive.mystique),
+        devotion: authoredPassiveRules.devotion,
+        cycle: authoredPassiveRules.cycle,
+        passiveRevelation: authoredPassiveRules.revelation,
+        passiveRevelationLabel: authoredPassiveRules.revelationLabel,
+        passiveRevelationCombatDamageMorePct: authoredPassiveRules.combatDamageMorePct,
+        passiveRevelationGuardTakenLessPct: authoredPassiveRules.guardTakenLessPct,
+        passiveRevelationLifeBonusPct: authoredPassiveRules.lifeBonusPct,
+        mystiqueAilmentType: authoredPassiveRules.mystique.ailment,
+        mystiqueAilmentDamagePct: authoredPassiveRules.mystique.damagePct,
+        mystiqueAilmentPotencyPct: authoredPassiveRules.mystique.potencyPct,
+        passiveForbiddenManifestation: !!forbiddenManifestation,
+        passiveAshura: typeof findAllocatedPassiveKeystone === 'function' && !!findAllocatedPassiveKeystone('아슈라'),
+        passiveCycleAddedFireFromPhysicalPct: authoredPassiveRules.cycleAddedFireFromPhysicalPct,
+        passiveFanaticismStacks: authoredPassiveRules.fanaticismStacks,
+        passiveKeystoneFlags: authoredPassiveRules.flags,
+        passiveOmniscientTrueDamagePct: omniscientActive ? Math.min(25, totalStrength * 0.5) : 0,
+        passiveAlwaysHit: !!barbarismKeystone,
         shockEffectBonusPct: finalShockEffectBonusPct,
         chaosDamageMultiplier: chaosDamageMultiplier,
         dotTickIntervalMultiplier: dotTickIntervalMultiplier,
@@ -5340,6 +5515,8 @@ function getPlayerStats() {
         chaosErosion: Math.max(0, sumStatAcrossBuckets('chaosErosion')),
         chaosErosionCap: Math.max(0, sumStatAcrossBuckets('chaosErosionCap'))
     };
+    enemy.passiveSoleMinionLostCap = authoredPassiveRules.flags.soleMinion
+        ? Math.max(0, enemy.summonCap - 1) : 0;
     enemy.talentSourceStats = talentSourceStats;
     if (typeof applyTalentPrecisePostStats === 'function') applyTalentPrecisePostStats(enemy);
     let summonEstimate = estimateSummonDps(enemy);
@@ -5465,9 +5642,12 @@ function getSkillTargets(pStats) {
 
 function getPlayerTacticalMovePlan(pStats, target) {
     let tactics = resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, Date.now());
-    if (tactics.positionMode === 'auto') return null;
     let profile = getSkillGridProfile(game.activeSkill, pStats.sSkill);
-    let distance = gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, target.gx, target.gy);
+    let distance = getGridUnitDistance(game.gridPlayer, target);
+    if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.farshot && distance < 3) {
+        return { direction: 'away', range: Math.max(3, Number(profile.range) || 1) };
+    }
+    if (tactics.positionMode === 'auto') return null;
     if (tactics.positionMode === 'pressure') return distance > 1 ? { direction: 'toward', range: profile.range } : null;
     let desiredRange = Math.max(1, Math.floor(Number(profile.range) || 1));
     return desiredRange > 1 && distance < desiredRange ? { direction: 'away', range: desiredRange } : null;
@@ -5489,9 +5669,7 @@ function tryPlayerTacticalMove(pStats, target, plan, now) {
     combatTacticsRuntime.previousCell = result.from;
     combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, now + delayMs);
     combatTacticsRuntime.nextMoveAt = now + delayMs;
-    combatTacticsRuntime.walkingUntil = now + Math.min(300, delayMs);
     if (result.retreat) combatTacticsRuntime.consecutiveRetreats++;
-    game.gridPlayerPursuing = true;
     return true;
 }
 
@@ -5499,7 +5677,7 @@ function movePlayerForCharge(target, maxCells) {
     let origin = copyCombatGridCell(game.gridPlayer);
     let moved = false;
     for (let step = 0; step < maxCells; step++) {
-        if (gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, target.gx, target.gy) <= 1) break;
+        if (getGridUnitDistance(game.gridPlayer, target) <= 1) break;
         if (!gridStepToward(game.gridPlayer, target.gx, target.gy, getGridBlockedCells(game.gridPlayer))) break;
         moved = true;
     }
@@ -5507,9 +5685,9 @@ function movePlayerForCharge(target, maxCells) {
 }
 
 function movePlayerForBlink(target) {
-    if (gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, target.gx, target.gy) <= 1) return null;
+    if (getGridUnitDistance(game.gridPlayer, target) <= 1) return null;
     let destination = findFreeGridCell(getGridBlockedCells(game.gridPlayer), target);
-    if (!destination || gridChebyshevDist(destination.gx, destination.gy, target.gx, target.gy) > 1) return null;
+    if (!destination || getGridUnitDistance(destination, target) > 1) return null;
     let origin = copyCombatGridCell(game.gridPlayer);
     if (origin && origin.gx === destination.gx && origin.gy === destination.gy) return null;
     game.gridPlayer.gx = destination.gx;
@@ -5526,7 +5704,6 @@ function applySkillMobilityBeforeAttack(skill, target, pStats) {
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let delayMs = getTacticalMoveAttackDelayMs(moveSpeed);
     combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, Date.now() + delayMs);
-    combatTacticsRuntime.walkingUntil = pattern.kind === 'blink' ? 0 : Date.now() + Math.min(300, delayMs);
     addBattleFx('playerMobility', { skillName: game.activeSkill, fromCell: origin, toCell: copyCombatGridCell(game.gridPlayer), duration: pattern.kind === 'blink' ? 180 : 280 });
     return true;
 }
@@ -5535,42 +5712,35 @@ function applySkillMobilityBeforeAttack(skill, target, pStats) {
  * 그리드 교전 상태를 갱신한다. 현재 스킬 사거리 안에 대상이 있으면 true,
  * 없으면 가장 가까운 적을 향해 플레이어를 한 칸씩 이동시키고 false를 반환한다.
  * @param {Readonly<object>} pStats getPlayerStats 결과
+ * @param {{holdPosition?:boolean}} [options] 이동을 막고 현재 사거리 안 공격만 허용할지
  * @returns {boolean} 이번 틱에 공격이 가능한지
  */
-function updatePlayerGridEngagement(pStats) {
+function updatePlayerGridEngagement(pStats, options) {
+    let config = options || {};
     let alive = (game.enemies || []).filter(enemy => enemy.hp > 0);
-    if (alive.length === 0) { game.gridPlayerPursuing = false; return false; }
+    if (alive.length === 0) return false;
     syncCombatTacticsEncounterRuntime();
+    if (config.holdPosition && pStats.sSkill && pStats.sSkill.mobilityPattern) {
+        return false;
+    }
     let targets = getSkillTargets(pStats);
     if (targets.length > 0) {
         let now = Date.now();
         let stalled = now - combatTacticsRuntime.lastAttackAt >= COMBAT_TACTIC_STALL_MS;
-        let plan = game.combatTacticsUnlocked && !stalled ? getPlayerTacticalMovePlan(pStats, targets[0].enemy) : null;
+        let plan = !config.holdPosition && game.combatTacticsUnlocked && !stalled
+            ? getPlayerTacticalMovePlan(pStats, targets[0].enemy)
+            : null;
         if (tryPlayerTacticalMove(pStats, targets[0].enemy, plan, now)) return false;
-        game.gridPlayerPursuing = now < combatTacticsRuntime.walkingUntil;
         return true;
     }
+    if (config.holdPosition) return false;
     let nearest = typeof getTalentRangerChargeTarget === 'function' ? getTalentRangerChargeTarget(alive) : null;
     if (!nearest) nearest = findNearestGridEnemy(game.gridPlayer, alive);
-    if (!nearest) { game.gridPlayerPursuing = false; return false; }
+    if (!nearest) return false;
     let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
     let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
     advanceGridUnitMovement(game.gridPlayer, nearest, 0.1, interval);
-    // 칸 이동은 주기마다 뚝뚝 끊기지만 "접근 중"이라는 상태는 연속이라, 걷기 모션은
-    // 이 플래그로 판단한다. 다만 이미 붙어 있어 더 좁힐 칸이 없으면(체비쇼프 1)
-    // 제자리걸음이 되므로 걷는 것으로 치지 않는다.
-    game.gridPlayerPursuing = gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, nearest.gx, nearest.gy) > 1;
     return false;
-}
-
-/**
- * 걷기 모션을 써야 하는 상태인지. 지역 이동(적 없음)과 전투 중 칸 이동을 함께 본다.
- * 전장 캔버스와 스프라이트 선택이 같은 판단을 쓰도록 한 곳에 둔다.
- */
-function isPlayerWalkingForAnimation() {
-    let enemiesAlive = (game.enemies || []).some(enemy => enemy && enemy.hp > 0);
-    if (!enemiesAlive) return game.moveTimer <= 0 && game.runProgress < 100;
-    return !!game.gridPlayerPursuing || Date.now() < combatTacticsRuntime.walkingUntil;
 }
 
 
@@ -6260,6 +6430,7 @@ function createEnemy(zone, marker, groupIndex) {
         let oceanTierMul = 1 + depthTier * 0.05;
         hp = Math.floor(hp * oceanBaseMul * oceanTierMul);
     }
+    if (zone.type === 'beyondBoundary') hp = Math.floor(hp * Math.max(1, Number(zone.boundaryHpMul) || 1));
     if (isElite) hp = Math.floor(hp * (1.4 + Math.max(0, getSoftenedLoopDepth(loopInputs.loopCount) * 0.05)));
     if (isBoss) hp = Math.floor(hp * (1.8 + zone.tier * 0.6));
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
@@ -6343,10 +6514,10 @@ function createEnemy(zone, marker, groupIndex) {
         armor: baseArmor,
         evasion: baseEvasion,
         atkMul: (trait && trait.atkMul ? trait.atkMul : 1) * (cosmosMods && cosmosMods.atkMul ? cosmosMods.atkMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.atkMul ? cosmosExclusiveTrait.atkMul : 1),
-        damageMul: (zone.type === 'outsideChaos' ? 2 : 1) * (cosmosMods && cosmosMods.damageMul ? cosmosMods.damageMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.damageMul ? cosmosExclusiveTrait.damageMul : 1),
-        attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1) * (zone.type === 'outsideChaos' ? 1.5 : 1) * (cosmosMods && cosmosMods.attackSpeedMul ? cosmosMods.attackSpeedMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.attackSpeedVarMul ? cosmosExclusiveTrait.attackSpeedVarMul : 1),
+        damageMul: (zone.type === 'outsideChaos' ? 2 : 1) * (cosmosMods && cosmosMods.damageMul ? cosmosMods.damageMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.damageMul ? cosmosExclusiveTrait.damageMul : 1) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryDamageMul) || 1) : 1),
+        attackSpeedVar: (0.85 + (((variantSeed % 11) / 10) * 0.5)) * (trait && trait.attackSpeedVarMul ? trait.attackSpeedVarMul : 1) * (zone.type === 'outsideChaos' ? 1.5 : 1) * (cosmosMods && cosmosMods.attackSpeedMul ? cosmosMods.attackSpeedMul : 1) * (cosmosExclusiveTrait && cosmosExclusiveTrait.attackSpeedVarMul ? cosmosExclusiveTrait.attackSpeedVarMul : 1) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryAttackSpeedMul) || 1) : 1),
         critChance: ((game.season || 1) >= 2 ? (isBoss ? 16 : isElite ? 10 : 4) : 0) + (trait && trait.critChanceBonus ? trait.critChanceBonus : 0) + (cosmosMods && cosmosMods.critChanceBonus ? cosmosMods.critChanceBonus : 0) + (cosmosExclusiveTrait && cosmosExclusiveTrait.critChanceBonus ? cosmosExclusiveTrait.critChanceBonus : 0),
-        regenRate: ((game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0) * 0.12 * regenMul,
+        regenRate: Math.max(((game.season || 1) >= 3 ? (isBoss ? 0.004 : (isElite ? 0.0022 : 0.0012)) : 0) * 0.12 * regenMul, Number(zone.boundaryRegenRate) || 0),
         regenSuppressPct: 0,
         penetration: (isDeepChaos ? 0 : baselineResistancePressure) + (cosmosMods && cosmosMods.penetration ? cosmosMods.penetration : 0),
         resistanceReduction: isDeepChaos ? baselineResistancePressure : 0,
@@ -6356,7 +6527,9 @@ function createEnemy(zone, marker, groupIndex) {
         hitRateGuard: (game.season || 1) >= 5 ? ((trait && trait.hitRateGuard) || (isBoss ? 0.06 : 0)) : 0,
         recentHitsTaken: 0,
         recentHitsTimer: 0,
-        patternMode: (cosmosMods && cosmosMods.patternMode) || ((game.season || 1) >= 6 && isBoss ? rndChoice(['burst', 'ramp', 'slam']) : null),
+        patternMode: (cosmosMods && cosmosMods.patternMode) || (isBoss
+            ? (rndChoice(getBossPatternModesForLoop(game.season || 1)) || null)
+            : null),
         patternAttackCount: 0,
         nextPatternState: null,
         patternTelegraphKey: null,
@@ -6366,10 +6539,14 @@ function createEnemy(zone, marker, groupIndex) {
         trait: trait ? { ...trait } : null,
         traitName: trait ? trait.name : null,
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
-        expMul: (trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.expMul) ? Math.max(1, cosmosExclusiveTrait.expMul) : 1),
-        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.dropMul) ? Math.max(1, cosmosExclusiveTrait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier, zone),
+        expMul: (trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.expMul) ? Math.max(1, cosmosExclusiveTrait.expMul) : 1) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryRewardMul) || 1) : 1),
+        dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.dropMul) ? Math.max(1, cosmosExclusiveTrait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier, zone) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryRewardMul) || 1) : 1),
         isSky: isSky
     };
+    if (zone.type === 'beyondBoundary') {
+        enemy.dr = Math.min(90, enemy.dr + Math.max(0, Number(zone.boundaryDrBonus) || 0));
+        enemy.penetration += Math.max(0, Number(zone.boundaryPenetrationBonus) || 0);
+    }
     let zoneWard = getZoneElementWardProfile(zone);
     if (zoneWard) {
         if (zoneWard.elem === 'fire') enemy.resF = Math.min(95, enemy.resF + zoneWard.strength);
@@ -6487,6 +6664,15 @@ const getAbyssEncounterProfile = function (zone) {
 };
 
 function getZoneEncounterProfile(zone) {
+    if (zone.type === 'beyondBoundary') {
+        let difficulty = Math.max(1, Math.floor(Number(zone.boundaryTier) || 1));
+        return {
+            markerCount: Math.min(8, 3 + Math.floor(difficulty / 20)), minPack: 2,
+            maxPack: Math.min(7, 3 + Math.floor(difficulty / 12)),
+            eliteChance: Math.min(0.65, 0.2 + difficulty * 0.008),
+            bossAdds: Math.min(4, Math.floor(difficulty / 15)), label: `경계 너머 ${difficulty}단계`
+        };
+    }
     if (zone.type === 'cosmos') {
         let gravity = Math.max(1, Number(zone.gravity || 1));
         let sizeClass = Math.max(1, Math.floor(zone.sizeClass || 1));
@@ -6540,7 +6726,13 @@ function getZoneEncounterProfile(zone) {
 
 function resolveMapEstimateContentScale(zone) {
     const benchmark = getDifficultyBenchmarkProfile(zone);
-    if (benchmark) return { hp: benchmark.hp, damage: benchmark.damage, clearTimeSec: benchmark.clearTimeSec };
+    if (benchmark) {
+        return {
+            hp: benchmark.hp * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryHpMul) || 1) : 1),
+            damage: benchmark.damage * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryDamageMul) || 1) : 1),
+            clearTimeSec: benchmark.clearTimeSec
+        };
+    }
     let scale = { hp: 1, damage: 1, clearTimeSec: 24 };
     let floor = Math.max(1, Math.floor(Number(zone.floor) || 1));
     if (zone.type === 'act') scale.clearTimeSec = 18;
@@ -6579,7 +6771,7 @@ function getMapBossPatternMultiplier(bossMods, zone) {
         ? Math.max(1, Number(cosmosBossMechanic.damageMul) || 1)
         : fixedMode
         ? getBossPatternPeakDamageMultiplier(fixedMode)
-        : ((game.season || 1) >= 6 ? getMaximumBossPatternDamageMultiplier() : 1);
+        : getMaximumBossPatternDamageMultiplierForLoop(game.season || 1);
 }
 
 function getMapEstimateDamageElements(zone) {
@@ -6627,7 +6819,8 @@ function getMapEstimateThreatProfile(zone, bossMods, baseHit, seasonDepth, tier)
         * (1 + seasonDepth * (0.012 + tierPressure * 0.018)) * 1.16 * 1.18
         * Math.max(0.1, Number(bossMods.atkMul || 1))
         * Math.max(0.1, Number(bossMods.attackSpeedMul || 1))
-        * affix.attackRateMul * contentAttackRateMul;
+        * affix.attackRateMul * contentAttackRateMul
+        * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryAttackSpeedMul) || 1) : 1);
     const followUpHits = Math.max(0, Math.min(2, Math.floor(attackRate * 2.5) - 1));
     const averageCritMul = 1 + Math.min(1, critChance / 100) * (critDamageMul - 1);
     return {
@@ -6635,6 +6828,7 @@ function getMapEstimateThreatProfile(zone, bossMods, baseHit, seasonDepth, tier)
         threatWindow: peakHit + baseHit * averageCritMul * (followUpHits + affix.doubleStrikeChance / 100),
         resistancePressure: ((game.season || 1) >= 4 ? 14 : 0)
             + Math.max(0, Number(bossMods.penetration || 0)) + affix.penetration
+            + (zone.type === 'beyondBoundary' ? Math.max(0, Number(zone.boundaryPenetrationBonus) || 0) : 0)
     };
 }
 
@@ -6644,7 +6838,7 @@ function getMapEstimateThreatProfile(zone, bossMods, baseHit, seasonDepth, tier)
  * @returns {{dps:number,ehp:number,element:string,clearTimeSec:number,basis:string}|null}
  */
 function estimateMapZonePowerRequirements(zone) {
-    const supportedTypes = ['act', 'abyss', 'labyrinth', 'underworld', 'chaosRealm', 'oceanDepth', 'skyTower', 'seasonBoss', 'timeRift', 'meteor', 'beehive', 'colony', 'grandBreach', 'trial', 'cosmos'];
+    const supportedTypes = ['act', 'abyss', 'labyrinth', 'underworld', 'chaosRealm', 'oceanDepth', 'skyTower', 'seasonBoss', 'timeRift', 'meteor', 'beehive', 'colony', 'grandBreach', 'trial', 'cosmos', 'beyondBoundary'];
     if (!zone || !supportedTypes.includes(zone.type)) return null;
     let tier = Math.max(1, Number(zone.tier) || 1);
     let loopInputs = getLoopDifficultyInputs(zone);
@@ -6733,6 +6927,13 @@ function getFrequentSpawnEncounterProfile(zone) {
 }
 
 function generateEncounterPlan(zone) {
+    if (zone.type === 'beyondBoundary') {
+        let profile = getZoneEncounterProfile(zone);
+        if (zone.boundaryFinalWave) {
+            return [{ at:28, count:profile.minPack, elite:true }, { at:65, count:profile.maxPack, elite:true }, { at:100, count:1 + profile.bossAdds, boss:true }];
+        }
+        return [{ at:24, count:profile.minPack }, { at:58, count:profile.maxPack, elite:true }, { at:100, count:profile.minPack + 1, elite:true }];
+    }
     if (zone.type === 'cosmos') {
         let p = getZoneEncounterProfile(zone);
         let plan = [];
@@ -6816,8 +7017,9 @@ function resetBattleRuntimeVisuals() {
         enemyGhostPos: {},
         enemySmoothPos: {},
         playerFacingLeft: false,
+        playerFacingDirection: 'east',
         playerPos: null,
-        playerAdvanceBlend: 0,
+        playerGridMotion: null,
         playerAttackBlend: 0,
         playerHurtBlend: 0,
         playerDownBlend: 0,
@@ -6828,82 +7030,94 @@ function resetBattleRuntimeVisuals() {
         vfxDensity: 1,
         hitStopRemainingMs: 0,
         lastHitStopFxId: 0,
-        advanceDesired: false,
-        advanceChangedAt: 0,
         shrineHitbox: null,
-        shrineHovered: false,
-        hideoutDecorHitboxes: [],
-        hideoutDecorHoveredId: null
+        shrineHovered: false
     };
     crowdPauseActive = false;
-    trialHazardTimer = 0;
+    trialHazardRuntime = { nextAt: 0, active: null };
+}
+
+function getTrialHazardProfile(zone) {
+    let source = zone && zone.trialHazard ? zone.trialHazard : {};
+    return {
+        pattern: ['line', 'doubleLine', 'pool', 'cross', 'block'].includes(source.pattern) ? source.pattern : 'line',
+        warningMs: Math.max(800, Math.min(3000, Number(source.warningMs) || 1700)),
+        intervalMs: Math.max(2400, Math.min(12000, Number(source.intervalMs) || 6000)),
+        initialDelayMs: Math.max(1000, Math.min(6000, Number(source.initialDelayMs) || 2200)),
+        avoidThresholdMul: Math.max(0.5, Math.min(1.5, Number(source.avoidThresholdMul) || 1))
+    };
 }
 
 function primeTrialHazardTimer(zone) {
     // 개화 시련 밖으로 나가면 누적된 재생 억제를 해제한다.
     if (!zone || !zone.bloomTrial) game.bloomTrialRegenSuppress = 0;
     if (!zone || zone.type !== 'trial') {
-        trialHazardTimer = 0;
+        trialHazardRuntime = { nextAt: 0, active: null };
         game.trialHazardIndex = 0;
         return;
     }
     game.trialHazardIndex = 0;
-    trialHazardTimer = 1.8 + Math.random() * 1.6;
+    trialHazardRuntime = {
+        nextAt: Date.now() + getTrialHazardProfile(zone).initialDelayMs,
+        active: null
+    };
 }
 
-// 재능 개화 시련 클리어 처리. (키 소모 + 조합 기록 + 직업 5차 노드 해금 + 개화 카드 획득/강화)
+function resolveTalentBloomHeroId() {
+    if (HERO_SELECTION_DEFS[game.pendingTalentBloomHeroId]) return game.pendingTalentBloomHeroId;
+    if (HERO_SELECTION_DEFS[game.selectedHeroId]) return game.selectedHeroId;
+    return 'hero1';
+}
+
+function unlockLoopBloomSpecialization(heroId, classKey, classLabel, firstEverBloomOfClass) {
+    if (!classKey || classKey === 'none' || game.bloomLoopSpecGranted === classKey) return false;
+    game.bloomLoopSpecGranted = classKey;
+    game.bloomedClassThisLoop = classKey;
+    game.bloomedTalentThisLoop = heroId;
+    game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + 2;
+    game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
+    game.ascendRank = Math.max(game.ascendRank || 0, 5);
+    if (firstEverBloomOfClass && typeof queueTutorialNotice === 'function') {
+        queueTutorialNotice('unlock_fifth_node', '5차 개화 노드 개방', '이번 루프 최초 개화 조합으로 5차 재능·전직 특화 노드가 열렸습니다.', 'tab-traits');
+    }
+    addLog(`[${classLabel}] 5차 특화 개방: 전직 포인트 +2 · 키스톤 포인트 +1`, 'loot-unique');
+    return true;
+}
+
+function awardTalentBloomCard(comboKey, heroLabel, classLabel) {
+    if (typeof recordTalentBloomCard !== 'function') return;
+    let result = recordTalentBloomCard(comboKey);
+    if (!game.unlocks) game.unlocks = {};
+    let firstUnlock = !game.unlocks.talent;
+    game.unlocks.talent = true;
+    game.noti.talent = true;
+    if (firstUnlock && typeof queueTutorialNotice === 'function') {
+        queueTutorialNotice('unlock_talent_tab', '재능 탭 해금', '재능 개화 카드를 획득했습니다. 재능 탭에서 보유 카드와 효과를 확인하세요.', 'tab-talent');
+    }
+    addLog(`개화 카드 [${heroLabel} × ${classLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ' · 레벨 상승' : ''}`, 'loot-unique');
+    dispatchRuntimeEvent('talent-tab-refresh-requested');
+}
+
+// 재능 개화 시련 클리어 처리. 카드 조합은 입장 시 고르고, 5차 특화 포인트는 루프당 한 번만 지급한다.
 function handleTalentBloomClear(zone) {
     game.currencies.chaosKey = Math.max(0, Math.floor(game.currencies.chaosKey || 0) - 1);
     game.currencies.coreKey = Math.max(0, Math.floor(game.currencies.coreKey || 0) - 1);
     game.bloomTrialRegenSuppress = 0;
-    let heroId = game.selectedHeroId || 'hero1';
-    let classKey = game.ascendClass || 'none';
+    let heroId = resolveTalentBloomHeroId(), classKey = game.ascendClass || 'none';
     let comboKey = `${heroId}__${classKey}`;
+    game.pendingTalentBloomHeroId = null;
     game.talentBloomClears = Math.max(0, Math.floor(game.talentBloomClears || 0)) + 1;
     game.talentBloomCombos = Array.isArray(game.talentBloomCombos) ? game.talentBloomCombos : [];
     let isNewCombo = !game.talentBloomCombos.includes(comboKey);
     if (isNewCombo) game.talentBloomCombos.push(comboKey);
-    let heroLabel = (typeof getHeroSelectionDef === 'function') ? getHeroSelectionDef(heroId).label : heroId;
-    let classLabel = (typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[classKey]) ? CLASS_TEMPLATES[classKey].name : '무직';
-    addLog(`🌸 재능 개화 성공! [${heroLabel} × ${classLabel}]${isNewCombo ? ' (신규 조합!)' : ''}`, 'loot-unique');
-    // 5차 개화 노드는 영구가 아니라 "이번 루프에 개화한 직업"에 한해 열린다(루프 정산 시 초기화).
-    // 영구로 남는 것은 재능 개화 카드뿐이며, bloomedClasses는 재능 탭 영구 해금 기록 용도로만 유지한다.
+    let heroLabel = HERO_SELECTION_DEFS[heroId]?.label || heroId;
+    let classLabel = CLASS_TEMPLATES[classKey]?.name || '무직';
+    addLog(`재능 개화 성공: [${heroLabel} × ${classLabel}]${isNewCombo ? ' · 신규 조합' : ''}`, 'loot-unique');
     game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
-    let firstEverBloomOfClass = game.ascendClass && !game.bloomedClasses.includes(game.ascendClass);
-    if (firstEverBloomOfClass) game.bloomedClasses.push(game.ascendClass);
-    if (game.ascendClass) {
-        game.bloomedClassThisLoop = game.ascendClass;
-        if (firstEverBloomOfClass && typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_fifth_node', '5차 개화 노드 개방', '이번 루프 직업전직 탭에 5차 재능 개화 노드가 추가되었습니다. (재능 개화 노드는 루프마다 재능 개화로 다시 열립니다.)', 'tab-traits');
-        addLog(`🌸 [${classLabel}] 5차 개화 노드 개방! (이번 루프)`, 'loot-unique');
-    }
-    // 5차 특화 포인트(전직 +2 · 키스톤 +1) 지급 규칙:
-    //  - 재능×직업 조합(개화 1세트)을 새로 개화하면 항상 지급한다(조합당 1회 → 총 120세트까지 계속 지급).
-    //    직업당 1회만 주던 과거 버그(8직업만 지급)와, 루프당 1회만 주던 직전 동작을 모두 보완한다.
-    //  - 또한 루프당 1회(개화 시련 재클리어) 지급한다. 전직 포인트는 루프 정산 때 0으로 초기화되므로,
-    //    이미 개화한 조합이라도 새 루프에서 다시 개화하면 재능특화/전직특화 노드를 찍을 포인트를 다시 받는다.
-    //    (같은 루프에서 이미 개화한 조합을 또 깨는 경우만 중복 지급되지 않아 무한 파밍을 막는다.)
-    let grantsFirstBloomThisLoop = game.bloomLoopSpecGranted !== game.ascendClass;
-    if (game.ascendClass && (isNewCombo || grantsFirstBloomThisLoop)) {
-        game.bloomLoopSpecGranted = game.ascendClass;
-        game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + 2;
-        game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
-        game.ascendRank = Math.max(game.ascendRank || 0, 5);
-        addLog(`🌸 [${classLabel}] 5차 특화 포인트 지급! 전직 포인트 +2 · 키스톤 포인트 +1`, 'loot-unique');
-    }
-    // 재능 개화 카드 획득/강화 + 재능 탭 해금
-    if (typeof recordTalentBloomCard === 'function') {
-        let result = recordTalentBloomCard(comboKey);
-        if (!game.unlocks) game.unlocks = {};
-        let firstUnlock = !game.unlocks.talent;
-        game.unlocks.talent = true;
-        game.noti.talent = true;
-        let cardLabel = `${heroLabel} × ${classLabel}`;
-        if (firstUnlock) {
-            if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_talent_tab', '재능 탭 해금', '재능 개화 카드를 획득했습니다! 재능 탭에서 보유 카드와 효과를 확인하세요.', 'tab-talent');
-        }
-        addLog(`🃏 개화 카드 [${cardLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ' · 레벨 상승!' : ''}`, 'loot-unique');
-        dispatchRuntimeEvent('talent-tab-refresh-requested');
-    }
+    let firstEverBloomOfClass = classKey !== 'none' && !game.bloomedClasses.includes(classKey);
+    if (firstEverBloomOfClass) game.bloomedClasses.push(classKey);
+    unlockLoopBloomSpecialization(heroId, classKey, classLabel, firstEverBloomOfClass);
+    awardTalentBloomCard(comboKey, heroLabel, classLabel);
     game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
     game.killsInZone = 0;
     game.inTicketBossFight = false;
@@ -7007,7 +7221,7 @@ function getSkillConditionalDamageMultiplier(skill, enemy) {
         multiplier *= 1 + Math.max(0, Number(skill.fullLifeDamageMorePct) || 0) / 100;
     }
     if (game.gridPlayer && hasGridCell(enemy)) {
-        let distance = gridChebyshevDist(game.gridPlayer.gx, game.gridPlayer.gy, enemy.gx, enemy.gy);
+        let distance = getGridUnitDistance(game.gridPlayer, enemy);
         let distanceBonus = Math.max(0, distance - 1) * Math.max(0, Number(skill.distanceDamageMorePerCellPct) || 0);
         multiplier *= 1 + Math.min(Math.max(0, Number(skill.distanceDamageMoreCapPct) || 0), distanceBonus) / 100;
     }
@@ -7089,6 +7303,15 @@ function applySupportChaosErosionOnHit(enemy, pStats, hitElement) {
     enemy.chaosErosionShred = Math.min(cap, (enemy.chaosErosionShred || 0) + erosionPerHit);
 }
 
+function transferPassiveChaosErosionToTarget(enemy, pStats) {
+    let flags = pStats && pStats.passiveKeystoneFlags;
+    let pending = Math.max(0, Number(game.passiveChaosErosionTransfer) || 0);
+    if (!flags || !flags.erosionLegacy || pending <= 0 || !enemy || enemy.hp <= 0) return false;
+    enemy.chaosErosionShred = Math.min(pStats.chaosErosionCap || 40, (enemy.chaosErosionShred || 0) + pending);
+    game.passiveChaosErosionTransfer = 0;
+    return true;
+}
+
 function getAilmentTypeFromElement(ele) {
     if (ele === 'fire') return 'ignite';
     if (ele === 'cold') return 'chill';
@@ -7168,6 +7391,9 @@ function getEnemyDamageAilmentDps(ail, pStats, enemy) {
     let dps = getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
     if (ail && ail.type === 'ignite') dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.igniteDamageMultiplierPct) || 0) / 100));
     if (ail && ail.type === 'poison') dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.poisonDamageMultiplierPct) || 0) / 100));
+    if (ail && pStats && ail.type === pStats.mystiqueAilmentType) {
+        dps = Math.floor(dps * (1 + Math.max(0, Number(pStats.mystiqueAilmentDamagePct) || 0) / 100));
+    }
     if (ail && (ail.talentDamageMorePct || 0) > 0) dps = Math.floor(dps * (1 + ail.talentDamageMorePct / 100));
     if (typeof getTalentDotDamageMultiplier === 'function') dps = Math.floor(dps * getTalentDotDamageMultiplier(enemy));
     return dps;
@@ -7317,13 +7543,15 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     let catalystAilmentMul = (game.ascendClass === 'catalyst' && hasKeystone('ct1')) ? 2 : 1;
     let ailmentPowerSourceDamage = Math.max(0, Math.floor(sourceHitDamage * Math.max(0.01, Number(pStats && pStats.ailmentPowerMultiplier) || 1) * catalystAilmentMul));
     let critDotBonusPct = Math.max(0, Number(opts.critDotBonusPct !== undefined ? opts.critDotBonusPct : (isCrit ? 50 : 0)) || 0);
-    let ailmentDotScore = getDamageAilmentScore(ailmentPowerSourceDamage, critDotBonusPct, pStats && Number.isFinite(pStats.dotDamageScale) ? pStats.dotDamageScale : 1, pStats && Number.isFinite(pStats.dotCritBonusScale) ? pStats.dotCritBonusScale : 1);
     let hitRatio = Math.max(0.001, Math.min(0.35, ailmentPowerSourceDamage / Math.max(1, enemy.maxHp || 1)));
     let hitPower = Math.sqrt(Math.max(1, ailmentPowerSourceDamage)) * 0.01;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
-    function applyAilmentType(type, forceChance) {
+    function applyAilmentType(type, forceChance, manifestation) {
         let sourceType = type;
         let appliedType = typeof getTalentAilmentReplacement === 'function' ? getTalentAilmentReplacement(sourceType) : sourceType;
+        let passiveFlags = (pStats && pStats.passiveKeystoneFlags) || {};
+        if (passiveFlags.singleMystique && appliedType !== pStats.mystiqueAilmentType) return false;
+        if (passiveFlags.blackDistill && ['ignite', 'chill', 'freeze', 'shock'].includes(appliedType)) return false;
         if (typeof canTalentCardApplyEnemyAilment === 'function' && !canTalentCardApplyEnemyAilment(appliedType)) return false;
         let baseChance = (Number.isFinite(forceChance) ? forceChance : getPlayerAilmentChance(pStats, sourceType));
         let tryProc = Math.max(0, Math.min(1, baseChance + (isCrit ? 0.25 : 0)));
@@ -7332,12 +7560,16 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
         let ailResPen = (pStats && pStats.ailmentResistPenPct) || 0;
         let resistChance = Math.max(0, Math.min(0.95, ((enemy[resKey] || 0) - ailResPen) / 100));
         if (Math.random() < resistChance) return false;
-        if (sourceType === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(hitRatio, enemy.maxHp || 1)) return false;
+        let mystiquePotency = sourceType === pStats.mystiqueAilmentType
+            ? 1 + Math.max(0, Number(pStats.mystiqueAilmentPotencyPct) || 0) / 100 : 1;
+        let manifestationPotency = manifestation ? 0.5 : 1;
+        let effectiveHitRatio = hitRatio * mystiquePotency * manifestationPotency;
+        if (sourceType === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(effectiveHitRatio, enemy.maxHp || 1)) return false;
         type = appliedType;
         let damageAilment = isDamageAilmentType(type);
         let power = damageAilment
             ? 0.90
-            : Math.max(0.05, Math.min(1.5, hitPower + (hitRatio * 1.8)));
+            : Math.max(0.05, Math.min(1.5, (hitPower + (hitRatio * 1.8)) * mystiquePotency * manifestationPotency));
         let row = enemy.ailments.find(a => a.type === type);
         let durationMul = damageAilment ? Math.max(0.05, (pStats && Number.isFinite(pStats.dotDurationMultiplier)) ? pStats.dotDurationMultiplier : 1) : 1;
         if (type === 'poison' && pStats && (pStats.uniquePoisonDurationPct || 0) > 0) {
@@ -7345,11 +7577,15 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
         }
         let dur = (damageAilment ? 3 : (type === 'freeze' ? (0.8 + hitRatio * 4) : (2 + hitRatio * 10))) * durationMul;
         let damageMorePct = Math.max(0, Number(opts.ailmentDamageMorePct && opts.ailmentDamageMorePct[type]) || 0);
+        if (passiveFlags.explosiveDistill && isDamageAilmentType(appliedType)) damageMorePct += 75;
+        if (passiveFlags.taintedWarhead && ['ignite', 'poison', 'bleed'].includes(appliedType)) damageMorePct += 50;
         let payload = { type: type, time: dur, duration: dur, power: power, stacks: 1 };
         if (damageAilment) {
-            payload.sourceHitDamage = ailmentPowerSourceDamage;
+            payload.sourceHitDamage = Math.floor(ailmentPowerSourceDamage * mystiquePotency * manifestationPotency);
             payload.critDotBonusPct = critDotBonusPct;
-            payload.ailmentDotScore = ailmentDotScore * (1 + damageMorePct / 100);
+            payload.ailmentDotScore = getDamageAilmentScore(payload.sourceHitDamage, critDotBonusPct,
+                pStats && Number.isFinite(pStats.dotDamageScale) ? pStats.dotDamageScale : 1,
+                pStats && Number.isFinite(pStats.dotCritBonusScale) ? pStats.dotCritBonusScale : 1) * (1 + damageMorePct / 100);
             payload.talentDamageMorePct = damageMorePct;
         }
         if (typeof decorateTalentAilmentPayload === 'function') decorateTalentAilmentPayload(type, payload, pStats);
@@ -7367,7 +7603,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
                 let rowScore = Math.max(0, Number(row.ailmentDotScore) || getStoredAilmentHitDamage(row));
                 let incomingScore = payload.ailmentDotScore;
                 if (incomingScore >= rowScore) {
-                    row.sourceHitDamage = ailmentPowerSourceDamage;
+                    row.sourceHitDamage = payload.sourceHitDamage;
                     row.critDotBonusPct = critDotBonusPct;
                     row.ailmentDotScore = incomingScore;
                     row.talentDamageMorePct = Math.max(0, Number(payload.talentDamageMorePct) || 0);
@@ -7385,6 +7621,11 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     }
     applyAilmentType(primaryType, opts.primaryAilmentChance);
     if (ele === 'cold' && !(typeof shouldTalentSkipColdFreeze === 'function' && shouldTalentSkipColdFreeze())) applyAilmentType('freeze');
+    if (pStats.passiveForbiddenManifestation) {
+        ['ignite', 'chill', 'shock', 'poison', 'bleed'].forEach(type => {
+            if (type !== primaryType) applyAilmentType(type, undefined, true);
+        });
+    }
     Object.entries(opts.additionalAilmentChances || {}).forEach(([type, chance]) => {
         if (type !== primaryType) applyAilmentType(type, chance);
     });
@@ -7643,7 +7884,9 @@ function applyCosmosAstraStance(enemy) {
 }
 
 function startEncounterRun() {
-    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return;
+    let returnedToGridStart = hasGridCell(game.gridPlayer)
+        && (game.gridPlayer.gx !== COMBAT_GRID_CONFIG.playerSpawn.gx
+            || game.gridPlayer.gy !== COMBAT_GRID_CONFIG.playerSpawn.gy);
     pTimer = 0;
     resetCombatTacticsRuntime();
     resetCombatChannelRuntime();
@@ -7663,6 +7906,9 @@ function startEncounterRun() {
     if (isChallengeContractEligibleZone(zone)) applyPendingChallengeContract();
     resetBattleRuntimeVisuals();
     resetPlayerGridPosition();
+    if (returnedToGridStart) {
+        addBattleFx('playerReturnWarp', { duration: 720, cell: copyCombatGridCell(game.gridPlayer) });
+    }
     restoreAndRecallSummons(getPlayerStats());
     primeTrialHazardTimer(zone);
     game.encounterPlan = generateEncounterPlan(zone);
@@ -7673,7 +7919,9 @@ function startEncounterRun() {
 }
 
 function startMoving(isTown) {
-    if (!isTown && typeof setHideoutActive === 'function') setHideoutActive(false, game);
+    let returnDepartureCell = isTown && hasGridCell(game.gridPlayer)
+        ? copyCombatGridCell(game.gridPlayer)
+        : null;
     dispatchRuntimeEvent('movement-started', { background: !!game.isBackgroundCalculation });
     if (typeof bountyRuntime !== 'undefined') bountyRuntime.requeueInterrupted();
     pTimer = 0;
@@ -7691,6 +7939,12 @@ function startMoving(isTown) {
     let time = Math.max(0.5, 1.2 * (100 / ms));
     game.moveTotalTime = time;
     game.moveTimer = time;
+    if (returnDepartureCell) {
+        addBattleFx('playerReturnDepart', {
+            duration: Math.max(500, Math.round(time * 1000)),
+            cell: returnDepartureCell
+        });
+    }
     game.isTownReturning = !!isTown;
     game.combatHalted = false;
     game.enemies = [];
@@ -7714,31 +7968,8 @@ function startMoving(isTown) {
     }
 }
 
-function enterHideoutIdleState() {
-    if (typeof setHideoutActive !== 'function' || !setHideoutActive(true, game)) {
-        addLog('⚠️ 은신처는 액트 5 진행 후 이용할 수 있습니다.', 'warning');
-        return false;
-    }
-    game.combatHalted = true;
-    game.moveTimer = 0;
-    game.moveTotalTime = 0;
-    game.enemies = [];
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    game.runProgress = 0;
-    game.playerAilments = [];
-    game.playerLeechInstances = [];
-    resetBattleRuntimeVisuals();
-    resetPlayerGridPosition();
-    addLog('🌿 뿌리 성소에 돌아와 휴식을 시작합니다.', 'season-up');
-    if (typeof queueImportantSave === 'function') queueImportantSave(180);
-    updateStaticUI();
-    return true;
-}
-
 function finishTownReturnAction() {
     let action = (game.settings && game.settings.townReturnAction) || 'retry';
-    if (action === 'hideout') return enterHideoutIdleState();
     if (action !== 'stop') return false;
     game.combatHalted = true;
     game.enemies = [];
@@ -7751,27 +7982,18 @@ function finishTownReturnAction() {
 
 
 function returnToTown() {
-    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) {
-        setHideoutActive(false, game);
-        addLog('⚔️ 은신처를 떠나 전투로 복귀합니다.', 'season-up');
-        startMoving(false);
-        updateStaticUI();
-        return;
-    }
     if (game.isTownReturning && game.moveTimer > 0) return;
     let pStats = getPlayerStats();
     game.playerHp = getPlayerHpCap(pStats);
     game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     game.playerLeechInstances = [];
     pTimer = 0;
-    let destination = game.settings && game.settings.townReturnAction === 'hideout' ? '은신처' : '마을';
-    addLog(`⛺ ${destination} 귀환`, "season-up");
+    addLog('⛺ 마을 귀환', "season-up");
     startMoving(true);
     updateStaticUI();
 }
 
 function ensureEncounterRun() {
-    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return;
     if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) startEncounterRun();
 }
 
@@ -7783,7 +8005,6 @@ function isRegularAutoProgressZone(zone) {
 }
 
 function reconcileMapProgressRuntimeState() {
-    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return false;
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (!zone) return false;
     if (typeof reconcileBeehiveRunState === 'function') reconcileBeehiveRunState();
@@ -7879,7 +8100,6 @@ function getMapProgressGainMultiplier(zone) {
 }
 
 function advanceMapProgress(pStats) {
-    if (typeof isHideoutActive === 'function' && isHideoutActive(game)) return;
     if (game.moveTimer > 0) return;
     let zone = getZone(game.currentZoneId) || getZone(0);
     if (zone && zone.type === 'outsideChaos' && game.woodsmanEntrancePending) return;
@@ -7982,8 +8202,7 @@ function tickGrandBreachRun(zone) {
     }
 }
 
-function grantExpAndGem(enemy, pStats) {
-    let gemLeveled = false;
+function getEnemyExperienceReward(enemy, pStats) {
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
     let abyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
@@ -7997,6 +8216,12 @@ function grantExpAndGem(enemy, pStats) {
         let depthExpDampen = Math.max(0.68, 1 - (abyssDepth - 1) * 0.012);
         exp = Math.floor(exp * depthExpDampen);
     }
+    return Math.max(0, exp);
+}
+
+function grantExpAndGem(enemy, pStats) {
+    let gemLeveled = false;
+    let exp = getEnemyExperienceReward(enemy, pStats);
     game.exp += exp;
     if (game.settings.showExpLog) addLog(`✨ 경험치 +${exp}`, "exp-txt");
 
@@ -8244,9 +8469,8 @@ function rollLootForEnemy(enemy) {
     let growthItemChance = getGrowthItemBaseDropChance(enemy);
     itemChance *= 0.7; // 장비 드랍 확률 30% 감소
     let codexDropMul = 1 + (getCodexBonusPct() / 100);
-    let abyssDropMul = Math.max(0.2, 1 + ((getAbyssPassiveState().tenacity || 0) * 0.01));
     let itemDropMultiplier = capEndlessContentDropMultiplier(
-        zone, codexDropMul * abyssDropMul * challengeRewardMul
+        zone, codexDropMul * challengeRewardMul
     );
     itemChance *= itemDropMultiplier;
     growthItemChance *= itemDropMultiplier;
@@ -8433,6 +8657,10 @@ function handleEnemyDeath(enemy, pStats) {
     // 이미 처리되어 enemies 배열에서 제거된 적(중복 재귀 호출)은 무시한다.
     if (!liveRef || liveRef.hp > 0) return;
     enemy = liveRef;
+    if (pStats && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.erosionLegacy) {
+        let inheritedErosion = Math.floor(Math.max(0, Number(enemy.chaosErosionShred) || 0) * 0.5);
+        if (inheritedErosion > 0) game.passiveChaosErosionTransfer = inheritedErosion;
+    }
     transferSkillDotOnDeath(enemy);
     let zone = getZone(game.currentZoneId);
     if (enemy.isBoss) completeHiddenJournalBossRun(enemy, zone, pStats);
@@ -8466,7 +8694,7 @@ function handleEnemyDeath(enemy, pStats) {
     addBattleFx('enemyDeath', {
         enemyId: enemy.id,
         color: getElementColor(enemy.ele),
-        duration: enemy.isBoss ? 920 : (enemy.isElite ? 620 : 480),
+        duration: enemy.isBoss ? 840 : (enemy.isElite ? 500 : 340),
         boss: !!enemy.isBoss,
         elite: !!enemy.isElite
     });
@@ -8801,6 +9029,97 @@ const rollCosmosAstraUniqueDrop = (zone, randomFn) => {
     return item;
 };
 
+function getBeyondBoundaryCompletionRewardContext(result) {
+    let focus = BEYOND_BOUNDARY_REWARD_FOCUS_DB.find(row => row.id === result.rewardFocusId)
+        || BEYOND_BOUNDARY_REWARD_FOCUS_DB[0];
+    let intensity = BEYOND_BOUNDARY_INTENSITY_DB.find(row => row.id === result.intensityId)
+        || BEYOND_BOUNDARY_INTENSITY_DB[0];
+    let tier = Math.max(1, Math.floor(Number(result.tier) || 1));
+    let liveZone = getZone(BEYOND_BOUNDARY_ZONE_ID) || {};
+    let zone = {
+        ...liveZone, tier: getUnderworldTier(30) + Math.floor((tier - 1) / 2),
+        boundaryTier: tier, name: `경계 너머 ${tier}단계 완료 보상`
+    };
+    return { focus, intensity, tier, zone };
+}
+
+function rollBeyondBoundaryRewardCount(rewardMul) {
+    let multiplier = Math.max(1, Number(rewardMul) || 1);
+    return 1 + (Math.random() < Math.min(0.9, multiplier - 1) ? 1 : 0);
+}
+
+function grantBeyondBoundaryEquipmentRewards(context) {
+    let count = rollBeyondBoundaryRewardCount(context.intensity.rewardMul);
+    let names = [];
+    for (let index = 0; index < count; index++) {
+        let item = generateEquipmentDrop({ isBoss: true }, { minimumRarity: 'rare', zone: context.zone });
+        if (!item || !addItemToInventory(item, { guaranteedKeep: true })) continue;
+        names.push(item.name);
+        addLog(`경계 완료 보상: [${item.name}]`, 'loot-rare', { item });
+    }
+    return `${names.length}개의 희귀 이상 장비`;
+}
+
+function grantBeyondBoundaryJewelRewards(context) {
+    let count = rollBeyondBoundaryRewardCount(context.intensity.rewardMul);
+    let stored = 0;
+    for (let index = 0; index < count; index++) {
+        let jewel = generateJewelDrop(context.zone);
+        game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
+        if (game.jewelInventory.length >= getJewelInventoryLimit()) {
+            salvageJewelObject(jewel, true);
+            continue;
+        }
+        game.jewelInventory.push(jewel);
+        stored++;
+        addLog(`경계 완료 보상: [${jewel.name}]`, 'loot-rare', { item:jewel, itemKind:'jewel' });
+    }
+    let shards = Math.max(1, Math.round((3 + Math.min(40, context.tier) / 5) * context.intensity.rewardMul));
+    awardCurrency('jewelShard', shards);
+    return `주얼 ${stored}개 · 주얼 결정 ${shards}개`;
+}
+
+function grantBeyondBoundaryGemRewards(context) {
+    let amount = Math.max(1, Math.round((8 + Math.min(40, context.tier) / 4) * context.intensity.rewardMul));
+    let gained = typeof grantGemResearchFragments === 'function'
+        ? grantGemResearchFragments(amount) : (awardCurrency('gemShard', amount), amount);
+    return `젬 잔향 ${gained}개`;
+}
+
+function grantBeyondBoundaryGrowthRewards(context) {
+    let count = rollBeyondBoundaryRewardCount(context.intensity.rewardMul);
+    let stored = 0;
+    for (let index = 0; index < count; index++) {
+        let item = generateGrowthDrop({ isBoss: true }, { zone: context.zone });
+        if (!item || !addDroppedGrowthItem(item, { guaranteedKeep: true })) continue;
+        stored++;
+        addLog(`경계 완료 보상: [${item.name}]`, 'loot-rare', { item, itemKind:'growth' });
+    }
+    return `${stored}개의 생장 배치물`;
+}
+
+function grantBeyondBoundaryCurrencyRewards(context) {
+    let tier = Math.min(50, context.tier);
+    let multiplier = context.intensity.rewardMul;
+    let buds = Math.max(1, Math.round((3 + tier / 10) * multiplier));
+    let dew = Math.max(1, Math.round((2 + tier / 20) * multiplier));
+    let sap = tier >= 10 ? 1 : 0;
+    awardCurrency('magicBud', buds);
+    awardCurrency('formlessDew', dew);
+    if (sap > 0) awardCurrency('sapBud', sap);
+    return `마법의 새싹 ${buds}개 · 형체 없는 이슬 ${dew}개${sap ? ` · 수액 새싹 ${sap}개` : ''}`;
+}
+
+function grantBeyondBoundaryFocusedReward(result) {
+    let context = getBeyondBoundaryCompletionRewardContext(result);
+    let summary = context.focus.id === 'armory' ? grantBeyondBoundaryEquipmentRewards(context)
+        : context.focus.id === 'jewel' ? grantBeyondBoundaryJewelRewards(context)
+            : context.focus.id === 'gem' ? grantBeyondBoundaryGemRewards(context)
+                : context.focus.id === 'growth' ? grantBeyondBoundaryGrowthRewards(context)
+                    : grantBeyondBoundaryCurrencyRewards(context);
+    return { focusId: context.focus.id, intensityId: context.intensity.id, summary };
+}
+
 function finishEncounterRun() {
     expireActiveFlaskEffects();
     let zone = getZone(game.currentZoneId);
@@ -8813,6 +9132,28 @@ function finishEncounterRun() {
     let mapAction = (game.settings && game.settings.mapCompleteAction) || 'nextZone';
     game.killsInZone++;
     shrineRuntime.advanceAfterEncounter(zone);
+
+    if (zone.type === 'beyondBoundary') {
+        let result = completeBeyondBoundaryEncounter(game);
+        if (!result.ok) return;
+        game.killsInZone = 0;
+        if (!result.completed) {
+            addLog(`경계 너머 ${result.tier}단계 · ${result.wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER} 조우로 전진합니다.`, 'season-up');
+            startMoving(false);
+        } else {
+            let seal = BEYOND_BOUNDARY_SEAL_DB.find(row => row.id === result.sealId);
+            let levelText = result.sealResult.levelsGained > 0 ? ` · 인장 ${result.sealResult.level}레벨` : '';
+            let focusedReward = grantBeyondBoundaryFocusedReward(result);
+            addLog(`경계 너머 ${result.tier}단계 돌파 · ${seal ? seal.name : '경계 인장'} 경험치 +${result.rewardXp}${levelText} · ${focusedReward.summary}`, 'loot-unique');
+            game.currentZoneId = result.returnZoneId !== null && result.returnZoneId !== undefined
+                ? result.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
+            startMoving(false);
+        }
+        checkUnlocks();
+        updateStaticUI();
+        queueImportantSave(180);
+        return;
+    }
 
     if (zone.type === 'meteor') {
         grantMeteorEncounterRewards();
@@ -9058,6 +9399,7 @@ function finishEncounterRun() {
             enterAutomaticMapInterruptionAfterClear(zone);
             startMoving(false);
         }
+        checkUnlocks();
         updateStaticUI();
         queueImportantSave(200);
         return;
@@ -9187,8 +9529,6 @@ function finishEncounterRun() {
             game.abyssClearedDepths = Array.isArray(game.abyssClearedDepths) ? game.abyssClearedDepths : [];
             if (depth <= capDepth && !game.abyssClearedDepths.includes(depth)) {
                 game.abyssClearedDepths.push(depth);
-                game.abyssPassivePoints = Math.max(0, Math.floor(game.abyssPassivePoints || 0)) + 5;
-                addLog(`🌌 혼돈 ${depth} 클리어 보상: 혼돈 패시브 포인트 +5`, 'season-up');
             }
             ensureNextEndlessChaosDepthUnlocked(depth);
             if (depth >= 20) {
@@ -9356,6 +9696,35 @@ function finishEncounterRun() {
     updateStaticUI();
 }
 
+function getPassiveKeystoneHitMultiplier(pStats, target, hitIndex, targetIndex, skillName) {
+    const flags = pStats.passiveKeystoneFlags || {};
+    let multiplier = 1;
+    if (flags.farshot && game.gridPlayer && Number.isFinite(target.gx)) {
+        let distance = getGridUnitDistance(game.gridPlayer, target);
+        multiplier *= distance >= 3 ? 1.25 : (distance <= 1 ? 0.75 : 1);
+    }
+    if (flags.duel) multiplier *= (game.enemies || []).filter(enemy => enemy && enemy.hp > 0).length === 1 ? 1.35 : 0.85;
+    if (flags.projectileFormation && targetIndex > 0) multiplier *= 0.6;
+    if (flags.explosiveDistill) multiplier *= 0.75;
+    if (flags.erosionLegacy && pStats.sSkill.ele === 'chaos') multiplier *= 0.85;
+    if (flags.openingHunt) {
+        multiplier *= target.passiveOpeningHuntConsumed ? 0.8 : 2;
+        target.passiveOpeningHuntConsumed = true;
+    }
+    if (!flags.channelPath) return multiplier;
+    if (!(pStats.sSkill.tags || []).includes('channeling')) {
+        game.passiveChannelPath = null;
+        return multiplier * 0.8;
+    }
+    let state = game.passiveChannelPath || {};
+    if (hitIndex === 0 && targetIndex === 0) {
+        let sameTarget = state.skillName === skillName && String(state.targetId) === String(target.id);
+        state = { skillName, targetId: target.id, stacks: sameTarget ? Math.min(6, (state.stacks || 0) + 1) : 1 };
+        game.passiveChannelPath = state;
+    }
+    return multiplier * (1 + Math.max(0, state.stacks || 0) * 0.07);
+}
+
 function performPlayerAttack(pStats, attackOptions) {
     let options = attackOptions || {};
     // 예약된 시간차 타격은 같은 카운터를 공유하되, 다음 공격은 항상 새 카운터로 시작한다.
@@ -9394,6 +9763,10 @@ function performPlayerAttack(pStats, attackOptions) {
     }).filter(Boolean) : getSkillTargets(pStats);
     if (colosseumSavedTargets !== null) pStats.sSkill.targets = colosseumSavedTargets;
     if (targets.length === 0) return;
+    let passiveKarmaContext = options.passiveKarmaContext || null;
+    if (!isStageReplay && typeof beginPassiveKarmaAttack === 'function') {
+        passiveKarmaContext = beginPassiveKarmaAttack(targets[0].enemy, Date.now());
+    }
     if (!isStageReplay) colosseumStrikeMul *= consumeLoneEvasionCounterMultiplier(pStats, Date.now());
     if (!isStageReplay) applySkillMobilityBeforeAttack(pStats.sSkill, targets[0].enemy, pStats);
     let talentMoonReturn = !isStageReplay && typeof getTalentMoonReturnConfig === 'function'
@@ -9416,6 +9789,9 @@ function performPlayerAttack(pStats, attackOptions) {
         }
     }
     let isDotSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('dot');
+    let previousFanaticismStacks = Math.max(0, Number(pStats.passiveFanaticismStacks) || 0);
+    let currentFanaticismStacks = !isStageReplay && typeof recordPassiveFanaticSkillUse === 'function'
+        ? recordPassiveFanaticSkillUse(skillName, pStats.devotion) : previousFanaticismStacks;
 
     // 키스톤으로 보장된 치명타(암살자 a5, 촉매 ct7 공격 스킬)는 적 치명타 저항 굴림도 무시한다.
     let guaranteedCrit = (game.ascendClass === 'assassin' && hasKeystone('a5'))
@@ -9435,13 +9811,16 @@ function performPlayerAttack(pStats, attackOptions) {
         if (isCrit) game.gladiatorVeteranCritBonus = 0;
         else game.gladiatorVeteranCritBonus = Math.min(100, game.gladiatorVeteranCritBonus + 5);
     }
-    let preloadElementalistStacks = Math.max(0, Math.floor(game.elementalistOverloadStacks || 0));
+    let preloadElementalistStacks = getElementalistOverloadStacks();
     if (!isStageReplay && game.ascendClass === 'elementalist' && hasKeystone('e8')) {
-        if (isCrit) game.elementalistOverloadStacks = preloadElementalistStacks + 1;
-        else game.elementalistOverloadStacks = 0;
-        game.elementalistOverloadExpiresAt = 0;
+        recordElementalistOverloadAttack(isCrit);
     }
     let baseDamage = pStats.baseDmg;
+    if (currentFanaticismStacks !== previousFanaticismStacks) {
+        let previousMultiplier = 1 + previousFanaticismStacks * 0.015;
+        let currentMultiplier = 1 + currentFanaticismStacks * 0.015;
+        baseDamage = Math.floor(baseDamage * currentMultiplier / previousMultiplier);
+    }
     let riderCompassReady = !!(pStats.uniqueRiderCompass && (game.lastMoveEndedAt || 0) > 0 && !game.uniqueRiderCompassConsumed);
     if (isCrit) {
         baseDamage = Math.floor(baseDamage * (pStats.critDmg / 100));
@@ -9511,7 +9890,8 @@ function performPlayerAttack(pStats, attackOptions) {
             channelCycleMs: channelCycleMs,
             baseDelayMs: stageBaseDelayMs,
             damageTextGroupId: damageTextGroupId,
-            attackHitGuardCounts: attackHitGuardCounts
+            attackHitGuardCounts: attackHitGuardCounts,
+            passiveKarmaContext: passiveKarmaContext
         });
         return;
     }
@@ -9620,7 +10000,7 @@ function performPlayerAttack(pStats, attackOptions) {
     let randomTargetCapFallbackUsed = false;
     for (let hitIdx = 0; hitIdx < repeats; hitIdx++) {
         let hitEntries = pStats.sSkill.randomTargetEachHit ? [{ mult: 1 }] : targets;
-        hitEntries.forEach(hit => {
+        hitEntries.forEach((hit, targetIndex) => {
             let targetEnemy = hit.enemy;
             if (pStats.sSkill.randomTargetEachHit) {
                 let alive = options.restrictRandomTargets
@@ -9635,8 +10015,10 @@ function performPlayerAttack(pStats, attackOptions) {
                 } else return;
             }
             if (!targetEnemy || targetEnemy.hp <= 0) return;
+            transferPassiveChaosErosionToTarget(targetEnemy, pStats);
             let priorGuardedHits = Math.max(0, Math.floor(Number(attackHitGuardCounts.get(targetEnemy.id)) || 0));
             let nextHitCount = (perEnemyHitCount.get(targetEnemy.id) || 0) + 1;
+            if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.projectileFormation && nextHitCount > 1) return;
             perEnemyHitCount.set(targetEnemy.id, nextHitCount);
             let hitElement = swingElement;
             let curseFx = getEnemyConditionDebuffFactor(targetEnemy, pStats);
@@ -9647,9 +10029,23 @@ function performPlayerAttack(pStats, attackOptions) {
             if (hitElement === 'light') enemyRes -= (curseFx.resLShred || 0);
             if (hitElement === 'chaos') enemyRes -= (curseFx.resChaosShred || 0);
             if (hitElement === 'phys') enemyRes -= (curseFx.physDrShred || 0);
+            if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.blackDistill
+                && ['fire', 'cold', 'light'].includes(hitElement)) {
+                let chaosRes = getEffectiveEnemyMitigation('chaos', zoneTier, targetEnemy, pStats) - (curseFx.resChaosShred || 0);
+                enemyRes = (enemyRes + chaosRes) * 0.5;
+            }
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let cj = targetEnemy.ailments.find(a => a && a.type === 'cosmosJudgment' && (a.time || 0) > 0); if (cj) enemyRes -= Math.max(0, Number(cj.power || 0)); }
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let rs = targetEnemy.ailments.find(a => a && a.type === 'realmAllResDown' && (a.time || 0) > 0); if (rs) enemyRes -= Math.max(0, Math.floor(rs.stacks || 0)) * Math.max(0, Number((pStats.uniqueAllResDownOnHit && pStats.uniqueAllResDownOnHit.perHit) || 0)); }
             let hitCrit = isCrit;
+            let passiveGuaranteedCrit = false;
+            if (pStats.passiveKeystoneFlags && (pStats.passiveKeystoneFlags.explosiveDistill
+                || pStats.passiveKeystoneFlags.taintedWarhead)) hitCrit = false;
+            if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.fullEvasion
+                && (pStats.sSkill.tags || []).includes('melee') && game.passiveFullEvasionCritReady) {
+                hitCrit = true;
+                passiveGuaranteedCrit = true;
+                game.passiveFullEvasionCritReady = false;
+            }
             if (!hitCrit && typeof getTalentBrittleCritRetryChance === 'function' && hasTalentEnemyAilment(targetEnemy, 'brittle')) {
                 hitCrit = Math.random() < getTalentBrittleCritRetryChance(pStats.crit);
             }
@@ -9693,7 +10089,12 @@ function performPlayerAttack(pStats, attackOptions) {
             } else {
                 hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
             }
-            if (hitCrit && !guaranteedCrit && (targetEnemy.critResistPct || 0) > 0 && Math.random() * 100 < Math.max(0, Math.min(95, targetEnemy.critResistPct || 0))) {
+            if (pStats.passiveKeystoneFlags && (pStats.passiveKeystoneFlags.explosiveDistill
+                || pStats.passiveKeystoneFlags.taintedWarhead)) {
+                hitCrit = false;
+                hitBaseDamage = pStats.baseDmg;
+            }
+            if (hitCrit && !guaranteedCrit && !passiveGuaranteedCrit && (targetEnemy.critResistPct || 0) > 0 && Math.random() * 100 < Math.max(0, Math.min(95, targetEnemy.critResistPct || 0))) {
                 hitCrit = false;
                 hitBaseDamage = pStats.baseDmg;
             }
@@ -9760,6 +10161,7 @@ function performPlayerAttack(pStats, attackOptions) {
             }
             if (typeof getTalentButcherBossMultiplier === 'function') talentKeystoneMul *= getTalentButcherBossMultiplier(targetEnemy);
             let talentHitMul = talentAttackMul * talentKeystoneMul * (colosseumStrikeMul || 1);
+            talentHitMul *= getPassiveKeystoneHitMultiplier(pStats, targetEnemy, hitIdx, targetIndex, skillName);
             hitBaseDamage = Math.floor(hitBaseDamage * talentHitMul);
             ailmentBaseDamage = Math.floor(ailmentBaseDamage * talentHitMul);
             if (pStats.cosmosOrbitCycle && targetEnemy) {
@@ -9802,6 +10204,11 @@ function performPlayerAttack(pStats, attackOptions) {
                 let chaosMultiplier = Math.max(0, Number(pStats.chaosDamageMultiplier) || 1);
                 dmg = Math.floor(dmg * chaosMultiplier);
                 ailmentSourceDamage = Math.floor(ailmentSourceDamage * chaosMultiplier);
+            } else if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.blackDistill
+                && ['fire', 'cold', 'light'].includes(hitElement)) {
+                let convertedMultiplier = 0.5 + Math.max(0, Number(pStats.chaosDamageMultiplier) || 1) * 0.5;
+                dmg = Math.floor(dmg * convertedMultiplier);
+                ailmentSourceDamage = Math.floor(ailmentSourceDamage * convertedMultiplier);
             }
             let cosmosFirstHitRoll = pStats.cosmosAlwaysFirstHit || ((pStats.cosmosAlwaysFirstHitChancePct || 0) > 0 && Math.random() * 100 < (pStats.cosmosAlwaysFirstHitChancePct || 0));
             if ((pStats.firstHitDamageMorePct || 0) > 0 && (cosmosFirstHitRoll || !targetEnemy.firstHitConsumed)) {
@@ -9836,7 +10243,7 @@ function performPlayerAttack(pStats, attackOptions) {
             if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg = Math.floor(dmg * Math.max(1, pStats.uniqueDoubleDamageMultiplier || 2));
             let enemyTotalEvadeChance = getEnemyTotalEvadeChance(targetEnemy, pStats.accuracy);
             let rangerGuaranteedHit = typeof isTalentRangerGuaranteedTarget === 'function' && isTalentRangerGuaranteedTarget(targetEnemy);
-            if (!rangerGuaranteedHit && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit())
+            if (!rangerGuaranteedHit && !pStats.passiveAlwaysHit && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit())
                 && resolveEntropyEvasion(targetEnemy, enemyTotalEvadeChance, Date.now())) {
                 addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: '회피!', color: '#9fb4c8', duration: 260 });
                 addEvasionCombatLog(targetEnemy, false);
@@ -9851,6 +10258,9 @@ function performPlayerAttack(pStats, attackOptions) {
             ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(addEle => {
                 let addPct = Math.max(0, Number(addedDamagePctByElement[addEle] || 0)
                     + Number(talentConversion.added && talentConversion.added[addEle] || 0));
+                if (hitElement === 'phys' && addEle === 'fire') {
+                    addPct += Math.max(0, Number(pStats.passiveCycleAddedFireFromPhysicalPct) || 0);
+                }
                 let rawAdded = Math.floor(damageBeforeMitigation * addPct / 100);
                 if (rawAdded <= 0) return;
                 let addRes = getEffectiveEnemyMitigation(addEle, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
@@ -9981,6 +10391,14 @@ function performPlayerAttack(pStats, attackOptions) {
             let finalDamageMul = Math.max(0, Number(pStats.finalDamageMultiplier) || 1);
             dmg = Math.floor(dmg * finalDamageMul);
             ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * finalDamageMul);
+            if (passiveKarmaContext && String(passiveKarmaContext.targetId) === String(targetEnemy.id)) {
+                let karmaMul = Math.max(1, Number(passiveKarmaContext.multiplier) || 1);
+                dmg = Math.floor(dmg * karmaMul);
+                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * karmaMul);
+            }
+            if ((pStats.passiveOmniscientTrueDamagePct || 0) > 0) {
+                dmg += Math.floor(Math.max(0, Number(pStats.baseDmg) || 0) * pStats.passiveOmniscientTrueDamagePct / 100);
+            }
             if (!Number.isFinite(dmg) || dmg < 0) dmg = 0;
             if (game.ascendClass === 'hunter' && hasKeystone('h2') && targetEnemy) {
                 targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
@@ -10293,11 +10711,14 @@ function performPlayerAttack(pStats, attackOptions) {
     let instantLeechRecovered = 0;
     let playerLeechTarget = (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0)
         ? 'energyShield' : 'life';
+    let soulSanctuaryLeech = pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soulSanctuary;
+    let soulSanctuarySpell = soulSanctuaryLeech && (pStats.sSkill.tags || []).includes('spell');
+    if (soulSanctuarySpell) playerLeechTarget = 'energyShield';
     if (typeof getTalentPlayerLeechTarget === 'function') playerLeechTarget = getTalentPlayerLeechTarget(playerLeechTarget);
     if ((pStats.uniqueChaosDamageInstantLeechPct || 0) > 0 && totalChaosDamage > 0) {
         instantLeechRecovered += applyInstantPlayerLeech(totalChaosDamage * Math.max(0, Number(pStats.uniqueChaosDamageInstantLeechPct) || 0) / 100, pStats, playerLeechTarget);
     }
-    if (pStats.leech > 0 && totalLeechableDamage > 0) {
+    if (pStats.leech > 0 && totalLeechableDamage > 0 && (!soulSanctuaryLeech || soulSanctuarySpell)) {
         let leechAmount = (totalLeechableDamage * (pStats.leech / 100));
         if ((pStats.uniqueInstantLeechPct || 0) > 0) instantLeechRecovered += applyInstantPlayerLeech(leechAmount * ((pStats.uniqueInstantLeechPct || 0) / 100), pStats, playerLeechTarget);
         if (pStats.sSkill && pStats.sSkill.instantLeech) instantLeechRecovered += applyInstantPlayerLeech(leechAmount, pStats, playerLeechTarget);
@@ -10433,6 +10854,15 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         game.runProgress = 0;
         game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getDefeatRecoveryZoneId();
         game.killsInZone = 0;
+    } else if (zone && zone.type === 'beyondBoundary') {
+        let returnZoneId = abandonBeyondBoundaryRun(game);
+        addLog(message || '경계 너머 도전에 실패했습니다. 진행 중이던 단계가 종료됩니다.', 'death', { noToast: !!opts.noToast });
+        game.currentZoneId = returnZoneId !== null && returnZoneId !== undefined ? returnZoneId : getDefeatRecoveryZoneId();
+        game.killsInZone = 0;
+        game.enemies = [];
+        game.encounterPlan = [];
+        game.encounterIndex = 0;
+        game.runProgress = 0;
     } else if (zone && zone.type === 'meteor') {
         addLog(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
         let st = ensureStarWedgeState();
@@ -10552,12 +10982,14 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, opti
         }
         game.playerAilments.push(row);
     }
+    if (typeof recordPassiveCycleAilmentStart === 'function') recordPassiveCycleAilmentStart(type, pStats.cycle, Date.now());
 }
 
 function tickAilments(pStats, dt) {
     game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
     let next = [];
     game.playerAilments.forEach(ail => {
+        let previousTime = Math.max(0, Number(ail.time) || 0);
         ail.time = Math.max(0, (ail.time || 0) - dt);
         let power = Math.max(0.1, ail.power || 0.1);
         if (ail.type === 'ignite') {
@@ -10618,6 +11050,9 @@ function tickAilments(pStats, dt) {
             // freeze duration only
         }
         if (ail.time > 0) next.push(ail);
+        else if (previousTime > 0 && typeof recordPassiveCycleAilmentEnd === 'function') {
+            recordPassiveCycleAilmentEnd(ail.type, pStats && pStats.cycle, Date.now());
+        }
     });
     game.playerAilments = next;
 }
@@ -10678,10 +11113,10 @@ function getEnemyPreferredGridTarget(enemy) {
     let player = game.gridPlayer;
     if (Number.isFinite(enemy.colonyDist) || !hasGridCell(enemy) || !hasGridCell(player)) return player;
     let bestTarget = player;
-    let bestDistance = gridChebyshevDist(enemy.gx, enemy.gy, player.gx, player.gy);
+    let bestDistance = getGridUnitDistance(enemy, player);
     (game.summons || []).forEach(summon => {
         if (!summon || summon.isGhost || !summon.alive || summon.hp <= 0 || !hasGridCell(summon)) return;
-        let distance = gridChebyshevDist(enemy.gx, enemy.gy, summon.gx, summon.gy);
+        let distance = getGridUnitDistance(enemy, summon);
         if (distance >= bestDistance) return;
         bestTarget = summon;
         bestDistance = distance;
@@ -10697,7 +11132,7 @@ function isEnemyInGridAttackRange(enemy, target) {
     target = target || game.gridPlayer;
     if (!hasGridCell(enemy) || !hasGridCell(target)) return true;
     let range = Number.isFinite(enemy.attackRange) ? enemy.attackRange : COMBAT_GRID_CONFIG.bossAttackRange;
-    return gridChebyshevDist(enemy.gx, enemy.gy, target.gx, target.gy) <= range;
+    return getGridUnitDistance(enemy, target) <= range;
 }
 
 /** 사거리 밖의 적을 선택한 목표 쪽으로 한 칸씩 접근시킨다. slowPct(0~1)만큼 이동 주기가 길어진다. */
@@ -10721,8 +11156,8 @@ function getSummonRespawnAt(summon, shortened) {
 function getClosestLivingSummonToPlayer() {
     let player = game.gridPlayer;
     return (game.summons || []).filter(summon => summon && !summon.isGhost && summon.alive && summon.hp > 0).sort((a, b) => {
-        let aDist = hasGridCell(player) && hasGridCell(a) ? gridChebyshevDist(player.gx, player.gy, a.gx, a.gy) : Infinity;
-        let bDist = hasGridCell(player) && hasGridCell(b) ? gridChebyshevDist(player.gx, player.gy, b.gx, b.gy) : Infinity;
+        let aDist = hasGridCell(player) && hasGridCell(a) ? getGridUnitDistance(player, a) : Infinity;
+        let bDist = hasGridCell(player) && hasGridCell(b) ? getGridUnitDistance(player, b) : Infinity;
         return aDist - bDist || a.id - b.id;
     })[0] || null;
 }
@@ -10936,6 +11371,9 @@ function performMonsterAttacks(pStats) {
                 let delivery = getEnemyCombatDelivery(enemy, bossPattern);
                 if (delivery !== 'instantTarget' && queueEnemyCombatAttack(enemy, attackTarget, bossPattern, delivery)) break;
             } else pendingAttack = null;
+            if (attackTarget === game.gridPlayer) {
+                addBattleFx('enemyAttack', { enemyId: enemy.id, duration: 220 });
+            }
             if (attackTarget === game.gridPlayer && Date.now() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) {
                 addBattleFx('statusText', { text: '균열 장막', color: '#c49bff', duration: 220 });
                 continue;
@@ -11078,6 +11516,9 @@ function performMonsterAttacks(pStats) {
                 allFlatLess -= spend;
                 damageBreakdown = damageBreakdown.filter(row => row && row.amount > 0);
             }
+            if (pStats.passiveAshura && typeof applyPassiveAshuraDamageBreakdown === 'function') {
+                damageBreakdown = applyPassiveAshuraDamageBreakdown(damageBreakdown, game.playerAilments, pStats.cycle);
+            }
             if (damageBreakdown.length === 0) damageBreakdown.push({ ele: enemy.ele === 'phys' ? 'phys' : enemy.ele, amount: 1 });
             let sumBreakdown = () => damageBreakdown.reduce((sum, row) => sum + Math.max(0, Math.floor(row.amount || 0)), 0);
             let scaleBreakdown = (mul) => {
@@ -11161,12 +11602,15 @@ function performMonsterAttacks(pStats) {
                 addBattleFx('statusText', { text: '회피!', color: '#9fb4c8', duration: 260, bodyCue: true });
                 addEvasionCombatLog(null, true);
                 recordPlayerEvadeUniqueEffects(pStats, aliveEnemies, Date.now());
+                if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.fullEvasion) {
+                    game.passiveFullEvasionCritReady = true;
+                }
                 if (game.ascendClass === 'catalyst' && hasKeystone('ct4')) game.catalystEvadeBoostReady = true;
                 // 7 에이기스: 회피 성공 → 다음 공격 막기 확률 +5%p
                 if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian')) { game.talentRuntime = game.talentRuntime || {}; game.talentRuntime.aegisBlockBonus = 5; }
                 continue;
             }
-            let blockRollCap = Math.max(50, Math.min(75, Number(pStats.blockChanceMax || 50)));
+            let blockRollCap = Math.max(0, Math.min(75, Number(pStats.blockChanceMax || 50)));
             // 7 에이기스: 직전 회피 성공 시 이번 막기 확률 +5%p
             let aegisBlockBonus = 0;
             if (typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__guardian') && game.talentRuntime && game.talentRuntime.aegisBlockBonus) { aegisBlockBonus = game.talentRuntime.aegisBlockBonus; game.talentRuntime.aegisBlockBonus = 0; }
@@ -11231,8 +11675,13 @@ function performMonsterAttacks(pStats) {
             }
             let ailRoll = Math.random();
             if (game.ascendClass === 'hunter' && hasKeystone('h3')) ailRoll = Math.max(ailRoll, Math.random());
-            if ((enemy.ailmentChance || 0) > 0 && ailRoll < enemy.ailmentChance) {
-                let ail = enemy.ele === 'fire' ? 'ignite' : enemy.ele === 'cold' ? 'chill' : enemy.ele === 'light' ? 'shock' : 'poison';
+            let enemyAilmentChance = Math.max(0, Number(enemy.ailmentChance) || 0);
+            if (pStats.passiveAshura && typeof getPassiveAshuraAilmentChance === 'function') {
+                enemyAilmentChance = getPassiveAshuraAilmentChance(enemyAilmentChance, pStats.cycle);
+            }
+            if (enemyAilmentChance > 0 && ailRoll < enemyAilmentChance) {
+                let ail = enemy.ele === 'fire' ? 'ignite' : enemy.ele === 'cold' ? 'chill'
+                    : enemy.ele === 'light' ? 'shock' : enemy.ele === 'phys' ? 'bleed' : 'poison';
                 let hitRatio = Math.max(0.001, Math.min(0.35, dmg / Math.max(1, pStats.maxHp || 1)));
                 let damageAilment = isDamageAilmentType(ail);
                 let ailPower = damageAilment
@@ -11242,7 +11691,9 @@ function performMonsterAttacks(pStats) {
                     ailmentSourceDamage: ailmentSourceDamageBeforeCrit,
                     critDotBonusPct: enemyCritDotBonusPct
                 });
-                if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각' : ail === 'shock' ? '감전' : '중독'} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster', { element:enemy.ele });
+                let ailmentLabel = ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각'
+                    : ail === 'shock' ? '감전' : ail === 'bleed' ? '출혈' : '중독';
+                if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ailmentLabel} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster', { element:enemy.ele });
             }
 
             grantWarriorRageOnHit(Date.now());
@@ -11300,6 +11751,7 @@ function performMonsterAttacks(pStats) {
                 }
             }
             game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
+            let playerResourceBeforeHit = Math.max(0, Number(game.playerHp) || 0) + game.playerEnergyShield;
             let beforeEsForCr8 = game.playerEnergyShield;
             if (remaining > 0 && game.playerEnergyShield > 0) {
                 let bypass = Math.floor(remaining * Math.max(0, Math.min(100, pStats.cosmosEnergyShieldBypassPct || 0)) / 100);
@@ -11330,6 +11782,11 @@ function performMonsterAttacks(pStats) {
                 addBattleFx('statusText', { text: '죽음 저항!', color: '#d7b8ff', duration: 420 });
             }
             game.playerHp = nextPlayerHp;
+            if (typeof recordPassiveKarmaLoss === 'function') {
+                let playerResourceAfterHit = Math.max(0, Number(game.playerHp) || 0)
+                    + Math.max(0, Number(game.playerEnergyShield) || 0);
+                recordPassiveKarmaLoss(enemy, Math.max(0, playerResourceBeforeHit - playerResourceAfterHit));
+            }
             if (remaining > 0 && typeof addTalentMossBarkRecovery === 'function') addTalentMossBarkRecovery(remaining, Date.now());
             trackHiddenJournalPlayerDamage(remaining);
             if (remaining > 0 && pStats.uniqueLifeRecoupTakenDamage) {
@@ -11398,10 +11855,11 @@ function performMonsterAttacks(pStats) {
 
 function calculateTrialTrapDamage(zone, pStats, trapElement) {
     let resistanceKey = { fire: 'resF', cold: 'resC', light: 'resL', chaos: 'resChaos' }[trapElement];
-    let mitigation = trapElement === 'phys' ? (Number(pStats.dr) || 0) * 0.45 : (Number(pStats[resistanceKey]) || 0);
     let baseDamage = (pStats.maxHp * (0.035 + zone.tier * 0.005)) + 10 + zone.tier * 3;
     let damageMultiplier = Math.max(0.1, Number(zone.trapDamageMul) || 1);
     let scaledDamage = Math.floor(baseDamage * damageMultiplier);
+    let physicalMitigation = (Number(pStats.dr) || 0) + getArmorPhysicalReductionPct(pStats.armor, scaledDamage);
+    let mitigation = trapElement === 'phys' ? physicalMitigation : (Number(pStats[resistanceKey]) || 0);
     return Math.max(10, Math.floor(scaledDamage * (1 - Math.max(-60, Math.min(85, mitigation)) / 100)));
 }
 
@@ -11412,22 +11870,108 @@ function getBloomTrialRegenSuppressNext(zone, currentSuppress) {
     return Math.min(cap, Math.max(0, Number(currentSuppress) || 0) + gain);
 }
 
-function applyTrialTrapTick(pStats) {
-    let zone = getZone(game.currentZoneId);
-    if (!zone || zone.type !== 'trial' || game.moveTimer > 0) return;
-    if (game.runProgress >= 100 && game.encounterIndex >= (game.encounterPlan || []).length && (game.enemies || []).length === 0) return;
-    trialHazardTimer -= 0.1;
-    if (trialHazardTimer > 0) return;
-    trialHazardTimer = Math.max(2.2, 4.2 - zone.tier * 0.12) + Math.random() * 1.4;
-    if (Date.now() < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0)) {
-        addBattleFx('trialTrap', { color: '#c49bff', duration: 360 });
-        addBattleFx('statusText', { text: '균열 장막', color: '#c49bff', duration: 260 });
-        return;
+function buildTrialHazardCells(zone, origin, sequence) {
+    let columns = COMBAT_GRID_CONFIG.columns;
+    let rows = COMBAT_GRID_CONFIG.rows;
+    let profile = getTrialHazardProfile(zone);
+    let cells = [], seen = new Set();
+    let push = (gx, gy) => {
+        let key = gridCellKey(gx, gy);
+        if (!isGridCellInBounds(gx, gy) || seen.has(key)) return;
+        seen.add(key);
+        cells.push({ gx, gy });
+    };
+    let horizontal = sequence % 2 === 0;
+    if (profile.pattern === 'line' || profile.pattern === 'doubleLine') {
+        let adjacent = horizontal
+            ? (origin.gy < rows - 1 ? origin.gy + 1 : origin.gy - 1)
+            : (origin.gx < columns - 1 ? origin.gx + 1 : origin.gx - 1);
+        let length = horizontal ? columns : rows;
+        for (let index = 0; index < length; index++) {
+            if (horizontal) {
+                push(index, origin.gy);
+                if (profile.pattern === 'doubleLine') push(index, adjacent);
+            } else {
+                push(origin.gx, index);
+                if (profile.pattern === 'doubleLine') push(adjacent, index);
+            }
+        }
+    } else if (profile.pattern === 'cross') {
+        for (let gx = 0; gx < columns; gx++) push(gx, origin.gy);
+        for (let gy = 0; gy < rows; gy++) push(origin.gx, gy);
+    } else {
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                if (profile.pattern === 'pool' && Math.abs(dx) + Math.abs(dy) > 1) continue;
+                push(origin.gx + dx, origin.gy + dy);
+            }
+        }
     }
-    let trapElements = Array.isArray(zone.trapElements) && zone.trapElements.length > 0 ? zone.trapElements : ['phys'];
-    let trapElement = trapElements[Math.max(0, Math.floor(game.trialHazardIndex || 0)) % trapElements.length];
-    game.trialHazardIndex = Math.max(0, Math.floor(game.trialHazardIndex || 0)) + 1;
-    let trapDamage = calculateTrialTrapDamage(zone, pStats, trapElement);
+    return cells;
+}
+
+function getTrialHazardAvoidThreshold(profile) {
+    let mode = game.settings && game.settings.combatPositionMode;
+    let baseThreshold = mode === 'keepRange' ? 0.1 : (mode === 'pressure' ? 0.32 : 0.18);
+    return baseThreshold * profile.avoidThresholdMul;
+}
+
+function shouldAvoidTrialHazard(zone, pStats, hazard) {
+    let predictedDamage = applyTalentIncomingDamageMultiplier(
+        calculateTrialTrapDamage(zone, pStats, hazard.element),
+        pStats
+    );
+    let currentPool = Math.max(1, (Number(game.playerHp) || 0) + (Number(game.playerEnergyShield) || 0));
+    return predictedDamage >= currentPool || predictedDamage / currentPool >= hazard.avoidThreshold;
+}
+
+function createTrialHazard(zone, pStats, now) {
+    let index = Math.max(0, Math.floor(game.trialHazardIndex || 0));
+    let elements = Array.isArray(zone.trapElements) && zone.trapElements.length > 0 ? zone.trapElements : ['phys'];
+    let element = elements[index % elements.length];
+    let profile = getTrialHazardProfile(zone);
+    let cells = buildTrialHazardCells(zone, game.gridPlayer, index);
+    game.trialHazardIndex = index + 1;
+    let color = { phys: '#ffd36b', fire: '#ff754f', cold: '#86dcff', light: '#e5d35b', chaos: '#c47cff' }[element] || '#ffd36b';
+    addBattleFx('trialTrapWarning', { targetCells: cells, color, element, duration: profile.warningMs });
+    let hazard = {
+        cells,
+        element,
+        color,
+        impactAt: now + profile.warningMs,
+        intervalMs: profile.intervalMs,
+        avoidThreshold: getTrialHazardAvoidThreshold(profile),
+        shouldAvoid: false
+    };
+    hazard.shouldAvoid = shouldAvoidTrialHazard(zone, pStats, hazard);
+    return hazard;
+}
+
+function isPlayerInsideTrialHazard(hazard) {
+    if (!hazard || !hasGridCell(game.gridPlayer)) return false;
+    let playerKey = gridCellKey(game.gridPlayer.gx, game.gridPlayer.gy);
+    return hazard.cells.some(cell => gridCellKey(cell.gx, cell.gy) === playerKey);
+}
+
+function isTrialHazardPositionHeld() {
+    let hazard = trialHazardRuntime.active;
+    return !!(hazard && hazard.shouldAvoid && Date.now() < hazard.impactAt && !isPlayerInsideTrialHazard(hazard));
+}
+
+function updateTrialHazardEscape(hazard, pStats, now) {
+    if (!hazard.shouldAvoid || !isPlayerInsideTrialHazard(hazard)) return false;
+    let moveSpeed = Number.isFinite(pStats.moveSpeed) && pStats.moveSpeed > 0 ? pStats.moveSpeed : 100;
+    let interval = COMBAT_GRID_CONFIG.playerMoveIntervalSec * (100 / moveSpeed);
+    let result = advanceGridHazardEscape(game.gridPlayer, hazard.cells, 0.1, interval);
+    if (result.blocked || !result.moved) return true;
+    cancelCombatChannel('함정 회피');
+    let attackDelayMs = getTacticalMoveAttackDelayMs(moveSpeed);
+    combatTacticsRuntime.attackDelayUntil = Math.max(combatTacticsRuntime.attackDelayUntil, now + attackDelayMs);
+    addBattleFx('playerMobility', { fromCell: result.from, toCell: result.to, duration: 240 });
+    return true;
+}
+
+function dealTrialTrapDamage(zone, pStats, hazard, trapDamage) {
     let remaining = applyTalentIncomingDamageMultiplier(trapDamage, pStats);
     game.playerEnergyShield = Math.max(0, Math.floor(Number(game.playerEnergyShield) || 0));
     let energyShieldBeforeTrap = game.playerEnergyShield;
@@ -11441,36 +11985,77 @@ function applyTrialTrapTick(pStats) {
     if (remaining > 0) remaining = absorbDamageWithRealmDeathWard(remaining, pStats);
     game.playerHp = Math.floor(game.playerHp - remaining);
     game.playerEsLastHitAt = Date.now();
-    recordIncomingDamage(trapElement, trapDamage, '시련 함정');
-    let trapColor = { phys: '#ffd36b', fire: '#ff754f', cold: '#86dcff', light: '#e5d35b', chaos: '#c47cff' }[trapElement] || '#ffd36b';
-    addBattleFx('trialTrap', { color: trapColor, duration: 460 });
+    recordIncomingDamage(hazard.element, trapDamage, '시련 함정');
     if (zone.bloomTrial && (zone.trapRegenSuppressPct || 0) > 0) {
         game.bloomTrialRegenSuppress = getBloomTrialRegenSuppressNext(zone, game.bloomTrialRegenSuppress);
-        addLog(`❄️ 혹독한 한기: 생명력 재생 억제 ${Math.round((game.bloomTrialRegenSuppress || 0) * 100)}%`, 'attack-monster', { noToast: true });
+        addLog(`혹독한 한기: 생명력 재생 억제 ${Math.round((game.bloomTrialRegenSuppress || 0) * 100)}%`, 'attack-monster', { noToast: true });
     }
-    addLog(`⚠️ 시련 함정 발동 [${getDamageElementLabel(trapElement)}] (${trapDamage} 피해)`, 'attack-monster', { noToast:true, element:trapElement });
+    addLog(`시련 함정 발동 [${getDamageElementLabel(hazard.element)}] (${trapDamage} 피해)`, 'attack-monster', { noToast:true, element:hazard.element });
     if (game.playerHp <= 0) {
-        handlePlayerDefeat(zone, pStats, "☠️ 시련 함정에 쓰러졌습니다. 마을로 귀환합니다.", { fatalElement: trapElement, sourceName: '시련 함정', noToast: true });
+        handlePlayerDefeat(zone, pStats, '시련 함정에 쓰러졌습니다. 마을로 귀환합니다.', { fatalElement: hazard.element, sourceName: '시련 함정', noToast: true });
     }
 }
 
-function applyLoopHeroSelection(heroId, previousHeroId) {
+function resolveTrialHazardImpact(zone, pStats, hazard, now) {
+    let playerHit = isPlayerInsideTrialHazard(hazard);
+    let barrierActive = playerHit && now < Math.max(0, Number(game.realmInvulnerableBarrierUntil) || 0);
+    addBattleFx('trialTrap', {
+        targetCells: hazard.cells,
+        color: barrierActive ? '#c49bff' : hazard.color,
+        element: hazard.element,
+        duration: 520
+    });
+    if (!playerHit) {
+        addBattleFx('statusText', { text: '함정 회피', color: '#b8f5c4', duration: 360 });
+    } else if (barrierActive) {
+        addBattleFx('statusText', { text: '균열 장막', color: '#c49bff', duration: 260 });
+    } else {
+        dealTrialTrapDamage(zone, pStats, hazard, calculateTrialTrapDamage(zone, pStats, hazard.element));
+    }
+    trialHazardRuntime = { nextAt: now + hazard.intervalMs, active: null };
+}
+
+function applyTrialTrapTick(pStats) {
+    let zone = getZone(game.currentZoneId);
+    if (!zone || zone.type !== 'trial' || game.moveTimer > 0) return false;
+    let now = Date.now();
+    if (!(game.enemies || []).some(enemy => enemy && enemy.hp > 0)) {
+        trialHazardRuntime.active = null;
+        trialHazardRuntime.nextAt = Math.max(trialHazardRuntime.nextAt, now + 500);
+        return false;
+    }
+    if (!trialHazardRuntime.nextAt) trialHazardRuntime.nextAt = now + getTrialHazardProfile(zone).initialDelayMs;
+    if (!trialHazardRuntime.active && now >= trialHazardRuntime.nextAt) {
+        trialHazardRuntime.active = createTrialHazard(zone, pStats, now);
+        if (!trialHazardRuntime.active) trialHazardRuntime.nextAt = now + 800;
+    }
+    let hazard = trialHazardRuntime.active;
+    if (!hazard) return false;
+    if (!hazard.shouldAvoid) hazard.shouldAvoid = shouldAvoidTrialHazard(zone, pStats, hazard);
+    if (now >= hazard.impactAt) {
+        resolveTrialHazardImpact(zone, pStats, hazard, now);
+        return false;
+    }
+    return updateTrialHazardEscape(hazard, pStats, now);
+}
+
+function applyLoopHeroSelection(classId, previousClassId) {
     game.pendingLoopHeroSelection = false;
     saveGame({ skipCloudSync: true });
-    if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 캐릭터 선택 완료');
+    if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 직업 선택 완료');
     startMoving(true);
     dispatchRuntimeEvent('loop-hero-selection-completed', {
-        heroId,
-        changed: heroId !== previousHeroId
+        classId,
+        changed: classId !== previousClassId
     });
 }
 
 function requestLoopHeroSelection(options = {}) {
-    let previousHeroId = game.selectedHeroId || 'hero1';
+    let previousClassId = game.selectedClassId || 'archer';
     let detail = {
         handled: false,
         options,
-        select: heroId => applyLoopHeroSelection(heroId, previousHeroId)
+        select: classId => applyLoopHeroSelection(classId, previousClassId)
     };
     return dispatchRuntimeEvent('loop-hero-selection-requested', detail);
 }
@@ -11479,8 +12064,8 @@ function ensurePendingLoopHeroSelectionPrompt() {
     if (!game || !game.pendingLoopHeroSelection) return false;
     return requestLoopHeroSelection({
         kicker: 'Loop Resume',
-        title: '중단된 루프의 재능 선택',
-        body: '저장된 루프 진행을 이어가기 전에 이번 루프 재능을 선택하세요.'
+        title: '중단된 루프의 직업 선택',
+        body: '저장된 루프 진행을 이어가기 전에 이번 루프 직업을 선택하세요.'
     });
 }
 
@@ -11690,7 +12275,7 @@ function triggerSeasonReset(options) {
     game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
     game.seasonPoints++;
     addLog(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? ` (우주계 난이도 +${Math.max(0, Math.floor(game.cosmosLoopCount || 0))}단계)` : ''}`, 'season-up');
-    if (game.loopCount === 2 && typeof queueTutorialNotice === 'function') {
+    if (game.season === 2 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_spore_crafting', '홀씨 제작 해금', '루프 2 달성! 이제 액트/혼돈 몬스터가 화염/냉기/번개 홀씨를 떨어뜨립니다.\n제작 탭에서 오브 사용 시 홀씨 태그를 지정할 수 있습니다.', 'tab-items');
     }
     if (game.season === 13 && typeof queueTutorialNotice === 'function') {
@@ -11723,7 +12308,7 @@ function triggerSeasonReset(options) {
     }
     game.combatHalted = false;
     game.passivePoints = typeof getClaimedJournalPassivePointTotal === 'function' ? getClaimedJournalPassivePointTotal(game) : 0;
-    game.passives = ['n0'];
+    game.passives = [];
     game.passiveAttributeChoices = {};
     game.voidPassives = {};
     game.skills = ['기본 공격'];
@@ -11761,6 +12346,8 @@ function triggerSeasonReset(options) {
     game.ascendClass = null;
     game.bloomLoopSpecGranted = null;
     game.bloomedClassThisLoop = null;
+    game.bloomedTalentThisLoop = null;
+    game.pendingTalentBloomHeroId = null;
     game.inventory = [];
     game.equipment = { ...defaultGame.equipment };
     game.currencies = { ...defaultGame.currencies };
@@ -11791,8 +12378,6 @@ function triggerSeasonReset(options) {
     game.talismanSelectedId = null;
     game.talismanUnseal = null;
     game.talismanUnlockPickMode = false;
-    game.abyssPassivePoints = 0;
-    game.abyssPassives = { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 };
     game.abyssClearedDepths = [];
     game.claimableActRewards = [];
     game.claimedActRewards = [];
@@ -11922,4 +12507,4 @@ safeExposeGlobals({ estimateMapZonePowerRequirements });
 
 safeExposeGlobals({ getEffectivePlayerConditionBuffs });
 
-safeExposeGlobals({ isPlayerWalkingForAnimation, getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, resetCombatChannelRuntime, updateCombatChannelRuntime, cancelCombatChannel, applySkillMobilityBeforeAttack, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });
+safeExposeGlobals({ getPlayerStats, getGemPresentation, getConditionGemStatDelta, isCrowdProgressPaused, ensureSummonRuntime, getSummonCapMaximum, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps, enterWoodsmanEchoChallenge, getSkillTargets, updatePlayerGridEngagement, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, resetCombatChannelRuntime, updateCombatChannelRuntime, cancelCombatChannel, applySkillMobilityBeforeAttack, createEnemy, generateEncounterPlan, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress, getEnemyExperienceReward, grantExpAndGem, rollLootForEnemy, handleEnemyDeath, finishEncounterRun, performPlayerAttack, handlePlayerDefeat, applyPlayerAilment, tickAilments, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, performMonsterAttacks, applyTrialTrapTick, ensurePendingLoopHeroSelectionPrompt, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman, getFlaskProgressionTier, getFlaskCraftCost, getFlaskDiscoveryTierMultiplier, getFlaskQuality, getFlaskQualityUpgradeCost, getFlaskEffectiveHealPct, getFlaskEffectiveDurationMs, upgradeFlaskQuality, craftFlask, isDamageAilmentType, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getStoredAilmentHitDamage, getDamageAilmentBaseDpsFromHit, getEnemyDamageAilmentDps, getPlayerDamageAilmentDps, getPlayerDamageAilmentFallbackDps, getUniqueEffectImplementationReport, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });
