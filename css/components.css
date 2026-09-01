@@ -10,7 +10,9 @@
         .startup-wordmark-accent { background: linear-gradient(90deg, #f5f8fb 0%, #9fd4ff 46%, #f1c46b 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
         .startup-wordmark-bar { width: 112px; height: 3px; border-radius: 999px; background: linear-gradient(90deg, rgba(127,201,255,0.95), rgba(241,196,108,0.82)); box-shadow: 0 0 16px rgba(127,201,255,0.18); }
         .startup-summary-card { margin-top: 8px; padding: 13px 14px; border-radius: 16px; border: 1px solid #233649; background: rgba(9, 14, 21, 0.76); display: grid; gap: 10px; }
+        .startup-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .startup-summary-title { color: #f1c46b; font-weight: bold; font-size: 0.88em; }
+        .startup-patch-note-link { min-height: 0; margin: 0; padding: 4px 7px; font-size: 0.72rem; }
         .startup-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
         .startup-summary-item { min-height: 84px; padding: 12px 14px; border-radius: 12px; background: rgba(16, 23, 31, 0.95); border: 1px solid #1c2f43; }
         .startup-summary-label { color: var(--copy-muted); font-size: 0.74em; text-transform: uppercase; letter-spacing: 0.08em; }
