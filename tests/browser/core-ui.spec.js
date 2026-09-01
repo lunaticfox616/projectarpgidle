@@ -49,6 +49,17 @@ test('entry screen establishes the reliquary palette without horizontal overflow
     await page.route('https://**', route => route.fulfill({ status: 204, contentType: 'text/javascript', body: '' }));
     await page.goto('/');
     await expect(page.locator('#startup-overlay')).toHaveClass(/active/);
+    const signupConsent = page.locator('#startup-signup-consent');
+    await expect(signupConsent).toBeHidden();
+    await page.locator('#btn-startup-signup').click();
+    await expect(signupConsent).toBeVisible();
+    await expect(page.locator('#btn-startup-signup')).toHaveText('동의하고 회원가입');
+    const policyScroll = page.locator('.startup-policy-scroll');
+    await expect(policyScroll.getByText('이용약관', { exact: true })).toBeVisible();
+    await expect(policyScroll.getByText('개인정보 수집·이용', { exact: true })).toBeVisible();
+    expect(await policyScroll.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true);
+    await page.locator('#btn-startup-login').click();
+    await expect(signupConsent).toBeHidden();
     const result = await page.evaluate(() => {
         const values = ['.startup-auth-kicker', '#startup-email', '.startup-status'].flatMap(selector => {
             const style = getComputedStyle(document.querySelector(selector));

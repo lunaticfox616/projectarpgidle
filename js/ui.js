@@ -14934,6 +14934,7 @@ async function finishLoadingOverlay() {
 }
 
 function openStartupGate(options = {}) {
+    setStartupRegistrationMode(false);
     if (options.accountOnly && cloudState.user) setCloudMessage('계정 화면을 열었습니다. 다른 계정을 쓰려면 "다른 계정 사용"을 눌러주세요.');
     else if (options.accountOnly && !cloudState.user) setCloudMessage('계정 화면을 열었습니다. 로그인하거나 회원가입할 수 있습니다.');
     else setCloudMessage('시작 화면을 다시 열었습니다.');
@@ -15119,7 +15120,7 @@ function sanitizeKakaoScopeInUrl(rawUrl) {
 }
 
 async function loginWithOAuthProvider(provider) {
-    if (!requireLegalPolicyConsent()) return;
+    setStartupRegistrationMode(false);
     let client = getSupabaseClient();
     if (!client) return setCloudMessage('OAuth 클라이언트를 초기화하지 못했습니다.');
     if (cloudState.busy) return;
@@ -15442,8 +15443,17 @@ function hasAcceptedRequiredLegalPolicies() {
 
 function requireLegalPolicyConsent() {
     if (hasAcceptedRequiredLegalPolicies()) return true;
-    setCloudMessage('회원가입 또는 소셜 로그인을 이용하려면 필수 약관 두 항목에 동의해주세요.');
+    setCloudMessage('회원가입하려면 필수 약관 두 항목에 동의해주세요.');
     return false;
+}
+
+function setStartupRegistrationMode(active) {
+    let consent = document.getElementById('startup-signup-consent');
+    let signupBtn = document.getElementById('btn-startup-signup');
+    if (consent) consent.hidden = !active;
+    if (!signupBtn) return;
+    signupBtn.innerText = active ? '동의하고 회원가입' : '회원가입 후 시작';
+    signupBtn.setAttribute('aria-expanded', String(active));
 }
 
 function clearCloudPasswordInput() {
@@ -15523,6 +15533,7 @@ async function continueWithCloudSession() {
 }
 
 function prepareStartupAccountSwitch() {
+    setStartupRegistrationMode(false);
     markSkipOAuthRestoreOnce();
     clearSupabasePersistedSession();
     applyCloudSession(null);
@@ -15564,10 +15575,17 @@ async function startGuestMode() {
 }
 
 function startupLogin() {
+    setStartupRegistrationMode(false);
     cloudLogin({ source: 'startup', enterGame: true });
 }
 
 function startupSignUp() {
+    let consent = document.getElementById('startup-signup-consent');
+    if (consent && consent.hidden) {
+        setStartupRegistrationMode(true);
+        setCloudMessage('회원가입을 위해 필수 약관을 확인하고 동의해주세요.');
+        return;
+    }
     if (!requireLegalPolicyConsent()) return;
     cloudSignUp({ source: 'startup', enterGame: true });
 }
