@@ -51,6 +51,16 @@ assert(defenseRows.every(row => runtime.equipmentTriage.getResult(row.item).ehpG
     'survival filter must exclude candidates without an EHP gain');
 const cardHtml = runtime.renderInventoryCard(candidates[0], 0, 'equip', defenseResult);
 assert(cardHtml.includes('생존 +'), 'analyzed cards must expose the result without requiring tooltip hover');
+let recommendedEquip = null;
+runtime.equipItemById = (id, slot) => { recommendedEquip = { id, slot }; return true; };
+runtime.showGameToast = () => {};
+assert.strictEqual(runtime.equipmentTriage.equipRecommended(), true, 'the selected analysis axis must offer one-click replacement');
+assert.deepStrictEqual(recommendedEquip, { id: candidates[0].id, slot: defenseResult.ehpSlot },
+    'the survival recommendation must equip the strongest EHP candidate into its analyzed slot');
+runtime.openAutoSalvageConfigOverlay = () => {};
+vm.runInContext('getInventoryLimit = () => 3', runtime);
+runtime.equipmentTriage.render();
+assert(triageHost.innerHTML.includes('자동 해체 설정'), 'near-full inventory must expose cleanup settings beside analysis');
 
 vm.runInContext('game.inventory[0].locked = true', runtime);
 runtime.equipmentTriage.sync(true);

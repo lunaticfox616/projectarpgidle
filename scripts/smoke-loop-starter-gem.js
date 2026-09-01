@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
 // 루프 첫 처치 시 재능(시작 캐릭터)에 맞는 하위권 화력 스킬 젬을 확정 지급하는 로직 검증.
 // "기본 공격"만 들고 루프를 시작하는 공백을 메우는 기능이며, 이미 실제 스킬을 보유한
@@ -81,5 +82,27 @@ assert.strictEqual(context.getStarterGemTutorialTarget(), null, 'the highlight s
 context.game.activeSkill = '기본 공격';
 context.completeStarterGemTutorial('연속 베기');
 assert.strictEqual(context.game.starterGemTutorialPending, null, 'equipping should complete the inline tutorial state');
+
+// 여섯 직업의 권장 재능으로 시작했을 때 한 직업만 화력 때문에 진행이 막히지 않아야 한다.
+// 흡혈·범위 등 부가 기능의 가치는 허용하되, 20레벨의 순수 시작 화력은 중앙값에서 20% 넘게 이탈하지 않는다.
+const fullRuntime = buildGameRuntime();
+const starterDamageRows = Object.values(fullRuntime.PLAYER_CLASS_DEFS).map(def => {
+    const gemName = fullRuntime.LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId];
+    fullRuntime.game.selectedClassId = def.id;
+    fullRuntime.game.selectedHeroId = def.recommendedTalentHeroId;
+    fullRuntime.game.level = 20;
+    fullRuntime.game.activeSkill = gemName;
+    fullRuntime.game.skills = [gemName];
+    fullRuntime.game.gemData = { [gemName]: { level: 4, exp: 0 } };
+    fullRuntime.game.passives = [];
+    Object.keys(fullRuntime.game.equipment).forEach(slot => { fullRuntime.game.equipment[slot] = null; });
+    return { classId: def.id, dps: fullRuntime.getPlayerStats().dps };
+});
+const sortedStarterDps = starterDamageRows.map(row => row.dps).sort((left, right) => left - right);
+const starterMedian = (sortedStarterDps[2] + sortedStarterDps[3]) / 2;
+starterDamageRows.forEach(row => {
+    assert.ok(row.dps >= starterMedian * 0.8, `${row.classId} 권장 시작 화력이 중앙값보다 20% 넘게 낮습니다.`);
+    assert.ok(row.dps <= starterMedian * 1.25, `${row.classId} 권장 시작 화력이 중앙값보다 25% 넘게 높습니다.`);
+});
 
 console.log('smoke-loop-starter-gem passed');

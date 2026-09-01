@@ -34,7 +34,7 @@
         .hp-bar-fill.enemy { background: linear-gradient(90deg, #ff6b6b 0%, #eb3b5a 55%, #c92c48 100%); }
         .hp-bar-bg .hp-bar-fill.enemy { position: relative; z-index: 1; }
         .hp-bar-fill.enemy-es { position: absolute; left: 0; top: 0; height: 35%; z-index: 3; background: linear-gradient(90deg, #80d7ff, #4da3ff); box-shadow: 0 0 6px rgba(77,163,255,.45); pointer-events: none; }
-        .hp-bar-fill.enemy-damage-ghost { position: absolute; left: 0; top: 0; height: 100%; z-index: 0; background: linear-gradient(90deg, rgba(255, 95, 86, 0.72), rgba(255, 168, 77, 0.62)); box-shadow: inset 0 0 7px rgba(255, 235, 160, 0.25); pointer-events: none; transition: width 0.18s linear; }
+        .hp-bar-fill.enemy-damage-ghost { position: absolute; left: 0; top: 0; height: 100%; z-index: 0; background: linear-gradient(90deg, rgba(255, 95, 86, 0.72), rgba(255, 168, 77, 0.62)); box-shadow: inset 0 0 7px rgba(255, 235, 160, 0.25); pointer-events: none; transition: left 0.16s linear, width 0.18s linear; }
         .hp-bar-fill.enemy-pending { position: absolute; top: 0; height: 100%; z-index: 2; background: linear-gradient(90deg, rgba(255,180,110,0.85), rgba(255,112,67,0.78)); pointer-events: none; }
         .hp-text { position: absolute; z-index: 6; width: 100%; text-align: center; top: 0; left: 0; font-size: 10px; font-weight: bold; color: #ffffff; line-height: 16px; letter-spacing: 0.1px; text-shadow: 0 0 2px rgba(0,0,0,0.95), 0 1px 2px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.65); -webkit-text-stroke: 0.45px rgba(0,0,0,0.88); paint-order: stroke fill; pointer-events: none; }
         .summary-actions { display: flex; gap: 8px; margin-top: 12px; }
@@ -240,6 +240,7 @@
         .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked { flex-direction: column; gap: 2px; border-color: rgba(230, 169, 107, .62); }
         .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked::after { content: attr(data-entry-condition); display: block; color: #ffcf8a; font-size: .66em; font-weight: 800; line-height: 1.1; letter-spacing: 0; text-transform: none; }
         .map-primary-tabs .subtab-btn.map-primary-tab-unlock-reveal { animation: mapPrimaryTabUnlockReveal .9s cubic-bezier(.2,.85,.25,1) 1; border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241,196,15,.48), 0 0 18px rgba(241,196,15,.38); }
+        .map-explore-layout .vertical-tab-btn.map-explore-tab-unlock-reveal { animation: mapPrimaryTabUnlockReveal .9s cubic-bezier(.2,.85,.25,1) 1; border-color: #c395ff; box-shadow: 0 0 0 1px rgba(195,149,255,.45), 0 0 18px rgba(137,82,204,.4); }
         @keyframes mapUnlockReveal {
             0% { opacity: 0; transform: scale(0.95); filter: brightness(1.5); }
             45% { opacity: 1; transform: scale(1.03); filter: brightness(1.25); }
@@ -251,7 +252,8 @@
             100% { opacity: 1; transform: translateY(0) scale(1); filter: brightness(1); }
         }
         @media (prefers-reduced-motion: reduce) {
-            .map-primary-tabs .subtab-btn.map-primary-tab-unlock-reveal { animation: none; }
+            .map-primary-tabs .subtab-btn.map-primary-tab-unlock-reveal,
+            .map-explore-layout .vertical-tab-btn.map-explore-tab-unlock-reveal { animation: none; }
         }
         .map-item.trial { border-color: #f1c40f; color: #f39c12; background: #2c2c1a; }
         .map-item.trial-pending:not(.current) { border-color: #a97820; color: #795212; background: #fff8e2; }

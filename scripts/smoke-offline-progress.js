@@ -9,6 +9,7 @@ const {
     getOfflineLifetimeEntitlement,
     syncOfflineProgressEntitlement,
     getOfflineProgressConfig,
+    getInventoryLimit,
     purchaseOfflineProgressUpgrade,
     purchaseOfflineDirective,
     routeOfflineItem,
@@ -96,7 +97,8 @@ let inventoryFallbackResult = simulateBackgroundCombat({ elapsedMs: 100, snapsho
 } });
 assert.strictEqual(fallbackAdded, true);
 assert.deepStrictEqual(inventoryFallbackResult.game.inventory.map(item => item.name), ['kept-unique'], 'protected fallback item enters regular inventory');
-let fullInventoryState = mergeDefaults({ inventory: Array.from({ length: 30 }, (_, index) => ({ name: `filled-${index}`, rarity: 'normal' })), offlineProgress: { stashLevel: 1 } });
+let fullInventoryState = mergeDefaults({ inventory: [], offlineProgress: { stashLevel: 1 } });
+fullInventoryState.inventory = Array.from({ length: getInventoryLimit(fullInventoryState) }, (_, index) => ({ name: `filled-${index}`, rarity: 'normal' }));
 fullInventoryState.offlineProgress.stash = protectedOverflow.slice(0, 8);
 let fullFallbackAdded = false;
 let fullFallbackResult = simulateBackgroundCombat({ elapsedMs: 100, snapshot: fullInventoryState, stepFn: () => {

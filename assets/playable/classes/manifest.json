@@ -1,0 +1,837 @@
+{
+  "occultist": {
+    "label": "비술사",
+    "sourceFolder": "Idle_6",
+    "direction": "east",
+    "walkState": "Idle",
+    "walkAnimation": "mage_walking_forward_both_hands_raised_and_cupped",
+    "attackAnimation": "spellcaster_with_levitating_blue_orb_orb_dims_then",
+    "attackAnimations": [
+      "spellcaster_with_levitating_blue_orb_orb_dims_then",
+      "arcanist_channels_a_spell_floating_orb_in_raised_h"
+    ],
+    "idle": {
+      "frames": 1,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "idleDirections": {
+      "north": {
+        "asset": "idle-north.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "idle.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "south": {
+        "asset": "idle-south.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    },
+    "walk": {
+      "frames": 9,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "walkDirections": {
+      "north": {
+        "asset": "walk-north.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "walk.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "south": {
+        "asset": "walk-south.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "west": {
+        "asset": "walk-west.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    },
+    "attack": {
+      "frames": 9,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "attackVariants": [
+      {
+        "animation": "spellcaster_with_levitating_blue_orb_orb_dims_then",
+        "asset": "attack.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      {
+        "animation": "arcanist_channels_a_spell_floating_orb_in_raised_h",
+        "asset": "attack-2.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    ],
+    "attackDirections": {
+      "north": [
+        {
+          "animation": "spellcaster_with_levitating_blue_orb_orb_dims_then",
+          "asset": "attack-north.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        },
+        {
+          "animation": "arcanist_channels_a_spell_floating_orb_in_raised_h",
+          "asset": "attack-2-north.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ],
+      "east": [
+        {
+          "animation": "spellcaster_with_levitating_blue_orb_orb_dims_then",
+          "asset": "attack.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        },
+        {
+          "animation": "arcanist_channels_a_spell_floating_orb_in_raised_h",
+          "asset": "attack-2.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ],
+      "south": [
+        {
+          "animation": "spellcaster_with_levitating_blue_orb_orb_dims_then",
+          "asset": "attack-south.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        },
+        {
+          "animation": "arcanist_channels_a_spell_floating_orb_in_raised_h",
+          "asset": "attack-2-south.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ]
+    }
+  },
+  "wanderer": {
+    "label": "방랑자",
+    "sourceFolder": "Idle_5",
+    "direction": "east",
+    "walkState": "Idle",
+    "walkAnimation": "wanderer_walking_with_graceful_poise_dagger_held_i",
+    "attackAnimation": "rogue_slashing_with_a_dagger_in_the_right_hand_fas",
+    "attackAnimations": [
+      "rogue_slashing_with_a_dagger_in_the_right_hand_fas",
+      "rogue_thrusting_a_dagger_forward_with_the_right_ha"
+    ],
+    "idle": {
+      "frames": 1,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "idleDirections": {
+      "north": {
+        "asset": "idle-north.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "idle.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "south": {
+        "asset": "idle-south.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    },
+    "walk": {
+      "frames": 9,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "walkDirections": {
+      "north": {
+        "asset": "walk-north.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "walk.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "south": {
+        "asset": "walk-south.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "west": {
+        "asset": "walk-west.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    },
+    "attack": {
+      "frames": 7,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "attackVariants": [
+      {
+        "animation": "rogue_slashing_with_a_dagger_in_the_right_hand_fas",
+        "asset": "attack.webp",
+        "frames": 7,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      {
+        "animation": "rogue_thrusting_a_dagger_forward_with_the_right_ha",
+        "asset": "attack-2.webp",
+        "frames": 7,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    ],
+    "attackDirections": {
+      "north": [
+        {
+          "animation": "rogue_slashing_with_a_dagger_in_the_right_hand_fas",
+          "asset": "attack-north.webp",
+          "frames": 7,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ],
+      "east": [
+        {
+          "animation": "rogue_slashing_with_a_dagger_in_the_right_hand_fas",
+          "asset": "attack.webp",
+          "frames": 7,
+          "frameWidth": 92,
+          "frameHeight": 92
+        },
+        {
+          "animation": "rogue_thrusting_a_dagger_forward_with_the_right_ha",
+          "asset": "attack-2.webp",
+          "frames": 7,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ],
+      "south": [
+        {
+          "animation": "rogue_slashing_with_a_dagger_in_the_right_hand_fas",
+          "asset": "attack-south.webp",
+          "frames": 6,
+          "frameWidth": 92,
+          "frameHeight": 92
+        },
+        {
+          "animation": "rogue_thrusting_a_dagger_forward_with_the_right_ha",
+          "asset": "attack-2-south.webp",
+          "frames": 6,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ]
+    }
+  },
+  "cleric": {
+    "label": "성직자",
+    "sourceFolder": "Idle_4",
+    "direction": "east",
+    "walkState": "Idle",
+    "walkAnimation": "cleric_walking_slowly_thurible_on_a_long_chain_hel",
+    "attackAnimation": "spellcaster_swinging_a_chained_censer_thick_smoke",
+    "attackAnimations": [
+      "spellcaster_swinging_a_chained_censer_thick_smoke"
+    ],
+    "idle": {
+      "frames": 1,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "idleDirections": {
+      "north": {
+        "asset": "idle-north.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "idle.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "south": {
+        "asset": "idle-south.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    },
+    "walk": {
+      "frames": 9,
+      "frameWidth": 96,
+      "frameHeight": 96
+    },
+    "walkDirections": {
+      "north": {
+        "asset": "walk-north.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "walk.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      },
+      "south": {
+        "asset": "walk-south.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "west": {
+        "asset": "walk-west.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      }
+    },
+    "attack": {
+      "frames": 9,
+      "frameWidth": 96,
+      "frameHeight": 96
+    },
+    "attackVariants": [
+      {
+        "animation": "spellcaster_swinging_a_chained_censer_thick_smoke",
+        "asset": "attack.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      }
+    ],
+    "attackDirections": {
+      "north": [
+        {
+          "animation": "spellcaster_swinging_a_chained_censer_thick_smoke",
+          "asset": "attack-north.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ],
+      "east": [
+        {
+          "animation": "spellcaster_swinging_a_chained_censer_thick_smoke",
+          "asset": "attack.webp",
+          "frames": 9,
+          "frameWidth": 96,
+          "frameHeight": 96
+        }
+      ],
+      "south": [
+        {
+          "animation": "spellcaster_swinging_a_chained_censer_thick_smoke",
+          "asset": "attack-south.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ]
+    }
+  },
+  "archer": {
+    "label": "궁수",
+    "sourceFolder": "Idle_3",
+    "direction": "east",
+    "walkState": "Idle",
+    "walkAnimation": "archer_walking_bow_gripped_in_the_right_hand_and_c",
+    "attackAnimation": "archery_shot_wide_braced_stance_with_feet_planted",
+    "attackAnimations": [
+      "archery_shot_wide_braced_stance_with_feet_planted",
+      "archer_in_side_stance_feet_shoulder-width_apart_an"
+    ],
+    "idle": {
+      "frames": 1,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "idleDirections": {
+      "north": {
+        "asset": "idle-north.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "idle.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "south": {
+        "asset": "idle-south.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    },
+    "walk": {
+      "frames": 9,
+      "frameWidth": 96,
+      "frameHeight": 96
+    },
+    "walkDirections": {
+      "north": {
+        "asset": "walk-north.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "walk.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      },
+      "south": {
+        "asset": "walk-south.webp",
+        "frames": 8,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "west": {
+        "asset": "walk-west.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      }
+    },
+    "attack": {
+      "frames": 9,
+      "frameWidth": 96,
+      "frameHeight": 96
+    },
+    "attackVariants": [
+      {
+        "animation": "archery_shot_wide_braced_stance_with_feet_planted",
+        "asset": "attack.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      },
+      {
+        "animation": "archer_in_side_stance_feet_shoulder-width_apart_an",
+        "asset": "attack-2.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      }
+    ],
+    "attackDirections": {
+      "north": [
+        {
+          "animation": "archery_shot_wide_braced_stance_with_feet_planted",
+          "asset": "attack-north.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        },
+        {
+          "animation": "archer_in_side_stance_feet_shoulder-width_apart_an",
+          "asset": "attack-2-north.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ],
+      "east": [
+        {
+          "animation": "archery_shot_wide_braced_stance_with_feet_planted",
+          "asset": "attack.webp",
+          "frames": 9,
+          "frameWidth": 96,
+          "frameHeight": 96
+        },
+        {
+          "animation": "archer_in_side_stance_feet_shoulder-width_apart_an",
+          "asset": "attack-2.webp",
+          "frames": 9,
+          "frameWidth": 96,
+          "frameHeight": 96
+        }
+      ],
+      "south": [
+        {
+          "animation": "archery_shot_wide_braced_stance_with_feet_planted",
+          "asset": "attack-south.webp",
+          "frames": 8,
+          "frameWidth": 92,
+          "frameHeight": 92
+        },
+        {
+          "animation": "archer_in_side_stance_feet_shoulder-width_apart_an",
+          "asset": "attack-2-south.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ]
+    }
+  },
+  "alchemist": {
+    "label": "연금술사",
+    "sourceFolder": "Idle_2",
+    "direction": "east",
+    "walkState": "Idle",
+    "walkAnimation": "alchemist_strutting_forward_tossing_a_potion_flask",
+    "attackAnimation": "throwing_a_flask_with_the_right_hand_follow_throug",
+    "attackAnimations": [
+      "throwing_a_flask_with_the_right_hand_follow_throug",
+      "right-handed_overhand_throw_wind_up_arm_behind_hea",
+      "Hurricane_Kick"
+    ],
+    "idle": {
+      "frames": 1,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "idleDirections": {
+      "north": {
+        "asset": "idle-north.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "idle.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "south": {
+        "asset": "idle-south.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    },
+    "walk": {
+      "frames": 9,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "walkDirections": {
+      "north": {
+        "asset": "walk-north.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "walk.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "south": {
+        "asset": "walk-south.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "west": {
+        "asset": "walk-west.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    },
+    "attack": {
+      "frames": 8,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "attackVariants": [
+      {
+        "animation": "throwing_a_flask_with_the_right_hand_follow_throug",
+        "asset": "attack.webp",
+        "frames": 8,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      {
+        "animation": "right-handed_overhand_throw_wind_up_arm_behind_hea",
+        "asset": "attack-2.webp",
+        "frames": 9,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      {
+        "animation": "Hurricane_Kick",
+        "asset": "attack-3.webp",
+        "frames": 4,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    ],
+    "attackDirections": {
+      "north": [
+        {
+          "animation": "throwing_a_flask_with_the_right_hand_follow_throug",
+          "asset": "attack-north.webp",
+          "frames": 8,
+          "frameWidth": 92,
+          "frameHeight": 92
+        },
+        {
+          "animation": "right-handed_overhand_throw_wind_up_arm_behind_hea",
+          "asset": "attack-2-north.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ],
+      "east": [
+        {
+          "animation": "throwing_a_flask_with_the_right_hand_follow_throug",
+          "asset": "attack.webp",
+          "frames": 8,
+          "frameWidth": 92,
+          "frameHeight": 92
+        },
+        {
+          "animation": "right-handed_overhand_throw_wind_up_arm_behind_hea",
+          "asset": "attack-2.webp",
+          "frames": 9,
+          "frameWidth": 92,
+          "frameHeight": 92
+        },
+        {
+          "animation": "Hurricane_Kick",
+          "asset": "attack-3.webp",
+          "frames": 4,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ],
+      "south": [
+        {
+          "animation": "throwing_a_flask_with_the_right_hand_follow_throug",
+          "asset": "attack-south.webp",
+          "frames": 8,
+          "frameWidth": 92,
+          "frameHeight": 92
+        }
+      ]
+    }
+  },
+  "warrior": {
+    "label": "전사",
+    "sourceFolder": "Idle",
+    "direction": "east",
+    "walkState": "pixel_art_knight_sta",
+    "walkAnimation": "armored_knight_walking_sword_sheathed_at_the_waist",
+    "attackAnimation": "The_character_raises_the_greatsword_from_its_low_r",
+    "attackAnimations": [
+      "The_character_raises_the_greatsword_from_its_low_r",
+      "The_character_firmly_grips_the_sword_hilt_with_bot",
+      "The_character_holds_the_sword_firmly_with_both_han"
+    ],
+    "idle": {
+      "frames": 1,
+      "frameWidth": 92,
+      "frameHeight": 92
+    },
+    "idleDirections": {
+      "north": {
+        "asset": "idle-north.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "east": {
+        "asset": "idle.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      },
+      "south": {
+        "asset": "idle-south.webp",
+        "frames": 1,
+        "frameWidth": 92,
+        "frameHeight": 92
+      }
+    },
+    "walk": {
+      "frames": 9,
+      "frameWidth": 96,
+      "frameHeight": 96
+    },
+    "walkDirections": {
+      "north": {
+        "asset": "walk-north.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      },
+      "east": {
+        "asset": "walk.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      },
+      "south": {
+        "asset": "walk-south.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      },
+      "west": {
+        "asset": "walk-west.webp",
+        "frames": 9,
+        "frameWidth": 96,
+        "frameHeight": 96
+      }
+    },
+    "attack": {
+      "frames": 8,
+      "frameWidth": 116,
+      "frameHeight": 116
+    },
+    "attackVariants": [
+      {
+        "animation": "The_character_raises_the_greatsword_from_its_low_r",
+        "asset": "attack.webp",
+        "frames": 8,
+        "frameWidth": 116,
+        "frameHeight": 116
+      },
+      {
+        "animation": "The_character_firmly_grips_the_sword_hilt_with_bot",
+        "asset": "attack-2.webp",
+        "frames": 9,
+        "frameWidth": 116,
+        "frameHeight": 116
+      },
+      {
+        "animation": "The_character_holds_the_sword_firmly_with_both_han",
+        "asset": "attack-3.webp",
+        "frames": 9,
+        "frameWidth": 116,
+        "frameHeight": 116
+      }
+    ],
+    "attackDirections": {
+      "north": [
+        {
+          "animation": "The_character_raises_the_greatsword_from_its_low_r",
+          "asset": "attack-north.webp",
+          "frames": 5,
+          "frameWidth": 104,
+          "frameHeight": 104
+        },
+        {
+          "animation": "The_character_firmly_grips_the_sword_hilt_with_bot",
+          "asset": "attack-2-north.webp",
+          "frames": 5,
+          "frameWidth": 104,
+          "frameHeight": 104
+        },
+        {
+          "animation": "The_character_holds_the_sword_firmly_with_both_han",
+          "asset": "attack-3-north.webp",
+          "frames": 9,
+          "frameWidth": 104,
+          "frameHeight": 104
+        }
+      ],
+      "east": [
+        {
+          "animation": "The_character_raises_the_greatsword_from_its_low_r",
+          "asset": "attack.webp",
+          "frames": 8,
+          "frameWidth": 116,
+          "frameHeight": 116
+        },
+        {
+          "animation": "The_character_firmly_grips_the_sword_hilt_with_bot",
+          "asset": "attack-2.webp",
+          "frames": 9,
+          "frameWidth": 116,
+          "frameHeight": 116
+        },
+        {
+          "animation": "The_character_holds_the_sword_firmly_with_both_han",
+          "asset": "attack-3.webp",
+          "frames": 9,
+          "frameWidth": 116,
+          "frameHeight": 116
+        }
+      ],
+      "south": [
+        {
+          "animation": "The_character_raises_the_greatsword_from_its_low_r",
+          "asset": "attack-south.webp",
+          "frames": 8,
+          "frameWidth": 116,
+          "frameHeight": 116
+        },
+        {
+          "animation": "The_character_firmly_grips_the_sword_hilt_with_bot",
+          "asset": "attack-2-south.webp",
+          "frames": 5,
+          "frameWidth": 116,
+          "frameHeight": 116
+        },
+        {
+          "animation": "The_character_holds_the_sword_firmly_with_both_han",
+          "asset": "attack-3-south.webp",
+          "frames": 9,
+          "frameWidth": 116,
+          "frameHeight": 116
+        }
+      ]
+    }
+  }
+}

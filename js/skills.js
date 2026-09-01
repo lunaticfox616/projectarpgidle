@@ -898,6 +898,10 @@ function getArcanaGemDamageBonusPct(target, ownerState) {
     return getArcanaGemDamageBonus(target, ownerState).pct;
 }
 
+function getPassiveGemLevelEffects(node, mutation) {
+    return getEffectivePassiveNodeEffects(node, mutation);
+}
+
 function getGemBonusSources(target) {
     let gear = 0;
     let passive = 0;
@@ -910,12 +914,13 @@ function getGemBonusSources(target) {
     });
     (game.passives || []).forEach(id => {
         let node = PASSIVE_TREE.nodes[id];
+        if (game.starWedge && game.starWedge.disabledNodeEffects && game.starWedge.disabledNodeEffects[String(id)]) return;
         let mut = game.starWedge && game.starWedge.nodeMutations ? game.starWedge.nodeMutations[id] : null;
-        let statId = mut && mut.currentStat ? mut.currentStat : (node && node.stat);
-        let statVal = mut && Number.isFinite(mut.currentVal) ? mut.currentVal : (node && node.val);
-        if (node && statId === 'gemLevel') passive += statVal;
-        GEM_LEVEL_TAG_RULES.forEach(rule => {
-            if (node && statId === rule.stat && activeTags.includes(rule.tag)) passive += statVal;
+        getPassiveGemLevelEffects(node, mut).forEach(effect => {
+            if (effect.stat === 'gemLevel') passive += Number(effect.val) || 0;
+            GEM_LEVEL_TAG_RULES.forEach(rule => {
+                if (effect.stat === rule.stat && activeTags.includes(rule.tag)) passive += Number(effect.val) || 0;
+            });
         });
     });
     (game.actRewardBonuses || []).forEach(entry => {

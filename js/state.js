@@ -146,7 +146,7 @@ function getUnderworldEntryLockReason(source) {
     if (!(chaosRealm && chaosRealm.unlocked)) return '혼돈계 해금 필요';
     if (!hasCurrentLoopChaos20Clear(state)) return '이번 루프 혼돈 20 클리어 필요';
     let rootBosses = Array.isArray(state && state.clearedRootBosses) ? state.clearedRootBosses : [];
-    if (!rootBosses.includes('s6_beast_cerberus')) return '이번 루프 케르베로스 처치 필요';
+    if (!rootBosses.includes('s6_beast_cerberus')) return '케르베로스 처치 필요';
     let deepMax = getHighestUnlockedEndlessChaosDepth(state);
     if (deepMax < 30) return `혼돈 심화 30층 필요 (현재 ${deepMax})`;
     let labFloor = Math.max(1, Math.floor((state && state.labyrinthUnlockedMaxFloor) || (state && state.labyrinthFloor) || 1));
@@ -187,12 +187,6 @@ function isCosmosContentUnlockReady(source) {
 function isMapPrimaryContentUnlockReady(contentId, source) {
     let state = source || game;
     if (contentId === 'map-tab-zones' || contentId === 'map-tab-pvp') return true;
-    if (contentId === 'map-tab-abyss') {
-        return Math.max(0, Math.floor((state && state.maxZoneId) || 0)) >= ABYSS_START_ZONE_ID
-            || (Array.isArray(state && state.abyssClearedDepths) && state.abyssClearedDepths.length > 0)
-            || Math.max(0, Math.floor((state && state.abyssPassivePoints) || 0)) > 0
-            || Math.max(20, Math.floor((state && state.abyssEndlessDepth) || 20)) > 20;
-    }
     if (contentId === 'map-tab-chaos-realm') return !!(state && state.chaosRealm && state.chaosRealm.unlocked);
     if (contentId === 'map-tab-sky') return !!(state && state.skyTower && state.skyTower.unlocked);
     if (contentId === 'map-tab-underworld') return isUnderworldUnlockReady(state);
@@ -226,7 +220,6 @@ function reconcileMapPrimaryContentUnlocks(source) {
 function getMapPrimaryContentEntryCondition(contentId, source) {
     let state = source || game;
     if (!isMapPrimaryContentUnlocked(state, contentId)) return '';
-    if (contentId === 'map-tab-abyss' && !hasCurrentLoopChaosAccess(state)) return '액트 10 돌파 필요';
     if (contentId === 'map-tab-chaos-realm' && !hasCurrentLoopChaos20Clear(state)) return '혼돈 20 필요';
     if (contentId === 'map-tab-sky' && !hasCurrentLoopChaosAccess(state)) return '혼돈 진입 필요';
     if (contentId === 'map-tab-underworld') return getUnderworldEntryLockReason(state);
@@ -654,11 +647,60 @@ function createCosmosChallengeZone(state) {
     };
 }
 
+function getBeyondBoundaryTierProfile(tierValue) {
+    const tier = clampNumber(Math.floor(Number(tierValue) || 1), 1, BEYOND_BOUNDARY_TIER_CAP);
+    const mutatorIds = BEYOND_BOUNDARY_MUTATOR_DB.filter(row => tier >= row.tier).map(row => row.id);
+    let hpMul = Math.pow(BEYOND_BOUNDARY_HP_GROWTH, tier - 1);
+    let damageMul = Math.pow(BEYOND_BOUNDARY_DAMAGE_GROWTH, tier - 1);
+    let attackSpeedMul = 1;
+    if (mutatorIds.includes('hardened')) hpMul *= 1.2;
+    if (mutatorIds.includes('onslaught')) { damageMul *= 1.15; attackSpeedMul = 1.1; }
+    return {
+        tier, hpMul, damageMul, attackSpeedMul, mutatorIds,
+        drBonus: mutatorIds.includes('iron') ? 10 : 0,
+        penetrationBonus: mutatorIds.includes('piercing') ? 10 : 0,
+        regenRate: mutatorIds.includes('renewal') ? 0.0025 : 0
+    };
+}
+
+function createBeyondBoundaryZone(state) {
+    const boundary = state && state.beyondBoundary && typeof state.beyondBoundary === 'object'
+        ? state.beyondBoundary : {};
+    const run = boundary.activeRun && typeof boundary.activeRun === 'object' ? boundary.activeRun : null;
+    const selectedTier = run ? run.tier : boundary.selectedTier;
+    const profile = getBeyondBoundaryTierProfile(selectedTier);
+    const focusId = run ? run.rewardFocusId : boundary.selectedRewardFocusId;
+    const intensityId = run ? run.intensityId : boundary.selectedIntensityId;
+    const focus = BEYOND_BOUNDARY_REWARD_FOCUS_DB.find(row => row.id === focusId)
+        || BEYOND_BOUNDARY_REWARD_FOCUS_DB[0];
+    const intensity = BEYOND_BOUNDARY_INTENSITY_DB.find(row => row.id === intensityId)
+        || BEYOND_BOUNDARY_INTENSITY_DB[0];
+    const wave = run ? clampNumber(Math.floor(Number(run.wave) || 1), 1, BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER) : 1;
+    return {
+        id: BEYOND_BOUNDARY_ZONE_ID, name: `경계 너머 ${profile.tier}단계 · ${wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER}`,
+        type: 'beyondBoundary', tier: getUnderworldTier(30) + Math.floor((profile.tier - 1) / 2),
+        maxKills: 1, ele: 'chaos', difficultyBenchmark: 'underworld30',
+        boundaryTier: profile.tier, boundaryWave: wave,
+        boundaryFinalWave: wave === BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER,
+        boundaryHpMul: profile.hpMul * (focus.hpMul || 1) * intensity.hpMul,
+        boundaryDamageMul: profile.damageMul * (focus.damageMul || 1) * intensity.damageMul,
+        boundaryAttackSpeedMul: profile.attackSpeedMul * (focus.attackSpeedMul || 1) * intensity.attackSpeedMul,
+        boundaryDrBonus: profile.drBonus,
+        boundaryPenetrationBonus: profile.penetrationBonus + (focus.penetrationBonus || 0),
+        boundaryRegenRate: profile.regenRate,
+        boundaryRewardMul: 1 + Math.min(1.5, (profile.tier - 1) * 0.02),
+        boundaryRewardFocusId: focus.id, boundaryIntensityId: intensity.id,
+        boundaryCompletionRewardMul: intensity.rewardMul,
+        boundaryMutatorIds: profile.mutatorIds
+    };
+}
+
 function getZone(id) {
     if (id === 'cosmos_challenge') {
         const challengeZone = createCosmosChallengeZone(game);
         if (challengeZone) return challengeZone;
     }
+    if (id === BEYOND_BOUNDARY_ZONE_ID) return createBeyondBoundaryZone(game);
     if (id === 'beehive_run') {
         let step = Math.max(1, Math.floor((game && game.beehive && game.beehive.branchStep) || 1));
         let entryDepth = Math.max(21, Math.floor((game && game.beehive && game.beehive.entryDeepChaosDepth) || 21));
@@ -936,37 +978,7 @@ function getAutoProgressZoneId(fallbackZoneId) {
 
 
 
-function getAbyssPassiveState() {
-    if (!game.abyssPassives || typeof game.abyssPassives !== 'object') {
-        game.abyssPassives = { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 };
-    }
-    return game.abyssPassives;
-}
-
-function getAbyssPassiveSpent() {
-    let state = getAbyssPassiveState();
-    return ABYSS_PASSIVE_NODES.reduce((sum, node) => sum + (Math.max(0, Math.floor(state[node.key] || 0)) * Math.max(1, Math.floor(node.cost || 1))), 0);
-}
-
-function getAbyssPassiveFreePoints() {
-    return Math.max(0, Math.floor(game.abyssPassivePoints || 0) - getAbyssPassiveSpent());
-}
-
-function tryAllocateAbyssPassive(nodeKey) {
-    if ((game.season || 1) < 1) return;
-    let node = ABYSS_PASSIVE_NODES.find(row => row.key === nodeKey);
-    if (!node) return;
-    let state = getAbyssPassiveState();
-    if ((state[node.key] || 0) >= node.max) return addLog('해당 심연 노드는 이미 최대 단계입니다.', 'attack-monster');
-    let pointCost = Math.max(1, Math.floor(node.cost || 1));
-    if (getAbyssPassiveFreePoints() < pointCost) return addLog(`혼돈 패시브 포인트가 부족합니다. (필요: ${pointCost})`, 'attack-monster');
-    state[node.key] = (state[node.key] || 0) + 1;
-    addLog(`🌌 혼돈 패시브 [${node.name}] ${state[node.key]}/${node.max} (소모 ${pointCost})`, 'season-up', { noToast: true });
-    updateStaticUI();
-}
-
 function getAbyssMonsterScales(zone) {
-    let state = getAbyssPassiveState();
     let active = zone && zone.type === 'abyss';
     if (!active) return { dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1, playerTakenMul: 1, playerDamageMul: 1, resistBonus: 0, eliteBonus: 0, bossMul: 1, bossExtraCurrencyChance: 0, mapProgressMul: 1, mapLengthMul: 1 };
     let depth = zone && zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 1;
@@ -985,19 +997,19 @@ function getAbyssMonsterScales(zone) {
     let postLoopOver = Math.min(20, Math.max(0, Math.floor((game.season || 1) - 10)));
     let postLoopDifficultyMul = postLoopOver > 0 ? (1 + postLoopOver * 0.05 + endlessOver * 0.022) : 1;
     return {
-        dmgMul: (1 + (state.power || 0) * 0.02) * postLoopDifficultyMul,
-        hpMul: (1 + (state.tenacity || 0) * 0.02) * endlessMul * (postLoopOver > 0 ? (1 + postLoopOver * 0.04) : 1),
-        hordeMul: (1 + (state.horde || 0) * 0.03) * (1 + (state.magnifier || 0) * 0.2),
-        dropMul: Math.max(0.2, 1 + ((state.power || 0) + (state.frailty || 0) + (state.resistance || 0) - (state.horde || 0)) * 0.01),
-        expMul: Math.max(0.2, 1 + ((state.tenacity || 0) * 0.01) - ((state.horde || 0) * 0.02) + ((state.weakness || 0) * 0.02)),
-        playerTakenMul: (1 + (state.frailty || 0) * 0.01) * (1 + Math.min(10, endlessOver) * ABYSS_ENDLESS_STEEP_PLAYER_TAKEN_PER_FLOOR + Math.max(0, endlessOver - 10) * 0.012 + postLoopOver * 0.03),
-        playerDamageMul: Math.max(0.2, 1 - (state.weakness || 0) * 0.01),
-        resistBonus: (state.resistance || 0),
-        eliteBonus: (state.elite || 0) * 0.02,
-        bossMul: (1 - (state.coreRaid || 0) * 0.10) * (1 + (state.arrogance || 0) * 0.20),
-        bossExtraCurrencyChance: (state.arrogance || 0) * 0.05,
-        mapProgressMul: Math.max(0.35, 1 - (state.magnifier || 0) * 0.5),
-        mapLengthMul: 1 + (state.magnifier || 0)
+        dmgMul: postLoopDifficultyMul,
+        hpMul: endlessMul * (postLoopOver > 0 ? (1 + postLoopOver * 0.04) : 1),
+        hordeMul: 1,
+        dropMul: 1,
+        expMul: 1,
+        playerTakenMul: 1 + Math.min(10, endlessOver) * ABYSS_ENDLESS_STEEP_PLAYER_TAKEN_PER_FLOOR + Math.max(0, endlessOver - 10) * 0.012 + postLoopOver * 0.03,
+        playerDamageMul: 1,
+        resistBonus: 0,
+        eliteBonus: 0,
+        bossMul: 1,
+        bossExtraCurrencyChance: 0,
+        mapProgressMul: 1,
+        mapLengthMul: 1
     };
 }
 
@@ -1012,7 +1024,7 @@ const ENDLESS_CONTENT_DROP_MULTIPLIER_CAP = 2.25;
  */
 function capEndlessContentDropMultiplier(zone, multiplier) {
     let value = Math.max(0, Number(multiplier) || 0);
-    if (!zone || !['abyss', 'chaosRealm', 'labyrinth', 'underworld'].includes(zone.type)) return value;
+    if (!zone || !['abyss', 'chaosRealm', 'labyrinth', 'underworld', 'beyondBoundary'].includes(zone.type)) return value;
     return Math.min(ENDLESS_CONTENT_DROP_MULTIPLIER_CAP, value);
 }
 
@@ -1181,7 +1193,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'e5', name: '공허 결합', desc: '카오스 저항이 가장 높은 원소 저항의 50%만큼 상승, 카오스 저항만큼 원소 최종 피해 증가', req: 'e2' },
         { id: 'e6', name: '원소 침식', desc: '저항 관통 +20%, 치명타 피해 배율 -25%', req: 'e3' },
         { id: 'e7', name: '삼원 폭주', desc: '화/냉/번 동시 사용 시 최종 피해 5% 증폭, 상태이상 강도는 최종 피해의 2배에 비례', req: 'e4' },
-        { id: 'e8', name: '원소 과부하', desc: '치명타 공격마다 원소 과부하 중첩 획득: 중첩당 원소 최종 피해 +4%, 치명타 확률 -1%p (무한 중첩). 비-치명타 공격 시 모든 중첩을 잃음', req: 'e7' },
+        { id: 'e8', name: '원소 과부하', desc: '치명타 공격마다 원소 과부하 중첩 획득: 중첩당 원소 최종 피해 +4%, 치명타 확률 -1%p (최대 20중첩). 비-치명타 공격 시 모든 중첩을 잃음', req: 'e7' },
         { id: 'e9', name: '절대 관통', desc: '원소 저항 관통 +100%, 원소 저항 관통이 -300%까지 확장됨', fifthJobOnly: true /* 5차 전직(재능 개화) 외 다른 선행 키스톤 조건 없음 */ }
     ],
     warlock: [
@@ -1385,6 +1397,17 @@ const P_STATS = {
     chaosPctDmg: { name: '카오스 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     aoePctDmg: { name: '범위 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
     dotPctDmg: { name: '지속 피해 배율(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    spellPctDmg: { name: '주문 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    shieldPctDmg: { name: '방패 스킬 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    minePctDmg: { name: '지뢰 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    potionPctDmg: { name: '포션 스킬 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    mobilityPctDmg: { name: '기동 스킬 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    channelingPctDmg: { name: '채널링 피해(%)', tiers: [1, 2, 3], s: 4, m: 8, k: 16, isPct: true },
+    mystique: { name: '신비', tiers: [1, 2, 3], s: 1, m: 2, k: 3 },
+    devotion: { name: '헌신', tiers: [1, 2, 3], s: 1, m: 2, k: 3 },
+    cycle: { name: '순환', tiers: [1, 2, 3], s: 1, m: 2, k: 3 },
+    ailmentDamagePct: { name: '상태이상 피해(%)', tiers: [1, 2, 3], s: 2, m: 5, k: 10, isPct: true },
+    ailmentPotencyPct: { name: '상태이상 위력(%)', tiers: [1, 2, 3], s: 2, m: 5, k: 10, isPct: true },
     igniteChance: { name: '점화 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     chillChance: { name: '냉각 확률(%)', tiers: [1, 2, 3], s: 3, m: 7, k: 14, isPct: true },
     freezeChance: { name: '동결 확률(%)', tiers: [2, 3], m: 5, k: 10, isPct: true },
@@ -1394,6 +1417,7 @@ const P_STATS = {
     spellFlatDmg: { name: '주문 내장 피해', tiers: [1, 2, 3], s: 5, m: 12, k: 22 },
     spellFlatPct: { name: '주문 내장 피해 증가(%)', tiers: [2, 3], m: 6, k: 14, isPct: true },
     projectileExtraShots: { name: '투사체 추가 발사', tiers: [2, 3], m: 1, k: 3 },
+    targetProjectile: { name: '투사체 스킬 타겟 수', tiers: [3], k: 1 },
     aspd: { name: '공격 속도(%)', tiers: [1, 2, 3], s: 1.5, m: 4, k: 8, isPct: true },
     move: { name: '이동 속도(%)', tiers: [1, 2], s: 1.5, m: 4, isPct: true },
     crit: { name: '치명타 확률(%)', tiers: [2, 3], m: 1.5, k: 4, isPct: true },
@@ -1468,7 +1492,23 @@ const P_STATS = {
     summonResPen: { name: '소환수 저항 관통(%)', tiers: [2, 3], m: 2, k: 5, isPct: true },
     summonGemLevel: { name: '소환수 공격 스킬 젬 레벨', tiers: [3], k: 1 },
     igniteDamageMultiplierPct: { name: '점화 피해 증가(%)', tiers: [2, 3], m: 4, k: 10, isPct: true },
-    poisonDamageMultiplierPct: { name: '중독 피해 증가(%)', tiers: [2, 3], m: 4, k: 10, isPct: true }
+    poisonDamageMultiplierPct: { name: '중독 피해 증가(%)', tiers: [2, 3], m: 4, k: 10, isPct: true },
+    accuracyBonusPct: { name: '정확도 보정(%)', isPct: true },
+    doubleDamageChance: { name: '두 배 피해 확률(%)', isPct: true },
+    blockChanceMax: { name: '막기 확률 최대치(+%p)', isPct: true },
+    takenDamageReduceWhen1EnemyPct: { name: '주변 적이 1명일 때 받는 피해 감소(%)', isPct: true },
+    takenDamageReduceWhen2EnemiesPct: { name: '주변 적이 2명 이상일 때 받는 피해 감소(%)', isPct: true },
+    physTakenAsFire: { name: '받는 물리 피해의 화염 전환(%)', isPct: true },
+    physTakenAsCold: { name: '받는 물리 피해의 냉기 전환(%)', isPct: true },
+    physTakenAsLight: { name: '받는 물리 피해의 번개 전환(%)', isPct: true },
+    physTakenAsChaos: { name: '받는 물리 피해의 카오스 전환(%)', isPct: true },
+    addedFireDamagePct: { name: '추가 화염 피해(%)', isPct: true },
+    addedColdDamagePct: { name: '추가 냉기 피해(%)', isPct: true },
+    addedLightDamagePct: { name: '추가 번개 피해(%)', isPct: true },
+    addedChaosDamagePct: { name: '추가 카오스 피해(%)', isPct: true },
+    addedPhysDamagePct: { name: '추가 물리 피해(%)', isPct: true },
+    shockedEnemyHitDamageMorePct: { name: '감전된 적 명중 피해 증폭(%)', isPct: true },
+    energyShieldRechargeFaster: { name: '에너지 보호막 재충전 대기시간 감소(초)' }
 };
 
 Object.keys(SKILL_DB).forEach(name => {
@@ -1957,6 +1997,7 @@ const BASE_ITEM_DB = [
 
 
 const HERO_SELECTION_ORDER = Object.keys(HERO_SELECTION_DEFS);
+const PLAYER_CLASS_ORDER = Object.keys(PLAYER_CLASS_DEFS);
 
 let cloudState = {
     initialized: false,
@@ -1994,7 +2035,7 @@ safeExposeGlobals({
     isMapPrimaryContentUnlockReady, isMapPrimaryContentUnlocked,
     reconcileMapPrimaryContentUnlocks, getMapPrimaryContentEntryCondition
 });
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssPassiveState, getAbyssPassiveSpent, getAbyssPassiveFreePoints, tryAllocateAbyssPassive, getAbyssMonsterScales, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssMonsterScales, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
 
@@ -2226,6 +2267,18 @@ function ensureCombatTacticsUnlockState(state) {
     return true;
 }
 
+function isFreePassiveStartNodeId(nodeId) {
+    if (String(nodeId) === 'n0') return true;
+    const authoredNodes = typeof PASSIVE_TREE_V22 !== 'undefined' && PASSIVE_TREE_V22
+        ? PASSIVE_TREE_V22.nodes : null;
+    const node = authoredNodes && authoredNodes[String(nodeId)];
+    return !!(node && node.kind === 'start');
+}
+
+function getPaidPassiveNodeIds(nodeIds) {
+    return (Array.isArray(nodeIds) ? nodeIds : []).filter(nodeId => !isFreePassiveStartNodeId(nodeId));
+}
+
 const defaultGame = {
     saveVersion: 17,
     loopChallenge: null,
@@ -2252,6 +2305,7 @@ const defaultGame = {
     settings: {
         showCombatScene: true,
         cameraShake: true,
+        uiSounds: true,
         showCombatLog: true,
         showDetailedDamageLog: false,
         combatLogAggregate: true,
@@ -2269,7 +2323,7 @@ const defaultGame = {
         showCrowdPauseLog: true,
         showDeathNotice: true,
         showMobileBattlePip: true,
-        pauseGameOnOverlay: false,
+        pauseGameOnOverlay: true,
         twoRowTabs: false,
         damageNumberFormat: 'comma',
         showExpComma: true,
@@ -2303,23 +2357,30 @@ const defaultGame = {
         townReturnAction: 'retry',
         combatTargetPriority: 'nearest',
         combatPositionMode: 'auto',
-        passiveTreeShowLabels: true,
+        passiveTreeShowLabels: false,
+        passiveTreeVisualStyleVersion: 2,
+        passiveInvestmentSummaryCollapsed: true,
         passiveTreePlanner: { layoutVersion: PASSIVE_LAYOUT_VERSION, activeSlot: 0, autoInvest: false, presets: [null, null, null] },
         tabNotiEnabled: true,
         socialChatNotifications: true,
         chatMessageSize: 'medium',
-        notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, hideout: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
+        notiFilters: { char: true, season: true, items: true, skills: true, flask: true, map: true, codex: true, traits: true, talisman: true, cube: true, jewel: true, journal: true, currency: true, fossil: true, ascend: true, loop: true, social: true }
     },
     selectedHeroId: 'hero1',
-    appearanceHeroId: null,
-    discoveredHeroIds: [],
+    selectedClassId: 'archer',
+    classTalentAlignmentVersion: 1,
+    talentSelectionInitialized: false,
+    appearanceClassId: null,
+    discoveredClassIds: [],
     heroSelectionInitialized: false,
-    heroFreeSwitchUnlocked: false,
+    classFreeSwitchUnlocked: false,
     talentBloomClears: 0,
     talentBloomCombos: [],
     bloomedClasses: [],
     bloomLoopSpecGranted: null,
     bloomedClassThisLoop: null,
+    bloomedTalentThisLoop: null,
+    pendingTalentBloomHeroId: null,
     bloomBossDefeated: false,
     talentCards: {},
     talentCardLoadout: [null, null, null, null, null, null],
@@ -2349,11 +2410,19 @@ const defaultGame = {
     passives: [],
     passiveAttributePreference: 'strength',
     passiveAttributeChoices: {},
+    passiveSpecialization: {
+        revelation: 'combat',
+        keystoneChoices: { wisdom_leap_element: 'fire' },
+        cycleBuffs: [],
+        fanaticism: { skillName: '', stacks: 0 },
+        karma: { byEnemy: {}, buff: null }
+    },
     voidPassives: {},
     retiredVoidPassives: {},
     discoveredPassives: [],
     passiveLayoutVersion: PASSIVE_LAYOUT_VERSION,
     passiveStarEvolution: false,
+    passiveStarEvolutionSource: null,
     skills: ['기본 공격'],
     activeSkill: '기본 공격',
     equippedSummonSkills: [],
@@ -2381,7 +2450,13 @@ const defaultGame = {
         quest: { started: false, exploredNodeIds: [], rewarded: false }
     },
     pruningTree: { version: PRUNING_TREE_STATE_VERSION, unlocked: false, growthPoints: 0, nodeRanks: {}, prunedPenaltyRanks: {}, lastGrantedLoop: PRUNING_TREE_UNLOCK_LOOP - 1 },
-    hideout: { gridVersion: HIDEOUT_GRID_VERSION, initialized: false, active: false, placements: [], selectedDecorId: null },
+    beyondBoundary: {
+        version: BEYOND_BOUNDARY_STATE_VERSION, unlocked: false, unlockNoticeSeen: false,
+        highestTier: 1, selectedTier: 1, selectedSealId: 'edge', completions: 0, bestTier: 0,
+        selectedRewardFocusId: 'armory', selectedIntensityId: 'plain',
+        seals: { edge:{ level:0, xp:0 }, ward:{ level:0, xp:0 }, stride:{ level:0, xp:0 } },
+        activeRun: null
+    },
     clearedRootBosses: [],
     timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0 },
     // 유틸리티 슬롯은 이제 허리띠(숨겨진 티어/고유 효과)가 결정하므로 기본은 회복 슬롯 1개뿐이다.
@@ -2412,8 +2487,9 @@ const defaultGame = {
     talismanUnlockPickMode: false,
     equipment: { '무기': null, '투구': null, '갑옷': null, '방패': null, '장갑1': null, '장갑2': null, '신발': null, '목걸이': null, '반지1': null, '반지2': null, '반지3': null, '허리띠': null },
     equipmentLoadouts: { identityVersion: 1, selectedSlot: 0, presets: [null, null, null] },
+    equipmentInventoryPlacements: {},
+    equipmentTemporaryStorage: [],
     inventory: [],
-    inventoryExpandLevel: 0,
     // 생장판: 기존 장비를 대체하지 않는 추가 시스템. 루프 25에 해금되며 그 전에는 활성 칸이 0이다.
     growthBoard: { width: GROWTH_BOARD_W, height: GROWTH_BOARD_H, unlockedCellCount: 0, activeLoadout: 0, loadouts: [] },
     growthInventory: [],
@@ -2422,9 +2498,7 @@ const defaultGame = {
     recentGrowthDrops: [],
     jewelInventoryExpandLevel: 0,
     chaosInfuserUnlocked: false,
-    abyssPassivePoints: 0,
     abyssClearedDepths: [],
-    abyssPassives: { power: 0, tenacity: 0, horde: 0, frailty: 0, weakness: 0, resistance: 0, elite: 0, coreRaid: 0, arrogance: 0, magnifier: 0 },
     currencies: { timeRemnant: 0, growthEssence: 0, magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, gemShard: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, meteorShard: 0, astralCore: 0, incompleteStarWedge: 0, starWedge: 0 , hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
         offlineProgress: { version: 1, recognitionLevel: 0, efficiencyLevel: 0, stashLevel: 0, huntDirectiveUnlocked: false, safeReturnUnlocked: false, lootDirectiveUnlocked: false, rewardedThroughLoop: 0, lifetimeGranted: 0, huntMode: 'push', safetyPolicy: { consecutiveDeaths: 5, noKillMinutes: 10, stopOnNegativeExp: false, stopWhenStorageFull: false }, lootPolicy: { mode: 'rarity', preferredSlots: [], searchText: '' }, stash: [], protectedOverflow: [] },
     ascendClass: null,
@@ -2521,8 +2595,8 @@ const defaultGame = {
         selectedWedgeId: null
     },
     saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0 },
-    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false, hideout: false, arcana: false },
-    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, hideout: false, arcana: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
+    unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false, arcana: false },
+    noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
     mapAlarmSeen: {},
     mapAlarmMainSeen: {},
     expertise: { levels: { mycologist:1, gemEngraver:1, astronomer:1, beekeeper:1 }, exp: { mycologist:0, gemEngraver:0, astronomer:0, beekeeper:0 }, nodes: {}, unlockedExperts: [], unlockHistory: {}, favors: {}, expertPointBonus: 0, loopExpCaps: {} }
@@ -2531,8 +2605,10 @@ const defaultGame = {
 
 safeExposeGlobals({
     defaultGame, hasPermanentTalentTabUnlock, syncPermanentTalentTabUnlock,
+    getBeyondBoundaryTierProfile,
     COMBAT_TACTIC_TARGET_PRIORITIES, COMBAT_TACTIC_POSITION_MODES,
-    normalizeCombatTacticsSettings, hasCombatTacticsUnlockProgress, ensureCombatTacticsUnlockState
+    normalizeCombatTacticsSettings, hasCombatTacticsUnlockProgress, ensureCombatTacticsUnlockState,
+    isFreePassiveStartNodeId, getPaidPassiveNodeIds
 });
 
 // Phase-4 extracted progression math helpers.

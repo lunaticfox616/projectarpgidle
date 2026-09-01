@@ -23,6 +23,7 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.ok(Array.isArray(g.inventory), '인벤토리는 배열이어야 한다');
     assert.ok(Array.isArray(g.growthInventory), '생장 보관함도 준비되어야 한다');
     assert.ok(g.playerHp > 0, '체력은 양수여야 한다');
+    assert.strictEqual(g.settings.pauseGameOnOverlay, true, '새 게임은 안내 창 전투 정지가 기본으로 켜져야 한다');
 }
 
 // ── 새 시스템 필드가 전혀 없는 옛 저장 ───────────────────────────────────
@@ -36,6 +37,13 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.ok(Array.isArray(g.growthInventory), '없던 생장 필드를 만들어 줘야 한다');
     assert.ok(Array.isArray(g.recentGrowthDrops), '최근 획득함도 만들어 줘야 한다');
     assert.strictEqual(typeof g.growthInventoryExpandLevel, 'number', '확장 레벨이 숫자여야 한다');
+    assert.strictEqual(g.settings.pauseGameOnOverlay, true, '설정값이 없던 옛 저장도 새 기본값을 받아야 한다');
+}
+
+// ── 사용자가 명시적으로 꺼 둔 창 일시 정지는 보존한다 ──────────────────
+{
+    const g = merge({ inventory: [], equipment: {}, currencies: {}, unlocks: {}, settings: { pauseGameOnOverlay: false } });
+    assert.strictEqual(g.settings.pauseGameOnOverlay, false, '기존 사용자의 일시 정지 선택을 덮어쓰면 안 된다');
 }
 
 // ── 생장판 추가 전에 저장한 루프 40 세이브 ───────────────────────────────
@@ -101,10 +109,11 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
         growthInventoryExpandLevel: 1e9, inventoryExpandLevel: Infinity, jewelInventoryExpandLevel: -5
     });
     [['growthInventoryExpandLevel', g.growthInventoryExpandLevel],
-     ['inventoryExpandLevel', g.inventoryExpandLevel],
      ['jewelInventoryExpandLevel', g.jewelInventoryExpandLevel]].forEach(([name, value]) => {
         assert.ok(Number.isFinite(value) && value >= 0, `${name}은 0 이상의 유한한 수여야 한다 (${value})`);
     });
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(g, 'inventoryExpandLevel'), false,
+        'legacy purchased equipment expansion state must be removed during migration');
 }
 
 // ── 보관 초과분은 불러오기에서 잘리지 않는다 ─────────────────────────────
@@ -136,6 +145,73 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.strictEqual(g.enemies[0].isElite, true, 'unrelated enemy state must survive recovery');
 }
 
+// ── 구 패시브 트리에서 이미 성좌 각성을 마친 저장 ────────────────────────
+{
+    const g = merge({
+        passiveStarEvolution: true, journalEntries: [],
+        inventory: [], equipment: {}, currencies: {}, unlocks: {}, settings: {}
+    });
+    assert.strictEqual(g.passiveStarEvolution, true, '기존 성좌 각성은 새 트리에서도 영구 유지되어야 한다');
+    assert.strictEqual(g.passiveStarEvolutionSource, 'legacy_migrated', '출처가 없는 옛 각성은 명시적인 이관 상태로 기록해야 한다');
+    assert.ok(g.journalEntries.includes('passive_star_evolution'), '옛 각성 저장은 영구 보너스 저널을 복구해야 한다');
+}
+
+// ── 외부 레퍼런스 식별자가 남아 있던 v22 패시브 저장 ────────────────────
+{
+    const g = merge({
+        saveVersion: vm.runInContext('defaultGame.saveVersion', ctx), passiveLayoutVersion: 22,
+        selectedClassId: 'warrior', inventory: [], equipment: {}, currencies: {}, unlocks: {},
+        passives: ['n7xf9g8ilhr', 'nzv2zn1wqtc', 'poe2_22290'],
+        discoveredPassives: ['poe2_22290', 'poe2_26725'],
+        voidPassives: { poe2_26725: { stats: [{ id: 'flatHp', val: 12 }] } },
+        retiredVoidPassives: { poe2_26196: { stats: [{ id: 'resAll', val: 3 }] } },
+        starWedge: { nodeMutations: { poe2_1207: { currentStat: 'flatHp', currentVal: 5 } } },
+        settings: { passiveTreePlanner: { layoutVersion: 22, activeSlot: 0, presets: [
+            { name: '옛 ID', nodeIds: ['poe2_22290', 'poe2_1207'], attributeChoices: {} }
+        ] } }
+    });
+    assert.ok(g.passives.includes('pt_spine_warrior_left_01'), '기존 투자 노드를 새 식별자로 복구해야 한다');
+    assert.ok(!g.passives.includes('poe2_22290'), '구 식별자가 현재 투자 목록에 남으면 안 된다');
+    assert.ok(g.discoveredPassives.includes('pt_void_south'), '발견한 공허 노드도 새 식별자로 복구해야 한다');
+    assert.strictEqual(g.voidPassives.pt_void_south.stats[0].val, 12, '공허 패시브 옵션을 보존해야 한다');
+    assert.ok(g.retiredVoidPassives.pt_void_southeast, '보관된 공허 패시브도 새 식별자로 복구해야 한다');
+    assert.ok(g.starWedge.nodeMutations.pt_base_path_001, '성률의 노드 참조도 새 식별자로 복구해야 한다');
+    assert.deepStrictEqual(Array.from(g.settings.passiveTreePlanner.presets[0].nodeIds),
+        ['pt_spine_warrior_left_01', 'pt_base_path_001'], '패시브 프리셋 순서와 노드를 보존해야 한다');
+}
+
+// ── 계시 UI는 실제 할당된 헌신을 잠금 조건으로 사용한다 ──────────────────
+{
+    const g = merge({ inventory: [], equipment: {}, currencies: {}, unlocks: {}, settings: {} });
+    ctx.__loadedRevelationGame = g;
+    const lockedHtml = vm.runInContext('game = __loadedRevelationGame; renderPassiveSpecializationControls();', ctx);
+    assert.ok(/<select[^>]*disabled/.test(lockedHtml), '헌신이 0이면 계시 선택 상자를 비활성화해야 한다');
+    assert.ok(lockedHtml.includes('헌신 1 이상부터 계시 선택 가능'), '계시 잠금 이유를 화면에 표시해야 한다');
+    const devotionId = vm.runInContext(`Object.values(PASSIVE_TREE.nodes)
+        .find(node => (node.effects || []).some(effect => effect.stat === 'devotion')).id`, ctx);
+    g.passives = [devotionId];
+    const unlockedHtml = vm.runInContext('renderPassiveSpecializationControls();', ctx);
+    assert.ok(!/<select[^>]*disabled/.test(unlockedHtml), '헌신이 1 이상이면 계시 선택 상자를 활성화해야 한다');
+}
+
+// ── 10재능 캐릭터 선택을 사용하던 저장 ─────────────────────────────────
+{
+    const g = merge({
+        selectedHeroId: 'hero8', appearanceHeroId: 'hero4',
+        discoveredHeroIds: ['hero1', 'hero4', 'hero8'], heroSelectionInitialized: true,
+        inventory: [], equipment: {}, currencies: {}, unlocks: {},
+        settings: { heroAppearanceMode: 'fixed' }
+    });
+    assert.strictEqual(g.selectedClassId, 'cleric', '옛 가디언 선택은 성직자로 이관되어야 한다');
+    assert.strictEqual(g.appearanceClassId, 'wanderer', '고정 외형은 실제 직업과 별도로 이관되어야 한다');
+    assert.deepStrictEqual(Array.from(g.discoveredClassIds), ['archer', 'wanderer', 'cleric'],
+        '경험한 옛 캐릭터는 중복 없이 새 직업 경험으로 변환되어야 한다');
+    assert.strictEqual(g.selectedHeroId, 'hero5', '옛 저장의 재능은 이관된 성직자 시작 보상과 한 번 맞춰야 한다');
+    assert.strictEqual(g.classTalentAlignmentVersion, 1, '직업·재능 정합성 이관은 한 번만 실행되어야 한다');
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(g, 'appearanceHeroId'), false,
+        '옛 외형 필드는 저장 상태의 두 번째 출처로 남으면 안 된다');
+}
+
 // 별쐐기 보관함도 장착 슬롯 한도와 무관하게 전부 복원한다.
 {
     const manyWedges = Array.from({ length: 70 }, (_, index) => ({
@@ -150,6 +226,29 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     });
     assert.strictEqual(g.starWedge.wedges.length, manyWedges.length,
         '장착 한도를 넘긴 보유 별쐐기도 불러오기에서 모두 보존해야 한다');
+}
+
+// 외곽 성률 옵션은 트리 본체의 경로와 무관하게 1포인트로 사는 독립 노드다.
+// 장착한 별쐐기의 활성 옵션을 재접속 때 연결 끊김으로 오판해 환불하면 안 된다.
+{
+    const outerHub = Object.values(ctx.PASSIVE_TREE.nodes).find(node => node.starWedgeMode === 'constellation');
+    const option = Object.values(ctx.PASSIVE_TREE.nodes).find(node => node.kind === 'star_option'
+        && node.requiresStarWedgeSocketNodeId === outerHub.id && node.starWedgeLineIndex === 0);
+    const baseSave = {
+        saveVersion: vm.runInContext('defaultGame.saveVersion', ctx), passiveLayoutVersion: 22,
+        selectedClassId: 'warrior', inventory: [], equipment: {}, currencies: {}, unlocks: {},
+        passives: [option.id], passivePoints: 0,
+        starWedge: {
+            wedges: [{ id: 7001, lines: [{ stat: 'move', val: 7 }] }],
+            sockets: [{ nodeId: outerHub.id, wedgeId: 7001 }]
+        }
+    };
+    const active = merge(baseSave);
+    assert.ok(active.passives.includes(option.id), '장착 중인 외곽 성률 옵션 투자를 보존해야 한다');
+    assert.strictEqual(active.autoRefundedPassivePoints, 0, '활성 성률 옵션을 자동 환불하면 안 된다');
+    const inactive = merge({ ...baseSave, starWedge: { wedges: baseSave.starWedge.wedges, sockets: [] } });
+    assert.ok(!inactive.passives.includes(option.id), '소켓이 비어 사라진 성률 옵션은 제거해야 한다');
+    assert.strictEqual(inactive.autoRefundedPassivePoints, 1, '사라진 성률 옵션은 정확히 한 포인트 환불해야 한다');
 }
 
 // ── 손상된 저장은 조용히 넘어가지 않고 던진다 ────────────────────────────

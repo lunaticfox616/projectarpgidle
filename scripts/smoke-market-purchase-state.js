@@ -4,16 +4,22 @@ const assert = require('assert');
 
 const source = fs.readFileSync('js/items.js', 'utf8');
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
+const utilitySource = fs.readFileSync('js/utils.js', 'utf8');
 const start = source.indexOf('function getBlackMarketOfferPurchaseState(offer)');
 const end = source.indexOf('function getBlackMarketOfferTooltipHtml(offer)', start);
 assert(start >= 0 && end > start, 'purchase state helper not found');
 
 const context = {
     game: { currencies: { chaos: 4, divine: 2 }, inventory: [], skills: ['보유 젬'] },
-    getInventoryLimit: () => 2,
+    EQUIPMENT_INVENTORY_MAX_PAGES: 1,
+    EQUIPMENT_INVENTORY_CELLS_PER_PAGE: 2,
     hasSkillGemOwned: name => context.game.skills.includes(name)
 };
 vm.createContext(context);
+const capacityStart = utilitySource.indexOf('function getEquipmentInventoryPageCount(');
+const capacityEnd = utilitySource.indexOf('function getJewelInventoryLimit(', capacityStart);
+assert(capacityStart >= 0 && capacityEnd > capacityStart, 'spatial inventory capacity helpers not found');
+vm.runInContext(utilitySource.slice(capacityStart, capacityEnd), context);
 vm.runInContext(source.slice(start, end), context);
 
 let state = vm.runInContext("getBlackMarketOfferPurchaseState({type:'exchange',from:'chaos',need:5})", context);

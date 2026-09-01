@@ -129,18 +129,45 @@
         return FILTER_IDS.map(id => `<option value="${id}" ${state.filter === id ? 'selected' : ''}>${labels[id]} ${counts[id] || 0}</option>`).join('');
     }
 
+    function isInventoryNearFull() {
+        if (typeof getInventoryLimit !== 'function' || typeof getInventoryUsedCellCount !== 'function') return false;
+        const limit = Math.max(1, Math.floor(getInventoryLimit(game)));
+        return getInventoryUsedCellCount(game) >= Math.floor(limit * 0.9);
+    }
+
+    function getRecommendedCandidate() {
+        if (state.status !== 'ready' || ['special', 'keep'].includes(state.filter)) return null;
+        const candidates = (Array.isArray(game.inventory) ? game.inventory : []).map(item => ({ item, result: getResult(item) }));
+        const ranked = candidates.map(candidate => {
+            const result = candidate.result;
+            if (!result) return null;
+            if (state.filter === 'damage' && result.dpsGainPct >= 1) return { ...candidate, slot: result.dpsSlot, score: result.dpsGainPct };
+            if (state.filter === 'defense' && result.ehpGainPct >= 1) return { ...candidate, slot: result.ehpSlot, score: result.ehpGainPct };
+            if (['all', 'balanced'].includes(state.filter) && result.kind === 'balanced') {
+                return { ...candidate, slot: result.dpsSlot, score: Math.min(result.dpsGainPct, result.ehpGainPct) };
+            }
+            return null;
+        }).filter(Boolean).sort((a, b) => b.score - a.score);
+        return ranked[0] || null;
+    }
+
     function render() {
         const host = document.getElementById('ui-equipment-triage');
         if (!host) return;
         const counts = getCounts();
         const running = state.status === 'running';
         const ready = state.status === 'ready';
+        const recommendation = getRecommendedCandidate();
+        const autoSalvageButton = isInventoryNearFull() && typeof openAutoSalvageConfigOverlay === 'function'
+            ? '<button type="button" onclick="openAutoSalvageConfigOverlay()">자동 해체 설정</button>' : '';
         const html = `<div class="equipment-triage-copy"><strong>현재 세팅 분석</strong><small>${getStatusCopy()}</small></div>
             <div class="equipment-triage-controls">
                 <label>판단 <select onchange="equipmentTriage.setFilter(this.value)" ${ready ? '' : 'disabled'}>${getFilterOptionsHtml(counts)}</select></label>
                 <button type="button" onclick="equipmentTriage.start()" ${running ? 'disabled' : ''}>${running ? '분석 중' : (ready || state.status === 'stale' || state.status === 'error' ? '다시 분석' : '일괄 분석')}</button>
+                <button type="button" onclick="equipmentTriage.equipRecommended()" ${recommendation ? '' : 'disabled'} title="${state.filter === 'all' ? '공격과 생존이 함께 오르는 장비만 추천합니다.' : '현재 판단 기준에서 가장 높은 장비를 추천합니다.'}">추천 교체</button>
+                ${autoSalvageButton}
             </div>`;
-        const renderSignature = `${state.status}|${state.filter}|${state.work ? state.work.index : 0}|${JSON.stringify(counts)}`;
+        const renderSignature = `${state.status}|${state.filter}|${state.work ? state.work.index : 0}|${JSON.stringify(counts)}|${recommendation ? recommendation.item.id : ''}|${isInventoryNearFull()}`;
         if (host.dataset.renderSig === renderSignature) return;
         host.innerHTML = html;
         host.dataset.renderSig = renderSignature;
@@ -255,6 +282,18 @@
         return state.results.get(String(item.id)) || null;
     }
 
-    const equipmentTriage = Object.freeze({ sync, render, start, setFilter, filterRows, getResult });
+    function equipRecommended() {
+        const recommendation = getRecommendedCandidate();
+        if (!recommendation || typeof equipItemById !== 'function') return false;
+        const equipped = equipItemById(recommendation.item.id, recommendation.slot);
+        if (!equipped) return false;
+        if (typeof showGameToast === 'function') {
+            showGameToast(`${recommendation.item.name || '추천 장비'} 장착 · ${recommendation.slot}`, { tone: 'success' });
+        }
+        start();
+        return true;
+    }
+
+    const equipmentTriage = Object.freeze({ sync, render, start, setFilter, filterRows, getResult, equipRecommended });
     safeExposeGlobals({ equipmentTriage });
 }());

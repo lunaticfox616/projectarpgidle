@@ -62,9 +62,12 @@ function getConditionPatternContext(state, pStats, now) {
     let maxHp = Math.max(1, Number(pStats && pStats.maxHp) || 1);
     let maxEs = Math.max(0, Number(pStats && pStats.energyShield) || 0);
     let nearestDistance = Number.POSITIVE_INFINITY;
+    let getDistance = typeof getGridUnitDistance === 'function'
+        ? (enemy => getGridUnitDistance(source.gridPlayer, enemy))
+        : (enemy => gridChebyshevDist(source.gridPlayer.gx, source.gridPlayer.gy, enemy.gx, enemy.gy));
     if (source.gridPlayer && typeof gridChebyshevDist === 'function') liveEnemies.forEach(enemy => {
         if (!enemy || !Number.isFinite(enemy.gx) || !Number.isFinite(enemy.gy)) return;
-        nearestDistance = Math.min(nearestDistance, gridChebyshevDist(source.gridPlayer.gx, source.gridPlayer.gy, enemy.gx, enemy.gy));
+        nearestDistance = Math.min(nearestDistance, getDistance(enemy));
     });
     return {
         hpPct: Math.max(0, Number(source.playerHp) || 0) / maxHp * 100,

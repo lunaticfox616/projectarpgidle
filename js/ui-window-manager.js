@@ -4,6 +4,7 @@
     const DESKTOP_MEDIA = '(min-width: 1081px)';
     const UI_LAYOUT_STORAGE_KEY = 'project-arpg-idle-ui-layout-v1';
     const UI_LAYOUT_VERSION = 1;
+    const PASSIVE_TREE_PRESENTATION_VERSION = 1;
     const COMMUNITY_MIN_WIDTH = 280;
     const COMMUNITY_MAX_WIDTH = 520;
     const DEFAULT_COMMUNITY_WIDTH = 360;
@@ -24,10 +25,9 @@
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
         'tab-items': { title: '장비 및 인벤토리', x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
         'tab-skills': { title: '스킬 및 스킬 젬', x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
-        'tab-char': { title: '스킬 / 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460 },
+        'tab-char': { title: '스킬 / 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
         'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },
         'tab-map': { title: '지도 및 콘텐츠', x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
-        'tab-hideout': { title: '뿌리 성소', x: 110, y: 46, width: 1080, height: 760, minWidth: 760, minHeight: 500 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
         'tab-season': { title: '루프', x: 300, y: 90, width: 740, height: 640, minWidth: 500, minHeight: 380 },
         'tab-pruning': { title: '성장 나무 · 가지치기', x: 210, y: 70, width: 980, height: 760, minWidth: 620, minHeight: 460 },
@@ -46,7 +46,7 @@
     let initialized = false;
 
     function getDefaultLayoutState() {
-        return { version: UI_LAYOUT_VERSION, windows: {}, community: { open: false, width: DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false }, combatLog: { expanded: false } };
+        return { version: UI_LAYOUT_VERSION, passiveTreePresentationVersion: PASSIVE_TREE_PRESENTATION_VERSION, windows: {}, community: { open: false, width: DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false }, combatLog: { expanded: false } };
     }
 
     function readStoredLayout() {
@@ -64,6 +64,10 @@
         let next = raw && typeof raw === 'object' ? raw : {};
         let state = { ...base, ...next, version: UI_LAYOUT_VERSION };
         state.windows = (next.windows && typeof next.windows === 'object') ? next.windows : {};
+        if ((Number(next.passiveTreePresentationVersion) || 0) < PASSIVE_TREE_PRESENTATION_VERSION) {
+            state.windows = { ...state.windows, 'tab-char': { ...(state.windows['tab-char'] || {}), maximized: true } };
+        }
+        state.passiveTreePresentationVersion = PASSIVE_TREE_PRESENTATION_VERSION;
         state.community = { ...base.community, ...((next.community && typeof next.community === 'object') ? next.community : {}) };
         state.community.width = clampNumberLocal(state.community.width, COMMUNITY_MIN_WIDTH, COMMUNITY_MAX_WIDTH, DEFAULT_COMMUNITY_WIDTH);
         state.goals = { ...base.goals, ...((next.goals && typeof next.goals === 'object') ? next.goals : {}) };
@@ -124,7 +128,15 @@
         let height = clampNumberLocal(stored.height, minHeight, rect.height, Math.min(def.height, rect.height));
         let x = clampNumberLocal(stored.x, rect.left, rect.left + rect.width - width, Math.min(def.x, rect.left + rect.width - width));
         let y = clampNumberLocal(stored.y, rect.top, rect.top + rect.height - Math.min(34, height), Math.min(def.y, rect.top + rect.height - height));
-        return { open: !!stored.open, minimized: !!stored.minimized, maximized: !!stored.maximized, restoreRect: stored.restoreRect || null, x, y, width, height };
+        let maximized = stored.maximized === undefined ? !!def.defaultMaximized : !!stored.maximized;
+        let restoreRect = stored.restoreRect || (maximized ? { x, y, width, height } : null);
+        if (maximized) {
+            x = rect.left;
+            y = rect.top;
+            width = rect.width;
+            height = rect.height;
+        }
+        return { open: !!stored.open, minimized: !!stored.minimized, maximized, restoreRect, x, y, width, height };
     }
 
     function persistWindowState(tabId, patch) {
@@ -493,6 +505,7 @@
         art.alt = '';
         art.draggable = false;
         art.setAttribute('aria-hidden', 'true');
+        art.addEventListener('error', () => art.remove(), { once: true });
         header.prepend(art);
     }
 
@@ -638,7 +651,7 @@
             + '<div id="ui-goal-body">'
             + '<div class="ui-goal-head-row">'
             + '<span id="ui-goal-badge" class="ui-goal-badge"></span>'
-            + '<button type="button" id="ui-goal-pin" aria-pressed="false" title="고정" aria-label="목표 서랍 고정">📌</button>'
+            + '<button type="button" id="ui-goal-pin" aria-pressed="false" title="고정" aria-label="목표 서랍 고정">고정</button>'
             + '</div>'
             + '<div id="ui-goal-title" class="ui-goal-title"></div>'
             + '<div id="ui-goal-desc" class="ui-goal-desc"></div>'
@@ -770,14 +783,15 @@
     }
 
     function escapeGoalText(value) {
-        return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+        return stripDecorativeEmoji(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     }
 
     function setGoalDrawerText(id, text) {
         let el = document.getElementById(id);
         if (!el) return;
-        el.textContent = text || '';
-        el.style.display = text ? '' : 'none';
+        let cleanText = stripDecorativeEmoji(text);
+        el.textContent = cleanText;
+        el.style.display = cleanText ? '' : 'none';
     }
 
     function getGoalProgressPct(goal) {
@@ -801,7 +815,13 @@
         let pct = getGoalProgressPct(goal);
         let rows = (Array.isArray(goal.notices) ? goal.notices : []).slice(0, 2);
         // 펼친 상태: 배지 → 제목 → 설명 → 진행도 바 → 수치 → 버튼 → 보조 안내.
-        setGoalDrawerText('ui-goal-badge', goal.categoryLabel ? `${goal.icon ? goal.icon + ' ' : ''}${goal.categoryLabel}` : (goal.icon || ''));
+        let badge = document.getElementById('ui-goal-badge');
+        if (badge) {
+            let icon = goal.iconKind === 'attack' && typeof renderCombatLogIcon === 'function'
+                ? renderCombatLogIcon('attack') : '';
+            badge.innerHTML = `${icon}${escapeGoalText(stripDecorativeEmoji(goal.categoryLabel || ''))}`;
+            badge.style.display = badge.innerHTML ? '' : 'none';
+        }
         setGoalDrawerText('ui-goal-title', goal.title);
         setGoalDrawerText('ui-goal-desc', goal.description);
         setGoalDrawerBar('ui-goal-bar', 'ui-goal-bar-fill', pct);

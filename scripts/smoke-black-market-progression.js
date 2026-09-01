@@ -13,7 +13,7 @@ function extract(startNeedle, endNeedle) {
     return source.slice(start, end);
 }
 
-const promptBlock = extract('function buildGoldenRuleSpendPrompt', 'async function marketExpandInventoryByDivine');
+const promptBlock = extract('function buildGoldenRuleSpendPrompt', 'async function marketExpandJewelInventoryByDivine');
 const runtimeBlock = promptBlock + '\n' + extract('function refreshBlackMarket(force)', 'function canStoreBlackMarketEquipmentOffer');
 const logs = [];
 let confirmationPrompt = '';

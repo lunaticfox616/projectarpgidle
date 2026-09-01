@@ -5,8 +5,9 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 const runtime = buildGameRuntime();
 
 const tagResult = vm.runInContext(`(() => {
-  let generic = Object.entries(PASSIVE_TREE.nodes).find(([, node]) => node.stat === 'gemLevel');
-  let chaos = Object.entries(PASSIVE_TREE.nodes).find(([, node]) => node.stat === 'chaosGemLevel');
+  let generic = Object.entries(PASSIVE_TREE.nodes).find(([, node]) => !node.activationRequirement
+    && (node.effects || []).some(effect => effect.stat === 'gemLevel'));
+  let chaos = Object.entries(PASSIVE_TREE.nodes).find(([, node]) => (node.effects || []).some(effect => effect.stat === 'chaosGemLevel'));
   if (!generic || !chaos) throw new Error('required passive gem-level nodes are missing');
   game.equipment = {};
   game.growthInventory = [];
@@ -25,8 +26,8 @@ const tagResult = vm.runInContext(`(() => {
     '불곰 소환': { level:5 },
     '칼날까마귀 소환': { level:4, bossCoreLevel:2, skyCoreLevel:1, awakened:true }
   };
-  let genericValue = Number(generic[1].val || 0);
-  let chaosValue = Number(chaos[1].val || 0);
+  let genericValue = Number(generic[1].effects.find(effect => effect.stat === 'gemLevel').val || 0);
+  let chaosValue = Number(chaos[1].effects.find(effect => effect.stat === 'chaosGemLevel').val || 0);
   return {
     genericValue,
     chaosValue,

@@ -96,8 +96,7 @@ function getSalvageRecoveryEntry(entryId, targetGame = game) {
 function getSalvageRestoreAvailability(entryId, targetGame = game) {
     let entry = getSalvageRecoveryEntry(entryId, targetGame);
     if (!entry) return { canRestore: false, reason: '복구할 장비를 찾을 수 없습니다.', missing: {} };
-    let inventory = Array.isArray(targetGame.inventory) ? targetGame.inventory : [];
-    if (inventory.length >= getInventoryLimit()) return { canRestore: false, reason: '인벤토리 공간이 부족합니다.', missing: {} };
+    if (!canStoreEquipmentItems([entry.item], targetGame)) return { canRestore: false, reason: '인벤토리 공간이 부족합니다.', missing: {} };
     let missing = {};
     Object.entries(entry.rewards).forEach(([key, amount]) => {
         let owned = Math.max(0, Math.floor(Number(targetGame.currencies && targetGame.currencies[key]) || 0));

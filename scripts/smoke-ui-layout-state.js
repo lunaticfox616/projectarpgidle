@@ -64,6 +64,7 @@ function bootManager(storedRaw, options = {}) {
     m.exposed.closeCommunityDock();
     const state = m.lastSaved();
     assert.strictEqual(state.version, 1, '손상 저장 후 버전이 복구되어야 함');
+    assert.strictEqual(state.passiveTreePresentationVersion, 1, '패시브 트리 창 표현 버전이 복구되어야 함');
     assert.strictEqual(state.community.open, false);
     assert.strictEqual(state.community.width, 360, '손상 저장 후 커뮤니티 기본 너비');
 }
@@ -139,6 +140,26 @@ function bootManager(storedRaw, options = {}) {
     const m = bootManager(undefined);
     assert.strictEqual(m.exposed.openWindow('tab-cube'), false, 'cube must not create a nested standalone window');
     assert.strictEqual(m.exposed.openWindow('tab-flask'), true, 'the utility launcher must remain the cube window owner');
+}
+
+// 9) 기존 창 배치는 한 번만 몰입형 패시브 화면으로 이행하고, 이후 사용자의 복원 선택은 보존한다.
+{
+    const legacy = bootManager(JSON.stringify({
+        version: 1,
+        windows: { 'tab-char': { open: false, maximized: false, x: 250, y: 80, width: 900, height: 680 } }
+    }));
+    const migrated = legacy.lastSaved();
+    assert.strictEqual(migrated.passiveTreePresentationVersion, 1);
+    assert.strictEqual(migrated.windows['tab-char'].maximized, true,
+        '기존 패시브 창도 새 표현 버전에서 한 번은 몰입형 크기로 열려야 한다');
+
+    const restored = bootManager(JSON.stringify({
+        version: 1,
+        passiveTreePresentationVersion: 1,
+        windows: { 'tab-char': { open: false, maximized: false, x: 250, y: 80, width: 900, height: 680 } }
+    }));
+    assert.strictEqual(restored.lastSaved().windows['tab-char'].maximized, false,
+        '표현 버전 이행 후 사용자가 창 크기를 복원한 선택은 다시 덮어쓰면 안 된다');
 }
 
 console.log('smoke-ui-layout-state passed');

@@ -289,8 +289,9 @@ function rollGrowthDropRarity(enemy) {
     return roll < 0.09 ? 'rare' : (roll < 0.30 ? 'magic' : 'normal');
 }
 
-function generateGrowthDrop(enemy) {
-    let zone = (typeof getZone === 'function' ? getZone(game.currentZoneId) : null) || {};
+function generateGrowthDrop(enemy, options) {
+    let zone = options && options.zone
+        ? options.zone : ((typeof getZone === 'function' ? getZone(game.currentZoneId) : null) || {});
     let tierCap = typeof getRealmEquipmentHiddenTierCap === 'function' ? getRealmEquipmentHiddenTierCap(zone) : Math.max(1, Math.floor(zone.tier || 1));
     let dropTier = typeof rollRealmItemDropTier === 'function' ? rollRealmItemDropTier(zone, enemy) : tierCap;
     if (Math.random() < GROWTH_SLAB_DROP_RATE) {

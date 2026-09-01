@@ -94,7 +94,7 @@ assert(combatSource.includes("skill.ele === 'phys'"), 'armor conversion unique s
 assert(!combatSource.includes('if (uniqueVenomStride) finalDamageMultiplier *= 1.30'), 'venom stride must not multiply every damage type');
 assert(combatSource.includes('projectileRepeatPct % 100'), 'fractional projectile repeat chance should work below 100%');
 assert(!combatSource.includes('dmg = Math.max(1, Math.floor(dmg * (1 - bossLess / 100)));'), 'boss guardian reduction should replace, not stack with, the normal value');
-assert(combatSource.includes("addBattleFx('trialTrap', { color: '#c49bff'"), 'realm invulnerability should block trial traps');
+assert(combatSource.includes("color: barrierActive ? '#c49bff' : hazard.color"), 'realm invulnerability should visibly block trial traps');
 assert(combatSource.includes('75 + sharedElementalMaxRes + gearBase.maxResF'), 'shared maximum elemental resistance must affect fire resistance cap');
 assert(combatSource.includes('75 + sharedElementalMaxRes + gearBase.maxResC'), 'shared maximum elemental resistance must affect cold resistance cap');
 assert(combatSource.includes('75 + sharedElementalMaxRes + gearBase.maxResL'), 'shared maximum elemental resistance must affect lightning resistance cap');

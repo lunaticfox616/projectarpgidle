@@ -93,7 +93,7 @@ function loadGame(save = {}) {
     state.inventory = Array.from({ length: context.getInventoryLimit() }, (_, index) => makeItem(400 + index, `가득 ${index}`, '반지'));
     const result = context.equipmentLoadoutRuntime.apply(0, state);
     assert.strictEqual(result.ok, false, '전환 후 인벤토리가 넘치면 적용을 거부해야 한다');
-    assert.ok(result.reason.includes('1칸 초과'), '필요한 빈칸 수를 알려야 한다');
+    assert.ok(result.reason.includes('배치 공간이 부족'), '세팅 전환에 필요한 공간이 부족함을 알려야 한다');
     assert.strictEqual(state.equipment['투구'], helmet, '용량 실패 시 기존 장착 상태를 유지해야 한다');
 }
 

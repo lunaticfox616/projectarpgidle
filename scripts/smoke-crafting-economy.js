@@ -68,7 +68,7 @@ assert(
     'rare currency confirmation must revalidate the selected crafting target before mutation'
 );
 
-const annulBlock = extract(itemSource, 'async function marketAnnulSelectedStat', 'async function marketExpandInventoryByDivine');
+const annulBlock = extract(itemSource, 'async function marketAnnulSelectedStat', 'async function marketExpandJewelInventoryByDivine');
 const bulkJewelSalvageBlock = extract(passiveSource, 'async function bulkSalvageJewels()', 'async function toggleJewelAutoSalvage');
 const protectedItem = {
     name: '보호 장비',

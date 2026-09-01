@@ -17,6 +17,8 @@ const context = {
   now: 0,
   game: {},
   getExpReq: () => 10,
+  getPlayerStats: () => ({}),
+  getEnemyExperienceReward: enemy => Number(enemy && enemy.expValue) || 100,
   mergeDefaults: state => state,
   updateStaticUI: () => { context.updated = (context.updated || 0) + 1; },
   safeExposeGlobals: entries => Object.assign(context, entries),
@@ -53,7 +55,9 @@ assert.strictEqual(vm.runInContext('backgroundCombatRuntime.accelerationTier', c
 vm.runInContext('requestFasterBackgroundCombat()', context);
 assert.strictEqual(vm.runInContext('backgroundCombatRuntime.accelerationTier', context), 1, 'repeated clicks should stay in the single fast mode');
 assert(vm.runInContext('BACKGROUND_COMBAT_FAST_CHUNK_BUDGET_MS', context) <= 16, 'fast calculation must stay within a single frame budget so the UI keeps rendering smoothly');
-assert(vm.runInContext('BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS', context) <= 60 * 1000, 'normal calculation must settle the 3-hour cap within one minute of real time');
+assert(vm.runInContext('BACKGROUND_COMBAT_MAX_SAMPLE_MS', context) <= 90 * 1000, 'long returns must use a bounded combat sample');
+assert(vm.runInContext('BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS', context) <= 5 * 1000, 'normal calculation must not replay combat for tens of seconds');
+assert(vm.runInContext('BACKGROUND_COMBAT_AUTO_ESTIMATE_THRESHOLD_MS', context) <= 5 * 60 * 1000, 'long effective progress must automatically settle after the bounded sample');
 assert(!source.includes('보상 85%') && !source.includes('보상 65%'), 'acceleration must not advertise a reward penalty');
 
 // 예상 정산: 경험치·처치·사망은 남은 구간에 비례 반영한다.
@@ -73,6 +77,36 @@ assert.strictEqual(extraState.state.exp, 5, 'leftover experience should carry th
 assert.strictEqual(extraState.state.currencies.chaos, 2, '재화는 표본 결과에 배율을 곱하지 않는다(잭팟 방지)');
 assert.strictEqual(extraState.metrics.kills, 30, 'metrics should include the estimated kills for the result summary');
 assert.strictEqual(vm.runInContext('extrapolateBackgroundRemainder({ level: 1, exp: 0 }, null, 0, 1000)', context), false, 'extrapolation requires a simulated sample');
+
+const lowDamageProjection = vm.runInContext(`(function () {
+    let state = { level: 1, exp: 0, loopKills: 0, loopDeaths: 0, backgroundKillMix: {}, enemies: [{ id: 1, hp: 100, maxHp: 100, expValue: 100 }] };
+    let metrics = createBackgroundCombatMetrics(state);
+    seedBackgroundEnemyMetrics(metrics, state);
+    state.enemies[0].hp = 50;
+    updateBackgroundCombatMetrics(metrics, state, 5000);
+    let applied = extrapolateBackgroundRemainder(state, metrics, 5000, 10000);
+    return { applied, state, metrics };
+})()`, context);
+assert.strictEqual(lowDamageProjection.applied, true, 'low-damage samples should extrapolate from partial enemy progress');
+assert.strictEqual(lowDamageProjection.state.loopKills, 1, 'half of one enemy over the sample should project one kill over twice the remaining duration');
+assert.strictEqual(lowDamageProjection.state.level, 11, 'partial enemy progress should project its proportional experience without waiting for an integer kill');
+assert.strictEqual(lowDamageProjection.metrics.kills, 1, 'the result summary should include kills estimated from partial enemy progress');
+
+const killAndPartialProjection = vm.runInContext(`(function () {
+    let state = { level: 1, exp: 0, loopKills: 0, loopDeaths: 0, backgroundKillMix: { normal: 0 }, enemies: [{ id: 1, hp: 100, maxHp: 100 }] };
+    let metrics = createBackgroundCombatMetrics(state);
+    seedBackgroundEnemyMetrics(metrics, state);
+    state.loopKills = 1;
+    state.backgroundKillMix.normal = 1;
+    state.enemies = [{ id: 2, hp: 100, maxHp: 100 }];
+    updateBackgroundCombatMetrics(metrics, state, 2500);
+    state.enemies[0].hp = 50;
+    updateBackgroundCombatMetrics(metrics, state, 5000);
+    extrapolateBackgroundRemainder(state, metrics, 5000, 10000);
+    return { state, metrics };
+})()`, context);
+assert.strictEqual(killAndPartialProjection.state.loopKills, 4, 'completed kills and current partial progress should both contribute without overlap');
+assert.strictEqual(killAndPartialProjection.metrics.kills, 4, 'combined integer and partial kills should remain visible in the result summary');
 
 context.game = { saveMeta: { lastModifiedAt: 1000 }, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
 assert.strictEqual(vm.runInContext('recordOfflineCombatEntry(11 * 60 * 1000)', context), true, 'saved timestamp should stage offline progress after a full disconnect');

@@ -51,33 +51,46 @@ const PRUNING_TREE_DB = Object.freeze([
     { id:'quiet_crown', name:'고요한 수관', maxRank:5, cost:2, x:50, y:10, requires:{ broad_leaf:3, moon_sap:3, red_flower:3 }, stats:[{ id:'dr', val:0.2 }], penaltyStats:[{ id:'aspd', val:-0.2 }], effect:'물리 피해 감소 +0.2%/단계', penaltyEffect:'공격 속도 -0.2%/부담' }
 ]);
 
-const HIDEOUT_UNLOCK_ACT = 5;
-const HIDEOUT_GRID_VERSION = 2;
-const HIDEOUT_GRID_COLUMNS = COMBAT_GRID_CONFIG.size;
-const HIDEOUT_GRID_ROWS = COMBAT_GRID_CONFIG.size;
-const HIDEOUT_PLAYER_CELL = COMBAT_GRID_CONFIG.playerSpawn.gy * HIDEOUT_GRID_COLUMNS + COMBAT_GRID_CONFIG.playerSpawn.gx;
-const HIDEOUT_DECOR_DB = Object.freeze([
-    { id:'stash', name:'방랑자의 보관함', kind:'station', footprint:{ columns:2, rows:1 }, renderScale:0.88, asset:'assets/hideout/decor/stash-v1.webp', directionalAsset:'assets/hideout/decor/directions/stash-directions-v1.webp', action:{ tabId:'tab-items', subtab:'item-tab-equip', label:'장비 탭' }, unlock:{ act:5 }, defaultCell:53 },
-    { id:'forge', name:'뿌리 제련대', kind:'station', footprint:{ columns:2, rows:2 }, renderScale:0.88, asset:'assets/hideout/decor/forge-v1.webp', directionalAsset:'assets/hideout/decor/directions/forge-directions-v1.webp', action:{ tabId:'tab-items', subtab:'item-tab-craft', label:'제작 탭' }, unlock:{ act:5 }, defaultCell:50 },
-    { id:'map_device', name:'상처의 지도대', kind:'station', footprint:{ columns:2, rows:2 }, renderScale:0.88, asset:'assets/hideout/decor/map-device-v1.webp', directionalAsset:'assets/hideout/decor/directions/map-device-directions-v1.webp', action:{ tabId:'tab-map', label:'지도 탭' }, unlock:{ act:5 }, defaultCell:29 },
-    { id:'gem_altar', name:'공명 제단', kind:'station', footprint:{ columns:1, rows:1 }, renderScale:0.84, asset:'assets/hideout/decor/gem-altar-v1.webp', directionalAsset:'assets/hideout/decor/directions/gem-altar-directions-v1.webp', action:{ tabId:'tab-skills', label:'스킬 젬 탭' }, unlock:{ loop:2 }, defaultCell:26 },
-    { id:'condition_loom', name:'조건 직조기', kind:'station', footprint:{ columns:2, rows:1 }, renderScale:0.88, asset:'assets/hideout/decor/condition-loom-v1.webp', directionalAsset:'assets/hideout/decor/directions/condition-loom-directions-v1.webp', action:{ tabId:'tab-skills', subtab:'skill-tab-condition', label:'조건 젬 탭' }, unlock:{ loop:10 }, defaultCell:44 },
-    { id:'growth_basin', name:'생장 수반', kind:'station', footprint:{ columns:2, rows:2 }, renderScale:0.9, asset:'assets/hideout/decor/growth-basin-v1.webp', directionalAsset:'assets/hideout/decor/directions/growth-basin-directions-v1.webp', action:{ tabId:'tab-growthboard', label:'생장판 탭' }, unlock:{ loop:25 }, defaultCell:33 },
-    { id:'woodsman_trophy', name:'나무꾼의 부러진 날', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/woodsman-trophy-v1.webp', unlock:{ journal:'woodsman' } },
-    { id:'astra_trophy', name:'아스트라의 꺼진 별', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/astra-trophy-v1.webp', unlock:{ journal:'cosmos_astra' } },
-    { id:'underking_trophy', name:'모르그란의 심핵', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/underking-trophy-v1.webp', unlock:{ journal:'pinnacle_underking' } },
-    { id:'leviathan_trophy', name:'탈라사의 무광 비늘', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/leviathan-trophy-v1.webp', unlock:{ journal:'pinnacle_leviathan' } },
-    { id:'observer_trophy', name:'베일라의 관측안', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/observer-trophy-v1.webp', unlock:{ journal:'pinnacle_observer' } },
-    { id:'last_breath_trophy', name:'꺼지지 않은 심장', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/last-breath-trophy-v1.webp', unlock:{ journal:'hidden_last_breath' } },
-    { id:'unscarred_trophy', name:'무흠의 방패', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/unscarred-trophy-v1.webp', unlock:{ journal:'hidden_unscarred' } },
-    { id:'dry_vial_trophy', name:'봉인된 약병', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/dry-vial-trophy-v1.webp', unlock:{ journal:'hidden_dry_vial' } },
-    { id:'fourfold_trophy', name:'사중 공명석', kind:'trophy', footprint:{ columns:1, rows:1 }, asset:'assets/hideout/decor/fourfold-trophy-v1.webp', unlock:{ journal:'hidden_fourfold_affliction' } }
+const BEYOND_BOUNDARY_ZONE_ID = 'beyond_boundary';
+const BEYOND_BOUNDARY_STATE_VERSION = 2;
+const BEYOND_BOUNDARY_UNLOCK_LOOP = 50;
+const BEYOND_BOUNDARY_UNLOCK_BOSS_ID = 'pinnacle_observer';
+const BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER = 5;
+const BEYOND_BOUNDARY_TIER_CAP = 250;
+const BEYOND_BOUNDARY_HP_GROWTH = 1.11;
+const BEYOND_BOUNDARY_DAMAGE_GROWTH = 1.055;
+const BEYOND_BOUNDARY_SEAL_DB = Object.freeze([
+    { id:'edge', name:'끝을 벼린 인장', maxLevel:50, description:'보스와 정예를 끊어내는 공격 인장', stats:[{ id:'bossDamagePct', val:0.5 }, { id:'eliteDamagePct', val:0.5 }] },
+    { id:'ward', name:'되비치는 인장', maxLevel:50, description:'생명력과 에너지 보호막을 함께 다듬는 생존 인장', stats:[{ id:'pctHp', val:0.25 }, { id:'energyShieldPct', val:0.25 }] },
+    { id:'stride', name:'먼 길의 인장', maxLevel:50, description:'공격과 이동의 흐름을 잇는 속도 인장', stats:[{ id:'aspd', val:0.2 }, { id:'move', val:0.2 }] }
+]);
+const BEYOND_BOUNDARY_MUTATOR_DB = Object.freeze([
+    { tier:5, id:'hardened', name:'응고', description:'적 생명력 20% 증가' },
+    { tier:10, id:'onslaught', name:'맹공', description:'적 피해 15%, 공격 속도 10% 증가' },
+    { tier:15, id:'iron', name:'철벽', description:'적 물리 피해 감소 10% 증가' },
+    { tier:20, id:'piercing', name:'심층 관통', description:'적 관통 10 증가' },
+    { tier:30, id:'renewal', name:'재생', description:'적이 초당 생명력 0.25% 재생' }
+]);
+const BEYOND_BOUNDARY_REWARD_FOCUS_DB = Object.freeze([
+    { id:'armory', name:'무기고의 메아리', description:'완료 보상을 희귀 이상 장비에 집중합니다.', risk:'적 생명력 8% 증가', hpMul:1.08 },
+    { id:'jewel', name:'세공의 메아리', description:'완료 보상을 주얼과 주얼 결정에 집중합니다.', risk:'적 공격 속도 8% 증가', attackSpeedMul:1.08 },
+    { id:'gem', name:'각인의 메아리', description:'완료 보상을 젬 잔향에 집중합니다.', risk:'적 피해 8% 증가', damageMul:1.08 },
+    { id:'growth', name:'생장의 메아리', description:'완료 보상을 생장판 배치물에 집중합니다.', risk:'적 관통 5 증가', penetrationBonus:5 },
+    { id:'currency', name:'연성의 메아리', description:'완료 보상을 장비 제작 재화에 집중합니다.', risk:'적 생명력·피해 5% 증가', hpMul:1.05, damageMul:1.05 }
+]);
+const BEYOND_BOUNDARY_INTENSITY_DB = Object.freeze([
+    { id:'plain', name:'무조율', description:'추가 소모와 보정 없이 도전합니다.', costs:[], rewardMul:1, hpMul:1, damageMul:1, attackSpeedMul:1 },
+    { id:'etched', name:'새김 조율', description:'보상 묶음이 35% 풍성해집니다.', costs:[{ key:'formlessDew', amount:3 }], rewardMul:1.35, hpMul:1.12, damageMul:1.08, attackSpeedMul:1 },
+    { id:'sovereign', name:'군주의 조율', description:'보상 묶음이 75% 풍성해집니다.', costs:[{ key:'formlessDew', amount:8 }, { key:'sapBud', amount:1 }], rewardMul:1.75, hpMul:1.3, damageMul:1.2, attackSpeedMul:1.1 }
 ]);
 
 safeExposeData({
     ARCANA_DECK_SLOT_COUNT, ARCANA_SEALED_CARD_DROP_CHANCE, ARCANA_GALAXY_BOSS_DROP_CHANCE,
     ARCANA_CAPSTONE_DROP_CHANCE, ARCANA_QUEST_EXPLORATION_TARGET, ARCANA_EQUIPMENT_SLOT_KEYS, ARCANA_CARD_DB,
     PRUNING_TREE_STATE_VERSION, PRUNING_TREE_UNLOCK_LOOP, PRUNING_TREE_DB,
-    HIDEOUT_UNLOCK_ACT, HIDEOUT_GRID_VERSION, HIDEOUT_GRID_COLUMNS, HIDEOUT_GRID_ROWS,
-    HIDEOUT_PLAYER_CELL, HIDEOUT_DECOR_DB
+    BEYOND_BOUNDARY_ZONE_ID, BEYOND_BOUNDARY_STATE_VERSION, BEYOND_BOUNDARY_UNLOCK_LOOP,
+    BEYOND_BOUNDARY_UNLOCK_BOSS_ID, BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER, BEYOND_BOUNDARY_TIER_CAP,
+    BEYOND_BOUNDARY_HP_GROWTH, BEYOND_BOUNDARY_DAMAGE_GROWTH,
+    BEYOND_BOUNDARY_SEAL_DB, BEYOND_BOUNDARY_MUTATOR_DB,
+    BEYOND_BOUNDARY_REWARD_FOCUS_DB, BEYOND_BOUNDARY_INTENSITY_DB
 });

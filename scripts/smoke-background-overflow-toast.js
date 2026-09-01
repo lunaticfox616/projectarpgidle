@@ -3,16 +3,17 @@ const fs = require('fs');
 const vm = require('vm');
 
 const source = fs.readFileSync('js/passives.js', 'utf8');
+const utilitySource = fs.readFileSync('js/utils.js', 'utf8');
 
-function readFunctionSource(name) {
-    const start = source.indexOf(`function ${name}(`);
+function readFunctionSource(name, sourceText = source) {
+    const start = sourceText.indexOf(`function ${name}(`);
     assert(start >= 0, `${name} must exist`);
     let depth = 0;
-    for (let index = source.indexOf('{', start); index < source.length; index++) {
-        if (source[index] === '{') depth += 1;
-        if (source[index] !== '}') continue;
+    for (let index = sourceText.indexOf('{', start); index < sourceText.length; index++) {
+        if (sourceText[index] === '{') depth += 1;
+        if (sourceText[index] !== '}') continue;
         depth -= 1;
-        if (depth === 0) return source.slice(start, index + 1);
+        if (depth === 0) return sourceText.slice(start, index + 1);
     }
     throw new Error(`${name} source boundary not found`);
 }
@@ -27,7 +28,8 @@ const context = {
     normalizeItem() {},
     tryAutoEquipEmptySlot: () => null,
     passesItemPickupFilter: () => true,
-    getInventoryLimit: () => 1,
+    EQUIPMENT_INVENTORY_MAX_PAGES: 1,
+    EQUIPMENT_INVENTORY_CELLS_PER_PAGE: 1,
     salvageItemObject: () => ({ alteration: 1 }),
     formatSalvageRewardSummary: () => '변화의 오브 +1',
     addLog: message => logs.push(message),
@@ -37,6 +39,8 @@ const context = {
     Math
 };
 vm.createContext(context);
+['getEquipmentInventoryPageCount', 'getInventoryLimit', 'getInventoryUsedCellCount', 'canStoreEquipmentItems']
+    .forEach(name => vm.runInContext(readFunctionSource(name, utilitySource), context));
 vm.runInContext(readFunctionSource('addItemToInventory'), context, { filename: 'background-overflow-toast.js' });
 
 assert.strictEqual(context.addItemToInventory({ name: '넘친 장비 1', rarity: 'rare' }), false);

@@ -576,6 +576,7 @@ input[data-search-key]:focus {
 #btn-map-explore-hunting    { --tab-accent: #6f9e78; }
 #btn-map-explore-chaos      { --tab-accent: #9b76ad; }
 #btn-map-explore-root-boss  { --tab-accent: #b27e67; }
+#btn-map-explore-beyond     { --tab-accent: #b58aff; }
 #btn-map-explore-labyrinth  { --tab-accent: #c0a866; }
 #btn-map-explore-deep-chaos { --tab-accent: #836fa6; }
 #btn-map-explore-meteor     { --tab-accent: #bf8860; }

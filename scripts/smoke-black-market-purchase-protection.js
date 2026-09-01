@@ -3,6 +3,7 @@ const vm = require('vm');
 const assert = require('assert');
 
 const source = fs.readFileSync('js/passives.js', 'utf8');
+const utilitySource = fs.readFileSync('js/utils.js', 'utf8');
 const start = source.indexOf('function addItemToInventory(item, options)');
 const end = source.indexOf('function getTalismanEffectAnchorCell', start);
 assert(start >= 0 && end > start, 'inventory acquisition functions not found');
@@ -19,7 +20,8 @@ const context = {
   },
   normalizeItem: item => item,
   addLog: () => {},
-  getInventoryLimit: () => 10,
+  EQUIPMENT_INVENTORY_MAX_PAGES: 1,
+  EQUIPMENT_INVENTORY_CELLS_PER_PAGE: 10,
   salvageItemObject: item => {
     context.salvaged.push(item.name);
     return { transmute: 1 };
@@ -31,6 +33,10 @@ const context = {
   salvaged: []
 };
 vm.createContext(context);
+const capacityStart = utilitySource.indexOf('function getEquipmentInventoryPageCount(');
+const capacityEnd = utilitySource.indexOf('function getJewelInventoryLimit(', capacityStart);
+assert(capacityStart >= 0 && capacityEnd > capacityStart, 'spatial inventory capacity helpers not found');
+vm.runInContext(utilitySource.slice(capacityStart, capacityEnd), context);
 vm.runInContext(source.slice(start, end), context);
 assert.strictEqual(vm.runInContext("addItemToInventory({ name:'drop sword', rarity:'normal' })", context), false);
 assert.deepStrictEqual(context.game.inventory.map(item => item.name), []);

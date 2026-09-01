@@ -8,6 +8,9 @@ const end = uiSource.indexOf('function captureCombatLogScroll', start);
 assert(start >= 0 && end > start, 'combat-log decoration helpers must be executable in isolation');
 
 const context = {
+  stripDecorativeEmoji(raw) {
+    return String(raw || '').replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, '').trim();
+  },
   stripHtmlMessage(raw) { return String(raw || '').replace(/<[^>]*>/g, ''); },
   escapeHTML(raw) { return String(raw || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;'); },
   getInventoryItemVisualAsset(item, kind) {
@@ -41,5 +44,12 @@ assert(fs.existsSync(atlas), 'the generated combat-log icon atlas must exist');
 assert(fs.statSync(atlas).size <= 32 * 1024, 'the combat-log icon atlas must stay below 32 KB');
 assert(fs.readFileSync('css/layout.css', 'utf8').includes("url('../assets/ui/combat-log-icons-v1.webp?v=20260822-2')"),
   'combat-log icon styles must consume the compressed generated atlas');
+
+const html = fs.readFileSync('index.html', 'utf8');
+const characterPanel = html.slice(html.indexOf('<div id="tab-character"'), html.indexOf('<div id="tab-char"'));
+assert(!/\p{Extended_Pictographic}/u.test(characterPanel), 'character information must not retain unrelated emoji icons');
+['attack', 'phys', 'fire', 'cold', 'light', 'chaos'].forEach(kind => {
+  assert(characterPanel.includes(`combat-log-icon--${kind}`), `character information must reuse the ${kind} combat icon`);
+});
 
 console.log('smoke-combat-log-icons: ok');

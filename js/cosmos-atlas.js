@@ -1724,9 +1724,7 @@
                     </div>
                     <div id="cosmos-inner-mastery" class="cosmos-mastery-shell" style="display:none;"></div>
                 </div>`;
-            const abyssTab = document.getElementById('map-tab-abyss');
-            if (abyssTab && abyssTab.parentNode) abyssTab.parentNode.insertBefore(panel, abyssTab);
-            else mapTab.appendChild(panel);
+            mapTab.appendChild(panel);
         }
 
         ATLAS.canvas = document.getElementById('cosmos-atlas-canvas');

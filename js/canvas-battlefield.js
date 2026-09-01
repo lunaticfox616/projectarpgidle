@@ -39,12 +39,6 @@ function getCanvasCrowdProgressPaused() {
     return provider ? !!provider() : false;
 }
 
-function getCanvasCrowdPauseLimit() {
-    if (typeof ENEMY_CROWD_PAUSE_LIMIT !== 'undefined') return ENEMY_CROWD_PAUSE_LIMIT;
-    if (typeof window !== 'undefined' && Number.isFinite(Number(window.ENEMY_CROWD_PAUSE_LIMIT))) return Number(window.ENEMY_CROWD_PAUSE_LIMIT);
-    return 20;
-}
-
 const BATTLE_SKILL_EFFECT_CAP = 56;
 
 function getBattleVfxDensity() {
@@ -111,6 +105,70 @@ function requestBattleHitStop(fx) {
     battleVisualState.lastHitStopFxId = fx.id;
     if (duration <= 0) return;
     battleVisualState.hitStopRemainingMs = Math.max(Number(battleVisualState.hitStopRemainingMs) || 0, duration);
+}
+
+function getEnemyDeathMotion(enemyPos, playerPos, progress, boss, elite) {
+    let t = clampNumber(Number(progress) || 0, 0, 1);
+    let dx = Number(enemyPos && enemyPos.x) - Number(playerPos && playerPos.x);
+    let dy = Number(enemyPos && enemyPos.y) - Number(playerPos && playerPos.y);
+    let distance = Math.hypot(dx, dy);
+    if (!Number.isFinite(distance) || distance < 0.01) { dx = 1; dy = 0; distance = 1; }
+    let directionX = dx / distance;
+    let directionY = dy / distance;
+    let impactPhase = clampNumber(t / 0.16, 0, 1);
+    let knockbackDistance = boss ? 4 : (elite ? 6 : 8);
+    let knockback = (1 - Math.pow(1 - impactPhase, 3)) * knockbackDistance;
+    let dissolve = clampNumber((t - 0.08) / 0.92, 0, 1);
+    let uniformScale = 1 - dissolve * (boss ? 0.035 : 0.055);
+    return {
+        x: Number(enemyPos && enemyPos.x) + directionX * knockback,
+        y: Number(enemyPos && enemyPos.y) + directionY * knockback + dissolve * (boss ? 3 : 2),
+        scaleX: uniformScale,
+        scaleY: uniformScale,
+        directionX: directionX,
+        directionY: directionY,
+        dissolve: dissolve,
+        impactAlpha: Math.max(0, 1 - t / 0.18)
+    };
+}
+
+function drawEnemyDeathGroundReaction(ctx, enemy, motion, color, boss, elite) {
+    if (motion.impactAlpha <= 0) return;
+    let size = boss ? 27 : (elite ? 21 : 16);
+    ctx.save();
+    ctx.globalAlpha = motion.impactAlpha * (boss ? 0.34 : 0.24);
+    ctx.strokeStyle = color || '#d8d1c7';
+    ctx.lineWidth = boss ? 3 : 2;
+    ctx.beginPath();
+    ctx.ellipse(enemy.x, enemy.y + 12, size * (1.2 - motion.impactAlpha * 0.28), size * 0.3, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawEnemyDeathContactFlash(ctx, enemy, motion, color, boss, elite) {
+    if (motion.impactAlpha <= 0) return;
+    let reach = boss ? 24 : (elite ? 18 : 13);
+    let centerY = enemy.y - (boss ? 15 : (elite ? 11 : 8));
+    ctx.save();
+    ctx.translate(enemy.x, centerY);
+    ctx.rotate(Math.atan2(motion.directionY, motion.directionX) + Math.PI / 2);
+    ctx.globalAlpha = motion.impactAlpha * (boss ? 0.9 : 0.72);
+    ctx.strokeStyle = '#fff8de';
+    ctx.lineWidth = boss ? 3.2 : 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-reach, 0);
+    ctx.lineTo(reach, 0);
+    ctx.moveTo(-reach * 0.42, -4);
+    ctx.lineTo(reach * 0.42, 4);
+    ctx.stroke();
+    ctx.globalAlpha *= 0.42;
+    ctx.strokeStyle = color || '#d8d1c7';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-reach * 0.72, -5);
+    ctx.lineTo(reach * 0.72, 5);
+    ctx.stroke();
+    ctx.restore();
 }
 
 const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
@@ -291,11 +349,8 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
     let stageKind = String(fx.stageKind || 'primary');
     if (profile.impactVfx === false || stageKind.startsWith('meteor')) return;
     let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
-    let sharedImpact = profile.aggregateImpact || getBattleHitVfxGroupSize(fx, stageKind) >= 5;
-    if (sharedImpact && fx.damageTextGroupId && list.some(effect => effect
-        && effect.vfxGroupId === fx.damageTextGroupId
-        && effect.skillName === fx.skillName
-        && effect.stageKind === stageKind)) return;
+    let hitGroupSize = getBattleHitVfxGroupSize(fx, stageKind);
+    let crowdedImpact = hitGroupSize >= 5;
     let family = getSkillGemVfxStageFamily(profile, stageKind);
     if (profile.family === 'projectile' && stageKind !== 'chainJump' && hasMatchingTravelProjectile(fx.skillName, now)) return;
     if (family === 'breath' && (battleVisualState.skillEffects || []).some(effect => effect
@@ -324,8 +379,9 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
     let target = enemyPos || { x: source.x + 70, y: source.y };
     let scale = Math.max(0.45, Number(profile.scale) || 1) * clampNumber(Number(viewportScale) || 1, 0.7, 1.16);
     if (target.enemy && target.enemy.isBoss) scale *= 1.08;
+    if (crowdedImpact) scale *= 0.82;
     let repeatCount = Math.max(1, Math.min(3, Math.floor(Number(profile.repeats) || 1)));
-    if (sharedImpact) repeatCount = 1;
+    if (crowdedImpact) repeatCount = 1;
     if (getBattleVfxDensity() < 0.84) repeatCount = 1;
     if (stageKind === 'chainJump' || stageKind === 'slamAftershock' || stageKind === 'slamPrimary' || family === 'whirlwind') repeatCount = 1;
     let seed = Math.max(1, Number(fx.id) || 1);
@@ -353,7 +409,7 @@ function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportSca
             connector: connector,
             rotation: rotation,
             size: getSkillGemVfxBaseSize(family, stageKind) * scale * (1 - Math.abs(repeatOffset) * 0.08),
-            alpha: family === 'dot' ? 0.4 : (family === 'whirlwind' ? 0.54 : 0.72),
+            alpha: family === 'dot' ? 0.4 : (family === 'whirlwind' ? 0.54 : (crowdedImpact ? 0.58 : 0.72)),
             filter: getSkillGemVfxFilter(normalizeSkillGemVfxElement(fx.element, profile.accent), imageKey),
             seed: seed + repeat * 17,
             targetKey: family !== 'stormStrike' ? '' : (target.enemy && target.enemy.id != null
@@ -753,18 +809,21 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
         : clampNumber((fx.start + fx.duration - now) / 260, 0, 1) * 0.48;
     let drawTargets = targets;
     let size = fx.owner === 'enemy' ? 92 : 78;
-    let aggregateImpact = targets.length >= 4 || !!(profile && profile.aggregateImpact && targets.length > 1);
-    if (fx.patternKind === 'field' || aggregateImpact) {
+    let fieldImpact = fx.patternKind === 'field';
+    if (fieldImpact) {
         let bounds = getCombatAreaBounds(targets);
         drawTargets = [{ x: bounds.x, y: bounds.y }];
         let span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
         size = clampNumber(span + 78, 110, 360);
-        if (fx.patternKind === 'field') fade = 0.38 + Math.sin(now / 150) * 0.06;
+        fade = 0.38 + Math.sin(now / 150) * 0.06;
+    } else if (targets.length >= 4) {
+        size *= 0.82;
+        fade *= 0.78;
     }
     drawTargets.forEach(target => {
         ctx.save();
         ctx.translate(target.x, target.y);
-        ctx.rotate(fx.patternKind === 'field' || aggregateImpact ? now / 9000 : progress * 0.2);
+        ctx.rotate(fieldImpact ? now / 9000 : progress * 0.2);
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = fade;
         ctx.filter = isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
@@ -1013,6 +1072,37 @@ function drawPlayerMobilityFx(ctx, fx, progress, gridProj) {
     ctx.restore();
 }
 
+function drawTrialTrapGridFx(ctx, fx, progress, gridProj, warning) {
+    if (!gridProj || !Array.isArray(fx.targetCells)) return;
+    let halfW = gridProj.tileW / 2;
+    let halfH = gridProj.tileH / 2;
+    let pulse = 0.5 + Math.sin(progress * Math.PI * 8) * 0.5;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    fx.targetCells.forEach(cell => {
+        let pos = gridProj.cellToScreen(cell.gx, cell.gy);
+        ctx.beginPath();
+        ctx.rect(pos.x - halfW, pos.y - halfH, gridProj.tileW, gridProj.tileH);
+        ctx.globalAlpha = warning ? 0.1 + pulse * 0.16 : (1 - progress) * 0.5;
+        ctx.fillStyle = fx.color || '#ffd36b';
+        ctx.fill();
+        ctx.globalAlpha = warning ? 0.48 + pulse * 0.38 : (1 - progress) * 0.95;
+        ctx.strokeStyle = warning ? (fx.color || '#ffd36b') : '#fff3c6';
+        ctx.lineWidth = warning ? 2 : 2.6;
+        ctx.setLineDash(warning ? [5, 4] : []);
+        ctx.stroke();
+        if (warning) return;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(pos.x - halfW * 0.3, pos.y - halfH * 0.3);
+        ctx.lineTo(pos.x + halfW * 0.3, pos.y + halfH * 0.3);
+        ctx.moveTo(pos.x + halfW * 0.3, pos.y - halfH * 0.3);
+        ctx.lineTo(pos.x - halfW * 0.3, pos.y + halfH * 0.3);
+        ctx.stroke();
+    });
+    ctx.restore();
+}
+
 function drawSkillGemVfxLayer(ctx, now) {
     let list = battleVisualState.skillEffects || [];
     list.forEach(effect => {
@@ -1187,16 +1277,16 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
         let enemy = entry.enemy;
         let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
         let bountyTarget = !!enemy.isBountyTarget;
-        let width = enemy.isBoss ? 72 : (bountyTarget ? 58 : 46);
+        let width = enemy.isBoss ? 96 : (bountyTarget ? 58 : 46);
         let x = Math.round(entry.x - width / 2);
-        let y = Math.round(entry.y - (enemy.isBoss ? 78 : 56));
+        let y = Math.round(entry.y - (enemy.isBoss ? 106 : 56));
         let targeted = targetIds.includes(enemy.id);
         ctx.save();
         ctx.globalAlpha = 0.96;
         let ghostPct = typeof updateEnemyHpDamageGhost === 'function' ? updateEnemyHpDamageGhost(enemy.id, pct * 100) / 100 : pct;
         if (ghostPct > pct + 0.002) {
             ctx.fillStyle = 'rgba(255, 138, 80, 0.58)';
-            ctx.fillRect(x, y, Math.max(2, Math.round(width * ghostPct)), 6);
+            ctx.fillRect(x + Math.round(width * pct), y, Math.max(2, Math.round(width * (ghostPct - pct))), 6);
         }
         ctx.fillStyle = bountyTarget ? '#d9a42d' : (targeted ? '#f1c40f' : '#e94f64');
         ctx.fillRect(x, y, Math.max(2, Math.round(width * pct)), 6);
@@ -1291,20 +1381,6 @@ function getBattlefieldShrineAtClientPosition(canvas, clientX, clientY) {
         ? hitbox.encounter : null;
 }
 
-function getHideoutDecorAtClientPosition(canvas, clientX, clientY) {
-    if (typeof isHideoutActive !== 'function' || !isHideoutActive(game)) return null;
-    let point = getBattlefieldClientPoint(canvas, clientX, clientY);
-    let hitboxes = Array.isArray(battleVisualState.hideoutDecorHitboxes)
-        ? battleVisualState.hideoutDecorHitboxes : [];
-    if (!point) return null;
-    for (let index = hitboxes.length - 1; index >= 0; index--) {
-        let hitbox = hitboxes[index];
-        if (point.x < hitbox.x || point.x > hitbox.x + hitbox.width) continue;
-        if (point.y >= hitbox.y && point.y <= hitbox.y + hitbox.height) return hitbox.decor;
-    }
-    return null;
-}
-
 function drawShrineFallback(ctx, width, height, color) {
     ctx.fillStyle = '#242b31';
     ctx.fillRect(-width * 0.24, -height * 0.58, width * 0.48, height * 0.58);
@@ -1387,24 +1463,128 @@ function selectPlayerSwingEffects(effects, now, durationScale) {
 }
 
 function getPlayableHeroAttackDurationScale(heroId) {
-    let definitions = typeof HERO_SELECTION_DEFS !== 'undefined' ? HERO_SELECTION_DEFS : null;
-    let definition = definitions && definitions[heroId];
+    let classDefinitions = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS : null;
+    let talentDefinitions = typeof HERO_SELECTION_DEFS !== 'undefined' ? HERO_SELECTION_DEFS : null;
+    let definition = (classDefinitions && classDefinitions[heroId]) || (talentDefinitions && talentDefinitions[heroId]);
     return clampNumber(Number(definition && definition.attackAnimationDurationScale) || 1, 1, 1.6);
 }
 
-function getPlayerAdvanceAnimationTarget(isWalking, enemyCount, elapsedMs) {
-    if (!isWalking) return 0;
-    let hasCombatTarget = Math.max(0, Number(enemyCount) || 0) > 0;
-    let delayMs = hasCombatTarget ? 0 : 120;
-    let blendMs = hasCombatTarget ? 140 : 500;
-    return clampNumber((Math.max(0, Number(elapsedMs) || 0) - delayMs) / blendMs, 0, 1);
+function getPlayerGridMoveDurationMs(moveSpeed, distance) {
+    let speed = clampNumber(Number(moveSpeed) || 100, 60, 320);
+    let stepMs = COMBAT_GRID_CONFIG.playerMoveIntervalSec * 1000 * (100 / speed);
+    return clampNumber(stepMs * 0.82 * Math.sqrt(Math.max(1, Number(distance) || 1)), 140, 520);
 }
 
-function getPlayableHeroWalkMotion(heroId, now, cycleDuration, advanceBlend) {
+/**
+ * 논리 칸 변경을 한 번의 화면 이동으로 변환한다.
+ * 진행도만 오르거나 같은 칸에 머무는 동안에는 새 이동을 만들지 않는다.
+ */
+function updatePlayerGridVisualMotion(gridProj, playerCell, now, moveSpeed) {
+    let currentCell = { gx: playerCell.gx, gy: playerCell.gy };
+    let state = battleVisualState.playerGridMotion;
+    if (!state) {
+        state = {
+            lastCell: currentCell, fromCell: currentCell, toCell: currentCell,
+            startedAt: now, durationMs: 0, holdUntil: now, direction: 'east'
+        };
+        battleVisualState.playerGridMotion = state;
+    }
+    let changed = state.lastCell.gx !== currentCell.gx || state.lastCell.gy !== currentCell.gy;
+    if (changed) {
+        let distance = Math.max(
+            Math.abs(currentCell.gx - state.lastCell.gx),
+            Math.abs(currentCell.gy - state.lastCell.gy)
+        );
+        let durationMs = getPlayerGridMoveDurationMs(moveSpeed, distance);
+        state = {
+            lastCell: currentCell,
+            fromCell: state.lastCell,
+            toCell: currentCell,
+            startedAt: now,
+            durationMs,
+            holdUntil: now + durationMs + Math.min(70, durationMs * 0.14),
+            direction: getCardinalMoveDirection(state.lastCell, currentCell)
+        };
+        battleVisualState.playerGridMotion = state;
+        battleVisualState.playerFacingDirection = state.direction;
+    }
+    let progress = state.durationMs > 0
+        ? clampNumber((now - state.startedAt) / state.durationMs, 0, 1)
+        : 1;
+    let eased = progress * progress * (3 - 2 * progress);
+    let from = gridProj.cellToScreen(state.fromCell.gx, state.fromCell.gy);
+    let to = gridProj.cellToScreen(state.toCell.gx, state.toCell.gy);
+    let groundOffsetY = Number(gridProj.actorGroundOffsetY) || 0;
+    from.y += groundOffsetY;
+    to.y += groundOffsetY;
+    let moving = progress < 1;
+    return {
+        position: { x: lerpNumber(from.x, to.x, eased), y: lerpNumber(from.y, to.y, eased) },
+        targetPosition: to,
+        progress,
+        direction: state.direction,
+        animating: moving || (!moving && now < state.holdUntil)
+    };
+}
+
+function getCardinalMoveDirection(fromCell, toCell) {
+    let dx = Number(toCell.gx) - Number(fromCell.gx);
+    let dy = Number(toCell.gy) - Number(fromCell.gy);
+    if (Math.abs(dy) > Math.abs(dx)) return dy > 0 ? 'south' : 'north';
+    return dx < 0 ? 'west' : 'east';
+}
+
+function getPlayerReturnWarpPresentation(effects, now) {
+    let activeFx = null;
+    for (let index = (effects || []).length - 1; index >= 0; index--) {
+        let fx = effects[index];
+        if (!fx || fx.type !== 'playerReturnWarp') continue;
+        let duration = Math.max(1, Number(fx.duration) || 720);
+        let progress = (Number(now) - Number(fx.start)) / duration;
+        if (!Number.isFinite(progress) || progress < 0 || progress > 1) continue;
+        activeFx = { progress: clampNumber(progress, 0, 1), cell: fx.cell };
+        break;
+    }
+    if (!activeFx) return null;
+    let reveal = clampNumber(activeFx.progress / 0.34, 0, 1);
+    let easedReveal = 1 - Math.pow(1 - reveal, 3);
+    return {
+        progress: activeFx.progress,
+        actorAlpha: easedReveal,
+        whiteShroud: Math.sin(clampNumber(activeFx.progress / 0.62, 0, 1) * Math.PI),
+        ringScale: 0.55 + (1 - Math.pow(1 - activeFx.progress, 2)) * 1.25,
+        fade: 1 - activeFx.progress,
+        cell: activeFx.cell
+    };
+}
+
+function getPlayerReturnDeparturePresentation(effects, now) {
+    let activeFx = null;
+    for (let index = (effects || []).length - 1; index >= 0; index--) {
+        let fx = effects[index];
+        if (!fx || fx.type !== 'playerReturnDepart') continue;
+        let duration = Math.max(1, Number(fx.duration) || 720);
+        let progress = (Number(now) - Number(fx.start)) / duration;
+        if (!Number.isFinite(progress) || progress < 0 || progress > 1) continue;
+        activeFx = { progress: clampNumber(progress, 0, 1), cell: fx.cell };
+        break;
+    }
+    if (!activeFx) return null;
+    let vanish = clampNumber((activeFx.progress - 0.66) / 0.34, 0, 1);
+    let easedVanish = vanish * vanish * (3 - 2 * vanish);
+    return {
+        progress: activeFx.progress,
+        actorAlpha: 1 - easedVanish,
+        whiteShroud: Math.sin(activeFx.progress * Math.PI),
+        fade: Math.sin(activeFx.progress * Math.PI),
+        cell: activeFx.cell
+    };
+}
+
+function getPlayableHeroWalkMotion(heroId, moveProgress, advanceBlend) {
     let blend = clampNumber(Number(advanceBlend) || 0, 0, 1);
     if (blend <= 0) return { x: 0, y: 0 };
-    let duration = Math.max(240, Number(cycleDuration) || 900);
-    let phase = ((Math.max(0, Number(now) || 0) % duration) / duration) * Math.PI * 2;
+    let phase = clampNumber(Number(moveProgress) || 0, 0, 1) * Math.PI * 2;
     let heavyStep = ['hero2', 'hero5', 'hero8'].includes(heroId) ? 1.16 : 1;
     return {
         x: Math.sin(phase) * 0.9 * heavyStep * blend,
@@ -1412,99 +1592,205 @@ function getPlayableHeroWalkMotion(heroId, now, cycleDuration, advanceBlend) {
     };
 }
 
-function getHideoutDecorDrawEntries(gridProj) {
-    let state = game.hideout && typeof game.hideout === 'object' ? game.hideout : {};
-    return (Array.isArray(state.placements) ? state.placements : []).map(placement => {
-        let decor = HIDEOUT_DECOR_DB.find(row => row.id === placement.decorId);
-        let cell = Math.floor(Number(placement.cell));
-        let footprint = getHideoutDecorFootprint(placement.decorId, placement.rotation);
-        let gridX = cell % HIDEOUT_GRID_COLUMNS + (footprint.columns - 1) / 2;
-        let gridY = Math.floor(cell / HIDEOUT_GRID_COLUMNS) + (footprint.rows - 1) / 2;
-        let image = decor && battleAssets.images[`hideoutDecor_${decor.id}`];
-        if (!decor || !image || gridY < 0 || gridY >= HIDEOUT_GRID_ROWS) return null;
-        return { decor, image, footprint, rotation:normalizeHideoutRotation(placement.rotation), gridX, gridY,
-            depth:Math.ceil(gridX + gridY), position:gridProj.cellToScreen(gridX, gridY) };
-    }).filter(Boolean).sort((left, right) => left.depth - right.depth || left.gridX - right.gridX);
-}
-
-function getHideoutDirectionalSource(entry) {
-    if (!entry.decor.directionalAsset) return null;
-    let spriteCell = getHideoutDecorSpriteCell(entry.rotation);
-    let width = entry.image.naturalWidth / 2;
-    let height = entry.image.naturalHeight / 2;
-    return { x:spriteCell.column * width, y:spriteCell.row * height, width, height };
-}
-
-function drawHideoutDecorLayer(ctx, entries, playerDepth, foreground, tileWidth, tileHeight) {
-    entries.forEach(entry => {
-        let isForeground = entry.depth > playerDepth;
-        if (isForeground !== foreground) return;
-        let footprintSpan = entry.footprint.columns + entry.footprint.rows;
-        let footprintSize = tileWidth * footprintSpan / 2 * 0.92;
-        let footprintHeight = tileHeight * footprintSpan / 2 * 0.92;
-        let artScale = clampNumber(Number(entry.decor.renderScale) || 0.6, 0.35, 1);
-        let drawSize = footprintSize * artScale;
-        let drawX = entry.position.x - drawSize / 2;
-        let drawY = entry.position.y + footprintHeight / 2 - drawSize;
-        let hovered = battleVisualState.hideoutDecorHoveredId === entry.decor.id;
-        let directionalSource = getHideoutDirectionalSource(entry);
-        ctx.save();
-        ctx.shadowColor = hovered ? 'rgba(255, 213, 132, 0.94)' : 'rgba(29, 16, 7, 0.48)';
-        ctx.shadowBlur = hovered ? Math.max(5, tileWidth * 0.13) : Math.max(2, tileWidth * 0.04);
-        ctx.translate(entry.position.x, 0);
-        if (directionalSource) {
-            ctx.drawImage(entry.image, directionalSource.x, directionalSource.y,
-                directionalSource.width, directionalSource.height, -drawSize / 2, drawY, drawSize, drawSize);
-        } else {
-            ctx.scale(entry.rotation % 2 === 0 ? 1 : -1, 1);
-            ctx.drawImage(entry.image, -drawSize / 2, drawY, drawSize, drawSize);
-        }
-        if (hovered) {
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = 'rgba(255, 218, 148, 0.96)';
-            ctx.lineWidth = 1.5;
-            ctx.strokeRect(-drawSize / 2, drawY, drawSize, drawSize);
-        }
-        ctx.restore();
-        battleVisualState.hideoutDecorHitboxes.push({
-            x:drawX, y:drawY, width:drawSize, height:drawSize, decor:entry.decor
-        });
+function sortBattleActorsByDepth(actors) {
+    return (actors || []).slice().sort((left, right) => {
+        let depthDifference = Number(left.y) - Number(right.y);
+        if (Math.abs(depthDifference) > 0.01) return depthDifference;
+        if (left.kind !== right.kind) return left.kind === 'player' ? 1 : -1;
+        return Number(left.id) - Number(right.id);
     });
 }
 
-function renderHideoutIdleBattlefield(ctx, gridProj, now, width, height) {
-    battleVisualState.hideoutDecorHitboxes = [];
-    if (typeof isHideoutActive !== 'function' || !isHideoutActive(game)) {
-        battleVisualState.hideoutDecorHoveredId = null;
-        return false;
-    }
-    let playerCell = hasGridCell(game.gridPlayer) ? game.gridPlayer : COMBAT_GRID_CONFIG.playerSpawn;
-    let playerPosition = gridProj.cellToScreen(playerCell.gx, playerCell.gy);
-    let playerDepth = playerCell.gx + playerCell.gy;
-    let entries = getHideoutDecorDrawEntries(gridProj);
-    let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.62, 1.3);
-    drawHideoutDecorLayer(ctx, entries, playerDepth, false, gridProj.tileW, gridProj.tileH);
-    let currentSkill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
-    drawPlayerSprite(ctx, playerPosition.x, playerPosition.y, 2.15 * gridUnitScale, false, 0, getBattleSkillVisual(game.activeSkill, currentSkill), now, {
-        advanceBlend:0, attackBlend:0, attackProgress:0, hurtBlend:0, downBlend:0
-    });
-    drawHideoutDecorLayer(ctx, entries, playerDepth, true, gridProj.tileW, gridProj.tileH);
+function drawPlayerReturnWarpEffect(ctx, position, warp, frontLayer) {
+    if (!warp) return;
+    let ringRadius = 22 * warp.ringScale;
+    let beamAlpha = Math.sin(warp.progress * Math.PI) * 0.42;
     ctx.save();
-    let vignette = ctx.createRadialGradient(width / 2, height * 0.5, height * 0.12, width / 2, height * 0.5, width * 0.68);
-    vignette.addColorStop(0, 'rgba(255, 224, 162, 0.02)');
-    vignette.addColorStop(1, 'rgba(35, 20, 8, 0.28)');
-    ctx.fillStyle = vignette;
-    ctx.fillRect(0, 0, width, height);
-    ctx.restore();
-    let caption = document.getElementById('ui-battlefield-caption');
-    let hoveredDecor = entries.find(entry => entry.decor.id === battleVisualState.hideoutDecorHoveredId);
-    if (caption) {
-        let actionLabel = hoveredDecor && hoveredDecor.decor.action && hoveredDecor.decor.action.label;
-        caption.innerText = hoveredDecor
-            ? `${hoveredDecor.decor.name} · ${actionLabel ? `${actionLabel} 열기` : '은신처 편집'}`
-            : '휴식 중';
+    if (!frontLayer) {
+        let beam = ctx.createLinearGradient(position.x, position.y - 68, position.x, position.y + 8);
+        beam.addColorStop(0, 'rgba(137, 218, 255, 0)');
+        beam.addColorStop(0.58, `rgba(137, 218, 255, ${beamAlpha})`);
+        beam.addColorStop(1, 'rgba(184, 156, 255, 0)');
+        ctx.fillStyle = beam;
+        ctx.fillRect(position.x - 7, position.y - 68, 14, 76);
+        ctx.globalAlpha = warp.fade * 0.42;
+        ctx.fillStyle = '#79cfff';
+        ctx.beginPath();
+        ctx.ellipse(position.x, position.y + 7, ringRadius, ringRadius * 0.32, 0, 0, Math.PI * 2);
+        ctx.fill();
     }
-    return true;
+    ctx.globalAlpha = warp.fade * (frontLayer ? 0.9 : 0.68);
+    ctx.strokeStyle = frontLayer ? '#e8e2ff' : '#86d9ff';
+    ctx.lineWidth = frontLayer ? 2.1 : 2.8;
+    ctx.beginPath();
+    ctx.ellipse(position.x, position.y + 7, ringRadius, ringRadius * 0.32, 0,
+        frontLayer ? 0 : Math.PI, frontLayer ? Math.PI : Math.PI * 2);
+    ctx.stroke();
+    if (frontLayer) {
+        for (let spark = 0; spark < 4; spark++) {
+            let angle = spark * Math.PI / 2 + warp.progress * 0.55;
+            let reach = ringRadius * (0.72 + spark * 0.055);
+            ctx.beginPath();
+            ctx.moveTo(position.x + Math.cos(angle) * reach, position.y + 7 + Math.sin(angle) * reach * 0.32);
+            ctx.lineTo(position.x + Math.cos(angle) * (reach + 7), position.y + 7 + Math.sin(angle) * (reach + 7) * 0.32);
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+}
+
+function drawPlayerReturnDepartureEffect(ctx, position, departure, frontLayer) {
+    if (!departure) return;
+    ctx.save();
+    if (!frontLayer) {
+        let beam = ctx.createLinearGradient(position.x, position.y - 76, position.x, position.y + 8);
+        beam.addColorStop(0, 'rgba(164, 229, 255, 0)');
+        beam.addColorStop(0.72, `rgba(164, 229, 255, ${departure.fade * 0.28})`);
+        beam.addColorStop(1, 'rgba(210, 177, 255, 0)');
+        ctx.fillStyle = beam;
+        ctx.fillRect(position.x - 7, position.y - 76, 14, 84);
+        ctx.globalAlpha = departure.fade * 0.35;
+        ctx.strokeStyle = '#91ddff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(position.x, position.y + 7, 22 - departure.progress * 6, 6, 0, 0, Math.PI * 2);
+        ctx.stroke();
+    } else {
+        ctx.lineCap = 'round';
+        ctx.lineWidth = 1.7;
+        for (let spark = 0; spark < 7; spark++) {
+            let phase = (departure.progress * 1.45 + spark * 0.17) % 1;
+            let x = position.x + (spark - 3) * 5 + Math.sin((phase + spark) * 3.2) * 2;
+            let y = position.y + 6 - phase * 76;
+            ctx.globalAlpha = Math.sin(phase * Math.PI) * departure.fade * 0.82;
+            ctx.strokeStyle = spark % 2 ? '#d8c5ff' : '#b3edff';
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y - 7 - spark % 3);
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+}
+
+function drawPlayerReturnWhiteShroud(ctx, position, strength, frontLayer) {
+    let alpha = clampNumber(Number(strength) || 0, 0, 1);
+    if (alpha <= 0.01) return;
+    ctx.save();
+    if (!frontLayer) {
+        let halo = ctx.createRadialGradient(position.x, position.y - 25, 2, position.x, position.y - 22, 29);
+        halo.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.34})`);
+        halo.addColorStop(0.58, `rgba(232, 247, 255, ${alpha * 0.18})`);
+        halo.addColorStop(1, 'rgba(216, 238, 255, 0)');
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.ellipse(position.x, position.y - 22, 27, 43, 0, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        ctx.globalAlpha = alpha * 0.2;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(position.x, position.y - 22, 15, 36, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = alpha * 0.62;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.4;
+        ctx.lineCap = 'round';
+        for (let streak = -2; streak <= 2; streak++) {
+            let x = position.x + streak * 6;
+            ctx.beginPath();
+            ctx.moveTo(x, position.y + 3 - Math.abs(streak) * 4);
+            ctx.lineTo(x + streak, position.y - 37 - Math.abs(streak) * 3);
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+}
+
+function drawBattlePlayerActor(ctx, state) {
+    let position = state.playerPos;
+    let returnWarp = state.returnWarp;
+    let returnDeparture = state.returnDeparture;
+    let warpPosition = returnWarp && returnWarp.position ? returnWarp.position : position;
+    let departurePosition = returnDeparture && returnDeparture.position ? returnDeparture.position : position;
+    let transition = returnWarp || returnDeparture;
+    let transitionPosition = returnWarp ? warpPosition : departurePosition;
+    let walkingDirection = state.motionState.advanceBlend > 0.08 ? state.motionState.moveDirection : null;
+    let poseDirection = state.motionState.facingDirection || state.motionState.attackDirection || 'east';
+    let facingLeft = !walkingDirection && poseDirection === 'west';
+    drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, false);
+    drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, false);
+    drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, false);
+    ctx.save();
+    if (transition) ctx.globalAlpha = transition.actorAlpha;
+    if (facingLeft) {
+        ctx.translate(position.x * 2, 0);
+        ctx.scale(-1, 1);
+    }
+    drawSkillWeaponLayer(ctx, position, state.now, 'back');
+    drawPlayerSprite(ctx, position.x, position.y, 2.15 * state.gridUnitScale, state.playerFlash,
+        state.swingPower, state.currentSkillVisual, state.now, state.motionState);
+    drawSkillWeaponLayer(ctx, position, state.now, 'front');
+    ctx.restore();
+    drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, true);
+    drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, true);
+    drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, true);
+}
+
+function getEnemyAttackMotion(fx, enemyPos, playerPos, now, distance) {
+    if (!fx || !enemyPos || !playerPos) return null;
+    let duration = Math.max(1, Number(fx.duration) || 220);
+    let progress = (Number(now) - Number(fx.start)) / duration;
+    if (!Number.isFinite(progress) || progress < 0 || progress > 1) return null;
+    let dx = Number(playerPos.x) - Number(enemyPos.x);
+    let dy = Number(playerPos.y) - Number(enemyPos.y);
+    let length = Math.hypot(dx, dy);
+    if (length < 0.01) return { progress, x: 0, y: 0 };
+    let stride = Math.sin(progress * Math.PI) * Math.max(0, Number(distance) || 0);
+    return { progress, x: dx / length * stride, y: dy / length * stride };
+}
+
+function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
+    let result = {};
+    (effects || []).forEach(fx => {
+        if (!fx || fx.type !== 'enemyAttack' || fx.enemyId == null) return;
+        let entry = enemyPosMap[fx.enemyId];
+        if (!entry) return;
+        let distance = entry.enemy.isBoss ? 10 : (entry.enemy.isElite ? 8 : 6);
+        let motion = getEnemyAttackMotion(fx, entry, playerPos, now, distance);
+        if (motion) result[fx.enemyId] = motion;
+    });
+    return result;
+}
+
+function drawBattleEnemyActor(ctx, entry, state) {
+    let enemy = entry.enemy;
+    let spawnDuration = enemy.isBoss ? 640 : (enemy.isElite ? 460 : 360);
+    let age = enemy.spawnStamp ? clampNumber((state.now - enemy.spawnStamp) / spawnDuration, 0, 1) : 1;
+    let easedAge = 1 - Math.pow(1 - age, 3);
+    let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
+    if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
+    let count = state.enemyCount;
+    let crowdScale = count >= 9 ? (enemy.isBoss ? 3.25 : (enemy.isElite ? 1.72 : 1.46))
+        : (count >= 6 ? (enemy.isBoss ? 3.45 : (enemy.isElite ? 1.9 : 1.62))
+            : (enemy.isBoss ? 3.65 : (enemy.isElite ? 2.2 : 1.95)));
+    ctx.save();
+    ctx.globalAlpha = easedAge;
+    drawEnemySprite(ctx, enemy, entry.x, entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18),
+        crowdScale * state.gridUnitScale * spawnScale, state.flashingEnemyIds.has(enemy.id), state.now, entry.moving,
+        state.enemyAttackMotions[enemy.id]);
+    ctx.restore();
+}
+
+function drawBattleActorLayer(ctx, enemyEntries, state) {
+    let actors = (enemyEntries || []).map(entry => ({
+        kind: 'enemy', id: entry.enemy.id, y: entry.y, entry
+    }));
+    actors.push({ kind: 'player', id: -1, y: state.playerPos.y });
+    sortBattleActorsByDepth(actors).forEach(actor => {
+        if (actor.kind === 'player') drawBattlePlayerActor(ctx, state);
+        else drawBattleEnemyActor(ctx, actor.entry, state);
+    });
 }
 
 // Phase-2 extracted battlefield canvas renderer block.
@@ -1549,7 +1835,8 @@ function renderBattlefield(forceWhenHidden) {
 
     let currentZone = getZone(game.currentZoneId);
     let zoneTheme = getBattleZoneTheme(currentZone);
-    let gridProj = getBattleGridProjection(width, height);
+    let mobileBattlefield = document.body && document.body.classList.contains('mobile-battle-tab');
+    let gridProj = getBattleGridProjection(width, height, mobileBattlefield ? 'grid-contain' : 'cover');
     let backdropActive = drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone, gridProj);
     let framePlayerStats = getCanvasPlayerStats();
     let currentTargets = getCanvasSkillTargets(framePlayerStats);
@@ -1587,52 +1874,41 @@ function renderBattlefield(forceWhenHidden) {
         document.getElementById('ui-battlefield-caption').innerText = '전장 에셋 로딩 중...';
         return;
     }
-    if (renderHideoutIdleBattlefield(ctx, gridProj, now, width, height)) return;
-
     let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
     let swingPower = swingFx ? Math.sin(((now - swingFx.start) / (swingFx.duration * attackAnimationDurationScale)) * Math.PI) : 0;
     let currentSkillVisual = getBattleSkillVisual(game.activeSkill, currentSkill);
-    // 지역 이동뿐 아니라 전투 중 칸 이동(사거리 밖 적에게 접근)도 걷기 모션을 쓴다.
-    let desiredAdvancing = typeof isPlayerWalkingForAnimation === 'function'
-        ? isPlayerWalkingForAnimation()
-        : (enemies.length === 0 && game.moveTimer <= 0 && game.runProgress < 100);
-    if (battleVisualState.advanceDesired !== desiredAdvancing) {
-        battleVisualState.advanceDesired = desiredAdvancing;
-        battleVisualState.advanceChangedAt = now;
-    }
-    let advanceTarget = 0;
-    if (desiredAdvancing) {
-        let changedAt = Number.isFinite(battleVisualState.advanceChangedAt) ? battleVisualState.advanceChangedAt : now;
-        // 전투 중 한 칸 이동은 빠르면 0.2초 안에 끝난다. 기존 0.26초 대기 때문에
-        // 그 짧은 이동 전체가 대기 자세로 보였으므로, 교전 이동은 즉시 걷기 전환을 시작한다.
-        advanceTarget = getPlayerAdvanceAnimationTarget(true, enemies.length, now - changedAt);
-    }
-    battleVisualState.playerAdvanceBlend = approachNumber(battleVisualState.playerAdvanceBlend || 0, advanceTarget, desiredAdvancing ? 2.2 : 2.8, deltaSec);
     battleVisualState.playerAttackBlend = approachNumber(battleVisualState.playerAttackBlend || 0, swingFx ? 1 : 0, swingFx ? 4 : 3, deltaSec);
+    if (swingFx && Number.isFinite(swingFx.motionVariantSeed)) {
+        battleVisualState.playerAttackMotionSeed = swingFx.motionVariantSeed;
+    }
     battleVisualState.playerHurtBlend = approachNumber(battleVisualState.playerHurtBlend || 0, playerFlash ? 1 : 0, playerFlash ? 6.5 : 4.2, deltaSec);
     battleVisualState.playerDownBlend = approachNumber(battleVisualState.playerDownBlend || 0, playerDownActive ? 1 : 0, playerDownActive ? 7.5 : 4.8, deltaSec);
-    let layout = getBattleLayout(enemies, width, height);
-    let engagementBob = enemies.length > 0 ? 1 : 0.45;
-    let advanceBlend = battleVisualState.playerAdvanceBlend || 0;
+    let layout = getBattleLayout(enemies, width, height, gridProj);
     let attackBlend = battleVisualState.playerAttackBlend || 0;
     let hurtBlend = battleVisualState.playerHurtBlend || 0;
     let downBlend = battleVisualState.playerDownBlend || 0;
     let playerCell = hasGridCell(game.gridPlayer) ? game.gridPlayer : COMBAT_GRID_CONFIG.playerSpawn;
-    let playerCellPos = gridProj.cellToScreen(playerCell.gx, playerCell.gy);
-    let targetPlayerPos = {
-        x: playerCellPos.x,
-        y: playerCellPos.y + downBlend * 0.6
-    };
-    if (!battleVisualState.playerPos) {
-        battleVisualState.playerPos = { x: targetPlayerPos.x, y: targetPlayerPos.y };
-    } else {
-        battleVisualState.playerPos.x = approachNumber(battleVisualState.playerPos.x, targetPlayerPos.x, 20.0, deltaSec);
-        battleVisualState.playerPos.y = approachNumber(battleVisualState.playerPos.y, targetPlayerPos.y, 20.0, deltaSec);
-    }
+    let playerMoveSpeed = Number(framePlayerStats.moveSpeed) || Number(framePlayerStats.move) || 100;
+    let playerMotion = updatePlayerGridVisualMotion(gridProj, playerCell, now, playerMoveSpeed);
+    let advanceBlend = playerMotion.animating ? 1 : 0;
     let playerPos = {
-        x: battleVisualState.playerPos.x,
-        y: battleVisualState.playerPos.y
+        x: playerMotion.position.x,
+        y: playerMotion.position.y + downBlend * 0.6
     };
+    let playerMotionState = {
+        advanceBlend,
+        moveProgress: playerMotion.progress,
+        moveDirection: playerMotion.direction,
+        attackBlend,
+        attackActive: !!swingFx,
+        attackProgress: swingFx
+            ? clampNumber((now - swingFx.start) / Math.max(1, swingFx.duration * attackAnimationDurationScale), 0, 0.999)
+            : 0,
+        attackVariantSeed: battleVisualState.playerAttackMotionSeed,
+        hurtBlend,
+        downBlend
+    };
+    battleVisualState.playerPos = { x: playerPos.x, y: playerPos.y };
     if (!battleVisualState.enemySmoothPos) battleVisualState.enemySmoothPos = {};
     let dynamicLayout = layout.map(entry => {
         // 칸 단위 이동이 순간이동으로 보이지 않게 화면 좌표를 목표 칸으로 보간한다.
@@ -1647,21 +1923,11 @@ function renderBattlefield(forceWhenHidden) {
         const movingDistance = Math.hypot(entry.x - smooth.x, entry.y - smooth.y);
         if (movingDistance < 0.65) { smooth.x = entry.x; smooth.y = entry.y; }
         entry = { enemy: entry.enemy, x: smooth.x, y: smooth.y, moving: movingDistance >= 0.65 };
-        let rawSeed = entry.enemy.variantSeed;
-        if (!Number.isFinite(rawSeed)) rawSeed = entry.enemy.id;
-        let seed = Number(rawSeed);
-        if (!Number.isFinite(seed)) {
-            let textSeed = String(rawSeed || 'enemy');
-            seed = 0;
-            for (let i = 0; i < textSeed.length; i++) seed = (seed * 31 + textSeed.charCodeAt(i)) % 100000;
-        }
-        let driftMul = entry.moving ? 0.12 : 1;
-        let driftX = Math.sin((now / 240) + seed * 0.9) * (entry.enemy.isBoss ? 1.8 : 2.4) * driftMul;
-        let driftY = Math.cos((now / 300) + seed * 1.2) * (entry.enemy.isBoss ? 1.1 : 1.4) * driftMul;
         return {
             enemy: entry.enemy,
-            x: entry.x + driftX,
-            y: entry.y + driftY
+            x: entry.x,
+            y: entry.y,
+            moving: entry.moving
         };
     });
     let enemyPosMap = {};
@@ -1674,6 +1940,10 @@ function renderBattlefield(forceWhenHidden) {
             enemy: { ...entry.enemy }
         };
     });
+    playerMotionState.attackDirection = resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap);
+    if (playerMotion.animating) battleVisualState.playerFacingDirection = playerMotion.direction;
+    else if (swingFx) battleVisualState.playerFacingDirection = playerMotionState.attackDirection;
+    playerMotionState.facingDirection = battleVisualState.playerFacingDirection || playerMotionState.attackDirection;
 
     // getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운 함수다.
     // 한 프레임 안에서는 결과가 동일하므로 프레임당 1회만 계산해 재사용한다.
@@ -1688,25 +1958,9 @@ function renderBattlefield(forceWhenHidden) {
         queueSkillGemProjectileLaunch(latestSwingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
     }
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
-    let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.62, 1.3);
+    let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.48, 1.3);
     drawBattlefieldShrine(ctx, gridProj, now, gridUnitScale, cameraShake);
     drawActiveSummons(ctx, playerPos, now, gridProj);
-    let playerFacingLeft = resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, enemyPosMap);
-    if (playerFacingLeft) {
-        ctx.save();
-        ctx.translate(playerPos.x * 2, 0);
-        ctx.scale(-1, 1);
-    }
-    drawSkillWeaponLayer(ctx, playerPos, now, 'back');
-    drawPlayerSprite(ctx, playerPos.x, playerPos.y, 2.15 * gridUnitScale, playerFlash, swingPower, currentSkillVisual, now, {
-        advanceBlend: advanceBlend,
-        attackBlend: attackBlend,
-        attackProgress: swingFx ? clampNumber((now - swingFx.start) / Math.max(1, swingFx.duration * attackAnimationDurationScale), 0, 0.999) : 0,
-        hurtBlend: hurtBlend,
-        downBlend: downBlend
-    });
-    drawSkillWeaponLayer(ctx, playerPos, now, 'front');
-    if (playerFacingLeft) ctx.restore();
 
     battleFx.forEach(fx => {
         if (battleVisualState.processedFxIds.has(fx.id)) return;
@@ -1796,6 +2050,11 @@ function renderBattlefield(forceWhenHidden) {
                 color: fx.color || '#9fb4c8'
             });
             handled = true;
+        } else if (fx.type === 'enemyDeath') {
+            if (typeof playUiFeedbackSound === 'function') {
+                playUiFeedbackSound(fx.boss ? 'killBoss' : (fx.elite ? 'killElite' : 'kill'));
+            }
+            handled = true;
         } else {
             handled = true;
         }
@@ -1804,20 +2063,22 @@ function renderBattlefield(forceWhenHidden) {
     cleanupBattleVisualState(now);
     (battleVisualState.projectiles || []).forEach(projectile => drawVisualProjectile(ctx, projectile, now));
     drawEnemyAttackTelegraphs(ctx, dynamicLayout, gridUnitScale);
+    let enemyAttackMotions = buildEnemyAttackMotionMap(battleFx, enemyPosMap, playerPos, now);
+    let attachGridEffectPosition = effect => {
+        if (!effect) return null;
+        let cell = hasGridCell(effect.cell) ? effect.cell : COMBAT_GRID_CONFIG.playerSpawn;
+        let anchor = gridProj.cellToScreen(cell.gx, cell.gy);
+        effect.position = { x: anchor.x, y: anchor.y + (Number(gridProj.actorGroundOffsetY) || 0) };
+        return effect;
+    };
+    let returnWarp = attachGridEffectPosition(getPlayerReturnWarpPresentation(battleFx, now));
+    let returnDeparture = attachGridEffectPosition(getPlayerReturnDeparturePresentation(battleFx, now));
 
-    dynamicLayout.forEach(entry => {
-        let enemy = entry.enemy;
-        let spawnDuration = enemy.isBoss ? 640 : (enemy.isElite ? 460 : 360);
-        let age = enemy.spawnStamp ? clampNumber((now - enemy.spawnStamp) / spawnDuration, 0, 1) : 1;
-        let easedAge = 1 - Math.pow(1 - age, 3);
-        let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
-        if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
-        let hitFlash = flashingEnemyIds.has(enemy.id);
-        ctx.save();
-        ctx.globalAlpha = easedAge;
-        let crowdScale = dynamicLayout.length >= 9 ? (enemy.isBoss ? 2.15 : (enemy.isElite ? 1.72 : 1.46)) : (dynamicLayout.length >= 6 ? (enemy.isBoss ? 2.3 : (enemy.isElite ? 1.9 : 1.62)) : (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95)));
-        drawEnemySprite(ctx, enemy, entry.x, entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), crowdScale * gridUnitScale * spawnScale, hitFlash, now);
-        ctx.restore();
+    drawBattleActorLayer(ctx, dynamicLayout, {
+        now, gridUnitScale, flashingEnemyIds, enemyCount: dynamicLayout.length,
+        playerPos, currentTargets, enemyPosMap,
+        playerFlash, swingPower, currentSkillVisual, motionState: playerMotionState,
+        enemyAttackMotions, returnWarp, returnDeparture
     });
 
     let pendingGhostIds = new Set();
@@ -1826,7 +2087,7 @@ function renderBattlefield(forceWhenHidden) {
         let ghost = battleVisualState.enemyGhostPos[fx.enemyId];
         if (!ghost || !ghost.enemy) return;
         pendingGhostIds.add(fx.enemyId);
-        drawEnemySprite(ctx, ghost.enemy, ghost.x, ghost.y, (ghost.enemy.isBoss ? 2.55 : (ghost.enemy.isElite ? 2.2 : 1.95)) * gridUnitScale, false, now);
+        drawEnemySprite(ctx, ghost.enemy, ghost.x, ghost.y, (ghost.enemy.isBoss ? 3.65 : (ghost.enemy.isElite ? 2.2 : 1.95)) * gridUnitScale, false, now);
     });
 
     // 반투명 스킬 이미지는 몬스터 위에 표시해 투사체 이동과 적중점을 읽기 쉽게 한다.
@@ -1938,14 +2199,17 @@ function renderBattlefield(forceWhenHidden) {
             if (!enemy) return;
             const deathEnemy = enemy.enemy || {};
             const isBossDeath = !!(fx.boss || deathEnemy.isBoss);
-            const dissolve = clampNumber((t - 0.04) / 0.96, 0, 1);
+            const deathMotion = getEnemyDeathMotion(enemy, playerPos, t, isBossDeath, !!fx.elite);
+            const dissolve = deathMotion.dissolve;
             const dissolveFade = Math.pow(1 - dissolve, 1.62);
+            drawEnemyDeathGroundReaction(ctx, enemy, deathMotion, fx.color, isBossDeath, !!fx.elite);
+            drawEnemyDeathContactFlash(ctx, enemy, deathMotion, fx.color, isBossDeath, !!fx.elite);
             ctx.save();
-            ctx.globalAlpha = dissolveFade * (isBossDeath ? 0.82 : (fx.elite ? 0.72 : 0.64));
-            ctx.translate(enemy.x, enemy.y + dissolve * (isBossDeath ? 4 : 2));
-            ctx.scale(1 - dissolve * 0.05, 1 - dissolve * 0.11);
-            ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + dissolve * 0.22})`;
-            drawEnemySprite(ctx, deathEnemy, 0, 0, isBossDeath ? 2.65 : (fx.elite ? 2.1 : 1.9), false, now);
+            ctx.globalAlpha = dissolveFade * (isBossDeath ? 0.98 : (fx.elite ? 0.94 : 0.9));
+            ctx.translate(deathMotion.x, deathMotion.y);
+            ctx.scale(deathMotion.scaleX, deathMotion.scaleY);
+            ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + deathMotion.impactAlpha * 0.45 + dissolve * 0.16})`;
+            drawEnemySprite(ctx, deathEnemy, 0, 0, isBossDeath ? 3.65 : (fx.elite ? 2.1 : 1.9), deathMotion.impactAlpha > 0.45, now);
             ctx.restore();
             ctx.save();
             const moteCount = isBossDeath ? 18 : (fx.elite ? 11 : 6);
@@ -1982,23 +2246,10 @@ function renderBattlefield(forceWhenHidden) {
                 }
                 ctx.restore();
             }
+        } else if (fx.type === 'trialTrapWarning') {
+            drawTrialTrapGridFx(ctx, fx, t, gridProj, true);
         } else if (fx.type === 'trialTrap') {
-            ctx.save();
-            ctx.globalAlpha = 0.24 * (1 - t);
-            ctx.fillStyle = fx.color || '#ffd36b';
-            ctx.fillRect(0, height * 0.58, width, 12);
-            ctx.fillRect(width * 0.1, height * 0.2, width * 0.8, 4);
-            ctx.strokeStyle = '#fff3c6';
-            ctx.lineWidth = 2.5;
-            for (let i = 0; i < 3; i++) {
-                let x = width * (0.24 + i * 0.22);
-                ctx.beginPath();
-                ctx.moveTo(x, height * 0.24);
-                ctx.lineTo(x - 18, height * 0.56);
-                ctx.lineTo(x + 12, height * 0.56);
-                ctx.stroke();
-            }
-            ctx.restore();
+            drawTrialTrapGridFx(ctx, fx, t, gridProj, false);
         } else if (fx.type === 'lootPickup') {
             let enemy = enemyPosMap[fx.enemyId];
             let startX = enemy ? enemy.x : width * 0.72;
@@ -2066,10 +2317,9 @@ function renderBattlefield(forceWhenHidden) {
     if (battleAssets.failed && !battleAssets.ready) caption = '전장 에셋 일부 로드 실패 (기본 렌더링으로 전투 진행)';
     if (game.isTownReturning && game.moveTimer > 0) caption = '마을로 귀환 중...';
     else if (game.woodsmanEntrancePending) caption = '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
-    else if (game.moveTimer > 0) caption = '다음 구간으로 이동 중...';
-    else if (getCanvasCrowdProgressPaused()) caption = `적이 ${getCanvasCrowdPauseLimit()}기 이상 몰려 전진이 막혔습니다.`;
-    else if (enemies.length > 0) caption = `${enemies.length}기와 교전 중`;
-    else if ((game.encounterPlan || []).length > 0) caption = '지역 탐색 중';
+    else if (game.moveTimer > 0) caption = '';
+    else if (getCanvasCrowdProgressPaused()) caption = `몬스터 수 초과로 진행불가 (${enemies.length})`;
+    else caption = `몬스터 수 ${enemies.length}마리`;
     document.getElementById('ui-battlefield-caption').innerText = caption;
 }
 
@@ -2084,7 +2334,7 @@ function getBattleCameraShake(now) {
         if (age < 0 || age > duration) return;
         let hitStrength = Math.max(0, Number(profile && profile.shake) || 0);
         let strength = fx.type === 'enemyDeath'
-            ? (fx.boss ? 7.8 : (fx.elite ? 2.5 : 0))
+            ? (fx.boss ? 8.2 : (fx.elite ? 3.1 : 0.8))
             : (fx.type === 'enemySpawn'
                 ? (fx.boss ? 2.8 : (fx.elite ? 0.8 : 0))
                 : (fx.type === 'playerHit' ? Math.max(0.45, hitStrength * 0.32) : hitStrength));
@@ -2215,49 +2465,42 @@ function getSummonSpriteFrameRectByName(name, image) {
     return frames[safeIndex];
 }
 
-// 캐릭터가 바라볼 좌우 방향을 정한다. 공격 대상이 왼쪽이면 왼쪽을 보고,
-// 대상이 없으면 이동 방향을 따르며, 판단 근거가 없으면 직전 방향을 유지한다(기본 오른쪽).
-function resolvePlayerFacingLeft(playerPos, targetPlayerPos, currentTargets, enemyPosMap) {
+function resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap) {
     let primary = currentTargets && currentTargets[0] ? currentTargets[0].enemy : null;
     let anchor = primary ? enemyPosMap[primary.id] : null;
-    if (anchor) {
-        battleVisualState.playerFacingLeft = anchor.x < playerPos.x - 0.5;
-    } else {
-        let dx = targetPlayerPos.x - playerPos.x;
-        if (Math.abs(dx) > 0.8) battleVisualState.playerFacingLeft = dx < 0;
-    }
-    return !!battleVisualState.playerFacingLeft;
+    if (!anchor) return battleVisualState.playerAttackDirection || 'east';
+    let dx = Number(anchor.x) - Number(playerPos.x);
+    let dy = Number(anchor.y) - Number(playerPos.y);
+    let direction = Math.abs(dy) > 6 ? (dy < 0 ? 'north' : 'south') : (dx < 0 ? 'west' : 'east');
+    battleVisualState.playerAttackDirection = direction;
+    return direction;
 }
 
-// 8x8 아이소메트릭 그리드 바닥. 유닛 점유 칸과 플레이어의 현재 공격 칸을 함께 표시한다.
+// ACT 배경의 9x8 직교 그리드. 유닛 점유 칸과 플레이어의 현재 공격 칸을 함께 표시한다.
 function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, backdropActive) {
-    const size = COMBAT_GRID_CONFIG.size;
     const halfW = proj.tileW / 2;
     const halfH = proj.tileH / 2;
     const tilePath = (gx, gy) => {
         const c = proj.cellToScreen(gx, gy);
         ctx.beginPath();
-        ctx.moveTo(c.x, c.y - halfH);
-        ctx.lineTo(c.x + halfW, c.y);
-        ctx.lineTo(c.x, c.y + halfH);
-        ctx.lineTo(c.x - halfW, c.y);
-        ctx.closePath();
+        ctx.rect(c.x - halfW, c.y - halfH, proj.tileW, proj.tileH);
     };
     const fillCell = (unit, fillStyle, strokeStyle, alpha) => {
         if (!hasGridCell(unit)) return;
-        tilePath(unit.gx, unit.gy);
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = fillStyle;
-        ctx.fill();
-        ctx.globalAlpha = Math.min(0.95, alpha + 0.25);
-        ctx.strokeStyle = strokeStyle;
-        ctx.lineWidth = 2.4;
-        ctx.stroke();
+        getGridUnitCells(unit).forEach(cell => {
+            tilePath(cell.gx, cell.gy);
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+            ctx.globalAlpha = Math.min(0.95, alpha + 0.25);
+            ctx.strokeStyle = strokeStyle;
+            ctx.lineWidth = 2.4;
+            ctx.stroke();
+        });
     };
-    const hideoutActive = typeof isHideoutActive === 'function' && isHideoutActive(game);
     ctx.save();
-    for (let gx = 0; gx < size; gx++) {
-        for (let gy = 0; gy < size; gy++) {
+    for (let gx = 0; gx < COMBAT_GRID_CONFIG.columns; gx++) {
+        for (let gy = 0; gy < COMBAT_GRID_CONFIG.rows; gy++) {
             tilePath(gx, gy);
             // 배경 디오라마가 깔린 경우 바닥 아트를 가리지 않게 체커 칠 없이 선만 긋는다.
             if (!backdropActive) {
@@ -2265,25 +2508,17 @@ function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, bac
                 ctx.fillStyle = (gx + gy) % 2 === 0 ? theme.pathA : theme.pathB;
                 ctx.fill();
             }
-            ctx.globalAlpha = hideoutActive ? 0.16 : (backdropActive ? 0.3 : 0.62);
-            ctx.strokeStyle = hideoutActive ? 'rgba(255, 231, 187, 0.52)' : (backdropActive ? 'rgba(214, 230, 246, 0.5)' : 'rgba(8, 12, 18, 0.6)');
+            ctx.globalAlpha = backdropActive ? 0.3 : 0.62;
+            ctx.strokeStyle = backdropActive ? 'rgba(214, 230, 246, 0.5)' : 'rgba(8, 12, 18, 0.6)';
             ctx.lineWidth = backdropActive ? 1 : 1.3;
             ctx.stroke();
         }
     }
-    if (hideoutActive) fillCell(game.gridPlayer, 'rgba(145, 209, 124, 0.22)', 'rgba(215, 244, 190, 0.76)', 0.28);
-    else drawBattleGridCombatOccupants(ctx, tilePath, fillCell, { backdropActive, skillTargets, skillAreaCells });
+    drawBattleGridCombatOccupants(ctx, tilePath, fillCell, { backdropActive, skillTargets, skillAreaCells });
     ctx.restore();
 }
 
 function drawBattleGridCombatOccupants(ctx, tilePath, fillCell, layers) {
-    ctx.globalAlpha = layers.backdropActive ? 0.24 : 0.4;
-    tilePath(COMBAT_GRID_CONFIG.playerSpawn.gx, COMBAT_GRID_CONFIG.playerSpawn.gy);
-    ctx.fillStyle = 'rgba(120, 202, 255, 0.4)';
-    ctx.fill();
-    tilePath(COMBAT_GRID_CONFIG.bossSpawn.gx, COMBAT_GRID_CONFIG.bossSpawn.gy);
-    ctx.fillStyle = 'rgba(255, 92, 92, 0.4)';
-    ctx.fill();
     (game.enemies || []).forEach(enemy => {
         if (enemy && enemy.hp > 0) fillCell(enemy, 'rgba(255, 87, 87, 0.28)', 'rgba(255, 140, 120, 0.8)', 0.34);
     });
@@ -2292,7 +2527,6 @@ function drawBattleGridCombatOccupants(ctx, tilePath, fillCell, layers) {
     });
     (layers.skillAreaCells || []).forEach(cell => fillCell(cell, 'rgba(124, 255, 214, 0.2)', 'rgba(124, 255, 214, 0.72)', 0.26));
     (layers.skillTargets || []).forEach(hit => fillCell(hit && hit.enemy, 'rgba(255, 211, 91, 0.5)', 'rgba(255, 238, 153, 0.95)', 0.54));
-    fillCell(game.gridPlayer, 'rgba(107, 190, 255, 0.5)', 'rgba(168, 226, 255, 0.98)', 0.56);
 }
 
 function getCanvasSkillAreaCells(skillName, skillDef, skillTargets) {
@@ -2321,7 +2555,7 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
         const angle = (now / 1000) * 0.9 + (idx / Math.max(1, summons.length)) * Math.PI * 2;
         const cellPos = (proj && hasGridCell(summon)) ? proj.cellToScreen(summon.gx, summon.gy) : null;
         const x = cellPos ? cellPos.x : playerPos.x + Math.cos(angle) * radius;
-        const y = cellPos ? cellPos.y : playerPos.y - 18 + Math.sin(angle) * 12;
+        const y = cellPos ? cellPos.y + (Number(proj.actorGroundOffsetY) || 0) : playerPos.y - 18 + Math.sin(angle) * 12;
         let drewImage = false;
         ctx.save();
         if (summon.isGhost) ctx.globalAlpha = 0.46;
@@ -2367,5 +2601,5 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
 
 safeExposeGlobals({
     renderBattlefield, getPlayableHeroWalkMotion,
-    getBattlefieldShrineAtClientPosition, getHideoutDecorAtClientPosition
+    getBattlefieldShrineAtClientPosition
 });

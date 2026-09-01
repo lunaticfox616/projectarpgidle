@@ -77,9 +77,10 @@ function refreshItemIdCounter() {
     let growthIds = (game.growthInventory || []).concat(game.recentGrowthDrops || []).filter(Boolean).map(item => item.id || 0);
     let offline = game.offlineProgress && typeof game.offlineProgress === 'object' ? game.offlineProgress : {};
     let offlineIds = (offline.stash || []).concat(offline.protectedOverflow || []).filter(Boolean).map(item => item.id || 0);
+    let temporaryIds = (game.equipmentTemporaryStorage || []).filter(Boolean).map(item => item.id || 0);
     let presetIds = (((game.equipmentLoadouts || {}).presets) || []).flatMap(preset => preset && preset.slots
         ? Object.values(preset.slots).filter(Boolean).map(row => row.id || 0) : []);
-    itemIdCounter = Math.max(0, ...(game.inventory || []).map(item => item.id || 0), ...Object.values(game.equipment || {}).filter(Boolean).map(item => item.id || 0), ...altarIds, ...growthIds, ...offlineIds, ...presetIds);
+    itemIdCounter = Math.max(0, ...(game.inventory || []).map(item => item.id || 0), ...Object.values(game.equipment || {}).filter(Boolean).map(item => item.id || 0), ...altarIds, ...growthIds, ...offlineIds, ...temporaryIds, ...presetIds);
 }
 
 function createSaveSnapshot(sourceGame) {

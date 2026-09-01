@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Rignin 스킬 공격 이펙트 편집기</title>
+    <link rel="stylesheet" href="./editor.css">
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <strong>스킬 공격 이펙트 이미지</strong>
+            <span id="asset-count">불러오는 중…</span>
+        </div>
+        <nav>
+            <button id="refresh-button" type="button">새로고침</button>
+            <a href="/game/index.html" target="_blank">게임 열기</a>
+        </nav>
+    </header>
+
+    <section class="notice">
+        <div>
+            <b>현재 게임이 실제로 불러오는 래스터 공격 이펙트만 표시합니다.</b>
+            이미지를 골라 교체하면 원래 픽셀 크기와 파일 형식으로 맞춘 뒤 시각 회귀 검사를 통과해야 저장됩니다.
+        </div>
+        <p>번개선·잔상·원소 파티클처럼 코드로 직접 그리는 효과는 이미지로 교체할 수 없으며 <code>js/canvas-attack-fx.js</code>와 <code>js/canvas-battlefield.js</code>에서 조정합니다.</p>
+    </section>
+
+    <section class="toolbar" aria-label="이펙트 이미지 필터">
+        <label>
+            <span>검색</span>
+            <input id="search-input" type="search" placeholder="스킬명, 용도, 파일명">
+        </label>
+        <label>
+            <span>보기</span>
+            <select id="filter-select">
+                <option value="all">전체 이미지</option>
+                <option value="dedicated">전용 이미지</option>
+                <option value="shared">공용 이미지</option>
+                <option value="sheet">고정 배열·시트</option>
+                <option value="changed">교체 백업 있음</option>
+            </select>
+        </label>
+        <a class="bulk-download" href="/api/download-all" download="rignin-skill-vfx-images.zip">전체 이미지 ZIP 다운로드</a>
+        <button id="copy-paths-button" type="button">전체 경로 복사</button>
+    </section>
+
+    <main id="asset-grid" class="asset-grid" aria-live="polite"></main>
+
+    <footer>
+        <span id="status-text">이미지를 불러오는 중입니다.</span>
+    </footer>
+
+    <template id="asset-card-template">
+        <article class="asset-card">
+            <header>
+                <div>
+                    <h2 class="asset-label"></h2>
+                    <p class="asset-usage"></p>
+                </div>
+                <span class="asset-format"></span>
+            </header>
+            <div class="preview-shell">
+                <img class="asset-image" alt="">
+                <span class="pending-badge" hidden>교체 미리보기</span>
+            </div>
+            <dl>
+                <div><dt>크기</dt><dd class="asset-dimensions">확인 중</dd></div>
+                <div><dt>용량</dt><dd class="asset-bytes"></dd></div>
+                <div><dt>키</dt><dd class="asset-key"></dd></div>
+            </dl>
+            <code class="asset-path"></code>
+            <p class="layout-warning" hidden>프레임 배열이 있는 이미지입니다. 내부 칸 배치를 유지해서 편집하세요.</p>
+            <div class="card-actions">
+                <a class="download-link">원본 다운로드</a>
+                <label class="file-button">수정 이미지 선택<input class="file-input" type="file" accept="image/png,image/webp"></label>
+                <button class="replace-button primary" type="button" disabled>교체 적용</button>
+                <button class="restore-button" type="button" hidden>최초 원본 복구</button>
+            </div>
+        </article>
+    </template>
+
+    <script type="module" src="./editor.js"></script>
+</body>
+</html>

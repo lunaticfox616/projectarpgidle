@@ -198,6 +198,7 @@ const baseGame = extra => ({
     context.trackRecordBests();
     const filled = context.buildRecordsHtml(context.getRecordsView());
     assert.ok(filled.includes('혼돈 심화'), '도달한 콘텐츠는 노출한다');
+    assert.ok(!/\p{Extended_Pictographic}/u.test(filled), '전적 화면에는 관련 없는 이모지 아이콘을 남기지 않는다');
 }
 
 // 9) 화면: 표시 문자열은 이스케이프한다(구역 이름이 데이터에서 온다).
@@ -211,7 +212,16 @@ const baseGame = extra => ({
     assert.ok(out.includes('&lt;img'), '이스케이프한 형태로 들어간다');
 }
 
-// 10) 시간 표기는 자릿수가 큰 두 단위까지만 보여준다.
+// 10) 전투력 측정처럼 전투 아이콘과 의미가 같은 항목만 사용자 제작 아틀라스를 재사용한다.
+{
+    const { context } = bootRecords(baseGame());
+    context.recordWoodsmanEchoRun(3000, 100);
+    const out = context.buildRecordsHtml(context.getRecordsView());
+    assert.ok(out.includes('combat-log-icon--attack'), 'DPS와 총 피해는 전투 로그의 공격 아이콘을 사용한다');
+    assert.ok(!/\p{Extended_Pictographic}/u.test(out), '공격 아이콘을 CSS 아틀라스로 대체한 뒤 이모지가 남으면 안 된다');
+}
+
+// 11) 시간 표기는 자릿수가 큰 두 단위까지만 보여준다.
 {
     const { context } = bootRecords(baseGame());
     const f = context.formatRecordDuration;

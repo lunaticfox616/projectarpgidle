@@ -70,6 +70,7 @@ function bootManager() {
     const body = dom.createElement('body');
     const context = {
         console, JSON, Math, Number, Object, Array, String,
+        stripDecorativeEmoji: value => String(value || '').replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, '').trim(),
         setTimeout: (fn, ms) => { timers.push({ fn, ms, cleared: false }); return timers.length; },
         clearTimeout: id => { if (timers[id - 1]) timers[id - 1].cleared = true; },
         requestAnimationFrame: () => 0,
@@ -204,7 +205,7 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
     m.exposed.presentGoalDrawer({
         ...goal('g5'),
         notices: [
-            { text: '사용하지 않은 패시브 포인트 2', actionTabId: 'tab-char' },
+            { text: '남은 패시브 포인트 2', actionTabId: 'tab-char' },
             { text: '강화 가능한 스킬 젬', actionTabId: 'tab-skills', actionSubtabId: 'skill-tab-enhance' }
         ]
     });
@@ -228,6 +229,24 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
     assert.strictEqual(combatAccess.attrs['aria-expanded'], 'false', '수납 상태 동기화');
     m.exposed.presentGoalDrawer(null);
     assert.strictEqual(combatAccess.hidden, true, '목표가 없으면 진입점 숨김');
+}
+
+// 9) 다음 주요 해금 데이터가 함께 와도 목표 안에 별도 카드를 만들지 않는다.
+{
+    const m = bootManager();
+    m.exposed.presentGoalDrawer({
+        ...goal('g7'),
+        nextUnlock: {
+            id: 'underworld', title: '지하계', actionLabel: '다음 조건 보기', actionTabId: 'tab-map', actionSubtabId: 'map-explore-chaos',
+            requirements: [
+                { label: '혼돈계 발견', met: true },
+                { label: '혼돈 심화 30층', met: false, current: 27, target: 30 }
+            ]
+        }
+    });
+    assert.strictEqual(m.dom.registry['ui-goal-next-unlock'], undefined, '목표 서랍에 해금 카드 호스트를 만들지 않는다');
+    assert.strictEqual(m.dom.registry['ui-goal-handle-progress'].textContent, '1개', '해금 카드는 목표 개수에도 포함하지 않는다');
+    assert.deepStrictEqual(m.switchCalls, [], '숨긴 해금 데이터가 화면 이동을 일으키지 않는다');
 }
 
 console.log('smoke-goal-drawer passed');

@@ -238,7 +238,7 @@ function getOfflineSafetyStopReason(state, metrics, elapsedMs) {
     let noKillElapsed = Number.isFinite(Number(data.elapsedSinceLastKillMs)) ? Number(data.elapsedSinceLastKillMs) : Number(elapsedMs || 0);
     if (noKillElapsed >= progress.safetyPolicy.noKillMinutes * 60 * 1000) return 'no-kill';
     if (progress.safetyPolicy.stopOnNegativeExp && Number(data.exp || 0) - Number(data.expLost || 0) < 0) return 'negative-exp';
-    if (progress.safetyPolicy.stopWhenStorageFull && Array.isArray(state.inventory) && typeof getInventoryLimit === 'function' && state.inventory.length >= getInventoryLimit()) return 'storage-full';
+    if (progress.safetyPolicy.stopWhenStorageFull && typeof getInventoryUsedCellCount === 'function' && getInventoryUsedCellCount(state) >= getInventoryLimit(state)) return 'storage-full';
     return null;
 }
 

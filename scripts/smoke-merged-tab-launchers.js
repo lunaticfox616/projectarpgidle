@@ -303,6 +303,33 @@ assert.strictEqual(windowBody.childNodes[0], mergedShell, 'merged tabs must rend
 assert.strictEqual(mergedShell.childNodes[1].childNodes[0].childNodes[0], passiveContent, 'the launcher content must stay below the inner subtab row');
 assert.strictEqual(mergedShell.childNodes[1].childNodes[1], traitPanel, 'secondary content must become a sibling pane inside the same window body');
 
+const singleNav = { hidden: false, innerHTML: '' };
+const singlePanes = [
+    { dataset: { tabId: 'tab-char' }, classList: makeClassList() },
+    { dataset: { tabId: 'tab-traits' }, classList: makeClassList() }
+];
+const singleShell = {
+    querySelector: selector => selector === '.merged-tab-subtabs' ? singleNav : null,
+    querySelectorAll: selector => selector === '.merged-subtab-pane' ? singlePanes : []
+};
+const singleTabContext = {
+    mountMergedTabGroup: () => singleShell,
+    getSelectedMergedTabId: () => 'tab-char',
+    isMergedTabAvailable: tab => tab.id === 'tab-char',
+    Object,
+    Array
+};
+vm.createContext(singleTabContext);
+vm.runInContext([MERGED_TAB_GROUPS_SOURCE, readFunctionSource('renderMergedTabPanels')].join('\n'), singleTabContext,
+    { filename: 'single-merged-tab.js' });
+singleTabContext.renderMergedTabPanels('growth');
+assert.strictEqual(singleNav.hidden, true, 'a lone available passive tab must not consume a full row with a redundant button');
+singleTabContext.isMergedTabAvailable = tab => tab.id === 'tab-char' || tab.id === 'tab-traits';
+singleTabContext.renderMergedTabPanels('growth');
+assert.strictEqual(singleNav.hidden, false, 'the inner tab row must return when the advancement choice becomes available');
+assert(menuCss.includes('.merged-tab-subtabs[hidden] { display: none !important; }'),
+    'the desktop flex rule must not override a redundant merged-tab row hidden by the renderer');
+
 const lockedTabTransitions = [];
 let lockedTabLogs = 0;
 let lockedTabRefreshes = 0;

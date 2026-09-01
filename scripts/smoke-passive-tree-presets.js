@@ -4,7 +4,7 @@ const vm = require('vm');
 
 const files = [
   'js/bootstrap.js', 'cloud-save-config.js', 'data/constants.js', 'data/maps.js',
-  'data/skills.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/bosses.js',
+  'data/skills.js', 'data/items.js', 'data/growth-items.js', 'data/passives.js', 'data/passive-tree-v22.js', 'data/bosses.js',
   'data/rewards.js', 'data/talent-cards.js', 'data/endgame-progression.js', 'js/utils.js', 'js/state.js', 'js/passives.js',
 ];
 const emptyElement = () => ({
@@ -29,7 +29,7 @@ vm.runInContext(`
   game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;
   Object.keys(PASSIVE_TREE.nodes).forEach(id => delete PASSIVE_TREE.nodes[id]);
   PASSIVE_TREE.edges.length = 0;
-  PASSIVE_TREE.nodes.n0 = { id:'n0', kind:'root', x:0, y:0, stat:'flatDmg', val:1 };
+  PASSIVE_TREE.nodes.n0 = { id:'n0', kind:'start', x:0, y:0, stat:null, val:0 };
   PASSIVE_TREE.nodes.a = { id:'a', kind:'path', x:100, y:0, stat:'move', val:1 };
   PASSIVE_TREE.nodes.b = { id:'b', kind:'major', x:200, y:0, stat:'pctDmg', val:5 };
   PASSIVE_TREE.edges.push({from:'n0',to:'a'}, {from:'a',to:'b'});
@@ -66,7 +66,7 @@ assert.deepStrictEqual({ nodes: secondRun.nodes, points: secondRun.points }, { n
 vm.runInContext(`
   Object.keys(PASSIVE_TREE.nodes).forEach(id => delete PASSIVE_TREE.nodes[id]);
   PASSIVE_TREE.edges.length = 0;
-  PASSIVE_TREE.nodes.n0 = { id:'n0', kind:'root', x:-200, y:0, stat:'flatDmg', val:1 };
+  PASSIVE_TREE.nodes.n0 = { id:'n0', kind:'start', x:-200, y:0, stat:null, val:0 };
   PASSIVE_TREE.nodes.h1 = { id:'h1', kind:'hub', socketType:'star_wedge', x:0, y:0, stat:'pctDmg', val:5 };
   PASSIVE_TREE.nodes.h2 = { id:'h2', kind:'hub', socketType:'star_wedge', x:300, y:0, stat:'pctHp', val:5 };
   PASSIVE_TREE.nodes.supp = { id:'supp', kind:'path', x:400, y:0, stat:'suppCap', val:1 };

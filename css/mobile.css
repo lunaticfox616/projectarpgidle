@@ -164,8 +164,28 @@
   body.mobile-battle-tab #tab-battle .combat-hp-bar .hp-text { font-size: 12px; line-height: 30px; }
   body.mobile-battle-tab #tab-battle .combat-flask-strip { max-width: 42vw; padding: 2px 2px 4px; }
   body.mobile-battle-tab #tab-battle .combat-flask-mini { flex-basis: 28px; width: 28px; min-width: 28px !important; height: 30px; min-height: 30px !important; }
-  body.mobile-battle-tab #tab-battle .battlefield-wrap { height: clamp(210px, 42svh, 360px) !important; }
-  body.mobile-battle-tab #tab-battle #battlefield-canvas { width: 100% !important; height: 100% !important; }
+  body.mobile-battle-tab #tab-battle .combat-stage,
+  body.mobile-battle-tab #tab-battle #move-area { width: 100%; min-width: 0; }
+  body.mobile-battle-tab #tab-battle #move-area { align-items: center; }
+  body.mobile-battle-tab #tab-battle .battlefield-wrap {
+    flex: 0 0 auto;
+    width: min(100%, 816px);
+    height: clamp(320px, 48svh, 520px) !important;
+    aspect-ratio: auto;
+    margin: 4px auto 0;
+  }
+  body.mobile-battle-tab #tab-battle #battlefield-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  body.mobile-battle-tab #tab-battle .battlefield-wrap.compressed {
+    width: 100%;
+    height: 0 !important;
+    aspect-ratio: auto;
+    margin-top: 0;
+  }
   body.mobile-battle-tab #tab-battle #enemy-area,
   body.mobile-battle-tab #tab-battle .enemy-card.targeted { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box; }
   body.mobile-battle-tab #tab-battle .enemy-card.targeted { padding: 7px 8px; }
@@ -256,7 +276,13 @@
   .flask-overview { grid-template-columns: minmax(0, 1fr) !important; }
   .flask-workbench-head { flex-direction: column; }
   .flask-glass-balance { width: 100%; box-sizing: border-box; }
-  body.mobile-battle-tab #tab-battle .battlefield-wrap { height: clamp(190px, 38svh, 300px) !important; }
+}
+
+@media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
+  body.mobile-battle-tab #tab-battle .battlefield-wrap {
+    width: min(100%, 81.08svh);
+    height: min(76svh, 360px) !important;
+  }
 }
 
 @media (pointer: coarse) {

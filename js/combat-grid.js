@@ -1,12 +1,17 @@
-// 8x8 아이소메트릭 전장 그리드 도메인.
+// 9x8 직교 전장 그리드 도메인.
 // 좌표/거리/스폰 배치/이동 스텝/스킬 범위 패턴 해석을 소유한다.
 // data(COMBAT_GRID_CONFIG, SKILL_GRID_DB)와 game 상태 shape에만 의존하고 UI/렌더링을 호출하지 않는다.
-// 그리드 유닛 계약: { gx: 0~7 정수, gy: 0~7 정수, gridMoveTimer: 초 } — 플레이어(game.gridPlayer),
+// 그리드 유닛 계약: { gx: 0~8 정수, gy: 0~7 정수, gridMoveTimer: 초 } — 플레이어(game.gridPlayer),
 // 적(game.enemies[i]), 소환수(game.summons[i])가 공유한다.
+const GRID_CARDINAL_STEPS = Object.freeze([
+    Object.freeze({ dx: -1, dy: 0 }), Object.freeze({ dx: 1, dy: 0 }),
+    Object.freeze({ dx: 0, dy: -1 }), Object.freeze({ dx: 0, dy: 1 })
+]);
 
 function isGridCellInBounds(gx, gy) {
-    let size = COMBAT_GRID_CONFIG.size;
-    return Number.isInteger(gx) && Number.isInteger(gy) && gx >= 0 && gy >= 0 && gx < size && gy < size;
+    return Number.isInteger(gx) && Number.isInteger(gy)
+        && gx >= 0 && gy >= 0
+        && gx < COMBAT_GRID_CONFIG.columns && gy < COMBAT_GRID_CONFIG.rows;
 }
 
 function gridCellKey(gx, gy) {
@@ -17,9 +22,63 @@ function gridChebyshevDist(ax, ay, bx, by) {
     return Math.max(Math.abs(ax - bx), Math.abs(ay - by));
 }
 
+function getGridUnitFootprint(unit) {
+    let bossSize = COMBAT_GRID_CONFIG.bossFootprint || { columns: 2, rows: 2 };
+    return unit && unit.isBoss
+        ? { columns: bossSize.columns, rows: bossSize.rows }
+        : { columns: 1, rows: 1 };
+}
+
+function getGridFootprintCells(gx, gy, footprint) {
+    let cells = [];
+    for (let dx = 0; dx < footprint.columns; dx++) {
+        for (let dy = 0; dy < footprint.rows; dy++) {
+            if (isGridCellInBounds(gx + dx, gy + dy)) cells.push({ gx: gx + dx, gy: gy + dy });
+        }
+    }
+    return cells;
+}
+
 /** 유닛이 유효한 그리드 칸을 가졌는지 확인한다. */
 function hasGridCell(unit) {
-    return !!unit && isGridCellInBounds(unit.gx, unit.gy);
+    if (!unit || !Number.isInteger(unit.gx) || !Number.isInteger(unit.gy)) return false;
+    let footprint = getGridUnitFootprint(unit);
+    return getGridFootprintCells(unit.gx, unit.gy, footprint).length === footprint.columns * footprint.rows;
+}
+
+function getGridUnitCells(unit) {
+    return hasGridCell(unit) ? getGridFootprintCells(unit.gx, unit.gy, getGridUnitFootprint(unit)) : [];
+}
+
+function getGridUnitCenter(unit) {
+    let footprint = getGridUnitFootprint(unit);
+    return { gx: unit.gx + (footprint.columns - 1) / 2, gy: unit.gy + (footprint.rows - 1) / 2 };
+}
+
+function getGridUnitDistance(first, second) {
+    if (!hasGridCell(first) || !hasGridCell(second)) return Infinity;
+    let firstSize = getGridUnitFootprint(first), secondSize = getGridUnitFootprint(second);
+    let dx = Math.max(0, second.gx - (first.gx + firstSize.columns - 1), first.gx - (second.gx + secondSize.columns - 1));
+    let dy = Math.max(0, second.gy - (first.gy + firstSize.rows - 1), first.gy - (second.gy + secondSize.rows - 1));
+    return Math.max(dx, dy);
+}
+
+function getClosestGridUnitCell(from, unit) {
+    let footprint = getGridUnitFootprint(unit);
+    return {
+        gx: Math.max(unit.gx, Math.min(from.gx, unit.gx + footprint.columns - 1)),
+        gy: Math.max(unit.gy, Math.min(from.gy, unit.gy + footprint.rows - 1))
+    };
+}
+
+function canPlaceGridFootprint(blocked, gx, gy, footprint) {
+    let cells = getGridFootprintCells(gx, gy, footprint);
+    if (cells.length !== footprint.columns * footprint.rows) return false;
+    return cells.every(cell => !blocked.has(gridCellKey(cell.gx, cell.gy)));
+}
+
+function isGridUnitInCellSet(unit, cellKeys) {
+    return getGridUnitCells(unit).some(cell => cellKeys.has(gridCellKey(cell.gx, cell.gy)));
 }
 
 /**
@@ -31,7 +90,7 @@ function getGridBlockedCells(excludeUnit) {
     let blocked = new Set();
     let addUnit = unit => {
         if (unit === excludeUnit || !hasGridCell(unit)) return;
-        blocked.add(gridCellKey(unit.gx, unit.gy));
+        getGridUnitCells(unit).forEach(cell => blocked.add(gridCellKey(cell.gx, cell.gy)));
     };
     addUnit(game.gridPlayer);
     (game.enemies || []).forEach(enemy => { if (enemy && enemy.hp > 0) addUnit(enemy); });
@@ -44,18 +103,21 @@ function getGridBlockedCells(excludeUnit) {
  * 전부 막혀 있으면 null을 반환한다(호출자가 배치 실패를 처리).
  * @param {Set<string>} blocked
  * @param {{gx:number, gy:number}} [near]
+ * @param {{columns:number, rows:number}} [footprint]
  */
-function findFreeGridCell(blocked, near) {
-    let size = COMBAT_GRID_CONFIG.size;
+function findFreeGridCell(blocked, near, footprint) {
+    let size = footprint || { columns: 1, rows: 1 };
     let free = [];
-    for (let gx = 0; gx < size; gx++) {
-        for (let gy = 0; gy < size; gy++) {
-            if (!blocked.has(gridCellKey(gx, gy))) free.push({ gx, gy });
+    for (let gx = 0; gx < COMBAT_GRID_CONFIG.columns; gx++) {
+        for (let gy = 0; gy < COMBAT_GRID_CONFIG.rows; gy++) {
+            if (canPlaceGridFootprint(blocked, gx, gy, size)) free.push({ gx, gy });
         }
     }
     if (free.length === 0) return null;
     if (!near) return free[Math.floor(Math.random() * free.length)];
-    free.sort((a, b) => gridChebyshevDist(a.gx, a.gy, near.gx, near.gy) - gridChebyshevDist(b.gx, b.gy, near.gx, near.gy));
+    let centerOffsetX = (size.columns - 1) / 2, centerOffsetY = (size.rows - 1) / 2;
+    free.sort((a, b) => gridChebyshevDist(a.gx + centerOffsetX, a.gy + centerOffsetY, near.gx, near.gy)
+        - gridChebyshevDist(b.gx + centerOffsetX, b.gy + centerOffsetY, near.gx, near.gy));
     return free[0];
 }
 
@@ -66,16 +128,18 @@ function findFreeGridCell(blocked, near) {
  * @param {Set<string>} blocked 이번 스폰 동안 누적되는 점유 집합
  */
 function assignEnemyGridSpawn(enemy, blocked) {
+    let footprint = getGridUnitFootprint(enemy);
+    let bossSpawnFree = canPlaceGridFootprint(blocked, COMBAT_GRID_CONFIG.bossSpawn.gx, COMBAT_GRID_CONFIG.bossSpawn.gy, footprint);
     let cell = enemy.isBoss
-        ? (blocked.has(gridCellKey(COMBAT_GRID_CONFIG.bossSpawn.gx, COMBAT_GRID_CONFIG.bossSpawn.gy))
-            ? findFreeGridCell(blocked, COMBAT_GRID_CONFIG.bossSpawn)
+        ? (!bossSpawnFree
+            ? findFreeGridCell(blocked, COMBAT_GRID_CONFIG.bossSpawn, footprint)
             : { gx: COMBAT_GRID_CONFIG.bossSpawn.gx, gy: COMBAT_GRID_CONFIG.bossSpawn.gy })
         : findFreeGridCell(blocked);
     if (!cell) cell = { gx: COMBAT_GRID_CONFIG.bossSpawn.gx, gy: COMBAT_GRID_CONFIG.bossSpawn.gy };
     enemy.gx = cell.gx;
     enemy.gy = cell.gy;
     enemy.gridMoveTimer = 0;
-    blocked.add(gridCellKey(cell.gx, cell.gy));
+    getGridFootprintCells(cell.gx, cell.gy, footprint).forEach(occupied => blocked.add(gridCellKey(occupied.gx, occupied.gy)));
 }
 
 /**
@@ -99,9 +163,6 @@ function assignEnemyGridCombatProfile(enemy) {
 /** 플레이어를 스폰 칸으로 되돌린다(조우 시작/전장 리셋 시). */
 function resetPlayerGridPosition() {
     game.gridPlayer = { gx: COMBAT_GRID_CONFIG.playerSpawn.gx, gy: COMBAT_GRID_CONFIG.playerSpawn.gy, gridMoveTimer: 0 };
-    // 접근 중 플래그는 전투 틱이 매번 다시 정한다. 사망·지역 이동처럼 틱이 끊기는
-    // 경계에서 켜진 채로 남으면 걷기 모션이 그대로 굳으므로 여기서 내려 둔다.
-    game.gridPlayerPursuing = false;
 }
 
 /**
@@ -159,30 +220,43 @@ function gridProjectedLineEnd(ax, ay, tx, ty, range) {
 }
 
 /**
- * 목표 칸을 향해 유닛을 한 칸(8방향) 전진시킨다. 점유 칸은 통과하지 못하며,
- * 거리(체비셰프, 동률이면 맨해튼)가 줄어드는 칸이 없으면 제자리에 머문다.
+ * 목표 칸을 향한 최단 우회로를 찾아 상하좌우로 한 칸 전진시킨다.
+ * 점유 칸은 통과하지 못하고 대각선 이동은 허용하지 않는다.
  * @returns {boolean} 실제로 이동했는지
  */
 function gridStepToward(unit, tx, ty, blocked) {
     if (!hasGridCell(unit)) return false;
-    let bestCell = null, bestCheb = gridChebyshevDist(unit.gx, unit.gy, tx, ty), bestMan = Math.abs(unit.gx - tx) + Math.abs(unit.gy - ty);
-    for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-            if (dx === 0 && dy === 0) continue;
-            let gx = unit.gx + dx, gy = unit.gy + dy;
-            if (!isGridCellInBounds(gx, gy) || blocked.has(gridCellKey(gx, gy))) continue;
-            let cheb = gridChebyshevDist(gx, gy, tx, ty);
-            let man = Math.abs(gx - tx) + Math.abs(gy - ty);
+    let footprint = getGridUnitFootprint(unit);
+    let distanceFromPlacement = (gx, gy) => {
+        let nearest = getClosestGridUnitCell({ gx: tx, gy: ty }, { gx, gy, isBoss: footprint.columns > 1 || footprint.rows > 1 });
+        return gridChebyshevDist(nearest.gx, nearest.gy, tx, ty);
+    };
+    let start = { gx: unit.gx, gy: unit.gy, first: null };
+    let best = start;
+    let bestCheb = distanceFromPlacement(start.gx, start.gy);
+    let bestMan = Math.abs(getGridUnitCenter(unit).gx - tx) + Math.abs(getGridUnitCenter(unit).gy - ty);
+    let queue = [start];
+    let visited = new Set([gridCellKey(start.gx, start.gy)]);
+    while (queue.length > 0) {
+        let current = queue.shift();
+        GRID_CARDINAL_STEPS.forEach(direction => {
+            let gx = current.gx + direction.dx, gy = current.gy + direction.dy;
+            let key = gridCellKey(gx, gy);
+            if (visited.has(key) || !canPlaceGridFootprint(blocked, gx, gy, footprint)) return;
+            let next = { gx, gy, first: current.first || { gx, gy } };
+            let cheb = distanceFromPlacement(gx, gy);
+            let man = Math.abs(gx + (footprint.columns - 1) / 2 - tx)
+                + Math.abs(gy + (footprint.rows - 1) / 2 - ty);
             if (cheb < bestCheb || (cheb === bestCheb && man < bestMan)) {
-                bestCell = { gx, gy };
-                bestCheb = cheb;
-                bestMan = man;
+                best = next; bestCheb = cheb; bestMan = man;
             }
-        }
+            visited.add(key);
+            queue.push(next);
+        });
     }
-    if (!bestCell) return false;
-    unit.gx = bestCell.gx;
-    unit.gy = bestCell.gy;
+    if (!best.first) return false;
+    unit.gx = best.first.gx;
+    unit.gy = best.first.gy;
     return true;
 }
 
@@ -205,22 +279,69 @@ function advanceGridUnitMovement(unit, target, dtSec, intervalSec) {
     return moved;
 }
 
+function findNearestSafeGridRoute(unit, hazardCells) {
+    if (!hasGridCell(unit)) return null;
+    let danger = new Set((hazardCells || [])
+        .filter(cell => hasGridCell(cell))
+        .map(cell => gridCellKey(cell.gx, cell.gy)));
+    let blocked = getGridBlockedCells(unit);
+    let start = { gx: unit.gx, gy: unit.gy, first: null, distance: 0 };
+    let queue = [start];
+    let visited = new Set([gridCellKey(start.gx, start.gy)]);
+    while (queue.length > 0) {
+        let current = queue.shift();
+        let currentKey = gridCellKey(current.gx, current.gy);
+        if (!danger.has(currentKey)) {
+            return { next: current.first, destination: { gx: current.gx, gy: current.gy }, distance: current.distance };
+        }
+        GRID_CARDINAL_STEPS.forEach(direction => {
+            let gx = current.gx + direction.dx, gy = current.gy + direction.dy;
+            let key = gridCellKey(gx, gy);
+            if (!isGridCellInBounds(gx, gy) || visited.has(key) || blocked.has(key)) return;
+            let first = current.first || { gx, gy };
+            visited.add(key);
+            queue.push({ gx, gy, first, distance: current.distance + 1 });
+        });
+    }
+    return null;
+}
+
+/** 경고된 함정 칸에서 가장 가까운 안전 칸을 향해 상하좌우로 한 칸씩 탈출한다. */
+function advanceGridHazardEscape(unit, hazardCells, dtSec, intervalSec) {
+    let route = findNearestSafeGridRoute(unit, hazardCells);
+    if (!route) return { moved: false, safe: false, blocked: true };
+    if (route.distance === 0) return { moved: false, safe: true, blocked: false, distance: 0 };
+    let interval = Number.isFinite(intervalSec) && intervalSec > 0 ? intervalSec : COMBAT_GRID_CONFIG.playerMoveIntervalSec;
+    unit.gridMoveTimer = (Number(unit.gridMoveTimer) || 0) + Math.max(0, Number(dtSec) || 0);
+    if (unit.gridMoveTimer < interval) return { moved: false, safe: false, blocked: false, distance: route.distance };
+    let from = { gx: unit.gx, gy: unit.gy };
+    unit.gx = route.next.gx;
+    unit.gy = route.next.gy;
+    unit.gridMoveTimer = 0;
+    return {
+        moved: true,
+        safe: route.distance === 1,
+        blocked: false,
+        distance: Math.max(0, route.distance - 1),
+        from,
+        to: { gx: unit.gx, gy: unit.gy }
+    };
+}
+
 function findGridRetreatCell(unit, target, maxRange, previousCell) {
     let blocked = getGridBlockedCells(unit);
-    let currentDist = gridChebyshevDist(unit.gx, unit.gy, target.gx, target.gy);
+    let footprint = getGridUnitFootprint(unit);
+    let currentDist = getGridUnitDistance(unit, target);
     let best = null, bestScore = currentDist;
-    for (let dx = -1; dx <= 1; dx++) {
-        for (let dy = -1; dy <= 1; dy++) {
-            if (dx === 0 && dy === 0) continue;
-            let gx = unit.gx + dx, gy = unit.gy + dy;
-            if (!isGridCellInBounds(gx, gy) || blocked.has(gridCellKey(gx, gy))) continue;
-            let distance = gridChebyshevDist(gx, gy, target.gx, target.gy);
-            if (distance <= currentDist || distance > maxRange) continue;
-            let backtrack = previousCell && gx === previousCell.gx && gy === previousCell.gy;
-            let score = distance - (backtrack ? 0.25 : 0);
-            if (score > bestScore) { best = { gx, gy }; bestScore = score; }
-        }
-    }
+    GRID_CARDINAL_STEPS.forEach(direction => {
+        let gx = unit.gx + direction.dx, gy = unit.gy + direction.dy;
+        if (!canPlaceGridFootprint(blocked, gx, gy, footprint)) return;
+        let distance = getGridUnitDistance({ gx, gy, isBoss: unit.isBoss }, target);
+        if (distance <= currentDist || distance > maxRange) return;
+        let backtrack = previousCell && gx === previousCell.gx && gy === previousCell.gy;
+        let score = distance - (backtrack ? 0.25 : 0);
+        if (score > bestScore) { best = { gx, gy }; bestScore = score; }
+    });
     return best;
 }
 
@@ -293,6 +414,24 @@ function getGridFanDirections(attacker, target, rayCount) {
     return offsets.slice(0, Math.max(1, Math.min(8, rayCount))).map(offset => ring[(center + offset + 8) % 8]);
 }
 
+function getGridDiagonalAttackDirection(attacker, target) {
+    let diagonalCell = getGridUnitCells(target).filter(cell => {
+        let dx = cell.gx - attacker.gx, dy = cell.gy - attacker.gy;
+        return dx !== 0 && dy !== 0 && Math.abs(dx) === Math.abs(dy);
+    }).sort((a, b) => gridChebyshevDist(attacker.gx, attacker.gy, a.gx, a.gy)
+        - gridChebyshevDist(attacker.gx, attacker.gy, b.gx, b.gy))[0];
+    if (!diagonalCell) return null;
+    return { gx: Math.sign(diagonalCell.gx - attacker.gx), gy: Math.sign(diagonalCell.gy - attacker.gy) };
+}
+
+function isGridUnitOnDiagonalRay(attacker, unit, direction) {
+    return getGridUnitCells(unit).some(cell => {
+        let dx = cell.gx - attacker.gx, dy = cell.gy - attacker.gy;
+        return dx !== 0 && Math.abs(dx) === Math.abs(dy)
+            && Math.sign(dx) === direction.gx && Math.sign(dy) === direction.gy;
+    });
+}
+
 /**
  * 범위 프로필이 실제로 덮는 칸 목록을 계산한다(chain 제외 — 연쇄는 칸이 아니라 유닛 간 점프).
  * @param {{kind:string, range:number, radius?:number, shape?:string}} profile
@@ -301,14 +440,15 @@ function getGridFanDirections(attacker, target, rayCount) {
  * @returns {Array<{gx:number, gy:number}>}
  */
 function getGridAttackAreaCells(profile, attacker, target) {
-    let cells = profile.kind === 'nova' || profile.kind === 'fan' ? [] : [{ gx: target.gx, gy: target.gy }];
+    let targetCell = getClosestGridUnitCell(attacker, target);
+    let cells = profile.kind === 'nova' || profile.kind === 'fan' ? [] : [{ gx: targetCell.gx, gy: targetCell.gy }];
     let pushArea = (center, radius, excludeSelf, shape) => {
         for (let dx = -radius; dx <= radius; dx++) {
             for (let dy = -radius; dy <= radius; dy++) {
                 let gx = center.gx + dx, gy = center.gy + dy;
                 if (excludeSelf && gx === center.gx && gy === center.gy) continue;
                 if (!isGridAreaOffset(shape, dx, dy, radius)) continue;
-                if (profile.kind !== 'nova' && gx === target.gx && gy === target.gy) continue;
+                if (profile.kind !== 'nova' && gx === targetCell.gx && gy === targetCell.gy) continue;
                 if (isGridCellInBounds(gx, gy)) cells.push({ gx, gy });
             }
         }
@@ -316,16 +456,16 @@ function getGridAttackAreaCells(profile, attacker, target) {
     if (profile.kind === 'arc') {
         // 전방 부채꼴: 플레이어와 대상 모두에 인접한 칸까지 휩쓸린다.
         pushArea({ gx: attacker.gx, gy: attacker.gy }, 1, true, 'diamond');
-        cells = cells.filter(cell => gridChebyshevDist(cell.gx, cell.gy, target.gx, target.gy) <= 1);
+        cells = cells.filter(cell => gridChebyshevDist(cell.gx, cell.gy, targetCell.gx, targetCell.gy) <= 1);
     } else if (profile.kind === 'nova') {
         pushArea({ gx: attacker.gx, gy: attacker.gy }, Math.max(1, profile.radius || 1), true, profile.shape);
     } else if (profile.kind === 'blast') {
-        if ((profile.radius || 0) > 0) pushArea({ gx: target.gx, gy: target.gy }, profile.radius, false, profile.shape);
+        if ((profile.radius || 0) > 0) pushArea(targetCell, profile.radius, false, profile.shape);
     } else if (profile.kind === 'line') {
-        let end = gridProjectedLineEnd(attacker.gx, attacker.gy, target.gx, target.gy, profile.range || 7);
+        let end = gridProjectedLineEnd(attacker.gx, attacker.gy, targetCell.gx, targetCell.gy, profile.range || 7);
         gridLineCells(attacker.gx, attacker.gy, end.gx, end.gy, profile.range || 7).forEach(cell => cells.push(cell));
     } else if (profile.kind === 'fan') {
-        getGridFanDirections(attacker, target, profile.rays || 3).forEach(direction => {
+        getGridFanDirections(attacker, targetCell, profile.rays || 3).forEach(direction => {
             let end = { gx: attacker.gx + direction.gx * profile.range, gy: attacker.gy + direction.gy * profile.range };
             gridLineCells(attacker.gx, attacker.gy, end.gx, end.gy, profile.range).forEach(cell => cells.push(cell));
         });
@@ -342,7 +482,7 @@ function buildGridChainTargets(profile, targetCount, primaryEnemy, candidates) {
     while (hits.length < targetCount && remaining.length > 0) {
         let bestIdx = -1, bestDist = Infinity;
         remaining.forEach((enemy, idx) => {
-            let dist = gridChebyshevDist(current.gx, current.gy, enemy.gx, enemy.gy);
+            let dist = getGridUnitDistance(current, enemy);
             if (dist <= jump && dist < bestDist) { bestIdx = idx; bestDist = dist; }
         });
         if (bestIdx < 0) break;
@@ -368,7 +508,7 @@ function getGridDangerScore(enemy) {
 function getGridDensityScore(candidate, candidates, profile, attackerCell) {
     let cells = getGridAttackAreaCells(profile, attackerCell, candidate.enemy);
     let areaKeys = new Set(cells.map(cell => gridCellKey(cell.gx, cell.gy)));
-    return candidates.reduce((count, row) => count + (areaKeys.has(gridCellKey(row.enemy.gx, row.enemy.gy)) ? 1 : 0), 0);
+    return candidates.reduce((count, row) => count + (isGridUnitInCellSet(row.enemy, areaKeys) ? 1 : 0), 0);
 }
 
 function selectGridPrimaryCandidate(candidates, profile, attackerCell, options) {
@@ -410,7 +550,7 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies, options
     if (!attackerCell || !isGridCellInBounds(attackerCell.gx, attackerCell.gy)) return [];
     let profile = getSkillGridProfile(skillName, skill);
     let candidates = (enemies || []).filter(hasGridCell)
-        .map(enemy => ({ enemy, dist: gridChebyshevDist(attackerCell.gx, attackerCell.gy, enemy.gx, enemy.gy) }))
+        .map(enemy => ({ enemy, dist: getGridUnitDistance(attackerCell, enemy) }))
         .sort(compareGridCandidateTie);
     let primary = selectGridPrimaryCandidate(candidates, profile, attackerCell, options);
     if (!primary) return [];
@@ -421,23 +561,32 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies, options
     if (profile.kind === 'chain') {
         hits = buildGridChainTargets(profile, targetCount, primary.enemy, orderedCandidates.map(row => row.enemy));
     } else if (profile.kind === 'fan') {
-        hits = getGridFanDirections(attackerCell, primary.enemy, profile.rays || 3).map(direction => {
+        let primaryCell = getClosestGridUnitCell(attackerCell, primary.enemy);
+        hits = getGridFanDirections(attackerCell, primaryCell, profile.rays || 3).map(direction => {
             let match = orderedCandidates.find(row => {
-                let dx = row.enemy.gx - attackerCell.gx, dy = row.enemy.gy - attackerCell.gy;
-                let steps = direction.gx !== 0 ? dx / direction.gx : dy / direction.gy;
-                return Number.isInteger(steps) && steps >= 1 && steps <= profile.range
-                    && attackerCell.gx + direction.gx * steps === row.enemy.gx
-                    && attackerCell.gy + direction.gy * steps === row.enemy.gy;
+                return getGridUnitCells(row.enemy).some(cell => {
+                    let dx = cell.gx - attackerCell.gx, dy = cell.gy - attackerCell.gy;
+                    let steps = direction.gx !== 0 ? dx / direction.gx : dy / direction.gy;
+                    return Number.isInteger(steps) && steps >= 1 && steps <= profile.range
+                        && attackerCell.gx + direction.gx * steps === cell.gx
+                        && attackerCell.gy + direction.gy * steps === cell.gy;
+                });
             });
             return match && match.enemy;
         }).filter(Boolean).slice(0, targetCount);
     } else {
         let areaKeys = new Set(getGridAttackAreaCells(profile, attackerCell, primary.enemy).map(cell => gridCellKey(cell.gx, cell.gy)));
-        hits = orderedCandidates.filter(row => areaKeys.has(gridCellKey(row.enemy.gx, row.enemy.gy)))
+        hits = orderedCandidates.filter(row => isGridUnitInCellSet(row.enemy, areaKeys))
             .slice(0, targetCount).map(row => row.enemy);
     }
     if (profile.kind === 'melee' || profile.kind === 'arc') {
-        extendGridTargetsBySpill(hits, targetCount, orderedCandidates.map(row => row.enemy));
+        let spillCandidates = orderedCandidates.map(row => row.enemy);
+        let diagonalDirection = profile.kind === 'melee'
+            ? getGridDiagonalAttackDirection(attackerCell, primary.enemy) : null;
+        if (diagonalDirection) {
+            spillCandidates = spillCandidates.filter(enemy => isGridUnitOnDiagonalRay(attackerCell, enemy, diagonalDirection));
+        }
+        extendGridTargetsBySpill(hits, targetCount, spillCandidates);
     }
     let fanDamage = skill.projectilePattern && skill.projectilePattern.kind === 'fan'
         ? Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT) / 100 : null;
@@ -473,8 +622,7 @@ function sortSkillHitTargetsByDistance(targets) {
     let attacker = (typeof game !== 'undefined' && game.gridPlayer) ? game.gridPlayer : null;
     return targets.slice().sort((a, b) => {
         if (!attacker || !a.enemy || !b.enemy) return 0;
-        return gridChebyshevDist(attacker.gx, attacker.gy, a.enemy.gx, a.enemy.gy)
-            - gridChebyshevDist(attacker.gx, attacker.gy, b.enemy.gx, b.enemy.gy);
+        return getGridUnitDistance(attacker, a.enemy) - getGridUnitDistance(attacker, b.enemy);
     });
 }
 
@@ -670,7 +818,7 @@ function extendGridTargetsBySpill(hits, targetCount, candidates) {
         for (let i = 0; i < candidates.length; i++) {
             let enemy = candidates[i];
             if (hits.includes(enemy)) continue;
-            if (!hits.some(hit => gridChebyshevDist(hit.gx, hit.gy, enemy.gx, enemy.gy) <= 1)) continue;
+            if (!hits.some(hit => getGridUnitDistance(hit, enemy) <= 1)) continue;
             hits.push(enemy);
             added = true;
             break;
@@ -684,7 +832,7 @@ function findNearestGridEnemy(fromCell, enemies, range) {
     let best = null, bestDist = Infinity;
     (enemies || []).forEach(enemy => {
         if (!enemy || enemy.hp <= 0 || !hasGridCell(enemy)) return;
-        let dist = gridChebyshevDist(fromCell.gx, fromCell.gy, enemy.gx, enemy.gy);
+        let dist = getGridUnitDistance(fromCell, enemy);
         if (dist < bestDist && (!Number.isFinite(range) || dist <= range)) { best = enemy; bestDist = dist; }
     });
     return best;
@@ -692,9 +840,10 @@ function findNearestGridEnemy(fromCell, enemies, range) {
 
 safeExposeGlobals({
     isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
+    getGridUnitFootprint, getGridUnitCells, getGridUnitCenter, getGridUnitDistance,
     getGridBlockedCells, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
-    gridStepToward, advanceGridUnitMovement, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
+    gridStepToward, advanceGridUnitMovement, advanceGridHazardEscape, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,
     describeSkillGridProfile, getGridSkillTargetMult, getGridAttackAreaCells,
     selectGridSkillTargets, findNearestGridEnemy, extendGridTargetsBySpill,
     getSkillHitSequenceProfile, buildSkillHitSequence, getSkillHitSequenceDpsMultiplier

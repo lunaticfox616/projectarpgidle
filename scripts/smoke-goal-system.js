@@ -5,6 +5,7 @@ const vm = require('vm');
 const assert = require('assert');
 
 const source = fs.readFileSync('js/goal-system.js', 'utf8');
+const unlockGuideSource = fs.readFileSync('js/content-unlock-guide.js', 'utf8');
 
 function boot(gameState, overrides = {}) {
     const exposed = {};
@@ -24,11 +25,21 @@ function boot(gameState, overrides = {}) {
             { id: 'trial_2', name: '2차 전직 시련', reqZone: 8 },
             { id: 'trial_3', name: '3차 전직 시련', reqZone: -1 }
         ],
+        SEASON_CONTENT_ROADMAP: {
+            1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도'] },
+            2: { title: '루프 2', features: ['해금: 홀씨 제작 / 현상금 사냥'] },
+            3: { title: '루프 3', features: ['해금: 고대 미궁(화석)'] },
+            25: { title: '루프 25', features: ['해금: 생장판 / 생장 아이템 드랍'] },
+            31: { title: '루프 31', features: ['해금: 버려진 날붙이 / 단절된 방랑자'] },
+            45: { title: '루프 45', features: ['생장판 확장: 27칸', '생장판 시너지 해금: 복합 시너지'] },
+            50: { title: '루프 50', features: ['생장판 확장: 32칸 · 완전한 수관'] }
+        },
         SEASON_BOSS_ZONES: [
-            { id: 'pinnacle_underking', name: '지핵군주 모르그란', pinnacleTrack: 'underworld', pinnacleRequirement: { kind: 'underworldFloor', target: 30 } },
-            { id: 'pinnacle_leviathan', name: '무광해의 포식자 탈라사', pinnacleTrack: 'ocean', pinnacleRequirement: { kind: 'oceanDepth', target: 1000 } },
-            { id: 'pinnacle_sky', name: '빈 왕좌의 집행자 카엘룸', pinnacleTrack: 'sky', pinnacleRequirement: { kind: 'skyFloor', target: 30 } },
-            { id: 'pinnacle_observer', name: '경계의 관측자 베일라', pinnacleTrack: 'convergence', requiresPinnacles: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'] }
+            { id: 'cosmos_astra', name: '잔향체 아스트라', requiresCosmosBosses: ['planet-45', 'planet-46', 'planet-47', 'planet-48', 'planet-49'] },
+            { id: 'pinnacle_underking', name: '지핵군주 모르그란', milestonePinnacle: true, pinnacleTrack: 'underworld', pinnacleRequirement: { kind: 'underworldFloor', target: 30 } },
+            { id: 'pinnacle_leviathan', name: '무광해의 포식자 탈라사', milestonePinnacle: true, pinnacleTrack: 'ocean', pinnacleRequirement: { kind: 'oceanDepth', target: 1000 } },
+            { id: 'pinnacle_sky', name: '빈 왕좌의 집행자 카엘룸', milestonePinnacle: true, pinnacleTrack: 'sky', pinnacleRequirement: { kind: 'skyFloor', target: 30 } },
+            { id: 'pinnacle_observer', name: '경계의 관측자 베일라', milestonePinnacle: true, pinnacleCapstone: true, pinnacleTrack: 'convergence', requiresPinnacles: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'] }
         ],
         SKILL_DB: { 화염구: { isGem: true } },
         getEquipCandidateSlots: item => item && item.slot ? [item.slot] : [],
@@ -40,6 +51,11 @@ function boot(gameState, overrides = {}) {
         getHighestUnlockedEndlessChaosDepth: () => 0,
         getInventoryLimit: () => 30,
         getSeasonBossProgressGate: (zone, g) => {
+            if (Array.isArray(zone.requiresCosmosBosses)) {
+                const cleared = new Set(Array.isArray(g.cosmosAtlas && g.cosmosAtlas.bossClears) ? g.cosmosAtlas.bossClears : []);
+                const current = zone.requiresCosmosBosses.filter(id => cleared.has(id)).length;
+                return { met: current >= zone.requiresCosmosBosses.length, current, target: zone.requiresCosmosBosses.length, label: `이번 루프 은하 보스 ${current}/${zone.requiresCosmosBosses.length}` };
+            }
             if (zone.pinnacleTrack === 'underworld') {
                 const current = Math.max(0, Math.floor(Number(g.underworldProgress && g.underworldProgress.highestFloor) || 1) - 1);
                 return { met: current >= 30, current, target: 30, label: `지하계 ${current}/30층` };
@@ -59,6 +75,8 @@ function boot(gameState, overrides = {}) {
         ...overrides
     };
     vm.createContext(context);
+    vm.runInContext(unlockGuideSource, context, { filename: 'js/content-unlock-guide.js' });
+    Object.assign(context, exposed);
     vm.runInContext(source, context, { filename: 'js/goal-system.js' });
     return { exposed, presented, timers, context, refresh: () => exposed.runGoalSystemRefresh() };
 }
@@ -67,7 +85,7 @@ const baseGame = extra => ({
     maxZoneId: 0, currentZoneId: 0, runProgress: 42.7, season: 1, loopCount: 0,
     unlocks: { map: false, season: false, char: false, traits: false, items: false, skills: false },
     inventory: [], equipment: {}, claimableActRewards: [],
-    passivePoints: 0, ascendPoints: 0, seasonPoints: 0,
+    passivePoints: 0, ascendPoints: 0, ascendKeystonePoints: 0, seasonPoints: 0,
     skills: [], gemData: {}, currencies: {}, gemEnhanceUnlocked: false,
     completedTrials: [], unlockedTrials: [], ascendClass: null,
     loopProgressCurrent: {}, clearedRootBosses: [],
@@ -106,7 +124,8 @@ const baseGame = extra => ({
     const m = boot(baseGame({ maxZoneId: 3, claimableActRewards: [0, 2], unlocks: { map: true } }));
     m.refresh();
     assert.strictEqual(m.presented[0].id, 'claim-act-reward');
-    assert(m.presented[0].description.includes('2개'));
+    assert.strictEqual(m.presented[0].title, '남은 보상');
+    assert.strictEqual(m.presented[0].description, '선택 가능한 보상 2개');
     // 보상 선택 카드는 탐험 > 나무(사냥터) 화면의 액트 목록에 붙는다.
     assert.strictEqual(m.presented[0].actionSubtabId, 'map-explore-hunting', '액트 보상은 나무 화면까지 연다');
 }
@@ -178,7 +197,7 @@ const baseGame = extra => ({
     }));
     m.refresh();
     const goal = m.presented[0];
-    assert.strictEqual(goal, null, '첫 루프 이후에는 액트 밀기 목표를 다시 띄우지 않음');
+    assert.strictEqual(goal.id, 'major-unlock-condition-gem', '반복 액트에서는 스토리 대신 다음 주요 해금을 안내');
 
     const firstLoop = boot(baseGame({
         maxZoneId: 2, currentZoneId: 2, passivePoints: 4, ascendPoints: 2,
@@ -195,7 +214,7 @@ const baseGame = extra => ({
     firstLoop.refresh();
     const firstGoal = firstLoop.presented[0];
     assert(firstGoal.id.startsWith('story-zone-'), '성장 기회가 첫 플레이 주 목표를 빼앗지 않음');
-    const passiveNotice = firstGoal.notices.find(n => n.text.includes('패시브 포인트 4'));
+    const passiveNotice = firstGoal.notices.find(n => n.text === '남은 패시브 포인트 4');
     assert(passiveNotice, '남은 패시브 포인트 안내');
     assert.strictEqual(passiveNotice.actionTabId, 'tab-char');
     assert(firstGoal.notices.some(n => n.actionSubtabId === 'item-tab-equip'), '장착 가능한 장비는 장비 창으로 이동');
@@ -216,13 +235,13 @@ const baseGame = extra => ({
     assert(goal.notices.some(n => n.actionSubtabId === 'skill-tab-enhance'), '젬 강화 바로가기 생성');
 }
 
-// 9) 표시할 목표가 전혀 없으면 null로 숨긴다.
+// 9) 현재 행동 목표 계산이 실패해도 다음 주요 해금 안내는 남는다.
 {
     const m = boot(baseGame({ maxZoneId: 12 }), {
         getSeasonAbyssDepthCap: () => { throw new Error('broken'); }
     });
     m.refresh();
-    assert.strictEqual(m.presented[0], null, '규칙이 모두 실패/불일치면 숨김');
+    assert.strictEqual(m.presented[0].id, 'major-unlock-loop-2', '행동 목표 오류와 해금 흐름을 분리');
 }
 
 // 10) 손상된 저장 데이터(NaN/누락/음수)에서도 예외 없이 동작한다.
@@ -259,18 +278,14 @@ const baseGame = extra => ({
     assert.strictEqual(m.presented.length, 1, '실행은 한 번');
 }
 
-// 13) 새 전직 시련과 전직 선택은 주 목표를 가리지 않고 정확한 세부 화면으로 안내한다.
+// 13) 전직 기능은 해금 안내에서 한 번 설명하고 반복 목표로 점유하지 않는다.
 {
-    const m = boot(baseGame({
-        maxZoneId: 3, currentZoneId: 3, ascendPoints: 1,
-        unlocks: { map: true, traits: true }
-    }));
+    const m = boot(baseGame({ maxZoneId: 3, currentZoneId: 3, completedTrials: ['trial_1'],
+        ascendClass: 'warrior', ascendPoints: 2, ascendKeystonePoints: 1,
+        unlocks: { map: true, traits: true } }));
     m.refresh();
-    const goal = m.presented[0];
-    const trialNotice = goal.notices.find(n => n.text.includes('1차 전직 시련'));
-    assert(trialNotice, '도전 가능한 미완료 시련 안내');
-    assert.strictEqual(trialNotice.actionSubtabId, 'map-explore-trials');
-    assert(goal.notices.some(n => n.text.includes('전직 직업을 선택')), '미선택 전직 안내');
+    assert(!m.presented[0].notices.some(n => n.text.includes('전직 성장')),
+        '전직 기능을 단계별 반복 목표로 표시하면 안 된다');
 }
 
 // 14) 루프31 우주계에서는 아스트라 진행도와 준비 완료 상태가 정확한 화면으로 연결된다.
@@ -446,6 +461,64 @@ const baseGame = extra => ({
         assert.ok(notice.text.includes('40/40'), '현재 칸 수를 보여야 한다');
         assert.ok(/비교 없이 자동 해체됩니다/.test(notice.text), '새 드랍이 비교 없이 자동해체된다는 결과를 알려야 한다');
     }
+}
+
+// 18) 현재 전투 목표 아래에는 가장 가까운 주요 해금 하나와 실제 조건이 붙는다.
+{
+    const m = boot(baseGame({
+        maxZoneId: 12, currentZoneId: 12, season: 20, loopCount: 19,
+        unlocks: { map: true, season: true, skills: true, talisman: true },
+        conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
+        starWedge: { unlocked: true }, skyTower: { unlocked: true },
+        chaosRealm: { unlocked: true }, clearedRootBosses: ['s6_beast_cerberus'],
+        abyssEndlessDepth: 27, abyssUnlockedDepths: [21, 27], labyrinthUnlockedMaxFloor: 64,
+        loopProgressCurrent: { bestAbyssDepth: 20 }
+    }), { getHighestUnlockedEndlessChaosDepth: state => state.abyssEndlessDepth || 0 });
+    m.refresh();
+    const unlock = m.presented[0].nextUnlock;
+    assert.strictEqual(unlock.id, 'underworld');
+    assert.strictEqual(unlock.completed, 2, '지하계 선행 조건 4개 중 2개 완료');
+    assert(unlock.requirements.some(row => row.label === '혼돈 심화 30층' && row.current === 27));
+    assert(unlock.requirements.some(row => row.label === '고대 미궁 100층' && row.current === 64));
+    assert.strictEqual(unlock.actionSubtabId, 'map-explore-chaos', '먼저 남은 혼돈 심화를 직접 안내');
+}
+
+// 19) 아스트라 격파는 종착점이 아니며, 다음 아틀라스 관문 보스를 안내한다.
+{
+    const m = boot(baseGame({
+        maxZoneId: 12, currentZoneId: 12, season: 31, loopCount: 30,
+        unlocks: { map: true, season: true, skills: true, talisman: true },
+        unlockedMapContents: ['map-tab-underworld', 'map-tab-cosmos'],
+        conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
+        starWedge: { unlocked: true }, skyTower: { unlocked: true, highestFloor: 1 },
+        chaosRealm: { unlocked: true }, coreCube: { unlocked: true, everUnlocked: true },
+        clearedRootBosses: ['s6_beast_cerberus', 'cosmos_astra'],
+        underworldProgress: { highestFloor: 18 }, cosmosAtlas: { unlocked: true },
+        loopProgressCurrent: { bestAbyssDepth: 31 }
+    }), { hasCurrentLoopAbyssRequirementClear: () => true });
+    m.refresh();
+    const unlock = m.presented[0].nextUnlock;
+    assert.strictEqual(unlock.id, 'pinnacle_underking');
+    assert.strictEqual(unlock.title, '지핵군주 모르그란');
+    assert.strictEqual(unlock.requirements[0].current, 17);
+    assert.strictEqual(unlock.actionSubtabId, 'map-tab-underworld');
+}
+
+// 20) 최종 관측자 이후에도 로드맵의 다음 생장판 확장을 순서대로 안내한다.
+{
+    const m = boot(baseGame({
+        maxZoneId: 12, currentZoneId: 12, season: 42, loopCount: 41,
+        unlocks: { map: true, season: true, skills: true, talisman: true },
+        unlockedMapContents: ['map-tab-underworld', 'map-tab-cosmos'],
+        conditionGemUnlocked: true, gemEnhanceUnlocked: true, talismanUnlocked: true,
+        starWedge: { unlocked: true }, skyTower: { unlocked: true }, chaosRealm: { unlocked: true },
+        coreCube: { unlocked: true, everUnlocked: true },
+        clearedRootBosses: ['s6_beast_cerberus', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'],
+        loopProgressCurrent: { bestAbyssDepth: 42 }
+    }), { hasCurrentLoopAbyssRequirementClear: () => true });
+    m.refresh();
+    assert.strictEqual(m.presented[0].nextUnlock.id, 'loop-45');
+    assert.strictEqual(m.presented[0].nextUnlock.requirements[0].target, 45);
 }
 
 console.log('smoke-goal-system passed');

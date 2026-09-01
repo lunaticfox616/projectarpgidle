@@ -11,6 +11,7 @@ const files = [
   'data/items.js',
   'data/growth-items.js',
   'data/passives.js',
+  'data/passive-tree-v22.js',
   'data/bosses.js',
   'data/rewards.js',
   'data/talent-cards.js',
@@ -48,39 +49,39 @@ vm.createContext(context);
 files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
 vm.runInContext('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;', context);
 
-const webShape = vm.runInContext(`
-(function inspectSpiderWeb() {
+const treeShape = vm.runInContext(`
+(function inspectAuthoredTree() {
   const nodes = Object.values(PASSIVE_TREE.nodes);
-  const webNodes = nodes.filter(node => Number.isFinite(node.webSpoke) && Number.isFinite(node.webRing));
-  const spokes = new Set(webNodes.map(node => node.webSpoke));
-  const rings = new Set(webNodes.map(node => node.webRing));
-  const rootLinks = PASSIVE_TREE.edges.filter(edge => edge.from === 'n0' || edge.to === 'n0');
-  const ringLinks = PASSIVE_TREE.edges.filter(edge => {
-    const a = PASSIVE_TREE.nodes[edge.from];
-    const b = PASSIVE_TREE.nodes[edge.to];
-    return a && b && Number.isFinite(a.webRing) && a.webRing === b.webRing && a.webSpoke !== b.webSpoke;
-  });
+  const starts = nodes.filter(node => node.kind === 'start');
   return {
-    spokeCount: spokes.size,
-    ringCount: rings.size,
-    completeSpokes: Array.from(spokes).filter(spoke => webNodes.filter(node => node.webSpoke === spoke).length >= 12).length,
-    rootLinkCount: rootLinks.length,
-    ringLinkCount: ringLinks.length,
-    hasReferenceLayout: nodes.some(node => !!node.layoutGroup)
+    nodeCount: nodes.length,
+    edgeCount: PASSIVE_TREE.edges.length,
+    builtNodeCount: Object.keys(PASSIVE_TREE_V22.nodes).length,
+    builtEdgeCount: PASSIVE_TREE_V22.edges.length,
+    starWedgeOptionCount: nodes.filter(node => node.kind === 'star_option').length,
+    startCount: starts.length,
+    selectedRoot: getPassiveTreeRootNodeId(),
+    allStarts: PASSIVE_TREE_V22.classStarts
   };
 })()
 `, context);
-assert.strictEqual(webShape.spokeCount, 16, '거미줄 트리는 중심에서 16개 방사 경로로 뻗어야 한다');
-assert.strictEqual(webShape.ringCount, 12, '거미줄 트리는 12단계 원형 고리를 유지해야 한다');
-assert.strictEqual(webShape.completeSpokes, 16, '모든 방사 경로가 중심부터 외곽까지 이어져야 한다');
-assert.strictEqual(webShape.rootLinkCount, 8, '중앙 루트는 여덟 주축에 연결되어야 한다');
-assert.ok(webShape.ringLinkCount >= 100, '인접 방사 경로 사이에 충분한 원형 고리 연결이 있어야 한다');
-assert.strictEqual(webShape.hasReferenceLayout, false, '참조 스키마 배치가 거미줄 구조를 다시 덮어쓰면 안 된다');
+assert.strictEqual(treeShape.starWedgeOptionCount, 24, '외곽 별쐐기 여섯 개는 각각 네 선택지를 만들어야 한다');
+assert.strictEqual(treeShape.nodeCount, treeShape.builtNodeCount,
+    '빌드된 패시브와 외곽 별쐐기 선택지가 런타임에 빠짐없이 로드되어야 한다');
+assert.strictEqual(treeShape.edgeCount, treeShape.builtEdgeCount,
+    '빌드된 패시브 연결선이 런타임에 빠짐없이 유지되어야 한다');
+assert.strictEqual(treeShape.startCount, 6, '직업별 시작점은 여섯 개여야 한다');
+assert.strictEqual(treeShape.selectedRoot, treeShape.allStarts.archer, '기본 궁수 직업은 궁수 시작점에서 출발해야 한다');
+const firstAdjacency = context.getPassiveTreeAdjacency();
+const secondAdjacency = context.getPassiveTreeAdjacency();
+assert.strictEqual(firstAdjacency, secondAdjacency, '변하지 않은 패시브 구조의 인접 목록은 다시 만들면 안 된다');
+assert.strictEqual(firstAdjacency.size, treeShape.nodeCount, '인접 목록은 모든 패시브 노드를 포함해야 한다');
 
 const targetId = vm.runInContext(`
 (function findTarget() {
-  const q = [{ id: 'n0', depth: 0 }];
-  const seen = new Set(['n0']);
+  const rootId = getPassiveTreeRootNodeId();
+  const q = [{ id: rootId, depth: 0 }];
+  const seen = new Set([rootId]);
   while (q.length) {
     const cur = q.shift();
     if (cur.depth >= 3 && isPassiveNodeAvailable(cur.id)) return cur.id;
@@ -96,23 +97,24 @@ const targetId = vm.runInContext(`
 `, context);
 assert.ok(targetId, 'a distant passive node should exist in generated tree');
 
-context.game.passives = ['n0'];
+const rootId = context.getPassiveTreeRootNodeId();
+context.game.passives = [];
 context.game.passivePoints = 99;
 const path = context.getPassiveActivationPath(targetId);
 assert.ok(path.length >= 3, 'shortest activation path should include intermediate nodes');
 assert.strictEqual(path[path.length - 1], targetId, 'path should end at requested target');
-assert.ok(!path.includes('n0'), 'path cost should exclude already active root');
+assert.ok(!path.includes(rootId), 'path cost should exclude the free class starting point');
 
 context.game.passivePoints = path.length - 1;
 const blocked = context.activatePassivePath(targetId, { forcePulseNodeId: targetId });
 assert.strictEqual(blocked.activated, false, 'activation should fail when points are short');
-assert.deepStrictEqual(context.game.passives, ['n0'], 'failed activation must not partially add nodes');
+assert.deepStrictEqual(context.game.passives, [], 'failed activation must not partially add nodes');
 
 context.game.passivePoints = path.length;
 const activated = context.activatePassivePath(targetId, { forcePulseNodeId: targetId });
 assert.strictEqual(activated.activated, true, 'activation should spend points and add the shortest path');
 assert.strictEqual(context.game.passivePoints, 0, 'activation should spend one point per inactive path node');
-assert.deepStrictEqual(Array.from(context.game.passives.slice(1)), Array.from(path), 'activation should add exactly the shortest path in order');
+assert.deepStrictEqual(Array.from(context.game.passives), Array.from(path), 'activation should add exactly the shortest path in order');
 
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const activationHandler = uiSource.slice(uiSource.indexOf('async function activateHoveredPassive'), uiSource.indexOf("canvas.addEventListener('mousedown'", uiSource.indexOf('async function activateHoveredPassive')));

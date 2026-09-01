@@ -92,6 +92,7 @@ async function flushTimers() {
 
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
+  const updatesBeforeReturn = context.updated || 0;
   const promise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
   await flushTimers();
   assert.strictEqual(await promise, true, 'background return should complete');
@@ -99,7 +100,9 @@ async function flushTimers() {
   assert(context.rendered.includes(true), 'battlefield should be force-rendered before replay');
   assert(context.rafCount > 0, 'return flow should yield at least one frame');
   assert(context.observedNow.length > 0, 'combat steps should run');
+  assert.strictEqual((context.updated || 0) - updatesBeforeReturn, 1, 'completed background return should refresh the full UI once');
   const onceExp = context.game.exp;
+  const onceTotalExp = context.game.exp + (context.game.level - 1) * 10;
   assert.strictEqual(await vm.runInContext('startBackgroundCombatReturn(12 * 60 * 1000)', context), false, 'same elapsed time should not apply twice');
   assert.strictEqual(context.game.exp, onceExp, 'duplicate return should not grant rewards');
 
@@ -113,7 +116,7 @@ async function flushTimers() {
   // 쓰이므로 (레벨 업 소모 + 잔여 경험치)의 총량이 전체 계산과 같아야 한다.
   const settledTotalExp = context.game.exp + (context.game.level - 1) * 10;
   assert(context.game.level > 1, 'estimated settlement should apply pending level-ups');
-  assert.strictEqual(settledTotalExp, onceExp, 'estimated settlement should preserve the full expected experience');
+  assert.strictEqual(settledTotalExp, onceTotalExp, 'estimated settlement should preserve the full expected experience');
   assert.strictEqual(context.game.loopKills, 659, 'estimated settlement should scale kills to the full duration');
 
   context.killAfter = 3;
@@ -124,5 +127,23 @@ async function flushTimers() {
   assert.strictEqual(await deathPromise, true);
   assert.strictEqual(context.game.playerHp, 0, 'death during replay should be preserved');
   assert(context.game.exp < onceExp, 'death should stop remaining background chunks');
+
+  context.killAfter = 0;
+  context.getOfflineProgressConfig = () => ({
+    recognitionLimitMs: 24 * 60 * 60 * 1000,
+    efficiencyRate: 0.3,
+    effectiveLimitMs: 24 * 60 * 60 * 1000 * 0.3,
+    recognitionHours: 24
+  });
+  context.observedNow = [];
+  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+  vm.runInContext('recordBackgroundCombatEntry(1000)', context);
+  const dayReturn = vm.runInContext('startBackgroundCombatReturn(1000 + 24 * 60 * 60 * 1000)', context);
+  await flushTimers();
+  assert.strictEqual(await dayReturn, true, 'a full 24-hour return should complete');
+  assert(context.observedNow.length <= 300,
+    `24-hour return replayed too many combat steps (${context.observedNow.length})`);
+  assert(nodes['background-combat-result-overlay'].innerHTML.includes('예상 정산'),
+    'a long return should explicitly report bounded-sample settlement');
   console.log('smoke-background-return-flow passed');
 })().catch(error => { console.error(error); process.exit(1); });

@@ -1,132 +1,108 @@
-// 패시브 트리 전체 초기화(거래소)의 포인트 보존 계약.
-//
-// n0는 포인트를 쓰지 않고 주어지는 뿌리다. 반환 대상에 넣으면 초기화할 때마다
-// 포인트가 1점씩 늘어난다. 노드를 하나도 찍지 않고 반복해도 늘어나므로,
-// 황금률만 있으면 패시브 포인트를 무한히 만들 수 있었다(실측 +1/회).
-// 레이아웃 마이그레이션 경로(js/ui.js의 refundedForRadialLayout)는 처음부터
-// n0를 빼고 ['n0']로 되돌린다. 두 경로가 같은 규칙을 써야 한다.
 const assert = require('assert');
-const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
-function loadRespec(gameState) {
-    const source = fs.readFileSync('js/items.js', 'utf8');
-    const start = source.indexOf('async function marketResetPassiveTreeByDivine()');
-    const end = source.indexOf('async function marketAnnulSelectedStat(');
-    assert(start >= 0 && end > start, 'marketResetPassiveTreeByDivine을 찾지 못했다');
-    const logs = [];
-    const context = {
-        console,
-        game: gameState,
-        addLog: text => logs.push(String(text)),
-        updateStaticUI: () => {},
-        calculateReachableNodes: () => {},
-        refreshPassiveVisibility: () => {},
-        isMarketUnlocked: () => true,
-        requestGameConfirmation: async () => true
-    };
-    context.logs = logs;
-    vm.createContext(context);
-    vm.runInContext(source.slice(start, end), context);
-    return context;
+const context = buildGameRuntime();
+const run = source => vm.runInContext(source, context);
+
+async function resetPassiveTree() {
+    return vm.runInContext('marketResetPassiveTreeByDivine()', context);
 }
 
-const baseGame = extra => ({
-    woodsmanBuildLock: false,
-    currencies: { goldenRule: 10 },
-    passives: ['n0'],
-    passiveAttributeChoices: {},
-    passivePoints: 0,
-    ...extra
-});
-
 async function main() {
-    // ── 찍은 노드만큼만 돌려받는다 ──────────────────────────────────────
-    {
-        const ctx = loadRespec(baseGame({ passives: ['n0', 'a', 'b', 'c', 'd', 'e'], passivePoints: 15 }));
-        await vm.runInContext('marketResetPassiveTreeByDivine()', ctx);
-        assert.strictEqual(ctx.game.passivePoints, 20,
-            `유료 노드 5개만 돌려받아야 한다 (현재 ${ctx.game.passivePoints}점)`);
-        assert.strictEqual(JSON.stringify(ctx.game.passives), '["n0"]',
-            '뿌리 n0는 남아 있어야 한다. 통째로 비우면 무료 시작 노드를 다시 사야 한다');
-        assert.strictEqual(ctx.game.currencies.goldenRule, 9, '황금률 1개를 소모해야 한다');
-        assert.ok(ctx.logs.some(text => text.includes('5점')), '반환 점수를 정확히 알려야 한다');
-    }
+    run(`
+        requestGameConfirmation = async () => true;
+        updateStaticUI = () => {};
+        normalizeSupportLoadout = () => {};
+        game.maxZoneId = 5;
+        game.woodsmanBuildLock = false;
+    `);
+    const fixture = JSON.parse(run(`JSON.stringify((() => {
+        const root = getPassiveTreeRootNodeId();
+        const paid = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind !== 'start').slice(0, 5).map(node => node.id);
+        const edge = PASSIVE_TREE.edges.find(row => row.from === root || row.to === root);
+        return { root, paid, neighbor: edge.from === root ? edge.to : edge.from };
+    })())`));
 
-    // ── 뿌리만 있는 트리는 초기화 대상이 아니다(반복 악용 차단) ────────
-    {
-        const ctx = loadRespec(baseGame({ passives: ['n0'], passivePoints: 7 }));
-        await vm.runInContext('marketResetPassiveTreeByDivine()', ctx);
-        assert.strictEqual(ctx.game.passivePoints, 7, '찍은 노드가 없으면 포인트가 늘면 안 된다');
-        assert.strictEqual(ctx.game.currencies.goldenRule, 10, '거절할 때는 황금률도 쓰면 안 된다');
-        assert.ok(ctx.logs.some(text => text.includes('초기화할 패시브 노드가 없습니다')), '이유를 알려야 한다');
-    }
+    run(`
+        game.currencies.goldenRule = 10;
+        game.passives = ${JSON.stringify([fixture.root, ...fixture.paid])};
+        game.passiveAttributeChoices = { ${JSON.stringify(fixture.paid[0])}: 'strength' };
+        game.passivePoints = 15;
+    `);
+    await resetPassiveTree();
+    assert.strictEqual(run('game.passivePoints'), 20, 'only the five paid nodes should be refunded');
+    assert.deepStrictEqual(JSON.parse(run('JSON.stringify(game.passives)')), [],
+        'authored class starts should remain implicit free connection points after a reset');
+    assert.strictEqual(run('game.currencies.goldenRule'), 9);
+    assert.deepStrictEqual(JSON.parse(run(`JSON.stringify(getPassiveActivationPath(${JSON.stringify(fixture.neighbor)}))`)),
+        [fixture.neighbor], 'the first node next to the class start must still cost exactly one point');
 
-    // ── 몇 번을 반복해도 총량이 늘지 않는다 ────────────────────────────
-    {
-        const ctx = loadRespec(baseGame({ passives: ['n0', 'a', 'b'], passivePoints: 5 }));
-        const totalBefore = ctx.game.passivePoints + (ctx.game.passives.length - 1);
-        for (let i = 0; i < 5; i++) {
-            await vm.runInContext('marketResetPassiveTreeByDivine()', ctx);
-        }
-        const totalAfter = ctx.game.passivePoints + (ctx.game.passives.length - 1);
-        assert.strictEqual(totalAfter, totalBefore,
-            `초기화를 반복해도 총 포인트가 늘면 안 된다 (${totalBefore} → ${totalAfter})`);
-    }
+    run(`
+        game.currencies.goldenRule = 10;
+        game.passives = [${JSON.stringify(fixture.root)}];
+        game.passivePoints = 7;
+    `);
+    await resetPassiveTree();
+    assert.strictEqual(run('game.passivePoints'), 7, 'a free start alone must never create a refund');
+    assert.strictEqual(run('game.currencies.goldenRule'), 10, 'a rejected empty reset must not consume currency');
 
-    // ── 마이그레이션 경로와 같은 규칙을 쓴다 ───────────────────────────
-    {
-        const ui = fs.readFileSync('js/ui.js', 'utf8');
-        assert.ok(/refundedForRadialLayout\s*=\s*\(merged\.passives \|\| \[\]\)\.filter\(id => id !== 'n0'\)/.test(ui),
-            '마이그레이션 반환도 n0를 빼야 한다');
-        assert.ok(/merged\.passives = \['n0'\]/.test(ui), '마이그레이션도 뿌리를 남겨야 한다');
-        const items = fs.readFileSync('js/items.js', 'utf8');
-        const respec = items.slice(items.indexOf('async function marketResetPassiveTreeByDivine'),
-            items.indexOf('async function marketAnnulSelectedStat('));
-        assert.ok(/filter\(nodeId => nodeId !== 'n0'\)/.test(respec), '거래소 초기화도 n0를 반환에서 빼야 한다');
-        assert.ok(/game\.passives = \['n0'\]/.test(respec), '거래소 초기화도 뿌리를 남겨야 한다');
-    }
+    run(`
+        game.currencies.goldenRule = 10;
+        game.passives = ${JSON.stringify(fixture.paid.slice(0, 2))};
+        game.passivePoints = 5;
+    `);
+    const totalBefore = run('game.passivePoints + getPaidPassiveNodeIds(game.passives).length');
+    for (let attempt = 0; attempt < 5; attempt++) await resetPassiveTree();
+    const totalAfter = run('game.passivePoints + getPaidPassiveNodeIds(game.passives).length');
+    assert.strictEqual(totalAfter, totalBefore, 'repeated resets must preserve total passive points');
 
-    // ── 나머지 초기화 경로도 같은 보존 계약을 지킨다 ────────────────────
-    // 패시브 트리와 달리 루프/전직/키스톤 목록에는 무료로 주어지는 뿌리가 없다.
-    // 그래서 "목록 길이(루프는 레벨 합)만큼 반환"이 맞다. 브라우저 실측으로도
-    // 셋 다 누수 0을 확인했고, 여기서 그 규칙이 유지되는지 고정한다.
-    {
-        const ui = fs.readFileSync('js/ui.js', 'utf8');
-        const bodyOf = name => {
-            const start = ui.search(new RegExp(`async function ${name}\\s*\\(`));
-            assert.ok(start >= 0, `${name}을 찾지 못했다`);
-            let open = ui.indexOf('{', start);
-            let depth = 0;
-            for (let i = open; i < ui.length; i++) {
-                if (ui[i] === '{') depth++;
-                else if (ui[i] === '}' && --depth === 0) return ui.slice(start, i + 1);
-            }
-            throw new Error(`${name}의 끝을 찾지 못했다`);
-        };
+    run(`
+        const refundRoot = getPassiveTreeRootNodeId();
+        PASSIVE_TREE.nodes.refund_bridge_test = { id:'refund_bridge_test', kind:'path', effects:[] };
+        PASSIVE_TREE.nodes.refund_leaf_test = { id:'refund_leaf_test', kind:'path', effects:[] };
+        PASSIVE_TREE.edges.push(
+            { from:refundRoot, to:'refund_bridge_test' },
+            { from:'refund_bridge_test', to:'refund_leaf_test' }
+        );
+        game.passives = ['refund_bridge_test', 'refund_leaf_test'];
+        game.passivePoints = 0;
+        game.currencies.blightSpore = 2;
+    `);
+    assert.strictEqual(run("canRefundPassiveNode('refund_bridge_test')"), false,
+        '바깥 노드가 끊기는 중간 패시브는 반환할 수 없어야 합니다.');
+    run("refundPassiveNode('refund_bridge_test')");
+    assert.deepStrictEqual(JSON.parse(run('JSON.stringify(game.passives)')), ['refund_bridge_test', 'refund_leaf_test'],
+        '차단된 중간 패시브 반환은 할당 상태를 바꾸면 안 됩니다.');
+    assert.strictEqual(run('game.currencies.blightSpore'), 2, '차단된 반환은 재화를 소모하면 안 됩니다.');
+    assert.strictEqual(run("canRefundPassiveNode('refund_leaf_test')"), true,
+        '연결을 끊지 않는 끝 패시브는 반환할 수 있어야 합니다.');
+    run("refundPassiveNode('refund_leaf_test')");
+    assert.deepStrictEqual(JSON.parse(run('JSON.stringify(game.passives)')), ['refund_bridge_test'],
+        '끝 패시브는 정상적으로 반환되어야 합니다.');
+    assert.strictEqual(run('game.passivePoints'), 1);
+    assert.strictEqual(run('game.currencies.blightSpore'), 1);
 
-        const season = bodyOf('resetSeasonNodes');
-        assert.ok(/seasonPoints \|\| 0\)\) \+ totalLv/.test(season),
-            '루프 패시브는 투자한 레벨 합만큼 돌려줘야 한다(노드 수가 아니다)');
-        assert.ok(/game\.seasonNodes = \[\]/.test(season) && /game\.seasonNodeLevels = \{\}/.test(season),
-            '루프 패시브 초기화는 노드와 레벨을 함께 비워야 한다(레벨이 남으면 다음 반환이 부풀려진다)');
+    run(`
+        game.currencies.blightSpore = 20;
+        game.seasonNodes = ['season-a', 'season-b'];
+        game.seasonNodeLevels = { 'season-a': 2, 'season-b': 3 };
+        game.seasonPoints = 4;
+    `);
+    await vm.runInContext('resetSeasonNodes()', context);
+    assert.strictEqual(run('game.seasonPoints'), 9, 'season reset should refund invested node levels');
+    assert.deepStrictEqual(JSON.parse(run('JSON.stringify(game.seasonNodes)')), []);
+    assert.deepStrictEqual(JSON.parse(run('JSON.stringify(game.seasonNodeLevels)')), {});
 
-        const ascend = bodyOf('resetAscendNodes');
-        assert.ok(/ascendPoints \|\| 0\)\) \+ game\.ascendNodes\.length/.test(ascend),
-            '전직 패시브는 찍은 노드 수만큼 돌려줘야 한다');
+    run(`game.ascendNodes = ['a','b','c']; game.ascendPoints = 2; game.currencies.blightSpore = 20;`);
+    await vm.runInContext('resetAscendNodes()', context);
+    assert.strictEqual(run('game.ascendPoints'), 5, 'ascend reset should refund every invested node');
+    assert.deepStrictEqual(JSON.parse(run('JSON.stringify(game.ascendNodes)')), []);
 
-        const keystone = bodyOf('resetAscendKeystones');
-        assert.ok(/ascendKeystonePoints \|\| 0\)\) \+ game\.ascendKeystones\.length/.test(keystone),
-            '키스톤은 찍은 수만큼 돌려줘야 한다');
-
-        // 셋 다 빈 목록이면 아무 일도 하지 않는다(반복 악용 차단).
-        [['resetSeasonNodes', season, 'seasonNodes'],
-         ['resetAscendNodes', ascend, 'ascendNodes'],
-         ['resetAscendKeystones', keystone, 'ascendKeystones']].forEach(([name, body, field]) => {
-            assert.ok(new RegExp(`game\\.${field}\\.length <= 0\\) return`).test(body),
-                `${name}은 비어 있으면 즉시 돌아가야 한다(빈 상태 반복 초기화로 포인트가 생기면 안 된다)`);
-        });
-    }
+    run(`game.ascendKeystones = ['a','b']; game.ascendKeystonePoints = 1; game.currencies.blightSpore = 20;`);
+    await vm.runInContext('resetAscendKeystones()', context);
+    assert.strictEqual(run('game.ascendKeystonePoints'), 3, 'keystone reset should refund every allocation');
+    assert.deepStrictEqual(JSON.parse(run('JSON.stringify(game.ascendKeystones)')), []);
 
     console.log('smoke-passive-respec-points passed');
 }

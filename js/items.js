@@ -53,9 +53,14 @@ function getEquipmentGridVisualAsset(item) {
     let exact = grid.baseAssets && grid.baseAssets[item.baseId];
     if (exact) return exact;
     let slot = String(item.slot || '').replace(/[123]$/, '');
+    let identity = item.baseId || item.baseName || item.name || slot;
+    if (slot === '무기' && grid.weaponFootprintAssets) {
+        let footprint = getEquipmentInventoryFootprint(item);
+        let weaponPool = grid.weaponFootprintAssets[`${footprint.columns}x${footprint.rows}`];
+        if (Array.isArray(weaponPool) && weaponPool.length > 0) return weaponPool[hashSeed(identity) % weaponPool.length];
+    }
     let pool = grid.slotAssets && grid.slotAssets[slot];
     if (!Array.isArray(pool) || pool.length <= 0) return getInventoryItemVisualAsset(item, 'equipment');
-    let identity = item.baseId || item.baseName || item.name || slot;
     return pool[hashSeed(identity) % pool.length];
 }
 
@@ -65,12 +70,11 @@ function getEquipmentInventoryFootprint(item) {
     if (slot === '반지' || slot === '목걸이') return { columns: 1, rows: 1 };
     if (slot === '허리띠') return { columns: 2, rows: 1 };
     if (slot === '투구' || slot === '장갑' || slot === '신발' || slot === '방패') return { columns: 2, rows: 2 };
-    if (slot === '갑옷') return { columns: 2, rows: 3 };
+    if (slot === '갑옷') return { columns: 2, rows: 2 };
     if (slot !== '무기') return { columns: 1, rows: 1 };
     let label = `${item && item.baseId || ''} ${item && item.baseName || ''} ${item && item.name || ''}`.toLowerCase();
     if (/완드|wand|scepter|셉터|초점|focus|로드|rod|봉|홀$/.test(label)) return { columns: 1, rows: 2 };
-    if (/활|궁|bow|석궁|crossbow|발리스타|ballista|창|spear|pike|lance|staff|지팡이|대검|great|glaive|글레이브|railgun|레일건|launcher|발사기|repeater|연사/.test(label)) return { columns: 2, rows: 3 };
-    if (/도끼|axe/.test(label)) return { columns: 2, rows: 2 };
+    if (/활|궁|bow|석궁|crossbow|발리스타|ballista|창|spear|pike|lance|staff|지팡이|대검|great|glaive|글레이브|railgun|레일건|launcher|발사기|repeater|연사/.test(label)) return { columns: 1, rows: 4 };
     return { columns: 1, rows: 3 };
 }
 
@@ -374,6 +378,10 @@ function getEquipCandidateSlots(item) {
     return [item.slot];
 }
 
+function canEquipItemToSlot(item, preferredSlot) {
+    return !!preferredSlot && getEquipCandidateSlots(item).includes(preferredSlot);
+}
+
 function tryAutoEquipEmptySlot(item) {
     if (!item || !game.settings || game.settings.autoEquipEmptySlots === false) return null;
     let slot = getEquipCandidateSlots(item).find(candidate => candidate && Object.prototype.hasOwnProperty.call(game.equipment, candidate) && !game.equipment[candidate]);
@@ -476,6 +484,7 @@ function equipItem(idx, preferredSlot) {
 function equipItemById(itemId, preferredSlot) {
     let idx = findInventoryIndexById(itemId);
     if (idx < 0) return false;
+    if (preferredSlot && !canEquipItemToSlot(game.inventory[idx], preferredSlot)) return false;
     equipItem(idx, preferredSlot);
     return true;
 }
@@ -487,17 +496,35 @@ function equipSelectedCraftInventoryItem() {
     return equipItemById(itemId);
 }
 
-function unequipItem(slot) {
+function unequipItemToGrid(slot, column, row) {
     let item = game.equipment[slot];
-    if (!item || game.inventory.length >= getInventoryLimit()) return;
+    if (!item) return false;
+    let hasTargetCell = Number.isFinite(Number(column)) && Number.isFinite(Number(row));
+    let placementResult = hasTargetCell
+        ? equipmentInventoryGridRuntime.canAdd(item, column, row, game)
+        : equipmentInventoryGridRuntime.findAddPlacement(item, game);
+    if (!placementResult.ok) {
+        addLog(placementResult.reason || '인벤토리 공간이 부족해 장착 해제할 수 없습니다.', 'attack-monster');
+        return false;
+    }
+    let itemKey = equipmentLoadoutRuntime.ensureItemIdentity(item);
     game.inventory.push(item);
     game.equipment[slot] = null;
+    game.equipmentInventoryPlacements = {
+        ...(game.equipmentInventoryPlacements || {}),
+        [itemKey]: placementResult.placement
+    };
     if (isCraftSelectionEquip() && getCraftSelectionRef() === slot) {
         craftingSelectionState.ref = item.id;
         craftingSelectionState.isEquip = false;
     }
     normalizeSupportLoadout(true);
     updateStaticUI();
+    return true;
+}
+
+function unequipItem(slot) {
+    return unequipItemToGrid(slot);
 }
 
 function salvageItemById(itemId) {
@@ -635,8 +662,8 @@ function retrieveTimeAltarItems() {
         queueImportantSave(200);
         return;
     }
-    let needSlots = (rift.altarUnique ? 1 : 0) + (rift.altarRare ? 1 : 0);
-    if ((game.inventory || []).length + needSlots > getInventoryLimit()) return addLog(`인벤토리 공간이 부족합니다. (필요: ${needSlots}칸)`, 'attack-monster');
+    let altarItems = [rift.altarUnique, rift.altarRare].filter(Boolean);
+    if (!canStoreEquipmentItems(altarItems, game)) return addLog('인벤토리 공간이 부족합니다.', 'attack-monster');
     // guaranteedKeep: 회수 아이템이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
     if (rift.altarUnique) { addItemToInventory(rift.altarUnique, { guaranteedKeep: true }); rift.altarUnique = null; }
     if (rift.altarRare) { addItemToInventory(rift.altarRare, { guaranteedKeep: true }); rift.altarRare = null; }
@@ -653,7 +680,7 @@ function resolveTimeRiftFusion() {
     if (!rift.altarUnique || !rift.altarRare) return null;
     // 제단을 비우기 전에 결과물이 들어갈 공간부터 확보한다 — 실패 시 제단을 그대로 유지하고
     // 재도전(공간 확보 후 미래 재클리어)할 수 있게 한다.
-    if ((game.inventory || []).length >= getInventoryLimit()) {
+    if (!canStoreEquipmentItems([rift.altarUnique], game)) {
         addLog('⌛ 융합이 보류되었습니다: 인벤토리 공간이 필요합니다. (제단은 유지됩니다 — 공간 확보 후 미래를 다시 클리어하세요)', 'attack-monster');
         return null;
     }
@@ -693,6 +720,13 @@ function prepareMeteorEncounterEntry(returnZoneId) {
 function changeZone(id) {
     if (game.pendingLoopReady) return addLog('⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.', 'attack-monster');
     if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
+    let boundary = ensureBeyondBoundaryState(game);
+    if (boundary.activeRun && id !== BEYOND_BOUNDARY_ZONE_ID) {
+        return addLog('경계 너머 도전 중에는 다른 지역으로 이동할 수 없습니다. 먼저 도전을 포기하세요.', 'attack-monster');
+    }
+    if (id === BEYOND_BOUNDARY_ZONE_ID && !boundary.activeRun) {
+        return addLog('경계 너머 화면에서 단계와 성장시킬 인장을 선택해 도전을 시작하세요.', 'attack-monster');
+    }
     game.inTicketBossFight = false;
     if (typeof id === 'number' && id > game.maxZoneId) return;
     if (id === METEOR_FALL_ZONE_ID) {
@@ -743,24 +777,20 @@ function changeZone(id) {
     game.currentZoneId = id;
     game.killsInZone = 0;
     addLog(`🗺️ ${zone.name} 이동`, "season-up");
-    // 지도 선택은 귀환 완료가 아니라 새 전투로 출발하는 이동이다. true로 시작하면
-    // townReturnAction=hideout 설정이 이동 완료 시 다시 실행되어 선택한 지도를 덮어쓴다.
+    // 지도 선택은 귀환 완료가 아니라 새 전투로 출발하는 이동이다.
     runItemStartMoving(false);
     updateStaticUI();
 }
 
 
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItem, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason, craftingResultLedger });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, canEquipItemToSlot, equipSelectedCraftInventoryItem, unequipItem, unequipItemToGrid, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason, craftingResultLedger });
 
 // Phase-3 extracted market/crafting service handlers.
 async function marketResetPassiveTreeByDivine() {
     if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 패시브를 초기화할 수 없습니다.', 'attack-monster');
     if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
     if ((game.currencies.goldenRule || 0) < 1) return addLog('황금률이 부족합니다.', 'attack-monster');
-    // n0(시작 노드)는 포인트를 쓰지 않고 주어지는 뿌리다. 반환 대상에서 빼지 않으면
-    // 초기화할 때마다 포인트가 1점씩 늘어난다(노드를 하나도 찍지 않고 반복해도 늘어난다).
-    // 레이아웃 마이그레이션 경로(js/ui.js의 refundedForRadialLayout)와 같은 규칙을 쓴다.
-    let spentNodes = Array.isArray(game.passives) ? game.passives.filter(nodeId => nodeId !== 'n0').length : 0;
+    let spentNodes = getPaidPassiveNodeIds(game.passives).length;
     if (spentNodes <= 0) return addLog('초기화할 패시브 노드가 없습니다.', 'attack-monster');
     let passiveSnapshot = game.passives.slice();
     if (!await requestGameConfirmation(`황금률 1개를 사용해 패시브 트리를 초기화하고 포인트 ${spentNodes}점을 반환합니다.`, {
@@ -773,9 +803,8 @@ async function marketResetPassiveTreeByDivine() {
         return addLog('확인 중 패시브 또는 재화 상태가 변경되어 초기화를 취소했습니다.', 'attack-monster');
     }
     game.currencies.goldenRule -= 1;
-    // 뿌리는 남긴다. 통째로 비우면 무료로 주어지던 시작 노드가 사라져
-    // 다시 포인트를 내고 찍어야 한다.
-    game.passives = ['n0'];
+    // 직업 시작점은 소유 목록에 넣지 않아도 항상 무료 연결점으로 계산된다.
+    game.passives = [];
     game.passiveAttributeChoices = {};
     game.passivePoints += spentNodes;
     calculateReachableNodes();
@@ -817,21 +846,6 @@ async function marketAnnulSelectedStat(statIdx) {
 function buildGoldenRuleSpendPrompt(message) {
     let owned = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
     return `${message}\n\n현재 보유: 황금률 ${owned}개`;
-}
-
-async function marketExpandInventoryByDivine() {
-    if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
-    let cost = getMarketInventoryExpandCost();
-    if ((game.currencies.goldenRule || 0) < cost) return addLog(`황금률이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!await requestGameConfirmation(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 소모하여 인벤토리를 영구히 5칸 확장합니다.`), {
-        title: '인벤토리 영구 확장',
-        confirmLabel: '확장'
-    })) return;
-    if (getMarketInventoryExpandCost() !== cost || (game.currencies.goldenRule || 0) < cost) return addLog('확인 중 확장 비용 또는 재화가 변경되어 취소했습니다.', 'attack-monster');
-    game.currencies.goldenRule -= cost;
-    game.inventoryExpandLevel = Math.max(0, Math.floor(game.inventoryExpandLevel || 0)) + 1;
-    addLog(`🎒 인벤토리 영구 확장 완료! 현재 최대 칸: ${getInventoryLimit()}`, 'loot-unique');
-    updateStaticUI();
 }
 
 async function marketExpandJewelInventoryByDivine() {
@@ -1213,10 +1227,8 @@ function getBlackMarketOfferPurchaseState(offer) {
     if (offer.type === 'skillGem' && typeof hasSkillGemOwned === 'function' && hasSkillGemOwned(offer.name)) {
         return { canBuy: false, reason: '이미 보유한 젬' };
     }
-    if ((offer.type === 'baseItem' || offer.type === 'unique')
-        && Array.isArray(game.inventory)
-        && game.inventory.length >= getInventoryLimit()) {
-        return { canBuy: false, reason: `인벤토리 가득 참 · ${game.inventory.length}/${getInventoryLimit()}` };
+    if ((offer.type === 'baseItem' || offer.type === 'unique') && !canStoreEquipmentItems([offer], game)) {
+        return { canBuy: false, reason: `인벤토리 가득 참 · ${getInventoryUsedCellCount(game)}/${getInventoryLimit(game)}칸` };
     }
     return {
         canBuy: have >= price,
@@ -1400,8 +1412,8 @@ function getBlackMarketSlotExpandCost() {
     return 1 + bought;
 }
 
-function canStoreBlackMarketEquipmentOffer() {
-    if ((game.inventory || []).length < getInventoryLimit()) return true;
+function canStoreBlackMarketEquipmentOffer(offer) {
+    if (canStoreEquipmentItems([offer], game)) return true;
     addLog('인벤토리 공간이 부족해 암거래 장비를 구매할 수 없습니다.', 'attack-monster');
     return false;
 }
@@ -1460,7 +1472,7 @@ async function buyBlackMarketOffer(idx){
         purchaseSummary = `공격 젬 [${offer.name}]`;
     } else if (offer.type==='baseItem') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
-        if (!canStoreBlackMarketEquipmentOffer()) return;
+        if (!canStoreBlackMarketEquipmentOffer(offer)) return;
         let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId) || (row.name === offer.name.replace(' 베이스','') && row.slot === offer.slot))) || chooseItemBase(offer.slot, offer.hiddenTier || offer.reqTier);
         let item = normalizeItem({
             id: ++itemIdCounter,
@@ -1487,7 +1499,7 @@ async function buyBlackMarketOffer(idx){
         }
     } else if (offer.type==='unique') {
         if ((game.currencies[offer.priceKey]||0) < offer.price) return addLog('재화가 부족합니다.', 'attack-monster');
-        if (!canStoreBlackMarketEquipmentOffer()) return;
+        if (!canStoreBlackMarketEquipmentOffer(offer)) return;
         let item = generateUniqueItem(offer.hiddenTier || offer.reqTier, offer.slot, offer.name);
         let base = BASE_ITEM_DB.find(row => row && offer.baseId && row.id === offer.baseId);
         if (item && base) {
@@ -1622,9 +1634,9 @@ function renderMarketUI() {
     }
     let invEl = document.getElementById('ui-market-service-inv');
     if (invEl) {
-        let cost = getMarketInventoryExpandCost();
-        invEl.innerHTML = `<div class="market-service-title">황금률 ${cost}개 → 인벤토리 영구 5칸 확장 (현재: ${getInventoryLimit()}칸)</div>
-        <button onclick="marketExpandInventoryByDivine()" ${(game.currencies.goldenRule || 0) < cost ? 'disabled' : ''}>인벤토리 확장</button>`;
+        let pageCount = getEquipmentInventoryPageCount(game);
+        invEl.innerHTML = `<div class="market-service-title">장비 인벤토리 ${pageCount}페이지 · 루프 진행으로 자동 확장</div>
+        <div class="market-meta">루프 30 전에는 5루프마다, 이후에는 10루프마다 1페이지가 열립니다. (최대 12페이지)</div>`;
     }
     let jewelInvEl = document.getElementById('ui-market-service-jewel-inv');
     if (jewelInvEl) {
@@ -1736,4 +1748,4 @@ function renderMarketUI() {
 }
 
 
-safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandInventoryByDivine, marketExpandJewelInventoryByDivine, marketExpandGrowthInventoryByDivine, setMarketExchangeSelection, renderMarketUI, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+safeExposeGlobals({ canStoreBlackMarketEquipmentOffer, getBlackMarketOfferPurchaseState, showBlackMarketOfferTooltip, marketResetPassiveTreeByDivine, marketAnnulSelectedStat, marketExpandJewelInventoryByDivine, marketExpandGrowthInventoryByDivine, setMarketExchangeSelection, renderMarketUI, refreshBlackMarket, refreshBlackMarketNow, setBlackMarketPreferredSlot, buyBlackMarketOffer, toggleBlackMarketOfferLock, getBlackMarketManualRefreshCost, getBlackMarketLockCount, getBlackMarketSlotExpandCost, getBlackMarketSlotCount, isBlackMarketSlotCapReached, expandBlackMarketSlotsByDivine, upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
