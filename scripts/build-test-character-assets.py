@@ -17,6 +17,9 @@ CHARACTERS = {
         "folder": "Idle_6",
         "label": "비술사",
         "walk": "mage_walking_forward_both_hands_raised_and_cupped",
+        "walkSources": {
+            "south": {"direction": "south-38ccea5a"},
+        },
         "attacks": [
             "spellcaster_with_levitating_blue_orb_orb_dims_then",
             "arcanist_channels_a_spell_floating_orb_in_raised_h",
@@ -47,9 +50,9 @@ CHARACTERS = {
         ],
     },
     "alchemist": {
-        "folder": "Idle_2",
+        "folder": "Idle",
         "label": "연금술사",
-        "walk": "alchemist_strutting_forward_tossing_a_potion_flask",
+        "walk": "The_character_takes_a_series_of_exaggerated_rhythm",
         "attacks": [
             "throwing_a_flask_with_the_right_hand_follow_throug",
             "right-handed_overhand_throw_wind_up_arm_behind_hea",
@@ -57,10 +60,21 @@ CHARACTERS = {
         ],
     },
     "warrior": {
-        "folder": "Idle",
+        "folder": "Idle_2",
         "label": "전사",
-        "walkState": "pixel_art_knight_sta",
-        "walk": "armored_knight_walking_sword_sheathed_at_the_waist",
+        "walk": "knight_walking_forward_greatsword_held_with_both_h",
+        "walkSources": {
+            "east": {"offsetY": -20},
+            "north": {
+                "state": "pixel_art_knight_sta",
+                "animation": "armored_knight_walking_sword_sheathed_at_the_waist",
+            },
+            "south": {
+                "state": "pixel_art_knight_sta",
+                "animation": "armored_knight_walking_sword_sheathed_at_the_waist",
+            },
+            "west": {"offsetY": -4},
+        },
         "attacks": [
             "The_character_raises_the_greatsword_from_its_low_r",
             "The_character_firmly_grips_the_sword_hilt_with_bot",
@@ -121,7 +135,20 @@ def optional_frame_paths(
     return [path for path in frame_paths(folder, animation, direction=direction) if path in names]
 
 
-def pack_strip(archive: zipfile.ZipFile, paths: list[str], output: Path) -> dict[str, int]:
+def resolve_walk_source(config: dict[str, object], direction: str) -> tuple[str, str, str, int]:
+    override = config.get("walkSources", {}).get(direction, {})
+    state = str(override.get("state", config.get("walkState", "Idle")))
+    animation = str(override.get("animation", config["walk"]))
+    source_direction = str(override.get("direction", direction))
+    return state, animation, source_direction, int(override.get("offsetY", 0))
+
+
+def pack_strip(
+    archive: zipfile.ZipFile,
+    paths: list[str],
+    output: Path,
+    offset_y: int = 0,
+) -> dict[str, int]:
     frames = [read_rgba(archive, path) for path in paths]
     sizes = {(frame.width, frame.height) for frame in frames}
     if len(sizes) != 1:
@@ -129,7 +156,7 @@ def pack_strip(archive: zipfile.ZipFile, paths: list[str], output: Path) -> dict
     width, height = next(iter(sizes))
     strip = Image.new("RGBA", (width * len(frames), height), (0, 0, 0, 0))
     for index, frame in enumerate(frames):
-        strip.alpha_composite(frame, (index * width, 0))
+        strip.alpha_composite(frame, (index * width, offset_y))
     output.parent.mkdir(parents=True, exist_ok=True)
     strip.save(output, format="WEBP", lossless=True, method=6, exact=True)
     return {"frames": len(frames), "frameWidth": width, "frameHeight": height}
@@ -145,7 +172,6 @@ def main() -> None:
         for character_id, config in CHARACTERS.items():
             target = args.output / character_id
             folder = str(config["folder"])
-            walk_state = str(config.get("walkState", "Idle"))
             directional_idles = {}
             for direction in IDLE_DIRECTIONS:
                 idle_paths = existing_frame_paths(archive, folder, None, direction=direction)
@@ -156,13 +182,14 @@ def main() -> None:
                 }
             directional_walks = {}
             for direction in CARDINAL_DIRECTIONS:
+                walk_state, walk_animation, source_direction, offset_y = resolve_walk_source(config, direction)
                 walk_paths = existing_frame_paths(
-                    archive, folder, config["walk"], walk_state, direction
+                    archive, folder, walk_animation, walk_state, source_direction
                 )
                 filename = "walk.webp" if direction == DEFAULT_DIRECTION else f"walk-{direction}.webp"
                 directional_walks[direction] = {
                     "asset": filename,
-                    **pack_strip(archive, walk_paths, target / filename),
+                    **pack_strip(archive, walk_paths, target / filename, offset_y),
                 }
             attacks = [str(animation) for animation in config["attacks"]]
             attack_directions = {direction: [] for direction in ATTACK_DIRECTIONS}
@@ -183,7 +210,7 @@ def main() -> None:
                 "label": config["label"],
                 "sourceFolder": folder,
                 "direction": DEFAULT_DIRECTION,
-                "walkState": walk_state,
+                "walkState": str(config.get("walkState", "Idle")),
                 "walkAnimation": config["walk"],
                 "attackAnimation": attacks[0],
                 "attackAnimations": attacks,
