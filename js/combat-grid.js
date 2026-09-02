@@ -63,6 +63,18 @@ function getGridUnitDistance(first, second) {
     return Math.max(dx, dy);
 }
 
+/**
+ * 캐릭터와 적 사이 직접 타격의 거리 배율을 계산한다.
+ * 1칸은 100%, 이후 한 칸마다 5% 감폭하며 50% 아래로 내려가지 않는다.
+ * 그리드 밖의 레거시 전투는 기존 피해를 보존한다.
+ */
+function getGridDirectHitDistanceMultiplier(first, second) {
+    let distance = getGridUnitDistance(first, second);
+    if (!Number.isFinite(distance)) return 1;
+    let reductionPct = Math.min(50, Math.max(0, distance - 1) * 5);
+    return 1 - reductionPct / 100;
+}
+
 function getClosestGridUnitCell(from, unit) {
     let footprint = getGridUnitFootprint(unit);
     return {
@@ -841,6 +853,7 @@ function findNearestGridEnemy(fromCell, enemies, range) {
 safeExposeGlobals({
     isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
     getGridUnitFootprint, getGridUnitCells, getGridUnitCenter, getGridUnitDistance,
+    getGridDirectHitDistanceMultiplier,
     getGridBlockedCells, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile,
     resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd,
     gridStepToward, advanceGridUnitMovement, advanceGridHazardEscape, advanceGridTacticalMovement, getSkillGridProfile, getSkillGridProfileKindLabel,

@@ -186,6 +186,20 @@ assert.ok(Math.abs(enemyAttackMotion.start.x) < 1e-9 && Math.abs(enemyAttackMoti
   '공격 모션이 없는 몬스터는 공격 시작점과 종료점에서 원래 칸으로 돌아와야 한다');
 assert.ok(enemyAttackMotion.impact.x > 5.9 && enemyAttackMotion.north.y < -5.9,
   '보조 공격 움직임은 플레이어가 있는 방향으로만 짧게 전진해야 한다');
+const summonAttackMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+  let proj = { actorGroundOffsetY: 0, cellToScreen: (gx, gy) => ({ x: gx * 10, y: gy * 10 }) };
+  let summons = [{ id: 7, gx: 1, gy: 2 }];
+  let fx = [{ type: 'summonAttack', summonId: 7, targetEnemyId: 8, targetGx: 4, targetGy: 2,
+    start: 1000, duration: 200 }];
+  return {
+    impact: buildSummonAttackMotionMap(fx, summons, proj, {}, 1100)[7],
+    end: buildSummonAttackMotionMap(fx, summons, proj, {}, 1200)[7]
+  };
+})())`, context));
+assert.ok(summonAttackMotion.impact.x > 4.9 && Math.abs(summonAttackMotion.impact.y) < 1e-9,
+  '소환수는 실제 공격 대상을 향해 짧게 전진해야 한다');
+assert.ok(Math.abs(summonAttackMotion.end.x) < 1e-9 && Math.abs(summonAttackMotion.end.y) < 1e-9,
+  '소환수는 공격 연출이 끝나면 원래 칸의 기준점으로 돌아와야 한다');
 const heroWalkMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
   let ids = Array.from({ length: 10 }, (_, index) => 'hero' + (index + 1));
   return {
@@ -497,7 +511,9 @@ assert.ok(!passiveSource.includes('activeTutorial.steps = getTutorialGuide(activ
 assert.ok(windowCss.includes('#tutorial-overlay.active'), 'tutorial notice should use a compact live-screen presentation');
 const enemyUiSource = fs.readFileSync('js/ui.js', 'utf8');
 const enemyCombatSource = fs.readFileSync('js/combat.js', 'utf8');
-assert.ok(enemyUiSource.includes("outlineColor: enemy.isBoss ? '#a84e49' : (enemy.isElite ? '#e2b94f' : null)"), 'elite and boss monsters should have restrained yellow and red outlines');
+assert.ok(enemyUiSource.includes("enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || '#e2b94f'")
+  && /enemy\.isBoss\r?\n\s+\? '#a84e49'/.test(enemyUiSource),
+  'elite outlines should follow their named trait color while bosses retain the restrained red outline');
 assert.ok(enemyUiSource.includes('moving === true && movementFrames.length > 0'), 'monster sprite frames should advance only while the monster actually changes cells');
 assert.ok(enemyCombatSource.includes("addBattleFx('enemyAttack', { enemyId: enemy.id, duration: 220 })"),
   'every resolved enemy attack against the player must emit one motion cue even when the hit is evaded or blocked');

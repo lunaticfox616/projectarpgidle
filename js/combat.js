@@ -589,11 +589,6 @@ function getAliveEnemyByRuntimeKey(enemyId) {
     return (game.enemies || []).find(e => e && e.id === numericId && e.hp > 0) || null;
 }
 
-function getActiveTalentCardId() {
-    if (!game.selectedHeroId || !game.ascendClass) return null;
-    return `${game.selectedHeroId}__${game.ascendClass}`;
-}
-
 function getCombatTalentCardLevel(cardId) {
     if (typeof window.isTalentCardActive !== 'function') return 0;
     let level = Number(window.isTalentCardActive(cardId));
@@ -1869,6 +1864,13 @@ function runSummonAttackTick(pStats) {
         }
         if (now < (s.nextAttackAt || 0)) return;
         s.nextAttackAt = now + getSummonAttackIntervalMs(pStats, s);
+        addBattleFx('summonAttack', {
+            summonId: s.id,
+            targetEnemyId: target.id,
+            targetGx: target.gx,
+            targetGy: target.gy,
+            duration: 220
+        });
         let pierceTargets = game.ascendClass === 'soulbinder' && hasKeystone('sb6')
             ? getSummonPierceTargets(target, aliveEnemies)
             : [];
@@ -3580,8 +3582,9 @@ function getPlayerStats() {
     getArcanaDeckStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
     getPruningTreeStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
     getBeyondBoundaryGlobalStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
-    let heroDef = getHeroSelectionDef(game.selectedHeroId);
-    (heroDef.stats || []).forEach(row => {
+    let heroDef = game.bloomedClassThisLoop === game.ascendClass
+        ? HERO_SELECTION_DEFS[game.bloomedTalentThisLoop] : null;
+    (heroDef && Array.isArray(heroDef.stats) ? heroDef.stats : []).forEach(row => {
         if (row && row.stat) addStatToBucket(reward, row.stat, row.value);
     });
     if (game.passiveStarEvolution && Array.isArray(game.journalEntries) && game.journalEntries.includes('passive_star_evolution')) {
@@ -4088,6 +4091,7 @@ function getPlayerStats() {
     if (authoredPassiveRules.flags.duel) finalTakenDamageReduceWhen1EnemyPct += 10;
     let finalIgniteDamageMultiplierPct = gearBase.igniteDamageMultiplierPct + gearExplicit.igniteDamageMultiplierPct + passive.igniteDamageMultiplierPct + season.igniteDamageMultiplierPct + ascend.igniteDamageMultiplierPct + support.igniteDamageMultiplierPct + reward.igniteDamageMultiplierPct;
     let finalPoisonDamageMultiplierPct = gearExplicit.poisonDamageMultiplierPct + passive.poisonDamageMultiplierPct + season.poisonDamageMultiplierPct + ascend.poisonDamageMultiplierPct + support.poisonDamageMultiplierPct + reward.poisonDamageMultiplierPct;
+    let finalChillEffectBonusPct = Math.max(0, sumStatAcrossBuckets('chillEffect'));
     let finalShockEffectBonusPct = (gearExplicit.shockEffect || 0) + (passive.shockEffect || 0) + (season.shockEffect || 0) + (ascend.shockEffect || 0) + (reward.shockEffect || 0) + Math.max(0, Number(uniqueShockTracer && uniqueShockTracer.shockEffectPct || 0));
     let finalMinDmgRoll = Math.max(5, 80 + gearBase.minDmgRoll + gearExplicit.minDmgRoll + passive.minDmgRoll + season.minDmgRoll + ascend.minDmgRoll + support.minDmgRoll + reward.minDmgRoll);
     let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
@@ -4176,7 +4180,7 @@ function getPlayerStats() {
     let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
     let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
     let instantDamageMultiplier = 1;
-    let ailmentPowerMultiplier = 1;
+    let ailmentPowerMultiplier = 1 + Math.max(0, sumStatAcrossBuckets('ailmentPotencyPct')) / 100;
     let talismanBossFinalDmgBonusPct = 0;
     let chaosDamageMultiplier = 1;
     let dotTickIntervalMultiplier = 1;
@@ -5383,6 +5387,7 @@ function getPlayerStats() {
         passiveKeystoneFlags: authoredPassiveRules.flags,
         passiveOmniscientTrueDamagePct: omniscientActive ? Math.min(25, totalStrength * 0.5) : 0,
         passiveAlwaysHit: !!barbarismKeystone,
+        chillEffectBonusPct: finalChillEffectBonusPct,
         shockEffectBonusPct: finalShockEffectBonusPct,
         chaosDamageMultiplier: chaosDamageMultiplier,
         dotTickIntervalMultiplier: dotTickIntervalMultiplier,
@@ -5501,6 +5506,7 @@ function getPlayerStats() {
         summonResPen: Math.max(0, (gearBase.summonResPen || 0) + (gearExplicit.summonResPen || 0) + (passive.summonResPen || 0) + (season.summonResPen || 0) + (ascend.summonResPen || 0) + (support.summonResPen || 0) + (reward.summonResPen || 0)),
         summonGuardRedirectPct: Math.max(0, Math.min(100, (gearBase.summonGuardRedirectPct || 0) + (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (support.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
         poisonDamageMultiplierPct: Math.max(0, finalPoisonDamageMultiplierPct),
+        shockedEnemyHitDamagePct: Math.max(0, sumStatAcrossBuckets('shockedEnemyHitDamagePct')),
         shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
         sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower),
         oceanPressureResist: Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist') + (typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0))),
@@ -5753,9 +5759,13 @@ function rollEnemyTrait(zone, isElite, isBoss, seed) {
         list = list.filter(trait => trait.id !== 'bloodless');
     }
     if (zone && zone.type === 'trial' && zone.id === 'trial_4') {
-        list = list.map(trait => trait.id === 'bloodless' ? { id: 'leechResist_trial4', name: '흡혈저항', leechEffMul: 0.45, expMul: trait.expMul, dropMul: trait.dropMul } : trait);
+        list = list.map(trait => trait.id === 'bloodless'
+            ? { ...trait, id: 'leechResist_trial4', name: '흡혈저항', leechEffMul: 0.45 }
+            : trait);
     }
-    if ((game.season || 1) >= 10 && zone && zone.type === 'abyss' && zone.ele === 'chaos') list.unshift({ id: 'veryFast_loop10', name: '매우 빠름', attackSpeedVarMul: 1.34, expMul: 1.10, dropMul: 1.08 });
+    if ((game.season || 1) >= 10 && zone && zone.type === 'abyss' && zone.ele === 'chaos') {
+        list.unshift({ id: 'veryFast_loop10', name: '매우 빠름', outlineColor: '#82d8de', attackSpeedVarMul: 1.34, expMul: 1.10, dropMul: 1.08 });
+    }
     let idx = Math.abs(seed || 0) % list.length;
     return { ...list[idx] };
 }
@@ -6446,9 +6456,7 @@ function createEnemy(zone, marker, groupIndex) {
     }
     let enemyElePool = zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos'];
     let enemyEle = hasOceanCurrent(zone, 'cold_current') ? 'cold' : (hasOceanCurrent(zone, 'warm_current') ? 'fire' : rndChoice(enemyElePool));
-    let eleIcon = enemyEle === 'fire' ? '🔥' : (enemyEle === 'cold' ? '❄️' : (enemyEle === 'light' ? '⚡' : (enemyEle === 'chaos' ? '☠️' : '🩸')));
-    let name = `${eleIcon} ${zone.name.split(':')[0]} 추종자`;
-    if (isElite) name = `정예 ${name}`;
+    let name = `${zone.name.split(':')[0]} 추종자`;
     if (zone.type === 'outsideChaos') {
         isBoss = true;
         name = '🪓 혼돈 밖의 나무꾼';
@@ -6463,6 +6471,14 @@ function createEnemy(zone, marker, groupIndex) {
     let chaosBossVisual = isBoss ? getChaosBossVisual(zone, variantSeed) : null;
     let bossAssetKey = chaosBossVisual ? chaosBossVisual.assetKey : (isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null);
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
+    let monsterVariant = !isBoss && typeof getMonsterVariantDefinition === 'function'
+        ? getMonsterVariantDefinition(variantSeed, enemyEle)
+        : null;
+    if (!isBoss && monsterVariant) {
+        name = isElite && trait ? `${trait.name} ${monsterVariant.name}` : monsterVariant.name;
+    } else if (!isBoss && isElite && trait) {
+        name = `${trait.name} ${name}`;
+    }
     const cosmosMods = getCosmosEnemyModifiers(zone, isElite, isBoss) || getZoneStaticBossMods(zone, isBoss);
     const cosmosExclusiveTrait = getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, variantSeed);
     const woodsmanRegenMul = 0.1;
@@ -6471,7 +6487,7 @@ function createEnemy(zone, marker, groupIndex) {
     if (cosmosMods && cosmosMods.hpMul) hp = Math.floor(hp * cosmosMods.hpMul);
     if (cosmosExclusiveTrait && cosmosExclusiveTrait.hpMul) hp = Math.floor(hp * cosmosExclusiveTrait.hpMul);
     let isSky = (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
-    if (isSky) name = `☁️ ${name}`;
+    if (isSky) name = `부유하는 ${name}`;
     let zoneProgress = clampNumber(((zone.tier || 1) - 1) / 19, 0, 1);
     let curved = zoneProgress * zoneProgress;
     let variance = getZoneDefenseVariance(zone);
@@ -6505,6 +6521,8 @@ function createEnemy(zone, marker, groupIndex) {
         spawnAt: marker.at,
         groupIndex: groupIndex,
         variantSeed: variantSeed,
+        spriteVariantId: monsterVariant ? monsterVariant.id : null,
+        baseMonsterName: monsterVariant ? monsterVariant.name : null,
         ele: enemyEle,
         dr: Math.min(90, Math.max(0, drBase + (trait && trait.dr ? trait.dr : 0))),
         resF: Math.min(95, resistBase + (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0)),
@@ -6538,6 +6556,7 @@ function createEnemy(zone, marker, groupIndex) {
         disableHpScaleDamage: zone.type === 'outsideChaos' || zone.id === 'cosmos_astra' || !!zone.milestonePinnacle,
         trait: trait ? { ...trait } : null,
         traitName: trait ? trait.name : null,
+        traitOutlineColor: isElite && trait ? trait.outlineColor || '#e2b94f' : null,
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1,
         expMul: (trait && Number.isFinite(trait.expMul) ? Math.max(1, trait.expMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.expMul) ? Math.max(1, cosmosExclusiveTrait.expMul) : 1) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryRewardMul) || 1) : 1),
         dropMul: (trait && Number.isFinite(trait.dropMul) ? Math.max(1, trait.dropMul) : 1) * (cosmosExclusiveTrait && Number.isFinite(cosmosExclusiveTrait.dropMul) ? Math.max(1, cosmosExclusiveTrait.dropMul) : 1) * getTierDropMulWithCaps(zone.tier, zone) * (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone.boundaryRewardMul) || 1) : 1),
@@ -7064,6 +7083,9 @@ function primeTrialHazardTimer(zone) {
 }
 
 function resolveTalentBloomHeroId() {
+    if (game.bloomedClassThisLoop === game.ascendClass && HERO_SELECTION_DEFS[game.bloomedTalentThisLoop]) {
+        return game.bloomedTalentThisLoop;
+    }
     if (HERO_SELECTION_DEFS[game.pendingTalentBloomHeroId]) return game.pendingTalentBloomHeroId;
     if (HERO_SELECTION_DEFS[game.selectedHeroId]) return game.selectedHeroId;
     return 'hero1';
@@ -7362,6 +7384,15 @@ function getActiveEnemyShockTakenDamageIncreasePct(enemy, pStats) {
     return enemy.ailments.reduce((best, ail) => Math.max(best, getEnemyShockTakenDamageIncreasePct(ail, pStats)), 0);
 }
 
+function getShockedEnemyHitDamageIncreaseMultiplier(enemy, pStats) {
+    let isShocked = enemy && Array.isArray(enemy.ailments)
+        && enemy.ailments.some(ail => ail && ail.type === 'shock' && (ail.time || 0) > 0);
+    let bonus = Math.max(0, Number(pStats && pStats.shockedEnemyHitDamagePct) || 0);
+    if (!isShocked || bonus <= 0) return 1;
+    let existingIncrease = Math.max(0, Number(pStats && pStats.damageIncreasePct) || 0);
+    return (100 + existingIncrease + bonus) / (100 + existingIncrease);
+}
+
 function getStoredAilmentHitDamage(ail) {
     if (!ail) return 0;
     return Math.max(0, Number(ail.sourceHitDamage || ail.hitDamage || 0) || 0);
@@ -7570,6 +7601,10 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
         let power = damageAilment
             ? 0.90
             : Math.max(0.05, Math.min(1.5, (hitPower + (hitRatio * 1.8)) * mystiquePotency * manifestationPotency));
+        if (type === 'chill') {
+            let chillEfficiency = 1 + Math.max(0, Number(pStats && pStats.chillEffectBonusPct) || 0) / 100;
+            power = Math.min(1.5, power * chillEfficiency);
+        }
         let row = enemy.ailments.find(a => a.type === type);
         let durationMul = damageAilment ? Math.max(0.05, (pStats && Number.isFinite(pStats.dotDurationMultiplier)) ? pStats.dotDurationMultiplier : 1) : 1;
         if (type === 'poison' && pStats && (pStats.uniquePoisonDurationPct || 0) > 0) {
@@ -8584,7 +8619,7 @@ function clearDotFxThrottleForEnemy(enemyId) {
 }
 
 // 루프 시작 시 스킬이 "기본 공격"만 남는 공백을 메우기 위해, 루프 첫 처치 때
-// 선택한 재능(시작 캐릭터)의 주력 태그에 맞는 하위권 화력 스킬 젬을 확정 지급한다.
+// 선택한 직업의 권장 전투 방식에 맞는 하위권 화력 스킬 젬을 확정 지급한다.
 // (좋은 젬을 직접 찾는 재미는 유지하도록 일부러 강한 젬은 고르지 않는다.)
 function grantLoopStarterGemOnFirstKill() {
     if (game.loopStarterGemGranted) return;
@@ -8592,14 +8627,16 @@ function grantLoopStarterGemOnFirstKill() {
     // 마이그레이션 가드: 기존 저장 데이터는 이 플래그가 없어 false로 채워진다.
     // 이미 기본 공격 외의 스킬을 보유한 진행 중인 루프에는 소급 지급하지 않는다.
     if (!Array.isArray(game.skills) || game.skills.length > 1) return;
-    let heroId = (typeof HERO_SELECTION_DEFS !== 'undefined' && HERO_SELECTION_DEFS[game.selectedHeroId]) ? game.selectedHeroId : 'hero1';
+    let classDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[game.selectedClassId] : null;
+    let heroId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId]
+        ? classDef.recommendedTalentHeroId : 'hero1';
     let gemName = (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '연속 베기';
     if (!SKILL_DB[gemName] || hasSkillGemOwned(gemName)) return;
     game.skills.push(gemName);
     game.gemData[gemName] = game.gemData[gemName] || { level: 1, exp: 0 };
     game.noti.skills = true;
     if (!(game.seenTutorials || []).includes('tutorial_starter_gem_equip')) game.starterGemTutorialPending = gemName;
-    addLog(`🎁 재능에 맞는 스킬 젬 [${gemName}] 획득! (스킬 탭에서 장착하세요)`, 'loot-rare');
+    addLog(`🎁 직업에 맞는 스킬 젬 [${gemName}] 획득! (스킬 탭에서 장착하세요)`, 'loot-rare');
 }
 
 function grantBountyEquipmentRewards(enemy, reward, countOverride) {
@@ -10346,6 +10383,10 @@ function performPlayerAttack(pStats, attackOptions) {
                 dmg = Math.floor(dmg * enemyShockTakenMul);
                 ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * enemyShockTakenMul);
             }
+            let shockedIncreaseMul = getShockedEnemyHitDamageIncreaseMultiplier(targetEnemy, pStats);
+            if (shockedIncreaseMul > 1) {
+                dmg = Math.floor(dmg * shockedIncreaseMul);
+            }
             if ((pStats.shockedEnemyHitDamageMorePct || 0) > 0 && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'shock' && (a.time || 0) > 0)) {
                 let shockedMore = 1 + Math.max(0, Number(pStats.shockedEnemyHitDamageMorePct || 0)) / 100;
                 dmg = Math.floor(dmg * shockedMore);
@@ -10443,6 +10484,10 @@ function performPlayerAttack(pStats, attackOptions) {
                 dmg = Math.floor(dmg * firstStrikeMul);
                 ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * firstStrikeMul);
             }
+            let directHitDistanceMul = getGridDirectHitDistanceMultiplier(game.gridPlayer, targetEnemy);
+            dmg = Math.floor(dmg * directHitDistanceMul);
+            damageBeforeMitigation = Math.floor(damageBeforeMitigation * directHitDistanceMul);
+            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * directHitDistanceMul);
             targetEnemy.lastHitElement = hitElement;
             let moonShadowRatio = hitCrit && typeof getPreciseTalentRatio === 'function'
                 ? 0.20 * getPreciseTalentRatio('hero3__assassin') : 0;
@@ -10906,6 +10951,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     }
     let damageSummary = buildDeathDamageSummary(3000);
     let ailmentDamageSummary = buildDeathDamageSummary(3000, { ailmentOnly: true });
+    let monsterSummary = buildDeathMonsterSummary(3000);
     let activeAilments = snapshotPlayerAilmentsForDeathLog();
     let primaryEntry = damageSummary[0] || null;
     let primaryElement = primaryEntry ? primaryEntry.ele : normalizeDamageElementKey(opts.fatalElement);
@@ -10918,6 +10964,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
         reasonText: reasonText,
         damageSummary: damageSummary,
         ailmentDamageSummary: ailmentDamageSummary,
+        monsterSummary: monsterSummary,
         activeAilments: activeAilments,
         sourceName: opts.sourceName || ''
     };
@@ -10971,6 +11018,8 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, opti
                 existing.sourceHitDamage = hitSource;
                 existing.critDotBonusPct = critDotBonusPct;
                 existing.ailmentDotScore = incomingScore;
+                existing.sourceEnemyId = opts.sourceEnemyId === undefined ? null : opts.sourceEnemyId;
+                existing.sourceEnemyName = opts.sourceEnemyName || '';
             }
         }
     } else {
@@ -10979,10 +11028,23 @@ function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, opti
             row.sourceHitDamage = hitSource;
             row.critDotBonusPct = critDotBonusPct;
             row.ailmentDotScore = ailmentDotScore;
+            row.sourceEnemyId = opts.sourceEnemyId === undefined ? null : opts.sourceEnemyId;
+            row.sourceEnemyName = opts.sourceEnemyName || '';
         }
         game.playerAilments.push(row);
     }
     if (typeof recordPassiveCycleAilmentStart === 'function') recordPassiveCycleAilmentStart(type, pStats.cycle, Date.now());
+}
+
+function recordPlayerAilmentIncomingDamage(ailment, element, amount) {
+    let label = getAilmentDisplayLabel(ailment && ailment.type);
+    let hasMonster = ailment && ailment.sourceEnemyId !== null && ailment.sourceEnemyId !== undefined;
+    recordIncomingDamage(element, amount, (ailment && ailment.sourceEnemyName) || label, {
+        sourceType: hasMonster ? 'monster' : 'ailment',
+        sourceId: hasMonster ? ailment.sourceEnemyId : null,
+        sourceName: (ailment && ailment.sourceEnemyName) || label,
+        ailmentType: ailment && ailment.type
+    });
 }
 
 function tickAilments(pStats, dt) {
@@ -11004,7 +11066,7 @@ function tickAilments(pStats, dt) {
                 burn = absorbDamageWithRealmDeathWard(burn, pStats);
                 game.playerHp -= burn;
                 trackHiddenJournalPlayerDamage(burn);
-                recordIncomingDamage('fire', burn, '점화');
+                recordPlayerAilmentIncomingDamage(ail, 'fire', burn);
             }
         } else if (ail.type === 'poison') {
             let poison = getPlayerDamageAilmentDps(ail, pStats);
@@ -11024,7 +11086,7 @@ function tickAilments(pStats, dt) {
                     poison = absorbDamageWithRealmDeathWard(poison, pStats);
                     game.playerHp -= poison;
                     trackHiddenJournalPlayerDamage(poison);
-                    recordIncomingDamage('chaos', poison, '중독');
+                    recordPlayerAilmentIncomingDamage(ail, 'chaos', poison);
                 }
             }
         } else if (ail.type === 'bleed') {
@@ -11040,7 +11102,7 @@ function tickAilments(pStats, dt) {
                 bleed = absorbDamageWithRealmDeathWard(bleed, pStats);
                 game.playerHp -= bleed;
                 trackHiddenJournalPlayerDamage(bleed);
-                recordIncomingDamage('phys', bleed, '출혈');
+                recordPlayerAilmentIncomingDamage(ail, 'phys', bleed);
             }
         } else if (ail.type === 'chill') {
             // chill handled via aspd modifier in core loop
@@ -11362,7 +11424,10 @@ function performMonsterAttacks(pStats) {
                 if (Date.now() >= enemy.nextCurseAt) {
                     enemy.nextCurseAt = Date.now() + 6500;
                     let curseType = rndChoice(['ignite','chill','shock','poison','bleed']);
-                    applyPlayerAilment(curseType, 4, 0.18, pStats);
+                    applyPlayerAilment(curseType, 4, 0.18, pStats, 0, {
+                        sourceEnemyId: enemy.id,
+                        sourceEnemyName: enemy.name
+                    });
                     addLog(`☠️ 알 수 없는 권능: ${curseType === 'ignite' ? '점화' : curseType === 'chill' ? '냉각' : curseType === 'shock' ? '감전' : curseType === 'poison' ? '중독' : '출혈'}`, 'attack-monster', { noToast: true });
                 }
             }
@@ -11540,6 +11605,9 @@ function performMonsterAttacks(pStats) {
                 return Math.max(1, sumBreakdown());
             };
             dmg = Math.max(1, sumBreakdown());
+            let directHitDistanceMul = getGridDirectHitDistanceMultiplier(enemy, game.gridPlayer);
+            scaleBreakdown(directHitDistanceMul);
+            dmg = Math.max(1, sumBreakdown());
             let challengeEnemyDamageMul = getChallengeContractEnemyDamageMultiplier();
             if (challengeEnemyDamageMul !== 1) {
                 scaleBreakdown(challengeEnemyDamageMul);
@@ -11689,7 +11757,9 @@ function performMonsterAttacks(pStats) {
                     : Math.max(0.1, Math.min(1.5, (Math.sqrt(Math.max(1, dmg)) * 0.01) + (hitRatio * 1.8)));
                 applyPlayerAilment(ail, enemy.isBoss ? 5 : 3, ailPower, pStats, dmg, {
                     ailmentSourceDamage: ailmentSourceDamageBeforeCrit,
-                    critDotBonusPct: enemyCritDotBonusPct
+                    critDotBonusPct: enemyCritDotBonusPct,
+                    sourceEnemyId: enemy.id,
+                    sourceEnemyName: enemy.name
                 });
                 let ailmentLabel = ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각'
                     : ail === 'shock' ? '감전' : ail === 'bleed' ? '출혈' : '중독';
@@ -11830,7 +11900,11 @@ function performMonsterAttacks(pStats) {
             let topDamageEntry = damageBreakdown
                 .filter(row => row && row.amount > 0)
                 .sort((a, b) => (b.amount || 0) - (a.amount || 0))[0] || { ele: enemy.ele === 'phys' ? 'phys' : (enemy.ele || 'phys'), amount: dmg };
-            damageBreakdown.forEach(row => recordIncomingDamage(row.ele, row.amount, enemy.name));
+            damageBreakdown.forEach(row => recordIncomingDamage(row.ele, row.amount, enemy.name, {
+                sourceType: 'monster',
+                sourceId: enemy.id,
+                sourceName: enemy.name
+            }));
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected });
             if (game.settings.showCombatLog) {
                 let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${formatNumberKR(dmg)} 피해`;

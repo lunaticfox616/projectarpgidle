@@ -60,6 +60,7 @@ runtime.renderEquipmentInventoryInspector([{ item: { id: 9910, slot: 'weapon', n
 
 const html = fs.readFileSync('index.html', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const componentsCss = fs.readFileSync('css/components.css', 'utf8');
 const equipStart = html.indexOf('id="skill-tab-equip"');
 const researchStart = html.indexOf('id="skill-tab-research"');
 const enhanceStart = html.indexOf('id="skill-tab-enhance"');
@@ -76,19 +77,50 @@ const talismanCardSource = uiSource.slice(uiSource.indexOf('let manage = `<butto
 assert(!jewelCardSource.includes('<details'), 'jewel card actions must be direct buttons');
 assert(!talismanCardSource.includes('<details'), 'talisman card actions must be direct buttons');
 const treeStart = html.indexOf('id="tree-container"');
-const treeEnd = html.indexOf('</div>', html.indexOf('id="passive-investment-summary"'));
+const treeEnd = html.indexOf('id="tab-talent"', treeStart);
 const searchStart = html.indexOf('id="passive-search-panel"');
+const searchClearStart = html.indexOf('id="passive-search-clear"', searchStart);
+const searchCloseStart = html.indexOf('id="passive-search-close"', searchStart);
 const plannerStart = html.indexOf('id="passive-tree-planner"');
 assert(treeStart < searchStart && searchStart < treeEnd, 'passive search controls must live inside the tree viewport');
-assert(plannerStart > treeEnd, 'passive presets must render below the tree viewport');
+assert(plannerStart > treeStart && plannerStart < treeEnd, 'passive presets must overlay the tree instead of adding page height');
 assert(!html.includes('제작 · 장착 · 변성'), 'the compact star-wedge control must not repeat its actions');
 assert(html.indexOf('id="passive-investment-summary"', treeStart) < treeEnd, 'passive investment summary must overlay the tree instead of shrinking it');
 const starWedgeStart = html.indexOf('id="passive-star-wedge-drawer"');
+const presetDrawerStart = html.indexOf('id="passive-preset-drawer"');
+const searchDrawerStart = html.indexOf('id="passive-search-drawer"');
 const investmentStart = html.indexOf('id="passive-investment-summary"');
-assert(searchStart < starWedgeStart && searchStart < investmentStart, 'passive search must precede star wedges and the investment summary');
-assert(starWedgeStart > treeStart && starWedgeStart < investmentStart, 'star wedge management must overlay the tree instead of shrinking it');
+assert(searchDrawerStart < searchStart && searchStart < investmentStart, 'collapsible search must sit immediately above the investment summary');
+assert(searchClearStart < searchCloseStart && searchCloseStart < investmentStart,
+    'the search close action must sit directly after reset inside the compact search row');
+assert(html.includes("id=\"passive-search-close\" onclick=\"this.closest('details').open=false\""),
+    'the close action must collapse its own search disclosure');
+assert(componentsCss.includes('.passive-search-drawer[open] > summary { display: none; }'),
+    'the search title row must disappear while the search controls are expanded');
+assert(starWedgeStart > treeStart && starWedgeStart < presetDrawerStart, 'star wedge management must overlay the tree instead of shrinking it');
 assert(html.slice(starWedgeStart - 9, starWedgeStart).includes('<details'), 'star wedge management should use the native disclosure instead of custom toggle code');
+assert(html.slice(starWedgeStart, presetDrawerStart).includes('class="passive-star-wedge-drawer" hidden'),
+    'the star-wedge drawer must start hidden before loop progression is synchronized');
+assert(!html.slice(starWedgeStart, presetDrawerStart).includes('☄'),
+    'the star-wedge button must not keep the decorative meteor icon');
+assert(/\.passive-search-drawer \{\r?\n\s+border: 0;/.test(componentsCss)
+    && componentsCss.includes('background: #050607;'),
+    'the closed search button must use a black surface without an outer drawer box');
+assert(html.slice(presetDrawerStart - 9, presetDrawerStart).includes('<details'), 'passive presets should use a bottom-left disclosure');
+assert(html.slice(searchDrawerStart - 9, searchDrawerStart).includes('<details'), 'passive search should use a disclosure above the investment summary');
 assert(uiSource.includes("this.closest('details').open=false"), 'choosing a star wedge socket must reveal the passive tree immediately');
+
+const starWedgeDrawer = { hidden: false, open: true };
+const starWedgePanel = { innerHTML: '' };
+runtime.document.getElementById = id => id === 'passive-star-wedge-drawer' ? starWedgeDrawer
+    : (id === 'ui-star-wedge-panel' ? starWedgePanel : null);
+vm.runInContext('game.season=6; game.maxZoneId=10; renderStarWedgePanel();', runtime);
+assert.strictEqual(starWedgeDrawer.hidden, true, 'star-wedge management must stay hidden before loop 7');
+assert.strictEqual(starWedgeDrawer.open, false, 'a loop reset below 7 must close an already open star-wedge drawer');
+vm.runInContext('game.season=7; game.maxZoneId=0; renderStarWedgePanel();', runtime);
+assert.strictEqual(starWedgeDrawer.hidden, false, 'star-wedge management must appear as soon as loop 7 begins');
+assert(starWedgePanel.innerHTML.includes('잠금 상태'), 'loop 7 may show the button before the separate act requirement is met');
+runtime.document.getElementById = () => null;
 const exchangeSection = html.indexOf('id="market-exchange-title"');
 const blackMarketSection = html.indexOf('id="market-black-title"');
 const serviceSection = html.indexOf('id="market-service-title"');

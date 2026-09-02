@@ -20,9 +20,9 @@ const definitions = plain(run(`PLAYER_CLASS_ORDER.map(id => {
 assert.deepStrictEqual(definitions.map(def => def.label), ['비술사', '방랑자', '성직자', '궁수', '연금술사', '전사']);
 assert.strictEqual(definitions.length, 6, 'the player-facing class selection must contain exactly six classes');
 assert(definitions.every(def => def.description && /^hero(?:10|[1-9])$/.test(def.talentId)),
-    'each class must provide a first-character recommended talent');
+    'each class must provide a recommended starter combat profile');
 assert.strictEqual(run('HERO_SELECTION_ORDER.length'), 10,
-    'all ten independently selectable talents must remain available');
+    'all ten talents must remain available for fifth-ascension bloom selection');
 
 const initialSelection = plain(run(`(function () {
     game.heroSelectionInitialized = false;
@@ -49,16 +49,6 @@ assert.deepStrictEqual(selected, {
     changed: true, classId: 'occultist', appearance: 'occultist', talentId: 'hero5', ascendClass: 'warrior'
 }, 'choosing a class must update its combat appearance without changing talent or ascendancy');
 
-const talentChanged = plain(run(`(function () {
-    let classId = game.selectedClassId, ascendClass = game.ascendClass;
-    let changed = applyTalentSelection('hero10', { silent: true, skipSave: true });
-    return { changed, classId: game.selectedClassId, ascendClass: game.ascendClass, talentId: game.selectedHeroId,
-        classPreserved: game.selectedClassId === classId, ascendPreserved: game.ascendClass === ascendClass };
-})()`));
-assert.deepStrictEqual(talentChanged, { changed: true, classId: 'occultist', ascendClass: 'warrior',
-    talentId: 'hero10', classPreserved: true, ascendPreserved: true },
-'talent changes must never rewrite the six-class or ascendancy choices');
-
 const migrated = runtime.mergeDefaults({
     heroSelectionInitialized: true, selectedHeroId: 'hero5', appearanceHeroId: 'hero4',
     discoveredHeroIds: ['hero1', 'hero4', 'hero5'], settings: { heroAppearanceMode: 'fixed' }
@@ -70,7 +60,7 @@ assert.strictEqual(Object.prototype.hasOwnProperty.call(migrated, 'appearanceHer
     'legacy cosmetic state must not remain as a second mutable source of truth');
 const migratedTest = runtime.mergeDefaults({ selectedHeroId: 'hero2', settings: { testCharacterMotionId: 'motion_alchemist' } });
 assert.strictEqual(migratedTest.selectedClassId, 'alchemist', 'the former motion-test choice must become the selected class');
-assert.strictEqual(migratedTest.selectedHeroId, 'hero2', 'migration must preserve the old save combat talent');
+assert.strictEqual(migratedTest.selectedHeroId, 'hero2', 'migration must preserve the old starter-profile bridge');
 assert.strictEqual(Object.prototype.hasOwnProperty.call(migratedTest.settings, 'testCharacterMotionId'), false);
 assert.strictEqual(runtime.mergeDefaults({ selectedClassId: 'warrior', settings: {} }).selectedHeroId, 'hero2',
     'a partial new-format save must rebuild its temporary talent bridge from the selected class');
@@ -84,7 +74,7 @@ assert.strictEqual(realignedSave.selectedHeroId, 'hero2',
 const intentionalTalentSave = runtime.mergeDefaults({ heroSelectionInitialized: true, selectedClassId: 'warrior',
     selectedHeroId: 'hero1', talentSelectionInitialized: true, classTalentAlignmentVersion: 1, settings: {} });
 assert.strictEqual(intentionalTalentSave.selectedHeroId, 'hero1',
-    'after migration, a talent changed directly by the player must remain independent until the next class choice');
+    'after migration, a preexisting starter-profile bridge must remain stable until the next class choice');
 
 const manifest = JSON.parse(fs.readFileSync('assets/playable/classes/manifest.json', 'utf8'));
 let totalBytes = 0;
@@ -148,8 +138,6 @@ assert.strictEqual(desktopHeroTuning.scaleBoost, 1.12,
 const controls = {
     'sel-hero-appearance-mode': { value: '' },
     'sel-active-hero': { innerHTML: '', value: '', disabled: false, title: '' },
-    'sel-active-talent': { innerHTML: '', value: '' },
-    'ui-active-talent-detail': { innerText: '' },
     'loop-hero-select-overlay': { classList: { add() {}, remove() {} } },
     'loop-hero-select-grid': { innerHTML: '' },
     'loop-hero-select-kicker': { innerText: '' },
@@ -170,7 +158,8 @@ run(`game.selectedClassId = 'cleric'; game.settings.heroAppearanceMode = 'loop';
 assert.strictEqual(controls['sel-active-hero'].value, 'cleric');
 assert(definitions.every(def => controls['sel-active-hero'].innerHTML.includes(def.label)),
     'settings must list all six playable classes');
-assert.strictEqual((controls['sel-active-talent'].innerHTML.match(/<option/g) || []).length, 10,
-    'the passive screen must expose all ten talents independently of the class chooser');
+const indexSource = fs.readFileSync('index.html', 'utf8');
+assert(!indexSource.includes('sel-active-talent') && !indexSource.includes('active-talent-control'),
+    'the passive screen must not expose the removed active-talent selector');
 
 console.log('smoke-test-character-motions passed');

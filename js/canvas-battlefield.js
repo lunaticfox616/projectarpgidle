@@ -1772,6 +1772,27 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
     return result;
 }
 
+function buildSummonAttackMotionMap(effects, summons, proj, enemyPosMap, now) {
+    let result = {};
+    if (!proj || typeof proj.cellToScreen !== 'function') return result;
+    let summonById = new Map((summons || []).filter(summon => summon
+        && Number.isFinite(summon.gx) && Number.isFinite(summon.gy))
+        .map(summon => [summon.id, summon]));
+    (effects || []).forEach(fx => {
+        if (!fx || fx.type !== 'summonAttack' || fx.summonId == null) return;
+        let summon = summonById.get(fx.summonId);
+        if (!summon) return;
+        let source = proj.cellToScreen(summon.gx, summon.gy);
+        let target = enemyPosMap && enemyPosMap[fx.targetEnemyId];
+        if (!target && Number.isFinite(fx.targetGx) && Number.isFinite(fx.targetGy)) {
+            target = proj.cellToScreen(fx.targetGx, fx.targetGy);
+        }
+        let motion = getEnemyAttackMotion(fx, source, target, now, 5);
+        if (motion) result[fx.summonId] = motion;
+    });
+    return result;
+}
+
 function drawBattleEnemyActor(ctx, entry, state) {
     let enemy = entry.enemy;
     let spawnDuration = enemy.isBoss ? 640 : (enemy.isElite ? 460 : 360);
@@ -1969,7 +1990,8 @@ function renderBattlefield(forceWhenHidden) {
     updateSkillPlayback(now, playerPos, width, enemyPosMap);
     let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.48, 1.3);
     drawBattlefieldShrine(ctx, gridProj, now, gridUnitScale, cameraShake);
-    drawActiveSummons(ctx, playerPos, now, gridProj);
+    let summonAttackMotions = buildSummonAttackMotionMap(battleFx, game.summons, gridProj, enemyPosMap, now);
+    drawActiveSummons(ctx, playerPos, now, gridProj, summonAttackMotions);
 
     battleFx.forEach(fx => {
         if (battleVisualState.processedFxIds.has(fx.id)) return;
@@ -2554,7 +2576,7 @@ function getCanvasSkillAreaCells(skillName, skillDef, skillTargets) {
     });
 }
 
-function drawActiveSummons(ctx, playerPos, now, proj) {
+function drawActiveSummons(ctx, playerPos, now, proj, attackMotions) {
     const summons = (game.summons || []).filter(s => s && s.alive && (s.hp || 0) > 0);
     if (summons.length <= 0) return;
     const image = battleAssets && battleAssets.images ? battleAssets.images.summon1 : null;
@@ -2563,8 +2585,10 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
         // 그리드 유닛: 자기 칸에 그린다. 칸이 아직 없으면(스폰 직후) 플레이어 주변 궤도로 표시한다.
         const angle = (now / 1000) * 0.9 + (idx / Math.max(1, summons.length)) * Math.PI * 2;
         const cellPos = (proj && hasGridCell(summon)) ? proj.cellToScreen(summon.gx, summon.gy) : null;
-        const x = cellPos ? cellPos.x : playerPos.x + Math.cos(angle) * radius;
-        const y = cellPos ? cellPos.y + (Number(proj.actorGroundOffsetY) || 0) : playerPos.y - 18 + Math.sin(angle) * 12;
+        const attackMotion = attackMotions && attackMotions[summon.id];
+        const x = (cellPos ? cellPos.x : playerPos.x + Math.cos(angle) * radius) + (attackMotion ? attackMotion.x : 0);
+        const y = (cellPos ? cellPos.y + (Number(proj.actorGroundOffsetY) || 0) : playerPos.y - 18 + Math.sin(angle) * 12)
+            + (attackMotion ? attackMotion.y : 0);
         let drewImage = false;
         ctx.save();
         if (summon.isGhost) ctx.globalAlpha = 0.46;

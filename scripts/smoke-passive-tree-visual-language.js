@@ -336,8 +336,47 @@ assert.deepStrictEqual({
     slotFills: 0, slotStrokes: 0
 }, 'void and constellation images should be self-contained slots without legacy square or frame rendering');
 
+const generatedAtlasContract = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+    battleAssets.images.passiveTreeKeystoneIcons = { complete: true, naturalWidth: 768, naturalHeight: 640 };
+    battleAssets.images.passiveTreeNotableIcons = { complete: true, naturalWidth: 512, naturalHeight: 384 };
+    const keystones = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'keystone');
+    const cells = keystones.map(node => getPassiveNodeAtlasArt(node)).map(art => art && art.cell.join(','));
+    return {
+        keystoneCount: keystones.length,
+        mappedCount: cells.filter(Boolean).length,
+        uniqueCells: new Set(cells).size,
+        notableFamilies: {
+            energyShield: getPassiveNodeAtlasArt({ stat: 'energyShield' }).cell,
+            armor: getPassiveNodeAtlasArt({ stat: 'armor' }).cell,
+            evasionBaseFamily: getPassiveNodeIconFamily({ stat: 'evasion' }),
+            fire: getPassiveNodeAtlasArt({ stat: 'firePctDmg' }).cell,
+            cold: getPassiveNodeAtlasArt({ stat: 'coldPctDmg' }).cell,
+            lightning: getPassiveNodeAtlasArt({ stat: 'lightPctDmg' }).cell,
+            resistance: getPassiveNodeAtlasArt({ stat: 'resAll' }).cell,
+            bleed: getPassiveNodeAtlasArt({ stat: 'bleedChance' }).cell,
+            gem: getPassiveNodeAtlasArt({ stat: 'gemLevel' }).cell,
+            attackSpeed: getPassiveNodeAtlasArt({ stat: 'aspd' }).cell,
+            moveSpeed: getPassiveNodeAtlasArt({ stat: 'move' }).cell,
+            life: getPassiveNodeAtlasArt({ stat: 'flatHp' }).cell
+        }
+    };
+})())`, context));
+assert.deepStrictEqual({
+    keystoneCount: generatedAtlasContract.keystoneCount,
+    mappedCount: generatedAtlasContract.mappedCount,
+    uniqueCells: generatedAtlasContract.uniqueCells
+}, { keystoneCount: 30, mappedCount: 30, uniqueCells: 30 },
+'all keystones should resolve to different generated atlas cells');
+assert.strictEqual(generatedAtlasContract.notableFamilies.evasionBaseFamily, 'wind',
+    'evasion should retain its existing feather/wind icon family');
+assert.strictEqual(new Set(Object.entries(generatedAtlasContract.notableFamilies)
+    .filter(([key]) => key !== 'evasionBaseFamily').map(([, cell]) => cell.join(','))).size, 11,
+    'requested notable stat families should resolve to distinct readable cells');
+
 [
     ['assets/ui/passive-tree-icons-v3.webp', 90 * 1024],
+    ['assets/ui/passive-tree-keystone-icons-v1.webp', 180 * 1024],
+    ['assets/ui/passive-tree-notable-icons-v4.webp', 95 * 1024],
     ['assets/ui/passive-tree-slot-void-v3.webp', 10 * 1024],
     ['assets/ui/passive-tree-slot-constellation-v2.webp', 8 * 1024],
     ['assets/ui/passive-tree-frame-notable-v1.webp', 16 * 1024],
@@ -362,5 +401,11 @@ const migratedSettings = JSON.parse(vm.runInContext(`JSON.stringify((() => {
 })())`, context));
 assert.deepStrictEqual(migratedSettings, { labels: false, version: 2, summaryCollapsed: true },
     'existing saves should receive the cleaner label and collapsed-summary defaults exactly once');
+
+const canvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
+const simplifyZoom = Number((canvasSource.match(/PASSIVE_TREE_SIMPLIFY_ZOOM = ([0-9.]+)/) || [])[1]);
+const ultraSimplifyZoom = Number((canvasSource.match(/PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM = ([0-9.]+)/) || [])[1]);
+assert(simplifyZoom <= 0.24 && ultraSimplifyZoom < simplifyZoom,
+    'passive nodes should simplify only after the camera is zoomed out far enough to show more of the tree');
 
 console.log('smoke-passive-tree-visual-language passed');

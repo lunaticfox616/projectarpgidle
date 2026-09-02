@@ -124,6 +124,59 @@ function assertDistanceScaling(tree, topology) {
     assert.deepStrictEqual(violations, [], `거리별 노드 강화가 누락되었습니다:\n${violations.join('\n')}`);
 }
 
+function assertElementalMajorCorrections(tree) {
+    const nodes = new Map(tree.nodes.map(node => [String(node.id), node]));
+    const expected = {
+        nmw6zlmrzvb: {
+            cat: 'lightning', archetype: 'lightning',
+            effects: [{ statId: 'lightPctDmg', value: 30 }, { statId: 'maxResL', value: 1 }]
+        },
+        n33yhibs13g: {
+            cat: 'cold', archetype: 'cold',
+            effects: [{ statId: 'coldPctDmg', value: 30 }, { statId: 'maxResC', value: 1 }]
+        }
+    };
+    Object.entries(expected).forEach(([id, contract]) => {
+        const node = nodes.get(id);
+        assert(node, `교정 대상 노드가 없습니다: ${id}`);
+        assert.strictEqual(node.cat, contract.cat, `${id}의 태그가 설명 속성과 일치해야 합니다.`);
+        assert.strictEqual(node.archetype, contract.archetype, `${id}의 원형이 설명 속성과 일치해야 합니다.`);
+        assert.deepStrictEqual(node.mods, contract.effects, `${id}의 작성 효과가 잘못되었습니다.`);
+        assert.deepStrictEqual(node.runtimeEffects, contract.effects, `${id}의 실제 적용 효과가 잘못되었습니다.`);
+    });
+}
+
+function countClustersWithStat(tree, statId) {
+    return new Set(tree.nodes.filter(node => (node.runtimeEffects || []).some(effect => effect.statId === statId))
+        .map(node => node.optionClusterId || `node:${node.id}`)).size;
+}
+
+function assertCuratedDefenseAndGemDistribution(tree) {
+    const expectedClusters = { dr: 6, resF: 6, resC: 6, resL: 6, resChaos: 6, resAll: 4 };
+    Object.entries(expectedClusters).forEach(([statId, expected]) => {
+        assert.strictEqual(countClustersWithStat(tree, statId), expected, `${statId} 획득처 수가 달라졌습니다.`);
+    });
+    const expectedMaxRes = { maxResF: 3, maxResC: 1, maxResL: 1, maxResChaos: 1 };
+    Object.entries(expectedMaxRes).forEach(([statId, expected]) => {
+        let count = tree.nodes.filter(node => (node.runtimeEffects || []).some(effect => effect.statId === statId)).length;
+        assert.strictEqual(count, expected, `${statId} 주요 패시브 수가 달라졌습니다.`);
+    });
+    const gemStats = ['spellGemLevel', 'fireGemLevel', 'coldGemLevel', 'lightGemLevel', 'elementalGemLevel',
+        'projectileGemLevel', 'meleeGemLevel', 'slamGemLevel', 'dotGemLevel', 'aoeGemLevel'];
+    gemStats.forEach(statId => {
+        let owners = tree.nodes.filter(node => (node.runtimeEffects || []).some(effect => effect.statId === statId));
+        assert.strictEqual(owners.length, 1, `${statId}은 정확히 한 곳에서만 획득해야 합니다.`);
+        assert.strictEqual(owners[0].type, 'major', `${statId}은 주요 패시브에만 있어야 합니다.`);
+    });
+    assert.strictEqual(countClustersWithStat(tree, 'slamPctDmg'), 2, '강타 피해는 전사 구역의 두 뭉치에 집중되어야 합니다.');
+    let warriorAccuracy = tree.nodes.filter(node => node.optionClusterId === 'anchor:newxmmn28wz'
+        && (node.runtimeEffects || []).some(effect => effect.statId === 'accuracy'));
+    assert.strictEqual(warriorAccuracy.length, 3, '전사 구역의 작은 정확도 갈래가 유지되어야 합니다.');
+    assert.strictEqual(countClustersWithStat(tree, 'chillEffect'), 1, '냉각 효율은 한 갈래에 있어야 합니다.');
+    assert.strictEqual(countClustersWithStat(tree, 'igniteDamageMultiplierPct'), 2, '점화 효율은 두 갈래에 있어야 합니다.');
+    assert.strictEqual(countClustersWithStat(tree, 'shockEffect'), 2, '감전 효율은 두 갈래에 있어야 합니다.');
+}
+
 function main() {
     const tree = readTree('artifacts/passive-tree/260831_2passive-normalized.json');
     const graph = buildGraph(tree);
@@ -138,6 +191,16 @@ function main() {
     console.log(JSON.stringify(report, null, 2));
     Object.entries(report).forEach(([classId, stages]) => assertStageOptions(classId, stages));
     assertDistanceScaling(tree, topology);
+    assertElementalMajorCorrections(tree);
+    assertCuratedDefenseAndGemDistribution(tree);
+    const runtimeCorrections = JSON.parse(vm.runInContext(`JSON.stringify([
+        PASSIVE_TREE.nodes.nmw6zlmrzvb.effects,
+        PASSIVE_TREE.nodes.n33yhibs13g.effects
+    ])`, runtime));
+    assert.deepStrictEqual(runtimeCorrections, [
+        [{ stat: 'lightPctDmg', val: 30 }, { stat: 'maxResL', val: 1 }],
+        [{ stat: 'coldPctDmg', val: 30 }, { stat: 'maxResC', val: 1 }]
+    ], '작성 원천을 다시 빌드해도 두 원소 주요 패시브의 실제 효과가 유지되어야 한다');
     console.log('smoke-passive-tree-balance passed');
 }
 

@@ -59,6 +59,12 @@ const AUTHORED_CORRECTIONS = Object.freeze({
     nrfru36es1v: balanceCorrection('dex', '흔적 없는 몸놀림', 'evasion', '흐르는 몸놀림', [
         { statId: 'evasion', value: 40 }, { statId: 'evasionPct', value: 12 }
     ]),
+    nmw6zlmrzvb: balanceCorrection('lightning', '고전압', 'lightning', 'manual:nmw6zlmrzvb', [
+        { statId: 'lightPctDmg', value: 30 }, { statId: 'shockChance', value: 10 }
+    ]),
+    n33yhibs13g: balanceCorrection('cold', '혹한의 냉기', 'cold', 'manual:n33yhibs13g', [
+        { statId: 'coldPctDmg', value: 30 }, { statId: 'chillChance', value: 5 }
+    ]),
     expansion_occult_grimoire_20: balanceCorrection('mystique', '봉인된 주문핵', 'spell',
         'authored:봉인된 주문핵', [
             { statId: 'spellPctDmg', value: 15 }, { statId: 'mystique', value: -1 },

@@ -27,8 +27,26 @@ vm.runInContext(`
     game.talentCards = {};
     game.unlocks = {};
     game.noti = {};
+    game.selectedHeroId = 'hero1';
+    game.bloomedClassThisLoop = null;
+    game.bloomedTalentThisLoop = null;
+    game.__statsBeforeBloom = getPlayerStats();
+    game.selectedHeroId = 'hero9';
+    game.__statsAfterLegacyTalentChange = getPlayerStats();
+    game.selectedHeroId = 'hero1';
     handleTalentBloomClear(getZone('trial_5'));
 `, context);
+
+const inactive = JSON.parse(vm.runInContext(`JSON.stringify({
+    beforeDot: game.__statsBeforeBloom.dotPctDmg,
+    afterDot: game.__statsAfterLegacyTalentChange.dotPctDmg,
+    beforeEvasion: game.__statsBeforeBloom.evasionPct,
+    afterEvasion: game.__statsAfterLegacyTalentChange.evasionPct
+})`, context));
+assert.strictEqual(inactive.afterDot, inactive.beforeDot,
+    'the legacy selectedHeroId bridge must not act as an active talent before fifth ascension');
+assert.strictEqual(inactive.afterEvasion, inactive.beforeEvasion,
+    'changing the legacy hero bridge must not grant a talent stat bonus');
 
 const first = JSON.parse(vm.runInContext(`JSON.stringify({
     combos: game.talentBloomCombos,
@@ -58,9 +76,48 @@ const second = JSON.parse(vm.runInContext(`JSON.stringify({
     ascendPoints: game.ascendPoints,
     keystonePoints: game.ascendKeystonePoints
 })`, context));
-assert.deepStrictEqual(second.combos, ['hero10__warrior', 'hero9__warrior'],
-    'later clears may collect another talent card combination');
-assert.strictEqual(second.talentId, 'hero10', 'later card clears must not morph allocated fifth-job nodes');
+assert.deepStrictEqual(second.combos, ['hero10__warrior'],
+    'later clears in the same loop must keep using the talent chosen for fifth ascension');
+assert.strictEqual(second.talentId, 'hero10', 'later clears must not change the loop bloom talent');
 assert.strictEqual(second.ascendPoints, 2, 'new card combinations in the same loop must not farm ascendancy points');
 assert.strictEqual(second.keystonePoints, 1, 'new card combinations in the same loop must not farm keystone points');
-console.log('PASS talent bloom choice and once-per-loop specialization');
+
+async function verifyFifthAscensionChoiceOverlay() {
+    vm.runInContext(`
+        game.selectedClassId = 'warrior';
+        game.bloomedClassThisLoop = null;
+        game.bloomedTalentThisLoop = null;
+        game.__choiceConfig = null;
+        requestGameChoice = async function (config) { game.__choiceConfig = config; return 'hero3'; };
+    `, context);
+    const chosen = await vm.runInContext('chooseTalentBloomHeroId()', context);
+    const config = JSON.parse(vm.runInContext('JSON.stringify(game.__choiceConfig)', context));
+    assert.strictEqual(chosen, 'hero3');
+    assert.strictEqual(config.title, '5차 전직 · 개화 재능 선택');
+    assert.strictEqual(config.choices.length, 10, 'fifth ascension must offer every bloom talent');
+    assert.strictEqual(config.value, 'hero2', 'the overlay should initially focus the selected class recommendation');
+
+    vm.runInContext(`
+        game.bloomedClassThisLoop = 'warrior';
+        game.bloomedTalentThisLoop = 'hero10';
+        requestGameChoice = async function () { throw new Error('locked bloom must not reopen the overlay'); };
+    `, context);
+    assert.strictEqual(await vm.runInContext('chooseTalentBloomHeroId()', context), 'hero10',
+        'the chosen bloom talent must remain fixed for the rest of the loop');
+
+    vm.runInContext('triggerSeasonReset()', context);
+    const resetState = JSON.parse(vm.runInContext(`JSON.stringify({
+        classId: game.bloomedClassThisLoop,
+        talentId: game.bloomedTalentThisLoop,
+        pendingId: game.pendingTalentBloomHeroId
+    })`, context));
+    assert.deepStrictEqual(resetState, { classId: null, talentId: null, pendingId: null },
+        'loop reset must remove the chosen bloom talent and its pending selection');
+}
+
+verifyFifthAscensionChoiceOverlay().then(() => {
+    console.log('PASS talent bloom choice and once-per-loop specialization');
+}).catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});

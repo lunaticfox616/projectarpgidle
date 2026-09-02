@@ -404,7 +404,7 @@ assert.deepStrictEqual(
 );
 
 const enemyLookupStart = combatSource.indexOf('function getAliveEnemyByRuntimeKey(');
-const enemyLookupEnd = combatSource.indexOf('function getActiveTalentCardId(', enemyLookupStart);
+const enemyLookupEnd = combatSource.indexOf('function getCombatTalentCardLevel(', enemyLookupStart);
 const markStart = combatSource.indexOf('function processTalentInquisitorMarks(');
 const markEnd = combatSource.indexOf('const TALENT_CARD_MAX_LEVEL_REF', markStart);
 const markedEnemy = { id: 7, hp: 1000 };

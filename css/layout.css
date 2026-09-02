@@ -161,10 +161,15 @@
         .deathlog-card .tutorial-body { flex: 0 0 auto; max-height: 108px; overflow-y: auto; padding-right: 4px; }
         .deathlog-panel { flex: 1 1 auto; min-height: 0; max-height: min(56vh, 560px); overflow-y: auto; margin-top: 14px; padding: 14px; border-radius: 12px; background: #0f1520; border: 1px solid #2d4258; }
         .deathlog-subtitle { color: #9ecfff; font-size: 0.82em; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+        .deathlog-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+        .deathlog-tab { min-width: 0; padding: 7px 10px; border-color: #2c455d; background: #131d2a; color: #9db1c4; }
+        .deathlog-tab.active { border-color: #6f9dc7; background: #20364b; color: #f4fbff; box-shadow: inset 0 -2px #78b7ea; }
         .deathlog-list { display: grid; gap: 8px; }
         .deathlog-line { display: grid; gap: 8px; padding: 10px 12px; border-radius: 8px; background: #151d29; border: 1px solid #243446; color: #ffffff; }
         .deathlog-line-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
         .deathlog-value { display: inline-flex; align-items: baseline; gap: 8px; color: var(--copy-bright); }
+        .deathlog-monster-value { font-variant-numeric: tabular-nums; }
+        .deathlog-other { color: #c0cfdd; font-size: 0.9em; }
         .deathlog-ratio { color: #8cb7df; font-size: 0.82em; font-weight: normal; }
         .deathlog-bar { position: relative; height: 10px; border-radius: 999px; overflow: hidden; background: #0b1118; border: 1px solid #22384a; }
         .deathlog-bar-fill { height: 100%; border-radius: inherit; box-shadow: 0 0 14px rgba(255,255,255,0.08); }

@@ -156,6 +156,8 @@ function getPassiveNodeEffectShortLabel(node) {
         resF: '화염저항', resC: '냉기저항', resL: '번개저항', resAll: '모든원소저항', resChaos: '카오스저항', resPen: '저항관통',
         maxResF: '화염최대', maxResC: '냉기최대', maxResL: '번개최대', maxResChaos: '카오스최대', chaosResElemPenalty: '카오스저항+',
         igniteChance: '점화확률', chillChance: '냉각확률', freezeChance: '동결확률', shockChance: '감전확률', poisonChance: '중독확률', bleedChance: '출혈확률',
+        igniteDamageMultiplierPct: '점화효율', chillEffect: '냉각효율', shockEffect: '감전효율',
+        shockedEnemyHitDamagePct: '감전명중피해',
         ailResIgnite: '점화저항', ailResShock: '감전저항', ailResFreeze: '동결저항', ailResPoison: '중독저항', ailResBleed: '출혈저항',
         regenSuppress: '재생억제', physIgnore: '물리무시', minDmgRoll: '최소보정', maxDmgRoll: '최대보정',
         leechRateCap: '흡혈속도캡', leechTotalCap: '흡혈총량캡', leechInstanceCap: '흡혈캡',
@@ -314,8 +316,8 @@ function drawPassiveTree() {
     const displayWidth = passiveCanvasMetrics.width || Math.max(1, canvas.clientWidth || 1);
     const displayHeight = passiveCanvasMetrics.height || Math.max(1, canvas.clientHeight || 1);
     const lightweightMode = !!isDragging;
-    const PASSIVE_TREE_SIMPLIFY_ZOOM = 0.31;
-    const PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM = 0.24;
+    const PASSIVE_TREE_SIMPLIFY_ZOOM = 0.24;
+    const PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM = 0.18;
     const zoomedOutMode = camZoom <= PASSIVE_TREE_SIMPLIFY_ZOOM;
     const ultraZoomedOutMode = camZoom <= PASSIVE_TREE_ULTRA_SIMPLIFY_ZOOM;
 
