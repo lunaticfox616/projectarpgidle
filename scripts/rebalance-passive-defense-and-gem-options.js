@@ -65,7 +65,7 @@ const CLEANUP_GROUPS = Object.freeze({
     'anchor:nfx1dxfde8q': 'energyShield', 'anchor:nczf2xtdgvv': 'energyShield',
     'anchor:n7czou0nlyk': 'energyShieldRechargeFaster', 'anchor:n0t16p8qgpd': 'pctHp',
     'bundle:n7sr619yw1e': 'energyShieldRegen', 'anchor:nyqgwi51dd9': 'spellPctDmg',
-    'anchor:nulyw0mk1cz': 'pctHp', 'bundle:n2i9scwd7lc': 'energyShield',
+    'bundle:n2i9scwd7lc': 'energyShield',
     'anchor:nc3w8091wzu': 'energyShieldRechargeFaster', 'anchor:v13_bulk_연금술사_4_07': 'dotPctDmg',
     'anchor:v13_bulk_성직자_1_10': 'energyShieldRegen', 'bundle:n3j2xrf67a0': 'blockChance',
     'cluster:backbone_branch_occultist_cleric_center:theme:occultist_cleric_resist_energy': 'energyShield',
@@ -79,7 +79,7 @@ const AUTHORED_NODES = Object.freeze({
     n33yhibs13g: ['혹한의 냉기', [['coldPctDmg', 30], ['maxResC', 1]], 'cold', 'cold'],
     nmw6zlmrzvb: ['고전압', [['lightPctDmg', 30], ['maxResL', 1]], 'lightning', 'lightning'],
     n5qbn9tzm38: ['금단의 복음', [['chaosPctDmg', 30], ['maxResChaos', 1]], 'chaos', 'chaos'],
-    backbone_branch_occultist_outer_1_t1_n05: ['상위 주문 각인', [['spellPctDmg', 30], ['spellGemLevel', 1]], 'spell', 'spell'],
+    backbone_branch_occultist_outer_1_t1_n05: ['상위 주문 각인', [['spellGemLevel', 1], ['spellFlatDmg', 10]], 'spell', 'spell'],
     n05jx3suzdh: ['상위 화염술', [['firePctDmg', 30], ['fireGemLevel', 1]], 'fire', 'fire'],
     nsi1cc6xdjs: ['상위 냉기술', [['coldPctDmg', 30], ['coldGemLevel', 1]], 'cold', 'cold'],
     backbone_branch_alchemist_outer_3_t2_n04: ['상위 번개술', [['lightPctDmg', 30], ['lightGemLevel', 1]], 'lightning', 'lightning'],
@@ -94,11 +94,59 @@ const AUTHORED_NODES = Object.freeze({
     n0ptqetxrno: ['번지는 작열', [['firePctDmg', 20], ['igniteDamageMultiplierPct', 15]], 'fire', 'fire'],
     nzsokkouxmx: ['점화 촉매', [['firePctDmg', 12], ['igniteDamageMultiplierPct', 8]], 'fire', 'fire'],
     backbone_branch_alchemist_outer_2_t3_n03: ['냉각 약제 집중', [['coldPctDmg', 15], ['chillEffect', 10]], 'cold', 'cold'],
-    n5m0ntdx0a3: ['변성의 뇌광', [['lightPctDmg', 20], ['shockEffect', 12]], 'lightning', 'lightning'],
+    n5m0ntdx0a3: ['변성의 뇌광', [['lightPctDmg', 30], ['shockEffect', 15]], 'lightning', 'lightning'],
     backbone_branch_alchemist_outer_3_t1_n03: ['전도 약제 집중', [['shockedEnemyHitDamagePct', 15], ['shockEffect', 10]], 'lightning', 'lightning'],
     nc4lmzo26vp: ['정확도', [['accuracy', 50]], 'atk', 'precision'],
     newxmmn28wz: ['전사의 조준', [['accuracy', 100], ['meleePctDmg', 10]], 'atk', 'precision'],
-    ndvc51s2dea: ['정확도', [['accuracy', 50]], 'atk', 'precision']
+    ndvc51s2dea: ['정확도', [['accuracy', 50]], 'atk', 'precision'],
+
+    // Arrow fan: repeated hits / extra projectiles / critical damage remain separate arms.
+    expansion_archer_arrow_fan_02: ['연속 타격', [['ds', 3]], 'atk', 'projectile'],
+    expansion_archer_arrow_fan_04: ['쏟아지는 화살', [['projectilePctDmg', 30], ['ds', 10]], 'atk', 'projectile'],
+    expansion_archer_arrow_fan_11: ['연속 타격', [['ds', 3]], 'atk', 'projectile'],
+    // Dagger's short side tip repeats hits; the long tip still pierces physical reduction.
+    completion_wanderer_dagger_10: ['연속 타격', [['ds', 3]], 'atk', 'melee'],
+    completion_wanderer_dagger_09: ['그림자 연참', [['meleePctDmg', 25], ['ds', 10]], 'physical', 'melee'],
+    // Warrior's two curved approaches offer sustain or extra hits, not more attributes.
+    nqjbg9yt7vt: ['생명력 흡수', [['leech', 0.5]], 'def', 'life'],
+    n7fsonptami: ['연속 타격', [['ds', 3]], 'atk', 'melee'],
+    nmon3e1tgnr: ['끊임없는 맹공', [['meleePctDmg', 30], ['ds', 10]], 'physical', 'melee'],
+
+    // Outer spell fork: an embedded-damage core leads to gem level or support capacity.
+    backbone_branch_occultist_outer_1_t1_n01: ['주문 내장 피해', [['spellFlatDmg', 5]], 'spell', 'spell'],
+    backbone_branch_occultist_outer_1_t2_n02: ['주문 내장 피해 증가', [['spellFlatPct', 15]], 'spell', 'spell'],
+    backbone_branch_occultist_outer_1_t3_n03: ['주문 내장 피해', [['spellFlatDmg', 5]], 'spell', 'spell'],
+    backbone_branch_occultist_outer_1_t2_n06: ['주문 내장 피해 증가', [['spellFlatPct', 10]], 'spell', 'spell'],
+    // Inner spell hook is optional; the adjoining intelligence/ES corridor is unchanged.
+    njbqg7vrd9k: ['주문 내장 피해', [['spellFlatDmg', 5]], 'spell', 'spell'],
+    no3kqxbre07: ['주문 내장 피해 증가', [['spellFlatPct', 10]], 'spell', 'spell'],
+    neryoj6rg9p: ['응축된 주문핵', [['spellFlatPct', 25], ['spellFlatDmg', 15]], 'spell', 'spell'],
+
+    // Paired elemental curls: cold offers slowing; lightning concentrates damage/shock.
+    n7mumm5x6wu: ['냉기 피해', [['coldPctDmg', 10]], 'cold', 'cold'],
+    newd0r0xeoe: ['냉각 확률', [['chillChance', 5]], 'cold', 'cold'],
+    nycdq27xe3s: ['냉기 피해', [['coldPctDmg', 10]], 'cold', 'cold'],
+    ngxf5hpx0nn: ['번개 피해', [['lightPctDmg', 10]], 'lightning', 'lightning'],
+    nneueobx1bl: ['번개 피해', [['lightPctDmg', 10]], 'lightning', 'lightning'],
+    nvwwsyax27g: ['번개 피해', [['lightPctDmg', 10]], 'lightning', 'lightning'],
+    backbone_branch_alchemist_outer_2_t2_n02: ['냉기 피해', [['coldPctDmg', 10]], 'cold', 'cold'],
+    backbone_branch_alchemist_outer_2_t1_n05: ['냉기 피해', [['coldPctDmg', 10]], 'cold', 'cold'],
+    backbone_branch_alchemist_outer_2_t2_n06: ['냉각 확률', [['chillChance', 10]], 'cold', 'cold'],
+    backbone_branch_alchemist_outer_3_t1_n01: ['번개 피해', [['lightPctDmg', 10]], 'lightning', 'lightning'],
+    backbone_branch_alchemist_outer_3_t1_n05: ['번개 피해', [['lightPctDmg', 10]], 'lightning', 'lightning'],
+    backbone_branch_alchemist_outer_3_t2_n06: ['번개 피해', [['lightPctDmg', 10]], 'lightning', 'lightning'],
+
+    // Inner ES loop: one side builds capacity, the other improves recovery.
+    n7sr619yw1e: ['에너지 보호막 회복 속도', [['energyShieldRegen', 2]], 'def', 'energyShield'],
+    njmuxz1yyb0: ['에너지 보호막 회복 속도', [['energyShieldRegen', 2]], 'def', 'energyShield'],
+    n99gnyxyu0e: ['수호의 외피', [['energyShieldPct', 35], ['energyShieldRegen', 5]], 'def', 'energyShield'],
+    nqfx25r1u7w: ['에너지 보호막 재충전 대기시간 감소', [['energyShieldRechargeFaster', 0.1]], 'def', 'energyShield'],
+    nc3w8091wzu: ['차원의 외피', [['energyShieldPct', 20], ['energyShieldRechargeFaster', 0.5]], 'def', 'energyShield'],
+    // Central blood fork: passive regeneration versus on-hit leech, then sustained speed.
+    backbone_branch_warrior_wanderer_center_t2_n02: ['생명력 재생', [['regen', 1]], 'def', 'life'],
+    backbone_branch_warrior_wanderer_center_t3_n03: ['생명력 흡수', [['leech', 0.5]], 'def', 'life'],
+    backbone_branch_warrior_wanderer_center_t4_n04: ['피의 순환', [['pctHp', 10], ['leech', 0.5]], 'def', 'life'],
+    backbone_branch_warrior_wanderer_center_t5_n05: ['끝없는 갈증', [['aspd', 10], ['leech', 1]], 'atk', 'life']
 });
 
 function clone(value) {

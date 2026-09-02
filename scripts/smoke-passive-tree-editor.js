@@ -2,6 +2,10 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const { createRequire } = require('module');
 const { buildRuntimeTree } = require('./build-passive-tree-runtime');
 const { sanitizeIconName, validatePassiveTree } = require('./lib/passive-tree-editor-model');
 
@@ -41,4 +45,30 @@ assert(invalid.errors.some(error => error.includes('미지원 효과')));
 assert.strictEqual(sanitizeIconName('../../My Fancy Icon.PNG'), 'my-fancy-icon',
     'uploaded icon names must stay inside the dedicated asset directory');
 
-console.log('smoke-passive-tree-editor passed');
+async function verifyEditorRuntimeSource() {
+    const serverFile = path.resolve(__dirname, 'passive-tree-editor-server.js');
+    const serverRequire = createRequire(serverFile);
+    let requestHandler;
+    // Only replace the HTTP listener; the editor reads its real configured file.
+    const http = { createServer(handler) { requestHandler = handler; return { listen() {} }; } };
+    vm.runInNewContext(fs.readFileSync(serverFile, 'utf8'), {
+        require: id => id === 'http' ? http : serverRequire(id),
+        __dirname, process: { env: {} }, Buffer, URL, console
+    }, { filename: serverFile });
+    let response;
+    await requestHandler({ method: 'GET', url: '/api/tree', headers: {} }, {
+        writeHead(status) { assert.strictEqual(status, 200); },
+        end(body) { response = JSON.parse(body); }
+    });
+    let gameTree;
+    vm.runInNewContext(fs.readFileSync('data/passive-tree-v22.js', 'utf8'), {
+        safeExposeData(data) { gameTree = JSON.parse(JSON.stringify(data.PASSIVE_TREE_V22)); }
+    });
+    assert.deepStrictEqual(buildRuntimeTree(response.tree), gameTree,
+        '편집기가 게임과 다른 구버전 트리를 열어 최신 효과를 되돌리면 안 됩니다.');
+}
+
+verifyEditorRuntimeSource().then(() => console.log('smoke-passive-tree-editor passed')).catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});

@@ -11,7 +11,8 @@ function profile(name, ...lines) {
 const STAT_META = Object.freeze({
     strength: ['힘', ''], dexterity: ['민첩', ''], intelligence: ['지능', ''], accuracy: ['정확도', ''],
     flatHp: ['최대 생명력', ''], pctHp: ['최대 생명력', '%'], regen: ['초당 생명력 재생', '%'],
-    flatDmg: ['기본 피해', ''], spellFlatDmg: ['주문 내장 피해', ''], pctDmg: ['피해', '%'], meleePctDmg: ['근접 피해', '%'],
+    flatDmg: ['기본 피해', ''], spellFlatDmg: ['주문 내장 피해', ''], spellFlatPct: ['주문 내장 피해 증가', '%'],
+    pctDmg: ['피해', '%'], meleePctDmg: ['근접 피해', '%'],
     slamPctDmg: ['강타 피해', '%'], projectilePctDmg: ['투사체 피해', '%'], physPctDmg: ['물리 피해', '%'],
     elementalPctDmg: ['원소 피해', '%'], firePctDmg: ['화염 피해', '%'], coldPctDmg: ['냉기 피해', '%'],
     lightPctDmg: ['번개 피해', '%'], chaosPctDmg: ['카오스 피해', '%'], aoePctDmg: ['범위 피해', '%'],
@@ -21,7 +22,7 @@ const STAT_META = Object.freeze({
     ailmentDamagePct: ['상태이상 피해', '%'], ailmentPotencyPct: ['상태이상 위력', '%'],
     igniteChance: ['점화 확률', '%p'], chillChance: ['냉각 확률', '%p'], shockChance: ['감전 확률', '%p'],
     poisonChance: ['중독 확률', '%p'], bleedChance: ['출혈 확률', '%p'], freezeChance: ['동결 확률', '%p'],
-    aspd: ['스킬 속도', '%'], leech: ['생명력 흡수', '%'],
+    aspd: ['스킬 속도', '%'], ds: ['연속 타격', '%p'], leech: ['생명력 흡수', '%'],
     move: ['이동 속도', '%'], crit: ['치명타 확률', '%p'], critDmg: ['치명타 피해 배율', '%'],
     armor: ['방어도', ''], armorPct: ['방어도', '%'], evasion: ['회피', ''], evasionPct: ['회피', '%'],
     energyShield: ['에너지 보호막', ''], energyShieldPct: ['에너지 보호막', '%'], blockChance: ['막기 확률', '%p'],

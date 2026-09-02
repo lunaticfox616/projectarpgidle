@@ -66,6 +66,20 @@ function ensureSaveMeta() {
         game.saveMeta.cloudUserId = null;
     }
     game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(game.saveMeta.cloudRevision) || 0));
+    if (!Number.isSafeInteger(game.saveMeta.cloudResetRevision) || game.saveMeta.cloudResetRevision < 0) game.saveMeta.cloudResetRevision = 0;
+}
+
+/** Persist a fresh save atomically before removing legacy copies; unrelated browser data stays intact. */
+function resetLocalSave(snapshot) {
+    localStorage.setItem(LOCAL_SAVE_KEY, serializeSaveState(snapshot));
+    // Once the canonical save exists, legacy copies are never selected by loadGame().
+    try {
+        let keys = new Set([...LEGACY_SAVE_KEYS, ...Object.keys(localStorage).filter(key => /^poeIdleSaveData_/i.test(key))]);
+        keys.delete(LOCAL_SAVE_KEY);
+        keys.forEach(key => localStorage.removeItem(key));
+    } catch (error) {
+        console.warn('새 진행은 저장했지만 이전 세이브 사본 정리에 실패했습니다:', error);
+    }
 }
 
 function refreshItemIdCounter() {
@@ -310,4 +324,4 @@ function setCloudMessage(message) {
 }
 
 
-safeExposeGlobals({ readLocalSaveString, readLocalSaveResult, getLocalSaveStatus, canPersistLocalSave, ensureSaveMeta, createSaveSnapshot, serializeSaveState, createCloudSavePayload, createCloudSaveRequestBody, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });
+safeExposeGlobals({ readLocalSaveString, readLocalSaveResult, getLocalSaveStatus, canPersistLocalSave, ensureSaveMeta, resetLocalSave, createSaveSnapshot, serializeSaveState, createCloudSavePayload, createCloudSaveRequestBody, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });

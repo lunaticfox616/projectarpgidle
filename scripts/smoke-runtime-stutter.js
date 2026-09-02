@@ -109,7 +109,7 @@ async function exerciseCloudUpload() {
     setCloudMessage() {}
   };
   vm.createContext(uploadContext);
-  const uploadStart = uiSource.indexOf('async function commitCloudSavePayload(payload, legacyBody)');
+  const uploadStart = uiSource.indexOf('async function commitCloudSavePayload(');
   const uploadEnd = uiSource.indexOf('async function pullCloudSave', uploadStart);
   vm.runInContext(uiSource.slice(uploadStart, uploadEnd), uploadContext, { filename: 'cloud-upload.js' });
 
@@ -136,7 +136,7 @@ exerciseCloudUpload()
       }
     };
     vm.createContext(revisionContext);
-    const commitStart = uiSource.indexOf('async function commitCloudSavePayload(payload, legacyBody)');
+    const commitStart = uiSource.indexOf('async function commitCloudSavePayload(');
     const commitEnd = uiSource.indexOf('async function pushCloudSave', commitStart);
     vm.runInContext(uiSource.slice(commitStart, commitEnd), revisionContext, { filename: 'cloud-revision.js' });
     const row = await vm.runInContext('commitCloudSavePayload({ level: 9 })', revisionContext);

@@ -15343,6 +15343,7 @@ function applyCloudSession(session) {
     if (previousUserId !== nextUserId) {
         cloudState.lastSyncedLocalModifiedAt = 0;
         cloudState.lastRemoteRevision = 0;
+        cloudState.lastRemoteResetRevision = 0;
         cloudState.pendingAutoSyncDirty = false;
         cloudState.pendingForcedSyncOptions = null;
         if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
@@ -15433,6 +15434,7 @@ async function cloudJsonRequest(path, options = {}) {
         let fresh = await ensureCloudSessionFresh('요청 전 확인');
         if (!fresh) throw new Error('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
     }
+    if (options.expectedUserId && options.expectedUserId !== getActiveCloudUserId()) throw new Error('로그인 계정이 변경되어 작업을 중단했습니다.');
     let headers = { apikey: config.supabaseAnonKey, ...(options.headers || {}) };
     if (options.useAuth !== false && cloudState.session && cloudState.session.access_token) headers.Authorization = `Bearer ${cloudState.session.access_token}`;
     let body = options.body;
@@ -15996,17 +15998,31 @@ function getSaveLoopNumber(snapshot) {
 }
 
 function updateRemoteLoopFromRecord(record) {
+    cloudState.lastRemoteResetRevision = 0;
     if (!record || !record.save_data) return 0;
     let remoteLoop = getSaveLoopNumber(record.save_data);
     cloudState.lastRemoteLoop = remoteLoop;
+    let resetRevision = record.save_data.saveMeta && record.save_data.saveMeta.cloudResetRevision;
+    cloudState.lastRemoteResetRevision = Number.isSafeInteger(resetRevision) && resetRevision > 0 ? resetRevision : 0;
     return remoteLoop;
 }
 
 function shouldBlockLocalPushForRemoteLoop(record, localSnapshot = game) {
     let localLoop = getSaveLoopNumber(localSnapshot || {});
     let remoteLoop = updateRemoteLoopFromRecord(record);
-    if (remoteLoop > localLoop) return { blocked: true, reason: 'higher-loop', localLoop, remoteLoop };
-    if (record && record.save_data && isLikelyBootstrapLocalSave(localSnapshot)) return { blocked: true, reason: 'bootstrap-local', localLoop, remoteLoop };
+    let localResetRevision = localSnapshot?.saveMeta?.cloudResetRevision ?? 0;
+    if (cloudState.lastRemoteResetRevision > localResetRevision) return {
+        blocked: true, reason: 'remote-reset', localLoop, remoteLoop,
+        message: '계정의 진행 데이터가 초기화되어 초기화 이전 기기 기록으로 서버 저장을 덮어쓸 수 없습니다.'
+    };
+    if (remoteLoop > localLoop) return {
+        blocked: true, reason: 'higher-loop', localLoop, remoteLoop,
+        message: `클라우드 루프(${remoteLoop})가 로컬 루프(${localLoop})보다 높아 로컬 저장으로 덮어쓸 수 없습니다.`
+    };
+    if (record && record.save_data && isLikelyBootstrapLocalSave(localSnapshot)) return {
+        blocked: true, reason: 'bootstrap-local', localLoop, remoteLoop,
+        message: '로컬 세이브가 새로 생성된 기본 상태라 기존 클라우드 저장을 덮어쓸 수 없습니다.'
+    };
     return { blocked: false, reason: 'safe', localLoop, remoteLoop };
 }
 
@@ -16072,11 +16088,8 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
     let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
     if (loopGuard.blocked) {
         applyExternalSave(record.save_data, remoteStamp);
-        let guardMessage = loopGuard.reason === 'bootstrap-local'
-            ? '로컬 세이브가 새로 생성된 기본 상태라 클라우드 업로드를 차단하고 서버 저장을 불러왔습니다.'
-            : `클라우드 루프(${loopGuard.remoteLoop})가 로컬 루프(${loopGuard.localLoop})보다 높아 로컬 업로드를 차단하고 클라우드를 불러왔습니다.`;
-        setCloudMessage(guardMessage);
-        if (!options.silentLog) addLog('클라우드 루프가 더 높아 로컬 저장으로 서버를 덮어쓰지 않았습니다.', 'loot-magic');
+        setCloudMessage(loopGuard.message);
+        if (!options.silentLog) addLog(loopGuard.message, 'loot-magic');
         return { record, status: 'pulled-remote-higher-loop' };
     }
     if (loopGuard.localLoop > loopGuard.remoteLoop) {
@@ -16091,10 +16104,11 @@ async function guardAgainstStaleLocalOverwrite(options = {}) {
     return { record, status: 'safe-to-push' };
 }
 
-async function commitCloudSavePayload(payload, legacyBody) {
+async function commitCloudSavePayload(payload, legacyBody, options = {}) {
     if (cloudState.revisionSupported !== true) {
         let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
             method: 'POST',
+            expectedUserId: options.expectedUserId,
             headers: { Prefer: 'resolution=merge-duplicates,return=representation', 'Content-Type': 'application/json' },
             body: legacyBody || { user_id: cloudState.user.id, save_data: payload }
         });
@@ -16102,8 +16116,9 @@ async function commitCloudSavePayload(payload, legacyBody) {
     }
     let rows = await cloudJsonRequest('/rest/v1/rpc/commit_cloud_save', {
         method: 'POST',
+        expectedUserId: options.expectedUserId,
         headers: { 'Content-Type': 'application/json' },
-        body: { expected_revision: getLocalCloudRevision(), next_save_data: payload }
+        body: { expected_revision: options.expectedRevision ?? getLocalCloudRevision(), next_save_data: payload }
     });
     let result = Array.isArray(rows) ? rows[0] : rows;
     if (!result || result.committed !== true) {
@@ -16133,11 +16148,8 @@ async function pushCloudSave(options = {}) {
     let tFetch = Date.now();
     let loopGuard = shouldBlockLocalPushForRemoteLoop(remoteRecord);
     if (loopGuard.blocked) {
-        let guardMessage = loopGuard.reason === 'bootstrap-local'
-            ? '로컬 세이브가 새로 생성된 기본 상태라 기존 클라우드 저장을 덮어쓸 수 없습니다.'
-            : `클라우드 루프(${loopGuard.remoteLoop})가 로컬 루프(${loopGuard.localLoop})보다 높아 로컬 저장으로 덮어쓸 수 없습니다.`;
-        setCloudMessage(guardMessage);
-        throw new Error(guardMessage);
+        setCloudMessage(loopGuard.message);
+        throw new Error(loopGuard.message);
     }
     if (cloudState.revisionSupported === true && remoteRecord && getLocalCloudRevision() !== cloudState.lastRemoteRevision) {
         throw new Error('다른 기기에서 서버 저장이 변경되었습니다. 서버 저장을 불러온 뒤 다시 시도해주세요.');
@@ -16258,11 +16270,8 @@ async function reconcileCloudSaveState(options = {}) {
     let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
     if (loopGuard.blocked) {
         applyExternalSave(record.save_data, remoteStamp);
-        let guardMessage = loopGuard.reason === 'bootstrap-local'
-            ? '새 기기 기본 로컬 저장으로 판단되어 클라우드 세이브를 우선 적용했습니다.'
-            : `클라우드 루프(${loopGuard.remoteLoop})가 로컬 루프(${loopGuard.localLoop})보다 높아 클라우드 세이브를 우선 적용했습니다.`;
-        setCloudMessage(guardMessage);
-        if (!options.silent) addLog('클라우드 루프가 더 높아 로컬 저장 업로드를 차단하고 서버 저장을 적용했습니다.', 'loot-magic');
+        setCloudMessage(loopGuard.message);
+        if (!options.silent) addLog(loopGuard.message, 'loot-magic');
         return 'pulled-remote-higher-loop';
     }
     let revisionResolution = cloudState.revisionSupported === true
@@ -16585,8 +16594,22 @@ function requestImmediateCloudSave(reason) {
 }
 
 
+function applyPageExitCloudSaveResult(text, exitSave) {
+    if (cloudState.busy || game !== exitSave || !text) return;
+    let result = JSON.parse(text);
+    result = Array.isArray(result) ? result[0] : result;
+    if (!result || !result.committed) return;
+    ensureSaveMeta();
+    game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(result.current_revision) || 0));
+    game.saveMeta.lastCloudSyncAt = result.saved_at ? (new Date(result.saved_at).getTime() || Date.now()) : Date.now();
+    cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
+    cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
+    persistLocalSave({ touchModifiedAt: false });
+}
+
 function pushCloudSaveOnPageExit(reason) {
     let config = getCloudConfig();
+    if (cloudState.busy || cloudState.lastRemoteResetRevision > (game.saveMeta.cloudResetRevision || 0)) return false;
     if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) return false;
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !cloudState.session || !cloudState.session.access_token) return false;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;
@@ -16602,6 +16625,7 @@ function pushCloudSaveOnPageExit(reason) {
         return false;
     }
     let exitPushStartedAt = Date.now();
+    let exitSave = game;
     if (exitPushStartedAt - lastPageExitCloudPushAt < 1500) return false;
     try {
         markCurrentSaveCloudOwner();
@@ -16630,16 +16654,7 @@ function pushCloudSaveOnPageExit(reason) {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return response.text();
         }).then(text => {
-            if (!revisionEnabled || !text) return;
-            let result = JSON.parse(text);
-            result = Array.isArray(result) ? result[0] : result;
-            if (!result || !result.committed) return;
-            ensureSaveMeta();
-            game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(result.current_revision) || 0));
-            game.saveMeta.lastCloudSyncAt = result.saved_at ? (new Date(result.saved_at).getTime() || Date.now()) : Date.now();
-            cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
-            cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
-            persistLocalSave({ touchModifiedAt: false });
+            if (revisionEnabled) applyPageExitCloudSaveResult(text, exitSave);
         }).catch(error => {
             let msg = String((error && error.message) || error || '');
             let expectedAbort = /failed to fetch|networkerror|abort|cancel/i.test(msg);
@@ -16822,48 +16837,76 @@ function runStartupSmokeChecks() {
     if (issues.length > 0) console.warn('[SmokeCheck] startup issues:', issues.join(', '));
 }
 
-async function resetGame() {
-    if (!await requestGameConfirmation('현재 기기의 모든 진행 데이터를 초기화합니다.', {
-        title: '게임 진행 초기화',
-        tone: 'danger',
-        confirmLabel: '진행 초기화'
-    })) return;
-    let resetCloudToo = false;
-    if (cloudState.user && getCloudConfig().enabled) {
-        resetCloudToo = !!await requestGameConfirmation('클라우드 저장도 새 게임 상태로 덮어쓸 수 있습니다.\n취소하면 이 기기만 초기화하고 현재 계정에서 로그아웃합니다.', {
-            title: '클라우드 저장도 초기화',
-            tone: 'danger',
-            confirmLabel: '클라우드도 초기화',
-            cancelLabel: '기기만 초기화'
-        });
-    }
+/** Explicit reset only: commit a blank account save using the just-read server revision. */
+async function resetCloudSaveProgress(userId, freshGame) {
+    await fetchCloudSaveRecord();
+    if (cloudState.revisionSupported !== true) throw new Error('안전한 초기화를 위해 서버의 저장 버전 기능 업데이트가 필요합니다.');
+    let expectedRevision = cloudState.lastRemoteRevision;
+    freshGame.saveMeta.cloudUserId = userId;
+    freshGame.saveMeta.cloudResetRevision = expectedRevision + 1;
+    let row = await commitCloudSavePayload(createCloudSavePayload(freshGame), undefined, { expectedRevision, expectedUserId: userId });
+    freshGame.saveMeta.cloudRevision = row.revision;
+    freshGame.saveMeta.lastCloudSyncAt = new Date(row.updated_at).getTime();
+    cloudState.lastRemoteRevision = row.revision;
+    cloudState.lastRemoteResetRevision = freshGame.saveMeta.cloudResetRevision;
+    cloudState.lastRemoteLoop = 1;
+    cloudState.lastSyncedLocalModifiedAt = freshGame.saveMeta.lastModifiedAt;
+}
+
+async function resetProgressStorage(userId) {
+    let previousStatus = getLocalSaveStatus();
+    let previousSkipUnload = window.__skipUnloadSaveOnce;
+    let serverCommitted = false;
+    let freshGame = cloneDefaultGame();
+    freshGame.saveMeta.lastModifiedAt = Date.now();
+    setLocalSaveRuntimeState('resetting', { writable: false, message: '진행 데이터를 초기화하는 중입니다.' });
+    window.__skipUnloadSaveOnce = true;
+    setLoadingOverlayState(true, { title: '진행 데이터 초기화', detail: '초기화가 끝날 때까지 기다려주세요.', caption: '저장 처리 중' });
     try {
-        window.__skipUnloadSaveOnce = true;
-        localStorage.removeItem(LOCAL_SAVE_KEY);
-        LEGACY_SAVE_KEYS.forEach(key => localStorage.removeItem(key));
-        try {
-            Object.keys(localStorage).forEach(key => {
-                if (/^poeIdleSaveData_/i.test(String(key || ''))) localStorage.removeItem(key);
-            });
-        } catch (error) {
-            console.warn('failed to enumerate legacy local saves during reset:', error);
+        if (userId) {
+            await resetCloudSaveProgress(userId, freshGame);
+            serverCommitted = true;
+            game = freshGame;
         }
-        if (resetCloudToo) {
-            cloudState.busy = true;
-            setCloudMessage('클라우드 저장을 초기화하는 중입니다...');
-            updateCloudSaveUI();
-            game = cloneDefaultGame();
-            await pushCloudSave({ touchModifiedAt: true });
-        } else if (cloudState.user) {
-            applyCloudSession(null);
+        resetLocalSave(freshGame);
+        game = freshGame;
+        cloudState.pendingAutoSyncDirty = false;
+        cloudState.pendingForcedSyncOptions = null;
+        location.reload();
+    } catch (error) {
+        setLoadingOverlayState(false);
+        window.__skipUnloadSaveOnce = previousSkipUnload;
+        if (serverCommitted) {
+            // Never resume or upload the pre-reset game after the server accepted the reset.
+            setLocalSaveRuntimeState('write-failed', { writable: false, message: '서버 초기화는 완료했지만 기기 저장에 실패했습니다.' });
+            gameplayStarted = false;
+            setStartupOverlayActive(true);
+            throw new Error('서버 초기화는 완료했지만 기기 저장에 실패했습니다. 저장공간을 확인한 뒤 서버 기록으로 이어가세요. ' + error.message);
         }
+        setLocalSaveRuntimeState(previousStatus.status, previousStatus);
+        throw error;
+    }
+}
+
+async function resetGame() {
+    if (cloudState.busy) return showGameToast('저장 처리가 끝난 뒤 다시 시도해주세요.', { tone: 'warning' });
+    let userId = getActiveCloudUserId();
+    let target = userId ? `로그인 계정 (${cloudState.user.email || userId})의 서버 기록과 이 기기 기록` : '이 기기의 진행 데이터';
+    cloudState.busy = true;
+    updateCloudSaveUI();
+    try {
+        if (!await requestGameConfirmation(`${target}를 초기화합니다.\n처음부터 다시 시작하며 되돌릴 수 없습니다.`, {
+            title: userId ? '계정 진행 초기화' : '기기 진행 초기화', tone: 'danger', confirmLabel: '진행 초기화'
+        })) return;
+        if (getActiveCloudUserId() !== userId) throw new Error('로그인 계정이 변경되었습니다. 초기화 대상을 다시 확인해주세요.');
+        await resetProgressStorage(userId);
     } catch (error) {
         console.error('resetGame failed:', error);
-        if (resetCloudToo) showGameToast('클라우드 초기화 중 문제가 발생했습니다: ' + (error.message || error), { tone: 'danger', duration: 5200 });
+        setCloudMessage('초기화하지 못했습니다: ' + error.message);
+        showGameToast('초기화하지 못했습니다: ' + error.message, { tone: 'danger', duration: 8000 });
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
-        location.reload();
     }
 }
 

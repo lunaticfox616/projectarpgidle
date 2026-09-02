@@ -23067,7 +23067,7 @@
       "y": 220,
       "type": "keystone",
       "name": "결투의 규율",
-      "desc": "살아 있는 적이 1명일 때 근접 피해가 35% 증폭되고 받는 피해가 10% 감폭됩니다.\n살아 있는 적이 2명 이상일 때 근접 피해가 15% 감폭됩니다.",
+      "desc": "근접 피해가 30% 증폭됩니다.",
       "mods": [],
       "statAutoName": false,
       "runtimeEffects": [],
@@ -30390,16 +30390,16 @@
       }
     },
     {
-      "cat": "int",
+      "cat": "fire",
       "id": "nhenzv8gp4i",
       "x": 1100,
       "y": -480,
       "type": "major",
       "name": "금단의 불씨",
-      "desc": "피해 +30%\n초당 생명력 재생 +1%",
+      "desc": "화염 피해 +30%\n초당 생명력 재생 +1%",
       "mods": [
         {
-          "statId": "pctDmg",
+          "statId": "firePctDmg",
           "value": 30
         },
         {
@@ -30408,11 +30408,11 @@
         }
       ],
       "statAutoName": false,
-      "archetype": "intelligence",
+      "archetype": "fire",
       "optionProfile": "manual:nhenzv8gp4i",
       "runtimeEffects": [
         {
-          "statId": "pctDmg",
+          "statId": "firePctDmg",
           "value": 30
         },
         {
@@ -30425,16 +30425,16 @@
       "powerBand": 3
     },
     {
-      "cat": "int",
+      "cat": "cold",
       "id": "nlwk06igprm",
       "x": 1100,
       "y": -100,
       "type": "major",
       "name": "금단의 설화",
-      "desc": "피해 +30%\n모든 원소 저항 +6%",
+      "desc": "냉기 피해 +30%\n모든 원소 저항 +6%",
       "mods": [
         {
-          "statId": "pctDmg",
+          "statId": "coldPctDmg",
           "value": 30
         },
         {
@@ -30443,11 +30443,11 @@
         }
       ],
       "statAutoName": false,
-      "archetype": "intelligence",
+      "archetype": "cold",
       "optionProfile": "manual:nlwk06igprm",
       "runtimeEffects": [
         {
-          "statId": "pctDmg",
+          "statId": "coldPctDmg",
           "value": 30
         },
         {
@@ -30460,16 +30460,16 @@
       "powerBand": 3
     },
     {
-      "cat": "int",
+      "cat": "lightning",
       "id": "ndru1xggqhg",
       "x": 980,
       "y": -300,
       "type": "major",
       "name": "차원의 전류",
-      "desc": "피해 +25%\n이동 속도 +6%",
+      "desc": "번개 피해 +25%\n이동 속도 +6%",
       "mods": [
         {
-          "statId": "pctDmg",
+          "statId": "lightPctDmg",
           "value": 25
         },
         {
@@ -30478,11 +30478,11 @@
         }
       ],
       "statAutoName": false,
-      "archetype": "intelligence",
+      "archetype": "lightning",
       "optionProfile": "manual:ndru1xggqhg",
       "runtimeEffects": [
         {
-          "statId": "pctDmg",
+          "statId": "lightPctDmg",
           "value": 25
         },
         {

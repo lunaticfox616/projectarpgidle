@@ -40,7 +40,7 @@ const preservedMajors = source.nodes.filter(node => {
         && node.runtimeEffects.some(effect => !PATH_ALLOWED_STATS.has(effect.statId));
     return !invalidCorridor && !topology.reducedSpecialIds.has(id);
 });
-assert.strictEqual(preservedMajors.length, 131, '자동 재설계에서 제외할 기존 주요 패시브 수가 달라졌습니다.');
+assert.strictEqual(preservedMajors.length, 134, '자동 재설계에서 제외할 기존 주요 패시브 수가 달라졌습니다.');
 preservedMajors.forEach(node => {
     if (manualMajorIds.has(String(node.id))) return;
     const result = outputById.get(String(node.id));
@@ -84,8 +84,12 @@ majorNodes.forEach(node => node.runtimeEffects.filter(effect => Number(effect.va
         `주요 패시브가 같은 뭉치의 하위 등급보다 강하지 않습니다: ${node.id}/${effect.statId}`);
 }));
 assert.strictEqual(topology.backboneIds.size, 167, '직업 시작점-공허 능력치 뼈대 범위가 달라졌습니다.');
-assert.strictEqual(topology.corridorIds.size, 1167, '노드 뭉치 사이 길목 범위가 달라졌습니다.');
-assert.strictEqual(topology.bundleIds.size, 625, '실제 선택형 노드 뭉치 범위가 달라졌습니다.');
+assert.strictEqual(topology.corridorIds.size, 1164, '노드 뭉치 사이 길목 범위가 달라졌습니다.');
+assert.strictEqual(topology.bundleIds.size, 628, '실제 선택형 노드 뭉치 범위가 달라졌습니다.');
+['nhenzv8gp4i', 'ndru1xggqhg', 'nlwk06igprm'].forEach(id => {
+    assert.ok(topology.bundleIds.has(id), '지혜의 도약 뒤의 속성 선택지는 공용 길목이 아닙니다.');
+    assert.ok(!topology.corridorIds.has(id), '히든 선택지를 길목 보정으로 일반 피해로 덮으면 안 됩니다.');
+});
 topology.backboneIds.forEach(id => {
     const before = sourceById.get(id), after = outputById.get(id);
     assert.deepStrictEqual(after.runtimeEffects, before.runtimeEffects, `뼈대 능력치 효과가 바뀌었습니다: ${id}`);
