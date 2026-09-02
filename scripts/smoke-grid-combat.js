@@ -1359,6 +1359,20 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(moving.every(stage => stage.targets.length === 1), '이동 파동의 각 단계는 도착한 칸만 판정해야 한다');
   assert.strictEqual(moving[1].chainFromEnemyId, moving[0].targets[0].enemy.id, '다음 파동은 직전 칸에서 이어져야 한다');
 
+  context.game.gridPlayer = { gx: 0, gy: 4, gridMoveTimer: 0 };
+  const frostTargets = [makeEnemy(341, 3, 4), makeEnemy(342, 4, 4), makeEnemy(343, 4, 5),
+    makeEnemy(344, 5, 4), makeEnemy(345, 5, 6)].map(enemy => ({ enemy, mult: 1 }));
+  const frostBurst = context.buildSkillHitSequence('서리 폭발', context.SKILL_DB['서리 폭발'], frostTargets);
+  assert.deepStrictEqual(Array.from(frostBurst, stage => stage.delayMs), [0, 90, 127, 180, 255],
+    '서리 폭발 피해는 중심에서 파동이 실제 거리에 도달하는 순서로 발생해야 한다');
+  assert.ok(frostBurst.every(stage => stage.kind === 'radialBurstWave' && stage.damageMultiplier === 1),
+    '서리 파동의 시간차만 추가하고 각 대상의 기존 총 피해는 유지해야 한다');
+  assert.ok(frostBurst.every(stage => stage.waveDurationMs === 255),
+    '시각 파동과 판정 파동은 반경 끝까지 같은 시간을 사용해야 한다');
+  assert.strictEqual(frostBurst.flatMap(stage => stage.targets).length, frostTargets.length,
+    '시간차 판정으로 기존 범위 대상이 누락되면 안 된다');
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+
   const boomerang = context.buildSkillHitSequence('독니 사출', context.SKILL_DB['독니 사출'], targets);
   assert.strictEqual(boomerang.length, 2, '부메랑은 왕복 두 판정으로 묶어 다중 대상 처리 부하를 제한해야 한다');
   assert.strictEqual(boomerang.map(stage => stage.kind).join(','), 'boomerangOutbound,boomerangReturn');

@@ -188,6 +188,8 @@ const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
     blizzardImpact: 'skillFxBlizzardImpact',
     frostWave: 'skillFxFrostWave',
     chaosBoomerang: 'skillFxChaosBoomerang',
+    frostBurst: 'skillFxFrostBurst',
+    frostWaveRing: 'skillFxFrostWaveRing',
     burst: 'skillFxBurst',
     dot: 'skillFxDotField',
     summon: 'skillFxSummonStrike',
@@ -502,6 +504,8 @@ function getCombatTravelImageKey(fx) {
     let profile = getSkillGemVfxProfile(fx.skillName);
     let projectileImageKey = profile && SKILL_GEM_VFX_IMAGE_KEYS[profile.projectileAsset];
     if (projectileImageKey) return projectileImageKey;
+    let combatImageKey = profile && SKILL_GEM_VFX_IMAGE_KEYS[profile.combatAsset];
+    if (combatImageKey) return combatImageKey;
     if (fx.patternKind === 'field') return !element || element === 'cold' ? SKILL_GEM_VFX_IMAGE_KEYS.frostField : SKILL_GEM_VFX_IMAGE_KEYS.dot;
     if (fx.patternKind === 'moving') return !element || element === 'cold' ? SKILL_GEM_VFX_IMAGE_KEYS.frostWave : SKILL_GEM_VFX_IMAGE_KEYS.projectile;
     if (fx.patternKind === 'boomerang') return SKILL_GEM_VFX_IMAGE_KEYS.chaosBoomerang;
@@ -529,6 +533,54 @@ function getCombatAreaBounds(targets) {
     bounds.x = (bounds.minX + bounds.maxX) / 2;
     bounds.y = (bounds.minY + bounds.maxY) / 2;
     return bounds;
+}
+
+function getRadialBurstScreenRadius(fx, gridProj) {
+    if (!gridProj) return 120;
+    let profiles = typeof SKILL_GRID_DB !== 'undefined' ? SKILL_GRID_DB : null;
+    let profile = profiles && profiles[fx.skillName];
+    let radius = Math.max(1, Number(profile && profile.radius) || 1);
+    return Math.hypot(gridProj.tileW * radius, gridProj.tileH * radius);
+}
+
+function drawFrostBurstCombatFx(ctx, fx, now, arriveAt, targets) {
+    let burstImage = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.frostBurst);
+    let waveImage = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.frostWaveRing);
+    if (!burstImage && !waveImage) return false;
+    let bounds = getCombatAreaBounds(targets);
+    let center = fx.screenAim && Number.isFinite(fx.screenAim.x) && Number.isFinite(fx.screenAim.y)
+        ? fx.screenAim : { x: bounds.x, y: bounds.y };
+    let chargeMs = 160;
+    let waveMs = Math.max(120, Number(fx.waveDurationMs) || 255);
+    let elapsed = now - arriveAt;
+    if (elapsed < -chargeMs || elapsed > waveMs + 180) return true;
+    ctx.save();
+    ctx.translate(center.x, center.y);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.filter = 'none';
+    ctx.imageSmoothingEnabled = false;
+    if (burstImage && elapsed < 0) {
+        let charge = clampNumber((elapsed + chargeMs) / chargeMs, 0, 1);
+        let size = 34 + charge * 20;
+        ctx.globalAlpha = 0.32 + charge * 0.5;
+        ctx.drawImage(burstImage, -size / 2, -size / 2, size, size);
+    }
+    if (waveImage && elapsed >= 0) {
+        let progress = clampNumber(elapsed / waveMs, 0, 1);
+        let radius = Math.max(60, Number(fx.screenRadius) || 120);
+        let size = Math.max(1, radius * progress * 2);
+        ctx.globalAlpha = elapsed <= waveMs ? 0.88
+            : clampNumber((waveMs + 180 - elapsed) / 180, 0, 1) * 0.72;
+        ctx.drawImage(waveImage, -size / 2, -size / 2, size, size);
+    }
+    if (burstImage && elapsed >= 0 && elapsed <= 120) {
+        let burst = clampNumber(elapsed / 120, 0, 1);
+        let size = 54 + burst * 42;
+        ctx.globalAlpha = (1 - burst) * 0.9;
+        ctx.drawImage(burstImage, -size / 2, -size / 2, size, size);
+    }
+    ctx.restore();
+    return true;
 }
 
 function drawSpriteSheetFrame(ctx, image, frameIndex, columns, rows, x, y, width, height) {
@@ -809,6 +861,7 @@ function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
         drawChannelCombatFx(ctx, fx, now, targets);
         return;
     }
+    if (fx.patternKind === 'radialBurst' && drawFrostBurstCombatFx(ctx, fx, now, arriveAt, targets)) return;
     let image = getSkillGemVfxImage(imageKey);
     let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
     let fade = now <= arriveAt ? 0.24 + progress * 0.42
@@ -897,6 +950,7 @@ function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
     if (fx.delivery === 'magicCell') {
         fx.screenSource = source;
         fx.screenAim = getCombatTravelScreenPos(gridProj, fx.aimCell, targets[0]);
+        if (fx.patternKind === 'radialBurst') fx.screenRadius = getRadialBurstScreenRadius(fx, gridProj);
         drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element);
     }
     else drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, imageKey, element);

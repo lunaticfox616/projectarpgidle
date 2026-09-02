@@ -352,7 +352,7 @@ assert.ok(fs.existsSync('assets/effects/boss-telegraph-pulse-v1.png'), 'generate
   'skill-whirlwind-v2.png', 'skill-chain-primary-v2.png', 'skill-chain-jump-v1.png',
   'skill-slam-primary-v2.png', 'skill-slam-aftershock-v2.png', 'skill-slash-v2.png',
   'skill-projectile-v2.png', 'skill-venom-fang-v3.png', 'skill-frost-field-v2.png', 'skill-frost-wave-v2.png',
-  'skill-chaos-boomerang-v2.png', 'skill-burst-v2.png', 'skill-dot-field-v2.png',
+  'skill-chaos-boomerang-v2.png', 'skill-frost-burst-v1.png', 'skill-frost-wave-ring-v1.png', 'skill-burst-v2.png', 'skill-dot-field-v2.png',
   'skill-meteor-projectile-v2.png', 'skill-meteor-impact-v2.png', 'skill-meteor-ground-v2.png',
   'skill-summon-strike-v1.png',
 ].forEach(file => assert.ok(fs.existsSync(`assets/effects/${file}`), `generated skill VFX ${file} should exist`));
@@ -558,6 +558,7 @@ assert.ok(!battlefieldSource.includes('let connector = family === \'projectile\'
 assert.ok(battlefieldSource.includes("stageKind === 'chainJump'"), 'secondary chain hits should use their connector image');
 assert.ok(battlefieldSource.includes("stageKind === 'slamAftershock'"), 'delayed slam aftershocks should use their own image');
 const combatPatternImages = vm.runInContext(`[
+  getCombatTravelImageKey({ skillName: '서리 폭발', patternKind: 'radialBurst' }),
   getCombatTravelImageKey({ patternKind: 'field' }),
   getCombatTravelImageKey({ patternKind: 'moving' }),
   getCombatTravelImageKey({ patternKind: 'boomerang' }),
@@ -566,7 +567,7 @@ const combatPatternImages = vm.runInContext(`[
   getCombatTravelImageKey({ owner: 'enemy', delivery: 'magicCell' })
 ]`, context);
 assert.deepStrictEqual(Array.from(combatPatternImages), [
-  'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxVenomFang', 'skillFxDotField', 'bossTelegraphPulse'
+  'skillFxFrostBurst', 'skillFxFrostField', 'skillFxFrostWave', 'skillFxChaosBoomerang', 'skillFxVenomFang', 'skillFxDotField', 'bossTelegraphPulse'
 ], 'real collision patterns should select their dedicated image assets');
 const venomProjectileDrawing = vm.runInContext(`(() => {
   const calls = { images: 0, rectangles: 0, strokes: 0 };
@@ -666,17 +667,21 @@ const aggregatedBurstVfx = vm.runInContext(`(() => {
   let lines = 0;
   let flames = 0;
   battleAssets.images.skillFxBurst = { complete: true, naturalWidth: 64 };
+  battleAssets.images.skillFxFrostBurst = { complete: true, naturalWidth: 512 };
+  battleAssets.images.skillFxFrostWaveRing = { complete: true, naturalWidth: 512 };
   const ctx = {
     save() {}, restore() {}, translate() {}, rotate() {}, beginPath() {}, stroke() {}, fill() {},
     moveTo() {}, lineTo() { lines++; }, bezierCurveTo() { flames++; }, closePath() {},
     arc() { arcs++; }, drawImage() { images++; }
   };
   const targets = Array.from({ length: 8 }, (_, index) => ({ x: 100 + index * 24, y: 180 + (index % 2) * 30 }));
-  ['서리 폭발', '삼원 파동'].forEach((skillName, index) => {
-    drawCombatCellFx(ctx, {
-      start: 1000, duration: 720, delivery: 'magicCell', patternKind: null, skillName
-    }, 1230, 1460, targets, 'skillFxBurst', index ? 'fire' : 'cold');
-  });
+  drawCombatCellFx(ctx, {
+    start: 1000, duration: 900, delivery: 'magicCell', patternKind: 'radialBurst', skillName: '서리 폭발',
+    screenAim: { x: 184, y: 195 }, screenRadius: 180, waveDurationMs: 255
+  }, 1500, 1460, targets, 'skillFxFrostBurst', 'cold');
+  drawCombatCellFx(ctx, {
+    start: 1000, duration: 720, delivery: 'magicCell', patternKind: null, skillName: '삼원 파동'
+  }, 1500, 1460, targets, 'skillFxBurst', 'fire');
   battleVisualState.skillEffects = [];
   targets.forEach((target, index) => {
     queueSkillGemVfx({ id: 800 + index, skillName: '서리 폭발', element: 'cold' }, target, { x: 20, y: 220 }, {}, 1230, 1);
@@ -689,13 +694,30 @@ const aggregatedBurstVfx = vm.runInContext(`(() => {
     triParticles: getAttackFxSpawnOpts({ skillName: '삼원 파동' }, {}, {}, 1)
   };
 })()`, context);
-assert.strictEqual(aggregatedBurstVfx.images, 16, '화염과 냉기 범위 타격은 맞은 대상마다 적중 위치를 보여줘야 한다');
+assert.strictEqual(aggregatedBurstVfx.images, 10, '서리 폭발은 중앙 폭발과 별도 파동만 그리고 다른 범위 타격은 대상 위치를 유지해야 한다');
 assert.strictEqual(aggregatedBurstVfx.arcs, 0, '이미지 기반 범위 타격은 원형 또는 호를 다시 그리면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.lines, 0, '이미지 기반 범위 타격은 결정선을 매 프레임 만들면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.flames, 0, '이미지 기반 범위 타격은 불꽃 곡선을 매 프레임 만들면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.impactEffectCount, 0, '범위 폭발은 각 대상마다 별도 적중 이미지를 할당하면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.frostParticles, null, '서리 폭발은 대상별 보조 입자를 중복 생성하면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.triParticles, null, '삼원 파동은 대상별 보조 입자를 중복 생성하면 안 된다');
+const frostWaveGrowth = vm.runInContext(`(() => {
+  const widths = [];
+  const burstImage = { complete: true, naturalWidth: 512 };
+  const waveImage = { complete: true, naturalWidth: 512 };
+  battleAssets.images.skillFxFrostBurst = burstImage;
+  battleAssets.images.skillFxFrostWaveRing = waveImage;
+  const ctx = {
+    save() {}, restore() {}, translate() {},
+    drawImage(image, x, y, width) { if (image === waveImage) widths.push(width); }
+  };
+  const fx = { screenAim: { x: 180, y: 190 }, screenRadius: 180, waveDurationMs: 255 };
+  drawFrostBurstCombatFx(ctx, fx, 1550, 1460, [{ x: 180, y: 190 }]);
+  drawFrostBurstCombatFx(ctx, fx, 1640, 1460, [{ x: 180, y: 190 }]);
+  return widths;
+})()`, context);
+assert.strictEqual(frostWaveGrowth.length, 2, '서리 폭발은 적 수와 무관하게 프레임당 별도 파동 이미지 한 장만 그려야 한다');
+assert.ok(frostWaveGrowth[1] > frostWaveGrowth[0], '서리 파동은 중심에서 범위 끝으로 실제 확장되어야 한다');
 const boundedCrowdedSkillVfx = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
   const targets = Array.from({ length: 8 }, (_, index) => ({

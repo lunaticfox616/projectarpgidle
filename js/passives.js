@@ -6706,6 +6706,8 @@ function initBattleAssets() {
         skillFxBlizzardImpact: 'assets/effects/skill-bludgeoning-blizzard-impact-sheet-v2.png',
         skillFxFrostWave: 'assets/effects/skill-frost-wave-v2.png',
         skillFxChaosBoomerang: 'assets/effects/skill-chaos-boomerang-v2.png',
+        skillFxFrostBurst: 'assets/effects/skill-frost-burst-v1.png',
+        skillFxFrostWaveRing: 'assets/effects/skill-frost-wave-ring-v1.png',
         skillFxBurst: 'assets/effects/skill-burst-v2.png',
         skillFxDotField: 'assets/effects/skill-dot-field-v2.png',
         skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
