@@ -649,14 +649,15 @@ function createCosmosChallengeZone(state) {
 
 function getBeyondBoundaryTierProfile(tierValue) {
     const tier = clampNumber(Math.floor(Number(tierValue) || 1), 1, BEYOND_BOUNDARY_TIER_CAP);
+    const difficultyTier = tier + BEYOND_BOUNDARY_DIFFICULTY_OFFSET;
     const mutatorIds = BEYOND_BOUNDARY_MUTATOR_DB.filter(row => tier >= row.tier).map(row => row.id);
-    let hpMul = Math.pow(BEYOND_BOUNDARY_HP_GROWTH, tier - 1);
-    let damageMul = Math.pow(BEYOND_BOUNDARY_DAMAGE_GROWTH, tier - 1);
+    let hpMul = Math.pow(BEYOND_BOUNDARY_HP_GROWTH, difficultyTier - 1);
+    let damageMul = Math.pow(BEYOND_BOUNDARY_DAMAGE_GROWTH, difficultyTier - 1);
     let attackSpeedMul = 1;
     if (mutatorIds.includes('hardened')) hpMul *= 1.2;
     if (mutatorIds.includes('onslaught')) { damageMul *= 1.15; attackSpeedMul = 1.1; }
     return {
-        tier, hpMul, damageMul, attackSpeedMul, mutatorIds,
+        tier, difficultyTier, hpMul, damageMul, attackSpeedMul, mutatorIds,
         drBonus: mutatorIds.includes('iron') ? 10 : 0,
         penetrationBonus: mutatorIds.includes('piercing') ? 10 : 0,
         regenRate: mutatorIds.includes('renewal') ? 0.0025 : 0
@@ -678,9 +679,10 @@ function createBeyondBoundaryZone(state) {
     const wave = run ? clampNumber(Math.floor(Number(run.wave) || 1), 1, BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER) : 1;
     return {
         id: BEYOND_BOUNDARY_ZONE_ID, name: `경계 너머 ${profile.tier}단계 · ${wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER}`,
-        type: 'beyondBoundary', tier: getUnderworldTier(30) + Math.floor((profile.tier - 1) / 2),
+        type: 'beyondBoundary', tier: getUnderworldTier(30) + Math.floor((profile.difficultyTier - 1) / 2),
         maxKills: 1, ele: 'chaos', difficultyBenchmark: 'underworld30',
         boundaryTier: profile.tier, boundaryWave: wave,
+        boundaryDifficultyTier: profile.difficultyTier,
         boundaryFinalWave: wave === BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER,
         boundaryHpMul: profile.hpMul * (focus.hpMul || 1) * intensity.hpMul,
         boundaryDamageMul: profile.damageMul * (focus.damageMul || 1) * intensity.damageMul,
@@ -797,7 +799,7 @@ function getZone(id) {
     return MAP_ZONES[id];
 }
 
-const CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT = 8;
+const CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT = 4;
 const CHALLENGE_CONTRACT_KEYS = ['enemyPower', 'fragileArmor', 'shortHunt', 'greedPact'];
 
 function normalizeChallengeContract(contract) {
@@ -1014,6 +1016,17 @@ function getAbyssMonsterScales(zone) {
 }
 
 const ENDLESS_CONTENT_DROP_MULTIPLIER_CAP = 2.25;
+const UNDERWORLD_DROP_RATE_MULTIPLIER = 0.5;
+
+/**
+ * 콘텐츠 자체의 기본 전리품 빈도 보정이다. 플레이어·티어 보너스와 분리한다.
+ * 룬·광석처럼 유지해야 하는 보상은 해당 드랍 규칙에서 이 배율을 적용하지 않는다.
+ * @param {{type?:string}|null} zone
+ * @returns {number}
+ */
+function getContentDropRateMultiplier(zone) {
+    return zone && zone.type === 'underworld' ? UNDERWORLD_DROP_RATE_MULTIPLIER : 1;
+}
 
 /**
  * 무한 등반 콘텐츠는 층수와 몬스터 수가 함께 늘어나므로, 플레이어 보너스까지
@@ -2035,7 +2048,7 @@ safeExposeGlobals({
     isMapPrimaryContentUnlockReady, isMapPrimaryContentUnlocked,
     reconcileMapPrimaryContentUnlocks, getMapPrimaryContentEntryCondition
 });
-safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssMonsterScales, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
+safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, getStarWedgeUnlockReady, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getZone, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, hasCurrentLoopAbyssRequirementClear, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getAutoProgressZoneId, getAbyssMonsterScales, getContentDropRateMultiplier, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getLoopDeepStatCost, allocateLoopDeepStat, SKY_TOWER_ZONE_ID, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, getSkyTowerRemainingClears, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, OCEAN_PERMANENT_UPGRADE_DEFS, OCEAN_PERMANENT_UPGRADE_KEYS, OCEAN_CURRENT_POOL, getOceanCurrentAffixes, createDefaultOceanState, mergeOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanFishingGaugeGainMul });
 
 // Phase-4 extracted default state schema.
 

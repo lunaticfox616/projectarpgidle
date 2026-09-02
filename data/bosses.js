@@ -35,6 +35,72 @@ const BOSS_ASSET_VARIANTS_BY_ACT = {
     10: ['bossAct10_1', 'bossAct10_2', 'bossAct10_3', 'bossAct10_4', 'bossAct10_5']
 };
 
+const REALM_MONSTER_VISUAL_SETS = Object.freeze({
+    underworld: Object.freeze({
+        id: 'underworld', assetKey: 'realmEnemyUnderworld', src: 'assets/enemies/realms/underworld-v1.webp',
+        zoneTypes: Object.freeze(['underworld']), pinnacleTracks: Object.freeze(['underworld']),
+        members: Object.freeze([
+            ['underworld-crawler', '암반 굴착수', 'normal'], ['underworld-beetle', '흑요석 갑충', 'normal'],
+            ['underworld-miner', '사슬 광부', 'normal'], ['underworld-hound', '균사 사냥개', 'normal'],
+            ['underworld-executioner', '용암 집행자', 'elite'], ['underworld-wraith', '묘등 망령', 'elite'],
+            ['underworld-king', '지저 군주', 'boss']
+        ].map((entry, cell) => Object.freeze({ id: entry[0], name: entry[1], role: entry[2], cell })))
+    }),
+    cosmos: Object.freeze({
+        id: 'cosmos', assetKey: 'realmEnemyCosmos', src: 'assets/enemies/realms/cosmos-v1.webp',
+        zoneTypes: Object.freeze(['cosmos']), zoneIds: Object.freeze(['cosmos_astra']),
+        members: Object.freeze([
+            ['cosmos-star', '성흔 가시체', 'normal'], ['cosmos-ooze', '혜성 점액체', 'normal'],
+            ['cosmos-wisp', '성좌 망령', 'normal'], ['cosmos-wanderer', '공허 방랑자', 'normal'],
+            ['cosmos-sentinel', '궤도 파수병', 'elite'], ['cosmos-seer', '성운 예언자', 'elite'],
+            ['cosmos-colossus', '성핵 거신', 'boss']
+        ].map((entry, cell) => Object.freeze({ id: entry[0], name: entry[1], role: entry[2], cell })))
+    }),
+    ocean: Object.freeze({
+        id: 'ocean', assetKey: 'realmEnemyOcean', src: 'assets/enemies/realms/ocean-v1.webp',
+        zoneTypes: Object.freeze(['oceanDepth']), pinnacleTracks: Object.freeze(['ocean']),
+        members: Object.freeze([
+            ['ocean-angler', '심해 초롱어', 'normal'], ['ocean-crab', '산호 집게', 'normal'],
+            ['ocean-cultist', '해구 주술사', 'normal'], ['ocean-shell', '철갑 패각충', 'normal'],
+            ['ocean-knight', '조류 기사', 'elite'], ['ocean-oracle', '해파리 신탁', 'elite'],
+            ['ocean-leviathan', '해구 레비아탄', 'boss']
+        ].map((entry, cell) => Object.freeze({ id: entry[0], name: entry[1], role: entry[2], cell })))
+    }),
+    sky: Object.freeze({
+        id: 'sky', assetKey: 'realmEnemySky', src: 'assets/enemies/realms/sky-v1.webp',
+        zoneTypes: Object.freeze(['skyTower']), pinnacleTracks: Object.freeze(['sky']),
+        members: Object.freeze([
+            ['sky-imp', '구름 도깨비', 'normal'], ['sky-roc', '어린 뇌조', 'normal'],
+            ['sky-sentinel', '날개 파수병', 'normal'], ['sky-harpy', '질풍 하피', 'normal'],
+            ['sky-lancer', '폭풍 창기병', 'elite'], ['sky-griffin', '태양 그리핀', 'elite'],
+            ['sky-titan', '창공 거신', 'boss']
+        ].map((entry, cell) => Object.freeze({ id: entry[0], name: entry[1], role: entry[2], cell })))
+    })
+});
+
+function getRealmMonsterVisualSet(zone) {
+    if (!zone) return null;
+    const zoneId = String(zone.id || '');
+    return Object.values(REALM_MONSTER_VISUAL_SETS).find(set =>
+        set.zoneTypes.includes(zone.type) || (set.zoneIds || []).includes(zoneId)
+        || (set.pinnacleTracks || []).includes(zone.pinnacleTrack)) || null;
+}
+
+function getRealmMonsterVisualDefinition(set, role, variantSeed) {
+    if (!set) return null;
+    const pool = set.members.filter(member => member.role === role);
+    if (pool.length === 0) return null;
+    return pool[Math.abs(Math.floor(Number(variantSeed) || 0)) % pool.length];
+}
+
+function getRealmMonsterVisualDefinitionById(id) {
+    for (const set of Object.values(REALM_MONSTER_VISUAL_SETS)) {
+        const member = set.members.find(entry => entry.id === id);
+        if (member) return member;
+    }
+    return null;
+}
+
 function getBossAssetKeyForZone(zone, variantSeed) {
     if (!zone || (zone.type && zone.type !== 'act') || !Number.isInteger(Number(zone.id))) return null;
     const actNumber = Number(zone.id) + 1;
@@ -97,5 +163,7 @@ function getMonsterVariantDefinition(variantSeed, element) {
 
 safeExposeData({
     ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT,
-    getBossAssetKeyForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition
+    getBossAssetKeyForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
+    REALM_MONSTER_VISUAL_SETS, getRealmMonsterVisualSet, getRealmMonsterVisualDefinition,
+    getRealmMonsterVisualDefinitionById
 });

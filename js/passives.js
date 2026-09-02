@@ -6539,6 +6539,9 @@ function initBattleAssets() {
     battleAssets.loadPromise = new Promise(resolve => { resolveLoadPromise = resolve; });
     const customHeroSrc = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = customHeroSrc || null;
+    const realmMonsterManifest = typeof REALM_MONSTER_VISUAL_SETS === 'undefined'
+        ? {}
+        : Object.fromEntries(Object.values(REALM_MONSTER_VISUAL_SETS).map(set => [set.assetKey, set.src]));
     const manifest = {
         hero1Idle: 'assets/playable/hero1/idle.png',
         hero1Walk: 'assets/playable/hero1/walk.png',
@@ -6683,6 +6686,7 @@ function initBattleAssets() {
         woodEnemyPuppet6: 'assets/enemies/wood/wood-puppet/frame_006.png',
         woodEnemyPuppet7: 'assets/enemies/wood/wood-puppet/frame_007.png',
         woodEnemyPuppet8: 'assets/enemies/wood/wood-puppet/frame_008.png',
+        ...realmMonsterManifest,
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
         bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
         bossTelegraphPulse: 'assets/effects/boss-telegraph-pulse-v1.png',
@@ -6757,7 +6761,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260902-directional-poses2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key === 'shrineInteractable'));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('realmEnemy') || key === 'shrineInteractable'));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && PLAYER_CLASS_DEFS[game.selectedClassId]) ? game.selectedClassId : 'archer');
@@ -6841,7 +6845,7 @@ function initBattleAssets() {
             if (key.startsWith('backdrop') || key.startsWith('bg')) {
                 battleAssets.backdrops[key] = image;
             } else {
-                let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
+                let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('realmEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
                 battleAssets.images[key] = image;
                 if (!keepOriginalSheet) queueBattleSheetSanitization(key, image);
             }
@@ -7384,6 +7388,34 @@ function resolveHeroMotionStripAnchor(baseAnchor, motionAnchors, motion, variant
         : (motionAnchors && motionAnchors[motion]);
     if (!Number.isFinite(configured)) return baseAnchor;
     return { ...baseAnchor, anchorY: configured };
+}
+
+function getRealmMonsterAtlasCellFrame(cell) {
+    const cellSize = 128;
+    return {
+        x: (cell % 4) * cellSize,
+        y: Math.floor(cell / 4) * cellSize,
+        width: cellSize,
+        height: cellSize,
+        anchorX: cellSize * 0.5,
+        anchorY: 120,
+        basisHeight: 112
+    };
+}
+
+function buildRealmEnemyVariantSets(images) {
+    if (typeof REALM_MONSTER_VISUAL_SETS === 'undefined') return {};
+    return Object.fromEntries(Object.values(REALM_MONSTER_VISUAL_SETS).map(set => {
+        const pools = { normal: [], elite: [], boss: [] };
+        const image = images[set.assetKey];
+        if (image) {
+            set.members.forEach(member => {
+                const frame = getRealmMonsterAtlasCellFrame(member.cell);
+                pools[member.role].push({ id: member.id, skinId: member.id, label: member.name, image, frame });
+            });
+        }
+        return [set.id, pools];
+    }));
 }
 
 function buildBattleAssetAtlas() {
@@ -8300,6 +8332,10 @@ function buildBattleAssetAtlas() {
             { image: enemySpriteImage, frame: enemyFrames.boss },
         ].filter(entry => hasUsableFrame(entry.frame))
     };
+    const realmEnemyVariantSets = buildRealmEnemyVariantSets(battleAssets.images);
+    const realmEnemySkinVariants = Object.fromEntries(Object.values(realmEnemyVariantSets)
+        .flatMap(pools => ['normal', 'elite', 'boss'].flatMap(role => pools[role] || []))
+        .map(entry => [entry.skinId, entry]));
     // 배경 불투명 스프라이트가 섞이는 현상을 방지하기 위해
     // 자동 감지 풀(2/3번 시트)은 기본값에서 제외한다.
     // 필요 시 추후 개별 투명화 보정 후 재활성화 가능.
@@ -8321,8 +8357,12 @@ function buildBattleAssetAtlas() {
         enemies: {
             image: enemySpriteImage,
             variants: enemyVariantPools,
+            realmVariants: realmEnemyVariantSets,
             bossImages: bossImages,
-            skinVariants: Object.fromEntries(['woodSlime', 'rootSpider', 'sapLeech', 'woodPuppet'].map(family => [family, woodEnemyVariants.find(entry => entry.family === family)]).filter(entry => entry[1])),
+            skinVariants: {
+                ...Object.fromEntries(['woodSlime', 'rootSpider', 'sapLeech', 'woodPuppet'].map(family => [family, woodEnemyVariants.find(entry => entry.family === family)]).filter(entry => entry[1])),
+                ...realmEnemySkinVariants
+            },
             frames: {
                 slime: enemyFrames.slime,
                 wraith: enemyFrames.wraith,
@@ -9953,10 +9993,11 @@ function awardCurrency(currencyKey, amount) {
 function getMappingTicketDrops(enemy, zone, mappingOpened) {
     let drops = [];
     if (!mappingOpened || !zone || zone.type === 'trial' || zone.type === 'seasonBoss') return drops;
+    let contentDropMul = getContentDropRateMultiplier(zone);
     if ((game.season || 1) >= 2) {
-        if (enemy.isBoss && Math.random() < 0.044) {
+        if (enemy.isBoss && Math.random() < 0.044 * contentDropMul) {
             drops.push([rndChoice(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm']), 1]);
-        } else if (enemy.isElite && Math.random() < 0.01) {
+        } else if (enemy.isElite && Math.random() < 0.01 * contentDropMul) {
             drops.push([rndChoice(['bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm']), 1]);
         }
     }
@@ -9966,45 +10007,49 @@ function getMappingTicketDrops(enemy, zone, mappingOpened) {
         || (game.completedTrials || []).includes('trial_4');
     if (!highTrialUnlocked) return drops;
     let trialKeyChance = enemy.isBoss ? 0.015 : (enemy.isElite ? 0.001 : 0);
-    if (trialKeyChance > 0 && Math.random() < trialKeyChance) drops.push(['trialKey3', 1]);
+    if (trialKeyChance > 0 && Math.random() < trialKeyChance * contentDropMul) drops.push(['trialKey3', 1]);
     return drops;
 }
 
+const UNDERWORLD_ORE_DROP_CHANCES = Object.freeze({ copper: 0.0032, silver: 0.0018, gold: 0.0009 });
+
 function getUnderworldResourceDropChances(enemy) {
     if (enemy && enemy.isBoss) {
-        return { fossil: 0.22, typedFossil: 0.075, tool: 0.05, rune: 0.18, blurredPower: 0.02 };
+        return { fossil: 0.11, typedFossil: 0.0375, tool: 0.025, rune: 0.18, blurredPower: 0.01, ...UNDERWORLD_ORE_DROP_CHANCES };
     }
     if (enemy && enemy.isElite) {
-        return { fossil: 0.025, typedFossil: 0.006, tool: 0.005, rune: 0.008, blurredPower: 0.001 };
+        return { fossil: 0.0125, typedFossil: 0.003, tool: 0.0025, rune: 0.008, blurredPower: 0.0005, ...UNDERWORLD_ORE_DROP_CHANCES };
     }
-    return { fossil: 0.005, typedFossil: 0.0012, tool: 0.001, rune: 0.0015, blurredPower: 0.0001 };
+    return { fossil: 0.0025, typedFossil: 0.0006, tool: 0.0005, rune: 0.0015, blurredPower: 0.00005, ...UNDERWORLD_ORE_DROP_CHANCES };
 }
 
 function getCurrencyDrops(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
-    let dropBonus = getCodexBonusPct() / 100;
     let abyssScale = getAbyssMonsterScales(zone);
     let challengeRewardMul = typeof getChallengeContractRewardMultiplier === 'function' ? getChallengeContractRewardMultiplier(zone) : 1;
-    let rawDropMultiplier = (1 + dropBonus) * (abyssScale.dropMul || 1)
-        * (enemy && enemy.dropMul ? enemy.dropMul : 1) * challengeRewardMul;
-    let dropMultiplier = capEndlessContentDropMultiplier(zone, rawDropMultiplier);
+    let challengeDropBonusPct = Math.max(0, (challengeRewardMul - 1) * 100);
+    let progressionDropMul = getAdditiveDropBonusMultiplier(getCodexBonusPct(), challengeDropBonusPct);
+    let rawDropMultiplier = progressionDropMul * (abyssScale.dropMul || 1)
+        * (enemy && enemy.dropMul ? enemy.dropMul : 1);
+    let contentDropMul = getContentDropRateMultiplier(zone);
+    let dropMultiplier = capEndlessContentDropMultiplier(zone, rawDropMultiplier) * contentDropMul;
     let bonusRoll = chance => Math.random() < Math.min(0.95, chance * dropMultiplier);
     let drops = [];
     if (enemy.isBoss) {
-        if (bonusRoll(0.47)) drops.push(['magicBud', 1]);
-        if (bonusRoll(0.31)) drops.push(['formlessDew', 1]);
-        if (bonusRoll(0.08)) drops.push(['sapBud', 1]);
+        if (bonusRoll(0.24)) drops.push(['magicBud', 1]);
+        if (bonusRoll(0.15)) drops.push(['formlessDew', 1]);
+        if (bonusRoll(0.04)) drops.push(['sapBud', 1]);
     } else if (enemy.isElite) {
-        if (bonusRoll(0.18)) {
+        if (bonusRoll(0.08)) {
             drops.push([Math.random() < 0.9 ? 'magicBud' : 'formlessDew', 1]);
         }
-        if (bonusRoll(0.015)) drops.push(['sapBud', 1]);
-        if (bonusRoll(0.03)) drops.push(['formlessDew', 1]);
-    } else if (bonusRoll(0.02)) {
+        if (bonusRoll(0.008)) drops.push(['sapBud', 1]);
+        if (bonusRoll(0.015)) drops.push(['formlessDew', 1]);
+    } else if (bonusRoll(0.009)) {
         drops.push([[ 'magicBud', 'magicBud', 'magicBud', 'magicBud', 'blightSpore' ][Math.floor(Math.random() * 5)], 1]);
     }
-    // 신성한 오브: 일반 0.01375% / 정예 0.0825% / 보스 1.25%. 엑잘티드는 신성의 2배. 우로보로스는 기본적으로 신성 확률의 1/1200(극악).
-    let divineChance = enemy.isBoss ? 0.0125 : (enemy.isElite ? 0.000825 : 0.0001375);
+    // 황금률: 일반 0.007% / 정예 0.04% / 보스 0.6%. 수액눈은 황금률의 2배다.
+    let divineChance = enemy.isBoss ? 0.006 : (enemy.isElite ? 0.0004 : 0.00007);
     if (bonusRoll(divineChance)) drops.push(['goldenRule', 1]);
     if (bonusRoll(divineChance / 20)) drops.push(['fairyRing', 1]);
     if (bonusRoll(divineChance * 2)) drops.push(['sapBud', 1]);
@@ -10017,19 +10062,19 @@ function getCurrencyDrops(enemy) {
     if (zone.type === 'cosmos' && bonusRoll(enemy.isBoss ? 0.025 : (enemy.isElite ? 0.006 : 0.0015))) drops.push(['pruningShears', 1]);
     if (zone.type === 'cosmos' && enemy.isBoss && bonusRoll(0.012)) drops.push(['abyssCatalyst', 1]);
     if ((game.season || 1) >= 4 && enemy.isSky && Math.random() < 0.35) drops.push(['skyEssence', 1]);
-    if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16) drops.push(['emberBranch', 1]);
-    if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03) drops.push(['jewelShard', 3]);
-    if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008) drops.push(['jewelShard', 1]);
+    if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.16 * contentDropMul) drops.push(['emberBranch', 1]);
+    if ((game.season || 1) >= 5 && enemy.isBoss && Math.random() < 0.03 * contentDropMul) drops.push(['jewelShard', 3]);
+    if ((game.season || 1) >= 5 && enemy.isElite && Math.random() < 0.008 * contentDropMul) drops.push(['jewelShard', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.018) drops.push(['sealShard', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.random() < 0.005) drops.push(['strongSealShard', 1]);
     if ((game.season || 1) >= 6 && zone.type === 'labyrinth' && Math.floor(zone.floor || 0) >= 30 && Math.random() < 0.00052) drops.push(['radiantSealShard', 1]);
-    if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.018) drops.push(['blessing', 1]);
-    if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004) drops.push(['blessing', 1]);
+    if ((game.season || 1) >= 6 && enemy.isBoss && Math.random() < 0.018 * contentDropMul) drops.push(['blessing', 1]);
+    if ((game.season || 1) >= 6 && enemy.isElite && Math.random() < 0.004 * contentDropMul) drops.push(['blessing', 1]);
     if ((game.season || 1) >= 6 && enemy.isBoss && zone.type === 'abyss' && Number(zone.id) >= 19 && Math.random() < 0.0125) drops.push(['beastKeyCerberus', 1]);
     // 버려진 날붙이 도전권 (루프 31+): 심층 콘텐츠 보스가 드랍한다. 루프당 결투 6회(다섯 날 + 완성작)를 노린 넉넉한 확률.
     if ((game.season || 1) >= 31 && enemy.isBoss
         && (zone.type === 'chaosRealm' || zone.type === 'underworld' || zone.type === 'skyTower' || (zone.type === 'abyss' && Math.floor(getAbyssDepthFromZoneId(Number(zone.id)) || 0) >= 21))
-        && Math.random() < 0.10) drops.push(['rivalKey', 1]);
+        && Math.random() < 0.10 * contentDropMul) drops.push(['rivalKey', 1]);
     // 잔향체 아스트라 도전권 (루프 31+): 우주계 은하 보스(planet-45~49)가 드랍한다.
     if ((game.season || 1) >= 31 && enemy.isBoss && zone.type === 'cosmos' && Math.random() < 0.15) drops.push(['cosmosSovereignKey', 1]);
     if (zone.type === 'chaosRealm') {
@@ -10040,16 +10085,16 @@ function getCurrencyDrops(enemy) {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
         let resourceChance = getUnderworldResourceDropChances(enemy);
         let coreKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
-        if (Math.random() < coreKeyChance) drops.push(['coreKey', 1]);
+        if (Math.random() < coreKeyChance * contentDropMul) drops.push(['coreKey', 1]);
         if (Math.random() < resourceChance.fossil) drops.push(['fossil', 1]);
         if (Math.random() < resourceChance.typedFossil) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
         if (Math.random() < resourceChance.tool) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
         if (underFloor >= 10 && Math.random() < resourceChance.rune) drops.push(['runeShard', enemy.isBoss ? 2 : 1]);
         if (typeof canDropCoreCubeBlurred45 === 'function' && canDropCoreCubeBlurred45() && Math.random() < resourceChance.blurredPower) drops.push(['blurred45', 1]);
-        if (Math.random() < 0.0032) drops.push(['underCopper', 1]);
-        if (Math.random() < 0.0018) drops.push(['underSilver', 1]);
-        if (Math.random() < 0.0009) drops.push(['underGold', 1]);
-        if (enemy.isBoss && Math.random() < 0.0025) drops.push([rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1]);
+        if (Math.random() < resourceChance.copper) drops.push(['underCopper', 1]);
+        if (Math.random() < resourceChance.silver) drops.push(['underSilver', 1]);
+        if (Math.random() < resourceChance.gold) drops.push(['underGold', 1]);
+        if (enemy.isBoss && Math.random() < 0.0025 * contentDropMul) drops.push([rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1]);
     }
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
     if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);

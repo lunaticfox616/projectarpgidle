@@ -1,5 +1,4 @@
-// 생장판 드랍은 장비 드랍률 배율이 아니라 독립 원본 확률을 사용하며,
-// 이전 기본 확률의 정확히 1/3이어야 한다.
+// 생장판 드랍은 장비 드랍률 배율이 아니라 독립 원본 확률을 사용한다.
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
@@ -8,17 +7,23 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 const ctx = buildGameRuntime();
 const run = code => vm.runInContext(code, ctx);
 const chances = JSON.parse(run('JSON.stringify(GROWTH_ITEM_BASE_DROP_CHANCES)'));
+const equipmentChances = JSON.parse(run('JSON.stringify(EQUIPMENT_BASE_DROP_CHANCES)'));
 
-assert.ok(Math.abs(chances.regular * 3 - 0.014) < 1e-12,
-    '일반몹 생장판 원본 확률은 이전 1.4%의 1/3이어야 한다');
-assert.ok(Math.abs(chances.elite * 3 - 0.0525) < 1e-12,
-    '정예 생장판 원본 확률은 이전 5.25%의 1/3이어야 한다');
-assert.ok(Math.abs(chances.boss * 3 - 0.161) < 1e-12,
-    '보스 생장판 원본 확률은 이전 16.1%의 1/3이어야 한다');
+assert.strictEqual(chances.regular, 0.003, '일반몹 생장판 원본 확률은 0.3%여야 한다');
+assert.strictEqual(chances.elite, 0.01, '정예 생장판 원본 확률은 1%여야 한다');
+assert.strictEqual(chances.boss, 0.03, '보스 생장판 원본 확률은 3%여야 한다');
+assert.deepStrictEqual(equipmentChances, { regular: 0.009, elite: 0.04, boss: 0.155 },
+    '장비 원본 확률은 일반 0.9%, 정예 4%, 보스 15.5%여야 한다');
+assert.strictEqual(run('getAdditiveDropBonusMultiplier(18.7, 16)'), 1.347,
+    '도감과 계약 보너스는 서로 곱하지 않고 같은 원본 확률에 합연산해야 한다');
 
 assert.strictEqual(run('getGrowthItemBaseDropChance({})'), chances.regular);
 assert.strictEqual(run('getGrowthItemBaseDropChance({ isElite: true })'), chances.elite);
 assert.strictEqual(run('getGrowthItemBaseDropChance({ isBoss: true, isElite: true })'), chances.boss);
+assert.strictEqual(run("(game.maxZoneId=4,isFirstActBossEquipmentDropThisLoop({ id:4, type:'act' }, { isBoss:true }))"), true,
+    '각 액트의 이번 루프 첫 보스 격파는 장비 한 개를 확정해야 한다');
+assert.strictEqual(run("isFirstActBossEquipmentDropThisLoop({ id:3, type:'act' }, { isBoss:true })"), false,
+    '이미 돌파한 액트 보스의 반복 사냥은 확정 장비를 다시 주면 안 된다');
 
 run(`
     game.season = 60;
