@@ -40,8 +40,7 @@ const PASSIVE_KEYSTONE_CONTRACTS = Object.freeze([
         '투사체 주력 스킬 사용 시 가능한 경우 적과 3칸 거리를 유지합니다.\n3칸 이상 떨어진 적에게 주는 투사체 피해가 25% 증폭됩니다.\n' +
         '인접한 적에게 주는 투사체 피해가 25% 감폭됩니다.'),
     contract('n2c51dapljo', '결투의 규율',
-        '살아 있는 적이 1명일 때 근접 피해가 35% 증폭되고 받는 피해가 10% 감폭됩니다.\n' +
-        '살아 있는 적이 2명 이상일 때 근접 피해가 15% 감폭됩니다.'),
+        '근접 피해가 30% 증폭됩니다.'),
     contract('nkf64engb6m', '지혜의 도약',
         '선택한 속성의 스킬 피해가 20% 증폭됩니다(공허 선택 시 카오스).\n선택하지 않은 속성의 스킬은 피해를 줄 수 없습니다.'),
     contract('backbone_branch_occultist_cleric_center_occultist_cleric_channel_guard_keystone', '혼의 성소',

@@ -2024,6 +2024,7 @@ let cloudState = {
     lastRemoteUpdatedAt: 0,
     lastRemoteLoop: 0,
     lastRemoteRevision: 0,
+    lastRemoteResetRevision: 0,
     revisionSupported: null,
     lastSyncAttemptAt: 0,
     lastSyncedLocalModifiedAt: 0,
@@ -2316,6 +2317,7 @@ const defaultGame = {
     loopStarterGemGranted: false,
     starterGemTutorialPending: null,
     settings: {
+        tabPlacement: {},
         showCombatScene: true,
         cameraShake: true,
         uiSounds: true,
@@ -2607,7 +2609,8 @@ const defaultGame = {
         nodeMutations: {},
         selectedWedgeId: null
     },
-    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0 },
+    // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
+    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0 },
     unlocks: { char: false, season: false, pruning: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, talisman: false, cube: false, growthboard: false, expertise: false, jewel: false, arcana: false },
     noti: { char: false, season: false, pruning: false, items: false, skills: false, flask: false, map: false, arcana: false, codex: false, traits: false, talisman: false, cube: false, expertise: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false },
     mapAlarmSeen: {},

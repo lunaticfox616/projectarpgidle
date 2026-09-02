@@ -12,7 +12,7 @@ const { sanitizeIconName, validatePassiveTree } = require('./lib/passive-tree-ed
 
 const ROOT = path.resolve(__dirname, '..');
 const EDITOR_ROOT = path.join(ROOT, 'tools', 'passive-editor');
-const SOURCE_FILE = path.join(ROOT, 'artifacts', 'passive-tree', '260828_3passive-tree-feature-effects.json');
+const SOURCE_FILE = path.join(ROOT, 'artifacts', 'passive-tree', '260831_2passive-normalized.json');
 const RUNTIME_FILE = path.join(ROOT, 'data', 'passive-tree-v22.js');
 const ICON_DIR = path.join(ROOT, 'assets', 'ui', 'passive-custom-icons');
 const PORT = Math.max(1, Number(process.env.PASSIVE_EDITOR_PORT) || 4175);

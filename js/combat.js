@@ -4139,7 +4139,6 @@ function getPlayerStats() {
     let finalDotTakenDamageReducePct = gearBase.dotTakenDamageReducePct + gearExplicit.dotTakenDamageReducePct + passive.dotTakenDamageReducePct + season.dotTakenDamageReducePct + ascend.dotTakenDamageReducePct + support.dotTakenDamageReducePct + reward.dotTakenDamageReducePct;
     let finalTakenDamageReduceWhen2EnemiesPct = gearBase.takenDamageReduceWhen2EnemiesPct + gearExplicit.takenDamageReduceWhen2EnemiesPct + passive.takenDamageReduceWhen2EnemiesPct + season.takenDamageReduceWhen2EnemiesPct + ascend.takenDamageReduceWhen2EnemiesPct + support.takenDamageReduceWhen2EnemiesPct + reward.takenDamageReduceWhen2EnemiesPct;
     let finalTakenDamageReduceWhen1EnemyPct = gearBase.takenDamageReduceWhen1EnemyPct + gearExplicit.takenDamageReduceWhen1EnemyPct + passive.takenDamageReduceWhen1EnemyPct + season.takenDamageReduceWhen1EnemyPct + ascend.takenDamageReduceWhen1EnemyPct + support.takenDamageReduceWhen1EnemyPct + reward.takenDamageReduceWhen1EnemyPct;
-    if (authoredPassiveRules.flags.duel) finalTakenDamageReduceWhen1EnemyPct += 10;
     let finalIgniteDamageMultiplierPct = gearBase.igniteDamageMultiplierPct + gearExplicit.igniteDamageMultiplierPct + passive.igniteDamageMultiplierPct + season.igniteDamageMultiplierPct + ascend.igniteDamageMultiplierPct + support.igniteDamageMultiplierPct + reward.igniteDamageMultiplierPct;
     let finalPoisonDamageMultiplierPct = gearExplicit.poisonDamageMultiplierPct + passive.poisonDamageMultiplierPct + season.poisonDamageMultiplierPct + ascend.poisonDamageMultiplierPct + support.poisonDamageMultiplierPct + reward.poisonDamageMultiplierPct;
     let finalChillEffectBonusPct = Math.max(0, sumStatAcrossBuckets('chillEffect'));
@@ -9818,7 +9817,7 @@ function getPassiveKeystoneHitMultiplier(pStats, target, hitIndex, targetIndex, 
         let distance = getGridUnitDistance(game.gridPlayer, target);
         multiplier *= distance >= 3 ? 1.25 : (distance <= 1 ? 0.75 : 1);
     }
-    if (flags.duel) multiplier *= (game.enemies || []).filter(enemy => enemy && enemy.hp > 0).length === 1 ? 1.35 : 0.85;
+    if (flags.duel) multiplier *= 1.3;
     if (flags.projectileFormation && targetIndex > 0) multiplier *= 0.6;
     if (flags.explosiveDistill) multiplier *= 0.75;
     if (flags.erosionLegacy && pStats.sSkill.ele === 'chaos') multiplier *= 0.85;

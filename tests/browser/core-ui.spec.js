@@ -44,6 +44,314 @@ async function dismissVisibleTutorials(page) {
     await expect(page.locator('#tutorial-overlay.active')).not.toBeVisible();
 }
 
+test('tutorial buttons stay reachable on small and landscape screens', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    for (const [width, height, light, lines] of [[390, 844, false, 1], [320, 568, false, 10],
+        [844, 390, false, 10], [320, 568, true, 10]]) {
+        await page.setViewportSize({ width, height });
+        await page.evaluate(({ light, lines }) => {
+            document.body.classList.toggle('light-mode', light);
+            game.settings.pauseGameOnOverlay = true;
+            game.seenTutorials = game.seenTutorials.filter(key => key !== 'tutorial_battle_basics');
+            queueTutorialNotice('tutorial_battle_basics', '전투와 성장 안내',
+                '전투는 자동으로 진행됩니다. 장비와 스킬, 패시브를 조합해 성장하세요.\n'.repeat(lines), 'tab-character');
+            showGameToast('새 콘텐츠를 확인하세요.');
+            enqueueMobileToast('새 콘텐츠를 확인하세요.', 'season-up');
+        }, { light, lines });
+        const card = page.locator('#tutorial-overlay .tutorial-card');
+        await expect(card).toBeVisible();
+        await page.screenshot({ path: testInfo.outputPath(`tutorial-${width}-${height}-${light}.png`) });
+        const bounds = await card.boundingBox();
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.y).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+        const navigation = await page.locator('#tab-header-bottom').boundingBox();
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(navigation.y);
+        for (const id of ['tutorial-dismiss-btn', 'tutorial-open-btn']) {
+            const button = page.locator(`#${id}`);
+            await expect(button).toBeInViewport({ ratio: 1 });
+            await button.click({ trial: true });
+        }
+        // Scrolling the content must reach the setting without moving the action row out of view.
+        const pauseToggle = page.locator('#tutorial-pause-overlay-toggle');
+        await pauseToggle.setChecked(false);
+        expect(await page.evaluate(() => game.settings.pauseGameOnOverlay)).toBe(false);
+        await expect(page.locator('#tutorial-open-btn')).toBeInViewport({ ratio: 1 });
+        await page.locator(width === 390 ? '#tutorial-open-btn' : '#tutorial-dismiss-btn').click();
+        await expect(card).not.toBeVisible();
+        if (width === 390) await expect(page.locator('#tab-character')).toHaveClass(/active/);
+    }
+    expect(failures).toEqual([]);
+});
+
+test('duel keystone tooltip displays the current melee-only contract', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => switchTab('tab-char'));
+    await expect(page.locator('#tab-char')).toHaveClass(/active/);
+    await page.evaluate(() => {
+        const node = PASSIVE_TREE.nodes.n2c51dapljo;
+        camZoom = 1;
+        camX = -node.x;
+        camY = -node.y;
+        drawPassiveTree();
+    });
+    const bounds = await page.locator('#tree-canvas').boundingBox();
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    const tooltip = page.locator('#canvas-tooltip');
+    await expect(tooltip).toContainText('결투의 규율');
+    await expect(tooltip).toContainText('근접 피해가 30% 증폭됩니다.');
+    await expect(tooltip).not.toContainText('받는 피해');
+    await page.screenshot({ path: testInfo.outputPath('duel-tooltip.png'), scale: 'css' });
+    expect(failures).toEqual([]);
+});
+
+test('physical lightning major responds to allocated devotion spokes', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => switchTab('tab-char'));
+    await expect(page.locator('#tab-char')).toHaveClass(/active/);
+    await page.evaluate(() => {
+        game.passivePoints = 100;
+        game.currencies.blightSpore = 5;
+        const activated = activatePassivePath('nulyw0mk1cz');
+        if (!activated.activated) throw new Error(JSON.stringify(activated));
+        const node = PASSIVE_TREE.nodes.nulyw0mk1cz;
+        camZoom = 1.6;
+        camX = -node.x * camZoom;
+        camY = -node.y * camZoom;
+        drawPassiveTree();
+    });
+    await page.screenshot({ path: testInfo.outputPath('storm-cluster.png'), scale: 'css' });
+    const bounds = await page.locator('#tree-canvas').boundingBox();
+    const tooltip = page.locator('#canvas-tooltip');
+    for (const [spoke, expected] of [[null, 50], ['n6edbwrjop1', 40], ['nxombfrjpre', 30]]) {
+        if (spoke) {
+            const result = await page.evaluate(id => activatePassivePath(id), spoke);
+            expect(result.activated).toBe(true);
+            expect(result.cost).toBe(1);
+        }
+        await page.mouse.move(bounds.x - 4, bounds.y + 20);
+        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        await expect(tooltip).toContainText(`물리 피해 +${expected}%`);
+        await expect(tooltip).toContainText(`번개 피해 +${expected}%`);
+        await expect(tooltip).toContainText('직접 연결된 헌신 1개 할당마다 각각 10%p 감소');
+        await expect(tooltip).not.toContainText('최대 생명력');
+    }
+    await page.screenshot({ path: testInfo.outputPath('storm-tooltip.png'), scale: 'css' });
+    await page.evaluate(() => refundPassiveNode('nxombfrjpre'));
+    expect(await page.evaluate(() => game.passives.includes('nxombfrjpre'))).toBe(false);
+    expect(await page.evaluate(() => getEffectivePassiveNodeEffects(PASSIVE_TREE.nodes.nulyw0mk1cz)))
+        .toEqual([{ stat: 'physPctDmg', val: 40 }, { stat: 'lightPctDmg', val: 40 }]);
+    expect(await page.evaluate(() => game.currencies.blightSpore)).toBe(4);
+    await page.mouse.move(bounds.x - 4, bounds.y + 20);
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    await expect(tooltip).toContainText('물리 피해 +40%');
+    expect(failures).toEqual([]);
+});
+
+test('curated passive support appears in search and tooltips', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => switchTab('tab-char'));
+    await expect(page.locator('#tab-char')).toHaveClass(/active/);
+    const cases = [
+        ['expansion_archer_arrow_fan_04', '연속 타격 +10%', 'arrow'],
+        ['completion_wanderer_dagger_09', '연속 타격 +10%', 'dagger'],
+        ['nmon3e1tgnr', '연속 타격 +10%', 'warrior'],
+        ['neryoj6rg9p', '주문 내장 피해 증가 +25%', 'spell'],
+        ['backbone_branch_occultist_outer_1_t1_n05', '주문 내장 피해 +10', 'spell-gem'],
+        ['newd0r0xeoe', '냉각 확률 +5%', 'cold'],
+        ['n5m0ntdx0a3', '번개 피해 +30%', 'lightning'],
+        ['n7sr619yw1e', '에너지 보호막 회복속도 +2%', 'recovery'],
+        ['nqfx25r1u7w', '재충전 대기시간 감소', 'recharge'],
+        ['backbone_branch_warrior_wanderer_center_t5_n05', '생명력 흡수 +1.0%', 'leech']
+    ];
+    for (const [id, label, name] of cases) {
+        await page.evaluate(id => {
+            const node = PASSIVE_TREE.nodes[id];
+            camZoom = 1.2;
+            camX = -node.x * camZoom;
+            camY = -node.y * camZoom;
+            drawPassiveTree();
+        }, id);
+        const bounds = await page.locator('#tree-canvas').boundingBox();
+        await page.mouse.move(bounds.x - 4, bounds.y + 20);
+        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        await expect(page.locator('#canvas-tooltip')).toContainText(label);
+        const search = await page.evaluate(id => getPassiveTreeNodeSearchText(PASSIVE_TREE.nodes[id]), id);
+        expect(search).toContain(label);
+        await page.screenshot({ path: testInfo.outputPath(`support-${name}.png`), scale: 'css' });
+    }
+    expect(failures).toEqual([]);
+});
+
+async function prepareResetCase(page, cloud = false) {
+    if (cloud) await page.route('**/cloud-save-config.js*', route => route.fulfill({
+        contentType: 'text/javascript',
+        body: "window.CLOUD_SAVE_CONFIG = { enabled: true, supabaseUrl: 'https://reset-test.invalid', supabaseAnonKey: 'test-only' };"
+    }));
+    await openLocalGame(page);
+    await page.evaluate(cloud => {
+        game.season = 17;
+        game.loopCount = 16;
+        if (cloud) {
+            window.CLOUD_SAVE_CONFIG = { enabled: true, supabaseUrl: 'https://reset-test.invalid', supabaseAnonKey: 'test-only' };
+            cloudState.configured = true;
+            applyCloudSession({ access_token: 'reset-test-token', refresh_token: 'reset-refresh', expires_at: 4102444800,
+                user: { id: 'reset-account', email: 'reset@example.invalid' } });
+            game.saveMeta.cloudUserId = 'reset-account';
+            game.saveMeta.cloudRevision = 2;
+        }
+        applySeasonContentProgression({ silent: true });
+        checkUnlocks();
+        detectNewMapUnlockAlarms();
+        saveGame({ skipCloudSync: true });
+        localStorage.setItem(LEGACY_SAVE_KEYS[0], localStorage.getItem(LOCAL_SAVE_KEY));
+        localStorage.setItem('unrelated-preference', 'keep');
+        switchTab('tab-settings');
+    }, cloud);
+    await dismissVisibleTutorials(page);
+}
+
+test('save reset clears only local progress for a guest after one confirmation', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    await prepareResetCase(page);
+    await page.locator('[onclick="resetGame()"]').click();
+    await expect(page.locator('#game-dialog-message')).toContainText('이 기기');
+    await page.locator('#game-dialog-cancel').click();
+    expect(await page.evaluate(() => game.season)).toBe(17);
+    await page.locator('[onclick="resetGame()"]').click();
+    await page.locator('#game-dialog-confirm').click();
+    await expect(page.locator('#startup-overlay')).toHaveClass(/active/);
+    expect(await page.evaluate(() => ({
+        loop: game.season, user: cloudState.user,
+        legacy: localStorage.getItem(LEGACY_SAVE_KEYS[0]), other: localStorage.getItem('unrelated-preference')
+    }))).toEqual({ loop: 1, user: null, legacy: null, other: 'keep' });
+    expect(failures).toEqual([]);
+});
+
+test('save reset replaces the signed-in account and does not restore old high-loop progress', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await prepareResetCase(page, true);
+    const oldSave = await page.evaluate(() => JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY)));
+    let remote = { user_id: 'reset-account', save_data: oldSave, revision: 7, updated_at: new Date().toISOString() };
+    const writes = [];
+    await page.route('https://reset-test.invalid/**', async route => {
+        const request = route.request();
+        if (request.url().includes('/auth/v1/token')) return route.fulfill({ json: {
+            access_token: 'reset-test-token', refresh_token: 'reset-refresh', expires_at: 4102444800,
+            user: { id: 'reset-account', email: 'reset@example.invalid' }
+        } });
+        if (!/\/cloud_saves\?|\/rpc\/commit_cloud_save$/.test(request.url())) return route.fulfill({ json: [] });
+        expect(request.headers().authorization).toBe('Bearer reset-test-token');
+        if (request.method() === 'GET') {
+            expect(request.url()).toContain('user_id=eq.reset-account');
+            return route.fulfill({ json: [remote] });
+        }
+        expect(request.url()).toContain('/rpc/commit_cloud_save');
+        const body = request.postDataJSON();
+        expect(await page.evaluate(() => ({
+            loop: game.season, save: saveGame({ skipCloudSync: true }), exit: pushCloudSaveOnPageExit('visibilitychange')
+        }))).toEqual({ loop: 17, save: false, exit: false });
+        writes.push(body);
+        expect(body.expected_revision).toBe(7);
+        remote = { ...remote, save_data: body.next_save_data, revision: 8 };
+        await route.fulfill({ json: [{ committed: true, current_revision: 8, saved_at: remote.updated_at }] });
+    });
+    await page.locator('[onclick="resetGame()"]').click();
+    await expect(page.locator('#game-dialog-message')).toContainText('reset@example.invalid');
+    expect(await page.evaluate(() => Number(getComputedStyle(document.getElementById('game-dialog-overlay')).zIndex)
+        > Number(getComputedStyle(document.getElementById('game-toast-region')).zIndex))).toBe(true);
+    await page.locator('#game-dialog-card').screenshot({ path: testInfo.outputPath('account-reset-confirm.png') });
+    await page.locator('#game-dialog-confirm').click();
+    await expect.poll(() => writes.length).toBe(1);
+    await expect(page.locator('#startup-overlay')).toHaveClass(/active/);
+    await expect(page.locator('#btn-startup-continue')).toBeVisible();
+    expect(await page.evaluate(() => cloudState.user.id)).toBe('reset-account');
+    expect(remote.save_data.season).toBe(1);
+    expect(remote.save_data.saveMeta.cloudUserId).toBe('reset-account');
+    expect(remote.save_data.saveMeta.cloudResetRevision).toBe(8);
+    // Simulate another device still holding the pre-reset save. Use real reconciliation and transport.
+    await page.evaluate(oldSave => {
+        window.CLOUD_SAVE_CONFIG = { enabled: true, supabaseUrl: 'https://reset-test.invalid', supabaseAnonKey: 'test-only' };
+        cloudState.configured = true;
+        applyCloudSession({ access_token: 'reset-test-token', user: { id: 'reset-account' } });
+        game = mergeDefaults(oldSave);
+        game.saveMeta.lastModifiedAt = Date.now() + 60000;
+    }, oldSave);
+    await page.evaluate(() => reconcileCloudSaveState({ preferRemoteOnResume: true }));
+    expect(await page.evaluate(() => game.season)).toBe(1);
+    expect(writes).toHaveLength(1);
+    expect(await page.evaluate(() => cloudState.user.id)).toBe('reset-account');
+    expect(failures).toEqual([]);
+});
+
+for (const failure of ['network', 'revision-conflict', 'account-change']) {
+    test(`save reset preserves local progress on ${failure}`, async ({ page }) => {
+        await prepareResetCase(page, true);
+        const before = await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY));
+        let writes = 0;
+        await page.route('https://reset-test.invalid/**', async route => {
+            if (!/\/cloud_saves\?|\/rpc\/commit_cloud_save$/.test(route.request().url())) return route.fulfill({ json: [] });
+            if (failure === 'network') return route.fulfill({ status: 503, json: { message: 'test network unavailable' } });
+            if (route.request().method() === 'GET') {
+                return route.fulfill({ json: [{ user_id: 'reset-account', revision: 7, save_data: JSON.parse(before) }] });
+            }
+            writes += 1;
+            await route.fulfill({ json: [{ committed: false, current_revision: 8 }] });
+        });
+        await page.locator('[onclick="resetGame()"]').click();
+        if (failure === 'account-change') await page.evaluate(() => applyCloudSession({ access_token: 'different-token', user: { id: 'different-account' } }));
+        await page.locator('#game-dialog-confirm').click();
+        await expect(page.locator('#game-toast-region')).toContainText('초기화하지 못했습니다');
+        expect(await page.evaluate(() => game.season)).toBe(17);
+        expect(await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY))).toBe(before);
+        expect(await page.evaluate(() => ({ busy: cloudState.busy, writable: canPersistLocalSave(), skip: !!window.__skipUnloadSaveOnce })))
+            .toEqual({ busy: false, writable: true, skip: false });
+        expect(writes).toBe(failure === 'revision-conflict' ? 1 : 0);
+        await expect(page.locator('#startup-overlay')).not.toHaveClass(/active/);
+    });
+}
+
+for (const cloud of [false, true]) {
+    test(`save reset handles local storage failure with cloud=${cloud}`, async ({ page }) => {
+        await prepareResetCase(page, cloud);
+        const before = await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY));
+        let remote = { user_id: 'reset-account', revision: 7, save_data: JSON.parse(before) };
+        let writes = 0;
+        await page.route('https://reset-test.invalid/**', async route => {
+            if (!/\/cloud_saves\?|\/rpc\/commit_cloud_save$/.test(route.request().url())) return route.fulfill({ json: [] });
+            if (route.request().method() === 'GET') return route.fulfill({ json: [remote] });
+            writes += 1;
+            remote = { ...remote, revision: 8, updated_at: new Date().toISOString(), save_data: route.request().postDataJSON().next_save_data };
+            await route.fulfill({ json: [{ committed: true, current_revision: 8, saved_at: remote.updated_at }] });
+        });
+        await page.evaluate(() => {
+            const setItem = Storage.prototype.setItem;
+            window.restoreTestStorage = () => { Storage.prototype.setItem = setItem; };
+            Storage.prototype.setItem = function (key, value) {
+                if (key === LOCAL_SAVE_KEY) throw new DOMException('test quota exceeded', 'QuotaExceededError');
+                return setItem.call(this, key, value);
+            };
+        });
+        await page.locator('[onclick="resetGame()"]').click();
+        await page.locator('#game-dialog-confirm').click();
+        await expect(page.locator('#game-toast-region')).toContainText('초기화하지 못했습니다');
+        expect(await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY))).toBe(before);
+        expect(await page.evaluate(() => ({ loop: game.season, writable: canPersistLocalSave(), skip: !!window.__skipUnloadSaveOnce })))
+            .toEqual({ loop: cloud ? 1 : 17, writable: !cloud, skip: false });
+        expect(writes).toBe(cloud ? 1 : 0);
+        await page.evaluate(() => window.restoreTestStorage());
+        if (cloud) {
+            await page.evaluate(() => reconcileCloudSaveState({ preferRemoteOnResume: true }));
+            expect(await page.evaluate(() => JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY)).season)).toBe(1);
+            expect(writes).toBe(1);
+        }
+    });
+}
+
 test('entry screen establishes the reliquary palette without horizontal overflow', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await page.route('https://**', route => route.fulfill({ status: 204, contentType: 'text/javascript', body: '' }));

@@ -21,7 +21,7 @@ function runtimeNode(node) {
         stat: effects[0] ? effects[0].stat : null, val: effects[0] ? effects[0].val : 0, effects };
     ['archetype', 'effectArchetype', 'startClassId', 'starWedgeMode', 'intentionalNoEffect', 'hiddenByKeystoneId', 'hiddenRouteNodeIds',
         'choiceGroup', 'keystoneEffectId', 'distanceFromClassStart', 'powerBand', 'specialVariation',
-        'specialSynergyClass', 'activationRequirement', 'iconFamily', 'iconAsset'].forEach(key => {
+        'specialSynergyClass', 'activationRequirement', 'connectedDevotionPenalty', 'iconFamily', 'iconAsset'].forEach(key => {
         if (node[key] !== undefined) output[key] = node[key];
     });
     return output;

@@ -10675,21 +10675,21 @@
       "x": 350,
       "y": 1950,
       "type": "assist",
-      "name": "최대 생명력",
-      "desc": "최대 생명력 +2%",
+      "name": "생명력 흡수",
+      "desc": "생명력 흡수 +0.5%",
       "mods": [
         {
-          "statId": "pctHp",
-          "value": 2
+          "statId": "leech",
+          "value": 0.5
         }
       ],
-      "statAutoName": true,
-      "archetype": "armor",
-      "optionProfile": "topology:bundle:armor:pctHp",
+      "statAutoName": false,
+      "archetype": "life",
+      "optionProfile": "manual:nqjbg9yt7vt",
       "runtimeEffects": [
         {
-          "statId": "pctHp",
-          "value": 2
+          "statId": "leech",
+          "value": 0.5
         }
       ],
       "optionClusterId": "anchor:nmon3e1tgnr",
@@ -10697,25 +10697,25 @@
       "powerBand": 0
     },
     {
-      "cat": "def",
+      "cat": "atk",
       "id": "n7fsonptami",
       "x": 422.5,
       "y": 1854.33,
       "type": "assist",
-      "name": "전열의 체력",
-      "desc": "최대 생명력 +3%",
+      "name": "연속 타격",
+      "desc": "연속 타격 +3%p",
       "mods": [
         {
-          "statId": "pctHp",
+          "statId": "ds",
           "value": 3
         }
       ],
-      "statAutoName": true,
-      "archetype": "armor",
-      "optionProfile": "전열의 체력",
+      "statAutoName": false,
+      "archetype": "melee",
+      "optionProfile": "manual:n7fsonptami",
       "runtimeEffects": [
         {
-          "statId": "pctHp",
+          "statId": "ds",
           "value": 3
         }
       ],
@@ -10724,25 +10724,25 @@
       "powerBand": 0
     },
     {
-      "cat": "str",
+      "cat": "physical",
       "id": "nmon3e1tgnr",
       "x": 406.83,
       "y": 1911.83,
       "type": "major",
-      "name": "맹렬한 완력",
-      "desc": "근접 피해 +30%\n초당 생명력 재생 +1%",
+      "name": "끊임없는 맹공",
+      "desc": "근접 피해 +30%\n연속 타격 +10%p",
       "mods": [
         {
           "statId": "meleePctDmg",
           "value": 30
         },
         {
-          "statId": "regen",
-          "value": 1
+          "statId": "ds",
+          "value": 10
         }
       ],
       "statAutoName": false,
-      "archetype": "strength",
+      "archetype": "melee",
       "optionProfile": "manual:nmon3e1tgnr",
       "runtimeEffects": [
         {
@@ -10750,8 +10750,8 @@
           "value": 30
         },
         {
-          "statId": "regen",
-          "value": 1
+          "statId": "ds",
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:nmon3e1tgnr",
@@ -23067,7 +23067,7 @@
       "y": 880,
       "type": "keystone",
       "name": "결투의 규율",
-      "desc": "살아 있는 적이 1명일 때 근접 피해가 35% 증폭되고 받는 피해가 10% 감폭됩니다.\n살아 있는 적이 2명 이상일 때 근접 피해가 15% 감폭됩니다.",
+      "desc": "근접 피해가 30% 증폭됩니다.",
       "mods": [],
       "statAutoName": false,
       "runtimeEffects": [],
@@ -29360,15 +29360,15 @@
       "y": -1500,
       "type": "major",
       "name": "변성의 뇌광",
-      "desc": "번개 피해 +20%\n감전 효율 +12%",
+      "desc": "번개 피해 +30%\n감전 효율 +15%",
       "mods": [
         {
           "statId": "lightPctDmg",
-          "value": 20
+          "value": 30
         },
         {
           "statId": "shockEffect",
-          "value": 12
+          "value": 15
         }
       ],
       "statAutoName": false,
@@ -29377,11 +29377,11 @@
       "runtimeEffects": [
         {
           "statId": "lightPctDmg",
-          "value": 20
+          "value": 30
         },
         {
           "statId": "shockEffect",
-          "value": 12
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:n5m0ntdx0a3",
@@ -29394,21 +29394,21 @@
       "x": 120,
       "y": -1460,
       "type": "assist",
-      "name": "전도성 핵",
-      "desc": "번개 피해 +7%",
+      "name": "번개 피해",
+      "desc": "번개 피해 +10%",
       "mods": [
         {
           "statId": "lightPctDmg",
-          "value": 7
+          "value": 10
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "lightning",
-      "optionProfile": "전도성 핵",
+      "optionProfile": "manual:ngxf5hpx0nn",
       "runtimeEffects": [
         {
           "statId": "lightPctDmg",
-          "value": 7
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:n5m0ntdx0a3",
@@ -29421,21 +29421,21 @@
       "x": 160,
       "y": -1480,
       "type": "assist",
-      "name": "번개 관통",
-      "desc": "번개 피해 +5%",
+      "name": "번개 피해",
+      "desc": "번개 피해 +10%",
       "mods": [
         {
           "statId": "lightPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "lightning",
-      "optionProfile": "번개 관통",
+      "optionProfile": "manual:nneueobx1bl",
       "runtimeEffects": [
         {
           "statId": "lightPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:n5m0ntdx0a3",
@@ -29448,21 +29448,21 @@
       "x": 180,
       "y": -1420,
       "type": "assist",
-      "name": "폭발하는 뇌광",
-      "desc": "번개 피해 +5%",
+      "name": "번개 피해",
+      "desc": "번개 피해 +10%",
       "mods": [
         {
           "statId": "lightPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "lightning",
-      "optionProfile": "폭발하는 뇌광",
+      "optionProfile": "manual:nvwwsyax27g",
       "runtimeEffects": [
         {
           "statId": "lightPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:n5m0ntdx0a3",
@@ -29502,21 +29502,21 @@
       "x": 160,
       "y": -1380,
       "type": "assist",
-      "name": "깨지는 서리",
-      "desc": "냉기 피해 +5%",
+      "name": "냉기 피해",
+      "desc": "냉기 피해 +10%",
       "mods": [
         {
           "statId": "coldPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "cold",
-      "optionProfile": "깨지는 서리",
+      "optionProfile": "manual:n7mumm5x6wu",
       "runtimeEffects": [
         {
           "statId": "coldPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:nsi1cc6xdjs",
@@ -29564,21 +29564,21 @@
       "x": 80,
       "y": -1380,
       "type": "assist",
-      "name": "빙결의 장막",
-      "desc": "냉기 피해 +5%",
+      "name": "냉기 피해",
+      "desc": "냉기 피해 +10%",
       "mods": [
         {
           "statId": "coldPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "cold",
-      "optionProfile": "빙결의 장막",
+      "optionProfile": "manual:nycdq27xe3s",
       "runtimeEffects": [
         {
           "statId": "coldPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:nsi1cc6xdjs",
@@ -29591,21 +29591,21 @@
       "x": 120,
       "y": -1360,
       "type": "assist",
-      "name": "차가운 핵",
-      "desc": "냉기 피해 +7%",
+      "name": "냉각 확률",
+      "desc": "냉각 확률 +5%p",
       "mods": [
         {
-          "statId": "coldPctDmg",
-          "value": 7
+          "statId": "chillChance",
+          "value": 5
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "cold",
-      "optionProfile": "차가운 핵",
+      "optionProfile": "manual:newd0r0xeoe",
       "runtimeEffects": [
         {
-          "statId": "coldPctDmg",
-          "value": 7
+          "statId": "chillChance",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:nsi1cc6xdjs",
@@ -30390,7 +30390,7 @@
       }
     },
     {
-      "cat": "int",
+      "cat": "fire",
       "id": "nhenzv8gp4i",
       "x": 1100,
       "y": -480,
@@ -30399,7 +30399,7 @@
       "desc": "화염 피해 +30%\n초당 생명력 재생 +1%",
       "mods": [
         {
-          "statId": "pctDmg",
+          "statId": "firePctDmg",
           "value": 30
         },
         {
@@ -30408,11 +30408,11 @@
         }
       ],
       "statAutoName": false,
-      "archetype": "intelligence",
+      "archetype": "fire",
       "optionProfile": "manual:nhenzv8gp4i",
       "runtimeEffects": [
         {
-          "statId": "pctDmg",
+          "statId": "firePctDmg",
           "value": 30
         },
         {
@@ -30425,16 +30425,16 @@
       "powerBand": 3
     },
     {
-      "cat": "int",
+      "cat": "cold",
       "id": "nlwk06igprm",
       "x": 1100,
       "y": -100,
       "type": "major",
       "name": "금단의 설화",
-      "desc": "피해 +30%\n주문 피해 +20%",
+      "desc": "냉기 피해 +30%\n주문 피해 +20%",
       "mods": [
         {
-          "statId": "pctDmg",
+          "statId": "coldPctDmg",
           "value": 30
         },
         {
@@ -30443,11 +30443,11 @@
         }
       ],
       "statAutoName": false,
-      "archetype": "intelligence",
+      "archetype": "cold",
       "optionProfile": "manual:nlwk06igprm",
       "runtimeEffects": [
         {
-          "statId": "pctDmg",
+          "statId": "coldPctDmg",
           "value": 30
         },
         {
@@ -30460,7 +30460,7 @@
       "powerBand": 3
     },
     {
-      "cat": "int",
+      "cat": "lightning",
       "id": "ndru1xggqhg",
       "x": 980,
       "y": -300,
@@ -30469,7 +30469,7 @@
       "desc": "번개 피해 +25%\n이동 속도 +6%",
       "mods": [
         {
-          "statId": "pctDmg",
+          "statId": "lightPctDmg",
           "value": 25
         },
         {
@@ -30478,11 +30478,11 @@
         }
       ],
       "statAutoName": false,
-      "archetype": "intelligence",
+      "archetype": "lightning",
       "optionProfile": "manual:ndru1xggqhg",
       "runtimeEffects": [
         {
-          "statId": "pctDmg",
+          "statId": "lightPctDmg",
           "value": 25
         },
         {
@@ -30930,23 +30930,23 @@
       "x": -1953.1217782649103,
       "y": -637.3686027918561,
       "type": "minor",
-      "name": "치명타 확률",
-      "desc": "치명타 확률 +1%p",
+      "name": "연속 타격",
+      "desc": "연속 타격 +3%p",
       "mods": [
         {
-          "statId": "crit",
-          "value": 1
+          "statId": "ds",
+          "value": 3
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "projectile",
       "runtimeEffects": [
         {
-          "statId": "crit",
-          "value": 1
+          "statId": "ds",
+          "value": 3
         }
       ],
-      "optionProfile": "topology:bundle:projectile:crit",
+      "optionProfile": "manual:expansion_archer_arrow_fan_02",
       "optionClusterId": "anchor:expansion_archer_arrow_fan_07",
       "distanceFromClassStart": 6,
       "powerBand": 0
@@ -30985,18 +30985,18 @@
       "y": -472.10580837556745,
       "type": "major",
       "name": "쏟아지는 화살",
-      "desc": "투사체 피해 +30%\n스킬 속도 +8%",
+      "desc": "투사체 피해 +30%\n연속 타격 +10%p",
       "mods": [
         {
           "statId": "projectilePctDmg",
           "value": 30
         },
         {
-          "statId": "aspd",
-          "value": 8
+          "statId": "ds",
+          "value": 10
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "projectile",
       "runtimeEffects": [
         {
@@ -31004,8 +31004,8 @@
           "value": 30
         },
         {
-          "statId": "aspd",
-          "value": 8
+          "statId": "ds",
+          "value": 10
         }
       ],
       "optionProfile": "manual:expansion_archer_arrow_fan_04",
@@ -31197,23 +31197,23 @@
       "x": -2032.5352077758098,
       "y": -504.9166975080228,
       "type": "minor",
-      "name": "투사체 피해",
-      "desc": "투사체 피해 +6%",
+      "name": "연속 타격",
+      "desc": "연속 타격 +3%p",
       "mods": [
         {
-          "statId": "projectilePctDmg",
-          "value": 6
+          "statId": "ds",
+          "value": 3
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "projectile",
       "runtimeEffects": [
         {
-          "statId": "projectilePctDmg",
-          "value": 6
+          "statId": "ds",
+          "value": 3
         }
       ],
-      "optionProfile": "authored:투사체 피해",
+      "optionProfile": "manual:expansion_archer_arrow_fan_11",
       "optionClusterId": "anchor:expansion_archer_arrow_fan_07",
       "distanceFromClassStart": 9,
       "powerBand": 1
@@ -34320,33 +34320,33 @@
       "powerBand": 1
     },
     {
-      "cat": "dex",
+      "cat": "physical",
       "id": "completion_wanderer_dagger_09",
       "x": -2135.2700000000004,
       "y": 552.8499999999999,
       "type": "major",
-      "name": "그림자의 보법",
-      "desc": "근접 피해 +25%\n이동 속도 +6%",
+      "name": "그림자 연참",
+      "desc": "근접 피해 +25%\n연속 타격 +10%p",
       "mods": [
         {
           "statId": "meleePctDmg",
           "value": 25
         },
         {
-          "statId": "move",
-          "value": 6
+          "statId": "ds",
+          "value": 10
         }
       ],
-      "statAutoName": true,
-      "archetype": "dexterity",
+      "statAutoName": false,
+      "archetype": "melee",
       "runtimeEffects": [
         {
           "statId": "meleePctDmg",
           "value": 25
         },
         {
-          "statId": "move",
-          "value": 6
+          "statId": "ds",
+          "value": 10
         }
       ],
       "optionProfile": "manual:completion_wanderer_dagger_09",
@@ -34360,23 +34360,23 @@
       "x": -2087.6400000000003,
       "y": 580.3399999999999,
       "type": "minor",
-      "name": "기본 피해",
-      "desc": "기본 피해 +2",
+      "name": "연속 타격",
+      "desc": "연속 타격 +3%p",
       "mods": [
         {
-          "statId": "flatDmg",
-          "value": 2
+          "statId": "ds",
+          "value": 3
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "melee",
       "runtimeEffects": [
         {
-          "statId": "flatDmg",
-          "value": 2
+          "statId": "ds",
+          "value": 3
         }
       ],
-      "optionProfile": "topology:bundle:melee:flatDmg",
+      "optionProfile": "manual:completion_wanderer_dagger_10",
       "optionClusterId": "anchor:completion_wanderer_dagger_01",
       "distanceFromClassStart": 8,
       "powerBand": 1
@@ -36231,7 +36231,7 @@
       "y": 540,
       "type": "major",
       "name": "수호의 외피",
-      "desc": "에너지 보호막 +35%\n에너지 보호막 회복 속도 +3%",
+      "desc": "에너지 보호막 +35%\n에너지 보호막 회복 속도 +5%",
       "mods": [
         {
           "statId": "energyShieldPct",
@@ -36239,7 +36239,7 @@
         },
         {
           "statId": "energyShieldRegen",
-          "value": 3
+          "value": 5
         }
       ],
       "statAutoName": false,
@@ -36252,7 +36252,7 @@
         },
         {
           "statId": "energyShieldRegen",
-          "value": 3
+          "value": 5
         }
       ],
       "optionClusterId": "bundle:n7sr619yw1e",
@@ -36265,21 +36265,21 @@
       "x": 500,
       "y": 540,
       "type": "minor",
-      "name": "차오르는 장막",
-      "desc": "초당 생명력 재생 +0.5%",
+      "name": "에너지 보호막 회복 속도",
+      "desc": "에너지 보호막 회복 속도 +2%",
       "mods": [
         {
-          "statId": "regen",
-          "value": 0.5
+          "statId": "energyShieldRegen",
+          "value": 2
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "energyShield",
-      "optionProfile": "차오르는 장막",
+      "optionProfile": "manual:n7sr619yw1e",
       "runtimeEffects": [
         {
-          "statId": "regen",
-          "value": 0.5
+          "statId": "energyShieldRegen",
+          "value": 2
         }
       ],
       "optionClusterId": "bundle:n7sr619yw1e",
@@ -36319,21 +36319,21 @@
       "x": 560,
       "y": 560,
       "type": "minor",
-      "name": "차오르는 장막",
-      "desc": "초당 생명력 재생 +0.5%",
+      "name": "에너지 보호막 회복 속도",
+      "desc": "에너지 보호막 회복 속도 +2%",
       "mods": [
         {
-          "statId": "regen",
-          "value": 0.5
+          "statId": "energyShieldRegen",
+          "value": 2
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "energyShield",
-      "optionProfile": "차오르는 장막",
+      "optionProfile": "manual:njmuxz1yyb0",
       "runtimeEffects": [
         {
-          "statId": "regen",
-          "value": 0.5
+          "statId": "energyShieldRegen",
+          "value": 2
         }
       ],
       "optionClusterId": "bundle:n7sr619yw1e",
@@ -36646,53 +36646,69 @@
       "powerBand": 1
     },
     {
-      "cat": "def",
+      "cat": "physical",
       "id": "nk750y2jewy",
       "x": 940,
       "y": 40,
       "type": "minor",
-      "name": "정신의 외피",
-      "desc": "에너지 보호막 +6%",
+      "name": "물리 및 번개 피해",
+      "desc": "물리 및 번개 피해 +7%",
       "mods": [
         {
-          "statId": "energyShieldPct",
-          "value": 6
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
-      "statAutoName": true,
-      "archetype": "energyShield",
-      "optionProfile": "정신의 외피",
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:nk750y2jewy",
       "runtimeEffects": [
         {
-          "statId": "energyShieldPct",
-          "value": 6
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
-      "optionClusterId": "anchor:nechlcscvnr",
+      "optionClusterId": "anchor:nulyw0mk1cz",
       "distanceFromClassStart": 12,
       "powerBand": 1
     },
     {
-      "cat": "devotion",
+      "cat": "physical",
       "id": "ntm85xjjfrx",
       "x": 900,
       "y": 0,
       "type": "minor",
-      "name": "계시",
-      "desc": "계시 +1",
+      "name": "물리 및 번개 피해",
+      "desc": "물리 및 번개 피해 +7%",
       "mods": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
-      "statAutoName": true,
-      "archetype": "devotion",
-      "optionProfile": "생명의 헌신",
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:ntm85xjjfrx",
       "runtimeEffects": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
       "optionClusterId": "anchor:nulyw0mk1cz",
@@ -36700,26 +36716,34 @@
       "powerBand": 1
     },
     {
-      "cat": "devotion",
+      "cat": "physical",
       "id": "nm7813yjg54",
       "x": 860,
       "y": 0,
       "type": "minor",
-      "name": "계시",
-      "desc": "계시 +1",
+      "name": "물리 및 번개 피해",
+      "desc": "물리 및 번개 피해 +7%",
       "mods": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
-      "statAutoName": true,
-      "archetype": "devotion",
-      "optionProfile": "작은 헌신",
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:nm7813yjg54",
       "runtimeEffects": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
       "optionClusterId": "anchor:nulyw0mk1cz",
@@ -36727,26 +36751,34 @@
       "powerBand": 2
     },
     {
-      "cat": "devotion",
+      "cat": "physical",
       "id": "nspi20ejgh8",
       "x": 820,
       "y": 40,
       "type": "minor",
-      "name": "계시",
-      "desc": "계시 +1",
+      "name": "물리 및 번개 피해",
+      "desc": "물리 및 번개 피해 +7%",
       "mods": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
-      "statAutoName": true,
-      "archetype": "devotion",
-      "optionProfile": "전투의 헌신",
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:nspi20ejgh8",
       "runtimeEffects": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
       "optionClusterId": "anchor:nulyw0mk1cz",
@@ -36754,53 +36786,69 @@
       "powerBand": 2
     },
     {
-      "cat": "def",
+      "cat": "physical",
       "id": "nz8vzbtji7n",
       "x": 900,
       "y": 80,
       "type": "minor",
-      "name": "비전 방벽",
-      "desc": "에너지 보호막 +13",
+      "name": "물리 및 번개 피해",
+      "desc": "물리 및 번개 피해 +7%",
       "mods": [
         {
-          "statId": "energyShield",
-          "value": 13
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
-      "statAutoName": true,
-      "archetype": "energyShield",
-      "optionProfile": "비전 방벽",
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:nz8vzbtji7n",
       "runtimeEffects": [
         {
-          "statId": "energyShield",
-          "value": 13
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
-      "optionClusterId": "anchor:nechlcscvnr",
+      "optionClusterId": "anchor:nulyw0mk1cz",
       "distanceFromClassStart": 11,
       "powerBand": 1
     },
     {
-      "cat": "devotion",
+      "cat": "physical",
       "id": "n44sj00jimz",
       "x": 780,
       "y": 40,
       "type": "minor",
-      "name": "계시",
-      "desc": "계시 +1",
+      "name": "물리 및 번개 피해",
+      "desc": "물리 및 번개 피해 +7%",
       "mods": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
-      "statAutoName": true,
-      "archetype": "devotion",
-      "optionProfile": "수호의 헌신",
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:n44sj00jimz",
       "runtimeEffects": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
       "optionClusterId": "anchor:nulyw0mk1cz",
@@ -36943,26 +36991,34 @@
       "powerBand": 2
     },
     {
-      "cat": "devotion",
+      "cat": "physical",
       "id": "ny0b9czjubr",
       "x": 760,
       "y": 0,
       "type": "minor",
-      "name": "계시",
-      "desc": "계시 +1",
+      "name": "물리 및 번개 피해",
+      "desc": "물리 및 번개 피해 +7%",
       "mods": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
-      "statAutoName": true,
-      "archetype": "devotion",
-      "optionProfile": "생명의 헌신",
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:ny0b9czjubr",
       "runtimeEffects": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 7
+        },
+        {
+          "statId": "lightPctDmg",
+          "value": 7
         }
       ],
       "optionClusterId": "anchor:nulyw0mk1cz",
@@ -36970,39 +37026,40 @@
       "powerBand": 2
     },
     {
-      "cat": "devotion",
+      "cat": "physical",
       "id": "nulyw0mk1cz",
       "x": 761,
       "y": -40,
       "type": "major",
       "name": "물리 및 번개 피해",
-      "desc": "헌신 +1\n최대 생명력 +6%",
+      "desc": "물리 및 번개 피해 +50%\n직접 연결된 헌신 1개 할당마다 이 노드의 물리 및 번개 피해 증가량 10%p 감소",
       "mods": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 50
         },
         {
-          "statId": "pctHp",
-          "value": 6
+          "statId": "lightPctDmg",
+          "value": 50
         }
       ],
       "statAutoName": false,
-      "archetype": "devotion",
+      "archetype": "physical",
       "optionProfile": "manual:nulyw0mk1cz",
       "runtimeEffects": [
         {
-          "statId": "devotion",
-          "value": 1
+          "statId": "physPctDmg",
+          "value": 50
         },
         {
-          "statId": "pctHp",
-          "value": 6
+          "statId": "lightPctDmg",
+          "value": 50
         }
       ],
       "optionClusterId": "anchor:nulyw0mk1cz",
       "distanceFromClassStart": 18,
-      "powerBand": 2
+      "powerBand": 2,
+      "connectedDevotionPenalty": 10
     },
     {
       "cat": "int",
@@ -39483,26 +39540,26 @@
       "powerBand": 1
     },
     {
-      "cat": "chaos",
+      "cat": "spell",
       "id": "njbqg7vrd9k",
       "x": 1180,
       "y": -820,
       "type": "minor",
-      "name": "저항 관통",
-      "desc": "저항 관통 +1%",
+      "name": "주문 내장 피해",
+      "desc": "주문 내장 피해 +5",
       "mods": [
         {
-          "statId": "resPen",
-          "value": 1
+          "statId": "spellFlatDmg",
+          "value": 5
         }
       ],
-      "statAutoName": true,
-      "archetype": "chaos",
-      "optionProfile": "topology:bundle:chaos:resPen",
+      "statAutoName": false,
+      "archetype": "spell",
+      "optionProfile": "manual:njbqg7vrd9k",
       "runtimeEffects": [
         {
-          "statId": "resPen",
-          "value": 1
+          "statId": "spellFlatDmg",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:neryoj6rg9p",
@@ -39510,26 +39567,26 @@
       "powerBand": 1
     },
     {
-      "cat": "chaos",
+      "cat": "spell",
       "id": "no3kqxbre07",
       "x": 1140,
       "y": -800,
       "type": "minor",
-      "name": "카오스 피해",
-      "desc": "카오스 피해 +4%",
+      "name": "주문 내장 피해 증가",
+      "desc": "주문 내장 피해 증가 +10%",
       "mods": [
         {
-          "statId": "chaosPctDmg",
-          "value": 4
+          "statId": "spellFlatPct",
+          "value": 10
         }
       ],
-      "statAutoName": true,
-      "archetype": "chaos",
-      "optionProfile": "topology:bundle:chaos:chaosPctDmg",
+      "statAutoName": false,
+      "archetype": "spell",
+      "optionProfile": "manual:no3kqxbre07",
       "runtimeEffects": [
         {
-          "statId": "chaosPctDmg",
-          "value": 4
+          "statId": "spellFlatPct",
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:neryoj6rg9p",
@@ -39537,34 +39594,34 @@
       "powerBand": 2
     },
     {
-      "cat": "chaos",
+      "cat": "spell",
       "id": "neryoj6rg9p",
       "x": 1120,
       "y": -760,
       "type": "major",
-      "name": "봉인된 주문핵",
-      "desc": "주문 피해 +30%\n스킬 속도 +8%",
+      "name": "응축된 주문핵",
+      "desc": "주문 내장 피해 증가 +25%\n주문 내장 피해 +15",
       "mods": [
         {
-          "statId": "spellPctDmg",
-          "value": 30
+          "statId": "spellFlatPct",
+          "value": 25
         },
         {
-          "statId": "aspd",
-          "value": 8
+          "statId": "spellFlatDmg",
+          "value": 15
         }
       ],
       "statAutoName": false,
-      "archetype": "chaos",
+      "archetype": "spell",
       "optionProfile": "manual:neryoj6rg9p",
       "runtimeEffects": [
         {
-          "statId": "spellPctDmg",
-          "value": 30
+          "statId": "spellFlatPct",
+          "value": 25
         },
         {
-          "statId": "aspd",
-          "value": 8
+          "statId": "spellFlatDmg",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:neryoj6rg9p",
@@ -40238,21 +40295,21 @@
       "x": 1040,
       "y": -880,
       "type": "minor",
-      "name": "응축된 보호막",
-      "desc": "에너지 보호막 +17",
+      "name": "에너지 보호막 재충전 대기시간 감소",
+      "desc": "에너지 보호막 재충전 대기시간 감소 +0.1초",
       "mods": [
         {
-          "statId": "energyShield",
-          "value": 17
+          "statId": "energyShieldRechargeFaster",
+          "value": 0.1
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "energyShield",
-      "optionProfile": "응축된 보호막",
+      "optionProfile": "manual:nqfx25r1u7w",
       "runtimeEffects": [
         {
-          "statId": "energyShield",
-          "value": 17
+          "statId": "energyShieldRechargeFaster",
+          "value": 0.1
         }
       ],
       "optionClusterId": "anchor:nc3w8091wzu",
@@ -40266,11 +40323,11 @@
       "y": -920,
       "type": "major",
       "name": "차원의 외피",
-      "desc": "에너지 보호막 +12%\n에너지 보호막 재충전 대기시간 감소 +0.5초",
+      "desc": "에너지 보호막 +20%\n에너지 보호막 재충전 대기시간 감소 +0.5초",
       "mods": [
         {
           "statId": "energyShieldPct",
-          "value": 12
+          "value": 20
         },
         {
           "statId": "energyShieldRechargeFaster",
@@ -40283,7 +40340,7 @@
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
-          "value": 12
+          "value": 20
         },
         {
           "statId": "energyShieldRechargeFaster",
@@ -51597,26 +51654,26 @@
       "expansionZone": "center"
     },
     {
-      "cat": "atk",
+      "cat": "def",
       "id": "backbone_branch_warrior_wanderer_center_t2_n02",
       "x": -602.95,
       "y": 526.72,
       "type": "assist",
-      "name": "기동 스킬 피해",
-      "desc": "기동 스킬 피해 +5%",
+      "name": "생명력 재생",
+      "desc": "초당 생명력 재생 +1%",
       "mods": [
         {
-          "statId": "mobilityPctDmg",
-          "value": 5
+          "statId": "regen",
+          "value": 1
         }
       ],
-      "statAutoName": true,
-      "archetype": "mobile_melee",
-      "optionProfile": "expansion:v30:warrior_wanderer_mobile_melee",
+      "statAutoName": false,
+      "archetype": "life",
+      "optionProfile": "manual:backbone_branch_warrior_wanderer_center_t2_n02",
       "runtimeEffects": [
         {
-          "statId": "mobilityPctDmg",
-          "value": 5
+          "statId": "regen",
+          "value": 1
         }
       ],
       "sourceOptionProfiles": [
@@ -51631,26 +51688,26 @@
       "expansionZone": "center"
     },
     {
-      "cat": "physical",
+      "cat": "def",
       "id": "backbone_branch_warrior_wanderer_center_t3_n03",
       "x": -669.08,
       "y": 601.74,
       "type": "minor",
-      "name": "출혈 확률",
-      "desc": "출혈 확률 +5%",
+      "name": "생명력 흡수",
+      "desc": "생명력 흡수 +0.5%",
       "mods": [
         {
-          "statId": "bleedChance",
-          "value": 5
+          "statId": "leech",
+          "value": 0.5
         }
       ],
-      "statAutoName": true,
-      "archetype": "bleed_crit",
-      "optionProfile": "expansion:v30:warrior_wanderer_bleed_crit",
+      "statAutoName": false,
+      "archetype": "life",
+      "optionProfile": "manual:backbone_branch_warrior_wanderer_center_t3_n03",
       "runtimeEffects": [
         {
-          "statId": "bleedChance",
-          "value": 5
+          "statId": "leech",
+          "value": 0.5
         }
       ],
       "sourceOptionProfiles": [
@@ -51670,29 +51727,29 @@
       "x": -678.02,
       "y": 527.2,
       "type": "normal",
-      "name": "유연한 갑주 집중",
-      "desc": "회피 +13%\n방어도 +5%",
+      "name": "피의 순환",
+      "desc": "최대 생명력 +10%\n생명력 흡수 +0.5%",
       "mods": [
         {
-          "statId": "evasionPct",
-          "value": 13
+          "statId": "pctHp",
+          "value": 10
         },
         {
-          "statId": "armorPct",
-          "value": 5
+          "statId": "leech",
+          "value": 0.5
         }
       ],
       "statAutoName": false,
-      "archetype": "evasion_armor",
-      "optionProfile": "expansion:v30:warrior_wanderer_evasion_armor",
+      "archetype": "life",
+      "optionProfile": "manual:backbone_branch_warrior_wanderer_center_t4_n04",
       "runtimeEffects": [
         {
-          "statId": "evasionPct",
-          "value": 13
+          "statId": "pctHp",
+          "value": 10
         },
         {
-          "statId": "armorPct",
-          "value": 5
+          "statId": "leech",
+          "value": 0.5
         }
       ],
       "sourceOptionProfiles": [
@@ -51712,29 +51769,29 @@
       "x": -750.1,
       "y": 530.32,
       "type": "major",
-      "name": "빠른 중격",
-      "desc": "최소 피해 보정 +10%\n공격 속도 +10%",
+      "name": "끝없는 갈증",
+      "desc": "스킬 속도 +10%\n생명력 흡수 +1%",
       "mods": [
-        {
-          "statId": "minDmgRoll",
-          "value": 10
-        },
         {
           "statId": "aspd",
           "value": 10
+        },
+        {
+          "statId": "leech",
+          "value": 1
         }
       ],
       "statAutoName": false,
-      "archetype": "roll_speed",
-      "optionProfile": "expansion:v30:warrior_wanderer_roll_speed",
+      "archetype": "life",
+      "optionProfile": "manual:backbone_branch_warrior_wanderer_center_t5_n05",
       "runtimeEffects": [
-        {
-          "statId": "minDmgRoll",
-          "value": 10
-        },
         {
           "statId": "aspd",
           "value": 10
+        },
+        {
+          "statId": "leech",
+          "value": 1
         }
       ],
       "sourceOptionProfiles": [
@@ -52294,20 +52351,20 @@
       "x": 1691.42,
       "y": -1387.86,
       "type": "assist",
-      "name": "주문 피해",
-      "desc": "주문 피해 +5%",
+      "name": "주문 내장 피해",
+      "desc": "주문 내장 피해 +5",
       "mods": [
         {
-          "statId": "spellPctDmg",
+          "statId": "spellFlatDmg",
           "value": 5
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "spell",
-      "optionProfile": "expansion:v30:occultist_spell",
+      "optionProfile": "manual:backbone_branch_occultist_outer_1_t1_n01",
       "runtimeEffects": [
         {
-          "statId": "spellPctDmg",
+          "statId": "spellFlatDmg",
           "value": 5
         }
       ],
@@ -52328,29 +52385,21 @@
       "x": 1742.36,
       "y": -1377.44,
       "type": "normal",
-      "name": "집중의 핵 집중",
-      "desc": "채널링 피해 +13%\n주문 피해 +5%",
+      "name": "주문 내장 피해 증가",
+      "desc": "주문 내장 피해 증가 +15%",
       "mods": [
         {
-          "statId": "channelingPctDmg",
-          "value": 13
-        },
-        {
-          "statId": "spellPctDmg",
-          "value": 5
+          "statId": "spellFlatPct",
+          "value": 15
         }
       ],
       "statAutoName": false,
-      "archetype": "channel",
-      "optionProfile": "expansion:v30:occultist_channel",
+      "archetype": "spell",
+      "optionProfile": "manual:backbone_branch_occultist_outer_1_t2_n02",
       "runtimeEffects": [
         {
-          "statId": "channelingPctDmg",
-          "value": 13
-        },
-        {
-          "statId": "spellPctDmg",
-          "value": 5
+          "statId": "spellFlatPct",
+          "value": 15
         }
       ],
       "sourceOptionProfiles": [
@@ -52365,25 +52414,25 @@
       "expansionZone": "class"
     },
     {
-      "cat": "chaos",
+      "cat": "spell",
       "id": "backbone_branch_occultist_outer_1_t3_n03",
       "x": 1802.37,
       "y": -1421.31,
       "type": "minor",
-      "name": "카오스 피해",
-      "desc": "카오스 피해 +5%",
+      "name": "주문 내장 피해",
+      "desc": "주문 내장 피해 +5",
       "mods": [
         {
-          "statId": "chaosPctDmg",
+          "statId": "spellFlatDmg",
           "value": 5
         }
       ],
-      "statAutoName": true,
-      "archetype": "chaos",
-      "optionProfile": "expansion:v30:occultist_chaos",
+      "statAutoName": false,
+      "archetype": "spell",
+      "optionProfile": "manual:backbone_branch_occultist_outer_1_t3_n03",
       "runtimeEffects": [
         {
-          "statId": "chaosPctDmg",
+          "statId": "spellFlatDmg",
           "value": 5
         }
       ],
@@ -52447,15 +52496,15 @@
       "y": -1410.49,
       "type": "major",
       "name": "상위 주문 각인",
-      "desc": "주문 피해 +30%\n주문 스킬 젬 레벨 +1",
+      "desc": "주문 스킬 젬 레벨 +1\n주문 내장 피해 +10",
       "mods": [
-        {
-          "statId": "spellPctDmg",
-          "value": 30
-        },
         {
           "statId": "spellGemLevel",
           "value": 1
+        },
+        {
+          "statId": "spellFlatDmg",
+          "value": 10
         }
       ],
       "statAutoName": false,
@@ -52463,12 +52512,12 @@
       "optionProfile": "manual:backbone_branch_occultist_outer_1_t1_n05",
       "runtimeEffects": [
         {
-          "statId": "spellPctDmg",
-          "value": 30
-        },
-        {
           "statId": "spellGemLevel",
           "value": 1
+        },
+        {
+          "statId": "spellFlatDmg",
+          "value": 10
         }
       ],
       "sourceOptionProfiles": [
@@ -52488,21 +52537,21 @@
       "x": 1833.23,
       "y": -1302.72,
       "type": "minor",
-      "name": "채널링 피해",
-      "desc": "채널링 피해 +5%",
+      "name": "주문 내장 피해 증가",
+      "desc": "주문 내장 피해 증가 +10%",
       "mods": [
         {
-          "statId": "channelingPctDmg",
-          "value": 5
+          "statId": "spellFlatPct",
+          "value": 10
         }
       ],
-      "statAutoName": true,
-      "archetype": "channel",
-      "optionProfile": "expansion:v30:occultist_channel",
+      "statAutoName": false,
+      "archetype": "spell",
+      "optionProfile": "manual:backbone_branch_occultist_outer_1_t2_n06",
       "runtimeEffects": [
         {
-          "statId": "channelingPctDmg",
-          "value": 5
+          "statId": "spellFlatPct",
+          "value": 10
         }
       ],
       "sourceOptionProfiles": [
@@ -56679,26 +56728,26 @@
       "expansionZone": "class"
     },
     {
-      "cat": "fire",
+      "cat": "cold",
       "id": "backbone_branch_alchemist_outer_2_t2_n02",
       "x": 553.55,
       "y": -2158.54,
       "type": "assist",
-      "name": "화염 피해",
-      "desc": "화염 피해 +5%",
+      "name": "냉기 피해",
+      "desc": "냉기 피해 +10%",
       "mods": [
         {
-          "statId": "firePctDmg",
-          "value": 5
+          "statId": "coldPctDmg",
+          "value": 10
         }
       ],
-      "statAutoName": true,
-      "archetype": "fire",
-      "optionProfile": "expansion:v30:alchemist_fire",
+      "statAutoName": false,
+      "archetype": "cold",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_2_t2_n02",
       "runtimeEffects": [
         {
-          "statId": "firePctDmg",
-          "value": 5
+          "statId": "coldPctDmg",
+          "value": 10
         }
       ],
       "sourceOptionProfiles": [
@@ -56797,26 +56846,26 @@
       "expansionZone": "class"
     },
     {
-      "cat": "elemental",
+      "cat": "cold",
       "id": "backbone_branch_alchemist_outer_2_t1_n05",
       "x": 576.53,
       "y": -2230.66,
       "type": "minor",
-      "name": "원소 피해",
-      "desc": "원소 피해 +5%",
+      "name": "냉기 피해",
+      "desc": "냉기 피해 +10%",
       "mods": [
         {
-          "statId": "elementalPctDmg",
-          "value": 5
+          "statId": "coldPctDmg",
+          "value": 10
         }
       ],
-      "statAutoName": true,
-      "archetype": "elemental",
-      "optionProfile": "expansion:v30:alchemist_elemental",
+      "statAutoName": false,
+      "archetype": "cold",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_2_t1_n05",
       "runtimeEffects": [
         {
-          "statId": "elementalPctDmg",
-          "value": 5
+          "statId": "coldPctDmg",
+          "value": 10
         }
       ],
       "sourceOptionProfiles": [
@@ -56831,26 +56880,26 @@
       "expansionZone": "class"
     },
     {
-      "cat": "fire",
+      "cat": "cold",
       "id": "backbone_branch_alchemist_outer_2_t2_n06",
       "x": 624.27,
       "y": -2131.56,
       "type": "minor",
-      "name": "화염 피해",
-      "desc": "화염 피해 +5%",
+      "name": "냉각 확률",
+      "desc": "냉각 확률 +10%p",
       "mods": [
         {
-          "statId": "firePctDmg",
-          "value": 5
+          "statId": "chillChance",
+          "value": 10
         }
       ],
-      "statAutoName": true,
-      "archetype": "fire",
-      "optionProfile": "expansion:v30:alchemist_fire",
+      "statAutoName": false,
+      "archetype": "cold",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_2_t2_n06",
       "runtimeEffects": [
         {
-          "statId": "firePctDmg",
-          "value": 5
+          "statId": "chillChance",
+          "value": 10
         }
       ],
       "sourceOptionProfiles": [
@@ -56871,20 +56920,20 @@
       "y": -2020.64,
       "type": "assist",
       "name": "번개 피해",
-      "desc": "번개 피해 +5%",
+      "desc": "번개 피해 +10%",
       "mods": [
         {
           "statId": "lightPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "lightning",
-      "optionProfile": "expansion:v30:alchemist_lightning",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_3_t1_n01",
       "runtimeEffects": [
         {
           "statId": "lightPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
       "sourceOptionProfiles": [
@@ -57023,20 +57072,20 @@
       "y": -2091.2,
       "type": "minor",
       "name": "번개 피해",
-      "desc": "번개 피해 +5%",
+      "desc": "번개 피해 +10%",
       "mods": [
         {
           "statId": "lightPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "lightning",
-      "optionProfile": "expansion:v30:alchemist_lightning",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_3_t1_n05",
       "runtimeEffects": [
         {
           "statId": "lightPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
       "sourceOptionProfiles": [
@@ -57057,20 +57106,20 @@
       "y": -2182.48,
       "type": "minor",
       "name": "번개 피해",
-      "desc": "번개 피해 +5%",
+      "desc": "번개 피해 +10%",
       "mods": [
         {
           "statId": "lightPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
-      "statAutoName": true,
+      "statAutoName": false,
       "archetype": "lightning",
-      "optionProfile": "expansion:v30:alchemist_lightning",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_3_t2_n06",
       "runtimeEffects": [
         {
           "statId": "lightPctDmg",
-          "value": 5
+          "value": 10
         }
       ],
       "sourceOptionProfiles": [

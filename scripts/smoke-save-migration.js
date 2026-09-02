@@ -265,4 +265,11 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.ok(/setLocalSaveRuntimeState\('corrupt'/.test(save), '손상 상태를 기록해 자동 저장을 멈춰야 한다');
 }
 
+// An explicit account reset marker survives reloads; old/invalid metadata cannot become a reset.
+for (const value of [undefined, null, -1, 1.5, 'bad', Infinity, 0, 8]) {
+    ctx.__loaded = merge({ saveMeta: { cloudResetRevision: value } });
+    vm.runInContext('game = __loaded; ensureSaveMeta();', ctx);
+    assert.strictEqual(ctx.__loaded.saveMeta.cloudResetRevision, value === 8 ? 8 : 0);
+}
+
 console.log('smoke-save-migration passed');

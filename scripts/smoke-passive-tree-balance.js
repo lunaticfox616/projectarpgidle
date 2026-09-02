@@ -177,11 +177,54 @@ function assertCuratedDefenseAndGemDistribution(tree) {
     assert.strictEqual(countClustersWithStat(tree, 'shockEffect'), 2, '감전 효율은 두 갈래에 있어야 합니다.');
 }
 
+function assertMissingPassiveSupport(runtime) {
+    const run = source => vm.runInContext(source, runtime);
+    run("game.passives = []; game.activeSkill = '기본 공격';");
+    const baseline = run('getPlayerStats()');
+    for (const [id, icon] of [['completion_wanderer_dagger_10', 'blade'], ['njbqg7vrd9k', 'arcane'],
+        ['no3kqxbre07', 'arcane'], ['nqjbg9yt7vt', 'life']]) {
+        assert.strictEqual(runtime.getPassiveNodeIconFamily(runtime.PASSIVE_TREE.nodes[id]), icon);
+    }
+    const cases = [
+        ['expansion_archer_arrow_fan_04', 'ds', 10, 'ds', 10],
+        ['backbone_branch_warrior_wanderer_center_t4_n04', 'leech', 0.5, 'leech', 0.5],
+        ['newd0r0xeoe', 'chillChance', 5, 'chillChance', 5],
+        ['n7sr619yw1e', 'energyShieldRegen', 2, 'energyShieldRegenRate', 2],
+        ['nqfx25r1u7w', 'energyShieldRechargeFaster', 0.1, 'energyShieldRechargeDelay', -0.1],
+        ['n7mumm5x6wu', 'coldPctDmg', 10, 'talentSourceStats.coldPct', 10],
+        ['ngxf5hpx0nn', 'lightPctDmg', 10, 'talentSourceStats.lightPct', 10]
+    ];
+    for (const [id, stat, amount, field, delta] of cases) {
+        run(`game.passives = [${JSON.stringify(id)}];`);
+        assert.strictEqual(runtime.getAllocatedPassiveStatValue(stat), amount, `${id}: missing allocated effect`);
+        const after = run('getPlayerStats()');
+        const read = stats => field.split('.').reduce((value, key) => value[key], stats);
+        assert.ok(Math.abs(read(after) - read(baseline) - delta) < 1e-8, `${id}: combat stat mismatch`);
+        assert.strictEqual(Object.fromEntries(run('getAllocatedPassiveStatSummary().totals'))[stat], amount);
+    }
+    run("game.passives = []; game.activeSkill = Object.keys(SKILL_DB).find(id => SKILL_DB[id].tags.includes('spell') && SKILL_DB[id].spellFlatBase > 0);");
+    const spellBefore = run('getPlayerStats().baseDmg');
+    for (const [id, stat, amount] of [['no3kqxbre07', 'spellFlatPct', 10], ['njbqg7vrd9k', 'spellFlatDmg', 5]]) {
+        run(`game.passives = [${JSON.stringify(id)}];`);
+        assert.strictEqual(runtime.getAllocatedPassiveStatValue(stat), amount);
+        assert.ok(run('getPlayerStats().baseDmg') > spellBefore, `${stat}: spell damage must actually increase`);
+        run("game.activeSkill = '기본 공격';");
+        assert.strictEqual(run('getPlayerStats().baseDmg'), baseline.baseDmg, 'spell-only bonuses must not affect attacks');
+        run("game.activeSkill = Object.keys(SKILL_DB).find(id => SKILL_DB[id].tags.includes('spell') && SKILL_DB[id].spellFlatBase > 0);");
+    }
+    run("game.passives = ['backbone_branch_occultist_outer_1_t1_n05'];");
+    assert.strictEqual(runtime.getAllocatedPassiveStatValue('spellFlatDmg'), 10, 'restore the lost flat spell damage');
+    assert.strictEqual(runtime.getAllocatedPassiveStatValue('spellGemLevel'), 1, 'keep the spell gem level');
+    run("game.passives = []; game.activeSkill = '기본 공격';");
+    assert.strictEqual(run('getPlayerStats().ds'), baseline.ds, 'removing the nodes must remove their bonuses');
+}
+
 function main() {
     const tree = readTree('artifacts/passive-tree/260831_2passive-normalized.json');
     const graph = buildGraph(tree);
     const topology = classifyPassiveTreeTopology(tree);
     const runtime = buildGameRuntime();
+    assertMissingPassiveSupport(runtime);
     const legacyStats = JSON.parse(vm.runInContext('JSON.stringify(P_STATS)', runtime));
     const starts = Object.fromEntries(tree.nodes.filter(node => node.startClassId).map(node => [node.startClassId, String(node.id)]));
     const report = {};

@@ -202,6 +202,14 @@ function classifyPassiveTreeTopology(tree) {
     const actionableIds = tree.nodes.filter(node => ACTIONABLE_TYPES.has(node.type)).map(node => String(node.id));
     const corridors = visualCorridorIds(nodes, graph);
     backbone.forEach(id => corridors.add(id));
+    // A terminal reward behind a keystone is an optional branch, not a travel stat.
+    tree.edges.filter(edge => edge.hidden).forEach(edge => {
+        const pair = [nodes.get(String(edge.a)), nodes.get(String(edge.b))];
+        if (!pair.some(node => node?.type === 'keystone')) return;
+        const terminal = pair.find(node => ACTIONABLE_TYPES.has(node?.type)
+            && graph.get(String(node.id)).length === 1);
+        if (terminal) corridors.delete(String(terminal.id));
+    });
     const bundles = new Set(actionableIds.filter(id => !corridors.has(id)));
     const components = specialComponents(tree, nodes, graph);
     const preservedSpecialIds = new Set(components.filter(component => component.preserved).flatMap(component => component.ids));

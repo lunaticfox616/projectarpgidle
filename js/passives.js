@@ -35,12 +35,16 @@ function getPassiveEffectLabel(node) {
     if (node.kind === 'void') return getVoidPassiveEffectLabel(node.id);
     if (node.kind === 'keystone') return node.desc || '키스톤 효과';
     if (Array.isArray(node.effects) && node.effects.length > 0) {
-        const labels = node.effects.map(effect => {
+        const effects = node.connectedDevotionPenalty ? getEffectivePassiveNodeEffects(node) : node.effects;
+        const labels = effects.map(effect => {
             const statInfo = P_STATS[effect.stat] || {};
             const sign = Number(effect.val) >= 0 ? '+' : '';
             const statName = String(statInfo.name || effect.stat).replace(/\s*\(%\)\s*/g, '').trim();
             return `${statName} ${sign}${formatValue(effect.stat, effect.val)}${statInfo.isPct ? '%' : ''}`;
         });
+        if (node.connectedDevotionPenalty) {
+            labels.push(`기본 +${node.val}%에서 직접 연결된 헌신 1개 할당마다 각각 ${node.connectedDevotionPenalty}%p 감소`);
+        }
         if (node.activationRequirement) {
             const state = getPassiveNodeActivationState(node);
             const statName = state.statId === 'devotion' ? '계시' : getStatName(state.statId);
@@ -319,7 +323,7 @@ function tracePassiveNodeFramePath(ctx, node, radius) {
 const PASSIVE_ICON_FAMILY = Object.freeze({
     mystique: 'mystique', devotion: 'devotion', cycle: 'cycle', projectilePctDmg: 'projectile', projectileExtraShots: 'projectile',
     accuracy: 'projectile', accuracyBonusPct: 'projectile', meleePctDmg: 'blade', physPctDmg: 'blade', slamPctDmg: 'blade', flatDmg: 'blade',
-    strength: 'strength', pctDmg: 'blade', bleedChance: 'blade', physIgnore: 'blade', doubleDamageChance: 'blade', addedPhysDamagePct: 'blade',
+    strength: 'strength', pctDmg: 'blade', ds: 'blade', bleedChance: 'blade', physIgnore: 'blade', doubleDamageChance: 'blade', addedPhysDamagePct: 'blade',
     blockChance: 'shield', blockChanceMax: 'shield', shieldPctDmg: 'shield', armor: 'shield', armorPct: 'shield', dr: 'shield', deflectChance: 'shield',
     takenDamageReduceWhen1EnemyPct: 'shield', takenDamageReduceWhen2EnemiesPct: 'shield',
     potionPctDmg: 'potion', poisonChance: 'potion', summonPctDmg: 'summon', summonHpPct: 'summon', summonGemLevel: 'summon',
@@ -330,8 +334,8 @@ const PASSIVE_ICON_FAMILY = Object.freeze({
     igniteDamageMultiplierPct: 'elemental', shockedEnemyHitDamagePct: 'elemental', shockedEnemyHitDamageMorePct: 'elemental', addedFireDamagePct: 'elemental',
     addedColdDamagePct: 'elemental', addedLightDamagePct: 'elemental', physTakenAsFire: 'elemental', physTakenAsCold: 'elemental', physTakenAsLight: 'elemental',
     chaosPctDmg: 'chaos', dotPctDmg: 'chaos', resChaos: 'chaos', poisonDamageMultiplierPct: 'chaos', addedChaosDamagePct: 'chaos', physTakenAsChaos: 'chaos',
-    flatHp: 'life', pctHp: 'life', regen: 'life', leechTotalCap: 'life', energyShield: 'arcane', energyShieldPct: 'arcane',
-    energyShieldRegen: 'arcane', energyShieldRechargeFaster: 'arcane', spellPctDmg: 'arcane',
+    flatHp: 'life', pctHp: 'life', regen: 'life', leech: 'life', leechTotalCap: 'life', energyShield: 'arcane', energyShieldPct: 'arcane',
+    energyShieldRegen: 'arcane', energyShieldRechargeFaster: 'arcane', spellPctDmg: 'arcane', spellFlatDmg: 'arcane', spellFlatPct: 'arcane',
     intelligence: 'intelligence', dexterity: 'dexterity', crit: 'precision', critDmg: 'precision', aspd: 'precision',
     evasion: 'wind', evasionPct: 'wind', move: 'wind', mobilityPctDmg: 'wind'
 });
@@ -2133,9 +2137,20 @@ function getPassiveNodeActivationState(node) {
     return { active: available >= required, statId: requirement.statId, available, required };
 }
 
+/** connectedDevotionPenalty is percentage points per allocated adjacent devotion node,
+ * not per devotion stat point. Allocation counts even when that spoke's effect is disabled.
+ * Derive on read so refunds, presets and restored saves never persist a reduced base value.
+ */
 function getEffectivePassiveNodeEffects(node, mutation) {
     if (!getPassiveNodeActivationState(node).active) return [];
-    return getPassiveNodeRawEffects(node, mutation);
+    const effects = getPassiveNodeRawEffects(node, mutation);
+    if (!node || !node.connectedDevotionPenalty || (mutation && mutation.currentStat)) return effects;
+    const neighbors = getPassiveTreeAdjacency().get(String(node.id)) || [];
+    const count = neighbors.filter(id => (game.passives || []).includes(id)
+        && getPassiveNodeRawEffects(PASSIVE_TREE.nodes[id]).some(effect => effect.stat === 'devotion')).length;
+    const penalty = count * node.connectedDevotionPenalty;
+    return effects.map(effect => ['physPctDmg', 'lightPctDmg'].includes(effect.stat)
+        ? { ...effect, val: effect.val - penalty } : effect);
 }
 
 safeExposeGlobals({ getPassiveNodeActivationState, getEffectivePassiveNodeEffects });
@@ -2455,7 +2470,7 @@ function applyAuthoredPassiveStatRules(options) {
         passive.energyShieldPct += devotion * 0.2;
         passive.regen += devotion * 0.2;
     }
-    const wisdomElement = state.keystoneChoices.wisdom_leap_element;
+    const wisdomElement = state.keystoneChoices.wisdom_leap_element.replace('lightning', 'light'); // Saved choice -> combat element ID.
     return { mystique, devotion, cycle, revelation, wisdomElement,
         revelationLabel: triple ? '삼중 계시' : (PASSIVE_REVELATION_LABELS[revelation] || '계시'),
         combatDamageMorePct: revelation === 'combat' ? devotion : (triple ? devotion * 0.4 : 0),
