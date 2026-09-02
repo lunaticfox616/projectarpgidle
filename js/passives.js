@@ -6539,6 +6539,9 @@ function initBattleAssets() {
     battleAssets.loadPromise = new Promise(resolve => { resolveLoadPromise = resolve; });
     const customHeroSrc = getCustomHeroSheetDataUrl();
     const defaultHeroSrc = customHeroSrc || null;
+    const realmMonsterManifest = typeof REALM_MONSTER_VISUAL_SETS === 'undefined'
+        ? {}
+        : Object.fromEntries(Object.values(REALM_MONSTER_VISUAL_SETS).map(set => [set.assetKey, set.src]));
     const manifest = {
         hero1Idle: 'assets/playable/hero1/idle.png',
         hero1Walk: 'assets/playable/hero1/walk.png',
@@ -6683,6 +6686,7 @@ function initBattleAssets() {
         woodEnemyPuppet6: 'assets/enemies/wood/wood-puppet/frame_006.png',
         woodEnemyPuppet7: 'assets/enemies/wood/wood-puppet/frame_007.png',
         woodEnemyPuppet8: 'assets/enemies/wood/wood-puppet/frame_008.png',
+        ...realmMonsterManifest,
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
         bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
         bossTelegraphPulse: 'assets/effects/boss-telegraph-pulse-v1.png',
@@ -6757,7 +6761,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260902-directional-poses2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key === 'shrineInteractable'));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('realmEnemy') || key === 'shrineInteractable'));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && PLAYER_CLASS_DEFS[game.selectedClassId]) ? game.selectedClassId : 'archer');
@@ -6841,7 +6845,7 @@ function initBattleAssets() {
             if (key.startsWith('backdrop') || key.startsWith('bg')) {
                 battleAssets.backdrops[key] = image;
             } else {
-                let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
+                let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('realmEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
                 battleAssets.images[key] = image;
                 if (!keepOriginalSheet) queueBattleSheetSanitization(key, image);
             }
@@ -7384,6 +7388,34 @@ function resolveHeroMotionStripAnchor(baseAnchor, motionAnchors, motion, variant
         : (motionAnchors && motionAnchors[motion]);
     if (!Number.isFinite(configured)) return baseAnchor;
     return { ...baseAnchor, anchorY: configured };
+}
+
+function getRealmMonsterAtlasCellFrame(cell) {
+    const cellSize = 128;
+    return {
+        x: (cell % 4) * cellSize,
+        y: Math.floor(cell / 4) * cellSize,
+        width: cellSize,
+        height: cellSize,
+        anchorX: cellSize * 0.5,
+        anchorY: 120,
+        basisHeight: 112
+    };
+}
+
+function buildRealmEnemyVariantSets(images) {
+    if (typeof REALM_MONSTER_VISUAL_SETS === 'undefined') return {};
+    return Object.fromEntries(Object.values(REALM_MONSTER_VISUAL_SETS).map(set => {
+        const pools = { normal: [], elite: [], boss: [] };
+        const image = images[set.assetKey];
+        if (image) {
+            set.members.forEach(member => {
+                const frame = getRealmMonsterAtlasCellFrame(member.cell);
+                pools[member.role].push({ id: member.id, skinId: member.id, label: member.name, image, frame });
+            });
+        }
+        return [set.id, pools];
+    }));
 }
 
 function buildBattleAssetAtlas() {
@@ -8300,6 +8332,10 @@ function buildBattleAssetAtlas() {
             { image: enemySpriteImage, frame: enemyFrames.boss },
         ].filter(entry => hasUsableFrame(entry.frame))
     };
+    const realmEnemyVariantSets = buildRealmEnemyVariantSets(battleAssets.images);
+    const realmEnemySkinVariants = Object.fromEntries(Object.values(realmEnemyVariantSets)
+        .flatMap(pools => ['normal', 'elite', 'boss'].flatMap(role => pools[role] || []))
+        .map(entry => [entry.skinId, entry]));
     // 배경 불투명 스프라이트가 섞이는 현상을 방지하기 위해
     // 자동 감지 풀(2/3번 시트)은 기본값에서 제외한다.
     // 필요 시 추후 개별 투명화 보정 후 재활성화 가능.
@@ -8321,8 +8357,12 @@ function buildBattleAssetAtlas() {
         enemies: {
             image: enemySpriteImage,
             variants: enemyVariantPools,
+            realmVariants: realmEnemyVariantSets,
             bossImages: bossImages,
-            skinVariants: Object.fromEntries(['woodSlime', 'rootSpider', 'sapLeech', 'woodPuppet'].map(family => [family, woodEnemyVariants.find(entry => entry.family === family)]).filter(entry => entry[1])),
+            skinVariants: {
+                ...Object.fromEntries(['woodSlime', 'rootSpider', 'sapLeech', 'woodPuppet'].map(family => [family, woodEnemyVariants.find(entry => entry.family === family)]).filter(entry => entry[1])),
+                ...realmEnemySkinVariants
+            },
             frames: {
                 slime: enemyFrames.slime,
                 wraith: enemyFrames.wraith,
