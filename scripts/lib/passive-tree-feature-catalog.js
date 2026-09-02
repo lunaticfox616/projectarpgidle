@@ -3,7 +3,9 @@
 const { STAT_META, normalizePassiveValue, passiveValueStep } = require('./passive-tree-option-catalog');
 
 const FIXED_FEATURE_STATS = new Set([
-    'gemLevel', 'chaosGemLevel', 'summonGemLevel', 'suppCap', 'projectileExtraShots'
+    'gemLevel', 'elementalGemLevel', 'fireGemLevel', 'coldGemLevel', 'lightGemLevel',
+    'chaosGemLevel', 'physGemLevel', 'projectileGemLevel', 'meleeGemLevel', 'slamGemLevel',
+    'spellGemLevel', 'dotGemLevel', 'aoeGemLevel', 'summonGemLevel', 'suppCap', 'projectileExtraShots'
 ]);
 const HALF_POINT_FEATURE_STATS = new Set([
     'regen', 'crit', 'blockChance', 'blockChanceMax', 'deflectChance', 'dr', 'physIgnore', 'resPen',
@@ -318,7 +320,7 @@ const FEATURE_EFFECT_PROFILES = Object.freeze({
             { id: 'prism-ward', name: '프리즘 방벽', effects: [['elementalPctDmg', 15], ['resAll', 6]] },
             { id: 'inferno', name: '불길의 중심', effects: [['firePctDmg', 15], ['igniteDamageMultiplierPct', 12]] },
             { id: 'absolute-zero', name: '절대 영도', effects: [['coldPctDmg', 15], ['addedColdDamagePct', 5]] },
-            { id: 'thunder-core', name: '뇌정의 중심', effects: [['lightPctDmg', 15], ['shockedEnemyHitDamageMorePct', 10]] },
+            { id: 'thunder-core', name: '뇌정의 중심', effects: [['lightPctDmg', 15], ['shockedEnemyHitDamagePct', 15]] },
             { id: 'elemental-script', name: '원소 술식', effects: [['elementalPctDmg', 14], ['spellPctDmg', 12]] }
         ]
     },
@@ -364,7 +366,7 @@ const FEATURE_EFFECT_PROFILES = Object.freeze({
             { id: 'breach', name: '번개 관통', effects: [['lightPctDmg', 7.5], ['resPen', 1.5]] }
         ],
         major: [
-            { id: 'storm-heart', name: '폭풍의 심장', effects: [['lightPctDmg', 18], ['shockedEnemyHitDamageMorePct', 10]] },
+            { id: 'storm-heart', name: '폭풍의 심장', effects: [['lightPctDmg', 18], ['shockedEnemyHitDamagePct', 15]] },
             { id: 'light-speed', name: '광속 전류', effects: [['lightPctDmg', 16], ['aspd', 5]] },
             { id: 'thunderbolt', name: '낙뢰', effects: [['lightPctDmg', 16], ['critDmg', 18]] },
             { id: 'storm-breach', name: '폭풍 균열', effects: [['lightPctDmg', 15], ['resPen', 3]] },

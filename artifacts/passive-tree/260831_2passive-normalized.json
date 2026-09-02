@@ -733,21 +733,21 @@
       "x": 820,
       "y": -580,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:side_s030_b04_n01",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:npynrdvcvnr",
@@ -6155,34 +6155,34 @@
       "powerBand": 1
     },
     {
-      "cat": "atk",
+      "cat": "physical",
       "id": "n9iiw9wl9k2",
       "x": -180,
       "y": 1630,
       "type": "major",
       "name": "맹렬한 칼끝",
-      "desc": "근접 피해 +12%\n치명타 확률 +2.5%",
+      "desc": "근접 피해 +30%\n근접 스킬 젬 레벨 +1",
       "mods": [
         {
           "statId": "meleePctDmg",
-          "value": 12
+          "value": 30
         },
         {
-          "statId": "crit",
-          "value": 2.5
+          "statId": "meleeGemLevel",
+          "value": 1
         }
       ],
       "statAutoName": false,
       "archetype": "melee",
-      "optionProfile": "급소 절개",
+      "optionProfile": "manual:n9iiw9wl9k2",
       "runtimeEffects": [
         {
           "statId": "meleePctDmg",
-          "value": 12
+          "value": 30
         },
         {
-          "statId": "crit",
-          "value": 2.5
+          "statId": "meleeGemLevel",
+          "value": 1
         }
       ],
       "optionClusterId": "anchor:n9iiw9wl9k2",
@@ -7514,7 +7514,7 @@
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:energyShield",
+      "optionProfile": "manual:nj89tpzuhnk",
       "runtimeEffects": [
         {
           "statId": "energyShield",
@@ -7973,7 +7973,7 @@
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:energyShield",
+      "optionProfile": "manual:ny46gswx4mb",
       "runtimeEffects": [
         {
           "statId": "energyShield",
@@ -8125,21 +8125,21 @@
       "x": 80,
       "y": -1150,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nj5yvoax4mb",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:nsdu4kbcvnr",
@@ -10355,15 +10355,15 @@
       "y": 2180,
       "type": "major",
       "name": "불굴의 방벽",
-      "desc": "방어도 +35%\n모든 원소 저항 +8%",
+      "desc": "방어도 +35%\n물리 피해 감소 +4%p",
       "mods": [
         {
           "statId": "armorPct",
           "value": 35
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "dr",
+          "value": 4
         }
       ],
       "statAutoName": false,
@@ -10375,8 +10375,8 @@
           "value": 35
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "dr",
+          "value": 4
         }
       ],
       "optionClusterId": "anchor:nnbzzntdgnd",
@@ -10875,26 +10875,26 @@
       "powerBand": 1
     },
     {
-      "cat": "str",
+      "cat": "atk",
       "id": "nc4lmzo26vp",
       "x": 505,
       "y": 1461.34,
       "type": "minor",
-      "name": "최대 생명력",
-      "desc": "최대 생명력 +16",
+      "name": "정확도",
+      "desc": "정확도 +50",
       "mods": [
         {
-          "statId": "flatHp",
-          "value": 16
+          "statId": "accuracy",
+          "value": 50
         }
       ],
-      "statAutoName": true,
-      "archetype": "strength",
-      "optionProfile": "topology:corridor:strength:flatHp",
+      "statAutoName": false,
+      "archetype": "precision",
+      "optionProfile": "manual:nc4lmzo26vp",
       "runtimeEffects": [
         {
-          "statId": "flatHp",
-          "value": 16
+          "statId": "accuracy",
+          "value": 50
         }
       ],
       "optionClusterId": "anchor:newxmmn28wz",
@@ -10902,34 +10902,34 @@
       "powerBand": 1
     },
     {
-      "cat": "str",
+      "cat": "atk",
       "id": "newxmmn28wz",
       "x": 592.5,
       "y": 1397.01,
       "type": "normal",
-      "name": "단단한 혈맥",
-      "desc": "힘 +10\n최대 생명력 +20",
+      "name": "전사의 조준",
+      "desc": "정확도 +100\n근접 피해 +10%",
       "mods": [
         {
-          "statId": "strength",
-          "value": 10
+          "statId": "accuracy",
+          "value": 100
         },
         {
-          "statId": "flatHp",
-          "value": 20
+          "statId": "meleePctDmg",
+          "value": 10
         }
       ],
-      "statAutoName": true,
-      "archetype": "strength",
-      "optionProfile": "feature:blood",
+      "statAutoName": false,
+      "archetype": "precision",
+      "optionProfile": "manual:newxmmn28wz",
       "runtimeEffects": [
         {
-          "statId": "strength",
-          "value": 10
+          "statId": "accuracy",
+          "value": 100
         },
         {
-          "statId": "flatHp",
-          "value": 20
+          "statId": "meleePctDmg",
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:newxmmn28wz",
@@ -10937,26 +10937,26 @@
       "powerBand": 1
     },
     {
-      "cat": "str",
+      "cat": "atk",
       "id": "ndvc51s2dea",
       "x": 669.82,
       "y": 1357.01,
       "type": "minor",
-      "name": "힘",
-      "desc": "힘 +5",
+      "name": "정확도",
+      "desc": "정확도 +50",
       "mods": [
         {
-          "statId": "strength",
-          "value": 5
+          "statId": "accuracy",
+          "value": 50
         }
       ],
-      "statAutoName": true,
-      "archetype": "strength",
-      "optionProfile": "topology:corridor:strength:strength",
+      "statAutoName": false,
+      "archetype": "precision",
+      "optionProfile": "manual:ndvc51s2dea",
       "runtimeEffects": [
         {
-          "statId": "strength",
-          "value": 5
+          "statId": "accuracy",
+          "value": 50
         }
       ],
       "optionClusterId": "anchor:newxmmn28wz",
@@ -11668,15 +11668,15 @@
       "y": 1300,
       "type": "major",
       "name": "빛나는 보호막",
-      "desc": "에너지 보호막 +35%\n모든 원소 저항 +8%",
+      "desc": "에너지 보호막 +35%\n에너지 보호막 회복 속도 +3%",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 35
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "energyShieldRegen",
+          "value": 3
         }
       ],
       "statAutoName": false,
@@ -11688,8 +11688,8 @@
           "value": 35
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "energyShieldRegen",
+          "value": 3
         }
       ],
       "optionClusterId": "anchor:n7rmdxbrpjt",
@@ -12811,7 +12811,7 @@
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "feature:barrier",
+      "optionProfile": "manual:nz5u8ro3ab1",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
@@ -12832,21 +12832,21 @@
       "x": 1502.06,
       "y": 834.87,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "topology:bundle:energyShield:resAll",
+      "optionProfile": "manual:n4p7oum3ab1",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:nz5u8ro3ab1",
@@ -12859,21 +12859,21 @@
       "x": 1409.44,
       "y": 781.87,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "topology:bundle:energyShield:resAll",
+      "optionProfile": "manual:nj6r3up3ab1",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:nhl6sgdt9jq",
@@ -12900,7 +12900,7 @@
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "feature:barrier",
+      "optionProfile": "manual:nhl6sgdt9jq",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
@@ -12922,28 +12922,28 @@
       "y": 715,
       "type": "normal",
       "name": "비전 장막",
-      "desc": "에너지 보호막 +8%\n모든 원소 저항 +4%",
+      "desc": "에너지 보호막 +8%\n에너지 보호막 +30",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "energyShield",
+          "value": 30
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "feature:mind-shell",
+      "optionProfile": "manual:ntbveo1ta62",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "energyShield",
+          "value": 30
         }
       ],
       "optionClusterId": "anchor:ntbveo1ta62",
@@ -13519,7 +13519,7 @@
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "topology:bundle:energyShield:energyShield",
+      "optionProfile": "manual:nnpd9ua4byl",
       "runtimeEffects": [
         {
           "statId": "energyShield",
@@ -14263,15 +14263,15 @@
       "y": 780,
       "type": "major",
       "name": "수호의 장막",
-      "desc": "방어도 +25%\n모든 원소 저항 +8%",
+      "desc": "방어도 +25%\n물리 피해 감소 +4%p",
       "mods": [
         {
           "statId": "armorPct",
           "value": 25
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "dr",
+          "value": 4
         }
       ],
       "statAutoName": false,
@@ -14283,8 +14283,8 @@
           "value": 25
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "dr",
+          "value": 4
         }
       ],
       "optionClusterId": "anchor:n9i7lxbn61q",
@@ -14450,28 +14450,28 @@
       "y": 369.96,
       "type": "normal",
       "name": "서약의 근간",
-      "desc": "힘 +8\n모든 원소 저항 +4%",
+      "desc": "힘 +8\n화염 저항 +10%",
       "mods": [
         {
           "statId": "strength",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "resF",
+          "value": 10
         }
       ],
       "statAutoName": true,
       "archetype": "strength",
-      "optionProfile": "feature:vow",
+      "optionProfile": "manual:na0752u9zq2",
       "runtimeEffects": [
         {
           "statId": "strength",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "resF",
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:na0752u9zq2",
@@ -15861,15 +15861,15 @@
       "y": 1516.95,
       "type": "major",
       "name": "불굴의 격돌",
-      "desc": "피해 +35%\n모든 원소 저항 +6%",
+      "desc": "피해 +35%\n방어도 +20%",
       "mods": [
         {
           "statId": "pctDmg",
           "value": 35
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "armorPct",
+          "value": 20
         }
       ],
       "statAutoName": false,
@@ -15881,8 +15881,8 @@
           "value": 35
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "armorPct",
+          "value": 20
         }
       ],
       "optionClusterId": "anchor:ns0bc85cg2f",
@@ -16152,28 +16152,28 @@
       "y": 630,
       "type": "major",
       "name": "서약의 정신",
-      "desc": "에너지 보호막 +10%\n모든 원소 저항 +5%",
+      "desc": "에너지 보호막 +10%\n에너지 보호막 회복 속도 +3%",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "energyShieldRegen",
+          "value": 3
         }
       ],
       "statAutoName": false,
       "archetype": "energyShield",
-      "optionProfile": "비전 장막",
+      "optionProfile": "manual:nkiplby1sk8",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "energyShieldRegen",
+          "value": 3
         }
       ],
       "optionClusterId": "anchor:nkiplby1sk8",
@@ -16322,15 +16322,15 @@
       "y": -660.0000000000008,
       "type": "major",
       "name": "봉인된 통찰",
-      "desc": "에너지 보호막 +30%\n모든 원소 저항 +8%",
+      "desc": "에너지 보호막 +30%\n카오스 저항 +10%",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "resChaos",
+          "value": 10
         }
       ],
       "statAutoName": false,
@@ -16342,8 +16342,8 @@
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "resChaos",
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:naem45q3jy1",
@@ -16799,7 +16799,7 @@
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "feature:knowledge",
+      "optionProfile": "manual:n1376tme09i",
       "runtimeEffects": [
         {
           "statId": "intelligence",
@@ -16955,21 +16955,21 @@
       "x": 1320,
       "y": 0,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nfr4f4hk6og",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:na0752u9zq2",
@@ -17117,21 +17117,21 @@
       "x": 1458,
       "y": 75,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nz5b52jlj65",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:n1376tme09i",
@@ -17144,21 +17144,21 @@
       "x": 1518,
       "y": 165,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:ni3lcg8lj65",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:n1376tme09i",
@@ -17289,7 +17289,7 @@
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:energyShield",
+      "optionProfile": "manual:nsonrmclmfd",
       "runtimeEffects": [
         {
           "statId": "energyShield",
@@ -17316,7 +17316,7 @@
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:energyShield",
+      "optionProfile": "manual:nfz672wlmfd",
       "runtimeEffects": [
         {
           "statId": "energyShield",
@@ -17585,28 +17585,28 @@
       "y": -191.03,
       "type": "normal",
       "name": "축적된 지식",
-      "desc": "지능 +8\n모든 원소 저항 +3%",
+      "desc": "지능 +8\n에너지 보호막 +30",
       "mods": [
         {
           "statId": "intelligence",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 3
+          "statId": "energyShield",
+          "value": 30
         }
       ],
       "statAutoName": false,
       "archetype": "intelligence",
-      "optionProfile": "feature:warded-mind",
+      "optionProfile": "manual:n956tvboxg3",
       "runtimeEffects": [
         {
           "statId": "intelligence",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 3
+          "statId": "energyShield",
+          "value": 30
         }
       ],
       "optionClusterId": "anchor:n1376tme09i",
@@ -17744,28 +17744,28 @@
       "y": -210,
       "type": "major",
       "name": "차원의 통찰",
-      "desc": "에너지 보호막 +10%\n모든 원소 저항 +5%",
+      "desc": "에너지 보호막 +10%\n번개 저항 +15%",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "resL",
+          "value": 15
         }
       ],
       "statAutoName": false,
       "archetype": "energyShield",
-      "optionProfile": "비전 장막",
+      "optionProfile": "manual:n726ld3r2yf",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "resL",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:n726ld3r2yf",
@@ -18281,20 +18281,20 @@
       "y": -1219.51,
       "type": "assist",
       "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "desc": "모든 원소 저항 +4%",
       "mods": [
         {
           "statId": "resAll",
-          "value": 2
+          "value": 4
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:n5iysb0wy3x",
       "runtimeEffects": [
         {
           "statId": "resAll",
-          "value": 2
+          "value": 4
         }
       ],
       "optionClusterId": "anchor:n41x9l9wy3x",
@@ -18505,15 +18505,15 @@
       "y": -1575.54,
       "type": "major",
       "name": "휘발성 장막",
-      "desc": "에너지 보호막 +30%\n모든 원소 저항 +8%",
+      "desc": "에너지 보호막 +30%\n카오스 저항 +10%",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "resChaos",
+          "value": 10
         }
       ],
       "statAutoName": false,
@@ -18525,8 +18525,8 @@
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "resChaos",
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:nqcn7k4wy3x",
@@ -18629,28 +18629,28 @@
       "y": -1395.05,
       "type": "normal",
       "name": "보호받는 정신",
-      "desc": "지능 +8\n모든 원소 저항 +3%",
+      "desc": "지능 +8\n에너지 보호막 +30",
       "mods": [
         {
           "statId": "intelligence",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 3
+          "statId": "energyShield",
+          "value": 30
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "feature:warded-mind",
+      "optionProfile": "manual:nzf7qg5wy3x",
       "runtimeEffects": [
         {
           "statId": "intelligence",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 3
+          "statId": "energyShield",
+          "value": 30
         }
       ],
       "optionClusterId": "anchor:nzf7qg5wy3x",
@@ -18754,7 +18754,7 @@
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:energyShield",
+      "optionProfile": "manual:nxgws2dwy3x",
       "runtimeEffects": [
         {
           "statId": "energyShield",
@@ -18834,21 +18834,21 @@
       "x": 624.44,
       "y": -1078.45,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nl6hlnowy3x",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "optionClusterId": "bundle:n081836wy3x",
@@ -19059,21 +19059,21 @@
       "x": 631.85,
       "y": -1239.29,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "카오스 저항",
+      "desc": "카오스 저항 +3%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resChaos",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:na6l1y9wy3x",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resChaos",
+          "value": 3
         }
       ],
       "optionClusterId": "anchor:nv88pjywy3x",
@@ -19295,28 +19295,28 @@
       "y": -1501.63,
       "type": "major",
       "name": "금단의 외피",
-      "desc": "에너지 보호막 +12%\n모든 원소 저항 +5%",
+      "desc": "에너지 보호막 +12%\n카오스 저항 +10%",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 12
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "resChaos",
+          "value": 10
         }
       ],
       "statAutoName": false,
       "archetype": "energyShield",
-      "optionProfile": "정신의 외피",
+      "optionProfile": "manual:n0irmnqwy3x",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
           "value": 12
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "resChaos",
+          "value": 10
         }
       ],
       "optionClusterId": "anchor:n0irmnqwy3x",
@@ -19366,7 +19366,7 @@
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:energyShield",
+      "optionProfile": "manual:nzawbtgwy3x",
       "runtimeEffects": [
         {
           "statId": "energyShield",
@@ -19597,28 +19597,28 @@
       "y": -1718.39,
       "type": "major",
       "name": "증류된 지식",
-      "desc": "에너지 보호막 +10%\n모든 원소 저항 +5%",
+      "desc": "에너지 보호막 +10%\n냉기 저항 +15%",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "resC",
+          "value": 15
         }
       ],
       "statAutoName": false,
       "archetype": "energyShield",
-      "optionProfile": "비전 장막",
+      "optionProfile": "manual:nvoyo9owy3x",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "resC",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:nvoyo9owy3x",
@@ -20044,21 +20044,21 @@
       "x": 1230.5,
       "y": -869.13,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "카오스 저항",
+      "desc": "카오스 저항 +3%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resChaos",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nfttzqi6ym2",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resChaos",
+          "value": 3
         }
       ],
       "optionClusterId": "anchor:n4jbqe4ltnj",
@@ -20071,21 +20071,21 @@
       "x": 1156.95,
       "y": -862.5,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "카오스 저항",
+      "desc": "카오스 저항 +3%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resChaos",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nxn9w1d6zcj",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resChaos",
+          "value": 3
         }
       ],
       "optionClusterId": "anchor:n4jbqe4ltnj",
@@ -20179,21 +20179,21 @@
       "x": 1080,
       "y": -570,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nq7lqql77kl",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:npynrdvcvnr",
@@ -20539,15 +20539,15 @@
       "y": -420,
       "type": "major",
       "name": "정조준의 생존술",
-      "desc": "회피 +25%\n모든 원소 저항 +8%",
+      "desc": "회피 +25%\n냉기 저항 +15%",
       "mods": [
         {
           "statId": "evasionPct",
           "value": 25
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "resC",
+          "value": 15
         }
       ],
       "statAutoName": false,
@@ -20559,8 +20559,8 @@
           "value": 25
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "resC",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:nhz88k1d1br",
@@ -23953,7 +23953,7 @@
       "statAutoName": true,
       "clusterPromoted": true,
       "archetype": "dexterity",
-      "optionProfile": "topology:corridor:dexterity:evasionPct",
+      "optionProfile": "manual:ngcrtpis5xu",
       "runtimeEffects": [
         {
           "statId": "evasionPct",
@@ -24024,21 +24024,21 @@
       "x": -697.5743468915658,
       "y": -1685.8587144034634,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "회피",
+      "desc": "회피 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "evasionPct",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nk40skks5xu",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "evasionPct",
+          "value": 5
         }
       ],
       "optionClusterId": "bundle:n121z3is5xu",
@@ -24092,7 +24092,7 @@
       ],
       "statAutoName": true,
       "archetype": "dexterity",
-      "optionProfile": "feature:reflex",
+      "optionProfile": "manual:nzjtmwss5xu",
       "runtimeEffects": [
         {
           "statId": "dexterity",
@@ -25462,15 +25462,15 @@
       "y": -1429.59,
       "type": "major",
       "name": "증류된 반사",
-      "desc": "회피 +30%\n모든 원소 저항 +6%",
+      "desc": "회피 +30%\n냉기 저항 +15%",
       "mods": [
         {
           "statId": "evasionPct",
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "resC",
+          "value": 15
         }
       ],
       "statAutoName": false,
@@ -25482,8 +25482,8 @@
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "resC",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:nv4s9u8dlfr",
@@ -25605,15 +25605,15 @@
       "y": -1202.87,
       "type": "major",
       "name": "꿰뚫는 대비",
-      "desc": "피해 +25%\n모든 원소 저항 +8%",
+      "desc": "피해 +25%\n회피 +20%",
       "mods": [
         {
           "statId": "pctDmg",
           "value": 25
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "evasionPct",
+          "value": 20
         }
       ],
       "statAutoName": false,
@@ -25625,8 +25625,8 @@
           "value": 25
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "evasionPct",
+          "value": 20
         }
       ],
       "optionClusterId": "anchor:n0syjlnechx",
@@ -25676,7 +25676,7 @@
       ],
       "statAutoName": true,
       "archetype": "dexterity",
-      "optionProfile": "topology:corridor:dexterity:evasionPct",
+      "optionProfile": "manual:nkea6vrechx",
       "runtimeEffects": [
         {
           "statId": "evasionPct",
@@ -25891,15 +25891,15 @@
       "y": 560,
       "type": "major",
       "name": "기습의 반사",
-      "desc": "회피 +35%\n모든 원소 저항 +6%",
+      "desc": "회피 +35%\n물리 피해 감소 +4%p",
       "mods": [
         {
           "statId": "evasionPct",
           "value": 35
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "dr",
+          "value": 4
         }
       ],
       "statAutoName": false,
@@ -25911,8 +25911,8 @@
           "value": 35
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "dr",
+          "value": 4
         }
       ],
       "optionClusterId": "anchor:nf1njb1k1ha",
@@ -26400,21 +26400,21 @@
       "x": 949.13,
       "y": -219.5,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nvbyqvjn8ga",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:npynrdvcvnr",
@@ -26427,21 +26427,21 @@
       "x": -290,
       "y": -939,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nfnob6hqqc9",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:nsdu4kbcvnr",
@@ -26904,28 +26904,28 @@
       "y": -2020,
       "type": "major",
       "name": "정제된 지식",
-      "desc": "에너지 보호막 +10%\n모든 원소 저항 +5%",
+      "desc": "에너지 보호막 +10%\n에너지 보호막 재충전 대기시간 감소 +0.5초",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "energyShieldRechargeFaster",
+          "value": 0.5
         }
       ],
       "statAutoName": false,
       "archetype": "energyShield",
-      "optionProfile": "비전 장막",
+      "optionProfile": "manual:naym07x29mt",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "energyShieldRechargeFaster",
+          "value": 0.5
         }
       ],
       "optionClusterId": "anchor:naym07x29mt",
@@ -27208,21 +27208,21 @@
       "x": 657.7848345501358,
       "y": -239.41410032796813,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:n4tq1cud68z",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:npynrdvcvnr",
@@ -28236,15 +28236,15 @@
       "y": -246.4101615137754,
       "type": "major",
       "name": "추적자의 퇴로",
-      "desc": "이동 속도 +8%\n모든 원소 저항 +6%",
+      "desc": "이동 속도 +8%\n냉기 저항 +15%",
       "mods": [
         {
           "statId": "move",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "resC",
+          "value": 15
         }
       ],
       "statAutoName": false,
@@ -28256,8 +28256,8 @@
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "resC",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:npc7ayw2l4u",
@@ -28297,21 +28297,21 @@
       "x": 340,
       "y": -300,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:n3qootc2p8z",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:n6mg44h34v1",
@@ -28406,11 +28406,11 @@
       "y": -200.00000000000009,
       "type": "major",
       "name": "의식의 생명벽",
-      "desc": "모든 원소 저항 +10%\n최대 생명력 +60",
+      "desc": "물리 피해 감소 +4%p\n최대 생명력 +60",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 10
+          "statId": "dr",
+          "value": 4
         },
         {
           "statId": "flatHp",
@@ -28422,8 +28422,8 @@
       "optionProfile": "manual:nuh4qfz2tcj",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 10
+          "statId": "dr",
+          "value": 4
         },
         {
           "statId": "flatHp",
@@ -28691,15 +28691,15 @@
       "y": -246.41016151377545,
       "type": "major",
       "name": "차원의 조율",
-      "desc": "원소 피해 +30%\n모든 원소 저항 +8%",
+      "desc": "원소 피해 +30%\n번개 저항 +15%",
       "mods": [
         {
           "statId": "elementalPctDmg",
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "resL",
+          "value": 15
         }
       ],
       "statAutoName": false,
@@ -28711,8 +28711,8 @@
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "resL",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:n6mg44h34v1",
@@ -29360,28 +29360,28 @@
       "y": -1500,
       "type": "major",
       "name": "변성의 뇌광",
-      "desc": "번개 피해 +10%\n스킬 속도 +4%",
+      "desc": "번개 피해 +20%\n감전 효율 +12%",
       "mods": [
         {
           "statId": "lightPctDmg",
-          "value": 10
+          "value": 20
         },
         {
-          "statId": "aspd",
-          "value": 4
+          "statId": "shockEffect",
+          "value": 12
         }
       ],
       "statAutoName": false,
       "archetype": "lightning",
-      "optionProfile": "연쇄 전류",
+      "optionProfile": "manual:n5m0ntdx0a3",
       "runtimeEffects": [
         {
           "statId": "lightPctDmg",
-          "value": 10
+          "value": 20
         },
         {
-          "statId": "aspd",
-          "value": 4
+          "statId": "shockEffect",
+          "value": 12
         }
       ],
       "optionClusterId": "anchor:n5m0ntdx0a3",
@@ -29529,29 +29529,29 @@
       "x": 120,
       "y": -1400,
       "type": "major",
-      "name": "촉매의 설화",
-      "desc": "냉기 피해 +12%\n저항 관통 +3%",
+      "name": "상위 냉기술",
+      "desc": "냉기 피해 +30%\n냉기 스킬 젬 레벨 +1",
       "mods": [
         {
           "statId": "coldPctDmg",
-          "value": 12
+          "value": 30
         },
         {
-          "statId": "resPen",
-          "value": 3
+          "statId": "coldGemLevel",
+          "value": 1
         }
       ],
       "statAutoName": false,
       "archetype": "cold",
-      "optionProfile": "냉기 관통",
+      "optionProfile": "manual:nsi1cc6xdjs",
       "runtimeEffects": [
         {
           "statId": "coldPctDmg",
-          "value": 12
+          "value": 30
         },
         {
-          "statId": "resPen",
-          "value": 3
+          "statId": "coldGemLevel",
+          "value": 1
         }
       ],
       "optionClusterId": "anchor:nsi1cc6xdjs",
@@ -29699,29 +29699,29 @@
       "x": 140,
       "y": -1260,
       "type": "major",
-      "name": "증류된 작열",
-      "desc": "화염 피해 +10%\n범위 피해 +8%",
+      "name": "번지는 작열",
+      "desc": "화염 피해 +20%\n점화 효율 +15%",
       "mods": [
         {
           "statId": "firePctDmg",
-          "value": 10
+          "value": 20
         },
         {
-          "statId": "aoePctDmg",
-          "value": 8
+          "statId": "igniteDamageMultiplierPct",
+          "value": 15
         }
       ],
       "statAutoName": false,
       "archetype": "fire",
-      "optionProfile": "번지는 불씨",
+      "optionProfile": "manual:n0ptqetxrno",
       "runtimeEffects": [
         {
           "statId": "firePctDmg",
-          "value": 10
+          "value": 20
         },
         {
-          "statId": "aoePctDmg",
-          "value": 8
+          "statId": "igniteDamageMultiplierPct",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:n0ptqetxrno",
@@ -30048,21 +30048,21 @@
       "x": 880,
       "y": -900,
       "type": "assist",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +3%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +7%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 3
+          "statId": "resL",
+          "value": 7
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:ngmfsfqc448",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 3
+          "statId": "resL",
+          "value": 7
         }
       ],
       "optionClusterId": "anchor:npynrdvcvnr",
@@ -30156,21 +30156,21 @@
       "x": 1100,
       "y": -420,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:n4dn8f5ecnj",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:npynrdvcvnr",
@@ -30431,15 +30431,15 @@
       "y": -100,
       "type": "major",
       "name": "금단의 설화",
-      "desc": "냉기 피해 +30%\n모든 원소 저항 +6%",
+      "desc": "피해 +30%\n주문 피해 +20%",
       "mods": [
         {
           "statId": "pctDmg",
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "spellPctDmg",
+          "value": 20
         }
       ],
       "statAutoName": false,
@@ -30451,8 +30451,8 @@
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "spellPctDmg",
+          "value": 20
         }
       ],
       "optionClusterId": "anchor:nlwk06igprm",
@@ -32072,15 +32072,15 @@
       "y": -1476.0769515458676,
       "type": "major",
       "name": "관통 쇠뇌",
-      "desc": "투사체 피해 +20%\n물리 피해 +15%",
+      "desc": "투사체 피해 +30%\n투사체 스킬 젬 레벨 +1",
       "mods": [
         {
           "statId": "projectilePctDmg",
-          "value": 20
+          "value": 30
         },
         {
-          "statId": "physPctDmg",
-          "value": 15
+          "statId": "projectileGemLevel",
+          "value": 1
         }
       ],
       "statAutoName": false,
@@ -32088,14 +32088,14 @@
       "runtimeEffects": [
         {
           "statId": "projectilePctDmg",
-          "value": 20
+          "value": 30
         },
         {
-          "statId": "physPctDmg",
-          "value": 15
+          "statId": "projectileGemLevel",
+          "value": 1
         }
       ],
-      "optionProfile": "authored:관통 쇠뇌",
+      "optionProfile": "manual:expansion_archer_crossbow_19",
       "optionClusterId": "anchor:expansion_archer_crossbow_19",
       "distanceFromClassStart": 15,
       "powerBand": 2
@@ -32142,15 +32142,15 @@
       "y": -1480,
       "type": "major",
       "name": "심연의 대비",
-      "desc": "피해 +30%\n모든 원소 저항 +8%",
+      "desc": "피해 +30%\n번개 저항 +15%",
       "mods": [
         {
           "statId": "pctDmg",
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "resL",
+          "value": 15
         }
       ],
       "statAutoName": false,
@@ -32162,8 +32162,8 @@
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "resL",
+          "value": 15
         }
       ],
       "optionClusterId": "bundle:expansion_occult_ritual_eye_01",
@@ -32284,21 +32284,21 @@
       "x": 1189.916697508023,
       "y": -1587.3686027918557,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:expansion_occult_ritual_eye_12",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "bundle:expansion_occult_ritual_eye_01",
@@ -32365,23 +32365,23 @@
       "x": 1318.611962015489,
       "y": -1612.500736356719,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:expansion_occult_ritual_eye_18",
       "optionClusterId": "bundle:expansion_occult_ritual_eye_01",
       "distanceFromClassStart": 12,
       "powerBand": 1
@@ -33823,23 +33823,23 @@
       "x": -220,
       "y": -1040,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:completion_alchemist_flask_14",
       "optionClusterId": "anchor:completion_alchemist_flask_20",
       "distanceFromClassStart": 16,
       "powerBand": 2
@@ -33985,16 +33985,16 @@
       "x": -310,
       "y": -1095,
       "type": "major",
-      "name": "정제된 잿불",
-      "desc": "화염 피해 +12%\n점화 확률 +5%p",
+      "name": "잿불 정제",
+      "desc": "화염 피해 +20%\n화염 저항 최대치 +1%p",
       "mods": [
         {
           "statId": "firePctDmg",
-          "value": 12
+          "value": 20
         },
         {
-          "statId": "igniteChance",
-          "value": 5
+          "statId": "maxResF",
+          "value": 1
         }
       ],
       "statAutoName": false,
@@ -34002,14 +34002,14 @@
       "runtimeEffects": [
         {
           "statId": "firePctDmg",
-          "value": 12
+          "value": 20
         },
         {
-          "statId": "igniteChance",
-          "value": 5
+          "statId": "maxResF",
+          "value": 1
         }
       ],
-      "optionProfile": "authored:정제된 잿불",
+      "optionProfile": "manual:completion_alchemist_flask_20",
       "optionClusterId": "anchor:completion_alchemist_flask_20",
       "distanceFromClassStart": 17,
       "powerBand": 2
@@ -35043,28 +35043,28 @@
       "y": -500,
       "type": "normal",
       "name": "비전 장막",
-      "desc": "에너지 보호막 +8%\n모든 원소 저항 +4%",
+      "desc": "에너지 보호막 +8%\n에너지 보호막 +30",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "energyShield",
+          "value": 30
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "feature:mind-shell",
+      "optionProfile": "manual:nczf2xtdgvv",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
           "value": 8
         },
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "energyShield",
+          "value": 30
         }
       ],
       "optionClusterId": "anchor:nczf2xtdgvv",
@@ -35112,21 +35112,21 @@
       "x": 340,
       "y": -500,
       "type": "assist",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +3%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +20",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 3
+          "statId": "energyShield",
+          "value": 20
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:ngyhs92jxvg",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 3
+          "statId": "energyShield",
+          "value": 20
         }
       ],
       "optionClusterId": "anchor:nfx1dxfde8q",
@@ -35149,7 +35149,7 @@
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:energyShield",
+      "optionProfile": "manual:nt032oak1vn",
       "runtimeEffects": [
         {
           "statId": "energyShield",
@@ -35533,21 +35533,21 @@
       "x": 600,
       "y": -580,
       "type": "assist",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +3%",
+      "name": "에너지 보호막 재충전 대기시간 감소",
+      "desc": "에너지 보호막 재충전 대기시간 감소 +0.2초",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 3
+          "statId": "energyShieldRechargeFaster",
+          "value": 0.2
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "topology:bundle:energyShield:resAll",
+      "optionProfile": "manual:nn7xddknjmp",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 3
+          "statId": "energyShieldRechargeFaster",
+          "value": 0.2
         }
       ],
       "optionClusterId": "anchor:n7czou0nlyk",
@@ -35696,15 +35696,15 @@
       "y": -540,
       "type": "major",
       "name": "심연의 보호막",
-      "desc": "에너지 보호막 +30%\n모든 원소 저항 +10%",
+      "desc": "에너지 보호막 +30%\n에너지 보호막 재충전 대기시간 감소 +0.5초",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 10
+          "statId": "energyShieldRechargeFaster",
+          "value": 0.5
         }
       ],
       "statAutoName": false,
@@ -35716,8 +35716,8 @@
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 10
+          "statId": "energyShieldRechargeFaster",
+          "value": 0.5
         }
       ],
       "optionClusterId": "anchor:n7czou0nlyk",
@@ -35971,27 +35971,27 @@
       "y": -760,
       "type": "major",
       "name": "금단의 헌신",
-      "desc": "헌신 +1\n모든 원소 저항 +6%",
+      "desc": "헌신 +1\n최대 생명력 +6%",
       "mods": [
         {
           "statId": "devotion",
           "value": 1
         },
         {
-          "statId": "resAll",
+          "statId": "pctHp",
           "value": 6
         }
       ],
       "statAutoName": false,
       "archetype": "devotion",
-      "optionProfile": "수호의 헌신",
+      "optionProfile": "manual:n0t16p8qgpd",
       "runtimeEffects": [
         {
           "statId": "devotion",
           "value": 1
         },
         {
-          "statId": "resAll",
+          "statId": "pctHp",
           "value": 6
         }
       ],
@@ -36231,15 +36231,15 @@
       "y": 540,
       "type": "major",
       "name": "수호의 외피",
-      "desc": "에너지 보호막 +35%\n모든 원소 저항 +8%",
+      "desc": "에너지 보호막 +35%\n에너지 보호막 회복 속도 +3%",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 35
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "energyShieldRegen",
+          "value": 3
         }
       ],
       "statAutoName": false,
@@ -36251,8 +36251,8 @@
           "value": 35
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "energyShieldRegen",
+          "value": 3
         }
       ],
       "optionClusterId": "bundle:n7sr619yw1e",
@@ -36437,7 +36437,7 @@
       ],
       "statAutoName": true,
       "archetype": "spell",
-      "optionProfile": "topology:bundle:spell:spellPctDmg",
+      "optionProfile": "manual:n0zbhx41bx7",
       "runtimeEffects": [
         {
           "statId": "spellPctDmg",
@@ -36455,15 +36455,15 @@
       "y": -300.0000000000001,
       "type": "major",
       "name": "공허한 보루",
-      "desc": "최대 생명력 +10%\n모든 원소 저항 +8%",
+      "desc": "최대 생명력 +10%\n주문 피해 +20%",
       "mods": [
         {
           "statId": "pctHp",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "spellPctDmg",
+          "value": 20
         }
       ],
       "statAutoName": false,
@@ -36475,8 +36475,8 @@
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "spellPctDmg",
+          "value": 20
         }
       ],
       "optionClusterId": "anchor:nyqgwi51dd9",
@@ -36597,21 +36597,21 @@
       "x": 880.0000000000001,
       "y": -220,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "주문 피해",
+      "desc": "주문 피해 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "spellPctDmg",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nxbsu881khb",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "spellPctDmg",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:nyqgwi51dd9",
@@ -36634,7 +36634,7 @@
       ],
       "statAutoName": true,
       "archetype": "spell",
-      "optionProfile": "topology:bundle:spell:spellPctDmg",
+      "optionProfile": "manual:nz4xjhu1ldg",
       "runtimeEffects": [
         {
           "statId": "spellPctDmg",
@@ -36976,27 +36976,27 @@
       "y": -40,
       "type": "major",
       "name": "물리 및 번개 피해",
-      "desc": "헌신 +1\n모든 원소 저항 +6%",
+      "desc": "헌신 +1\n최대 생명력 +6%",
       "mods": [
         {
           "statId": "devotion",
           "value": 1
         },
         {
-          "statId": "resAll",
+          "statId": "pctHp",
           "value": 6
         }
       ],
       "statAutoName": false,
       "archetype": "devotion",
-      "optionProfile": "수호의 헌신",
+      "optionProfile": "manual:nulyw0mk1cz",
       "runtimeEffects": [
         {
           "statId": "devotion",
           "value": 1
         },
         {
-          "statId": "resAll",
+          "statId": "pctHp",
           "value": 6
         }
       ],
@@ -37092,11 +37092,11 @@
       "y": 320,
       "type": "major",
       "name": "빛나는 성벽",
-      "desc": "모든 원소 저항 +10%\n방어도 +20%",
+      "desc": "물리 피해 감소 +4%p\n방어도 +20%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 10
+          "statId": "dr",
+          "value": 4
         },
         {
           "statId": "armorPct",
@@ -37108,8 +37108,8 @@
       "optionProfile": "manual:n2bs598tfi6",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 10
+          "statId": "dr",
+          "value": 4
         },
         {
           "statId": "armorPct",
@@ -37782,21 +37782,21 @@
       "x": 720,
       "y": -900,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nkdqoauwtay",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:npynrdvcvnr",
@@ -37944,21 +37944,21 @@
       "x": 980,
       "y": -880,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "카오스 저항",
+      "desc": "카오스 저항 +3%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resChaos",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nu1dmyxxsu9",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resChaos",
+          "value": 3
         }
       ],
       "optionClusterId": "anchor:nv88pjywy3x",
@@ -37998,21 +37998,21 @@
       "x": 940,
       "y": -660,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "카오스 저항",
+      "desc": "카오스 저항 +3%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resChaos",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nosf4ot1jsm",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resChaos",
+          "value": 3
         }
       ],
       "optionClusterId": "anchor:n4jbqe4ltnj",
@@ -38134,28 +38134,28 @@
       "y": -560,
       "type": "major",
       "name": "봉인된 대주문진",
-      "desc": "주문 피해 +10%\n범위 피해 +8%",
+      "desc": "범위 피해 +30%\n범위 스킬 젬 레벨 +1",
       "mods": [
         {
-          "statId": "spellPctDmg",
-          "value": 10
+          "statId": "aoePctDmg",
+          "value": 30
         },
         {
-          "statId": "aoePctDmg",
-          "value": 8
+          "statId": "aoeGemLevel",
+          "value": 1
         }
       ],
       "statAutoName": false,
-      "archetype": "spell",
-      "optionProfile": "확장된 주문진",
+      "archetype": "elemental",
+      "optionProfile": "manual:nr9ez53ar77",
       "runtimeEffects": [
         {
-          "statId": "spellPctDmg",
-          "value": 10
+          "statId": "aoePctDmg",
+          "value": 30
         },
         {
-          "statId": "aoePctDmg",
-          "value": 8
+          "statId": "aoeGemLevel",
+          "value": 1
         }
       ],
       "optionClusterId": "anchor:nr9ez53ar77",
@@ -38168,21 +38168,21 @@
       "x": 1760,
       "y": -860,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "topology:bundle:energyShield:resAll",
+      "optionProfile": "manual:nw9pfhyd5nq",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:ntpyi3hdb1j",
@@ -38222,21 +38222,21 @@
       "x": 1740,
       "y": -940,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "topology:bundle:energyShield:resAll",
+      "optionProfile": "manual:n2i9scwd7lc",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "optionClusterId": "bundle:n2i9scwd7lc",
@@ -38259,7 +38259,7 @@
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "topology:bundle:energyShield:energyShield",
+      "optionProfile": "manual:nvug642da60",
       "runtimeEffects": [
         {
           "statId": "energyShield",
@@ -38277,28 +38277,28 @@
       "y": -960,
       "type": "major",
       "name": "의식의 통찰",
-      "desc": "에너지 보호막 +10%\n모든 원소 저항 +5%",
+      "desc": "에너지 보호막 +10%\n에너지 보호막 +60",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "energyShield",
+          "value": 60
         }
       ],
       "statAutoName": false,
       "archetype": "energyShield",
-      "optionProfile": "비전 장막",
+      "optionProfile": "manual:ntpyi3hdb1j",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
           "value": 10
         },
         {
-          "statId": "resAll",
-          "value": 5
+          "statId": "energyShield",
+          "value": 60
         }
       ],
       "optionClusterId": "bundle:n2i9scwd7lc",
@@ -38813,21 +38813,21 @@
       "x": 1238.9949493661165,
       "y": -720,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nlx1zw6o1mw",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:nmw6zlmrzvb",
@@ -38894,21 +38894,21 @@
       "x": 1189.4974746830583,
       "y": -600.5025253169417,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nv6i7uao1mw",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:nmw6zlmrzvb",
@@ -39029,21 +39029,21 @@
       "x": 1300,
       "y": -499,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "냉기 저항",
+      "desc": "냉기 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resC",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nyaa0qaojdo",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resC",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:n33yhibs13g",
@@ -39110,21 +39110,21 @@
       "x": 1250.5,
       "y": -379.5,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "냉기 저항",
+      "desc": "냉기 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resC",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:n1by9nkojdo",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resC",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:n33yhibs13g",
@@ -39326,21 +39326,21 @@
       "x": 1390.5025253169417,
       "y": -579.4974746830583,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:ntr1gm1ojzg",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:nyjhqoqs0fe",
@@ -39380,21 +39380,21 @@
       "x": 1320.5025253169417,
       "y": -649.4974746830583,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:n6381n6ojzg",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:nyjhqoqs0fe",
@@ -39407,21 +39407,21 @@
       "x": 1341.0050506338835,
       "y": -698.9949493661165,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:n649998ojzg",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:nyjhqoqs0fe",
@@ -39572,34 +39572,34 @@
       "powerBand": 2
     },
     {
-      "cat": "spell",
+      "cat": "lightning",
       "id": "nmw6zlmrzvb",
       "x": 1167,
       "y": -671,
       "type": "major",
       "name": "고전압",
-      "desc": "번개 피해 +30%\n감전 확률 +10%p",
+      "desc": "번개 피해 +30%\n번개 저항 최대치 +1%p",
       "mods": [
         {
-          "statId": "summonPctDmg",
+          "statId": "lightPctDmg",
           "value": 30
         },
         {
-          "statId": "summonResPen",
-          "value": 6
+          "statId": "maxResL",
+          "value": 1
         }
       ],
       "statAutoName": false,
-      "archetype": "summon",
+      "archetype": "lightning",
       "optionProfile": "manual:nmw6zlmrzvb",
       "runtimeEffects": [
         {
-          "statId": "summonPctDmg",
+          "statId": "lightPctDmg",
           "value": 30
         },
         {
-          "statId": "summonResPen",
-          "value": 6
+          "statId": "maxResL",
+          "value": 1
         }
       ],
       "optionClusterId": "anchor:nmw6zlmrzvb",
@@ -39613,19 +39613,19 @@
       "y": -676,
       "type": "major",
       "name": "공허 화염",
-      "desc": "화염 피해 +30%\n점화 확률 +15%p",
+      "desc": "화염 피해 +30%\n화염 저항 최대치 +1%p",
       "mods": [
         {
           "statId": "firePctDmg",
           "value": 30
         },
         {
-          "statId": "igniteChance",
-          "value": 15
+          "statId": "maxResF",
+          "value": 1
         }
       ],
       "statAutoName": false,
-      "archetype": "energyShield",
+      "archetype": "fire",
       "optionProfile": "manual:nyjhqoqs0fe",
       "runtimeEffects": [
         {
@@ -39633,8 +39633,8 @@
           "value": 30
         },
         {
-          "statId": "igniteChance",
-          "value": 15
+          "statId": "maxResF",
+          "value": 1
         }
       ],
       "optionClusterId": "anchor:nyjhqoqs0fe",
@@ -39642,34 +39642,34 @@
       "powerBand": 1
     },
     {
-      "cat": "spell",
+      "cat": "cold",
       "id": "n33yhibs13g",
       "x": 1280,
       "y": -449,
       "type": "major",
       "name": "혹한의 냉기",
-      "desc": "냉기 피해 +30%\n냉각 확률 +5%p",
+      "desc": "냉기 피해 +30%\n냉기 저항 최대치 +1%p",
       "mods": [
         {
-          "statId": "summonPctDmg",
-          "value": 12
+          "statId": "coldPctDmg",
+          "value": 30
         },
         {
-          "statId": "summonAspd",
-          "value": 8
+          "statId": "maxResC",
+          "value": 1
         }
       ],
       "statAutoName": false,
-      "archetype": "spell",
-      "optionProfile": "사역 강화",
+      "archetype": "cold",
+      "optionProfile": "manual:n33yhibs13g",
       "runtimeEffects": [
         {
-          "statId": "summonPctDmg",
-          "value": 12
+          "statId": "coldPctDmg",
+          "value": 30
         },
         {
-          "statId": "summonAspd",
-          "value": 8
+          "statId": "maxResC",
+          "value": 1
         }
       ],
       "optionClusterId": "anchor:n33yhibs13g",
@@ -39744,21 +39744,21 @@
       "x": 1560,
       "y": -1040,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "번개 저항",
+      "desc": "번개 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:n2j28s6v8or",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resL",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:ntt0pzauzsg",
@@ -39970,7 +39970,7 @@
       ],
       "statAutoName": true,
       "archetype": "chaos",
-      "optionProfile": "topology:bundle:chaos:resChaos",
+      "optionProfile": "manual:n2k5tw0zkxo",
       "runtimeEffects": [
         {
           "statId": "resChaos",
@@ -40015,15 +40015,15 @@
       "y": -940,
       "type": "major",
       "name": "금단의 복음",
-      "desc": "카오스 피해 +30%\n저항 관통 +6%",
+      "desc": "카오스 피해 +30%\n카오스 저항 최대치 +1%p",
       "mods": [
         {
           "statId": "chaosPctDmg",
           "value": 30
         },
         {
-          "statId": "resPen",
-          "value": 6
+          "statId": "maxResChaos",
+          "value": 1
         }
       ],
       "statAutoName": false,
@@ -40035,8 +40035,8 @@
           "value": 30
         },
         {
-          "statId": "resPen",
-          "value": 6
+          "statId": "maxResChaos",
+          "value": 1
         }
       ],
       "optionClusterId": "anchor:n5qbn9tzm38",
@@ -40266,28 +40266,28 @@
       "y": -920,
       "type": "major",
       "name": "차원의 외피",
-      "desc": "에너지 보호막 +12%\n모든 원소 저항 +6%",
+      "desc": "에너지 보호막 +12%\n에너지 보호막 재충전 대기시간 감소 +0.5초",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 12
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "energyShieldRechargeFaster",
+          "value": 0.5
         }
       ],
       "statAutoName": false,
       "archetype": "energyShield",
-      "optionProfile": "정신의 외피",
+      "optionProfile": "manual:nc3w8091wzu",
       "runtimeEffects": [
         {
           "statId": "energyShieldPct",
           "value": 12
         },
         {
-          "statId": "resAll",
-          "value": 6
+          "statId": "energyShieldRechargeFaster",
+          "value": 0.5
         }
       ],
       "optionClusterId": "anchor:nc3w8091wzu",
@@ -42073,25 +42073,25 @@
       "powerBand": 1
     },
     {
-      "cat": "int",
+      "cat": "elemental",
       "id": "v13_balance_center_dimensional_prism_01",
       "x": -320,
       "y": -770,
       "type": "major",
-      "name": "변성의 정신",
-      "desc": "원소 피해 +30%\n주문 피해 +20%",
+      "name": "원소의 극점",
+      "desc": "원소 피해 +30%\n원소 스킬 젬 레벨 +1",
       "mods": [
         {
           "statId": "elementalPctDmg",
           "value": 30
         },
         {
-          "statId": "spellPctDmg",
-          "value": 20
+          "statId": "elementalGemLevel",
+          "value": 1
         }
       ],
       "statAutoName": false,
-      "archetype": "intelligence",
+      "archetype": "elemental",
       "optionProfile": "manual:v13_balance_center_dimensional_prism_01",
       "runtimeEffects": [
         {
@@ -42099,8 +42099,8 @@
           "value": 30
         },
         {
-          "statId": "spellPctDmg",
-          "value": 20
+          "statId": "elementalGemLevel",
+          "value": 1
         }
       ],
       "optionClusterId": "bundle:v13_balance_center_dimensional_prism_01",
@@ -42140,21 +42140,21 @@
       "x": -210,
       "y": -640,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "냉기 저항",
+      "desc": "냉기 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resC",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "topology:bundle:energyShield:resAll",
+      "optionProfile": "manual:v13_balance_center_dimensional_prism_03",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resC",
+          "value": 5
         }
       ],
       "optionClusterId": "bundle:v13_balance_center_dimensional_prism_01",
@@ -42356,21 +42356,21 @@
       "x": -320,
       "y": -580,
       "type": "minor",
-      "name": "정신의 외피",
-      "desc": "모든 원소 저항 +2%",
+      "name": "냉기 저항",
+      "desc": "냉기 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resC",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "정신의 외피",
+      "optionProfile": "manual:v13_balance_center_dimensional_prism_11",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resC",
+          "value": 5
         }
       ],
       "optionClusterId": "bundle:v13_balance_center_dimensional_prism_01",
@@ -43519,11 +43519,11 @@
       "y": -30.50252531694168,
       "type": "minor",
       "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "desc": "모든 원소 저항 +3%",
       "mods": [
         {
           "statId": "resAll",
-          "value": 2
+          "value": 3
         }
       ],
       "statAutoName": true,
@@ -43531,10 +43531,10 @@
       "runtimeEffects": [
         {
           "statId": "resAll",
-          "value": 2
+          "value": 3
         }
       ],
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:v13_balance_center_left_diamond_03",
       "optionClusterId": "anchor:v13_balance_center_left_diamond_05",
       "distanceFromClassStart": 13,
       "powerBand": 1
@@ -44789,21 +44789,21 @@
       "x": 258,
       "y": -1099,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "topology:bundle:energyShield:resAll",
+      "optionProfile": "manual:v13_bulk_연금술사_2_06",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:v13_bulk_연금술사_2_07",
@@ -44851,21 +44851,21 @@
       "x": 376,
       "y": -1107,
       "type": "minor",
-      "name": "정신의 외피",
-      "desc": "모든 원소 저항 +2%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "정신의 외피",
+      "optionProfile": "manual:v13_bulk_연금술사_2_08",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "resF",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:v13_bulk_연금술사_2_07",
@@ -45388,21 +45388,21 @@
       "x": 655.7241768324484,
       "y": -1922.7840804453174,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "지속 피해 배율",
+      "desc": "지속 피해 배율 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "dotPctDmg",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "optionProfile": "topology:bundle:energyShield:resAll",
+      "optionProfile": "manual:v13_bulk_연금술사_4_05",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "dotPctDmg",
+          "value": 5
         }
       ],
       "optionClusterId": "anchor:v13_bulk_연금술사_4_07",
@@ -45437,25 +45437,25 @@
       "powerBand": 1
     },
     {
-      "cat": "int",
+      "cat": "ailment",
       "id": "v13_bulk_연금술사_4_07",
       "x": 624.7459921069866,
       "y": -2041.1282905745636,
       "type": "major",
-      "name": "정제된 정신",
-      "desc": "지속 피해 배율 +30%\n스킬 속도 +8%",
+      "name": "부식의 정점",
+      "desc": "지속 피해 배율 +30%\n지속 스킬 젬 레벨 +1",
       "mods": [
         {
           "statId": "dotPctDmg",
           "value": 30
         },
         {
-          "statId": "aspd",
-          "value": 8
+          "statId": "dotGemLevel",
+          "value": 1
         }
       ],
       "statAutoName": false,
-      "archetype": "intelligence",
+      "archetype": "ailment",
       "optionProfile": "manual:v13_bulk_연금술사_4_07",
       "runtimeEffects": [
         {
@@ -45463,8 +45463,8 @@
           "value": 30
         },
         {
-          "statId": "aspd",
-          "value": 8
+          "statId": "dotGemLevel",
+          "value": 1
         }
       ],
       "optionClusterId": "anchor:v13_bulk_연금술사_4_07",
@@ -45585,21 +45585,21 @@
       "x": 1037.02,
       "y": -1736.23,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:v13_bulk_비술사_5_02",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:neln43kwy3x",
@@ -45918,15 +45918,15 @@
       "y": 75,
       "type": "major",
       "name": "굳건한 장막",
-      "desc": "에너지 보호막 +30%\n모든 원소 저항 +8%",
+      "desc": "에너지 보호막 +30%\n에너지 보호막 회복 속도 +3%",
       "mods": [
         {
           "statId": "energyShieldPct",
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "energyShieldRegen",
+          "value": 3
         }
       ],
       "statAutoName": false,
@@ -45938,8 +45938,8 @@
           "value": 30
         },
         {
-          "statId": "resAll",
-          "value": 8
+          "statId": "energyShieldRegen",
+          "value": 3
         }
       ],
       "optionClusterId": "anchor:v13_bulk_성직자_1_10",
@@ -47285,11 +47285,11 @@
       "y": 32.50000000000003,
       "type": "major",
       "name": "계시의 핵",
-      "desc": "모든 원소 저항 +10%\n최대 생명력 +8%",
+      "desc": "막기 확률 +5%p\n최대 생명력 +8%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 10
+          "statId": "blockChance",
+          "value": 5
         },
         {
           "statId": "pctHp",
@@ -47301,8 +47301,8 @@
       "optionProfile": "manual:n3j2xrf67a0",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 10
+          "statId": "blockChance",
+          "value": 5
         },
         {
           "statId": "pctHp",
@@ -48189,28 +48189,28 @@
       "y": 480,
       "type": "major",
       "name": "전장의 파문",
-      "desc": "물리 피해 +30%\n강타 피해 +25%",
+      "desc": "강타 피해 +30%\n강타 스킬 젬 레벨 +1",
       "mods": [
         {
-          "statId": "physPctDmg",
+          "statId": "slamPctDmg",
           "value": 30
         },
         {
-          "statId": "slamPctDmg",
-          "value": 25
+          "statId": "slamGemLevel",
+          "value": 1
         }
       ],
       "statAutoName": false,
-      "archetype": "armor",
+      "archetype": "slam",
       "optionProfile": "manual:n7u6tr9kzle",
       "runtimeEffects": [
         {
-          "statId": "physPctDmg",
+          "statId": "slamPctDmg",
           "value": 30
         },
         {
-          "statId": "slamPctDmg",
-          "value": 25
+          "statId": "slamGemLevel",
+          "value": 1
         }
       ],
       "optionClusterId": "anchor:n7u6tr9kzle",
@@ -50657,29 +50657,29 @@
       "x": 280,
       "y": -1880,
       "type": "normal",
-      "name": "타오르는 핵",
-      "desc": "화염 피해 +8%\n점화 확률 +4%p",
+      "name": "점화 촉매",
+      "desc": "화염 피해 +12%\n점화 효율 +8%",
       "mods": [
         {
           "statId": "firePctDmg",
-          "value": 8
+          "value": 12
         },
         {
-          "statId": "igniteChance",
-          "value": 4
+          "statId": "igniteDamageMultiplierPct",
+          "value": 8
         }
       ],
       "statAutoName": false,
       "archetype": "fire",
-      "optionProfile": "feature:core",
+      "optionProfile": "manual:nzsokkouxmx",
       "runtimeEffects": [
         {
           "statId": "firePctDmg",
-          "value": 8
+          "value": 12
         },
         {
-          "statId": "igniteChance",
-          "value": 4
+          "statId": "igniteDamageMultiplierPct",
+          "value": 8
         }
       ],
       "optionClusterId": "anchor:n05jx3suzdh",
@@ -50754,29 +50754,29 @@
       "x": 340,
       "y": -1840,
       "type": "major",
-      "name": "휘발성 화로",
-      "desc": "화염 피해 +10%\n범위 피해 +8%",
+      "name": "상위 화염술",
+      "desc": "화염 피해 +30%\n화염 스킬 젬 레벨 +1",
       "mods": [
         {
           "statId": "firePctDmg",
-          "value": 10
+          "value": 30
         },
         {
-          "statId": "aoePctDmg",
-          "value": 8
+          "statId": "fireGemLevel",
+          "value": 1
         }
       ],
       "statAutoName": false,
       "archetype": "fire",
-      "optionProfile": "번지는 불씨",
+      "optionProfile": "manual:n05jx3suzdh",
       "runtimeEffects": [
         {
           "statId": "firePctDmg",
-          "value": 10
+          "value": 30
         },
         {
-          "statId": "aoePctDmg",
-          "value": 8
+          "statId": "fireGemLevel",
+          "value": 1
         }
       ],
       "optionClusterId": "anchor:n05jx3suzdh",
@@ -51029,21 +51029,21 @@
       "x": 205.35898384862244,
       "y": -1540,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +2%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "statAutoName": true,
       "archetype": "intelligence",
-      "optionProfile": "topology:corridor:intelligence:resAll",
+      "optionProfile": "manual:nxgzbdhwsjx",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 2
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "optionClusterId": "anchor:nbvnhnpwsjx",
@@ -51306,21 +51306,21 @@
       "x": 611.49,
       "y": 530.87,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "name": "에너지 보호막",
+      "desc": "에너지 보호막 +15",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "statAutoName": true,
       "archetype": "resist_energy",
-      "optionProfile": "expansion:v30:occultist_cleric_resist_energy",
+      "optionProfile": "manual:backbone_branch_occultist_cleric_center_t4_n04",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "energyShield",
+          "value": 15
         }
       ],
       "sourceOptionProfiles": [
@@ -51450,28 +51450,28 @@
       "x": 356.18,
       "y": 1004.05,
       "type": "normal",
-      "name": "방어도",
-      "desc": "강타 피해 +13%\n방패 스킬 피해 +5%",
+      "name": "방패 충격 집중",
+      "desc": "방패 스킬 피해 +13%\n방어도 +5%",
       "mods": [
         {
-          "statId": "slamPctDmg",
+          "statId": "shieldPctDmg",
           "value": 13
         },
         {
-          "statId": "shieldPctDmg",
+          "statId": "armorPct",
           "value": 5
         }
       ],
       "statAutoName": false,
-      "archetype": "slam_shield",
-      "optionProfile": "expansion:v30:cleric_warrior_slam_shield",
+      "archetype": "shield",
+      "optionProfile": "manual:backbone_branch_cleric_warrior_center_t3_n03",
       "runtimeEffects": [
         {
-          "statId": "slamPctDmg",
+          "statId": "shieldPctDmg",
           "value": 13
         },
         {
-          "statId": "shieldPctDmg",
+          "statId": "armorPct",
           "value": 5
         }
       ],
@@ -51492,21 +51492,21 @@
       "x": 394.88,
       "y": 935.76,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "name": "물리 피해 감소",
+      "desc": "물리 피해 감소 +1%p",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "dr",
+          "value": 1
         }
       ],
       "statAutoName": true,
       "archetype": "resist_armor",
-      "optionProfile": "expansion:v30:cleric_warrior_resist_armor",
+      "optionProfile": "manual:backbone_branch_cleric_warrior_center_t4_n04",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "dr",
+          "value": 1
         }
       ],
       "sourceOptionProfiles": [
@@ -52446,29 +52446,29 @@
       "x": 1855.27,
       "y": -1410.49,
       "type": "major",
-      "name": "주문 각인",
-      "desc": "주문 피해 +30%\n주문 내장 피해 +10",
+      "name": "상위 주문 각인",
+      "desc": "주문 피해 +30%\n주문 스킬 젬 레벨 +1",
       "mods": [
         {
           "statId": "spellPctDmg",
           "value": 30
         },
         {
-          "statId": "spellFlatDmg",
-          "value": 10
+          "statId": "spellGemLevel",
+          "value": 1
         }
       ],
       "statAutoName": false,
       "archetype": "spell",
-      "optionProfile": "expansion:v30:occultist_spell",
+      "optionProfile": "manual:backbone_branch_occultist_outer_1_t1_n05",
       "runtimeEffects": [
         {
           "statId": "spellPctDmg",
           "value": 30
         },
         {
-          "statId": "spellFlatDmg",
-          "value": 10
+          "statId": "spellGemLevel",
+          "value": 1
         }
       ],
       "sourceOptionProfiles": [
@@ -53183,20 +53183,20 @@
       "y": 1234.78,
       "type": "minor",
       "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "desc": "모든 원소 저항 +3%",
       "mods": [
         {
           "statId": "resAll",
-          "value": 4
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "resist",
-      "optionProfile": "expansion:v30:cleric_resist",
+      "optionProfile": "manual:backbone_branch_cleric_outer_2_t3_n03",
       "runtimeEffects": [
         {
           "statId": "resAll",
-          "value": 4
+          "value": 3
         }
       ],
       "sourceOptionProfiles": [
@@ -53327,20 +53327,20 @@
       "y": 1188.64,
       "type": "minor",
       "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "desc": "모든 원소 저항 +3%",
       "mods": [
         {
           "statId": "resAll",
-          "value": 4
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "resist",
-      "optionProfile": "expansion:v30:cleric_resist",
+      "optionProfile": "manual:backbone_branch_cleric_outer_2_t3_n07",
       "runtimeEffects": [
         {
           "statId": "resAll",
-          "value": 4
+          "value": 3
         }
       ],
       "sourceOptionProfiles": [
@@ -53360,21 +53360,21 @@
       "x": 1435.704885843443,
       "y": 551.3058206560389,
       "type": "assist",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +7%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "resF",
+          "value": 7
         }
       ],
       "statAutoName": true,
       "archetype": "maximum_resist",
-      "optionProfile": "expansion:v30:cleric_maximum_resist",
+      "optionProfile": "manual:backbone_branch_cleric_outer_3_t1_n01",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "resF",
+          "value": 7
         }
       ],
       "sourceOptionProfiles": [
@@ -53394,21 +53394,21 @@
       "x": 1363.5698465010355,
       "y": 552.0511387554632,
       "type": "assist",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "name": "최대 생명력",
+      "desc": "최대 생명력 +3%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "pctHp",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "devotion",
-      "optionProfile": "expansion:v30:cleric_devotion",
+      "optionProfile": "manual:backbone_branch_cleric_outer_3_t2_n02",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "pctHp",
+          "value": 3
         }
       ],
       "sourceOptionProfiles": [
@@ -53428,21 +53428,21 @@
       "x": 1432.1376275328585,
       "y": 479.2643411588383,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "maximum_resist",
-      "optionProfile": "expansion:v30:cleric_maximum_resist",
+      "optionProfile": "manual:backbone_branch_cleric_outer_3_t1_n03",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "resF",
+          "value": 5
         }
       ],
       "sourceOptionProfiles": [
@@ -53476,7 +53476,7 @@
       ],
       "statAutoName": false,
       "archetype": "devotion",
-      "optionProfile": "expansion:v30:cleric_devotion",
+      "optionProfile": "manual:backbone_branch_cleric_outer_3_t2_n04",
       "runtimeEffects": [
         {
           "statId": "devotion",
@@ -53504,21 +53504,21 @@
       "x": 1287.8649606575925,
       "y": 480.7453180994238,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "name": "화염 저항",
+      "desc": "화염 저항 +5%",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "resF",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "archetype": "maximum_resist",
-      "optionProfile": "expansion:v30:cleric_maximum_resist",
+      "optionProfile": "manual:backbone_branch_cleric_outer_3_t1_n05",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "resF",
+          "value": 5
         }
       ],
       "sourceOptionProfiles": [
@@ -53572,28 +53572,28 @@
       "x": 1284.2951141565563,
       "y": 408.69417934396085,
       "type": "major",
-      "name": "불변의 성역",
-      "desc": "모든 원소 저항 +12%\n모든 원소 최대 저항 +1%",
+      "name": "불변의 화염 성역",
+      "desc": "화염 저항 +15%\n화염 저항 최대치 +1%p",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 12
+          "statId": "resF",
+          "value": 15
         },
         {
-          "statId": "maxResAll",
+          "statId": "maxResF",
           "value": 1
         }
       ],
       "statAutoName": false,
       "archetype": "maximum_resist",
-      "optionProfile": "expansion:v30:cleric_maximum_resist",
+      "optionProfile": "manual:backbone_branch_cleric_outer_3_t1_n07",
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 12
+          "statId": "resF",
+          "value": 15
         },
         {
-          "statId": "maxResAll",
+          "statId": "maxResF",
           "value": 1
         }
       ],
@@ -53902,20 +53902,20 @@
       "x": 286.07,
       "y": 2316.89,
       "type": "minor",
-      "name": "순환",
-      "desc": "강타 피해 +5%",
+      "name": "물리 피해",
+      "desc": "물리 피해 +5%",
       "mods": [
         {
-          "statId": "slamPctDmg",
+          "statId": "physPctDmg",
           "value": 5
         }
       ],
-      "statAutoName": true,
-      "archetype": "slam",
-      "optionProfile": "expansion:v30:warrior_slam",
+      "statAutoName": false,
+      "archetype": "physical",
+      "optionProfile": "manual:backbone_branch_warrior_outer_1_t3_n03",
       "runtimeEffects": [
         {
-          "statId": "slamPctDmg",
+          "statId": "physPctDmg",
           "value": 5
         }
       ],
@@ -56718,29 +56718,29 @@
       "x": 600.4,
       "y": -2181.11,
       "type": "normal",
-      "name": "빙결 약제 집중",
-      "desc": "냉기 피해 +13%\n동결 확률 +5%",
+      "name": "냉각 약제 집중",
+      "desc": "냉기 피해 +15%\n냉각 효율 +10%",
       "mods": [
         {
           "statId": "coldPctDmg",
-          "value": 13
+          "value": 15
         },
         {
-          "statId": "freezeChance",
-          "value": 5
+          "statId": "chillEffect",
+          "value": 10
         }
       ],
       "statAutoName": false,
       "archetype": "cold",
-      "optionProfile": "expansion:v30:alchemist_cold",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_2_t3_n03",
       "runtimeEffects": [
         {
           "statId": "coldPctDmg",
-          "value": 13
+          "value": 15
         },
         {
-          "statId": "freezeChance",
-          "value": 5
+          "statId": "chillEffect",
+          "value": 10
         }
       ],
       "sourceOptionProfiles": [
@@ -56939,28 +56939,28 @@
       "y": -2111.92,
       "type": "normal",
       "name": "전도 약제 집중",
-      "desc": "번개 피해 +13%\n감전 확률 +5%",
+      "desc": "감전된 적에게 주는 명중 피해 +15%\n감전 효율 +10%",
       "mods": [
         {
-          "statId": "lightPctDmg",
-          "value": 13
+          "statId": "shockedEnemyHitDamagePct",
+          "value": 15
         },
         {
-          "statId": "shockChance",
-          "value": 5
+          "statId": "shockEffect",
+          "value": 10
         }
       ],
       "statAutoName": false,
       "archetype": "lightning",
-      "optionProfile": "expansion:v30:alchemist_lightning",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_3_t1_n03",
       "runtimeEffects": [
         {
-          "statId": "lightPctDmg",
-          "value": 13
+          "statId": "shockedEnemyHitDamagePct",
+          "value": 15
         },
         {
-          "statId": "shockChance",
-          "value": 5
+          "statId": "shockEffect",
+          "value": 10
         }
       ],
       "sourceOptionProfiles": [
@@ -56980,29 +56980,29 @@
       "x": -445.33,
       "y": -2132.63,
       "type": "major",
-      "name": "폭풍 약제",
-      "desc": "번개 피해 +30%\n감전 확률 +15%",
+      "name": "상위 번개술",
+      "desc": "번개 피해 +30%\n번개 스킬 젬 레벨 +1",
       "mods": [
         {
           "statId": "lightPctDmg",
           "value": 30
         },
         {
-          "statId": "shockChance",
-          "value": 15
+          "statId": "lightGemLevel",
+          "value": 1
         }
       ],
       "statAutoName": false,
       "archetype": "lightning",
-      "optionProfile": "expansion:v30:alchemist_lightning",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_3_t2_n04",
       "runtimeEffects": [
         {
           "statId": "lightPctDmg",
           "value": 30
         },
         {
-          "statId": "shockChance",
-          "value": 15
+          "statId": "lightGemLevel",
+          "value": 1
         }
       ],
       "sourceOptionProfiles": [
@@ -57134,7 +57134,7 @@
       ],
       "statAutoName": true,
       "archetype": "resist",
-      "optionProfile": "expansion:v30:alchemist_resist",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_4_t2_n02",
       "runtimeEffects": [
         {
           "statId": "resAll",
@@ -57201,20 +57201,20 @@
       "y": -1917.73,
       "type": "minor",
       "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "desc": "모든 원소 저항 +3%",
       "mods": [
         {
           "statId": "resAll",
-          "value": 4
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "resist",
-      "optionProfile": "expansion:v30:alchemist_resist",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_4_t2_n04",
       "runtimeEffects": [
         {
           "statId": "resAll",
-          "value": 4
+          "value": 3
         }
       ],
       "sourceOptionProfiles": [
@@ -57277,20 +57277,20 @@
       "y": -1961.73,
       "type": "minor",
       "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "desc": "모든 원소 저항 +3%",
       "mods": [
         {
           "statId": "resAll",
-          "value": 4
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "resist",
-      "optionProfile": "expansion:v30:alchemist_resist",
+      "optionProfile": "manual:backbone_branch_alchemist_outer_4_t2_n06",
       "runtimeEffects": [
         {
           "statId": "resAll",
-          "value": 4
+          "value": 3
         }
       ],
       "sourceOptionProfiles": [

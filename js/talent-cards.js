@@ -310,19 +310,26 @@ function getTalentCardDimensionRows(owned) {
 }
 
 function getCurrentTalentBloomContext(owned) {
-    let heroId = HERO_SELECTION_DEFS[game.selectedHeroId] ? game.selectedHeroId : HERO_SELECTION_ORDER[0];
     let classKey = game.ascendClass && CLASS_TEMPLATES[game.ascendClass] ? game.ascendClass : null;
-    let key = classKey ? makeTalentComboKey(heroId, classKey) : null;
-    let names = getTalentCardName(heroId, classKey);
+    let locked = game.bloomedClassThisLoop === classKey && HERO_SELECTION_DEFS[game.bloomedTalentThisLoop];
+    let pending = HERO_SELECTION_DEFS[game.pendingTalentBloomHeroId];
+    let heroId = locked ? game.bloomedTalentThisLoop : (pending ? game.pendingTalentBloomHeroId : null);
+    let key = heroId && classKey ? makeTalentComboKey(heroId, classKey) : null;
+    let names = heroId ? getTalentCardName(heroId, classKey) : {
+        heroLabel: '미선택',
+        classLabel: classKey ? CLASS_TEMPLATES[classKey].name : '무직',
+        bloomName: '5차 전직에서 선택'
+    };
     return { heroId, classKey, key, names, card: key ? owned[key] : null };
 }
 
 function renderCurrentTalentBloomContext(owned) {
     let current = getCurrentTalentBloomContext(owned);
     let state = !current.classKey ? '직업을 선택하면 조합이 확정됩니다.'
-        : (current.card ? `개화 완료 · Lv.${Math.max(1, Math.floor(current.card.level || 1))}` : '아직 개화하지 못한 조합');
+        : (!current.heroId ? '5차 전직 도전 시 이번 루프의 재능을 선택합니다.'
+            : (current.card ? `개화 완료 · Lv.${Math.max(1, Math.floor(current.card.level || 1))}` : '5차 전직 도전 중'));
     return `<section class="talent-current-combo ${current.card ? 'unlocked' : 'locked'}">
-        <div><span>현재 재능</span><strong>${escapeTalentHtml(current.names.heroLabel)}</strong></div>
+        <div><span>개화 재능</span><strong>${escapeTalentHtml(current.names.heroLabel)}</strong></div>
         <i aria-hidden="true">×</i>
         <div><span>현재 직업</span><strong>${escapeTalentHtml(current.names.classLabel)}</strong></div>
         <div class="talent-current-result"><span>개화 조합</span><strong>${escapeTalentHtml(current.names.bloomName)}</strong><small>${state}</small></div>
@@ -332,7 +339,7 @@ function renderCurrentTalentBloomContext(owned) {
 function renderTalentCombinationStatus(owned) {
     let current = getCurrentTalentBloomContext(owned);
     let dimension = talentCardView.dimension;
-    let focusId = talentCardView.filterId || (dimension === 'talent' ? current.heroId : current.classKey);
+    let focusId = talentCardView.filterId || (dimension === 'talent' ? (current.heroId || HERO_SELECTION_ORDER[0]) : current.classKey);
     if (!focusId) return '<div class="talent-combo-empty">직업을 선택하면 조합 현황을 볼 수 있습니다.</div>';
     let counterpartIds = dimension === 'talent' ? Object.keys(CLASS_TEMPLATES) : HERO_SELECTION_ORDER;
     let cells = counterpartIds.map(counterpartId => {

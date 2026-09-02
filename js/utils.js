@@ -312,6 +312,18 @@ function getStatName(statId) {
         leechTotalCap: '흡혈 총 회복량 캡(최대 생명력 %)',
         leechInstanceCap: '흡혈 타격당 회복량 캡(최대 생명력 %)',
         gemLevel: '모든 스킬 젬 레벨',
+        elementalGemLevel: '원소 스킬 젬 레벨',
+        fireGemLevel: '화염 스킬 젬 레벨',
+        coldGemLevel: '냉기 스킬 젬 레벨',
+        lightGemLevel: '번개 스킬 젬 레벨',
+        chaosGemLevel: '카오스 스킬 젬 레벨',
+        physGemLevel: '물리 스킬 젬 레벨',
+        projectileGemLevel: '투사체 스킬 젬 레벨',
+        meleeGemLevel: '근접 스킬 젬 레벨',
+        slamGemLevel: '강타 스킬 젬 레벨',
+        spellGemLevel: '주문 스킬 젬 레벨',
+        dotGemLevel: '지속 스킬 젬 레벨',
+        aoeGemLevel: '범위 스킬 젬 레벨',
         summonGemLevel: '소환수 공격 스킬 젬 레벨',
         dr: '물리 피해 감소(%)',
         physIgnore: '물리 피해 감소 무시(%)',
@@ -359,10 +371,13 @@ function getStatName(statId) {
         shockEffectReducePct: '감전 효과 감소(%)',
         dotTakenDamageReducePct: '받는 지속 피해 감소(%)',
         genericTakenDamageReducePct: '받는 피해 감소(%)',
-        shockedEnemyHitDamageMorePct: '감전된 적 타격 피해 증가(%)',
+        shockedEnemyHitDamageMorePct: '감전된 적 타격 피해 증폭(%)',
+        shockedEnemyHitDamagePct: '감전된 적에게 주는 명중 피해 증가(%)',
         takenDamageReduceWhen2EnemiesPct: '적 2명 이상일 때 받는 피해 감소(%)',
         takenDamageReduceWhen1EnemyPct: '적 1명일 때 받는 피해 감소(%)',
-        shockEffect: '감전 효과(%)',
+        chillEffect: '냉각 효율(%)',
+        shockEffect: '감전 효율(%)',
+        igniteDamageMultiplierPct: '점화 효율(%)',
         physFlatTakenReduce: '받는 물리 피해 감소 flat',
         fireFlatTakenReduce: '받는 화염 피해 감소 flat',
         coldFlatTakenReduce: '받는 냉기 피해 감소 flat',
@@ -418,7 +433,9 @@ function createEmptyStatBucket() {
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0, deflectChance: 0, deflectDamageReduce: 0, blockChance: 0, blockChancePct: 0,
         ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
-        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, genericTakenDamageReducePct: 0, shockedEnemyHitDamageMorePct: 0, igniteDamageMultiplierPct: 0, poisonDamageMultiplierPct: 0, accuracyBonusPct: 0, shockEffect: 0,
+        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, genericTakenDamageReducePct: 0,
+        shockedEnemyHitDamageMorePct: 0, shockedEnemyHitDamagePct: 0, igniteDamageMultiplierPct: 0,
+        poisonDamageMultiplierPct: 0, accuracyBonusPct: 0, chillEffect: 0, shockEffect: 0,
         summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0, summonGemLevel: 0,
         curseCap: 0, oxygenMax: 0, oxygenRegen: 0,
         oceanPressureResist: 0, oceanDepthGainPct: 0, oceanOxygenAttackSavingPct: 0, oceanRareFishChancePct: 0,
@@ -523,6 +540,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'takenDamageReduceWhen1EnemyPct') bucket.takenDamageReduceWhen1EnemyPct += value;
     else if (statId === 'genericTakenDamageReducePct') bucket.genericTakenDamageReducePct += value;
     else if (statId === 'shockedEnemyHitDamageMorePct') bucket.shockedEnemyHitDamageMorePct += value;
+    else if (statId === 'shockedEnemyHitDamagePct') bucket.shockedEnemyHitDamagePct += value;
     else if (statId === 'igniteDamageMultiplierPct') bucket.igniteDamageMultiplierPct += value;
     else if (statId === 'poisonDamageMultiplierPct') bucket.poisonDamageMultiplierPct += value;
     else if (statId === 'accuracyBonusPct') bucket.accuracyBonusPct += value;
@@ -568,6 +586,7 @@ function addStatToBucket(bucket, statId, value) {
     else if (statId === 'targetCount') bucket.targetAny += value;
     else if (statId === 'spellCritDmg') bucket.critDmg += value;
     else if (statId === 'spellLeech') bucket.leech += value;
+    else if (statId === 'chillEffect') bucket.chillEffect += value;
     else if (statId === 'shockEffect') bucket.shockEffect += value;
     else if (statId === 'blockChanceMax') bucket.blockChanceMax += value;
     else if (statId === 'slamEchoDamagePct') bucket.slamEchoDamagePct += value;

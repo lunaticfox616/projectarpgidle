@@ -325,8 +325,9 @@ const PASSIVE_ICON_FAMILY = Object.freeze({
     potionPctDmg: 'potion', poisonChance: 'potion', summonPctDmg: 'summon', summonHpPct: 'summon', summonGemLevel: 'summon',
     summonCrit: 'summon', summonCritDmg: 'summon', summonFlatDmg: 'summon', summonAspd: 'summon', summonResPen: 'summon',
     firePctDmg: 'elemental', coldPctDmg: 'elemental', lightPctDmg: 'elemental', elementalPctDmg: 'elemental', resPen: 'elemental',
-    igniteChance: 'elemental', chillChance: 'elemental', shockChance: 'elemental', resAll: 'elemental', aoePctDmg: 'elemental',
-    igniteDamageMultiplierPct: 'elemental', shockedEnemyHitDamageMorePct: 'elemental', addedFireDamagePct: 'elemental',
+    igniteChance: 'elemental', chillChance: 'elemental', shockChance: 'elemental', resF: 'elemental', resC: 'elemental',
+    resL: 'elemental', resAll: 'elemental', aoePctDmg: 'elemental', chillEffect: 'elemental', shockEffect: 'elemental',
+    igniteDamageMultiplierPct: 'elemental', shockedEnemyHitDamagePct: 'elemental', shockedEnemyHitDamageMorePct: 'elemental', addedFireDamagePct: 'elemental',
     addedColdDamagePct: 'elemental', addedLightDamagePct: 'elemental', physTakenAsFire: 'elemental', physTakenAsCold: 'elemental', physTakenAsLight: 'elemental',
     chaosPctDmg: 'chaos', dotPctDmg: 'chaos', resChaos: 'chaos', poisonDamageMultiplierPct: 'chaos', addedChaosDamagePct: 'chaos', physTakenAsChaos: 'chaos',
     flatHp: 'life', pctHp: 'life', regen: 'life', leechTotalCap: 'life', energyShield: 'arcane', energyShieldPct: 'arcane',
@@ -352,6 +353,53 @@ const PASSIVE_ICON_ATLAS_CELL = Object.freeze({
 });
 const PASSIVE_ICON_ATLAS_COLUMNS = 5;
 const PASSIVE_ICON_ATLAS_ROWS = 4;
+const PASSIVE_NOTABLE_ICON_ATLAS_CELL = Object.freeze({
+    notableEnergyShield: [0, 0], notableArmor: [1, 0], notableFire: [2, 0], notableCold: [3, 0],
+    notableLightning: [0, 1], notableElementalResist: [1, 1], notableBleed: [2, 1], notableGem: [3, 1],
+    notableAttackSpeed: [0, 2], notableMoveSpeed: [1, 2], notableLife: [2, 2], notableSpellInherent: [3, 2]
+});
+const PASSIVE_NOTABLE_ICON_FAMILY_BY_STAT = Object.freeze({
+    energyShield: 'notableEnergyShield', energyShieldPct: 'notableEnergyShield', energyShieldRegen: 'notableEnergyShield',
+    energyShieldRechargeFaster: 'notableEnergyShield', armor: 'notableArmor', armorPct: 'notableArmor',
+    firePctDmg: 'notableFire', addedFireDamagePct: 'notableFire',
+    coldPctDmg: 'notableCold', addedColdDamagePct: 'notableCold',
+    lightPctDmg: 'notableLightning', addedLightDamagePct: 'notableLightning',
+    resF: 'notableElementalResist', resC: 'notableElementalResist', resL: 'notableElementalResist',
+    resAll: 'notableElementalResist', maxResF: 'notableElementalResist', maxResC: 'notableElementalResist',
+    maxResL: 'notableElementalResist', maxResAll: 'notableElementalResist',
+    bleedChance: 'notableBleed', bleedDamageMultiplierPct: 'notableBleed', bleedDamageReducePct: 'notableBleed',
+    gemLevel: 'notableGem', suppCap: 'notableGem', fireGemLevel: 'notableGem', coldGemLevel: 'notableGem',
+    lightGemLevel: 'notableGem', chaosGemLevel: 'notableGem', physGemLevel: 'notableGem',
+    projectileGemLevel: 'notableGem', meleeGemLevel: 'notableGem', slamGemLevel: 'notableGem',
+    spellGemLevel: 'notableGem', dotGemLevel: 'notableGem', aoeGemLevel: 'notableGem',
+    elementalGemLevel: 'notableGem', summonGemLevel: 'notableGem',
+    aspd: 'notableAttackSpeed', move: 'notableMoveSpeed',
+    flatHp: 'notableLife', pctHp: 'notableLife', regen: 'notableLife',
+    spellFlatDmg: 'notableSpellInherent', spellFlatPct: 'notableSpellInherent'
+});
+const PASSIVE_KEYSTONE_ICON_CELL_BY_ID = Object.freeze({
+    pt_core_keystone_01: [0, 0], pt_core_keystone_02: [1, 0], pt_core_keystone_03: [2, 0],
+    pt_core_keystone_04: [3, 0], pt_core_keystone_05: [4, 0], pt_core_keystone_06: [5, 0],
+    npqq5m7h2ri: [0, 1], n39ip40yc3d: [1, 1], nv67fzprmet: [2, 1], nkr7zwrymol: [3, 1],
+    nxsxdk1yr2y: [4, 1], n2c51dapljo: [5, 1], nkf64engb6m: [0, 2],
+    backbone_branch_occultist_cleric_center_occultist_cleric_channel_guard_keystone: [1, 2],
+    backbone_branch_cleric_warrior_center_cleric_warrior_guard_regen_keystone: [2, 2],
+    backbone_branch_warrior_wanderer_center_warrior_wanderer_roll_speed_keystone: [3, 2],
+    backbone_branch_wanderer_archer_center_wanderer_archer_range_roll_keystone: [4, 2],
+    backbone_branch_archer_alchemist_center_archer_alchemist_area_projectile_keystone: [5, 2],
+    backbone_branch_alchemist_occultist_center_alchemist_occultist_energy_poison_keystone: [0, 3],
+    backbone_branch_occultist_outer_2_mystique_single_keystone: [1, 3],
+    backbone_branch_occultist_outer_4_occultist_summon_keystone: [2, 3],
+    backbone_branch_cleric_outer_1_devotion_triple_keystone: [3, 3],
+    backbone_branch_cleric_outer_4_cleric_summon_efficiency_keystone: [4, 3],
+    backbone_branch_warrior_outer_1_cycle_reverse_keystone: [5, 3],
+    backbone_branch_warrior_outer_4_warrior_bleed_keystone: [0, 4],
+    backbone_branch_wanderer_outer_4_wanderer_duel_keystone: [1, 4],
+    backbone_branch_archer_outer_4_archer_physical_keystone: [2, 4],
+    backbone_branch_alchemist_outer_1_universal_flask_keystone: [3, 4],
+    backbone_branch_alchemist_outer_2_universal_summon_keystone: [4, 4],
+    backbone_branch_alchemist_outer_4_alchemist_resist_keystone: [5, 4]
+});
 
 function getPassiveNodeIconFamily(node) {
     if (!node) return null;
@@ -371,10 +419,24 @@ function getPassiveTreeArtImage(key) {
     return image;
 }
 
+function getPassiveNodeAtlasArt(node) {
+    let keystoneCell = node && node.kind === 'keystone' ? PASSIVE_KEYSTONE_ICON_CELL_BY_ID[node.id] : null;
+    let keystoneImage = keystoneCell && getPassiveTreeArtImage('passiveTreeKeystoneIcons');
+    if (keystoneImage) return { image: keystoneImage, cell: keystoneCell, columns: 6, rows: 5 };
+    let family = node && (PASSIVE_NOTABLE_ICON_ATLAS_CELL[node.iconFamily]
+        ? node.iconFamily
+        : PASSIVE_NOTABLE_ICON_FAMILY_BY_STAT[node.stat]);
+    let notableCell = PASSIVE_NOTABLE_ICON_ATLAS_CELL[family];
+    let notableImage = notableCell && getPassiveTreeArtImage('passiveTreeNotableIcons');
+    if (notableImage) return { image: notableImage, cell: notableCell, columns: 4, rows: 3 };
+    let baseCell = PASSIVE_ICON_ATLAS_CELL[getPassiveNodeIconFamily(node)];
+    let baseImage = baseCell && getPassiveTreeArtImage('passiveTreeIcons');
+    return baseImage ? { image: baseImage, cell: baseCell, columns: PASSIVE_ICON_ATLAS_COLUMNS, rows: PASSIVE_ICON_ATLAS_ROWS } : null;
+}
+
 function canUsePassiveNodeImageArt(node) {
     if (getPassiveTreeArtImage(`passiveTreeCustom_${node && node.id}`)) return true;
-    const family = getPassiveNodeIconFamily(node);
-    return !!(family && PASSIVE_ICON_ATLAS_CELL[family] && getPassiveTreeArtImage('passiveTreeIcons'));
+    return !!getPassiveNodeAtlasArt(node);
 }
 
 function isPassiveFramedNode(node) {
@@ -406,11 +468,9 @@ function drawPassiveNodeImageArt(ctx, node, radius, opacity) {
     const slotImage = getPassiveNodeSlotImage(node);
     const customImage = getPassiveTreeArtImage(`passiveTreeCustom_${node && node.id}`);
     const standaloneImage = customImage || slotImage;
-    const image = standaloneImage || getPassiveTreeArtImage('passiveTreeIcons');
-    const cell = PASSIVE_ICON_ATLAS_CELL[getPassiveNodeIconFamily(node)];
-    if (!image || (!standaloneImage && !cell)) return false;
-    const sourceWidth = (image.naturalWidth || image.width) / PASSIVE_ICON_ATLAS_COLUMNS;
-    const sourceHeight = (image.naturalHeight || image.height) / PASSIVE_ICON_ATLAS_ROWS;
+    const atlasArt = standaloneImage ? null : getPassiveNodeAtlasArt(node);
+    const image = standaloneImage || (atlasArt && atlasArt.image);
+    if (!image) return false;
     const halfSize = radius * (slotImage ? 1.12 : (node.kind === 'start' ? 0.58 : 0.78));
     const drawY = node.y - halfSize - (slotImage ? 0 : radius * 0.06);
     ctx.save();
@@ -419,7 +479,9 @@ function drawPassiveNodeImageArt(ctx, node, radius, opacity) {
     if (standaloneImage) {
         ctx.drawImage(image, node.x - halfSize, drawY, halfSize * 2, halfSize * 2);
     } else {
-        ctx.drawImage(image, cell[0] * sourceWidth, cell[1] * sourceHeight, sourceWidth, sourceHeight,
+        const sourceWidth = (image.naturalWidth || image.width) / atlasArt.columns;
+        const sourceHeight = (image.naturalHeight || image.height) / atlasArt.rows;
+        ctx.drawImage(image, atlasArt.cell[0] * sourceWidth, atlasArt.cell[1] * sourceHeight, sourceWidth, sourceHeight,
             node.x - halfSize, drawY, halfSize * 2, halfSize * 2);
     }
     ctx.restore();
@@ -4511,8 +4573,8 @@ function getClassTreeDef(clsKey) {
         tree.n11 = { stat: cores[0].stat, val: cores[0].val, req: 'n10', exclusive: 'n12' };
         tree.n12 = { stat: cores[1].stat, val: cores[1].val, req: 'n10', exclusive: 'n11' };
     }
-    // 5차 재능 개화 노드: 이번 루프 최초 개화 때 확정한 재능×전직 조합으로 열린다.
-    // 이후 활성 재능을 자유롭게 바꾸거나 다른 카드를 개화해도 이미 열린 노드의 효과는 변하지 않는다.
+    // 5차 재능 개화 노드: 이번 루프의 5차 전직에서 확정한 재능×전직 조합으로 열린다.
+    // 선택과 효과는 해당 루프 동안 고정되며 다음 루프 시작 시 함께 초기화된다.
     if (game.bloomedClassThisLoop === clsKey && TALENT_BLOOM_SPECIALIZATION_DEFS[game.bloomedTalentThisLoop]) {
         const jobByClass = {
             warrior: [{ stat: 'aspd', val: 16 }, { stat: 'dr', val: 12 }],
@@ -4699,6 +4761,8 @@ let pendingRingEquipItemId = null;
 let pendingGloveEquipItemId = null;
 let pendingWeaponEquipItemId = null;
 let deathOverlayActive = false;
+let activeDeathLog = null;
+let deathLogView = 'element';
 let battleAssets = {
     loading: false,
     ready: false,
@@ -5921,7 +5985,8 @@ function snapshotPlayerAilmentsForDeathLog() {
             label: getAilmentDisplayLabel(ail.type),
             time: Math.max(0, Math.ceil(ail.time || 0)),
             power: Math.max(0, Number(ail.power) || 0),
-            sourceHitDamage: Math.max(0, Math.floor(getStoredAilmentHitDamage(ail)))
+            sourceHitDamage: Math.max(0, Math.floor(getStoredAilmentHitDamage(ail))),
+            sourceEnemyName: ail.sourceEnemyName || ''
         }));
 }
 
@@ -5933,52 +5998,88 @@ function closeDeathOverlay() {
     showNextTutorial();
 }
 
-function openDeathOverlay(log) {
-    if (!log) return;
-    let overlay = document.getElementById('death-overlay');
-    if (!overlay) return;
-    let damageSummary = Array.isArray(log.damageSummary) ? log.damageSummary.filter(entry => entry && entry.value > 0).sort((a, b) => b.value - a.value) : [];
-    let ailmentDamageSummary = Array.isArray(log.ailmentDamageSummary) ? log.ailmentDamageSummary.filter(entry => entry && entry.value > 0).sort((a, b) => b.value - a.value) : [];
-    let activeAilments = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
-    let totalDamage = damageSummary.reduce((sum, entry) => sum + Math.max(0, Math.floor(entry.value || 0)), 0);
-    document.getElementById('deathlog-title').innerText = `${getDamageElementLabel(log.primaryElement)} 피해로 쓰러졌습니다.`;
-    let ailmentText = activeAilments.length > 0
-        ? activeAilments.slice(0, 4).map(ail => `${ail.label || getAilmentDisplayLabel(ail.type)} ${Math.ceil(Math.max(0, ail.time || 0))}초`).join(' · ') + (activeAilments.length > 4 ? ` 외 ${activeAilments.length - 4}개` : '')
-        : '없음';
-    document.getElementById('deathlog-body').innerText = `${log.reasonText}\n경험치를 ${log.expLost} 잃었습니다.\n죽기 전 상태이상: ${ailmentText}`;
-    let renderDamageRows = (rows, totalForRatio) => rows.map(entry => {
+function escapeDeathLogText(value) {
+    if (typeof escapeHTML === 'function') return escapeHTML(String(value || ''));
+    return String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
+
+function renderDeathDamageRows(rows) {
+    let safeRows = (rows || []).filter(entry => entry && entry.value > 0);
+    let total = safeRows.reduce((sum, entry) => sum + Math.max(0, Math.floor(entry.value || 0)), 0);
+    return safeRows.map(entry => {
         let value = Math.max(0, Math.floor(entry.value || 0));
-        let ratio = totalForRatio > 0 ? (value / totalForRatio) * 100 : 0;
+        let ratio = total > 0 ? (value / total) * 100 : 0;
+        let color = getElementColor(entry.ele);
         let ratioText = ratio >= 10 ? `${Math.round(ratio)}%` : `${ratio.toFixed(1)}%`;
-        let barColor = getElementColor(entry.ele);
-        return `
-            <div class="deathlog-line">
-                <div class="deathlog-line-top">
-                    <span>${getDamageElementLabel(entry.ele)}</span>
-                    <strong class="deathlog-value">${value}<span class="deathlog-ratio">${ratioText}</span></strong>
-                </div>
-                <div class="deathlog-bar">
-                    <div class="deathlog-bar-fill" style="width:${clampNumber(ratio, 0, 100).toFixed(1)}%; background: linear-gradient(90deg, ${barColor}, ${barColor}cc);"></div>
-                </div>
-            </div>
-        `;
+        return `<div class="deathlog-line"><div class="deathlog-line-top"><span>${getDamageElementLabel(entry.ele)}</span>
+            <strong class="deathlog-value">${formatNumberKR(value)}<span class="deathlog-ratio">${ratioText}</span></strong></div>
+            <div class="deathlog-bar"><div class="deathlog-bar-fill" style="width:${clampNumber(ratio, 0, 100).toFixed(1)}%;background:linear-gradient(90deg,${color},${color}cc)"></div></div></div>`;
     }).join('');
-    let html = damageSummary.length > 0 ? renderDamageRows(damageSummary, totalDamage) : `<div class="deathlog-empty">최근 3초 동안 집계된 피해 기록이 없습니다.</div>`;
-    if (ailmentDamageSummary.length > 0) {
-        let ailTotal = ailmentDamageSummary.reduce((sum, entry) => sum + Math.max(0, Math.floor(entry.value || 0)), 0);
-        html += `<div class="deathlog-subtitle" style="margin-top:10px;">상태이상 피해 요약</div>${renderDamageRows(ailmentDamageSummary, ailTotal)}`;
+}
+
+function renderDeathAilmentRows(log) {
+    let rows = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
+    if (rows.length === 0) return '';
+    return `<div class="deathlog-subtitle" style="margin-top:10px;">죽기 전 걸린 상태이상</div>` + rows.map(ail => {
+        let hit = (ail.sourceHitDamage || 0) > 0 ? ` · 원천 피해 ${formatNumberKR(Math.floor(ail.sourceHitDamage))}` : '';
+        let source = ail.sourceEnemyName ? ` · ${escapeDeathLogText(ail.sourceEnemyName)}` : '';
+        return `<div class="deathlog-line"><div class="deathlog-line-top"><span>${escapeDeathLogText(ail.label || getAilmentDisplayLabel(ail.type))}</span>
+            <strong class="deathlog-value">${Math.ceil(Math.max(0, ail.time || 0))}초<span class="deathlog-ratio">강도 ${(Number(ail.power || 0)).toFixed(2)}${hit}${source}</span></strong></div></div>`;
+    }).join('');
+}
+
+function renderDeathElementView(log) {
+    let damageRows = renderDeathDamageRows(log.damageSummary);
+    let html = damageRows || '<div class="deathlog-empty">최근 3초 동안 집계된 피해 기록이 없습니다.</div>';
+    let ailments = renderDeathDamageRows(log.ailmentDamageSummary);
+    if (ailments) html += `<div class="deathlog-subtitle" style="margin-top:10px;">상태이상 피해 요약</div>${ailments}`;
+    return html + renderDeathAilmentRows(log);
+}
+
+function renderDeathMonsterView(log) {
+    let rows = (Array.isArray(log.monsterSummary) ? log.monsterSummary : []).filter(row => row && row.value > 0);
+    if (rows.length === 0) return '<div class="deathlog-empty">최근 3초 동안 기록된 몬스터 피해가 없습니다.</div>';
+    let total = rows.reduce((sum, row) => sum + Math.max(0, row.value || 0), 0);
+    let html = rows.slice(0, 5).map(row => {
+        let ratio = total > 0 ? Math.max(0, row.value || 0) / total * 100 : 0;
+        let color = getElementColor(row.primaryElement);
+        return `<div class="deathlog-line"><div class="deathlog-line-top"><span>${escapeDeathLogText(row.name || '알 수 없는 몬스터')}</span>
+            <strong class="deathlog-monster-value" style="color:${color}">[${formatNumberKR(row.value)}]</strong></div>
+            <div class="deathlog-bar"><div class="deathlog-bar-fill" style="width:${clampNumber(ratio, 0, 100).toFixed(1)}%;background:linear-gradient(90deg,${color},${color}cc)"></div></div></div>`;
+    }).join('');
+    let hidden = rows.slice(5);
+    if (hidden.length > 0) {
+        let hiddenDamage = hidden.reduce((sum, row) => sum + Math.max(0, row.value || 0), 0);
+        html += `<div class="deathlog-line deathlog-other">그 외 ${hidden.length}마리의 몬스터 · ${formatNumberKR(hiddenDamage)} 피해</div>`;
     }
-    if (activeAilments.length > 0) {
-        html += `<div class="deathlog-subtitle" style="margin-top:10px;">죽기 전 걸린 상태이상</div>` + activeAilments.map(ail => {
-            let hitText = (ail.sourceHitDamage || 0) > 0 ? ` · 원천 피해 ${Math.floor(ail.sourceHitDamage)}` : '';
-            let labelText = ail.label || getAilmentDisplayLabel(ail.type);
-            let safeLabel = typeof escapeHTML === 'function'
-                ? escapeHTML(labelText)
-                : String(labelText).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-            return `<div class="deathlog-line"><div class="deathlog-line-top"><span>${safeLabel}</span><strong class="deathlog-value">${Math.ceil(Math.max(0, ail.time || 0))}초<span class="deathlog-ratio">강도 ${(Number(ail.power || 0)).toFixed(2)}${hitText}</span></strong></div></div>`;
-        }).join('');
-    }
-    document.getElementById('deathlog-damage-list').innerHTML = html;
+    return html;
+}
+
+function setDeathLogView(view) {
+    deathLogView = view === 'monster' ? 'monster' : 'element';
+    document.querySelectorAll('[data-deathlog-view]').forEach(tab => {
+        let active = tab.dataset.deathlogView === deathLogView;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    let list = document.getElementById('deathlog-damage-list');
+    if (list && activeDeathLog) list.innerHTML = deathLogView === 'monster'
+        ? renderDeathMonsterView(activeDeathLog)
+        : renderDeathElementView(activeDeathLog);
+}
+
+function openDeathOverlay(log) {
+    let overlay = document.getElementById('death-overlay');
+    if (!log || !overlay) return;
+    activeDeathLog = log;
+    let ailments = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
+    let ailmentText = ailments.length > 0
+        ? ailments.slice(0, 4).map(ail => `${ail.label || getAilmentDisplayLabel(ail.type)} ${Math.ceil(Math.max(0, ail.time || 0))}초`).join(' · ')
+        : '없음';
+    document.getElementById('deathlog-title').innerText = `${getDamageElementLabel(log.primaryElement)} 피해로 쓰러졌습니다.`;
+    document.getElementById('deathlog-body').innerText = `${log.reasonText}\n경험치를 ${log.expLost} 잃었습니다.\n죽기 전 상태이상: ${ailmentText}`;
+    document.querySelectorAll('[data-deathlog-view]').forEach(tab => { tab.onclick = () => setDeathLogView(tab.dataset.deathlogView); });
+    setDeathLogView('element');
     toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
     overlay.classList.add('active');
     deathOverlayActive = true;
@@ -5995,15 +6096,20 @@ function pruneRecentDamageEvents(now) {
     game.recentDamageEvents = Array.isArray(game.recentDamageEvents) ? game.recentDamageEvents.filter(entry => entry && entry.at >= threshold) : [];
 }
 
-function recordIncomingDamage(ele, amount, sourceName) {
+function recordIncomingDamage(ele, amount, sourceName, options) {
     let now = Date.now();
+    let opts = options && typeof options === 'object' ? options : {};
     pruneRecentDamageEvents(now);
     game.recentDamageEvents = Array.isArray(game.recentDamageEvents) ? game.recentDamageEvents : [];
     game.recentDamageEvents.push({
         at: now,
         ele: normalizeDamageElementKey(ele),
         amount: Math.max(0, Math.floor(amount || 0)),
-        source: sourceName || ''
+        source: sourceName || '',
+        sourceType: opts.sourceType || 'hazard',
+        sourceId: opts.sourceId === undefined ? null : opts.sourceId,
+        sourceName: opts.sourceName || sourceName || '',
+        ailmentType: opts.ailmentType || ''
     });
 }
 
@@ -6014,7 +6120,7 @@ function buildDeathDamageSummary(windowMs, opts) {
     let totals = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0, other: 0 };
     (game.recentDamageEvents || []).forEach(entry => {
         if (!entry || entry.at < now - (windowMs || 3000)) return;
-        if (options.ailmentOnly && !isPlayerDamageAilmentSource(entry.source)) return;
+        if (options.ailmentOnly && !entry.ailmentType && !isPlayerDamageAilmentSource(entry.source)) return;
         let key = normalizeDamageElementKey(entry.ele);
         totals[key] += Math.max(0, Math.floor(entry.amount || 0));
     });
@@ -6022,6 +6128,28 @@ function buildDeathDamageSummary(windowMs, opts) {
         .map(key => ({ ele: key, value: totals[key] }))
         .filter(entry => entry.value > 0)
         .sort((a, b) => b.value - a.value);
+}
+
+function buildDeathMonsterSummary(windowMs) {
+    let now = Date.now();
+    pruneRecentDamageEvents(now);
+    let grouped = new Map();
+    (game.recentDamageEvents || []).forEach(entry => {
+        if (!entry || entry.at < now - (windowMs || 3000) || entry.sourceType !== 'monster') return;
+        let key = entry.sourceId === null || entry.sourceId === undefined
+            ? `name:${entry.sourceName || entry.source}`
+            : `id:${entry.sourceId}`;
+        let row = grouped.get(key) || { sourceId: entry.sourceId, name: entry.sourceName || entry.source || '알 수 없는 몬스터', value: 0, byElement: {} };
+        let element = normalizeDamageElementKey(entry.ele);
+        let value = Math.max(0, Math.floor(entry.amount || 0));
+        row.value += value;
+        row.byElement[element] = (row.byElement[element] || 0) + value;
+        grouped.set(key, row);
+    });
+    return Array.from(grouped.values()).map(row => {
+        let dominant = Object.entries(row.byElement).sort((a, b) => b[1] - a[1])[0];
+        return { ...row, primaryElement: dominant ? dominant[0] : 'phys' };
+    }).sort((a, b) => b.value - a.value);
 }
 
 function getActRewardConfig(zoneId) {
@@ -6581,6 +6709,8 @@ function initBattleAssets() {
         skillFxDragonBreath: 'assets/effects/channel-dragon-breath-v2.png',
         skillFxVoidCutter: 'assets/effects/channel-void-cutter-v2.png',
         passiveTreeIcons: 'assets/ui/passive-tree-icons-v3.webp',
+        passiveTreeKeystoneIcons: 'assets/ui/passive-tree-keystone-icons-v1.webp',
+        passiveTreeNotableIcons: 'assets/ui/passive-tree-notable-icons-v4.webp',
         passiveTreeVoidSlot: 'assets/ui/passive-tree-slot-void-v3.webp',
         passiveTreeConstellationSlot: 'assets/ui/passive-tree-slot-constellation-v2.webp',
         passiveTreeNotableFrame: 'assets/ui/passive-tree-frame-notable-v1.webp',

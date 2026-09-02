@@ -1,4 +1,4 @@
-"""Normalize a generated 5x5 passive-icon sheet into a safe 5x4 WebP atlas."""
+"""Normalize generated passive-icon sheets into transparent WebP atlases."""
 
 from __future__ import annotations
 
@@ -61,12 +61,18 @@ def remove_connected_checker(image: Image.Image, include_center: bool = False) -
     return rgba
 
 
-def crop_grid_cell(image: Image.Image, column: int, row: int) -> Image.Image:
+def crop_grid_cell(
+    image: Image.Image,
+    column: int,
+    row: int,
+    columns: int = GRID_SIZE,
+    rows: int = GRID_SIZE,
+) -> Image.Image:
     width, height = image.size
-    left = round(column * width / GRID_SIZE)
-    top = round(row * height / GRID_SIZE)
-    right = round((column + 1) * width / GRID_SIZE)
-    bottom = round((row + 1) * height / GRID_SIZE)
+    left = round(column * width / columns)
+    top = round(row * height / rows)
+    right = round((column + 1) * width / columns)
+    bottom = round((row + 1) * height / rows)
     return image.crop((left, top, right, bottom))
 
 
@@ -123,6 +129,17 @@ def normalize_icon(cell: Image.Image, max_size: int = ICON_MAX_SIZE, vertical_bi
     offset = ((CELL_SIZE - icon.width) // 2, (CELL_SIZE - icon.height) // 2 + vertical_bias)
     target.alpha_composite(icon, offset)
     return target
+
+
+def clear_grid_cell_edges(cell: Image.Image, margin_ratio: float = 0.08) -> Image.Image:
+    rgba = cell.convert("RGBA")
+    width, height = rgba.size
+    margin_x = max(1, round(width * margin_ratio))
+    margin_y = max(1, round(height * margin_ratio))
+    inner = rgba.crop((margin_x, margin_y, width - margin_x, height - margin_y))
+    cleared = Image.new("RGBA", rgba.size, (0, 0, 0, 0))
+    cleared.alpha_composite(inner, (margin_x, margin_y))
+    return cleared
 
 
 def recolor_attribute_star(icon: Image.Image, hue: float) -> Image.Image:
@@ -183,10 +200,28 @@ def build_slot(source_path: Path, output_path: Path) -> None:
     print(f"wrote {output_path} ({slot.width}x{slot.height}, {output_path.stat().st_size} bytes)")
 
 
+def build_grid_atlas(source_path: Path, output_path: Path, columns: int, rows: int) -> None:
+    if columns <= 0 or rows <= 0:
+        raise ValueError("grid dimensions must be positive")
+    source = remove_connected_checker(Image.open(source_path))
+    atlas = Image.new("RGBA", (columns * CELL_SIZE, rows * CELL_SIZE), (0, 0, 0, 0))
+    for row in range(rows):
+        for column in range(columns):
+            cell = clear_grid_cell_edges(crop_grid_cell(source, column, row, columns, rows))
+            icon = normalize_icon(cell, SLOT_MAX_SIZE, -2)
+            atlas.alpha_composite(icon, (column * CELL_SIZE, row * CELL_SIZE))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    atlas.save(output_path, "WEBP", quality=86, method=6, exact=True)
+    print(f"wrote {output_path} ({atlas.width}x{atlas.height}, {output_path.stat().st_size} bytes)")
+
+
 if __name__ == "__main__":
     if len(sys.argv) == 4 and sys.argv[1] == "slot":
         build_slot(Path(sys.argv[2]), Path(sys.argv[3]))
         raise SystemExit(0)
+    if len(sys.argv) == 6 and sys.argv[1] == "grid":
+        build_grid_atlas(Path(sys.argv[4]), Path(sys.argv[5]), int(sys.argv[2]), int(sys.argv[3]))
+        raise SystemExit(0)
     if len(sys.argv) != 3:
-        raise SystemExit("usage: build-passive-icon-atlas.py [slot] SOURCE.png OUTPUT.webp")
+        raise SystemExit("usage: build-passive-icon-atlas.py [slot SOURCE.png OUTPUT.webp | grid COLS ROWS SOURCE.png OUTPUT.webp]")
     build_atlas(Path(sys.argv[1]), Path(sys.argv[2]))

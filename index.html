@@ -150,7 +150,7 @@
                     <div class="startup-summary-card">
                         <div class="startup-summary-head">
                             <div class="startup-summary-title">현재 기기 저장 정보</div>
-                            <button type="button" class="patch-notes-open-btn startup-patch-note-link" aria-label="패치노트, 최신 패치 2026년 8월 22일" onclick="openPatchNotes()">패치노트 <span class="startup-latest-patch-date" aria-hidden="true">(26-08-22)</span></button>
+                            <button type="button" class="patch-notes-open-btn startup-patch-note-link" aria-label="패치노트, 최신 패치 2026년 9월 2일" onclick="openPatchNotes()">패치노트 <span class="startup-latest-patch-date" aria-hidden="true">(26-09-02)</span></button>
                         </div>
                         <div class="startup-summary-grid">
                             <div class="startup-summary-item">
@@ -308,6 +308,10 @@
         <div class="tutorial-body" id="deathlog-body"></div>
         <div class="deathlog-panel">
             <div class="deathlog-subtitle">최근 3초 피해 요약</div>
+            <div class="deathlog-tabs" role="tablist" aria-label="사망 원인 분류">
+                <button type="button" class="deathlog-tab active" data-deathlog-view="element" role="tab" aria-selected="true">속성별</button>
+                <button type="button" class="deathlog-tab" data-deathlog-view="monster" role="tab" aria-selected="false">몬스터별</button>
+            </div>
             <div class="deathlog-list" id="deathlog-damage-list"></div>
         </div>
         <label class="deathlog-setting">
@@ -683,38 +687,42 @@
     <div id="tab-char" class="tab-content">
         <div style="display: flex; flex-direction: column; height: 100%;">
             <h2><span>패시브 스킬 트리</span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold; font-size: 1.3em;">0</span></span></h2>
-            <section class="active-talent-control" aria-label="활성 재능 선택">
-                <div><strong>활성 재능</strong><span>직업·전직과 무관하게 언제든 변경할 수 있습니다.</span></div>
-                <select id="sel-active-talent" onchange="onTalentSelectionChanged()" aria-label="활성 재능"></select>
-                <small id="ui-active-talent-detail"></small>
-            </section>
             <div id="tree-container" style="flex: 1; width: 100%; min-height: 520px; background: #05070b; border: none; border-radius: 6px; position: relative; overflow: hidden; cursor: grab;">
                 <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
                 <div id="passive-tree-overlay" class="passive-tree-overlay" aria-hidden="true"><div class="passive-tree-overlay-world"></div></div>
-                <div id="passive-search-panel" class="passive-search-panel" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
-                    <input id="passive-search-input" type="search" placeholder="패시브 이름/효과/스탯 검색" autocomplete="off">
-                    <div id="passive-filter-row" class="passive-filter-row">
-                        <button type="button" data-passive-filter="all">전체</button>
-                        <button type="button" data-passive-filter="offense">공격</button>
-                        <button type="button" data-passive-filter="defense">방어</button>
-                        <button type="button" data-passive-filter="element">원소/카오스</button>
-                        <button type="button" data-passive-filter="utility">유틸</button>
-                    </div>
-                    <button type="button" id="passive-search-clear">초기화</button>
-                </div>
                 <div class="passive-tree-gesture-hint">드래그: 이동 · 휠/핀치: 확대</div>
-                <details id="passive-star-wedge-drawer" class="passive-star-wedge-drawer" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
-                    <summary title="별쐐기 관리" aria-label="별쐐기 관리"><strong>☄ 별쐐기</strong></summary>
+                <details id="passive-star-wedge-drawer" class="passive-star-wedge-drawer" hidden onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
+                    <summary title="별쐐기 관리" aria-label="별쐐기 관리"><strong>별쐐기</strong></summary>
                     <div id="ui-star-wedge-panel"></div>
                 </details>
-                <aside id="passive-investment-summary" class="passive-investment-summary collapsed" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
-                    <button type="button" class="passive-investment-summary-toggle" onclick="togglePassiveInvestmentSummary()" aria-expanded="false">
-                        <span>투자 효과 총합</span><span class="passive-summary-chevron">▴</span>
-                    </button>
-                    <div id="passive-investment-summary-body" class="passive-investment-summary-body"></div>
-                </aside>
+                <details id="passive-preset-drawer" class="passive-preset-drawer" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
+                    <summary title="패시브 프리셋" aria-label="패시브 프리셋"><strong>프리셋</strong></summary>
+                    <section id="passive-tree-planner" class="passive-tree-planner" aria-label="패시브 트리 프리셋"></section>
+                </details>
+                <div class="passive-tree-right-tools">
+                    <details id="passive-search-drawer" class="passive-search-drawer" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
+                        <summary title="패시브 검색" aria-label="패시브 검색"><strong>검색</strong></summary>
+                        <div id="passive-search-panel" class="passive-search-panel">
+                            <input id="passive-search-input" type="search" placeholder="패시브 이름/효과/스탯 검색" autocomplete="off">
+                            <div id="passive-filter-row" class="passive-filter-row">
+                                <button type="button" data-passive-filter="all">전체</button>
+                                <button type="button" data-passive-filter="offense">공격</button>
+                                <button type="button" data-passive-filter="defense">방어</button>
+                                <button type="button" data-passive-filter="element">원소/카오스</button>
+                                <button type="button" data-passive-filter="utility">유틸</button>
+                            </div>
+                            <button type="button" id="passive-search-clear">초기화</button>
+                            <button type="button" id="passive-search-close" onclick="this.closest('details').open=false">닫기</button>
+                        </div>
+                    </details>
+                    <aside id="passive-investment-summary" class="passive-investment-summary collapsed" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
+                        <button type="button" class="passive-investment-summary-toggle" onclick="togglePassiveInvestmentSummary()" aria-expanded="false">
+                            <span>투자 효과 총합</span><span class="passive-summary-chevron">▴</span>
+                        </button>
+                        <div id="passive-investment-summary-body" class="passive-investment-summary-body"></div>
+                    </aside>
+                </div>
             </div>
-            <section id="passive-tree-planner" class="passive-tree-planner" aria-label="패시브 트리 프리셋"></section>
         </div>
     </div>
 

@@ -55,7 +55,9 @@ function getGhostCombatSnapshot(suppliedStats) {
         schemaVersion: GHOST_COMBAT_SNAPSHOT_VERSION,
         ascendClass: game && game.ascendClass ? String(game.ascendClass).slice(0, 80) : null,
         heroId: appearanceDef ? appearanceDef.recommendedTalentHeroId : 'hero1',
-        talentHeroId: /^hero(?:10|[1-9])$/.test(String(game.selectedHeroId || '')) ? game.selectedHeroId : 'hero1',
+        talentHeroId: game.bloomedClassThisLoop === game.ascendClass
+            && /^hero(?:10|[1-9])$/.test(String(game.bloomedTalentThisLoop || ''))
+            ? game.bloomedTalentThisLoop : null,
         activeSkill, skillElement: element, style: getGhostCombatStyle(skill),
         tags: (Array.isArray(skill.tags) ? skill.tags : []).filter(tag => GHOST_COMBAT_TAGS.has(tag)).slice(0, 8),
         dps: totalDps, directDps: Math.floor(directDps), dotDps: Math.floor(dotDps), summonDps: Math.floor(summonDps),

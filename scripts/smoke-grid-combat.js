@@ -130,6 +130,50 @@ function makeEnemy(id, gx, gy, extra) {
 
 const cfg = context.COMBAT_GRID_CONFIG;
 
+// 렌더 스프라이트와 전투 이름은 같은 안정적인 변형 id를 사용해야 한다.
+{
+  resetGame();
+  assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 38, '모든 목재 몬스터 변형에 이름이 지정되어야 한다');
+  assert(context.MONSTER_VARIANT_DEFS.every(def => def.id && def.name), '몬스터 변형 정의에 id와 이름이 모두 있어야 한다');
+  const zone = context.getZone(0);
+  const normal = context.createEnemy(zone, { at: 20, count: 1 }, 0);
+  const elite = context.createEnemy(zone, { at: 20, count: 1, elite: true }, 0);
+  assert.strictEqual(normal.name, normal.baseMonsterName, '일반 몬스터는 스프라이트 종명을 그대로 사용해야 한다');
+  assert.strictEqual(elite.name, elite.trait.name + ' ' + elite.baseMonsterName,
+    '정예 몬스터는 특성과 스프라이트 종명을 결합해야 한다');
+  assert.strictEqual(elite.traitOutlineColor, elite.trait.outlineColor,
+    '정예 외곽선 색은 이름에 사용된 특성 정의를 따라야 한다');
+  assert.strictEqual(context.getMonsterVariantDefinition(normal.variantSeed, normal.ele).id, normal.spriteVariantId,
+    '이름에 사용한 변형 id와 렌더 선택 id가 같아야 한다');
+}
+
+// 데스로그는 몬스터 인스턴스별 피해와 지연 상태이상 피해를 합산한다.
+{
+  resetGame();
+  const attacks = [
+    [1, '강철 피부 뿌리거미', 'phys', 900],
+    [2, '광폭 연타 껍질 수액괴', 'fire', 800],
+    [3, '서리 장막 뿌리갑충', 'cold', 700],
+    [4, '뇌전 장막 가시 수액괴', 'light', 600],
+    [5, '심연 장막 목각병', 'chaos', 500],
+    [6, '강함 수액방울', 'phys', 400],
+    [7, '치명적 뿌리관', 'fire', 300]
+  ];
+  attacks.forEach(([id, name, ele, amount]) => context.recordIncomingDamage(ele, amount, name, {
+    sourceType: 'monster', sourceId: id, sourceName: name
+  }));
+  context.recordIncomingDamage('fire', 120, attacks[0][1], {
+    sourceType: 'monster', sourceId: 1, sourceName: attacks[0][1], ailmentType: 'ignite'
+  });
+  context.recordIncomingDamage('chaos', 9999, '시련 함정');
+  const rows = context.buildDeathMonsterSummary(3000);
+  assert.strictEqual(rows.length, 7, '함정 피해는 몬스터별 탭의 개체 수에 포함되면 안 된다');
+  assert.strictEqual(rows[0].value, 1020, '같은 몬스터의 직접 피해와 상태이상 피해를 합산해야 한다');
+  assert.strictEqual(rows[0].primaryElement, 'phys', '가장 큰 속성 피해를 몬스터 피해 수치 색에 사용해야 한다');
+  const html = context.renderDeathMonsterView({ monsterSummary: rows });
+  assert(html.includes('그 외 2마리의 몬스터'), '상위 5마리 뒤의 몬스터는 개체 수와 합계 피해로 요약해야 한다');
+}
+
 // 지도 예상 전투력은 실제 지역·루프 스케일을 따라야 한다.
 {
   resetGame();
@@ -585,6 +629,12 @@ assert.strictEqual(sourceProjection.actorGroundOffsetY, 11, '유닛의 발 기�
 const groundedEnemy = renderRuntime.getBattleLayout([{ id: 1, gx: 0, gy: 0 }], 816, 624)[0];
 assert.strictEqual(groundedEnemy.y, sourceFirstCell.y + sourceProjection.actorGroundOffsetY,
   '적의 발 기준점은 플레이어와 같은 타일 하단 기준을 사용해야 한다');
+const groundedBoss = renderRuntime.getBattleLayout([{ id: 2, gx: 2, gy: 3, isBoss: true }], 816, 624)[0];
+const bossLowerRowCenter = sourceProjection.cellToScreen(2.5, 4);
+assert.strictEqual(groundedBoss.x, bossLowerRowCenter.x,
+  '2x2 보스의 가로 중심은 두 점유 열 사이에 유지되어야 한다');
+assert.strictEqual(groundedBoss.y, bossLowerRowCenter.y + sourceProjection.actorGroundOffsetY,
+  '2x2 보스의 발은 네 칸 교차점이 아니라 아래쪽 점유 행의 중앙을 딛어야 한다');
 assert.ok(Math.abs(sourceLastCell.x - sourceFirstCell.x - sourceProjection.tileW * 8) < 1e-9,
   '확대 후에도 첫 칸과 마지막 칸의 가로 간격은 타일 좌표와 일치해야 한다');
 assert.ok(Math.abs(sourceLastCell.y - sourceFirstCell.y - sourceProjection.tileH * 7) < 1e-9,
@@ -683,6 +733,12 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     ['2,5', '2,6', '3,5', '3,6'], '보스의 기준 좌표는 2x2 점유 영역의 왼쪽 위 칸이어야 한다');
   assert.strictEqual(context.getGridUnitDistance(attacker, adjacentBoss), 1,
     '보스의 네 점유 칸 중 가까운 가장자리를 기준으로 거리를 계산해야 한다');
+  assert.strictEqual(context.getGridDirectHitDistanceMultiplier(attacker, adjacentBoss), 1,
+    '한 칸 거리의 직접 타격은 피해가 감폭되면 안 된다');
+  assert.strictEqual(context.getGridDirectHitDistanceMultiplier(attacker, { gx: 5, gy: 6 }), 0.85,
+    '네 칸 거리의 직접 타격은 15% 감폭되어야 한다');
+  assert.strictEqual(context.getGridDirectHitDistanceMultiplier({ gx: 0, gy: 0 }, { gx: 20, gy: 20 }), 1,
+    '전장 밖의 유효하지 않은 좌표는 레거시 전투 피해를 보존해야 한다');
   hits = context.selectGridSkillTargets('기본 공격', { targets: 1, targetMode: 'single' }, attacker, [adjacentBoss]);
   assert.strictEqual(hits[0].enemy.id, adjacentBoss.id, '보스의 가까운 가장자리에는 근접 공격이 닿아야 한다');
 
@@ -773,6 +829,83 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     diagonalAttacker, [diagonalPrimary, arcSideA, arcSideB]);
   assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [30, 34, 35],
     '명시된 부채꼴 스킬은 대각선 공격에서도 고유 범위를 유지해야 한다');
+}
+
+// ── 3-1. 감전 조건부 증가는 기존 증가 합과 합연산하고, 냉각 효율은 실제 냉각 강도를 높인다 ──
+{
+  const shocked = makeEnemy(2100, 2, 6, { ailments: [{ type: 'shock', time: 2, power: 1 }] });
+  const shockedMul = context.getShockedEnemyHitDamageIncreaseMultiplier(shocked,
+    { damageIncreasePct: 100, shockedEnemyHitDamagePct: 20 });
+  assert.ok(Math.abs(shockedMul - 1.1) < 1e-9,
+    '감전된 적 명중 피해 20% 증가는 기존 피해 증가 100%와 합쳐져 최종 10%만 늘어야 한다');
+  const normal = makeEnemy(2101, 2, 6);
+  assert.strictEqual(context.getShockedEnemyHitDamageIncreaseMultiplier(normal,
+    { damageIncreasePct: 100, shockedEnemyHitDamagePct: 20 }), 1, '감전되지 않은 적에게 조건부 증가가 적용되면 안 된다');
+
+  resetGame();
+  const baseTarget = makeEnemy(2102, 2, 6, { hp: 10000, maxHp: 10000 });
+  const efficientTarget = makeEnemy(2103, 2, 6, { hp: 10000, maxHp: 10000 });
+  const baseStats = { sSkill: { ele: 'cold' }, chillChance: 100, freezeChance: 0, ailmentPowerMultiplier: 1 };
+  context.applyEnemyAilmentFromHit(baseTarget, baseStats, 100, false, { primaryAilmentChance: 1 });
+  context.applyEnemyAilmentFromHit(efficientTarget, { ...baseStats, chillEffectBonusPct: 50 }, 100, false,
+    { primaryAilmentChance: 1 });
+  const baseChill = baseTarget.ailments.find(ail => ail.type === 'chill');
+  const efficientChill = efficientTarget.ailments.find(ail => ail.type === 'chill');
+  assert.ok(baseChill && efficientChill && efficientChill.power > baseChill.power,
+    '냉각 효율은 냉각 확률이 아니라 실제 냉각 강도를 높여야 한다');
+}
+
+// ── 3-1a. 직접 타격 거리 감폭은 플레이어와 몬스터의 실제 피해에 모두 적용된다 ──
+{
+  function measurePlayerDamage(distance) {
+    resetGame();
+    context.game.activeSkill = '얼음 창';
+    context.game.skills = Array.from(new Set([...(context.game.skills || []), '얼음 창']));
+    context.game.gemData['얼음 창'] = { level: 1, exp: 0, quality: 0 };
+    context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+    const target = makeEnemy(2200 + distance, 1 + distance, 6, { hp: 1000000, maxHp: 1000000 });
+    context.game.enemies = [target];
+    const stats = context.getPlayerStats();
+    stats.baseDmg = 1000;
+    stats.minDmgRoll = stats.maxDmgRoll = 100;
+    stats.accuracy = 1000000;
+    stats.crit = 0;
+    context.performPlayerAttack(stats);
+    vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+    return target.maxHp - target.hp;
+  }
+
+  function measureMonsterDamage(distance) {
+    resetGame();
+    context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+    context.game.playerHp = 100000;
+    context.game.enemies = [makeEnemy(2300 + distance, 1 + distance, 6, {
+      attackKind: 'ranged', attackRange: 7, attackTimer: 1, damageMul: 100,
+    })];
+    const stats = {
+      maxHp: 100000, energyShield: 0, dr: 0, armor: 0, evasion: 0, evadeChance: 0,
+      resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
+    };
+    context.performMonsterAttacks(stats);
+    vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+    context.performMonsterAttacks(stats);
+    return 100000 - context.game.playerHp;
+  }
+
+  const originalRandom = context.Math.random;
+  context.Math.random = () => 0.5;
+  try {
+    const adjacentPlayerDamage = measurePlayerDamage(1);
+    const distantPlayerDamage = measurePlayerDamage(4);
+    const adjacentMonsterDamage = measureMonsterDamage(1);
+    const distantMonsterDamage = measureMonsterDamage(4);
+    assert.ok(adjacentPlayerDamage > 0 && Math.abs(distantPlayerDamage / adjacentPlayerDamage - 0.85) < 0.02,
+      '플레이어의 4칸 직접 타격은 실제 피해가 약 15% 감폭되어야 한다');
+    assert.ok(adjacentMonsterDamage > 0 && Math.abs(distantMonsterDamage / adjacentMonsterDamage - 0.85) < 0.02,
+      '몬스터의 4칸 직접 타격도 실제 피해가 약 15% 감폭되어야 한다');
+  } finally {
+    context.Math.random = originalRandom;
+  }
 }
 
 // ── 3-1. 전투 전술: 소급 해금 / 대상 우선순위 / 재배치 지연 ──
@@ -2095,6 +2228,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.enemies = [primary, adjacent];
   context.runSummonAttackTick(context.getPlayerStats());
   assert.ok(primary.hp < primary.maxHp && adjacent.hp < adjacent.maxHp, '꿰뚫는 이는 주 대상 주변 1칸의 적도 소환수 공격으로 맞춰야 한다');
+  const summonAttackFx = vm.runInContext("battleFx.find(fx => fx.type === 'summonAttack')", context);
+  assert.ok(summonAttackFx && summonAttackFx.summonId === attacker.id && summonAttackFx.targetEnemyId === primary.id,
+    '소환수 공격은 주 대상 방향의 짧은 전진·복귀 연출 정보를 남겨야 한다');
 }
 
 // ── 신규 전투 젬: 시간차 판정 / 기동 / 채널 취소 / 태그 보조 ──

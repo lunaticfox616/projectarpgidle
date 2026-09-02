@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
-// 루프 첫 처치 시 재능(시작 캐릭터)에 맞는 하위권 화력 스킬 젬을 확정 지급하는 로직 검증.
+// 루프 첫 처치 시 선택한 직업에 맞는 하위권 화력 스킬 젬을 확정 지급하는 로직 검증.
 // "기본 공격"만 들고 루프를 시작하는 공백을 메우는 기능이며, 이미 실제 스킬을 보유한
 // (마이그레이션된 기존 저장 데이터의) 진행 중인 루프에는 소급 지급하지 않아야 한다.
 const constantsSource = fs.readFileSync('data/constants.js', 'utf8');
@@ -38,9 +38,11 @@ Object.keys(context.HERO_SELECTION_DEFS).forEach(heroId => {
     assert(context.SKILL_DB[gemName] && context.SKILL_DB[gemName].isGem, `${heroId}의 시작 젬 [${gemName}]이 SKILL_DB에 없거나 젬이 아니다`);
 });
 
-// 신규 루프(스킬이 기본 공격 하나뿐): 첫 처치 때 재능에 맞는 젬을 지급해야 한다.
-Object.entries(context.LOOP_STARTER_GEM_BY_HERO).forEach(([heroId, expectedGem]) => {
-    context.game = { selectedHeroId: heroId, skills: ['기본 공격'], gemData: {}, noti: {}, loopStarterGemGranted: false };
+// 신규 루프(스킬이 기본 공격 하나뿐): 첫 처치 때 직업에 맞는 젬을 지급해야 한다.
+Object.values(context.PLAYER_CLASS_DEFS).forEach(classDef => {
+    let heroId = classDef.recommendedTalentHeroId;
+    let expectedGem = context.LOOP_STARTER_GEM_BY_HERO[heroId];
+    context.game = { selectedClassId: classDef.id, selectedHeroId: 'hero10', skills: ['기본 공격'], gemData: {}, noti: {}, loopStarterGemGranted: false };
     context.logged = [];
     context.grantLoopStarterGemOnFirstKill();
     assert.deepStrictEqual(context.game.skills, ['기본 공격', expectedGem], `${heroId}는 첫 처치 시 [${expectedGem}]을 받아야 한다`);
@@ -50,14 +52,14 @@ Object.entries(context.LOOP_STARTER_GEM_BY_HERO).forEach(([heroId, expectedGem])
 });
 
 // 같은 루프에서 두 번째 처치가 일어나도 중복 지급되지 않는다.
-context.game = { selectedHeroId: 'hero1', skills: ['기본 공격'], gemData: {}, noti: {}, loopStarterGemGranted: false };
+context.game = { selectedClassId: 'archer', selectedHeroId: 'hero10', skills: ['기본 공격'], gemData: {}, noti: {}, loopStarterGemGranted: false };
 context.grantLoopStarterGemOnFirstKill();
 context.grantLoopStarterGemOnFirstKill();
 assert.strictEqual(context.game.skills.length, 2, '두 번째 처치에서 다시 지급되면 안 된다');
 
 // 마이그레이션 가드: 기존 저장 데이터라 플래그가 없어(false) 이번에 처음 이 코드를 만나더라도,
 // 이미 기본 공격 외의 스킬을 들고 진행 중인 루프에는 소급 지급하지 않는다.
-context.game = { selectedHeroId: 'hero1', skills: ['기본 공격', '연속 베기'], gemData: {}, noti: {}, loopStarterGemGranted: false };
+context.game = { selectedClassId: 'warrior', selectedHeroId: 'hero10', skills: ['기본 공격', '연속 베기'], gemData: {}, noti: {}, loopStarterGemGranted: false };
 context.grantLoopStarterGemOnFirstKill();
 assert.deepStrictEqual(context.game.skills, ['기본 공격', '연속 베기'], '이미 실제 스킬을 보유했다면 소급 지급하지 않아야 한다');
 assert.strictEqual(context.game.loopStarterGemGranted, true, '가드로 건너뛰어도 플래그는 켜져 재평가를 막아야 한다');

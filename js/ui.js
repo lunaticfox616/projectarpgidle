@@ -4520,20 +4520,22 @@ function canEnterTalentBloomTrial() {
         && (game.currencies.chaosKey || 0) >= 1 && (game.currencies.coreKey || 0) >= 1;
 }
 async function chooseTalentBloomHeroId() {
-    let currentId = HERO_SELECTION_DEFS[game.selectedHeroId] ? game.selectedHeroId : HERO_SELECTION_ORDER[0];
-    let lockedTalent = HERO_SELECTION_DEFS[game.bloomedTalentThisLoop];
+    let lockedTalent = game.bloomedClassThisLoop === game.ascendClass
+        ? HERO_SELECTION_DEFS[game.bloomedTalentThisLoop] : null;
+    if (lockedTalent) return game.bloomedTalentThisLoop;
+    let classDef = PLAYER_CLASS_DEFS[game.selectedClassId];
+    let currentId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId]
+        ? classDef.recommendedTalentHeroId : HERO_SELECTION_ORDER[0];
     return requestGameChoice({
-        title: '개화할 재능 선택',
-        message: lockedTalent
-            ? `이번 루프의 5차 재능특화는 ${lockedTalent.label}(으)로 확정되어 있습니다. 다른 재능을 고르면 해당 조합의 개화 카드만 획득합니다.`
-            : '현재 5차 전직과 조합할 재능을 선택하세요. 이번 루프 최초 개화 재능으로 5차 재능특화 노드가 결정됩니다.',
+        title: '5차 전직 · 개화 재능 선택',
+        message: '이번 루프에서 사용할 개화 재능을 선택하세요. 5차 전직을 완료하면 선택한 재능의 보너스가 적용되며, 다음 루프에는 다시 선택합니다.',
         value: currentId,
         choices: HERO_SELECTION_ORDER.map(id => ({
             value: id,
             label: HERO_SELECTION_DEFS[id].label,
             detail: HERO_SELECTION_DEFS[id].talentsText
         })),
-        confirmLabel: '이 재능으로 도전'
+        confirmLabel: '선택하고 도전'
     });
 }
 
@@ -4545,7 +4547,7 @@ async function enterTalentBloomTrial() {
     let heroId = await chooseTalentBloomHeroId();
     if (!HERO_SELECTION_DEFS[heroId]) return;
     game.pendingTalentBloomHeroId = heroId;
-    addLog(`개화 조합 선택: ${HERO_SELECTION_DEFS[heroId].label} × ${CLASS_TEMPLATES[game.ascendClass].name}`, 'season-up');
+    addLog(`이번 루프 개화 재능: ${HERO_SELECTION_DEFS[heroId].label} · 5차 전직 완료 후 보너스 적용`, 'season-up');
     if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
     changeZone('trial_5');
 }
@@ -4650,6 +4652,13 @@ function toggleSeasonBossRepeat() {
 function renderStarWedgePanel() {
     let panel = document.getElementById('ui-star-wedge-panel');
     if (!panel) return;
+    let drawer = document.getElementById('passive-star-wedge-drawer');
+    let loopUnlocked = (game.season || 1) >= STAR_WEDGE_UNLOCK_LOOP;
+    if (drawer) {
+        drawer.hidden = !loopUnlocked;
+        if (!loopUnlocked) drawer.open = false;
+    }
+    if (!loopUnlocked) return;
     let st = ensureStarWedgeState();
     tryUnlockMeteorContentByProgress();
     st = ensureStarWedgeState();
@@ -6456,30 +6465,15 @@ function syncHeroSelectionState(source, options = {}) {
     let summaryEl = document.getElementById('ui-hero-talent-summary');
     if (summaryEl) {
         let def = getHeroSelectionDef(game.selectedClassId);
-        let talentDef = HERO_SELECTION_DEFS[game.selectedHeroId] || HERO_SELECTION_DEFS.hero1;
         let appearanceDef = getHeroSelectionDef(typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedClassId);
         let discovered = Math.min(PLAYER_CLASS_ORDER.length, game.discoveredClassIds.length);
         let unlockText = game.classFreeSwitchUnlocked ? `외형 변경 해금됨 · 외형: ${appearanceDef.label}` : `경험한 직업 ${discovered}/${PLAYER_CLASS_ORDER.length}`;
         let modeText = game.settings && game.settings.heroAppearanceMode === 'fixed' ? '고정' : '현재 직업 연동';
-        summaryEl.innerText = `${def.label} · 활성 재능: ${talentDef.label} · ${unlockText} · 외형: ${modeText}`;
+        summaryEl.innerText = `${def.label} · ${unlockText} · 외형: ${modeText}`;
     }
 }
 
-function renderTalentSelectionControl() {
-    let selectEl = document.getElementById('sel-active-talent');
-    let detailEl = document.getElementById('ui-active-talent-detail');
-    if (!selectEl) return;
-    selectEl.innerHTML = HERO_SELECTION_ORDER.map(id => {
-        let def = HERO_SELECTION_DEFS[id];
-        return `<option value="${id}">${def.label}</option>`;
-    }).join('');
-    selectEl.value = HERO_SELECTION_DEFS[game.selectedHeroId] ? game.selectedHeroId : HERO_SELECTION_ORDER[0];
-    let active = HERO_SELECTION_DEFS[selectEl.value];
-    if (detailEl) detailEl.innerText = active ? active.talentsText : '';
-}
-
 function renderHeroSelectionControls() {
-    renderTalentSelectionControl();
     let selectEl = document.getElementById('sel-active-hero');
     if (!selectEl) return;
     let mode = game.settings && game.settings.heroAppearanceMode === 'fixed' ? 'fixed' : 'loop';
@@ -6566,32 +6560,6 @@ function applyHeroSelection(classId, options = {}) {
     if (!options.skipSave) persistHeroSelectionChange('플레이어 직업 변경');
     return true;
 }
-
-function applyTalentSelection(heroId, options = {}) {
-    if (!HERO_SELECTION_DEFS[heroId]) return false;
-    let previous = game.selectedHeroId;
-    game.selectedHeroId = heroId;
-    game.talentSelectionInitialized = true;
-    if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(true);
-    if (typeof getPlayerStats === 'function') {
-        let stats = getPlayerStats();
-        if (typeof getPlayerHpCap === 'function') game.playerHp = Math.min(game.playerHp, getPlayerHpCap(stats));
-        game.playerEnergyShield = Math.min(Math.max(0, Number(game.playerEnergyShield) || 0), Math.max(0, Number(stats.energyShield) || 0));
-    }
-    syncHeroSelectionState();
-    renderTalentSelectionControl();
-    if (!options.silent && previous !== heroId) addLog(`활성 재능 변경: ${HERO_SELECTION_DEFS[heroId].label}`, 'season-up');
-    if (!options.skipSave && previous !== heroId) persistHeroSelectionChange('활성 재능 변경');
-    if (previous !== heroId) updateStaticUI();
-    return previous !== heroId;
-}
-
-function onTalentSelectionChanged() {
-    let selectEl = document.getElementById('sel-active-talent');
-    if (!selectEl) return;
-    applyTalentSelection(selectEl.value);
-}
-safeExposeGlobals({ onTalentSelectionChanged, applyTalentSelection });
 
 function onHeroAppearanceModeChanged() {
     let selectEl = document.getElementById('sel-hero-appearance-mode');
@@ -8057,7 +8025,14 @@ function getBattleLayout(enemies, width, height, projection) {
     return list.map(enemy => {
         let cell = hasGridCell(enemy) ? enemy : fallbackCell;
         let center = hasGridCell(enemy) ? getGridUnitCenter(enemy) : cell;
-        let pos = proj.cellToScreen(center.gx, center.gy);
+        let footprint = hasGridCell(enemy) ? getGridUnitFootprint(enemy) : { columns: 1, rows: 1 };
+        // 다칸 유닛의 몸은 점유 영역 중앙에 두되, 발은 마지막 행의 중앙을 딛게 한다.
+        // 2x2 보스가 네 칸 사이 교차점 위에 떠 있는 듯 보이는 것을 막는다.
+        let groundCell = {
+            gx: center.gx,
+            gy: center.gy + (footprint.rows - 1) / 2
+        };
+        let pos = proj.cellToScreen(groundCell.gx, groundCell.gy);
         return { enemy: enemy, x: pos.x, y: pos.y + proj.actorGroundOffsetY };
     }).sort((a, b) => a.y - b.y || (a.enemy.id - b.enemy.id));
 }
@@ -8703,6 +8678,10 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
     }
     let pool = enemy.isBoss ? bossPool : (enemy.isElite ? elitePool : normalPool);
     if (pool.length === 0) return null;
+    if (enemy.spriteVariantId) {
+        let assignedVariant = pool.find(entry => entry && entry.id === enemy.spriteVariantId);
+        if (assignedVariant) return assignedVariant;
+    }
     let elementOffset = enemy.ele === 'fire' ? 1 : (enemy.ele === 'cold' ? 2 : (enemy.ele === 'light' ? 3 : (enemy.ele === 'chaos' ? 4 : 0)));
     return pool[(variantSeed + elementOffset) % pool.length];
 }
@@ -8752,14 +8731,17 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMoti
         let frame = animatedEntry.frame || variantEntry.frame || enemyAtlas.frames.bandit || enemyAtlas.frames.slime;
         let frameImage = animatedEntry.image || variantEntry.image || enemyAtlas.image;
         let drawSize = enemy.isBoss ? 70 : (enemy.isElite ? 52 : 44);
+        let outlineColor = enemy.isBoss
+            ? '#a84e49'
+            : (enemy.isElite ? (enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || '#e2b94f') : null);
         drawSize *= scale / (enemy.isBoss ? 2.55 : (enemy.isElite ? 2.2 : 1.95));
         let bossScaleRatio = enemy.isBoss ? scale / 2.55 : 1;
-        drawPixelShadow(ctx, x, groundY, enemy.isBoss ? 15 * bossScaleRatio : 9, enemy.isBoss ? 5 * bossScaleRatio : 4, 0.17);
+        drawPixelShadow(ctx, x, groundY, enemy.isBoss ? 22 * bossScaleRatio : 9, enemy.isBoss ? 7 * bossScaleRatio : 4, 0.17);
         ctx.save();
         if (enemy.bossVisualTint != null) ctx.filter = `hue-rotate(${enemy.bossVisualTint}deg) saturate(1.28) brightness(1.08)`;
         drawBattleSprite(ctx, frameImage, frame, x, groundY, drawSize, {
             smoothing: enemy.bossAssetKey ? 'high' : 'low',
-            outlineColor: enemy.isBoss ? '#a84e49' : (enemy.isElite ? '#e2b94f' : null),
+            outlineColor: outlineColor,
             outlineThickness: 1.35,
             outlineAlpha: enemy.isBoss ? 0.46 : (enemy.isElite ? 0.72 : 0)
         });
@@ -10102,8 +10084,9 @@ function updateCombatUI(pStats) {
     if (specialSummaryEl) {
         let notes = [];
         if ((pStats.glovePairAspdBonus || 0) > 0) notes.push(`동형 장갑 세트 보너스 활성화: 기본 공속 +${(pStats.glovePairAspdBonus || 0).toFixed(2)}`);
-        let heroDef = getHeroSelectionDef(game.selectedHeroId);
-        if (heroDef) notes.push(`${heroDef.label} 재능: ${heroDef.talentsText}`);
+        let heroDef = game.bloomedClassThisLoop === game.ascendClass
+            ? HERO_SELECTION_DEFS[game.bloomedTalentThisLoop] : null;
+        if (heroDef) notes.push(`${heroDef.label} 개화 재능: ${heroDef.talentsText}`);
         if (game.ascendClass && Array.isArray(game.ascendKeystones) && game.ascendKeystones.length > 0) {
             let defs = getClassKeystoneDefs(game.ascendClass);
             let pickedNames = game.ascendKeystones.map(id => ((defs.find(node => node.id === id) || {}).name || id));
@@ -14019,7 +14002,11 @@ function mergeDefaults(save) {
             at: clampFiniteNumber(entry.at, Date.now(), 0),
             ele: ele,
             amount: amount,
-            source: typeof entry.source === 'string' ? entry.source : ''
+            source: typeof entry.source === 'string' ? entry.source : '',
+            sourceType: ['monster', 'hazard', 'ailment'].includes(entry.sourceType) ? entry.sourceType : 'hazard',
+            sourceId: typeof entry.sourceId === 'string' || Number.isFinite(entry.sourceId) ? entry.sourceId : null,
+            sourceName: typeof entry.sourceName === 'string' ? entry.sourceName : '',
+            ailmentType: typeof entry.ailmentType === 'string' ? entry.ailmentType : ''
         };
     }
     function normalizeDeathDamageSummaryRows(rows) {
@@ -14038,11 +14025,29 @@ function mergeDefaults(save) {
             .filter(entry => entry.value > 0)
             .sort((a, b) => b.value - a.value);
     }
+    function normalizeDeathMonsterSummaryRows(rows) {
+        return Array.isArray(rows) ? rows.map(row => {
+            if (!row || typeof row !== 'object') return null;
+            let byElement = {};
+            ['phys', 'fire', 'cold', 'light', 'chaos', 'other'].forEach(ele => {
+                let value = Math.max(0, Math.floor(clampFiniteNumber(row.byElement && row.byElement[ele], 0, 0)));
+                if (value > 0) byElement[ele] = value;
+            });
+            return {
+                sourceId: typeof row.sourceId === 'string' || Number.isFinite(row.sourceId) ? row.sourceId : null,
+                name: typeof row.name === 'string' && row.name ? row.name : '알 수 없는 몬스터',
+                value: Math.max(0, Math.floor(clampFiniteNumber(row.value, 0, 0))),
+                byElement: byElement,
+                primaryElement: normalizeDamageElementKey(row.primaryElement)
+            };
+        }).filter(row => row && row.value > 0).sort((a, b) => b.value - a.value) : [];
+    }
     function normalizeDeathLog(log) {
         if (!log || typeof log !== 'object') return null;
         let primaryElement = normalizeDamageElementKey(log.primaryElement);
         let damageSummary = normalizeDeathDamageSummaryRows(log.damageSummary);
         let ailmentDamageSummary = normalizeDeathDamageSummaryRows(log.ailmentDamageSummary);
+        let monsterSummary = normalizeDeathMonsterSummaryRows(log.monsterSummary);
         let activeAilments = Array.isArray(log.activeAilments) ? log.activeAilments.map(row => {
             if (!row || typeof row !== 'object') return null;
             let type = typeof row.type === 'string' && row.type ? row.type : 'unknown';
@@ -14051,7 +14056,8 @@ function mergeDefaults(save) {
                 label: typeof row.label === 'string' && row.label ? row.label : getAilmentDisplayLabel(type),
                 time: Math.max(0, Math.ceil(clampFiniteNumber(row.time, 0, 0, 30))),
                 power: Math.max(0, clampFiniteNumber(row.power, 0, 0, 1.5)),
-                sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0)))
+                sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0))),
+                sourceEnemyName: typeof row.sourceEnemyName === 'string' ? row.sourceEnemyName : ''
             };
         }).filter(Boolean) : [];
         return {
@@ -14060,6 +14066,7 @@ function mergeDefaults(save) {
             expLost: Math.max(0, Math.floor(clampFiniteNumber(log.expLost, 0, 0))),
             damageSummary: damageSummary,
             ailmentDamageSummary: ailmentDamageSummary,
+            monsterSummary: monsterSummary,
             activeAilments: activeAilments,
             sourceName: typeof log.sourceName === 'string' ? log.sourceName : '',
             at: clampFiniteNumber(log.at, Date.now(), 0)
