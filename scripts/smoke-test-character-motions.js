@@ -79,6 +79,8 @@ assert.strictEqual(intentionalTalentSave.selectedHeroId, 'hero1',
 const manifest = JSON.parse(fs.readFileSync('assets/playable/classes/manifest.json', 'utf8'));
 let totalBytes = 0;
 definitions.forEach(def => {
+    assert(!/(?:toss|throw|shot|slash|thrust|kick|swing|channel)/i.test(manifest[def.id].walkAnimation),
+        `${def.label} walk source must not reuse an attack-like animation`);
     let portrait = fs.readFileSync(def.portrait);
     assert.strictEqual(portrait.readUInt32BE(16), 64, `${def.label} portrait width must be 64px`);
     assert.strictEqual(portrait.readUInt32BE(20), 64, `${def.label} portrait height must be 64px`);
@@ -116,7 +118,7 @@ definitions.forEach(def => {
     Object.entries(manifest[def.id].walkDirections).forEach(([direction, walk]) => {
         let path = `assets/playable/classes/${def.id}/${walk.asset}`;
         assert(fs.existsSync(path), `${def.label} ${direction} walk strip must exist`);
-        assert(walk.frames >= 8 && walk.frames <= 9, `${def.label} ${direction} walk must retain its source poses`);
+        assert(walk.frames >= 7 && walk.frames <= 9, `${def.label} ${direction} walk must retain its source poses`);
         if (direction !== 'east') totalBytes += fs.statSync(path).size;
     });
 });

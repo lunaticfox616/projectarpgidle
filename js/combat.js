@@ -2857,7 +2857,7 @@ function addPendingSkillTravelFx(row, attackContext, now) {
         delivery: row.delivery,
         patternKind: row.patternKind,
         sourceCell: row.sourceCell,
-        aimCell: copyCombatGridCell((game.enemies || []).find(enemy => enemy
+        aimCell: copyCombatGridCell(row.aimCell) || copyCombatGridCell((game.enemies || []).find(enemy => enemy
             && row.targetEntries[0] && String(enemy.id) === String(row.targetEntries[0].enemyId))) || visualTargetCells[0],
         targetCells: visualTargetCells,
         targetIds: visualTargetIds,
@@ -2865,15 +2865,32 @@ function addPendingSkillTravelFx(row, attackContext, now) {
         element: attackContext.forcedElement,
         releaseDelayMs: Math.max(0, row.launchAt - now),
         flightMs: Math.max(1, row.at - row.launchAt),
+        waveDurationMs: Math.max(0, Number(row.waveDurationMs) || 0),
         duration: row.fieldDurationMs || Math.max(260, row.at - now + 260)
     };
     addBattleFx('combatTravel', fx);
+}
+
+function buildRadialBurstVisualRow(rows, now) {
+    let first = rows[0];
+    let waveDurationMs = Math.max(120, Number(first.waveDurationMs) || 0);
+    return {
+        ...first,
+        targetCells: rows.flatMap(row => row.targetCells || []),
+        targetEntries: rows.flatMap(row => row.targetEntries || []),
+        waveDurationMs,
+        fieldDurationMs: Math.max(360, first.at - now + waveDurationMs + 180)
+    };
 }
 
 function addPendingSkillTravelFxRows(rows, attackContext, now) {
     let queuedRows = (rows || []).filter(Boolean);
     if (queuedRows.length <= 0) return;
     let firstRow = queuedRows[0];
+    if (firstRow.patternKind === 'radialBurst') {
+        addPendingSkillTravelFx(buildRadialBurstVisualRow(queuedRows, now), attackContext, now);
+        return;
+    }
     let straightPierce = firstRow.delivery === 'projectileCell' && firstRow.patternKind !== 'boomerang';
     if (!straightPierce) {
         queuedRows.forEach(row => addPendingSkillTravelFx(row, attackContext, now));
@@ -2918,6 +2935,8 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             at: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt + travelMs : now + baseDelay + stageDelay,
             launchAt: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt : now,
             zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
+            aimCell: copyCombatGridCell(stage.aimCell),
+            waveDurationMs: Math.max(0, Number(stage.waveDurationMs) || 0),
             channelId: Math.max(0, Math.floor(Number(attackContext.channelId) || 0)),
             fieldDurationMs: patternKind === 'channel' ? baseDelay + channelDurationMs + 120
                 : (['field', 'meteor'].includes(patternKind) ? baseDelay + finalStageDelayMs + 320 : 0),
