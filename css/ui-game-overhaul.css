@@ -1761,7 +1761,7 @@ body:not(.light-mode).desktop-windowed-ui .tab-content.ui-window > .ui-window-re
 
 /* A one-shot guide sits over the live game instead of replacing it with a modal lesson. */
 body:not(.light-mode) #tutorial-overlay {
-  inset: auto 18px 18px auto;
+  inset: auto 34px 18px auto;
   width: min(420px, calc(100vw - 24px));
   background: transparent;
   backdrop-filter: none;
@@ -1773,6 +1773,7 @@ body:not(.light-mode) #tutorial-overlay.active {
 }
 
 body:not(.light-mode) #tutorial-overlay .tutorial-card {
+  box-sizing: border-box;
   width: 100%;
   padding: 16px 18px;
   overflow: visible;
