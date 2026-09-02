@@ -20,6 +20,8 @@ const VFX_LABELS = Object.freeze({
     skillFxBlizzardImpact: ['난타 눈보라 충돌 시트', '눈보라 타격 애니메이션'],
     skillFxFrostWave: ['서리 파동', '냉기 이동형 파동'],
     skillFxChaosBoomerang: ['카오스 부메랑', '왕복 투사체'],
+    skillFxFrostBurst: ['서리 폭발', '중심에서 범위 끝까지 퍼지는 냉기 파동'],
+    skillFxFrostWaveRing: ['서리 폭발 파동', '중앙 폭발 뒤 별도로 퍼지는 원형 파동'],
     skillFxBurst: ['공용 폭발', '폭발·함성·조건 스킬'],
     skillFxDotField: ['지속 피해 장판', '화염 부패·빙결 침식·저주'],
     skillFxSummonStrike: ['소환수 타격', '소환수 공격 공통'],

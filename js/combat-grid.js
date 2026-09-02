@@ -643,6 +643,33 @@ function getSkillChainDamageMultiplier(skill, jumpIndex) {
     return Math.max(0.1, 1 + Math.max(0, jumpIndex) * stepPct / 100);
 }
 
+function getGridUnitDistanceFromCell(origin, unit) {
+    if (!origin || !unit) return 0;
+    return getGridUnitCells(unit).reduce((closest, cell) => Math.min(closest,
+        Math.hypot(cell.gx - origin.gx, cell.gy - origin.gy)), Infinity);
+}
+
+function buildRadialBurstHitSequence(skillName, skill, targets, attacker, primary) {
+    if (!attacker || !primary) return null;
+    let center = getClosestGridUnitCell(attacker, primary);
+    let gridProfile = getSkillGridProfile(skillName, skill);
+    let radius = Math.max(1, Number(gridProfile && gridProfile.radius) || 1);
+    let msPerCell = Math.max(50, Math.floor(Number(skill.combatPattern.waveMsPerCell) || 90));
+    let waveDurationMs = Math.round(Math.hypot(radius, radius) * msPerCell);
+    let groups = new Map();
+    targets.forEach(entry => {
+        let distance = getGridUnitDistanceFromCell(center, entry.enemy);
+        let delayMs = Math.round(distance * msPerCell);
+        if (!groups.has(delayMs)) groups.set(delayMs, []);
+        groups.get(delayMs).push(entry);
+    });
+    return Array.from(groups.entries()).sort((a, b) => a[0] - b[0]).map(([delayMs, rows], index) => ({
+        kind: 'radialBurstWave', label: `서리 파동 ${index + 1}단계`,
+        delayMs, damageMultiplier: 1, singleRepeat: true,
+        aimCell: center, waveDurationMs, targets: rows
+    }));
+}
+
 function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     let pattern = skill && skill.combatPattern;
     if (!pattern) return null;
@@ -651,6 +678,9 @@ function buildConfiguredSkillHitSequence(skillName, skill, targets) {
     let primary = targets[0] && targets[0].enemy;
     let impactCells = attacker && primary
         ? getGridAttackAreaCells(getSkillGridProfile(skillName, skill), attacker, primary) : [];
+    if (pattern.kind === 'radialBurst') {
+        return buildRadialBurstHitSequence(skillName, skill, targets, attacker, primary);
+    }
     if (pattern.kind === 'meteor') {
         let groundHits = Math.max(1, Math.min(5, Math.floor(Number(pattern.groundHits) || 3)));
         let groundIntervalMs = Math.max(160, Math.floor(Number(pattern.groundIntervalMs) || 600));

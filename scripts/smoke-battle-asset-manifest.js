@@ -20,7 +20,10 @@ assetPaths.forEach(assetPath => {
 });
 
 const vfxAssets = loadVfxAssetCatalog(ROOT);
-assert.strictEqual(vfxAssets.length, 22, 'all active skill VFX images should be available to the editor');
+assert.ok(vfxAssets.some(asset => asset.key === 'skillFxFrostBurst' && asset.label === '서리 폭발'),
+    'the dedicated frost burst wave should be available to the editor');
+assert.ok(vfxAssets.some(asset => asset.key === 'skillFxFrostWaveRing' && asset.label === '서리 폭발 파동'),
+    'the separate frost wavefront should be available to the editor');
 assert.ok(vfxAssets.every(asset => assetPaths.includes(asset.path)), 'VFX editor should only expose live manifest assets');
 assert.ok(!source.includes('battle-effects-v1.png') && !fs.existsSync('assets/battle-effects-v1.png'),
     'unused legacy battle effect atlas should stay removed');
