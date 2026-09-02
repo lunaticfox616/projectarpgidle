@@ -6596,6 +6596,10 @@ const MONSTER_SKIN_FRAME_DEFS = [
 function getMonsterSkinLabel(id) {
     let frameDef = MONSTER_SKIN_FRAME_DEFS.find(def => def.id === id);
     if (frameDef) return frameDef.label;
+    const realmDef = typeof getRealmMonsterVisualDefinitionById === 'function'
+        ? getRealmMonsterVisualDefinitionById(id)
+        : null;
+    if (realmDef) return realmDef.name;
     let m = /^bossAct(\d+)(?:_(\d+))?$/.exec(id || '');
     if (m) {
         let act = Number(m[1]);
@@ -6612,6 +6616,11 @@ function getMonsterSkinLabel(id) {
 
 function getMonsterSkinDefs() {
     let defs = MONSTER_SKIN_FRAME_DEFS.map(def => ({ id: def.id, label: def.label, type: 'frame' }));
+    if (typeof REALM_MONSTER_VISUAL_SETS !== 'undefined') {
+        Object.values(REALM_MONSTER_VISUAL_SETS).forEach(set => {
+            set.members.forEach(member => defs.push({ id: member.id, label: member.name, type: 'frame' }));
+        });
+    }
     if (typeof BOSS_ASSET_MANIFEST !== 'undefined') {
         Object.keys(BOSS_ASSET_MANIFEST).forEach(key => defs.push({ id: key, label: getMonsterSkinLabel(key), type: 'boss' }));
     }
@@ -8644,8 +8653,24 @@ function getBossAssetVariantEntry(enemy, enemyAtlas) {
     };
 }
 
+function getRealmBattleEnemyPool(enemy, enemyAtlas) {
+    if (!enemy || !enemy.monsterVisualSetId || !enemyAtlas) return [];
+    const sets = enemyAtlas.realmVariants || {};
+    const pools = sets[enemy.monsterVisualSetId];
+    if (!pools) return [];
+    const role = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'normal');
+    return pools[role] || [];
+}
+
 function pickBattleEnemyVariant(enemy, enemyAtlas) {
     if (!enemyAtlas) return null;
+    const realmPool = getRealmBattleEnemyPool(enemy, enemyAtlas);
+    if (realmPool.length > 0) {
+        const assigned = realmPool.find(entry => entry && entry.id === enemy.monsterVisualId);
+        if (assigned) return assigned;
+        const realmSeed = Math.abs(enemy.variantSeed || enemy.id || 1);
+        return realmPool[realmSeed % realmPool.length];
+    }
     let pools = enemyAtlas.variants || {};
     let frames = enemyAtlas.frames || {};
     let baseImage = enemyAtlas.image;

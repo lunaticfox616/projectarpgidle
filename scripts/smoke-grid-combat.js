@@ -145,6 +145,38 @@ const cfg = context.COMBAT_GRID_CONFIG;
     '정예 외곽선 색은 이름에 사용된 특성 정의를 따라야 한다');
   assert.strictEqual(context.getMonsterVariantDefinition(normal.variantSeed, normal.ele).id, normal.spriteVariantId,
     '이름에 사용한 변형 id와 렌더 선택 id가 같아야 한다');
+
+  const realmZones = [
+    ['underworld', context.getZone('underworld_core')],
+    ['ocean', context.getZone('ocean_depth')],
+    ['sky', context.getZone('sky_tower')],
+    ['cosmos', { id: 'cosmos_test', name: '우주계 기준', type: 'cosmos', tier: 57, ele: 'chaos' }]
+  ];
+  realmZones.forEach(([setId, realmZone]) => {
+    const realmNormal = context.createEnemy(realmZone, { at: 20, count: 1 }, 0);
+    const realmElite = context.createEnemy(realmZone, { at: 20, count: 1, elite: true }, 0);
+    const realmBoss = context.createEnemy(realmZone, { at: 100, count: 1, boss: true }, 0);
+    [realmNormal, realmElite, realmBoss].forEach((enemy, roleIndex) => {
+      const definition = context.getRealmMonsterVisualDefinitionById(enemy.monsterVisualId);
+      assert.strictEqual(enemy.monsterVisualSetId, setId, `${setId} 구역은 전용 몬스터 세트를 사용해야 한다`);
+      assert.strictEqual(definition.role, ['normal', 'elite', 'boss'][roleIndex], `${setId} 전용 역할 이미지가 일치해야 한다`);
+    });
+    assert.strictEqual(realmNormal.name, realmNormal.baseMonsterName, `${setId} 일반 몬스터 이름과 이미지가 일치해야 한다`);
+    assert.strictEqual(realmElite.name, `${realmElite.trait.name} ${realmElite.baseMonsterName}`,
+      `${setId} 정예 몬스터 이름은 특성과 이미지 종명을 함께 표시해야 한다`);
+  });
+
+  const realmImages = Object.fromEntries(Object.values(context.REALM_MONSTER_VISUAL_SETS)
+    .map(set => [set.assetKey, { width: 512, height: 256 }]));
+  const realmAtlasSets = context.buildRealmEnemyVariantSets(realmImages);
+  Object.values(realmAtlasSets).forEach(pools => {
+    assert.deepStrictEqual([pools.normal.length, pools.elite.length, pools.boss.length], [4, 2, 1],
+      '각 테마 아틀라스는 일반 4·정예 2·보스 1칸을 고정 배치해야 한다');
+    assert.strictEqual(pools.normal[0].frame.x, 0, '첫 몬스터는 첫 번째 128px 칸에서 시작해야 한다');
+    assert.strictEqual(pools.normal[0].frame.width, 128, '몬스터 프레임은 옆 칸을 침범하지 않아야 한다');
+    assert.strictEqual(pools.boss[0].frame.x, 256, '보스는 둘째 줄 세 번째 칸에 고정되어야 한다');
+    assert.strictEqual(pools.boss[0].frame.y, 128, '보스는 둘째 줄에서만 잘라야 한다');
+  });
 }
 
 // 데스로그는 몬스터 인스턴스별 피해와 지연 상태이상 피해를 합산한다.

@@ -6471,10 +6471,17 @@ function createEnemy(zone, marker, groupIndex) {
     let chaosBossVisual = isBoss ? getChaosBossVisual(zone, variantSeed) : null;
     let bossAssetKey = chaosBossVisual ? chaosBossVisual.assetKey : (isBoss && typeof getBossAssetKeyForZone === 'function' ? getBossAssetKeyForZone(zone, variantSeed) : null);
     let trait = rollEnemyTrait(zone, isElite, isBoss, variantSeed);
-    let monsterVariant = !isBoss && typeof getMonsterVariantDefinition === 'function'
+    const realmVisualSet = typeof getRealmMonsterVisualSet === 'function' ? getRealmMonsterVisualSet(zone) : null;
+    const realmVisualRole = isBoss ? 'boss' : (isElite ? 'elite' : 'normal');
+    const realmVisual = typeof getRealmMonsterVisualDefinition === 'function'
+        ? getRealmMonsterVisualDefinition(realmVisualSet, realmVisualRole, variantSeed)
+        : null;
+    let monsterVariant = !realmVisual && !isBoss && typeof getMonsterVariantDefinition === 'function'
         ? getMonsterVariantDefinition(variantSeed, enemyEle)
         : null;
-    if (!isBoss && monsterVariant) {
+    if (!isBoss && realmVisual) {
+        name = isElite && trait ? `${trait.name} ${realmVisual.name}` : realmVisual.name;
+    } else if (!isBoss && monsterVariant) {
         name = isElite && trait ? `${trait.name} ${monsterVariant.name}` : monsterVariant.name;
     } else if (!isBoss && isElite && trait) {
         name = `${trait.name} ${name}`;
@@ -6522,7 +6529,9 @@ function createEnemy(zone, marker, groupIndex) {
         groupIndex: groupIndex,
         variantSeed: variantSeed,
         spriteVariantId: monsterVariant ? monsterVariant.id : null,
-        baseMonsterName: monsterVariant ? monsterVariant.name : null,
+        monsterVisualSetId: realmVisualSet ? realmVisualSet.id : null,
+        monsterVisualId: realmVisual ? realmVisual.id : null,
+        baseMonsterName: realmVisual ? realmVisual.name : (monsterVariant ? monsterVariant.name : null),
         ele: enemyEle,
         dr: Math.min(90, Math.max(0, drBase + (trait && trait.dr ? trait.dr : 0))),
         resF: Math.min(95, resistBase + (trait && trait.resF ? trait.resF : 0) + (abyssScale.resistBonus || 0)),
