@@ -55,7 +55,7 @@
       },
       "south": {
         "asset": "walk-south.webp",
-        "frames": 9,
+        "frames": 7,
         "frameWidth": 92,
         "frameHeight": 92
       },

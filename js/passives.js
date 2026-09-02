@@ -6598,7 +6598,7 @@ function initBattleAssets() {
         playerClassOccultistIdleSouth: 'assets/playable/classes/occultist/idle-south.webp',
         playerClassOccultistWalk: 'assets/playable/classes/occultist/walk.webp',
         playerClassOccultistWalkNorth: 'assets/playable/classes/occultist/walk-north.webp',
-        playerClassOccultistWalkSouth: 'assets/playable/classes/occultist/walk-south.webp?v=20260902-walk-repair2',
+        playerClassOccultistWalkSouth: 'assets/playable/classes/occultist/walk-south.webp?v=20260902-walk-repair3',
         playerClassOccultistWalkWest: 'assets/playable/classes/occultist/walk-west.webp',
         playerClassOccultistAttack: 'assets/playable/classes/occultist/attack.webp',
         playerClassOccultistAttack2: 'assets/playable/classes/occultist/attack-2.webp',
@@ -7515,6 +7515,7 @@ function buildBattleAssetAtlas() {
         playerClassAlchemistAttack2: 9, playerClassAlchemistAttack3: 4,
         playerClassWarriorIdle: 1, playerClassWarriorWalk: 9, playerClassWarriorAttack: 8,
         playerClassWarriorAttack2: 9, playerClassWarriorAttack3: 9,
+        playerClassOccultistWalkSouth: 7,
         playerClassArcherWalkSouth: 8
     };
     function buildFixedStripFramesFromImage(image, frameCount) {

@@ -18,7 +18,7 @@ CHARACTERS = {
         "label": "비술사",
         "walk": "mage_walking_forward_both_hands_raised_and_cupped",
         "walkSources": {
-            "south": {"direction": "south-38ccea5a"},
+            "south": {"direction": "south-db7f3ca9"},
         },
         "attacks": [
             "spellcaster_with_levitating_blue_orb_orb_dims_then",
