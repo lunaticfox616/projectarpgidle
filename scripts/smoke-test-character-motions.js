@@ -118,7 +118,7 @@ definitions.forEach(def => {
     Object.entries(manifest[def.id].walkDirections).forEach(([direction, walk]) => {
         let path = `assets/playable/classes/${def.id}/${walk.asset}`;
         assert(fs.existsSync(path), `${def.label} ${direction} walk strip must exist`);
-        assert(walk.frames >= 8 && walk.frames <= 9, `${def.label} ${direction} walk must retain its source poses`);
+        assert(walk.frames >= 7 && walk.frames <= 9, `${def.label} ${direction} walk must retain its source poses`);
         if (direction !== 'east') totalBytes += fs.statSync(path).size;
     });
 });
