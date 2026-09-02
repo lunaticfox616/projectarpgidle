@@ -24,7 +24,7 @@ vm.runInContext(stateSource.slice(start, end), context, { filename: 'challenge-c
 const actZone = { type: 'act', maxKills: 10 };
 const abyssZone = { type: 'abyss', maxKills: 10 };
 assert.strictEqual(context.getChallengeContractScore(), 4);
-assert.strictEqual(context.getChallengeContractRewardMultiplier(actZone), 1.32);
+assert.strictEqual(context.getChallengeContractRewardMultiplier(actZone), 1.16);
 assert.strictEqual(context.getChallengeContractRewardMultiplier(abyssZone), 1);
 assert.strictEqual(context.getChallengeContractEnemyDamageMultiplier(actZone), 1.25);
 assert.strictEqual(context.getChallengeContractEnemyHealthMultiplier(actZone), 1.30);
@@ -33,7 +33,7 @@ assert.strictEqual(context.getChallengeContractRecoveryMultiplier(actZone), 0.65
 
 context.game.challengeContract = { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false };
 assert.strictEqual(context.getChallengeContractScore(), 4, 'changing the pending selection must not change the current hunt snapshot');
-assert.strictEqual(context.getChallengeContractRewardMultiplier(actZone), 1.32, 'current-hunt rewards must remain fixed until the next hunt');
+assert.strictEqual(context.getChallengeContractRewardMultiplier(actZone), 1.16, 'current-hunt rewards must remain fixed until the next hunt');
 context.applyPendingChallengeContract();
 assert.strictEqual(context.getChallengeContractScore(), 0, 'the pending contract should apply at the next hunt boundary');
 assert.strictEqual(context.getChallengeContractEnemyDamageMultiplier(actZone), 1, 'the next hunt must use the newly applied difficulty');

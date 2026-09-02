@@ -59,8 +59,11 @@ async function main() {
     }, 'underworld floor 300 must use a bounded encounter profile');
     const liveProfile = JSON.parse(run("JSON.stringify(getFrequentSpawnEncounterProfile({ type: 'underworld', floor: 300 }))"));
     assert.deepStrictEqual(liveProfile, {
-        markerCount: 20, minPack: 5, maxPack: 6, eliteChance: 0.55, bossAdds: 6, label: '지하계 300층'
-    }, 'the final high-floor encounter spread must retain crowd combat without unbounded packs');
+        markerCount: 10, minPack: 5, maxPack: 6, eliteChance: 0.55, bossAdds: 6, label: '지하계 300층'
+    }, 'the final high-floor underworld encounter must use half as many combat waves');
+    const openingProfile = JSON.parse(run("JSON.stringify(getFrequentSpawnEncounterProfile({ type: 'underworld', floor: 1 }))"));
+    assert.strictEqual(openingProfile.markerCount, 2,
+        'the opening underworld encounter must also halve its five combat waves');
     const labyrinthProfile = JSON.parse(run("JSON.stringify(getFrequentSpawnEncounterProfile({ type: 'labyrinth', floor: 300 }))"));
     assert.deepStrictEqual(labyrinthProfile, {
         markerCount: 20, minPack: 5, maxPack: 6, eliteChance: 0.46, bossAdds: 2, label: '미궁 300층'
@@ -79,6 +82,14 @@ async function main() {
         'boundary farming must use the same bounded multiplier as other endless content');
     assert.strictEqual(run("capEndlessContentDropMultiplier({ type: 'act' }, 99)"), 99,
         'the endless-content cap must not affect ordinary maps');
+    assert.strictEqual(run("getContentDropRateMultiplier({ type: 'underworld' })"), 0.5,
+        'underworld probabilistic loot must use its half-rate content multiplier');
+    assert.strictEqual(run("getContentDropRateMultiplier({ type: 'labyrinth' })"), 1,
+        'the underworld loot multiplier must not reduce unrelated content');
+    const labyrinthFossils = JSON.parse(run('JSON.stringify(getLabyrinthFossilDropChances(1, 1, 1))'));
+    Object.entries({ base: 0.375, typed: 0.375, primal: 0.07725, ancient: 0.0195, abyssal: 0.0225 })
+        .forEach(([key, expected]) => assert(Math.abs(labyrinthFossils[key] - expected) < 1e-12,
+            `ancient-labyrinth ${key} fossil chance must be exactly 75% of its prior value`));
     const chances = JSON.parse(run(`JSON.stringify({
         normal: getUnderworldResourceDropChances({}),
         elite: getUnderworldResourceDropChances({ isElite: true }),
@@ -90,8 +101,17 @@ async function main() {
         normal: chances.normal.blurredPower,
         elite: chances.elite.blurredPower,
         boss: chances.boss.blurredPower
-    }, { normal: 0.0001, elite: 0.001, boss: 0.02 },
-    'core-cube power sources must be a long-term chase rather than a per-run flood');
+    }, { normal: 0.00005, elite: 0.0005, boss: 0.01 },
+        'core-cube power sources must be a long-term chase rather than a per-run flood');
+    assert.deepStrictEqual({
+        normal: chances.normal.rune,
+        elite: chances.elite.rune,
+        boss: chances.boss.rune,
+        copper: chances.normal.copper,
+        silver: chances.normal.silver,
+        gold: chances.normal.gold
+    }, { normal: 0.0015, elite: 0.008, boss: 0.18, copper: 0.0032, silver: 0.0018, gold: 0.0009 },
+    'underworld rune and ore rates must remain unchanged');
     const expectedFossils = liveProfile.markerCount * liveProfile.maxPack
         * ((1 - liveProfile.eliteChance) * chances.normal.fossil + liveProfile.eliteChance * chances.elite.fossil)
         + chances.boss.fossil;
@@ -127,6 +147,13 @@ async function main() {
     assert.deepStrictEqual(JSON.parse(run('JSON.stringify(ensureBeyondBoundaryState(game).activeRun)')).rewardFocusId, 'currency',
         'an active run must snapshot its reward focus so later UI changes cannot replace it');
     const tunedZone = JSON.parse(run("JSON.stringify(getZone('beyond_boundary'))"));
+    assert.strictEqual(tunedZone.boundaryDifficultyTier, 5,
+        'boundary tier one must begin at the former tier-five endgame difficulty');
+    assert.strictEqual(tunedZone.boundaryMutatorIds.includes('hardened'), false,
+        'the shifted opening difficulty must not unlock the displayed tier-five mutator early');
+    const fifthTierProfile = JSON.parse(run("JSON.stringify(getBeyondBoundaryTierProfile(5))"));
+    assert(fifthTierProfile.mutatorIds.includes('hardened'),
+        'hardened must unlock at displayed boundary tier five');
     assert(tunedZone.boundaryHpMul > 1.1 && tunedZone.boundaryDamageMul > 1.1,
         'paid intensity and reward focus risk must affect the actual enemy difficulty profile');
     const openingPlan = JSON.parse(run("JSON.stringify(generateEncounterPlan(getZone('beyond_boundary')))"));
@@ -140,6 +167,25 @@ async function main() {
     const bossPlan = JSON.parse(run("JSON.stringify(generateEncounterPlan(getZone('beyond_boundary')))"));
     assert.strictEqual(bossPlan[bossPlan.length - 1].boss, true,
         'the fifth encounter must end in a boss');
+    assert.strictEqual(bossPlan[bossPlan.length - 1].count, 1,
+        'the fifth encounter must end in one limit-testing boss rather than duplicated full bosses');
+    const escortedBossPlan = JSON.parse(run(`JSON.stringify(generateEncounterPlan({
+        ...getZone('beyond_boundary'), boundaryTier: 11, boundaryDifficultyTier: 15, boundaryFinalWave: true
+    }))`));
+    assert.strictEqual(escortedBossPlan.filter(marker => marker.boss).length, 1,
+        'higher boundary tiers must keep one final boss');
+    assert(escortedBossPlan.some(marker => marker.at === 86 && marker.elite && marker.count === 1),
+        'former extra bosses must appear as elite escorts before the final boss');
+    const renewingZone = JSON.parse(run(`JSON.stringify({
+        ...getZone('beyond_boundary'), boundaryTier: 30, boundaryDifficultyTier: 34,
+        boundaryHpMul: getBeyondBoundaryTierProfile(30).hpMul,
+        boundaryDamageMul: getBeyondBoundaryTierProfile(30).damageMul,
+        boundaryRegenRate: getBeyondBoundaryTierProfile(30).regenRate
+    })`));
+    const renewingEstimate = JSON.parse(run(`JSON.stringify(estimateMapZonePowerRequirements(${JSON.stringify(renewingZone)}))`));
+    const noRegenEstimate = JSON.parse(run(`JSON.stringify(estimateMapZonePowerRequirements(${JSON.stringify({ ...renewingZone, boundaryRegenRate: 0 })}))`));
+    assert(renewingEstimate.dps > noRegenEstimate.dps * 1.07,
+        'the displayed boundary DPS requirement must include the renewal mutator healing through the target fight time');
     const completion = JSON.parse(run('JSON.stringify(completeBeyondBoundaryEncounter(game))'));
     assert.strictEqual(completion.completed, true);
     assert.strictEqual(run(`getBeyondBoundaryCompletionRewardContext(${JSON.stringify(completion)}).zone.boundaryTier`), 1,

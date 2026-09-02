@@ -253,7 +253,9 @@ function renderBeyondBoundarySeal(definition, state) {
 }
 
 function renderBeyondBoundaryMutators(tier) {
-    let active = BEYOND_BOUNDARY_MUTATOR_DB.filter(row => tier >= row.tier);
+    let profile = getBeyondBoundaryTierProfile(tier);
+    let activeIds = new Set(profile.mutatorIds);
+    let active = BEYOND_BOUNDARY_MUTATOR_DB.filter(row => activeIds.has(row.id));
     if (active.length <= 0) return '<span class="beyond-mutator empty">추가 변형 없음</span>';
     return active.map(row => `<span class="beyond-mutator"><b>${escapeHTML(row.name)}</b>${escapeHTML(row.description)}</span>`).join('');
 }

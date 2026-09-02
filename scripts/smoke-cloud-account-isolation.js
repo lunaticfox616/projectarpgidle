@@ -21,6 +21,7 @@ const reconcileSource = sourceBetween('async function reconcileCloudSaveState', 
 
 function createContext(localSave, remoteRecord) {
   const writes = [];
+  const confirmations = [];
   let pushes = 0;
   const context = {
     JSON, Math, Number, Date,
@@ -56,7 +57,8 @@ function createContext(localSave, remoteRecord) {
       context.persistLocalSave();
     },
     pushCloudSave: async () => { pushes += 1; },
-    requestGameConfirmation: async () => false,
+    requestGameConfirmation: async (message, options) => { confirmations.push({ message, options }); return false; },
+    formatCloudTime(value) { return new Date(value).toISOString(); },
     setCloudMessage() {},
     addLog() {},
     CLOUD_REMOTE_TIME_SKEW_MS: 0,
@@ -68,7 +70,7 @@ function createContext(localSave, remoteRecord) {
   vm.runInContext(staleGuardSource, context, { filename: 'cloud-stale-guard.js' });
   vm.runInContext(revisionResolutionSource, context, { filename: 'cloud-revision-resolution.js' });
   vm.runInContext(reconcileSource, context, { filename: 'cloud-reconcile.js' });
-  return { context, writes, getPushes: () => pushes };
+  return { context, writes, confirmations, getPushes: () => pushes };
 }
 
 async function run() {
@@ -179,6 +181,27 @@ async function run() {
   assert.strictEqual(revisionConflictCase.context.game.season, 8, 'a cloud revision conflict must preserve the higher-loop local save');
   assert.strictEqual(revisionConflictCase.context.game.saveMeta.cloudRevision, 8, 'the protected local save should advance to the checked remote revision');
   assert.strictEqual(revisionConflictCase.getPushes(), 1);
+
+  const sameLoopRemote = {
+    updated_at: '2026-07-25T00:00:00Z', revision: 8,
+    save_data: { level: 70, season: 8, loopCount: 7, saveMeta: { lastModifiedAt: 800, cloudRevision: 8 } }
+  };
+  const sameLoopLocal = {
+    level: 90, season: 8, loopCount: 7,
+    saveMeta: { lastModifiedAt: new Date('2026-07-26T00:00:00Z').getTime(), cloudUserId: 'account-b', cloudRevision: 7 }
+  };
+  const choiceCase = createContext(sameLoopLocal, sameLoopRemote);
+  const choiceStatus = await vm.runInContext(
+    'reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true })',
+    choiceCase.context
+  );
+  assert.strictEqual(choiceStatus, 'pulled-remote-conflict');
+  assert.strictEqual(choiceCase.confirmations.length, 1, 'same-loop revision conflict must ask which save to use once');
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(choiceCase.confirmations[0].options)), {
+    title: '저장 충돌', tone: 'danger', confirmLabel: '현재 기기 사용', cancelLabel: '서버 기록 사용'
+  });
+  assert.match(choiceCase.confirmations[0].message, /^현재 기기 기록\n루프 8 · 마지막 저장 .*\n\n서버 기록\n루프 8 · 마지막 저장 /,
+    'save choices must show only each record loop and last-save time');
 
   const bootstrapOwnedLocal = { level: 1, season: 1, loopCount: 0, saveMeta: { lastModifiedAt: remoteStamp + 3000, cloudUserId: 'account-b' } };
   const bootstrapOwnedCase = createContext(bootstrapOwnedLocal, remoteRecord);

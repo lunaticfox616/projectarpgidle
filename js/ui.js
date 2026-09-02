@@ -4633,7 +4633,7 @@ function renderChallengeContractPanel() {
     if (queued) statusText += ` · 다음 사냥 ${score}개`;
     panel.innerHTML = `
         <div class="challenge-contract-head"><div><strong>📜 도전 계약</strong><span>일반 액트 사냥터 전용</span></div><div class="challenge-contract-reward">보상 +${bonus}%</div></div>
-        <div class="challenge-contract-desc">불리한 조건 1개마다 경험치와 주요 드랍 확률이 8% 증가합니다. 변경해도 현재 진행도는 유지되며 다음 일반 액트 사냥부터 적용됩니다.</div>
+        <div class="challenge-contract-desc">불리한 조건 1개마다 경험치와 주요 드랍 확률이 4% 증가합니다. 변경해도 현재 진행도는 유지되며 다음 일반 액트 사냥부터 적용됩니다.</div>
         <div class="challenge-contract-status ${activeHere ? 'active' : ''}">${statusText}</div>
         <div class="challenge-contract-options">
             <button class="${c.enemyPower ? 'active' : ''}" onclick="toggleChallengeContract('enemyPower')"><b>맹공</b><span>적 공격력 +25%</span></button>
@@ -16209,9 +16209,11 @@ async function resolveCloudRevisionConflict(record, options = {}) {
     let remoteStamp = getRemoteSaveStamp(record);
     let keepLocal = false;
     if (localStamp > remoteStamp) {
+        let localChoice = `루프 ${getSaveLoopNumber(game)} · 마지막 저장 ${formatCloudTime(localStamp)}`;
+        let remoteChoice = `루프 ${getSaveLoopNumber(record.save_data)} · 마지막 저장 ${formatCloudTime(remoteStamp)}`;
         keepLocal = await requestGameConfirmation(
-            '로그아웃 중 이 기기와 서버가 모두 변경되었습니다.\n현재 기기 진행으로 서버 저장을 덮어쓸까요?\n취소하면 서버 저장을 사용합니다.',
-            { title: '저장 충돌', tone: 'danger', confirmLabel: '현재 기기 진행 사용' }
+            `현재 기기 기록\n${localChoice}\n\n서버 기록\n${remoteChoice}`,
+            { title: '저장 충돌', tone: 'danger', confirmLabel: '현재 기기 사용', cancelLabel: '서버 기록 사용' }
         );
     }
     if (keepLocal) {

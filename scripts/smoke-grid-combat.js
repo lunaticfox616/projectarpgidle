@@ -348,6 +348,23 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const ouroborosRewardBosses = context.SEASON_BOSS_ZONES.filter(zone => zone.reward === 'woodsmanTouch' || zone.reward === 'ouroboros');
   assert.strictEqual(ouroborosRewardBosses.length, 1, '우로보로스 전용 보상을 가진 특정 보스는 하나뿐이어야 한다');
   assert.strictEqual(ouroborosRewardBosses[0].id, 'rival_masterwork', '우로보로스 전용 보상은 일곱 번째 날 「완성작」만 가져야 한다');
+  const rivalZones = context.SEASON_BOSS_ZONES.filter(zone => zone.rivalBlade);
+  assert.ok(rivalZones.every(zone => zone.difficultyBenchmark === 'rival31'),
+    '버려진 날들은 모두 루프 31 진입 시점의 고정 난이도를 사용해야 한다');
+  resetGame();
+  context.game.season = 31;
+  context.game.loopCount = 30;
+  const rivalEnemiesAtUnlock = rivalZones.map(zone => context.createEnemy(zone, { boss: true, at: 100 }, 0));
+  const commonRivalHealth = rivalEnemiesAtUnlock.slice(0, -1).map(enemy => enemy.maxHp);
+  assert.ok(Math.min(...commonRivalHealth) >= 35000000 && Math.max(...commonRivalHealth) <= 80000000,
+    '다섯 버려진 날은 루프 31 빌드가 즉시 처치할 수 없는 생명력을 가져야 한다');
+  assert.ok(rivalEnemiesAtUnlock[rivalEnemiesAtUnlock.length - 1].maxHp >= 100000000,
+    '완성작은 선행 버려진 날보다 높은 최종 결투 생명력을 가져야 한다');
+  context.game.season = 80;
+  context.game.loopCount = 79;
+  const rivalHealthAtLaterLoop = rivalZones.map(zone => context.createEnemy(zone, { boss: true, at: 100 }, 0).maxHp);
+  assert.deepStrictEqual(rivalHealthAtLaterLoop, rivalEnemiesAtUnlock.map(enemy => enemy.maxHp),
+    '버려진 날의 고정 난이도는 이후 루프에서 추가 상승하면 안 된다');
   resetGame();
   context.game.season = 31;
   context.game.currentZoneId = 'rival_masterwork';
@@ -368,7 +385,7 @@ const cfg = context.COMBAT_GRID_CONFIG;
 
     context.game.currentZoneId = 'rival_masterwork';
     context.game.clearedRootBosses = [];
-    context.Math.random = () => 0.00002;
+    context.Math.random = () => 0.00001;
     const firstClearDrops = context.getCurrencyDrops({ isBoss: true, isElite: false });
     assert.ok(!firstClearDrops.some(drop => drop[0] === 'ouroboros'), '최초 격파 전에는 완성작의 우로보로스 드랍 보정이 적용되면 안 된다');
     context.game.clearedRootBosses = ['rival_masterwork'];
@@ -407,6 +424,18 @@ const cfg = context.COMBAT_GRID_CONFIG;
   assert.ok(directiveEstimate.ehp > entryEstimate.ehp * 1.20,
     '위험 탐사 신호의 피해와 공격 속도는 권장 EHP에 반영되어야 한다');
   const baselineCosmosBoss = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { boss: true, at: 100 }, 0);
+  const baselineCosmosNormal = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { at: 25 }, 0);
+  const baselineCosmosElite = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { elite: true, at: 50 }, 0);
+  const finalCosmosNormal = context.createEnemy({ ...cosmosFinal, name: '우주계 최종' }, { at: 25 }, 0);
+  const finalCosmosElite = context.createEnemy({ ...cosmosFinal, name: '우주계 최종' }, { elite: true, at: 50 }, 0);
+  assert.ok(baselineCosmosNormal.maxHp >= 4400000 && baselineCosmosNormal.maxHp <= 4500000,
+    '우주계 G1 일반 몬스터는 기존 은하 난이도를 유지하면서 생명력이 보강되어야 한다');
+  assert.ok(baselineCosmosElite.maxHp >= 17000000 && baselineCosmosElite.maxHp <= 18000000,
+    '우주계 G1 정예는 일반보다 분명히 오래 버텨야 한다');
+  assert.ok(finalCosmosNormal.maxHp > baselineCosmosNormal.maxHp * 2,
+    '뒤쪽 은하의 일반 몬스터 생명력은 G1보다 증가해야 한다');
+  assert.ok(finalCosmosElite.maxHp > baselineCosmosElite.maxHp * 2,
+    '뒤쪽 은하의 정예 몬스터 생명력은 G1보다 증가해야 한다');
   const directiveCosmosBoss = context.createEnemy({ ...directiveZone, name: '우주계 기준' }, { boss: true, at: 100 }, 0);
   assert.ok(directiveCosmosBoss.maxHp > baselineCosmosBoss.maxHp * 1.35,
     '실제 우주계 적도 선택한 탐사 생명력 배율을 받아야 한다');

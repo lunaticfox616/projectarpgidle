@@ -688,14 +688,44 @@ function isDualWielding() {
  * 루프 25(생장판 해금) 전에는 아무것도 굴리지 않는다.
  */
 const GROWTH_ITEM_BASE_DROP_CHANCES = Object.freeze({
-    regular: 0.004666666666666667,
-    elite: 0.0175,
-    boss: 0.05366666666666667
+    regular: 0.003,
+    elite: 0.01,
+    boss: 0.03
 });
+
+const EQUIPMENT_BASE_DROP_CHANCES = Object.freeze({
+    regular: 0.009,
+    elite: 0.04,
+    boss: 0.155
+});
+const LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER = 0.75;
 
 function getGrowthItemBaseDropChance(enemy) {
     if (enemy && enemy.isBoss) return GROWTH_ITEM_BASE_DROP_CHANCES.boss;
     return enemy && enemy.isElite ? GROWTH_ITEM_BASE_DROP_CHANCES.elite : GROWTH_ITEM_BASE_DROP_CHANCES.regular;
+}
+
+function getEquipmentBaseDropChance(enemy) {
+    if (enemy && enemy.isBoss) return EQUIPMENT_BASE_DROP_CHANCES.boss;
+    return enemy && enemy.isElite ? EQUIPMENT_BASE_DROP_CHANCES.elite : EQUIPMENT_BASE_DROP_CHANCES.regular;
+}
+
+function isFirstActBossEquipmentDropThisLoop(zone, enemy) {
+    if (!zone || zone.type !== 'act' || !enemy || !enemy.isBoss) return false;
+    return String(zone.id) === String(Math.max(0, Math.floor(Number(game.maxZoneId) || 0)));
+}
+
+function getLabyrinthFossilDropChances(floor, fossilDropMultiplier, fossilRareMultiplier) {
+    let currentFloor = Math.max(1, Math.floor(Number(floor) || 1));
+    let commonMul = Math.max(0, Number(fossilDropMultiplier) || 0);
+    let rareMul = Math.max(0, Number(fossilRareMultiplier) || 0);
+    return {
+        base: 0.5 * commonMul * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
+        typed: 0.5 * commonMul * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
+        primal: Math.min(0.45, (0.10 + currentFloor * 0.003) * commonMul) * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
+        ancient: Math.min(0.14, (0.025 + currentFloor * 0.001) * commonMul) * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER,
+        abyssal: 0.03 * rareMul * LABYRINTH_FOSSIL_DROP_RATE_MULTIPLIER
+    };
 }
 
 function rollGrowthItemDrop(enemy, growthDropChance) {
@@ -2055,9 +2085,10 @@ function discoverFlask(flaskKey) {
     return true;
 }
 
-function rollFlaskAlchemyGlassDrop(enemy) {
+function rollFlaskAlchemyGlassDrop(enemy, dropRateMultiplier) {
     let st = ensureFlaskState();
-    let chance = enemy && enemy.isBoss ? 0.32 : (enemy && enemy.isElite ? 0.07 : 0.006);
+    let dropMul = Number.isFinite(dropRateMultiplier) ? Math.max(0, dropRateMultiplier) : 1;
+    let chance = (enemy && enemy.isBoss ? 0.32 : (enemy && enemy.isElite ? 0.07 : 0.006)) * dropMul;
     if (Math.random() >= chance) return 0;
     let amount = enemy && enemy.isBoss ? 2 + Math.floor(Math.random() * 3) : 1;
     st.alchemyGlass = Math.max(0, Math.floor(Number(st.alchemyGlass) || 0)) + amount;
@@ -2090,15 +2121,16 @@ function craftFlask(flaskKey) {
 }
 // 몬스터 처치 시 아직 발견하지 못한 플라스크(요구 레벨 이하인 것만)를 낮은 확률로 하나
 // 발견시킨다. 발견한 플라스크는 플라스크 탭에서 장착할 수 있다.
-function rollFlaskDiscoveryDrop(enemy) {
-    rollFlaskAlchemyGlassDrop(enemy);
+function rollFlaskDiscoveryDrop(enemy, dropRateMultiplier) {
+    let dropMul = Number.isFinite(dropRateMultiplier) ? Math.max(0, dropRateMultiplier) : 1;
+    rollFlaskAlchemyGlassDrop(enemy, dropMul);
     let lvl = Math.max(1, Math.floor(game.level || 1));
     let found = ensureFlaskFoundKeys();
     let candidates = getFlaskDiscoveryCandidates(lvl, found);
     if (candidates.length === 0) return;
     let key = pickWeightedFlaskDiscoveryCandidate(candidates);
     let baseChance = enemy.isBoss ? 0.16 : (enemy.isElite ? 0.05 : 0.012);
-    let chance = baseChance * getFlaskDiscoveryTierMultiplier(key);
+    let chance = baseChance * getFlaskDiscoveryTierMultiplier(key) * dropMul;
     if (Math.random() >= chance) return;
     if (!discoverFlask(key)) return;
     let def = FLASK_DB[key];
@@ -6188,6 +6220,13 @@ function applyCosmosDirectiveModifiers(modifiers, zone) {
     return modifiers;
 }
 
+const getCosmosNonBossHpMultiplier = function (zone, isElite, isBoss) {
+    if (isBoss) return 1;
+    const galaxy = Math.max(1, Math.min(5, Math.floor(Number(zone && zone.cosmosGalaxy) || 1)));
+    const galaxyMultiplier = 4 + (galaxy - 1) * 0.125;
+    return galaxyMultiplier * (isElite ? 1.35 : 1);
+};
+
 function getCosmosEnemyModifiers(zone, isElite, isBoss) {
     if (!zone || zone.type !== 'cosmos') return null;
     let tag = String(zone.cosmosTag || '').trim();
@@ -6261,7 +6300,7 @@ function getCosmosEnemyModifiers(zone, isElite, isBoss) {
         else if (key === 'attackSpeedMul' || key === 'armorMul' || key === 'evasionMul') mod[key] = (mod[key] || 1) * galaxyEnvironment[key];
         else mod[key] = (mod[key] || 0) + galaxyEnvironment[key];
     });
-    mod.hpMul = Math.max(0.5, mod.hpMul * bossMul);
+    mod.hpMul = Math.max(0.5, mod.hpMul * bossMul * getCosmosNonBossHpMultiplier(zone, isElite, isBoss));
     mod.damageMul = Math.max(0.5, mod.damageMul * (isBoss ? 1.1 : 1));
     const galaxyBossMechanic = isBoss && typeof getCosmosGalaxyBossMechanic === 'function'
         ? getCosmosGalaxyBossMechanic(zone.cosmosNodeId) : null;
@@ -6364,6 +6403,7 @@ function isUnderworldEntryBenchmark(zone) {
 
 function getDifficultyBenchmarkProfile(zone) {
     const benchmark = String(zone && zone.difficultyBenchmark || '');
+    if (benchmark === 'rival31') return { hp: 1, damage: 1, attackRate: 1, clearTimeSec: 30 };
     if (benchmark === 'underworld1') return { hp: 5, damage: 0.78, attackRate: 0.76, clearTimeSec: 24 };
     if (benchmark === 'underworld30') return { hp: 5 * (1 + 29 * 0.045), damage: 0.78, attackRate: 0.76, clearTimeSec: 30 };
     if (benchmark === 'ocean1000') return { hp: 5 * (1 + 10 * 0.05), damage: 1, attackRate: 1, clearTimeSec: 30 };
@@ -6693,12 +6733,13 @@ const getAbyssEncounterProfile = function (zone) {
 
 function getZoneEncounterProfile(zone) {
     if (zone.type === 'beyondBoundary') {
-        let difficulty = Math.max(1, Math.floor(Number(zone.boundaryTier) || 1));
+        let difficulty = Math.max(1, Math.floor(Number(zone.boundaryDifficultyTier) || Number(zone.boundaryTier) || 1));
+        let displayTier = Math.max(1, Math.floor(Number(zone.boundaryTier) || 1));
         return {
             markerCount: Math.min(8, 3 + Math.floor(difficulty / 20)), minPack: 2,
             maxPack: Math.min(7, 3 + Math.floor(difficulty / 12)),
             eliteChance: Math.min(0.65, 0.2 + difficulty * 0.008),
-            bossAdds: Math.min(4, Math.floor(difficulty / 15)), label: `경계 너머 ${difficulty}단계`
+            bossAdds: Math.min(4, Math.floor(difficulty / 15)), label: `경계 너머 ${displayTier}단계`
         };
     }
     if (zone.type === 'cosmos') {
@@ -6860,6 +6901,12 @@ function getMapEstimateThreatProfile(zone, bossMods, baseHit, seasonDepth, tier)
     };
 }
 
+const getMapBossRequiredDps = function (bossHp, clearTimeSec, regenRate) {
+    const duration = Math.max(1, Number(clearTimeSec) || 1);
+    const recoveryPerSecond = Math.max(0, Number(regenRate) || 0);
+    return bossHp / duration + bossHp * recoveryPerSecond;
+};
+
 /**
  * 지도 카드에 표시할 대략적인 보스전 기준치다.
  * @param {{type:string,tier:number,id:(number|string),ele?:string}} zone
@@ -6911,7 +6958,7 @@ function estimateMapZonePowerRequirements(zone) {
     const underworldGravityFloor = Math.max(0, Math.floor(Number(
         zone.type === 'underworld' ? zone.floor : zone.underworldPenaltyFloor) || 0));
     return {
-        dps: Math.max(1, Math.round(bossHp / contentScale.clearTimeSec)),
+        dps: Math.max(1, Math.round(getMapBossRequiredDps(bossHp, contentScale.clearTimeSec, zone.boundaryRegenRate))),
         ehp: Math.max(1, Math.round(threat.threatWindow)),
         peakHit: Math.max(1, Math.round(threat.peakHit)),
         resistancePressure: threat.resistancePressure,
@@ -6938,19 +6985,21 @@ function getEncounterDifficultyValue(zone) {
 function getFrequentSpawnEncounterProfile(zone) {
     let profile = { ...getZoneEncounterProfile(zone) };
     let difficulty = getEncounterDifficultyValue(zone);
-    if (difficulty < 8 || profile.markerCount <= 0) return profile;
-    let ramp = clampNumber((difficulty - 8) / 24, 0, 1);
-    let markerCap = 20;
-    let baseMarkerCount = profile.markerCount;
-    if (profile.markerCount < markerCap) {
-        let targetMarkers = Math.round(profile.markerCount * (1.35 + ramp * 1.35));
-        profile.markerCount = clampNumber(targetMarkers, profile.markerCount + 1, markerCap);
+    if (difficulty >= 8 && profile.markerCount > 0) {
+        let ramp = clampNumber((difficulty - 8) / 24, 0, 1);
+        let markerCap = 20;
+        let baseMarkerCount = profile.markerCount;
+        if (profile.markerCount < markerCap) {
+            let targetMarkers = Math.round(profile.markerCount * (1.35 + ramp * 1.35));
+            profile.markerCount = clampNumber(targetMarkers, profile.markerCount + 1, markerCap);
+        }
+        if (profile.markerCount > baseMarkerCount) {
+            let packMul = 1 - ramp * 0.25;
+            profile.minPack = Math.max(1, Math.floor(profile.minPack * packMul));
+            profile.maxPack = Math.max(profile.minPack, Math.floor(profile.maxPack * packMul));
+        }
     }
-    if (profile.markerCount > baseMarkerCount) {
-        let packMul = 1 - ramp * 0.25;
-        profile.minPack = Math.max(1, Math.floor(profile.minPack * packMul));
-        profile.maxPack = Math.max(profile.minPack, Math.floor(profile.maxPack * packMul));
-    }
+    if (zone.type === 'underworld') profile.markerCount = Math.max(1, Math.floor(profile.markerCount * 0.5));
     return profile;
 }
 
@@ -6958,7 +7007,10 @@ function generateEncounterPlan(zone) {
     if (zone.type === 'beyondBoundary') {
         let profile = getZoneEncounterProfile(zone);
         if (zone.boundaryFinalWave) {
-            return [{ at:28, count:profile.minPack, elite:true }, { at:65, count:profile.maxPack, elite:true }, { at:100, count:1 + profile.bossAdds, boss:true }];
+            let plan = [{ at:28, count:profile.minPack, elite:true }, { at:65, count:profile.maxPack, elite:true }];
+            if (profile.bossAdds > 0) plan.push({ at:86, count:profile.bossAdds, elite:true });
+            plan.push({ at:100, count:1, boss:true });
+            return plan;
         }
         return [{ at:24, count:profile.minPack }, { at:58, count:profile.maxPack, elite:true }, { at:100, count:profile.minPack + 1, elite:true }];
     }
@@ -8388,17 +8440,18 @@ function maybeTriggerBeeMappingEvent(beeLv, enemy) {
 function rollLootForEnemy(enemy) {
     let zone = getZone(game.currentZoneId) || getZone(0);
     let challengeRewardMul = getChallengeContractRewardMultiplier(zone);
+    let contentDropMul = getContentDropRateMultiplier(zone);
     let gemExpertLvForLoot = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('gemEngraver') || 1)) : 1;
     if (gemExpertLvForLoot >= 12 && (enemy.isBoss || enemy.isElite)) {
         let echoChance = enemy.isBoss ? 0.045 : 0.004;
         let bonus = typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('awakenedGemDropPct') || 0) / 100 : 0;
-        if (Math.random() < echoChance * (1 + bonus)) {
+        if (Math.random() < echoChance * (1 + bonus) * contentDropMul) {
             awardCurrency('awakenedEcho', 1);
             if (game.settings.showLootLog) addLog('🌌 각성 잔향 +1', 'loot-unique');
         }
     }
     let gemDropMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('gemGainPct')) : 0) / 100;
-    if (Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * gemDropMul * challengeRewardMul) {
+    if (Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * gemDropMul * challengeRewardMul * contentDropMul) {
         let baseGemShardGain = typeof grantGemResearchFragments === 'function'
             ? grantGemResearchFragments(1)
             : (awardCurrency('gemShard', 1), 1);
@@ -8506,17 +8559,15 @@ function rollLootForEnemy(enemy) {
         addLog('🂠 봉인된 아르카나 카드를 발견했습니다.', 'loot-unique');
     }
 
-    rollFlaskDiscoveryDrop(enemy);
+    rollFlaskDiscoveryDrop(enemy, contentDropMul);
 
-    let itemChance = enemy.isBoss ? 0.46 : (enemy.isElite ? 0.15 : 0.04);
+    let itemChance = getEquipmentBaseDropChance(enemy);
     // 생장판은 장비 확률에서 배율로 파생하지 않고, 독립된 원본 확률을 사용한다.
     let growthItemChance = getGrowthItemBaseDropChance(enemy);
-    itemChance *= 0.7; // 장비 드랍 확률 30% 감소
-    let codexDropMul = 1 + (getCodexBonusPct() / 100);
-    let itemDropMultiplier = capEndlessContentDropMultiplier(
-        zone, codexDropMul * challengeRewardMul
-    );
-    itemChance *= itemDropMultiplier;
+    let challengeDropBonusPct = Math.max(0, (challengeRewardMul - 1) * 100);
+    let progressionDropMul = getAdditiveDropBonusMultiplier(getCodexBonusPct(), challengeDropBonusPct);
+    let itemDropMultiplier = capEndlessContentDropMultiplier(zone, progressionDropMul) * contentDropMul;
+    itemChance = isFirstActBossEquipmentDropThisLoop(zone, enemy) ? 1 : itemChance * itemDropMultiplier;
     growthItemChance *= itemDropMultiplier;
     if (zone.type === 'labyrinth') {
         let floor = Math.max(1, Math.floor(zone.floor || 1));
@@ -8542,7 +8593,7 @@ function rollLootForEnemy(enemy) {
         }
     }
     rollGrowthItemDrop(enemy, growthItemChance);
-    if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * challengeRewardMul) {
+    if ((game.season || 1) >= 5 && (enemy.isElite || enemy.isBoss) && Math.random() < 0.0056 * challengeRewardMul * contentDropMul) {
         let jewel = generateJewelDrop(getZone(game.currentZoneId) || { type: 'act', storyOrder: 1 });
         game.jewelInventory = game.jewelInventory || [];
         let jewelRarity = jewel.rarity || 'normal';
@@ -8718,7 +8769,7 @@ function handleEnemyDeath(enemy, pStats) {
     }
     game.loopKills = Math.max(0, Math.floor(game.loopKills || 0)) + 1;
     // 백그라운드 정산이 남은 구간을 예상할 때 쓸 처치 구성. 재화 드랍 확률은 일반/정예/보스가
-    // 자릿수 단위로 다르므로(황금률: 보스 1.25% vs 일반 0.01375%), 총 처치 수만으로는
+    // 자릿수 단위로 다르므로(황금률: 보스 0.6% vs 일반 0.007%), 총 처치 수만으로는
     // 남은 구간의 재화를 제대로 다시 굴릴 수 없다. 시뮬레이션 중에만 센다.
     if (game.isBackgroundCalculation) {
         let mix = game.backgroundKillMix && typeof game.backgroundKillMix === 'object'
@@ -9462,21 +9513,20 @@ function finishEncounterRun() {
             if ((game.labyrinthUnlockedMaxFloor || 1) > prevLab && typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'labyrinth_new_floor');
         }
         let fossilDropMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('fossilDropPct')) : 0) / 100;
-        let gotBaseFossil = Math.random() < 0.5 * fossilDropMul;
+        let fossilRareMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('expertRareChancePct')) : 0) / 100;
+        let fossilChances = getLabyrinthFossilDropChances(game.labyrinthFloor, fossilDropMul, fossilRareMul);
+        let gotBaseFossil = Math.random() < fossilChances.base;
         if (gotBaseFossil) awardCurrency('fossil', 1);
         let fossilDropPool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly);
         let rolledFossil = rndChoice(fossilDropPool);
-        let gotTypedFossil = Math.random() < 0.5 * fossilDropMul;
+        let gotTypedFossil = Math.random() < fossilChances.typed;
         if (gotTypedFossil) awardCurrency(rolledFossil.key, 1);
         let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
-        let primalChance = Math.min(0.45, (0.10 + Math.floor(game.labyrinthFloor || 1) * 0.003) * fossilDropMul);
-        let ancientChance = Math.min(0.14, (0.025 + Math.floor(game.labyrinthFloor || 1) * 0.001) * fossilDropMul);
-        let gotPrimalFossil = mycologistLv >= 4 && Math.random() < primalChance;
-        let gotAncientPrimalFossil = mycologistLv >= 5 && Math.random() < ancientChance;
+        let gotPrimalFossil = mycologistLv >= 4 && Math.random() < fossilChances.primal;
+        let gotAncientPrimalFossil = mycologistLv >= 5 && Math.random() < fossilChances.ancient;
         if (gotPrimalFossil) awardCurrency('fossilPrimal', 1);
         if (gotAncientPrimalFossil) awardCurrency('fossilAncientPrimal', 1);
-        let fossilRareMul = 1 + (typeof getExpertNodeEffectValue === 'function' ? Math.max(0, getExpertNodeEffectValue('expertRareChancePct')) : 0) / 100;
-        if (Math.random() < 0.03 * fossilRareMul) {
+        if (Math.random() < fossilChances.abyssal) {
             awardCurrency('fossilAbyssal', 1);
             addLog('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
         }

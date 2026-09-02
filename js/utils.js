@@ -692,6 +692,19 @@ function makeSourceLine(label, value, suffix, formatter) {
     return `${label} +${rendered}`;
 }
 
+/**
+ * 도감과 도전 계약처럼 같은 기본 확률을 보강하는 보너스를 합연산한다.
+ * 지역 티어·몬스터 특성처럼 드랍 환경 자체의 배율은 호출부에서 별도로 곱한다.
+ * @param {number} codexBonusPct
+ * @param {number} challengeBonusPct
+ * @returns {number}
+ */
+function getAdditiveDropBonusMultiplier(codexBonusPct, challengeBonusPct) {
+    let codexRatio = Math.max(0, Number(codexBonusPct) || 0) / 100;
+    let challengeRatio = Math.max(0, Number(challengeBonusPct) || 0) / 100;
+    return 1 + codexRatio + challengeRatio;
+}
+
 function stripDecorativeEmoji(value) {
     return String(value == null ? '' : value)
         .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u200D]/gu, '')
@@ -720,7 +733,7 @@ let reachableNodes = new Set();
 let discoveredPassiveNodes = new Set();
 let previewPassiveNodes = new Set();
 
-safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, getGrowthMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, stripDecorativeEmoji, dispatchRuntimeEvent });
+safeExposeGlobals({ clampNumber, getInventoryLimit, getJewelInventoryLimit, getJewelMarketExpandCost, getGrowthMarketExpandCost, lerpNumber, approachNumber, rndChoice, hashSeed, createSeededRng, formatValue, formatPercentMultiplier, translateSkillTag, getSkillTagList, getStatName, getRarityColor, getRarityRank, createEmptyStatBucket, addStatToBucket, applyStatsToBucket, getTaggedDamageBreakdown, getOwnedSkillGemNames, getOwnedSupportGemNames, hasSkillGemOwned, hasSupportGemOwned, dedupeList, makeSourceLine, getAdditiveDropBonusMultiplier, stripDecorativeEmoji, dispatchRuntimeEvent });
 
 window.__runtimeFallbackQueues = window.__runtimeFallbackQueues || {};
 
