@@ -185,11 +185,15 @@ function renderPruningChoicePanel(tree) {
     let requirementsMet = isPruningNodeRequirementMet(node, tree);
     let canGrow = requirementsMet && rank < node.maxRank && tree.growthPoints >= node.cost;
     let canPrune = penaltyRank > 0 && tree.growthPoints >= node.cost;
+    let growthRefund = getPruningRefundPlan(node.id, 'growth', game);
+    let burdenRefund = getPruningRefundPlan(node.id, 'burden', game);
     let lockText = requirementsMet ? '' : '<small>이어진 선행 가지를 3단계까지 성장시켜야 합니다.</small>';
     return `<section class="pruning-choice-panel">
         <div><span>선택한 가지</span><strong>${escapeHTML(node.name)} ${rank}/${node.maxRank}</strong>${lockText}</div>
         <div class="pruning-choice-effects"><span class="gain">성장 · ${escapeHTML(node.effect)}</span><span class="burden">부담 ${penaltyRank}단계 · ${escapeHTML(node.penaltyEffect)}</span></div>
-        <div class="pruning-choice-actions"><button type="button" onclick="investInPruningNode('${node.id}')" ${canGrow ? '' : 'disabled'}>부담을 안고 성장 <small>${node.cost}점</small></button><button type="button" onclick="pruneSelectedPruningPenalty('${node.id}')" ${canPrune ? '' : 'disabled'}>부담 가지치기 <small>${node.cost}점</small></button></div>
+        <div class="pruning-choice-actions"><button type="button" onclick="investInPruningNode('${node.id}')" ${canGrow ? '' : 'disabled'}>부담을 안고 성장 <small>${node.cost}점</small></button><button type="button" onclick="pruneSelectedPruningPenalty('${node.id}')" ${canPrune ? '' : 'disabled'}>부담 가지치기 <small>${node.cost}점</small></button>
+        <button type="button" onclick="askRefundPruningNode('${node.id}', 'growth')" ${growthRefund.ok ? '' : 'disabled'}>성장 1단계 반환 <small>${growthRefund.ok ? `포자 ${growthRefund.cost}개 · ${growthRefund.points}점 회수` : '투자한 성장 없음'}</small></button>
+        <button type="button" onclick="askRefundPruningNode('${node.id}', 'burden')" ${burdenRefund.ok ? '' : 'disabled'}>가지치기 1단계 반환 <small>${burdenRefund.ok ? `포자 ${burdenRefund.cost}개 · 부담 1단계 복원` : '가지친 부담 없음'}</small></button></div>
     </section>`;
 }
 
@@ -207,9 +211,26 @@ function renderPruningTreePanel() {
     section.style.display = tree.unlocked ? '' : 'none';
     if (!tree.unlocked) return;
     let nodes = PRUNING_TREE_DB.map(node => renderPruningNode(node, tree)).join('');
-    let html = `<div class="pruning-head"><div><span>LOOP ${getEndgameProgressLoop(game)}</span><strong>남은 성장점 ${tree.growthPoints}</strong></div><p>성장하면 능력과 부담이 함께 자랍니다. 부담을 유지하고 더 성장하거나, 성장점으로 부담 한 단계를 잘라낼 수 있습니다.</p></div>
-        ${renderPruningTreeSummary()}<div class="pruning-workspace"><div class="pruning-tree" aria-label="가지치기 성장 나무">${renderPruningConnections()}${nodes}</div>${renderPruningChoicePanel(tree)}</div>`;
-    if (panel.__lastHtml !== html) panel.innerHTML = html;
+    let html = `<div class="pruning-head"><div><span>LOOP ${getEndgameProgressLoop(game)} · 루프당 ${PRUNING_TREE_POINTS_PER_LOOP}점</span><strong>남은 성장점 ${tree.growthPoints}</strong><small>마름병 포자 ${game.currencies.blightSpore || 0}개</small></div><p>성장점으로 능력을 키우거나 부담을 잘라냅니다. 반환 성장점 1점당 마름병 포자 1개가 필요합니다.</p><button type="button" onclick="askRefundPruningNode(null, 'all')">전체 반환</button></div>
+        ${renderPruningTreeSummary()}<div class="pruning-workspace"><div class="pruning-tree-scroll" tabindex="0" role="region" aria-label="성장 나무 · 상하좌우 스크롤"><div class="pruning-tree" aria-label="가지치기 성장 나무">${renderPruningConnections()}${nodes}</div></div>${renderPruningChoicePanel(tree)}</div>`;
+    if (panel.__lastHtml !== html) {
+        let previous = panel.querySelector('.pruning-tree-scroll');
+        let scrollPosition = previous && previous.clientWidth > 0 ? { left: previous.scrollLeft, top: previous.scrollTop } : null;
+        panel.innerHTML = html;
+        if (scrollPosition) {
+            let viewport = panel.querySelector('.pruning-tree-scroll');
+            viewport.scrollLeft = scrollPosition.left;
+            viewport.scrollTop = scrollPosition.top;
+            viewport.dataset.positioned = 'true';
+        }
+    }
+    let viewport = panel.querySelector('.pruning-tree-scroll');
+    // updateStaticUI also renders hidden tabs, whose scroll dimensions are zero.
+    if (viewport.clientWidth > 0 && !viewport.dataset.positioned) {
+        viewport.scrollLeft = (viewport.scrollWidth - viewport.clientWidth) / 2;
+        viewport.scrollTop = viewport.scrollHeight;
+        viewport.dataset.positioned = 'true';
+    }
     panel.__lastHtml = html;
 }
 
@@ -229,6 +250,24 @@ function pruneSelectedPruningPenalty(nodeId) {
     addLog(`✂️ ${node.name}의 부담을 가지쳐 남은 부담이 ${result.activePenaltyRank}단계가 되었습니다.`, 'season-up');
     renderPruningTreePanel();
     if (typeof saveGame === 'function') saveGame();
+}
+
+async function askRefundPruningNode(nodeId, kind) {
+    let plan = getPruningRefundPlan(nodeId, kind, game);
+    if (!plan.ok) return addLog('반환할 성장점이 없습니다.', 'attack-monster');
+    if ((game.currencies.blightSpore || 0) < plan.cost) return addLog(`마름병 포자가 ${plan.cost}개 필요합니다.`, 'attack-monster');
+    let consequence = kind === 'burden' ? '가지친 부담 1단계가 다시 적용됩니다.'
+        : '선행 조건이 부족해지는 상위 가지와 해당 가지치기 비용도 함께 반환됩니다.';
+    let message = `${plan.affected.join(', ')}\n${consequence}\n성장점 ${plan.points}점 반환 / 마름병 포자 ${plan.cost}개 소모`;
+    if (!await requestGameConfirmation(message, { title: '가지치기 반환', confirmLabel: '반환', tone: 'danger' })) return;
+    let result = refundPruningNode(nodeId, kind, game, plan.signature);
+    if (!result.ok) {
+        renderPruningTreePanel();
+        return addLog(result.code === 'currency' ? '마름병 포자가 부족합니다.' : '투자 상태가 바뀌었습니다. 반환 범위를 다시 확인하세요.', 'attack-monster');
+    }
+    addLog(`성장점 ${result.refunded}점을 반환했습니다. (마름병 포자 ${result.cost}개 소모)`, 'season-up');
+    updateStaticUI();
+    saveGame();
 }
 
 function formatBeyondBoundarySealStats(definition, level) {
@@ -363,7 +402,7 @@ function leaveBeyondBoundaryRun() {
 
 safeExposeGlobals({
     renderArcanaPanel, selectArcanaCard, openSealedArcanaCard, placeSelectedArcanaCard, removeArcanaCard,
-    renderPruningTreePanel, selectPruningNode, investInPruningNode, pruneSelectedPruningPenalty,
+    renderPruningTreePanel, selectPruningNode, investInPruningNode, pruneSelectedPruningPenalty, askRefundPruningNode,
     renderBeyondBoundaryPanel, setBeyondBoundaryTier, stepBeyondBoundaryTier,
     chooseBeyondBoundarySeal, chooseBeyondBoundaryRewardFocus, chooseBeyondBoundaryIntensity,
     enterBeyondBoundaryRun, viewBeyondBoundaryCombat, leaveBeyondBoundaryRun

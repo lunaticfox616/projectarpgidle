@@ -37,9 +37,12 @@ function watchRuntimeFailures(page) {
 }
 
 async function dismissVisibleTutorials(page) {
-    await page.evaluate(() => {
+    await page.waitForFunction(() => {
+        // Fixture updates can enqueue unlock notices in the next UI frame.
+        if (uiRefreshQueued || uiRefreshRunning) return false;
         tutorialQueue.length = 0;
         if (activeTutorial) dismissTutorial(false);
+        return true;
     });
     await expect(page.locator('#tutorial-overlay.active')).not.toBeVisible();
 }
@@ -223,7 +226,11 @@ test('save reset clears only local progress for a guest after one confirmation',
     await page.locator('#game-dialog-cancel').click();
     expect(await page.evaluate(() => game.season)).toBe(17);
     await page.locator('[onclick="resetGame()"]').click();
-    await page.locator('#game-dialog-confirm').click();
+    // The startup overlay exists before deferred scripts run; await the next document instead.
+    await Promise.all([
+        page.waitForEvent('domcontentloaded'),
+        page.locator('#game-dialog-confirm').click()
+    ]);
     await expect(page.locator('#startup-overlay')).toHaveClass(/active/);
     expect(await page.evaluate(() => ({
         loop: game.season, user: cloudState.user,
@@ -265,7 +272,10 @@ test('save reset replaces the signed-in account and does not restore old high-lo
     expect(await page.evaluate(() => Number(getComputedStyle(document.getElementById('game-dialog-overlay')).zIndex)
         > Number(getComputedStyle(document.getElementById('game-toast-region')).zIndex))).toBe(true);
     await page.locator('#game-dialog-card').screenshot({ path: testInfo.outputPath('account-reset-confirm.png') });
-    await page.locator('#game-dialog-confirm').click();
+    await Promise.all([
+        page.waitForEvent('domcontentloaded'),
+        page.locator('#game-dialog-confirm').click()
+    ]);
     await expect.poll(() => writes.length).toBe(1);
     await expect(page.locator('#startup-overlay')).toHaveClass(/active/);
     await expect(page.locator('#btn-startup-continue')).toBeVisible();
@@ -514,6 +524,62 @@ test('inventory artwork stays compact and does not include the next sprite row',
     expect(failures).toEqual([]);
 });
 
+test('pruning returns paid ranks and disconnected branches without losing points', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const before = await page.evaluate(() => {
+        game.season = 150;
+        game.loopCount = 149;
+        game.combatHalted = true;
+        game.enemies = [];
+        game.currencies.blightSpore = 1000;
+        game.pruningTree = createDefaultPruningTreeState();
+        advancePruningTreeForLoop(game);
+        for (const node of PRUNING_TREE_DB) for (let rank = 0; rank < 3; rank++) {
+            if (!investPruningNode(node.id, game).ok) throw new Error(`Cannot reach ${node.id}`);
+        }
+        updateStaticUI();
+        switchTab('tab-pruning');
+        return { points:game.pruningTree.growthPoints, damage:getPlayerStats().summonPctDmg };
+    });
+    await dismissVisibleTutorials(page);
+    const overlappingNodes = await page.locator('.pruning-node').evaluateAll(nodes => {
+        const rects = nodes.map(node => node.getBoundingClientRect());
+        return rects.some((a, i) => rects.slice(i + 1).some(b => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top));
+    });
+    expect(overlappingNodes).toBe(false);
+    expect(await page.locator('.pruning-tree-scroll').evaluate(el => el.getBoundingClientRect().right <= innerWidth)).toBe(true);
+    await page.locator('.pruning-node').filter({ hasText:'계약의 새싹' }).click();
+    await page.screenshot({ path:testInfo.outputPath('pruning-upper-branches.png') });
+    const refund = page.getByRole('button', { name:/성장 1단계 반환/ });
+    await expect(refund).toContainText('포자 10개 · 10점 회수');
+    await refund.click();
+    await expect(page.locator('#game-dialog-message')).toContainText('무리의 맥');
+    await page.locator('#game-dialog-cancel').click();
+    expect(await page.evaluate(() => game.currencies.blightSpore)).toBe(1000);
+    await refund.click();
+    await page.locator('#game-dialog-confirm').click();
+    await expect(page.locator('.pruning-head')).toContainText(`남은 성장점 ${before.points + 10}`);
+    const after = await page.evaluate(() => ({ spores:game.currencies.blightSpore,
+        damage:getPlayerStats().summonPctDmg, speed:getPlayerStats().summonAspd,
+        unrelated:game.pruningTree.nodeRanks.blade_crown, removed:game.pruningTree.nodeRanks.pact_crown }));
+    expect(after).toEqual({ spores:990, damage:before.damage - 4, speed:0, unrelated:3, removed:undefined });
+    await page.getByRole('button', { name:/부담 가지치기/ }).click();
+    await page.getByRole('button', { name:/가지치기 1단계 반환/ }).click();
+    await expect(page.locator('#game-dialog-message')).toContainText('부담 1단계가 다시 적용');
+    await page.locator('#game-dialog-confirm').click();
+    await expect(page.locator('.pruning-choice-effects')).toContainText('부담 2단계');
+    expect(await page.evaluate(() => game.currencies.blightSpore)).toBe(989);
+    expect(await page.evaluate(() => game.pruningTree.growthPoints)).toBe(before.points + 10);
+    expect(await page.evaluate(() => {
+        const saved = JSON.stringify([game.pruningTree, game.currencies.blightSpore]);
+        if (!saveGame()) throw new Error('Pruning save failed');
+        loadGame();
+        return JSON.stringify([game.pruningTree, game.currencies.blightSpore]) === saved;
+    })).toBe(true);
+    expect(failures).toEqual([]);
+});
+
 test('condition patterns, Arcana and pruning render as one endgame progression path', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
@@ -587,7 +653,7 @@ test('condition patterns, Arcana and pruning render as one endgame progression p
     await expect(page.locator('#btn-tab-pruning')).toBeVisible();
     await page.evaluate(() => window.switchTab('tab-pruning'));
     await expect(page.locator('#pruning-tree-section')).toBeVisible();
-    await expect(page.locator('.pruning-node')).toHaveCount(11);
+    await expect(page.locator('.pruning-node')).toHaveCount(29);
     const pruningNodesStayInTree = await page.locator('.pruning-tree').evaluate(tree => {
         const bounds = tree.getBoundingClientRect();
         return Array.from(tree.querySelectorAll('.pruning-node')).every(node => {
@@ -598,6 +664,7 @@ test('condition patterns, Arcana and pruning render as one endgame progression p
         });
     });
     expect(pruningNodesStayInTree).toBe(true);
+    expect(await page.locator('.pruning-tree-scroll').evaluate(el => el.scrollTop > 0)).toBe(true);
     const pruningNode = page.locator('.pruning-node:not(:disabled)').first();
     await pruningNode.hover();
     const pruningCenterBeforePress = await pruningNode.evaluate(node => {
@@ -624,8 +691,8 @@ test('condition patterns, Arcana and pruning render as one endgame progression p
     const pruningActionsBefore = await pruningActionOffsets();
     await page.locator('.pruning-choice-actions').getByRole('button', { name:/부담을 안고 성장/ }).click();
     await expect(page.locator('.pruning-choice-effects')).toContainText('부담 1단계');
-    await expect(page.locator('.pruning-stat-summary .gain')).toContainText('최대 생명력 +4');
-    await expect(page.locator('.pruning-stat-summary .burden')).toContainText('이동 속도(%) -0.2');
+    await expect(page.locator('.pruning-stat-summary .gain')).toContainText('최대 생명력 +20');
+    await expect(page.locator('.pruning-stat-summary .burden')).toContainText('이동 속도(%) -0.4');
     expect(await pruningActionOffsets()).toEqual(pruningActionsBefore);
     await page.locator('.pruning-choice-actions').getByRole('button', { name:/부담 가지치기/ }).click();
     await expect(page.locator('.pruning-choice-effects')).toContainText('부담 0단계');
@@ -916,10 +983,10 @@ test('endgame support screens keep primary actions and interaction state visible
     await expect(page.locator('.talent-bloom-navigator')).toBeVisible();
     await expect(page.getByRole('button', { name: '재능별' })).toBeVisible();
     await expect(page.getByRole('button', { name: '직업별' })).toBeVisible();
-    await expect(page.locator('.talent-current-combo')).toContainText('궁수');
-    await expect(page.locator('.talent-current-combo')).toContainText('워리어');
+    await expect(page.locator('.talent-current-combo')).toBeVisible();
     await expect(page.locator('.talent-combo-cell')).toHaveCount(12);
-    await expect(page.locator('.talent-combo-cell.current')).toContainText('아방가르드');
+    // Starting talent and owned cards do not select this loop's fifth-ascension bloom.
+    await expect(page.locator('.talent-combo-cell.current')).toHaveCount(0);
     await expect(page.locator('.talent-slot.filled')).toContainText('아방가르드');
     await expect(page.locator('.talent-slot.filled')).toContainText('궁수 × 워리어');
     await page.locator('.talent-bloom-navigator > summary').click();

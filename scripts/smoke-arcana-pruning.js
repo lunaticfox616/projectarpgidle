@@ -101,7 +101,7 @@ let advance = context.advancePruningTreeForLoop(treeOwner);
 assert.strictEqual(advance.tree.unlocked, false, 'pruning stays locked before loop 18');
 treeOwner.season = 18;
 advance = context.advancePruningTreeForLoop(treeOwner);
-assert.strictEqual(advance.granted, 1, 'loop 18 grants the first growth point');
+assert.strictEqual(advance.granted, 3, 'loop 18 grants three growth points');
 assert.strictEqual(context.advancePruningTreeForLoop(treeOwner).granted, 0, 'repeated reconciliation cannot duplicate growth points');
 treeOwner.pruningTree.growthPoints = 10;
 assert.strictEqual(context.investPruningNode('deep_root', treeOwner).code, 'requirements', 'child branches require their parent ranks');
@@ -110,10 +110,10 @@ assert(context.investPruningNode('first_ring', treeOwner).ok);
 assert(context.investPruningNode('first_ring', treeOwner).ok);
 assert(context.investPruningNode('deep_root', treeOwner).ok);
 const treeStats = Array.from(context.getPruningTreeStats(treeOwner));
-assert(treeStats.some(stat => stat.id === 'flatHp' && stat.val === 12), 'node ranks must aggregate conservative permanent stats');
-assert(treeStats.some(stat => stat.id === 'resAll' && stat.val === 0.2));
-assert(treeStats.some(stat => stat.id === 'move' && stat.val === -0.6), 'each growth rank must add its burden at the same time');
-assert(treeStats.some(stat => stat.id === 'pctDmg' && stat.val === -0.2), 'child growth must also contribute its declared burden');
+assert(treeStats.some(stat => stat.id === 'flatHp' && stat.val === 60), 'benefits use the increased values stored in the node data');
+assert(treeStats.some(stat => stat.id === 'resAll' && stat.val === 1));
+assert(treeStats.some(stat => stat.id === 'move' && stat.val === -1.2), 'each growth rank must add its doubled burden at the same time');
+assert(treeStats.some(stat => stat.id === 'pctDmg' && stat.val === -0.4), 'child growth must also contribute its declared burden');
 context.PRUNING_TREE_DB.forEach(node => node.stats.concat(node.penaltyStats || []).forEach(stat => {
   assert(Number.isInteger(Math.abs(stat.val) * node.maxRank), `${node.id}:${stat.id} must total a whole number at rank 5`);
 }));
@@ -122,37 +122,94 @@ assert(context.prunePruningNodePenalty('deep_root', treeOwner).ok, 'a player may
 assert.strictEqual(treeOwner.pruningTree.nodeRanks.deep_root, deepRankBeforePrune, 'pruning a burden must preserve the earned positive rank');
 const prunedStats = Array.from(context.getPruningTreeStats(treeOwner));
 assert(!prunedStats.some(stat => stat.id === 'pctDmg'), 'pruning the only burden rank removes that penalty from final stats');
-assert(prunedStats.some(stat => stat.id === 'resAll' && stat.val === 0.2), 'pruning must preserve the branch benefit');
+assert(prunedStats.some(stat => stat.id === 'resAll' && stat.val === 1), 'pruning must preserve the branch benefit');
 assert.strictEqual(context.prunePruningNodePenalty('deep_root', treeOwner).code, 'no_penalty', 'a removed burden cannot be pruned twice');
 
 const catchupOwner = { season: 21, loopCount: 20 };
-assert.strictEqual(context.advancePruningTreeForLoop(catchupOwner).granted, 4, 'older saves receive each missed loop growth point exactly once');
+assert.strictEqual(context.advancePruningTreeForLoop(catchupOwner).granted, 12, 'older saves receive three growth points for each missed loop exactly once');
 assert.strictEqual(context.advancePruningTreeForLoop(catchupOwner).granted, 0);
 
 const earlyUnlockOwner = {
   season:30, loopCount:29, unlocks:{ pruning:true }, noti:{},
-  pruningTree:{ version:2, unlocked:true, growthPoints:26, nodeRanks:{}, prunedPenaltyRanks:{}, lastGrantedLoop:30 }
+  pruningTree:{ version:3, unlocked:true, growthPoints:13, nodeRanks:{}, prunedPenaltyRanks:{}, lastGrantedLoop:30 }
 };
 const reclaimed = context.advancePruningTreeForLoop(earlyUnlockOwner);
 assert.strictEqual(reclaimed.granted, 0, 'reclaiming legacy points must not issue another loop reward');
-assert.strictEqual(reclaimed.tree.growthPoints, 13, 'loop 30 keeps only the loop 18 through 30 entitlement');
+assert.strictEqual(reclaimed.tree.growthPoints, 39, 'loop 30 receives the retroactive three-points-per-loop entitlement');
 assert.strictEqual(reclaimed.tree.version, context.PRUNING_TREE_STATE_VERSION, 'the one-time point reclaim must migrate the tree state');
 assert.strictEqual(context.advancePruningTreeForLoop(earlyUnlockOwner).granted, 0, 'the point reclaim must be idempotent');
 
 const investedLegacyOwner = {
   season:30, loopCount:29, unlocks:{ pruning:true }, noti:{},
-  pruningTree:{ version:2, unlocked:true, growthPoints:11, nodeRanks:{ first_ring:5, deep_root:5, red_root:5 }, prunedPenaltyRanks:{}, lastGrantedLoop:30 }
+  pruningTree:{ version:3, unlocked:true, growthPoints:0, nodeRanks:{ first_ring:5, deep_root:5, red_root:5 }, prunedPenaltyRanks:{}, lastGrantedLoop:30 }
 };
 const investedMigration = context.advancePruningTreeForLoop(investedLegacyOwner);
-assert.strictEqual(investedMigration.tree.growthPoints, 0, 'spent legacy points above the new entitlement cannot remain spendable');
+assert.strictEqual(investedMigration.tree.growthPoints, 24, 'retroactive credit includes points spent before the patch');
 assert.strictEqual(investedMigration.tree.nodeRanks.first_ring, 5, 'the reclaim must not destroy an already built tree');
-assert.strictEqual(investedMigration.tree.lastGrantedLoop, 32, 'excess invested points defer future grants until the entitlement catches up');
-investedLegacyOwner.season = 32;
-investedLegacyOwner.loopCount = 31;
-assert.strictEqual(context.advancePruningTreeForLoop(investedLegacyOwner).granted, 0, 'legacy point debt cannot grant another point early');
-investedLegacyOwner.season = 33;
-investedLegacyOwner.loopCount = 32;
-assert.strictEqual(context.advancePruningTreeForLoop(investedLegacyOwner).granted, 1, 'point grants resume when the new entitlement exceeds prior spending');
+assert.strictEqual(investedMigration.tree.lastGrantedLoop, 30, 'migration preserves the last credited loop');
+assert.strictEqual(context.advancePruningTreeForLoop(investedLegacyOwner).granted, 0, 'the retroactive credit is idempotent');
+
+const refundOwner = { season:30, loopCount:29, currencies:{ blightSpore:20 }, unlocks:{ pruning:true }, noti:{},
+  pruningTree:{ version:context.PRUNING_TREE_STATE_VERSION, unlocked:true, growthPoints:10,
+    nodeRanks:{ first_ring:3, deep_root:3, iron_bark:1 }, prunedPenaltyRanks:{ deep_root:1 }, lastGrantedLoop:30 } };
+const cascadePlan = context.getPruningRefundPlan('deep_root', 'growth', refundOwner);
+assert.deepStrictEqual(Array.from(cascadePlan.affected), ['깊은 뿌리', '철빛 껍질'], 'a parent refund previews disconnected descendants');
+assert.strictEqual(cascadePlan.points, 2, 'the child investment is recovered with the parent rank');
+const sporesBeforeRefund = refundOwner.currencies.blightSpore;
+const refundResult = context.refundPruningNode('deep_root', 'growth', refundOwner, cascadePlan.signature);
+assert(refundResult.ok && refundResult.refunded === 2);
+assert.strictEqual(refundOwner.currencies.blightSpore, sporesBeforeRefund - 2, 'one spore is spent for each recovered growth point');
+assert.strictEqual(refundOwner.pruningTree.growthPoints, 12, 'returned ranks restore their exact growth-point cost');
+assert.strictEqual(refundOwner.pruningTree.nodeRanks.iron_bark, undefined, 'disconnected ranks cannot survive a parent refund');
+const snapshotBeforeFailedRefund = JSON.stringify(refundOwner.pruningTree);
+refundOwner.currencies.blightSpore = 0;
+assert.strictEqual(context.refundPruningNode('first_ring', 'all', refundOwner).code, 'currency');
+assert.strictEqual(JSON.stringify(refundOwner.pruningTree), snapshotBeforeFailedRefund, 'an unaffordable refund cannot partially mutate the tree');
+refundOwner.currencies.blightSpore = 20;
+const stalePlan = context.getPruningRefundPlan('deep_root', 'growth', refundOwner);
+assert(context.refundPruningNode('deep_root', 'burden', refundOwner).ok);
+assert.strictEqual(context.getPruningNodeActivePenaltyRank('deep_root', refundOwner.pruningTree), 2, 'returning a pruning point restores its burden, not its growth');
+const afterBurdenRefund = JSON.stringify(refundOwner);
+assert.strictEqual(context.refundPruningNode('deep_root', 'growth', refundOwner, stalePlan.signature).code, 'changed');
+assert.strictEqual(JSON.stringify(refundOwner), afterBurdenRefund, 'a stale confirmation cannot spend currency or return another rank');
+assert.strictEqual(context.refundPruningNode('missing', 'growth', refundOwner).ok, false);
+assert(context.refundPruningNode(null, 'all', refundOwner).ok);
+assert.strictEqual(context.getPruningTreeStats(refundOwner).length, 0, 'full refund removes benefits and burdens together');
+assert.strictEqual(refundOwner.pruningTree.growthPoints, 18, 'refunds conserve the original unspent plus invested budget');
+assert.strictEqual(refundOwner.pruningTree.lastGrantedLoop, 30, 'refunds cannot reset loop rewards');
+assert.strictEqual(context.refundPruningNode(null, 'all', refundOwner).code, 'empty', 'an empty tree cannot refund twice');
+
+const migratedPruning = { season:30, loopCount:29, pruningTree:{ version:3, unlocked:true, growthPoints:3,
+  nodeRanks:{ first_ring:5, deep_root:3 }, prunedPenaltyRanks:{ deep_root:2 }, lastGrantedLoop:30 } };
+let migrated = context.advancePruningTreeForLoop(migratedPruning).tree;
+assert.strictEqual(migrated.growthPoints, 29, 'pruned burdens count as spent points during retroactive credit');
+const savedPruning = JSON.stringify(migratedPruning);
+const reloadedPruning = JSON.parse(savedPruning);
+assert.strictEqual(context.advancePruningTreeForLoop(reloadedPruning).granted, 0);
+assert.strictEqual(JSON.stringify(reloadedPruning), savedPruning, 'reloading cannot add retroactive points again');
+migratedPruning.season = 31;
+assert.strictEqual(context.advancePruningTreeForLoop(migratedPruning).granted, 3);
+const oldDebt = { season:18, pruningTree:{ version:3, unlocked:true, growthPoints:0,
+  nodeRanks:{ first_ring:4, deep_root:5, red_root:5 }, prunedPenaltyRanks:{}, lastGrantedLoop:31 } };
+context.advancePruningTreeForLoop(oldDebt);
+assert.strictEqual(oldDebt.pruningTree.lastGrantedLoop, 18, 'legacy future-loop debt is reconciled against the new point budget');
+oldDebt.season = 22;
+assert.strictEqual(context.advancePruningTreeForLoop(oldDebt).granted, 1, 'legacy overspending must settle to the exact point, not a rounded loop');
+
+const expandedTree = { season:150, currencies:{ blightSpore:1000 } };
+const fullBudget = context.advancePruningTreeForLoop(expandedTree).tree.growthPoints;
+for (const node of context.PRUNING_TREE_DB) {
+  for (let rank = 0; rank < node.maxRank; rank++) {
+    assert(context.investPruningNode(node.id, expandedTree).ok, `${node.id} is reachable through its real prerequisites`);
+    assert(context.prunePruningNodePenalty(node.id, expandedTree).ok);
+  }
+  assert.strictEqual(context.investPruningNode(node.id, expandedTree).code, 'max_rank');
+}
+const totalSpent = fullBudget - expandedTree.pruningTree.growthPoints;
+assert.strictEqual(totalSpent, 360, 'expanded ranks and burden pruning use the displayed 1/2-point costs');
+assert.strictEqual(context.refundPruningNode(null, 'all', expandedTree).refunded, totalSpent);
+assert.strictEqual(expandedTree.pruningTree.growthPoints, fullBudget, 'refunding the full upper tree neither loses nor creates points');
+assert.strictEqual(expandedTree.currencies.blightSpore, 1000 - totalSpent);
 
 context.game = { season: 31, loopCount: 30, unlocks: {}, noti: {} };
 context.grantSealedArcanaCard(1, context.game);
