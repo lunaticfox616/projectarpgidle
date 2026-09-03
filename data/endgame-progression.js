@@ -35,20 +35,39 @@ const ARCANA_CARD_DB = Object.freeze([
     { id:'world', no:21, name:'세계', glyph:'◎', deckEffect:'피해·생명력 +1%, 모든 저항 +0.25%', deckStats:[{ id:'pctDmg', val:1 },{ id:'pctHp', val:1 },{ id:'resAll', val:0.25 }], slotEffect:'피해 종류 옵션 4% 증폭', slotAmp:{ statIds:['pctDmg','physPctDmg','elementalPctDmg','firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg'], pct:4 } }
 ]);
 
-const PRUNING_TREE_STATE_VERSION = 3;
+const PRUNING_TREE_STATE_VERSION = 4;
 const PRUNING_TREE_UNLOCK_LOOP = 18;
+const PRUNING_TREE_POINTS_PER_LOOP = 3;
 const PRUNING_TREE_DB = Object.freeze([
-    { id:'first_ring', name:'첫 나이테', maxRank:5, cost:1, x:50, y:89, stats:[{ id:'flatHp', val:4 }], penaltyStats:[{ id:'move', val:-0.2 }], effect:'최대 생명력 +4/단계', penaltyEffect:'이동 속도 -0.2%/부담' },
-    { id:'deep_root', name:'깊은 뿌리', maxRank:5, cost:1, x:29, y:72, requires:{ first_ring:3 }, stats:[{ id:'resAll', val:0.2 }], penaltyStats:[{ id:'pctDmg', val:-0.2 }], effect:'모든 저항 +0.2%/단계', penaltyEffect:'피해 -0.2%/부담' },
-    { id:'red_root', name:'붉은 뿌리', maxRank:5, cost:1, x:71, y:72, requires:{ first_ring:3 }, stats:[{ id:'flatDmg', val:0.4 }], penaltyStats:[{ id:'pctHp', val:-0.2 }], effect:'기본 피해 +0.4/단계', penaltyEffect:'최대 생명력 -0.2%/부담' },
-    { id:'iron_bark', name:'철빛 껍질', maxRank:5, cost:1, x:14, y:52, requires:{ deep_root:3 }, stats:[{ id:'armorPct', val:0.4 }], penaltyStats:[{ id:'move', val:-0.2 }], effect:'방어도 +0.4%/단계', penaltyEffect:'이동 속도 -0.2%/부담' },
-    { id:'wind_bark', name:'바람 껍질', maxRank:5, cost:1, x:34, y:52, requires:{ deep_root:3 }, stats:[{ id:'evasionPct', val:0.4 }], penaltyStats:[{ id:'armorPct', val:-0.2 }], effect:'회피 +0.4%/단계', penaltyEffect:'방어도 -0.2%/부담' },
-    { id:'moon_sap', name:'달빛 수액', maxRank:5, cost:1, x:50, y:36, requires:{ deep_root:3 }, stats:[{ id:'energyShieldPct', val:0.4 }], penaltyStats:[{ id:'pctHp', val:-0.2 }], effect:'에너지 보호막 +0.4%/단계', penaltyEffect:'최대 생명력 -0.2%/부담' },
-    { id:'thorn_tip', name:'가시 끝', maxRank:5, cost:1, x:66, y:52, requires:{ red_root:3 }, stats:[{ id:'critDmg', val:0.8 }], penaltyStats:[{ id:'resAll', val:-0.2 }], effect:'치명타 피해 +0.8%/단계', penaltyEffect:'모든 저항 -0.2%/부담' },
-    { id:'quick_leaf', name:'빠른 잎', maxRank:5, cost:1, x:86, y:52, requires:{ red_root:3 }, stats:[{ id:'aspd', val:0.2 }], penaltyStats:[{ id:'pctDmg', val:-0.2 }], effect:'공격 속도 +0.2%/단계', penaltyEffect:'피해 -0.2%/부담' },
-    { id:'broad_leaf', name:'넓은 잎', maxRank:5, cost:1, x:24, y:30, requires:{ iron_bark:3, wind_bark:3 }, stats:[{ id:'pctHp', val:0.4 }], penaltyStats:[{ id:'move', val:-0.2 }], effect:'최대 생명력 +0.4%/단계', penaltyEffect:'이동 속도 -0.2%/부담' },
-    { id:'red_flower', name:'붉은 꽃', maxRank:5, cost:1, x:76, y:30, requires:{ thorn_tip:3, quick_leaf:3 }, stats:[{ id:'pctDmg', val:0.4 }], penaltyStats:[{ id:'resAll', val:-0.2 }], effect:'피해 +0.4%/단계', penaltyEffect:'모든 저항 -0.2%/부담' },
-    { id:'quiet_crown', name:'고요한 수관', maxRank:5, cost:2, x:50, y:10, requires:{ broad_leaf:3, moon_sap:3, red_flower:3 }, stats:[{ id:'dr', val:0.2 }], penaltyStats:[{ id:'aspd', val:-0.2 }], effect:'물리 피해 감소 +0.2%/단계', penaltyEffect:'공격 속도 -0.2%/부담' }
+    { id:'first_ring', name:'첫 나이테', maxRank:5, cost:1, x:50, y:94, stats:[{ id:'flatHp', val:20 }], penaltyStats:[{ id:'move', val:-0.4 }], effect:'최대 생명력 +20/단계', penaltyEffect:'이동 속도 -0.4%/부담' },
+    { id:'deep_root', name:'깊은 뿌리', maxRank:5, cost:1, x:29, y:84, requires:{ first_ring:3 }, stats:[{ id:'resAll', val:1 }], penaltyStats:[{ id:'pctDmg', val:-0.4 }], effect:'모든 원소 저항 +1%/단계', penaltyEffect:'피해 -0.4%/부담' },
+    { id:'red_root', name:'붉은 뿌리', maxRank:5, cost:1, x:71, y:84, requires:{ first_ring:3 }, stats:[{ id:'flatDmg', val:2 }], penaltyStats:[{ id:'pctHp', val:-0.4 }], effect:'기본 피해 +2/단계', penaltyEffect:'최대 생명력 -0.4%/부담' },
+    { id:'iron_bark', name:'철빛 껍질', maxRank:5, cost:1, x:14, y:74, requires:{ deep_root:3 }, stats:[{ id:'armorPct', val:2 }], penaltyStats:[{ id:'move', val:-0.4 }], effect:'방어도 +2%/단계', penaltyEffect:'이동 속도 -0.4%/부담' },
+    { id:'wind_bark', name:'바람 껍질', maxRank:5, cost:1, x:34, y:74, requires:{ deep_root:3 }, stats:[{ id:'evasionPct', val:2 }], penaltyStats:[{ id:'armorPct', val:-0.4 }], effect:'회피 +2%/단계', penaltyEffect:'방어도 -0.4%/부담' },
+    { id:'moon_sap', name:'달빛 수액', maxRank:5, cost:1, x:50, y:64, requires:{ deep_root:3 }, stats:[{ id:'energyShieldPct', val:2 }], penaltyStats:[{ id:'pctHp', val:-0.4 }], effect:'에너지 보호막 +2%/단계', penaltyEffect:'최대 생명력 -0.4%/부담' },
+    { id:'thorn_tip', name:'가시 끝', maxRank:5, cost:1, x:66, y:74, requires:{ red_root:3 }, stats:[{ id:'critDmg', val:4 }], penaltyStats:[{ id:'resAll', val:-0.4 }], effect:'치명타 피해 +4%/단계', penaltyEffect:'모든 원소 저항 -0.4%/부담' },
+    { id:'quick_leaf', name:'빠른 잎', maxRank:5, cost:1, x:86, y:74, requires:{ red_root:3 }, stats:[{ id:'aspd', val:1 }], penaltyStats:[{ id:'pctDmg', val:-0.4 }], effect:'공격 속도 +1%/단계', penaltyEffect:'피해 -0.4%/부담' },
+    { id:'broad_leaf', name:'넓은 잎', maxRank:5, cost:1, x:24, y:54, requires:{ iron_bark:3, wind_bark:3 }, stats:[{ id:'pctHp', val:2 }], penaltyStats:[{ id:'move', val:-0.4 }], effect:'최대 생명력 +2%/단계', penaltyEffect:'이동 속도 -0.4%/부담' },
+    { id:'red_flower', name:'붉은 꽃', maxRank:5, cost:1, x:76, y:54, requires:{ thorn_tip:3, quick_leaf:3 }, stats:[{ id:'pctDmg', val:2 }], penaltyStats:[{ id:'resAll', val:-0.4 }], effect:'피해 +2%/단계', penaltyEffect:'모든 원소 저항 -0.4%/부담' },
+    { id:'quiet_crown', name:'고요한 수관', maxRank:5, cost:2, x:50, y:42, requires:{ broad_leaf:3, moon_sap:3, red_flower:3 }, stats:[{ id:'dr', val:1 }], penaltyStats:[{ id:'aspd', val:-0.4 }], effect:'물리 피해 감소 +1%/단계', penaltyEffect:'공격 속도 -0.4%/부담' },
+    { id:'renewal_sap', name:'되살아난 수액', maxRank:5, cost:1, x:8, y:31, requires:{ quiet_crown:3 }, stats:[{ id:'regen', val:0.2 },{ id:'flatHp', val:10 }], penaltyStats:[{ id:'aspd', val:-0.4 }], effect:'초당 재생 +0.2%, 생명력 +10/단계', penaltyEffect:'공격 속도 -0.4%/부담' },
+    { id:'blood_sap', name:'피를 머금은 잎', maxRank:5, cost:1, x:8, y:20, requires:{ renewal_sap:3 }, stats:[{ id:'leech', val:0.2 },{ id:'leechRateCap', val:0.2 }], penaltyStats:[{ id:'resAll', val:-0.4 }], effect:'생명력 흡수 +0.2%, 흡수 회복속도 한도 +0.2%p/단계', penaltyEffect:'모든 원소 저항 -0.4%/부담' },
+    { id:'undying_bloom', name:'불사의 꽃', maxRank:5, cost:2, x:8, y:9, requires:{ blood_sap:3 }, stats:[{ id:'pctHp', val:4 },{ id:'regen', val:0.4 }], penaltyStats:[{ id:'energyShieldPct', val:-0.8 }], effect:'최대 생명력 +4%, 초당 재생 +0.4%/단계', penaltyEffect:'에너지 보호막 -0.8%/부담' },
+    { id:'shield_bough', name:'방패 가지', maxRank:5, cost:1, x:25, y:31, requires:{ quiet_crown:3 }, stats:[{ id:'blockChance', val:1 },{ id:'armorPct', val:2 }], penaltyStats:[{ id:'move', val:-0.4 }], effect:'막기 확률 +1%p, 방어도 +2%/단계', penaltyEffect:'이동 속도 -0.4%/부담' },
+    { id:'ward_bough', name:'독을 거르는 잎', maxRank:5, cost:1, x:25, y:20, requires:{ shield_bough:3 }, stats:[{ id:'resChaos', val:2 },{ id:'ailResPoison', val:2 }], penaltyStats:[{ id:'aspd', val:-0.4 }], effect:'카오스 저항 +2%, 중독 저항 확률 +2%/단계', penaltyEffect:'공격 속도 -0.4%/부담' },
+    { id:'ward_crown', name:'수호의 수관', maxRank:5, cost:2, x:25, y:9, requires:{ ward_bough:3 }, stats:[{ id:'maxResAll', val:0.2 },{ id:'dr', val:2 }], penaltyStats:[{ id:'pctDmg', val:-0.8 }], effect:'원소 저항 최대치 +0.2%p, 물리 피해 감소 +2%/단계', penaltyEffect:'피해 -0.8%/부담' },
+    { id:'spell_bud', name:'주문의 새싹', maxRank:5, cost:1, x:42, y:31, requires:{ quiet_crown:3 }, stats:[{ id:'spellFlatPct', val:4 }], penaltyStats:[{ id:'physPctDmg', val:-0.8 }], effect:'주문 내장 피해 +4%/단계', penaltyEffect:'물리 피해 -0.8%/부담' },
+    { id:'spell_vein', name:'관통하는 맥', maxRank:5, cost:1, x:42, y:20, requires:{ spell_bud:3 }, stats:[{ id:'spellPctDmg', val:4 },{ id:'resPen', val:0.4 }], penaltyStats:[{ id:'pctHp', val:-0.4 }], effect:'주문 피해 +4%, 저항 관통 +0.4%/단계', penaltyEffect:'최대 생명력 -0.4%/부담' },
+    { id:'spell_bloom', name:'만개한 마력', maxRank:5, cost:2, x:42, y:9, requires:{ spell_vein:3 }, stats:[{ id:'aoePctDmg', val:6 },{ id:'spellFlatPct', val:6 }], penaltyStats:[{ id:'critDmg', val:-0.8 }], effect:'범위 피해 +6%, 주문 내장 피해 +6%/단계', penaltyEffect:'치명타 피해 -0.8%/부담' },
+    { id:'pact_bud', name:'계약의 새싹', maxRank:5, cost:1, x:58, y:31, requires:{ quiet_crown:3 }, stats:[{ id:'summonPctDmg', val:4 },{ id:'summonHpPct', val:2 }], penaltyStats:[{ id:'pctHp', val:-0.4 }], effect:'소환수 피해 +4%, 소환수 생명력 +2%/단계', penaltyEffect:'최대 생명력 -0.4%/부담' },
+    { id:'pact_vein', name:'무리의 맥', maxRank:5, cost:1, x:58, y:20, requires:{ pact_bud:3 }, stats:[{ id:'summonAspd', val:1 },{ id:'summonResPen', val:0.4 }], penaltyStats:[{ id:'critDmg', val:-0.8 }], effect:'소환수 공격 속도 +1%, 소환수 저항 관통 +0.4%/단계', penaltyEffect:'치명타 피해 -0.8%/부담' },
+    { id:'pact_crown', name:'군주의 수관', maxRank:5, cost:2, x:58, y:9, requires:{ pact_vein:3 }, stats:[{ id:'summonCrit', val:1 },{ id:'summonCritDmg', val:6 }], penaltyStats:[{ id:'pctDmg', val:-0.8 }], effect:'소환수 치명타 확률 +1%, 소환수 치명타 피해 +6%/단계', penaltyEffect:'피해 -0.8%/부담' },
+    { id:'decay_bud', name:'부패의 새싹', maxRank:5, cost:1, x:75, y:31, requires:{ quiet_crown:3 }, stats:[{ id:'dotPctDmg', val:4 },{ id:'ailmentDamagePct', val:2 }], penaltyStats:[{ id:'critDmg', val:-0.8 }], effect:'지속 피해 +4%, 상태이상 피해 +2%/단계', penaltyEffect:'치명타 피해 -0.8%/부담' },
+    { id:'decay_vein', name:'깊어지는 상흔', maxRank:5, cost:1, x:75, y:20, requires:{ decay_bud:3 }, stats:[{ id:'ailmentPotencyPct', val:2 },{ id:'dotPctDmg', val:4 }], penaltyStats:[{ id:'aspd', val:-0.4 }], effect:'상태이상 위력 +2%, 지속 피해 +4%/단계', penaltyEffect:'공격 속도 -0.4%/부담' },
+    { id:'decay_bloom', name:'시들지 않는 상처', maxRank:5, cost:2, x:75, y:9, requires:{ decay_vein:3 }, stats:[{ id:'ailmentDamagePct', val:6 },{ id:'dotPctDmg', val:6 }], penaltyStats:[{ id:'flatDmg', val:-0.8 }], effect:'상태이상 피해 +6%, 지속 피해 +6%/단계', penaltyEffect:'기본 피해 -0.8/부담' },
+    { id:'blade_bud', name:'칼날의 새싹', maxRank:5, cost:1, x:92, y:31, requires:{ quiet_crown:3 }, stats:[{ id:'physPctDmg', val:4 },{ id:'accuracyBonusPct', val:2 }], penaltyStats:[{ id:'energyShieldPct', val:-0.4 }], effect:'물리 피해 +4%, 정확도 보정 +2%/단계', penaltyEffect:'에너지 보호막 -0.4%/부담' },
+    { id:'blade_vein', name:'이어지는 칼날', maxRank:5, cost:1, x:92, y:20, requires:{ blade_bud:3 }, stats:[{ id:'ds', val:1 },{ id:'physIgnore', val:0.4 }], penaltyStats:[{ id:'resAll', val:-0.4 }], effect:'연속 타격 +1%, 물리 피해 감소 무시 +0.4%/단계', penaltyEffect:'모든 원소 저항 -0.4%/부담' },
+    { id:'blade_crown', name:'토벌의 수관', maxRank:5, cost:2, x:92, y:9, requires:{ blade_vein:3 }, stats:[{ id:'bossDamagePct', val:6 },{ id:'critDmg', val:6 }], penaltyStats:[{ id:'pctHp', val:-0.8 }], effect:'보스 피해 +6%, 치명타 피해 +6%/단계', penaltyEffect:'최대 생명력 -0.8%/부담' }
 ]);
 
 const BEYOND_BOUNDARY_ZONE_ID = 'beyond_boundary';
@@ -88,7 +107,7 @@ const BEYOND_BOUNDARY_INTENSITY_DB = Object.freeze([
 safeExposeData({
     ARCANA_DECK_SLOT_COUNT, ARCANA_SEALED_CARD_DROP_CHANCE, ARCANA_GALAXY_BOSS_DROP_CHANCE,
     ARCANA_CAPSTONE_DROP_CHANCE, ARCANA_QUEST_EXPLORATION_TARGET, ARCANA_EQUIPMENT_SLOT_KEYS, ARCANA_CARD_DB,
-    PRUNING_TREE_STATE_VERSION, PRUNING_TREE_UNLOCK_LOOP, PRUNING_TREE_DB,
+    PRUNING_TREE_STATE_VERSION, PRUNING_TREE_UNLOCK_LOOP, PRUNING_TREE_POINTS_PER_LOOP, PRUNING_TREE_DB,
     BEYOND_BOUNDARY_ZONE_ID, BEYOND_BOUNDARY_STATE_VERSION, BEYOND_BOUNDARY_UNLOCK_LOOP,
     BEYOND_BOUNDARY_UNLOCK_BOSS_ID, BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER, BEYOND_BOUNDARY_TIER_CAP,
     BEYOND_BOUNDARY_DIFFICULTY_OFFSET, BEYOND_BOUNDARY_HP_GROWTH, BEYOND_BOUNDARY_DAMAGE_GROWTH,

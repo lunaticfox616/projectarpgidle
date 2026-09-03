@@ -1580,7 +1580,8 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .pruning-choice-actions { align-self: end; display: grid; grid-template-columns: 1fr; gap: 6px; }
 .pruning-choice-actions button { display: grid; gap: 1px; min-width: 0; min-height: 44px; place-content: center; }
 .pruning-choice-actions small { color: inherit; opacity: .7; }
-.pruning-tree { position: relative; width: 100%; min-width: 0; height: clamp(500px, 70vw, 610px); overflow: hidden; background: radial-gradient(ellipse at 50% 100%, rgba(82, 64, 39, .55), transparent 38%), linear-gradient(#151815, #0b0e0d); }
+.pruning-tree-scroll { width: 100%; min-width: 0; max-height: 650px; overflow: auto; overscroll-behavior: contain; box-sizing: border-box; border: 1px solid rgba(104, 81, 56, .45); }
+.pruning-tree { position: relative; width: 900px; height: 1250px; overflow: hidden; background: radial-gradient(ellipse at 50% 100%, rgba(82, 64, 39, .55), transparent 38%), linear-gradient(#151815, #0b0e0d); }
 .pruning-tree::before { position: absolute; inset: 8% 38% 0; content: ''; background: linear-gradient(90deg, transparent, rgba(119, 89, 50, .35), transparent); clip-path: polygon(45% 100%, 55% 100%, 62% 0, 38% 0); }
 .pruning-connections { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .pruning-connections line { stroke: #685138; stroke-width: .75; vector-effect: non-scaling-stroke; }
@@ -1655,11 +1656,12 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
     .arcana-equipment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .arcana-collection { grid-template-columns: 1fr; }
     .pruning-stat-summary,
-    .pruning-workspace { grid-template-columns: 1fr; }
+    .pruning-workspace { grid-template-columns: minmax(0, 1fr); }
     .pruning-choice-panel { top: 6px; order: -1; padding: 9px; }
     .pruning-choice-actions { display: grid; grid-template-columns: 1fr 1fr; }
     .pruning-choice-actions button { min-width: 0; }
-    .pruning-tree { height: 560px; }
+    .pruning-tree-scroll { max-height: 590px; }
+    .pruning-tree { width: 720px; height: 1180px; }
     .pruning-node { left: clamp(46px, var(--node-x), calc(100% - 46px)); width: 92px; min-height: 58px; padding: 5px; }
     .pruning-node small { font-size: .62em; }
     .beyond-head, .beyond-challenge { grid-template-columns: 1fr; }

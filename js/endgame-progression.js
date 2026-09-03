@@ -331,10 +331,12 @@ function reconcileLegacyPruningPoints(tree, source, ownerState) {
     if (Math.floor(Number(source.version) || 0) >= PRUNING_TREE_STATE_VERSION) return;
     let loop = getEndgameProgressLoop(ownerState || game);
     let creditedLoop = Math.min(loop, Math.max(PRUNING_TREE_UNLOCK_LOOP - 1, tree.lastGrantedLoop));
-    let entitlement = Math.max(0, creditedLoop - PRUNING_TREE_UNLOCK_LOOP + 1);
+    let entitlement = Math.max(0, creditedLoop - PRUNING_TREE_UNLOCK_LOOP + 1) * PRUNING_TREE_POINTS_PER_LOOP;
     let spent = getPruningTreeSpentPoints(tree);
-    tree.growthPoints = Math.min(tree.growthPoints, Math.max(0, entitlement - spent));
-    if (spent > entitlement) tree.lastGrantedLoop = Math.max(tree.lastGrantedLoop, loop + spent - entitlement);
+    // v1-v3 used one point per loop (and v3 could defer its ledger for legacy debt).
+    // Rebuild the credited budget, including invested/pruned ranks, exactly once.
+    tree.growthPoints = Math.max(0, entitlement - spent);
+    tree.lastGrantedLoop = creditedLoop;
     tree.unlocked = loop >= PRUNING_TREE_UNLOCK_LOOP;
 }
 
@@ -361,7 +363,9 @@ function advancePruningTreeForLoop(ownerState) {
     let tree = normalizePruningTreeState(source.pruningTree, source);
     let granted = 0;
     if (loop >= PRUNING_TREE_UNLOCK_LOOP && tree.lastGrantedLoop < loop) {
-        granted = loop - Math.max(PRUNING_TREE_UNLOCK_LOOP - 1, tree.lastGrantedLoop);
+        let entitlement = (loop - PRUNING_TREE_UNLOCK_LOOP + 1) * PRUNING_TREE_POINTS_PER_LOOP;
+        let missedPoints = (loop - tree.lastGrantedLoop) * PRUNING_TREE_POINTS_PER_LOOP;
+        granted = Math.max(0, Math.min(missedPoints, entitlement - getPruningTreeSpentPoints(tree) - tree.growthPoints));
         tree.growthPoints += granted;
         tree.lastGrantedLoop = loop;
         tree.unlocked = true;
@@ -414,6 +418,68 @@ function prunePruningNodePenalty(nodeId, ownerState) {
     tree.growthPoints -= node.cost;
     tree.prunedPenaltyRanks[node.id] = Math.max(0, Math.floor(tree.prunedPenaltyRanks[node.id] || 0)) + 1;
     return { ok: true, activePenaltyRank: activePenaltyRank - 1, points: tree.growthPoints };
+}
+
+/** Removes unsupported descendants and their burden spending from a refund draft. */
+function trimDisconnectedPruningRanks(next) {
+    // Cascade only branches whose prerequisites were lost; DB order is not a contract.
+    let disconnected;
+    do {
+        disconnected = false;
+        for (let definition of PRUNING_TREE_DB) {
+            if (!(next.nodeRanks[definition.id] > 0) || isPruningNodeRequirementMet(definition, next)) continue;
+            delete next.nodeRanks[definition.id];
+            disconnected = true;
+        }
+    } while (disconnected);
+    for (let definition of PRUNING_TREE_DB) {
+        let id = definition.id;
+        next.prunedPenaltyRanks[id] = Math.min(next.nodeRanks[id] || 0, next.prunedPenaltyRanks[id] || 0);
+        if (!next.nodeRanks[id]) delete next.nodeRanks[id];
+        if (!next.prunedPenaltyRanks[id]) delete next.prunedPenaltyRanks[id];
+    }
+}
+
+/** Preview one rank, one pruned burden, or the entire tree without spending currency.
+ * @param {string|null} nodeId
+ * @param {'growth'|'burden'|'all'} kind
+ * @param {typeof game} ownerState
+ */
+function getPruningRefundPlan(nodeId, kind, ownerState) {
+    let tree = ensurePruningTreeState(ownerState || game);
+    let node = PRUNING_TREE_DB.find(row => row.id === nodeId);
+    if (!tree.unlocked || !['growth', 'burden', 'all'].includes(kind)) return { ok: false, code: 'locked' };
+    if (kind !== 'all' && !node) return { ok: false, code: 'node' };
+    let next = { nodeRanks: { ...tree.nodeRanks }, prunedPenaltyRanks: { ...tree.prunedPenaltyRanks } };
+    let signature = JSON.stringify([tree.nodeRanks, tree.prunedPenaltyRanks]);
+    if (kind === 'all') {
+        next.nodeRanks = {};
+        next.prunedPenaltyRanks = {};
+    } else {
+        let ranks = kind === 'burden' ? next.prunedPenaltyRanks : next.nodeRanks;
+        if (!(ranks[nodeId] > 0)) return { ok: false, code: 'empty' };
+        ranks[nodeId]--;
+    }
+    trimDisconnectedPruningRanks(next);
+    let points = getPruningTreeSpentPoints(tree) - getPruningTreeSpentPoints(next);
+    if (points <= 0) return { ok: false, code: 'empty' };
+    let affected = PRUNING_TREE_DB.filter(row => tree.nodeRanks[row.id] !== next.nodeRanks[row.id]
+        || tree.prunedPenaltyRanks[row.id] !== next.prunedPenaltyRanks[row.id]).map(row => row.name);
+    return { ok: true, points, cost: points, affected, signature, nodeRanks: next.nodeRanks, prunedPenaltyRanks: next.prunedPenaltyRanks };
+}
+
+/** Rechecks the confirmed tree and balance, then refunds atomically; no combat/loop restriction. */
+function refundPruningNode(nodeId, kind, ownerState, expectedSignature) {
+    let source = ownerState || game;
+    let plan = getPruningRefundPlan(nodeId, kind, source);
+    if (!plan.ok) return plan;
+    if (expectedSignature !== undefined && expectedSignature !== plan.signature) return { ok: false, code: 'changed' };
+    let spores = Number((source.currencies || {}).blightSpore) || 0;
+    if (!Number.isFinite(spores) || spores < plan.cost) return { ok: false, code: 'currency', cost: plan.cost };
+    source.currencies.blightSpore = spores - plan.cost;
+    Object.assign(source.pruningTree, { nodeRanks: plan.nodeRanks, prunedPenaltyRanks: plan.prunedPenaltyRanks });
+    source.pruningTree.growthPoints += plan.points;
+    return { ok: true, refunded: plan.points, cost: plan.cost };
 }
 
 function getPruningTreeStats(ownerState) {
@@ -644,7 +710,7 @@ safeExposeGlobals({
     getSealedArcanaCardDropChance, tryDropSealedArcanaCard,
     createDefaultPruningTreeState, normalizePruningTreeState, advancePruningTreeForLoop,
     ensurePruningTreeState, isPruningNodeRequirementMet, investPruningNode,
-    getPruningNodeActivePenaltyRank, prunePruningNodePenalty, getPruningTreeStats,
+    getPruningNodeActivePenaltyRank, prunePruningNodePenalty, getPruningRefundPlan, refundPruningNode, getPruningTreeStats,
     getEndgameProgressLoop,
     createDefaultBeyondBoundaryState, normalizeBeyondBoundaryState, ensureBeyondBoundaryState,
     isBeyondBoundaryUnlockRequirementMet, reconcileBeyondBoundaryUnlock, getBeyondBoundarySealLevelCost,
