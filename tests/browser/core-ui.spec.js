@@ -37,9 +37,12 @@ function watchRuntimeFailures(page) {
 }
 
 async function dismissVisibleTutorials(page) {
-    await page.evaluate(() => {
+    await page.waitForFunction(() => {
+        // Fixture updates can enqueue unlock notices in the next UI frame.
+        if (uiRefreshQueued || uiRefreshRunning) return false;
         tutorialQueue.length = 0;
         if (activeTutorial) dismissTutorial(false);
+        return true;
     });
     await expect(page.locator('#tutorial-overlay.active')).not.toBeVisible();
 }
