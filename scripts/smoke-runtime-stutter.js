@@ -1,6 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
 const saveSource = fs.readFileSync('js/save.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
@@ -85,6 +86,47 @@ assert.strictEqual(idleJobs[0].options.timeout, 4000, 'idle autosave should reta
 idleJobs[0].callback();
 assert.strictEqual(autosaveRuns, 1, 'the pending autosave should run when the browser becomes idle');
 assert.strictEqual(schedulerContext.autoSaveIdleHandle, null, 'the idle slot should be released after saving');
+
+const battlefieldContext = buildGameRuntime();
+vm.runInContext(`
+  globalThis.__battlefieldStatsCalls = 0;
+  globalThis.__battlefieldOriginalStats = getPlayerStats;
+  getPlayerStats = () => {
+    __battlefieldStatsCalls += 1;
+    return __battlefieldOriginalStats();
+  };
+  getUiPlayerStats = getPlayerStats;
+  game.lastCombatStats = null;
+  game.enemies = [];
+  game.encounterPlan = [];
+  globalThis.__battlefieldCtx = new Proxy({}, {
+    get(target, key) {
+      if (key === 'createLinearGradient' || key === 'createRadialGradient') return () => ({ addColorStop() {} });
+      if (key === 'measureText') return () => ({ width: 0 });
+      return target[key] || (() => {});
+    },
+    set(target, key, value) { target[key] = value; return true; }
+  });
+  globalThis.__battlefieldCanvas = {
+    offsetParent: {}, clientWidth: 960, clientHeight: 540, width: 960, height: 540,
+    dataset: { renderScale: '1' }, getContext: () => __battlefieldCtx,
+    getBoundingClientRect: () => ({ width: 960, height: 540, left: 0, top: 0 })
+  };
+  globalThis.__battlefieldDummy = new Proxy({
+    style: {}, dataset: {}, innerText: '', innerHTML: '',
+    classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } }
+  }, {
+    get(target, key) { return target[key] || (() => {}); },
+    set(target, key, value) { target[key] = value; return true; }
+  });
+  document.getElementById = id => id === 'battlefield-canvas' ? __battlefieldCanvas : __battlefieldDummy;
+  battleAssets.atlas = buildBattleAssetAtlas();
+  battleAssets.ready = true;
+  battleAssets.images.hero = null;
+  renderBattlefield(true);
+`, battlefieldContext, { filename: 'battlefield-frame-stats.js' });
+assert.strictEqual(battlefieldContext.__battlefieldStatsCalls, 1,
+  'one battlefield frame must reuse its stat snapshot for character animation');
 
 async function exerciseCloudUpload() {
   let capturedRequest = null;

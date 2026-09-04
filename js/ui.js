@@ -8522,6 +8522,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
     }
     if (battleAssets.images.hero) {
         motionState = motionState || {};
+        let animationStats = motionState.playerStats || getUiPlayerStats();
         let advanceBlend = clampNumber(Number.isFinite(motionState.advanceBlend) ? motionState.advanceBlend : 0, 0, 1);
         let motionName = 'idle';
         let frameIndex = HERO_MOTIONS.idle[0];
@@ -8548,7 +8549,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             const _motionMs = { walk: 285, run: 190, slash: 160, throw: 170, cast: 180, bow: 175, hit: 200, idle: 320 };
             let _frameMs = _motionMs[motionName] || 220;
             if (motionName === 'walk' || motionName === 'run') {
-                let moveSpeed = Number(getUiPlayerStats().moveSpeed) || 100;
+                let moveSpeed = Number(animationStats.moveSpeed) || 100;
                 let moveRatio = clampNumber(moveSpeed / 100, 0.6, 3.2);
                 _frameMs = clampNumber(_frameMs / moveRatio, 62, 460);
             }
@@ -8589,6 +8590,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
     }
     if (battleAssets.ready && battleAssets.atlas && battleAssets.atlas.hero) {
         motionState = motionState || {};
+        let animationStats = motionState.playerStats || getUiPlayerStats();
         let frames = battleAssets.atlas.hero.frames;
         let bodyClips = frames.characterAnimations || {};
         let clipLoop = frames.clipLoop || {};
@@ -8666,14 +8668,14 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
             let phase = clampNumber(attackProgress, 0, 0.999);
             let idx = Math.floor(phase * sequence.length);
             if (clipLoop.sword_attack_body === true) {
-                let aspd = Math.max(0.1, Number(getUiPlayerStats().aspd) || 1);
+                let aspd = Math.max(0.1, Number(animationStats.aspd) || 1);
                 let loopFrameMs = clampNumber(120 / aspd, 38, 170);
                 idx = Math.floor((now / loopFrameMs) % sequence.length);
             }
             return sequence[clampNumber(idx, 0, sequence.length - 1)];
         }
         let idleFrame = pickCycle(idleCycle, 920, 0);
-        let moveStat = Math.max(70, Number(getUiPlayerStats().move) || 100);
+        let moveStat = Math.max(70, Number(animationStats.move) || 100);
         let moveRatio = clampNumber(moveStat / 100, 0.85, 2.25);
         let walkSequenceLength = Math.max(1, walkCycle.length || 1);
         let walkCycleDuration = clampNumber(960 / moveRatio, 560, 1130);

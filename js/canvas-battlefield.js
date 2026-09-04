@@ -1987,6 +1987,7 @@ function renderBattlefield(forceWhenHidden) {
         y: playerMotion.position.y + downBlend * 0.6
     };
     let playerMotionState = {
+        playerStats: framePlayerStats,
         advanceBlend,
         moveProgress: playerMotion.progress,
         moveDirection: playerMotion.direction,
