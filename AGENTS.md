@@ -33,7 +33,7 @@ Ponytail은 다음 행동을 강제하는 실행 절차다.
 | `js/state.js` | 런타임 상태의 기본 shape, 초기화, 불변식 |
 | `js/save.js` | 직렬화, 복원, 마이그레이션 경계 |
 | `js/items.js`, `js/skills.js`, `js/passives.js`, `js/core-cube.js` | 각 게임 도메인의 규칙 |
-| `js/combat-grid.js` | 8x8 전장 좌표, 범위, 이동, 스폰 배치 |
+| `js/combat-grid.js` | 9x8 전장 좌표, 범위, 상하좌우 이동, 2x2 보스 스폰 배치 |
 | `js/combat.js` | 전투와 진행 규칙 |
 | `js/canvas-*.js` | 읽기 전용 도메인 결과의 캔버스 표현 |
 | `js/ui.js`, `js/*-ui.js`, `js/cosmos-atlas.js` | DOM 조립과 사용자 이벤트 경계 |
