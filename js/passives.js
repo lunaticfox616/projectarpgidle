@@ -8493,6 +8493,33 @@ function buildBattleAssetAtlas() {
     };
 }
 
+/**
+ * Aligns an axis-aligned destination rectangle to backing-store pixels.
+ * This keeps one-pixel sprite details stable at fractional device scales such as 125%.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} x
+ * @param {number} y
+ * @param {number} width
+ * @param {number} height
+ * @returns {{x: number, y: number, width: number, height: number}}
+ */
+function snapCanvasRectToDevicePixels(ctx, x, y, width, height) {
+    let transform = ctx.getTransform();
+    let scaleX = Number(transform.a);
+    let scaleY = Number(transform.d);
+    let axisAligned = Number.isFinite(scaleX) && Math.abs(scaleX) > 0.001
+        && Number.isFinite(scaleY) && Math.abs(scaleY) > 0.001
+        && Math.abs(Number(transform.b) || 0) < 0.001
+        && Math.abs(Number(transform.c) || 0) < 0.001;
+    if (!axisAligned) return { x, y, width, height };
+    let left = (Math.round(x * scaleX + transform.e) - transform.e) / scaleX;
+    let top = (Math.round(y * scaleY + transform.f) - transform.f) / scaleY;
+    let right = (Math.round((x + width) * scaleX + transform.e) - transform.e) / scaleX;
+    let bottom = (Math.round((y + height) * scaleY + transform.f) - transform.f) / scaleY;
+    return { x: left, y: top, width: Math.max(1 / Math.abs(scaleX), right - left), height: Math.max(1 / Math.abs(scaleY), bottom - top) };
+}
+
 function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     if (!rect) return;
     options = options || {};
@@ -8540,6 +8567,13 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
         }
         ctx.drawImage(sourceImage, srcX, srcY, srcW, srcH, Math.round(-drawWidth / 2), Math.round(-drawHeight / 2), drawWidth, drawHeight);
     } else {
+        if (options.devicePixelSnap === true) {
+            let snappedRect = snapCanvasRectToDevicePixels(ctx, dx, dy, drawWidth, drawHeight);
+            dx = snappedRect.x;
+            dy = snappedRect.y;
+            drawWidth = snappedRect.width;
+            drawHeight = snappedRect.height;
+        }
         if (options.flipX) {
             let centerX = dx + drawWidth / 2;
             ctx.translate(centerX, 0);
