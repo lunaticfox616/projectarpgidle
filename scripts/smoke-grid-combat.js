@@ -133,11 +133,35 @@ const cfg = context.COMBAT_GRID_CONFIG;
 // 렌더 스프라이트와 전투 이름은 같은 안정적인 변형 id를 사용해야 한다.
 {
   resetGame();
-  assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 38, '모든 목재 몬스터 변형에 이름이 지정되어야 한다');
+  assert.strictEqual(context.MONSTER_VARIANT_DEFS.length, 56, '목재 몬스터 38종과 위습 18종에 이름이 지정되어야 한다');
   assert(context.MONSTER_VARIANT_DEFS.every(def => def.id && def.name), '몬스터 변형 정의에 id와 이름이 모두 있어야 한다');
+  const fireWisp = context.getMonsterVariantDefinition(4, 'fire');
+  assert(fireWisp.id.startsWith('wisp-'), '일반 구역에서도 위습이 일정 비율로 등장해야 한다');
+  assert(context.WISP_MONSTER_VISUALS.find(wisp => wisp.id === fireWisp.id).elements.includes('fire'),
+    '위습의 이름과 외형은 실제 몬스터 속성과 맞아야 한다');
+  assert(!context.getMonsterVariantDefinition(5, 'fire').id.startsWith('wisp-'),
+    '위습이 기존 목재 몬스터를 전부 대체하면 안 된다');
+  const fireDefense = JSON.parse(JSON.stringify(context.getWispEnemyDefenseBonuses(
+    context.WISP_MONSTER_VISUALS.find(wisp => wisp.code === 'B02'))));
+  assert.deepStrictEqual(fireDefense, {
+    isWisp: true, evasionMul: 1.6, dr: 0, resF: 30, resC: 0, resL: 0, resChaos: 0
+  }, '화염 위습은 높은 회피와 화염 저항만 받아야 한다');
+  const hybridDefense = context.getWispEnemyDefenseBonuses(
+    context.WISP_MONSTER_VISUALS.find(wisp => wisp.code === 'H03'));
+  assert.strictEqual(hybridDefense.resC, 30, '혼합형 위습은 첫 번째 색상 저항을 받아야 한다');
+  assert.strictEqual(hybridDefense.resL, 30, '혼합형 위습은 두 번째 색상 저항도 받아야 한다');
+  const ordinaryDefense = JSON.parse(JSON.stringify(
+    context.getWispEnemyDefenseBonuses(context.MONSTER_VARIANT_DEFS[0])));
+  assert.deepStrictEqual(ordinaryDefense, {
+    isWisp: false, evasionMul: 1, dr: 0, resF: 0, resC: 0, resL: 0, resChaos: 0
+  }, '위습 방어 특성이 기존 몬스터에게 번지면 안 된다');
   const zone = context.getZone(0);
   const normal = context.createEnemy(zone, { at: 20, count: 1 }, 0);
+  const wisp = context.createEnemy(zone, { at: 20, count: 1 }, 3);
   const elite = context.createEnemy(zone, { at: 20, count: 1, elite: true }, 0);
+  assert(wisp.spriteVariantId.startsWith('wisp-'), '생명력 검증 대상은 위습이어야 한다');
+  assert.strictEqual(wisp.maxHp, Math.floor(normal.maxHp * 0.7),
+    '위습은 동급 일반 몬스터 생명력의 70%를 가져야 한다');
   assert.strictEqual(normal.name, normal.baseMonsterName, '일반 몬스터는 스프라이트 종명을 그대로 사용해야 한다');
   assert.strictEqual(elite.name, elite.trait.name + ' ' + elite.baseMonsterName,
     '정예 몬스터는 특성과 스프라이트 종명을 결합해야 한다');
@@ -177,6 +201,19 @@ const cfg = context.COMBAT_GRID_CONFIG;
     assert.strictEqual(pools.boss[0].frame.x, 256, '보스는 둘째 줄 세 번째 칸에 고정되어야 한다');
     assert.strictEqual(pools.boss[0].frame.y, 128, '보스는 둘째 줄에서만 잘라야 한다');
   });
+
+  const wispVariants = context.buildWispEnemyVariants({
+    wispEnemyAttack: { width: 1728, height: 1536 },
+    wispEnemyGlow: { width: 1728, height: 1536 }
+  });
+  assert.strictEqual(wispVariants.length, 18, '위습 18종을 모두 런타임 스프라이트로 조립해야 한다');
+  assert(wispVariants.every(entry => ['south', 'north', 'west', 'east']
+    .every(direction => entry.directions[direction].frames.length === 9
+      && entry.directions[direction].attackFrames.length === 9)),
+  '각 위습은 네 방향의 발광·공격 9프레임을 모두 사용해야 한다');
+  const finalFrame = wispVariants[17].directions.east.attackFrames[8].frame;
+  assert(finalFrame.x + finalFrame.width <= 1728 && finalFrame.y + finalFrame.height <= 1536,
+    '마지막 위습의 마지막 프레임도 아틀라스 경계를 침범하면 안 된다');
 }
 
 // 데스로그는 몬스터 인스턴스별 피해와 지연 상태이상 피해를 합산한다.
@@ -721,6 +758,13 @@ assert.ok(mobileGridProjection.tileW >= 30 && mobileGridProjection.tileW <= 34,
   '모바일 확대 투영은 360px 화면에서 한 칸을 약 32px로 키워야 한다');
 assert.ok(mobileGridProjection.mapX < 0 || mobileGridProjection.mapX + mobileGridProjection.mapWidth > 360,
   '전투 칸 확대를 위해 모바일에서는 장식 배경의 좌우 일부를 잘라야 한다');
+const desktopGridProjection = renderRuntime.getBattleGridProjection(900, 580, 'grid-contain');
+const desktopFirstCell = desktopGridProjection.cellToScreen(0, 0);
+const desktopLastCell = desktopGridProjection.cellToScreen(8, 7);
+const desktopGridTop = desktopFirstCell.y - desktopGridProjection.tileH / 2;
+const desktopGridBottom = desktopLastCell.y + desktopGridProjection.tileH / 2;
+assert.ok(desktopGridTop >= 0 && desktopGridBottom <= 580,
+  '데스크톱 전투 화면도 세로 8칸을 모두 보여야 한다');
 const actBattleMapSources = Object.values(context.ACT_BATTLE_MAP_SOURCES);
 assert.strictEqual(actBattleMapSources.length, 10, 'ACT 1~10은 각각 하나의 전투 맵을 가져야 한다');
 assert(actBattleMapSources.every(source => source.endsWith('.webp') && fs.existsSync(source)), '모든 ACT 전투 맵은 압축된 WebP로 존재해야 한다');
@@ -1402,13 +1446,63 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const target = makeEnemy(34, 5, 6);
   context.game.enemies = [target];
   assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['암살자의 일격'], target), 1.35, '암살자의 일격은 생명력이 가득 찬 적에게 증폭돼야 한다');
+  const openingCues = [];
+  context.getSkillConditionalDamageMultiplier(context.SKILL_DB['암살자의 일격'], target, cue => openingCues.push(cue));
+  assert.deepStrictEqual(Array.from(openingCues, cue => cue.text), ['선제 · 피해 35% 증폭'],
+    '선제 피해가 적용되면 전투 화면에 실제 발동 이유를 전달해야 한다');
   assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['번개 창'], target), 1.18, '번개 창은 첫 칸 이후 거리만큼 증폭돼야 한다');
+  const distanceCues = [];
+  const farTarget = makeEnemy(35, 7, 6);
+  assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['번개 창'], farTarget, cue => distanceCues.push(cue)), 1.3,
+    '번개 창은 최대 거리에서 기존 30% 상한을 유지해야 한다');
+  assert.deepStrictEqual(Array.from(distanceCues, cue => cue.text), ['최대 거리 · 피해 30% 증폭'],
+    '거리 상한 달성은 전투 화면에 전달해야 한다');
   context.game.enemies = Array.from({ length: 8 }, (_, idx) => makeEnemy(100 + idx, 2 + (idx % 4), 2 + Math.floor(idx / 4)));
-  assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['회오리바람'], context.game.enemies[0]), 1.28, '회오리바람의 밀집 보너스는 28% 상한을 지켜야 한다');
+  const crowdCues = [];
+  assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['회오리바람'], context.game.enemies[0], cue => crowdCues.push(cue)), 1.28, '회오리바람의 밀집 보너스는 28% 상한을 지켜야 한다');
+  assert.deepStrictEqual(Array.from(crowdCues, cue => cue.text), ['최대 포위 · 피해 28% 증폭'],
+    '포위 상한 달성은 전투 화면에 전달해야 한다');
+
+  const frozenTarget = makeEnemy(134, 4, 6, { ailments:[{ type:'freeze', time:2 }] });
+  const consumeCues = [];
+  assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['빙결 파열창'], frozenTarget, cue => consumeCues.push(cue)), 1.4,
+    '빙결 파열창은 기존 동결 소모 피해를 유지해야 한다');
+  assert.strictEqual(frozenTarget.ailments.length, 0, '소모된 동결은 대상에게 남지 않아야 한다');
+  assert.deepStrictEqual(Array.from(consumeCues, cue => cue.text), ['동결 소모 · 피해 40% 증폭'],
+    '상태이상 소모 효과는 소모한 상태와 피해 증폭량을 전달해야 한다');
 
   context.game.enemies = [target];
   assert.strictEqual(context.applySkillGridControlOnHit(target, context.SKILL_DB['중력 붕괴']), true, '중력 붕괴는 생존한 적을 끌어당겨야 한다');
   assert.deepStrictEqual({ gx: target.gx, gy: target.gy }, { gx: 4, gy: 6 }, '중력 붕괴는 플레이어 방향으로 정확히 1칸 이동시켜야 한다');
+}
+
+// ── 3-1b. 지혜의 도약은 주력 스킬이 아니라 실제 피해 속성별로 선택을 적용해야 한다 ──
+{
+  resetGame();
+  context.game.activeSkill = '기본 공격';
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  const target = makeEnemy(36, 2, 6, {
+    hp: 1000000, maxHp: 1000000, armor: 0, evasion: 0, evasionChance: 0,
+    dr: 0, resF: 0, resC: 0, resL: 0, resChaos: 0,
+  });
+  context.game.enemies = [target];
+  const stats = context.getPlayerStats();
+  Object.assign(stats, {
+    baseDmg: 1000, minDmgRoll: 100, maxDmgRoll: 100, accuracy: 1000000, crit: 0,
+    passiveWisdomElement: 'chaos', addedDamagePctByElement: { chaos: 100 },
+    flatElementHitDamage: {}, finalDamageMultiplier: 1,
+  });
+  context.performPlayerAttack(stats);
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.strictEqual(target.maxHp - target.hp, 1200,
+    '카오스 선택 시 물리 스킬에 붙은 카오스 추가 피해도 20% 증폭되어야 한다');
+
+  target.hp = target.maxHp;
+  stats.addedDamagePctByElement = { fire: 100 };
+  context.performPlayerAttack(stats);
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.strictEqual(target.hp, target.maxHp,
+    '카오스 선택 시 물리 본체와 다른 속성의 추가 피해는 피해를 주지 않아야 한다');
 }
 
 // ── 3-2. 실제 피해도 첫 단계와 후속 단계의 시점에 나뉘어 적용돼야 한다 ──

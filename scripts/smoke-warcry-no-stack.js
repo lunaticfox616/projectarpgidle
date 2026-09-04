@@ -31,6 +31,7 @@ const context = {
     formatNumberKR(n) { return String(n); },
     getConditionGemStatDelta() { return {}; },
     isTalentInstantWarcryActive() { return context.earthshakerActive; },
+    addBattleFx(type, data) { context.lastBattleFx = { type, data }; },
     safeExposeData(map) { Object.assign(context, map); },
     safeExposeGlobals(map) { Object.assign(context, map); }
 };
@@ -67,6 +68,8 @@ let now = Date.now();
 context.game = freshGame(now);
 context.runConditionGemAutoRules({ maxHp: 100 });
 assert.strictEqual(context.game.playerConditionBuffs.length, 1, '첫 시전 후에는 버프가 1개 걸려야 한다');
+assert.strictEqual(context.lastBattleFx.data.text, `생명력 1% 이상 → ${warcryName}`,
+    '조건 젬 발동 피드백은 실제 조건과 발동한 젬을 함께 표시해야 한다');
 const firstExpire = context.game.playerConditionBuffs[0].expiresAt;
 
 // 쿨다운을 무시하고 즉시 재시전 가능하게 만든 뒤(다른 시각), 같은 함성을 다시 시전하면

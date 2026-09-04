@@ -5015,6 +5015,12 @@ function addBattleFx(type, data) {
         battleFx = battleFx.filter(fx => !(fx && fx.type === type
             && fx.patternKind === payload.patternKind && fx.skillName === payload.skillName));
     }
+    if (type === 'statusText' && payload.dedupeKey) {
+        let dedupeWindowMs = Math.max(0, Number(payload.dedupeWindowMs) || 900);
+        let duplicate = [...battleFx].reverse().find(fx => fx && fx.type === type
+            && fx.dedupeKey === payload.dedupeKey && now - (Number(fx.queuedAt) || 0) <= dedupeWindowMs);
+        if (duplicate) return;
+    }
     if (type === 'hit' && mergePendingBattleHitFx(payload, now)) return;
     let start = getBattleFxStart(type, payload, now);
     battleFx.push({
@@ -6557,6 +6563,9 @@ function initBattleAssets() {
     const realmMonsterManifest = typeof REALM_MONSTER_VISUAL_SETS === 'undefined'
         ? {}
         : Object.fromEntries(Object.values(REALM_MONSTER_VISUAL_SETS).map(set => [set.assetKey, set.src]));
+    const wispMonsterManifest = typeof WISP_MONSTER_ASSET_MANIFEST === 'undefined'
+        ? {}
+        : WISP_MONSTER_ASSET_MANIFEST;
     const manifest = {
         hero1Idle: 'assets/playable/hero1/idle.png',
         hero1Walk: 'assets/playable/hero1/walk.png',
@@ -6702,6 +6711,7 @@ function initBattleAssets() {
         woodEnemyPuppet7: 'assets/enemies/wood/wood-puppet/frame_007.png',
         woodEnemyPuppet8: 'assets/enemies/wood/wood-puppet/frame_008.png',
         ...realmMonsterManifest,
+        ...wispMonsterManifest,
         bossTelegraphRing: 'assets/effects/boss-telegraph-ring-v1.png',
         bossTelegraphFan: 'assets/effects/boss-telegraph-fan-v1.png',
         bossTelegraphPulse: 'assets/effects/boss-telegraph-pulse-v1.png',
@@ -6778,7 +6788,7 @@ function initBattleAssets() {
             manifest[key] += '?v=20260902-directional-poses2';
         }
     });
-    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('realmEnemy') || key === 'shrineInteractable'));
+    const optionalManifestKeys = new Set(Object.keys(manifest).filter(key => key.startsWith('hero') || key.startsWith('playerClass') || key.startsWith('bg') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || key.startsWith('realmEnemy') || key.startsWith('wispEnemy') || key === 'shrineInteractable'));
     // Avoid synchronous HEAD probes during boot. Missing optional files are handled by img.onerror,
     // which keeps first-page entry responsive while still waiting for all attempted assets to settle.
     const selectedHeroId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : ((game && PLAYER_CLASS_DEFS[game.selectedClassId]) ? game.selectedClassId : 'archer');
@@ -7433,6 +7443,48 @@ function buildRealmEnemyVariantSets(images) {
         }
         return [set.id, pools];
     }));
+}
+
+function getWispAtlasFrame(cell, motion, directionIndex, frameIndex) {
+    const animated = motion !== 'idle';
+    const tileWidth = animated ? 576 : 256;
+    const tileHeight = animated ? 256 : 64;
+    return {
+        x: (cell % 3) * tileWidth + (animated ? frameIndex : directionIndex) * 64,
+        y: Math.floor(cell / 3) * tileHeight + (animated ? directionIndex * 64 : 0),
+        width: 64,
+        height: 64,
+        anchorX: 32,
+        anchorY: 62,
+        basisHeight: 64
+    };
+}
+
+function buildWispEnemyVariants(images) {
+    if (typeof WISP_MONSTER_VISUALS === 'undefined') return [];
+    const attackImage = images.wispEnemyAttack;
+    const glowImage = images.wispEnemyGlow;
+    if (!attackImage || !glowImage) return [];
+    const directions = ['south', 'north', 'west', 'east'];
+    return WISP_MONSTER_VISUALS.map(wisp => {
+        const directional = Object.fromEntries(directions.map((direction, directionIndex) => {
+            const frames = Array.from({ length: 9 }, (_, frameIndex) => ({
+                image: glowImage,
+                frame: getWispAtlasFrame(wisp.cell, 'glow', directionIndex, frameIndex)
+            }));
+            const attackFrames = Array.from({ length: 9 }, (_, frameIndex) => ({
+                image: attackImage,
+                frame: getWispAtlasFrame(wisp.cell, 'attack', directionIndex, frameIndex)
+            }));
+            return [direction, { image: glowImage, frame: frames[0].frame, frames, attackFrames }];
+        }));
+        return {
+            id: wisp.id, skinId: wisp.id, label: wisp.name,
+            image: glowImage, frame: directional.south.frame,
+            frames: directional.south.frames, attackFrames: directional.south.attackFrames,
+            directions: directional
+        };
+    });
 }
 
 function buildBattleAssetAtlas() {
@@ -8309,6 +8361,7 @@ function buildBattleAssetAtlas() {
             [0, 0], [2, 0], [3, 0], [0, 1], [2, 1], [3, 1], [0, 2], [1, 2], [2, 2], [3, 2], [0, 3], [1, 3], [2, 3], [3, 3]
         ]))
         .concat(buildWoodPuppetSpecies());
+    const wispEnemyVariants = buildWispEnemyVariants(battleAssets.images);
     function buildDetectedEnemyPools(image) {
         let pools = { normal: [], elite: [], boss: [] };
         if (!image) return pools;
@@ -8336,13 +8389,13 @@ function buildBattleAssetAtlas() {
     }
     let enemyVariantPools = {
         // 일반과 정예는 같은 목재 생물군을 사용하고, 정예 여부는 렌더 외곽선과 크기로 구분한다.
-        normal: woodEnemyVariants.length ? woodEnemyVariants.slice() : [
+        normal: woodEnemyVariants.length ? woodEnemyVariants.concat(wispEnemyVariants) : [
             { image: enemySpriteImage, frame: enemyFrames.slime },
             { image: enemySpriteImage, frame: enemyFrames.bandit },
             { image: enemySpriteImage, frame: enemyFrames.shadow },
             { image: enemySpriteImage, frame: enemyFrames.wraith }
         ].filter(entry => hasUsableFrame(entry.frame)),
-        elite: woodEnemyVariants.length ? woodEnemyVariants.slice() : [
+        elite: woodEnemyVariants.length ? woodEnemyVariants.concat(wispEnemyVariants) : [
             { image: enemySpriteImage, frame: enemyFrames.knight },
             { image: enemySpriteImage, frame: enemyFrames.skeleton }
         ].filter(entry => hasUsableFrame(entry.frame)),
@@ -8379,6 +8432,7 @@ function buildBattleAssetAtlas() {
             bossImages: bossImages,
             skinVariants: {
                 ...Object.fromEntries(['woodSlime', 'rootSpider', 'sapLeech', 'woodPuppet'].map(family => [family, woodEnemyVariants.find(entry => entry.family === family)]).filter(entry => entry[1])),
+                ...Object.fromEntries(wispEnemyVariants.map(entry => [entry.skinId, entry])),
                 ...realmEnemySkinVariants
             },
             frames: {
