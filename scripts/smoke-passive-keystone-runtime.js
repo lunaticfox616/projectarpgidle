@@ -109,6 +109,25 @@ for (const [id, field, amount] of [
     }
 }
 
+run('game = mergeDefaults({}); game.passivePoints = 10000;');
+assert.strictEqual(run("activatePassivePath('nkf64engb6m').activated"), true,
+    '시작 지점에서 지혜의 도약까지 유효한 투자 경로가 있어야 합니다.');
+run("setPassiveKeystoneChoice('wisdom_leap_element', 'fire');");
+assert.strictEqual(run("activatePassivePath('nwn5msikamo').activated"), true,
+    '지혜의 도약 뒤 공허 노드를 투자할 수 있어야 합니다.');
+assert.strictEqual(run('ensurePassiveSpecializationState().keystoneChoices.wisdom_leap_element'), 'chaos',
+    '공허 노드를 투자하면 지혜의 도약 선택도 카오스로 바뀌어야 합니다.');
+const migratedVoidChoice = run(`normalizePassiveSpecializationState(
+    { keystoneChoices: { wisdom_leap_element: 'fire' } },
+    { migrateWisdomBranchChoice: true, passiveIds: ['nkf64engb6m', 'nwn5msikamo'] })`);
+assert.strictEqual(migratedVoidChoice.keystoneChoices.wisdom_leap_element, 'chaos',
+    '기존 세이브의 공허 투자도 남아 있던 화염 기본값을 카오스로 보정해야 합니다.');
+run("setPassiveKeystoneChoice('wisdom_leap_element', 'fire'); game.saveVersion = 17;");
+context.__legacyWisdomSave = JSON.parse(run('JSON.stringify(game)'));
+const restoredWisdomSave = run('mergeDefaults(__legacyWisdomSave)');
+assert.strictEqual(restoredWisdomSave.passiveSpecialization.keystoneChoices.wisdom_leap_element, 'chaos',
+    '기존 세이브를 불러오는 실제 경로에서도 공허 선택을 복원해야 합니다.');
+assert.strictEqual(restoredWisdomSave.saveVersion, 18, '보정한 세이브는 최신 버전으로 기록해야 합니다.');
 setPassives(['지혜의 도약']);
 for (const [choice, element] of [['fire', 'fire'], ['cold', 'cold'], ['lightning', 'light'], ['chaos', 'chaos']]) {
     context.__wisdomChoice = choice;

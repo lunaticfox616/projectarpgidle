@@ -59,12 +59,14 @@ async function main() {
 
     run(`
         const refundRoot = getPassiveTreeRootNodeId();
-        PASSIVE_TREE.nodes.refund_bridge_test = { id:'refund_bridge_test', kind:'path', effects:[] };
-        PASSIVE_TREE.nodes.refund_leaf_test = { id:'refund_leaf_test', kind:'path', effects:[] };
+        PASSIVE_TREE.nodes.refund_bridge_test = { id:'refund_bridge_test', kind:'path', title:'반환 경로', effects:[] };
+        PASSIVE_TREE.nodes.refund_leaf_test = { id:'refund_leaf_test', kind:'path', title:'생명력 재생', effects:[] };
         PASSIVE_TREE.edges.push(
             { from:refundRoot, to:'refund_bridge_test' },
             { from:'refund_bridge_test', to:'refund_leaf_test' }
         );
+        capturedPassiveRefundLogs = [];
+        addLog = message => capturedPassiveRefundLogs.push(message);
         game.passives = ['refund_bridge_test', 'refund_leaf_test'];
         game.passivePoints = 0;
         game.currencies.blightSpore = 2;
@@ -82,6 +84,10 @@ async function main() {
         '끝 패시브는 정상적으로 반환되어야 합니다.');
     assert.strictEqual(run('game.passivePoints'), 1);
     assert.strictEqual(run('game.currencies.blightSpore'), 1);
+    assert.ok(run("capturedPassiveRefundLogs.some(message => message.includes('패시브 노드 반환: 생명력 재생'))"),
+        '반환 로그에는 내부 ID가 아니라 패시브 표시 이름이 나와야 합니다.');
+    assert.ok(run("capturedPassiveRefundLogs.every(message => !message.includes('refund_leaf_test'))"),
+        '반환 로그에 내부 패시브 ID를 노출하면 안 됩니다.');
 
     run(`
         game.currencies.blightSpore = 20;

@@ -14294,8 +14294,11 @@ function mergeDefaults(save) {
             && PASSIVE_TREE.nodes[nodeId]
             && PASSIVE_TREE.nodes[nodeId].kind === 'attribute'
             && (merged.passives || []).includes(nodeId)));
+    const passiveSpecializationOptions = Number(save.saveVersion || 0) < 18
+        ? { migrateWisdomBranchChoice: true, passiveIds: merged.passives }
+        : undefined;
     merged.passiveSpecialization = typeof normalizePassiveSpecializationState === 'function'
-        ? normalizePassiveSpecializationState(merged.passiveSpecialization)
+        ? normalizePassiveSpecializationState(merged.passiveSpecialization, passiveSpecializationOptions)
         : JSON.parse(JSON.stringify(defaultGame.passiveSpecialization));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
         // Version 22 replaces the generated tree with the authored six-class layout.
@@ -17611,7 +17614,8 @@ function canRefundPassiveNode(nodeId) {
 
 function refundPassiveNode(id) { if (!assertBuildEditable()) return;
     game.passives = Array.isArray(game.passives) ? game.passives : [];
-    if (!game.passives.includes(id) || (PASSIVE_TREE.nodes[id] && PASSIVE_TREE.nodes[id].kind === 'start')) return;
+    const node = PASSIVE_TREE.nodes[id];
+    if (!game.passives.includes(id) || (node && node.kind === 'start')) return;
     if ((game.currencies.blightSpore || 0) < 1) return addLog('패시브 노드 반환에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
     if (!canRefundPassiveNode(id)) return addLog('연결 유지에 필요한 노드는 반환할 수 없습니다.', 'attack-monster');
     game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - 1);
@@ -17619,7 +17623,7 @@ function refundPassiveNode(id) { if (!assertBuildEditable()) return;
     if (typeof clearPassiveAttributeChoice === 'function') clearPassiveAttributeChoice(id);
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + 1;
     calculateReachableNodes();
-    addLog(`♻️ 패시브 노드 반환: ${id} (마름병 포자 1개 소모)`, 'season-up');
+    addLog(`패시브 노드 반환: ${escapeHTML(getPassiveNodeDisplayName(node))} (마름병 포자 1개 소모)`, 'season-up');
     updateStaticUI();
 }
 

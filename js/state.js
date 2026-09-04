@@ -2294,7 +2294,7 @@ function getPaidPassiveNodeIds(nodeIds) {
 }
 
 const defaultGame = {
-    saveVersion: 17,
+    saveVersion: 18,
     loopChallenge: null,
     loopChallengeHistory: [],
     level: 1,
