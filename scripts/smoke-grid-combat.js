@@ -1503,6 +1503,25 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
   assert.strictEqual(target.hp, target.maxHp,
     '카오스 선택 시 물리 본체와 다른 속성의 추가 피해는 피해를 주지 않아야 한다');
+
+  target.hp = target.maxHp;
+  context.game.passives = ['nkf64engb6m', 'nwn5msikamo'];
+  context.game.passiveSpecialization = { keystoneChoices: { wisdom_leap_element: 'chaos' } };
+  context.game.activeSkill = '공허 절삭광';
+  context.game.skills = Array.from(new Set([...(context.game.skills || []), '공허 절삭광']));
+  context.game.gemData['공허 절삭광'] = { level: 20, exp: 0, quality: 0 };
+  const chaosSkillStats = context.getPlayerStats();
+  Object.assign(chaosSkillStats, {
+    minDmgRoll: 100, maxDmgRoll: 100, accuracy: 1000000, crit: 0,
+  });
+  assert.strictEqual(chaosSkillStats.passiveWisdomElement, 'chaos',
+    '공허 선택은 저장 상태에서 실제 전투 능력치까지 카오스로 전달되어야 한다');
+  assert.ok(chaosSkillStats.finalDamageMultiplier > 0,
+    '공허 선택이 일반 최종 피해 배율 자체를 0으로 만들면 안 된다');
+  context.performPlayerAttack(chaosSkillStats);
+  vm.runInContext('pendingSkillStageHits.forEach(row => { row.at = 0; }); processPendingSkillStageHits();', context);
+  assert.ok(target.hp < target.maxHp,
+    '지혜의 도약에서 공허를 선택한 후 카오스 주력 스킬이 0 피해를 주면 안 된다');
 }
 
 // ── 3-2. 실제 피해도 첫 단계와 후속 단계의 시점에 나뉘어 적용돼야 한다 ──

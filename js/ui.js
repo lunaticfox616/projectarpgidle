@@ -14294,8 +14294,11 @@ function mergeDefaults(save) {
             && PASSIVE_TREE.nodes[nodeId]
             && PASSIVE_TREE.nodes[nodeId].kind === 'attribute'
             && (merged.passives || []).includes(nodeId)));
+    const passiveSpecializationOptions = Number(save.saveVersion || 0) < 18
+        ? { migrateWisdomBranchChoice: true, passiveIds: merged.passives }
+        : undefined;
     merged.passiveSpecialization = typeof normalizePassiveSpecializationState === 'function'
-        ? normalizePassiveSpecializationState(merged.passiveSpecialization)
+        ? normalizePassiveSpecializationState(merged.passiveSpecialization, passiveSpecializationOptions)
         : JSON.parse(JSON.stringify(defaultGame.passiveSpecialization));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
         // Version 22 replaces the generated tree with the authored six-class layout.

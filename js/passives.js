@@ -2019,6 +2019,12 @@ const PASSIVE_REVELATION_LABELS = Object.freeze({
     combat: '전투의 계시', guard: '수호의 계시', life: '생명의 성약', fanaticism: '광신'
 });
 const PASSIVE_WISDOM_ELEMENTS = Object.freeze(['fire', 'cold', 'lightning', 'chaos']);
+const PASSIVE_WISDOM_ELEMENT_BY_NODE_ID = Object.freeze({
+    nhenzv8gp4i: 'fire',
+    nlwk06igprm: 'cold',
+    ndru1xggqhg: 'lightning',
+    nwn5msikamo: 'chaos'
+});
 const PASSIVE_AILMENT_BY_ELEMENT = Object.freeze({ phys: 'bleed', fire: 'ignite', cold: 'chill', light: 'shock', chaos: 'poison' });
 const PASSIVE_KARMA_PER_TARGET_CAP = 500;
 const PASSIVE_KEYSTONE_NODE_ID_BY_TITLE = Object.freeze({
@@ -2062,11 +2068,28 @@ const PASSIVE_CYCLE_BUFF_EFFECTS = Object.freeze({
     bleed: [{ stat: 'physPctDmg', perCycle: 2 }, { stat: 'armorPct', perCycle: 1 }]
 });
 
-function normalizePassiveSpecializationState(value) {
+function getPassiveWisdomElementFromNodeIds(nodeIds) {
+    const ids = Array.isArray(nodeIds) ? nodeIds : [];
+    for (let index = ids.length - 1; index >= 0; index -= 1) {
+        const element = PASSIVE_WISDOM_ELEMENT_BY_NODE_ID[String(ids[index])];
+        if (element) return element;
+    }
+    return '';
+}
+
+/**
+ * @param {{revelation?: string, keystoneChoices?: Record<string, string>, cycleBuffs?: Array<Record<string, number|string>>, fanaticism?: Record<string, number|string>, karma?: Record<string, unknown>}|null|undefined} value
+ * @param {{migrateWisdomBranchChoice?: boolean, passiveIds?: string[]}|undefined} options
+ * @returns {{revelation: string, keystoneChoices: Record<string, string>, cycleBuffs: Array<Record<string, number|string>>, fanaticism: {skillName: string, stacks: number}, karma: {byEnemy: Record<string, number>, buff: Record<string, number|string>|null}}}
+ */
+function normalizePassiveSpecializationState(value, options) {
     let source = value && typeof value === 'object' ? value : {};
     let revelation = PASSIVE_REVELATION_IDS.includes(source.revelation) ? source.revelation : 'combat';
     let choices = source.keystoneChoices && typeof source.keystoneChoices === 'object' ? source.keystoneChoices : {};
     let wisdom = PASSIVE_WISDOM_ELEMENTS.includes(choices.wisdom_leap_element) ? choices.wisdom_leap_element : 'fire';
+    const migrateBranch = options && options.migrateWisdomBranchChoice;
+    const branchWisdom = migrateBranch ? getPassiveWisdomElementFromNodeIds(options.passiveIds) : '';
+    if (branchWisdom) wisdom = branchWisdom;
     let fanaticism = source.fanaticism && typeof source.fanaticism === 'object' ? source.fanaticism : {};
     let karmaSource = source.karma && typeof source.karma === 'object' ? source.karma : {};
     let karmaByEnemy = karmaSource.byEnemy && typeof karmaSource.byEnemy === 'object' ? karmaSource.byEnemy : {};
@@ -4151,6 +4174,8 @@ function activatePassivePath(targetNodeId, options) {
         }
         revealAroundNode(nodeId, { forcePulse: !options || options.forcePulseNodeId === nodeId });
     });
+    const wisdomElement = getPassiveWisdomElementFromNodeIds(path);
+    if (wisdomElement) ensurePassiveSpecializationState().keystoneChoices.wisdom_leap_element = wisdomElement;
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) - path.length);
     return { activated: true, cost: path.length, path: path.slice() };
 }
