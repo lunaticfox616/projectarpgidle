@@ -8702,7 +8702,7 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         drawPixelShadow(ctx, x, y + 2, localHeroTuning.shadowWidth * heroScaleBoost, localHeroTuning.shadowHeight * heroScaleBoost, localHeroTuning.shadowAlpha);
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
-            smoothing: 'high',
+            smoothing: 'pixel',
             outlineColor: '#ffffff',
             outlineAlpha: 0.86,
             outlineThickness: 1
