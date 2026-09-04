@@ -8700,12 +8700,11 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         let scaledMinHeight = localHeroTuning.minHeight * Math.min(1, heroScaleBoost);
         normalizedHeroSize = clampNumber(normalizedHeroSize, scaledMinHeight, localHeroTuning.maxHeight);
         drawPixelShadow(ctx, x, y + 2, localHeroTuning.shadowWidth * heroScaleBoost, localHeroTuning.shadowHeight * heroScaleBoost, localHeroTuning.shadowAlpha);
+        // Class sheets already contain pixel outlines. A second drop-shadow outline breaks thin hair and face gaps.
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
             smoothing: 'pixel',
-            outlineColor: '#ffffff',
-            outlineAlpha: 0.86,
-            outlineThickness: 1
+            devicePixelSnap: true
         };
         drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + walkMotion.x, y + walkMotion.y + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
