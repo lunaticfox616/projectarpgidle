@@ -7710,6 +7710,192 @@ function getPlayerStatComparisonLines(before, after) {
 
 let itemTooltipHideTimer = null;
 
+const itemTooltipComparisonScheduler = (() => {
+const delayMs = 100;
+const cacheLimit = 80;
+let activeJob = null;
+let cache = new Map();
+let pointer = { x: 0, y: 0 };
+
+function cancel() {
+    let job = activeJob;
+    activeJob = null;
+    if (!job) return;
+    if (job.delayHandle !== null) clearTimeout(job.delayHandle);
+    if (job.workHandle === null) return;
+    if (job.workKind === 'idle' && typeof cancelIdleCallback === 'function') cancelIdleCallback(job.workHandle);
+    else clearTimeout(job.workHandle);
+}
+
+function setPointer(event) {
+    pointer = {
+        x: Number.isFinite(event && event.clientX) ? event.clientX : 0,
+        y: Number.isFinite(event && event.clientY) ? event.clientY : 0
+    };
+}
+
+function getComparisonSlots(item) {
+    let slots = getEquipCandidateSlots(item).filter(slotKey => !!game.equipment[slotKey]);
+    if (slots.length === 0 && item.slot !== '반지') slots = getEquipCandidateSlots(item);
+    return slots;
+}
+
+function getCacheKey(item, before, slots) {
+    return JSON.stringify([before, game.equipment || {}, item, slots], (key, value) => {
+        return key === 'breakdowns' ? undefined : value;
+    });
+}
+
+function readCache(cacheKey) {
+    if (!cache.has(cacheKey)) return null;
+    let result = cache.get(cacheKey);
+    cache.delete(cacheKey);
+    cache.set(cacheKey, result);
+    return result;
+}
+
+function storeCache(cacheKey, result) {
+    cache.set(cacheKey, result);
+    while (cache.size > cacheLimit) {
+        cache.delete(cache.keys().next().value);
+    }
+}
+
+function isActive(job) {
+    if (activeJob !== job || activeItemTooltipToken !== job.tooltipToken) return false;
+    return !(typeof equipmentInventoryInteraction !== 'undefined'
+        && equipmentInventoryInteraction && typeof equipmentInventoryInteraction.isCarrying === 'function'
+        && equipmentInventoryInteraction.isCarrying());
+}
+
+function keepActive(job) {
+    if (isActive(job)) return true;
+    if (activeJob === job) cancel();
+    return false;
+}
+
+function buildSlotPanel(item, targetSlot, before) {
+    let equipment = game.equipment;
+    let hadSlot = Object.prototype.hasOwnProperty.call(equipment, targetSlot);
+    let backup = equipment[targetSlot];
+    let twinBackup = Array.isArray(game.cosmosTwinKeystones)
+        ? game.cosmosTwinKeystones.slice() : game.cosmosTwinKeystones;
+    let after = before;
+    try {
+        equipment[targetSlot] = item;
+        after = getUiPlayerStats();
+    } finally {
+        if (hadSlot) equipment[targetSlot] = backup;
+        else delete equipment[targetSlot];
+        game.cosmosTwinKeystones = twinBackup;
+    }
+    let changedLines = getPlayerStatComparisonLines(before, after);
+    if ((backup && backup.uniqueEffect) !== item.uniqueEffect) {
+        let hint = item.uniqueEffect ? getUniqueEffectApplicationHint(item, true, targetSlot) : '';
+        if (item.uniqueEffect) changedLines.push(`<div class="tooltip-line item-compare-line" style="color:#d8b5ff;">◆ 획득: ${escapeHTML(item.uniqueEffect)}${hint ? `<small style="display:block;color:#a995bf;">${escapeHTML(hint)}</small>` : ''}</div>`);
+        if (backup && backup.uniqueEffect) changedLines.push(`<div class="tooltip-line item-compare-line" style="color:#c98f9f;">◇ 상실: ${escapeHTML(backup.uniqueEffect)}</div>`);
+    }
+    let label = getDualSlotDisplayLabel(targetSlot);
+    if (changedLines.length > 0) return `<div class="item-compare-panel"><div class="tooltip-line item-compare-title">${label} 기준 착용 시 변화</div>${changedLines.join('')}</div>`;
+    if (!isDualSlotItem(item.slot)) return '';
+    return `<div class="item-compare-panel item-compare-empty"><div class="tooltip-line item-compare-title">${label}</div><div class="tooltip-line">교체 시 변화 없음</div></div>`;
+}
+
+function apply(job, result) {
+    if (!keepActive(job)) return;
+    let tt = document.getElementById('item-tooltip-box');
+    if (!tt) return;
+    tt.classList.toggle('item-compare-tooltip', result.hasSections);
+    tt.classList.toggle('dual-compare-tooltip', result.hasSections && isDualSlotItem(job.item.slot));
+    tt.innerHTML = result.hasSections
+        ? `<div class="item-tooltip-main">${job.mainHtml}</div>${result.markup}` : job.mainHtml;
+    invalidateTooltipSize(tt);
+    positionTooltipElement(tt, pointer.x, pointer.y);
+}
+
+function finish(job) {
+    let sections = job.sections.filter(Boolean);
+    let layoutClass = sections.length > 1 ? 'item-compare-grid' : 'item-compare-single';
+    let result = {
+        hasSections: sections.length > 0,
+        markup: sections.length > 0 ? `<div class="${layoutClass}">${sections.join('')}</div>` : ''
+    };
+    storeCache(job.cacheKey, result);
+    apply(job, result);
+    if (activeJob === job) activeJob = null;
+}
+
+function fail(job, error) {
+    console.error('equipment tooltip comparison failed:', error);
+    let result = {
+        hasSections: true,
+        markup: '<div class="item-compare-single"><div class="item-compare-panel item-compare-empty"><div class="tooltip-line">장비 비교를 표시하지 못했습니다.</div></div></div>'
+    };
+    apply(job, result);
+    if (activeJob === job) activeJob = null;
+}
+
+function queueWork(job) {
+    if (!keepActive(job)) return;
+    let run = () => {
+        job.workHandle = null;
+        if (!keepActive(job)) return;
+        let slot = job.slots[job.index++];
+        try {
+            job.sections.push(buildSlotPanel(job.item, slot, job.before));
+        } catch (error) {
+            fail(job, error);
+            return;
+        }
+        if (job.index >= job.slots.length) finish(job);
+        else queueWork(job);
+    };
+    if (typeof requestIdleCallback === 'function') {
+        job.workKind = 'idle';
+        job.workHandle = requestIdleCallback(run, { timeout: 240 });
+    } else {
+        job.workKind = 'timeout';
+        job.workHandle = setTimeout(run, 0);
+    }
+}
+
+function begin(job) {
+    job.delayHandle = null;
+    if (!keepActive(job)) return;
+    job.before = cachedTooltipStats || getUiPlayerStats();
+    job.cacheKey = getCacheKey(job.item, job.before, job.slots);
+    let cached = readCache(job.cacheKey);
+    if (cached) {
+        apply(job, cached);
+        activeJob = null;
+        return;
+    }
+    queueWork(job);
+}
+
+function schedule(item, tooltipToken, mainHtml) {
+    let slots = getComparisonSlots(item);
+    if (slots.length === 0) return;
+    let job = {
+        item, tooltipToken, mainHtml, slots, sections: [], index: 0,
+        before: null, cacheKey: '', delayHandle: null, workHandle: null, workKind: ''
+    };
+    activeJob = job;
+    if (cachedTooltipStats) {
+        job.cacheKey = getCacheKey(item, cachedTooltipStats, slots);
+        let cached = readCache(job.cacheKey);
+        if (cached) {
+            apply(job, cached);
+            activeJob = null;
+            return;
+        }
+    }
+    job.delayHandle = setTimeout(() => begin(job), delayMs);
+}
+
+return Object.freeze({ cancel, schedule, setPointer });
+})();
+
 function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
     let item = itemOverride || (isEquip ? game.equipment[idx] : game.inventory[idx]);
     let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
@@ -7720,10 +7906,12 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
     }
     let nextTooltipToken = tokenOverride || (isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`);
     let tt = document.getElementById('item-tooltip-box');
+    itemTooltipComparisonScheduler.setPointer(event);
     if (activeItemTooltipToken === nextTooltipToken && tt.style.display === 'block' && tt.innerHTML) {
         positionTooltipElement(tt, event.clientX, event.clientY);
         return;
     }
+    itemTooltipComparisonScheduler.cancel();
     activeItemTooltipToken = nextTooltipToken;
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
@@ -7865,51 +8053,14 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
         }
     }
 
-    let itemTooltipMainHtml = html;
-    let hasItemCompareSections = false;
-    if (!isEquip) {
-        let compareSlots = getEquipCandidateSlots(item).filter(slotKey => !!game.equipment[slotKey]);
-        if (compareSlots.length === 0 && item.slot !== '반지') compareSlots = getEquipCandidateSlots(item);
-        let compareSections = [];
-        let before = cachedTooltipStats || getUiPlayerStats();
-        compareSlots.forEach((targetSlot, idx) => {
-            let backup = game.equipment[targetSlot];
-            let after = before;
-            try {
-                game.equipment[targetSlot] = item;
-                after = getUiPlayerStats();
-            } finally {
-                game.equipment[targetSlot] = backup;
-            }
-            let changedLines = getPlayerStatComparisonLines(before, after);
-            if ((backup && backup.uniqueEffect) !== item.uniqueEffect) {
-                if (item.uniqueEffect) {
-                    let hint = getUniqueEffectApplicationHint(item, true, targetSlot);
-                    changedLines.push(`<div class="tooltip-line item-compare-line" style="color:#d8b5ff;">◆ 획득: ${escapeHTML(item.uniqueEffect)}${hint ? `<small style="display:block;color:#a995bf;">${escapeHTML(hint)}</small>` : ''}</div>`);
-                }
-                if (backup && backup.uniqueEffect) changedLines.push(`<div class="tooltip-line item-compare-line" style="color:#c98f9f;">◇ 상실: ${escapeHTML(backup.uniqueEffect)}</div>`);
-            }
-            let label = getDualSlotDisplayLabel(targetSlot);
-            if (changedLines.length > 0) {
-                compareSections.push(`<div class="item-compare-panel"><div class="tooltip-line item-compare-title">${label} 기준 착용 시 변화</div>${changedLines.join('')}</div>`);
-            } else if (isDualSlotItem(item.slot)) {
-                compareSections.push(`<div class="item-compare-panel item-compare-empty"><div class="tooltip-line item-compare-title">${label}</div><div class="tooltip-line">교체 시 변화 없음</div></div>`);
-            }
-        });
-        if (compareSections.length > 0) {
-            hasItemCompareSections = true;
-            let layoutClass = compareSections.length > 1 ? 'item-compare-grid' : 'item-compare-single';
-            html = `<div class="item-tooltip-main">${itemTooltipMainHtml}</div><div class="${layoutClass}">${compareSections.join('')}</div>`;
-        }
-    }
-
-    tt.classList.toggle('item-compare-tooltip', hasItemCompareSections);
-    tt.classList.toggle('dual-compare-tooltip', !isEquip && isDualSlotItem(item.slot));
+    tt.classList.toggle('item-compare-tooltip', false);
+    tt.classList.toggle('dual-compare-tooltip', false);
     tt.innerHTML = html;
     invalidateTooltipSize(tt);
     tt.style.display = 'block';
     positionTooltipElement(tt, event.clientX, event.clientY);
     setActiveTooltip('item-tooltip-box');
+    if (!isEquip) itemTooltipComparisonScheduler.schedule(item, nextTooltipToken, html);
 }
 
 function showCombatLogItemTooltip(event, token) {
@@ -7934,6 +8085,8 @@ function hideCombatLogItemTooltip(event) {
 }
 
 function dismissItemTooltipNow() {
+    itemTooltipComparisonScheduler.cancel();
+    itemTooltipComparisonScheduler.setPointer(null);
     activeItemTooltipToken = null;
     clearActiveTooltip('item-tooltip-box');
     document.getElementById('item-tooltip-box').style.display = 'none';
