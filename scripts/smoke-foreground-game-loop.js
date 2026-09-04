@@ -57,7 +57,7 @@ assert.strictEqual(vm.runInContext('game.settings.pauseGameOnOverlay', runtime),
 assert.strictEqual(elements['chk-pause-overlay'].checked, false, 'the tutorial toggle must stay synchronized with settings');
 assert.strictEqual(elements['tutorial-pause-overlay-status'].innerText, '꺼짐', 'the tutorial toggle must show its disabled state');
 assert.strictEqual(importantSaveCount, 1, 'changing the tutorial pause choice must queue a save');
-vm.runInContext('gameplayStarted = true', runtime);
+vm.runInContext('gameplayStarted = true; game.heroSelectionInitialized = true', runtime);
 assert.strictEqual(vm.runInContext('isForegroundGameplayPausedForBackground()', runtime), false,
   'an active tutorial notice must not pause gameplay when the overlay-pause setting is disabled');
 elements['tutorial-pause-overlay-toggle'].checked = true;

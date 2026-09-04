@@ -82,6 +82,7 @@ async function flushTimers() {
   assert(nodes['background-combat-result-overlay'].innerHTML.includes('공간 부족 자동해체: <strong>7개</strong>'), 'background result must summarize overflow salvage in one result panel');
 
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+  context.game.heroSelectionInitialized = true;
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const shortResult = await vm.runInContext('startBackgroundCombatReturn(1000 + 59999)', context);
   assert.strictEqual(shortResult, false, 'short return should not run background combat');
@@ -91,6 +92,7 @@ async function flushTimers() {
   context.rendered = [];
 
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+  context.game.heroSelectionInitialized = true;
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const updatesBeforeReturn = context.updated || 0;
   const promise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
@@ -107,6 +109,7 @@ async function flushTimers() {
   assert.strictEqual(context.game.exp, onceExp, 'duplicate return should not grant rewards');
 
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+  context.game.heroSelectionInitialized = true;
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const ultraPromise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
   vm.runInContext('requestFasterBackgroundCombat(); requestFasterBackgroundCombat();', context);
@@ -121,6 +124,7 @@ async function flushTimers() {
 
   context.killAfter = 3;
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+  context.game.heroSelectionInitialized = true;
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const deathPromise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
   await flushTimers();
@@ -137,6 +141,7 @@ async function flushTimers() {
   });
   context.observedNow = [];
   context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+  context.game.heroSelectionInitialized = true;
   vm.runInContext('recordBackgroundCombatEntry(1000)', context);
   const dayReturn = vm.runInContext('startBackgroundCombatReturn(1000 + 24 * 60 * 60 * 1000)', context);
   await flushTimers();

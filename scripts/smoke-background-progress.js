@@ -108,23 +108,23 @@ const killAndPartialProjection = vm.runInContext(`(function () {
 assert.strictEqual(killAndPartialProjection.state.loopKills, 4, 'completed kills and current partial progress should both contribute without overlap');
 assert.strictEqual(killAndPartialProjection.metrics.kills, 4, 'combined integer and partial kills should remain visible in the result summary');
 
-context.game = { saveMeta: { lastModifiedAt: 1000 }, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+context.game = { saveMeta: { lastModifiedAt: 1000 }, heroSelectionInitialized: true, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
 assert.strictEqual(vm.runInContext('recordOfflineCombatEntry(11 * 60 * 1000)', context), true, 'saved timestamp should stage offline progress after a full disconnect');
 assert.strictEqual(vm.runInContext('backgroundCombatRuntime.hiddenAtMs', context), 1000);
 assert.strictEqual(vm.runInContext('recordOfflineCombatEntry(12 * 60 * 1000)', context), false, 'offline progress should only be staged once per session');
 
-context.game = { currentZoneId: 1, playerHp: 100, combatHalted: true, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+context.game = { heroSelectionInitialized: true, currentZoneId: 1, playerHp: 100, combatHalted: true, enemies: [], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
 vm.runInContext('recordBackgroundCombatEntry(1000)', context);
 assert.strictEqual(vm.runInContext('handleBackgroundCombatReturn(11 * 60 * 1000)', context), false);
 assert.strictEqual(context.game.exp, 0);
 
-context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: { chaos: 0 }, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+context.game = { heroSelectionInitialized: true, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: { chaos: 0 }, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
 vm.runInContext('recordBackgroundCombatEntry(1000)', context);
 context.game.currentZoneId = 2;
 assert.strictEqual(vm.runInContext('handleBackgroundCombatReturn(11 * 60 * 1000)', context), false);
 assert.strictEqual(context.game.exp, 0);
 
-context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: { chaos: 0 }, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+context.game = { heroSelectionInitialized: true, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: { chaos: 0 }, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
 vm.runInContext('recordBackgroundCombatEntry(1000)', context);
 assert.strictEqual(vm.runInContext('handleBackgroundCombatReturn(11 * 60 * 1000)', context), true);
 assert.deepStrictEqual(context.observedNow.slice(0, 3), [1000, 1100, 1200], 'background replay should advance Date.now per combat step');
@@ -150,10 +150,10 @@ assert.strictEqual(overflowMetricResult.game.backgroundOverflowSalvageCount, und
 const overflowSummary = vm.runInContext(`getBackgroundRewardSummary({ currencies: {}, inventory: [] }, { currencies: {}, inventory: [] }, null, 3)`, context);
 assert.strictEqual(overflowSummary.overflowSalvaged, 3, 'background result summary must retain the overflow salvage total');
 
-context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0, pendingLoopReady: true };
+context.game = { heroSelectionInitialized: true, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0, pendingLoopReady: true };
 vm.runInContext('recordBackgroundCombatEntry(1000)', context);
 assert.strictEqual(vm.runInContext('handleBackgroundCombatReturn(11 * 60 * 1000)', context), false);
-context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
+context.game = { heroSelectionInitialized: true, currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
 vm.runInContext('gameplayStarted = false; recordBackgroundCombatEntry(1000)', context);
 assert.strictEqual(vm.runInContext('backgroundCombatRuntime.snapshot', context), null, 'startup/login gate should not record a background combat snapshot');
 console.log('smoke-background-progress passed');

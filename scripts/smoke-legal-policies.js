@@ -5,10 +5,24 @@ const fs = require('fs');
 const vm = require('vm');
 
 function extractFunction(source, name) {
+    const asyncMarker = `async function ${name}(`;
     const marker = `function ${name}(`;
-    const start = source.indexOf(marker);
+    let start = source.indexOf(asyncMarker);
+    if (start < 0) start = source.indexOf(marker);
     assert(start >= 0, `${name} must exist`);
-    const bodyStart = source.indexOf('{', start);
+    const parameterStart = source.indexOf('(', start);
+    let parameterDepth = 0;
+    let bodyStart = -1;
+    for (let index = parameterStart; index < source.length; index += 1) {
+        if (source[index] === '(') parameterDepth += 1;
+        if (source[index] !== ')') continue;
+        parameterDepth -= 1;
+        if (parameterDepth === 0) {
+            bodyStart = source.indexOf('{', index);
+            break;
+        }
+    }
+    assert(bodyStart >= 0, `${name} body must exist`);
     let depth = 0;
     for (let index = bodyStart; index < source.length; index += 1) {
         if (source[index] === '{') depth += 1;
@@ -29,7 +43,8 @@ const vfxServer = fs.readFileSync('scripts/skill-vfx-editor-server.js', 'utf8');
 
 assert(html.includes('id="startup-signup-consent" hidden')
     && html.includes('id="startup-terms-consent"')
-    && html.includes('id="startup-privacy-consent"'),
+    && html.includes('id="startup-privacy-consent"')
+    && html.includes('id="btn-startup-resend-confirmation"'),
     'startup account creation must keep separate required policy consents hidden until signup is selected');
 assert(html.includes('class="startup-policy-scroll"')
     && html.includes('data-legal-policy="terms"')
@@ -100,4 +115,74 @@ const oauthSource = ui.slice(oauthStart, oauthEnd);
 assert(oauthStart >= 0 && oauthEnd > oauthStart && !oauthSource.includes('requireLegalPolicyConsent'),
     'existing social login must not expose or require the email signup consent step');
 
-console.log('smoke-legal-policies passed');
+async function verifyCloudSignupFlow() {
+    const calls = { signup: [], resend: [], messages: [], loading: [], notices: [], passwordClears: 0, uiUpdates: 0 };
+    let resendError = null;
+    const authContext = {
+        window: { location: { origin: 'https://lunaticfox616.github.io', pathname: '/projectarpgidle/' } },
+        cloudState: { busy: false },
+        getCloudConfig: () => ({ enabled: true }),
+        collectCloudCredentials: () => ({ email: 'tester@example.com', password: 'secure-password' }),
+        getSupabaseClient: () => ({
+            auth: {
+                signUp: async payload => {
+                    calls.signup.push(payload);
+                    return { data: { user: { id: 'new-user' }, session: null }, error: null };
+                },
+                resend: async payload => {
+                    calls.resend.push(payload);
+                    return { data: {}, error: resendError };
+                }
+            }
+        }),
+        setCloudMessage: message => calls.messages.push(message),
+        updateCloudSaveUI: () => { calls.uiUpdates += 1; },
+        setLoadingOverlayState: active => calls.loading.push(active),
+        clearCloudPasswordInput: () => { calls.passwordClears += 1; },
+        requestGameDialog: async options => { calls.notices.push(options); return true; },
+        applyCloudSession: () => {},
+        refreshCloudLinkedIdentities: async () => {},
+        advanceLoadingOverlay: () => {},
+        reconcileCloudSaveState: async () => {},
+        addLog: () => {},
+        enterGameWorld: async () => {}
+    };
+    vm.createContext(authContext);
+    [
+        'getOAuthRedirectUrl',
+        'requestSupabaseEmailSignUp',
+        'showSignupEmailNotice',
+        'cloudSignUp',
+        'resendSignupConfirmation'
+    ].forEach(name => vm.runInContext(extractFunction(ui, name), authContext, { filename: `${name}.js` }));
+
+    await authContext.cloudSignUp({ enterGame: true });
+    assert.strictEqual(calls.signup.length, 1, 'signup must use the configured Supabase client once');
+    assert.strictEqual(calls.signup[0].options.emailRedirectTo, 'https://lunaticfox616.github.io/projectarpgidle/',
+        'signup confirmation must return to the deployed GitHub Pages project path');
+    assert.deepStrictEqual(calls.loading, [true, false], 'email confirmation signup must close its loading overlay');
+    assert.strictEqual(calls.passwordClears, 1, 'signup must clear the password after sending confirmation mail');
+    assert.strictEqual(calls.notices[0].type, 'notice', 'sent confirmation mail must use a visible notice dialog');
+    assert.match(calls.notices[0].message, /인증 링크.*로그인/, 'the notice must explain the remaining verification step');
+    assert.strictEqual(authContext.cloudState.busy, false, 'signup must release its busy state');
+
+    await authContext.resendSignupConfirmation();
+    assert.strictEqual(calls.resend.length, 1, 'the resend action must call Supabase once');
+    assert.strictEqual(calls.resend[0].options.emailRedirectTo, calls.signup[0].options.emailRedirectTo,
+        'resend and signup must use the same verified redirect URL');
+    assert.strictEqual(calls.notices[1].title, '인증 메일을 다시 보냈습니다');
+    assert.strictEqual(authContext.cloudState.busy, false, 'successful resend must release its busy state');
+
+    resendError = new Error('rate limited');
+    await authContext.resendSignupConfirmation();
+    assert.match(calls.messages.at(-1), /재발송 실패: rate limited/, 'resend failures must remain visible to the user');
+    assert.strictEqual(calls.notices.length, 2, 'a failed resend must not show a success notice');
+    assert.strictEqual(authContext.cloudState.busy, false, 'failed resend must release its busy state');
+}
+
+verifyCloudSignupFlow()
+    .then(() => console.log('smoke-legal-policies passed'))
+    .catch(error => {
+        console.error(error);
+        process.exitCode = 1;
+    });

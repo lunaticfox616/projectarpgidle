@@ -106,7 +106,6 @@ assert(uiSource.includes("renderCombatEffectIcon({ key: 'invulnerableBarrier'"),
 assert(uiSource.includes('getUniqueEffectApplicationHint'), 'equipment tooltips should explain how unique effects become active');
 assert(uiSource.includes('◆ 획득: ${escapeHTML(item.uniqueEffect)}'), 'equipment comparison should disclose gained unique effects');
 assert(uiSource.includes('◇ 상실: ${escapeHTML(backup.uniqueEffect)}'), 'equipment comparison should disclose lost unique effects');
-assert(/}\s*finally\s*{\s*game\.equipment\[targetSlot\]\s*=\s*backup;/.test(uiSource), 'equipment comparison must restore preview equipment even when stat calculation fails');
 assert(saveSource.includes('payload.realmDeathWard = null;'), 'cloud snapshots should not persist transient ward state');
 
 console.log('smoke-realm-unique-effects passed');

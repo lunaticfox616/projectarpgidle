@@ -156,6 +156,18 @@ run(`chooseLoopHero('warrior')`);
 assert.strictEqual(run('game.__pickedClass'), 'warrior', 'the loop callback must receive the selected class id');
 assert.strictEqual(run('game.selectedHeroId'), 'hero2',
     'each loop class choice must realign the starter talent before talent rewards and the first-kill gem are granted');
+run(`game.heroSelectionInitialized = false; game.__missingUiSelection = null;`);
+runtime.document.getElementById = () => null;
+assert.strictEqual(run(`openLoopHeroSelection(id => { game.__missingUiSelection = id; })`), false,
+    'missing selection UI must fail closed instead of silently choosing a default class');
+assert.strictEqual(run('game.__missingUiSelection'), null,
+    'missing selection UI must not invoke the completion callback');
+assert.strictEqual(run('isOfflineCombatEligible(game)'), false,
+    'offline combat must remain disabled until the starting class is chosen');
+run('game.heroSelectionInitialized = true');
+assert.strictEqual(run('isOfflineCombatEligible(game)'), true,
+    'offline combat may resume after the starting class is chosen');
+runtime.document.getElementById = id => controls[id] || null;
 run(`game.selectedClassId = 'cleric'; game.settings.heroAppearanceMode = 'loop'; renderHeroSelectionControls();`);
 assert.strictEqual(controls['sel-active-hero'].value, 'cleric');
 assert(definitions.every(def => controls['sel-active-hero'].innerHTML.includes(def.label)),
