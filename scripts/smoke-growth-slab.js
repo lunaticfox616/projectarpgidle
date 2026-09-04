@@ -22,6 +22,10 @@ function loadContext() {
         getInventoryLimit: () => 60,
         registerUniqueToCodexOnAcquire: () => {},
         passesItemPickupFilter: () => true,
+        getItemQualityAttributeMode: () => null,
+        getImmutableItemSpecialStats: () => [],
+        isQualityAttributeStat: () => false,
+        applyArcanaSlotAmplification: stats => stats,
         addStatToBucket: (bucket, statId, value) => {
             if (!statId || !Number.isFinite(Number(value))) return;
             bucket[statId] = (bucket[statId] || 0) + Number(value);
@@ -35,6 +39,7 @@ function loadContext() {
     vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync('js/growth-effects.js', 'utf8'), context);
+    vm.runInContext(fs.readFileSync('js/equipment-stat-resolution.js', 'utf8'), context);
     vm.runInContext('ensureGrowthBoardState(); syncGrowthBoardUnlocks({ silent: true });', context);
     return context;
 }
@@ -184,6 +189,17 @@ const itemLevel = (ctx, id) => vm.runInContext(`getGrowthItemLevel(${id})`, ctx)
     const multiplier = vm.runInContext('getGrowthItemStatMultiplier(1)', ctx);
     const expected = vm.runInContext('getGrowthLevelMultiplier(2)', ctx);
     assert.ok(Math.abs(multiplier - expected) < 1e-9, '석판 레벨이 아이템 스탯 배율로 반영되어야 한다');
+
+    const item = ctx.game.growthInventory.find(row => row.id === 1);
+    item.baseStats = [{ id: 'pctDmg', val: 7 }];
+    item.stats = [{ id: 'crit', val: 1.5 }, { id: 'regen', val: 0.3 }];
+    const resolved = JSON.parse(vm.runInContext(`JSON.stringify(getResolvedEquipmentStatLists(
+        'growth:1', game.growthInventory.find(function (row) { return row.id === 1; }), game, false
+    ))`, ctx));
+    assert.strictEqual(resolved.baseStats[0].val, 9,
+        '석판으로 증폭된 일반 생장 옵션도 실제 적용값이 정수여야 한다');
+    assert.deepStrictEqual(resolved.explicitStats.map(stat => stat.val), [2, 0.4],
+        '석판 증폭 뒤에도 확률은 0.5, 회복은 0.1 단위를 유지해야 한다');
 
     // 석판을 치우면 배율이 되돌아온다(캐시가 갱신된다).
     vm.runInContext('removeGrowthPlacement(2)', ctx);

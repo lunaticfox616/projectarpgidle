@@ -181,23 +181,53 @@ ctx.GROWTH_UNIQUE_DB.forEach(unique => {
     assert.deepStrictEqual([pools.growthFlat.base, pools.growthFlat.step], [1.2, 1.2],
         '생장판은 별도의 낮은 base/step 원본 수치를 사용해야 한다');
     assert.ok(pools.growthCritRoll.val > 0 && pools.growthCritRoll.val < 1,
-        '낮춘 생장판 옵션은 정수 반올림으로 0이 되지 않고 실제 소수 수치를 저장해야 한다');
+        '낮춘 민감 옵션은 0이 되지 않고 허용된 0.5 단위로 저장해야 한다');
     assert.strictEqual(pools.growthHasExtraShots, false,
         '판 전체에서 중첩되는 추가 발사 같은 불연속 장비 옵션은 생장판 풀에서 제외해야 한다');
+
+    const precisionRolls = JSON.parse(run(`JSON.stringify((function () {
+        Math.random = function () { return 0.37; };
+        let roll = function (id) {
+            let source = MOD_DB.find(function (mod) { return mod.id === id; });
+            return rollAffixValue({ ...source, ...GROWTH_AFFIX_VALUE_DB[id], growthAffix: true }, 8);
+        };
+        return { integer: roll('pctDmg'), half: roll('crit'), tenth: roll('regen') };
+    })())`));
+    assert.strictEqual(Number.isInteger(precisionRolls.integer.val), true,
+        '일반 생장 옵션은 실제 저장값이 정수여야 한다');
+    assert.strictEqual(Number.isInteger(precisionRolls.half.val * 2), true,
+        '민감한 확률·속도 생장 옵션은 0.5 단위여야 한다');
+    assert.strictEqual(Number.isInteger(precisionRolls.tenth.val * 10), true,
+        '회복 계열 생장 옵션은 0.1 단위여야 한다');
 
     const migrated = JSON.parse(run(`JSON.stringify((function () {
         let rare = { growthCategory: 'flower', growthShapeId: 'dot1', rarity: 'rare', baseStats: [], stats: [{ id: 'flatDmg', val: 100, valMin: 90, valMax: 110 }] };
         let unique = { growthCategory: 'seed', growthShapeId: 'dot1', rarity: 'unique', baseStats: [], stats: [{ id: 'pctHp', val: 12, valMin: 12, valMax: 12 }] };
+        let current = {
+            growthCategory: 'leaf', growthShapeId: 'dot1', rarity: 'rare', growthOptionValueVersion: 2,
+            baseStats: [{ id: 'regen', val: 0.147, valMin: 0.113, valMax: 0.193 }],
+            stats: [
+                { id: 'pctDmg', val: 7.413, valMin: 6.631, valMax: 8.219 },
+                { id: 'crit', val: 1.237, valMin: 0.916, valMax: 1.584 },
+                { id: 'regen', val: 0.147, valMin: 0.113, valMax: 0.193 }
+            ]
+        };
         normalizeGrowthOptionValues(rare);
         normalizeGrowthOptionValues(unique);
+        normalizeGrowthOptionValues(current);
         normalizeGrowthOptionValues(rare);
         normalizeGrowthOptionValues(unique);
-        return { rare, unique };
+        normalizeGrowthOptionValues(current);
+        return { rare, unique, current };
     })())`));
     assert.strictEqual(migrated.rare.stats[0].val, 40, '기존 희귀 생장판도 실제 저장 수치로 한 번 낮춰야 한다');
     assert.strictEqual(migrated.unique.stats[0].val, 18, '기존 고유 생장판도 실제 저장 수치로 한 번 상향해야 한다');
     assert.strictEqual(migrated.rare.growthOptionValueVersion, ctx.GROWTH_AFFIX_VALUE_VERSION,
         '저장 수치 변환은 버전을 남겨 재로드 때 중복 적용되면 안 된다');
+    assert.deepStrictEqual(migrated.current.stats.map(stat => stat.val), [7, 1, 0.1],
+        '버전 2 생장 옵션은 다시 축소하지 않고 정수·0.5·0.1 단위로만 정돈해야 한다');
+    assert.strictEqual(migrated.current.baseStats[0].val, 0.1,
+        '기존 생장 베이스 옵션도 회복 계열 단위에 맞게 정돈해야 한다');
 
     const uniqueStats = JSON.parse(run(`JSON.stringify(generateGrowthUniqueItem(20, '태초의 핵').stats)`));
     assert.deepStrictEqual(uniqueStats.map(stat => stat.val), [18, 18],

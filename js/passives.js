@@ -8920,11 +8920,15 @@ function rollTierValueAffix(mod, statId, tier) {
     return { id: statId, val: val, valMin: Math.floor(min), valMax: Math.floor(max), tier: effectiveTier, statName: mod.statName };
 }
 
-function rerollStoredAffixValue(stat) {
+function rerollStoredAffixValue(stat, growthItem) {
     let min = Number(stat && stat.valMin);
     let max = Number(stat && stat.valMax);
     if (!Number.isFinite(min) || !Number.isFinite(max)) return;
     if (max < min) { let tmp = min; min = max; max = tmp; }
+    if (growthItem) {
+        stat.val = rollGrowthAffixNumber(stat.id, min, max).val;
+        return;
+    }
     if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
@@ -8946,7 +8950,7 @@ function rollCompoundExtraStats(mod, tier, roundInteger) {
         let max = min + sub.step * 1.6;
         let val;
         if (mod.growthAffix) {
-            let rolled = rollGrowthAffixNumber(min, max);
+            let rolled = rollGrowthAffixNumber(subId, min, max);
             val = rolled.val;
             min = rolled.min;
             max = rolled.max;
@@ -8982,7 +8986,7 @@ function rollAffixValue(mod, maxTier, opts) {
         let max = min + mod.step * 1.6;
         let val;
         if (mod.growthAffix) {
-            let rolled = rollGrowthAffixNumber(min, max);
+            let rolled = rollGrowthAffixNumber(statId, min, max);
             val = rolled.val;
             min = rolled.min;
             max = rolled.max;
@@ -9048,7 +9052,7 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
         let max = min + mod.step * 1.6;
         let val;
         if (mod.growthAffix) {
-            let rolled = rollGrowthAffixNumber(min, max);
+            let rolled = rollGrowthAffixNumber(statId, min, max);
             val = rolled.val;
             min = rolled.min;
             max = rolled.max;
@@ -9324,13 +9328,17 @@ function getAvailableMods(item) {
     });
 }
 
-function rollGrowthAffixNumber(min, max) {
-    let minStep = Math.round(Number(min) * 1000);
-    let maxStep = Math.max(minStep, Math.round(Number(max) * 1000));
+function rollGrowthAffixNumber(statId, min, max) {
+    let step = getGrowthStatValueStep(statId);
+    let minStep = Math.round(Number(min) / step);
+    let maxStep = Math.max(minStep, Math.round(Number(max) / step));
+    if (Number(min) > 0) minStep = Math.max(1, minStep);
+    if (Number(max) > 0) maxStep = Math.max(minStep, maxStep);
+    let rolledStep = minStep + Math.floor(Math.random() * (maxStep - minStep + 1));
     return {
-        val: (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 1000,
-        min: minStep / 1000,
-        max: maxStep / 1000
+        val: roundGrowthStatValue(statId, rolledStep * step),
+        min: roundGrowthStatValue(statId, minStep * step),
+        max: roundGrowthStatValue(statId, maxStep * step)
     };
 }
 
@@ -12164,12 +12172,13 @@ async function useCurrency(currencyKey) {
             applyGuaranteedToNonLocked(guaranteedMod);
         }
     } else if (actionKey === 'divine') {
+        let growthItem = typeof isGrowthItem === 'function' && isGrowthItem(item);
         item.stats.forEach(stat => {
             if (stat.lockedByHoney || stat.lockedByRift) return;
-            rerollStoredAffixValue(stat);
+            rerollStoredAffixValue(stat, growthItem);
         });
         if (item.chaosInfusion && Number.isFinite(Number(item.chaosInfusion.valMin)) && Number.isFinite(Number(item.chaosInfusion.valMax))) {
-            rerollStoredAffixValue(item.chaosInfusion);
+            rerollStoredAffixValue(item.chaosInfusion, growthItem);
         }
         if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp' && item.uniqueEffectParams) {
             let p = item.uniqueEffectParams;

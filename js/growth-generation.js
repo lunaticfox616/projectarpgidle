@@ -37,12 +37,26 @@ function convertLegacyGrowthStat(stat, unique) {
     return stat;
 }
 
-/** 구버전 저장 수치를 한 번 실제 값으로 변환한다. 전투 계산에는 별도 배율을 걸지 않는다. */
+function normalizeGrowthStatPrecision(stat) {
+    if (!stat || !stat.id) return stat;
+    ['val', 'valMin', 'valMax', 'originalVal', 'baseRollMin', 'baseRollMax'].forEach(key => {
+        if (Number.isFinite(Number(stat[key]))) stat[key] = roundGrowthStatValue(stat.id, stat[key]);
+    });
+    if (Array.isArray(stat.extraStats)) stat.extraStats.forEach(normalizeGrowthStatPrecision);
+    return stat;
+}
+
+/** 구버전 수치 축소와 표시 단위 정돈을 버전별로 한 번씩 적용한다. */
 function normalizeGrowthOptionValues(item) {
     if (!isGrowthItem(item) || isGrowthSlab(item)) return item;
-    if (Number(item.growthOptionValueVersion) >= GROWTH_AFFIX_VALUE_VERSION) return item;
-    let unique = item.rarity === 'unique';
-    (Array.isArray(item.stats) ? item.stats : []).forEach(stat => convertLegacyGrowthStat(stat, unique));
+    let version = Number(item.growthOptionValueVersion) || 0;
+    if (version >= GROWTH_AFFIX_VALUE_VERSION) return item;
+    let stats = Array.isArray(item.stats) ? item.stats : [];
+    if (version < 2) stats.forEach(stat => convertLegacyGrowthStat(stat, item.rarity === 'unique'));
+    (Array.isArray(item.baseStats) ? item.baseStats : []).forEach(normalizeGrowthStatPrecision);
+    stats.forEach(normalizeGrowthStatPrecision);
+    if (item.chaosInfusion) normalizeGrowthStatPrecision(item.chaosInfusion);
+    if (item.underEnchant) normalizeGrowthStatPrecision(item.underEnchant);
     item.growthOptionValueVersion = GROWTH_AFFIX_VALUE_VERSION;
     return item;
 }
@@ -393,7 +407,7 @@ function applyGrowthCorruptionAffix(item, empowerExisting) {
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     if (empowerExisting && item.stats.length > 0) {
         let stat = rndChoice(item.stats);
-        stat.val = Number((Number(stat.val || 0) * 1.3).toFixed(2));
+        stat.val = roundGrowthStatValue(stat.id, Number(stat.val || 0) * 1.3);
         stat.corruptedEmpower = true;
         return addLog(`🩸 타락: ${stat.statName || getStatName(stat.id)} 옵션이 30% 강해졌습니다.`, 'loot-unique');
     }
