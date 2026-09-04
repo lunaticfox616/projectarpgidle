@@ -116,12 +116,31 @@ for (const [choice, element] of [['fire', 'fire'], ['cold', 'cold'], ['lightning
     assert.strictEqual(run("setPassiveKeystoneChoice('wisdom_leap_element', __wisdomChoice)"), true);
     run('game.activeSkill = Object.keys(SKILL_DB).find(name => SKILL_DB[name].ele === __damageElement);');
     assert.strictEqual(run('getPlayerStats().sSkill.ele'), element);
-    assert.strictEqual(run('getPlayerStats().finalDamageMultiplier'), 1.2,
-        `${choice}: selected elemental skills must receive the keystone bonus`);
+    assert.strictEqual(run('getPlayerStats().passiveWisdomElement'), element);
+    assert.strictEqual(run('getPassiveWisdomLeapDamageMultiplier(getPlayerStats(), __damageElement)'), 1.2,
+        `${choice}: selected damage must receive the keystone bonus`);
     run("game.activeSkill = '기본 공격';");
-    assert.strictEqual(run('getPlayerStats().finalDamageMultiplier'), 0,
-        '선택한 원소가 아닌 물리 스킬은 피해를 줄 수 없어야 합니다.');
+    assert.strictEqual(run('getPassiveWisdomLeapDamageMultiplier(getPlayerStats(), __damageElement)'), 1.2,
+        `${choice}: selected added damage must remain enabled on a different base skill`);
+    assert.strictEqual(run("getPassiveWisdomLeapDamageMultiplier(getPlayerStats(), 'phys')"), 0,
+        '선택한 속성이 아닌 피해는 피해를 줄 수 없어야 합니다.');
 }
+run("setPassiveKeystoneChoice('wisdom_leap_element', 'chaos');");
+assert.strictEqual(run(`getLimitedSummonFinalDamageMultiplier(
+    { finalDamageMultiplier: 1, passiveWisdomElement: 'chaos' }, { ele: 'chaos' })`), 1.2,
+    '카오스를 선택하면 카오스 소환수 피해도 20% 증폭되어야 합니다.');
+assert.strictEqual(run(`getLimitedSummonFinalDamageMultiplier(
+    { finalDamageMultiplier: 1, passiveWisdomElement: 'chaos' }, { ele: 'fire' })`), 0,
+    '카오스를 선택하면 다른 속성 소환수 피해는 0이어야 합니다.');
+const originalTalentCardActive = context.isTalentCardActive;
+context.isTalentCardActive = cardId => cardId === 'hero5__assassin' ? 10 : 0;
+run("game.activeSkill = Object.keys(SKILL_DB).find(name => SKILL_DB[name].ele === 'light');");
+const convertedChaosStats = run('getPlayerStats()');
+assert.strictEqual(convertedChaosStats.damageScales.wisdomLeapDamageMultiplier, 1.2,
+    '번개 피해가 카오스로 전환된 경우 카오스 선택이 예상 피해에도 적용되어야 합니다.');
+assert.ok(convertedChaosStats.dps > 0,
+    '카오스로 전환된 스킬의 표시 DPS가 카오스 선택 때문에 0이 되면 안 됩니다.');
+context.isTalentCardActive = originalTalentCardActive;
 run("setPassiveKeystoneChoice('wisdom_leap_element', 'fire');");
 const wisdomEdges = context.PASSIVE_TREE.edges.filter(edge => edge.requiresAllocatedNodeId === 'nkf64engb6m');
 assert.strictEqual(wisdomEdges.length, 4, '공허를 포함한 네 갈래가 유지되어야 합니다.');

@@ -56,6 +56,28 @@ function normalizeConditionPatternRule(rule) {
     return normalized;
 }
 
+function formatConditionPatternTriggerSummary(rule) {
+    let normalized = normalizeConditionPatternRule(rule);
+    let trigger = CONDITION_PATTERN_TRIGGER_DB.find(row => row.id === normalized.triggerType);
+    if (!trigger) return '조건 충족';
+    let value = Math.max(0, Number(normalized.triggerValue) || 0);
+    if (trigger.id === 'hp_below') return `생명력 ${value}% 이하`;
+    if (trigger.id === 'hp_above') return `생명력 ${value}% 이상`;
+    if (trigger.id === 'es_below') return `보호막 ${value}% 이하`;
+    if (trigger.id === 'es_above') return `보호막 ${value}% 이상`;
+    if (trigger.id === 'enemy_many') return `적 ${value}마리 이상`;
+    if (trigger.id === 'enemy_few') return `적 ${value}마리 이하`;
+    if (trigger.id === 'distance_at_least') return `가장 가까운 적 ${value}칸 이상`;
+    if (trigger.id === 'distance_at_most') return `가장 가까운 적 ${value}칸 이하`;
+    if (trigger.id === 'recently_hit') return `최근 ${value}초 이내 피격`;
+    if (trigger.id === 'boss_hp_below') return `보스 생명력 ${value}% 이하`;
+    if (trigger.id === 'ailment_active') {
+        let labels = { any:'상태이상', ignite:'점화', chill:'냉각', freeze:'동결', shock:'감전', poison:'중독', bleed:'출혈' };
+        return `${labels[normalized.ailmentType] || normalized.ailmentType} 보유`;
+    }
+    return trigger.label;
+}
+
 function getConditionPatternContext(state, pStats, now) {
     let source = state || game;
     let liveEnemies = (source.enemies || []).filter(enemy => enemy && enemy.hp > 0);
@@ -128,5 +150,6 @@ function resolveConditionalCombatTactics(baseTactics, pStats, state, now) {
 safeExposeGlobals({
     getConditionPatternProgressLoop, isConditionPatternRequirementMet, getConditionPatternRequirementLabel,
     getConditionPatternTriggers, getConditionPatternActions, normalizeConditionPatternRule,
-    getConditionPatternContext, doesConditionPatternMatch, evaluateConditionPatternRule, resolveConditionalCombatTactics
+    formatConditionPatternTriggerSummary, getConditionPatternContext, doesConditionPatternMatch,
+    evaluateConditionPatternRule, resolveConditionalCombatTactics
 });

@@ -424,3 +424,14 @@
   }
   body.mobile-battle-tab #tab-battle .player-hud-skill-rack { max-width: 44px; }
 }
+
+@media (min-width: 1081px) {
+  body.desktop-windowed-ui #move-area {
+    padding: 42px calc(var(--combat-log-width) + 18px) 70px 8px;
+  }
+
+  body.desktop-windowed-ui .battlefield-wrap {
+    width: 100%;
+    height: min(100%, 580px) !important;
+  }
+}

@@ -18,6 +18,10 @@ vm.runInContext(fs.readFileSync('js/condition-patterns.js', 'utf8'), context);
 const oversizedCount = { triggerType:'enemy_many', triggerValue:40, actionType:'target_weakest' };
 context.normalizeConditionPatternRule(oversizedCount);
 assert.strictEqual(oversizedCount.triggerValue, 30, 'count conditions must clamp migrated values to the UI contract');
+assert.strictEqual(context.formatConditionPatternTriggerSummary({ triggerType:'hp_below', triggerValue:35 }), '생명력 35% 이하',
+  'condition trigger feedback must show the actual threshold in natural Korean');
+assert.strictEqual(context.formatConditionPatternTriggerSummary({ triggerType:'ailment_active', ailmentType:'freeze' }), '동결 보유',
+  'ailment trigger feedback must name the selected ailment');
 
 context.game = {
   season: 2,

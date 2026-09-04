@@ -78,6 +78,40 @@ const REALM_MONSTER_VISUAL_SETS = Object.freeze({
     })
 });
 
+const WISP_MONSTER_ASSET_MANIFEST = Object.freeze({
+    wispEnemyAttack: 'assets/enemies/wisps/wisp-attack-v1.webp',
+    wispEnemyGlow: 'assets/enemies/wisps/wisp-glow-v1.webp'
+});
+
+const WISP_MONSTER_VISUALS = Object.freeze([
+    ['B01', 'sediment-core', '침전핵 위습', 'basic', ['phys']],
+    ['B02', 'ember', '불씨 위습', 'basic', ['fire']],
+    ['B03', 'frost-core', '서리핵 위습', 'basic', ['cold']],
+    ['B04', 'lightning', '뇌전 위습', 'basic', ['light']],
+    ['B05', 'chaos-rift', '혼돈균열 위습', 'basic', ['chaos']],
+    ['B06', 'poison-sac', '독낭 위습', 'basic', ['chaos']],
+    ['H01', 'thermal-shock', '열충격 위습', 'hybrid', ['fire', 'cold']],
+    ['H02', 'thunder-flame', '뇌화 위습', 'hybrid', ['fire', 'light']],
+    ['H03', 'frost-thunder', '빙뢰 위습', 'hybrid', ['cold', 'light']],
+    ['H04', 'charred-core', '탄화핵 위습', 'hybrid', ['phys', 'fire']],
+    ['H05', 'frozen-sediment', '동결침전 위습', 'hybrid', ['phys', 'cold']],
+    ['H06', 'storm-sediment', '낙뢰침전 위습', 'hybrid', ['phys', 'light']],
+    ['H07', 'blight-chaos', '괴독 위습', 'hybrid', ['chaos']],
+    ['S01', 'sacred-sap', '성수액 위습', 'special', ['phys', 'fire']],
+    ['S02', 'sealed-necrosis', '봉인괴저 위습', 'special', ['chaos']],
+    ['S03', 'depleted-backflow', '고갈역류 위습', 'special', ['cold', 'chaos']],
+    ['S04', 'veil-fold', '장막접힘 위습', 'special', ['chaos']],
+    ['S05', 'convergence-ring', '수렴륜 위습', 'special', ['phys', 'light']]
+].map((entry, cell) => Object.freeze({
+    id: `wisp-${entry[0].toLowerCase()}`,
+    code: entry[0],
+    slug: entry[1],
+    name: entry[2],
+    category: entry[3],
+    elements: Object.freeze(entry[4]),
+    cell
+})));
+
 function getRealmMonsterVisualSet(zone) {
     if (!zone) return null;
     const zoneId = String(zone.id || '');
@@ -136,7 +170,7 @@ const ENEMY_TRAIT_POOL = [
     { id: 'currentSwift', name: '급류 가속', outlineColor: '#46b7cf', atkMul: 1.2, attackSpeedVarMul: 1.16 }
 ];
 
-const MONSTER_VARIANT_DEFS = Object.freeze([
+const WOOD_MONSTER_VARIANT_DEFS = Object.freeze([
     ['woodSlime-0', '갈색 수액방울'], ['woodSlime-1', '늘어진 수액방울'],
     ['woodSlime-2', '잔가지 수액괴'], ['woodSlime-3', '껍질 수액괴'],
     ['woodSlime-4', '포자 수액괴'], ['woodSlime-5', '유충 수액괴'],
@@ -155,15 +189,29 @@ const MONSTER_VARIANT_DEFS = Object.freeze([
     ['woodPuppet-2', '이끼 목각병'], ['woodPuppet-3', '철목 목각병']
 ].map(([id, name]) => Object.freeze({ id, name })));
 
+const MONSTER_VARIANT_DEFS = Object.freeze([
+    ...WOOD_MONSTER_VARIANT_DEFS,
+    ...WISP_MONSTER_VISUALS.map(wisp => Object.freeze({ id: wisp.id, name: wisp.name }))
+]);
+
+function getWispMonsterVisualDefinition(variantSeed, element) {
+    const seed = Math.abs(Math.floor(Number(variantSeed) || 0));
+    const pool = WISP_MONSTER_VISUALS.filter(wisp => wisp.elements.includes(element));
+    const candidates = pool.length > 0 ? pool : WISP_MONSTER_VISUALS;
+    return candidates[Math.floor(seed / 4) % candidates.length];
+}
+
 function getMonsterVariantDefinition(variantSeed, element) {
+    const seed = Math.abs(Math.floor(Number(variantSeed) || 0));
+    if (seed % 4 === 0) return getWispMonsterVisualDefinition(seed, element);
     const elementOffset = element === 'fire' ? 1 : (element === 'cold' ? 2 : (element === 'light' ? 3 : (element === 'chaos' ? 4 : 0)));
-    const index = (Math.abs(Math.floor(Number(variantSeed) || 0)) + elementOffset) % MONSTER_VARIANT_DEFS.length;
-    return MONSTER_VARIANT_DEFS[index];
+    return WOOD_MONSTER_VARIANT_DEFS[(seed + elementOffset) % WOOD_MONSTER_VARIANT_DEFS.length];
 }
 
 safeExposeData({
     ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT,
     getBossAssetKeyForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
+    WISP_MONSTER_ASSET_MANIFEST, WISP_MONSTER_VISUALS, getWispMonsterVisualDefinition,
     REALM_MONSTER_VISUAL_SETS, getRealmMonsterVisualSet, getRealmMonsterVisualDefinition,
     getRealmMonsterVisualDefinitionById
 });

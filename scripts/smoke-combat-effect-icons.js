@@ -80,6 +80,10 @@ const context = {
   isUiDamageAilmentType(type) { return ['ignite', 'poison', 'bleed'].includes(type); },
   getUiPlayerDamageAilmentDps() { return 10; }
 };
+context.getLeechCaps = (stats, target) => ({
+  totalCap: target === 'energyShield' ? stats.energyShield * 0.2 : stats.maxHp * 0.2,
+  rateCap: target === 'energyShield' ? stats.energyShield * 0.02 : stats.maxHp * 0.02
+});
 context.showInfoTooltipHtml = (x, y, html, borderColor) => {
   context.__enemyTraitTooltip = { x, y, html, borderColor };
 };
@@ -89,6 +93,7 @@ vm.runInContext(source.slice(start, end), context, { filename: 'combat-effect-ic
 
 const playerStats = {
   maxHp: 1000,
+  energyShield: 500,
   uniqueDeathWard: true,
   uniqueDragonVeinGuard: { hpPct: 8 },
   uniqueDeflectStealth: { move: 20, evasionPct: 20, critDmg: 20 },
@@ -107,6 +112,9 @@ const expectedPlayerEffects = ['ignite', 'woodsmanCurse', 'guard', 'cosmos_res_d
 assert.strictEqual((playerMarkup.match(/class="combat-effect-icon/g) || []).length, expectedPlayerEffects.length,
   'every active player ailment and runtime effect must receive one icon');
 expectedPlayerEffects.forEach(key => assert(playerMarkup.includes(`effect-${key}`), `${key} must be represented`));
+assert(playerMarkup.includes('남은 생명력 회복 30 / 저장 한도 200 · 현재 초당 10 · 개별 초당 상한 20')
+  && playerMarkup.includes('남은 ES 회복 20 / 저장 한도 100 · 현재 초당 5 · 개별 초당 상한 10'),
+  'leech tooltips must compare current recovery with the real resource caps');
 assert(playerMarkup.includes('combat-effect-art') && !playerMarkup.includes('combat-effect-glyph'),
   'status effects must use the generated image atlas instead of text glyphs');
 const firstSpriteMarkup = context.renderCombatEffectIcon({ key: 'ignite' });

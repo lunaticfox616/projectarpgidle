@@ -6596,6 +6596,10 @@ const MONSTER_SKIN_FRAME_DEFS = [
 function getMonsterSkinLabel(id) {
     let frameDef = MONSTER_SKIN_FRAME_DEFS.find(def => def.id === id);
     if (frameDef) return frameDef.label;
+    const wispDef = typeof WISP_MONSTER_VISUALS !== 'undefined'
+        ? WISP_MONSTER_VISUALS.find(def => def.id === id)
+        : null;
+    if (wispDef) return wispDef.name;
     const realmDef = typeof getRealmMonsterVisualDefinitionById === 'function'
         ? getRealmMonsterVisualDefinitionById(id)
         : null;
@@ -6620,6 +6624,9 @@ function getMonsterSkinDefs() {
         Object.values(REALM_MONSTER_VISUAL_SETS).forEach(set => {
             set.members.forEach(member => defs.push({ id: member.id, label: member.name, type: 'frame' }));
         });
+    }
+    if (typeof WISP_MONSTER_VISUALS !== 'undefined') {
+        WISP_MONSTER_VISUALS.forEach(wisp => defs.push({ id: wisp.id, label: wisp.name, type: 'frame' }));
     }
     if (typeof BOSS_ASSET_MANIFEST !== 'undefined') {
         Object.keys(BOSS_ASSET_MANIFEST).forEach(key => defs.push({ id: key, label: getMonsterSkinLabel(key), type: 'boss' }));
@@ -8724,16 +8731,19 @@ function drawBountyTargetGlyph(ctx, x, y, scale) {
     ctx.restore();
 }
 
-function resolveEnemySpriteMotion(variantEntry, moving, now, enemy, attackMotion) {
-    let animations = variantEntry && variantEntry.animations;
-    let attackFrames = Array.isArray(variantEntry && variantEntry.attackFrames)
-        ? variantEntry.attackFrames
+function resolveEnemySpriteMotion(variantEntry, moving, now, enemy, attackMotion, facingDirection) {
+    let directionalEntry = variantEntry && variantEntry.directions
+        ? (variantEntry.directions[facingDirection] || variantEntry.directions.south)
+        : variantEntry;
+    let animations = directionalEntry && directionalEntry.animations;
+    let attackFrames = Array.isArray(directionalEntry && directionalEntry.attackFrames)
+        ? directionalEntry.attackFrames
         : (animations && Array.isArray(animations.attack) ? animations.attack : []);
     if (attackMotion && attackFrames.length > 0) {
         let index = Math.floor(clampNumber(attackMotion.progress, 0, 0.999) * attackFrames.length);
         return { entry: attackFrames[index] || {}, x: 0, y: 0 };
     }
-    let movementFrames = Array.isArray(variantEntry && variantEntry.frames) ? variantEntry.frames : [];
+    let movementFrames = Array.isArray(directionalEntry && directionalEntry.frames) ? directionalEntry.frames : [];
     let movementIndex = moving === true && movementFrames.length > 0
         ? Math.floor(((Number(now) || 0) + Math.abs(Number(enemy.variantSeed || enemy.id || 0)) * 41) / 190) % movementFrames.length
         : 0;
@@ -8744,11 +8754,11 @@ function resolveEnemySpriteMotion(variantEntry, moving, now, enemy, attackMotion
     };
 }
 
-function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMotion) {
+function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMotion, facingDirection) {
     if (battleAssets.ready && battleAssets.atlas && battleAssets.atlas.enemies) {
         let enemyAtlas = battleAssets.atlas.enemies;
         let variantEntry = getBossAssetVariantEntry(enemy, enemyAtlas) || pickBattleEnemyVariant(enemy, enemyAtlas) || {};
-        let spriteMotion = resolveEnemySpriteMotion(variantEntry, moving, now, enemy, attackMotion);
+        let spriteMotion = resolveEnemySpriteMotion(variantEntry, moving, now, enemy, attackMotion, facingDirection);
         x += spriteMotion.x;
         y += spriteMotion.y;
         let groundY = y + 2;
@@ -9531,13 +9541,22 @@ function buildPlayerUniqueEffectIcons(pStats, now) {
     return icons.join('');
 }
 
-function buildPlayerRecoveryEffectIcons() {
+function getUiLeechEffectDetail(summary, pStats, target) {
+    let resource = target === 'energyShield' ? 'ES' : '생명력';
+    let remaining = Math.floor(summary.remaining || 0);
+    let rate = Math.floor(summary.rate || 0);
+    if (typeof getLeechCaps !== 'function') return `남은 ${resource} 회복 ${remaining} · 초당 ${rate}`;
+    let caps = getLeechCaps(pStats, target);
+    return `남은 ${resource} 회복 ${remaining} / 저장 한도 ${Math.floor(caps.totalCap)} · 현재 초당 ${rate} · 개별 초당 상한 ${Math.floor(caps.rateCap)}`;
+}
+
+function buildPlayerRecoveryEffectIcons(pStats) {
     let icons = [];
     let lifeLeech = getUiRecoveryEffectSummary(game.playerLeechInstances, 'life');
     let esLeech = getUiRecoveryEffectSummary(game.playerLeechInstances, 'energyShield');
     let recoup = getUiRecoveryEffectSummary(game.playerRecoupInstances);
-    if (lifeLeech) icons.push(renderUiRuntimeEffectIcon({ key: 'lifeLeech', value: lifeLeech.remaining, maxValue: lifeLeech.rate, remainSec: lifeLeech.remainSec }, 0));
-    if (esLeech) icons.push(renderUiRuntimeEffectIcon({ key: 'energyShieldLeech', value: esLeech.remaining, maxValue: esLeech.rate, remainSec: esLeech.remainSec }, 0));
+    if (lifeLeech) icons.push(renderUiNamedEffectIcon({ key:'lifeLeech', name:'생명력 흡혈', detail:getUiLeechEffectDetail(lifeLeech, pStats, 'life'), remainSec:lifeLeech.remainSec }, 0));
+    if (esLeech) icons.push(renderUiNamedEffectIcon({ key:'energyShieldLeech', name:'에너지 보호막 흡혈', detail:getUiLeechEffectDetail(esLeech, pStats, 'energyShield'), remainSec:esLeech.remainSec }, 0));
     if (recoup) icons.push(renderUiRuntimeEffectIcon({ key: 'lifeRecoup', value: recoup.remaining, maxValue: recoup.rate, remainSec: recoup.remainSec }, 0));
     if (Number(game.delayedGuardHealPool) >= 1) {
         icons.push(renderUiRuntimeEffectIcon({ key: 'delayedGuardHeal', value: game.delayedGuardHealPool }, 0));
@@ -9655,7 +9674,7 @@ function buildPlayerCombatEffectIcons(pStats, now) {
         + buildPlayerConditionEffectIcons(now)
         + buildPlayerFlaskEffectIcons(now)
         + buildPlayerUniqueEffectIcons(pStats, now)
-        + buildPlayerRecoveryEffectIcons()
+        + buildPlayerRecoveryEffectIcons(pStats)
         + buildPlayerAscendStackEffectIcons(now)
         + buildPlayerAscendReadyEffectIcons(now)
         + buildPlayerTalentAndSummonEffectIcons(now)

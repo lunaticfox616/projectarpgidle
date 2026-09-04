@@ -186,6 +186,14 @@ assert.ok(Math.abs(enemyAttackMotion.start.x) < 1e-9 && Math.abs(enemyAttackMoti
   '공격 모션이 없는 몬스터는 공격 시작점과 종료점에서 원래 칸으로 돌아와야 한다');
 assert.ok(enemyAttackMotion.impact.x > 5.9 && enemyAttackMotion.north.y < -5.9,
   '보조 공격 움직임은 플레이어가 있는 방향으로만 짧게 전진해야 한다');
+const enemyFacingDirections = JSON.parse(vm.runInContext(`JSON.stringify({
+  north: resolveEnemyFacingDirection({ x: 80, y: 100 }, { x: 80, y: 20 }),
+  south: resolveEnemyFacingDirection({ x: 80, y: 100 }, { x: 80, y: 180 }),
+  west: resolveEnemyFacingDirection({ x: 80, y: 100 }, { x: 10, y: 100 }),
+  east: resolveEnemyFacingDirection({ x: 80, y: 100 }, { x: 150, y: 100 })
+})`, context));
+assert.deepStrictEqual(enemyFacingDirections, { north: 'north', south: 'south', west: 'west', east: 'east' },
+  '방향 스프라이트가 있는 몬스터는 플레이어를 향한 네 방향 프레임을 선택해야 한다');
 const summonAttackMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
   let proj = { actorGroundOffsetY: 0, cellToScreen: (gx, gy) => ({ x: gx * 10, y: gy * 10 }) };
   let summons = [{ id: 7, gx: 1, gy: 2 }];
@@ -454,7 +462,8 @@ assert.strictEqual(venomVfxBytes.readUInt8(25), 6, 'the supplied venom projectil
 assert.ok(passiveSource.includes("key.startsWith('skillFx')"), 'transparent skill VFX should bypass sprite-sheet sanitization');
 assert.ok(passiveSource.includes("woodEnemySlimes: 'assets/enemies/wood/wood-slimes.png'"), 'battle asset loader should preload the replacement wood monster roster');
 assert.ok(passiveSource.includes("key.startsWith('woodEnemy')"), 'transparent wood monster sheets should bypass legacy backdrop sanitization');
-assert.ok(passiveSource.includes('normal: woodEnemyVariants.length ? woodEnemyVariants.slice()'), 'normal monster variants should use the supplied wood roster');
+assert.ok(passiveSource.includes('normal: woodEnemyVariants.length ? woodEnemyVariants.concat(wispEnemyVariants)'),
+  'normal monster variants should keep the supplied wood roster alongside wisps');
 assert.ok(passiveSource.includes('boss: ['), 'boss variants should retain the dedicated legacy and act-boss pool');
 const passiveCanvasSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 const passiveDrawCalls = JSON.parse(vm.runInContext(`JSON.stringify((() => {

@@ -1826,6 +1826,14 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
     return result;
 }
 
+function resolveEnemyFacingDirection(enemyPos, playerPos) {
+    if (!enemyPos || !playerPos) return 'south';
+    const dx = Number(playerPos.x) - Number(enemyPos.x);
+    const dy = Number(playerPos.y) - Number(enemyPos.y);
+    if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'west' : 'east';
+    return dy < 0 ? 'north' : 'south';
+}
+
 function buildSummonAttackMotionMap(effects, summons, proj, enemyPosMap, now) {
     let result = {};
     if (!proj || typeof proj.cellToScreen !== 'function') return result;
@@ -1862,7 +1870,7 @@ function drawBattleEnemyActor(ctx, entry, state) {
     ctx.globalAlpha = easedAge;
     drawEnemySprite(ctx, enemy, entry.x, entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18),
         crowdScale * state.gridUnitScale * spawnScale, state.flashingEnemyIds.has(enemy.id), state.now, entry.moving,
-        state.enemyAttackMotions[enemy.id]);
+        state.enemyAttackMotions[enemy.id], resolveEnemyFacingDirection(entry, state.playerPos));
     ctx.restore();
 }
 
@@ -1919,8 +1927,7 @@ function renderBattlefield(forceWhenHidden) {
 
     let currentZone = getZone(game.currentZoneId);
     let zoneTheme = getBattleZoneTheme(currentZone);
-    let mobileBattlefield = document.body && document.body.classList.contains('mobile-battle-tab');
-    let gridProj = getBattleGridProjection(width, height, mobileBattlefield ? 'grid-contain' : 'cover');
+    let gridProj = getBattleGridProjection(width, height, 'grid-contain');
     let backdropActive = drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone, gridProj);
     let framePlayerStats = getCanvasPlayerStats();
     let currentTargets = getCanvasSkillTargets(framePlayerStats);
