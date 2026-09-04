@@ -5860,10 +5860,8 @@ function openLoopHeroSelection(onSelect, options = {}) {
     let titleEl = document.getElementById('loop-hero-select-title');
     let bodyEl = document.getElementById('loop-hero-select-body');
     if (!overlay || !grid) {
-        let fallbackClass = PLAYER_CLASS_DEFS[game.selectedClassId] ? game.selectedClassId : 'archer';
-        applyHeroSelection(fallbackClass, { silent: true, skipSave: true, alignTalent: true });
-        if (typeof onSelect === 'function') onSelect(fallbackClass);
-        return;
+        console.error('직업 선택 화면을 열 수 없습니다: 필수 DOM이 없습니다.');
+        return false;
     }
     loopHeroSelectionCallback = typeof onSelect === 'function' ? onSelect : null;
     if (kickerEl) kickerEl.innerText = options.kicker || 'Loop Selection';
@@ -5878,6 +5876,7 @@ function openLoopHeroSelection(onSelect, options = {}) {
         return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmousemove="showHeroChoiceTooltip(event,'${id}',${experienced ? 'true' : 'false'})" onmouseleave="hideInfoTooltip()" onclick="chooseLoopHero('${id}')">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}<small>${escapeHTML(summary)}</small></strong></button>`;
     }).join('');
     overlay.classList.add('active');
+    return true;
 }
 
 function chooseLoopHero(classId) {

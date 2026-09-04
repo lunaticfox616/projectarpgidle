@@ -389,6 +389,7 @@ function getBackgroundCombatSignature(state) {
 
 function isForegroundGameplayPausedForBackground() {
     if (typeof gameplayStarted !== 'undefined' && !gameplayStarted) return true;
+    if (game && !game.heroSelectionInitialized) return true;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return true;
     if (typeof isLoadingOverlayOpen === 'function' && isLoadingOverlayOpen()) return true;
     if (typeof isRewardOpen === 'function' && isRewardOpen()) return true;
@@ -412,6 +413,7 @@ function isBackgroundCombatEligible(state) {
 
 function isOfflineCombatEligible(state) {
     if (!state || typeof state !== 'object') return false;
+    if (!state.heroSelectionInitialized) return false;
     if (state.pendingLoopDecision || state.pendingLoopReady || state.combatHalted) return false;
     if ((Number(state.playerHp) || 0) <= 0) return false;
     return state.currentZoneId !== undefined && state.currentZoneId !== null;
@@ -6725,8 +6727,8 @@ function onMonsterSkinChanged() {
 }
 
 function ensureInitialHeroSelection() {
-    if (game.heroSelectionInitialized) return;
-    openLoopHeroSelection((pickedId) => {
+    if (game.heroSelectionInitialized || isLoopHeroSelectOpen()) return true;
+    return openLoopHeroSelection((pickedId) => {
         game.heroSelectionInitialized = true;
         if (game.unlocks) game.unlocks.char = true;
         addLog(`시작 직업을 선택했습니다: ${PLAYER_CLASS_DEFS[pickedId].blindLabel}`, 'season-up');
@@ -15707,6 +15709,7 @@ async function enterGameWorld() {
         }
         setLoadingOverlayState(false);
     }
+    ensureInitialHeroSelection();
     try {
         await startOfflineCombatReturn(Date.now());
     } catch (error) {
@@ -17318,7 +17321,7 @@ function init() {
                 // 포그라운드 틱이 함께 돌면 시뮬레이션이 이중 진행되고 프레임도 뺏기므로 정지한다.
                 if (backgroundCombatRuntime.processing) return;
                 let overlayPause = !!(game.settings && game.settings.pauseGameOnOverlay);
-                let blockingOverlayOpen = isStartupOverlayOpen() || isLoadingOverlayOpen()
+                let blockingOverlayOpen = !game.heroSelectionInitialized || isStartupOverlayOpen() || isLoadingOverlayOpen()
                     || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen();
                 let optionalOverlayOpen = overlayPause && (isTutorialOpen() || isPauseSettingOverlayOpen());
                 if (blockingOverlayOpen || optionalOverlayOpen) return;

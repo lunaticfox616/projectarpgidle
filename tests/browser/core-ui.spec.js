@@ -9,7 +9,10 @@ async function openLocalGame(page, path = '/') {
     await expect(page.locator('#startup-overlay')).not.toHaveClass(/active/, { timeout: 20_000 });
     await expect(page.locator('#loading-overlay')).not.toHaveClass(/active/, { timeout: 20_000 });
     const heroOverlay = page.locator('#loop-hero-select-overlay');
-    if (await heroOverlay.isVisible()) {
+    const needsHeroSelection = await page.evaluate(() => !game.heroSelectionInitialized);
+    if (needsHeroSelection) {
+        await expect(heroOverlay).toBeVisible();
+        await expect(heroOverlay.locator('[data-class-id]')).toHaveCount(6);
         await heroOverlay.locator('[data-class-id]').first().click();
         await expect(heroOverlay).not.toHaveClass(/active/);
     }
