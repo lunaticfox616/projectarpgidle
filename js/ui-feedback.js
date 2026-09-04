@@ -148,6 +148,7 @@
         document.getElementById('game-dialog-message').innerHTML = escapeFeedbackHtml(activeDialog.message).replace(/\n/g, '<br>');
         cancel.textContent = activeDialog.cancelLabel;
         confirm.textContent = activeDialog.confirmLabel;
+        cancel.style.display = activeDialog.type === 'notice' ? 'none' : '';
         confirm.style.display = activeDialog.type === 'choice' && activeDialog.submitOnChoice ? 'none' : '';
         control.innerHTML = buildDialogControl(activeDialog);
         bindDialogControl(activeDialog, control);

@@ -15170,6 +15170,7 @@ function updateStartupScreenUI() {
     let backBtn = document.getElementById('btn-startup-back');
     let loginBtn = document.getElementById('btn-startup-login');
     let signupBtn = document.getElementById('btn-startup-signup');
+    let resendBtn = document.getElementById('btn-startup-resend-confirmation');
     let googleBtn = document.getElementById('btn-startup-google');
     let kakaoBtn = document.getElementById('btn-startup-kakao');
     let localStamp = game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0;
@@ -15191,6 +15192,7 @@ function updateStartupScreenUI() {
         if (switchBtn) switchBtn.style.display = 'none';
         if (loginBtn) loginBtn.disabled = true;
         if (signupBtn) signupBtn.disabled = true;
+        if (resendBtn) resendBtn.disabled = true;
         if (googleBtn) googleBtn.disabled = true;
         if (kakaoBtn) kakaoBtn.disabled = true;
         if (guestBtn) guestBtn.disabled = false;
@@ -15220,6 +15222,7 @@ function updateStartupScreenUI() {
     if (switchBtn) switchBtn.style.display = 'none';
     if (loginBtn) loginBtn.disabled = cloudState.busy;
     if (signupBtn) signupBtn.disabled = cloudState.busy;
+    if (resendBtn) resendBtn.disabled = cloudState.busy;
     if (googleBtn) googleBtn.disabled = cloudState.busy;
     if (kakaoBtn) kakaoBtn.disabled = cloudState.busy;
     if (guestBtn) guestBtn.disabled = cloudState.busy;
@@ -16652,11 +16655,7 @@ async function cloudSignUp(options = {}) {
     setCloudMessage('회원가입을 진행 중입니다...');
     updateCloudSaveUI();
     try {
-        let result = await cloudJsonRequest('/auth/v1/signup', {
-            method: 'POST',
-            useAuth: false,
-            body: { email: credentials.email, password: credentials.password }
-        });
+        let result = await requestSupabaseEmailSignUp(credentials);
         if (result && result.session && result.user) {
             applyCloudSession({ ...result.session, user: result.user });
             await refreshCloudLinkedIdentities();
@@ -16671,8 +16670,10 @@ async function cloudSignUp(options = {}) {
             addLog('클라우드 계정을 만들고 저장을 연결했습니다.', 'loot-magic');
             if (options.enterGame) await enterGameWorld();
         } else {
-            setCloudMessage('회원가입은 완료되었습니다. Supabase 이메일 인증을 사용하는 경우 메일 확인 후 로그인해주세요.');
+            clearCloudPasswordInput();
+            setCloudMessage('인증 메일을 보냈습니다. 메일에서 인증을 완료한 뒤 로그인해주세요.');
             if (options.enterGame) setLoadingOverlayState(false);
+            await showSignupEmailNotice(credentials.email, false);
         }
     } catch (error) {
         setCloudMessage('회원가입 실패: ' + (error.message || error));
@@ -16682,6 +16683,56 @@ async function cloudSignUp(options = {}) {
         updateCloudSaveUI();
     }
 }
+
+async function requestSupabaseEmailSignUp(credentials) {
+    let client = getSupabaseClient();
+    if (!client || !client.auth || typeof client.auth.signUp !== 'function') throw new Error('회원가입 클라이언트를 초기화하지 못했습니다.');
+    let { data, error } = await client.auth.signUp({
+        email: credentials.email,
+        password: credentials.password,
+        options: { emailRedirectTo: getOAuthRedirectUrl() }
+    });
+    if (error) throw error;
+    return data || {};
+}
+
+function showSignupEmailNotice(email, resent) {
+    return requestGameDialog({
+        type: 'notice',
+        tone: 'success',
+        kicker: 'ACCOUNT VERIFICATION',
+        title: resent ? '인증 메일을 다시 보냈습니다' : '인증 메일을 보냈습니다',
+        message: `${email}\n메일의 인증 링크를 누른 뒤 이 화면으로 돌아와 로그인해주세요.`,
+        confirmLabel: '확인'
+    });
+}
+
+async function resendSignupConfirmation() {
+    if (cloudState.busy) return;
+    let credentials = collectCloudCredentials();
+    if (!credentials.email) return setCloudMessage('인증 메일을 받을 이메일을 입력해주세요.');
+    let client = getSupabaseClient();
+    if (!client || !client.auth || typeof client.auth.resend !== 'function') return setCloudMessage('인증 메일 재발송 기능을 초기화하지 못했습니다.');
+    cloudState.busy = true;
+    setCloudMessage('인증 메일을 다시 보내는 중입니다...');
+    try {
+        let { error } = await client.auth.resend({
+            type: 'signup',
+            email: credentials.email,
+            options: { emailRedirectTo: getOAuthRedirectUrl() }
+        });
+        if (error) throw error;
+        setCloudMessage('인증 메일을 다시 보냈습니다. 메일함을 확인해주세요.');
+        await showSignupEmailNotice(credentials.email, true);
+    } catch (error) {
+        setCloudMessage('인증 메일 재발송 실패: ' + (error.message || error));
+    } finally {
+        cloudState.busy = false;
+        updateCloudSaveUI();
+    }
+}
+
+safeExposeGlobals({ resendSignupConfirmation });
 
 async function cloudLogin(options = {}) {
     let config = getCloudConfig();
