@@ -49,7 +49,7 @@ function getGrowthCategoryAffixCap(category) {
 
 // 생장판 전용 추가 옵션 원본 수치. 장비 MOD_DB는 장비에만 그대로 적용하고,
 // 생장판 생성·제작은 이 base/step을 사용해 낮은 실제 수치를 아이템에 저장한다.
-const GROWTH_AFFIX_VALUE_VERSION = 2;
+const GROWTH_AFFIX_VALUE_VERSION = 3;
 const GROWTH_AFFIX_VALUE_DB = Object.freeze({
     flatDmg: { base: 1.2, step: 1.2 }, weaponFlatDmgPct: { base: 2.4, step: 1.6 },
     pctDmg: { base: 2, step: 1.6 }, meleePctDmg: { base: 2, step: 1.6 },
@@ -95,6 +95,32 @@ const GROWTH_AFFIX_VALUE_DB = Object.freeze({
     compoundEnergyShield: { base: 1.08, step: 0.96, compound: [{ statId: 'energyShieldPct', statName: '에너지 보호막 증가(%)', base: 0.72, step: 0.48 }] },
     compoundWeaponDmg: { base: 0.36, step: 0.36, compound: [{ statId: 'weaponFlatDmgPct', statName: '무기의 기본 피해 증가(%)', base: 0.72, step: 0.48 }] }
 });
+
+// 생장 옵션은 판 전체에서 여러 개가 합산되므로 의미 없는 세부 소수점을 만들지 않는다.
+// 기본은 정수이며, 민감한 확률·속도는 0.5, 회복 계열은 0.1 단위만 사용한다.
+const GROWTH_HALF_STEP_STATS = Object.freeze([
+    'aspd', 'summonAspd', 'crit', 'summonCrit', 'resPen', 'summonResPen',
+    'physIgnore', 'deflectChance', 'shieldBlockFlat'
+]);
+const GROWTH_TENTH_STEP_STATS = Object.freeze([
+    'regen', 'regenSuppress', 'regenSuppressGloves', 'regenSuppressAmulet',
+    'leech', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'
+]);
+
+function getGrowthStatValueStep(statId) {
+    if (GROWTH_TENTH_STEP_STATS.includes(statId)) return 0.1;
+    if (GROWTH_HALF_STEP_STATS.includes(statId)) return 0.5;
+    return 1;
+}
+
+function roundGrowthStatValue(statId, value) {
+    let numeric = Number(value);
+    if (!Number.isFinite(numeric)) return value;
+    let step = getGrowthStatValueStep(statId);
+    let units = Math.round(numeric / step);
+    if (numeric !== 0 && units === 0) units = numeric > 0 ? 1 : -1;
+    return Number((units * step).toFixed(step === 1 ? 0 : 1));
+}
 
 function getGrowthAffixValueDef(modId) {
     return GROWTH_AFFIX_VALUE_DB[modId] || null;
@@ -352,7 +378,7 @@ const GROWTH_BASE_DB = [
     // ── 뿌리: 생존·회복 ──
     { id: 'gr_mender_root', name: '치유 수염뿌리', category: 'root', shapeId: 'dot1', reqTier: 2,
       baseStats: [{ id: 'flatHp', baseMin: 7, baseMax: 11 }, { id: 'regen', baseMin: 0.15, baseMax: 0.25 }], tags: ['방어', '회복'],
-      spatial: { desc: '줄기와 인접하면 초당 재생 +0.35%', effects: [{ stage: 'adjacency', when: { type: 'adjCategory', category: 'stem' }, grant: [{ id: 'regen', val: 0.35 }] }] } },
+      spatial: { desc: '줄기와 인접하면 초당 재생 +0.4%', effects: [{ stage: 'adjacency', when: { type: 'adjCategory', category: 'stem' }, grant: [{ id: 'regen', val: 0.4 }] }] } },
     { id: 'gr_ancient_buttress', name: '고목 버팀뿌리', category: 'root', shapeId: 'corner3', reqTier: 10,
       baseStats: [{ id: 'flatHp', baseMin: 20, baseMax: 28 }, { id: 'armor', baseMin: 45, baseMax: 65 }], tags: ['방어', '고목'],
       spatial: { desc: '모서리에 닿으면 받는 물리 피해 감소 +5%', effects: [{ stage: 'wall', when: { type: 'corner' }, grant: [{ id: 'dr', val: 5 }] }] } },
@@ -526,7 +552,8 @@ const GROWTH_GLOBAL_SYNERGY_DB = [
 safeExposeData({
     GROWTH_BOARD_W, GROWTH_BOARD_H, GROWTH_SHAPE_DB, GROWTH_CATEGORY_INFO,
     GROWTH_AFFIX_CAP, GROWTH_AFFIX_VALUE_VERSION, GROWTH_AFFIX_VALUE_DB,
-    getGrowthCategoryAffixCap, getGrowthAffixValueDef, GROWTH_UNLOCK_LOOP, GROWTH_UNLOCK_STAGES,
+    getGrowthCategoryAffixCap, getGrowthAffixValueDef, getGrowthStatValueStep, roundGrowthStatValue,
+    GROWTH_UNLOCK_LOOP, GROWTH_UNLOCK_STAGES,
     GROWTH_LEVEL_STAT_PCT, GROWTH_LEVEL_CAP, GROWTH_SHAPE_REFORGE_COST_PER_CELL,
     GROWTH_SLAB_REFORGE_COST, GROWTH_SLAB_PATTERNS, GROWTH_SLAB_DB,
     GROWTH_SYNERGY_STAGES, GROWTH_BASE_DB, GROWTH_UNIQUE_DB,

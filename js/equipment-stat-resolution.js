@@ -20,10 +20,12 @@ function getEquipmentMirrorSource(slotKey, item, ownerState) {
     return { slot: oppositeSlot, item: oppositeItem };
 }
 
-function scaleEquipmentStatLines(stats, multiplier) {
+function scaleEquipmentStatLines(stats, multiplier, growthItem) {
     return (Array.isArray(stats) ? stats : []).filter(Boolean).map(stat => {
         let value = Number(stat.val);
-        return Number.isFinite(value) ? { ...stat, val: value * multiplier } : { ...stat };
+        if (!Number.isFinite(value)) return { ...stat };
+        let scaled = value * multiplier;
+        return { ...stat, val: growthItem ? roundGrowthStatValue(stat.id, scaled) : scaled };
     });
 }
 
@@ -49,10 +51,11 @@ function resolveEquipmentBaseStats(item, mirrorItem, itemMultiplier, growthItem)
         let value = Number(stat.val);
         return Number.isFinite(value) ? { ...stat, val: Number((value * baseMultiplier).toFixed(2)) } : { ...stat };
     });
-    return { stats: scaleEquipmentStatLines(scaled, itemMultiplier), qualityMode, qualityMultiplier };
+    return { stats: scaleEquipmentStatLines(scaled, itemMultiplier, growthItem), qualityMode, qualityMultiplier };
 }
 
 function resolveEquipmentExplicitStats(item, mirrorItem, itemMultiplier, qualityMode, qualityMultiplier) {
+    let growthItem = isGrowthItem(item);
     let riftRow = (item.stats || []).find(stat => stat && stat.id === 'fossilRiftAmp');
     let riftMultiplier = 1 + Math.max(0, Number(riftRow && riftRow.val) || 0) / 100;
     let kaleidoscopeMultiplier = item.uniqueEffectKey === 'kaleidoscopeShield'
@@ -70,7 +73,7 @@ function resolveEquipmentExplicitStats(item, mirrorItem, itemMultiplier, quality
     let immutableStats = getImmutableItemSpecialStats(item);
     return scaleEquipmentStatLines([
         ...stats, item.underEnchant, item.chaosInfusion, ...copiedSpecials, ...immutableStats
-    ].filter(Boolean), itemMultiplier);
+    ].filter(Boolean), itemMultiplier, growthItem);
 }
 
 /**
