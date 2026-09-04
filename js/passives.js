@@ -6560,6 +6560,18 @@ function isLocalRuntimeHost() {
     return host === 'localhost' || host === '127.0.0.1' || host === '::1';
 }
 
+function shouldPreserveOriginalBattleSheet(key) {
+    return key === 'tiles'
+        || key === 'shrineInteractable'
+        || key.startsWith('hero')
+        || key.startsWith('playerClass')
+        || key.startsWith('woodEnemy')
+        || key.startsWith('realmEnemy')
+        || key.startsWith('bossTelegraph')
+        || key.startsWith('skillFx')
+        || key.startsWith('passiveTree');
+}
+
 function fileExists(path) {
     if (isLocalFileProtocol()) return true;
     try {
@@ -6896,9 +6908,8 @@ function initBattleAssets() {
             if (key.startsWith('backdrop') || key.startsWith('bg')) {
                 battleAssets.backdrops[key] = image;
             } else {
-                let keepOriginalSheet = key === 'tiles' || key === 'shrineInteractable' || key.startsWith('hero') || key.startsWith('woodEnemy') || key.startsWith('realmEnemy') || key.startsWith('bossTelegraph') || key.startsWith('skillFx') || key.startsWith('passiveTree') || (key === 'heroLegacy' && heroSheetHasTransparency(image));
                 battleAssets.images[key] = image;
-                if (!keepOriginalSheet) queueBattleSheetSanitization(key, image);
+                if (!shouldPreserveOriginalBattleSheet(key)) queueBattleSheetSanitization(key, image);
             }
         } catch (error) {
             battleAssets.images[key] = image;
@@ -7305,27 +7316,6 @@ function sanitizeLocalMonsterBackdropSheet(image) {
     }
     ctx.putImageData(frame, 0, 0);
     return canvas;
-}
-
-function heroSheetHasTransparency(image) {
-    if (!image || !image.width || !image.height) return false;
-    if (isLocalFileProtocol()) return true;  // file:// 환경에서는 getImageData SecurityError 우회 — 히어로 시트는 투명도 있다고 가정
-    const canvas = document.createElement('canvas');
-    canvas.width = image.width;
-    canvas.height = image.height;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(image, 0, 0);
-    let frame;
-    try {
-        frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    } catch (error) {
-        return false;
-    }
-    const px = frame.data;
-    for (let i = 3; i < px.length; i += 4) {
-        if (px[i] < 250) return true;
-    }
-    return false;
 }
 
 function finalizeBattleAssets() {

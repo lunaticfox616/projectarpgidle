@@ -130,6 +130,20 @@ assert.deepStrictEqual(definitions.find(def => def.id === 'warrior').motionAncho
 assert(totalBytes < 320000, 'all six classes and their directional motion strips should stay below the WebP budget');
 assert.strictEqual(runtime.getPlayableHeroAttackDurationScale('occultist'), 1.2);
 
+const classSheetKeys = plain(run(`(function () {
+    function collectStrings(value) {
+        if (typeof value === 'string') return [value];
+        if (Array.isArray(value)) return value.flatMap(collectStrings);
+        if (value && typeof value === 'object') return Object.values(value).flatMap(collectStrings);
+        return [];
+    }
+    return PLAYER_CLASS_ORDER.flatMap(id => collectStrings(PLAYER_CLASS_DEFS[id].strips));
+})()`));
+assert(classSheetKeys.length > 0 && classSheetKeys.every(key => run(`shouldPreserveOriginalBattleSheet(${JSON.stringify(key)})`)),
+    'pre-transparent player-class sheets must bypass the generic background sanitizer');
+assert.strictEqual(run(`shouldPreserveOriginalBattleSheet('enemies')`), false,
+    'legacy opaque monster sheets must still use background sanitization');
+
 const mobileHeroTuning = plain(run('getLocalBattleHeroVisualTuning(1.032)'));
 assert(mobileHeroTuning.scaleBoost >= 0.55 && mobileHeroTuning.scaleBoost <= 0.57,
     'mobile combat actors must shrink with the grid instead of staying at desktop height');
