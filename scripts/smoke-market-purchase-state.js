@@ -46,7 +46,7 @@ assert.strictEqual(comparison.delta, 3);
 assert(comparison.label.includes('+3티어'));
 
 const buyStart = source.indexOf('async function buyBlackMarketOffer(idx)');
-const buyEnd = source.indexOf('function renderMarketUI()', buyStart);
+const buyEnd = source.indexOf('safeExposeGlobals({', buyStart);
 assert(buyStart >= 0 && buyEnd > buyStart, 'market purchase runtime not found');
 
 const expiredOffer = { type: 'exchange', name: '만료 상품', from: 'chaos', to: 'divine', need: 1, gain: 1 };
@@ -85,7 +85,7 @@ vm.runInContext(source.slice(buyStart, buyEnd), buyContext, { filename: 'market-
     assert(source.includes('Math.ceil(hiddenTier * 0.45)'), 'base offer prices must scale with their actual crafting tier');
     assert(source.includes("offer.chase || offer.featured || (offer.priceKey === 'goldenRule'"), 'high-value black-market purchases need confirmation');
 
-    const exchangeStart = passiveSource.indexOf('async function exchangeAtMarket(exchangeId, exchangeAll)');
+    const exchangeStart = passiveSource.indexOf('function getMarketExchangeQuote(');
     const exchangeEnd = passiveSource.indexOf('safeExposeGlobals({', exchangeStart);
     assert(exchangeStart >= 0 && exchangeEnd > exchangeStart, 'market exchange runtime not found');
     let exchangeAwarded = 0;
@@ -108,7 +108,7 @@ vm.runInContext(source.slice(buyStart, buyEnd), buyContext, { filename: 'market-
     vm.runInContext(passiveSource.slice(exchangeStart, exchangeEnd), exchangeContext, { filename: 'market-exchange-race.js' });
     await exchangeContext.exchangeAtMarket('race', true);
     assert.strictEqual(exchangeAwarded, 0, 'confirmed bulk exchange must recheck currency before granting output');
-    assert(exchangeLogs.some(message => message.includes('재화가 변경')));
+    assert(exchangeLogs.some(message => message.includes('취소')));
     console.log('smoke-market-purchase-state passed');
 })().catch(error => {
     console.error(error);

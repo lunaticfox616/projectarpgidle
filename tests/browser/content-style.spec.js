@@ -66,12 +66,12 @@ async function verifyWorkspaceActions(page, target) {
             return true;
         });
         for (const kind of ['black', 'services']) {
-            const section = page.locator('.market-section-' + kind);
-            await section.locator('summary').click();
+            const section = page.locator('#market-panel-' + kind);
+            await page.locator('[data-market-section="' + kind + '"]').click();
             await page.evaluate(() => renderMarketUI());
-            await expect(section).toHaveAttribute('open');
-            await section.locator('summary').click();
+            await expect(section).toBeVisible();
         }
+        await page.locator('[data-market-section="exchange"]').click();
     }
     if (target === 'flask') {
         await expect(page.locator('#ui-flask-panel')).toBeVisible();

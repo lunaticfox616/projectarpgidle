@@ -2993,9 +2993,9 @@ test('market exchange selector survives auto-salvage currency updates', async ({
     });
     expect(await page.evaluate(() => document.getElementById('ui-market-exchange-from') === window.__marketExchangeSelectorBeforeSalvage)).toBe(true);
     await expect(selector).toBeFocused();
-    await expect(selector).toHaveValue('magicBud');
+    await expect(selector).toHaveValue('m1');
     await selector.blur();
-    await expect(page.locator('[data-market-exchange-balance]')).toContainText('보유 24개');
+    await expect(page.locator('#ui-market-quote')).toContainText('마법의 새싹 16개');
     expect(failures).toEqual([]);
 });
 

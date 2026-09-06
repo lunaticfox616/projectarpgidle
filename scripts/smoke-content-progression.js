@@ -117,7 +117,7 @@ assert(run("contentProgression.isUnlocked('craft')"));
 for(const def of runtime.CONTENT_UNLOCK_CATALOG){
  const seen=new Set();let row=def;
  while(row){assert(!seen.has(row.id),'acyclic prerequisites');seen.add(row.id);row=runtime.CONTENT_UNLOCK_CATALOG.find(candidate=>candidate.id===row.after);}
- if(def.cost===0)assert(!def.after && !(def.requires||[]).length,'automatic content never depends on paid growth');
+ if(def.cost===0 && !['market','hall'].includes(def.id))assert(!def.after && !(def.requires||[]).length,'automatic combat content never depends on paid growth');
 }
 // Locked loot must not leak through boss rewards or offline's shared combat functions.
 runtime.Math = Object.create(Math);

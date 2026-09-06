@@ -1922,7 +1922,7 @@ body:not(.light-mode) .cfg-group {
   box-shadow: inset 0 1px rgba(255,255,255,.035), 0 9px 22px rgba(0,0,0,.22);
 }
 
-body:not(.light-mode) button:not(.tab-btn):not(.social-login-image-btn) {
+body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.social-login-image-btn) {
   border-radius: 2px 9px 2px 9px;
 }
 

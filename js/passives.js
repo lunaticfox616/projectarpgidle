@@ -12161,29 +12161,36 @@ function removeGrowthDropOverflowAffix(item) {
 }
 
 function isMarketUnlocked() {
-    return (game.maxZoneId || 0) >= 5;
+    return contentProgression.isUnlocked('market');
 }
 
-async function exchangeAtMarket(exchangeId, exchangeAll) {
-    if (!isMarketUnlocked()) return addLog('액트 5를 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
+/** Read-only quote. Quantity is an integer count or 'max'; currencies are normalized at load. */
+function getMarketExchangeQuote(recipe, quantity, owner = game) {
+    const have = owner.currencies[recipe.from] || 0;
+    const max = Math.floor(have / recipe.need);
+    const times = quantity === 'max' ? max : Number(quantity);
+    const valid = Number.isSafeInteger(times) && times >= 1 && times <= max;
+    const spend = valid ? times * recipe.need : 0, gain = valid ? times * recipe.gain : 0;
+    return { have, max, times, valid, spend, gain, afterFrom: have - spend, afterTo: (owner.currencies[recipe.to] || 0) + gain };
+}
+
+async function exchangeAtMarket(exchangeId, exchangeAll, quantity = 1) {
+    if (!isMarketUnlocked()) return addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
     let recipe = MARKET_EXCHANGES.find(row => row.id === exchangeId);
     if (!recipe) return;
-    let have = game.currencies[recipe.from] || 0;
-    let maxTimes = Math.floor(have / recipe.need);
-    if (maxTimes <= 0) return addLog(`${ORB_DB[recipe.from].name}이 부족합니다.`, 'attack-monster');
-    let times = exchangeAll ? maxTimes : 1;
-    let spend = times * recipe.need;
-    let gain = times * recipe.gain;
-    if (exchangeAll) {
-        let question = `정말 ${ORB_DB[recipe.from].name} ${spend}개를 ${ORB_DB[recipe.to].name} ${gain}개로 모두 교환하시겠습니까?`;
+    const { valid, times, spend, gain } = getMarketExchangeQuote(recipe, exchangeAll ? 'max' : quantity);
+    if (!valid) return addLog('교환 가능한 수량을 입력하세요.', 'attack-monster');
+    if (exchangeAll || times > 1) {
+        let question = `${ORB_DB[recipe.from].name} ${spend}개를 ${ORB_DB[recipe.to].name} ${gain}개로 교환하시겠습니까?`;
         if (!await requestGameConfirmation(question, {
-            title: '재화 전체 교환',
+            title: '재화 교환',
             tone: 'danger',
-            confirmLabel: '전체 교환'
+            confirmLabel: '교환'
         })) return;
-        if ((game.currencies[recipe.from] || 0) < spend) return addLog('교환 확인 중 재화가 변경되어 거래를 취소했습니다.', 'attack-monster');
+        if (!isMarketUnlocked() || game.currencies[recipe.from] < spend)
+            return addLog('교환 확인 중 재화 또는 해금 상태가 변경되어 거래를 취소했습니다.', 'attack-monster');
     }
-    game.currencies[recipe.from] = Math.max(0, (game.currencies[recipe.from] || 0) - spend);
+    game.currencies[recipe.from] -= spend;
     awardCurrency(recipe.to, gain);
     addLog(`🏦 거래소 교환: ${ORB_DB[recipe.from].name} ${spend}개 → ${ORB_DB[recipe.to].name} ${gain}개`, 'loot-magic');
     checkUnlocks();
@@ -12191,6 +12198,7 @@ async function exchangeAtMarket(exchangeId, exchangeAll) {
 }
 
 safeExposeGlobals({
+    getMarketExchangeQuote,
     getRealmEquipmentHiddenTierCap,
     getRealmItemDropTierRange,
     getDroppedAffixTierRange,

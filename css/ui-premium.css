@@ -4,14 +4,14 @@
    ============================================================ */
 
 /* ── GLOBAL BUTTON ──────────────────────────────────────────── */
-body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action),
+body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action),
 /* ============================================================
    ui-premium.css — Premium UI overrides
    전투 / 버튼 / HP게이지 / 장비창 / 제작실
    ============================================================ */
 
 /* ── GLOBAL BUTTON ──────────────────────────────────────────── */
-body.light-mode button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action) {
+body.light-mode button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action) {
   border-width: 1px;
   border-style: solid;
   border-radius: 6px;
@@ -28,20 +28,20 @@ body.light-mode button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not
    ============================================================ */
 
 /* ── GLOBAL BUTTON ──────────────────────────────────────────── */
-body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action) {
+body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action) {
   background: linear-gradient(180deg, var(--skin-control) 0%, var(--skin-panel) 100%);
   border-color: var(--skin-line);
   color: var(--ui-text);
   box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
   transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease, filter .08s ease;
 }
-body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action):hover:not(:disabled) {
+body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action):hover:not(:disabled) {
   background: linear-gradient(180deg, color-mix(in srgb, var(--skin-control), var(--skin-accent) 8%) 0%, var(--skin-panel-raised) 100%);
   border-color: var(--skin-line-strong);
   color: #ffffff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
 }
-body:not(.light-mode) button:not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action):active:not(:disabled) {
+body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-category-btn):not(.subtab-btn):not(.social-login-image-btn):not(.startup-primary):not(.startup-secondary):not(.startup-ghost):not(.ominous-entry-btn):not(.map-reward-btn):not(.vertical-tab-btn):not(.social-modal-close):not(.gem-orbit-slot):not(.gem-engrave-option):not(.ui-goal-action):not(.ui-goal-notice-action):active:not(:disabled) {
   filter: brightness(.9);
   box-shadow: 0 0 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.25);
 }
@@ -54,7 +54,7 @@ body:not(.light-mode) button:disabled:not(.gem-engrave-option) {
 
 /* 사용 / 액션 강조 버튼 — 골드 계열 */
 body:not(.light-mode) button.use-btn,
-body:not(.light-mode) .item-actions button:not(:disabled),
+body:not(.light-mode) .item-actions button:not(.market-shell button):not(:disabled),
 body:not(.light-mode) button[onclick*="use"]:not(.subtab-btn),
 body:not(.light-mode) button[onclick*="equip"]:not(.subtab-btn),
 body:not(.light-mode) button[onclick*="salvage"]:not(.subtab-btn) {

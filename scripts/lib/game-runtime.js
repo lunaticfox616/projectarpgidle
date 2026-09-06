@@ -19,7 +19,7 @@ const LOAD_ORDER = [
     'js/passives.js', 'js/loot.js', 'js/battle-backdrops.js', 'js/shrines.js', 'js/growth-board.js', 'js/growth-effects.js',
     'js/growth-generation.js', 'js/equipment-stat-resolution.js', 'js/skills.js', 'js/bounties.js', 'js/core-cube.js', 'js/combat-grid.js', 'js/condition-patterns.js', 'js/hidden-journal.js', 'js/severed-wanderers.js',
     'js/combat-patterns.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-slash-vfx.js', 'js/canvas-skill-footprint.js', 'js/canvas-earth-spikes.js', 'js/canvas-skill-signatures.js', 'js/canvas-battlefield.js',
-    'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/equipment-inventory-grid-ui.js', 'js/crafting-result-ui.js', 'js/bounty-ui.js', 'js/loop-ui.js', 'js/endgame-progression-ui.js', 'js/tutorial-ui.js', 'js/tab-layout-ui.js', 'js/ui.js', 'js/equipment-loot-ui.js', 'js/content-progression-ui.js', 'js/salvage-recovery-ui.js', 'js/unique-hunt-ui.js', 'js/equipment-loadouts-ui.js', 'js/growth-ui.js',
+    'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/equipment-inventory-grid-ui.js', 'js/crafting-result-ui.js', 'js/bounty-ui.js', 'js/loop-ui.js', 'js/endgame-progression-ui.js', 'js/tutorial-ui.js', 'js/tab-layout-ui.js', 'js/ui.js', 'js/market-ui.js', 'js/equipment-loot-ui.js', 'js/content-progression-ui.js', 'js/salvage-recovery-ui.js', 'js/unique-hunt-ui.js', 'js/equipment-loadouts-ui.js', 'js/growth-ui.js',
     'js/skills-ui.js', 'js/offline-progress-ui.js', 'js/records-ui.js',
     'js/talent-cards.js', 'js/talent-precise.js', 'js/talent-hit-effects.js', 'js/talent-recovery.js',
     'js/save-migrations.js', 'js/build-feedback-ui.js', 'js/combat-replay.js', 'js/main.js'

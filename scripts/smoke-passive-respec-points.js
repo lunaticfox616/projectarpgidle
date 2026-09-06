@@ -15,6 +15,7 @@ async function main() {
         updateStaticUI = () => {};
         normalizeSupportLoadout = () => {};
         game.maxZoneId = 5;
+        game.season = 2;contentProgression.purchase('craft');
         game.woodsmanBuildLock = false;
     `);
     const fixture = JSON.parse(run(`JSON.stringify((() => {

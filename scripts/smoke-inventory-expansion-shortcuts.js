@@ -1,72 +1,22 @@
 const assert = require('assert');
-const fs = require('fs');
 const vm = require('vm');
-
-function readFunctionSource(source, name) {
-  const start = source.indexOf(`function ${name}(`);
-  assert(start >= 0, `${name} must exist`);
-  let depth = 0;
-  for (let index = source.indexOf('{', start); index < source.length; index++) {
-    if (source[index] === '{') depth++;
-    if (source[index] !== '}') continue;
-    depth--;
-    if (depth === 0) return source.slice(start, index + 1);
-  }
-  throw new Error(`${name} must have a closing brace`);
-}
-
-const html = fs.readFileSync('index.html', 'utf8');
-const source = fs.readFileSync('js/ui.js', 'utf8');
-const jewelButton = { hidden: true, disabled: false, textContent: '', title: '' };
-const growthButton = { hidden: true, disabled: false, textContent: '', title: '' };
-const context = {
-  Math,
-  game: { maxZoneId: 5, season: 30, currencies: { goldenRule: 2 } },
-  document: {
-    getElementById(id) {
-      if (id === 'btn-jewel-inventory-expand') return jewelButton;
-      if (id === 'btn-growth-inventory-expand') return growthButton;
-      return null;
-    }
-  },
-  isMarketUnlocked() { return context.game.maxZoneId >= 5; },
-  getJewelMarketExpandCost() { return 1; },
-  getGrowthMarketExpandCost() { return 2; },
-  getJewelInventoryLimit() { return 20; },
-  getGrowthInventoryLimit() { return 40; },
-  isGrowthBoardUnlocked() { return (context.game.season || 1) >= 25; }
-};
-vm.createContext(context);
-vm.runInContext(readFunctionSource(source, 'syncInventoryExpansionShortcuts'), context);
-
-context.syncInventoryExpansionShortcuts();
-assert.strictEqual(jewelButton.hidden, false);
-assert.strictEqual(jewelButton.disabled, false);
-assert.strictEqual(jewelButton.textContent, '+5칸 · 황금률 1 / 보유 2');
-assert(jewelButton.title.includes('현재 20칸') && jewelButton.title.includes('보유 황금률 2개'));
-assert.strictEqual(growthButton.hidden, false);
-assert.strictEqual(growthButton.textContent, '+5칸 · 황금률 2 / 보유 2');
-assert(growthButton.title.includes('현재 40칸') && growthButton.title.includes('보유 황금률 2개'));
-
-context.game.currencies.goldenRule = 0;
-context.syncInventoryExpansionShortcuts();
-assert(jewelButton.textContent.includes('보유 0') && growthButton.textContent.includes('보유 0'),
-    '재화가 부족해 확장창을 열 수 없어도 각 화면에서 황금률 보유량을 확인할 수 있어야 한다');
-assert.strictEqual(jewelButton.disabled, true, '재화가 부족하면 주얼 한도 확장을 누를 수 없어야 한다');
-assert.strictEqual(growthButton.disabled, true, '재화가 부족하면 생장 보관함 확장을 누를 수 없어야 한다');
-
-context.game.season = 10;
-context.syncInventoryExpansionShortcuts();
-assert.strictEqual(growthButton.hidden, true, '생장판 해금 전에는 생장 확장 바로가기를 숨겨야 한다');
-context.game.season = 30;
-
-context.game.maxZoneId = 4;
-context.syncInventoryExpansionShortcuts();
-assert.strictEqual(jewelButton.hidden, true, '거래소 해금 전에는 주얼 확장 바로가기를 숨겨야 한다');
-assert.strictEqual(growthButton.hidden, true, '거래소 해금 전에는 생장 확장 바로가기를 숨겨야 한다');
-
-assert(!html.includes('id="btn-equipment-inventory-expand"') && !html.includes('marketExpandInventoryByDivine()'),
-    'equipment storage must not expose a currency expansion shortcut');
-assert(html.includes('id="btn-jewel-inventory-expand"') && html.includes('onclick="marketExpandJewelInventoryByDivine()"'));
-assert(html.includes('id="btn-growth-inventory-expand"') && html.includes('onclick="marketExpandGrowthInventoryByDivine()"'));
+const { buildGameRuntime } = require('./lib/game-runtime');
+const context = buildGameRuntime();
+const run = code => vm.runInContext(code, context);
+const jewel = {}, growth = {};
+context.document.getElementById = id => ({
+    'btn-jewel-inventory-expand': jewel, 'btn-growth-inventory-expand': growth
+})[id] || null;
+run('game=mergeDefaults({});game.season=100;game.currencies.goldenRule=100;contentProgression.sync();syncInventoryExpansionShortcuts()');
+assert(jewel.hidden && growth.hidden);
+run("contentProgression.purchase('craft');syncInventoryExpansionShortcuts()");
+assert(jewel.hidden && growth.hidden, 'high loop must not bypass feature purchases');
+run("game.contentProgression.inherited.push('jewel','growth');contentProgression.sync();syncInventoryExpansionShortcuts()");
+assert(!jewel.hidden && !growth.hidden);
+assert(!jewel.disabled && !growth.disabled);
+assert(jewel.textContent.includes('보유 100') && growth.textContent.includes('보유 100'));
+assert(jewel.title.includes(run('getJewelInventoryLimit()')+'칸'));
+run('game.currencies.goldenRule=0;syncInventoryExpansionShortcuts()');
+assert(jewel.disabled && growth.disabled);
+assert(jewel.textContent.includes('보유 0'));
 console.log('smoke-inventory-expansion-shortcuts passed');

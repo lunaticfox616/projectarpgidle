@@ -1904,7 +1904,7 @@ function switchItemSubtab(subtabId) {
         if (isSelectedSubtab(subtabId)) return;
     }
     if (subtabId === 'item-tab-market' && !isMarketUnlocked()) {
-        addLog('액트 5를 먼저 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
+        addLog('장비 제련을 해금하면 거래소를 이용할 수 있습니다.', 'attack-monster');
         subtabId = 'item-tab-equip';
     }
     if (subtabId === 'item-tab-infuser' && (typeof isChaosInfuserUnlocked !== 'function' || !isChaosInfuserUnlocked())) {
@@ -10212,7 +10212,7 @@ function syncInventoryExpansionShortcuts() {
     let controls = [
         {
             id: 'btn-jewel-inventory-expand',
-            unlocked: isMarketUnlocked() && (game.season || 1) >= 5,
+            unlocked: isMarketUnlocked() && contentProgression.isUnlocked('jewel'),
             cost: getJewelMarketExpandCost(),
             currentLimit: getJewelInventoryLimit()
         },
@@ -15775,10 +15775,6 @@ function checkUnlocks() {
             setTimeout(() => boundaryButton.classList.remove('map-explore-tab-unlock-reveal'), 1400);
         }
         queueTutorialNotice('unlock_beyond_boundary', '경계 너머 해금', '완전한 수관과 최종 관문 너머에 끝없는 도전이 열렸습니다.\n지도 → 경계 너머에서 단계와 성장시킬 인장을 선택하세요.', 'tab-map');
-    }
-    if (game.maxZoneId >= 5 && !(game.seenTutorials || []).includes('unlock_market')) {
-        game.noti.items = true;
-        queueTutorialNotice('unlock_market', '거래소 개방', '액트 5를 클리어해 거래소가 열렸습니다.\n장비/제작 탭의 거래소에서 재화 교환과 특수 서비스를 이용할 수 있습니다.', 'tab-items', 'item-tab-market');
     }
     if (typeof maybeUnlockCoreCube === 'function') maybeUnlockCoreCube({ silent: false });
     if (game.season > 1 && !u.season) {

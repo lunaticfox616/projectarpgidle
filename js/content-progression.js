@@ -8,7 +8,6 @@ const contentProgression = (() => {
 
     // Predicates only read normalized save state; unlocking a menu never grants world progress.
     const progressChecks = {
-        market: owner => [['액트 5 클리어', owner.maxZoneId >= 5]],
         trials: owner => [['액트 3 도달', owner.maxZoneId >= 3 || owner.completedTrials.length > 0]],
         meteor: owner => [['액트 7 도달', owner.maxZoneId >= 7]],
         deepChaos: owner => [['혼돈 20층 클리어', hasCurrentLoopChaos20Clear(owner)]],
@@ -42,7 +41,14 @@ const contentProgression = (() => {
         if (state.unlocked.includes(id) || state.inherited.includes(id)) return true;
         if (def.cost !== 0) return false;
         if (state.automatic.includes(id)) return true;
+        return automaticAccess(def, owner);
+    }
+
+    function automaticAccess(def, owner) {
         if (owner.season < def.minLoop) return false;
+        // Automatic bundles refer to paid growth predecessors; combat entries have none.
+        const owned = [...owner.contentProgression.unlocked, ...owner.contentProgression.inherited];
+        if (def.after && !owned.includes(def.after)) return false;
         return !def.progress || progressChecks[def.progress](owner).every(row => row[1]);
     }
 
@@ -134,6 +140,8 @@ const contentProgression = (() => {
     }
 
     function legacyAccess(def, owner) {
+        // Saves predating the unlock ledger used act five for the market.
+        if (def.id === 'market') return owner.maxZoneId >= 5;
         if ((def.routes || []).some(route => owner.unlockedMapContents.includes(route))) return true;
         if (def.id === 'journal') return owner.journalEntries.length > 0;
         if (def.gate) return !!owner.unlocks[def.gate];

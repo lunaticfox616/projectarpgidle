@@ -384,8 +384,6 @@ body:not(.light-mode) :where(
   .codex-slot-tabs,
   .market-shell,
   .market-locked,
-  .market-exchange-picker,
-  .market-card,
   .market-service-card,
   .offline-progress-panel,
   .offline-stash-item
@@ -415,9 +413,8 @@ body:not(.light-mode) .codex-slot-tab.active {
 }
 
 body:not(.light-mode) :where(
-  .market-exchange-select select,
-  .market-service-card select,
-  .market-black-controls select,
+  .market-shell select,
+  .market-shell input,
   .offline-progress-upgrade button,
   .offline-progress-directives button
 ) {
