@@ -12,9 +12,10 @@ test('game introduction loads real footage on demand and closes without changing
     await opener.click();
     const dialog=page.getByRole('dialog',{name:'RIGNIN은 어떤 게임인가요?'});
     await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText('액션 롤플레잉 게임(ARPG)에 자동사냥 방치형 게임의 요소를 결합한 게임입니다.');
+    await expect(dialog).toContainText('액션 롤플레잉 게임(ARPG)의 요소에 자동사냥 방치형 게임의 요소를 결합한 게임입니다. 루프하며 새로운 컨텐츠를 해금하고 강력한 캐릭터를 육성해보세요!');
     await page.waitForFunction(()=>document.getElementById('startup-about-video').currentTime>0.2);
     const duration=await page.locator('#startup-about-video').evaluate(video=>video.duration);
+    expect(await page.locator('#startup-about-video').evaluate(video=>video.controls)).toBe(false);
     expect(duration).toBeGreaterThanOrEqual(1.8);
     expect(duration).toBeLessThanOrEqual(2.1);
     expect(requests.length).toBeGreaterThan(0);
@@ -30,7 +31,7 @@ test('game introduction loads real footage on demand and closes without changing
     expect(errors).toEqual([]);
 });
 
-test('reduced motion leaves the introduction video paused for manual playback',async({page})=>{
+test('reduced motion shows the introduction poster without autoplay or player controls',async({page})=>{
     await page.emulateMedia({reducedMotion:'reduce'});
     await page.route('https://**',route=>route.fulfill({status:204,body:''}));
     await page.goto('/');

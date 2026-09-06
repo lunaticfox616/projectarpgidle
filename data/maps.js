@@ -1,10 +1,10 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/maps.js');
 
 const ACT_BATTLE_MAP_SOURCES = Object.freeze({
-    bgAct1: 'assets/background/world-tree/act01-filled-v1.webp',
+    bgAct1: 'assets/background/world-tree/act01-sanctuary.webp',
     bgAct2: 'assets/background/world-tree/act02-filled-v1.webp',
     bgAct3: 'assets/background/world-tree/act03-filled-v1.webp',
-    bgAct4: 'assets/background/world-tree/act04-filled-v1.webp',
+    bgAct4: 'assets/background/world-tree/act04-sanctuary.webp',
     bgAct5: 'assets/background/world-tree/act05-filled-v1.webp',
     bgAct6: 'assets/background/world-tree/act06-filled-v1.webp',
     bgAct7: 'assets/background/world-tree/act07-filled-v1.webp',

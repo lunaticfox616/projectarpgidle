@@ -7760,20 +7760,32 @@ function isActBattleMapBackdropKey(key) {
 }
 
 // ACT 맵은 현재 투영과 동일한 변환으로 그려 이미지의 48px 칸과 판정을 정확히 맞춘다.
-// 그 외 엔드게임 배경도 같은 직교 전장을 사용하되 이미지만 일반 cover로 채운다.
+// 지하계는 생성 원본의 타일 경계를 보정하고, 나머지 엔드게임 배경은 cover로 채운다.
 function drawGridAlignedBackdrop(ctx, width, height, image, gridProj, backdropKey) {
     let srcW = image.width || width;
     let srcH = image.height || height;
     let actMap = isActBattleMapBackdropKey(backdropKey) && gridProj;
     let coverScale = Math.max(width / srcW, height / srcH);
-    let drawW = actMap ? gridProj.mapWidth : srcW * coverScale;
-    let drawH = actMap ? gridProj.mapHeight : srcH * coverScale;
-    let drawX = actMap ? gridProj.mapX : (width - drawW) / 2;
-    let drawY = actMap ? gridProj.mapY : (height - drawH) / 2;
+    let drawW = srcW * coverScale;
+    let drawH = srcH * coverScale;
+    let drawX = (width - drawW) / 2;
+    let drawY = (height - drawH) / 2;
+    if (actMap) {
+        ({ mapWidth: drawW, mapHeight: drawH, mapX: drawX, mapY: drawY } = gridProj);
+    }
+    const underworldMap = backdropKey === 'bgUnderworld' && gridProj;
+    if (underworldMap) {
+        // Original 1434×1097 art: nine-by-eight floor bounds (298,256)-(1134,950).
+        const firstCell = gridProj.cellToScreen(0, 0);
+        drawW = gridProj.tileW * 9 * 1434 / 836;
+        drawH = gridProj.tileH * 8 * 1097 / 694;
+        drawX = firstCell.x - gridProj.tileW / 2 - drawW * 298 / 1434;
+        drawY = firstCell.y - gridProj.tileH / 2 - drawH * 256 / 1097;
+    }
     ctx.fillStyle = '#070b12';
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(image, drawX, drawY, drawW, drawH);
-    ctx.fillStyle = actMap ? 'rgba(4, 8, 14, 0.16)' : 'rgba(4, 8, 14, 0.42)';
+    ctx.fillStyle = actMap || underworldMap ? 'rgba(4, 8, 14, 0.16)' : 'rgba(4, 8, 14, 0.42)';
     ctx.fillRect(0, 0, width, height);
 }
 

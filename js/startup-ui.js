@@ -7,8 +7,8 @@
 
     opener.addEventListener('click', async () => {
         if (dialog.open) return;
-        video.poster = 'assets/ui/gameplay-intro.webp';
-        if (!video.getAttribute('src')) video.src = 'assets/ui/gameplay-intro.webm';
+        video.poster = 'assets/ui/gameplay-intro.webp?v=occultist-2';
+        if (!video.getAttribute('src')) video.src = 'assets/ui/gameplay-intro.webm?v=occultist-2';
         status.hidden = true;
         dialog.showModal();
         if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -16,7 +16,7 @@
             await video.play();
         } catch (error) {
             if (!dialog.open) return; // Closing while play() is pending intentionally cancels playback.
-            status.textContent = '재생 버튼을 눌러 전투 영상을 확인하세요.';
+            status.textContent = '자동 재생이 제한되어 실제 전투 이미지를 표시합니다.';
             status.hidden = false;
             console.warn('[startup-intro] Video autoplay unavailable:', error);
         }
