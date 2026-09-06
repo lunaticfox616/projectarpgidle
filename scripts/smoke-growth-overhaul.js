@@ -8,6 +8,7 @@ const run = code => vm.runInContext(code, ctx);
 
 run(`
     game.season = 60;
+    game.contentProgression.inherited.push('growth');
     game.maxZoneId = 60;
     game.growthInventory = [];
     game.recentGrowthDrops = [];

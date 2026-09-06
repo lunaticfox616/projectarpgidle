@@ -98,6 +98,7 @@ const context = {
     Object
 };
 vm.createContext(context);
+require('./lib/load-content-progression')(context, true);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
     readFunctionSource('isCodexTabUnlockReady'),
@@ -138,6 +139,7 @@ const activeTabContext = {
 };
 activeTabContext.document.body = activeTabContext.body;
 vm.createContext(activeTabContext);
+require('./lib/load-content-progression')(activeTabContext, true);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
     readFunctionSource('isCodexTabUnlockReady'),
@@ -204,6 +206,7 @@ activeTabContext.stalePane = null;
         Array
     };
     vm.createContext(renderingContext);
+    require('./lib/load-content-progression')(renderingContext, true);
     vm.runInContext([
         source.slice(groupStart, groupEnd),
         readFunctionSource('isCodexTabUnlockReady'),
@@ -266,12 +269,14 @@ const tabSwitchContext = {
     Object, Array
 };
 vm.createContext(tabSwitchContext);
+require('./lib/load-content-progression')(tabSwitchContext, true);
 vm.runInContext([
     'let lastActiveTabId = "tab-flask";',
     source.slice(groupStart, groupEnd),
     readFunctionSource('getMergedTabGroup'),
     readFunctionSource('switchTab')
 ].join('\n'), tabSwitchContext, { filename: 'merged-pane-persistence.js' });
+vm.runInContext(readFunctionSource('isTabSurfaceAvailable'), tabSwitchContext);
 tabSwitchContext.switchTab('tab-character');
 assert(switchNodes['tab-character'].classList.contains('active'), 'the newly selected top-level tab must become active');
 assert(!switchNodes['tab-flask'].classList.contains('active'), 'the previous top-level host must relinquish global tab activation');
@@ -296,6 +301,7 @@ const panelContext = {
     Array
 };
 vm.createContext(panelContext);
+require('./lib/load-content-progression')(panelContext, true);
 vm.runInContext([source.slice(groupStart, groupEnd), readFunctionSource('mountMergedTabGroup')].join('\n'), panelContext, { filename: 'merged-tab-window-host.js' });
 const mergedShell = panelContext.mountMergedTabGroup('growth');
 assert.deepStrictEqual(windowRoot.childNodes, [windowTitlebar, windowBody, windowResize], 'merged tabs must not move the desktop window titlebar or resize handle');
@@ -320,6 +326,7 @@ const singleTabContext = {
     Array
 };
 vm.createContext(singleTabContext);
+require('./lib/load-content-progression')(singleTabContext, true);
 vm.runInContext([MERGED_TAB_GROUPS_SOURCE, readFunctionSource('renderMergedTabPanels')].join('\n'), singleTabContext,
     { filename: 'single-merged-tab.js' });
 singleTabContext.renderMergedTabPanels('growth');
@@ -343,6 +350,7 @@ const lockedTabContext = {
     Array
 };
 vm.createContext(lockedTabContext);
+require('./lib/load-content-progression')(lockedTabContext, true);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
     readFunctionSource('isCodexTabUnlockReady'),
@@ -409,6 +417,7 @@ assert.strictEqual(lockedTabContext.getSelectedMergedTabId('records'), null,
         Array
     };
     vm.createContext(relockContext);
+    require('./lib/load-content-progression')(relockContext, true);
     vm.runInContext([
         'let lastActiveTabId = "tab-skills";',
         source.slice(groupStart, groupEnd),
@@ -460,6 +469,7 @@ const routedContext = {
     Array
 };
 vm.createContext(routedContext);
+require('./lib/load-content-progression')(routedContext, true);
 vm.runInContext([
     source.slice(groupStart, groupEnd),
     readFunctionSource('isCodexTabUnlockReady'),
@@ -562,6 +572,7 @@ assert(elements['btn-tab-char'].classList.contains('active'), 'opening a merged 
             Array
         };
         vm.createContext(runtimeContext);
+        require('./lib/load-content-progression')(runtimeContext, true);
         vm.runInContext([
             source.slice(groupStart, groupEnd),
             readFunctionSource('isCodexTabUnlockReady'),

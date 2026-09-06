@@ -22,6 +22,7 @@ const files = [
   'js/save.js',
   'js/items.js',
   'js/passives.js',
+  'js/loot.js',
   'js/growth-board.js',
   'js/growth-effects.js',
   'js/equipment-stat-resolution.js',
@@ -91,7 +92,9 @@ const context = {
 context.window = context;
 context.globalThis = context;
 vm.createContext(context);
+require('./lib/load-combat-clock')(context);
 files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
+require('./lib/load-content-progression')(context);
 context.getHeroSelectionDef = () => ({ label: '테스트 영웅', classId: null });
 context.getCodexBonusPct = () => 0;
 

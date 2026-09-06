@@ -1040,13 +1040,13 @@ function showSocialTip(event, scope, key) {
 function moveSocialTip(event) {
     let tip = document.getElementById('social-tooltip');
     if (!tip || tip.style.display === 'none') return;
-    let pad = 16, w = tip.offsetWidth, h = tip.offsetHeight;
+    let pad = 16, w = tip.offsetWidth * uiDisplay.factor, h = tip.offsetHeight * uiDisplay.factor;
     let x = event.clientX + pad, y = event.clientY + pad;
     if (x + w > window.innerWidth - 8) x = event.clientX - w - pad;
     if (x < 8) x = 8;
     if (y + h > window.innerHeight - 8) y = window.innerHeight - h - 8;
     if (y < 8) y = 8;
-    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+    tip.style.left = x / uiDisplay.factor + 'px'; tip.style.top = y / uiDisplay.factor + 'px';
 }
 function hideSocialTip() { let t = document.getElementById('social-tooltip'); if (t) t.style.display = 'none'; }
 // 부적 보드: 같은 부적의 모든 칸을 동시에 강조
@@ -1473,7 +1473,7 @@ function injectSocialStyles() {
     .social-online-chip.me{border-color:#8b6838;box-shadow:inset 0 0 0 1px rgba(213,174,105,.08);}
     .social-online-empty{color:var(--copy-muted);font-size:0.82em;}
     .social-chat-wrap{display:flex;flex-direction:column;gap:8px;}
-    .social-chat-list{height:46vh;min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
+    .social-chat-list{height:calc(46vh / var(--ui-display-factor, 1));min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
     .social-chat-empty{display:grid;justify-items:center;gap:5px;color:var(--copy-muted);text-align:center;margin:auto;font-size:0.9em;}.social-chat-empty>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #5b4a31;border-radius:50%;color:#d6b572;font-size:18px;}.social-chat-empty strong{color:#cfc5b5;}.social-chat-empty small{font-size:.8em;}
     .social-chat-msg{max-width:82%;align-self:flex-start;background:#141713;border:1px solid #343229;border-radius:6px;padding:7px 9px;}
     .social-chat-msg.mine{align-self:flex-end;background:#1b1914;border-color:#5b4930;}
@@ -1496,7 +1496,7 @@ function injectSocialStyles() {
     .social-item-link{display:inline-block;font-size:0.86em;font-weight:700;border:1px solid;border-radius:6px;padding:0 6px;margin:0 1px;cursor:pointer;}
     .social-item-link:hover{filter:brightness(1.2);}
     .social-modal-overlay{position:fixed;inset:0;background:rgba(4,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
-    .social-modal-box{position:relative;width:min(760px,96vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(170deg,#101a2a,#0c1421);border:1px solid #2c4063;border-radius:14px;}
+    .social-modal-box{position:relative;width:min(760px,calc(96vw / var(--ui-display-factor, 1)));max-height:calc(90vh / var(--ui-display-factor, 1));display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(170deg,#101a2a,#0c1421);border:1px solid #2c4063;border-radius:14px;}
     .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:18px 56px 20px 20px;}
     /* position 계열에 !important: ui-premium.css 의 고특이도 전역 버튼 규칙(position:relative)이
        덮어쓰면 X버튼이 왼쪽 위 일반 흐름으로 배치되어 한 줄을 차지하는 문제가 재발한다. */
@@ -1562,7 +1562,7 @@ function injectSocialStyles() {
     .social-item-stat.base{color:#f1c40f;}
     .social-roll{color:var(--copy-muted);font-size:0.92em;}
     .social-pick-sub{color:var(--copy-bright);margin:14px 0 6px;font-size:0.9em;}
-    .social-pick-grid{display:flex;flex-direction:column;gap:6px;max-height:30vh;overflow-y:auto;}
+    .social-pick-grid{display:flex;flex-direction:column;gap:6px;max-height:calc(30vh / var(--ui-display-factor, 1));overflow-y:auto;}
     .social-pick-item{background:#0f1a28;border:1px solid;border-left-width:3px;border-radius:7px;padding:7px 10px;cursor:pointer;font-size:0.86em;}
     .social-pick-item:hover{background:#16243a;}
     .social-tooltip{position:fixed;z-index:10001;max-width:320px;pointer-events:none;display:none;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.6));}

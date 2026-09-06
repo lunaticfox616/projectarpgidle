@@ -19,7 +19,7 @@ let activeInfoTooltipToken = null;
 let tooltipPositionFrame = null;
 let pendingTooltipPositions = new Map();
 let tooltipSizeCache = new WeakMap();
-let mapZoneGroupCollapseState = { hunting: false, chaos: false, rootBosses: false, rivalBosses: false, pinnacleBosses: false };
+let mapZoneGroupCollapseState = { hunting: false, chaos: false, rootBosses: false, rivalBosses: false, pinnacleBosses: false, finalGate: false };
 let pendingMapPrimaryTabReveals = new Set();
 
 let mobilePipCanvas = null;
@@ -132,9 +132,11 @@ function buildSeasonBossGroupsHtml(zones) {
     const cards = zoneList => zoneList.map(zone => ({ html: buildSeasonBossCardHtml(zone) }));
     const roots = zones.filter(zone => !zone.rivalBlade && !zone.cosmosCapstone && !zone.milestonePinnacle);
     const rivals = zones.filter(zone => zone.rivalBlade);
-    const pinnacles = zones.filter(zone => zone.cosmosCapstone || zone.milestonePinnacle);
+    const pinnacles = zones.filter(zone => (zone.cosmosCapstone || zone.milestonePinnacle) && !zone.pinnacleCapstone);
+    const finalGate = zones.filter(zone => zone.pinnacleCapstone);
     return [
-        buildMapZoneGroupHtml('pinnacleBosses', '아틀라스 최종 관문', cards(pinnacles)),
+        buildMapZoneGroupHtml('finalGate', '최종 관문', cards(finalGate)),
+        buildMapZoneGroupHtml('pinnacleBosses', '경계의 수호자', cards(pinnacles)),
         buildMapZoneGroupHtml('rivalBosses', '버려진 날붙이', cards(rivals)),
         buildMapZoneGroupHtml('rootBosses', '뿌리 보스', cards(roots))
     ].join('');
@@ -313,12 +315,6 @@ function getUiCrowdProgressPaused() {
     return provider ? !!callUiProvider('isCrowdProgressPaused', provider) : false;
 }
 
-function getUiCrowdPauseLimit() {
-    if (typeof ENEMY_CROWD_PAUSE_LIMIT !== 'undefined') return ENEMY_CROWD_PAUSE_LIMIT;
-    if (typeof window !== 'undefined' && Number.isFinite(Number(window.ENEMY_CROWD_PAUSE_LIMIT))) return Number(window.ENEMY_CROWD_PAUSE_LIMIT);
-    return 20;
-}
-
 function runUiGlobalFunction(name, args = []) {
     let provider = getUiGlobalFunction(name);
     return provider ? callUiProvider(name, provider, args) : undefined;
@@ -328,8 +324,8 @@ function runUiStartEncounter() {
     return runUiGlobalFunction('startEncounterRun');
 }
 
-function runUiCoreLoop() {
-    return runUiGlobalFunction('coreLoop');
+function runUiCoreLoop(nowMs) {
+    return runUiGlobalFunction('coreLoop', [nowMs]);
 }
 
 function getUiPlayerHudIdentity() {
@@ -345,31 +341,9 @@ function getUiPlayerHudIdentity() {
 }
 
 const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;
-const BACKGROUND_PROGRESS_RATE = 0.1;
-const BACKGROUND_PROGRESS_MAX_REAL_MS = 3 * 60 * 60 * 1000;
-const BACKGROUND_PROGRESS_MAX_SIMULATED_MS = BACKGROUND_PROGRESS_MAX_REAL_MS * BACKGROUND_PROGRESS_RATE;
-const BACKGROUND_COMBAT_STEP_MS = 100;
-const BACKGROUND_COMBAT_CHUNK_BUDGET_MS = 8;
-const BACKGROUND_COMBAT_FAST_CHUNK_BUDGET_MS = 12;
-const BACKGROUND_COMBAT_STATS_REFRESH_STEPS = 10;
-const BACKGROUND_COMBAT_SYNC_CHUNK_STEPS = 500;
-// 빠른 기기에서는 충분한 전투 주기를 관측하고, 느린 기기는 아래 벽시계 상한을 우선한다.
-const BACKGROUND_COMBAT_MIN_SAMPLE_MS = 60 * 1000;
-const BACKGROUND_COMBAT_MAX_SAMPLE_MS = 90 * 1000;
-// 느린 기기에서는 최소 1초 분량만 확보한 뒤 벽시계 상한을 우선한다.
-const BACKGROUND_COMBAT_MIN_WALL_SAMPLE_MS = 1000;
-// 유효 진행이 길면 표본 확보 직후 자동 정산하고, 짧은 구간도 실제 1초 이상 재생하지 않는다.
-const BACKGROUND_COMBAT_AUTO_ESTIMATE_THRESHOLD_MS = 5 * 60 * 1000;
-const BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS = 1000;
-let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, accelerationTier: 0, offlineConsumed: false };
-
-function getBackgroundProgressConfig(state) {
-    if (typeof getOfflineProgressConfig === 'function') return getOfflineProgressConfig(state || game || {});
-    return { recognitionLimitMs: BACKGROUND_PROGRESS_MAX_REAL_MS, efficiencyRate: BACKGROUND_PROGRESS_RATE, effectiveLimitMs: BACKGROUND_PROGRESS_MAX_SIMULATED_MS, recognitionHours: 3 };
-}
 
 function getBackgroundProgressResultLimits(state) {
-    let config = getBackgroundProgressConfig(state);
+    let config = getOfflineProgressConfig(state || game);
     return { ...config, effectiveLimitMs: Math.max(0, Number(config.effectiveLimitMs) || 0) };
 }
 
@@ -419,40 +393,8 @@ function isOfflineCombatEligible(state) {
     return state.currentZoneId !== undefined && state.currentZoneId !== null;
 }
 
-function cloneBackgroundCombatState(state) {
-    let snapshot = JSON.parse(JSON.stringify(state));
-    if (typeof applyOfflineHuntDirective === 'function') applyOfflineHuntDirective(snapshot);
-    return snapshot;
-}
-
-// getPlayerStats가 백그라운드 재계산 비용의 대부분을 차지하지만, 재계산 중
-// 스탯 입력은 레벨 업 외에는 사실상 변하지 않는다. 스냅샷을 캐시해 두고
-// 짧은 주기로만 원본을 다시 계산해 프레임 예산 안에서 더 많은 스텝을 처리한다.
-function createBackgroundStatsCache(refreshSteps) {
-    let scope = typeof window !== 'undefined' ? window : null;
-    let original = scope && typeof scope.getPlayerStats === 'function' ? scope.getPlayerStats : null;
-    if (!original || typeof structuredClone !== 'function') return { install() {}, step() {}, uninstall() {} };
-    let source = null;
-    let sourceLevel = null;
-    let stepsSinceRefresh = 0;
-    return {
-        install() {
-            scope.getPlayerStats = function getPlayerStatsBackgroundCached() {
-                let level = game ? game.level : null;
-                if (!source || level !== sourceLevel || stepsSinceRefresh >= refreshSteps) {
-                    source = original();
-                    sourceLevel = level;
-                    stepsSinceRefresh = 0;
-                }
-                return structuredClone(source);
-            };
-        },
-        step() { stepsSinceRefresh++; },
-        uninstall() { scope.getPlayerStats = original; }
-    };
-}
-
 function recordBackgroundCombatEntry(nowMs) {
+    if (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed) return;
     let now = Number.isFinite(nowMs) ? nowMs : Date.now();
     backgroundCombatRuntime.hiddenAtMs = now;
     backgroundCombatRuntime.signature = getBackgroundCombatSignature(game);
@@ -470,14 +412,6 @@ function recordOfflineCombatEntry(nowMs) {
     return !!backgroundCombatRuntime.snapshot;
 }
 
-function consumeBackgroundElapsedTime(nowMs) {
-    let now = Number.isFinite(nowMs) ? nowMs : Date.now();
-    let hiddenAt = Number(backgroundCombatRuntime.hiddenAtMs || 0);
-    backgroundCombatRuntime.hiddenAtMs = 0;
-    if (!Number.isFinite(hiddenAt) || hiddenAt <= 0 || now < hiddenAt) return 0;
-    return Math.max(0, Math.floor(now - hiddenAt));
-}
-
 function getBackgroundCurrencyLabel(key) {
     let def = (typeof ORB_DB !== 'undefined' && ORB_DB) ? ORB_DB[key] : null;
     return (def && def.name) ? def.name : key;
@@ -490,134 +424,6 @@ function countInventoryByRarity(list) {
         counts[item.rarity] = (counts[item.rarity] || 0) + 1;
     });
     return counts;
-}
-
-function getBackgroundTotalExperience(state) {
-    if (!state || typeof state !== 'object') return 0;
-    let level = Math.max(1, Math.floor(Number(state.level) || 1));
-    let total = Math.max(0, Math.floor(Number(state.exp) || 0));
-    if (typeof getExpReq !== 'function') return total;
-    for (let currentLevel = 1; currentLevel < level; currentLevel++) {
-        total += Math.max(0, Math.floor(Number(getExpReq(currentLevel)) || 0));
-    }
-    return total;
-}
-
-function createBackgroundCombatMetrics(state) {
-    return {
-        kills: 0,
-        exp: 0,
-        expLost: 0,
-        deaths: 0,
-        consecutiveDeaths: 0,
-        lastKillAtMs: 0,
-        elapsedSinceLastKillMs: 0,
-        previousLevel: Math.max(1, Math.floor(Number(state && state.level) || 1)),
-        previousExp: Math.max(0, Math.floor(Number(state && state.exp) || 0)),
-        previousKills: Math.max(0, Math.floor(Number(state && state.loopKills) || 0)),
-        previousDeaths: Math.max(0, Math.floor(Number(state && state.loopDeaths) || 0)),
-        previousDeathAt: Math.max(0, Number(state && state.lastDeathLog && state.lastDeathLog.at) || 0),
-        enemyTracks: {}
-    };
-}
-
-function getBackgroundEnemyResourceRatio(enemy) {
-    let maxHp = Math.max(1, Number(enemy && enemy.maxHp) || 1);
-    let maxShield = Math.max(0, Number(enemy && enemy.maxEnergyShield) || 0);
-    let hp = Math.max(0, Number(enemy && enemy.hp) || 0);
-    let shield = Math.max(0, Number(enemy && enemy.energyShield) || 0);
-    return Math.max(0, Math.min(1, (hp + shield) / (maxHp + maxShield)));
-}
-
-function getBackgroundEnemyBucket(enemy) {
-    return enemy && enemy.isBoss ? 'boss' : (enemy && enemy.isElite ? 'elite' : 'normal');
-}
-
-function createBackgroundEnemyTrack(enemy, pStats) {
-    let ratio = getBackgroundEnemyResourceRatio(enemy);
-    let expValue = typeof getEnemyExperienceReward === 'function'
-        ? getEnemyExperienceReward(enemy, pStats) : 0;
-    return { startRatio: ratio, lastRatio: ratio, expValue, bucket: getBackgroundEnemyBucket(enemy) };
-}
-
-function seedBackgroundEnemyMetrics(metrics, state) {
-    if (!metrics || !state || !Array.isArray(state.enemies)) return;
-    let pStats = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
-    state.enemies.forEach(enemy => {
-        if (!enemy || !(Number(enemy.hp) > 0)) return;
-        metrics.enemyTracks[String(enemy.id)] = createBackgroundEnemyTrack(enemy, pStats);
-    });
-}
-
-function updateBackgroundEnemyWork(metrics, state) {
-    let enemies = Array.isArray(state && state.enemies) ? state.enemies : [];
-    let current = {};
-    enemies.forEach(enemy => { if (enemy) current[String(enemy.id)] = enemy; });
-    Object.keys(metrics.enemyTracks).forEach(key => {
-        let enemy = current[key];
-        if (!enemy || getBackgroundEnemyResourceRatio(enemy) <= 0) delete metrics.enemyTracks[key];
-        else metrics.enemyTracks[key].lastRatio = getBackgroundEnemyResourceRatio(enemy);
-    });
-    let pStats = null;
-    enemies.forEach(enemy => {
-        let key = enemy ? String(enemy.id) : '';
-        if (!enemy || !(Number(enemy.hp) > 0) || metrics.enemyTracks[key]) return;
-        if (!pStats && typeof getPlayerStats === 'function') pStats = getPlayerStats();
-        metrics.enemyTracks[key] = createBackgroundEnemyTrack(enemy, pStats);
-    });
-}
-
-function getBackgroundEnemyProjection(metrics) {
-    let projection = {
-        kills: 0,
-        exp: 0,
-        mix: { normal: 0, elite: 0, boss: 0 }
-    };
-    Object.values((metrics && metrics.enemyTracks) || {}).forEach(track => {
-        let work = Math.max(0, (Number(track.startRatio) || 0) - (Number(track.lastRatio) || 0));
-        projection.kills += work;
-        projection.exp += work * Math.max(0, Number(track.expValue) || 0);
-        projection.mix[track.bucket] = (projection.mix[track.bucket] || 0) + work;
-    });
-    return projection;
-}
-
-function updateBackgroundCombatMetrics(metrics, state, elapsedMs) {
-    if (!metrics || !state) return;
-    let kills = Math.max(0, Math.floor(Number(state.loopKills) || 0));
-    let killDelta = kills >= metrics.previousKills ? kills - metrics.previousKills : kills;
-    metrics.kills += killDelta;
-    updateBackgroundEnemyWork(metrics, state);
-    if (killDelta > 0) {
-        metrics.consecutiveDeaths = 0;
-        metrics.lastKillAtMs = Math.max(0, Number(elapsedMs) || 0);
-    }
-    metrics.previousKills = kills;
-    let deaths = Math.max(0, Math.floor(Number(state.loopDeaths) || 0));
-    let deathDelta = deaths >= metrics.previousDeaths ? deaths - metrics.previousDeaths : deaths;
-    metrics.deaths += deathDelta;
-    if (deathDelta > 0) metrics.consecutiveDeaths += deathDelta;
-    metrics.previousDeaths = deaths;
-    let deathAt = Math.max(0, Number(state.lastDeathLog && state.lastDeathLog.at) || 0);
-    let lostThisStep = deathAt > metrics.previousDeathAt
-        ? Math.max(0, Math.floor(Number(state.lastDeathLog && state.lastDeathLog.expLost) || 0))
-        : 0;
-    metrics.previousDeathAt = Math.max(metrics.previousDeathAt, deathAt);
-    let level = Math.max(1, Math.floor(Number(state.level) || 1));
-    let exp = Math.max(0, Math.floor(Number(state.exp) || 0));
-    let earnedThisStep = exp - metrics.previousExp;
-    if (level > metrics.previousLevel && typeof getExpReq === 'function') {
-        for (let currentLevel = metrics.previousLevel; currentLevel < level; currentLevel++) {
-            earnedThisStep += Math.max(0, Math.floor(Number(getExpReq(currentLevel)) || 0));
-        }
-    } else if (level < metrics.previousLevel) {
-        earnedThisStep = getBackgroundTotalExperience(state) - getBackgroundTotalExperience({ level: metrics.previousLevel, exp: metrics.previousExp });
-    }
-    metrics.exp += Math.max(0, earnedThisStep + lostThisStep);
-    metrics.expLost += lostThisStep;
-    metrics.previousLevel = level;
-    metrics.previousExp = exp;
-    metrics.elapsedSinceLastKillMs = Math.max(0, (Number(elapsedMs) || 0) - metrics.lastKillAtMs);
 }
 
 function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, overflowSalvaged) {
@@ -659,6 +465,7 @@ function getBackgroundRewardSummary(beforeState, afterState, combatMetrics, over
         items: Math.max(0, afterInv - beforeInv),
         rarityGains,
         uniqueNames,
+        highlights: equipmentLootPolicy.collectHighlights(beforeState, afterState),
         stashItems: Math.max(0, afterStash - beforeStash),
         stashTotal: afterStash,
         overflowSalvaged: Math.max(0, Math.floor(Number(overflowSalvaged) || 0))
@@ -682,7 +489,7 @@ function getBackgroundProgressOverlay() {
     overlay = document.createElement('div');
     overlay.id = 'background-combat-progress-overlay';
     overlay.className = 'background-combat-progress-overlay';
-    overlay.innerHTML = '<div class="background-combat-progress-card"><strong>백그라운드 전투 계산 중</strong><div id="background-combat-progress-percent">계산 진행 0%</div><div class="background-combat-progress-track" role="progressbar" aria-label="백그라운드 전투 계산 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="background-combat-progress-bar-fill"></div></div><div id="background-combat-progress-duration"></div><div class="background-combat-speed-guide">진행 반영 한도: 3시간 · 빠른 계산은 남은 구간을 예상 보상으로 즉시 정산합니다</div><button type="button" id="background-combat-fast-button" onclick="requestFasterBackgroundCombat()">빠른 계산</button></div>';
+    overlay.innerHTML = '<div class="background-combat-progress-card"><strong>백그라운드 전투 계산 중</strong><div id="background-combat-progress-percent">계산 진행 0%</div><div class="background-combat-progress-track" role="progressbar" aria-label="백그라운드 전투 계산 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="background-combat-progress-bar-fill"></div></div><div id="background-combat-progress-duration"></div><div class="background-combat-speed-guide">진행 반영 한도: 3시간 · 장비·경험치·지역 진행을 함께 반영하며 필수 선택에서 멈춥니다</div><button type="button" id="background-combat-fast-button" onclick="requestFasterBackgroundCombat()">빠른 계산</button></div>';
     document.body.appendChild(overlay);
     return overlay;
 }
@@ -692,137 +499,9 @@ function requestFasterBackgroundCombat() {
     let button = typeof document !== 'undefined' ? document.getElementById('background-combat-fast-button') : null;
     if (!button) return;
     button.disabled = true;
-    button.textContent = '남은 진행 예상 정산 중...';
+    button.textContent = '빠른 계산 중 · 보상은 동일';
 }
 
-// 남은 구간의 재화를 실제 드랍 확률로 다시 굴린다.
-//
-// 왜 표본 결과에 배율을 곱하면 안 되는가: 재화마다 확률이 자릿수 단위로 다르다
-// (황금률은 일반 몹 0.01375%, 나무꾼의 손길은 그 1/1200). 표본에서 우연히 하나
-// 나오면 그 우연이 최대 9~10배로 증폭되어 "10%는 잭팟, 90%는 0"인 분포가 된다.
-// 처치 수만 비례로 늘리고, 그 처치 수만큼 getCurrencyDrops를 실제로 굴리면
-// 기대값은 그대로 두면서 잭팟만 사라진다. 전투 시뮬 없이 드랍만 굴리므로 싸다.
-//
-// 처치 구성(일반/정예/보스)이 필요하다 — 셋의 드랍 확률이 크게 다르기 때문이다.
-// 구성을 알 수 없으면(구버전 경로) 굴리지 않고 표본 실측만 남긴다.
-// 소수 부분을 확률로 처리한다. 그냥 반올림하면 보스처럼 표본에 적게 잡히는 종류가
-// 계통적으로 깎인다(0.4마리 → 항상 0마리). 보스는 일반 몹보다 재화 확률이 90배라
-// 이 손실이 곧바로 기대값 절반으로 나타난다.
-function roundStochastic(value) {
-    let base = Math.floor(value);
-    return base + (Math.random() < (value - base) ? 1 : 0);
-}
-
-// 굴림 횟수 상한. 복귀 시 한 번만 도는 계산이지만, 표본이 크면 수만 번이 되므로
-// 체감 지연을 막는 안전장치를 둔다(초과분은 굴린 결과를 비례로 확장한다).
-const BACKGROUND_CURRENCY_ROLL_LIMIT = 8000;
-
-function scaleBackgroundCurrencyRollPlan(plan, limit) {
-    let planned = plan.reduce((sum, entry) => sum + entry.count, 0);
-    let rollLimit = Math.max(1, Math.floor(Number(limit) || 0));
-    if (planned <= rollLimit) return 1;
-    let scaleBack = planned / rollLimit;
-    plan.forEach(entry => { entry.count = roundStochastic(entry.count / scaleBack); });
-    return scaleBack;
-}
-
-function rollBackgroundCurrencyRemainder(state, killMix, ratio) {
-    if (typeof getCurrencyDrops !== 'function') return false;
-    let mix = (killMix && typeof killMix === 'object') ? killMix : null;
-    if (!mix) return false;
-    let plan = [
-        { count: roundStochastic(Math.max(0, Number(mix.normal) || 0) * ratio), enemy: { isBoss: false, isElite: false } },
-        { count: roundStochastic(Math.max(0, Number(mix.elite) || 0) * ratio), enemy: { isBoss: false, isElite: true } },
-        { count: roundStochastic(Math.max(0, Number(mix.boss) || 0) * ratio), enemy: { isBoss: true, isElite: false } }
-    ];
-    if (!plan.some(entry => entry.count > 0)) return false;
-    // 상한을 넘으면 비율만큼 줄여 굴리고 결과를 되돌려 곱한다. 표본이 수천 번 이상이면
-    // 큰 수의 법칙으로 총량이 안정되므로, 이 확장은 잭팟을 만들지 않는다.
-    let scaleBack = scaleBackgroundCurrencyRollPlan(plan, BACKGROUND_CURRENCY_ROLL_LIMIT);
-    let currencies = state.currencies || (state.currencies = {});
-    let gained = {};
-    plan.forEach(entry => {
-        for (let i = 0; i < entry.count; i++) {
-            let drops = getCurrencyDrops(entry.enemy) || [];
-            drops.forEach(drop => {
-                // 흐릿한 45면체는 전용 적립 경로(addCoreCubeBlurred45)를 타므로 여기서 다루지 않는다.
-                if (!drop || !drop[0] || drop[0] === 'blurred45') return;
-                if (!(drop[0] in currencies)) return;
-                gained[drop[0]] = (gained[drop[0]] || 0) + (Number(drop[1]) || 0);
-            });
-        }
-    });
-    Object.keys(gained).forEach(key => {
-        currencies[key] = (Number(currencies[key]) || 0) + roundStochastic(gained[key] * scaleBack);
-    });
-    return true;
-}
-
-// 시뮬레이션된 표본 구간의 획득 속도를 기준으로 남은 구간의 보상을 예상 정산한다.
-// 경험치(레벨 업 포함)·처치·사망은 비례 반영하고, 재화는 실제 드랍 확률로 다시 굴린다.
-// 아이템 드랍과 지역 진행은 실제로 시뮬레이션된 구간의 결과만 유지한다.
-function extrapolateBackgroundRemainder(state, metrics, processedMs, remainingMs) {
-    if (!state || !(processedMs > 0) || !(remainingMs > 0)) return false;
-    let ratio = remainingMs / processedMs;
-    let enemyProjection = getBackgroundEnemyProjection(metrics);
-    let killSample = Math.max(0, Number(metrics && metrics.kills) || 0) + enemyProjection.kills;
-    let expSample = Math.max(0, Number(metrics && metrics.exp) || 0) + enemyProjection.exp;
-    let estKills = Math.max(0, roundStochastic(killSample * ratio));
-    let estDeaths = Math.max(0, Math.round((metrics ? metrics.deaths : 0) * ratio));
-    let estExp = Math.max(0, Math.round(expSample * ratio));
-    let estLost = Math.min(estExp, Math.max(0, Math.round((metrics ? metrics.expLost : 0) * ratio)));
-    state.loopKills = Math.max(0, Math.floor(Number(state.loopKills) || 0)) + estKills;
-    state.loopDeaths = Math.max(0, Math.floor(Number(state.loopDeaths) || 0)) + estDeaths;
-    state.exp = Math.max(0, Math.floor(Number(state.exp) || 0)) + Math.max(0, estExp - estLost);
-    if (typeof getExpReq === 'function') {
-        let guard = 0;
-        let required = Math.max(1, Math.floor(Number(getExpReq(state.level)) || 0));
-        while (state.exp >= required && guard++ < 5000) {
-            state.exp -= required;
-            state.level = Math.max(1, Math.floor(Number(state.level) || 1)) + 1;
-            required = Math.max(1, Math.floor(Number(getExpReq(state.level)) || 0));
-        }
-    }
-    // 재화: 표본 결과에 배율을 곱하지 않고 남은 처치 수만큼 실제 드랍을 굴린다.
-    // 굴릴 수 없으면(처치 구성 없음) 표본 실측만 남긴다 — 희귀 재화를 부풀리느니 덜 주는 쪽이 안전하다.
-    let killMix = state.backgroundKillMix || {};
-    ['normal', 'elite', 'boss'].forEach(bucket => {
-        killMix[bucket] = Math.max(0, Number(killMix[bucket]) || 0) + Math.max(0, Number(enemyProjection.mix[bucket]) || 0);
-    });
-    rollBackgroundCurrencyRemainder(state, killMix, ratio);
-    if (typeof addRecordActiveTime === 'function') addRecordActiveTime(remainingMs, state);
-    if (metrics) {
-        metrics.kills += estKills;
-        metrics.deaths += estDeaths;
-        metrics.consecutiveDeaths = estKills > 0 ? 0 : metrics.consecutiveDeaths + estDeaths;
-        metrics.lastKillAtMs = estKills > 0 ? processedMs + remainingMs : metrics.lastKillAtMs;
-        metrics.elapsedSinceLastKillMs = estKills > 0 ? 0 : metrics.elapsedSinceLastKillMs + remainingMs;
-        metrics.exp += estExp;
-        metrics.expLost += estLost;
-        metrics.previousKills = Math.max(0, Math.floor(Number(state.loopKills) || 0));
-        metrics.previousDeaths = Math.max(0, Math.floor(Number(state.loopDeaths) || 0));
-        metrics.previousExp = Math.max(0, Math.floor(Number(state.exp) || 0));
-        metrics.previousLevel = Math.max(1, Math.floor(Number(state.level) || 1));
-    }
-    return true;
-}
-
-function projectBackgroundSafetyMetrics(metrics, processedMs, remainingMs) {
-    if (!metrics || !(processedMs > 0) || !(remainingMs > 0)) return metrics;
-    let ratio = remainingMs / processedMs;
-    let enemyProjection = getBackgroundEnemyProjection(metrics);
-    let estKills = Math.max(0, Math.round((Math.max(0, Number(metrics.kills) || 0) + enemyProjection.kills) * ratio));
-    let estDeaths = Math.max(0, Math.round(metrics.deaths * ratio));
-    let estExp = Math.max(0, Math.round(metrics.exp * ratio));
-    let estLost = Math.min(estExp, Math.max(0, Math.round(metrics.expLost * ratio)));
-    return {
-        ...metrics,
-        consecutiveDeaths: estKills > 0 ? 0 : metrics.consecutiveDeaths + estDeaths,
-        elapsedSinceLastKillMs: estKills > 0 ? 0 : metrics.elapsedSinceLastKillMs + remainingMs,
-        exp: metrics.exp + estExp,
-        expLost: metrics.expLost + estLost
-    };
-}
 
 function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs) {
     let overlay = getBackgroundProgressOverlay();
@@ -869,7 +548,7 @@ function showBackgroundCombatResult(result) {
         .map(rarity => `<span style="color:${rarityColor(rarity)};">${rarityLabels[rarity]} ${rarityGains[rarity]}개</span>`)
         .join(' · ') || (summary.items > 0 ? `${summary.items}개` : '없음');
     let uniqueLine = (summary.uniqueNames || []).length > 0
-        ? `<br>고유 획득: <span style="color:${rarityColor('unique')};font-weight:700;">${summary.uniqueNames.slice(0, 5).join(', ')}</span>`
+        ? `<br>고유 획득: <span style="color:${rarityColor('unique')};font-weight:700;">${summary.uniqueNames.slice(0, 5).map(escapeHTML).join(', ')}</span>`
         : '';
     let overflowLine = summary.overflowSalvaged > 0
         ? `<br>공간 부족 자동해체: <strong>${summary.overflowSalvaged}개</strong> <span class="background-combat-exp-lost">(해체 보상은 재화에 포함)</span>`
@@ -882,10 +561,10 @@ function showBackgroundCombatResult(result) {
         `총 처치: <strong>${summary.kills || 0}</strong>`,
         `총 경험치: <strong>+${summary.exp || 0}</strong> <span class="background-combat-exp-lost">(잃은 경험치 -${summary.expLost || 0})</span>`,
         `사망 횟수: <strong>${summary.deaths || 0}</strong>`,
-        `아이템: ${itemHtml}${uniqueLine}${overflowLine}`,
+        `인벤토리 증가: ${itemHtml}${uniqueLine}${overflowLine}`,
         `재화: ${currencyHtml}`
     ].join('<br>');
-    overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p><p>${rewards}</p>${result.estimated ? '<p class="background-combat-capped">남은 구간은 표본 구간의 획득 속도로 예상 정산했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">백그라운드 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">닫기</button></div>`;
+    overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p>${equipmentLootUi.renderHighlights(summary.highlights)}<p>${rewards}</p>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">백그라운드 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">계속하기</button></div>`;
     document.body.appendChild(overlay);
 }
 
@@ -894,59 +573,6 @@ function shouldApplyBackgroundCombatResult(signature) {
     return !(game.pendingLoopDecision || game.pendingLoopReady || game.inTicketBossFight);
 }
 
-function simulateBackgroundCombat(options) {
-    let elapsedMs = Math.max(0, Math.floor(Number(options && options.elapsedMs) || 0));
-    let stepCount = Math.floor(elapsedMs / BACKGROUND_COMBAT_STEP_MS);
-    let simGame = cloneBackgroundCombatState(options.snapshot);
-    let stepFn = options.stepFn || runUiCoreLoop;
-    let previousGame = game;
-    let originalDateNow = Date.now;
-    let simulatedNow = Math.max(0, Math.floor(Number(options && options.startNowMs) || originalDateNow()));
-    let metrics = createBackgroundCombatMetrics(simGame);
-    let statsCache = createBackgroundStatsCache(BACKGROUND_COMBAT_STATS_REFRESH_STEPS);
-    try {
-        Date.now = () => simulatedNow;
-        game = simGame;
-        game.isBackgroundCalculation = true;
-        game.backgroundOverflowSalvageCount = 0;
-        game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
-        game.backgroundStopReason = null;
-        statsCache.install();
-        seedBackgroundEnemyMetrics(metrics, game);
-        let processed = 0;
-        while (processed < stepCount) {
-            let chunkEnd = Math.min(stepCount, processed + BACKGROUND_COMBAT_SYNC_CHUNK_STEPS);
-            for (; processed < chunkEnd; processed++) {
-                let preSafetyReason = typeof getOfflineSafetyStopReason === 'function' ? getOfflineSafetyStopReason(game, metrics, processed * BACKGROUND_COMBAT_STEP_MS) : null;
-                if (preSafetyReason) { game.backgroundStopReason = preSafetyReason; break; }
-                if (game.pendingLoopDecision || game.pendingLoopReady) break;
-                stepFn();
-                statsCache.step();
-                simulatedNow += BACKGROUND_COMBAT_STEP_MS;
-                updateBackgroundCombatMetrics(metrics, game, (processed + 1) * BACKGROUND_COMBAT_STEP_MS);
-                let safetyReason = typeof getOfflineSafetyStopReason === 'function' ? getOfflineSafetyStopReason(game, metrics, (processed + 1) * BACKGROUND_COMBAT_STEP_MS) : null;
-                if (safetyReason) { game.backgroundStopReason = safetyReason; break; }
-            }
-            if (game.pendingLoopDecision || game.pendingLoopReady || game.backgroundStopReason) break;
-        }
-        simGame = game;
-        delete simGame.isBackgroundCalculation;
-    } finally {
-        statsCache.uninstall();
-        Date.now = originalDateNow;
-        game = previousGame;
-    }
-    let overflowSalvaged = Math.max(0, Math.floor(Number(simGame.backgroundOverflowSalvageCount) || 0));
-    delete simGame.backgroundOverflowSalvageCount;
-    delete simGame.backgroundKillMix;
-    let stopReason = simGame.backgroundStopReason || null;
-    delete simGame.backgroundStopReason;
-    return { game: simGame, steps: stepCount, simulatedNow, metrics, overflowSalvaged, stopReason, stopped: !!stopReason };
-}
-
-function shouldStopBackgroundReplay(state) {
-    return !state || (Number(state.playerHp) || 0) <= 0 || !!state.pendingLoopDecision || !!state.pendingLoopReady;
-}
 
 function restoreBattlefieldBeforeBackgroundReplay(refreshUi = true) {
     if (typeof syncBattleTabLayout === 'function') syncBattleTabLayout(false);
@@ -956,189 +582,86 @@ function restoreBattlefieldBeforeBackgroundReplay(refreshUi = true) {
     if (typeof renderBattlefield === 'function') renderBattlefield(true);
 }
 
-function waitBackgroundReplayFrame() {
-    return new Promise(resolve => {
-        // 렌더 프레임에 맞춰 양보하되, rAF가 스로틀되는 환경(절전 모드 등)에서도
-        // 계산이 늘어지지 않도록 32ms 상한을 함께 건다.
-        let settled = false;
-        let finish = () => {
-            if (settled) return;
-            settled = true;
-            setTimeout(resolve, 0);
-        };
-        if (typeof requestAnimationFrame === 'function') requestAnimationFrame(finish);
-        setTimeout(finish, 32);
-    });
-}
 
-async function simulateBackgroundCombatChunked(options) {
-    let elapsedMs = Math.max(0, Math.floor(Number(options && options.elapsedMs) || 0));
-    let simGame = cloneBackgroundCombatState(options.snapshot);
-    let stepFn = options.stepFn || runUiCoreLoop;
-    let previousGame = game;
-    let originalDateNow = Date.now;
-    let simulatedNow = Math.max(0, Math.floor(Number(options && options.startNowMs) || originalDateNow()));
-    let processedMs = 0;
-    let processedSteps = 0;
-    let estimated = false;
-    let metrics = createBackgroundCombatMetrics(simGame);
-    let statsCache = createBackgroundStatsCache(BACKGROUND_COMBAT_STATS_REFRESH_STEPS);
-    let wallNow = () => ((typeof performance !== 'undefined' && performance.now) ? performance.now() : originalDateNow());
-    let replayStartWallMs = wallNow();
-    // 1분 이상 관측하되 장시간 복귀도 게임 시간 90초를 넘겨 실제 전투를 재생하지 않는다.
-    let proportionalSampleMs = Math.min(BACKGROUND_COMBAT_MAX_SAMPLE_MS, Math.floor(elapsedMs * 0.02));
-    let sampleReadyMs = Math.min(elapsedMs, Math.max(BACKGROUND_COMBAT_MIN_SAMPLE_MS, proportionalSampleMs));
+function commitBackgroundCombat(result, expectedGame) {
+    if (game !== expectedGame) throw new Error('정산 중 저장 계정 또는 게임 상태가 변경되었습니다.');
+    let candidate = mergeDefaults(result.game);
+    candidate.saveMeta = { ...expectedGame.saveMeta };
+    candidate.settings.mapCompleteAction = expectedGame.settings.mapCompleteAction;
+    delete candidate.offlineHuntMode;
+    game = candidate;
+    backgroundCombatRuntime.processing = false;
     try {
-        Date.now = () => simulatedNow;
-        game = simGame;
-        game.isBackgroundCalculation = true;
-        game.backgroundOverflowSalvageCount = 0;
-        game.backgroundKillMix = { normal: 0, elite: 0, boss: 0 };
-        game.backgroundStopReason = null;
-        statsCache.install();
-        seedBackgroundEnemyMetrics(metrics, game);
-        while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game) && !game.backgroundStopReason) {
-            let chunkBudgetMs = backgroundCombatRuntime.accelerationTier > 0
-                ? BACKGROUND_COMBAT_FAST_CHUNK_BUDGET_MS
-                : BACKGROUND_COMBAT_CHUNK_BUDGET_MS;
-            let chunkStart = wallNow();
-            do {
-                let preSafetyReason = typeof getOfflineSafetyStopReason === 'function' ? getOfflineSafetyStopReason(game, metrics, processedMs) : null;
-                if (preSafetyReason) { game.backgroundStopReason = preSafetyReason; break; }
-                stepFn();
-                statsCache.step();
-                simulatedNow += BACKGROUND_COMBAT_STEP_MS;
-                processedMs += BACKGROUND_COMBAT_STEP_MS;
-                processedSteps++;
-                updateBackgroundCombatMetrics(metrics, game, processedMs);
-                let safetyReason = typeof getOfflineSafetyStopReason === 'function' ? getOfflineSafetyStopReason(game, metrics, processedMs) : null;
-                if (safetyReason) { game.backgroundStopReason = safetyReason; break; }
-            } while (processedMs < elapsedMs && !shouldStopBackgroundReplay(game) && !game.backgroundStopReason && (wallNow() - chunkStart) < chunkBudgetMs);
-            if (typeof options.onProgress === 'function') options.onProgress(processedMs, elapsedMs);
-            // 빠른 계산을 눌렀거나 일반 계산이 실제 시간 상한을 넘기면,
-            // 표본이 모인 시점에 남은 구간을 예상 보상으로 즉시 정산한다.
-            let wallLimitReached = (wallNow() - replayStartWallMs) >= BACKGROUND_COMBAT_MAX_REPLAY_WALL_MS
-                && processedMs >= Math.min(elapsedMs, BACKGROUND_COMBAT_MIN_WALL_SAMPLE_MS);
-            let settleRequested = backgroundCombatRuntime.accelerationTier > 0
-                || elapsedMs >= BACKGROUND_COMBAT_AUTO_ESTIMATE_THRESHOLD_MS
-                || wallLimitReached;
-            let sampleCanSettle = processedMs >= sampleReadyMs || wallLimitReached;
-            if (settleRequested && sampleCanSettle && processedMs < elapsedMs && !shouldStopBackgroundReplay(game) && !game.backgroundStopReason) {
-                let projectedMetrics = projectBackgroundSafetyMetrics(metrics, processedMs, elapsedMs - processedMs);
-                let projectedSafetyReason = typeof getOfflineSafetyStopReason === 'function' ? getOfflineSafetyStopReason(game, projectedMetrics, elapsedMs) : null;
-                if (projectedSafetyReason) { game.backgroundStopReason = projectedSafetyReason; break; }
-                estimated = extrapolateBackgroundRemainder(game, metrics, processedMs, elapsedMs - processedMs);
-                if (estimated) {
-                    processedMs = elapsedMs;
-                    if (typeof options.onProgress === 'function') options.onProgress(processedMs, elapsedMs);
-                    break;
-                }
-            }
-            if (processedMs < elapsedMs && !shouldStopBackgroundReplay(game) && !game.backgroundStopReason) await waitBackgroundReplayFrame();
-        }
-        simGame = game;
-        delete simGame.isBackgroundCalculation;
-    } finally {
-        statsCache.uninstall();
-        Date.now = originalDateNow;
-        game = previousGame;
-    }
-    let overflowSalvaged = Math.max(0, Math.floor(Number(simGame.backgroundOverflowSalvageCount) || 0));
-    delete simGame.backgroundOverflowSalvageCount;
-    let stopReason = simGame.backgroundStopReason || null;
-    delete simGame.backgroundStopReason;
-    return {
-        game: simGame,
-        steps: processedSteps,
-        simulatedNow,
-        stopped: processedMs < elapsedMs || !!stopReason,
-        stopReason,
-        estimated,
-        metrics,
-        overflowSalvaged
-    };
-}
-
-function handleBackgroundCombatReturn(nowMs) {
-    if (backgroundCombatRuntime.processing) return false;
-    let snapshot = backgroundCombatRuntime.snapshot;
-    let signature = backgroundCombatRuntime.signature;
-    let startedAtMs = Number(backgroundCombatRuntime.hiddenAtMs || 0);
-    let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
-    backgroundCombatRuntime.snapshot = null;
-    backgroundCombatRuntime.signature = '';
-    let limits = getBackgroundProgressResultLimits(snapshot || game);
-    let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, limits.efficiencyRate, limits.effectiveLimitMs);
-    if (!snapshot || effectiveProgressMs <= 0) return false;
-    backgroundCombatRuntime.processing = true;
-    if (typeof setBattleFxSuppressed === 'function') setBattleFxSuppressed(true);
-    try {
-        let result = simulateBackgroundCombat({ elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs });
-        if (!shouldApplyBackgroundCombatResult(signature)) return false;
-        let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
-        game = mergeDefaults(result.game || game);
-        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs, summary, capped: effectiveProgressMs >= limits.effectiveLimitMs, limits, stopReason: result.stopReason });
-        updateStaticUI();
-        return true;
-    } finally {
-        backgroundCombatRuntime.processing = false;
-        if (typeof setBattleFxSuppressed === 'function') setBattleFxSuppressed(false);
+        if (!persistLocalSave({allowRecoveryWrite: getLocalSaveStatus().status === 'write-failed'})) throw new Error('방치 보상 저장에 실패했습니다. 이전 진행은 유지됩니다.');
+        restoreCombatRuntime(result.runtime);
+        backgroundCombatRuntime.snapshot = null;
+        backgroundCombatRuntime.signature = '';
+        backgroundCombatRuntime.hiddenAtMs = 0;
+    } catch (error) {
+        game = expectedGame;
+        throw error;
     }
 }
 
 async function startBackgroundCombatReturn(nowMs) {
     if (backgroundCombatRuntime.processing) return false;
     let snapshot = backgroundCombatRuntime.snapshot;
-    let signature = backgroundCombatRuntime.signature;
-    let startedAtMs = Number(backgroundCombatRuntime.hiddenAtMs || 0);
-    let actualElapsedMs = consumeBackgroundElapsedTime(nowMs);
-    backgroundCombatRuntime.snapshot = null;
-    backgroundCombatRuntime.signature = '';
+    let original = game;
+    let startedAtMs = backgroundCombatRuntime.hiddenAtMs;
+    let actualElapsedMs = Math.max(0, nowMs - startedAtMs);
     let limits = getBackgroundProgressResultLimits(snapshot || game);
     let effectiveProgressMs = calculateBackgroundProgressMs(actualElapsedMs, BACKGROUND_PROGRESS_MIN_REAL_MS, limits.efficiencyRate, limits.effectiveLimitMs);
     if (!snapshot || effectiveProgressMs <= 0) {
-        if (actualElapsedMs > 0) restoreBattlefieldBeforeBackgroundReplay();
+        backgroundCombatRuntime.snapshot = null;
+        backgroundCombatRuntime.hiddenAtMs = 0;
         return false;
     }
     backgroundCombatRuntime.processing = true;
+    backgroundCombatRuntime.failed = false;
     backgroundCombatRuntime.accelerationTier = 0;
-    if (typeof setBattleFxSuppressed === 'function') setBattleFxSuppressed(true);
-    restoreBattlefieldBeforeBackgroundReplay(false);
-    updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
-    await waitBackgroundReplayFrame();
+    let committed = false;
+    setBattleFxSuppressed(true);
     try {
+        restoreBattlefieldBeforeBackgroundReplay(false);
+        hideBackgroundProgressOverlay();
+        updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
+        await waitBackgroundReplayFrame();
         let result = await simulateBackgroundCombatChunked({
-            elapsedMs: effectiveProgressMs,
-            snapshot,
-            startNowMs: startedAtMs,
+            elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs,
             onProgress: (done, total) => updateBackgroundProgressOverlay(done, total, actualElapsedMs)
         });
-        if (!shouldApplyBackgroundCombatResult(signature)) return false;
+        if (!shouldApplyBackgroundCombatResult(backgroundCombatRuntime.signature)) throw new Error('정산 중 사냥 상태가 변경되었습니다.');
         let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
-        game = mergeDefaults(result.game || game);
-        showBackgroundCombatResult({
-            actualElapsedMs,
-            effectiveProgressMs,
-            estimated: result.estimated,
-            summary,
-            capped: effectiveProgressMs >= limits.effectiveLimitMs,
-            limits,
-            stopReason: result.stopReason
-        });
+        commitBackgroundCombat(result, original);
+        committed = true;
+        showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs: result.processedMs, summary,
+            capped: actualElapsedMs >= limits.recognitionLimitMs, limits, stopped: result.stopped, stopReason: result.stopReason });
         restoreBattlefieldBeforeBackgroundReplay();
         return true;
+    } catch (error) {
+        reportBackgroundCombatFailure(error, committed);
+        return committed;
     } finally {
         backgroundCombatRuntime.processing = false;
-        if (typeof setBattleFxSuppressed === 'function') setBattleFxSuppressed(false);
-        hideBackgroundProgressOverlay();
+        setBattleFxSuppressed(false);
+        if (!backgroundCombatRuntime.failed) hideBackgroundProgressOverlay();
     }
+}
+
+function reportBackgroundCombatFailure(error, committed) {
+    console.error('offline combat settlement failed:', error);
+    if (committed) {
+        addLog('방치 보상은 저장되었습니다. 결과 화면을 표시하지 못했습니다: ' + error.message, 'loot-rare');
+        return;
+    }
+    backgroundCombatRuntime.failed = true;
+    const overlay = getBackgroundProgressOverlay();
+    overlay.innerHTML = `<div class="background-combat-progress-card" role="alert"><strong>방치 정산을 완료하지 못했습니다</strong><p>${escapeHTML(error.message)}</p><p>이전 저장과 방치 시간은 보존됩니다. 다시 계산하거나 새로고침해 주세요.</p><button type="button" onclick="startBackgroundCombatReturn(Date.now())">다시 계산</button></div>`;
 }
 
 async function startOfflineCombatReturn(nowMs) {
     if (!recordOfflineCombatEntry(nowMs)) return false;
-    let applied = await startBackgroundCombatReturn(nowMs);
-    if (applied && typeof saveGame === 'function') saveGame({ skipCloudSync: true });
-    return applied;
+    return startBackgroundCombatReturn(nowMs);
 }
 
 function handleBackgroundVisibilityChange() {
@@ -1253,7 +776,7 @@ function ensureMobileBattlePip() {
 function updateMobileBattlePipVisibility() {
     let host = ensureMobileBattlePip();
     if (!host) return;
-    let isMobile = window.matchMedia ? window.matchMedia('(max-width: 1080px)').matches : window.innerWidth <= 1080;
+    let isMobile = window.matchMedia ? uiDisplay.matches('(max-width: 1080px)') : window.innerWidth <= 1080;
     let activeBattle = (document.getElementById('tab-battle') || {}).classList.contains('active');
     let blocked = isStartupOverlayOpen() || isLoadingOverlayOpen();
     host.style.display = (isMobile && !activeBattle && !blocked && game.settings && game.settings.showMobileBattlePip !== false) ? 'grid' : 'none';
@@ -1387,17 +910,12 @@ function setupBattlefieldShrineInteraction() {
     });
 }
 
-const MOBILE_MISC_CONTROL_IDS = Object.freeze(['btn-tab-settings', 'btn-map-complete-action-picker']);
 let mobileNavigationKeyBound = false;
-
-function isMobileMiscControlId(id) {
-    return MOBILE_MISC_CONTROL_IDS.includes(id);
-}
 
 function isMobilePrimaryNavigationEnabled() {
     if (typeof window === 'undefined' || !window.matchMedia) return false;
     if (document.body.classList.contains('desktop-windowed-ui')) return false;
-    return window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches;
+    return uiDisplay.matches('(max-width: 1080px)');
 }
 
 function setMobileTabDrawerOpen(open) {
@@ -1514,21 +1032,7 @@ function syncMobilePrimaryNavigationState() {
 }
 
 function renderTabOrderSettings() {
-    let tabOrderEl = document.getElementById('ui-tab-order-settings');
-    if (!tabOrderEl) return;
-    if (!(document.getElementById('tab-settings') || {}).classList.contains('active')) return;
-    let tabs = Array.from(document.querySelectorAll('.tab-header .tab-btn'));
-    let usesFlatDesktopRail = document.body.classList.contains('desktop-windowed-ui');
-    let usesMobilePrimaryNav = isMobilePrimaryNavigationEnabled();
-    let groupRows = usesFlatDesktopRail ? '' : getOrderedTabGroups().map(group => `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${group.label}</span><span style="display:flex;gap:4px;"><button onclick="moveTabGroup('${group.key}',-1)">▲</button><button onclick="moveTabGroup('${group.key}',1)">▼</button></span></div>`).join('');
-    let tabRows = tabs.map(el => {
-        let place = (game.settings.tabPlacement[el.id] === 'bottom') ? 'bottom' : 'top';
-        let placement = usesMobilePrimaryNav ? '' : `<button onclick="setTabPlacement('${el.id}','top')" ${place === 'top' ? 'disabled' : ''}>상단</button><button onclick="setTabPlacement('${el.id}','bottom')" ${place === 'bottom' ? 'disabled' : ''}>하단</button>`;
-        return `<div style="display:flex;justify-content:space-between;gap:6px;align-items:center;"><span>${el.innerText.replace(/\s*●?\s*$/,'')}</span><span style="display:flex;gap:4px;"><button onclick="moveTabButton('${el.id}',-1)">▲</button><button onclick="moveTabButton('${el.id}',1)">▼</button>${placement}</span></div>`;
-    }).join('');
-    let groupSection = usesFlatDesktopRail ? '' : `<div style="font-weight:800;color:#f1c40f;margin-bottom:2px;">상위 그룹 탭</div>${groupRows}`;
-    let mobileNotice = usesMobilePrimaryNav ? '<div class="ui-inline-notice">모바일 가로 스크롤 탭 사용 중 · 설정과 전투 완료 행동은 기타에 표시됩니다.</div>' : '';
-    tabOrderEl.innerHTML = `${mobileNotice}${groupSection}<div style="font-weight:800;color:#f1c40f;margin:8px 0 2px;">일반 탭</div>${tabRows}`;
+    tabLayoutUi.render();
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
@@ -1541,7 +1045,7 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'pruning', 'arcana', 'items', 
 const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', detail: '패시브 노드를 성장시킵니다.' }, { id: 'tab-traits', label: '직업전직', detail: '전직과 키스톤을 선택합니다.' }] },
     utility: { launcher: 'tab-flask', title: '보조장비', tabs: [{ id: 'tab-jewel', label: '주얼', detail: '보유 주얼과 장착 상태를 관리합니다.' }, { id: 'tab-talisman', label: '부적', detail: '부적을 장착하고 강화합니다.' }, { id: 'tab-flask', gate: 'items', label: '플라스크', detail: '회복 및 유틸리티 플라스크를 관리합니다.' }, { id: 'tab-cube', label: '큐브', detail: '코어 큐브 면에 동력원을 붙입니다.' }, { id: 'tab-growthboard', label: '생장판', detail: '루프 25에 해금. 열 가지 생장판과 석판을 배치합니다.' }] },
-    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '전적', detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '저널', detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -1549,14 +1053,14 @@ const MERGED_TAB_GROUPS = Object.freeze({
 const TAB_GROUP_FIXED_TAB_IDS = ['tab-social', 'tab-settings'];
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
-    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-season', 'tab-pruning', 'tab-arcana', 'tab-skills'] },
+    { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-expertise', 'tab-unlocks', 'tab-season', 'tab-pruning', 'tab-arcana', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-jewel', 'tab-flask', 'tab-talisman', 'tab-cube', 'tab-growthboard'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
 function getOrderedTabGroups() {
     game.settings = game.settings || {};
-    let order = Array.isArray(game.settings.tabGroupOrder) ? game.settings.tabGroupOrder : [];
+    let order = Array.isArray(tabLayoutUi.current().tabGroupOrder) ? tabLayoutUi.current().tabGroupOrder : [];
     let byKey = {};
     TAB_GROUPS.forEach(group => { byKey[group.key] = group; });
     return order.concat(TAB_GROUPS.map(group => group.key))
@@ -1574,7 +1078,7 @@ function moveTabGroup(groupKey, dir) {
     moved[idx] = moved[nextIdx];
     moved[nextIdx] = tmp;
     game.settings = game.settings || {};
-    game.settings.tabGroupOrder = moved.map(group => group.key);
+    tabLayoutUi.current().tabGroupOrder = moved.map(group => group.key);
     lastTabHeaderUiSignature = null;
     renderTabCategoryBar();
     if (typeof syncDesktopRailGroups === 'function' && document.body.classList.contains('desktop-windowed-ui')) syncDesktopRailGroups();
@@ -1592,7 +1096,7 @@ function moveTabGroupBefore(sourceKey, targetKey) {
     let insertIdx = moved.findIndex(group => group.key === targetKey);
     moved.splice(Math.max(0, insertIdx), 0, source);
     game.settings = game.settings || {};
-    game.settings.tabGroupOrder = moved.map(group => group.key);
+    tabLayoutUi.current().tabGroupOrder = moved.map(group => group.key);
     lastTabHeaderUiSignature = null;
     renderTabCategoryBar();
     if (typeof syncDesktopRailGroups === 'function' && document.body.classList.contains('desktop-windowed-ui')) syncDesktopRailGroups();
@@ -1623,7 +1127,7 @@ function isTabGroupingActive() {
     // 데스크톱 창형 UI에서는 좌측 레일이 모든 창 실행 버튼을 보여야 하므로
     // 2단 그룹핑(활성 그룹 외 버튼 숨김)을 적용하지 않는다.
     if (typeof document !== 'undefined' && document.body && document.body.classList.contains('desktop-windowed-ui')) return false;
-    return window.matchMedia('(min-width: 1081px)').matches;
+    return uiDisplay.matches('(min-width: 1081px)');
 }
 function getActiveTabGroup() {
     game.settings = game.settings || {};
@@ -1710,8 +1214,8 @@ function updateTabDragGhost(state, clientX, clientY) {
     if (!state || !state.ghost) return;
     let offsetX = Number.isFinite(state.grabOffsetX) ? state.grabOffsetX : 0;
     let offsetY = Number.isFinite(state.grabOffsetY) ? state.grabOffsetY : 0;
-    state.ghost.style.left = `${clientX - offsetX}px`;
-    state.ghost.style.top = `${clientY - offsetY}px`;
+    state.ghost.style.left = `${(clientX - offsetX) / uiDisplay.factor}px`;
+    state.ghost.style.top = `${(clientY - offsetY) / uiDisplay.factor}px`;
 }
 
 function beginTabHeaderDrag(state) {
@@ -1724,8 +1228,8 @@ function beginTabHeaderDrag(state) {
     state.ghost.className = 'tab-drag-ghost';
     state.ghost.setAttribute('aria-hidden', 'true');
     state.ghost.innerHTML = state.button.innerHTML;
-    state.ghost.style.width = `${Math.max(1, rect.width)}px`;
-    state.ghost.style.height = `${Math.max(1, rect.height)}px`;
+    state.ghost.style.width = `${Math.max(1, rect.width / uiDisplay.factor)}px`;
+    state.ghost.style.height = `${Math.max(1, rect.height / uiDisplay.factor)}px`;
     document.body.appendChild(state.ghost);
     updateTabDragGhost(state, state.lastX, state.lastY);
     state.button.classList.add('dragging');
@@ -1747,12 +1251,12 @@ function moveDraggedTabToPoint(state, clientX, clientY) {
 function commitTabHeaderDragOrder() {
     let headers = getTabHeaders();
     game.settings = game.settings || {};
-    game.settings.tabPlacement = game.settings.tabPlacement || {};
+    tabLayoutUi.current().tabPlacement = tabLayoutUi.current().tabPlacement || {};
     headers.forEach(header => {
         let placement = header.id === 'tab-header-bottom' ? 'bottom' : 'top';
-        Array.from(header.querySelectorAll('.tab-btn')).forEach(btn => { game.settings.tabPlacement[btn.id] = placement; });
+        Array.from(header.querySelectorAll('.tab-btn')).forEach(btn => { tabLayoutUi.current().tabPlacement[btn.id] = placement; });
     });
-    game.settings.tabOrder = getTabHeaderOrderSnapshot(headers);
+    tabLayoutUi.current().tabOrder = getTabHeaderOrderSnapshot(headers);
 }
 
 function activateTabButtonFromDrag(button) {
@@ -1876,7 +1380,7 @@ function installTabHeaderDragReorder() {
 
 function applyTabHeaderOrder(shouldRenderSettings){
     game.settings=game.settings||{};
-    game.settings.tabPlacement = game.settings.tabPlacement || {};
+    tabLayoutUi.current().tabPlacement = tabLayoutUi.current().tabPlacement || {};
     let headers = Array.from(document.querySelectorAll('.tab-header'));
     let topHeader = headers.find(header => header.id !== 'tab-header-bottom');
     let bottomHeader = document.getElementById('tab-header-bottom');
@@ -1893,25 +1397,25 @@ function applyTabHeaderOrder(shouldRenderSettings){
     if (!mobilePrimary) teardownMobilePrimaryNavigation(topHeader, bottomHeader);
     else ensureMobilePrimaryNavigation(topHeader, bottomHeader);
     if (!mobilePrimary) installTabHeaderDragReorder();
-    if (game.settings.twoRowTabs && !game.settings.tabPlacementInitialized && window.matchMedia('(max-width: 1080px)').matches) {
-        game.settings.tabPlacementInitialized = true;
+    if (game.settings.twoRowTabs && !tabLayoutUi.current().tabPlacementInitialized && uiDisplay.matches('(max-width: 1080px)')) {
+        tabLayoutUi.current().tabPlacementInitialized = true;
         let autoIds = Array.from(topHeader.querySelectorAll('.tab-btn')).map(el => el.id);
-        autoIds.forEach((id, idx) => { game.settings.tabPlacement[id] = idx === 0 ? 'top' : 'bottom'; });
+        autoIds.forEach((id, idx) => { tabLayoutUi.current().tabPlacement[id] = idx === 0 ? 'top' : 'bottom'; });
     }
     let allTabButtons = headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')));
     let ids=allTabButtons.map(el=>el.id);
-    let order=Array.isArray(game.settings.tabOrder)?game.settings.tabOrder:ids;
+    let order = Array.from(new Set(['btn-tab-battle', ...tabLayoutUi.current().tabOrder, ...tabLayoutUi.defaultOrder]));
     let map={}; allTabButtons.forEach(el=>map[el.id]=el);
     order.forEach(id=>{
         if(!map[id]) return;
         let target = mobilePrimary
-            ? (isMobileMiscControlId(id) ? topHeader : bottomHeader)
-            : ((game.settings.twoRowTabs && game.settings.tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader);
+            ? (tabLayoutUi.isMisc(id) ? topHeader : bottomHeader)
+            : ((game.settings.twoRowTabs && tabLayoutUi.current().tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader);
         target.appendChild(map[id]);
     });
     ids.forEach(id=>{
         if(order.includes(id) || !map[id]) return;
-        let target = mobilePrimary && !isMobileMiscControlId(id) ? bottomHeader : topHeader;
+        let target = mobilePrimary && !tabLayoutUi.isMisc(id) ? bottomHeader : topHeader;
         target.appendChild(map[id]);
     });
     if (bottomHeader) {
@@ -1946,38 +1450,26 @@ if (typeof window !== 'undefined') {
     window.addEventListener('resize', scheduleTabHeaderViewportSync);
     window.addEventListener('orientationchange', scheduleTabHeaderViewportSync);
 }
-function setTabPlacement(tabId, placement){
-    game.settings = game.settings || {};
-    game.settings.tabPlacement = game.settings.tabPlacement || {};
-    game.settings.tabPlacement[tabId] = placement === 'bottom' ? 'bottom' : 'top';
-    applyTabHeaderOrder(true);
+function setTabPlacement(tabId, placement) {
+    tabLayoutUi.place(tabId, placement);
 }
-function moveTabButton(tabId, dir){
-    game.settings=game.settings||{};
-    let headers = Array.from(document.querySelectorAll('.tab-header'));
-    if (!headers.length) return;
-    let ids=headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')).map(el=>el.id));
-    let order=Array.isArray(game.settings.tabOrder)?game.settings.tabOrder.slice():ids.slice();
-    if(order.length!==ids.length) order=ids.slice();
-    let idx=order.indexOf(tabId); if(idx<0) return;
-    let ni=Math.max(0, Math.min(order.length-1, idx+dir)); if(ni===idx) return;
-    let t=order[idx]; order[idx]=order[ni]; order[ni]=t; game.settings.tabOrder=order;
-    applyTabHeaderOrder(true);
+function moveTabButton(tabId, dir) {
+    tabLayoutUi.move(tabId, dir);
 }
 
 function getTabHeaderUiSignature() {
     let unlocks = game.unlocks || {};
     let noti = game.noti || {};
     let filters = (game.settings && game.settings.notiFilters) || {};
-    let mobileBattle = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'mobileBattle' : 'desktopBattle';
+    let mobileBattle = uiDisplay.matches(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`) ? 'mobileBattle' : 'desktopBattle';
     return [
         mobileBattle,
         isMobilePrimaryNavigationEnabled() ? 'mobilePrimary' : 'legacyTabs',
         (game.settings && game.settings.tabNotiEnabled === false) ? 'notiOff' : 'notiOn',
         TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}:${noti[key] && filters[key] !== false ? 1 : 0}`).join('|'),
-        Array.isArray(game.settings && game.settings.tabOrder) ? game.settings.tabOrder.join(',') : '',
-        JSON.stringify((game.settings && game.settings.tabPlacement) || {}),
-        Array.isArray(game.settings && game.settings.tabGroupOrder) ? game.settings.tabGroupOrder.join(',') : '',
+        Array.isArray(game.settings && tabLayoutUi.current().tabOrder) ? tabLayoutUi.current().tabOrder.join(',') : '',
+        JSON.stringify((game.settings && tabLayoutUi.current().tabPlacement) || {}),
+        Array.isArray(game.settings && tabLayoutUi.current().tabGroupOrder) ? tabLayoutUi.current().tabGroupOrder.join(',') : '',
         isTabGroupingActive() ? ('grp:' + getActiveTabGroup()) : 'nogrp'
     ].join('::');
 }
@@ -2012,7 +1504,7 @@ function updateTabUnlockButtons() {
     let cubeOpen = (game.unlocks && game.unlocks.cube) || (typeof isCoreCubeUnlocked === 'function' && isCoreCubeUnlocked());
     if (cubeTabBtn) cubeTabBtn.style.display = cubeOpen ? 'flex' : 'none';
     let battleBtn = document.getElementById('btn-tab-battle');
-    if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
+    if (battleBtn) battleBtn.style.display = isMobilePrimaryNavigationEnabled() ? 'flex' : 'none';
     syncMergedTabLauncherVisibility();
     // 해금 상태가 바뀌면 "열려 있는" 병합 창의 내부 탭 목록과 표시 중인 화면도 다시 맞춘다.
     // 이게 없으면 루프 정산으로 큐브가 잠긴 뒤에도 큐브 화면이 그대로 남고,
@@ -2069,6 +1561,7 @@ function toggleNotiFilter(key){ game.settings=game.settings||{}; game.settings.n
 
 function isMergedTabAvailable(tab) {
     let tabId = typeof tab === 'string' ? tab : tab.id;
+    if (game.contentProgression) return contentProgression.canOpen(tabId);
     // 큐브·생장판은 game.unlocks 플래그가 아니라 각 시스템의 런타임 판정으로 열린다.
     // 해금 권위를 그 시스템에 두고 탭 노출은 판정을 그대로 읽는다.
     if (tabId === 'tab-cube') {
@@ -2077,7 +1570,7 @@ function isMergedTabAvailable(tab) {
     if (tabId === 'tab-growthboard') {
         return typeof isGrowthBoardUnlocked === 'function' && isGrowthBoardUnlocked();
     }
-    let gateKey = (tab && typeof tab === 'object' && tab.gate) || TAB_UNLOCK_GATES[tabId];
+    let gateKey = typeof tab === 'string' ? TAB_UNLOCK_GATES[tabId] : tab.gate || TAB_UNLOCK_GATES[tabId];
     // 저널은 루프를 건너 유지되는 영구 기록이라 고유 아이템 보유 여부와 무관하게 열려 있어야 한다.
     // (도감은 game.unlocks.codex가 권위이며 checkUnlocks가 루프마다 다시 판정한다. 여기서
     //  "지금 고유를 들고 있는가"를 다시 보면, 고유를 처분하거나 루프를 넘긴 직후 기록 메뉴 자체가
@@ -2147,6 +1640,7 @@ function isTabSurfaceAvailable(tabId) {
         if (mergedEntry[1].launcher === tabId) return !!getSelectedMergedTabId(mergedEntry[0]);
         return isMergedTabAvailable(mergedEntry[1].tabs.find(tab => tab.id === tabId) || tabId);
     }
+    if (!contentProgression.canOpen(tabId)) return false;
     let gateKey = TAB_UNLOCK_GATES[tabId];
     return !gateKey || !!(game.unlocks && game.unlocks[gateKey]);
 }
@@ -2214,7 +1708,7 @@ function renderMergedTabPanels(groupKey) {
     if (!group || !shell) return;
     let selectedId = getSelectedMergedTabId(groupKey);
     let nav = shell.querySelector('.merged-tab-subtabs');
-    let visibleTabs = group.tabs.filter(tab => isMergedTabAvailable(tab) || tab.id === 'tab-growthboard');
+    let visibleTabs = group.tabs.filter(isMergedTabAvailable);
     nav.hidden = visibleTabs.length <= 1;
     nav.innerHTML = visibleTabs.map(tab =>
         `<button type="button" class="subtab-btn${tab.id === selectedId ? ' active' : ''}" onclick="switchMergedTabSubtab('${groupKey}','${tab.id}')" ${isMergedTabAvailable(tab) ? '' : 'disabled title="루프 25에 해금"'}>${tab.label}${isMergedTabAvailable(tab) ? '' : ' 🔒 루프 25'}</button>`
@@ -2239,6 +1733,7 @@ function switchMergedTabSubtab(groupKey, tabId, options = {}) {
 }
 
 function syncMergedTabLauncherVisibility() {
+    contentUnlockUi.sync();
     Object.values(MERGED_TAB_GROUPS).forEach(group => {
         let launcher = document.getElementById('btn-' + group.launcher);
         if (launcher) launcher.style.display = group.tabs.some(isMergedTabAvailable) ? 'flex' : 'none';
@@ -2295,8 +1790,7 @@ function switchTab(tabId) {
     }
     if (mergedEntry && !getSelectedMergedTabId(mergedEntry[0])) return;
     syncDerivedTabUnlock(tabId);
-    let gateKey = TAB_UNLOCK_GATES[tabId];
-    if (gateKey && !game.unlocks[gateKey]) {
+    if (!isTabSurfaceAvailable(tabId)) {
         addLog(getLockedTabMessage(tabId), 'attack-monster');
         return;
     }
@@ -2316,14 +1810,14 @@ function switchTab(tabId) {
     // 창의 선택 패널이 사라져 빈 창만 남는다. 전역 전환은 최상위 탭과 메뉴 버튼만 해제한다.
     document.querySelectorAll('.tab-content:not(.merged-subtab-pane), .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
-    document.body.classList.toggle('mobile-community-sheet-open', tabId === 'tab-social' && window.matchMedia('(max-width: 1080px)').matches);
+    document.body.classList.toggle('mobile-community-sheet-open', tabId === 'tab-social' && uiDisplay.matches('(max-width: 1080px)'));
     // 열 수 있는 화면을 다시 세웠으므로 잠금 정리 후의 복귀 예약은 소진된다.
     pendingRelockedTabFallback = false;
     let activeBtn = document.getElementById('btn-' + tabId);
     activeBtn.classList.add('active');
     if (mergedEntry) renderMergedTabSubtabs(mergedEntry[0]);
     syncMergedTabLauncherState();
-    if (activeBtn && activeBtn.scrollIntoView && window.matchMedia('(max-width: 1080px)').matches) {
+    if (activeBtn && activeBtn.scrollIntoView && uiDisplay.matches('(max-width: 1080px)')) {
         try {
             activeBtn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
         } catch (error) {
@@ -2377,6 +1871,7 @@ function switchTab(tabId) {
 }
 
 function craftSelectInventoryItemById(itemId) {
+    if (!contentProgression.canOpen('item-tab-craft')) return;
     let id = Number(itemId);
     if (!Number.isFinite(id) || !(game.inventory || []).some(item => item && item.id === id)) return;
     if (typeof hideItemTooltip === 'function') hideItemTooltip();
@@ -2386,7 +1881,7 @@ function craftSelectInventoryItemById(itemId) {
     // 카드 안의 바로가기는 단방향 이동이어야 하므로 닫혔더라도 즉시 다시 열고 포커스한다.
     if (document.body.classList.contains('desktop-windowed-ui') && typeof openWindow === 'function') openWindow('tab-items');
     if (typeof switchItemSubtab === 'function') switchItemSubtab('item-tab-craft');
-    if (typeof selectForCrafting === 'function') selectForCrafting(id, false);
+    selectForCrafting(id, false);
     setTimeout(() => {
         let el = document.getElementById('forge-item-display');
         if (el && el.scrollIntoView) {
@@ -2396,12 +1891,17 @@ function craftSelectInventoryItemById(itemId) {
     }, 60);
 }
 
+function isSelectedSubtab(subtabId) {
+    const panel = document.getElementById(subtabId);
+    const button = document.getElementById('btn-' + subtabId);
+    return !!(panel && button && panel.classList.contains('active') && button.classList.contains('active'));
+}
+
 function switchItemSubtab(subtabId) {
+    if (!contentProgression.canOpen(subtabId)) return;
     if (subtabId === 'item-tab-equip' && game.noti) game.noti.items = false;
     if (subtabId === game.itemSubtab) {
-        let currentPanel = document.getElementById(subtabId);
-        let currentBtn = document.getElementById('btn-' + subtabId);
-        if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) return;
+        if (isSelectedSubtab(subtabId)) return;
     }
     if (subtabId === 'item-tab-market' && !isMarketUnlocked()) {
         addLog('액트 5를 먼저 클리어해야 거래소를 이용할 수 있습니다.', 'attack-monster');
@@ -2435,7 +1935,7 @@ function getDefaultSkillAutoRule() {
 }
 
 function addSkillAutoRule() {
-    if (!game.conditionGemUnlocked) return addLog('컨디션 젬이 아직 잠겨 있습니다. 루프2 뿌리 보스를 먼저 쓰러뜨리세요.', 'attack-monster');
+    if (!game.conditionGemUnlocked) return addLog('루프 탭에서 위기 대응을 해금하면 컨디션 젬을 사용할 수 있습니다.', 'attack-monster');
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
 
     game.skillAutoRules.push(getDefaultSkillAutoRule());
@@ -2443,7 +1943,7 @@ function addSkillAutoRule() {
 }
 
 function sortSkillAutoRules() {
-    if (!game.conditionGemUnlocked) return addLog('컨디션 젬이 아직 잠겨 있습니다. 루프2 뿌리 보스를 먼저 쓰러뜨리세요.', 'attack-monster');
+    if (!game.conditionGemUnlocked) return addLog('루프 탭에서 위기 대응을 해금하면 컨디션 젬을 사용할 수 있습니다.', 'attack-monster');
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
 
     game.skillAutoRules.sort((a, b) => (a.priority || 0) - (b.priority || 0));
@@ -2579,7 +2079,7 @@ function renderConditionGemChoice(entry) {
 }
 
 function rollConditionGemChoices() {
-    if (!game.conditionGemUnlocked) return addLog('컨디션 젬이 아직 잠겨 있습니다. 루프2 뿌리 보스를 먼저 쓰러뜨리세요.', 'attack-monster');
+    if (!game.conditionGemUnlocked) return addLog('루프 탭에서 위기 대응을 해금하면 컨디션 젬을 사용할 수 있습니다.', 'attack-monster');
     if ((game.currencies.bossCore || 0) <= 0) return addLog('군주의 핵이 부족합니다.', 'attack-monster');
     let all = getAllConditionGemEntries();
     let ownedSet = new Set(Array.isArray(game.conditionGemPool) ? game.conditionGemPool : []);
@@ -2654,7 +2154,7 @@ function getConditionGemTooltip(entry) {
     if (!entry) return '';
     let presentation = getConditionGemTypePresentation(entry);
     let cast = Number(entry.castTime || 1).toFixed(1);
-    let duration = Number(entry.duration || 4).toFixed(1);
+    let duration = Number(entry.duration ?? 4).toFixed(1);
     let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
     return `${entry.name}\n유형: ${presentation.visual.label}\n시전 시간: ${cast}초\n지속 시간: ${duration}초\n쿨타임: ${cooldown}초\n효과: ${getConditionGemDetail(entry)}`;
 }
@@ -2664,7 +2164,7 @@ function getConditionGemTooltipHtml(entry) {
     if (!entry) return '';
     let presentation = getConditionGemTypePresentation(entry);
     let cast = Number(entry.castTime || 1).toFixed(1);
-    let duration = Number(entry.duration || 4).toFixed(1);
+    let duration = Number(entry.duration ?? 4).toFixed(1);
     let cooldown = Math.max(2, Math.floor((entry.castTime || 1) * 1000 + 2500) / 1000).toFixed(1);
     let lv = Math.max(1, Math.min(5, Math.floor(((game.conditionGemLevels || {})[entry.name] || 1))));
     let html = `<div class="tooltip-title">${entry.name} · Lv.${lv}</div>`;
@@ -2767,7 +2267,7 @@ function renderSkillAutoRulePanel() {
     let owned = Array.isArray(game.conditionGemPool) ? game.conditionGemPool : [];
     let pending = Array.isArray(game.pendingConditionGemChoices) ? game.pendingConditionGemChoices : [];
     if (!unlocked) {
-        let html = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프2 뿌리 보스를 처음 처치하면 컨디션 젬이 해금됩니다.</div>`;
+        let html = `<div style="color:#d3a989; border:1px solid #6f4b31; border-radius:8px; padding:12px;">잠금 상태: 루프 2부터 루프 탭에서 위기 대응을 선택해 해금할 수 있습니다.</div>`;
         if (panel.__lastHtml !== html) {
             panel.innerHTML = html;
             panel.__lastHtml = html;
@@ -2824,6 +2324,7 @@ function renderSkillAutoRulePanel() {
 safeExposeGlobals({ setConditionPatternTrigger, setConditionPatternAction, setConditionPatternValue });
 
 function switchSkillSubtab(subtabId) {
+    if (!contentProgression.canOpen(subtabId)) return;
     if (subtabId === game.skillSubtab) {
         let currentPanel = document.getElementById(subtabId);
         let currentBtn = document.getElementById('btn-' + subtabId);
@@ -2859,7 +2360,7 @@ function openBeehiveChoiceOverlay(reasonText) {
     if (!b.inRun || !b.pendingChoice || b.awaitingClear || alive > 0 || document.getElementById('beehive-choice-overlay')) return;
     let next = Math.min(10, Math.max(1, Math.floor((b.branchStep || 0) + 1)));
     let html = `<div id="beehive-choice-overlay" style="position:fixed;inset:0;background:rgba(8,8,5,.76);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;">
-        <div style="width:min(920px,95vw);background:#17130b;border:1px solid #9b7a30;border-radius:14px;padding:14px;box-shadow:0 18px 60px rgba(0,0,0,.45);">
+        <div style="width:min(920px,calc(95vw / var(--ui-display-factor, 1)));background:#17130b;border:1px solid #9b7a30;border-radius:14px;padding:14px;box-shadow:0 18px 60px rgba(0,0,0,.45);">
             <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;"><strong style="color:#ffd978;font-size:18px;">🐝 벌떼 웨이브 처치 완료</strong><button onclick="closeBeehiveChoiceOverlay()">닫기</button></div>
             <div style="color:#d9c08a;margin-bottom:10px;line-height:1.45;">${reasonText || '다음 갈림길을 선택하세요.'}<br>갈림길 ${next}/10 · 선택 즉시 다음 벌떼 웨이브가 시작됩니다.</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">${getBeehiveChoiceButtonsHtml(b.pendingChoice)}</div>
@@ -3250,7 +2751,7 @@ function startColonyRun(){
     let c = game.colony || (game.colony = {});
     if ((game.currencies.colonyTrace||0)<=0 || c.inRun) return;
     game.currencies.colonyTrace--;
-    c.inRun = true; c.wave = 1; c.kills = 0; c.requiredKills = getColonyWaveEnemyCount(1); c.entryDeepChaosDepth = Math.max(21, Math.floor(game.abyssEndlessDepth||21));
+    c.inRun = true; c.wave = 1; c.kills = 0; c.requiredKills = getColonyWaveEnemyCount(1); c.entryDeepChaosDepth = Math.max(21, Math.min(game.abyssEndlessDepth || 21, game.loopProgressCurrent.bestAbyssDepth || 21));
     c.returnZoneId = game.currentZoneId;
     game.currentZoneId = 'colony_run';
     game.enemies = []; game.encounterPlan = []; game.encounterIndex = 0; game.runProgress = 0; game.moveTimer = 0;
@@ -3280,7 +2781,7 @@ function spawnColonyWave(){
         let marker = { elite: Math.random() < 0.22 + Math.min(0.35, (c.wave||1)*0.02), boss: false };
         if (i===count-1 && (c.wave||1)%5===0) { marker.elite=true; marker.boss=true; }
         let enemy = createEnemy(zone, marker, i);
-        let hpMul = marker.boss ? 9.5 : (marker.elite ? 4.8 : 3.4);
+        let hpMul = marker.elite && !marker.boss ? 4.8 : 3.4;
         enemy.maxHp = Math.floor(enemy.maxHp * hpMul); enemy.hp = enemy.maxHp;
         enemy.atkMul *= marker.boss ? 1.45 : (marker.elite ? 1.2 : 1.05);
         enemy.moveSpeed = marker.boss ? 0.35 : (marker.elite ? 0.55 : 0.8);
@@ -3316,7 +2817,7 @@ function renderLoop9VoidRiftPanel(){
     let grandRewards = typeof getGrandBreachRewardSummary === 'function' ? getGrandBreachRewardSummary(g.kills || 0) : { voidChisel: 2 };
     let canEnter = v.grandBreachUnlock && !g.inRun;
     let powerEstimate = buildMapPowerEstimateHtml(getZone('grand_breach_run'));
-    panel.innerHTML = `<div style="color:var(--copy-bright);">활성 균열: <strong>${v.active ? '진행중' : '없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock ? '가능' : '잠김'}</strong>${grandText}</div><div style="margin-top:5px; color:#cdb8e8; font-size:.82em;">35초 동안 더 많이 처치할수록 보스가 강해지고 정산도 증가 · 현재 예상 공허의 끌 ${grandRewards.voidChisel}</div><div style="margin-top:6px;">${powerEstimate}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter ? '' : 'disabled'}>대균열 진입</button></div>`;
+    panel.innerHTML = `<div style="color:var(--copy-bright);">활성 균열: <strong>${v.active ? '진행중' : '없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock ? '가능' : '잠김'}</strong>${grandText}</div><div style="margin-top:5px; color:#cdb8e8; font-size:.82em;">35초 생존 후 균열 군주 출현 · 더 많이 처치할수록 격파 보상 증가 · 현재 예상 공허의 끌 ${grandRewards.voidChisel}</div><div style="margin-top:6px;">${powerEstimate}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter ? '' : 'disabled'}>대균열 진입</button></div>`;
 }
 
 function spawnBeehiveWave(isBoss){
@@ -3354,19 +2855,6 @@ function spawnBeehiveWave(isBoss){
 }
 function getBeekeeperLevelForHive() {
     return typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('beekeeper') || 1)) : 1;
-}
-function resetBeehiveRunModifiers(b) {
-    if (!b) return;
-    b.pendingChoice = null;
-    b.awaitingClear = false;
-    b.enemyEmpower = 0;
-    b.rewardMomentum = 0;
-    b.penaltyLedger = [];
-    b.rewardLedger = [];
-    b.pendingWaveReward = null;
-    b.pendingWaveRewardText = '';
-    b.pendingQueenRewards = [];
-    b.queenActive = false;
 }
 function getBeehiveRewardAmount(base, branchStep, expertLevel) {
     let depthBonus = Math.max(0, Math.floor(branchStep || 0)) * 0.08;
@@ -3519,7 +3007,7 @@ function applyBeehiveChoiceReward(pick) {
 function startBeehiveRun(){
     let b = game.beehive || (game.beehive = {});
     if ((game.currencies.hiveKey || 0) <= 0 || b.inRun) return;
-    let lastDeepChaosDepth = Math.max(21, Math.floor(game.abyssEndlessDepth || 21));
+    let lastDeepChaosDepth = Math.max(21, Math.min(game.abyssEndlessDepth || 21, game.loopProgressCurrent.bestAbyssDepth || 21));
     resetBeehiveRunModifiers(b);
     game.currencies.hiveKey--;
     b.entryDeepChaosDepth = lastDeepChaosDepth;
@@ -3692,7 +3180,7 @@ function enterGrandBreach(options){
     }
     if (v.grandRun && v.grandRun.inRun) return;
     v.grandBreachUnlock = false;
-    v.grandRun = { inRun: true, phase: 'survival', timeLeft: 35, kills: 0, nextRefillAt: 0, lastTickAt: Date.now(), returnZoneId: game.currentZoneId };
+    v.grandRun = { inRun: true, phase: 'survival', timeLeft: 35, kills: 0, nextRefillAt: 0, lastTickAt: getCombatTime(), returnZoneId: game.currentZoneId };
     game.currentZoneId = 'grand_breach_run';
     game.enemies = [];
     game.encounterPlan = [];
@@ -4256,11 +3744,10 @@ function announceMapPrimaryContentUnlocks() {
 safeExposeGlobals({ syncMapPrimaryContentTabs });
 
 function switchMapSubtab(subtabId) {
+    if (!contentProgression.canOpen(subtabId)) return;
     if (!isMapPrimaryContentUnlocked(game, subtabId)) subtabId = 'map-tab-zones';
     if (subtabId === game.mapSubtab) {
-        let currentPanel = document.getElementById(subtabId);
-        let currentBtn = document.getElementById('btn-' + subtabId);
-        if (currentPanel && currentPanel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) {
+        if (isSelectedSubtab(subtabId)) {
             if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
             return;
         }
@@ -4277,11 +3764,11 @@ function switchMapSubtab(subtabId) {
 }
 
 function switchMapExploreSubtab(subtabId) {
+    if (!contentProgression.canOpen(subtabId)) return;
     const fallback = 'map-explore-hunting';
     const panel = document.getElementById(subtabId) ? document.getElementById(subtabId) : document.getElementById(fallback);
     const activeId = panel ? panel.id : fallback;
-    let currentBtn = document.getElementById('btn-' + activeId);
-    if (activeId === game.mapExploreSubtab && panel && panel.classList.contains('active') && currentBtn && currentBtn.classList.contains('active')) return;
+    if (activeId === game.mapExploreSubtab && isSelectedSubtab(activeId)) return;
     game.mapExploreSubtab = activeId;
     document.querySelectorAll('#map-tab-zones .vertical-tab-panel').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('#map-tab-zones .vertical-tab-btn').forEach(el => el.classList.remove('active'));
@@ -4606,45 +4093,6 @@ async function enterLabyrinthPrompt(){
 }
 
 
-function toggleChallengeContract(key) {
-    let c = getChallengeContractState();
-    if (!(key in c)) return;
-    c[key] = !c[key];
-    c.enabled = getChallengeContractScore(c) > 0;
-    let pendingScore = getChallengeContractScore(c);
-    let bonus = Math.round((getChallengeContractRewardMultiplier({ type: 'act' }, c) - 1) * 100);
-    addLog(`📜 도전 계약 예약: ${pendingScore}개 · 다음 일반 액트 사냥부터 보상 +${bonus}%`, 'season-up', { noToast: true });
-    updateStaticUI();
-}
-
-function renderChallengeContractPanel() {
-    let panel = document.getElementById('ui-challenge-contract-panel');
-    if (!panel) return;
-    let unlocked = Math.max(0, Math.floor(game.maxZoneId || 0)) >= 2 || Math.max(0, Math.floor(game.loopCount || 0)) > 0;
-    panel.style.display = unlocked ? 'block' : 'none';
-    if (!unlocked) return;
-    let c = getChallengeContractState();
-    let active = getActiveChallengeContractState();
-    let score = getChallengeContractScore(c);
-    let activeScore = getChallengeContractScore(active);
-    let bonus = Math.round((getChallengeContractRewardMultiplier({ type: 'act' }, c) - 1) * 100);
-    let zone = getZone(game.currentZoneId);
-    let activeHere = isChallengeContractEligibleZone(zone) && activeScore > 0;
-    let queued = CHALLENGE_CONTRACT_KEYS.some(key => c[key] !== active[key]);
-    let statusText = activeHere ? `현재 ${activeScore}개 적용 중` : '현재 사냥에는 계약 없음';
-    if (queued) statusText += ` · 다음 사냥 ${score}개`;
-    panel.innerHTML = `
-        <div class="challenge-contract-head"><div><strong>📜 도전 계약</strong><span>일반 액트 사냥터 전용</span></div><div class="challenge-contract-reward">보상 +${bonus}%</div></div>
-        <div class="challenge-contract-desc">불리한 조건 1개마다 경험치와 주요 드랍 확률이 4% 증가합니다. 변경해도 현재 진행도는 유지되며 다음 일반 액트 사냥부터 적용됩니다.</div>
-        <div class="challenge-contract-status ${activeHere ? 'active' : ''}">${statusText}</div>
-        <div class="challenge-contract-options">
-            <button class="${c.enemyPower ? 'active' : ''}" onclick="toggleChallengeContract('enemyPower')"><b>맹공</b><span>적 공격력 +25%</span></button>
-            <button class="${c.fragileArmor ? 'active' : ''}" onclick="toggleChallengeContract('fragileArmor')"><b>취약한 갑주</b><span>물리 피해 감소 -12%p</span></button>
-            <button class="${c.shortHunt ? 'active' : ''}" onclick="toggleChallengeContract('shortHunt')"><b>강인한 적</b><span>적 최대 생명력 +30%</span></button>
-            <button class="${c.greedPact ? 'active' : ''}" onclick="toggleChallengeContract('greedPact')"><b>탐욕의 대가</b><span>생명력·보호막 회복 -35%</span></button>
-        </div>
-    `;
-}
 function toggleSeasonBossRepeat() {
     game.autoRepeatSeasonBoss = !game.autoRepeatSeasonBoss;
     addLog(`🗝️ 뿌리 보스 반복 도전: ${game.autoRepeatSeasonBoss ? 'ON' : 'OFF'}`, 'season-up');
@@ -4791,22 +4239,6 @@ function getTalismanAnchorCell(talisman) {
 }
 
 
-const TALISMAN_BOARD_W = 8;
-const TALISMAN_BOARD_H = 8;
-const TALISMAN_BOARD_MASK = new Set([
-'2,0','3,0','4,0','5,0',
-'1,1','2,1','5,1','6,1',
-'0,2','1,2','2,2','3,2','4,2','5,2','6,2','7,2',
-'0,3','2,3','3,3','4,3','5,3','7,3',
-'0,4','2,4','3,4','4,4','5,4','7,4',
-'0,5','1,5','2,5','3,5','4,5','5,5','6,5','7,5',
-'1,6','2,6','5,6','6,6',
-'2,7','3,7','4,7','5,7'
-]);
-function talismanCellKey(x,y){ return `${x},${y}`; }
-function talismanCellIndex(x,y){ return y * TALISMAN_BOARD_W + x; }
-function isTalismanBoardCellValid(x,y){ return TALISMAN_BOARD_MASK.has(talismanCellKey(x,y)); }
-function isTalismanCellInitiallyUnlocked(x, y){ return x >= 2 && x <= 5 && y >= 2 && y <= 5; }
 
 function renderSealShardBadge(source) {
     let isRadiant = source === 'radiantSealShard';
@@ -4856,30 +4288,8 @@ function rollTalismanStatLine(multiplier) {
     return { stat: option.stat, label: option.label, value: Number(value.toFixed(step < 1 ? 1 : 0)) };
 }
 
-const TALISMAN_NAME_STEMS = Object.freeze({
-    flatHp: '생명의', pctHp: '심장의', regen: '회복의', armor: '철벽의', armorPct: '강철의',
-    evasion: '그림자의', evasionPct: '잔상의', energyShield: '비전의', energyShieldPct: '수호의',
-    dr: '불굴의', resAll: '조화의', resF: '잿불의', resC: '서리의', resL: '뇌광의', resChaos: '심연의',
-    flatDmg: '격돌의', pctDmg: '격노의', physPctDmg: '쇄격의', firePctDmg: '화염의',
-    coldPctDmg: '빙결의', lightPctDmg: '천둥의', chaosPctDmg: '공허의', dotPctDmg: '침식의',
-    crit: '예리함의', critDmg: '처형의', aspd: '질풍의', move: '유랑의', resPen: '관통의',
-    projectilePctDmg: '궤적의', meleePctDmg: '결투의', summonPctDmg: '사역의', summonHpPct: '군세의'
-});
-const TALISMAN_SHAPE_NAMES = Object.freeze({ I: '장침', O: '고리', T: '갈림쇠', S: '굽이', Z: '번개매듭', J: '갈고리', L: '모서리' });
 
-function getGeneratedTalismanName(talisman) {
-    if (!talisman) return '이름 없는 부적';
-    if (talisman.name) return talisman.name;
-    let stem = TALISMAN_NAME_STEMS[talisman.stat]
-        || String(talisman.statName || '미지').replace(/\s*\(%\)\s*|\s*증가\s*|\s*피해\s*/g, '').trim() + '의';
-    let shape = TALISMAN_SHAPE_NAMES[talisman.shape] || '매듭';
-    return `${stem} ${shape}`;
-}
 
-function ensureTalismanName(talisman) {
-    if (talisman && !talisman.name) talisman.name = getGeneratedTalismanName(talisman);
-    return talisman;
-}
 
 const TALISMAN_UNIQUE_POOL = [
     { id:'ut_z_1', name:'굽이치는 전류', shape:'Z', stats:[{stat:'aspd',value:9,label:'공격 속도(%)'},{stat:'lightPctDmg',value:16,label:'번개 피해(%)'}] },
@@ -5746,23 +5156,6 @@ function renderSupportGemProcessList(gemExpertLv) {
     }).join('');
 }
 
-function getUniqueCodexProgress() {
-    let keys = new Set(UNIQUE_DB.filter(entry => !entry.realmCodexOnly).map(entry => `${entry.slots[0]}|${entry.name}`));
-    let codex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
-    let stored = Object.keys(codex).filter(key => !!codex[key] && keys.has(key)).length;
-    return { stored: stored, total: keys.size };
-}
-
-function getCodexBonusPctFromCount(storedCount) {
-    let count = Math.max(0, Math.floor(Number(storedCount) || 0));
-    let preSoftCap = Math.min(50, count) * 0.2;
-    let postSoftCap = Math.max(0, count - 50) * 0.1;
-    return preSoftCap + postSoftCap;
-}
-
-function getCodexBonusPct() {
-    return getCodexBonusPctFromCount(getUniqueCodexProgress().stored);
-}
 
 function tryGrantCodexCompletionReward() {
     let progress = getUniqueCodexProgress();
@@ -5810,9 +5203,6 @@ function withdrawUniqueFromCodex(key) {
     updateStaticUI();
 }
 
-function getCodexSlotOrder() {
-    return ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
-}
 
 function getFirstNewCodexSlot(pool, newlyRegistered) {
     let slots = getCodexSlotOrder();
@@ -5868,9 +5258,9 @@ function renderUniqueCodexUI() {
     let newlyRegistered = (game.codexNewlyRegistered && typeof game.codexNewlyRegistered === 'object') ? game.codexNewlyRegistered : {};
     game.codexCollapsedSlots = (game.codexCollapsedSlots && typeof game.codexCollapsedSlots === 'object') ? game.codexCollapsedSlots : {};
     game.codexSubtab = (game.codexSubtab === 'realm') ? 'realm' : 'main';
+    syncCodexSubtabButtons();
     if (typeof uniqueHuntUi !== 'undefined') uniqueHuntUi.renderPanel();
     let realmOnly = game.codexSubtab === 'realm';
-    syncCodexSubtabButtons();
     let pool = UNIQUE_DB.filter(entry => realmOnly ? !!entry.realmCodexOnly : !entry.realmCodexOnly);
     let keySet = new Set(pool.map(entry => `${entry.slots[0]}|${entry.name}`));
     let storedCount = Object.keys(game.uniqueCodex).filter(key => !!game.uniqueCodex[key] && keySet.has(key)).length;
@@ -5884,9 +5274,9 @@ function renderUniqueCodexUI() {
             return `${parts[0] || '기타'} > ${parts.slice(1).join('|') || '이름 없음'}`;
         });
     let newCodexSummary = newCodexLines.length > 0
-        ? `<div style="margin-top:6px; color:#ffdf80; font-weight:700;">신규 등록: ${newCodexLines.map(escapeHTML).join(' · ')}</div>`
+        ? `<div class="codex-new-summary">신규 등록: ${newCodexLines.map(escapeHTML).join(' · ')}</div>`
         : '';
-    summary.innerHTML = `[${realmOnly ? '계(Realm) 도감' : '기존 도감'}] 등록 수 / 전체: <strong>${progress.stored}</strong> / ${progress.total} · 도감 보너스: 피해/생명력/드랍률 +${bonus.toFixed(1)}% <span style="color:var(--copy-bright);">(50개까지 0.2%, 이후 0.1%)</span> · 완성 상태: <strong>${rewardState}</strong>${newCodexSummary}`;
+    summary.innerHTML = `<div class="codex-progress"><span>등록 <strong>${progress.stored} / ${progress.total}</strong></span><span>피해 · 생명력 · 드랍률 <strong>+${bonus.toFixed(1)}%</strong></span><span>${rewardState}</span></div><progress max="${Math.max(1, progress.total)}" value="${progress.stored}" aria-label="도감 수집 진행"></progress>${newCodexSummary}`;
     let bySlot = getCodexSlotOrder();
     let availableSlots = bySlot.filter(slot => pool.some(entry => (entry.slots || [])[0] === slot));
     let firstNewSlot = getFirstNewCodexSlot(pool, newlyRegistered);
@@ -5913,13 +5303,17 @@ function renderUniqueCodexUI() {
         let statHtml = stored ? renderCodexStatsHtml(entry, stored, key) : '';
         let isNew = stored && newlyRegistered[key];
         let newBadge = isNew ? ` <span style="color:#ff4d4f; font-weight:800; font-size:0.82em;">● NEW</span>` : '';
-        let statusHtml = stored ? `<span style="color:#4cd964; font-weight:700;">등록됨</span>` : `<span style="color:var(--copy-muted);">미등록</span>`;
+        let statusHtml = stored ? `<span class="codex-registered">등록됨</span>` : `<span style="color:var(--copy-muted);">미등록</span>`;
         let huntAction = typeof uniqueHuntUi !== 'undefined' ? uniqueHuntUi.renderCardAction(entry) : '';
         return `<div class="item-card codex-card${isNew ? ' codex-card-new' : ''}"><div><div class="item-title unique">[${selectedSlot}] ${entry.name}${newBadge}</div><div class="item-base-line">${infoLine}</div><div class="item-stats">${statHtml || '획득하면 옵션 정보가 공개됩니다.'}</div></div><div class="item-actions">${statusHtml}${huntAction}</div></div>`;
     }).join('');
     listEl.innerHTML = `<div class="codex-layout"><div class="codex-slot-tabs">${slotTabsHtml}</div><div class="codex-slot-content"><div class="codex-slot-heading">${selectedSlot} <span>${selectedEntries.filter(entry => !!game.uniqueCodex[`${selectedSlot}|${entry.name}`]).length}/${selectedEntries.length}</span></div><div class="codex-card-grid">${cardsHtml}</div></div></div>`;
 }
 function syncCodexSubtabButtons() {
+    const hasRealm = UNIQUE_DB.some(entry => entry.realmCodexOnly && game.uniqueCodex?.[`${entry.slots[0]}|${entry.name}`]);
+    if (!hasRealm && game.codexSubtab === 'realm') game.codexSubtab = 'main';
+    const realmButton = document.getElementById('btn-codex-realm');
+    if (realmButton) realmButton.hidden = !hasRealm;
     const activeTab = game.codexSubtab === 'realm' ? 'realm' : 'main';
     ['main', 'realm'].forEach(tab => {
         let btn = document.getElementById('btn-codex-' + tab);
@@ -6164,6 +5558,7 @@ function setSupportActiveTier(name, tier) { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 function toggleSupport(name) { if (!assertBuildEditable()) return;
+    if (!contentProgression.isUnlocked('support')) return;
     normalizeSupportLoadout(false);
     game.equippedSupports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
     let idx = game.equippedSupports.indexOf(name);
@@ -6179,7 +5574,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
             let cap = getSummonEquipCapFromStats(stats);
             if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster', { toast: true });
         }
-        let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
+        let used = game.equippedSupports.reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
         let remain = Math.max(0, getEffectiveResonanceCap() - used);
         let activeTier = getSupportActiveTier(name);
         let cost = getSupportTierResonanceCost(name);
@@ -6196,7 +5591,7 @@ const MOBILE_TOAST_MAX_CONCURRENT = 2;
 
 function shouldShowMobileToast(msg, cls, opts = {}) {
     if (opts && opts.noToast) return false;
-    let isMobile = (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) || ('ontouchstart' in window);
+    let isMobile = (window.matchMedia && uiDisplay.matches('(max-width: 900px)')) || ('ontouchstart' in window);
     let logHidden = game && game.settings && game.settings.showCombatLog === false;
     if (!isMobile && !logHidden) return false;
     let text = stripHtmlMessage(msg);
@@ -6224,7 +5619,7 @@ function getMobileToastRoot() {
     root.style.display = 'flex';
     root.style.flexDirection = 'column';
     root.style.gap = '8px';
-    root.style.width = 'min(92vw, 560px)';
+    root.style.width = 'min(calc(92vw / var(--ui-display-factor, 1)), 560px)';
     document.body.appendChild(root);
     return root;
 }
@@ -6384,15 +5779,18 @@ function flushLogQueue() {
     while (log.childElementCount > 60) log.removeChild(log.firstChild);
     restoreCombatLogScroll(log, scrollState);
 }
+function isCombatLogRateLimited(opts, settings, now) {
+    if (!opts.rateKey || settings.combatLogRateLimit === false) return false;
+    if (now < (combatLogRateState[opts.rateKey] || 0)) return true;
+    combatLogRateState[opts.rateKey] = now + Math.max(60, Number(opts.minIntervalMs || 180));
+    return false;
+}
+
 function addLog(msg, cls, opts = {}) {
+    if (game.isBackgroundCalculation) return;
     let now = performance.now();
     let settings = game.settings || {};
-    if (opts.rateKey && settings.combatLogRateLimit !== false) {
-        let nextAt = combatLogRateState[opts.rateKey] || 0;
-        let interval = Math.max(60, Number(opts.minIntervalMs || 180));
-        if (now < nextAt) return;
-        combatLogRateState[opts.rateKey] = now + interval;
-    }
+    if (isCombatLogRateLimited(opts, settings, now)) return;
     if (opts.item) msg = decorateCombatLogItemMessage(msg, opts.item);
     msg = decorateCombatLogMessage(msg, cls, opts);
     if (opts.aggregateKey && settings.combatLogAggregate !== false) {
@@ -6436,11 +5834,7 @@ function applyThemeMode(mode) {
     document.body.classList.toggle('light-mode', finalMode === 'light');
 }
 
-const UI_SKIN_IDS = Object.freeze(['reliquary', 'verdigris', 'crimson']);
 
-function normalizeUiSkin(skin) {
-    return UI_SKIN_IDS.includes(skin) ? skin : 'reliquary';
-}
 
 function applyUiSkin(skin) {
     document.body.dataset.uiSkin = normalizeUiSkin(skin);
@@ -6459,7 +5853,6 @@ function syncHeroSelectionState(source, options = {}) {
     if (game.appearanceClassId && !PLAYER_CLASS_DEFS[game.appearanceClassId]) game.appearanceClassId = null;
     let shouldRecordSelected = !!options.recordSelected || !!game.heroSelectionInitialized || !!game.classFreeSwitchUnlocked;
     if (shouldRecordSelected && !game.discoveredClassIds.includes(game.selectedClassId)) game.discoveredClassIds.push(game.selectedClassId);
-    if (game.heroSelectionInitialized && game.unlocks) game.unlocks.char = true;
     let unlockedBefore = !!game.classFreeSwitchUnlocked;
     if (game.discoveredClassIds.length >= PLAYER_CLASS_ORDER.length) game.classFreeSwitchUnlocked = true;
     if (!unlockedBefore && game.classFreeSwitchUnlocked) addLog('모든 직업을 경험했습니다. 설정에서 외형을 자유롭게 변경할 수 있습니다.', 'season-up');
@@ -6730,7 +6123,6 @@ function ensureInitialHeroSelection() {
     if (game.heroSelectionInitialized || isLoopHeroSelectOpen()) return true;
     return openLoopHeroSelection((pickedId) => {
         game.heroSelectionInitialized = true;
-        if (game.unlocks) game.unlocks.char = true;
         addLog(`시작 직업을 선택했습니다: ${PLAYER_CLASS_DEFS[pickedId].blindLabel}`, 'season-up');
         persistHeroSelectionChange('시작 직업 선택');
     }, {
@@ -6769,7 +6161,10 @@ window.addEventListener('project-idle:loop-hero-selection-completed', event => {
     switchTab('tab-character');
 });
 
-window.addEventListener('project-idle:loop-rewrite-started', playLoopRewriteEffect);
+window.addEventListener('project-idle:loop-rewrite-started', () => {
+    loopSettlementUi.render();
+    playLoopRewriteEffect();
+});
 
 window.addEventListener('project-idle:talent-tab-refresh-requested', () => {
     let talentTab = document.getElementById('tab-talent');
@@ -6924,16 +6319,6 @@ function updateSettings() {
     game.settings.showHpComma = document.getElementById('chk-hp-comma').checked;
     game.settings.showEnemyHpComma = document.getElementById('chk-enemy-hp-comma').checked;
     game.settings.showCharacterComma = document.getElementById('chk-character-comma').checked;
-    game.settings.itemFilterEnabled = document.getElementById('chk-item-filter-enabled').checked;
-    game.settings.itemFilterRarities = game.settings.itemFilterRarities || { normal: true, magic: true, rare: true, unique: true };
-    game.settings.itemFilterRarities.normal = document.getElementById('chk-item-filter-normal').checked;
-    game.settings.itemFilterRarities.magic = document.getElementById('chk-item-filter-magic').checked;
-    game.settings.itemFilterRarities.rare = document.getElementById('chk-item-filter-rare').checked;
-    game.settings.itemFilterRarities.unique = document.getElementById('chk-item-filter-unique').checked;
-    game.settings.itemFilterTierThreshold = Math.max(1, Math.floor(Number(document.getElementById('inp-item-filter-tier-threshold').value) || 1));
-    game.settings.itemFilterMinTierCount = Math.max(0, Math.floor(Number(document.getElementById('inp-item-filter-tier-count').value) || 0));
-    game.settings.itemFilterMinHiddenTier = Math.max(1, Math.floor(Number(document.getElementById('inp-item-filter-hidden-tier').value) || 1));
-    game.settings.itemFilterOnlyNewCodexUnique = document.getElementById('chk-item-filter-unique-new-codex').checked;
     game.settings.mapCompleteAction = getMapCompleteActionOption((document.getElementById('sel-map-complete-action') || {}).value).value;
     let disableItemAutomationAfterLoop = document.getElementById('chk-loop-disable-item-automation');
     let postLoopMapCompleteAction = document.getElementById('sel-loop-map-complete-action');
@@ -6959,9 +6344,9 @@ function applyTooltipPosition(el, x, y) {
         el.style.top = '0px';
     }
     let size = tooltipSizeCache.get(el);
-    if (!size) {
+    if (!size || size.factor !== uiDisplay.factor) {
         let rect = el.getBoundingClientRect();
-        size = { width: rect.width, height: rect.height };
+        size = { width: rect.width, height: rect.height, factor: uiDisplay.factor };
         tooltipSizeCache.set(el, size);
     }
     let left = x + 18;
@@ -6973,7 +6358,7 @@ function applyTooltipPosition(el, x, y) {
     const deviceScale = Math.max(1, Number(window.devicePixelRatio) || 1);
     const snappedLeft = Math.round(left * deviceScale) / deviceScale;
     const snappedTop = Math.round(top * deviceScale) / deviceScale;
-    el.style.transform = `translate(${snappedLeft}px, ${snappedTop}px)`;
+    el.style.transform = `translate(${snappedLeft / uiDisplay.factor}px, ${snappedTop / uiDisplay.factor}px)`;
 }
 
 function flushTooltipPositions() {
@@ -7246,16 +6631,13 @@ function renderBreakdownHtml(data) {
 function showStatTooltip(event, key) {
     let stats = cachedTooltipStats;
     if (!stats || !stats.breakdowns || !stats.breakdowns[key]) {
-        let statsProvider = (typeof getPlayerStats === 'function')
-            ? getPlayerStats
-            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
-        if (!statsProvider) return;
-        stats = statsProvider();
+        stats = getPlayerStats();
         cachedTooltipStats = stats;
     }
     let data = stats && stats.breakdowns ? stats.breakdowns[key] : null;
     if (!data) return;
-    showInfoTooltipHtml(event.clientX, event.clientY, renderBreakdownHtml(data), '#f39c12');
+    const rect = event.currentTarget.getBoundingClientRect();
+    showInfoTooltipHtml(event.clientX ?? rect.left, event.clientY ?? rect.bottom, renderBreakdownHtml(data), '#f39c12');
 }
 
 
@@ -7279,6 +6661,23 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
     let html = `<div class="tooltip-title">${escapeHTML(visual.label)}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
 }
+
+function showPlayerEhpTooltip(event) {
+    const anchor = event.currentTarget;
+    const rect = anchor.getBoundingClientRect();
+    const html = `<div class="tooltip-title">속성별 실효 체력</div><div class="tooltip-line">${escapeHTML(anchor.dataset.ehpDetail)}</div><div class="tooltip-line tooltip-muted">공격 EHP는 회피를 포함한 평균 내구도, 직격 EHP는 회피하지 못한 타격 기준입니다.</div>`;
+    showInfoTooltipHtml(event.clientX || rect.left, event.clientY || rect.bottom, html, '#b49b68');
+}
+
+function showMapProgressTooltip(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const speed = Math.max(1, Number(cachedTooltipStats?.moveSpeed) || 100);
+    const multiplier = speed / 100;
+    const saved = (1 - 1 / multiplier) * 100;
+    const html = `<div class="tooltip-title">이동 속도와 진행도</div><div class="tooltip-line">이동 속도 ${speed.toFixed(1)} · 기본 대비 ${multiplier.toFixed(2)}배</div><div class="tooltip-line">같은 이동 구간의 소요 시간 ${Math.abs(saved).toFixed(1)}% ${saved >= 0 ? '단축' : '증가'}</div><div class="tooltip-line tooltip-muted">일반 진행도 기준입니다. 적 처치·정비 대기와 특수 이벤트의 고정 시간은 포함하지 않습니다.</div>`;
+    showInfoTooltipHtml(event.clientX || rect.left, event.clientY || rect.bottom, html, '#b49b68');
+}
+safeExposeGlobals({ showPlayerEhpTooltip, showMapProgressTooltip });
 
 function showPlayerExperienceTooltip(event) {
     let progress = getUiExperienceProgress(game.level, game.exp);
@@ -7332,7 +6731,7 @@ function showPlayerBuffTooltip(event, name, type, remainSec, suppressed) {
 function showPlayerFlaskTooltip(event, kind, key) {
     if (typeof ensureFlaskState !== 'function') return;
     let st = ensureFlaskState();
-    let now = Date.now();
+    let now = getCombatTime();
     let html = '';
     if (kind === 'heal') {
         let def = getFlaskHealDef(key);
@@ -8140,9 +7539,9 @@ function resizeBattlefieldCanvas() {
     if (!parent) return;
     const rect = parent.getBoundingClientRect();
     if (rect.width < 50 || rect.height < 50) return;
-    const cssWidth = Math.max(1, Math.round(rect.width || 1));
-    const cssHeight = Math.max(1, Math.round(rect.height || 1));
-    const dpr = clampNumber(window.devicePixelRatio || 1, 1, 2);
+    const cssWidth = Math.max(1, Math.round(rect.width / uiDisplay.factor || 1));
+    const cssHeight = Math.max(1, Math.round(rect.height / uiDisplay.factor || 1));
+    const dpr = clampNumber((window.devicePixelRatio || 1) * uiDisplay.factor, 1, 2);
     canvas.width = Math.max(1, Math.round(cssWidth * dpr));
     canvas.height = Math.max(1, Math.round(cssHeight * dpr));
     canvas.style.width = `${cssWidth}px`;
@@ -8704,11 +8103,11 @@ function drawPlayerSprite(ctx, x, y, scale, flash, swingPower, skillVisual, now,
         drawPixelShadow(ctx, x, y + 2, localHeroTuning.shadowWidth * heroScaleBoost, localHeroTuning.shadowHeight * heroScaleBoost, localHeroTuning.shadowAlpha);
         let drawOptions = {
             alpha: downPhase !== null ? 0.98 : 1,
-            smoothing: 'pixel',
+            smoothing: 'high',
             devicePixelSnap: true,
-            outlineColor: '#ffffff',
-            outlineAlpha: 0.86,
-            outlineThickness: 1
+            outlineColor: '#ddd6bd',
+            outlineAlpha: 0.22,
+            outlineThickness: 0.5
         };
         drawBattleSprite(ctx, battleAssets.atlas.hero.image, frame, x + walkMotion.x, y + walkMotion.y + localHeroTuning.offsetY - advanceBlend * 0.18 + hurtBlend * 0.08 + downBlend * 2.2, normalizedHeroSize, drawOptions);
         if (flash && downPhase === null) {
@@ -8876,19 +8275,6 @@ function pickBattleEnemyVariant(enemy, enemyAtlas) {
     return pool[(variantSeed + elementOffset) % pool.length];
 }
 
-function drawBountyTargetGlyph(ctx, x, y, scale) {
-    let size = Math.max(4, Math.min(7, 5 * scale));
-    ctx.save();
-    ctx.translate(Math.round(x), Math.round(y));
-    ctx.rotate(Math.PI / 4);
-    ctx.fillStyle = '#ffe49a';
-    ctx.strokeStyle = '#8b5a12';
-    ctx.lineWidth = 1.2;
-    ctx.fillRect(-size / 2, -size / 2, size, size);
-    ctx.strokeRect(-size / 2, -size / 2, size, size);
-    ctx.restore();
-}
-
 function resolveEnemySpriteMotion(variantEntry, moving, now, enemy, attackMotion, facingDirection) {
     let directionalEntry = variantEntry && variantEntry.directions
         ? (variantEntry.directions[facingDirection] || variantEntry.directions.south)
@@ -8939,7 +8325,6 @@ function drawEnemySprite(ctx, enemy, x, y, scale, flash, now, moving, attackMoti
             outlineAlpha: enemy.isBoss ? 0.46 : (enemy.isElite ? 0.72 : 0)
         });
         ctx.restore();
-        if (enemy.isBountyTarget) drawBountyTargetGlyph(ctx, x, groundY - drawSize * 0.54, scale);
         if (flash) {
             ctx.save();
             ctx.globalAlpha = 0.16;
@@ -9312,8 +8697,9 @@ function formatCappedResistanceValue(appliedValue, uncappedValue) {
 function renderCombatFlaskHud() {
     let host = document.getElementById('ui-combat-flasks');
     if (!host || typeof ensureFlaskState !== 'function') return;
+    if (!contentProgression.isUnlocked('flask')) { host.innerHTML = ''; delete host.dataset.signature; return; }
     let st = ensureFlaskState();
-    let now = Date.now();
+    let now = getCombatTime();
     let healDef = getFlaskHealDef(st.healTier);
     let healEntry = { key: healDef.key, name: healDef.name, charges: st.healCharges, maxCharges: healDef.maxCharges, active: st.healOverTimeUntil > now, type: 'heal', category: 'heal' };
     let maxUtility = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
@@ -9636,6 +9022,7 @@ function buildPlayerConditionEffectIcons(now) {
 }
 
 function buildPlayerFlaskEffectIcons(now) {
+    if (!contentProgression.isUnlocked('flask')) return '';
     if (typeof ensureFlaskState !== 'function') return '';
     let st = ensureFlaskState();
     let icons = [];
@@ -9840,7 +9227,7 @@ function buildPlayerCombatEffectIcons(pStats, now) {
 }
 
 function updatePlayerCombatEffectHud(pStats, hpAilBar) {
-    let markup = buildPlayerCombatEffectIcons(pStats, Date.now());
+    let markup = buildPlayerCombatEffectIcons(pStats, getCombatTime());
     let effectHost = document.getElementById('ui-player-ailments-under');
     if (effectHost && effectHost.__lastHtml !== markup) {
         effectHost.innerHTML = markup;
@@ -9942,7 +9329,7 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
         track.textContent = '';
         return;
     }
-    let mobile = isBoss && typeof matchMedia === 'function' && matchMedia('(max-width: 1080px)').matches;
+    let mobile = isBoss && typeof matchMedia === 'function' && uiDisplay.matches('(max-width: 1080px)');
     let reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     let signature = `${isBoss ? 'boss' : 'elite'}|${mobile}|${reducedMotion}|${labels.join('\u001f')}`;
     if (traitEl.__traitSignature === signature) {
@@ -10169,13 +9556,6 @@ function updateCombatUI(pStats) {
     let inlineZoneEl = document.getElementById('ui-combat-zone-inline');
     // 레벨·직업은 경험치바 왼쪽(ui-exp-level-label)으로 이동했으므로 여기는 지역 이름만 표기한다.
     if (inlineZoneEl && inlineZoneEl.innerText !== compactZoneText) inlineZoneEl.innerText = compactZoneText;
-    let contractStatus = document.getElementById('ui-combat-contract-status');
-    if (contractStatus) {
-        let contractScore = getChallengeContractScore();
-        let contractActive = isChallengeContractEligibleZone(zone) && contractScore > 0;
-        contractStatus.style.display = contractActive ? 'inline-flex' : 'none';
-        if (contractActive) contractStatus.innerText = `📜 계약 ${contractScore} · 보상 +${Math.round((getChallengeContractRewardMultiplier(zone) - 1) * 100)}%`;
-    }
 
     let returnButton = document.getElementById('btn-combat-return');
     if (returnButton) returnButton.innerText = '귀환';
@@ -10202,8 +9582,8 @@ function updateCombatUI(pStats) {
         setTextById('ui-move-time-text', isDrowning ? `${depthM}m · 산소 고갈! 익사 피해 누적` : `${depthM}m`);
         setCombatProgressGaugePercent(isDrowning ? 100 : segPct);
     } else if (getUiCrowdProgressPaused()) {
-        setTextById('ui-progress-label', '⛔ 전장 정리 중');
-        setTextById('ui-move-time-text', `적 ${getUiCrowdPauseLimit()}기 이상`);
+        setTextById('ui-progress-label', '진행도');
+        setTextById('ui-move-time-text', '진행불가');
         setCombatProgressGaugePercent(game.runProgress);
     } else {
         setTextById('ui-progress-label', '진행도');
@@ -10222,7 +9602,7 @@ function updateCombatUI(pStats) {
     document.getElementById('ui-atk').innerText = formatSettingNumber(pStats.baseDmg, 'showCharacterComma');
     document.getElementById('ui-aps').innerText = pStats.aspd.toFixed(2);
     document.getElementById('ui-crit').innerText = pStats.crit.toFixed(1);
-    setTextById('ui-core-attrs', `${Math.floor(pStats.strength || 0)} / ${Math.floor(pStats.dexterity || 0)} / ${Math.floor(pStats.intelligence || 0)}`);
+    ['strength', 'dexterity', 'intelligence'].forEach(key => setTextById('ui-' + key, Math.floor(pStats[key] || 0)));
     setTextById('ui-accuracy', formatSettingNumber(Math.floor(pStats.accuracy || 0), 'showCharacterComma'));
     document.getElementById('ui-crit-dmg').innerText = Math.floor(pStats.critDmg);
     document.getElementById('ui-ignite-chance').innerText = Math.max(0, pStats.igniteChance || 0).toFixed(1);
@@ -10316,7 +9696,7 @@ function updateCombatUI(pStats) {
         if (Array.isArray(focusedEnemy.chaosRealmAffixes) && focusedEnemy.chaosRealmAffixes.length > 0) tags = tags.concat(focusedEnemy.chaosRealmAffixes.map(a => a.name));
         tags = Array.from(new Set(getUiEnemyTraitLabels(tags)));
         let activeAilments = (focusedEnemy.ailments || []).filter(ail => ail && (ail.time || 0) > 0);
-        let effectNow = Date.now();
+        let effectNow = getCombatTime();
         let enemyDebuffs = (((game.enemyConditionDebuffs || {})[focusedEnemy.id]) || []).filter(row => row && (row.expiresAt || 0) > effectNow);
         let effectMarkup = buildEnemyCombatEffectIcons(activeAilments, enemyDebuffs, effectNow, focusedEnemy);
         let projectedAilmentDamage = activeAilments.reduce((sum, ail) => {
@@ -10679,6 +10059,7 @@ function openJournalEntryAction(entryId) {
 }
 
 function updateStaticUI(forceImmediate) {
+    if (game.isBackgroundCalculation) return;
     void forceImmediate;
     // 긴 정적 UI 갱신 도중 탭을 누르면 이전에는 그 탭의 후속 렌더 요청을 버렸다.
     // 그러면 새 탭 컨테이너만 활성화되고 주얼·부적·생장판·스킬 젬 내용은 이전 탭
@@ -10708,7 +10089,10 @@ function processQueuedUIRefresh() {
     captureUiDisclosureState(document);
     uiRefreshRunning = true;
     try {
+        checkUnlocks();
         performUpdateStaticUI();
+        updateBuildFeedback(cachedTooltipStats);
+        tutorialActionUi.refresh();
     } finally {
         restoreUiDisclosureState(document);
         uiRefreshRunning = false;
@@ -10743,8 +10127,8 @@ function getPlayerEhpCardsHtml(pStats, cardClass) {
         let row = profile.elements[element];
         let entropyText = formatSettingNumber(row.entropy, 'showCharacterComma');
         let directText = formatSettingNumber(row.direct, 'showCharacterComma');
-        let title = `${labels[element]} 공격 EHP ${entropyText} · 직격 EHP ${directText} · 엔트로피 회피 ${profile.evadeChance.toFixed(1)}%`;
-        return `<div class="${cardClass} equipment-ehp-stat" data-ehp-element="${element}" title="${title}"><span>${labels[element]} EHP</span><strong>${entropyText}</strong></div>`;
+        let detail = `${labels[element]} 공격 EHP ${entropyText} · 직격 EHP ${directText} · 엔트로피 회피 ${profile.evadeChance.toFixed(1)}%`;
+        return `<div class="${cardClass} equipment-ehp-stat" data-ehp-element="${element}" data-ehp-detail="${detail}" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showPlayerEhpTooltip(event)" onfocus="showPlayerEhpTooltip(event)" onmouseleave="hideInfoTooltip()" onblur="hideInfoTooltip()"><span>${labels[element]}</span><strong>${entropyText}</strong></div>`;
     }).join('');
 }
 
@@ -10780,12 +10164,10 @@ const renderCharacterPassiveSpecialStats = function(pStats) {
 
 function renderEquipmentLoadoutSummary(pStats) {
     let host = document.getElementById('ui-equipment-loadout-summary');
-    let countBadge = document.getElementById('ui-equipped-count');
     let equipment = game.equipment || {};
     let slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
     if (equipment['반지3']) slots.push('반지3');
     let equipped = slots.map(slot => equipment[slot]).filter(Boolean);
-    if (countBadge) countBadge.textContent = `${equipped.length} / ${slots.length}`;
     if (host) {
         let qualityItems = equipped.filter(item => Number(item && item.quality) > 0);
         let averageQuality = qualityItems.length
@@ -10796,13 +10178,6 @@ function renderEquipmentLoadoutSummary(pStats) {
         host.innerHTML = `${ehpCards}
             <div class="equipment-summary-stat" title="장착 장비의 추가옵션 평균 티어"><span>옵션 티어</span><strong>${averageTier > 0 ? `T${averageTier.toFixed(1)}` : '—'}</strong></div>
             <div class="equipment-summary-stat" title="품질이 있는 장착 장비의 평균 품질"><span>품질</span><strong>${averageQuality > 0 ? `${averageQuality}%` : '—'}</strong></div>`;
-    }
-    let capacityFill = document.getElementById('ui-inventory-capacity-fill');
-    if (capacityFill) {
-        let limit = Math.max(1, Number(getInventoryLimit(game)) || 1);
-        let pct = Math.max(0, Math.min(100, (getInventoryUsedCellCount(game) / limit) * 100));
-        capacityFill.style.width = `${pct}%`;
-        capacityFill.classList.toggle('near-capacity', pct >= 80);
     }
 }
 
@@ -10954,7 +10329,7 @@ function performUpdateStaticUI() {
     let cubeTabBtn = document.getElementById('btn-tab-cube');
     if (cubeTabBtn) cubeTabBtn.style.display = (game.unlocks && game.unlocks.cube) || (typeof isCoreCubeUnlocked === 'function' && isCoreCubeUnlocked()) ? 'flex' : 'none';
     let battleBtn = document.getElementById('btn-tab-battle');
-    if (battleBtn) battleBtn.style.display = window.matchMedia(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`).matches ? 'flex' : 'none';
+    if (battleBtn) battleBtn.style.display = isMobilePrimaryNavigationEnabled() ? 'flex' : 'none';
     syncMergedTabLauncherVisibility();
     // 매 프레임 해금 판정으로 재노출된 탭에 2단 그룹 필터를 다시 적용한다.
     if (typeof hideOutOfGroupTabButtons === 'function') hideOutOfGroupTabButtons();
@@ -11010,8 +10385,6 @@ function performUpdateStaticUI() {
     renderPaperdoll('ui-fossil-equip-list', true);
     if (document.getElementById('ui-infuser-equip-list')) renderPaperdoll('ui-infuser-equip-list', true);
     if (typeof renderGrowthCraftTargetLists === 'function') renderGrowthCraftTargetLists();
-    document.getElementById('ui-inv-count').innerText = getInventoryUsedCellCount(game);
-    document.getElementById('ui-inv-limit').innerText = getInventoryLimit(game);
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
     if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
     if (window.equipmentTriage) {
@@ -11025,7 +10398,7 @@ function performUpdateStaticUI() {
     const equipmentPageKeys = new Set(equipmentPageLayout.entries.map(entry => entry.key));
     const equipmentPageRows = equipInvRows.filter(row => equipmentPageKeys.has(equipmentInventoryGridRuntime.getItemKey(row.item)));
     renderEquipmentInventoryInspector(equipmentPageRows);
-    // 임시 배치는 저장 상태와 다르므로 이동 중 목록을 다시 그리면 커서 교대가 원래 위치로 되감긴다.
+    // 드래그 중에는 포인터 캡처 중인 DOM을 유지하고, 놓을 때 배치를 갱신한다.
     if (!equipmentInventoryInteraction.isCarrying()) {
         renderSearchSection('ui-inventory-list', 'equip', '장비 검색 (이름/슬롯/옵션)', renderEquipmentInventoryGrid(equipmentPageLayout, equipmentPageRows), '', '');
         let equipmentGridElement = document.querySelector('#ui-inventory-list > .search-result-list');
@@ -11296,15 +10669,7 @@ function renderAutoSalvageRarityChips() {
     }).join('');
 }
 function renderAutoSalvageConfigPanel() {
-    let enabled = !!game.settings.autoSalvageEnabled;
-    return `<div class="craft-picker-panel" style="width:min(460px,100%);">
-        <div class="craft-picker-head"><div><div class="craft-picker-title">⚙️ 자동해체 설정</div><div class="craft-picker-desc">획득 시 선택한 등급을 자동으로 해체합니다.<br>인벤토리 표시 필터와는 별개로 동작합니다.</div></div><button type="button" onclick="closeAutoSalvageConfigOverlay()">닫기</button></div>
-        <div class="craft-picker-filter" style="border-bottom:none; margin-bottom:10px; padding-bottom:0;"><span class="inventory-view-filter-label">대상 등급</span><span id="auto-salvage-rarity-chips" style="display:flex; gap:6px; flex-wrap:wrap;">${renderAutoSalvageRarityChips()}</span></div>
-        <div style="display:flex; gap:10px; align-items:center;">
-            <button type="button" id="auto-salvage-toggle-btn" class="bulk-salvage-action" onclick="toggleAutoSalvage(); refreshAutoSalvageConfigOverlay();">${enabled ? '자동해체 끄기' : '자동해체 켜기'}</button>
-            <span id="auto-salvage-status" style="font-weight:700; color:${enabled ? '#2ecc71' : '#9fb4d1'};">현재: ${enabled ? 'ON' : 'OFF'}</span>
-        </div>
-    </div>`;
+    return equipmentLootUi.renderPanel(renderAutoSalvageRarityChips());
 }
 function refreshAutoSalvageConfigOverlay() {
     let overlay = document.getElementById('auto-salvage-config-overlay');
@@ -11463,14 +10828,14 @@ function getCurrencyIconHtml(orbKey, className = 'currency-icon') {
 
 function getStyledOrbName(orbKey) {
     let name = (ORB_DB[orbKey] && ORB_DB[orbKey].name) ? ORB_DB[orbKey].name : String(orbKey || '');
-    if (orbKey === 'magicBud') return `<span style="color:#9fd3ff;">${name}</span>`;
-    if (orbKey === 'sapBud' || orbKey === 'blightSpore' || orbKey === 'blessing') return `<span style="color:#ffe07a;">${name}</span>`;
-    if (orbKey === 'formlessDew' || orbKey === 'pruningShears') return `<span style="color:#ffbc8a;">${name}</span>`;
-    if (orbKey === 'goldenRule') return `<span style="color:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
+    if (orbKey === 'magicBud') return `<span class="orb-tone" style="--orb-tone:#9fd3ff;">${name}</span>`;
+    if (orbKey === 'sapBud' || orbKey === 'blightSpore' || orbKey === 'blessing') return `<span class="orb-tone" style="--orb-tone:#ffe07a;">${name}</span>`;
+    if (orbKey === 'formlessDew' || orbKey === 'pruningShears') return `<span class="orb-tone" style="--orb-tone:#ffbc8a;">${name}</span>`;
+    if (orbKey === 'goldenRule') return `<span class="orb-tone" style="--orb-tone:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;">${name}</span>`;
     if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;
-    if (orbKey === 'emberBranch') return `<span style="color:#8a2f3f;">${name}</span>`;
-    if (orbKey === 'fairyRing') return `<span style="color:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);">${name}</span>`;
-    if (orbKey === 'voidChisel') return `<span style="color:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);">${name}</span>`;
+    if (orbKey === 'emberBranch') return `<span class="orb-tone" style="--orb-tone:#8a2f3f;">${name}</span>`;
+    if (orbKey === 'fairyRing') return `<span class="orb-tone" style="--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);">${name}</span>`;
+    if (orbKey === 'voidChisel') return `<span class="orb-tone" style="--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);">${name}</span>`;
     return name;
 }
 
@@ -11658,10 +11023,10 @@ function renderFlaskPanel() {
     if (!host || typeof ensureFlaskState !== 'function' || typeof FLASK_HEAL_TIERS === 'undefined') return;
     let st = ensureFlaskState();
     let now = Date.now();
-    let found = typeof ensureFlaskFoundKeys === 'function' ? ensureFlaskFoundKeys() : (st.foundKeys || []);
+    const availableKeys = Object.keys(FLASK_DB).filter(key => contentProgression.canUseFlask(key));
+    let found = ensureFlaskFoundKeys().filter(key => availableKeys.includes(key));
     let healDef = getFlaskHealDef(st.healTier);
     let healActive = (st.healOverTimeUntil || 0) > now;
-    // 유틸리티 슬롯 표시(개수는 장착한 허리띠가 결정 — getMaxFlaskUtilitySlotCount). 선택은 오버레이.
     let maxUtilSlots = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
     let utilSlots = Array.from({ length: maxUtilSlots }, (_, idx) => {
         let cur = st.utils[idx];
@@ -11683,11 +11048,11 @@ function renderFlaskPanel() {
             </div>
         </div>`;
     }).join('');
-    let beltHint = maxUtilSlots <= 0
+    let beltHint = contentProgression.isUnlocked('flaskUtility') && maxUtilSlots <= 0
         ? `<div class="flask-slot-box utility empty-hint"><div class="flask-slot-label">유틸리티</div><div class="flask-slot-name" style="color:var(--copy-muted);">허리띠 필요</div><div class="flask-slot-status">플라스크 슬롯 옵션이 있는 허리띠를 장착하면 유틸리티 슬롯이 열립니다.</div></div>`
         : '';
-    let undiscoveredCount = FLASK_HEAL_TIERS.filter(t => !found.includes(t.key)).length + Object.keys(FLASK_UTILITY_POOL).filter(key => !found.includes(key)).length;
-    let totalFlasks = FLASK_HEAL_TIERS.length + Object.keys(FLASK_UTILITY_POOL).length;
+    let totalFlasks = availableKeys.length;
+    let undiscoveredCount = totalFlasks - found.length;
     let activeSlots = 1 + st.utils.slice(0, maxUtilSlots).filter(u => u && FLASK_UTILITY_POOL[u.key]).length;
     let chargeRateBonus = typeof getFlaskChargeRateBonusPct === 'function' ? Math.max(0, Math.floor(getFlaskChargeRateBonusPct())) : 0;
     let craftCandidates = typeof getFlaskDiscoveryCandidates === 'function' ? getFlaskDiscoveryCandidates(game.level, found) : [];
@@ -11714,7 +11079,7 @@ function renderFlaskPanel() {
         </div>
         ${utilSlots}${beltHint}
     </div>
-    <details class="flask-workbench progression-workbench"><summary>ALCHEMY BENCH · 제작 가능한 플라스크 ${craftCandidates.length}개 · 연금 유리 ${st.alchemyGlass}</summary><div class="flask-workbench-head"><div><span>ALCHEMY BENCH</span><strong>플라스크 제작·품질</strong><small>연금 유리로 다음 단계를 제작하거나 장착 플라스크 품질을 최대 20%까지 올립니다. 회복 품질은 총 회복량, 유틸리티 품질은 지속시간을 높입니다.</small></div><div class="flask-glass-balance"><span>연금 유리</span><b>${st.alchemyGlass}</b></div></div><div class="flask-craft-grid">${craftCards || '<div class="gem-process-empty">현재 레벨에서 제작 가능한 다음 단계가 없습니다.</div>'}</div></details>
+    <details class="flask-workbench progression-workbench"><summary>플라스크 제작 · 제작 가능 ${craftCandidates.length}개 · 연금 유리 ${st.alchemyGlass}</summary><div class="flask-workbench-head"><div><strong>플라스크 제작·품질</strong><small>연금 유리로 다음 단계를 제작하거나 장착 플라스크 품질을 최대 20%까지 올립니다. 회복 품질은 총 회복량, 유틸리티 품질은 지속시간을 높입니다.</small></div><div class="flask-glass-balance"><span>연금 유리</span><b>${st.alchemyGlass}</b></div></div><div class="flask-craft-grid">${craftCards || '<div class="gem-process-empty">현재 레벨에서 제작 가능한 다음 단계가 없습니다.</div>'}</div></details>
     <div class="flask-help-text"><strong>운용 안내</strong> 낮은 단계는 전투에서 비교적 쉽게 발견되지만 높은 단계일수록 드랍 확률이 낮아집니다. 제작은 무작위 발견을 보완하며, 같은 계열은 앞 단계부터 순서대로 진행합니다(미발견 ${undiscoveredCount}종).</div>`;
     if (host.__lastHtml !== html) host.innerHTML = html;
     host.__lastHtml = html;
@@ -12081,12 +11446,12 @@ function buildSporeSummaryHtml() {
     let item = typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null;
     let equipmentSelected = !item || (typeof isSporeCraftEquipment === 'function' && isSporeCraftEquipment(item));
     let targetDisabled = equipmentSelected ? '' : 'disabled';
-    return `<div style="border:1px solid #3d4f71; border-radius:10px; padding:8px; margin-bottom:8px; background:linear-gradient(160deg, rgba(39,51,86,0.25), rgba(16,22,38,0.5));">
-            <div style="font-weight:700; color:var(--copy-bright); margin-bottom:6px; font-size:0.92em;">🌱 홀씨 보유량</div>
+    return `<div class="craft-spores">
+            <div class="craft-spores-title">홀씨 보유량</div>
             <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px;">
-                <div style="padding:5px; border:1px solid #6b3a3a; border-radius:8px; color:#ff9f9f; font-size:0.86em;">화염 홀씨<br><strong>x ${game.currencies.sporeFire || 0}</strong></div>
-                <div style="padding:5px; border:1px solid #3a5a7a; border-radius:8px; color:#9fd6ff; font-size:0.86em;">냉기 홀씨<br><strong>x ${game.currencies.sporeCold || 0}</strong></div>
-                <div style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; color:#ffe08a; font-size:0.86em;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
+                <div class="orb-tone" style="padding:5px; border:1px solid #6b3a3a; border-radius:8px; --orb-tone:#ff9f9f; font-size:0.86em;">화염 홀씨<br><strong>x ${game.currencies.sporeFire || 0}</strong></div>
+                <div class="orb-tone" style="padding:5px; border:1px solid #3a5a7a; border-radius:8px; --orb-tone:#9fd6ff; font-size:0.86em;">냉기 홀씨<br><strong>x ${game.currencies.sporeCold || 0}</strong></div>
+                <div class="orb-tone" style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; --orb-tone:#ffe08a; font-size:0.86em;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
                 <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${targetDisabled || (typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 7 ? '' : 'disabled')}>부패 홀씨 (각 8)</button>
@@ -12365,7 +11730,7 @@ function buildCraftActionButtons(item) {
             ? `<div class="craft-unique-effect"><strong>고유 효과</strong><span>${escapeHTML(selectedItem.uniqueEffect)}</span>${selectedUniqueEffectHint ? `<small>${escapeHTML(selectedUniqueEffectHint)}</small>` : ''}</div>`
             : '';
         craftResultHtml = craftingResultUi.getLedgerHtml(selectedItem);
-        craftSelectedBodyHtml = `<div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${exceptionalStars}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div>${craftMetrics}${selectedUniqueEffectHtml}</div><div class="craft-section-title">옵션</div>${lines.join('')}`;
+        craftSelectedBodyHtml = `<div><div class="craft-item-heading"><img class="craft-target-art" src="${getEquipmentGridVisualAsset(selectedItem)}" alt=""><div><div class="item-title ${selectedItem.rarity}">[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}${exceptionalStars}${selectedItem.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}</div><div class="item-base-line">${selectedItem.baseName}</div></div></div>${craftMetrics}${selectedUniqueEffectHtml}</div><div class="craft-section-title">옵션</div>${lines.join('')}`;
         craftSelectedBodyTailHtml = `<div class="craft-section-title">베이스</div><div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">${equipSelectedButtonHtml}<button onclick="upgradeSelectedItemBase()">⬆️ 베이스 업그레이드</button></div><div style="margin-top:8px; display:grid; gap:6px;">${selectedItem.encroached && !selectedItem.encroached.liberated ? `<button onclick="liberateSelectedEncroachedItem()">🕳️ 잠식 해방</button>` : ''}${voidSocketHtml}${abyssSocketHtml}</div>`;
     }
     document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}${craftResultHtml}${craftSelectedBodyTailHtml}</div>`;
@@ -12454,7 +11819,6 @@ function buildCraftActionButtons(item) {
     renderLoop8BeehivePanel(mapTabActive && activeMapExploreId === 'map-explore-beehive');
     if (mapTabActive && activeMapExploreId === 'map-explore-colony') renderLoop15ColonyPanel();
     if (mapTabActive) {
-    renderChallengeContractPanel();
     let legacyMapOverview = document.querySelector('#tab-map .map-overview-card');
     if (legacyMapOverview) legacyMapOverview.remove();
     document.querySelectorAll('#tab-map img').forEach(node => node.remove());
@@ -12467,9 +11831,6 @@ function buildCraftActionButtons(item) {
     let mapRouteSummary = document.getElementById('ui-map-route-summary');
     let routeSummaryHtml = buildMapRouteSummaryHtml(getZone(game.currentZoneId), recommendedHuntingZone);
     if (mapRouteSummary && mapRouteSummary.innerHTML !== routeSummaryHtml) mapRouteSummary.innerHTML = routeSummaryHtml;
-    let pendingContract = getChallengeContractState();
-    let contractScore = getChallengeContractScore(pendingContract);
-    let contractBonusPct = Math.round((getChallengeContractRewardMultiplier({ type: 'act' }, pendingContract) - 1) * 100);
     let mapCards = mapZones.map(zone => {
         let idx = Number(zone.id);
         let isChaosMap = zone.type === 'abyss';
@@ -12492,7 +11853,6 @@ function buildCraftActionButtons(item) {
         if (zone.type === 'act') {
             let storyAct = getStoryActByZoneId(idx);
             if (storyAct) mapZoneText = `${zone.name}<br><span class="map-zone-status">보스: ${storyAct.bossName}</span>`;
-            if (contractScore > 0) mapZoneText += `<br><span class="map-zone-status" style="color:#e9b97d;">📜 계약 ${contractScore} · 보상 +${contractBonusPct}%</span>`;
         }
         let powerEstimateHtml = buildMapPowerEstimateHtml(zone);
         if (powerEstimateHtml) mapZoneText += `<br>${powerEstimateHtml}`;
@@ -12590,8 +11950,8 @@ function buildCraftActionButtons(item) {
 
     let meteorPowerEstimate = buildMapPowerEstimateHtml(getZone(METEOR_FALL_ZONE_ID));
     document.getElementById('ui-meteor-list').innerHTML = meteorUnlocked ? `<div class="map-item ${game.currentZoneId === METEOR_FALL_ZONE_ID ? 'current' : ''}" ${meteorReady ? `onclick="changeZone('${METEOR_FALL_ZONE_ID}')"` : ''}>
-        <div class="map-item-main"><span>☄️</span><span>운석 낙하 지점<br><span class="map-zone-status">하늘의 균열 ${meteorGauge}% ${meteorReady ? '· 입장 가능' : '· 충전 중'} · 충전 중 기록한 최저 티어 기준 1회 원정</span><br><span class="map-zone-status">난이도가 높을수록 운석 파편과 별쐐기 획득률 증가</span><br>${meteorPowerEstimate}</span></div>
-        <div class="map-item-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="map-zone-status">난이도: 혼돈 ${Math.max(1, Math.floor((game.starWedge && game.starWedge.skyRiftMinTier) || 1))}</span></div>
+        <div class="map-item-main"><span>☄️</span><span>운석 낙하 지점<br><span class="map-zone-status">하늘의 균열 ${meteorGauge}% ${meteorReady ? '· 입장 가능' : '· 충전 중'} · 충전 중 기록한 최저 티어 기준 1회 원정</span><br><span class="map-zone-status">별쐐기 해금 전: 희귀 이상 장비 1개 · 해금 후: 운석 파편·별쐐기</span><br>${meteorPowerEstimate}</span></div>
+        <div class="map-item-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="map-zone-status">난이도: 티어 ${getZone(METEOR_FALL_ZONE_ID).tier}</span></div>
     </div>` : '';
 
     renderChaosRealmMapPanel();
@@ -12649,7 +12009,7 @@ function buildCraftActionButtons(item) {
                     <div style="margin-top:6px; color:var(--copy-bright);">기록된 층수 재진입</div><div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;"><button onclick="enterDeepChaosPrompt()" ${deepChaosUnlocked ? '' : 'disabled'}>심화 혼돈 층수 선택 입장</button><span style="color:var(--copy-bright);">21 ~ ${Math.max(21, Math.floor(game.abyssEndlessDepth || 20))}${deepChaosUnlocked ? '' : ` (혼돈 20 클리어 필요)`}</span></div>
                 </div>
                 <div style="margin-top:6px; color:#e0d4ff;">다음 루프 예상 획득: 혼돈심화 +${expectedDepthGain}층, 미궁 +${expectedLabGain}층, 특수보스 +${expectedBossGain}종, 나무꾼 +${expectedWoodsmanGain}</div>
-                <details class="progression-workbench"><summary>영구 강화 · 보유 포인트 ${game.loopDeepPoints || 0}</summary><div style="padding:8px;"><div style="color:#9ec4f0;">${deepTotalLine}</div>
+                <details id="loop-deep-growth" class="progression-workbench" ${contentUnlockUi.lockAttribute('deepTree')}><summary>영구 강화 · 보유 포인트 ${game.loopDeepPoints || 0}</summary><div style="padding:8px;"><div style="color:#9ec4f0;">${deepTotalLine}</div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">${['flatHp','flatDmg','aspd','move','dr','crit'].map(key => `<button onclick="allocateLoopDeepStat('${key}')">심화 ${getStatName(key)} Lv.${(game.loopDeepStats||{})[key]||0} (+ 비용 ${getLoopDeepStatCost(key)})</button>`).join('')}</div></div></details>`;
         }
     }
@@ -13459,7 +12819,7 @@ function openVoidPassiveCraftOverlay(nodeId) {
     overlay.id = 'void-passive-craft-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:10040;background:rgba(3,8,14,0.72);display:flex;align-items:center;justify-content:center;padding:18px;';
     overlay.onclick = event => { if (event.target === overlay) closeVoidPassiveCraftOverlay(); };
-    overlay.innerHTML = `<div style="width:min(560px,94vw);max-height:90vh;overflow:auto;background:#0f1724;border:1px solid #3f9fbd;border-radius:14px;padding:14px;box-shadow:0 20px 70px rgba(0,0,0,.55);">
+    overlay.innerHTML = `<div style="width:min(560px,calc(94vw / var(--ui-display-factor, 1)));max-height:calc(90vh / var(--ui-display-factor, 1));overflow:auto;background:#0f1724;border:1px solid #3f9fbd;border-radius:14px;padding:14px;box-shadow:0 20px 70px rgba(0,0,0,.55);">
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px;">
             <div><div style="font-weight:900;color:var(--copy-bright);font-size:18px;">🕳️ ${escapeHTML(getPassiveNodeDisplayName(node))}</div><div style="color:var(--copy-muted);margin-top:3px;">공허 패시브 제작</div></div>
             <button type="button" onclick="closeVoidPassiveCraftOverlay()">닫기</button>
@@ -13503,6 +12863,40 @@ function getPassiveTooltipDescription(node, effectLabels) {
     return repeatsEffect ? '' : node.desc;
 }
 
+// UI-local mouse capture keeps tree dragging active across floating controls.
+const bindPassiveTreeMouseEvents = (canvas, handlers) => {
+    canvas.addEventListener('mousedown', e => {
+        if (e.button !== 0) return;
+        isDragging = true;
+        dragDist = 0;
+        dragStartX = e.clientX / uiDisplay.factor - camX;
+        dragStartY = e.clientY / uiDisplay.factor - camY;
+        handlers.hover(e.clientX, e.clientY);
+        canvas.style.cursor = 'grabbing';
+    });
+    document.addEventListener('mousemove', e => {
+        if (isDragging) {
+            handlers.drag(e.clientX, e.clientY, e.movementX, e.movementY);
+            return;
+        }
+        if (e.target === canvas) handlers.hover(e.clientX, e.clientY);
+    }, true);
+    document.addEventListener('mouseup', e => {
+        if (!isDragging || e.button !== 0) return;
+        isDragging = false;
+        canvas.style.cursor = 'grab';
+        if (e.target === canvas) handlers.activate({ clientX: e.clientX, clientY: e.clientY });
+    }, true);
+    window.addEventListener('blur', () => { isDragging = false; canvas.style.cursor = 'grab'; });
+    canvas.addEventListener('mouseleave', () => {
+        if (isDragging) return;
+        hoverNode = null;
+        canvas.style.cursor = 'grab';
+        drawPassiveTree();
+        handlers.hideTooltip();
+    });
+};
+
 function setupCanvasEvents() {
     setupPassiveTreeSearchControls();
     setupBattlefieldShrineInteraction();
@@ -13533,8 +12927,8 @@ function setupCanvasEvents() {
         const rect = canvas.getBoundingClientRect();
         const viewW = passiveCanvasMetrics.width || rect.width;
         const viewH = passiveCanvasMetrics.height || rect.height;
-        const worldX = (clientX - rect.left - viewW / 2 - camX) / camZoom;
-        const worldY = (clientY - rect.top - viewH / 2 - camY) / camZoom;
+        const worldX = ((clientX - rect.left) * viewW / rect.width - viewW / 2 - camX) / camZoom;
+        const worldY = ((clientY - rect.top) * viewH / rect.height - viewH / 2 - camY) / camZoom;
         let found = null;
         let foundDistance = Infinity;
         let cellSize = passiveRenderCache.cellSize;
@@ -13665,8 +13059,8 @@ function setupCanvasEvents() {
     }
 
     function updateDrag(clientX, clientY, deltaX, deltaY) {
-        camX = clientX - dragStartX;
-        camY = clientY - dragStartY;
+        camX = clientX / uiDisplay.factor - dragStartX;
+        camY = clientY / uiDisplay.factor - dragStartY;
         clampPassiveCamera();
         dragDist += Math.abs(deltaX) + Math.abs(deltaY);
         if (dragDist >= 10) {
@@ -13788,41 +13182,14 @@ function setupCanvasEvents() {
         }
     }
 
-    canvas.addEventListener('mousedown', e => {
-        isDragging = true;
-        dragDist = 0;
-        dragStartX = e.clientX - camX;
-        dragStartY = e.clientY - camY;
-        hoverNode = getPassiveNodeAtClientPosition(e.clientX, e.clientY);
-        canvas.style.cursor = 'grabbing';
-    });
-    canvas.addEventListener('mousemove', e => {
-        if (isDragging) {
-            updateDrag(e.clientX, e.clientY, e.movementX, e.movementY);
-            return;
-        }
-        updateHoverNode(e.clientX, e.clientY);
-    });
-    canvas.addEventListener('mouseup', e => {
-        isDragging = false;
-        canvas.style.cursor = 'grab';
-        activateHoveredPassive({ clientX: e.clientX, clientY: e.clientY });
-    });
-    canvas.addEventListener('mouseleave', () => {
-        isDragging = false;
-        hoverNode = null;
-        pendingTouchPassiveId = null;
-        canvas.style.cursor = 'grab';
-        drawPassiveTree();
-        hideCanvasTooltip();
-    });
+    bindPassiveTreeMouseEvents(canvas, { drag: updateDrag, hover: updateHoverNode, activate: activateHoveredPassive, hideTooltip: hideCanvasTooltip });
     canvas.addEventListener('wheel', e => {
         e.preventDefault();
         let rect = canvas.getBoundingClientRect();
-        let centerX = rect.width / 2;
-        let centerY = rect.height / 2;
-        let localX = e.clientX - rect.left;
-        let localY = e.clientY - rect.top;
+        let centerX = canvas.clientWidth / 2;
+        let centerY = canvas.clientHeight / 2;
+        let localX = (e.clientX - rect.left) * canvas.clientWidth / rect.width;
+        let localY = (e.clientY - rect.top) * canvas.clientHeight / rect.height;
         let worldX = (localX - centerX - camX) / camZoom;
         let worldY = (localY - centerY - camY) / camZoom;
         camZoom *= (e.deltaY > 0 ? 0.74 : 1.32);
@@ -13855,8 +13222,8 @@ function setupCanvasEvents() {
         let touch = e.touches[0];
         isDragging = true;
         dragDist = 0;
-        dragStartX = touch.clientX - camX;
-        dragStartY = touch.clientY - camY;
+        dragStartX = touch.clientX / uiDisplay.factor - camX;
+        dragStartY = touch.clientY / uiDisplay.factor - camY;
         lastTouchX = touch.clientX;
         lastTouchY = touch.clientY;
         hoverNode = getPassiveNodeAtClientPosition(touch.clientX, touch.clientY);
@@ -13906,8 +13273,8 @@ function setupCanvasEvents() {
         if (e.touches.length === 1) {
             let touch = e.touches[0];
             isDragging = true;
-            dragStartX = touch.clientX - camX;
-            dragStartY = touch.clientY - camY;
+            dragStartX = touch.clientX / uiDisplay.factor - camX;
+            dragStartY = touch.clientY / uiDisplay.factor - camY;
             lastTouchX = touch.clientX;
             lastTouchY = touch.clientY;
             pinchStartDistance = 0;
@@ -13940,10 +13307,10 @@ function resizePassiveTreeCanvas(force) {
     let parent = canvas.parentElement || document.getElementById('tree-container');
     if (!parent || canvas.offsetParent === null) return false;
     let rect = parent.getBoundingClientRect();
-    let displayWidth = Math.max(1, Math.floor(rect.width));
-    let displayHeight = Math.max(1, Math.floor(rect.height));
+    let displayWidth = Math.max(1, Math.floor(rect.width / uiDisplay.factor));
+    let displayHeight = Math.max(1, Math.floor(rect.height / uiDisplay.factor));
     if (displayWidth < 50 || displayHeight < 50) return false;
-    let dpr = Math.max(1, window.devicePixelRatio || 1);
+    let dpr = Math.max(1, (window.devicePixelRatio || 1) * uiDisplay.factor);
     let bufferWidth = Math.max(1, Math.round(displayWidth * dpr));
     let bufferHeight = Math.max(1, Math.round(displayHeight * dpr));
     let changed = !!force
@@ -13980,11 +13347,16 @@ function resizeCanvas() {
 }
 
 function scheduleStableResize() {
+    // Window setup can request a frame between deferred scripts; combat dependencies are not ready yet.
+    if (document.readyState !== 'complete') {
+        window.addEventListener('load', scheduleStableResize, { once: true });
+        return;
+    }
     requestAnimationFrame(() => requestAnimationFrame(() => resizeCanvas()));
 }
 
 function handleResponsiveLayoutChange() {
-    let isMobileLayout = window.matchMedia('(max-width: 1080px)').matches;
+    let isMobileLayout = uiDisplay.matches('(max-width: 1080px)');
     if (window.__lastResponsiveMobile === undefined) {
         window.__lastResponsiveMobile = isMobileLayout;
         return;
@@ -14023,1056 +13395,6 @@ function ensureLoopChallengeState() {
     }
 }
 
-function mergeDefaults(save) {
-    function clampFiniteNumber(value, fallback, min, max) {
-        let num = Number(value);
-        if (!Number.isFinite(num)) num = fallback;
-        if (Number.isFinite(min)) num = Math.max(min, num);
-        if (Number.isFinite(max)) num = Math.min(max, num);
-        return num;
-    }
-    function normalizePassiveNodeId(rawId) {
-        if (typeof rawId === 'string') {
-            let currentId = typeof getCurrentPassiveNodeId === 'function' ? getCurrentPassiveNodeId(rawId) : rawId;
-            if (PASSIVE_TREE.nodes[currentId]) return currentId;
-            if (/^\d+$/.test(currentId)) {
-                let converted = 'n' + currentId;
-                if (PASSIVE_TREE.nodes[converted]) return converted;
-            }
-            return null;
-        }
-        if (typeof rawId === 'number' && Number.isFinite(rawId)) {
-            let converted = 'n' + Math.floor(rawId);
-            return PASSIVE_TREE.nodes[converted] ? converted : null;
-        }
-        return null;
-    }
-    function normalizeAllocatedPassiveTreeNodes(rawIds, passiveStarEvolution, passiveSaveState) {
-        const rootId = typeof getPassiveTreeRootNodeId === 'function' ? getPassiveTreeRootNodeId(save) : 'n0';
-        let rawList = Array.isArray(rawIds) ? rawIds : [];
-        let seen = new Set();
-        let kept = [];
-        let refunded = 0;
-        rawList.forEach(rawId => {
-            let id = normalizePassiveNodeId(rawId);
-            if (!id) { refunded++; return; }
-            if (seen.has(id)) return;
-            seen.add(id);
-            let node = PASSIVE_TREE.nodes[id];
-            if (!node || (node.requiresEvolution && !passiveStarEvolution)) {
-                if (id !== rootId) refunded++;
-                return;
-            }
-            if (node.kind === 'start') return;
-            kept.push(id);
-        });
-        let owned = new Set(kept);
-        owned.add(rootId);
-        let savedStarWedge = passiveSaveState && passiveSaveState.starWedge && typeof passiveSaveState.starWedge === 'object'
-            ? passiveSaveState.starWedge : {};
-        let savedWedges = new Map((Array.isArray(savedStarWedge.wedges) ? savedStarWedge.wedges : [])
-            .filter(wedge => wedge && Number.isFinite(Number(wedge.id)))
-            .map(wedge => [Number(wedge.id), wedge]));
-        let savedSocketWedges = new Map((Array.isArray(savedStarWedge.sockets) ? savedStarWedge.sockets : [])
-            .map(socket => [String(socket && socket.nodeId || ''), savedWedges.get(Number(socket && socket.wedgeId))]));
-        const isActiveSavedStarOption = node => {
-            if (!node || node.kind !== 'star_option') return false;
-            let wedge = savedSocketWedges.get(String(node.requiresStarWedgeSocketNodeId || ''));
-            let line = wedge && Array.isArray(wedge.lines) ? wedge.lines[node.starWedgeLineIndex] : null;
-            return !!(line && line.stat && !line.disabled);
-        };
-        let virtualRoots = new Set();
-        (Array.isArray(savedStarWedge.sockets) ? savedStarWedge.sockets : []).forEach(socket => {
-            let wedge = socket && savedWedges.get(Number(socket.wedgeId));
-            let recordedId = wedge && wedge.unique && wedge.uniqueType === 'black_hole' ? normalizePassiveNodeId(wedge.recordedHubNodeId) : null;
-            if (recordedId && PASSIVE_TREE.nodes[recordedId] && PASSIVE_TREE.nodes[recordedId].kind === 'hub') virtualRoots.add(recordedId);
-        });
-        virtualRoots.forEach(id => owned.add(id));
-        let traversalRoots = [rootId, ...virtualRoots];
-        let connected = new Set(traversalRoots);
-        let queue = traversalRoots.slice();
-        let passiveEdges = (PASSIVE_TREE && Array.isArray(PASSIVE_TREE.edges)) ? PASSIVE_TREE.edges : [];
-        while (queue.length > 0) {
-            let current = queue.shift();
-            passiveEdges.forEach(edge => {
-                let next = null;
-                if (edge.from === current && owned.has(edge.to)) next = edge.to;
-                else if (edge.to === current && owned.has(edge.from)) next = edge.from;
-                if (next && !connected.has(next)) {
-                    connected.add(next);
-                    queue.push(next);
-                }
-            });
-        }
-        let connectedPassives = [];
-        kept.forEach(id => {
-            let node = PASSIVE_TREE.nodes[id];
-            if (node && node.kind === 'star_option' && isActiveSavedStarOption(node)) connectedPassives.push(id);
-            else if (node && node.kind === 'star_option') refunded++;
-            else if (connected.has(id)) connectedPassives.push(id);
-            else refunded++;
-        });
-        return { passives: connectedPassives, refunded: refunded };
-    }
-    function migratePassiveSaveNodeReferences(state) {
-        if (typeof migratePassiveNodeIdList !== 'function' || typeof migratePassiveNodeIdRecord !== 'function') return;
-        state.passives = migratePassiveNodeIdList(state.passives);
-        state.discoveredPassives = migratePassiveNodeIdList(state.discoveredPassives);
-        state.passiveAttributeChoices = migratePassiveNodeIdRecord(state.passiveAttributeChoices);
-        state.voidPassives = migratePassiveNodeIdRecord(state.voidPassives);
-        state.retiredVoidPassives = migratePassiveNodeIdRecord(state.retiredVoidPassives);
-        let star = state.starWedge && typeof state.starWedge === 'object' ? { ...state.starWedge } : {};
-        star.wedges = (Array.isArray(star.wedges) ? star.wedges : []).map(wedge => wedge && typeof wedge === 'object'
-            ? { ...wedge, recordedHubNodeId: getCurrentPassiveNodeId(wedge.recordedHubNodeId) } : wedge);
-        star.sockets = (Array.isArray(star.sockets) ? star.sockets : []).map(socket => socket && typeof socket === 'object'
-            ? { ...socket, nodeId: getCurrentPassiveNodeId(socket.nodeId) } : socket);
-        ['nodeMutations', 'virtualLearnNodes', 'virtualLearnSources', 'disabledNodeEffects',
-            'disabledNodeEffectSources', 'mutationConflictSources'].forEach(key => {
-            star[key] = migratePassiveNodeIdRecord(star[key]);
-        });
-        delete star._mutationSignature;
-        state.starWedge = star;
-    }
-    function normalizeEncounterMarker(marker) {
-        if (!marker || typeof marker !== 'object') return null;
-        let at = clampFiniteNumber(marker.at, NaN, 0, 100);
-        if (!Number.isFinite(at)) return null;
-        let normalized = {
-            at: at,
-            count: Math.max(1, Math.floor(clampFiniteNumber(marker.count, 1, 1, 99))),
-            elite: !!marker.elite,
-            boss: !!marker.boss
-        };
-        if (typeof BOUNTY_TARGET_DB !== 'undefined' && BOUNTY_TARGET_DB[marker.bountyId]) normalized.bountyId = marker.bountyId;
-        return normalized;
-    }
-    function normalizeEnemyRecord(enemy) {
-        if (!enemy || typeof enemy !== 'object') return null;
-        let hp = clampFiniteNumber(enemy.hp, NaN, 0);
-        let maxHp = clampFiniteNumber(enemy.maxHp, clampFiniteNumber(hp, 1, 1), 1);
-        if (!Number.isFinite(hp)) hp = maxHp;
-        return normalizeEnemyGridFields({
-            ...enemy,
-            id: Math.max(1, Math.floor(clampFiniteNumber(enemy.id, 1, 1))),
-            hp: Math.min(maxHp, hp),
-            maxHp: maxHp,
-            attackTimer: clampFiniteNumber(enemy.attackTimer, 0, 0),
-            regenBank: Math.round(clampFiniteNumber(enemy.regenBank, 0, 0) * 10) / 10,
-            spawnAt: clampFiniteNumber(enemy.spawnAt, 0, 0, 100),
-            spawnStamp: 0,
-            groupIndex: Math.max(0, Math.floor(clampFiniteNumber(enemy.groupIndex, 0, 0))),
-            variantSeed: Math.floor(clampFiniteNumber(enemy.variantSeed, 1)),
-            ele: enemy.ele || 'phys',
-            name: enemy.name || '이름 없는 적',
-            atkMul: clampFiniteNumber(enemy.atkMul, 1, 0.1),
-            dr: clampFiniteNumber(enemy.dr, 0, 0),
-            resF: clampFiniteNumber(enemy.resF, 0),
-            resC: clampFiniteNumber(enemy.resC, 0),
-            resL: clampFiniteNumber(enemy.resL, 0),
-            resChaos: clampFiniteNumber(enemy.resChaos, 0),
-            isElite: !!enemy.isElite,
-            isBoss: !!enemy.isBoss
-        });
-    }
-
-    // 그리드 필드 정리: 잘못된 좌표/유형은 버려서 다음 전투 틱의 그리드 복구가 다시 배치하게 한다.
-    function normalizeEnemyGridFields(record) {
-        delete record.battleSlot;
-        let gx = Math.floor(clampFiniteNumber(record.gx, NaN, 0, COMBAT_GRID_CONFIG.columns - 1));
-        let gy = Math.floor(clampFiniteNumber(record.gy, NaN, 0, COMBAT_GRID_CONFIG.rows - 1));
-        if (Number.isFinite(gx) && Number.isFinite(gy)) {
-            record.gx = gx;
-            record.gy = gy;
-        } else {
-            delete record.gx;
-            delete record.gy;
-        }
-        record.gridMoveTimer = 0;
-        if (record.attackKind !== 'melee' && record.attackKind !== 'ranged') {
-            delete record.attackKind;
-            delete record.attackRange;
-        } else {
-            record.attackRange = Math.max(1, Math.floor(clampFiniteNumber(record.attackRange, 1, 1, 99)));
-        }
-        return record;
-    }
-    function normalizeRecentDamageEvent(entry) {
-        if (!entry || typeof entry !== 'object') return null;
-        let ele = normalizeDamageElementKey(entry.ele);
-        let amount = Math.max(0, Math.floor(clampFiniteNumber(entry.amount, 0, 0)));
-        return {
-            at: clampFiniteNumber(entry.at, Date.now(), 0),
-            ele: ele,
-            amount: amount,
-            source: typeof entry.source === 'string' ? entry.source : '',
-            sourceType: ['monster', 'hazard', 'ailment'].includes(entry.sourceType) ? entry.sourceType : 'hazard',
-            sourceId: typeof entry.sourceId === 'string' || Number.isFinite(entry.sourceId) ? entry.sourceId : null,
-            sourceName: typeof entry.sourceName === 'string' ? entry.sourceName : '',
-            ailmentType: typeof entry.ailmentType === 'string' ? entry.ailmentType : ''
-        };
-    }
-    function normalizeDeathDamageSummaryRows(rows) {
-        let damageSummary = Array.isArray(rows) ? rows.map(entry => {
-            if (!entry || typeof entry !== 'object') return null;
-            let ele = normalizeDamageElementKey(entry.ele);
-            let value = Math.max(0, Math.floor(clampFiniteNumber(entry.value, entry.amount, 0)));
-            return { ele: ele, value: value };
-        }).filter(Boolean) : [];
-        let totals = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0, other: 0 };
-        damageSummary.forEach(entry => {
-            totals[entry.ele] += Math.max(0, Math.floor(entry.value || 0));
-        });
-        return Object.keys(totals)
-            .map(ele => ({ ele: ele, value: totals[ele] }))
-            .filter(entry => entry.value > 0)
-            .sort((a, b) => b.value - a.value);
-    }
-    function normalizeDeathMonsterSummaryRows(rows) {
-        return Array.isArray(rows) ? rows.map(row => {
-            if (!row || typeof row !== 'object') return null;
-            let byElement = {};
-            ['phys', 'fire', 'cold', 'light', 'chaos', 'other'].forEach(ele => {
-                let value = Math.max(0, Math.floor(clampFiniteNumber(row.byElement && row.byElement[ele], 0, 0)));
-                if (value > 0) byElement[ele] = value;
-            });
-            return {
-                sourceId: typeof row.sourceId === 'string' || Number.isFinite(row.sourceId) ? row.sourceId : null,
-                name: typeof row.name === 'string' && row.name ? row.name : '알 수 없는 몬스터',
-                value: Math.max(0, Math.floor(clampFiniteNumber(row.value, 0, 0))),
-                byElement: byElement,
-                primaryElement: normalizeDamageElementKey(row.primaryElement)
-            };
-        }).filter(row => row && row.value > 0).sort((a, b) => b.value - a.value) : [];
-    }
-    function normalizeDeathLog(log) {
-        if (!log || typeof log !== 'object') return null;
-        let primaryElement = normalizeDamageElementKey(log.primaryElement);
-        let damageSummary = normalizeDeathDamageSummaryRows(log.damageSummary);
-        let ailmentDamageSummary = normalizeDeathDamageSummaryRows(log.ailmentDamageSummary);
-        let monsterSummary = normalizeDeathMonsterSummaryRows(log.monsterSummary);
-        let activeAilments = Array.isArray(log.activeAilments) ? log.activeAilments.map(row => {
-            if (!row || typeof row !== 'object') return null;
-            let type = typeof row.type === 'string' && row.type ? row.type : 'unknown';
-            return {
-                type: type,
-                label: typeof row.label === 'string' && row.label ? row.label : getAilmentDisplayLabel(type),
-                time: Math.max(0, Math.ceil(clampFiniteNumber(row.time, 0, 0, 30))),
-                power: Math.max(0, clampFiniteNumber(row.power, 0, 0, 1.5)),
-                sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0))),
-                sourceEnemyName: typeof row.sourceEnemyName === 'string' ? row.sourceEnemyName : ''
-            };
-        }).filter(Boolean) : [];
-        return {
-            primaryElement: primaryElement,
-            reasonText: typeof log.reasonText === 'string' && log.reasonText.trim() ? log.reasonText : (DEATH_REASON_TEXT[primaryElement] || DEATH_REASON_TEXT.phys),
-            expLost: Math.max(0, Math.floor(clampFiniteNumber(log.expLost, 0, 0))),
-            damageSummary: damageSummary,
-            ailmentDamageSummary: ailmentDamageSummary,
-            monsterSummary: monsterSummary,
-            activeAilments: activeAilments,
-            sourceName: typeof log.sourceName === 'string' ? log.sourceName : '',
-            at: clampFiniteNumber(log.at, Date.now(), 0)
-        };
-    }
-    function estimateSummonEquipCapForMergedSave(state) {
-        let bonus = 0;
-        function statValue(stat) {
-            if (!stat || typeof stat !== 'object') return 0;
-            if (Number.isFinite(stat.val)) return stat.val;
-            if (Number.isFinite(stat.value)) return stat.value;
-            if (Number.isFinite(stat.base)) return stat.base;
-            return 0;
-        }
-        Object.entries((state && state.equipment) || {}).forEach(([slot, item]) => {
-            if (!item) return;
-            [...(item.baseStats || []), ...(item.stats || []), ...(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item) : [])].forEach(stat => {
-                if (stat && stat.id === 'summonCap') bonus += statValue(stat);
-            });
-            if (item.uniqueEffectKey === 'summonCapBonus') bonus += Number((item.uniqueEffectParams || {}).cap) || 1;
-            if (item.uniqueEffectKey === 'rightRingSummonCap' && slot === '반지2') bonus += Number((item.uniqueEffectParams || {}).cap) || 1;
-        });
-        (state && Array.isArray(state.passives) ? state.passives : []).forEach(id => {
-            if (state.starWedge && state.starWedge.disabledNodeEffects && state.starWedge.disabledNodeEffects[String(id)]) return;
-            let node = PASSIVE_TREE.nodes[id];
-            let mut = state.starWedge && state.starWedge.nodeMutations ? state.starWedge.nodeMutations[id] : null;
-            let statId = mut && mut.currentStat ? mut.currentStat : (node && node.stat);
-            let statVal = mut && Number.isFinite(mut.currentVal) ? mut.currentVal : (node && node.val);
-            if (node && statId === 'summonCap') bonus += statVal || 0;
-        });
-        let ownedPassiveIds = new Set(state && Array.isArray(state.passives) ? state.passives.map(String) : []);
-        Object.keys((state && state.starWedge && state.starWedge.nodeMutations) || {}).forEach(id => {
-            let mut = state.starWedge.nodeMutations[id];
-            if (!mut || mut.lineIndex !== 3 || mut.currentStat !== 'summonCap' || ownedPassiveIds.has(String(id))) return;
-            if (state.starWedge.disabledNodeEffects && state.starWedge.disabledNodeEffects[String(id)]) return;
-            bonus += Number(mut.currentVal) || 0;
-        });
-        (state && Array.isArray(state.actRewardBonuses) ? state.actRewardBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
-        (state && Array.isArray(state.journalBonuses) ? state.journalBonuses : []).forEach(entry => { if (entry && entry.stat === 'summonCap') bonus += Number(entry.value) || 0; });
-        let keystones = (state && Array.isArray(state.ascendKeystones)) ? state.ascendKeystones : [];
-        if (state && state.ascendClass === 'soulbinder') {
-            if (keystones.includes('sb4')) bonus += 1;
-            if (keystones.includes('sb8')) bonus += 3;
-        }
-        let ownedCards = Object.keys((state && state.talentCards) || {});
-        let unlockedSlots = (typeof TALENT_CARD_SLOT_UNLOCKS !== 'undefined' ? TALENT_CARD_SLOT_UNLOCKS : [])
-            .filter(requirement => ownedCards.length >= requirement).length;
-        (state && Array.isArray(state.talentCardLoadout) ? state.talentCardLoadout.slice(0, unlockedSlots) : []).forEach(comboKey => {
-            let rule = typeof TALENT_PRECISE_CARD_RULES !== 'undefined' ? TALENT_PRECISE_CARD_RULES[comboKey] : null;
-            ((rule && rule.uniques) || []).forEach(effect => {
-                if (effect && effect.key === 'summonCapBonus') bonus += Number((effect.params || {}).cap) || 1;
-            });
-        });
-        let cap = Math.max(1, Math.floor(1 + bonus));
-        let expandedCap = state && state.ascendClass === 'soulbinder' && keystones.includes('sb9');
-        if (expandedCap) cap = Math.floor(cap * 1.5);
-        return Math.min(expandedCap ? 12 : 8, cap);
-    }
-
-    let savedHeroAppearanceMode = save && save.settings && save.settings.heroAppearanceMode;
-    let savedColony = (save && save.colony && typeof save.colony === 'object') ? save.colony : null;
-    let savedColonyHadWardSlotVersion = !!(savedColony && Object.prototype.hasOwnProperty.call(savedColony, 'wardSlotVersion'));
-    let merged = {
-        ...defaultGame,
-        ...save,
-        settings: { ...defaultGame.settings, ...(save.settings || {}) },
-        unlocks: { ...defaultGame.unlocks, ...(save.unlocks || {}) },
-        noti: { ...defaultGame.noti, ...(save.noti || {}) },
-        currencies: { ...defaultGame.currencies, ...(save.currencies || {}) },
-        equipment: { ...defaultGame.equipment, ...(save.equipment || {}) },
-        saveMeta: { ...defaultGame.saveMeta, ...(save.saveMeta || {}) }
-    };
-    delete merged.hideout;
-    delete merged.abyssPassivePoints;
-    delete merged.abyssPassives;
-    delete merged.unlocks.hideout;
-    delete merged.noti.hideout;
-    migratePassiveSaveNodeReferences(merged);
-    delete merged.talentCardRuntime;
-    Object.entries(typeof CURRENCY_LEGACY_MERGE === 'object' ? CURRENCY_LEGACY_MERGE : {}).forEach(([currentKey, legacyKeys]) => {
-        let legacyAmount = (legacyKeys || []).reduce((sum, legacyKey) => sum + Math.max(0, Math.floor(Number(merged.currencies[legacyKey]) || 0)), 0);
-        merged.currencies[currentKey] = Math.max(0, Math.floor(Number(merged.currencies[currentKey]) || 0)) + legacyAmount;
-        (legacyKeys || []).forEach(legacyKey => delete merged.currencies[legacyKey]);
-    });
-    Object.entries(typeof CURRENCY_LEGACY_MERGE === 'object' ? CURRENCY_LEGACY_MERGE : {}).forEach(([currentKey, legacyKeys]) => {
-        (legacyKeys || []).forEach(legacyKey => Object.defineProperty(merged.currencies, legacyKey, {
-            configurable: true,
-            enumerable: false,
-            get() { return this[currentKey] || 0; },
-            set(value) { this[currentKey] = Math.max(0, Math.floor(Number(value) || 0)); }
-        }));
-    });
-    if (!save.activeChallengeContract || typeof save.activeChallengeContract !== 'object') {
-        merged.activeChallengeContract = { ...(merged.challengeContract || defaultGame.challengeContract) };
-    }
-    const legacyHiveTrace = Math.max(0, Math.floor(Number(merged.currencies.hiveTrace) || 0));
-    if (legacyHiveTrace > 0) {
-        merged.currencies.colonyTrace = Math.max(0, Math.floor(Number(merged.currencies.colonyTrace) || 0)) + legacyHiveTrace;
-    }
-    delete merged.currencies.hiveTrace;
-    merged.cosmosAtlas = (merged.cosmosAtlas && typeof merged.cosmosAtlas === 'object') ? { ...merged.cosmosAtlas } : {};
-    const legacyAtlasStarDust = Math.max(0, Math.floor(Number(merged.cosmosAtlas.starDust) || 0));
-    const hasSavedStarDustWallet = !!(save && save.currencies && Object.prototype.hasOwnProperty.call(save.currencies, 'starDust'));
-    merged.currencies.starDust = hasSavedStarDustWallet
-        ? Math.max(0, Math.floor(Number(merged.currencies.starDust) || 0))
-        : legacyAtlasStarDust;
-    delete merged.cosmosAtlas.starDust;
-    merged.saveMeta.lastCloudUploadProfile = normalizeCloudUploadProfile(merged.saveMeta.lastCloudUploadProfile);
-    merged.saveMeta.cloudUserId = typeof merged.saveMeta.cloudUserId === 'string' && merged.saveMeta.cloudUserId.trim()
-        ? merged.saveMeta.cloudUserId
-        : null;
-    merged.ocean = mergeOceanState(save && save.ocean);
-    merged.unlocks.jewel = !!merged.unlocks.jewel;
-    merged.unlocks.cube = !!merged.unlocks.cube;
-    if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(merged);
-    if (!save.currencies && save.materials) {
-        merged.currencies.magicBud += Math.floor(save.materials / 2) + Math.floor(save.materials / 4);
-        merged.currencies.formlessDew += Math.floor(save.materials / 10);
-    }
-    let normalizedEquipment = { ...defaultGame.equipment };
-    Object.keys(normalizedEquipment).forEach(slot => {
-        normalizedEquipment[slot] = merged.equipment[slot] || null;
-    });
-    if (save && save.equipment && save.equipment['장갑'] && !save.equipment['장갑1'] && !save.equipment['장갑2']) {
-        normalizedEquipment['장갑1'] = save.equipment['장갑'];
-    }
-    merged.equipment = normalizedEquipment;
-    if (window.equipmentLoadoutRuntime) window.equipmentLoadoutRuntime.ensureState(merged);
-    merged.inventory = (merged.inventory || []).map(normalizeItem);
-    merged.equipmentTemporaryStorage = Array.isArray(merged.equipmentTemporaryStorage)
-        ? merged.equipmentTemporaryStorage.map(normalizeItem) : [];
-    Object.keys(merged.equipment).forEach(slot => merged.equipment[slot] = normalizeItem(merged.equipment[slot]));
-    if (typeof equipmentInventoryGridRuntime !== 'undefined') equipmentInventoryGridRuntime.ensureState(merged);
-    merged.growthInventory = (merged.growthInventory || []).map(normalizeGrowthOptionValues);
-    merged.recentGrowthDrops = (merged.recentGrowthDrops || []).map(normalizeGrowthOptionValues);
-    merged.gemData = (merged.gemData && typeof merged.gemData === 'object') ? merged.gemData : {};
-    merged.gemData['기본 공격'] = normalizeGemRecord(merged.gemData['기본 공격']);
-    Object.keys(merged.gemData).forEach(name => merged.gemData[name] = normalizeGemRecord(merged.gemData[name]));
-    merged.supportGemData = (merged.supportGemData && typeof merged.supportGemData === 'object') ? merged.supportGemData : {};
-    Object.keys(merged.supportGemData).forEach(name => merged.supportGemData[name] = normalizeGemRecord(merged.supportGemData[name]));
-    if ((save.saveVersion || 0) < 9) {
-        merged.passives = [];
-        merged.discoveredPassives = [getPassiveTreeRootNodeId(merged)];
-    }
-    if ((save.saveVersion || 0) < 13) {
-        if (typeof merged.currentZoneId === 'number' && merged.currentZoneId >= 10) merged.currentZoneId += (ABYSS_START_ZONE_ID - 10);
-        if (typeof merged.maxZoneId === 'number' && merged.maxZoneId >= 10) merged.maxZoneId += (ABYSS_START_ZONE_ID - 10);
-    } else if ((save.saveVersion || 0) < 14) {
-        if (typeof merged.currentZoneId === 'number' && merged.currentZoneId >= 11) merged.currentZoneId -= 1;
-        if (typeof merged.maxZoneId === 'number' && merged.maxZoneId >= 11) merged.maxZoneId -= 1;
-    } else if ((save.saveVersion || 0) < 15) {
-        if (typeof merged.currentZoneId === 'number' && merged.currentZoneId >= 5) merged.currentZoneId -= 1;
-        if (typeof merged.maxZoneId === 'number' && merged.maxZoneId >= 5) merged.maxZoneId -= 1;
-    }
-    const legacyPassiveRefundCount = Number(merged.passiveLayoutVersion || 0) < 22
-        ? (Array.isArray(save.passives) ? save.passives.filter(id => id !== 'n0').length : 0)
-        : 0;
-    let passiveAllocationNormalization = normalizeAllocatedPassiveTreeNodes(merged.passives, !!merged.passiveStarEvolution, merged);
-    merged.passives = passiveAllocationNormalization.passives;
-    merged.autoRefundedPassivePoints = Math.max(0, Math.floor(passiveAllocationNormalization.refunded || 0));
-    function getPassiveTierValueForLoad(statKey, tier) {
-        let statDef = P_STATS[statKey];
-        if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
-        if (tier === 0) return 10;
-        if (tier === 1) return statDef.s !== undefined ? statDef.s : (statDef.m !== undefined ? statDef.m : (statDef.k !== undefined ? statDef.k : 2));
-        if (tier === 2) return statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : (statDef.k !== undefined ? statDef.k : 4));
-        return statDef.k !== undefined ? statDef.k : (statDef.m !== undefined ? statDef.m : (statDef.s !== undefined ? statDef.s : 8));
-    }
-    Object.values(PASSIVE_TREE.nodes || {}).forEach(node => {
-        if (!node || node.stat !== 'critDmg') return;
-        node.val = getPassiveTierValueForLoad('critDmg', Math.max(0, Math.floor(node.tier || 1)));
-    });
-    merged.discoveredPassives = Array.from(new Set((merged.discoveredPassives || []).map(normalizePassiveNodeId).filter(Boolean)));
-    const passiveAttributeStats = new Set(['strength', 'dexterity', 'intelligence']);
-    merged.passiveAttributePreference = passiveAttributeStats.has(merged.passiveAttributePreference) ? merged.passiveAttributePreference : 'strength';
-    const rawPassiveAttributeChoices = merged.passiveAttributeChoices && typeof merged.passiveAttributeChoices === 'object' && !Array.isArray(merged.passiveAttributeChoices)
-        ? merged.passiveAttributeChoices
-        : {};
-    merged.passiveAttributeChoices = Object.fromEntries(Object.entries(rawPassiveAttributeChoices)
-        .filter(([nodeId, stat]) => passiveAttributeStats.has(stat)
-            && PASSIVE_TREE.nodes[nodeId]
-            && PASSIVE_TREE.nodes[nodeId].kind === 'attribute'
-            && (merged.passives || []).includes(nodeId)));
-    const passiveSpecializationOptions = Number(save.saveVersion || 0) < 18
-        ? { migrateWisdomBranchChoice: true, passiveIds: merged.passives }
-        : undefined;
-    merged.passiveSpecialization = typeof normalizePassiveSpecializationState === 'function'
-        ? normalizePassiveSpecializationState(merged.passiveSpecialization, passiveSpecializationOptions)
-        : JSON.parse(JSON.stringify(defaultGame.passiveSpecialization));
-    if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
-        // Version 22 replaces the generated tree with the authored six-class layout.
-        // Refund once rather than silently mapping old node ids onto unrelated effects.
-        if (Number(merged.passiveLayoutVersion || 0) < 22) {
-            merged.autoRefundedPassivePoints = Math.max(merged.autoRefundedPassivePoints, legacyPassiveRefundCount);
-            merged.passives = [];
-            merged.passiveAttributeChoices = {};
-        }
-        merged.discoveredPassives = Array.from(new Set([getPassiveTreeRootNodeId(merged)].concat(merged.passives || [])));
-        merged.passiveLayoutVersion = PASSIVE_LAYOUT_VERSION;
-    }
-    merged.claimableActRewards = (merged.claimableActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
-    merged.claimedActRewards = (merged.claimedActRewards || []).filter(id => typeof id === 'number' && id >= 0 && id <= 9);
-    merged.actRewardBonuses = (merged.actRewardBonuses || []).filter(entry => entry && entry.stat);
-    merged.seasonChaseUniqueDrops = Array.from(new Set((Array.isArray(merged.seasonChaseUniqueDrops) ? merged.seasonChaseUniqueDrops : []).filter(name => typeof name === 'string' && name)));
-    // Old saves only had a boolean flag and could not identify which chase unique dropped.
-    // Do not treat that unknown legacy flag as a full chase-unique blacklist.
-    merged.seasonChaseUniqueDropped = merged.seasonChaseUniqueDrops.length > 0;
-    if (Array.isArray(merged.skills) && merged.skills.includes('수액 골렘 소환')) {
-        merged.supports = Array.isArray(merged.supports) ? merged.supports : [];
-        if (!merged.supports.includes('수액 골렘 소환')) merged.supports.push('수액 골렘 소환');
-        merged.supportGemData = (merged.supportGemData && typeof merged.supportGemData === 'object') ? merged.supportGemData : {};
-        if (!merged.supportGemData['수액 골렘 소환']) {
-            merged.supportGemData['수액 골렘 소환'] = normalizeGemRecord((merged.gemData || {})['수액 골렘 소환'] || { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
-        }
-        merged.equippedSupports = Array.isArray(merged.equippedSupports) ? merged.equippedSupports : [];
-        if (!merged.equippedSupports.includes('수액 골렘 소환')) merged.equippedSupports.push('수액 골렘 소환');
-        if (merged.activeSkill === '수액 골렘 소환') {
-            merged.activeSkill = '기본 공격';
-        }
-    }
-    merged.skills = dedupeList(Array.isArray(merged.skills) ? merged.skills.filter(name => !!SKILL_DB[name]) : []);
-    if (!merged.skills.includes('기본 공격')) merged.skills.unshift('기본 공격');
-    merged.sealedSkills = dedupeList(Array.isArray(merged.sealedSkills) ? merged.sealedSkills.filter(name => !!SKILL_DB[name] && name !== '기본 공격' && !merged.skills.includes(name)) : []);
-    merged.supports = dedupeList(Array.isArray(merged.supports) ? merged.supports.filter(name => !!SUPPORT_GEM_DB[name]) : []);
-    merged.sealedSupports = dedupeList(Array.isArray(merged.sealedSupports) ? merged.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !merged.supports.includes(name)) : []);
-    merged.equippedSupports = Array.isArray(merged.equippedSupports) ? dedupeList(merged.equippedSupports.filter(name => merged.supports.includes(name))) : [];
-    merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!getSeasonPassiveNodeDef(id)) : [];
-    merged.seasonNodeLevels = (merged.seasonNodeLevels && typeof merged.seasonNodeLevels === 'object') ? merged.seasonNodeLevels : {};
-    merged.seasonNodes.forEach(id => {
-        let lv = Math.max(1, Math.floor(merged.seasonNodeLevels[id] || 1));
-        merged.seasonNodeLevels[id] = Math.min(5, lv);
-    });
-    merged.unlockedSeasonContents = Array.isArray(merged.unlockedSeasonContents) ? merged.unlockedSeasonContents.filter(id => typeof id === 'string') : ['season_1'];
-    merged.seenSeasonContentNotices = Array.isArray(merged.seenSeasonContentNotices) ? merged.seenSeasonContentNotices.filter(id => typeof id === 'string') : ['season_1'];
-    merged.unlockedMapContents = Array.isArray(merged.unlockedMapContents) ? merged.unlockedMapContents.filter(id => typeof id === 'string') : [];
-    merged.labyrinthFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.labyrinthFloor, defaultGame.labyrinthFloor || 1, 1)));
-    merged.labyrinthUnlockedMaxFloor = Math.max(
-        merged.labyrinthFloor,
-        Math.floor(clampFiniteNumber(merged.labyrinthUnlockedMaxFloor, defaultGame.labyrinthUnlockedMaxFloor || 1, 1))
-    );
-    merged.abyssEndlessDepth = Math.max(20, Math.floor(clampFiniteNumber(merged.abyssEndlessDepth, defaultGame.abyssEndlessDepth || 20, 20)));
-    merged.abyssUnlockedDepths = Array.isArray(merged.abyssUnlockedDepths)
-        ? Array.from(new Set(merged.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 20))).sort((a, b) => a - b)
-        : [20];
-    if (!merged.abyssUnlockedDepths.includes(20)) merged.abyssUnlockedDepths.unshift(20);
-    if (merged.abyssEndlessDepth >= 21 && !merged.abyssUnlockedDepths.includes(merged.abyssEndlessDepth)) merged.abyssUnlockedDepths.push(merged.abyssEndlessDepth);
-    function normalizeJewelRecord(jewel) {
-        if (!jewel || typeof jewel !== 'object') return null;
-        let stats = typeof getJewelStats === 'function' ? getJewelStats(jewel) : (Array.isArray(jewel.stats) ? jewel.stats.filter(stat => stat && stat.id) : []);
-        if (stats.length === 0 && jewel.stat && jewel.stat.id) stats = typeof normalizeJewelStat === 'function' ? [normalizeJewelStat(jewel.stat)].filter(Boolean) : [jewel.stat];
-        if (stats.length === 0) return null;
-        let hiddenTier = Math.max(1, Math.floor(Math.max(...stats.map(stat => Math.floor(stat.tier || 1)))));
-        let hasWaxBonus = stats.some(stat => stat && stat.waxBonus);
-        let statLimit = jewel.waxedByBeeswax || hasWaxBonus ? 5 : 4;
-        return { ...jewel, rarity: ['normal', 'magic', 'rare', 'unique'].includes(jewel.rarity) ? jewel.rarity : 'normal', waxedByBeeswax: !!jewel.waxedByBeeswax || hasWaxBonus, hiddenTier: hiddenTier, stats: stats.slice(0, statLimit), locked: !!jewel.locked };
-    }
-    merged.jewelInventory = Array.isArray(merged.jewelInventory) ? merged.jewelInventory.map(normalizeJewelRecord).filter(Boolean) : [];
-    // 한도를 넘은 주얼을 잘라내지 않는다. 전투 드랍은 보관함이 가득 차도 희귀·고유
-    // 주얼만은 유실 방지로 한도를 넘겨 보관하는데(combat.js의 protectOverflow),
-    // 여기서 잘라내면 바로 그 아껴 둔 주얼이 다음 불러오기에 조용히 사라졌다.
-    // 게다가 앞에서부터 40개를 남기므로 가장 최근에 지켜 낸 것이 먼저 지워진다.
-    // 장비 보관함도 같은 이유로 자르지 않고 초과 보관을 허용한다(유실 방지).
-    // 새로 넣는 쪽은 각 push 지점이 getJewelInventoryLimit()으로 계속 막는다.
-    // 심연 군주(워록 wlk8)가 주얼 슬롯을 2칸 추가로 제공하므로 최대 4슬롯까지 보존한다.
-    merged.jewelSlots = Array.isArray(merged.jewelSlots) ? merged.jewelSlots.slice(0, 4).map(normalizeJewelRecord) : [null, null];
-    while (merged.jewelSlots.length < 2) merged.jewelSlots.push(null);
-    merged.jewelSlotAmplify = Array.isArray(merged.jewelSlotAmplify) ? merged.jewelSlotAmplify.slice(0, 4).map(v => Math.max(0, Math.min(20, Math.floor(v || 0)))) : [0, 0];
-    while (merged.jewelSlotAmplify.length < 2) merged.jewelSlotAmplify.push(0);
-    merged.skyGemEnhancements = (merged.skyGemEnhancements && typeof merged.skyGemEnhancements === 'object') ? merged.skyGemEnhancements : {};
-    Object.keys(merged.skyGemEnhancements).forEach(skill => {
-        let arr = Array.isArray(merged.skyGemEnhancements[skill]) ? merged.skyGemEnhancements[skill] : [];
-        merged.skyGemEnhancements[skill] = typeof normalizeSkyGemEnhancementSlots === 'function'
-            ? normalizeSkyGemEnhancementSlots(arr)
-            : arr.slice(0, 5);
-    });
-    merged.ascendNodes = Array.isArray(merged.ascendNodes) ? merged.ascendNodes.filter(id => typeof id === 'string') : [];
-    merged.bloomedClassThisLoop = CLASS_TEMPLATES[merged.bloomedClassThisLoop] ? merged.bloomedClassThisLoop : null;
-    merged.bloomedTalentThisLoop = HERO_SELECTION_DEFS[merged.bloomedTalentThisLoop] ? merged.bloomedTalentThisLoop : null;
-    if (merged.bloomedClassThisLoop && !merged.bloomedTalentThisLoop) merged.bloomedTalentThisLoop = merged.selectedHeroId;
-    if (!merged.bloomedClassThisLoop) merged.bloomedTalentThisLoop = null;
-    merged.pendingTalentBloomHeroId = merged.currentZoneId === 'trial_5'
-        && HERO_SELECTION_DEFS[merged.pendingTalentBloomHeroId] ? merged.pendingTalentBloomHeroId : null;
-    merged.ascendKeystonePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendKeystonePoints, 0, 0)));
-    let classKeystoneSet = new Set(getClassKeystoneDefs(merged.ascendClass).map(node => node.id));
-    merged.ascendKeystones = Array.isArray(merged.ascendKeystones)
-        ? Array.from(new Set(merged.ascendKeystones.filter(id => typeof id === 'string' && classKeystoneSet.has(id)))).slice(0, CLASS_KEYSTONE_PICK_LIMIT)
-        : [];
-    if (!merged.ascendClass && (!Array.isArray(merged.completedTrials) || merged.completedTrials.length === 0)) {
-        merged.ascendKeystonePoints = 0;
-        merged.ascendKeystones = [];
-    }
-    if (merged.ascendClass) {
-        let legacyTrialCount = Array.isArray(merged.completedTrials)
-            ? merged.completedTrials.filter(id => ['trial_1', 'trial_2', 'trial_3', 'trial_4'].includes(id)).length
-            : 0;
-        let legacyAscendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, 0, 0, 4)));
-        let legacyKeystoneTotal = Math.min(CLASS_KEYSTONE_PICK_LIMIT, Math.max(legacyAscendRank, legacyTrialCount));
-        let minExpectedPoints = Math.max(0, legacyKeystoneTotal - merged.ascendKeystones.length);
-        merged.ascendKeystonePoints = Math.max(merged.ascendKeystonePoints, minExpectedPoints);
-    }
-    merged.starWedge = (merged.starWedge && typeof merged.starWedge === 'object') ? merged.starWedge : {};
-    merged.starWedge.unlocked = !!merged.starWedge.unlocked;
-    merged.starWedge.unlockNoticeSeen = !!merged.starWedge.unlockNoticeSeen;
-    merged.starWedge.skyRiftGauge = clampFiniteNumber(merged.starWedge.skyRiftGauge, 0, 0, 100);
-    merged.starWedge.skyRiftReady = !!merged.starWedge.skyRiftReady;
-    merged.starWedge.skyRiftMinTier = Number.isFinite(merged.starWedge.skyRiftMinTier) ? Math.max(1, Math.floor(merged.starWedge.skyRiftMinTier)) : null;
-    merged.starWedge.activeMeteorTier = Number.isFinite(merged.starWedge.activeMeteorTier) ? Math.max(1, Math.floor(merged.starWedge.activeMeteorTier)) : null;
-    let meteorReturnZoneId = merged.starWedge.meteorReturnZoneId;
-    merged.starWedge.meteorReturnZoneId = (typeof meteorReturnZoneId === 'number' || typeof meteorReturnZoneId === 'string') && meteorReturnZoneId !== METEOR_FALL_ZONE_ID ? meteorReturnZoneId : null;
-    merged.starWedge.lastAnomalyAt = Number.isFinite(merged.starWedge.lastAnomalyAt) ? Math.max(0, Math.floor(merged.starWedge.lastAnomalyAt)) : 0;
-    merged.starWedge.skyRiftCarryGauge = clampFiniteNumber(merged.starWedge.skyRiftCarryGauge, 0, 0, 99);
-    merged.starWedge.constellationBuff = (merged.starWedge.constellationBuff && typeof merged.starWedge.constellationBuff === 'object') ? merged.starWedge.constellationBuff : null;
-    merged.starWedge.entriesCleared = Math.max(0, Math.floor(clampFiniteNumber(merged.starWedge.entriesCleared, 0, 0)));
-    merged.starWedge.firstClearDone = !!merged.starWedge.firstClearDone;
-    merged.starWedge.selectedWedgeId = Number.isFinite(merged.starWedge.selectedWedgeId) ? merged.starWedge.selectedWedgeId : null;
-    // 보유 별쐐기는 잘라내지 않는다. 획득 경로(드랍·제작) 어디에도 보유 한도 검사가
-    // 없고 화면에도 한도 표시가 없는데, 여기서만 60개로 잘라 초과분이 조용히 사라졌다.
-    // 앞에서부터 남기므로 가장 최근에 얻은 것이 먼저 지워진다(별쐐기 하나가
-    // 운석 파편 77개 + 불완전한 별쐐기 1개다). 장비·주얼 보관함과 같이 그대로 둔다.
-    // 장착 수는 아래 sockets 상한(천문학자 레벨)이 계속 제한한다.
-    merged.starWedge.wedges = Array.isArray(merged.starWedge.wedges) ? merged.starWedge.wedges.filter(w => w && Number.isFinite(w.id) && Array.isArray(w.lines)) : [];
-    let mergedAstronomerLevel = merged.expertise && merged.expertise.levels ? merged.expertise.levels.astronomer : 1;
-    let starWedgeSocketCap = typeof getMaxEquippedStarWedgesForLevel === 'function' ? getMaxEquippedStarWedgesForLevel(mergedAstronomerLevel) : MAX_STAR_WEDGES;
-    merged.starWedge.sockets = Array.isArray(merged.starWedge.sockets) ? merged.starWedge.sockets.filter(s => s && typeof s.nodeId === 'string' && Number.isFinite(s.wedgeId)).slice(0, starWedgeSocketCap) : [];
-    merged.starWedge.nodeMutations = (merged.starWedge.nodeMutations && typeof merged.starWedge.nodeMutations === 'object') ? merged.starWedge.nodeMutations : {};
-    let validVoidPassiveIds = new Set(typeof getVoidPassiveNodeIds === 'function' ? getVoidPassiveNodeIds() : []);
-    let rawVoidPassives = (merged.voidPassives && typeof merged.voidPassives === 'object') ? merged.voidPassives : {};
-    merged.voidPassives = {};
-    merged.retiredVoidPassives = (merged.retiredVoidPassives && typeof merged.retiredVoidPassives === 'object') ? merged.retiredVoidPassives : {};
-    Object.keys(rawVoidPassives).forEach(nodeId => {
-        if (!validVoidPassiveIds.has(String(nodeId))) merged.retiredVoidPassives[nodeId] = rawVoidPassives[nodeId];
-    });
-    let legacyVoidMigration = !(save.voidPassives && typeof save.voidPassives === 'object');
-    let allocatedVoidIds = legacyVoidMigration ? new Set((merged.passives || []).map(id => String(id))) : new Set();
-    validVoidPassiveIds.forEach(nodeId => {
-        let rawEntry = rawVoidPassives[nodeId] && typeof rawVoidPassives[nodeId] === 'object' ? rawVoidPassives[nodeId] : {};
-        let stats = Array.isArray(rawEntry.stats) ? rawEntry.stats : [];
-        if (legacyVoidMigration && allocatedVoidIds.has(String(nodeId)) && stats.length <= 0) {
-            let node = PASSIVE_TREE.nodes[nodeId];
-            if (node && P_STATS[node.legacyVoidStat] && Number.isFinite(Number(node.legacyVoidVal))) {
-                stats = [{ id: node.legacyVoidStat, val: Number(node.legacyVoidVal) }];
-            }
-        }
-        stats = stats.filter(line => line && P_STATS[line.id] && Number.isFinite(Number(line.val))).slice(0, 2).map(line => ({ id: line.id, val: Number(line.val) }));
-        let transcendent = (typeof normalizeTranscendentVoidPassive === 'function') ? normalizeTranscendentVoidPassive(rawEntry.transcendent) : null;
-        if (stats.length > 0 || transcendent || rawVoidPassives[nodeId] || allocatedVoidIds.has(String(nodeId))) merged.voidPassives[nodeId] = { rarity: transcendent ? 'transcendent' : (stats.length > 0 ? 'magic' : 'normal'), stats, transcendent };
-    });
-    merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
-    merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
-    merged.itemSubtab = ['item-tab-equip', 'item-tab-craft', 'item-tab-fossil', 'item-tab-market', 'item-tab-hall', 'item-tab-infuser'].includes(merged.itemSubtab) ? merged.itemSubtab : 'item-tab-equip';
-    merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-research','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
-    merged.skillAutoRules = Array.isArray(merged.skillAutoRules)
-        ? merged.skillAutoRules.filter(rule => rule && typeof rule === 'object').map(rule => normalizeConditionPatternRule({ ...rule }))
-        : [];
-    merged.conditionGemUnlocked = !!merged.conditionGemUnlocked;
-    merged.conditionGemPool = Array.isArray(merged.conditionGemPool) ? merged.conditionGemPool : [];
-    merged.pendingConditionGemChoices = Array.isArray(merged.pendingConditionGemChoices) ? merged.pendingConditionGemChoices : null;
-    merged.arcana = normalizeArcanaState(merged.arcana);
-    let arcanaQuestMigration = reconcileArcanaQuestFromCosmos(merged);
-    if (arcanaQuestMigration.completedNow) {
-        merged.journalEntries = Array.isArray(merged.journalEntries) ? merged.journalEntries : [];
-        if (!merged.journalEntries.includes('arcana_first_seal')) merged.journalEntries.push('arcana_first_seal');
-    }
-    merged.pruningTree = normalizePruningTreeState(merged.pruningTree, merged);
-    advancePruningTreeForLoop(merged);
-    merged.beyondBoundary = normalizeBeyondBoundaryState(merged.beyondBoundary, merged);
-    if (merged.arcana.unlocked) merged.unlocks.arcana = true;
-    delete merged.worldDeck;
-    merged.clearedRootBosses = Array.isArray(merged.clearedRootBosses) ? merged.clearedRootBosses : [];
-    // 과거 루프 정산 시 컨디션 젬 해금이 잘못 초기화되던 버그로 잠긴 기존 플레이어 복구:
-    // 뿌리 보스를 한 번이라도 클리어한 적이 있다면 영구 해금 처리한다.
-    if (!merged.conditionGemUnlocked && merged.clearedRootBosses.length > 0) merged.conditionGemUnlocked = true;
-    merged.mapSubtab = ['map-tab-zones', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
-    merged.mapExploreSubtab = ['map-explore-hunting', 'map-explore-chaos', 'map-explore-root-boss', 'map-explore-beyond', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-timerift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-hunting';
-    merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
-    if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
-    merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
-    merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;
-    let gemResearchExpanded = merged.gemResearchExpanded && typeof merged.gemResearchExpanded === 'object' && !Array.isArray(merged.gemResearchExpanded) ? merged.gemResearchExpanded : {};
-    merged.gemResearchExpanded = {};
-    ['attack', 'support'].forEach(section => {
-        if (typeof gemResearchExpanded[section] === 'boolean') merged.gemResearchExpanded[section] = gemResearchExpanded[section];
-    });
-    if (merged.gemFoldInactive) {
-        merged.gemFoldInactiveAttack = true;
-        merged.gemFoldInactiveSupport = true;
-    }
-    merged.autoRepeatSeasonBoss = !!merged.autoRepeatSeasonBoss;
-    if (((merged.currencies || {}).talismanCore || 0) > 0) {
-        merged.currencies.sealShard = (merged.currencies.sealShard || 0) + (merged.currencies.talismanCore || 0);
-        merged.currencies.talismanCore = 0;
-    }
-    if (((merged.currencies || {}).jewelCore || 0) > 0) {
-        merged.currencies.jewelShard = (merged.currencies.jewelShard || 0) + Math.max(0, Math.floor(merged.currencies.jewelCore || 0));
-        merged.currencies.jewelCore = 0;
-    }
-    merged.talismanUnlocked = !!merged.talismanUnlocked || ((merged.currencies.sealShard || 0) > 0) || ((merged.currencies.strongSealShard || 0) > 0);
-    merged.talismanUnlockedCells = Array.isArray(merged.talismanUnlockedCells) ? merged.talismanUnlockedCells.map(v => Math.floor(v)).filter(v => v >= 0 && v < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)).filter(v => isTalismanBoardCellValid(v % TALISMAN_BOARD_W, Math.floor(v / TALISMAN_BOARD_W))) : [];
-    merged.talismanBoardUnlock = Math.max(3, Math.min(5, Math.floor(clampFiniteNumber(merged.talismanBoardUnlock, 3, 3, 5))));
-    if (merged.talismanUnlockedCells.length === 0 && merged.talismanBoardUnlock > 3) {
-        for (let y = 0; y < merged.talismanBoardUnlock; y++) {
-            for (let x = 0; x < merged.talismanBoardUnlock; x++) {
-                if (x < 4 && y < 4) continue;
-                if (!isTalismanBoardCellValid(x, y)) continue;
-                merged.talismanUnlockedCells.push(talismanCellIndex(x, y));
-            }
-        }
-    }
-    merged.talismanUnlockPickMode = !!merged.talismanUnlockPickMode;
-    merged.talismanSubtab = merged.talismanSubtab === 'talisman-sub-colony-ward' ? 'talisman-sub-colony-ward' : 'talisman-sub-board';
-    merged.talismanInventory = Array.isArray(merged.talismanInventory) ? merged.talismanInventory.filter(t => t && t.id && t.shape && (t.stat || (Array.isArray(t.stats) && t.stats.length > 0) || t.special || t.isUnique)).map(t => ensureTalismanName({ ...t, locked: !!t.locked, waxedByBeeswax: !!t.waxedByBeeswax })) : [];
-    merged.talismanBoard = Array.isArray(merged.talismanBoard) ? merged.talismanBoard.slice(0, TALISMAN_BOARD_W * TALISMAN_BOARD_H) : [];
-    while (merged.talismanBoard.length < (TALISMAN_BOARD_W * TALISMAN_BOARD_H)) merged.talismanBoard.push(null);
-    merged.talismanPlacements = (merged.talismanPlacements && typeof merged.talismanPlacements === 'object') ? merged.talismanPlacements : {};
-    Object.values(merged.talismanPlacements).forEach(entry => {
-        if (entry && entry.talisman) ensureTalismanName(entry.talisman);
-    });
-    merged.talismanSelectedId = Number.isFinite(merged.talismanSelectedId) ? merged.talismanSelectedId : null;
-    merged.talismanUnseal = (merged.talismanUnseal && merged.talismanUnseal.current) ? merged.talismanUnseal : null;
-    if (merged.talismanUnlocked) merged.unlocks.talisman = true;
-    merged.gemEnhanceUnlocked = !!merged.gemEnhanceUnlocked;
-    merged.gemEngraveSelectedSlot = Math.max(0, Math.min(4, Math.floor(clampFiniteNumber(merged.gemEngraveSelectedSlot, 0, 0, 4))));
-    merged.gemEnhanceTargetSkill = (typeof merged.gemEnhanceTargetSkill === 'string' && SKILL_DB[merged.gemEnhanceTargetSkill] && SKILL_DB[merged.gemEnhanceTargetSkill].isGem && Array.isArray(merged.skills) && merged.skills.includes(merged.gemEnhanceTargetSkill)) ? merged.gemEnhanceTargetSkill : null;
-    merged.uniqueCodex = (merged.uniqueCodex && typeof merged.uniqueCodex === 'object') ? merged.uniqueCodex : {};
-    if (typeof uniqueHuntRuntime !== 'undefined') uniqueHuntRuntime.ensureState(merged);
-    merged.codexNewlyRegistered = (merged.codexNewlyRegistered && typeof merged.codexNewlyRegistered === 'object') ? merged.codexNewlyRegistered : {};
-    merged.codexCollapsedSlots = (merged.codexCollapsedSlots && typeof merged.codexCollapsedSlots === 'object') ? merged.codexCollapsedSlots : {};
-    merged.codexSubtab = (merged.codexSubtab === 'realm') ? 'realm' : 'main';
-    merged.codexSelectedSlot = getCodexSlotOrder().includes(merged.codexSelectedSlot) ? merged.codexSelectedSlot : '무기';
-    merged.uniqueCodexCompletedRewardClaimed = !!merged.uniqueCodexCompletedRewardClaimed;
-    if (!merged.gemEnhanceUnlocked && (((merged.currencies || {}).bossCore || 0) > 0 || ((merged.currencies || {}).skyEssence || 0) > 0)) merged.gemEnhanceUnlocked = true;
-    merged.inTicketBossFight = !!merged.inTicketBossFight;
-    merged.beehive = (merged.beehive && typeof merged.beehive === 'object') ? merged.beehive : { unlockedPermanent:false, inRun:false, branchStep:0, cleared:false, routeSeed:0 };
-    merged.colony = (merged.colony && typeof merged.colony === 'object') ? { ...defaultGame.colony, ...merged.colony } : { ...defaultGame.colony };
-    merged.colony.wave = Math.max(0, Math.floor(clampFiniteNumber(merged.colony.wave, 0, 0)));
-    merged.colony.highestWave = Math.max(merged.colony.wave, Math.floor(clampFiniteNumber(merged.colony.highestWave, merged.colony.wave, 0)));
-    merged.colony.wardInventory = Array.isArray(merged.colony.wardInventory) ? merged.colony.wardInventory.map(w => w && typeof w === 'object' ? { ...w, locked: !!w.locked } : w).filter(Boolean) : [];
-    merged.colony.wardEquipped = Array.isArray(merged.colony.wardEquipped) ? merged.colony.wardEquipped.slice(0, 4) : [null,null,null,null];
-    while (merged.colony.wardEquipped.length < 4) merged.colony.wardEquipped.push(null);
-    let highestWardSlot = merged.colony.wardEquipped.reduce((max, ward, idx) => ward ? Math.max(max, idx + 1) : max, 1);
-    if (!savedColonyHadWardSlotVersion) merged.colony.wardSlots = highestWardSlot;
-    else merged.colony.wardSlots = Math.max(1, Math.min(4, Math.floor(merged.colony.wardSlots || 1)));
-    merged.colony.wardSlots = Math.max(merged.colony.wardSlots, highestWardSlot);
-    merged.colony.wardSlotVersion = 1;
-    let beeHasReturnZone = merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null;
-    let beeHasStartedRoute = Math.max(0, Math.floor(merged.beehive.branchStep || 0)) > 0;
-    let activeBeehiveRuntime = !!(merged.beehive.inRun && merged.currentZoneId === 'beehive_run' && (
-        merged.beehive.awaitingClear
-        || (merged.beehive.pendingChoice && (beeHasReturnZone || beeHasStartedRoute))
-        || merged.beehive.queenActive
-        || merged.beehive.pendingWaveReward
-        || (Array.isArray(merged.beehive.pendingQueenRewards) && merged.beehive.pendingQueenRewards.length > 0)
-        || (Array.isArray(merged.enemies) && merged.enemies.some(enemy => enemy && enemy.hp > 0))
-    ));
-    if (!activeBeehiveRuntime) {
-        let staleBeehiveReturnZone = beeHasReturnZone ? merged.beehive.returnZoneId : merged.maxZoneId;
-        merged.beehive.inRun = false;
-        resetBeehiveRunModifiers(merged.beehive);
-        if (merged.currentZoneId === 'beehive_run') merged.currentZoneId = staleBeehiveReturnZone;
-    }
-    if (merged.beehive && merged.beehive.inRun) {
-        merged.combatHalted = !merged.beehive.awaitingClear;
-    } else {
-        merged.combatHalted = !!merged.combatHalted;
-    }
-    merged.seenTutorials = Array.isArray(merged.seenTutorials) ? merged.seenTutorials.filter(id => typeof id === 'string') : [];
-    merged.starterGemTutorialPending = typeof merged.starterGemTutorialPending === 'string'
-        && Array.isArray(merged.skills) && merged.skills.includes(merged.starterGemTutorialPending)
-        ? merged.starterGemTutorialPending
-        : null;
-    merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
-    // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해·플라스크 사용을
-    // 잃은 기록으로 업적을 잘못 판정하지 않도록 새 조우에서만 다시 시작한다.
-    merged.hiddenJournalBossRun = null;
-    // 전적: 기존 세이브에는 과거 시간 데이터가 없다. 지어내지 않고 지금부터 기록을 시작하며,
-    // startedAt이 남으므로 화면이 "언제부터의 기록인지"를 그대로 밝힐 수 있다.
-    if (typeof ensureRecordsState === 'function') ensureRecordsState(merged);
-    merged.voidRift = (merged.voidRift && typeof merged.voidRift === 'object') ? merged.voidRift : {};
-    merged.voidRift.grandBreachCleared = !!merged.voidRift.grandBreachCleared;
-    merged.timeRift = (merged.timeRift && typeof merged.timeRift === 'object') ? { ...defaultGame.timeRift, ...merged.timeRift } : { ...defaultGame.timeRift };
-    merged.timeRift.fusionCount = Math.max(0, Math.floor(clampFiniteNumber(merged.timeRift.fusionCount, 0, 0)));
-    repairJournalEntriesFromProgress(merged);
-    // 저널 보너스는 기록 정의에서 항상 재구축한다. 저장 배열을 그대로 신뢰하면
-    // 클라우드 병합·구버전 이관 과정에서 같은 기록이 중복되어 능력치가 누적될 수 있다.
-    let journalLoadState = rebuildJournalBonusStateForLoad(merged);
-    let pendingJournalPassivePoints = Math.max(0, Math.floor(journalLoadState.pendingPassivePoints || 0));
-    merged.passiveStarEvolution = !!merged.passiveStarEvolution;
-    const awakeningSources = new Set(['legacy_migrated', 'legacy_apex', 'outer_constellation']);
-    merged.passiveStarEvolutionSource = merged.passiveStarEvolution
-        ? (awakeningSources.has(merged.passiveStarEvolutionSource) ? merged.passiveStarEvolutionSource : 'legacy_migrated')
-        : null;
-    merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
-    merged.settings.uiSounds = merged.settings.uiSounds !== false;
-    merged.settings.themeMode = merged.settings.themeMode === 'light' ? 'light' : 'dark';
-    merged.settings.uiSkin = normalizeUiSkin(merged.settings.uiSkin);
-    merged.settings.twoRowTabs = false;
-    merged.settings.leftPaneCollapsed = !!merged.settings.leftPaneCollapsed;
-    merged.settings.combatLogCollapsed = !!merged.settings.combatLogCollapsed;
-    merged.settings.autoSalvageEnabled = !!merged.settings.autoSalvageEnabled;
-    merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
-    merged.settings.autoSalvageRarities = { ...(defaultGame.settings.autoSalvageRarities || {}), ...(merged.settings.autoSalvageRarities || {}) };
-    merged.settings.growthAutoSalvageRarities = { ...(defaultGame.settings.growthAutoSalvageRarities || {}), ...(merged.settings.growthAutoSalvageRarities || {}) };
-    merged.settings.inventoryViewRarities = { ...(defaultGame.settings.inventoryViewRarities || {}), ...(merged.settings.inventoryViewRarities || {}) };
-    merged.settings.jewelAutoSalvageEnabled = !!merged.settings.jewelAutoSalvageEnabled;
-    merged.settings.jewelAutoSalvageRarities = { ...(defaultGame.settings.jewelAutoSalvageRarities || {}), ...(merged.settings.jewelAutoSalvageRarities || {}) };
-    merged.settings.mapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.mapCompleteAction) ? merged.settings.mapCompleteAction : 'nextZone';
-    merged.settings.disableItemAutomationAfterLoop = merged.settings.disableItemAutomationAfterLoop !== false;
-    merged.settings.postLoopMapCompleteAction = ['nextZone', 'repeatZone', 'nextLoopBestPlusOne', 'stop'].includes(merged.settings.postLoopMapCompleteAction) ? merged.settings.postLoopMapCompleteAction : 'nextLoopBestPlusOne';
-    merged.settings.townReturnAction = ['retry', 'stop'].includes(merged.settings.townReturnAction) ? merged.settings.townReturnAction : 'retry';
-    merged.heroSelectionInitialized = !!merged.heroSelectionInitialized;
-    let hasSavedTalentHero = !!HERO_SELECTION_DEFS[save && save.selectedHeroId];
-    merged.selectedHeroId = hasSavedTalentHero ? save.selectedHeroId : 'hero1';
-    let legacyMotionId = save && save.settings && typeof save.settings.testCharacterMotionId === 'string'
-        ? save.settings.testCharacterMotionId.replace(/^motion_/, '') : '';
-    let migratedClassId = PLAYER_CLASS_DEFS[save && save.selectedClassId]
-        ? save.selectedClassId
-        : (PLAYER_CLASS_DEFS[legacyMotionId] ? legacyMotionId : LEGACY_HERO_TO_PLAYER_CLASS[merged.selectedHeroId]);
-    merged.selectedClassId = PLAYER_CLASS_DEFS[migratedClassId] ? migratedClassId : 'archer';
-    if (!hasSavedTalentHero) merged.selectedHeroId = PLAYER_CLASS_DEFS[merged.selectedClassId].recommendedTalentHeroId;
-    let classTalentAlignmentVersion = Math.max(0, Math.floor(Number(save && save.classTalentAlignmentVersion) || 0));
-    if (classTalentAlignmentVersion < 1 && save && save.heroSelectionInitialized) {
-        merged.selectedHeroId = PLAYER_CLASS_DEFS[merged.selectedClassId].recommendedTalentHeroId;
-    }
-    merged.classTalentAlignmentVersion = 1;
-    let hasSavedTalentInitializedFlag = !!save
-        && Object.prototype.hasOwnProperty.call(save, 'talentSelectionInitialized');
-    merged.talentSelectionInitialized = hasSavedTalentInitializedFlag
-        ? !!save.talentSelectionInitialized
-        : (hasSavedTalentHero || !!merged.heroSelectionInitialized);
-    let legacyAppearanceClassId = LEGACY_HERO_TO_PLAYER_CLASS[save && save.appearanceHeroId];
-    merged.appearanceClassId = PLAYER_CLASS_DEFS[save && save.appearanceClassId]
-        ? save.appearanceClassId
-        : (PLAYER_CLASS_DEFS[legacyAppearanceClassId] ? legacyAppearanceClassId : null);
-    let savedDiscoveredClasses = Array.isArray(save && save.discoveredClassIds)
-        ? save.discoveredClassIds
-        : (Array.isArray(save && save.discoveredHeroIds) ? save.discoveredHeroIds.map(id => LEGACY_HERO_TO_PLAYER_CLASS[id]) : []);
-    merged.discoveredClassIds = [...new Set(savedDiscoveredClasses.filter(id => PLAYER_CLASS_DEFS[id]))];
-    merged.classFreeSwitchUnlocked = !!(save && (save.classFreeSwitchUnlocked || save.heroFreeSwitchUnlocked));
-    if ((merged.heroSelectionInitialized || merged.classFreeSwitchUnlocked) && !merged.discoveredClassIds.includes(merged.selectedClassId)) {
-        merged.discoveredClassIds.push(merged.selectedClassId);
-    }
-    merged.classFreeSwitchUnlocked = merged.classFreeSwitchUnlocked || merged.discoveredClassIds.length >= PLAYER_CLASS_ORDER.length;
-    merged.settings.heroAppearanceMode = ['fixed', 'loop'].includes(savedHeroAppearanceMode)
-        ? savedHeroAppearanceMode
-        : (merged.appearanceClassId ? 'fixed' : 'loop');
-    if (merged.heroSelectionInitialized && merged.unlocks) merged.unlocks.char = true;
-    if (merged.settings.heroAppearanceMode === 'fixed' && !merged.appearanceClassId) merged.appearanceClassId = merged.selectedClassId;
-    delete merged.appearanceHeroId;
-    delete merged.discoveredHeroIds;
-    delete merged.heroFreeSwitchUnlocked;
-    merged.pendingLoopHeroSelection = !!merged.pendingLoopHeroSelection;
-    merged.abyssClearedDepths = Array.isArray(merged.abyssClearedDepths) ? merged.abyssClearedDepths.map(v => Math.max(1, Math.floor(v || 1))).filter(v => v <= 20) : [];
-    merged.playerAilments = Array.isArray(merged.playerAilments) ? merged.playerAilments.map(row => ({ type: row.type, time: Math.max(0, clampFiniteNumber(row.time, 0, 0, 30)), power: Math.max(0, clampFiniteNumber(row.power, 0.1, 0, 1.5)), sourceHitDamage: Math.max(0, Math.floor(clampFiniteNumber(row.sourceHitDamage || row.hitDamage, 0, 0))) })).filter(row => row.type) : [];
-    merged.playerLeechInstances = Array.isArray(merged.playerLeechInstances) ? merged.playerLeechInstances.map(row => ({ remaining: Math.max(0, clampFiniteNumber(row.remaining, 0, 0)), rate: Math.max(0, clampFiniteNumber(row.rate, 0, 0)), target: row.target === 'energyShield' ? 'energyShield' : 'life' })).filter(row => row.remaining > 0 && row.rate > 0).slice(0, 80) : [];
-    merged.recentDamageEvents = Array.isArray(merged.recentDamageEvents) ? merged.recentDamageEvents.map(normalizeRecentDamageEvent).filter(Boolean) : [];
-    merged.lastDeathLog = normalizeDeathLog(merged.lastDeathLog);
-    merged.enemies = Array.isArray(merged.enemies) ? merged.enemies.map(normalizeEnemyRecord).filter(Boolean) : [];
-    let aliveEnemyIds = new Set((merged.enemies || []).map(enemy => String(enemy.id)));
-    function pruneEnemyRuntimeMap(rawMap, options = {}) {
-        let map = (rawMap && typeof rawMap === 'object') ? rawMap : {};
-        let keys = Object.keys(map);
-        let maxKeys = Math.max(0, Math.floor(options.maxKeys || 200));
-        let out = {};
-        for (let i = 0; i < keys.length; i++) {
-            let key = keys[i];
-            if (!aliveEnemyIds.has(String(key))) continue;
-            out[key] = map[key];
-            if (Object.keys(out).length >= maxKeys) break;
-        }
-        return out;
-    }
-    merged.enemyKeystoneDebuffs = pruneEnemyRuntimeMap(merged.enemyKeystoneDebuffs, { maxKeys: 120 });
-    merged.rangerWeakpointMarks = pruneEnemyRuntimeMap(merged.rangerWeakpointMarks, { maxKeys: 120 });
-    merged.enemyUniqueChaosResDown = pruneEnemyRuntimeMap(merged.enemyUniqueChaosResDown, { maxKeys: 120 });
-    merged.enemyUniqueElementalResDown = pruneEnemyRuntimeMap(merged.enemyUniqueElementalResDown, { maxKeys: 120 });
-    merged.enemyCurseExpirePayloads = pruneEnemyRuntimeMap(merged.enemyCurseExpirePayloads, { maxKeys: 120 });
-    merged.encounterPlan = Array.isArray(merged.encounterPlan) ? merged.encounterPlan.map(normalizeEncounterMarker).filter(Boolean).sort((a, b) => a.at - b.at) : [];
-    merged.level = Math.max(1, Math.floor(clampFiniteNumber(merged.level, defaultGame.level, 1, MAX_PLAYER_LEVEL)));
-    merged.exp = Math.max(0, Math.floor(clampFiniteNumber(merged.exp, defaultGame.exp, 0)));
-    merged.season = Math.max(1, Math.floor(clampFiniteNumber(merged.season, defaultGame.season, 1)));
-    merged.loopCount = Math.max(0, Math.floor(clampFiniteNumber(merged.loopCount, defaultGame.loopCount, 0)));
-    if (typeof ensureOfflineProgressState === 'function') ensureOfflineProgressState(merged);
-    if (typeof syncOfflineProgressEntitlement === 'function') syncOfflineProgressEntitlement(merged);
-    merged.woodsmanDefeatAttempts = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanDefeatAttempts, defaultGame.woodsmanDefeatAttempts, 0)));
-    merged.woodsmanSimulatorSeenLoop = !!merged.woodsmanSimulatorSeenLoop;
-    merged.woodsmanEntrancePending = !!(merged.woodsmanEntrancePending && merged.currentZoneId === OUTSIDE_CHAOS_ZONE_ID);
-    merged.woodsmanCurseActive = !!merged.woodsmanCurseActive;
-    merged.woodsmanCurseDamageTakenStacks = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanCurseDamageTakenStacks, defaultGame.woodsmanCurseDamageTakenStacks || 0, 0)));
-    merged.woodsmanCurseLastTickAt = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanCurseLastTickAt, defaultGame.woodsmanCurseLastTickAt || 0, 0)));
-    merged.woodsmanCurseNextLogStack = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanCurseNextLogStack, defaultGame.woodsmanCurseNextLogStack || 0, 0)));
-    merged.chaosInfuserUnlocked = !!merged.chaosInfuserUnlocked || merged.woodsmanSimulatorSeenLoop || Math.max(0, Math.floor(merged.woodsmanDefeatAttempts || 0)) > 0 || (Array.isArray(merged.journalEntries) && merged.journalEntries.includes('woodsman'));
-    merged.killsInZone = Math.max(0, Math.floor(clampFiniteNumber(merged.killsInZone, defaultGame.killsInZone, 0)));
-    merged.passivePoints = Math.max(0, Math.floor(clampFiniteNumber(merged.passivePoints, defaultGame.passivePoints, 0))) + Math.max(0, Math.floor(merged.autoRefundedPassivePoints || 0)) + pendingJournalPassivePoints;
-    delete merged.inventoryExpandLevel;
-    merged.jewelInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.jewelInventoryExpandLevel, defaultGame.jewelInventoryExpandLevel, 0)));
-    merged.growthInventoryExpandLevel = Math.max(0, Math.floor(clampFiniteNumber(merged.growthInventoryExpandLevel, defaultGame.growthInventoryExpandLevel, 0)));
-    merged.growthEssenceExpandLevel = Math.max(0, Math.min(12, Math.floor(clampFiniteNumber(merged.growthEssenceExpandLevel, 0, 0, 12))));
-    merged.settings = { ...defaultGame.settings, ...(merged.settings || {}) };
-    delete merged.settings.testCharacterMotionId;
-    merged.settings.chatMessageSize = ['small', 'medium', 'large'].includes(merged.settings.chatMessageSize) ? merged.settings.chatMessageSize : 'medium';
-    const passiveVisualVersion = Math.max(0, Math.floor(Number(save && save.settings && save.settings.passiveTreeVisualStyleVersion) || 0));
-    if (passiveVisualVersion < 1) merged.settings.passiveTreeShowLabels = false;
-    else merged.settings.passiveTreeShowLabels = merged.settings.passiveTreeShowLabels === true;
-    merged.settings.passiveInvestmentSummaryCollapsed = passiveVisualVersion < 2
-        ? true : merged.settings.passiveInvestmentSummaryCollapsed === true;
-    merged.settings.passiveTreeVisualStyleVersion = 2;
-    if (typeof normalizePassiveTreePlannerState === 'function') {
-        merged.settings.passiveTreePlanner = normalizePassiveTreePlannerState(merged.settings.passiveTreePlanner);
-    }
-    merged.settings.damageNumberFormat = ['comma', 'korean', 'korean_short', 'english'].includes(merged.settings.damageNumberFormat) ? merged.settings.damageNumberFormat : 'comma';
-    merged.settings.showExpComma = merged.settings.showExpComma !== false;
-    merged.settings.showHpComma = merged.settings.showHpComma !== false;
-    merged.settings.showEnemyHpComma = merged.settings.showEnemyHpComma !== false;
-    merged.settings.showCharacterComma = merged.settings.showCharacterComma !== false;
-    merged.settings.notiFilters = { ...(defaultGame.settings.notiFilters || {}), ...(merged.settings.notiFilters || {}) };
-    delete merged.settings.notiFilters.hideout;
-    merged.playerHp = Math.max(0, Math.floor(clampFiniteNumber(merged.playerHp, defaultGame.playerHp, 0)));
-    merged.playerEnergyShield = Math.max(0, Math.floor(clampFiniteNumber(merged.playerEnergyShield, defaultGame.playerEnergyShield, 0))); 
-    merged.moveTimer = clampFiniteNumber(merged.moveTimer, defaultGame.moveTimer, 0);
-    merged.moveTotalTime = clampFiniteNumber(merged.moveTotalTime, defaultGame.moveTotalTime, 0);
-    merged.runProgress = clampFiniteNumber(merged.runProgress, defaultGame.runProgress, 0, 100);
-    merged.encounterIndex = Math.max(0, Math.floor(clampFiniteNumber(merged.encounterIndex, defaultGame.encounterIndex, 0)));
-    merged.nextEnemyId = Math.max(1, Math.floor(clampFiniteNumber(merged.nextEnemyId, defaultGame.nextEnemyId, 1)));
-    merged.seasonPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.seasonPoints, defaultGame.seasonPoints, 0)));
-    merged.loopDeepPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.loopDeepPoints, defaultGame.loopDeepPoints, 0)));
-    merged.loopDeepStats = { ...(defaultGame.loopDeepStats || {}), ...(merged.loopDeepStats || {}) };
-    merged.chaosRealm = { ...createDefaultChaosRealmState(), ...(merged.chaosRealm || {}) };
-    merged.skyTower = { ...createDefaultSkyTowerState(), ...(merged.skyTower || {}) };
-    const legacyCondensedSkyPower = Math.max(0, Math.floor(Number(merged.currencies.condensedSkyPower) || 0));
-    if (legacyCondensedSkyPower > 0) {
-        merged.skyTower.condensedPower = Math.max(0, Math.floor(Number(merged.skyTower.condensedPower) || 0)) + legacyCondensedSkyPower;
-    }
-    delete merged.currencies.condensedSkyPower;
-    merged.skyTower.skyStone = { ...(createDefaultSkyTowerState().skyStone || {}), ...((merged.skyTower || {}).skyStone || {}) };
-    merged.skyTower.gemBoosts = { ...((merged.skyTower || {}).gemBoosts || {}) };
-    merged.chaosRealm.permanentBonuses = { ...CHAOS_REALM_DEFAULT_BONUSES, ...((merged.chaosRealm || {}).permanentBonuses || {}) };
-    merged.chaosRealm.unlocked = !!merged.chaosRealm.unlocked;
-    merged.chaosRealm.highestFloor = Math.max(0, Math.floor(clampFiniteNumber(merged.chaosRealm.highestFloor, 0, 0)));
-    merged.chaosRealm.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.chaosRealm.currentFloor, 1, 1)));
-    let hasSavedUnderworldProgress = !!(save && typeof save === 'object' && save.underworldProgress && typeof save.underworldProgress === 'object');
-    let legacyUnderworldProgress = {};
-    if (!hasSavedUnderworldProgress) {
-        let legacyHighest = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).highestFloor, 1, 1)));
-        let legacyCurrent = Math.max(1, Math.floor(clampFiniteNumber(((save && save.chaosRealm) || {}).currentFloor, 1, 1)));
-        legacyUnderworldProgress = { highestFloor: legacyHighest, currentFloor: legacyCurrent, floor10Cleared: legacyHighest >= 11 };
-    }
-    merged.underworldProgress = { ...(defaultGame.underworldProgress || { highestFloor: 1, currentFloor: 1 }), ...legacyUnderworldProgress, ...(merged.underworldProgress || {}) };
-    merged.underworldProgress.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.highestFloor, 1, 1)));
-    merged.underworldProgress.currentFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.underworldProgress.currentFloor, 1, 1)));
-    let savedRunes = (merged.underworldRunes && typeof merged.underworldRunes === 'object') ? merged.underworldRunes : {};
-    let underworld10ClearCredit = !!merged.underworldProgress.floor10Cleared
-        || Math.max(0, Math.floor(Number(savedRunes.unlockedSlots) || 0)) >= 1
-        || Math.max(0, Math.floor(Number(savedRunes.unlockedRunesMaxNumber) || 0)) >= 1;
-    merged.underworldProgress.floor10Cleared = underworld10ClearCredit;
-    if (!underworld10ClearCredit) {
-        merged.underworldProgress.highestFloor = Math.min(merged.underworldProgress.highestFloor, 10);
-        merged.underworldProgress.currentFloor = Math.min(merged.underworldProgress.currentFloor, merged.underworldProgress.highestFloor);
-    }
-    merged.chaosRealm.clearedFloors = Array.isArray(merged.chaosRealm.clearedFloors) ? Array.from(new Set(merged.chaosRealm.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
-    merged.chaosRealm.woodsmanBestDamagePct = Math.max(0, Math.min(100, Number(merged.chaosRealm.woodsmanBestDamagePct) || 0));
-    Object.keys(CHAOS_REALM_DEFAULT_BONUSES).forEach(key => { merged.chaosRealm.permanentBonuses[key] = Math.max(0, Number(merged.chaosRealm.permanentBonuses[key]) || 0); });
-    if (merged.chaosRealm.unlocked && merged.chaosRealm.highestFloor < 1) merged.chaosRealm.highestFloor = 1;
-    merged.skyTower.unlocked = !!merged.skyTower.unlocked;
-    merged.skyTower.highestFloor = Math.max(1, Math.floor(clampFiniteNumber(merged.skyTower.highestFloor, 1, 1)));
-    merged.skyTower.currentFloor = Math.max(1, Math.min(merged.skyTower.highestFloor, Math.floor(clampFiniteNumber(merged.skyTower.currentFloor, 1, 1))));
-    merged.skyTower.loopSeason = Math.max(1, Math.floor(clampFiniteNumber(merged.skyTower.loopSeason, merged.season || 1, 1)));
-    if (merged.skyTower.loopSeason !== Math.max(1, Math.floor(merged.season || 1))) { merged.skyTower.loopSeason = Math.max(1, Math.floor(merged.season || 1)); merged.skyTower.clearedThisLoop = 0; }
-    merged.skyTower.clearedThisLoop = Math.max(0, Math.min(getSkyTowerLoopClearLimit(), Math.floor(clampFiniteNumber(merged.skyTower.clearedThisLoop, 0, 0))));
-    merged.skyTower.clearedFloors = Array.isArray(merged.skyTower.clearedFloors) ? Array.from(new Set(merged.skyTower.clearedFloors.map(v => Math.floor(v || 0)).filter(v => v >= 1))).sort((a, b) => a - b) : [];
-    merged.skyTower.condensedPower = Math.max(0, Math.floor(clampFiniteNumber(merged.skyTower.condensedPower, 0, 0)));
-    merged.skyTower.skyStone.level = Math.max(0, Math.min(getSkyStoneMaxLevel(), Math.floor(clampFiniteNumber(merged.skyTower.skyStone.level, 0, 0))));
-    merged.skyTower.skyStone.crafted = !!merged.skyTower.skyStone.crafted || merged.skyTower.skyStone.level > 0;
-    Object.keys(merged.skyTower.gemBoosts).forEach(name => { merged.skyTower.gemBoosts[name] = Math.max(0, Math.min(getSkyTowerGemBoostMaxLevel(), Math.floor(clampFiniteNumber(merged.skyTower.gemBoosts[name], 0, 0)))); if (merged.skyTower.gemBoosts[name] <= 0) delete merged.skyTower.gemBoosts[name]; });
-    if (!merged.skyTower.unlocked && ((merged.season || 1) > 15 || ((merged.season || 1) >= 15 && (merged.loopProgressCurrent && merged.loopProgressCurrent.chaos20Cleared)))) merged.skyTower.unlocked = true;
-    merged.woodsmanPendingScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanPendingScore, defaultGame.woodsmanPendingScore || 0, 0)));
-    merged.woodsmanLifetimeScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanLifetimeScore, defaultGame.woodsmanLifetimeScore || 0, 0)));
-    merged.woodsmanSettledScore = Math.max(0, Math.floor(clampFiniteNumber(merged.woodsmanSettledScore, defaultGame.woodsmanSettledScore || 0, 0)));
-    merged.woodsmanEchoRun = (merged.woodsmanEchoRun && typeof merged.woodsmanEchoRun === 'object') ? merged.woodsmanEchoRun : { active:false, timeLeft:0, duration:30, lastTickAt:0, totalDamage:0, bestDps:0 };
-    merged.woodsmanEchoRun.active = !!merged.woodsmanEchoRun.active;
-    merged.woodsmanEchoRun.timeLeft = Math.max(0, Number(merged.woodsmanEchoRun.timeLeft || 0));
-    merged.woodsmanEchoRun.duration = 30;
-    merged.woodsmanEchoRun.totalDamage = Math.max(0, Math.floor(Number(merged.woodsmanEchoRun.totalDamage || 0)));
-    merged.woodsmanEchoRun.bestDps = Math.max(0, Number(merged.woodsmanEchoRun.bestDps || 0));
-    merged.loopProgressBase = { ...(defaultGame.loopProgressBase || {}), ...(merged.loopProgressBase || {}) };
-    merged.loopProgressCurrent = { ...(defaultGame.loopProgressCurrent || {}), ...(merged.loopProgressCurrent || {}) };
-    merged.loopProgressBase.specialBosses = Array.isArray(merged.loopProgressBase.specialBosses) ? merged.loopProgressBase.specialBosses : [];
-    merged.loopProgressCurrent.specialBosses = Array.isArray(merged.loopProgressCurrent.specialBosses) ? merged.loopProgressCurrent.specialBosses : [];
-    merged.loopProgressCurrent.cosmosPlanets = Array.isArray(merged.loopProgressCurrent.cosmosPlanets) ? Array.from(new Set(merged.loopProgressCurrent.cosmosPlanets.filter(Boolean))) : [];
-    merged.cosmosLoopCount = Math.max(0, Math.floor(clampFiniteNumber(merged.cosmosLoopCount, defaultGame.cosmosLoopCount || 0, 0)));
-    merged.lastLoopAdvancePath = ['chaos', 'cosmos'].includes(merged.lastLoopAdvancePath) ? merged.lastLoopAdvancePath : null;
-    merged.loopProgressCurrent.chaos20Cleared = !!merged.loopProgressCurrent.chaos20Cleared || (Array.isArray(merged.abyssClearedDepths) && merged.abyssClearedDepths.map(v => Math.floor(v || 0)).includes(20));
-    if (!merged.skyTower.unlocked && (merged.season || 1) >= 15 && merged.loopProgressCurrent.chaos20Cleared) merged.skyTower.unlocked = true;
-    merged.pendingLoopDecision = !!merged.pendingLoopDecision;
-    merged.pendingLoopReady = !!merged.pendingLoopReady;
-    merged.ascendPoints = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendPoints, defaultGame.ascendPoints, 0)));
-    merged.ascendRank = Math.max(0, Math.floor(clampFiniteNumber(merged.ascendRank, defaultGame.ascendRank, 0, 4)));
-    merged.activeSkill = SKILL_DB[merged.activeSkill] ? merged.activeSkill : (merged.skills[0] || '기본 공격');
-    if (merged.activeSkill && SKILL_DB[merged.activeSkill] && Array.isArray(SKILL_DB[merged.activeSkill].tags) && SKILL_DB[merged.activeSkill].tags.includes('summon_attack')) {
-        if (!merged.gemEnhanceTargetSkill) merged.gemEnhanceTargetSkill = merged.activeSkill;
-        merged.activeSkill = '기본 공격';
-    }
-    merged.equippedSummonSkills = Array.isArray(merged.equippedSummonSkills)
-        ? Array.from(new Set(merged.equippedSummonSkills.filter(name => {
-            let def = SKILL_DB[name] || {};
-            return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack') && merged.skills.includes(name));
-        })))
-        : [];
-    let hasSavedSummonSkillCounts = !!(save && Object.prototype.hasOwnProperty.call(save, 'summonSkillCounts') && save.summonSkillCounts && typeof save.summonSkillCounts === 'object');
-    merged.summonSkillCounts = hasSavedSummonSkillCounts ? { ...merged.summonSkillCounts } : {};
-    Object.keys(merged.summonSkillCounts).forEach(name => { if (!merged.equippedSummonSkills.includes(name)) delete merged.summonSkillCounts[name]; });
-    if (hasSavedSummonSkillCounts) merged.equippedSummonSkills.forEach(name => { merged.summonSkillCounts[name] = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1)); });
-    let ownedSummonAttackSkills = (Array.isArray(merged.skills) ? merged.skills : []).filter(name => {
-        let def = SKILL_DB[name] || {};
-        return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_attack'));
-    });
-    let saveSummonCap = estimateSummonEquipCapForMergedSave(merged);
-    if (!merged.summonLoadoutInitialized && merged.equippedSummonSkills.length === 0 && ownedSummonAttackSkills.length > 0) {
-        merged.equippedSummonSkills = ownedSummonAttackSkills.slice(0, saveSummonCap);
-        if (hasSavedSummonSkillCounts) merged.equippedSummonSkills.forEach(name => { merged.summonSkillCounts[name] = Math.max(1, Math.floor(Number(merged.summonSkillCounts[name]) || 1)); });
-    }
-    if (!hasSavedSummonSkillCounts) {
-        let legacySummonCounts = {};
-        let guardCount = (Array.isArray(merged.equippedSupports) ? merged.equippedSupports : []).filter(name => {
-            let def = SUPPORT_GEM_DB[name] || {};
-            return !!(def && Array.isArray(def.tags) && def.tags.includes('summon_guard'));
-        }).length;
-        let baseAttackSlots = Math.max(0, Math.min(merged.equippedSummonSkills.length, saveSummonCap - guardCount));
-        merged.equippedSummonSkills.slice(0, baseAttackSlots).forEach(name => { legacySummonCounts[name] = (legacySummonCounts[name] || 0) + 1; });
-        let usedSlots = Math.min(saveSummonCap, guardCount + baseAttackSlots);
-        let cursor = 0;
-        while (usedSlots < saveSummonCap && merged.equippedSummonSkills.length > 0) {
-            let name = merged.equippedSummonSkills[cursor % merged.equippedSummonSkills.length];
-            legacySummonCounts[name] = (legacySummonCounts[name] || 0) + 1;
-            usedSlots++;
-            cursor++;
-        }
-        merged.summonSkillCounts = legacySummonCounts;
-    }
-    merged.summonLoadoutInitialized = true;
-    let equippedEnhanceTargets = [];
-    if (SKILL_DB[merged.activeSkill] && SKILL_DB[merged.activeSkill].isGem) equippedEnhanceTargets.push(merged.activeSkill);
-    merged.equippedSummonSkills.forEach(name => {
-        if (SKILL_DB[name] && SKILL_DB[name].isGem && !equippedEnhanceTargets.includes(name)) equippedEnhanceTargets.push(name);
-    });
-    if (!equippedEnhanceTargets.includes(merged.gemEnhanceTargetSkill)) {
-        if (equippedEnhanceTargets.includes(merged.activeSkill)) merged.gemEnhanceTargetSkill = merged.activeSkill;
-        else if (merged.equippedSummonSkills.length > 0) merged.gemEnhanceTargetSkill = merged.equippedSummonSkills[0];
-        else merged.gemEnhanceTargetSkill = null;
-    }
-    if (typeof merged.currentZoneId === 'string' && /^\d+$/.test(merged.currentZoneId)) merged.currentZoneId = parseInt(merged.currentZoneId, 10);
-    if (typeof merged.maxZoneId === 'string' && /^\d+$/.test(merged.maxZoneId)) merged.maxZoneId = parseInt(merged.maxZoneId, 10);
-    if (typeof merged.maxZoneId !== 'string') {
-        let mergedSeasonCap = getSeasonFinalZoneId(merged.season || 1);
-        merged.maxZoneId = clampNumber(Number.isFinite(merged.maxZoneId) ? merged.maxZoneId : 0, 0, Math.max(MAP_ZONES.length - 1, mergedSeasonCap));
-    }
-    if (typeof merged.currentZoneId !== 'string') {
-        let numericZoneId = Number.isFinite(merged.currentZoneId) ? merged.currentZoneId : 0;
-        let savedDepth = Math.max(Math.floor(merged.abyssEndlessDepth || 20), getAbyssDepthFromZoneId(numericZoneId), ...((Array.isArray(merged.abyssUnlockedDepths) ? merged.abyssUnlockedDepths : [20]).map(v => Math.floor(v || 0))));
-        let maxDeepZoneId = getAbyssZoneIdForDepth(Math.max(20, savedDepth));
-        merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
-    }
-    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && merged.currentZoneId !== 'beehive_run' && merged.currentZoneId !== 'colony_run' && merged.currentZoneId !== 'cosmos_challenge' && merged.currentZoneId !== LABYRINTH_ZONE_ID && merged.currentZoneId !== METEOR_FALL_ZONE_ID && merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID && merged.currentZoneId !== CHAOS_REALM_ZONE_ID && merged.currentZoneId !== SKY_TOWER_ZONE_ID && merged.currentZoneId !== UNDERWORLD_ZONE_ID && merged.currentZoneId !== BEYOND_BOUNDARY_ZONE_ID) merged.currentZoneId = 0;
-    if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
-    if (merged.currentZoneId === BEYOND_BOUNDARY_ZONE_ID && !merged.beyondBoundary.activeRun) merged.currentZoneId = getAutoProgressZoneId(merged.maxZoneId);
-    if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
-    if (merged.beehive && merged.beehive.inRun && merged.currentZoneId !== 'beehive_run') {
-        merged.beehive.inRun = false;
-        resetBeehiveRunModifiers(merged.beehive);
-    }
-    if (merged.woodsmanBuildLock && (merged.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID || !merged.woodsmanBuildSnapshot)) {
-        merged.woodsmanBuildLock = false;
-        merged.woodsmanBuildSnapshot = null;
-    }
-    let currentAbyssDepth = typeof merged.currentZoneId !== 'string' ? getAbyssDepthFromZoneId(merged.currentZoneId) : 0;
-    let legacyDeepChaosSlot = (merged.season || 1) >= 10 && currentAbyssDepth === 20 && Math.floor(merged.abyssEndlessDepth || 0) > 20;
-    if (typeof merged.maxZoneId !== 'string' && typeof merged.currentZoneId !== 'string' && merged.currentZoneId > merged.maxZoneId && currentAbyssDepth <= 20 && !legacyDeepChaosSlot) merged.currentZoneId = merged.maxZoneId;
-    if (merged.discoveredPassives.length === 0) merged.discoveredPassives = [getPassiveTreeRootNodeId(merged)];
-    let seasonCap = getSeasonFinalZoneId(merged.season || 1);
-    if (typeof merged.maxZoneId !== 'string') merged.maxZoneId = clampNumber(merged.maxZoneId, 0, seasonCap);
-    if (typeof merged.currentZoneId !== 'string') {
-        let normalizedDepth = getAbyssDepthFromZoneId(merged.currentZoneId);
-        let keepLegacyDeepChaosSlot = (merged.season || 1) >= 10 && normalizedDepth === 20 && Math.floor(merged.abyssEndlessDepth || 0) > 20;
-        if ((normalizedDepth <= 20 && !keepLegacyDeepChaosSlot) || (merged.season || 1) < 10) merged.currentZoneId = clampNumber(merged.currentZoneId, 0, seasonCap);
-    }
-    if ((merged.season || 1) >= STAR_WEDGE_UNLOCK_LOOP && (merged.maxZoneId || 0) >= STAR_WEDGE_UNLOCK_ACT) {
-        merged.starWedge.unlocked = true;
-    }
-    reconcileMapPrimaryContentUnlocks(merged);
-    if (!isMapPrimaryContentUnlocked(merged, merged.mapSubtab)) merged.mapSubtab = 'map-tab-zones';
-    if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.ensureState(merged);
-    merged.saveVersion = defaultGame.saveVersion;
-    merged.bountyHunt = { ...defaultGame.bountyHunt, ...((merged.bountyHunt && typeof merged.bountyHunt === 'object') ? merged.bountyHunt : {}) };
-    if (typeof bountyRuntime !== 'undefined') bountyRuntime.ensureState(merged);
-    // 생장판 공간 효과 스냅샷은 game 상태에 묶여 있다. 저장 불러오기·클라우드 복원·
-    // 초기화는 모두 이 함수를 거쳐 새 game을 만들므로, 여기서 캐시를 한 번 비운다.
-    // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.
-    if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
-    shrineRuntime.ensureState(merged);
-    return merged;
-}
-
-function cloneDefaultGame() {
-    return mergeDefaults({});
-}
 
 function isStartupOverlayOpen() {
     return !!startupOverlayActive;
@@ -15991,17 +14313,6 @@ function updateCloudSaveUI() {
     updateStartupScreenUI();
 }
 
-function normalizeCloudUploadProfile(profile) {
-    if (!profile || typeof profile !== 'object') return null;
-    return {
-        at: Math.max(0, Math.floor(Number(profile.at) || 0)),
-        fetchMs: Math.max(0, Math.floor(Number(profile.fetchMs) || 0)),
-        serializeMs: Math.max(0, Math.floor(Number(profile.serializeMs) || 0)),
-        uploadMs: Math.max(0, Math.floor(Number(profile.uploadMs) || 0)),
-        totalMs: Math.max(0, Math.floor(Number(profile.totalMs) || 0)),
-        payloadBytes: Math.max(0, Math.floor(Number(profile.payloadBytes) || 0))
-    };
-}
 
 function formatCloudUploadProfile(profile) {
     let normalized = normalizeCloudUploadProfile(profile);
@@ -17142,246 +15453,6 @@ async function resetGame() {
     }
 }
 
-function init() {
-    if (!window.__startupFirstPaintDone) {
-        window.__startupFirstPaintDone = true;
-        gameplayStarted = false;
-        setStartupOverlayActive(true);
-        renderPatchNotes();
-        setLoadingOverlayState(false);
-        let localSaveStatus = loadGame();
-        if (localSaveStatus.writable === false) {
-            setCloudMessage(localSaveStatus.message);
-            addLog(`⚠️ ${localSaveStatus.message}`, 'loot-rare');
-        }
-        updateCloudSaveUI();
-        setTimeout(init, 0);
-        return;
-    }
-    applySeasonContentProgression({ silent: true });
-    recoverRuntimeState();
-    // 생장판(추가 시스템) 상태 정규화. 실패해도 게임 부팅을 막지 않되 원인을 남긴다.
-    try {
-        ensureGrowthBoardState();
-        syncGrowthBoardUnlocks({ silent: true });
-        validateGrowthPlacements();
-    } catch (error) {
-        console.error('growth board init failed:', error);
-        addLog('⚠️ 생장판 초기화 중 오류가 발생했습니다. 콘솔 로그를 확인해 주세요.', 'loot-rare');
-    }
-    unlockPassiveStarEvolution({ silent: true });
-    window.__battleAssetAutoloadEnabled = false;
-    scheduleDeferredBattleAssetLoad();
-    refreshPassiveVisibility();
-    refreshTabHeaderUiIfNeeded();
-    calculateReachableNodes();
-    document.getElementById('chk-combat-scene').checked = game.settings.showCombatScene !== false;
-    let cameraShakeCheckboxInit = document.getElementById('chk-camera-shake');
-    if (cameraShakeCheckboxInit) cameraShakeCheckboxInit.checked = game.settings.cameraShake !== false;
-    let uiSoundsCheckboxInit = document.getElementById('chk-ui-sounds');
-    if (uiSoundsCheckboxInit) uiSoundsCheckboxInit.checked = game.settings.uiSounds !== false;
-    document.getElementById('chk-log-combat').checked = game.settings.showCombatLog !== false;
-    let detailedDamageLogCheckboxInit = document.getElementById('chk-log-damage-detail');
-    if (detailedDamageLogCheckboxInit) detailedDamageLogCheckboxInit.checked = game.settings.showDetailedDamageLog === true;
-    document.getElementById('chk-log-aggregate').checked = game.settings.combatLogAggregate !== false;
-    document.getElementById('chk-log-rate-limit').checked = game.settings.combatLogRateLimit !== false;
-    document.getElementById('chk-log-spawn').checked = game.settings.showSpawnLog !== false;
-    document.getElementById('chk-log-exp').checked = game.settings.showExpLog !== false;
-
-
-    document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
-    document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
-    document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
-    document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
-    let tabNotiCheckboxInit = document.getElementById('chk-tab-noti');
-    if (tabNotiCheckboxInit) tabNotiCheckboxInit.checked = game.settings.tabNotiEnabled !== false;
-    let socialChatNotiCheckboxInit = document.getElementById('chk-social-chat-noti');
-    if (socialChatNotiCheckboxInit) socialChatNotiCheckboxInit.checked = game.settings.socialChatNotifications !== false;
-    let chatMessageSizeSelectInit = document.getElementById('sel-chat-message-size');
-    game.settings.chatMessageSize = applyChatMessageSize(game.settings.chatMessageSize);
-    if (chatMessageSizeSelectInit) chatMessageSizeSelectInit.value = game.settings.chatMessageSize;
-    document.getElementById('chk-pause-overlay').checked = !!game.settings.pauseGameOnOverlay;
-    document.getElementById('chk-auto-equip-empty').checked = game.settings.autoEquipEmptySlots !== false;
-    syncCombatTacticsSettingsControls();
-    document.getElementById('sel-damage-number-format').value = ['comma', 'korean', 'korean_short', 'english'].includes(game.settings.damageNumberFormat) ? game.settings.damageNumberFormat : 'comma';
-    document.getElementById('chk-exp-comma').checked = game.settings.showExpComma !== false;
-    document.getElementById('chk-hp-comma').checked = game.settings.showHpComma !== false;
-    document.getElementById('chk-enemy-hp-comma').checked = game.settings.showEnemyHpComma !== false;
-    document.getElementById('chk-character-comma').checked = game.settings.showCharacterComma !== false;
-    game.settings.itemFilterRarities = { normal: true, magic: true, rare: true, unique: true, ...(game.settings.itemFilterRarities || {}) };
-    document.getElementById('chk-item-filter-enabled').checked = !!game.settings.itemFilterEnabled;
-    document.getElementById('chk-item-filter-normal').checked = game.settings.itemFilterRarities.normal !== false;
-    document.getElementById('chk-item-filter-magic').checked = game.settings.itemFilterRarities.magic !== false;
-    document.getElementById('chk-item-filter-rare').checked = game.settings.itemFilterRarities.rare !== false;
-    document.getElementById('chk-item-filter-unique').checked = game.settings.itemFilterRarities.unique !== false;
-    document.getElementById('inp-item-filter-tier-threshold').value = Math.max(1, Math.floor(game.settings.itemFilterTierThreshold || 10));
-    document.getElementById('inp-item-filter-tier-count').value = Math.max(0, Math.floor(game.settings.itemFilterMinTierCount || 0));
-    document.getElementById('inp-item-filter-hidden-tier').value = Math.max(1, Math.floor(game.settings.itemFilterMinHiddenTier || 1));
-    document.getElementById('chk-item-filter-unique-new-codex').checked = !!game.settings.itemFilterOnlyNewCodexUnique;
-    document.getElementById('sel-map-complete-action').value = getMapCompleteActionOption(game.settings.mapCompleteAction).value;
-    document.getElementById('chk-loop-disable-item-automation').checked = game.settings.disableItemAutomationAfterLoop !== false;
-    document.getElementById('sel-loop-map-complete-action').value = getMapCompleteActionOption(game.settings.postLoopMapCompleteAction).value;
-    document.getElementById('sel-town-return-action').value = game.settings.townReturnAction || 'retry';
-    document.getElementById('sel-theme-mode').value = game.settings.themeMode === 'light' ? 'light' : 'dark';
-    document.getElementById('sel-ui-skin').value = normalizeUiSkin(game.settings.uiSkin);
-    applyThemeMode(game.settings.themeMode);
-    applyUiSkin(game.settings.uiSkin);
-    syncMapCompleteActionQuickControl();
-    ensureInitialHeroSelection();
-    renderHeroSelectionControls();
-    renderMonsterSkinControls();
-    toggleDeathNoticeSetting(game.settings.showDeathNotice !== false);
-    syncSalvageControlsFromSettings();
-    syncJewelSalvageControlsFromSettings();
-    checkUnlocks();
-    renderExpertiseUI();
-    normalizeSupportLoadout(false);
-    if (game.moveTimer <= 0 && (!game.encounterPlan || game.encounterPlan.length === 0)) runUiStartEncounter();
-    runStartupSmokeChecks();
-    const passiveRootId = getPassiveTreeRootNodeId(game);
-    if (!(game.discoveredPassives || []).includes(passiveRootId)) game.discoveredPassives.push(passiveRootId);
-    window.addEventListener('resize', function() {
-        syncBattleTabLayout(false);
-        scheduleStableResize();
-    });
-    if (!window.__mobileViewportResizeBound) {
-        window.__mobileViewportResizeBound = true;
-        window.addEventListener('orientationchange', function() {
-            syncBattleTabLayout(false);
-            scheduleStableResize();
-        });
-        if (window.visualViewport) window.visualViewport.addEventListener('resize', function() {
-            syncBattleTabLayout(false);
-            scheduleStableResize();
-        });
-    }
-    syncBattleTabLayout(true);
-    updateMobileBattlePipVisibility();
-    startMobilePipRefreshLoop();
-    setupCanvasEvents();
-    resizeCanvas();
-    if (!window.__cloudVisibilitySaveBound) {
-        window.__cloudVisibilitySaveBound = true;
-        document.addEventListener('visibilitychange', function() {
-            handleBackgroundVisibilityChange();
-            if (document.hidden) {
-                if (window.__skipUnloadSaveOnce) return;
-                saveGame({ skipCloudSync: true });
-                pushCloudSaveOnPageExit('visibilitychange');
-            }
-        });
-        window.addEventListener('pagehide', function() {
-            recordBackgroundCombatEntry(Date.now());
-            if (window.__skipUnloadSaveOnce) return;
-            saveGame({ skipCloudSync: true });
-            pushCloudSaveOnPageExit('pagehide');
-        });
-        window.addEventListener('beforeunload', function() {
-            recordBackgroundCombatEntry(Date.now());
-            if (window.__skipUnloadSaveOnce) return;
-            saveGame({ skipCloudSync: true });
-            pushCloudSaveOnPageExit('beforeunload');
-        });
-    }
-    initializeCloudSave();
-    if (!window.__cloudTokenRefreshBound) {
-        window.__cloudTokenRefreshBound = true;
-        setInterval(() => {
-            if (cloudState.user && cloudState.session) ensureCloudSessionFresh('주기 확인').catch(error => console.warn('periodic cloud token refresh failed:', error));
-        }, 60000);
-    }
-    window.runStartupSmokeChecks = runStartupSmokeChecks;
-    if (!window.__globalTouchTooltipCleanup) {
-        window.__globalTouchTooltipCleanup = true;
-        document.addEventListener('touchstart', function(e) {
-            let target = e.target;
-            let keep = target && target.closest && (target.closest('.item-card') || target.closest('.skill-gem') || target.closest('#tree-canvas'));
-            if (!keep) {
-                hideInfoTooltip();
-                hideItemTooltip();
-            }
-        }, { passive: true });
-    }
-    try {
-        updateStaticUI();
-    } catch (error) {
-        console.error('initial updateStaticUI failed:', error);
-        game = mergeDefaults(game || {});
-        try { updateStaticUI(); } catch (retryError) { console.error('retry updateStaticUI failed:', retryError); }
-    }
-    try {
-        updateMobileBattlePipVisibility();
-        renderBattlefield();
-        updateMobileBattlePipVisibility();
-        renderMobileBattlePipFrame();
-    } catch (error) {
-        console.error('initial battlefield render failed:', error);
-    } finally {
-        if (gameTickHandle) clearInterval(gameTickHandle);
-        gameTickHandle = setInterval(() => {
-            try {
-                // 백그라운드 재계산 중에는 전역 game이 시뮬레이션 상태로 교체되어 있다.
-                // 포그라운드 틱이 함께 돌면 시뮬레이션이 이중 진행되고 프레임도 뺏기므로 정지한다.
-                if (backgroundCombatRuntime.processing) return;
-                let overlayPause = !!(game.settings && game.settings.pauseGameOnOverlay);
-                let blockingOverlayOpen = !game.heroSelectionInitialized || isStartupOverlayOpen() || isLoadingOverlayOpen()
-                    || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen();
-                let optionalOverlayOpen = overlayPause && (isTutorialOpen() || isPauseSettingOverlayOpen());
-                if (blockingOverlayOpen || optionalOverlayOpen) return;
-                runUiCoreLoop();
-                ensureLoopChallengeState();
-                let now = Date.now();
-                if (typeof tickOceanOxygen === 'function') tickOceanOxygen(now);
-                if (typeof updateCombatOxygenBar === 'function') updateCombatOxygenBar();
-                if (pendingHeavyUiRefresh) {
-                    if (now - lastHeavyUiRefreshAt >= 1200) {
-                        pendingHeavyUiRefresh = false;
-                        lastHeavyUiRefreshAt = now;
-                        // 킬 이후 드랍/인벤/재화/지도 상태가 누락되지 않도록
-                        // 스로틀된 정적 UI 갱신을 복구한다.
-                        updateStaticUI();
-                    }
-                }
-                let recentStats = game.lastCombatStats && (Date.now() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
-                updateCombatUI(recentStats);
-            } catch (error) {
-                console.error('gameTick error:', error);
-                recoverRuntimeState();
-                try {
-                    let recentStats = game.lastCombatStats && (Date.now() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
-                    updateCombatUI(recentStats);
-                } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
-            }
-        }, 100);
-        requestAnimationFrame(gameLoop);
-        if (autoSaveHandle) clearInterval(autoSaveHandle);
-        cancelScheduledAutoSave();
-        autoSaveHandle = setInterval(() => {
-            scheduleAutoSaveWhenIdle();
-        }, 15000);
-    }
-}
-
-function cancelScheduledAutoSave() {
-    if (!autoSaveIdleHandle) return;
-    if (autoSaveIdleHandle.type === 'idle' && typeof cancelIdleCallback === 'function') cancelIdleCallback(autoSaveIdleHandle.id);
-    else clearTimeout(autoSaveIdleHandle.id);
-    autoSaveIdleHandle = null;
-}
-
-function scheduleAutoSaveWhenIdle() {
-    if (autoSaveIdleHandle || isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
-    let run = () => {
-        autoSaveIdleHandle = null;
-        if (isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
-        saveGame();
-    };
-    if (typeof requestIdleCallback === 'function') {
-        autoSaveIdleHandle = { type: 'idle', id: requestIdleCallback(run, { timeout: 4000 }) };
-    } else {
-        autoSaveIdleHandle = { type: 'timeout', id: setTimeout(run, 120) };
-    }
-}
 
 function renderBattlefieldThrottled(frameNow) {
     // 직전 렌더 이후 최소 간격이 지나지 않았으면 이번 프레임은 건너뛴다.
@@ -17402,6 +15473,7 @@ function gameLoop() {
         // 백그라운드 재계산 중에는 캔버스 렌더를 쉬어 계산 청크에 프레임을 양보한다.
         if (backgroundCombatRuntime.processing) return;
         let frameNow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        showNextTutorial();
         let tutorialPause = !!(game.settings && game.settings.pauseGameOnOverlay) && isTutorialOpen();
         if (tutorialPause || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
             if (document.getElementById('tab-char').classList.contains('active')) {
@@ -17653,7 +15725,7 @@ function checkUnlocks() {
             'tab-flask');
     }
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
-        queueTutorialNotice('tutorial_battle_basics', '전투 기본 가이드', '전투 화면, 피해 숫자, 스킬 범위와 성장 순서를 차례로 알아봅니다.', 'tab-character');
+        queueTutorialNotice('tutorial_battle_basics', '첫 여정', '캐릭터가 자동으로 이동하고 공격합니다. 생명력이 줄면 장비와 저항을 점검하세요.\n장비와 젬을 얻으면 필요한 조작을 하나씩 안내합니다.');
     }
     if (game.level >= 2 && !u.char) {
         u.char = true;
@@ -17670,16 +15742,7 @@ function checkUnlocks() {
         game.noti.jewel = true;
         queueTutorialNotice('unlock_jewel', '주얼 탭 개방', '주얼과 주얼 결정을 사용할 수 있게 되었습니다.', 'tab-jewel');
     }
-    if (starterTutorialGem && !(game.seenTutorials || []).includes('tutorial_starter_gem_equip')) {
-        u.skills = true;
-        game.noti.skills = true;
-        queueTutorialNotice(
-            'tutorial_starter_gem_equip',
-            '첫 스킬 젬 장착',
-            `[${starterTutorialGem}] 젬을 획득했습니다.\n스킬 젬 탭을 열고 빛나는 젬 카드를 클릭해 장착하세요.`,
-            'tab-skills'
-        );
-    }
+    contentUnlockUi.announceStarterGem(starterTutorialGem);
     if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills && !starterTutorialGem) {
         u.skills = true;
         game.noti.skills = true;
@@ -17721,7 +15784,7 @@ function checkUnlocks() {
     if (game.season > 1 && !u.season) {
         u.season = true;
         game.noti.season = true;
-        queueTutorialNotice('unlock_season_tab', '루프 탭 개방', `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`, 'tab-season');
+        contentUnlockUi.announceLoop();
     }
     if (ensurePruningTreeState(game).unlocked && !u.pruning) {
         u.pruning = true;
@@ -17771,6 +15834,7 @@ function checkUnlocks() {
         game.noti.map = true;
         addLog('🏛️ Lv.100 달성으로 4차 전직 미궁 시련이 개방되었습니다!', 'loot-unique');
     }
+    contentProgression.sync();
     detectNewMapUnlockAlarms();
     announceMapPrimaryContentUnlocks();
 }
@@ -17905,10 +15969,15 @@ function refundAscendNode(id) { if (!assertBuildEditable()) return;
     updateStaticUI();
 }
 
+function canInvestSeasonNode(node, id) {
+    return contentProgression.isUnlocked('loopTree') && !!node
+        && (game.season || 1) >= getSeasonPassiveUnlockLoop(id) && isSeasonNodeRequirementMet(node);
+}
+
 async function buySeason(id) { if (!assertBuildEditable()) return;
     let node = getSeasonPassiveNodeDef(id);
     game.seasonNodeLevels = game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object' ? game.seasonNodeLevels : {};
-    if (!node || (game.season || 1) < getSeasonPassiveUnlockLoop(id) || !isSeasonNodeRequirementMet(node)) return;
+    if (!canInvestSeasonNode(node, id)) return;
     let lv = getSeasonNodeLevel(id);
     let evolved = isSeasonTreeEvolved();
     let cap = node && node.inner ? 1 : (evolved ? 5 : 1);
@@ -17928,10 +15997,6 @@ async function buySeason(id) { if (!assertBuildEditable()) return;
 }
 
 
-function getClassKeystoneDefs(clsKey) {
-    let defs = (CLASS_KEYSTONE_DEFS && CLASS_KEYSTONE_DEFS[clsKey]) || [];
-    return Array.isArray(defs) ? defs : [];
-}
 
 function isAscendKeystoneRequirementMet(node) {
     if (!node) return false;

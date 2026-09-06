@@ -17,6 +17,7 @@ const context = {
     addStatToBucket: (bucket, key, value) => { bucket[key] = (bucket[key] || 0) + value; }
 };
 vm.createContext(context);
+require('./lib/load-combat-clock')(context);
 vm.runInContext(source.slice(start, end), context);
 
 vm.runInContext(`grantEliteTraitBuffFromEnemy(

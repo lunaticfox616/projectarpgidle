@@ -93,10 +93,10 @@ const BEYOND_BOUNDARY_MUTATOR_DB = Object.freeze([
 ]);
 const BEYOND_BOUNDARY_REWARD_FOCUS_DB = Object.freeze([
     { id:'armory', name:'무기고의 메아리', description:'완료 보상을 희귀 이상 장비에 집중합니다.', risk:'적 생명력 8% 증가', hpMul:1.08 },
-    { id:'jewel', name:'세공의 메아리', description:'완료 보상을 주얼과 주얼 결정에 집중합니다.', risk:'적 공격 속도 8% 증가', attackSpeedMul:1.08 },
-    { id:'gem', name:'각인의 메아리', description:'완료 보상을 젬 잔향에 집중합니다.', risk:'적 피해 8% 증가', damageMul:1.08 },
-    { id:'growth', name:'생장의 메아리', description:'완료 보상을 생장판 배치물에 집중합니다.', risk:'적 관통 5 증가', penetrationBonus:5 },
-    { id:'currency', name:'연성의 메아리', description:'완료 보상을 장비 제작 재화에 집중합니다.', risk:'적 생명력·피해 5% 증가', hpMul:1.05, damageMul:1.05 }
+    { id:'jewel', unlock:'jewel', name:'세공의 메아리', description:'완료 보상을 주얼과 주얼 결정에 집중합니다.', risk:'적 공격 속도 8% 증가', attackSpeedMul:1.08 },
+    { id:'gem', unlock:'research', name:'각인의 메아리', description:'완료 보상을 젬 잔향에 집중합니다.', risk:'적 피해 8% 증가', damageMul:1.08 },
+    { id:'growth', unlock:'growth', name:'생장의 메아리', description:'완료 보상을 생장판 배치물에 집중합니다.', risk:'적 관통 5 증가', penetrationBonus:5 },
+    { id:'currency', unlock:'craft', name:'연성의 메아리', description:'완료 보상을 장비 제작 재화에 집중합니다.', risk:'적 생명력·피해 5% 증가', hpMul:1.05, damageMul:1.05 }
 ]);
 const BEYOND_BOUNDARY_INTENSITY_DB = Object.freeze([
     { id:'plain', name:'무조율', description:'추가 소모와 보정 없이 도전합니다.', costs:[], rewardMul:1, hpMul:1, damageMul:1, attackSpeedMul:1 },

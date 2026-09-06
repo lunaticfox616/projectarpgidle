@@ -54,6 +54,7 @@ function bootManager(storedRaw, options = {}) {
         addEventListener() {}
     };
     vm.createContext(context);
+    require('./lib/load-ui-display')(context);
     vm.runInContext(source, context, { filename: 'js/ui-window-manager.js' });
     return { exposed, saved, lastSaved: () => JSON.parse(saved[saved.length - 1].value) };
 }

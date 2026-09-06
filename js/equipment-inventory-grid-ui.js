@@ -88,7 +88,10 @@
             ? `${layout.unlockedPageCount}페이지 · 최대 확장`
             : `${layout.unlockedPageCount}페이지 · 루프 진행으로 확장`;
         if (search.active) pageLabel = `검색 결과 ${search.totalMatches}개 · ${search.matchingPages}페이지`;
-        if (label) label.textContent = pageLabel;
+        if (label) {
+            label.textContent = pageLabel;
+            label.hidden = !search.active;
+        }
         renderTemporaryStorage();
         if (!root) return page;
         root.innerHTML = Array.from({ length: layout.pageCount }, (_, index) => {
@@ -105,9 +108,7 @@
     function renderTemporaryStorage() {
         let root = document.getElementById('ui-equipment-temporary-storage');
         if (!root) return;
-        let carriedTemporaryKey = carryState && carryState.mode === 'temporary' ? carryState.itemKey : null;
-        let items = equipmentInventoryGridRuntime.getTemporaryItems(game)
-            .filter(item => equipmentInventoryGridRuntime.getItemKey(item) !== carriedTemporaryKey);
+        let items = equipmentInventoryGridRuntime.getTemporaryItems(game);
         root.hidden = items.length === 0;
         if (items.length === 0) {
             root.innerHTML = '';
@@ -118,7 +119,7 @@
             let footprint = getEquipmentInventoryFootprint(item);
             return `<button type="button" class="equipment-temporary-item rarity-${item.rarity || 'normal'}" data-temporary-key="${escapeHTML(key)}" onclick="equipmentInventoryInteraction.restoreTemporaryItem(this.dataset.temporaryKey)"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><span>${escapeHTML(item.name || item.baseName || '장비')}</span><small>${footprint.columns}×${footprint.rows} · 회수</small></button>`;
         }).join('');
-        root.innerHTML = `<header><strong>임시 보관함</strong><span>${items.length}개</span></header><p>교체 중 밀려났거나 종료 복구 시 자리가 없었던 장비입니다. 인벤토리에 공간을 만든 뒤 눌러서 회수하세요.</p><div>${cards}</div>`;
+        root.innerHTML = `<header><strong>임시 보관함</strong><span>${items.length}개</span></header><p>이전 배치에서 복구된 장비입니다. 빈칸을 확보한 뒤 눌러서 회수하세요.</p><div>${cards}</div>`;
     }
 
     function restoreTemporaryItem(itemKey) {
@@ -146,11 +147,6 @@
         }
     }
 
-    function findItemElement(itemKey) {
-        return Array.from(document.querySelectorAll('[data-equipment-grid-key]'))
-            .find(card => card.dataset.equipmentGridKey === itemKey) || null;
-    }
-
     function notify(message, tone) {
         if (typeof showGameToast === 'function') showGameToast(message, { tone: tone || 'info', duration: 1800 });
     }
@@ -173,7 +169,7 @@
 
     function updateEquipmentDropTarget(event) {
         clearEquipmentDropTarget();
-        if (!carryState || !['inventory', 'temporary'].includes(carryState.mode)) return null;
+        if (!carryState || carryState.mode !== 'inventory') return null;
         let element = getEquipmentSlotElement(event);
         if (!element) return null;
         let slot = element.dataset.slot;
@@ -189,8 +185,8 @@
         let rightCell = grid.querySelector('[data-grid-column="1"][data-grid-row="0"]');
         let downCell = grid.querySelector('[data-grid-column="0"][data-grid-row="1"]');
         let cellRect = firstCell && firstCell.getBoundingClientRect();
-        let columnGap = parseFloat(style.columnGap) || 0;
-        let rowGap = parseFloat(style.rowGap) || 0;
+        let columnGap = (parseFloat(style.columnGap) || 0) * uiDisplay.factor;
+        let rowGap = (parseFloat(style.rowGap) || 0) * uiDisplay.factor;
         let cellWidth = cellRect ? cellRect.width : parseFloat(style.gridAutoColumns) || 1;
         let cellHeight = cellRect ? cellRect.height : parseFloat(style.gridAutoRows) || cellWidth;
         let columnStep = rightCell ? rightCell.getBoundingClientRect().left - cellRect.left : cellWidth + columnGap;
@@ -212,8 +208,8 @@
         let ghost = document.createElement('div');
         ghost.className = `equipment-grid-cursor-item rarity-${item.rarity || 'normal'}`;
         ghost.setAttribute('aria-hidden', 'true');
-        ghost.style.width = `${metrics.cellWidth * entry.columns + metrics.columnGap * (entry.columns - 1)}px`;
-        ghost.style.height = `${metrics.cellHeight * entry.rows + metrics.rowGap * (entry.rows - 1)}px`;
+        ghost.style.width = `${(metrics.cellWidth * entry.columns + metrics.columnGap * (entry.columns - 1)) / uiDisplay.factor}px`;
+        ghost.style.height = `${(metrics.cellHeight * entry.rows + metrics.rowGap * (entry.rows - 1)) / uiDisplay.factor}px`;
         let image = document.createElement('img');
         image.src = getEquipmentGridVisualAsset(item);
         image.alt = '';
@@ -238,20 +234,20 @@
 
     function clearDropPreview(grid) {
         if (!grid) return;
-        let selector = '.equipment-grid-cell.drop-valid,.equipment-grid-cell.drop-invalid,.equipment-grid-cell.drop-swap,.equipment-grid-cell.swap-origin';
+        let selector = '.equipment-grid-cell.drop-valid,.equipment-grid-cell.drop-invalid';
         grid.querySelectorAll(selector).forEach(cell => {
-            cell.classList.remove('drop-valid', 'drop-invalid', 'drop-swap', 'swap-origin');
+            cell.classList.remove('drop-valid', 'drop-invalid');
         });
         grid.querySelectorAll('.equipment-grid-drop-preview').forEach(preview => { preview.hidden = true; });
     }
 
     function clearInteractionArtifacts() {
         document.querySelectorAll('.equipment-grid-cursor-item,.equipment-grid-drop-preview').forEach(element => element.remove());
-        document.querySelectorAll('.equipment-grid-item.is-carried,.equipment-grid-item.is-dragging,.equipment-grid-item.is-pending-placement,.equipment-slot.is-carried').forEach(element => {
-            element.classList.remove('is-carried', 'is-dragging', 'is-pending-placement');
+        document.querySelectorAll('.equipment-grid-item.is-carried,.equipment-grid-item.is-dragging,.equipment-slot.is-carried').forEach(element => {
+            element.classList.remove('is-carried', 'is-dragging');
         });
-        document.querySelectorAll('.search-result-list.is-drag-active,.search-result-list.has-pending-displacement').forEach(grid => {
-            grid.classList.remove('is-drag-active', 'has-pending-displacement');
+        document.querySelectorAll('.search-result-list.is-drag-active').forEach(grid => {
+            grid.classList.remove('is-drag-active');
             clearDropPreview(grid);
         });
         clearEquipmentDropTarget();
@@ -271,28 +267,25 @@
     function paintDropPreview(grid, placement, moveResult) {
         clearDropPreview(grid);
         if (!placement || !moveResult.entry) return;
-        let targetClass = moveResult.ok ? (moveResult.displacedEntry ? 'drop-swap' : 'drop-valid') : 'drop-invalid';
+        let targetClass = moveResult.ok ? 'drop-valid' : 'drop-invalid';
         paintFootprint(grid, moveResult.placement || placement, moveResult.entry, targetClass);
         let targetPlacement = moveResult.placement || placement;
         let preview = carryState && carryState.preview;
         if (preview) {
             preview.className = `equipment-grid-drop-preview ${targetClass}`;
-            preview.style.left = `${carryState.metrics.originX + targetPlacement.column * carryState.metrics.columnStep}px`;
-            preview.style.top = `${carryState.metrics.originY + targetPlacement.row * carryState.metrics.rowStep}px`;
-            preview.style.width = `${carryState.metrics.cellWidth * moveResult.entry.columns + carryState.metrics.columnGap * (moveResult.entry.columns - 1)}px`;
-            preview.style.height = `${carryState.metrics.cellHeight * moveResult.entry.rows + carryState.metrics.rowGap * (moveResult.entry.rows - 1)}px`;
+            preview.style.left = `${(carryState.metrics.originX + targetPlacement.column * carryState.metrics.columnStep) / uiDisplay.factor}px`;
+            preview.style.top = `${(carryState.metrics.originY + targetPlacement.row * carryState.metrics.rowStep) / uiDisplay.factor}px`;
+            preview.style.width = `${(carryState.metrics.cellWidth * moveResult.entry.columns + carryState.metrics.columnGap * (moveResult.entry.columns - 1)) / uiDisplay.factor}px`;
+            preview.style.height = `${(carryState.metrics.cellHeight * moveResult.entry.rows + carryState.metrics.rowGap * (moveResult.entry.rows - 1)) / uiDisplay.factor}px`;
             preview.hidden = false;
-        }
-        if (moveResult.ok && moveResult.displacedEntry) {
-            paintFootprint(grid, moveResult.displacedEntry, moveResult.displacedEntry, 'swap-origin');
         }
     }
 
     function setGhostTone(moveResult) {
         if (!carryState) return;
-        carryState.ghost.classList.remove('can-drop', 'cannot-drop', 'can-swap');
+        carryState.ghost.classList.remove('can-drop', 'cannot-drop');
         if (!moveResult || !moveResult.ok) carryState.ghost.classList.add('cannot-drop');
-        else carryState.ghost.classList.add(moveResult.displacedEntry ? 'can-swap' : 'can-drop');
+        else carryState.ghost.classList.add('can-drop');
     }
 
     function localizeMoveResult(result) {
@@ -300,25 +293,22 @@
         let rowStart = activePage * equipmentInventoryGridRuntime.rowsPerPage;
         let localized = { ...result };
         if (result.placement) localized.placement = { ...result.placement, row: result.placement.row - rowStart };
-        if (result.displacedEntry) localized.displacedEntry = { ...result.displacedEntry, row: result.displacedEntry.row - rowStart };
         return localized;
     }
 
     function updateCarry(event) {
         if (!carryState) return;
         carryState.pointer = { clientX: event.clientX, clientY: event.clientY };
-        carryState.ghost.style.transform = `translate3d(${Math.round(event.clientX - carryState.offset.x)}px,${Math.round(event.clientY - carryState.offset.y)}px,0)`;
+        carryState.ghost.style.transform = `translate3d(${Math.round((event.clientX - carryState.offset.x) / uiDisplay.factor)}px,${Math.round((event.clientY - carryState.offset.y) / uiDisplay.factor)}px,0)`;
         let localPlacement = getPointerPlacement(event, carryState.grid, carryState.offset, carryState.metrics);
         let placement = localPlacement ? { column: localPlacement.column, row: localPlacement.row + activePage * equipmentInventoryGridRuntime.rowsPerPage } : null;
         let result = { ok: false, entry: carryState.entry };
         if (placement && carryState.mode === 'equipped') {
             result = equipmentInventoryGridRuntime.canAddInLayout(carryState.entry.item, placement.column, placement.row, carryState.layout);
-        } else if (placement && carryState.mode === 'temporary') {
-            result = equipmentInventoryGridRuntime.canPlaceTemporaryItemInLayout(carryState.entry.item, placement.column, placement.row, carryState.layout);
         } else if (placement) {
             result = equipmentInventoryGridRuntime.canPlaceInventoryItemInLayout(carryState.itemKey, placement.column, placement.row, carryState.layout);
         }
-        let previewKey = placement ? `${placement.column}:${placement.row}:${result.ok}:${result.displacedEntry ? result.displacedEntry.key : ''}` : 'outside';
+        let previewKey = placement ? `${placement.column}:${placement.row}:${result.ok}` : 'outside';
         carryState.placement = placement;
         carryState.moveResult = result;
         setGhostTone(result);
@@ -326,9 +316,6 @@
         if (equipmentTarget) setGhostTone({ ok: equipmentTarget.valid });
         if (carryState.previewKey !== previewKey) paintDropPreview(carryState.grid, localPlacement, localizeMoveResult(result));
         carryState.previewKey = previewKey;
-        if (carryState.mode === 'temporary' && typeof showItemTooltip === 'function') {
-            showItemTooltip(event, null, false, carryState.entry.item, `carry:${carryState.itemKey}`);
-        }
     }
 
     function scheduleCarryUpdate(event) {
@@ -367,7 +354,6 @@
             offset,
             metrics,
             preview,
-            ignoreNextClick: !!options.ignoreNextClick,
             ghost: createGhost(entry.item, entry, metrics)
         };
         itemElement.classList.add('is-carried');
@@ -377,19 +363,19 @@
         return true;
     }
 
-    function beginCarry(event, itemElement, ignoreNextClick) {
+    function beginCarry(event, itemElement) {
         if (carryState || !itemElement) return false;
         let grid = itemElement.closest('.search-result-list');
         let layout = equipmentInventoryGridRuntime.ensureState(game);
         let itemKey = itemElement.dataset.equipmentGridKey;
         let entry = layout.entries.find(candidate => candidate.key === itemKey);
         doubleClickCandidateKey = itemKey;
-        let started = initializeCarry(event, itemElement, grid, entry, layout, { mode: 'inventory', ignoreNextClick });
+        let started = initializeCarry(event, itemElement, grid, entry, layout, { mode: 'inventory' });
         if (!started) doubleClickCandidateKey = null;
         return started;
     }
 
-    function beginEquippedCarry(event, itemElement, slot, ignoreNextClick) {
+    function beginEquippedCarry(event, itemElement, slot) {
         if (carryState || !itemElement) return false;
         let item = game.equipment && game.equipment[slot];
         let grid = document.querySelector('#ui-inventory-list > .search-result-list');
@@ -398,13 +384,12 @@
         let itemKey = equipmentLoadoutRuntime.ensureItemIdentity(item);
         let entry = { key: itemKey, item, columns: footprint.columns, rows: footprint.rows };
         return initializeCarry(event, itemElement, grid, entry, equipmentInventoryGridRuntime.ensureState(game), {
-            mode: 'equipped', sourceSlot: slot, ignoreNextClick
+            mode: 'equipped', sourceSlot: slot
         });
     }
 
-    function endCarry(options) {
+    function endCarry() {
         if (!carryState) return;
-        let refreshTemporaryStorage = carryState.mode === 'temporary' && !(options && options.skipRefresh);
         if (carryFrame) cancelAnimationFrame(carryFrame);
         carryFrame = 0;
         pendingPointer = null;
@@ -413,40 +398,11 @@
         clearInteractionArtifacts();
         carryState = null;
         pointerState = null;
-        if (refreshTemporaryStorage && typeof updateStaticUI === 'function') updateStaticUI();
     }
 
     function cancelCarry() {
         doubleClickCandidateKey = null;
         endCarry();
-    }
-
-    function continueWithDisplaced(result) {
-        doubleClickCandidateKey = null;
-        let previous = carryState;
-        let displacedElement = findItemElement(result.displacedEntry.key);
-        if (!previous) return false;
-        if (!displacedElement) {
-            endCarry();
-            if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
-            notify('밀려난 장비를 임시 보관함에 보관했습니다.', 'warning');
-            return false;
-        }
-        let localRow = result.placement.row - activePage * equipmentInventoryGridRuntime.rowsPerPage;
-        previous.source.style.gridColumn = `${result.placement.column + 1}/span ${previous.entry.columns}`;
-        previous.source.style.gridRow = `${localRow + 1}/span ${previous.entry.rows}`;
-        previous.source.classList.remove('is-carried');
-        clearDropPreview(previous.grid);
-        previous.ghost.remove();
-        previous.preview.remove();
-        carryState = null;
-        focusedItemKey = null;
-        let continued = initializeCarry(previous.pointer || {}, displacedElement, previous.grid, result.displacedEntry, result.layout, {
-            mode: 'temporary', ignoreNextClick: false
-        });
-        if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
-        if (!continued && typeof updateStaticUI === 'function') updateStaticUI();
-        return continued;
     }
 
     function commitInventoryCarry(column, row) {
@@ -459,33 +415,17 @@
             notify(result.reason, 'warning');
             return false;
         }
-        if (result.displacedEntry) return continueWithDisplaced(result);
         let itemKey = carryState.itemKey;
         suppressClickUntil = Date.now() + 250;
-        endCarry({ skipRefresh: true });
+        endCarry();
         focusedItemKey = itemKey;
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
         if (typeof updateStaticUI === 'function') updateStaticUI();
         return true;
     }
 
-    function commitTemporaryCarry(column, row) {
-        let result = equipmentInventoryGridRuntime.placeTemporaryItem(carryState.itemKey, column, row, game);
-        if (!result.ok) {
-            notify(result.reason, 'warning');
-            return false;
-        }
-        if (result.displacedEntry) return continueWithDisplaced(result);
-        suppressClickUntil = Date.now() + 250;
-        endCarry({ skipRefresh: true });
-        focusedItemKey = result.entry.key;
-        if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
-        if (typeof updateStaticUI === 'function') updateStaticUI();
-        return true;
-    }
-
     function equipCarriedItemToSlot(slot) {
-        if (!carryState || !['inventory', 'temporary'].includes(carryState.mode)) return false;
+        if (!carryState || carryState.mode !== 'inventory') return false;
         let item = carryState.entry.item;
         if (!canEquipItemToSlot(item, slot)) {
             notify('이 장비는 해당 슬롯에 장착할 수 없습니다.', 'warning');
@@ -493,11 +433,7 @@
         }
         doubleClickCandidateKey = null;
         let itemId = item.id;
-        if (carryState.mode === 'temporary') {
-            game.equipmentTemporaryStorage = game.equipmentTemporaryStorage.filter(candidate => candidate !== item);
-            game.inventory.push(item);
-        }
-        endCarry({ skipRefresh: true });
+        endCarry();
         let equipped = equipItemById(itemId, slot);
         if (!equipped) return false;
         suppressClickUntil = Date.now() + 250;
@@ -509,7 +445,6 @@
     function commitCarry(column, row) {
         if (!carryState) return false;
         if (carryState.mode === 'inventory') return commitInventoryCarry(column, row);
-        if (carryState.mode === 'temporary') return commitTemporaryCarry(column, row);
         let slot = carryState.sourceSlot;
         suppressClickUntil = Date.now() + 250;
         endCarry();
@@ -533,33 +468,10 @@
 
     function handleItemClick(event, itemKey, inventoryIndex) {
         if (event) event.stopPropagation();
-        if (Date.now() < suppressClickUntil) return;
-        if (carryState) {
-            if (carryState.ignoreNextClick) {
-                carryState.ignoreNextClick = false;
-                return;
-            }
-            if (carryState.itemKey === itemKey) {
-                updateCarry(event);
-                if (event && event.detail >= 2 && doubleClickCandidateKey === itemKey) return;
-                if (carryState.moveResult && carryState.moveResult.ok && carryState.placement) {
-                    commitCarry(carryState.placement.column, carryState.placement.row);
-                }
-                return;
-            }
-            let target = carryState.layout.entries.find(entry => entry.key === itemKey);
-            if (target) {
-                doubleClickCandidateKey = null;
-                updateCarry(event);
-                if (carryState.moveResult && carryState.moveResult.ok && carryState.placement) {
-                    commitCarry(carryState.placement.column, carryState.placement.row);
-                }
-            }
-            return;
-        }
+        if (Date.now() < suppressClickUntil || carryState) return;
+        doubleClickCandidateKey = itemKey;
         focus(itemKey);
-        beginCarry(event || {}, event && event.currentTarget, false);
-        if (!carryState && typeof showItemTooltip === 'function') showItemTooltip(event, inventoryIndex, false);
+        if (typeof showItemTooltip === 'function') showItemTooltip(event, inventoryIndex, false);
     }
 
     function handleItemDoubleClick(event, itemKey, itemId) {
@@ -574,7 +486,7 @@
         if (doubleClickCandidateKey !== itemKey && !stationaryCarry) return false;
         if (carryState && carryState.itemKey !== itemKey) return false;
         doubleClickCandidateKey = null;
-        endCarry({ skipRefresh: true });
+        endCarry();
         let equipped = equipItemById(itemId);
         if (!equipped) return false;
         suppressClickUntil = Date.now() + 250;
@@ -587,11 +499,10 @@
         if (event) event.stopPropagation();
         if (Date.now() < suppressClickUntil) return;
         if (carryState) {
-            if (['inventory', 'temporary'].includes(carryState.mode)) return equipCarriedItemToSlot(slot);
-            if (carryState.ignoreNextClick) carryState.ignoreNextClick = false;
+            if (carryState.mode === 'inventory') return equipCarriedItemToSlot(slot);
             return false;
         }
-        return beginEquippedCarry(event || {}, event && event.currentTarget, slot, false);
+        return false;
     }
 
     function autoArrange() {
@@ -611,15 +522,8 @@
         if (!item && event.target.closest('button')) return;
         let source = item || equipped;
         if (!source || (event.button !== undefined && event.button !== 0)) return;
-        if (!carryState) {
-            if (item) {
-                focus(item.dataset.equipmentGridKey);
-                beginCarry(event, item, true);
-            } else {
-                beginEquippedCarry(event, equipped, equipped.dataset.slot, true);
-            }
-        }
-        pointerState = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, dragging: false };
+        pointerState = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY,
+            dragging: false, source, equipped: !item, origin: event };
         if (source.setPointerCapture) source.setPointerCapture(event.pointerId);
     }
 
@@ -628,7 +532,14 @@
         if (!pointerState || pointerState.pointerId !== event.pointerId) return;
         let distance = Math.hypot(event.clientX - pointerState.startX, event.clientY - pointerState.startY);
         if (!pointerState.dragging && distance < 6) return;
+        if (!pointerState.dragging) {
+            let { source, equipped, origin } = pointerState;
+            if (equipped) beginEquippedCarry(origin, source, source.dataset.slot);
+            else beginCarry(origin, source);
+            if (!carryState) return;
+        }
         pointerState.dragging = true;
+        scheduleCarryUpdate(event);
         event.preventDefault();
     }
 
@@ -649,6 +560,7 @@
             else {
                 notify('이 장비는 해당 슬롯에 장착할 수 없습니다.', 'warning');
             }
+            cancelCarry();
             return;
         }
         if (carryState) updateCarry(event);
@@ -659,19 +571,26 @@
         } else {
             notify('그 위치에는 장비를 놓을 수 없습니다.', 'warning');
         }
+        cancelCarry();
     }
 
     function cancelPointer(event) {
-        if (pointerState && pointerState.pointerId === event.pointerId) pointerState = null;
+        if (!pointerState || pointerState.pointerId !== event.pointerId) return;
+        pointerState = null;
+        cancelCarry();
     }
 
     function handleKeydown(event) {
-        if (event.key !== 'Escape' || !carryState) return;
+        if (event.key !== 'Escape') return;
+        if (!carryState && (!focusedItemKey || !document.getElementById('ui-equipment-inventory-inspector')?.getClientRects().length)) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        let movedToTemporary = carryState.mode === 'temporary';
-        cancelCarry();
-        notify(movedToTemporary ? '들고 있던 장비를 임시 보관함에 보관했습니다.' : '장비 이동을 취소했습니다.', 'info');
+        if (carryState) {
+            cancelCarry();
+            notify('장비 이동을 취소했습니다.', 'info');
+            return;
+        }
+        focus(null);
     }
 
     function bindPointerEvents() {
@@ -679,7 +598,7 @@
         document.addEventListener('pointermove', updatePointer, { passive: false });
         document.addEventListener('pointerup', finishPointer);
         document.addEventListener('pointercancel', cancelPointer);
-        document.addEventListener('keydown', handleKeydown);
+        document.addEventListener('keydown', handleKeydown, true);
         document.addEventListener('dragstart', event => {
             if (event.target.closest && event.target.closest('.equipment-slot,.equipment-grid-item')) event.preventDefault();
         });

@@ -1,3 +1,30 @@
+function talismanCellKey(x,y){ return `${x},${y}`; }
+
+function talismanCellIndex(x,y){ return y * TALISMAN_BOARD_W + x; }
+
+function isTalismanBoardCellValid(x,y){ return TALISMAN_BOARD_MASK.has(talismanCellKey(x,y)); }
+
+function isTalismanCellInitiallyUnlocked(x, y){ return x >= 2 && x <= 5 && y >= 2 && y <= 5; }
+
+function getGeneratedTalismanName(talisman) {
+    if (!talisman) return '이름 없는 부적';
+    if (talisman.name) return talisman.name;
+    let stem = TALISMAN_NAME_STEMS[talisman.stat]
+        || String(talisman.statName || '미지').replace(/\s*\(%\)\s*|\s*증가\s*|\s*피해\s*/g, '').trim() + '의';
+    let shape = TALISMAN_SHAPE_NAMES[talisman.shape] || '매듭';
+    return `${stem} ${shape}`;
+}
+
+function ensureTalismanName(talisman) {
+    if (talisman && !talisman.name) talisman.name = getGeneratedTalismanName(talisman);
+    return talisman;
+}
+
+function getCodexSlotOrder() {
+    return ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
+}
+
+
 // Item module bridge (phase 2).
 window.GameModules = window.GameModules || {};
 window.GameModules.items = {
@@ -29,13 +56,7 @@ function getInventoryItemVisualAsset(item, kind) {
         let category = item && (item.growthCategory || (item.slabType ? 'slab' : ''));
         return visuals.growth[category] || visuals.growth.default;
     }
-    let slot = item && item.slot;
-    if (slot === '무기') {
-        let searchable = `${item.name || ''} ${item.baseName || ''}`.toLowerCase();
-        let match = visuals.weaponKeywords.find(row => row.terms.some(term => searchable.includes(term)));
-        if (match) return match.asset;
-    }
-    return visuals.equipment[slot] || visuals.equipment.default;
+    return getEquipmentGridVisualAsset(item);
 }
 
 function renderInventoryItemVisual(item, kind, className) {
@@ -48,20 +69,19 @@ function renderInventoryItemVisual(item, kind, className) {
 safeExposeGlobals({ getInventoryItemVisualAsset, renderInventoryItemVisual });
 
 function getEquipmentGridVisualAsset(item) {
-    let grid = typeof ITEM_VISUAL_ASSET_DB !== 'undefined' ? ITEM_VISUAL_ASSET_DB.equipmentGrid : null;
-    if (!grid || !item) return getInventoryItemVisualAsset(item, 'equipment');
-    let exact = grid.baseAssets && grid.baseAssets[item.baseId];
+    const visuals = ITEM_VISUAL_ASSET_DB;
+    if (!item) return visuals.equipment.default;
+    const grid = visuals.equipmentGrid;
+    if ((item.rarity || item.type) === 'unique' && Object.hasOwn(grid.uniqueAssets, item.name)) return grid.uniqueAssets[item.name];
+    const exact = grid.baseAssets[item.baseId];
     if (exact) return exact;
-    let slot = String(item.slot || '').replace(/[123]$/, '');
-    let identity = item.baseId || item.baseName || item.name || slot;
-    if (slot === '무기' && grid.weaponFootprintAssets) {
-        let footprint = getEquipmentInventoryFootprint(item);
-        let weaponPool = grid.weaponFootprintAssets[`${footprint.columns}x${footprint.rows}`];
-        if (Array.isArray(weaponPool) && weaponPool.length > 0) return weaponPool[hashSeed(identity) % weaponPool.length];
+    const slot = String(item.slot || '').replace(/[123]$/, '');
+    if (slot === '무기') {
+        const label = [item.baseId, item.baseName, item.name].filter(Boolean).join(' ').toLowerCase();
+        const match = visuals.weaponKeywords.find(row => row.terms.some(term => label.includes(term)));
+        if (match) return match.asset;
     }
-    let pool = grid.slotAssets && grid.slotAssets[slot];
-    if (!Array.isArray(pool) || pool.length <= 0) return getInventoryItemVisualAsset(item, 'equipment');
-    return pool[hashSeed(identity) % pool.length];
+    return visuals.equipment[slot] || visuals.equipment.default;
 }
 
 /** @returns {{columns:number, rows:number}} */
@@ -709,7 +729,7 @@ function resolveTimeRiftFusion() {
 
 function prepareMeteorEncounterEntry(returnZoneId) {
     let st = ensureStarWedgeState();
-    st.activeMeteorTier = Math.max(1, Math.floor(st.skyRiftMinTier || 1));
+    st.activeMeteorTier = Math.max(8, getSkyRiftGaugeEffectiveTier({tier:st.skyRiftMinTier || 13}, st));
     st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;
     st.skyRiftReady = false;
     st.skyRiftGauge = Math.max(0, Math.floor(st.skyRiftCarryGauge || 0));

@@ -26,7 +26,8 @@ function getGemResearchCost(kind) {
     return Math.max(8, 12 - Math.floor(Math.max(0, expertLevel - 1) / 4));
 }
 
-function grantGemResearchFragments(amount) {
+function grantGemResearchFragments(amount, source = 'reward') {
+    if (source === 'drop' && !contentProgression.canDropCurrency('gemShard')) return 0;
     let gain = Math.max(0, Math.floor(Number(amount) || 0));
     if (gain <= 0) return 0;
     game.currencies = game.currencies || {};
@@ -35,14 +36,22 @@ function grantGemResearchFragments(amount) {
     return gain;
 }
 
+function canResearchGemKind(kind) {
+    return contentProgression.isUnlocked('research') && (kind !== 'support' || contentProgression.isUnlocked('support'));
+}
+
+function ownsResearchGem(kind, name) {
+    if (kind === 'support') return hasSupportGemOwned(name);
+    return hasSkillGemOwned(name);
+}
+
 function researchMissingGem(kind, name) {
+    if (!canResearchGemKind(kind)) return;
     if (game.woodsmanBuildLock) return addLog('나무꾼 전투 중에는 젬 구성을 변경할 수 없습니다.', 'attack-monster');
     let isSupport = kind === 'support';
     let db = isSupport ? SUPPORT_GEM_DB[name] : SKILL_DB[name];
     if (!db || (!isSupport && !db.isGem)) return addLog('연구할 수 있는 젬이 아닙니다.', 'attack-monster');
-    let alreadyOwned = isSupport
-        ? (typeof hasSupportGemOwned === 'function' ? hasSupportGemOwned(name) : (game.supports || []).includes(name))
-        : (typeof hasSkillGemOwned === 'function' ? hasSkillGemOwned(name) : (game.skills || []).includes(name));
+    let alreadyOwned = ownsResearchGem(kind, name);
     if (alreadyOwned) return addLog('이미 보유한 젬입니다.', 'attack-monster');
     let cost = getGemResearchCost(kind);
     game.currencies = game.currencies || {};
@@ -126,6 +135,7 @@ function selectGemEnhanceTargetSkill(name) {
 }
 
 function upgradeActiveGem(materialKey, amount) {
+    if (!contentProgression.isUnlocked('gemForge')) return;
     if ((game.season || 1) < 2) return addLog('아직 루프 전용 젬 강화가 잠겨 있습니다.', 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
@@ -140,7 +150,7 @@ function upgradeActiveGem(materialKey, amount) {
     game.currencies[materialKey] -= need;
     gem[levelKey] = currentLevel + 1;
     let totalLevel = gem.level + (gem.bossCoreLevel || 0) + (gem.skyCoreLevel || 0);
-    if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('gemEngraver', isBossCore ? 'boss_core_upgrade' : 'sky_core_upgrade');
+    grantExpertExpByAction('gemEngraver', isBossCore ? 'boss_core_upgrade' : 'sky_core_upgrade');
     if (isBossCore) addLog(`💎 [${active}] 군주의 핵 강화 ${gem.bossCoreLevel}/5 (소모 ${need}). 총 레벨 ${totalLevel}`, 'loot-unique');
     else addLog(`☁️ [${active}] 창공의 힘 강화 ${gem.skyCoreLevel}/5 (소모 ${need}). 총 레벨 ${totalLevel}`, 'loot-unique');
     updateStaticUI();
@@ -148,6 +158,7 @@ function upgradeActiveGem(materialKey, amount) {
 
 
 function upgradeActiveGemWithCondensedSkyPower() {
+    if (!contentProgression.isUnlocked('gemForge')) return;
     let active = getGemEnhanceTargetSkill();
     if (!isEnhanceableAttackGem(active) || !Array.isArray(game.skills) || !game.skills.includes(active)) return addLog('영구 강화할 공격 젬을 먼저 선택하세요.', 'attack-monster');
     let st = ensureSkyTowerState();
@@ -163,7 +174,7 @@ function upgradeActiveGemWithCondensedSkyPower() {
 }
 
 function upgradeSkyEngraveCap() {
-    if ((game.season || 1) < 4) {
+    if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) {
         addLog('창공 각인 확장은 루프4부터 가능합니다.', 'attack-monster');
         return false;
     }
@@ -174,7 +185,7 @@ function upgradeSkyEngraveCap() {
         addLog('강화 가능한 공격 젬을 먼저 장착하세요.', 'attack-monster');
         return false;
     }
-    if ((gem.skyEnhanceCap || 1) >= 5) {
+    if (gem.skyEnhanceCap >= 5) {
         addLog('창공 각인 슬롯은 최대 5개입니다.', 'attack-monster');
         return false;
     }
@@ -213,6 +224,7 @@ function getSkyEnhancementSlotsForSkill(skillName) {
 }
 
 function getSkyEnhancementForSkill(skillName) {
+    if (!contentProgression.isUnlocked('engraving')) return [];
     return getSkyEnhancementSlotsForSkill(skillName).filter(Boolean);
 }
 
@@ -256,13 +268,14 @@ function getSelectedGemEngraveSlot() {
 }
 
 function selectGemEngraveSlot(index) {
+    if (!contentProgression.isUnlocked('engraving')) return false;
     let active = getGemEnhanceTargetSkill();
     let gem = normalizeGemRecord((game.gemData || {})[active]);
     if (!isEnhanceableAttackGem(active) || !gem) return false;
     game.gemData = game.gemData || {};
     game.gemData[active] = gem;
     let slotIndex = Math.max(0, Math.min(4, Math.floor(Number(index) || 0)));
-    let cap = Math.max(1, Math.min(5, Math.floor(gem.skyEnhanceCap || 1)));
+    let cap = gem.skyEnhanceCap;
     if (slotIndex >= cap) {
         if (slotIndex !== cap) {
             addLog('앞쪽 각인 슬롯부터 순서대로 해금하세요.', 'attack-monster');
@@ -294,7 +307,7 @@ function getGemSkyEnhanceGemLevelBonus(skillName) {
 }
 
 function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
-    if ((game.season || 1) < 4) {
+    if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) {
         addLog('창공의 힘은 루프4부터 사용할 수 있습니다.', 'attack-monster');
         return false;
     }
@@ -320,7 +333,7 @@ function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
     }
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let slots = getSkyEnhancementSlotsForSkill(active);
-    let cap = game.gemData[active].skyEnhanceCap || 1;
+    let cap = game.gemData[active].skyEnhanceCap;
     let hasRequestedSlot = Number.isFinite(Number(requestedSlotIndex));
     let currentPatternSlot = enhance.projectilePatternMode
         ? slots.findIndex(id => id && GEM_SKY_ENHANCEMENTS[id].projectilePatternMode)
@@ -376,6 +389,7 @@ function getSkyGemEnhancementRemoveCost() {
 }
 
 function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
+    if (!contentProgression.isUnlocked('engraving')) return false;
     let active = getGemEnhanceTargetSkill();
     let slots = getSkyEnhancementSlotsForSkill(active);
     let selectedSlot = Number.isFinite(Number(slotIndex)) ? Math.max(0, Math.min(4, Math.floor(Number(slotIndex)))) : getSelectedGemEngraveSlot();
@@ -386,7 +400,7 @@ function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
         addLog(`각인 해제에 필요한 창공의 힘이 부족합니다. (필요: ${cost})`, 'attack-monster');
         return false;
     }
-    if (cost > 0) game.currencies.skyEssence = Math.max(0, (game.currencies.skyEssence || 0) - cost);
+    if (cost > 0) game.currencies.skyEssence -= cost;
     slots[selectedSlot] = null;
     game.skyGemEnhancements[active] = slots;
     let enh = GEM_SKY_ENHANCEMENTS[enhanceId];

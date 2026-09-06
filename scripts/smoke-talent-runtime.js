@@ -259,16 +259,20 @@ context.game.skyGemEnhancements['기본 공격'] = ['sky_fury', null, null, null
 assert.ok(context.getEquippedEnhanceableGemNames().includes('기본 공격'), '펜리르 장착 중에는 기본 공격을 각인 가능한 젬으로 취급해야 한다');
 const fenrirTarget = makeEnemy(1);
 const fenrirStats = prepareBasicAttack([fenrirTarget]);
+assert.strictEqual(context.applyTalentFenrirSkill({dmg:100},'기본 공격').dmg,135,'펜리르 Lv.10 직접 피해 35% 증폭');
+assert.strictEqual(context.applyTalentFenrirSkill({dmg:100},'연속 베기').dmg,100,'다른 젬에는 변형 피해를 적용하지 않는다');
+assert.strictEqual(fenrirStats.sSkill.visualName,'펜리르의 독니');
 fenrirStats.poisonChance = 0;
 withRandom(0, () => {
   context.performPlayerAttack(fenrirStats);
   flushAttackStages();
 });
 assert.ok(fenrirTarget.ailments.some(row => row.type === 'fenrirVenomCurse' && row.time > 0), '펜리르의 이빨 적중은 맹독 저주를 남겨야 한다');
+assert.ok(vm.runInContext("battleFx.some(fx=>fx.type==='hit' && fx.skillName==='펜리르의 독니')",context),'실제 적중 이벤트가 전용 이미지 이펙트를 선택해야 한다');
 const fenrirPoison = fenrirTarget.ailments.find(row => row.type === 'poison');
-assert.ok(fenrirPoison && fenrirPoison.talentDamageMorePct === 20, '펜리르 중독은 Lv.10에서 피해가 20% 증폭되어야 한다');
+assert.ok(fenrirPoison && fenrirPoison.talentDamageMorePct === 35, '펜리르 중독은 Lv.10에서 피해가 35% 증폭되어야 한다');
 const spreadFenrirPoison = context.cloneEnemyAilmentForSpread(fenrirPoison, fenrirStats);
-assert.strictEqual(spreadFenrirPoison.talentDamageMorePct, 20, '펜리르 중독이 확산될 때 전용 피해 증폭이 유실되면 안 된다');
+assert.strictEqual(spreadFenrirPoison.talentDamageMorePct, 35, '펜리르 중독이 확산될 때 전용 피해 증폭이 유실되면 안 된다');
 context.game.talentCards.hero5__warlock = { level: 10, score: 600, count: 1 };
 for (let index = 0; index < 8; index++) context.game.talentCards[`slot_unlock_${index}`] = { level: 1, score: 0, count: 1 };
 context.game.talentCardLoadout = ['hero2__warlock', 'hero5__warlock', null, null, null, null];

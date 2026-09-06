@@ -5,6 +5,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 
 const context = buildGameRuntime();
 const run = source => vm.runInContext(source, context);
+run('game.contentProgression.inherited = ["craft"]');
 
 function loadUiFunction(name) {
     const source = fs.readFileSync('js/ui.js', 'utf8');

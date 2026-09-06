@@ -8,6 +8,16 @@ window.GameState = window.GameState || {
 };
 window.GameModules.state = window.GameState;
 
+// Transient notices: domains enqueue data; the foreground UI decides when to present it.
+let tutorialQueue = [];
+function queueTutorialNotice(key, title, body, tabId, subtabId) {
+    if (game.isBackgroundCalculation) return;
+    game.seenTutorials = game.seenTutorials || [];
+    if (game.seenTutorials.includes(key)) return;
+    game.seenTutorials.push(key);
+    tutorialQueue.push({ key, title, body, tabId: tabId || null, subtabId: subtabId || null });
+}
+
 // Phase-3 extracted world/season progression helpers.
 function formatStoryActLabel(storyAct) {
     if (!storyAct) return '액트 ?';
@@ -186,7 +196,8 @@ function isCosmosContentUnlockReady(source) {
 
 function isMapPrimaryContentUnlockReady(contentId, source) {
     let state = source || game;
-    if (contentId === 'map-tab-zones' || contentId === 'map-tab-pvp') return true;
+    if (contentId === 'map-tab-zones') return true;
+    if (contentId === 'map-tab-pvp') return state.season >= MAP_PRIMARY_CONTENTS.find(entry => entry.id === contentId).unlockLoop;
     if (contentId === 'map-tab-chaos-realm') return !!(state && state.chaosRealm && state.chaosRealm.unlocked);
     if (contentId === 'map-tab-sky') return !!(state && state.skyTower && state.skyTower.unlocked);
     if (contentId === 'map-tab-underworld') return isUnderworldUnlockReady(state);
@@ -199,6 +210,7 @@ function isMapPrimaryContentUnlockReady(contentId, source) {
 
 function isMapPrimaryContentUnlocked(source, contentId) {
     let unlocked = Array.isArray(source && source.unlockedMapContents) ? source.unlockedMapContents : [];
+    if (contentId === 'map-tab-pvp' && !isMapPrimaryContentUnlockReady(contentId, source)) return false;
     return unlocked.includes(contentId);
 }
 
@@ -207,6 +219,7 @@ function reconcileMapPrimaryContentUnlocks(source) {
     let validIds = new Set(MAP_PRIMARY_CONTENTS.map(def => def.id));
     let savedIds = Array.isArray(source.unlockedMapContents) ? source.unlockedMapContents : [];
     let unlocked = new Set(savedIds.filter(id => validIds.has(id)));
+    if (!isMapPrimaryContentUnlockReady('map-tab-pvp', source)) unlocked.delete('map-tab-pvp');
     let newlyUnlocked = [];
     MAP_PRIMARY_CONTENTS.forEach(def => {
         if (unlocked.has(def.id) || !isMapPrimaryContentUnlockReady(def.id, source)) return;
@@ -602,7 +615,7 @@ function getSeasonBossProgressGate(zone, source) {
     if (Array.isArray(zone.requiresPinnacles)) {
         const cleared = new Set(Array.isArray(state.clearedRootBosses) ? state.clearedRootBosses : []);
         const current = zone.requiresPinnacles.filter(id => cleared.has(id)).length;
-        return { met: current >= zone.requiresPinnacles.length, current, target: zone.requiresPinnacles.length, label: `최종 관문 격파 ${current}/${zone.requiresPinnacles.length}` };
+        return { met: current >= zone.requiresPinnacles.length, current, target: zone.requiresPinnacles.length, label: `수호자 격파 ${current}/${zone.requiresPinnacles.length}` };
     }
     return { met: true, label: '' };
 }
@@ -714,9 +727,7 @@ function getZone(id) {
         return { id: 'colony_run', name: `군락지 방어 ${wave}웨이브`, type: 'colony', tier: depth + Math.floor(wave / 2), maxKills: 1, ele: 'chaos', entryDeepChaosDepth: depth };
     }
     if (id === 'grand_breach_run') {
-        let kills = Math.max(0, Math.floor((((game || {}).voidRift || {}).grandRun || {}).kills || 0));
-        let bonusTier = Math.min(6, Math.floor(kills / 25));
-        return { id: 'grand_breach_run', name: '대균열', type: 'grandBreach', tier: 14 + bonusTier, maxKills: 9999, ele: 'chaos' };
+        return { id: 'grand_breach_run', name: '대균열', type: 'grandBreach', tier: 14, maxKills: 9999, ele: 'chaos' };
     }
     if (id === OUTSIDE_CHAOS_ZONE_ID) return { id: OUTSIDE_CHAOS_ZONE_ID, name: '혼돈 밖', type: 'outsideChaos', tier: 25, maxKills: 1, ele: 'chaos', fixedDifficultyMul: 1 };
     if (id === CHAOS_REALM_ZONE_ID) {
@@ -755,7 +766,7 @@ function getZone(id) {
         let star = (game && game.starWedge) || {};
         let allowBeyond20 = !!star.skyRiftAllCosmos;
         let tierCap = allowBeyond20 ? 40 : 20;
-        let tier = Math.max(8, Math.min(tierCap, Math.floor(star.activeMeteorTier || star.skyRiftMinTier || 13)));
+        let tier = star.activeMeteorTier || Math.max(8, Math.min(tierCap, Math.floor(star.skyRiftMinTier || 13)));
         return {
             id: METEOR_FALL_ZONE_ID,
             name: '운석 낙하 지점',
@@ -798,78 +809,6 @@ function getZone(id) {
     }
     return MAP_ZONES[id];
 }
-
-const CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT = 4;
-const CHALLENGE_CONTRACT_KEYS = ['enemyPower', 'fragileArmor', 'shortHunt', 'greedPact'];
-
-function normalizeChallengeContract(contract) {
-    let source = contract && typeof contract === 'object' ? contract : {};
-    let normalized = {};
-    CHALLENGE_CONTRACT_KEYS.forEach(key => { normalized[key] = !!source[key]; });
-    normalized.enabled = CHALLENGE_CONTRACT_KEYS.some(key => normalized[key]);
-    return normalized;
-}
-
-function getChallengeContractState() {
-    game.challengeContract = normalizeChallengeContract(game.challengeContract);
-    return game.challengeContract;
-}
-
-function getActiveChallengeContractState() {
-    if (!game.activeChallengeContract || typeof game.activeChallengeContract !== 'object') {
-        game.activeChallengeContract = normalizeChallengeContract(getChallengeContractState());
-    } else {
-        game.activeChallengeContract = normalizeChallengeContract(game.activeChallengeContract);
-    }
-    return game.activeChallengeContract;
-}
-
-function applyPendingChallengeContract() {
-    game.activeChallengeContract = normalizeChallengeContract(getChallengeContractState());
-    return game.activeChallengeContract;
-}
-
-function getChallengeContractScore(contract) {
-    let target = contract ? normalizeChallengeContract(contract) : getActiveChallengeContractState();
-    return CHALLENGE_CONTRACT_KEYS.reduce((sum, key) => sum + (target[key] ? 1 : 0), 0);
-}
-
-function isChallengeContractEligibleZone(zone) {
-    let target = zone || getZone(game.currentZoneId);
-    return !!(target && target.type === 'act');
-}
-
-function getChallengeContractRewardMultiplier(zone, contract) {
-    if (!isChallengeContractEligibleZone(zone)) return 1;
-    return 1 + (getChallengeContractScore(contract) * CHALLENGE_CONTRACT_REWARD_PER_MODIFIER_PCT) / 100;
-}
-
-function getChallengeContractEnemyDamageMultiplier(zone) {
-    let contract = getActiveChallengeContractState();
-    return isChallengeContractEligibleZone(zone) && contract.enemyPower ? 1.25 : 1;
-}
-
-function getChallengeContractEnemyHealthMultiplier(zone) {
-    let contract = getActiveChallengeContractState();
-    return isChallengeContractEligibleZone(zone) && contract.shortHunt ? 1.30 : 1;
-}
-
-function getChallengeContractPhysicalReductionPenalty(zone) {
-    let contract = getActiveChallengeContractState();
-    return isChallengeContractEligibleZone(zone) && contract.fragileArmor ? 12 : 0;
-}
-
-function getChallengeContractRecoveryMultiplier(zone) {
-    let contract = getActiveChallengeContractState();
-    return isChallengeContractEligibleZone(zone) && contract.greedPact ? 0.65 : 1;
-}
-
-
-
-
-
-
-
 
 // 시간의 균열 런타임 상태(shape 소유자). 제단 아이템은 인벤토리에서 빠져 이곳에 보관된다.
 function ensureTimeRiftState() {
@@ -1041,8 +980,9 @@ function capEndlessContentDropMultiplier(zone, multiplier) {
     return Math.min(ENDLESS_CONTENT_DROP_MULTIPLIER_CAP, value);
 }
 
+/** @param {{silent: boolean}} options Explicit foreground/background announcement policy. */
 function applySeasonContentProgression(options) {
-    let opts = options || {};
+    const opts = options;
     game.unlockedSeasonContents = Array.isArray(game.unlockedSeasonContents) ? game.unlockedSeasonContents : [];
     game.seenSeasonContentNotices = Array.isArray(game.seenSeasonContentNotices) ? game.seenSeasonContentNotices : [];
     let roadmapMaxLoop = Math.max(...Object.keys(SEASON_CONTENT_ROADMAP).map(Number));
@@ -1050,7 +990,7 @@ function applySeasonContentProgression(options) {
     for (let s = 1; s <= maxSeason; s++) {
         let key = `season_${s}`;
         if (!game.unlockedSeasonContents.includes(key)) game.unlockedSeasonContents.push(key);
-        if (!opts.silent && !game.seenSeasonContentNotices.includes(key) && SEASON_CONTENT_ROADMAP[s]) {
+        if (!opts.silent && !game.contentProgression && !game.seenSeasonContentNotices.includes(key) && SEASON_CONTENT_ROADMAP[s]) {
             let def = SEASON_CONTENT_ROADMAP[s];
             addLog(`🧩 루프 ${s} [${def.title}] 이정표 개방`, 'season-up');
             (def.features || []).slice(0, 2).forEach(line => addLog(`   - ${line}`, 'loot-magic'));
@@ -1127,6 +1067,7 @@ function getLoopDeepStatCost(statKey) {
 }
 
 function allocateLoopDeepStat(statKey) {
+    if (!contentProgression.isUnlocked('deepTree')) return;
     if ((game.season || 1) < 10) return;
     let cost = getLoopDeepStatCost(statKey);
     if ((game.loopDeepPoints || 0) < cost) return addLog(`심화 루프 포인트가 부족합니다. (필요: ${cost})`, 'attack-monster');
@@ -2293,8 +2234,25 @@ function getPaidPassiveNodeIds(nodeIds) {
     return (Array.isArray(nodeIds) ? nodeIds : []).filter(nodeId => !isFreePassiveStartNodeId(nodeId));
 }
 
+// Shared transaction state belongs below both persistence and the UI scheduler.
+let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, failed: false, accelerationTier: 0, offlineConsumed: false };
+
+/**
+ * @typedef {{statId:string,minValue:number,minTier:number}} EquipmentTargetRule
+ * @typedef {{enabled:boolean,slot:string,scope:('explicit'|'all'),minMatches:number,rules:EquipmentTargetRule[]}} EquipmentTargetFilter
+ * minTier 0 means any tier; minValue uses the displayed stat unit. Each rule matches one option line.
+ */
+/**
+ * Permanent content ledger. Purchased IDs retain order; inherited IDs cost no points.
+ * highestLoop records earned progress; legacy preserves pre-ledger early map access.
+ * paidCosts records actual prices, preserving 1P purchases made before version 6.
+ * @typedef {{version:number, highestLoop:number, unlocked:string[], paidCosts:Record<string, number>, inherited:string[], automatic:string[], grandfathered:string[], legacy?:boolean}} ContentProgressionState
+ */
 const defaultGame = {
+    combatTimeMs: 0,
     saveVersion: 18,
+    // Permanent ledger: income follows CONTENT_UNLOCK_POINTS_PER_LOOP, starting at loop two.
+    contentProgression: { version: 7, highestLoop: 1, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
     loopChallenge: null,
     loopChallengeHistory: [],
     level: 1,
@@ -2317,7 +2275,11 @@ const defaultGame = {
     loopStarterGemGranted: false,
     starterGemTutorialPending: null,
     settings: {
-        tabPlacement: {},
+        // PC와 모바일 메뉴 편집은 서로의 순서·배치를 덮어쓰지 않는다.
+        tabLayouts: {
+            desktop: { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] },
+            mobile: { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] }
+        },
         showCombatScene: true,
         cameraShake: true,
         uiSounds: true,
@@ -2346,6 +2308,7 @@ const defaultGame = {
         showEnemyHpComma: true,
         showCharacterComma: true,
         themeMode: 'dark',
+        uiScale: 100,
         uiSkin: 'reliquary',
         heroAppearanceMode: 'loop',
         leftPaneCollapsed: false,
@@ -2362,6 +2325,7 @@ const defaultGame = {
         itemFilterMinTierCount: 0,
         itemFilterMinHiddenTier: 1,
         itemFilterOnlyNewCodexUnique: false,
+        equipmentTargets: { enabled: false, slot: 'any', scope: 'explicit', minMatches: 1, rules: [] },
         autoEnterMeteor: false,
         autoEnterGrandBreach: false,
         jewelAutoSalvageEnabled: false,
@@ -2485,7 +2449,7 @@ const defaultGame = {
         encounterSerial: 0, wasInCombat: false, foundKeys: ['h1']
     },
     mapSubtab: 'map-tab-zones',
-    unlockedMapContents: ['map-tab-zones', 'map-tab-pvp'],
+    unlockedMapContents: ['map-tab-zones'],
     mapExploreSubtab: 'map-explore-hunting',
     gemFoldInactiveAttack: false,
     gemFoldInactiveSupport: false,
@@ -2542,10 +2506,8 @@ const defaultGame = {
     sporeCraftModes: {},
     shrineState: { activeId: null, spawnCell: null, pity: 0, spawned: 0, claimed: 0 },
     shrineBuff: null,
-    bountyHunt: { pity: 0, offerIds: [], activeId: null, status: 'idle', offered: 0, accepted: 0, completed: 0, abandoned: 0 },
+    bountyHunt: { version:2, remaining:10, pending:null, source:null, completed:0 },
     salvageRecovery: { entries: [], sequence: 0 },
-    challengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
-    activeChallengeContract: { enemyPower: false, fragileArmor: false, shortHunt: false, greedPact: false, enabled: false },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
     loop10ChaosStayEnabled: false,
     loop10BonusStats: { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 },
@@ -2585,6 +2547,7 @@ const defaultGame = {
     gemEngraveSelectedSlot: 0,
     uniqueCodex: {},
     uniqueHuntTargets: [],
+    equipmentDropProgress: 0, // Drought credit; normal 1 / elite 4 / boss 16, reset on an equipment drop.
     codexNewlyRegistered: {},
     codexCollapsedSlots: {},
     codexSubtab: 'main',

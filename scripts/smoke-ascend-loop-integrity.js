@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
-const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const uiSource = (fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/save-migrations.js', 'utf8'));
 const indexSource = fs.readFileSync('index.html', 'utf8');
 
 function extract(source, startNeedle, endNeedle) {

@@ -1,84 +1,37 @@
-let bountyOfferDialogOpen = false;
-let bountyDetailDialogOpen = false;
-
-function getBountyOfferChoices() {
-    let state = bountyRuntime.ensureState();
-    return state.offerIds.map(id => BOUNTY_TARGET_DB[id]).filter(Boolean).map(target => ({
-        value: target.id,
-        label: `${target.icon} ${target.name}`,
-        detail: `위험: ${target.danger} · 보상: ${target.rewardLabel}`
-    }));
-}
-
-async function openBountyOfferDialog() {
-    if (bountyOfferDialogOpen) return;
-    let choices = getBountyOfferChoices();
-    if (choices.length === 0) return;
-    bountyOfferDialogOpen = true;
+// The modal owns presentation; an unopened or postponed reward stays in the saved treasure state.
+let treasureDialogOpen=false;
+async function openTreasureDialog() {
+    if (treasureDialogOpen) return;
+    const pending=bountyRuntime.openTreasure();
+    if (!pending) return;
+    treasureDialogOpen=true;
     try {
-        let selected = await requestGameChoice({
-            title: '희귀 현상금 표적',
-            kicker: 'BOUNTY TRACE',
-            message: '한 표적을 선택하면 다음 일반 사냥 중간에 강화 정예로 출현합니다. 선택 전까지 제안은 사라지지 않습니다.',
-            cancelLabel: '나중에 선택',
-            submitOnChoice: true,
-            choices
-        });
-        let result = selected ? bountyRuntime.acceptOffer(selected) : { accepted: false };
-        if (!result.accepted) return;
-        addLog(`🎯 현상금 수락: [${result.target.name}] · 다음 사냥에서 추적합니다.`, 'loot-unique');
-        if (typeof queueImportantSave === 'function') queueImportantSave(200);
+        saveGame({skipCloudSync:false});
+        const event=TREASURE_EVENT_DB[pending.id];
+        const accepted=await requestGameConfirmation(`${event.text}\n\n발견한 보물: ${bountyRuntime.rewardLabel(pending)}`,
+            {title:event.name,kicker:'보물사냥',tone:'gold',confirmLabel:'보물 받기',cancelLabel:'나중에 받기'});
+        if (!accepted) return;
+        const result=bountyRuntime.claimTreasure();
+        if (!result.ok) return;
+        addLog(`보물사냥 · ${result.event.name}: ${result.label}`,'loot-'+result.event.rarity,{item:result.item,toast:true});
+        saveGame({skipCloudSync:false});
         updateStaticUI();
-    } finally {
-        bountyOfferDialogOpen = false;
-    }
+    } finally { treasureDialogOpen=false; }
 }
-
-async function openActiveBountyDialog() {
-    if (bountyDetailDialogOpen) return;
-    let state = bountyRuntime.ensureState();
-    let target = BOUNTY_TARGET_DB[state.activeId];
-    if (!target) return;
-    bountyDetailDialogOpen = true;
-    try {
-        let status = state.status === 'hunting' ? '현재 교전 중' : '다음 사냥에 출현';
-        let confirmed = await requestGameConfirmation(
-            `위험: ${target.danger}\n보상: ${target.rewardLabel}\n상태: ${status}\n\n추적을 취소하면 진행도와 보상을 잃습니다.`,
-            { title: `${target.icon} ${target.name}`, kicker: 'BOUNTY TRACE', tone: 'danger',
-                confirmLabel: '추적 취소', cancelLabel: '계속 추적' }
-        );
-        if (!confirmed || !bountyRuntime.abandon()) return;
-        addLog(`🎯 [${target.name}] 현상금 추적을 취소했습니다.`, 'attack-monster');
-        if (typeof queueImportantSave === 'function') queueImportantSave(200);
-        updateStaticUI();
-    } finally {
-        bountyDetailDialogOpen = false;
-    }
-}
-
 function getBountyHudState() {
-    let state = bountyRuntime.ensureState();
-    if (!bountyRuntime.isUnlocked()) return { hidden: true, key: 'locked', html: '' };
-    if (state.offerIds.length > 0) {
-        return { key: `offer:${state.offerIds.join(',')}`, html: '<button class="bounty-hud-offer" onclick="bountyUi.openOffer()"><strong>희귀 표적 발견</strong><span>대상 선택</span></button>' };
-    }
-    if (state.activeId) {
-        let target = BOUNTY_TARGET_DB[state.activeId];
-        return { key: `${state.status}:${state.activeId}`, html: `<button class="bounty-hud-active" onclick="bountyUi.openActive()" aria-label="${target.name} 현상금 추적 정보 및 취소"><strong>${target.name} 추적 중</strong></button>` };
-    }
-    return { key: `idle:${state.pity}`, html: `<div class="bounty-hud-progress"><strong>현상금 흔적</strong><span>${state.pity}/${BOUNTY_HUNT_CONFIG.guaranteedAt}</span></div>` };
+    const state=bountyRuntime.ensureState();
+    if (!bountyRuntime.isUnlocked()) return {hidden:true,key:'locked',html:''};
+    if (state.remaining===0) return {key:state.pending ? 'reward' : 'ready',
+        html:`<button class="bounty-hud-offer" onclick="bountyUi.openTreasure()"><strong>보물사냥</strong><span>${state.pending ? '발견한 보물 받기' : '탐색하기'}</span></button>`};
+    return {key:'count:'+state.remaining,html:`<div class="bounty-hud-progress"><strong>다음 보물사냥까지</strong><span>${state.remaining}</span></div>`};
 }
-
 function renderBountyHud() {
-    let box = document.getElementById('ui-bounty-box');
+    const box=document.getElementById('ui-bounty-box');
     if (!box) return;
-    let view = getBountyHudState();
-    box.hidden = !!view.hidden;
-    if (view.hidden || box.dataset.stateKey === view.key) return;
-    box.innerHTML = view.html;
-    box.dataset.stateKey = view.key;
+    const view=getBountyHudState();
+    box.hidden=!!view.hidden;
+    if (view.hidden || box.dataset.stateKey===view.key) return;
+    box.innerHTML=view.html;box.dataset.stateKey=view.key;
 }
-
-const bountyUi = Object.freeze({ renderHud: renderBountyHud, openOffer: openBountyOfferDialog,
-    openActive: openActiveBountyDialog });
-safeExposeGlobals({ bountyUi });
+const bountyUi=Object.freeze({renderHud:renderBountyHud,openTreasure:openTreasureDialog});
+safeExposeGlobals({bountyUi});

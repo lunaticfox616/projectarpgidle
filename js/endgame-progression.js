@@ -618,6 +618,8 @@ function startBeyondBoundaryRun(tierValue, ownerState) {
     let source = ownerState || game;
     let state = ensureBeyondBoundaryState(source);
     if (!state.unlocked || state.activeRun) return { ok: false, code: state.activeRun ? 'active' : 'locked' };
+    const reward = getBeyondBoundaryRewardFocusStatus(state.selectedRewardFocusId, source);
+    if (!reward.available) return { ok: false, code: 'reward-locked', reason: reward.reason };
     let tier = clampNumber(Math.floor(Number(tierValue) || state.selectedTier), 1, state.highestTier);
     let payment = spendBeyondBoundaryIntensityCosts(state.selectedIntensityId, source);
     if (!payment.ok) return { ok: false, code: 'cost', costs: payment.costs };
@@ -676,9 +678,18 @@ function selectBeyondBoundarySeal(sealId, ownerState) {
     return true;
 }
 
+/** Read-only reward eligibility shared by selection, entry, payout and the UI. */
+function getBeyondBoundaryRewardFocusStatus(focusId, ownerState = game) {
+    const def = BEYOND_BOUNDARY_REWARD_FOCUS_DB.find(row => row.id === focusId);
+    if (!def) return { available: false, reason: '알 수 없는 보상입니다.' };
+    if (!def.unlock || contentProgression.isUnlocked(def.unlock, ownerState)) return { available: true, reason: '' };
+    const feature = CONTENT_UNLOCK_CATALOG.find(row => row.id === def.unlock);
+    return { available: false, reason: `${feature.name} 해금 필요` };
+}
+
 function selectBeyondBoundaryRewardFocus(focusId, ownerState) {
     let state = ensureBeyondBoundaryState(ownerState || game);
-    if (state.activeRun || !BEYOND_BOUNDARY_REWARD_FOCUS_DB.some(row => row.id === focusId)) return false;
+    if (state.activeRun || !getBeyondBoundaryRewardFocusStatus(focusId, ownerState || game).available) return false;
     state.selectedRewardFocusId = focusId;
     return true;
 }
@@ -716,6 +727,6 @@ safeExposeGlobals({
     isBeyondBoundaryUnlockRequirementMet, reconcileBeyondBoundaryUnlock, getBeyondBoundarySealLevelCost,
     startBeyondBoundaryRun, completeBeyondBoundaryEncounter, abandonBeyondBoundaryRun,
     selectBeyondBoundaryTier, selectBeyondBoundarySeal,
-    selectBeyondBoundaryRewardFocus, selectBeyondBoundaryIntensity,
+    selectBeyondBoundaryRewardFocus, selectBeyondBoundaryIntensity, getBeyondBoundaryRewardFocusStatus,
     getBeyondBoundaryIntensityCosts, getBeyondBoundaryGlobalStats
 });

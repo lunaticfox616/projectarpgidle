@@ -620,7 +620,7 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
         onclick="equipmentInventoryInteraction.handleItemClick(event,this.dataset.equipmentGridKey,${idx})"
         ondblclick="equipmentInventoryInteraction.handleItemDoubleClick(event,this.dataset.equipmentGridKey,${item.id})"
         onmouseenter="if(!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)" onmousemove="if(!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)" onmouseleave="hideItemTooltip(event)">
-        <img src="${asset}" alt="" aria-hidden="true" draggable="false"><span class="equipment-grid-item-name">${escapeHTML(item.name || item.baseName || '장비')}</span>
+        <img src="${asset}" alt="" aria-hidden="true" draggable="false"><span class="equipment-grid-slot-label">${escapeHTML(item.slot)}</span><span class="equipment-grid-item-name">${escapeHTML(item.name || item.baseName || '장비')}</span>
         <span class="equipment-grid-item-badges">${badges}</span>
     </button>`;
 }
@@ -679,7 +679,7 @@ function renderEquipmentInventoryInspector(rows) {
         <strong class="${item.rarity || 'normal'}">${escapeHTML(item.name || item.baseName || '장비')}</strong><small>${escapeHTML(item.baseName || '')}${presetProtected ? ' · 세팅 보호' : ''}${item.locked ? ' · 잠금' : ''}</small></div>
     </div><div class="equipment-grid-inspector-actions">
         <button class="equipment-card-primary" onclick="equipmentInventoryInteraction.cancelCarry();equipItemById(${item.id})">장착</button>
-        <button onclick="craftSelectInventoryItemById(${item.id})">제작</button>
+        <button data-content-action="craft" onclick="craftSelectInventoryItemById(${item.id})">제작</button>
         <button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})">${item.locked ? '잠금해제' : '잠금'}</button>
         <button class="equipment-card-danger" title="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button>
     </div>`;

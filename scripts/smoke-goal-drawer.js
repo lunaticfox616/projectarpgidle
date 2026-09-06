@@ -111,6 +111,7 @@ function bootManager() {
         });
     };
     vm.createContext(context);
+    require('./lib/load-ui-display')(context);
     vm.runInContext(source, context, { filename: 'js/ui-window-manager.js' });
     return { dom, exposed, timers, switchCalls, itemSubtabCalls, skillSubtabCalls, documentListeners, context };
 }
@@ -245,7 +246,7 @@ const goal = id => ({ id, title: '혼돈 14층을 돌파하세요', description:
         }
     });
     assert.strictEqual(m.dom.registry['ui-goal-next-unlock'], undefined, '목표 서랍에 해금 카드 호스트를 만들지 않는다');
-    assert.strictEqual(m.dom.registry['ui-goal-handle-progress'].textContent, '1개', '해금 카드는 목표 개수에도 포함하지 않는다');
+    assert.strictEqual(m.dom.registry['ui-goal-handle-progress'], undefined, '목표 손잡이는 개수 없이 제목만 표시한다');
     assert.deepStrictEqual(m.switchCalls, [], '숨긴 해금 데이터가 화면 이동을 일으키지 않는다');
 }
 

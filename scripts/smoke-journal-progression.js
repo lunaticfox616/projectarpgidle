@@ -10,7 +10,7 @@ function extract(source, startNeedle, endNeedle) {
 }
 
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
-const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const uiSource = (fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/save-migrations.js', 'utf8'));
 const mapsSource = fs.readFileSync('data/maps.js', 'utf8');
 const htmlSource = fs.readFileSync('index.html', 'utf8');
 

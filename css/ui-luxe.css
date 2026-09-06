@@ -40,10 +40,15 @@ body:not(.light-mode) :focus-visible {
 
 body:not(.light-mode) * {
   scrollbar-color: rgba(94, 129, 169, 0.68) rgba(5, 9, 15, 0.5);
+}
+
+body:not(.light-mode) *,
+body.light-mode * {
   scrollbar-width: thin;
 }
 
-body:not(.light-mode) *::-webkit-scrollbar { width: 8px; height: 8px; }
+body:not(.light-mode) *::-webkit-scrollbar,
+body.light-mode *::-webkit-scrollbar { width: 8px; height: 8px; }
 body:not(.light-mode) *::-webkit-scrollbar-track { background: rgba(5, 9, 15, 0.54); }
 body:not(.light-mode) *::-webkit-scrollbar-thumb {
   border: 2px solid rgba(5, 9, 15, 0.7);
@@ -343,11 +348,17 @@ body:not(.light-mode).desktop-windowed-ui .combat-hp-bar {
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
-body:not(.light-mode).desktop-windowed-ui .player-hud {
+body:not(.light-mode).desktop-windowed-ui .player-hud,
+body.light-mode.desktop-windowed-ui .player-hud {
   min-height: 88px;
   padding: 10px 14px 9px;
-  border: 1px solid rgba(84, 121, 158, 0.38);
+  border-width: 1px;
+  border-style: solid;
   border-radius: 14px;
+}
+
+body:not(.light-mode).desktop-windowed-ui .player-hud {
+  border-color: rgba(84, 121, 158, 0.38);
   background: linear-gradient(180deg, rgba(12, 20, 31, 0.82), rgba(5, 10, 17, 0.78));
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.045);
   backdrop-filter: blur(7px);

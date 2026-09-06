@@ -1971,8 +1971,8 @@
         ATLAS.tooltip.innerHTML = `<strong>${escapeHtml(node.name)}</strong><br><span>${escapeHtml(node.source)}</span><br>${escapeHtml(node.theme)}${mechanicLine}<br><em>${getStatusLabel(status)}</em>`;
         const rect = ATLAS.host.getBoundingClientRect();
         ATLAS.tooltip.style.display = 'block';
-        ATLAS.tooltip.style.left = `${event.clientX - rect.left + 14}px`;
-        ATLAS.tooltip.style.top = `${event.clientY - rect.top + 14}px`;
+        ATLAS.tooltip.style.left = `${(event.clientX - rect.left) / uiDisplay.factor + 14}px`;
+        ATLAS.tooltip.style.top = `${(event.clientY - rect.top) / uiDisplay.factor + 14}px`;
     }
 
     function getStatusLabel(status) {

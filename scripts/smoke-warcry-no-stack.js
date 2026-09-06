@@ -37,6 +37,7 @@ const context = {
 };
 context.window = context;
 vm.createContext(context);
+require('./lib/load-combat-clock')(context);
 vm.runInContext(skillsSource, context, { filename: 'data/skills.js' });
 vm.runInContext(fs.readFileSync('js/condition-patterns.js', 'utf8'), context, { filename: 'js/condition-patterns.js' });
 context.window.CONDITION_GEM_DB = context.CONDITION_GEM_DB;

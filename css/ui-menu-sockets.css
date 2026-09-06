@@ -1,170 +1,3 @@
-/* One supplied menu image, with one directly actionable tab per illustrated socket. */
-
-body.desktop-windowed-ui { --menu-rail-width: clamp(80px, min(29.2svh, 18vw), 216px); }
-
-body.desktop-windowed-ui #left-pane {
-  padding-left: calc(var(--menu-rail-width) + 12px) !important;
-}
-
-body.desktop-windowed-ui .player-panel {
-  left: calc(var(--menu-rail-width) + 12px) !important;
-}
-
-.ui-rail-label {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 1em;
-  line-height: 1;
-}
-
-body.desktop-windowed-ui .tab-header:not(.tab-header-bottom) {
-  position: fixed;
-  top: 8px;
-  bottom: auto;
-  left: 6px;
-  width: var(--menu-rail-width);
-  height: auto;
-  aspect-ratio: 216 / 532;
-  padding: 0;
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
-  background: transparent !important;
-  box-shadow: none;
-}
-
-body.desktop-windowed-ui .ui-rail-art {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  filter: drop-shadow(8px 10px 14px rgba(0, 0, 0, .55));
-  pointer-events: none;
-  user-select: none;
-}
-
-body.desktop-windowed-ui .ui-rail-tab-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: block;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  pointer-events: none;
-}
-
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn {
-  position: absolute;
-  top: var(--rail-socket-y);
-  left: var(--rail-socket-x);
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  width: 24.5%;
-  min-width: 0;
-  height: auto;
-  min-height: 0;
-  aspect-ratio: 1;
-  padding: 4px 2px;
-  box-sizing: border-box;
-  border: 1px solid transparent !important;
-  border-radius: 50% !important;
-  color: #f7e8e2;
-  background: transparent !important;
-  box-shadow: none !important;
-  font-size: clamp(7px, .62vw, 10px);
-  font-weight: 800;
-  line-height: 1.05;
-  text-align: center;
-  text-shadow: 0 1px 3px #000;
-  white-space: normal;
-  overflow: visible;
-  pointer-events: auto;
-  transform: translate(-50%, -50%) !important;
-  transition: color .13s ease, background .13s ease, border-color .13s ease, box-shadow .13s ease !important;
-}
-
-body.desktop-windowed-ui .ui-rail-tab-layer .ui-rail-label {
-  display: block;
-  width: 100%;
-  max-height: 2.1em;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  line-height: 1.05;
-  text-align: center;
-}
-
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn:hover,
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.active:not([aria-pressed="false"]),
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.ui-window-open {
-  border-color: rgba(255, 198, 184, .88) !important;
-  color: #fff7f2;
-  background: radial-gradient(circle, rgba(112, 53, 59, .68), rgba(20, 10, 13, .18) 68%, transparent 72%) !important;
-  box-shadow: 0 0 12px rgba(217, 100, 107, .34), inset 0 0 8px rgba(255, 208, 194, .12) !important;
-  transform: translate(-50%, -50%) !important;
-}
-
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn::before {
-  width: auto;
-  height: auto;
-  font-size: clamp(12px, 1.18vw, 18px);
-  line-height: 1;
-}
-
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn::after { display: none; }
-body.desktop-windowed-ui .ui-rail-tab-layer .noti-dot {
-  top: -3px !important;
-  right: -3px !important;
-  z-index: 9;
-}
-body.desktop-windowed-ui .ui-rail-tab-layer .inventory-full-warning {
-  position: absolute;
-  top: -5px;
-  right: -13px;
-  z-index: 9;
-  margin: 0;
-  white-space: nowrap;
-}
-
-/* Supplied six-by-six button sheet, sliced into the five menu interaction states. */
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn {
-  border-color: transparent !important;
-  background: url('../assets/ui/menu-tab-default-v1.png') center / 100% 100% no-repeat !important;
-  box-shadow: none !important;
-  transition: transform .1s ease, filter .1s ease !important;
-}
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.ui-window-open,
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.active:not([aria-pressed="false"]),
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn[aria-pressed="true"] {
-  background: url('../assets/ui/menu-tab-active-v1.png') center / 100% 100% no-repeat !important;
-  color: #fff9e9;
-  filter: drop-shadow(0 0 4px rgba(255, 218, 140, .34));
-}
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn:hover:not(:disabled):not([aria-disabled="true"]) {
-  background: url('../assets/ui/menu-tab-hover-v1.png') center / 100% 100% no-repeat !important;
-  filter: brightness(1.05) drop-shadow(0 0 5px rgba(255, 222, 151, .48));
-}
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn:active:not(:disabled):not([aria-disabled="true"]) {
-  background: url('../assets/ui/menu-tab-pressed-v1.png') center / 100% 100% no-repeat !important;
-  filter: brightness(.94);
-  transform: translate(-50%, -50%) scale(.94) !important;
-}
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn:disabled,
-body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn[aria-disabled="true"] {
-  background: url('../assets/ui/menu-tab-disabled-v1.png') center / 100% 100% no-repeat !important;
-  color: #85818a;
-  cursor: not-allowed;
-  filter: grayscale(.24);
-}
-
 .tab-header .tab-btn[data-merged-tab-member="1"] { display: none !important; }
 
 .merged-tab-shell > .merged-tab-subtabs {
@@ -237,7 +70,7 @@ body.desktop-windowed-ui .ui-rail-external-btn {
   box-shadow:
     inset 0 1px rgba(210, 239, 255, .12),
     inset 0 -1px rgba(0, 0, 0, .7);
-  font-family: var(--game-font-display, 'MulmaruMono', 'Malgun Gothic', sans-serif);
+  font-family: var(--game-font-body);
   font-size: clamp(7px, .58vw, 9px);
   font-weight: 800;
   letter-spacing: .04em;
@@ -270,12 +103,12 @@ body.desktop-windowed-ui .ui-rail-misc-panel {
   bottom: auto;
   z-index: 6;
   display: grid;
-  grid-template-columns: repeat(2, 76px);
+  grid-template-columns: repeat(2, 126px);
   gap: 4px;
   padding: 6px;
-  border: 1px solid rgba(118, 76, 77, .72);
-  border-radius: 2px 9px 2px 9px;
-  background: linear-gradient(155deg, rgba(37, 23, 27, .98), rgba(9, 7, 9, .98));
+  border: 1px solid var(--skin-line-strong);
+  border-radius: 3px;
+  background: #11110f;
   box-shadow: 0 12px 28px rgba(0, 0, 0, .58), inset 0 0 0 1px rgba(225, 167, 153, .06);
   pointer-events: auto;
 }
@@ -285,15 +118,15 @@ body.desktop-windowed-ui .ui-rail-misc-panel[hidden] { display: none !important;
 body.desktop-windowed-ui .ui-rail-misc-panel .tab-btn {
   position: relative;
   display: flex;
-  width: 76px;
+  width: 126px;
   min-width: 0;
-  min-height: 36px;
+  min-height: 44px;
   padding: 4px;
-  border: 1px solid rgba(129, 87, 84, .42);
+  border: 1px solid var(--skin-line);
   border-radius: 5px;
-  color: #ead9d4;
-  background: rgba(31, 20, 24, .94);
-  font-size: 8px;
+  color: var(--ui-text-2);
+  background: var(--ui-surface-3);
+  font-size: 12px;
   white-space: normal;
   transform: none !important;
   transition: color .13s ease, background .13s ease, border-color .13s ease !important;
@@ -301,9 +134,9 @@ body.desktop-windowed-ui .ui-rail-misc-panel .tab-btn {
 
 body.desktop-windowed-ui .ui-rail-misc-panel .tab-btn:hover,
 body.desktop-windowed-ui .ui-rail-misc-panel .tab-btn.ui-window-open {
-  border-color: rgba(255, 198, 184, .72);
+  border-color: var(--skin-line-strong);
   color: #fff7f2;
-  background: rgba(72, 35, 40, .94);
+  background: #30281b;
   transform: none !important;
 }
 
@@ -314,4 +147,4 @@ body.desktop-windowed-ui .ui-rail-misc-panel .tab-btn::before {
 }
 
 body.desktop-windowed-ui .ui-rail-misc-panel .tab-btn::after { display: none; }
-body.desktop-windowed-ui .ui-rail-misc-panel #btn-map-complete-action-picker { font-size: 7px; }
+body.desktop-windowed-ui .ui-rail-misc-panel #btn-map-complete-action-picker { font-size: 11px; }

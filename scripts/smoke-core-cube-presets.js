@@ -35,9 +35,10 @@ function loadCubeContext(options = {}) {
     context.window.game = context.game;
     context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context[key] = map[key]; });
     vm.createContext(context);
-    // 패널 렌더는 DOM에 의존하므로 로드 후 무해한 스텁으로 덮는다(도메인 동작만 본다).
+    require('./lib/load-content-progression')(context);
+    // DOM은 플랫폼 경계다. 도메인 검사에서도 실제 렌더 함수를 유지한다.
+    context.document = { getElementById() { return null; } };
     vm.runInContext(fs.readFileSync('js/core-cube.js', 'utf8'), context);
-    vm.runInContext('renderCoreCubePanel = function () {};', context);
     return context;
 }
 
@@ -227,38 +228,29 @@ async function main() {
         assert.strictEqual(run(ctx, 'ensureCoreCubeState().presetSlot2Unlocked'), true, '해금이 상태에 기록되어야 한다');
     }
 
-    // ── 렌더 지문 계약 (js/core-cube.js) ─────────────────────────────────
-    // renderCoreCubePanel은 큐브 탭이 열려 있는 동안 updateStaticUI마다 불린다.
-    // 매번 45개 동력원 버튼과 캔버스를 다시 만들면 10~26ms가 나와 프레임이 튄다.
-    // 지문으로 걸러 내되, 화면에 나오는 값이 지문에서 빠지면 반대로 화면이 굳는다.
+    // 캐시 구현 방식 대신 같은 화면의 재사용과 상태 변경 후 표시를 검사한다.
     {
-        const src = fs.readFileSync('js/core-cube.js', 'utf8');
-        const sig = src.slice(src.indexOf('function getCoreCubePanelSignature'), src.indexOf('function renderCoreCubePanel'));
-        assert.ok(sig.length > 0, '렌더 지문 함수가 있어야 한다');
-        [
-            ['st.faces', '각인된 면'],
-            ['selectedFace', '선택한 면'],
-            ['completed', '완성 여부'],
-            ['blurred45', '흐릿한 45면체 보유량'],
-            ['lastPower', '최근 획득 동력원'],
-            ['powers', '보관함 동력원'],
-            ['powersUsedEver', '각인 이력(2번 칸 진행도)'],
-            ['presets', '저장된 조합'],
-            ['revealedOptions', '발현된 옵션'],
-            ['presetSlot2Unlocked', '2번 칸 영구 해금'],
-            ['unlocked', '큐브 해금'],
-            ['highestFloor', '잠김 안내의 지하계 진행도'],
-            ['currentLoop', '잠김 안내의 루프 진행도']
-        ].forEach(([token, why]) => {
-            assert.ok(sig.includes(token), `렌더 지문에 ${token}(${why})이 빠지면 화면이 낡은 채로 굳는다`);
-        });
-        const render = src.slice(src.indexOf('function renderCoreCubePanel'), src.indexOf('function renderCoreCubePanel') + 700);
-        assert.ok(/options\s*&&\s*options\.force/.test(render), '강제 렌더 경로가 있어야 한다');
-        assert.ok(/!host\.firstChild/.test(render), '비어 있는 화면은 지문과 무관하게 그려야 한다');
-        // 상태를 바꾸는 쪽은 지문을 믿지 않고 강제로 다시 그린다.
-        const mutators = src.slice(0, src.indexOf('function getCoreCubePanelSignature'));
-        assert.ok(!/(^|\n)\s*renderCoreCubePanel\(\);/.test(mutators),
-            '상태 변경 후의 renderCoreCubePanel 호출은 { force: true }여야 한다');
+        const ctx = loadCubeContext();
+        let html = '', writes = 0;
+        const host = {
+            get innerHTML() { return html; },
+            set innerHTML(value) { html = value; writes++; },
+            get firstChild() { return html ? {} : null; }
+        };
+        ctx.document.getElementById = id => id === 'ui-core-cube-panel' ? host : null;
+        run(ctx, 'renderCoreCubePanel()');
+        assert(html.includes('보유 동력원이 없습니다.'), '빈 보관함을 표시해야 한다');
+        const initialWrites = writes;
+        run(ctx, 'renderCoreCubePanel()');
+        assert.strictEqual(writes, initialWrites, '변경 없는 화면을 재생성하면 안 된다');
+        run(ctx, 'ensureCoreCubeState().powers = { 7: 2 }; renderCoreCubePanel();');
+        assert(html.includes('7의 동력원 2개'), '획득한 동력원과 수량이 화면에 반영돼야 한다');
+        run(ctx, 'selectCoreCubeFace(3)');
+        assert(html.includes('4번 면 선택'), '면 선택이 실제 화면에 반영돼야 한다');
+        const beforeClear = html;
+        html = '';
+        run(ctx, 'renderCoreCubePanel()');
+        assert.strictEqual(html, beforeClear, 'DOM이 비워지면 같은 상태라도 화면을 복원해야 한다');
     }
 
     console.log('smoke-core-cube-presets passed');

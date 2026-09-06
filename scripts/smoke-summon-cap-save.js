@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 const { TALENT_BLOOM_CARD_DEFS } = require('../data/talent-cards');
 
-const source = fs.readFileSync('js/ui.js', 'utf8');
+const source = fs.readFileSync('js/save-migrations.js', 'utf8');
 const start = source.indexOf('function estimateSummonEquipCapForMergedSave');
 assert.ok(start >= 0, 'save summon-cap estimator not found');
 

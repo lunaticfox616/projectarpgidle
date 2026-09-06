@@ -33,6 +33,8 @@ jobs:
         run: npm ci
       - name: 스모크 검사 실행
         run: npm test
+      - name: 구조 및 복잡도 래칫 검사
+        run: npm run check:architecture
 
   browser:
     name: browser (${{ matrix.shard }}/4)

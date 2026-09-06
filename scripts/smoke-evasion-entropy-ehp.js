@@ -119,7 +119,7 @@ try {
     context.game.inventory = [];
     context.__summaryStats = simpleStats;
     run('renderEquipmentLoadoutSummary(__summaryStats)');
-    ['물리 EHP', '화염 EHP', '냉기 EHP', '번개 EHP', '카오스 EHP'].forEach(label => {
+    ['물리', '화염', '냉기', '번개', '카오스'].forEach(label => {
         assert.ok(summaryHost.innerHTML.includes(label), `the equipment summary must render ${label}`);
     });
     assert.ok(summaryHost.innerHTML.includes('직격 EHP 3,999'),
@@ -127,7 +127,7 @@ try {
     assert.ok(summaryHost.innerHTML.includes('엔트로피 회피 50.0%'),
         'the EHP tooltip must explain the entropy multiplier');
     run('renderCharacterEhpSummary(__summaryStats)');
-    ['물리 EHP', '화염 EHP', '냉기 EHP', '번개 EHP', '카오스 EHP'].forEach(label => {
+    ['물리', '화염', '냉기', '번개', '카오스'].forEach(label => {
         assert.ok(characterHost.innerHTML.includes(label), `the character sheet must render ${label}`);
     });
 } finally {

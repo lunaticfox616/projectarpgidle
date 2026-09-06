@@ -10,7 +10,9 @@ const context = {
 };
 context.globalThis = context;
 context.safeExposeGlobals = map => { Object.assign(exposed, map); Object.assign(context, map); };
+context.safeExposeData = context.safeExposeGlobals;
 vm.createContext(context);
+vm.runInContext(fs.readFileSync('data/constants.js', 'utf8'), context, { filename: 'data/constants.js' });
 vm.runInContext(source, context, { filename: 'js/combat-patterns.js' });
 vm.runInContext(fs.readFileSync('js/cosmos-rules.js', 'utf8'), context, { filename: 'js/cosmos-rules.js' });
 
@@ -72,15 +74,17 @@ assert.strictEqual(exposed.getBossPatternPeakDamageMultiplier('slam'), 1.55,
     'slam readiness should use its actual peak hit multiplier');
 assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplier(), 1.55,
     'unknown boss patterns should use the strongest possible special hit');
-assert.deepStrictEqual(Array.from(exposed.getBossPatternModesForLoop(5)), [],
-    'boss patterns should remain locked through loop 5');
+assert.deepStrictEqual(Array.from(exposed.getBossPatternModesForLoop(1)), ['intro'],
+    'the first loop should teach one readable ground attack');
+assert.deepStrictEqual(Array.from(exposed.getBossPatternModesForLoop(5)), ['intro'],
+    'early loops should keep the introductory pattern');
 assert.deepStrictEqual(Array.from(exposed.getBossPatternModesForLoop(6)), ['ramp'],
     'loop 6 should introduce the gentlest boss pattern first');
 assert.deepStrictEqual(Array.from(exposed.getBossPatternModesForLoop(7)), ['ramp', 'burst'],
     'loop 7 should add burst without introducing slam yet');
 assert.deepStrictEqual(Array.from(exposed.getBossPatternModesForLoop(8)), ['ramp', 'burst', 'slam'],
     'loop 8 should unlock the complete ordinary boss pattern set');
-assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplierForLoop(5), 1);
+assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplierForLoop(5), 1.15);
 assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplierForLoop(6), 1.21);
 assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplierForLoop(7), 1.30);
 assert.strictEqual(exposed.getMaximumBossPatternDamageMultiplierForLoop(8), 1.55);
@@ -95,14 +99,12 @@ assert.ok(exposed.getBossPatternDescription('slam').includes('3번째 공격'), 
     enemy.attackTimer = 0.5;
     assert.strictEqual(exposed.updateBossPatternTelegraph(enemy, 1000), false, 'crossing the warning threshold should start a minimum telegraph window');
     enemy.attackTimer = 1;
-    assert.strictEqual(exposed.updateBossPatternTelegraph(enemy, 1359), false, 'a charged special attack must wait for its warning window');
-    assert.strictEqual(exposed.updateBossPatternTelegraph(enemy, 1360), true, 'a special attack may resolve after the minimum warning window');
+    assert.strictEqual(exposed.updateBossPatternTelegraph(enemy, 2499), false, 'a charged special attack must wait for its warning window');
+    assert.strictEqual(exposed.updateBossPatternTelegraph(enemy, 2500), true, 'a special attack may resolve after the minimum warning window');
     exposed.consumeBossPatternAttack(enemy);
     assert.strictEqual(enemy.patternTelegraphKey, null, 'consuming a pattern should clear its telegraph latch');
 }
 
-const combatSource = fs.readFileSync('js/combat.js', 'utf8');
-assert.ok(combatSource.includes('bossAttacksThisTick >= 1'), 'bosses should not execute multiple untelegraphed attacks in one simulation tick');
-assert.ok(combatSource.includes('updateBossPatternTelegraph(enemy, Date.now())'), 'combat should enforce special-pattern telegraph readiness');
+// Actual damage, warning locks and automatic escape run in smoke-boss-pattern-areas.js.
 
 console.log('smoke-boss-patterns passed');

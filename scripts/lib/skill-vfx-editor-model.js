@@ -12,7 +12,9 @@ const VFX_LABELS = Object.freeze({
     skillFxMeteorProjectile: ['유성 낙하체', '유성 낙화 비행 구간'],
     skillFxMeteorImpact: ['유성 충돌', '유성 낙화 착탄 순간'],
     skillFxMeteorGround: ['유성 잔류 지면', '유성 낙화의 불타는 지면'],
-    skillFxSlash: ['공용 베기', '기본 공격·베기 계열'],
+    skillFxContinuousSlash: ['속성 베기', '번개 타격·흡혈 타격 등 공용 속성 궤적'],
+    skillFxBasicSlash: ['기본 공격', '기본 검격 2×2 프레임 시트'],
+    skillFxDoubleSlash: ['연속 베기', '교차 검격 2×2 프레임 시트'],
     skillFxProjectile: ['공용 투사체', '얼음 창·관통 사격·연발 사격 등'],
     skillFxVenomFang: ['독니 사출', '독니 사출 전용 투사체'],
     skillFxFrostField: ['서리 장판', '냉기 범위·장판 이동 효과'],
@@ -22,7 +24,11 @@ const VFX_LABELS = Object.freeze({
     skillFxChaosBoomerang: ['카오스 부메랑', '왕복 투사체'],
     skillFxFrostBurst: ['서리 폭발', '중심에서 범위 끝까지 퍼지는 냉기 파동'],
     skillFxFrostWaveRing: ['서리 폭발 파동', '중앙 폭발 뒤 별도로 퍼지는 원형 파동'],
-    skillFxBurst: ['공용 폭발', '폭발·함성·조건 스킬'],
+    skillFxBurst: ['준비 문양', '지뢰 준비·함성·조건 스킬'],
+    skillFxImpactFlare: ['적중 섬광', '투사체·개별 피격'],
+    skillFxEarthSpike: ['지진 쐐기', '지진 파쇄 여진'],
+    skillFxEarthCrack: ['지진 지면 균열', '지진 파쇄의 연결된 균열'],
+    skillFxRadialWave: ['원형 충격파', '불멸의 진동·삼원 파동·지뢰 폭발'],
     skillFxDotField: ['지속 피해 장판', '화염 부패·빙결 침식·저주'],
     skillFxSummonStrike: ['소환수 타격', '소환수 공격 공통'],
     skillFxFocusBeam: ['집중 광선', '집중 광선 채널링'],
@@ -55,7 +61,8 @@ function parseActiveVfxAssets(source) {
 
 function loadVfxAssetCatalog(root) {
     const passivesFile = path.join(root, 'js', 'passives.js');
-    return parseActiveVfxAssets(fs.readFileSync(passivesFile, 'utf8')).map(entry => {
+    const areaSource = fs.readFileSync(path.join(root, 'data', 'skills.js'), 'utf8');
+    return parseActiveVfxAssets(fs.readFileSync(passivesFile, 'utf8') + '\n' + areaSource).map(entry => {
         const file = path.resolve(root, entry.path);
         if (!file.startsWith(`${path.resolve(root)}${path.sep}`) || !fs.existsSync(file)) {
             throw new Error(`${entry.path}: 실제 파일을 찾지 못했습니다.`);

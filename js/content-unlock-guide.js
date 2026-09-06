@@ -201,7 +201,7 @@
         if (zone.pinnacleTrack === 'underworld') return '지하계 층수';
         if (zone.pinnacleTrack === 'ocean') return '심해 깊이';
         if (zone.pinnacleTrack === 'sky') return '창공의 탑 층수';
-        return '최종 관문 격파';
+        return '수호자 격파';
     }
 
     function pinnacleGuide(state) {
@@ -213,33 +213,36 @@
         let isObserver = !!next.pinnacleCapstone;
         return guide({
             id: next.id, title: next.name,
-            description: isObserver ? '지하·심해·창공·우주의 네 최종 관문을 모두 넘으면 마지막 관측자가 나타납니다.'
-                : '아틀라스 최종 관문의 수호자입니다. 대응하는 무한 콘텐츠 기록을 완성하세요.',
+            description: isObserver ? '지하·심해·창공·우주의 네 수호자를 격파하면 최종 관문, 베일라에게 도전할 수 있습니다.'
+                : '경계의 수호자입니다. 대응하는 무한 콘텐츠 기록을 완성하세요.',
             requirements: [requirement(getPinnacleRequirementLabel(next), gate.met, gate.current, gate.target)],
             actionLabel: gate.met ? '보스 도전' : '진행 화면 보기', actionTabId: 'tab-map', actionSubtabId: gate.met ? 'map-explore-root-boss' : getPinnacleSubtab(next)
         });
     }
 
+    function contentChoiceGuide(state) {
+        return guide({
+            id: 'content-choice', title: '콘텐츠 선택 해금',
+            description: contentProgression.balance(state) > 0 ? '해금 포인트로 원하는 콘텐츠를 선택하세요.' : `다음 루프에 도달하면 해금 포인트를 ${CONTENT_UNLOCK_POINTS_PER_LOOP}점 얻습니다.`,
+            requirements: [requirement('해금 포인트', contentProgression.balance(state) > 0, contentProgression.balance(state), 1)],
+            actionLabel: '콘텐츠 선택', actionTabId: state.season >= 2 ? 'tab-unlocks' : 'tab-items'
+        });
+    }
+
     function getNextMajorContentUnlock(state) {
         if (!state || typeof state !== 'object') return null;
+        if (state.contentProgression) return contentChoiceGuide(state);
+        return getNextLegacyContentUnlock(state);
+    }
+
+    function getNextLegacyContentUnlock(state) {
         let loop = Math.max(1, count(state.season) || 1);
-        let found = conditionGemGuide(state) || eventUnlockGuide(state) || chaosRealmGuide(state) || skyTowerGuide(state);
-        if (found) return found;
-        if (loop >= 18) {
-            found = underworldGuide(state);
+        const candidates = [conditionGemGuide, eventUnlockGuide, chaosRealmGuide, skyTowerGuide];
+        if (loop >= 18) candidates.push(underworldGuide, coreCubeGuide, cosmosGuide);
+        if (tabUnlocked(state, 'map-tab-cosmos') && loop >= 31) candidates.push(astraGuide, pinnacleGuide);
+        for (const candidate of candidates) {
+            const found = candidate(state);
             if (found) return found;
-            found = coreCubeGuide(state);
-            if (found) return found;
-            found = cosmosGuide(state);
-            if (found) return found;
-        }
-        if (tabUnlocked(state, 'map-tab-cosmos')) {
-            if (loop < 31) return loopMilestoneGuide(state);
-            found = astraGuide(state);
-            if (found) return found;
-            found = pinnacleGuide(state);
-            if (found) return found;
-            return loopMilestoneGuide(state);
         }
         return loopMilestoneGuide(state);
     }

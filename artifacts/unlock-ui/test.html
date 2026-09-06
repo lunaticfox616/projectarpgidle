@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>해금 시스템 테스트</title>
+  <link rel="stylesheet" href="test.css">
+  <script src="test.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="lab-title"><strong>해금 테스트</strong><span>실제 저장과 분리 · 새로고침하면 초기화</span></div>
+    <fieldset disabled id="controls">
+      <label>루프 <select id="loop"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>7</option><option>10</option><option>15</option><option>20</option><option>25</option><option>50</option></select></label>
+      <button data-action="point">해금 P +2</button>
+      <button data-action="investment">패시브 P +10</button>
+      <button data-action="discover">발견 조건 충족</button>
+      <button data-action="open">해금창 열기</button>
+      <button id="reset">초기화</button>
+    </fieldset>
+    <p id="status" role="status">실제 게임을 준비하는 중…</p>
+  </header>
+  <iframe id="game" title="저장되지 않는 해금 테스트 게임" sandbox="allow-scripts allow-same-origin"></iframe>
+</body>
+</html>

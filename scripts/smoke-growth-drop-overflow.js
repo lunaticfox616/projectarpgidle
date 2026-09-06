@@ -7,7 +7,7 @@ const ctx = buildGameRuntime();
 const run = code => vm.runInContext(code, ctx);
 
 function resetGame() {
-    run('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;');
+    run('game = JSON.parse(JSON.stringify(defaultGame)); game.contentProgression.inherited = ["craft"]; window.game = game;');
 }
 
 (async () => {

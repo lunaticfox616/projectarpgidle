@@ -125,8 +125,12 @@ definitions.forEach(def => {
 assert.deepStrictEqual(definitions.map(def => def.attackKeys.length), [2, 2, 1, 2, 3, 3]);
 assert.deepStrictEqual(definitions.find(def => def.id === 'alchemist').attackVariantWeights, [49, 49, 2],
     'Hurricane Kick must remain a rare two-percent attack');
-assert.deepStrictEqual(definitions.find(def => def.id === 'warrior').motionAnchors,
-    { idle: 78, walk: 80, attacks: [90, 90, 91] }, 'warrior animations must stay anchored to the feet');
+for (const [direction, motion, expected] of [['east', 'walk', 80], ['north', 'walk', 80],
+    ['west', 'walk', 80], ['south', 'walk', 80], ['north', 'attack', 84], ['east', 'attack', 90]]) {
+    const anchor = run(`resolveHeroMotionStripAnchor({xRatio:.5,anchorY:78,basisHeight:64}, PLAYER_CLASS_DEFS.warrior.motionAnchors, '${motion}', 0, '${direction}')`);
+    assert.strictEqual(anchor.anchorY, expected, `${direction} ${motion} uses the sheet's boot baseline`);
+    assert.strictEqual(anchor.basisHeight, 64, 'direction changes preserve the body scale');
+}
 assert(totalBytes < 320000, 'all six classes and their directional motion strips should stay below the WebP budget');
 assert.strictEqual(runtime.getPlayableHeroAttackDurationScale('occultist'), 1.2);
 

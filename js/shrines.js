@@ -6,7 +6,7 @@ function normalizeShrineBlessingId(rawState) {
     if (SHRINE_BLESSING_DB[rawState.activeId]) return rawState.activeId;
     if (!rawState.active || typeof rawState.active !== 'object') return null;
     let legacyExpiry = Number(rawState.active.expiresAt) || 0;
-    if (legacyExpiry > 0 && legacyExpiry <= Date.now()) return null;
+    if (legacyExpiry > 0 && legacyExpiry <= getCombatTime()) return null;
     return getShrineBlessingIdByLegacyName(rawState.active.name);
 }
 
@@ -79,7 +79,7 @@ function advanceShrineAfterEncounter(zone, targetGame = game, rng = Math.random)
     return { spawned: true, blessing: SHRINE_BLESSING_DB[state.activeId] };
 }
 
-function claimActiveShrine(targetGame = game, now = Date.now()) {
+function claimActiveShrine(targetGame = game, now = getCombatTime()) {
     let state = ensureShrineState(targetGame);
     let blessing = state.activeId ? SHRINE_BLESSING_DB[state.activeId] || null : null;
     if (!blessing) return { claimed: false, reason: 'missing' };

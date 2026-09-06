@@ -11,7 +11,7 @@ function getPreciseTalentRatio(cardId) {
 
 function isTalentTargetCursed(enemy) {
     let rows = enemy && game.enemyConditionDebuffs && game.enemyConditionDebuffs[enemy.id];
-    if (Array.isArray(rows) && rows.some(row => row && (row.expiresAt || 0) > Date.now())) return true;
+    if (Array.isArray(rows) && rows.some(row => row && (row.expiresAt || 0) > getCombatTime())) return true;
     return !!(enemy && Array.isArray(enemy.ailments) && enemy.ailments.some(row => {
         let type = String(row && row.type || '').toLowerCase();
         return type.includes('curse') && (row.time || 0) > 0;

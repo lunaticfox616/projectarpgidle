@@ -31,7 +31,7 @@ function createButton() {
 
 resetGame();
 assert.deepStrictEqual(readJson('reconcileMapPrimaryContentUnlocks(game)'), []);
-assert.deepStrictEqual(readJson('game.unlockedMapContents'), ['map-tab-zones', 'map-tab-pvp']);
+assert.deepStrictEqual(readJson('game.unlockedMapContents'), ['map-tab-zones']);
 assert.strictEqual(typeof context.getAbyssPassiveState, 'undefined', 'the retired chaos-passive API must not stay public');
 assert.deepStrictEqual(readJson("getAbyssMonsterScales({ type: 'abyss', depth: 20 })"), {
     dmgMul: 1, hpMul: 1, hordeMul: 1, dropMul: 1, expMul: 1,
@@ -67,7 +67,7 @@ assert.strictEqual(run('getUnderworldEntryLockReason(game)'), '이번 루프 혼
 
 resetGame();
 run('game.season = 11;');
-assert.deepStrictEqual(readJson('reconcileMapPrimaryContentUnlocks(game)'), ['map-tab-ocean', 'map-tab-fishing']);
+assert.deepStrictEqual(readJson('reconcileMapPrimaryContentUnlocks(game)'), ['map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp']);
 run('game.season = 1; game.ocean.unlocked = false;');
 assert.strictEqual(run("isMapPrimaryContentUnlocked(game, 'map-tab-ocean')"), true);
 assert.strictEqual(run("isMapPrimaryContentUnlocked(game, 'map-tab-fishing')"), true);
@@ -77,7 +77,7 @@ const migrated = readJson(`mergeDefaults({
     underworldProgress: { highestFloor: 4, currentFloor: 2 },
     chaosRealm: { unlocked: true }
 }).unlockedMapContents`);
-assert.ok(migrated.includes('map-tab-zones') && migrated.includes('map-tab-pvp'));
+assert.ok(migrated.includes('map-tab-zones') && !migrated.includes('map-tab-pvp'));
 assert.ok(migrated.includes('map-tab-underworld'), '기존 지하계 진행 저장은 영구 탭 해금으로 복구한다');
 assert.ok(!migrated.includes('invalid-content'), '알 수 없는 저장 id는 제거한다');
 
@@ -90,6 +90,13 @@ context.socialCloudReady = () => false;
 context.syncMapPrimaryContentTabs();
 assert.strictEqual(buttons['btn-map-tab-zones'].style.display, '');
 assert.strictEqual(buttons['btn-map-tab-chaos-realm'].style.display, 'none');
+assert.strictEqual(buttons['btn-map-tab-pvp'].style.display, 'none');
+run("game.unlockedMapContents.push('map-tab-pvp');game.season=2");
+context.syncMapPrimaryContentTabs();
+assert.strictEqual(buttons['btn-map-tab-pvp'].style.display, 'none','old saves cannot reveal PvP before its loop gate');
+run('reconcileMapPrimaryContentUnlocks(game);game.season=3;reconcileMapPrimaryContentUnlocks(game)');
+context.syncMapPrimaryContentTabs();
+assert.strictEqual(buttons['btn-map-tab-pvp'].style.display, '');
 assert.strictEqual(buttons['btn-map-tab-pvp'].dataset.entryCondition, '로그인 필요');
 assert.ok(buttons['btn-map-tab-pvp'].classList.contains('map-primary-tab--entry-locked'));
 
@@ -107,7 +114,7 @@ assert.strictEqual(notices.length, 1, '해금 안내는 한 번만 큐에 넣는
 resetGame();
 notices.length = 0;
 run('game.season = 11;');
-assert.deepStrictEqual(Array.from(context.announceMapPrimaryContentUnlocks()), ['map-tab-ocean', 'map-tab-fishing']);
+assert.deepStrictEqual(Array.from(context.announceMapPrimaryContentUnlocks()), ['map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp']);
 assert.strictEqual(notices.length, 1, '심해와 낚시는 하나의 짧은 안내로 묶는다');
 assert.strictEqual(notices[0][4], 'map-tab-ocean');
 

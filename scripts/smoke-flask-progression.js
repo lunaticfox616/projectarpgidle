@@ -32,6 +32,7 @@ const context = {
   }
 };
 vm.createContext(context);
+require('./lib/load-content-progression')(context);
 vm.runInContext(itemSource.slice(itemStart, itemEnd), context, { filename: 'data/items.js#flasks' });
 vm.runInContext(combatSource.slice(combatStart, combatEnd), context, { filename: 'js/combat.js#flasks' });
 

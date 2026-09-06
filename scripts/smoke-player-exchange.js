@@ -24,6 +24,7 @@ async function runScenario() {
     context.cloudState.revisionSupported = true;
     context.cloudState.lastRemoteRevision = 1;
     context.game = vm.runInContext('game', context);
+    context.game.contentProgression.inherited = ['craft', 'hall'];
     context.game.inventory = [{
         id: 11, name: '검증용 검', baseId: 'rusted_blade', baseName: '녹슨 검', slot: '무기',
         rarity: 'rare', hiddenTier: 15, baseStats: [], stats: [{ id: 'flatDmg', val: 120, valMin: 100, valMax: 120, tier: 10 }]

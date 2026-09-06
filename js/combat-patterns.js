@@ -2,6 +2,7 @@
     'use strict';
 
     const BOSS_PATTERN_NAMES = Object.freeze({
+        intro: '지면 강타',
         burst: '연속 참격',
         slam: '파쇄 강타',
         ramp: '격앙',
@@ -9,6 +10,7 @@
         cosmosBoss: '은하 고유 기믹'
     });
     const BOSS_PATTERN_DESCRIPTIONS = Object.freeze({
+        intro: '3번째 공격마다 예고한 한 칸을 강타합니다. 자동 전투가 범위를 벗어나 대응합니다.',
         burst: '4번째 공격마다 연속 참격으로 피해가 30% 증가합니다.',
         slam: '3번째 공격마다 파쇄 강타로 피해가 55% 증가합니다.',
         ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다.',
@@ -16,12 +18,12 @@
         cosmosBoss: '은하 보스마다 고유한 공격 순서와 파훼 조건을 사용합니다.'
     });
     const BOSS_PATTERN_PEAK_DAMAGE_MULTIPLIERS = Object.freeze({
+        intro: 1.15,
         burst: 1.30,
         slam: 1.55,
         ramp: 1.21,
         cosmos: 1.34
     });
-    const BOSS_SPECIAL_TELEGRAPH_MIN_MS = 360;
 
     function getBossPatternPeakDamageMultiplier(mode) {
         return BOSS_PATTERN_PEAK_DAMAGE_MULTIPLIERS[String(mode || '')] || 1;
@@ -33,7 +35,7 @@
 
     function getBossPatternModesForLoop(loopValue) {
         const loop = Math.max(1, Math.floor(Number(loopValue) || 1));
-        if (loop < 6) return [];
+        if (loop < 6) return ['intro'];
         if (loop === 6) return ['ramp'];
         if (loop === 7) return ['ramp', 'burst'];
         return ['ramp', 'burst', 'slam'];
@@ -59,6 +61,18 @@
         return 0;
     }
 
+    function buildSlamPatternState(mode, attackNumber, cosmosPattern) {
+        let special = cosmosPattern || attackNumber % 3 === 0;
+        return {
+            mode,
+            label: special ? BOSS_PATTERN_NAMES[mode] : '무거운 일격',
+            damageMul: special ? getBossPatternPeakDamageMultiplier(cosmosPattern ? 'cosmos' : mode) : 1,
+            isSpecial: special,
+            telegraphKind: mode === 'intro' ? 'impact' : 'ring',
+            attackNumber
+        };
+    }
+
     function buildPatternState(mode, enemy, attackNumber, cosmosPattern) {
         if (mode === 'burst') {
             let special = cosmosPattern || attackNumber % 4 === 0;
@@ -71,16 +85,8 @@
                 attackNumber
             };
         }
-        if (mode === 'slam') {
-            let special = cosmosPattern || attackNumber % 3 === 0;
-            return {
-                mode,
-                label: special ? '파쇄 강타' : '무거운 일격',
-                damageMul: special ? (cosmosPattern ? getBossPatternPeakDamageMultiplier('cosmos') : getBossPatternPeakDamageMultiplier('slam')) : 1,
-                isSpecial: special,
-                telegraphKind: 'ring',
-                attackNumber
-            };
+        if (mode === 'slam' || mode === 'intro') {
+            return buildSlamPatternState(mode, attackNumber, cosmosPattern);
         }
         if (mode === 'ramp') {
             let stage = getRampStage(enemy);
@@ -122,11 +128,13 @@
     function consumeBossPatternAttack(enemy) {
         let state = getBossPatternPreview(enemy);
         if (!state) return null;
+        if (enemy.patternArea) state.area = enemy.patternArea;
         enemy.patternAttackCount = normalizeAttackCount(enemy) + 1;
         enemy.lastPatternState = state;
         enemy.nextPatternState = getBossPatternPreview(enemy);
         enemy.patternTelegraphKey = null;
         enemy.patternTelegraphStartedAt = 0;
+        enemy.patternArea = null;
         return state;
     }
 
@@ -144,32 +152,54 @@
         return BOSS_PATTERN_DESCRIPTIONS[String(mode || '')] || '';
     }
 
-    function updateBossPatternTelegraph(enemy, now) {
+    /** Lock the special's cells at warning time; moving the victim never retargets them.
+     * @param {ReturnType<typeof createEnemy>} enemy
+     * @param {number} now Combat clock milliseconds.
+     * @param {{gx:number,gy:number}|undefined} target Omit only for timing-only previews.
+     * @returns {boolean} Whether the attack may be released.
+     */
+    function updateBossPatternTelegraph(enemy, now, target) {
         if (!enemy || !enemy.isBoss) return true;
         let state = enemy.nextPatternState || getBossPatternPreview(enemy);
         if (!state || !state.isSpecial) {
             enemy.patternTelegraphKey = null;
             enemy.patternTelegraphStartedAt = 0;
+            enemy.patternArea = null;
             return true;
         }
         let charge = Math.max(0, Number(enemy.attackTimer) || 0);
         let key = `${state.patternMode || state.mode}:${state.attackNumber}:${state.label}`;
         if (charge < 0.5) {
-            if (enemy.patternTelegraphKey !== key) {
-                enemy.patternTelegraphKey = null;
-                enemy.patternTelegraphStartedAt = 0;
-            }
+            enemy.patternTelegraphKey = null;
+            enemy.patternTelegraphStartedAt = 0;
+            enemy.patternArea = null;
             return false;
         }
-        let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+        let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
         if (enemy.patternTelegraphKey !== key) {
             enemy.patternTelegraphKey = key;
             enemy.patternTelegraphStartedAt = timestamp;
+            if (target) {
+                let profile = COMBAT_GRID_CONFIG.bossPatternProfiles[state.telegraphKind];
+                enemy.patternArea = getSkillStageFootprint('', {}, { aimCell: target, gridProfile: profile }, enemy);
+            }
         }
-        return charge >= 1 && timestamp - Math.max(0, Number(enemy.patternTelegraphStartedAt) || 0) >= BOSS_SPECIAL_TELEGRAPH_MIN_MS;
+        return charge >= 1 && timestamp - Math.max(0, Number(enemy.patternTelegraphStartedAt) || 0) >= COMBAT_GRID_CONFIG.bossPatternWarningMs;
+    }
+
+    /** Live warnings, including attacks already released but not yet resolved. */
+    function getBossWarningCells(state, pending = []) {
+        const enemies = (state.enemies || []).filter(enemy => enemy.hp > 0 && !enemy.noAttack
+            && !(enemy.ailments || []).some(ail => ail.type === 'freeze' && ail.time > 0));
+        const areas = enemies.map(enemy => enemy.patternArea).filter(Boolean);
+        pending.forEach(attack => {
+            if (attack.delivery === 'patternArea') areas.push(attack.bossPattern.area);
+        });
+        return areas.flatMap(area => area.cells);
     }
 
     safeExposeGlobals({
+        getBossWarningCells,
         getBossPatternPreview,
         consumeBossPatternAttack,
         refreshBossPatternPreview,

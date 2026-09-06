@@ -8,7 +8,7 @@ const UNIQUE_HUNT_SOURCE_TYPES = Object.freeze({
     trial: { label: '전직 시련', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-trials' },
     labyrinth: { label: '고대 미궁', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-labyrinth' },
     meteor: { label: '운석 낙하 지점', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-meteor' },
-    seasonBoss: { label: '최종 관문', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-root-boss' }
+    seasonBoss: { label: '강대한 적', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-root-boss' }
 });
 const UNIQUE_HUNT_SOURCE_IDS = Object.freeze({
     grand_breach_run: { label: '대균열', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-voidrift' },
@@ -49,13 +49,13 @@ function renderUniqueHuntTargetCard(entry) {
 function renderUniqueHuntPanel() {
     let root = document.getElementById('ui-unique-hunt-tracker');
     if (!root) return;
+    root.hidden = game.codexSubtab === 'realm';
+    if (root.hidden) return;
     let targets = uniqueHuntRuntime.getTargets();
     let cards = targets.map(renderUniqueHuntTargetCard);
-    while (cards.length < uniqueHuntRuntime.limit) {
-        cards.push('<div class="unique-hunt-empty-slot"><span>＋</span><small>도감 카드에서<br>파밍 목표 지정</small></div>');
-    }
+    if (!cards.length) cards.push('<p class="unique-hunt-empty-slot">도감 카드에서 파밍 목표를 최대 3개 지정할 수 있습니다.</p>');
     root.innerHTML = `<section class="unique-hunt-panel">
-        <header><div><span>HUNT WISHLIST</span><strong>고유 파밍 추적</strong><small>목표 드랍은 필터·자동해체·인벤토리 초과로 유실되지 않습니다.</small></div><b>${targets.length}/${uniqueHuntRuntime.limit}</b></header>
+        <header><div><strong>고유 파밍 추적</strong><small>목표 장비는 자동해체에서 보호됩니다.</small></div><b>${targets.length}/${uniqueHuntRuntime.limit}</b></header>
         <div class="unique-hunt-targets">${cards.join('')}</div>
     </section>`;
 }

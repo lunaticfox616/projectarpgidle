@@ -14,6 +14,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
     const flower = { id: 10, slot: '무기', name: '꽃', growthCategory: 'flower', growthShapeId: 'dot1', baseStats: [], stats: [] };
     const runtime = buildGameRuntime();
     vm.runInContext(`
+        game.season = 25; game.contentProgression.inherited.push('growth');
         game.equipment = ${JSON.stringify({ '무기': weapon, '신발': boots, '갑옷': null })};
         game.growthInventory = ${JSON.stringify([flower])};
         game.growthBoard = { width:GROWTH_BOARD_W, height:GROWTH_BOARD_H, unlockedCellCount:1, activeLoadout:0,
@@ -67,6 +68,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
     });
     context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
     vm.createContext(context);
+    require('./lib/load-content-progression')(context);
     vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
     vm.runInContext('function invalidateGrowthEffects() {}', context);
@@ -159,6 +161,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
     });
     context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
     vm.createContext(context);
+    require('./lib/load-content-progression')(context);
     vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
     vm.runInContext('function invalidateGrowthEffects() {}', context);
@@ -235,6 +238,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
     });
     context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
     vm.createContext(context);
+    require('./lib/load-content-progression')(context);
     vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
     vm.runInContext('function invalidateGrowthEffects() {}', context);
@@ -278,7 +282,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
     const utils = fs.readFileSync('js/utils.js', 'utf8');
     const items = fs.readFileSync('js/items.js', 'utf8');
     const html = fs.readFileSync('index.html', 'utf8');
-    const ui = fs.readFileSync('js/ui.js', 'utf8');
+    const ui = (fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/save-migrations.js', 'utf8'));
 
     assert.ok(/function getGrowthMarketExpandCost\(/.test(utils), '생장 보관함 확장 비용 함수가 있어야 한다');
     const action = items.slice(items.indexOf('async function marketExpandGrowthInventoryByDivine'),

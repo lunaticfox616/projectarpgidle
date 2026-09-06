@@ -96,9 +96,8 @@ function getRecordBestSources(g) {
 // 그것도 3시간까지만 시뮬레이션한다(js/ui.js의 BACKGROUND_PROGRESS_RATE / MAX_REAL_MS).
 // 그래서 벽시계로 잰 "루프 소요 시간"은 사실상 "얼마나 자리를 안 비웠나"를 재게 되어
 // 루프끼리 비교하는 의미가 사라진다. 틱이 실제로 돈 시간만 따로 적립해 비교에 쓴다.
-// (복귀 정산 중에는 Date.now가 시뮬레이션 시계라 이 적립이 그대로 게임 진행 시간을 센다.)
-function tickRecordActiveTime(records) {
-    let now = Date.now();
+// 전투 시계가 있는 저장은 실제로 실행한 틱 시간만 적립한다.
+function tickRecordActiveTime(records, now = Date.now()) {
     let last = Math.floor(Number(records.currentLoop.lastTickAt) || 0) || now;
     let delta = now - last;
     if (delta > 0 && delta <= RECORDS_ACTIVE_TICK_MAX_MS) {
@@ -107,24 +106,12 @@ function tickRecordActiveTime(records) {
     records.currentLoop.lastTickAt = now;
 }
 
-// Background fast settlement skips combat ticks for the estimated remainder.
-// Add that simulated progress explicitly so loop records match granted rewards.
-function addRecordActiveTime(elapsedMs, state) {
-    let g = state || (typeof game !== 'undefined' ? game : null);
-    let delta = Math.max(0, Math.floor(Number(elapsedMs) || 0));
-    if (!g || delta <= 0) return 0;
-    let r = ensureRecordsState(g);
-    r.currentLoop.activeMs = Math.max(0, Math.floor(r.currentLoop.activeMs || 0)) + delta;
-    r.currentLoop.lastTickAt = Date.now();
-    return delta;
-}
-
 // 매 틱 호출된다. 최댓값 비교와 시간 적립만 하므로 비용은 무시할 수 있다.
 function trackRecordBests(state) {
     let g = state || (typeof game !== 'undefined' ? game : null);
     if (!g) return null;
     let r = ensureRecordsState(g);
-    tickRecordActiveTime(r);
+    tickRecordActiveTime(r, g.combatTimeMs || Date.now());
     let sources = getRecordBestSources(g);
     Object.keys(sources).forEach(key => {
         let next = sources[key];
@@ -239,7 +226,6 @@ safeExposeGlobals({
     getRecordsView,
     createDefaultRecordsState,
     tickRecordActiveTime,
-    addRecordActiveTime,
     RECORDS_LOOP_HISTORY_LIMIT,
     RECORDS_ACTIVE_TICK_MAX_MS
 });

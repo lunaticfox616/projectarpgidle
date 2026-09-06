@@ -1,8 +1,25 @@
-/* Long-form game copy uses a readable font and spacing; headings remain DOSSaemmul. */
+/* Reading copy uses scalable screen fonts, including at fractional UI scales. */
 :root {
   --game-text: #d9e0e8;
   --game-muted: #afbac8;
 }
+
+/* Content workspaces share the same readable family as equipment and settings. */
+:is(#item-tab-craft, #item-tab-market, #tab-flask, #tab-journal) {
+  font: 400 13px/1.5 var(--game-font-body);
+  color: var(--ui-text);
+}
+:is(#item-tab-craft, #item-tab-market, #tab-flask, #tab-journal) :is(button, select, input, h2, h3, h4, summary) {
+  font-family: var(--game-font-body);
+  letter-spacing: 0;
+  text-shadow: none;
+}
+:is(#item-tab-craft, #item-tab-market, #tab-flask, #tab-journal) :is(h2, h3) { font-size: 16px; }
+:is(#item-tab-craft, #item-tab-market, #tab-flask, #tab-journal) > h2 { border-color: var(--ui-line); color: var(--ui-text); }
+#tab-flask :is(.flask-slot-label, .flask-slot-status, .flask-slot-effect, .flask-charge-row, .flask-help-text) { font-size: 12px; line-height: 1.5; }
+#item-tab-craft .currency-name { font-size: 13px; word-break: keep-all; }
+#item-tab-craft .currency-card-header { flex-wrap: wrap; gap: 4px 8px; }
+#item-tab-craft .currency-card .currency-count { margin-left: auto; font-size: 13px; }
 
 /* Equipment names should match the readable item-copy font without affecting page headings. */
 :is(.item-title, .tooltip-title, .equipment-slot-name, .equipment-card-name) {
@@ -14,7 +31,6 @@
   .trait-desc,
   .gem-enhance-section-desc,
   .journal-card-body,
-  .challenge-contract-desc,
   .cosmos-desc,
   .cosmos-detail,
   .cloud-note,
@@ -33,7 +49,7 @@
   .gem-orbit-copy span
 ) {
   font-family: var(--game-font-body);
-  font-size: max(0.86em, 12px);
+  font-size: max(0.86em, 13px);
   line-height: 1.65;
   letter-spacing: 0;
   text-shadow: none;
@@ -43,10 +59,10 @@
 #tab-skills .skill-library-note,
 #tab-skills .gem-orbit-copy span {
   color: var(--game-text);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.65;
 }
 
-body.light-mode :is(.tutorial-body, .trait-desc, .gem-enhance-section-desc, .journal-card-body, .challenge-contract-desc, .cosmos-desc, .cosmos-detail, .cloud-note, .currency-desc, .craft-picker-desc, .colony-ward-desc, .underworld-rune-overlay-desc, .patch-note-body, .ui-goal-desc, .background-combat-speed-guide, .tooltip-line, .tooltip-final, .game-dialog-message, .game-choice-option span, .gem-library-card > p, .gem-orbit-copy span) {
+body.light-mode :is(.tutorial-body, .trait-desc, .gem-enhance-section-desc, .journal-card-body, .cosmos-desc, .cosmos-detail, .cloud-note, .currency-desc, .craft-picker-desc, .colony-ward-desc, .underworld-rune-overlay-desc, .patch-note-body, .ui-goal-desc, .background-combat-speed-guide, .tooltip-line, .tooltip-final, .game-dialog-message, .game-choice-option span, .gem-library-card > p, .gem-orbit-copy span) {
   color: #3f5268;
 }

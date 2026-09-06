@@ -5,6 +5,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 (async () => {
   const context = buildGameRuntime();
   const run = source => vm.runInContext(source, context);
+  run('game.contentProgression.inherited = ["craft"]');
   const originalRandom = context.Math.random;
   const item = {
     id: 990001,

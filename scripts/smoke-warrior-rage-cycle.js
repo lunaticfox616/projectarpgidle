@@ -25,7 +25,7 @@ assert.strictEqual(context.game.warriorRageExpiresAt, 6600, 'each successful hit
 assert.strictEqual(context.getWarriorRagePhysicalDamageMultiplier(2000), 1.5, 'five stacks should multiply physical damage by 50%');
 assert.strictEqual(context.getWarriorRagePhysicalDamageMultiplier(6600), 1, 'expired rage should stop affecting damage');
 
-const triggerIndex = combatSource.indexOf('grantWarriorRageOnHit(Date.now());');
+const triggerIndex = combatSource.indexOf('grantWarriorRageOnHit(getCombatTime());');
 const absorbIndex = combatSource.indexOf('let remaining = dmg;', triggerIndex);
 assert(triggerIndex >= 0 && absorbIndex > triggerIndex, 'a successful hit should grant rage before summon, ward, or energy-shield absorption');
 assert(combatSource.includes("skill.ele === 'phys' ? warriorPhysDamageMultiplier : 1"), 'displayed physical DPS should include rage');

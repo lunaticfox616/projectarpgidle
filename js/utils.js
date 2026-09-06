@@ -1,3 +1,14 @@
+function normalizeUiSkin(skin) {
+    return ['reliquary', 'verdigris', 'crimson'].includes(skin) ? skin : 'reliquary';
+}
+
+/** Stored user scale in percent, independent of the current monitor's pixel ratio. */
+function normalizeUiScale(value) {
+    const number = Number(value);
+    return [80, 90, 100, 110, 125, 150].includes(number) ? number : 100;
+}
+
+
 if (!Array.prototype.includes) {
     Array.prototype.includes = function(search, start) {
         let index = start || 0;
@@ -693,7 +704,7 @@ function makeSourceLine(label, value, suffix, formatter) {
 }
 
 /**
- * 도감과 도전 계약처럼 같은 기본 확률을 보강하는 보너스를 합연산한다.
+ * 도감처럼 같은 기본 확률을 보강하는 보너스를 합연산한다.
  * 지역 티어·몬스터 특성처럼 드랍 환경 자체의 배율은 호출부에서 별도로 곱한다.
  * @param {number} codexBonusPct
  * @param {number} challengeBonusPct
@@ -713,6 +724,7 @@ function stripDecorativeEmoji(value) {
 }
 
 function dispatchRuntimeEvent(name, detail = {}) {
+    if (typeof game !== 'undefined' && game && game.isBackgroundCalculation) return false;
     if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function' || typeof window.CustomEvent !== 'function') return false;
     window.dispatchEvent(new window.CustomEvent(`project-idle:${name}`, { detail }));
     return detail.handled === true;

@@ -7,7 +7,7 @@ const vm = require('vm');
 
 const recordsSource = fs.readFileSync('js/records.js', 'utf8');
 const uiSource = fs.readFileSync('js/records-ui.js', 'utf8');
-const mainUiSource = fs.readFileSync('js/ui.js', 'utf8');
+const mainUiSource = (fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/save-migrations.js', 'utf8'));
 const html = fs.readFileSync('index.html', 'utf8');
 
 function bootRecords(gameState, overrides = {}) {
@@ -239,11 +239,13 @@ assert.ok(/recordActClear\(zone\.id\)/.test(combatSource), '액트 돌파가 기
 assert.ok(/recordWoodsmanEchoRun\(run\.totalDamage, dps\)/.test(combatSource), '잔상 측정이 기록을 남겨야 한다');
 assert.ok(/trackRecordBests\(\)/.test(combatSource), '최고 기록을 주기적으로 적립해야 한다');
 // 루프 기록은 상태 초기화보다 앞서야 이번 루프의 도달치를 남길 수 있다.
-const coreLoopAt = combatSource.indexOf('function coreLoop()');
-const promptGuardAt = combatSource.indexOf('if (ensurePendingLoopHeroSelectionPrompt()) return;', coreLoopAt);
-const recordTickAt = combatSource.indexOf("if (typeof trackRecordBests === 'function') trackRecordBests();", coreLoopAt);
-assert.ok(coreLoopAt >= 0 && promptGuardAt > coreLoopAt && recordTickAt > promptGuardAt,
-    '루프 영웅 선택으로 진행이 멈춘 동안에는 전적 진행 시간을 쌓지 않아야 한다');
+const fixture = require('./lib/replay-fixture')();
+fixture.state.pendingLoopHeroSelection = true;
+const beforeRecords = JSON.stringify(fixture.state.records);
+const beforeTime = fixture.state.combatTimeMs;
+fixture.runtime.coreLoop(beforeTime + 100);
+assert.strictEqual(JSON.stringify(fixture.state.records), beforeRecords, 'hero selection must pause records');
+assert.strictEqual(fixture.state.combatTimeMs, beforeTime, 'hero selection must pause combat time');
 const closeAt = combatSource.indexOf('closeLoopRecord(loopPath)');
 const resetAt = combatSource.indexOf('game.unlocks = { ...defaultGame.unlocks }');
 assert.ok(closeAt > 0 && resetAt > closeAt, '루프 기록은 초기화 전에 닫아야 한다');

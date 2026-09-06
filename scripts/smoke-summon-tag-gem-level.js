@@ -145,6 +145,7 @@ assert(equipmentResult.summonWithStar > equipmentResult.summonWithoutStar,
   'the Star must increase actual summon gem hit damage without changing summon gem levels');
 
 const growthResult = vm.runInContext(`(() => {
+  game.season = 25; game.contentProgression.inherited.push('growth');
   game.equipment = {};
   game.arcana = createDefaultArcanaState();
   game.growthInventory = [{ id:9001, name:'젬 새싹', growthCategory:'flower', growthShapeId:'dot1', baseStats:[], stats:[{ id:'gemLevel', val:3 }] }];

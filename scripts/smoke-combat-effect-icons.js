@@ -89,6 +89,9 @@ context.showInfoTooltipHtml = (x, y, html, borderColor) => {
 };
 context.hideInfoTooltip = () => { context.__enemyTraitTooltipHidden = true; };
 vm.createContext(context);
+require('./lib/load-content-progression')(context);
+require('./lib/load-ui-display')(context);
+require('./lib/load-combat-clock')(context);
 vm.runInContext(source.slice(start, end), context, { filename: 'combat-effect-icons.js' });
 
 const playerStats = {
@@ -399,6 +402,7 @@ const traitContext = {
   getBossPatternPreview() { return null; }
 };
 vm.createContext(traitContext);
+require('./lib/load-combat-clock')(traitContext);
 vm.runInContext(battlefieldSource.slice(traitStart, traitEnd), traitContext, { filename: 'enemy-trait-summary.js' });
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(traitContext.getEnemyTraitSummary({ isBoss: true, ele: 'fire', traitName: '광폭' }))),
@@ -436,6 +440,7 @@ const markContext = {
   addLog() {}
 };
 vm.createContext(markContext);
+require('./lib/load-combat-clock')(markContext);
 vm.runInContext(combatSource.slice(enemyLookupStart, enemyLookupEnd), markContext, { filename: 'enemy-runtime-key.js' });
 vm.runInContext(combatSource.slice(markStart, markEnd), markContext, { filename: 'inquisitor-mark.js' });
 markContext.processTalentInquisitorMarks();
@@ -463,6 +468,7 @@ const dotContext = {
   syncEnemyFlameDecayAilment() {}
 };
 vm.createContext(dotContext);
+require('./lib/load-combat-clock')(dotContext);
 vm.runInContext(combatSource.slice(dotTickStart, dotTickEnd), dotContext, { filename: 'enemy-dot-tick.js' });
 dotContext.tickEnemyDotEffects({}, 0.2);
 assert.strictEqual(expiringDotEnemy.dotState, null, 'expired skill DOT must clear its runtime state');

@@ -6,6 +6,7 @@
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
+const { LOAD_ORDER } = require('./lib/game-runtime');
 
 const html = fs.readFileSync('index.html', 'utf8');
 const sources = [];
@@ -19,6 +20,13 @@ while ((match = scriptTag.exec(html)) !== null) {
 assert(sources.length >= 10, `index.html에서 로컬 스크립트를 찾지 못했습니다 (${sources.length}개)`);
 assert(sources.includes('js/ui.js'), 'js/ui.js가 index.html에 연결되어 있어야 합니다');
 assert(sources.includes('js/ui-window-manager.js'), '창 관리자가 index.html에 연결되어 있어야 합니다');
+
+// 공용 테스트 런타임도 실제 페이지의 파일 순서를 따라야 한다.
+assert.deepStrictEqual(sources.filter(src => LOAD_ORDER.includes(src)), LOAD_ORDER,
+    '테스트 런타임의 파일/순서가 index.html과 어긋났습니다');
+assert(sources.indexOf('js/social.js') < sources.indexOf('js/ui-window-manager.js')
+    && sources.indexOf('js/ui-window-manager.js') < sources.indexOf('js/main.js'),
+    '창 관리자는 소셜 UI 이후, 부트스트랩 이전에 로드돼야 합니다');
 
 // (1) 파일 단독 파싱: SyntaxError면 해당 파일 전체(모든 전역 함수)가 사라져 부팅이 죽는다.
 for (const src of sources) {

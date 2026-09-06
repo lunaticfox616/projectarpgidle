@@ -90,23 +90,21 @@ let inventoryFallbackState = mergeDefaults({
 inventoryFallbackState.offlineProgress.stash = protectedOverflow.slice(0, 8);
 inventoryFallbackState.settings.autoSalvageEnabled = true;
 inventoryFallbackState.settings.autoSalvageRarities.unique = true;
-runtime.document.getElementById = () => ({ innerText: '', innerHTML: '', style: {}, classList: { add() {} } });
-let fallbackAdded = false;
-let inventoryFallbackResult = simulateBackgroundCombat({ elapsedMs: 100, snapshot: inventoryFallbackState, stepFn: () => {
-    if (!fallbackAdded) fallbackAdded = runtime.addItemToInventory({ name: 'kept-unique', rarity: 'unique' });
-} });
-assert.strictEqual(fallbackAdded, true);
-assert.deepStrictEqual(inventoryFallbackResult.game.inventory.map(item => item.name), ['kept-unique'], 'protected fallback item enters regular inventory');
+function addOfflineItem(target,item) {
+    const vm=require('vm'); const original=vm.runInContext('game',runtime);
+    runtime.testOfflineState=target;
+    vm.runInContext('game=testOfflineState; game.isBackgroundCalculation=true;',runtime);
+    try{return runtime.addItemToInventory(item);}
+    finally{runtime.testOfflineState=original;vm.runInContext('game=testOfflineState',runtime);}
+}
+assert.strictEqual(addOfflineItem(inventoryFallbackState,{name:'kept-unique',rarity:'unique'}),true);
+assert.deepStrictEqual(Array.from(inventoryFallbackState.inventory,item=>item.name),['kept-unique']);
 let fullInventoryState = mergeDefaults({ inventory: [], offlineProgress: { stashLevel: 1 } });
 fullInventoryState.inventory = Array.from({ length: getInventoryLimit(fullInventoryState) }, (_, index) => ({ name: `filled-${index}`, rarity: 'normal' }));
 fullInventoryState.offlineProgress.stash = protectedOverflow.slice(0, 8);
-let fullFallbackAdded = false;
-let fullFallbackResult = simulateBackgroundCombat({ elapsedMs: 100, snapshot: fullInventoryState, stepFn: () => {
-    if (!fullFallbackAdded) fullFallbackAdded = runtime.addItemToInventory({ name: 'last-kept-unique', rarity: 'unique' });
-} });
-assert.strictEqual(fullFallbackAdded, true);
-assert.strictEqual(fullFallbackResult.game.inventory.at(-1).name, 'last-kept-unique', 'the item that triggers the safety stop remains owned');
-assert.strictEqual(fullFallbackResult.stopReason, 'protected-storage-full', 'background replay stops before protected inventory can grow without bound');
+assert.strictEqual(addOfflineItem(fullInventoryState,{name:'last-kept-unique',rarity:'unique'}),true);
+assert.strictEqual(fullInventoryState.inventory.at(-1).name,'last-kept-unique','protected item must remain owned');
+assert.strictEqual(fullInventoryState.backgroundStopReason,'protected-storage-full');
 assert.ok(!buildOfflineProgressHtml(getOfflineProgressView(stashState)).includes('보호 대기열'),
     '방치 보관함 UI에 숨은 초과 대기열을 표시하면 안 된다');
 let loopResetState = state({ offlineProgress: { stashLevel: 1, stash: [{ name: 'old-loop-item', rarity: 'rare' }], protectedOverflow: [{ name: 'old-loop-unique', rarity: 'unique' }] } });
@@ -130,16 +128,14 @@ safe.offlineProgress.safetyPolicy.stopOnNegativeExp = true;
 assert.strictEqual(getOfflineSafetyStopReason(safe, { exp: 20, expLost: 5, consecutiveDeaths: 0, elapsedSinceLastKillMs: 1000 }, 1000), null);
 assert.strictEqual(getOfflineSafetyStopReason(safe, { exp: 5, expLost: 20, consecutiveDeaths: 0, elapsedSinceLastKillMs: 1000 }, 1000), 'negative-exp');
 
-let stopSnapshot = state({ playerHp: 1, level: 1, exp: 0, loopKills: 0, loopDeaths: 0, moveTimer: 0, runProgress: 0, offlineProgress: { huntDirectiveUnlocked: false, safeReturnUnlocked: true, stash: [], safetyPolicy: { consecutiveDeaths: 5, noKillMinutes: 5, stopOnNegativeExp: false, stopWhenStorageFull: false } } });
-let syncCalls = 0;
-let syncResult = simulateBackgroundCombat({ elapsedMs: 6 * 60 * 1000, snapshot: stopSnapshot, stepFn: () => { syncCalls++; } });
-assert.ok(syncCalls < 4000, 'sync safety stop exits the outer replay loop');
-assert.strictEqual(syncResult.stopReason, 'no-kill');
-let originalPerformanceNow = runtime.performance.now;
-runtime.performance.now = () => 0;
-let asyncResult = await simulateBackgroundCombatChunked({ elapsedMs: 6 * 60 * 1000, snapshot: stopSnapshot, stepFn: () => {} });
-runtime.performance.now = originalPerformanceNow;
-assert.strictEqual(asyncResult.stopReason, 'no-kill');
+let stopSnapshot=state({heroSelectionInitialized:true,playerHp:100,moveTimer:600,moveTotalTime:600,enemies:[],encounterPlan:[],offlineProgress:{safeReturnUnlocked:true,safetyPolicy:{consecutiveDeaths:5,noKillMinutes:5,stopOnNegativeExp:false,stopWhenStorageFull:false}}});
+let syncResult=simulateBackgroundCombat({elapsedMs:360000,snapshot:stopSnapshot});
+assert.strictEqual(syncResult.processedMs,300000,'real combat must stop at the configured no-kill boundary');
+assert.strictEqual(syncResult.stopReason,'no-kill');
+runtime.setTimeout=fn=>setImmediate(fn);
+let asyncResult=await simulateBackgroundCombatChunked({elapsedMs:360000,snapshot:stopSnapshot});
+assert.strictEqual(asyncResult.stopReason,'no-kill');
+assert.strictEqual(asyncResult.processedMs,syncResult.processedMs);
 let huntState = state({ settings: { mapCompleteAction: 'nextZone' }, offlineProgress: { huntDirectiveUnlocked: true, huntMode: 'current', stash: [] } });
 applyOfflineHuntDirective(huntState);
 assert.strictEqual(huntState.settings.mapCompleteAction, 'repeatZone');

@@ -1,162 +1,98 @@
-const BOUNTY_ACTIVE_STATUSES = Object.freeze(['queued', 'hunting']);
-
-function hasPendingBountyEncounter(targetGame) {
-    let enemies = Array.isArray(targetGame.enemies) ? targetGame.enemies : [];
-    if (enemies.some(enemy => enemy && enemy.isBountyTarget && enemy.hp > 0)) return true;
-    let plan = Array.isArray(targetGame.encounterPlan) ? targetGame.encounterPlan : [];
-    let cursor = Math.max(0, Math.floor(Number(targetGame.encounterIndex) || 0));
-    return plan.slice(cursor).some(marker => marker && BOUNTY_TARGET_DB[marker.bountyId]);
-}
-
-function getBountyProgressLoop(targetGame) {
-    return Math.max(1, Math.floor(Math.max(Number(targetGame.season) || 1, Number(targetGame.loopCount) || 0)));
-}
-
-function isBountyTargetAvailable(target, targetGame) {
-    return !!target && getBountyProgressLoop(targetGame) >= Math.max(1, Math.floor(Number(target.unlockLoop) || BOUNTY_HUNT_CONFIG.unlockLoop));
-}
-
-function ensureBountyHuntState(targetGame = game) {
-    let raw = targetGame.bountyHunt && typeof targetGame.bountyHunt === 'object' ? targetGame.bountyHunt : {};
-    let validOffers = Array.isArray(raw.offerIds) ? raw.offerIds.filter(id => isBountyTargetAvailable(BOUNTY_TARGET_DB[id], targetGame)) : [];
-    raw.offerIds = Array.from(new Set(validOffers)).slice(0, BOUNTY_HUNT_CONFIG.offerCount);
-    raw.activeId = isBountyTargetAvailable(BOUNTY_TARGET_DB[raw.activeId], targetGame) ? raw.activeId : null;
-    raw.status = raw.activeId && BOUNTY_ACTIVE_STATUSES.includes(raw.status) ? raw.status : (raw.activeId ? 'queued' : 'idle');
-    if (raw.activeId) raw.offerIds = [];
-    if (raw.status === 'hunting' && !hasPendingBountyEncounter(targetGame)) raw.status = 'queued';
-    raw.pity = Math.max(0, Math.min(BOUNTY_HUNT_CONFIG.guaranteedAt - 1, Math.floor(Number(raw.pity) || 0)));
-    ['offered', 'accepted', 'completed', 'abandoned'].forEach(key => {
-        raw[key] = Math.max(0, Math.floor(Number(raw[key]) || 0));
-    });
-    targetGame.bountyHunt = raw;
-    return raw;
-}
-
-function isBountyHuntUnlocked(targetGame = game) {
-    return getBountyProgressLoop(targetGame) >= BOUNTY_HUNT_CONFIG.unlockLoop;
-}
-
-function isBountyEligibleZone(zone) {
-    return !!zone && BOUNTY_HUNT_CONFIG.eligibleZoneTypes.includes(zone.type) && !zone.loopScaleExempt;
-}
-
-function rollBountyOfferIds(targetGame) {
-    let ids = Object.values(BOUNTY_TARGET_DB).filter(target => isBountyTargetAvailable(target, targetGame)).map(target => target.id);
-    for (let index = ids.length - 1; index > 0; index--) {
-        let swapIndex = Math.floor(Math.random() * (index + 1));
-        [ids[index], ids[swapIndex]] = [ids[swapIndex], ids[index]];
+/** Saved field bountyHunt is retained to migrate old progress; all new play uses treasure events. */
+const bountyRuntime = (() => {
+    function isUnlocked(owner=game) {
+        return contentProgression.isUnlocked('bounty',owner) && owner.season>=BOUNTY_HUNT_CONFIG.unlockLoop;
     }
-    return ids.slice(0, BOUNTY_HUNT_CONFIG.offerCount);
-}
-
-function advanceBountyAfterBossKill(zone, enemy, targetGame = game) {
-    let state = ensureBountyHuntState(targetGame);
-    if (!isBountyHuntUnlocked(targetGame) || !isBountyEligibleZone(zone) || !enemy || !enemy.isBoss) return { offered: false, reason: 'ineligible' };
-    if (state.activeId || state.offerIds.length > 0) return { offered: false, reason: 'pending' };
-    let config = BOUNTY_HUNT_CONFIG;
-    let guaranteed = state.pity >= config.guaranteedAt - 1;
-    let chance = Math.min(1, config.baseChance + state.pity * config.pityChancePerBoss);
-    if (!guaranteed && Math.random() >= chance) {
-        state.pity = Math.min(config.guaranteedAt - 1, state.pity + 1);
-        return { offered: false, reason: 'miss', chance };
+    function restoreCountdown(value) {
+        const oldReady=!!value.activeId || (Array.isArray(value.offerIds) && value.offerIds.length>0);
+        const remaining=value.version===2 ? Number(value.remaining) : oldReady ? 0 : 10-(Number(value.pity)||0);
+        return Math.max(0,Math.min(10,Math.floor(Number.isFinite(remaining)?remaining:10)));
     }
-    state.offerIds = rollBountyOfferIds(targetGame);
-    state.pity = 0;
-    state.offered++;
-    return { offered: true, offerIds: state.offerIds.slice() };
-}
-
-function acceptBountyOffer(targetId, targetGame = game) {
-    let state = ensureBountyHuntState(targetGame);
-    if (state.activeId || !state.offerIds.includes(targetId)) return { accepted: false, reason: 'invalid' };
-    state.activeId = targetId;
-    state.offerIds = [];
-    state.status = 'queued';
-    state.accepted++;
-    return { accepted: true, target: BOUNTY_TARGET_DB[targetId] };
-}
-
-function injectBountyEncounterMarker(plan, zone, targetGame = game) {
-    let state = ensureBountyHuntState(targetGame);
-    if (!state.activeId || state.status !== 'queued' || !isBountyEligibleZone(zone) || !Array.isArray(plan)) return false;
-    if (plan.some(marker => marker && marker.bountyId)) return false;
-    plan.push({ at: BOUNTY_HUNT_CONFIG.markerProgress, count: 1, elite: true, bountyId: state.activeId });
-    plan.sort((left, right) => Number(left.at || 0) - Number(right.at || 0));
-    return true;
-}
-
-function applyBountyTargetToEnemy(enemy, targetId, targetGame = game) {
-    let target = BOUNTY_TARGET_DB[targetId];
-    if (!enemy || !target) return false;
-    let mod = target.modifiers;
-    enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp * mod.hpMul));
-    enemy.hp = enemy.maxHp;
-    enemy.armor = Math.max(0, Math.floor(enemy.armor * (mod.armorMul || 1)));
-    enemy.evasion = Math.max(0, Math.floor(enemy.evasion * (mod.evasionMul || 1)));
-    enemy.dr = Math.min(90, Math.max(0, enemy.dr + (mod.drAdd || 0)));
-    ['resF', 'resC', 'resL'].forEach(key => { enemy[key] = Math.min(95, (enemy[key] || 0) + (mod.resAllAdd || 0)); });
-    enemy.resChaos = Math.min(95, (enemy.resChaos || 0) + (mod.resAllAdd || 0) + (mod.resChaosAdd || 0));
-    enemy.damageMul = (enemy.damageMul || 1) * (mod.damageMul || 1);
-    enemy.attackSpeedVar = (enemy.attackSpeedVar || 1) * (mod.attackSpeedMul || 1);
-    enemy.penetration = (enemy.penetration || 0) + (mod.penetrationAdd || 0);
-    enemy.critChance = (enemy.critChance || 0) + (mod.critChanceAdd || 0);
-    enemy.regenRate = (enemy.regenRate || 0) * (mod.regenMul || 1) + (mod.regenRateAdd || 0);
-    enemy.firstHitGuard = Math.max(enemy.firstHitGuard || 0, mod.firstHitGuard || 0);
-    enemy.ele = mod.element || enemy.ele;
-    enemy.name = `${target.icon} 현상금 · ${target.name}`;
-    let bountyTrait = `현상금 표적 · ${target.danger}`;
-    enemy.traitName = enemy.traitName ? `${enemy.traitName} · ${bountyTrait}` : bountyTrait;
-    enemy.isElite = true;
-    enemy.isBountyTarget = true;
-    enemy.bountyId = targetId;
-    enemy.expMul = Math.max(1, Number(enemy.expMul) || 1) * 2;
-    let state = ensureBountyHuntState(targetGame);
-    state.activeId = targetId;
-    state.status = 'hunting';
-    return true;
-}
-
-function completeBountyTarget(enemy, targetGame = game) {
-    let state = ensureBountyHuntState(targetGame);
-    if (!enemy || !enemy.isBountyTarget || !BOUNTY_TARGET_DB[enemy.bountyId] || state.activeId !== enemy.bountyId) return { completed: false };
-    let target = BOUNTY_TARGET_DB[enemy.bountyId];
-    state.activeId = null;
-    state.status = 'idle';
-    state.completed++;
-    return { completed: true, target, reward: target.reward };
-}
-
-function requeueInterruptedBounty(targetGame = game) {
-    let state = ensureBountyHuntState(targetGame);
-    if (state.activeId && state.status === 'hunting') state.status = 'queued';
-    return state.status;
-}
-
-function abandonBountyHunt(targetGame = game) {
-    let state = ensureBountyHuntState(targetGame);
-    let hadBounty = !!state.activeId || state.offerIds.length > 0;
-    if (!hadBounty) return false;
-    targetGame.encounterPlan = (targetGame.encounterPlan || []).filter(marker => !marker || !marker.bountyId);
-    targetGame.enemies = (targetGame.enemies || []).filter(enemy => !enemy || !enemy.isBountyTarget);
-    state.offerIds = [];
-    state.activeId = null;
-    state.status = 'idle';
-    state.pity = 0;
-    state.abandoned++;
-    return true;
-}
-
-const bountyRuntime = Object.freeze({
-    ensureState: ensureBountyHuntState,
-    isUnlocked: isBountyHuntUnlocked,
-    isEligibleZone: isBountyEligibleZone,
-    advanceAfterBossKill: advanceBountyAfterBossKill,
-    acceptOffer: acceptBountyOffer,
-    injectEncounterMarker: injectBountyEncounterMarker,
-    applyTargetToEnemy: applyBountyTargetToEnemy,
-    completeTarget: completeBountyTarget,
-    requeueInterrupted: requeueInterruptedBounty,
-    abandon: abandonBountyHunt
-});
-
-safeExposeGlobals({ bountyRuntime });
+    function restorePending(pending) {
+        const def=TREASURE_EVENT_DB[pending?.id];
+        if (!def) return null;
+        if (def.key) return {id:pending.id,item:null};
+        const item=pending.item;
+        if (!item || item.rarity!==def.rarity || !EQUIPMENT_DROP_SLOTS.includes(item.slot)) return null;
+        if (def.slot && item.slot!==def.slot) return null;
+        if (typeof item.name!=='string') return null;
+        return {id:pending.id,item:normalizeItem(item)};
+    }
+    /** Save boundary: legacy hunts become ready treasures; pending rewards survive reload without a new roll. */
+    function restore(raw) {
+        const value=raw && typeof raw==='object' ? raw : {};
+        const completed=Number(value.completed);
+        const pending=restorePending(value.pending);
+        const source=value.source;
+        const validSource=source && Number.isInteger(source.itemTier) && source.itemTier>=1 && source.itemTier<=20
+            && BOUNTY_HUNT_CONFIG.eligibleZoneTypes.includes(source.dropRealm);
+        return {version:2,remaining:pending ? 0 : restoreCountdown(value),pending,
+            source:validSource ? {itemTier:source.itemTier,dropRealm:source.dropRealm} : null,
+            completed:Number.isFinite(completed) ? Math.max(0,Math.floor(completed)) : 0};
+    }
+    function ensureState(owner=game) {
+        if (owner.bountyHunt?.version!==2) owner.bountyHunt=restore(owner.bountyHunt);
+        return owner.bountyHunt;
+    }
+    function advanceAfterBossKill(zone,enemy,owner=game) {
+        const state=ensureState(owner);
+        if (!isUnlocked(owner) || !enemy?.isBoss || !zone || zone.loopScaleExempt
+            || !BOUNTY_HUNT_CONFIG.eligibleZoneTypes.includes(zone.type)) return {offered:false,reason:'ineligible'};
+        if (state.remaining===0) return {offered:false,reason:'pending'};
+        state.remaining--;
+        if (state.remaining===0) state.source={itemTier:rollRealmItemDropTier(zone,{isBoss:true}),dropRealm:zone.type};
+        return {offered:state.remaining===0,remaining:state.remaining};
+    }
+    function available(def) { return !def.key || contentProgression.canDropCurrency(def.key); }
+    function uniquePool(slot,tier) {
+        return UNIQUE_DB.filter(item=>!item.ultraRare && !item.dropOnly && item.reqTier<=tier
+            && item.slots[0]===slot && !item.name.includes('우로보로스'));
+    }
+    function rollEventId(tier) {
+        const roll=Math.random(), config=BOUNTY_HUNT_CONFIG;
+        if (roll<config.goldenChance && available(TREASURE_EVENT_DB.golden_reliquary)) return 'golden_reliquary';
+        if (roll<config.goldenChance+config.fairyChance && available(TREASURE_EVENT_DB.fairy_hollow)) return 'fairy_hollow';
+        const relics=['lost_weapon','lost_armor','lost_boots'].filter(id=>uniquePool(TREASURE_EVENT_DB[id].slot,tier).length>0);
+        if (roll<config.goldenChance+config.fairyChance+config.uniqueChance && relics.length) return rndChoice(relics);
+        return rndChoice(Object.keys(TREASURE_EVENT_DB).filter(id=>TREASURE_EVENT_DB[id].common && available(TREASURE_EVENT_DB[id])));
+    }
+    function openTreasure() {
+        const state=ensureState();
+        if (!isUnlocked() || state.remaining>0) return null;
+        if (state.pending) return state.pending;
+        // Legacy ready saves have no source; resolve once, then persist with the opened reward.
+        const zone=getZone(game.currentZoneId) || getZone(0);
+        const source=state.source || {itemTier:rollRealmItemDropTier(zone,{isBoss:true}),dropRealm:zone.type};
+        const tier=source.itemTier;
+        const affixTierCap=getRealmEquipmentAffixTierCap({type:source.dropRealm},tier);
+        const origin={dropRealm:source.dropRealm,affixTierCap,affixTierFloor:getDroppedAffixTierRange(affixTierCap).min,
+            tierWeightFalloff:DROPPED_AFFIX_TIER_WEIGHT_FALLOFF};
+        const id=rollEventId(tier), def=TREASURE_EVENT_DB[id];
+        let item=null;
+        if (def.slot) item=generateUniqueItem(tier,def.slot,rndChoice(uniquePool(def.slot,tier)).name);
+        else if (!def.key) item=createItemFromBase(chooseItemBase(rndChoice(EQUIPMENT_DROP_SLOTS),tier),'rare',tier,origin);
+        state.source=source;
+        state.pending={id,item:item ? normalizeItem(item) : null};
+        return state.pending;
+    }
+    function rewardLabel(pending) {
+        const def=TREASURE_EVENT_DB[pending.id];
+        return def.key ? `${ORB_DB[def.key].name} ${def.amount}개` : `${pending.item.slot} · ${pending.item.name}`;
+    }
+    function claimTreasure() {
+        const state=ensureState(), pending=state.pending;
+        if (!pending || !isUnlocked()) return {ok:false};
+        const def=TREASURE_EVENT_DB[pending.id];
+        if (!available(def)) return {ok:false};
+        const label=rewardLabel(pending);
+        if (def.key) awardCurrency(def.key,def.amount);
+        else if (!addItemToInventory(pending.item,{guaranteedKeep:true})) return {ok:false};
+        state.pending=null;state.source=null;state.remaining=BOUNTY_HUNT_CONFIG.guaranteedAt;state.completed++;
+        return {ok:true,label,event:def,item:pending.item};
+    }
+    function canAdvanceLoop() {
+        return !isUnlocked() || ensureState().remaining>0;
+    }
+    return Object.freeze({isUnlocked,restore,ensureState,advanceAfterBossKill,openTreasure,claimTreasure,rewardLabel,canAdvanceLoop});
+})();
+safeExposeGlobals({bountyRuntime});

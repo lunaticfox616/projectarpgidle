@@ -145,12 +145,14 @@ function getCoreCubeUnlockInfo() {
 }
 
 function canDropCoreCubeBlurred45() {
+    if (!contentProgression.isUnlocked('cube')) return false;
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
     return !!(info.dropEligible || st.everUnlocked);
 }
 
 function isCoreCubeUnlocked() {
+    if (!contentProgression.isUnlocked('cube')) return false;
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
     if (!st.everUnlocked && info.firstUnlockReady) {
@@ -163,7 +165,7 @@ function isCoreCubeUnlocked() {
 }
 
 function maybeUnlockCoreCube(options = {}) {
-    if (!game) return false;
+    if (!contentProgression.isUnlocked('cube')) return false;
     let st = ensureCoreCubeState();
     let info = getCoreCubeUnlockInfo();
     if (!st.everUnlocked && !info.firstUnlockReady) return false;
@@ -207,16 +209,17 @@ function relockCoreCubeForLoop() {
 }
 
 function addCoreCubeBlurred45(amount = 1) {
+    if (!contentProgression.isUnlocked('cube')) return 0;
     let st = ensureCoreCubeState();
     let gain = Math.max(1, Math.floor(Number(amount) || 1));
     st.blurred45 += gain;
     if (st.everUnlocked && !st.unlocked) {
         st.unlocked = true;
         st.relockUntilDrop = false;
-        if (game && game.unlocks) game.unlocks.cube = true;
+        if (game.unlocks) game.unlocks.cube = true;
         // 알림은 탭이 다시 열리는 이 시점에만 켠다. 예전처럼 45면체 드랍마다 켜면
         // 지하계 파밍 중 장비 상위탭 그룹 점이 계속 되살아나 항상 켜진 것처럼 보인다.
-        if (game && game.noti) game.noti.cube = true;
+        if (game.noti) game.noti.cube = true;
     } else {
         maybeUnlockCoreCube({ silent: true });
     }
@@ -721,6 +724,7 @@ function generateCoreCubeOptions(combo) {
 }
 
 function getCoreCubeActiveStats() {
+    if (!isCoreCubeUnlocked()) return [];
     let st = ensureCoreCubeState();
     if (!st.completed || !Array.isArray(st.revealedOptions)) return [];
     let stats = [];
@@ -834,18 +838,18 @@ function initCoreCubeTextureCanvas() {
 function resizeCoreCubeCanvas() {
     const canvas = coreCubeCanvasView.canvas;
     const ctx = coreCubeCanvasView.ctx;
-    if (!canvas || !ctx) return;
+    if (!canvas || !ctx || !canvas.clientWidth || !canvas.clientHeight) return;
     const rect = canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.max(1, Math.floor(rect.width * dpr));
     canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(dpr * rect.width / canvas.clientWidth, 0, 0, dpr * rect.height / canvas.clientHeight, 0, 0);
     drawCoreCubeCanvas();
 }
 
 function coreCubeProjectVertex(v) {
     const canvas = coreCubeCanvasView.canvas;
-    const rect = canvas.getBoundingClientRect();
+    const rect = { width: canvas.clientWidth, height: canvas.clientHeight };
     const [x, y, z] = v;
     const distance = 4.3;
     const scale = Math.min(rect.width, rect.height) * 0.15;
@@ -880,7 +884,7 @@ function drawCoreCubeCanvas() {
     const canvas = coreCubeCanvasView.canvas;
     const ctx = coreCubeCanvasView.ctx;
     if (!canvas || !ctx || !canvas.isConnected) return;
-    const rect = canvas.getBoundingClientRect();
+    const rect = { width: canvas.clientWidth, height: canvas.clientHeight };
     ctx.clearRect(0, 0, rect.width, rect.height);
     drawCoreCubeBackground(rect);
 
@@ -1105,7 +1109,7 @@ function bindCoreCubeCanvas(canvas) {
     canvas.addEventListener('click', event => {
         if (coreCubeCanvasView.dragMoved) return;
         const rect = canvas.getBoundingClientRect();
-        const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        const point = { x: (event.clientX - rect.left) * canvas.clientWidth / rect.width, y: (event.clientY - rect.top) * canvas.clientHeight / rect.height };
         for (const face of coreCubeCanvasView.projectedFaces) {
             if (coreCubePointInPolygon(point, face.points)) {
                 selectCoreCubeFace(face.id);

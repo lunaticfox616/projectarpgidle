@@ -48,12 +48,16 @@ body:not(.light-mode) .tab-header {
   box-shadow: 0 2px 12px rgba(0,0,0,0.5), inset 0 -1px 0 rgba(180,140,60,0.08);
 }
 
-body:not(.light-mode) .subtab-row {
-  background: linear-gradient(180deg, #0e1a28 0%, #0b1420 100%);
-  border-bottom: 1px solid #1c2c3f;
+body:not(.light-mode) .subtab-row,
+body.light-mode .subtab-row {
   gap: 5px;
   padding: 6px 8px;
   align-items: center;
+}
+
+body:not(.light-mode) .subtab-row {
+  background: linear-gradient(180deg, #0e1a28 0%, #0b1420 100%);
+  border-bottom: 1px solid #1c2c3f;
 }
 
 /* ── TAB BUTTONS ────────────────────────────────────────────── */
@@ -124,21 +128,29 @@ body:not(.light-mode) .tab-btn.active::after {
 }
 
 /* ── SUBTAB BUTTONS ─────────────────────────────────────────── */
-body:not(.light-mode) .subtab-btn {
+body:not(.light-mode) .subtab-btn,
+/* ── SUBTAB BUTTONS ─────────────────────────────────────────── */
+body.light-mode .subtab-btn {
   position: relative;
-  border: 1px solid #25374e;
+  border-width: 1px;
+  border-style: solid;
   border-radius: 6px;
-  background: linear-gradient(180deg, #141f2e 0%, #0f1825 100%);
-  color: #eef2f6;
   font-weight: 600;
   font-size: 0.82em;
   letter-spacing: 0.03em;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
-  transition: border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
   overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ── SUBTAB BUTTONS ─────────────────────────────────────────── */
+body:not(.light-mode) .subtab-btn {
+  border-color: #25374e;
+  background: linear-gradient(180deg, #141f2e 0%, #0f1825 100%);
+  color: #eef2f6;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+  transition: border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
 }
 body:not(.light-mode) .subtab-btn::before {
   content: '';
@@ -168,8 +180,16 @@ body:not(.light-mode) .subtab-btn.active::before {
 
 /* 특정 하위탭: 색상은 동일, 테두리만 강조 */
 body:not(.light-mode) #btn-item-tab-equip,
-body:not(.light-mode) #btn-skill-tab-equip {
+body:not(.light-mode) #btn-skill-tab-equip,
+/* 특정 하위탭: 색상은 동일, 테두리만 강조 */
+body.light-mode #btn-item-tab-equip,
+body.light-mode #btn-skill-tab-equip {
   border-width: 2px;
+}
+
+/* 특정 하위탭: 색상은 동일, 테두리만 강조 */
+body:not(.light-mode) #btn-item-tab-equip,
+body:not(.light-mode) #btn-skill-tab-equip {
   border-color: #486688;
 }
 
@@ -223,27 +243,43 @@ body:not(.light-mode) .tooltip-title { color: #ffffff; margin-bottom: 6px; }
 body:not(.light-mode) .tooltip-line { color: #ffffff; line-height: 1.55; margin-top: 2px; }
 body:not(.light-mode) .tooltip-final { color: #ffcc7a; line-height: 1.5; }
 
+.forge-panel,
+.craft-selected,
+.currency-card {
+  border-color: var(--ui-line);
+  background: var(--ui-surface-1);
+  color: var(--ui-text);
+  box-shadow: inset 0 1px rgba(255,255,255,.03);
+}
 body:not(.light-mode) .forge-panel,
-body:not(.light-mode) .craft-layout,
 body:not(.light-mode) .craft-selected,
-body:not(.light-mode) .currency-grid,
 body:not(.light-mode) .currency-card {
-  border-color: #35506c;
+  border-color: var(--ui-line);
+  background: var(--ui-surface-1);
+  box-shadow: inset 0 1px rgba(255,255,255,.03);
 }
-body:not(.light-mode) .forge-panel,
-body:not(.light-mode) .craft-selected {
-  background: linear-gradient(180deg, #152132 0%, #0f1724 100%);
-  box-shadow: inset 0 1px 0 rgba(201, 226, 255, 0.05), 0 8px 20px rgba(0,0,0,.32);
+.currency-card:hover { border-color: var(--ui-line-strong); }
+.craft-item-heading { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+.craft-target-art { width: 64px; height: 78px; padding: 4px; object-fit: contain; flex: none; box-sizing: border-box; }
+.craft-item-heading > div { min-width: 0; }
+.craft-selected-summary { font-size: 12px; }
+.craft-target-library { border-top: 1px solid var(--ui-line); margin-top: 12px; }
+.craft-target-library > summary { cursor: pointer; padding: 12px 0; color: var(--ui-text-2); }
+.craft-target-library[open] > summary { color: var(--ui-gold); }
+.craft-target-library h3 { font-size: 14px; }
+.craft-spores { padding: 8px; background: var(--ui-surface-1); border: 1px solid var(--ui-line); border-radius: 6px; }
+.orb-tone { color: var(--orb-tone); }
+body.light-mode :is(#item-tab-craft, #item-tab-market, #tab-flask) .orb-tone {
+  color: color-mix(in srgb, var(--orb-tone) 45%, #16130f); text-shadow: none;
 }
-body:not(.light-mode) .currency-card {
-  background: linear-gradient(180deg, #1a2738 0%, #142031 100%);
-  transition: border-color .14s ease, transform .12s ease, box-shadow .14s ease;
-}
-body:not(.light-mode) .currency-card:hover {
-  transform: translateY(-1px);
-  border-color: #5a7ea8;
-  box-shadow: 0 8px 18px rgba(0,0,0,.26);
-}
+body.light-mode :is(#item-tab-craft, #item-tab-market) .orb-tone[style*="background"] { color: #fff; }
+body.light-mode #item-tab-craft .craft-option-line { color: var(--ui-text) !important; }
+body.light-mode #item-tab-craft .craft-item-heading .normal { color: var(--ui-text); }
+body.light-mode #item-tab-craft .craft-item-heading .magic { color: #21587e; }
+body.light-mode #item-tab-craft .craft-item-heading .rare { color: #795c12; }
+body.light-mode #item-tab-craft .craft-item-heading .unique { color: #a14c17; }
+.craft-spores-title { font-weight: 600; margin-bottom: 6px; color: var(--ui-text-2); }
+.flask-management-panel { padding: 10px; margin-bottom: 10px; border: 1px solid var(--ui-line); border-radius: 8px; background: var(--ui-surface-1); }
 
 .currency-card-header,
 .currency-card-name-wrap,
@@ -317,7 +353,31 @@ input[data-search-key]:focus {
   box-shadow: inset 0 0 0 1px rgba(143, 211, 255, 0.78), 0 0 0 1px rgba(143, 211, 255, 0.18);
 }
 
-/* ── 루프 진행 대기 배너 (루프 10 이전 조건 달성 시 시간 정지 안내) ── */
+/* ── 루프 달성 정산과 장비 정리 중 복귀 배너 ── */
+.tutorial-overlay .tutorial-card.loop-settlement-card {
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; box-sizing: border-box;
+  padding: 28px; text-align: left; color: var(--ui-text);
+  background: var(--ui-surface-1); border: 1px solid var(--ui-line-strong); border-radius: 12px;
+  font-family: var(--game-font-body, 'Malgun Gothic', sans-serif); font-size: 13px; line-height: 1.6;
+}
+.loop-settlement-card h2 { margin: 16px 0; color: var(--ui-gold); font-size: 26px; border: 0; }
+.loop-settlement-story { margin: 0; color: var(--ui-text-2); animation: loop-settlement-in .6s ease both; }
+.loop-settlement-stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr); gap: 8px; margin: 0 0 18px; }
+.loop-settlement-stats > div { padding: 12px 8px; background: var(--ui-surface-2); border: 1px solid var(--ui-line); border-radius: 6px; }
+.loop-settlement-stats dt { color: var(--ui-text-2); font-size: 12px; }
+.loop-settlement-stats dd { margin: 3px 0 0; font-size: 19px; color: var(--ui-text); }
+.loop-settlement-stats > div:last-child dd { font-size: 16px; word-break: keep-all; }
+.loop-settlement-next { border-block: 1px solid var(--ui-line); padding: 14px 0; }
+.loop-settlement-next h3 { margin: 0 0 8px; color: var(--ui-gold); font-size: 14px; }
+.loop-settlement-next ul { padding-left: 20px; margin: 0; }
+.loop-settlement-next p { margin: 10px 0 0; color: var(--ui-gold); }
+.loop-settlement-note, .loop-settlement-card .tutorial-body { font-size: 12px; color: var(--ui-text-2); line-height: 1.6; }
+.loop-settlement-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.loop-settlement-actions button, #loop-decision-actions button { min-height: 40px; }
+@keyframes loop-settlement-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-toast-root, #game-toast-region) { visibility: hidden; }
+@media (max-width: 600px) { .tutorial-overlay .tutorial-card.loop-settlement-card { padding: 20px; } }
+@media (prefers-reduced-motion: reduce) { .loop-settlement-story, .loop-settlement-next { animation: none; } }
 .loop-ready-banner {
   display: none;
   align-items: center;
@@ -328,10 +388,9 @@ input[data-search-key]:focus {
   margin-top: 8px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: linear-gradient(170deg, #1a1430 0%, #111525 100%);
-  border: 1px solid #7f66d8;
-  box-shadow: 0 6px 18px rgba(2, 4, 10, 0.42), 0 0 14px rgba(127, 102, 216, 0.22);
-  color: #e6e0ff;
+  background: var(--ui-surface-1);
+  border: 1px solid var(--ui-line-strong);
+  color: var(--ui-text);
 }
 .loop-ready-banner.active {
   display: flex;
@@ -342,12 +401,13 @@ input[data-search-key]:focus {
   line-height: 1.45;
 }
 .loop-ready-banner-text strong {
-  color: #cdbcff;
+  color: var(--ui-gold);
 }
 .loop-ready-banner button {
+  pointer-events: auto;
   flex-shrink: 0;
-  background: #5b4a9f;
-  border-color: #8c79d9;
+  background: var(--ui-surface-3);
+  border-color: var(--ui-line-strong);
   font-weight: 700;
   padding: 8px 12px;
 }
@@ -813,34 +873,34 @@ body.light-mode .tab-category-btn.active {
 .flask-slot-box.empty-hint { border-style: dashed; opacity: 0.85; }
 .flask-slot-box {
   min-height: 96px;
-  border: 1px solid #2f4560;
+  border: 1px solid var(--ui-line);
   border-radius: 8px;
-  background: linear-gradient(180deg, #111c2a 0%, #0d1520 100%);
+  background: var(--ui-surface-2);
   padding: 8px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 4px 12px rgba(0,0,0,0.24);
 }
 .flask-slot-box.active {
-  border-color: #64b5f6;
-  box-shadow: 0 0 0 1px rgba(100,181,246,0.22), 0 0 14px rgba(100,181,246,0.18);
+  border-color: var(--ui-gold);
+  box-shadow: inset 0 0 0 1px var(--ui-line-strong);
 }
 .flask-slot-box.heal { border-color: #4f7b65; }
 .flask-slot-box.heal.active { border-color: #74c79d; }
 .flask-slot-label {
-  color: #eef2f6;
+  color: var(--ui-text-2);
   font-size: 0.72em;
   font-weight: 800;
   letter-spacing: 0.04em;
   margin-bottom: 4px;
 }
 .flask-slot-name {
-  color: #ffffff;
+  color: var(--ui-text);
   font-weight: 900;
   font-size: 0.86em;
   min-height: 32px;
   line-height: 1.25;
 }
 .flask-slot-status {
-  color: #ffffff;
+  color: var(--ui-text);
   font-size: 0.74em;
   min-height: 18px;
   margin: 5px 0;
@@ -850,7 +910,7 @@ body.light-mode .tab-category-btn.active {
   font-size: 0.76em;
 }
 .flask-help-text {
-  color: #eef2f6;
+  color: var(--ui-text-2);
   font-size: 0.76em;
   margin-top: 6px;
   line-height: 1.35;

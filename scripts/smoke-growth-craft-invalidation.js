@@ -33,6 +33,7 @@ const vm = require('vm');
     });
     context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
     vm.createContext(context);
+    require('./lib/load-content-progression')(context);
     vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync('js/growth-effects.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
