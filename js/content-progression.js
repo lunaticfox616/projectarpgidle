@@ -72,11 +72,22 @@ const contentProgression = (() => {
         return !!feature && isUnlocked(feature, owner);
     }
 
-    function balance(owner = game) {
+    /** Read-only point budget; future gated growth counts, automatic combat never costs points. */
+    function points(owner = game) {
         const state = owner.contentProgression;
-        if (!state) return 0;
+        if (!state) return { balance: 0, remaining: 0, nextAward: 0, complete: true };
+        const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
+            sum + (def.cost > 0 && !isUnlocked(def.id, owner) ? def.cost : 0), 0);
+        const spent = state.unlocked.reduce((sum, id) => sum + state.paidCosts[id], 0);
         const earned = (Math.max(state.highestLoop, owner.season) - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP;
-        return Math.max(0, earned - state.unlocked.reduce((sum, id) => sum + state.paidCosts[id], 0));
+        const current = Math.min(remaining, Math.max(0, earned - spent));
+        const nextEarned = (Math.max(state.highestLoop, owner.season + 1) - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP;
+        const nextAward = Math.min(remaining, Math.max(0, nextEarned - spent)) - current;
+        return { balance: current, remaining, nextAward, complete: remaining === 0 };
+    }
+
+    function balance(owner = game) {
+        return points(owner).balance;
     }
 
     function status(id, owner = game) {
@@ -232,6 +243,6 @@ const contentProgression = (() => {
         if (owned.has('flask') && !owned.has('flaskUtility')) next.inherited.push('flaskUtility');
     }
 
-    return Object.freeze({ isUnlocked, canDropCurrency, canUseFlask, canOpen, balance, status, requirements, sync, purchase, restore });
+    return Object.freeze({ isUnlocked, canDropCurrency, canUseFlask, canOpen, points, balance, status, requirements, sync, purchase, restore });
 })();
 safeExposeGlobals({ contentProgression });

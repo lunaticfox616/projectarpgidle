@@ -221,10 +221,12 @@
     }
 
     function contentChoiceGuide(state) {
+        const points = contentProgression.points(state);
+        if (points.complete) return null;
         return guide({
             id: 'content-choice', title: '콘텐츠 선택 해금',
-            description: contentProgression.balance(state) > 0 ? '해금 포인트로 원하는 콘텐츠를 선택하세요.' : `다음 루프에 도달하면 해금 포인트를 ${CONTENT_UNLOCK_POINTS_PER_LOOP}점 얻습니다.`,
-            requirements: [requirement('해금 포인트', contentProgression.balance(state) > 0, contentProgression.balance(state), 1)],
+            description: points.balance > 0 ? '해금 포인트로 원하는 콘텐츠를 선택하세요.' : `다음 루프에 도달하면 해금 포인트를 ${points.nextAward}점 얻습니다.`,
+            requirements: [requirement('해금 포인트', points.balance > 0, points.balance, 1)],
             actionLabel: '콘텐츠 선택', actionTabId: state.season >= 2 ? 'tab-unlocks' : 'tab-items'
         });
     }

@@ -2,6 +2,7 @@ const assert = require('assert');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 const runtime = buildGameRuntime();
+vm.runInContext(require('fs').readFileSync(require('path').join(__dirname, '../js/content-unlock-guide.js'), 'utf8'), runtime);
 const run = code => vm.runInContext(code, runtime);
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
 run('game = mergeDefaults({})');
@@ -190,7 +191,7 @@ const permanentBefore=json('[game.beehive.cleared,game.voidRift.breachClears,gam
 const pointsBefore=run('contentProgression.balance()');
 run('triggerSeasonReset();ensureFlaskState()');
 assert.equal(run('game.season'),26);
-assert.equal(run('contentProgression.balance()'),pointsBefore+2);
+assert.equal(run('contentProgression.balance()'),pointsBefore, 'fully funded growth stops awarding excess points');
 assert(run("contentProgression.isUnlocked('craft') && contentProgression.isUnlocked('flask')"));
 assert.deepEqual(json('[game.beehive.cleared,game.voidRift.breachClears,game.voidRift.grandBreachUnlock,game.underworldRunes,game.talentCards,game.conditionGemLevels]'),permanentBefore);
 assert.deepEqual(json("['bossCore','skyEssence','sporeFire','runeShard','underCopper','enchantedHoney','voidChisel','colonyShard'].map(key=>game.currencies[key])"),Array(8).fill(0));
@@ -257,4 +258,46 @@ assert.equal(run('game.flasks.utils[0].key'),'granite1');
 for (const id of ['timerift','colony','beehive','voidrift']) {
     assert.equal(run(`CONTENT_UNLOCK_CATALOG.find(def=>def.id==='${id}').cost`),0);
 }
+// Point cap includes future gated choices and preserves the historical purchase ledger.
+run('game=mergeDefaults({})');
+const totalCost=run('CONTENT_UNLOCK_CATALOG.reduce((sum,def)=>sum+def.cost,0)');
+assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:totalCost,nextAward:2,complete:false});
+run('game.season=20;contentProgression.sync()');
+assert.equal(run('contentProgression.balance()'),totalCost);
+assert(!run("contentProgression.status('growth').available"),'future loop gates remain enforced after funding');
+before=json('game');
+assert.equal(run('contentProgression.points().nextAward'),0);
+assert.deepEqual(json('game'),before,'reading the budget never mutates state');
+run("game.season=50;contentProgression.sync();contentProgression.purchase('craft')");
+assert.equal(run('contentProgression.balance()'),totalCost-1);
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert.equal(run('contentProgression.balance()'),totalCost-1);
+assert.equal(run('game.contentProgression.paidCosts.craft'),1);
+
+// A one-point final gap awards only one; inherited access and other resources survive completion.
+run(`game=mergeDefaults({});
+    game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.filter(def=>def.cost>0&&def.id!=='craft').map(def=>def.id);
+    game.seasonPoints=7;game.currencies.magicBud=9;`);
+assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:1,nextAward:1,complete:false});
+assert(run("loopSettlementUi.summaryHtml().includes('해금 포인트 +1')"));
+assert(run("getNextMajorContentUnlock(game).description.includes('1점')"));
+run('game.season=2;contentProgression.sync()');
+assert.equal(run('contentProgression.balance()'),1);
+assert.equal(run('contentProgression.points().nextAward'),0);
+assert(run("contentProgression.purchase('craft').ok"));
+assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:0,nextAward:0,complete:true});
+assert.equal(run('getNextMajorContentUnlock(game)'),null);
+assert(run("loopSettlementUi.summaryHtml().includes('전체 해금 완료')"));
+assert(!run("loopSettlementUi.summaryHtml().includes('해금 포인트 +')"));
+assert(!run("contentProgression.isUnlocked('cosmos')"),'automatic world progress is independent of paid completion');
+const ownedBefore=json('game.contentProgression.inherited');
+const resourcesBefore=json('[game.currencies.magicBud,game.currencies.goldenRule,game.seasonPoints]');
+run('game.season=50;contentProgression.sync();game=mergeDefaults(JSON.parse(JSON.stringify(game)));contentProgression.sync()');
+assert.equal(run('contentProgression.balance()'),0);
+assert.deepEqual(json('game.contentProgression.inherited'),ownedBefore);
+assert.deepEqual(json('[game.currencies.magicBud,game.currencies.goldenRule,game.seasonPoints]'),resourcesBefore);
+assert(run('CONTENT_UNLOCK_CATALOG.filter(def=>def.cost>0).every(def=>contentProgression.isUnlocked(def.id))'));
+before=json('game');
+assert(!run("contentProgression.purchase('craft').ok"));
+assert.deepEqual(json('game'),before,'completed purchases cannot replay entry rewards');
 console.log('smoke-content-progression passed');

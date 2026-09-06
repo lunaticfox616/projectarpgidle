@@ -13,8 +13,9 @@ const contentUnlockUi = {
             `[${name}] 젬을 획득했습니다.\n스킬 젬 탭을 열고 빛나는 젬 카드를 클릭해 장착하세요.`, 'tab-skills');
     },
     announceLoop() {
+        if (game.contentProgression && contentProgression.points().complete) return;
         const body = game.contentProgression
-            ? `루프 ${game.season} 도달 · 해금 포인트 ${CONTENT_UNLOCK_POINTS_PER_LOOP}점을 얻었습니다.\n해금 탭에서 원하는 콘텐츠를 선택하세요.`
+            ? `루프 ${game.season} 도달 · 해금 포인트 ${contentProgression.balance()}P 보유\n해금 탭에서 원하는 콘텐츠를 선택하세요.`
             : `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`;
         queueTutorialNotice('unlock_content_loop_' + game.season, '다음 콘텐츠 선택', body, 'tab-unlocks');
     },
@@ -202,6 +203,13 @@ const contentUnlockUi = {
         const reachable = def.action || (def.routes || []).some(route => route.startsWith('tab-') || route.startsWith('item-tab-') || route.startsWith('skill-tab-') || route.startsWith('map-'));
         return reachable ? `<button type="button" data-open-content="${def.id}">바로 사용하기</button>` : '<span class="content-unlock-owned">해금 완료</span>';
     },
+    pointBalanceHtml() {
+        const points = contentProgression.points();
+        if (points.complete) return '<div class="content-unlock-balance">전체 해금 완료</div>';
+        const title = points.balance === points.remaining ? '남은 해금에 필요한 포인트를 모두 모았습니다.'
+            : `루프 2부터 매 루프 최대 ${CONTENT_UNLOCK_POINTS_PER_LOOP}P · 남은 해금 비용까지만 지급`;
+        return `<div class="content-unlock-balance" title="${title}"><span>해금</span><strong>${points.balance}</strong><span>P</span></div>`;
+    },
     render() {
         const root = document.getElementById('content-unlock-panel');
         if (!root || !game.contentProgression) return;
@@ -213,7 +221,7 @@ const contentUnlockUi = {
         const scroll = [...root.querySelectorAll('.unlock-map, .unlock-milestones')].map(el => [el.className, el.scrollLeft, el.scrollTop]);
         captureUiDisclosureState(root);
         const selected = CONTENT_UNLOCK_CATALOG.find(row => row.id === this.selectedId);
-        root.innerHTML = `<header class="content-unlock-heading"><span>루프 ${game.season}</span><div class="content-unlock-balance" title="루프 2부터 매 루프 ${CONTENT_UNLOCK_POINTS_PER_LOOP}P"><span>해금</span><strong>${contentProgression.balance()}</strong><span>P</span></div></header>
+        root.innerHTML = `<header class="content-unlock-heading"><span>루프 ${game.season}</span>${this.pointBalanceHtml()}</header>
             <div class="unlock-toolbar"><nav aria-label="해금 방식"><button type="button" data-unlock-view="choice" aria-pressed="${this.view === 'choice'}">선택 해금</button><button type="button" data-unlock-view="progress" aria-pressed="${this.view === 'progress'}">진행 · 이정표</button></nav></div>
             <div class="unlock-workspace"><div class="unlock-content">${this.view === 'choice' ? this.choiceMap() : this.progressionMap()}</div>
             <aside class="unlock-detail" aria-label="선택한 콘텐츠">${this.detail(selected)}</aside></div>`;

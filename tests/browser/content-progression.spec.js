@@ -12,6 +12,38 @@ test.beforeEach(async ({ page }) => {
     });
 });
 
+test('point cap keeps funded choices available and shows completion after the last purchase', async ({ page }, info) => {
+    const errors=[];page.on('pageerror',error=>errors.push(error.message));
+    await page.evaluate(() => {
+        game.season=50;contentProgression.sync();
+        switchTab('tab-unlocks');updateStaticUI();
+    });
+    await expect(page.locator('.content-unlock-balance strong')).toHaveText('38');
+    expect(await page.evaluate(()=>loopSettlementUi.summaryHtml())).not.toContain('해금 포인트 +');
+    await page.evaluate(() => {
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.filter(def=>def.cost>0&&def.id!=='craft').map(def=>def.id);
+        contentProgression.sync();contentUnlockUi.render();
+    });
+    await expect(page.locator('.content-unlock-balance strong')).toHaveText('1');
+    await page.waitForFunction(()=>!uiRefreshRunning && !uiRefreshQueued);
+    await page.evaluate(()=>{tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);});
+    await page.locator('[data-unlock-content="craft"]').click();
+    await expect(page.locator('.content-unlock-balance')).toHaveText('전체 해금 완료');
+    await expect(page.locator('.content-unlock-balance strong')).toHaveCount(0);
+    expect(await page.evaluate(()=>contentProgression.balance())).toBe(0);
+    await page.evaluate(() => {
+        game=mergeDefaults(JSON.parse(JSON.stringify(game)));contentProgression.sync();
+        tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
+        contentUnlockUi.render();
+    });
+    await expect(page.locator('.content-unlock-balance')).toHaveText('전체 해금 완료');
+    await page.locator('.content-unlock-heading').scrollIntoViewIfNeeded();
+    await expect(page.locator('.content-unlock-balance')).toBeInViewport();
+    await page.screenshot({path:info.outputPath('unlock-complete.png')});
+    expect(await page.evaluate(()=>loopSettlementUi.summaryHtml())).toContain('전체 해금 완료');
+    expect(errors).toEqual([]);
+});
+
 test('loop one exposes the four basics and prevents advanced shortcuts', async ({ page }, info) => {
     await expect(page.locator('#ui-combat-flasks')).toBeHidden();
     await expect(page.locator('#ui-combat-flasks .combat-flask-mini')).toHaveCount(0);
@@ -66,7 +98,7 @@ test('unlock details explain mixed growth and expose included systems without ex
     await page.locator('.unlock-lifetime summary').click();
     await expect(page.locator('.unlock-lifetime')).toContainText('보유 어획물');
     await expect(page.locator('[data-open-content="fishing"]')).toBeEnabled();
-    expect(await page.evaluate(()=>contentProgression.balance())).toBe(47);
+    expect(await page.evaluate(()=>contentProgression.balance())).toBe(37);
     expect(errors).toEqual([]);
 });
 

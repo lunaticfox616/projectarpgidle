@@ -2,11 +2,17 @@
 const loopSettlementUi = {
     renderedKey: '',
     dismissedReadyLoop: 0,
+    unlockRewardText() {
+        const points = contentProgression.points();
+        if (points.complete) return '전체 해금 완료';
+        if (!points.nextAward) return '남은 해금에 필요한 포인트를 모두 모았습니다.';
+        return `해금 포인트 +${points.nextAward} · 해금 탭에서 다음 콘텐츠를 직접 선택하세요.`;
+    },
     summaryHtml() {
         const loop = game.season || 1;
         const record = game.records && game.records.currentLoop;
         const time = record ? formatRecordDuration(record.activeMs) : '기록 없음';
-        const features = game.contentProgression ? [`해금 포인트 +${CONTENT_UNLOCK_POINTS_PER_LOOP} · 해금 탭에서 다음 콘텐츠를 직접 선택하세요.`]
+        const features = game.contentProgression ? [this.unlockRewardText()]
             : (SEASON_CONTENT_ROADMAP[loop + 1] || { features: ['심화 도전을 이어갑니다.'] }).features;
         return `<p class="loop-settlement-story">발밑의 뿌리가 잠잠해집니다.<br>당신이 지나온 길 위로, 새로운 가지가 뻗어 나갑니다.</p>
             <h2>루프 ${loop} 달성</h2>
@@ -21,7 +27,7 @@ const loopSettlementUi = {
         overlay.classList.toggle('active', ready && this.dismissedReadyLoop !== game.season);
         document.getElementById('loop-decision-overlay').classList.toggle('active', decision);
         if (!ready && !decision) { this.renderedKey = ''; this.dismissedReadyLoop = 0; return; }
-        const key = `${game.season}:${ready}:${decision}`;
+        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}`;
         if (key === this.renderedKey) return;
         this.renderedKey = key;
         const html = this.summaryHtml();
