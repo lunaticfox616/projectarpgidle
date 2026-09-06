@@ -154,6 +154,37 @@
     // priority가 큰 규칙부터 검사해, matches가 참인 첫 규칙의 build 결과를 주 목표로 쓴다.
     const GOAL_RULES = [
         {
+            id: 'first-skill-choice',
+            priority: 850,
+            matches(g) {
+                return !!(g.starterGemTutorialPending && g.unlocks && g.unlocks.skills
+                    && g.skills.includes(g.starterGemTutorialPending));
+            },
+            build(g) {
+                return buildTabAction({
+                    id: 'first-skill-choice', type: 'progression', categoryLabel: '첫 빌드 선택',
+                    title: `${g.starterGemTutorialPending} 젬을 장착해 보세요`,
+                    description: '기본 공격과 범위·발동 방식을 비교하세요. 장착하면 예상 능력치 변화도 표시됩니다.'
+                }, '스킬 비교하기', 'tab-skills');
+            }
+        },
+        {
+            id: 'recent-defeat-build',
+            priority: 800,
+            matches(g) {
+                if (!g.lastDeathLog || !g.unlocks || !g.unlocks.items) return false;
+                const age = getCombatTime() - g.lastDeathLog.at;
+                return age >= 0 && age < 60000;
+            },
+            build(g) {
+                return buildTabAction({
+                    id: 'recent-defeat-build', type: 'progression', categoryLabel: '재도전 준비',
+                    title: '쓰러진 원인에 맞춰 장비를 비교하세요',
+                    description: `${g.lastDeathLog.reasonText} 장비 화면의 방어 분석과 최근 사망 기록을 확인한 뒤 재도전하세요.`
+                }, '장비 비교하기', 'tab-items');
+            }
+        },
+        {
             // 1순위: 진행을 막는 선택/수령 대기.
             id: 'pending-choice',
             priority: 1000,
@@ -416,7 +447,7 @@
             },
             build(g) {
                 let journey = getPinnacleJourney(g);
-                let progress = `아틀라스 최종 관문 ${journey.completeCount}/${journey.total}`;
+                let progress = journey.next.pinnacleCapstone ? '최종 관문 · 베일라' : `최종 관문으로 · 수호자 격파 ${journey.completeCount}/3`;
                 let detail = journey.gate.met ? `${journey.next.name} 도전 가능` : journey.gate.label;
                 return buildNotice(`${progress} · ${detail}`, 'tab-map', getPinnacleJourneySubtab(journey, g));
             }

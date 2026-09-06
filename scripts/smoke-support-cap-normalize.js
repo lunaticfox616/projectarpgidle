@@ -92,7 +92,7 @@ function loadNormalizer(statsProvider, gameState) {
     runtime.updateStaticUI = () => {};
     runtime.addLog = (...args) => logs.push(args);
     const supportName = vm.runInContext("Object.keys(SUPPORT_GEM_DB).find(name => !isSummonGuardSupport(name))", runtime);
-    vm.runInContext('game.equippedSupports = []', runtime);
+    vm.runInContext('game.contentProgression.inherited = ["support"]; game.equippedSupports = []', runtime);
     const card = vm.runInContext(`renderSupportGemCard(${JSON.stringify(supportName)}, ${JSON.stringify(supportName)}, { suppCap: 0 })`, runtime);
     assert(card.includes('장착 한도 부족 (0/0)'), 'support cards must explain a full-slot failure before the click');
     vm.runInContext(`toggleSupport(${JSON.stringify(supportName)})`, runtime);

@@ -6,6 +6,20 @@ const context = buildGameRuntime();
 const voidNode = Object.values(context.PASSIVE_TREE.nodes).find(node => node && node.kind === 'void');
 assert.ok(voidNode, 'the passive tree must contain a void passive');
 
+// Normalization must preserve valid rolls and reject foreign/stale ids without caching the tree.
+context.testVoidId = voidNode.id;
+vm.runInContext(`
+    game.voidPassives = { invalid: {stats:[{id:'flatHp',val:1000}]} };
+    game.voidPassives[testVoidId] = {stats:[{id:'flatHp',val:'12'},{id:'missing',val:9}],transcendent:{id:'missing'}};
+    ensureVoidPassiveState();
+`, context);
+assert.deepStrictEqual(JSON.parse(vm.runInContext('JSON.stringify(game.voidPassives)', context)), {
+    [voidNode.id]: { rarity:'magic', stats:[{id:'flatHp',val:12}], transcendent:null }
+});
+vm.runInContext('PASSIVE_TREE.nodes[testVoidId].kind="normal";ensureVoidPassiveState();', context);
+assert.strictEqual(vm.runInContext('Object.keys(game.voidPassives).length', context), 0);
+vm.runInContext('PASSIVE_TREE.nodes[testVoidId].kind="void";', context);
+
 vm.runInContext(`
     game.passives = ['n0', '${voidNode.id}'];
     game.currencies.magicBud = 3;
@@ -53,4 +67,23 @@ assert.ok(magicBudButtonStart >= 0, 'the magic-bud action must render');
 const magicBudButton = renderedOverlay.innerHTML.slice(magicBudButtonStart, renderedOverlay.innerHTML.indexOf('>', magicBudButtonStart));
 assert.ok(!magicBudButton.includes('disabled'), 'the magic-bud action must stay enabled after a full two-line roll');
 
+// Sweep every normal option through actual random selection, then verify equipped contribution.
+const pool = JSON.parse(vm.runInContext('JSON.stringify(VOID_PASSIVE_OPTION_POOL)',context));
+assert(pool.length >= 30);
+for(let index=0;index<pool.length;index++) {
+    context.__voidRoll = [(index+0.1)/pool.length,0.999];
+    vm.runInContext('Math.random=()=>__voidRoll.shift() ?? 0',context);
+    const roll=JSON.parse(vm.runInContext('JSON.stringify(rollVoidPassiveOption([]))',context));
+    assert.equal(roll.id,pool[index].id);
+    assert.equal(roll.val,pool[index].max);
+    context.__existing=[roll];
+    const second=vm.runInContext('rollVoidPassiveOption(__existing)',context);
+    assert.notEqual(second.id,roll.id);
+}
+vm.runInContext('game.voidPassives[testVoidId]={stats:[]};game.passives=[testVoidId]',context);
+const beforeAttributes=vm.runInContext('getPlayerStats().strength',context);
+vm.runInContext("game.voidPassives[testVoidId].stats=[{id:'strength',val:16}]",context);
+assert.equal(vm.runInContext('getPlayerStats().strength',context)-beforeAttributes,16);
+assert(pool.find(row=>row.id==='pctDmg').min>=5);
+assert(pool.find(row=>row.id==='resPen').max>=4);
 console.log('smoke-void-passive-crafting passed');

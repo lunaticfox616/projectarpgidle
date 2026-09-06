@@ -4,6 +4,23 @@
 
 # 로컬 테스트 의존성과 브라우저 검사 산출물
 node_modules/
+.npm-cache/
 playwright-report/
 test-results/
 debug.log
+
+# Local reviews, captures and backups are retained on disk, not shipped in PRs.
+/artifacts/*
+!/artifacts/unlock-ui/
+/artifacts/unlock-ui/*
+!/artifacts/unlock-ui/test.html
+!/artifacts/unlock-ui/test.css
+!/artifacts/unlock-ui/test.js
+!/artifacts/unlock-ui/test-bridge.js
+
+# Source art is retained locally; the game loads the compact WebP derivatives.
+/assets/items/illustrated/*.png
+/assets/effects/pixel-frost-erosion-sheet-v1.png
+/assets/effects/skill-earth-spike-v1.png
+__pycache__/
+*.pyc

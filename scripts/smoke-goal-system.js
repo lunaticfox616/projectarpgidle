@@ -92,6 +92,21 @@ const baseGame = extra => ({
     ...extra
 });
 
+{
+    const g = baseGame({skills:['화염구'],starterGemTutorialPending:'화염구',unlocks:{skills:true}});
+    const m = boot(g);
+    m.refresh();
+    assert.strictEqual(m.presented.at(-1).id,'first-skill-choice');
+    assert.strictEqual(m.presented.at(-1).actionTabId,'tab-skills');
+    g.pendingLoopHeroSelection = true;
+    m.refresh();
+    assert.strictEqual(m.presented.at(-1).id,'pending-hero-select','mandatory choice must take priority');
+    g.pendingLoopHeroSelection = false;
+    g.starterGemTutorialPending = null;
+    m.refresh();
+    assert.notStrictEqual(m.presented.at(-1).id,'first-skill-choice','completed first-gem choice must disappear');
+}
+
 // 1) 새 게임: 액트 1 진행 목표. 지도 미해금이므로 버튼 없음(잠긴 화면을 열지 않음).
 {
     const m = boot(baseGame());

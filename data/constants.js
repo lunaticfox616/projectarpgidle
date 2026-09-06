@@ -68,7 +68,19 @@ const COMBAT_GRID_CONFIG = {
     enemyMoveIntervalSec: 0.5,      // 적이 1칸 이동하는 데 걸리는 기본 시간(초)
     playerMoveIntervalSec: 0.6,     // 플레이어 기본 1칸 이동 시간(초, 이동 속도 100 기준 — 이속 스탯에 반비례)
     summonMoveIntervalSec: 0.4,     // 소환수 1칸 이동 시간(초)
-    chainJumpRange: 2               // 연쇄 계열 스킬이 다음 적으로 튈 수 있는 최대 거리(칸)
+    chainJumpRange: 2,              // 연쇄 계열 스킬이 다음 적으로 튈 수 있는 최대 거리(칸)
+    bossPatternWarningMs: 1500,     // 기본 이속으로 두 칸을 벗어날 수 있는 최소 예고 시간
+    bossPatternProfiles: {
+        impact: { kind: 'blast', range: 8, radius: 0 },
+        fan: { kind: 'fan', range: 8, rays: 3 },
+        ring: { kind: 'blast', range: 8, radius: 1, shape: 'circle' },
+        pulse: { kind: 'nova', range: 8, radius: 2, shape: 'diamond' },
+        lane: { kind: 'line', range: 8 },
+        wave: { kind: 'blast', range: 8, radius: 1, shape: 'cross' },
+        split: { kind: 'fan', range: 8, rays: 3 },
+        beam: { kind: 'line', range: 8 },
+        charge: { kind: 'line', range: 8 }
+    }
 };
 
 safeExposeData({

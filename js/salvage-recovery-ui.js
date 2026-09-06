@@ -38,7 +38,7 @@ function renderSalvageRecoveryPanel() {
         ? `<div class="salvage-recovery-grid">${entries.map(renderSalvageRecoveryEntry).join('')}</div>`
         : '<div class="salvage-recovery-empty"><strong>복구할 장비가 없습니다.</strong><span>이번 루프에서 해체한 최근 장비가 여기에 최대 8개까지 남습니다.</span></div>';
     return `<div class="craft-picker-panel salvage-recovery-panel" role="dialog" aria-modal="true" aria-labelledby="salvage-recovery-title">
-        <div class="craft-picker-head"><div><div class="craft-picker-title" id="salvage-recovery-title">♻️ 해체 복구함</div><div class="craft-picker-desc">해체로 실제 획득한 재화를 그대로 반환해 장비를 되살립니다. 최근 8개만 같은 루프 동안 보관됩니다.</div></div><button type="button" data-recovery-close onclick="salvageRecoveryUi.close()">닫기</button></div>
+        <div class="craft-picker-head"><div><div class="craft-picker-title" id="salvage-recovery-title">해체 복구함</div><div class="craft-picker-desc">해체로 실제 획득한 재화를 그대로 반환해 장비를 되살립니다. 최근 8개만 같은 루프 동안 보관됩니다.</div></div><button type="button" data-recovery-close onclick="salvageRecoveryUi.close()">닫기</button></div>
         ${list}
     </div>`;
 }

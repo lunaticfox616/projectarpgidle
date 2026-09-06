@@ -13,6 +13,9 @@ const manifestEnd = source.indexOf('\n    };', manifestStart);
 assert(manifestStart >= 0 && manifestEnd > manifestStart, 'battle asset manifest must be present');
 const manifestSource = source.slice(manifestStart, manifestEnd);
 const assetPaths = [...manifestSource.matchAll(/'((?:assets\/)[^'?]+)(?:\?[^']*)?'/g)].map(match => match[1]);
+const vm = require('vm');
+const {buildGameRuntime} = require('./lib/game-runtime');
+assetPaths.push(...vm.runInContext('Object.values(SKILL_AREA_VFX_ASSETS)', buildGameRuntime()));
 
 assert(assetPaths.length > 20, 'battle asset manifest must retain its local asset entries');
 assetPaths.forEach(assetPath => {

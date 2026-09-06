@@ -100,7 +100,7 @@
   body.desktop-windowed-ui .map-progress-row { display: grid; grid-template-columns: auto minmax(150px, 1fr); align-items: center; gap: 8px; pointer-events: none; }
   body.desktop-windowed-ui .map-progress-row #ui-progress-label { font-size: 11px !important; color: var(--ui-accent, #d7b36f) !important; white-space: nowrap; }
   body.desktop-windowed-ui .map-progress-row .hp-bar-bg { height: 6px !important; margin: 0; }
-  body.desktop-windowed-ui .map-progress-row .hp-text { font-size: 0; }
+  body.desktop-windowed-ui .map-progress-row .hp-text { font-size: 12px; }
 
   body.desktop-windowed-ui #enemy-area { position: absolute; left: calc((100% - var(--combat-log-width) - 24px) / 2); top: 24px; z-index: 24; width: clamp(420px, 48vw, 680px); transform: translateX(-50%); pointer-events: none; }
   body.desktop-windowed-ui #ui-enemy-list { display: grid; gap: 3px; min-height: 0; pointer-events: none; }
@@ -184,11 +184,11 @@
   body.desktop-windowed-ui .tab-content { display: none; }
   body.desktop-windowed-ui .tab-content.ui-window {
     position: fixed; flex-direction: column; padding: 0;
-    background: linear-gradient(165deg, rgba(19, 27, 39, 0.985), rgba(8, 12, 19, 0.985));
+    background: var(--ui-surface-1);
     border: 1px solid rgba(92, 119, 151, .72); border-radius: 14px;
     box-shadow: 0 24px 76px rgba(0,0,0,.58), inset 0 0 0 1px rgba(92, 116, 148, .24);
     pointer-events: auto; overflow: hidden; min-width: 280px; min-height: 220px;
-    color: #ffffff; font-family: var(--game-font-body, "DOSSaemmul", "Malgun Gothic", sans-serif);
+    color: var(--ui-text); font-family: var(--game-font-body, "DOSSaemmul", "Malgun Gothic", sans-serif);
     isolation: isolate;
   }
   body.desktop-windowed-ui .tab-content.ui-window.ui-window-open { display: flex; }
@@ -208,7 +208,7 @@
   body.desktop-windowed-ui .ui-window-actions button:hover { color: #fff0c7; border-color: rgba(227, 190, 109, .62); background: rgba(74, 58, 34, .78); }
   body.desktop-windowed-ui .ui-window-body { position: relative; z-index: 2; flex: 1 1 auto; min-height: 0; overflow: auto; padding: 20px 26px 26px; container-type: inline-size; overflow-wrap: break-word; scrollbar-gutter: stable; }
   body.desktop-windowed-ui .ui-window-body h2,
-  body.desktop-windowed-ui .ui-window-body h3 { color: #ffffff; letter-spacing: -.015em; }
+  body.desktop-windowed-ui .ui-window-body h3 { color: var(--ui-text); letter-spacing: -.015em; }
   body.desktop-windowed-ui .ui-window-body button,
   body.desktop-windowed-ui .ui-window-body select,
   body.desktop-windowed-ui .ui-window-body input { font-family: inherit; }
@@ -227,7 +227,7 @@
   body.desktop-windowed-ui .combat-feed,
   body.desktop-windowed-ui .combat-zone-row,
   body.desktop-windowed-ui .battlefield-wrap { transition: opacity .18s ease, filter .18s ease; }
-  body.desktop-windowed-ui.ui-management-mode .combat-feed { opacity: .16; pointer-events: none; }
+  body.desktop-windowed-ui.ui-management-mode .combat-feed { opacity: 1; pointer-events: auto; }
   body.desktop-windowed-ui.ui-management-mode #enemy-area { opacity: .28; }
   body.desktop-windowed-ui.ui-management-mode .player-hud { opacity: .55; }
   body.desktop-windowed-ui.ui-management-mode .combat-zone-row { opacity: .5; }

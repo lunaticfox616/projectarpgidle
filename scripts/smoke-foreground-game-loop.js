@@ -1,29 +1,8 @@
-const fs = require('fs');
 const assert = require('assert');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
-const source = fs.readFileSync('js/ui.js', 'utf8');
-
-['resetCombatCatchupClock', 'consumeCombatCatchupSteps', 'runCombatCatchupSteps'].forEach(name => {
-  assert(!source.includes(name), `${name} should not remain in runtime ui.js`);
-});
-['calculateBackgroundProgressMs', 'recordBackgroundCombatEntry', 'handleBackgroundCombatReturn', 'simulateBackgroundCombat'].forEach(name => {
-  assert(source.includes(`function ${name}`), `${name} should remain for background progress`);
-});
-
-const loopStart = source.indexOf('gameTickHandle = setInterval(() => {');
-assert(loopStart >= 0, 'foreground game interval not found');
-const loopEnd = source.indexOf('        }, 100);', loopStart);
-assert(loopEnd > loopStart, 'foreground game interval end not found');
-const loopBody = source.slice(loopStart, loopEnd);
-assert.strictEqual((loopBody.match(/runUiCoreLoop\(\);/g) || []).length, 1, 'foreground tick must run core loop exactly once');
-assert(loopBody.includes('if (blockingOverlayOpen || optionalOverlayOpen) return;'), 'overlay pause guard must remain');
-assert(loopBody.includes('overlayPause && (isTutorialOpen() || isPauseSettingOverlayOpen())'),
-  'tutorial and unlock guidance must follow the overlay-pause setting');
-assert(loopBody.includes('tickOceanOxygen(now)'), 'ocean oxygen should use the foreground tick timestamp');
-assert(!/let\s+combatSteps|consumeCombatCatchupSteps|runCombatCatchupSteps|resetCombatCatchupClock/.test(loopBody), 'foreground tick must not use removed catch-up helpers');
-assert.strictEqual((loopBody.match(/let now = Date\.now\(\);/g) || []).length, 1, 'foreground tick should declare now once');
+// Scheduler assertions below execute the real combat rules.
 
 const runtime = buildGameRuntime();
 const activeClasses = new Set();
@@ -64,4 +43,23 @@ elements['tutorial-pause-overlay-toggle'].checked = true;
 pauseToggleListener();
 assert.strictEqual(vm.runInContext('isForegroundGameplayPausedForBackground()', runtime), true,
   'an active tutorial notice must pause gameplay when the overlay-pause setting is enabled');
+const fixture = require('./lib/replay-fixture')();
+const r = fixture.runtime;
+const initialTime = fixture.state.combatTimeMs;
+assert.strictEqual(r.runForegroundCombat(0), 0);
+assert.strictEqual(r.runForegroundCombat(99), 0);
+assert.strictEqual(r.runForegroundCombat(100), 1);
+assert.strictEqual(r.runForegroundCombat(450), 3);
+assert.strictEqual(fixture.state.combatTimeMs, initialTime + 400);
+assert.strictEqual(r.runForegroundCombat(10000), 10, 'catch-up is bounded');
+r.document.hidden = true;
+assert.strictEqual(r.runForegroundCombat(20000), 0);
+r.document.hidden = false;
+assert.strictEqual(r.runForegroundCombat(20100), 1, 'hidden time is discarded');
+fixture.run('backgroundCombatRuntime.processing = true');
+assert.strictEqual(r.runForegroundCombat(30100), 0);
+const clock = {lastAtMs: null, remainderMs: 0};
+assert.strictEqual(r.takeForegroundCombatSteps(clock, 100, false), 0);
+assert.strictEqual(r.takeForegroundCombatSteps(clock, 0, false), 0);
+assert.throws(() => r.takeForegroundCombatSteps(clock, NaN, false), /finite/);
 console.log('smoke-foreground-game-loop passed');

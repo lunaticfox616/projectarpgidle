@@ -24,7 +24,8 @@ async function fetchLatestOrCached(request) {
         }
         return response;
     } catch (networkError) {
-        const cached = await cache.match(request, { ignoreSearch: true });
+        // Versioned scripts must never fall back to a different release's bytecode.
+        const cached = await cache.match(request);
         if (cached) return cached;
         throw networkError;
     }

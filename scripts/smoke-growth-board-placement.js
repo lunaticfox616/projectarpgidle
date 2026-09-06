@@ -38,6 +38,7 @@ function loadGrowthContext() {
         Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
     };
     vm.createContext(context);
+    require('./lib/load-content-progression')(context);
     vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
     // 공간 효과 캐시 무효화는 배치 모듈이 호출하므로 최소 구현만 제공한다.
@@ -270,6 +271,7 @@ assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋
 {
     const uiRuntime = buildGameRuntime();
     vm.runInContext(`
+        game.contentProgression.inherited.push('growth');
         game.season = 60;
         game.growthInventory = [{
             id: 701, growthShapeId: 'dot1', growthCategory: 'flower',

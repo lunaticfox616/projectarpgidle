@@ -42,24 +42,25 @@ Object.keys(context.HERO_SELECTION_DEFS).forEach(heroId => {
 Object.values(context.PLAYER_CLASS_DEFS).forEach(classDef => {
     let heroId = classDef.recommendedTalentHeroId;
     let expectedGem = context.LOOP_STARTER_GEM_BY_HERO[heroId];
-    context.game = { selectedClassId: classDef.id, selectedHeroId: 'hero10', skills: ['기본 공격'], gemData: {}, noti: {}, loopStarterGemGranted: false };
+    context.game = { selectedClassId: classDef.id, selectedHeroId: 'hero10', skills: ['기본 공격'], gemData: {}, noti: {}, unlocks: {}, loopStarterGemGranted: false };
     context.logged = [];
     context.grantLoopStarterGemOnFirstKill();
     assert.deepStrictEqual(context.game.skills, ['기본 공격', expectedGem], `${heroId}는 첫 처치 시 [${expectedGem}]을 받아야 한다`);
     assert.strictEqual(context.game.loopStarterGemGranted, true, '지급 플래그가 켜져야 한다');
+    assert.strictEqual(context.game.unlocks.skills, true, '첫 젬을 받으면 다른 드랍 없이도 스킬 메뉴에 접근할 수 있어야 한다');
     assert(context.game.gemData[expectedGem], '지급된 젬의 gemData 항목이 생성되어야 한다');
     assert.strictEqual(context.game.starterGemTutorialPending, expectedGem, '첫 젬은 장착 안내 대상으로 기록되어야 한다');
 });
 
 // 같은 루프에서 두 번째 처치가 일어나도 중복 지급되지 않는다.
-context.game = { selectedClassId: 'archer', selectedHeroId: 'hero10', skills: ['기본 공격'], gemData: {}, noti: {}, loopStarterGemGranted: false };
+context.game = { selectedClassId: 'archer', selectedHeroId: 'hero10', skills: ['기본 공격'], gemData: {}, noti: {}, unlocks: {}, loopStarterGemGranted: false };
 context.grantLoopStarterGemOnFirstKill();
 context.grantLoopStarterGemOnFirstKill();
 assert.strictEqual(context.game.skills.length, 2, '두 번째 처치에서 다시 지급되면 안 된다');
 
 // 마이그레이션 가드: 기존 저장 데이터라 플래그가 없어(false) 이번에 처음 이 코드를 만나더라도,
 // 이미 기본 공격 외의 스킬을 들고 진행 중인 루프에는 소급 지급하지 않는다.
-context.game = { selectedClassId: 'warrior', selectedHeroId: 'hero10', skills: ['기본 공격', '연속 베기'], gemData: {}, noti: {}, loopStarterGemGranted: false };
+context.game = { selectedClassId: 'warrior', selectedHeroId: 'hero10', skills: ['기본 공격', '연속 베기'], gemData: {}, noti: {}, unlocks: {}, loopStarterGemGranted: false };
 context.grantLoopStarterGemOnFirstKill();
 assert.deepStrictEqual(context.game.skills, ['기본 공격', '연속 베기'], '이미 실제 스킬을 보유했다면 소급 지급하지 않아야 한다');
 assert.strictEqual(context.game.loopStarterGemGranted, true, '가드로 건너뛰어도 플래그는 켜져 재평가를 막아야 한다');

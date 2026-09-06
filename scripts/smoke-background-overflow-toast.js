@@ -1,55 +1,19 @@
 const assert = require('assert');
-const fs = require('fs');
-const vm = require('vm');
-
-const source = fs.readFileSync('js/passives.js', 'utf8');
-const utilitySource = fs.readFileSync('js/utils.js', 'utf8');
-
-function readFunctionSource(name, sourceText = source) {
-    const start = sourceText.indexOf(`function ${name}(`);
-    assert(start >= 0, `${name} must exist`);
-    let depth = 0;
-    for (let index = sourceText.indexOf('{', start); index < sourceText.length; index++) {
-        if (sourceText[index] === '{') depth += 1;
-        if (sourceText[index] !== '}') continue;
-        depth -= 1;
-        if (depth === 0) return sourceText.slice(start, index + 1);
-    }
-    throw new Error(`${name} source boundary not found`);
-}
-
-const logs = [];
-const context = {
-    game: {
-        inventory: [{ id: 'kept' }],
-        isBackgroundCalculation: true,
-        settings: { showLootLog: true }
-    },
-    normalizeItem() {},
-    tryAutoEquipEmptySlot: () => null,
-    passesItemPickupFilter: () => true,
-    EQUIPMENT_INVENTORY_MAX_PAGES: 1,
-    EQUIPMENT_INVENTORY_CELLS_PER_PAGE: 1,
-    salvageItemObject: () => ({ alteration: 1 }),
-    formatSalvageRewardSummary: () => '변화의 오브 +1',
-    addLog: message => logs.push(message),
-    checkUnlocks() {},
-    registerUniqueToCodexOnAcquire() {},
-    Number,
-    Math
-};
-vm.createContext(context);
-['getEquipmentInventoryPageCount', 'getInventoryLimit', 'getInventoryUsedCellCount', 'canStoreEquipmentItems']
-    .forEach(name => vm.runInContext(readFunctionSource(name, utilitySource), context));
-vm.runInContext(readFunctionSource('addItemToInventory'), context, { filename: 'background-overflow-toast.js' });
-
-assert.strictEqual(context.addItemToInventory({ name: '넘친 장비 1', rarity: 'rare' }), false);
-assert.strictEqual(context.addItemToInventory({ name: '넘친 장비 2', rarity: 'magic' }), false);
-assert.strictEqual(logs.length, 0, 'background overflow salvage must not enqueue one alert per discarded item');
-assert.strictEqual(context.game.backgroundOverflowSalvageCount, 2, 'background overflow salvage must retain one summary count');
-
-context.game.isBackgroundCalculation = false;
-assert.strictEqual(context.addItemToInventory({ name: '일반 전투 장비', rarity: 'normal' }), false);
-assert.strictEqual(logs.length, 1, 'foreground overflow salvage must keep its immediate combat log');
-
+const {prepare} = require('./audit-combat-20260905');
+const {runtime:r,state,run}=prepare();
+state.settings.autoEquipEmptySlots=false;
+state.settings.showLootLog=true;
+state.isBackgroundCalculation=true;
+const item = id => ({id,name:'넘친 장비 '+id,slot:'반지',rarity:'normal',tier:1,hiddenTier:1,baseStats:[],stats:[]});
+state.inventory=Array.from({length:r.getInventoryLimit(state)},(_,index)=>item(index+200));
+run('logQueue.length=0');
+const before=state.currencies.magicBud;
+assert.strictEqual(r.addItemToInventory(item(901)),false);
+assert.strictEqual(r.addItemToInventory(item(902)),false);
+assert.strictEqual(run('logQueue.length'),0,'background overflow must not enqueue alerts');
+assert.strictEqual(state.backgroundOverflowSalvageCount,2);
+assert.strictEqual(state.currencies.magicBud,before+2);
+state.isBackgroundCalculation=false;
+assert.strictEqual(r.addItemToInventory(item(903)),false);
+assert.strictEqual(run('logQueue.filter(row=>row.msg.includes("공간 부족 자동해체")).length'),1);
 console.log('smoke-background-overflow-toast passed');

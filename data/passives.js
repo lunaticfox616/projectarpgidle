@@ -266,7 +266,10 @@ const PLAYER_CLASS_DEFS = Object.freeze({
         portrait: 'assets/portraits/classes/warrior.png',
         description: '튼튼한 생명력과 강한 근접 공격으로 밀어붙이는 직업', recommendedTalentHeroId: 'hero2',
         attackAnimationDurationScale: 1.15,
-        motionAnchors: { idle: 78, walk: 80, attacks: [90, 90, 91] },
+        // Feet, not the sword tip: each directional sheet uses a different canvas size.
+        motionAnchors: { idle: 78, walk: 80, attacks: [90, 90, 91],
+            north: { walk: 80, attacks: [84, 84, 84] },
+            south: { walk: 80 }, west: { walk: 80 } },
         strips: { idle: 'playerClassWarriorIdle',
             idleDirections: { north: 'playerClassWarriorIdleNorth', east: 'playerClassWarriorIdle', south: 'playerClassWarriorIdleSouth' }, walk: 'playerClassWarriorWalk',
             walkDirections: { north: 'playerClassWarriorWalkNorth', east: 'playerClassWarriorWalk', south: 'playerClassWarriorWalkSouth', west: 'playerClassWarriorWalkWest' }, attack: 'playerClassWarriorAttack',

@@ -384,7 +384,7 @@ test('entry screen establishes the reliquary palette without horizontal overflow
     await page.locator('#btn-startup-login').click();
     await expect(signupConsent).toBeHidden();
     const result = await page.evaluate(() => {
-        const values = ['.startup-auth-kicker', '#startup-email', '.startup-status'].flatMap(selector => {
+        const values = ['.startup-auth-title', '#startup-email', '.startup-status'].flatMap(selector => {
             const style = getComputedStyle(document.querySelector(selector));
             return [style.color, style.backgroundColor, style.borderTopColor, style.backgroundImage];
         });
@@ -422,6 +422,10 @@ test('manual loop advance asks once and cancel preserves the ready state', async
         game.combatHalted = true;
         updateStaticUI();
     });
+    await page.locator('#loop-ready-overlay').getByRole('button', { name: '장비 정리', exact: true }).click();
+    const equipmentClose=page.locator('#tab-items [data-window-action="close"]');
+    if (await equipmentClose.isVisible()) await equipmentClose.click();
+    else await page.evaluate(() => switchTab('tab-battle'));
     await page.locator('#btn-combat-loop-advance').click();
     await expect(page.locator('#game-dialog-overlay')).toHaveClass(/active/);
     await expect(page.locator('#game-dialog-message')).toContainText('정말 지금 루프하시겠습니까?');
@@ -470,6 +474,9 @@ test('unlocked secondary tabs render after cross-tab navigation', async ({ page 
     await page.evaluate(() => {
         game.level = 100;
         game.season = 30;
+        // This is a navigation fixture for an existing fully unlocked save.
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
+        contentProgression.sync();
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         updateStaticUI();
     });
@@ -532,6 +539,8 @@ test('pruning returns paid ranks and disconnected branches without losing points
     await openLocalGame(page);
     const before = await page.evaluate(() => {
         game.season = 150;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
+        contentProgression.sync();
         game.loopCount = 149;
         game.combatHalted = true;
         game.enemies = [];
@@ -597,6 +606,7 @@ test('condition patterns, Arcana and pruning render as one endgame progression p
         closeDeathOverlay();
         game.journalEntries = Array.from(new Set([...(game.journalEntries || []), 'act_5', 'woodsman', 'cosmos_astra']));
         game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_arcana']));
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.conditionGemUnlocked = true;
         game.conditionGemPool = [
@@ -629,26 +639,11 @@ test('condition patterns, Arcana and pruning render as one endgame progression p
     await dismissVisibleTutorials(page);
     await expect(page.locator('#tab-hideout, #btn-tab-hideout')).toHaveCount(0);
 
+    // Milestone conditions and purchases are exercised in content-progression.spec.js.
+    // The passive tab now owns investment only; the old automatic-growth roadmap is hidden.
     await page.evaluate(() => window.switchTab('tab-season'));
     await dismissVisibleTutorials(page);
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('완료한 지난 루프 이정표 49개');
-    await page.locator('#season-content-section > summary').click();
-    await page.locator('#btn-toggle-past-loop-milestones').click();
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('루프 18');
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('해금: 가지치기');
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('루프 25');
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('해금: 생장판 / 생장 아이템 드랍');
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('루프 31');
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('해금: 버려진 날붙이 / 단절된 방랑자');
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('루프 40');
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('생장판 확장: 23칸');
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('루프 50');
-    await expect(page.locator('#ui-season-content-roadmap')).toContainText('생장판 확장: 32칸 · 완전한 수관');
-    await page.evaluate(() => { game.season = 17; updateStaticUI(); });
-    const futureLoop = page.locator('#ui-season-content-roadmap > div').filter({ hasText:'루프 50' });
-    await expect(futureLoop).toBeVisible();
-    await expect(futureLoop).toContainText('잠김');
-    await page.evaluate(() => { game.season = 50; updateStaticUI(); });
+    await expect(page.locator('#season-content-section')).toBeHidden();
 
     await expect(page.locator('#tab-season #pruning-tree-section')).toHaveCount(0);
     const mobileMoreButton = page.locator('#btn-mobile-nav-more');
@@ -762,6 +757,7 @@ test('the guaranteed Arcana quest credits distinct Cosmos exploration and render
     const firstStage = await page.evaluate(() => {
         game.season = 31;
         game.loopCount = 30;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.arcana = createDefaultArcanaState();
         game.cosmosAtlas = { ...(game.cosmosAtlas || {}), cleared:['planet-0', 'asteroid-0'] };
@@ -817,6 +813,8 @@ test('equipment triage classifies the current build without destabilizing select
         }).observe(slotSelect, { childList: true });
     });
     const triage = page.locator('#ui-equipment-triage');
+    await dismissVisibleTutorials(page);
+    await expect(triage.getByRole('button', { name: '일괄 분석' })).toBeVisible();
     await expect(triage).toContainText('호버 대신');
     await triage.getByRole('button', { name: '일괄 분석' }).click();
     await expect(triage).toContainText('3개 완료');
@@ -844,6 +842,7 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     const initial = await page.evaluate(() => {
         game.level = 100;
         game.season = 20;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         const swordBase = BASE_ITEM_DB.find(base => base.slot === '무기' && !base.dropOnly && !base.realmBase);
         const helmetBase = BASE_ITEM_DB.find(base => base.slot === '투구' && !base.dropOnly && !base.realmBase);
@@ -945,6 +944,7 @@ test('endgame support screens keep primary actions and interaction state visible
         game.underworldRunes = { unlockedSlots: 3, unlockedRunesMaxNumber: 9, obtainedRunes: [1, 2, 2], equippedRunes: [1, null, 2, null, null, null], enhanceLvByNo: {}, bonusLinesByNo: {} };
         game.selectedHeroId = 'hero1';
         game.ascendClass = 'warrior';
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         let cube = ensureCoreCubeState();
         Object.assign(cube, { unlocked: true, everUnlocked: true, relockUntilDrop: false, powers: { 7: 2, 12: 1 }, faces: [null, null, null, null, null, null], selectedFace: 0, completed: false });
@@ -1018,6 +1018,7 @@ test('craft, gem, map and accessory subtabs remain usable', async ({ page }) => 
         game.season = 60;
         game.maxZoneId = 20;
         game.chaosInfuserUnlocked = true;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.conditionGemUnlocked = true;
         game.unlockedMapContents = MAP_PRIMARY_CONTENTS.map(def => def.id);
@@ -1056,7 +1057,9 @@ test('ascension trials visibly distinguish completed and pending clears', async 
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
+        game.season = 2;
         game.maxZoneId = 20;
+        contentProgression.sync();
         game.unlocks.map = true;
         game.completedTrials = ['trial_1'];
         game.unlockedTrials = ['trial_1', 'trial_2'];
@@ -1084,6 +1087,7 @@ test('ocean fishing exposes strategy, collection growth and explicit crafting ta
     await openLocalGame(page);
     await page.evaluate(() => {
         game.season = 30;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.ocean = createDefaultOceanState();
         game.ocean.unlocked = true;
@@ -1169,6 +1173,7 @@ test('equipment crafting shows the exact last change and repeats without losing 
     await page.evaluate(() => {
         game.level = 200;
         game.season = 20;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         const base = BASE_ITEM_DB.find(row => row.slot === '무기' && !row.dropOnly && !row.realmBase);
         const item = createItemFromBase(base, 'rare', 10);
@@ -1213,7 +1218,7 @@ test('salvaged equipment can be recovered for its exact reward on desktop and mo
 
     const shortcut = page.locator('#btn-salvage-recovery');
     await expect(shortcut).toHaveAttribute('aria-label', /복구 가능 장비 1개/);
-    if (!await shortcut.isVisible()) await page.locator('#item-tab-equip .bulk-manager > summary').click();
+    await dismissVisibleTutorials(page);
     await shortcut.click();
     const overlay = page.locator('#salvage-recovery-overlay');
     await expect(overlay).toBeVisible();
@@ -1245,6 +1250,7 @@ test('codex hunt targets expose sources and survive loot automation', async ({ p
     await page.evaluate(() => {
         game.level = 200;
         game.season = 31;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.uniqueCodex = {};
         game.uniqueHuntTargets = [];
@@ -1303,7 +1309,7 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     expect(failures).toEqual([]);
 });
 
-test('bounty HUD card reveals its reward and owns the cancel action', async ({ page }) => {
+test('treasure HUD counts down, retains a postponed event and pays it once', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
@@ -1312,42 +1318,199 @@ test('bounty HUD card reveals its reward and owns the cancel action', async ({ p
         game.currentZoneId = 0;
         game.unlocks.season = true;
         game.seenTutorials = Array.from(new Set([...(game.seenTutorials || []), 'unlock_season_tab']));
-        game.bountyHunt = { pity: 9, offerIds: [], activeId: null, status: 'idle', offered: 0,
-            accepted: 0, completed: 0, abandoned: 0 };
-        bountyRuntime.advanceAfterBossKill(getZone(0), { isBoss: true });
+        game.bountyHunt = bountyRuntime.restore({version:2,remaining:10});
         updateStaticUI();
     });
-
+    await dismissVisibleTutorials(page);
     const hud = page.locator('#ui-bounty-box');
-    const offer = hud.getByRole('button', { name: /희귀 표적 발견/ });
+    await expect(hud).toContainText('다음 보물사냥까지');
+    await expect(hud.locator('span')).toHaveText('10');
+    await page.evaluate(() => {
+        for(let i=0;i<10;i++) bountyRuntime.advanceAfterBossKill(getZone(0),{isBoss:true});
+        updateStaticUI();
+    });
+    const offer = hud.getByRole('button', { name: /보물사냥/ });
     await expect(offer).toBeVisible();
     await offer.click();
-    await expect(page.locator('.game-choice-option')).toHaveCount(3);
-    await expect(page.locator('.game-choice-option').first()).toContainText('위험:');
-    await expect(page.locator('.game-choice-option').first()).toContainText('보상:');
-    await page.locator('.game-choice-option').first().click();
-    await expect(page.locator('#game-dialog-overlay')).not.toHaveClass(/active/);
-
-    const active = hud.getByRole('button', { name: /현상금 추적 정보 및 취소/ });
-    await expect(active).toContainText(/.+ 추적 중/);
-    await expect(active).not.toContainText('보상 확인');
-    await expect(hud.locator('.bounty-hud-dismiss')).toHaveCount(0);
-    await active.click();
     const dialog = page.locator('#game-dialog-overlay');
     await expect(dialog).toHaveClass(/active/);
-    await expect(dialog).toContainText('위험:');
-    await expect(dialog).toContainText('보상:');
-    await dialog.getByRole('button', { name: '계속 추적' }).click();
+    await expect(dialog).toContainText('발견한 보물:');
+    const reward = await page.locator('#game-dialog-message').innerText();
+    await page.screenshot({path:testInfo.outputPath('treasure-event.png')});
+    await dialog.getByRole('button', { name: '나중에 받기' }).click();
     await expect(dialog).not.toHaveClass(/active/);
-    await expect(active).toBeVisible();
+    await offer.click();
+    await expect(page.locator('#game-dialog-message')).toHaveText(reward,{useInnerText:true});
+    await dialog.getByRole('button', { name: '보물 받기' }).click();
+    await expect(hud.locator('span')).toHaveText('10');
+    const state = await page.evaluate(() => ({ completed:game.bountyHunt.completed,
+        pending:game.bountyHunt.pending,duplicate:bountyRuntime.claimTreasure().ok }));
+    expect(state).toEqual({completed:1,pending:null,duplicate:false});
+    expect(failures).toEqual([]);
+});
 
-    await active.click();
-    await dialog.getByRole('button', { name: '추적 취소' }).click();
-    const state = await page.evaluate(() => ({ activeId: game.bountyHunt.activeId,
-        abandoned: game.bountyHunt.abandoned }));
-    expect(state).toEqual({ activeId: null, abandoned: 1 });
-    await expect(hud).toContainText('현상금 흔적');
-    await expect(hud).not.toContainText('🎯');
+test('loop advance offers unclaimed treasure before resetting equipment', async ({page}) => {
+    const failures=watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        game.season=2;game.loopCount=1;game.currentZoneId=8;game.maxZoneId=8;
+        contentProgression.sync();game.settings.autoEquipEmptySlots=false;
+        game.bountyHunt.remaining=1;
+        bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});
+        game.pendingLoopReady=true;
+        updateStaticUI();
+    });
+    await dismissVisibleTutorials(page);
+    const settlement=page.locator('#loop-ready-overlay');
+    await settlement.getByRole('button',{name:'다음 루프 진행'}).click();
+    const dialog=page.locator('#game-dialog-overlay');
+    await expect(dialog).toContainText('발견한 보물:');
+    await dialog.getByRole('button',{name:'나중에 받기'}).click();
+    expect(await page.evaluate(()=>game.season)).toBe(2);
+    await settlement.getByRole('button',{name:'다음 루프 진행'}).click();
+    await dialog.getByRole('button',{name:'보물 받기'}).click();
+    expect(await page.evaluate(()=>({season:game.season,completed:game.bountyHunt.completed})))
+        .toEqual({season:2,completed:1});
+    await settlement.getByRole('button',{name:'다음 루프 진행'}).click();
+    await expect(dialog).toContainText('루프 진행 확인');
+    await dialog.getByRole('button',{name:'루프 진행',exact:true}).click();
+    expect(await page.evaluate(()=>game.season)).toBe(3);
+    expect(failures).toEqual([]);
+});
+
+test('side encounters retain difficulty and active state on save restoration', async ({page},testInfo) => {
+    const failures=watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const result=await page.evaluate(() => {
+        game.season=10;game.loopCount=9;game.currentZoneId=8;game.maxZoneId=8;contentProgression.sync();
+        game.abyssEndlessDepth=200;game.loopProgressCurrent.bestAbyssDepth=21;
+        game.currencies.colonyTrace=1;startColonyRun();
+        const colony={depth:game.colony.entryDeepChaosDepth,count:game.enemies.length};
+        forfeitColonyRun();
+        game.starWedge.unlocked=true;game.starWedge.skyRiftReady=true;
+        game.starWedge.skyRiftMinTier=35;game.starWedge.skyRiftAllCosmos=true;
+        changeZone(METEOR_FALL_ZONE_ID);
+        game.starWedge.skyRiftAllCosmos=false;
+        game=mergeDefaults(JSON.parse(JSON.stringify(game)));
+        const meteor=getZone(METEOR_FALL_ZONE_ID).tier;
+        changeZone(8);game.voidRift.grandBreachUnlock=true;enterGrandBreach();
+        game=mergeDefaults(JSON.parse(JSON.stringify(game)));
+        renderLoop9VoidRiftPanel();
+        return {colony,meteor,zone:game.currentZoneId,active:game.voidRift.grandRun.inRun};
+    });
+    expect(result).toEqual({colony:{depth:21,count:12},meteor:35,zone:'grand_breach_run',active:true});
+    await dismissVisibleTutorials(page);
+    await page.evaluate(() => {
+        game.combatTimeMs=getCombatTime()+35000;
+        tickGrandBreachRun(getZone('grand_breach_run'));
+        game.combatHalted=true;
+        updateStaticUI();
+    });
+    expect(await page.evaluate(()=>game.enemies.some(enemy=>enemy.isBoss && enemy.hp>0))).toBe(true);
+    await dismissVisibleTutorials(page);
+    await page.screenshot({path:testInfo.outputPath('side-encounter.png')});
+    expect(failures).toEqual([]);
+});
+
+test('character attributes and elemental EHP use readable custom tooltips', async ({ page },testInfo) => {
+    const failures=watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.locator('#btn-tab-character').click();
+    for(const light of [false,true]) {
+        await page.evaluate(light=>{
+            document.body.classList.toggle('light-mode',light);
+            document.querySelectorAll('#tab-character details').forEach(row=>row.open=true);
+        },light);
+        for(const [id,label] of [['strength','힘'],['dexterity','민첩'],['intelligence','지능']]) {
+            const row=page.locator('#ui-'+id).locator('..');
+            await row.scrollIntoViewIfNeeded();
+            await row.focus();
+            await expect(page.locator('#info-tooltip')).toBeVisible();
+            await expect(page.locator('#info-tooltip .tooltip-title')).toContainText(label);
+            expect(await page.locator('#info-tooltip').innerText()).not.toMatch(/[💪🏹🧠]/u);
+        }
+        const cards=page.locator('#ui-character-ehp .character-ehp-stat');
+        await expect(cards).toHaveCount(5);
+        for(let i=0;i<5;i++) {
+            const card=cards.nth(i);
+            await card.scrollIntoViewIfNeeded();
+            await card.focus();
+            await expect(card).not.toHaveAttribute('title',/.+/);
+            await expect(page.locator('#info-tooltip')).toContainText('공격 EHP');
+            await expect(page.locator('#info-tooltip')).toContainText('직격 EHP');
+        }
+        await cards.first().evaluate(row=>row.blur());
+        await page.screenshot({path:testInfo.outputPath('character-'+light+'.png')});
+        expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+    }
+    expect(failures).toEqual([]);
+});
+
+test('progress tooltip shows movement time savings without rebuilding on mouse movement',async({page})=>{
+    const failures=watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(()=>{
+        game.passives=['n0'];
+        const node=Object.values(PASSIVE_TREE.nodes).find(node=>node.kind==='void');
+        game.passives.push(node.id);game.voidPassives[node.id]={stats:[{id:'move',val:100}]};
+        performUpdateStaticUI();
+    });
+    const speed=await page.evaluate(()=>getPlayerStats().moveSpeed);
+    const gauge=page.locator('.map-progress-gauge');
+    await gauge.hover();
+    const tooltip=page.locator('#info-tooltip');
+    await expect(tooltip).toContainText((speed/100).toFixed(2)+'배');
+    await expect(tooltip).toContainText(((1-100/speed)*100).toFixed(1)+'% 단축');
+    await page.evaluate(()=>{
+        window.__progressMutations=0;
+        window.__progressObserver=new MutationObserver(rows=>window.__progressMutations+=rows.length);
+        __progressObserver.observe(document.getElementById('info-tooltip'),{childList:true,subtree:true,characterData:true});
+    });
+    const box=await gauge.boundingBox();
+    for(let i=0;i<30;i++) await page.mouse.move(box.x+5+i*2,box.y+box.height/2);
+    expect(await page.evaluate(()=>{__progressObserver.disconnect();return __progressMutations;})).toBe(0);
+    await page.mouse.move(0,0);
+    await expect(tooltip).not.toBeVisible();
+    expect(failures).toEqual([]);
+});
+
+test('Fenrir real hits select four cropped image frames and retain the shared effect budget',async({page},testInfo)=>{
+    const failures=watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.waitForFunction(()=>battleAssets.images.skillFxFenrirFang?.naturalWidth>0);
+    const result=await page.evaluate(()=>{
+        game.talentCards.hero2__warlock={level:10,score:600,count:1};
+        game.talentCardLoadout=['hero2__warlock',null,null,null,null,null];
+        game.activeSkill='기본 공격';game.gridPlayer={gx:1,gy:6,gridMoveTimer:0};
+        const enemy={id:999,name:'검증 대상',hp:100000,maxHp:100000,level:1,evasion:0,dr:0,
+            resF:0,resC:0,resL:0,resChaos:0,gx:2,gy:6,ailments:[],isBoss:false};
+        game.enemies=[enemy];battleFx=[];
+        const stats=getPlayerStats();stats.accuracy=1000000;stats.crit=0;
+        performPlayerAttack(stats,{stageReplay:true,targetEntries:[{enemyId:999,mult:1}],skillName:'기본 공격'});
+        const hit=battleFx.find(fx=>fx.type==='hit');
+        battleVisualState.skillEffects=[];
+        queueSkillGemVfx(hit,{x:190,y:120,enemy},{x:100,y:120},{},1000,1);
+        const effect=battleVisualState.skillEffects[0];
+        const canvas=document.createElement('canvas');canvas.id='fenrir-frames-review';canvas.width=1000;canvas.height=200;
+        canvas.style.cssText='position:fixed;left:0;top:0;width:100%;height:auto;z-index:999999;background:#171e18';
+        document.body.appendChild(canvas);
+        const ctx=canvas.getContext('2d'),draw=ctx.drawImage.bind(ctx),crops=[];
+        ctx.drawImage=(...args)=>{crops.push(args.slice(1,5));draw(...args);};
+        for(let i=0;i<4;i++) {
+            ctx.save();ctx.translate(i*250,0);
+            drawSkillGemVfxLayer(ctx,effect.startAt+(i+.5)/4*effect.duration);ctx.restore();
+        }
+        for(let i=0;i<100;i++) queueSkillGemVfx({...hit,id:i+1000},{x:190,y:120,enemy},{x:100,y:120},{},1000,1);
+        return {name:hit.skillName,image:effect.imageKey,crops,count:battleVisualState.skillEffects.length,
+            width:battleAssets.images.skillFxFenrirFang.naturalWidth};
+    });
+    expect(result.name).toBe('펜리르의 독니');
+    expect(result.image).toBe('skillFxFenrirFang');
+    expect(result.crops).toHaveLength(4);
+    expect(new Set(result.crops.map(row=>row.slice(0,2).join(','))).size).toBe(4);
+    expect(result.crops.every(row=>row[2]===result.width/2&&row[3]===result.width/2)).toBe(true);
+    expect(result.count).toBeLessThanOrEqual(56);
+    await page.locator('#fenrir-frames-review').screenshot({path:testInfo.outputPath('fenrir-frames.png')});
     expect(failures).toEqual([]);
 });
 
@@ -1379,6 +1542,8 @@ test('global UI keeps native font smoothing and compact HUD text at full scale',
         await page.setViewportSize({ width: 1280, height: 720 });
     }
     await openLocalGame(page);
+    await page.evaluate(() => { requestGameConfirmation('장비와 스킬 설명을 확인하세요.', { title: '안내' }); });
+    await expect(page.locator('.game-dialog-card')).toBeVisible();
     const rendering = await page.evaluate(() => {
         const scaleOf = selector => {
             const transform = getComputedStyle(document.querySelector(selector)).transform;
@@ -1387,11 +1552,19 @@ test('global UI keeps native font smoothing and compact HUD text at full scale',
         };
         return {
             smoothing: getComputedStyle(document.body).getPropertyValue('-webkit-font-smoothing'),
+            readingFonts: ['body', '#log', '.game-dialog-title', '.game-dialog-message'].map(selector =>
+                getComputedStyle(document.querySelector(selector)).fontFamily),
+            messageSize: parseFloat(getComputedStyle(document.querySelector('.game-dialog-message')).fontSize),
             enemyScale: scaleOf('#enemy-area'),
             playerScale: scaleOf('.player-hud')
         };
     });
     expect(rendering.smoothing).toBe('auto');
+    for (const font of rendering.readingFonts) {
+        expect(font).not.toMatch(/Galmuri|DOSSaemmul|Mulmaru/i);
+        expect(font).toMatch(/sans-serif/);
+    }
+    expect(rendering.messageSize).toBeGreaterThanOrEqual(13);
     expect(rendering.enemyScale).toBe(1);
     expect(rendering.playerScale).toBe(1);
     expect(failures).toEqual([]);
@@ -1403,6 +1576,7 @@ test('gem tooltips reuse computed stats and avoid live-canvas blur', async ({ pa
     const result = await page.evaluate(() => {
         game.level = 200;
         game.season = 60;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.skills = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
         game.supports = Object.keys(SUPPORT_GEM_DB);
@@ -1555,6 +1729,7 @@ test('ghost arena shows server-ranked asynchronous duel results', async ({ page 
         game.season = 30;
         game.maxZoneId = 20;
         game.activeSkill = '독니 사출';
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         updateStaticUI();
         switchTab('tab-social');
@@ -1654,6 +1829,7 @@ test('equipment hall shows server appraisal and ownership rules', async ({ page 
             slot: '투구', rarity: 'rare', hiddenTier: 12, baseStats: [], stats: [{ id: 'flatHp', val: 220, tier: 9 }] }];
         game.level = 100;
         game.season = 20;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         updateStaticUI();
         switchTab('tab-items');
@@ -1723,6 +1899,7 @@ test('mobile navigation exposes all game tabs in a horizontal rail and keeps onl
     await page.evaluate(() => {
         game.level = 100;
         game.season = 31;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.settings.twoRowTabs = false;
         updateTabUnlockButtons();
@@ -1998,6 +2175,8 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     const layout = await page.evaluate(() => {
+        game.contentProgression.inherited = ['craft', 'flask', 'flaskUtility'];
+        contentProgression.sync();
         game.equipment['허리띠'] = {
             rarity: 'rare',
             baseStats: [{ id: 'flaskUtilSlots', val: 2 }]
@@ -2031,6 +2210,8 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
     expect(layout.one).toMatchObject({ slots: 1, visible: '1' });
     expect(layout.three).toMatchObject({ slots: 3, visible: '3' });
     expect(Math.abs(layout.three.hpLeft - layout.one.hpLeft)).toBeLessThanOrEqual(1);
+    await page.evaluate(() => updateStaticUI());
+    await dismissVisibleTutorials(page);
     const combatFlask = page.locator('.player-hud-flask-rack .combat-flask-mini:not(:disabled)').first();
     await combatFlask.hover();
     const flaskCenterBeforePress = await combatFlask.evaluate(button => {
@@ -2132,6 +2313,7 @@ test('flask controls stay in place when their trigger label changes', async ({ p
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.equipment['허리띠'] = {
             rarity:'rare',
@@ -2189,6 +2371,7 @@ test('representative battle and equipment layouts preserve the primary task hier
     await page.evaluate(() => {
         game.level = 100;
         game.season = 30;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.settings.mapCompleteAction = 'stop';
         game.combatHalted = true;
@@ -2247,15 +2430,14 @@ test('representative battle and equipment layouts preserve the primary task hier
         });
         const { goalContent, goalChrome, shellWidths } = layoutCheck;
         expect(goalContent.visible).toBe(true);
-        expect(goalContent.toggle).toContain('목표');
-        expect(goalContent.toggle).toContain('2개');
+        expect(goalContent.toggle).toBe('목표');
         expect(goalContent.body).toContain('다음 루프 조건 달성');
         expect(goalChrome).toMatchObject({
             panel: ['rgba(0, 0, 0, 0)', '0px', 'none'],
-            action: ['rgba(0, 0, 0, 0)', '0px', 'none'],
             notice: ['rgba(0, 0, 0, 0)', '0px', 'none']
         });
-        expect(goalChrome.titleShadow).not.toBe('none');
+        expect(goalChrome.action[2]).toBe('none');
+        expect(goalChrome.titleShadow).toBe('none');
         expect(shellWidths.rail).toBeLessThanOrEqual(190);
         expect(shellWidths.log).toBeLessThanOrEqual(320);
         expect(shellWidths.goalParent).toContain('battlefield-wrap');
@@ -2270,10 +2452,11 @@ test('representative battle and equipment layouts preserve the primary task hier
         updateStaticUI();
         if (window.matchMedia('(max-width: 1080px)').matches) setEquipmentMobilePane('inventory');
     });
+    await dismissVisibleTutorials(page);
     await expect(page.locator('.equipment-inventory-panel')).toBeVisible();
 
     if (isMobile) {
-        await expect(page.locator('#item-tab-equip .bulk-manager')).not.toHaveAttribute('open', /.+/);
+        await expect(page.locator('#item-tab-equip .inventory-management-row')).toBeVisible();
         const managementFlow = await page.evaluate(() => {
             const pip = document.getElementById('mobile-battle-pip').getBoundingClientRect();
             const subtabs = document.querySelector('#tab-items > .subtab-row').getBoundingClientRect();
@@ -2287,7 +2470,6 @@ test('representative battle and equipment layouts preserve the primary task hier
         });
         expect(managementFlow.pipBottom).toBeLessThanOrEqual(managementFlow.subtabsTop + 1);
         expect(managementFlow.switcherTop).toBeGreaterThanOrEqual(managementFlow.subtabsBottom - 1);
-        await page.locator('#item-tab-equip .bulk-manager > summary').click();
         const actionLayout = await page.locator('#item-tab-equip .equipment-salvage-actions').evaluate(element => {
             const buttons = Array.from(element.querySelectorAll('button')).slice(0, 2);
             const boxes = buttons.map(button => button.getBoundingClientRect());
@@ -2304,6 +2486,54 @@ test('representative battle and equipment layouts preserve the primary task hier
     const horizontalOverflow = await page.evaluate(() =>
         Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth));
     expect(horizontalOverflow).toBeLessThanOrEqual(1);
+    expect(failures).toEqual([]);
+});
+
+test('main battle progress stays readable and collapsing the log returns space to combat', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null;
+        game.combatHalted = true; game.moveTimer = 0; game.runProgress = 37;
+        game.settings.combatLogCollapsed = false;
+        applyPanelLayoutSettings(); updateCombatUI();
+    });
+    await dismissVisibleTutorials(page);
+    await page.screenshot({ path: testInfo.outputPath('battle.png') });
+    const progress = page.locator('#ui-move-time-text');
+    await expect(progress).toHaveText('37%');
+    const progressStyle = await progress.evaluate(el => ({
+        fontSize: parseFloat(getComputedStyle(el).fontSize),
+        width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height
+    }));
+    expect(progressStyle.fontSize).toBeGreaterThanOrEqual(11);
+    expect(progressStyle.width).toBeGreaterThan(20);
+    expect(progressStyle.height).toBeGreaterThanOrEqual(11);
+    expect(failures).toEqual([]);
+    if (testInfo.project.name.startsWith('mobile')) return;
+    const battlefield = page.locator('#battlefield-wrap');
+    const original = await battlefield.boundingBox();
+    const toggle = page.locator('#btn-combat-log-toggle');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('#log')).toBeHidden();
+    await expect.poll(async () => (await battlefield.boundingBox()).width).toBeGreaterThan(original.width + 100);
+    await expect.poll(() => page.locator('#battlefield-canvas').evaluate(canvas =>
+        canvas.width - Math.round(Math.round(canvas.parentElement.getBoundingClientRect().width)
+            * Math.min(2, Math.max(1, window.devicePixelRatio))))).toBe(0);
+    await expect(toggle).toBeInViewport({ ratio: 1 });
+    await page.screenshot({ path: testInfo.outputPath('battle-focus.png') });
+    const wide = await battlefield.boundingBox();
+    await page.locator('#btn-combat-chat-tab').click();
+    await expect(page.locator('#tab-social')).toBeVisible();
+    await expect.poll(async () => Math.abs((await battlefield.boundingBox()).width - original.width)).toBeLessThan(2);
+    await page.locator('#tab-social .ui-context-dock-tab').first().click();
+    await expect.poll(async () => Math.abs((await battlefield.boundingBox()).width - wide.width)).toBeLessThan(2);
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#log')).toBeVisible();
+    await expect.poll(async () => Math.abs((await battlefield.boundingBox()).width - original.width)).toBeLessThan(2);
+    expect(await page.evaluate(() => game.runProgress)).toBe(37);
     expect(failures).toEqual([]);
 });
 
@@ -2439,6 +2669,8 @@ test('growth layout changes publish the latest occupied cells to the public prof
         cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
         setMyNicknameLocal('배치동기화');
         game.season = 60;
+        game.contentProgression.inherited = ['growth'];
+        contentProgression.sync();
         let board = ensureGrowthBoardState();
         board.unlockedCellCount = GROWTH_BOARD_W * GROWTH_BOARD_H;
         board.activeLoadout = 0;
@@ -2512,6 +2744,7 @@ test('map cards show readiness grades and keep approximate numbers in the toolti
         game.season = 10;
         game.loopCount = 9;
         game.maxZoneId = 9;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         switchTab('tab-map');
         switchMapSubtab('map-tab-zones');
@@ -2540,6 +2773,7 @@ test('mobile map navigation stays compact and new goals do not cover the map', a
     await page.evaluate(() => {
         game.level = 100;
         game.season = 31;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.unlockedMapContents = MAP_PRIMARY_CONTENTS.map(def => def.id);
         presentGoalDrawer({
@@ -2588,6 +2822,7 @@ test('atlas pinnacle bosses expose realm milestones and allow ticketless challen
         game.ocean = { ...game.ocean, unlocked: true, depthM: 1000, bossClearM: 1000 };
         game.skyTower = { ...game.skyTower, unlocked: true, currentFloor: 30, highestFloor: 31, clearedFloors: [30] };
         game.clearedRootBosses = ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky'];
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         switchTab('tab-map');
         switchMapSubtab('map-tab-zones');
@@ -2597,13 +2832,16 @@ test('atlas pinnacle bosses expose realm milestones and allow ticketless challen
         if (activeTutorial) dismissTutorial(false);
     });
     const panel = page.locator('#map-explore-root-boss');
-    await expect(panel).toContainText('아틀라스 최종 관문');
+    await expect(panel).toContainText('강대한 적');
+    await expect(panel.locator('[data-map-zone-group="finalGate"] .map-item')).toHaveCount(1);
+    await expect(panel.locator('[data-map-zone-group="finalGate"]')).toContainText('경계의 관측자 베일라');
+    await expect(panel.locator('[data-map-zone-group="pinnacleBosses"]')).not.toContainText('베일라');
     await expect(panel).toContainText('지핵군주 모르그란');
     await expect(panel).toContainText('무광해의 포식자 탈라사');
     await expect(panel).toContainText('빈 왕좌의 집행자 카엘룸');
     await expect(panel).toContainText('경계의 관측자 베일라');
     const observer = panel.locator('.map-item').filter({ hasText: '경계의 관측자 베일라' });
-    await expect(observer).toContainText('최종 관문 격파 3/4');
+    await expect(observer).toContainText('수호자 격파 3/4');
     await expect(observer).not.toHaveAttribute('onclick', /changeZone/);
     const underking = panel.locator('.map-item').filter({ hasText: '지핵군주 모르그란' });
     await expect(underking).toContainText('재도전 가능');
@@ -2620,6 +2858,7 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
         game.loopCount = 30;
         game.journalEntries = Array.from(new Set([...(game.journalEntries || []), 'woodsman']));
         game.underworldProgress = { ...(game.underworldProgress || {}), highestFloor: 30, currentFloor: 30 };
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         reconcileMapPrimaryContentUnlocks(game);
         switchTab('tab-map');
@@ -2628,6 +2867,7 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
         tutorialQueue.length = 0;
         if (activeTutorial) dismissTutorial(false);
     });
+    await dismissVisibleTutorials(page);
     const detail = page.locator('#ui-cosmos-detail');
     await expect(detail).toBeVisible();
     await expect(detail).toContainText('하말리스');
@@ -2666,6 +2906,7 @@ test('cosmos expedition signals change risk and persist into the battle contract
         game.loopCount = 30;
         game.journalEntries = Array.from(new Set([...(game.journalEntries || []), 'woodsman']));
         game.underworldProgress = { ...(game.underworldProgress || {}), highestFloor: 30, currentFloor: 30 };
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.cosmosAtlas = {
             ...(game.cosmosAtlas || {}), unlocked: true, cleared: ['planet-0', 'planet-46'],
@@ -2734,6 +2975,7 @@ test('market exchange selector survives auto-salvage currency updates', async ({
         game.maxZoneId = 5;
         game.inventory = [];
         game.currencies.magicBud = 20;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         switchTab('tab-items');
         switchItemSubtab('item-tab-market');
@@ -2751,9 +2993,9 @@ test('market exchange selector survives auto-salvage currency updates', async ({
     });
     expect(await page.evaluate(() => document.getElementById('ui-market-exchange-from') === window.__marketExchangeSelectorBeforeSalvage)).toBe(true);
     await expect(selector).toBeFocused();
-    await expect(selector).toHaveValue('magicBud');
+    await expect(selector).toHaveValue('m1');
     await selector.blur();
-    await expect(page.locator('[data-market-exchange-balance]')).toContainText('보유 24개');
+    await expect(page.locator('#ui-market-quote')).toContainText('마법의 새싹 16개');
     expect(failures).toEqual([]);
 });
 
@@ -2785,6 +3027,7 @@ test('combat HUD interactions keep their visual and tooltip contracts', async ({
     await openLocalGame(page);
     await page.evaluate(() => {
         game.combatHalted = true;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         renderCombatSkillHud();
         presentGoalDrawer({ id: 'persistent-goal', title: '목표 유지 검사', current: 1, target: 2 });
@@ -2799,19 +3042,32 @@ test('combat HUD interactions keep their visual and tooltip contracts', async ({
 
     const itemSocket = page.locator('#btn-tab-items');
     await page.evaluate(() => switchTab('tab-items'));
-    const openFilter = await itemSocket.evaluate(element => getComputedStyle(element).filter);
+    await expect(itemSocket).toHaveClass(/ui-window-open/);
+    const openMark = await itemSocket.evaluate(element => getComputedStyle(element).boxShadow);
     await page.evaluate(() => closeWindow('tab-items'));
     await expect(itemSocket).not.toHaveClass(/ui-window-open/);
-    const closedFilter = await itemSocket.evaluate(element => getComputedStyle(element).filter);
+    const closedMark = await itemSocket.evaluate(element => getComputedStyle(element).boxShadow);
+    const closedBorder = await itemSocket.evaluate(element => getComputedStyle(element).borderColor);
     await itemSocket.hover();
-    const hoverFilter = await itemSocket.evaluate(element => getComputedStyle(element).filter);
-    expect(closedFilter).not.toBe(openFilter);
-    expect(hoverFilter).not.toBe(closedFilter);
+    expect(closedMark).not.toBe(openMark);
+    await expect.poll(() => itemSocket.evaluate(element => getComputedStyle(element).borderColor)).not.toBe(closedBorder);
     await page.evaluate(() => switchTab('tab-battle'));
 
     const presentation = await page.evaluate(() => {
         const host = document.getElementById('ui-combat-flasks');
-        host.innerHTML = Array.from({ length: 5 }, () => '<button class="combat-flask-mini flask-heal"><span></span><b>3</b></button>').join('');
+        game.equipment['허리띠'] = {rarity:'rare', baseStats:[{id:'flaskUtilSlots',val:4}]};
+        const flasks = ensureFlaskState();
+        const categories = new Set();
+        const keys = Object.keys(FLASK_UTILITY_POOL).filter(key => {
+            const category = FLASK_UTILITY_POOL[key].category;
+            if (categories.has(category)) return false;
+            categories.add(category);return true;
+        });
+        flasks.utils = keys.slice(0,4).map(key => ({
+            key, charges:FLASK_UTILITY_POOL[key].maxCharges, chargeProgress:0, until:0, trigger:'combat'
+        }));
+        contentProgression.sync();
+        renderCombatFlaskHud();
         const hostRect = host.getBoundingClientRect();
         const flaskCenters = Array.from(host.children, element => {
             const rect = element.getBoundingClientRect();
@@ -2850,7 +3106,32 @@ test('combat HUD interactions keep their visual and tooltip contracts', async ({
     expect(failures).toEqual([]);
 });
 
-test('desktop dock labels and menu sockets follow the visible surface state', async ({ page }, testInfo) => {
+test('desktop workspace upgrades old window placement once and preserves a later restore', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name.startsWith('mobile'), 'desktop window placement');
+    await page.addInitScript(() => {
+        const key = 'project-arpg-idle-ui-layout-v1';
+        if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({
+            version: 1, passiveTreePresentationVersion: 1,
+            windows: { 'tab-skills': { x: 350, y: 260, width: 720, height: 460, maximized: false } }
+        }));
+    });
+    await openLocalGame(page);
+    await page.evaluate(() => { game.unlocks.skills = true; switchTab('tab-skills'); });
+    const panel = page.locator('#tab-skills');
+    await expect(panel).toHaveClass(/ui-window-maximized/);
+    expect((await panel.boundingBox()).y).toBeLessThan(20);
+    await panel.locator('[data-window-action="maximize"]').click();
+    await expect(panel).not.toHaveClass(/ui-window-maximized/);
+    const restored = await panel.boundingBox();
+    await page.reload();
+    await page.locator('#btn-startup-guest').click();
+    await page.waitForFunction(() => !document.body.classList.contains('startup-active'));
+    await page.evaluate(() => { game.unlocks.skills = true; switchTab('tab-skills'); });
+    await expect(panel).not.toHaveClass(/ui-window-maximized/);
+    expect((await panel.boundingBox()).width).toBeCloseTo(restored.width, 0);
+});
+
+test('desktop dock labels and named navigation follow the visible surface state', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'desktop dock and rail use separate mobile controls');
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
@@ -2867,6 +3148,7 @@ test('desktop dock labels and menu sockets follow the visible surface state', as
 
     await page.evaluate(() => {
         closeCommunityDock();
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         switchTab('tab-items');
     });
@@ -2874,7 +3156,14 @@ test('desktop dock labels and menu sockets follow the visible surface state', as
     const openImage = await socket.evaluate(element => getComputedStyle(element).backgroundImage);
     await socket.hover();
     expect(await socket.evaluate(element => getComputedStyle(element).backgroundImage)).toBe(openImage);
-    expect(await socket.evaluate(element => getComputedStyle(element).filter)).toContain('drop-shadow');
+    await expect(socket.locator('.ui-rail-label')).toBeVisible();
+    const menuLabel = await socket.locator('.ui-rail-label').boundingBox();
+    const menuRect = await socket.boundingBox();
+    expect(menuLabel.x).toBeGreaterThanOrEqual(menuRect.x);
+    expect(menuLabel.x + menuLabel.width).toBeLessThanOrEqual(menuRect.x + menuRect.width);
+    const content = await page.locator('#tab-items').boundingBox();
+    const dock = await page.locator('.combat-feed').boundingBox();
+    expect(content.x + content.width).toBeGreaterThan(dock.x + dock.width - 20);
 
     await page.evaluate(() => closeWindow('tab-items'));
     const closed = await socket.evaluate(element => ({
@@ -2882,8 +3171,12 @@ test('desktop dock labels and menu sockets follow the visible surface state', as
         pressed: element.getAttribute('aria-pressed')
     }));
     expect(closed.pressed).toBe('false');
-    expect(closed.image).toContain('menu-socket-v1.svg');
-    expect(closed.image).not.toContain('menu-tab-active-v1.png');
+    expect(closed.image).not.toBe(openImage);
+    await page.locator('#btn-combat-chat-tab').click();
+    await socket.click();
+    const contentWithChat = await page.locator('#tab-items').boundingBox();
+    const chat = await page.locator('#tab-social').boundingBox();
+    expect(contentWithChat.x + contentWithChat.width).toBeGreaterThan(chat.x);
     expect(failures).toEqual([]);
 });
 
@@ -2891,6 +3184,7 @@ test('representative dark-theme chrome does not regress to the legacy blue palet
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     const offenders = await page.evaluate(() => {
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         const tabIds = ['tab-items', 'tab-skills', 'tab-char', 'tab-flask', 'tab-journal', 'tab-expertise', 'tab-map', 'tab-settings'];
         tabIds.forEach(tabId => switchTab(tabId));

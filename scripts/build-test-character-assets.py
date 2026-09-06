@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack
 import io
 import json
 import zipfile
@@ -64,7 +65,8 @@ CHARACTERS = {
         "label": "전사",
         "walk": "knight_walking_forward_greatsword_held_with_both_h",
         "walkSources": {
-            "east": {"offsetY": -20},
+            "east": {"archive": "sheathed", "folder": "Idle", "state": "pixel_art_knight_sta",
+                     "animation": "armored_knight_walking_sword_sheathed_at_the_waist"},
             "north": {
                 "state": "pixel_art_knight_sta",
                 "animation": "armored_knight_walking_sword_sheathed_at_the_waist",
@@ -73,7 +75,8 @@ CHARACTERS = {
                 "state": "pixel_art_knight_sta",
                 "animation": "armored_knight_walking_sword_sheathed_at_the_waist",
             },
-            "west": {"offsetY": -4},
+            "west": {"archive": "sheathed", "folder": "Idle", "state": "pixel_art_knight_sta",
+                     "animation": "armored_knight_walking_sword_sheathed_at_the_waist"},
         },
         "attacks": [
             "The_character_raises_the_greatsword_from_its_low_r",
@@ -165,10 +168,14 @@ def pack_strip(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--archive", type=Path, required=True)
+    parser.add_argument("--sheathed-walk-archive", type=Path, required=True,
+                        help="new_characters walk plus.zip; warrior east/west sheathed walk")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     manifest = {}
-    with zipfile.ZipFile(args.archive) as archive:
+    with ExitStack() as stack:
+        archive = stack.enter_context(zipfile.ZipFile(args.archive))
+        sheathed_archive = stack.enter_context(zipfile.ZipFile(args.sheathed_walk_archive))
         for character_id, config in CHARACTERS.items():
             target = args.output / character_id
             folder = str(config["folder"])
@@ -183,13 +190,15 @@ def main() -> None:
             directional_walks = {}
             for direction in CARDINAL_DIRECTIONS:
                 walk_state, walk_animation, source_direction, offset_y = resolve_walk_source(config, direction)
+                override = config.get("walkSources", {}).get(direction, {})
+                walk_archive = sheathed_archive if override.get("archive") == "sheathed" else archive
                 walk_paths = existing_frame_paths(
-                    archive, folder, walk_animation, walk_state, source_direction
+                    walk_archive, override.get("folder", folder), walk_animation, walk_state, source_direction
                 )
                 filename = "walk.webp" if direction == DEFAULT_DIRECTION else f"walk-{direction}.webp"
                 directional_walks[direction] = {
                     "asset": filename,
-                    **pack_strip(archive, walk_paths, target / filename, offset_y),
+                    **pack_strip(walk_archive, walk_paths, target / filename, offset_y),
                 }
             attacks = [str(animation) for animation in config["attacks"]]
             attack_directions = {direction: [] for direction in ATTACK_DIRECTIONS}
@@ -210,8 +219,8 @@ def main() -> None:
                 "label": config["label"],
                 "sourceFolder": folder,
                 "direction": DEFAULT_DIRECTION,
-                "walkState": str(config.get("walkState", "Idle")),
-                "walkAnimation": config["walk"],
+                "walkState": resolve_walk_source(config, DEFAULT_DIRECTION)[0],
+                "walkAnimation": resolve_walk_source(config, DEFAULT_DIRECTION)[1],
                 "attackAnimation": attacks[0],
                 "attackAnimations": attacks,
                 "idle": {

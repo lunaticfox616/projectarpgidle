@@ -12,8 +12,8 @@ const equipmentChances = JSON.parse(run('JSON.stringify(EQUIPMENT_BASE_DROP_CHAN
 assert.strictEqual(chances.regular, 0.003, '일반몹 생장판 원본 확률은 0.3%여야 한다');
 assert.strictEqual(chances.elite, 0.01, '정예 생장판 원본 확률은 1%여야 한다');
 assert.strictEqual(chances.boss, 0.03, '보스 생장판 원본 확률은 3%여야 한다');
-assert.deepStrictEqual(equipmentChances, { regular: 0.009, elite: 0.04, boss: 0.155 },
-    '장비 원본 확률은 일반 0.9%, 정예 4%, 보스 15.5%여야 한다');
+assert.deepStrictEqual(equipmentChances, { regular: 0.00765, elite: 0.034, boss: 0.13175 },
+    '장비 원본 확률은 일반 0.765%, 정예 3.4%, 보스 13.175%여야 한다');
 assert.strictEqual(run('getAdditiveDropBonusMultiplier(18.7, 16)'), 1.347,
     '도감과 계약 보너스는 서로 곱하지 않고 같은 원본 확률에 합연산해야 한다');
 
@@ -49,6 +49,8 @@ function rollAt(randomValue, chance) {
     })())`));
 }
 
+assert.strictEqual(rollAt(0, 1).drops, 0, '루프가 높아도 생장판을 해금하기 전에는 생장품이 드랍되지 않는다');
+run("game.contentProgression.inherited.push('growth')");
 assert.strictEqual(rollAt(chances.regular - 0.000001, chances.regular).drops, 1,
     '원본 확률 바로 아래 굴림은 실제 생장판 생성·보관 경로까지 완료해야 한다');
 assert.strictEqual(rollAt(chances.regular - 0.000001, chances.regular).pending, 0,

@@ -30,6 +30,7 @@ function loadContext() {
     });
     context.safeExposeGlobals = map => Object.keys(map || {}).forEach(key => { context.window[key] = map[key]; });
     vm.createContext(context);
+    require('./lib/load-content-progression')(context);
     vm.runInContext(fs.readFileSync('data/growth-items.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync('js/growth-board.js', 'utf8'), context);
     vm.runInContext(fs.readFileSync('js/growth-effects.js', 'utf8'), context);
@@ -199,7 +200,7 @@ function grantTotals(ctx) {
 // 회귀: 스냅샷은 game 상태에 묶여 있는데 game이 통째로 교체되어도 캐시가 남아,
 // 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용됐다.
 {
-    const ui = fs.readFileSync('js/ui.js', 'utf8');
+    const ui = (fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/save-migrations.js', 'utf8'));
     const merge = ui.slice(ui.indexOf('function mergeDefaults'), ui.indexOf('function cloneDefaultGame'));
     assert.ok(/invalidateGrowthEffects/.test(merge),
         'game을 교체하는 mergeDefaults는 생장 효과 캐시를 비워야 한다');

@@ -503,7 +503,7 @@ function getTalentCardRuntimeState() {
 function getTalentMistralStackCount(now) {
     if (!isTalentCardActive('hero1__ranger')) return 0;
     let runtime = getTalentCardRuntimeState();
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
     if ((runtime.mistralExpiresAt || 0) > timestamp) {
         let config = getTalentCardRuntimeDefinition('hero1__ranger');
         return Math.max(0, Math.min(config.maxStacks, Math.floor(Number(runtime.mistralStacks) || 0)));
@@ -516,7 +516,7 @@ function getTalentMistralStackCount(now) {
 function recordTalentMistralAttack(now) {
     if (!isTalentCardActive('hero1__ranger')) return 0;
     let config = getTalentCardRuntimeDefinition('hero1__ranger');
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
     let runtime = getTalentCardRuntimeState();
     runtime.mistralStacks = Math.min(config.maxStacks, getTalentMistralStackCount(timestamp) + 1);
     runtime.mistralExpiresAt = timestamp + config.durationMs;
@@ -528,7 +528,7 @@ function grantTalentStoneShield(maxHp, now) {
     if (level <= 0) return null;
     let config = getTalentCardRuntimeDefinition('hero2__guardian');
     let capacity = Math.max(1, Math.floor(Math.max(0, Number(maxHp) || 0) * config.maxHpPctAtLevel10 * level / TALENT_CARD_MAX_LEVEL / 100));
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
     let runtime = getTalentCardRuntimeState();
     runtime.stoneShieldAmount = capacity;
     runtime.stoneShieldMax = capacity;
@@ -609,7 +609,7 @@ function getTalentConditionalDamageTakenMultiplier(maxHp) {
 function tickTalentRangerCharge(now) {
     let active = getActiveTalentRuntimeConfig('hero2__ranger');
     let runtime = getTalentCardRuntimeState();
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
     if (!active) return clearTalentRangerChargeState(runtime);
     let alive = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
     if (!alive.some(enemy => enemy.id === runtime.rangerChargeTargetId)) {
@@ -650,7 +650,7 @@ function recordTalentRangerChargeHit(target, now) {
     if (!isTalentRangerGuaranteedTarget(target)) return false;
     let active = getActiveTalentRuntimeConfig('hero2__ranger');
     let runtime = getTalentCardRuntimeState();
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
     runtime.rangerChargeTargetPending = false;
     delete runtime.rangerChargeTargetId;
     runtime.rangerChargeBuffUntil = timestamp + active.config.buffDurationMs;
@@ -660,7 +660,7 @@ function recordTalentRangerChargeHit(target, now) {
 
 function getTalentRangerChargeSpeedMultiplier(now) {
     let runtime = getTalentCardRuntimeState();
-    let timestamp = Number.isFinite(Number(now)) ? Number(now) : Date.now();
+    let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
     if ((runtime.rangerChargeBuffUntil || 0) <= timestamp) return 1;
     return 1 + Math.max(0, Number(runtime.rangerChargeBuffPct) || 0) / 100;
 }
@@ -683,6 +683,14 @@ function markTalentExecutionOrder(target) {
 
 function getTalentFenrirConfig() {
     return getActiveTalentRuntimeConfig('hero2__warlock');
+}
+
+function applyTalentFenrirSkill(skill, skillName) {
+    if (skillName !== '기본 공격') return skill;
+    const active = getTalentFenrirConfig();
+    if (!active) return skill;
+    return { ...skill, name: '펜리르의 독니', visualName: '펜리르의 독니', fenrirTooth: true,
+        dmg: skill.dmg * (1 + active.config.directDamageMorePctAtLevel10 * active.levelRatio / 100) };
 }
 
 function isTalentFenrirEngravingEnabled(skillName) {
@@ -893,6 +901,7 @@ safeExposeGlobals({
     getTalentExecutionOrderMultiplier,
     markTalentExecutionOrder,
     getTalentFenrirConfig,
+    applyTalentFenrirSkill,
     isTalentFenrirEngravingEnabled,
     clearTalentCardRuntimeState,
     showTalentCombinationTooltip

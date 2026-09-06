@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 
 const stateSource = fs.readFileSync('js/state.js', 'utf8');
-const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const uiSource = (fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/save-migrations.js', 'utf8'));
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
 
 const defaultCurrencyLine = stateSource.split('\n').find(line => line.includes('currencies: {')) || '';

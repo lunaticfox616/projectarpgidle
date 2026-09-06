@@ -47,6 +47,7 @@ const context = {
 context.window = context;
 context.globalThis = context;
 vm.createContext(context);
+require('./lib/load-content-progression')(context);
 vm.runInContext(fs.readFileSync('js/skills.js', 'utf8'), context, { filename: 'js/skills.js' });
 
 let slots = context.getSkyEnhancementSlotsForSkill('테스트 젬');

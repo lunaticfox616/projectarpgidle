@@ -5,31 +5,26 @@
     const UI_LAYOUT_STORAGE_KEY = 'project-arpg-idle-ui-layout-v1';
     const UI_LAYOUT_VERSION = 1;
     const PASSIVE_TREE_PRESENTATION_VERSION = 1;
+    const WORKSPACE_PRESENTATION_VERSION = 1;
     const COMMUNITY_MIN_WIDTH = 280;
     const COMMUNITY_MAX_WIDTH = 520;
     const DEFAULT_COMMUNITY_WIDTH = 360;
     const DESKTOP_RAIL_WIDTH = 140;
     const WORKSPACE_GAP = 10;
-    const RAIL_ART_SRC = 'assets/ui/reliquary/menu-rail-v1.svg';
-    // 해금된 메뉴가 캐릭터를 시작점으로 아래에서 위로 한 칸씩 채워지도록 정렬한다.
-    const RAIL_TAB_SLOTS = [
-        { x: '50%', y: '79%' }, { x: '50%', y: '72%' }, { x: '50%', y: '65%' },
-        { x: '50%', y: '58%' }, { x: '50%', y: '51%' }, { x: '50%', y: '44%' },
-        { x: '50%', y: '37%' }, { x: '50%', y: '30%' }, { x: '50%', y: '23%' },
-        { x: '50%', y: '16%' }, { x: '50%', y: '9%' }
-    ];
+    const RAIL_VISIBLE_LIMIT = 11;
     const RAIL_EXTERNAL_TAB_IDS = new Set([
         'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
     ]);
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
-        'tab-items': { title: '장비 및 인벤토리', x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
-        'tab-skills': { title: '스킬 및 스킬 젬', x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
+        'tab-items': { title: '장비 및 인벤토리', defaultMaximized: true, x: 150, y: 54, width: 1060, height: 780, minWidth: 720, minHeight: 520 },
+        'tab-skills': { title: '스킬 및 스킬 젬', defaultMaximized: true, x: 145, y: 54, width: 980, height: 760, minWidth: 620, minHeight: 460 },
         'tab-char': { title: '스킬 / 전직', x: 210, y: 70, width: 920, height: 740, minWidth: 620, minHeight: 460, defaultMaximized: true },
         'tab-expertise': { title: '전문가', x: 260, y: 120, width: 760, height: 660, minWidth: 500, minHeight: 380 },
-        'tab-map': { title: '지도 및 콘텐츠', x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
+        'tab-map': { title: '지도 및 콘텐츠', defaultMaximized: true, x: 120, y: 60, width: 900, height: 720, minWidth: 620, minHeight: 440 },
         'tab-settings': { title: '설정', x: 360, y: 80, width: 680, height: 700, minWidth: 460, minHeight: 420 },
-        'tab-season': { title: '루프', x: 300, y: 90, width: 740, height: 640, minWidth: 500, minHeight: 380 },
+        'tab-unlocks': { title: '해금', x: 190, y: 50, width: 980, height: 800, minWidth: 500, minHeight: 380 },
+        'tab-season': { title: '루프 패시브', x: 210, y: 70, width: 980, height: 800, minWidth: 500, minHeight: 380 },
         'tab-pruning': { title: '성장 나무 · 가지치기', x: 210, y: 70, width: 980, height: 760, minWidth: 620, minHeight: 460 },
         'tab-arcana': { title: '아르카나', x: 230, y: 72, width: 920, height: 740, minWidth: 620, minHeight: 460 },
         // 보조장비 창은 주얼·부적·플라스크뿐 아니라 코어 큐브와 생장판까지 담는다.
@@ -46,7 +41,7 @@
     let initialized = false;
 
     function getDefaultLayoutState() {
-        return { version: UI_LAYOUT_VERSION, passiveTreePresentationVersion: PASSIVE_TREE_PRESENTATION_VERSION, windows: {}, community: { open: false, width: DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false }, combatLog: { expanded: false } };
+        return { version: UI_LAYOUT_VERSION, passiveTreePresentationVersion: PASSIVE_TREE_PRESENTATION_VERSION, workspacePresentationVersion: WORKSPACE_PRESENTATION_VERSION, windows: {}, community: { open: false, width: DEFAULT_COMMUNITY_WIDTH }, goals: { expanded: false, pinned: false }, combatLog: { expanded: false } };
     }
 
     function readStoredLayout() {
@@ -64,15 +59,28 @@
         let next = raw && typeof raw === 'object' ? raw : {};
         let state = { ...base, ...next, version: UI_LAYOUT_VERSION };
         state.windows = (next.windows && typeof next.windows === 'object') ? next.windows : {};
-        if ((Number(next.passiveTreePresentationVersion) || 0) < PASSIVE_TREE_PRESENTATION_VERSION) {
-            state.windows = { ...state.windows, 'tab-char': { ...(state.windows['tab-char'] || {}), maximized: true } };
-        }
-        state.passiveTreePresentationVersion = PASSIVE_TREE_PRESENTATION_VERSION;
+        applyWindowPresentationUpdates(state, next);
         state.community = { ...base.community, ...((next.community && typeof next.community === 'object') ? next.community : {}) };
         state.community.width = clampNumberLocal(state.community.width, COMMUNITY_MIN_WIDTH, COMMUNITY_MAX_WIDTH, DEFAULT_COMMUNITY_WIDTH);
         state.goals = { ...base.goals, ...((next.goals && typeof next.goals === 'object') ? next.goals : {}) };
         state.combatLog = { ...base.combatLog, ...((next.combatLog && typeof next.combatLog === 'object') ? next.combatLog : {}) };
         return state;
+    }
+
+    function applyWindowPresentationUpdates(state, next) {
+        if ((Number(next.passiveTreePresentationVersion) || 0) < PASSIVE_TREE_PRESENTATION_VERSION) {
+            state.windows = { ...state.windows, 'tab-char': { ...(state.windows['tab-char'] || {}), maximized: true } };
+        }
+        state.passiveTreePresentationVersion = PASSIVE_TREE_PRESENTATION_VERSION;
+        // 기존에 아래로 밀린 주요 창만 최초 한 번 새 작업 영역에 맞춘다.
+        // 이후 사용자가 복원·이동한 배치는 그대로 존중한다.
+        if ((Number(next.workspacePresentationVersion) || 0) < WORKSPACE_PRESENTATION_VERSION) {
+            state.windows = { ...state.windows };
+            ['tab-items', 'tab-skills', 'tab-map'].forEach(id => {
+                state.windows[id] = { ...state.windows[id], maximized: true };
+            });
+        }
+        state.workspacePresentationVersion = WORKSPACE_PRESENTATION_VERSION;
     }
 
     function closePersistedSurfacesForBoot() {
@@ -103,19 +111,16 @@
         let rail = document.querySelector('.tab-header');
         let rect = rail && typeof rail.getBoundingClientRect === 'function' ? rail.getBoundingClientRect() : null;
         if (!rect || !Number.isFinite(rect.right) || rect.right <= 0) return DESKTOP_RAIL_WIDTH;
-        return Math.ceil(rect.right + WORKSPACE_GAP / 2);
+        return Math.ceil(rect.right / uiDisplay.factor + WORKSPACE_GAP / 2);
     }
 
-    // 좌측 그룹 레일과 우측 도킹 폭을 제외한, 창이 배치될 수 있는 영역.
+    // 관리 창은 전투 기록 위까지 확장할 수 있으며 좌측 메뉴는 항상 남겨 둔다.
     // css/ui-windows.css의 .tab-header / #left-pane 오프셋과 함께 맞춰야 한다.
     function getWorkspaceRect() {
-        let width = Math.max(320, window.innerWidth || document.documentElement.clientWidth || 1280);
-        let height = Math.max(260, window.innerHeight || document.documentElement.clientHeight || 720);
-        let dock = document.querySelector('#tab-social.ui-community-dock');
-        let dockRect = dock && typeof dock.getBoundingClientRect === 'function' ? dock.getBoundingClientRect() : null;
-        let dockWidth = document.body.classList.contains('community-dock-open') && dockRect ? Math.ceil(dockRect.width) : 0;
+        let width = Math.max(320, window.innerWidth / uiDisplay.factor || 1280);
+        let height = Math.max(260, window.innerHeight / uiDisplay.factor || 720);
         let railInset = getDesktopRailInset();
-        return { left: railInset, top: 8, width: Math.max(240, width - railInset - WORKSPACE_GAP - dockWidth), height: Math.max(260, height - 16) };
+        return { left: railInset, top: 8, width: Math.max(240, width - railInset - WORKSPACE_GAP), height: Math.max(260, height - 16) };
     }
 
     function getWindowState(tabId) {
@@ -127,7 +132,7 @@
         let width = clampNumberLocal(stored.width, minWidth, rect.width, Math.min(def.width, rect.width));
         let height = clampNumberLocal(stored.height, minHeight, rect.height, Math.min(def.height, rect.height));
         let x = clampNumberLocal(stored.x, rect.left, rect.left + rect.width - width, Math.min(def.x, rect.left + rect.width - width));
-        let y = clampNumberLocal(stored.y, rect.top, rect.top + rect.height - Math.min(34, height), Math.min(def.y, rect.top + rect.height - height));
+        let y = clampNumberLocal(stored.y, rect.top, rect.top + rect.height - height, Math.min(def.y, rect.top + rect.height - height));
         let maximized = stored.maximized === undefined ? !!def.defaultMaximized : !!stored.maximized;
         let restoreRect = stored.restoreRect || (maximized ? { x, y, width, height } : null);
         if (maximized) {
@@ -310,8 +315,8 @@
         titlebar.setPointerCapture(event.pointerId);
         let move = moveEvent => {
             let rect = getWorkspaceRect();
-            let x = clampNumberLocal(st.x + moveEvent.clientX - startX, rect.left, rect.left + rect.width - st.width, st.x);
-            let y = clampNumberLocal(st.y + moveEvent.clientY - startY, rect.top, rect.top + rect.height - 34, st.y);
+            let x = clampNumberLocal(st.x + (moveEvent.clientX - startX) / uiDisplay.factor, rect.left, rect.left + rect.width - st.width, st.x);
+            let y = clampNumberLocal(st.y + (moveEvent.clientY - startY) / uiDisplay.factor, rect.top, rect.top + rect.height - st.height, st.y);
             el.style.left = `${x}px`;
             el.style.top = `${y}px`;
             el.dataset.pendingX = String(x);
@@ -342,8 +347,8 @@
         handle.setPointerCapture(event.pointerId);
         let move = moveEvent => {
             let rect = getWorkspaceRect();
-            let width = clampNumberLocal(st.width + moveEvent.clientX - startX, Math.min(def.minWidth, rect.width), rect.left + rect.width - st.x, st.width);
-            let height = clampNumberLocal(st.height + moveEvent.clientY - startY, Math.min(def.minHeight, rect.height), rect.top + rect.height - st.y, st.height);
+            let width = clampNumberLocal(st.width + (moveEvent.clientX - startX) / uiDisplay.factor, Math.min(def.minWidth, rect.width), rect.left + rect.width - st.x, st.width);
+            let height = clampNumberLocal(st.height + (moveEvent.clientY - startY) / uiDisplay.factor, Math.min(def.minHeight, rect.height), rect.top + rect.height - st.y, st.height);
             el.style.width = `${width}px`;
             el.style.height = `${height}px`;
             el.dataset.pendingWidth = String(width);
@@ -383,10 +388,10 @@
         saveLayoutState();
         installCommunityDockChrome(el);
         if (isDesktopWindowed() && feedRect && feedRect.width > 0 && feedRect.height > 0) {
-            el.style.left = `${Math.round(feedRect.left)}px`;
-            el.style.top = `${Math.round(feedRect.top)}px`;
-            el.style.width = `${Math.round(feedRect.width)}px`;
-            el.style.height = `${Math.round(feedRect.height)}px`;
+            el.style.left = `${Math.round(feedRect.left / uiDisplay.factor)}px`;
+            el.style.top = `${Math.round(feedRect.top / uiDisplay.factor)}px`;
+            el.style.width = `${Math.round(feedRect.width / uiDisplay.factor)}px`;
+            el.style.height = `${Math.round(feedRect.height / uiDisplay.factor)}px`;
             el.style.right = 'auto';
             el.style.bottom = 'auto';
         }
@@ -437,9 +442,7 @@
     function getOrderedRailButtons(header) {
         let buttons = Array.from(header.querySelectorAll('.tab-btn'))
             .filter(button => !RAIL_EXTERNAL_TAB_IDS.has(button.id));
-        let savedTabOrder = (typeof game !== 'undefined' && game.settings && Array.isArray(game.settings.tabOrder))
-            ? game.settings.tabOrder
-            : [];
+        let savedTabOrder = [...tabLayoutUi.current().tabOrder, ...tabLayoutUi.defaultOrder];
         let originalRank = new Map(buttons.map((button, index) => [
             button.id, Number(button.dataset.railOriginalOrder ?? index)
         ]));
@@ -453,26 +456,9 @@
             }
             return originalRank.get(left.id) - originalRank.get(right.id);
         });
-        let character = ordered.find(button => button.id === 'btn-tab-character');
-        return character ? [character].concat(ordered.filter(button => button !== character)) : ordered;
+        return ordered;
     }
 
-    function setRailSlot(element, slot, slotNumber) {
-        if (!element || !slot) return;
-        element.dataset.railSlot = String(slotNumber);
-        element.style.setProperty('--rail-socket-x', slot.x);
-        element.style.setProperty('--rail-socket-y', slot.y);
-    }
-
-    function clearRailSlot(element) {
-        if (!element) return;
-        delete element.dataset.railSlot;
-        element.style.removeProperty('--rail-socket-x');
-        element.style.removeProperty('--rail-socket-y');
-    }
-
-    // 원형 버튼 자체는 배지가 바깥으로 나갈 수 있게 열어 두고,
-    // 라벨 텍스트만 별도 요소 안에서 원의 크기에 맞춰 자른다.
     function wrapRailButtonLabel(button) {
         if (!button || !button.childNodes || button.querySelector(':scope > .ui-rail-label')) return;
         let textNodes = Array.from(button.childNodes)
@@ -498,17 +484,6 @@
         return button;
     }
 
-    function installRailArtwork(header) {
-        let art = document.createElement('img');
-        art.className = 'ui-rail-art';
-        art.src = RAIL_ART_SRC;
-        art.alt = '';
-        art.draggable = false;
-        art.setAttribute('aria-hidden', 'true');
-        art.addEventListener('error', () => art.remove(), { once: true });
-        header.prepend(art);
-    }
-
     function installRailLayers(header) {
         let tabLayer = document.createElement('div');
         tabLayer.className = 'ui-rail-tab-layer';
@@ -522,7 +497,7 @@
         miscPanel.id = 'ui-rail-misc-panel';
         miscPanel.className = 'ui-rail-misc-panel';
         miscPanel.hidden = true;
-        miscPanel.addEventListener('click', closeRailMiscPanelAfterSelection);
+        header.addEventListener('click', closeRailMiscPanelAfterSelection);
         header.appendChild(miscPanel);
     }
 
@@ -582,7 +557,6 @@
             Array.from(header.querySelectorAll('.tab-btn')).forEach((button, index) => {
                 button.dataset.railOriginalOrder = String(index);
             });
-            installRailArtwork(header);
             installRailLayers(header);
         }
         syncDesktopRailGroups();
@@ -595,18 +569,15 @@
         let miscPanel = header && header.querySelector(':scope > .ui-rail-misc-panel');
         if (!tabLayer || !miscPanel) return;
         let buttons = getOrderedRailButtons(header);
-        let visible = buttons.filter(isRailButtonVisible);
+        let visible = buttons.filter(button => isRailButtonVisible(button) && !tabLayoutUi.isMisc(button.id));
         buttons.forEach(button => {
             wrapRailButtonLabel(button);
-            clearRailSlot(button);
             tabLayer.appendChild(button);
         });
-        visible.slice(0, RAIL_TAB_SLOTS.length).forEach((button, index) => {
-            setRailSlot(button, RAIL_TAB_SLOTS[index], index + 1);
-        });
-        visible.slice(RAIL_TAB_SLOTS.length).forEach(button => miscPanel.appendChild(button));
+        buttons.filter(button => tabLayoutUi.isMisc(button.id)).concat(visible.slice(RAIL_VISIBLE_LIMIT))
+            .forEach(button => miscPanel.appendChild(button));
         moveRailAuxiliaryTabs(miscPanel);
-        miscPanel.dataset.railOverflow = String(Math.max(0, visible.length - RAIL_TAB_SLOTS.length));
+        miscPanel.dataset.railOverflow = String(Math.max(0, visible.length - RAIL_VISIBLE_LIMIT));
         updateRailMiscNotice(miscPanel);
     }
 
@@ -663,7 +634,6 @@
             + '<button type="button" id="ui-goal-toggle" aria-expanded="false" aria-label="다음 목표 열기/닫기">'
             + '<span id="ui-goal-handle-icon" class="ui-goal-handle-icon"></span>'
             + '<span id="ui-goal-handle-title" class="ui-goal-handle-title">목표</span>'
-            + '<span id="ui-goal-handle-progress" class="ui-goal-handle-progress"></span>'
             + '<span class="ui-goal-chevron" aria-hidden="true"></span>'
             + '</button>'
             + '<div id="ui-goal-handle-bar" class="ui-goal-handle-bar"><span id="ui-goal-handle-fill" class="ui-goal-handle-fill"></span></div>'
@@ -850,7 +820,6 @@
         // 접힌 상태에는 목표 개수만 남겨 화면을 가리지 않는다. 제목과 진행도는 펼친 목록에서 본다.
         setGoalDrawerText('ui-goal-handle-icon', '');
         setGoalDrawerText('ui-goal-handle-title', '목표');
-        setGoalDrawerText('ui-goal-handle-progress', `${rows.length + 1}개`);
         setGoalDrawerBar('ui-goal-handle-bar', 'ui-goal-handle-fill', pct);
         let drawer = document.getElementById('ui-goal-drawer');
         if (drawer) drawer.classList.toggle('ui-goal-mandatory', !!goal.mandatory);
@@ -931,6 +900,8 @@
             originalToggle();
             layoutState.combatLog.expanded = !(window.game && window.game.settings && window.game.settings.combatLogCollapsed);
             saveLayoutState();
+            requestCanvasResize();
+            syncWorkspacePresentation();
         };
         window.toggleCombatLogCollapse.__uiLayoutPatched = true;
         if (window.game && window.game.settings) {
@@ -968,7 +939,7 @@
     }
 
     function isDesktopWindowed() {
-        return !!(window.matchMedia && window.matchMedia(DESKTOP_MEDIA).matches);
+        return !!(window.matchMedia && uiDisplay.matches(DESKTOP_MEDIA));
     }
 
 
@@ -976,8 +947,7 @@
     function restoreDesktopMenuForMobile() {
         let header = document.querySelector('.tab-header');
         if (!header) return;
-        // 생성한 소켓 메타데이터를 제거한 뒤 원래 탭 버튼만 헤더 루트로 되돌린다.
-        header.querySelectorAll('[data-rail-slot]').forEach(clearRailSlot);
+        // 데스크톱 목록에서 원래 탭 버튼을 꺼내 모바일 헤더 순서로 복원한다.
         header.querySelectorAll(':scope > .ui-rail-tab-layer .tab-btn, :scope > .ui-rail-misc-panel .tab-btn')
             .forEach(btn => header.appendChild(btn));
         let tabLayer = header.querySelector(':scope > .ui-rail-tab-layer');
@@ -986,8 +956,6 @@
         if (miscPanel) miscPanel.remove();
         let externalControls = header.querySelector(':scope > .ui-rail-external-controls');
         if (externalControls) externalControls.remove();
-        let art = header.querySelector(':scope > .ui-rail-art');
-        if (art) art.remove();
         Array.from(header.querySelectorAll('.tab-btn'))
             .sort((left, right) => Number(left.dataset.railOriginalOrder) - Number(right.dataset.railOriginalOrder))
             .forEach(button => { delete button.dataset.railOriginalOrder; header.appendChild(button); });

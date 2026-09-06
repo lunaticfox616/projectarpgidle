@@ -1,10 +1,10 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/maps.js');
 
 const ACT_BATTLE_MAP_SOURCES = Object.freeze({
-    bgAct1: 'assets/background/world-tree/act01-filled-v1.webp',
+    bgAct1: 'assets/background/world-tree/act01-sanctuary.webp',
     bgAct2: 'assets/background/world-tree/act02-filled-v1.webp',
     bgAct3: 'assets/background/world-tree/act03-filled-v1.webp',
-    bgAct4: 'assets/background/world-tree/act04-filled-v1.webp',
+    bgAct4: 'assets/background/world-tree/act04-sanctuary.webp',
     bgAct5: 'assets/background/world-tree/act05-filled-v1.webp',
     bgAct6: 'assets/background/world-tree/act06-filled-v1.webp',
     bgAct7: 'assets/background/world-tree/act07-filled-v1.webp',
@@ -85,7 +85,7 @@ const MAP_PRIMARY_CONTENTS = Object.freeze([
     { id: 'map-tab-cosmos', label: '우주계', noticeKey: 'unlock_cosmos', noticeTitle: '우주계 해금', noticeBody: '지하계 너머 우주계 관문이 열렸습니다.' },
     { id: 'map-tab-ocean', label: '심해', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시 해금', noticeBody: '심해 탐사와 낚시가 열렸습니다.', noticeTargetId: 'map-tab-ocean' },
     { id: 'map-tab-fishing', label: '낚시', noticeKey: 'unlock_ocean_fishing', noticeTitle: '심해와 낚시 해금', noticeBody: '심해 탐사와 낚시가 열렸습니다.', noticeTargetId: 'map-tab-ocean' },
-    { id: 'map-tab-pvp', label: '대전', initiallyUnlocked: true }
+    { id: 'map-tab-pvp', label: '대전', unlockLoop: 3 }
 ].map(Object.freeze));
 
 // 우주계 적 특성의 단일 정의. 전투 효과는 id로, 아틀라스의 사전 안내는 설명·대응법으로 소비한다.
@@ -188,8 +188,8 @@ const STAR_WEDGE_CORE_OPTION_POOL = [
 
 const SEASON_CONTENT_ROADMAP = {
     1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도'] },
-    2: { title: '루프 2', features: ['해금: 홀씨 제작 / 현상금 사냥', '조건부 해금: 컨디션 젬 (뿌리 보스 처치)'] },
-    3: { title: '루프 3', features: ['해금: 고대 미궁(화석)'] },
+    2: { title: '루프 2', features: ['해금: 홀씨 제작 / 보물사냥', '조건부 해금: 컨디션 젬 (뿌리 보스 처치)'] },
+    3: { title: '루프 3', features: ['해금: 고대 미궁(화석) / 대전'] },
     4: { title: '루프 4', features: ['해금: 창공 강화'] },
     5: { title: '루프 5', features: ['해금: 루프 패시브 확장 + 주얼'] },
     6: { title: '루프 6', features: ['해금: 부적 시스템'] },
@@ -211,7 +211,7 @@ const SEASON_CONTENT_ROADMAP = {
     22: { title: '루프 22', features: ['심화: 혼돈 단계 상승'] },
     23: { title: '루프 23', features: ['심화: 혼돈 단계 상승'] },
     24: { title: '루프 24', features: ['심화: 혼돈 단계 상승'] },
-    25: { title: '루프 25', features: ['해금: 생장판 / 생장 아이템 드랍', '해금: 뿌리 밀렵꾼 현상금'] },
+    25: { title: '루프 25', features: ['해금: 생장판 / 생장 아이템 드랍'] },
     26: { title: '루프 26', features: ['심화: 혼돈 단계 상승'] },
     27: { title: '루프 27', features: ['심화: 혼돈 단계 상승'] },
     28: { title: '루프 28', features: ['생장판 확장: 11칸', '생장판 시너지 해금: 벽과 방향'] },

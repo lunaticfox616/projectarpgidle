@@ -5,7 +5,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 
 const assets = [
   'assets/background/sky-tower-v1.webp',
-  'assets/background/underworld-v1.webp',
+  'assets/background/underworld-sanctuary.webp',
   'assets/background/ocean-depth-v1.webp',
   'assets/background/cosmos-v1.webp'
 ];
@@ -28,8 +28,9 @@ function readLossyWebpDimensions(file) {
 let totalBytes = 0;
 assets.forEach(file => {
   const dimensions = readLossyWebpDimensions(file);
-  assert.strictEqual(dimensions.width, 627, `${file} must remain 627px wide`);
-  assert.strictEqual(dimensions.height, 627, `${file} must remain 627px tall`);
+  const underworld = file.includes('underworld-sanctuary');
+  assert.strictEqual(dimensions.width, underworld ? 816 : 627, `${file} width must match its projection`);
+  assert.strictEqual(dimensions.height, underworld ? 624 : 627, `${file} height must match its projection`);
   totalBytes += dimensions.bytes;
 });
 assert(totalBytes < 512 * 1024, 'the four special backdrops must stay below 512 KiB combined');
@@ -115,6 +116,19 @@ async function run() {
   assert.strictEqual(specialDraws.length, 1, 'special backgrounds must use one rectangular cover draw');
   assert(specialDraws[0][3] >= 1000 && specialDraws[0][4] >= 700,
     'a special background must cover the rectangular battlefield without diamond calibration');
+  for (const [width, height] of [[1000,700], [360,420]]) {
+    const grid = renderRuntime.getBattleGridProjection(width, height, 'grid-contain');
+    const draws = [];
+    const ctx = { fillStyle:'', fillRect() {}, drawImage(...args) { draws.push(args); } };
+    renderRuntime.drawGridAlignedBackdrop(ctx, width, height, {width:816,height:624}, grid, 'bgUnderworld');
+    const [,x,y,w,h] = draws[0];
+    const first = grid.cellToScreen(0,0);
+    assert(Math.abs(x + w * 298 / 1434 - (first.x - grid.tileW / 2)) < 0.001);
+    assert(Math.abs(y + h * 256 / 1097 - (first.y - grid.tileH / 2)) < 0.001);
+    assert(Math.abs(w * 836 / 1434 - grid.tileW * 9) < 0.001);
+    assert(Math.abs(h * 694 / 1097 - grid.tileH * 8) < 0.001);
+    assert.strictEqual(draws.length, 1);
+  }
   const processor = fs.readFileSync('scripts/process-battle-background.ps1', 'utf8');
   assert(processor.includes("$outputExtension -eq '.webp'") && processor.includes('cwebp'), 'the backdrop processor must encode real WebP files when requested');
   console.log(`smoke-special-battle-backdrops: ok (${Math.round(totalBytes / 1024)} KiB)`);

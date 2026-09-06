@@ -1,3 +1,50 @@
+// Presentation only: opening or closing the settlement never awards points or rewrites a loop.
+const loopSettlementUi = {
+    renderedKey: '',
+    dismissedReadyLoop: 0,
+    unlockRewardText() {
+        const points = contentProgression.points();
+        if (points.complete) return '전체 해금 완료';
+        if (!points.nextAward) return '남은 해금에 필요한 포인트를 모두 모았습니다.';
+        return `해금 포인트 +${points.nextAward} · 해금 탭에서 다음 콘텐츠를 직접 선택하세요.`;
+    },
+    summaryHtml() {
+        const loop = game.season || 1;
+        const record = game.records && game.records.currentLoop;
+        const time = record ? formatRecordDuration(record.activeMs) : '기록 없음';
+        const features = game.contentProgression ? [this.unlockRewardText()]
+            : (SEASON_CONTENT_ROADMAP[loop + 1] || { features: ['심화 도전을 이어갑니다.'] }).features;
+        return `<p class="loop-settlement-story">발밑의 뿌리가 잠잠해집니다.<br>당신이 지나온 길 위로, 새로운 가지가 뻗어 나갑니다.</p>
+            <h2>루프 ${loop} 달성</h2>
+            <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>
+            <section class="loop-settlement-next"><h3>다음 루프 · ${loop + 1}</h3><ul>${features.map(row => `<li>${escapeHTML(row)}</li>`).join('')}</ul><p>진행 시 루프 포인트 1점 획득</p></section>`;
+    },
+    render() {
+        const ready = !!game.pendingLoopReady;
+        const decision = !!game.pendingLoopDecision;
+        const overlay = document.getElementById('loop-ready-overlay');
+        if (!overlay) return;
+        overlay.classList.toggle('active', ready && this.dismissedReadyLoop !== game.season);
+        document.getElementById('loop-decision-overlay').classList.toggle('active', decision);
+        if (!ready && !decision) { this.renderedKey = ''; this.dismissedReadyLoop = 0; return; }
+        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}`;
+        if (key === this.renderedKey) return;
+        this.renderedKey = key;
+        const html = this.summaryHtml();
+        document.getElementById('loop-ready-summary').innerHTML = html;
+        document.getElementById('loop-decision-summary').innerHTML = html;
+    },
+    organize() {
+        this.dismissedReadyLoop = game.season;
+        this.render();
+        switchTab('tab-items');
+    },
+    reopen() {
+        this.dismissedReadyLoop = 0;
+        this.render();
+    }
+};
+
 (function () {
     'use strict';
 
@@ -21,6 +68,7 @@
     }
 
     function updateLoopDecisionOverlayUi() {
+        loopSettlementUi.render();
         let state = getLoopPathUiState();
         let body = document.getElementById('loop-decision-body');
         if (body) body.innerText = state.showPathChoices
@@ -40,7 +88,11 @@
         }
     }
 
-    function requestManualLoopAdvanceConfirmation() {
+    async function requestManualLoopAdvanceConfirmation() {
+        if (!bountyRuntime.canAdvanceLoop()) {
+            await bountyUi.openTreasure();
+            return false;
+        }
         return requestGameConfirmation(
             '정말 지금 루프하시겠습니까?\n현재 루프를 정산하고 다음 루프로 이동합니다.',
             { title: '루프 진행 확인', tone: 'danger', confirmLabel: '루프 진행',

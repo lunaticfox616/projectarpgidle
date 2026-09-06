@@ -1,38 +1,28 @@
 const assert = require('assert');
-const fs = require('fs');
-const vm = require('vm');
-
-const source = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
-const start = source.indexOf('function drawBossPatternLabel');
-const end = source.indexOf('function drawBattlefieldPlayerHealthBar', start);
-assert(start >= 0 && end > start, 'boss pattern rendering should be executable in isolation');
-
+const {runtime:r, enemy, state} = require('./audit-combat-20260905').prepare();
 const calls = [];
-const context = {
-    Number,
-    Math,
-    getEnemyTelegraphColor: () => ({ edge: '#fff', fill: '#000' }),
-    clampNumber: (value, min, max) => Math.max(min, Math.min(max, value))
-};
-vm.createContext(context);
-vm.runInContext(source.slice(start, end), context, { filename: 'boss-pattern-visuals.js' });
-
-const ctx = {
-    save() {}, restore() {}, beginPath() {}, stroke() {}, setLineDash() {},
-    measureText: label => ({ width: label.length * 8 }),
-    fillRect: () => calls.push('fillRect'),
-    fillText: () => calls.push('fillText'),
-    arc: () => calls.push('arc'),
-    ellipse: () => calls.push('ellipse'),
-    lineTo: () => calls.push('lineTo')
-};
-const boss = {
-    isBoss: true,
-    hp: 100,
-    attackTimer: 0.9,
-    nextPatternState: { isSpecial: true, label: '연속 참격', telegraphKind: 'fan' }
-};
-context.drawEnemyAttackTelegraphs(ctx, [{ enemy: boss, x: 100, y: 100 }], 1);
-assert.deepStrictEqual(calls, ['fillRect', 'fillText'], 'boss patterns should show only their name without scattered geometry');
+const ctx = {measureText:label=>({width:label.length*8})};
+for (const method of ['save','restore','beginPath','stroke','fill','clip','rect','moveTo','lineTo',
+    'closePath','ellipse','setLineDash','fillRect','fillText']) {
+    ctx[method] = (...args) => calls.push({method,args});
+}
+Object.assign(enemy, {isBoss:true,patternMode:'intro',patternAttackCount:2,attackTimer:0.5});
+r.refreshBossPatternPreview(enemy);
+r.updateBossPatternTelegraph(enemy, r.getCombatTime(), state.gridPlayer);
+const projection = {tileW:40,tileH:40,cellToScreen:(gx,gy)=>({x:gx*40,y:gy*40})};
+const layout = [{enemy,x:160,y:160}];
+r.drawEnemyAttackTelegraphs(ctx, layout, 1, projection, []);
+assert.deepStrictEqual(calls.filter(call=>call.method==='rect').map(call=>call.args), [[100,140,40,40]],
+    'warning covers exactly the cast-time cell at every viewport size');
+assert.strictEqual(calls.filter(call=>call.method==='fillText').length, 1, 'one clear pattern name');
+const pattern = r.consumeBossPatternAttack(enemy);
+calls.length = 0;
+r.drawEnemyAttackTelegraphs(ctx, layout, 1, projection, [{delivery:'patternArea',bossPattern:pattern}]);
+assert.strictEqual(calls.filter(call=>call.method==='rect').length, 1, 'released attacks retain their warning until impact');
+calls.length = 0;
+enemy.patternArea = pattern.area;
+enemy.ailments = [{type:'freeze',time:1}];
+r.drawEnemyAttackTelegraphs(ctx, layout, 1, projection, []);
+assert.strictEqual(calls.length, 0, 'unreleased frozen bosses draw no stale warning');
 
 console.log('smoke-boss-pattern-visuals passed');

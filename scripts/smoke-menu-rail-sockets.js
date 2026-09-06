@@ -213,7 +213,10 @@ function bootMenu() {
     const windowHandlers = {};
     const exposed = {};
     let desktop = true;
-    const game = { settings: {}, unlocks: {} };
+    const game = { settings: { tabLayouts: {
+        desktop: { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] },
+        mobile: { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] }
+    } }, unlocks: {} };
     const findById = id => [body, ...descendants(body)].find(element => element.id === id) || null;
     const document = {
         readyState: 'complete', body, documentElement: { clientWidth: 1600, clientHeight: 900 },
@@ -234,7 +237,7 @@ function bootMenu() {
     context.window = {
         innerWidth: 1600, innerHeight: 900, game,
         localStorage: { getItem: () => null, setItem() {} },
-        matchMedia: () => ({ matches: desktop }),
+        matchMedia: query => ({ matches: query.includes('max-width') ? !desktop : desktop }),
         getComputedStyle: element => ({
             display: element.style.display || (element.classList.contains('noti-dot') || element.classList.contains('inventory-full-warning') ? 'none' : 'block'),
             visibility: 'visible'
@@ -243,27 +246,24 @@ function bootMenu() {
         switchTab() {}
     };
     vm.createContext(context);
+    require('./lib/load-ui-display')(context);
+    require('./lib/load-content-progression')(context, true);
+    vm.runInContext(fs.readFileSync('js/tab-layout-ui.js', 'utf8'), context, { filename: 'js/tab-layout-ui.js' });
     vm.runInContext(source, context, { filename: 'js/ui-window-manager.js' });
     return { body, header, battlefieldWrap, combatFeed, game, openedTabs, exposed, findById, context, setDesktop: value => { desktop = value; }, windowHandlers };
 }
 
 function socketButtons(menu) {
-    return menu.header.querySelectorAll('[data-rail-slot]');
+    const layer = menu.header.querySelector(':scope > .ui-rail-tab-layer');
+    return layer ? layer.querySelectorAll('.tab-btn').filter(button => button.style.display !== 'none' && !button.hidden) : [];
 }
 
 const menu = bootMenu();
-assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 1, 'menu art must be one real image');
-assert.strictEqual(menu.header.querySelector(':scope > .ui-rail-art').src, 'assets/ui/reliquary/menu-rail-v1.svg');
-const brokenMenu = bootMenu();
-brokenMenu.header.querySelector(':scope > .ui-rail-art').handlers.error();
-assert.strictEqual(brokenMenu.header.querySelectorAll(':scope > .ui-rail-art').length, 0,
-    'failed menu art must be removed instead of leaving a broken image indicator');
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-category-btn')), false, 'group buttons must be removed');
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-group')), false, 'group layers must be removed');
-assert.deepStrictEqual(socketButtons(menu).map(button => button.dataset.railSlot), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
-assert.strictEqual(socketButtons(menu)[0].style.getPropertyValue('--rail-socket-y'), '79%', 'the first unlocked menu must occupy the lowest gameplay circle above the rail controls');
-assert(socketButtons(menu).every(button => button.classList.contains('tab-btn')), 'every illustrated circle must contain a real tab');
-assert(socketButtons(menu).every(button => button.querySelector(':scope > .ui-rail-label')), 'each circle must keep its text inside a dedicated clipped label');
+assert.strictEqual(socketButtons(menu).length, 11, 'primary list must keep eleven directly accessible entries');
+assert(socketButtons(menu).every(button => button.classList.contains('tab-btn')), 'every menu entry must contain a real tab');
+assert(socketButtons(menu).every(button => button.querySelector(':scope > .ui-rail-label')), 'each menu entry must keep its text inside a dedicated clipped label');
 
 const characterButton = menu.findById('btn-tab-character');
 characterButton.handlers.click();
@@ -292,34 +292,34 @@ menu.exposed.toggleGoalDrawer(false);
 miscTrigger.handlers.click();
 const overflowTab = miscPanel.querySelectorAll('.tab-btn').find(button => PRIMARY_TAB_IDS.some(id => button.id === 'btn-tab-' + id));
 overflowTab.handlers.click();
-miscPanel.handlers.click({ target: overflowTab });
+miscPanel.parentElement.handlers.click({ target: overflowTab });
 assert.strictEqual(miscPanel.hidden, true, 'choosing a direct overflow tab must close misc');
 assert(menu.openedTabs.includes(overflowTab.id.replace(/^btn-/, '')), 'overflow entries must remain real tab buttons');
 
-menu.game.settings.tabOrder = ['btn-tab-cube', 'btn-tab-character'];
+menu.game.settings.tabLayouts.desktop.tabOrder = ['btn-tab-cube', 'btn-tab-character'];
 menu.exposed.syncDesktopRailGroups();
-assert.strictEqual(menu.findById('btn-tab-character').dataset.railSlot, '1', 'character must stay anchored to the first bottom circle');
-assert.strictEqual(menu.findById('btn-tab-cube').dataset.railSlot, '2', 'saved order must apply above the anchored character circle');
+assert.strictEqual(socketButtons(menu)[0].id, 'btn-tab-cube', 'the first saved tab must lead the menu');
+assert.strictEqual(socketButtons(menu)[1].id, 'btn-tab-character', 'character must follow its saved position');
 
-menu.game.settings.tabOrder = [];
+menu.game.settings.tabLayouts.desktop.tabOrder = [];
 menu.exposed.syncDesktopRailGroups();
 const promotedButton = miscPanel.querySelectorAll('.tab-btn')
     .find(button => PRIMARY_TAB_IDS.some(id => button.id === 'btn-tab-' + id));
 const firstSocket = socketButtons(menu)[0];
 firstSocket.style.display = 'none';
 menu.exposed.syncDesktopRailGroups();
-assert.strictEqual(firstSocket.dataset.railSlot, undefined, 'a locked tab must not retain a circle');
-assert.strictEqual(promotedButton.dataset.railSlot, '11', 'the next unlocked tab must fill the vacated circle without a group click');
+assert(!socketButtons(menu).includes(firstSocket), 'locked tabs must leave the visible menu');
+assert.strictEqual(socketButtons(menu)[10], promotedButton, 'the next unlocked tab must take the vacated entry');
 assert.strictEqual(socketButtons(menu).length, 11);
 
 const talentMenu = bootMenu();
 const talentButton = talentMenu.findById('btn-tab-talent');
 talentButton.style.display = 'none';
 talentMenu.exposed.syncDesktopRailGroups();
-assert.strictEqual(talentButton.dataset.railSlot, undefined, 'a locked talent tab must not occupy a socket');
+assert(!socketButtons(talentMenu).includes(talentButton), 'locked talents must leave the visible menu');
 Object.assign(talentMenu.game, {
     unlocks: Object.fromEntries(PRIMARY_TAB_IDS.map(id => [id, false])),
-    inventory: [], equipment: {}, uniqueCodex: {}, settings: {}, season: 1
+    inventory: [], equipment: {}, uniqueCodex: {}, season: 1
 });
 talentMenu.context.syncDesktopRailGroups = talentMenu.exposed.syncDesktopRailGroups;
 talentMenu.context.MOBILE_BATTLE_BREAKPOINT = 720;
@@ -353,8 +353,7 @@ assert.notStrictEqual(
 );
 talentMenu.context.updateTabUnlockButtons();
 assert.strictEqual(talentButton.style.display, 'flex', 'unlocking talent must reveal its tab through the shared unlock path');
-assert(talentButton.dataset.railSlot, 'unlocking talent must assign a rail socket in the same update');
-assert(talentButton.style.getPropertyValue('--rail-socket-x'), 'an unlocked talent tab must not render at the unpositioned top-left fallback');
+assert(socketButtons(talentMenu).includes(talentButton), 'unlocking talents must reveal an actionable menu entry');
 
 const overflowNotice = createElement('span');
 overflowNotice.className = 'noti-dot';
@@ -368,7 +367,6 @@ assert.strictEqual(menu.findById('noti-ui-rail-misc').style.display, 'none');
 
 menu.setDesktop(false);
 menu.windowHandlers.resize();
-assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 0, 'mobile restore must remove the art');
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 0, 'mobile restore must remove the socket layer');
 assert.strictEqual(menu.findById('btn-ui-rail-misc'), null, 'mobile restore must remove desktop-only misc');
 assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.body, 'mobile goal drawer must return to the document body');
@@ -382,49 +380,19 @@ assert.deepStrictEqual(
 
 menu.setDesktop(true);
 menu.windowHandlers.resize();
-assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-art').length, 1, 'desktop restore must create only one art image');
 assert.strictEqual(menu.header.querySelectorAll(':scope > .ui-rail-tab-layer').length, 1, 'desktop restore must create only one flat layer');
 assert.strictEqual(descendants(menu.header).filter(element => element.id === 'btn-ui-rail-misc').length, 1, 'desktop restore must not duplicate misc');
 assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.battlefieldWrap, 'desktop restore must remount goals inside the battlefield canvas frame');
 
-assert(menuCss.includes('transform: translate(-50%, -50%) !important;'), 'socket position must override inherited hover transforms');
-assert(!reliquaryCss.includes('.ui-rail-tab-layer .tab-btn.active,\n  body.desktop-windowed-ui .ui-rail-tab-layer .tab-btn.ui-window-open'), 'a closed tab must not retain the open socket glow through its legacy active class');
-assert(reliquaryCss.includes('scale(1.06)') && reliquaryCss.includes('scale(.97)'), 'menu sockets must respond visibly to hover and press without moving away from their slot');
-assert(menuCss.includes('.ui-rail-external-btn:hover'), 'external controls must have an explicit stable hover state');
-assert(menuCss.includes('transform: none !important;'), 'external controls must not move away from the pointer');
-assert(menuCss.includes('min(29.2svh, 18vw)'), 'the single artwork must remain resizable for short and narrow desktops');
-assert(menuCss.includes('.ui-rail-tab-layer .ui-rail-label') && menuCss.includes('overflow-wrap: anywhere'), 'circle labels must stay clipped independently of notice badges');
-assert(menuCss.includes('.ui-rail-tab-layer .noti-dot') && menuCss.includes('top: -3px !important'), 'tab notices must remain visible beyond the circle edge');
+// Menu geometry, hover feedback and visible labels are exercised in core-ui.spec.js.
 assert(!menuCss.includes('.tab-header > .ui-goal-drawer'), 'menu rail must not retain the obsolete lower-left goal handle');
 assert(/\.battlefield-wrap > \.ui-goal-drawer \{[\s\S]*?z-index: 80;/.test(reliquaryCss), 'battlefield goals must render above the enemy health overlay');
 assert(reliquaryCss.includes('isolation: auto !important;'), 'battlefield isolation must not trap goals beneath the enemy health overlay');
-assert(reliquaryCss.includes('inset: 0 4px auto auto;') && reliquaryCss.includes('max-width: 220px;'), 'battlefield goals must stay above and to the right of the enemy health overlay');
+// Fixed goal handle geometry and clickability are checked in inventory-density.spec.js.
 assert(!reliquaryCss.includes('.combat-stage:has(.ui-goal-drawer.expanded) #enemy-area'), 'opening goals must not move the enemy health overlay');
 assert(!source.includes('ui-goal-next-unlock') && !reliquaryCss.includes('.ui-goal-next-unlock'), 'battlefield goals must not render a separate content-unlock card');
 
-const orderSettingsHost = { innerHTML: '' };
-let orderedGroupReads = 0;
-const orderSettingsContext = {
-    game: { settings: { tabPlacement: {} } },
-    document: {
-        body: { classList: { contains: name => name === 'desktop-windowed-ui' } },
-        getElementById(id) {
-            if (id === 'ui-tab-order-settings') return orderSettingsHost;
-            if (id === 'tab-settings') return { classList: { contains: name => name === 'active' } };
-            return null;
-        },
-        querySelectorAll: () => [{ id: 'btn-tab-character', innerText: '캐릭터' }]
-    },
-    isMobilePrimaryNavigationEnabled: () => false,
-    getOrderedTabGroups() { orderedGroupReads++; return [{ key: 'character', label: '캐릭터' }]; }
-};
-vm.createContext(orderSettingsContext);
-vm.runInContext(readFunctionSource(uiSource, 'renderTabOrderSettings'), orderSettingsContext, { filename: 'flat-tab-order-settings.js' });
-orderSettingsContext.renderTabOrderSettings();
-assert.strictEqual(orderedGroupReads, 0, 'flat desktop settings must not build obsolete upper-group controls');
-assert(!orderSettingsHost.innerHTML.includes('상위 그룹 탭'), 'flat desktop settings must only present real tab ordering');
-assert(orderSettingsHost.innerHTML.includes('일반 탭'));
-
+// Actual menu editing, unlock filtering and platform separation: settings-layout.spec.js.
 const inventoryStart = uiSource.indexOf('function updateInventoryFullWarnings()');
 const inventoryEnd = uiSource.indexOf('function syncInventoryExpansionShortcuts()', inventoryStart);
 const inventoryElements = {
@@ -444,6 +412,7 @@ const inventoryContext = {
     syncDesktopRailGroups: () => { railSyncs += 1; }
 };
 vm.createContext(inventoryContext);
+require('./lib/load-content-progression')(inventoryContext, true);
 ['getEquipmentInventoryPageCount', 'getInventoryLimit', 'getInventoryUsedCellCount']
     .forEach(name => vm.runInContext(readFunctionSource(utilitySource, name), inventoryContext));
 vm.runInContext(uiSource.slice(inventoryStart, inventoryEnd), inventoryContext, { filename: 'inventory-rail-warning.js' });
@@ -477,6 +446,7 @@ const dragContext = {
     TAB_DRAG_LONG_PRESS_MS: 180
 };
 vm.createContext(dragContext);
+require('./lib/load-content-progression')(dragContext, true);
 vm.runInContext(uiSource.slice(pointerStart, pointerEnd), dragContext, { filename: 'tab-pointer-guard.js' });
 const pointerEvent = { target: {}, pointerType: 'touch', button: 0, pointerId: 4, clientX: 10, clientY: 20 };
 dragContext.onTabHeaderPointerDown(pointerEvent);
@@ -504,6 +474,7 @@ const viewportContext = {
     refreshTabHeaderUiIfNeeded: () => { refreshedHeader += 1; }
 };
 vm.createContext(viewportContext);
+require('./lib/load-content-progression')(viewportContext, true);
 vm.runInContext(uiSource.slice(viewportStart, viewportEnd), viewportContext, { filename: 'tab-viewport-sync.js' });
 viewportContext.scheduleTabHeaderViewportSync();
 assert.strictEqual(clearedDrag, 1, 'viewport changes must cancel an in-flight mobile drag');

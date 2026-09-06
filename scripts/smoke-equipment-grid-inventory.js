@@ -55,32 +55,36 @@ assert.strictEqual(overflowRecoveryState.inventory.length, 120, 'restoring must 
 assert.strictEqual(overflowRecoveryState.equipmentTemporaryStorage.length, 0, 'restored temporary storage entries must be removed');
 
 const exactAsset = context.getEquipmentGridVisualAsset({ slot: '무기', baseId: 'rusted_blade' });
-assert.strictEqual(exactAsset, 'assets/items/grid/item-short-sword-v3.webp');
+assert.strictEqual(exactAsset, 'assets/items/illustrated/rusted_blade.webp');
 const wandAsset = context.getEquipmentGridVisualAsset({ slot: '무기', baseId: 'unknown_wand', baseName: '검증 완드' });
 const swordAsset = context.getEquipmentGridVisualAsset({ slot: '무기', baseId: 'unknown_sword', baseName: '검증 검' });
 const bowAsset = context.getEquipmentGridVisualAsset({ slot: '무기', baseId: 'unknown_bow', baseName: '검증 장궁' });
-assert(context.ITEM_VISUAL_ASSET_DB.equipmentGrid.weaponFootprintAssets['1x2'].includes(wandAsset), '1x2 weapons must use 1x2 artwork');
-assert(context.ITEM_VISUAL_ASSET_DB.equipmentGrid.weaponFootprintAssets['1x3'].includes(swordAsset), '1x3 weapons must use 1x3 artwork');
-assert(context.ITEM_VISUAL_ASSET_DB.equipmentGrid.weaponFootprintAssets['1x4'].includes(bowAsset), '1x4 weapons must use 1x4 artwork');
+assert.strictEqual(wandAsset, 'assets/items/illustrated/apprentice_familiar_wand.webp', 'unknown wands must remain recognizable wands');
+assert.strictEqual(swordAsset, 'assets/items/illustrated/rusted_blade.webp', 'unknown swords must remain swords');
+assert.strictEqual(bowAsset, 'assets/items/illustrated/windlash_bow.webp', 'unknown bows must remain bows');
 const firstFallback = context.getEquipmentGridVisualAsset({ slot: '투구', baseId: 'unknown_helm' });
 const repeatedFallback = context.getEquipmentGridVisualAsset({ slot: '투구', baseId: 'unknown_helm' });
 assert.strictEqual(firstFallback, repeatedFallback, 'the same base must keep the same visual across renders');
-assert(context.ITEM_VISUAL_ASSET_DB.equipmentGrid.slotAssets['투구'].includes(firstFallback),
+assert(context.ITEM_VISUAL_ASSET_DB.equipment['투구'] === firstFallback,
     'an unmapped helmet must stay inside the helmet art pool');
 
 const gridAssets = new Set();
 const gridDb = context.ITEM_VISUAL_ASSET_DB.equipmentGrid;
 Object.values(gridDb.baseAssets).forEach(asset => gridAssets.add(asset));
-Object.values(gridDb.weaponFootprintAssets).flat().forEach(asset => gridAssets.add(asset));
-Object.values(gridDb.slotAssets).flat().forEach(asset => gridAssets.add(asset));
-assert.strictEqual(gridAssets.size, 56, 'the inventory art set must contain 56 distinct silhouettes');
-let totalBytes = 0;
-gridAssets.forEach(asset => {
-    assert(asset.endsWith('.webp'), `${asset} must use the compressed WebP format`);
-    assert(fs.existsSync(asset), `${asset} must exist`);
-    totalBytes += fs.statSync(asset).size;
+Object.entries(gridDb.uniqueAssets).forEach(([name, asset]) => {
+    gridAssets.add(asset);
+    assert.strictEqual(context.getEquipmentGridVisualAsset({ rarity: 'unique', name, baseId: 'rusted_blade' }), asset, 'dedicated unique art takes priority over an upgraded or shared base');
+    assert.strictEqual(context.getEquipmentGridVisualAsset({ rarity: 'normal', name, baseId: 'rusted_blade' }), gridDb.baseAssets.rusted_blade, 'a normal item cannot acquire unique art through its display name');
 });
-assert(totalBytes < 400000, `the 56-icon set must stay compact (actual ${totalBytes} bytes)`);
+assert.strictEqual(context.getEquipmentGridVisualAsset({ rarity: 'unique', name: 'constructor', baseId: 'rusted_blade' }), gridDb.baseAssets.rusted_blade, 'unknown unique names must use the valid base image');
+Object.values(context.ITEM_VISUAL_ASSET_DB.equipment).forEach(asset => gridAssets.add(asset));
+assert.strictEqual(new Set(Object.entries(context.ITEM_VISUAL_ASSET_DB.equipment).filter(([key]) => !['default', '무기'].includes(key)).map(([, asset]) => asset)).size, 8, 'each armor/accessory slot has its own recognizable silhouette');
+gridAssets.forEach(asset => {
+    assert(/\.webp$/.test(asset), `${asset} must be a generated raster asset`);
+    assert(fs.existsSync(asset), `${asset} must exist`);
+    assert(asset.startsWith('assets/items/illustrated/'), 'equipment must use the new generated art');
+    assert(fs.statSync(asset).size < 300000, 'each independently loaded equipment image must stay below 300 kB');
+});
 
 vm.runInContext(`game.inventory = [
     { id: 7001, instanceId: 'grid-bow', slot: '무기', baseId: 'windlash_bow', baseName: '돌풍 장궁', name: '검증용 장궁', rarity: 'rare', baseStats: [], stats: [] },
@@ -117,40 +121,11 @@ const selfOverlapState = {
 };
 const selfOverlapLayout = context.equipmentInventoryGridRuntime.ensureState(selfOverlapState);
 const selfOverlapResult = context.equipmentInventoryGridRuntime.canPlaceInventoryItemInLayout('self-armor', 1, 0, selfOverlapLayout);
-assert.strictEqual(selfOverlapResult.ok, true,
-    'a carried item may overlap its own old footprint while lifting exactly one other blocker');
-assert.strictEqual(selfOverlapResult.displacedEntry.key, 'single-blocker',
-    'self-overlap cells must not be counted as an additional blocking item');
-const alternatingState = {
-    season: 1,
-    loopCount: 0,
-    inventory: [
-        { id: 7060, instanceId: 'alternate-a', slot: '반지', name: '교대 검증 반지 A', rarity: 'normal' },
-        { id: 7061, instanceId: 'alternate-b', slot: '반지', name: '교대 검증 반지 B', rarity: 'normal' }
-    ],
-    equipmentInventoryPlacements: {
-        'alternate-a': { column: 0, row: 0 },
-        'alternate-b': { column: 2, row: 0 }
-    }
-};
-const alternatingLayout = context.equipmentInventoryGridRuntime.ensureState(alternatingState);
-const alternateFirst = context.equipmentInventoryGridRuntime.placeInventoryItem('alternate-a', 2, 0, alternatingState);
-assert.strictEqual(alternateFirst.displacedEntry.key, 'alternate-b',
-    'the first occupied drop must lift the original blocking item');
-assert.deepStrictEqual(plain(alternatingState.equipmentInventoryPlacements['alternate-a']), { column: 2, row: 0 },
-    'each occupied drop must commit the placed item immediately');
-assert.strictEqual(alternatingState.equipmentTemporaryStorage[0].instanceId, 'alternate-b',
-    'the displaced item must become the only temporary carried item');
-const alternateSecond = context.equipmentInventoryGridRuntime.placeTemporaryItem('alternate-b', 2, 0, alternatingState);
-assert.strictEqual(alternateSecond.ok, true, 'a displaced item must remain placeable on the newly committed blocker');
-assert.strictEqual(alternateSecond.displacedEntry.key, 'alternate-a',
-    'dropping on the same cell a second time must alternate the carried item back to A');
-const alternateThird = context.equipmentInventoryGridRuntime.placeTemporaryItem('alternate-a', 2, 0, alternatingState);
-assert.strictEqual(alternateThird.ok, true, 'same-cell alternation must remain valid after more than one exchange');
-assert.strictEqual(alternateThird.displacedEntry.key, 'alternate-b',
-    'a third same-cell drop must lift B again after committing A');
-assert.strictEqual(alternatingState.equipmentTemporaryStorage[0].instanceId, 'alternate-b',
-    'every committed exchange must persist only the latest displaced item in temporary storage');
+assert.strictEqual(selfOverlapResult.ok, false, 'overlapping another item must reject the whole move');
+const protectedState = plain(selfOverlapState);
+const protectedBefore = JSON.stringify(protectedState);
+assert.strictEqual(context.equipmentInventoryGridRuntime.placeInventoryItem('self-armor', 1, 0, protectedState).ok, false);
+assert.strictEqual(JSON.stringify(protectedState), protectedBefore, 'rejected placement preserves inventory, storage and positions');
 const bowStart = layout.entries.find(entry => entry.key === 'grid-bow');
 const ringStart = layout.entries.find(entry => entry.key === 'grid-ring');
 const beforeOccupiedMove = vm.runInContext('JSON.stringify(game.equipmentInventoryPlacements)', context);
@@ -158,15 +133,10 @@ const blockedMove = context.equipmentInventoryGridRuntime.move('grid-ring', bowS
 assert.strictEqual(blockedMove.ok, false, 'a direct move must not silently exchange two inventory positions');
 assert.strictEqual(vm.runInContext('JSON.stringify(game.equipmentInventoryPlacements)', context), beforeOccupiedMove,
     'an occupied direct move must leave both saved positions unchanged');
-const displacedPlacement = context.equipmentInventoryGridRuntime.placeInventoryItem('grid-ring', bowStart.column, bowStart.row);
-assert.strictEqual(displacedPlacement.ok, true, 'one blocking item can be lifted when the carried footprint fits after removing it');
-assert.strictEqual(displacedPlacement.displacedEntry.key, 'grid-bow');
-assert.deepStrictEqual(plain(vm.runInContext(`game.equipmentInventoryPlacements['grid-ring']`, context)), { column: bowStart.column, row: bowStart.row });
-assert.strictEqual(vm.runInContext(`game.equipmentTemporaryStorage[0].instanceId`, context), 'grid-bow',
-    'the first exchange must be saved before the displaced item is placed again');
-const committedDisplaced = context.equipmentInventoryGridRuntime.placeTemporaryItem('grid-bow', ringStart.column, ringStart.row);
-assert.strictEqual(committedDisplaced.ok, true, 'the displaced item must commit independently in the next free position');
-assert.deepStrictEqual(plain(vm.runInContext(`game.equipmentInventoryPlacements['grid-bow']`, context)), { column: ringStart.column, row: ringStart.row });
+const occupiedDrop = context.equipmentInventoryGridRuntime.placeInventoryItem('grid-ring', bowStart.column, bowStart.row);
+assert.strictEqual(occupiedDrop.ok, false);
+assert.strictEqual(vm.runInContext('JSON.stringify(game.equipmentInventoryPlacements)', context), beforeOccupiedMove);
+assert.strictEqual(vm.runInContext('game.equipmentTemporaryStorage.length', context), 0);
 const moved = context.equipmentInventoryGridRuntime.move('grid-ring', 9, layout.rows - 1);
 assert.strictEqual(moved.ok, true, 'an empty target cell must accept a click or drag move');
 assert.deepStrictEqual(plain(vm.runInContext(`game.equipmentInventoryPlacements['grid-ring']`, context)), { column: 9, row: layout.rows - 1 });
@@ -249,43 +219,11 @@ const clickEvent = card => {
 const placementsBeforeLift = vm.runInContext('JSON.stringify(game.equipmentInventoryPlacements)', context);
 context.equipmentInventoryInteraction.handleItemClick(clickEvent(ringCard), 'grid-ring', 2);
 context.equipmentInventoryInteraction.handleItemClick(clickEvent(bowCard), 'grid-bow', 0);
-assert.strictEqual(context.equipmentInventoryInteraction.isCarryingKey('grid-bow'), true,
-    'placing onto one movable blocker must continue with the displaced item attached to the cursor');
-const placementsAfterLift = vm.runInContext('JSON.stringify(game.equipmentInventoryPlacements)', context);
-assert.notStrictEqual(placementsAfterLift, placementsBeforeLift,
-    'the placed item position must commit immediately before the displaced item is placed again');
-assert.strictEqual(vm.runInContext(`game.equipmentTemporaryStorage[0].instanceId`, context), 'grid-bow',
-    'the displaced item must be persisted independently while it remains attached to the cursor');
-assert(carriedTooltipItems.some(item => item && item.instanceId === 'grid-bow'),
-    'the displaced cursor item must open the same custom item tooltip as regular inventory gear');
-assert.deepStrictEqual(interactionToasts, [], 'lifting a displaced item must not show a success toast');
-const saveDuringDisplacement = JSON.parse(context.serializeSaveState(vm.runInContext('game', context)));
-assert.strictEqual(JSON.stringify(saveDuringDisplacement.equipmentInventoryPlacements), placementsAfterLift,
-    'saving during a displacement chain must serialize every already committed move');
-const restoredDuringDisplacement = context.mergeDefaults(saveDuringDisplacement);
-assert.strictEqual(JSON.stringify(restoredDuringDisplacement.equipmentInventoryPlacements), placementsAfterLift,
-    'reloading a mid-drag save must keep every earlier committed move');
-assert.strictEqual(restoredDuringDisplacement.equipmentTemporaryStorage[0].instanceId, 'grid-bow',
-    'reloading must preserve the last displaced cursor item in temporary storage');
-assert.strictEqual(context.equipmentInventoryInteraction.moveFocusedTo(
-    null, 9, interactionLayout.rows - 1
-), false, 'an invalid final placement must be rejected without undoing earlier moves');
-assert.strictEqual(context.equipmentInventoryInteraction.isCarryingKey('grid-bow'), true,
-    'the last displaced item must remain attached to the cursor after an invalid placement');
-assert.strictEqual(vm.runInContext('JSON.stringify(game.equipmentInventoryPlacements)', context), placementsAfterLift,
-    'an invalid final placement must not roll back or rewrite the already committed placement chain');
-assert.strictEqual(ringCard.style.gridColumn, `${interactionBowEntry.column + 1}/span 1`,
-    'the first item must be shown at the requested destination instead of exchanging with the blocker origin');
-assert.strictEqual(ringCard.style.gridRow, `${interactionBowEntry.row + 3}/span 1`,
-    'the committed pending position must match the cursor-centered highlighted cell instead of jumping to the blocker top edge');
-context.equipmentInventoryInteraction.cancelCarry();
-assert.strictEqual(vm.runInContext('JSON.stringify(game.equipmentInventoryPlacements)', context), placementsAfterLift,
-    'cancelling the latest carried item must not roll back earlier committed moves');
-assert(interactionSaveCount >= 1, 'each completed exchange step must save immediately');
-assert.strictEqual(interactionGrid.classList.contains('has-pending-displacement'), false,
-    'finishing or cancelling a pending displacement must clear its interaction-only grid state');
-assert.strictEqual(context.equipmentInventoryGridRuntime.restoreTemporaryItem('grid-bow').ok, true,
-    'the test must return the displaced item to regular inventory for subsequent renderer checks');
+assert.strictEqual(context.equipmentInventoryInteraction.isCarrying(), false, 'single clicks only select');
+assert.strictEqual(context.equipmentInventoryInteraction.getFocusedKey(), 'grid-bow');
+assert.strictEqual(vm.runInContext('JSON.stringify(game.equipmentInventoryPlacements)', context), placementsBeforeLift);
+assert.strictEqual(interactionSaveCount, 0, 'selection must not save an uncommitted move');
+assert.strictEqual(vm.runInContext('game.equipmentTemporaryStorage.length', context), 0);
 context.document.querySelectorAll = originalQuerySelectorAll;
 context.updateStaticUI = originalUpdateStaticUI;
 context.saveGame = originalSaveGame;
@@ -310,7 +248,7 @@ const bowPlacement = context.equipmentInventoryGridRuntime.ensureState().entries
 const html = context.renderEquipmentGridItem(item, 0, null, bowPlacement);
 assert(html.includes('--item-grid-columns:1;--item-grid-rows:4;'), 'a bow must visibly occupy a 1x4 footprint');
 assert(html.includes(`grid-column:${bowPlacement.column + 1}/span 1;grid-row:${bowPlacement.row + 1}/span 4;`), 'the renderer must use the saved top-left grid position');
-assert(html.includes('item-recurve-bow-v3.webp'), 'the grid must render footprint-matched clean artwork');
+assert(html.includes('illustrated/windlash_bow.webp'), 'the grid must render footprint-matched clean artwork');
 assert(html.includes('equipmentInventoryInteraction.handleItemDoubleClick'),
     'an item resting in its own cell must retain guarded double-click equip');
 assert(!html.includes('handleInventoryCardDoubleClick'),
@@ -352,8 +290,7 @@ vm.runInContext(`game.equipment = {
 }`, context);
 context.renderPaperdoll('paperdoll-test', false);
 assert(paperdoll.innerHTML.includes('equipment-slot-visual'), 'equipped slots must render image-backed item silhouettes');
-assert(paperdoll.innerHTML.includes('item-hide-glove-v3.webp') || paperdoll.innerHTML.includes('item-steel-gauntlet-v3.webp') || paperdoll.innerHTML.includes('item-claw-glove-v3.webp'),
-    'glove slots must use a compact one-hand WebP asset');
+assert(paperdoll.innerHTML.includes('assets/items/illustrated/hide_gloves.webp'), 'paperdoll hands use the recognizable glove silhouette');
 assert(paperdoll.innerHTML.includes('slot-장갑1') && paperdoll.innerHTML.includes('slot-장갑2'),
     'the paperdoll must retain separate left and right glove slots for visual mirroring');
 assert(!paperdoll.innerHTML.includes('TEST_OPTION_SHOULD_NOT_RENDER'),
@@ -386,64 +323,35 @@ context.document.querySelectorAll = selector => selector === '[data-equipment-gr
 context.hideInfoTooltip = () => {};
 context.hideItemTooltip = () => {};
 context.showGameToast = () => {};
+context.showItemTooltip = () => {};
 context.safeExposeGlobals = map => Object.assign(context, map);
 vm.runInContext(interactionSource, context, { filename: 'inventory-pointer-regression.js' });
 assert.strictEqual(typeof pointerHandlers.pointerdown, 'function', 'the inventory interaction must register its pointerdown boundary');
 pointerHandlers.pointerdown({ target: ringCard, button: 0, pointerId: 31, clientX: 20, clientY: 20 });
-assert.strictEqual(context.equipmentInventoryInteraction.isCarryingKey('grid-ring'), true,
-    'pointerdown on an inventory item button must begin drag carry instead of being rejected as an action button');
-context.equipmentInventoryInteraction.cancelCarry();
-const guardedLayout = context.equipmentInventoryGridRuntime.ensureState();
-const guardedRing = guardedLayout.entries.find(entry => entry.key === 'grid-ring');
-let guardedTarget = null;
-for (let row = 0; row < guardedLayout.rows && !guardedTarget; row++) {
-    for (let column = 0; column < guardedLayout.columns; column++) {
-        if (column === guardedRing.column && row === guardedRing.row) continue;
-        let result = context.equipmentInventoryGridRuntime.canMoveInLayout('grid-ring', column, row, guardedLayout);
-        if (result.ok) { guardedTarget = { column, row }; break; }
-    }
-}
-assert(guardedTarget, 'the double-click movement guard needs one empty destination cell');
-context.equipmentInventoryInteraction.handleItemClick(clickEvent(ringCard), 'grid-ring', 2);
-assert.strictEqual(context.equipmentInventoryInteraction.moveFocusedTo(null, guardedTarget.column, guardedTarget.row), true,
-    'the guarded item must complete a real move before the double-click event arrives');
-const guardedDoubleClick = context.equipmentInventoryInteraction.handleItemDoubleClick({ preventDefault() {}, stopPropagation() {} }, 'grid-ring', 7003);
-assert.strictEqual(guardedDoubleClick, false,
-    'a double-click event emitted while the item moved to another cell must not equip it');
-assert(vm.runInContext(`game.inventory.some(item => item && item.instanceId === 'grid-ring')`, context),
-    'the moved item must remain in inventory when guarded double-click equip is rejected');
+assert.strictEqual(context.equipmentInventoryInteraction.isCarrying(), false, 'pointerdown alone must not pick up gear');
+pointerHandlers.pointermove({ pointerId: 31, clientX: 23, clientY: 20, preventDefault() {} });
+assert.strictEqual(context.equipmentInventoryInteraction.isCarrying(), false, 'small pointer jitter remains a click');
+pointerHandlers.pointermove({ pointerId: 31, clientX: 32, clientY: 20, preventDefault() {} });
+assert.strictEqual(context.equipmentInventoryInteraction.isCarryingKey('grid-ring'), true, 'drag begins after the movement threshold');
+pointerHandlers.pointercancel({ pointerId: 31 });
+assert.strictEqual(context.equipmentInventoryInteraction.isCarrying(), false, 'cancelled pointer releases the drag');
+
 vm.runInContext('Date.now = () => 9999999999999', context);
-const firstStationaryClick = { ...clickEvent(ringCard), detail: 1 };
-const secondStationaryClick = { ...clickEvent(ringCard), detail: 2 };
-context.equipmentInventoryInteraction.handleItemClick(firstStationaryClick, 'grid-ring', 2);
-context.equipmentInventoryInteraction.handleItemClick(secondStationaryClick, 'grid-ring', 2);
-assert.strictEqual(context.equipmentInventoryInteraction.isCarryingKey('grid-ring'), true,
-    'the second click on an unmoved item must preserve carry state until the double-click event');
+context.equipmentInventoryInteraction.handleItemClick(clickEvent(ringCard), 'grid-ring', 2);
+assert.strictEqual(context.equipmentInventoryInteraction.isCarrying(), false);
 const stationaryDoubleClick = context.equipmentInventoryInteraction.handleItemDoubleClick(
     { preventDefault() {}, stopPropagation() {} }, 'grid-ring', 7003
 );
-assert.strictEqual(stationaryDoubleClick, true, 'a stationary same-item double-click must equip the item');
-assert(vm.runInContext(`Object.values(game.equipment).some(item => item && item.instanceId === 'grid-ring')`, context),
-    'a successful stationary double-click must move the item into a compatible equipment slot');
-assert(!vm.runInContext(`game.inventory.some(item => item && item.instanceId === 'grid-ring')`, context),
-    'the equipped item must leave the inventory exactly once');
-vm.runInContext('Date.now = () => 10000000001000', context);
-context.equipmentInventoryInteraction.handleItemClick({ ...clickEvent(bowCard), detail: 1 }, 'grid-bow', 0);
-assert.strictEqual(context.equipmentInventoryInteraction.handleEquippedItemClick({ stopPropagation() {} }, '갑옷'), false,
-    'an incompatible paperdoll slot must reject a carried inventory item');
-assert.strictEqual(context.equipmentInventoryInteraction.isCarryingKey('grid-bow'), true,
-    'an incompatible paperdoll click must leave the original item attached to the cursor');
-context.equipmentInventoryInteraction.cancelCarry();
-const armorCard = interactionCards.find(card => card.dataset.equipmentGridKey === 'grid-armor');
-context.equipmentInventoryInteraction.handleItemClick({ ...clickEvent(armorCard), detail: 1 }, 'grid-armor', 1);
-assert.strictEqual(context.equipmentInventoryInteraction.handleEquippedItemClick({ stopPropagation() {} }, '갑옷'), true,
-    'clicking a compatible paperdoll slot must equip the carried inventory item');
-assert.strictEqual(vm.runInContext(`game.equipment['갑옷'].instanceId`, context), 'grid-armor',
-    'the compatible paperdoll drop must place the exact carried item in the requested slot');
+assert.strictEqual(stationaryDoubleClick, true, 'double-click equips the selected item');
+assert(vm.runInContext(`Object.values(game.equipment).some(item => item && item.instanceId === 'grid-ring')`, context));
+assert(!vm.runInContext(`game.inventory.some(item => item && item.instanceId === 'grid-ring')`, context));
+assert.strictEqual(context.equipmentInventoryInteraction.handleItemDoubleClick(
+    { preventDefault() {}, stopPropagation() {} }, 'grid-ring', 7003), false, 'duplicate equip event does nothing');
 context.document.addEventListener = originalDocumentAddEventListener;
 context.hideInfoTooltip = pointerHideInfoTooltip;
 context.hideItemTooltip = pointerHideItemTooltip;
 context.showGameToast = pointerShowGameToast;
+context.showItemTooltip = originalShowItemTooltip;
 context.safeExposeGlobals = originalSafeExposeGlobals;
 
 // Searching a multi-page stash must reveal where matches are without trapping the user on page 1.

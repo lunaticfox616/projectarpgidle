@@ -1,87 +1,55 @@
 const assert = require('assert');
-const fs = require('fs');
 const vm = require('vm');
-
-const loopUiSource = fs.readFileSync('js/loop-ui.js', 'utf8');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
 function createContext(confirmResult) {
-    const elements = new Map();
-    const calls = { confirmations: 0, ready: 0, choices: [], resets: 0, logs: [] };
-    const context = {
-        game: {
-            season: 1,
-            pendingLoopReady: false,
-            pendingLoopDecision: false,
-            loopProgressCurrent: { chaos20Cleared: false }
-        },
-        document: {
-            getElementById(id) {
-                if (!elements.has(id)) {
-                    elements.set(id, {
-                        style: {},
-                        disabled: false,
-                        innerText: '',
-                        classList: { toggle() {} }
-                    });
-                }
-                return elements.get(id);
-            }
-        },
-        requestGameConfirmation: async message => {
-            calls.confirmations += 1;
-            calls.message = message;
-            return confirmResult;
-        },
-        getAvailableLoopAdvancePaths: () => ['chaos'],
-        hasCurrentLoopAbyssRequirementClear: () => true,
-        hasCurrentLoopChaosRequirementClear: () => true,
-        hasCurrentLoopCosmosRequirementClear: () => false,
-        confirmLoopReady: () => { calls.ready += 1; },
-        chooseLoopAdvance: shouldLoop => { calls.choices.push(shouldLoop ? 'generic' : 'continue'); },
-        chooseLoopAdvancePath: path => { calls.choices.push(path); },
-        triggerSeasonReset: () => { calls.resets += 1; },
-        addLog: message => { calls.logs.push(message); }
+    const context = buildGameRuntime();
+    const run = code => vm.runInContext(code, context);
+    const calls = { confirmations: 0 };
+    // User choice is the external boundary; actual loop and treasure rules run below.
+    context.requestGameConfirmation = async message => {
+        calls.confirmations++;
+        calls.message = message;
+        return confirmResult;
     };
-    context.safeExposeGlobals = exports => Object.assign(context, exports);
-    vm.createContext(context);
-    vm.runInContext(loopUiSource, context, { filename: 'loop-ui.js' });
-    return { context, calls };
+    run('game=mergeDefaults({});game.pendingLoopReady=true');
+    return {context, run, calls};
 }
 
 (async () => {
-    let cancelledReady = createContext(false);
-    cancelledReady.context.game.pendingLoopReady = true;
-    await cancelledReady.context.handleCombatLoopAdvanceButton();
-    assert.strictEqual(cancelledReady.calls.confirmations, 1, 'manual loop advance must ask for confirmation');
-    assert(cancelledReady.calls.message.includes('정말 지금 루프하시겠습니까?'));
-    assert.strictEqual(cancelledReady.calls.ready, 0, 'cancelling must not start the loop transition');
-    assert.strictEqual(cancelledReady.context.game.pendingLoopReady, true, 'cancelling must preserve the pending loop state');
+    const cancelled = createContext(false);
+    await cancelled.context.handleCombatLoopAdvanceButton();
+    assert.equal(cancelled.calls.confirmations,1);
+    assert(cancelled.calls.message.includes('정말 지금 루프하시겠습니까?'));
+    assert.equal(cancelled.run('game.season'),1);
+    assert.equal(cancelled.run('game.pendingLoopReady'),true);
 
-    let acceptedReady = createContext(true);
-    acceptedReady.context.game.pendingLoopReady = true;
-    await acceptedReady.context.handleCombatLoopAdvanceButton();
-    assert.strictEqual(acceptedReady.calls.ready, 1, 'accepting must continue through the existing loop-ready path');
+    const accepted = createContext(true);
+    await accepted.context.handleCombatLoopAdvanceButton();
+    assert.equal(accepted.run('game.season'),2);
+    assert.equal(accepted.run('game.pendingLoopReady'),false);
 
-    let cancelledDecision = createContext(false);
-    cancelledDecision.context.game.pendingLoopDecision = true;
-    await cancelledDecision.context.handleLoopDecisionAdvanceButton('cosmos');
-    assert.deepStrictEqual(cancelledDecision.calls.choices, [], 'cancelling a path choice must not advance a loop');
-    assert.strictEqual(cancelledDecision.context.game.pendingLoopDecision, true, 'cancelling must leave the path choice available');
+    for (const accept of [false,true]) {
+        const decision=createContext(accept);
+        decision.run("game.season=31;game.loopCount=30;game.pendingLoopReady=false;game.pendingLoopDecision=true;game.loopProgressCurrent.bestAbyssDepth=45;game.loopProgressCurrent.cosmosPlanets=['planet-45'];game.cosmosLoopCount=0;contentProgression.sync()");
+        await decision.context.handleLoopDecisionAdvanceButton('cosmos');
+        assert.equal(decision.run('game.season'),accept?32:31);
+        assert.equal(decision.run('game.cosmosLoopCount'),accept?1:0);
+        assert.equal(decision.run('game.pendingLoopDecision'),!accept);
+    }
+    const routes=createContext(true);
+    routes.run("game.season=31;game.loopProgressCurrent.bestAbyssDepth=45;game.loopProgressCurrent.cosmosPlanets=['planet-45']");
+    await routes.context.handleCombatLoopAdvanceButton();
+    assert.equal(routes.calls.confirmations,0,'show the two routes before asking to reset');
+    assert.equal(routes.run('game.pendingLoopDecision'),true);
+    assert.equal(routes.run('game.season'),31);
 
-    let acceptedDecision = createContext(true);
-    acceptedDecision.context.game.pendingLoopDecision = true;
-    await acceptedDecision.context.handleLoopDecisionAdvanceButton('cosmos');
-    assert.deepStrictEqual(acceptedDecision.calls.choices, ['cosmos'], 'accepting must dispatch the selected loop path once');
-
-    let routeChoice = createContext(true);
-    routeChoice.context.game.pendingLoopReady = true;
-    routeChoice.context.getAvailableLoopAdvancePaths = () => ['chaos', 'cosmos'];
-    await routeChoice.context.handleCombatLoopAdvanceButton();
-    assert.strictEqual(routeChoice.calls.confirmations, 0, 'opening the route picker must not show an early duplicate confirmation');
-    assert.strictEqual(routeChoice.calls.ready, 1, 'multiple routes must keep using the existing route selection flow');
-
+    const stale=createContext(true);
+    stale.context.requestGameConfirmation=async()=>{
+        stale.run('game.pendingLoopReady=false');
+        return true;
+    };
+    await stale.context.handleCombatLoopAdvanceButton();
+    assert.equal(stale.run('game.season'),1,'stale confirmation cannot reset a different state');
     console.log('smoke-loop-advance-confirmation passed');
-})().catch(error => {
-    console.error(error);
-    process.exit(1);
-});
+})().catch(error=>{console.error(error);process.exitCode=1;});

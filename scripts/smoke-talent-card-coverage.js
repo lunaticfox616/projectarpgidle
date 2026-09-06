@@ -26,6 +26,7 @@ context.game = {
   playerHp: 100,
 };
 vm.createContext(context);
+require('./lib/load-combat-clock')(context);
 ['data/talent-cards.js', 'js/utils.js', 'js/talent-cards.js'].forEach(file => {
   vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
 });

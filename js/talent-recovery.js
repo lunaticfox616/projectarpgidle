@@ -19,13 +19,13 @@ function addTalentMossBarkRecovery(damage, now) {
     if (!(damage > 0) || ratio <= 0) return;
     let runtime = getTalentCardRuntimeState();
     runtime.mossRecoveries = Array.isArray(runtime.mossRecoveries) ? runtime.mossRecoveries : [];
-    runtime.mossRecoveries.push({ at: (Number(now) || Date.now()) + 2000, amount: damage * 0.20 * ratio });
+    runtime.mossRecoveries.push({ at: (Number(now) || getCombatTime()) + 2000, amount: damage * 0.20 * ratio });
 }
 
 function processTalentMossBarkRecovery(pStats, now) {
     let runtime = getTalentCardRuntimeState();
     let rows = Array.isArray(runtime.mossRecoveries) ? runtime.mossRecoveries : [];
-    let at = Number(now) || Date.now();
+    let at = Number(now) || getCombatTime();
     let due = rows.filter(row => row && row.at <= at).reduce((sum, row) => sum + Math.max(0, row.amount || 0), 0);
     runtime.mossRecoveries = rows.filter(row => row && row.at > at);
     if (due <= 0) return 0;

@@ -34,17 +34,9 @@
         body.light-mode .tab-btn { color: #4b5f78; border-right-color: #d3deec; }
         body.light-mode .tab-btn.active { background: #ffffff; color: #1e5aa5; border-bottom-color: #1e5aa5; }
         body.light-mode .tab-content { color: #243247; }
-        body.light-mode #sel-theme-mode { background: #ffffff; color: #1f2a3a; border-color: #b8c9df; }
-        body.light-mode button { background: linear-gradient(180deg, #ffffff 0%, #ecf3fb 100%); color: #1f2a3a; border-color: #b9c8da; }
+        body.light-mode button { background: var(--ui-surface-2); color: var(--ui-text); border-color: var(--ui-line); }
         body.light-mode .map-item { background-color: #ffffff; border-color: #c7d6e8; color: #243247; }
         body.light-mode .skill-gem { background-color: #ffffff; border-color: #c7d6e8; color: #243247; }
-        body.light-mode .settings-stack label { background: #ffffff !important; border-color: #c7d6e8 !important; color: #243247; }
-        body.light-mode #tab-settings .settings-stack > div { background: #ffffff !important; border-color: #c7d6e8 !important; color: #243247; }
-        body.light-mode #tab-settings input[type="number"],
-        body.light-mode #tab-settings select { background: #ffffff !important; color: #1f2a3a !important; border-color: #b8c9df !important; }
-        body.light-mode #tab-settings hr { border-color: #c7d6e8 !important; }
-        body.light-mode #tab-settings .settings-stack > div label,
-        body.light-mode #tab-settings .settings-stack > div > div { color: #243247 !important; }
         body.light-mode .combat-feed { background: linear-gradient(180deg, #f7fbff 0%, #eef5fc 100%); border-color: #c7d9eb; }
         body.light-mode .combat-feed-title { color: #2f5f91; }
         body.light-mode #log { background: linear-gradient(180deg, #ffffff 0%, #f3f8ff 100%); border-color: #c7d6e8; color: #203148; box-shadow: inset 0 0 14px rgba(83, 116, 150, 0.12); }
@@ -67,15 +59,14 @@
         body.light-mode .class-card:hover { background: #f7efff; border-color: #916bc8; }
         body.light-mode .slot-box { background: #ffffff; border-color: #c7d6e8; color: #263b54; }
         body.light-mode .slot-box:hover { background: #f3f8ff; border-color: #99afc6; }
-        body.light-mode .forge-panel { background: #f8fbff; border-color: #cfdae8; }
-        body.light-mode .craft-selected { background: #ffffff; border-color: #c7d5e7; color: #24384f; }
+        body.light-mode .forge-panel { background: var(--ui-surface-1); border-color: var(--ui-line); }
+        body.light-mode .craft-selected { background: var(--ui-surface-2); border-color: var(--ui-line); color: var(--ui-text); }
         body.light-mode .jewel-salvage-bar { background: #f6fbff; border-color: #c5d8eb; }
         body.light-mode .jewel-salvage-filters { color: #355374; }
         body.light-mode #ui-jewel-panel { background: #f7fbff !important; border-color: #c5d8eb !important; }
         body.light-mode #ui-jewel-core-craft { background: #ffffff !important; border-color: #c5d8eb !important; }
         body.light-mode #tab-journal > div,
-        body.light-mode #ui-journal-list > div { background: #ffffff !important; border-color: #c8d6e8 !important; color: #23384d !important; }
-        body.light-mode #ui-codex-summary,
+        body.light-mode #ui-journal-list > div { background: var(--ui-surface-1) !important; border-color: var(--ui-line) !important; color: var(--ui-text) !important; }
         body.light-mode #ui-talisman-currency,
         body.light-mode #ui-abyss-passive-summary { color: #3f6284 !important; }
         body.light-mode #ui-talisman-unseal { background: #ffffff !important; border-color: #c5d8eb !important; color: #23384d; }
@@ -122,7 +113,7 @@
         .noti-dot { display: none; position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; background-color: #e74c3c; border-radius: 50%; box-shadow: 0 0 5px #e74c3c; z-index: 10; }
 
         button { background-color: #2c3e50; color: #ffffff; border: 1px solid #34495e; padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 0.9em; transition: 0.2s; font-weight: bold; min-height: 36px; }
-        button:hover:not(:disabled) { background-color: #34495e; border-color: #7f8c8d; }
+        button:where(:not(.market-shell button)):hover:not(:disabled) { background-color: #34495e; border-color: #7f8c8d; }
         button:disabled { background-color: #111; color: #555; border-color: #222; cursor: not-allowed; }
         button, input, select, textarea { font: inherit; }
         button, .tab-btn, .subtab-btn, .item-card, .slot-box, .class-card, .map-item, .skill-gem, .trait-card { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }

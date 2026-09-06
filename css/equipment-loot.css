@@ -1,0 +1,29 @@
+.equipment-loot-panel { width: min(760px, 96vw); max-height: 88vh; display: flex; flex-direction: column; }
+.equipment-loot-body { overflow-y: auto; padding: 12px 16px; }
+.loot-filter-section { padding: 14px 0; border-bottom: 1px solid #544735; }
+.loot-filter-section h3 { margin: 0 0 10px; color: #e3ca91; font-size: 1rem; }
+.loot-filter-section summary { cursor: pointer; padding: 8px 0; color: #e3ca91; }
+.loot-filter-section label { display: flex; gap: 7px; align-items: center; font-size: .88rem; }
+.loot-filter-note { color: #b0aba0; font-size: .8rem; line-height: 1.55; margin: 9px 0; }
+.loot-filter-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+.loot-filter-fields label, .loot-target-rule label { display: flex; flex-direction: column; align-items: stretch; gap: 5px; min-width: 0; }
+.loot-filter-fields input, .loot-filter-fields select, .loot-target-rule input, .loot-target-rule select { width: 100%; box-sizing: border-box; min-height: 38px; padding: 6px; color: #eee6d6; background: #171919; border: 1px solid #655639; border-radius: 5px; }
+.loot-target-rule { display: grid; grid-template-columns: minmax(0, 2fr) 1fr 1fr auto; align-items: end; gap: 8px; margin-bottom: 10px; }
+.loot-target-rule button { min-height: 38px; }
+.loot-filter-grades, .loot-filter-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+#loot-target-preview { color: #9edac3; font-size: .85rem; }
+.loot-return-highlights { text-align: left; margin: 14px 0; }
+.loot-return-highlights h3 { color: #e3ca91; font-size: 1rem; }
+.loot-return-highlights ul { list-style: none; padding: 0; display: grid; gap: 8px; }
+.loot-highlight-card { display: flex; flex-direction: column; gap: 4px; padding: 10px 13px; border: 1px solid #6e805e; border-left: 3px solid #b7da92; background: #17231f; border-radius: 5px; overflow-wrap: anywhere; }
+.loot-highlight-card strong { color: #f0e4c4; }
+.loot-highlight-reason { color: #9ee5c8; font-size: .78rem; }
+.loot-highlight-card small, .loot-return-highlights p { color: #b3b9b1; font-size: .78rem; }
+.background-combat-result-card { max-height: 90vh; overflow-y: auto; }
+@media (max-width: 600px) {
+    .equipment-loot-panel { max-height: 94dvh; }
+    .equipment-loot-body { padding: 8px 12px; }
+    .loot-filter-fields { grid-template-columns: 1fr; }
+    .loot-target-rule { grid-template-columns: 1fr 1fr auto; }
+    .loot-target-rule label:first-child { grid-column: 1 / -1; }
+}

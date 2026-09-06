@@ -113,8 +113,9 @@ async function requestThroughWorker(request) {
 
     networkMode = 'failure';
     const offlineRequest = { ...scriptRequest, url: 'https://game.example/js/ui.js?v=new' };
-    const offlineResponse = await requestThroughWorker(offlineRequest);
-    assert.strictEqual(offlineResponse.marker, 'network', 'offline fallback may reuse the same cached path across version strings');
+    await assert.rejects(requestThroughWorker(offlineRequest), /offline/, 'a missing version must not execute older bytecode');
+    const offlineResponse = await requestThroughWorker(scriptRequest);
+    assert.strictEqual(offlineResponse.marker, 'network', 'the exact cached release remains usable offline');
 
     const externalRequest = { method: 'GET', url: 'https://api.example/data', mode: 'cors', destination: 'script' };
     assert.strictEqual(await requestThroughWorker(externalRequest), null, 'cross-origin requests must remain outside app caching');

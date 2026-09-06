@@ -2,60 +2,9 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-const html = fs.readFileSync('index.html', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-const reliquaryCss = fs.readFileSync('css/ui-reliquary-shell.css', 'utf8');
 
-function countHtmlId(id) {
-  return (html.match(new RegExp(`id="${id}"`, 'g')) || []).length;
-}
-
-const shellStart = html.indexOf('<div class="player-hud-shell">');
-const leftWingStart = html.indexOf('<div class="player-hud-left-wing">', shellStart);
-const frameStart = html.indexOf('<div class="player-health-frame"', shellStart);
-const skillRackStart = html.indexOf('<div class="player-hud-skill-rack"', frameStart);
-const effectsStart = html.indexOf('id="ui-player-ailments-under"', skillRackStart);
-const oxygenStart = html.indexOf('id="ui-ocean-oxygen-box"', shellStart);
-assert(shellStart >= 0 && leftWingStart > shellStart && frameStart > leftWingStart && skillRackStart > frameStart
-  && effectsStart > skillRackStart && oxygenStart > effectsStart,
-  'identity, flasks, vitals, equipped gems, effects, and oxygen must share one ordered HUD shell');
-assert(!html.includes('player-hud-info-box'), 'identity and experience must not float in a separate box');
-assert(html.includes('css/ui-reliquary-shell.css?v=20260819-commercial-hud6'),
-  'the continuous combat HUD must invalidate the deployed stylesheet cache');
-assert(!html.includes('player-health-frame-art'),
-  'the continuous combat HUD must not keep a hidden legacy frame element');
-
-[
-  'ui-player-name-label', 'ui-player-class-label', 'ui-exp-level-label',
-  'ui-exp', 'ui-maxexp', 'ui-exp-note', 'ui-player-ailments-under',
-  'ui-hp-bar', 'ui-es-track', 'ui-es-bar', 'ui-es-inline', 'ui-exp-bar',
-  'ui-combat-flasks', 'ui-combat-skill-gems'
-].forEach(id => assert.strictEqual(countHtmlId(id), 1, `${id} must have exactly one DOM owner`));
-
-const identityStartInShell = html.indexOf('class="player-hud-identity-row"', shellStart);
-const hpTrackStart = html.indexOf('class="hp-bar-bg combat-hp-bar"', frameStart);
-const expTrackStart = html.indexOf('class="hp-bar-bg combat-exp-bar"', frameStart);
-const esTrackStart = html.indexOf('id="ui-es-track"', hpTrackStart);
-const esBarStart = html.indexOf('id="ui-es-bar"', hpTrackStart);
-assert(identityStartInShell > shellStart && identityStartInShell < frameStart,
-  'name, class, and level must occupy the dedicated left wing beside the health frame');
-assert(html.indexOf('id="ui-combat-flasks"', leftWingStart) < frameStart,
-  'equipped flasks must stay in the left wing instead of being absolutely positioned over health');
-assert(html.indexOf('id="ui-combat-skill-gems"', skillRackStart) < oxygenStart,
-  'equipped skill gems must have a dedicated right-side rack');
-assert(!html.includes('player-hud-rack-title'),
-  'the right-side gem rack must use icons without a redundant title inside the artwork');
-assert(/\.combat-skill-gem-art \.gem-art-fallback \{\s*display: none;\s*\}/.test(reliquaryCss),
-  'combat gem slots must hide fallback element symbols');
-assert(effectsStart > skillRackStart && effectsStart < oxygenStart,
-  'active effects must own a fixed row in the integrated HUD instead of moving the health frame');
-assert(hpTrackStart >= 0 && expTrackStart > hpTrackStart, 'the player frame must retain health and experience tracks');
-assert(esTrackStart > hpTrackStart && esTrackStart < expTrackStart, 'energy shield must overlay the health track instead of occupying a separate segment');
-assert(esBarStart > esTrackStart && esBarStart < expTrackStart, 'the shared health track must retain a live energy-shield fill');
-assert(!html.includes('combat-es-bar'), 'the old separate energy-shield segment must be removed');
-assert(html.includes('onmouseenter="showPlayerExperienceTooltip(event)"'), 'the experience track must expose its exact values on hover');
-assert(!html.includes('id="ui-player-ailments-mobile"') && !html.includes('id="ui-player-ailments"'), 'legacy text status boxes must be removed');
-
+// 실제 HUD/툴팁 출력 검증. 화면 배치와 크기는 브라우저 core-ui.spec.js에서 검사한다.
 const identityStart = uiSource.indexOf('function getUiPlayerHudIdentity()');
 const identityEnd = uiSource.indexOf('const BACKGROUND_PROGRESS_MIN_REAL_MS', identityStart);
 assert(identityStart >= 0 && identityEnd > identityStart, 'player identity calculation must have a testable boundary');
@@ -67,6 +16,7 @@ const identityContext = {
   }
 };
 vm.createContext(identityContext);
+require('./lib/load-combat-clock')(identityContext);
 vm.runInContext(uiSource.slice(identityStart, identityEnd), identityContext, { filename: 'player-hud-identity.js' });
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(identityContext.getUiPlayerHudIdentity())),
@@ -124,6 +74,8 @@ const flaskContext = {
   renderSkillGemArt(name) { return `<i>${name}</i>`; }
 };
 vm.createContext(flaskContext);
+require('./lib/load-content-progression')(flaskContext);
+require('./lib/load-combat-clock')(flaskContext);
 vm.runInContext(uiSource.slice(flaskStart, flaskEnd), flaskContext, { filename: 'player-hud-flasks.js' });
 flaskContext.renderCombatFlaskHud();
 assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini/g) || []).length, 5, 'the HUD must render every unlocked flask socket up to the five-slot cap');
@@ -173,6 +125,7 @@ const flaskTooltipContext = {
   hideInfoTooltip() { flaskTooltipContext.hidden = true; }
 };
 vm.createContext(flaskTooltipContext);
+require('./lib/load-combat-clock')(flaskTooltipContext);
 vm.runInContext(uiSource.slice(flaskTooltipStart, flaskTooltipEnd), flaskTooltipContext, { filename: 'player-hud-flask-tooltips.js' });
 flaskTooltipContext.showPlayerFlaskTooltip({ clientX: 4, clientY: 8 }, 'heal', 'heal');
 assert(flaskTooltipContext.tooltip.html.includes('생명력 플라스크') && flaskTooltipContext.tooltip.html.includes('상태: 대기 중'),

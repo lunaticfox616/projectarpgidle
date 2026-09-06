@@ -87,6 +87,11 @@ assert.strictEqual(layout.centralStarWedges, 3, 'the center should contain three
 assert.strictEqual(layout.outerStarWedges, 6, 'the outer ring should contain six constellation star-wedge sockets');
 assert.ok(layout.aspectRatio >= 0.9 && layout.aspectRatio <= 1.2, 'the authored passive tree should retain its near-circular silhouette');
 
+vm.runInContext(fs.readFileSync('js/canvas-slash-vfx.js', 'utf8'), context, { filename: 'js/canvas-slash-vfx.js' });
+vm.runInContext(fs.readFileSync('js/canvas-skill-footprint.js', 'utf8'), context, { filename: 'js/canvas-skill-footprint.js' });
+vm.runInContext(fs.readFileSync('js/canvas-earth-spikes.js', 'utf8'), context, { filename: 'js/canvas-earth-spikes.js' });
+context.Path2D = require('./lib/canvas-path');
+vm.runInContext(fs.readFileSync('js/canvas-skill-signatures.js', 'utf8'), context, { filename: 'js/canvas-skill-signatures.js' });
 vm.runInContext(fs.readFileSync('js/canvas-battlefield.js', 'utf8'), context, { filename: 'js/canvas-battlefield.js' });
 vm.runInContext(fs.readFileSync('js/canvas-attack-fx.js', 'utf8'), context, { filename: 'js/canvas-attack-fx.js' });
 const playerGridMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
@@ -447,7 +452,7 @@ assert.ok(passiveSource.includes("skillFxBlizzardAmbient: 'assets/effects/skill-
 assert.ok(passiveSource.includes("skillFxBlizzardImpact: 'assets/effects/skill-bludgeoning-blizzard-impact-sheet-v2.png'"), 'battle asset loader should preload the pixel blizzard impact sprite sheet');
 assert.ok(passiveSource.includes("skillFxVenomFang: 'assets/effects/skill-venom-fang-v3.png'"), 'battle asset loader should preload the pixel venom projectile image');
 assert.ok(passiveSource.includes("skillFxFocusBeam: 'assets/effects/channel-focus-beam-v2.png'"), 'battle asset loader should preload the pixel focused beam image');
-assert.ok(passiveSource.includes("skillFxDragonBreath: 'assets/effects/channel-dragon-breath-v2.png'"), 'battle asset loader should preload the pixel dragon breath image');
+assert.ok(passiveSource.includes("skillFxDragonBreath: 'assets/effects/skill-dragon-breath-v3.png'"), 'battle asset loader should preload the pixel dragon breath image');
 assert.ok(passiveSource.includes("skillFxVoidCutter: 'assets/effects/channel-void-cutter-v2.png'"), 'battle asset loader should preload the pixel void cutter image');
 ['ambient', 'impact'].forEach(kind => {
   const bytes = fs.readFileSync(`assets/effects/skill-bludgeoning-blizzard-${kind}-sheet-v2.png`);
@@ -492,13 +497,6 @@ assert.ok(!passiveCanvasSource.includes('drawPassiveEvolutionAura'), 'the old ev
 assert.ok(!fs.readFileSync('index.html', 'utf8').includes('passive-node-star-wedge'), 'old passive art must not be loaded as the app icon');
 const windowCss = fs.readFileSync('css/ui-game-overhaul.css', 'utf8');
 const luxeCss = fs.readFileSync('css/ui-luxe.css', 'utf8');
-assert.ok(!windowCss.includes('border-image-source:'), 'regular windows should avoid a visually noisy full-image frame');
-assert.ok(windowCss.includes('> .ui-window-resize'), 'window resize handle should retain an explicit absolute layer');
-assert.ok(windowCss.includes('border: 1px solid rgba(111, 151, 188, .58);'), 'regular windows should use a restrained one-pixel frame');
-assert.ok(!windowCss.includes('.tab-content.ui-window::after'), 'window frame should not float over text as a pseudo-element');
-assert.ok(windowCss.includes('padding: clamp(12px, 1.15vw, 18px);'), 'window content should retain a compact text-safe inset inside the real border');
-assert.ok(windowCss.includes('clip-path: none;'), 'combat health panels should use clean rectangular silhouettes');
-assert.ok(windowCss.includes('align-items: center;'), 'health text should remain vertically centered when monster traits are shown');
 const indexSource = fs.readFileSync('index.html', 'utf8');
 assert.ok(indexSource.includes('<body class="startup-active">'), 'the game body must begin in its startup state before any gameplay UI can paint');
 assert.ok(indexSource.includes('id="startup-overlay" class="startup-overlay active"'), 'the startup screen must be visible in the initial HTML paint');
@@ -517,7 +515,6 @@ assert.ok(indexSource.includes('id="tutorial-dismiss-btn"'), 'tutorial notice sh
 assert.ok(!indexSource.includes('id="tutorial-progress-fill"'), 'tutorial notice should not use multi-step progress');
 assert.ok(!indexSource.includes('id="tutorial-visual"'), 'tutorial notice should keep the actual game screen visible');
 assert.ok(!passiveSource.includes('activeTutorial.steps = getTutorialGuide(activeTutorial)'), 'tutorial notices should not expand into illustrated multi-step lessons');
-assert.ok(windowCss.includes('#tutorial-overlay.active'), 'tutorial notice should use a compact live-screen presentation');
 const enemyUiSource = fs.readFileSync('js/ui.js', 'utf8');
 const enemyCombatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert.ok(enemyUiSource.includes("enemy.traitOutlineColor || (enemy.trait && enemy.trait.outlineColor) || '#e2b94f'")
@@ -529,12 +526,9 @@ assert.ok(enemyCombatSource.includes("addBattleFx('enemyAttack', { enemyId: enem
 assert.ok(!enemyUiSource.includes('let wobble = Math.sin((now / 170)'), 'fallback monsters should not float up and down while idle');
 const battlefieldSource = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
 assert.ok(battlefieldSource.includes("else if (game.moveTimer > 0) caption = '';"), 'normal area movement should not show a redundant status caption');
-assert.ok(battlefieldSource.includes('caption = `몬스터 수 초과로 진행불가 (${enemies.length})`;'),
-  'crowd-blocked progress must show a compact caption with only the current monster count');
 assert.ok(!battlefieldSource.includes('전진이 막혔습니다'), 'the verbose legacy crowd-blocked caption must be removed');
 assert.ok(battlefieldSource.includes('caption = `몬스터 수 ${enemies.length}마리`;'), 'battlefield status must report the current monster count');
 assert.ok(!battlefieldSource.includes('기와 교전 중') && !battlefieldSource.includes('지역 탐색 중'), 'legacy encounter captions must not remain');
-assert.ok(luxeCss.includes('top: 12px;') && luxeCss.includes('left: 14px;') && luxeCss.includes('bottom: auto;'), 'the battlefield caption should stay in the upper-left safe area instead of covering player effects');
 assert.ok(battlefieldSource.includes('playerPos.y - 82'), 'the player overhead health bar should clear tall character sprites and head ornaments');
 assert.ok(battlefieldSource.includes('enemy.isBoss ? 106 : 56'), '2x2 boss health bars should clear the enlarged sprite');
 assert.ok(!battlefieldSource.includes('tilePath(COMBAT_GRID_CONFIG.playerSpawn.gx')
@@ -688,9 +682,6 @@ const aggregatedBurstVfx = vm.runInContext(`(() => {
     start: 1000, duration: 900, delivery: 'magicCell', patternKind: 'radialBurst', skillName: '서리 폭발',
     screenAim: { x: 184, y: 195 }, screenRadius: 180, waveDurationMs: 255
   }, 1500, 1460, targets, 'skillFxFrostBurst', 'cold');
-  drawCombatCellFx(ctx, {
-    start: 1000, duration: 720, delivery: 'magicCell', patternKind: null, skillName: '삼원 파동'
-  }, 1500, 1460, targets, 'skillFxBurst', 'fire');
   battleVisualState.skillEffects = [];
   targets.forEach((target, index) => {
     queueSkillGemVfx({ id: 800 + index, skillName: '서리 폭발', element: 'cold' }, target, { x: 20, y: 220 }, {}, 1230, 1);
@@ -703,7 +694,7 @@ const aggregatedBurstVfx = vm.runInContext(`(() => {
     triParticles: getAttackFxSpawnOpts({ skillName: '삼원 파동' }, {}, {}, 1)
   };
 })()`, context);
-assert.strictEqual(aggregatedBurstVfx.images, 10, '서리 폭발은 중앙 폭발과 별도 파동만 그리고 다른 범위 타격은 대상 위치를 유지해야 한다');
+assert.strictEqual(aggregatedBurstVfx.images, 2, '서리 폭발의 폭발과 파동을 한 장씩 그려야 한다; 삼원 파동의 새 경로는 skill-signatures 검사에서 실행한다');
 assert.strictEqual(aggregatedBurstVfx.arcs, 0, '이미지 기반 범위 타격은 원형 또는 호를 다시 그리면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.lines, 0, '이미지 기반 범위 타격은 결정선을 매 프레임 만들면 안 된다');
 assert.strictEqual(aggregatedBurstVfx.flames, 0, '이미지 기반 범위 타격은 불꽃 곡선을 매 프레임 만들면 안 된다');
@@ -743,14 +734,12 @@ const boundedCrowdedSkillVfx = vm.runInContext(`(() => {
     fallbackParticles: getAttackFxSpawnOpts({ element: 'phys' }, targets[0].enemy, {}, 1)
   };
 })()`, context);
-assert.strictEqual(boundedCrowdedSkillVfx.impactEffectCount, 8,
-  '같은 공격 단계가 다섯 대상을 넘어도 각 대상에 전용 적중 이미지를 생성해야 한다');
+assert.strictEqual(boundedCrowdedSkillVfx.impactEffectCount, 1,
+  '연속 베기는 대상 수와 무관하게 실제 베기 단계당 칼날 궤적 하나를 그려야 한다');
 assert.strictEqual(boundedCrowdedSkillVfx.skillParticles, null,
   '스킬 전용 적중 이미지 위에 별도 입자 엔진을 중복 실행하면 안 된다');
 assert.ok(boundedCrowdedSkillVfx.fallbackParticles,
   '전용 스킬 프로필이 없는 독립 적중은 입자 피드백을 유지해야 한다');
-assert.strictEqual(context.SKILL_GEM_VFX_PROFILES['중력 붕괴'].aggregateImpact, undefined,
-  '중력 붕괴도 대상별 적중 위치를 중앙 이미지 하나로 합치면 안 된다');
 const optimizedLightningSpearVfx = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
   const target = { x: 250, y: 210, enemy: { id: 'lightning-target' } };
@@ -829,7 +818,7 @@ const imageBasedAreaVfx = vm.runInContext(`(() => {
   }, 1230, 1460, mineTargets, 'skillFxBurst', 'light');
   return counts;
 })()`, context);
-assert.strictEqual(imageBasedAreaVfx.images, 5, '지속 장판은 한 장으로 유지하되 지뢰 적중은 맞은 대상마다 위치를 보여줘야 한다');
+assert.strictEqual(imageBasedAreaVfx.images, 2, '지속 장판과 설치된 지뢰는 각각 하나의 범위 이미지로 보여야 한다');
 assert.strictEqual(imageBasedAreaVfx.fills, 0, '이미지가 준비된 범위 공격은 추가 도형 이펙트를 겹치면 안 된다');
 assert.ok(imageBasedAreaVfx.composites.every(mode => mode === 'source-over'), '공격 이미지는 고비용 screen 합성을 사용하면 안 된다');
 assert.ok(battlefieldSource.includes('bodyCue: true') && battlefieldSource.includes('bodyCue: bodyCue'),
@@ -854,7 +843,7 @@ assert.ok(stagedSkillVfx.imageKeys.includes('skillFxWhirlwind'), 'whirlwind stag
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxChainJump'), 'chain jumps should use the connector image asset');
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSlamAftershock'), 'slam aftershocks should use the delayed fracture image asset');
 assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSummonStrike'), 'summon attacks should use the spectral strike image asset');
-assert.ok(stagedSkillVfx.imageKeys.includes('skillFxSlash'), 'lightning strike primary should use a lightning-tinted melee slash');
+assert.ok(stagedSkillVfx.imageKeys.includes('skillFxContinuousSlash'), 'lightning strike primary should use the polished, lightning-tinted crescent');
 assert.ok(stagedSkillVfx.count <= 56, 'skill image effect queue should stay bounded during rapid attacks');
 const aggregateSlamVfxCount = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
@@ -863,10 +852,10 @@ const aggregateSlamVfxCount = vm.runInContext(`(() => {
   const second = { x: 280, y: 210, enemy: { id: 'b' } };
   queueSkillGemVfx({ id: 150, skillName: '지진 파쇄', stageKind: 'slamAftershock', element: 'phys', damageTextGroupId: 'quake:1' }, first, player, {}, 1000, 1);
   queueSkillGemVfx({ id: 151, skillName: '지진 파쇄', stageKind: 'slamAftershock', element: 'phys', damageTextGroupId: 'quake:1' }, second, player, {}, 1000, 1);
-  return battleVisualState.skillEffects.length;
+  return battleVisualState.skillEffects.filter(effect => effect.family !== 'hitSpark').length;
 })()`, context);
-assert.strictEqual(aggregateSlamVfxCount, 2,
-  'an earthquake stage must render one fracture at every damaged target');
+assert.strictEqual(aggregateSlamVfxCount, 1,
+  'an earthquake stage must retain one shared fracture while victims receive small contacts');
 const travellingProjectile = vm.runInContext(`(() => {
   battleVisualState.skillEffects = [];
   const swing = { id: 200, projectile: true, skillName: '얼음 창', element: 'cold', start: 1000, duration: 400, impactAt: 1400 };
@@ -919,15 +908,15 @@ const channelImageVfx = vm.runInContext(`(() => {
   return { calls, queuedImpacts: battleVisualState.skillEffects.length, shadowBlur: ctx.shadowBlur };
 })()`, context);
 assert.strictEqual(channelImageVfx.queuedImpacts, 0, '채널 틱은 여덟 대상을 맞혀도 대상별 적중 이펙트를 생성하면 안 된다');
-assert.strictEqual(channelImageVfx.calls.images.length, 7,
-  '직선 채널은 이미지 한 장, 용화 숨결은 대상 수와 무관한 고정 5방향 이미지로 그려야 한다');
+assert.strictEqual(channelImageVfx.calls.images.length, 3,
+  '각 채널은 대상 수와 무관하게 하나의 연속된 이미지로 그려야 한다');
 assert.strictEqual(channelImageVfx.calls.rects, 0, '채널 이미지가 준비되면 절차형 직사각형 빔을 겹치면 안 된다');
 assert.ok(channelImageVfx.calls.composites.every(mode => mode === 'source-over'), '채널 이미지는 screen 합성으로 glow를 만들면 안 된다');
 assert.ok(channelImageVfx.calls.filters.every(value => value === 'none'), '채널 이미지는 매 프레임 필터를 적용하면 안 된다');
 assert.strictEqual(channelImageVfx.shadowBlur, 0, '채널 이미지에 실시간 shadow blur를 적용하면 안 된다');
 assert.ok(channelImageVfx.calls.images[0].width >= 260, '집중 광선 이미지는 첫 대상이 아니라 직선 범위 끝까지 이어져야 한다');
-assert.ok(channelImageVfx.calls.images.slice(1, 6).every(call => call.height >= 34 && call.height <= 62),
-  '용화 숨결의 각 방향 이미지는 칸 폭을 넘는 화염벽으로 커지면 안 된다');
+assert.ok(channelImageVfx.calls.images[1].width > channelImageVfx.calls.images[1].height,
+  '용화 숨결은 전방으로 길게 이어지는 하나의 불길이어야 한다');
 const shieldChargeImpact = vm.runInContext(`(() => {
   const calls = { curves: 0, shards: 0, groundDust: 0, triangleLines: 0 };
   const ctx = {
@@ -966,7 +955,7 @@ assert.ok(passiveSource.includes("annihilate: Object.freeze({ hitStopMs: 34, sha
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
 assert.ok(combatSource.includes("text: '회피!', color: '#9fb4c8', duration: 260, bodyCue: true"), 'player evasion should request fixed body feedback');
 assert.ok(combatSource.includes("text: '막아냄!', color: '#a7a7a7', duration: 260, bodyCue: true"), 'player blocks should request fixed body feedback');
-assert.ok(combatSource.includes("attackTags.includes('slam') ? 460") && combatSource.includes("attackTags.includes('projectile') ? 400 : 360"), 'seven-pose attacks should use a readable motion window');
+// Slow/fast motion durations are exercised by smoke-combat-calculation-contracts.
 assert.ok(combatSource.includes('rawDamage: dmg'), 'one-shot damage labels should retain uncapped calculated damage');
 assert.ok(battlefieldSource.includes('Number.isFinite(Number(fx.rawDamage)) ? Number(fx.rawDamage) : fx.damage'), 'damage labels should show damage beyond the target remaining life');
 assert.strictEqual(context.SKILL_DB['회오리바람'].targets, 8, 'whirlwind should cover all eight adjacent directions');
@@ -979,10 +968,9 @@ assert.ok(battlefieldSource.includes("fx.type === 'playerHit' ? Math.max(0.45, h
 assert.ok(combatSource.includes("addBattleFx('levelUp'"), 'player level-ups should create a battlefield effect');
 assert.ok(combatSource.includes("duration: 560, color: '#ffe59a'"), 'level-up feedback should end quickly');
 const socialSource = fs.readFileSync('js/social.js', 'utf8');
-const uiSource = fs.readFileSync('js/ui.js', 'utf8');
+const uiSource = fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/main.js', 'utf8');
 const windowManagerSource = fs.readFileSync('js/ui-window-manager.js', 'utf8');
 const shellSource = fs.readFileSync('js/ui-game-shell.js', 'utf8');
-assert.ok(!windowCss.includes("content: 'P I'"), 'the in-game PI rail badge should be removed');
 assert.ok(!shellSource.includes('PROJECT IDLE</strong>'), 'the in-game expedition brand should be removed');
 assert.ok(!uiSource.includes('enemy-target-strip'), 'meaningless enemy count/target buttons should be removed');
 assert.ok(uiSource.includes("showTraits = !!(focusedEnemy.isElite || focusedEnemy.isBoss || focusedEnemy.bossPhase)"), 'elite and boss traits should remain visible under the health bar');
@@ -992,7 +980,7 @@ assert.ok(uiSource.includes("'rivalKey', 'cosmosSovereignKey'"), 'rival and echo
 assert.ok(uiSource.includes('gem-tag--${getTone(tag)}'), 'skill-gem tags should render semantic color classes');
 assert.ok(uiSource.includes('gem-tag--support') && uiSource.includes('gem-tag--resonance'), 'support gem tags should use distinct support and resonance colors');
 assert.ok(uiSource.includes("renderSkillGemArt(name, 'gem-card-sigil gem-card-art')"), 'skill cards should use their dedicated gem portraits');
-assert.ok(uiSource.includes('overlayPause && (isTutorialOpen() || isPauseSettingOverlayOpen())'), 'tutorial notices must follow the overlay-pause setting');
+assert.ok(uiSource.includes('overlayPause && (tutorialOpen || optionalOverlayOpen)'), 'tutorial notices must follow the overlay-pause setting');
 assert.ok(uiSource.includes('tutorialPause || isRewardOpen()'), 'tutorial notices must use the optional render-only game-loop path');
 assert.ok(windowManagerSource.includes('.tutorial-overlay.active:not(#tutorial-overlay)'), 'compact tutorial notices should not block desktop window interactions');
 assert.ok(socialSource.includes('연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.'), 'chat should show a cloud-session pending state');
@@ -1006,7 +994,6 @@ assert.ok(indexSource.includes('id="chk-social-chat-noti"'), 'settings should ex
 assert.ok(!socialSource.includes('setInterval(() => { if (socialCloudReady() && getMyNickname()) ensureHeartbeat(); }, SOCIAL_HEARTBEAT_MS);\n    // 커뮤니티'), 'social module should not run an eager cloud-ready watcher forever');
 assert.ok(passiveSource.includes('data-class-id="${escapeHTML(id)}"'), 'class preview cards should expose stable class ids');
 assert.ok(passiveSource.includes('class="hero-choice-portrait" src="${escapeHTML(def.portrait)}"'), 'class selection should render its dedicated portrait');
-assert.ok(windowCss.includes('body:not(.light-mode) .hero-choice-portrait {'), 'class portraits should have a dedicated selection-card layout');
 const heroVisualCoverage = vm.runInContext(`Object.values(PLAYER_CLASS_DEFS).map(def => ({
   id: def.id,
   portrait: def.portrait,

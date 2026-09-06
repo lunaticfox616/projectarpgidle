@@ -7,6 +7,7 @@ context.window = context;
 context.safeExposeData = map => Object.assign(context, map);
 context.safeExposeGlobals = map => Object.assign(context, map);
 vm.createContext(context);
+require('./lib/load-combat-clock')(context);
 vm.runInContext(fs.readFileSync('data/shrines.js', 'utf8'), context, { filename: 'data/shrines.js' });
 vm.runInContext(fs.readFileSync('js/shrines.js', 'utf8'), context, { filename: 'js/shrines.js' });
 

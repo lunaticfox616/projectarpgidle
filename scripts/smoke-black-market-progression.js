@@ -4,7 +4,6 @@ const vm = require('vm');
 
 const source = fs.readFileSync('js/items.js', 'utf8');
 const stateSource = fs.readFileSync('js/state.js', 'utf8');
-const cssSource = fs.readFileSync('css/components.css', 'utf8');
 
 function extract(startNeedle, endNeedle) {
     const start = source.indexOf(startNeedle);
@@ -108,7 +107,7 @@ vm.runInContext(runtimeBlock, context, { filename: 'black-market-progression-run
     const expandBlock = extract('function expandBlackMarketSlotsByDivine()', 'function getBlackMarketSlotExpandCost');
     assert(!expandBlock.includes('refreshBlackMarket(true)'), 'slot expansion must never reroll the current shop');
     assert(stateSource.includes("preferredSlot: 'any', insight: 0, manualRefreshes: 0"), 'new saves should initialize market progression state');
-    assert(cssSource.includes('.market-insight') && cssSource.includes('.market-black-offer.featured'), 'market progression needs visible responsive styling');
+    // Actual progression labels, locks and responsive layout are covered by market-workspace.spec.js.
 
     console.log('smoke-black-market-progression passed');
 })().catch(error => {

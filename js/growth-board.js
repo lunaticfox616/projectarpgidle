@@ -53,9 +53,9 @@ function getGrowthItemCells(item, rotation) {
 
 
 // ── 보드 상태 ────────────────────────────────────────────────────────────
-/** 생장판은 기존 장비를 대체하지 않는 추가 시스템이며 루프 25부터 열린다. */
+/** 루프 조건과 선택 해금을 모두 만족해야 생장판을 사용한다. 저장된 배치는 보존한다. */
 function isGrowthBoardUnlocked() {
-    return Math.floor(Number(game.season) || 1) >= GROWTH_UNLOCK_LOOP;
+    return contentProgression.isUnlocked('growth') && Math.floor(Number(game.season) || 1) >= GROWTH_UNLOCK_LOOP;
 }
 
 /** 생장 전용 보관함 한도. 기존 장비 보관함과 칸을 나눠 쓰지 않는다. */
@@ -136,6 +136,7 @@ function syncGrowthBoardUnlocks(options) {
 }
 
 function isGrowthCellUnlocked(x, y) {
+    if (!isGrowthBoardUnlocked()) return false;
     if (x < 0 || y < 0 || x >= GROWTH_BOARD_W || y >= GROWTH_BOARD_H) return false;
     let board = ensureGrowthBoardState();
     let order = getGrowthCellUnlockOrder();
@@ -160,6 +161,7 @@ function findAnyGrowthItemById(itemId) {
 
 /** 활성 세팅의 배치 목록: [{ item, placement:{x,y,rotation}, cells:[[x,y]...] }] (유효한 것만) */
 function getPlacedGrowthEntries() {
+    if (!isGrowthBoardUnlocked()) return [];
     let loadout = getActiveGrowthLoadout();
     let entries = [];
     Object.keys(loadout.placements || {}).forEach(key => {

@@ -13,6 +13,7 @@ const context = {
 context.window = context;
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('data/skills.js', 'utf8'), context);
+vm.runInContext(fs.readFileSync('js/combat-patterns.js', 'utf8'), context);
 vm.runInContext(fs.readFileSync('js/condition-patterns.js', 'utf8'), context);
 
 const oversizedCount = { triggerType:'enemy_many', triggerValue:40, actionType:'target_weakest' };

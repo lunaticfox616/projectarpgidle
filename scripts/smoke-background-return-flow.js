@@ -1,154 +1,58 @@
-const fs = require('fs');
-const assert = require('assert');
-const vm = require('vm');
-
-const source = fs.readFileSync('js/ui.js', 'utf8');
-const start = source.indexOf('const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;');
-const end = source.indexOf('function getUiConditionGemStatDelta', start);
-assert(start >= 0 && end > start, 'background progress block not found');
-let timeouts = [];
-const body = {
-  appended: [],
-  appendChild(node) { this.appended.push(node); node.parent = this; },
-};
-const nodes = { body };
-function makeNode(tag) {
-  return {
-    tag,
-    id: '',
-    className: '',
-    innerHTML: '',
-    textContent: '',
-    style: {},
-    attributes: {},
-    setAttribute(name, value) { this.attributes[name] = String(value); },
-    removed: false,
-    remove() { this.removed = true; if (this.id) delete nodes[this.id]; },
-  };
+const assert = require('node:assert/strict');
+const fixture = require('./lib/replay-fixture');
+async function main() {
+    const {runtime:r,state,run} = fixture();
+    const before = JSON.stringify(state), beforeRuntime = JSON.stringify(r.captureCombatRuntime());
+    const writes = [];
+    r.localStorage.setItem = (key,value) => writes.push({key,value});
+    const realDate = r.Date.now;
+    let frames = 0;
+    r.performance.now = () => ++frames * 10;
+    run('backgroundCombatRuntime.processing = true');
+    let callbacks=0;
+    const result = await r.simulateBackgroundCombatChunked({snapshot:state,elapsedMs:10000,onProgress(){
+        callbacks++;
+        assert.equal(run('game'),state);
+        assert.equal(JSON.stringify(state),before);
+        assert.equal(r.Date.now,realDate);
+        assert.equal(r.persistLocalSave(),false);
+        assert.equal(r.persistLocalSave({allowRecoveryWrite:true}),false);
+        r.scheduleAutoSaveWhenIdle();
+    }});
+    assert.ok(callbacks>1);
+    assert.equal(writes.length,0);
+    assert.equal(JSON.stringify(r.captureCombatRuntime()),beforeRuntime);
+    assert.equal(result.processedMs,10000);
+    assert.equal(result.game.combatTimeMs,state.combatTimeMs+10000);
+    assert.equal(result.game.records.currentLoop.activeMs-state.records.currentLoop.activeMs,10000);
+    const other=fixture();
+    const direct=other.runtime.simulateBackgroundCombat({snapshot:other.state,elapsedMs:10000});
+    // Spawn animation timestamps use performance.now(); only the browser presentation clock differs.
+    const combatState=(key,value)=>key==='spawnStamp'?undefined:value;
+    assert.equal(JSON.stringify(result.game,combatState),JSON.stringify(direct.game,combatState),'yielding must not change rewards or combat outcome');
+    // Failure at a platform boundary after a slice must not leak the replay state.
+    await assert.rejects(r.simulateBackgroundCombatChunked({snapshot:state,elapsedMs:1000,onProgress(){throw Error('injected frame failure');}}),/injected frame failure/);
+    assert.equal(run('game'),state);
+    assert.equal(JSON.stringify(state),before);
+    assert.equal(JSON.stringify(r.captureCombatRuntime()),beforeRuntime);
+    const random=r.Math.random;
+    r.Math.random=()=>{throw Error('random boundary failed');};
+    assert.throws(()=>r.simulateBackgroundCombat({snapshot:state,elapsedMs:10000}),/random boundary failed/);
+    r.Math.random=random;
+    assert.equal(run('game'),state);
+    assert.equal(JSON.stringify(state),before);
+    assert.equal(JSON.stringify(r.captureCombatRuntime()),beforeRuntime);
+    r.commitBackgroundCombat(result,state);
+    assert.equal(writes.length,1,'one final local write');
+    const saved=JSON.parse(writes[0].value);
+    assert.equal(saved.isBackgroundCalculation,undefined);
+    assert.equal(saved.saveMeta.lastModifiedAt,r.Date.now());
+    assert.equal(saved.combatTimeMs,result.game.combatTimeMs);
+    assert.equal(await r.startBackgroundCombatReturn(r.Date.now()),false,'duplicate lifecycle return must not reapply');
+    const savedState=run('game');
+    r.localStorage.setItem=()=>{throw Error('disk full');};
+    assert.throws(()=>r.commitBackgroundCombat(result,savedState),/저장/);
+    assert.equal(run('game'),savedState,'failed save must roll back in-memory state');
+    console.log('smoke-background-return-flow passed');
 }
-const context = {
-  console,
-  setTimeout: fn => { timeouts.push(fn); return timeouts.length; },
-  requestAnimationFrame: fn => { context.rafCount += 1; fn(); return context.rafCount; },
-  performance: { now: () => { context.perf += 4; return context.perf; } },
-  Date: { now: () => context.now },
-  now: 0,
-  perf: 0,
-  rafCount: 0,
-  document: {
-    body,
-    getElementById(id) { return nodes[id] || null; },
-    querySelector() { return null; },
-    createElement(tag) {
-      const node = makeNode(tag);
-      Object.defineProperty(node, 'id', {
-        get() { return this._id || ''; },
-        set(value) { this._id = value; if (value) nodes[value] = this; }
-      });
-      return node;
-    },
-  },
-  game: {},
-  getExpReq: () => 10,
-  mergeDefaults: state => state,
-  updateStaticUI: () => { context.updated = (context.updated || 0) + 1; },
-  safeExposeGlobals: entries => Object.assign(context, entries),
-  renderBattlefield: force => { context.rendered.push(force); },
-  scheduleStableResize: () => { context.resized = (context.resized || 0) + 1; },
-  syncBattleTabLayout: () => { context.synced = (context.synced || 0) + 1; },
-  runUiCoreLoop: () => {
-    context.observedNow.push(context.Date.now());
-    context.game.exp += 1;
-    context.game.killsInZone += 1;
-    context.game.loopKills += 1;
-    if (context.killAfter && context.game.exp >= context.killAfter) context.game.playerHp = 0;
-  },
-  observedNow: [],
-  rendered: [],
-};
-vm.createContext(context);
-vm.runInContext(source.slice(start, end), context);
-async function flushTimers() {
-  while (timeouts.length) {
-    const pending = timeouts;
-    timeouts = [];
-    pending.forEach(fn => fn());
-    await Promise.resolve();
-  }
-}
-(async () => {
-
-  vm.runInContext(`showBackgroundCombatResult({ actualElapsedMs: 60000, effectiveProgressMs: 6000, summary: { overflowSalvaged: 7 } })`, context);
-  assert(nodes['background-combat-result-overlay'].innerHTML.includes('공간 부족 자동해체: <strong>7개</strong>'), 'background result must summarize overflow salvage in one result panel');
-
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
-  context.game.heroSelectionInitialized = true;
-  vm.runInContext('recordBackgroundCombatEntry(1000)', context);
-  const shortResult = await vm.runInContext('startBackgroundCombatReturn(1000 + 59999)', context);
-  assert.strictEqual(shortResult, false, 'short return should not run background combat');
-  assert.strictEqual(context.game.exp, 0, 'short return should not grant combat progress');
-  assert.strictEqual(nodes['background-combat-progress-overlay'], undefined, 'short return should not show progress overlay');
-  assert(context.rendered.includes(true), 'short return should still force-render the battlefield');
-  context.rendered = [];
-
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
-  context.game.heroSelectionInitialized = true;
-  vm.runInContext('recordBackgroundCombatEntry(1000)', context);
-  const updatesBeforeReturn = context.updated || 0;
-  const promise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
-  await flushTimers();
-  assert.strictEqual(await promise, true, 'background return should complete');
-  assert(context.resized > 0, 'canvas resize should happen before replay');
-  assert(context.rendered.includes(true), 'battlefield should be force-rendered before replay');
-  assert(context.rafCount > 0, 'return flow should yield at least one frame');
-  assert(context.observedNow.length > 0, 'combat steps should run');
-  assert.strictEqual((context.updated || 0) - updatesBeforeReturn, 1, 'completed background return should refresh the full UI once');
-  const onceExp = context.game.exp;
-  const onceTotalExp = context.game.exp + (context.game.level - 1) * 10;
-  assert.strictEqual(await vm.runInContext('startBackgroundCombatReturn(12 * 60 * 1000)', context), false, 'same elapsed time should not apply twice');
-  assert.strictEqual(context.game.exp, onceExp, 'duplicate return should not grant rewards');
-
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
-  context.game.heroSelectionInitialized = true;
-  vm.runInContext('recordBackgroundCombatEntry(1000)', context);
-  const ultraPromise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
-  vm.runInContext('requestFasterBackgroundCombat(); requestFasterBackgroundCombat();', context);
-  await flushTimers();
-  assert.strictEqual(await ultraPromise, true, 'fast calculation should complete');
-  // 빠른 계산은 표본 이후 구간을 예상 정산한다. 정산된 경험치는 레벨 업에
-  // 쓰이므로 (레벨 업 소모 + 잔여 경험치)의 총량이 전체 계산과 같아야 한다.
-  const settledTotalExp = context.game.exp + (context.game.level - 1) * 10;
-  assert(context.game.level > 1, 'estimated settlement should apply pending level-ups');
-  assert.strictEqual(settledTotalExp, onceTotalExp, 'estimated settlement should preserve the full expected experience');
-  assert.strictEqual(context.game.loopKills, 659, 'estimated settlement should scale kills to the full duration');
-
-  context.killAfter = 3;
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
-  context.game.heroSelectionInitialized = true;
-  vm.runInContext('recordBackgroundCombatEntry(1000)', context);
-  const deathPromise = vm.runInContext('startBackgroundCombatReturn(11 * 60 * 1000)', context);
-  await flushTimers();
-  assert.strictEqual(await deathPromise, true);
-  assert.strictEqual(context.game.playerHp, 0, 'death during replay should be preserved');
-  assert(context.game.exp < onceExp, 'death should stop remaining background chunks');
-
-  context.killAfter = 0;
-  context.getOfflineProgressConfig = () => ({
-    recognitionLimitMs: 24 * 60 * 60 * 1000,
-    efficiencyRate: 0.3,
-    effectiveLimitMs: 24 * 60 * 60 * 1000 * 0.3,
-    recognitionHours: 24
-  });
-  context.observedNow = [];
-  context.game = { currentZoneId: 1, playerHp: 100, combatHalted: false, enemies: [{ hp: 5 }], encounterPlan: [], moveTimer: 0, currencies: {}, inventory: [], level: 1, exp: 0, killsInZone: 0, loopKills: 0, loopDeaths: 0 };
-  context.game.heroSelectionInitialized = true;
-  vm.runInContext('recordBackgroundCombatEntry(1000)', context);
-  const dayReturn = vm.runInContext('startBackgroundCombatReturn(1000 + 24 * 60 * 60 * 1000)', context);
-  await flushTimers();
-  assert.strictEqual(await dayReturn, true, 'a full 24-hour return should complete');
-  assert(context.observedNow.length <= 300,
-    `24-hour return replayed too many combat steps (${context.observedNow.length})`);
-  assert(nodes['background-combat-result-overlay'].innerHTML.includes('예상 정산'),
-    'a long return should explicitly report bounded-sample settlement');
-  console.log('smoke-background-return-flow passed');
-})().catch(error => { console.error(error); process.exit(1); });
+main().catch(error=>{console.error(error);process.exitCode=1;});

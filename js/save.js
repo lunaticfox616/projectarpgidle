@@ -1,3 +1,16 @@
+function normalizeCloudUploadProfile(profile) {
+    if (!profile || typeof profile !== 'object') return null;
+    return {
+        at: Math.max(0, Math.floor(Number(profile.at) || 0)),
+        fetchMs: Math.max(0, Math.floor(Number(profile.fetchMs) || 0)),
+        serializeMs: Math.max(0, Math.floor(Number(profile.serializeMs) || 0)),
+        uploadMs: Math.max(0, Math.floor(Number(profile.uploadMs) || 0)),
+        totalMs: Math.max(0, Math.floor(Number(profile.totalMs) || 0)),
+        payloadBytes: Math.max(0, Math.floor(Number(profile.payloadBytes) || 0))
+    };
+}
+
+
 // Phase-2 extracted save helpers and persistence flow.
 const localSaveRuntimeState = {
     status: 'uninitialized',
@@ -19,8 +32,9 @@ function getLocalSaveStatus() {
     return { ...localSaveRuntimeState };
 }
 
-function canPersistLocalSave() {
-    return localSaveRuntimeState.writable !== false;
+function canPersistLocalSave(options = {}) {
+    return (localSaveRuntimeState.writable !== false || options.allowRecoveryWrite === true) && !(game && game.isBackgroundCalculation)
+        && !(typeof backgroundCombatRuntime !== 'undefined' && (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed));
 }
 
 function readLocalSaveResult() {
@@ -83,18 +97,15 @@ function resetLocalSave(snapshot) {
 }
 
 function refreshItemIdCounter() {
-    // 시간의 균열 제단에 보관 중인 아이템도 id 공간을 점유한다 — 누락하면 재로드 후 id가 재사용되어
-    // 제단 아이템이 돌아왔을 때 id 기반 인벤토리 조작이 다른 아이템을 가리킬 수 있다.
-    let rift = (game && game.timeRift && typeof game.timeRift === 'object') ? game.timeRift : {};
-    let altarIds = [rift.altarUnique, rift.altarRare].filter(Boolean).map(item => item.id || 0);
-    // 생장 보관함과 아직 마이그레이션되지 않은 예전 최근 획득함도 id 공간을 점유한다.
-    let growthIds = (game.growthInventory || []).concat(game.recentGrowthDrops || []).filter(Boolean).map(item => item.id || 0);
-    let offline = game.offlineProgress && typeof game.offlineProgress === 'object' ? game.offlineProgress : {};
-    let offlineIds = (offline.stash || []).concat(offline.protectedOverflow || []).filter(Boolean).map(item => item.id || 0);
-    let temporaryIds = (game.equipmentTemporaryStorage || []).filter(Boolean).map(item => item.id || 0);
-    let presetIds = (((game.equipmentLoadouts || {}).presets) || []).flatMap(preset => preset && preset.slots
-        ? Object.values(preset.slots).filter(Boolean).map(row => row.id || 0) : []);
-    itemIdCounter = Math.max(0, ...(game.inventory || []).map(item => item.id || 0), ...Object.values(game.equipment || {}).filter(Boolean).map(item => item.id || 0), ...altarIds, ...growthIds, ...offlineIds, ...temporaryIds, ...presetIds);
+    // Every owned or pending item reserves its id, including postponed treasures and offline overflow.
+    const rift = game.timeRift || {};
+    const offline = game.offlineProgress || {};
+    const presets = ((game.equipmentLoadouts || {}).presets || []).filter(Boolean)
+        .flatMap(preset => Object.values(preset.slots || {}));
+    const items = [game.inventory, Object.values(game.equipment || {}), rift.altarUnique, rift.altarRare,
+        game.growthInventory, game.recentGrowthDrops, offline.stash, offline.protectedOverflow,
+        game.equipmentTemporaryStorage, presets, game.bountyHunt?.pending?.item].flat().filter(Boolean);
+    itemIdCounter = Math.max(0, ...items.map(item => item.id || 0));
 }
 
 function createSaveSnapshot(sourceGame) {
@@ -191,7 +202,7 @@ function sanitizeForSave(value, seen = new WeakSet()) {
 }
 
 function persistLocalSave(options = {}) {
-    if (!canPersistLocalSave() && options.allowRecoveryWrite !== true) return false;
+    if (!canPersistLocalSave(options)) return false;
     ensureSaveMeta();
     if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = Date.now();
     try {
@@ -301,6 +312,7 @@ function saveGame(options = {}) {
 
 let importantSaveTimer = null;
 function queueImportantSave(delayMs) {
+    if (!canPersistLocalSave()) return;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return;
     let delay = Math.max(0, Number.isFinite(delayMs) ? delayMs : 350);
     if (importantSaveTimer) clearTimeout(importantSaveTimer);

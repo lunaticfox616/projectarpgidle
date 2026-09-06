@@ -48,6 +48,7 @@ const context = {
 context.window = context;
 context.globalThis = context;
 vm.createContext(context);
+require('./lib/load-ui-display')(context);
 
 const varsSource = 'let mobileToastQueue = [];\nlet mobileToastActiveCount = 0;\nconst MOBILE_TOAST_MAX_CONCURRENT = 3;\n';
 const fnNames = ['shouldShowMobileToast', 'getMobileToastRoot', 'stripHtmlMessage', 'enqueueMobileToast', 'pumpMobileToastQueue', 'getMobileToastDisplayDurationMs', 'showNextMobileToast'];

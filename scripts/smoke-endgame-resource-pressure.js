@@ -8,6 +8,7 @@ const run = source => vm.runInContext(source, context);
 async function main() {
     run(`(function () {
         game.season = 30;
+        game.contentProgression.inherited.push('cube', 'growth', 'craft');
         game.unlocks.cube = true;
         game.underworldProgress = { highestFloor: 300 };
         game.coreCube = null;

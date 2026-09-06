@@ -1,0 +1,18 @@
+const assert = require('node:assert/strict');
+const espree = require('espree');
+const {analyze,compare} = require('./check-runtime-architecture');
+const row=(file,source)=>({file,source,ast:espree.parse(source,{ecmaVersion:'latest',range:true,loc:true})});
+const initial=analyze([row('js/ui.js','function render() {}'),row('js/domain.js','function attack() {}')]);
+const illegal=analyze([row('js/ui.js','function render(){attack();}'),row('js/domain.js','function attack(){render(); window.unapproved=1; missing=2;}')]);
+const failures=compare(illegal,initial);
+assert.ok(failures.some(x=>x.startsWith('cycle ')),'actual circular calls must fail');
+assert.ok(failures.some(x=>x.startsWith('layer:')),'domain-to-UI calls must fail');
+assert.ok(failures.some(x=>x.startsWith('window:')),'new raw window assignments must fail');
+assert.ok(failures.some(x=>x.includes('no-undef')),'implicit global writes must fail');
+const duplicate=analyze([row('js/a.js','function shared(){}'),row('js/b.js','function shared(){}')]);
+assert.ok(compare(duplicate,initial).some(x=>x.startsWith('duplicate:')));
+const tooLong=analyze([row('js/domain.js','function work(a,b,c,d,e,f){ return a+b+c+d+e+f; }')]);
+assert.ok(compare(tooLong,initial).some(x=>x.includes('max-params')));
+const reordered=analyze([row('js/first.js','late();'),row('js/late.js','function late(){}')]);
+assert.ok(compare(reordered,initial).some(x=>x.startsWith('load-order:')));
+console.log('smoke-runtime-architecture passed');

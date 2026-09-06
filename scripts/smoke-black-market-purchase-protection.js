@@ -1,49 +1,21 @@
-const fs = require('fs');
-const vm = require('vm');
 const assert = require('assert');
-
-const source = fs.readFileSync('js/passives.js', 'utf8');
-const utilitySource = fs.readFileSync('js/utils.js', 'utf8');
-const start = source.indexOf('function addItemToInventory(item, options)');
-const end = source.indexOf('function getTalismanEffectAnchorCell', start);
-assert(start >= 0 && end > start, 'inventory acquisition functions not found');
-const context = {
-  game: {
-    inventory: [], uniqueCodex: {},
-    settings: {
-      showLootLog: true,
-      itemFilterEnabled: true,
-      itemFilterRarities: { normal: false, magic: false, rare: false, unique: false },
-      autoSalvageEnabled: true,
-      autoSalvageRarities: { normal: true, magic: true, rare: true, unique: true }
-    }
-  },
-  normalizeItem: item => item,
-  addLog: () => {},
-  EQUIPMENT_INVENTORY_MAX_PAGES: 1,
-  EQUIPMENT_INVENTORY_CELLS_PER_PAGE: 10,
-  salvageItemObject: item => {
-    context.salvaged.push(item.name);
-    return { transmute: 1 };
-  },
-  formatSalvageRewardSummary: rewards => Object.keys(rewards || {}).join(', '),
-  registerUniqueToCodexOnAcquire: item => { context.registered = item.name; },
-  getUniqueCodexKeyByItem: item => `${item.slot || 'weapon'}|${item.name}`,
-  checkUnlocks: () => { context.checked = true; },
-  salvaged: []
-};
-vm.createContext(context);
-const capacityStart = utilitySource.indexOf('function getEquipmentInventoryPageCount(');
-const capacityEnd = utilitySource.indexOf('function getJewelInventoryLimit(', capacityStart);
-assert(capacityStart >= 0 && capacityEnd > capacityStart, 'spatial inventory capacity helpers not found');
-vm.runInContext(utilitySource.slice(capacityStart, capacityEnd), context);
-vm.runInContext(source.slice(start, end), context);
-assert.strictEqual(vm.runInContext("addItemToInventory({ name:'drop sword', rarity:'normal' })", context), false);
-assert.deepStrictEqual(context.game.inventory.map(item => item.name), []);
-assert.strictEqual(vm.runInContext("addItemToInventory({ name:'market sword', rarity:'normal' }, { ignoreFilter:true, ignoreAutoSalvage:true })", context), true);
-assert.deepStrictEqual(context.game.inventory.map(item => item.name), ['market sword']);
-assert.strictEqual(context.salvaged.length, 0);
-context.game.inventory = Array.from({ length: 10 }, (_, index) => ({ name: `filled ${index}`, rarity: 'normal' }));
-assert.strictEqual(vm.runInContext("addItemToInventory({ name:'full market sword', rarity:'normal' }, { ignoreFilter:true, ignoreAutoSalvage:true })", context), false);
-assert.strictEqual(context.game.inventory.length, 10);
+const {prepare} = require('./audit-combat-20260905');
+const {runtime:r,state} = prepare();
+state.settings.autoEquipEmptySlots=false;
+state.settings.itemFilterEnabled=true;
+state.settings.itemFilterRarities={normal:false,magic:false,rare:false,unique:false};
+state.settings.autoSalvageEnabled=true;
+state.settings.autoSalvageRarities={normal:true,magic:true,rare:true,unique:true};
+state.isBackgroundCalculation=true;
+const item = id => ({id,name:'검사 반지 '+id,slot:'반지',rarity:'normal',tier:1,hiddenTier:1,baseStats:[],stats:[]});
+const before=state.currencies.magicBud;
+assert.strictEqual(r.addItemToInventory(item(100)),false);
+assert.strictEqual(r.addItemToInventory(item(101),{ignoreFilter:true,ignoreAutoSalvage:true}),true);
+assert.strictEqual(state.inventory.length,1);
+assert.strictEqual(state.inventory[0].id,101);
+assert.strictEqual(state.currencies.magicBud,before,'purchase bypass must not salvage');
+state.inventory=Array.from({length:r.getInventoryLimit(state)},(_,index)=>item(index+200));
+assert.strictEqual(r.addItemToInventory(item(999),{ignoreFilter:true,ignoreAutoSalvage:true}),false);
+assert.strictEqual(state.inventory.length,r.getInventoryLimit(state));
+assert.strictEqual(state.currencies.magicBud,before+1,'ordinary capacity handling still recycles unprotected overflow');
 console.log('smoke-black-market-purchase-protection passed');

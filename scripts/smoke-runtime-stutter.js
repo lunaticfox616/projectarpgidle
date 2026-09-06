@@ -60,12 +60,14 @@ assert.strictEqual(fastCloudBody.save_data.realmDeathWard, null, 'cloud upload s
 assert.strictEqual(fastCloudBody.save_data.realmInvulnerableBarrierUntil, 0, 'cloud upload should clear transient realm barriers');
 assert.strictEqual(cloudSample.enemies.length, 1, 'building a cloud upload must not mutate the live game state');
 
-const schedulerStart = uiSource.indexOf('function cancelScheduledAutoSave()');
-const schedulerEnd = uiSource.indexOf('function renderBattlefieldThrottled', schedulerStart);
+const schedulerSource = fs.readFileSync('js/main.js', 'utf8');
+const schedulerStart = schedulerSource.indexOf('function cancelScheduledAutoSave()');
+const schedulerEnd = schedulerSource.indexOf('function bootGame', schedulerStart);
 const idleJobs = [];
 let autosaveRuns = 0;
 const schedulerContext = {
   autoSaveIdleHandle: null,
+  backgroundCombatRuntime: { processing: false },
   isStartupOverlayOpen() { return false; },
   isLoadingOverlayOpen() { return false; },
   saveGame() { autosaveRuns += 1; },
@@ -78,7 +80,7 @@ const schedulerContext = {
   clearTimeout
 };
 vm.createContext(schedulerContext);
-vm.runInContext(uiSource.slice(schedulerStart, schedulerEnd), schedulerContext, { filename: 'autosave-scheduler.js' });
+vm.runInContext(schedulerSource.slice(schedulerStart, schedulerEnd), schedulerContext, { filename: 'autosave-scheduler.js' });
 vm.runInContext('scheduleAutoSaveWhenIdle(); scheduleAutoSaveWhenIdle();', schedulerContext);
 assert.strictEqual(idleJobs.length, 1, 'repeated timer ticks should coalesce into one pending idle autosave');
 assert.strictEqual(autosaveRuns, 0, 'periodic autosave should not serialize during the active timer tick');

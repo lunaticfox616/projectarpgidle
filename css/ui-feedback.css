@@ -1,6 +1,6 @@
 :root {
-  --game-font-title: "DOSSaemmul", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  --game-font-body: "Galmuri14", "Malgun Gothic", sans-serif;
+  --game-font-body: "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --game-font-title: var(--game-font-body);
   --game-gold: #d9b66f;
   --game-gold-bright: #ffe0a1;
   --game-panel: rgba(12, 17, 25, 0.985);
@@ -14,6 +14,7 @@ body { font-family: var(--game-font-body); }
 :is(h1, h2, h3, h4, h5, h6, .startup-wordmark, [class~="title"], [class$="-title"], [class*="-title "]) {
   font-family: var(--game-font-title);
 }
+.startup-wordmark { font-family: "DOSSaemmul", var(--game-font-body); }
 
 .game-dialog-overlay {
   position: fixed;
@@ -93,7 +94,21 @@ body { font-family: var(--game-font-body); }
 
 .game-toast-region { position: fixed; z-index: 21000; top: max(16px, env(safe-area-inset-top)); right: 16px; display: grid; gap: 8px; width: min(380px, calc(100vw - 32px)); pointer-events: none; }
 .game-toast { display: grid; grid-template-columns: 28px minmax(0,1fr); align-items: center; gap: 9px; min-height: 48px; padding: 10px 13px; border: 1px solid rgba(118,148,180,.55); border-radius: 6px; background: rgba(13,20,30,.96); color: #ffffff; box-shadow: 0 14px 36px rgba(0,0,0,.46); opacity: 0; transform: translateX(18px); transition: opacity .2s ease, transform .2s ease; }
+.game-toast-dps-up, .game-toast-dps-down { grid-template-columns: 1fr; min-height: 38px; }
+.game-toast-dps-up .game-toast-dps-value { color: #2ecc71; }
+.game-toast-dps-down .game-toast-dps-value { color: #e74c3c; }
+.game-toast-dps-up .game-toast-mark, .game-toast-dps-down .game-toast-mark { display: none; }
 .game-toast.active { opacity: 1; transform: translateX(0); }
+.tutorial-action-card { position: fixed; z-index: 20500; right: 20px; bottom: 100px; width: min(320px, calc(100vw - 32px)); padding: 14px; border: 1px solid var(--ui-line-strong); border-radius: 8px; background: var(--ui-surface-1); color: var(--ui-text); box-shadow: 0 8px 28px #0008; font: 13px/1.6 var(--game-font-body); }
+.tutorial-action-card[hidden] { display: none; }
+body:has(.tutorial-overlay.active, .game-dialog-overlay.active) .tutorial-action-card { visibility: hidden; }
+.tutorial-action-card.at-top { top: 66px; bottom: auto; }
+.tutorial-action-card > strong { font-size: 14px; color: var(--ui-gold); }
+.tutorial-action-card p { margin: 8px 0 12px; }
+.tutorial-action-card > div { display: flex; justify-content: flex-end; gap: 8px; }
+.tutorial-action-card button { min-height: 36px; font: inherit; }
+.tutorial-action-target { outline: 2px solid var(--ui-gold) !important; outline-offset: -3px; }
+@media (max-width: 1080px) { .tutorial-action-card { right: 16px; bottom: 86px; } }
 .game-toast-mark { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: rgba(102,148,191,.18); color: #9ed2ff; font-weight: 900; }
 .game-toast-success { border-color: rgba(91,190,135,.62); }
 .game-toast-success .game-toast-mark { color: #91e2b2; background: rgba(60,168,109,.18); }

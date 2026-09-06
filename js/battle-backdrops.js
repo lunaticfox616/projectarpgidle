@@ -1,6 +1,6 @@
 const SPECIAL_BATTLE_BACKDROP_SOURCES = Object.freeze({
     bgSkyTower: 'assets/background/sky-tower-v1.webp',
-    bgUnderworld: 'assets/background/underworld-v1.webp',
+    bgUnderworld: 'assets/background/underworld-sanctuary.webp',
     bgOceanDepth: 'assets/background/ocean-depth-v1.webp',
     bgCosmos: 'assets/background/cosmos-v1.webp'
 });

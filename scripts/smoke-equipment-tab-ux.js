@@ -36,7 +36,9 @@ const context = {
   setTimeout: callback => callback(),
   Number,
 };
-vm.runInNewContext(`${extractFunction(ui, 'craftSelectInventoryItemById')}; craftSelectInventoryItemById(42);`, context);
+vm.createContext(context);
+require('./lib/load-content-progression')(context);
+vm.runInContext(`${extractFunction(ui, 'craftSelectInventoryItemById')}; craftSelectInventoryItemById(42);`, context);
 assert.deepStrictEqual(
   calls.slice(2, 6),
   ['switch:tab-items', 'open:tab-items', 'subtab:item-tab-craft', 'select:42:false'],

@@ -75,11 +75,7 @@ context.getTalismanDisplayName = talisman => talisman.name;
 context.getStatName = stat => stat;
 context.getStarWedgeUniqueDef = type => type === 'sun' ? { name: '태양', desc: '핵심 옵션 증폭' } : null;
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-const talismanNameStart = uiSource.indexOf('const TALISMAN_NAME_STEMS =');
-const talismanNameEnd = uiSource.indexOf('const TALISMAN_UNIQUE_POOL =', talismanNameStart);
-const talismanNameContext = { Object, String };
-vm.createContext(talismanNameContext);
-vm.runInContext(uiSource.slice(talismanNameStart, talismanNameEnd), talismanNameContext, { filename: 'talisman-names.js' });
+const talismanNameContext = require('./lib/game-runtime').buildGameRuntime();
 assert.strictEqual(talismanNameContext.getGeneratedTalismanName({ stat: 'flatHp', shape: 'L' }), '생명의 모서리',
   'ordinary talismans must receive a stat-and-shape name instead of displaying only their option');
 assert.strictEqual(talismanNameContext.getGeneratedTalismanName({ statName: '막기 확률(%)', shape: 'T' }), '막기 확률의 갈림쇠',

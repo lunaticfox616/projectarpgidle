@@ -99,7 +99,7 @@ function getConditionPatternContext(state, pStats, now) {
         bosses: liveEnemies.filter(enemy => enemy.isBoss),
         nearestDistance,
         ailments: (source.playerAilments || []).filter(ailment => ailment && Number(ailment.time) > 0),
-        secondsSinceHit: Math.max(0, ((now || Date.now()) - Math.max(Number(source.playerLastHitAt) || 0, Number(source.playerEsLastHitAt) || 0)) / 1000)
+        secondsSinceHit: Math.max(0, ((now || getCombatTime()) - Math.max(Number(source.playerLastHitAt) || 0, Number(source.playerEsLastHitAt) || 0)) / 1000)
     };
 }
 
@@ -123,10 +123,18 @@ function doesConditionPatternMatch(rule, context) {
     return false;
 }
 
+function isPlayerThreatenedByBoss(state) {
+    if (!state.gridPlayer) return false;
+    const pending = state === game && typeof pendingEnemyCombatAttacks !== 'undefined' ? pendingEnemyCombatAttacks : [];
+    return getBossWarningCells(state, pending).some(cell =>
+        cell.gx === state.gridPlayer.gx && cell.gy === state.gridPlayer.gy);
+}
+
 function evaluateConditionPatternRule(rule, pStats, state, now) {
     let normalized = normalizeConditionPatternRule(rule);
     let trigger = getConditionPatternTriggers(state || game, true).find(row => row.id === normalized.triggerType);
     if (!trigger || !isConditionPatternRequirementMet(trigger.unlock, state || game)) return false;
+    if (normalized.triggerType === 'boss_warning') return isPlayerThreatenedByBoss(state || game);
     return doesConditionPatternMatch(normalized, getConditionPatternContext(state || game, pStats, now));
 }
 

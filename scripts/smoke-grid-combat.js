@@ -20,14 +20,18 @@ const files = [
   'data/bosses.js',
   'data/rewards.js',
   'data/talent-cards.js',
+  'data/content-progression.js',
   'data/offline-progress.js',
   'js/utils.js',
   'js/state.js',
+  'js/content-progression.js',
   'js/offline-progress.js',
   'js/endgame-progression.js',
   'js/save.js',
   'js/items.js',
   'js/passives.js',
+  'js/loot.js',
+  'js/unique-hunt.js',
   'js/shrines.js',
   'js/growth-board.js',
   'js/growth-effects.js',
@@ -108,6 +112,7 @@ const context = {
 context.window = context;
 context.globalThis = context;
 vm.createContext(context);
+require('./lib/load-combat-clock')(context);
 files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
 context.getHeroSelectionDef = () => ({ label: '테스트 영웅', classId: null });
 context.getCodexBonusPct = () => 0;
@@ -405,6 +410,7 @@ const cfg = context.COMBAT_GRID_CONFIG;
   resetGame();
   context.game.season = 31;
   context.game.currentZoneId = 'rival_masterwork';
+  context.game.contentProgression.inherited.push('craft');
   context.game.inTicketBossFight = true;
   context.game.autoRepeatSeasonBoss = false;
   context.game.currencies.ouroboros = 0;
@@ -460,15 +466,23 @@ const cfg = context.COMBAT_GRID_CONFIG;
     '위험 탐사 신호의 적 생명력은 권장 DPS에 반영되어야 한다');
   assert.ok(directiveEstimate.ehp > entryEstimate.ehp * 1.20,
     '위험 탐사 신호의 피해와 공격 속도는 권장 EHP에 반영되어야 한다');
-  const baselineCosmosBoss = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { boss: true, at: 100 }, 0);
-  const baselineCosmosNormal = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { at: 25 }, 0);
-  const baselineCosmosElite = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { elite: true, at: 50 }, 0);
-  const finalCosmosNormal = context.createEnemy({ ...cosmosFinal, name: '우주계 최종' }, { at: 25 }, 0);
-  const finalCosmosElite = context.createEnemy({ ...cosmosFinal, name: '우주계 최종' }, { elite: true, at: 50 }, 0);
+  let baselineCosmosBoss, baselineCosmosNormal, baselineCosmosElite, finalCosmosNormal, finalCosmosElite;
+  try {
+    // 일반 정예의 기준 체력 검사에서는 4% 방랑자 교체를 굴리지 않는다.
+    // 방랑자의 장비/체력 배율은 smoke-severed-wanderers에서 별도로 실행한다.
+    context.Math.random = () => 0.99;
+    baselineCosmosBoss = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { boss: true, at: 100 }, 0);
+    baselineCosmosNormal = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { at: 25 }, 0);
+    baselineCosmosElite = context.createEnemy({ ...cosmosEntry, name: '우주계 기준' }, { elite: true, at: 50 }, 0);
+    finalCosmosNormal = context.createEnemy({ ...cosmosFinal, name: '우주계 최종' }, { at: 25 }, 0);
+    finalCosmosElite = context.createEnemy({ ...cosmosFinal, name: '우주계 최종' }, { elite: true, at: 50 }, 0);
+  } finally {
+    context.Math.random = originalRandom;
+  }
   assert.ok(baselineCosmosNormal.maxHp >= 4400000 && baselineCosmosNormal.maxHp <= 4500000,
     '우주계 G1 일반 몬스터는 기존 은하 난이도를 유지하면서 생명력이 보강되어야 한다');
   assert.ok(baselineCosmosElite.maxHp >= 17000000 && baselineCosmosElite.maxHp <= 18000000,
-    '우주계 G1 정예는 일반보다 분명히 오래 버텨야 한다');
+    `우주계 G1 정예는 일반보다 분명히 오래 버텨야 한다: ${JSON.stringify({hp:baselineCosmosElite.maxHp,name:baselineCosmosElite.name,ele:baselineCosmosElite.ele,trait:baselineCosmosElite.trait})}`);
   assert.ok(finalCosmosNormal.maxHp > baselineCosmosNormal.maxHp * 2,
     '뒤쪽 은하의 일반 몬스터 생명력은 G1보다 증가해야 한다');
   assert.ok(finalCosmosElite.maxHp > baselineCosmosElite.maxHp * 2,
@@ -770,8 +784,8 @@ assert.strictEqual(actBattleMapSources.length, 10, 'ACT 1~10은 각각 하나의
 assert(actBattleMapSources.every(source => source.endsWith('.webp') && fs.existsSync(source)), '모든 ACT 전투 맵은 압축된 WebP로 존재해야 한다');
 assert(actBattleMapSources.reduce((sum, source) => sum + fs.statSync(source).size, 0) < 2200000,
   'ACT 전투 맵 10장의 합계 용량은 2.2MB 미만이어야 한다');
-const validKinds = new Set(['melee', 'arc', 'nova', 'line', 'chain', 'blast', 'fan', 'summon']);
-const validShapes = new Set(['diamond', 'square', 'cross', 'diagonal', 'ring']);
+const validKinds = new Set(['melee', 'arc', 'nova', 'line', 'chain', 'blast', 'fan', 'cone', 'summon']);
+const validShapes = new Set(['circle', 'diamond', 'square', 'cross', 'diagonal', 'ring']);
 Object.keys(context.SKILL_DB).forEach(name => {
   const profile = context.SKILL_GRID_DB[name];
   assert.ok(profile, `스킬 '${name}'의 그리드 범위 프로필이 SKILL_GRID_DB에 없어야 하면 안 된다`);
@@ -780,10 +794,10 @@ Object.keys(context.SKILL_DB).forEach(name => {
   if (profile.shape) assert.ok(validShapes.has(profile.shape), `스킬 '${name}'의 shape가 유효하지 않다: ${profile.shape}`);
   if (profile.kind === 'summon') assert.strictEqual(profile.range, context.getSummonProfile(name).gridRange, `소환 젬 '${name}'의 표시 사거리는 실제 공격 사거리와 같아야 한다`);
 });
-assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발 · 사거리 5칸 · 반경 2칸 · 사각형');
+assert.strictEqual(context.describeSkillGridProfile('서리 폭발', context.SKILL_DB['서리 폭발']), '공격 범위: 대상 지점 폭발 · 사거리 5칸 · 반경 2칸 · 원형');
 assert.strictEqual(context.describeSkillGridProfile('연쇄 폭풍', context.SKILL_DB['연쇄 폭풍']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 3칸');
-assert.strictEqual(context.describeSkillGridProfile('공허 베기', context.SKILL_DB['공허 베기']), '공격 범위: 자신 중심 광역 · 사거리 2칸 · 반경 2칸 · X자형');
-assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKILL_DB['심연 전염']), '공격 범위: 대상 지점 폭발 · 사거리 5칸 · 반경 2칸 · 마름모형');
+assert.strictEqual(context.describeSkillGridProfile('공허 베기', context.SKILL_DB['공허 베기']), '공격 범위: 직선 관통 · 사거리 3칸');
+assert.strictEqual(context.describeSkillGridProfile('심연 전염', context.SKILL_DB['심연 전염']), '공격 범위: 연쇄 · 사거리 5칸 · 연쇄 2칸');
 assert.strictEqual(context.describeSkillGridProfile('칼날까마귀 소환', context.SKILL_DB['칼날까마귀 소환']), '공격 범위: 소환수 공격 · 사거리 2칸');
 assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKILL_DB['연발 사격']), '발사 방식: 부채꼴 연사 · 사거리 6칸 · 5방향 · 발사 방식 변경 가능');
 const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile'));
@@ -853,7 +867,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const outside = makeEnemy(5, 7, 0);  // 대상에서 멀리
   hits = context.selectGridSkillTargets('서리 폭발', { targets: 99, targetMode: 'all' }, attacker, [inBlast, splash, outside]);
   const hitIds = hits.map(h => h.enemy.id).sort().join(',');
-  assert.strictEqual(hitIds, '3,4', '서리 폭발은 다이아몬드 밖 사각형 모서리까지 맞혀야 한다');
+  assert.strictEqual(hitIds, '3', '서리 폭발은 원 밖의 사각 모서리를 맞히지 않아야 한다');
   assert.ok(hits.every(h => h.mult === 1), 'all 모드 부가 타격 배율은 1이어야 한다');
 
   const footprintPrimary = makeEnemy(2001, 6, 6);
@@ -901,10 +915,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     makeEnemy(148, 2, 6), makeEnemy(149, 3, 6), makeEnemy(150, 3, 4), makeEnemy(151, 1, 4),
   ];
   hits = context.selectGridSkillTargets('불멸의 진동', context.SKILL_DB['불멸의 진동'], attacker, vibrationTargets);
-  assert.strictEqual(context.getSkillGridProfile('불멸의 진동', context.SKILL_DB['불멸의 진동']).shape, 'square',
+  assert.strictEqual(context.getSkillGridProfile('불멸의 진동', context.SKILL_DB['불멸의 진동']).shape, 'diamond',
     '불멸의 진동은 인접 칸이 비는 고리 판정을 사용하면 안 된다');
-  assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [148, 149, 150, 151],
-    '불멸의 진동은 바로 옆 적부터 2칸 안의 적까지 빠짐없이 공격해야 한다');
+  assert.deepStrictEqual(Array.from(hits, hit => hit.enemy.id), [148, 149, 151],
+    '불멸의 진동은 마름모 안의 적을 공격하고 밖의 사각 모서리는 제외해야 한다');
 
   // 전이 타격: 남는 타겟 수만큼 이미 맞은 적의 인접 1칸 적에게 번진다(근접 단일 + 타겟 수 옵션)
   const sp1 = makeEnemy(20, 2, 6);  // 공격자 인접
@@ -1212,6 +1226,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.skills = ['얼음 창'];
   context.game.gemData['얼음 창'] = { level: 1, exp: 0, quality: 0 };
   context.game.skyGemEnhancements = { '얼음 창': ['sky_projectile_split'] };
+  context.game.contentProgression.inherited.push('engraving');
   const engravedSkill = context.getActiveSkillStats(0);
   assert.strictEqual(engravedSkill.projectilePattern.mode, 'split', '장착한 발사 방식 각인이 실제 활성 젬에 적용돼야 한다');
   assert.strictEqual(engravedSkill.projectilePatternSource, '창공 각인', '젬별 각인의 출처를 보존해야 한다');
@@ -1252,6 +1267,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     assert.strictEqual(context.getGemPresentation('얼음 창').skill.dmg, weaponStats.sSkill.dmg, `${name}의 완화된 배율을 젬 상세 화면에도 보존해야 한다`);
   });
   context.game.skyGemEnhancements = { '얼음 창': ['sky_projectile_focus'] };
+  context.game.contentProgression.inherited.push('engraving');
   const engravedWeaponStats = context.getPlayerStats();
   assert.strictEqual(engravedWeaponStats.sSkill.projectilePattern.mode, 'focus', '젬에 새긴 발사 방식은 고유 무기보다 우선해야 한다');
   assert.strictEqual(engravedWeaponStats.sSkill.projectilePatternSource, '창공 각인', '우선 적용된 창공 각인의 출처를 보존해야 한다');
@@ -1405,13 +1421,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   context.game.gridPlayer = { gx: 0, gy: 4, gridMoveTimer: 0 };
   const frostTargets = [makeEnemy(341, 3, 4), makeEnemy(342, 4, 4), makeEnemy(343, 4, 5),
-    makeEnemy(344, 5, 4), makeEnemy(345, 5, 6)].map(enemy => ({ enemy, mult: 1 }));
+    makeEnemy(344, 5, 4), makeEnemy(345, 5, 5)].map(enemy => ({ enemy, mult: 1 }));
   const frostBurst = context.buildSkillHitSequence('서리 폭발', context.SKILL_DB['서리 폭발'], frostTargets);
-  assert.deepStrictEqual(Array.from(frostBurst, stage => stage.delayMs), [0, 90, 127, 180, 255],
+  assert.deepStrictEqual(Array.from(frostBurst, stage => stage.delayMs), [0, 90, 127, 180, 201],
     '서리 폭발 피해는 중심에서 파동이 실제 거리에 도달하는 순서로 발생해야 한다');
   assert.ok(frostBurst.every(stage => stage.kind === 'radialBurstWave' && stage.damageMultiplier === 1),
     '서리 파동의 시간차만 추가하고 각 대상의 기존 총 피해는 유지해야 한다');
-  assert.ok(frostBurst.every(stage => stage.waveDurationMs === 255),
+  assert.ok(frostBurst.every(stage => stage.waveDurationMs === 225),
     '시각 파동과 판정 파동은 반경 끝까지 같은 시간을 사용해야 한다');
   assert.strictEqual(frostBurst.flatMap(stage => stage.targets).length, frostTargets.length,
     '시간차 판정으로 기존 범위 대상이 누락되면 안 된다');
@@ -1472,8 +1488,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '상태이상 소모 효과는 소모한 상태와 피해 증폭량을 전달해야 한다');
 
   context.game.enemies = [target];
-  assert.strictEqual(context.applySkillGridControlOnHit(target, context.SKILL_DB['중력 붕괴']), true, '중력 붕괴는 생존한 적을 끌어당겨야 한다');
-  assert.deepStrictEqual({ gx: target.gx, gy: target.gy }, { gx: 4, gy: 6 }, '중력 붕괴는 플레이어 방향으로 정확히 1칸 이동시켜야 한다');
+  assert.strictEqual(context.applySkillGridControlOnHit(target, context.SKILL_DB['중력 붕괴'], {attackFootprint:{center:{gx:3,gy:6}}}), true, '중력 붕괴는 생존한 적을 끌어당겨야 한다');
+  assert.deepStrictEqual({ gx: target.gx, gy: target.gy }, { gx: 4, gy: 6 }, '중력 붕괴는 시전 중심 방향으로 정확히 1칸 이동시켜야 한다');
 }
 
 // ── 3-1b. 지혜의 도약은 주력 스킬이 아니라 실제 피해 속성별로 선택을 적용해야 한다 ──
@@ -1636,8 +1652,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(lightningTravel.length, 1, '번개창 한 발을 관통 대상마다 별도 투사체로 복제하면 안 된다');
   assert.deepStrictEqual(
     { gx: lightningTravel[0].targetCells[0].gx, gy: lightningTravel[0].targetCells[0].gy },
-    { gx: 7, gy: 6 },
-    '단일 번개창 이펙트는 마지막 관통 대상까지 날아가야 한다'
+    { gx: 8, gy: 6 },
+    '단일 번개창 이펙트는 마지막 대상 너머의 남은 사거리까지 날아가야 한다'
   );
 
   const normalTravelMs = context.getCombatTravelMs({ gx: 0, gy: 0 }, { gx: 7, gy: 7 });
@@ -1848,6 +1864,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // ── 3-3. 보스 원거리 공격: 일반·특수 패턴의 충돌 시점이 같아야 한다 ──
 {
   resetGame();
+  // 예약과 관찰 사이의 실제 시계 진행이 아니라 고정된 전투 시각에서 비행 시간을 비교한다.
+  context.game.combatTimeMs = 100000;
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const boss = makeEnemy(65, 6, 1, {
     isBoss: true, attackKind: 'ranged', attackRange: 8, attackTimer: 1,
@@ -1867,10 +1885,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   boss.attackTimer = 1;
   boss.patternAttackCount = 3;
   boss.nextPatternState = context.getBossPatternPreview(boss);
-  boss.patternTelegraphKey = `${boss.nextPatternState.patternMode}:${boss.nextPatternState.attackNumber}:${boss.nextPatternState.label}`;
-  boss.patternTelegraphStartedAt = Date.now() - 400;
+  context.updateBossPatternTelegraph(boss, context.getCombatTime() - context.COMBAT_GRID_CONFIG.bossPatternWarningMs, context.game.gridPlayer);
   context.performMonsterAttacks(defenseStats);
-  const specialFlightMs = vm.runInContext("battleFx.find(fx => fx.type === 'combatTravel' && fx.sourceId === 65).flightMs", context);
+  const specialFlightMs = vm.runInContext("pendingEnemyCombatAttacks.find(attack => attack.enemyId === 65).at - getCombatTime()", context);
 
   assert.deepStrictEqual(
     [normalFlightMs, specialFlightMs],
@@ -1882,6 +1899,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // ── 3-4. 플라스크 수명주기: 조우 사이 유지, 지역 완료/이동 시 종료, 루프 시 획득 리셋 ──
 {
   resetGame();
+  context.game.contentProgression.inherited.push('flask', 'flaskUtility');
   const st = context.ensureFlaskState();
   const future = Date.now() + 5000;
   st.healOverTimeUntil = future;
@@ -1955,6 +1973,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // ── 3-2. 플라스크 무결성: 순차 발견, 교체 충전 보존, 독립 충전, 조우별 자동 사용 ──
 {
   resetGame();
+  context.game.contentProgression.inherited.push('flask', 'flaskUtility');
   context.updateStaticUI = () => {};
   context.game.level = 100;
   context.game.equipment['허리띠'] = { baseStats: [{ id: 'flaskUtilSlots', val: 1 }] };
@@ -2060,6 +2079,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   st = context.ensureFlaskState();
+  context.game.contentProgression.inherited.push('flask');
   const now = Date.now();
   context.game.playerHp = 10;
   context.game.enemies = [];
@@ -2516,7 +2536,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(fastestStages[fastestStages.length - 1].delayMs < 100, '공격 속도 상한에서도 모든 채널 틱이 다음 주기 전에 예약되어야 한다');
   context.performPlayerAttack(sustainedStats);
   vm.runInContext('pendingSkillStageHits = []; combatChannelRuntime.endAt = 0; pTimer = 0; updateCombatChannelRuntime(Date.now());', context);
-  assert.strictEqual(vm.runInContext('pTimer', context), 1, '채널 주기가 끝나면 다음 집중을 즉시 이어갈 수 있어야 한다');
+  assert.strictEqual(sustainedTarget.hp, sustainedTarget.maxHp, '집중 주기 종료만으로 추가 피해를 적용하지 않아야 한다');
   assert.strictEqual(vm.runInContext('combatChannelResumeSkillName', context), context.game.activeSkill, '종료된 채널은 같은 스킬의 연속 집중 상태를 보존해야 한다');
   assert.ok(sustainedStats.sSkill.tags.includes('channeling'), '연속 집중 검증 스킬은 채널링 태그를 유지해야 한다');
   context.performPlayerAttack(sustainedStats);
@@ -2581,6 +2601,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     }
   };
   vm.createContext(estimateContext);
+require('./lib/load-combat-clock')(estimateContext);
   vm.runInContext(ui.slice(estimateStart, estimateEnd), estimateContext, { filename: 'map-power-estimate.js' });
   const estimateHtml = estimateContext.buildMapPowerEstimateHtml({ id: 1 });
   assert.ok(estimateHtml.includes('예상 DPS <b class="map-power-grade grade-fit">적정</b>')

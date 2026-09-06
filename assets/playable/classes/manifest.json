@@ -670,8 +670,8 @@
     "label": "전사",
     "sourceFolder": "Idle_2",
     "direction": "east",
-    "walkState": "Idle",
-    "walkAnimation": "knight_walking_forward_greatsword_held_with_both_h",
+    "walkState": "pixel_art_knight_sta",
+    "walkAnimation": "armored_knight_walking_sword_sheathed_at_the_waist",
     "attackAnimation": "The_character_raises_the_greatsword_from_its_low_r",
     "attackAnimations": [
       "The_character_raises_the_greatsword_from_its_low_r",
@@ -705,8 +705,8 @@
     },
     "walk": {
       "frames": 9,
-      "frameWidth": 116,
-      "frameHeight": 116
+      "frameWidth": 96,
+      "frameHeight": 96
     },
     "walkDirections": {
       "north": {
@@ -718,8 +718,8 @@
       "east": {
         "asset": "walk.webp",
         "frames": 9,
-        "frameWidth": 116,
-        "frameHeight": 116
+        "frameWidth": 96,
+        "frameHeight": 96
       },
       "south": {
         "asset": "walk-south.webp",
@@ -730,8 +730,8 @@
       "west": {
         "asset": "walk-west.webp",
         "frames": 9,
-        "frameWidth": 104,
-        "frameHeight": 104
+        "frameWidth": 96,
+        "frameHeight": 96
       }
     },
     "attack": {

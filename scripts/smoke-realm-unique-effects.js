@@ -12,6 +12,7 @@ const dataContext = {
     safeExposeData(map) { Object.assign(dataContext, map); }
 };
 vm.createContext(dataContext);
+require('./lib/load-combat-clock')(dataContext);
 vm.runInContext(itemSource, dataContext, { filename: 'data/items.js' });
 
 const realmUniques = dataContext.UNIQUE_DB.filter(item => item && item.realmCodexOnly);
@@ -77,6 +78,7 @@ const wardContext = {
     addBattleFx() {}
 };
 vm.createContext(wardContext);
+require('./lib/load-combat-clock')(wardContext);
 vm.runInContext(combatSource.slice(wardStart, wardEnd), wardContext, { filename: 'realm-death-ward.js' });
 
 const stats = { maxHp: 1000, uniqueDeathWard: { hpPct: 12, cooldown: 20 } };

@@ -169,13 +169,6 @@
         return canPackItems((Array.isArray(items) ? items : []).filter(Boolean), targetGame || game);
     }
 
-    function overlaps(entry, placement, footprint) {
-        return entry.column < placement.column + footprint.columns
-            && entry.column + entry.columns > placement.column
-            && entry.row < placement.row + footprint.rows
-            && entry.row + entry.rows > placement.row;
-    }
-
     function getOccupied(layout, ignoredKeys) {
         let occupied = new Set();
         layout.entries.filter(entry => !ignoredKeys.has(entry.key)).forEach(entry => {
@@ -198,64 +191,12 @@
         return evaluateMoveInLayout(itemKey, column, row, ensureState(targetGame));
     }
 
-    function evaluateCarriedItemInLayout(entry, column, row, layout, ignoreSource) {
-        let placement = normalizePlacement({ column, row });
-        if (!placement) return { ok: false, reason: '인벤토리 칸을 벗어났습니다.', entry, layout };
-        let ignoredKeys = ignoreSource ? new Set([entry.key]) : new Set();
-        let occupied = getOccupied(layout, ignoredKeys);
-        if (canFit(occupied, placement, entry, layout.rows)) return { ok: true, placement, entry, layout };
-        let blockers = layout.entries.filter(candidate => !ignoredKeys.has(candidate.key) && overlaps(candidate, placement, entry));
-        if (blockers.length !== 1) return { ok: false, reason: '그 위치에는 장비를 놓을 수 없습니다.', entry, layout };
-        occupied = getOccupied(layout, new Set([...ignoredKeys, blockers[0].key]));
-        if (!canFit(occupied, placement, entry, layout.rows)) {
-            return { ok: false, reason: '그 위치에는 장비를 놓을 수 없습니다.', entry, layout };
-        }
-        return { ok: true, placement, entry, layout, displacedEntry: blockers[0] };
-    }
-
-    function evaluateInventoryPlacementInLayout(itemKey, column, row, layout) {
-        let entry = layout.entries.find(candidate => candidate.key === itemKey);
-        if (!entry) return { ok: false, reason: '들고 있는 장비를 인벤토리에서 찾을 수 없습니다.', layout };
-        return evaluateCarriedItemInLayout(entry, column, row, layout, true);
-    }
-
-    function evaluateTemporaryPlacementInLayout(item, column, row, layout) {
-        let footprint = getFootprint(item);
-        let entry = { key: getItemKey(item), item, columns: footprint.columns, rows: footprint.rows };
-        return evaluateCarriedItemInLayout(entry, column, row, layout, false);
-    }
-
-    function commitCarriedPlacement(result, sourceMode, targetGame) {
-        let state = targetGame || game;
-        if (!result.ok) return result;
-        let placements = { ...result.layout.placements };
-        if (sourceMode === 'temporary') {
-            state.equipmentTemporaryStorage = state.equipmentTemporaryStorage.filter(item => getItemKey(item) !== result.entry.key);
-            state.inventory.push(result.entry.item);
-        }
-        if (result.displacedEntry) {
-            state.inventory = state.inventory.filter(item => getItemKey(item) !== result.displacedEntry.key);
-            state.equipmentTemporaryStorage.push(result.displacedEntry.item);
-            delete placements[result.displacedEntry.key];
-        }
-        placements[result.entry.key] = result.placement;
-        state.equipmentInventoryPlacements = placements;
-        return { ...result, layout: ensureState(state) };
-    }
-
     function placeInventoryItem(itemKey, column, row, targetGame) {
         let state = targetGame || game;
-        let result = evaluateInventoryPlacementInLayout(itemKey, column, row, ensureState(state));
-        return commitCarriedPlacement(result, 'inventory', state);
-    }
-
-    function placeTemporaryItem(itemKey, column, row, targetGame) {
-        let state = targetGame || game;
-        let layout = ensureState(state);
-        let item = state.equipmentTemporaryStorage.find(candidate => getItemKey(candidate) === itemKey);
-        if (!item) return { ok: false, reason: '임시 보관함에서 들고 있는 장비를 찾을 수 없습니다.', layout };
-        let result = evaluateTemporaryPlacementInLayout(item, column, row, layout);
-        return commitCarriedPlacement(result, 'temporary', state);
+        let result = evaluateMoveInLayout(itemKey, column, row, ensureState(state));
+        if (!result.ok) return result;
+        state.equipmentInventoryPlacements = { ...result.layout.placements, [itemKey]: result.placement };
+        return { ...result, layout: ensureState(state) };
     }
 
     function evaluateAddInLayout(item, column, row, layout) {
@@ -355,10 +296,8 @@
         findAddPlacement,
         canMove: evaluateMove,
         canMoveInLayout: evaluateMoveInLayout,
-        canPlaceInventoryItemInLayout: evaluateInventoryPlacementInLayout,
-        canPlaceTemporaryItemInLayout: evaluateTemporaryPlacementInLayout,
+        canPlaceInventoryItemInLayout: evaluateMoveInLayout,
         placeInventoryItem,
-        placeTemporaryItem,
         move,
         autoArrange
     });
