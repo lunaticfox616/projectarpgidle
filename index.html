@@ -58,6 +58,8 @@
     <link rel="stylesheet" href="css/ui-reliquary-shell.css?v=20260906-workspace1&equipment-cleanup=20260906-1&interface-fixes=20260906-2&rarity-navigation=20260906-1&font=20260906-1&treasure=20260907-1&market=20260907-1">
     <link rel="stylesheet" href="css/ui-responsive-refine.css?v=20260906-workspace1&interface-fixes=20260906-2">
     <link rel="stylesheet" href="css/equipment-inventory-grid.css?v=20260906-workspace1&equipment-cleanup=20260906-1&interface-fixes=20260906-2&rarity-navigation=20260906-1&silhouette-art=20260906-2&refinement=20260906-1">
+    <link rel="stylesheet" href="css/startup.css?v=20260907-1">
+    <link rel="preload" as="image" href="assets/ui/login-world-tree.webp">
     <style>
     .talent-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .talent-card { background: #141e2b; border: 1px solid #2e4361; border-radius: 12px; padding: 12px; }
@@ -141,11 +143,13 @@
                 <div>
                     <div class="startup-auth-kicker">ENTER THE SANCTUARY</div>
                     <div class="startup-auth-title">로그인</div>
-                    <div class="startup-auth-sub">계승할 기록을 선택하고 원정에 합류하세요.</div>
+                    <div class="startup-auth-sub">기록을 이어, 다시 여정을 시작하세요.</div>
                 </div>
             </div>
             <div class="startup-form" id="startup-auth-form">
-                <input type="email" id="startup-email" placeholder="이메일" autocomplete="email">
+                <label class="startup-field-label" for="startup-email">이메일</label>
+                <input type="email" id="startup-email" placeholder="이메일 주소" autocomplete="email">
+                <label class="startup-field-label" for="startup-password">비밀번호</label>
                 <input type="password" id="startup-password" placeholder="비밀번호" autocomplete="current-password">
                 <div class="startup-legal-consent" id="startup-signup-consent" hidden>
                     <div class="startup-policy-scroll" tabindex="0" aria-label="이용약관 및 개인정보 수집·이용 내용">
@@ -170,11 +174,12 @@
                 <button id="btn-startup-back" class="startup-ghost" onclick="returnFromStartupGate()" style="display:none;">게임으로 돌아가기</button>
             </div>
             <div class="startup-actions-stack social-login-stack" id="startup-social-actions">
-                <button id="btn-startup-google" class="social-login-image-btn" onclick="loginWithGoogle()">
-                    <img src="assets/google_login.png" alt="구글 계정으로 로그인">
+                <button id="btn-startup-google" class="social-login-image-btn" aria-label="Google 계정으로 로그인" onclick="loginWithGoogle()">
+                    <img src="assets/ui/login-google-mark.png" alt="" width="20" height="20">
+                    <span>Sign in with Google</span>
                 </button>
                 <button id="btn-startup-kakao" class="social-login-image-btn" onclick="loginWithKakao()">
-                    <img src="assets/kakao_login.png" alt="카카오 계정으로 로그인">
+                    <img src="assets/ui/login-kakao.png" alt="카카오 계정으로 로그인" width="366" height="90">
                 </button>
             </div>
             <div class="startup-status" id="startup-status">클라우드 연결 상태를 확인하는 중입니다.</div>

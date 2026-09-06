@@ -219,81 +219,8 @@ body[data-ui-skin="crimson"] .player-hud-shell {
   --combat-hud-frame-filter: sepia(.12) hue-rotate(326deg) saturate(.82) brightness(.9) drop-shadow(0 5px 5px rgba(0, 0, 0, .72));
 }
 
-/* Entry and loading surfaces must establish the same material language before play begins. */
-body:not(.light-mode) .startup-overlay {
-  background-image:
-    linear-gradient(90deg, rgba(3, 4, 3, .42), rgba(3, 4, 3, .08) 48%, rgba(2, 3, 2, .58)),
-    linear-gradient(180deg, rgba(4, 5, 4, .12), rgba(3, 4, 3, .78)),
-    url('../assets/ui/title-root-sanctuary-v1.webp');
-}
 
-body:not(.light-mode) .startup-overlay::before {
-  background:
-    radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--skin-accent), transparent 91%), transparent 25%),
-    radial-gradient(circle at 47% 65%, rgba(126, 78, 33, .1), transparent 21%);
-}
-
-body:not(.light-mode) .startup-auth-kicker {
-  color: var(--skin-accent) !important;
-}
-
-body:not(.light-mode) .startup-wordmark-accent {
-  background: linear-gradient(180deg, #f2eadc 0%, #c9b792 45%, #73634d 56%, var(--skin-accent) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-
-body:not(.light-mode) .startup-wordmark-bar {
-  background: linear-gradient(90deg, var(--skin-accent), var(--skin-line-strong), transparent);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--skin-accent), transparent 70%);
-}
-
-body:not(.light-mode) :where(.startup-summary-card, .startup-summary-item) {
-  border-color: var(--skin-line) !important;
-  background: linear-gradient(155deg, rgba(17, 17, 14, .94), rgba(6, 7, 6, .92)) !important;
-  backdrop-filter: none;
-}
-
-body:not(.light-mode) .startup-panel.auth {
-  border-color: var(--skin-line-strong);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--skin-accent), transparent 95%), transparent 38%),
-    linear-gradient(155deg, rgba(24, 23, 18, .97), rgba(5, 6, 5, .985));
-  box-shadow: 0 34px 86px rgba(0, 0, 0, .7), inset 0 1px rgba(255, 255, 255, .045);
-  backdrop-filter: blur(10px);
-}
-
-body:not(.light-mode) .startup-form input {
-  border-color: var(--skin-line) !important;
-  color: var(--ui-text) !important;
-  background: rgba(5, 6, 5, .94) !important;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .55) !important;
-}
-
-body:not(.light-mode) .startup-form input:focus {
-  border-color: var(--skin-line-strong);
-  outline: 1px solid color-mix(in srgb, var(--skin-accent), transparent 54%);
-}
-
-body:not(.light-mode) .startup-primary {
-  border-color: var(--skin-line-strong);
-  color: #fff0d2;
-  background: linear-gradient(180deg, var(--skin-accent-strong), #2a1c10);
-  box-shadow: inset 0 1px rgba(255, 238, 196, .1);
-}
-
-body:not(.light-mode) .startup-primary:hover:not(:disabled) {
-  border-color: var(--skin-accent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--skin-accent-strong), #fff 8%), #342312);
-}
-
-body:not(.light-mode) :where(.startup-secondary, .startup-ghost) {
-  border-color: var(--skin-line);
-  color: var(--ui-text-2);
-  background: linear-gradient(180deg, var(--skin-control), var(--skin-panel));
-}
-
-body:not(.light-mode) :where(.startup-status, .loading-card) {
+body:not(.light-mode) .loading-card {
   border-color: var(--skin-line) !important;
   color: var(--ui-text-2) !important;
   background: linear-gradient(180deg, rgba(19, 19, 16, .98), rgba(6, 7, 6, .99)) !important;
@@ -2735,24 +2662,6 @@ body:not(.light-mode) :where(.cfg-btn--neutral, .cloud-panel button:not(.social-
   box-shadow: inset 0 1px rgba(255, 255, 255, .035) !important;
 }
 
-body:not(.light-mode) .startup-patch-note-link {
-  min-height: 0;
-  margin: 0;
-  padding: 4px 7px;
-  border-color: transparent !important;
-  border-radius: 4px;
-  color: var(--skin-accent) !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: .04em;
-}
-
-body:not(.light-mode) .startup-patch-note-link:hover {
-  border-color: var(--skin-line) !important;
-  background: color-mix(in srgb, var(--skin-accent), transparent 91%) !important;
-}
 
 body:not(.light-mode) .cfg-btn--save {
   border-color: #3d6b4b !important;
