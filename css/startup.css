@@ -71,9 +71,7 @@
   box-shadow: 0 24px 70px rgba(0,0,0,.28), inset 0 1px rgba(255,243,209,.04); backdrop-filter: none;
 }
 #startup-overlay .startup-auth-head { margin-bottom: 6px; }
-#startup-overlay .startup-auth-kicker { color: var(--entry-gold); font: 400 10px/1.5 Georgia,serif; letter-spacing: .19em; }
-#startup-overlay .startup-auth-title { margin-top: 9px; color: var(--entry-copy); font-size: 23px; font-weight: 500; letter-spacing: .02em; }
-#startup-overlay .startup-auth-sub { margin-top: 8px; color: var(--entry-muted); font-size: 12px; line-height: 1.6; }
+#startup-overlay .startup-auth-title { margin: 0; color: var(--entry-copy); font-size: 23px; font-weight: 500; letter-spacing: .02em; }
 #startup-overlay .startup-form { gap: 7px; }
 #startup-overlay .startup-field-label { color: #c6c9b9; font-size: 11px; }
 #startup-overlay .startup-field-label:not(:first-child) { margin-top: 6px; }

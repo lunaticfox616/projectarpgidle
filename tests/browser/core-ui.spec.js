@@ -384,7 +384,7 @@ test('entry screen establishes the reliquary palette without horizontal overflow
     await page.locator('#btn-startup-login').click();
     await expect(signupConsent).toBeHidden();
     const result = await page.evaluate(() => {
-        const values = ['.startup-auth-kicker', '#startup-email', '.startup-status'].flatMap(selector => {
+        const values = ['.startup-auth-title', '#startup-email', '.startup-status'].flatMap(selector => {
             const style = getComputedStyle(document.querySelector(selector));
             return [style.color, style.backgroundColor, style.borderTopColor, style.backgroundImage];
         });
