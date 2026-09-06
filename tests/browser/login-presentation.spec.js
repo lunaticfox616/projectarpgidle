@@ -1,5 +1,45 @@
 const {test,expect}=require('@playwright/test');
 
+test('game introduction loads real footage on demand and closes without changing progress',async({page},info)=>{
+    const requests=[];const errors=[];
+    page.on('request',request=>{if(request.url().includes('gameplay-intro.webm'))requests.push(request.url());});
+    page.on('pageerror',error=>errors.push(error.message));
+    await page.route('https://**',route=>route.fulfill({status:204,body:''}));
+    await page.goto('/');
+    const before=await page.evaluate(()=>JSON.stringify(game));
+    expect(requests).toHaveLength(0);
+    const opener=page.getByRole('button',{name:'잠깐, RIGNIN은 어떤 게임인가요?'});
+    await opener.click();
+    const dialog=page.getByRole('dialog',{name:'RIGNIN은 어떤 게임인가요?'});
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('액션 롤플레잉 게임(ARPG)에 자동사냥 방치형 게임의 요소를 결합한 게임입니다.');
+    await page.waitForFunction(()=>document.getElementById('startup-about-video').currentTime>0.2);
+    const duration=await page.locator('#startup-about-video').evaluate(video=>video.duration);
+    expect(duration).toBeGreaterThanOrEqual(1.8);
+    expect(duration).toBeLessThanOrEqual(2.1);
+    expect(requests.length).toBeGreaterThan(0);
+    await expect(dialog.getByRole('button',{name:'알겠어요!'})).toBeInViewport();
+    await page.screenshot({path:info.outputPath('game-introduction.png')});
+    await dialog.getByRole('button',{name:'알겠어요!'}).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(opener).toBeFocused();
+    expect(await page.locator('#startup-about-video').evaluate(video=>video.paused)).toBe(true);
+    await opener.click();await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+    expect(await page.evaluate(()=>JSON.stringify(game))).toBe(before);
+    expect(errors).toEqual([]);
+});
+
+test('reduced motion leaves the introduction video paused for manual playback',async({page})=>{
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await page.route('https://**',route=>route.fulfill({status:204,body:''}));
+    await page.goto('/');
+    await page.locator('#startup-about-open').click();
+    expect(await page.locator('#startup-about-video').evaluate(video=>video.paused)).toBe(true);
+    await page.getByRole('button',{name:'알겠어요!'}).click();
+    await expect(page.locator('#startup-about-open')).toBeFocused();
+});
+
 test('login background and equal provider buttons remain readable in either game theme',async({page},info)=>{
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
     await page.route('https://**',route=>route.fulfill({status:204,body:''}));
