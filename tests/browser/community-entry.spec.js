@@ -1,0 +1,20 @@
+const {test,expect}=require('@playwright/test');
+
+test('guest community opens the account screen without changing the current character',async({page},info)=>{
+    await page.route('https://**',route=>route.fulfill({status:204,body:''}));
+    await page.goto('/');await page.locator('#btn-startup-guest').click();
+    await page.locator('[data-class-id="warrior"]').click();
+    await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
+    await page.evaluate(()=>{
+        clearInterval(gameTickHandle);gameTickHandle=null;
+        tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
+        cloudState.initialized=true;cloudState.busy=false;
+        switchTab('tab-social');renderSocialTab();
+    });
+    const before=await page.evaluate(()=>({level:game.level,season:game.season,currentZoneId:game.currentZoneId}));
+    await page.screenshot({path:info.outputPath('community-guest.png'),scale:'css'});
+    await page.locator('#tab-social .social-empty-state button').click();
+    await expect(page.locator('#startup-overlay')).toHaveClass(/active/);
+    await expect(page.locator('#startup-email')).toBeVisible();
+    expect(await page.evaluate(()=>({level:game.level,season:game.season,currentZoneId:game.currentZoneId}))).toEqual(before);
+});

@@ -1410,7 +1410,7 @@ function renderSocialTab() {
             && (cloudState.busy || cloudState.initialized === false);
         root.innerHTML = checkingCloud
             ? `<h2>💬 커뮤니티</h2><div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
-            : `<h2>💬 커뮤니티</h2><div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필 기능이 이 도크에서 바로 열립니다.</p><button type="button" onclick="closeCommunityDock(); switchTab('tab-settings')">설정에서 로그인</button></div>`;
+            : `<h2>💬 커뮤니티</h2><div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필 기능이 이 도크에서 바로 열립니다.</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
         stopChatPolling();
         return;
     }
