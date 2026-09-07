@@ -1373,7 +1373,7 @@
 
     <div id="tab-settings" class="tab-content" data-settings-category="display">
         <label class="settings-category-picker" for="settings-category">설정 분류
-            <select id="settings-category" onchange="document.getElementById('tab-settings').dataset.settingsCategory=this.value">
+            <select id="settings-category" onchange="document.getElementById('tab-settings').dataset.settingsCategory=this.value;renderTabOrderSettings()">
                 <option value="display">화면 · 외형</option><option value="battle">전투 · 소리</option>
                 <option value="progress">자동 진행</option><option value="notifications">알림 · 채팅</option>
                 <option value="layout">메뉴 배치</option><option value="data">저장 · 계정</option>
@@ -1579,7 +1579,7 @@
 
             <!-- ── 탭 배치 ── -->
             <div class="cfg-group cfg-group--wide" data-settings-group="layout">
-                <details class="cfg-disclosure cfg-disclosure--tab-order">
+                <details class="cfg-disclosure cfg-disclosure--tab-order" ontoggle="if(this.open) renderTabOrderSettings()">
                     <summary>탭 순서와 위치 편집</summary>
                     <div class="cfg-sublabel">PC와 모바일은 따로 저장됩니다. 해금된 메뉴의 순서와 기타 메뉴 배치를 바꿀 수 있습니다.</div>
                     <div id="ui-tab-order-settings" class="cfg-rows" style="gap:4px;"></div>
@@ -1766,7 +1766,7 @@
     <script defer src="legal/policies-content.js?v=20260902-1"></script>
 <script defer src="js/tutorial-ui.js?v=20260906&content-choice=20260906-1"></script>
 <script defer src="js/inventory-search-ui.js?v=20260908-1"></script>
-<script defer src="js/tab-layout-ui.js?v=20260906&display=20260906-1&realm-ui=20260907-1&mobile-review=20260907-2"></script>
+<script defer src="js/tab-layout-ui.js?v=20260906&display=20260906-1&realm-ui=20260907-1&mobile-review=20260907-2&lazy-editor=20260908-1"></script>
     <script defer src="js/fossil-workbench-ui.js?v=20260908-1"></script>
     <script defer src="js/chaos-infuser-ui.js?v=20260908-1"></script>
     <script defer src="js/ocean-collection-ui.js?v=20260908-1"></script>

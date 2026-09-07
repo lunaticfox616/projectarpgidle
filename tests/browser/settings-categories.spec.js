@@ -11,6 +11,7 @@ test('mobile settings categories preserve controls while desktop keeps all group
         switchTab('tab-settings');
     });
     const category=page.locator('#settings-category');
+    await expect(page.locator('#ui-tab-order-settings > *')).toHaveCount(0);
     await page.screenshot({path:info.outputPath('settings-initial.png'),scale:'css'});
     if(!info.project.use.isMobile){
         await expect(category).toBeHidden();
@@ -31,8 +32,19 @@ test('mobile settings categories preserve controls while desktop keeps all group
     await expect(page.locator('#chk-auto-equip-empty')).toBeVisible();
     await category.selectOption('layout');
     await expect(page.locator('.cfg-disclosure--tab-order')).toBeVisible();
+    await page.locator('.cfg-disclosure--tab-order > summary').click();
+    await expect(page.locator('#ui-tab-order-settings [data-place]').first()).toBeVisible();
     await category.selectOption('data');
+    await page.evaluate(()=>{
+        window.hiddenLayoutChanges=0;
+        new MutationObserver(rows=>hiddenLayoutChanges+=rows.length).observe(document.getElementById('ui-tab-order-settings'),{childList:true,subtree:true});
+        game.settings.tabLayouts.mobile.tabPlacement['btn-tab-items']='bottom';
+        for(let i=0;i<10;i++)renderTabOrderSettings();
+    });
+    expect(await page.evaluate(()=>hiddenLayoutChanges)).toBe(0);
     await expect(page.locator('.settings-cloud-disclosure')).toBeVisible();
+    await category.selectOption('layout');
+    await expect(page.locator('[data-place="btn-tab-items"]')).toHaveValue('bottom');
     await category.selectOption('display');
     await expect(page.locator('#sel-chat-message-size')).toHaveValue('large');
     await category.selectOption('battle');

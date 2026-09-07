@@ -61,6 +61,8 @@ const tabLayoutUi = {
     render() {
         const root = document.getElementById('ui-tab-order-settings');
         if (!root || !document.getElementById('tab-settings')?.classList.contains('active')) return;
+        if (!root.closest('details').open) return;
+        if (tabLayoutUi.platform() === 'mobile' && document.getElementById('tab-settings').dataset.settingsCategory !== 'layout') return;
         const target = tabLayoutUi.selectedPlatform || tabLayoutUi.platform();
         const layout = game.settings.tabLayouts[target];
         const available = tabLayoutUi.orderedButtons(layout);
