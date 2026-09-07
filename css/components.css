@@ -1048,6 +1048,7 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     cursor: default;
     overflow: hidden;
 }
+.passive-tree-toolbar { display: contents; }
 .passive-star-wedge-drawer[open] { width: min(440px, calc(100% - 24px)); }
 .passive-star-wedge-drawer > summary {
     display: flex;

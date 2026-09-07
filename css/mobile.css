@@ -274,6 +274,17 @@
   .gem-target-list { grid-template-columns: minmax(0, 1fr) !important; max-height: none; }
   .flask-paperdoll { grid-template-columns: minmax(0, 1fr) !important; }
   #tree-container { width: 100% !important; min-height: 58svh !important; }
+  #tree-container .passive-tree-toolbar { display: flex; gap: 4px; height: 52px; position: relative; z-index: 12; background: var(--ui-surface-1); }
+  #tree-container .passive-tree-right-tools { display: contents; }
+  #tree-container .passive-tree-toolbar details,
+  #tree-container .passive-investment-summary { position: static; flex: 1; min-width: 0; width: auto; max-width: none; overflow: visible; box-shadow: none; border: 0; border-radius: 0; backdrop-filter: none; }
+  #tree-container .passive-tree-toolbar summary,
+  #tree-container .passive-investment-summary-toggle { display: flex; justify-content: center; box-sizing: border-box; height: 44px; min-height: 44px; padding: 4px; font-size: 13px; gap: 2px; border: 1px solid var(--ui-gold); border-radius: 6px; background: var(--ui-surface-1); }
+  #tree-container .passive-tree-toolbar summary strong { font-size: 13px; }
+  #tree-container .passive-tree-toolbar details > :not(summary),
+  #tree-container .passive-investment-summary-body { position: absolute; top: 52px; left: 0; right: 0; width: auto; max-height: 40dvh; overflow: auto; overscroll-behavior: contain; padding: 10px; background: var(--ui-surface-1); border: 1px solid var(--ui-gold); border-radius: 6px; box-shadow: 0 8px 20px #0008; }
+  #tree-container #tree-canvas { top: 52px !important; height: calc(100% - 52px) !important; }
+  #tree-container .passive-tree-overlay { top: 52px; height: calc(100% - 52px); }
 }
 
 @media (max-width: 480px) {

@@ -45,6 +45,22 @@ const passiveSelectionUi = (() => {
         }
         actions.activate({ fromTouch: true, clientX: point.clientX, clientY: point.clientY });
     }
-    return { present, hide, touch };
+    function bindTools() {
+        const toolbar = document.querySelector('.passive-tree-toolbar');
+        toolbar.addEventListener('click', event => {
+            if (!uiDisplay.matches('(max-width: 1080px)')) return;
+            const trigger = event.target.closest('summary, .passive-investment-summary-toggle');
+            if (!trigger) return;
+            hide();
+            for (const drawer of toolbar.querySelectorAll('details')) {
+                if (!drawer.contains(trigger)) drawer.open = false;
+            }
+            if (trigger.tagName === 'SUMMARY') {
+                game.settings.passiveInvestmentSummaryCollapsed = true;
+                renderPassiveInvestmentSummary();
+            }
+        }, true);
+    }
+    return { present, hide, touch, bindTools };
 })();
 safeExposeGlobals({ passiveSelectionUi });

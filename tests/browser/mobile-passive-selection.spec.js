@@ -37,5 +37,24 @@ test('passive selection requires an explicit mobile action and preserves refund 
     await page.evaluate(()=>{game.passivePoints=0;});await page.touchscreen.tap(target.x,target.y);
     await expect(page.locator('[data-passive-confirm]')).toBeDisabled();
     await page.locator('[data-passive-close]').tap();await expect(page.locator('#passive-mobile-detail')).toBeHidden();
+    const search=page.locator('#passive-search-drawer');
+    const preset=page.locator('#passive-preset-drawer');
+    await search.locator('summary').tap();
+    await page.locator('#passive-search-input').fill('힘');
+    await expect(page.locator('#passive-search-input')).toHaveValue('힘');
+    await preset.locator('summary').tap();
+    await expect(search).not.toHaveAttribute('open','');
+    await expect(page.locator('#passive-tree-planner')).toBeVisible();
+    await page.locator('.passive-investment-summary-toggle').tap();
+    await expect(preset).not.toHaveAttribute('open','');
+    await expect(page.locator('#passive-investment-summary-body')).toBeVisible();
+    await search.locator('summary').tap();
+    await expect(page.locator('#passive-investment-summary-body')).toBeHidden();
+    const bounds=await page.evaluate(()=>{
+        const canvas=document.getElementById('tree-canvas').getBoundingClientRect();
+        return Array.from(document.querySelectorAll('.passive-tree-toolbar summary,.passive-investment-summary-toggle'))
+            .filter(el=>el.getClientRects().length).map(el=>{const r=el.getBoundingClientRect();return r.height>=44&&r.bottom<=canvas.top;});
+    });
+    expect(bounds.every(Boolean)).toBe(true);
     expect(errors).toEqual([]);
 });

@@ -12886,6 +12886,7 @@ const bindPassiveTreeMouseEvents = (canvas, handlers) => {
 };
 
 function setupCanvasEvents() {
+    passiveSelectionUi.bindTools();
     setupPassiveTreeSearchControls();
     setupBattlefieldShrineInteraction();
     const canvas = document.getElementById('tree-canvas');
