@@ -11037,6 +11037,15 @@ function renderFlaskChargeMeter(charges, maxCharges, progress, chargeNeed) {
 }
 
 // 플라스크 패널: 충전 상태 표시 + 발견한 플라스크 중 교체.
+function renderFlaskCraftCards(candidates, glass) {
+    return candidates.map(key => {
+        let def = FLASK_DB[key];
+        let cost = typeof getFlaskCraftCost === 'function' ? getFlaskCraftCost(key) : 0;
+        let affordable = glass >= cost;
+        return `<div class="flask-craft-card"><div><span>${def.kind === 'heal' ? '회복' : '유틸리티'} · ${def.tier}단계 · 요구 Lv.${def.reqLevel}</span><strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(def.desc || `최대 생명력의 ${def.healPct}% 회복`)}</small></div><button type="button" onclick="craftFlask('${key}')" ${affordable ? '' : 'disabled'}>${affordable ? '제작' : '재료 부족'} · ${cost}</button></div>`;
+    }).join('');
+}
+
 function renderFlaskPanel() {
     let host = document.getElementById('ui-flask-panel');
     if (!host || typeof ensureFlaskState !== 'function' || typeof FLASK_HEAL_TIERS === 'undefined') return;
@@ -11075,12 +11084,7 @@ function renderFlaskPanel() {
     let activeSlots = 1 + st.utils.slice(0, maxUtilSlots).filter(u => u && FLASK_UTILITY_POOL[u.key]).length;
     let chargeRateBonus = typeof getFlaskChargeRateBonusPct === 'function' ? Math.max(0, Math.floor(getFlaskChargeRateBonusPct())) : 0;
     let craftCandidates = typeof getFlaskDiscoveryCandidates === 'function' ? getFlaskDiscoveryCandidates(game.level, found) : [];
-    let craftCards = craftCandidates.map(key => {
-        let def = FLASK_DB[key];
-        let cost = typeof getFlaskCraftCost === 'function' ? getFlaskCraftCost(key) : 0;
-        let affordable = st.alchemyGlass >= cost;
-        return `<div class="flask-craft-card"><div><span>${def.kind === 'heal' ? '회복' : '유틸리티'} · ${def.tier}단계 · 요구 Lv.${def.reqLevel}</span><strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(def.desc || `최대 생명력의 ${def.healPct}% 회복`)}</small></div><button type="button" onclick="craftFlask('${key}')" ${affordable ? '' : 'disabled'}>${affordable ? '제작' : '재료 부족'} · ${cost}</button></div>`;
-    }).join('');
+    let craftCards = renderFlaskCraftCards(craftCandidates, st.alchemyGlass);
     let healQuality = typeof getFlaskQuality === 'function' ? getFlaskQuality(healDef.key) : 0;
     let healQualityCost = typeof getFlaskQualityUpgradeCost === 'function' ? getFlaskQualityUpgradeCost(healDef.key) : 0;
     let html = `<div class="flask-overview">
@@ -11102,18 +11106,19 @@ function renderFlaskPanel() {
     <div class="flask-help-text"><strong>운용 안내</strong> 낮은 단계는 전투에서 비교적 쉽게 발견되지만 높은 단계일수록 드랍 확률이 낮아집니다. 제작은 무작위 발견을 보완하며, 같은 계열은 앞 단계부터 순서대로 진행합니다(미발견 ${undiscoveredCount}종).</div>`;
     if (host.__lastHtml !== html) host.innerHTML = html;
     host.__lastHtml = html;
+    flaskUi.bind(host);
 }
 
 // 플라스크 선택 오버레이: 스크롤 드롭다운 대신 카드 그리드로 고른다. 발견하지 못했거나
 // 레벨 미달인 플라스크, 다른 슬롯에 이미 장착된 같은 종류의 유틸리티 플라스크는
 // 비활성(disabled) 처리되어 선택할 수 없다 — 오직 발견한 플라스크만 활성화된다.
+
 function openFlaskPickerOverlay(kind, slotIndex) {
-    if (typeof ensureFlaskState !== 'function') return;
     let st = ensureFlaskState();
     let currentHealDef = getFlaskHealDef(st.healTier);
     let lvl = Math.max(1, Math.floor(game.level || 1));
-    let found = typeof ensureFlaskFoundKeys === 'function' ? ensureFlaskFoundKeys() : (st.foundKeys || []);
-    let maxUtilSlots = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
+    let found = ensureFlaskFoundKeys();
+    let maxUtilSlots = getMaxFlaskUtilitySlotCount();
     let idx = Math.max(0, Math.min(Math.max(0, maxUtilSlots - 1), Math.floor(slotIndex || 0)));
     let old = document.getElementById('flask-picker-overlay');
     if (old && old.parentNode) old.parentNode.removeChild(old);
@@ -11162,28 +11167,10 @@ function openFlaskPickerOverlay(kind, slotIndex) {
         });
         body.appendChild(grid);
     } else {
-        FLASK_UTILITY_CATEGORIES.forEach(cat => {
-            body.insertAdjacentHTML('beforeend', `<div class="selection-overlay-section-title">${cat.label}</div>`);
-            let grid = document.createElement('div');
-            grid.className = 'selection-overlay-grid';
-            FLASK_UTILITY_TIER_REQ_LEVELS.forEach((reqLevel, tierIdx) => {
-                let key = `${cat.category}${tierIdx + 1}`;
-                let def = FLASK_UTILITY_POOL[key];
-                let usedElsewhere = st.utils.some((u, i) => i < maxUtilSlots && u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === cat.category && i !== idx);
-                let levelLocked = lvl < reqLevel;
-                let undiscovered = !levelLocked && !found.includes(key);
-                grid.appendChild(makeOptionButton({
-                    name: def.name,
-                    desc: `${def.desc} · ${def.maxCharges}회 · 충전 ${getFlaskEffectiveChargesPerKills(def.chargesPerKills)}처치`,
-                    locked: usedElsewhere || levelLocked || undiscovered,
-                    lockLabel: levelLocked ? `Lv.${reqLevel} 필요` : (undiscovered ? '미발견' : (usedElsewhere ? '다른 슬롯 장착 중' : '')),
-                    selected: !!(st.utils[idx] && st.utils[idx].key === key),
-                    compare: st.utils[idx] && st.utils[idx].key === key ? '현재 장착' : (st.utils[idx] && FLASK_UTILITY_POOL[st.utils[idx].key] ? `${FLASK_UTILITY_POOL[st.utils[idx].key].name}에서 교체` : '빈 슬롯에 장착'),
-                    onSelect: () => equipUtilityFlask(idx, key)
-                }));
-            });
-            body.appendChild(grid);
-        });
+        if (uiDisplay.matches('(max-width: 1080px)')) {
+            flaskUi.picker(body, FLASK_UTILITY_POOL[st.utils[idx]?.key]?.category,
+                (cards, categories) => flaskUi.renderUtilityChoices(cards, idx, makeOptionButton, categories));
+        } else flaskUi.renderUtilityChoices(body, idx, makeOptionButton, FLASK_UTILITY_CATEGORIES);
     }
     panel.appendChild(body);
     overlay.appendChild(panel);

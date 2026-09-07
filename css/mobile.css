@@ -1,7 +1,17 @@
 /* Mobile-only layer (phase 2). */
 .skill-mobile-library-navigation { display: none; }
 .mobile-map-navigation { display: none; }
+.flask-mobile-slots { display: none; }
 @media (max-width: 1080px) {
+  .flask-overview { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .flask-overview > div { flex-direction: column; gap: 4px; }
+  .flask-mobile-slots, .flask-mobile-category { display: grid; gap: 6px; margin: 10px 0; font-size: 13px; }
+  .flask-mobile-slots select, .flask-mobile-category select { width: 100%; min-width: 0; min-height: 44px; font-size: 14px; }
+  .flask-paperdoll > [data-flask-selected="false"] { display: none; }
+  #ui-flask-panel .flask-slot-name { font-size: 16px; line-height: 1.4; margin: 4px 0 8px; }
+  #ui-flask-panel .flask-slot-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  #ui-flask-panel .flask-slot-actions.three-actions button:last-child { grid-column: 1 / -1; }
+  #ui-flask-panel .flask-slot-actions button { font-size: 13px; }
   .mobile-map-navigation { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 10px; padding: 6px 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); }
   .mobile-map-navigation > span { font-size: 12px; color: var(--ui-gold); }
   .mobile-map-navigation select { min-height: 44px; width: 100%; font-size: 14px; }
@@ -282,7 +292,6 @@
   #ui-support-list { grid-template-columns: minmax(0, 1fr) !important; }
   .paperdoll { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .slot-box { min-width: 0; padding: 5px; font-size: .78em; }
-  .flask-overview { grid-template-columns: minmax(0, 1fr) !important; }
   .flask-workbench-head { flex-direction: column; }
   .flask-glass-balance { width: 100%; box-sizing: border-box; }
 }
