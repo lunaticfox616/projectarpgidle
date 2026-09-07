@@ -83,6 +83,7 @@ test('a phone shortcut can move to the full menu without changing the PC prefere
     await openLibrary(page);
     await page.evaluate(() => switchTab('tab-settings'));
     const desktopBefore = await page.evaluate(() => JSON.stringify(game.settings.tabLayouts.desktop));
+    await page.locator('#settings-category').selectOption('layout');
     await page.locator('.cfg-disclosure--tab-order > summary').click();
     await page.locator('[data-place="btn-tab-items"]').selectOption('bottom');
     await expect(page.locator('#tab-header-bottom #btn-tab-items')).toHaveCount(0);

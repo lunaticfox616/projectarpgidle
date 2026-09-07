@@ -2,9 +2,18 @@
 .skill-mobile-library-navigation { display: none; }
 .mobile-map-navigation { display: none; }
 .sea-gift-group-picker { display: none; }
+.settings-category-picker { display: none; }
 .flask-mobile-slots { display: none; }
 #passive-mobile-detail { display: none; }
 @media (max-width: 1080px) {
+  .settings-category-picker { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:10px; margin-bottom:12px; color:var(--ui-text-2); font-size:13px; }
+  .settings-category-picker select { width:100%; min-width:0; min-height:44px; font-size:14px; }
+  #tab-settings[data-settings-category="display"] [data-settings-group]:not([data-settings-group="display"]),
+  #tab-settings[data-settings-category="battle"] [data-settings-group]:not([data-settings-group="battle"]),
+  #tab-settings[data-settings-category="progress"] [data-settings-group]:not([data-settings-group="progress"]),
+  #tab-settings[data-settings-category="notifications"] [data-settings-group]:not([data-settings-group="notifications"]),
+  #tab-settings[data-settings-category="layout"] [data-settings-group]:not([data-settings-group="layout"]),
+  #tab-settings[data-settings-category="data"] [data-settings-group]:not([data-settings-group="data"]) { display:none; }
   #passive-mobile-detail:not([hidden]) { display: flex; flex-direction: column; position: fixed; left: 8px; right: 8px; bottom: calc(62px + env(safe-area-inset-bottom)); z-index: 15000; max-height: 42dvh; border: 1px solid var(--ui-gold); border-radius: 8px; background: var(--ui-surface-1); box-shadow: 0 -8px 24px #0008; padding: 10px; gap: 8px; }
   #passive-mobile-detail header { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ui-gold); font-size: 13px; }
   #passive-mobile-detail button { min-height: 44px; font-size: 14px; }
