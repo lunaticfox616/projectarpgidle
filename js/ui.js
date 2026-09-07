@@ -10465,7 +10465,7 @@ function performUpdateStaticUI() {
             const statText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} ${stat.id} ${stat.val}`).join(' ');
             return matchSearchQuery(`${jewel.name || ''} ${jewel.rarity || ''} ${statText}`, sf.jewel);
         });
-        let jewelRowsHtml = jewelLibraryUi.visibleRows(jewelRows, sf.jewel).map(({jewel, idx}) => {
+        let jewelRowsHtml = inventoryLibraryUi.visibleRows('jewel', jewelRows, sf.jewel).map(({jewel, idx}) => {
             let selected = selectedJewelFusionIndices.includes(idx) || (jewelCraftTarget && jewelCraftTarget === jewel) ? 'selected' : '';
             let q = sf.jewel;
             let desc = getJewelStats(jewel).map(stat => {
@@ -12222,7 +12222,7 @@ function buildCraftActionButtons(item) {
         const stats = (Array.isArray(t.stats) ? t.stats.map(s => `${s.stat || s.id || ''} ${s.label || ''} ${getStatName(s.stat || s.id || '')}`).join(' ') : '');
         return matchSearchQuery(`${t.name || ''} ${t.shape || ''} ${t.rarity || ''} ${t.statName || ''} ${stats}`, sf.talisman);
     });
-    let talismanRowsHtml = talismanRows.map(t => {
+    let talismanRowsHtml = inventoryLibraryUi.visibleRows('talisman', talismanRows, sf.talisman).map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
         let q = sf.talisman;
@@ -12235,7 +12235,7 @@ function buildCraftActionButtons(item) {
         let manage = `<button onclick="event.stopPropagation(); toggleTalismanLock(${t.id})">${getLockButtonLabel(t)}</button>${t.waxedByBeeswax ? '<button disabled>밀랍</button>' : `<button onclick="event.stopPropagation(); applyBeeswaxToTalisman(${t.id})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" ${isLockedInventoryObject(t) ? 'disabled' : ''}>해체</button>`;
         return `<div class="item-card talisman-inventory-card ${selected ? 'selected' : ''} ${talismanCardClass}" role="group" tabindex="0" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectTalismanInventoryItem(${t.id});}" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()">${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(t, 'talisman', 'talisman-card-visual') : ''}<div class="talisman-card-copy"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${talismanTitleClass}" style="${isUniqueTalisman ? '' : `color:${shapeStyle.color};`}">${isLockedInventoryObject(t) ? '🔒 ' : ''}${talismanUniqueBadge}${highlightSearchText(getTalismanDisplayName(t), q)} ${t.stat ? ` · ${highlightSearchText(t.statName, q)} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:var(--copy-bright);">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${qualityBadge} ${t.special ? `· 효과: ${highlightSearchText(getTalismanSpecialDescription(t), q)}` : ''}</div></div></div><div class="item-actions"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})">회전</button>${manage}</div></div></div></div>`;
     }).join('');
-    renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanRowsHtml, `<div style="grid-column:1/-1; color:var(--copy-muted);">보유한 부적이 없습니다.</div>`, '');
+    renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanRowsHtml, `<div style="grid-column:1/-1; color:var(--copy-muted);">${game.talismanInventory.length ? '검색 조건에 맞는 부적이 없습니다.' : '보유한 부적이 없습니다.'}</div>`, '');
     let selectedPlacementTalisman = (game.talismanInventory || []).find(row => row && row.id === game.talismanSelectedId) || null;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;

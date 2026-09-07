@@ -158,9 +158,9 @@ body:not(.light-mode) details > summary::marker {
 #ui-jewel-craft-disclosure { order: 1; }
 #ui-jewel-salvage-disclosure { order: 2; }
 #ui-jewel-library { order: 3; min-width: 0; }
-.jewel-library-pages:not([hidden]) { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 10px 0; }
-.jewel-library-pages button { min-height: 44px; }
-.jewel-library-pages span { text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+.inventory-library-pages:not([hidden]) { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 10px 0; }
+.inventory-library-pages button { min-height: 44px; }
+.inventory-library-pages span { text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
 .jewel-craft-mode:not([hidden]) { display: grid; gap: 6px; margin-bottom: 10px; color: var(--ui-text-muted); }
 .jewel-craft-mode select { min-height: 44px; width: 100%; font-size: 16px; }
 .jewel-craft-section { padding: 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); margin-bottom: 10px; background: var(--ui-surface-2); }
