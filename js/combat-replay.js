@@ -81,6 +81,7 @@ function createCombatReplay(elapsedMs, snapshot, startNowMs) {
     state.backgroundStopReason = null;
     return {
         game: state, elapsedMs: Math.max(0, Math.floor(elapsedMs / 100) * 100), processedMs: 0,
+        skippedMs: 0, accelerationTier: 0,
         simulatedNow: state.combatTimeMs || startNowMs || Date.now(),
         metrics: createBackgroundCombatMetrics(state),
         runtime: JSON.parse(JSON.stringify(captureCombatRuntime()))
@@ -105,7 +106,9 @@ function advanceCombatReplay(replay, budgetMs) {
             let reason = getOfflineSafetyStopReason(game, replay.metrics, replay.processedMs);
             if (reason) { game.backgroundStopReason = reason; break; }
             replay.simulatedNow += 100;
+            const killsBefore = game.loopKills;
             coreLoop(replay.simulatedNow);
+            if (game.loopKills !== killsBefore) getBackgroundBuildMemo(game).clear();
             replay.processedMs += 100;
             updateBackgroundCombatMetrics(replay.metrics, game, replay.processedMs);
             if (game.backgroundStopReason) break;
@@ -126,12 +129,26 @@ function finishCombatReplay(replay) {
     for (let field of ['isBackgroundCalculation', 'backgroundOverflowSalvageCount', 'backgroundKillMix', 'backgroundStopReason']) delete replay.game[field];
     return { game: replay.game, runtime: replay.runtime, steps: replay.processedMs / 100,
         simulatedNow: replay.simulatedNow, processedMs: replay.processedMs, metrics: replay.metrics,
-        stopped: replay.processedMs < replay.elapsedMs, stopReason, overflowSalvaged, estimated: false };
+        stopped: replay.processedMs < replay.elapsedMs, stopReason, overflowSalvaged,
+        skippedMs: replay.skippedMs, estimated: false };
+}
+
+/** Only discard unprocessed time. Never extrapolate rewards or advance combat timers across it. */
+function applyCombatReplayControl(replay, control) {
+    if (!control) return;
+    const tier = Math.max(replay.accelerationTier, Math.min(4, Math.floor(control.tier || 0)));
+    const remaining = replay.elapsedMs - replay.processedMs;
+    const retained = control.finish ? 0
+        : Math.floor(remaining / (2 ** (tier - replay.accelerationTier)) / 100) * 100;
+    replay.skippedMs += remaining - retained;
+    replay.elapsedMs = replay.processedMs + retained;
+    replay.accelerationTier = tier;
 }
 
 /**
  * @typedef {{elapsedMs:number, snapshot:typeof defaultGame, startNowMs?:number,
- * onProgress?:(doneMs:number,totalMs:number)=>void}} CombatReplayOptions
+ * isPaused?:()=>boolean, getControl?:()=>({tier:number,finish:boolean}),
+ * onProgress?:(doneMs:number,totalMs:number,skippedMs:number)=>void}} CombatReplayOptions
  * snapshot must already have passed save migration. Durations are effective combat milliseconds.
  */
 /** @param {CombatReplayOptions} options Synchronous replay for diagnostics. Does not commit or persist. */
@@ -143,6 +160,8 @@ function simulateBackgroundCombat(options) {
 }
 
 function waitBackgroundReplayFrame() {
+    // Yield to input/paint without nested timer clamping in Chromium/WebView.
+    if (typeof globalThis.scheduler?.yield === 'function') return globalThis.scheduler.yield();
     return new Promise(resolve => setTimeout(resolve, 0));
 }
 
@@ -151,9 +170,12 @@ async function simulateBackgroundCombatChunked(options) {
     let replay = createCombatReplay(options.elapsedMs, options.snapshot, options.startNowMs);
     let pending;
     do {
-        let budget = backgroundCombatRuntime.accelerationTier > 0 ? 12 : 8;
-        pending = advanceCombatReplay(replay, budget);
-        if (options.onProgress) options.onProgress(replay.processedMs, replay.elapsedMs);
+        // The UI supplies lifecycle state; do not burn CPU while the app is inactive.
+        while (options.isPaused?.()) await new Promise(resolve => setTimeout(resolve, 250));
+        applyCombatReplayControl(replay, options.getControl?.());
+        pending = advanceCombatReplay(replay, 8);
+        if (options.onProgress) options.onProgress(replay.processedMs + replay.skippedMs,
+            replay.elapsedMs + replay.skippedMs, replay.skippedMs);
         if (pending) await waitBackgroundReplayFrame();
     } while (pending);
     return finishCombatReplay(replay);

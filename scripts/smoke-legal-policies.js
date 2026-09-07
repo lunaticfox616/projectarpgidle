@@ -119,6 +119,7 @@ async function verifyCloudSignupFlow() {
     const calls = { signup: [], resend: [], messages: [], loading: [], notices: [], passwordClears: 0, uiUpdates: 0 };
     let resendError = null;
     const authContext = {
+        appPlatform: { active: false }, // Platform boundary: this case verifies the web redirect.
         window: { location: { origin: 'https://lunaticfox616.github.io', pathname: '/projectarpgidle/' } },
         cloudState: { busy: false },
         getCloudConfig: () => ({ enabled: true }),

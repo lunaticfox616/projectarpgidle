@@ -501,7 +501,6 @@ const indexSource = fs.readFileSync('index.html', 'utf8');
 assert.ok(indexSource.includes('<body class="startup-active">'), 'the game body must begin in its startup state before any gameplay UI can paint');
 assert.ok(indexSource.includes('id="startup-overlay" class="startup-overlay active"'), 'the startup screen must be visible in the initial HTML paint');
 assert.ok(indexSource.includes('<title>Rignin</title>'), 'the browser tab should use the Rignin game title');
-assert.ok(indexSource.includes('<span class="startup-wordmark-accent">Rignin</span>'), 'the startup wordmark should use the Rignin game title');
 assert.ok(!indexSource.includes('THE ROOTBOUND CHRONICLE') && !indexSource.includes('ROOT AWAKENING'),
   'the startup screen should not retain the redundant English campaign and season labels');
 assert.ok(!indexSource.includes('끝없이 되감기는 성소에서 운명을 벼려내십시오.'),

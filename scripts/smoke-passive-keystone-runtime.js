@@ -112,7 +112,7 @@ for (const [id, field, amount] of [
 run('game = mergeDefaults({}); game.passivePoints = 10000;');
 assert.strictEqual(run("activatePassivePath('nkf64engb6m').activated"), true,
     '시작 지점에서 지혜의 도약까지 유효한 투자 경로가 있어야 합니다.');
-run("setPassiveKeystoneChoice('wisdom_leap_element', 'fire');");
+run("game.passiveSpecialization.keystoneChoices.wisdom_leap_element = 'fire';");
 assert.strictEqual(run("activatePassivePath('nwn5msikamo').activated"), true,
     '지혜의 도약 뒤 공허 노드를 투자할 수 있어야 합니다.');
 assert.strictEqual(run('ensurePassiveSpecializationState().keystoneChoices.wisdom_leap_element'), 'chaos',
@@ -122,17 +122,18 @@ const migratedVoidChoice = run(`normalizePassiveSpecializationState(
     { migrateWisdomBranchChoice: true, passiveIds: ['nkf64engb6m', 'nwn5msikamo'] })`);
 assert.strictEqual(migratedVoidChoice.keystoneChoices.wisdom_leap_element, 'chaos',
     '기존 세이브의 공허 투자도 남아 있던 화염 기본값을 카오스로 보정해야 합니다.');
-run("setPassiveKeystoneChoice('wisdom_leap_element', 'fire'); game.saveVersion = 17;");
+run("game.passiveSpecialization.keystoneChoices.wisdom_leap_element = 'fire'; game.saveVersion = 17;");
 context.__legacyWisdomSave = JSON.parse(run('JSON.stringify(game)'));
 const restoredWisdomSave = run('mergeDefaults(__legacyWisdomSave)');
 assert.strictEqual(restoredWisdomSave.passiveSpecialization.keystoneChoices.wisdom_leap_element, 'chaos',
     '기존 세이브를 불러오는 실제 경로에서도 공허 선택을 복원해야 합니다.');
 assert.strictEqual(restoredWisdomSave.saveVersion, 18, '보정한 세이브는 최신 버전으로 기록해야 합니다.');
 setPassives(['지혜의 도약']);
+assert.strictEqual(run("getPlayerStats().passiveWisdomElement"), '', 'without an invested branch, stale choices must not apply');
 for (const [choice, element] of [['fire', 'fire'], ['cold', 'cold'], ['lightning', 'light'], ['chaos', 'chaos']]) {
     context.__wisdomChoice = choice;
     context.__damageElement = element;
-    assert.strictEqual(run("setPassiveKeystoneChoice('wisdom_leap_element', __wisdomChoice)"), true);
+    run("game.passives = ['nkf64engb6m', Object.keys(PASSIVE_WISDOM_ELEMENT_BY_NODE_ID).find(id => PASSIVE_WISDOM_ELEMENT_BY_NODE_ID[id] === __wisdomChoice)]; game.passiveSpecialization.keystoneChoices.wisdom_leap_element = 'invalid';");
     run('game.activeSkill = Object.keys(SKILL_DB).find(name => SKILL_DB[name].ele === __damageElement);');
     assert.strictEqual(run('getPlayerStats().sSkill.ele'), element);
     assert.strictEqual(run('getPlayerStats().passiveWisdomElement'), element);
@@ -144,7 +145,7 @@ for (const [choice, element] of [['fire', 'fire'], ['cold', 'cold'], ['lightning
     assert.strictEqual(run("getPassiveWisdomLeapDamageMultiplier(getPlayerStats(), 'phys')"), 0,
         '선택한 속성이 아닌 피해는 피해를 줄 수 없어야 합니다.');
 }
-run("setPassiveKeystoneChoice('wisdom_leap_element', 'chaos');");
+run("game.passives = ['nkf64engb6m', 'nwn5msikamo'];");
 assert.strictEqual(run(`getLimitedSummonFinalDamageMultiplier(
     { finalDamageMultiplier: 1, passiveWisdomElement: 'chaos' }, { ele: 'chaos' })`), 1.2,
     '카오스를 선택하면 카오스 소환수 피해도 20% 증폭되어야 합니다.');
@@ -160,7 +161,11 @@ assert.strictEqual(convertedChaosStats.damageScales.wisdomLeapDamageMultiplier, 
 assert.ok(convertedChaosStats.dps > 0,
     '카오스로 전환된 스킬의 표시 DPS가 카오스 선택 때문에 0이 되면 안 됩니다.');
 context.isTalentCardActive = originalTalentCardActive;
-run("setPassiveKeystoneChoice('wisdom_leap_element', 'fire');");
+run("game.passiveSpecialization.keystoneChoices.wisdom_leap_element = 'fire';");
+run("game.passives = ['nkf64engb6m','nhenzv8gp4i','nwn5msikamo'];");
+assert.strictEqual(run("getPlayerStats().passiveWisdomElement"), 'chaos');
+run("game.passives.pop();");
+assert.strictEqual(run("getPlayerStats().passiveWisdomElement"), 'fire', 'removing a branch must immediately restore the remaining invested branch');
 const wisdomEdges = context.PASSIVE_TREE.edges.filter(edge => edge.requiresAllocatedNodeId === 'nkf64engb6m');
 assert.strictEqual(wisdomEdges.length, 4, '공허를 포함한 네 갈래가 유지되어야 합니다.');
 for (const edge of wisdomEdges) {

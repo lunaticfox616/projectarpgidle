@@ -453,199 +453,26 @@ function createEmptyStatBucket() {
         bossDamagePct: 0, eliteDamagePct: 0, firstStrikeDamagePct: 0, cullStrikePct: 0, echoPower: 0, chaosErosion: 0, chaosErosionCap: 0
     };
 }
+// Bucket shape is the source for direct additions. Oxygen uses its separate resource rules.
+const DIRECT_STAT_BUCKET_KEYS = new Set(Object.keys(createEmptyStatBucket())
+    .filter(key => key !== 'oxygenMax' && key !== 'oxygenRegen'));
+const COMPOSITE_STAT_BUCKET_LINES = Object.freeze({
+    resAll: [['resF', 1, 0], ['resC', 1, 0], ['resL', 1, 0]],
+    moveEvasion: [['move', 1, 0], ['evasionPct', 1, 0]],
+    hpArmor: [['flatHp', 1, 0], ['armor', 2, 0]],
+    aspdMove: [['aspd', 1, 0], ['move', 1, 0]],
+    chaosResElemPenalty: [['resChaos', 1, 0], ['resF', -1, 0], ['resC', -1, 0], ['resL', -1, 0]],
+    deflectMajor: [['deflectChance', 1, 0], ['deflectDamageReduce', 0, 3]],
+    targetCount: [['targetAny', 1, 0]], spellCritDmg: [['critDmg', 1, 0]], spellLeech: [['leech', 1, 0]]
+});
 function addStatToBucket(bucket, statId, value) {
     value = Number(value);
-    if (!statId || !Number.isFinite(value)) return;
-    if (statId === 'flatDmg') bucket.flatDmg += value;
-    else if (statId === 'weaponFlatDmgPct') bucket.weaponFlatDmgPct += value;
-    else if (statId === 'pctDmg') bucket.pctDmg += value;
-    else if (statId === 'meleePctDmg') bucket.meleePctDmg += value;
-    else if (statId === 'slamPctDmg') bucket.slamPctDmg += value;
-    else if (statId === 'projectilePctDmg') bucket.projectilePctDmg += value;
-    else if (statId === 'physPctDmg') bucket.physPctDmg += value;
-    else if (statId === 'elementalPctDmg') bucket.elementalPctDmg += value;
-    else if (statId === 'firePctDmg') bucket.firePctDmg += value;
-    else if (statId === 'coldPctDmg') bucket.coldPctDmg += value;
-    else if (statId === 'lightPctDmg') bucket.lightPctDmg += value;
-    else if (statId === 'chaosPctDmg') bucket.chaosPctDmg += value;
-    else if (statId === 'aoePctDmg') bucket.aoePctDmg += value;
-    else if (statId === 'dotPctDmg') bucket.dotPctDmg += value;
-    else if (statId === 'spellPctDmg') bucket.spellPctDmg += value;
-    else if (statId === 'shieldPctDmg') bucket.shieldPctDmg += value;
-    else if (statId === 'minePctDmg') bucket.minePctDmg += value;
-    else if (statId === 'potionPctDmg') bucket.potionPctDmg += value;
-    else if (statId === 'mobilityPctDmg') bucket.mobilityPctDmg += value;
-    else if (statId === 'channelingPctDmg') bucket.channelingPctDmg += value;
-    else if (statId === 'igniteChance') bucket.igniteChance += value;
-    else if (statId === 'chillChance') bucket.chillChance += value;
-    else if (statId === 'freezeChance') bucket.freezeChance += value;
-    else if (statId === 'shockChance') bucket.shockChance += value;
-    else if (statId === 'poisonChance') bucket.poisonChance += value;
-    else if (statId === 'bleedChance') bucket.bleedChance += value;
-    else if (statId === 'spellFlatDmg') bucket.spellFlatDmg += value;
-    else if (statId === 'spellFlatPct') bucket.spellFlatPct += value;
-    else if (statId === 'strength') bucket.strength += value;
-    else if (statId === 'dexterity') bucket.dexterity += value;
-    else if (statId === 'intelligence') bucket.intelligence += value;
-    else if (statId === 'accuracy') bucket.accuracy += value;
-    else if (statId === 'mystique') bucket.mystique += value;
-    else if (statId === 'devotion') bucket.devotion += value;
-    else if (statId === 'cycle') bucket.cycle += value;
-    else if (statId === 'ailmentDamagePct') bucket.ailmentDamagePct += value;
-    else if (statId === 'ailmentPotencyPct') bucket.ailmentPotencyPct += value;
-    else if (statId === 'flatHp') bucket.flatHp += value;
-    else if (statId === 'pctHp') bucket.pctHp += value;
-    else if (statId === 'aspd') bucket.aspd += value;
-    else if (statId === 'crit') bucket.crit += value;
-    else if (statId === 'move') bucket.move += value;
-    else if (statId === 'gemLevel') bucket.gemLevel += value;
-    else if (statId === 'elementalGemLevel') bucket.elementalGemLevel += value;
-    else if (statId === 'fireGemLevel') bucket.fireGemLevel += value;
-    else if (statId === 'coldGemLevel') bucket.coldGemLevel += value;
-    else if (statId === 'lightGemLevel') bucket.lightGemLevel += value;
-    else if (statId === 'chaosGemLevel') bucket.chaosGemLevel += value;
-    else if (statId === 'physGemLevel') bucket.physGemLevel += value;
-    else if (statId === 'projectileGemLevel') bucket.projectileGemLevel += value;
-    else if (statId === 'meleeGemLevel') bucket.meleeGemLevel += value;
-    else if (statId === 'slamGemLevel') bucket.slamGemLevel += value;
-    else if (statId === 'spellGemLevel') bucket.spellGemLevel += value;
-    else if (statId === 'dotGemLevel') bucket.dotGemLevel += value;
-    else if (statId === 'aoeGemLevel') bucket.aoeGemLevel += value;
-    else if (statId === 'dr') bucket.dr += value;
-    else if (statId === 'physIgnore') bucket.physIgnore += value;
-    else if (statId === 'resPen') bucket.resPen += value;
-    else if (statId === 'leech') bucket.leech += value;
-    else if (statId === 'leechRateCap') bucket.leechRateCap += value;
-    else if (statId === 'leechTotalCap') bucket.leechTotalCap += value;
-    else if (statId === 'leechInstanceCap') bucket.leechInstanceCap += value;
-    else if (statId === 'leechKeepFullLife') bucket.leechKeepFullLife += value;
-    else if (statId === 'critDmg') bucket.critDmg += value;
-    else if (statId === 'regen') bucket.regen += value;
-    else if (statId === 'regenSuppress') bucket.regenSuppress += value;
-    else if (statId === 'regenFlat') bucket.regenFlat += value;
-    else if (statId === 'suppCap') bucket.suppCap += value;
-    else if (statId === 'runeResonancePower') bucket.runeResonancePower += value;
-    else if (statId === 'minDmgRoll') bucket.minDmgRoll += value;
-    else if (statId === 'maxDmgRoll') bucket.maxDmgRoll += value;
-    else if (statId === 'resF') bucket.resF += value;
-    else if (statId === 'maxResF') bucket.maxResF += value;
-    else if (statId === 'maxResC') bucket.maxResC += value;
-    else if (statId === 'maxResL') bucket.maxResL += value;
-    else if (statId === 'maxResChaos') bucket.maxResChaos += value;
-    else if (statId === 'maxResAll') bucket.maxResAll += value;
-    else if (statId === 'resC') bucket.resC += value;
-    else if (statId === 'resL') bucket.resL += value;
-    else if (statId === 'resAll') { bucket.resF += value; bucket.resC += value; bucket.resL += value; }
-    else if (statId === 'resChaos') bucket.resChaos += value;
-    else if (statId === 'ds') bucket.ds += value;
-    else if (statId === 'slamEchoChance') bucket.slamEchoChance += value;
-
-    else if (statId === 'chillEffectReducePct') bucket.chillEffectReducePct += value;
-    else if (statId === 'freezeDurationReducePct') bucket.freezeDurationReducePct += value;
-    else if (statId === 'shockEffectReducePct') bucket.shockEffectReducePct += value;
-    else if (statId === 'igniteDamageReducePct') bucket.igniteDamageReducePct += value;
-    else if (statId === 'bleedDamageReducePct') bucket.bleedDamageReducePct += value;
-    else if (statId === 'poisonDamageReducePct') bucket.poisonDamageReducePct += value;
-    else if (statId === 'dotTakenDamageReducePct') bucket.dotTakenDamageReducePct += value;
-    else if (statId === 'takenDamageReduceWhen2EnemiesPct') bucket.takenDamageReduceWhen2EnemiesPct += value;
-    else if (statId === 'takenDamageReduceWhen1EnemyPct') bucket.takenDamageReduceWhen1EnemyPct += value;
-    else if (statId === 'genericTakenDamageReducePct') bucket.genericTakenDamageReducePct += value;
-    else if (statId === 'shockedEnemyHitDamageMorePct') bucket.shockedEnemyHitDamageMorePct += value;
-    else if (statId === 'shockedEnemyHitDamagePct') bucket.shockedEnemyHitDamagePct += value;
-    else if (statId === 'igniteDamageMultiplierPct') bucket.igniteDamageMultiplierPct += value;
-    else if (statId === 'poisonDamageMultiplierPct') bucket.poisonDamageMultiplierPct += value;
-    else if (statId === 'accuracyBonusPct') bucket.accuracyBonusPct += value;
-    else if (statId === 'summonFlatDmg') bucket.summonFlatDmg += value;
-    else if (statId === 'summonPctDmg') bucket.summonPctDmg += value;
-    else if (statId === 'summonAspd') bucket.summonAspd += value;
-    else if (statId === 'summonHpPct') bucket.summonHpPct += value;
-    else if (statId === 'summonCrit') bucket.summonCrit += value;
-    else if (statId === 'summonCritDmg') bucket.summonCritDmg += value;
-    else if (statId === 'summonCap') bucket.summonCap += value;
-    else if (statId === 'summonEfficiency') bucket.summonEfficiency += value;
-    else if (statId === 'summonGuardRedirectPct') bucket.summonGuardRedirectPct += value;
-    else if (statId === 'summonResPen') bucket.summonResPen += value;
-    else if (statId === 'summonGemLevel') bucket.summonGemLevel += value;
-
-    else if (statId === 'moveEvasion') { bucket.move += value; bucket.evasionPct += value; }
-    else if (statId === 'hpArmor') { bucket.flatHp += value; bucket.armor += value * 2; }
-    else if (statId === 'aspdMove') { bucket.aspd += value; bucket.move += value; }
-    else if (statId === 'chaosResElemPenalty') { bucket.resChaos += value; bucket.resF -= value; bucket.resC -= value; bucket.resL -= value; }
-    else if (statId === 'expGain') bucket.expGain += value;
-    else if (statId === 'targetAny') bucket.targetAny += value;
-    else if (statId === 'targetProjectile') bucket.targetProjectile += value;
-    else if (statId === 'projectileExtraShots') bucket.projectileExtraShots += value;
-    else if (statId === 'targetSlam') bucket.targetSlam += value;
-    else if (statId === 'armor') bucket.armor += value;
-    else if (statId === 'evasion') bucket.evasion += value;
-    else if (statId === 'energyShield') bucket.energyShield += value;
-    else if (statId === 'armorPct') bucket.armorPct += value;
-    else if (statId === 'evasionPct') bucket.evasionPct += value;
-    else if (statId === 'deflectChance') bucket.deflectChance += value;
-    else if (statId === 'deflectMajor') { bucket.deflectChance += value; bucket.deflectDamageReduce += 3; }
-    else if (statId === 'deflectDamageReduce') bucket.deflectDamageReduce += value;
-    else if (statId === 'blockChance') bucket.blockChance += value;
-    else if (statId === 'blockChancePct') bucket.blockChancePct += value;
-    else if (statId === 'ailResBleed') bucket.ailResBleed += value;
-    else if (statId === 'ailResPoison') bucket.ailResPoison += value;
-    else if (statId === 'ailResFreeze') bucket.ailResFreeze += value;
-    else if (statId === 'ailResShock') bucket.ailResShock += value;
-    else if (statId === 'ailResIgnite') bucket.ailResIgnite += value;
-    else if (statId === 'energyShieldPct') bucket.energyShieldPct += value;
-    else if (statId === 'energyShieldRegen') bucket.energyShieldRegen += value;
-    else if (statId === 'energyShieldRechargeFaster') bucket.energyShieldRechargeFaster += value;
-    else if (statId === 'targetCount') bucket.targetAny += value;
-    else if (statId === 'spellCritDmg') bucket.critDmg += value;
-    else if (statId === 'spellLeech') bucket.leech += value;
-    else if (statId === 'chillEffect') bucket.chillEffect += value;
-    else if (statId === 'shockEffect') bucket.shockEffect += value;
-    else if (statId === 'blockChanceMax') bucket.blockChanceMax += value;
-    else if (statId === 'slamEchoDamagePct') bucket.slamEchoDamagePct += value;
-    else if (statId === 'doubleDamageChance') bucket.doubleDamageChance += value;
-    else if (statId === 'physFlatTakenReduce') bucket.physFlatTakenReduce += value;
-    else if (statId === 'fireFlatTakenReduce') bucket.fireFlatTakenReduce += value;
-    else if (statId === 'coldFlatTakenReduce') bucket.coldFlatTakenReduce += value;
-    else if (statId === 'lightFlatTakenReduce') bucket.lightFlatTakenReduce += value;
-    else if (statId === 'chaosFlatTakenReduce') bucket.chaosFlatTakenReduce += value;
-    else if (statId === 'allFlatTakenReduce') bucket.allFlatTakenReduce += value;
-    else if (statId === 'physTakenAsFire') bucket.physTakenAsFire += value;
-    else if (statId === 'physTakenAsCold') bucket.physTakenAsCold += value;
-    else if (statId === 'physTakenAsLight') bucket.physTakenAsLight += value;
-    else if (statId === 'physTakenAsChaos') bucket.physTakenAsChaos += value;
-    else if (statId === 'addedFireDamagePct') bucket.addedFireDamagePct += value;
-    else if (statId === 'addedColdDamagePct') bucket.addedColdDamagePct += value;
-    else if (statId === 'addedLightDamagePct') bucket.addedLightDamagePct += value;
-    else if (statId === 'addedChaosDamagePct') bucket.addedChaosDamagePct += value;
-    else if (statId === 'addedPhysDamagePct') bucket.addedPhysDamagePct += value;
-    else if (statId === 'fireFlatDmg') bucket.fireFlatDmg += value;
-    else if (statId === 'coldFlatDmg') bucket.coldFlatDmg += value;
-    else if (statId === 'lightFlatDmg') bucket.lightFlatDmg += value;
-    else if (statId === 'chaosFlatDmg') bucket.chaosFlatDmg += value;
-    else if (statId === 'physFlatDmg') bucket.physFlatDmg += value;
-
-    else if (statId === 'summonFlatDmg') bucket.summonFlatDmg += value;
-    else if (statId === 'summonPctDmg') bucket.summonPctDmg += value;
-    else if (statId === 'summonAspd') bucket.summonAspd += value;
-    else if (statId === 'summonHpPct') bucket.summonHpPct += value;
-    else if (statId === 'summonCrit') bucket.summonCrit += value;
-    else if (statId === 'summonCritDmg') bucket.summonCritDmg += value;
-    else if (statId === 'summonCap') bucket.summonCap += value;
-    else if (statId === 'summonEfficiency') bucket.summonEfficiency += value;
-    else if (statId === 'summonGuardRedirectPct') bucket.summonGuardRedirectPct += value;
-    else if (statId === 'summonResPen') bucket.summonResPen += value;
-    else if (statId === 'summonGemLevel') bucket.summonGemLevel += value;
-    else if (statId === 'curseCap') bucket.curseCap += value;
-    else if (statId === 'oceanPressureResist') bucket.oceanPressureResist += value;
-    else if (statId === 'oceanDepthGainPct') bucket.oceanDepthGainPct += value;
-    else if (statId === 'oceanOxygenAttackSavingPct') bucket.oceanOxygenAttackSavingPct += value;
-    else if (statId === 'oceanRareFishChancePct') bucket.oceanRareFishChancePct += value;
-    else if (statId === 'bossDamagePct') bucket.bossDamagePct += value;
-    else if (statId === 'eliteDamagePct') bucket.eliteDamagePct += value;
-    else if (statId === 'firstStrikeDamagePct') bucket.firstStrikeDamagePct += value;
-    else if (statId === 'cullStrikePct') bucket.cullStrikePct += value;
-    else if (statId === 'echoPower') bucket.echoPower += value;
-    else if (statId === 'chaosErosion') bucket.chaosErosion += value;
-    else if (statId === 'chaosErosionCap') bucket.chaosErosionCap += value;
+    if (typeof statId !== 'string' || !Number.isFinite(value)) return;
+    if (DIRECT_STAT_BUCKET_KEYS.has(statId)) { bucket[statId] += value; return; }
+    if (!Object.hasOwn(COMPOSITE_STAT_BUCKET_LINES, statId)) return;
+    for (const [key, multiplier, flat] of COMPOSITE_STAT_BUCKET_LINES[statId]) {
+        bucket[key] += value * multiplier + flat;
+    }
 }
 
 function applyStatsToBucket(bucket, stats) {

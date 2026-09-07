@@ -1308,8 +1308,9 @@ function hasEmptyThroneSoloBonus() {
         && equipped.every(entry => entry && entry.jewel && entry.jewel.uniqueId === 'uj_crown_empty');
 }
 
-function getTargetGemBonusSources(target, fallbackSources) {
-    let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(target) : fallbackSources;
+/** resolvedStats, when supplied, belongs to the current synchronous equipment evaluation only. */
+function getTargetGemBonusSources(target, fallbackSources, resolvedStats) {
+    let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(target, resolvedStats) : fallbackSources;
     sources = sources ? { ...sources } : { gear: 0, passive: 0, reward: 0, total: 0 };
     let jewelGemLevel = getEquippedJewelGemLevelBonusSources(target);
     sources.gear = Number(sources.gear || 0) + jewelGemLevel;
@@ -1441,10 +1442,9 @@ function getSummonRegenPerSec(maxHp) {
     return Math.max(1, Math.floor(Math.max(1, maxHp) * SUMMON_REGEN_PCT_PER_SEC / 100));
 }
 
-function buildSummonRuntimeStats(row, pStats, now) {
+function buildSummonRuntimeStats(row, pStats, now, gemLv = getSummonGemLevel(row.name, row.source, pStats)) {
     let profile = getSummonProfile(row.name);
     let isGuard = profile.role === 'guard';
-    let gemLv = getSummonGemLevel(row.name, row.source, pStats);
     let levelSteps = getSummonLevelGrowthSteps(profile, gemLv);
     let armorGrowth = 1 + (Math.pow(levelSteps, profile.armorScaleExp || 1.1) * (profile.armorScaleBase || 0.015));
     let maxHp = getSummonMaxHp(profile, gemLv, pStats);
@@ -1457,7 +1457,7 @@ function buildSummonRuntimeStats(row, pStats, now) {
         trait: profile.trait || '',
         hp: maxHp,
         maxHp: maxHp,
-        regenPerSec: getSummonRegenPerSec(maxHp) + maxHp * Math.max(0, Number(pStats && pStats.talentSummonRegenPct) || 0) / 100,
+        regenPerSec: getSummonRegenPerSec(maxHp) + maxHp * Math.max(0, Number(pStats.talentSummonRegenPct) || 0) / 100,
         armor: Math.max(0, Math.floor((profile.baseArmor || 0) * armorGrowth)),
         evasion: getSummonEvasionRating(profile, gemLv, pStats),
         resFire: Math.max(-60, Math.min(90, profile.baseRes.fire || 0)),
@@ -1489,7 +1489,11 @@ function getLimitedSummonPenetrationStats(pStats, summon) {
     let baseResPen = fullPen ? Math.max(0, pStats.resPen || 0) : Math.min(40, Math.max(0, pStats.resPen || 0) * 0.55);
     let basePhysIgnore = Math.min(30, Math.max(0, pStats.physIgnore || 0) * 0.55);
     return {
-        ...pStats,
+        // Only these flags are consumed by getEffectiveEnemyMitigation. Avoid copying the entire
+        // player stat sheet for every summon hit and every DPS estimate.
+        allowNegativePhysIgnore: pStats.allowNegativePhysIgnore,
+        crusaderLightningIgnoreRes: pStats.crusaderLightningIgnoreRes,
+        crusaderNoResPenOnLightning: pStats.crusaderNoResPenOnLightning,
         resPen: baseResPen + Math.max(0, (summon && summon.resPenBonus) || 0) + Math.max(0, (pStats && pStats.summonResPen) || 0),
         physIgnore: basePhysIgnore + Math.max(0, (summon && summon.physIgnoreBonus) || 0)
     };
@@ -1691,12 +1695,22 @@ function applySummonAilmentFromHit(target, pStats, hitElement, hitDamage, isCrit
     });
 }
 
+function resolveActiveSummonGemLevels(pStats) {
+    // A refresh owns this cache; no stale gem/gear values can survive into another tick.
+    const levels = new Map();
+    return buildActiveSummonRuntimeDefs(pStats).map(row => {
+        const key = `${row.source}:${row.name}`;
+        if (!levels.has(key)) levels.set(key, getSummonGemLevel(row.name, row.source, pStats));
+        return { ...row, gemLevel: levels.get(key) };
+    });
+}
+
 function estimateSummonDps(pStats) {
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb5')) {
         return { total: 0, activeCount: 0, lines: ['홀로서기 각인: 소환수 직접 공격 비활성화'] };
     }
     let target = (game.enemies || []).find(e => e && e.hp > 0) || null;
-    let rows = buildActiveSummonRuntimeDefs(pStats);
+    let rows = resolveActiveSummonGemLevels(pStats);
     let total = 0;
     let activeCount = 0;
     let lines = [];
@@ -1707,7 +1721,7 @@ function estimateSummonDps(pStats) {
     rows.forEach(row => {
         let profile = getSummonProfile(row.name);
         if (profile.role === 'guard') return;
-        let gemLv = getSummonGemLevel(row.name, row.source, pStats);
+        let gemLv = row.gemLevel;
         let s = {
             gemName: row.name,
             ele: profile.ele || 'phys',
@@ -1801,13 +1815,13 @@ function getSummonTooltipPreview(gemName, pStats) {
 function ensureSummonRuntime(pStats) {
     if (!Array.isArray(game.summons)) game.summons = [];
     game.summonSeq = Math.max(1, Math.floor(game.summonSeq || 1));
-    let activeDefs = buildActiveSummonRuntimeDefs(pStats);
+    let activeDefs = resolveActiveSummonGemLevels(pStats);
     let activeKeys = new Set(activeDefs.map(row => `${row.gemName || row.name}::${row.slotIdx}`));
     game.summons = game.summons.filter(s => s && activeKeys.has(`${s.gemName}::${s.slotIdx}`));
     let now = getCombatTime();
     activeDefs.forEach(row => {
         let existing = game.summons.find(s => s && s.gemName === row.name && s.slotIdx === row.slotIdx);
-        let runtime = buildSummonRuntimeStats(row, pStats, now);
+        let runtime = buildSummonRuntimeStats(row, pStats, now, row.gemLevel);
         if (existing) {
             let wasAlive = !!existing.alive;
             let hpRatio = (wasAlive && existing.maxHp > 0) ? Math.max(0, Math.min(1, (existing.hp || 0) / existing.maxHp)) : 0;
@@ -2474,7 +2488,7 @@ function prepareCombatTick(nowMs) {
     if (game.woodsmanBuildLock) enforceWoodsmanBuildLock();
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
-    const pStats = getPlayerStats();
+    const pStats = getPlayerStats(false);
     if (typeof enforceTalentCombatState === 'function') enforceTalentCombatState(pStats);
     refreshRealmDeathWard(pStats);
     game.lastCombatStats = pStats;
@@ -2484,6 +2498,8 @@ function prepareCombatTick(nowMs) {
     tickFlaskAutoUse(pStats);
     return pStats;
 }
+
+
 
 function coreLoop(nowMs) {
     if (game.pendingLoopHeroSelection || game.pendingLoopDecision || game.pendingLoopReady) return;
@@ -2508,7 +2524,7 @@ function coreLoop(nowMs) {
     processPendingSlamEchoHits();
     if (typeof tickTalentRangerCharge === 'function') tickTalentRangerCharge(getCombatTime());
     processTalentInquisitorMarks();
-    tickAilments(pStats, 0.1);
+    tickAilments(pStats);
     let ailmentMap = {};
     let activePlayerShock = null;
     (game.playerAilments || []).forEach(ail => {
@@ -2621,8 +2637,8 @@ function coreLoop(nowMs) {
         if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(game.playerHp - beforeTalentGuardHeal);
         game.delayedGuardHealPool = Math.max(0, game.delayedGuardHealPool - tickHeal);
     }
-    tickPlayerLeech(pStats, 0.1);
-    tickPlayerRecoup(pStats, 0.1);
+    tickPlayerLeech(pStats);
+    tickPlayerRecoup(pStats);
     let energyShieldRecoveryCap = getPlayerEnergyShieldRecoveryCap(pStats);
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, energyShieldRecoveryCap));
@@ -2702,8 +2718,8 @@ function coreLoop(nowMs) {
     let hazardEvasion = updateCombatHazardEvasion(pStats);
     if (game.playerHp <= 0) return;
     if ((game.enemies || []).length > 0) {
-        tickEnemyDotEffects(pStats, 0.1);
-        tickEnemyAilments(pStats, 0.1);
+        tickEnemyDotEffects(pStats);
+        tickEnemyAilments(pStats);
         let nowCast = getCombatTime();
         let channelGate = getCombatChannelGate(pStats, nowCast);
         let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0);
@@ -3293,7 +3309,8 @@ const getPassiveSpecialStatBreakdowns = function(rules) {
     };
 };
 
-function getPlayerStats() {
+/** @param {boolean} includeBreakdowns Build tooltip text for visible stats; replay only needs numeric results. */
+function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
     recomputeCosmosTwinKeystones();
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
     const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
@@ -3309,8 +3326,6 @@ function getPlayerStats() {
     let glove2 = game.equipment ? game.equipment['장갑2'] : null;
     if (glove1 && glove2 && glove1.baseId && glove2.baseId && glove1.baseId === glove2.baseId) glovePairAspdBonus = 0.1;
 
-    let gearBase = createEmptyStatBucket();
-    let gearExplicit = createEmptyStatBucket();
     let passive = createEmptyStatBucket();
     let support = createEmptyStatBucket();
     let season = createEmptyStatBucket();
@@ -3319,83 +3334,21 @@ function getPlayerStats() {
     let starBlessing = createEmptyStatBucket();
     let colonyWardBonus = {};
 
-    let localDefenseTotals = { armor: 0, evasion: 0, energyShield: 0 };
-    let shieldArmorForDamage = 0;
-    let shieldBaseBlockChance = 0;
-    let shieldBlockChancePct = 0;
-    let shieldBlockChanceFlat = 0;
-    let equippedUniqueEffects = [];
-    let barbarismKeystone = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('야만');
-    let knowledgePathKeystone = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('지식의 통로');
-    getPlayerStatSourceItemEntries().forEach(([equipSlotKey, item]) => {
-        if (!item) return;
-        if (barbarismKeystone && item.slot === '무기') return;
-        if (knowledgePathKeystone && item.slot === '투구') return;
-        let resolvedItem = getResolvedEquipmentStatLists(equipSlotKey, item, game, true);
-        let growthItem = resolvedItem.growthItem;
-        let isEquippedWeapon = !growthItem && item.slot === '무기';
-        if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9') && isEquippedWeapon) return;
-        let mirrorSourceItem = resolvedItem.mirrorSourceItem;
-        if (item.rarity === 'unique' && item.uniqueEffectKey) equippedUniqueEffects.push({ key: item.uniqueEffectKey, params: item.uniqueEffectParams || null, itemName: item.name || '', sourceSlot: equipSlotKey });
-        if (mirrorSourceItem && mirrorSourceItem.rarity === 'unique' && mirrorSourceItem.uniqueEffectKey) equippedUniqueEffects.push({ key: mirrorSourceItem.uniqueEffectKey, params: mirrorSourceItem.uniqueEffectParams || null, itemName: mirrorSourceItem.name || '', sourceSlot: resolvedItem.mirrorSourceSlot });
-        let itemBaseStats = resolvedItem.baseStats;
-        applyStatsToBucket(gearBase, itemBaseStats);
-        let explicitItemStats = resolvedItem.explicitStats;
-        applyStatsToBucket(gearExplicit, explicitItemStats);
-        let itemBaseArmor = 0, itemBaseEvasion = 0, itemBaseEs = 0;
-        let itemFlatArmor = 0, itemFlatEvasion = 0, itemFlatEs = 0;
-        let itemPctArmor = 0, itemPctEvasion = 0, itemPctEs = 0;
-        itemBaseStats.forEach(stat => {
-            if (!stat) return;
-            if (stat.id === 'armor') itemBaseArmor += Number(stat.val || 0);
-            if (stat.id === 'evasion') itemBaseEvasion += Number(stat.val || 0);
-            if (stat.id === 'energyShield') itemBaseEs += Number(stat.val || 0);
-            if (stat.id === 'baseBlockChance') shieldBaseBlockChance += Number(stat.val || 0);
-        });
-        let accumulateExplicitDefense = stat => {
-            if (!stat) return;
-            if (stat.id === 'armor') itemFlatArmor += Number(stat.val || 0);
-            if (stat.id === 'evasion') itemFlatEvasion += Number(stat.val || 0);
-            if (stat.id === 'energyShield') itemFlatEs += Number(stat.val || 0);
-            if (stat.id === 'armorPct') itemPctArmor += Number(stat.val || 0);
-            if (stat.id === 'evasionPct') itemPctEvasion += Number(stat.val || 0);
-            if (stat.id === 'energyShieldPct') itemPctEs += Number(stat.val || 0);
-            if (stat.id === 'baseBlockChance') shieldBaseBlockChance += Number(stat.val || 0);
-            if (stat.id === 'blockChancePct') shieldBlockChancePct += Number(stat.val || 0);
-            if (stat.id === 'blockChance') shieldBlockChanceFlat += Number(stat.val || 0);
-        };
-        explicitItemStats.forEach(stat => {
-            if (!stat) return;
-            accumulateExplicitDefense(stat);
-            // 복합 옵션(한 줄에 방어flat + 방어%)의 추가 스탯도 방어 합산에 반영.
-            if (Array.isArray(stat.extraStats)) stat.extraStats.forEach(accumulateExplicitDefense);
-        });
-        let itemLocalArmor = (itemBaseArmor + itemFlatArmor) * (1 + itemPctArmor / 100);
-        localDefenseTotals.armor += itemLocalArmor;
-        localDefenseTotals.evasion += (itemBaseEvasion + itemFlatEvasion) * (1 + itemPctEvasion / 100);
-        localDefenseTotals.energyShield += (itemBaseEs + itemFlatEs) * (1 + itemPctEs / 100);
-        if (equipSlotKey === '방패' && item.slot === '방패') shieldArmorForDamage = Math.max(0, itemLocalArmor);
-        if (item.voidSocket && item.voidSocket.open && item.voidSocket.jewel) {
-            getJewelStats(item.voidSocket.jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, stat.val));
-        }
-        if (Array.isArray(item.abyssSockets) && item.abyssSockets.length > 0) {
-            let abyssAmp = 1;
-            if (item.uniqueEffectKey === 'abyssSocketAndJewelAmp') {
-                let p = item.uniqueEffectParams || {};
-                let min = Number(p.ampMin || 1), max = Number(p.ampMax || 100);
-                let pct = Number.isFinite(Number(p.ampPct)) ? Number(p.ampPct) : ((min + max) / 2);
-                abyssAmp = 1 + (pct / 100);
-            }
-            item.abyssSockets.forEach(sock => {
-                let jewel = sock && sock.jewel ? sock.jewel : null;
-                if (!jewel) return;
-                getJewelStats(jewel).forEach(stat => addStatToBucket(gearExplicit, stat.id, Number((stat.val * abyssAmp).toFixed(2))));
-            });
-        }
-    });
+    let growthSnapshot = getGrowthEffectSnapshot();
+    let resolvedSources = getPlayerStatSourceItemEntries().map(([slotKey, item]) =>
+        [slotKey, item, getResolvedEquipmentStatLists(slotKey, item, game, true, growthSnapshot)]);
+    let resolvedStats = resolvedSources.map(([, , stats]) => stats);
+    let excludedSlots = new Set();
+    let barbarismKeystone = findAllocatedPassiveKeystone('야만');
+    if (barbarismKeystone) excludedSlots.add('all:무기');
+    if (findAllocatedPassiveKeystone('지식의 통로')) excludedSlots.add('all:투구');
+    if (game.ascendClass === 'crusader' && hasKeystone('cr3') && !hasKeystone('cr9')) excludedSlots.add('무기');
+    let { gearBase, gearExplicit, localDefenseTotals, shieldArmorForDamage, shieldBaseBlockChance,
+        shieldBlockChancePct, shieldBlockChanceFlat, equippedUniqueEffects } =
+        getCombatEquipmentContributions(resolvedSources, excludedSlots);
     // 생장판 공간 시너지: 배치 기하로만 결정되는 정적 보너스를 한 번에 합산한다.
     // reward 버킷은 평탄/증가 방어와 막기까지 모두 최종 합산식에 포함되므로 여기로 흘려보낸다.
-    if (typeof applyGrowthSpatialStats === 'function') applyGrowthSpatialStats(reward);
+    if (typeof applyGrowthSpatialStats === 'function') applyGrowthSpatialStats(reward, growthSnapshot);
     getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
     game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [0, 0, 0, 0];
     (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
@@ -3744,14 +3697,14 @@ function getPlayerStats() {
             + season[statId] + ascend[statId] + reward[statId] + (starBlessing[statId] || 0);
     }
 
-    let gemSources = getTargetGemBonusSources(game.activeSkill);
+    let gemSources = getTargetGemBonusSources(game.activeSkill, undefined, resolvedStats);
     safeEquippedSupports.forEach(name => {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
         if (!db) return;
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-        let supportGemSources = getTargetGemBonusSources(name);
+        let supportGemSources = getTargetGemBonusSources(name, undefined, resolvedStats);
         let effectiveLevel = Math.max(1, gem.level + supportGemSources.total);
         let val;
         if (db.scaleWithOwnStat) {
@@ -5033,7 +4986,7 @@ function getPlayerStats() {
         };
     }
 
-    let breakdowns = {
+    let breakdowns = includeBreakdowns ? {
         ...getPassiveSpecialStatBreakdowns(authoredPassiveRules),
         atk: {
             title: '공격력',
@@ -5419,7 +5372,7 @@ function getPlayerStats() {
             ].filter(Boolean),
             final: `총 +${gemSources.total}`
         }
-    };
+    } : null;
 
 
     let enemy = {
@@ -5691,34 +5644,7 @@ function getPlayerStats() {
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
     enemy.directDps = Math.max(0, enemy.dps || 0);
     enemy.totalDps = enemy.directDps + enemy.summonDps;
-    enemy.breakdowns.directDps = {
-        title: '직접 DPS',
-        lines: (enemy.breakdowns.dps && enemy.breakdowns.dps.lines ? enemy.breakdowns.dps.lines.slice() : []),
-        final: `${Math.floor(enemy.directDps)}`
-    };
-    enemy.breakdowns.summonDps = {
-        title: '소환 DPS',
-        lines: summonEstimate.lines || [],
-        final: `${Math.floor(enemy.summonDps)}`
-    };
-    enemy.breakdowns.summonCap = {
-        title: '소환수 한도',
-        lines: [
-            `현재 소환 한도 ${enemy.summonCap}`,
-            `최대 소환 한도 ${getSummonCapMaximum()}`,
-            game.ascendClass === 'soulbinder' && hasKeystone('sb9') ? '대군주: 현재 생명력이 가장 낮은 하위 1/3(최대 4기)이 유령 상태' : '기본 최대 한도 8'
-        ],
-        final: `${enemy.summonCap} / 최대 ${getSummonCapMaximum()}`
-    };
-    enemy.breakdowns.dps = {
-        title: '총 DPS',
-        lines: [
-            `직접 DPS ${Math.floor(enemy.directDps)}`,
-            `예상 소환 DPS ${Math.floor(enemy.summonDps)}`,
-            `총 DPS = 직접 DPS + 예상 소환 DPS`
-        ].concat((enemy.breakdowns.dps && enemy.breakdowns.dps.lines ? enemy.breakdowns.dps.lines : [])),
-        final: `${Math.floor(enemy.totalDps)}`
-    };
+    appendPlayerDpsBreakdowns(enemy, summonEstimate);
     if (uniqueImmuneIgnite) enemy.immuneIgnite = true;
     if (uniqueFrostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
     if (uniqueImmuneFreeze) enemy.immuneFreeze = true;
@@ -5736,6 +5662,35 @@ function getPlayerStats() {
         enemy.immunePoison = true;
     }
     return enemy;
+}
+
+function appendPlayerDpsBreakdowns(stats, summonEstimate) {
+    if (!stats.breakdowns) return;
+    let directLines = stats.breakdowns.dps.lines;
+    stats.breakdowns.directDps = {
+        title: '직접 DPS', lines: directLines.slice(), final: `${Math.floor(stats.directDps)}`
+    };
+    stats.breakdowns.summonDps = {
+        title: '소환 DPS', lines: summonEstimate.lines || [], final: `${Math.floor(stats.summonDps)}`
+    };
+    stats.breakdowns.summonCap = {
+        title: '소환수 한도',
+        lines: [
+            `현재 소환 한도 ${stats.summonCap}`,
+            `최대 소환 한도 ${getSummonCapMaximum()}`,
+            game.ascendClass === 'soulbinder' && hasKeystone('sb9') ? '대군주: 현재 생명력이 가장 낮은 하위 1/3(최대 4기)이 유령 상태' : '기본 최대 한도 8'
+        ],
+        final: `${stats.summonCap} / 최대 ${getSummonCapMaximum()}`
+    };
+    stats.breakdowns.dps = {
+        title: '총 DPS',
+        lines: [
+            `직접 DPS ${Math.floor(stats.directDps)}`,
+            `예상 소환 DPS ${Math.floor(stats.summonDps)}`,
+            `총 DPS = 직접 DPS + 예상 소환 DPS`
+        ].concat(directLines),
+        final: `${Math.floor(stats.totalDps)}`
+    };
 }
 
 function getGemPresentation(name, isSupport, statsOverride) {

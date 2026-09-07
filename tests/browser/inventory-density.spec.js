@@ -53,23 +53,39 @@ test('inventory prioritizes equipment while keeping search and management usable
     if (!testInfo.project.name.startsWith('mobile')) expect(geometry.summaryBelow).toBe(true);
     expect(geometry.overflow).toBeLessThanOrEqual(1);
     const search = page.locator('#ui-inventory-list [data-search-key="equip"]');
+    const visibleItems = page.locator('.equipment-grid-item[data-equipment-grid-key]');
+    const itemCount = await visibleItems.count();
     await search.fill('검색결과가없을문구');
     await expect(page.locator('#ui-inventory-page-label')).toContainText('검색 결과 0개');
+    await expect(visibleItems).toHaveCount(itemCount);
+    await expect(page.locator('.equipment-grid-item.is-filter-muted')).toHaveCount(itemCount);
     await page.locator('#ui-inventory-list .search-action-row button').click();
     await expect(search).toHaveValue('');
     await expect(page.locator('#btn-auto-salvage')).toBeVisible();
     await page.locator('#btn-auto-salvage').click();
     await expect(page.locator('#auto-salvage-config-overlay')).toBeVisible();
     await page.locator('#auto-salvage-config-overlay').getByRole('button', { name: '닫기', exact: true }).click();
+    if (await page.locator('.equipment-mobile-management').isVisible()) {
+        await page.locator('.equipment-mobile-management').click();
+    }
     await expect(page.getByRole('button', { name: '전체 해체', exact: true })).toBeVisible();
     await expect(page.locator('#ui-equipment-triage')).toBeVisible();
     await page.locator('#ui-equipment-triage').getByRole('button', {name:'일괄 분석',exact:true}).click();
     await expect(page.locator('#ui-equipment-triage').getByRole('button', {name:'다시 분석',exact:true})).toBeVisible();
+    await page.locator('#ui-equipment-triage select').selectOption('special');
+    await expect(visibleItems).toHaveCount(itemCount);
+    await expect.poll(() => page.locator('.equipment-grid-item.is-filter-muted, .equipment-grid-item.is-filter-match').count()).toBe(itemCount);
+    await page.locator('#ui-equipment-triage select').selectOption('all');
     const target = await page.evaluate(() => {
         const item = game.inventory.find(entry => ['투구', '갑옷', '신발', '허리띠'].includes(entry.slot));
         return { id: item.id, slot: item.slot, key: equipmentInventoryGridRuntime.getItemKey(item) };
     });
     const card = page.locator('[data-equipment-grid-key="' + target.key + '"]');
+    await page.locator('#ui-equipment-slot-filter').selectOption(target.slot);
+    await expect(card).toHaveClass(/is-filter-match/);
+    await expect.poll(() => page.locator('.equipment-grid-item.is-filter-muted').count()).toBeGreaterThan(0);
+    await search.fill('검색결과가없을문구');
+    await expect(card).toHaveClass(/is-filter-muted/);
     await card.scrollIntoViewIfNeeded();
     const beforeClick = await card.boundingBox();
     await card.click();

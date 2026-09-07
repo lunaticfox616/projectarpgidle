@@ -1194,7 +1194,7 @@ function renderProfileGrowthList(rows) {
         let color = socialRarityColor(it.rarity);
         let key = `gw:${idx}`;
         socialState.profileTips[key] = renderProfileItemCard(it);
-        return `<div class="social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(it.slot || '생장')}]</div><div class="social-slot-name" style="color:${color};">${socialEscape(it.name)}</div></div>`;
+        return `<div class="social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(it.slot || '생장')}]</div><div class="social-slot-name" style="color:var(--ui-text);">${socialEscape(it.name)}</div></div>`;
     }).join('') + `</div>`;
 }
 
@@ -1262,7 +1262,7 @@ function renderProfileLegacyPaperdoll(equipment) {
         let color = socialRarityColor(it.rarity);
         let key = `eq:${slot}`;
         socialState.profileTips[key] = renderProfileItemCard(it);
-        return `<div class="slot-box slot-${slot} social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(baseLabel)}]</div><div class="social-slot-name" style="color:${color};">${socialEscape(it.name)}</div></div>`;
+        return `<div class="slot-box slot-${slot} social-slot" style="border-color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')"><div class="social-slot-tag">[${socialEscape(baseLabel)}]</div><div class="social-slot-name" style="color:var(--ui-text);">${socialEscape(it.name)}</div></div>`;
     }).join('') + `</div>`;
 }
 // 부적: 실제 배치도(8x8 보드) 형태
@@ -1333,7 +1333,7 @@ function renderProfileData(profile) {
     let p = profile;
     let stats = Array.isArray(p.stats) ? p.stats : [];
     let statsHtml = stats.length
-        ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${socialEscape(s.label)}</span><span class="social-stat-value" style="color:${socialSafeColor(s.color, '#eaf2ff')};">${socialEscape(s.value)}</span></div>`).join('')
+        ? stats.map(s => `<div class="social-stat-item"><span class="social-stat-label">${socialEscape(s.label)}</span><span class="social-stat-value">${socialEscape(s.value)}</span></div>`).join('')
         : `<div class="social-profile-empty">스탯 정보 없음</div>`;
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
@@ -1348,11 +1348,11 @@ function renderProfileData(profile) {
         </div>
         <div class="social-profile-cols">
             <div class="social-profile-col">
-                <h3>📊 스탯</h3>
+                <h3>능력치</h3>
                 <div class="social-stat-grid">${statsHtml}</div>
             </div>
             <div class="social-profile-col">
-                <h3>🎒 장착</h3>
+                <h3>장착 구성</h3>
                 <div id="social-profile-tabs" class="social-profile-tabs">
                     <button data-cat="equipment" class="active" onclick="switchProfileTab('equipment')">장비</button>
                     <button data-cat="jewels" onclick="switchProfileTab('jewels')">주얼</button>
@@ -1496,24 +1496,24 @@ function injectSocialStyles() {
     .social-item-link{display:inline-block;font-size:0.86em;font-weight:700;border:1px solid;border-radius:6px;padding:0 6px;margin:0 1px;cursor:pointer;}
     .social-item-link:hover{filter:brightness(1.2);}
     .social-modal-overlay{position:fixed;inset:0;background:rgba(4,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
-    .social-modal-box{position:relative;width:min(760px,calc(96vw / var(--ui-display-factor, 1)));max-height:calc(90vh / var(--ui-display-factor, 1));display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(170deg,#101a2a,#0c1421);border:1px solid #2c4063;border-radius:14px;}
-    .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:18px 56px 20px 20px;}
+    .social-modal-box{position:relative;width:min(760px,calc(96vw / var(--ui-display-factor, 1)));max-height:calc(90vh / var(--ui-display-factor, 1));display:flex;flex-direction:column;overflow:hidden;background:var(--ui-surface-1);border:1px solid var(--ui-line-strong);border-radius:var(--ui-radius-lg);color:var(--ui-text);}
+    .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:20px;min-height:0;overscroll-behavior:contain;}
     /* position 계열에 !important: ui-premium.css 의 고특이도 전역 버튼 규칙(position:relative)이
        덮어쓰면 X버튼이 왼쪽 위 일반 흐름으로 배치되어 한 줄을 차지하는 문제가 재발한다. */
-    .social-modal-close{position:absolute !important;top:10px !important;right:12px !important;left:auto !important;z-index:3;box-sizing:border-box;width:30px;height:30px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:rgba(28,44,68,0.55);border:1px solid rgba(90,120,160,0.4);color:#ffffff;border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
-    .social-modal-close:hover{background:rgba(44,64,96,0.9);}
+    .social-modal-close{position:absolute !important;top:10px !important;right:12px !important;left:auto !important;z-index:3;box-sizing:border-box;width:36px;height:36px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:var(--ui-surface-2);border:1px solid var(--ui-line);color:var(--ui-text);border-radius:50%;cursor:pointer;font-size:0.9em;line-height:1;}
+    .social-modal-close:hover{background:var(--ui-surface-3);}
     .social-profile-empty{color:var(--copy-muted);text-align:center;padding:24px;}
-    .social-profile-header{border-bottom:1px solid #233a59;padding-bottom:12px;margin-bottom:14px;padding-right:34px;}
-    .social-profile-name{font-size:1.4em;font-weight:800;color:#f0d7a6;}
+    .social-profile-header{border-bottom:1px solid var(--ui-line);padding-bottom:12px;margin-bottom:14px;padding-right:34px;}
+    .social-profile-name{font-size:1.4em;font-weight:800;color:var(--ui-accent);}
     .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
     .social-profile-updated{color:var(--copy-muted);font-size:0.78em;margin-top:4px;}
     .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}
-    .social-profile-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    .social-profile-col{min-width:0;}.social-profile-cols{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:16px;}
     @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
     .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}
     .social-profile-tabs{display:flex;gap:6px;margin-bottom:8px;}
-    .social-profile-tabs button{flex:1;padding:6px 4px;background:#13202f;border:1px solid #20324b;border-radius:7px;color:#ffffff;cursor:pointer;font-size:0.84em;}
-    .social-profile-tabs button.active{background:#1d3350;border-color:#3a6ea5;color:#ffffff;font-weight:700;}
+    .social-profile-tabs button{flex:1;min-width:0;min-height:40px;padding:6px 4px;background:var(--ui-surface-2);border:1px solid var(--ui-line);border-radius:7px;color:var(--ui-text);cursor:pointer;font-size:0.84em;}
+    .social-profile-tabs button.active{background:var(--ui-surface-3);border-color:var(--ui-accent);color:var(--ui-text);font-weight:700;}
     @media(max-width:420px){
         .social-chat-inputbar{grid-template-columns:42px minmax(0,1fr) 52px;gap:5px;}
         .social-chat-inputbar button{padding:7px 8px;font-size:0.78em;}
@@ -1522,19 +1522,19 @@ function injectSocialStyles() {
         .social-send-btn{min-width:52px!important;}
     }
     .social-stat-grid{display:grid;grid-template-columns:1fr;gap:4px;}
-    .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:#13202f;border:1px solid #20324b;border-radius:6px;padding:5px 9px;}
+    .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:var(--ui-surface-2);border:1px solid var(--ui-line);border-radius:6px;padding:5px 9px;}
     .social-stat-label{color:var(--copy-bright);font-size:0.86em;}
-    .social-stat-value{font-weight:700;font-size:0.9em;}
+    .social-stat-value{color:var(--ui-text);font-weight:700;font-size:0.9em;}
     .social-mini-grid{display:flex;flex-direction:column;gap:6px;}
-    .social-mini-card{background:#0f1a28;border:1px solid;border-left-width:3px;border-radius:7px;padding:8px 10px;font-size:0.86em;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .social-mini-card:hover{background:#16243a;}
+    .social-mini-card{background:var(--ui-surface-2);border:1px solid;border-left-width:3px;border-radius:7px;padding:8px 10px;font-size:0.86em;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .social-mini-card:hover{background:var(--ui-surface-3);}
     .social-paperdoll{margin:0;}
-    .social-paperdoll .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;cursor:pointer;background:linear-gradient(170deg,#101722,#152238);}
-    .social-paperdoll .social-slot.empty{cursor:default;border:1px dashed #3a4d6e;}
+    .social-paperdoll .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;cursor:pointer;background:var(--ui-surface-2);}
+    .social-paperdoll .social-slot.empty{cursor:default;border:1px dashed var(--ui-line);}
     .social-paperdoll .social-slot-tag{font-size:0.66em;color:var(--copy-muted);font-weight:700;}
     .social-paperdoll .social-slot-name{font-size:0.74em;font-weight:700;line-height:1.15;word-break:break-all;}
     .social-growth-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;}
-    .social-growth-list .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;border:1px solid #3a4d6e;cursor:pointer;background:linear-gradient(170deg,#101722,#152238);}
+    .social-growth-list .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;border:1px solid #3a4d6e;cursor:pointer;background:var(--ui-surface-2);}
     .social-growth-list .social-slot-tag{font-size:0.66em;color:#8aa0bd;font-weight:700;}
     .social-growth-list .social-slot-name{font-size:0.74em;font-weight:700;line-height:1.15;word-break:break-all;}
     .social-growth-legacy{margin:0 0 8px;padding:8px 10px;border:1px solid rgba(183,147,91,.32);border-radius:7px;color:#cbb996;background:rgba(73,53,28,.18);font-size:.76em;line-height:1.45;}

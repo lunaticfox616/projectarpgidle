@@ -1,8 +1,8 @@
 const vm = require('vm');
 const { buildGameRuntime } = require('./game-runtime');
 
-module.exports = function replayFixture(seed = 7) {
-    const runtime = buildGameRuntime();
+module.exports = function replayFixture(seed = 7, sourceOverrides) {
+    const runtime = buildGameRuntime(sourceOverrides);
     runtime.Math = Object.create(Math);
     runtime.Math.random = () => {
         seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;

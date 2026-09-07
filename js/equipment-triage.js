@@ -274,7 +274,8 @@
 
     function filterRows(rows) {
         if (state.status !== 'ready' || state.filter === 'all') return rows;
-        return rows.filter(row => matchesFilter(getResult(row && row.item)));
+        return rows.map(row => ({ ...row, filterActive: true,
+            filterMatched: row.filterMatched !== false && matchesFilter(getResult(row.item)) }));
     }
 
     function getResult(item) {

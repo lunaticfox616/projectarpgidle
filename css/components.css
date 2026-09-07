@@ -1171,22 +1171,22 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
   gap: 12px;
   margin-bottom: 10px;
   padding: 12px;
-  border: 1px solid #5266a6;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(35, 48, 86, .92), rgba(13, 20, 39, .95));
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-surface-2);
 }
-.underworld-entry-card.current { box-shadow: inset 3px 0 0 #aa8cff; }
+.underworld-entry-card.current { box-shadow: inset 3px 0 0 var(--ui-accent); }
 .underworld-entry-copy { display: grid; gap: 3px; min-width: 0; }
-.underworld-entry-copy > span { color: #c7d3ef; font-size: .8em; }
-.underworld-entry-copy > strong { color: #fff; font-size: 1.08em; }
+.underworld-entry-copy > span { color: var(--ui-text-2); font-size: .8em; }
+.underworld-entry-copy > strong { color: var(--ui-text); font-size: 1.08em; }
 .underworld-entry-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-.underworld-primary-action { border-color: #b69cff !important; color: #fff !important; }
+.underworld-entry-actions .underworld-primary-action { border-color: var(--ui-accent); color: var(--ui-text); }
 .underworld-panel {
   padding: 12px;
-  border: 1px solid #3f3569;
-  border-radius: 12px;
-  background: #0f1120;
-  color: #d6cdf6;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-surface-2);
+  color: var(--ui-text-2);
 }
 .underworld-panel-head,
 .underworld-section-head,
@@ -1205,27 +1205,30 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 .underworld-panel-head > div:first-child > span,
 .underworld-section-head span,
 .underworld-section-head small,
-.underworld-upgrade-card span { color: #c6d0e5; font-size: .8em; }
-.underworld-panel-head > div:first-child > span.locked { color: #ffcf8a; }
+.underworld-upgrade-card span { color: var(--ui-text-2); font-size: .8em; }
+.underworld-panel-head > div:first-child > span.locked { color: var(--ui-text-2); }
 .underworld-resource-strip { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
 .underworld-resource-strip span {
   padding: 4px 7px;
-  border: 1px solid #364664;
+  border: 1px solid var(--ui-line);
   border-radius: 999px;
-  background: rgba(18, 29, 51, .8);
-  color: #dce7fb;
+  background: var(--ui-surface-2);
+  color: var(--ui-text-2);
   font-size: .78em;
 }
-.underworld-resource-strip b { color: #fff; }
+.underworld-resource-strip b { color: var(--ui-text); }
 .underworld-rune-console { margin-top: 10px; }
 .underworld-action-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: 2fr 1fr;
   gap: 6px;
   margin-top: 9px;
 }
+.underworld-action-grid section { min-width:0; padding:10px; border:1px solid var(--ui-line); border-radius:6px; }
+.underworld-action-grid h4 { margin:0 0 8px; color:var(--ui-text-2); font-size:13px; }
+.underworld-action-grid section > div { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:6px; }
 .underworld-action-grid button { display: grid; gap: 2px; min-height: 48px; padding: 6px; }
-.underworld-action-grid button span { color: #d7dfed; font-size: .72em; }
+.underworld-action-grid button span { color: var(--ui-text-2); font-size: .72em; }
 .underworld-lower-grid {
   display: grid;
   grid-template-columns: minmax(240px, .8fr) minmax(280px, 1.2fr);
@@ -1235,12 +1238,12 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 .underworld-upgrade-card,
 .underworld-inventory-card {
   padding: 9px;
-  border: 1px solid #3a526e;
-  border-radius: 10px;
-  background: rgba(24, 38, 58, .62);
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-surface-2);
 }
-.underworld-inventory-card summary { color: #eef4ff; cursor: pointer; font-weight: 700; }
-.underworld-inventory-card p { margin: 7px 0 0; color: #d9c8aa; font-size: .78em; }
+.underworld-inventory-card summary { color: var(--ui-text-2); cursor: pointer; font-weight: 700; }
+.underworld-inventory-card p { margin: 7px 0 0; color: var(--ui-text-2); font-size: .78em; }
 
 .underworld-rune-slots {
   display: grid;
@@ -1248,30 +1251,30 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
   gap: 8px;
   margin-top: 8px;
   padding: 10px;
-  border: 1px solid #313f66;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #12192d, #0c1020);
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-surface-2);
 }
 .underworld-rune-slot {
   min-height: 74px;
-  border-radius: 12px;
+  border-radius: 6px;
   padding: 8px 7px;
   text-align: center;
-  border: 1px solid #3d435c;
-  background: linear-gradient(180deg, #1b1d2a, #121420);
-  color: #eef2f6;
+  border: 1px solid var(--ui-line);
+  background: var(--ui-surface-2);
+  color: var(--ui-text-2);
   cursor: not-allowed;
 }
 .underworld-rune-slot.unlocked {
-  border-color: #6478bf;
-  background: linear-gradient(180deg, #202b4a, #141c33);
-  color: #dce6ff;
+  border-color: var(--ui-line-strong);
+  background: var(--ui-surface-2);
+  color: var(--ui-text-2);
   cursor: pointer;
   box-shadow: inset 0 1px 0 rgba(190, 210, 255, 0.08);
 }
 .underworld-rune-slot.unlocked:hover,
 .underworld-rune-slot.unlocked:focus-visible {
-  border-color: #9b7cff;
+  border-color: var(--ui-line-strong);
   box-shadow: 0 0 0 2px rgba(155, 124, 255, 0.18), 0 10px 24px rgba(0,0,0,0.24);
   transform: translateY(-1px);
 }
@@ -1303,16 +1306,16 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 }
 .underworld-equipped-row {
   padding: 4px 7px;
-  border: 1px solid #34486d;
-  border-radius: 8px;
-  background: rgba(25, 34, 58, 0.72);
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-surface-2);
 }
 .underworld-rune-chip {
-  border: 1px solid #3b4d76;
+  border: 1px solid var(--ui-line);
   border-radius: 999px;
   padding: 4px 8px;
-  background: #18243d;
-  color: #ffffff;
+  background: var(--ui-surface-2);
+  color: var(--ui-text);
   cursor: help;
 }
 .underworld-rune-overlay {
@@ -1355,9 +1358,9 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 .underworld-rune-current {
   margin-bottom: 10px;
   padding: 9px;
-  border: 1px solid #34486d;
-  border-radius: 10px;
-  background: rgba(12, 18, 36, 0.68);
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-surface-2);
 }
 .underworld-rune-option-grid {
   display: grid;
@@ -1368,16 +1371,16 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
   min-height: 72px;
   padding: 9px;
   text-align: left;
-  border: 1px solid #3f547f;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #1d2d4c, #14213a);
-  color: #ffffff;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-surface-2);
+  color: var(--ui-text);
   cursor: pointer;
 }
 .underworld-rune-option:hover,
 .underworld-rune-option:focus-visible {
-  border-color: #a58cff;
-  background: linear-gradient(180deg, #263a62, #182849);
+  border-color: var(--ui-line-strong);
+  background: var(--ui-surface-2);
 }
 .underworld-rune-option strong,
 .underworld-rune-option span {
@@ -1411,20 +1414,20 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
   .underworld-entry-actions { justify-content: stretch; }
   .underworld-entry-actions button { flex: 1; }
   .underworld-resource-strip { justify-content: flex-start; }
-  .underworld-action-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .underworld-action-grid { grid-template-columns: 1fr; }
   .underworld-lower-grid { grid-template-columns: 1fr; }
   .underworld-rune-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .craft-selected-body { padding-right: 0; }
 }
 @media (max-width: 460px) {
-  .underworld-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .underworld-action-grid { grid-template-columns: 1fr; }
   .underworld-rune-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 .underworld-rune-option:disabled {
   opacity: 0.56;
   cursor: not-allowed;
-  border-color: #33405f;
-  background: linear-gradient(180deg, #1a2236, #111827);
+  border-color: var(--ui-line-strong);
+  background: var(--ui-surface-2);
 }
 
 .talent-bloom-navigator,
@@ -2002,3 +2005,15 @@ html, body { overflow: hidden; }
 .records-table tbody tr:nth-child(odd) { background: rgba(255, 255, 255, 0.03); }
 .records-table td.records-num { text-align: right; font-variant-numeric: tabular-nums; }
 .records-table td.is-best { color: #8fe7b0; font-weight: 800; }
+/* 공허 노드 제작: 공통 테마와 같은 표면/구분선, 작은 화면에서는 버튼 한 열. */
+.void-craft-overlay { position: fixed; inset: 0; z-index: 10040; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.72); }
+.void-craft-dialog { box-sizing: border-box; width: min(560px,100%); max-height: calc(90dvh / var(--ui-display-factor,1)); overflow: auto; padding: 18px; background: var(--ui-surface-1); color: var(--ui-text); border: 1px solid var(--ui-line-strong); border-radius: var(--ui-radius-lg); box-shadow: 0 20px 70px rgba(0,0,0,.5); font-size: 14px; line-height: 1.6; }
+.void-craft-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+#void-craft-title { color: var(--ui-accent); font-size: 18px; font-weight: 800; }
+.void-craft-subtitle, .void-craft-hint { color: var(--ui-text-2); }
+.void-craft-effect { padding: 12px; margin-bottom: 12px; background: var(--ui-surface-2); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); }
+.void-craft-actions { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 12px 0; }
+.void-craft-dialog button { min-height: 40px; white-space: normal; line-height: 1.5; }
+.void-craft-actions span { font-size: 12px; font-weight: 400; }
+.void-craft-footer { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--ui-line); }
+@media(max-width:600px) { .void-craft-dialog { padding: 14px; } .void-craft-actions { grid-template-columns: 1fr; } .void-craft-dialog button { min-height: 44px; } }

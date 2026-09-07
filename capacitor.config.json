@@ -1,0 +1,8 @@
+{
+  "appId": "com.rignin.game",
+  "appName": "RIGNIN",
+  "webDir": "www",
+  "backgroundColor": "#05080e",
+  "android": { "allowMixedContent": false },
+  "plugins": { "SystemBars": { "style": "DARK", "insetsHandling": "css" } }
+}

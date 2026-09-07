@@ -277,17 +277,17 @@
 .background-combat-progress-overlay,
 .background-combat-result-overlay { position: fixed; inset: 0; z-index: 12050; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(4, 7, 12, 0.48); pointer-events: auto; }
 .background-combat-progress-card,
-.background-combat-result-card { display: block; max-width: 520px; }
-.background-combat-progress-card { min-width: min(360px, calc(100vw - 32px)); border: 1px solid rgba(118, 148, 190, 0.72); border-radius: 14px; padding: 18px; background: rgba(13, 20, 31, 0.88); color: #ffffff; box-shadow: 0 18px 52px rgba(0, 0, 0, 0.45); }
-#background-combat-progress-percent { margin-top: 8px; color: #ffd36b; font-weight: 800; }
-.background-combat-progress-track { width: 100%; height: 12px; margin-top: 9px; overflow: hidden; border: 1px solid rgba(113, 148, 190, 0.62); border-radius: 999px; background: rgba(3, 7, 13, 0.86); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.7); }
-#background-combat-progress-bar-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #4389c7, #67d6ff 62%, #ffe28a); box-shadow: 0 0 14px rgba(103, 214, 255, 0.4); transition: width 0.08s linear; }
-#background-combat-progress-duration { margin-top: 6px; color: #ffffff; }
-.background-combat-speed-guide { margin-top: 10px; color: #a9c8df; font-size: 0.86em; line-height: 1.4; }
-#background-combat-fast-button { width: 100%; margin-top: 12px; border-color: rgba(103, 214, 255, 0.7); background: linear-gradient(180deg, rgba(55, 130, 184, 0.9), rgba(28, 76, 116, 0.94)); color: #f3fbff; font-weight: 800; }
-#background-combat-fast-button:disabled { opacity: 0.72; cursor: wait; }
-.background-combat-exp-lost { color: #ff9b9b; font-size: 0.92em; }
-.background-combat-capped { color: #ffcf8a; }
+.background-combat-result-card { display: block; width: min(520px, 100%); max-height: calc(100dvh - 32px); overflow: auto; box-sizing: border-box; }
+.background-combat-progress-card { min-width: min(360px, calc(100vw - 32px)); border: 1px solid var(--ui-line); border-radius: 6px; padding: 18px; background: var(--ui-surface-2); color: var(--ui-text); box-shadow: 0 18px 52px rgba(0, 0, 0, 0.45); }
+#background-combat-progress-percent { margin-top: 8px; color: var(--ui-text-2); font-weight: 800; }
+.background-combat-progress-track { width: 100%; height: 12px; margin-top: 9px; overflow: hidden; border: 1px solid var(--ui-line); border-radius: 999px; background: var(--ui-surface-2); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.7); }
+#background-combat-progress-bar-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--ui-accent-strong), var(--ui-accent)); box-shadow: 0 0 14px rgba(103, 214, 255, 0.4); transition: width 0.08s linear; }
+#background-combat-progress-duration { margin-top: 6px; color: var(--ui-text); }
+.background-combat-speed-guide { margin-top: 10px; color: var(--ui-text-2); font-size: 0.86em; line-height: 1.4; }
+#background-combat-fast-button { width: 100%; margin-top: 12px; border-color: var(--ui-line-strong); background: var(--ui-surface-2); color: var(--ui-text); font-weight: 800; }
+#background-combat-fast-button:disabled { opacity: 0.6; }
+.background-combat-exp-lost { color: var(--ui-text-2); font-size: 0.92em; }
+.background-combat-capped { color: var(--ui-text-2); }
 
 @media (max-width: 1080px) {
   /* 모바일 목표 안내: 접힌 상태는 상단 전투 정보 아래 한 줄 배너, 탭하면 하단 시트. */
@@ -334,3 +334,9 @@
 
 @keyframes uiHpDangerPulse { 0%,100% { box-shadow: 0 0 0 1px rgba(70, 214, 128, 0.30); } 50% { box-shadow: 0 0 0 2px rgba(255, 95, 86, 0.50); } }
 @media (prefers-reduced-motion: reduce) { body.desktop-windowed-ui #ui-hp-bar { animation: none !important; } }
+
+.background-combat-actions { display:grid; gap:8px; margin-top:16px; }
+.background-combat-actions button { min-height:42px; margin:0; }
+#background-combat-sacrifice, #background-combat-skipped { color:var(--ui-text-2); font-size:13px; line-height:1.6; }
+#background-combat-skipped:empty { display:none; }
+.background-combat-progress-card h2 { font-size:18px; color:var(--ui-text); border-bottom-color:var(--ui-line-strong); margin:0 0 16px; }

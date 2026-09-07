@@ -24,3 +24,10 @@ debug.log
 /assets/effects/skill-earth-spike-v1.png
 __pycache__/
 *.pyc
+
+# Rebuilt Android web bundle, local SDK paths and signing material.
+/www/
+*.apk
+*.aab
+*.jks
+*.keystore

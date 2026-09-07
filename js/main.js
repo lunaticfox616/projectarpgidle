@@ -2,7 +2,7 @@ const WOODSMAN_BREAK_LOOP_REQUIRED = 5;
 const foregroundCombatClock = { lastAtMs: null, remainderMs: 0 };
 
 function runForegroundCombat(nowMs) {
-    let paused = document.hidden || backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || isForegroundGameplayPausedForBackground();
+    let paused = document.hidden || backgroundCombatRuntime.appInactive || backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || isForegroundGameplayPausedForBackground();
     let steps = takeForegroundCombatSteps(foregroundCombatClock, nowMs, paused);
     let executed = 0;
     for (; executed < steps; executed++) {

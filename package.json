@@ -9,15 +9,26 @@
     "test:browser": "playwright test",
     "pr:check": "node scripts/check-pr-state.js",
     "passive:edit": "node scripts/passive-tree-editor-server.js",
-    "vfx:edit": "node scripts/skill-vfx-editor-server.js"
+    "vfx:edit": "node scripts/skill-vfx-editor-server.js",
+    "build:mobile": "node scripts/build-mobile-web.js",
+    "android:sync": "npm run build:mobile && cap sync android"
   },
   "engines": {
     "node": ">=20"
   },
+  "overrides": { "xcode": { "uuid": "11.1.1" } },
   "devDependencies": {
+    "@capacitor/cli": "8.5.1",
     "@playwright/test": "^1.62.1",
     "eslint": "^9.39.5",
     "espree": "^10.4.0",
     "globals": "^14.0.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.1",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/browser": "8.0.4",
+    "@capacitor/core": "8.5.1",
+    "@supabase/supabase-js": "2.115.0"
   }
 }

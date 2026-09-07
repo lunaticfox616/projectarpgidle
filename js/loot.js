@@ -1,9 +1,10 @@
 // Loot domain: drop rates, rewards and codex bonuses. No DOM or renderer dependencies.
+const UNIQUE_CODEX_KEYS = new Set(UNIQUE_DB.filter(entry => !entry.realmCodexOnly)
+    .map(entry => `${entry.slots[0]}|${entry.name}`));
 function getUniqueCodexProgress() {
-    let keys = new Set(UNIQUE_DB.filter(entry => !entry.realmCodexOnly).map(entry => `${entry.slots[0]}|${entry.name}`));
     let codex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
-    let stored = Object.keys(codex).filter(key => !!codex[key] && keys.has(key)).length;
-    return { stored: stored, total: keys.size };
+    let stored = Object.keys(codex).filter(key => !!codex[key] && UNIQUE_CODEX_KEYS.has(key)).length;
+    return { stored: stored, total: UNIQUE_CODEX_KEYS.size };
 }
 
 function getCodexBonusPctFromCount(storedCount) {
