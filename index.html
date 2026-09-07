@@ -40,7 +40,7 @@
     <link rel="stylesheet" href="css/ui-windows.css?v=20260722-combat-icons2&endgame=20260820-tabs1&battle-main=20260905-1&realm-ui=20260907-1">
     <link rel="stylesheet" href="css/ui-feedback.css?v=20260721-galmuri-body1&reset-confirm=20260903-1&refinement=20260906-1&font=20260906-1&mobile-review=20260907-2">
     <link rel="stylesheet" href="css/content-progression.css?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&first-prompt=1&branch-reveal=1&flask-slots=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1">
-    <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1&mobile=20260818-flow-pip1&map-actions=20260820-1&battle-layout=20260902-2&mobile-review=20260907-2&flask-mobile=20260908-1&passive-selection=20260908-1&tree-tools=20260908-1&craft-search=20260908-1&mobile-exchange=20260908-1&mobile-services=20260908-1&mobile-black=20260908-1&jewel-workspace=20260908-1&equipment-nav=20260908-1">
+    <link rel="stylesheet" href="css/mobile.css?v=20260717-gem-flask-mobile1&mobile=20260818-flow-pip1&map-actions=20260820-1&battle-layout=20260902-2&mobile-review=20260907-2&flask-mobile=20260908-1&passive-selection=20260908-1&tree-tools=20260908-1&craft-search=20260908-1&mobile-exchange=20260908-1&mobile-services=20260908-1&mobile-black=20260908-1&jewel-workspace=20260908-1&equipment-nav=20260908-1&sea-gift-groups=20260908-1">
     <link rel="stylesheet" href="css/ghost-pvp.css?v=20260817-battle-replay1">
     <link rel="stylesheet" href="css/player-exchange.css?v=20260818-hall-reliquary1">
     <link rel="stylesheet" href="css/cosmos-atlas.css?v=20260719-white-copy1-20260810-ux-refine1-20260810-constellation-layout1&power=20260811-approx1&directives=20260817-2&arcana-quest=20260820-1&realm-ui=20260907-1">
@@ -1146,8 +1146,15 @@
                 <summary id="ui-fishing-collection-summary">심해 도감</summary>
                 <div id="ui-fishing-collection"></div>
             </details>
-            <section id="fishing-workshop">
+            <section id="fishing-workshop" data-recipe-group="supply">
             <h3 class="ocean-gift-heading">🎁 바다의 선물</h3>
+            <label class="sea-gift-group-picker">제작 종류
+                <select aria-label="바다의 선물 제작 종류" onchange="document.getElementById('fishing-workshop').dataset.recipeGroup=this.value; document.querySelector('[data-ui-disclosure=sea-gift-'+this.value+']').open=true">
+                    <option value="supply">재화 정제</option>
+                    <option value="forge">장비 가공</option>
+                    <option value="chase">심연의 비전</option>
+                </select>
+            </label>
             <div id="ui-sea-gift-panel" class="ocean-panel-shell"></div>
             </section>
         </div>

@@ -1,6 +1,7 @@
 /* Mobile-only layer (phase 2). */
 .skill-mobile-library-navigation { display: none; }
 .mobile-map-navigation { display: none; }
+.sea-gift-group-picker { display: none; }
 .flask-mobile-slots { display: none; }
 #passive-mobile-detail { display: none; }
 @media (max-width: 1080px) {
@@ -78,6 +79,12 @@
 /* Playable phone layout: switch composition instead of shrinking the desktop UI. */
 @media (max-width: 1080px) {
   html, body { width: 100%; max-width: 100%; overflow-x: hidden !important; }
+  .sea-gift-group-picker { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; margin: 10px 0; font-size: 13px; }
+  .sea-gift-group-picker select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+  #fishing-workshop[data-recipe-group="supply"] .ocean-recipe-group:not([data-ui-disclosure="sea-gift-supply"]),
+  #fishing-workshop[data-recipe-group="forge"] .ocean-recipe-group:not([data-ui-disclosure="sea-gift-forge"]),
+  #fishing-workshop[data-recipe-group="chase"] .ocean-recipe-group:not([data-ui-disclosure="sea-gift-chase"]),
+  #fishing-workshop[data-recipe-group="supply"] .ocean-craft-target { display: none; }
   #tab-items > .subtab-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
