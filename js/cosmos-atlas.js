@@ -837,8 +837,8 @@
             || window.isCosmosContentUnlockReady(window.game);
     }
 
-    function getNodeStatus(node) {
-        const state = getState();
+    // Batch renderers reuse their normalized state; one-off callers normalize here.
+    function getNodeStatus(node, state = getState()) {
         if (!isCosmosUnlocked()) return 'locked';
         if (state.cleared.includes(node.id)) return 'cleared';
         if (node.id === 'planet-0') return 'available';
@@ -890,8 +890,7 @@
         return !!(state && state.bossStones && state.bossStones[String(g)]);
     }
 
-    function getCosmosTierFloor() {
-        const state = getState();
+    function getCosmosTierFloor(state = getState()) {
         const count = Math.max(0, Math.min(5, getEquippedCosmosStoneCount(state)));
         return COSMOS_STONE_TIER_FLOORS[count] || 1;
     }
@@ -1242,10 +1241,10 @@
         renderCosmosAtlas();
     }
 
-    function getDisplayedNodeTier(node) {
+    function getDisplayedNodeTier(node, state) {
         const bossTier = getCosmosBossTier(node);
         if (bossTier != null) return bossTier;
-        return Math.max(Math.floor(node.tier || 1), getCosmosTierFloor());
+        return Math.max(Math.floor(node.tier || 1), getCosmosTierFloor(state));
     }
 
     function getCosmosDirectiveChoicesForNode(node, stateOverride) {
@@ -1438,7 +1437,7 @@
             const clearCount = getGalaxyClearCount(state, galaxy);
             const bossReady = clearCount >= GALAXY_BOSS_REQUIRED_CLEARS;
             const candidates = ATLAS.nodes.filter(node => node.orbit === galaxy
-                && getNodeStatus(node) === 'available' && (bossReady || node.tag !== 'boss'))
+                && getNodeStatus(node, state) === 'available' && (bossReady || node.tag !== 'boss'))
                 .sort((a, b) => a.routeOrder - b.routeOrder);
             const target = bossReady ? ATLAS.byId.get(bossId) : candidates[0];
             return {
@@ -1962,17 +1961,18 @@
     function renderCosmosDirectory() {
         const list = document.getElementById('cosmos-destination-list');
         if (!list) return;
+        const state = getState();
         const galaxy = document.getElementById('cosmos-directory-galaxy').value;
         const filter = document.getElementById('cosmos-directory-status').value;
         const rows = ATLAS.nodes.filter(node => {
             if (galaxy !== 'all' && node.orbit !== Number(galaxy)) return false;
             if (filter === 'boss') return node.tag === 'boss';
-            return filter === 'all' || getNodeStatus(node) === filter;
+            return filter === 'all' || getNodeStatus(node, state) === filter;
         });
         const html = rows.map(node => {
-            const status = getNodeStatus(node);
+            const status = getNodeStatus(node, state);
             const selected = node.id === ATLAS.selectedId;
-            return `<button type="button" class="cosmos-destination ${status}" data-cosmos-destination="${node.id}" aria-pressed="${selected}"><span><strong>${escapeHtml(node.name)}</strong><small>${node.orbit === 0 ? '관문' : node.orbit+'은하'} · 단계 ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · 보스' : ''}</small></span><span>${selected ? '선택됨' : getStatusLabel(status)}</span></button>`;
+            return `<button type="button" class="cosmos-destination ${status}" data-cosmos-destination="${node.id}" aria-pressed="${selected}"><span><strong>${escapeHtml(node.name)}</strong><small>${node.orbit === 0 ? '관문' : node.orbit+'은하'} · 단계 ${getDisplayedNodeTier(node, state)}${node.tag === 'boss' ? ' · 보스' : ''}</small></span><span>${selected ? '선택됨' : getStatusLabel(status)}</span></button>`;
         }).join('') || '<p class="cosmos-directory-empty">조건에 맞는 목적지가 없습니다. 다른 은하나 전체 목록을 확인하세요.</p>';
         if (list.innerHTML !== html) {
             const scrollTop = list.scrollTop;
@@ -2114,8 +2114,9 @@
         ctx.clearRect(0, 0, w, h);
         drawBackground(ctx, w, h);
         drawCosmosStonePulse(ctx);
-        drawEdges(ctx);
-        drawNodes(ctx);
+        const state = getState();
+        drawEdges(ctx, state);
+        drawNodes(ctx, state);
         drawCosmosStoneSlot(ctx);
         drawCosmosControls(ctx);
         if (shouldAnimateCosmos()) requestAtlasFrame();
@@ -2177,7 +2178,7 @@
         requestAtlasFrame();
     }
 
-    function drawEdges(ctx) {
+    function drawEdges(ctx, state) {
         ctx.save();
         ATLAS.edges.forEach(edge => {
             const a = ATLAS.byId.get(edge.a);
@@ -2185,8 +2186,8 @@
             if (!a || !b) return;
             const pa = worldToScreen(a);
             const pb = worldToScreen(b);
-            const sa = getNodeStatus(a);
-            const sb = getNodeStatus(b);
+            const sa = getNodeStatus(a, state);
+            const sb = getNodeStatus(b, state);
             if (sa === 'locked' && sb === 'locked') return;
             const open = sa !== 'locked' && sb !== 'locked';
             const partial = sa !== 'locked' || sb !== 'locked';
@@ -2243,10 +2244,10 @@
         }
     }
 
-    function drawNodes(ctx) {
+    function drawNodes(ctx, state) {
         ctx.save();
         ATLAS.nodes.slice().sort((a, b) => (a.kind === b.kind ? a.orbit - b.orbit : a.kind === 'asteroid' ? -1 : 1)).forEach(node => {
-            const status = getNodeStatus(node);
+            const status = getNodeStatus(node, state);
             const p = worldToScreen(node);
             const hover = ATLAS.hoverId === node.id;
             const selected = ATLAS.selectedId === node.id;
@@ -2382,7 +2383,7 @@
         if (!ATLAS.summary) return;
         const state = getState();
         const cleared = state.cleared.length;
-        const available = ATLAS.nodes.filter(node => getNodeStatus(node) === 'available').length;
+        const available = ATLAS.nodes.filter(node => getNodeStatus(node, state) === 'available').length;
         const planetsCleared = ATLAS.nodes.filter(n => n.kind === 'planet' && state.cleared.includes(n.id)).length;
         const asteroidsCleared = ATLAS.nodes.filter(n => n.kind === 'asteroid' && state.cleared.includes(n.id)).length;
         const unlocked = isCosmosUnlocked();
