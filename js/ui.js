@@ -10484,7 +10484,7 @@ function performUpdateStaticUI() {
             const statText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} ${stat.id} ${stat.val}`).join(' ');
             return matchSearchQuery(`${jewel.name || ''} ${jewel.rarity || ''} ${statText}`, sf.jewel);
         });
-        let jewelRowsHtml = jewelRows.map(({jewel, idx}) => {
+        let jewelRowsHtml = jewelLibraryUi.visibleRows(jewelRows, sf.jewel).map(({jewel, idx}) => {
             let selected = (jewelFusionSelection || []).includes(idx) || (jewelCraftTarget && jewelCraftTarget === jewel) ? 'selected' : '';
             let q = sf.jewel;
             let desc = getJewelStats(jewel).map(stat => {
@@ -10504,7 +10504,7 @@ function performUpdateStaticUI() {
             let manageActions = `<button onclick="selectJewelWorkbenchTarget(${idx},false)">제작대상</button><button onclick="selectJewelWorkbenchTarget(${idx},true)">융합선택</button>${jewel.waxedByBeeswax ? `<button disabled>밀랍</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="toggleJewelLock(${idx})">${jewel.locked ? '🔒 잠금' : '🔓 잠금'}</button><button onclick="salvageJewel(${idx})" ${jewel.locked ? 'disabled' : ''}>해체 +${getJewelSalvageShardGain(jewel)}</button>`;
             return `<div class="item-card jewel-inventory-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()">${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(jewel, 'jewel', 'jewel-card-visual') : ''}<div class="jewel-card-copy"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="jewel-quality-line">${qualityText}</div><div class="item-stats" style="line-height:1.45;color:var(--copy-bright);">${desc || '<span style="color:var(--copy-muted);">옵션 없음</span>'}</div></div><div class="item-actions jewel-card-actions">${equipSlotBtns}${manageActions}</div></div>`;
         }).join('');
-        renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:var(--copy-muted);">주얼 인벤토리가 비었습니다.</div>`, '');
+        renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:var(--copy-muted);">${game.jewelInventory.length ? '검색 조건에 맞는 주얼이 없습니다.' : '주얼 인벤토리가 비었습니다.'}</div>`, '');
     }
 
 function getJewelStatToneColor(statId) {

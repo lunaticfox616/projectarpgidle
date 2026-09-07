@@ -143,6 +143,9 @@ body:not(.light-mode) details > summary::marker {
 #ui-jewel-craft-disclosure { order: 1; }
 #ui-jewel-salvage-disclosure { order: 2; }
 #ui-jewel-library { order: 3; min-width: 0; }
+.jewel-library-pages:not([hidden]) { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 10px 0; }
+.jewel-library-pages button { min-height: 44px; }
+.jewel-library-pages span { text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
 @media (max-width: 1080px) {
   #ui-jewel-panel > * { order: 0; }
   #ui-jewel-slots, #ui-jewel-inventory { grid-template-columns: minmax(0, 1fr) !important; }
