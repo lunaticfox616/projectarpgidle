@@ -60,7 +60,7 @@ async function checkPendingDraft(fail, edit, changeAccount = false) {
     if (path.includes('player_profiles') && options.method !== 'POST') return [{ nickname: 'Sender' }];
     if (path === '/rest/v1/chat_messages' && options.method === 'POST') {
       posts.push(options.body); reached(); await gate;
-      if (fail) throw new Error('network unavailable');
+      if (fail) throw Object.assign(new Error('network unavailable'), { socialCode: changeAccount ? 'nickname_conflict' : null });
     }
     return [];
   };
@@ -71,7 +71,10 @@ async function checkPendingDraft(fail, edit, changeAccount = false) {
     input.value = '다음 메시지';
     vm.runInContext("socialState.pendingChatItems=[{name:'다음',rarity:'normal'}]", context);
   }
-  if (changeAccount) context.cloudState.user = { id: 'new-account' };
+  if (changeAccount) {
+    context.cloudState.user = { id: 'new-account' };
+    vm.runInContext("setMyNicknameLocal('NewSender')", context);
+  }
   const duplicate = context.sendChatMessage();
   release();
   await Promise.all([sending, duplicate]);
@@ -81,6 +84,7 @@ async function checkPendingDraft(fail, edit, changeAccount = false) {
   assert.strictEqual(vm.runInContext('socialState.pendingChatItems.length', context), edit || fail ? 1 : 0);
   assert.strictEqual(vm.runInContext('socialState.chatSending', context), false, 'success and failure must release the send guard');
   if (changeAccount) assert.strictEqual(vm.runInContext('socialState.sendTimestamps.length', context), 0, 'old account completion must not update the new account send history');
+  if (changeAccount) assert.strictEqual(context.getMyNickname(), 'NewSender', 'old account failure must not clear the new account nickname');
 }
 
 async function run() {
@@ -138,6 +142,7 @@ async function run() {
   await checkPendingDraft(false, false);
   await checkPendingDraft(true, false);
   await checkPendingDraft(false, true, true);
+  await checkPendingDraft(true, true, true);
 
   const sql = fs.readFileSync('db/social.sql', 'utf8');
   assert.ok(sql.includes('select lower(profile.nickname)'), 'chat insert policy should require a public profile');

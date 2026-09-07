@@ -774,6 +774,11 @@ function clearSubmittedChatDraft(inputEl, draft, items) {
     updateChatCounter();
 }
 
+function reportChatSendFailure(error, senderId) {
+    if (error?.socialCode === 'nickname_conflict' && socialLoggedInUserId() === senderId) setMyNicknameLocal('');
+    showGameToast('메시지 전송 실패: ' + translateSpamError(String(error && error.message || error)), 'danger');
+}
+
 async function sendChatMessage() {
     if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
     if (socialState.chatSending) return;
@@ -803,8 +808,7 @@ async function sendChatMessage() {
         socialState.lastSentBody = body;
         await refreshChatPanel(true);
     } catch (e) {
-        if (e && e.socialCode === 'nickname_conflict') setMyNicknameLocal('');
-        showGameToast('메시지 전송 실패: ' + translateSpamError(String(e && e.message || e)), 'danger');
+        reportChatSendFailure(e, senderId);
     } finally {
         socialState.chatSending = false;
     }
