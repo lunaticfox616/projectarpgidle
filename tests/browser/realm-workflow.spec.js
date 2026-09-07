@@ -1,5 +1,15 @@
 const {test, expect} = require('@playwright/test');
 
+async function countCosmosFrames(page) {
+    return page.evaluate(async()=>{
+        const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(resolve));
+        await nextFrame();
+        const before=window.cosmosDraws;
+        for(let i=0;i<8;i++)await nextFrame();
+        return window.cosmosDraws-before;
+    });
+}
+
 async function openRealms(page) {
     await page.route('https://**', route=>route.fulfill({status:204,body:''}));
     await page.goto('/');
@@ -41,10 +51,27 @@ test('cosmos destination directory reaches selection, map and battle without tra
     await page.screenshot({path:info.outputPath('cosmos-directory.png')});
     await page.locator('#ui-cosmos-detail').getByRole('button',{name:'별지도 보기',exact:true}).click();
     await expect(page.locator('#cosmos-atlas-canvas')).toBeVisible();
+    await page.evaluate(()=>{
+        const ctx=document.getElementById('cosmos-atlas-canvas').getContext('2d');
+        const clear=ctx.clearRect.bind(ctx);window.cosmosDraws=0;
+        ctx.clearRect=(...args)=>{window.cosmosDraws++;return clear(...args);};
+        game.cosmosAtlas.bossStones={'1':'test stone'};
+        renderCosmosAtlas();
+    });
+    expect(await countCosmosFrames(page)).toBeGreaterThan(0);
     await page.locator('#cosmos-map-disclosure > summary').click();
+    expect(await countCosmosFrames(page)).toBe(0);
+    await page.locator('#cosmos-map-disclosure > summary').click();
+    expect(await countCosmosFrames(page)).toBeGreaterThan(0);
     await page.locator('#btn-cosmos-sub-mastery').click();
     await expect(page.locator('#cosmos-inner-mastery')).toBeVisible();
+    expect(await countCosmosFrames(page)).toBe(0);
     await page.locator('#btn-cosmos-sub-atlas').click();
+    expect(await countCosmosFrames(page)).toBeGreaterThan(0);
+    await page.evaluate(()=>switchTab('tab-items'));
+    expect(await countCosmosFrames(page)).toBe(0);
+    await page.evaluate(()=>switchTab('tab-map'));
+    expect(await countCosmosFrames(page)).toBeGreaterThan(0);
     await page.locator('#ui-cosmos-detail .primary').click();
     await expect.poll(()=>page.evaluate(()=>game.currentZoneId)).toBe('cosmos_challenge');
     expect(errors).toEqual([]);

@@ -994,7 +994,12 @@
 
     function isCosmosTabActive() {
         const tab = document.getElementById('map-tab-cosmos');
-        return !!(tab && tab.classList.contains('active')) && !document.hidden;
+        const mapTab = document.getElementById('tab-map');
+        const atlas = document.getElementById('cosmos-inner-atlas');
+        const disclosure = document.getElementById('cosmos-map-disclosure');
+        return !document.hidden && !!(tab && tab.classList.contains('active'))
+            && !!(mapTab && mapTab.classList.contains('active'))
+            && !!(atlas && atlas.style.display !== 'none') && !!(disclosure && disclosure.open);
     }
 
     function shouldAnimateCosmos() {
@@ -2775,6 +2780,7 @@
       if (a) a.style.display = tab==='atlas' ? '' : 'none'; if (m) m.style.display = tab==='mastery' ? '' : 'none';
       if (ba) ba.classList.toggle('active', tab==='atlas'); if (bm) bm.classList.toggle('active', tab==='mastery');
       if (tab==='mastery') renderMasteryPanel();
+      else requestAtlasFrame();
     }
 
     window.renderCosmosAtlas = renderCosmosAtlas;
