@@ -8,6 +8,15 @@
 const GROWTH_BOARD_W = 8;
 const GROWTH_BOARD_H = 4;
 
+const GROWTH_CRAFT_ACTIONS = [
+    { key: 'magicBud', label: '마법 부여/재련', cost: 1 },
+    { key: 'sapBud', label: '희귀 승급/옵션 추가', cost: 2 },
+    { key: 'formlessDew', label: '희귀 부여/재련', cost: 2 },
+    { key: 'goldenRule', label: '수치 재련', cost: 4 },
+    { key: 'pruningShears', label: '옵션 제거', cost: 3 },
+    { key: 'blightSpore', label: '일반으로 정화', cost: 1 }
+];
+
 const GROWTH_SHAPE_DB = {
     dot1:    { label: '1칸', cells: [[0, 0]] },
     domino2: { label: '2칸', cells: [[0, 0], [1, 0]] },

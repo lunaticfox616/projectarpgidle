@@ -11857,10 +11857,16 @@ function hasSporeCraftCost(mode) {
     return true;
 }
 
-async function useCurrency(currencyKey) {
+/**
+ * @param {string} currencyKey Crafting action, independent of its payment source.
+ * @param {'growthEssence'} [paymentSource] Omit to pay one ordinary currency.
+ * @returns {Promise<true|undefined>} True only after the item and payment are committed.
+ */
+async function useCurrency(currencyKey, paymentSource) {
     let item = getSelectedCraftItem();
     if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
-    if ((game.currencies[currencyKey] || 0) <= 0) return addLog("오브가 부족합니다.", "attack-monster");
+    const payment = getCraftPayment(currencyKey, item, paymentSource);
+    if (!payment?.affordable) return addLog("제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.", "attack-monster");
     // 석판은 정체성이 곧 효과라 제작 재화를 받지 않는다.
     if (item.growthCategory === 'slab') return addLog("석판은 제작할 수 없습니다.", "attack-monster");
     let actionKey = currencyKey;
@@ -11911,7 +11917,7 @@ async function useCurrency(currencyKey) {
     })) return;
     // 확인창이 열린 동안 제작 대상을 바꾸거나 장비를 이동한 경우, 이전 객체에 오브가
     // 적용되는 것을 막는다. 확인 전의 잔여 수량·제작 가능 상태도 다시 검증한다.
-    if (getSelectedCraftItem() !== item || (game.currencies[currencyKey] || 0) <= 0) {
+    if (getSelectedCraftItem() !== item || !getCraftPayment(currencyKey, item, paymentSource)?.affordable) {
         return addLog('확인 중 제작 대상 또는 재화가 변경되어 사용을 취소했습니다.', 'attack-monster');
     }
     if (item.corrupted && currencyKey !== 'tainted') return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
@@ -11923,14 +11929,11 @@ async function useCurrency(currencyKey) {
     let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
     function consumeSpore(mode) {
         if (mode === 'none') return true;
-        let baseCost = getSporeCraftCost();
-        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < baseCost) return false; game.currencies.sporeFire -= baseCost; return true; }
-        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < baseCost) return false; game.currencies.sporeCold -= baseCost; return true; }
-        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < baseCost) return false; game.currencies.sporeLight -= baseCost; return true; }
-        if (mode === 'chaos' || mode === 'damage') {
-            if ((game.currencies.sporeFire || 0) < baseCost || (game.currencies.sporeCold || 0) < baseCost || (game.currencies.sporeLight || 0) < baseCost) return false;
-            game.currencies.sporeFire -= baseCost; game.currencies.sporeCold -= baseCost; game.currencies.sporeLight -= baseCost; return true;
-        }
+        if (!hasSporeCraftCost(mode)) return false;
+        const all = ['sporeFire', 'sporeCold', 'sporeLight'];
+        const keys = {fire: ['sporeFire'], cold: ['sporeCold'], light: ['sporeLight'], chaos: all, damage: all}[mode] || [];
+        const cost = getSporeCraftCost();
+        keys.forEach(key => { game.currencies[key] -= cost; });
         return true;
     }
     function getSporeGuaranteedMod(allowReplacement) {
@@ -12004,8 +12007,8 @@ async function useCurrency(currencyKey) {
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
         consumedSpore = true;
     }
-    let craftResultToken = craftingResultLedger.begin(item, { currencyKey, actionKey });
-    game.currencies[currencyKey]--;
+    let craftResultToken = craftingResultLedger.begin(item, { currencyKey, actionKey, paymentSource });
+    game.currencies[payment.key] -= payment.cost;
     let expiredGrowthDropAffix = growthCraft ? removeGrowthDropOverflowAffix(item) : null;
     if (expiredGrowthDropAffix) {
         addLog(`🍂 제작으로 변이 옵션이 소멸했습니다: ${expiredGrowthDropAffix.statName || getStatName(expiredGrowthDropAffix.id)}`, 'attack-monster');
@@ -12142,8 +12145,9 @@ async function useCurrency(currencyKey) {
     // 제작으로 태그/크기/옵션이 바뀔 수 있으므로 공간 시너지 캐시를 무효화한다.
     if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     craftingResultLedger.commit(craftResultToken, item);
-    addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
+    addLog(`⚒️ ${ORB_DB[payment.key].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
+    return true;
 }
 
 /** 드랍에서만 붙는 상한 초과 옵션은 첫 제작이 확정된 뒤 한 번만 제거한다. */

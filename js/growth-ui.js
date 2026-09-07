@@ -32,15 +32,6 @@ function bindGrowthDisclosureState(host) {
     });
 }
 
-const GROWTH_CRAFT_ACTIONS = [
-    { key: 'magicBud', label: '마법 부여/재련', cost: 1 },
-    { key: 'sapBud', label: '희귀 승급/옵션 추가', cost: 2 },
-    { key: 'formlessDew', label: '희귀 부여/재련', cost: 2 },
-    { key: 'goldenRule', label: '수치 재련', cost: 4 },
-    { key: 'pruningShears', label: '옵션 제거', cost: 3 },
-    { key: 'blightSpore', label: '일반으로 정화', cost: 1 }
-];
-
 function getGrowthCategoryInfo(category) {
     return GROWTH_CATEGORY_INFO[category] || { label: '기타', icon: '❔' };
 }
@@ -799,15 +790,9 @@ async function craftGrowthItem(actionKey) {
     let item = findGrowthItemById(growthCraftItemId);
     let state = action ? getGrowthCraftActionState(item, action) : { enabled: false, reason: '알 수 없는 제작입니다.' };
     if (!state.enabled) return addLog(state.reason, 'attack-monster');
-    let originalCurrency = Math.max(0, Number(game.currencies[action.key]) || 0);
-    game.currencies.growthEssence -= action.cost;
-    game.currencies[action.key] = originalCurrency + 1;
     selectForCrafting(item.id, false);
-    await useCurrency(action.key);
-    let consumed = (game.currencies[action.key] || 0) <= originalCurrency;
-    game.currencies[action.key] = originalCurrency;
-    if (!consumed) game.currencies.growthEssence += action.cost;
-    if (consumed) queueGrowthProfileSync();
+    let crafted = await useCurrency(action.key, 'growthEssence');
+    if (crafted) queueGrowthProfileSync();
     renderGrowthTab({ force: true });
 }
 
@@ -903,7 +888,7 @@ function renderGrowthCraftBench() {
     }).join('');
     let target = item ? `<strong class="loot-${item.rarity || 'normal'}">${escapeHTML(item.name)}</strong> · ${isGrowthSlab(item) ? '석판 문양' : `${getGrowthItemAffixCap(item)}줄 상한`}` : '보관함에서 생장판 카드를 클릭하세요.';
     let preview = item
-        ? `<div class="growth-craft-preview"><h4>제작 전 옵션 확인</h4>${buildGrowthTooltipHtml(item)}</div>`
+        ? `<div class="growth-craft-preview"><h4>제작 전 옵션 확인</h4>${buildGrowthTooltipHtml(item)}</div>${craftingResultUi.getLedgerHtml(item)}`
         : '<div class="growth-craft-preview empty">선택한 생장판의 옵션이 여기에 표시됩니다.</div>';
     return `<section id="ui-growth-craft-bench" class="growth-craft-bench"><div class="growth-bench-head"><h3>🛠️ 생장판 제작대</h3><strong>생장 정수 ${essence}</strong><button type="button" onclick="expandGrowthInventoryWithEssence()" ${expansionCost === null || essence < expansionCost ? 'disabled' : ''}>보관함 +5 · ${expansionCost === null ? '최대' : `정수 ${expansionCost}`}</button></div>
         <div class="growth-craft-target">${target}</div>${preview}<div class="growth-craft-actions">${isGrowthSlab(item) ? '' : actions}${renderGrowthReforgeAction(item)}</div>

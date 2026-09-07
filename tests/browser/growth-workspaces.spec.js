@@ -10,7 +10,7 @@ test('growth inventory connects placement and crafting without duplicate mobile 
         syncGrowthBoardUnlocks({silent:true});
         const base=GROWTH_BASE_DB.find(row=>row.category==='flower');
         game.growthInventory=Array.from({length:40},(_,i)=>({...createGrowthItemFromBase(base,'normal',12),name:'검증 꽃 '+i}));
-        game.currencies.growthEssence=20;openTabPane('tab-growthboard');updateStaticUI();
+        game.currencies.growthEssence=20;game.currencies.magicBud=5;openTabPane('tab-growthboard');updateStaticUI();
         const id=game.growthInventory[0].id;
         for(let y=0;y<GROWTH_BOARD_H;y++)for(let x=0;x<GROWTH_BOARD_W;x++)if(planGrowthPlacement(id,x,y,0).ok)return{id,x,y};
         throw new Error('No legal placement');
@@ -39,6 +39,11 @@ test('growth inventory connects placement and crafting without duplicate mobile 
     await page.getByRole('button',{name:'마법 부여/재련 · 정수 1',exact:true}).click();
     await expect.poll(()=>page.evaluate(id=>findGrowthItemById(id).rarity,fixture.id)).toBe('magic');
     expect(await page.evaluate(()=>game.currencies.growthEssence)).toBe(19);
+    const repeat=page.locator('#growth-workshop [data-repeat-craft="magicBud"]');
+    await expect(repeat).toContainText('생장 정수 1개로 다시 제작');await repeat.click();
+    await expect.poll(()=>page.evaluate(()=>game.currencies.growthEssence)).toBe(18);
+    expect(await page.evaluate(()=>game.currencies.magicBud)).toBe(5);
+    await page.evaluate(()=>{game.currencies.growthEssence=0;updateStaticUI();});await expect(repeat).toBeDisabled();
     expect(await page.evaluate(()=>game.growthInventory.length)).toBe(40);
     if(info.project.use.isMobile)await expect(page.getByRole('tab',{name:'제작대',exact:true})).toHaveAttribute('aria-selected','true');
     expect(errors).toEqual([]);
