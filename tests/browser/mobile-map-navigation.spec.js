@@ -38,6 +38,20 @@ test('mobile destination selector preserves available routes and returns from se
     await expect(page.locator('#ui-ocean-panel')).toContainText('75');
     await page.evaluate(()=>{switchMapSubtab('map-tab-fishing');updateStaticUI();});
     await expect(page.locator('#ui-fishing-panel')).toContainText('37');
+    if(info.project.use.isMobile){
+        await expect(page.locator('#fishing-workshop')).toBeHidden();
+        await page.getByRole('tab',{name:'도감',exact:true}).click();
+        await expect(page.locator('#ui-fishing-collection')).toBeVisible();
+        await expect(page.locator('#fishing-gather')).toBeHidden();
+        await page.evaluate(()=>{game.ocean.fishingGauge=38;updateStaticUI();});
+        await expect(page.locator('#ui-fishing-collection')).toBeVisible();
+        await page.getByRole('tab',{name:'채집 · 전략',exact:true}).click();
+        await page.getByRole('button',{name:'바다의 선물 제작',exact:true}).click();
+        await expect(page.locator('#ui-sea-gift-panel')).toBeVisible();
+        await expect(page.locator('#fishing-gather')).toBeHidden();
+        await page.getByRole('tab',{name:'채집 · 전략',exact:true}).click();
+        await expect(page.locator('#ui-fishing-panel')).toContainText('38');
+    }
     await page.evaluate(()=>{switchMapSubtab('map-tab-zones');updateStaticUI();});
     if (!info.project.use.isMobile) {
         await expect(page.locator('.map-primary-tabs')).toBeVisible();
