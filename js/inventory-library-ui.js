@@ -1,7 +1,7 @@
 // Page state belongs to presentation. Filter complete inventories before passing rows here;
 // the returned slice preserves item references and original indices used by domain actions.
 const inventoryLibraryUi = (() => {
-    const states = {jewel: {page:0, search:''}, talisman: {page:0, search:''}};
+    const states = {jewel: {page:0, search:''}, talisman: {page:0, search:''}, growth: {page:0, search:''}};
 
     function visibleRows(kind, rows, query) {
         const state = states[kind];
@@ -33,6 +33,6 @@ const inventoryLibraryUi = (() => {
             });
         });
     }, {once:true});
-    return {visibleRows};
+    return {visibleRows, page: kind => states[kind].page};
 })();
 safeExposeGlobals({inventoryLibraryUi});

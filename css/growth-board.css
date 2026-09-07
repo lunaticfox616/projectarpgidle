@@ -214,6 +214,8 @@ body.growth-dragging .growth-cell { cursor: grabbing; }
 #growth-workshop { order: 2; }
 #growth-library { order: 3; }
 .growth-mobile-library-link { display: none; }
+.growth-library-controls { grid-column: 1 / -1; min-width: 0; }
+.growth-library-controls > summary { cursor: pointer; padding: 12px 0; }
 @media (max-width: 1080px) {
     .growth-workspaces > section { order: 0; }
     .growth-mobile-library-link { display: inline-block; }

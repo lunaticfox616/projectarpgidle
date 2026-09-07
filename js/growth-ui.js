@@ -482,14 +482,18 @@ function renderGrowthDropSettings() {
 }
 
 function renderGrowthInventorySection() {
+    captureGrowthDisclosureState(document.getElementById('ui-growth-inventory'));
     let all = (game.growthInventory || []).filter(isGrowthItem);
-    if (all.length === 0) return '<div class="growth-synergy-empty">보관 중인 생장 아이템이 없습니다. 루프 ' + GROWTH_UNLOCK_LOOP + ' 이후 전투에서 드랍됩니다.</div>';
     let filter = getGrowthInventoryFilter();
+    let query = getSearchFilterState().growth;
     let items = all.filter(item => filter.categories[item.growthCategory] !== false
-        && (!filter.unplacedOnly || !isGrowthItemPlacedInLoadout(item.id)));
-    let chips = renderGrowthInventoryFilterChips();
+        && (!filter.unplacedOnly || !isGrowthItemPlacedInLoadout(item.id))
+        && matchSearchQuery(`${getEquipmentSearchText({...item, slot:''})} ${getGrowthCategoryInfo(item.growthCategory).label} ${getGrowthShapeDef(item.growthShapeId).label} ${(item.baseStats || []).concat(item.stats || []).map(stat => stat.val).join(' ')}`, query));
+    let rows = inventoryLibraryUi.visibleRows('growth', items, query + JSON.stringify(filter));
+    if (all.length === 0) return '<div class="growth-synergy-empty">보관 중인 생장 아이템이 없습니다. 루프 ' + GROWTH_UNLOCK_LOOP + ' 이후 전투에서 드랍됩니다.</div>';
+    let chips = `<details class="growth-library-controls" data-growth-disclosure="inventory-filters" ${isGrowthDisclosureOpen('inventory-filters', !uiDisplay.matches('(max-width: 1080px)')) ? 'open' : ''}><summary>분류 · 정렬 · 자동해체</summary>${renderGrowthInventoryFilterChips()}</details>`;
     if (items.length === 0) return `${chips}<div class="growth-synergy-empty">조건에 맞는 아이템이 없습니다. (전체 ${all.length}개)</div>`;
-    return chips + items.map(item => renderGrowthItemCard(item)).join('');
+    return chips + rows.map(item => renderGrowthItemCard(item)).join('');
 }
 
 // ── 툴팁 ────────────────────────────────────────────────────────────────
@@ -1008,7 +1012,8 @@ function getGrowthTabSignature() {
     let craftCurrencies = GROWTH_CRAFT_ACTIONS.map(action => `${action.key}:${game.currencies[action.key] || 0}`).join(',');
     return [board.activeLoadout, board.unlockedCellCount, game.season, game.maxZoneId,
         growthCraftItemId, game.currencies.growthEssence || 0, craftCurrencies,
-        growthSelection.itemId, growthSelection.rotation, placements, items, filter, flags].join('#');
+        growthSelection.itemId, growthSelection.rotation, placements, items, filter, flags,
+        getSearchFilterState().growth, inventoryLibraryUi.page('growth'), uiDisplay.matches('(max-width: 1080px)')].join('#');
 }
 
 function renderGrowthTab(options) {
@@ -1020,8 +1025,8 @@ function renderGrowthTab(options) {
     if (!force && signature === _growthTabSignature) return;
     _growthTabSignature = signature;
     renderGrowthBoardPanel(Boolean(options && options.openCraft));
-    let invHost = document.getElementById('ui-growth-inventory');
-    if (invHost) invHost.innerHTML = renderGrowthInventorySection();
+    renderSearchSection('ui-growth-inventory', 'growth', '생장판 검색 (이름/형태/옵션)', renderGrowthInventorySection(), '', '');
+    bindGrowthDisclosureState(document.getElementById('ui-growth-inventory'));
     let count = game.growthInventory.length;
     let limit = getGrowthInventoryLimit();
     let invCount = document.getElementById('ui-growth-inv-count');
