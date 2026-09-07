@@ -1403,4 +1403,6 @@ body.light-mode .cosmos-directive-card.rare {
   .cosmos-detail, .cosmos-directory-filters { scroll-margin-top:70px; }
   .cosmos-directory-filters select { min-height:44px; font-size:14px; }
   .cosmos-directory-return { display:block; width:100%; min-height:44px; margin-bottom:12px; }
+  .cosmos-mastery-card-foot button { min-height:44px; min-width:88px; font-size:14px; }
+  .cosmos-mastery-grid { grid-template-columns:1fr; }
 }

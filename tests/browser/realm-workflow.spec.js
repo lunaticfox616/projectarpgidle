@@ -86,6 +86,45 @@ test('cosmos destination directory reaches selection, map and battle without tra
     expect(errors).toEqual([]);
 });
 
+test('cosmos mastery preserves controls and reveals the next investment at its prerequisite',async({page},info)=>{
+    await openRealms(page);
+    await page.evaluate(()=>{
+        clearInterval(gameTickHandle);gameTickHandle=null;
+        switchMapSubtab('map-tab-cosmos');
+        game.cosmosAtlas.cleared=Array.from({length:8},(_,i)=>'planet-'+i);
+        game.cosmosAtlas.mastery={planetRelief:5};
+        switchCosmosInnerTab('mastery');
+    });
+    const cards=page.locator('.cosmos-mastery-card');
+    const first=cards.nth(0),second=cards.nth(1);
+    await first.scrollIntoViewIfNeeded();
+    await page.screenshot({path:info.outputPath('cosmos-mastery.png'),scale:'css'});
+    await expect(first.getByRole('button')).toContainText('1P');
+    await expect(second.getByRole('button')).toBeDisabled();
+    await first.getByRole('button').click();
+    await expect(first).toContainText('6/30');
+    await expect(second.getByRole('button')).toBeEnabled();
+    await second.getByRole('button').focus();
+    await page.evaluate(()=>{
+        window.masteryMutations=0;
+        new MutationObserver(rows=>masteryMutations+=rows.length).observe(document.getElementById('cosmos-inner-mastery'),{childList:true,subtree:true});
+        renderCosmosAtlas();renderCosmosAtlas();
+    });
+    expect(await page.evaluate(()=>masteryMutations)).toBe(0);
+    await expect(second.getByRole('button')).toBeFocused();
+    await second.getByRole('button').click();
+    await second.getByRole('button').click();
+    expect(await page.evaluate(()=>game.cosmosAtlas.masteryPointsSpent)).toBe(8);
+    await expect(first.getByRole('button')).toBeDisabled();
+    await page.evaluate(()=>{
+        switchCosmosInnerTab('atlas');masteryMutations=0;
+        game.cosmosAtlas.cleared.push('planet-8');renderCosmosAtlas();
+    });
+    expect(await page.evaluate(()=>masteryMutations)).toBe(0);
+    await page.evaluate(()=>switchCosmosInnerTab('mastery'));
+    await expect(first.getByRole('button')).toBeEnabled();
+});
+
 test('realm controls and themes remain usable; pruning stays outside miscellaneous', async ({page},info)=>{
     await openRealms(page);
     await page.evaluate(()=>{

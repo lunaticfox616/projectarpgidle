@@ -798,7 +798,7 @@
     }
     function getCosmosMasteryFreePoints() {
         const state = getState();
-        const spent = COSMOS_MASTERY_NODES.reduce((sum, node) => sum + getCosmosMasteryValue(node.key) * node.cost, 0);
+        const spent = COSMOS_MASTERY_NODES.reduce((sum, node) => sum + state.mastery[node.key] * node.cost, 0);
         state.masteryPointsSpent = spent;
         return Math.max(0, getCosmosMasteryTotalPoints() - spent);
     }
@@ -2768,6 +2768,7 @@
         const el = document.getElementById('cosmos-inner-mastery');
         if (!el) return;
         const freePoints = getCosmosMasteryFreePoints();
+        if (el.style.display === 'none') return;
         const totalPoints = getCosmosMasteryTotalPoints();
         const cards = COSMOS_MASTERY_NODES.map(node => {
             const value = getCosmosMasteryValue(node.key);
@@ -2784,10 +2785,14 @@
                 <div class="cosmos-mastery-card-head"><div><span>${lockReason ? 'LOCKED' : (value >= node.max ? 'MASTERED' : 'STAR PATH')}</span><strong>${node.name}</strong></div><b>${value}/${node.max}</b></div>
                 <div class="cosmos-mastery-progress"><i style="width:${Math.floor(value / node.max * 100)}%"></i></div>
                 <p>${node.desc}</p>
-                <div class="cosmos-mastery-card-foot"><small>${lockReason || linkLine}</small><button type="button" onclick="allocateCosmosMastery('${node.key}')" ${canSpend ? '' : 'disabled'}>+1</button></div>
+                <div class="cosmos-mastery-card-foot"><small>${lockReason || linkLine}</small><button type="button" onclick="allocateCosmosMastery('${node.key}')" ${canSpend ? '' : 'disabled'}>투자 · ${node.cost}P</button></div>
             </article>`;
         }).join('');
-        el.innerHTML = `<div class="cosmos-mastery-header"><div><div class="cosmos-kicker">Stellar Mastery</div><div class="cosmos-detail-title">성도술 항로</div><p>탐사 완료로 얻은 포인트를 연결된 항로에 투자하세요.</p></div><div class="cosmos-mastery-points"><span>사용 가능<strong>${freePoints}</strong></span><span>누적 획득<strong>${totalPoints}</strong></span></div></div><div class="cosmos-mastery-grid">${cards}</div>`;
+        const html = `<div class="cosmos-mastery-header"><div><div class="cosmos-kicker">Stellar Mastery</div><div class="cosmos-detail-title">성도술 항로</div><p>탐사 완료로 얻은 포인트를 연결된 항로에 투자하세요.</p></div><div class="cosmos-mastery-points"><span>사용 가능<strong>${freePoints}</strong></span><span>누적 획득<strong>${totalPoints}</strong></span></div></div><div class="cosmos-mastery-grid">${cards}</div>`;
+        if (el.__masteryHtml !== html || !el.firstElementChild) {
+            el.innerHTML = html;
+            el.__masteryHtml = html;
+        }
     }
     function switchCosmosInnerTab(tab) {
       const a=document.getElementById('cosmos-inner-atlas'), m=document.getElementById('cosmos-inner-mastery');

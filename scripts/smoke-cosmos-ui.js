@@ -22,7 +22,7 @@ const definitionsStart = source.indexOf('const COSMOS_MASTERY_NODES');
 const definitionsEnd = source.indexOf('const GALAXY_SPECS', definitionsStart);
 assert(definitionsStart >= 0 && definitionsEnd > definitionsStart);
 
-const masteryPanel = { innerHTML: '' };
+const masteryPanel = { innerHTML: '', style: { display: '' } };
 const values = { planetRelief: 6 };
 const context = {
     document: { getElementById: id => id === 'cosmos-inner-mastery' ? masteryPanel : null },
