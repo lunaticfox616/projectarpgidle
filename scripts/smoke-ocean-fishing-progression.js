@@ -206,6 +206,7 @@ assert.strictEqual(run('getSelectedSeaGiftEquipmentTarget()'), null,
     'the shared crafting selection must not expose a growth item as a sea-gift equipment target');
 
 const elements = {
+    'fishing-collection': { open: true, dataset: { mobileSelected: 'true' } },
     'ui-fishing-collection': { innerHTML: '' },
     'ui-fishing-collection-summary': { textContent: '' },
     'ui-fishing-panel': { innerHTML: '' },

@@ -3519,7 +3519,7 @@ function renderFishingPanel() {
     <section class="ocean-section"><div class="ocean-section-head"><div><strong>채집 전략</strong><span>${st.diving ? '잠수 중에는 변경할 수 없습니다.' : `현재 ${strategy.name} · 다음 잠수부터 적용`}</span></div><span class="ocean-reef-count">🪸 ${st.reefInstalled}/10 · 게이지 +${st.reefInstalled * 15}%</span></div><div class="ocean-strategy-grid">${renderOceanFishingStrategies(st)}</div><button type="button" class="ocean-reef-action" onclick="installOceanReefFragment(); renderFishingPanel();" ${st.reefInstalled >= 10 || (game.currencies.reefFragment || 0) < 1 ? 'disabled' : ''}>암초 조각 설치 · 보유 ${game.currencies.reefFragment || 0}</button></section>
     `;
     document.getElementById('ui-fishing-collection-summary').textContent = `도감 · 발견 ${progress.discoveredCount}/${progress.totalCount}종 · ${progress.milestones.filter(row=>row.ready&&!row.claimed).length}개 보상 수령 가능`;
-    document.getElementById('ui-fishing-collection').innerHTML = `<div class="ocean-section-head"><div><strong>심해 도감</strong><span>발견 ${progress.discoveredCount}/${progress.totalCount} · 보유량은 제작에 사용해도 누적 기록은 유지됩니다.</span></div></div><div class="ocean-milestone-grid">${renderOceanCollectionMilestones(progress)}</div><div class="ocean-fish-grid">${renderOceanFishCollection(st)}</div>`;
+    renderOceanCollectionPanel(st, progress);
     restoreUiDisclosureState(panel);
 }
 

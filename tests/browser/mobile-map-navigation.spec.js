@@ -38,6 +38,7 @@ test('mobile destination selector preserves available routes and returns from se
     await expect(page.locator('#ui-ocean-panel')).toContainText('75');
     await page.evaluate(()=>{switchMapSubtab('map-tab-fishing');updateStaticUI();});
     await expect(page.locator('#ui-fishing-panel')).toContainText('37');
+    await expect(page.locator('#ui-fishing-collection > *')).toHaveCount(0);
     if(info.project.use.isMobile){
         await expect(page.locator('#fishing-workshop')).toBeHidden();
         await page.getByRole('tab',{name:'도감',exact:true}).click();
@@ -46,11 +47,25 @@ test('mobile destination selector preserves available routes and returns from se
         await page.evaluate(()=>{game.ocean.fishingGauge=38;updateStaticUI();});
         await expect(page.locator('#ui-fishing-collection')).toBeVisible();
         await page.getByRole('tab',{name:'채집 · 전략',exact:true}).click();
+        await page.evaluate(()=>{
+            window.hiddenFishChanges=0;
+            new MutationObserver(rows=>hiddenFishChanges+=rows.length).observe(document.getElementById('ui-fishing-collection'),{childList:true,subtree:true});
+            const fish=Object.keys(OCEAN_FISH_DB)[0];game.ocean.fishStock[fish]=777;game.ocean.fishCaughtTotal[fish]=777;updateStaticUI();
+        });
+        await page.waitForFunction(()=>!uiRefreshRunning&&!uiRefreshQueued);
+        expect(await page.evaluate(()=>hiddenFishChanges)).toBe(0);
+        await page.getByRole('tab',{name:'도감',exact:true}).click();
+        await expect(page.locator('#ui-fishing-collection')).toContainText('777');
+        await page.getByRole('tab',{name:'채집 · 전략',exact:true}).click();
         await page.getByRole('button',{name:'바다의 선물 제작',exact:true}).click();
         await expect(page.locator('#ui-sea-gift-panel')).toBeVisible();
         await expect(page.locator('#fishing-gather')).toBeHidden();
         await page.getByRole('tab',{name:'채집 · 전략',exact:true}).click();
         await expect(page.locator('#ui-fishing-panel')).toContainText('38');
+    }else{
+        await page.locator('#fishing-collection > summary').click();
+        await expect(page.locator('#ui-fishing-collection')).toBeVisible();
+        await expect(page.locator('#ui-fishing-collection')).toContainText('심해 도감');
     }
     await page.evaluate(()=>{switchMapSubtab('map-tab-zones');updateStaticUI();});
     if (!info.project.use.isMobile) {
