@@ -4849,6 +4849,7 @@ function selectTalismanInventoryItem(talismanId) {
 }
 
 function onTalismanBoardCellClick(x, y) {
+    if (uiDisplay.matches('(max-width: 1080px)')) return talismanMobileUi.inspect(x, y);
     if (!isTalismanCellUnlocked(x, y)) {
         if (unlockTalismanCell(x, y)) updateStaticUI();
         return;
@@ -12274,9 +12275,10 @@ function buildCraftActionButtons(item) {
                 : ' talisman-placement-invalid';
         }
         let cellLabel = placed ? `${getTalismanDisplayName(placed)} 배치 칸` : (unlocked ? `빈 부적 칸 ${x + 1}, ${y + 1}` : `잠긴 부적 칸 ${x + 1}, ${y + 1} · 해금 비용 ${unlockCost}`);
-        return `<button class="talisman-board-cell${placementClass}" aria-label="${escapeHTML(cellLabel)}" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:var(--talisman-cell); height:var(--talisman-cell); border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
+        return `<button class="talisman-board-cell${placementClass}" data-talisman-x="${x}" data-talisman-y="${y}" aria-label="${escapeHTML(cellLabel)}" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:var(--talisman-cell); height:var(--talisman-cell); border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     }
+    if (talismanTabActive) talismanMobileUi.refresh();
     let talismanTotalEl = talismanTabActive ? document.getElementById('ui-talisman-total') : null;
     if (talismanTotalEl) {
         let summary = typeof calculateTalismanBoardEffects === 'function'

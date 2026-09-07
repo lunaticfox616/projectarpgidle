@@ -138,6 +138,15 @@ body:not(.light-mode) details > summary::marker {
 
 /* Character sheet: key values first, related stats stay together. */
 .mobile-section-navigation { display: none; }
+#talisman-mobile-inspector { padding: 12px; margin: 10px 0; border: 1px solid var(--ui-gold); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); }
+.talisman-mobile-heading { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.talisman-mobile-heading > span:last-child { margin-left: auto; color: var(--ui-text-muted); }
+#talisman-mobile-inspector p { font-size: 13px; line-height: 1.5; }
+.talisman-mobile-actions { display: flex; gap: 8px; }
+.talisman-mobile-actions button { min-height: 44px; flex: 1; }
+#ui-talisman-board .talisman-mobile-footprint { outline: 2px solid #8fe7b0; outline-offset: -3px; }
+#ui-talisman-board .talisman-mobile-invalid { outline-color: #ff9a9a; }
+#ui-talisman-board .talisman-mobile-anchor { box-shadow: 0 0 0 2px var(--ui-gold) !important; }
 #ui-jewel-panel { display: flex; flex-direction: column; }
 #ui-jewel-panel > .jewel-cap-toolbar { order: 0; }
 #ui-jewel-craft-disclosure { order: 1; }
