@@ -40,12 +40,12 @@ assert.strictEqual(stats.breakdowns.revelation.final, '수호의 계시');
 
 context.__specialStats = stats;
 vm.runInContext('renderCharacterPassiveSpecialStats(__specialStats);', context);
-assert.strictEqual(elements['ui-mystique'].innerText, 9);
-assert.ok(elements['ui-mystique-effect'].innerText.includes('피해·위력 +9%'));
-assert.strictEqual(elements['ui-cycle'].innerText, 4);
-assert.strictEqual(elements['ui-cycle-effect'].innerText, '상태이상 종료 시 6초 강화');
-assert.strictEqual(elements['ui-revelation'].innerText, '수호의 계시');
-assert.ok(elements['ui-revelation-effect'].innerText.includes('받는 피해 2% 감폭'));
+assert.strictEqual(elements['ui-mystique'].textContent, '9');
+assert.ok(elements['ui-mystique-effect'].textContent.includes('피해·위력 +9%'));
+assert.strictEqual(elements['ui-cycle'].textContent, '4');
+assert.strictEqual(elements['ui-cycle-effect'].textContent, '상태이상 종료 시 6초 강화');
+assert.strictEqual(elements['ui-revelation'].textContent, '수호의 계시');
+assert.ok(elements['ui-revelation-effect'].textContent.includes('받는 피해 2% 감폭'));
 
 vm.runInContext(`
   PASSIVE_TREE.nodes.ui_mystique_reserve_test = {
@@ -65,10 +65,10 @@ assert.strictEqual(tradeoffStats.mystique, 0,
   '활성화된 봉인된 주문핵은 확보한 신비 1을 지불해 최종 신비가 0이어야 한다.');
 
 vm.runInContext('renderCharacterPassiveSpecialStats(normalizeUiPlayerStats({}));', context);
-assert.strictEqual(elements['ui-mystique-effect'].innerText, '효과 없음');
-assert.strictEqual(elements['ui-cycle-effect'].innerText, '효과 없음');
-assert.strictEqual(elements['ui-revelation'].innerText, '미해금');
-assert.strictEqual(elements['ui-revelation-effect'].innerText, '계시 수치 0');
+assert.strictEqual(elements['ui-mystique-effect'].textContent, '효과 없음');
+assert.strictEqual(elements['ui-cycle-effect'].textContent, '효과 없음');
+assert.strictEqual(elements['ui-revelation'].textContent, '미해금');
+assert.strictEqual(elements['ui-revelation-effect'].textContent, '계시 수치 0');
 
 const indexHtml = fs.readFileSync('index.html', 'utf8');
 ['ui-mystique', 'ui-cycle', 'ui-revelation'].forEach(id => {

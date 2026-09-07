@@ -8638,7 +8638,8 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
 function setTextById(id, value) {
     let el = document.getElementById(id);
     if (!el) return;
-    el.innerText = value;
+    const text = value == null ? '' : String(value);
+    if (el.textContent !== text) el.textContent = text;
 }
 
 function updateHpDamageGhostState(state, actualPct, now, options) {
@@ -9509,7 +9510,6 @@ function updateCombatUI(pStats) {
     let safeHp = Math.max(0, Number(game.playerHp) || 0);
     setTextById('ui-hp', formatSettingNumber(safeHp, 'showHpComma', safeHp >= 100 ? {} : { decimals: 1 }));
     setTextById('ui-maxhp', formatSettingNumber(pStats.maxHp, 'showHpComma'));
-    setTextById('ui-maxhp-stat', formatSettingNumber(pStats.maxHp, 'showCharacterComma'));
     let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
     let hpBar = document.getElementById('ui-hp-bar');
     setUiImageGaugePercent(hpBar, hpPct);
@@ -9636,92 +9636,7 @@ function updateCombatUI(pStats) {
         setCombatProgressGaugePercent(game.runProgress);
     }
 
-    setTextById('ui-total-dps', formatSettingNumber(pStats.totalDps || ((pStats.dps || 0) + (pStats.summonDps || 0)), 'showCharacterComma'));
-    setTextById('ui-dps', formatSettingNumber(pStats.directDps || pStats.dps || 0, 'showCharacterComma'));
-    setTextById('ui-summon-dps', formatSettingNumber(pStats.summonDps || 0, 'showCharacterComma'));
-    let summonCap = getSummonEquipCapFromStats(pStats);
-    let summonCapMaximum = typeof getSummonCapMaximum === 'function' ? getSummonCapMaximum() : 8;
-    let summonCapRow = document.getElementById('row-summon-cap');
-    if (summonCapRow) summonCapRow.style.display = summonCap > 1 || summonCapMaximum > 8 ? '' : 'none';
-    setTextById('ui-summon-cap', `${summonCap} / 최대 ${summonCapMaximum}`);
-    document.getElementById('ui-atk').innerText = formatSettingNumber(pStats.baseDmg, 'showCharacterComma');
-    document.getElementById('ui-aps').innerText = pStats.aspd.toFixed(2);
-    document.getElementById('ui-crit').innerText = pStats.crit.toFixed(1);
-    ['strength', 'dexterity', 'intelligence'].forEach(key => setTextById('ui-' + key, Math.floor(pStats[key] || 0)));
-    setTextById('ui-accuracy', formatSettingNumber(Math.floor(pStats.accuracy || 0), 'showCharacterComma'));
-    document.getElementById('ui-crit-dmg').innerText = Math.floor(pStats.critDmg);
-    document.getElementById('ui-ignite-chance').innerText = Math.max(0, pStats.igniteChance || 0).toFixed(1);
-    document.getElementById('ui-chill-chance').innerText = Math.max(0, pStats.chillChance || 0).toFixed(1);
-    document.getElementById('ui-freeze-chance').innerText = Math.max(0, pStats.freezeChance || 0).toFixed(1);
-    document.getElementById('ui-poison-chance').innerText = Math.max(0, pStats.poisonChance || 0).toFixed(1);
-    document.getElementById('ui-bleed-chance').innerText = Math.max(0, pStats.bleedChance || 0).toFixed(1);
-    document.getElementById('ui-move-spd').innerText = Math.floor(pStats.moveSpeed);
-    document.getElementById('ui-dr').innerText = formatCappedResistanceValue(pStats.dr, pStats.rawDr);
-    let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = formatSettingNumber(pStats.armor || 0, 'showCharacterComma');
-    let evasionEl = document.getElementById('ui-evasion'); if (evasionEl) evasionEl.innerText = formatSettingNumber(pStats.evasion || 0, 'showCharacterComma');
-    let esEl = document.getElementById('ui-es'); if (esEl) esEl.innerText = formatSettingNumber(pStats.energyShield || 0, 'showCharacterComma');
-    let blockEl = document.getElementById('ui-block-chance'); if (blockEl) blockEl.innerText = Math.max(0, Number(pStats.blockChance || 0)).toFixed(1);
-    let deflectEl = document.getElementById('ui-deflect-chance'); if (deflectEl) deflectEl.innerText = Math.max(0, Number(pStats.deflectChance || 0)).toFixed(1);
-    document.getElementById('ui-phys-ignore').innerText = Math.floor(pStats.physIgnore || 0);
-    document.getElementById('ui-res-pen').innerText = Math.floor(pStats.resPen || 0);
-    document.getElementById('ui-res-fire').innerText = formatCappedResistanceValue(pStats.resF, pStats.rawResF);
-    document.getElementById('ui-res-cold').innerText = formatCappedResistanceValue(pStats.resC, pStats.rawResC);
-    document.getElementById('ui-res-light').innerText = formatCappedResistanceValue(pStats.resL, pStats.rawResL);
-    document.getElementById('ui-res-chaos').innerText = formatCappedResistanceValue(pStats.resChaos, pStats.rawResChaos);
-    let setStatText = (id, value, formatter) => {
-        let el = document.getElementById(id);
-        if (el) el.innerText = formatter ? formatter(value) : value;
-    };
-    let formatInlinePct = (value) => {
-        let n = Number(value || 0);
-        if (!Number.isFinite(n)) n = 0;
-        let rounded = Math.round(n * 10) / 10;
-        return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-    };
-    setStatText('ui-ignite-chance', pStats.igniteChance || 0, formatInlinePct);
-    setStatText('ui-chill-chance', pStats.chillChance || 0, formatInlinePct);
-    setStatText('ui-freeze-chance', pStats.freezeChance || 0, formatInlinePct);
-    setStatText('ui-shock-chance', pStats.shockChance || 0, formatInlinePct);
-    setStatText('ui-poison-chance', pStats.poisonChance || 0, formatInlinePct);
-    setStatText('ui-bleed-chance', pStats.bleedChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-ignite', pStats.ailmentResistIgniteChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-chill', pStats.ailmentResistChillChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-freeze', pStats.ailmentResistFreezeChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-shock', pStats.ailmentResistShockChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-poison', pStats.ailmentResistPoisonChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-bleed', pStats.ailmentResistBleedChance || 0, formatInlinePct);
-    document.getElementById('ui-min-dmg-roll').innerText = Math.floor(pStats.minDmgRoll || 80);
-    document.getElementById('ui-max-dmg-roll').innerText = Math.floor(pStats.maxDmgRoll || 100);
-    document.getElementById('ui-loop-deaths').innerText = Math.max(0, Math.floor(game.loopDeaths || 0));
-    document.getElementById('ui-loop-kills').innerText = Math.max(0, Math.floor(game.loopKills || 0));
-
-    document.getElementById('row-phys-ignore').style.display = (pStats.physIgnore || 0) > 0 ? 'grid' : 'none';
-    document.getElementById('row-res-pen').style.display = (pStats.resPen || 0) > 0 ? 'grid' : 'none';
-    document.getElementById('row-regen').style.display = pStats.regen > 0 ? 'grid' : 'none';
-    document.getElementById('row-regen-suppress').style.display = (pStats.regenSuppress || 0) > 0 ? 'grid' : 'none';
-    document.getElementById('row-leech').style.display = pStats.leech > 0 ? 'grid' : 'none';
-    document.getElementById('row-ds').style.display = pStats.ds > 0 ? 'grid' : 'none';
-    document.getElementById('row-gemlv').style.display = pStats.gemLv > 0 ? 'grid' : 'none';
-    if (pStats.regen > 0) document.getElementById('ui-regen').innerText = formatValue('regen', pStats.regen);
-    if ((pStats.regenSuppress || 0) > 0) document.getElementById('ui-regen-suppress').innerText = formatValue('regenSuppress', pStats.regenSuppress);
-    if (pStats.leech > 0) document.getElementById('ui-leech').innerText = formatValue('leech', pStats.leech);
-    if (pStats.ds > 0) document.getElementById('ui-ds').innerText = formatSettingNumber(pStats.ds, 'showCharacterComma');
-    if (pStats.gemLv > 0) document.getElementById('ui-gemlv').innerText = `+${pStats.gemLv}`;
-    let specialSummaryEl = document.getElementById('ui-unique-special-summary');
-    if (specialSummaryEl) {
-        let notes = [];
-        if ((pStats.glovePairAspdBonus || 0) > 0) notes.push(`동형 장갑 세트 보너스 활성화: 기본 공속 +${(pStats.glovePairAspdBonus || 0).toFixed(2)}`);
-        let heroDef = game.bloomedClassThisLoop === game.ascendClass
-            ? HERO_SELECTION_DEFS[game.bloomedTalentThisLoop] : null;
-        if (heroDef) notes.push(`${heroDef.label} 개화 재능: ${heroDef.talentsText}`);
-        if (game.ascendClass && Array.isArray(game.ascendKeystones) && game.ascendKeystones.length > 0) {
-            let defs = getClassKeystoneDefs(game.ascendClass);
-            let pickedNames = game.ascendKeystones.map(id => ((defs.find(node => node.id === id) || {}).name || id));
-            notes.push(`★ 키스톤: ${pickedNames.join(' / ')}`);
-        }
-        if ((pStats.minDmgRoll || 80) >= (pStats.maxDmgRoll || 100)) notes.push(`최소 피해 보정(${Math.floor(pStats.minDmgRoll || 80)}%)이 최대 보정 이상이라 최대 피해 보정이 동일 값으로 조정됩니다.`);
-        specialSummaryEl.innerText = notes.join(' · ');
-    }
+    if (getRenderingUiTabIds().has('tab-character')) renderCharacterStats(pStats);
 
     let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
     pruneEnemyHpDamageGhostStates(enemies.map(enemy => enemy.id));
