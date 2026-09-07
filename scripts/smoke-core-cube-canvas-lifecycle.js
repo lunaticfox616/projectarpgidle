@@ -27,6 +27,7 @@ let cancelledFrame = 0;
 let drawCount = 0;
 const context = {
     Math,
+    window: { matchMedia: () => ({ matches: false }) },
     performance: { now: () => 1 },
     requestAnimationFrame: callback => { scheduledFrame = callback; return 7; },
     cancelAnimationFrame: id => { cancelledFrame = id; },

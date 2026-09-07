@@ -28,6 +28,7 @@ const coreCubeCanvasView = {
         [-0.57, -0.39, 0.72]
     ],
     dragging: false,
+    pointerId: null,
     dragMoved: false,
     dragStartX: 0,
     dragStartY: 0,
@@ -1044,6 +1045,8 @@ function drawCoreCubeWireframe(drawableFaces, completed) {
 
 function startCoreCubeCanvasAnimation() {
     if (coreCubeCanvasView.animationFrame) cancelAnimationFrame(coreCubeCanvasView.animationFrame);
+    coreCubeCanvasView.animationFrame = null;
+    if (window.matchMedia('(pointer: coarse), (prefers-reduced-motion: reduce)').matches) return;
     if (!isCoreCubeCanvasVisible(coreCubeCanvasView.canvas)) {
         coreCubeCanvasView.animationFrame = null;
         return;
@@ -1068,6 +1071,23 @@ function isCoreCubeCanvasVisible(canvas) {
     return typeof canvas.getClientRects !== 'function' || canvas.getClientRects().length > 0;
 }
 
+/** @param {PointerEvent} event */
+function rotateCoreCubePointer(event) {
+    if (!coreCubeCanvasView.dragging || event.pointerId !== coreCubeCanvasView.pointerId) return;
+    const dx = event.clientX - coreCubeCanvasView.dragStartX;
+    const dy = event.clientY - coreCubeCanvasView.dragStartY;
+    if (Math.hypot(dx, dy) > 4) coreCubeCanvasView.dragMoved = true;
+    const currentVector = coreCubeGetTrackballVector(event.clientX, event.clientY);
+    const previousVector = coreCubeCanvasView.lastTrackballVector;
+    const axis = coreCubeCross(previousVector, currentVector);
+    if (Math.hypot(axis[0], axis[1], axis[2]) <= 0.0001) return;
+    const angle = Math.acos(Math.max(-1, Math.min(1, coreCubeDot(previousVector, currentVector))));
+    const rotation = coreCubeCreateRotationMatrix(axis, angle * 1.35);
+    coreCubeCanvasView.rotationMatrix = coreCubeMultiplyMatrices(rotation, coreCubeCanvasView.rotationMatrix);
+    coreCubeCanvasView.lastTrackballVector = currentVector;
+    drawCoreCubeCanvas();
+}
+
 function bindCoreCubeCanvas(canvas) {
     if (!canvas) return;
     if (coreCubeCanvasView.canvas === canvas) {
@@ -1078,31 +1098,20 @@ function bindCoreCubeCanvas(canvas) {
     coreCubeCanvasView.canvas = canvas;
     coreCubeCanvasView.ctx = canvas.getContext('2d');
     initCoreCubeTextureCanvas();
-    canvas.addEventListener('mousedown', event => {
+    canvas.addEventListener('pointerdown', event => {
+        if (!event.isPrimary || event.button !== 0) return;
+        coreCubeCanvasView.pointerId = event.pointerId;
+        canvas.setPointerCapture(event.pointerId);
         coreCubeCanvasView.dragging = true;
         coreCubeCanvasView.dragMoved = false;
         coreCubeCanvasView.dragStartX = event.clientX;
         coreCubeCanvasView.dragStartY = event.clientY;
         coreCubeCanvasView.lastTrackballVector = coreCubeGetTrackballVector(event.clientX, event.clientY);
     });
-    canvas.addEventListener('mousemove', event => {
-        if (!coreCubeCanvasView.dragging) return;
-        const dx = event.clientX - coreCubeCanvasView.dragStartX;
-        const dy = event.clientY - coreCubeCanvasView.dragStartY;
-        if (Math.hypot(dx, dy) > 4) coreCubeCanvasView.dragMoved = true;
-        const currentVector = coreCubeGetTrackballVector(event.clientX, event.clientY);
-        const previousVector = coreCubeCanvasView.lastTrackballVector;
-        const axis = coreCubeCross(previousVector, currentVector);
-        const axisLength = Math.hypot(axis[0], axis[1], axis[2]);
-        if (axisLength > 0.0001) {
-            const angle = Math.acos(Math.max(-1, Math.min(1, coreCubeDot(previousVector, currentVector))));
-            const rotation = coreCubeCreateRotationMatrix(axis, angle * 1.35);
-            coreCubeCanvasView.rotationMatrix = coreCubeMultiplyMatrices(rotation, coreCubeCanvasView.rotationMatrix);
-            coreCubeCanvasView.lastTrackballVector = currentVector;
-            drawCoreCubeCanvas();
-        }
-    });
-    ['mouseup', 'mouseleave'].forEach(type => canvas.addEventListener(type, () => {
+    canvas.addEventListener('pointermove', rotateCoreCubePointer);
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => canvas.addEventListener(type, event => {
+        if (event.pointerId !== coreCubeCanvasView.pointerId) return;
+        coreCubeCanvasView.pointerId = null;
         coreCubeCanvasView.dragging = false;
         coreCubeCanvasView.lastTrackballVector = null;
     }));
