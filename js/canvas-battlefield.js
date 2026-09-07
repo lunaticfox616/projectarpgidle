@@ -2063,7 +2063,7 @@ function renderBattlefield(forceWhenHidden) {
     const canvas = document.getElementById('battlefield-canvas');
     if (!canvas || (!forceWhenHidden && canvas.offsetParent === null)) return;
     if (!battleAssets.ready && !battleAssets.loading && !battleAssets.failed && window.__battleAssetAutoloadEnabled !== false) initBattleAssets();
-    const expectedScale = clampNumber((window.devicePixelRatio || 1) * uiDisplay.factor, 1, 2);
+    const expectedScale = uiDisplay.battleRenderScale;
     const baseWidth = canvas.clientWidth || Math.round((canvas.width || 960) / expectedScale) || 960;
     const baseHeight = canvas.clientHeight || Math.round((canvas.height || 540) / expectedScale) || 540;
     const expectedWidth = Math.max(1, Math.round(baseWidth * expectedScale));

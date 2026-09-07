@@ -5,11 +5,18 @@ const { performance } = require('node:perf_hooks');
 const fixture = require('./lib/replay-fixture');
 const durationMs = Number(process.env.REPLAY_DURATION_MS || 180000);
 const output = process.argv[2] || 'artifacts/offline-replay-benchmark.json';
-const cases = ['starter', 'summoner', 'void-passives'].filter(name => !process.env.REPLAY_CASE || name === process.env.REPLAY_CASE);
+const cases = ['starter', 'summoner', 'void-passives', 'endgame'].filter(name => !process.env.REPLAY_CASE || name === process.env.REPLAY_CASE);
+const sourceOverrides = {};
+if (process.argv.includes('--baseline')) {
+    for (const file of ['js/combat.js', 'js/combat-replay.js', 'js/growth-effects.js', 'js/equipment-stat-resolution.js', 'js/skills.js']) {
+        sourceOverrides[file] = require('node:child_process').execFileSync('git', ['show', `HEAD:${file}`], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+    }
+}
 if (!cases.length) throw new Error('Unknown REPLAY_CASE');
 
 async function measure(name) {
-    const { runtime: r, run } = fixture(17);
+    const { runtime: r, run } = fixture(17, sourceOverrides);
+    if (name === 'endgame') run(`(${require('./lib/offline-endgame-fixture').toString()})()`);
     if (name === 'summoner') run(`
         game.selectedClassId='occultist';game.selectedHeroId='hero9';game.level=8;
         game.skills=['기본 공격','서리늑대 소환'];game.gemData={'서리늑대 소환':{level:3,exp:0}};
@@ -39,7 +46,7 @@ async function measure(name) {
     const wallMs = performance.now() - start;
     if (original !== JSON.stringify(run('game'))) throw new Error('Replay mutated committed state');
     // spawnStamp is rendering wall time, not a combat deadline or reward.
-    const canonical = JSON.stringify(result, (key, value) => key === 'spawnStamp' ? undefined : value);
+    const canonical = JSON.stringify(result, (key, value) => ['spawnStamp', 'breakdowns'].includes(key) ? undefined : value);
     if (process.env.REPLAY_SNAPSHOTS) fs.writeFileSync(output + '.' + name + '.json', canonical);
     return { name, requestedMs: durationMs, processedMs: result.processedMs, wallMs,
         maxCallbackGapMs: maxSliceMs, callbacks, kills: result.metrics.kills,

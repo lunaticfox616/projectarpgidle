@@ -12,7 +12,8 @@ function normalizeTabLayoutSettings(settings) {
         layouts[platform] = {
             tabOrder: normalizeOrder(source.tabOrder, buttonId),
             tabPlacement: Object.fromEntries(Object.entries(placements)
-                .filter(([id, place]) => buttonId.test(id) && ['top', 'bottom'].includes(place))),
+                .filter(([id, place]) => buttonId.test(id) && ['top', 'bottom'].includes(place))
+                .map(([id, place]) => [id, id === 'btn-tab-pruning' ? 'top' : place])),
             tabGroupOrder: normalizeOrder(source.tabGroupOrder, /^(character|growth|content|gear|etc)$/)
         };
     }
@@ -455,9 +456,7 @@ function mergeDefaults(save) {
             && PASSIVE_TREE.nodes[nodeId]
             && PASSIVE_TREE.nodes[nodeId].kind === 'attribute'
             && (merged.passives || []).includes(nodeId)));
-    const passiveSpecializationOptions = Number(save.saveVersion || 0) < 18
-        ? { migrateWisdomBranchChoice: true, passiveIds: merged.passives }
-        : undefined;
+    const passiveSpecializationOptions = { migrateWisdomBranchChoice: true, passiveIds: merged.passives };
     merged.passiveSpecialization = typeof normalizePassiveSpecializationState === 'function'
         ? normalizePassiveSpecializationState(merged.passiveSpecialization, passiveSpecializationOptions)
         : JSON.parse(JSON.stringify(defaultGame.passiveSpecialization));

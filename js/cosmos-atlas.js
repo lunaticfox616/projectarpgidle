@@ -1174,9 +1174,11 @@
     function openCosmosStoneOverlay() {
         const el = document.getElementById('cosmos-stone-overlay');
         if (!el) return;
+        document.getElementById('cosmos-map-disclosure').open = true;
         ATLAS.stoneOverlayOpen = true;
         el.style.display = 'block';
         refreshCosmosStoneOverlay();
+        el.scrollIntoView({block: 'nearest'});
         if (ATLAS.tooltip) ATLAS.tooltip.style.display = 'none';
     }
 
@@ -1686,23 +1688,22 @@
             panel.id = 'map-tab-cosmos';
             panel.className = 'subtab-content cosmos-atlas-tab';
             panel.innerHTML = `
-                <h2>🌠 우주계 아틀라스</h2>
+                <h2>우주계</h2>
                 <div id="ui-cosmos-panel" class="cosmos-panel">
                     <div class="cosmos-header">
                         <div class="cosmos-brand">
-                            <div class="cosmos-kicker">Cosmic Atlas</div>
-                            <div class="cosmos-title">별을 잇는 우주계 탐험 지도</div>
-                            <div class="cosmos-desc">별길을 개척하고 은하 보스를 추적하세요. 완료한 탐사마다 성도술 포인트를 얻습니다.</div>
+                            <div class="cosmos-title">별길 탐사</div>
+                            <div class="cosmos-desc">목적지를 선택하고 탐사를 시작하세요.</div>
                         </div>
                         <nav class="cosmos-mode-tabs" aria-label="우주계 화면 선택">
                             <button type="button" class="cosmos-mode-tab active" id="btn-cosmos-sub-atlas" onclick="switchCosmosInnerTab('atlas')"><span class="cosmos-mode-icon">✦</span><span><strong>아틀라스</strong><small>별길 탐사와 은하 보스</small></span></button>
                             <button type="button" class="cosmos-mode-tab" id="btn-cosmos-sub-mastery" onclick="switchCosmosInnerTab('mastery')"><span class="cosmos-mode-icon">⌘</span><span><strong>성도술</strong><small>탐사 포인트로 능력 강화</small></span></button>
                         </nav>
                     </div>
-                    <div class="cosmos-summary" id="ui-cosmos-summary"></div>
                     <div id="ui-cosmos-roadmap" class="cosmos-roadmap"></div>
                     <div id="cosmos-inner-atlas" class="cosmos-layout">
                         <div class="cosmos-map-column">
+                            ${buildCosmosDirectoryMarkup()}
                             <div class="cosmos-map-toolbar">
                                 <div><strong>성도 지도</strong><span>드래그로 이동 · 노드를 눌러 상세 확인</span></div>
                                 <div class="cosmos-legend cosmos-map-legend" aria-label="노드 상태 안내">
@@ -1719,12 +1720,14 @@
                                 <div id="cosmos-atlas-tooltip" class="cosmos-atlas-tooltip"></div>
                                 <div id="cosmos-stone-overlay" class="cosmos-stone-overlay" style="display:none;"></div>
                             </div>
+                            </details>
                         </div>
                         <div class="cosmos-detail" id="ui-cosmos-detail"></div>
                     </div>
                     <div id="cosmos-inner-mastery" class="cosmos-mastery-shell" style="display:none;"></div>
+                    <details class="cosmos-records-disclosure"><summary>탐사 기록 · 최종 관문 · 보유 재화</summary><div class="cosmos-summary" id="ui-cosmos-summary"></div></details>
                 </div>`;
-            mapTab.appendChild(panel);
+            (mapTab.querySelector('.ui-window-body') || mapTab).appendChild(panel);
         }
 
         ATLAS.canvas = document.getElementById('cosmos-atlas-canvas');
@@ -1735,15 +1738,6 @@
         ATLAS.roadmap = document.getElementById('ui-cosmos-roadmap');
         ATLAS.tooltip = document.getElementById('cosmos-atlas-tooltip');
         bindCosmosDetailEvents();
-
-        const overlayEl = document.getElementById('cosmos-stone-overlay');
-        if (overlayEl && !overlayEl.__cosmosBound) {
-            overlayEl.__cosmosBound = true;
-            // 배경(슬롯 카드 바깥)을 누르면 오버레이를 닫는다.
-            overlayEl.addEventListener('click', (event) => {
-                if (event.target === overlayEl) closeCosmosStoneOverlay();
-            });
-        }
 
         bindCanvasEvents();
         patchSwitchMapSubtab();
@@ -1790,6 +1784,13 @@
     }
 
     function bindCosmosDetailEvents() {
+        const overlayEl = document.getElementById('cosmos-stone-overlay');
+        if (overlayEl && !overlayEl.__cosmosBound) {
+            overlayEl.__cosmosBound = true;
+            overlayEl.addEventListener('click', event => {
+                if (event.target === overlayEl) closeCosmosStoneOverlay();
+            });
+        }
         const detail = ATLAS.detail;
         if (!detail || detail.__cosmosDirectiveBound) return;
         detail.__cosmosDirectiveBound = true;
@@ -1917,6 +1918,50 @@
         renderCosmosAtlas();
     }
 
+    function buildCosmosDirectoryMarkup() {
+        return `<div class="cosmos-directory-filters"><label>은하<select id="cosmos-directory-galaxy"><option value="all">전체 은하</option>${[0,1,2,3,4,5].map(g=>`<option value="${g}">${g === 0 ? '관문' : g+'은하'}</option>`).join('')}</select></label><label>목적지<select id="cosmos-directory-status"><option value="available">탐사 가능</option><option value="cleared">완료 · 반복 사냥</option><option value="boss">은하 보스</option><option value="all">전체</option></select></label></div>
+                            <div id="cosmos-destination-list" class="cosmos-destination-list" aria-label="탐사 목적지"></div>
+                            <details class="cosmos-map-disclosure" id="cosmos-map-disclosure"><summary>별지도 펼치기</summary>`;
+    }
+
+    function bindCosmosDirectoryEvents() {
+        const list = document.getElementById('cosmos-destination-list');
+        if (!list || list.dataset.bound) return;
+        list.dataset.bound = '1';
+        for (const id of ['cosmos-directory-galaxy', 'cosmos-directory-status']) {
+            document.getElementById(id).addEventListener('change', renderCosmosDirectory);
+        }
+        list.addEventListener('click', event => {
+            const button = event.target.closest('[data-cosmos-destination]');
+            if (!button) return;
+            const id = button.dataset.cosmosDestination;
+            selectCosmosNode(id);
+            list.querySelector(`[data-cosmos-destination="${id}"]`)?.focus({preventScroll:true});
+            if (window.matchMedia('(max-width: 720px)').matches) ATLAS.detail.scrollIntoView({block:'start'});
+        });
+        document.getElementById('cosmos-map-disclosure').addEventListener('toggle', event => {
+            if (event.target.open) { resizeCanvasToHost(); focusCosmosAtlasOnSelected(); }
+        });
+    }
+
+    function renderCosmosDirectory() {
+        const list = document.getElementById('cosmos-destination-list');
+        if (!list) return;
+        const galaxy = document.getElementById('cosmos-directory-galaxy').value;
+        const filter = document.getElementById('cosmos-directory-status').value;
+        const rows = ATLAS.nodes.filter(node => {
+            if (galaxy !== 'all' && node.orbit !== Number(galaxy)) return false;
+            if (filter === 'boss') return node.tag === 'boss';
+            return filter === 'all' || getNodeStatus(node) === filter;
+        });
+        const html = rows.map(node => {
+            const status = getNodeStatus(node);
+            const selected = node.id === ATLAS.selectedId;
+            return `<button type="button" class="cosmos-destination ${status}" data-cosmos-destination="${node.id}" aria-pressed="${selected}"><span><strong>${escapeHtml(node.name)}</strong><small>${node.orbit === 0 ? '관문' : node.orbit+'은하'} · 단계 ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · 보스' : ''}</small></span><span>${selected ? '선택됨' : getStatusLabel(status)}</span></button>`;
+        }).join('') || '<p class="cosmos-directory-empty">조건에 맞는 목적지가 없습니다. 다른 은하나 전체 목록을 확인하세요.</p>';
+        if (list.innerHTML !== html) list.innerHTML = html;
+    }
+
     function screenToWorld(event) {
         const rect = ATLAS.canvas.getBoundingClientRect();
         const w = ATLAS.canvas.width;
@@ -2013,8 +2058,13 @@
         syncCosmosTabVisibility();
         if (!ATLAS.canvas || !ATLAS.ctx) return;
         if (isCosmosTabActive() && resizeCanvasToHost()) drawAtlas();
+        window.captureUiDisclosureState(ATLAS.detail);
+        window.captureUiDisclosureState(ATLAS.summary);
         renderDetail();
+        renderCosmosDirectory();
         renderSummary();
+        window.restoreUiDisclosureState(ATLAS.detail);
+        window.restoreUiDisclosureState(ATLAS.summary);
         renderRoadmap();
         renderMasteryPanel();
         refreshCosmosStoneOverlay();
@@ -2284,13 +2334,8 @@
         const targetButton = guide.targetId
             ? `<button type="button" onclick="focusRecommendedCosmosNode()">추천 노드 보기</button>` : '';
         ATLAS.roadmap.innerHTML = `
-            <div class="cosmos-roadmap-current"><span>NEXT OBJECTIVE</span><strong>${escapeHtml(guide.title)}</strong><small>${escapeHtml(guide.detail)}</small></div>
-            <div class="cosmos-roadmap-steps" aria-label="우주계 진행 순서">
-                <span class="complete">1 지하계 30층</span><span class="${guide.stage === 'entry' ? 'active' : ''}">2 관문</span>
-                <span class="${guide.stage === 'stabilize' ? 'active' : ''}">3 은하 안정화</span><span class="${guide.stage === 'boss' ? 'active' : ''}">4 은하 보스</span>
-                <span class="${guide.stage === 'season' || guide.stage === 'key' || guide.stage === 'capstone' ? 'active' : ''}">5 아스트라</span>
-            </div>
-            <div class="cosmos-roadmap-actions">${freePoints > 0 ? `<b>미사용 성도술 ${freePoints}</b>` : '<span>성도술 배분 완료</span>'}${targetButton}</div>`;
+            <div class="cosmos-roadmap-current"><span>다음 목표</span><strong>${escapeHtml(guide.title)}</strong><small>${escapeHtml(guide.detail)}</small></div>
+            <div class="cosmos-roadmap-actions">${freePoints > 0 ? `<button type="button" onclick="switchCosmosInnerTab('mastery')">성도술 ${freePoints}P 배분</button>` : ''}${targetButton}</div>`;
     }
 
     function focusRecommendedCosmosNode() {
@@ -2303,6 +2348,10 @@
         if (!node) return;
         ATLAS.selectedId = node.id;
         getState().selectedId = node.id;
+        if (ATLAS.installed) {
+            document.getElementById('cosmos-directory-galaxy').value = 'all';
+            document.getElementById('cosmos-directory-status').value = 'all';
+        }
         ATLAS.camera.x = -node.x;
         ATLAS.camera.y = -node.y;
         ATLAS.camera.scale = Math.max(0.82, ATLAS.camera.scale);
@@ -2354,7 +2403,7 @@
             <div class="cosmos-progress-overview"><div class="cosmos-galaxy-progress">${galaxyProgress}</div>
                 <div class="cosmos-resource-line"><span>행성 ${planetsCleared}/50 · 소행성 ${asteroidsCleared}/75</span><span>보스 유물 ${(state.bossRelics || []).length} · 우주석 ${getEquippedCosmosStoneCount(state)}/${hasSixthCosmosStoneUnlock() ? 6 : 5}</span></div></div>
             ${arcanaQuest}
-            <details class="cosmos-capstone-card ${capstoneState}">
+            <details class="cosmos-capstone-card ${capstoneState}" data-ui-disclosure="cosmos-capstone">
                 <summary class="cosmos-capstone-head"><span>최종 관문</span><strong>잔향체 아스트라 ${capstone.clearedCount}/${capstone.total} · 표식 ${capstone.keyCount}</strong></summary>
                 <div class="cosmos-capstone-bosses">${capstoneBosses}</div>
                 <p>${escapeHtml(capstoneMessage)}</p>
@@ -2467,20 +2516,20 @@
                 <div class="cosmos-status ${status}">${getStatusLabel(status)}</div>
             </div>
             <div class="cosmos-detail-source">관측명 ${escapeHtml(node.source)}${window.game && window.game.cosmosLoopCount ? ` · 우주계 루프 난이도 +${Math.max(0, Math.floor(window.game.cosmosLoopCount || 0)) * 2}` : ''}</div>
-            <div class="cosmos-node-facts">
+            ${renderCosmosDifficultySection(node)}
+            <div class="cosmos-actions">
+                <button class="primary" onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${getCosmosChallengeButtonLabel(node, status)}</button>
+                <button onclick="openCosmosStoneOverlay()">우주석 관리</button><button onclick="focusCosmosAtlasOnSelected()">별지도 보기</button>
+            </div>
+            ${renderGalaxyGateLine(node, state)}
+            <div class="cosmos-reward-line"><span>탐사 보상</span>${escapeHtml(rewardLine)}</div>
+            ${renderCosmosDirectiveSection(node, state)}
+            <details class="cosmos-environment" data-ui-disclosure="cosmos-environment"><summary>환경 · 수치 상세</summary><div class="cosmos-node-facts">
                 <span><small>천체 테마</small><strong>${escapeHtml(node.theme)}</strong></span>
                 <span><small>궤도 정보</small><strong>G${node.orbit} · ${Math.max(1, Math.floor((node.localSlot || 0) + 1))}/${NODES_PER_GALAXY}</strong></span>
                 <span><small>환경</small><strong>크기 ${Math.max(1, Math.floor(node.sizeClass || 1))} · ${Number(node.gravity || 1).toFixed(1)}g</strong></span>
                 <span><small>압력</small><strong>진행 +${Math.max(0, Math.floor((node.sizeClass || 1) * 18))}% · 중력 +${Math.max(0, Math.floor((Number(node.gravity || 1) - 1) * 22))}%</strong></span>
-            </div>
-            <div class="cosmos-reward-line"><span>탐사 보상</span>${escapeHtml(rewardLine)}</div>
-            ${renderGalaxyGateLine(node, state)}
-            ${renderCosmosDirectiveSection(node, state)}
-            ${renderCosmosDifficultySection(node)}
-            <div class="cosmos-actions">
-                <button class="primary" onclick="challengeSelectedCosmosNode()" ${canChallengeNode(node) ? '' : 'disabled'}>${getCosmosChallengeButtonLabel(node, status)}</button>
-                ${node.tag === 'boss' ? '<button onclick="openCosmosStoneOverlay()">우주석 관리</button>' : ''}<button onclick="focusCosmosAtlasOnSelected()">지도에서 초점</button>
-            </div>
+            </div></details>
             <div class="cosmos-help">${isCosmosUnlocked() ? '첫 탐사는 별길을 열고, 완료한 천체는 갱신된 신호로 반복 탐사할 수 있습니다.' : '우주계는 나무꾼 격파 후 지하계 30층 도달 시 해금된다.'}</div>`;
     }
 
@@ -2664,6 +2713,8 @@
 
 
     function focusCosmosAtlasOnSelected() {
+        const map = document.getElementById('cosmos-map-disclosure');
+        if (map) map.open = true;
         const state = getState();
         const node = ATLAS.byId.get(ATLAS.selectedId || state.selectedId);
         if (!node) return;
@@ -2682,6 +2733,7 @@
 
     function boot() {
         installCosmosAtlas();
+        bindCosmosDirectoryEvents();
         if (window.game && window.game.mapSubtab === 'map-tab-cosmos') activateCosmosSubtab();
     }
 

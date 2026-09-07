@@ -16,9 +16,9 @@ const LOAD_ORDER = [
     'data/growth-items.js', 'data/passives.js', 'data/passive-node-id-migrations.js', 'data/passive-tree-v22.js', 'data/bosses.js', 'data/rewards.js',
     'data/talent-cards.js', 'data/content-progression.js',
     'js/utils.js', 'js/ui-feedback.js', 'js/state.js', 'js/ui-display.js', 'js/combat-clock.js', 'js/content-progression.js', 'js/endgame-progression.js', 'js/salvage-recovery.js', 'js/unique-hunt.js', 'js/offline-progress.js', 'js/records.js', 'js/save.js', 'js/items.js', 'js/equipment-loadouts.js', 'js/equipment-inventory-grid.js',
-    'js/passives.js', 'js/loot.js', 'js/battle-backdrops.js', 'js/shrines.js', 'js/growth-board.js', 'js/growth-effects.js',
+    'js/passives.js', 'js/loot.js', 'js/battle-backdrops.js', 'js/shrines.js', 'js/growth-board.js', 'js/background-build-cache.js', 'js/growth-effects.js',
     'js/growth-generation.js', 'js/equipment-stat-resolution.js', 'js/skills.js', 'js/bounties.js', 'js/core-cube.js', 'js/combat-grid.js', 'js/condition-patterns.js', 'js/hidden-journal.js', 'js/severed-wanderers.js',
-    'js/combat-patterns.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-slash-vfx.js', 'js/canvas-skill-footprint.js', 'js/canvas-earth-spikes.js', 'js/canvas-skill-signatures.js', 'js/canvas-battlefield.js',
+    'js/combat-patterns.js', 'js/combat-build-stats.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-slash-vfx.js', 'js/canvas-skill-footprint.js', 'js/canvas-earth-spikes.js', 'js/canvas-skill-signatures.js', 'js/canvas-battlefield.js',
     'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/equipment-inventory-grid-ui.js', 'js/crafting-result-ui.js', 'js/bounty-ui.js', 'js/loop-ui.js', 'js/endgame-progression-ui.js', 'js/tutorial-ui.js', 'js/tab-layout-ui.js', 'js/ui.js', 'js/market-ui.js', 'js/equipment-loot-ui.js', 'js/content-progression-ui.js', 'js/salvage-recovery-ui.js', 'js/unique-hunt-ui.js', 'js/equipment-loadouts-ui.js', 'js/growth-ui.js',
     'js/skills-ui.js', 'js/offline-progress-ui.js', 'js/records-ui.js',
     'js/talent-cards.js', 'js/talent-precise.js', 'js/talent-hit-effects.js', 'js/talent-recovery.js',
@@ -28,7 +28,7 @@ const LOAD_ORDER = [
 // UI-window-manager·goal-system 등 DOM 조립 모듈은 실제 브라우저 검사에서 검증한다.
 // index.html 전체 순서와의 일치는 smoke-boot-script-contract.js가 확인한다.
 
-function buildGameRuntime() {
+function buildGameRuntime(sourceOverrides = {}) {
     const noop = () => {};
     const stubCtx = {
         fillRect: noop, clearRect: noop, drawImage: noop, save: noop, restore: noop,
@@ -81,7 +81,7 @@ function buildGameRuntime() {
     };
     vm.createContext(context);
     LOAD_ORDER.forEach(file => {
-        vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
+        vm.runInContext(sourceOverrides[file] ?? fs.readFileSync(file, 'utf8'), context, { filename: file });
     });
     return context;
 }

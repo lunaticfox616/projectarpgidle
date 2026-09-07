@@ -584,6 +584,7 @@ body.light-mode #item-tab-equip .equipment-slot {
 
   #tab-map .map-explore-layout { display: block; }
   #tab-map .vertical-tab-sidebar {
+    box-sizing: border-box;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--ui-space-1);

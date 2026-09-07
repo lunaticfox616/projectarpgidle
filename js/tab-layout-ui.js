@@ -28,6 +28,7 @@ const tabLayoutUi = {
     },
 
     isMisc(id, layout = tabLayoutUi.current()) {
+        if (id === 'btn-tab-pruning') return false;
         return id === 'btn-tab-settings' || id === 'btn-map-complete-action-picker'
             || layout.tabPlacement[id] === 'bottom';
     },
@@ -46,7 +47,7 @@ const tabLayoutUi = {
                 + '<button type="button" data-move="1" data-tab="' + id + '" aria-label="' + escapeHTML(label) + ' 뒤로"' + (index === available.length - 1 ? ' disabled' : '') + '>↓</button>'
                 + '<select data-place="' + id + '" aria-label="' + escapeHTML(label) + ' 위치"' + '>'
                 + '<option value="top"' + (!tabLayoutUi.isMisc(id, layout) ? ' selected' : '') + '>기본 메뉴</option>'
-                + '<option value="bottom"' + (tabLayoutUi.isMisc(id, layout) ? ' selected' : '') + '>기타 메뉴</option></select></div></div>';
+                + '<option value="bottom"' + (id === 'btn-tab-pruning' ? ' disabled' : '') + (tabLayoutUi.isMisc(id, layout) ? ' selected' : '') + '>기타 메뉴</option></select></div></div>';
         }).join('');
         root.innerHTML = '<label class="cfg-tab-platform">편집할 화면<select aria-label="편집할 화면"><option value="desktop"' + (target === 'desktop' ? ' selected' : '') + '>PC</option><option value="mobile"' + (target === 'mobile' ? ' selected' : '') + '>모바일</option></select></label>' + rows;
         root.querySelector('.cfg-tab-platform select').addEventListener('change', event => {
@@ -75,6 +76,7 @@ const tabLayoutUi = {
     },
 
     place(id, placement) {
+        if (id === 'btn-tab-pruning') placement = 'top';
         if (!tabLayoutUi.buttons().some(button => button.id === id)) return;
         const layout = game.settings.tabLayouts[tabLayoutUi.selectedPlatform || tabLayoutUi.platform()];
         layout.tabPlacement[id] = placement === 'bottom' ? 'bottom' : 'top';

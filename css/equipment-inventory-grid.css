@@ -59,6 +59,14 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
 #item-tab-equip .inventory-management-row .equipment-salvage-actions { display: flex; flex-wrap: wrap; gap: 5px; }
 #item-tab-equip .inventory-management-row :where(button, select) { min-height: 32px; font-size: 11px; font-weight: 500; }
 .inventory-management-row .equipment-triage-host { width: auto; margin: 0; padding: 0; border: 0; }
+.equipment-mobile-management, #equipment-touch-arrange { display: none; }
+
+@media (pointer: coarse) {
+    #equipment-touch-arrange { display: block; }
+    #item-tab-equip:not(.touch-arrange) .equipment-grid-item,
+    #item-tab-equip:not(.touch-arrange) #ui-equip-list .equipment-slot { touch-action: pan-y; }
+    #equipment-touch-arrange[aria-pressed="true"] { border-color: var(--ui-gold); color: var(--ui-gold); }
+}
 
 .equipment-inventory-grid-shell {
     --equipment-grid-cell-size: clamp(24px, calc((100cqw - 40px) / 10), 52px);
@@ -264,7 +272,7 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
 .equipment-grid-item.rarity-normal { --item-rarity: #7d8996; }
 
 .equipment-grid-item.is-filter-muted {
-    opacity: .3;
+    opacity: .48;
     filter: grayscale(1) saturate(.08);
 }
 
@@ -276,8 +284,8 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
 
 .equipment-grid-item.is-filter-match {
     z-index: 2;
-    border-color: color-mix(in srgb, var(--item-rarity) 62%, #e9f7ff);
-    box-shadow: inset 0 0 0 1px rgba(236, 248, 255, .7), inset 0 0 14px color-mix(in srgb, var(--item-rarity) 24%, transparent), 0 0 0 2px rgba(137, 211, 255, .58);
+    border-color: var(--ui-accent);
+    box-shadow: inset 0 0 0 1px var(--ui-accent), 0 0 0 1px var(--ui-line-strong);
 }
 
 .equipment-grid-item:hover,
@@ -487,6 +495,8 @@ body.light-mode .equipment-grid-item { background: radial-gradient(circle at 50%
 .equipment-temporary-item.rarity-unique { --item-rarity: #ff9f43; }
 
 @media (max-width: 640px) {
+    #item-tab-equip .equipment-mobile-management { display: block; width: 100%; min-height: 44px; }
+    #item-tab-equip .inventory-management-row:not(.management-open) > :not(.equipment-mobile-management) { display: none; }
     #item-tab-equip .inventory-browse-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; padding: 0; }
     #item-tab-equip .inventory-browse-toolbar label { display: flex; align-items: center; width: auto; min-width: 0; gap: 4px; }
     #item-tab-equip .inventory-browse-toolbar select { width: 100%; min-width: 0; min-height: 44px; }

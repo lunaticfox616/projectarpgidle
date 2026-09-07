@@ -47,8 +47,21 @@ assert(triageHost.innerHTML.includes('3개 완료'), 'analysis completion must b
 assert.strictEqual(runtime.equipmentTriage.setFilter('defense'), true);
 const defenseRows = runtime.equipmentTriage.filterRows(candidates.map((item, idx) => ({ item, idx })));
 assert(defenseRows.some(row => row.item.id === candidates[0].id), 'survival filter must retain the EHP upgrade');
-assert(defenseRows.every(row => runtime.equipmentTriage.getResult(row.item).ehpGainPct >= 1),
-    'survival filter must exclude candidates without an EHP gain');
+assert.strictEqual(defenseRows.length, candidates.length, 'analysis must preserve every item');
+assert(defenseRows.every(row => row.filterActive && row.filterMatched === (runtime.equipmentTriage.getResult(row.item).ehpGainPct >= 1)),
+    'analysis marks matches without hiding the other equipment');
+const intersected = runtime.equipmentTriage.filterRows([{ item: candidates[0], idx: 0, filterMatched: false }]);
+assert.strictEqual(intersected[0].filterMatched, false, 'analysis must preserve a search mismatch');
+runtime.equipmentTriage.setFilter('all');
+vm.runInContext("game.settings.equipmentSlotFilter = '투구'", runtime);
+const slotRows = vm.runInContext("getSortedEquipmentInventoryRows('')", runtime);
+assert.strictEqual(slotRows.length, 3);
+assert.strictEqual(slotRows.filter(row => row.filterMatched).length, 1);
+const noMatches = vm.runInContext("getSortedEquipmentInventoryRows('없는이름')", runtime);
+assert.strictEqual(noMatches.length, 3);
+assert(noMatches.every(row => row.filterActive && !row.filterMatched));
+vm.runInContext("game.settings.equipmentSlotFilter = 'all'", runtime);
+runtime.equipmentTriage.setFilter('defense');
 const cardHtml = runtime.renderInventoryCard(candidates[0], 0, 'equip', defenseResult);
 assert(cardHtml.includes('생존 +'), 'analyzed cards must expose the result without requiring tooltip hover');
 let recommendedEquip = null;

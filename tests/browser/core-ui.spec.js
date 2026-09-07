@@ -814,6 +814,7 @@ test('equipment triage classifies the current build without destabilizing select
     });
     const triage = page.locator('#ui-equipment-triage');
     await dismissVisibleTutorials(page);
+    if (await page.locator('.equipment-mobile-management').isVisible()) await page.locator('.equipment-mobile-management').click();
     await expect(triage.getByRole('button', { name: '일괄 분석' })).toBeVisible();
     await expect(triage).toContainText('호버 대신');
     await triage.getByRole('button', { name: '일괄 분석' }).click();
@@ -1219,6 +1220,7 @@ test('salvaged equipment can be recovered for its exact reward on desktop and mo
     const shortcut = page.locator('#btn-salvage-recovery');
     await expect(shortcut).toHaveAttribute('aria-label', /복구 가능 장비 1개/);
     await dismissVisibleTutorials(page);
+    if (await page.locator('.equipment-mobile-management').isVisible()) await page.locator('.equipment-mobile-management').click();
     await shortcut.click();
     const overlay = page.locator('#salvage-recovery-overlay');
     await expect(overlay).toBeVisible();
@@ -1382,6 +1384,7 @@ test('side encounters retain difficulty and active state on save restoration', a
     const failures=watchRuntimeFailures(page);
     await openLocalGame(page);
     const result=await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null; // This scenario advances combat time explicitly.
         game.season=10;game.loopCount=9;game.currentZoneId=8;game.maxZoneId=8;contentProgression.sync();
         game.abyssEndlessDepth=200;game.loopProgressCurrent.bestAbyssDepth=21;
         game.currencies.colonyTrace=1;startColonyRun();
@@ -2470,6 +2473,7 @@ test('representative battle and equipment layouts preserve the primary task hier
         });
         expect(managementFlow.pipBottom).toBeLessThanOrEqual(managementFlow.subtabsTop + 1);
         expect(managementFlow.switcherTop).toBeGreaterThanOrEqual(managementFlow.subtabsBottom - 1);
+        await page.locator('.equipment-mobile-management').click();
         const actionLayout = await page.locator('#item-tab-equip .equipment-salvage-actions').evaluate(element => {
             const buttons = Array.from(element.querySelectorAll('button')).slice(0, 2);
             const boxes = buttons.map(button => button.getBoundingClientRect());
@@ -3217,5 +3221,66 @@ test('representative dark-theme chrome does not regress to the legacy blue palet
         return { count: entries.length, samples: entries.slice(0, 24) };
     });
     expect(offenders).toEqual({ count: 0, samples: [] });
+    expect(failures).toEqual([]);
+});
+
+test('void crafting and profile follow the theme; Wisdom Leap is read only', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await dismissVisibleTutorials(page);
+    await page.evaluate(() => {
+        game.combatHalted = true;
+        game.passives.push('nkf64engb6m', 'nwn5msikamo');
+        game.passiveSpecialization.keystoneChoices.wisdom_leap_element = 'fire';
+        renderPassiveInvestmentSummary();
+    });
+    await expect(page.locator('#passive-investment-summary-body')).toContainText('지혜의 도약 · 공허');
+    await expect(page.locator('#passive-investment-summary-body select')).toHaveCount(1);
+    expect(await page.evaluate(() => getPlayerStats().passiveWisdomElement)).toBe('chaos');
+    for (const theme of ['dark', 'light']) {
+        await page.evaluate(mode => {
+            applyThemeMode(mode);
+            const node = Object.values(PASSIVE_TREE.nodes).find(n => n.kind === 'void');
+            if (!game.passives.includes(node.id)) game.passives.push(node.id);
+            game.currencies.magicBud = 2;
+            openVoidPassiveCraftOverlay(node.id);
+        }, theme);
+        const dialog = page.locator('.void-craft-dialog');
+        await expect(dialog).toBeVisible();
+        const geometry = await dialog.evaluate(el => {
+            const r = el.getBoundingClientRect();
+            return { left: r.left, right: r.right, width: innerWidth, overflow: el.scrollWidth - el.clientWidth };
+        });
+        expect(geometry.left).toBeGreaterThanOrEqual(0);
+        expect(geometry.right).toBeLessThanOrEqual(geometry.width);
+        expect(geometry.overflow).toBeLessThanOrEqual(1);
+        await page.screenshot({path: testInfo.outputPath('void-'+theme+'.png')});
+        await dialog.getByRole('button', { name: /마법의 새싹/ }).click();
+        expect(await page.evaluate(() => game.currencies.magicBud)).toBe(1);
+        await page.locator('.void-craft-dialog').getByRole('button', {name:'닫기',exact:true}).click();
+        await expect(dialog).toHaveCount(0);
+        await page.evaluate(() => {
+            ensureProfileModal().style.display = 'flex';
+            renderProfileData({ nickname:'정원사',level:90,className:'비술사',loop:31,
+                stats:[{label:'생명력',value:'12,500',color:'#ffffff'}],
+                equipment:[{slot:'무기',name:'별빛 지팡이',rarity:'rare',stats:[]}],jewels:[],talismans:[] });
+        });
+        const profile = page.locator('#social-profile-modal');
+        await expect(profile).toBeVisible();
+        const colors = await profile.evaluate(el => {
+            const style = getComputedStyle(el.querySelector('.social-modal-box'));
+            const token = getComputedStyle(document.body).getPropertyValue('--ui-surface-1').trim();
+            const probe = document.createElement('div');probe.style.backgroundColor=token;document.body.appendChild(probe);
+            const expected = getComputedStyle(probe).backgroundColor;probe.remove();
+            return { actual:style.backgroundColor, expected, overflow:el.scrollWidth-el.clientWidth };
+        });
+        expect(colors.actual).toBe(colors.expected);
+        expect(colors.overflow).toBeLessThanOrEqual(1);
+        await page.screenshot({path:testInfo.outputPath('profile-'+theme+'.png')});
+        await profile.locator('#social-profile-tabs').getByRole('button',{name:'주얼',exact:true}).click();
+        await expect(profile.locator('#social-profile-items')).toContainText('없');
+        await profile.getByRole('button',{name:'닫기',exact:true}).click();
+        await expect(profile).toBeHidden();
+    }
     expect(failures).toEqual([]);
 });

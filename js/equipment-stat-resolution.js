@@ -4,11 +4,14 @@
  * @returns {Array<[string, object]>}
  */
 function getPlayerStatSourceItemEntries() {
+    const memo = getBackgroundBuildMemo(game);
+    if (memo?.has('equipment-sources')) return memo.get('equipment-sources');
     let entries = [];
     getPlacedGrowthEntries().forEach(entry => entries.push([`growth:${entry.item.id}`, entry.item]));
     Object.entries(game.equipment || {}).forEach(([slotKey, item]) => {
         if (item) entries.push([slotKey, item]);
     });
+    memo?.set('equipment-sources', entries);
     return entries;
 }
 
@@ -29,22 +32,22 @@ function scaleEquipmentStatLines(stats, multiplier, growthItem) {
     });
 }
 
-function getEquipmentStatMultiplier(item, ownerState, growthItem) {
+function getEquipmentStatMultiplier(item, ownerState, growthItem, growthSnapshot) {
     let offhand = ownerState.equipment && ownerState.equipment['방패'];
     let dualWielding = !!(ownerState.equipment && ownerState.equipment['무기'] && offhand && offhand.slot === '무기');
     let warriorKeystone = ownerState.ascendClass === 'warrior'
         && ((ownerState.ascendKeystones || []).includes('w6') || (ownerState.cosmosTwinKeystones || []).includes('w6'));
     let weaponMultiplier = !growthItem && item.slot === '무기' && dualWielding && warriorKeystone ? 1.5 : 1;
-    let growthMultiplier = growthItem ? getGrowthItemStatMultiplier(item.id) : 1;
+    let growthMultiplier = growthItem ? getGrowthItemStatMultiplier(item.id, growthSnapshot) : 1;
     return weaponMultiplier * growthMultiplier;
 }
 
-function resolveEquipmentBaseStats(item, mirrorItem, itemMultiplier, growthItem) {
+function resolveEquipmentBaseStats(item, mirrorItem, itemMultiplier, growthItem, growthSnapshot) {
     let qualityCap = item.qualityLockedByLimitBreak ? 30 : 20;
     let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(Number(item.quality) || 0)));
     let qualityMultiplier = 1 + qualityValue / 100;
     let qualityMode = getItemQualityAttributeMode(item);
-    let growthBaseMultiplier = growthItem ? getGrowthItemBaseMultiplier(item.id) : 1;
+    let growthBaseMultiplier = growthItem ? getGrowthItemBaseMultiplier(item.id, growthSnapshot) : 1;
     let baseMultiplier = (qualityMode === 'base' ? qualityMultiplier : 1) * growthBaseMultiplier;
     let source = [...(item.baseStats || []), ...((mirrorItem && mirrorItem.baseStats) || [])];
     let scaled = source.filter(Boolean).map(stat => {
@@ -82,21 +85,28 @@ function resolveEquipmentExplicitStats(item, mirrorItem, itemMultiplier, quality
  * @param {object} item
  * @param {object} ownerState
  * @param {boolean} includeArcana
+ * @param {ReturnType<typeof getGrowthEffectSnapshot>} [growthSnapshot] Same-evaluation spatial result; never reused across state changes.
  * @returns {{baseStats:Array<object>, explicitStats:Array<object>, mirrorSourceItem:object|null, mirrorSourceSlot:string|null, growthItem:boolean}}
  */
-function getResolvedEquipmentStatLists(slotKey, item, ownerState, includeArcana) {
+function getResolvedEquipmentStatLists(slotKey, item, ownerState, includeArcana, growthSnapshot) {
     let source = ownerState || game;
+    const memo = getBackgroundBuildMemo(source);
+    const key = `equipment:${slotKey}:${includeArcana !== false}`;
+    const cached = memo?.get(key);
+    if (cached && cached.item === item) return cached.result;
     let mirror = getEquipmentMirrorSource(slotKey, item, source);
     let growthItem = isGrowthItem(item);
-    let itemMultiplier = getEquipmentStatMultiplier(item, source, growthItem);
-    let base = resolveEquipmentBaseStats(item, mirror.item, itemMultiplier, growthItem);
+    let itemMultiplier = getEquipmentStatMultiplier(item, source, growthItem, growthSnapshot);
+    let base = resolveEquipmentBaseStats(item, mirror.item, itemMultiplier, growthItem, growthSnapshot);
     let baseStats = base.stats;
     let explicitStats = resolveEquipmentExplicitStats(item, mirror.item, itemMultiplier, base.qualityMode, base.qualityMultiplier);
     if (includeArcana !== false) {
         baseStats = applyArcanaSlotAmplification(baseStats, slotKey, source);
         explicitStats = applyArcanaSlotAmplification(explicitStats, slotKey, source);
     }
-    return { baseStats, explicitStats, mirrorSourceItem: mirror.item, mirrorSourceSlot: mirror.slot, growthItem };
+    let result = { baseStats, explicitStats, mirrorSourceItem: mirror.item, mirrorSourceSlot: mirror.slot, growthItem };
+    memo?.set(key, { item, result });
+    return result;
 }
 
 safeExposeGlobals({ getPlayerStatSourceItemEntries, getResolvedEquipmentStatLists });

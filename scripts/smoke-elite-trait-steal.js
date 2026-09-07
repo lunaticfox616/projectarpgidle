@@ -6,7 +6,7 @@ const source = fs.readFileSync('js/combat.js', 'utf8');
 assert(source.includes('trait: trait ? { ...trait } : null'), 'created elite enemies must retain their rolled trait payload');
 
 const start = source.indexOf('function applyEliteTraitBuffStats(buff, bucket)');
-const end = source.indexOf('function getPlayerStats()', start);
+const end = source.indexOf('function getPlayerStats(', start);
 assert(start >= 0 && end > start, 'elite trait helpers not found');
 
 const logs = [];

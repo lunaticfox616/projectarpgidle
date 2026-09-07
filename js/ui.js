@@ -4,7 +4,6 @@ let lastPassiveTreeDrawAt = 0;
 // 전장 캔버스 렌더 주기를 제한해 고주사율 모니터에서의 과도한 재계산/렉을 완화한다.
 // (idle ARPG 특성상 30fps 부근이면 충분히 부드럽고, 메인 스레드 여유를 확보해 끊김을 줄인다.)
 let lastBattlefieldRenderAt = 0;
-const BATTLEFIELD_MIN_FRAME_MS = 22;
 let lastPassiveTreeSignature = '';
 // 패시브 도달/가시 노드 재계산은 패시브 상태가 바뀔 때만 필요하다. 실제 변경 시에는
 // 할당/환불/장착/로드 등 전용 호출부가 직접 재계산하므로, 매 UI 갱신마다 도는
@@ -489,24 +488,37 @@ function getBackgroundProgressOverlay() {
     overlay = document.createElement('div');
     overlay.id = 'background-combat-progress-overlay';
     overlay.className = 'background-combat-progress-overlay';
-    overlay.innerHTML = '<div class="background-combat-progress-card"><strong>백그라운드 전투 계산 중</strong><div id="background-combat-progress-percent">계산 진행 0%</div><div class="background-combat-progress-track" role="progressbar" aria-label="백그라운드 전투 계산 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="background-combat-progress-bar-fill"></div></div><div id="background-combat-progress-duration"></div><div class="background-combat-speed-guide">진행 반영 한도: 3시간 · 장비·경험치·지역 진행을 함께 반영하며 필수 선택에서 멈춥니다</div><button type="button" id="background-combat-fast-button" onclick="requestFasterBackgroundCombat()">빠른 계산</button></div>';
+    overlay.innerHTML = '<div class="background-combat-progress-card" role="dialog" aria-modal="true" aria-label="방치 정산"><h2>방치 정산</h2><div id="background-combat-progress-percent" aria-live="polite">계산 진행 0%</div><div class="background-combat-progress-track" role="progressbar" aria-label="방치 정산 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="background-combat-progress-bar-fill"></div></div><div id="background-combat-progress-duration"></div><div class="background-combat-speed-guide"></div><p id="background-combat-sacrifice">가속할 때마다 남은 전투 시간의 절반과 그 보상 기회를 포기합니다. 이미 계산한 보상은 유지됩니다.</p><p id="background-combat-skipped" aria-live="polite"></p><div class="background-combat-actions"><button type="button" id="background-combat-fast-button" onclick="requestFasterBackgroundCombat()">2배 가속 · 남은 시간 ½</button><button type="button" id="background-combat-finish-button" onclick="requestFasterBackgroundCombat(true)">즉시 종료 · 남은 시간 포기</button></div></div>';
     document.body.appendChild(overlay);
     return overlay;
 }
 
-function requestFasterBackgroundCombat() {
-    backgroundCombatRuntime.accelerationTier = 1;
+function requestFasterBackgroundCombat(finish = false) {
+    if (!backgroundCombatRuntime.processing || backgroundCombatRuntime.finishRequested) return;
+    backgroundCombatRuntime.finishRequested = finish;
+    backgroundCombatRuntime.accelerationTier = Math.min(4, backgroundCombatRuntime.accelerationTier + (finish ? 0 : 1));
+    renderBackgroundSpeedControls(finish);
+}
+
+function renderBackgroundSpeedControls(finish) {
     let button = typeof document !== 'undefined' ? document.getElementById('background-combat-fast-button') : null;
     if (!button) return;
-    button.disabled = true;
-    button.textContent = '빠른 계산 중 · 보상은 동일';
+    button.disabled = finish || backgroundCombatRuntime.accelerationTier >= 4;
+    button.textContent = finish ? '계산한 보상 저장 중…' : backgroundCombatRuntime.accelerationTier >= 4
+        ? '16배 가속 적용됨' : `${2 ** (backgroundCombatRuntime.accelerationTier + 1)}배 가속 · 남은 시간 ½`;
+    const stop = document.getElementById('background-combat-finish-button');
+    if (stop) stop.disabled = finish;
 }
 
 
-function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs) {
+function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skippedMs = 0) {
     let overlay = getBackgroundProgressOverlay();
     if (!overlay) return;
     let pct = totalMs > 0 ? Math.min(100, Math.floor(doneMs / totalMs * 100)) : 100;
+    const signature = `${pct}:${skippedMs}`;
+    if (overlay.dataset.progressPercent === signature) return;
+    overlay.dataset.progressPercent = signature;
+    updateBackgroundSkippedTime(skippedMs);
     let percent = document.getElementById('background-combat-progress-percent');
     let progressBar = document.querySelector('.background-combat-progress-track');
     let progressFill = document.getElementById('background-combat-progress-bar-fill');
@@ -525,6 +537,15 @@ function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs) {
 function hideBackgroundProgressOverlay() {
     let overlay = typeof document !== 'undefined' ? document.getElementById('background-combat-progress-overlay') : null;
     if (overlay) overlay.remove();
+}
+
+function updateBackgroundSkippedTime(skippedMs) {
+    const skipped = document.getElementById('background-combat-skipped');
+    if (skipped) skipped.textContent = formatBackgroundSkippedReward(skippedMs);
+}
+
+function formatBackgroundSkippedReward(skippedMs) {
+    return skippedMs > 0 ? `포기한 전투 시간: ${formatBackgroundDuration(skippedMs)} · 해당 시간 보상 미지급` : '';
 }
 
 function showBackgroundCombatResult(result) {
@@ -557,13 +578,14 @@ function showBackgroundCombatResult(result) {
     let stashTotal = Math.max(0, Number(summary.stashTotal) || 0);
     let resultLimits = result.limits || getBackgroundProgressResultLimits(game);
     let rewards = [
+        formatBackgroundSkippedReward(result.skippedMs),
         ...(stashItems > 0 ? [`방치 보관함 획득: ${stashItems}개 (누적 ${stashTotal}개)`] : []),
         `총 처치: <strong>${summary.kills || 0}</strong>`,
         `총 경험치: <strong>+${summary.exp || 0}</strong> <span class="background-combat-exp-lost">(잃은 경험치 -${summary.expLost || 0})</span>`,
         `사망 횟수: <strong>${summary.deaths || 0}</strong>`,
         `인벤토리 증가: ${itemHtml}${uniqueLine}${overflowLine}`,
         `재화: ${currencyHtml}`
-    ].join('<br>');
+    ].filter(Boolean).join('<br>');
     overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p>${equipmentLootUi.renderHighlights(summary.highlights)}<p>${rewards}</p>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">백그라운드 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">계속하기</button></div>`;
     document.body.appendChild(overlay);
 }
@@ -604,7 +626,7 @@ function commitBackgroundCombat(result, expectedGame) {
 }
 
 async function startBackgroundCombatReturn(nowMs) {
-    if (backgroundCombatRuntime.processing) return false;
+    if (backgroundCombatRuntime.processing || backgroundCombatRuntime.appInactive) return false;
     let snapshot = backgroundCombatRuntime.snapshot;
     let original = game;
     let startedAtMs = backgroundCombatRuntime.hiddenAtMs;
@@ -619,6 +641,7 @@ async function startBackgroundCombatReturn(nowMs) {
     backgroundCombatRuntime.processing = true;
     backgroundCombatRuntime.failed = false;
     backgroundCombatRuntime.accelerationTier = 0;
+    backgroundCombatRuntime.finishRequested = false;
     let committed = false;
     setBattleFxSuppressed(true);
     try {
@@ -628,14 +651,17 @@ async function startBackgroundCombatReturn(nowMs) {
         await waitBackgroundReplayFrame();
         let result = await simulateBackgroundCombatChunked({
             elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs,
-            onProgress: (done, total) => updateBackgroundProgressOverlay(done, total, actualElapsedMs)
+            isPaused: () => document.hidden || backgroundCombatRuntime.appInactive,
+            getControl: () => ({tier: backgroundCombatRuntime.accelerationTier, finish: backgroundCombatRuntime.finishRequested}),
+            onProgress: (done, total, skipped) => updateBackgroundProgressOverlay(done, total, actualElapsedMs, skipped)
         });
         if (!shouldApplyBackgroundCombatResult(backgroundCombatRuntime.signature)) throw new Error('정산 중 사냥 상태가 변경되었습니다.');
         let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
         commitBackgroundCombat(result, original);
         committed = true;
         showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs: result.processedMs, summary,
-            capped: actualElapsedMs >= limits.recognitionLimitMs, limits, stopped: result.stopped, stopReason: result.stopReason });
+            capped: actualElapsedMs >= limits.recognitionLimitMs, limits, stopped: result.stopped, stopReason: result.stopReason,
+            skippedMs: result.skippedMs });
         restoreBattlefieldBeforeBackgroundReplay();
         return true;
     } catch (error) {
@@ -819,10 +845,14 @@ function renderMobileBattlePipFrame() {
 // 비싸므로, 고정 주기 대신 렌더 비용에 따라 다음 주기를 조절(adaptive)해
 // 전경 탭의 프레임 예산을 빼앗지 않도록 한다.
 const MOBILE_PIP_BASE_INTERVAL_MS = 150;
+function isBattlePresentationSuspended() {
+    return document.hidden || backgroundCombatRuntime.appInactive || backgroundCombatRuntime.processing
+        || isStartupOverlayOpen() || isLoadingOverlayOpen();
+}
 function runMobilePipRefreshTick() {
     let nextDelay = MOBILE_PIP_BASE_INTERVAL_MS;
     try {
-        if (document.hidden) {
+        if (isBattlePresentationSuspended()) {
             nextDelay = 500;
         } else {
             updateMobileBattlePipVisibility();
@@ -1400,7 +1430,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
     if (game.settings.twoRowTabs && !tabLayoutUi.current().tabPlacementInitialized && uiDisplay.matches('(max-width: 1080px)')) {
         tabLayoutUi.current().tabPlacementInitialized = true;
         let autoIds = Array.from(topHeader.querySelectorAll('.tab-btn')).map(el => el.id);
-        autoIds.forEach((id, idx) => { tabLayoutUi.current().tabPlacement[id] = idx === 0 ? 'top' : 'bottom'; });
+        autoIds.forEach((id, idx) => { tabLayoutUi.current().tabPlacement[id] = idx === 0 || id === 'btn-tab-pruning' ? 'top' : 'bottom'; });
     }
     let allTabButtons = headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')));
     let ids=allTabButtons.map(el=>el.id);
@@ -2015,18 +2045,16 @@ function getSortedEquipmentInventoryRows(query) {
     if (slotSelect) slotSelect.value = slotValue;
     if (sortSelect) sortSelect.value = sortValue;
     let ranks = { unique: 4, rare: 3, magic: 2, normal: 1 };
-    let visualFilterActive = String(query || '').trim().length > 0
-        || game.inventory.some(item => item && !isItemRarityVisible(item));
-    let rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => {
-        let item = row.item || {};
-        return slotValue === 'all' || item.slot === slotValue;
-    }).map(row => {
+    let visualFilterActive = [slotValue !== 'all', String(query || '').trim().length > 0,
+        game.inventory.some(item => item && !isItemRarityVisible(item))].some(Boolean);
+    let rows = game.inventory.map((item, idx) => ({ item, idx })).map(row => {
         let item = row.item || {};
         let under = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
         let base = (item.baseStats || []).map(stat => `${stat && stat.id || ''} ${stat && stat.statName || ''}`).join(' ');
         let stats = (item.stats || []).map(stat => `${stat && stat.id || ''} ${stat && stat.statName || getStatName((stat && stat.id) || '') || ''}`).join(' ');
         let searchMatched = matchSearchQuery(`${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${base} ${stats} ${under}`, query);
-        return { ...row, filterActive: visualFilterActive, filterMatched: isItemRarityVisible(item) && searchMatched };
+        return { ...row, filterActive: visualFilterActive,
+            filterMatched: ['all', item.slot].includes(slotValue) && isItemRarityVisible(item) && searchMatched };
     }).sort((a, b) => {
         if (sortValue === 'rarity') return (ranks[b.item.rarity] || 0) - (ranks[a.item.rarity] || 0) || b.idx - a.idx;
         if (sortValue === 'tier') return Number(b.item.hiddenTier || b.item.itemTier || 0) - Number(a.item.hiddenTier || a.item.itemTier || 0) || b.idx - a.idx;
@@ -3294,12 +3322,12 @@ function renderOceanPermanentUpgradeRows(st) {
         let cost = typeof getOceanPermanentUpgradeCost === 'function' ? getOceanPermanentUpgradeCost(key) : null;
         let costText = typeof getOceanUpgradeCostText === 'function' ? getOceanUpgradeCostText(cost) : '';
         let disabled = !cost || (typeof canPayOceanUpgradeCost === 'function' && !canPayOceanUpgradeCost(cost));
-        return `<div style="border:1px solid rgba(79,209,255,.22); border-radius:8px; padding:8px; background:rgba(6,18,32,.45);">
-            <div style="display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap;">
-                <div><b style="color:#8fe3ff;">${def.label}</b> Lv.${level}/${def.maxLevel} <span style="color:var(--copy-bright);">(+${value}${def.unit})</span><br><span style="color:var(--copy-bright); font-size:.86em;">${def.desc}</span></div>
+        return `<div class="ocean-upgrade-card">
+            <div>
+                <div><b>${def.label}</b><br>Lv.${level}/${def.maxLevel} · +${value}${def.unit}</div>
                 <button onclick="upgradeOceanPermanent('${key}'); renderOceanDepthMapPanel(); renderFishingPanel();" ${disabled ? 'disabled' : ''}>강화</button>
             </div>
-            <div style="margin-top:4px; color:var(--copy-bright); font-size:.84em;">필요: ${costText || '최대 단계'}</div>
+            <small>${def.desc}</small><small>필요: ${costText || '최대 단계'}</small>
         </div>`;
     }).join('');
 }
@@ -3310,42 +3338,28 @@ function renderOceanDepthMapPanel() {
     if (!panel || !list) return;
     let st = ensureOceanState();
     if (!st.unlocked) {
-        panel.innerHTML = `<div class="sky-tower-head"><div><div class="sky-tower-title">🌊 심해</div><div class="sky-tower-sub">루프 ${OCEAN_UNLOCK_LOOP} 이후 해금됩니다.</div></div><span class="sky-tower-lock-chip">🔒 봉인됨</span></div>`;
+        panel.innerHTML = `<h3>심해</h3><p>루프 ${OCEAN_UNLOCK_LOOP} 이후 해금됩니다.</p>`;
         list.innerHTML = '';
         return;
     }
-    let oxygenPct = Math.round((st.oxygenCur / Math.max(1, st.oxygenMax)) * 100);
-    let strategyDrainMul = Math.max(0.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
-    let drainPerSec = getOceanOxygenDrainPerSec();
-    drainPerSec *= strategyDrainMul;
-    let secsLeft = drainPerSec > 0 ? Math.floor(st.oxygenCur / drainPerSec) : 0;
-    let depthTier = getOceanDepthTier(st.depthM);
-    let oceanZone = getZone(OCEAN_ZONE_ID);
-    let currents = Array.isArray(oceanZone.currents) ? oceanZone.currents : [];
-    let currentChips = currents.map(current => `<span class="sky-tower-chip" title="${current.desc}">${current.name} · ${current.desc}</span>`).join('');
-    let nextGuardianM = (Math.floor(Math.max(0, st.bossClearM || 0) / getOceanBossBoundaryInterval()) + 1) * getOceanBossBoundaryInterval();
-    let upgradeRows = renderOceanPermanentUpgradeRows(st);
-    panel.innerHTML = `<div class="sky-tower-head">
-        <div>
-            <div class="sky-tower-title">🌊 심해 잠수</div>
-            <div class="sky-tower-sub">산소는 한 번의 잠수에서 도달할 수 있는 수심을 제한합니다. 산소 안에 다음 체크포인트를 확보하고 500m마다 심해 가디언을 돌파하세요. 수심이 깊어질수록 수압과 해류가 강해지며, 위험할 때 복귀하면 확보한 체크포인트부터 다시 시작합니다.</div>
-        </div>
-        ${st.diving ? `<button onclick="forceSurfaceOcean('manual'); changeZone(Math.max(0, game.maxZoneId || 0)); updateStaticUI();">수면으로 복귀</button>` : `<button onclick="enterOceanDive(); changeZone(OCEAN_ZONE_ID); updateStaticUI();">잠수 시작 (${st.checkpointM}m부터)</button>`}
-    </div>
-    <div class="sky-tower-chips">
-        <span class="sky-tower-chip">현재 수심 <b>${Math.floor(st.depthM)}m</b></span>
-        <span class="sky-tower-chip">체크포인트 <b>${st.checkpointM}m</b></span>
-        <span class="sky-tower-chip">다음 가디언 <b>${nextGuardianM}m</b> · ${Math.max(0, nextGuardianM - Math.floor(st.depthM))}m 남음</span>
-        <span class="sky-tower-chip">수압 단계 <b>${depthTier}</b></span>
-        <span class="sky-tower-chip" title="산소 최대치 ${st.oxygenMax}. 현재 소모 ${drainPerSec.toFixed(2)}/초 · 잔여 약 ${secsLeft}초. 공격 속도와 무관하게 실제 잠수 시간만큼 소모됩니다.">🫧 산소 <b>${oxygenPct}%</b> (${Math.ceil(st.oxygenCur)}/${st.oxygenMax})</span>
-        ${currentChips}
-    </div>
-    <div style="margin-top:10px; display:grid; gap:8px;">
-        <div style="color:#8fe3ff; font-weight:bold;">🌊 심해 영구 업그레이드</div>
-        <div class="sky-tower-sub">창공의 힘을 주재료로, 군주의 핵은 3단계마다, 심해 재화는 매 단계 소모합니다. 루프가 진행되어도 유지됩니다.</div>
-        ${upgradeRows}
-    </div>
-    <div class="sky-tower-sub" style="margin-top:8px;">🎣 낚시·암초 조각·바다의 선물(제작)은 상단 <b>🎣 낚시</b> 탭에서 관리할 수 있습니다.</div>`;
+    const oxygenPct = Math.round(st.oxygenCur / Math.max(1, st.oxygenMax) * 100);
+    const drainPerSec = getOceanOxygenDrainPerSec() * Math.max(.1, Number(getOceanFishingStrategyDef(st).oxygenDrainMul) || 1);
+    const secsLeft = drainPerSec > 0 ? Math.floor(st.oxygenCur / drainPerSec) : 0;
+    const depthTier = getOceanDepthTier(st.depthM);
+    const oceanZone = getZone(OCEAN_ZONE_ID);
+    const currents = Array.isArray(oceanZone.currents) ? oceanZone.currents : [];
+    const currentChips = currents.map(current => `<span class="sky-tower-chip">${current.name} · ${current.desc}</span>`).join('');
+    const nextGuardianM = (Math.floor(Math.max(0, st.bossClearM || 0) / getOceanBossBoundaryInterval()) + 1) * getOceanBossBoundaryInterval();
+    const upgradeRows = renderOceanPermanentUpgradeRows(st);
+    panel.innerHTML = `<div class="ocean-dashboard-head"><div><h3>심해 잠수</h3><p>다음 목표 · ${nextGuardianM}m 가디언</p></div>
+        <div class="ocean-quick-actions">${st.diving ? `<button onclick="forceSurfaceOcean('manual'); changeZone(Math.max(0, game.maxZoneId || 0)); updateStaticUI();">수면으로 복귀</button>` : `<button onclick="enterOceanDive(); changeZone(OCEAN_ZONE_ID); updateStaticUI();">잠수 시작 · ${st.checkpointM}m</button>`}
+        <button onclick="switchMapSubtab('map-tab-fishing')">낚시 · 제작</button></div></div>
+    <div class="ocean-dive-status"><span>현재 수심<b>${Math.floor(st.depthM)}m</b></span><span>복귀 체크포인트<b>${st.checkpointM}m</b></span><span>가디언까지<b>${Math.max(0, nextGuardianM-Math.floor(st.depthM))}m</b></span></div>
+    <div class="ocean-oxygen"><div><strong>산소 ${oxygenPct}%</strong><span>${Math.ceil(st.oxygenCur)} / ${st.oxygenMax} · 잔여 약 ${secsLeft}초</span></div><progress max="100" value="${Math.max(0,Math.min(100,oxygenPct))}" aria-label="남은 산소"></progress></div>
+    <div class="sky-tower-chips"><span class="sky-tower-chip">수압 단계 ${depthTier}</span>${currentChips}</div>
+    <section class="ocean-section"><div class="ocean-section-head"><div><strong>잠수 장비 강화</strong><span>영구 유지 · 필요한 재료와 보유량을 확인하고 강화하세요.</span></div></div><div class="ocean-upgrade-grid">${upgradeRows}</div></section>
+    <details class="ocean-help"><summary>잠수 규칙</summary><p>산소가 떨어지기 전에 체크포인트를 확보하세요. ${getOceanBossBoundaryInterval()}m마다 가디언을 격파해야 더 내려갈 수 있습니다. 수면 복귀 시 확보한 체크포인트부터 다시 시작합니다. 산소는 초당 ${drainPerSec.toFixed(2)} 소모합니다.</p></details>`;
+
     list.innerHTML = `<div class="map-item ${game.currentZoneId === OCEAN_ZONE_ID ? 'current' : ''}" ${st.diving ? `onclick="changeZone(OCEAN_ZONE_ID)"` : ''} style="${st.diving ? '' : 'opacity:.65;'}"><div class="map-item-main"><span>🌊</span><span>심해 ${Math.floor(st.depthM)}m<br><span class="map-zone-status">${st.diving ? '잠수 중' : '잠수를 시작하세요'}</span><br>${buildMapPowerEstimateHtml(oceanZone)}</span></div></div>`;
 }
 
@@ -3410,10 +3424,12 @@ function renderFishingPanel() {
     let strategy = getOceanFishingStrategyDef(st);
     let lastFish = st.lastCatch && OCEAN_FISH_DB[st.lastCatch.key];
     let lastCatch = lastFish ? `${st.lastCatch.guaranteed ? '✨ ' : ''}${lastFish.name}` : '아직 포획 기록 없음';
-    panel.innerHTML = `<div class="ocean-dashboard-head"><div><span>ABYSSAL FISHERY</span><h3>🎣 심해 어장</h3><p>잠수 전에 채집 전략을 정하고, 전투로 어종을 모아 도감과 바다의 선물 제작을 성장시키세요.</p></div><div class="ocean-last-catch"><small>최근 포획</small><strong>${lastCatch}</strong></div></div>
-    <div class="ocean-meter-grid"><div class="ocean-meter"><div><span>낚시 게이지</span><b>${Math.floor(st.fishingGauge)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.fishingGauge))}%"></span></i></div><div class="ocean-meter ocean-meter--pity"><div><span>희귀 조짐</span><b>${Math.floor(st.rareFishPity)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.rareFishPity))}%"></span></i></div></div>
+    captureUiDisclosureState(panel);
+    panel.innerHTML = `<div class="ocean-dashboard-head"><div><h3>심해 어장</h3><p>잠수 중 자동으로 어종을 모읍니다. 전략을 정하고 제작에 필요한 재료를 모으세요.</p></div><div class="ocean-last-catch"><small>최근 포획</small><strong>${lastCatch}</strong></div></div>
+    <div class="ocean-quick-actions"><button onclick="switchMapSubtab(\'map-tab-ocean\')">잠수하러 가기</button><button onclick="document.getElementById(\'ui-sea-gift-panel\').scrollIntoView({block:\'start\'})">바다의 선물 제작</button></div><div class="ocean-meter-grid"><div class="ocean-meter"><div><span>낚시 게이지</span><b>${Math.floor(st.fishingGauge)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.fishingGauge))}%"></span></i></div><div class="ocean-meter ocean-meter--pity"><div><span>희귀 조짐</span><b>${Math.floor(st.rareFishPity)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.rareFishPity))}%"></span></i></div></div>
     <section class="ocean-section"><div class="ocean-section-head"><div><strong>채집 전략</strong><span>${st.diving ? '잠수 중에는 변경할 수 없습니다.' : `현재 ${strategy.name} · 다음 잠수부터 적용`}</span></div><span class="ocean-reef-count">🪸 ${st.reefInstalled}/10 · 게이지 +${st.reefInstalled * 15}%</span></div><div class="ocean-strategy-grid">${renderOceanFishingStrategies(st)}</div><button type="button" class="ocean-reef-action" onclick="installOceanReefFragment(); renderFishingPanel();" ${st.reefInstalled >= 10 || (game.currencies.reefFragment || 0) < 1 ? 'disabled' : ''}>암초 조각 설치 · 보유 ${game.currencies.reefFragment || 0}</button></section>
-    <section class="ocean-section"><div class="ocean-section-head"><div><strong>심해 도감</strong><span>발견 ${progress.discoveredCount}/${progress.totalCount} · 보유량은 제작에 사용해도 누적 기록은 유지됩니다.</span></div></div><div class="ocean-milestone-grid">${renderOceanCollectionMilestones(progress)}</div><div class="ocean-fish-grid">${renderOceanFishCollection(st)}</div></section>`;
+    <details class="ocean-section ocean-collection-disclosure" data-ui-disclosure="ocean-collection"><summary>도감 · 발견 ${progress.discoveredCount}/${progress.totalCount}종 · ${progress.milestones.filter(row=>row.ready&&!row.claimed).length}개 보상 수령 가능</summary><div class="ocean-section-head"><div><strong>심해 도감</strong><span>발견 ${progress.discoveredCount}/${progress.totalCount} · 보유량은 제작에 사용해도 누적 기록은 유지됩니다.</span></div></div><div class="ocean-milestone-grid">${renderOceanCollectionMilestones(progress)}</div><div class="ocean-fish-grid">${renderOceanFishCollection(st)}</div></details>`;
+    restoreUiDisclosureState(panel);
 }
 
 const OCEAN_MOD_CATEGORY_OPTIONS = ['공격', '방어·생명', '속도·치명', '저항'];
@@ -3478,11 +3494,11 @@ function renderUnderworldMapPanel() {
     let entryLockReason = typeof getUnderworldEntryLockReason === 'function' ? getUnderworldEntryLockReason(game) : '';
     let runeState = game.underworldRunes || { unlockedSlots: 0, unlockedRunesMaxNumber: 0 };
     let runeCountMap = getUnderworldRuneCountMap(runeState.obtainedRunes);
-    let runeLine = Object.keys(runeCountMap).sort((a,b)=>Number(a)-Number(b)).slice(0, 12).map(k => {
+    let runeLine = Object.keys(runeCountMap).sort((a,b)=>Number(a)-Number(b)).map(k => {
         let runeNo = Number(k);
         let def = getUnderworldRuneDef(runeNo);
         let label = def ? def.name : ('룬' + k);
-        return `<button type="button" class="underworld-rune-chip" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${runeNo})" onmousemove="showUnderworldRuneTooltip(event,${runeNo})" onmouseleave="hideInfoTooltip()">${label}×${runeCountMap[k]}</button>`;
+        return `<button type="button" class="underworld-rune-chip" onclick="showUnderworldRuneTooltip(event,${runeNo})" data-info-tooltip-anchor="1" onmouseenter="showUnderworldRuneTooltip(event,${runeNo})" onmousemove="showUnderworldRuneTooltip(event,${runeNo})" onmouseleave="hideInfoTooltip()">${label}×${runeCountMap[k]}</button>`;
     }).join('');
     let runeShardCount = Math.max(0, Math.floor((game.currencies || {}).runeShard || 0));
     let ticketLine = [
@@ -3512,8 +3528,8 @@ function renderUnderworldMapPanel() {
     list.innerHTML = `<section class="underworld-entry-card ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}"><div class="underworld-entry-copy"><span>현재 선택 ${floor}층</span><strong>도달 최고 ${highest}층</strong><div>${powerEstimate}</div></div><div class="underworld-entry-actions"><button type="button" class="underworld-primary-action" onclick="enterUnderworldFloor(${highest})" ${canEnter ? '' : 'disabled'}>최고층 ${highest} 입장</button>${currentFloorButton}<button type="button" onclick="enterUnderworldPrompt()" ${canEnter ? '' : 'disabled'}>다른 층…</button></div></section>`;
     panel.innerHTML = `<div class="underworld-panel-head"><div><strong>룬 장착과 영구 강화</strong><span class="${canEnter ? '' : 'locked'}">${canEnter ? '입장 가능' : entryLockReason} · 15층부터 지속 피해</span></div><div class="underworld-resource-strip"><span>룬 조각 <b>${runeShardCount}</b></span><span>구리 <b>${Math.floor((game.currencies||{}).underCopper||0)}</b></span><span>은 <b>${Math.floor((game.currencies||{}).underSilver||0)}</b></span><span>금 <b>${Math.floor((game.currencies||{}).underGold||0)}</b></span></div></div>
         <section class="underworld-rune-console"><div class="underworld-section-head"><div><strong>장착 룬</strong><span>${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 슬롯 · 룬 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))} 해금</span></div><small>슬롯을 눌러 즉시 교체</small></div><div class="underworld-rune-slots">${slots}</div></section>
-        <div class="underworld-action-grid"><button onclick="craftUnderworldRune()"><strong>룬 가공</strong><span>조각 10</span></button><button onclick="openUnderworldRuneUpgradeOverlay()"><strong>룬 승급</strong><span>동일 룬 3개</span></button><button onclick="enhanceUnderworldRune()"><strong>룬 강화</strong><span>수치 성장</span></button><button onclick="rerollUnderworldRuneBonus()"><strong>옵션 리롤</strong><span>추가 옵션 변경</span></button><button onclick="applyUnderworldEnchant()"><strong>장비 인챈트</strong><span>지하계 제작</span></button><button onclick="attemptUnderworldLimitBreak()"><strong>한계돌파</strong><span>성공률 20%</span></button></div>
-        <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card" data-ui-disclosure="underworld-rune-inventory"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개 · 우버 입장권 확인</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}${Object.keys(runeCountMap).length > 12 ? '<span class="core-cube-muted">...</span>' : ''}</div><p>우버 뿌리 입장권 · ${ticketLine}</p></details></div>`;
+        <div class="underworld-action-grid"><section><h4>룬 제작 · 성장</h4><div><button onclick="craftUnderworldRune()" ${runeShardCount < 10 ? 'disabled' : ''}><strong>룬 가공</strong><span>조각 10</span></button><button onclick="openUnderworldRuneUpgradeOverlay()"><strong>룬 승급</strong><span>동일 룬 3개</span></button><button onclick="enhanceUnderworldRune()"><strong>룬 강화</strong><span>수치 성장</span></button><button onclick="rerollUnderworldRuneBonus()"><strong>옵션 리롤</strong><span>추가 옵션 변경</span></button></div></section><section><h4>장비 가공</h4><div><button onclick="applyUnderworldEnchant()"><strong>장비 인챈트</strong><span>지하계 제작</span></button><button onclick="attemptUnderworldLimitBreak()"><strong>한계돌파</strong><span>성공률 20%</span></button></div></section></div>
+        <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card" data-ui-disclosure="underworld-rune-inventory"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개 · 우버 입장권 확인</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}</div><p>우버 뿌리 입장권 · ${ticketLine}</p></details></div>`;
 }
 function ensureUnderworldRuneState() {
     if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {} };
@@ -6629,11 +6645,9 @@ function renderBreakdownHtml(data) {
 }
 
 function showStatTooltip(event, key) {
-    let stats = cachedTooltipStats;
-    if (!stats || !stats.breakdowns || !stats.breakdowns[key]) {
-        stats = getPlayerStats();
-        cachedTooltipStats = stats;
-    }
+    // Combat ticks keep numeric stats only; build current explanations on explicit inspection.
+    let stats = getUiPlayerStats();
+    cachedTooltipStats = stats;
     let data = stats && stats.breakdowns ? stats.breakdowns[key] : null;
     if (!data) return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -7541,7 +7555,7 @@ function resizeBattlefieldCanvas() {
     if (rect.width < 50 || rect.height < 50) return;
     const cssWidth = Math.max(1, Math.round(rect.width / uiDisplay.factor || 1));
     const cssHeight = Math.max(1, Math.round(rect.height / uiDisplay.factor || 1));
-    const dpr = clampNumber((window.devicePixelRatio || 1) * uiDisplay.factor, 1, 2);
+    const dpr = uiDisplay.battleRenderScale;
     canvas.width = Math.max(1, Math.round(cssWidth * dpr));
     canvas.height = Math.max(1, Math.round(cssHeight * dpr));
     canvas.style.width = `${cssWidth}px`;
@@ -12610,12 +12624,11 @@ function renderPassiveSpecializationControls() {
     const revelationOptions = Object.entries(revelationLabels).map(([id, label]) =>
         `<option value="${id}" ${state.revelation === id ? 'selected' : ''}>${label}</option>`).join('');
     const wisdomNode = typeof findAllocatedPassiveKeystone === 'function' ? findAllocatedPassiveKeystone('지혜의 도약') : null;
-    const elementLabels = { fire: '화염', cold: '냉기', lightning: '번개', chaos: '공허(카오스)' };
-    const wisdomOptions = Object.entries(elementLabels).map(([id, label]) =>
-        `<option value="${id}" ${state.keystoneChoices.wisdom_leap_element === id ? 'selected' : ''}>${label}</option>`).join('');
+    const elementLabels = { fire: '화염', cold: '냉기', lightning: '번개', chaos: '공허(카오스)', '': '속성 노드 미투자' };
+    const wisdomElement = getPassiveWisdomElementFromNodeIds(game.passives);
     return `<div class="passive-specialization-controls"><label>계시<select onchange="onPassiveRevelationChanged(this.value)" ${revelationUnlocked && !tripleRevelation ? '' : 'disabled'}>${revelationOptions}</select></label>
         ${tripleRevelation ? '<span class="passive-specialization-locked">삼중 계시: 세 효과가 40%로 고정 적용</span>' : (revelationUnlocked ? '' : '<span class="passive-specialization-locked">헌신 1 이상부터 계시 선택 가능</span>')}
-        ${wisdomNode ? `<label>지혜의 도약<select onchange="onPassiveKeystoneChoiceChanged('wisdom_leap_element',this.value)">${wisdomOptions}</select></label>` : ''}</div>`;
+        ${wisdomNode ? `<span class="passive-specialization-locked">지혜의 도약 · ${elementLabels[wisdomElement]} <small>투자한 노드 기준</small></span>` : ''}</div>`;
 }
 
 function onPassiveRevelationChanged(value) {
@@ -12623,12 +12636,6 @@ function onPassiveRevelationChanged(value) {
         addLog('헌신이 1 이상일 때만 계시를 선택할 수 있습니다.', 'attack-monster');
         return;
     }
-    updateStaticUI();
-    queueImportantSave(180);
-}
-
-function onPassiveKeystoneChoiceChanged(choiceId, value) {
-    if (typeof setPassiveKeystoneChoice !== 'function' || !setPassiveKeystoneChoice(choiceId, value)) return;
     updateStaticUI();
     queueImportantSave(180);
 }
@@ -12661,7 +12668,7 @@ function togglePassiveInvestmentSummary() {
 }
 
 safeExposeGlobals({ togglePassiveInvestmentSummary, renderPassiveInvestmentSummary,
-    onPassiveRevelationChanged, onPassiveKeystoneChoiceChanged });
+    onPassiveRevelationChanged });
 
 function renderPassiveTreePlannerPanel() {
     let host = document.getElementById('passive-tree-planner');
@@ -12829,22 +12836,22 @@ function openVoidPassiveCraftOverlay(nodeId) {
     let effectLabel = typeof getVoidPassiveEffectLabel === 'function' ? getVoidPassiveEffectLabel(node.id) : getPassiveEffectLabel(node);
     let overlay = document.createElement('div');
     overlay.id = 'void-passive-craft-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10040;background:rgba(3,8,14,0.72);display:flex;align-items:center;justify-content:center;padding:18px;';
+    overlay.className = 'void-craft-overlay';
     overlay.onclick = event => { if (event.target === overlay) closeVoidPassiveCraftOverlay(); };
-    overlay.innerHTML = `<div style="width:min(560px,calc(94vw / var(--ui-display-factor, 1)));max-height:calc(90vh / var(--ui-display-factor, 1));overflow:auto;background:#0f1724;border:1px solid #3f9fbd;border-radius:14px;padding:14px;box-shadow:0 20px 70px rgba(0,0,0,.55);">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px;">
-            <div><div style="font-weight:900;color:var(--copy-bright);font-size:18px;">🕳️ ${escapeHTML(getPassiveNodeDisplayName(node))}</div><div style="color:var(--copy-muted);margin-top:3px;">공허 패시브 제작</div></div>
+    overlay.innerHTML = `<div class="void-craft-dialog" role="dialog" aria-modal="true" aria-labelledby="void-craft-title" tabindex="-1">
+        <div class="void-craft-header">
+            <div><div id="void-craft-title">${escapeHTML(getPassiveNodeDisplayName(node))}</div><div class="void-craft-subtitle">공허 패시브 제작</div></div>
             <button type="button" onclick="closeVoidPassiveCraftOverlay()">닫기</button>
         </div>
-        <div style="border:1px solid rgba(114,184,208,0.45);background:rgba(8,18,28,0.72);border-radius:10px;padding:10px;margin-bottom:10px;color:#ffffff;line-height:1.45;">${effectLabel}</div>
-        <div style="color:${active ? '#b9d7e8' : '#ffcf8a'};margin-bottom:10px;">${active ? '마법의 새싹은 현재 옵션을 지우고 공허 옵션 1~2줄을 다시 굴립니다.' : '먼저 패시브 트리에서 이 공허 패시브를 활성화해야 제작할 수 있습니다.'}</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px;">
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','magicBud')" ${active && !entry.transcendent && (game.currencies.magicBud || 0) > 0 ? '' : 'disabled'}>마법의 새싹 · 1~2줄 재굴림<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.magicBud || 0}</span></button>
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','fairyRing')" ${active && (game.currencies.fairyRing || 0) > 0 ? '' : 'disabled'}>요정의 고리<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.fairyRing || 0}</span></button>
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','goldenRule')" ${active && entry.transcendent && typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' && TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min))) && (game.currencies.goldenRule || 0) > 0 ? '' : 'disabled'}>황금률<br><span style="font-size:12px;color:var(--copy-bright);">보유 ${game.currencies.goldenRule || 0}</span></button>
+        <div class="void-craft-effect">${effectLabel}</div>
+        <div class="void-craft-hint">${active ? '마법의 새싹은 현재 옵션을 지우고 공허 옵션 1~2줄을 다시 굴립니다.' : '먼저 패시브 트리에서 이 공허 패시브를 활성화해야 제작할 수 있습니다.'}</div>
+        <div class="void-craft-actions">
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','magicBud')" ${active && !entry.transcendent && (game.currencies.magicBud || 0) > 0 ? '' : 'disabled'}>마법의 새싹 · 1~2줄 재굴림<br><span>보유 ${game.currencies.magicBud || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','fairyRing')" ${active && (game.currencies.fairyRing || 0) > 0 ? '' : 'disabled'}>요정의 고리<br><span>보유 ${game.currencies.fairyRing || 0}</span></button>
+            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','goldenRule')" ${active && entry.transcendent && typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' && TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min))) && (game.currencies.goldenRule || 0) > 0 ? '' : 'disabled'}>황금률<br><span>보유 ${game.currencies.goldenRule || 0}</span></button>
         </div>
-        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;border-top:1px solid rgba(143,183,202,0.25);padding-top:10px;">
-            <div style="color:${refundState.enabled ? '#c8f7d5' : '#8fa0ad'};font-size:13px;">${refundState.reason}</div>
+        <div class="void-craft-footer">
+            <div class="void-craft-hint">${refundState.reason}</div>
             <button type="button" onclick="refundVoidPassiveFromOverlay('${node.id}')" ${refundState.enabled ? '' : 'disabled'}>공허 패시브 반환 (마름병 포자 1)</button>
         </div>
     </div>`;
@@ -13619,7 +13626,8 @@ function getSupabaseClient() {
         auth: {
             persistSession: true,
             autoRefreshToken: true,
-            detectSessionInUrl: true
+            detectSessionInUrl: true,
+            flowType: appPlatform.active ? 'pkce' : 'implicit'
         }
     });
     window.supabaseClient = supabaseClient;
@@ -13627,6 +13635,7 @@ function getSupabaseClient() {
 }
 
 function getOAuthRedirectUrl() {
+    if (appPlatform.active) return appPlatform.redirectUrl;
     let origin = window.location.origin || '';
     let pathname = window.location.pathname || '/';
     let normalizedPath = pathname.endsWith('/') ? pathname : pathname.replace(/\/[^/]*$/, '/');
@@ -13643,7 +13652,7 @@ async function loginWithKakao() {
 
 function getSocialOAuthOptions(provider) {
     let redirectTo = getOAuthRedirectUrl();
-    let options = { redirectTo };
+    let options = { redirectTo, ...(appPlatform.active ? { skipBrowserRedirect: true } : {}) };
     if (provider === 'kakao') {
         // 카카오 로그인에서 account_email scope를 요청하지 않습니다.
         options.scopes = 'profile_nickname';
@@ -13681,17 +13690,20 @@ async function loginWithOAuthProvider(provider) {
         if (provider === 'kakao') options.skipBrowserRedirect = true;
         let { data, error } = await client.auth.signInWithOAuth({ provider, options });
         if (error) throw error;
-        if (provider === 'kakao') {
-            let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
-            if (!safeUrl) throw new Error('Kakao OAuth URL을 생성하지 못했습니다.');
-            window.location.assign(safeUrl);
-            return;
-        }
+        await openSocialOAuthResult(provider, data);
     } catch (error) {
         cloudState.busy = false;
         setCloudMessage('OAuth 로그인 시작 실패: ' + (error.message || error));
         updateCloudSaveUI();
     }
+}
+
+async function openSocialOAuthResult(provider, data) {
+    if (appPlatform.active) return appPlatform.openOAuth(data.url);
+    if (provider !== 'kakao') return; // The web client already redirects Google sign-in.
+    let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
+    if (!safeUrl) throw new Error('카카오 인증 페이지 URL을 받지 못했습니다.');
+    window.location.assign(safeUrl);
 }
 
 function recoverBusyStateAfterOAuthBack() {
@@ -14233,12 +14245,7 @@ async function linkSocialIdentityProvider(provider) {
         let options = getSocialOAuthOptions(provider);
         let { data, error } = await client.auth.linkIdentity({ provider, options });
         if (error) throw error;
-        if (provider === 'kakao') {
-            let safeUrl = sanitizeKakaoScopeInUrl(data && data.url);
-            if (!safeUrl) throw new Error('카카오 연동 페이지 URL을 받지 못했습니다.');
-            window.location.assign(safeUrl);
-            return;
-        }
+        await openSocialOAuthResult(provider, data);
     } catch (error) {
         setCloudMessage('소셜 계정 연결 시작 실패: ' + (error.message || error));
         cloudState.busy = false;
@@ -15469,7 +15476,10 @@ async function resetGame() {
 function renderBattlefieldThrottled(frameNow) {
     // 직전 렌더 이후 최소 간격이 지나지 않았으면 이번 프레임은 건너뛴다.
     // 60Hz에서는 약 30fps로 균등하게, 고주사율 화면에서는 더 큰 폭으로 부하를 줄인다.
-    if (frameNow - lastBattlefieldRenderAt < BATTLEFIELD_MIN_FRAME_MS) return;
+    const interval = uiDisplay.battleFrameMs;
+    const elapsed = frameNow - lastBattlefieldRenderAt;
+    // Allow sub-millisecond RAF jitter without increasing the desktop's existing paint cadence.
+    if (elapsed + 0.5 < interval) return;
     lastBattlefieldRenderAt = frameNow;
     updateMobileBattlePipVisibility();
     // 전투 탭에서 캔버스가 실제로 보일 때만 풀 렌더한다.
@@ -15481,9 +15491,8 @@ function renderBattlefieldThrottled(frameNow) {
 
 function gameLoop() {
     try {
-        if (document.hidden) return;
+        if (isBattlePresentationSuspended()) return;
         // 백그라운드 재계산 중에는 캔버스 렌더를 쉬어 계산 청크에 프레임을 양보한다.
-        if (backgroundCombatRuntime.processing) return;
         let frameNow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
         showNextTutorial();
         let tutorialPause = !!(game.settings && game.settings.pauseGameOnOverlay) && isTutorialOpen();

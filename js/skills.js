@@ -916,14 +916,25 @@ function getPassiveGemLevelEffects(node, mutation) {
     return getEffectivePassiveNodeEffects(node, mutation);
 }
 
-function getGemBonusSources(target) {
+/**
+ * @param {string|string[]} target Gem name or tags.
+ * @param {Array<ReturnType<typeof getResolvedEquipmentStatLists>>} [resolvedStats] Read-only, from this same stat evaluation.
+ */
+function getGemBonusSources(target, resolvedStats) {
     let gear = 0;
     let passive = 0;
     let reward = 0;
     let activeTags = getGemLevelTargetTags(target);
-    getPlayerStatSourceItemEntries().forEach(([slotKey, item]) => {
-        if (!item) return;
-        let resolved = getResolvedEquipmentStatLists(slotKey, item, game, true);
+    const memo = getBackgroundBuildMemo(game);
+    const memoKey = `gem-bonus:${activeTags.join(',')}`;
+    if (memo?.has(memoKey)) return memo.get(memoKey);
+    let statLists = resolvedStats;
+    if (!statLists) {
+        let growthSnapshot = getGrowthEffectSnapshot();
+        statLists = getPlayerStatSourceItemEntries().map(([slotKey, item]) =>
+            getResolvedEquipmentStatLists(slotKey, item, game, true, growthSnapshot));
+    }
+    statLists.forEach(resolved => {
         gear += getGemLevelValueFromStatLines([...resolved.baseStats, ...resolved.explicitStats], activeTags);
     });
     (game.passives || []).forEach(id => {
@@ -944,7 +955,9 @@ function getGemBonusSources(target) {
         if (entry && entry.stat === 'gemLevel') reward += entry.value;
     });
     reward += getTalismanGemBonusSources(activeTags);
-    return { gear: gear, passive: passive, reward: reward, total: gear + passive + reward };
+    const result = { gear: gear, passive: passive, reward: reward, total: gear + passive + reward };
+    memo?.set(memoKey, result);
+    return result;
 }
 
 function hasEquippedShield() {

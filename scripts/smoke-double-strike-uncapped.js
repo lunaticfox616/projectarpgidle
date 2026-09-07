@@ -24,10 +24,12 @@ const files = [
   'js/passives.js',
   'js/loot.js',
   'js/growth-board.js',
+  'js/background-build-cache.js',
   'js/growth-effects.js',
   'js/equipment-stat-resolution.js',
   'js/skills.js',
   'js/core-cube.js',
+  'js/combat-build-stats.js',
   'js/combat.js',
   'js/talent-cards.js',
 ];

@@ -2235,7 +2235,7 @@ function getPaidPassiveNodeIds(nodeIds) {
 }
 
 // Shared transaction state belongs below both persistence and the UI scheduler.
-let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, failed: false, accelerationTier: 0, offlineConsumed: false };
+let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, failed: false, accelerationTier: 0, finishRequested: false, offlineConsumed: false, appInactive: false };
 
 /**
  * @typedef {{statId:string,minValue:number,minTier:number}} EquipmentTargetRule

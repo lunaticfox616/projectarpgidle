@@ -35,13 +35,12 @@
   text-shadow: 0 2px 16px rgba(0,0,0,.65);
 }
 #startup-overlay .startup-hero-grid { display: grid; height: 100%; align-items: stretch; }
-#startup-overlay .startup-hero-copy { display: flex; flex-direction: column; justify-content: space-between; gap: 160px; }
+#startup-overlay .startup-hero-copy { display: flex; flex-direction: column; justify-content: space-between; gap: 48px; }
 #startup-overlay .startup-brand-wrap { margin: 24px 0 0; gap: 18px; }
-#startup-overlay .startup-wordmark {
-  margin: 0; font: 500 clamp(58px,6.6vw,106px)/1.1 Georgia, 'Times New Roman', serif;
-  letter-spacing: .14em; filter: none; text-shadow: 0 2px 30px rgba(0,0,0,.6);
+#startup-overlay .startup-logo {
+  display: block; width: min(360px, 30vw, 42dvh); height: auto; max-width: 100%; margin: 0;
+  object-fit: contain; image-rendering: auto; filter: drop-shadow(0 2px 8px rgba(0,0,0,.65));
 }
-#startup-overlay .startup-wordmark-accent { color: #eee2bf; background: none; }
 #startup-overlay .startup-wordmark-bar {
   width: 160px; height: 1px; margin: 0; border-radius: 0;
   background: linear-gradient(90deg,var(--entry-gold),transparent); box-shadow: none;
@@ -143,7 +142,6 @@
 
 @media (max-width: 1000px) {
   #startup-overlay .startup-shell { grid-template-columns: minmax(0,1fr) 350px; gap: 32px; padding: 32px; }
-  #startup-overlay .startup-wordmark { font-size: 64px; letter-spacing: .1em; }
   #startup-overlay .startup-summary-grid { grid-template-columns: 1fr; gap: 12px; }
   #startup-overlay .startup-panel.auth { padding: 24px; }
 }
@@ -153,7 +151,7 @@
   #startup-overlay .startup-panel.hero, #startup-overlay .startup-hero-grid, #startup-overlay .startup-hero-copy { display: contents; }
   #startup-overlay .startup-brand-wrap { order: 0; margin: 0 auto; gap: 12px; text-align: center; }
   #startup-overlay .startup-about-link { justify-self: center; }
-  #startup-overlay .startup-wordmark { font-size: 52px; }
+  #startup-overlay .startup-logo { width: min(180px, 45vw); margin: 0 auto; }
   #startup-overlay .startup-wordmark-bar { width: 110px; margin: 0 auto; background: linear-gradient(90deg,transparent,var(--entry-gold),transparent); }
   #startup-overlay .startup-panel.auth { order: 1; max-width: 400px; margin: 0 auto; padding: 24px; }
   #startup-overlay .startup-summary-card { order: 2; width: 100%; max-width: 400px; margin: 0 auto; padding-top: 16px; box-sizing: border-box; }

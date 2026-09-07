@@ -2109,7 +2109,7 @@ function normalizePassiveSpecializationState(value, options) {
     let wisdom = PASSIVE_WISDOM_ELEMENTS.includes(choices.wisdom_leap_element) ? choices.wisdom_leap_element : 'fire';
     const migrateBranch = options && options.migrateWisdomBranchChoice;
     const branchWisdom = migrateBranch ? getPassiveWisdomElementFromNodeIds(options.passiveIds) : '';
-    if (branchWisdom) wisdom = branchWisdom;
+    if (migrateBranch) wisdom = branchWisdom;
     let fanaticism = source.fanaticism && typeof source.fanaticism === 'object' ? source.fanaticism : {};
     let karmaSource = source.karma && typeof source.karma === 'object' ? source.karma : {};
     let karmaByEnemy = karmaSource.byEnemy && typeof karmaSource.byEnemy === 'object' ? karmaSource.byEnemy : {};
@@ -2141,7 +2141,8 @@ function normalizePassiveSpecializationState(value, options) {
 }
 
 function ensurePassiveSpecializationState() {
-    game.passiveSpecialization = normalizePassiveSpecializationState(game.passiveSpecialization);
+    game.passiveSpecialization = normalizePassiveSpecializationState(game.passiveSpecialization,
+        { migrateWisdomBranchChoice: true, passiveIds: game.passives });
     return game.passiveSpecialization;
 }
 
@@ -2230,12 +2231,6 @@ function setPassiveRevelation(revelationId) {
     return true;
 }
 
-function setPassiveKeystoneChoice(choiceId, value) {
-    if (choiceId !== 'wisdom_leap_element' || !PASSIVE_WISDOM_ELEMENTS.includes(value)) return false;
-    ensurePassiveSpecializationState().keystoneChoices[choiceId] = value;
-    return true;
-}
-
 function hasAuthoredPassiveKeystone(nodeId) {
     let node = PASSIVE_TREE.nodes[nodeId];
     return !!(node && node.kind === 'keystone' && (game.passives || []).includes(nodeId));
@@ -2247,8 +2242,11 @@ function findAllocatedPassiveKeystone(title) {
     if (authoredNode && authoredNode.kind === 'keystone' && (game.passives || []).includes(authoredNodeId)) {
         return authoredNode;
     }
-    return (game.passives || []).map(id => PASSIVE_TREE.nodes[id])
-        .find(node => node && node.kind === 'keystone' && node.title === title) || null;
+    const id = (game.passives || []).find(id => {
+        const node = PASSIVE_TREE.nodes[id];
+        return node && node.kind === 'keystone' && node.title === title;
+    });
+    return PASSIVE_TREE.nodes[id] || null;
 }
 
 function getMystiqueAffinity(mystique, damageByElement) {
@@ -2513,7 +2511,7 @@ function applyAuthoredPassiveStatRules(options) {
         passive.energyShieldPct += devotion * 0.2;
         passive.regen += devotion * 0.2;
     }
-    const wisdomElement = state.keystoneChoices.wisdom_leap_element.replace('lightning', 'light'); // Saved choice -> combat element ID.
+    const wisdomElement = getPassiveWisdomElementFromNodeIds(game.passives).replace('lightning', 'light');
     return { mystique, devotion, cycle, revelation, wisdomElement,
         revelationLabel: triple ? '삼중 계시' : (PASSIVE_REVELATION_LABELS[revelation] || '계시'),
         combatDamageMorePct: revelation === 'combat' ? devotion : (triple ? devotion * 0.4 : 0),
@@ -4224,8 +4222,6 @@ function activatePassivePath(targetNodeId, options) {
         }
         revealAroundNode(nodeId, { forcePulse: !options || options.forcePulseNodeId === nodeId });
     });
-    const wisdomElement = getPassiveWisdomElementFromNodeIds(path);
-    if (wisdomElement) ensurePassiveSpecializationState().keystoneChoices.wisdom_leap_element = wisdomElement;
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) - path.length);
     return { activated: true, cost: path.length, path: path.slice() };
 }
@@ -4382,7 +4378,7 @@ safeExposeGlobals({
     importPassiveTreePreset, runPassiveTreeAutoInvest, getPassiveTreeRootNodeId, getPassiveTreeRootNode,
     rebasePassiveTreeForClassChange, normalizePassiveSpecializationState, ensurePassiveSpecializationState,
     getPassiveTreeAdjacency, isPassiveTreeEdgeAvailable, getAllocatedPassiveStatValue, setPassiveRevelation,
-    setPassiveKeystoneChoice, hasAuthoredPassiveKeystone, findAllocatedPassiveKeystone,
+    hasAuthoredPassiveKeystone, findAllocatedPassiveKeystone,
     getMystiqueAffinity, recordPassiveCycleAilmentStart, recordPassiveCycleAilmentEnd, getActivePassiveCycleBuffEffects,
     recordPassiveFanaticSkillUse, recordPassiveKarmaLoss, beginPassiveKarmaAttack,
     getPassiveAshuraAilmentChance, getPassiveAshuraDamageMultiplier, applyPassiveAshuraDamageBreakdown,

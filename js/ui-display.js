@@ -83,7 +83,10 @@ const uiDisplay = (() => {
         new MutationObserver(() => registerStyles()).observe(document.head, { childList: true });
     }
 
-    return Object.freeze({ apply, init, matches, registerStyles, get factor() { return factor; } });
+    return Object.freeze({ apply, init, matches, registerStyles, get factor() { return factor; },
+        get battleFrameMs() { return mobileDevice ? 1000 / 30 : 22; },
+        get battleRenderScale() { return Math.max(1, Math.min(mobileDevice ? 1.5 : 2, (window.devicePixelRatio || 1) * factor)); }
+    });
 })();
 safeExposeGlobals({ uiDisplay });
 document.addEventListener('DOMContentLoaded', () => uiDisplay.init(), { once: true });

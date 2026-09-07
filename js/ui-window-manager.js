@@ -591,6 +591,14 @@
         btn.textContent = '정리';
         btn.setAttribute('aria-label', '열린 창 모두 닫기');
         btn.addEventListener('click', closeAllWindows);
+        let logo = document.createElement('button');
+        logo.id = 'ui-rail-logo';
+        logo.type = 'button';
+        logo.setAttribute('aria-label', 'RIGNIN · 열린 창 모두 닫기');
+        logo.title = '열린 창 모두 닫기';
+        logo.innerHTML = '<img src="assets/ui/rignin-logo.png" alt="" width="1254" height="1254">';
+        logo.addEventListener('click', closeAllWindows);
+        header.prepend(logo);
         let controls = header.querySelector(':scope > .ui-rail-external-controls');
         (controls || header).appendChild(btn);
     }
@@ -961,6 +969,7 @@
             .forEach(button => { delete button.dataset.railOriginalOrder; header.appendChild(button); });
         let closeAllBtn = document.getElementById('btn-close-all-windows');
         if (closeAllBtn) closeAllBtn.remove();
+        header.querySelectorAll(':scope > #ui-rail-logo').forEach(logo => logo.remove());
         let toggle = document.getElementById('ui-community-toggle');
         if (toggle) toggle.remove();
     }

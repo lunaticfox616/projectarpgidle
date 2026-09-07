@@ -10,6 +10,21 @@
     let activePage = 0;
     let doubleClickCandidateKey = null;
     let lastPageSearchQuery = '';
+    let touchArrange = false;
+
+    function toggleTouchArrange(button) {
+        cancelCarry();
+        touchArrange = !touchArrange;
+        document.getElementById('item-tab-equip').classList.toggle('touch-arrange', touchArrange);
+        button.setAttribute('aria-pressed', String(touchArrange));
+        button.textContent = touchArrange ? '배치 완료' : '배치 모드';
+    }
+
+    function toggleManagement(button) {
+        const open = button.getAttribute('aria-expanded') !== 'true';
+        button.setAttribute('aria-expanded', String(open));
+        button.closest('.inventory-management-row').classList.toggle('management-open', open);
+    }
 
     function getFocusedKey() {
         return focusedItemKey;
@@ -516,6 +531,7 @@
     }
 
     function startPointer(event) {
+        if (event.pointerType === 'touch' && !touchArrange) return;
         if (!event.target.closest) return;
         let item = event.target.closest('.equipment-grid-item');
         let equipped = event.target.closest('#ui-equip-list .equipment-slot:not(.equipment-slot-empty)');
@@ -620,7 +636,9 @@
         handleItemDoubleClick,
         handleEquippedItemClick,
         cancelCarry,
-        autoArrange
+        autoArrange,
+        toggleTouchArrange,
+        toggleManagement
     });
 
     safeExposeGlobals({ equipmentInventoryInteraction });

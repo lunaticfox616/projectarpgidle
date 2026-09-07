@@ -11,6 +11,7 @@ let _growthEffectCache = null;
 
 function invalidateGrowthEffects() {
     _growthEffectCache = null;
+    getBackgroundBuildMemo(game)?.clear();
 }
 
 function isGrowthSynergyStageUnlocked(stageKey) {
@@ -696,28 +697,33 @@ function evaluateGrowthGlobalSynergies(ctx, out) {
 
 // 배치가 바뀔 때만 전체 재계산한다. 전투 틱은 캐시된 결과만 읽는다.
 function getGrowthEffectSnapshot() {
+    const memo = getBackgroundBuildMemo(game);
+    if (memo?.has('growth-effects')) return memo.get('growth-effects');
     let entries = getPlacedGrowthEntries();
     let signature = getGrowthEffectSignature(entries);
-    if (_growthEffectCache && _growthEffectCache.signature === signature) return _growthEffectCache;
+    if (_growthEffectCache && _growthEffectCache.signature === signature) {
+        memo?.set('growth-effects', _growthEffectCache);
+        return _growthEffectCache;
+    }
     _growthEffectCache = computeGrowthEffectSnapshot();
+    memo?.set('growth-effects', _growthEffectCache);
     return _growthEffectCache;
 }
 
 /** 공간 보너스를 스탯 버킷에 적용한다 (getPlayerStats의 reward 버킷 경유). */
-function applyGrowthSpatialStats(bucket) {
-    let snapshot = getGrowthEffectSnapshot();
+function applyGrowthSpatialStats(bucket, snapshot = getGrowthEffectSnapshot()) {
     snapshot.grants.forEach(grant => addStatToBucket(bucket, grant.id, grant.val));
     return snapshot;
 }
 
 /** 공간 효과로 인한 아이템 전체 효과 배율(공허 고리·세계수의 심장 등). */
-function getGrowthItemStatMultiplier(itemId) {
-    return getGrowthEffectSnapshot().itemMultipliers.get(itemId) || 1;
+function getGrowthItemStatMultiplier(itemId, snapshot = getGrowthEffectSnapshot()) {
+    return snapshot.itemMultipliers.get(itemId) || 1;
 }
 
 /** 자신의 베이스 옵션만 증폭하는 배율(중계 덩굴손 등). */
-function getGrowthItemBaseMultiplier(itemId) {
-    return getGrowthEffectSnapshot().baseMultipliers.get(itemId) || 1;
+function getGrowthItemBaseMultiplier(itemId, snapshot = getGrowthEffectSnapshot()) {
+    return snapshot.baseMultipliers.get(itemId) || 1;
 }
 
 function getGrowthItemConditionReport(itemId) {

@@ -30,6 +30,34 @@ async function main() {
     // Spawn animation timestamps use performance.now(); only the browser presentation clock differs.
     const combatState=(key,value)=>key==='spawnStamp'?undefined:value;
     assert.equal(JSON.stringify(result.game,combatState),JSON.stringify(direct.game,combatState),'yielding must not change rewards or combat outcome');
+    let nativeYields = 0;
+    r.scheduler = { async yield() {
+        nativeYields++;
+        assert.equal(run('game'), state, 'native browser yield must see committed state');
+    } };
+    const nativeResult = await r.simulateBackgroundCombatChunked({snapshot:state,elapsedMs:1000});
+    assert.ok(nativeYields > 0);
+    assert.equal(nativeResult.processedMs, 1000);
+    delete r.scheduler;
+    const sleeping = fixture();
+    sleeping.runtime.document.hidden = true;
+    let slept = false;
+    sleeping.runtime.setTimeout = (resume, delay) => {
+        if (delay === 250) {
+            slept = true;
+            assert.equal(sleeping.run('game'), sleeping.state, 'app sleep never exposes replay state');
+            sleeping.runtime.document.hidden = false;
+        }
+        return setImmediate(resume);
+    };
+    const resumed = await sleeping.runtime.simulateBackgroundCombatChunked({
+        snapshot: sleeping.state, elapsedMs: 1000,
+        isPaused: () => sleeping.runtime.document.hidden,
+        onProgress() { assert.equal(sleeping.runtime.document.hidden, false); }
+    });
+    assert.equal(slept, true);
+    assert.equal(resumed.processedMs, 1000, 'suspension must not discard or multiply settlement time');
+    assert.equal(resumed.game.combatTimeMs, sleeping.state.combatTimeMs + 1000);
     // Failure at a platform boundary after a slice must not leak the replay state.
     await assert.rejects(r.simulateBackgroundCombatChunked({snapshot:state,elapsedMs:1000,onProgress(){throw Error('injected frame failure');}}),/injected frame failure/);
     assert.equal(run('game'),state);
