@@ -40,6 +40,7 @@ let socialState = {
     heartbeatTimer: null,
     bgNotificationTimer: null,
     chatLoading: false,
+    chatSending: false,
     chatInitialized: false,
     chatMessages: [],
     lastChatFullSyncAt: 0,
@@ -753,14 +754,33 @@ function translateSpamError(msg) {
     if (/char_length|_body_check|violates check/.test(msg)) return `메시지는 1~${SOCIAL_MSG_MAX}자여야 합니다.`;
     return msg;
 }
+async function prepareChatSender(senderId) {
+    await restoreNicknameFromServer();
+    if (socialLoggedInUserId() !== senderId) throw new Error('전송 중 계정이 변경되었습니다.');
+    if (!getMyNickname()) await promptAndSetNickname();
+    if (socialLoggedInUserId() !== senderId) throw new Error('전송 중 계정이 변경되었습니다.');
+    if (!getMyNickname()) return false;
+    await uploadPlayerProfile({ required: true });
+    if (socialLoggedInUserId() !== senderId) throw new Error('전송 중 계정이 변경되었습니다.');
+    return true;
+}
+
+function clearSubmittedChatDraft(inputEl, draft, items) {
+    if (inputEl.value !== draft || socialState.pendingChatItems.length !== items.length) return;
+    if (!items.every((item, index) => socialState.pendingChatItems[index] === item)) return;
+    inputEl.value = '';
+    socialState.pendingChatItems = [];
+    renderPendingChatItems();
+    updateChatCounter();
+}
+
 async function sendChatMessage() {
     if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
-    await restoreNicknameFromServer();
-    let nickname = getMyNickname();
-    if (!nickname) { await promptAndSetNickname(); if (!getMyNickname()) return; nickname = getMyNickname(); }
+    if (socialState.chatSending) return;
     let inputEl = document.getElementById('social-chat-input');
     if (!inputEl) return;
-    let body = String(inputEl.value || '').trim();
+    let draft = inputEl.value;
+    let body = draft.trim();
     let items = socialState.pendingChatItems.slice(0, SOCIAL_MAX_ITEMS_PER_MSG);
     if (!body && !items.length) return;
     if (body.length > SOCIAL_MSG_MAX) { showGameToast(`메시지는 최대 ${SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.`, 'warning'); return; }
@@ -769,28 +789,24 @@ async function sendChatMessage() {
     if (rate !== true) { showGameToast(rate, 'warning'); return; }
 
     let payload = items.length ? { items } : null;
-    let prevPending = socialState.pendingChatItems.slice();
+    let senderId = socialLoggedInUserId();
+    socialState.chatSending = true;
     try {
-        await uploadPlayerProfile({ required: true });
-        nickname = getMyNickname();
-        inputEl.value = '';
-        socialState.pendingChatItems = [];
-        renderPendingChatItems();
-        updateChatCounter();
+        if (!await prepareChatSender(senderId)) return;
         await cloudJsonRequest('/rest/v1/chat_messages', {
             method: 'POST', headers: { Prefer: 'return=minimal' },
-            body: { user_id: socialLoggedInUserId(), nickname, body: body || '🔗', payload }
+            body: { user_id: senderId, nickname: getMyNickname(), body: body || '🔗', payload }
         });
+        if (socialLoggedInUserId() !== senderId) return;
+        clearSubmittedChatDraft(inputEl, draft, items);
         socialState.sendTimestamps.push(Date.now());
         socialState.lastSentBody = body;
         await refreshChatPanel(true);
     } catch (e) {
         if (e && e.socialCode === 'nickname_conflict') setMyNicknameLocal('');
-        inputEl.value = body;
-        socialState.pendingChatItems = prevPending;
-        renderPendingChatItems();
-        updateChatCounter();
         showGameToast('메시지 전송 실패: ' + translateSpamError(String(e && e.message || e)), 'danger');
+    } finally {
+        socialState.chatSending = false;
     }
 }
 

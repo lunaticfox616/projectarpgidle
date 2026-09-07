@@ -49,6 +49,40 @@ context.globalThis = context;
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('js/social.js', 'utf8'), context, { filename: 'js/social.js' });
 
+async function checkPendingDraft(fail, edit, changeAccount = false) {
+  let release, reached;
+  const gate = new Promise(resolve => { release = resolve; });
+  const entered = new Promise(resolve => { reached = resolve; });
+  const posts = [];
+  context.cloudState.user = { id: 'draft-user' };
+  vm.runInContext("setMyNicknameLocal('Sender'); socialState.sendTimestamps=[]; socialState.lastSentBody=''; socialState.pendingChatItems=[{name:'원본',rarity:'normal'}]", context);
+  context.cloudJsonRequest = async (path, options = {}) => {
+    if (path.includes('player_profiles') && options.method !== 'POST') return [{ nickname: 'Sender' }];
+    if (path === '/rest/v1/chat_messages' && options.method === 'POST') {
+      posts.push(options.body); reached(); await gate;
+      if (fail) throw new Error('network unavailable');
+    }
+    return [];
+  };
+  input.value = '첫 메시지';
+  const sending = context.sendChatMessage();
+  await Promise.race([entered, sending.then(() => { throw new Error('send ended before chat request'); })]);
+  if (edit) {
+    input.value = '다음 메시지';
+    vm.runInContext("socialState.pendingChatItems=[{name:'다음',rarity:'normal'}]", context);
+  }
+  if (changeAccount) context.cloudState.user = { id: 'new-account' };
+  const duplicate = context.sendChatMessage();
+  release();
+  await Promise.all([sending, duplicate]);
+  assert.strictEqual(posts.length, 1, 'one pending submission must block duplicate sends');
+  assert.strictEqual(posts[0].body, '첫 메시지', 'send must use the submitted draft');
+  assert.strictEqual(input.value, edit ? '다음 메시지' : (fail ? '첫 메시지' : ''), 'completion must not replace a newer draft');
+  assert.strictEqual(vm.runInContext('socialState.pendingChatItems.length', context), edit || fail ? 1 : 0);
+  assert.strictEqual(vm.runInContext('socialState.chatSending', context), false, 'success and failure must release the send guard');
+  if (changeAccount) assert.strictEqual(vm.runInContext('socialState.sendTimestamps.length', context), 0, 'old account completion must not update the new account send history');
+}
+
 async function run() {
   for (const properties of [
     { key: 'Enter', isComposing: true },
@@ -98,6 +132,12 @@ async function run() {
   assert.strictEqual(context.getMyNickname(), '', 'a conflicting cached nickname should be cleared');
   assert.strictEqual(input.value, '안녕하세요', 'failed chat text should remain available for retry');
   assert.ok(toasts.some(entry => entry.message.includes('이미 사용 중인 닉네임')), 'nickname conflicts should be visible to the player');
+
+  await checkPendingDraft(false, true);
+  await checkPendingDraft(true, true);
+  await checkPendingDraft(false, false);
+  await checkPendingDraft(true, false);
+  await checkPendingDraft(false, true, true);
 
   const sql = fs.readFileSync('db/social.sql', 'utf8');
   assert.ok(sql.includes('select lower(profile.nickname)'), 'chat insert policy should require a public profile');

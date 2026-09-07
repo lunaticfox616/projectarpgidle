@@ -33,3 +33,33 @@ test('chat Enter respects browser composition and repeat flags',async({page})=>{
     }));
     expect(results).toEqual([false,false,false,false,true]);
 });
+
+test('a delayed chat response preserves a new draft and sends only once',async({page})=>{
+    await page.route('https://**',route=>route.fulfill({status:204,body:''}));
+    await page.goto('/');await page.locator('#btn-startup-guest').click();
+    await page.locator('[data-class-id="warrior"]').click();
+    await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
+    await page.evaluate(()=>{
+        clearInterval(gameTickHandle);gameTickHandle=null;
+        tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
+        cloudState.user={id:'draft-fixture'};setMyNicknameLocal('입력검사');
+        window.chatDraftPosts=[];
+        const gate=new Promise(resolve=>{window.releaseChatDraft=resolve;});
+        window.cloudJsonRequest=async(path,options={})=>{
+            if(path.includes('player_profiles')&&options.method!=='POST')return [{nickname:'입력검사'}];
+            if(path==='/rest/v1/chat_messages'&&options.method==='POST'){
+                chatDraftPosts.push(options.body);await gate;
+            }
+            return [];
+        };
+        switchTab('tab-social');renderSocialTab();
+    });
+    const input=page.locator('#social-chat-input');
+    await input.fill('첫 문장');await page.locator('.social-send-btn').click();
+    await expect.poll(()=>page.evaluate(()=>chatDraftPosts.length)).toBe(1);
+    await input.fill('응답 대기 중 새 문장');await page.locator('.social-send-btn').click();
+    await page.evaluate(()=>releaseChatDraft());
+    await page.waitForFunction(()=>!socialState.chatSending);
+    expect(await page.evaluate(()=>chatDraftPosts.map(row=>row.body))).toEqual(['첫 문장']);
+    await expect(input).toHaveValue('응답 대기 중 새 문장');
+});
