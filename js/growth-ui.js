@@ -496,6 +496,18 @@ function renderGrowthInventorySection() {
     return chips + rows.map(item => renderGrowthItemCard(item)).join('');
 }
 
+// Search and page changes affect the library, not the board or crafting bench.
+function renderGrowthInventoryPanel(signature, force) {
+    const host = document.getElementById('ui-growth-inventory');
+    if (!host) return;
+    const key = JSON.stringify([signature, getSearchFilterState().growth]);
+    if (!force && host.firstChild && host.__growthLibraryKey === key && host.__growthLibraryPage === inventoryLibraryUi.page('growth')) return;
+    renderSearchSection('ui-growth-inventory', 'growth', '생장판 검색 (이름/형태/옵션)', renderGrowthInventorySection(), '', '');
+    bindGrowthDisclosureState(host);
+    host.__growthLibraryKey = key;
+    host.__growthLibraryPage = inventoryLibraryUi.page('growth');
+}
+
 // ── 툴팁 ────────────────────────────────────────────────────────────────
 function buildGrowthSlabTooltipHtml(item) {
     let def = getGrowthSlabDef(item);
@@ -1005,7 +1017,7 @@ function getGrowthTabSignature() {
         growthSlabId: item.growthSlabId, growthChase: item.growthChase, flavorText: item.flavorText
     });
     let items = (game.growthInventory || []).map(itemSignature).join(',');
-    let filter = JSON.stringify((game.settings || {}).growthInventoryFilter || {});
+    let filter = JSON.stringify(getGrowthInventoryFilter());
     let flags = [(game.settings || {}).growthSortMode,
         (game.settings || {}).growthAutoSalvageEnabled, (game.settings || {}).growthUseItemFilter,
         JSON.stringify((game.settings || {}).growthAutoSalvageRarities || {})].join('|');
@@ -1013,7 +1025,7 @@ function getGrowthTabSignature() {
     return [board.activeLoadout, board.unlockedCellCount, game.season, game.maxZoneId,
         growthCraftItemId, game.currencies.growthEssence || 0, craftCurrencies,
         growthSelection.itemId, growthSelection.rotation, placements, items, filter, flags,
-        getSearchFilterState().growth, inventoryLibraryUi.page('growth'), uiDisplay.matches('(max-width: 1080px)')].join('#');
+        uiDisplay.matches('(max-width: 1080px)')].join('#');
 }
 
 function renderGrowthTab(options) {
@@ -1022,11 +1034,10 @@ function renderGrowthTab(options) {
     let host = document.getElementById('ui-growth-panel');
     let signature = getGrowthTabSignature();
     let force = !!(options && options.force) || !host || !host.firstChild;
+    renderGrowthInventoryPanel(signature, force);
     if (!force && signature === _growthTabSignature) return;
     _growthTabSignature = signature;
     renderGrowthBoardPanel(Boolean(options && options.openCraft));
-    renderSearchSection('ui-growth-inventory', 'growth', '생장판 검색 (이름/형태/옵션)', renderGrowthInventorySection(), '', '');
-    bindGrowthDisclosureState(document.getElementById('ui-growth-inventory'));
     let count = game.growthInventory.length;
     let limit = getGrowthInventoryLimit();
     let invCount = document.getElementById('ui-growth-inv-count');

@@ -16,7 +16,11 @@ test('growth search covers all items and pages preserve target identities and bo
     if(info.project.use.isMobile)await page.getByRole('tab',{name:'보관함',exact:true}).click();
     const cards=page.locator('#ui-growth-inventory .growth-item-card'), nav=page.getByRole('navigation',{name:'생장 보관함 페이지',exact:true});
     await expect(cards).toHaveCount(info.project.use.isMobile?6:13);
+    const initialBoard=await page.locator('#ui-growth-board').elementHandle();
+    const initialBench=await page.locator('#ui-growth-craft-bench').elementHandle();
     if(info.project.use.isMobile){await nav.getByRole('button',{name:'다음',exact:true}).click();await expect(nav).toContainText('2 / 3');}
+    expect(await initialBoard.evaluate(el=>el.isConnected)).toBe(true);
+    expect(await initialBench.evaluate(el=>el.isConnected)).toBe(true);
     const lockTarget=info.project.use.isMobile?cards.first():cards.nth(6);
     await lockTarget.getByRole('button',{name:'잠금',exact:true}).click();
     expect(await page.evaluate(id=>findGrowthItemById(id).locked,ids[6])).toBe(true);
@@ -26,10 +30,14 @@ test('growth search covers all items and pages preserve target identities and bo
     await expect(filters).toHaveAttribute('open','');
     await filters.getByRole('button',{name:/꽃 13/}).click();await expect(cards).toHaveCount(info.project.use.isMobile?6:13);
     const search=page.locator('input[data-search-key="growth"]');
+    const boardBeforeSearch=await page.locator('#ui-growth-board').elementHandle();
+    const benchBeforeSearch=await page.locator('#ui-growth-craft-bench').elementHandle();
     await search.fill('끝 조각');await expect(cards).toHaveCount(1);await expect(cards.first()).toContainText('끝 조각');
     const input=await search.elementHandle();await page.evaluate(()=>updateStaticUI());
     expect(await input.evaluate(el=>el.isConnected)).toBe(true);
     await search.fill('777');await expect(cards).toHaveCount(1);
+    expect(await boardBeforeSearch.evaluate(el=>el.isConnected)).toBe(true);
+    expect(await benchBeforeSearch.evaluate(el=>el.isConnected)).toBe(true);
     await cards.first().getByRole('button',{name:'배치',exact:true}).click();
     const target=await page.evaluate(id=>{
         for(let y=0;y<GROWTH_BOARD_H;y++)for(let x=0;x<GROWTH_BOARD_W;x++)if(planGrowthPlacement(id,x,y,0).ok)return{x,y};
@@ -37,6 +45,7 @@ test('growth search covers all items and pages preserve target identities and bo
     },ids[12]);
     await page.locator(`#ui-growth-board [data-x="${target.x}"][data-y="${target.y}"]`).click();
     expect(await page.evaluate(id=>!!getActiveGrowthLoadout().placements[id],ids[12])).toBe(true);
+    await expect(page.locator(`#ui-growth-board [data-x="${target.x}"][data-y="${target.y}"]`)).toHaveClass(/filled/);
     if(info.project.use.isMobile)await page.getByRole('tab',{name:'보관함',exact:true}).click();
     await cards.first().getByRole('button',{name:'내리기',exact:true}).click();
     await search.fill('없는결과');await expect(cards).toHaveCount(0);await expect(nav).toBeHidden();

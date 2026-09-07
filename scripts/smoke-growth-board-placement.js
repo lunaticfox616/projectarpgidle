@@ -204,11 +204,11 @@ assert.strictEqual(run('game.growthBoard.unlockedCellCount'), 15, '루프 리셋
         ['stats', '제작으로 바뀐 옵션 수'],
         ['locked', '잠금 토글'],
         ['growthSelection.itemId', '선택'],
-        ['growthInventoryFilter', '보관함 필터'],
         ['growthSortMode', '정렬']
     ].forEach(([token, why]) => {
         assert.ok(sig.includes(token), `렌더 지문에 ${token}(${why})이 빠지면 화면이 낡은 채로 굳는다`);
     });
+    // 보관함 분류 변경은 growth-library.spec.js에서 실제 결과와 페이지 보정을 검증한다.
     // 지문이 같아도 강제로 다시 그릴 수 있어야 한다(첫 렌더·DOM 교체 대비).
     const render = ui.slice(ui.indexOf('function renderGrowthTab'), ui.indexOf('function renderGrowthTab') + 700);
     assert.ok(/options\s*&&\s*options\.force/.test(render), '강제 렌더 경로가 있어야 한다');
