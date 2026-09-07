@@ -894,6 +894,7 @@
         <div id="item-tab-fossil" class="subtab-content">
             <div class="forge-panel craft-workbench-card" style="border-color:#3f5d83;">
                 <h3>🪨 화석 제작대</h3>
+                <div class="craft-target-actions"><button type="button" onclick="openCraftItemPickerOverlay('equip')">장착 장비 선택</button><button type="button" onclick="openCraftItemPickerOverlay('inventory')">인벤토리 검색</button></div>
                 <div class="craft-layout">
                     <div>
                         <div class="craft-selected" id="fossil-item-display">아이템을 클릭하여 선택</div>
@@ -904,7 +905,7 @@
                     </div>
                 </div>
             </div>
-            <h2>🛠️ 화석 제작 대상 선택</h2>
+            <details class="secondary-craft-library" ontoggle="if(this.open) updateStaticUI()"><summary>전체 화석 제작 대상 · 생장 아이템</summary>
             <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
                     <h3>장착 장비</h3>
@@ -917,14 +918,16 @@
                     <div class="growth-card-grid" id="ui-fossil-growth-list"></div>
                 </div>
             </div>
+            </details>
         </div>
 
         <div id="item-tab-infuser" class="subtab-content">
             <div class="forge-panel craft-workbench-card" style="border-color:#6e4aa8;">
                 <h3>🧪 혼돈 주입기</h3>
+                <div class="craft-target-actions"><button type="button" onclick="openCraftItemPickerOverlay('equip')">장착 장비 선택</button><button type="button" onclick="openCraftItemPickerOverlay('inventory')">인벤토리 검색</button></div>
                 <div id="ui-chaos-infuser-panel" style="background:#10131f; border:1px solid #3f315f; border-radius:10px; padding:10px; color:#cfc8eb; font-size:0.9em;">나무꾼을 한 번 이상 마주치면 해금됩니다.</div>
             </div>
-            <h2>🧪 주입 대상 선택</h2>
+            <details class="secondary-craft-library" ontoggle="if(this.open) updateStaticUI()"><summary>전체 주입 대상 둘러보기</summary>
             <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
                     <h3>장착 장비</h3>
@@ -935,6 +938,7 @@
                     <div class="inventory-grid" id="ui-infuser-inventory-list"></div>
                 </div>
             </div>
+            </details>
         </div>
 
         <div id="item-tab-market" class="subtab-content">

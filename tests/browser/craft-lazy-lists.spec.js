@@ -37,7 +37,23 @@ test('craft target libraries render only when open and refresh after inventory c
     await expect(page.locator('#ui-infuser-inventory-list > *')).toHaveCount(0);
     expect(errors).toEqual([]);
     await page.locator('#btn-item-tab-fossil').click();
+    await expect(page.locator('#ui-fossil-inventory-list > *')).toHaveCount(0);
+    await page.locator('#item-tab-fossil > details > summary').click();
     await expect(page.locator('#ui-fossil-inventory-list > *')).toHaveCount(1);
     await expect(page.locator('#ui-infuser-inventory-list > *')).toHaveCount(0);
+    expect(errors).toEqual([]);
+    await page.evaluate(()=>{game.chaosInfuserUnlocked=true;updateStaticUI();});
+    for (const kind of ['fossil','infuser']) {
+        await page.locator('#btn-item-tab-'+kind).click();
+        await page.locator('#item-tab-'+kind).getByRole('button',{name:'인벤토리 검색',exact:true}).click();
+        await expect(page.locator('#craft-item-picker-overlay')).toBeVisible();
+        await page.locator('#craft-item-picker-overlay .craft-picker-card').first().click();
+        await expect(page.locator('#craft-item-picker-overlay')).toHaveCount(0);
+        await expect(page.locator('#item-tab-'+kind)).toBeVisible();
+        expect(await page.evaluate(()=>getSelectedCraftItem().id)).toBe(71002);
+    }
+    await expect(page.locator('#ui-infuser-inventory-list > *')).toHaveCount(0);
+    await page.locator('#item-tab-infuser > details > summary').click();
+    await expect(page.locator('#ui-infuser-inventory-list > *')).toHaveCount(1);
     expect(errors).toEqual([]);
 });

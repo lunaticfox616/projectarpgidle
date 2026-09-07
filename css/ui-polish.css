@@ -263,10 +263,10 @@ body:not(.light-mode) .currency-card {
 .craft-target-art { width: 64px; height: 78px; padding: 4px; object-fit: contain; flex: none; box-sizing: border-box; }
 .craft-item-heading > div { min-width: 0; }
 .craft-selected-summary { font-size: 12px; }
-.craft-target-library { border-top: 1px solid var(--ui-line); margin-top: 12px; }
-.craft-target-library > summary { cursor: pointer; padding: 12px 0; color: var(--ui-text-2); }
-.craft-target-library[open] > summary { color: var(--ui-gold); }
-.craft-target-library h3 { font-size: 14px; }
+:is(.craft-target-library, .secondary-craft-library) { border-top: 1px solid var(--ui-line); margin-top: 12px; }
+:is(.craft-target-library, .secondary-craft-library) > summary { cursor: pointer; padding: 12px 0; color: var(--ui-text-2); }
+:is(.craft-target-library, .secondary-craft-library)[open] > summary { color: var(--ui-gold); }
+:is(.craft-target-library, .secondary-craft-library) h3 { font-size: 14px; }
 .craft-spores { padding: 8px; background: var(--ui-surface-1); border: 1px solid var(--ui-line); border-radius: 6px; }
 .orb-tone { color: var(--orb-tone); }
 body.light-mode :is(#item-tab-craft, #item-tab-market, #tab-flask) .orb-tone {

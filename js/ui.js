@@ -12775,7 +12775,7 @@ function openVoidPassiveCraftOverlay(nodeId) {
 function renderCraftTargetLibrary(isRarityVisible) {
     const kind = String(game.itemSubtab).replace('item-tab-', '');
     if (!['craft', 'fossil', 'infuser'].includes(kind)) return;
-    if (kind === 'craft' && !document.querySelector('.craft-target-library').open) return;
+    if (!document.querySelector(`#item-tab-${kind} > details`).open) return;
     renderPaperdoll(`ui-${kind}-equip-list`, true);
     const rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isRarityVisible(row.item));
     document.getElementById(`ui-${kind}-inventory-list`).innerHTML = rows.map(row => renderInventoryCard(row.item, row.idx, kind)).join('');
