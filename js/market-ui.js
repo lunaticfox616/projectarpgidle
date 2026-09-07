@@ -1,6 +1,6 @@
 /** Market presentation and input boundary. Transactions remain in items/passives. */
 const marketUi = {
-    section: 'exchange', to: '', recipeId: '', quantity: 1,
+    section: 'exchange', to: '', recipeId: '', quantity: 1, service: 'annul',
     moveTab(event) {
         const buttons = [...event.currentTarget.querySelectorAll('button')];
         const index = buttons.indexOf(document.activeElement), count = buttons.length;
@@ -114,15 +114,36 @@ const marketUi = {
         const image = getInventoryItemVisualAsset(item, 'equipment');
         return `<div class="market-service-target"><img src="${image}" alt=""><strong>${escapeHTML(item.name)}</strong></div>`;
     },
-    renderServices() {
-        document.getElementById('market-service-balance').textContent = `황금률 ${(game.currencies.goldenRule || 0).toLocaleString()}개 보유`;
+    selectService(value) {
+        this.service = value;
+        this.renderServices();
+    },
+    renderPassiveReset() {
         const count = getPaidPassiveNodeIds(game.passives).length;
         this.mount(document.getElementById('ui-market-service-passive'), `<div class="market-service-top"><h3>기본 스킬 트리 초기화</h3><span>황금률 1개</span></div>
             <p>기본 스킬 트리의 투자 ${count}점을 반환합니다.<br>루프·심화 패시브와 전직 투자는 유지됩니다.</p>
             <button onclick="marketResetPassiveTreeByDivine()" ${count > 0 && (game.currencies.goldenRule || 0) >= 1 && !game.woodsmanBuildLock ? '' : 'disabled'}>${count}점 반환 · 초기화</button>`);
-        this.renderAnnul();
-        this.renderExpansion('jewel', contentProgression.isUnlocked('jewel'), getJewelMarketExpandCost(), getJewelInventoryLimit());
-        this.renderExpansion('growth', isGrowthBoardUnlocked(), getGrowthMarketExpandCost(), getGrowthInventoryLimit());
+    },
+    renderServices() {
+        document.getElementById('market-service-balance').textContent = `황금률 ${(game.currencies.goldenRule || 0).toLocaleString()}개 보유`;
+        const choices = [{id:'annul', label:'장비 옵션 제거', open:true}, {id:'passive', label:'스킬 트리 초기화', open:true},
+            {id:'jewel-inv', label:'주얼 인벤토리 확장', open:contentProgression.isUnlocked('jewel')},
+            {id:'growth-inv', label:'생장 보관함 확장', open:isGrowthBoardUnlocked()}];
+        const available = choices.filter(row => row.open);
+        if (!available.some(row => row.id === this.service)) this.service = 'annul';
+        const mobile = uiDisplay.matches('(max-width: 1080px)');
+        this.mount(document.getElementById('market-service-navigation'), mobile ? `<label class="market-mobile-target">이용할 서비스<select aria-label="이용할 서비스" onchange="marketUi.selectService(this.value)">${available.map(row => `<option value="${row.id}" ${row.id === this.service ? 'selected' : ''}>${row.label}</option>`).join('')}</select></label>` : '');
+        for (const row of choices) {
+            const visible = row.open && (!mobile || row.id === this.service);
+            document.getElementById('ui-market-service-' + row.id).hidden = !visible;
+            if (visible) this.renderService(row.id);
+        }
+    },
+    renderService(id) {
+        if (id === 'annul') return this.renderAnnul();
+        if (id === 'passive') return this.renderPassiveReset();
+        if (id === 'jewel-inv') return this.renderExpansion('jewel', true, getJewelMarketExpandCost(), getJewelInventoryLimit());
+        this.renderExpansion('growth', true, getGrowthMarketExpandCost(), getGrowthInventoryLimit());
     },
     renderExpansion(kind, open, cost, limit) {
         const host = document.getElementById('ui-market-service-' + kind + '-inv');
