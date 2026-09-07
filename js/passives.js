@@ -11034,7 +11034,9 @@ function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠�
     if (rejectProtectedJewelCraftMaterial([a, b], '주얼 합성')) return;
     if ([a, b].some(jewel => jewel.uniqueId === 'uj_void' && getVoidUniqueFusionCharges(jewel) <= 0)) return addLog('고유 주얼 [공허]의 합성 가능 수가 없어 합성할 수 없습니다.', 'attack-monster');
     if (a.isVoid || b.isVoid || a.uniqueId === 'uj_void' || b.uniqueId === 'uj_void') return openVoidJewelFusionOverlay();
-    let fusionCost = 6;
+    let amplifiedEl = document.getElementById('chk-jewel-amplified-fusion');
+    let useAmplified = !!(amplifiedEl && amplifiedEl.checked);
+    let fusionCost = useAmplified ? 14 : 6;
     if ((game.currencies.jewelShard || 0) < fusionCost) return addLog(`주얼 결정이 부족합니다. (필요: ${fusionCost})`, 'attack-monster');
     let aStats = getJewelCoreStats(a);
     let bStats = getJewelCoreStats(b);
@@ -11045,9 +11047,6 @@ function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠�
     }
     if (!canFuseUnique(a) || !canFuseUnique(b)) return addLog('고유 주얼은 기본적으로 융합할 수 없습니다.', 'attack-monster');
     if (aStats.length !== 1 || bStats.length !== 1) return addLog('일반 융합은 1줄 옵션 주얼 2개만 가능합니다. (공허 주얼 포함 시 공허 융합 규칙)', 'attack-monster');
-    let amplifiedEl = document.getElementById('chk-jewel-amplified-fusion');
-    let useAmplified = !!(amplifiedEl && amplifiedEl.checked);
-    if (useAmplified && (game.currencies.jewelShard || 0) < 8) return addLog('증폭합성에 필요한 주얼 결정이 부족합니다. (필요: 8)', 'attack-monster');
     game.currencies.jewelShard -= fusionCost;
     if (a && a.uniqueId === 'uj_void' && (a.voidFusionCharges || 0) > 0) a.voidFusionCharges--;
     if (b && b.uniqueId === 'uj_void' && (b.voidFusionCharges || 0) > 0) b.voidFusionCharges--;
@@ -11061,7 +11060,6 @@ function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠�
         stats: [cloneJewelStat(aStats[0]), cloneJewelStat(bStats[0])].filter(Boolean)
     };
     if (useAmplified) {
-        game.currencies.jewelShard -= 8;
         let penaltyPool = [{ id: 'dr', val: -2 }, { id: 'resAll', val: -3 }, { id: 'move', val: -4 }];
         let bonusPool = [{ id: 'targetAny', val: 1 }, { id: 'targetProjectile', val: 1 }, { id: 'targetSlam', val: 1 }, { id: 'crit', val: 4 }, { id: 'resPen', val: 3 }];
         let penalty = rndChoice(penaltyPool);

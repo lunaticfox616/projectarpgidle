@@ -2116,6 +2116,7 @@ function selectJewelWorkbenchTarget(index, fusion, equipped = false) {
     let disclosure = document.getElementById('ui-jewel-craft-disclosure');
     if (disclosure) disclosure.open = true;
     if (!fusion && uiDisplay.matches('(max-width: 1080px)')) {
+        jewelCraftUi.show('orbs');
         document.getElementById('ui-jewel-craft-disclosure-tab').click();
         document.getElementById('ui-jewel-panel').scrollIntoView({ block: 'start' });
     }
@@ -10422,7 +10423,7 @@ function performUpdateStaticUI() {
     }
     let jewelUnlocked = !!game.unlocks.jewel;
     document.getElementById('ui-jewel-header').style.display = jewelUnlocked ? 'block' : 'none';
-    document.getElementById('ui-jewel-panel').style.display = jewelUnlocked ? 'block' : 'none';
+    document.getElementById('ui-jewel-panel').style.display = jewelUnlocked ? 'flex' : 'none';
     if (jewelUnlocked && jewelTabActive) {
         let maxJewelSlots = typeof getMaxJewelSlotCount === 'function' ? getMaxJewelSlotCount() : 2;
         game.jewelSlots = Array.isArray(game.jewelSlots) ? game.jewelSlots : [];
@@ -10430,35 +10431,13 @@ function performUpdateStaticUI() {
         game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
         jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
         let jewelCraftTarget = typeof getSelectedJewelCraftTarget === 'function' ? getSelectedJewelCraftTarget() : null;
-        let jewelCraftKeys = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'pruningShears'];
-        let jewelCraftButtons = jewelCraftKeys.map(key => {
-            let state = typeof getJewelCurrencyUseState === 'function' ? getJewelCurrencyUseState(key, jewelCraftTarget) : { enabled: false, reason: '사용 불가' };
-            let count = (game.currencies || {})[key] || 0;
-            return `<button data-info-tooltip-anchor="1" onmouseenter="showCurrencyCardTooltip(event,'${key}','${escapeHTML(state.reason)}')" onmousemove="showCurrencyCardTooltip(event,'${key}','${escapeHTML(state.reason)}')" onmouseleave="hideInfoTooltip()" onclick="useCurrencyOnJewel('${key}')" ${state.enabled && count > 0 ? '' : 'disabled'}>${getStyledOrbName(key)} (${count})</button>`;
-        }).join('');
-        let jewelCraftStats = jewelCraftTarget ? getJewelStats(jewelCraftTarget).map(stat => {
-            let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
-            let petite = isJewelPetiteStat(stat) ? '쁘띠 ' : '';
-            return `${petite}${escapeHTML(getStatName(stat.id))} +${formatJewelStatValue(stat.id, stat.val)}${tier}`;
-        }).join('<br>') : '';
-        let jewelCraftOptionHtml = jewelCraftTarget
-            ? `<div class="item-stats" style="margin:5px 0 7px; line-height:1.45; color:var(--copy-bright);">${jewelCraftStats || '<span style="color:var(--copy-muted);">옵션 없음</span>'}</div>`
-            : `<div style="margin:5px 0 7px; color:var(--copy-muted); font-size:0.8em;">제작대상 주얼을 선택하면 현재 옵션이 표시됩니다.</div>`;
         let jewelInventoryLimit = getJewelInventoryLimit();
         let jewelOverflow = Math.max(0, game.jewelInventory.length - jewelInventoryLimit);
         document.getElementById('ui-jewel-cap').innerHTML = `<div class="jewel-cap-summary ${jewelOverflow > 0 ? 'is-overflow' : ''}"><span>주얼 인벤토리 <strong>${game.jewelInventory.length}/${jewelInventoryLimit}</strong></span><span>융합 선택 <strong>${(jewelFusionSelection||[]).length}</strong></span>${jewelOverflow > 0 ? `<span class="jewel-overflow-warning">고급 주얼 보호로 ${jewelOverflow}칸 초과 · 정리 필요</span>` : ''}</div>`;
         syncJewelSalvageControlsFromSettings();
         game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [];
         while (game.jewelSlotAmplify.length < maxJewelSlots) game.jewelSlotAmplify.push(0);
-        document.getElementById('ui-jewel-core-craft').innerHTML = `<div style="color:#f1c67d; margin-bottom:4px;">주얼 제작 재화 (주얼 결정: ${game.currencies.jewelShard || 0})</div>
-        <div style="font-size:0.8em; color:var(--copy-bright); margin-bottom:6px;">일반 융합: 1줄 주얼 2개 + 주얼 결정 6개 → 2줄 주얼</div>
-        <label style="display:block; font-size:0.78em; color:#e2c9a4; margin-bottom:4px;"><input type="checkbox" id="chk-jewel-amplified-fusion"> 증폭합성 사용 (주얼 결정 8 추가 소모, 랜덤 패널티 + 랜덤 추가옵션)</label>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="craftJewelFusion()" ${(game.currencies.jewelShard || 0) < 6 ? 'disabled' : ''}>선택한 주얼 융합</button><button onclick="drawJewelRefine()" ${(game.currencies.jewelShard || 0) < 12 || (game.jewelInventory||[]).length >= getJewelInventoryLimit() ? 'disabled' : ''}>주얼 가공 (주얼 결정 12)</button></div>
-        <div style="margin-top:8px; font-size:0.8em; color:var(--copy-bright);">슬롯 증폭: 강화 단계당 주얼 수치 +3% (최대 20강, 실패 가능)</div>
-        <div style="display:flex; gap:6px; margin-top:4px; flex-wrap:wrap;">${Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => `<button onclick="tryAmplifyJewelSlot(${slotIdx})">슬롯${slotIdx + 1} 증폭 (${game.jewelSlotAmplify[slotIdx] || 0}/20 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[slotIdx] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[slotIdx] || 0) * 100)}%)</button>`).join('')}</div>
-        <div style="margin-top:8px; color:var(--copy-bright); font-size:0.8em;">공허 주얼: 최대 4줄까지 지원</div>
-        <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="openVoidJewelCraftOverlay()" ${(game.currencies.voidChisel || 0) <= 0 || (typeof getVoidJewelCraftMaterialIndices === 'function' ? getVoidJewelCraftMaterialIndices().length < 2 : (game.jewelInventory||[]).filter(j => j && !j.locked && !j.waxedByBeeswax).length < 2) ? 'disabled' : ''}>공허 주얼 제작 (끌 1 + 주얼2)</button><button onclick="openVoidJewelFusionOverlay()">선택 공허융합</button></div>
-        <div style="margin-top:10px; border-top:1px solid #2b3a4d; padding-top:8px;"><div style="color:var(--copy-bright); font-size:0.84em; margin-bottom:5px;">선택 주얼 오브 제작: <strong>${jewelCraftTarget ? escapeHTML(jewelCraftTarget.name || '주얼') : '없음'}</strong></div>${jewelCraftOptionHtml}<div style="display:flex; gap:6px; flex-wrap:wrap;">${jewelCraftButtons}</div></div>`;
+        jewelCraftUi.render(jewelCraftTarget, maxJewelSlots);
         document.getElementById('ui-jewel-slots').innerHTML = Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => {
             let jewel = game.jewelSlots[slotIdx];
             let ampLv = (game.jewelSlotAmplify && game.jewelSlotAmplify[slotIdx]) || 0;

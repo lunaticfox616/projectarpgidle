@@ -146,7 +146,23 @@ body:not(.light-mode) details > summary::marker {
 .jewel-library-pages:not([hidden]) { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 10px 0; }
 .jewel-library-pages button { min-height: 44px; }
 .jewel-library-pages span { text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+.jewel-craft-mode:not([hidden]) { display: grid; gap: 6px; margin-bottom: 10px; color: var(--ui-text-muted); }
+.jewel-craft-mode select { min-height: 44px; width: 100%; font-size: 16px; }
+.jewel-craft-section { padding: 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); margin-bottom: 10px; background: var(--ui-surface-2); }
+.jewel-craft-section h3 { margin: 0 0 8px; font-size: 14px; color: var(--ui-gold); }
+.jewel-craft-section p, .jewel-craft-section .item-stats { font-size: 13px; line-height: 1.6; }
+.jewel-craft-currencies { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+.jewel-craft-currency { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; padding-top: 8px; border-top: 1px solid var(--ui-line); }
+.jewel-craft-currency button, .jewel-craft-actions button { min-height: 44px; }
+.jewel-craft-currency span { font-size: 13px; line-height: 1.5; }
+.jewel-craft-currency small, .jewel-craft-actions small { display: block; font-size: 12px; color: var(--ui-text-muted); line-height: 1.6; }
+.jewel-craft-balance { font-size: 13px; color: var(--ui-gold); }
+.jewel-craft-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.jewel-amplified-choice { display: block; font-size: 13px; line-height: 1.6; }
+.jewel-amplified-choice input { width: 20px; height: 20px; vertical-align: middle; margin-right: 8px; }
 @media (max-width: 1080px) {
+  .jewel-craft-currencies { grid-template-columns: minmax(0, 1fr); }
+  .jewel-craft-section > button { min-height: 44px; }
   #ui-jewel-panel > * { order: 0; }
   #ui-jewel-slots, #ui-jewel-inventory { grid-template-columns: minmax(0, 1fr) !important; }
   #ui-jewel-panel .item-actions button { min-height: 44px; }

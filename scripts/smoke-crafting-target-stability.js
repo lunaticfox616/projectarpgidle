@@ -59,6 +59,25 @@ Promise.resolve(vm.runInContext("useCurrencyOnJewel('magicBud')", context)).then
         'crafting an equipped jewel must not move or duplicate it');
     assert.strictEqual(result.remaining, 0,
         'successful equipped-jewel crafting must consume one currency');
+    for (const [amplified, funds, succeeds] of [[true, 13, false], [true, 14, true], [false, 5, false], [false, 6, true]]) {
+        context.fusionCase = { amplified, funds };
+        const fusion = vm.runInContext(`
+            document.getElementById = id => id === 'chk-jewel-amplified-fusion' ? {checked: fusionCase.amplified} : null;
+            game.jewelInventory = [
+                {id: 8001, name: 'A', rarity: 'magic', stats: [{id: 'crit', val: 2, tier: 1}]},
+                {id: 8002, name: 'B', rarity: 'magic', stats: [{id: 'armor', val: 2, tier: 1}]}
+            ];
+            jewelFusionSelection = [0, 1];
+            game.currencies.jewelShard = fusionCase.funds;
+            confirmJewelFusion();
+            ({funds: game.currencies.jewelShard, count: game.jewelInventory.length,
+                ids: game.jewelInventory.map(j => j.id), options: getJewelCoreStats(game.jewelInventory[0]).length})
+        `, context);
+        assert.strictEqual(fusion.funds, succeeds ? 0 : funds, 'fusion must validate and charge the total cost');
+        assert.strictEqual(fusion.count, succeeds ? 1 : 2, 'insufficient funds must not consume materials');
+        if (!succeeds) assert.deepStrictEqual(Array.from(fusion.ids), [8001, 8002]);
+        else assert.strictEqual(fusion.options, amplified ? 4 : 2);
+    }
     console.log('smoke-crafting-target-stability passed');
 }).catch(error => {
     console.error(error);
