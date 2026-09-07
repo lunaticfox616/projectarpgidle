@@ -27,8 +27,11 @@ const damaged = vm.runInContext("JSON.stringify(normalizeTabLayoutSettings({tabL
 const pruning = JSON.parse(vm.runInContext(`JSON.stringify(normalizeTabLayoutSettings({tabPlacement:{
     'btn-tab-pruning':'bottom','btn-tab-items':'bottom'}}))`, runtime));
 for (const platform of ['desktop','mobile']) {
-    assert.strictEqual(pruning[platform].tabPlacement['btn-tab-pruning'],'top');
+    assert.strictEqual(pruning[platform].tabPlacement['btn-tab-pruning'],platform === 'desktop' ? 'top' : 'bottom');
     assert.strictEqual(pruning[platform].tabPlacement['btn-tab-items'],'bottom','unrelated custom placements survive');
 }
 assert.deepStrictEqual(JSON.parse(damaged).mobile, { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] });
 console.log('Platform menu migration and independent save roundtrip passed.');
+assert.strictEqual(vm.runInContext('mergeDefaults({settings:{}}).settings.mobileCombatLogExpanded', runtime), false);
+assert.strictEqual(vm.runInContext('mergeDefaults({settings:{mobileCombatLogExpanded:"false"}}).settings.mobileCombatLogExpanded', runtime), false);
+assert.strictEqual(vm.runInContext('mergeDefaults({settings:{mobileCombatLogExpanded:true,combatLogCollapsed:false}}).settings.mobileCombatLogExpanded', runtime), true);

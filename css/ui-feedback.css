@@ -110,6 +110,8 @@ body:has(.tutorial-overlay.active, .game-dialog-overlay.active) .tutorial-action
 .tutorial-action-target { outline: 2px solid var(--ui-gold) !important; outline-offset: -3px; }
 @media (max-width: 1080px) { .tutorial-action-card { right: 16px; bottom: 86px; } }
 .game-toast-mark { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: rgba(102,148,191,.18); color: #9ed2ff; font-weight: 900; }
+.mobile-log-toast { padding: 10px 12px; border: 1px solid var(--ui-gold); border-radius: var(--ui-radius-sm); color: var(--ui-text); background: var(--ui-surface-2); font-size: 13px; line-height: 1.4; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+.mobile-log-toast--error { border-color: #b76464; }
 .game-toast-success { border-color: rgba(91,190,135,.62); }
 .game-toast-success .game-toast-mark { color: #91e2b2; background: rgba(60,168,109,.18); }
 .game-toast-warning { border-color: rgba(221,185,103,.68); }

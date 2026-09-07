@@ -2313,6 +2313,7 @@ const defaultGame = {
         heroAppearanceMode: 'loop',
         leftPaneCollapsed: false,
         combatLogCollapsed: false,
+        mobileCombatLogExpanded: false,
         autoEquipEmptySlots: true,
         collapsePastLoopMilestones: true,
         autoSalvageEnabled: false,

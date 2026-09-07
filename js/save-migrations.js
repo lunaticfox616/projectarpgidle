@@ -13,7 +13,7 @@ function normalizeTabLayoutSettings(settings) {
             tabOrder: normalizeOrder(source.tabOrder, buttonId),
             tabPlacement: Object.fromEntries(Object.entries(placements)
                 .filter(([id, place]) => buttonId.test(id) && ['top', 'bottom'].includes(place))
-                .map(([id, place]) => [id, id === 'btn-tab-pruning' ? 'top' : place])),
+                .map(([id, place]) => [id, id === 'btn-tab-pruning' && platform === 'desktop' ? 'top' : place])),
             tabGroupOrder: normalizeOrder(source.tabGroupOrder, /^(character|growth|content|gear|etc)$/)
         };
     }
@@ -772,6 +772,7 @@ function mergeDefaults(save) {
     merged.settings.twoRowTabs = false;
     merged.settings.leftPaneCollapsed = !!merged.settings.leftPaneCollapsed;
     merged.settings.combatLogCollapsed = !!merged.settings.combatLogCollapsed;
+    merged.settings.mobileCombatLogExpanded = merged.settings.mobileCombatLogExpanded === true;
     equipmentLootPolicy.normalizeSettings(merged.settings);
     merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
     merged.settings.growthAutoSalvageRarities = { ...(defaultGame.settings.growthAutoSalvageRarities || {}), ...(merged.settings.growthAutoSalvageRarities || {}) };

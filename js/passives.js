@@ -5956,7 +5956,8 @@ function applyPanelLayoutSettings() {
     let combatFeed = document.querySelector('.combat-feed');
     let combatLogToggleBtn = document.getElementById('btn-combat-log-toggle');
     let isLeftCollapsed = !!(game && game.settings && game.settings.leftPaneCollapsed);
-    let isLogCollapsed = !!(game && game.settings && game.settings.combatLogCollapsed);
+    let isLogCollapsed = uiDisplay.matches('(max-width: 1080px)')
+        ? !game.settings.mobileCombatLogExpanded : !!game.settings.combatLogCollapsed;
     if (leftPane) leftPane.classList.toggle('collapsed', isLeftCollapsed);
     document.body.classList.toggle('left-pane-collapsed', isLeftCollapsed);
     leftToggleButtons.forEach(leftToggleBtn => {
@@ -5980,7 +5981,8 @@ function toggleLeftPaneCollapse() {
 }
 
 function toggleCombatLogCollapse() {
-    game.settings.combatLogCollapsed = !game.settings.combatLogCollapsed;
+    if (uiDisplay.matches('(max-width: 1080px)')) game.settings.mobileCombatLogExpanded = !game.settings.mobileCombatLogExpanded;
+    else game.settings.combatLogCollapsed = !game.settings.combatLogCollapsed;
     applyPanelLayoutSettings();
 }
 

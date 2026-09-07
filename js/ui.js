@@ -970,13 +970,13 @@ function createMobileTabDrawerHead() {
     let head = document.createElement('div');
     head.className = 'mobile-tab-drawer-head';
     let title = document.createElement('strong');
-    title.textContent = '기타';
+    title.textContent = '전체 메뉴';
     let actions = document.createElement('span');
     actions.className = 'mobile-tab-drawer-actions';
     let close = document.createElement('button');
     close.type = 'button';
     close.textContent = '닫기';
-    close.setAttribute('aria-label', '기타 메뉴 닫기');
+    close.setAttribute('aria-label', '전체 메뉴 닫기');
     close.addEventListener('click', () => setMobileTabDrawerOpen(false));
     actions.append(close);
     head.append(title, actions);
@@ -990,8 +990,8 @@ function createMobileMoreButton() {
     button.className = 'mobile-nav-more';
     button.setAttribute('aria-controls', 'tab-header-main');
     button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', '기타 메뉴 열기');
-    button.innerHTML = '<span class="mobile-nav-more-icon" aria-hidden="true"></span><span>기타</span><span class="noti-dot"></span>';
+    button.setAttribute('aria-label', '전체 메뉴 열기');
+    button.innerHTML = '<span>전체</span><span class="noti-dot"></span>';
     button.addEventListener('click', toggleMobileTabDrawer);
     return button;
 }
@@ -1001,10 +1001,10 @@ function ensureMobilePrimaryNavigation(topHeader, bottomHeader) {
     document.body.classList.add('mobile-primary-navigation', 'has-bottom-tabs');
     topHeader.setAttribute('role', 'dialog');
     topHeader.setAttribute('aria-modal', 'true');
-    topHeader.setAttribute('aria-label', '기타 메뉴');
+    topHeader.setAttribute('aria-label', '전체 메뉴');
     topHeader.setAttribute('aria-hidden', 'true');
     bottomHeader.setAttribute('role', 'navigation');
-    bottomHeader.setAttribute('aria-label', '전체 탭 메뉴');
+    bottomHeader.setAttribute('aria-label', '빠른 탭 메뉴');
     let head = topHeader.querySelector(':scope > .mobile-tab-drawer-head');
     if (!head) topHeader.prepend(createMobileTabDrawerHead());
     let more = document.getElementById('btn-mobile-nav-more');
@@ -1015,7 +1015,7 @@ function ensureMobilePrimaryNavigation(topHeader, bottomHeader) {
         backdrop = document.createElement('button');
         backdrop.id = 'mobile-tab-drawer-backdrop';
         backdrop.type = 'button';
-        backdrop.setAttribute('aria-label', '기타 메뉴 닫기');
+        backdrop.setAttribute('aria-label', '전체 메뉴 닫기');
         backdrop.addEventListener('click', () => setMobileTabDrawerOpen(false));
         document.body.appendChild(backdrop);
     }
@@ -1038,6 +1038,7 @@ function teardownMobilePrimaryNavigation(topHeader, bottomHeader) {
         topHeader.removeAttribute('aria-label');
         topHeader.removeAttribute('aria-hidden');
         topHeader.querySelector(':scope > .mobile-tab-drawer-head')?.remove();
+        topHeader.querySelectorAll('.mobile-menu-group-title').forEach(title => title.remove());
     }
     if (bottomHeader) {
         bottomHeader.removeAttribute('role');
@@ -1063,6 +1064,24 @@ function syncMobilePrimaryNavigationState() {
 
 function renderTabOrderSettings() {
     tabLayoutUi.render();
+}
+
+function renderMobileMenuGroups(header) {
+    for (const group of getOrderedTabGroups()) {
+        const buttons = group.tabs.map(id => document.getElementById('btn-' + id))
+            .filter(button => button && button.parentElement === header && button.style.display !== 'none'
+                && !button.hidden && button.dataset.mergedTabMember !== '1');
+        let title = header.querySelector('[data-mobile-group="' + group.key + '"]');
+        if (!title) {
+            title = document.createElement('div');
+            title.className = 'mobile-menu-group-title';
+            title.dataset.mobileGroup = group.key;
+            title.textContent = group.label;
+        }
+        title.hidden = buttons.length === 0;
+        header.appendChild(title);
+        buttons.forEach(button => header.appendChild(button));
+    }
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
@@ -1424,14 +1443,10 @@ function applyTabHeaderOrder(shouldRenderSettings){
     }
     if(!topHeader) return;
     let mobilePrimary = isMobilePrimaryNavigationEnabled();
+    let primaryIds = new Set(tabLayoutUi.mobilePrimaryIds());
     if (!mobilePrimary) teardownMobilePrimaryNavigation(topHeader, bottomHeader);
     else ensureMobilePrimaryNavigation(topHeader, bottomHeader);
     if (!mobilePrimary) installTabHeaderDragReorder();
-    if (game.settings.twoRowTabs && !tabLayoutUi.current().tabPlacementInitialized && uiDisplay.matches('(max-width: 1080px)')) {
-        tabLayoutUi.current().tabPlacementInitialized = true;
-        let autoIds = Array.from(topHeader.querySelectorAll('.tab-btn')).map(el => el.id);
-        autoIds.forEach((id, idx) => { tabLayoutUi.current().tabPlacement[id] = idx === 0 || id === 'btn-tab-pruning' ? 'top' : 'bottom'; });
-    }
     let allTabButtons = headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')));
     let ids=allTabButtons.map(el=>el.id);
     let order = Array.from(new Set(['btn-tab-battle', ...tabLayoutUi.current().tabOrder, ...tabLayoutUi.defaultOrder]));
@@ -1439,13 +1454,13 @@ function applyTabHeaderOrder(shouldRenderSettings){
     order.forEach(id=>{
         if(!map[id]) return;
         let target = mobilePrimary
-            ? (tabLayoutUi.isMisc(id) ? topHeader : bottomHeader)
+            ? (primaryIds.has(id) ? bottomHeader : topHeader)
             : ((game.settings.twoRowTabs && tabLayoutUi.current().tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader);
         target.appendChild(map[id]);
     });
     ids.forEach(id=>{
         if(order.includes(id) || !map[id]) return;
-        let target = mobilePrimary && !tabLayoutUi.isMisc(id) ? bottomHeader : topHeader;
+        let target = mobilePrimary && primaryIds.has(id) ? bottomHeader : topHeader;
         target.appendChild(map[id]);
     });
     if (bottomHeader) {
@@ -1456,6 +1471,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
         document.body.classList.toggle('has-bottom-tabs', hasBottomTabs);
         updateBottomTabSpacing();
     }
+    if (mobilePrimary) renderMobileMenuGroups(topHeader);
     syncMobilePrimaryNavigationState();
     if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
 }
@@ -1659,6 +1675,14 @@ function getRenderingUiTabIds() {
         if (el.id) ids.add(resolveRenderedTabId(el.id));
     });
     return ids;
+}
+
+// Keep timed stock progression independent of whether its management panel is visible.
+function renderVisibleManagementPanels(tabIds, renderFlasks) {
+    if (tabIds.has('tab-flask')) renderFlasks();
+    if (tabIds.has('tab-expertise')) renderExpertiseUI();
+    if (tabIds.has('tab-items') && game.itemSubtab === 'item-tab-market') renderMarketUI();
+    else refreshBlackMarket(false);
 }
 
 // 지금 이 탭 화면(창/패널)을 열어 둘 수 있는지 판정한다.
@@ -1947,6 +1971,7 @@ function switchItemSubtab(subtabId) {
     document.getElementById(subtabId).classList.add('active');
     document.getElementById('btn-' + subtabId).classList.add('active');
     if (subtabId === 'item-tab-hall' && typeof loadPlayerExchange === 'function') loadPlayerExchange();
+    updateStaticUI();
 }
 
 
@@ -5603,7 +5628,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
 
 let mobileToastQueue = [];
 let mobileToastActiveCount = 0;
-const MOBILE_TOAST_MAX_CONCURRENT = 2;
+const MOBILE_TOAST_MAX_CONCURRENT = 1;
 
 function shouldShowMobileToast(msg, cls, opts = {}) {
     if (opts && opts.noToast) return false;
@@ -5651,7 +5676,7 @@ function enqueueMobileToast(msg, cls) {
     pumpMobileToastQueue();
 }
 
-// 알림이 많이 밀려 있을수록: (1) 동시에 최대 2개까지만 보여 화면을 가리지 않고, (2) 쌓인 개수가 많을수록
+// 알림이 많이 밀려 있을수록: (1) 동시에 최대 1개까지만 보여 화면을 가리지 않고, (2) 쌓인 개수가 많을수록
 // 표시 시간을 점점 줄여 더 빨리 다음 알림이 나오게 한다(밀린 알림이 한 줄씩 느긋하게
 // 빠지는 대신, 밀린 만큼 더 빠르게 소화됨).
 function pumpMobileToastQueue() {
@@ -5672,14 +5697,7 @@ function showNextMobileToast() {
     let root = getMobileToastRoot();
     let toast = document.createElement('div');
     toast.textContent = entry.msg;
-    toast.style.background = entry.cls === 'attack-monster' ? 'rgba(120,35,35,0.94)' : 'rgba(22,30,45,0.94)';
-    toast.style.border = entry.cls === 'attack-monster' ? '1px solid #b76464' : '1px solid #4f6f96';
-    toast.style.color = '#eef5ff';
-    toast.style.padding = '10px 12px';
-    toast.style.borderRadius = '10px';
-    toast.style.fontSize = '13px';
-    toast.style.lineHeight = '1.35';
-    toast.style.boxShadow = '0 6px 20px rgba(0,0,0,0.35)';
+    toast.className = entry.cls === 'attack-monster' ? 'mobile-log-toast mobile-log-toast--error' : 'mobile-log-toast';
     toast.style.opacity = '0';
     toast.style.transition = 'opacity .2s ease';
     root.appendChild(toast);
@@ -10287,7 +10305,6 @@ function performUpdateStaticUI() {
     recalculateStarWedgeMutations();
     // 목표 선정은 js/goal-system.js가 담당한다(디바운스 포함).
     if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
-    renderFlaskPanel();
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });
     refreshTabHeaderUiIfNeeded();
@@ -11834,8 +11851,7 @@ function buildCraftActionButtons(item) {
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
     if (!chaosInfuserOpen && game.itemSubtab === 'item-tab-infuser') switchItemSubtab('item-tab-equip');
     __mark('midRender');
-    renderMarketUI();
-    renderExpertiseUI();
+    renderVisibleManagementPanels(renderingTabIds, renderFlaskPanel);
     __mark('market+expertise');
 
     let mapTabActive = (document.getElementById('tab-map') || {}).classList.contains('active');
@@ -11997,6 +12013,7 @@ function buildCraftActionButtons(item) {
 
     renderLoop9VoidRiftPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(buildTrialMapItemHtml).join('');
+    renderMobileMapNavigation();
     }
     __mark('mapPanels');
 

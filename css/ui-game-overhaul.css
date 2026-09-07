@@ -2464,6 +2464,12 @@ body.light-mode.desktop-windowed-ui .player-hud {
    화면 폭 기준으로 다시 건다(창 UI의 기존 동작은 그대로 둔다).
    화면 폭 ≈ 패널 폭 + 50px 기준으로 대응시켰다. */
 @media (max-width: 1080px) {
+  #skill-tab-equip .skill-panel-kicker,
+  #skill-tab-equip .skill-loadout-overview h2 { display: none; }
+  #skill-tab-equip .skill-loadout-overview { margin-top: 8px; }
+  #skill-tab-equip .skill-loadout-summary > div { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 6px; padding: 7px 8px; }
+  #skill-tab-equip .skill-loadout-summary small { grid-column: 1 / -1; }
+  #skill-tab-equip .skill-loadout-summary strong { white-space: normal; overflow-wrap: anywhere; }
   body:not(.desktop-windowed-ui) .skill-loadout-overview,
   body:not(.desktop-windowed-ui) .gem-forge-heading,
   body:not(.desktop-windowed-ui) .condition-gem-heading { align-items: flex-start; flex-direction: column; gap: 8px; }

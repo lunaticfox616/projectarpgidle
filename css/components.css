@@ -1791,20 +1791,27 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
 .loop-magic-runes { position: absolute; inset: 6%; border: 2px dotted rgba(218, 177, 243, .5); border-radius: 50%; }
 .loop-magic-core { position: absolute; inset: 42%; border: 1px solid rgba(244, 207, 255, .74); border-radius: 50%; box-shadow: 0 0 20px rgba(211, 154, 239, .5); }
 @keyframes loopMagicCirclePulse { 50% { filter: brightness(1.2); transform: translate(-50%, -50%) rotate(.65deg); } }
-@media (max-width: 720px) {
-    .loop-passive-orbit { --loop-node-size: 28px; width: calc(100% - 8px); margin: 18px auto 16px; }
-    .loop-passive-node.origin-node { --loop-node-size: 32px; }
-    .loop-passive-node.inner-node { --loop-node-size: 32px; }
-    .loop-node-core { border-width: 1px; box-shadow: 0 0 0 2px rgba(5, 8, 9, .94), 0 2px 5px rgba(0, 0, 0, .5); }
-    .loop-node-core::before { inset: 4px; }
-    .loop-node-glyph { font-size: .7rem; }
-    .loop-node-rank { right: -4px; bottom: -4px; min-width: 13px; height: 13px; padding: 0 2px; font-size: .4rem; }
-    .loop-node-tooltip { width: 182px; padding: 8px 9px; }
-}
-@media (max-width: 420px) {
-    .loop-passive-orbit { --loop-node-size: 26px; }
-    .loop-passive-node.origin-node, .loop-passive-node.inner-node { --loop-node-size: 30px; }
-    .loop-node-glyph { font-size: .65rem; }
+@media (max-width: 1080px) {
+    #ui-season-tree .trait-progress-summary { background: var(--ui-surface-2); border-color: var(--ui-line); }
+    #ui-season-tree .trait-progress-summary > div { background: transparent; }
+    #ui-season-tree .loop-passive-orbit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; height: auto; min-height: 0; aspect-ratio: auto; margin: 8px 0; gap: 8px; border-radius: 0; background: none; }
+    #ui-season-tree :is(.loop-orbit-ambient, .loop-ouroboros-silhouette, .loop-magic-circle) { display: none; }
+    #ui-season-tree .loop-passive-node { position: relative; inset: auto; width: auto; height: auto; min-height: 104px; padding: 10px; transform: none !important; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); }
+    #ui-season-tree .loop-passive-node.available { border-color: var(--ui-gold); }
+    #ui-season-tree .loop-passive-node.active { border-color: #6a9986; }
+    #ui-season-tree .loop-passive-node:focus-visible { outline: 2px solid var(--ui-gold); outline-offset: 2px; }
+    #ui-season-tree .loop-passive-node.locked { opacity: .7; }
+    #ui-season-tree .loop-passive-node.origin-node { order: -1; }
+    #ui-season-tree .loop-node-core { position: absolute; top: 8px; right: 8px; width: auto; height: auto; border: 0; background: none; box-shadow: none; }
+    #ui-season-tree .loop-node-core::before, #ui-season-tree .loop-node-glyph { display: none; }
+    #ui-season-tree .loop-node-rank { position: static; font-size: 11px; height: auto; padding: 2px 4px; }
+    #ui-season-tree .loop-node-tooltip { display: grid; position: static; width: auto; padding: 0; gap: 6px; transform: none; border: 0; background: none; box-shadow: none; pointer-events: auto; }
+    #ui-season-tree .loop-node-tooltip strong { font-size: 13px; padding-right: 24px; }
+    #ui-season-tree .loop-node-tooltip small, #ui-season-tree .loop-node-tooltip em { font-size: 12px; }
+    #ui-season-tree .loop-node-tooltip b { font-size: 11px; }
+    #ui-season-tree .loop-node-refund { display: flex; min-height: 44px; align-items: center; font-size: 12px; }
+    #trait-season-section > h2 { display: flex; flex-wrap: wrap; gap: 6px; font-size: 15px; }
+    #trait-season-section > h2 .h2-right { width: 100%; margin: 0; display: flex; align-items: center; justify-content: space-between; }
 }
 
 .trait-progress-summary {

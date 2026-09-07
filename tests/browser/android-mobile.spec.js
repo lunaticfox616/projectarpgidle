@@ -206,10 +206,14 @@ test('all unlocked mobile navigation entries open without page overflow or runti
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         updateTabUnlockButtons(); applyTabHeaderOrder(); updateTabNotificationDots();
     });
-    const ids = await page.locator('#tab-header-bottom > .tab-btn:visible').evaluateAll(elements => elements.map(el => el.id));
+    await expect(page.locator('#tab-header-bottom > .tab-btn:visible')).toHaveCount(4);
+    const ids = await page.locator('.tab-header > .tab-btn').evaluateAll(elements => elements
+        .filter(el => el.id.startsWith('btn-tab-') && el.style.display !== 'none' && !el.hidden && el.dataset.mergedTabMember !== '1')
+        .map(el => el.id));
     expect(ids.length).toBeGreaterThan(10);
     const overflows = [];
     for (const id of ids) {
+        if (!await page.locator('#' + id).isVisible()) await page.locator('#btn-mobile-nav-more').tap();
         await page.locator('#' + id).tap();
         await page.waitForFunction(() => {
             if (uiRefreshRunning || uiRefreshQueued) return false;
