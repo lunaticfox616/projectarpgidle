@@ -50,6 +50,24 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync('js/social.js', 'utf8'), context, { filename: 'js/social.js' });
 
 async function run() {
+  for (const properties of [
+    { key: 'Enter', isComposing: true },
+    { key: 'Enter', keyCode: 229 },
+    { key: 'Enter', repeat: true },
+    { key: 'Enter', shiftKey: true },
+    { key: 'a' }
+  ]) {
+    let prevented = false;
+    context.onSocialChatKeydown({ ...properties, preventDefault() { prevented = true; } });
+    assert.strictEqual(prevented, false, 'composition, repeat and non-send keys must retain native input handling');
+    assert.strictEqual(toasts.length, 0, 'non-send keys must not attempt sending or show a login warning');
+    assert.strictEqual(input.value, '안녕하세요', 'composition must retain the draft');
+  }
+  let prevented = false;
+  context.onSocialChatKeydown({ key: 'Enter', preventDefault() { prevented = true; } });
+  assert.strictEqual(prevented, true, 'plain Enter must still invoke the send boundary');
+  assert.strictEqual(toasts.length, 1, 'sending as a guest must show the existing login warning');
+  toasts.length = 0;
   context.cloudState = { user: { id: 'user-1' } };
   context.cloudJsonRequest = async () => [];
 

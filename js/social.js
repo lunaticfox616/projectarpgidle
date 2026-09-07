@@ -1014,7 +1014,12 @@ function stopChatPolling() {
     socialState.chatPollTimer = null;
     socialState.onlinePollTimer = null;
 }
-function onSocialChatKeydown(event) { if (event && event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); } }
+function onSocialChatKeydown(event) {
+    if (!event || event.isComposing || event.keyCode === 229 || event.repeat) return;
+    if (event.key !== 'Enter' || event.shiftKey) return;
+    event.preventDefault();
+    sendChatMessage();
+}
 
 // ============================================================================
 // 커스텀 툴팁

@@ -18,3 +18,18 @@ test('guest community opens the account screen without changing the current char
     await expect(page.locator('#startup-email')).toBeVisible();
     expect(await page.evaluate(()=>({level:game.level,season:game.season,currentZoneId:game.currentZoneId}))).toEqual(before);
 });
+
+test('chat Enter respects browser composition and repeat flags',async({page})=>{
+    await page.route('https://**',route=>route.fulfill({status:204,body:''}));
+    await page.goto('/');
+    await page.waitForFunction(()=>typeof onSocialChatKeydown==='function');
+    const results=await page.evaluate(()=>[
+        {key:'Enter',isComposing:true},{key:'Enter',keyCode:229},
+        {key:'Enter',repeat:true},{key:'Enter',shiftKey:true},{key:'Enter'}
+    ].map(properties=>{
+        const event=new KeyboardEvent('keydown',{...properties,cancelable:true});
+        onSocialChatKeydown(event);
+        return event.defaultPrevented;
+    }));
+    expect(results).toEqual([false,false,false,false,true]);
+});
