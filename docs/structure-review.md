@@ -68,8 +68,13 @@ requestAnimationFrame 간격의 95백분위는 16.8/16.7ms였다. 이 단발 측
 30초 TaskDuration은 약 2.4초, ScriptDuration은 약 1.2초였다. 소프트웨어 렌더러의
 약 24초 TaskDuration과 차이는 측정 환경 차이이며 게임 수정의 개선률이 아니다.
 실제 그리기는 806회, 간격 95백분위 약 50.1ms로 목표 33.3ms보다 불규칙했다.
-`gameLoop`가 RAF 제공 타임스탬프 대신 `performance.now()`를 사용하는 것과
-`renderBattlefieldThrottled`의 간격 누적 방식을 다음 검토 대상으로 기록한다.
+`gameLoop`가 RAF 제공 타임스탬프 대신 콜백 실행 시점의 `performance.now()`를 사용해,
+다른 작업으로 늦어진 콜백 다음의 정상 프레임까지 건너뛰는 문제가 있었다. RAF 타임스탬프를
+사용하도록 수정했으며 프레임 제한 값은 유지한다. 같은 D3D11 합성 측정의
+`android-combat-raf-clock.json`에서는 30초 903회, 간격 95백분위 34.2ms, 최대 36.2ms였다.
+실기기 수치는 아니며 30fps를 복원하면서 그리기 횟수는 증가하므로 발열 감소로 해석하지 않는다.
+`battle-frame-clock.spec.js`는 60/120Hz 프레임 시각에 콜백 지연을 섞어도 PC·모바일의 기존
+제한 주기를 지키는지 실제 캔버스 그리기로 확인하고, HP·경험치·지역·진행도·처치 수 불변을 검사한다.
 
 HUD 단독 100회 갱신은 innerText 읽기 300→0회, 합계 14.7→8.9ms,
 95백분위 0.3→0.2ms였다(`artifacts/hud-before.json`, `hud-after.json`). 단발 PC 합성 측정이다.

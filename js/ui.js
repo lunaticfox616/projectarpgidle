@@ -15458,11 +15458,11 @@ function renderBattlefieldThrottled(frameNow) {
     renderBattlefield(false);
 }
 
-function gameLoop() {
+function gameLoop(frameNow = performance.now()) {
     try {
         if (isBattlePresentationSuspended()) return;
         // 백그라운드 재계산 중에는 캔버스 렌더를 쉬어 계산 청크에 프레임을 양보한다.
-        let frameNow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        // RAF timestamps share the display clock; callback execution can be delayed by combat/UI work.
         showNextTutorial();
         let tutorialPause = !!(game.settings && game.settings.pauseGameOnOverlay) && isTutorialOpen();
         if (tutorialPause || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
