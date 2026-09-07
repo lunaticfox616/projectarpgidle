@@ -11414,10 +11414,17 @@ function openMobileCraftCurrencyOverlay() {
     overlay.className = 'mobile-craft-currency-overlay';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     let current = game.mobileCraftCurrencyKey || '';
-    let listHtml = options.length ? options.map(key => {
+    const target = getSelectedCraftItem();
+    const choices = options.map(key => {
         let selected = key === current ? ' selected' : '';
-        return `<button type="button" class="mobile-craft-currency-option${selected}" onclick="selectMobileCraftCurrency('${key}'); var overlayEl = document.getElementById('mobile-craft-currency-overlay'); if (overlayEl) overlayEl.remove();"><div style="font-weight:800;">${getStyledOrbName(key)}${selected ? ' ✓' : ''}</div><div style="font-size:0.82em; color:var(--copy-bright); margin-top:3px;">보유 x ${game.currencies[key] || 0}</div></button>`;
-    }).join('') : '<div style="grid-column:1/-1; color:var(--copy-muted); padding:12px; text-align:center;">보유 중인 사용 가능 재화가 없습니다.</div>';
+        const state = getMobileCraftCurrencyUseState(key, target);
+        const html = `<button type="button" class="mobile-craft-currency-option${selected}" data-craft-currency="${key}" onclick="selectMobileCraftCurrency('${key}'); var overlayEl = document.getElementById('mobile-craft-currency-overlay'); if (overlayEl) overlayEl.remove();"><strong>${getStyledOrbName(key)}${selected ? ' ✓' : ''}</strong><span>보유 ${game.currencies[key] || 0}</span><p>${escapeHTML(ORB_DB[key].desc)}</p><small>${escapeHTML(state.reason)}</small></button>`;
+        return { enabled: state.enabled, html };
+    });
+    const available = choices.filter(row => row.enabled).map(row => row.html).join('');
+    const unavailable = choices.filter(row => !row.enabled).map(row => row.html).join('');
+    const empty = '<p class="mobile-craft-currency-empty">현재 장비에 사용할 수 있는 재화가 없습니다.</p>';
+    const listHtml = `${available || empty}${unavailable ? `<details class="mobile-craft-unavailable"><summary>조건이 맞지 않는 재화 ${choices.length - choices.filter(row => row.enabled).length}개</summary><div class="mobile-craft-currency-list">${unavailable}</div></details>` : ''}`;
     overlay.innerHTML = `<div class="mobile-craft-currency-panel"><div class="mobile-craft-currency-head" style="margin-bottom:10px;"><div><div style="color:var(--copy-bright); font-size:1.02em; font-weight:900;">사용할 재화 선택</div><div style="color:var(--copy-muted); font-size:0.78em; margin-top:2px;">보유하고 해금된 재화만 표시됩니다.</div></div><button type="button" onclick="var overlayEl = document.getElementById('mobile-craft-currency-overlay'); if (overlayEl) overlayEl.remove();">닫기</button></div><div class="mobile-craft-currency-list">${listHtml}</div></div>`;
     document.body.appendChild(overlay);
 }

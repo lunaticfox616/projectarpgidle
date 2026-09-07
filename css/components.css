@@ -687,7 +687,7 @@ body.light-mode #tab-codex .item-title.unique { color: #a14c17; }
 .mobile-craft-currency-overlay {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: 24000;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -699,7 +699,9 @@ body.light-mode #tab-codex .item-title.unique { color: #a14c17; }
 .mobile-craft-currency-panel {
   width: min(560px, 100%);
   max-height: min(72dvh, 620px);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--ui-line-strong);
   border-radius: 18px 18px 12px 12px;
   background: var(--ui-surface-1);
@@ -709,7 +711,12 @@ body.light-mode #tab-codex .item-title.unique { color: #a14c17; }
 
 .mobile-craft-currency-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: max-content;
+  align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -722,6 +729,12 @@ body.light-mode #tab-codex .item-title.unique { color: #a14c17; }
   color: #ffffff;
   text-align: left;
 }
+.mobile-craft-currency-option > span { float: right; color: var(--copy-muted); font-size: 12px; }
+.mobile-craft-currency-option p { margin: 6px 0; font-size: 13px; line-height: 1.5; color: var(--copy-bright); }
+.mobile-craft-currency-option small { display: block; font-size: 12px; color: var(--copy-muted); }
+.mobile-craft-unavailable > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--copy-muted); }
+.mobile-craft-currency-empty { margin: 8px 0; color: var(--copy-muted); font-size: 13px; }
+.mobile-craft-currency-panel > .mobile-craft-currency-head { flex-shrink: 0; }
 
 .mobile-craft-currency-option.selected {
   border-color: #d9b85d;
