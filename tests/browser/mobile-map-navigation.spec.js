@@ -29,11 +29,23 @@ test('mobile destination selector preserves available routes and returns from se
     await page.waitForFunction(()=>!uiRefreshRunning&&!uiRefreshQueued);
     await page.evaluate(()=>{
         window.hiddenOceanMutations=0;
-        for(const id of ['ui-ocean-panel','ui-fishing-panel','ui-sea-gift-panel'])new MutationObserver(rows=>hiddenOceanMutations+=rows.length).observe(document.getElementById(id),{childList:true,subtree:true});
+        for(const id of ['ui-underworld-panel','ui-underworld-list','ui-ocean-panel','ui-fishing-panel','ui-sea-gift-panel'])new MutationObserver(rows=>hiddenOceanMutations+=rows.length).observe(document.getElementById(id),{childList:true,subtree:true});
         game.ocean.fishingGauge=37;game.ocean.oxygenCur=75;updateStaticUI();
     });
     await page.waitForFunction(()=>!uiRefreshRunning&&!uiRefreshQueued);
     expect(await page.evaluate(()=>hiddenOceanMutations)).toBe(0);
+    await page.evaluate(()=>{
+        game.underworldProgress.highestFloor=20;
+        game.currencies.runeShard=777;
+        reconcileMapPrimaryContentUnlocks(game);
+        switchMapSubtab('map-tab-underworld');updateStaticUI();
+    });
+    await expect(page.locator('#ui-underworld-panel')).toContainText('777');
+    const runeInventory=page.locator('[data-ui-disclosure="underworld-rune-inventory"]');
+    await runeInventory.locator('summary').click();
+    await page.evaluate(()=>{game.currencies.runeShard=778;updateStaticUI();});
+    await expect(page.locator('#ui-underworld-panel')).toContainText('778');
+    await expect(runeInventory).toHaveAttribute('open');
     await page.evaluate(()=>{switchMapSubtab('map-tab-ocean');updateStaticUI();});
     await expect(page.locator('#ui-ocean-panel')).toContainText('75');
     await page.evaluate(()=>{switchMapSubtab('map-tab-fishing');updateStaticUI();});

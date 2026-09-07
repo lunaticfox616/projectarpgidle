@@ -3579,7 +3579,7 @@ function renderUnderworldMapPanel() {
     let list = document.getElementById('ui-underworld-list');
     if (!panel || !list) return;
     let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
-    game.underworldProgress = uw;
+    captureUiDisclosureState(panel);
     let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
     let highest = Math.max(1, Math.floor(uw.highestFloor || 1));
     let canEnter = typeof canEnterUnderworld === 'function' && canEnterUnderworld();
@@ -3622,6 +3622,7 @@ function renderUnderworldMapPanel() {
         <section class="underworld-rune-console"><div class="underworld-section-head"><div><strong>장착 룬</strong><span>${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 슬롯 · 룬 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))} 해금</span></div><small>슬롯을 눌러 즉시 교체</small></div><div class="underworld-rune-slots">${slots}</div></section>
         <div class="underworld-action-grid"><section><h4>룬 제작 · 성장</h4><div><button onclick="craftUnderworldRune()" ${runeShardCount < 10 ? 'disabled' : ''}><strong>룬 가공</strong><span>조각 10</span></button><button onclick="openUnderworldRuneUpgradeOverlay()"><strong>룬 승급</strong><span>동일 룬 3개</span></button><button onclick="enhanceUnderworldRune()"><strong>룬 강화</strong><span>수치 성장</span></button><button onclick="rerollUnderworldRuneBonus()"><strong>옵션 리롤</strong><span>추가 옵션 변경</span></button></div></section><section><h4>장비 가공</h4><div><button onclick="applyUnderworldEnchant()"><strong>장비 인챈트</strong><span>지하계 제작</span></button><button onclick="attemptUnderworldLimitBreak()"><strong>한계돌파</strong><span>성공률 20%</span></button></div></section></div>
         <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card" data-ui-disclosure="underworld-rune-inventory"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개 · 우버 입장권 확인</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}</div><p>우버 뿌리 입장권 · ${ticketLine}</p></details></div>`;
+    restoreUiDisclosureState(panel);
 }
 function ensureUnderworldRuneState() {
     if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {} };
@@ -11909,7 +11910,7 @@ function buildCraftActionButtons(item) {
 
     renderChaosRealmMapPanel();
     renderSkyTowerMapPanel();
-    renderUnderworldMapPanel();
+    if (game.mapSubtab === 'map-tab-underworld') renderUnderworldMapPanel();
     // Keep normalization/unlock timing independent from the selected map panel.
     ensureOceanState();
     if (game.mapSubtab === 'map-tab-ocean') renderOceanDepthMapPanel();
