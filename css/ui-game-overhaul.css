@@ -1515,6 +1515,25 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .beyond-seal i { color: #b8d2b3; font-size: .74em; }
 .beyond-seal em { color: #af92cc; font-size: .7em; }
 
+@media (max-width: 1080px) {
+    .pruning-mobile-workspace { display:grid; gap:10px; }
+    .pruning-mobile-workspace > label { display:grid; gap:6px; font-size:13px; }
+    .pruning-mobile-workspace select { width:100%; min-width:0; min-height:44px; font-size:14px; }
+    #tab-pruning .pruning-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
+    #tab-pruning .pruning-head > button { grid-column:2; grid-row:1; }
+    #tab-pruning .pruning-head > p { grid-column:1 / -1; }
+    #tab-pruning .pruning-stat-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .pruning-mobile-workspace .pruning-choice-panel { position:static; order:0; padding:12px; grid-template-rows:auto auto auto; }
+    .pruning-mobile-workspace .pruning-choice-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .pruning-mobile-workspace button { min-height:44px; font-size:13px; }
+    .pruning-mobile-workspace .pruning-choice-effects { font-size:13px; }
+    .pruning-parent-path { display:flex; gap:6px; flex-wrap:wrap; }
+    .pruning-parent-path:empty { display:none; }
+    .pruning-next-branches { display:grid; gap:8px; }
+    .pruning-next-branch { display:grid; gap:6px; padding:12px; text-align:left; }
+    .pruning-next-branch span, .pruning-next-branch small { color:var(--ui-text-2); }
+}
+
 @media (max-width: 640px) {
     .condition-pattern-summary { align-items: flex-start; flex-direction: column; }
     .condition-pattern-rule select { max-width: 100%; }
