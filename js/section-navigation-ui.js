@@ -84,5 +84,6 @@
         new SectionNavigation('tab-character', '#tab-character .character-stat-section', ['공격', '방어 · 회복', '기본 · 특수'], '능력치 분류');
         new SectionNavigation('tab-season', '#trait-season-section, #ui-loop10-section', ['원환 패시브', '심화 성장'], '루프 성장 분류');
         new SectionNavigation('tab-jewel', '#ui-jewel-library, #ui-jewel-craft-disclosure, #ui-jewel-salvage-disclosure', ['장착 · 보관', '제작 · 증폭', '해체 관리'], '주얼 작업');
+        new SectionNavigation('tab-talisman', '#talisman-layout, #talisman-library, #talisman-workshop', ['배치 보드', '보관함', '공방'], '부적 작업');
     }, { once: true });
 }());

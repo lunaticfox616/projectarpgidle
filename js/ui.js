@@ -4846,6 +4846,7 @@ function removePlacedTalisman(talismanId) {
 function selectTalismanInventoryItem(talismanId) {
     game.talismanSelectedId = game.talismanSelectedId === talismanId ? null : talismanId;
     updateStaticUI();
+    if (game.talismanSelectedId && uiDisplay.matches('(max-width: 1080px)')) talismanMobileUi.showBoard();
 }
 
 function onTalismanBoardCellClick(x, y) {

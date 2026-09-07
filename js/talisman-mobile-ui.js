@@ -31,6 +31,7 @@ const talismanMobileUi = (() => {
     }
 
     function refresh() {
+        renderSelection();
         const root = document.getElementById('talisman-mobile-inspector');
         root.hidden = !point || !uiDisplay.matches('(max-width: 1080px)');
         if (root.hidden) return;
@@ -46,6 +47,21 @@ const talismanMobileUi = (() => {
         hideInfoTooltip();
         refresh();
         document.getElementById('talisman-mobile-inspector').scrollIntoView({block:'start'});
+    }
+
+    function renderSelection() {
+        const root = document.getElementById('talisman-mobile-selected');
+        root.hidden = !uiDisplay.matches('(max-width: 1080px)');
+        if (root.hidden) return;
+        const selected = game.talismanInventory.find(talisman => talisman.id === game.talismanSelectedId);
+        const html = `<span>${selected ? `배치할 부적: <strong>${escapeHTML(getTalismanDisplayName(selected))}</strong>` : '보관함에서 부적을 골라 배치하세요.'}</span><button type="button" onclick="document.getElementById('talisman-library-tab').click()">${selected ? '다른 부적 선택' : '부적 선택'}</button>`;
+        if (root.__selectionHtml !== html) { root.innerHTML = html; root.__selectionHtml = html; }
+    }
+
+    function showBoard() {
+        cancel();
+        document.getElementById('talisman-layout-tab').click();
+        document.getElementById('talisman-layout').scrollIntoView({block:'start'});
     }
 
     function cancel() {
@@ -75,6 +91,6 @@ const talismanMobileUi = (() => {
         });
         window.addEventListener('resize', () => { if (!uiDisplay.matches('(max-width: 1080px)')) cancel(); });
     }, {once:true});
-    return {inspect, refresh};
+    return {inspect, refresh, showBoard};
 })();
 safeExposeGlobals({talismanMobileUi});

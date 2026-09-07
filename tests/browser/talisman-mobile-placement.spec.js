@@ -12,7 +12,24 @@ test('touch talisman board previews rotation, placement, removal and unlock befo
         openTabPane('tab-talisman');updateStaticUI();
     });
     await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
-    await page.locator('.talisman-inventory-card').click();
+    const navigation=page.getByRole('tablist',{name:'부적 작업'});
+    if(info.project.use.isMobile){
+        await expect(page.locator('#ui-talisman-unseal')).toBeHidden();
+        await expect(page.locator('#ui-talisman-inventory')).toBeHidden();
+        await navigation.getByRole('tab',{name:'공방',exact:true}).click();
+        await expect(page.locator('#ui-talisman-unseal')).toBeVisible();
+        await page.keyboard.press('Home');
+        await page.getByRole('button',{name:'부적 선택',exact:true}).click();
+    }else{
+        await expect(navigation).toBeHidden();
+        const positions=await page.evaluate(()=>['talisman-workshop','talisman-layout'].map(id=>document.getElementById(id).getBoundingClientRect().top));
+        expect(positions[0]).toBeLessThan(positions[1]);
+    }
+    await page.locator('.talisman-inventory-card .item-title').click();
+    if(info.project.use.isMobile){
+        await expect(page.locator('#ui-talisman-inventory')).toBeHidden();
+        await expect(page.locator('#talisman-mobile-selected')).toContainText('배치할 부적');
+    }
     const cell=page.locator('[data-talisman-x="3"][data-talisman-y="3"]');
     const inspector=page.locator('#talisman-mobile-inspector');
     await cell.click();
@@ -37,7 +54,8 @@ test('touch talisman board previews rotation, placement, removal and unlock befo
     }
     await expect.poll(()=>page.evaluate(()=>game.talismanInventory.length)).toBe(1);
     if(info.project.use.isMobile){
-        await page.locator('.talisman-inventory-card').click();
+        await navigation.getByRole('tab',{name:'보관함',exact:true}).click();
+        await page.locator('.talisman-inventory-card .item-title').click();
         const invalid=await page.evaluate(()=>{
             for(let y=2;y<=5;y++)for(let x=2;x<=5;x++)if(!getTalismanPlacementPreviewAt(x,y).valid)return {x,y};
         });
