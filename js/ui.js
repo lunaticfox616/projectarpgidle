@@ -2135,10 +2135,7 @@ function getSortedEquipmentInventoryRows(query) {
         game.inventory.some(item => item && !isItemRarityVisible(item))].some(Boolean);
     let rows = game.inventory.map((item, idx) => ({ item, idx })).map(row => {
         let item = row.item || {};
-        let under = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
-        let base = (item.baseStats || []).map(stat => `${stat && stat.id || ''} ${stat && stat.statName || ''}`).join(' ');
-        let stats = (item.stats || []).map(stat => `${stat && stat.id || ''} ${stat && stat.statName || getStatName((stat && stat.id) || '') || ''}`).join(' ');
-        let searchMatched = matchSearchQuery(`${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${base} ${stats} ${under}`, query);
+        let searchMatched = matchSearchQuery(getEquipmentSearchText(item), query);
         return { ...row, filterActive: visualFilterActive,
             filterMatched: ['all', item.slot].includes(slotValue) && isItemRarityVisible(item) && searchMatched };
     }).sort((a, b) => {
@@ -10243,6 +10240,18 @@ function syncInventoryExpansionShortcuts() {
     });
 }
 
+function getEquipmentSearchStatText(stat, resolveName) {
+    const value = stat || {};
+    const name = value.statName || (resolveName ? getStatName(value.id || '') : '');
+    return `${value.id || ''} ${name || ''}`;
+}
+
+function getEquipmentSearchText(item) {
+    const base = (item.baseStats || []).map(stat => getEquipmentSearchStatText(stat, false)).join(' ');
+    const stats = (item.stats || []).map(stat => getEquipmentSearchStatText(stat, true)).join(' ');
+    const under = item.underEnchant ? `${getEquipmentSearchStatText(item.underEnchant, true)} ${item.underEnchant.val || ''}` : '';
+    return `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${base} ${stats} ${under}`;
+}
 function getSearchTokens(query) {
     return String(query || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
 }
@@ -10671,6 +10680,7 @@ function renderAutoSalvageRarityChips() {
 function renderAutoSalvageConfigPanel() {
     return equipmentLootUi.renderPanel(renderAutoSalvageRarityChips());
 }
+
 function refreshAutoSalvageConfigOverlay() {
     let overlay = document.getElementById('auto-salvage-config-overlay');
     if (!overlay) return;
@@ -11490,7 +11500,7 @@ function getCraftPickerItemLines(item) {
     (item.stats || []).slice(0, 2).forEach(stat => rows.push(`${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`));
     if (item.chaosInfusion) rows.push(`[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}`);
     if (item.encroached && !item.encroached.liberated) rows.push('[잠식] 해방 전');
-    return rows.map(row => `<div style="color:var(--copy-bright); font-size:.7em; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(row)}</div>`).join('');
+    return rows.map(row => `<div class="craft-picker-stat" style="color:var(--copy-bright); font-size:.7em; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(row)}</div>`).join('');
 }
 
 function getCraftPickerCardHtml(item, options) {
@@ -11509,7 +11519,7 @@ function getCraftPickerCardHtml(item, options) {
     </button>`;
 }
 
-function getCraftPickerBodyHtml(kind) {
+function getCraftPickerBodyHtml(kind, browse = {}) {
     let isEquip = kind === 'equip';
     let currentRef = getCraftSelectionRef();
     let currentIsEquip = isCraftSelectionEquip();
@@ -11528,14 +11538,28 @@ function getCraftPickerBodyHtml(kind) {
             });
         }).join('')}</div>`;
     }
+    return renderCraftPickerInventory(currentRef, currentIsEquip, browse);
+}
+
+function renderCraftPickerPages(page, pages, count) {
+    return `<nav class="craft-picker-pages" aria-label="제작 대상 페이지"><button type="button" data-craft-page="${page - 1}" ${page === 0 ? 'disabled' : ''}>이전</button><span>${page + 1} / ${pages} · ${count}개</span><button type="button" data-craft-page="${page + 1}" ${page === pages - 1 ? 'disabled' : ''}>다음</button></nav>`;
+}
+
+function renderCraftPickerInventory(currentRef, currentIsEquip, browse) {
     let totalInv = (game.inventory || []).length;
-    let rows = (game.inventory || []).filter(item => item && isItemRarityVisible(item)).map(item => getCraftPickerCardHtml(item, {
+    const mobile = uiDisplay.matches('(max-width: 1080px)');
+    const matching = (game.inventory || []).filter(item => item && isItemRarityVisible(item) && matchSearchQuery(getEquipmentSearchText(item), browse.query));
+    const pages = Math.max(1, Math.ceil(matching.length / 6));
+    const page = Math.min(browse.page || 0, pages - 1);
+    const visible = mobile ? matching.slice(page * 6, page * 6 + 6) : matching;
+    let rows = visible.map(item => getCraftPickerCardHtml(item, {
         selected: !currentIsEquip && currentRef === item.id,
         onclick: `selectCraftPickerInventoryItem(${item.id})`
     })).join('');
-    return rows
+    const navigation = mobile ? renderCraftPickerPages(page, pages, matching.length) : '';
+    return navigation + (rows
         ? `<div class="craft-picker-grid">${rows}</div>`
-        : `<div class="deathlog-empty">${totalInv > 0 ? '선택한 등급 필터에 해당하는 장비가 없습니다.' : '인벤토리에 제작할 장비가 없습니다.'}</div>`;
+        : `<div class="deathlog-empty">${totalInv > 0 ? '검색·등급 조건에 맞는 장비가 없습니다.' : '인벤토리에 제작할 장비가 없습니다.'}</div>`);
 }
 
 function refreshCraftItemPickerOverlay() {
@@ -11544,7 +11568,7 @@ function refreshCraftItemPickerOverlay() {
     let filterEl = overlay.querySelector('.craft-picker-filter');
     if (filterEl) filterEl.innerHTML = `<span class="inventory-view-filter-label">표시</span>${renderRarityFilterChips('picker')}`;
     let bodyEl = overlay.querySelector('.craft-picker-body');
-    if (bodyEl) bodyEl.innerHTML = getCraftPickerBodyHtml(window.__craftPickerKind);
+    if (bodyEl) bodyEl.innerHTML = getCraftPickerBodyHtml(window.__craftPickerKind, {query: overlay.querySelector('[name="craftSearch"]')?.value || '', page: Number(overlay.dataset.page) || 0});
 }
 
 function openCraftItemPickerOverlay(kind) {
@@ -11554,10 +11578,17 @@ function openCraftItemPickerOverlay(kind) {
     let overlay = document.createElement('div');
     overlay.id = 'craft-item-picker-overlay';
     overlay.className = 'craft-picker-overlay';
-    overlay.onclick = event => { if (event.target === overlay) closeCraftItemPickerOverlay(); };
+    overlay.onclick = event => {
+        if (event.target === overlay) closeCraftItemPickerOverlay();
+        const button = event.target.closest('[data-craft-page]');
+        if (!button) return;
+        overlay.dataset.page = button.dataset.craftPage; refreshCraftItemPickerOverlay();
+    };
+    overlay.onsubmit = event => { event.preventDefault(); overlay.dataset.page = '0'; refreshCraftItemPickerOverlay(); };
     let bodyHtml = getCraftPickerBodyHtml(kind);
     let filterRowHtml = isEquip ? '' : `<div class="craft-picker-filter"><span class="inventory-view-filter-label">표시</span>${renderRarityFilterChips('picker')}</div>`;
     overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" onclick="closeCraftItemPickerOverlay()">닫기</button></div>${filterRowHtml}<div class="craft-picker-body">${bodyHtml}</div></div>`;
+    if (!isEquip && uiDisplay.matches('(max-width: 1080px)')) overlay.querySelector('.craft-picker-head').insertAdjacentHTML('afterend', '<form class="craft-picker-search"><input name="craftSearch" type="search" aria-label="제작 장비 이름·부위·옵션 검색" placeholder="이름·부위·옵션 검색"><button type="submit">검색</button></form>');
     document.body.appendChild(overlay);
 }
 
