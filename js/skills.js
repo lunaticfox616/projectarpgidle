@@ -497,8 +497,8 @@ function awakenActiveGemCandidate() {
 }
 
 async function applyFossilCraft() {
-    if ((game.season || 1) < 3) return addLog('미궁 제작은 루프3부터 사용할 수 있습니다.', 'attack-monster');
-    let have = Math.max(0, Math.floor(game.currencies.fossil || 0));
+    if (game.season < 3) return addLog('미궁 제작은 루프3부터 사용할 수 있습니다.', 'attack-monster');
+    let have = Math.max(0, Math.floor(game.currencies.fossil));
     if (have <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
     let raw = await requestGameNumber({
         title: '미궁 화석 정제',
@@ -511,6 +511,7 @@ async function applyFossilCraft() {
     if (raw === null) return;
     let count = Math.max(0, Math.min(have, Math.floor(Number(raw))));
     if (!Number.isFinite(count) || count <= 0) return addLog('정제 개수가 올바르지 않습니다.', 'attack-monster');
+    if (game.season < 3 || game.currencies.fossil < count) return addLog('진행도 또는 보유 화석이 변경되었습니다. 정제를 다시 선택하세요.', 'attack-monster');
     let underworldOnlyFossils = new Set(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']);
     let refinablePool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly && !underworldOnlyFossils.has(fossil.key));
     let gained = {};
