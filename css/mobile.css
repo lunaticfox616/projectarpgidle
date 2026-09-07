@@ -264,7 +264,7 @@
   .map-item[role="group"] .map-item-actions:has(.map-reward-btn) .map-enter-btn { grid-column: 2; grid-row: 1; }
   .map-item[role="group"] .map-enter-btn { width: 100%; }
   .item-card { min-width: 0; padding: 8px; }
-  .item-actions, .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .item-actions:not(.jewel-card-actions), .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   #tab-skills .skill-gem-library,
   #tab-skills .gem-enhance-actions,
   #tab-skills .gem-engrave-grid,

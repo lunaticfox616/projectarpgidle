@@ -2,7 +2,7 @@
 (function () {
     'use strict';
     class SectionNavigation {
-        constructor(rootId, selector, labels) {
+        constructor(rootId, selector, labels, navigationLabel) {
             this.sections = Array.from(document.querySelectorAll(selector));
             this.desktopOpen = this.sections.map(section => section.open);
             this.mobile = null;
@@ -10,7 +10,7 @@
             this.navigation = document.createElement('div');
             this.navigation.className = 'mobile-section-navigation';
             this.navigation.setAttribute('role', 'tablist');
-            this.navigation.setAttribute('aria-label', rootId === 'tab-character' ? '능력치 분류' : '루프 성장 분류');
+            this.navigation.setAttribute('aria-label', navigationLabel);
             this.sections.forEach((section, index) => this.addButton(section, index, rootId, labels[index]));
             this.sections[0].before(this.navigation);
             this.navigation.addEventListener('keydown', event => this.navigate(event));
@@ -37,7 +37,7 @@
             this.selected = index;
             this.sections.forEach((section, position) => {
                 section.dataset.mobileSelected = String(position === index);
-                if (this.mobile && position === index) section.open = true;
+                if (this.mobile && position === index && section.tagName === 'DETAILS') section.open = true;
                 const button = this.navigation.children[position];
                 button.setAttribute('aria-selected', String(position === index));
                 button.tabIndex = position === index ? 0 : -1;
@@ -56,7 +56,7 @@
             if (this.mobile === next) return;
             if (next) this.desktopOpen = this.sections.map(section => section.open);
             this.sections.forEach((section, index) => {
-                section.open = next || this.desktopOpen[index];
+                if (section.tagName === 'DETAILS') section.open = next || this.desktopOpen[index];
                 if (next) {
                     section.setAttribute('role', 'tabpanel');
                     section.setAttribute('aria-labelledby', section.id + '-tab');
@@ -81,7 +81,8 @@
         }
     }
     document.addEventListener('DOMContentLoaded', () => {
-        new SectionNavigation('tab-character', '#tab-character .character-stat-section', ['공격', '방어 · 회복', '기본 · 특수']);
-        new SectionNavigation('tab-season', '#trait-season-section, #ui-loop10-section', ['원환 패시브', '심화 성장']);
+        new SectionNavigation('tab-character', '#tab-character .character-stat-section', ['공격', '방어 · 회복', '기본 · 특수'], '능력치 분류');
+        new SectionNavigation('tab-season', '#trait-season-section, #ui-loop10-section', ['원환 패시브', '심화 성장'], '루프 성장 분류');
+        new SectionNavigation('tab-jewel', '#ui-jewel-library, #ui-jewel-craft-disclosure, #ui-jewel-salvage-disclosure', ['장착 · 보관', '제작 · 증폭', '해체 관리'], '주얼 작업');
     }, { once: true });
 }());

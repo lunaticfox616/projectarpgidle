@@ -138,7 +138,17 @@ body:not(.light-mode) details > summary::marker {
 
 /* Character sheet: key values first, related stats stay together. */
 .mobile-section-navigation { display: none; }
+#ui-jewel-panel { display: flex; flex-direction: column; }
+#ui-jewel-panel > .jewel-cap-toolbar { order: 0; }
+#ui-jewel-craft-disclosure { order: 1; }
+#ui-jewel-salvage-disclosure { order: 2; }
+#ui-jewel-library { order: 3; min-width: 0; }
 @media (max-width: 1080px) {
+  #ui-jewel-panel > * { order: 0; }
+  #ui-jewel-slots, #ui-jewel-inventory { grid-template-columns: minmax(0, 1fr) !important; }
+  #ui-jewel-panel .item-actions button { min-height: 44px; }
+  #ui-jewel-panel .jewel-card-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #ui-jewel-panel .jewel-card-actions button { width: 100%; font-size: 12px; padding: 8px 4px; }
   .mobile-section-navigation:not([hidden]) { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 12px; }
   .mobile-section-navigation button { min-height: 44px; padding: 6px; font-size: 13px; }
   .mobile-section-navigation button[hidden] { display: none; }
