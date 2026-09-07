@@ -11907,9 +11907,13 @@ function buildCraftActionButtons(item) {
     renderChaosRealmMapPanel();
     renderSkyTowerMapPanel();
     renderUnderworldMapPanel();
-    renderOceanDepthMapPanel();
-    renderFishingPanel();
-    renderSeaGiftPanel();
+    // Keep normalization/unlock timing independent from the selected map panel.
+    ensureOceanState();
+    if (game.mapSubtab === 'map-tab-ocean') renderOceanDepthMapPanel();
+    if (game.mapSubtab === 'map-tab-fishing') {
+        renderFishingPanel();
+        renderSeaGiftPanel();
+    }
 
     let availTrials = TRIAL_ZONES.filter(trial => {
         if (trial.bloomTrial) return canSeeTalentBloomTrial();
