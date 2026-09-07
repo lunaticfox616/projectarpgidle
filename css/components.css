@@ -493,6 +493,19 @@ body.light-mode #tab-codex .item-title.unique { color: #a14c17; }
 .expertise-node-untrain{flex:0 0 auto;width:32px;border:1px solid #6a3b3b;border-radius:8px;background:#2a1414;color:#ffb3b3;font-weight:900;font-size:1.1em;cursor:pointer;line-height:1}
 .expertise-node-untrain:hover:not(.locked){background:#3a1a1a;border-color:#a85050}
 .expertise-node-untrain.locked{opacity:.3;cursor:not-allowed}
+@media (max-width:1080px) {
+  #ui-expert-subtabs { display:block; overflow:visible; }
+  #ui-expert-tree { align-items:stretch; padding:10px; }
+  .expert-mobile-selector { display:grid; gap:6px; margin:8px 0 12px; color:var(--ui-text-2); font-size:12px; }
+  .expert-mobile-selector select { width:100%; min-width:0; min-height:44px; font-size:14px; }
+  .expert-mobile-nodes { display:grid; gap:10px; }
+  .expert-mobile-node { padding:12px; border:1px solid var(--ui-line); border-radius:var(--ui-radius-sm); background:var(--ui-surface-2); }
+  .expert-mobile-node .tooltip-title { font-size:15px; margin-bottom:6px; }
+  .expert-mobile-node .tooltip-line { font-size:13px; line-height:1.55; white-space:normal; }
+  .expert-mobile-actions { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; margin-top:10px; }
+  .expert-mobile-actions button { min-height:44px; font-size:13px; text-align:center; }
+  #tab-expertise .expertise-panel { box-shadow:none; background:var(--ui-surface-2); border-color:var(--ui-line); }
+}
 @media (max-width:720px){
   .expertise-tree-hub{grid-template-columns:1fr;gap:10px}
   .expert-zone-cell{grid-column:1 !important;grid-row:auto !important}

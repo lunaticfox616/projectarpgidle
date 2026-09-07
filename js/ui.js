@@ -15686,10 +15686,7 @@ function renderExpertiseUI() {
     let treeUnlocked = hasExpertTreeUnlocked();
     let validTabs = [...unlocked, '__tree'];
     game.expertise.selectedExpertTab = validTabs.includes(game.expertise.selectedExpertTab) ? game.expertise.selectedExpertTab : (unlocked[0] || '__tree');
-    let expertBtns = unlocked.map(id => `<button class="subtab-btn ${game.expertise.selectedExpertTab===id?'active':''}" onclick="game.expertise.selectedExpertTab='${id}';updateStaticUI();">${EXPERT_DEFS[id].icon} ${EXPERT_DEFS[id].name}</button>`).join('');
-    let treeLabel = treeUnlocked ? '전문가 노드 트리' : '전문가 노드 트리(잠김)';
-    let treeBtn = `<button class="subtab-btn ${game.expertise.selectedExpertTab==='__tree'?'active':''}" onclick="game.expertise.selectedExpertTab='__tree';updateStaticUI();">${treeLabel}</button>`;
-    subtabs.innerHTML = expertBtns + treeBtn;
+    subtabs.innerHTML = expertiseMobileUi.navigation(unlocked, treeUnlocked);
     let showingTree = game.expertise.selectedExpertTab === '__tree';
     if (treeTitle) treeTitle.style.display = showingTree ? '' : 'none';
     tree.style.display = showingTree ? '' : 'none';
@@ -15715,6 +15712,7 @@ function getExpertBranchZoneHtml(branch, groups, posClass) {
 }
 
 function getExpertiseTreeHubHtml(groups) {
+    if (uiDisplay.matches('(max-width: 1080px)')) return expertiseMobileUi.tree(groups);
     return `<div class="expertise-tree-hub">`
         + getExpertBranchZoneHtml('astronomer', groups, 'pos-top')
         + getExpertBranchZoneHtml('mycologist', groups, 'pos-left')
