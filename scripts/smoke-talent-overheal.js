@@ -16,7 +16,6 @@ function readFunctionSource(source, name) {
 }
 
 const combatSource = fs.readFileSync('js/combat.js', 'utf8');
-const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 const context = {
     console,
     window: null,
@@ -61,10 +60,29 @@ assert.strictEqual(context.applyInstantPlayerLeech(30, stats, 'life'), 12, '생�
 assert.strictEqual(context.game.playerHp, 112);
 assert.strictEqual(context.applyInstantPlayerLeech(30, stats, 'energyShield'), 6, '보호막 회복이 초과 회복 상한까지 적용되어야 한다');
 assert.strictEqual(context.game.playerEnergyShield, 56);
-assert(uiSource.includes('pStats.lifeRecoveryCap'), 'UI 갱신이 전투 도메인의 초과 회복 상한을 사용해야 한다');
-assert(!uiSource.includes('game.playerHp = Math.min(game.playerHp, pStats.maxHp);'), '기존 생명력 강제 제한이 남아 있으면 안 된다');
 
 context.game.ascendClass = 'warrior';
 assert.strictEqual(context.getPlayerRecoveryHpCap(stats), 50, '생명력 회복 불가 키스톤의 50% 상한은 초과 회복보다 우선해야 한다');
+
+// The full combat runtime must enforce the cap without a browser HUD.
+const replay = require('./lib/replay-fixture')(19);
+for (const background of [false, true]) {
+    replay.state.isBackgroundCalculation = background;
+    replay.state.talentCards = { hero5__crusader: { level: 1, score: 0, count: 1 } };
+    replay.state.talentCardLoadout = ['hero5__crusader', null, null, null, null, null];
+    replay.state.playerHp = 100000;
+    const prepared = replay.runtime.prepareCombatTick(replay.state.combatTimeMs + 100);
+    assert(prepared.uniqueOverhealCapPct > 0, 'real equipped talent enables overhealing');
+    assert.strictEqual(replay.state.playerHp, replay.runtime.getPlayerRecoveryHpCap(prepared), 'foreground/replay preparation caps health before combat');
+    assert(replay.state.playerHp > prepared.maxHp, 'valid overhealing is retained');
+    replay.state.playerHp = -1;
+    replay.runtime.prepareCombatTick(replay.state.combatTimeMs + 100);
+    assert.strictEqual(replay.state.playerHp, -1, 'cap enforcement does not resurrect the player');
+}
+replay.state.ascendClass = 'warrior';
+replay.state.ascendKeystones = ['w8'];
+replay.state.playerHp = 100000;
+const restricted = replay.runtime.prepareCombatTick(replay.state.combatTimeMs + 100);
+assert.strictEqual(replay.state.playerHp, restricted.maxHp * 0.5, 'real warrior cap takes priority over the equipped overheal talent');
 
 console.log('smoke-talent-overheal passed');
