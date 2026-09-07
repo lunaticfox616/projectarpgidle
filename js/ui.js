@@ -12877,7 +12877,7 @@ const bindPassiveTreeMouseEvents = (canvas, handlers) => {
     }, true);
     window.addEventListener('blur', () => { isDragging = false; canvas.style.cursor = 'grab'; });
     canvas.addEventListener('mouseleave', () => {
-        if (isDragging) return;
+        if (isDragging || uiDisplay.matches('(max-width: 1080px)')) return;
         hoverNode = null;
         canvas.style.cursor = 'grab';
         drawPassiveTree();
@@ -12903,6 +12903,7 @@ function setupCanvasEvents() {
     let pendingTouchPassiveRefundAt = 0;
 
     function hideCanvasTooltip() {
+        passiveSelectionUi.hide();
         if (!canvasTooltip) return;
         canvasTooltip.style.display = 'none';
         clearActiveTooltip('canvas-tooltip');
@@ -12971,7 +12972,7 @@ function setupCanvasEvents() {
             : (game.passives || []).includes(node.id)
             ? '✔️ 활성화됨'
             : (reachableNodes.has(node.id)
-                ? '🖱️ 클릭해 활성화하고 주변 노드를 밝혀내기'
+                ? '활성화하면 주변 노드가 밝혀집니다.'
                 : '🌒 아직 길이 이어지지 않은 노드');
 
         if (state === 'preview' && !discoveredPassiveNodes.has(node.id)) {
@@ -13028,10 +13029,7 @@ function setupCanvasEvents() {
              <div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${routeCost}포인트 필요 · 연결 경로가 트리에 강조됩니다.</div>
              <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
 
-        invalidateTooltipSize(canvasTooltip);
-        canvasTooltip.style.display = 'block';
-        positionTooltipElement(canvasTooltip, clientX, clientY);
-        setActiveTooltip('canvas-tooltip');
+        passiveSelectionUi.present(node, canvasTooltip, { x: clientX, y: clientY });
     }
 
     function updateHoverNode(clientX, clientY) {
@@ -13274,7 +13272,7 @@ function setupCanvasEvents() {
         if (e.changedTouches && e.changedTouches.length) {
             let touch = e.changedTouches[0];
             hoverNode = getPassiveNodeAtClientPosition(touch.clientX, touch.clientY);
-            activateHoveredPassive({ fromTouch: true, clientX: touch.clientX, clientY: touch.clientY });
+            passiveSelectionUi.touch(hoverNode, touch, { preview: renderPassiveTooltip, activate: activateHoveredPassive });
         }
     }, { passive: false });
     canvas.addEventListener('touchcancel', () => {
