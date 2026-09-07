@@ -1,0 +1,22 @@
+const {test,expect}=require('@playwright/test');
+test('sea gift option categories survive inventory and resource refreshes',async({page},info)=>{
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    await page.route('https://**',r=>r.fulfill({status:204,body:''}));await page.goto('/');
+    await page.locator('#btn-startup-guest').click();await page.locator('[data-class-id="warrior"]').click();
+    await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
+    await page.evaluate(require('../../scripts/lib/offline-endgame-fixture'));
+    await page.evaluate(()=>{clearInterval(gameTickHandle);game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(r=>r.id);contentProgression.sync();openTabPane('tab-map');switchMapSubtab('map-tab-fishing');updateStaticUI();});
+    await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
+    await page.evaluate(()=>{switchMapSubtab('map-tab-fishing');updateStaticUI();});
+    await page.waitForFunction(()=>!uiRefreshRunning&&!uiRefreshQueued);
+    if(info.project.use.isMobile)await page.getByRole('tab',{name:'제작',exact:true}).click();
+    const category=page.locator('#ui-sea-gift-panel select.ocean-recipe-select').first();
+    await category.selectOption('저항');
+    await page.evaluate(()=>{game.ocean.fishStock[Object.keys(OCEAN_FISH_DB)[0]]+=1;updateStaticUI();});
+    await page.waitForFunction(()=>!uiRefreshRunning&&!uiRefreshQueued);
+    await expect(category).toHaveValue('저항');
+    await page.evaluate(()=>renderSeaGiftPanel());
+    await expect(category).toHaveValue('저항');
+    expect(errors).toEqual([]);
+    await page.screenshot({path:info.outputPath('sea-gift-workshop.png'),scale:'css'});
+});

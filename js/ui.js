@@ -3561,6 +3561,7 @@ const renderSeaGiftRecipeGroup = function (key, title, description, recipes, st,
 function renderSeaGiftPanel() {
     let panel = document.getElementById('ui-sea-gift-panel');
     if (!panel) return;
+    const categories = new Map(Array.from(panel.querySelectorAll('.ocean-recipe-select'), select => [select.id, select.value]));
     if (typeof captureUiDisclosureState === 'function') captureUiDisclosureState(panel);
     let st = ensureOceanState();
     if (!st.unlocked) { panel.innerHTML = ''; return; }
@@ -3570,6 +3571,9 @@ function renderSeaGiftPanel() {
     let supplyRecipes = regularRecipes.filter(recipe => !SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type));
     let forgeRecipes = regularRecipes.filter(recipe => SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type));
     panel.innerHTML = `${renderSeaGiftTarget()}<div class="ocean-recipe-groups">${renderSeaGiftRecipeGroup('supply', '재화 정제', '자주 잡히는 어종을 성장 재화로 교환합니다.', supplyRecipes, st, true)}${renderSeaGiftRecipeGroup('forge', '장비 가공', '선택한 장비의 옵션을 직접 가공합니다.', forgeRecipes, st, true)}${renderSeaGiftRecipeGroup('chase', '심연의 비전', '초희귀 어종을 사용하는 추적 제작입니다.', chaseRecipes, st, false)}</div>`;
+    panel.querySelectorAll('.ocean-recipe-select').forEach(select => {
+        if (categories.has(select.id)) select.value = categories.get(select.id);
+    });
     if (typeof restoreUiDisclosureState === 'function') restoreUiDisclosureState(panel);
 }
 

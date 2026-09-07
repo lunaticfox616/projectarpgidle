@@ -210,7 +210,7 @@ const elements = {
     'ui-fishing-collection': { innerHTML: '' },
     'ui-fishing-collection-summary': { textContent: '' },
     'ui-fishing-panel': { innerHTML: '' },
-    'ui-sea-gift-panel': { innerHTML: '' }
+    'ui-sea-gift-panel': { innerHTML: '', querySelectorAll: () => [] }
 };
 context.document.getElementById = id => elements[id] || null;
 run('renderFishingPanel(); renderSeaGiftPanel();');
