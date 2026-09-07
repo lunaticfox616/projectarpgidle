@@ -9599,7 +9599,7 @@ function updateCombatUI(pStats) {
     let esPct = (pStats.energyShield || 0) > 0 ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
     let esInlineEl = document.getElementById('ui-es-inline');
     if (esInlineEl) {
-        esInlineEl.innerText = (pStats.energyShield || 0) > 0 ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0';
+        setTextById('ui-es-inline', (pStats.energyShield || 0) > 0 ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0');
         esInlineEl.style.display = (pStats.energyShield || 0) > 0 ? '' : 'none';
     }
     let esBar = document.getElementById('ui-es-bar');
@@ -9627,16 +9627,8 @@ function updateCombatUI(pStats) {
     let playerHudIdentity = getUiPlayerHudIdentity();
     setTextById('ui-player-name-label', playerHudIdentity.name);
     setTextById('ui-player-class-label', playerHudIdentity.className);
-    let expLevelEl = document.getElementById('ui-exp-level-label');
-    if (expLevelEl) {
-        let levelText = `Lv.${game.level}`;
-        if (expLevelEl.innerText !== levelText) expLevelEl.innerText = levelText;
-    }
-    let expNoteEl = document.getElementById('ui-exp-note');
-    if (expNoteEl) {
-        let noteText = `${expPct.toFixed(1)}%`;
-        if (expNoteEl.innerText !== noteText) expNoteEl.innerText = noteText;
-    }
+    setTextById('ui-exp-level-label', `Lv.${game.level}`);
+    setTextById('ui-exp-note', `${expPct.toFixed(1)}%`);
     updatePlayerCombatEffectHud(pStats, hpAilBar);
     let hpCombatBar = document.getElementById('ui-player-hp-combat');
     if (hpCombatBar) hpCombatBar.style.width = `${Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100))}%`;
@@ -9658,12 +9650,9 @@ function updateCombatUI(pStats) {
     let zoneText = zone.type === 'trial' ? zone.name : combatTitle;
     let compactZoneText = zoneText.replace(/^⚔️\s*전투\s*/,'');
     setTextById('ui-combat-zone', compactZoneText);
-    let inlineZoneEl = document.getElementById('ui-combat-zone-inline');
     // 레벨·직업은 경험치바 왼쪽(ui-exp-level-label)으로 이동했으므로 여기는 지역 이름만 표기한다.
-    if (inlineZoneEl && inlineZoneEl.innerText !== compactZoneText) inlineZoneEl.innerText = compactZoneText;
-
-    let returnButton = document.getElementById('btn-combat-return');
-    if (returnButton) returnButton.innerText = '귀환';
+    setTextById('ui-combat-zone-inline', compactZoneText);
+    setTextById('btn-combat-return', '귀환');
     let pendingWoodsmanEntrance = !!game.woodsmanEntrancePending && zone && zone.type === 'outsideChaos';
     if (pendingWoodsmanEntrance) {
         let totalTime = Math.max(0.1, Number(game.moveTotalTime) || 3);
