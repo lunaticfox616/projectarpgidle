@@ -10429,11 +10429,11 @@ function performUpdateStaticUI() {
         game.jewelSlots = Array.isArray(game.jewelSlots) ? game.jewelSlots : [];
         while (game.jewelSlots.length < maxJewelSlots) game.jewelSlots.push(null);
         game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
-        jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
+        const selectedJewelFusionIndices = getSelectedJewelFusionIndices();
         let jewelCraftTarget = typeof getSelectedJewelCraftTarget === 'function' ? getSelectedJewelCraftTarget() : null;
         let jewelInventoryLimit = getJewelInventoryLimit();
         let jewelOverflow = Math.max(0, game.jewelInventory.length - jewelInventoryLimit);
-        document.getElementById('ui-jewel-cap').innerHTML = `<div class="jewel-cap-summary ${jewelOverflow > 0 ? 'is-overflow' : ''}"><span>주얼 인벤토리 <strong>${game.jewelInventory.length}/${jewelInventoryLimit}</strong></span><span>융합 선택 <strong>${(jewelFusionSelection||[]).length}</strong></span>${jewelOverflow > 0 ? `<span class="jewel-overflow-warning">고급 주얼 보호로 ${jewelOverflow}칸 초과 · 정리 필요</span>` : ''}</div>`;
+        document.getElementById('ui-jewel-cap').innerHTML = `<div class="jewel-cap-summary ${jewelOverflow > 0 ? 'is-overflow' : ''}"><span>주얼 인벤토리 <strong>${game.jewelInventory.length}/${jewelInventoryLimit}</strong></span><span>융합 선택 <strong>${selectedJewelFusionIndices.length}</strong></span>${jewelOverflow > 0 ? `<span class="jewel-overflow-warning">고급 주얼 보호로 ${jewelOverflow}칸 초과 · 정리 필요</span>` : ''}</div>`;
         syncJewelSalvageControlsFromSettings();
         game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [];
         while (game.jewelSlotAmplify.length < maxJewelSlots) game.jewelSlotAmplify.push(0);
@@ -10464,7 +10464,7 @@ function performUpdateStaticUI() {
             return matchSearchQuery(`${jewel.name || ''} ${jewel.rarity || ''} ${statText}`, sf.jewel);
         });
         let jewelRowsHtml = jewelLibraryUi.visibleRows(jewelRows, sf.jewel).map(({jewel, idx}) => {
-            let selected = (jewelFusionSelection || []).includes(idx) || (jewelCraftTarget && jewelCraftTarget === jewel) ? 'selected' : '';
+            let selected = selectedJewelFusionIndices.includes(idx) || (jewelCraftTarget && jewelCraftTarget === jewel) ? 'selected' : '';
             let q = sf.jewel;
             let desc = getJewelStats(jewel).map(stat => {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';

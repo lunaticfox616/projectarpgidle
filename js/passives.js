@@ -4838,8 +4838,11 @@ let activeTutorial = null;
 let activeTutorialStep = 0;
 let activeRewardZoneId = null;
 let divineBannerTimer = null;
+// Ephemeral references to chosen jewels, never inventory positions or saved state.
+// Consumers resolve current indices so equipment swaps and list changes cannot select other items.
 let jewelFusionSelection = [];
 let selectedJewelCraftTarget = null;
+// The overlay also tracks material references; its public handlers still accept current indices.
 let voidJewelOverlayState = { mode: null, selected: [] };
 let latestPlayerSwingImpactAt = 0;
 let pendingRingEquipItemId = null;
@@ -10836,7 +10839,7 @@ function formatJewelOverlayStatLines(stats, extraLineText) {
 
 function getVoidJewelOverlaySelectedIndices(mode) {
     if (voidJewelOverlayState.mode !== mode) return [];
-    return (voidJewelOverlayState.selected || []).map(getValidJewelInventoryIndex).filter(idx => idx >= 0)
+    return voidJewelOverlayState.selected.map(jewel => game.jewelInventory.indexOf(jewel)).filter(idx => idx >= 0)
         .filter((idx, pos, arr) => arr.indexOf(idx) === pos).slice(0, 2);
 }
 
@@ -10909,7 +10912,7 @@ function renderVoidJewelOverlay(mode) {
 function openVoidJewelOverlay(mode, indices) {
     game.jewelInventory = game.jewelInventory || [];
     let selected = (indices || []).map(getValidJewelInventoryIndex).filter(idx => idx >= 0).slice(0, 2);
-    voidJewelOverlayState = { mode, selected };
+    voidJewelOverlayState = { mode, selected: selected.map(index => game.jewelInventory[index]) };
     let overlay = document.getElementById('void-jewel-overlay');
     if (!overlay) {
         document.body.insertAdjacentHTML('beforeend', '<div id="void-jewel-overlay" style="position:fixed;inset:0;background:rgba(7,6,14,.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;"></div>');
@@ -10922,8 +10925,7 @@ function openVoidJewelCraftOverlay() {
 }
 
 function openVoidJewelFusionOverlay() {
-    jewelFusionSelection = (jewelFusionSelection || []).filter(idx => getValidJewelInventoryIndex(idx) >= 0);
-    openVoidJewelOverlay('fusion', jewelFusionSelection);
+    openVoidJewelOverlay('fusion', getSelectedJewelFusionIndices());
 }
 
 function closeVoidJewelOverlay() {
@@ -10940,27 +10942,28 @@ function toggleVoidJewelOverlaySelection(mode, idx) {
     if (mode === 'fusion' && jewel.uniqueId === 'uj_void' && getVoidUniqueFusionCharges(jewel) <= 0) return addLog('고유 주얼 [공허]의 합성 가능 수가 없습니다.', 'attack-monster');
     let selected = getVoidJewelOverlaySelectedIndices(mode);
     selected = selected.includes(index) ? selected.filter(v => v !== index) : selected.concat(index).slice(-2);
-    voidJewelOverlayState = { mode, selected };
+    voidJewelOverlayState = { mode, selected: selected.map(position => game.jewelInventory[position]) };
     renderVoidJewelOverlay(mode);
 }
 
 function toggleJewelFusionSelection(idx) {
-    jewelFusionSelection = jewelFusionSelection || [];
-    if (jewelFusionSelection.includes(idx)) jewelFusionSelection = jewelFusionSelection.filter(v => v !== idx);
+    const index = getValidJewelInventoryIndex(idx);
+    if (index < 0) return;
+    const jewel = game.jewelInventory[index];
+    jewelFusionSelection = jewelFusionSelection.filter(material => game.jewelInventory.includes(material));
+    if (jewelFusionSelection.includes(jewel)) jewelFusionSelection = jewelFusionSelection.filter(v => v !== jewel);
     else {
-        let jewel = (game.jewelInventory || [])[idx];
         if (rejectProtectedJewelCraftMaterial([jewel], '주얼 합성')) return;
-        jewelFusionSelection.push(idx);
+        jewelFusionSelection.push(jewel);
         if (jewelFusionSelection.length > 2) jewelFusionSelection = jewelFusionSelection.slice(-2);
     }
     updateStaticUI();
 }
 
 function getSelectedJewelFusionIndices() {
-    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
-    return (jewelFusionSelection || [])
-        .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length)
-        .filter((idx, pos, arr) => arr.indexOf(idx) === pos)
+    return jewelFusionSelection
+        .map(jewel => game.jewelInventory.indexOf(jewel))
+        .filter(index => index >= 0)
         .slice(0, 2);
 }
 
@@ -11026,9 +11029,9 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
 
 function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     game.jewelInventory = game.jewelInventory || [];
-    jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
-    if (jewelFusionSelection.length !== 2) return addLog('융합할 주얼 2개를 선택하세요.', 'attack-monster');
-    let sorted = jewelFusionSelection.slice().sort((a, b) => a - b);
+    const selected = getSelectedJewelFusionIndices();
+    if (selected.length !== 2) return addLog('융합할 주얼 2개를 선택하세요.', 'attack-monster');
+    let sorted = selected.sort((a, b) => a - b);
     let a = game.jewelInventory[sorted[0]];
     let b = game.jewelInventory[sorted[1]];
     if (rejectProtectedJewelCraftMaterial([a, b], '주얼 합성')) return;
@@ -11078,9 +11081,7 @@ function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠�
 
 function getVoidJewelCraftMaterialIndices() {
     game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
-    let validSelected = (jewelFusionSelection || [])
-        .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length)
-        .filter((idx, pos, arr) => arr.indexOf(idx) === pos);
+    let validSelected = getSelectedJewelFusionIndices();
     if (validSelected.length === 2 && !getProtectedJewelCraftMaterial(validSelected.map(idx => game.jewelInventory[idx]))) return validSelected;
     return game.jewelInventory
         .map((jewel, idx) => ({ jewel, idx }))
@@ -11190,8 +11191,7 @@ function confirmVoidJewelFusion() {
 }
 
 function fuseSelectedVoidJewels() {
-    jewelFusionSelection = (jewelFusionSelection || []).filter(idx => getValidJewelInventoryIndex(idx) >= 0);
-    if (jewelFusionSelection.length !== 2) return addLog('공허 융합할 주얼 2개를 선택하세요.', 'attack-monster');
+    if (getSelectedJewelFusionIndices().length !== 2) return addLog('공허 융합할 주얼 2개를 선택하세요.', 'attack-monster');
     return openVoidJewelFusionOverlay();
 }
 

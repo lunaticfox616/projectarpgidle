@@ -59,6 +59,24 @@ Promise.resolve(vm.runInContext("useCurrencyOnJewel('magicBud')", context)).then
         'crafting an equipped jewel must not move or duplicate it');
     assert.strictEqual(result.remaining, 0,
         'successful equipped-jewel crafting must consume one currency');
+    const selection = vm.runInContext(`
+        game.jewelInventory = ['A', 'B', 'C', 'D'].map((name, id) => ({id, name, rarity: 'magic', stats: [{id:'crit',val:2,tier:1}]}));
+        game.jewelSlots = [null, null];
+        toggleJewelFusionSelection(1); toggleJewelFusionSelection(3);
+        equipJewel(0, 0);
+        getSelectedJewelFusionIndices().map(index => game.jewelInventory[index].name)
+    `, context);
+    assert.deepStrictEqual(Array.from(selection), ['B', 'D'], 'equipping an earlier item must preserve the selected materials');
+    const replaced = vm.runInContext(`
+        equipJewel(0, 0);
+        getSelectedJewelFusionIndices().map(index => game.jewelInventory[index].name)
+    `, context);
+    assert.deepStrictEqual(Array.from(replaced), ['D'], 'the item returned from an equipment slot must not inherit fusion selection');
+    const reordered = vm.runInContext(`
+        game.jewelInventory.reverse();
+        getSelectedJewelFusionIndices().map(index => game.jewelInventory[index].name)
+    `, context);
+    assert.deepStrictEqual(Array.from(reordered), ['D'], 'reordering must preserve the chosen material identity');
     for (const [amplified, funds, succeeds] of [[true, 13, false], [true, 14, true], [false, 5, false], [false, 6, true]]) {
         context.fusionCase = { amplified, funds };
         const fusion = vm.runInContext(`
@@ -67,7 +85,7 @@ Promise.resolve(vm.runInContext("useCurrencyOnJewel('magicBud')", context)).then
                 {id: 8001, name: 'A', rarity: 'magic', stats: [{id: 'crit', val: 2, tier: 1}]},
                 {id: 8002, name: 'B', rarity: 'magic', stats: [{id: 'armor', val: 2, tier: 1}]}
             ];
-            jewelFusionSelection = [0, 1];
+            toggleJewelFusionSelection(0); toggleJewelFusionSelection(1);
             game.currencies.jewelShard = fusionCase.funds;
             confirmJewelFusion();
             ({funds: game.currencies.jewelShard, count: game.jewelInventory.length,

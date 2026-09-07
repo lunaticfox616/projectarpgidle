@@ -21,7 +21,7 @@ test('jewel pages search the full inventory and keep original item actions',asyn
         await bottom.getByRole('button',{name:'다음'}).click();
         await expect(top).toContainText('2 / 10');
         await cards.filter({hasText:'보석-7'}).getByRole('button',{name:'융합선택',exact:true}).click();
-        expect(await page.evaluate(()=>jewelFusionSelection)).toEqual([7]);
+        expect(await page.evaluate(()=>getSelectedJewelFusionIndices())).toEqual([7]);
         await expect(page.locator('#ui-jewel-library')).toBeVisible();
         await top.getByRole('button',{name:'이전'}).click();
         await bottom.getByRole('button',{name:'다음'}).click();
