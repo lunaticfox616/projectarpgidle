@@ -11204,7 +11204,7 @@ function renderChaosInfuserPanel(selectedItem) {
         let key = opt.optionId || opt.id;
         let same = selectedItem.chaosInfusion && (selectedItem.chaosInfusion.sourceOptionId === key || selectedItem.chaosInfusion.id === opt.id);
         let rangeText = `${formatValue(opt.id, opt.min)}~${formatValue(opt.id, opt.max)}`;
-        return `<button onclick="applyChaosInfusionToSelectedItem('${key}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${rangeText}<br><span style="font-size:0.78em;color:var(--copy-bright);">${same ? '적용 중' : costText}</span></button>`;
+        return `<button onclick="previewChaosInfusion('${key}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${rangeText}<br><span style="font-size:0.78em;color:var(--copy-bright);">${same ? '적용 중' : costText}</span></button>`;
     }).join('') : `<div style="grid-column:1/-1; color:#ffb4b4;">${eligibility.reason}</div>`;
     if (eligibility.ok && !buttons) buttons = '<div style="grid-column:1/-1; color:var(--copy-bright);">이 부위에 추가할 수 있는 주입 옵션이 없습니다.</div>';
     host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:var(--copy-bright);">T5급 범위 옵션 한 줄을 추가 옵션으로 부여합니다. 추가 옵션 제한: ${explicitCount}/6. 교체/제거 시 마름병 포자가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
