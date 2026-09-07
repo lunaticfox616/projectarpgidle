@@ -54,10 +54,10 @@ function selectGrowthItem(itemId, source) {
         growthSelection = { itemId: numericId, source: source || 'inventory', rotation: placement ? placement.rotation : 0, hoverCell: null };
         if (source === 'board' || source === 'tray') {
             growthCraftItemId = numericId;
-            growthDisclosureState['craft-bench'] = true;
         }
     }
-    renderGrowthBoardPanel();
+    renderGrowthTab({force: true, openCraft: growthSelection.itemId !== null && (source === 'board' || source === 'tray')});
+    if (growthSelection.itemId !== null) growthWorkspaceUi.show('layout');
 }
 
 function rotateGrowthSelection() {
@@ -667,7 +667,8 @@ function clearGrowthDragVisuals() {
 }
 
 function onGrowthPointerDown(event) {
-    if (event.button !== undefined && event.button !== 0) return;
+    if (event.pointerType === 'touch') return;
+    if (event.button !== 0) return;
     if (!event.target || !event.target.closest) return;
     // 카드 안의 버튼(배치/해체/잠금)은 원래 동작을 유지한다.
     if (event.target.closest('button')) return;
@@ -730,6 +731,7 @@ function bindGrowthDragOnce() {
 }
 
 function renderGrowthPlacementTray() {
+    if (uiDisplay.matches('(max-width: 1080px)')) return '';
     let items = (game.growthInventory || []).filter(isGrowthItem).slice().sort((a, b) => {
         let placedDelta = Number(isGrowthItemPlacedInLoadout(a.id)) - Number(isGrowthItemPlacedInLoadout(b.id));
         return placedDelta || (Number(b.id) - Number(a.id));
@@ -769,9 +771,9 @@ function openGrowthCrafting(itemId) {
     let item = findGrowthItemById(itemId);
     if (!item) return addLog('생장 아이템을 찾을 수 없습니다.', 'attack-monster');
     growthCraftItemId = item.id;
-    growthDisclosureState['craft-bench'] = true;
     if (!isGrowthSlab(item)) selectForCrafting(item.id, false);
-    renderGrowthTab({ force: true });
+    renderGrowthTab({ force: true, openCraft: true });
+    growthWorkspaceUi.show('workshop');
     let bench = document.getElementById('ui-growth-craft-bench');
     if (bench) bench.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -893,15 +895,19 @@ function renderGrowthCraftBench() {
 }
 
 // ── 패널 조립 ────────────────────────────────────────────────────────────
-function renderGrowthBoardPanel() {
+/** @param {boolean} [openCraft] Explicit selection overrides the previous collapsed workbench. */
+function renderGrowthBoardPanel(openCraft) {
     let host = document.getElementById('ui-growth-panel');
     if (!host) return;
+    let workshop = document.getElementById('growth-workshop');
     captureGrowthDisclosureState(host);
+    captureGrowthDisclosureState(workshop);
+    if (openCraft) growthDisclosureState['craft-bench'] = true;
     let previousTray = host.querySelector('.growth-tray-list');
     let trayScroll = previousTray
         ? { top: previousTray.scrollTop, left: previousTray.scrollLeft }
         : { top: 0, left: 0 };
-    let selectedItem = growthSelection.itemId === null ? null : findGrowthItemById(growthSelection.itemId);
+    let selectedItem = findGrowthItemById(growthSelection.itemId);
     host.innerHTML = `
         ${renderGrowthUnlockSummary()}
         ${renderGrowthLoadoutBar()}
@@ -910,7 +916,8 @@ function renderGrowthBoardPanel() {
             <span class="growth-control-actions">
                 <button type="button" onclick="rotateGrowthSelection()" ${selectedItem ? '' : 'disabled'}>회전 (${growthSelection.rotation * 90}°)</button>
                 <button type="button" onclick="autoFillGrowthBoardFromUi()">빈 칸 자동 배치</button>
-                <button type="button" onclick="unplaceAllGrowthItemsFromUi()" ${Object.keys(getActiveGrowthLoadout().placements || {}).length > 0 ? '' : 'disabled'}>전부 내리기</button>
+                <button type="button" onclick="unplaceAllGrowthItemsFromUi()" ${Object.keys(getActiveGrowthLoadout().placements).length > 0 ? '' : 'disabled'}>전부 내리기</button>
+                <button type="button" class="growth-mobile-library-link" onclick="growthWorkspaceUi.show('library')">보관함에서 선택</button>
             </span>
             <span class="growth-context-hints">
                 <span id="ui-growth-hover-hint" class="growth-hover-hint"></span>
@@ -923,8 +930,8 @@ function renderGrowthBoardPanel() {
                 <div id="ui-growth-unplace-zone" class="growth-unplace-zone"><strong>장착 해제</strong><span>배치된 생장판을 여기로 끌어 놓으세요.</span></div>
                 <div class="growth-tray-list">${renderGrowthPlacementTray()}</div></aside>
             <aside class="growth-context-panel"><div><h3>활성 시너지</h3><div class="growth-synergy-list">${renderActiveGrowthSynergies()}</div></div><div><h3>교체 비교</h3><div class="growth-synergy-list">${renderGrowthComparisonPanel()}</div></div></aside>
-        </div>
-        <details class="progression-workbench growth-bench-disclosure" data-growth-disclosure="craft-bench" ${isGrowthDisclosureOpen('craft-bench', growthCraftItemId !== null) ? 'open' : ''}><summary>생장판 제작대</summary>${renderGrowthCraftBench()}</details>`;
+        </div>`;
+    workshop.innerHTML = `<details class="progression-workbench growth-bench-disclosure" data-growth-disclosure="craft-bench" ${uiDisplay.matches('(max-width: 1080px)') || isGrowthDisclosureOpen('craft-bench', growthCraftItemId !== null) ? 'open' : ''}><summary>생장판 제작대</summary>${renderGrowthCraftBench()}</details>`;
     let nextTray = host.querySelector('.growth-tray-list');
     if (nextTray) {
         nextTray.scrollTop = trayScroll.top;
@@ -933,6 +940,7 @@ function renderGrowthBoardPanel() {
     paintGrowthPlacementPreview();
     bindGrowthDragOnce();
     bindGrowthDisclosureState(host);
+    bindGrowthDisclosureState(workshop);
     if (growthHoverItemId !== null) paintGrowthBoardRelations(growthHoverItemId);
 }
 
@@ -1011,10 +1019,10 @@ function renderGrowthTab(options) {
     let force = !!(options && options.force) || !host || !host.firstChild;
     if (!force && signature === _growthTabSignature) return;
     _growthTabSignature = signature;
-    renderGrowthBoardPanel();
+    renderGrowthBoardPanel(Boolean(options && options.openCraft));
     let invHost = document.getElementById('ui-growth-inventory');
     if (invHost) invHost.innerHTML = renderGrowthInventorySection();
-    let count = (game.growthInventory || []).length;
+    let count = game.growthInventory.length;
     let limit = getGrowthInventoryLimit();
     let invCount = document.getElementById('ui-growth-inv-count');
     if (invCount) {

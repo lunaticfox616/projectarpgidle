@@ -209,6 +209,22 @@ body.growth-dragging .growth-cell { cursor: grabbing; }
 .growth-filter-label { font-size: 0.76em; color: #7f93a8; align-self: center; margin-right: 2px; }
 .growth-filter-chip:disabled { opacity: 0.4; cursor: not-allowed; }
 /* 드래그 중에는 툴팁이 포인터를 가로채지 않도록 한다(히트 테스트와 무관하게 안전장치). */
+.growth-workspaces { display: flex; flex-direction: column; }
+#growth-layout { order: 1; }
+#growth-workshop { order: 2; }
+#growth-library { order: 3; }
+.growth-mobile-library-link { display: none; }
+@media (max-width: 1080px) {
+    .growth-workspaces > section { order: 0; }
+    .growth-mobile-library-link { display: inline-block; }
+    .growth-placement-tray { display: none; }
+    .growth-workspace { grid-template-columns: 1fr; }
+    .growth-context-panel { max-height: none; }
+    #growth-library .growth-card-grid { grid-template-columns: 1fr; }
+    .growth-item-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .growth-item-actions button { min-height: 44px; }
+    #growth-workshop .growth-bench-disclosure > summary { display: none; }
+}
 body.growth-dragging .info-tooltip,
 body.growth-dragging #info-tooltip { pointer-events: none; }
 

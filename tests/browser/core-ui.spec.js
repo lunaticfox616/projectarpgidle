@@ -1007,7 +1007,8 @@ test('endgame support screens keep primary actions and interaction state visible
 
     await page.evaluate(() => { switchTab('tab-growthboard'); updateStaticUI(); });
     const craftBench = page.locator('details[data-growth-disclosure="craft-bench"]');
-    await craftBench.locator(':scope > summary').click();
+    if (testInfo.project.use.isMobile) await page.getByRole('tab', {name:'제작대',exact:true}).click();
+    else await craftBench.locator(':scope > summary').click();
     await expect(craftBench).toHaveAttribute('open', '');
     await page.evaluate(() => {
         let base = GROWTH_BASE_DB.find(row => row.category === 'leaf');

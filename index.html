@@ -1296,13 +1296,17 @@
     <div id="tab-growthboard" class="tab-content">
         <h2>🌱 생장판 <span class="h2-right" id="ui-growth-unlock-note" style="font-weight:normal; font-size:0.7em;"></span></h2>
         <p style="color:#9fb4d1; font-size:0.85em; margin:4px 0 12px;">루프 25에 열리는 별도 성장판입니다. 열 가지 생장판과 석판을 배치하면 형태·위치·인접 관계에 따라 공간 시너지가 발동합니다.</p>
-        <div id="ui-growth-panel"></div>
-
+        <div class="growth-workspaces">
+        <section id="growth-layout"><div id="ui-growth-panel"></div></section>
+        <section id="growth-library">
         <h2 style="margin-top: 18px;">
             <span>🌿 생장 보관함 (<span id="ui-growth-inv-count">0</span> / <span id="ui-growth-inv-limit">40</span>)</span>
             <span class="h2-right"><button id="btn-growth-inventory-expand" class="inventory-expand-shortcut" type="button" onclick="marketExpandGrowthInventoryByDivine()" hidden>+5칸 확장</button><button onclick="bulkSalvageGrowthInventory()">일괄 해체</button></span>
         </h2>
         <div class="growth-card-grid" id="ui-growth-inventory"></div>
+        </section>
+        <section id="growth-workshop"></section>
+        </div>
     </div>
     <div id="tab-cube" class="tab-content">
         <h2>🧊 코어 큐브</h2>
@@ -1741,6 +1745,7 @@
 <script defer src="js/growth-ui.js?v=20260807-growth-drag-unplace1-20260807-growth-overflow1-20260810-management-ux1-20260810-jewel-compare1&tooltip=20260811-tray1&overflow=20260819-salvage1&visuals=20260820-1&profile=20260821-1&craft-lists=20260908-1"></script>
 <script defer src="js/skills-ui.js?v=20260808-skills-screen1&tooltip=20260814-perf1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&mobile=20260907-1&mobile-review=20260907-2"></script>
 <script defer src="js/section-navigation-ui.js?v=20260907-1&jewel-workspace=20260908-1&talisman-workspace=20260908-1"></script>
+<script defer src="js/growth-workspace-ui.js?v=20260908-1"></script>
 <script defer src="js/inventory-library-ui.js?v=20260908-1"></script>
 <script defer src="js/jewel-crafting-ui.js?v=20260908-1"></script>
 <script defer src="js/talisman-mobile-ui.js?v=20260908-1&talisman-workspace=20260908-1"></script>

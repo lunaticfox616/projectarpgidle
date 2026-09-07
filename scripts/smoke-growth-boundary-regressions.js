@@ -172,15 +172,16 @@ function createScrollableRenderHost(top, left) {
     resetGame();
     placeFlatHpFlower();
     const panel = createScrollableRenderHost(137, 29);
+    const workshop = createRenderHost();
     let scrollIntoViewCalls = 0;
     const bench = { scrollIntoView() { scrollIntoViewCalls++; } };
-    ctx.document.getElementById = id => id === 'ui-growth-panel' ? panel : (id === 'ui-growth-craft-bench' ? bench : null);
+    ctx.document.getElementById = id => ({'ui-growth-panel':panel, 'growth-workshop':workshop, 'ui-growth-craft-bench':bench})[id] || null;
     run('growthCraftItemId = null;');
     run("growthSelection = { itemId: null, source: null, rotation: 0, hoverCell: null }; selectGrowthItem(game.growthInventory[0].id, 'tray')");
     assert.strictEqual(run('growthSelection.source'), 'tray', '빠른 배치함 클릭으로 아이템을 선택해야 한다');
     assert.strictEqual(run('growthCraftItemId'), run('game.growthInventory[0].id'), '빠른 배치함에서 선택한 아이템을 제작대에도 올려야 한다');
-    assert.ok(panel._html.includes('제작 전 옵션 확인'), '빠른 배치함 선택 직후 제작대 미리보기를 갱신해야 한다');
-    assert.ok(/data-growth-disclosure="craft-bench"\s+open/.test(panel._html), '빠른 배치함에서 선택하면 제작대가 즉시 열려야 한다');
+    assert.ok(workshop._html.includes('제작 전 옵션 확인'), '빠른 배치함 선택 직후 제작대 미리보기를 갱신해야 한다');
+    assert.ok(/data-growth-disclosure="craft-bench"\s+open/.test(workshop._html), '빠른 배치함에서 선택하면 제작대가 즉시 열려야 한다');
     assert.strictEqual(panel.tray.scrollTop, 137, '빠른 배치함의 세로 스크롤을 복원해야 한다');
     assert.strictEqual(panel.tray.scrollLeft, 29, '모바일 빠른 배치함의 가로 스크롤도 복원해야 한다');
     assert.strictEqual(scrollIntoViewCalls, 0, '빠른 배치함 선택은 제작대로 화면을 이동시키면 안 된다');
@@ -228,6 +229,7 @@ function createScrollableRenderHost(top, left) {
     const panel = createRenderHost();
     const elements = {
         'ui-growth-panel': panel,
+        'growth-workshop': createRenderHost(),
         'ui-growth-unlock-note': createRenderHost(),
         'ui-growth-recent': createRenderHost(),
         'ui-growth-recent-count': createRenderHost(),
