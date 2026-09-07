@@ -56,6 +56,13 @@ test('mobile destination selector preserves available routes and returns from se
         expect(await page.evaluate(()=>hiddenFishChanges)).toBe(0);
         await page.getByRole('tab',{name:'도감',exact:true}).click();
         await expect(page.locator('#ui-fishing-collection')).toContainText('777');
+        await page.setViewportSize({width:1440,height:900});
+        await expect(page.locator('#fishing-collection')).not.toHaveAttribute('open');
+        await page.evaluate(()=>{game.ocean.fishStock[Object.keys(OCEAN_FISH_DB)[0]]=888;updateStaticUI();});
+        await page.waitForFunction(()=>!uiRefreshRunning&&!uiRefreshQueued);
+        await page.setViewportSize({width:393,height:851});
+        await expect(page.locator('#ui-fishing-collection')).toBeVisible();
+        await expect(page.locator('#ui-fishing-collection')).toContainText('888');
         await page.getByRole('tab',{name:'채집 · 전략',exact:true}).click();
         await page.getByRole('button',{name:'바다의 선물 제작',exact:true}).click();
         await expect(page.locator('#ui-sea-gift-panel')).toBeVisible();
