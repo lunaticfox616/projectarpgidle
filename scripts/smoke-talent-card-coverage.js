@@ -27,7 +27,7 @@ context.game = {
 };
 vm.createContext(context);
 require('./lib/load-combat-clock')(context);
-['data/talent-cards.js', 'js/utils.js', 'js/talent-cards.js'].forEach(file => {
+['data/talent-cards.js', 'js/utils.js', 'js/talent-cards.js', 'js/talent-ui.js'].forEach(file => {
   vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
 });
 vm.runInContext('game = window.game;', context);

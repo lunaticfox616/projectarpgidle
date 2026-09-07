@@ -1571,6 +1571,29 @@ body.light-mode .colony-ward-search input{background:#f7fff9;color:#203d2b;borde
     .talent-combo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (max-width: 1080px) {
+    #tab-talent > p { display: none; }
+    #tab-talent .talent-bloom-summary { display: flex; flex-wrap: wrap; gap: 6px 12px; color: var(--ui-text); background: var(--ui-surface-2); border-color: var(--ui-gold); border-radius: var(--ui-radius-sm); }
+    #tab-talent .talent-bloom-summary span { color: var(--ui-text-2); }
+    #tab-talent .talent-card-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    #tab-talent .talent-slot-row { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 8px; gap: 6px; }
+    #tab-talent .talent-slot { min-height: 62px; font-size: 12px; overflow-wrap: anywhere; }
+    #tab-talent .talent-loadout-panel, #tab-talent .talent-card, #tab-talent .talent-mobile-progress { background: var(--ui-surface-2); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); }
+    #tab-talent .talent-card { cursor: default; }
+    #tab-talent .talent-card.equipped { border-color: var(--ui-gold); }
+    #tab-talent .talent-card-head { color: var(--ui-gold); font-size: 14px; }
+    #tab-talent .talent-card-effects { font-size: 13px; }
+    #tab-talent .talent-card button { width: 100%; margin-top: 10px; }
+    #tab-talent button, #tab-talent select, #tab-talent input, #tab-talent summary { min-height: 44px; font-size: 13px; }
+    .talent-mobile-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .talent-mobile-filters label { display: grid; gap: 4px; font-size: 12px; color: var(--ui-text-2); }
+    .talent-mobile-filters select, .talent-mobile-filters input { width: 100%; min-width: 0; box-sizing: border-box; }
+    .talent-mobile-search { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) 64px; gap: 8px; align-items: end; }
+    .talent-mobile-pager { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; text-align: center; gap: 8px; }
+    .talent-mobile-progress { padding: 10px; }
+    .talent-mobile-progress > summary { display: flex; align-items: center; cursor: pointer; color: var(--ui-gold); }
+}
+
 .passive-investment-summary {
     position: static;
     width: min(300px, calc(100% - 24px));

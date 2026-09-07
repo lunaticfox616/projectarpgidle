@@ -1679,6 +1679,7 @@ function getRenderingUiTabIds() {
 
 // Keep timed stock progression independent of whether its management panel is visible.
 function renderVisibleManagementPanels(tabIds, renderFlasks) {
+    if (tabIds.has('tab-talent')) renderTalentTab();
     if (tabIds.has('tab-flask')) renderFlasks();
     if (tabIds.has('tab-expertise')) renderExpertiseUI();
     if (tabIds.has('tab-items') && game.itemSubtab === 'item-tab-market') renderMarketUI();
