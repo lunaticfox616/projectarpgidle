@@ -94,8 +94,10 @@
     white-space: normal;
     word-break: keep-all;
   }
-  #ui-fossil-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-  #ui-fossil-actions > button { min-width: 0; min-height: 44px; width: auto; font-size: 13px; line-height: 1.4; padding: 8px; word-break: keep-all; }
+  #ui-fossil-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  #ui-fossil-material-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  #ui-fossil-material-actions > button { min-width: 0; min-height: 44px; width: auto; font-size: 13px; line-height: 1.4; padding: 8px; word-break: keep-all; }
+  #fossil-reroll .craft-layout { display: block; }
   #fossil-item-display { min-height: 0; margin-block: 10px; }
   body { box-sizing: border-box; gap: 8px !important; }
   #left-pane, #right-pane, #battle-column, .panel, .tab-content, .subtab-content {

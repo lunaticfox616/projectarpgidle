@@ -267,6 +267,9 @@ body:not(.light-mode) .currency-card {
 :is(.craft-target-library, .secondary-craft-library) > summary { cursor: pointer; padding: 12px 0; color: var(--ui-text-2); }
 :is(.craft-target-library, .secondary-craft-library)[open] > summary { color: var(--ui-gold); }
 :is(.craft-target-library, .secondary-craft-library) h3 { font-size: 14px; }
+.fossil-recipe { padding: 10px; border: 1px solid var(--ui-line); border-radius: 6px; background: var(--ui-surface-2); }
+.fossil-recipe p, #ui-fossil-info { color: var(--ui-text-2); font-size: 13px; line-height: 1.5; }
+.fossil-recipe button { min-height: 44px; width: 100%; }
 .craft-spores { padding: 8px; background: var(--ui-surface-1); border: 1px solid var(--ui-line); border-radius: 6px; }
 .orb-tone { color: var(--orb-tone); }
 body.light-mode :is(#item-tab-craft, #item-tab-market, #tab-flask) .orb-tone {

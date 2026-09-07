@@ -1,6 +1,6 @@
 const {test,expect}=require('@playwright/test');
 
-test('craft target libraries render only when open and refresh after inventory changes',async({page})=>{
+test('craft target libraries render only when open and refresh after inventory changes',async({page},info)=>{
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('https://**',r=>r.fulfill({status:204,body:''}));
     await page.goto('/');await page.locator('#btn-startup-guest').click();await page.locator('[data-class-id="warrior"]').click();
@@ -37,6 +37,21 @@ test('craft target libraries render only when open and refresh after inventory c
     await expect(page.locator('#ui-infuser-inventory-list > *')).toHaveCount(0);
     expect(errors).toEqual([]);
     await page.locator('#btn-item-tab-fossil').click();
+    await page.evaluate(()=>{game.currencies.fossilBound=1;game.currencies.fossil=2;updateStaticUI();});
+    const recipe=page.locator('.fossil-recipe');
+    await expect(recipe).toContainText('생명');
+    await recipe.getByRole('button').click();
+    await expect.poll(()=>page.evaluate(()=>game.currencies.fossilBound)).toBe(0);
+    await expect(page.locator('#ui-fossil-actions')).toContainText('보유 중인 타입 화석이 없습니다');
+    if(info.project.use.isMobile){
+        await page.getByRole('tab',{name:'재료 정제 · 복원',exact:true}).click();
+        await expect(page.locator('#fossil-reroll')).toBeHidden();
+    }
+    await page.locator('#ui-fossil-material-actions').getByRole('button',{name:/기본 화석 정제/}).click();
+    await page.getByRole('spinbutton').fill('1');
+    await page.getByRole('button',{name:'정제',exact:true}).click();
+    await expect.poll(()=>page.evaluate(()=>game.currencies.fossil)).toBe(1);
+    if(info.project.use.isMobile)await page.getByRole('tab',{name:'장비 재련',exact:true}).click();
     await expect(page.locator('#ui-fossil-inventory-list > *')).toHaveCount(0);
     await page.locator('#item-tab-fossil > details > summary').click();
     await expect(page.locator('#ui-fossil-inventory-list > *')).toHaveCount(1);
