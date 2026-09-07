@@ -12,11 +12,30 @@ test('sea gift option categories survive inventory and resource refreshes',async
     if(info.project.use.isMobile)await page.getByRole('tab',{name:'제작',exact:true}).click();
     const category=page.locator('#ui-sea-gift-panel select.ocean-recipe-select').first();
     await category.selectOption('저항');
+    await category.evaluate(el=>window.originalSeaCategory=el);
     await page.evaluate(()=>{game.ocean.fishStock[Object.keys(OCEAN_FISH_DB)[0]]+=1;updateStaticUI();});
     await page.waitForFunction(()=>!uiRefreshRunning&&!uiRefreshQueued);
     await expect(category).toHaveValue('저항');
+    expect(await category.evaluate(el=>el===window.originalSeaCategory)).toBe(true);
+    await page.evaluate(()=>{
+        const observer=new MutationObserver(()=>{});
+        observer.observe(document.getElementById('ui-sea-gift-panel'),{childList:true,subtree:true,attributes:true});
+        for(let i=0;i<10;i++)renderSeaGiftPanel();
+        window.unchangedSeaGiftMutations=observer.takeRecords().length;observer.disconnect();
+    });
+    expect(await page.evaluate(()=>unchangedSeaGiftMutations)).toBe(0);
     await page.evaluate(()=>renderSeaGiftPanel());
     await expect(category).toHaveValue('저항');
+    const recipe=await page.evaluate(()=>{
+        const row=SEA_GIFT_RECIPES.find(r=>!SEA_GIFT_ITEM_EFFECT_TYPES.has(r.effect.type));
+        for(const [key,cost] of Object.entries(row.requires))game.ocean.fishStock[key]=cost;
+        updateStaticUI();return {id:row.id,keys:Object.keys(row.requires)};
+    });
+    const craft=page.locator(`[data-sea-recipe="${recipe.id}"] button`);
+    await expect(craft).toBeEnabled();await craft.click();
+    await expect.poll(()=>page.evaluate(keys=>keys.every(key=>game.ocean.fishStock[key]===0),recipe.keys)).toBe(true);
+    await expect(craft).toBeDisabled();
+    expect(await category.evaluate(el=>el===window.originalSeaCategory)).toBe(true);
     expect(errors).toEqual([]);
     await page.screenshot({path:info.outputPath('sea-gift-workshop.png'),scale:'css'});
 });
