@@ -4523,7 +4523,6 @@ async function exchangeTalismanShards(kind) {
     let cfg = kind === 'radiant'
         ? { from: 'strongSealShard', to: 'radiantSealShard', need: 40, fromName: '강력한 기운의 봉인편린', toName: '찬란한 봉인편린' }
         : { from: 'sealShard', to: 'strongSealShard', need: 80, fromName: '봉인편린', toName: '강력한 기운의 봉인편린' };
-    game.currencies = game.currencies || {};
     let have = Math.max(0, Math.floor(game.currencies[cfg.from] || 0));
     let maxCount = Math.floor(have / cfg.need);
     if (maxCount <= 0) return addLog(`${cfg.fromName}이 부족합니다. (${cfg.need}개 필요)`, 'attack-monster');
@@ -4538,7 +4537,9 @@ async function exchangeTalismanShards(kind) {
     if (raw === null) return;
     let count = Math.max(0, Math.min(maxCount, Math.floor(Number(raw))));
     if (!Number.isFinite(count) || count <= 0) return addLog('교환 횟수가 올바르지 않습니다.', 'attack-monster');
-    game.currencies[cfg.from] = have - (cfg.need * count);
+    const currentHave = Math.max(0, Math.floor(game.currencies[cfg.from] || 0));
+    if (currentHave < cfg.need * count) return addLog('확인 중 편린이 부족해져 교환을 취소했습니다.', 'attack-monster');
+    game.currencies[cfg.from] = currentHave - (cfg.need * count);
     game.currencies[cfg.to] = Math.max(0, Math.floor(game.currencies[cfg.to] || 0)) + count;
     addLog(`🧿 편린 교환 완료: ${cfg.fromName} ${cfg.need * count}개 → ${cfg.toName} ${count}개`, 'loot-rare');
     updateStaticUI();
@@ -12188,35 +12189,7 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-talisman-board-size').innerText = talismanUnlockedSet.size;
     document.getElementById('ui-talisman-board-size2').innerText = TALISMAN_BOARD_MASK.size;
     document.getElementById('ui-talisman-currency').innerHTML = `${renderSealShardBadge('sealShard')} <strong>${game.currencies.sealShard || 0}</strong> &nbsp; ${renderSealShardBadge('strongSealShard')} <strong>${game.currencies.strongSealShard || 0}</strong> &nbsp; ${renderSealShardBadge('radiantSealShard')} <strong>${game.currencies.radiantSealShard || 0}</strong>`;
-    let unseal = game.talismanUnseal;
-    if (!unseal) {
-        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:8px; color:var(--copy-bright);">개별 해제는 여러 후보 중 하나를 고를 수 있습니다. 빠른 해제는 선택 과정 없이 최대 10개를 즉시 보관합니다.</div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button onclick="startTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 해제</button>
-                <button onclick="startBulkTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 일괄 해제 (최대 10)</button>
-                <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
-                <button onclick="startBulkTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력] 일괄 해제 (최대 10)</button>
-                <button onclick="startTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란한 기운] 봉인편린 해제</button>
-                <button onclick="startBulkTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란] 일괄 해제 (최대 10)</button>
-            </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px solid #29415a;">
-                <button onclick="exchangeTalismanShards('strong')" ${(game.currencies.sealShard || 0) < 80 ? 'disabled' : ''}>편린 80 → 강력 편린 1</button>
-                <button onclick="exchangeTalismanShards('radiant')" ${(game.currencies.strongSealShard || 0) < 40 ? 'disabled' : ''}>강력 편린 40 → 찬란 편린 1</button>
-            </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
-                <button onclick="salvageAllTalismansInInventory()" ${(game.talismanInventory || []).some(t => !isLockedInventoryObject(t)) ? '' : 'disabled'} style="background:#6e3f3f; border-color:#8f5959;">부적 일괄 해체</button>
-            </div>`;
-    } else {
-        let shapeStyle = getTalismanShapeStyle(unseal.current.shape);
-        let currentLabel = unseal.current.special ? `${getTalismanDisplayName(unseal.current)} · ${getTalismanSpecialDescription(unseal.current)}` : `${unseal.current.statName} +${formatValue(unseal.current.stat, unseal.current.value)}`;
-        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;" data-info-tooltip-anchor="1" onmouseenter="showTalismanUnsealTooltip(event)" onmousemove="showTalismanUnsealTooltip(event)" onmouseleave="hideInfoTooltip()">${renderTalismanMiniShape(unseal.current.shape, { cellSize: 8, gap: 1, markDir: unseal.current.markDir })}<span>후보: <strong style="color:${shapeStyle.color};">${escapeHTML(currentLabel)}</strong> <span style="color:var(--copy-bright);">(${unseal.current.rarity})</span></span>${renderSealShardBadge(unseal.source)}</div>
-            <div style="margin-bottom:8px; color:var(--copy-muted);">남은 형태 확인 기회: ${unseal.rollsLeft}/${unseal.totalRolls}</div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button onclick="acceptCurrentTalisman()">선택</button>
-                <button onclick="previewNextTalismanShape()" ${unseal.rollsLeft <= 1 ? 'disabled' : ''}>다음 형태 보기</button>
-                <button onclick="discardCurrentTalisman()" style="background:#6e3f3f; border-color:#8f5959;">파괴</button>
-            </div>`;
-    }
+    talismanWorkshopUi.render();
     let selectedTalismanId = game.talismanSelectedId;
     const talismanRows = game.talismanInventory.filter(t => {
         const stats = (Array.isArray(t.stats) ? t.stats.map(s => `${s.stat || s.id || ''} ${s.label || ''} ${getStatName(s.stat || s.id || '')}`).join(' ') : '');

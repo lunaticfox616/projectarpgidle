@@ -138,6 +138,16 @@ body:not(.light-mode) details > summary::marker {
 
 /* Character sheet: key values first, related stats stay together. */
 .mobile-section-navigation { display: none; }
+.talisman-unseal-choice:not([hidden]) { display: grid; gap: 6px; margin: 10px 0; font-size: 13px; }
+.talisman-unseal-choice select { min-height: 44px; width: 100%; font-size: 16px; }
+.talisman-unseal-source, .talisman-unseal-candidate { padding: 12px; margin-bottom: 10px; background: var(--ui-surface-2); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); }
+.talisman-unseal-source h3 { margin: 0 0 8px; font-size: 14px; }
+.talisman-unseal-source p, .talisman-unseal-candidate p, .talisman-unseal-candidate .tooltip-line { font-size: 13px; line-height: 1.6; }
+.talisman-unseal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.talisman-unseal-actions button { min-height: 44px; flex: 1 1 130px; }
+.talisman-candidate-shape { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.talisman-shard-exchange { margin: 10px 0; }
+.talisman-shard-exchange summary { padding: 10px; cursor: pointer; }
 .talisman-workspaces { display: flex; flex-direction: column; }
 #talisman-workshop { order: 1; }
 #talisman-layout { order: 2; }
