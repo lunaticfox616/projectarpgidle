@@ -286,6 +286,9 @@
   .market-mobile-target { display: grid; gap: 6px; font-size: 13px; color: var(--copy-muted); }
   .market-mobile-target select { min-height: 44px; width: 100%; font-size: 16px; }
   #market-service-navigation:not(:empty) { margin-bottom: 12px; }
+  .market-black-pages { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 13px; }
+  .market-black-grid > .market-black-pages { grid-column: 1 / -1; }
+  .market-black-pages button, .market-black-actions button { min-height: 44px; }
   .market-service-stack:not(:has(> :not([hidden]))) { display: none; }
   #tree-container .passive-tree-toolbar { display: flex; gap: 4px; height: 52px; position: relative; z-index: 12; background: var(--ui-surface-1); }
   #tree-container .passive-tree-right-tools { display: contents; }

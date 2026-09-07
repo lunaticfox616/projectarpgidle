@@ -1,6 +1,6 @@
 /** Market presentation and input boundary. Transactions remain in items/passives. */
 const marketUi = {
-    section: 'exchange', to: '', recipeId: '', quantity: 1, service: 'annul',
+    section: 'exchange', to: '', recipeId: '', quantity: 1, service: 'annul', blackPage: 0, blackFilter: 'all',
     moveTab(event) {
         const buttons = [...event.currentTarget.querySelectorAll('button')];
         const index = buttons.indexOf(document.activeElement), count = buttons.length;
@@ -177,6 +177,32 @@ const marketUi = {
         const rect = element.getBoundingClientRect();
         showBlackMarketOfferTooltip({clientX:rect.left + rect.width / 2, clientY:rect.bottom}, element.dataset.marketTooltip);
     },
+    browseBlack(filter, page = 0) {
+        if (!['all', 'locked', 'available'].includes(filter)) return;
+        this.blackFilter = filter; this.blackPage = Math.max(0, page);
+        this.renderBlackMarket();
+        document.getElementById('market-black-navigation').scrollIntoView({block:'nearest'});
+    },
+    blackPages(page, pages, count) {
+        return `<nav class="market-black-pages" aria-label="암거래상 페이지"><button onclick="marketUi.browseBlack(marketUi.blackFilter,${page - 1})" ${page === 0 ? 'disabled' : ''}>이전</button><span>${page + 1} / ${pages} · ${count}개</span><button onclick="marketUi.browseBlack(marketUi.blackFilter,${page + 1})" ${page === pages - 1 ? 'disabled' : ''}>다음</button></nav>`;
+    },
+    blackNavigation(page, pages, count) {
+        const filters = [{id:'all',name:'전체 품목'}, {id:'locked',name:'잠근 품목'}, {id:'available',name:'구매 가능'}];
+        return `<label class="market-mobile-target">품목 보기<select aria-label="암거래상 품목 보기" onchange="marketUi.browseBlack(this.value)">${filters.map(row => `<option value="${row.id}" ${row.id === this.blackFilter ? 'selected' : ''}>${row.name}</option>`).join('')}</select></label>${this.blackPages(page, pages, count)}`;
+    },
+    renderBlackOffers(bm, count) {
+        const mobile = uiDisplay.matches('(max-width: 1080px)');
+        let rows = bm.offers.slice(0, count).map((offer, index) => ({offer, index}));
+        if (mobile && this.blackFilter === 'locked') rows = rows.filter(row => bm.lockedOffers[row.index]);
+        if (mobile && this.blackFilter === 'available') rows = rows.filter(row => getBlackMarketOfferPurchaseState(row.offer).canBuy);
+        const pages = Math.max(1, Math.ceil(rows.length / 6));
+        this.blackPage = Math.min(this.blackPage, pages - 1);
+        this.mount(document.getElementById('market-black-navigation'), mobile ? this.blackNavigation(this.blackPage, pages, rows.length) : '');
+        const visible = mobile ? rows.slice(this.blackPage * 6, this.blackPage * 6 + 6) : rows;
+        const cards = visible.map(row => this.offerCard(row.offer, row.index)).join('') || '<p class="market-meta">조건에 맞는 품목이 없습니다.</p>';
+        const footer = mobile && pages > 1 ? this.blackPages(this.blackPage, pages, rows.length) : '';
+        this.mount(document.getElementById('ui-market-black'), cards + footer);
+    },
     renderBlackMarket() {
         const bm = normalizeBlackMarketState(), count = getBlackMarketSlotCount();
         const left = Math.max(0, Math.ceil((bm.nextRefreshAt - Date.now()) / 1000));
@@ -189,7 +215,7 @@ const marketUi = {
         document.getElementById('market-black-status').textContent = `잠금 ${getBlackMarketLockCount()}/${BLACK_MARKET_MAX_LOCKED_OFFERS} · 잠근 품목은 갱신 후에도 유지`;
         const remaining = Math.max(0, BLACK_MARKET_INSIGHT_TARGET - (bm.insight || 0));
         document.getElementById('market-black-insight').textContent = remaining ? `표적 고유까지 ${remaining}회 갱신` : '다음 갱신에 표적 고유 등장';
-        this.mount(document.getElementById('ui-market-black'), bm.offers.slice(0,count).map((offer,index) => this.offerCard(offer,index)).join(''));
+        this.renderBlackOffers(bm, count);
         const button = document.getElementById('market-black-expand'), cost = getBlackMarketSlotExpandCost();
         button.disabled = count >= BLACK_MARKET_MAX_SLOT_COUNT || (game.currencies.goldenRule || 0) < cost;
         button.textContent = count >= BLACK_MARKET_MAX_SLOT_COUNT ? `품목 ${count}개 · 최대` : `품목 ${count}개 · +1 확장 / 황금률 ${cost}개`;
