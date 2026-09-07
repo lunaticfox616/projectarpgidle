@@ -1942,7 +1942,17 @@
             const id = button.dataset.cosmosDestination;
             selectCosmosNode(id);
             list.querySelector(`[data-cosmos-destination="${id}"]`)?.focus({preventScroll:true});
-            if (window.matchMedia('(max-width: 720px)').matches) ATLAS.detail.scrollIntoView({block:'start'});
+            if (window.matchMedia('(max-width: 1080px)').matches) {
+                ATLAS.detail.querySelector('.cosmos-directory-return').focus({preventScroll:true});
+                ATLAS.detail.scrollIntoView({block:'start'});
+            }
+        });
+        ATLAS.detail.addEventListener('click', event => {
+            if (!event.target.closest('.cosmos-directory-return')) return;
+            const selected = list.querySelector('[aria-pressed="true"]');
+            const filter = document.getElementById('cosmos-directory-status');
+            (selected || filter).focus({preventScroll:true});
+            document.querySelector('.cosmos-directory-filters').scrollIntoView({block:'start'});
         });
         document.getElementById('cosmos-map-disclosure').addEventListener('toggle', event => {
             if (event.target.open) { resizeCanvasToHost(); focusCosmosAtlasOnSelected(); }
@@ -1964,7 +1974,11 @@
             const selected = node.id === ATLAS.selectedId;
             return `<button type="button" class="cosmos-destination ${status}" data-cosmos-destination="${node.id}" aria-pressed="${selected}"><span><strong>${escapeHtml(node.name)}</strong><small>${node.orbit === 0 ? '관문' : node.orbit+'은하'} · 단계 ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · 보스' : ''}</small></span><span>${selected ? '선택됨' : getStatusLabel(status)}</span></button>`;
         }).join('') || '<p class="cosmos-directory-empty">조건에 맞는 목적지가 없습니다. 다른 은하나 전체 목록을 확인하세요.</p>';
-        if (list.innerHTML !== html) list.innerHTML = html;
+        if (list.innerHTML !== html) {
+            const scrollTop = list.scrollTop;
+            list.innerHTML = html;
+            list.scrollTop = scrollTop;
+        }
     }
 
     function screenToWorld(event) {
@@ -2516,6 +2530,7 @@
                 ? `행성 보상: ${node.theme} 계열 보정 · 별가루 +${5 + node.orbit * 2}`
                 : `소행성 보상: 별가루 +${2 + node.orbit} · 제작 재료 소량`);
         ATLAS.detail.innerHTML = `
+            <button type="button" class="cosmos-directory-return">목적지 목록으로</button>
             <div class="cosmos-detail-hero">
                 <div><div class="cosmos-detail-eyebrow">G${node.orbit} · TIER ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · GALAXY BOSS' : ''}</div><div class="cosmos-detail-title">${node.kind === 'planet' ? '🪐' : '☄️'} ${escapeHtml(node.name)}</div></div>
                 <div class="cosmos-status ${status}">${getStatusLabel(status)}</div>

@@ -42,8 +42,17 @@ test('cosmos destination directory reaches selection, map and battle without tra
     await expect(page.locator('.cosmos-destination')).toHaveCount(1);
     await page.locator('#cosmos-directory-status').selectOption('boss');
     await expect(page.locator('.cosmos-destination')).toHaveCount(6);
-    await page.locator('.cosmos-destination').first().click();
+    await page.locator('.cosmos-destination').last().scrollIntoViewIfNeeded();
+    const directoryScroll=await page.locator('#cosmos-destination-list').evaluate(el=>el.scrollTop);
+    await page.locator('.cosmos-destination').last().click();
     await expect(page.locator('#ui-cosmos-detail .primary')).toBeDisabled();
+    if(info.project.use.isMobile){
+        await page.getByRole('button',{name:'목적지 목록으로',exact:true}).click();
+        await expect(page.locator('#cosmos-directory-status')).toBeInViewport();
+        await expect(page.locator('.cosmos-destination[aria-pressed="true"]')).toBeFocused();
+    }
+    await expect(page.locator('#cosmos-directory-status')).toHaveValue('boss');
+    expect(await page.locator('#cosmos-destination-list').evaluate(el=>el.scrollTop)).toBe(directoryScroll);
     await page.locator('#cosmos-directory-status').selectOption('available');
     await page.locator('.cosmos-destination').first().click();
     await expect(page.locator('#ui-cosmos-detail')).toContainText('시리온');

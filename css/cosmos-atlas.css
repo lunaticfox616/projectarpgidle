@@ -1397,4 +1397,10 @@ body.light-mode .cosmos-directive-card.rare {
 .cosmos-map-disclosure, .cosmos-records-disclosure, .cosmos-environment { border:1px solid var(--ui-line); border-radius:6px; margin-top:10px; }
 .cosmos-map-disclosure > summary, .cosmos-records-disclosure > summary, .cosmos-environment > summary { cursor:pointer; padding:12px; color:var(--ui-text-2); }
 .cosmos-environment .cosmos-node-facts { padding:0 12px 12px; }
-@media (max-width:720px) { .cosmos-destination-list { max-height:220px; } .cosmos-detail { scroll-margin-top:70px; } }
+.cosmos-directory-return { display:none; }
+@media (max-width:1080px) {
+  .cosmos-destination-list { max-height:280px; }
+  .cosmos-detail, .cosmos-directory-filters { scroll-margin-top:70px; }
+  .cosmos-directory-filters select { min-height:44px; font-size:14px; }
+  .cosmos-directory-return { display:block; width:100%; min-height:44px; margin-bottom:12px; }
+}
