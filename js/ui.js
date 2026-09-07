@@ -11702,7 +11702,7 @@ function buildCraftActionButtons(item) {
     }
     document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}${craftResultHtml}${craftSelectedBodyTailHtml}</div>`;
     document.getElementById('fossil-item-display').innerHTML = `${craftSelectedBodyHtml}${craftSelectedBodyTailHtml}`;
-    renderFossilWorkbench(selectedItem);
+    if (game.itemSubtab === 'item-tab-fossil') renderFossilWorkbench(selectedItem);
 
     let hiddenCurrencyKeys = new Set(['timeRemnant', 'chaosKey', 'coreKey', 'bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'rivalKey', 'cosmosSovereignKey', 'bossCore', 'skyEssence', 'gemShard', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos', 'reefFragment', 'oceanRerollShard']);
     hiddenCurrencyKeys.add('condensedSkyPower');
@@ -11746,7 +11746,7 @@ function buildCraftActionButtons(item) {
         if (sporeHost) sporeHost.innerHTML = sporeHtml;
     });
 
-    renderChaosInfuserPanel(selectedItem);
+    if (game.itemSubtab === 'item-tab-infuser') renderChaosInfuserPanel(selectedItem);
     renderCraftOrbActions(selectedItem);
     }
     let fossilTabBtn = document.getElementById('btn-item-tab-fossil');

@@ -13,6 +13,13 @@ test('craft target libraries render only when open and refresh after inventory c
     });
     await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
     const craft=page.locator('#ui-craft-inventory-list');
+    await page.evaluate(()=>{
+        window.hiddenCraftChanges=0;
+        for(const id of ['ui-fossil-actions','ui-chaos-infuser-panel'])new MutationObserver(rows=>hiddenCraftChanges+=rows.length).observe(document.getElementById(id),{childList:true,subtree:true});
+        game.currencies.fossilBound=1;game.chaosInfuserUnlocked=true;updateStaticUI();
+    });
+    await page.waitForFunction(()=>!uiRefreshRunning&&!uiRefreshQueued);
+    expect(await page.evaluate(()=>hiddenCraftChanges)).toBe(0);
     await expect(craft.locator(':scope > *')).toHaveCount(0);
     await expect(page.locator('#ui-fossil-inventory-list > *')).toHaveCount(0);
     await expect(page.locator('#ui-infuser-inventory-list > *')).toHaveCount(0);
