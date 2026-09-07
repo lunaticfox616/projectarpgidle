@@ -166,11 +166,16 @@ test('inventory prioritizes equipment while keeping search and management usable
         await expect(page.locator('#ui-goal-body')).toBeVisible();
         await goal.click();
     }
+    if (testInfo.project.use.isMobile) await page.locator('#btn-mobile-nav-more').click();
     await page.locator('#btn-tab-character').click();
     await expect(page.locator('#tab-character .character-overview')).toBeVisible();
     await expect(page.locator('#tab-character .character-stat-section')).toHaveCount(3);
     const special = page.locator('#tab-character .character-stat-section').last();
-    await special.locator('summary').click();
+    if (testInfo.project.use.isMobile) {
+        await page.locator('#tab-character .mobile-section-navigation').getByRole('tab', {name:'기본 · 특수'}).click();
+    } else {
+        await special.locator('summary').click();
+    }
     await expect(page.locator('#ui-mystique')).toBeVisible();
     await expect(page.locator('#ui-challenge-contract-panel')).toHaveCount(0);
     await page.locator('#ui-mystique').scrollIntoViewIfNeeded();

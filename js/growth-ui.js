@@ -970,11 +970,6 @@ function toggleGrowthItemLock(itemId) {
     updateStaticUI();
 }
 
-// 제작 대상 목록은 장비/제작 탭에 남아 있어, 생장판 탭과 별개로 갱신된다.
-function renderGrowthCraftTargetLists() {
-    ['ui-craft-growth-list', 'ui-fossil-growth-list'].forEach(renderGrowthCraftTargets);
-}
-
 // 이 탭은 updateStaticUI마다 불린다. 판 32칸 + 보관함 40장 + 시너지/비교 목록을
 // 매번 새로 만들면 25ms가 나와 전투 중 프레임이 눈에 띄게 튄다.
 // 화면에 표시될 수 있는 아이템 상태를 지문에 담고, 바뀌지 않았으면 통째로 건너뛴다.
@@ -1044,7 +1039,7 @@ safeExposeGlobals({
     selectGrowthItem, rotateGrowthSelection, handleGrowthCellClick, unplaceGrowthItem,
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, autoFillGrowthBoardFromUi, unplaceAllGrowthItemsFromUi, buildGrowthComparison,
-    renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
+    renderGrowthCraftTargets, toggleGrowthItemLock, syncGrowthTabVisibility,
     toggleGrowthInventoryCategory, selectAllGrowthInventoryCategories, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, renderGrowthDropSettings,
     renderGrowthHoverHint, bindGrowthDragOnce, openGrowthCrafting, craftGrowthItem, exchangeGrowthCraftCurrency, getGrowthEssenceExpansionCost, expandGrowthInventoryWithEssence,
     getSelectedSlabInfluenceCells, renderGrowthLevelLine, setGrowthBoardItemHover, clearGrowthBoardItemHover,

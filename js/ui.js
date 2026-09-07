@@ -10389,10 +10389,7 @@ function performUpdateStaticUI() {
     renderEquipmentLoadoutSummary(pStats);
     if (window.equipmentLoadoutUi) window.equipmentLoadoutUi.render();
     renderPaperdoll('ui-equip-list', false);
-    renderPaperdoll('ui-craft-equip-list', true);
-    renderPaperdoll('ui-fossil-equip-list', true);
-    if (document.getElementById('ui-infuser-equip-list')) renderPaperdoll('ui-infuser-equip-list', true);
-    if (typeof renderGrowthCraftTargetLists === 'function') renderGrowthCraftTargetLists();
+    renderCraftTargetLibrary(isItemRarityVisible);
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
     if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
     if (window.equipmentTriage) {
@@ -10412,11 +10409,6 @@ function performUpdateStaticUI() {
         let equipmentGridElement = document.querySelector('#ui-inventory-list > .search-result-list');
         if (equipmentGridElement) equipmentGridElement.dataset.equipmentGridRows = String(equipmentPageLayout.rows);
     }
-    const visibleInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isItemRarityVisible(row.item));
-    document.getElementById('ui-craft-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
-    document.getElementById('ui-fossil-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'fossil')).join('');
-    let infuserInv = document.getElementById('ui-infuser-inventory-list');
-    if (infuserInv) infuserInv.innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'infuser')).join('');
     }
     let jewelUnlocked = !!game.unlocks.jewel;
     document.getElementById('ui-jewel-header').style.display = jewelUnlocked ? 'block' : 'none';
@@ -12832,6 +12824,16 @@ function openVoidPassiveCraftOverlay(nodeId) {
         </div>
     </div>`;
     document.body.appendChild(overlay);
+}
+
+function renderCraftTargetLibrary(isRarityVisible) {
+    const kind = String(game.itemSubtab).replace('item-tab-', '');
+    if (!['craft', 'fossil', 'infuser'].includes(kind)) return;
+    if (kind === 'craft' && !document.querySelector('.craft-target-library').open) return;
+    renderPaperdoll(`ui-${kind}-equip-list`, true);
+    const rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isRarityVisible(row.item));
+    document.getElementById(`ui-${kind}-inventory-list`).innerHTML = rows.map(row => renderInventoryCard(row.item, row.idx, kind)).join('');
+    if (kind !== 'infuser') renderGrowthCraftTargets(`ui-${kind}-growth-list`);
 }
 
 function normalizePassiveTooltipText(value) {
