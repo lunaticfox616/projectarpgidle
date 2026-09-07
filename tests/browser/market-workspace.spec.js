@@ -27,9 +27,15 @@ for (const theme of ['dark','light']) test('market purchase workspace in ' + the
     });
     await expect(page.locator('#btn-item-tab-hall')).toBeVisible();
     expect(await page.evaluate(()=>contentProgression.balance())).toBe(1);
-    await page.locator('[data-market-to="goldenRule"]').click();
-    expect(await page.locator('[data-market-to="goldenRule"]').evaluate(el=>getComputedStyle(el).borderColor))
-        .not.toBe(await page.locator('[data-market-to="sapBud"]').evaluate(el=>getComputedStyle(el).borderColor));
+    if(testInfo.project.use.isMobile){
+        await page.getByRole('combobox',{name:'받을 재화',exact:true}).selectOption('goldenRule');
+        await expect(page.locator('.market-selected-currency')).toContainText('황금률');
+        await expect(page.locator('[data-market-owned="goldenRule"]')).toHaveText('10');
+    }else{
+        await page.locator('[data-market-to="goldenRule"]').click();
+        expect(await page.locator('[data-market-to="goldenRule"]').evaluate(el=>getComputedStyle(el).borderColor))
+            .not.toBe(await page.locator('[data-market-to="sapBud"]').evaluate(el=>getComputedStyle(el).borderColor));
+    }
     await expect(page.locator('#ui-market-exchange-from option')).toHaveCount(2);
     await page.locator('#ui-market-exchange-from').selectOption('m5');
     const quantity=page.locator('#ui-market-quantity');

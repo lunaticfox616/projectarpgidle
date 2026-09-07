@@ -46,16 +46,22 @@ const marketUi = {
         if (host.marketMarkup === html) return;
         host.innerHTML = html;host.marketMarkup = html;
     },
+    targets(targets, recipe) {
+        if (uiDisplay.matches('(max-width: 1080px)')) {
+            return `<label class="market-mobile-target">받을 재화<select aria-label="받을 재화" onchange="marketUi.select('to',this.value)">${targets.map(key => `<option value="${key}" ${key === recipe.to ? 'selected' : ''}>${ORB_DB[key].name}</option>`).join('')}</select></label>`;
+        }
+        const choices = targets.map(key => `<button type="button" data-market-to="${key}" aria-pressed="${key === recipe.to}"
+            onclick="marketUi.select('to','${key}')">${this.icon(key)}<span>${ORB_DB[key].name}<small>보유 <b data-market-owned="${key}"></b></small></span></button>`).join('');
+        return `<div class="market-targets"><h3>받을 재화</h3><div class="market-target-list">${choices}</div></div>`;
+    },
     renderExchange() {
         const host = document.getElementById('ui-market-exchange-list'), recipe = this.recipe();
         if (!recipe) return this.mount(host, '<p class="market-meta">현재 교환할 수 있는 재화가 없습니다.</p>');
         const rows = MARKET_EXCHANGES;
         const targets = [...new Set(rows.map(row => row.to))];
-        const choices = targets.map(key => `<button type="button" data-market-to="${key}" aria-pressed="${key === recipe.to}"
-            onclick="marketUi.select('to','${key}')">${this.icon(key)}<span>${ORB_DB[key].name}<small>보유 <b data-market-owned="${key}"></b></small></span></button>`).join('');
         const sources = rows.filter(row => row.to === recipe.to).map(row => `<option value="${row.id}" ${row.id === recipe.id ? 'selected' : ''}>${ORB_DB[row.from].name} ${row.need}개 → ${row.gain}개</option>`).join('');
-        this.mount(host, `<div class="market-exchange-workspace"><div class="market-targets"><h3>받을 재화</h3><div class="market-target-list">${choices}</div></div>
-            <div class="market-exchange-detail"><div class="market-selected-currency">${this.icon(recipe.to)}<div><small>받을 재화</small><h3>${ORB_DB[recipe.to].name}</h3><p>${escapeHTML(ORB_DB[recipe.to].desc)}</p></div></div>
+        this.mount(host, `<div class="market-exchange-workspace">${this.targets(targets, recipe)}
+            <div class="market-exchange-detail"><div class="market-selected-currency">${this.icon(recipe.to)}<div><small>보유 <b data-market-owned="${recipe.to}"></b></small><h3>${ORB_DB[recipe.to].name}</h3><p>${escapeHTML(ORB_DB[recipe.to].desc)}</p></div></div>
             <label class="market-source-label">지불할 재화<select id="ui-market-exchange-from" onchange="marketUi.select('recipe',this.value)">${sources}</select></label>
             <div class="market-quantity"><label>교환 횟수<input id="ui-market-quantity" type="number" min="1" step="1" value="1" oninput="marketUi.amount(this.value)"></label><button type="button" data-market-max onclick="marketUi.amount('max')">최대</button></div>
             <div class="market-exchange-quote" aria-live="polite" id="ui-market-quote"></div>

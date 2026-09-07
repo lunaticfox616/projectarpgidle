@@ -283,6 +283,8 @@
   .craft-picker-search input { min-width: 0; flex: 1; font-size: 16px; }
   .craft-picker-pages { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
   .craft-picker-search button, .craft-picker-pages button { min-height: 44px; }
+  .market-mobile-target { display: grid; gap: 6px; font-size: 13px; color: var(--copy-muted); }
+  .market-mobile-target select { min-height: 44px; width: 100%; font-size: 16px; }
   #tree-container .passive-tree-toolbar { display: flex; gap: 4px; height: 52px; position: relative; z-index: 12; background: var(--ui-surface-1); }
   #tree-container .passive-tree-right-tools { display: contents; }
   #tree-container .passive-tree-toolbar details,
