@@ -949,6 +949,7 @@ function isMobilePrimaryNavigationEnabled() {
 }
 
 function setMobileTabDrawerOpen(open) {
+    const wasOpen = document.body.classList.contains('mobile-tab-drawer-open');
     let enabled = isMobilePrimaryNavigationEnabled();
     let nextOpen = enabled && !!open;
     let goalDrawer = document.getElementById('ui-goal-drawer');
@@ -960,6 +961,56 @@ function setMobileTabDrawerOpen(open) {
     if (more) more.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
     let header = document.getElementById('tab-header-main');
     if (header && enabled) header.setAttribute('aria-hidden', nextOpen ? 'false' : 'true');
+    syncMobileMenuFocus(header, more, wasOpen, nextOpen);
+}
+
+function syncMobileMenuFocus(header, more, wasOpen, nextOpen) {
+    if (wasOpen === nextOpen || !header) return;
+    if (nextOpen) {
+        header.querySelector('.mobile-tab-drawer-head button')?.focus({ preventScroll: true });
+        return;
+    }
+    if (header.contains(document.activeElement) || document.activeElement.id === 'mobile-tab-drawer-backdrop') {
+        more?.focus({ preventScroll: true });
+    }
+}
+
+function handleMobileMenuKey(event) {
+    if (!document.body.classList.contains('mobile-tab-drawer-open') || !['Tab', 'Escape'].includes(event.key)) return;
+    if (document.querySelector('.game-dialog-overlay[aria-hidden="false"]')) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (event.key === 'Escape') { setMobileTabDrawerOpen(false); return; }
+    const header = document.getElementById('tab-header-main');
+    const buttons = Array.from(header.querySelectorAll('button:not([disabled]),[data-mobile-tab-button]')).filter(button => button.getClientRects().length > 0);
+    if (!buttons.length) return;
+    const current = buttons.indexOf(document.activeElement);
+    const next = (current + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
+    buttons[next].focus();
+}
+
+function restoreMobileMenuFocus(focused) {
+    if (!document.body.classList.contains('mobile-tab-drawer-open')) return;
+    const header = document.getElementById('tab-header-main');
+    if (!header.contains(focused)) return;
+    const target = focused.getClientRects().length ? focused : header.querySelector('.mobile-tab-drawer-head button');
+    target?.focus({ preventScroll: true });
+}
+
+function prepareMobileTabButtons(headers) {
+    headers.forEach(header => header.querySelectorAll('.tab-btn:not(button)').forEach(button => {
+        button.setAttribute('data-mobile-tab-button', '');
+        button.setAttribute('role', 'button');
+        button.tabIndex = 0;
+    }));
+}
+
+function handleMobileTabActivation(event) {
+    if (!document.body.classList.contains('mobile-primary-navigation')) return;
+    if (!event.target.matches('[data-mobile-tab-button]') || !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.target.click();
 }
 
 function toggleMobileTabDrawer() {
@@ -1002,7 +1053,7 @@ function ensureMobilePrimaryNavigation(topHeader, bottomHeader) {
     topHeader.setAttribute('role', 'dialog');
     topHeader.setAttribute('aria-modal', 'true');
     topHeader.setAttribute('aria-label', '전체 메뉴');
-    topHeader.setAttribute('aria-hidden', 'true');
+    topHeader.setAttribute('aria-hidden', String(!document.body.classList.contains('mobile-tab-drawer-open')));
     bottomHeader.setAttribute('role', 'navigation');
     bottomHeader.setAttribute('aria-label', '빠른 탭 메뉴');
     let head = topHeader.querySelector(':scope > .mobile-tab-drawer-head');
@@ -1021,13 +1072,20 @@ function ensureMobilePrimaryNavigation(topHeader, bottomHeader) {
     }
     if (!mobileNavigationKeyBound) {
         mobileNavigationKeyBound = true;
-        document.addEventListener('keydown', event => { if (event.key === 'Escape') setMobileTabDrawerOpen(false); });
+        document.addEventListener('keydown', handleMobileMenuKey, true);
+        document.addEventListener('keydown', handleMobileTabActivation, true);
     }
+    prepareMobileTabButtons([topHeader, bottomHeader]);
     return more;
 }
 
 function teardownMobilePrimaryNavigation(topHeader, bottomHeader) {
     setMobileTabDrawerOpen(false);
+    document.querySelectorAll('[data-mobile-tab-button]').forEach(button => {
+        button.removeAttribute('data-mobile-tab-button');
+        button.removeAttribute('role');
+        button.removeAttribute('tabindex');
+    });
     document.body.classList.remove('mobile-primary-navigation', 'mobile-tab-drawer-open', 'has-bottom-tabs');
     if (topHeader && bottomHeader) {
         Array.from(bottomHeader.querySelectorAll(':scope > .tab-btn')).forEach(button => topHeader.appendChild(button));
@@ -1428,6 +1486,7 @@ function installTabHeaderDragReorder() {
 }
 
 function applyTabHeaderOrder(shouldRenderSettings){
+    const focused = document.activeElement;
     game.settings=game.settings||{};
     tabLayoutUi.current().tabPlacement = tabLayoutUi.current().tabPlacement || {};
     let headers = Array.from(document.querySelectorAll('.tab-header'));
@@ -1473,6 +1532,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
     }
     if (mobilePrimary) renderMobileMenuGroups(topHeader);
     syncMobilePrimaryNavigationState();
+    restoreMobileMenuFocus(focused);
     if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
 }
 // Reserve scroll space at the bottom of the page so the fixed bottom tab bar
