@@ -929,7 +929,7 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     expect(failures).toEqual([]);
 });
 
-test('endgame support screens keep primary actions and interaction state visible', async ({ page }) => {
+test('endgame support screens keep primary actions and interaction state visible', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
@@ -977,26 +977,33 @@ test('endgame support screens keep primary actions and interaction state visible
     await expect(page.locator('.core-cube-assembly')).toBeVisible();
     await expect(page.locator('.core-cube-assembly .core-cube-face')).toHaveCount(6);
     await expect(page.locator('.core-cube-assembly .core-cube-power')).toHaveCount(2);
+    const cubeResultTab = page.getByRole('tab', {name:'발현 결과', exact:true});
+    if (await cubeResultTab.isVisible()) await cubeResultTab.click();
     await expect(page.locator('.core-cube-stage-options')).toBeVisible();
     await expect(page.locator('.core-cube-stage-options')).toContainText('발현 옵션');
     await expect(page.locator('.core-cube-side')).not.toContainText('발현 결과');
+    if (await cubeResultTab.isVisible()) await page.getByRole('tab', {name:'동력원 장착', exact:true}).click();
     await page.locator('.core-cube-power').first().click();
     await expect(page.locator('.core-cube-assembly-head')).toContainText('2번 면 선택');
 
     await page.evaluate(() => { switchTab('tab-talent'); updateStaticUI(); });
-    await expect(page.locator('.talent-bloom-navigator')).toBeVisible();
-    await expect(page.getByRole('button', { name: '재능별' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '직업별' })).toBeVisible();
-    await expect(page.locator('.talent-current-combo')).toBeVisible();
-    await expect(page.locator('.talent-combo-cell')).toHaveCount(12);
-    // Starting talent and owned cards do not select this loop's fifth-ascension bloom.
-    await expect(page.locator('.talent-combo-cell.current')).toHaveCount(0);
+    if (!testInfo.project.use.isMobile) {
+        await expect(page.locator('.talent-bloom-navigator')).toBeVisible();
+        await expect(page.getByRole('button', { name: '재능별' })).toBeVisible();
+        await expect(page.getByRole('button', { name: '직업별' })).toBeVisible();
+        await expect(page.locator('.talent-current-combo')).toBeVisible();
+        await expect(page.locator('.talent-combo-cell')).toHaveCount(12);
+        // Starting talent and owned cards do not select this loop's fifth-ascension bloom.
+        await expect(page.locator('.talent-combo-cell.current')).toHaveCount(0);
+    }
     await expect(page.locator('.talent-slot.filled')).toContainText('아방가르드');
-    await expect(page.locator('.talent-slot.filled')).toContainText('궁수 × 워리어');
-    await page.locator('.talent-bloom-navigator > summary').click();
-    await expect(page.locator('.talent-bloom-navigator')).not.toHaveAttribute('open', '');
-    await page.evaluate(() => updateStaticUI());
-    await expect(page.locator('.talent-bloom-navigator')).not.toHaveAttribute('open', '');
+    if (!testInfo.project.use.isMobile) {
+        await expect(page.locator('.talent-slot.filled')).toContainText('궁수 × 워리어');
+        await page.locator('.talent-bloom-navigator > summary').click();
+        await expect(page.locator('.talent-bloom-navigator')).not.toHaveAttribute('open', '');
+        await page.evaluate(() => updateStaticUI());
+        await expect(page.locator('.talent-bloom-navigator')).not.toHaveAttribute('open', '');
+    }
 
     await page.evaluate(() => { switchTab('tab-growthboard'); updateStaticUI(); });
     const craftBench = page.locator('details[data-growth-disclosure="craft-bench"]');

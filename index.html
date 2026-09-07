@@ -1307,7 +1307,18 @@
     <div id="tab-cube" class="tab-content">
         <h2>🧊 코어 큐브</h2>
         <div style="color:var(--copy-bright); margin-bottom:10px;">흐릿한 45면체를 해석해 1~45번 동력원을 얻고, 큐브 6면에 붙여 옵션 4줄을 발현합니다.</div>
-        <div id="ui-core-cube-panel"></div>
+        <div id="ui-core-cube-panel">
+            <div class="core-cube-lock-status"></div>
+            <div class="core-cube-shell">
+                <section id="cube-assembly" class="core-cube-assembly"></section>
+                <section id="cube-result" class="core-cube-stage">
+                    <div class="core-cube-stage-title"><span>Subterranean Core</span><strong>코어 큐브</strong></div>
+                    <div class="core-cube-canvas-wrap"><canvas id="coreCubeCanvas" aria-label="코어 큐브 3D 캔버스"></canvas></div>
+                    <section class="core-cube-stage-options" aria-live="polite"></section>
+                </section>
+                <section id="cube-resources" class="core-cube-side"></section>
+            </div>
+        </div>
     </div>
 
     <!-- 소셜 콘텐츠는 renderSocialTab이 .social-root 하위에 렌더링한다.

@@ -231,26 +231,32 @@ async function main() {
     // 캐시 구현 방식 대신 같은 화면의 재사용과 상태 변경 후 표시를 검사한다.
     {
         const ctx = loadCubeContext();
-        let html = '', writes = 0;
-        const host = {
-            get innerHTML() { return html; },
-            set innerHTML(value) { html = value; writes++; },
-            get firstChild() { return html ? {} : null; }
-        };
+        let writes = 0;
+        const sections = new Map();
+        const host = { querySelector(selector) {
+            if (!sections.has(selector)) sections.set(selector, {
+                html: '', classList: { toggle() {} },
+                get innerHTML() { return this.html; },
+                set innerHTML(value) { this.html = value; writes++; },
+                get firstChild() { return this.html ? {} : null; }
+            });
+            return sections.get(selector);
+        } };
+        const content = () => [...sections.values()].map(section => section.html).join('');
         ctx.document.getElementById = id => id === 'ui-core-cube-panel' ? host : null;
         run(ctx, 'renderCoreCubePanel()');
-        assert(html.includes('보유 동력원이 없습니다.'), '빈 보관함을 표시해야 한다');
+        assert(content().includes('보유 동력원이 없습니다.'), '빈 보관함을 표시해야 한다');
         const initialWrites = writes;
         run(ctx, 'renderCoreCubePanel()');
         assert.strictEqual(writes, initialWrites, '변경 없는 화면을 재생성하면 안 된다');
         run(ctx, 'ensureCoreCubeState().powers = { 7: 2 }; renderCoreCubePanel();');
-        assert(html.includes('7의 동력원 2개'), '획득한 동력원과 수량이 화면에 반영돼야 한다');
+        assert(content().includes('7의 동력원 2개'), '획득한 동력원과 수량이 화면에 반영돼야 한다');
         run(ctx, 'selectCoreCubeFace(3)');
-        assert(html.includes('4번 면 선택'), '면 선택이 실제 화면에 반영돼야 한다');
-        const beforeClear = html;
-        html = '';
+        assert(content().includes('4번 면 선택'), '면 선택이 실제 화면에 반영돼야 한다');
+        const beforeClear = content();
+        host.querySelector('.core-cube-assembly').innerHTML = '';
         run(ctx, 'renderCoreCubePanel()');
-        assert.strictEqual(html, beforeClear, 'DOM이 비워지면 같은 상태라도 화면을 복원해야 한다');
+        assert.strictEqual(content(), beforeClear, '장착 목록이 비워지면 같은 상태라도 화면을 복원해야 한다');
     }
 
     console.log('smoke-core-cube-presets passed');

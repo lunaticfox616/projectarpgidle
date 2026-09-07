@@ -217,6 +217,22 @@
   .core-cube-stage-options .core-cube-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (max-width: 1080px) {
+  .core-cube-shell > .mobile-section-navigation { grid-column: 1 / -1; margin-bottom: 0; }
+  .core-cube-shell { padding: 8px; }
+  .core-cube-assembly-head,
+  .core-cube-power-picker-head { align-items: stretch; flex-direction: column; }
+  .core-cube-assembly-head > .core-cube-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .core-cube-faces { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .core-cube-inventory { grid-template-columns: repeat(5, minmax(0, 1fr)); max-height: none; overflow: visible; padding-right: 0; }
+  .core-cube-inventory button { min-height: 44px; padding: 6px 3px; }
+  .core-cube-stage { min-height: 0; }
+  .core-cube-stage-title { position: relative; top: auto; left: auto; padding: 16px 16px 0; }
+  .core-cube-canvas-wrap { position: relative; inset: auto; height: 240px; }
+  .core-cube-stage-options { position: relative; inset: auto; width: auto; max-height: none; margin: 0 10px 10px; overflow: visible; backdrop-filter: none; }
+  .core-cube-stage-options .core-cube-options { grid-template-columns: 1fr; }
+}
+
 /* 조합 저장(프리셋) */
 .core-cube-preset-row {
     display: flex;
