@@ -1429,6 +1429,20 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .arcana-slot-preview.empty { color: #9a8371; }
 .arcana-empty-copy,
 .arcana-locked { padding: 18px; border: 1px dashed #62523f; color: #998c7d; text-align: center; background: rgba(18, 17, 17, .7); }
+@media (max-width: 1080px) {
+    #ui-arcana-panel .arcana-vault-head { display: grid; grid-template-columns: 1fr auto; align-items: center; }
+    .arcana-mobile-library .arcana-collection { grid-template-columns: minmax(0, 1fr); }
+    .arcana-mobile-library button, .arcana-mobile-loadout button, .arcana-mobile-library input, .arcana-mobile-library select { min-height: 44px; font-size: 13px; }
+    .arcana-mobile-library .arcana-card-effect, .arcana-mobile-loadout .arcana-card-effect { font-size: 13px; line-height: 1.6; }
+    .arcana-mobile-library .arcana-card-effect small, .arcana-mobile-loadout .arcana-card-effect small { font-size: 12px; }
+    .arcana-search, .arcana-mobile-pages { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .arcana-search input, .arcana-placement select { width: 100%; min-width: 0; box-sizing: border-box; }
+    .arcana-mobile-pages { grid-template-columns: auto 1fr auto; text-align: center; font-size: 13px; }
+    .arcana-placement { display: grid; gap: 8px; padding: 12px; border: 1px solid #b99665; border-top: 0; }
+    .arcana-placement label { display: grid; gap: 6px; font-size: 13px; }
+    .arcana-mobile-preview .arcana-slot-preview { font-size: 13px; }
+    .arcana-mobile-loadout { display: grid; gap: 8px; }
+}
 .pruning-head p { max-width: 460px; margin: 0; }
 .pruning-stat-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 9px 0; }
 .pruning-stat-summary > div { min-width: 0; padding: 9px 10px; border: 1px solid rgba(113, 91, 62, .48); background: rgba(16, 18, 17, .84); }

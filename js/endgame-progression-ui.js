@@ -72,6 +72,15 @@ function renderArcanaCollection(available) {
     }).join('')}</div>`;
 }
 
+function renderArcanaWorkspace(arcana, available) {
+    if (uiDisplay.matches('(max-width: 1080px)')) return arcanaMobileUi.render(arcana, available);
+    let deck = arcana.deckSlots.map((uid, index) => renderArcanaDestination(uid, `덱 ${index + 1}`, 'deck', index, arcana)).join('');
+    let equipment = ARCANA_EQUIPMENT_SLOT_KEYS.map(slot => renderArcanaDestination(arcana.equipmentSlots[slot], slot, 'equipment', slot, arcana)).join('');
+    return `<section><h3>아르카나 덱 <small>${arcana.deckSlots.filter(Boolean).length}/${ARCANA_DECK_SLOT_COUNT}</small></h3><div class="arcana-deck">${deck}</div></section>
+        <section><h3>장비 슬롯 각인</h3><div class="arcana-equipment-grid">${equipment}</div></section>
+        <section><h3>미사용 카드 <small>${available.length}장 보유</small></h3>${renderArcanaCollection(available)}</section>`;
+}
+
 function renderArcanaPanel() {
     let panel = document.getElementById('ui-arcana-panel');
     if (!panel) return;
@@ -86,15 +95,12 @@ function renderArcanaPanel() {
     }
     if (!findArcanaCopy(selectedArcanaCardUid, game) || getArcanaCardPlacement(selectedArcanaCardUid, game)) selectedArcanaCardUid = null;
     let available = arcana.cards.filter(copy => !getArcanaCardPlacement(copy.uid, game));
-    let deck = arcana.deckSlots.map((uid, index) => renderArcanaDestination(uid, `덱 ${index + 1}`, 'deck', index, arcana)).join('');
-    let equipment = ARCANA_EQUIPMENT_SLOT_KEYS.map(slot => renderArcanaDestination(arcana.equipmentSlots[slot], slot, 'equipment', slot, arcana)).join('');
     let html = `<section class="arcana-vault-head"><div><span>SEALED ARCANA</span><strong>봉인 카드 ${arcana.sealedCards}장</strong></div><button type="button" onclick="openSealedArcanaCard()" ${arcana.sealedCards > 0 ? '' : 'disabled'}>봉인 해제</button></section>
         <p class="arcana-rule">카드 한 장은 덱 또는 장비 슬롯 한 곳에만 놓을 수 있습니다. 덱은 전역 효과, 장비 슬롯은 그 부위에 붙은 지정 옵션을 증폭합니다.</p>
-        <section><h3>아르카나 덱 <small>${arcana.deckSlots.filter(Boolean).length}/${ARCANA_DECK_SLOT_COUNT}</small></h3><div class="arcana-deck">${deck}</div></section>
-        <section><h3>장비 슬롯 각인</h3><div class="arcana-equipment-grid">${equipment}</div></section>
-        <section><h3>미사용 카드 <small>${available.length}장 보유</small></h3>${renderArcanaCollection(available)}</section>`;
+        ${renderArcanaWorkspace(arcana, available)}`;
     if (panel.__lastHtml !== html) panel.innerHTML = html;
     panel.__lastHtml = html;
+    if (uiDisplay.matches('(max-width: 1080px)')) arcanaMobileUi.bind(panel);
 }
 
 function selectArcanaCard(uid) {
@@ -110,7 +116,8 @@ function openSealedArcanaCard() {
     selectedArcanaCardUid = result.copy.uid;
     if (typeof unlockJournalEntry === 'function') unlockJournalEntry('arcana_first_seal');
     addLog(`🂠 아르카나 [${result.card.name}]의 봉인을 해제했습니다.`, 'loot-unique');
-    renderArcanaPanel();
+    if (uiDisplay.matches('(max-width: 1080px)')) arcanaMobileUi.reveal(selectedArcanaCardUid);
+    else renderArcanaPanel();
     if (typeof saveGame === 'function') saveGame();
 }
 
@@ -130,7 +137,8 @@ function placeSelectedArcanaCard(destination, target) {
 function removeArcanaCard(uid) {
     if (!unequipArcanaCard(uid, game)) return;
     selectedArcanaCardUid = uid;
-    renderArcanaPanel();
+    if (uiDisplay.matches('(max-width: 1080px)')) arcanaMobileUi.reveal(uid);
+    else renderArcanaPanel();
     if (typeof saveGame === 'function') saveGame();
 }
 
