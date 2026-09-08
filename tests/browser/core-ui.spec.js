@@ -2935,6 +2935,8 @@ test('growth layout changes publish the latest occupied cells to the public prof
         cloudState.user = { id: 'growth-profile-sync-user' };
         cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
         setMyNicknameLocal('배치동기화');
+        // Complete the login lifecycle before edits; the 15-second boot fallback must not add a second upload.
+        syncSocialBackgroundTasks();
         game.season = 60;
         game.contentProgression.inherited = ['growth'];
         contentProgression.sync();
@@ -2953,6 +2955,8 @@ test('growth layout changes publish the latest occupied cells to the public prof
     });
     expect(expected.cells).toEqual([[2, 1], [2, 2]]);
     await expect.poll(() => uploads.length).toBe(1);
+    // Re-enter the same lifecycle as the delayed startup callback after the edit upload settles.
+    await page.evaluate(() => syncSocialBackgroundTasks());
     await page.waitForTimeout(900);
     expect(uploads).toHaveLength(1);
     const snapshot = uploads[0].profile_data;
