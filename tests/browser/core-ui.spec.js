@@ -50,6 +50,88 @@ async function dismissVisibleTutorials(page) {
     await expect(page.locator('#tutorial-overlay.active')).not.toBeVisible();
 }
 
+test('login waits without battle downloads or frame polling and resumes after entry', async ({ page }) => {
+    const failures = watchRuntimeFailures(page);
+    const battleRequests = [];
+    page.on('request', request => {
+        if (/\/assets\/effects\//.test(request.url())) battleRequests.push(request.url());
+    });
+    await page.addInitScript(() => {
+        window.observedFrames = 0;
+        const requestFrame = window.requestAnimationFrame.bind(window);
+        window.requestAnimationFrame = callback => requestFrame(time => {
+            window.observedFrames++;
+            callback(time);
+        });
+    });
+    await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/');
+    await expect(page.locator('#startup-overlay')).toBeVisible();
+    // The former deferred loader started 1.8 seconds after boot.
+    await page.waitForTimeout(2500);
+    expect(battleRequests).toEqual([]);
+    expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running').length)).toBe(0);
+    const frames = await page.evaluate(() => observedFrames);
+    await page.waitForTimeout(700);
+    expect(await page.evaluate(() => observedFrames)).toBe(frames);
+    expect(await page.locator('#startup-about-video').evaluate(video => video.paused)).toBe(true);
+    await openLocalGame(page);
+    expect(battleRequests.length).toBeGreaterThan(0);
+    const playingFrames = await page.evaluate(() => observedFrames);
+    await expect.poll(() => page.evaluate(() => observedFrames)).toBeGreaterThan(playingFrames + 3);
+    for (let repeat = 0; repeat < 2; repeat++) {
+        await page.evaluate(() => openStartupGate());
+        await expect(page.locator('#startup-overlay')).toBeVisible();
+        await page.waitForTimeout(200);
+        const pausedFrames = await page.evaluate(() => observedFrames);
+        await page.waitForTimeout(700);
+        expect(await page.evaluate(() => observedFrames)).toBe(pausedFrames);
+        await page.locator('#btn-startup-back').click();
+        await expect(page.locator('#startup-overlay')).not.toBeVisible();
+        await expect.poll(() => page.evaluate(() => observedFrames)).toBeGreaterThan(pausedFrames + 3);
+        await expect(page.locator('#battlefield-canvas')).toBeVisible();
+    }
+    expect(failures).toEqual([]);
+});
+
+test('asset loading uses theme surfaces and reports real progress without drifting', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/');
+    await expect(page.locator('#startup-overlay')).toBeVisible();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    for (const theme of ['dark', 'light']) {
+        await page.evaluate(theme => {
+            applyThemeMode(theme);
+            setLoadingOverlayState(true, { title: '전장 에셋을 불러오는 중...',
+                detail: '전투 에셋 로딩 중... (80/223)', caption: '전투 이미지 준비', progress: 68 });
+        }, theme);
+        const card = page.locator('#loading-overlay .loading-card');
+        await expect(card).toBeVisible();
+        const bounds = await card.boundingBox();
+        const viewport = page.viewportSize();
+        expect(bounds.x).toBeGreaterThanOrEqual(0);
+        expect(bounds.y).toBeGreaterThanOrEqual(0);
+        expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+        expect(bounds.y + bounds.height).toBeLessThanOrEqual(viewport.height);
+        expect(await card.evaluate(el => {
+            const expected = document.createElement('div');
+            expected.style.backgroundColor = 'var(--ui-surface-2)';
+            el.append(expected);
+            const matches = getComputedStyle(expected).backgroundColor === getComputedStyle(el).backgroundColor;
+            expected.remove();
+            return matches;
+        })).toBe(true);
+        await expect(page.locator('.loading-ring')).toHaveCSS('animation-name', 'none');
+        await page.waitForTimeout(1000);
+        await expect(page.locator('#loading-overlay [role="progressbar"]')).toHaveAttribute('aria-valuenow', '68');
+        await page.screenshot({ path: testInfo.outputPath(`loading-${theme}.png`) });
+        await page.evaluate(() => advanceLoadingOverlay({ progress: 81 }));
+        await expect(page.locator('#loading-overlay [role="progressbar"]')).toHaveAttribute('aria-valuenow', '81');
+    }
+    expect(failures).toEqual([]);
+});
+
 test('tutorial buttons stay reachable on small and landscape screens', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
@@ -1316,6 +1398,40 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     await expect(panel).toBeVisible();
     await expect(panel).toContainText('p95');
     await expect(panel).toContainText('FX');
+    expect(failures).toEqual([]);
+});
+
+test('entry skips unused signature sheets and skill selection loads them once', async ({page}) => {
+    const failures=watchRuntimeFailures(page);
+    let release;
+    const gate=new Promise(resolve=>{release=resolve;});
+    let requests=0;
+    await page.route('**/assets/effects/skill-lava-sheet-v1.webp', async route=>{
+        requests++;await gate;await route.continue();
+    });
+    await openLocalGame(page);
+    await page.evaluate(()=>{clearInterval(gameTickHandle);gameTickHandle=null;});
+    expect(requests).toBe(0);
+    expect(await page.evaluate(()=>!!getSkillGemVfxImage('skillFxBasicSlash'))).toBe(true);
+    await page.evaluate(()=>{
+        game.skills.push('용암 강타');game.activeSkill='용암 강타';renderCombatSkillHud();
+    });
+    await expect.poll(()=>requests).toBe(1);
+    await page.evaluate(()=>{for(let i=0;i<20;i++) getSkillGemVfxImage('skillFxSignatureLava');});
+    expect(requests).toBe(1);
+    release();
+    await expect.poll(()=>page.evaluate(()=>getSkillGemVfxImage('skillFxSignatureLava')?.naturalWidth || 0)).toBeGreaterThan(0);
+    expect(await page.evaluate(()=>getSkillGemVfxImage('skillFxSignatureLava').src)).toContain('.webp');
+    await page.evaluate(()=>{
+        game.activeSkill='기본 공격';renderCombatSkillHud();game.activeSkill='용암 강타';renderCombatSkillHud();
+    });
+    expect(requests).toBe(1);
+    await page.evaluate(()=>{reloadBattleAssets();return battleAssets.loadPromise;});
+    expect(await page.evaluate(()=>{
+        const active=Object.getOwnPropertyDescriptor(battleAssets.images,'skillFxSignatureLava');
+        const unused=Object.getOwnPropertyDescriptor(battleAssets.images,'skillFxSignatureBlood');
+        return !!active.value?.naturalWidth && typeof unused.get==='function';
+    })).toBe(true);
     expect(failures).toEqual([]);
 });
 

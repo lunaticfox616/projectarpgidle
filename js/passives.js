@@ -6833,23 +6833,14 @@ function initBattleAssets() {
         .flatMap(value => Array.isArray(value) ? value : ((value && typeof value === 'object') ? Object.values(value) : [value]))
         .filter(value => typeof value === 'string' && value));
     const criticalManifestKeys = new Set(['enemies', 'woodEnemySlimes', 'woodEnemySpider', 'woodEnemyLeeches', 'woodEnemyPuppet0', 'effects', 'summon1', ...selectedHeroKeys]);
-    const manifestGroupsBySrc = new Map();
-    Object.entries(manifest).forEach(([key, src]) => {
-        if (!manifestGroupsBySrc.has(src)) manifestGroupsBySrc.set(src, { src: src, keys: [], priority: 3 });
-        let group = manifestGroupsBySrc.get(src);
-        group.keys.push(key);
-        if (criticalManifestKeys.has(key)) group.priority = Math.min(group.priority, 0);
-        else if (key.startsWith('backdrop')) group.priority = Math.min(group.priority, 1);
-        else if (key.startsWith('bossAct') || key === 'enemies2' || key === 'enemies3') group.priority = Math.min(group.priority, 2);
-    });
-    const manifestGroups = Array.from(manifestGroupsBySrc.values()).sort((a, b) => a.priority - b.priority || a.src.localeCompare(b.src));
+    const manifestGroups = prepareBattleAssetGroups(manifest, criticalManifestKeys, battleAssets.images, game.activeSkill);
     const maxParallelLoads = Math.max(4, Math.min(8, Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 6) || 6));
     let pending = manifestGroups.length;
     let nextGroupIndex = 0;
     let activeLoads = 0;
     const totalAssets = pending;
     let settled = false;
-    function updateBattleAssetLoadProgress(currentKey) {
+    function updateBattleAssetLoadProgress() {
         if (typeof document === 'undefined') return;
         let overlay = document.getElementById('loading-overlay');
         if (!overlay || !overlay.classList.contains('active')) return;
@@ -6860,7 +6851,7 @@ function initBattleAssets() {
             advanceLoadingOverlay({
                 progress: progress,
                 detail: `전투 에셋 로딩 중... (${loaded}/${totalAssets})`,
-                caption: currentKey ? `Asset: ${currentKey}` : 'Asset: preparing'
+                caption: '전투 이미지 준비'
             });
         }
     }
@@ -6911,10 +6902,10 @@ function initBattleAssets() {
         }
     }
 
-    function markBattleAssetGroupDone(group) {
+    function markBattleAssetGroupDone() {
         pending--;
         activeLoads = Math.max(0, activeLoads - 1);
-        updateBattleAssetLoadProgress(group.keys.join(','));
+        updateBattleAssetLoadProgress();
         finishLoad();
         pumpBattleAssetQueue();
     }
@@ -6931,7 +6922,7 @@ function initBattleAssets() {
             if ('fetchPriority' in img) img.fetchPriority = group.priority <= 1 ? 'high' : 'auto';
             img.onload = function() {
                 group.keys.forEach(key => storeLoadedBattleImage(key, img));
-                markBattleAssetGroupDone(group);
+                markBattleAssetGroupDone();
             };
             img.onerror = function() {
                 let requiredKeys = group.keys.filter(key => !optionalManifestKeys.has(key));
@@ -6940,7 +6931,7 @@ function initBattleAssets() {
                     requiredKeys.forEach(key => battleAssets.failedKeys.push(key));
                     console.warn('battle asset load failed:', requiredKeys.join(','), group.src);
                 }
-                markBattleAssetGroupDone(group);
+                markBattleAssetGroupDone();
             };
             img.src = group.src;
         }

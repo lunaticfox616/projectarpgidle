@@ -220,36 +220,6 @@ body[data-ui-skin="crimson"] .player-hud-shell {
 }
 
 
-body:not(.light-mode) .loading-card {
-  border-color: var(--skin-line) !important;
-  color: var(--ui-text-2) !important;
-  background: linear-gradient(180deg, rgba(19, 19, 16, .98), rgba(6, 7, 6, .99)) !important;
-}
-
-body:not(.light-mode) .loading-overlay {
-  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--skin-accent), transparent 88%), transparent 27%), rgba(3, 4, 3, .95);
-}
-
-body:not(.light-mode) .loading-ring,
-body:not(.light-mode) .loading-ring::after {
-  border-color: color-mix(in srgb, var(--skin-line-strong), transparent 32%);
-}
-
-body:not(.light-mode) .loading-core {
-  border-color: var(--skin-line-strong);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--skin-accent), transparent 84%), rgba(16, 13, 9, .35));
-  box-shadow: 0 0 22px color-mix(in srgb, var(--skin-accent), transparent 82%);
-}
-
-body:not(.light-mode) .loading-bar {
-  border-color: var(--gauge-edge);
-  background: var(--gauge-track);
-}
-
-body:not(.light-mode) .loading-bar-fill {
-  background: linear-gradient(90deg, var(--skin-accent-strong), var(--skin-accent));
-  box-shadow: 0 0 12px color-mix(in srgb, var(--skin-accent), transparent 72%);
-}
 
 /* Content notices and death reports use the same materials as management windows. */
 body :is(#tutorial-overlay, #death-overlay) .tutorial-card {

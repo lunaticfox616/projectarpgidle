@@ -14,7 +14,8 @@ const playtestRuntime = {
     longFrames: 0,
     peakFx: 0,
     currentFx: 0,
-    lastFrameAt: 0
+    lastFrameAt: 0,
+    frameHandle: null
 };
 
 function createPlaytestSessionId() {
@@ -187,6 +188,7 @@ function finishPlaytestAttempt(result, detail) {
 }
 
 function samplePlaytestFrame(now) {
+    playtestRuntime.frameHandle = null;
     if (playtestRuntime.lastFrameAt > 0 && typeof gameplayStarted !== 'undefined' && gameplayStarted && !document.hidden) {
         let elapsed = Math.max(0, now - playtestRuntime.lastFrameAt);
         playtestRuntime.frameSamples.push(Math.min(1000, elapsed));
@@ -199,7 +201,19 @@ function samplePlaytestFrame(now) {
         playtestRuntime.peakFx = Math.max(playtestRuntime.peakFx, fxCount);
     }
     playtestRuntime.lastFrameAt = now;
-    requestAnimationFrame(samplePlaytestFrame);
+    schedulePlaytestFrame();
+}
+
+function schedulePlaytestFrame() {
+    if (playtestRuntime.frameHandle !== null || startupOverlayActive) return;
+    playtestRuntime.frameHandle = requestAnimationFrame(samplePlaytestFrame);
+}
+
+function syncPlaytestFrameSampling() {
+    if (playtestRuntime.frameHandle !== null) cancelAnimationFrame(playtestRuntime.frameHandle);
+    playtestRuntime.frameHandle = null;
+    playtestRuntime.lastFrameAt = 0;
+    schedulePlaytestFrame();
 }
 
 function getLiveFrameAverage() {
@@ -297,7 +311,8 @@ window.addEventListener('project-idle:movement-started', event => finishPlaytest
 window.addEventListener('error', event => captureClientError(event.error || event.message, event.filename));
 window.addEventListener('unhandledrejection', event => captureClientError(event.reason, 'unhandledrejection'));
 document.addEventListener('visibilitychange', () => { playtestRuntime.lastFrameAt = 0; });
-requestAnimationFrame(samplePlaytestFrame);
+window.addEventListener('project-idle:startup-visibility', syncPlaytestFrameSampling);
+schedulePlaytestFrame();
 if (isPerformancePanelEnabled()) setInterval(updatePerformancePanel, 500);
 
 safeExposeGlobals({ copyClientDiagnostics, getClientDiagnosticContext, getPlaytestFrameSummary });

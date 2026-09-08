@@ -146,6 +146,10 @@ assert.strictEqual((flaskHost.innerHTML.match(/<button/g) || []).length, 2, 'equ
 assert.strictEqual((flaskHost.innerHTML.match(/combat-flask-mini empty/g) || []).length, 0, 'unfilled utility slots must stay absent after equipping another flask');
 assert.strictEqual(flaskHost.dataset.visibleSlots, '2', 'equipping one utility flask must reveal exactly two sockets including health');
 
+const effectRuntime = require('./lib/game-runtime').buildGameRuntime();
+flaskContext.SKILL_SIGNATURE_SPRITES = effectRuntime.SKILL_SIGNATURE_SPRITES;
+flaskContext.SKILL_GEM_VFX_PROFILES = effectRuntime.SKILL_GEM_VFX_PROFILES;
+flaskContext.getSkillGemVfxImage = effectRuntime.getSkillGemVfxImage;
 flaskContext.renderCombatSkillHud();
 assert(skillHost.innerHTML.includes('독니 사출') && skillHost.innerHTML.includes('서리늑대 소환'),
   'the combat gem rack must show the active attack and equipped summon gems');

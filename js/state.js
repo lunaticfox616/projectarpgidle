@@ -1979,7 +1979,6 @@ let cloudState = {
 };
 let startupOverlayActive = true;
 let gameplayStarted = false;
-let loadingOverlayTimer = null;
 let loadingOverlayProgress = 0;
 let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
