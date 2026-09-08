@@ -123,4 +123,58 @@ defeatTarget();
 const earned=json('game.bountyHunt');
 assert(!run('bountyRuntime.failHunt()'),'death after target defeat cannot discard earned treasure');
 assert.deepEqual(json('game.bountyHunt'),earned);
+
+// A single low-tier boss caps all ten kills, regardless of its order or the later hunting location.
+for (const lowIndex of [0,4,9]) {
+ reset();run('Math.random=()=>0.99');
+ for (let kill=0;kill<10;kill++) {
+  run(`bountyRuntime.advanceAfterBossKill(getZone(${kill===lowIndex?0:8}),{isBoss:true})`);
+  if (kill===4) run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+ }
+ assert.equal(run('game.bountyHunt.source.zone.tier'),1);
+ const frozenSource=json('game.bountyHunt.source');
+ run('game.currentZoneId=8;bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true})');
+ assert.deepEqual(json('game.bountyHunt.source'),frozenSource,'later kills cannot upgrade a ready hunt');
+ assert.equal(run('bountyRuntime.openTreasure().item.itemTier'),1,'the saved bonus uses the lowest boss');
+ const oldIds=new Set(json('game.inventory.map(item=>item.id)'));
+ defeatTarget();
+ const loot=json('game.inventory').filter(item=>!oldIds.has(item.id));
+ assert(loot.length>0 && loot.every(item=>item.itemTier===1),'hunting at T9 cannot upgrade T1 target loot');
+ assert(run('bountyRuntime.claimTreasure().ok'));
+ assert.equal(run('game.bountyHunt.source'),null,'claiming clears the previous minimum');
+ run('bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true})');
+ assert.equal(run('game.bountyHunt.source.itemTier'),9,'a new countdown can earn higher-tier loot');
+}
+
+for (const zoneId of [0,8]) {
+ reset();run("contentProgression.purchase('craft');Math.random=()=>0.7");
+ for(let kill=0;kill<10;kill++) run(`bountyRuntime.advanceAfterBossKill(getZone(${zoneId}),{isBoss:true})`);
+ assert.equal(run('bountyRuntime.openTreasure().id'),'craft_stash');
+ const multiplier=zoneId===0?1:2;
+ assert.equal(run('game.bountyHunt.source.materialMultiplier'),multiplier);
+ assert(run(`bountyRuntime.rewardLabel(game.bountyHunt.pending).includes('${2*multiplier}개')`));
+ run('game.currentZoneId=4;game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+ const sapBefore=run('game.currencies.sapBud');
+ defeatTarget();
+ assert.equal(run('game.currencies.sapBud'),sapBefore+multiplier,'target materials use the saved multiplier');
+ const budsBefore=run('game.currencies.magicBud');
+ assert(run('bountyRuntime.claimTreasure().ok'));
+ assert.equal(run('game.currencies.magicBud'),budsBefore+2*multiplier,'the advertised material count is paid');
+}
+
+reset();run('game.season=25;game.contentProgression.inherited.push("growth");Math.random=()=>0.4');
+for(let kill=0;kill<10;kill++) run('bountyRuntime.advanceAfterBossKill(getZone(0),{isBoss:true})');
+assert.equal(run('bountyRuntime.openTreasure().targetId'),'root_poacher');
+run(`game.currentZoneId=8;bountyRuntime.startHunt();startEncounterRun();Math.random=()=>0.99;
+    var growthTarget=createEnemy(getZone(8),game.encounterPlan.find(entry=>entry.bountyId),0);growthTarget.hp=0`);
+assert(run('bountyRuntime.completeTarget(growthTarget)'));
+assert.equal(run('game.growthInventory.length'),1);
+assert.equal(run('game.growthInventory[0].itemTier'),1,'growth loot also uses the saved lowest boss');
+
+reset();run('game.bountyHunt=bountyRuntime.restore({version:3,remaining:3,completed:5})');
+assert.equal(run('game.bountyHunt.remaining'),3,'old partial counts are retained');
+assert.equal(run('game.bountyHunt.source.itemTier'),1,'unknown old boss tiers cannot be upgraded by a final high kill');
+assert.equal(run('game.bountyHunt.completed'),5);
+for(let kill=0;kill<3;kill++) run('bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true})');
+assert.equal(run('bountyRuntime.openTreasure().item.itemTier'),1);
 console.log('smoke-bounty-hunt passed: treasure countdown, gates, rare events, unique slot, migration and single claim');

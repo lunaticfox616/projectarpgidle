@@ -6798,7 +6798,7 @@ function showMapProgressTooltip(event) {
     const speed = Math.max(1, Number(cachedTooltipStats?.moveSpeed) || 100);
     const multiplier = speed / 100;
     const saved = (1 - 1 / multiplier) * 100;
-    const html = `<div class="tooltip-title">이동 속도와 진행도</div><div class="tooltip-line">이동 속도 ${speed.toFixed(1)} · 기본 대비 ${multiplier.toFixed(2)}배</div><div class="tooltip-line">같은 이동 구간의 소요 시간 ${Math.abs(saved).toFixed(1)}% ${saved >= 0 ? '단축' : '증가'}</div><div class="tooltip-line tooltip-muted">일반 진행도 기준입니다. 적 처치·정비 대기와 특수 이벤트의 고정 시간은 포함하지 않습니다.</div>`;
+    const html = `<div class="tooltip-title">이동 속도와 진행도</div><div class="tooltip-line">이동 속도 ${speed.toFixed(1)} · 기본 대비 ${multiplier.toFixed(2)}배</div><div class="tooltip-line">같은 이동 구간의 소요 시간 ${Math.abs(saved).toFixed(1)}% ${saved >= 0 ? '단축' : '증가'}</div>`;
     showInfoTooltipHtml(event.clientX || rect.left, event.clientY || rect.bottom, html, '#b49b68');
 }
 safeExposeGlobals({ showPlayerEhpTooltip, showMapProgressTooltip });

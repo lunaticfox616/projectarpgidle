@@ -1,5 +1,10 @@
 // The modal owns presentation; an unopened or postponed reward stays in the saved treasure state.
 let treasureDialogOpen=false;
+function getBountyRewardBasis(state) {
+    const source=state.source;
+    if (!source?.zone) return '';
+    return `10마리 중 최저 보스 T${source.zone.tier} 기준 · 일반 재료 ×${source.materialMultiplier}`;
+}
 async function openTreasureDialog() {
     if (treasureDialogOpen) return;
     const pending=bountyRuntime.openTreasure();
@@ -8,9 +13,10 @@ async function openTreasureDialog() {
     try {
         saveGame({skipCloudSync:false});
         const event=TREASURE_EVENT_DB[pending.id];
+        const basis=getBountyRewardBasis(bountyRuntime.ensureState());
         if (pending.status!=='reward') {
             const target=BOUNTY_TARGET_DB[pending.targetId];
-            const accepted=await requestGameConfirmation(`${target.danger}\n\n표적 처치 전리품과 추가 보물: ${bountyRuntime.rewardLabel(pending)}`,
+            const accepted=await requestGameConfirmation(`${target.danger}\n${basis}\n\n추가 보물: ${bountyRuntime.rewardLabel(pending)}`,
                 {title:target.name,kicker:'보물사냥',tone:'gold',confirmLabel:'추적 시작',cancelLabel:'나중에'});
             if (accepted && bountyRuntime.startHunt()) {
                 startMoving(false);
@@ -19,7 +25,7 @@ async function openTreasureDialog() {
             }
             return;
         }
-        const accepted=await requestGameConfirmation(`${event.text}\n\n발견한 보물: ${bountyRuntime.rewardLabel(pending)}`,
+        const accepted=await requestGameConfirmation(`${event.text}\n${basis}\n\n발견한 보물: ${bountyRuntime.rewardLabel(pending)}`,
             {title:event.name,kicker:'보물사냥',tone:'gold',confirmLabel:'보물 받기',cancelLabel:'나중에 받기'});
         if (!accepted) return;
         const result=bountyRuntime.claimTreasure();
@@ -32,10 +38,12 @@ async function openTreasureDialog() {
 function getBountyHudState() {
     const state=bountyRuntime.ensureState();
     if (!bountyRuntime.isUnlocked()) return {hidden:true,key:'locked',html:''};
-    if (state.pending?.status==='queued') return {key:'hunting',html:`<div class="bounty-hud-progress"><strong>보물사냥 · 추적 중</strong><span>${BOUNTY_TARGET_DB[state.pending.targetId].name}</span></div>`};
-    if (state.remaining===0) return {key:state.pending ? 'reward' : 'ready',
-        html:`<button class="bounty-hud-offer" onclick="bountyUi.openTreasure()"><strong>보물사냥</strong><span>${state.pending?.status==='reward' ? '발견한 보물 받기' : '표적 확인'}</span></button>`};
-    return {key:'count:'+state.remaining,html:`<div class="bounty-hud-progress"><strong>다음 보물사냥까지</strong><span>${state.remaining}</span></div>`};
+    const basis=getBountyRewardBasis(state), tier=state.source?.zone ? ` · 기준 T${state.source.zone.tier}` : '';
+    const status=state.pending?.status;
+    if (status==='queued') return {key:'hunting'+tier,html:`<div class="bounty-hud-progress" title="${basis}"><strong>보물사냥 · 추적 중</strong><span>${BOUNTY_TARGET_DB[state.pending.targetId].name}${tier}</span></div>`};
+    if (state.remaining===0) return {key:(status || 'ready')+tier,
+        html:`<button class="bounty-hud-offer" title="${basis}" onclick="bountyUi.openTreasure()"><strong>보물사냥${tier}</strong><span>${status==='reward' ? '발견한 보물 받기' : '표적 확인'}</span></button>`};
+    return {key:'count:'+state.remaining+tier,html:`<div class="bounty-hud-progress" title="${basis}"><strong>다음 보물사냥까지</strong><span>${state.remaining}${tier}</span></div>`};
 }
 function renderBountyHud() {
     const box=document.getElementById('ui-bounty-box');

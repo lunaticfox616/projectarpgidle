@@ -119,7 +119,7 @@ function renderTalentLoadoutSlot(index, unlocked, key, owned) {
     let { heroId, classKey } = parseTalentComboKey(key);
     let { heroLabel, classLabel, bloomName } = getTalentCardName(heroId, classKey);
     let level = Math.max(1, Math.floor(owned[key].level || 1));
-    return `<div class="talent-slot filled" onclick="unequipTalentSlot(${index})" title="클릭하여 해제"><strong>${escapeTalentHtml(bloomName)}</strong><span>${escapeTalentHtml(heroLabel)} × ${escapeTalentHtml(classLabel)} · Lv.${level}</span></div>`;
+    return `<div class="talent-slot filled" onclick="unequipTalentSlot(${index})" aria-label="${escapeTalentHtml(bloomName)} 장착 해제" data-info-tooltip-anchor="1" onmouseenter="showTalentCombinationTooltip(event,'${key}')" onmousemove="showTalentCombinationTooltip(event,'${key}')" onmouseleave="hideInfoTooltip()"><strong>${escapeTalentHtml(bloomName)}</strong><span>${escapeTalentHtml(heroLabel)} × ${escapeTalentHtml(classLabel)} · Lv.${level}</span></div>`;
 }
 
 function renderTalentCollectionCard(key, owned) {

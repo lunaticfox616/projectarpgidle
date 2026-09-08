@@ -27,7 +27,7 @@
                 if (!key || !owned[key]) return renderTalentLoadoutSlot(index, index < unlocked, key, owned);
                 const { heroId, classKey } = parseTalentComboKey(key);
                 const name = getTalentCardName(heroId, classKey).bloomName;
-                return `<button type="button" class="talent-slot filled" data-talent-unequip="${index}" aria-label="${escapeTalentHtml(name)} 장착 해제"><strong>${escapeTalentHtml(name)}</strong><span>Lv.${owned[key].level} · 해제</span></button>`;
+                return `<button type="button" class="talent-slot filled" data-talent-unequip="${index}" aria-label="${escapeTalentHtml(name)} 장착 해제" data-info-tooltip-anchor="1" onmouseenter="showTalentCombinationTooltip(event,'${key}')" onmousemove="showTalentCombinationTooltip(event,'${key}')" onmouseleave="hideInfoTooltip()"><strong>${escapeTalentHtml(name)}</strong><span>Lv.${owned[key].level} · 해제</span></button>`;
             }).join('')}</div></section>`;
     }
 
