@@ -10989,18 +10989,25 @@ function getDefeatRecoveryZoneId() {
     return getZone(frontier) ? frontier : 0;
 }
 
-function handlePlayerDefeat(zone, pStats, message, options) {
-    let opts = options || {};
-    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+function recordPlayerDefeatStart(zone, options) {
     resetHiddenJournalBossRun();
     refillAllFlaskCharges();
     addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
+    const bountyFailed = bountyRuntime.failHunt();
     dispatchRuntimeEvent('player-defeated', {
         zoneId: zone && zone.id,
         zoneType: zone && zone.type,
         contentContext: getEncounterTelemetryContext(zone),
-        background: !!game.isBackgroundCalculation
+        background: !!game.isBackgroundCalculation,
+        bountyFailed,
+        noToast: !!options.noToast
     });
+}
+
+function handlePlayerDefeat(zone, pStats, message, options) {
+    let opts = options || {};
+    let storyAct = zone && zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+    recordPlayerDefeatStart(zone, opts);
     let expLost = 0;
     if (storyAct && storyAct.specialType === 'forced_defeat') {
         addLog(`🩸 ${storyAct.clearText}`, 'death');

@@ -1368,6 +1368,39 @@ test('treasure HUD requires target combat, retains its bonus and pays it once', 
     const state = await page.evaluate(() => ({ completed:game.bountyHunt.completed,
         pending:game.bountyHunt.pending,duplicate:bountyRuntime.claimTreasure().ok }));
     expect(state).toEqual({completed:1,pending:null,duplicate:false});
+    await page.evaluate(() => {
+        game.bountyHunt.remaining=0;game.settings.showDeathNotice=false;
+        bountyRuntime.openTreasure();updateStaticUI();
+    });
+    await offer.click();
+    await dialog.getByRole('button', { name: '추적 시작' }).click();
+    await page.evaluate(() => handlePlayerDefeat(getZone(0),getPlayerStats(),null,{noToast:true}));
+    await dismissVisibleTutorials(page);
+    await expect(page.locator('#log')).toContainText('보물사냥 실패');
+    await expect(hud).toContainText('다음 보물사냥까지');
+    await expect(hud.locator('span')).toHaveText('10');
+    await expect(offer).toHaveCount(0);
+    expect(await page.evaluate(() => ({pending:game.bountyHunt.pending,completed:game.bountyHunt.completed,
+        canLoop:bountyRuntime.canAdvanceLoop(),claim:bountyRuntime.claimTreasure().ok})))
+        .toEqual({pending:null,completed:1,canLoop:true,claim:false});
+    await page.screenshot({path:testInfo.outputPath('treasure-failed.png')});
+    await page.evaluate(() => {
+        for(let i=0;i<9;i++) bountyRuntime.advanceAfterBossKill(getZone(0),{isBoss:true});
+        updateStaticUI();
+    });
+    await expect(hud.locator('span')).toHaveText('1');
+    await expect(offer).toHaveCount(0);
+    await page.evaluate(() => {
+        bountyRuntime.advanceAfterBossKill(getZone(0),{isBoss:true});
+        startEncounterRun();updateStaticUI();
+    });
+    await expect(offer).toBeVisible();
+    expect(await page.evaluate(()=>game.encounterPlan.some(entry=>entry.bountyId))).toBe(false);
+    await page.evaluate(() => {game.pendingLoopReady=true;updateStaticUI();});
+    await page.locator('#loop-ready-overlay').getByRole('button',{name:'다음 루프 진행'}).click();
+    await expect(dialog).toContainText('루프 진행 확인');
+    await dialog.getByRole('button',{name:'루프 진행',exact:true}).click();
+    expect(await page.evaluate(()=>game.season)).toBe(3);
     expect(failures).toEqual([]);
 });
 

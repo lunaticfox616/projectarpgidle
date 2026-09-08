@@ -37,16 +37,29 @@ check('cosmos treasure uses cosmos affix cap', () => {
 check('ready treasure is settled before a loop can discard equipment', () => {
     reset(2);
     run(`game.currentZoneId=8;game.bountyHunt.remaining=1;
-        bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});bountyRuntime.openTreasure();
-        game.pendingLoopReady=true;confirmLoopReady()`);
-    assert.equal(run('game.season'), 2); assert(run('game.pendingLoopReady'));
+        bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});bountyRuntime.openTreasure()`);
     run(`bountyRuntime.startHunt();startEncounterRun();
         var target=createEnemy(getZone(game.currentZoneId),game.encounterPlan.find(entry=>entry.bountyId),0);
-        game.enemies=[target];target.hp=0;handleEnemyDeath(target,getPlayerStats());game.pendingLoopReady=true`);
+        game.enemies=[target];target.hp=0;handleEnemyDeath(target,getPlayerStats());game.pendingLoopReady=true;
+        confirmLoopReady()`);
+    assert.equal(run('game.season'), 2); assert(run('game.pendingLoopReady'));
     assert(run('bountyRuntime.claimTreasure().ok'));
     run('confirmLoopReady()');
     assert.equal(run('game.season'), 3);
     assert.equal(run('game.inventory.some(item=>item.itemTier===9 && !item.sealed)'), false);
+});
+check('defeat ends accepted treasure hunts and permits the earned loop', () => {
+    reset(2);
+    run(`game.currentZoneId=8;game.settings.showDeathNotice=false;game.bountyHunt.remaining=0;
+        bountyRuntime.openTreasure();bountyRuntime.startHunt();startEncounterRun();
+        handlePlayerDefeat(getZone(8),getPlayerStats(),null,{noToast:true})`);
+    assert.equal(run('game.bountyHunt.pending'),null);
+    assert.equal(run('game.bountyHunt.remaining'),10);
+    assert.equal(run('game.bountyHunt.completed'),0);
+    assert(!run('game.encounterPlan.some(entry=>entry.bountyId)'));
+    assert(!run('bountyRuntime.claimTreasure().ok'));
+    run('game.pendingLoopReady=true;confirmLoopReady()');
+    assert.equal(run('game.season'),3);
 });
 check('colony entrance uses this loop, not a previous loop depth', () => {
     reset();
