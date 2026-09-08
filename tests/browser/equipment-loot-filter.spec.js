@@ -82,16 +82,16 @@ test('a real target drop presents its name and reason on the battlefield', async
     expect(errors).toEqual([]);
 });
 
-test('offline return highlights retained targets and unique items with their location', async ({ page }, testInfo) => {
+test('offline return shows compact highlights with snapshot tooltips and themed results', async ({ page, isMobile }, testInfo) => {
     const errors = await start(page);
     await page.evaluate(() => {
         game.settings.equipmentTargets = equipmentLootPolicy.normalizeTargets({ enabled: true, slot: 'any', scope: 'explicit',
             minMatches: 1, rules: [{ statId: 'flatHp', minValue: 50, minTier: 6 }] });
         const before = JSON.parse(serializeSaveState(game));
-        const item = (id, name, rarity) => ({ id, name, slot: '반지', rarity, tier: 8, hiddenTier: 8,
+        const item = (id, name, rarity) => ({ ...createItemFromBase(chooseItemBase('반지',8),rarity,8), id, name, slot: '반지', rarity, tier: 8, hiddenTier: 8,
             baseStats: [], stats: [{ id: 'flatHp', val: 80, tier: 8 }] });
         game.inventory.push(item(98201, '여명의 생명 반지', 'rare'));
-        const unique = item(98202, '<빛의 약속>', 'unique'); unique.stats = [];
+        const unique = generateUniqueItem(8,'반지'); unique.id=98202;unique.name='<빛의 약속>';
         game.offlineProgress.stash.push(unique);
         const after = JSON.parse(serializeSaveState(game));
         const summary = getBackgroundRewardSummary(before, after, { kills: 132, exp: 2560, expLost: 0, deaths: 0 }, 0);
@@ -103,9 +103,51 @@ test('offline return highlights retained targets and unique items with their loc
     await expect(overlay).toContainText('여명의 생명 반지');
     await expect(overlay).toContainText('<빛의 약속>');
     await expect(overlay.locator('.loot-highlight-card').last()).toContainText('방치 보관함');
+    const itemButton=overlay.locator('.loot-highlight-card button').first();
+    const tooltip=page.locator('#item-tooltip-box');
+    if(isMobile) await itemButton.tap(); else await itemButton.hover();
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText('여명의 생명 반지');
+    await expect(tooltip).toContainText('80');
+    expect(await tooltip.evaluate(element=>Number(getComputedStyle(element).zIndex))).toBeGreaterThan(
+        await overlay.evaluate(element=>Number(getComputedStyle(element).zIndex)));
+    await page.evaluate(()=>{
+        game.inventory.find(item=>item.id===98201).stats[0].val=999;
+        for(let i=0;i<100;i++) decorateCombatLogItemMessage('[새 전리품]',{id:99000+i,name:'새 전리품'});
+        validateItemTooltipAnchor();
+    });
+    await expect(tooltip).toContainText('80');
+    await expect(tooltip).not.toContainText('999');
+    if(isMobile) {
+        await overlay.locator('h2').tap();
+        await expect(tooltip).not.toBeVisible();
+        await overlay.locator('.loot-highlight-card button').last().tap();
+    }
+    else await overlay.locator('.loot-highlight-card button').last().focus();
+    await expect(tooltip).toContainText('빛의 약속');
+    await expect(tooltip).toBeVisible();
+    await page.waitForTimeout(250);
+    await expect(tooltip).toBeVisible();
+    if(isMobile) expect(await tooltip.evaluate(element=>element.getBoundingClientRect().bottom<=window.innerHeight)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('offline-item-options.png') });
+    await page.evaluate(()=>hideItemTooltip());
+    await expect(overlay.getByRole('button',{name:'계속하기',exact:true})).toBeInViewport();
     await page.screenshot({ path: testInfo.outputPath('offline-highlights.png') });
     await overlay.getByRole('button', { name: '장비 확인', exact: true }).click();
     await expect(overlay).toHaveCount(0);
     await expect(page.locator('#tab-items')).toBeVisible();
+    await expect(tooltip).not.toBeVisible();
+    await page.evaluate(()=>{
+        document.body.classList.add('light-mode');
+        showBackgroundCombatResult({summary:{},actualElapsedMs:3600000,effectiveProgressMs:0});
+    });
+    await expect(overlay.locator('.loot-highlight-card')).toHaveCount(0);
+    expect(await overlay.locator('.background-combat-result-card').evaluate(element=>{
+        const css=getComputedStyle(element);
+        const probe=document.createElement('span');probe.style.background='var(--ui-surface-2)';element.appendChild(probe);
+        const matches=css.backgroundColor===getComputedStyle(probe).backgroundColor;probe.remove();return matches;
+    })).toBe(true);
+    await overlay.getByRole('button',{name:'계속하기',exact:true}).click();
+    await expect(overlay).toHaveCount(0);
     expect(errors).toEqual([]);
 });

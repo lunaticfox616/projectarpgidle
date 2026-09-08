@@ -2,6 +2,24 @@ const assert=require('assert'),vm=require('vm');
 const {buildGameRuntime}=require('./lib/game-runtime');
 const runtime=buildGameRuntime(),run=code=>vm.runInContext(code,runtime);
 const json=code=>JSON.parse(run('JSON.stringify('+code+')'));
+function defeatTarget() {
+ assert(!run('bountyRuntime.claimTreasure().ok'),'a reward cannot be claimed before hunting');
+ assert(run('bountyRuntime.startHunt()'));
+ const savedBonus=json('game.bountyHunt.pending');
+ run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));startMoving(false)');
+ assert.deepEqual(json('game.bountyHunt.pending'),savedBonus,'reload and return retain the same target and bonus');
+ run(`startEncounterRun();var marker=game.encounterPlan.find(entry=>entry.bountyId);
+     var target=createEnemy(getZone(game.currentZoneId),marker,0);game.enemies=[target]`);
+ assert(run('target.isBountyTarget'));
+ assert(Number.isFinite(run('target.maxHp')));
+ for(const key of ['damageMul','attackSpeedVar','expMul','penetration','resChaos']) assert(Number.isFinite(run('target.'+key)));
+ assert(!run('bountyRuntime.completeTarget(target)'),'living targets cannot yield rewards');
+ run('target.hp=0');
+ const itemsBefore=run('game.inventory.length');
+ assert(run('bountyRuntime.completeTarget(target)'));
+ assert(run('game.inventory.length')>itemsBefore,'original target equipment is additional to the saved treasure');
+ assert(!run('bountyRuntime.completeTarget(target)'),'duplicate defeat cannot pay again');
+}
 const reset=()=>run("game=mergeDefaults({});game.season=2;game.currentZoneId=4;game.settings.autoEquipEmptySlots=false;contentProgression.sync()");
 reset();
 assert.equal(run('bountyRuntime.ensureState().remaining'),10);
@@ -23,19 +41,19 @@ assert(!['golden_reliquary','fairy_hollow','gem_cache','fossil_seam','sky_cache'
 const before=json('game.bountyHunt.pending');
 run('Math.random=()=>0.999;bountyRuntime.openTreasure();game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert.deepEqual(json('game.bountyHunt.pending'),before,'postponing/reloading does not reroll the event or gear');
-assert(run('bountyRuntime.claimTreasure().ok'));
+defeatTarget();assert(run('bountyRuntime.claimTreasure().ok'));
 assert.equal(run('game.bountyHunt.remaining'),10);
 assert(!run('bountyRuntime.claimTreasure().ok'),'reward can be claimed once');
 reset();
 run("contentProgression.purchase('craft');game.bountyHunt.remaining=0;Math.random=()=>0.001");
 assert.equal(run('bountyRuntime.openTreasure().id'),'golden_reliquary');
 const gold=run('game.currencies.goldenRule');
-assert(run('bountyRuntime.claimTreasure().ok'));
+defeatTarget();assert(run('bountyRuntime.claimTreasure().ok'));
 assert.equal(run('game.currencies.goldenRule'),gold+1);
 run('game.bountyHunt.remaining=0;Math.random=()=>0.003');
 assert.equal(run('bountyRuntime.openTreasure().id'),'fairy_hollow');
 const ring=run('game.currencies.fairyRing');
-assert(run('bountyRuntime.claimTreasure().ok'));
+defeatTarget();assert(run('bountyRuntime.claimTreasure().ok'));
 assert.equal(run('game.currencies.fairyRing'),ring+1);
 run('game.bountyHunt.remaining=0;Math.random=()=>0.03');
 pending=json('bountyRuntime.openTreasure()');
@@ -48,7 +66,7 @@ run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
 assert.equal(run('game.bountyHunt.pending.item.id'),pending.item.id);
 run('refreshItemIdCounter()');
 assert(run('itemIdCounter>=game.bountyHunt.pending.item.id'),'unclaimed treasure reserves its equipment id across reloads');
-assert(run('bountyRuntime.claimTreasure().ok'));
+defeatTarget();assert(run('bountyRuntime.claimTreasure().ok'));
 run("game.contentProgression.inherited.push('fossil','gemForge');Math.random=()=>0.999");
 const ids=new Set();
 for(let i=0;i<100;i++){
@@ -72,4 +90,7 @@ for (const raw of [null,{version:2,remaining:Infinity,completed:Infinity},
  assert(Number.isFinite(restored.completed)&&restored.remaining>=0&&restored.remaining<=10);
  assert.equal(restored.pending,null);
 }
+reset();run("contentProgression.purchase('craft');game.bountyHunt=bountyRuntime.restore({version:2,remaining:0,pending:{id:'golden_reliquary'}})");
+assert(run('bountyRuntime.claimTreasure().ok'),'already discovered v2 treasure remains claimable after migration');
+assert(!run('bountyRuntime.claimTreasure().ok'));
 console.log('smoke-bounty-hunt passed: treasure countdown, gates, rare events, unique slot, migration and single claim');

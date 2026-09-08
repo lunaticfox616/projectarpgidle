@@ -9,6 +9,8 @@ module.exports = function loadContentProgression(context, includeUi = false) {
     context.CONTENT_UNLOCK_POINTS_PER_LOOP = runtime.CONTENT_UNLOCK_POINTS_PER_LOOP;
     context.ORB_DB ||= runtime.ORB_DB;
     context.getCanonicalCurrencyKey ||= runtime.getCanonicalCurrencyKey;
+    // Run the production reward policy against this fixture's owner, not the shared runtime's save.
+    context.getAvailableActRewardZoneIds = (owner = context.game) => runtime.getAvailableActRewardZoneIds(owner);
     context.safeExposeGlobals ||= definitions => Object.assign(context, definitions);
     vm.runInContext(fs.readFileSync('js/content-progression.js', 'utf8'), context, { filename: 'js/content-progression.js' });
     if (includeUi) {

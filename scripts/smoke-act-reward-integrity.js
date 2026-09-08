@@ -72,6 +72,16 @@ assert(SKILL_DB[LOOP_STARTER_GEM_BY_HERO.hero7].tags.includes('summon_attack') &
 // 액트 2는 포인트, 액트 6은 재화이며 두 경로 모두 실제 프로덕션 함수를 실행한다.
 const runtime = buildGameRuntime();
 const run = code => vm.runInContext(code, runtime);
+run(`game=mergeDefaults({});game.claimableActRewards=[1,5,9];game.claimedActRewards=[]`);
+const lockedSnapshot=run('JSON.stringify(game)');
+run('claimActRewardChoice(1,0);claimActRewardChoice(9,2)');
+assert.equal(run('JSON.stringify(game)'),lockedSnapshot,'locked reward clicks cannot consume readiness or grant rewards');
+assert(run('!getActRewardChoices(1).some(choice=>isActRewardChoiceAvailable(choice))'));
+assert(run('getActRewardChoices(0).every(choice=>isActRewardChoiceAvailable(choice))'));
+assert.equal(run('JSON.stringify(getAvailableActRewardZoneIds())'),'[9]');
+assert(run('!isActRewardChoiceAvailable({kind:"currency",currency:"magicBud"})'));
+run(`game.season=2;game.contentProgression.inherited.push('support','craft');contentProgression.sync()`);
+assert(run('getActRewardChoices(1).every(choice=>isActRewardChoiceAvailable(choice))'));
 run(`
     game.supports = ['가벼운 발걸음', '가속'];
     game.supportGemData = {

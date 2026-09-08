@@ -218,10 +218,10 @@
             id: 'claim-act-reward',
             priority: 900,
             matches(g) {
-                return Array.isArray(g.claimableActRewards) && g.claimableActRewards.length > 0;
+                return getAvailableActRewardZoneIds(g).length > 0;
             },
             build(g) {
-                let count = g.claimableActRewards.length;
+                let count = getAvailableActRewardZoneIds(g).length;
                 let goal = {
                     id: 'claim-act-reward',
                     stage: `n${count}`,
@@ -396,9 +396,9 @@
         {
             id: 'act-reward-notice',
             matches(g, primary) {
-                return primary !== 'claim-act-reward' && Array.isArray(g.claimableActRewards) && g.claimableActRewards.length > 0;
+                return primary !== 'claim-act-reward' && getAvailableActRewardZoneIds(g).length > 0;
             },
-            build(g) { return buildNotice(`선택하지 않은 액트 보상 ${g.claimableActRewards.length}개`, 'tab-map', 'map-explore-hunting'); }
+            build(g) { return buildNotice(`선택하지 않은 액트 보상 ${getAvailableActRewardZoneIds(g).length}개`, 'tab-map', 'map-explore-hunting'); }
         },
         {
             id: 'arcana-first-seal-notice',

@@ -165,7 +165,7 @@ function getMapCardState(isCurrent, cleared, recommended) {
 
 function buildMapCardActionsHtml(options) {
     let state = options.state;
-    let rewardButton = options.isActRewardZone && options.rewardReady
+    let rewardButton = options.isActRewardZone && options.rewardReady && getActRewardChoices(options.zoneId).some(choice => isActRewardChoiceAvailable(choice))
         ? `<button class="map-reward-btn" onclick="event.stopPropagation(); openActReward(${options.zoneId})">보상 받기</button>` : '';
     let stateLabel = options.isActRewardZone && options.rewardClaimed ? `${state.label} · 보상 수령` : state.label;
     let stateBadge = rewardButton ? '' : `<span class="map-state-badge ${state.className}${options.rewardClaimed ? ' reward-claimed' : ''}">${stateLabel}</span>`;
@@ -585,8 +585,8 @@ function showBackgroundCombatResult(result) {
         `사망 횟수: <strong>${summary.deaths || 0}</strong>`,
         `인벤토리 증가: ${itemHtml}${uniqueLine}${overflowLine}`,
         `재화: ${currencyHtml}`
-    ].filter(Boolean).join('<br>');
-    overlay.innerHTML = `<div class="tutorial-card background-combat-result-card"><h2>백그라운드 전투 결과</h2><p>자리를 비운 시간: ${formatBackgroundDuration(result.actualElapsedMs)}</p><p>전투 진행: ${formatBackgroundDuration(result.effectiveProgressMs)}</p>${equipmentLootUi.renderHighlights(summary.highlights)}<p>${rewards}</p>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">백그라운드 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}<button type="button" onclick="document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" onclick="document.getElementById('background-combat-result-overlay').remove()">계속하기</button></div>`;
+    ].filter(Boolean).map(line => `<div>${line}</div>`).join('');
+    overlay.innerHTML = `<div class="background-combat-result-card" role="dialog" aria-modal="true" aria-labelledby="background-result-title"><header><h2 id="background-result-title">백그라운드 전투 결과</h2><div class="background-result-times"><span>자리를 비운 시간 <strong>${formatBackgroundDuration(result.actualElapsedMs)}</strong></span><span>전투 진행 <strong>${formatBackgroundDuration(result.effectiveProgressMs)}</strong></span></div></header><div class="background-result-body">${equipmentLootUi.renderHighlights(summary.highlights)}<div class="background-result-summary">${rewards}</div>${result.stopped ? '<p>사냥이 중단되었거나 선택이 필요해 여기까지 진행했습니다.</p>' : ''}${result.capped ? `<p class="background-combat-capped">백그라운드 누적 한도 ${resultLimits.recognitionHours}시간에 도달했습니다.</p>` : ''}</div><footer><button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-items', {keepWindowOpen:true})">장비 확인</button><button type="button" class="background-result-continue" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove()">계속하기</button></footer></div>`;
     document.body.appendChild(overlay);
 }
 
@@ -3968,7 +3968,7 @@ function isMapExploreSubtabOpenable(subtabId) {
 // 지도 탭의 빨간 점을 켠 원인 세부 화면을 돌려준다. 액트 보상 미수령이 우선이고,
 // 그다음이 아직 열어 보지 않은 신규 해금이다.
 function getMapAlarmSourceSubtab() {
-    if (Array.isArray(game.claimableActRewards) && game.claimableActRewards.length > 0) return 'map-explore-hunting';
+    if (getAvailableActRewardZoneIds().length > 0) return 'map-explore-hunting';
     ensureMapAlarmState();
     let sigs = getMapExploreUnlockSignatures();
     return MAP_EXPLORE_ALARM_SUBTABS.find(key => {
@@ -5792,12 +5792,21 @@ let combatLogAggregateState = {};
 let combatLogItemSequence = 0;
 let combatLogItemSnapshots = new Map();
 
-function decorateCombatLogItemMessage(msg, item) {
-    if (!item || typeof item !== 'object' || !item.name) return msg;
+function registerCombatLogItemSnapshot(item) {
     let token = ++combatLogItemSequence;
     let snapshot = JSON.parse(JSON.stringify(item));
     combatLogItemSnapshots.set(token, snapshot);
-    while (combatLogItemSnapshots.size > 80) combatLogItemSnapshots.delete(combatLogItemSnapshots.keys().next().value);
+    while (combatLogItemSnapshots.size > 80) {
+        const expired=[...combatLogItemSnapshots.keys()].find(key=>
+            !document.querySelector(`#background-combat-result-overlay [data-log-item-token="${key}"]`));
+        combatLogItemSnapshots.delete(expired);
+    }
+    return token;
+}
+
+function decorateCombatLogItemMessage(msg, item) {
+    if (!item || typeof item !== 'object' || !item.name) return msg;
+    let token = registerCombatLogItemSnapshot(item);
     let label = `[${item.name}]`;
     let link = `<span class="combat-log-item-link" role="button" tabindex="0" title="장비창 열기" data-item-tooltip-anchor="1" data-log-item-token="${token}" onmouseenter="showCombatLogItemTooltip(event,${token})" onmousemove="showCombatLogItemTooltip(event,${token})" onmouseleave="hideCombatLogItemTooltip(event)" onclick="openCombatLogItemEquipment(event)" onkeydown="if(event.key==='Enter'||event.key===' '){openCombatLogItemEquipment(event)}">${escapeHTML(label)}</span>`;
     return String(msg).replace(label, link);
@@ -7419,7 +7428,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
     itemTooltipComparisonScheduler.cancel();
     activeItemTooltipToken = nextTooltipToken;
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${item.name}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
+    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
     if (item.hallReplica) html += `<div class="tooltip-line" style="color:#d2b878;">🏛️ 전당 소장품 · 전시자 ${escapeHTML(item.hallCuratorName || '익명')} · 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()} · 제작/재등록 불가</div>`;
     else if (item.hallRelistBlocked) html += '<div class="tooltip-line" style="color:#bda979;">🏛️ 전당 복제 이력 · 재등록 불가</div>';
     let baseChainInfo = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;

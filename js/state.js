@@ -2509,7 +2509,7 @@ const defaultGame = {
     sporeCraftModes: {},
     shrineState: { activeId: null, spawnCell: null, pity: 0, spawned: 0, claimed: 0 },
     shrineBuff: null,
-    bountyHunt: { version:2, remaining:10, pending:null, source:null, completed:0 },
+    bountyHunt: { version:3, remaining:10, pending:null, source:null, completed:0 },
     salvageRecovery: { entries: [], sequence: 0 },
     blackMarket: { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {}, preferredSlot: 'any', insight: 0, manualRefreshes: 0 },
     loop10ChaosStayEnabled: false,

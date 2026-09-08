@@ -1319,10 +1319,11 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     expect(failures).toEqual([]);
 });
 
-test('treasure HUD counts down, retains a postponed event and pays it once', async ({ page }, testInfo) => {
+test('treasure HUD requires target combat, retains its bonus and pays it once', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
+        clearInterval(gameTickHandle);gameTickHandle=null;
         game.season = 2;
         game.loopCount = 1;
         game.currentZoneId = 0;
@@ -1344,13 +1345,24 @@ test('treasure HUD counts down, retains a postponed event and pays it once', asy
     await offer.click();
     const dialog = page.locator('#game-dialog-overlay');
     await expect(dialog).toHaveClass(/active/);
-    await expect(dialog).toContainText('발견한 보물:');
+    await expect(dialog).toContainText('표적 처치 전리품과 추가 보물:');
     const reward = await page.locator('#game-dialog-message').innerText();
     await page.screenshot({path:testInfo.outputPath('treasure-event.png')});
-    await dialog.getByRole('button', { name: '나중에 받기' }).click();
+    await dialog.getByRole('button', { name: '나중에', exact:true }).click();
     await expect(dialog).not.toHaveClass(/active/);
     await offer.click();
     await expect(page.locator('#game-dialog-message')).toHaveText(reward,{useInnerText:true});
+    await dialog.getByRole('button', { name: '추적 시작' }).click();
+    await expect(hud).toContainText('추적 중');
+    expect(await page.evaluate(()=>bountyRuntime.claimTreasure().ok)).toBe(false);
+    await page.evaluate(()=>{
+        game.moveTimer=0;startEncounterRun();
+        const marker=game.encounterPlan.find(entry=>entry.bountyId);
+        const enemy=createEnemy(getZone(game.currentZoneId),marker,0);
+        game.enemies=[enemy];enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());updateStaticUI();
+    });
+    await offer.click();
+    await expect(dialog).toContainText('발견한 보물:');
     await dialog.getByRole('button', { name: '보물 받기' }).click();
     await expect(hud.locator('span')).toHaveText('10');
     const state = await page.evaluate(() => ({ completed:game.bountyHunt.completed,
@@ -1367,6 +1379,9 @@ test('loop advance offers unclaimed treasure before resetting equipment', async 
         contentProgression.sync();game.settings.autoEquipEmptySlots=false;
         game.bountyHunt.remaining=1;
         bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});
+        bountyRuntime.openTreasure();bountyRuntime.startHunt();startEncounterRun();
+        const enemy=createEnemy(getZone(8),game.encounterPlan.find(entry=>entry.bountyId),0);
+        game.enemies=[enemy];enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());
         game.pendingLoopReady=true;
         updateStaticUI();
     });
@@ -1385,6 +1400,35 @@ test('loop advance offers unclaimed treasure before resetting equipment', async 
     await expect(dialog).toContainText('루프 진행 확인');
     await dialog.getByRole('button',{name:'루프 진행',exact:true}).click();
     expect(await page.evaluate(()=>game.season)).toBe(3);
+    expect(failures).toEqual([]);
+});
+
+test('map rewards hide locked support choices and retain them until unlocked', async ({page},testInfo) => {
+    const failures=watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(()=>{
+        clearInterval(gameTickHandle);gameTickHandle=null;
+        game.maxZoneId=9;game.claimableActRewards=[0,1,5,9];game.claimedActRewards=[];
+        checkUnlocks();updateStaticUI();switchTab('tab-map');switchMapExploreSubtab('map-explore-hunting');
+    });
+    await dismissVisibleTutorials(page);
+    const supportButton=page.locator('.map-reward-btn[onclick*="openActReward(1)"]');
+    await expect(supportButton).toHaveCount(0);
+    await expect(page.locator('.map-reward-btn[onclick*="openActReward(0)"]')).toHaveCount(1);
+    await page.evaluate(()=>openActReward(9));
+    await expect(page.locator('#reward-grid .reward-choice')).toHaveCount(2);
+    await expect(page.locator('#reward-grid')).not.toContainText('보조 젬 한도');
+    await page.evaluate(()=>{
+        claimActRewardChoice(1,0);claimActRewardChoice(9,2);closeRewardOverlay();
+        game.season=3;game.contentProgression.inherited.push('support');contentProgression.sync();updateStaticUI();
+    });
+    await dismissVisibleTutorials(page);
+    await expect(supportButton).toBeVisible();
+    await supportButton.click();
+    await expect(page.locator('#reward-grid .reward-choice')).toHaveCount(4);
+    await page.screenshot({path:testInfo.outputPath('map-unlocked-rewards.png')});
+    await page.locator('#reward-grid .reward-choice').first().click();
+    expect(await page.evaluate(()=>game.claimedActRewards.includes(1))).toBe(true);
     expect(failures).toEqual([]);
 });
 

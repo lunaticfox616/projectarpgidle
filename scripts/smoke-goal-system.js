@@ -75,6 +75,7 @@ function boot(gameState, overrides = {}) {
         ...overrides
     };
     vm.createContext(context);
+    require('./lib/load-content-progression')(context);
     vm.runInContext(unlockGuideSource, context, { filename: 'js/content-unlock-guide.js' });
     Object.assign(context, exposed);
     vm.runInContext(source, context, { filename: 'js/goal-system.js' });
@@ -143,6 +144,16 @@ const baseGame = extra => ({
     assert.strictEqual(m.presented[0].description, '선택 가능한 보상 2개');
     // 보상 선택 카드는 탐험 > 나무(사냥터) 화면의 액트 목록에 붙는다.
     assert.strictEqual(m.presented[0].actionSubtabId, 'map-explore-hunting', '액트 보상은 나무 화면까지 연다');
+}
+
+// Locked rewards are retained without directing the player to hidden buttons.
+{
+    const g=baseGame({season:3,maxZoneId:3,claimableActRewards:[1,5],unlocks:{map:true},
+        contentProgression:{unlocked:[],inherited:[],automatic:[]}});
+    const m=boot(g);m.refresh();
+    assert.notStrictEqual(m.presented.at(-1).id,'claim-act-reward');
+    g.contentProgression.inherited.push('support');m.refresh();
+    assert.strictEqual(m.presented.at(-1).description,'선택 가능한 보상 2개');
 }
 
 // 4) pendingLoopReady는 최우선이며, 보상 대기는 보조 안내로 밀려난다.
