@@ -6197,6 +6197,15 @@ function getSupportActRewardFallback(choice) {
     return { kind: 'currency', amount, currency, label: `${currencyDef.name} ${amount}개` };
 }
 
+function isActRewardChoiceAvailable(choice, owner = game) {
+    if (choice.kind === 'support' || choice.stat === 'suppCap') return contentProgression.isUnlocked('support', owner);
+    if (choice.kind === 'currency') return contentProgression.canDropCurrency(choice.currency, owner);
+    return true;
+}
+function getAvailableActRewardZoneIds(owner = game) {
+    return (owner.claimableActRewards || []).filter(id =>
+        getActRewardConfig(id)?.choices.some(choice => isActRewardChoiceAvailable(choice, owner)));
+}
 function getActRewardChoices(zoneId) {
     let config = getActRewardConfig(zoneId);
     if (!config) return [];
@@ -6337,11 +6346,12 @@ function openActReward(zoneId) {
     if (!(game.claimableActRewards || []).includes(zoneId)) return;
     let config = getActRewardConfig(zoneId);
     if (!config) return;
+    if (!getAvailableActRewardZoneIds().includes(zoneId)) return;
     activeRewardZoneId = zoneId;
     let storyAct = getStoryActByZoneId(zoneId);
     document.getElementById('reward-title').innerText = storyAct ? `${formatStoryActLabel(storyAct)} 클리어 보상 - ${storyAct.title}` : config.title;
     document.getElementById('reward-body').innerText = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
-    document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId).map((choice, index) => `
+    document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId).map((choice, index) => !isActRewardChoiceAvailable(choice) ? '' : `
         <button class="reward-choice" onclick="claimActRewardChoice(${zoneId}, ${index})">
             <strong>${choice.label}</strong>
             <span>${choice.desc}</span>
@@ -6425,7 +6435,7 @@ function claimActRewardChoice(zoneId, choiceIndex) { if (game.woodsmanBuildLock)
     if (!(game.claimableActRewards || []).includes(zoneId)) return;
     let choices = getActRewardChoices(zoneId);
     let choice = choices[choiceIndex];
-    if (!choice) return;
+    if (!choice || !isActRewardChoiceAvailable(choice)) return;
     grantActRewardEntry(zoneId, choice);
     if (typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
     game.claimableActRewards = (game.claimableActRewards || []).filter(id => id !== zoneId);

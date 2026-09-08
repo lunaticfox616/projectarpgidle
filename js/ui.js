@@ -165,7 +165,7 @@ function getMapCardState(isCurrent, cleared, recommended) {
 
 function buildMapCardActionsHtml(options) {
     let state = options.state;
-    let rewardButton = options.isActRewardZone && options.rewardReady
+    let rewardButton = options.isActRewardZone && options.rewardReady && getActRewardChoices(options.zoneId).some(choice => isActRewardChoiceAvailable(choice))
         ? `<button class="map-reward-btn" onclick="event.stopPropagation(); openActReward(${options.zoneId})">보상 받기</button>` : '';
     let stateLabel = options.isActRewardZone && options.rewardClaimed ? `${state.label} · 보상 수령` : state.label;
     let stateBadge = rewardButton ? '' : `<span class="map-state-badge ${state.className}${options.rewardClaimed ? ' reward-claimed' : ''}">${stateLabel}</span>`;
@@ -3968,7 +3968,7 @@ function isMapExploreSubtabOpenable(subtabId) {
 // 지도 탭의 빨간 점을 켠 원인 세부 화면을 돌려준다. 액트 보상 미수령이 우선이고,
 // 그다음이 아직 열어 보지 않은 신규 해금이다.
 function getMapAlarmSourceSubtab() {
-    if (Array.isArray(game.claimableActRewards) && game.claimableActRewards.length > 0) return 'map-explore-hunting';
+    if (getAvailableActRewardZoneIds().length > 0) return 'map-explore-hunting';
     ensureMapAlarmState();
     let sigs = getMapExploreUnlockSignatures();
     return MAP_EXPLORE_ALARM_SUBTABS.find(key => {

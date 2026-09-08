@@ -40,6 +40,9 @@ check('ready treasure is settled before a loop can discard equipment', () => {
         bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});bountyRuntime.openTreasure();
         game.pendingLoopReady=true;confirmLoopReady()`);
     assert.equal(run('game.season'), 2); assert(run('game.pendingLoopReady'));
+    run(`bountyRuntime.startHunt();startEncounterRun();
+        var target=createEnemy(getZone(game.currentZoneId),game.encounterPlan.find(entry=>entry.bountyId),0);
+        game.enemies=[target];target.hp=0;handleEnemyDeath(target,getPlayerStats());game.pendingLoopReady=true`);
     assert(run('bountyRuntime.claimTreasure().ok'));
     run('confirmLoopReady()');
     assert.equal(run('game.season'), 3);

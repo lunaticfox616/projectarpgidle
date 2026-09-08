@@ -8,6 +8,17 @@ async function openTreasureDialog() {
     try {
         saveGame({skipCloudSync:false});
         const event=TREASURE_EVENT_DB[pending.id];
+        if (pending.status!=='reward') {
+            const target=BOUNTY_TARGET_DB[pending.targetId];
+            const accepted=await requestGameConfirmation(`${target.danger}\n\n표적 처치 전리품과 추가 보물: ${bountyRuntime.rewardLabel(pending)}`,
+                {title:target.name,kicker:'보물사냥',tone:'gold',confirmLabel:'추적 시작',cancelLabel:'나중에'});
+            if (accepted && bountyRuntime.startHunt()) {
+                startMoving(false);
+                saveGame({skipCloudSync:false});
+                updateStaticUI();
+            }
+            return;
+        }
         const accepted=await requestGameConfirmation(`${event.text}\n\n발견한 보물: ${bountyRuntime.rewardLabel(pending)}`,
             {title:event.name,kicker:'보물사냥',tone:'gold',confirmLabel:'보물 받기',cancelLabel:'나중에 받기'});
         if (!accepted) return;
@@ -21,8 +32,9 @@ async function openTreasureDialog() {
 function getBountyHudState() {
     const state=bountyRuntime.ensureState();
     if (!bountyRuntime.isUnlocked()) return {hidden:true,key:'locked',html:''};
+    if (state.pending?.status==='queued') return {key:'hunting',html:`<div class="bounty-hud-progress"><strong>보물사냥 · 추적 중</strong><span>${BOUNTY_TARGET_DB[state.pending.targetId].name}</span></div>`};
     if (state.remaining===0) return {key:state.pending ? 'reward' : 'ready',
-        html:`<button class="bounty-hud-offer" onclick="bountyUi.openTreasure()"><strong>보물사냥</strong><span>${state.pending ? '발견한 보물 받기' : '탐색하기'}</span></button>`};
+        html:`<button class="bounty-hud-offer" onclick="bountyUi.openTreasure()"><strong>보물사냥</strong><span>${state.pending?.status==='reward' ? '발견한 보물 받기' : '표적 확인'}</span></button>`};
     return {key:'count:'+state.remaining,html:`<div class="bounty-hud-progress"><strong>다음 보물사냥까지</strong><span>${state.remaining}</span></div>`};
 }
 function renderBountyHud() {

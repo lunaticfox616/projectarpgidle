@@ -1,6 +1,9 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
+const cardRuntime=buildGameRuntime();
+const cardActions=options=>vm.runInContext('buildMapCardActionsHtml('+JSON.stringify(options)+')',cardRuntime);
 
 function readFunctionSource(source, name) {
     const start = source.indexOf(`function ${name}(`);
@@ -57,21 +60,20 @@ vm.createContext(context);
 const functionNames = [
     'getMapCompleteActionOptions',
     'getMapCompleteActionOption',
-    'buildMapCardActionsHtml',
     'syncMapCompleteActionQuickControl',
     'applyMapCompleteAction',
     'openMapCompleteActionPicker'
 ];
 vm.runInContext(functionNames.map(name => readFunctionSource(uiSource, name)).join('\n'), context, { filename: 'map-complete-action.js' });
 
-const rewardReadyActions = context.buildMapCardActionsHtml({
+const rewardReadyActions = cardActions({
     state: { className: 'cleared', label: '완료' }, isActRewardZone: true, rewardReady: true,
     rewardClaimed: false, zoneId: 2, enterAction: 'changeZone(2)', enterLabel: '사냥 시작'
 });
 assert(!rewardReadyActions.includes('map-state-badge'), '보상 수령이 가능할 때 완료 배지를 별도 칸으로 중복 표시하면 안 된다');
 assert.strictEqual((rewardReadyActions.match(/<button/g) || []).length, 2,
     '액트 카드에는 보상과 사냥 두 행동만 보여야 한다');
-const rewardClaimedActions = context.buildMapCardActionsHtml({
+const rewardClaimedActions = cardActions({
     state: { className: 'cleared', label: '완료' }, isActRewardZone: true, rewardReady: false,
     rewardClaimed: true, zoneId: 2, enterAction: 'changeZone(2)', enterLabel: '사냥 시작'
 });

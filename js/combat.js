@@ -6773,6 +6773,7 @@ function createEnemy(zone, marker, groupIndex) {
     }
     applyChaosRealmAffixesToEnemy(enemy, zone);
     applyGrandBreachMobTuning(zone, enemy);
+    if (marker.bountyId) bountyRuntime.applyTargetToEnemy(enemy, marker.bountyId);
     assignEnemyGridCombatProfile(enemy);
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, isElite, isBoss);
     if (enemy.isBoss) startHiddenJournalBossRun(enemy, zone);
@@ -8146,6 +8147,7 @@ function startEncounterRun() {
     restoreAndRecallSummons(getPlayerStats());
     primeTrialHazardTimer(zone);
     game.encounterPlan = generateEncounterPlan(zone);
+    bountyRuntime.injectEncounterMarker(game.encounterPlan, zone);
     game.enemies = [];
     if (zone && zone.type === 'outsideChaos') startWoodsmanCurse();
     else resetWoodsmanCurse();
@@ -8871,10 +8873,9 @@ function handleEnemyDeath(enemy, pStats) {
     let gemLeveled = grantExpAndGem(enemy, pStats);
     let currencyDropVersionBefore = Math.max(0, Math.floor(game.currencyDropVersion || 0));
     rollLootForEnemy(enemy);
-    let bountyOffer = typeof bountyRuntime !== 'undefined'
-        ? bountyRuntime.advanceAfterBossKill(zone, enemy) : { offered: false };
-    if (bountyOffer.offered) {
-        addLog('보물사냥이 준비되었습니다. 전투 화면에서 보물을 탐색하세요.', 'loot-unique');
+    let bountyOffer = bountyRuntime.processKill(zone, enemy);
+    if (bountyOffer.offered || bountyOffer.completed) {
+        addLog(bountyOffer.completed ? '보물사냥 표적 처치! 전리품 획득 · 추가 보물을 받을 수 있습니다.' : '보물사냥이 준비되었습니다. 전투 화면에서 표적을 확인하세요.', 'loot-unique');
         if (typeof queueImportantSave === 'function') queueImportantSave(200);
     }
     // 0.002% 확률로 처치한 몬스터의 외형을 플레이어 외형으로 수집한다.
