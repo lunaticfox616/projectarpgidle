@@ -22,7 +22,7 @@ for(const file of ['js/passives.js','data/skills.js']) {
         }
     }
 }
-run("var bank={};registerDeferredBattleEffect(bank,{src:'assets/effects/basic-slash-sheet.webp',keys:['a','b']})");
+run("var bank={};registerDeferredBattleImage(bank,{src:'assets/effects/basic-slash-sheet.webp',keys:['a','b']})");
 assert.equal(requested.length,0,'registration cannot download unused effects');
 assert.equal(run('bank.a'),null);
 assert.equal(run('bank.b'),null);
@@ -30,15 +30,22 @@ assert.equal(requested.length,1,'aliases and repeated frames share one request')
 requested[0].onload();
 assert.strictEqual(run('bank.a'),requested[0]);
 assert.strictEqual(run('bank.b'),requested[0]);
-run("registerDeferredBattleEffect(bank,{src:'missing.webp',keys:['failed']});bank.failed");
+run("registerDeferredBattleImage(bank,{src:'missing.webp',keys:['failed']});bank.failed");
 requested[1].onerror();
 assert.equal(run('bank.failed'),null);
 assert.equal(requested.length,2,'failures cannot cause a hot retry loop');
 now+=5000;run('bank.failed');
 assert.equal(requested.length,3);
 requested[2].onload();assert.strictEqual(run('bank.failed'),requested[2]);
-run("registerDeferredBattleEffect(bank,{src:'old.webp',keys:['old']});bank.old;var oldBank=bank;bank={};registerDeferredBattleEffect(bank,{src:'new.webp',keys:['old']})");
+run("registerDeferredBattleImage(bank,{src:'old.webp',keys:['old']});bank.old;var oldBank=bank;bank={};registerDeferredBattleImage(bank,{src:'new.webp',keys:['old']})");
 requested[3].onload();assert.strictEqual(run('oldBank.old'),requested[3]);
 assert.equal(run('bank.old'),null,'late completions must not contaminate a replacement bank');
 assert.equal(requested[4].url,'new.webp');
-console.log('deferred battle effects: no eager requests, alias reuse, retry and reload isolation passed');
+run("var backgrounds={};var groups=prepareBattleAssetGroups({bgAct1:'one.webp',bgAct2:'two.webp',enemies:'enemies.png'},new Set(['bgAct1','enemies']),{},'',backgrounds)");
+assert.equal(run('groups.length'),2,'only the current background and required sprites block entry');
+assert.equal(requested.length,5,'registering unused backgrounds does not download them');
+assert.equal(run('backgrounds.bgAct2'),null);
+assert.equal(requested[5].url,'two.webp');
+requested[5].onload();
+assert.strictEqual(run('backgrounds.bgAct2'),requested[5]);
+console.log('deferred battle images: bounded startup, alias reuse, retry and reload isolation passed');
