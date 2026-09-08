@@ -22,7 +22,16 @@ test('offline settlement commits once and leads to equipment review', async ({pa
             if(key===LOCAL_SAVE_KEY)window.settlementWriteCount++;
             return originalSet.call(this,key,value);
         };
+        window.settlementPaints=[];
+        const observeProgress=()=>{
+            const fill=document.getElementById('background-combat-progress-bar-fill');
+            if (!fill) return;
+            window.settlementPaints.push({percent:Number(fill.parentElement.getAttribute('aria-valuenow')),
+                width:fill.getBoundingClientRect().width,track:fill.parentElement.clientWidth});
+            requestAnimationFrame(observeProgress);
+        };
         window.settlementPromise=startBackgroundCombatReturn(now);
+        requestAnimationFrame(observeProgress);
         // Observe the pending async boundary in the same browser task. A fast replay may
         // finish before a later locator command reaches the page.
         const before=localStorage.getItem(LOCAL_SAVE_KEY);
@@ -31,6 +40,7 @@ test('offline settlement commits once and leads to equipment review', async ({pa
     });
     expect(paused).toEqual({unchanged:true,original:true});
     expect(await page.evaluate(() => window.settlementPromise)).toBe(true);
+    expect(await page.evaluate(()=>settlementPaints.some(row=>row.percent===100 && row.width>=row.track-1))).toBe(true);
     await expect(page.locator('#background-combat-result-overlay')).toContainText('전투 진행');
     expect(await page.evaluate(() => window.settlementWriteCount)).toBe(1);
     await page.getByRole('button',{name:'장비 확인',exact:true}).click();

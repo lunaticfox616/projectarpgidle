@@ -25,6 +25,9 @@ function init() {
             addLog(`⚠️ ${localSaveStatus.message}`, 'loot-rare');
         }
         updateCloudSaveUI();
+        setTimeout(() => {
+            if (!document.hidden && !navigator.connection?.saveData) initBattleAssets();
+        }, 1800);
         setTimeout(init, 0);
         return;
     }
