@@ -1546,15 +1546,16 @@ test('treasure HUD requires target combat, retains its bonus and pays it once', 
     await offer.click();
     const dialog = page.locator('#game-dialog-overlay');
     await expect(dialog).toHaveClass(/active/);
-    await expect(dialog).toContainText('표적 처치 전리품과 추가 보물:');
+    await expect(dialog.locator('.game-choice-option')).toHaveCount(3);
+    await expect(dialog).toContainText('공통 추가 보물:');
     const reward = await page.locator('#game-dialog-message').innerText();
     await page.screenshot({path:testInfo.outputPath('treasure-event.png')});
     await dialog.getByRole('button', { name: '나중에', exact:true }).click();
     await expect(dialog).not.toHaveClass(/active/);
     await offer.click();
     await expect(page.locator('#game-dialog-message')).toHaveText(reward,{useInnerText:true});
-    await dialog.getByRole('button', { name: '추적 시작' }).click();
-    await expect(hud).toContainText('추적 중');
+    await dialog.getByRole('button', { name: '다음 지역에 예약' }).click();
+    await expect(hud).toContainText('다음 지역 등장 예정');
     expect(await page.evaluate(()=>bountyRuntime.claimTreasure().ok)).toBe(false);
     await page.evaluate(()=>{
         game.moveTimer=0;startEncounterRun();
@@ -1574,7 +1575,7 @@ test('treasure HUD requires target combat, retains its bonus and pays it once', 
         bountyRuntime.openTreasure();updateStaticUI();
     });
     await offer.click();
-    await dialog.getByRole('button', { name: '추적 시작' }).click();
+    await dialog.getByRole('button', { name: '다음 지역에 예약' }).click();
     await page.evaluate(() => handlePlayerDefeat(getZone(0),getPlayerStats(),null,{noToast:true}));
     await dismissVisibleTutorials(page);
     await expect(page.locator('#log')).toContainText('보물사냥 실패');
@@ -1589,7 +1590,7 @@ test('treasure HUD requires target combat, retains its bonus and pays it once', 
         for(let i=0;i<9;i++) bountyRuntime.advanceAfterBossKill(getZone(0),{isBoss:true});
         updateStaticUI();
     });
-    await expect(hud.locator('span')).toHaveText('1');
+    await expect(hud.locator('span')).toHaveText('1 · 기준 T1');
     await expect(offer).toHaveCount(0);
     await page.evaluate(() => {
         bountyRuntime.advanceAfterBossKill(getZone(0),{isBoss:true});
@@ -1613,7 +1614,7 @@ test('loop advance offers unclaimed treasure before resetting equipment', async 
         contentProgression.sync();game.settings.autoEquipEmptySlots=false;
         game.bountyHunt.remaining=1;
         bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});
-        bountyRuntime.openTreasure();bountyRuntime.startHunt();startEncounterRun();
+        bountyRuntime.openTreasure();bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0]);startEncounterRun();
         const enemy=createEnemy(getZone(8),game.encounterPlan.find(entry=>entry.bountyId),0);
         game.enemies=[enemy];enemy.hp=0;handleEnemyDeath(enemy,getPlayerStats());
         game.pendingLoopReady=true;

@@ -14,12 +14,18 @@ async function openTreasureDialog() {
         saveGame({skipCloudSync:false});
         const event=TREASURE_EVENT_DB[pending.id];
         const basis=getBountyRewardBasis(bountyRuntime.ensureState());
+        if (pending.status==='queued') {
+            await requestGameDialog({type:'notice',title:'보물사냥 예약',kicker:'보물사냥',confirmLabel:'알겠어요',
+                message:`${BOUNTY_TARGET_DB[pending.targetId].name}\n다음 사냥 지역에서 표적을 처치하면 보물을 받을 수 있습니다.`});
+            return;
+        }
         if (pending.status!=='reward') {
-            const target=BOUNTY_TARGET_DB[pending.targetId];
-            const accepted=await requestGameConfirmation(`${target.danger}\n${basis}\n\n추가 보물: ${bountyRuntime.rewardLabel(pending)}`,
-                {title:target.name,kicker:'보물사냥',tone:'gold',confirmLabel:'추적 시작',cancelLabel:'나중에'});
-            if (accepted && bountyRuntime.startHunt()) {
-                startMoving(false);
+            const selected=await requestGameChoice({title:'보물사냥 · 표적 선택',kicker:'보물사냥',tone:'gold',
+                message:`선택한 표적은 다음 사냥 지역에 등장합니다.\n${basis}\n\n공통 추가 보물: ${bountyRuntime.rewardLabel(pending)}`,
+                choices:pending.offerIds.map(id=>({value:id,label:BOUNTY_TARGET_DB[id].name,
+                    detail:`${BOUNTY_TARGET_DB[id].danger} / ${bountyRuntime.targetRewardLabel(id)}`})),
+                confirmLabel:'다음 지역에 예약',cancelLabel:'나중에'});
+            if (selected && bountyRuntime.startHunt(selected)) {
                 saveGame({skipCloudSync:false});
                 updateStaticUI();
             }
@@ -35,12 +41,18 @@ async function openTreasureDialog() {
         updateStaticUI();
     } finally { treasureDialogOpen=false; }
 }
+function getQueuedBountyHudState(state, tier, basis) {
+    const id=state.pending.targetId;
+    const inRun=(game.encounterPlan || []).some(marker=>marker.bountyId===id);
+    const label=inRun ? '추적 중' : '다음 지역 등장 예정';
+    return {key:`hunting:${id}:${inRun}${tier}`,html:`<div class="bounty-hud-progress" title="${basis}"><strong>보물사냥 · ${label}</strong><span>${BOUNTY_TARGET_DB[id].name}${tier}</span></div>`};
+}
 function getBountyHudState() {
     const state=bountyRuntime.ensureState();
     if (!bountyRuntime.isUnlocked()) return {hidden:true,key:'locked',html:''};
     const basis=getBountyRewardBasis(state), tier=state.source?.zone ? ` · 기준 T${state.source.zone.tier}` : '';
     const status=state.pending?.status;
-    if (status==='queued') return {key:'hunting'+tier,html:`<div class="bounty-hud-progress" title="${basis}"><strong>보물사냥 · 추적 중</strong><span>${BOUNTY_TARGET_DB[state.pending.targetId].name}${tier}</span></div>`};
+    if (status==='queued') return getQueuedBountyHudState(state,tier,basis);
     if (state.remaining===0) return {key:(status || 'ready')+tier,
         html:`<button class="bounty-hud-offer" title="${basis}" onclick="bountyUi.openTreasure()"><strong>보물사냥${tier}</strong><span>${status==='reward' ? '발견한 보물 받기' : '표적 확인'}</span></button>`};
     return {key:'count:'+state.remaining+tier,html:`<div class="bounty-hud-progress" title="${basis}"><strong>다음 보물사냥까지</strong><span>${state.remaining}${tier}</span></div>`};

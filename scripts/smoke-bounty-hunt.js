@@ -4,7 +4,7 @@ const runtime=buildGameRuntime(),run=code=>vm.runInContext(code,runtime);
 const json=code=>JSON.parse(run('JSON.stringify('+code+')'));
 function defeatTarget() {
  assert(!run('bountyRuntime.claimTreasure().ok'),'a reward cannot be claimed before hunting');
- assert(run('bountyRuntime.startHunt()'));
+ assert(run('bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0])'));
  const savedBonus=json('game.bountyHunt.pending');
  run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));startMoving(false)');
  assert.deepEqual(json('game.bountyHunt.pending'),savedBonus,'reload and return retain the same target and bonus');
@@ -21,6 +21,34 @@ function defeatTarget() {
  assert(!run('bountyRuntime.completeTarget(target)'),'duplicate defeat cannot pay again');
 }
 const reset=()=>run("game=mergeDefaults({});game.season=2;game.currentZoneId=4;game.settings.autoEquipEmptySlots=false;contentProgression.sync()");
+reset();run('Math.random=()=>0.99;game.bountyHunt.remaining=0;startEncounterRun();game.runProgress=37;game.playerHp=73');
+const choices=json('bountyRuntime.openTreasure()');
+assert.equal(choices.offerIds.length,3,'three targets are offered');
+assert.equal(new Set(choices.offerIds).size,3,'offered targets are distinct');
+assert(!choices.offerIds.includes('root_poacher'),'later-loop targets are excluded');
+assert.equal(choices.targetId,null,'opening the chooser does not accept a target');
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));Math.random=()=>0.01');
+assert.deepEqual(json('bountyRuntime.openTreasure()'),choices,'reopening and reloading cannot reroll the targets or bonus');
+assert(!run('bountyRuntime.startHunt()'),'accepting requires an explicit choice');
+assert(!run("bountyRuntime.startHunt('root_poacher')"),'unoffered targets cannot be selected');
+const combatBefore=json('[game.currentZoneId,game.runProgress,game.moveTimer,game.playerHp,game.enemies,game.encounterPlan]');
+assert(run('bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[1])'));
+assert.equal(run('game.bountyHunt.pending.targetId'),choices.offerIds[1]);
+assert.deepEqual(json('[game.currentZoneId,game.runProgress,game.moveTimer,game.playerHp,game.enemies,game.encounterPlan]'),combatBefore,
+    'selecting reserves a hunt without restarting or changing the current encounter');
+assert.equal(run('game.bountyHunt.pending.offerIds.length'),0,'only the selected target remains');
+assert(!run('game.encounterPlan.some(marker=>marker.bountyId)'),'the current encounter has no new target');
+assert(!run("bountyRuntime.injectEncounterMarker([],{type:'trial',loopScaleExempt:true})"),'ineligible encounters do not consume the reservation');
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));game.currentZoneId=5;startEncounterRun()');
+assert.equal(run('game.encounterPlan.filter(marker=>marker.bountyId).length'),1,'the next eligible encounter gets one target');
+assert.equal(run('game.encounterPlan.find(marker=>marker.bountyId).bountyId'),choices.offerIds[1]);
+assert(!run('bountyRuntime.injectEncounterMarker(game.encounterPlan,getZone(5))'),'an encounter cannot duplicate the target');
+
+reset();run("game.bountyHunt=bountyRuntime.restore({version:4,remaining:0,pending:{id:'golden_reliquary',targetId:'storm_smuggler',status:'offered'}})");
+assert(run("bountyRuntime.openTreasure().offerIds.includes('storm_smuggler')"),'old unselected targets remain among the three choices');
+assert.equal(run('game.bountyHunt.pending.offerIds.length'),3);
+assert.equal(run('game.bountyHunt.pending.id'),'golden_reliquary','an existing bonus is not rerolled by migration');
+
 reset();
 assert.equal(run('bountyRuntime.ensureState().remaining'),10);
 run('game.season=1');
@@ -100,7 +128,7 @@ reset();run('game.bountyHunt.remaining=0;bountyRuntime.openTreasure()');
 const unselected=json('game.bountyHunt');
 assert(!run('bountyRuntime.failHunt()'),'unselected hunts are not failed by ordinary deaths');
 assert.deepEqual(json('game.bountyHunt'),unselected);
-run('bountyRuntime.startHunt()');
+run('bountyRuntime.startHunt(game.bountyHunt.pending.offerIds[0])');
 assert(!run('bountyRuntime.canAdvanceLoop()'));
 const belongings=json('[game.inventory,game.currencies]');
 assert(run('bountyRuntime.failHunt()'));
@@ -164,8 +192,8 @@ for (const zoneId of [0,8]) {
 
 reset();run('game.season=25;game.contentProgression.inherited.push("growth");Math.random=()=>0.4');
 for(let kill=0;kill<10;kill++) run('bountyRuntime.advanceAfterBossKill(getZone(0),{isBoss:true})');
-assert.equal(run('bountyRuntime.openTreasure().targetId'),'root_poacher');
-run(`game.currentZoneId=8;bountyRuntime.startHunt();startEncounterRun();Math.random=()=>0.99;
+assert(run("bountyRuntime.openTreasure().offerIds.includes('root_poacher')"));
+run(`game.currentZoneId=8;bountyRuntime.startHunt('root_poacher');startEncounterRun();Math.random=()=>0.99;
     var growthTarget=createEnemy(getZone(8),game.encounterPlan.find(entry=>entry.bountyId),0);growthTarget.hp=0`);
 assert(run('bountyRuntime.completeTarget(growthTarget)'));
 assert.equal(run('game.growthInventory.length'),1);
