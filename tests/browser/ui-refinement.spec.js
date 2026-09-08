@@ -42,7 +42,9 @@ test('combat feedback, content discovery and passive dragging remain clear', asy
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
         return true;
     });
-    await expect(page.locator('#btn-map-tab-pvp')).toBeVisible();
+    if (testInfo.project.use.isMobile) {
+        await expect(page.locator('#mobile-map-destination option[value="btn-map-tab-pvp"]')).toHaveCount(1);
+    } else await expect(page.locator('#btn-map-tab-pvp')).toBeVisible();
     await page.evaluate(() => switchTab('tab-flask'));
     await expect(page.getByRole('button',{name:/생장판/})).toHaveCount(0);
     await page.evaluate(() => { game.uniqueCodex={}; game.codexSubtab='realm'; switchTab('tab-codex'); renderUniqueCodexUI(); });

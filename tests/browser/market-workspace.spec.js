@@ -27,9 +27,15 @@ for (const theme of ['dark','light']) test('market purchase workspace in ' + the
     });
     await expect(page.locator('#btn-item-tab-hall')).toBeVisible();
     expect(await page.evaluate(()=>contentProgression.balance())).toBe(1);
-    await page.locator('[data-market-to="goldenRule"]').click();
-    expect(await page.locator('[data-market-to="goldenRule"]').evaluate(el=>getComputedStyle(el).borderColor))
-        .not.toBe(await page.locator('[data-market-to="sapBud"]').evaluate(el=>getComputedStyle(el).borderColor));
+    if(testInfo.project.use.isMobile){
+        await page.getByRole('combobox',{name:'받을 재화',exact:true}).selectOption('goldenRule');
+        await expect(page.locator('.market-selected-currency')).toContainText('황금률');
+        await expect(page.locator('[data-market-owned="goldenRule"]')).toHaveText('10');
+    }else{
+        await page.locator('[data-market-to="goldenRule"]').click();
+        expect(await page.locator('[data-market-to="goldenRule"]').evaluate(el=>getComputedStyle(el).borderColor))
+            .not.toBe(await page.locator('[data-market-to="sapBud"]').evaluate(el=>getComputedStyle(el).borderColor));
+    }
     await expect(page.locator('#ui-market-exchange-from option')).toHaveCount(2);
     await page.locator('#ui-market-exchange-from').selectOption('m5');
     const quantity=page.locator('#ui-market-quantity');
@@ -56,6 +62,13 @@ for (const theme of ['dark','light']) test('market purchase workspace in ' + the
     await page.locator('[data-market-section="services"]').click();
     await expect(page.locator('#ui-market-service-jewel-inv')).toBeHidden();
     await expect(page.locator('#ui-market-service-growth-inv')).toBeHidden();
+    if(testInfo.project.use.isMobile){
+        const service=page.getByRole('combobox',{name:'이용할 서비스',exact:true});
+        await expect(service.locator('option')).toHaveCount(2);
+        await service.selectOption('passive');
+        await expect(page.locator('#ui-market-service-passive button')).toBeDisabled();
+        await service.selectOption('annul');
+    }
     await page.evaluate(()=>{
         game.inventory=[createItemFromBase(BASE_ITEM_DB.find(row=>row.id==='war_helm'),'rare',10)];
         game.inventory[0].stats=[{id:'flatHp',val:10},{id:'armor',val:5,lockedByHoney:true}];
@@ -74,7 +87,19 @@ for (const theme of ['dark','light']) test('market purchase workspace in ' + the
     await page.evaluate(()=>{
         game.contentProgression.inherited.push('jewel','growth');contentProgression.sync();renderMarketUI();
     });
+    if(testInfo.project.use.isMobile){
+        await page.getByRole('combobox',{name:'이용할 서비스',exact:true}).selectOption('jewel-inv');
+        await expect(page.locator('#ui-market-service-annul')).toBeHidden();
+    }
     await expect(page.locator('#ui-market-service-jewel-inv')).toContainText('영구 유지');
+    const expansion=await page.evaluate(()=>({limit:getJewelInventoryLimit(),gold:game.currencies.goldenRule,cost:getJewelMarketExpandCost()}));
+    await page.locator('#ui-market-service-jewel-inv button').click();
+    await page.locator('#game-dialog-cancel').click();
+    expect(await page.evaluate(()=>getJewelInventoryLimit())).toBe(expansion.limit);
+    await page.locator('#ui-market-service-jewel-inv button').click();
+    await page.locator('#game-dialog-confirm').click();
+    await expect.poll(()=>page.evaluate(()=>getJewelInventoryLimit())).toBe(expansion.limit+5);
+    expect(await page.evaluate(()=>game.currencies.goldenRule)).toBe(expansion.gold-expansion.cost);
     await screenshot(page,testInfo,'services');
     await page.locator('[data-market-section="black"]').click();
     await expect(page.locator('.market-black-offer')).toHaveCount(6);

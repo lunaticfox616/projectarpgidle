@@ -12,6 +12,7 @@ vm.createContext(context);
 vm.runInContext(`${source.slice(start, end)}\nthis.ledger = craftingResultLedger;`, context, { filename: 'crafting-result-ledger.js' });
 
 const item = {
+    id: 71001,
     name: '희귀한 검',
     baseName: '검',
     rarity: 'rare',
@@ -52,6 +53,7 @@ const uiContext = {
     safeExposeGlobals(map) { Object.assign(uiContext, map); }
 };
 vm.createContext(uiContext);
+vm.runInContext(fs.readFileSync('js/crafting-payment.js', 'utf8'), uiContext, { filename: 'crafting-payment.js' });
 vm.runInContext(uiSource, uiContext, { filename: 'crafting-result-ui.js' });
 
 const html = uiContext.craftingResultUi.getLedgerHtml(item);

@@ -1983,6 +1983,12 @@ function getPassiveTreeRootNode(state) {
 
 var passiveTreeAdjacencyCache = { signature: '', map: new Map() };
 
+// Covenant spokes display and count attributes, but never carry allocation paths.
+function isPassiveTreePathEdge(edge, allocatedNodeIds) {
+    return edge.requiresAllocatedNodeId !== PASSIVE_KEYSTONE_NODE_ID_BY_TITLE['헌신의 서약']
+        && isPassiveTreeEdgeAvailable(edge, allocatedNodeIds);
+}
+
 function isPassiveTreeEdgeAvailable(edge, allocatedNodeIds) {
     const requiredId = String(edge && edge.requiresAllocatedNodeId || '');
     if (!requiredId) return true;
@@ -2008,7 +2014,7 @@ function getPassiveTreeAdjacency(allocatedNodeIds) {
     if (signature && passiveTreeAdjacencyCache.signature === signature) return passiveTreeAdjacencyCache.map;
     const adjacency = new Map(Object.keys(PASSIVE_TREE.nodes || {}).map(id => [String(id), []]));
     edges.forEach(edge => {
-        if (!isPassiveTreeEdgeAvailable(edge, allocatedNodeIds)) return;
+        if (!isPassiveTreePathEdge(edge, allocatedNodeIds)) return;
         const from = String(edge.from), to = String(edge.to);
         if (!adjacency.has(from)) adjacency.set(from, []);
         if (!adjacency.has(to)) adjacency.set(to, []);
@@ -2361,7 +2367,9 @@ function sumPassiveRuleStat(buckets, stat) {
 
 function countCovenantAttributeConnections(keystone) {
     if (!keystone) return 0;
-    const neighborIds = getPassiveTreeAdjacency().get(String(keystone.id)) || [];
+    const neighborIds = [...new Set(PASSIVE_TREE.edges.filter(edge => isPassiveTreeEdgeAvailable(edge)
+        && (edge.from === keystone.id || edge.to === keystone.id))
+        .map(edge => edge.from === keystone.id ? edge.to : edge.from))];
     const owned = new Set(game.passives || []);
     return neighborIds.filter(id => {
         const node = PASSIVE_TREE.nodes[id];
@@ -4398,7 +4406,7 @@ function calculateReachableNodes() {
         if (node && node.kind === 'star_option' && isPassiveNodeAvailable(node)) reachableNodes.add(node.id);
     });
     PASSIVE_TREE.edges.forEach(edge => {
-        if (!isPassiveTreeEdgeAvailable(edge)) return;
+        if (!isPassiveTreePathEdge(edge)) return;
         if (!isPassiveNodeAvailable(edge.from) || !isPassiveNodeAvailable(edge.to)) return;
         if (connectionNodes.has(String(edge.from))) reachableNodes.add(edge.to);
         if (connectionNodes.has(String(edge.to))) reachableNodes.add(edge.from);
@@ -4838,8 +4846,11 @@ let activeTutorial = null;
 let activeTutorialStep = 0;
 let activeRewardZoneId = null;
 let divineBannerTimer = null;
+// Ephemeral references to chosen jewels, never inventory positions or saved state.
+// Consumers resolve current indices so equipment swaps and list changes cannot select other items.
 let jewelFusionSelection = [];
 let selectedJewelCraftTarget = null;
+// The overlay also tracks material references; its public handlers still accept current indices.
 let voidJewelOverlayState = { mode: null, selected: [] };
 let latestPlayerSwingImpactAt = 0;
 let pendingRingEquipItemId = null;
@@ -4905,7 +4916,7 @@ function syncBattleTabLayout(forceTabSwitch) {
     let battleColumn = document.getElementById('battle-column');
     let battleBtn = document.getElementById('btn-tab-battle');
     if (!tabBattle || !leftPane || !battleColumn || !battleBtn) return;
-    let isMobileBattle = document.documentElement.clientWidth <= MOBILE_BATTLE_BREAKPOINT;
+    let isMobileBattle = uiDisplay.matches(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`);
     document.body.classList.toggle('mobile-battle-tab', isMobileBattle);
     battleBtn.style.display = isMobileBattle ? 'flex' : 'none';
     if (isMobileBattle) {
@@ -5956,7 +5967,8 @@ function applyPanelLayoutSettings() {
     let combatFeed = document.querySelector('.combat-feed');
     let combatLogToggleBtn = document.getElementById('btn-combat-log-toggle');
     let isLeftCollapsed = !!(game && game.settings && game.settings.leftPaneCollapsed);
-    let isLogCollapsed = !!(game && game.settings && game.settings.combatLogCollapsed);
+    let isLogCollapsed = uiDisplay.matches('(max-width: 1080px)')
+        ? !game.settings.mobileCombatLogExpanded : !!game.settings.combatLogCollapsed;
     if (leftPane) leftPane.classList.toggle('collapsed', isLeftCollapsed);
     document.body.classList.toggle('left-pane-collapsed', isLeftCollapsed);
     leftToggleButtons.forEach(leftToggleBtn => {
@@ -5980,7 +5992,8 @@ function toggleLeftPaneCollapse() {
 }
 
 function toggleCombatLogCollapse() {
-    game.settings.combatLogCollapsed = !game.settings.combatLogCollapsed;
+    if (uiDisplay.matches('(max-width: 1080px)')) game.settings.mobileCombatLogExpanded = !game.settings.mobileCombatLogExpanded;
+    else game.settings.combatLogCollapsed = !game.settings.combatLogCollapsed;
     applyPanelLayoutSettings();
 }
 
@@ -10834,7 +10847,7 @@ function formatJewelOverlayStatLines(stats, extraLineText) {
 
 function getVoidJewelOverlaySelectedIndices(mode) {
     if (voidJewelOverlayState.mode !== mode) return [];
-    return (voidJewelOverlayState.selected || []).map(getValidJewelInventoryIndex).filter(idx => idx >= 0)
+    return voidJewelOverlayState.selected.map(jewel => game.jewelInventory.indexOf(jewel)).filter(idx => idx >= 0)
         .filter((idx, pos, arr) => arr.indexOf(idx) === pos).slice(0, 2);
 }
 
@@ -10907,7 +10920,7 @@ function renderVoidJewelOverlay(mode) {
 function openVoidJewelOverlay(mode, indices) {
     game.jewelInventory = game.jewelInventory || [];
     let selected = (indices || []).map(getValidJewelInventoryIndex).filter(idx => idx >= 0).slice(0, 2);
-    voidJewelOverlayState = { mode, selected };
+    voidJewelOverlayState = { mode, selected: selected.map(index => game.jewelInventory[index]) };
     let overlay = document.getElementById('void-jewel-overlay');
     if (!overlay) {
         document.body.insertAdjacentHTML('beforeend', '<div id="void-jewel-overlay" style="position:fixed;inset:0;background:rgba(7,6,14,.78);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;"></div>');
@@ -10920,8 +10933,7 @@ function openVoidJewelCraftOverlay() {
 }
 
 function openVoidJewelFusionOverlay() {
-    jewelFusionSelection = (jewelFusionSelection || []).filter(idx => getValidJewelInventoryIndex(idx) >= 0);
-    openVoidJewelOverlay('fusion', jewelFusionSelection);
+    openVoidJewelOverlay('fusion', getSelectedJewelFusionIndices());
 }
 
 function closeVoidJewelOverlay() {
@@ -10938,27 +10950,28 @@ function toggleVoidJewelOverlaySelection(mode, idx) {
     if (mode === 'fusion' && jewel.uniqueId === 'uj_void' && getVoidUniqueFusionCharges(jewel) <= 0) return addLog('고유 주얼 [공허]의 합성 가능 수가 없습니다.', 'attack-monster');
     let selected = getVoidJewelOverlaySelectedIndices(mode);
     selected = selected.includes(index) ? selected.filter(v => v !== index) : selected.concat(index).slice(-2);
-    voidJewelOverlayState = { mode, selected };
+    voidJewelOverlayState = { mode, selected: selected.map(position => game.jewelInventory[position]) };
     renderVoidJewelOverlay(mode);
 }
 
 function toggleJewelFusionSelection(idx) {
-    jewelFusionSelection = jewelFusionSelection || [];
-    if (jewelFusionSelection.includes(idx)) jewelFusionSelection = jewelFusionSelection.filter(v => v !== idx);
+    const index = getValidJewelInventoryIndex(idx);
+    if (index < 0) return;
+    const jewel = game.jewelInventory[index];
+    jewelFusionSelection = jewelFusionSelection.filter(material => game.jewelInventory.includes(material));
+    if (jewelFusionSelection.includes(jewel)) jewelFusionSelection = jewelFusionSelection.filter(v => v !== jewel);
     else {
-        let jewel = (game.jewelInventory || [])[idx];
         if (rejectProtectedJewelCraftMaterial([jewel], '주얼 합성')) return;
-        jewelFusionSelection.push(idx);
+        jewelFusionSelection.push(jewel);
         if (jewelFusionSelection.length > 2) jewelFusionSelection = jewelFusionSelection.slice(-2);
     }
     updateStaticUI();
 }
 
 function getSelectedJewelFusionIndices() {
-    game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
-    return (jewelFusionSelection || [])
-        .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length)
-        .filter((idx, pos, arr) => arr.indexOf(idx) === pos)
+    return jewelFusionSelection
+        .map(jewel => game.jewelInventory.indexOf(jewel))
+        .filter(index => index >= 0)
         .slice(0, 2);
 }
 
@@ -11024,15 +11037,17 @@ function craftJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 
 
 function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
     game.jewelInventory = game.jewelInventory || [];
-    jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
-    if (jewelFusionSelection.length !== 2) return addLog('융합할 주얼 2개를 선택하세요.', 'attack-monster');
-    let sorted = jewelFusionSelection.slice().sort((a, b) => a - b);
+    const selected = getSelectedJewelFusionIndices();
+    if (selected.length !== 2) return addLog('융합할 주얼 2개를 선택하세요.', 'attack-monster');
+    let sorted = selected.sort((a, b) => a - b);
     let a = game.jewelInventory[sorted[0]];
     let b = game.jewelInventory[sorted[1]];
     if (rejectProtectedJewelCraftMaterial([a, b], '주얼 합성')) return;
     if ([a, b].some(jewel => jewel.uniqueId === 'uj_void' && getVoidUniqueFusionCharges(jewel) <= 0)) return addLog('고유 주얼 [공허]의 합성 가능 수가 없어 합성할 수 없습니다.', 'attack-monster');
     if (a.isVoid || b.isVoid || a.uniqueId === 'uj_void' || b.uniqueId === 'uj_void') return openVoidJewelFusionOverlay();
-    let fusionCost = 6;
+    let amplifiedEl = document.getElementById('chk-jewel-amplified-fusion');
+    let useAmplified = !!(amplifiedEl && amplifiedEl.checked);
+    let fusionCost = useAmplified ? 14 : 6;
     if ((game.currencies.jewelShard || 0) < fusionCost) return addLog(`주얼 결정이 부족합니다. (필요: ${fusionCost})`, 'attack-monster');
     let aStats = getJewelCoreStats(a);
     let bStats = getJewelCoreStats(b);
@@ -11043,9 +11058,6 @@ function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠�
     }
     if (!canFuseUnique(a) || !canFuseUnique(b)) return addLog('고유 주얼은 기본적으로 융합할 수 없습니다.', 'attack-monster');
     if (aStats.length !== 1 || bStats.length !== 1) return addLog('일반 융합은 1줄 옵션 주얼 2개만 가능합니다. (공허 주얼 포함 시 공허 융합 규칙)', 'attack-monster');
-    let amplifiedEl = document.getElementById('chk-jewel-amplified-fusion');
-    let useAmplified = !!(amplifiedEl && amplifiedEl.checked);
-    if (useAmplified && (game.currencies.jewelShard || 0) < 8) return addLog('증폭합성에 필요한 주얼 결정이 부족합니다. (필요: 8)', 'attack-monster');
     game.currencies.jewelShard -= fusionCost;
     if (a && a.uniqueId === 'uj_void' && (a.voidFusionCharges || 0) > 0) a.voidFusionCharges--;
     if (b && b.uniqueId === 'uj_void' && (b.voidFusionCharges || 0) > 0) b.voidFusionCharges--;
@@ -11059,7 +11071,6 @@ function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠�
         stats: [cloneJewelStat(aStats[0]), cloneJewelStat(bStats[0])].filter(Boolean)
     };
     if (useAmplified) {
-        game.currencies.jewelShard -= 8;
         let penaltyPool = [{ id: 'dr', val: -2 }, { id: 'resAll', val: -3 }, { id: 'move', val: -4 }];
         let bonusPool = [{ id: 'targetAny', val: 1 }, { id: 'targetProjectile', val: 1 }, { id: 'targetSlam', val: 1 }, { id: 'crit', val: 4 }, { id: 'resPen', val: 3 }];
         let penalty = rndChoice(penaltyPool);
@@ -11078,9 +11089,7 @@ function confirmJewelFusion() { if (game.woodsmanBuildLock) return addLog('☠�
 
 function getVoidJewelCraftMaterialIndices() {
     game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
-    let validSelected = (jewelFusionSelection || [])
-        .filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length)
-        .filter((idx, pos, arr) => arr.indexOf(idx) === pos);
+    let validSelected = getSelectedJewelFusionIndices();
     if (validSelected.length === 2 && !getProtectedJewelCraftMaterial(validSelected.map(idx => game.jewelInventory[idx]))) return validSelected;
     return game.jewelInventory
         .map((jewel, idx) => ({ jewel, idx }))
@@ -11190,8 +11199,7 @@ function confirmVoidJewelFusion() {
 }
 
 function fuseSelectedVoidJewels() {
-    jewelFusionSelection = (jewelFusionSelection || []).filter(idx => getValidJewelInventoryIndex(idx) >= 0);
-    if (jewelFusionSelection.length !== 2) return addLog('공허 융합할 주얼 2개를 선택하세요.', 'attack-monster');
+    if (getSelectedJewelFusionIndices().length !== 2) return addLog('공허 융합할 주얼 2개를 선택하세요.', 'attack-monster');
     return openVoidJewelFusionOverlay();
 }
 
@@ -11857,10 +11865,16 @@ function hasSporeCraftCost(mode) {
     return true;
 }
 
-async function useCurrency(currencyKey) {
+/**
+ * @param {string} currencyKey Crafting action, independent of its payment source.
+ * @param {'growthEssence'} [paymentSource] Omit to pay one ordinary currency.
+ * @returns {Promise<true|undefined>} True only after the item and payment are committed.
+ */
+async function useCurrency(currencyKey, paymentSource) {
     let item = getSelectedCraftItem();
     if (!item) return addLog("먼저 아이템을 선택하세요.", "attack-monster");
-    if ((game.currencies[currencyKey] || 0) <= 0) return addLog("오브가 부족합니다.", "attack-monster");
+    const payment = getCraftPayment(currencyKey, item, paymentSource);
+    if (!payment?.affordable) return addLog("제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.", "attack-monster");
     // 석판은 정체성이 곧 효과라 제작 재화를 받지 않는다.
     if (item.growthCategory === 'slab') return addLog("석판은 제작할 수 없습니다.", "attack-monster");
     let actionKey = currencyKey;
@@ -11911,7 +11925,7 @@ async function useCurrency(currencyKey) {
     })) return;
     // 확인창이 열린 동안 제작 대상을 바꾸거나 장비를 이동한 경우, 이전 객체에 오브가
     // 적용되는 것을 막는다. 확인 전의 잔여 수량·제작 가능 상태도 다시 검증한다.
-    if (getSelectedCraftItem() !== item || (game.currencies[currencyKey] || 0) <= 0) {
+    if (getSelectedCraftItem() !== item || !getCraftPayment(currencyKey, item, paymentSource)?.affordable) {
         return addLog('확인 중 제작 대상 또는 재화가 변경되어 사용을 취소했습니다.', 'attack-monster');
     }
     if (item.corrupted && currencyKey !== 'tainted') return addLog('확인 중 장비 상태가 변경되어 사용을 취소했습니다.', 'attack-monster');
@@ -11923,14 +11937,11 @@ async function useCurrency(currencyKey) {
     let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
     function consumeSpore(mode) {
         if (mode === 'none') return true;
-        let baseCost = getSporeCraftCost();
-        if (mode === 'fire') { if ((game.currencies.sporeFire || 0) < baseCost) return false; game.currencies.sporeFire -= baseCost; return true; }
-        if (mode === 'cold') { if ((game.currencies.sporeCold || 0) < baseCost) return false; game.currencies.sporeCold -= baseCost; return true; }
-        if (mode === 'light') { if ((game.currencies.sporeLight || 0) < baseCost) return false; game.currencies.sporeLight -= baseCost; return true; }
-        if (mode === 'chaos' || mode === 'damage') {
-            if ((game.currencies.sporeFire || 0) < baseCost || (game.currencies.sporeCold || 0) < baseCost || (game.currencies.sporeLight || 0) < baseCost) return false;
-            game.currencies.sporeFire -= baseCost; game.currencies.sporeCold -= baseCost; game.currencies.sporeLight -= baseCost; return true;
-        }
+        if (!hasSporeCraftCost(mode)) return false;
+        const all = ['sporeFire', 'sporeCold', 'sporeLight'];
+        const keys = {fire: ['sporeFire'], cold: ['sporeCold'], light: ['sporeLight'], chaos: all, damage: all}[mode] || [];
+        const cost = getSporeCraftCost();
+        keys.forEach(key => { game.currencies[key] -= cost; });
         return true;
     }
     function getSporeGuaranteedMod(allowReplacement) {
@@ -12004,8 +12015,8 @@ async function useCurrency(currencyKey) {
         if (!consumeSpore(sporeMode)) return addLog('홀씨가 부족합니다.', 'attack-monster'); if (typeof grantExpertExpByAction === 'function') grantExpertExpByAction('mycologist', 'spore_craft');
         consumedSpore = true;
     }
-    let craftResultToken = craftingResultLedger.begin(item, { currencyKey, actionKey });
-    game.currencies[currencyKey]--;
+    let craftResultToken = craftingResultLedger.begin(item, { currencyKey, actionKey, paymentSource });
+    game.currencies[payment.key] -= payment.cost;
     let expiredGrowthDropAffix = growthCraft ? removeGrowthDropOverflowAffix(item) : null;
     if (expiredGrowthDropAffix) {
         addLog(`🍂 제작으로 변이 옵션이 소멸했습니다: ${expiredGrowthDropAffix.statName || getStatName(expiredGrowthDropAffix.id)}`, 'attack-monster');
@@ -12142,8 +12153,9 @@ async function useCurrency(currencyKey) {
     // 제작으로 태그/크기/옵션이 바뀔 수 있으므로 공간 시너지 캐시를 무효화한다.
     if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     craftingResultLedger.commit(craftResultToken, item);
-    addLog(`⚒️ ${ORB_DB[currencyKey].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
+    addLog(`⚒️ ${ORB_DB[payment.key].name} 사용${guaranteedTagNote}`, currencyKey === 'exalted' || currencyKey === 'divine' ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
+    return true;
 }
 
 /** 드랍에서만 붙는 상한 초과 옵션은 첫 제작이 확정된 뒤 한 번만 제거한다. */

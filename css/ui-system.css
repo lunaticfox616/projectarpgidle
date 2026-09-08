@@ -34,6 +34,18 @@ body:not(.light-mode) {
   color: var(--ui-text);
   background-color: var(--ui-canvas);
 }
+/* Shared native choices retain keyboard/touch behavior and the game's gold accent. */
+body :is(input[type="checkbox"], input[type="radio"], input[type="range"], select) { accent-color: var(--ui-gold); }
+body select {
+  color-scheme: dark;
+  color: var(--ui-text) !important;
+  background-color: var(--ui-surface-1) !important;
+  border: 1px solid var(--ui-line-strong) !important;
+  border-radius: var(--ui-radius-sm);
+}
+body.light-mode select { color-scheme: light; }
+body select option { color: var(--ui-text); background-color: var(--ui-surface-1); }
+body select:focus-visible { outline: 2px solid var(--ui-gold); outline-offset: 2px; }
 body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
   outline: 0;
   box-shadow: var(--ui-focus) !important;
@@ -137,6 +149,74 @@ body:not(.light-mode) details > summary::marker {
 }
 
 /* Character sheet: key values first, related stats stay together. */
+.mobile-section-navigation { display: none; }
+.talisman-unseal-choice:not([hidden]) { display: grid; gap: 6px; margin: 10px 0; font-size: 13px; }
+.talisman-unseal-choice select { min-height: 44px; width: 100%; font-size: 16px; }
+.talisman-unseal-source, .talisman-unseal-candidate { padding: 12px; margin-bottom: 10px; background: var(--ui-surface-2); border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); }
+.talisman-unseal-source h3 { margin: 0 0 8px; font-size: 14px; }
+.talisman-unseal-source p, .talisman-unseal-candidate p, .talisman-unseal-candidate .tooltip-line { font-size: 13px; line-height: 1.6; }
+.talisman-unseal-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.talisman-unseal-actions button { min-height: 44px; flex: 1 1 130px; }
+.talisman-candidate-shape { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.talisman-shard-exchange { margin: 10px 0; }
+.talisman-shard-exchange summary { padding: 10px; cursor: pointer; }
+.talisman-workspaces { display: flex; flex-direction: column; }
+#talisman-workshop { order: 1; }
+#talisman-layout { order: 2; }
+#talisman-library { order: 3; }
+#talisman-mobile-selected:not([hidden]) { display: grid; gap: 8px; margin-bottom: 12px; font-size: 13px; line-height: 1.6; }
+#talisman-mobile-selected button { min-height: 44px; }
+#talisman-mobile-inspector { padding: 12px; margin: 10px 0; border: 1px solid var(--ui-gold); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); }
+.talisman-mobile-heading { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.talisman-mobile-heading > span:last-child { margin-left: auto; color: var(--ui-text-muted); }
+#talisman-mobile-inspector p { font-size: 13px; line-height: 1.5; }
+.talisman-mobile-actions { display: flex; gap: 8px; }
+.talisman-mobile-actions button { min-height: 44px; flex: 1; }
+#ui-talisman-board .talisman-mobile-footprint { outline: 2px solid #8fe7b0; outline-offset: -3px; }
+#ui-talisman-board .talisman-mobile-invalid { outline-color: #ff9a9a; }
+#ui-talisman-board .talisman-mobile-anchor { box-shadow: 0 0 0 2px var(--ui-gold) !important; }
+#ui-jewel-panel { display: flex; flex-direction: column; }
+#ui-jewel-panel > .jewel-cap-toolbar { order: 0; }
+#ui-jewel-craft-disclosure { order: 1; }
+#ui-jewel-salvage-disclosure { order: 2; }
+#ui-jewel-library { order: 3; min-width: 0; }
+.inventory-library-pages:not([hidden]) { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 8px; margin: 10px 0; }
+.inventory-library-pages button { min-height: 44px; }
+.inventory-library-pages span { text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+.jewel-craft-mode:not([hidden]) { display: grid; gap: 6px; margin-bottom: 10px; color: var(--ui-text-muted); }
+.jewel-craft-mode select { min-height: 44px; width: 100%; font-size: 16px; }
+.jewel-craft-section { padding: 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); margin-bottom: 10px; background: var(--ui-surface-2); }
+.jewel-craft-section h3 { margin: 0 0 8px; font-size: 14px; color: var(--ui-gold); }
+.jewel-craft-section p, .jewel-craft-section .item-stats { font-size: 13px; line-height: 1.6; }
+.jewel-craft-currencies { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+.jewel-craft-currency { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; padding-top: 8px; border-top: 1px solid var(--ui-line); }
+.jewel-craft-currency button, .jewel-craft-actions button { min-height: 44px; }
+.jewel-craft-currency span { font-size: 13px; line-height: 1.5; }
+.jewel-craft-currency small, .jewel-craft-actions small { display: block; font-size: 12px; color: var(--ui-text-muted); line-height: 1.6; }
+.jewel-craft-balance { font-size: 13px; color: var(--ui-gold); }
+.jewel-craft-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.jewel-amplified-choice { display: block; font-size: 13px; line-height: 1.6; }
+.jewel-amplified-choice input { width: 20px; height: 20px; vertical-align: middle; margin-right: 8px; }
+@media (max-width: 1080px) {
+  .talisman-workspaces > * { order: 0 !important; min-width: 0; }
+  #ui-talisman-inventory { grid-template-columns: minmax(0, 1fr) !important; }
+  .talisman-card-copy > div { display: block !important; }
+  .talisman-card-copy .item-actions { display: grid; }
+  .talisman-card-copy .item-actions button { min-height: 44px; width: 100%; }
+  .jewel-craft-currencies { grid-template-columns: minmax(0, 1fr); }
+  .jewel-craft-section > button { min-height: 44px; }
+  #ui-jewel-panel > * { order: 0; }
+  #ui-jewel-slots, #ui-jewel-inventory { grid-template-columns: minmax(0, 1fr) !important; }
+  #ui-jewel-panel .item-actions button { min-height: 44px; }
+  #ui-jewel-panel .jewel-card-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #ui-jewel-panel .jewel-card-actions button { width: 100%; font-size: 12px; padding: 8px 4px; }
+  .mobile-section-navigation:not([hidden]) { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 12px; }
+  .mobile-section-navigation button { min-height: 44px; padding: 6px; font-size: 13px; }
+  .mobile-section-navigation button[hidden] { display: none; }
+  .mobile-section-navigation [aria-selected="true"] { border-color: var(--ui-gold); color: var(--ui-gold); background: var(--ui-surface-2); }
+  .mobile-section-panel[data-mobile-selected="false"],
+  .mobile-section-panel > summary { display: none !important; }
+}
 #tab-character .character-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
 #tab-character .character-overview .stat-item { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; }
 #tab-character .character-overview .stat-value { margin: 0; font-size: 20px; }
@@ -560,28 +640,6 @@ body.light-mode #item-tab-equip .equipment-slot {
 }
 
 @media (max-width: 480px) {
-  #tab-map .map-primary-tabs {
-    display: grid !important;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    height: auto !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-
-  #tab-map .map-primary-tabs .subtab-btn {
-    width: 100%;
-    min-width: 0 !important;
-    padding-inline: 3px !important;
-    font-size: 9px;
-    white-space: normal;
-  }
-
-  #tab-map .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked {
-    height: auto !important;
-    min-height: 52px !important;
-    padding-block: 5px !important;
-  }
-
   #tab-map .map-explore-layout { display: block; }
   #tab-map .vertical-tab-sidebar {
     box-sizing: border-box;

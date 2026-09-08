@@ -33,9 +33,17 @@ const contentProgression = (() => {
         return rows.map(([label, met]) => ({ label, met: !!met }));
     }
 
+    function meetsUsageGate(def, owner) {
+        if (def.id === 'flask') return owner.season >= def.minLoop;
+        if (def.id !== 'battleTrials') return true;
+        const state = owner.contentProgression;
+        return owner.season >= def.minLoop && !!state
+            && (state.unlocked.includes('trials') || state.inherited.includes('trials'));
+    }
+
     function isUnlocked(id, owner = game) {
         const def = definitions.get(id);
-        if (!def) return false;
+        if (!def || !meetsUsageGate(def, owner)) return false;
         const state = owner.contentProgression;
         if (!state) return true;
         if (state.unlocked.includes(id) || state.inherited.includes(id)) return true;
@@ -46,7 +54,7 @@ const contentProgression = (() => {
 
     function automaticAccess(def, owner) {
         if (owner.season < def.minLoop) return false;
-        // Automatic bundles refer to paid growth predecessors; combat entries have none.
+        // Free bundles and ascension trials can require a matching growth purchase.
         const owned = [...owner.contentProgression.unlocked, ...owner.contentProgression.inherited];
         if (def.after && !owned.includes(def.after)) return false;
         return !def.progress || progressChecks[def.progress](owner).every(row => row[1]);
@@ -64,9 +72,13 @@ const contentProgression = (() => {
         return !!def && isUnlocked(def.kind === 'heal' ? 'flask' : 'flaskUtility', owner);
     }
 
+    function canOpenMap(owner) {
+        return owner.season >= 2 || owner.maxZoneId >= 1 || owner.unlocks.map || owner.contentProgression.legacy === true;
+    }
+
     function canOpen(route, owner = game) {
         if (!owner.contentProgression || !route || coreRoutes.has(route)) return true;
-        if (route === 'tab-map') return owner.season >= 2 || !!owner.contentProgression.legacy;
+        if (route === 'tab-map') return canOpenMap(owner);
         if (route === 'tab-season' || route === 'tab-unlocks') return owner.season >= 2;
         const feature = routes.get(route);
         return !!feature && isUnlocked(feature, owner);
@@ -77,7 +89,7 @@ const contentProgression = (() => {
         const state = owner.contentProgression;
         if (!state) return { balance: 0, remaining: 0, nextAward: 0, complete: true };
         const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
-            sum + (def.cost > 0 && !isUnlocked(def.id, owner) ? def.cost : 0), 0);
+            sum + (def.cost > 0 && !state.unlocked.includes(def.id) && !state.inherited.includes(def.id) ? def.cost : 0), 0);
         const spent = state.unlocked.reduce((sum, id) => sum + state.paidCosts[id], 0);
         const earned = (Math.max(state.highestLoop, owner.season) - 1) * CONTENT_UNLOCK_POINTS_PER_LOOP;
         const current = Math.min(remaining, Math.max(0, earned - spent));
@@ -232,6 +244,7 @@ const contentProgression = (() => {
         next.grandfathered = next.grandfathered.filter(id => next.unlocked.includes(id));
         migrateConditionEntryReward(record, next, owner);
         inheritSplitGrowth(record, next);
+        if (next.highestLoop < 2) next.inherited = next.inherited.filter(id => !['flask', 'flaskUtility'].includes(id));
         return next;
     }
 

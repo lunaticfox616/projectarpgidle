@@ -2490,6 +2490,7 @@ function prepareCombatTick(nowMs) {
     if (typeof trackRecordBests === 'function') trackRecordBests();
     const pStats = getPlayerStats(false);
     if (typeof enforceTalentCombatState === 'function') enforceTalentCombatState(pStats);
+    game.playerHp = Math.min(game.playerHp, getPlayerRecoveryHpCap(pStats));
     refreshRealmDeathWard(pStats);
     game.lastCombatStats = pStats;
     game.lastCombatStatsAt = getCombatTime();

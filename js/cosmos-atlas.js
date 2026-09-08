@@ -798,7 +798,7 @@
     }
     function getCosmosMasteryFreePoints() {
         const state = getState();
-        const spent = COSMOS_MASTERY_NODES.reduce((sum, node) => sum + getCosmosMasteryValue(node.key) * node.cost, 0);
+        const spent = COSMOS_MASTERY_NODES.reduce((sum, node) => sum + state.mastery[node.key] * node.cost, 0);
         state.masteryPointsSpent = spent;
         return Math.max(0, getCosmosMasteryTotalPoints() - spent);
     }
@@ -837,8 +837,8 @@
             || window.isCosmosContentUnlockReady(window.game);
     }
 
-    function getNodeStatus(node) {
-        const state = getState();
+    // Batch renderers reuse their normalized state; one-off callers normalize here.
+    function getNodeStatus(node, state = getState()) {
         if (!isCosmosUnlocked()) return 'locked';
         if (state.cleared.includes(node.id)) return 'cleared';
         if (node.id === 'planet-0') return 'available';
@@ -890,8 +890,7 @@
         return !!(state && state.bossStones && state.bossStones[String(g)]);
     }
 
-    function getCosmosTierFloor() {
-        const state = getState();
+    function getCosmosTierFloor(state = getState()) {
         const count = Math.max(0, Math.min(5, getEquippedCosmosStoneCount(state)));
         return COSMOS_STONE_TIER_FLOORS[count] || 1;
     }
@@ -994,7 +993,12 @@
 
     function isCosmosTabActive() {
         const tab = document.getElementById('map-tab-cosmos');
-        return !!(tab && tab.classList.contains('active')) && !document.hidden;
+        const mapTab = document.getElementById('tab-map');
+        const atlas = document.getElementById('cosmos-inner-atlas');
+        const disclosure = document.getElementById('cosmos-map-disclosure');
+        return !document.hidden && !!(tab && tab.classList.contains('active'))
+            && !!(mapTab && mapTab.classList.contains('active'))
+            && !!(atlas && atlas.style.display !== 'none') && !!(disclosure && disclosure.open);
     }
 
     function shouldAnimateCosmos() {
@@ -1237,10 +1241,10 @@
         renderCosmosAtlas();
     }
 
-    function getDisplayedNodeTier(node) {
+    function getDisplayedNodeTier(node, state) {
         const bossTier = getCosmosBossTier(node);
         if (bossTier != null) return bossTier;
-        return Math.max(Math.floor(node.tier || 1), getCosmosTierFloor());
+        return Math.max(Math.floor(node.tier || 1), getCosmosTierFloor(state));
     }
 
     function getCosmosDirectiveChoicesForNode(node, stateOverride) {
@@ -1433,7 +1437,7 @@
             const clearCount = getGalaxyClearCount(state, galaxy);
             const bossReady = clearCount >= GALAXY_BOSS_REQUIRED_CLEARS;
             const candidates = ATLAS.nodes.filter(node => node.orbit === galaxy
-                && getNodeStatus(node) === 'available' && (bossReady || node.tag !== 'boss'))
+                && getNodeStatus(node, state) === 'available' && (bossReady || node.tag !== 'boss'))
                 .sort((a, b) => a.routeOrder - b.routeOrder);
             const target = bossReady ? ATLAS.byId.get(bossId) : candidates[0];
             return {
@@ -1937,7 +1941,17 @@
             const id = button.dataset.cosmosDestination;
             selectCosmosNode(id);
             list.querySelector(`[data-cosmos-destination="${id}"]`)?.focus({preventScroll:true});
-            if (window.matchMedia('(max-width: 720px)').matches) ATLAS.detail.scrollIntoView({block:'start'});
+            if (window.matchMedia('(max-width: 1080px)').matches) {
+                ATLAS.detail.querySelector('.cosmos-directory-return').focus({preventScroll:true});
+                ATLAS.detail.scrollIntoView({block:'start'});
+            }
+        });
+        ATLAS.detail.addEventListener('click', event => {
+            if (!event.target.closest('.cosmos-directory-return')) return;
+            const selected = list.querySelector('[aria-pressed="true"]');
+            const filter = document.getElementById('cosmos-directory-status');
+            (selected || filter).focus({preventScroll:true});
+            document.querySelector('.cosmos-directory-filters').scrollIntoView({block:'start'});
         });
         document.getElementById('cosmos-map-disclosure').addEventListener('toggle', event => {
             if (event.target.open) { resizeCanvasToHost(); focusCosmosAtlasOnSelected(); }
@@ -1947,19 +1961,24 @@
     function renderCosmosDirectory() {
         const list = document.getElementById('cosmos-destination-list');
         if (!list) return;
+        const state = getState();
         const galaxy = document.getElementById('cosmos-directory-galaxy').value;
         const filter = document.getElementById('cosmos-directory-status').value;
         const rows = ATLAS.nodes.filter(node => {
             if (galaxy !== 'all' && node.orbit !== Number(galaxy)) return false;
             if (filter === 'boss') return node.tag === 'boss';
-            return filter === 'all' || getNodeStatus(node) === filter;
+            return filter === 'all' || getNodeStatus(node, state) === filter;
         });
         const html = rows.map(node => {
-            const status = getNodeStatus(node);
+            const status = getNodeStatus(node, state);
             const selected = node.id === ATLAS.selectedId;
-            return `<button type="button" class="cosmos-destination ${status}" data-cosmos-destination="${node.id}" aria-pressed="${selected}"><span><strong>${escapeHtml(node.name)}</strong><small>${node.orbit === 0 ? '관문' : node.orbit+'은하'} · 단계 ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · 보스' : ''}</small></span><span>${selected ? '선택됨' : getStatusLabel(status)}</span></button>`;
+            return `<button type="button" class="cosmos-destination ${status}" data-cosmos-destination="${node.id}" aria-pressed="${selected}"><span><strong>${escapeHtml(node.name)}</strong><small>${node.orbit === 0 ? '관문' : node.orbit+'은하'} · 단계 ${getDisplayedNodeTier(node, state)}${node.tag === 'boss' ? ' · 보스' : ''}</small></span><span>${selected ? '선택됨' : getStatusLabel(status)}</span></button>`;
         }).join('') || '<p class="cosmos-directory-empty">조건에 맞는 목적지가 없습니다. 다른 은하나 전체 목록을 확인하세요.</p>';
-        if (list.innerHTML !== html) list.innerHTML = html;
+        if (list.innerHTML !== html) {
+            const scrollTop = list.scrollTop;
+            list.innerHTML = html;
+            list.scrollTop = scrollTop;
+        }
     }
 
     function screenToWorld(event) {
@@ -2095,8 +2114,9 @@
         ctx.clearRect(0, 0, w, h);
         drawBackground(ctx, w, h);
         drawCosmosStonePulse(ctx);
-        drawEdges(ctx);
-        drawNodes(ctx);
+        const state = getState();
+        drawEdges(ctx, state);
+        drawNodes(ctx, state);
         drawCosmosStoneSlot(ctx);
         drawCosmosControls(ctx);
         if (shouldAnimateCosmos()) requestAtlasFrame();
@@ -2158,7 +2178,7 @@
         requestAtlasFrame();
     }
 
-    function drawEdges(ctx) {
+    function drawEdges(ctx, state) {
         ctx.save();
         ATLAS.edges.forEach(edge => {
             const a = ATLAS.byId.get(edge.a);
@@ -2166,8 +2186,8 @@
             if (!a || !b) return;
             const pa = worldToScreen(a);
             const pb = worldToScreen(b);
-            const sa = getNodeStatus(a);
-            const sb = getNodeStatus(b);
+            const sa = getNodeStatus(a, state);
+            const sb = getNodeStatus(b, state);
             if (sa === 'locked' && sb === 'locked') return;
             const open = sa !== 'locked' && sb !== 'locked';
             const partial = sa !== 'locked' || sb !== 'locked';
@@ -2224,10 +2244,10 @@
         }
     }
 
-    function drawNodes(ctx) {
+    function drawNodes(ctx, state) {
         ctx.save();
         ATLAS.nodes.slice().sort((a, b) => (a.kind === b.kind ? a.orbit - b.orbit : a.kind === 'asteroid' ? -1 : 1)).forEach(node => {
-            const status = getNodeStatus(node);
+            const status = getNodeStatus(node, state);
             const p = worldToScreen(node);
             const hover = ATLAS.hoverId === node.id;
             const selected = ATLAS.selectedId === node.id;
@@ -2363,7 +2383,7 @@
         if (!ATLAS.summary) return;
         const state = getState();
         const cleared = state.cleared.length;
-        const available = ATLAS.nodes.filter(node => getNodeStatus(node) === 'available').length;
+        const available = ATLAS.nodes.filter(node => getNodeStatus(node, state) === 'available').length;
         const planetsCleared = ATLAS.nodes.filter(n => n.kind === 'planet' && state.cleared.includes(n.id)).length;
         const asteroidsCleared = ATLAS.nodes.filter(n => n.kind === 'asteroid' && state.cleared.includes(n.id)).length;
         const unlocked = isCosmosUnlocked();
@@ -2511,6 +2531,7 @@
                 ? `행성 보상: ${node.theme} 계열 보정 · 별가루 +${5 + node.orbit * 2}`
                 : `소행성 보상: 별가루 +${2 + node.orbit} · 제작 재료 소량`);
         ATLAS.detail.innerHTML = `
+            <button type="button" class="cosmos-directory-return">목적지 목록으로</button>
             <div class="cosmos-detail-hero">
                 <div><div class="cosmos-detail-eyebrow">G${node.orbit} · TIER ${getDisplayedNodeTier(node)}${node.tag === 'boss' ? ' · GALAXY BOSS' : ''}</div><div class="cosmos-detail-title">${node.kind === 'planet' ? '🪐' : '☄️'} ${escapeHtml(node.name)}</div></div>
                 <div class="cosmos-status ${status}">${getStatusLabel(status)}</div>
@@ -2748,6 +2769,7 @@
         const el = document.getElementById('cosmos-inner-mastery');
         if (!el) return;
         const freePoints = getCosmosMasteryFreePoints();
+        if (el.style.display === 'none') return;
         const totalPoints = getCosmosMasteryTotalPoints();
         const cards = COSMOS_MASTERY_NODES.map(node => {
             const value = getCosmosMasteryValue(node.key);
@@ -2764,10 +2786,14 @@
                 <div class="cosmos-mastery-card-head"><div><span>${lockReason ? 'LOCKED' : (value >= node.max ? 'MASTERED' : 'STAR PATH')}</span><strong>${node.name}</strong></div><b>${value}/${node.max}</b></div>
                 <div class="cosmos-mastery-progress"><i style="width:${Math.floor(value / node.max * 100)}%"></i></div>
                 <p>${node.desc}</p>
-                <div class="cosmos-mastery-card-foot"><small>${lockReason || linkLine}</small><button type="button" onclick="allocateCosmosMastery('${node.key}')" ${canSpend ? '' : 'disabled'}>+1</button></div>
+                <div class="cosmos-mastery-card-foot"><small>${lockReason || linkLine}</small><button type="button" onclick="allocateCosmosMastery('${node.key}')" ${canSpend ? '' : 'disabled'}>투자 · ${node.cost}P</button></div>
             </article>`;
         }).join('');
-        el.innerHTML = `<div class="cosmos-mastery-header"><div><div class="cosmos-kicker">Stellar Mastery</div><div class="cosmos-detail-title">성도술 항로</div><p>탐사 완료로 얻은 포인트를 연결된 항로에 투자하세요.</p></div><div class="cosmos-mastery-points"><span>사용 가능<strong>${freePoints}</strong></span><span>누적 획득<strong>${totalPoints}</strong></span></div></div><div class="cosmos-mastery-grid">${cards}</div>`;
+        const html = `<div class="cosmos-mastery-header"><div><div class="cosmos-kicker">Stellar Mastery</div><div class="cosmos-detail-title">성도술 항로</div><p>탐사 완료로 얻은 포인트를 연결된 항로에 투자하세요.</p></div><div class="cosmos-mastery-points"><span>사용 가능<strong>${freePoints}</strong></span><span>누적 획득<strong>${totalPoints}</strong></span></div></div><div class="cosmos-mastery-grid">${cards}</div>`;
+        if (el.__masteryHtml !== html || !el.firstElementChild) {
+            el.innerHTML = html;
+            el.__masteryHtml = html;
+        }
     }
     function switchCosmosInnerTab(tab) {
       const a=document.getElementById('cosmos-inner-atlas'), m=document.getElementById('cosmos-inner-mastery');
@@ -2775,6 +2801,7 @@
       if (a) a.style.display = tab==='atlas' ? '' : 'none'; if (m) m.style.display = tab==='mastery' ? '' : 'none';
       if (ba) ba.classList.toggle('active', tab==='atlas'); if (bm) bm.classList.toggle('active', tab==='mastery');
       if (tab==='mastery') renderMasteryPanel();
+      else requestAtlasFrame();
     }
 
     window.renderCosmosAtlas = renderCosmosAtlas;

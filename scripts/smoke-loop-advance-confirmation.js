@@ -17,6 +17,19 @@ function createContext(confirmResult) {
 }
 
 (async () => {
+    for (const loop of [1, 2, 9, 10, 11, 31]) {
+        const reached = createContext(true);
+        reached.run(`game.season=${loop};game.pendingLoopReady=false;game.pendingLoopDecision=false;contentProgression.sync()`);
+        const cap = reached.run('getSeasonAbyssDepthCap(game.season)');
+        reached.run(`game.abyssClearedDepths=[${cap - 1}];game.loopProgressCurrent.bestAbyssDepth=${cap - 1}`);
+        assert(!reached.run('canShowCombatLoopAdvanceButton()'), 'the preceding floor cannot unlock a loop');
+        reached.run(`game.abyssClearedDepths=[${cap}];game.loopProgressCurrent.bestAbyssDepth=${cap}`);
+        reached.run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+        assert(reached.run('canShowCombatLoopAdvanceButton()'), 'restored completion must expose the button without pending flags');
+        await reached.context.handleCombatLoopAdvanceButton();
+        assert.equal(reached.run('game.season'), loop + 1);
+        assert(!reached.run('canShowCombatLoopAdvanceButton()'), 'the new loop cannot reuse the previous clear');
+    }
     const cancelled = createContext(false);
     await cancelled.context.handleCombatLoopAdvanceButton();
     assert.equal(cancelled.calls.confirmations,1);

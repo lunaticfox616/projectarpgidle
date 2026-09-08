@@ -55,18 +55,8 @@ assert.strictEqual(rewards.goldenRule, undefined, 'inventory overflow salvage mu
 assert(salvageContext.getItemSalvagePreviewText({ rarity: 'rare', stats: [], hiddenTier: 10 }, true).includes('형체 없는 이슬'), 'salvage preview must use the consolidated currency name');
 assert.strictEqual(salvageContext.formatSalvageRewardSummary({ alteration: 1, transmute: 2 }), '마법의 새싹 +3', 'legacy reward keys must be consolidated before display');
 
-const useCurrencyBlock = extract(passiveSource, 'async function useCurrency(currencyKey) {', 'function isMarketUnlocked');
-const rerollPrecheck = useCurrencyBlock.indexOf("if (sporeMode !== 'none' && usesSporeAffix && isRerollSporeCurrency)");
-const currencySpend = useCurrencyBlock.indexOf('game.currencies[currencyKey]--');
-assert(rerollPrecheck >= 0 && currencySpend > rerollPrecheck, 'spore affordability must be resolved before the orb is spent');
-assert(
-    !useCurrencyBlock.slice(currencySpend).includes('consumeSpore(sporeMode)'),
-    'spores must never be consumed after the orb is spent or the item is mutated'
-);
-assert(
-    useCurrencyBlock.includes('if (getSelectedCraftItem() !== item || (game.currencies[currencyKey] || 0) <= 0)'),
-    'rare currency confirmation must revalidate the selected crafting target before mutation'
-);
+// Spore rejection preserves both currencies and equipment in smoke-spore-crafting.js.
+// Confirmation-time target changes are exercised against the full runtime below.
 
 const annulBlock = extract(itemSource, 'async function marketAnnulSelectedStat', 'async function marketExpandJewelInventoryByDivine');
 const bulkJewelSalvageBlock = extract(passiveSource, 'async function bulkSalvageJewels()', 'async function toggleJewelAutoSalvage');
@@ -95,6 +85,19 @@ vm.createContext(annulContext);
 vm.runInContext(annulBlock, annulContext, { filename: 'market-annul.js' });
 
 (async () => {
+    const runtime = require('./lib/game-runtime').buildGameRuntime();
+    const run = code => vm.runInContext(code, runtime);
+    run(`game.inventory=[1,2].map(id=>({id,slot:'신발',rarity:'rare',name:'확인 검증',itemTier:10,hiddenTier:10,baseStats:[],stats:[{id:'flatHp',val:10,tier:3}]}));game.currencies.divine=1;selectForCrafting(1,false);`);
+    const equipmentBefore = run('JSON.stringify(game.inventory)');
+    runtime.requestGameConfirmation = async () => { run('selectForCrafting(2,false)'); return true; };
+    await run("useCurrency('divine')");
+    assert.strictEqual(run('JSON.stringify(game.inventory)'), equipmentBefore, '확인 중 바뀐 대상에는 제작을 적용하지 않는다');
+    assert.strictEqual(run('game.currencies.divine'), 1, '대상 변경으로 취소하면 재화를 보존한다');
+    run('selectForCrafting(1,false)');
+    runtime.requestGameConfirmation = async () => { run('game.currencies.divine=0'); return true; };
+    await run("useCurrency('divine')");
+    assert.strictEqual(run('JSON.stringify(game.inventory)'), equipmentBefore, '확인 중 재화가 부족해지면 제작을 취소한다');
+    assert.strictEqual(run('game.currencies.divine'), 0, '잔액이 음수가 되면 안 된다');
     await annulContext.marketAnnulSelectedStat(0);
     assert.strictEqual(protectedItem.stats.length, 2, 'market service must preserve a honey-locked affix');
     assert.strictEqual(annulContext.game.currencies.goldenRule, 2, 'rejected protected removal must not spend currency');

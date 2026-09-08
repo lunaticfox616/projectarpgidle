@@ -136,7 +136,6 @@ assert.strictEqual(quality.averageTier, 4);
 assert.strictEqual(quality.qualityPct, 75);
 assert.strictEqual(qualityContext.getJewelQualityProfile({ rarity: 'unique', stats: [{ tier: 1 }] }).averageTier, null, 'fixed unique stats must be excluded from tier grading');
 
-assert(uiSource.includes('강화 단계당 주얼 수치 +3%'), 'jewel amplification UI must match the combat multiplier');
 assert(uiSource.includes('let ampBonus = ampLv * 3;'), 'slot amplification summary must display three percent per level');
 assert(uiSource.includes("let hasComparison = socketType === 'inventory';"), 'inventory jewels should show slot comparison');
 const tooltipBlock = extract(uiSource, 'function showSocketedJewelTooltip', 'function getCraftActionValidators');

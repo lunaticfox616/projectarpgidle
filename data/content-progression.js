@@ -1,4 +1,4 @@
-// Prices are paid once. Automatic combat content has no paid predecessor.
+// Prices are paid once. Ascension trials also require the matching growth unlock.
 const CONTENT_UNLOCK_POINTS_PER_LOOP = 2;
 // lifecycle describes loop transitions, not spending, deaths or individual expedition resets.
 // after: growth predecessor. progress: existing world condition. minLoop: earliest eligibility.
@@ -19,7 +19,7 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"records","name":"전적","group":"기록","minLoop":1,"cost":0,"description":"루프와 전투 기록을 비교합니다.","routes":["tab-records"]},
     {"id":"loopTree","name":"루프 패시브","group":"영구 성장","minLoop":2,"cost":2,"description":"루프 포인트로 영구 노드에 투자합니다. 해금 전에도 포인트는 누적됩니다.","sections":["#trait-season-section"],"art":"ui/currency/ouroboros.png","action":{"tab":"tab-season","section":"trait-season-section"},"after":"craft","branchStart":true,"lifecycle":{"label":"성장 영구 유지","kept":"루프 포인트와 투자한 패시브","reset":""}},
     {"id":"experts","after":"craft","name":"전문가","group":"장비","minLoop":4,"cost":2,"description":"조우한 전문가의 기술을 성장시킵니다.","routes":["tab-expertise"],"gate":"expertise","lifecycle":{"label":"성장 영구 유지","kept":"발견한 전문가·숙련도·기술 투자","reset":"루프별 경험치 획득 제한"}},
-    {"id":"trials","after":"loopTree","name":"직업 전직","group":"영구 성장","minLoop":3,"cost":2,"description":"시련으로 얻은 포인트로 직업과 전직 패시브를 선택합니다. 시련 입장은 별도로 열립니다.","routes":["tab-traits"],"gate":"traits","lifecycle":{"label":"루프 초기화","kept":"","reset":"전직 선택·패시브·시련 포인트·시련 클리어"}},
+    {"id":"trials","after":"loopTree","name":"직업 전직","group":"영구 성장","minLoop":3,"cost":2,"description":"시련으로 얻은 포인트로 직업과 전직 패시브를 선택합니다. 전직 시련 입장도 함께 열립니다.","routes":["tab-traits"],"gate":"traits","lifecycle":{"label":"루프 초기화","kept":"","reset":"전직 선택·패시브·시련 포인트·시련 클리어"}},
     {"id":"fossil","after":"craft","name":"화석 제작","group":"장비","minLoop":3,"cost":1,"requires":["craft"],"description":"화석으로 장비의 옵션 방향을 조절합니다.","routes":["item-tab-fossil"],"lifecycle":{"label":"루프 초기화","kept":"","reset":"화석·속성 홀씨와 제작 장비. 루프 봉인 장비는 유지됩니다."},"features":[{"name":"속성 홀씨","description":"화염·냉기·번개 태그로 제작 방향을 조절합니다. 화석 제작 해금 후 관련 드랍이 열리며 보유량은 루프마다 초기화됩니다."}]},
     {"id":"labyrinth","name":"고대 미궁","group":"전투","minLoop":3,"cost":0,"description":"미궁을 등반해 전용 보상을 얻습니다.","routes":["map-explore-labyrinth"]},
     {"id":"jewel","after":"fossil","name":"주얼","group":"장비","minLoop":5,"cost":2,"description":"주얼을 장착해 부족한 능력치를 보완합니다.","routes":["tab-jewel"],"gate":"jewel","lifecycle":{"label":"루프 초기화","kept":"","reset":"주얼 보유·장착·증폭 및 관련 재료"}},
@@ -44,7 +44,7 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"duel","name":"대전","group":"전투","minLoop":3,"cost":0,"description":"다른 플레이어의 기록에 도전합니다.","routes":["map-tab-pvp"]},
     {"id":"beyond","name":"경계 너머","group":"전투","minLoop":50,"cost":0,"description":"최종 관문 이후의 도전과 인장을 관리합니다.","routes":["map-explore-beyond"],"progress":"beyond"},
     {"id":"deepTree","after":"loopTree","name":"심화 패시브","group":"영구 성장","minLoop":10,"cost":2,"description":"심화 포인트로 영구 능력치를 강화합니다. 해금 전에도 등반 보상 포인트는 누적됩니다.","sections":["#loop-deep-growth"],"action":{"tab":"tab-season","section":"loop-deep-growth"},"lifecycle":{"label":"성장 영구 유지","kept":"심화 포인트와 투자한 능력치","reset":""}},
-    {"id":"battleTrials","name":"전직 시련","group":"전투","minLoop":1,"cost":0,"progress":"trials","description":"액트 3부터 전직 시련에 도전합니다. 후속 시련의 조건은 유지됩니다.","routes":["map-explore-trials"]},
+    {"id":"battleTrials","name":"전직 시련","group":"전투","minLoop":3,"after":"trials","cost":0,"progress":"trials","description":"직업 전직 해금 후 액트 3부터 시련에 도전합니다. 후속 시련의 조건은 유지됩니다.","routes":["map-explore-trials"]},
     {"id":"meteorSite","name":"운석 낙하 지점","group":"전투","minLoop":7,"cost":0,"progress":"meteor","description":"별쐐기 해금 전에는 장비를, 해금 후에는 운석 파편과 별쐐기를 얻습니다.","routes":["map-explore-meteor"]},
     {"id":"deepChaos","name":"심화 혼돈","group":"전투","minLoop":10,"cost":0,"progress":"deepChaos","description":"혼돈 20층 이후의 심화 등반이 열립니다.","routes":["map-explore-deep-chaos"]}
 ]);

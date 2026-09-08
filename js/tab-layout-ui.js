@@ -33,9 +33,36 @@ const tabLayoutUi = {
             || layout.tabPlacement[id] === 'bottom';
     },
 
+    // The phone dock has three shortcuts plus battle; every other tab stays in the full menu.
+    mobilePrimaryIds(layout = game.settings.tabLayouts.mobile) {
+        const preferred = layout.tabOrder.filter(id => layout.tabPlacement[id] === 'top');
+        const defaults = ['btn-tab-items', 'btn-tab-skills', 'btn-tab-map']
+            .filter(id => layout.tabPlacement[id] !== 'bottom');
+        const candidates = [...new Set([...preferred, ...defaults])].filter(id => {
+            const button = document.getElementById(id);
+            return id.startsWith('btn-tab-') && button && button.style.display !== 'none' && !button.hidden
+                && button.dataset.mergedTabMember !== '1' && !['btn-tab-battle', 'btn-tab-settings'].includes(id);
+        });
+        return ['btn-tab-battle', ...candidates.slice(0, 3)];
+    },
+
+    placementOptions(id, target, layout) {
+        if (target === 'mobile') {
+            const primary = tabLayoutUi.mobilePrimaryIds(layout).includes(id);
+            return '<option value="top"' + (primary ? ' selected' : '') + '>하단 바로가기</option>'
+                + '<option value="bottom"' + (primary ? '' : ' selected') + '>전체 메뉴</option>';
+        }
+        const secondary = tabLayoutUi.isMisc(id, layout);
+        return '<option value="top"' + (secondary ? '' : ' selected') + '>기본 메뉴</option>'
+            + '<option value="bottom"' + (id === 'btn-tab-pruning' ? ' disabled' : '')
+            + (secondary ? ' selected' : '') + '>기타 메뉴</option>';
+    },
+
     render() {
         const root = document.getElementById('ui-tab-order-settings');
         if (!root || !document.getElementById('tab-settings')?.classList.contains('active')) return;
+        if (!root.closest('details').open) return;
+        if (tabLayoutUi.platform() === 'mobile' && document.getElementById('tab-settings').dataset.settingsCategory !== 'layout') return;
         const target = tabLayoutUi.selectedPlatform || tabLayoutUi.platform();
         const layout = game.settings.tabLayouts[target];
         const available = tabLayoutUi.orderedButtons(layout);
@@ -46,8 +73,7 @@ const tabLayoutUi = {
                 + '<div class="cfg-tab-actions"><button type="button" data-move="-1" data-tab="' + id + '" aria-label="' + escapeHTML(label) + ' 앞으로"' + (index === 0 ? ' disabled' : '') + '>↑</button>'
                 + '<button type="button" data-move="1" data-tab="' + id + '" aria-label="' + escapeHTML(label) + ' 뒤로"' + (index === available.length - 1 ? ' disabled' : '') + '>↓</button>'
                 + '<select data-place="' + id + '" aria-label="' + escapeHTML(label) + ' 위치"' + '>'
-                + '<option value="top"' + (!tabLayoutUi.isMisc(id, layout) ? ' selected' : '') + '>기본 메뉴</option>'
-                + '<option value="bottom"' + (id === 'btn-tab-pruning' ? ' disabled' : '') + (tabLayoutUi.isMisc(id, layout) ? ' selected' : '') + '>기타 메뉴</option></select></div></div>';
+                + tabLayoutUi.placementOptions(id, target, layout) + '</select></div></div>';
         }).join('');
         root.innerHTML = '<label class="cfg-tab-platform">편집할 화면<select aria-label="편집할 화면"><option value="desktop"' + (target === 'desktop' ? ' selected' : '') + '>PC</option><option value="mobile"' + (target === 'mobile' ? ' selected' : '') + '>모바일</option></select></label>' + rows;
         root.querySelector('.cfg-tab-platform select').addEventListener('change', event => {
@@ -76,10 +102,14 @@ const tabLayoutUi = {
     },
 
     place(id, placement) {
-        if (id === 'btn-tab-pruning') placement = 'top';
+        const target = tabLayoutUi.selectedPlatform || tabLayoutUi.platform();
+        if (id === 'btn-tab-pruning' && target === 'desktop') placement = 'top';
         if (!tabLayoutUi.buttons().some(button => button.id === id)) return;
-        const layout = game.settings.tabLayouts[tabLayoutUi.selectedPlatform || tabLayoutUi.platform()];
+        const layout = game.settings.tabLayouts[target];
         layout.tabPlacement[id] = placement === 'bottom' ? 'bottom' : 'top';
+        if (target === 'mobile' && placement === 'top') {
+            layout.tabOrder = [id, ...layout.tabOrder.filter(key => key !== id)];
+        }
         tabLayoutUi.changed();
     },
 

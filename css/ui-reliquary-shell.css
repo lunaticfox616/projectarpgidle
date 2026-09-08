@@ -2292,17 +2292,15 @@ body:not(.light-mode) #tab-map .map-state-badge.recommended {
   }
 
   #tab-social.active {
-    position: fixed;
-    right: max(8px, env(safe-area-inset-right));
-    bottom: 0;
-    left: max(8px, env(safe-area-inset-left));
-    z-index: 13200;
+    position: relative;
+    inset: auto;
+    z-index: auto;
     display: flex !important;
     flex-direction: column;
     width: auto;
-    height: min(72dvh, 680px);
-    min-height: 360px;
-    max-height: calc(100dvh - max(72px, env(safe-area-inset-top)));
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
     padding: 0 12px max(10px, env(safe-area-inset-bottom));
     overflow: hidden;
     border: 1px solid #4b4130;
@@ -2310,7 +2308,7 @@ body:not(.light-mode) #tab-map .map-state-badge.recommended {
     border-radius: 8px 8px 0 0;
     color: var(--reliquary-copy);
     background: linear-gradient(180deg, #171713, #080908 22%);
-    box-shadow: 0 -100vh 0 100vh rgba(0, 0, 0, .58), 0 -18px 46px rgba(0, 0, 0, .62);
+    box-shadow: none;
   }
 
   #tab-social.active .social-mobile-sheet-header {

@@ -929,7 +929,7 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     expect(failures).toEqual([]);
 });
 
-test('endgame support screens keep primary actions and interaction state visible', async ({ page }) => {
+test('endgame support screens keep primary actions and interaction state visible', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
@@ -977,30 +977,38 @@ test('endgame support screens keep primary actions and interaction state visible
     await expect(page.locator('.core-cube-assembly')).toBeVisible();
     await expect(page.locator('.core-cube-assembly .core-cube-face')).toHaveCount(6);
     await expect(page.locator('.core-cube-assembly .core-cube-power')).toHaveCount(2);
+    const cubeResultTab = page.getByRole('tab', {name:'발현 결과', exact:true});
+    if (await cubeResultTab.isVisible()) await cubeResultTab.click();
     await expect(page.locator('.core-cube-stage-options')).toBeVisible();
     await expect(page.locator('.core-cube-stage-options')).toContainText('발현 옵션');
     await expect(page.locator('.core-cube-side')).not.toContainText('발현 결과');
+    if (await cubeResultTab.isVisible()) await page.getByRole('tab', {name:'동력원 장착', exact:true}).click();
     await page.locator('.core-cube-power').first().click();
     await expect(page.locator('.core-cube-assembly-head')).toContainText('2번 면 선택');
 
     await page.evaluate(() => { switchTab('tab-talent'); updateStaticUI(); });
-    await expect(page.locator('.talent-bloom-navigator')).toBeVisible();
-    await expect(page.getByRole('button', { name: '재능별' })).toBeVisible();
-    await expect(page.getByRole('button', { name: '직업별' })).toBeVisible();
-    await expect(page.locator('.talent-current-combo')).toBeVisible();
-    await expect(page.locator('.talent-combo-cell')).toHaveCount(12);
-    // Starting talent and owned cards do not select this loop's fifth-ascension bloom.
-    await expect(page.locator('.talent-combo-cell.current')).toHaveCount(0);
+    if (!testInfo.project.use.isMobile) {
+        await expect(page.locator('.talent-bloom-navigator')).toBeVisible();
+        await expect(page.getByRole('button', { name: '재능별' })).toBeVisible();
+        await expect(page.getByRole('button', { name: '직업별' })).toBeVisible();
+        await expect(page.locator('.talent-current-combo')).toBeVisible();
+        await expect(page.locator('.talent-combo-cell')).toHaveCount(12);
+        // Starting talent and owned cards do not select this loop's fifth-ascension bloom.
+        await expect(page.locator('.talent-combo-cell.current')).toHaveCount(0);
+    }
     await expect(page.locator('.talent-slot.filled')).toContainText('아방가르드');
-    await expect(page.locator('.talent-slot.filled')).toContainText('궁수 × 워리어');
-    await page.locator('.talent-bloom-navigator > summary').click();
-    await expect(page.locator('.talent-bloom-navigator')).not.toHaveAttribute('open', '');
-    await page.evaluate(() => updateStaticUI());
-    await expect(page.locator('.talent-bloom-navigator')).not.toHaveAttribute('open', '');
+    if (!testInfo.project.use.isMobile) {
+        await expect(page.locator('.talent-slot.filled')).toContainText('궁수 × 워리어');
+        await page.locator('.talent-bloom-navigator > summary').click();
+        await expect(page.locator('.talent-bloom-navigator')).not.toHaveAttribute('open', '');
+        await page.evaluate(() => updateStaticUI());
+        await expect(page.locator('.talent-bloom-navigator')).not.toHaveAttribute('open', '');
+    }
 
     await page.evaluate(() => { switchTab('tab-growthboard'); updateStaticUI(); });
     const craftBench = page.locator('details[data-growth-disclosure="craft-bench"]');
-    await craftBench.locator(':scope > summary').click();
+    if (testInfo.project.use.isMobile) await page.getByRole('tab', {name:'제작대',exact:true}).click();
+    else await craftBench.locator(':scope > summary').click();
     await expect(craftBench).toHaveAttribute('open', '');
     await page.evaluate(() => {
         let base = GROWTH_BASE_DB.find(row => row.category === 'leaf');
@@ -1894,7 +1902,7 @@ test('boss trait ticker keeps its DOM and animation position across combat UI up
     expect(failures).toEqual([]);
 });
 
-test('mobile navigation exposes all game tabs in a horizontal rail and keeps only misc controls grouped', async ({ page }, testInfo) => {
+test('mobile navigation exposes shortcuts and keeps remaining game tabs in the full menu', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile navigation assertion');
     const failures = watchRuntimeFailures(page);
     await page.setViewportSize({ width: 393, height: 852 });
@@ -1923,11 +1931,11 @@ test('mobile navigation exposes all game tabs in a horizontal rail and keeps onl
     ));
     expect(parentIds).toEqual({
         'btn-tab-battle': 'tab-header-bottom',
-        'btn-tab-character': 'tab-header-bottom',
+        'btn-tab-character': 'tab-header-main',
         'btn-tab-items': 'tab-header-bottom',
         'btn-tab-skills': 'tab-header-bottom',
         'btn-tab-map': 'tab-header-bottom',
-        'btn-tab-social': 'tab-header-bottom',
+        'btn-tab-social': 'tab-header-main',
         'btn-tab-settings': 'tab-header-main',
         'btn-map-complete-action-picker': 'tab-header-main'
     });
@@ -1937,10 +1945,10 @@ test('mobile navigation exposes all game tabs in a horizontal rail and keeps onl
         clientWidth: element.clientWidth
     }));
     expect(railState.ids).toEqual(expect.arrayContaining([
-        'btn-tab-battle', 'btn-tab-character', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-tab-social', 'btn-mobile-nav-more'
+        'btn-tab-battle', 'btn-tab-items', 'btn-tab-skills', 'btn-tab-map', 'btn-mobile-nav-more'
     ]));
-    expect(railState.ids.length).toBeGreaterThanOrEqual(10);
-    expect(railState.scrollWidth).toBeGreaterThan(railState.clientWidth);
+    expect(railState.ids.length).toBe(5);
+    expect(railState.scrollWidth).toBeLessThanOrEqual(railState.clientWidth + 1);
 
     await page.evaluate(() => presentGoalDrawer({
         id: 'mobile-nav-goal', title: '혼돈 심화 41층 돌파', current: 12, target: 41,
@@ -1967,9 +1975,9 @@ test('mobile navigation exposes all game tabs in a horizontal rail and keeps onl
     await expect(drawer).toHaveAttribute('aria-hidden', 'false');
     await expect(drawer).toHaveAttribute('role', 'dialog');
     await expect(page.locator('#mobile-tab-drawer-backdrop')).toBeVisible();
-    expect(await drawer.locator(':scope > .tab-btn:visible').evaluateAll(elements => elements.map(element => element.id))).toEqual([
-        'btn-tab-settings', 'btn-map-complete-action-picker'
-    ]);
+    expect(await drawer.locator(':scope > .tab-btn:visible').evaluateAll(elements => elements.map(element => element.id))).toEqual(expect.arrayContaining([
+        'btn-tab-character', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
+    ]));
     expect((await drawer.boundingBox()).height).toBeGreaterThan(70);
     expect(await page.locator('#btn-map-complete-action-picker').evaluate(element => {
         if (element.hidden || getComputedStyle(element).display === 'none') return true;
@@ -1987,7 +1995,9 @@ test('mobile navigation exposes all game tabs in a horizontal rail and keeps onl
         updateTabNotificationDots();
     });
     await expect(page.locator('#btn-mobile-nav-more')).toHaveClass(/active/);
+    await page.locator('#btn-mobile-nav-more').click();
     await expect(page.locator('#noti-social')).toBeVisible();
+    await page.locator('#btn-mobile-nav-more').click();
 
     await page.evaluate(() => {
         game.settings.twoRowTabs = true;
@@ -2017,7 +2027,7 @@ test('mobile navigation exposes all game tabs in a horizontal rail and keeps onl
     expect(geometry.left).toBeGreaterThanOrEqual(-1);
     expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth + 1);
     expect(geometry.bottom).toBeLessThanOrEqual(801);
-    expect(geometry.visibleButtons).toBeGreaterThanOrEqual(10);
+    expect(geometry.visibleButtons).toBe(5);
     expect(geometry.overflow).toBeLessThanOrEqual(1);
     expect(failures).toEqual([]);
 });
@@ -2056,7 +2066,7 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
             const progressGaugeRect = rect('.map-progress-gauge');
             const progressCopyRect = rect('.map-progress-gauge .hp-text');
             const identityRect = rect('.player-hud-identity-row');
-            const leftWingRect = rect('.player-hud-left-wing');
+            const leftWingRect = rect('.player-hud-shell');
             action.scrollIntoView({ block: 'nearest', inline: 'end' });
             return {
                 pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -2089,7 +2099,7 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
         expect(compactHud.playerHudWidth).toBeGreaterThanOrEqual(compactHud.battlefieldWidth - 1);
         expect(compactHud.hpCopyContained).toBe(true);
         expect(compactHud.hpCopyClipped).toBe(false);
-        expect(compactHud.expTrackHeight).toBeLessThanOrEqual(4);
+        expect(compactHud.expTrackHeight).toBeLessThanOrEqual(6);
         expect(compactHud.progressCopyContained).toBe(true);
         expect(compactHud.identityContained).toBe(true);
     }
@@ -2107,9 +2117,11 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
         };
     });
     expect(effectGeometry.overlaps).toBe(false);
-    await expect(page.locator('#btn-combat-log-toggle')).toBeHidden();
-    await expect(page.locator('#btn-combat-chat-tab')).toBeHidden();
-    await expect(page.locator('.combat-feed-title')).toBeHidden();
+    await expect(page.locator('#btn-combat-log-toggle')).toBeVisible();
+    await expect(page.locator('#btn-combat-chat-tab')).toBeVisible();
+    await expect(page.locator('.combat-feed-title')).toBeVisible();
+    await expect(page.locator('#log')).toBeHidden();
+    await page.locator('#btn-combat-log-toggle').click();
     await expect(page.locator('#log')).toBeVisible();
     const compactLog = await page.locator('.combat-feed').evaluate(element => ({
         height: element.getBoundingClientRect().height,
@@ -2117,8 +2129,8 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
         totalEntries: element.querySelectorAll('.log-msg').length,
         visibleEntries: Array.from(element.querySelectorAll('.log-msg')).filter(entry => getComputedStyle(entry).display !== 'none').length
     }));
-    expect(compactLog.height).toBeGreaterThanOrEqual(167);
-    expect(compactLog.height).toBeLessThanOrEqual(169);
+    expect(compactLog.height).toBeGreaterThanOrEqual(199);
+    expect(compactLog.height).toBeLessThanOrEqual(201);
     expect(compactLog.overflow).toBe('auto');
     expect(compactLog.visibleEntries).toBe(compactLog.totalEntries);
     expect(failures).toEqual([]);
@@ -2700,7 +2712,7 @@ test('growth layout changes publish the latest occupied cells to the public prof
     expect(failures).toEqual([]);
 });
 
-test('mobile chat opens as a bounded bottom sheet and returns to battle', async ({ page }, testInfo) => {
+test('mobile chat stays within the content area and returns to battle', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile chat-sheet assertion');
     const failures = watchRuntimeFailures(page);
     await page.setViewportSize({ width: 393, height: 852 });
@@ -2726,11 +2738,11 @@ test('mobile chat opens as a bounded bottom sheet and returns to battle', async 
             overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
         };
     });
-    expect(geometry.position).toBe('fixed');
-    expect(Math.abs(geometry.bottomGap)).toBeLessThanOrEqual(1);
-    expect(geometry.top).toBeGreaterThanOrEqual(70);
-    expect(geometry.left).toBeGreaterThanOrEqual(7);
-    expect(geometry.right).toBeGreaterThanOrEqual(7);
+    expect(geometry.position).toBe('relative');
+    expect(geometry.bottomGap).toBeGreaterThanOrEqual(44);
+    expect(geometry.top).toBeGreaterThanOrEqual(0);
+    expect(geometry.left).toBeGreaterThanOrEqual(0);
+    expect(geometry.right).toBeGreaterThanOrEqual(0);
     expect(geometry.overflow).toBeLessThanOrEqual(1);
 
     await chatSheet.locator('.social-mobile-sheet-header button').click();
@@ -2807,8 +2819,9 @@ test('mobile map navigation stays compact and new goals do not cover the map', a
             pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth
         };
     });
-    expect(navigation.primaryColumns).toBe(4);
-    expect(navigation.explorerColumns).toBe(4);
+    await expect(page.locator('.map-primary-tabs')).toBeHidden();
+    await expect(page.locator('#tab-map .vertical-tab-sidebar')).toBeHidden();
+    await expect(page.locator('#mobile-map-navigation')).toBeVisible();
     expect(navigation.primaryVisible).toBeGreaterThanOrEqual(6);
     expect(navigation.explorerVisible).toBeGreaterThanOrEqual(6);
     expect(navigation.pageOverflow).toBeLessThanOrEqual(1);

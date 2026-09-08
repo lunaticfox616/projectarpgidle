@@ -15,6 +15,7 @@ test('settings edit unlocked menus independently for PC and mobile', async ({ pa
         updateStaticUI(); switchTab('tab-settings');
     });
     await expect(page.locator('.cfg-disclosure--card')).toHaveAttribute('open', '');
+    if(testInfo.project.use.isMobile) await page.locator('#settings-category').selectOption('layout');
     await page.locator('.cfg-disclosure--tab-order > summary').click();
     const editor = page.locator('#ui-tab-order-settings');
     await expect(editor.locator('[data-tab="btn-tab-pruning"]')).toHaveCount(0);
@@ -43,6 +44,7 @@ test('settings edit unlocked menus independently for PC and mobile', async ({ pa
     const bounds = await editor.boundingBox();
     expect(bounds.width).toBeLessThanOrEqual(page.viewportSize().width);
     await page.screenshot({ path: testInfo.outputPath('settings-menu.png') });
+    if(testInfo.project.use.isMobile) await page.locator('#settings-category').selectOption('display');
     await page.locator('#sel-theme-mode').selectOption('light');
     await expect(page.locator('body')).toHaveClass(/light-mode/);
     await page.locator('#sel-theme-mode').scrollIntoViewIfNeeded();

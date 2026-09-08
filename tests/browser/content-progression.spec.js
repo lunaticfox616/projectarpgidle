@@ -116,6 +116,7 @@ test('separate unlock tab keeps a compact header and split growth gates', async 
     await expect(page.locator('.content-unlock-heading')).toContainText('루프 6');
     await expect(page.locator('.content-unlock-balance strong')).toHaveText('3');
     await expect(page.locator('#tab-season #content-unlock-panel')).toHaveCount(0);
+    if (info.project.use.isMobile) await page.locator('#btn-mobile-nav-more').click();
     await page.locator('#btn-tab-season').click();
     await expect(page.locator('#loop-passive-locked')).toBeVisible();
     await page.locator('#loop-passive-locked button').click();
@@ -199,13 +200,13 @@ test('boundary rewards explain locked choices and protect a stale saved selectio
 
 test('flask HUD survives switching saves with identical equipped flasks', async ({ page }) => {
     await page.evaluate(() => {
-        game.contentProgression.inherited.push('flask'); updateStaticUI(); renderCombatFlaskHud();
+        game.season = 2; game.contentProgression.inherited.push('flask'); updateStaticUI(); renderCombatFlaskHud();
     });
     await expect(page.locator('#ui-combat-flasks .combat-flask-mini.heal')).toBeVisible();
     await page.evaluate(() => { game=mergeDefaults({}); updateStaticUI(); renderCombatFlaskHud(); });
     await expect(page.locator('#ui-combat-flasks')).toBeHidden();
     await page.evaluate(() => {
-        game.contentProgression.inherited.push('flask'); updateStaticUI(); renderCombatFlaskHud();
+        game.season = 2; game.contentProgression.inherited.push('flask'); updateStaticUI(); renderCombatFlaskHud();
     });
     await expect(page.locator('#ui-combat-flasks .combat-flask-mini.heal')).toBeVisible();
 });
@@ -251,6 +252,7 @@ test('craft entry opens branches and loop progress works without a normal item o
     await page.locator('[data-unlock-content="support"]').click();
     await page.screenshot({ path:info.outputPath('craft-branches.png') });
     await page.locator('[data-open-content="support"]').click();
+    if (info.project.use.isMobile) await page.locator('[data-mobile-gem-library="support"]').click();
     await expect(page.locator('.support-library')).toBeVisible();
     expect(await page.evaluate(() => hasSupportGemOwned('무자비'))).toBe(true);
     await expect(page.locator('#btn-skill-tab-research')).toBeHidden();
@@ -331,13 +333,17 @@ test('milestones distinguish world progress from choices and passive points stay
     await expect(page.locator('.unlock-requirements')).toContainText('루프 패시브 해금');
     await page.locator('[data-unlock-select="loopTree"]').click();
     await page.locator('[data-unlock-content="loopTree"]').click();
+    if (info.project.use.isMobile) await page.locator('#btn-mobile-nav-more').click();
     await expect(page.locator('#btn-tab-season')).toBeVisible();
+    if (info.project.use.isMobile) await page.locator('#btn-mobile-nav-more').click();
     await page.locator('[data-unlock-select="deepTree"]').click();
     await page.locator('[data-unlock-content="deepTree"]').click();
     expect(await page.evaluate(() => [game.seasonPoints, game.loopDeepPoints])).toEqual([7,20]);
     await page.locator('[data-open-content="deepTree"]').click();
+    if (info.project.use.isMobile) await page.locator('#ui-loop10-section-tab').click();
     await page.locator('#loop-deep-growth button').first().click();
     expect(await page.evaluate(() => [game.loopDeepPoints, game.loopDeepStats.flatHp])).toEqual([19,1]);
+    if (info.project.use.isMobile) await page.locator('#btn-mobile-nav-more').click();
     await page.locator('#btn-tab-unlocks').click();
     await page.locator('[data-unlock-view="progress"]').click();
     await page.locator('[data-unlock-select="deepChaos"]').click();

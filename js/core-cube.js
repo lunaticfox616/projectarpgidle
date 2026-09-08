@@ -22,12 +22,14 @@ const coreCubeCanvasView = {
     textureCanvas: null,
     textureCtx: null,
     animationFrame: null,
+    resizeObserver: null,
     rotationMatrix: [
         [0.78, 0.00, 0.62],
         [-0.24, 0.92, 0.31],
         [-0.57, -0.39, 0.72]
     ],
     dragging: false,
+    pointerId: null,
     dragMoved: false,
     dragStartX: 0,
     dragStartY: 0,
@@ -1044,6 +1046,8 @@ function drawCoreCubeWireframe(drawableFaces, completed) {
 
 function startCoreCubeCanvasAnimation() {
     if (coreCubeCanvasView.animationFrame) cancelAnimationFrame(coreCubeCanvasView.animationFrame);
+    coreCubeCanvasView.animationFrame = null;
+    if (window.matchMedia('(pointer: coarse), (prefers-reduced-motion: reduce)').matches) return;
     if (!isCoreCubeCanvasVisible(coreCubeCanvasView.canvas)) {
         coreCubeCanvasView.animationFrame = null;
         return;
@@ -1068,6 +1072,23 @@ function isCoreCubeCanvasVisible(canvas) {
     return typeof canvas.getClientRects !== 'function' || canvas.getClientRects().length > 0;
 }
 
+/** @param {PointerEvent} event */
+function rotateCoreCubePointer(event) {
+    if (!coreCubeCanvasView.dragging || event.pointerId !== coreCubeCanvasView.pointerId) return;
+    const dx = event.clientX - coreCubeCanvasView.dragStartX;
+    const dy = event.clientY - coreCubeCanvasView.dragStartY;
+    if (Math.hypot(dx, dy) > 4) coreCubeCanvasView.dragMoved = true;
+    const currentVector = coreCubeGetTrackballVector(event.clientX, event.clientY);
+    const previousVector = coreCubeCanvasView.lastTrackballVector;
+    const axis = coreCubeCross(previousVector, currentVector);
+    if (Math.hypot(axis[0], axis[1], axis[2]) <= 0.0001) return;
+    const angle = Math.acos(Math.max(-1, Math.min(1, coreCubeDot(previousVector, currentVector))));
+    const rotation = coreCubeCreateRotationMatrix(axis, angle * 1.35);
+    coreCubeCanvasView.rotationMatrix = coreCubeMultiplyMatrices(rotation, coreCubeCanvasView.rotationMatrix);
+    coreCubeCanvasView.lastTrackballVector = currentVector;
+    drawCoreCubeCanvas();
+}
+
 function bindCoreCubeCanvas(canvas) {
     if (!canvas) return;
     if (coreCubeCanvasView.canvas === canvas) {
@@ -1078,31 +1099,20 @@ function bindCoreCubeCanvas(canvas) {
     coreCubeCanvasView.canvas = canvas;
     coreCubeCanvasView.ctx = canvas.getContext('2d');
     initCoreCubeTextureCanvas();
-    canvas.addEventListener('mousedown', event => {
+    canvas.addEventListener('pointerdown', event => {
+        if (!event.isPrimary || event.button !== 0) return;
+        coreCubeCanvasView.pointerId = event.pointerId;
+        canvas.setPointerCapture(event.pointerId);
         coreCubeCanvasView.dragging = true;
         coreCubeCanvasView.dragMoved = false;
         coreCubeCanvasView.dragStartX = event.clientX;
         coreCubeCanvasView.dragStartY = event.clientY;
         coreCubeCanvasView.lastTrackballVector = coreCubeGetTrackballVector(event.clientX, event.clientY);
     });
-    canvas.addEventListener('mousemove', event => {
-        if (!coreCubeCanvasView.dragging) return;
-        const dx = event.clientX - coreCubeCanvasView.dragStartX;
-        const dy = event.clientY - coreCubeCanvasView.dragStartY;
-        if (Math.hypot(dx, dy) > 4) coreCubeCanvasView.dragMoved = true;
-        const currentVector = coreCubeGetTrackballVector(event.clientX, event.clientY);
-        const previousVector = coreCubeCanvasView.lastTrackballVector;
-        const axis = coreCubeCross(previousVector, currentVector);
-        const axisLength = Math.hypot(axis[0], axis[1], axis[2]);
-        if (axisLength > 0.0001) {
-            const angle = Math.acos(Math.max(-1, Math.min(1, coreCubeDot(previousVector, currentVector))));
-            const rotation = coreCubeCreateRotationMatrix(axis, angle * 1.35);
-            coreCubeCanvasView.rotationMatrix = coreCubeMultiplyMatrices(rotation, coreCubeCanvasView.rotationMatrix);
-            coreCubeCanvasView.lastTrackballVector = currentVector;
-            drawCoreCubeCanvas();
-        }
-    });
-    ['mouseup', 'mouseleave'].forEach(type => canvas.addEventListener(type, () => {
+    canvas.addEventListener('pointermove', rotateCoreCubePointer);
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => canvas.addEventListener(type, event => {
+        if (event.pointerId !== coreCubeCanvasView.pointerId) return;
+        coreCubeCanvasView.pointerId = null;
         coreCubeCanvasView.dragging = false;
         coreCubeCanvasView.lastTrackballVector = null;
     }));
@@ -1117,10 +1127,12 @@ function bindCoreCubeCanvas(canvas) {
             }
         }
     });
-    if (!bindCoreCubeCanvas.resizeBound && typeof window !== 'undefined') {
-        window.addEventListener('resize', resizeCoreCubeCanvas);
-        bindCoreCubeCanvas.resizeBound = true;
-    }
+    if (coreCubeCanvasView.resizeObserver) coreCubeCanvasView.resizeObserver.disconnect();
+    coreCubeCanvasView.resizeObserver = new ResizeObserver(() => {
+        resizeCoreCubeCanvas();
+        startCoreCubeCanvasAnimation();
+    });
+    coreCubeCanvasView.resizeObserver.observe(canvas);
     resizeCoreCubeCanvas();
     startCoreCubeCanvasAnimation();
 }
@@ -1162,7 +1174,7 @@ function renderCoreCubePanel(options) {
     let info = getCoreCubeUnlockInfo();
     let unlocked = isCoreCubeUnlocked();
     let signature = getCoreCubePanelSignature(st, info, unlocked);
-    let force = !!(options && options.force) || !host.firstChild;
+    let force = !!(options && options.force) || !host.querySelector('.core-cube-assembly').firstChild;
     if (!force && signature === _coreCubePanelSignature) {
         initCoreCubeCanvas();
         return;
@@ -1194,23 +1206,19 @@ function renderCoreCubePanel(options) {
         '<button type="button" onclick="useCoreCubeBlurred45(\'all\')" ' + blurredUseDisabled + '>전부</button>'
     ].join('');
     let lockedHtml = `<div class="core-cube-locked"><strong>코어 큐브 잠김</strong><br>해금 조건: 지하계 10층 클리어 (${info.underworld10Cleared ? '완료' : `최고 ${info.highestFloor}층`}) · 루프 20 (${info.loopReady ? '완료' : `현재 ${info.currentLoop}`})</div>`;
-    host.innerHTML = `${unlocked ? '' : lockedHtml}
-        <div class="core-cube-shell ${st.completed ? 'completed' : ''} ${unlocked ? '' : 'locked'}">
-            <section class="core-cube-assembly">
+    host.querySelector('.core-cube-lock-status').innerHTML = unlocked ? '' : lockedHtml;
+    host.querySelector('.core-cube-shell').classList.toggle('completed', st.completed);
+    host.querySelector('.core-cube-shell').classList.toggle('locked', !unlocked);
+    host.querySelector('.core-cube-assembly').innerHTML = `
                 <div class="core-cube-assembly-head"><div><span>동력원 장착</span><strong>${st.completed ? '완성된 큐브' : `${st.selectedFace + 1}번 면 선택 · ${st.faces.filter(value => value !== null).length}/6 각인`}</strong></div><div class="core-cube-row"><button type="button" onclick="socketRandomCoreCubePower(false)" ${unlocked && !st.completed && st.faces[st.selectedFace] === null && getCoreCubePowerTotal() > 0 ? '' : 'disabled'}>선택 면 무작위</button><button type="button" onclick="socketRandomCoreCubePower(true)" ${unlocked && !st.completed && getCoreCubePowerTotal() >= st.faces.filter(v => v === null).length && st.faces.some(v => v === null) ? '' : 'disabled'}>빈 면 전부</button><button type="button" class="core-cube-complete" onclick="completeCoreCube()" ${unlocked && !st.completed && st.faces.every(v => v !== null) ? '' : 'disabled'}>완성</button><button type="button" onclick="resetCoreCube()" ${unlocked && (st.completed || st.faces.some(v => v !== null)) ? '' : 'disabled'}>재구성</button></div></div>
                 <div class="core-cube-faces">${faceHtml}</div>
                 <div class="core-cube-power-picker"><div class="core-cube-power-picker-head"><strong>보유 동력원</strong><span>${selectedFilled ? '비어 있는 면을 선택하세요.' : `${st.selectedFace + 1}번 면에 각인할 번호를 선택하세요.`}</span></div><div class="core-cube-inventory">${inventoryHtml}</div><div class="core-cube-power-picker-head"><strong>잉여 재배열</strong><span>동일 번호 5개 → 미보유 번호 1개 우선</span></div>${transmuteHtml}</div>
-            </section>
-            <div class="core-cube-stage">
-                <div class="core-cube-stage-title"><span>Subterranean Core</span><strong>코어 큐브</strong></div>
-                <div class="core-cube-canvas-wrap"><canvas id="coreCubeCanvas" aria-label="코어 큐브 3D 캔버스"></canvas></div>
-                <section class="core-cube-stage-options" aria-live="polite"><header><span>발현 옵션</span><strong>${comboText}</strong></header><div class="core-cube-options">${optionsHtml}</div></section>
-            </div>
-            <div class="core-cube-side">
+            `;
+    host.querySelector('.core-cube-stage-options').innerHTML = `<header><span>발현 옵션</span><strong>${comboText}</strong></header><div class="core-cube-options">${optionsHtml}</div>`;
+    host.querySelector('.core-cube-side').innerHTML = `
                 <div class="core-cube-card"><h3>흐릿한 45면체</h3><div class="core-cube-row"><span>보유 <strong>${st.blurred45}</strong></span>${blurredButtonsHtml}</div><p>사용 시 1~45 중 하나의 동력원을 획득합니다. 이 재료는 재화 목록에 표시되지 않습니다.</p>${st.lastPower ? `<p class="core-cube-good">최근 획득: ${st.lastPower}의 동력원</p>` : ''}</div>
                 ${renderCoreCubePresetCard(st, unlocked)}
-            </div>
-        </div>`;
+        `;
     initCoreCubeCanvas();
 }
 

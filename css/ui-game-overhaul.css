@@ -1429,6 +1429,20 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .arcana-slot-preview.empty { color: #9a8371; }
 .arcana-empty-copy,
 .arcana-locked { padding: 18px; border: 1px dashed #62523f; color: #998c7d; text-align: center; background: rgba(18, 17, 17, .7); }
+@media (max-width: 1080px) {
+    #ui-arcana-panel .arcana-vault-head { display: grid; grid-template-columns: 1fr auto; align-items: center; }
+    .arcana-mobile-library .arcana-collection { grid-template-columns: minmax(0, 1fr); }
+    .arcana-mobile-library button, .arcana-mobile-loadout button, .arcana-mobile-library input, .arcana-mobile-library select { min-height: 44px; font-size: 13px; }
+    .arcana-mobile-library .arcana-card-effect, .arcana-mobile-loadout .arcana-card-effect { font-size: 13px; line-height: 1.6; }
+    .arcana-mobile-library .arcana-card-effect small, .arcana-mobile-loadout .arcana-card-effect small { font-size: 12px; }
+    .arcana-search, .arcana-mobile-pages { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .arcana-search input, .arcana-placement select { width: 100%; min-width: 0; box-sizing: border-box; }
+    .arcana-mobile-pages { grid-template-columns: auto 1fr auto; text-align: center; font-size: 13px; }
+    .arcana-placement { display: grid; gap: 8px; padding: 12px; border: 1px solid #b99665; border-top: 0; }
+    .arcana-placement label { display: grid; gap: 6px; font-size: 13px; }
+    .arcana-mobile-preview .arcana-slot-preview { font-size: 13px; }
+    .arcana-mobile-loadout { display: grid; gap: 8px; }
+}
 .pruning-head p { max-width: 460px; margin: 0; }
 .pruning-stat-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 9px 0; }
 .pruning-stat-summary > div { min-width: 0; padding: 9px 10px; border: 1px solid rgba(113, 91, 62, .48); background: rgba(16, 18, 17, .84); }
@@ -1514,6 +1528,25 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 .beyond-seal small { color: #93899f; }
 .beyond-seal i { color: #b8d2b3; font-size: .74em; }
 .beyond-seal em { color: #af92cc; font-size: .7em; }
+
+@media (max-width: 1080px) {
+    .pruning-mobile-workspace { display:grid; gap:10px; }
+    .pruning-mobile-workspace > label { display:grid; gap:6px; font-size:13px; }
+    .pruning-mobile-workspace select { width:100%; min-width:0; min-height:44px; font-size:14px; }
+    #tab-pruning .pruning-head { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; }
+    #tab-pruning .pruning-head > button { grid-column:2; grid-row:1; }
+    #tab-pruning .pruning-head > p { grid-column:1 / -1; }
+    #tab-pruning .pruning-stat-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .pruning-mobile-workspace .pruning-choice-panel { position:static; order:0; padding:12px; grid-template-rows:auto auto auto; }
+    .pruning-mobile-workspace .pruning-choice-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .pruning-mobile-workspace button { min-height:44px; font-size:13px; }
+    .pruning-mobile-workspace .pruning-choice-effects { font-size:13px; }
+    .pruning-parent-path { display:flex; gap:6px; flex-wrap:wrap; }
+    .pruning-parent-path:empty { display:none; }
+    .pruning-next-branches { display:grid; gap:8px; }
+    .pruning-next-branch { display:grid; gap:6px; padding:12px; text-align:left; }
+    .pruning-next-branch span, .pruning-next-branch small { color:var(--ui-text-2); }
+}
 
 @media (max-width: 640px) {
     .condition-pattern-summary { align-items: flex-start; flex-direction: column; }
@@ -2464,6 +2497,12 @@ body.light-mode.desktop-windowed-ui .player-hud {
    화면 폭 기준으로 다시 건다(창 UI의 기존 동작은 그대로 둔다).
    화면 폭 ≈ 패널 폭 + 50px 기준으로 대응시켰다. */
 @media (max-width: 1080px) {
+  #skill-tab-equip .skill-panel-kicker,
+  #skill-tab-equip .skill-loadout-overview h2 { display: none; }
+  #skill-tab-equip .skill-loadout-overview { margin-top: 8px; }
+  #skill-tab-equip .skill-loadout-summary > div { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 6px; padding: 7px 8px; }
+  #skill-tab-equip .skill-loadout-summary small { grid-column: 1 / -1; }
+  #skill-tab-equip .skill-loadout-summary strong { white-space: normal; overflow-wrap: anywhere; }
   body:not(.desktop-windowed-ui) .skill-loadout-overview,
   body:not(.desktop-windowed-ui) .gem-forge-heading,
   body:not(.desktop-windowed-ui) .condition-gem-heading { align-items: flex-start; flex-direction: column; gap: 8px; }

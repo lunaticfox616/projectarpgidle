@@ -72,6 +72,15 @@ function renderArcanaCollection(available) {
     }).join('')}</div>`;
 }
 
+function renderArcanaWorkspace(arcana, available) {
+    if (uiDisplay.matches('(max-width: 1080px)')) return arcanaMobileUi.render(arcana, available);
+    let deck = arcana.deckSlots.map((uid, index) => renderArcanaDestination(uid, `덱 ${index + 1}`, 'deck', index, arcana)).join('');
+    let equipment = ARCANA_EQUIPMENT_SLOT_KEYS.map(slot => renderArcanaDestination(arcana.equipmentSlots[slot], slot, 'equipment', slot, arcana)).join('');
+    return `<section><h3>아르카나 덱 <small>${arcana.deckSlots.filter(Boolean).length}/${ARCANA_DECK_SLOT_COUNT}</small></h3><div class="arcana-deck">${deck}</div></section>
+        <section><h3>장비 슬롯 각인</h3><div class="arcana-equipment-grid">${equipment}</div></section>
+        <section><h3>미사용 카드 <small>${available.length}장 보유</small></h3>${renderArcanaCollection(available)}</section>`;
+}
+
 function renderArcanaPanel() {
     let panel = document.getElementById('ui-arcana-panel');
     if (!panel) return;
@@ -86,15 +95,12 @@ function renderArcanaPanel() {
     }
     if (!findArcanaCopy(selectedArcanaCardUid, game) || getArcanaCardPlacement(selectedArcanaCardUid, game)) selectedArcanaCardUid = null;
     let available = arcana.cards.filter(copy => !getArcanaCardPlacement(copy.uid, game));
-    let deck = arcana.deckSlots.map((uid, index) => renderArcanaDestination(uid, `덱 ${index + 1}`, 'deck', index, arcana)).join('');
-    let equipment = ARCANA_EQUIPMENT_SLOT_KEYS.map(slot => renderArcanaDestination(arcana.equipmentSlots[slot], slot, 'equipment', slot, arcana)).join('');
     let html = `<section class="arcana-vault-head"><div><span>SEALED ARCANA</span><strong>봉인 카드 ${arcana.sealedCards}장</strong></div><button type="button" onclick="openSealedArcanaCard()" ${arcana.sealedCards > 0 ? '' : 'disabled'}>봉인 해제</button></section>
         <p class="arcana-rule">카드 한 장은 덱 또는 장비 슬롯 한 곳에만 놓을 수 있습니다. 덱은 전역 효과, 장비 슬롯은 그 부위에 붙은 지정 옵션을 증폭합니다.</p>
-        <section><h3>아르카나 덱 <small>${arcana.deckSlots.filter(Boolean).length}/${ARCANA_DECK_SLOT_COUNT}</small></h3><div class="arcana-deck">${deck}</div></section>
-        <section><h3>장비 슬롯 각인</h3><div class="arcana-equipment-grid">${equipment}</div></section>
-        <section><h3>미사용 카드 <small>${available.length}장 보유</small></h3>${renderArcanaCollection(available)}</section>`;
+        ${renderArcanaWorkspace(arcana, available)}`;
     if (panel.__lastHtml !== html) panel.innerHTML = html;
     panel.__lastHtml = html;
+    if (uiDisplay.matches('(max-width: 1080px)')) arcanaMobileUi.bind(panel);
 }
 
 function selectArcanaCard(uid) {
@@ -110,7 +116,8 @@ function openSealedArcanaCard() {
     selectedArcanaCardUid = result.copy.uid;
     if (typeof unlockJournalEntry === 'function') unlockJournalEntry('arcana_first_seal');
     addLog(`🂠 아르카나 [${result.card.name}]의 봉인을 해제했습니다.`, 'loot-unique');
-    renderArcanaPanel();
+    if (uiDisplay.matches('(max-width: 1080px)')) arcanaMobileUi.reveal(selectedArcanaCardUid);
+    else renderArcanaPanel();
     if (typeof saveGame === 'function') saveGame();
 }
 
@@ -130,7 +137,8 @@ function placeSelectedArcanaCard(destination, target) {
 function removeArcanaCard(uid) {
     if (!unequipArcanaCard(uid, game)) return;
     selectedArcanaCardUid = uid;
-    renderArcanaPanel();
+    if (uiDisplay.matches('(max-width: 1080px)')) arcanaMobileUi.reveal(uid);
+    else renderArcanaPanel();
     if (typeof saveGame === 'function') saveGame();
 }
 
@@ -203,6 +211,43 @@ function selectPruningNode(nodeId) {
     renderPruningTreePanel();
 }
 
+function renderPruningMobileWorkspace(tree, choices) {
+    const selected = PRUNING_TREE_DB.find(node => node.id === selectedPruningNodeId);
+    const options = PRUNING_TREE_DB.map(node => `<option value="${node.id}"${node.id === selected.id ? ' selected' : ''}>${escapeHTML(node.name)} · ${tree.nodeRanks[node.id] || 0}/${node.maxRank}</option>`).join('');
+    const parents = Object.entries(selected.requires || {}).map(([id, rank]) => {
+        const node = PRUNING_TREE_DB.find(row => row.id === id);
+        return `<button type="button" onclick="selectPruningNode('${id}')">${escapeHTML(node.name)} ${tree.nodeRanks[id] || 0}/${rank} →</button>`;
+    }).join('');
+    const children = PRUNING_TREE_DB.filter(node => Object.hasOwn(node.requires || {}, selected.id)).map(node => {
+        const ready = isPruningNodeRequirementMet(node, tree);
+        return `<button type="button" class="pruning-next-branch" onclick="selectPruningNode('${node.id}')"><strong>${escapeHTML(node.name)}</strong><span>${escapeHTML(node.effect)}</span><small>${ready ? '선행 조건 충족' : '선행 가지 성장 필요'} · ${tree.nodeRanks[node.id] || 0}/${node.maxRank}</small></button>`;
+    }).join('');
+    return `<div class="pruning-mobile-workspace"><label>가지 선택<select onchange="selectPruningNode(this.value)">${options}</select></label>
+        <nav class="pruning-parent-path" aria-label="선행 가지">${parents}</nav>${choices}
+        <section class="pruning-next-branches"><h3>이어지는 가지</h3>${children || '<p>마지막 가지입니다.</p>'}</section></div>`;
+}
+
+function renderPruningWorkspace(tree) {
+    const choices = renderPruningChoicePanel(tree);
+    if (uiDisplay.matches('(max-width: 1080px)')) return renderPruningMobileWorkspace(tree, choices);
+    const nodes = PRUNING_TREE_DB.map(node => renderPruningNode(node, tree)).join('');
+    return `<div class="pruning-workspace"><div class="pruning-tree-scroll" tabindex="0" role="region" aria-label="성장 나무 · 상하좌우 스크롤"><div class="pruning-tree" aria-label="가지치기 성장 나무">${renderPruningConnections()}${nodes}</div></div>${choices}</div>`;
+}
+
+function restorePruningScroll(panel, position) {
+    const viewport = panel.querySelector('.pruning-tree-scroll');
+    if (!viewport) return;
+    if (position) {
+        viewport.scrollLeft = position.left;
+        viewport.scrollTop = position.top;
+        viewport.dataset.positioned = 'true';
+    } else if (viewport.clientWidth > 0 && !viewport.dataset.positioned) {
+        viewport.scrollLeft = (viewport.scrollWidth - viewport.clientWidth) / 2;
+        viewport.scrollTop = viewport.scrollHeight;
+        viewport.dataset.positioned = 'true';
+    }
+}
+
 function renderPruningTreePanel() {
     let section = document.getElementById('pruning-tree-section');
     let panel = document.getElementById('ui-pruning-tree-panel');
@@ -210,27 +255,16 @@ function renderPruningTreePanel() {
     let tree = ensurePruningTreeState(game);
     section.style.display = tree.unlocked ? '' : 'none';
     if (!tree.unlocked) return;
-    let nodes = PRUNING_TREE_DB.map(node => renderPruningNode(node, tree)).join('');
     let html = `<div class="pruning-head"><div><span>LOOP ${getEndgameProgressLoop(game)} · 루프당 ${PRUNING_TREE_POINTS_PER_LOOP}점</span><strong>남은 성장점 ${tree.growthPoints}</strong><small>마름병 포자 ${game.currencies.blightSpore || 0}개</small></div><p>성장점으로 능력을 키우거나 부담을 잘라냅니다. 반환 성장점 1점당 마름병 포자 1개가 필요합니다.</p><button type="button" onclick="askRefundPruningNode(null, 'all')">전체 반환</button></div>
-        ${renderPruningTreeSummary()}<div class="pruning-workspace"><div class="pruning-tree-scroll" tabindex="0" role="region" aria-label="성장 나무 · 상하좌우 스크롤"><div class="pruning-tree" aria-label="가지치기 성장 나무">${renderPruningConnections()}${nodes}</div></div>${renderPruningChoicePanel(tree)}</div>`;
+        ${renderPruningTreeSummary()}${renderPruningWorkspace(tree)}`;
     if (panel.__lastHtml !== html) {
         let previous = panel.querySelector('.pruning-tree-scroll');
         let scrollPosition = previous && previous.clientWidth > 0 ? { left: previous.scrollLeft, top: previous.scrollTop } : null;
         panel.innerHTML = html;
-        if (scrollPosition) {
-            let viewport = panel.querySelector('.pruning-tree-scroll');
-            viewport.scrollLeft = scrollPosition.left;
-            viewport.scrollTop = scrollPosition.top;
-            viewport.dataset.positioned = 'true';
-        }
+        restorePruningScroll(panel, scrollPosition);
     }
-    let viewport = panel.querySelector('.pruning-tree-scroll');
     // updateStaticUI also renders hidden tabs, whose scroll dimensions are zero.
-    if (viewport.clientWidth > 0 && !viewport.dataset.positioned) {
-        viewport.scrollLeft = (viewport.scrollWidth - viewport.clientWidth) / 2;
-        viewport.scrollTop = viewport.scrollHeight;
-        viewport.dataset.positioned = 'true';
-    }
+    restorePruningScroll(panel, null);
     panel.__lastHtml = html;
 }
 

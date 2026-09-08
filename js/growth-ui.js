@@ -32,15 +32,6 @@ function bindGrowthDisclosureState(host) {
     });
 }
 
-const GROWTH_CRAFT_ACTIONS = [
-    { key: 'magicBud', label: '마법 부여/재련', cost: 1 },
-    { key: 'sapBud', label: '희귀 승급/옵션 추가', cost: 2 },
-    { key: 'formlessDew', label: '희귀 부여/재련', cost: 2 },
-    { key: 'goldenRule', label: '수치 재련', cost: 4 },
-    { key: 'pruningShears', label: '옵션 제거', cost: 3 },
-    { key: 'blightSpore', label: '일반으로 정화', cost: 1 }
-];
-
 function getGrowthCategoryInfo(category) {
     return GROWTH_CATEGORY_INFO[category] || { label: '기타', icon: '❔' };
 }
@@ -54,10 +45,10 @@ function selectGrowthItem(itemId, source) {
         growthSelection = { itemId: numericId, source: source || 'inventory', rotation: placement ? placement.rotation : 0, hoverCell: null };
         if (source === 'board' || source === 'tray') {
             growthCraftItemId = numericId;
-            growthDisclosureState['craft-bench'] = true;
         }
     }
-    renderGrowthBoardPanel();
+    renderGrowthTab({force: true, openCraft: growthSelection.itemId !== null && (source === 'board' || source === 'tray')});
+    if (growthSelection.itemId !== null) growthWorkspaceUi.show('layout');
 }
 
 function rotateGrowthSelection() {
@@ -482,14 +473,30 @@ function renderGrowthDropSettings() {
 }
 
 function renderGrowthInventorySection() {
+    captureGrowthDisclosureState(document.getElementById('ui-growth-inventory'));
     let all = (game.growthInventory || []).filter(isGrowthItem);
-    if (all.length === 0) return '<div class="growth-synergy-empty">보관 중인 생장 아이템이 없습니다. 루프 ' + GROWTH_UNLOCK_LOOP + ' 이후 전투에서 드랍됩니다.</div>';
     let filter = getGrowthInventoryFilter();
+    let query = getSearchFilterState().growth;
     let items = all.filter(item => filter.categories[item.growthCategory] !== false
-        && (!filter.unplacedOnly || !isGrowthItemPlacedInLoadout(item.id)));
-    let chips = renderGrowthInventoryFilterChips();
+        && (!filter.unplacedOnly || !isGrowthItemPlacedInLoadout(item.id))
+        && matchSearchQuery(`${getEquipmentSearchText({...item, slot:''})} ${getGrowthCategoryInfo(item.growthCategory).label} ${getGrowthShapeDef(item.growthShapeId).label} ${(item.baseStats || []).concat(item.stats || []).map(stat => stat.val).join(' ')}`, query));
+    let rows = inventoryLibraryUi.visibleRows('growth', items, query + JSON.stringify(filter));
+    if (all.length === 0) return '<div class="growth-synergy-empty">보관 중인 생장 아이템이 없습니다. 루프 ' + GROWTH_UNLOCK_LOOP + ' 이후 전투에서 드랍됩니다.</div>';
+    let chips = `<details class="growth-library-controls" data-growth-disclosure="inventory-filters" ${isGrowthDisclosureOpen('inventory-filters', !uiDisplay.matches('(max-width: 1080px)')) ? 'open' : ''}><summary>분류 · 정렬 · 자동해체</summary>${renderGrowthInventoryFilterChips()}</details>`;
     if (items.length === 0) return `${chips}<div class="growth-synergy-empty">조건에 맞는 아이템이 없습니다. (전체 ${all.length}개)</div>`;
-    return chips + items.map(item => renderGrowthItemCard(item)).join('');
+    return chips + rows.map(item => renderGrowthItemCard(item)).join('');
+}
+
+// Search and page changes affect the library, not the board or crafting bench.
+function renderGrowthInventoryPanel(signature, force) {
+    const host = document.getElementById('ui-growth-inventory');
+    if (!host) return;
+    const key = JSON.stringify([signature, getSearchFilterState().growth]);
+    if (!force && host.firstChild && host.__growthLibraryKey === key && host.__growthLibraryPage === inventoryLibraryUi.page('growth')) return;
+    renderSearchSection('ui-growth-inventory', 'growth', '생장판 검색 (이름/형태/옵션)', renderGrowthInventorySection(), '', '');
+    bindGrowthDisclosureState(host);
+    host.__growthLibraryKey = key;
+    host.__growthLibraryPage = inventoryLibraryUi.page('growth');
 }
 
 // ── 툴팁 ────────────────────────────────────────────────────────────────
@@ -667,7 +674,8 @@ function clearGrowthDragVisuals() {
 }
 
 function onGrowthPointerDown(event) {
-    if (event.button !== undefined && event.button !== 0) return;
+    if (event.pointerType === 'touch') return;
+    if (event.button !== 0) return;
     if (!event.target || !event.target.closest) return;
     // 카드 안의 버튼(배치/해체/잠금)은 원래 동작을 유지한다.
     if (event.target.closest('button')) return;
@@ -730,6 +738,7 @@ function bindGrowthDragOnce() {
 }
 
 function renderGrowthPlacementTray() {
+    if (uiDisplay.matches('(max-width: 1080px)')) return '';
     let items = (game.growthInventory || []).filter(isGrowthItem).slice().sort((a, b) => {
         let placedDelta = Number(isGrowthItemPlacedInLoadout(a.id)) - Number(isGrowthItemPlacedInLoadout(b.id));
         return placedDelta || (Number(b.id) - Number(a.id));
@@ -769,9 +778,9 @@ function openGrowthCrafting(itemId) {
     let item = findGrowthItemById(itemId);
     if (!item) return addLog('생장 아이템을 찾을 수 없습니다.', 'attack-monster');
     growthCraftItemId = item.id;
-    growthDisclosureState['craft-bench'] = true;
     if (!isGrowthSlab(item)) selectForCrafting(item.id, false);
-    renderGrowthTab({ force: true });
+    renderGrowthTab({ force: true, openCraft: true });
+    growthWorkspaceUi.show('workshop');
     let bench = document.getElementById('ui-growth-craft-bench');
     if (bench) bench.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -781,15 +790,9 @@ async function craftGrowthItem(actionKey) {
     let item = findGrowthItemById(growthCraftItemId);
     let state = action ? getGrowthCraftActionState(item, action) : { enabled: false, reason: '알 수 없는 제작입니다.' };
     if (!state.enabled) return addLog(state.reason, 'attack-monster');
-    let originalCurrency = Math.max(0, Number(game.currencies[action.key]) || 0);
-    game.currencies.growthEssence -= action.cost;
-    game.currencies[action.key] = originalCurrency + 1;
     selectForCrafting(item.id, false);
-    await useCurrency(action.key);
-    let consumed = (game.currencies[action.key] || 0) <= originalCurrency;
-    game.currencies[action.key] = originalCurrency;
-    if (!consumed) game.currencies.growthEssence += action.cost;
-    if (consumed) queueGrowthProfileSync();
+    let crafted = await useCurrency(action.key, 'growthEssence');
+    if (crafted) queueGrowthProfileSync();
     renderGrowthTab({ force: true });
 }
 
@@ -885,7 +888,7 @@ function renderGrowthCraftBench() {
     }).join('');
     let target = item ? `<strong class="loot-${item.rarity || 'normal'}">${escapeHTML(item.name)}</strong> · ${isGrowthSlab(item) ? '석판 문양' : `${getGrowthItemAffixCap(item)}줄 상한`}` : '보관함에서 생장판 카드를 클릭하세요.';
     let preview = item
-        ? `<div class="growth-craft-preview"><h4>제작 전 옵션 확인</h4>${buildGrowthTooltipHtml(item)}</div>`
+        ? `<div class="growth-craft-preview"><h4>제작 전 옵션 확인</h4>${buildGrowthTooltipHtml(item)}</div>${craftingResultUi.getLedgerHtml(item)}`
         : '<div class="growth-craft-preview empty">선택한 생장판의 옵션이 여기에 표시됩니다.</div>';
     return `<section id="ui-growth-craft-bench" class="growth-craft-bench"><div class="growth-bench-head"><h3>🛠️ 생장판 제작대</h3><strong>생장 정수 ${essence}</strong><button type="button" onclick="expandGrowthInventoryWithEssence()" ${expansionCost === null || essence < expansionCost ? 'disabled' : ''}>보관함 +5 · ${expansionCost === null ? '최대' : `정수 ${expansionCost}`}</button></div>
         <div class="growth-craft-target">${target}</div>${preview}<div class="growth-craft-actions">${isGrowthSlab(item) ? '' : actions}${renderGrowthReforgeAction(item)}</div>
@@ -893,15 +896,19 @@ function renderGrowthCraftBench() {
 }
 
 // ── 패널 조립 ────────────────────────────────────────────────────────────
-function renderGrowthBoardPanel() {
+/** @param {boolean} [openCraft] Explicit selection overrides the previous collapsed workbench. */
+function renderGrowthBoardPanel(openCraft) {
     let host = document.getElementById('ui-growth-panel');
     if (!host) return;
+    let workshop = document.getElementById('growth-workshop');
     captureGrowthDisclosureState(host);
+    captureGrowthDisclosureState(workshop);
+    if (openCraft) growthDisclosureState['craft-bench'] = true;
     let previousTray = host.querySelector('.growth-tray-list');
     let trayScroll = previousTray
         ? { top: previousTray.scrollTop, left: previousTray.scrollLeft }
         : { top: 0, left: 0 };
-    let selectedItem = growthSelection.itemId === null ? null : findGrowthItemById(growthSelection.itemId);
+    let selectedItem = findGrowthItemById(growthSelection.itemId);
     host.innerHTML = `
         ${renderGrowthUnlockSummary()}
         ${renderGrowthLoadoutBar()}
@@ -910,7 +917,8 @@ function renderGrowthBoardPanel() {
             <span class="growth-control-actions">
                 <button type="button" onclick="rotateGrowthSelection()" ${selectedItem ? '' : 'disabled'}>회전 (${growthSelection.rotation * 90}°)</button>
                 <button type="button" onclick="autoFillGrowthBoardFromUi()">빈 칸 자동 배치</button>
-                <button type="button" onclick="unplaceAllGrowthItemsFromUi()" ${Object.keys(getActiveGrowthLoadout().placements || {}).length > 0 ? '' : 'disabled'}>전부 내리기</button>
+                <button type="button" onclick="unplaceAllGrowthItemsFromUi()" ${Object.keys(getActiveGrowthLoadout().placements).length > 0 ? '' : 'disabled'}>전부 내리기</button>
+                <button type="button" class="growth-mobile-library-link" onclick="growthWorkspaceUi.show('library')">보관함에서 선택</button>
             </span>
             <span class="growth-context-hints">
                 <span id="ui-growth-hover-hint" class="growth-hover-hint"></span>
@@ -923,8 +931,8 @@ function renderGrowthBoardPanel() {
                 <div id="ui-growth-unplace-zone" class="growth-unplace-zone"><strong>장착 해제</strong><span>배치된 생장판을 여기로 끌어 놓으세요.</span></div>
                 <div class="growth-tray-list">${renderGrowthPlacementTray()}</div></aside>
             <aside class="growth-context-panel"><div><h3>활성 시너지</h3><div class="growth-synergy-list">${renderActiveGrowthSynergies()}</div></div><div><h3>교체 비교</h3><div class="growth-synergy-list">${renderGrowthComparisonPanel()}</div></div></aside>
-        </div>
-        <details class="progression-workbench growth-bench-disclosure" data-growth-disclosure="craft-bench" ${isGrowthDisclosureOpen('craft-bench', growthCraftItemId !== null) ? 'open' : ''}><summary>생장판 제작대</summary>${renderGrowthCraftBench()}</details>`;
+        </div>`;
+    workshop.innerHTML = `<details class="progression-workbench growth-bench-disclosure" data-growth-disclosure="craft-bench" ${uiDisplay.matches('(max-width: 1080px)') || isGrowthDisclosureOpen('craft-bench', growthCraftItemId !== null) ? 'open' : ''}><summary>생장판 제작대</summary>${renderGrowthCraftBench()}</details>`;
     let nextTray = host.querySelector('.growth-tray-list');
     if (nextTray) {
         nextTray.scrollTop = trayScroll.top;
@@ -933,6 +941,7 @@ function renderGrowthBoardPanel() {
     paintGrowthPlacementPreview();
     bindGrowthDragOnce();
     bindGrowthDisclosureState(host);
+    bindGrowthDisclosureState(workshop);
     if (growthHoverItemId !== null) paintGrowthBoardRelations(growthHoverItemId);
 }
 
@@ -970,11 +979,6 @@ function toggleGrowthItemLock(itemId) {
     updateStaticUI();
 }
 
-// 제작 대상 목록은 장비/제작 탭에 남아 있어, 생장판 탭과 별개로 갱신된다.
-function renderGrowthCraftTargetLists() {
-    ['ui-craft-growth-list', 'ui-fossil-growth-list'].forEach(renderGrowthCraftTargets);
-}
-
 // 이 탭은 updateStaticUI마다 불린다. 판 32칸 + 보관함 40장 + 시너지/비교 목록을
 // 매번 새로 만들면 25ms가 나와 전투 중 프레임이 눈에 띄게 튄다.
 // 화면에 표시될 수 있는 아이템 상태를 지문에 담고, 바뀌지 않았으면 통째로 건너뛴다.
@@ -998,14 +1002,15 @@ function getGrowthTabSignature() {
         growthSlabId: item.growthSlabId, growthChase: item.growthChase, flavorText: item.flavorText
     });
     let items = (game.growthInventory || []).map(itemSignature).join(',');
-    let filter = JSON.stringify((game.settings || {}).growthInventoryFilter || {});
+    let filter = JSON.stringify(getGrowthInventoryFilter());
     let flags = [(game.settings || {}).growthSortMode,
         (game.settings || {}).growthAutoSalvageEnabled, (game.settings || {}).growthUseItemFilter,
         JSON.stringify((game.settings || {}).growthAutoSalvageRarities || {})].join('|');
     let craftCurrencies = GROWTH_CRAFT_ACTIONS.map(action => `${action.key}:${game.currencies[action.key] || 0}`).join(',');
     return [board.activeLoadout, board.unlockedCellCount, game.season, game.maxZoneId,
         growthCraftItemId, game.currencies.growthEssence || 0, craftCurrencies,
-        growthSelection.itemId, growthSelection.rotation, placements, items, filter, flags].join('#');
+        growthSelection.itemId, growthSelection.rotation, placements, items, filter, flags,
+        uiDisplay.matches('(max-width: 1080px)')].join('#');
 }
 
 function renderGrowthTab(options) {
@@ -1014,12 +1019,11 @@ function renderGrowthTab(options) {
     let host = document.getElementById('ui-growth-panel');
     let signature = getGrowthTabSignature();
     let force = !!(options && options.force) || !host || !host.firstChild;
+    renderGrowthInventoryPanel(signature, force);
     if (!force && signature === _growthTabSignature) return;
     _growthTabSignature = signature;
-    renderGrowthBoardPanel();
-    let invHost = document.getElementById('ui-growth-inventory');
-    if (invHost) invHost.innerHTML = renderGrowthInventorySection();
-    let count = (game.growthInventory || []).length;
+    renderGrowthBoardPanel(Boolean(options && options.openCraft));
+    let count = game.growthInventory.length;
     let limit = getGrowthInventoryLimit();
     let invCount = document.getElementById('ui-growth-inv-count');
     if (invCount) {
@@ -1044,7 +1048,7 @@ safeExposeGlobals({
     selectGrowthItem, rotateGrowthSelection, handleGrowthCellClick, unplaceGrowthItem,
     setGrowthHoverCell, clearGrowthHoverCell, showGrowthItemTooltip, renderGrowthBoardPanel,
     renderGrowthTab, switchGrowthLoadoutFromUi, renameGrowthLoadoutFromUi, autoFillGrowthBoardFromUi, unplaceAllGrowthItemsFromUi, buildGrowthComparison,
-    renderGrowthCraftTargets, renderGrowthCraftTargetLists, toggleGrowthItemLock, syncGrowthTabVisibility,
+    renderGrowthCraftTargets, toggleGrowthItemLock, syncGrowthTabVisibility,
     toggleGrowthInventoryCategory, selectAllGrowthInventoryCategories, toggleGrowthInventoryUnplacedOnly, getGrowthInventoryFilter, renderGrowthDropSettings,
     renderGrowthHoverHint, bindGrowthDragOnce, openGrowthCrafting, craftGrowthItem, exchangeGrowthCraftCurrency, getGrowthEssenceExpansionCost, expandGrowthInventoryWithEssence,
     getSelectedSlabInfluenceCells, renderGrowthLevelLine, setGrowthBoardItemHover, clearGrowthBoardItemHover,

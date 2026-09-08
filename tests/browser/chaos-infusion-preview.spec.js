@@ -1,0 +1,34 @@
+const {test,expect}=require('@playwright/test');
+test('infusion compares before spending and rejects stale targets',async({page},info)=>{
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    await page.route('https://**',r=>r.fulfill({status:204,body:''}));await page.goto('/');
+    await page.locator('#btn-startup-guest').click();await page.locator('[data-class-id="warrior"]').click();
+    await page.waitForFunction(()=>battleAssets.ready&&!uiRefreshRunning&&!uiRefreshQueued);
+    await page.evaluate(()=>{
+        clearInterval(gameTickHandle);game.season=100;game.chaosInfuserUnlocked=true;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(r=>r.id);contentProgression.sync();
+        game.inventory=Array.from({length:2},()=>({...createItemFromBase(BASE_ITEM_DB.find(b=>b.id==='war_helm'),'rare',10),stats:[]}));
+        for(const key of Object.keys(game.currencies))game.currencies[key]=100;
+        selectForCrafting(game.inventory[0].id,false);openTabPane('tab-items');switchItemSubtab('item-tab-infuser');updateStaticUI();
+    });
+    await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
+    const choices=page.locator('#ui-chaos-infuser-panel button[onclick^="previewChaosInfusion"]');
+    const snapshot=()=>page.evaluate(()=>JSON.stringify([game.inventory,game.currencies]));
+    const before=await snapshot();
+    await choices.first().click();
+    const dialog=page.locator('#game-dialog-card');
+    await expect(dialog).toContainText('현재: 주입 없음');await expect(dialog).toContainText('변경:');
+    await expect(dialog).toContainText('비용:');expect(await snapshot()).toBe(before);
+    await page.screenshot({path:info.outputPath('infusion-comparison.png')});
+    await dialog.getByRole('button',{name:'취소',exact:true}).click();expect(await snapshot()).toBe(before);
+    await choices.first().click();await dialog.getByRole('button',{name:'주입 확정',exact:true}).click();
+    await expect.poll(()=>page.evaluate(()=>!!game.inventory[0].chaosInfusion)).toBe(true);
+    await choices.nth(1).click();await expect(dialog).toContainText('마름병 포자 1');
+    await page.evaluate(()=>selectForCrafting(game.inventory[1].id,false));
+    const changed=await snapshot();await dialog.getByRole('button',{name:'주입 확정',exact:true}).click();
+    expect(await snapshot()).toBe(changed);
+    await choices.first().click();
+    await page.evaluate(()=>{for(const key of Object.keys(game.currencies))game.currencies[key]=0;});
+    const empty=await snapshot();await dialog.getByRole('button',{name:'주입 확정',exact:true}).click();
+    expect(await snapshot()).toBe(empty);expect(errors).toEqual([]);
+});

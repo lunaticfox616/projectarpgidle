@@ -40,6 +40,7 @@ let socialState = {
     heartbeatTimer: null,
     bgNotificationTimer: null,
     chatLoading: false,
+    chatSending: false,
     chatInitialized: false,
     chatMessages: [],
     lastChatFullSyncAt: 0,
@@ -753,14 +754,46 @@ function translateSpamError(msg) {
     if (/char_length|_body_check|violates check/.test(msg)) return `메시지는 1~${SOCIAL_MSG_MAX}자여야 합니다.`;
     return msg;
 }
+async function prepareChatSender(senderId) {
+    await restoreNicknameFromServer();
+    if (socialLoggedInUserId() !== senderId) throw new Error('전송 중 계정이 변경되었습니다.');
+    if (!getMyNickname()) await promptAndSetNickname();
+    if (socialLoggedInUserId() !== senderId) throw new Error('전송 중 계정이 변경되었습니다.');
+    if (!getMyNickname()) return false;
+    await uploadPlayerProfile({ required: true });
+    if (socialLoggedInUserId() !== senderId) throw new Error('전송 중 계정이 변경되었습니다.');
+    return true;
+}
+
+function clearSubmittedChatDraft(inputEl, draft, items) {
+    if (inputEl.value !== draft || socialState.pendingChatItems.length !== items.length) return;
+    if (!items.every((item, index) => socialState.pendingChatItems[index] === item)) return;
+    inputEl.value = '';
+    socialState.pendingChatItems = [];
+    renderPendingChatItems();
+    updateChatCounter();
+}
+
+function reportChatSendFailure(error, senderId) {
+    if (error?.socialCode === 'nickname_conflict' && socialLoggedInUserId() === senderId) setMyNicknameLocal('');
+    showGameToast('메시지 전송 실패: ' + translateSpamError(String(error && error.message || error)), 'danger');
+}
+
+function updateChatSendButton() {
+    const button = document.getElementById('social-chat-send');
+    if (!button) return;
+    button.disabled = socialState.chatSending || !socialCloudReady() || !getMyNickname();
+    button.textContent = socialState.chatSending ? '전송 중' : '전송';
+    button.setAttribute('aria-busy', String(socialState.chatSending));
+}
+
 async function sendChatMessage() {
     if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
-    await restoreNicknameFromServer();
-    let nickname = getMyNickname();
-    if (!nickname) { await promptAndSetNickname(); if (!getMyNickname()) return; nickname = getMyNickname(); }
+    if (socialState.chatSending) return;
     let inputEl = document.getElementById('social-chat-input');
     if (!inputEl) return;
-    let body = String(inputEl.value || '').trim();
+    let draft = inputEl.value;
+    let body = draft.trim();
     let items = socialState.pendingChatItems.slice(0, SOCIAL_MAX_ITEMS_PER_MSG);
     if (!body && !items.length) return;
     if (body.length > SOCIAL_MSG_MAX) { showGameToast(`메시지는 최대 ${SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.`, 'warning'); return; }
@@ -769,28 +802,25 @@ async function sendChatMessage() {
     if (rate !== true) { showGameToast(rate, 'warning'); return; }
 
     let payload = items.length ? { items } : null;
-    let prevPending = socialState.pendingChatItems.slice();
+    let senderId = socialLoggedInUserId();
+    socialState.chatSending = true;
     try {
-        await uploadPlayerProfile({ required: true });
-        nickname = getMyNickname();
-        inputEl.value = '';
-        socialState.pendingChatItems = [];
-        renderPendingChatItems();
-        updateChatCounter();
+        updateChatSendButton();
+        if (!await prepareChatSender(senderId)) return;
         await cloudJsonRequest('/rest/v1/chat_messages', {
             method: 'POST', headers: { Prefer: 'return=minimal' },
-            body: { user_id: socialLoggedInUserId(), nickname, body: body || '🔗', payload }
+            body: { user_id: senderId, nickname: getMyNickname(), body: body || '🔗', payload }
         });
+        if (socialLoggedInUserId() !== senderId) return;
+        clearSubmittedChatDraft(inputEl, draft, items);
         socialState.sendTimestamps.push(Date.now());
         socialState.lastSentBody = body;
         await refreshChatPanel(true);
     } catch (e) {
-        if (e && e.socialCode === 'nickname_conflict') setMyNicknameLocal('');
-        inputEl.value = body;
-        socialState.pendingChatItems = prevPending;
-        renderPendingChatItems();
-        updateChatCounter();
-        showGameToast('메시지 전송 실패: ' + translateSpamError(String(e && e.message || e)), 'danger');
+        reportChatSendFailure(e, senderId);
+    } finally {
+        socialState.chatSending = false;
+        updateChatSendButton();
     }
 }
 
@@ -1014,7 +1044,12 @@ function stopChatPolling() {
     socialState.chatPollTimer = null;
     socialState.onlinePollTimer = null;
 }
-function onSocialChatKeydown(event) { if (event && event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); } }
+function onSocialChatKeydown(event) {
+    if (!event || event.isComposing || event.keyCode === 229 || event.repeat) return;
+    if (event.key !== 'Enter' || event.shiftKey) return;
+    event.preventDefault();
+    sendChatMessage();
+}
 
 // ============================================================================
 // 커스텀 툴팁
@@ -1410,7 +1445,7 @@ function renderSocialTab() {
             && (cloudState.busy || cloudState.initialized === false);
         root.innerHTML = checkingCloud
             ? `<h2>💬 커뮤니티</h2><div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
-            : `<h2>💬 커뮤니티</h2><div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필 기능이 이 도크에서 바로 열립니다.</p><button type="button" onclick="closeCommunityDock(); switchTab('tab-settings')">설정에서 로그인</button></div>`;
+            : `<h2>💬 커뮤니티</h2><div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필 기능이 이 도크에서 바로 열립니다.</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
         stopChatPolling();
         return;
     }
@@ -1434,7 +1469,7 @@ function renderSocialTab() {
                     <input id="social-chat-input" name="social-chat-message" type="text" maxlength="${SOCIAL_MSG_MAX}" placeholder="${nickname ? '메시지를 입력하세요…' : '먼저 닉네임을 설정하세요'}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" onkeydown="onSocialChatKeydown(event)" oninput="updateChatCounter()" ${nickname ? '' : 'disabled'}>
                     <span id="social-chat-counter" class="social-chat-counter">0/${SOCIAL_MSG_MAX}</span>
                 </div>
-                <button class="social-send-btn" onclick="sendChatMessage()" ${nickname ? '' : 'disabled'}>전송</button>
+                <button id="social-chat-send" class="social-send-btn" onclick="sendChatMessage()" ${nickname ? '' : 'disabled'}>전송</button>
             </div>
         </div>`;
     socialState.lastChatRenderKey = '';
@@ -1442,6 +1477,7 @@ function renderSocialTab() {
     socialState.scrollChatToLatestOnNextRender = true;
     renderPendingChatItems();
     updateChatCounter();
+    updateChatSendButton();
     ensureHeartbeat();
     startChatPolling();
     restoreNicknameFromServer().then(restored => { if (restored !== nickname) renderSocialTab(); });
@@ -1484,8 +1520,8 @@ function injectSocialStyles() {
     .social-chat-body{color:var(--copy-bright);margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:var(--social-chat-message-size,12px);line-height:1.5;}
     .social-chat-inputbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:stretch;}
     .social-chat-input-shell{position:relative;min-width:0;}
-    .social-chat-input-shell input{box-sizing:border-box;width:100%;height:100%;min-height:38px;padding:8px 52px 8px 11px;background:#0e1726;border:1px solid #2a3e5c;border-radius:7px;color:#ffffff;}
-    .social-chat-inputbar button{box-sizing:border-box;min-width:0;min-height:38px;margin:0;padding:7px 11px;white-space:nowrap;line-height:1;}
+    .social-chat-input-shell input{box-sizing:border-box;width:100%;height:100%;min-height:44px;padding:8px 52px 8px 11px;background:#0e1726;border:1px solid #2a3e5c;border-radius:7px;color:#ffffff;}
+    .social-chat-inputbar button{box-sizing:border-box;min-width:0;min-height:44px;margin:0;padding:7px 11px;white-space:nowrap;line-height:1;}
     .social-attach-btn{background:#16243a;border:1px solid #2f5180;color:#ffffff;cursor:pointer;}
     .social-attach-btn span{font-size:1.12em;line-height:0;}
     .social-send-btn{min-width:58px!important;background:linear-gradient(180deg,#315b7c,#203d58)!important;border-color:#4d7898!important;color:var(--copy-bright)!important;}
@@ -1515,7 +1551,7 @@ function injectSocialStyles() {
     .social-profile-tabs button{flex:1;min-width:0;min-height:40px;padding:6px 4px;background:var(--ui-surface-2);border:1px solid var(--ui-line);border-radius:7px;color:var(--ui-text);cursor:pointer;font-size:0.84em;}
     .social-profile-tabs button.active{background:var(--ui-surface-3);border-color:var(--ui-accent);color:var(--ui-text);font-weight:700;}
     @media(max-width:420px){
-        .social-chat-inputbar{grid-template-columns:42px minmax(0,1fr) 52px;gap:5px;}
+        .social-chat-inputbar{grid-template-columns:44px minmax(0,1fr) 64px;gap:5px;}
         .social-chat-inputbar button{padding:7px 8px;font-size:0.78em;}
         .social-attach-btn{font-size:0!important;}
         .social-attach-btn span{font-size:16px!important;}

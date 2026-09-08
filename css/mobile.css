@@ -1,7 +1,46 @@
 /* Mobile-only layer (phase 2). */
+.skill-mobile-library-navigation { display: none; }
+.mobile-map-navigation { display: none; }
+.sea-gift-group-picker { display: none; }
+.settings-category-picker { display: none; }
+.flask-mobile-slots { display: none; }
+#passive-mobile-detail { display: none; }
 @media (max-width: 1080px) {
+  .settings-category-picker { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:10px; margin-bottom:12px; color:var(--ui-text-2); font-size:13px; }
+  .settings-category-picker select { width:100%; min-width:0; min-height:44px; font-size:14px; }
+  #tab-settings[data-settings-category="display"] [data-settings-group]:not([data-settings-group="display"]),
+  #tab-settings[data-settings-category="battle"] [data-settings-group]:not([data-settings-group="battle"]),
+  #tab-settings[data-settings-category="progress"] [data-settings-group]:not([data-settings-group="progress"]),
+  #tab-settings[data-settings-category="notifications"] [data-settings-group]:not([data-settings-group="notifications"]),
+  #tab-settings[data-settings-category="layout"] [data-settings-group]:not([data-settings-group="layout"]),
+  #tab-settings[data-settings-category="data"] [data-settings-group]:not([data-settings-group="data"]) { display:none; }
+  #passive-mobile-detail:not([hidden]) { display: flex; flex-direction: column; position: fixed; left: 8px; right: 8px; bottom: calc(62px + env(safe-area-inset-bottom)); z-index: 15000; max-height: 42dvh; border: 1px solid var(--ui-gold); border-radius: 8px; background: var(--ui-surface-1); box-shadow: 0 -8px 24px #0008; padding: 10px; gap: 8px; }
+  #passive-mobile-detail header { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ui-gold); font-size: 13px; }
+  #passive-mobile-detail button { min-height: 44px; font-size: 14px; }
+  #passive-mobile-detail footer button { width: 100%; }
+  .passive-mobile-description { min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: 13px; line-height: 1.5; }
+  .flask-overview { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .flask-overview > div { flex-direction: column; gap: 4px; }
+  .flask-mobile-slots, .flask-mobile-category { display: grid; gap: 6px; margin: 10px 0; font-size: 13px; }
+  .flask-mobile-slots select, .flask-mobile-category select { width: 100%; min-width: 0; min-height: 44px; font-size: 14px; }
+  .flask-paperdoll > [data-flask-selected="false"] { display: none; }
+  #ui-flask-panel .flask-slot-name { font-size: 16px; line-height: 1.4; margin: 4px 0 8px; }
+  #ui-flask-panel .flask-slot-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  #ui-flask-panel .flask-slot-actions.three-actions button:last-child { grid-column: 1 / -1; }
+  #ui-flask-panel .flask-slot-actions button { font-size: 13px; }
+  .mobile-map-navigation { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; margin-bottom: 10px; padding: 6px 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); }
+  .mobile-map-navigation > span { font-size: 12px; color: var(--ui-gold); }
+  .mobile-map-navigation select { min-height: 44px; width: 100%; font-size: 14px; }
+  #tab-map .map-primary-tabs,
+  #tab-map .map-explore-layout > .vertical-tab-sidebar { display: none !important; }
+  #tab-map .map-explore-layout { display: block; }
   body { padding: 10px; }
   #left-pane, #right-pane { min-width: 0; }
+  .skill-mobile-library-navigation:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-block: 10px; }
+  .skill-mobile-library-navigation button { min-height: 44px; font-size: 14px; }
+  .skill-mobile-library-navigation [aria-pressed="true"] { color: var(--ui-gold); border-color: var(--ui-gold); background: var(--ui-surface-2); }
+  #skill-tab-equip[data-mobile-library="support"] .attack-library,
+  #skill-tab-equip[data-mobile-library="skill"] .support-library { display: none !important; }
 }
 
 @media (max-width: 640px) {
@@ -49,6 +88,33 @@
 /* Playable phone layout: switch composition instead of shrinking the desktop UI. */
 @media (max-width: 1080px) {
   html, body { width: 100%; max-width: 100%; overflow-x: hidden !important; }
+  .sea-gift-group-picker { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; margin: 10px 0; font-size: 13px; }
+  .sea-gift-group-picker select { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+  #fishing-workshop[data-recipe-group="supply"] .ocean-recipe-group:not([data-ui-disclosure="sea-gift-supply"]),
+  #fishing-workshop[data-recipe-group="forge"] .ocean-recipe-group:not([data-ui-disclosure="sea-gift-forge"]),
+  #fishing-workshop[data-recipe-group="chase"] .ocean-recipe-group:not([data-ui-disclosure="sea-gift-chase"]),
+  #fishing-workshop[data-recipe-group="supply"] .ocean-craft-target { display: none; }
+  #tab-items > .subtab-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    height: auto;
+    max-height: none;
+    overflow: visible !important;
+    padding: 4px;
+  }
+  #tab-items > .subtab-row > .subtab-btn {
+    min-width: 0 !important;
+    min-height: 44px !important;
+    padding-inline: 4px;
+    white-space: normal;
+    word-break: keep-all;
+  }
+  #ui-fossil-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  #ui-fossil-material-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  #ui-fossil-material-actions > button { min-width: 0; min-height: 44px; width: auto; font-size: 13px; line-height: 1.4; padding: 8px; word-break: keep-all; }
+  #fossil-reroll .craft-layout { display: block; }
+  #fossil-item-display { min-height: 0; margin-block: 10px; }
   body { box-sizing: border-box; gap: 8px !important; }
   #left-pane, #right-pane, #battle-column, .panel, .tab-content, .subtab-content {
     box-sizing: border-box;
@@ -115,9 +181,9 @@
   body.mobile-battle-tab #tab-battle .combat-panel { padding: 5px !important; }
   body.mobile-battle-tab #tab-battle .combat-zone-row { order: 0; }
   body.mobile-battle-tab #tab-battle .combat-dashboard { display: contents !important; }
-  body.mobile-battle-tab #tab-battle .combat-stage { order: 1; display: flex; flex-direction: column; }
+  body.mobile-battle-tab #tab-battle .combat-stage { order: 2; display: flex; flex-direction: column; }
   body.mobile-battle-tab #tab-battle #enemy-area { order: -2; }
-  body.mobile-battle-tab #tab-battle .player-hud { order: 2; }
+  body.mobile-battle-tab #tab-battle .player-hud { order: 1; }
   body.mobile-battle-tab #tab-battle .combat-feed { order: 3; width: 100%; }
   body.mobile-battle-tab #tab-battle .combat-zone-row {
     display: grid;
@@ -190,11 +256,7 @@
   body.mobile-battle-tab #tab-battle .enemy-card.targeted { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box; }
   body.mobile-battle-tab #tab-battle .enemy-card.targeted { padding: 7px 8px; }
   body.mobile-battle-tab #tab-battle .enemy-card.targeted .hp-bar-bg { height: 25px; }
-  body.mobile-battle-tab #tab-battle .combat-feed { min-height: 168px !important; height: clamp(168px, 24svh, 220px) !important; max-height: 220px !important; padding: 8px; }
   body.mobile-battle-tab #tab-battle #log { display: block; flex: 1 1 auto; min-height: 0 !important; font-size: 11px; }
-  body.mobile-battle-tab #tab-battle .combat-feed.collapsed { min-height: 88px !important; height: 88px !important; max-height: 88px !important; }
-  body.mobile-battle-tab #tab-battle .combat-feed.collapsed #log { display: block; max-height: 42px; overflow: hidden; }
-  body.mobile-battle-tab #tab-battle .combat-feed.collapsed #log > div:nth-last-child(n+4) { display: none; }
   #btn-map-complete-action-picker {
     flex: 0 0 112px;
     min-width: 112px !important;
@@ -239,7 +301,7 @@
   .map-item[role="group"] .map-item-actions:has(.map-reward-btn) .map-enter-btn { grid-column: 2; grid-row: 1; }
   .map-item[role="group"] .map-enter-btn { width: 100%; }
   .item-card { min-width: 0; padding: 8px; }
-  .item-actions, .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .item-actions:not(.jewel-card-actions), .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   #tab-skills .skill-gem-library,
   #tab-skills .gem-enhance-actions,
   #tab-skills .gem-engrave-grid,
@@ -249,6 +311,33 @@
   .gem-target-list { grid-template-columns: minmax(0, 1fr) !important; max-height: none; }
   .flask-paperdoll { grid-template-columns: minmax(0, 1fr) !important; }
   #tree-container { width: 100% !important; min-height: 58svh !important; }
+  .craft-picker-overlay { z-index: 24000; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 8px; }
+  .craft-picker-grid { grid-template-columns: minmax(0, 1fr); }
+  .craft-picker-grid .craft-picker-card .item-title { font-size: 14px !important; }
+  .craft-picker-card .craft-picker-stat { font-size: 13px !important; line-height: 1.4; white-space: normal !important; }
+  .craft-picker-grid .craft-picker-card .item-base-line { font-size: 12px !important; }
+  .craft-picker-search { display: flex; gap: 6px; margin: 8px 0; }
+  .craft-picker-search input { min-width: 0; flex: 1; font-size: 16px; }
+  .craft-picker-pages { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; }
+  .craft-picker-search button, .craft-picker-pages button { min-height: 44px; }
+  .market-mobile-target { display: grid; gap: 6px; font-size: 13px; color: var(--copy-muted); }
+  .market-mobile-target select { min-height: 44px; width: 100%; font-size: 16px; }
+  #market-service-navigation:not(:empty) { margin-bottom: 12px; }
+  .market-black-pages { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; font-size: 13px; }
+  .market-black-grid > .market-black-pages { grid-column: 1 / -1; }
+  .market-black-pages button, .market-black-actions button { min-height: 44px; }
+  .market-service-stack:not(:has(> :not([hidden]))) { display: none; }
+  #tree-container .passive-tree-toolbar { display: flex; gap: 4px; height: 52px; position: relative; z-index: 12; background: var(--ui-surface-1); }
+  #tree-container .passive-tree-right-tools { display: contents; }
+  #tree-container .passive-tree-toolbar details,
+  #tree-container .passive-investment-summary { position: static; flex: 1; min-width: 0; width: auto; max-width: none; overflow: visible; box-shadow: none; border: 0; border-radius: 0; backdrop-filter: none; }
+  #tree-container .passive-tree-toolbar summary,
+  #tree-container .passive-investment-summary-toggle { display: flex; justify-content: center; box-sizing: border-box; height: 44px; min-height: 44px; padding: 4px; font-size: 13px; gap: 2px; border: 1px solid var(--ui-gold); border-radius: 6px; background: var(--ui-surface-1); }
+  #tree-container .passive-tree-toolbar summary strong { font-size: 13px; }
+  #tree-container .passive-tree-toolbar details > :not(summary),
+  #tree-container .passive-investment-summary-body { position: absolute; top: 52px; left: 0; right: 0; width: auto; max-height: 40dvh; overflow: auto; overscroll-behavior: contain; padding: 10px; background: var(--ui-surface-1); border: 1px solid var(--ui-gold); border-radius: 6px; box-shadow: 0 8px 20px #0008; }
+  #tree-container #tree-canvas { top: 52px !important; height: calc(100% - 52px) !important; }
+  #tree-container .passive-tree-overlay { top: 52px; height: calc(100% - 52px); }
 }
 
 @media (max-width: 480px) {
@@ -273,7 +362,6 @@
   #ui-support-list { grid-template-columns: minmax(0, 1fr) !important; }
   .paperdoll { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .slot-box { min-width: 0; padding: 5px; font-size: .78em; }
-  .flask-overview { grid-template-columns: minmax(0, 1fr) !important; }
   .flask-workbench-head { flex-direction: column; }
   .flask-glass-balance { width: 100%; box-sizing: border-box; }
 }
@@ -284,6 +372,18 @@
     height: min(76svh, 360px) !important;
   }
 }
+
+.gem-library-pager {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) 1fr minmax(72px, 1fr);
+  grid-column: 1 / -1;
+  align-items: center;
+  gap: 8px;
+  padding-block: 8px;
+}
+.gem-library-pager button { min-height: 44px; }
+.gem-library-pager span { text-align: center; font-variant-numeric: tabular-nums; }
+.gem-library-pager small { display: block; color: var(--ui-text-muted); margin-top: 3px; }
 
 @media (pointer: coarse) {
   .item-card, .skill-gem, .slot-box, .map-item { touch-action: manipulation; }

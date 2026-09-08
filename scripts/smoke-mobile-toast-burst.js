@@ -50,7 +50,7 @@ context.globalThis = context;
 vm.createContext(context);
 require('./lib/load-ui-display')(context);
 
-const varsSource = 'let mobileToastQueue = [];\nlet mobileToastActiveCount = 0;\nconst MOBILE_TOAST_MAX_CONCURRENT = 3;\n';
+const varsSource = uiSource.slice(uiSource.indexOf('let mobileToastQueue ='), uiSource.indexOf('function shouldShowMobileToast'));
 const fnNames = ['shouldShowMobileToast', 'getMobileToastRoot', 'stripHtmlMessage', 'enqueueMobileToast', 'pumpMobileToastQueue', 'getMobileToastDisplayDurationMs', 'showNextMobileToast'];
 const combined = varsSource + fnNames.map(name => readFunctionSource(uiSource, name)).join('\n') + '\n'
     + fnNames.map(name => `this.${name} = ${name};`).join('\n')
@@ -76,8 +76,8 @@ for (let i = 1; i <= 6; i++) context.enqueueMobileToast(`실패 알림 ${i}`, 'a
 
 const toastRoot = context.document.getElementById('mobile-toast-root');
 assert.strictEqual(toastRoot.style.zIndex, '22000', '오류 알림은 루프 재작성 오버레이보다 위에 표시되어야 한다');
-assert.strictEqual(context.getMobileToastActiveCount(), 3, '밀린 알림이 많아도 동시에는 최대 3개까지만 떠야 한다');
-assert.strictEqual(context.getMobileToastQueue().length, 3, '나머지는 큐에 남아 다음 자리가 빌 때 순서대로 떠야 한다');
+assert.strictEqual(context.getMobileToastActiveCount(), 1, '모바일 알림은 한 개씩 표시해 조작 영역을 가리지 않는다');
+assert.strictEqual(context.getMobileToastQueue().length, 5, '나머지는 큐에 남아 다음 자리가 빌 때 순서대로 떠야 한다');
 
 // 표시 시간은 밀린 알림이 많을수록 더 짧아야 한다(점점 빨리 나옴).
 let durationWithBacklog = context.getMobileToastDisplayDurationMs();

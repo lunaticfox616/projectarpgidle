@@ -12,8 +12,68 @@
     // 스킬 패널 재렌더 메모. 이 화면만 쓰므로 여기서 소유한다
     // (예전에는 ui.js 최상단 전역이라 무엇이 쓰는지 파일을 훑어야 알 수 있었다).
     let lastSkillPanelRenderSignature = '';
+    const libraryPages = { skill: { index: 0, query: '' }, support: { index: 0, query: '' } };
+
+    function syncMobileLibraryNavigation(kind) {
+        const panel = document.getElementById('skill-tab-equip');
+        const navigation = panel.querySelector('.skill-mobile-library-navigation');
+        const supportOpen = contentProgression.isUnlocked('support');
+        navigation.hidden = !supportOpen;
+        const selected = supportOpen ? (kind || panel.dataset.mobileLibrary) : 'skill';
+        panel.dataset.mobileLibrary = selected;
+        navigation.querySelectorAll('button').forEach(button => {
+            button.setAttribute('aria-pressed', String(button.dataset.mobileGemLibrary === selected));
+        });
+    }
+
+    document.addEventListener('click', event => {
+        const button = event.target.closest('[data-mobile-gem-library]');
+        if (button) syncMobileLibraryNavigation(button.dataset.mobileGemLibrary);
+    });
+
+    // Filter the complete library first; only build the visible cards on phones.
+    function renderGemLibrary(kind, owned, sealed, stats, filter) {
+        const support = kind === 'support';
+        const fold = support ? game.gemFoldInactiveSupport : game.gemFoldInactiveAttack;
+        const definitions = support ? SUPPORT_GEM_DB : SKILL_DB;
+        const records = owned.map(name => ({ name, sealed: false }))
+            .concat(sealed.map(name => ({ name, sealed: true }))).filter(record => {
+                const active = !record.sealed && (support ? game.equippedSupports.includes(record.name)
+                    : record.name === game.activeSkill || (game.equippedSummonSkills || []).includes(record.name));
+                return window.isGemLibraryMatchVisible(window.getGemSearchText(record.name, definitions[record.name] || {}), filter, fold, active);
+            });
+        const state = libraryPages[kind];
+        const query = JSON.stringify([filter || '', !!fold]);
+        if (state.query !== query) { state.index = 0; state.query = query; }
+        const mobile = uiDisplay.matches('(max-width: 1080px)');
+        const count = Math.max(1, Math.ceil(records.length / 6));
+        state.index = Math.min(state.index, count - 1);
+        const visible = mobile ? records.slice(state.index * 6, (state.index + 1) * 6) : records;
+        const cards = visible.map(record => {
+            const label = window.highlightSearchText(record.name, filter);
+            if (record.sealed) return renderSealedGemCard(record.name, label, support);
+            return support ? renderSupportGemCard(record.name, label, stats) : renderAttackGemCard(record.name, label, stats);
+        }).join('');
+        if (!mobile || records.length <= 6) return cards;
+        return renderLibraryPager(kind, state.index, count, records.length) + cards;
+    }
+
+    function renderLibraryPager(kind, index, count, total) {
+        return '<nav class="gem-library-pager" aria-label="' + (kind === 'support' ? '보조' : '공격') + ' 젬 페이지">'
+            + '<button type="button" data-gem-page="' + kind + '" data-step="-1"' + (index === 0 ? ' disabled' : '') + '>이전</button>'
+            + '<span aria-live="polite">' + (index + 1) + ' / ' + count + '<small>총 ' + total + '개</small></span>'
+            + '<button type="button" data-gem-page="' + kind + '" data-step="1"' + (index === count - 1 ? ' disabled' : '') + '>다음</button></nav>';
+    }
+
+    document.addEventListener('click', event => {
+        const button = event.target.closest('[data-gem-page]');
+        if (!button || button.disabled) return;
+        libraryPages[button.dataset.gemPage].index += Number(button.dataset.step);
+        updateStaticUI();
+    });
 
     function renderSkillGemScreen(context) {
+        syncMobileLibraryNavigation();
         let ctx = context || {};
         let pStats = ctx.pStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : {});
         let sf = ctx.searchFilters || (typeof getSearchFilterState === 'function' ? getSearchFilterState() : {});
@@ -29,6 +89,8 @@
         renderSkillLoadoutSummary(pStats, effectiveResonanceCap);
         let skyTowerSignatureState = (typeof ensureSkyTowerState === 'function') ? ensureSkyTowerState() : null;
         let skillPanelRenderSignature = JSON.stringify({
+            libraryPages: libraryPages,
+            mobileLibrary: uiDisplay.matches('(max-width: 1080px)'),
             activeSkill: game.activeSkill || '',
             skills: game.skills || [],
             supports: game.supports || [],
@@ -68,19 +130,7 @@
         let resonancePower = effectiveResonanceCap;
         let sealedSkills = Array.isArray(game.sealedSkills) ? game.sealedSkills : [];
         let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
-        let skillsRows = game.skills.filter(name => {
-            let def = SKILL_DB[name] || {};
-            let searchable = getGemSearchText(name, def);
-            let active = name === game.activeSkill || (isSummonAttackSkillGem(name)
-                && Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
-            return isGemLibraryMatchVisible(searchable, sf.skill, foldAttackInactive, active);
-        }).map(name => renderAttackGemCard(name, highlightSearchText(name, sf.skill), pStats)).join('');
-        let sealedSkillRows = sealedSkills.filter(name => {
-            let def = SKILL_DB[name] || {};
-            let searchable = getGemSearchText(name, def);
-            return isGemLibraryMatchVisible(searchable, sf.skill, foldAttackInactive, false);
-        }).map(name => renderSealedGemCard(name, highlightSearchText(name, sf.skill), false)).join('');
-        let skillsHtml = skillsRows + sealedSkillRows;
+        let skillsHtml = renderGemLibrary('skill', game.skills, sealedSkills, pStats, sf.skill);
         let skillsListEl = document.getElementById('ui-skills-list');
         let skillActions = foldAttackInactive ? '' : '<button onclick="sealAllInactiveSkillGems()">미사용 공격 젬 일괄 봉인</button>';
         let skillsRenderSig = `${skillsHtml}::${skillActions}`;
@@ -99,17 +149,7 @@
             let used = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
             suppResonanceEl.innerText = `${Math.max(0, getEffectiveResonanceCap(pStats) - used)}`;
         }
-        let supportRows = game.supports.filter(name => {
-            let def = SUPPORT_GEM_DB[name] || {};
-            let searchable = getGemSearchText(name, def);
-            return isGemLibraryMatchVisible(searchable, sf.support, foldSupportInactive, game.equippedSupports.includes(name));
-        }).map(name => renderSupportGemCard(name, highlightSearchText(name, sf.support), pStats)).join('');
-        let sealedSupportRows = sealedSupports.filter(name => {
-            let def = SUPPORT_GEM_DB[name] || {};
-            let searchable = getGemSearchText(name, def);
-            return isGemLibraryMatchVisible(searchable, sf.support, foldSupportInactive, false);
-        }).map(name => renderSealedGemCard(name, highlightSearchText(name, sf.support), true)).join('');
-        let supportHtml = supportRows + sealedSupportRows;
+        let supportHtml = renderGemLibrary('support', game.supports, sealedSupports, pStats, sf.support);
         let supportListEl = document.getElementById('ui-support-list');
         let supportActions = foldSupportInactive ? '' : '<button onclick="sealAllInactiveSupportGems()">미사용 보조 젬 일괄 봉인</button>';
         let supportRenderSig = `${supportHtml}::${supportActions}`;

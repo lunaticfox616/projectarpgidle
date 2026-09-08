@@ -72,6 +72,15 @@ const craftingResultUi = (() => {
         return `<li class="${row.kind}"><span>${mark}</span><span>${escapeHTML(getStatText(entry))}</span></li>`;
     }
 
+    function getRepeatButton(result, item) {
+        if (!['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'deepWhetstone', 'rootIron', 'jewelPolish'].includes(result.meta.currencyKey)) return '';
+        const payment = getCraftPayment(result.meta.currencyKey, item, result.meta.paymentSource);
+        if (!payment) return '';
+        const name = ORB_DB[payment.key].name;
+        const label = payment.key === 'growthEssence' ? `${name} ${payment.cost}개로 다시 제작 · 보유 ${payment.have}` : `${name} 다시 사용 · ${payment.have}`;
+        return `<button type="button" data-repeat-craft="${result.meta.currencyKey}" onclick="craftingResultUi.repeat(${Number(item.id)})" ${payment.affordable ? '' : 'disabled'}>${escapeHTML(label)}</button>`;
+    }
+
     function getLedgerHtml(item) {
         let result = craftingResultLedger.getForItem(item);
         if (!result) return '';
@@ -79,18 +88,16 @@ const craftingResultUi = (() => {
         let rowsHtml = getChangeRows(result).map(getRowHtml).join('');
         rowsHtml += getMetaRows(result).map(text => `<li class="changed"><span>◆</span><span>${escapeHTML(text)}</span></li>`).join('');
         if (!rowsHtml) rowsHtml = '<li class="unchanged"><span>•</span><span>옵션 변화 없음</span></li>';
-        let repeatable = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'deepWhetstone', 'rootIron', 'jewelPolish'].includes(result.meta.currencyKey);
-        let remaining = Math.max(0, Math.floor(game.currencies[result.meta.currencyKey] || 0));
-        let button = repeatable ? `<button type="button" data-repeat-craft="${result.meta.currencyKey}" onclick="craftingResultUi.repeat()" ${remaining > 0 ? '' : 'disabled'}>${escapeHTML(currency ? currency.name : result.meta.currencyKey)} 다시 사용 · ${remaining}</button>` : '';
+        let button = getRepeatButton(result, item);
         return `<section class="craft-result-ledger" aria-live="polite"><div class="craft-result-head"><div><small>방금 제작 결과</small><strong>${escapeHTML(currency ? currency.name : result.meta.currencyKey)}</strong></div>${button}</div><ul>${rowsHtml}</ul></section>`;
     }
 
-    async function repeat() {
+    async function repeat(itemId) {
         let item = getSelectedCraftItem();
+        if (itemId !== undefined && item?.id !== itemId) return addLog('제작 대상이 변경되었습니다. 아이템을 다시 선택하세요.', 'attack-monster');
         let result = craftingResultLedger.getForItem(item);
         if (!result) return addLog('다시 사용할 수 있는 최근 제작 결과가 없습니다.', 'attack-monster');
-        if ((game.currencies[result.meta.currencyKey] || 0) <= 0) return addLog('같은 제작 재화가 부족합니다.', 'attack-monster');
-        return useCurrency(result.meta.currencyKey);
+        return useCurrency(result.meta.currencyKey, result.meta.paymentSource);
     }
 
     return { getLedgerHtml, repeat };

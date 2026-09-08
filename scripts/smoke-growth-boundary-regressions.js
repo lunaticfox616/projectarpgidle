@@ -172,15 +172,16 @@ function createScrollableRenderHost(top, left) {
     resetGame();
     placeFlatHpFlower();
     const panel = createScrollableRenderHost(137, 29);
+    const workshop = createRenderHost();
     let scrollIntoViewCalls = 0;
     const bench = { scrollIntoView() { scrollIntoViewCalls++; } };
-    ctx.document.getElementById = id => id === 'ui-growth-panel' ? panel : (id === 'ui-growth-craft-bench' ? bench : null);
+    ctx.document.getElementById = id => ({'ui-growth-panel':panel, 'growth-workshop':workshop, 'ui-growth-craft-bench':bench})[id] || null;
     run('growthCraftItemId = null;');
     run("growthSelection = { itemId: null, source: null, rotation: 0, hoverCell: null }; selectGrowthItem(game.growthInventory[0].id, 'tray')");
     assert.strictEqual(run('growthSelection.source'), 'tray', '빠른 배치함 클릭으로 아이템을 선택해야 한다');
     assert.strictEqual(run('growthCraftItemId'), run('game.growthInventory[0].id'), '빠른 배치함에서 선택한 아이템을 제작대에도 올려야 한다');
-    assert.ok(panel._html.includes('제작 전 옵션 확인'), '빠른 배치함 선택 직후 제작대 미리보기를 갱신해야 한다');
-    assert.ok(/data-growth-disclosure="craft-bench"\s+open/.test(panel._html), '빠른 배치함에서 선택하면 제작대가 즉시 열려야 한다');
+    assert.ok(workshop._html.includes('제작 전 옵션 확인'), '빠른 배치함 선택 직후 제작대 미리보기를 갱신해야 한다');
+    assert.ok(/data-growth-disclosure="craft-bench"\s+open/.test(workshop._html), '빠른 배치함에서 선택하면 제작대가 즉시 열려야 한다');
     assert.strictEqual(panel.tray.scrollTop, 137, '빠른 배치함의 세로 스크롤을 복원해야 한다');
     assert.strictEqual(panel.tray.scrollLeft, 29, '모바일 빠른 배치함의 가로 스크롤도 복원해야 한다');
     assert.strictEqual(scrollIntoViewCalls, 0, '빠른 배치함 선택은 제작대로 화면을 이동시키면 안 된다');
@@ -228,6 +229,7 @@ function createScrollableRenderHost(top, left) {
     const panel = createRenderHost();
     const elements = {
         'ui-growth-panel': panel,
+        'growth-workshop': createRenderHost(),
         'ui-growth-unlock-note': createRenderHost(),
         'ui-growth-recent': createRenderHost(),
         'ui-growth-recent-count': createRenderHost(),
@@ -249,4 +251,36 @@ function createScrollableRenderHost(top, left) {
     expectRerender('game.growthInventory[0].quality = 1', '품질 변경을 렌더 지문이 감지해야 한다');
 }
 
-console.log('smoke-growth-boundary-regressions passed');
+async function checkGrowthPayments() {
+    resetGame(); placeFlatHpFlower();
+    run('game.currencies.growthEssence=10; game.currencies.magicBud=5; growthCraftItemId=game.growthInventory[0].id;');
+    const pending = run("craftGrowthItem('magicBud')");
+    run('game.currencies.magicBud += 3');
+    await pending;
+    assert.strictEqual(run('game.currencies.magicBud'), 8, '제작 도중 획득한 일반 재화를 덮어쓰면 안 된다');
+    assert.strictEqual(run('game.currencies.growthEssence'), 9, '성공한 제작은 정수를 정확히 소비해야 한다');
+    assert.strictEqual(run('game.growthInventory[0].rarity'), 'magic');
+    await run('craftingResultUi.repeat(game.growthInventory[0].id)');
+    assert.strictEqual(run('game.currencies.growthEssence'), 8, '반복 제작은 최초 제작과 같은 정수를 써야 한다');
+    assert.strictEqual(run('game.currencies.magicBud'), 8, '반복 제작이 일반 재화로 바뀌면 안 된다');
+    await run("craftGrowthItem('sapBud')");
+    assert.strictEqual(run('game.currencies.growthEssence'), 6, '승급 비용은 데이터에 정의된 정수 2개다');
+    assert.strictEqual(run('game.growthInventory[0].rarity'), 'rare');
+    run('game.currencies.growthEssence=3;game.currencies.goldenRule=2;');
+    const before = run('JSON.stringify(game.growthInventory[0])');
+    await run("useCurrency('goldenRule','growthEssence')");
+    assert.strictEqual(run('JSON.stringify(game.growthInventory[0])'), before, '부족한 정수는 아이템 변경 없이 거절해야 한다');
+    assert.strictEqual(run('game.currencies.growthEssence'), 3);
+    assert.strictEqual(run('game.currencies.goldenRule'), 2);
+    await run("useCurrency('goldenRule')");
+    assert.strictEqual(run('game.currencies.goldenRule'), 1, '일반 제작 경로는 기존 재화 1개를 소비한다');
+    assert.strictEqual(run('game.currencies.growthEssence'), 3);
+    await run('craftingResultUi.repeat(-1)');
+    assert.strictEqual(run('game.currencies.goldenRule'), 1, '다른 아이템을 가리키는 반복 버튼은 거절해야 한다');
+    run("game.growthInventory[0].rarity='unique';game.currencies.growthEssence=10;");
+    await run("useCurrency('goldenRule','growthEssence')");
+    assert.strictEqual(run('game.currencies.growthEssence'), 10, '정수 제작 제한은 직접 호출에도 적용된다');
+}
+checkGrowthPayments().then(() => console.log('smoke-growth-boundary-regressions passed')).catch(error => {
+    console.error(error); process.exitCode = 1;
+});

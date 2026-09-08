@@ -13,18 +13,23 @@ function normalizeTabLayoutSettings(settings) {
             tabOrder: normalizeOrder(source.tabOrder, buttonId),
             tabPlacement: Object.fromEntries(Object.entries(placements)
                 .filter(([id, place]) => buttonId.test(id) && ['top', 'bottom'].includes(place))
-                .map(([id, place]) => [id, id === 'btn-tab-pruning' ? 'top' : place])),
+                .map(([id, place]) => [id, id === 'btn-tab-pruning' && platform === 'desktop' ? 'top' : place])),
             tabGroupOrder: normalizeOrder(source.tabGroupOrder, /^(character|growth|content|gear|etc)$/)
         };
     }
     return layouts;
 }
 
-/** Save boundary: missing ledger denotes a pre-choice save; never revoke its existing access. */
+/** Save boundary: retain prior access except first-loop flask and locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
     if (!merged.conditionGemLevels || typeof merged.conditionGemLevels !== 'object') merged.conditionGemLevels = {};
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
     contentProgression.sync(merged);
+    if (TRIAL_ZONES.some(zone => zone.id === merged.currentZoneId) && !contentProgression.isUnlocked('battleTrials', merged)) {
+        merged.currentZoneId = 0;
+        merged.enemies = []; merged.encounterPlan = []; merged.killsInZone = 0;
+        merged.inTicketBossFight = false; merged.moveTimer = 0;
+    }
     return merged;
 }
 
@@ -772,6 +777,7 @@ function mergeDefaults(save) {
     merged.settings.twoRowTabs = false;
     merged.settings.leftPaneCollapsed = !!merged.settings.leftPaneCollapsed;
     merged.settings.combatLogCollapsed = !!merged.settings.combatLogCollapsed;
+    merged.settings.mobileCombatLogExpanded = merged.settings.mobileCombatLogExpanded === true;
     equipmentLootPolicy.normalizeSettings(merged.settings);
     merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
     merged.settings.growthAutoSalvageRarities = { ...(defaultGame.settings.growthAutoSalvageRarities || {}), ...(merged.settings.growthAutoSalvageRarities || {}) };

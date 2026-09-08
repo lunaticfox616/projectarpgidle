@@ -6,6 +6,7 @@ const context = buildGameRuntime();
 const run = source => vm.runInContext(source, context);
 
 async function main() {
+    await checkPendingFossilRefining();
     run(`(function () {
         game.season = 30;
         game.contentProgression.inherited.push('cube', 'growth', 'craft');
@@ -256,6 +257,40 @@ async function main() {
         'a rejected time-rift placement must not remove the growth item');
 
     console.log('smoke-endgame-resource-pressure passed');
+}
+
+async function checkPendingFossilRefining() {
+    const runtime = buildGameRuntime();
+    const execute = source => vm.runInContext(source, runtime);
+    const pending = [];
+    runtime.requestGameNumber = () => new Promise(resolve => pending.push(resolve));
+    execute('game.season = 3; game.currencies.fossil = 2');
+    const first = execute('applyFossilCraft()');
+    const second = execute('applyFossilCraft()');
+    pending.shift()(2);
+    await first;
+    const afterFirst = execute('JSON.stringify(game.currencies)');
+    pending.shift()(2);
+    await second;
+    assert.strictEqual(execute('JSON.stringify(game.currencies)'), afterFirst,
+        'a second pending refinement cannot spend the same fossils again');
+    execute('game.currencies.fossil = 2');
+    const increased = execute('applyFossilCraft()');
+    execute('game.currencies.fossil += 3');
+    pending.shift()(2);
+    await increased;
+    assert.strictEqual(execute('game.currencies.fossil'), 3, 'newly earned fossils are preserved');
+    const cancelled = execute('applyFossilCraft()');
+    const beforeCancel = execute('JSON.stringify(game.currencies)');
+    pending.shift()(null);
+    await cancelled;
+    assert.strictEqual(execute('JSON.stringify(game.currencies)'), beforeCancel);
+    const changedLoop = execute('applyFossilCraft()');
+    execute('game.season = 1');
+    pending.shift()(1);
+    await changedLoop;
+    assert.strictEqual(execute('JSON.stringify(game.currencies)'), beforeCancel,
+        'pending refinement must recheck loop access before spending');
 }
 
 main().catch(error => {

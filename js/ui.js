@@ -949,6 +949,7 @@ function isMobilePrimaryNavigationEnabled() {
 }
 
 function setMobileTabDrawerOpen(open) {
+    const wasOpen = document.body.classList.contains('mobile-tab-drawer-open');
     let enabled = isMobilePrimaryNavigationEnabled();
     let nextOpen = enabled && !!open;
     let goalDrawer = document.getElementById('ui-goal-drawer');
@@ -960,6 +961,56 @@ function setMobileTabDrawerOpen(open) {
     if (more) more.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
     let header = document.getElementById('tab-header-main');
     if (header && enabled) header.setAttribute('aria-hidden', nextOpen ? 'false' : 'true');
+    syncMobileMenuFocus(header, more, wasOpen, nextOpen);
+}
+
+function syncMobileMenuFocus(header, more, wasOpen, nextOpen) {
+    if (wasOpen === nextOpen || !header) return;
+    if (nextOpen) {
+        header.querySelector('.mobile-tab-drawer-head button')?.focus({ preventScroll: true });
+        return;
+    }
+    if (header.contains(document.activeElement) || document.activeElement.id === 'mobile-tab-drawer-backdrop') {
+        more?.focus({ preventScroll: true });
+    }
+}
+
+function handleMobileMenuKey(event) {
+    if (!document.body.classList.contains('mobile-tab-drawer-open') || !['Tab', 'Escape'].includes(event.key)) return;
+    if (document.querySelector('.game-dialog-overlay[aria-hidden="false"]')) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (event.key === 'Escape') { setMobileTabDrawerOpen(false); return; }
+    const header = document.getElementById('tab-header-main');
+    const buttons = Array.from(header.querySelectorAll('button:not([disabled]),[data-mobile-tab-button]')).filter(button => button.getClientRects().length > 0);
+    if (!buttons.length) return;
+    const current = buttons.indexOf(document.activeElement);
+    const next = (current + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length;
+    buttons[next].focus();
+}
+
+function restoreMobileMenuFocus(focused) {
+    if (!document.body.classList.contains('mobile-tab-drawer-open')) return;
+    const header = document.getElementById('tab-header-main');
+    if (!header.contains(focused)) return;
+    const target = focused.getClientRects().length ? focused : header.querySelector('.mobile-tab-drawer-head button');
+    target?.focus({ preventScroll: true });
+}
+
+function prepareMobileTabButtons(headers) {
+    headers.forEach(header => header.querySelectorAll('.tab-btn:not(button)').forEach(button => {
+        button.setAttribute('data-mobile-tab-button', '');
+        button.setAttribute('role', 'button');
+        button.tabIndex = 0;
+    }));
+}
+
+function handleMobileTabActivation(event) {
+    if (!document.body.classList.contains('mobile-primary-navigation')) return;
+    if (!event.target.matches('[data-mobile-tab-button]') || !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.target.click();
 }
 
 function toggleMobileTabDrawer() {
@@ -970,13 +1021,13 @@ function createMobileTabDrawerHead() {
     let head = document.createElement('div');
     head.className = 'mobile-tab-drawer-head';
     let title = document.createElement('strong');
-    title.textContent = '기타';
+    title.textContent = '전체 메뉴';
     let actions = document.createElement('span');
     actions.className = 'mobile-tab-drawer-actions';
     let close = document.createElement('button');
     close.type = 'button';
     close.textContent = '닫기';
-    close.setAttribute('aria-label', '기타 메뉴 닫기');
+    close.setAttribute('aria-label', '전체 메뉴 닫기');
     close.addEventListener('click', () => setMobileTabDrawerOpen(false));
     actions.append(close);
     head.append(title, actions);
@@ -990,8 +1041,8 @@ function createMobileMoreButton() {
     button.className = 'mobile-nav-more';
     button.setAttribute('aria-controls', 'tab-header-main');
     button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', '기타 메뉴 열기');
-    button.innerHTML = '<span class="mobile-nav-more-icon" aria-hidden="true"></span><span>기타</span><span class="noti-dot"></span>';
+    button.setAttribute('aria-label', '전체 메뉴 열기');
+    button.innerHTML = '<span>전체</span><span class="noti-dot"></span>';
     button.addEventListener('click', toggleMobileTabDrawer);
     return button;
 }
@@ -1001,10 +1052,10 @@ function ensureMobilePrimaryNavigation(topHeader, bottomHeader) {
     document.body.classList.add('mobile-primary-navigation', 'has-bottom-tabs');
     topHeader.setAttribute('role', 'dialog');
     topHeader.setAttribute('aria-modal', 'true');
-    topHeader.setAttribute('aria-label', '기타 메뉴');
-    topHeader.setAttribute('aria-hidden', 'true');
+    topHeader.setAttribute('aria-label', '전체 메뉴');
+    topHeader.setAttribute('aria-hidden', String(!document.body.classList.contains('mobile-tab-drawer-open')));
     bottomHeader.setAttribute('role', 'navigation');
-    bottomHeader.setAttribute('aria-label', '전체 탭 메뉴');
+    bottomHeader.setAttribute('aria-label', '빠른 탭 메뉴');
     let head = topHeader.querySelector(':scope > .mobile-tab-drawer-head');
     if (!head) topHeader.prepend(createMobileTabDrawerHead());
     let more = document.getElementById('btn-mobile-nav-more');
@@ -1015,19 +1066,26 @@ function ensureMobilePrimaryNavigation(topHeader, bottomHeader) {
         backdrop = document.createElement('button');
         backdrop.id = 'mobile-tab-drawer-backdrop';
         backdrop.type = 'button';
-        backdrop.setAttribute('aria-label', '기타 메뉴 닫기');
+        backdrop.setAttribute('aria-label', '전체 메뉴 닫기');
         backdrop.addEventListener('click', () => setMobileTabDrawerOpen(false));
         document.body.appendChild(backdrop);
     }
     if (!mobileNavigationKeyBound) {
         mobileNavigationKeyBound = true;
-        document.addEventListener('keydown', event => { if (event.key === 'Escape') setMobileTabDrawerOpen(false); });
+        document.addEventListener('keydown', handleMobileMenuKey, true);
+        document.addEventListener('keydown', handleMobileTabActivation, true);
     }
+    prepareMobileTabButtons([topHeader, bottomHeader]);
     return more;
 }
 
 function teardownMobilePrimaryNavigation(topHeader, bottomHeader) {
     setMobileTabDrawerOpen(false);
+    document.querySelectorAll('[data-mobile-tab-button]').forEach(button => {
+        button.removeAttribute('data-mobile-tab-button');
+        button.removeAttribute('role');
+        button.removeAttribute('tabindex');
+    });
     document.body.classList.remove('mobile-primary-navigation', 'mobile-tab-drawer-open', 'has-bottom-tabs');
     if (topHeader && bottomHeader) {
         Array.from(bottomHeader.querySelectorAll(':scope > .tab-btn')).forEach(button => topHeader.appendChild(button));
@@ -1038,6 +1096,7 @@ function teardownMobilePrimaryNavigation(topHeader, bottomHeader) {
         topHeader.removeAttribute('aria-label');
         topHeader.removeAttribute('aria-hidden');
         topHeader.querySelector(':scope > .mobile-tab-drawer-head')?.remove();
+        topHeader.querySelectorAll('.mobile-menu-group-title').forEach(title => title.remove());
     }
     if (bottomHeader) {
         bottomHeader.removeAttribute('role');
@@ -1063,6 +1122,24 @@ function syncMobilePrimaryNavigationState() {
 
 function renderTabOrderSettings() {
     tabLayoutUi.render();
+}
+
+function renderMobileMenuGroups(header) {
+    for (const group of getOrderedTabGroups()) {
+        const buttons = group.tabs.map(id => document.getElementById('btn-' + id))
+            .filter(button => button && button.parentElement === header && button.style.display !== 'none'
+                && !button.hidden && button.dataset.mergedTabMember !== '1');
+        let title = header.querySelector('[data-mobile-group="' + group.key + '"]');
+        if (!title) {
+            title = document.createElement('div');
+            title.className = 'mobile-menu-group-title';
+            title.dataset.mobileGroup = group.key;
+            title.textContent = group.label;
+        }
+        title.hidden = buttons.length === 0;
+        header.appendChild(title);
+        buttons.forEach(button => header.appendChild(button));
+    }
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
 const TAB_DRAG_CANCEL_PX = 8;
@@ -1409,6 +1486,7 @@ function installTabHeaderDragReorder() {
 }
 
 function applyTabHeaderOrder(shouldRenderSettings){
+    const focused = document.activeElement;
     game.settings=game.settings||{};
     tabLayoutUi.current().tabPlacement = tabLayoutUi.current().tabPlacement || {};
     let headers = Array.from(document.querySelectorAll('.tab-header'));
@@ -1424,14 +1502,10 @@ function applyTabHeaderOrder(shouldRenderSettings){
     }
     if(!topHeader) return;
     let mobilePrimary = isMobilePrimaryNavigationEnabled();
+    let primaryIds = new Set(tabLayoutUi.mobilePrimaryIds());
     if (!mobilePrimary) teardownMobilePrimaryNavigation(topHeader, bottomHeader);
     else ensureMobilePrimaryNavigation(topHeader, bottomHeader);
     if (!mobilePrimary) installTabHeaderDragReorder();
-    if (game.settings.twoRowTabs && !tabLayoutUi.current().tabPlacementInitialized && uiDisplay.matches('(max-width: 1080px)')) {
-        tabLayoutUi.current().tabPlacementInitialized = true;
-        let autoIds = Array.from(topHeader.querySelectorAll('.tab-btn')).map(el => el.id);
-        autoIds.forEach((id, idx) => { tabLayoutUi.current().tabPlacement[id] = idx === 0 || id === 'btn-tab-pruning' ? 'top' : 'bottom'; });
-    }
     let allTabButtons = headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')));
     let ids=allTabButtons.map(el=>el.id);
     let order = Array.from(new Set(['btn-tab-battle', ...tabLayoutUi.current().tabOrder, ...tabLayoutUi.defaultOrder]));
@@ -1439,13 +1513,13 @@ function applyTabHeaderOrder(shouldRenderSettings){
     order.forEach(id=>{
         if(!map[id]) return;
         let target = mobilePrimary
-            ? (tabLayoutUi.isMisc(id) ? topHeader : bottomHeader)
+            ? (primaryIds.has(id) ? bottomHeader : topHeader)
             : ((game.settings.twoRowTabs && tabLayoutUi.current().tabPlacement[id] === 'bottom' && bottomHeader) ? bottomHeader : topHeader);
         target.appendChild(map[id]);
     });
     ids.forEach(id=>{
         if(order.includes(id) || !map[id]) return;
-        let target = mobilePrimary && !tabLayoutUi.isMisc(id) ? bottomHeader : topHeader;
+        let target = mobilePrimary && primaryIds.has(id) ? bottomHeader : topHeader;
         target.appendChild(map[id]);
     });
     if (bottomHeader) {
@@ -1456,7 +1530,9 @@ function applyTabHeaderOrder(shouldRenderSettings){
         document.body.classList.toggle('has-bottom-tabs', hasBottomTabs);
         updateBottomTabSpacing();
     }
+    if (mobilePrimary) renderMobileMenuGroups(topHeader);
     syncMobilePrimaryNavigationState();
+    restoreMobileMenuFocus(focused);
     if (shouldRenderSettings || (document.getElementById('tab-settings') || {}).classList.contains('active')) renderTabOrderSettings();
 }
 // Reserve scroll space at the bottom of the page so the fixed bottom tab bar
@@ -1578,9 +1654,9 @@ function refreshTabHeaderUiIfNeeded() {
     let signature = getTabHeaderUiSignature();
     if (signature === lastTabHeaderUiSignature) return false;
     lastTabHeaderUiSignature = signature;
+    updateTabUnlockButtons();
     applyTabHeaderOrder();
     updateTabNotificationDots();
-    updateTabUnlockButtons();
     applyTabGroupFilter();
     renderTabCategoryBar();
     return true;
@@ -1659,6 +1735,15 @@ function getRenderingUiTabIds() {
         if (el.id) ids.add(resolveRenderedTabId(el.id));
     });
     return ids;
+}
+
+// Keep timed stock progression independent of whether its management panel is visible.
+function renderVisibleManagementPanels(tabIds, renderFlasks) {
+    if (tabIds.has('tab-talent')) renderTalentTab();
+    if (tabIds.has('tab-flask')) renderFlasks();
+    if (tabIds.has('tab-expertise')) renderExpertiseUI();
+    if (tabIds.has('tab-items') && game.itemSubtab === 'item-tab-market') renderMarketUI();
+    else refreshBlackMarket(false);
 }
 
 // 지금 이 탭 화면(창/패널)을 열어 둘 수 있는지 판정한다.
@@ -1947,6 +2032,7 @@ function switchItemSubtab(subtabId) {
     document.getElementById(subtabId).classList.add('active');
     document.getElementById('btn-' + subtabId).classList.add('active');
     if (subtabId === 'item-tab-hall' && typeof loadPlayerExchange === 'function') loadPlayerExchange();
+    updateStaticUI();
 }
 
 
@@ -2023,11 +2109,17 @@ function setEquipmentMobilePane(pane) {
 
 safeExposeGlobals({ setEquipmentMobilePane });
 
-function selectJewelWorkbenchTarget(index, fusion) {
+function selectJewelWorkbenchTarget(index, fusion, equipped = false) {
     if (fusion) toggleJewelFusionSelection(index);
+    else if (equipped) selectEquippedJewelCraftTarget(index);
     else selectJewelCraftTarget(index);
     let disclosure = document.getElementById('ui-jewel-craft-disclosure');
     if (disclosure) disclosure.open = true;
+    if (!fusion && uiDisplay.matches('(max-width: 1080px)')) {
+        jewelCraftUi.show('orbs');
+        document.getElementById('ui-jewel-craft-disclosure-tab').click();
+        document.getElementById('ui-jewel-panel').scrollIntoView({ block: 'start' });
+    }
 }
 
 safeExposeGlobals({ selectJewelWorkbenchTarget });
@@ -2049,10 +2141,7 @@ function getSortedEquipmentInventoryRows(query) {
         game.inventory.some(item => item && !isItemRarityVisible(item))].some(Boolean);
     let rows = game.inventory.map((item, idx) => ({ item, idx })).map(row => {
         let item = row.item || {};
-        let under = item.underEnchant ? `${item.underEnchant.id || ''} ${item.underEnchant.statName || getStatName(item.underEnchant.id || '') || ''} ${item.underEnchant.val || ''}` : '';
-        let base = (item.baseStats || []).map(stat => `${stat && stat.id || ''} ${stat && stat.statName || ''}`).join(' ');
-        let stats = (item.stats || []).map(stat => `${stat && stat.id || ''} ${stat && stat.statName || getStatName((stat && stat.id) || '') || ''}`).join(' ');
-        let searchMatched = matchSearchQuery(`${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${base} ${stats} ${under}`, query);
+        let searchMatched = matchSearchQuery(getEquipmentSearchText(item), query);
         return { ...row, filterActive: visualFilterActive,
             filterMatched: ['all', item.slot].includes(slotValue) && isItemRarityVisible(item) && searchMatched };
     }).sort((a, b) => {
@@ -3426,9 +3515,11 @@ function renderFishingPanel() {
     let lastCatch = lastFish ? `${st.lastCatch.guaranteed ? '✨ ' : ''}${lastFish.name}` : '아직 포획 기록 없음';
     captureUiDisclosureState(panel);
     panel.innerHTML = `<div class="ocean-dashboard-head"><div><h3>심해 어장</h3><p>잠수 중 자동으로 어종을 모읍니다. 전략을 정하고 제작에 필요한 재료를 모으세요.</p></div><div class="ocean-last-catch"><small>최근 포획</small><strong>${lastCatch}</strong></div></div>
-    <div class="ocean-quick-actions"><button onclick="switchMapSubtab(\'map-tab-ocean\')">잠수하러 가기</button><button onclick="document.getElementById(\'ui-sea-gift-panel\').scrollIntoView({block:\'start\'})">바다의 선물 제작</button></div><div class="ocean-meter-grid"><div class="ocean-meter"><div><span>낚시 게이지</span><b>${Math.floor(st.fishingGauge)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.fishingGauge))}%"></span></i></div><div class="ocean-meter ocean-meter--pity"><div><span>희귀 조짐</span><b>${Math.floor(st.rareFishPity)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.rareFishPity))}%"></span></i></div></div>
+    <div class="ocean-quick-actions"><button onclick="switchMapSubtab(\'map-tab-ocean\')">잠수하러 가기</button><button onclick="document.getElementById(\'fishing-workshop-tab\').click();document.getElementById(\'fishing-workshop\').scrollIntoView({block:\'start\'})">바다의 선물 제작</button></div><div class="ocean-meter-grid"><div class="ocean-meter"><div><span>낚시 게이지</span><b>${Math.floor(st.fishingGauge)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.fishingGauge))}%"></span></i></div><div class="ocean-meter ocean-meter--pity"><div><span>희귀 조짐</span><b>${Math.floor(st.rareFishPity)}%</b></div><i><span style="width:${Math.max(0, Math.min(100, st.rareFishPity))}%"></span></i></div></div>
     <section class="ocean-section"><div class="ocean-section-head"><div><strong>채집 전략</strong><span>${st.diving ? '잠수 중에는 변경할 수 없습니다.' : `현재 ${strategy.name} · 다음 잠수부터 적용`}</span></div><span class="ocean-reef-count">🪸 ${st.reefInstalled}/10 · 게이지 +${st.reefInstalled * 15}%</span></div><div class="ocean-strategy-grid">${renderOceanFishingStrategies(st)}</div><button type="button" class="ocean-reef-action" onclick="installOceanReefFragment(); renderFishingPanel();" ${st.reefInstalled >= 10 || (game.currencies.reefFragment || 0) < 1 ? 'disabled' : ''}>암초 조각 설치 · 보유 ${game.currencies.reefFragment || 0}</button></section>
-    <details class="ocean-section ocean-collection-disclosure" data-ui-disclosure="ocean-collection"><summary>도감 · 발견 ${progress.discoveredCount}/${progress.totalCount}종 · ${progress.milestones.filter(row=>row.ready&&!row.claimed).length}개 보상 수령 가능</summary><div class="ocean-section-head"><div><strong>심해 도감</strong><span>발견 ${progress.discoveredCount}/${progress.totalCount} · 보유량은 제작에 사용해도 누적 기록은 유지됩니다.</span></div></div><div class="ocean-milestone-grid">${renderOceanCollectionMilestones(progress)}</div><div class="ocean-fish-grid">${renderOceanFishCollection(st)}</div></details>`;
+    `;
+    document.getElementById('ui-fishing-collection-summary').textContent = `도감 · 발견 ${progress.discoveredCount}/${progress.totalCount}종 · ${progress.milestones.filter(row=>row.ready&&!row.claimed).length}개 보상 수령 가능`;
+    renderOceanCollectionPanel(st, progress);
     restoreUiDisclosureState(panel);
 }
 
@@ -3449,7 +3540,7 @@ function renderSeaGiftRecipeCard(recipe, st) {
     let title = parsed ? parsed[1] : recipe.desc;
     let description = parsed ? parsed[2] : '';
     let actionLabel = !materialReady ? '재료 부족' : (!hasTarget ? '대상 선택 필요' : '제작');
-    return `<article class="ocean-recipe-card ${ready ? 'ready' : ''}"><div class="ocean-recipe-copy"><small>${title}</small><strong>${description}</strong><div class="ocean-recipe-cost">${reqText}</div></div><div class="ocean-recipe-actions">${categorySelect}<button type="button" onclick="${onclick}" ${ready ? '' : 'disabled'}>${actionLabel}</button></div></article>`;
+    return `<article data-sea-recipe="${recipe.id}" class="ocean-recipe-card ${ready ? 'ready' : ''}"><div class="ocean-recipe-copy"><small>${title}</small><strong>${description}</strong><div class="ocean-recipe-cost">${reqText}</div></div><div class="ocean-recipe-actions">${categorySelect}<button type="button" onclick="${onclick}" ${ready ? '' : 'disabled'}>${actionLabel}</button></div></article>`;
 }
 
 const renderSeaGiftTarget = function () {
@@ -3470,6 +3561,7 @@ const renderSeaGiftRecipeGroup = function (key, title, description, recipes, st,
 function renderSeaGiftPanel() {
     let panel = document.getElementById('ui-sea-gift-panel');
     if (!panel) return;
+    const initialize = !panel.firstElementChild;
     if (typeof captureUiDisclosureState === 'function') captureUiDisclosureState(panel);
     let st = ensureOceanState();
     if (!st.unlocked) { panel.innerHTML = ''; return; }
@@ -3478,8 +3570,8 @@ function renderSeaGiftPanel() {
     let regularRecipes = SEA_GIFT_RECIPES.filter(recipe => !chaseRecipes.includes(recipe));
     let supplyRecipes = regularRecipes.filter(recipe => !SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type));
     let forgeRecipes = regularRecipes.filter(recipe => SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type));
-    panel.innerHTML = `${renderSeaGiftTarget()}<div class="ocean-recipe-groups">${renderSeaGiftRecipeGroup('supply', '재화 정제', '자주 잡히는 어종을 성장 재화로 교환합니다.', supplyRecipes, st, true)}${renderSeaGiftRecipeGroup('forge', '장비 가공', '선택한 장비의 옵션을 직접 가공합니다.', forgeRecipes, st, true)}${renderSeaGiftRecipeGroup('chase', '심연의 비전', '초희귀 어종을 사용하는 추적 제작입니다.', chaseRecipes, st, false)}</div>`;
-    if (typeof restoreUiDisclosureState === 'function') restoreUiDisclosureState(panel);
+    updateSeaGiftMarkup(panel, `${renderSeaGiftTarget()}<div class="ocean-recipe-groups">${renderSeaGiftRecipeGroup('supply', '재화 정제', '자주 잡히는 어종을 성장 재화로 교환합니다.', supplyRecipes, st, true)}${renderSeaGiftRecipeGroup('forge', '장비 가공', '선택한 장비의 옵션을 직접 가공합니다.', forgeRecipes, st, true)}${renderSeaGiftRecipeGroup('chase', '심연의 비전', '초희귀 어종을 사용하는 추적 제작입니다.', chaseRecipes, st, false)}</div>`);
+    if (initialize && typeof restoreUiDisclosureState === 'function') restoreUiDisclosureState(panel);
 }
 
 function renderUnderworldMapPanel() {
@@ -3487,7 +3579,7 @@ function renderUnderworldMapPanel() {
     let list = document.getElementById('ui-underworld-list');
     if (!panel || !list) return;
     let uw = (game.underworldProgress && typeof game.underworldProgress === 'object') ? game.underworldProgress : { highestFloor: 1, currentFloor: 1 };
-    game.underworldProgress = uw;
+    captureUiDisclosureState(panel);
     let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
     let highest = Math.max(1, Math.floor(uw.highestFloor || 1));
     let canEnter = typeof canEnterUnderworld === 'function' && canEnterUnderworld();
@@ -3530,6 +3622,7 @@ function renderUnderworldMapPanel() {
         <section class="underworld-rune-console"><div class="underworld-section-head"><div><strong>장착 룬</strong><span>${Math.max(0, Math.floor(runeState.unlockedSlots || 0))}/6 슬롯 · 룬 1~${Math.max(0, Math.floor(runeState.unlockedRunesMaxNumber || 0))} 해금</span></div><small>슬롯을 눌러 즉시 교체</small></div><div class="underworld-rune-slots">${slots}</div></section>
         <div class="underworld-action-grid"><section><h4>룬 제작 · 성장</h4><div><button onclick="craftUnderworldRune()" ${runeShardCount < 10 ? 'disabled' : ''}><strong>룬 가공</strong><span>조각 10</span></button><button onclick="openUnderworldRuneUpgradeOverlay()"><strong>룬 승급</strong><span>동일 룬 3개</span></button><button onclick="enhanceUnderworldRune()"><strong>룬 강화</strong><span>수치 성장</span></button><button onclick="rerollUnderworldRuneBonus()"><strong>옵션 리롤</strong><span>추가 옵션 변경</span></button></div></section><section><h4>장비 가공</h4><div><button onclick="applyUnderworldEnchant()"><strong>장비 인챈트</strong><span>지하계 제작</span></button><button onclick="attemptUnderworldLimitBreak()"><strong>한계돌파</strong><span>성공률 20%</span></button></div></section></div>
         <div class="underworld-lower-grid">${skyStonePanel}<details class="underworld-inventory-card" data-ui-disclosure="underworld-rune-inventory"><summary>보유 룬 ${Object.values(runeCountMap).reduce((sum, count) => sum + count, 0)}개 · 우버 입장권 확인</summary><div class="underworld-rune-inventory">${runeLine || '<span class="core-cube-muted">없음</span>'}</div><p>우버 뿌리 입장권 · ${ticketLine}</p></details></div>`;
+    restoreUiDisclosureState(panel);
 }
 function ensureUnderworldRuneState() {
     if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [], equippedRunes: [null, null, null, null, null, null], enhanceLvByNo: {} };
@@ -3810,7 +3903,7 @@ function getMapExploreUnlockSignatures() {
         ? LAST_STORY_ZONE_ID : Math.max(0, Math.floor(game.maxZoneId || 0));
     const season = game.season || 1;
     const rootBossZones = typeof SEASON_BOSS_ZONES !== 'undefined' ? SEASON_BOSS_ZONES : [];
-    const trialZones = typeof TRIAL_ZONES !== 'undefined' ? TRIAL_ZONES : [];
+    const trialZones = contentProgression.isUnlocked('battleTrials') ? TRIAL_ZONES : [];
     const isTrialAvailable = trial => trial.bloomTrial
         ? canSeeTalentBloomTrial()
         : ((trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || (game.unlockedTrials || []).includes(trial.id));
@@ -4002,6 +4095,7 @@ async function enterUnderworldPrompt(){
 safeExposeGlobals({ enterUnderworldFloor, enterUnderworldPrompt });
 
 function enterTrialWithTicket(trialId) {
+    if (!contentProgression.isUnlocked('battleTrials')) return addLog('루프 3부터 직업 전직을 해금한 뒤 시련에 도전할 수 있습니다.', 'attack-monster');
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if (!['trial_3','trial_4'].includes(trialId)) return changeZone(trialId);
     if ((game.currencies.trialKey3 || 0) <= 0) return addLog('시련의 증표가 부족합니다.', 'attack-monster');
@@ -4434,7 +4528,6 @@ async function exchangeTalismanShards(kind) {
     let cfg = kind === 'radiant'
         ? { from: 'strongSealShard', to: 'radiantSealShard', need: 40, fromName: '강력한 기운의 봉인편린', toName: '찬란한 봉인편린' }
         : { from: 'sealShard', to: 'strongSealShard', need: 80, fromName: '봉인편린', toName: '강력한 기운의 봉인편린' };
-    game.currencies = game.currencies || {};
     let have = Math.max(0, Math.floor(game.currencies[cfg.from] || 0));
     let maxCount = Math.floor(have / cfg.need);
     if (maxCount <= 0) return addLog(`${cfg.fromName}이 부족합니다. (${cfg.need}개 필요)`, 'attack-monster');
@@ -4449,7 +4542,9 @@ async function exchangeTalismanShards(kind) {
     if (raw === null) return;
     let count = Math.max(0, Math.min(maxCount, Math.floor(Number(raw))));
     if (!Number.isFinite(count) || count <= 0) return addLog('교환 횟수가 올바르지 않습니다.', 'attack-monster');
-    game.currencies[cfg.from] = have - (cfg.need * count);
+    const currentHave = Math.max(0, Math.floor(game.currencies[cfg.from] || 0));
+    if (currentHave < cfg.need * count) return addLog('확인 중 편린이 부족해져 교환을 취소했습니다.', 'attack-monster');
+    game.currencies[cfg.from] = currentHave - (cfg.need * count);
     game.currencies[cfg.to] = Math.max(0, Math.floor(game.currencies[cfg.to] || 0)) + count;
     addLog(`🧿 편린 교환 완료: ${cfg.fromName} ${cfg.need * count}개 → ${cfg.toName} ${count}개`, 'loot-rare');
     updateStaticUI();
@@ -4757,9 +4852,11 @@ function removePlacedTalisman(talismanId) {
 function selectTalismanInventoryItem(talismanId) {
     game.talismanSelectedId = game.talismanSelectedId === talismanId ? null : talismanId;
     updateStaticUI();
+    if (game.talismanSelectedId && uiDisplay.matches('(max-width: 1080px)')) talismanMobileUi.showBoard();
 }
 
 function onTalismanBoardCellClick(x, y) {
+    if (uiDisplay.matches('(max-width: 1080px)')) return talismanMobileUi.inspect(x, y);
     if (!isTalismanCellUnlocked(x, y)) {
         if (unlockTalismanCell(x, y)) updateStaticUI();
         return;
@@ -5603,7 +5700,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
 
 let mobileToastQueue = [];
 let mobileToastActiveCount = 0;
-const MOBILE_TOAST_MAX_CONCURRENT = 2;
+const MOBILE_TOAST_MAX_CONCURRENT = 1;
 
 function shouldShowMobileToast(msg, cls, opts = {}) {
     if (opts && opts.noToast) return false;
@@ -5651,7 +5748,7 @@ function enqueueMobileToast(msg, cls) {
     pumpMobileToastQueue();
 }
 
-// 알림이 많이 밀려 있을수록: (1) 동시에 최대 2개까지만 보여 화면을 가리지 않고, (2) 쌓인 개수가 많을수록
+// 알림이 많이 밀려 있을수록: (1) 동시에 최대 1개까지만 보여 화면을 가리지 않고, (2) 쌓인 개수가 많을수록
 // 표시 시간을 점점 줄여 더 빨리 다음 알림이 나오게 한다(밀린 알림이 한 줄씩 느긋하게
 // 빠지는 대신, 밀린 만큼 더 빠르게 소화됨).
 function pumpMobileToastQueue() {
@@ -5672,14 +5769,7 @@ function showNextMobileToast() {
     let root = getMobileToastRoot();
     let toast = document.createElement('div');
     toast.textContent = entry.msg;
-    toast.style.background = entry.cls === 'attack-monster' ? 'rgba(120,35,35,0.94)' : 'rgba(22,30,45,0.94)';
-    toast.style.border = entry.cls === 'attack-monster' ? '1px solid #b76464' : '1px solid #4f6f96';
-    toast.style.color = '#eef5ff';
-    toast.style.padding = '10px 12px';
-    toast.style.borderRadius = '10px';
-    toast.style.fontSize = '13px';
-    toast.style.lineHeight = '1.35';
-    toast.style.boxShadow = '0 6px 20px rgba(0,0,0,0.35)';
+    toast.className = entry.cls === 'attack-monster' ? 'mobile-log-toast mobile-log-toast--error' : 'mobile-log-toast';
     toast.style.opacity = '0';
     toast.style.transition = 'opacity .2s ease';
     root.appendChild(toast);
@@ -8619,7 +8709,8 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
 function setTextById(id, value) {
     let el = document.getElementById(id);
     if (!el) return;
-    el.innerText = value;
+    const text = value == null ? '' : String(value);
+    if (el.textContent !== text) el.textContent = text;
 }
 
 function updateHpDamageGhostState(state, actualPct, now, options) {
@@ -9483,14 +9574,9 @@ function updateCombatUI(pStats) {
     pStats = normalizeUiPlayerStats(pStats, cachedTooltipStats || {});
     if (pStats.__uiFallbackStats) pStats.maxHp = Math.max(pStats.maxHp, Math.max(1, Number(game.playerHp) || 1));
     if (pStats && pStats.breakdowns && !pStats.__uiFallbackStats) cachedTooltipStats = pStats;
-    if (!pStats.__uiFallbackStats) {
-        let recoveryHpCap = Number.isFinite(Number(pStats.lifeRecoveryCap)) ? Number(pStats.lifeRecoveryCap) : pStats.maxHp;
-        game.playerHp = Math.min(game.playerHp, recoveryHpCap);
-    }
     let safeHp = Math.max(0, Number(game.playerHp) || 0);
     setTextById('ui-hp', formatSettingNumber(safeHp, 'showHpComma', safeHp >= 100 ? {} : { decimals: 1 }));
     setTextById('ui-maxhp', formatSettingNumber(pStats.maxHp, 'showHpComma'));
-    setTextById('ui-maxhp-stat', formatSettingNumber(pStats.maxHp, 'showCharacterComma'));
     let hpPct = Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100));
     let hpBar = document.getElementById('ui-hp-bar');
     setUiImageGaugePercent(hpBar, hpPct);
@@ -9520,7 +9606,7 @@ function updateCombatUI(pStats) {
     let esPct = (pStats.energyShield || 0) > 0 ? Math.max(0, Math.min(100, ((game.playerEnergyShield || 0) / pStats.energyShield) * 100)) : 0;
     let esInlineEl = document.getElementById('ui-es-inline');
     if (esInlineEl) {
-        esInlineEl.innerText = (pStats.energyShield || 0) > 0 ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0';
+        setTextById('ui-es-inline', (pStats.energyShield || 0) > 0 ? `ES ${Math.floor(game.playerEnergyShield || 0)}/${Math.floor(pStats.energyShield)}` : 'ES 0');
         esInlineEl.style.display = (pStats.energyShield || 0) > 0 ? '' : 'none';
     }
     let esBar = document.getElementById('ui-es-bar');
@@ -9548,16 +9634,8 @@ function updateCombatUI(pStats) {
     let playerHudIdentity = getUiPlayerHudIdentity();
     setTextById('ui-player-name-label', playerHudIdentity.name);
     setTextById('ui-player-class-label', playerHudIdentity.className);
-    let expLevelEl = document.getElementById('ui-exp-level-label');
-    if (expLevelEl) {
-        let levelText = `Lv.${game.level}`;
-        if (expLevelEl.innerText !== levelText) expLevelEl.innerText = levelText;
-    }
-    let expNoteEl = document.getElementById('ui-exp-note');
-    if (expNoteEl) {
-        let noteText = `${expPct.toFixed(1)}%`;
-        if (expNoteEl.innerText !== noteText) expNoteEl.innerText = noteText;
-    }
+    setTextById('ui-exp-level-label', `Lv.${game.level}`);
+    setTextById('ui-exp-note', `${expPct.toFixed(1)}%`);
     updatePlayerCombatEffectHud(pStats, hpAilBar);
     let hpCombatBar = document.getElementById('ui-player-hp-combat');
     if (hpCombatBar) hpCombatBar.style.width = `${Math.max(0, Math.min(100, (game.playerHp / Math.max(1, pStats.maxHp)) * 100))}%`;
@@ -9579,12 +9657,9 @@ function updateCombatUI(pStats) {
     let zoneText = zone.type === 'trial' ? zone.name : combatTitle;
     let compactZoneText = zoneText.replace(/^⚔️\s*전투\s*/,'');
     setTextById('ui-combat-zone', compactZoneText);
-    let inlineZoneEl = document.getElementById('ui-combat-zone-inline');
     // 레벨·직업은 경험치바 왼쪽(ui-exp-level-label)으로 이동했으므로 여기는 지역 이름만 표기한다.
-    if (inlineZoneEl && inlineZoneEl.innerText !== compactZoneText) inlineZoneEl.innerText = compactZoneText;
-
-    let returnButton = document.getElementById('btn-combat-return');
-    if (returnButton) returnButton.innerText = '귀환';
+    setTextById('ui-combat-zone-inline', compactZoneText);
+    setTextById('btn-combat-return', '귀환');
     let pendingWoodsmanEntrance = !!game.woodsmanEntrancePending && zone && zone.type === 'outsideChaos';
     if (pendingWoodsmanEntrance) {
         let totalTime = Math.max(0.1, Number(game.moveTotalTime) || 3);
@@ -9617,92 +9692,7 @@ function updateCombatUI(pStats) {
         setCombatProgressGaugePercent(game.runProgress);
     }
 
-    setTextById('ui-total-dps', formatSettingNumber(pStats.totalDps || ((pStats.dps || 0) + (pStats.summonDps || 0)), 'showCharacterComma'));
-    setTextById('ui-dps', formatSettingNumber(pStats.directDps || pStats.dps || 0, 'showCharacterComma'));
-    setTextById('ui-summon-dps', formatSettingNumber(pStats.summonDps || 0, 'showCharacterComma'));
-    let summonCap = getSummonEquipCapFromStats(pStats);
-    let summonCapMaximum = typeof getSummonCapMaximum === 'function' ? getSummonCapMaximum() : 8;
-    let summonCapRow = document.getElementById('row-summon-cap');
-    if (summonCapRow) summonCapRow.style.display = summonCap > 1 || summonCapMaximum > 8 ? '' : 'none';
-    setTextById('ui-summon-cap', `${summonCap} / 최대 ${summonCapMaximum}`);
-    document.getElementById('ui-atk').innerText = formatSettingNumber(pStats.baseDmg, 'showCharacterComma');
-    document.getElementById('ui-aps').innerText = pStats.aspd.toFixed(2);
-    document.getElementById('ui-crit').innerText = pStats.crit.toFixed(1);
-    ['strength', 'dexterity', 'intelligence'].forEach(key => setTextById('ui-' + key, Math.floor(pStats[key] || 0)));
-    setTextById('ui-accuracy', formatSettingNumber(Math.floor(pStats.accuracy || 0), 'showCharacterComma'));
-    document.getElementById('ui-crit-dmg').innerText = Math.floor(pStats.critDmg);
-    document.getElementById('ui-ignite-chance').innerText = Math.max(0, pStats.igniteChance || 0).toFixed(1);
-    document.getElementById('ui-chill-chance').innerText = Math.max(0, pStats.chillChance || 0).toFixed(1);
-    document.getElementById('ui-freeze-chance').innerText = Math.max(0, pStats.freezeChance || 0).toFixed(1);
-    document.getElementById('ui-poison-chance').innerText = Math.max(0, pStats.poisonChance || 0).toFixed(1);
-    document.getElementById('ui-bleed-chance').innerText = Math.max(0, pStats.bleedChance || 0).toFixed(1);
-    document.getElementById('ui-move-spd').innerText = Math.floor(pStats.moveSpeed);
-    document.getElementById('ui-dr').innerText = formatCappedResistanceValue(pStats.dr, pStats.rawDr);
-    let armorEl = document.getElementById('ui-armor'); if (armorEl) armorEl.innerText = formatSettingNumber(pStats.armor || 0, 'showCharacterComma');
-    let evasionEl = document.getElementById('ui-evasion'); if (evasionEl) evasionEl.innerText = formatSettingNumber(pStats.evasion || 0, 'showCharacterComma');
-    let esEl = document.getElementById('ui-es'); if (esEl) esEl.innerText = formatSettingNumber(pStats.energyShield || 0, 'showCharacterComma');
-    let blockEl = document.getElementById('ui-block-chance'); if (blockEl) blockEl.innerText = Math.max(0, Number(pStats.blockChance || 0)).toFixed(1);
-    let deflectEl = document.getElementById('ui-deflect-chance'); if (deflectEl) deflectEl.innerText = Math.max(0, Number(pStats.deflectChance || 0)).toFixed(1);
-    document.getElementById('ui-phys-ignore').innerText = Math.floor(pStats.physIgnore || 0);
-    document.getElementById('ui-res-pen').innerText = Math.floor(pStats.resPen || 0);
-    document.getElementById('ui-res-fire').innerText = formatCappedResistanceValue(pStats.resF, pStats.rawResF);
-    document.getElementById('ui-res-cold').innerText = formatCappedResistanceValue(pStats.resC, pStats.rawResC);
-    document.getElementById('ui-res-light').innerText = formatCappedResistanceValue(pStats.resL, pStats.rawResL);
-    document.getElementById('ui-res-chaos').innerText = formatCappedResistanceValue(pStats.resChaos, pStats.rawResChaos);
-    let setStatText = (id, value, formatter) => {
-        let el = document.getElementById(id);
-        if (el) el.innerText = formatter ? formatter(value) : value;
-    };
-    let formatInlinePct = (value) => {
-        let n = Number(value || 0);
-        if (!Number.isFinite(n)) n = 0;
-        let rounded = Math.round(n * 10) / 10;
-        return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-    };
-    setStatText('ui-ignite-chance', pStats.igniteChance || 0, formatInlinePct);
-    setStatText('ui-chill-chance', pStats.chillChance || 0, formatInlinePct);
-    setStatText('ui-freeze-chance', pStats.freezeChance || 0, formatInlinePct);
-    setStatText('ui-shock-chance', pStats.shockChance || 0, formatInlinePct);
-    setStatText('ui-poison-chance', pStats.poisonChance || 0, formatInlinePct);
-    setStatText('ui-bleed-chance', pStats.bleedChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-ignite', pStats.ailmentResistIgniteChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-chill', pStats.ailmentResistChillChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-freeze', pStats.ailmentResistFreezeChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-shock', pStats.ailmentResistShockChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-poison', pStats.ailmentResistPoisonChance || 0, formatInlinePct);
-    setStatText('ui-ail-res-bleed', pStats.ailmentResistBleedChance || 0, formatInlinePct);
-    document.getElementById('ui-min-dmg-roll').innerText = Math.floor(pStats.minDmgRoll || 80);
-    document.getElementById('ui-max-dmg-roll').innerText = Math.floor(pStats.maxDmgRoll || 100);
-    document.getElementById('ui-loop-deaths').innerText = Math.max(0, Math.floor(game.loopDeaths || 0));
-    document.getElementById('ui-loop-kills').innerText = Math.max(0, Math.floor(game.loopKills || 0));
-
-    document.getElementById('row-phys-ignore').style.display = (pStats.physIgnore || 0) > 0 ? 'grid' : 'none';
-    document.getElementById('row-res-pen').style.display = (pStats.resPen || 0) > 0 ? 'grid' : 'none';
-    document.getElementById('row-regen').style.display = pStats.regen > 0 ? 'grid' : 'none';
-    document.getElementById('row-regen-suppress').style.display = (pStats.regenSuppress || 0) > 0 ? 'grid' : 'none';
-    document.getElementById('row-leech').style.display = pStats.leech > 0 ? 'grid' : 'none';
-    document.getElementById('row-ds').style.display = pStats.ds > 0 ? 'grid' : 'none';
-    document.getElementById('row-gemlv').style.display = pStats.gemLv > 0 ? 'grid' : 'none';
-    if (pStats.regen > 0) document.getElementById('ui-regen').innerText = formatValue('regen', pStats.regen);
-    if ((pStats.regenSuppress || 0) > 0) document.getElementById('ui-regen-suppress').innerText = formatValue('regenSuppress', pStats.regenSuppress);
-    if (pStats.leech > 0) document.getElementById('ui-leech').innerText = formatValue('leech', pStats.leech);
-    if (pStats.ds > 0) document.getElementById('ui-ds').innerText = formatSettingNumber(pStats.ds, 'showCharacterComma');
-    if (pStats.gemLv > 0) document.getElementById('ui-gemlv').innerText = `+${pStats.gemLv}`;
-    let specialSummaryEl = document.getElementById('ui-unique-special-summary');
-    if (specialSummaryEl) {
-        let notes = [];
-        if ((pStats.glovePairAspdBonus || 0) > 0) notes.push(`동형 장갑 세트 보너스 활성화: 기본 공속 +${(pStats.glovePairAspdBonus || 0).toFixed(2)}`);
-        let heroDef = game.bloomedClassThisLoop === game.ascendClass
-            ? HERO_SELECTION_DEFS[game.bloomedTalentThisLoop] : null;
-        if (heroDef) notes.push(`${heroDef.label} 개화 재능: ${heroDef.talentsText}`);
-        if (game.ascendClass && Array.isArray(game.ascendKeystones) && game.ascendKeystones.length > 0) {
-            let defs = getClassKeystoneDefs(game.ascendClass);
-            let pickedNames = game.ascendKeystones.map(id => ((defs.find(node => node.id === id) || {}).name || id));
-            notes.push(`★ 키스톤: ${pickedNames.join(' / ')}`);
-        }
-        if ((pStats.minDmgRoll || 80) >= (pStats.maxDmgRoll || 100)) notes.push(`최소 피해 보정(${Math.floor(pStats.minDmgRoll || 80)}%)이 최대 보정 이상이라 최대 피해 보정이 동일 값으로 조정됩니다.`);
-        specialSummaryEl.innerText = notes.join(' · ');
-    }
+    if (getRenderingUiTabIds().has('tab-character')) renderCharacterStats(pStats);
 
     let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
     pruneEnemyHpDamageGhostStates(enemies.map(enemy => enemy.id));
@@ -10260,6 +10250,18 @@ function syncInventoryExpansionShortcuts() {
     });
 }
 
+function getEquipmentSearchStatText(stat, resolveName) {
+    const value = stat || {};
+    const name = value.statName || (resolveName ? getStatName(value.id || '') : '');
+    return `${value.id || ''} ${name || ''}`;
+}
+
+function getEquipmentSearchText(item) {
+    const base = (item.baseStats || []).map(stat => getEquipmentSearchStatText(stat, false)).join(' ');
+    const stats = (item.stats || []).map(stat => getEquipmentSearchStatText(stat, true)).join(' ');
+    const under = item.underEnchant ? `${getEquipmentSearchStatText(item.underEnchant, true)} ${item.underEnchant.val || ''}` : '';
+    return `${item.name || ''} ${item.slot || ''} ${item.rarity || ''} ${base} ${stats} ${under}`;
+}
 function getSearchTokens(query) {
     return String(query || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
 }
@@ -10287,7 +10289,6 @@ function performUpdateStaticUI() {
     recalculateStarWedgeMutations();
     // 목표 선정은 js/goal-system.js가 담당한다(디바운스 포함).
     if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
-    renderFlaskPanel();
     validateItemTooltipAnchor();
     applySeasonContentProgression({ silent: false });
     refreshTabHeaderUiIfNeeded();
@@ -10407,10 +10408,7 @@ function performUpdateStaticUI() {
     renderEquipmentLoadoutSummary(pStats);
     if (window.equipmentLoadoutUi) window.equipmentLoadoutUi.render();
     renderPaperdoll('ui-equip-list', false);
-    renderPaperdoll('ui-craft-equip-list', true);
-    renderPaperdoll('ui-fossil-equip-list', true);
-    if (document.getElementById('ui-infuser-equip-list')) renderPaperdoll('ui-infuser-equip-list', true);
-    if (typeof renderGrowthCraftTargetLists === 'function') renderGrowthCraftTargetLists();
+    renderCraftTargetLibrary(isItemRarityVisible);
     let invRarityFilterHost = document.getElementById('ui-inventory-rarity-filter');
     if (invRarityFilterHost) invRarityFilterHost.innerHTML = renderRarityFilterChips('inventory');
     if (window.equipmentTriage) {
@@ -10430,51 +10428,24 @@ function performUpdateStaticUI() {
         let equipmentGridElement = document.querySelector('#ui-inventory-list > .search-result-list');
         if (equipmentGridElement) equipmentGridElement.dataset.equipmentGridRows = String(equipmentPageLayout.rows);
     }
-    const visibleInvRows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isItemRarityVisible(row.item));
-    document.getElementById('ui-craft-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
-    document.getElementById('ui-fossil-inventory-list').innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'fossil')).join('');
-    let infuserInv = document.getElementById('ui-infuser-inventory-list');
-    if (infuserInv) infuserInv.innerHTML = visibleInvRows.map(row => renderInventoryCard(row.item, row.idx, 'infuser')).join('');
     }
     let jewelUnlocked = !!game.unlocks.jewel;
     document.getElementById('ui-jewel-header').style.display = jewelUnlocked ? 'block' : 'none';
-    document.getElementById('ui-jewel-panel').style.display = jewelUnlocked ? 'block' : 'none';
+    document.getElementById('ui-jewel-panel').style.display = jewelUnlocked ? 'flex' : 'none';
     if (jewelUnlocked && jewelTabActive) {
         let maxJewelSlots = typeof getMaxJewelSlotCount === 'function' ? getMaxJewelSlotCount() : 2;
         game.jewelSlots = Array.isArray(game.jewelSlots) ? game.jewelSlots : [];
         while (game.jewelSlots.length < maxJewelSlots) game.jewelSlots.push(null);
         game.jewelInventory = Array.isArray(game.jewelInventory) ? game.jewelInventory : [];
-        jewelFusionSelection = (jewelFusionSelection || []).filter(idx => Number.isInteger(idx) && idx >= 0 && idx < game.jewelInventory.length);
+        const selectedJewelFusionIndices = getSelectedJewelFusionIndices();
         let jewelCraftTarget = typeof getSelectedJewelCraftTarget === 'function' ? getSelectedJewelCraftTarget() : null;
-        let jewelCraftKeys = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'pruningShears'];
-        let jewelCraftButtons = jewelCraftKeys.map(key => {
-            let state = typeof getJewelCurrencyUseState === 'function' ? getJewelCurrencyUseState(key, jewelCraftTarget) : { enabled: false, reason: '사용 불가' };
-            let count = (game.currencies || {})[key] || 0;
-            return `<button data-info-tooltip-anchor="1" onmouseenter="showCurrencyCardTooltip(event,'${key}','${escapeHTML(state.reason)}')" onmousemove="showCurrencyCardTooltip(event,'${key}','${escapeHTML(state.reason)}')" onmouseleave="hideInfoTooltip()" onclick="useCurrencyOnJewel('${key}')" ${state.enabled && count > 0 ? '' : 'disabled'}>${getStyledOrbName(key)} (${count})</button>`;
-        }).join('');
-        let jewelCraftStats = jewelCraftTarget ? getJewelStats(jewelCraftTarget).map(stat => {
-            let tier = Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
-            let petite = isJewelPetiteStat(stat) ? '쁘띠 ' : '';
-            return `${petite}${escapeHTML(getStatName(stat.id))} +${formatJewelStatValue(stat.id, stat.val)}${tier}`;
-        }).join('<br>') : '';
-        let jewelCraftOptionHtml = jewelCraftTarget
-            ? `<div class="item-stats" style="margin:5px 0 7px; line-height:1.45; color:var(--copy-bright);">${jewelCraftStats || '<span style="color:var(--copy-muted);">옵션 없음</span>'}</div>`
-            : `<div style="margin:5px 0 7px; color:var(--copy-muted); font-size:0.8em;">제작대상 주얼을 선택하면 현재 옵션이 표시됩니다.</div>`;
         let jewelInventoryLimit = getJewelInventoryLimit();
         let jewelOverflow = Math.max(0, game.jewelInventory.length - jewelInventoryLimit);
-        document.getElementById('ui-jewel-cap').innerHTML = `<div class="jewel-cap-summary ${jewelOverflow > 0 ? 'is-overflow' : ''}"><span>주얼 인벤토리 <strong>${game.jewelInventory.length}/${jewelInventoryLimit}</strong></span><span>융합 선택 <strong>${(jewelFusionSelection||[]).length}</strong></span>${jewelOverflow > 0 ? `<span class="jewel-overflow-warning">고급 주얼 보호로 ${jewelOverflow}칸 초과 · 정리 필요</span>` : ''}</div>`;
+        document.getElementById('ui-jewel-cap').innerHTML = `<div class="jewel-cap-summary ${jewelOverflow > 0 ? 'is-overflow' : ''}"><span>주얼 인벤토리 <strong>${game.jewelInventory.length}/${jewelInventoryLimit}</strong></span><span>융합 선택 <strong>${selectedJewelFusionIndices.length}</strong></span>${jewelOverflow > 0 ? `<span class="jewel-overflow-warning">고급 주얼 보호로 ${jewelOverflow}칸 초과 · 정리 필요</span>` : ''}</div>`;
         syncJewelSalvageControlsFromSettings();
         game.jewelSlotAmplify = Array.isArray(game.jewelSlotAmplify) ? game.jewelSlotAmplify : [];
         while (game.jewelSlotAmplify.length < maxJewelSlots) game.jewelSlotAmplify.push(0);
-        document.getElementById('ui-jewel-core-craft').innerHTML = `<div style="color:#f1c67d; margin-bottom:4px;">주얼 제작 재화 (주얼 결정: ${game.currencies.jewelShard || 0})</div>
-        <div style="font-size:0.8em; color:var(--copy-bright); margin-bottom:6px;">일반 융합: 1줄 주얼 2개 + 주얼 결정 6개 → 2줄 주얼</div>
-        <label style="display:block; font-size:0.78em; color:#e2c9a4; margin-bottom:4px;"><input type="checkbox" id="chk-jewel-amplified-fusion"> 증폭합성 사용 (주얼 결정 8 추가 소모, 랜덤 패널티 + 랜덤 추가옵션)</label>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="craftJewelFusion()" ${(game.currencies.jewelShard || 0) < 6 ? 'disabled' : ''}>선택한 주얼 융합</button><button onclick="drawJewelRefine()" ${(game.currencies.jewelShard || 0) < 12 || (game.jewelInventory||[]).length >= getJewelInventoryLimit() ? 'disabled' : ''}>주얼 가공 (주얼 결정 12)</button></div>
-        <div style="margin-top:8px; font-size:0.8em; color:var(--copy-bright);">슬롯 증폭: 강화 단계당 주얼 수치 +3% (최대 20강, 실패 가능)</div>
-        <div style="display:flex; gap:6px; margin-top:4px; flex-wrap:wrap;">${Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => `<button onclick="tryAmplifyJewelSlot(${slotIdx})">슬롯${slotIdx + 1} 증폭 (${game.jewelSlotAmplify[slotIdx] || 0}/20 · 비용 ${getJewelAmplifyCost(game.jewelSlotAmplify[slotIdx] || 0)} · 성공 ${Math.floor(getJewelAmplifySuccessChance(game.jewelSlotAmplify[slotIdx] || 0) * 100)}%)</button>`).join('')}</div>
-        <div style="margin-top:8px; color:var(--copy-bright); font-size:0.8em;">공허 주얼: 최대 4줄까지 지원</div>
-        <div style="display:flex; gap:6px; margin-top:4px;"><button onclick="openVoidJewelCraftOverlay()" ${(game.currencies.voidChisel || 0) <= 0 || (typeof getVoidJewelCraftMaterialIndices === 'function' ? getVoidJewelCraftMaterialIndices().length < 2 : (game.jewelInventory||[]).filter(j => j && !j.locked && !j.waxedByBeeswax).length < 2) ? 'disabled' : ''}>공허 주얼 제작 (끌 1 + 주얼2)</button><button onclick="openVoidJewelFusionOverlay()">선택 공허융합</button></div>
-        <div style="margin-top:10px; border-top:1px solid #2b3a4d; padding-top:8px;"><div style="color:var(--copy-bright); font-size:0.84em; margin-bottom:5px;">선택 주얼 오브 제작: <strong>${jewelCraftTarget ? escapeHTML(jewelCraftTarget.name || '주얼') : '없음'}</strong></div>${jewelCraftOptionHtml}<div style="display:flex; gap:6px; flex-wrap:wrap;">${jewelCraftButtons}</div></div>`;
+        jewelCraftUi.render(jewelCraftTarget, maxJewelSlots);
         document.getElementById('ui-jewel-slots').innerHTML = Array.from({ length: maxJewelSlots }, (_, slotIdx) => slotIdx).map(slotIdx => {
             let jewel = game.jewelSlots[slotIdx];
             let ampLv = (game.jewelSlotAmplify && game.jewelSlotAmplify[slotIdx]) || 0;
@@ -10493,15 +10464,15 @@ function performUpdateStaticUI() {
                 return `<span style="color:${tone};">${petite}${highlightSearchText(getStatName(stat.id), sf.jewel)} +${formatJewelStatValue(stat.id, stat.val)}</span>${range}${tier}`;
             }).join('<br>');
             let selected = jewelCraftTarget === jewel ? 'selected' : '';
-            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box ${selected}" style="min-height:86px; border:2px solid ${isKeystoneSlot ? '#9b59b6' : getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); ${keystoneFilledShadow}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmousemove="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1}${keystoneBadge} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:var(--copy-bright);">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><div class="item-actions"><button onclick="selectEquippedJewelCraftTarget(${slotIdx})">제작대상</button><button onclick="unequipJewel(${slotIdx})">해제</button></div></div>`;
+            return `<div id="jewel-slot-card-${slotIdx}" class="slot-box ${selected}" style="min-height:86px; border:2px solid ${isKeystoneSlot ? '#9b59b6' : getRarityColor(jewel.rarity || 'normal')}; background:linear-gradient(170deg,#101722,#152238); ${keystoneFilledShadow}" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmousemove="showSocketedJewelTooltip(event,'slot',${slotIdx})" onmouseleave="hideInfoTooltip()">💠 주얼 슬롯 ${slotIdx + 1}${keystoneBadge} <span style="color:#f1c40f;">(+${ampLv})</span><br><span class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.name}</span><div class="item-stats" style="margin-top:3px;line-height:1.4;color:var(--copy-bright);">${desc}</div><span style="font-size:0.75em;color:#9dc3ff;">강화효과 +${ampBonus}%</span><div class="item-actions"><button onclick="selectJewelWorkbenchTarget(${slotIdx},false,true)">제작대상</button><button onclick="unequipJewel(${slotIdx})">해제</button></div></div>`;
         }).join('');
         const jewelRows = game.jewelInventory.map((jewel, idx) => ({ jewel, idx })).filter(row => {
             const jewel = row.jewel || {};
             const statText = getJewelStats(jewel).map(stat => `${getStatName(stat.id)} ${stat.id} ${stat.val}`).join(' ');
             return matchSearchQuery(`${jewel.name || ''} ${jewel.rarity || ''} ${statText}`, sf.jewel);
         });
-        let jewelRowsHtml = jewelRows.map(({jewel, idx}) => {
-            let selected = (jewelFusionSelection || []).includes(idx) || (jewelCraftTarget && jewelCraftTarget === jewel) ? 'selected' : '';
+        let jewelRowsHtml = inventoryLibraryUi.visibleRows('jewel', jewelRows, sf.jewel).map(({jewel, idx}) => {
+            let selected = selectedJewelFusionIndices.includes(idx) || (jewelCraftTarget && jewelCraftTarget === jewel) ? 'selected' : '';
             let q = sf.jewel;
             let desc = getJewelStats(jewel).map(stat => {
                 let range = (stat.valMin !== undefined && stat.valMax !== undefined) ? ` (${formatJewelStatValue(stat.id, stat.valMin)}~${formatJewelStatValue(stat.id, stat.valMax)})` : '';
@@ -10520,7 +10491,7 @@ function performUpdateStaticUI() {
             let manageActions = `<button onclick="selectJewelWorkbenchTarget(${idx},false)">제작대상</button><button onclick="selectJewelWorkbenchTarget(${idx},true)">융합선택</button>${jewel.waxedByBeeswax ? `<button disabled>밀랍</button>` : `<button onclick="applyBeeswaxToJewel(${idx})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="toggleJewelLock(${idx})">${jewel.locked ? '🔒 잠금' : '🔓 잠금'}</button><button onclick="salvageJewel(${idx})" ${jewel.locked ? 'disabled' : ''}>해체 +${getJewelSalvageShardGain(jewel)}</button>`;
             return `<div class="item-card jewel-inventory-card ${selected} ${uniqueCardClass}" style="min-height:72px;" data-info-tooltip-anchor="1" onmouseenter="showSocketedJewelTooltip(event,'inventory',${idx})" onmousemove="showSocketedJewelTooltip(event,'inventory',${idx})" onmouseleave="hideInfoTooltip()">${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(jewel, 'jewel', 'jewel-card-visual') : ''}<div class="jewel-card-copy"><div class="item-title ${getJewelRarityClass(jewel.rarity)}">${jewel.locked ? '🔒 ' : ''}${uniqueBadge}[${jewel.isVoid ? '공허' : getJewelRarityLabel(jewel.rarity)} 주얼] ${highlightSearchText(jewel.name, q)}${jewel.isVoid ? ' ✦융합계열' : ''}</div><div class="jewel-quality-line">${qualityText}</div><div class="item-stats" style="line-height:1.45;color:var(--copy-bright);">${desc || '<span style="color:var(--copy-muted);">옵션 없음</span>'}</div></div><div class="item-actions jewel-card-actions">${equipSlotBtns}${manageActions}</div></div>`;
         }).join('');
-        renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:var(--copy-muted);">주얼 인벤토리가 비었습니다.</div>`, '');
+        renderSearchSection('ui-jewel-inventory', 'jewel', '주얼 검색 (이름/옵션)', jewelRowsHtml, `<div style="color:var(--copy-muted);">${game.jewelInventory.length ? '검색 조건에 맞는 주얼이 없습니다.' : '주얼 인벤토리가 비었습니다.'}</div>`, '');
     }
 
 function getJewelStatToneColor(statId) {
@@ -10581,45 +10552,6 @@ function highlightSearchText(text, query) {
     return out;
 }
 
-function renderSearchSection(containerId, key, placeholder, rowsHtml, emptyHtml, actionButtonsHtml) {
-    let root = document.getElementById(containerId);
-    if (!root) return;
-    let sf = getSearchFilterState();
-    let input = root.querySelector(`input[data-search-key="${key}"]`);
-    let list = root.querySelector('.search-result-list');
-    if (!input || !list) {
-        root.innerHTML = `<div class="search-filter-panel" style="grid-column:1/-1; margin-bottom:6px; width:100%; max-width:100%;"><input class="search-filter-input" data-search-key="${key}" placeholder="${placeholder}" value="${escapeHTML(sf[key] || '')}" oninput="updateSearchFilter('${key}', this.value)" style="display:block; width:100%; max-width:100%; box-sizing:border-box; padding:6px 8px; border-radius:8px; border:1px solid #45556f; background:#111a28; color:#ffffff;"><div class="search-action-row" style="margin-top:6px; display:flex; gap:6px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;"><button onclick="resetSearchFilter('${key}')" style="padding:4px 8px; font-size:12px; flex:0 0 auto; white-space:nowrap;">검색어 리셋</button>${actionButtonsHtml || ''}</div></div><div class="search-result-list" style="display:contents;"></div>`;
-        input = root.querySelector(`input[data-search-key="${key}"]`);
-        list = root.querySelector('.search-result-list');
-    }
-    let actionRow = root.querySelector('.search-action-row');
-    if (actionRow) {
-        actionRow.style.flexWrap = 'nowrap';
-        actionRow.style.overflowX = 'auto';
-        actionRow.style.webkitOverflowScrolling = 'touch';
-        actionRow.innerHTML = `<button onclick="resetSearchFilter('${key}')" style="padding:4px 8px; font-size:12px; flex:0 0 auto; white-space:nowrap;">검색어 리셋</button>${actionButtonsHtml || ''}`;
-        actionRow.querySelectorAll('button').forEach(btn => {
-            btn.style.flex = '0 0 auto';
-            btn.style.whiteSpace = 'nowrap';
-        });
-    }
-    if (input && input.value !== String(sf[key] || '')) input.value = String(sf[key] || '');
-    // 내용이 같으면 innerHTML 재작성(파싱+리플로우)을 생략한다. 탭 전환·주기 갱신마다
-    // 동일한 목록을 다시 그리는 비용을 없애 끊김을 줄인다.
-    if (list) { let v = rowsHtml || emptyHtml || ''; if (list.__lastHtml !== v) { list.innerHTML = v; list.__lastHtml = v; } }
-}
-function getSearchFilterState() {
-    game.settings = game.settings || {};
-    game.settings.searchFilters = (game.settings.searchFilters && typeof game.settings.searchFilters === 'object') ? game.settings.searchFilters : {};
-    const d = game.settings.searchFilters;
-    d.equip = String(d.equip || '');
-    d.jewel = String(d.jewel || '');
-    d.talisman = String(d.talisman || '');
-    d.colonyWard = String(d.colonyWard || '');
-    d.skill = String(d.skill || '');
-    d.support = String(d.support || '');
-    return d;
-}
 function getInventoryRarityFilterKeys() { return ['normal', 'magic', 'rare', 'unique']; }
 function getInventoryRarityFilterLabels() { return { normal: '일반', magic: '매직', rare: '레어', unique: '고유' }; }
 function getInventoryRarityFilter() {
@@ -10697,6 +10629,7 @@ function renderAutoSalvageRarityChips() {
 function renderAutoSalvageConfigPanel() {
     return equipmentLootUi.renderPanel(renderAutoSalvageRarityChips());
 }
+
 function refreshAutoSalvageConfigOverlay() {
     let overlay = document.getElementById('auto-salvage-config-overlay');
     if (!overlay) return;
@@ -11044,6 +10977,15 @@ function renderFlaskChargeMeter(charges, maxCharges, progress, chargeNeed) {
 }
 
 // 플라스크 패널: 충전 상태 표시 + 발견한 플라스크 중 교체.
+function renderFlaskCraftCards(candidates, glass) {
+    return candidates.map(key => {
+        let def = FLASK_DB[key];
+        let cost = typeof getFlaskCraftCost === 'function' ? getFlaskCraftCost(key) : 0;
+        let affordable = glass >= cost;
+        return `<div class="flask-craft-card"><div><span>${def.kind === 'heal' ? '회복' : '유틸리티'} · ${def.tier}단계 · 요구 Lv.${def.reqLevel}</span><strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(def.desc || `최대 생명력의 ${def.healPct}% 회복`)}</small></div><button type="button" onclick="craftFlask('${key}')" ${affordable ? '' : 'disabled'}>${affordable ? '제작' : '재료 부족'} · ${cost}</button></div>`;
+    }).join('');
+}
+
 function renderFlaskPanel() {
     let host = document.getElementById('ui-flask-panel');
     if (!host || typeof ensureFlaskState !== 'function' || typeof FLASK_HEAL_TIERS === 'undefined') return;
@@ -11082,12 +11024,7 @@ function renderFlaskPanel() {
     let activeSlots = 1 + st.utils.slice(0, maxUtilSlots).filter(u => u && FLASK_UTILITY_POOL[u.key]).length;
     let chargeRateBonus = typeof getFlaskChargeRateBonusPct === 'function' ? Math.max(0, Math.floor(getFlaskChargeRateBonusPct())) : 0;
     let craftCandidates = typeof getFlaskDiscoveryCandidates === 'function' ? getFlaskDiscoveryCandidates(game.level, found) : [];
-    let craftCards = craftCandidates.map(key => {
-        let def = FLASK_DB[key];
-        let cost = typeof getFlaskCraftCost === 'function' ? getFlaskCraftCost(key) : 0;
-        let affordable = st.alchemyGlass >= cost;
-        return `<div class="flask-craft-card"><div><span>${def.kind === 'heal' ? '회복' : '유틸리티'} · ${def.tier}단계 · 요구 Lv.${def.reqLevel}</span><strong>${escapeHTML(def.name)}</strong><small>${escapeHTML(def.desc || `최대 생명력의 ${def.healPct}% 회복`)}</small></div><button type="button" onclick="craftFlask('${key}')" ${affordable ? '' : 'disabled'}>${affordable ? '제작' : '재료 부족'} · ${cost}</button></div>`;
-    }).join('');
+    let craftCards = renderFlaskCraftCards(craftCandidates, st.alchemyGlass);
     let healQuality = typeof getFlaskQuality === 'function' ? getFlaskQuality(healDef.key) : 0;
     let healQualityCost = typeof getFlaskQualityUpgradeCost === 'function' ? getFlaskQualityUpgradeCost(healDef.key) : 0;
     let html = `<div class="flask-overview">
@@ -11109,18 +11046,19 @@ function renderFlaskPanel() {
     <div class="flask-help-text"><strong>운용 안내</strong> 낮은 단계는 전투에서 비교적 쉽게 발견되지만 높은 단계일수록 드랍 확률이 낮아집니다. 제작은 무작위 발견을 보완하며, 같은 계열은 앞 단계부터 순서대로 진행합니다(미발견 ${undiscoveredCount}종).</div>`;
     if (host.__lastHtml !== html) host.innerHTML = html;
     host.__lastHtml = html;
+    flaskUi.bind(host);
 }
 
 // 플라스크 선택 오버레이: 스크롤 드롭다운 대신 카드 그리드로 고른다. 발견하지 못했거나
 // 레벨 미달인 플라스크, 다른 슬롯에 이미 장착된 같은 종류의 유틸리티 플라스크는
 // 비활성(disabled) 처리되어 선택할 수 없다 — 오직 발견한 플라스크만 활성화된다.
+
 function openFlaskPickerOverlay(kind, slotIndex) {
-    if (typeof ensureFlaskState !== 'function') return;
     let st = ensureFlaskState();
     let currentHealDef = getFlaskHealDef(st.healTier);
     let lvl = Math.max(1, Math.floor(game.level || 1));
-    let found = typeof ensureFlaskFoundKeys === 'function' ? ensureFlaskFoundKeys() : (st.foundKeys || []);
-    let maxUtilSlots = typeof getMaxFlaskUtilitySlotCount === 'function' ? getMaxFlaskUtilitySlotCount() : 0;
+    let found = ensureFlaskFoundKeys();
+    let maxUtilSlots = getMaxFlaskUtilitySlotCount();
     let idx = Math.max(0, Math.min(Math.max(0, maxUtilSlots - 1), Math.floor(slotIndex || 0)));
     let old = document.getElementById('flask-picker-overlay');
     if (old && old.parentNode) old.parentNode.removeChild(old);
@@ -11169,28 +11107,10 @@ function openFlaskPickerOverlay(kind, slotIndex) {
         });
         body.appendChild(grid);
     } else {
-        FLASK_UTILITY_CATEGORIES.forEach(cat => {
-            body.insertAdjacentHTML('beforeend', `<div class="selection-overlay-section-title">${cat.label}</div>`);
-            let grid = document.createElement('div');
-            grid.className = 'selection-overlay-grid';
-            FLASK_UTILITY_TIER_REQ_LEVELS.forEach((reqLevel, tierIdx) => {
-                let key = `${cat.category}${tierIdx + 1}`;
-                let def = FLASK_UTILITY_POOL[key];
-                let usedElsewhere = st.utils.some((u, i) => i < maxUtilSlots && u && FLASK_UTILITY_POOL[u.key] && FLASK_UTILITY_POOL[u.key].category === cat.category && i !== idx);
-                let levelLocked = lvl < reqLevel;
-                let undiscovered = !levelLocked && !found.includes(key);
-                grid.appendChild(makeOptionButton({
-                    name: def.name,
-                    desc: `${def.desc} · ${def.maxCharges}회 · 충전 ${getFlaskEffectiveChargesPerKills(def.chargesPerKills)}처치`,
-                    locked: usedElsewhere || levelLocked || undiscovered,
-                    lockLabel: levelLocked ? `Lv.${reqLevel} 필요` : (undiscovered ? '미발견' : (usedElsewhere ? '다른 슬롯 장착 중' : '')),
-                    selected: !!(st.utils[idx] && st.utils[idx].key === key),
-                    compare: st.utils[idx] && st.utils[idx].key === key ? '현재 장착' : (st.utils[idx] && FLASK_UTILITY_POOL[st.utils[idx].key] ? `${FLASK_UTILITY_POOL[st.utils[idx].key].name}에서 교체` : '빈 슬롯에 장착'),
-                    onSelect: () => equipUtilityFlask(idx, key)
-                }));
-            });
-            body.appendChild(grid);
-        });
+        if (uiDisplay.matches('(max-width: 1080px)')) {
+            flaskUi.picker(body, FLASK_UTILITY_POOL[st.utils[idx]?.key]?.category,
+                (cards, categories) => flaskUi.renderUtilityChoices(cards, idx, makeOptionButton, categories));
+        } else flaskUi.renderUtilityChoices(body, idx, makeOptionButton, FLASK_UTILITY_CATEGORIES);
     }
     panel.appendChild(body);
     overlay.appendChild(panel);
@@ -11289,7 +11209,7 @@ function renderChaosInfuserPanel(selectedItem) {
         let key = opt.optionId || opt.id;
         let same = selectedItem.chaosInfusion && (selectedItem.chaosInfusion.sourceOptionId === key || selectedItem.chaosInfusion.id === opt.id);
         let rangeText = `${formatValue(opt.id, opt.min)}~${formatValue(opt.id, opt.max)}`;
-        return `<button onclick="applyChaosInfusionToSelectedItem('${key}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${rangeText}<br><span style="font-size:0.78em;color:var(--copy-bright);">${same ? '적용 중' : costText}</span></button>`;
+        return `<button onclick="previewChaosInfusion('${key}')" ${canPay && !same ? '' : 'disabled'}>${opt.label || getStatName(opt.id)} +${rangeText}<br><span style="font-size:0.78em;color:var(--copy-bright);">${same ? '적용 중' : costText}</span></button>`;
     }).join('') : `<div style="grid-column:1/-1; color:#ffb4b4;">${eligibility.reason}</div>`;
     if (eligibility.ok && !buttons) buttons = '<div style="grid-column:1/-1; color:var(--copy-bright);">이 부위에 추가할 수 있는 주입 옵션이 없습니다.</div>';
     host.innerHTML = `<div style="margin-bottom:8px;"><strong>[${getItemSlotDisplayLabel(selectedItem)}] ${selectedItem.name}</strong><div style="font-size:0.82em;color:var(--copy-bright);">T5급 범위 옵션 한 줄을 추가 옵션으로 부여합니다. 추가 옵션 제한: ${explicitCount}/6. 교체/제거 시 마름병 포자가 추가로 필요합니다.</div></div>${current}<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px;">${buttons}</div>`;
@@ -11445,10 +11365,17 @@ function openMobileCraftCurrencyOverlay() {
     overlay.className = 'mobile-craft-currency-overlay';
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     let current = game.mobileCraftCurrencyKey || '';
-    let listHtml = options.length ? options.map(key => {
+    const target = getSelectedCraftItem();
+    const choices = options.map(key => {
         let selected = key === current ? ' selected' : '';
-        return `<button type="button" class="mobile-craft-currency-option${selected}" onclick="selectMobileCraftCurrency('${key}'); var overlayEl = document.getElementById('mobile-craft-currency-overlay'); if (overlayEl) overlayEl.remove();"><div style="font-weight:800;">${getStyledOrbName(key)}${selected ? ' ✓' : ''}</div><div style="font-size:0.82em; color:var(--copy-bright); margin-top:3px;">보유 x ${game.currencies[key] || 0}</div></button>`;
-    }).join('') : '<div style="grid-column:1/-1; color:var(--copy-muted); padding:12px; text-align:center;">보유 중인 사용 가능 재화가 없습니다.</div>';
+        const state = getMobileCraftCurrencyUseState(key, target);
+        const html = `<button type="button" class="mobile-craft-currency-option${selected}" data-craft-currency="${key}" onclick="selectMobileCraftCurrency('${key}'); var overlayEl = document.getElementById('mobile-craft-currency-overlay'); if (overlayEl) overlayEl.remove();"><strong>${getStyledOrbName(key)}${selected ? ' ✓' : ''}</strong><span>보유 ${game.currencies[key] || 0}</span><p>${escapeHTML(ORB_DB[key].desc)}</p><small>${escapeHTML(state.reason)}</small></button>`;
+        return { enabled: state.enabled, html };
+    });
+    const available = choices.filter(row => row.enabled).map(row => row.html).join('');
+    const unavailable = choices.filter(row => !row.enabled).map(row => row.html).join('');
+    const empty = '<p class="mobile-craft-currency-empty">현재 장비에 사용할 수 있는 재화가 없습니다.</p>';
+    const listHtml = `${available || empty}${unavailable ? `<details class="mobile-craft-unavailable"><summary>조건이 맞지 않는 재화 ${choices.length - choices.filter(row => row.enabled).length}개</summary><div class="mobile-craft-currency-list">${unavailable}</div></details>` : ''}`;
     overlay.innerHTML = `<div class="mobile-craft-currency-panel"><div class="mobile-craft-currency-head" style="margin-bottom:10px;"><div><div style="color:var(--copy-bright); font-size:1.02em; font-weight:900;">사용할 재화 선택</div><div style="color:var(--copy-muted); font-size:0.78em; margin-top:2px;">보유하고 해금된 재화만 표시됩니다.</div></div><button type="button" onclick="var overlayEl = document.getElementById('mobile-craft-currency-overlay'); if (overlayEl) overlayEl.remove();">닫기</button></div><div class="mobile-craft-currency-list">${listHtml}</div></div>`;
     document.body.appendChild(overlay);
 }
@@ -11522,7 +11449,7 @@ function getCraftPickerItemLines(item) {
     (item.stats || []).slice(0, 2).forEach(stat => rows.push(`${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`));
     if (item.chaosInfusion) rows.push(`[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}`);
     if (item.encroached && !item.encroached.liberated) rows.push('[잠식] 해방 전');
-    return rows.map(row => `<div style="color:var(--copy-bright); font-size:.7em; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(row)}</div>`).join('');
+    return rows.map(row => `<div class="craft-picker-stat" style="color:var(--copy-bright); font-size:.7em; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(row)}</div>`).join('');
 }
 
 function getCraftPickerCardHtml(item, options) {
@@ -11541,7 +11468,7 @@ function getCraftPickerCardHtml(item, options) {
     </button>`;
 }
 
-function getCraftPickerBodyHtml(kind) {
+function getCraftPickerBodyHtml(kind, browse = {}) {
     let isEquip = kind === 'equip';
     let currentRef = getCraftSelectionRef();
     let currentIsEquip = isCraftSelectionEquip();
@@ -11560,14 +11487,28 @@ function getCraftPickerBodyHtml(kind) {
             });
         }).join('')}</div>`;
     }
+    return renderCraftPickerInventory(currentRef, currentIsEquip, browse);
+}
+
+function renderCraftPickerPages(page, pages, count) {
+    return `<nav class="craft-picker-pages" aria-label="제작 대상 페이지"><button type="button" data-craft-page="${page - 1}" ${page === 0 ? 'disabled' : ''}>이전</button><span>${page + 1} / ${pages} · ${count}개</span><button type="button" data-craft-page="${page + 1}" ${page === pages - 1 ? 'disabled' : ''}>다음</button></nav>`;
+}
+
+function renderCraftPickerInventory(currentRef, currentIsEquip, browse) {
     let totalInv = (game.inventory || []).length;
-    let rows = (game.inventory || []).filter(item => item && isItemRarityVisible(item)).map(item => getCraftPickerCardHtml(item, {
+    const mobile = uiDisplay.matches('(max-width: 1080px)');
+    const matching = (game.inventory || []).filter(item => item && isItemRarityVisible(item) && matchSearchQuery(getEquipmentSearchText(item), browse.query));
+    const pages = Math.max(1, Math.ceil(matching.length / 6));
+    const page = Math.min(browse.page || 0, pages - 1);
+    const visible = mobile ? matching.slice(page * 6, page * 6 + 6) : matching;
+    let rows = visible.map(item => getCraftPickerCardHtml(item, {
         selected: !currentIsEquip && currentRef === item.id,
         onclick: `selectCraftPickerInventoryItem(${item.id})`
     })).join('');
-    return rows
+    const navigation = mobile ? renderCraftPickerPages(page, pages, matching.length) : '';
+    return navigation + (rows
         ? `<div class="craft-picker-grid">${rows}</div>`
-        : `<div class="deathlog-empty">${totalInv > 0 ? '선택한 등급 필터에 해당하는 장비가 없습니다.' : '인벤토리에 제작할 장비가 없습니다.'}</div>`;
+        : `<div class="deathlog-empty">${totalInv > 0 ? '검색·등급 조건에 맞는 장비가 없습니다.' : '인벤토리에 제작할 장비가 없습니다.'}</div>`);
 }
 
 function refreshCraftItemPickerOverlay() {
@@ -11576,7 +11517,7 @@ function refreshCraftItemPickerOverlay() {
     let filterEl = overlay.querySelector('.craft-picker-filter');
     if (filterEl) filterEl.innerHTML = `<span class="inventory-view-filter-label">표시</span>${renderRarityFilterChips('picker')}`;
     let bodyEl = overlay.querySelector('.craft-picker-body');
-    if (bodyEl) bodyEl.innerHTML = getCraftPickerBodyHtml(window.__craftPickerKind);
+    if (bodyEl) bodyEl.innerHTML = getCraftPickerBodyHtml(window.__craftPickerKind, {query: overlay.querySelector('[name="craftSearch"]')?.value || '', page: Number(overlay.dataset.page) || 0});
 }
 
 function openCraftItemPickerOverlay(kind) {
@@ -11586,10 +11527,17 @@ function openCraftItemPickerOverlay(kind) {
     let overlay = document.createElement('div');
     overlay.id = 'craft-item-picker-overlay';
     overlay.className = 'craft-picker-overlay';
-    overlay.onclick = event => { if (event.target === overlay) closeCraftItemPickerOverlay(); };
+    overlay.onclick = event => {
+        if (event.target === overlay) closeCraftItemPickerOverlay();
+        const button = event.target.closest('[data-craft-page]');
+        if (!button) return;
+        overlay.dataset.page = button.dataset.craftPage; refreshCraftItemPickerOverlay();
+    };
+    overlay.onsubmit = event => { event.preventDefault(); overlay.dataset.page = '0'; refreshCraftItemPickerOverlay(); };
     let bodyHtml = getCraftPickerBodyHtml(kind);
     let filterRowHtml = isEquip ? '' : `<div class="craft-picker-filter"><span class="inventory-view-filter-label">표시</span>${renderRarityFilterChips('picker')}</div>`;
     overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title">${isEquip ? '장착 장비에서 제작 대상 선택' : '인벤토리에서 제작 대상 선택'}</div><div class="craft-picker-desc">카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.</div></div><button type="button" onclick="closeCraftItemPickerOverlay()">닫기</button></div>${filterRowHtml}<div class="craft-picker-body">${bodyHtml}</div></div>`;
+    if (!isEquip && uiDisplay.matches('(max-width: 1080px)')) overlay.querySelector('.craft-picker-head').insertAdjacentHTML('afterend', '<form class="craft-picker-search"><input name="craftSearch" type="search" aria-label="제작 장비 이름·부위·옵션 검색" placeholder="이름·부위·옵션 검색"><button type="submit">검색</button></form>');
     document.body.appendChild(overlay);
 }
 
@@ -11646,7 +11594,6 @@ function exposeUiRenderHelpersOnce() {
         showPlayerCosmosDebuffTooltip,
         // 생장판 UI(js/growth-ui.js)가 보관함 필터/검색을 그대로 재사용한다.
         isItemRarityVisible,
-        getSearchFilterState,
         matchSearchQuery,
         // 스킬 젬 화면(js/skills-ui.js)이 젬 목록 검색/강조에 그대로 재사용한다.
         // 이 헬퍼들은 performUpdateStaticUI 안에 중첩 선언되어 있어 전역이 아니다.
@@ -11654,8 +11601,7 @@ function exposeUiRenderHelpersOnce() {
         // 끌어올리는 정리는 별도 변경으로 한다 — 78개가 같은 상태다).
         getGemSearchText,
         isGemLibraryMatchVisible,
-        highlightSearchText,
-        renderSearchSection
+        highlightSearchText
     };
     let pending = {};
     Object.keys(helpers).forEach(key => {
@@ -11761,23 +11707,7 @@ function buildCraftActionButtons(item) {
     }
     document.getElementById('forge-item-display').innerHTML = `${craftTargetControls}<div class="craft-selected-body">${craftSelectedBodyHtml}${craftResultHtml}${craftSelectedBodyTailHtml}</div>`;
     document.getElementById('fossil-item-display').innerHTML = `${craftSelectedBodyHtml}${craftSelectedBodyTailHtml}`;
-    let fossilButtons = [];
-    let mycologistLv = typeof getExpertLevel === 'function' ? Math.max(1, Math.floor(getExpertLevel('mycologist') || 1)) : 1;
-    if ((game.currencies.fossil || 0) > 0) fossilButtons.push(`<button onclick="applyFossilCraft()">기본 화석 정제 (${game.currencies.fossil || 0})</button>`);
-    if ((game.currencies.fossilPrimal || 0) > 0) fossilButtons.push(`<button onclick="restorePrimalFossil('normal')" ${mycologistLv < 4 ? 'disabled' : ''}>원시 화석 복원 (${game.currencies.fossilPrimal || 0})${mycologistLv < 4 ? ' · 균사학자 Lv.4 필요' : ''}</button>`);
-    if ((game.currencies.fossilAncientPrimal || 0) > 0) fossilButtons.push(`<button onclick="restorePrimalFossil('ancient')" ${mycologistLv < 5 ? 'disabled' : ''}>원시 고대 화석 복원 (${game.currencies.fossilAncientPrimal || 0})${mycologistLv < 5 ? ' · 균사학자 Lv.5 필요' : ''}</button>`);
-    ['fossil', ...FOSSIL_DB.map(fossil => fossil.key)].forEach(fossilKey => {
-        let surplusCost = typeof getFossilSurplusRefiningCost === 'function' ? getFossilSurplusRefiningCost(fossilKey) : null;
-        let owned = Math.max(0, Math.floor(game.currencies[fossilKey] || 0));
-        if (!surplusCost || owned <= 0) return;
-        let sourceName = fossilKey === 'fossil' ? '미궁 화석' : ((FOSSIL_DB.find(row => row.key === fossilKey) || {}).name || fossilKey);
-        fossilButtons.push(`<button onclick="refineFossilSurplus('${fossilKey}')" ${mycologistLv < 4 || owned < surplusCost ? 'disabled' : ''}>${sourceName} 잉여 정제 (${owned}/${surplusCost})</button>`);
-    });
-    FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).forEach(fossil => {
-        fossilButtons.push(`<button onclick="applyFossilChaosCraft('${fossil.key}')" ${!selectedItem ? 'disabled' : ''}>${fossil.name} 사용 (${game.currencies[fossil.key] || 0})</button>`);
-    });
-    document.getElementById('ui-fossil-actions').innerHTML = fossilButtons.join('') || `<div style="color:var(--copy-muted);">보유한 화석이 없습니다.</div>`;
-    document.getElementById('ui-fossil-info').innerHTML = `<div style="margin-bottom:6px; color:#f1c67d;">원하는 옵션 1개가 확정인 카오스 재련</div>${FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => `<div style="margin-bottom:6px;"><strong>${fossil.name}</strong> - ${fossil.desc}</div>`).join('') || `<div style="color:var(--copy-muted);">보유 중인 타입 화석이 없습니다.</div>`}<div style="margin-top:8px; color:var(--copy-bright);">기본 화석 정제는 항상 가능하며, 균사학자 Lv.4부터 남는 화석 여러 개를 원시 화석 1개로 압축할 수 있습니다. 원시 화석은 복원 전용이며, Lv.5부터 원시 고대 화석이 드랍됩니다. 화석 전용 옵션은 Lv.6부터 제작이 아니라 장비 드랍 시 일정 확률로 붙습니다.</div>`;
+    if (game.itemSubtab === 'item-tab-fossil') renderFossilWorkbench(selectedItem);
 
     let hiddenCurrencyKeys = new Set(['timeRemnant', 'chaosKey', 'coreKey', 'bossKeyFlame', 'bossKeyFrost', 'bossKeyStorm', 'beastKeyCerberus', 'rivalKey', 'cosmosSovereignKey', 'bossCore', 'skyEssence', 'gemShard', 'fossil', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilJagged', 'fossilBound', 'fossilGale', 'fossilPrismatic', 'fossilAbyssal', 'fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift', 'sealShard', 'strongSealShard', 'radiantSealShard', 'jewelCore', 'jewelShard', 'hiveKey', 'colonyTrace', 'colonyShard', 'meteorShard', 'incompleteStarWedge', 'starWedge', 'pollen', 'beeswax', 'starDust', 'awakenedEcho', 'trialKey3', 'runeShard', 'underCopper', 'underSilver', 'underGold', 'uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos', 'reefFragment', 'oceanRerollShard']);
     hiddenCurrencyKeys.add('condensedSkyPower');
@@ -11821,7 +11751,7 @@ function buildCraftActionButtons(item) {
         if (sporeHost) sporeHost.innerHTML = sporeHtml;
     });
 
-    renderChaosInfuserPanel(selectedItem);
+    if (game.itemSubtab === 'item-tab-infuser') renderChaosInfuserPanel(selectedItem);
     renderCraftOrbActions(selectedItem);
     }
     let fossilTabBtn = document.getElementById('btn-item-tab-fossil');
@@ -11834,8 +11764,7 @@ function buildCraftActionButtons(item) {
     if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
     if (!chaosInfuserOpen && game.itemSubtab === 'item-tab-infuser') switchItemSubtab('item-tab-equip');
     __mark('midRender');
-    renderMarketUI();
-    renderExpertiseUI();
+    renderVisibleManagementPanels(renderingTabIds, renderFlaskPanel);
     __mark('market+expertise');
 
     let mapTabActive = (document.getElementById('tab-map') || {}).classList.contains('active');
@@ -11982,12 +11911,17 @@ function buildCraftActionButtons(item) {
 
     renderChaosRealmMapPanel();
     renderSkyTowerMapPanel();
-    renderUnderworldMapPanel();
-    renderOceanDepthMapPanel();
-    renderFishingPanel();
-    renderSeaGiftPanel();
+    if (game.mapSubtab === 'map-tab-underworld') renderUnderworldMapPanel();
+    // Keep normalization/unlock timing independent from the selected map panel.
+    ensureOceanState();
+    if (game.mapSubtab === 'map-tab-ocean') renderOceanDepthMapPanel();
+    if (game.mapSubtab === 'map-tab-fishing') {
+        renderFishingPanel();
+        renderSeaGiftPanel();
+    }
 
     let availTrials = TRIAL_ZONES.filter(trial => {
+        if (!contentProgression.isUnlocked('battleTrials')) return false;
         if (trial.bloomTrial) return canSeeTalentBloomTrial();
         return (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id);
     });
@@ -11997,6 +11931,7 @@ function buildCraftActionButtons(item) {
 
     renderLoop9VoidRiftPanel();
     document.getElementById('ui-trial-list').innerHTML = availTrials.map(buildTrialMapItemHtml).join('');
+    renderMobileMapNavigation();
     }
     __mark('mapPanels');
 
@@ -12207,41 +12142,13 @@ function buildCraftActionButtons(item) {
     document.getElementById('ui-talisman-board-size').innerText = talismanUnlockedSet.size;
     document.getElementById('ui-talisman-board-size2').innerText = TALISMAN_BOARD_MASK.size;
     document.getElementById('ui-talisman-currency').innerHTML = `${renderSealShardBadge('sealShard')} <strong>${game.currencies.sealShard || 0}</strong> &nbsp; ${renderSealShardBadge('strongSealShard')} <strong>${game.currencies.strongSealShard || 0}</strong> &nbsp; ${renderSealShardBadge('radiantSealShard')} <strong>${game.currencies.radiantSealShard || 0}</strong>`;
-    let unseal = game.talismanUnseal;
-    if (!unseal) {
-        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:8px; color:var(--copy-bright);">개별 해제는 여러 후보 중 하나를 고를 수 있습니다. 빠른 해제는 선택 과정 없이 최대 10개를 즉시 보관합니다.</div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button onclick="startTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 해제</button>
-                <button onclick="startBulkTalismanUnseal('sealShard')" ${(game.currencies.sealShard || 0) <= 0 ? 'disabled' : ''}>봉인편린 일괄 해제 (최대 10)</button>
-                <button onclick="startTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력한 기운] 봉인편린 해제</button>
-                <button onclick="startBulkTalismanUnseal('strongSealShard')" ${(game.currencies.strongSealShard || 0) <= 0 ? 'disabled' : ''}>[강력] 일괄 해제 (최대 10)</button>
-                <button onclick="startTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란한 기운] 봉인편린 해제</button>
-                <button onclick="startBulkTalismanUnseal('radiantSealShard')" ${(game.currencies.radiantSealShard || 0) <= 0 ? 'disabled' : ''}>[찬란] 일괄 해제 (최대 10)</button>
-            </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; padding-top:8px; border-top:1px solid #29415a;">
-                <button onclick="exchangeTalismanShards('strong')" ${(game.currencies.sealShard || 0) < 80 ? 'disabled' : ''}>편린 80 → 강력 편린 1</button>
-                <button onclick="exchangeTalismanShards('radiant')" ${(game.currencies.strongSealShard || 0) < 40 ? 'disabled' : ''}>강력 편린 40 → 찬란 편린 1</button>
-            </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
-                <button onclick="salvageAllTalismansInInventory()" ${(game.talismanInventory || []).some(t => !isLockedInventoryObject(t)) ? '' : 'disabled'} style="background:#6e3f3f; border-color:#8f5959;">부적 일괄 해체</button>
-            </div>`;
-    } else {
-        let shapeStyle = getTalismanShapeStyle(unseal.current.shape);
-        let currentLabel = unseal.current.special ? `${getTalismanDisplayName(unseal.current)} · ${getTalismanSpecialDescription(unseal.current)}` : `${unseal.current.statName} +${formatValue(unseal.current.stat, unseal.current.value)}`;
-        document.getElementById('ui-talisman-unseal').innerHTML = `<div style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;" data-info-tooltip-anchor="1" onmouseenter="showTalismanUnsealTooltip(event)" onmousemove="showTalismanUnsealTooltip(event)" onmouseleave="hideInfoTooltip()">${renderTalismanMiniShape(unseal.current.shape, { cellSize: 8, gap: 1, markDir: unseal.current.markDir })}<span>후보: <strong style="color:${shapeStyle.color};">${escapeHTML(currentLabel)}</strong> <span style="color:var(--copy-bright);">(${unseal.current.rarity})</span></span>${renderSealShardBadge(unseal.source)}</div>
-            <div style="margin-bottom:8px; color:var(--copy-muted);">남은 형태 확인 기회: ${unseal.rollsLeft}/${unseal.totalRolls}</div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button onclick="acceptCurrentTalisman()">선택</button>
-                <button onclick="previewNextTalismanShape()" ${unseal.rollsLeft <= 1 ? 'disabled' : ''}>다음 형태 보기</button>
-                <button onclick="discardCurrentTalisman()" style="background:#6e3f3f; border-color:#8f5959;">파괴</button>
-            </div>`;
-    }
+    talismanWorkshopUi.render();
     let selectedTalismanId = game.talismanSelectedId;
     const talismanRows = game.talismanInventory.filter(t => {
         const stats = (Array.isArray(t.stats) ? t.stats.map(s => `${s.stat || s.id || ''} ${s.label || ''} ${getStatName(s.stat || s.id || '')}`).join(' ') : '');
         return matchSearchQuery(`${t.name || ''} ${t.shape || ''} ${t.rarity || ''} ${t.statName || ''} ${stats}`, sf.talisman);
     });
-    let talismanRowsHtml = talismanRows.map(t => {
+    let talismanRowsHtml = inventoryLibraryUi.visibleRows('talisman', talismanRows, sf.talisman).map(t => {
         let selected = selectedTalismanId === t.id;
         let shapeStyle = getTalismanShapeStyle(t.shape);
         let q = sf.talisman;
@@ -12254,7 +12161,7 @@ function buildCraftActionButtons(item) {
         let manage = `<button onclick="event.stopPropagation(); toggleTalismanLock(${t.id})">${getLockButtonLabel(t)}</button>${t.waxedByBeeswax ? '<button disabled>밀랍</button>' : `<button onclick="event.stopPropagation(); applyBeeswaxToTalisman(${t.id})" ${(game.currencies.beeswax || 0) > 0 ? '' : 'disabled'}>밀랍</button>`}<button onclick="event.stopPropagation(); destroyTalismanFromInventory(${t.id})" ${isLockedInventoryObject(t) ? 'disabled' : ''}>해체</button>`;
         return `<div class="item-card talisman-inventory-card ${selected ? 'selected' : ''} ${talismanCardClass}" role="group" tabindex="0" style="min-height:72px;" onclick="selectTalismanInventoryItem(${t.id})" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();selectTalismanInventoryItem(${t.id});}" data-info-tooltip-anchor="1" onmouseenter="showTalismanInventoryTooltip(event, ${t.id})" onmousemove="showTalismanInventoryTooltip(event, ${t.id})" onmouseleave="hideInfoTooltip()">${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(t, 'talisman', 'talisman-card-visual') : ''}<div class="talisman-card-copy"><div style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;"><div style="display:flex; align-items:center; gap:7px;">${renderTalismanMiniShapeFromCells(t.cells, t.shape, { markDir: t.markDir })}<div><div class="item-title ${talismanTitleClass}" style="${isUniqueTalisman ? '' : `color:${shapeStyle.color};`}">${isLockedInventoryObject(t) ? '🔒 ' : ''}${talismanUniqueBadge}${highlightSearchText(getTalismanDisplayName(t), q)} ${t.stat ? ` · ${highlightSearchText(t.statName, q)} +${formatValue(t.stat, t.value)}` : ''}</div><div class="item-base-line" style="color:var(--copy-bright);">${t.rarity} ${renderSealShardBadge(t.source || 'sealShard')} ${qualityBadge} ${t.special ? `· 효과: ${highlightSearchText(getTalismanSpecialDescription(t), q)}` : ''}</div></div></div><div class="item-actions"><button onclick="event.stopPropagation(); rotateTalismanInInventory(${t.id})">회전</button>${manage}</div></div></div></div>`;
     }).join('');
-    renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanRowsHtml, `<div style="grid-column:1/-1; color:var(--copy-muted);">보유한 부적이 없습니다.</div>`, '');
+    renderSearchSection('ui-talisman-inventory', 'talisman', '부적 검색 (이름/형태/옵션)', talismanRowsHtml, `<div style="grid-column:1/-1; color:var(--copy-muted);">${game.talismanInventory.length ? '검색 조건에 맞는 부적이 없습니다.' : '보유한 부적이 없습니다.'}</div>`, '');
     let selectedPlacementTalisman = (game.talismanInventory || []).find(row => row && row.id === game.talismanSelectedId) || null;
     document.getElementById('ui-talisman-board').innerHTML = Array.from({ length: TALISMAN_BOARD_W * TALISMAN_BOARD_H }, (_, i) => {
         let x = i % TALISMAN_BOARD_W;
@@ -12295,9 +12202,10 @@ function buildCraftActionButtons(item) {
                 : ' talisman-placement-invalid';
         }
         let cellLabel = placed ? `${getTalismanDisplayName(placed)} 배치 칸` : (unlocked ? `빈 부적 칸 ${x + 1}, ${y + 1}` : `잠긴 부적 칸 ${x + 1}, ${y + 1} · 해금 비용 ${unlockCost}`);
-        return `<button class="talisman-board-cell${placementClass}" aria-label="${escapeHTML(cellLabel)}" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:var(--talisman-cell); height:var(--talisman-cell); border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
+        return `<button class="talisman-board-cell${placementClass}" data-talisman-x="${x}" data-talisman-y="${y}" aria-label="${escapeHTML(cellLabel)}" onclick="onTalismanBoardCellClick(${x},${y})"${lockTitle}${placedTitle}${hoverHandlers} style="width:var(--talisman-cell); height:var(--talisman-cell); border:1px solid ${border}; background:${cellColor}; color:${textColor}; border-radius:10px; font-weight:bold; box-shadow:${surfaceShadow};">${label}</button>`;
     }).join('');
     }
+    if (talismanTabActive) talismanMobileUi.refresh();
     let talismanTotalEl = talismanTabActive ? document.getElementById('ui-talisman-total') : null;
     if (talismanTotalEl) {
         let summary = typeof calculateTalismanBoardEffects === 'function'
@@ -12858,6 +12766,16 @@ function openVoidPassiveCraftOverlay(nodeId) {
     document.body.appendChild(overlay);
 }
 
+function renderCraftTargetLibrary(isRarityVisible) {
+    const kind = String(game.itemSubtab).replace('item-tab-', '');
+    if (!['craft', 'fossil', 'infuser'].includes(kind)) return;
+    if (!document.querySelector(`#item-tab-${kind} > details`).open) return;
+    renderPaperdoll(`ui-${kind}-equip-list`, true);
+    const rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isRarityVisible(row.item));
+    document.getElementById(`ui-${kind}-inventory-list`).innerHTML = rows.map(row => renderInventoryCard(row.item, row.idx, kind)).join('');
+    if (kind !== 'infuser') renderGrowthCraftTargets(`ui-${kind}-growth-list`);
+}
+
 function normalizePassiveTooltipText(value) {
     return String(value || '')
         .replace(/<br\s*\/?>/gi, ' ')
@@ -12908,7 +12826,7 @@ const bindPassiveTreeMouseEvents = (canvas, handlers) => {
     }, true);
     window.addEventListener('blur', () => { isDragging = false; canvas.style.cursor = 'grab'; });
     canvas.addEventListener('mouseleave', () => {
-        if (isDragging) return;
+        if (isDragging || uiDisplay.matches('(max-width: 1080px)')) return;
         hoverNode = null;
         canvas.style.cursor = 'grab';
         drawPassiveTree();
@@ -12917,6 +12835,7 @@ const bindPassiveTreeMouseEvents = (canvas, handlers) => {
 };
 
 function setupCanvasEvents() {
+    passiveSelectionUi.bindTools();
     setupPassiveTreeSearchControls();
     setupBattlefieldShrineInteraction();
     const canvas = document.getElementById('tree-canvas');
@@ -12934,6 +12853,7 @@ function setupCanvasEvents() {
     let pendingTouchPassiveRefundAt = 0;
 
     function hideCanvasTooltip() {
+        passiveSelectionUi.hide();
         if (!canvasTooltip) return;
         canvasTooltip.style.display = 'none';
         clearActiveTooltip('canvas-tooltip');
@@ -13002,7 +12922,7 @@ function setupCanvasEvents() {
             : (game.passives || []).includes(node.id)
             ? '✔️ 활성화됨'
             : (reachableNodes.has(node.id)
-                ? '🖱️ 클릭해 활성화하고 주변 노드를 밝혀내기'
+                ? '활성화하면 주변 노드가 밝혀집니다.'
                 : '🌒 아직 길이 이어지지 않은 노드');
 
         if (state === 'preview' && !discoveredPassiveNodes.has(node.id)) {
@@ -13059,10 +12979,7 @@ function setupCanvasEvents() {
              <div class="tooltip-line" style="margin-top:6px;color:#f2d88f;">현재 경로 기준 ${routeCost}포인트 필요 · 연결 경로가 트리에 강조됩니다.</div>
              <div class="tooltip-line" style="margin-top:6px;">${msg}</div>`;
 
-        invalidateTooltipSize(canvasTooltip);
-        canvasTooltip.style.display = 'block';
-        positionTooltipElement(canvasTooltip, clientX, clientY);
-        setActiveTooltip('canvas-tooltip');
+        passiveSelectionUi.present(node, canvasTooltip, { x: clientX, y: clientY });
     }
 
     function updateHoverNode(clientX, clientY) {
@@ -13305,7 +13222,7 @@ function setupCanvasEvents() {
         if (e.changedTouches && e.changedTouches.length) {
             let touch = e.changedTouches[0];
             hoverNode = getPassiveNodeAtClientPosition(touch.clientX, touch.clientY);
-            activateHoveredPassive({ fromTouch: true, clientX: touch.clientX, clientY: touch.clientY });
+            passiveSelectionUi.touch(hoverNode, touch, { preview: renderPassiveTooltip, activate: activateHoveredPassive });
         }
     }, { passive: false });
     canvas.addEventListener('touchcancel', () => {
@@ -15489,11 +15406,11 @@ function renderBattlefieldThrottled(frameNow) {
     renderBattlefield(false);
 }
 
-function gameLoop() {
+function gameLoop(frameNow = performance.now()) {
     try {
         if (isBattlePresentationSuspended()) return;
         // 백그라운드 재계산 중에는 캔버스 렌더를 쉬어 계산 청크에 프레임을 양보한다.
-        let frameNow = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        // RAF timestamps share the display clock; callback execution can be delayed by combat/UI work.
         showNextTutorial();
         let tutorialPause = !!(game.settings && game.settings.pauseGameOnOverlay) && isTutorialOpen();
         if (tutorialPause || isRewardOpen() || isDeathOverlayOpen() || isLoopHeroSelectOpen()) {
@@ -15668,10 +15585,7 @@ function renderExpertiseUI() {
     let treeUnlocked = hasExpertTreeUnlocked();
     let validTabs = [...unlocked, '__tree'];
     game.expertise.selectedExpertTab = validTabs.includes(game.expertise.selectedExpertTab) ? game.expertise.selectedExpertTab : (unlocked[0] || '__tree');
-    let expertBtns = unlocked.map(id => `<button class="subtab-btn ${game.expertise.selectedExpertTab===id?'active':''}" onclick="game.expertise.selectedExpertTab='${id}';updateStaticUI();">${EXPERT_DEFS[id].icon} ${EXPERT_DEFS[id].name}</button>`).join('');
-    let treeLabel = treeUnlocked ? '전문가 노드 트리' : '전문가 노드 트리(잠김)';
-    let treeBtn = `<button class="subtab-btn ${game.expertise.selectedExpertTab==='__tree'?'active':''}" onclick="game.expertise.selectedExpertTab='__tree';updateStaticUI();">${treeLabel}</button>`;
-    subtabs.innerHTML = expertBtns + treeBtn;
+    subtabs.innerHTML = expertiseMobileUi.navigation(unlocked, treeUnlocked);
     let showingTree = game.expertise.selectedExpertTab === '__tree';
     if (treeTitle) treeTitle.style.display = showingTree ? '' : 'none';
     tree.style.display = showingTree ? '' : 'none';
@@ -15697,6 +15611,7 @@ function getExpertBranchZoneHtml(branch, groups, posClass) {
 }
 
 function getExpertiseTreeHubHtml(groups) {
+    if (uiDisplay.matches('(max-width: 1080px)')) return expertiseMobileUi.tree(groups);
     return `<div class="expertise-tree-hub">`
         + getExpertBranchZoneHtml('astronomer', groups, 'pos-top')
         + getExpertBranchZoneHtml('mycologist', groups, 'pos-left')

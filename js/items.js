@@ -737,16 +737,25 @@ function prepareMeteorEncounterEntry(returnZoneId) {
     st.skyRiftMinTier = null;
 }
 
+function getZoneTravelBlockReason(id) {
+    if (getZone(id)?.type === 'trial' && !contentProgression.isUnlocked('battleTrials')) {
+        return '루프 3부터 직업 전직을 해금한 뒤 시련에 도전할 수 있습니다.';
+    }
+    if (game.pendingLoopReady) {
+        return '⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.';
+    }
+    return null;
+}
+
 function changeZone(id) {
-    if (game.pendingLoopReady) return addLog('⏸️ 루프 진행 대기 중에는 사냥터로 이동할 수 없습니다. [루프 진행] 버튼으로 다음 루프를 시작하세요.', 'attack-monster');
+    const blockReason = getZoneTravelBlockReason(id);
+    if (blockReason) return addLog(blockReason, 'attack-monster');
     if (isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     let boundary = ensureBeyondBoundaryState(game);
-    if (boundary.activeRun && id !== BEYOND_BOUNDARY_ZONE_ID) {
+    if (boundary.activeRun && id !== BEYOND_BOUNDARY_ZONE_ID)
         return addLog('경계 너머 도전 중에는 다른 지역으로 이동할 수 없습니다. 먼저 도전을 포기하세요.', 'attack-monster');
-    }
-    if (id === BEYOND_BOUNDARY_ZONE_ID && !boundary.activeRun) {
+    if (id === BEYOND_BOUNDARY_ZONE_ID && !boundary.activeRun)
         return addLog('경계 너머 화면에서 단계와 성장시킬 인장을 선택해 도전을 시작하세요.', 'attack-monster');
-    }
     game.inTicketBossFight = false;
     if (typeof id === 'number' && id > game.maxZoneId) return;
     if (id === METEOR_FALL_ZONE_ID) {
