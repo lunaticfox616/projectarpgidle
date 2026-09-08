@@ -26,7 +26,7 @@ var lod = 1; // fallback for any legacy FX paths
 let mobilePipCtx = null;
 let mobilePipRefreshHandle = null;
 let mobilePipRefreshErrorReported = false;
-let battleAssetDeferredInitHandle = null;
+let gameLoopFrameHandle = null;
 let playerHpDamageGhostPct = null;
 let playerHpDamageGhostLastPct = null;
 let playerHpDamageGhostLastAt = 0;
@@ -716,21 +716,9 @@ function getUiGemPresentation(name, isSupport, stats) {
 }
 
 function startBattleAssetLoadNow() {
+    if (isStartupOverlayOpen() && !isLoadingOverlayOpen()) return Promise.resolve(false);
     window.__battleAssetAutoloadEnabled = true;
-    if (battleAssetDeferredInitHandle) {
-        clearTimeout(battleAssetDeferredInitHandle);
-        battleAssetDeferredInitHandle = null;
-    }
     return initBattleAssets();
-}
-
-function scheduleDeferredBattleAssetLoad() {
-    if (battleAssets.ready || battleAssets.loading || battleAssets.failed) return;
-    if (battleAssetDeferredInitHandle) return;
-    battleAssetDeferredInitHandle = setTimeout(() => {
-        battleAssetDeferredInitHandle = null;
-        startBattleAssetLoadNow();
-    }, 1800);
 }
 
 
@@ -850,6 +838,7 @@ function isBattlePresentationSuspended() {
         || isStartupOverlayOpen() || isLoadingOverlayOpen();
 }
 function runMobilePipRefreshTick() {
+    mobilePipRefreshHandle = null;
     let nextDelay = MOBILE_PIP_BASE_INTERVAL_MS;
     try {
         if (isBattlePresentationSuspended()) {
@@ -879,6 +868,8 @@ function runMobilePipRefreshTick() {
 
 function startMobilePipRefreshLoop() {
     if (mobilePipRefreshHandle) clearTimeout(mobilePipRefreshHandle);
+    mobilePipRefreshHandle = null;
+    if (isStartupOverlayOpen()) return;
     mobilePipRefreshHandle = setTimeout(runMobilePipRefreshTick, MOBILE_PIP_BASE_INTERVAL_MS);
 }
 
@@ -13355,8 +13346,16 @@ function setStartupOverlayActive(active) {
     let overlay = document.getElementById('startup-overlay');
     if (!overlay) return;
     overlay.classList.toggle('active', startupOverlayActive);
-    if (startupOverlayActive) overlay.scrollTop = 0;
-    else if (typeof showNextTutorial === 'function') setTimeout(showNextTutorial, 0);
+    if (startupOverlayActive) {
+        overlay.scrollTop = 0;
+        if (gameLoopFrameHandle !== null) cancelAnimationFrame(gameLoopFrameHandle);
+        gameLoopFrameHandle = null;
+    } else {
+        scheduleGameLoop();
+        if (typeof showNextTutorial === 'function') setTimeout(showNextTutorial, 0);
+    }
+    startMobilePipRefreshLoop();
+    dispatchRuntimeEvent('startup-visibility', {active:startupOverlayActive});
 }
 
 function setLoadingOverlayState(active, options = {}) {
@@ -13366,15 +13365,11 @@ function setLoadingOverlayState(active, options = {}) {
     let detailEl = document.getElementById('loading-detail');
     let captionEl = document.getElementById('loading-caption');
     let barEl = document.getElementById('loading-bar-fill');
-    if (loadingOverlayTimer) {
-        clearInterval(loadingOverlayTimer);
-        loadingOverlayTimer = null;
-    }
     if (!active) {
         overlay.classList.remove('active');
         document.body.classList.remove('loading-active');
         loadingOverlayProgress = 0;
-        if (barEl) barEl.style.width = '0%';
+        if (barEl) { barEl.style.width = '0%'; barEl.parentElement.setAttribute('aria-valuenow', '0'); }
         if (typeof showNextTutorial === 'function') setTimeout(showNextTutorial, 0);
         return;
     }
@@ -13382,13 +13377,9 @@ function setLoadingOverlayState(active, options = {}) {
     if (titleEl) titleEl.innerText = options.title || '차원을 정렬하는 중...';
     if (detailEl) detailEl.innerText = options.detail || '세이브 상태를 점검하고 전장을 준비하고 있습니다.';
     if (captionEl) captionEl.innerText = options.caption || 'Syncing Timeline';
-    if (barEl) barEl.style.width = `${loadingOverlayProgress}%`;
+    if (barEl) { barEl.style.width = `${loadingOverlayProgress}%`; barEl.parentElement.setAttribute('aria-valuenow', String(Math.round(loadingOverlayProgress))); }
     overlay.classList.add('active');
     document.body.classList.add('loading-active');
-    loadingOverlayTimer = setInterval(() => {
-        loadingOverlayProgress = Math.min(93, loadingOverlayProgress + (Math.random() * 7 + 2));
-        if (barEl) barEl.style.width = `${loadingOverlayProgress}%`;
-    }, 260);
 }
 
 function advanceLoadingOverlay(options = {}) {
@@ -13402,6 +13393,7 @@ function advanceLoadingOverlay(options = {}) {
     if (barEl && Number.isFinite(options.progress)) {
         loadingOverlayProgress = Math.max(loadingOverlayProgress, options.progress);
         barEl.style.width = `${loadingOverlayProgress}%`;
+        barEl.parentElement.setAttribute('aria-valuenow', String(Math.round(loadingOverlayProgress)));
     }
 }
 
@@ -15419,7 +15411,13 @@ function renderBattlefieldThrottled(frameNow) {
     renderBattlefield(false);
 }
 
+function scheduleGameLoop() {
+    if (gameLoopFrameHandle !== null || isStartupOverlayOpen()) return;
+    gameLoopFrameHandle = requestAnimationFrame(gameLoop);
+}
+
 function gameLoop(frameNow = performance.now()) {
+    gameLoopFrameHandle = null;
     try {
         if (isBattlePresentationSuspended()) return;
         // 백그라운드 재계산 중에는 캔버스 렌더를 쉬어 계산 청크에 프레임을 양보한다.
@@ -15451,7 +15449,7 @@ function gameLoop(frameNow = performance.now()) {
         console.error('gameLoop error:', error);
         recoverRuntimeState();
     } finally {
-        requestAnimationFrame(gameLoop);
+        scheduleGameLoop();
     }
 }
 

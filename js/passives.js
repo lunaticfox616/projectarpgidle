@@ -6840,7 +6840,7 @@ function initBattleAssets() {
     let activeLoads = 0;
     const totalAssets = pending;
     let settled = false;
-    function updateBattleAssetLoadProgress(currentKey) {
+    function updateBattleAssetLoadProgress() {
         if (typeof document === 'undefined') return;
         let overlay = document.getElementById('loading-overlay');
         if (!overlay || !overlay.classList.contains('active')) return;
@@ -6851,7 +6851,7 @@ function initBattleAssets() {
             advanceLoadingOverlay({
                 progress: progress,
                 detail: `전투 에셋 로딩 중... (${loaded}/${totalAssets})`,
-                caption: currentKey ? `Asset: ${currentKey}` : 'Asset: preparing'
+                caption: '전투 이미지 준비'
             });
         }
     }
@@ -6902,10 +6902,10 @@ function initBattleAssets() {
         }
     }
 
-    function markBattleAssetGroupDone(group) {
+    function markBattleAssetGroupDone() {
         pending--;
         activeLoads = Math.max(0, activeLoads - 1);
-        updateBattleAssetLoadProgress(group.keys.join(','));
+        updateBattleAssetLoadProgress();
         finishLoad();
         pumpBattleAssetQueue();
     }
@@ -6922,7 +6922,7 @@ function initBattleAssets() {
             if ('fetchPriority' in img) img.fetchPriority = group.priority <= 1 ? 'high' : 'auto';
             img.onload = function() {
                 group.keys.forEach(key => storeLoadedBattleImage(key, img));
-                markBattleAssetGroupDone(group);
+                markBattleAssetGroupDone();
             };
             img.onerror = function() {
                 let requiredKeys = group.keys.filter(key => !optionalManifestKeys.has(key));
@@ -6931,7 +6931,7 @@ function initBattleAssets() {
                     requiredKeys.forEach(key => battleAssets.failedKeys.push(key));
                     console.warn('battle asset load failed:', requiredKeys.join(','), group.src);
                 }
-                markBattleAssetGroupDone(group);
+                markBattleAssetGroupDone();
             };
             img.src = group.src;
         }

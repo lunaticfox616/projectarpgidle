@@ -16,6 +16,7 @@ const context = {
   cloudState: { user: null },
   game: { season: 8, currentZoneId: 4, ascendClass: 'gladiator', selectedHeroId: 'hero2', activeSkill: '연속 베기' },
   gameplayStarted: true,
+  startupOverlayActive: false,
   battleFx: [],
   battleVisualState: { skillEffects: [], damageTexts: [] },
   document: { hidden: false, querySelector: () => ({ content: 'test-build' }), addEventListener() {} },

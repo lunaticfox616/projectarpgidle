@@ -41,7 +41,6 @@ function init() {
     }
     unlockPassiveStarEvolution({ silent: true });
     window.__battleAssetAutoloadEnabled = false;
-    scheduleDeferredBattleAssetLoad();
     refreshPassiveVisibility();
     refreshTabHeaderUiIfNeeded();
     calculateReachableNodes();
@@ -178,41 +177,50 @@ function init() {
     } catch (error) {
         console.error('initial battlefield render failed:', error);
     } finally {
-        if (gameTickHandle) clearInterval(gameTickHandle);
-        gameTickHandle = setInterval(() => {
-            try {
-                if (runForegroundCombat(performance.now()) === 0) return;
-                ensureLoopChallengeState();
-                let now = Date.now();
-                if (typeof updateCombatOxygenBar === 'function') updateCombatOxygenBar();
-                if (pendingHeavyUiRefresh) {
-                    if (now - lastHeavyUiRefreshAt >= 1200) {
-                        pendingHeavyUiRefresh = false;
-                        lastHeavyUiRefreshAt = now;
-                        // 킬 이후 드랍/인벤/재화/지도 상태가 누락되지 않도록
-                        // 스로틀된 정적 UI 갱신을 복구한다.
-                        updateStaticUI();
-                    }
-                }
-                let recentStats = game.lastCombatStats && (getCombatTime() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
-                updateCombatUI(recentStats);
-            } catch (error) {
-                console.error('gameTick error:', error);
-                recoverRuntimeState();
-                try {
-                    let recentStats = game.lastCombatStats && (getCombatTime() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
-                    updateCombatUI(recentStats);
-                } catch (uiError) { console.error('tick UI recovery failed:', uiError); }
-            }
-        }, 100);
-        requestAnimationFrame(gameLoop);
-        if (autoSaveHandle) clearInterval(autoSaveHandle);
-        cancelScheduledAutoSave();
-        autoSaveHandle = setInterval(() => {
-            scheduleAutoSaveWhenIdle();
-        }, 15000);
+        syncGameplayTimers();
+        scheduleGameLoop();
     }
 }
+
+function runGameTick() {
+    try {
+        if (runForegroundCombat(performance.now()) === 0) return;
+        ensureLoopChallengeState();
+        let now = Date.now();
+        if (typeof updateCombatOxygenBar === 'function') updateCombatOxygenBar();
+        if (pendingHeavyUiRefresh && now - lastHeavyUiRefreshAt >= 1200) {
+            pendingHeavyUiRefresh = false;
+            lastHeavyUiRefreshAt = now;
+            // 킬 이후 드랍·인벤·재화·지도 상태를 스로틀된 정적 갱신으로 반영한다.
+            updateStaticUI();
+        }
+        refreshCombatTickUi();
+    } catch (error) {
+        console.error('gameTick error:', error);
+        recoverRuntimeState();
+        try { refreshCombatTickUi(); }
+        catch (uiError) { console.error('tick UI recovery failed:', uiError); }
+    }
+}
+
+function refreshCombatTickUi() {
+    let recentStats = game.lastCombatStats && (getCombatTime() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
+    updateCombatUI(recentStats);
+}
+
+function syncGameplayTimers() {
+    if (gameTickHandle) clearInterval(gameTickHandle);
+    if (autoSaveHandle) clearInterval(autoSaveHandle);
+    gameTickHandle = null;
+    autoSaveHandle = null;
+    cancelScheduledAutoSave();
+    takeForegroundCombatSteps(foregroundCombatClock, performance.now(), true);
+    if (isStartupOverlayOpen()) return;
+    gameTickHandle = setInterval(runGameTick, 100);
+    autoSaveHandle = setInterval(scheduleAutoSaveWhenIdle, 15000);
+}
+
+window.addEventListener('project-idle:startup-visibility', syncGameplayTimers);
 
 function cancelScheduledAutoSave() {
     if (!autoSaveIdleHandle) return;

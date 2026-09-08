@@ -168,8 +168,7 @@ body:not(.light-mode) .tutorial-overlay {
   backdrop-filter: blur(5px) saturate(0.8);
 }
 
-body:not(.light-mode) .tutorial-card,
-body:not(.light-mode) .loading-card {
+body:not(.light-mode) .tutorial-card {
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(102, 145, 188, 0.62);
@@ -178,8 +177,7 @@ body:not(.light-mode) .loading-card {
   box-shadow: var(--luxe-shadow), inset 0 1px 0 rgba(230, 243, 255, 0.08);
 }
 
-body:not(.light-mode) .tutorial-card::before,
-body:not(.light-mode) .loading-card::before {
+body:not(.light-mode) .tutorial-card::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;

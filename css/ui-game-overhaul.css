@@ -29,7 +29,8 @@
   background: #ffd88a;
   box-shadow: 0 0 9px #f4a744;
   opacity: 0;
-  animation: gameMoteRise var(--mote-speed) linear var(--mote-delay) infinite;
+  /* Keep the seeded atmosphere without continuous login-screen compositing. */
+  animation: gameMoteRise var(--mote-speed) linear var(--mote-delay) infinite paused;
 }
 
 /* ---------- character selection ---------- */
