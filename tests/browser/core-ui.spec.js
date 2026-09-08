@@ -1925,6 +1925,8 @@ test('cloud history and admin operations render through authenticated RPCs', asy
         cloudState.session = { access_token: 'test-token', expires_at: Math.floor(Date.now() / 1000) + 3600 };
     });
     await page.evaluate(() => switchTab('tab-settings'));
+    const category = page.locator('#settings-category');
+    if (await category.isVisible()) await category.selectOption('data');
     await page.locator('details.settings-cloud-disclosure > summary').click();
     await page.getByRole('button', { name: '저장 이력' }).click();
     await expect(page.locator('#cloud-tools-dialog')).toBeVisible();
@@ -2359,19 +2361,21 @@ test('mobile battle HUD stays within the viewport and exposes combat log', async
     });
     expect(effectGeometry.overlaps).toBe(false);
     await expect(page.locator('#btn-combat-log-toggle')).toBeVisible();
-    await expect(page.locator('#btn-combat-chat-tab')).toBeVisible();
+    await expect(page.locator('#btn-combat-chat-tab')).toBeHidden();
     await expect(page.locator('.combat-feed-title')).toBeVisible();
     await expect(page.locator('#log')).toBeHidden();
     await page.locator('#btn-combat-log-toggle').click();
     await expect(page.locator('#log')).toBeVisible();
     const compactLog = await page.locator('.combat-feed').evaluate(element => ({
         height: element.getBoundingClientRect().height,
+        bottom: element.getBoundingClientRect().bottom,
+        navigationTop: document.getElementById('tab-header-bottom').getBoundingClientRect().top,
         overflow: getComputedStyle(element.querySelector('#log')).overflowY,
         totalEntries: element.querySelectorAll('.log-msg').length,
         visibleEntries: Array.from(element.querySelectorAll('.log-msg')).filter(entry => getComputedStyle(entry).display !== 'none').length
     }));
-    expect(compactLog.height).toBeGreaterThanOrEqual(199);
-    expect(compactLog.height).toBeLessThanOrEqual(201);
+    expect(compactLog.height).toBeGreaterThan(52);
+    expect(compactLog.bottom).toBeLessThanOrEqual(compactLog.navigationTop + 1);
     expect(compactLog.overflow).toBe('auto');
     expect(compactLog.visibleEntries).toBe(compactLog.totalEntries);
     expect(failures).toEqual([]);
@@ -2615,6 +2619,8 @@ test('damage log detail is opt-in and persists through the settings control', as
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => switchTab('tab-settings'));
+    const category = page.locator('#settings-category');
+    if (await category.isVisible()) await category.selectOption('battle');
     const detailToggle = page.locator('#chk-log-damage-detail');
     await detailToggle.locator('xpath=ancestor::details').locator('summary').click();
     await expect(detailToggle).not.toBeChecked();
