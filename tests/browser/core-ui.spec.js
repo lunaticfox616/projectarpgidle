@@ -3315,10 +3315,9 @@ test('combat HUD interactions keep their visual and tooltip contracts', async ({
     const openMark = await itemSocket.evaluate(element => getComputedStyle(element).boxShadow);
     await page.evaluate(() => closeWindow('tab-items'));
     await expect(itemSocket).not.toHaveClass(/ui-window-open/);
-    const closedMark = await itemSocket.evaluate(element => getComputedStyle(element).boxShadow);
+    await expect.poll(() => itemSocket.evaluate(element => getComputedStyle(element).boxShadow)).not.toBe(openMark);
     const closedBorder = await itemSocket.evaluate(element => getComputedStyle(element).borderColor);
     await itemSocket.hover();
-    expect(closedMark).not.toBe(openMark);
     await expect.poll(() => itemSocket.evaluate(element => getComputedStyle(element).borderColor)).not.toBe(closedBorder);
     await page.evaluate(() => switchTab('tab-battle'));
 

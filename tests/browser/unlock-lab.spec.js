@@ -9,7 +9,8 @@ test('unlock lab uses real choices and leaves persistent saves untouched', async
         localStorage.setItem('poeIdleSaveData_lab_sentinel', 'real-save-must-stay');
         sessionStorage.setItem('lab-sentinel', 'session-must-stay');
     });
-    await expect(page.locator('#controls')).toBeEnabled({ timeout:60000 });
+    // A fieldset itself is not an actionable control; its descendant reflects disabled readiness.
+    await expect(page.locator('#loop')).toBeEnabled({ timeout:60000 });
     const game = page.frameLocator('#game');
     await expect(game.locator('.unlock-node.is-ready')).toHaveCount(1);
     await game.locator('[data-unlock-content="craft"]').click();
@@ -39,7 +40,7 @@ test('unlock lab uses real choices and leaves persistent saves untouched', async
     expect(await page.evaluate(() => [localStorage.getItem('poeIdleSaveData_lab_sentinel'), sessionStorage.getItem('lab-sentinel')]))
         .toEqual(['real-save-must-stay','session-must-stay']);
     await page.locator('#reset').click();
-    await expect(page.locator('#controls')).toBeEnabled({ timeout:60000 });
+    await expect(page.locator('#loop')).toBeEnabled({ timeout:60000 });
     await expect(game.locator('.content-unlock-balance strong')).toHaveText('2');
     await expect(game.locator('.unlock-node.is-ready')).toHaveCount(1);
     expect(await page.evaluate(() => localStorage.getItem('poeIdleSaveData_lab_sentinel'))).toBe('real-save-must-stay');
