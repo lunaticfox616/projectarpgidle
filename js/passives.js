@@ -6832,8 +6832,8 @@ function initBattleAssets() {
     const selectedHeroKeys = new Set(Object.values((selectedHeroDef || {}).strips || {})
         .flatMap(value => Array.isArray(value) ? value : ((value && typeof value === 'object') ? Object.values(value) : [value]))
         .filter(value => typeof value === 'string' && value));
-    const criticalManifestKeys = new Set(['enemies', 'woodEnemySlimes', 'woodEnemySpider', 'woodEnemyLeeches', 'woodEnemyPuppet0', 'effects', 'summon1', ...selectedHeroKeys]);
-    const manifestGroups = prepareBattleAssetGroups(manifest, criticalManifestKeys, battleAssets.images, game.activeSkill);
+    const criticalManifestKeys = new Set(['enemies', 'woodEnemySlimes', 'woodEnemySpider', 'woodEnemyLeeches', 'woodEnemyPuppet0', 'effects', 'summon1', 'bgAct1', getBattleBackdropKeyForZone(getZone(game.currentZoneId)), ...selectedHeroKeys]);
+    const manifestGroups = prepareBattleAssetGroups(manifest, criticalManifestKeys, battleAssets.images, game.activeSkill, battleAssets.backdrops);
     const maxParallelLoads = Math.max(4, Math.min(8, Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 6) || 6));
     let pending = manifestGroups.length;
     let nextGroupIndex = 0;
@@ -6864,14 +6864,6 @@ function initBattleAssets() {
         finalizeBattleAssets();
         if (resolveLoadPromise) resolveLoadPromise(!!battleAssets.ready);
     }
-
-    setTimeout(() => {
-        if (battleAssets.loadTicket !== loadTicket || settled || !battleAssets.loading) return;
-        battleAssets.failed = true;
-        if (!battleAssets.failedKeys.includes('timeout')) battleAssets.failedKeys.push('timeout');
-        pending = 0;
-        finishLoad();
-    }, 30000);
 
     function queueBattleSheetSanitization(key, image) {
         if (!ENABLE_BATTLE_SHEET_SANITIZATION) return;
@@ -6912,14 +6904,15 @@ function initBattleAssets() {
 
     function pumpBattleAssetQueue() {
         if (settled || battleAssets.loadTicket !== loadTicket) return;
-        while (activeLoads < maxParallelLoads && nextGroupIndex < manifestGroups.length) {
+        const concurrency = startupOverlayActive && !document.body.classList.contains('loading-active') ? 2 : maxParallelLoads;
+        while (activeLoads < concurrency && nextGroupIndex < manifestGroups.length) {
             let group = manifestGroups[nextGroupIndex++];
             activeLoads++;
             let img = new Image();
             if (!isLocalFileProtocol()) img.crossOrigin = 'anonymous';
             img.decoding = 'async';
             img.loading = 'eager';
-            if ('fetchPriority' in img) img.fetchPriority = group.priority <= 1 ? 'high' : 'auto';
+            if ('fetchPriority' in img) img.fetchPriority = concurrency === 2 ? 'low' : 'auto';
             img.onload = function() {
                 group.keys.forEach(key => storeLoadedBattleImage(key, img));
                 markBattleAssetGroupDone();

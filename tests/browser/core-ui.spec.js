@@ -64,7 +64,7 @@ async function inspectCenteredPassive(page, mobile) {
     return tooltip;
 }
 
-test('login waits without battle downloads or frame polling and resumes after entry', async ({ page }) => {
+test('login preloads bounded battle assets without frame polling and resumes after entry', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     const battleRequests = [];
     page.on('request', request => {
@@ -81,16 +81,21 @@ test('login waits without battle downloads or frame polling and resumes after en
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await expect(page.locator('#startup-overlay')).toBeVisible();
-    // The former deferred loader started 1.8 seconds after boot.
-    await page.waitForTimeout(2500);
-    expect(battleRequests).toEqual([]);
+    await page.waitForFunction(()=>battleAssets.ready);
+    expect(battleRequests.length).toBeGreaterThan(0);
+    const preparedRequests=battleRequests.length;
+    expect(battleRequests.some(url=>url.includes('skill-lava-sheet'))).toBe(false);
     expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running').length)).toBe(0);
     const frames = await page.evaluate(() => observedFrames);
     await page.waitForTimeout(700);
     expect(await page.evaluate(() => observedFrames)).toBe(frames);
+    expect(battleRequests.length).toBe(preparedRequests);
     expect(await page.locator('#startup-about-video').evaluate(video => video.paused)).toBe(true);
-    await openLocalGame(page);
-    expect(battleRequests.length).toBeGreaterThan(0);
+    await page.locator('#btn-startup-guest').click();
+    await expect(page.locator('#loading-overlay')).not.toHaveClass(/active/);
+    await page.locator('#loop-hero-select-overlay [data-class-id]').first().click();
+    await dismissVisibleTutorials(page);
+    expect(battleRequests.length).toBe(preparedRequests);
     const playingFrames = await page.evaluate(() => observedFrames);
     await expect.poll(() => page.evaluate(() => observedFrames)).toBeGreaterThan(playingFrames + 3);
     for (let repeat = 0; repeat < 2; repeat++) {
@@ -113,6 +118,8 @@ test('asset loading uses theme surfaces and reports real progress without drifti
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await expect(page.locator('#startup-overlay')).toBeVisible();
+    // The controlled progress sample starts after the real preloader has settled.
+    await page.waitForFunction(()=>battleAssets.ready);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     for (const theme of ['dark', 'light']) {
         await page.evaluate(theme => {
@@ -1469,6 +1476,48 @@ test('entry skips unused signature sheets and skill selection loads them once', 
         return !!active.value?.naturalWidth && typeof unused.get==='function';
     })).toBe(true);
     expect(failures).toEqual([]);
+});
+
+test('unused backgrounds load once on destination access and retain a visible fallback', async ({page}) => {
+    const requests=[];
+    page.on('request',request=>{if(request.url().includes('/assets/background/'))requests.push(request.url());});
+    await openLocalGame(page);
+    await page.evaluate(()=>{clearInterval(gameTickHandle);gameTickHandle=null;});
+    expect(requests.some(url=>url.includes('act02'))).toBe(false);
+    await page.evaluate(()=>{for(let i=0;i<20;i++)getBattleBackdropForZone(getZone(1));});
+    await expect.poll(()=>requests.filter(url=>url.includes('act02')).length).toBe(1);
+    await expect.poll(()=>page.evaluate(()=>battleAssets.backdrops.bgAct2?.naturalWidth || 0)).toBeGreaterThan(0);
+    expect(await page.evaluate(()=>getBattleBackdropForZone(getZone(1)).image===battleAssets.backdrops.bgAct2)).toBe(true);
+    expect(requests.some(url=>/act0[3-9]|chaos/.test(url))).toBe(false);
+});
+
+test('data saving skips login preloading but still prepares assets on entry', async ({page}) => {
+    await page.addInitScript(()=>Object.defineProperty(navigator,'connection',{value:{saveData:true}}));
+    await page.route('https://**',route=>route.fulfill({status:204,body:''}));
+    await page.goto('/');
+    await expect(page.locator('#startup-overlay')).toBeVisible();
+    await page.waitForTimeout(2500);
+    expect(await page.evaluate(()=>battleAssets.loading || battleAssets.ready)).toBe(false);
+    await page.locator('#btn-startup-guest').click();
+    await expect(page.locator('#loading-overlay')).not.toHaveClass(/active/);
+    expect(await page.evaluate(()=>battleAssets.ready)).toBe(true);
+});
+
+test('slow login preloading does not finalize an incomplete atlas after thirty seconds', async ({page}) => {
+    let release;
+    const gate=new Promise(resolve=>{release=resolve;});
+    await page.clock.install();
+    await page.route('https://**',route=>route.fulfill({status:204,body:''}));
+    await page.route('**/assets/battle-enemies-v1.png',async route=>{await gate;await route.continue();});
+    await page.goto('/');
+    await expect(page.locator('#startup-overlay')).toBeVisible();
+    await page.clock.fastForward(2000);
+    await page.waitForFunction(()=>battleAssets.loading);
+    await page.clock.fastForward(31000);
+    expect(await page.evaluate(()=>({ready:battleAssets.ready,failed:battleAssets.failed}))).toEqual({ready:false,failed:false});
+    release();
+    await page.waitForFunction(()=>battleAssets.ready);
+    expect(await page.evaluate(()=>battleAssets.images.enemies.width)).toBeGreaterThan(0);
 });
 
 test('treasure HUD requires target combat, retains its bonus and pays it once', async ({ page }, testInfo) => {

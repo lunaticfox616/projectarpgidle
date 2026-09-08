@@ -160,7 +160,14 @@ function createElement(tagName) {
         },
         matches() { return false; },
         focus() {},
-        getBoundingClientRect() { return { right: this.classList.contains('tab-header') ? 222 : 0 }; }
+        getBoundingClientRect() {
+            if (this.classList.contains('ui-rail-tab-layer')) return { bottom: this.parentElement.railHeight ?? 517 };
+            if (this.parentElement?.classList.contains('ui-rail-tab-layer')) {
+                const rows = this.parentElement.children.filter(row => row.style.display !== 'none' && !row.hidden);
+                return { bottom: rows.indexOf(this) * 47 + 42 };
+            }
+            return { right: this.classList.contains('tab-header') ? 222 : 0, bottom: 0 };
+        }
     };
     element.classList = createClassList(element);
     defineElementAccessors(element);
@@ -261,7 +268,7 @@ function socketButtons(menu) {
 const menu = bootMenu();
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-category-btn')), false, 'group buttons must be removed');
 assert.strictEqual(descendants(menu.header).some(element => element.classList.contains('ui-rail-group')), false, 'group layers must be removed');
-assert.strictEqual(socketButtons(menu).length, 11, 'primary list must keep eleven directly accessible entries');
+assert.strictEqual(socketButtons(menu).length, 11, 'the fixture height must fit eleven complete rows');
 assert(socketButtons(menu).every(button => button.classList.contains('tab-btn')), 'every menu entry must contain a real tab');
 assert(socketButtons(menu).every(button => button.querySelector(':scope > .ui-rail-label')), 'each menu entry must keep its text inside a dedicated clipped label');
 
@@ -277,7 +284,14 @@ assert.strictEqual(menu.findById('btn-map-complete-action-picker').parentElement
 assert.strictEqual(miscTrigger.parentElement, closeAll.parentElement, 'misc and window cleanup must share the outside control row');
 assert.strictEqual(miscTrigger.dataset.railSlot, undefined);
 assert.strictEqual(closeAll.dataset.railSlot, undefined);
-assert.strictEqual(miscPanel.dataset.railOverflow, String(PRIMARY_TAB_IDS.length - 11), 'tabs beyond the eleven real circles must remain directly accessible from misc');
+assert.strictEqual(miscPanel.dataset.railOverflow, String(PRIMARY_TAB_IDS.length - 11), 'rows exceeding the available height must remain accessible from misc');
+menu.header.railHeight = 2000;
+menu.exposed.syncDesktopRailGroups();
+assert.strictEqual(socketButtons(menu).length, PRIMARY_TAB_IDS.length, 'a taller rail must show every eligible tab without a fixed count cap');
+assert.strictEqual(miscPanel.dataset.railOverflow, '0');
+menu.header.railHeight = 517;
+menu.exposed.syncDesktopRailGroups();
+assert.strictEqual(socketButtons(menu).length, 11, 'shrinking the rail must restore overflow');
 assert.strictEqual(menu.findById('ui-goal-drawer').parentElement, menu.battlefieldWrap, 'desktop goals must mount inside the battlefield canvas frame');
 
 assert.strictEqual(miscPanel.hidden, true);

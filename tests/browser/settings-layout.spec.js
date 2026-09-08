@@ -1,5 +1,48 @@
 const { test, expect } = require('@playwright/test');
 
+test('desktop rail sends tabs to miscellaneous only when the available height runs out', async ({page},info) => {
+    test.skip(info.project.use.isMobile, 'Desktop rail; mobile keeps its full-menu navigation.');
+    const errors=[];page.on('pageerror',error=>errors.push(error.message));
+    await page.route('https://**',route=>route.fulfill({status:204,body:''}));
+    await page.goto('/');
+    await page.locator('#btn-startup-guest').click();
+    await page.locator('#loop-hero-select-overlay [data-class-id]').first().click();
+    await page.waitForFunction(()=>!uiRefreshRunning && !uiRefreshQueued);
+    await page.evaluate(()=>{
+        clearInterval(gameTickHandle);gameTickHandle=null;
+        game.season=60;game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
+        Object.keys(game.unlocks).forEach(key=>game.unlocks[key]=true);
+        const layout=game.settings.tabLayouts.desktop;
+        layout.tabPlacement={};
+        layout.tabOrder=tabLayoutUi.defaultOrder.filter(id=>id!=='btn-tab-pruning').concat('btn-tab-pruning');
+        updateStaticUI();
+    });
+    await page.waitForFunction(()=>{
+        if(uiRefreshRunning||uiRefreshQueued)return false;
+        tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;
+    });
+    const order=await page.evaluate(()=>JSON.stringify(game.settings.tabLayouts.desktop));
+    await page.setViewportSize({width:1440,height:2000});
+    await expect(page.locator('#ui-rail-misc-panel')).toHaveAttribute('data-rail-overflow','0');
+    const largeCount=await page.locator('.ui-rail-tab-layer .tab-btn:visible').count();
+    expect(largeCount).toBeGreaterThan(11);
+    await expect(page.locator('.ui-rail-tab-layer #btn-tab-pruning')).toBeVisible();
+    await page.setViewportSize({width:1440,height:540});
+    await expect(page.locator('#ui-rail-misc-panel #btn-tab-pruning')).toHaveCount(1);
+    expect(await page.locator('.ui-rail-tab-layer .tab-btn:visible').count()).toBeLessThan(largeCount);
+    expect(await page.locator('.ui-rail-tab-layer').evaluate(el=>el.scrollHeight<=el.clientHeight+1)).toBe(true);
+    await page.locator('#btn-ui-rail-misc').click();
+    await page.locator('#ui-rail-misc-panel #btn-tab-pruning').click();
+    await expect(page.locator('#tab-pruning')).toBeVisible();
+    await page.screenshot({path:info.outputPath('small-rail.png'),scale:'css'});
+    await page.setViewportSize({width:1440,height:2000});
+    await expect(page.locator('#ui-rail-misc-panel')).toHaveAttribute('data-rail-overflow','0');
+    await expect(page.locator('.ui-rail-tab-layer #btn-tab-pruning')).toBeVisible();
+    await expect(page.locator('.ui-rail-tab-layer .tab-btn:visible')).toHaveCount(largeCount);
+    expect(await page.evaluate(()=>JSON.stringify(game.settings.tabLayouts.desktop))).toBe(order);
+    expect(errors).toEqual([]);
+});
+
 test('settings edit unlocked menus independently for PC and mobile', async ({ page }, testInfo) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
