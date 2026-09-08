@@ -4908,7 +4908,7 @@ function syncBattleTabLayout(forceTabSwitch) {
     let battleColumn = document.getElementById('battle-column');
     let battleBtn = document.getElementById('btn-tab-battle');
     if (!tabBattle || !leftPane || !battleColumn || !battleBtn) return;
-    let isMobileBattle = document.documentElement.clientWidth <= MOBILE_BATTLE_BREAKPOINT;
+    let isMobileBattle = uiDisplay.matches(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`);
     document.body.classList.toggle('mobile-battle-tab', isMobileBattle);
     battleBtn.style.display = isMobileBattle ? 'flex' : 'none';
     if (isMobileBattle) {

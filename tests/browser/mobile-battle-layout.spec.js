@@ -1,5 +1,24 @@
 const { test, expect } = require('@playwright/test');
 
+async function checkStableStatusRow(page, screenshotPath) {
+    const field = page.locator('#battlefield-wrap');
+    const before = await field.boundingBox();
+    await page.evaluate(() => {
+        game.playerAilments = ['ignite', 'chill', 'shock', 'poison', 'bleed'].map(type => ({ type, time: 10, duration: 10, power: .1 }));
+        updatePlayerCombatEffectHud(getPlayerStats());
+    });
+    const effects = page.locator('#ui-player-ailments-under');
+    await expect(effects.locator('.combat-effect-icon')).toHaveCount(5);
+    const boxes = await Promise.all(['.player-hud-skill-rack', '#ui-player-ailments-under', '#ui-combat-flasks'].map(selector => page.locator(selector).boundingBox()));
+    expect(Math.max(...boxes.map(box => box.y)) - Math.min(...boxes.map(box => box.y))).toBeLessThan(2);
+    expect((await field.boundingBox()).y).toBeCloseTo(before.y, 0);
+    await effects.evaluate(el => { el.scrollLeft = el.scrollWidth; });
+    expect(await effects.evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
+    await page.screenshot({ path: screenshotPath, scale: 'css' });
+    await page.evaluate(() => { game.playerAilments = []; updatePlayerCombatEffectHud(getPlayerStats()); });
+    expect((await field.boundingBox()).y).toBeCloseTo(before.y, 0);
+}
+
 test('mobile battle keeps readable health, touchable flasks and an optional complete log', async ({ page }, info) => {
     test.skip(!info.project.use.isMobile, 'Mobile battle layout');
     const errors = [];
@@ -15,11 +34,14 @@ test('mobile battle keeps readable health, touchable flasks and an optional comp
         game.contentProgression.inherited = ['craft', 'flask']; contentProgression.sync();
         game.settings.combatLogCollapsed = false;
         game.currentZoneId = 1;
+        game.activeSkill = '연속 베기';
+        game.equippedSummonSkills = Object.keys(SKILL_DB).filter(name => SKILL_DB[name].tags?.includes('summon_attack')).slice(0, 3);
         game.enemies = Array.from({ length: 12 }, (_, id) => createEnemy(getZone(1), { boss: id === 0 }, id));
         addLog('모바일 전투 로그 검증', 'system', { noToast: true });
         updateStaticUI();
     });
     const toggle = page.locator('#btn-combat-log-toggle');
+    await expect(page.locator('#btn-combat-chat-tab')).toBeHidden();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
     await expect(page.locator('#log')).toBeHidden();
     await toggle.tap();
@@ -44,6 +66,7 @@ test('mobile battle keeps readable health, touchable flasks and an optional comp
         } else expect(geometry.hpBottom).toBeLessThanOrEqual(geometry.fieldTop);
         expect(geometry.flasks.length).toBeGreaterThan(0);
         expect(Math.min(...geometry.flasks)).toBeGreaterThanOrEqual(44);
+        await checkStableStatusRow(page, info.outputPath('battle-effects-' + viewport.width + '.png'));
         await page.screenshot({ path: info.outputPath('battle-' + viewport.width + '.png'), scale: 'css' });
     }
     expect(errors).toEqual([]);

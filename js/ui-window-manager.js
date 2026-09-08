@@ -375,6 +375,7 @@
     }
 
     function openCommunityDock() {
+        if (!isDesktopWindowed()) { window.switchTab('tab-social'); return; }
         let el = document.getElementById('tab-social');
         if (!el) return;
         // 채팅은 별도 열을 만들지 않고 현재 전투 로그의 실제 화면 사각형을 그대로 인계받는다.
@@ -995,7 +996,7 @@
         let social = document.getElementById('tab-social');
         if (social) {
             social.classList.remove('ui-community-dock', 'ui-community-overlay');
-            social.style.width = '';
+            ['left', 'top', 'right', 'bottom', 'width', 'height'].forEach(property => { social.style[property] = ''; });
             let dockHeader = social.querySelector(':scope > .ui-community-dock-header');
             if (dockHeader) dockHeader.remove();
         }
