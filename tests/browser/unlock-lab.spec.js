@@ -23,12 +23,14 @@ test('unlock lab uses real choices and leaves persistent saves untouched', async
     await game.locator('[data-unlock-select="deepTree"]').click();
     await game.locator('[data-unlock-content="deepTree"]').click();
     await game.locator('[data-open-content="deepTree"]').click();
+    if (info.project.use.isMobile) await game.getByRole('tab', { name: '심화 성장' }).click();
     await game.locator('#loop-deep-growth button').first().click();
     await expect(game.locator('#loop-deep-growth summary')).toContainText('9');
     await page.locator('[data-action="point"]').click();
     await expect(game.locator('.content-unlock-balance strong')).toHaveText('15');
     await page.locator('[data-action="investment"]').click();
     await expect(page.locator('#status')).toContainText('심화 19P');
+    if (info.project.use.isMobile) await game.locator('#btn-mobile-nav-more').click();
     await game.locator('#btn-tab-unlocks').click();
     await game.locator('[data-unlock-view="progress"]').click();
     await game.locator('[data-unlock-select="deepChaos"]').click();

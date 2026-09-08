@@ -50,10 +50,15 @@ test('settings edit unlocked menus independently for PC and mobile', async ({ pa
     await page.locator('#sel-theme-mode').scrollIntoViewIfNeeded();
     const colors = await page.locator('#sel-theme-mode').evaluate(el => {
         const style = getComputedStyle(el);
-        return { foreground: style.color, background: style.backgroundColor };
+        const probe = document.createElement('span');
+        probe.style.backgroundColor = 'var(--ui-surface-1)';
+        el.parentElement.append(probe);
+        const surface = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return { foreground: style.color, background: style.backgroundColor, surface };
     });
     expect(colors.foreground).toBe('rgb(41, 39, 31)');
-    expect(colors.background).toBe('rgb(255, 252, 245)');
+    expect(colors.background).toBe(colors.surface);
     if (current === 'desktop') {
         expect(await page.locator('#right-pane').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
         expect(await page.locator('#tab-settings .ui-window-title').evaluate(el => getComputedStyle(el).color)).toBe('rgb(41, 39, 31)');

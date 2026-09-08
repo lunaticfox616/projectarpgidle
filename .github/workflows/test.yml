@@ -37,13 +37,15 @@ jobs:
         run: npm run check:architecture
 
   browser:
-    name: browser (${{ matrix.shard }}/4)
+    name: browser (${{ matrix.project }}, ${{ matrix.shard }}/4)
     # 같은 저장소의 PR은 head push 검사 결과가 PR에도 연결된다. pull_request에서 한 번 더
     # 실행하면 동일한 브라우저 검사를 두 번 수행하므로 외부 포크 PR에서만 이 경로를 쓴다.
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
     strategy:
       fail-fast: false
       matrix:
+        # Split each device project independently: mobile no longer waits behind desktop cases.
+        project: [desktop-chromium, mobile-chromium]
         shard: [1, 2, 3, 4]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -58,12 +60,13 @@ jobs:
       - name: Chromium 설치
         run: npx playwright install --with-deps chromium
       - name: 실제 브라우저 회귀 검사
-        run: npm run test:browser -- --shard=${{ matrix.shard }}/4
+        # Finish Playwright before the job deadline so failures still publish traces and screenshots.
+        run: npm run test:browser -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/4 --global-timeout=720000
       - name: 브라우저 실패 자료 업로드
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report-${{ matrix.shard }}
+          name: playwright-report-${{ matrix.project }}-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/

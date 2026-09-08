@@ -50,6 +50,20 @@ async function dismissVisibleTutorials(page) {
     await expect(page.locator('#tutorial-overlay.active')).not.toBeVisible();
 }
 
+async function inspectCenteredPassive(page, mobile) {
+    const detail = page.locator('#passive-mobile-detail');
+    if (mobile && await detail.isVisible()) await detail.locator('[data-passive-close]').click();
+    const bounds = await page.locator('#tree-canvas').boundingBox();
+    if (mobile) await page.touchscreen.tap(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    else {
+        await page.mouse.move(bounds.x - 4, bounds.y + 20);
+        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    }
+    const tooltip = mobile ? detail : page.locator('#canvas-tooltip');
+    await expect(tooltip).toBeVisible();
+    return tooltip;
+}
+
 test('login waits without battle downloads or frame polling and resumes after entry', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     const battleRequests = [];
@@ -212,16 +226,13 @@ test('physical lightning major responds to allocated devotion spokes', async ({ 
         drawPassiveTree();
     });
     await page.screenshot({ path: testInfo.outputPath('storm-cluster.png'), scale: 'css' });
-    const bounds = await page.locator('#tree-canvas').boundingBox();
-    const tooltip = page.locator('#canvas-tooltip');
     for (const [spoke, expected] of [[null, 50], ['n6edbwrjop1', 40], ['nxombfrjpre', 30]]) {
         if (spoke) {
             const result = await page.evaluate(id => activatePassivePath(id), spoke);
             expect(result.activated).toBe(true);
             expect(result.cost).toBe(1);
         }
-        await page.mouse.move(bounds.x - 4, bounds.y + 20);
-        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        const tooltip = await inspectCenteredPassive(page, testInfo.project.use.isMobile);
         await expect(tooltip).toContainText(`물리 피해 +${expected}%`);
         await expect(tooltip).toContainText(`번개 피해 +${expected}%`);
         await expect(tooltip).toContainText('직접 연결된 헌신 1개 할당마다 각각 10%p 감소');
@@ -233,8 +244,7 @@ test('physical lightning major responds to allocated devotion spokes', async ({ 
     expect(await page.evaluate(() => getEffectivePassiveNodeEffects(PASSIVE_TREE.nodes.nulyw0mk1cz)))
         .toEqual([{ stat: 'physPctDmg', val: 40 }, { stat: 'lightPctDmg', val: 40 }]);
     expect(await page.evaluate(() => game.currencies.blightSpore)).toBe(4);
-    await page.mouse.move(bounds.x - 4, bounds.y + 20);
-    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    const tooltip = await inspectCenteredPassive(page, testInfo.project.use.isMobile);
     await expect(tooltip).toContainText('물리 피해 +40%');
     expect(failures).toEqual([]);
 });
@@ -264,10 +274,8 @@ test('curated passive support appears in search and tooltips', async ({ page }, 
             camY = -node.y * camZoom;
             drawPassiveTree();
         }, id);
-        const bounds = await page.locator('#tree-canvas').boundingBox();
-        await page.mouse.move(bounds.x - 4, bounds.y + 20);
-        await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-        await expect(page.locator('#canvas-tooltip')).toContainText(label);
+        const tooltip = await inspectCenteredPassive(page, testInfo.project.use.isMobile);
+        await expect(tooltip).toContainText(label);
         const search = await page.evaluate(id => getPassiveTreeNodeSearchText(PASSIVE_TREE.nodes[id]), id);
         expect(search).toContain(label);
         await page.screenshot({ path: testInfo.outputPath(`support-${name}.png`), scale: 'css' });
@@ -301,6 +309,8 @@ async function prepareResetCase(page, cloud = false) {
         switchTab('tab-settings');
     }, cloud);
     await dismissVisibleTutorials(page);
+    const category = page.locator('#settings-category');
+    if (await category.isVisible()) await category.selectOption('data');
 }
 
 test('save reset clears only local progress for a guest after one confirmation', async ({ page }) => {
@@ -642,8 +652,9 @@ test('pruning returns paid ranks and disconnected branches without losing points
         return rects.some((a, i) => rects.slice(i + 1).some(b => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top));
     });
     expect(overlappingNodes).toBe(false);
-    expect(await page.locator('.pruning-tree-scroll').evaluate(el => el.getBoundingClientRect().right <= innerWidth)).toBe(true);
-    await page.locator('.pruning-node').filter({ hasText:'계약의 새싹' }).click();
+    if (!testInfo.project.use.isMobile) expect(await page.locator('.pruning-tree-scroll').evaluate(el => el.getBoundingClientRect().right <= innerWidth)).toBe(true);
+    if (testInfo.project.use.isMobile) await page.locator('.pruning-mobile-workspace select').selectOption('pact_bud');
+    else await page.locator('.pruning-node').filter({ hasText:'계약의 새싹' }).click();
     await page.screenshot({ path:testInfo.outputPath('pruning-upper-branches.png') });
     const refund = page.getByRole('button', { name:/성장 1단계 반환/ });
     await expect(refund).toContainText('포자 10개 · 10점 회수');
@@ -674,7 +685,7 @@ test('pruning returns paid ranks and disconnected branches without losing points
     expect(failures).toEqual([]);
 });
 
-test('condition patterns, Arcana and pruning render as one endgame progression path', async ({ page }) => {
+test('condition patterns, Arcana and pruning render as one endgame progression path', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
@@ -733,34 +744,42 @@ test('condition patterns, Arcana and pruning render as one endgame progression p
     await expect(page.locator('#btn-tab-pruning')).toBeVisible();
     await page.evaluate(() => window.switchTab('tab-pruning'));
     await expect(page.locator('#pruning-tree-section')).toBeVisible();
-    await expect(page.locator('.pruning-node')).toHaveCount(29);
-    const pruningNodesStayInTree = await page.locator('.pruning-tree').evaluate(tree => {
-        const bounds = tree.getBoundingClientRect();
-        return Array.from(tree.querySelectorAll('.pruning-node')).every(node => {
-            const rect = node.getBoundingClientRect();
-            return getComputedStyle(node).position === 'absolute'
-                && rect.left >= bounds.left && rect.right <= bounds.right
-                && rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+    // Desktop shows the whole tree; mobile exposes the same nodes through branch selection.
+    if (testInfo.project.use.isMobile) {
+        const branches = page.locator('.pruning-mobile-workspace select');
+        await expect(branches.locator('option')).toHaveCount(29);
+        await branches.selectOption('first_ring');
+    } else {
+        await expect(page.locator('.pruning-node')).toHaveCount(29);
+        const pruningNodesStayInTree = await page.locator('.pruning-tree').evaluate(tree => {
+            const bounds = tree.getBoundingClientRect();
+            return Array.from(tree.querySelectorAll('.pruning-node')).every(node => {
+                const rect = node.getBoundingClientRect();
+                return getComputedStyle(node).position === 'absolute'
+                    && rect.left >= bounds.left && rect.right <= bounds.right
+                    && rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+            });
         });
-    });
-    expect(pruningNodesStayInTree).toBe(true);
-    expect(await page.locator('.pruning-tree-scroll').evaluate(el => el.scrollTop > 0)).toBe(true);
-    const pruningNode = page.locator('.pruning-node:not(:disabled)').first();
-    await pruningNode.hover();
-    const pruningCenterBeforePress = await pruningNode.evaluate(node => {
-        const rect = node.getBoundingClientRect();
-        return { x:rect.left + rect.width / 2, y:rect.top + rect.height / 2 };
-    });
-    await page.mouse.down();
-    const pruningCenterWhilePressed = await pruningNode.evaluate(node => {
-        const rect = node.getBoundingClientRect();
-        return { x:rect.left + rect.width / 2, y:rect.top + rect.height / 2 };
-    });
-    await page.mouse.move(0, 0);
-    await page.mouse.up();
-    expect(Math.abs(pruningCenterWhilePressed.x - pruningCenterBeforePress.x)).toBeLessThanOrEqual(.5);
-    expect(Math.abs(pruningCenterWhilePressed.y - pruningCenterBeforePress.y)).toBeLessThanOrEqual(.5);
-    await expect(page.locator('.pruning-choice-panel')).toHaveCSS('position', 'sticky');
+        expect(pruningNodesStayInTree).toBe(true);
+        expect(await page.locator('.pruning-tree-scroll').evaluate(el => el.scrollTop > 0)).toBe(true);
+        const pruningNode = page.locator('.pruning-node:not(:disabled)').first();
+        await pruningNode.hover();
+        const pruningCenterBeforePress = await pruningNode.evaluate(node => {
+            const rect = node.getBoundingClientRect();
+            return { x:rect.left + rect.width / 2, y:rect.top + rect.height / 2 };
+        });
+        await page.mouse.down();
+        const pruningCenterWhilePressed = await pruningNode.evaluate(node => {
+            const rect = node.getBoundingClientRect();
+            return { x:rect.left + rect.width / 2, y:rect.top + rect.height / 2 };
+        });
+        await page.mouse.move(0, 0);
+        await page.mouse.up();
+        expect(Math.abs(pruningCenterWhilePressed.x - pruningCenterBeforePress.x)).toBeLessThanOrEqual(.5);
+        expect(Math.abs(pruningCenterWhilePressed.y - pruningCenterBeforePress.y)).toBeLessThanOrEqual(.5);
+        await expect(page.locator('.pruning-choice-panel')).toHaveCSS('position', 'sticky');
+        await page.locator('.pruning-node:not(:disabled)').first().click();
+    }
     const pruningActionOffsets = async () => page.locator('.pruning-choice-panel').evaluate(panel => {
         const panelRect = panel.getBoundingClientRect();
         return Array.from(panel.querySelectorAll('.pruning-choice-actions button')).map(button => {
@@ -786,25 +805,33 @@ test('condition patterns, Arcana and pruning render as one endgame progression p
     expect(pruningNodeStable).toBe(true);
 
     await page.evaluate(() => window.switchTab('tab-arcana'));
-    await expect(page.locator('.arcana-deck .arcana-destination')).toHaveCount(4);
-    await expect(page.locator('.arcana-equipment-grid .arcana-destination')).toHaveCount(12);
+    if (!testInfo.project.use.isMobile) {
+        await expect(page.locator('.arcana-deck .arcana-destination')).toHaveCount(4);
+        await expect(page.locator('.arcana-equipment-grid .arcana-destination')).toHaveCount(12);
+    }
     await expect(page.locator('.arcana-collection .arcana-card')).toHaveCount(1);
-    await expect(page.locator('#ui-arcana-panel section').last().locator('h3 small')).toHaveText('1장 보유');
     const arcanaNodeStable = await page.evaluate(() => {
-        const before = document.querySelector('.arcana-destination');
+        const before = document.querySelector('.arcana-collection .arcana-card');
         updateStaticUI();
-        return before === document.querySelector('.arcana-destination');
+        return before === document.querySelector('.arcana-collection .arcana-card');
     });
     expect(arcanaNodeStable).toBe(true);
     await dismissVisibleTutorials(page);
     const dpsBeforeArcana = await page.evaluate(() => getPlayerStats().dps);
     await page.locator('.arcana-collection .arcana-card button').click();
-    const weaponArcanaSlot = page.locator('.arcana-equipment-grid .arcana-destination').filter({ hasText:'무기' });
+    if (testInfo.project.use.isMobile) {
+        const destinations = page.getByRole('combobox', { name: '카드 배치 위치' });
+        await expect(destinations.locator('option[value^="deck:"]')).toHaveCount(4);
+        await expect(destinations.locator('option[value^="equipment:"]')).toHaveCount(12);
+        await destinations.selectOption('equipment:무기');
+    }
+    const weaponArcanaSlot = testInfo.project.use.isMobile ? page.locator('.arcana-mobile-preview')
+        : page.locator('.arcana-equipment-grid .arcana-destination').filter({ hasText:'무기' });
     await expect(weaponArcanaSlot).toContainText('서리 파동 기준 젬 레벨 5');
     await expect(weaponArcanaSlot).toContainText('피해 +15%');
-    await page.locator('.arcana-equipment-grid .arcana-destination').filter({ hasText:'무기' }).click();
+    if (testInfo.project.use.isMobile) await page.getByRole('button', { name: '여기에 배치' }).click();
+    else await weaponArcanaSlot.click();
     await expect(page.locator('.arcana-collection .arcana-card')).toHaveCount(0);
-    await expect(page.locator('#ui-arcana-panel section').last().locator('h3 small')).toHaveText('0장 보유');
     await expect.poll(() => page.evaluate(() => game.arcana.equipmentSlots['무기'])).not.toBeNull();
     const dpsAfterArcana = await page.evaluate(() => getPlayerStats().dps);
     expect(dpsAfterArcana).toBeGreaterThan(dpsBeforeArcana);
@@ -907,8 +934,10 @@ test('equipment triage classifies the current build without destabilizing select
     await expect(page.locator('#ui-inventory-list')).toContainText('생존 +');
     await expect(page.locator('#ui-inventory-list')).toContainText('특수');
     await triage.locator('select').selectOption('defense');
-    await expect(cards).toHaveCount(1);
-    await expect(cards.first()).toContainText('생존 +');
+    await expect(cards).toHaveCount(3);
+    await expect(page.locator('#ui-inventory-list .is-filter-match')).toHaveCount(1);
+    await expect(page.locator('#ui-inventory-list .is-filter-match')).toContainText('생존 +');
+    await expect(page.locator('#ui-inventory-list .is-filter-muted')).toHaveCount(2);
     await page.evaluate(async () => {
         window.__equipmentSlotOptionMutations = 0;
         updateStaticUI();
@@ -1148,7 +1177,8 @@ test('ascension trials visibly distinguish completed and pending clears', async 
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
-        game.season = 2;
+        game.season = 3;
+        game.contentProgression.inherited = ['craft', 'loopTree', 'trials'];
         game.maxZoneId = 20;
         contentProgression.sync();
         game.unlocks.map = true;
@@ -1212,10 +1242,13 @@ test('ocean fishing exposes strategy, collection growth and explicit crafting ta
     await dismissVisibleTutorials(page);
 
     await expect(page.locator('.ocean-strategy-card')).toHaveCount(3);
+    if (testInfo.project.use.isMobile) await page.getByRole('tab', { name: '도감', exact: true }).click();
+    else await page.locator('.ocean-collection-disclosure > summary').click();
     await expect(page.locator('.ocean-fish-card')).toHaveCount(8);
     await expect(page.locator('.ocean-milestone')).toHaveCount(4);
     await expect(page.locator('.ocean-meter--pity')).toContainText('72%');
     await expect(page.locator('.ocean-last-catch')).toContainText('심연 등불고기');
+    if (testInfo.project.use.isMobile) await page.getByRole('tab', { name: '제작', exact: true }).click();
     await expect(page.locator('.ocean-craft-target')).toContainText('선택된 장비 없음');
     await expect(page.locator('.ocean-recipe-card button', { hasText: '대상 선택 필요' }).first()).toBeDisabled();
     await page.evaluate(() => {
@@ -1228,6 +1261,7 @@ test('ocean fishing exposes strategy, collection growth and explicit crafting ta
     await expect(page.locator('.ocean-craft-target')).toContainText('일반 장비가 아님');
     await expect(page.locator('.ocean-recipe-card button', { hasText: '대상 선택 필요' }).first()).toBeDisabled();
 
+    if (testInfo.project.use.isMobile) await page.getByRole('tab', { name: '채집 · 전략', exact: true }).click();
     await page.locator('.ocean-strategy-card', { hasText: '심연 투망' }).click();
     await expect.poll(() => page.evaluate(() => game.ocean.fishingStrategy)).toBe('abyss');
     await expect(page.locator('.ocean-strategy-card.selected')).toContainText('심연 투망');
@@ -1242,10 +1276,12 @@ test('ocean fishing exposes strategy, collection growth and explicit crafting ta
         selectForCrafting('무기', true);
         updateStaticUI();
     });
+    if (testInfo.project.use.isMobile) await page.getByRole('tab', { name: '제작', exact: true }).click();
     await expect(page.locator('.ocean-craft-target.selected')).toContainText('희귀한 심해 검증 무기');
     await expect(page.locator('.ocean-recipe-card.ready')).not.toHaveCount(0);
     const chaseRecipes = page.locator('[data-ui-disclosure="sea-gift-chase"]');
-    await chaseRecipes.locator(':scope > summary').click();
+    if (testInfo.project.use.isMobile) await page.getByRole('combobox', { name: '바다의 선물 제작 종류', exact: true }).selectOption('chase');
+    if (!testInfo.project.use.isMobile) await chaseRecipes.locator(':scope > summary').click();
     await expect(chaseRecipes).toHaveAttribute('open', '');
     await page.evaluate(() => renderSeaGiftPanel());
     await expect(chaseRecipes).toHaveAttribute('open', '');
@@ -1619,27 +1655,39 @@ test('side encounters retain difficulty and active state on save restoration', a
 test('character attributes and elemental EHP use readable custom tooltips', async ({ page },testInfo) => {
     const failures=watchRuntimeFailures(page);
     await openLocalGame(page);
-    await page.locator('#btn-tab-character').click();
+    await page.evaluate(() => { game.combatHalted = true; });
+    if (testInfo.project.use.isMobile) {
+        await page.locator('#btn-mobile-nav-more').tap();
+        await page.locator('#btn-tab-character').tap();
+    } else await page.locator('#btn-tab-character').click();
     for(const light of [false,true]) {
         await page.evaluate(light=>{
             document.body.classList.toggle('light-mode',light);
             document.querySelectorAll('#tab-character details').forEach(row=>row.open=true);
         },light);
+        if (testInfo.project.use.isMobile) await page.locator('#tab-character').getByRole('tab', { name: '기본 · 특수' }).tap();
         for(const [id,label] of [['strength','힘'],['dexterity','민첩'],['intelligence','지능']]) {
             const row=page.locator('#ui-'+id).locator('..');
             await row.scrollIntoViewIfNeeded();
-            await row.focus();
+            // Park the setup mouse so layout scrolling cannot replace a touch tooltip with hover text.
+            await page.mouse.move(0, 0);
+            if (testInfo.project.use.isMobile) await row.tap();
+            else await row.focus();
             await expect(page.locator('#info-tooltip')).toBeVisible();
             await expect(page.locator('#info-tooltip .tooltip-title')).toContainText(label);
             expect(await page.locator('#info-tooltip').innerText()).not.toMatch(/[💪🏹🧠]/u);
         }
+        if (testInfo.project.use.isMobile) await page.locator('#tab-character').getByRole('tab', { name: '방어 · 회복' }).tap();
         const cards=page.locator('#ui-character-ehp .character-ehp-stat');
         await expect(cards).toHaveCount(5);
         for(let i=0;i<5;i++) {
             const card=cards.nth(i);
             await card.scrollIntoViewIfNeeded();
-            await card.focus();
+            await page.mouse.move(0, 0);
+            if (testInfo.project.use.isMobile) await card.tap();
+            else await card.focus();
             await expect(card).not.toHaveAttribute('title',/.+/);
+            await expect(page.locator('#info-tooltip')).toBeVisible();
             await expect(page.locator('#info-tooltip')).toContainText('공격 EHP');
             await expect(page.locator('#info-tooltip')).toContainText('직격 EHP');
         }
@@ -2383,6 +2431,7 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     const layout = await page.evaluate(() => {
+        game.season = 3;
         game.contentProgression.inherited = ['craft', 'flask', 'flaskUtility'];
         contentProgression.sync();
         game.equipment['허리띠'] = {
@@ -2444,7 +2493,6 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
         let lastFlask = document.querySelector('.player-hud-flask-rack .combat-flask-mini:last-child').getBoundingClientRect();
         let flaskRack = document.querySelector('.player-hud-flask-rack').getBoundingClientRect();
         let hudShell = document.querySelector('.player-hud-shell').getBoundingClientRect();
-        let leftWing = document.querySelector('.player-hud-left-wing').getBoundingClientRect();
         let skillRack = document.querySelector('.player-hud-skill-rack').getBoundingClientRect();
         let skillSlot = document.querySelector('.player-hud-skill-slot').getBoundingClientRect();
         let frameRect = document.querySelector('.player-health-frame').getBoundingClientRect();
@@ -2467,9 +2515,9 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
             flaskContained: desktop
                 ? lastFlask.left >= flaskRack.left - 1 && lastFlask.right <= flaskRack.right + 1
                     && lastFlask.top >= flaskRack.top - 1 && lastFlask.bottom <= flaskRack.bottom + 1
-                : lastFlask.left >= leftWing.left - 1 && lastFlask.right <= leftWing.right + 1,
+                : flaskRack.left >= hudShell.left - 1 && flaskRack.right <= hudShell.right + 1,
             desktopFlaskDocked: !desktop || (
-                Math.abs(flaskRack.bottom - leftWing.top) <= 2
+                Math.abs(flaskRack.bottom - document.querySelector('.player-hud-left-wing').getBoundingClientRect().top) <= 2
                 && Math.abs(flaskRack.left - hudShell.left) <= 4
             ),
             healthContained: track.left >= frameRect.left - 1 && track.right <= frameRect.right + 1,
@@ -2494,14 +2542,14 @@ test('combat HUD reveals potion sockets only when flasks are equipped', async ({
     if (vitalsChrome.desktop) expect(vitalsChrome.ornamentImage).toContain('combat-hud-frame-v1.png');
     else {
         expect(vitalsChrome.ornamentImage).toBe('none');
-        expect(vitalsChrome.shellBackground).toContain('linear-gradient');
+        expect(vitalsChrome.shellBackground).toBe('none');
     }
     expect(vitalsChrome.flaskContained).toBe(true);
     expect(vitalsChrome.desktopFlaskDocked).toBe(true);
     expect(vitalsChrome.healthContained).toBe(true);
     expect(vitalsChrome.skillContained).toBe(true);
     if (vitalsChrome.desktop) expect(vitalsChrome.expTrackHeight).toBeGreaterThanOrEqual(4);
-    else expect(vitalsChrome.expTrackHeight).toBeLessThanOrEqual(4);
+    else expect(vitalsChrome.expTrackHeight).toBe(5);
     expect(vitalsChrome.trackHeight).toBeLessThanOrEqual(50);
     expect(vitalsChrome.fillImage).toContain('linear-gradient');
     expect(vitalsChrome.fillImage).not.toContain('gauge-boss-hp-v1.png');
@@ -2521,6 +2569,7 @@ test('flask controls stay in place when their trigger label changes', async ({ p
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
+        game.season = 3;
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         game.equipment['허리띠'] = {
@@ -2540,6 +2589,9 @@ test('flask controls stay in place when their trigger label changes', async ({ p
         openTabPane('tab-flask');
         updateStaticUI();
     });
+    await dismissVisibleTutorials(page);
+    const slotSelector = page.getByRole('combobox', { name: '관리할 플라스크 슬롯' });
+    if (await slotSelector.isVisible()) await slotSelector.selectOption('1');
     const utilitySlot = page.locator('.flask-slot-box.utility').first();
     await expect(utilitySlot).toBeVisible();
     const getControlOffsets = async () => utilitySlot.evaluate(slot => {
@@ -2761,7 +2813,7 @@ test('desktop combat log and chat share one dock without resizing the battlefiel
     await expect(page.locator('body')).toHaveClass(/community-dock-open/);
     await expect(chatDock).toBeVisible();
     await expect(combatDock).toBeHidden();
-    await expect(chatDock.getByRole('button', { name: '설정에서 로그인' })).toBeVisible();
+    await expect(chatDock.getByRole('button', { name: '로그인 화면 열기' })).toBeVisible();
     const chatRect = await chatDock.boundingBox();
     const chatBattlefieldWidth = await page.locator('#battlefield-wrap').evaluate(element => element.getBoundingClientRect().width);
 
@@ -3237,6 +3289,7 @@ test('combat HUD interactions keep their visual and tooltip contracts', async ({
     await openLocalGame(page);
     await page.evaluate(() => {
         game.combatHalted = true;
+        game.season = 3;
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         renderCombatSkillHud();

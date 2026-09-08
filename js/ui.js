@@ -10148,7 +10148,7 @@ function getPlayerEhpCardsHtml(pStats, cardClass) {
         let entropyText = formatSettingNumber(row.entropy, 'showCharacterComma');
         let directText = formatSettingNumber(row.direct, 'showCharacterComma');
         let detail = `${labels[element]} 공격 EHP ${entropyText} · 직격 EHP ${directText} · 엔트로피 회피 ${profile.evadeChance.toFixed(1)}%`;
-        return `<div class="${cardClass} equipment-ehp-stat" data-ehp-element="${element}" data-ehp-detail="${detail}" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showPlayerEhpTooltip(event)" onfocus="showPlayerEhpTooltip(event)" onmouseleave="hideInfoTooltip()" onblur="hideInfoTooltip()"><span>${labels[element]}</span><strong>${entropyText}</strong></div>`;
+        return `<div class="${cardClass} equipment-ehp-stat" data-ehp-element="${element}" data-ehp-detail="${detail}" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showPlayerEhpTooltip(event)" onfocus="showPlayerEhpTooltip(event)" onclick="showPlayerEhpTooltip(event)" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()" onblur="hideInfoTooltip()"><span>${labels[element]}</span><strong>${entropyText}</strong></div>`;
     }).join('');
 }
 
