@@ -40,6 +40,10 @@ test('hidden management stays idle while stock progresses and opened panels rend
     await page.evaluate(() => openTabPane('tab-flask'));
     await expect(page.locator('#ui-flask-panel')).not.toBeEmpty();
     await page.evaluate(() => switchTab('tab-expertise'));
-    await expect(page.locator('#ui-expert-subtabs button')).not.toHaveCount(0);
+    await expect(page.locator('#ui-expert-subtabs')).toContainText('전문가 노드 트리');
+    const selector = page.locator('[data-expert-screen]');
+    if (await selector.isVisible()) await selector.selectOption('__tree');
+    else await page.locator('#ui-expert-subtabs').getByRole('button', { name: /전문가 노드 트리/ }).click();
+    await expect(page.locator('#ui-expert-tree')).not.toBeEmpty();
     expect(errors).toEqual([]);
 });

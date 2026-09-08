@@ -14,6 +14,7 @@ test('returning and reloading preserve the four core menus at level one', async 
     expect(await page.evaluate(() => game.unlocks.char)).toBe(true);
     await page.locator('#btn-combat-return').click();
     expect(await page.evaluate(() => [game.level, game.unlocks.char])).toEqual([1, true]);
+    if (await page.locator('#btn-mobile-nav-more').isVisible()) await page.locator('#btn-mobile-nav-more').click();
     await expect(page.locator('#btn-tab-char')).toBeVisible();
     await page.evaluate(() => saveGame({ skipCloudSync: true }));
     await page.reload();
@@ -23,6 +24,7 @@ test('returning and reloading preserve the four core menus at level one', async 
     expect(await page.evaluate(() => game.unlocks.char)).toBe(true);
     await page.evaluate(() => { game.level = 2; checkUnlocks(); updateStaticUI(); });
     expect(await page.evaluate(() => game.unlocks.char)).toBe(true);
+    if (await page.locator('#btn-mobile-nav-more').isVisible()) await page.locator('#btn-mobile-nav-more').click();
     await expect(page.locator('#btn-tab-char')).toBeVisible();
 });
 

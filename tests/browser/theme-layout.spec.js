@@ -52,6 +52,8 @@ test('theme changes preserve battle and management layout', async ({ page }) => 
 
 test('elemental effective health belongs to defense with distinct readable colors', async ({ page }, testInfo) => {
     await page.evaluate(() => switchTab('tab-character'));
+    const navigation = page.locator('#tab-character .mobile-section-navigation');
+    if (testInfo.project.use.isMobile) await navigation.getByRole('tab', { name: '방어 · 회복' }).click();
     const defense = page.locator('.character-stat-section').filter({ has: page.locator('summary', { hasText: '방어 · 회복' }) });
     const health = defense.locator('#ui-character-ehp');
     await expect(health).toBeVisible();
@@ -67,9 +69,11 @@ test('elemental effective health belongs to defense with distinct readable color
         expect(colors.every(row => row.name === row.value)).toBe(true);
         await health.scrollIntoViewIfNeeded();
         await page.screenshot({ path: testInfo.outputPath('defense-' + theme + '.png'), animations: 'disabled' });
-        await defense.locator('summary').click();
+        if (testInfo.project.use.isMobile) await navigation.getByRole('tab', { name: '공격', exact: true }).click();
+        else await defense.locator('summary').click();
         await expect(health).not.toBeVisible();
-        await defense.locator('summary').click();
+        if (testInfo.project.use.isMobile) await navigation.getByRole('tab', { name: '방어 · 회복' }).click();
+        else await defense.locator('summary').click();
         await expect(health).toBeVisible();
     }
 });

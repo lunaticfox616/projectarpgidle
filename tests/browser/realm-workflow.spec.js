@@ -129,7 +129,7 @@ test('realm controls and themes remain usable; pruning stays outside miscellaneo
     await openRealms(page);
     await page.evaluate(()=>{
         for(const platform of ['desktop','mobile']) game.settings.tabLayouts[platform].tabPlacement['btn-tab-pruning']='bottom';
-        applyTabHeaderOrder(true); switchMapSubtab('map-tab-underworld');
+        applyTabHeaderOrder(true); switchMapSubtab('map-tab-underworld'); updateStaticUI();
     });
     expect(await page.evaluate(()=>tabLayoutUi.isMisc('btn-tab-pruning'))).toBe(false);
     await expect(page.locator('.underworld-rune-slot')).toHaveCount(6);
@@ -137,17 +137,19 @@ test('realm controls and themes remain usable; pruning stays outside miscellaneo
     await expect(page.locator('.underworld-rune-overlay')).toBeVisible();
     await page.evaluate(()=>document.querySelector('.underworld-rune-overlay').remove());
     for(const light of [false,true]) {
-        await page.evaluate(light=>{document.body.classList.toggle('light-mode',light);switchMapSubtab('map-tab-ocean')},light);
+        await page.evaluate(light=>{document.body.classList.toggle('light-mode',light);switchMapSubtab('map-tab-ocean');updateStaticUI()},light);
         await expect(page.getByRole('progressbar',{name:'남은 산소'})).toBeVisible();
         await expect(page.locator('.ocean-upgrade-card')).toHaveCount(3);
         await page.locator('#ui-ocean-panel').getByRole('button',{name:'낚시 · 제작'}).click();
         await expect(page.locator('#map-tab-fishing')).toHaveClass(/active/);
         await expect(page.locator('.ocean-fish-grid')).toBeHidden();
-        await page.locator('.ocean-collection-disclosure > summary').click();
+        if (info.project.use.isMobile) await page.getByRole('tab', { name:'도감', exact:true }).click();
+        else await page.locator('.ocean-collection-disclosure > summary').click();
         await expect(page.locator('.ocean-fish-grid')).toBeVisible();
         await page.evaluate(()=>renderFishingPanel());
         await expect(page.locator('.ocean-fish-grid')).toBeVisible();
-        await page.locator('.ocean-collection-disclosure > summary').click();
+        if (info.project.use.isMobile) await page.getByRole('tab', { name:'채집 · 전략', exact:true }).click();
+        else await page.locator('.ocean-collection-disclosure > summary').click();
         await page.screenshot({path:info.outputPath(`fishing-${light}.png`)});
     }
 });

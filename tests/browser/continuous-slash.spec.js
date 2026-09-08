@@ -46,7 +46,9 @@ for (const skillName of ['기본 공격', '연속 베기']) test(`${skillName} d
             if (activeTutorial) dismissTutorial(false);
             for (const effect of battleVisualState.skillEffects) {
                 const age = battleVisualState.visualNow - effect.startAt;
-                if (effect.skillName !== skillName || age < 36 || age > 75) continue;
+                // Inspect a visible portion of the real effect, not a 39 ms frame window that CI can skip.
+                const progress = age / effect.duration;
+                if (effect.skillName !== skillName || progress < 0.12 || progress > 0.8) continue;
                 const hit = battleFx.find(fx => fx.type === 'hit' && fx.skillName === skillName
                     && fx.damageTextGroupId === effect.vfxGroupId && fx.repeatIndex === effect.repeatIndex);
                 if (!hit || captured[hit.repeatIndex]) continue;
