@@ -1863,6 +1863,40 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.addLog = () => {};
 }
 
+// Ordinary monster hits spend ES before HP, on the same combat path used by mobile.
+{
+  resetGame();
+  context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
+  context.game.playerHp = 1000;
+  context.game.playerEnergyShield = 1000;
+  const attacker = makeEnemy(646, 2, 6, { attackTimer: 1 });
+  context.game.enemies = [attacker];
+  const stats = { maxHp: 1000, energyShield: 1000, dr: 0, armor: 0, evasion: 0, evadeChance: 0,
+    resF: 0, resC: 0, resL: 0, resChaos: 0, physTakenAs: {} };
+  const random = context.Math.random;
+  context.Math.random = () => .5;
+  context.performMonsterAttacks(stats);
+  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  context.performMonsterAttacks(stats);
+  assert(context.game.playerEnergyShield < 1000, 'normal monster damage must reduce ES');
+  assert.strictEqual(context.game.playerHp, 1000, 'absorbed damage must not reduce HP');
+  context.game.playerEnergyShield = 1;
+  attacker.attackTimer = 1;
+  context.performMonsterAttacks(stats);
+  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  context.performMonsterAttacks(stats);
+  assert.strictEqual(context.game.playerEnergyShield, 0, 'the last shield point must be consumed');
+  assert(context.game.playerHp < 1000, 'damage beyond the remaining shield must reduce HP');
+  context.game.playerHp = 1; context.game.playerEnergyShield = 1000;
+  context.game.settings.showDeathNotice = false;
+  attacker.attackTimer = 1; stats.cosmosEnergyShieldBypassPct = 100;
+  context.performMonsterAttacks(stats);
+  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  context.performMonsterAttacks(stats);
+  assert.strictEqual(context.game.loopDeaths, 1, 'explicit shield bypass can kill at zero HP even with ES remaining');
+  context.Math.random = random;
+}
+
 // ── 3-3. 보스 원거리 공격: 일반·특수 패턴의 충돌 시점이 같아야 한다 ──
 {
   resetGame();

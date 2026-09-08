@@ -34,6 +34,18 @@ body:not(.light-mode) {
   color: var(--ui-text);
   background-color: var(--ui-canvas);
 }
+/* Shared native choices retain keyboard/touch behavior and the game's gold accent. */
+body :is(input[type="checkbox"], input[type="radio"], input[type="range"], select) { accent-color: var(--ui-gold); }
+body select {
+  color-scheme: dark;
+  color: var(--ui-text) !important;
+  background-color: var(--ui-surface-1) !important;
+  border: 1px solid var(--ui-line-strong) !important;
+  border-radius: var(--ui-radius-sm);
+}
+body.light-mode select { color-scheme: light; }
+body select option { color: var(--ui-text); background-color: var(--ui-surface-1); }
+body select:focus-visible { outline: 2px solid var(--ui-gold); outline-offset: 2px; }
 body:not(.light-mode) :where(button, input, select, textarea):focus-visible {
   outline: 0;
   box-shadow: var(--ui-focus) !important;
