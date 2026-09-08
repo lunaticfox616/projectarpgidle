@@ -6,6 +6,7 @@ const storage = new Map([['arpg_social_nickname', 'Na']]);
 const input = { value: '안녕하세요', focus() {} };
 const pending = { innerHTML: '', style: {} };
 const counter = { textContent: '', style: {} };
+const sendButton = { disabled: false, textContent: '', setAttribute() {} };
 const toasts = [];
 let chatPosts = 0;
 
@@ -24,6 +25,7 @@ const context = {
       if (id === 'social-chat-input') return input;
       if (id === 'social-pending-items') return pending;
       if (id === 'social-chat-counter') return counter;
+      if (id === 'social-chat-send') return sendButton;
       return null;
     },
     createElement() { return { textContent: '', style: {} }; },
@@ -67,6 +69,8 @@ async function checkPendingDraft(fail, edit, changeAccount = false) {
   input.value = '첫 메시지';
   const sending = context.sendChatMessage();
   await Promise.race([entered, sending.then(() => { throw new Error('send ended before chat request'); })]);
+  assert.strictEqual(sendButton.disabled, true, 'pending send must disable the send button');
+  assert.strictEqual(sendButton.textContent, '전송 중');
   if (edit) {
     input.value = '다음 메시지';
     vm.runInContext("socialState.pendingChatItems=[{name:'다음',rarity:'normal'}]", context);
@@ -83,6 +87,8 @@ async function checkPendingDraft(fail, edit, changeAccount = false) {
   assert.strictEqual(input.value, edit ? '다음 메시지' : (fail ? '첫 메시지' : ''), 'completion must not replace a newer draft');
   assert.strictEqual(vm.runInContext('socialState.pendingChatItems.length', context), edit || fail ? 1 : 0);
   assert.strictEqual(vm.runInContext('socialState.chatSending', context), false, 'success and failure must release the send guard');
+  assert.strictEqual(sendButton.disabled, false, 'success and network failure must allow retry');
+  assert.strictEqual(sendButton.textContent, '전송');
   if (changeAccount) assert.strictEqual(vm.runInContext('socialState.sendTimestamps.length', context), 0, 'old account completion must not update the new account send history');
   if (changeAccount) assert.strictEqual(context.getMyNickname(), 'NewSender', 'old account failure must not clear the new account nickname');
 }

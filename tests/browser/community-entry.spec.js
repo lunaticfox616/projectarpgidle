@@ -34,7 +34,7 @@ test('chat Enter respects browser composition and repeat flags',async({page})=>{
     expect(results).toEqual([false,false,false,false,true]);
 });
 
-test('a delayed chat response preserves a new draft and sends only once',async({page})=>{
+test('a delayed chat response preserves a new draft and sends only once',async({page},info)=>{
     await page.route('https://**',route=>route.fulfill({status:204,body:''}));
     await page.goto('/');await page.locator('#btn-startup-guest').click();
     await page.locator('[data-class-id="warrior"]').click();
@@ -57,9 +57,14 @@ test('a delayed chat response preserves a new draft and sends only once',async({
     const input=page.locator('#social-chat-input');
     await input.fill('첫 문장');await page.locator('.social-send-btn').click();
     await expect.poll(()=>page.evaluate(()=>chatDraftPosts.length)).toBe(1);
-    await input.fill('응답 대기 중 새 문장');await page.locator('.social-send-btn').click();
+    await page.screenshot({path:info.outputPath('chat-pending.png'),scale:'css'});
+    await expect(page.locator('.social-send-btn')).toBeDisabled();
+    await expect(page.locator('.social-send-btn')).toHaveText('전송 중');
+    await input.fill('응답 대기 중 새 문장');await input.press('Enter');
     await page.evaluate(()=>releaseChatDraft());
     await page.waitForFunction(()=>!socialState.chatSending);
     expect(await page.evaluate(()=>chatDraftPosts.map(row=>row.body))).toEqual(['첫 문장']);
     await expect(input).toHaveValue('응답 대기 중 새 문장');
+    await expect(page.locator('.social-send-btn')).toBeEnabled();
+    await expect(page.locator('.social-send-btn')).toHaveText('전송');
 });
