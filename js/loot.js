@@ -108,7 +108,8 @@ function getMappingTicketDrops(enemy, zone, mappingOpened) {
         || (game.completedTrials || []).includes('trial_4');
     if (!highTrialUnlocked) return drops;
     let trialKeyChance = enemy.isBoss ? 0.015 : (enemy.isElite ? 0.001 : 0);
-    if (trialKeyChance > 0 && Math.random() < trialKeyChance * contentDropMul) drops.push(['trialKey3', 1]);
+    // Retry access uses a fixed chance, independent of the underworld loot reduction.
+    if (trialKeyChance > 0 && Math.random() < trialKeyChance) drops.push(['trialKey3', 1]);
     return drops;
 }
 
@@ -193,8 +194,9 @@ function getCurrencyDrops(enemy) {
     if (zone.type === 'underworld') {
         let underFloor = Math.max(1, Math.floor(zone.floor || 1));
         let resourceChance = getUnderworldResourceDropChances(enemy);
-        let coreKeyChance = enemy.isBoss ? 0.012 : (enemy.isElite ? 0.003 : 0.0006);
-        if (Math.random() < coreKeyChance * contentDropMul) drops.push(['coreKey', 1]);
+        // Core and uber entry tickets are exempt from the underworld loot reduction.
+        let coreKeyChance = enemy.isBoss ? 0.015 : (enemy.isElite ? 0.003 : 0.0006);
+        if (Math.random() < coreKeyChance) drops.push(['coreKey', 1]);
         if (Math.random() < resourceChance.fossil) drops.push(['fossil', 1]);
         if (Math.random() < resourceChance.typedFossil) drops.push([rndChoice(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']), 1]);
         if (Math.random() < resourceChance.tool) drops.push([rndChoice(['deepWhetstone', 'rootIron', 'jewelPolish']), 1]);
@@ -203,7 +205,7 @@ function getCurrencyDrops(enemy) {
         if (Math.random() < resourceChance.copper) drops.push(['underCopper', 1]);
         if (Math.random() < resourceChance.silver) drops.push(['underSilver', 1]);
         if (Math.random() < resourceChance.gold) drops.push(['underGold', 1]);
-        if (enemy.isBoss && Math.random() < 0.0025 * contentDropMul) drops.push([rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1]);
+        if (enemy.isBoss && Math.random() < 0.0025) drops.push([rndChoice(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']), 1]);
     }
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
     if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
