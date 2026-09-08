@@ -1319,6 +1319,40 @@ test('debug performance panel reports live frame and FX metrics', async ({ page 
     expect(failures).toEqual([]);
 });
 
+test('entry skips unused signature sheets and skill selection loads them once', async ({page}) => {
+    const failures=watchRuntimeFailures(page);
+    let release;
+    const gate=new Promise(resolve=>{release=resolve;});
+    let requests=0;
+    await page.route('**/assets/effects/skill-lava-sheet-v1.webp', async route=>{
+        requests++;await gate;await route.continue();
+    });
+    await openLocalGame(page);
+    await page.evaluate(()=>{clearInterval(gameTickHandle);gameTickHandle=null;});
+    expect(requests).toBe(0);
+    expect(await page.evaluate(()=>!!getSkillGemVfxImage('skillFxBasicSlash'))).toBe(true);
+    await page.evaluate(()=>{
+        game.skills.push('용암 강타');game.activeSkill='용암 강타';renderCombatSkillHud();
+    });
+    await expect.poll(()=>requests).toBe(1);
+    await page.evaluate(()=>{for(let i=0;i<20;i++) getSkillGemVfxImage('skillFxSignatureLava');});
+    expect(requests).toBe(1);
+    release();
+    await expect.poll(()=>page.evaluate(()=>getSkillGemVfxImage('skillFxSignatureLava')?.naturalWidth || 0)).toBeGreaterThan(0);
+    expect(await page.evaluate(()=>getSkillGemVfxImage('skillFxSignatureLava').src)).toContain('.webp');
+    await page.evaluate(()=>{
+        game.activeSkill='기본 공격';renderCombatSkillHud();game.activeSkill='용암 강타';renderCombatSkillHud();
+    });
+    expect(requests).toBe(1);
+    await page.evaluate(()=>{reloadBattleAssets();return battleAssets.loadPromise;});
+    expect(await page.evaluate(()=>{
+        const active=Object.getOwnPropertyDescriptor(battleAssets.images,'skillFxSignatureLava');
+        const unused=Object.getOwnPropertyDescriptor(battleAssets.images,'skillFxSignatureBlood');
+        return !!active.value?.naturalWidth && typeof unused.get==='function';
+    })).toBe(true);
+    expect(failures).toEqual([]);
+});
+
 test('treasure HUD requires target combat, retains its bonus and pays it once', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);

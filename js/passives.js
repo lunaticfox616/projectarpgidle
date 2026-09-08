@@ -6833,16 +6833,7 @@ function initBattleAssets() {
         .flatMap(value => Array.isArray(value) ? value : ((value && typeof value === 'object') ? Object.values(value) : [value]))
         .filter(value => typeof value === 'string' && value));
     const criticalManifestKeys = new Set(['enemies', 'woodEnemySlimes', 'woodEnemySpider', 'woodEnemyLeeches', 'woodEnemyPuppet0', 'effects', 'summon1', ...selectedHeroKeys]);
-    const manifestGroupsBySrc = new Map();
-    Object.entries(manifest).forEach(([key, src]) => {
-        if (!manifestGroupsBySrc.has(src)) manifestGroupsBySrc.set(src, { src: src, keys: [], priority: 3 });
-        let group = manifestGroupsBySrc.get(src);
-        group.keys.push(key);
-        if (criticalManifestKeys.has(key)) group.priority = Math.min(group.priority, 0);
-        else if (key.startsWith('backdrop')) group.priority = Math.min(group.priority, 1);
-        else if (key.startsWith('bossAct') || key === 'enemies2' || key === 'enemies3') group.priority = Math.min(group.priority, 2);
-    });
-    const manifestGroups = Array.from(manifestGroupsBySrc.values()).sort((a, b) => a.priority - b.priority || a.src.localeCompare(b.src));
+    const manifestGroups = prepareBattleAssetGroups(manifest, criticalManifestKeys, battleAssets.images, game.activeSkill);
     const maxParallelLoads = Math.max(4, Math.min(8, Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 6) || 6));
     let pending = manifestGroups.length;
     let nextGroupIndex = 0;

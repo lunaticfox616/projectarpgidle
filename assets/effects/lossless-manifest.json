@@ -1,0 +1,502 @@
+[
+  {
+    "source": "assets/effects/basic-slash-sheet.png",
+    "output": "assets/effects/basic-slash-sheet.webp",
+    "sourceSha256": "b444669b9f91fa00e6f6bf7b0ee8a87a3ce56793c79985eef534f238d7e3e025",
+    "outputSha256": "671e83c9783ccd72a740933bafc0b0bdd1a218d263a34402b579851e41904649",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/channel-focus-beam-v2.png",
+    "output": "assets/effects/channel-focus-beam-v2.webp",
+    "sourceSha256": "9d10790c2343183f43c47f9039221546fb5e0497d15bcd5cdcd303f81494d192",
+    "outputSha256": "67a1371b3c9574766b5d8874bfdf2a2193a4ad4d873987bc3a3091885e9cfd6b",
+    "size": [
+      771,
+      234
+    ]
+  },
+  {
+    "source": "assets/effects/channel-void-cutter-v2.png",
+    "output": "assets/effects/channel-void-cutter-v2.webp",
+    "sourceSha256": "793281d9a2c25aaf1ef62cd5a2b045a18337ab9d7e47b25485d42846ec2005e6",
+    "outputSha256": "1411317d8447db1dc9d51c4eab3b7fd25186d38a40497c84ac324676c0306409",
+    "size": [
+      738,
+      288
+    ]
+  },
+  {
+    "source": "assets/effects/double-slash-sheet.png",
+    "output": "assets/effects/double-slash-sheet.webp",
+    "sourceSha256": "81cda94cbcff44c6b1857b78fe81a4fa754694f322b0315ce447d37c1cf29826",
+    "outputSha256": "38922c9f079cd5a15f0f0a134981be1fd1c23893cd7b434845484959c6e0bdc5",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/fenrir-fang-sheet.png",
+    "output": "assets/effects/fenrir-fang-sheet.webp",
+    "sourceSha256": "2a773a5eebef7e370bc6b3b28c862377de19f30aff308784df5c008c516b681e",
+    "outputSha256": "bdc30a9be959a9f77c7fecc6b27e1a9fe72b28d5d12c048bf92625fa3e5fa8ef",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/pixel-abyss-contagion-sheet-v1.png",
+    "output": "assets/effects/pixel-abyss-contagion-sheet-v1.webp",
+    "sourceSha256": "ad7c7ad7f62417b559f0f926c11390f81f5eea2a273d57491196e8dc9efb3c19",
+    "outputSha256": "56211afd351d068077f14560ea90e06ff4078fbd33376f752ac661e1fc05ad3a",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/pixel-earth-crack-v1.png",
+    "output": "assets/effects/pixel-earth-crack-v1.webp",
+    "sourceSha256": "59929fb9cd688af77288860bc6a8959b732c5dfba699c934ac69935b788392d1",
+    "outputSha256": "5b76a7295f9693e0fc619e33ee90fa1ceb998b6328b6087601c7da8156fcb3dc",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/pixel-earth-spike-v1.png",
+    "output": "assets/effects/pixel-earth-spike-v1.webp",
+    "sourceSha256": "61f28ee93b80e772b7b0e4bf6738e7bfb41cbe03e6aa37736a9e877d91a8fbf0",
+    "outputSha256": "3d90bf2b5ec46ad423ca3eac03ada51149e9cd1206375150d258c33965c38d28",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/pixel-fire-core-sheet-v1.png",
+    "output": "assets/effects/pixel-fire-core-sheet-v1.webp",
+    "sourceSha256": "87fab6a7649c3e6327c3c92818d9eb8e1c655498486100470cde0c7b418ac6c3",
+    "outputSha256": "a425bc6342e43af46fb3df68456affd74e1f498dffdc731869bddff7b96981fc",
+    "size": [
+      1230,
+      1278
+    ]
+  },
+  {
+    "source": "assets/effects/pixel-flame-decay-sheet-v1.png",
+    "output": "assets/effects/pixel-flame-decay-sheet-v1.webp",
+    "sourceSha256": "5622edacdd4898748902fa53fbb59f09cc891da9c392767bfd56a2c9090b2ac9",
+    "outputSha256": "6fee2bb763285a03bd7adb5e8ed38dbbec9cf316d7a11f4fc62a8e8df3d0db15",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/pixel-frost-erosion-sheet-v2.png",
+    "output": "assets/effects/pixel-frost-erosion-sheet-v2.webp",
+    "sourceSha256": "c94de64ccffe096aab2116abd1998b97b01560a3d4aa3abd02a81930b7743f72",
+    "outputSha256": "e4580b6c2312d1374de2fca578e429951b971d877830e05d8958873ce161cc3f",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/pixel-gravity-sheet-v1.png",
+    "output": "assets/effects/pixel-gravity-sheet-v1.webp",
+    "sourceSha256": "007937c9c7612a15152635e18179fbe0c75c6630693369a27b9cb100f6a6f120",
+    "outputSha256": "bc7446ba31be5be62ffc21ecf86e7e2981c45589b2151e084f21f9764dae1776",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-blink-sheet-v1.png",
+    "output": "assets/effects/skill-blink-sheet-v1.webp",
+    "sourceSha256": "bc50113f67dfe2e8911375097101a10ef9f9387467c95c2bc40121eb52bd69bb",
+    "outputSha256": "d504db8cacf3fef1cce0a7a1470cdae5e5b228e301a88d15480f401826644ec3",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-blizzard-sheet-v1.png",
+    "output": "assets/effects/skill-blizzard-sheet-v1.webp",
+    "sourceSha256": "91e6bcc0a37fc92907bdd8f2b6eb292d0603c4b9db185c55d0ad1707581d8b61",
+    "outputSha256": "4375245bb3ab66850b40af2c26a8dfc42a72cd2417272f829f4e5a3b20479033",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-blood-sheet-v1.png",
+    "output": "assets/effects/skill-blood-sheet-v1.webp",
+    "sourceSha256": "74915f2c16bd8f9155b2dee34bdfac6bfcd1386dc5889d3576df02cffe1f93c8",
+    "outputSha256": "9012fde2cc7208fa64370f2257aa6e4730d1643ce099a97164e958bad62ffbf8",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-bludgeoning-blizzard-ambient-sheet-v2.png",
+    "output": "assets/effects/skill-bludgeoning-blizzard-ambient-sheet-v2.webp",
+    "sourceSha256": "34c6c5bdcf0ba381c59592f8a5795fb3676769e5eb8ade873469f56134dc0eb2",
+    "outputSha256": "419d3edf001c909027b3ad4c5f0b0943555ebb545ce036a6a8d60a5d2a4a9e57",
+    "size": [
+      822,
+      852
+    ]
+  },
+  {
+    "source": "assets/effects/skill-bludgeoning-blizzard-impact-sheet-v2.png",
+    "output": "assets/effects/skill-bludgeoning-blizzard-impact-sheet-v2.webp",
+    "sourceSha256": "d38615e985c61b39e41296ceac3c6d235ee8f013341c1caa1bc78dfa11ea81d1",
+    "outputSha256": "4fc98ffa282ba9281dd3293f4de759c34727d7e184d8badb6561a222e3e61862",
+    "size": [
+      675,
+      675
+    ]
+  },
+  {
+    "source": "assets/effects/skill-burst-v2.png",
+    "output": "assets/effects/skill-burst-v2.webp",
+    "sourceSha256": "2e29a0468029e19752faeb29058ac299d09f176e4bdf17156402d2e8842146a4",
+    "outputSha256": "efee321c3cb02e9e0f7c5d2d067e4fe579a8f7869e0ed7a2eb85ac2db818a9bf",
+    "size": [
+      660,
+      645
+    ]
+  },
+  {
+    "source": "assets/effects/skill-chain-jump-v1.png",
+    "output": "assets/effects/skill-chain-jump-v1.webp",
+    "sourceSha256": "c11c4a25ef08a7de8401d67bf09946434fb5cc5fe3533b1e1f37dc189b6a2045",
+    "outputSha256": "e561508c69bbcb5f31f6855b4f6e12c5d4ce9c8ccae512d3b9040d56f77d561f",
+    "size": [
+      768,
+      256
+    ]
+  },
+  {
+    "source": "assets/effects/skill-chain-primary-v2.png",
+    "output": "assets/effects/skill-chain-primary-v2.webp",
+    "sourceSha256": "9bfb067ae0772bfae80edefd7d6ace29c6fc443f772335b8ec25ec651d046bb4",
+    "outputSha256": "489c9b6c6c5b18417bc9d7b5e8a266a040ae1f3b90ae5d2f8b76b903c7846a7c",
+    "size": [
+      546,
+      561
+    ]
+  },
+  {
+    "source": "assets/effects/skill-chainStorm-sheet-v1.png",
+    "output": "assets/effects/skill-chainStorm-sheet-v1.webp",
+    "sourceSha256": "4e266591ec3ab2f6bd82c53ae56cdeb687354124eccf08ca9c487dacf1b521ef",
+    "outputSha256": "64763a82f563845ab3726a48ca905f78665efd814fc0085bd54bd390fac4b207",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-chaos-boomerang-v2.png",
+    "output": "assets/effects/skill-chaos-boomerang-v2.webp",
+    "sourceSha256": "ca58bdb9f232c595878cd5a6c3f963b308d55011462223c4b2ddf36ea2083b78",
+    "outputSha256": "bae3cca4777293e0b668ee6fedd99ad883df785d0be56cde4c43a134b6f646a5",
+    "size": [
+      615,
+      417
+    ]
+  },
+  {
+    "source": "assets/effects/skill-charge-sheet-v1.png",
+    "output": "assets/effects/skill-charge-sheet-v1.webp",
+    "sourceSha256": "16eb86459e9979b112d36aad14776a7408e459184e9cfa063e7da6fbe7a52a84",
+    "outputSha256": "2a03cab2f8c25105e13f9d3dac04b85dbadc44a8d8188991eab3c6e998a7192f",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-continuous-slash-v1.png",
+    "output": "assets/effects/skill-continuous-slash-v1.webp",
+    "sourceSha256": "bca4517b030800a6b01e08d7af5a1540ba67bc6280b15a6f628c775fdd764890",
+    "outputSha256": "2c6f42e223bfa4324b491bb58341e0016b8e5aa106252f172d658161d53a3e0c",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-dot-field-v2.png",
+    "output": "assets/effects/skill-dot-field-v2.webp",
+    "sourceSha256": "830bb0f2398dd748c8313d7a7f91d4c707d10a5c8cb7189399d34092e26c4ddb",
+    "outputSha256": "310b7125ee6c5f211ba10d5a9041c5faf0dad606ba7d0b23654cb3fe08161e67",
+    "size": [
+      705,
+      702
+    ]
+  },
+  {
+    "source": "assets/effects/skill-dragon-breath-v3.png",
+    "output": "assets/effects/skill-dragon-breath-v3.webp",
+    "sourceSha256": "356a739a0a614a2af137150af9e018d67b8028582766c6aff57a1463b9a70741",
+    "outputSha256": "c5614df83f7689b52f63ca031271a4c191fee7b357bbfa2dc0d6d95500bdf300",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-fork-sheet-v1.png",
+    "output": "assets/effects/skill-fork-sheet-v1.webp",
+    "sourceSha256": "df81121d7692b28c94fb1251d5ef452d3ebd548665497d86db5dce4bb82cb6b3",
+    "outputSha256": "7e6c03d6c4dcc8f7e530800e74163681b86e1d2b5d6d3bfdb84d34597ff907d9",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-frost-burst-v1.png",
+    "output": "assets/effects/skill-frost-burst-v1.webp",
+    "sourceSha256": "c198713799acebd3927a31f46086915a99b08d89a552290e5185352a5c02bc44",
+    "outputSha256": "6d7e738b121ddabbab0d5db8ca607761ec8a0c9bed567d341ebf39ac765770ae",
+    "size": [
+      512,
+      512
+    ]
+  },
+  {
+    "source": "assets/effects/skill-frost-field-v2.png",
+    "output": "assets/effects/skill-frost-field-v2.webp",
+    "sourceSha256": "68267ea140ca8254243cff808ecb25022c3f07924681ef15fbfffd2a26922342",
+    "outputSha256": "71dbbe090966949f87310f2fa1306a9d5466c21cf2f5b300927d6d86429d6232",
+    "size": [
+      483,
+      513
+    ]
+  },
+  {
+    "source": "assets/effects/skill-frost-wave-ring-v1.png",
+    "output": "assets/effects/skill-frost-wave-ring-v1.webp",
+    "sourceSha256": "17016eb6fff09f8c7bafe77b5413d7e6e740a0452ca091438891ee7bb45202b0",
+    "outputSha256": "57f47dce97abf172ac6e9c6466452748b275af725d495a0c4e7693b628e3f2d5",
+    "size": [
+      512,
+      512
+    ]
+  },
+  {
+    "source": "assets/effects/skill-frost-wave-v2.png",
+    "output": "assets/effects/skill-frost-wave-v2.webp",
+    "sourceSha256": "c7d314da98c8ad1e0c6ffd147b3539b44702ed75bf1973da787246fd3360d485",
+    "outputSha256": "2c39853b6cfd422355fb62d0799e3e8bcb9395fda6902dc288086de4b962d127",
+    "size": [
+      597,
+      423
+    ]
+  },
+  {
+    "source": "assets/effects/skill-impact-flare-v1.png",
+    "output": "assets/effects/skill-impact-flare-v1.webp",
+    "sourceSha256": "6c7084bcfb7315ca6f7c029f21555eca5338c21ef8b271c98acb22178f3dab53",
+    "outputSha256": "cc3f588ad356ef20babcac0786de8dac11b4ba4d3b2eb6086d91e90c11633c87",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-lava-sheet-v1.png",
+    "output": "assets/effects/skill-lava-sheet-v1.webp",
+    "sourceSha256": "f500439b0f25536249dee69a2f4b70df598e34bdcae8352cddb16efe254c5495",
+    "outputSha256": "ec9e030811a3376423170f01fe6987a69f55d3cb42fee8b9a141aafe9cb973ce",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-meteor-ground-v2.png",
+    "output": "assets/effects/skill-meteor-ground-v2.webp",
+    "sourceSha256": "a8305a90714c14fe8bcefbc8a81b314c49d34d10c2fca26ca001100a2a26a9b8",
+    "outputSha256": "ab7e660683f51a694ff8e5792df0b4f2af7a3949b3e4fce8a62660efb318042c",
+    "size": [
+      645,
+      375
+    ]
+  },
+  {
+    "source": "assets/effects/skill-meteor-impact-v2.png",
+    "output": "assets/effects/skill-meteor-impact-v2.webp",
+    "sourceSha256": "011a676da5c954b14b06775d92df4ddf8d33a2e7aa285fd311d5de144cc3a84e",
+    "outputSha256": "01f9ed931435afa550fab0eb33a96122219218b065fe32851a2432ee94208ff9",
+    "size": [
+      543,
+      399
+    ]
+  },
+  {
+    "source": "assets/effects/skill-meteor-projectile-v2.png",
+    "output": "assets/effects/skill-meteor-projectile-v2.webp",
+    "sourceSha256": "739f906019f3bee1ca413f23ea2bbcb5ab2646494af64f1f42ed0e2e13babc59",
+    "outputSha256": "1d05b48758c857e3aaf3c8be82a0fb9ebcd60d540b558825d9a48c315e41b387",
+    "size": [
+      465,
+      240
+    ]
+  },
+  {
+    "source": "assets/effects/skill-mine-sheet-v1.png",
+    "output": "assets/effects/skill-mine-sheet-v1.webp",
+    "sourceSha256": "d95a0180c72ca35cf648a8f715cd467199cc3d57862fcd2665a6f1e35c2b8c4e",
+    "outputSha256": "8d5dd1a4078db3e399df8a9dbd671ea11bd55da599ecf8aca453f391fa264fd1",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-potion-sheet-v1.png",
+    "output": "assets/effects/skill-potion-sheet-v1.webp",
+    "sourceSha256": "36b55898b89542ea2167e4c143bfac6b802be66d346bbb4fd85f94c7a8a4f62e",
+    "outputSha256": "87eb0b75b15bc4cc74c2c72b3d5a6c33983f2368f97a3b863f3cfa6c02dd4ae6",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-projectile-v2.png",
+    "output": "assets/effects/skill-projectile-v2.webp",
+    "sourceSha256": "d6e3c720c072c6cb8e48f2d91df6fefaabe084233d2bf62772be26f754554c0a",
+    "outputSha256": "1495aa3dca560d2f76fcf0894c9f1ca79a3e729359d004b1ee0dc975cbc85134",
+    "size": [
+      564,
+      243
+    ]
+  },
+  {
+    "source": "assets/effects/skill-radial-wave-v1.png",
+    "output": "assets/effects/skill-radial-wave-v1.webp",
+    "sourceSha256": "132ed8eb276d4af19ebca3c1485b51720209f36b109f450b6ad6368f7a61f69b",
+    "outputSha256": "386d423b33119a05c43b0e02df295dbc60f154aa04a362d8deba4bae6e41ad50",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-resonance-sheet-v1.png",
+    "output": "assets/effects/skill-resonance-sheet-v1.webp",
+    "sourceSha256": "17cc598bbba898efb455ef9301f2be8df20dadb077f6d3164498c8fafd6222a3",
+    "outputSha256": "a2e71bdb3c1f3a750ff7eb7bb9a0706365a976ed48a0b69caa8a9e1f89a5242e",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-slam-aftershock-v2.png",
+    "output": "assets/effects/skill-slam-aftershock-v2.webp",
+    "sourceSha256": "bf449a642eb7ce98ca33fd8a6bff5e4c31586f73f9bca7d7f73b8b1b8d71ba1e",
+    "outputSha256": "ed2a6d5b37695da00657faebcda2e27f61bb5c19188a0075ba2d66ef1eeb562f",
+    "size": [
+      552,
+      543
+    ]
+  },
+  {
+    "source": "assets/effects/skill-slam-primary-v2.png",
+    "output": "assets/effects/skill-slam-primary-v2.webp",
+    "sourceSha256": "bf9c741a2db833c821bb8cf63b9c7465251a2f8fc62720c7387469f7f447db6f",
+    "outputSha256": "0258c18cc8cf2a3e1a389de849f569fe234fadac3b96425fdc53a3aa6d2ffb6e",
+    "size": [
+      567,
+      537
+    ]
+  },
+  {
+    "source": "assets/effects/skill-summon-strike-v1.png",
+    "output": "assets/effects/skill-summon-strike-v1.webp",
+    "sourceSha256": "92b44011a6b9f64df793b7d97e71331c746b55cbecd8a9723454448eaa0e5d48",
+    "outputSha256": "7e6aff9c7e71d2e75cd96eb5ae39c3978462e0a7fa02777effa2b6e3ea9acc27",
+    "size": [
+      512,
+      512
+    ]
+  },
+  {
+    "source": "assets/effects/skill-triWave-sheet-v1.png",
+    "output": "assets/effects/skill-triWave-sheet-v1.webp",
+    "sourceSha256": "65931d7fe47724974a02a13819bb1c866450a0b32a2d1415455afdd7da268257",
+    "outputSha256": "05c0b8962fc87ef2562c5a00e8c11bafed30b24ce34c6e25b259722ddfbddbca",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-triple-sheet-v1.png",
+    "output": "assets/effects/skill-triple-sheet-v1.webp",
+    "sourceSha256": "47e9b139a853d7a687287237f10b657e9c865b376f6eba3adb4223488897286f",
+    "outputSha256": "970387d454b646d0c551620434307591accbf3e76541a1e352d1e695f7d862d9",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-venom-fang-v3.png",
+    "output": "assets/effects/skill-venom-fang-v3.webp",
+    "sourceSha256": "4bdc4767eb6a8d8c660cba37a125b6a65bc5ab0c9f7bec9b837ffba8f6c49eaa",
+    "outputSha256": "4fa1cc41ea12f22c68d54f998cd62545530f3595617189cc46373a11cea6e710",
+    "size": [
+      579,
+      189
+    ]
+  },
+  {
+    "source": "assets/effects/skill-voidCutter-sheet-v1.png",
+    "output": "assets/effects/skill-voidCutter-sheet-v1.webp",
+    "sourceSha256": "9a3c92e97050ab07fc1687a3ec28b249adeaea5c1e1feaae0eed1a7aa353f233",
+    "outputSha256": "8d88c01c5e4dbc7ddb7e401c9434d2cd433e95a49f8e1ea694fb41bb0a2a2710",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-voidSlash-sheet-v1.png",
+    "output": "assets/effects/skill-voidSlash-sheet-v1.webp",
+    "sourceSha256": "c6595a88f0c7c9a42649636f3bf16e00020316c616bd4a56bdd85ddc7cd16ce6",
+    "outputSha256": "3b09dd63347d234bcf9cc5cd2677a275272c2ab6b17466a512a0898ea443cdd7",
+    "size": [
+      1254,
+      1254
+    ]
+  },
+  {
+    "source": "assets/effects/skill-whirlwind-v2.png",
+    "output": "assets/effects/skill-whirlwind-v2.webp",
+    "sourceSha256": "737179d903b0048e5be04c4f60ff268e8162de6f78c78628729d2dd3b6537884",
+    "outputSha256": "4a57e2250f475b81ab3789ebbe028ddcff1e1c3371d4b9731d31959cf6d8ab4e",
+    "size": [
+      537,
+      513
+    ]
+  }
+]

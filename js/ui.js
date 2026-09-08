@@ -8865,6 +8865,10 @@ function renderCombatSkillHud() {
         .slice(0, 4);
     let signature = names.join('|');
     if (host.dataset.signature === signature) return;
+    names.forEach(name => {
+        const spec = SKILL_SIGNATURE_SPRITES[SKILL_GEM_VFX_PROFILES[name]?.signature];
+        if (spec) getSkillGemVfxImage(spec.asset);
+    });
     host.dataset.signature = signature;
     host.innerHTML = names.map((name, index) => `<button type="button" class="player-hud-skill-slot ${index === 0 ? 'primary' : 'summon'}" data-gem-name="${escapeHTML(name)}" data-info-tooltip-anchor="1" aria-label="${escapeHTML(name)} 젬">${renderSkillGemArt(name, 'combat-skill-gem-art', { eager: true })}</button>`).join('');
     host.querySelectorAll('.player-hud-skill-slot').forEach(button => {
