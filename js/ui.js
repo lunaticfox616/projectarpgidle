@@ -1654,9 +1654,9 @@ function refreshTabHeaderUiIfNeeded() {
     let signature = getTabHeaderUiSignature();
     if (signature === lastTabHeaderUiSignature) return false;
     lastTabHeaderUiSignature = signature;
+    updateTabUnlockButtons();
     applyTabHeaderOrder();
     updateTabNotificationDots();
-    updateTabUnlockButtons();
     applyTabGroupFilter();
     renderTabCategoryBar();
     return true;

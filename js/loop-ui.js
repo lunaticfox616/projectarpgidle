@@ -50,7 +50,7 @@ const loopSettlementUi = {
 
     function canShowCombatLoopAdvanceButton() {
         if (game && (game.pendingLoopReady || game.pendingLoopDecision)) return true;
-        if (!game || (game.season || 1) < 10) return false;
+        if (!game) return false;
         return typeof hasCurrentLoopAbyssRequirementClear === 'function'
             ? hasCurrentLoopAbyssRequirementClear(game.season || 1)
             : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared);

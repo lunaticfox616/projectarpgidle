@@ -72,9 +72,13 @@ const contentProgression = (() => {
         return !!def && isUnlocked(def.kind === 'heal' ? 'flask' : 'flaskUtility', owner);
     }
 
+    function canOpenMap(owner) {
+        return owner.season >= 2 || owner.maxZoneId >= 1 || owner.unlocks.map || owner.contentProgression.legacy === true;
+    }
+
     function canOpen(route, owner = game) {
         if (!owner.contentProgression || !route || coreRoutes.has(route)) return true;
-        if (route === 'tab-map') return owner.season >= 2 || !!owner.contentProgression.legacy;
+        if (route === 'tab-map') return canOpenMap(owner);
         if (route === 'tab-season' || route === 'tab-unlocks') return owner.season >= 2;
         const feature = routes.get(route);
         return !!feature && isUnlocked(feature, owner);

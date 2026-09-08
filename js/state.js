@@ -850,7 +850,9 @@ function hasCurrentLoopChaosRequirementClear(seasonValue) {
     let season = Math.max(1, Math.floor(seasonValue || (game && game.season) || 1));
     let cap = getSeasonAbyssDepthCap(season);
     let progress = (game && game.loopProgressCurrent) || {};
-    return cap <= 20
+    // Ordinary chaos clears reset each loop; the early target is 10–18, not 20.
+    if (cap < 20) return (game.abyssClearedDepths || []).some(depth => depth >= cap);
+    return cap === 20
         ? hasCurrentLoopChaos20Clear()
         : Math.max(0, Math.floor(progress.bestAbyssDepth || 0)) >= cap;
 }
