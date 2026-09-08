@@ -12,7 +12,10 @@ const bountyRuntime = (() => {
         // Only already-earned v2 rewards bypass the restored hunting step.
         const targetId=BOUNTY_TARGET_DB[pending.targetId] ? pending.targetId : 'iron_collector';
         const status=version===2 || pending.status==='reward' ? 'reward' : pending.status==='queued' ? 'queued' : 'offered';
-        return {targetId,status};
+        const offered=Array.isArray(pending.offerIds) ? pending.offerIds : [targetId];
+        const offerIds=status==='offered'
+            ? [...new Set(offered.filter(id=>BOUNTY_TARGET_DB[id]))].slice(0,BOUNTY_HUNT_CONFIG.offerCount) : [];
+        return {targetId:status==='offered' ? null : targetId,status,offerIds};
     }
     function restorePending(pending, version) {
         const def=TREASURE_EVENT_DB[pending?.id];
@@ -25,29 +28,61 @@ const bountyRuntime = (() => {
         if (typeof item.name!=='string') return null;
         return {id:pending.id,item:normalizeItem(item),...hunt};
     }
+    /** Snapshot only loot inputs; live realm depth and the claim location must not change an earned hunt. */
+    function captureSource(zone) {
+        const cap=getRealmEquipmentHiddenTierCap(zone);
+        const dropZone=restoreDropZone({...zone,tier:Math.max(1,Math.floor(Number(zone.tier)||1))},zone.type);
+        if (zone.type==='act') dropZone.storyOrder=cap;
+        return {itemTier:rollRealmItemDropTier(zone,{isBoss:true}),dropRealm:zone.type,zone:dropZone,
+            materialMultiplier:1+Math.floor((cap-1)/BOUNTY_HUNT_CONFIG.materialTierStep)};
+    }
+    function restoreDropZone(zone, realm) {
+        if (!zone || zone.type!==realm || !Number.isFinite(zone.tier) || zone.tier<1) return null;
+        const restored={type:zone.type,tier:Math.floor(zone.tier)};
+        for (const key of ['depth','lootTier','storyOrder']) {
+            if (Number.isFinite(zone[key]) && zone[key]>0) restored[key]=zone[key];
+        }
+        return restored;
+    }
+    function restoreSource(source) {
+        if (!source || !Number.isInteger(source.itemTier) || source.itemTier<1 || source.itemTier>20
+            || !BOUNTY_HUNT_CONFIG.eligibleZoneTypes.includes(source.dropRealm)) return null;
+        const restored={itemTier:source.itemTier,dropRealm:source.dropRealm,zone:null,materialMultiplier:1};
+        restored.zone=restoreDropZone(source.zone,source.dropRealm);
+        if (!restored.zone) return restored;
+        const cap=getRealmEquipmentHiddenTierCap(restored.zone);
+        restored.materialMultiplier=1+Math.floor((cap-1)/BOUNTY_HUNT_CONFIG.materialTierStep);
+        return restored;
+    }
     /** Save boundary: legacy hunts become ready treasures; pending rewards survive reload without a new roll. */
     function restore(raw) {
         const value=raw && typeof raw==='object' ? raw : {};
         const completed=Number(value.completed);
         const pending=restorePending(value.pending,value.version);
-        const source=value.source;
-        const validSource=source && Number.isInteger(source.itemTier) && source.itemTier>=1 && source.itemTier<=20
-            && BOUNTY_HUNT_CONFIG.eligibleZoneTypes.includes(source.dropRealm);
-        return {version:3,remaining:pending ? 0 : restoreCountdown(value),pending,
-            source:validSource ? {itemTier:source.itemTier,dropRealm:source.dropRealm} : null,
+        const remaining=pending ? 0 : restoreCountdown(value);
+        let source=restoreSource(value.source);
+        // Older partial counts have no boss history. Keep their kills, using T1 for the unknown portion.
+        if (!source && remaining>0 && remaining<BOUNTY_HUNT_CONFIG.guaranteedAt) {
+            source={itemTier:1,dropRealm:'act',zone:{type:'act',tier:1,storyOrder:1},materialMultiplier:1};
+        }
+        return {version:5,remaining,pending,source,
             completed:Number.isFinite(completed) ? Math.max(0,Math.floor(completed)) : 0};
     }
     function ensureState(owner=game) {
-        if (owner.bountyHunt?.version!==3) owner.bountyHunt=restore(owner.bountyHunt);
+        if (owner.bountyHunt?.version!==5) owner.bountyHunt=restore(owner.bountyHunt);
         return owner.bountyHunt;
+    }
+    function recordBossSource(state, zone) {
+        const bossTier=Math.max(1,Math.floor(Number(zone.tier)||1));
+        if (!state.source || (state.source.zone && bossTier<state.source.zone.tier)) state.source=captureSource(zone);
     }
     function advanceAfterBossKill(zone,enemy,owner=game) {
         const state=ensureState(owner);
         if (!isUnlocked(owner) || !enemy?.isBoss || !zone || zone.loopScaleExempt
             || !BOUNTY_HUNT_CONFIG.eligibleZoneTypes.includes(zone.type)) return {offered:false,reason:'ineligible'};
         if (state.remaining===0) return {offered:false,reason:'pending'};
+        recordBossSource(state,zone);
         state.remaining--;
-        if (state.remaining===0) state.source={itemTier:rollRealmItemDropTier(zone,{isBoss:true}),dropRealm:zone.type};
         return {offered:state.remaining===0,remaining:state.remaining};
     }
     function available(def) { return !def.key || contentProgression.canDropCurrency(def.key); }
@@ -63,13 +98,26 @@ const bountyRuntime = (() => {
         if (roll<config.goldenChance+config.fairyChance+config.uniqueChance && relics.length) return rndChoice(relics);
         return rndChoice(Object.keys(TREASURE_EVENT_DB).filter(id=>TREASURE_EVENT_DB[id].common && available(TREASURE_EVENT_DB[id])));
     }
+    function fillTargetOffers(pending) {
+        if (pending.status!=='offered') return;
+        const pool=Object.values(BOUNTY_TARGET_DB).filter(target=>game.season>=(target.unlockLoop || 2)
+            && !pending.offerIds.includes(target.id));
+        while (pending.offerIds.length<BOUNTY_HUNT_CONFIG.offerCount && pool.length) {
+            const index=Math.floor(Math.random()*pool.length);
+            pending.offerIds.push(pool.splice(index,1)[0].id);
+        }
+    }
     function openTreasure() {
         const state=ensureState();
         if (!isUnlocked() || state.remaining>0) return null;
-        if (state.pending) return state.pending;
+        if (state.pending) {
+            fillTargetOffers(state.pending);
+            return state.pending;
+        }
         // Legacy ready saves have no source; resolve once, then persist with the opened reward.
         const zone=getZone(game.currentZoneId) || getZone(0);
-        const source=state.source || {itemTier:rollRealmItemDropTier(zone,{isBoss:true}),dropRealm:zone.type};
+        const source=state.source || {itemTier:rollRealmItemDropTier(zone,{isBoss:true}),dropRealm:zone.type,
+            zone:null,materialMultiplier:1};
         const tier=source.itemTier;
         const affixTierCap=getRealmEquipmentAffixTierCap({type:source.dropRealm},tier);
         const origin={dropRealm:source.dropRealm,affixTierCap,affixTierFloor:getDroppedAffixTierRange(affixTierCap).min,
@@ -79,13 +127,28 @@ const bountyRuntime = (() => {
         if (def.slot) item=generateUniqueItem(tier,def.slot,rndChoice(uniquePool(def.slot,tier)).name);
         else if (!def.key) item=createItemFromBase(chooseItemBase(rndChoice(EQUIPMENT_DROP_SLOTS),tier),'rare',tier,origin);
         state.source=source;
-        const targets=Object.values(BOUNTY_TARGET_DB).filter(target=>game.season>=(target.unlockLoop || 2));
-        state.pending={id,item:item ? normalizeItem(item) : null,targetId:rndChoice(targets).id,status:'offered'};
+        state.pending={id,item:item ? normalizeItem(item) : null,targetId:null,status:'offered',offerIds:[]};
+        fillTargetOffers(state.pending);
         return state.pending;
     }
     function rewardLabel(pending) {
         const def=TREASURE_EVENT_DB[pending.id];
-        return def.key ? `${ORB_DB[def.key].name} ${def.amount}개` : `${pending.item.slot} · ${pending.item.name}`;
+        return def.key ? `${ORB_DB[def.key].name} ${rewardAmount(def)}개` : `${pending.item.slot} · ${pending.item.name}`;
+    }
+    function rewardAmount(def) {
+        return def.amount*(def.common ? ensureState().source?.materialMultiplier || 1 : 1);
+    }
+    function targetRewardLabel(targetId) {
+        const reward=BOUNTY_TARGET_DB[targetId].reward;
+        const growth=reward.growthCount && contentProgression.isUnlocked('growth');
+        const count=(reward.equipmentCount || 0)+(growth ? 0 : reward.fallbackEquipmentCount || 0);
+        const parts=[];
+        if (count) parts.push(`희귀 이상 장비 ${count}개`);
+        if (growth) parts.push(`생장 아이템 ${reward.growthCount}개`);
+        for (const [key,amount] of Object.entries(reward.currencies || {})) {
+            if (contentProgression.canDropCurrency(key)) parts.push(`${ORB_DB[key].name} ${rewardAmount({amount,common:true})}개`);
+        }
+        return parts.join(' · ');
     }
     function claimTreasure() {
         const state=ensureState(), pending=state.pending;
@@ -93,7 +156,7 @@ const bountyRuntime = (() => {
         const def=TREASURE_EVENT_DB[pending.id];
         if (!available(def)) return {ok:false};
         const label=rewardLabel(pending);
-        if (def.key) awardCurrency(def.key,def.amount);
+        if (def.key) awardCurrency(def.key,rewardAmount(def));
         else if (!addItemToInventory(pending.item,{guaranteedKeep:true})) return {ok:false};
         state.pending=null;state.source=null;state.remaining=BOUNTY_HUNT_CONFIG.guaranteedAt;state.completed++;
         return {ok:true,label,event:def,item:pending.item};
@@ -109,9 +172,12 @@ const bountyRuntime = (() => {
         state.pending=null;state.source=null;state.remaining=BOUNTY_HUNT_CONFIG.guaranteedAt;
         return true;
     }
-    function startHunt() {
+    function startHunt(targetId) {
         const pending=ensureState().pending;
         if (!pending || pending.status!=='offered' || !isUnlocked()) return false;
+        if (!pending.offerIds.includes(targetId)) return false;
+        pending.targetId=targetId;
+        pending.offerIds=[];
         pending.status='queued';
         // Resume hunting without discarding this loop's already-earned completion records.
         game.pendingLoopReady=false;game.pendingLoopDecision=false;
@@ -147,18 +213,18 @@ const bountyRuntime = (() => {
     }
     function grantTargetGrowth(enemy, reward) {
         if (!reward.growthCount || !contentProgression.isUnlocked('growth')) return 0;
-        const item=generateGrowthDrop(enemy);
+        const item=generateGrowthDrop(enemy,{zone:ensureState().source?.zone});
         return item && addDroppedGrowthItem(item,{guaranteedKeep:true}) ? 1 : 0;
     }
     function grantTargetLoot(enemy, reward) {
         const growthCount=grantTargetGrowth(enemy,reward);
         const count=(reward.equipmentCount || 0)+(growthCount<(reward.growthCount || 0) ? reward.fallbackEquipmentCount : 0);
         for (let i=0;i<count;i++) {
-            const item=generateEquipmentDrop(enemy,{minimumRarity:reward.minimumRarity});
+            const item=generateEquipmentDrop(enemy,{minimumRarity:reward.minimumRarity,zone:ensureState().source?.zone});
             if (item) addItemToInventory(item,{guaranteedKeep:true});
         }
         for (const [key,amount] of Object.entries(reward.currencies || {})) {
-            if (contentProgression.canDropCurrency(key)) awardCurrency(key,amount);
+            if (contentProgression.canDropCurrency(key)) awardCurrency(key,rewardAmount({amount,common:true}));
         }
     }
     function completeTarget(enemy) {
@@ -174,6 +240,6 @@ const bountyRuntime = (() => {
         return {...advanceAfterBossKill(zone,enemy),completed};
     }
     return Object.freeze({isUnlocked,restore,ensureState,advanceAfterBossKill,openTreasure,claimTreasure,rewardLabel,canAdvanceLoop,
-        startHunt,failHunt,injectEncounterMarker,applyTargetToEnemy,completeTarget,processKill});
+        startHunt,failHunt,injectEncounterMarker,applyTargetToEnemy,completeTarget,processKill,targetRewardLabel});
 })();
 safeExposeGlobals({bountyRuntime});

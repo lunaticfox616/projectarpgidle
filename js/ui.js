@@ -514,7 +514,7 @@ function renderBackgroundSpeedControls(finish) {
 function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skippedMs = 0) {
     let overlay = getBackgroundProgressOverlay();
     if (!overlay) return;
-    let pct = totalMs > 0 ? Math.min(100, Math.floor(doneMs / totalMs * 100)) : 100;
+    let pct = totalMs > 0 ? Math.max(0, Math.min(100, Math.floor(doneMs / totalMs * 1000) / 10)) : 100;
     const signature = `${pct}:${skippedMs}`;
     if (overlay.dataset.progressPercent === signature) return;
     overlay.dataset.progressPercent = signature;
@@ -527,7 +527,7 @@ function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skipp
     if (percent) percent.textContent = `계산 진행 ${pct}%`;
     if (progressBar) progressBar.setAttribute('aria-valuenow', String(pct));
     if (progressFill) progressFill.style.width = `${pct}%`;
-    if (duration) duration.textContent = `${formatBackgroundDuration(actualElapsedMs)}의 진행을 반영하고 있습니다`;
+    if (duration) duration.textContent = `자리 비움 ${formatBackgroundDuration(actualElapsedMs)} · 계산 ${formatBackgroundDuration(Math.max(0, doneMs - skippedMs))}`;
     if (guide) {
         let limits = getBackgroundProgressResultLimits(game);
         guide.textContent = `진행 한도: ${limits.recognitionHours}시간 · 효율 ${Math.round(limits.efficiencyRate * 100)}%`;
@@ -648,7 +648,7 @@ async function startBackgroundCombatReturn(nowMs) {
         restoreBattlefieldBeforeBackgroundReplay(false);
         hideBackgroundProgressOverlay();
         updateBackgroundProgressOverlay(0, effectiveProgressMs, actualElapsedMs);
-        await waitBackgroundReplayFrame();
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
         let result = await simulateBackgroundCombatChunked({
             elapsedMs: effectiveProgressMs, snapshot, startNowMs: startedAtMs,
             isPaused: () => document.hidden || backgroundCombatRuntime.appInactive,
@@ -659,6 +659,9 @@ async function startBackgroundCombatReturn(nowMs) {
         let summary = getBackgroundRewardSummary(snapshot, result.game, result.metrics, result.overflowSalvaged);
         commitBackgroundCombat(result, original);
         committed = true;
+        updateBackgroundProgressOverlay(result.processedMs + result.skippedMs, result.processedMs + result.skippedMs, actualElapsedMs, result.skippedMs);
+        document.getElementById('background-combat-progress-percent').textContent = '정산 완료';
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
         showBackgroundCombatResult({ actualElapsedMs, effectiveProgressMs: result.processedMs, summary,
             capped: actualElapsedMs >= limits.recognitionLimitMs, limits, stopped: result.stopped, stopReason: result.stopReason,
             skippedMs: result.skippedMs });
@@ -731,12 +734,22 @@ async function ensureBattleAssetsLoadedBeforeEntry() {
         progress: 56
     });
     let result = false;
+    let timeout;
     try {
-        result = await startBattleAssetLoadNow();
+        // Bound the entry screen's wait, not the shared download lifetime. Slow login
+        // preloading must not finalize an incomplete atlas or discard queued images.
+        result = await Promise.race([startBattleAssetLoadNow(), new Promise(resolve => {
+            timeout = setTimeout(() => {
+                console.warn('battle asset entry wait timed out; images continue loading');
+                resolve(false);
+            }, 30000);
+        })]);
     } catch (error) {
         console.warn('battle asset preload failed:', error);
+    } finally {
+        clearTimeout(timeout);
     }
-    if (battleAssets.failed && !battleAssets.ready) {
+    if (!result) {
         advanceLoadingOverlay({
             detail: '일부 에셋 확인에 실패했습니다. 기본 렌더링으로 계속 준비합니다.',
             caption: 'Asset Fallback',
@@ -3861,6 +3874,13 @@ function switchMapSubtab(subtabId) {
     if (btn) btn.classList.add('active');
     if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
     if (subtabId === 'map-tab-pvp' && typeof renderGhostArena === 'function') renderGhostArena();
+    const renderRegion = {
+        'map-tab-underworld': renderUnderworldMapPanel,
+        'map-tab-ocean': renderOceanDepthMapPanel,
+        'map-tab-fishing': () => { renderFishingPanel(); renderSeaGiftPanel(); }
+    };
+    renderRegion[subtabId]?.();
+    renderMobileMapNavigation();
 }
 
 function switchMapExploreSubtab(subtabId) {
@@ -6778,7 +6798,7 @@ function showMapProgressTooltip(event) {
     const speed = Math.max(1, Number(cachedTooltipStats?.moveSpeed) || 100);
     const multiplier = speed / 100;
     const saved = (1 - 1 / multiplier) * 100;
-    const html = `<div class="tooltip-title">이동 속도와 진행도</div><div class="tooltip-line">이동 속도 ${speed.toFixed(1)} · 기본 대비 ${multiplier.toFixed(2)}배</div><div class="tooltip-line">같은 이동 구간의 소요 시간 ${Math.abs(saved).toFixed(1)}% ${saved >= 0 ? '단축' : '증가'}</div><div class="tooltip-line tooltip-muted">일반 진행도 기준입니다. 적 처치·정비 대기와 특수 이벤트의 고정 시간은 포함하지 않습니다.</div>`;
+    const html = `<div class="tooltip-title">이동 속도와 진행도</div><div class="tooltip-line">이동 속도 ${speed.toFixed(1)} · 기본 대비 ${multiplier.toFixed(2)}배</div><div class="tooltip-line">같은 이동 구간의 소요 시간 ${Math.abs(saved).toFixed(1)}% ${saved >= 0 ? '단축' : '증가'}</div>`;
     showInfoTooltipHtml(event.clientX || rect.left, event.clientY || rect.bottom, html, '#b49b68');
 }
 safeExposeGlobals({ showPlayerEhpTooltip, showMapProgressTooltip });
@@ -7850,8 +7870,9 @@ function getBattleBackdropForZone(zone) {
     let list = (battleAssets.backdrops || {});
     let key = getBattleBackdropKeyForZone(zone);
     if (!list[key]) requestSpecialBattleBackdrop(key);
-    let fallbackLegacy = { bgAct1:'backdropAct1', bgAct2:'backdropAct2_6', bgAct3:'backdropAct3_7', bgAct4:'backdropAct4_8', bgAct5:'backdropAct5', bgAct6:'backdropAct2_6', bgAct7:'backdropAct3_7', bgAct8:'backdropAct4_8', bgAct9:'backdropAct9_10', bgAct10:'backdropAct9_10' };
-    let image = list[key] || list[fallbackLegacy[key]] || list.backdropAct1 || Object.values(list)[0];
+    // Read only the destination and the already prepared first-act fallback; enumerating
+    // deferred getters here would start downloading every background on the first frame.
+    let image = list[key] || list.bgAct1;
     if (!image) return null;
     let zoneSeed = Number.isFinite(zone && zone.id) ? zone.id : 0;
     if (!zoneSeed && zone && zone.name) zoneSeed = zone.name.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);

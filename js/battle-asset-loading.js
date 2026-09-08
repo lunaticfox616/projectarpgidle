@@ -1,10 +1,10 @@
 /**
- * Effect images are independent of the character/enemy atlas. Existing renderers read the
+ * Effects and backgrounds are independent of the character/enemy atlas. Renderers read the
  * same image keys; their normal fallback remains available while the requested image loads.
  * @param {Record<string, HTMLImageElement|null>} images Image bank owned by this load generation.
  * @param {{src:string, keys:string[]}} group Aliases sharing one lossless effect sheet.
  */
-function registerDeferredBattleEffect(images, group) {
+function registerDeferredBattleImage(images, group) {
     let cached = null, active = null, retryAfter = 0;
     function request() {
         const image = new Image();
@@ -17,7 +17,7 @@ function registerDeferredBattleEffect(images, group) {
             clearTimeout(timeout);
             active = null;
             retryAfter = Date.now() + 5000;
-            console.warn('battle effect load failed:', group.src, reason);
+            console.warn('battle image load failed:', group.src, reason);
         }
         image.onload = () => {
             if (active !== image) return;
@@ -44,9 +44,10 @@ function registerDeferredBattleEffect(images, group) {
  * @param {Set<string>} criticalKeys
  * @param {Record<string, HTMLImageElement|null>} images
  * @param {string} activeSkill
+ * @param {Record<string, HTMLImageElement|null>} backdrops
  * @returns {Array<{src:string,keys:string[],priority:number}>}
  */
-function prepareBattleAssetGroups(manifest, criticalKeys, images, activeSkill) {
+function prepareBattleAssetGroups(manifest, criticalKeys, images, activeSkill, backdrops) {
     const activeSignature = SKILL_GEM_VFX_PROFILES[activeSkill]?.signature;
     const deferredKeys = new Set(Object.entries(SKILL_SIGNATURE_SPRITES)
         .filter(([signature]) => signature !== activeSignature).map(([, spec]) => spec.asset));
@@ -61,9 +62,13 @@ function prepareBattleAssetGroups(manifest, criticalKeys, images, activeSkill) {
         else if (key.startsWith('bossAct') || key === 'enemies2' || key === 'enemies3') group.priority = Math.min(group.priority, 2);
     }
     return Array.from(groups.values()).filter(group => {
+        if (group.keys.every(key => /^(bg|backdrop)/.test(key) && !criticalKeys.has(key))) {
+            registerDeferredBattleImage(backdrops, group);
+            return false;
+        }
         if (group.keys.some(key => !deferredKeys.has(key))) return true;
-        registerDeferredBattleEffect(images, group);
+        registerDeferredBattleImage(images, group);
         return false;
     }).sort((a, b) => a.priority - b.priority || a.src.localeCompare(b.src));
 }
-safeExposeGlobals({ registerDeferredBattleEffect, prepareBattleAssetGroups });
+safeExposeGlobals({ registerDeferredBattleImage, prepareBattleAssetGroups });

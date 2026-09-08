@@ -129,19 +129,29 @@ test('realm controls and themes remain usable; pruning stays outside miscellaneo
     await openRealms(page);
     await page.evaluate(()=>{
         for(const platform of ['desktop','mobile']) game.settings.tabLayouts[platform].tabPlacement['btn-tab-pruning']='bottom';
-        applyTabHeaderOrder(true); switchMapSubtab('map-tab-underworld'); updateStaticUI();
+        applyTabHeaderOrder(true);
+        clearInterval(gameTickHandle); gameTickHandle=null;
     });
     expect(await page.evaluate(()=>tabLayoutUi.isMisc('btn-tab-pruning'))).toBe(false);
+    if (!info.project.use.isMobile) {
+        await expect(page.locator('.ui-rail-tab-layer #btn-tab-pruning')).toBeVisible();
+        await expect(page.locator('.ui-rail-misc-panel #btn-tab-pruning')).toHaveCount(0);
+    }
+    if (info.project.use.isMobile) await page.locator('#mobile-map-destination').selectOption('btn-map-tab-underworld');
+    else await page.locator('#btn-map-tab-underworld').click();
     await expect(page.locator('.underworld-rune-slot')).toHaveCount(6);
     await page.locator('.underworld-rune-slot.unlocked').first().click();
     await expect(page.locator('.underworld-rune-overlay')).toBeVisible();
     await page.evaluate(()=>document.querySelector('.underworld-rune-overlay').remove());
     for(const light of [false,true]) {
-        await page.evaluate(light=>{document.body.classList.toggle('light-mode',light);switchMapSubtab('map-tab-ocean');updateStaticUI()},light);
+        await page.evaluate(light=>document.body.classList.toggle('light-mode',light),light);
+        if (info.project.use.isMobile) await page.locator('#mobile-map-destination').selectOption('btn-map-tab-ocean');
+        else await page.locator('#btn-map-tab-ocean').click();
         await expect(page.getByRole('progressbar',{name:'남은 산소'})).toBeVisible();
         await expect(page.locator('.ocean-upgrade-card')).toHaveCount(3);
         await page.locator('#ui-ocean-panel').getByRole('button',{name:'낚시 · 제작'}).click();
         await expect(page.locator('#map-tab-fishing')).toHaveClass(/active/);
+        if (info.project.use.isMobile) await expect(page.locator('#mobile-map-destination')).toHaveValue('btn-map-tab-fishing');
         await expect(page.locator('.ocean-fish-grid')).toBeHidden();
         if (info.project.use.isMobile) await page.getByRole('tab', { name:'도감', exact:true }).click();
         else await page.locator('.ocean-collection-disclosure > summary').click();
@@ -158,6 +168,12 @@ test('settlement buttons disclose sacrifice, double repeatedly and request finis
     await openRealms(page);
     await page.evaluate(()=>{backgroundCombatRuntime.processing=true;updateBackgroundProgressOverlay(0,100000,86400000)});
     await expect(page.locator('#background-combat-sacrifice')).toContainText('절반');
+    for (const progress of [0.5, 25, 70]) {
+        await page.evaluate(progress=>updateBackgroundProgressOverlay(progress*1000,100000,86400000),progress);
+        await expect(page.locator('.background-combat-progress-track')).toHaveAttribute('aria-valuenow', String(progress));
+        const ratio=await page.locator('#background-combat-progress-bar-fill').evaluate(el=>el.getBoundingClientRect().width/el.parentElement.clientWidth);
+        expect(ratio).toBeCloseTo(progress/100,2);
+    }
     for(const tier of [1,2,3,4]) {
         await page.locator('#background-combat-fast-button').click();
         expect(await page.evaluate(()=>backgroundCombatRuntime.accelerationTier)).toBe(tier);

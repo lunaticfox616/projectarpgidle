@@ -1,6 +1,6 @@
 // Target loot is awarded on defeat; these rolls add a saved treasure reward to that hunt.
 const BOUNTY_HUNT_CONFIG = Object.freeze({
-    unlockLoop:2, guaranteedAt:10,
+    unlockLoop:2, guaranteedAt:10, offerCount:3, materialTierStep:5,
     goldenChance:0.002, fairyChance:0.003, uniqueChance:0.05,
     eligibleZoneTypes:Object.freeze(['act','abyss','labyrinth','underworld','chaosRealm','skyTower','oceanDepth','cosmos'])
 });

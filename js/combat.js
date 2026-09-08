@@ -2525,7 +2525,7 @@ function coreLoop(nowMs) {
     processPendingSlamEchoHits();
     if (typeof tickTalentRangerCharge === 'function') tickTalentRangerCharge(getCombatTime());
     processTalentInquisitorMarks();
-    tickAilments(pStats);
+    tickAilments(pStats, 0.1);
     let ailmentMap = {};
     let activePlayerShock = null;
     (game.playerAilments || []).forEach(ail => {
@@ -2638,8 +2638,8 @@ function coreLoop(nowMs) {
         if (typeof shareTalentPlayerRecoveryWithSummons === 'function') shareTalentPlayerRecoveryWithSummons(game.playerHp - beforeTalentGuardHeal);
         game.delayedGuardHealPool = Math.max(0, game.delayedGuardHealPool - tickHeal);
     }
-    tickPlayerLeech(pStats);
-    tickPlayerRecoup(pStats);
+    tickPlayerLeech(pStats, 0.1);
+    tickPlayerRecoup(pStats, 0.1);
     let energyShieldRecoveryCap = getPlayerEnergyShieldRecoveryCap(pStats);
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, energyShieldRecoveryCap));
@@ -2719,8 +2719,8 @@ function coreLoop(nowMs) {
     let hazardEvasion = updateCombatHazardEvasion(pStats);
     if (game.playerHp <= 0) return;
     if ((game.enemies || []).length > 0) {
-        tickEnemyDotEffects(pStats);
-        tickEnemyAilments(pStats);
+        tickEnemyDotEffects(pStats, 0.1);
+        tickEnemyAilments(pStats, 0.1);
         let nowCast = getCombatTime();
         let channelGate = getCombatChannelGate(pStats, nowCast);
         let castUntil = Math.max(Math.floor(game.playerCastDelayUntil || 0), combatTacticsRuntime.attackDelayUntil || 0);

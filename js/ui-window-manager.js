@@ -11,7 +11,6 @@
     const DEFAULT_COMMUNITY_WIDTH = 360;
     const DESKTOP_RAIL_WIDTH = 140;
     const WORKSPACE_GAP = 10;
-    const RAIL_VISIBLE_LIMIT = 11;
     const RAIL_EXTERNAL_TAB_IDS = new Set([
         'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
     ]);
@@ -439,7 +438,7 @@
     }
 
 
-    // 저장된 일반 탭 순서를 그대로 사용하되, 그림 속 11개 원에는 실제 창 버튼만 배치한다.
+    // Keep the saved order when tabs move between the rail and its overflow menu.
     function getOrderedRailButtons(header) {
         let buttons = Array.from(header.querySelectorAll('.tab-btn'))
             .filter(button => !RAIL_EXTERNAL_TAB_IDS.has(button.id));
@@ -560,6 +559,7 @@
             });
             installRailLayers(header);
         }
+        installCloseAllButton();
         syncDesktopRailGroups();
     }
 
@@ -575,10 +575,14 @@
             wrapRailButtonLabel(button);
             tabLayer.appendChild(button);
         });
-        buttons.filter(button => tabLayoutUi.isMisc(button.id)).concat(visible.slice(RAIL_VISIBLE_LIMIT))
-            .forEach(button => miscPanel.appendChild(button));
+        buttons.filter(button => tabLayoutUi.isMisc(button.id)).forEach(button => miscPanel.appendChild(button));
         moveRailAuxiliaryTabs(miscPanel);
-        miscPanel.dataset.railOverflow = String(Math.max(0, visible.length - RAIL_VISIBLE_LIMIT));
+        // Measure in viewport coordinates so UI scale and actual row/gap sizes agree.
+        tabLayer.scrollTop = 0;
+        const bottom = tabLayer.getBoundingClientRect().bottom;
+        const overflow = visible.filter(button => button.getBoundingClientRect().bottom > bottom + 0.5);
+        overflow.forEach(button => miscPanel.appendChild(button));
+        miscPanel.dataset.railOverflow = String(overflow.length);
         updateRailMiscNotice(miscPanel);
     }
 
@@ -1019,7 +1023,6 @@
         installSettingsReset();
         if (layoutState.community.open) openCommunityDock();
         installDesktopRailMenu();
-        installCloseAllButton();
         if (layoutState.goals.expanded) toggleGoalDrawer(true);
         requestCanvasResize();
         syncWorkspacePresentation();
