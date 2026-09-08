@@ -95,4 +95,38 @@ const {prepare} = require('./audit-combat-20260905');
         }
     }
 }
+{
+    const {runtime:r, state} = prepare();
+    state.season = 31;state.maxZoneId = 99;state.unlockedTrials = ['trial_3'];
+    const cases = [
+        ['underworld_core','coreKey',{},0.0006],
+        ['underworld_core','coreKey',{isElite:true},0.003],
+        ['underworld_core','coreKey',{isBoss:true},0.015],
+        ['underworld_core','uberRootTicketFlame',{isBoss:true},0.0025],
+        ['underworld_core','trialKey3',{isElite:true},0.001],
+        ['underworld_core','trialKey3',{isBoss:true},0.015],
+        ['chaos_realm','trialKey3',{isBoss:true},0.015],
+        ['underworld_core','bossKeyFlame',{isBoss:true},0.022],
+        ['underworld_core','rivalKey',{isBoss:true},0.05],
+        ['chaos_realm','chaosKey',{isBoss:true},0.012]
+    ];
+    for (const [zone,key,enemy,chance] of cases) {
+        state.currentZoneId = zone;
+        const before = JSON.stringify(state);
+        for (const [sample,expected] of [[chance-1e-9,true],[chance,false]]) {
+            r.Math.random = () => sample;
+            const drops = r.getCurrencyDrops(enemy).filter(row => row[0] === key);
+            assert.strictEqual(drops.length, expected ? 1 : 0, `${zone} ${key} honors its own drop threshold`);
+            if (expected) assert.strictEqual(drops[0][1], 1, 'ticket rolls award one entry');
+        }
+        assert.strictEqual(JSON.stringify(state), before, 'planning ticket drops cannot mutate game state');
+    }
+    state.currentZoneId = 'underworld_core';r.Math.random = () => 0;
+    assert(!r.getCurrencyDrops({isElite:true}).some(([key]) => key.startsWith('uberRootTicket')), 'uber tickets require a boss');
+    assert(!r.getCurrencyDrops({}).some(([key]) => key === 'trialKey3'), 'regular enemies cannot drop trial tickets');
+    state.unlockedTrials = [];state.completedTrials = [];
+    assert(!r.getCurrencyDrops({isBoss:true}).some(([key]) => key === 'trialKey3'), 'trial access still gates retry tickets');
+    state.currentZoneId = 'chaos_realm';
+    assert(!r.getCurrencyDrops({isBoss:true}).some(([key]) => key === 'coreKey' || key.startsWith('uberRootTicket')), 'underworld tickets stay exclusive to underworld');
+}
 console.log('smoke-loot-rewards passed');
