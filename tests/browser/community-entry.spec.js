@@ -58,6 +58,12 @@ test('a delayed chat response preserves a new draft and sends only once',async({
     await input.fill('첫 문장');await page.locator('.social-send-btn').click();
     await expect.poll(()=>page.evaluate(()=>chatDraftPosts.length)).toBe(1);
     await page.screenshot({path:info.outputPath('chat-pending.png'),scale:'css'});
+    if(info.project.name==='mobile-chromium') {
+        const sheet=await page.locator('#tab-social').boundingBox();
+        const composer=await page.locator('.social-chat-inputbar').boundingBox();
+        expect(sheet.y+sheet.height-composer.y-composer.height).toBeLessThan(24);
+        expect(composer.height).toBeGreaterThanOrEqual(44);
+    }
     await expect(page.locator('.social-send-btn')).toBeDisabled();
     await expect(page.locator('.social-send-btn')).toHaveText('전송 중');
     await input.fill('응답 대기 중 새 문장');await input.press('Enter');
