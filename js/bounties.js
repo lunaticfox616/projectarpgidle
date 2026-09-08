@@ -1,4 +1,4 @@
-/** Treasure hunts retain their rolled bonus while a real target encounter is queued or retried. */
+/** Selected hunts retain their bonus until the target is defeated or the player loses. */
 const bountyRuntime = (() => {
     function isUnlocked(owner=game) {
         return contentProgression.isUnlocked('bounty',owner) && owner.season>=BOUNTY_HUNT_CONFIG.unlockLoop;
@@ -99,7 +99,15 @@ const bountyRuntime = (() => {
         return {ok:true,label,event:def,item:pending.item};
     }
     function canAdvanceLoop() {
-        return !isUnlocked() || ensureState().remaining>0;
+        const status=ensureState().pending?.status;
+        return !isUnlocked() || (status!=='queued' && status!=='reward');
+    }
+    /** Accepted hunt defeat: no reward; a fresh boss countdown is required before selecting another. */
+    function failHunt() {
+        const state=ensureState();
+        if (state.pending?.status!=='queued') return false;
+        state.pending=null;state.source=null;state.remaining=BOUNTY_HUNT_CONFIG.guaranteedAt;
+        return true;
     }
     function startHunt() {
         const pending=ensureState().pending;
@@ -166,6 +174,6 @@ const bountyRuntime = (() => {
         return {...advanceAfterBossKill(zone,enemy),completed};
     }
     return Object.freeze({isUnlocked,restore,ensureState,advanceAfterBossKill,openTreasure,claimTreasure,rewardLabel,canAdvanceLoop,
-        startHunt,injectEncounterMarker,applyTargetToEnemy,completeTarget,processKill});
+        startHunt,failHunt,injectEncounterMarker,applyTargetToEnemy,completeTarget,processKill});
 })();
 safeExposeGlobals({bountyRuntime});

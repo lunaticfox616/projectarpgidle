@@ -47,3 +47,9 @@ function renderBountyHud() {
 }
 const bountyUi=Object.freeze({renderHud:renderBountyHud,openTreasure:openTreasureDialog});
 safeExposeGlobals({bountyUi});
+
+window.addEventListener('project-idle:player-defeated', event => {
+    if (!event.detail?.bountyFailed) return;
+    addLog(`보물사냥 실패 · 보스 ${BOUNTY_HUNT_CONFIG.guaranteedAt}회 처치 후 다시 선택할 수 있습니다.`,
+        'death', {noToast:!!event.detail.noToast});
+});
