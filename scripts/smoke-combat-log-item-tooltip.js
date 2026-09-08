@@ -10,6 +10,7 @@ assert(start >= 0 && end > start, 'combat-log item snapshot formatter should be 
 const context = {
     Map,
     JSON,
+    document: { querySelector: () => null }, // No background-result anchors in this isolated DOM fixture.
     escapeHTML(text) {
         return String(text).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
     }

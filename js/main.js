@@ -156,7 +156,7 @@ function init() {
         window.__globalTouchTooltipCleanup = true;
         document.addEventListener('touchstart', function(e) {
             let target = e.target;
-            let keep = target && target.closest && (target.closest('.item-card') || target.closest('.skill-gem') || target.closest('#tree-canvas'));
+            let keep = target && target.closest && target.closest('.item-card, .skill-gem, #tree-canvas, #item-tooltip-box, [data-item-tooltip-anchor="1"]');
             if (!keep) {
                 hideInfoTooltip();
                 hideItemTooltip();

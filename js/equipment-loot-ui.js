@@ -110,10 +110,25 @@
 
     function renderHighlights(highlights) {
         if (!highlights || !highlights.items.length) return '';
-        const cards = highlights.items.map(item => `<li class="loot-highlight-card"><span class="loot-highlight-reason">${escapeHTML(item.reason)}</span><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.slot)} · ${escapeHTML(rarityNames[item.rarity] || item.rarity)} · ${escapeHTML(item.location)}</small></li>`).join('');
-        return `<section class="loot-return-highlights"><h3>이번 사냥의 주요 획득 <small>${highlights.total}개</small></h3><ul>${cards}</ul><p>보관 중인 새 장비에서 최대 5개를 보여줍니다. 장착 장비와 방치 보관함도 포함합니다.</p></section>`;
+        const owned=[...game.inventory,...Object.values(game.equipment),...(game.offlineProgress?.stash || [])].filter(Boolean);
+        const cards=highlights.items.map(item=>renderHighlight(item,owned)).join('');
+        return `<section class="loot-return-highlights"><h3>주요 장비 <small>${highlights.total}개</small></h3><ul>${cards}</ul></section>`;
     }
 
-    const equipmentLootUi = Object.freeze({ renderPanel, updatePickup, updateTargets, addRule, removeRule, saveAndPreview, renderHighlights });
+    function renderHighlight(item, owned) {
+        const equipment=owned.find(entry=>String(entry.id)===String(item.id));
+        const token=equipment ? registerCombatLogItemSnapshot(equipment) : null;
+        const detail=`<span class="loot-highlight-name"><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(item.slot)} · ${escapeHTML(item.location)}</small></span><span class="loot-highlight-reason">${escapeHTML(item.reason)}</span>`;
+        const attrs=token===null ? 'disabled' : `data-item-tooltip-anchor="1" data-log-item-token="${token}" onpointerenter="if(event.pointerType!=='touch')equipmentLootUi.showHighlight(event,${token})" onpointermove="if(event.pointerType!=='touch')equipmentLootUi.showHighlight(event,${token})" onpointerleave="if(event.pointerType==='mouse')hideItemTooltip(event)" onfocus="equipmentLootUi.showHighlight(event,${token})" onblur="hideItemTooltip()" onclick="equipmentLootUi.showHighlight(event,${token})"`;
+        return `<li class="loot-highlight-card" style="--loot-rarity:${getRarityColor(item.rarity)}"><button type="button" ${attrs} aria-label="${escapeHTML(item.name)} · ${escapeHTML(rarityNames[item.rarity] || item.rarity)} 옵션 확인">${detail}</button></li>`;
+    }
+
+    function showHighlight(event, token) {
+        const rect=event.currentTarget.getBoundingClientRect();
+        const pointer=event.type==='pointermove' || event.type==='pointerenter' ? event : {clientX:rect.left+rect.width/2,clientY:rect.top};
+        showCombatLogItemTooltip(pointer,token);
+    }
+
+    const equipmentLootUi = Object.freeze({ renderPanel, updatePickup, updateTargets, addRule, removeRule, saveAndPreview, renderHighlights, showHighlight });
     safeExposeGlobals({ equipmentLootUi });
 })();
