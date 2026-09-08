@@ -1902,6 +1902,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 {
   resetGame();
   context.game.contentProgression.inherited.push('flask', 'flaskUtility');
+  context.game.season = 3;
   const st = context.ensureFlaskState();
   const future = Date.now() + 5000;
   st.healOverTimeUntil = future;
@@ -1975,6 +1976,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // ── 3-2. 플라스크 무결성: 순차 발견, 교체 충전 보존, 독립 충전, 조우별 자동 사용 ──
 {
   resetGame();
+  context.game.season = 3;
   context.game.contentProgression.inherited.push('flask', 'flaskUtility');
   context.updateStaticUI = () => {};
   context.game.level = 100;
@@ -2081,6 +2083,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   st = context.ensureFlaskState();
+  context.game.season = 2;
   context.game.contentProgression.inherited.push('flask');
   const now = Date.now();
   context.game.playerHp = 10;

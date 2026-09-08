@@ -20,11 +20,16 @@ function normalizeTabLayoutSettings(settings) {
     return layouts;
 }
 
-/** Save boundary: missing ledger denotes a pre-choice save; never revoke its existing access. */
+/** Save boundary: retain prior access except first-loop flask and locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
     if (!merged.conditionGemLevels || typeof merged.conditionGemLevels !== 'object') merged.conditionGemLevels = {};
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
     contentProgression.sync(merged);
+    if (TRIAL_ZONES.some(zone => zone.id === merged.currentZoneId) && !contentProgression.isUnlocked('battleTrials', merged)) {
+        merged.currentZoneId = 0;
+        merged.enemies = []; merged.encounterPlan = []; merged.killsInZone = 0;
+        merged.inTicketBossFight = false; merged.moveTimer = 0;
+    }
     return merged;
 }
 

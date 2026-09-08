@@ -39,7 +39,7 @@ const flaskHost = { dataset: {}, innerHTML: '' };
 const skillHost = { dataset: {}, innerHTML: '', querySelectorAll() { return []; } };
 const flaskContext = {
   Date,
-  game: { activeSkill: '독니 사출', equippedSummonSkills: ['서리늑대 소환', '유성낙화'] },
+  game: { season: 3, activeSkill: '독니 사출', equippedSummonSkills: ['서리늑대 소환', '유성낙화'] },
   SKILL_DB: {
     '독니 사출': { tags: ['projectile'] },
     '서리늑대 소환': { tags: ['summon', 'summon_attack'] },

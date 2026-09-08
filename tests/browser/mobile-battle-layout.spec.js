@@ -10,6 +10,8 @@ async function checkStableStatusRow(page, screenshotPath) {
     const effects = page.locator('#ui-player-ailments-under');
     await expect(effects.locator('.combat-effect-icon')).toHaveCount(5);
     const boxes = await Promise.all(['.player-hud-skill-rack', '#ui-player-ailments-under', '#ui-combat-flasks'].map(selector => page.locator(selector).boundingBox()));
+    expect(boxes[2].x).toBeLessThan(boxes[1].x);
+    expect(boxes[1].x).toBeLessThan(boxes[0].x);
     expect(Math.max(...boxes.map(box => box.y)) - Math.min(...boxes.map(box => box.y))).toBeLessThan(2);
     expect((await field.boundingBox()).y).toBeCloseTo(before.y, 0);
     await effects.evaluate(el => { el.scrollLeft = el.scrollWidth; });
@@ -32,6 +34,7 @@ test('mobile battle keeps readable health, touchable flasks and an optional comp
         clearInterval(gameTickHandle); gameTickHandle = null;
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         game.contentProgression.inherited = ['craft', 'flask']; contentProgression.sync();
+        game.season = 2; contentProgression.sync();
         game.settings.combatLogCollapsed = false;
         game.currentZoneId = 1;
         game.activeSkill = '연속 베기';

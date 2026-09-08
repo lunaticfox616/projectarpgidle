@@ -10,6 +10,24 @@ assert.equal(run('contentProgression.balance()'), 0);
 assert(run("contentProgression.canOpen('tab-char')"));
 assert(!run("contentProgression.canOpen('skill-tab-enhance')"));
 assert(!run("contentProgression.canOpen('tab-unregistered-feature')"));
+run("game=mergeDefaults({season:1,maxZoneId:8});ensureFlaskState();game.playerHp=10");
+assert(!run("contentProgression.isUnlocked('flask')"),'legacy first-loop saves must buy healing flasks after reaching loop two');
+run('tickFlaskAutoUse({maxHp:100})');
+assert.equal(run('game.playerHp'),10,'first-loop legacy healing must stay locked');
+run("game=mergeDefaults({season:1,contentProgression:{version:7,highestLoop:1,inherited:['flask','flaskUtility'],automatic:['battleTrials']}})");
+assert(!run("contentProgression.isUnlocked('flask') || contentProgression.isUnlocked('flaskUtility')"));
+run("game.currentZoneId='trial_1';game.killsInZone=9;game=mergeDefaults(JSON.parse(JSON.stringify(game)))");
+assert.deepEqual(json('[game.currentZoneId,game.killsInZone,game.enemies,game.encounterPlan]'),[0,0,[],[]],'loading a locked trial returns safely to the starting area');
+for (const loop of [1,2,3]) {
+ run(`game=mergeDefaults({});game.season=${loop};game.maxZoneId=8;game.contentProgression.automatic=['battleTrials'];contentProgression.sync()`);
+ const travel=json('[game.currentZoneId,game.killsInZone,game.inTicketBossFight,game.currencies]');
+ run("changeZone('trial_1')");
+ assert.deepEqual(json('[game.currentZoneId,game.killsInZone,game.inTicketBossFight,game.currencies]'),travel,'locked direct trial travel must be side-effect free');
+ assert(!run("contentProgression.canOpen('map-explore-trials')"),'stored automatic flags cannot bypass advancement purchase');
+}
+run("game.season=4;contentProgression.sync();contentProgression.purchase('craft');contentProgression.purchase('loopTree');contentProgression.purchase('trials');changeZone('trial_1')");
+assert.equal(run('game.currentZoneId'),'trial_1','purchasing advancement enables trial entry');
+run('game=mergeDefaults({})');
 let before = json('game');
 assert(!run("contentProgression.purchase('support').ok"));
 assert.deepEqual(json('game'), before);
@@ -118,7 +136,7 @@ assert(run("contentProgression.isUnlocked('craft')"));
 for(const def of runtime.CONTENT_UNLOCK_CATALOG){
  const seen=new Set();let row=def;
  while(row){assert(!seen.has(row.id),'acyclic prerequisites');seen.add(row.id);row=runtime.CONTENT_UNLOCK_CATALOG.find(candidate=>candidate.id===row.after);}
- if(def.cost===0 && !['market','hall'].includes(def.id))assert(!def.after && !(def.requires||[]).length,'automatic combat content never depends on paid growth');
+ if(def.cost===0 && !['market','hall','battleTrials'].includes(def.id))assert(!def.after && !(def.requires||[]).length,'independent combat content never depends on paid growth');
 }
 // Locked loot must not leak through boss rewards or offline's shared combat functions.
 runtime.Math = Object.create(Math);

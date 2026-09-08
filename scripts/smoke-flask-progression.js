@@ -16,6 +16,7 @@ const context = {
   console,
   Math,
   game: {
+    season: 3,
     level: 13,
     flasks: { foundKeys: ['h1', 'granite1'], alchemyGlass: 16, qualityByKey: {} },
     noti: {},

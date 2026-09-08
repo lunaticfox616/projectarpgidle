@@ -1983,6 +1983,12 @@ function getPassiveTreeRootNode(state) {
 
 var passiveTreeAdjacencyCache = { signature: '', map: new Map() };
 
+// Covenant spokes display and count attributes, but never carry allocation paths.
+function isPassiveTreePathEdge(edge, allocatedNodeIds) {
+    return edge.requiresAllocatedNodeId !== PASSIVE_KEYSTONE_NODE_ID_BY_TITLE['헌신의 서약']
+        && isPassiveTreeEdgeAvailable(edge, allocatedNodeIds);
+}
+
 function isPassiveTreeEdgeAvailable(edge, allocatedNodeIds) {
     const requiredId = String(edge && edge.requiresAllocatedNodeId || '');
     if (!requiredId) return true;
@@ -2008,7 +2014,7 @@ function getPassiveTreeAdjacency(allocatedNodeIds) {
     if (signature && passiveTreeAdjacencyCache.signature === signature) return passiveTreeAdjacencyCache.map;
     const adjacency = new Map(Object.keys(PASSIVE_TREE.nodes || {}).map(id => [String(id), []]));
     edges.forEach(edge => {
-        if (!isPassiveTreeEdgeAvailable(edge, allocatedNodeIds)) return;
+        if (!isPassiveTreePathEdge(edge, allocatedNodeIds)) return;
         const from = String(edge.from), to = String(edge.to);
         if (!adjacency.has(from)) adjacency.set(from, []);
         if (!adjacency.has(to)) adjacency.set(to, []);
@@ -2361,7 +2367,9 @@ function sumPassiveRuleStat(buckets, stat) {
 
 function countCovenantAttributeConnections(keystone) {
     if (!keystone) return 0;
-    const neighborIds = getPassiveTreeAdjacency().get(String(keystone.id)) || [];
+    const neighborIds = [...new Set(PASSIVE_TREE.edges.filter(edge => isPassiveTreeEdgeAvailable(edge)
+        && (edge.from === keystone.id || edge.to === keystone.id))
+        .map(edge => edge.from === keystone.id ? edge.to : edge.from))];
     const owned = new Set(game.passives || []);
     return neighborIds.filter(id => {
         const node = PASSIVE_TREE.nodes[id];
@@ -4398,7 +4406,7 @@ function calculateReachableNodes() {
         if (node && node.kind === 'star_option' && isPassiveNodeAvailable(node)) reachableNodes.add(node.id);
     });
     PASSIVE_TREE.edges.forEach(edge => {
-        if (!isPassiveTreeEdgeAvailable(edge)) return;
+        if (!isPassiveTreePathEdge(edge)) return;
         if (!isPassiveNodeAvailable(edge.from) || !isPassiveNodeAvailable(edge.to)) return;
         if (connectionNodes.has(String(edge.from))) reachableNodes.add(edge.to);
         if (connectionNodes.has(String(edge.to))) reachableNodes.add(edge.from);

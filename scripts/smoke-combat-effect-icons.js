@@ -13,6 +13,7 @@ const now = 10000;
 const ownedKeystones = new Set(['w2', 'w5']);
 const context = {
   game: {
+    season: 3,
     playerAilments: [{ type: 'ignite', time: 2, duration: 4, power: 0.2 }, { type: 'shock', time: 0, power: 0.1 }],
     woodsmanCurseActive: true,
     woodsmanCurseDamageTakenStacks: 125,

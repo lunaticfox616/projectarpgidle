@@ -129,8 +129,14 @@ vm.runInContext(`game.passives = [${JSON.stringify(covenant.id)}];`, context);
 assert.ok(covenantBridgeEdges.every(edge => context.isPassiveTreeEdgeAvailable(edge)),
   '헌신의 서약을 찍으면 전용 능력치 다리가 열려야 합니다.');
 const unlockedCovenantNeighbors = context.getPassiveTreeAdjacency().get(covenant.id);
-assert.ok(covenantBridgeNodeIds.every(id => unlockedCovenantNeighbors.includes(id)),
-  '열린 서약 다리를 경로 탐색과 렌더링에 반영해야 합니다.');
+assert.ok(covenantBridgeNodeIds.every(id => !unlockedCovenantNeighbors.includes(id)),
+  '서약을 찍어도 효과 연결선을 할당 경로로 사용할 수 없습니다.');
+context.calculateReachableNodes();
+assert.ok(covenantBridgeNodeIds.every(id => !vm.runInContext(`reachableNodes.has('${id}')`, context)),
+  '서약만 찍어서는 전용 연결선 끝의 능력치를 바로 할당할 수 없습니다.');
+vm.runInContext(`game.passives.push('${covenantBridgeNodeIds[0]}')`, context);
+assert.strictEqual(context.countCovenantAttributeConnections(covenant), 1,
+  '별도 경로로 찍은 연결 능력치는 여전히 서약 효과를 제공합니다.');
 vm.runInContext('game.passives = [];', context);
 
 const noEffectPassive = { id: 'no_effect_test', kind: 'path', sourceType: 'minor', intentionalNoEffect: true,

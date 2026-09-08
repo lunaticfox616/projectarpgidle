@@ -48,6 +48,7 @@ function bootMapAlarmContext(gameState, visibleSubtabs) {
         Object
     };
     vm.createContext(context);
+    require('./lib/load-content-progression')(context);
     vm.runInContext([
         readConstSource(uiSource, 'MAP_EXPLORE_ALARM_SUBTABS'),
         readFunctionSource(uiSource, 'getMapExploreUnlockSignatures'),
@@ -60,7 +61,8 @@ function bootMapAlarmContext(gameState, visibleSubtabs) {
 }
 
 const baseMapGame = extra => ({
-    maxZoneId: 3, season: 2, noti: { map: true },
+    maxZoneId: 3, season: 3, noti: { map: true },
+    contentProgression: { unlocked: [], inherited: ['trials'], automatic: [] },
     claimableActRewards: [],
     unlockedTrials: [], completedTrials: [],
     mapSubtab: 'map-tab-underworld', mapExploreSubtab: 'map-explore-hunting',

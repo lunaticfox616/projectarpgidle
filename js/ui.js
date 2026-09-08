@@ -3903,7 +3903,7 @@ function getMapExploreUnlockSignatures() {
         ? LAST_STORY_ZONE_ID : Math.max(0, Math.floor(game.maxZoneId || 0));
     const season = game.season || 1;
     const rootBossZones = typeof SEASON_BOSS_ZONES !== 'undefined' ? SEASON_BOSS_ZONES : [];
-    const trialZones = typeof TRIAL_ZONES !== 'undefined' ? TRIAL_ZONES : [];
+    const trialZones = contentProgression.isUnlocked('battleTrials') ? TRIAL_ZONES : [];
     const isTrialAvailable = trial => trial.bloomTrial
         ? canSeeTalentBloomTrial()
         : ((trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || (game.unlockedTrials || []).includes(trial.id));
@@ -4095,6 +4095,7 @@ async function enterUnderworldPrompt(){
 safeExposeGlobals({ enterUnderworldFloor, enterUnderworldPrompt });
 
 function enterTrialWithTicket(trialId) {
+    if (!contentProgression.isUnlocked('battleTrials')) return addLog('루프 3부터 직업 전직을 해금한 뒤 시련에 도전할 수 있습니다.', 'attack-monster');
     if (typeof isBeehiveRunLockedForMapTravel === 'function' && isBeehiveRunLockedForMapTravel()) return warnBeehiveMapTravelBlocked();
     if (!['trial_3','trial_4'].includes(trialId)) return changeZone(trialId);
     if ((game.currencies.trialKey3 || 0) <= 0) return addLog('시련의 증표가 부족합니다.', 'attack-monster');
@@ -11920,6 +11921,7 @@ function buildCraftActionButtons(item) {
     }
 
     let availTrials = TRIAL_ZONES.filter(trial => {
+        if (!contentProgression.isUnlocked('battleTrials')) return false;
         if (trial.bloomTrial) return canSeeTalentBloomTrial();
         return (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id);
     });
