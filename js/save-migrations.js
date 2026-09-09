@@ -1040,7 +1040,7 @@ function mergeDefaults(save) {
         merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
     }
     if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && !['beehive_run', 'colony_run', 'grand_breach_run', 'cosmos_challenge', LABYRINTH_ZONE_ID, METEOR_FALL_ZONE_ID, OUTSIDE_CHAOS_ZONE_ID, CHAOS_REALM_ZONE_ID, SKY_TOWER_ZONE_ID, UNDERWORLD_ZONE_ID, BEYOND_BOUNDARY_ZONE_ID].includes(merged.currentZoneId)) merged.currentZoneId = 0;
-    if (typeof merged.currentZoneId === 'string' && !getZone(merged.currentZoneId)) merged.currentZoneId = 0;
+    if (typeof merged.currentZoneId === 'string' && !getSavedZoneForValidation(merged)) merged.currentZoneId = 0;
     if (merged.currentZoneId === BEYOND_BOUNDARY_ZONE_ID && !merged.beyondBoundary.activeRun) merged.currentZoneId = getAutoProgressZoneId(merged.maxZoneId);
     if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
     if (merged.beehive && merged.beehive.inRun && merged.currentZoneId !== 'beehive_run') {
@@ -1080,6 +1080,10 @@ function mergeDefaults(save) {
 }
 
 function normalizeSavedCombatRuntime(state) {
+    state.cosmosGravity = null;
+    restoreCosmosRouteSave(state);
+    const challenge = state.cosmosAtlas.activeChallenge;
+    if (challenge) challenge.habitat = cosmosRouteRuntime.habitat(state, challenge.nodeId);
     const time = Number(state.combatTimeMs);
     state.combatTimeMs = Number.isFinite(time) ? Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, time)) : 0;
     delete state.isBackgroundCalculation;
@@ -1087,6 +1091,151 @@ function normalizeSavedCombatRuntime(state) {
     delete state.backgroundOverflowSalvageCount;
     delete state.backgroundKillMix;
     return state;
+}
+
+function getSavedZoneForValidation(state) {
+    // During boot the current game has no challenge yet; validate the incoming snapshot instead.
+    if (state.currentZoneId === 'cosmos_challenge') return createCosmosChallengeZone(state);
+    return getZone(state.currentZoneId);
+}
+
+/** Restore the additive route ledger; invalid routes never grant rewards or change exploration records. */
+function restoreCosmosRouteSave(state) {
+    restoreCosmosRouteBoard(state);
+    const route = state.cosmosRoute;
+    if (!route) { state.cosmosRoute = null; return; }
+    if (!isValidCosmosRouteSave(route)) {
+        console.warn('Invalid cosmos route save discarded; earned rewards and atlas records retained.');
+        state.cosmosRoute = null;
+        return;
+    }
+    state.cosmosRoute = JSON.parse(JSON.stringify(route));
+    if (route.version === 1) cosmosRouteRuntime.upgrade(state);
+    const active = ['fighting', 'choice'].includes(route.phase);
+    if (!active) return;
+    if (route.loop !== state.season || state.currentZoneId !== 'cosmos_challenge') {
+        state.cosmosRoute.phase = 'returned';
+        state.cosmosRoute.queue = [];
+        return;
+    }
+    if (route.phase === 'choice') state.combatHalted = true;
+    else if (state.cosmosAtlas.activeChallenge?.nodeId !== route.queue[0]) {
+        state.cosmosRoute.phase = 'returned';
+        state.cosmosRoute.queue = [];
+    }
+}
+
+function isValidCosmosRouteSave(route) {
+    if ([3,4,5].includes(route.version)) return isValidCosmosExpeditionSave(route);
+    return isValidLegacyCosmosRouteSave(route);
+}
+
+function isValidLegacyCosmosRouteSave(route) {
+    if (![1, 2].includes(route.version) || !['dust', 'boss'].includes(route.goal)) return false;
+    if (!['fighting', 'choice', 'complete', 'failed', 'returned'].includes(route.phase)) return false;
+    if (![0, 1, 2, 3, 4, 5].includes(route.stage)) return false;
+    if (![1, 2, 3, 4, 5].includes(route.legSize)) return false;
+    if (!Number.isFinite(route.loop) || !Number.isFinite(route.dust) || route.dust < 0) return false;
+    return isValidCosmosRouteLedger(route) && isValidCosmosRouteVersion(route);
+}
+
+function isValidCosmosRouteVersion(route) {
+    return route.version === 1 || isValidCosmosRoutePlan(route);
+}
+
+function restoreCosmosRouteBoard(state) {
+    const saved = state.cosmosRouteBoard;
+    const defaults = defaultGame.cosmosRouteBoard;
+    const board = saved && typeof saved === 'object' ? saved : defaults;
+    state.cosmosRouteBoard = {
+        seed: Number.isSafeInteger(board.seed) ? Math.max(1, Math.min(1000000000, board.seed)) : 1,
+        selected: [0, 1, 2].includes(board.selected) ? board.selected : 0,
+        goal: ['dust', 'boss'].includes(board.goal) ? board.goal : 'dust',
+        retryAt: Number.isFinite(board.retryAt) ? Math.max(0, Math.min(board.retryAt, Date.now() + COSMOS_ROUTE_G1.retryMs)) : 0,
+        decisions: { ...defaults.decisions },
+        habitats: defaults.habitats.map((id, index) => Object.hasOwn(COSMOS_ROUTE_G1.habitats, board.habitats?.[index]) ? board.habitats[index] : id)
+    };
+    for (const stage of [1, 3]) {
+        const signal = board.decisions?.[stage];
+        if (COSMOS_ROUTE_G1.choices[stage].includes(signal)) state.cosmosRouteBoard.decisions[stage] = signal;
+    }
+}
+
+function isValidCosmosExpeditionSave(route) {
+    if (!['fighting','complete','failed','returned'].includes(route.phase)) return false;
+    if (!Number.isSafeInteger(route.seed) || !Number.isFinite(route.loop) || !['dust','boss'].includes(route.goal)) return false;
+    const definition = COSMOS_ROUTE_GALAXIES[route.version === 5 ? route.galaxy : 1];
+    return !!definition && isValidCosmosExpeditionPlan(route, definition) && isValidCosmosExpeditionLedger(route) && isValidCosmosExpeditionPhase(route);
+}
+
+function isValidCosmosExpeditionPlan(route, definition) {
+    if (!Array.isArray(route.plan) || route.plan.length !== 4) return false;
+    if (!route.plan.every((ids,i) => Array.isArray(ids) && ids.length === definition.lengths[i])) return false;
+    if (route.version === 3 && !isValidLegacyCosmosHabitats(route.habitats)) return false;
+    const ids = route.plan.flat(), expected = new Set([definition.start,definition.boss,...definition.middle]);
+    if (ids[0] !== definition.start || ids.at(-1) !== definition.boss) return false;
+    return new Set(ids.filter(id => expected.has(id))).size === definition.total;
+}
+
+function isValidCosmosExpeditionLedger(route) {
+    if (!Array.isArray(route.history) || !Array.isArray(route.queue) || route.history.length > route.plan.flat().length) return false;
+    if (!Number.isFinite(route.dust) || route.dust < 0) return false;
+    const ledger = route.plan.flatMap((leg,stage) => leg.map(id => ({id,stage})));
+    if (!route.history.every((row,i) => row?.id === ledger[i].id && row.stage === ledger[i].stage && Number.isFinite(row.dust) && row.dust >= 0)) return false;
+    return route.history.reduce((sum,row) => sum + row.dust,0) === route.dust;
+}
+
+function isValidLegacyCosmosHabitats(habitats) {
+    return Array.isArray(habitats) && habitats.length === 4 && habitats[3] === 'guard'
+        && habitats.every(id => Object.hasOwn(COSMOS_ROUTE_G1.habitats,id));
+}
+
+function isValidCosmosExpeditionPhase(route) {
+    if (route.phase === 'complete') return route.stage === 4 && route.history.length === route.plan.flat().length && route.queue.length === 0;
+    if (![0,1,2,3].includes(route.stage)) return false;
+    if (route.phase !== 'fighting') return route.queue.length === 0;
+    const ledger = route.plan.flatMap((leg,stage) => leg.map(id => ({id,stage})));
+    return ledger[route.history.length]?.stage === route.stage && isValidCosmosRoutePlanProgress(route);
+}
+
+function isValidCosmosRoutePlan(route) {
+    if (!Number.isInteger(route.seed) || !Array.isArray(route.plan) || route.plan.length !== 5) return false;
+    if (![1, 3].every(stage => COSMOS_ROUTE_G1.choices[stage].includes(route.decisions[stage]))) return false;
+    if (!route.plan.every((leg, stage) => Array.isArray(leg) && leg.length === (stage % 4 === 0 ? 1 : route.legSize))) return false;
+    if (route.plan[0][0] !== COSMOS_ROUTE_G1.start || route.plan[4][0] !== COSMOS_ROUTE_G1.boss) return false;
+    const middle = route.plan.slice(1, 4).flat();
+    const pool = new Set([...COSMOS_ROUTE_G1.planets, ...COSMOS_ROUTE_G1.asteroids]);
+    if (new Set(middle).size !== middle.length || !middle.every(id => pool.has(id))) return false;
+    return isValidCosmosRoutePlanProgress(route);
+}
+
+function isValidCosmosRoutePlanProgress(route) {
+    if (!Array.isArray(route.history)) return false;
+    if (!route.history.every(row => route.plan[row.stage]?.includes(row.id))) return false;
+    if (route.phase !== 'fighting') return true;
+    const remaining = route.plan[route.stage].filter(id => !route.history.some(row => row.id === id));
+    return JSON.stringify(route.queue) === JSON.stringify(remaining);
+}
+
+function isValidCosmosRouteLedger(route) {
+    const ids = new Set([COSMOS_ROUTE_G1.start, COSMOS_ROUTE_G1.boss,
+        ...COSMOS_ROUTE_G1.planets, ...COSMOS_ROUTE_G1.asteroids]);
+    if (!Array.isArray(route.queue) || !Array.isArray(route.history) || route.history.length > 17) return false;
+    if (!isValidCosmosRoutePhase(route)) return false;
+    if (!route.queue.every(id => ids.has(id)) || route.queue.length > 5) return false;
+    if (!route.history.every(row => row && ids.has(row.id) && Number.isFinite(row.dust) && row.dust >= 0)) return false;
+    const combined = [...route.queue, ...route.history.map(row => row.id)];
+    if (new Set(combined).size !== combined.length) return false;
+    return true;
+}
+
+function isValidCosmosRoutePhase(route) {
+    if (!route.decisions || typeof route.decisions !== 'object') return false;
+    if (!['survey', 'salvage', 'rift'].includes(route.signal)) return false;
+    if (route.phase === 'complete') return route.stage === 5;
+    if (route.phase === 'choice') return [1, 3].includes(route.stage) && route.queue.length === 0;
+    if (route.phase === 'fighting') return route.stage < 5 && route.queue.length > 0;
+    return route.queue.length === 0;
 }
 
 function cloneDefaultGame() {

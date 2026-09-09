@@ -10,7 +10,7 @@
         cosmosBoss: '은하 고유 기믹'
     });
     const BOSS_PATTERN_DESCRIPTIONS = Object.freeze({
-        intro: '3번째 공격마다 예고한 한 칸을 강타합니다. 자동 전투가 범위를 벗어나 대응합니다.',
+        intro: '3번째 공격마다 예고한 한 칸을 강타합니다. 긴급 회피 컨디션 젬으로 범위를 벗어날 수 있습니다.',
         burst: '4번째 공격마다 연속 참격으로 피해가 30% 증가합니다.',
         slam: '3번째 공격마다 파쇄 강타로 피해가 55% 증가합니다.',
         ramp: '생명력이 낮아질수록 최대 3단계까지 격앙하여 공격 피해가 증가합니다.',
@@ -129,6 +129,7 @@
         let state = getBossPatternPreview(enemy);
         if (!state) return null;
         if (enemy.patternArea) state.area = enemy.patternArea;
+        state.castStartedAt = enemy.patternTelegraphStartedAt;
         enemy.patternAttackCount = normalizeAttackCount(enemy) + 1;
         enemy.lastPatternState = state;
         enemy.nextPatternState = getBossPatternPreview(enemy);
@@ -190,7 +191,7 @@
     /** Live warnings, including attacks already released but not yet resolved. */
     function getBossWarningCells(state, pending = []) {
         const enemies = (state.enemies || []).filter(enemy => enemy.hp > 0 && !enemy.noAttack
-            && !(enemy.ailments || []).some(ail => ail.type === 'freeze' && ail.time > 0));
+            && !(enemy.ailments || []).some(ail => ['freeze','stun','silence'].includes(ail.type) && ail.time > 0));
         const areas = enemies.map(enemy => enemy.patternArea).filter(Boolean);
         pending.forEach(attack => {
             if (attack.delivery === 'patternArea') areas.push(attack.bossPattern.area);

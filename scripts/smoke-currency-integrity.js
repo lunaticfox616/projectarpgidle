@@ -33,6 +33,9 @@ const context = {
 context.window = context;
 context.globalThis = context;
 vm.createContext(context);
+for (const file of ['data/constants.js', 'data/cosmos-route.js', 'js/cosmos-route.js']) {
+    vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
+}
 vm.runInContext(cosmosSource, context, { filename: 'js/cosmos-atlas.js' });
 
 assert.strictEqual(context.migrateLegacyCosmosStarDust(context.game.cosmosAtlas), 11, 'the authoritative wallet must win so spent star dust is never restored');

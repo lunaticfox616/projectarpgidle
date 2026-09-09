@@ -24,7 +24,7 @@ const tutorialActionUi = {
         unlock_skills: {
             selector: '#tab-skills .starter-gem-tutorial-target, #tab-skills .gem-library-card:not(.active):not(.equipment-blocked)',
             title: '스킬 젬 장착',
-            body: '원하는 공격 젬이나 보조 젬을 눌러 장착해 보세요. 선택한 젬에 따라 자동 전투가 달라집니다.',
+            body: '젬을 선택해 효과를 확인하고 ‘장착’을 누르세요. 선택한 젬에 따라 자동 전투가 달라집니다.',
             read: () => JSON.stringify([game.activeSkill, game.equippedSupports, game.equippedSummonSkills]),
             completed: (current, before) => current !== before
         }
@@ -111,6 +111,7 @@ const tutorialActionUi = {
 
 function renderTutorialStep() {
     if (!activeTutorial) return;
+    if (storyJournalUi.renderTutorial(activeTutorial)) return;
     document.getElementById('tutorial-kicker').innerText = '새 콘텐츠';
     document.getElementById('tutorial-title').innerText = activeTutorial.title;
     let pauseEnabled = game.settings.pauseGameOnOverlay !== false;

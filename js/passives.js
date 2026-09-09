@@ -6756,6 +6756,7 @@ function initBattleAssets() {
         skillFxMeteorGround: 'assets/effects/skill-meteor-ground-v2.png',
         skillFxContinuousSlash: 'assets/effects/skill-continuous-slash-v1.png',
         skillFxProjectile: 'assets/effects/skill-projectile-v2.png',
+        skillFxEnemyProjectiles: 'assets/effects/enemy-projectiles-v1.webp',
         skillFxVenomFang: 'assets/effects/skill-venom-fang-v3.png',
         skillFxFrostField: 'assets/effects/skill-frost-field-v2.png',
         skillFxBlizzardAmbient: 'assets/effects/skill-bludgeoning-blizzard-ambient-sheet-v2.png',

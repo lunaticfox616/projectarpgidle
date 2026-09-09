@@ -1,4 +1,26 @@
 const {test,expect}=require('@playwright/test');
+test('pending ailment damage uses the stat snapshot supplied to the HUD', async ({page}) => {
+    const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.route('https://**', route => route.fulfill({status:204,body:''}));
+    await page.goto('/'); await page.locator('#btn-startup-guest').click();
+    await page.locator('[data-class-id="warrior"]').click();
+    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    const result = await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null;
+        tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
+        const stats = {...getPlayerStats(false), dotDamageScale:2};
+        cachedTooltipStats = {...stats, dotDamageScale:0.01};
+        const enemy = createEnemy(getZone(1), {at:20,count:1}, 0);
+        const ail = {type:'ignite', time:2, power:1, sourceHitDamage:100, stacks:1};
+        Object.assign(enemy, {hp:10000,maxHp:10000,ailments:[ail]}); game.enemies = [enemy];
+        const expected = 100 * Math.floor(getEnemyDamageAilmentDps(ail, stats) * ail.time) / enemy.maxHp;
+        updateCombatUI(stats);
+        return {expected, width:parseFloat(document.querySelector('#ui-enemy-list .enemy-pending').style.width)};
+    });
+    expect(result.expected).toBeGreaterThan(0);
+    expect(result.width).toBeCloseTo(result.expected, 5);
+    expect(errors).toEqual([]);
+});
 test('attacking with life leech keeps health finite and visible through recovery ticks',async({page})=>{
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
     await page.route('https://**',r=>r.fulfill({status:204,body:''}));

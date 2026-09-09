@@ -56,7 +56,7 @@
 
 @media (max-width: 640px) {
   .tab-header,
-  .subtab-row {
+  .subtab-row:not(.skill-subtab-row) {
     overflow-y: hidden !important;
     overscroll-behavior-x: contain;
     scroll-snap-type: x proximity;

@@ -1343,6 +1343,19 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 }
 
 .condition-pattern-rule input[type="number"] { width: 68px; }
+.condition-rule-draft { color: var(--ui-text-muted); font-size: 12px; }
+.condition-pattern-rule > div:first-child { position: relative; }
+.condition-rule-live { margin-left: auto; font-size: 12px; }
+.condition-rule-live summary { display: flex; align-items: center; gap: 5px; min-height: 32px; min-width: 48px; cursor: pointer; list-style: none; }
+.condition-live-dot { width: 6px; height: 6px; background: var(--ui-text-muted); border-radius: 50%; }
+.condition-live-reason { position: absolute; top: 100%; right: 0; z-index: 6; width: min(240px, 100%); box-sizing: border-box; padding: 10px; border: 1px solid var(--ui-line); background: var(--ui-surface-2); color: var(--ui-text); border-radius: 5px; box-shadow: 0 6px 20px #0006; line-height: 1.5; }
+.condition-rule-live[data-state="cooldown"] .condition-live-dot { background: var(--ui-gold); }
+.condition-just-cast .condition-live-dot { background: #8bddac; }
+.condition-just-cast { animation: condition-cast-flash 850ms ease-out; }
+@keyframes condition-cast-flash { from { outline: 2px solid #adebc2; box-shadow: inset 0 0 15px #8bddac66; } to { outline: 2px solid transparent; box-shadow: none; } }
+.condition-gem-cooldown { position: absolute; right: 6px; bottom: 5px; padding: 2px 5px; border-radius: 4px; background: var(--ui-surface-2); color: var(--ui-gold); font-size: 11px; font-variant-numeric: tabular-nums; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .condition-just-cast { animation: none; outline: 1px solid #8bddac; } }
+.condition-pattern-rule select { min-width: 0; max-width: 100%; }
 
 .condition-gem-grid,
 .condition-gem-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; padding: 8px; }
@@ -1358,14 +1371,18 @@ body:not(.light-mode) #item-tab-equip .equipment-item-card::before {
 }
 .condition-gem-card {
     min-height: 68px;
+    width: 100%;
+    text-align: left;
+    font: inherit;
     padding: 9px;
     overflow: hidden;
     border: 1px solid color-mix(in srgb, var(--condition-tone) 62%, #4b4035);
     border-radius: 8px;
     background: linear-gradient(135deg, color-mix(in srgb, var(--condition-tone) 14%, #17191b), rgba(13, 15, 18, .96) 62%);
     box-shadow: inset 3px 0 0 color-mix(in srgb, var(--condition-tone) 76%, transparent);
-    cursor: help;
+    cursor: pointer;
 }
+.condition-gem-card:focus-visible { outline: 2px solid var(--ui-gold); outline-offset: 2px; }
 .condition-gem-card .combat-effect-icon,
 .condition-gem-choice-head .combat-effect-icon { width: 36px; height: 36px; pointer-events: none; }
 .condition-gem-card .combat-effect-icon:hover,
@@ -2016,11 +2033,51 @@ body.light-mode.desktop-windowed-ui .player-hud {
 .skill-loadout-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(76px, 1fr));
-  min-width: min(430px, 52%);
+  min-width: 0;
+  width: 100%;
   overflow: hidden;
   border: 1px solid rgba(53, 78, 104, .72);
   border-radius: 2px 11px 2px 11px;
   background: rgba(6, 13, 22, .76);
+}
+.skill-loadout-overview {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--ui-surface-2);
+}
+.gem-application-note { color: var(--ui-text-muted); font-size: 12px; line-height: 1.5; }
+#tab-skills .is-gem-selected { outline: 2px solid var(--ui-gold, #c8ad70); outline-offset: 2px; }
+#gem-selection {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  width: min(390px, calc((100vw - 16px) / var(--ui-display-factor, 1)));
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--ui-gold, #c8ad70);
+  border-radius: 9px;
+  background: var(--ui-surface-2);
+  color: var(--ui-text, #f0e5d0);
+  box-shadow: 0 16px 48px #0009;
+  font-family: inherit;
+  font-size: 13px;
+}
+#gem-selection:popover-open { display: flex; flex-direction: column; }
+.gem-selection-actions { display: flex; gap: 8px; padding: 10px; border-bottom: 1px solid var(--ui-line); flex: 0 0 auto; }
+.gem-selection-actions button { min-height: 40px; padding: 6px 12px; }
+.gem-selection-actions button:last-child { margin-left: auto; }
+.gem-selection-content { padding: 14px; overflow: auto; overscroll-behavior: contain; min-height: 0; }
+#gem-selection .tooltip-title { margin-top: 0; }
+/* Shared tooltip markup has inline colors intended for dark backgrounds. */
+body.light-mode #gem-selection .tooltip-line { color: var(--ui-text-2) !important; }
+body.light-mode #tab-skills .skill-loadout-summary { background: var(--ui-surface-2); border-color: var(--ui-line); }
+body.light-mode #tab-skills .skill-loadout-summary :is(span, strong, small) { color: var(--ui-text); }
+@media (max-width: 1080px) {
+  .gem-selection-actions button,
+  .condition-pattern-rule button,
+  .condition-pattern-rule select { min-height: 44px; }
 }
 .skill-loadout-summary > div { min-width: 0; padding: 8px 9px; border-left: 1px solid rgba(54, 76, 100, .52); }
 .skill-loadout-summary > div:first-child { border-left: 0; }

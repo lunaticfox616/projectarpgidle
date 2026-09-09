@@ -355,7 +355,7 @@
 
         @media (min-width: 1081px) {
             body:not(.startup-active):not(.loading-active) { overflow-y: auto; }
-            #left-pane, #right-pane { height: calc(100dvh - 30px); max-height: calc(100dvh - 30px); }
+            body:not(.desktop-windowed-ui) :is(#left-pane, #right-pane) { height: calc(100dvh - 30px); max-height: calc(100dvh - 30px); }
             #left-pane { overflow: hidden; }
             .tab-content { overscroll-behavior: contain; scrollbar-gutter: auto; }
         }

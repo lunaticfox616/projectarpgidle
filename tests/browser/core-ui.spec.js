@@ -850,8 +850,8 @@ test('condition patterns, Arcana and pruning render as one endgame progression p
     });
     await expect(page.locator('.condition-pattern-summary')).toBeVisible();
     await expect(page.locator('.condition-pattern-rule')).toHaveCount(1);
-    await expect(page.locator('.condition-pattern-rule')).toContainText('IF');
-    await expect(page.locator('.condition-pattern-rule')).toContainText('THEN');
+    await expect(page.locator('.condition-pattern-rule').getByRole('combobox', { name:'발동 조건' })).toHaveValue('enemy_many');
+    await expect(page.locator('.condition-pattern-rule').getByRole('combobox', { name:'실행 행동' })).toHaveValue('target_weakest');
     await expect(page.locator('.condition-gem-card')).toHaveCount(4);
     await expect(page.locator('.condition-gem-card .combat-effect-icon')).toHaveCount(4);
     for (const type of ['curse', 'warcry', 'guard', 'utility']) {
@@ -930,9 +930,7 @@ test('equipment triage classifies the current build without destabilizing select
     });
     const triage = page.locator('#ui-equipment-triage');
     await dismissVisibleTutorials(page);
-    if (await page.locator('.equipment-mobile-management').isVisible()) await page.locator('.equipment-mobile-management').click();
     await expect(triage.getByRole('button', { name: '일괄 분석' })).toBeVisible();
-    await expect(triage).toContainText('호버 대신');
     await triage.getByRole('button', { name: '일괄 분석' }).click();
     await expect(triage).toContainText('3개 완료');
     const cards = page.locator('#ui-inventory-list .equipment-grid-item');
@@ -1336,6 +1334,7 @@ test('salvaged equipment can be recovered for its exact reward on desktop and mo
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => {
+        clearInterval(gameTickHandle);gameTickHandle=null;
         game.combatHalted = true;
         game.enemies = [];
         game.season = 2;
@@ -1353,7 +1352,7 @@ test('salvaged equipment can be recovered for its exact reward on desktop and mo
     const shortcut = page.locator('#btn-salvage-recovery');
     await expect(shortcut).toHaveAttribute('aria-label', /복구 가능 장비 1개/);
     await dismissVisibleTutorials(page);
-    if (await page.locator('.equipment-mobile-management').isVisible()) await page.locator('.equipment-mobile-management').click();
+    await page.locator('.equipment-bulk-menu > summary').click();
     await shortcut.click();
     const overlay = page.locator('#salvage-recovery-overlay');
     await expect(overlay).toBeVisible();
@@ -2786,13 +2785,13 @@ test('representative battle and equipment layouts preserve the primary task hier
         });
         expect(managementFlow.pipBottom).toBeLessThanOrEqual(managementFlow.subtabsTop + 1);
         expect(managementFlow.switcherTop).toBeGreaterThanOrEqual(managementFlow.subtabsBottom - 1);
-        await page.locator('.equipment-mobile-management').click();
+        await page.locator('.equipment-bulk-menu > summary').click();
         const actionLayout = await page.locator('#item-tab-equip .equipment-salvage-actions').evaluate(element => {
             const buttons = Array.from(element.querySelectorAll('button')).slice(0, 2);
             const boxes = buttons.map(button => button.getBoundingClientRect());
-            return { sameRow: Math.abs(boxes[0].top - boxes[1].top) <= 2, minHeight: Math.min(...boxes.map(box => box.height)) };
+            return { inViewport: boxes.every(box => box.left >= 0 && box.right <= innerWidth && box.bottom <= innerHeight), minHeight: Math.min(...boxes.map(box => box.height)) };
         });
-        expect(actionLayout.sameRow).toBe(true);
+        expect(actionLayout.inViewport).toBe(true);
         expect(actionLayout.minHeight).toBeGreaterThanOrEqual(42);
     } else {
         const columns = await page.locator('.equipment-workspace').evaluate(element =>
@@ -3210,13 +3209,13 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
     await expect(stoneOverlay).toContainText('우주석 장착');
     await stoneOverlay.locator('.cosmos-stone-overlay-close').evaluate(button => button.click());
     await expect(stoneOverlay).toBeHidden();
-    const visibleCanvasSize = await page.locator('#cosmos-atlas-canvas').evaluate(canvas => ({ width: canvas.width, height: canvas.height }));
+    const visibleStars = await page.locator('[data-planned-node]').count();
     await page.evaluate(() => {
         switchMapSubtab('map-tab-zones');
         performUpdateStaticUI();
     });
-    const hiddenCanvasSize = await page.locator('#cosmos-atlas-canvas').evaluate(canvas => ({ width: canvas.width, height: canvas.height }));
-    expect(hiddenCanvasSize).toEqual(visibleCanvasSize);
+    expect(await page.locator('[data-planned-node]').count()).toBe(visibleStars);
+    await expect(page.locator('#cosmos-atlas-canvas')).toHaveCount(0);
     expect(failures).toEqual([]);
 });
 
@@ -3245,6 +3244,7 @@ test('cosmos expedition signals change risk and persist into the battle contract
     });
     const detail = page.locator('#ui-cosmos-detail');
     const cards = detail.locator('.cosmos-directive-card');
+    await detail.getByText('전투 조건 · 보상', {exact:true}).click();
     await expect(cards).toHaveCount(3);
     await expect(detail.locator('.cosmos-directive-card.selected')).toHaveCount(1);
     const readiness = detail.locator('.map-power-estimate');

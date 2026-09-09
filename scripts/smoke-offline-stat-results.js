@@ -49,4 +49,54 @@ const converted = numeric(r.getPlayerStats(false));
 assert.equal(numeric(r.getPlayerStats(false)), converted, 'repeated keystone conversions cannot mutate cached equipment');
 run('delete game.isBackgroundCalculation');
 assert.equal(numeric(r.getPlayerStats(false)), converted, 'cached and foreground defense conversions agree');
+
+// One-evaluation summon reuse must still observe target, level and loadout changes on the next call.
+const summons = fixture(23);
+summons.run(`(${configureEndgame.toString()})()`);
+summons.run('game.enemies = [createEnemy(getZone(game.currentZoneId), {at:0,count:1,boss:true}, 0)]; game.enemies[0].resC = 0;');
+const summonStats = summons.runtime.getPlayerStats(false);
+const detailedSummons = summons.runtime.estimateSummonDps(summonStats);
+const numericSummons = summons.runtime.estimateSummonDps(summonStats, false);
+assert.equal(numericSummons.activeCount, 8);
+assert.ok(numericSummons.total > 0);
+assert.equal(numericSummons.total, detailedSummons.total);
+assert.equal(numericSummons.lines.length, 0);
+assert.ok(detailedSummons.lines.some(line => line.includes('×8')));
+const stableState = summons.run('JSON.stringify(game)');
+assert.equal(summons.runtime.estimateSummonDps(summonStats, false).total, numericSummons.total);
+assert.equal(summons.run('JSON.stringify(game)'), stableState, 'repeated estimates do not advance combat or spend resources');
+summons.run('game.enemies[0].resC = 70;');
+assert.ok(summons.runtime.estimateSummonDps(summonStats, false).total < numericSummons.total, 'target mitigation cannot stay cached');
+summons.run("game.enemies[0].resC = 0; game.gemData['서리늑대 소환'].level += 5;");
+assert.ok(summons.runtime.estimateSummonDps(summonStats, false).total > numericSummons.total, 'gem upgrades apply on the next evaluation');
+summons.run("game.ascendKeystones.push('sb5');");
+assert.equal(summons.runtime.estimateSummonDps(summonStats, false).total, 0);
+assert.equal(summons.runtime.estimateSummonDps(summonStats).activeCount, 0);
+
+// Source phases own output buckets; the input investment and rune records remain reusable.
+const sources = summons.run(`(() => {
+    const bucket = createEmptyStatBucket();
+    const loop = Object.freeze({ flatHp: 2, flatDmg: 3, aspd: 4, move: 5 });
+    const deep = Object.freeze({ flatHp: 6, flatDmg: 7, aspd: 8, move: 9, dr: 10, crit: 11 });
+    accumulateCombatLoopStats(bucket, loop, deep);
+    const untouched = createEmptyStatBucket();
+    accumulateCombatLoopStats(untouched, null, undefined);
+    const rune = UNDERWORLD_RUNE_DB.find(row => row.stat === 'corpseExplodeChance');
+    const state = { unlockedSlots: 1, equippedRunes: [rune.no, rune.no], enhanceLvByNo: { [rune.no]: 25 },
+        bonusLinesByNo: { [rune.no]: [{stat:'flatHp',val:19}] } };
+    const snapshot = JSON.stringify(state);
+    const procs = accumulateCombatRuneStats(bucket, state);
+    return { hp: bucket.flatHp, dmg: bucket.flatDmg, aspd: bucket.aspd, move: bucket.move,
+        dr: bucket.dr, crit: bucket.crit, emptyHp: untouched.flatHp,
+        proc: procs.runeCorpseExplodeChance, expectedProc: rune.val * 1.25, unchanged: JSON.stringify(state) === snapshot };
+})()`);
+assert.equal(sources.hp, 103);
+assert.equal(sources.dmg, 23);
+assert.equal(sources.aspd, 15.6);
+assert.equal(sources.move, 12.2);
+assert.equal(sources.dr, 5);
+assert.equal(sources.crit, 6.6);
+assert.equal(sources.emptyHp, 0);
+assert.equal(sources.proc, sources.expectedProc, 'locked rune slots do not contribute');
+assert.equal(sources.unchanged, true);
 console.log('smoke-offline-stat-results passed');

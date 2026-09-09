@@ -5,7 +5,7 @@ for (const value of [undefined, null, -1, 0, 1e20, Infinity, NaN, 'oops', {}, 99
     const state = runtime.mergeDefaults({ settings: { uiScale: value } });
     assert.equal(state.settings.uiScale, 100, 'invalid/old saves use the normal user scale');
 }
-for (const value of [80, 90, 100, 110, 125, 150]) {
+for (const value of [80, 90, 100, 110, 125, 150, 175, 200, 225, 250]) {
     const state = runtime.mergeDefaults({ settings: { uiScale: String(value), themeMode: 'light' } });
     assert.equal(state.settings.uiScale, value);
     assert.equal(state.settings.themeMode, 'light');

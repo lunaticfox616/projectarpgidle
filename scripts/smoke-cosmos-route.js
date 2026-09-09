@@ -1,0 +1,153 @@
+const assert = require('assert');
+const fs = require('fs');
+const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
+const context = buildGameRuntime();
+context.showGameToast = () => {}; // Presentation boundary only.
+context.document.readyState = 'loading';
+for (const file of ['js/cosmos-rules.js', 'js/cosmos-atlas.js']) {
+    vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file });
+}
+const run = code => vm.runInContext(code, context);
+run(`game=cloneDefaultGame();window.game=game;game.season=50;game.level=100;
+    game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
+    game.journalEntries.push('woodsman');game.underworldProgress.highestFloor=30;
+    reconcileMapPrimaryContentUnlocks(game);getCosmosMasteryValue('combatFocus');`);
+
+assert.strictEqual(run('Object.keys(COSMOS_ROUTE_G1.habitatByNode).length'),26);
+const planned=run('JSON.stringify(cosmosRouteRuntime.preview(game).plan)');
+assert.strictEqual(run('cosmosRouteRuntime.start(game)'),true);
+run("game.cosmosAtlas.activeChallenge={route:true};continueCosmosChallengeAfterClear('stop');");
+assert.strictEqual(run('getZoneEncounterProfile(getZone(game.currentZoneId)).minPack'),7);
+assert.strictEqual(run('cosmosRouteRuntime.start(game)'),false);
+run('finishEncounterRun();');
+const firstDust=run('game.currencies.starDust');
+run("exploreSelectedCosmosNode('planet-0');");
+assert.strictEqual(run('game.currencies.starDust'),firstDust);
+run('const snapshot=JSON.parse(JSON.stringify(game));game=mergeDefaults(snapshot);window.game=game;');
+assert.strictEqual(run('game.cosmosRoute.version'),5);
+assert.strictEqual(run('JSON.stringify(game.cosmosRoute.plan)'),planned);
+run("const tamperedHabitat=JSON.parse(JSON.stringify(game));tamperedHabitat.cosmosAtlas.activeChallenge.habitat='storm';");
+assert.strictEqual(run('mergeDefaults(tamperedHabitat).cosmosAtlas.activeChallenge.habitat'),run('COSMOS_ROUTE_G1.habitatByNode[game.cosmosRoute.queue[0]]'));
+run('tamperedHabitat.cosmosRoute=null;');
+assert.strictEqual(run('mergeDefaults(tamperedHabitat).cosmosAtlas.activeChallenge.habitat'),null);
+run('for(let i=0;i<7;i++)finishEncounterRun();');
+assert.strictEqual(run('game.cosmosRoute.stage'),1);
+assert.strictEqual(run('getZoneEncounterProfile({...getZone(game.currentZoneId),cosmosHabitat:"guard"}).maxPack'),2);
+assert.strictEqual(run("getCosmosExclusiveEnemyTrait({...getZone(game.currentZoneId),cosmosHabitat:\"guard\"},true,false,1).id"),'cosmos_energyShield');
+run('for(let i=0;i<8;i++)finishEncounterRun();');
+assert.strictEqual(run('game.cosmosRoute.stage'),2);
+assert.strictEqual(run('getZone(game.currentZoneId).cosmosHabitat'),run('COSMOS_ROUTE_G1.habitatByNode[game.cosmosRoute.queue[0]]'));
+assert.strictEqual(run("cosmosRouteRuntime.enemyElement({...getZone(game.currentZoneId),cosmosHabitat:'storm'},false,'phys')"),'light');
+assert.strictEqual(run("cosmosRouteRuntime.enemyElement(getZone(game.currentZoneId),true,'phys')"),'phys');
+assert.strictEqual(run('cosmosRouteRuntime.encounter(getZone(game.currentZoneId),true)'),null);
+run('for(let i=0;i<9;i++)finishEncounterRun();');
+assert.strictEqual(run('game.cosmosAtlas.activeChallenge.nodeId'),'planet-46');
+assert.strictEqual(run('game.cosmosAtlas.cleared.length'),25);
+run('finishEncounterRun();');
+assert.strictEqual(run('game.cosmosRoute.phase'),'complete');
+assert.strictEqual(run('game.cosmosRoute.history.length'),26);
+assert.strictEqual(run('game.cosmosRoute.dust'),run('game.currencies.starDust'));
+const reward=run('game.currencies.starDust');
+run('finishEncounterRun();');
+assert.strictEqual(run('game.currencies.starDust'),reward);
+run("cosmosRouteRuntime.start(game);game.cosmosAtlas.activeChallenge={route:true};continueCosmosChallengeAfterClear('nextZone');");
+const previous=run('JSON.stringify(game.cosmosRoute.plan)');
+run("handlePlayerDefeat(getZone(game.currentZoneId),getPlayerStats(),'route defeat',{noToast:true});");
+assert.strictEqual(run('game.cosmosRoute.phase'),'failed');
+assert.strictEqual(run('game.cosmosRoute.queue.length'),0);
+assert.strictEqual(run('game.currencies.starDust'),reward);
+assert.strictEqual(run('cosmosRouteRuntime.start(game)'),false);
+assert(run('cosmosRouteRuntime.retryRemaining(game)')>29000);
+run('challengeSelectedCosmosNode();');
+assert.notStrictEqual(run('game.currentZoneId'),'cosmos_challenge');
+assert.strictEqual(run('cosmosRouteRuntime.retryRemaining(game,game.cosmosRouteBoard.retryAt)'),0);
+assert.strictEqual(run('cosmosRouteRuntime.retryRemaining(game,game.cosmosRouteBoard.retryAt-1)'),1);
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;');
+assert(run('cosmosRouteRuntime.retryRemaining(game)')>0);
+assert.notStrictEqual(run('JSON.stringify(cosmosRouteRuntime.preview(game).plan)'),previous);
+run(`game.cosmosRouteBoard.retryAt=0;cosmosRouteRuntime.start(game);game.cosmosAtlas.activeChallenge={route:true};
+    continueCosmosChallengeAfterClear('stop');
+    const foregroundRouteGame=game,protectedDust=game.currencies.starDust;
+    game=cloneBackgroundCombatState(game);game.isBackgroundCalculation=true;
+    for(let i=0;i<8;i++)finishEncounterRun();
+    if(game.cosmosRoute.stage!==1||foregroundRouteGame.cosmosRoute.stage!==0)throw new Error('offline stage isolation');
+    if(foregroundRouteGame.currencies.starDust!==protectedDust||shouldStopBackgroundReplay(game))throw new Error('offline side effect');
+    game=foregroundRouteGame;window.game=game;
+    const malformed=JSON.parse(JSON.stringify(game));malformed.cosmosRoute.plan[0][1]=malformed.cosmosRoute.plan[0][0];
+    if(mergeDefaults(malformed).cosmosRoute!==null)throw new Error('duplicate route accepted');
+    returnToTown();`);
+assert.strictEqual(run('game.cosmosRoute.phase'),'returned');
+run(`const v3=JSON.parse(JSON.stringify(game));v3.cosmosRoute.version=3;v3.cosmosRoute.habitats=['guard','storm','swarm','guard'];
+    const restoredV3=mergeDefaults(v3);if(restoredV3.cosmosRoute.version!==3)throw new Error('v3 migration lost');
+    restoredV3.cosmosRoute.phase='fighting';restoredV3.cosmosRoute.stage=0;restoredV3.cosmosRoute.queue=[restoredV3.cosmosRoute.plan[0][0]];
+    if(cosmosRouteRuntime.habitat(restoredV3)!=='guard')throw new Error('v3 profile changed');`);
+// The old step-by-step preview may have saved either a fight or a waiting junction.
+run(`const oldRoute=cloneBackgroundCombatState(game);
+    oldRoute.cosmosRoute={version:1,loop:50,phase:'fighting',stage:1,goal:'dust',legSize:5,
+        signal:'salvage',decisions:{1:'salvage'},queue:COSMOS_ROUTE_G1.planets.slice(0,5),
+        history:[{id:'planet-0',dust:4,stage:0}],dust:4};
+    oldRoute.currentZoneId='cosmos_challenge';
+    oldRoute.cosmosAtlas.activeChallenge={nodeId:oldRoute.cosmosRoute.queue[0],route:true};
+    const upgraded=mergeDefaults(oldRoute);
+    if(upgraded.cosmosRoute.version!==2||upgraded.cosmosRoute.phase!=='fighting')throw new Error('legacy fight migration');
+    if(upgraded.cosmosRoute.queue[0]!==oldRoute.cosmosRoute.queue[0])throw new Error('legacy encounter lost');
+    if(upgraded.cosmosRoute.decisions[3]!=='survey')throw new Error('unsafe legacy default');
+    oldRoute.cosmosRoute.phase='choice';oldRoute.cosmosRoute.queue=[];
+    const junction=mergeDefaults(oldRoute);
+    if(junction.cosmosRoute.phase!=='returned'||junction.cosmosRoute.dust!==4)throw new Error('legacy junction ledger');
+    const invalidPlan=cloneBackgroundCombatState(upgraded);
+    invalidPlan.cosmosRoute.plan[1][0]='planet-46';
+    if(mergeDefaults(invalidPlan).cosmosRoute!==null)throw new Error('invalid plan accepted');`);
+run(`const legacy=mergeDefaults({currencies:{starDust:91}});
+    if(legacy.cosmosRoute!==null||legacy.currencies.starDust!==91)throw new Error('legacy save');
+    const corrupt=mergeDefaults({...game,cosmosRoute:{version:2,history:'bad'},cosmosRouteBoard:{seed:-1,selected:5,decisions:null,retryAt:Infinity}});
+    if(corrupt.cosmosRoute!==null||corrupt.cosmosRouteBoard.selected!==0)throw new Error('corrupt save');`);
+
+run(`for(let seed=1;seed<=30;seed++){
+    game.cosmosRouteBoard.seed=seed;
+    const plan=cosmosRouteRuntime.preview(game).plan,ids=plan.flat();
+    if(JSON.stringify(plan.map(leg=>leg.length))!=='[8,8,8,2]')throw new Error('leg sizes');
+    if(new Set(ids).size!==26||ids[0]!=='planet-0'||ids[25]!=='planet-46')throw new Error('full expedition');
+}`);
+console.log('smoke-cosmos-route passed');
+run(`game=cloneDefaultGame();window.game=game;game.season=50;game.level=100;
+    game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
+    game.journalEntries.push('woodsman');game.underworldProgress.highestFloor=30;
+    reconcileMapPrimaryContentUnlocks(game);getCosmosMasteryValue('combatFocus');
+    if(cosmosRouteRuntime.start(game,2)||cosmosRouteRuntime.start(game,5))throw new Error('locked galaxy started');
+    const allVisited=new Set();
+    for(let galaxy=1;galaxy<=5;galaxy++){
+        const definition=COSMOS_ROUTE_GALAXIES[galaxy];
+        if(!cosmosRouteRuntime.start(game,galaxy))throw new Error('galaxy start '+galaxy);
+        game.cosmosAtlas.activeChallenge={route:true};continueCosmosChallengeAfterClear('stop');
+        for(let i=0;i<definition.total;i++){
+            if(getZone(game.currentZoneId).cosmosGalaxy>0 && getZone(game.currentZoneId).cosmosGalaxy!==galaxy)throw new Error('wrong galaxy');
+            allVisited.add(game.cosmosRoute.queue[0]);finishEncounterRun();
+            if(i===1){game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;
+                if(game.cosmosRoute.galaxy!==galaxy||game.cosmosRoute.phase!=='fighting')throw new Error('galaxy reload');}
+        }
+        if(game.cosmosRoute.phase!=='complete'||!game.cosmosAtlas.bossClears.includes(definition.boss))throw new Error('boss gate '+galaxy);
+        const malformed=JSON.parse(JSON.stringify(game));malformed.cosmosRoute.galaxy=6;
+        if(mergeDefaults(malformed).cosmosRoute!==null)throw new Error('invalid galaxy accepted');
+    }
+    if(allVisited.size!==125)throw new Error('missing destinations');
+`);
+run(`game=cloneDefaultGame();window.game=game;game.currentZoneId='cosmos_challenge';game.combatHalted=false;
+    game.cosmosAtlas.activeChallenge={nodeId:'planet-0'};game.moveTimer=0;game.combatTimeMs=1000;
+    game.gridPlayer={gx:4,gy:4};game.enemies=[{id:1,gx:1,gy:3,hp:10},{id:2,gx:7,gy:3,hp:10},{id:3,gx:6,gy:6,hp:10,isBoss:true}];
+    cosmosRouteRuntime.tickGravity();
+    game.combatTimeMs=2199;cosmosRouteRuntime.tickGravity();
+    if(game.enemies[0].gx!==1)throw new Error('gravity before warning');
+    game.combatTimeMs=2200;cosmosRouteRuntime.tickGravity();
+    if(game.enemies[0].gx!==2||game.enemies[1].gx!==6)throw new Error('gravity did not pull');
+    cosmosRouteRuntime.tickGravity();if(game.enemies[0].gx!==2)throw new Error('duplicate pulse');
+    game.combatTimeMs=2800;cosmosRouteRuntime.tickGravity();game.combatTimeMs=3400;cosmosRouteRuntime.tickGravity();
+    const cells=game.enemies.flatMap(getGridUnitCells).map(cell=>gridCellKey(cell.gx,cell.gy));
+    if(new Set(cells).size!==cells.length||cells.includes('4,4'))throw new Error('gravity overlap');
+    if(game.enemies[2].gx!==6||game.enemies.some(enemy=>enemy.hp!==10)||game.gridPlayer.gx!==4)throw new Error('gravity collateral');
+    const foreground=game;game=cloneBackgroundCombatState(game);game.combatTimeMs=8200;cosmosRouteRuntime.tickGravity();
+    if(foreground.cosmosGravity.nextPulseAt!==8200)throw new Error('gravity replay leaked');
+    game.currentZoneId=0;cosmosRouteRuntime.tickGravity();if(game.cosmosGravity!==null)throw new Error('gravity outside cosmos');
+`);
+console.log('all galaxies, save gates and gravity passed');

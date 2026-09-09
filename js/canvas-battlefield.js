@@ -386,6 +386,10 @@ function mergeSkillCastVfx(list, fx, profile, target, now) {
 
 function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportScale) {
     if (!fx || fx.dot || !fx.skillName) return;
+    if (worldTreeSkillFx.queueHit(fx, enemyPos, playerPos || enemyPos, now)) {
+        trimBattleSkillEffects(battleVisualState.skillEffects);
+        return;
+    }
     let profile = getSkillGemVfxProfile(fx.skillName);
     if (!profile) return;
     let stageKind = String(fx.stageKind || 'primary');
@@ -963,6 +967,7 @@ function drawCombatCellImage(ctx, image, view) {
 function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, imageKey, element) {
     if (now < launchAt || now > arriveAt || !source) return;
     let progress = clampNumber((now - launchAt) / Math.max(1, arriveAt - launchAt), 0, 1);
+    if (enemyProjectileSprites.draw(ctx, fx, source, targets, progress)) return;
     let profile = getSkillGemVfxProfile(fx.skillName) || {};
     let image = getSkillGemVfxImage(imageKey);
     let dedicatedProjectileImage = !!profile.projectileAsset;
@@ -991,6 +996,7 @@ function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, i
 
 /** Interpolate one moving image through its immutable cast-time waypoints. */
 function drawCombatPathFx(ctx, fx, now, gridProj) {
+    if (fx.enemyFlight?.finished) return;
     const releaseAt = fx.start + fx.releaseDelayMs;
     const elapsed = now - releaseAt, path = fx.travelPath;
     const next = path.findIndex(point => point.offsetMs > elapsed);
@@ -1003,6 +1009,7 @@ function drawCombatPathFx(ctx, fx, now, gridProj) {
 }
 
 function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
+    if (worldTreeSkillFx.travel(ctx, fx, now, gridProj)) return;
     if (fx.travelPath) return drawCombatPathFx(ctx, fx, now, gridProj);
     let launchAt = fx.start + Math.max(0, Number(fx.releaseDelayMs) || 0);
     let arriveAt = launchAt + Math.max(1, Number(fx.flightMs) || 1);
@@ -1010,6 +1017,10 @@ function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
     let targets = (fx.targetCells || []).map((cell, index) => {
         let current = fx.owner === 'player' && fx.delivery === 'projectileTarget'
             ? enemyPosMap[(fx.targetIds || [])[index]] : null;
+        if (fx.owner === 'enemy' && fx.delivery === 'projectileTarget') {
+            const victim = fx.targetType === 'player' ? game.gridPlayer : game.summons.find(unit => unit.id === fx.targetId);
+            return getCombatTravelScreenPos(gridProj, victim || cell, playerPos);
+        }
         return current ? { x: current.x, y: current.y - 10 } : getCombatTravelScreenPos(gridProj, cell, playerPos);
     }).filter(Boolean);
     let imageKey = getCombatTravelImageKey(fx);
@@ -1212,17 +1223,7 @@ function drawProceduralSkillImpact(ctx, effect, progress) {
 
 function drawPlayerMobilityFx(ctx, fx, progress, gridProj) {
     if (!gridProj || !fx.fromCell || !fx.toCell) return;
-    let from = gridProj.cellToScreen(fx.fromCell.gx, fx.fromCell.gy);
-    let to = gridProj.cellToScreen(fx.toCell.gx, fx.toCell.gy);
-    let blink = fx.skillName === '그림자 점멸';
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = (1 - progress) * 0.62;
-    ctx.strokeStyle = blink ? '#c07cff' : '#b9ddff';
-    ctx.shadowColor = ctx.strokeStyle;
-    ctx.shadowBlur = 0;
-    drawSkillMobilitySignature(ctx, {from, to, blink, progress, tile: gridProj.tileW});
-    ctx.restore();
+    worldTreeSkillFx.mobility(ctx, fx, progress, gridProj);
 }
 
 function drawTrialTrapGridFx(ctx, fx, progress, gridProj, warning) {
@@ -1319,12 +1320,14 @@ function drawFootprintSkillImpact(ctx, effect, image, progress) {
 
 function drawSkillGemVfxLayer(ctx, now) {
     let list = battleVisualState.skillEffects || [];
+    worldTreeSkillFx.drawQueued(ctx, list, now);
     const spriteRenderers = {continuousSlash:drawSwordSlashVfx, bite:drawFenrirBiteVfx};
     list.forEach(effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
         let elapsed = now - effect.startAt;
         if (elapsed < 0 || elapsed > effect.duration) return;
         let t = clampNumber(elapsed / Math.max(1, effect.duration), 0, 1);
+        if (SKILL_FX_ATLAS[effect.skillName]) return;
         if (drawFootprintSkillImpact(ctx, effect, image, t)) return;
         const spriteRenderer = spriteRenderers[effect.family];
         if (spriteRenderer) return spriteRenderer(ctx, effect, image, t);
@@ -1406,12 +1409,11 @@ function getEnemyTelegraphColor(enemy) {
 }
 
 function drawBossPatternLabel(ctx, entry, enemy, gridUnitScale) {
-    if (!enemy.patternArea) return;
-    let pattern = enemy.nextPatternState
-        || (typeof getBossPatternPreview === 'function' ? getBossPatternPreview(enemy) : null);
-    if (!pattern || !pattern.isSpecial || !pattern.label) return;
+    if (!enemy.patternTelegraphKey && !enemy.attackCast && !(enemy.castInterruptedUntil > getCombatTime())) return;
+    const cast = enemyAttackRules.castBar(enemy,getCombatTime(),pendingEnemyCombatAttacks.find(attack => attack.enemyId === enemy.id));
+    if (!cast) return;
     let palette = getEnemyTelegraphColor(enemy);
-    let label = String(pattern.label);
+    let label = String(cast.label);
     let labelY = entry.y - 102 * gridUnitScale;
     ctx.save();
     ctx.font = '700 11px "Noto Sans KR", sans-serif';
@@ -1424,6 +1426,13 @@ function drawBossPatternLabel(ctx, entry, enemy, gridUnitScale) {
     ctx.globalAlpha = 0.98;
     ctx.fillStyle = palette.edge;
     ctx.fillText(label, entry.x, labelY);
+    const barWidth = Math.max(76, textWidth + 12);
+    ctx.fillStyle = '#080b10';
+    ctx.fillRect(entry.x-barWidth/2-1,labelY+10,barWidth+2,7);
+    ctx.fillStyle = cast.cancelled ? '#b85851' : '#544a37';
+    ctx.fillRect(entry.x-barWidth/2,labelY+11,barWidth,5);
+    ctx.fillStyle = palette.edge;
+    ctx.fillRect(entry.x-barWidth/2,labelY+11,barWidth*cast.progress,5);
     ctx.restore();
 }
 
@@ -1440,11 +1449,11 @@ function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendi
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
-        let frozen = (enemy.ailments || []).some(ailment => ailment && ailment.type === 'freeze' && (ailment.time || 0) > 0);
+        drawBossPatternLabel(ctx, entry, enemy, gridUnitScale);
+        let frozen = (enemy.ailments || []).some(ailment => ['freeze','stun','silence'].includes(ailment.type) && ailment.time > 0);
         if (frozen) return;
         if (enemy.isBoss) {
             drawBossPatternArea(ctx, enemy.patternArea, projection);
-            drawBossPatternLabel(ctx, entry, enemy, gridUnitScale);
             return;
         }
         if (!enemy.isElite) return;
@@ -2059,7 +2068,14 @@ function drawLootHighlightLabel(ctx, fx, position, progress) {
     ctx.restore();
 }
 
+function drawLegacyHitFeedback(ctx, fx, progress, playerPos, enemyPosMap) {
+    if (SKILL_FX_ATLAS[fx.skillName]) return;
+    drawBattleHitFx(ctx, fx, progress, playerPos, enemyPosMap);
+    drawDamageImpactAccent(ctx, fx, progress, enemyPosMap);
+}
+
 function renderBattlefield(forceWhenHidden) {
+    worldTreeSkillFx.beginFrame();
     const canvas = document.getElementById('battlefield-canvas');
     if (!canvas || (!forceWhenHidden && canvas.offsetParent === null)) return;
     if (!battleAssets.ready && !battleAssets.loading && !battleAssets.failed && window.__battleAssetAutoloadEnabled !== false) initBattleAssets();
@@ -2251,9 +2267,9 @@ function renderBattlefield(forceWhenHidden) {
             }
             if (!fx.dot && fx.skillName) {
                 const viewportSkillFxScale = Math.min(width / 960, height / 540);
-                queueSkillGemVfx({ ...fx, footprint: projectSkillFootprint(fx.attackFootprint, gridProj, fx.sourceCell) }, enemyPos, getCombatTravelScreenPos(gridProj, fx.sourceCell, playerPos), enemyPosMap, now, viewportSkillFxScale);
+                queueSkillGemVfx({ ...fx, combatFx:fx, footprint: projectSkillFootprint(fx.attackFootprint, gridProj, fx.sourceCell) }, enemyPos, getCombatTravelScreenPos(gridProj, fx.sourceCell, playerPos), enemyPosMap, now, viewportSkillFxScale);
             }
-            if (!fx.dot && typeof attackFxSpawn === 'function') {
+            if (!fx.dot && !SKILL_FX_ATLAS[fx.skillName] && typeof attackFxSpawn === 'function') {
                 const viewportFxScale = Math.min(width / 960, height / 540);
                 const attackFxOpts = getAttackFxSpawnOpts(fx, enemyPos.enemy, currentSkillVisual, viewportFxScale);
                 if (attackFxOpts) attackFxSpawn(fx.element || 'phys', enemyPos.x, enemyPos.y - 6, attackFxOpts);
@@ -2419,14 +2435,13 @@ function renderBattlefield(forceWhenHidden) {
             enemyPosMap[fx.enemyId] = { enemy: ghostEnemy.enemy || { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghostEnemy.x, y: ghostEnemy.y };
         }
         if (fx.type === 'playerSwing') {
-            drawBattleSwingFx(ctx, fx, t, playerPos);
+            worldTreeSkillFx.swing(ctx, fx, now, gridProj);
         } else if (fx.type === 'playerMobility') {
             drawPlayerMobilityFx(ctx, fx, t, gridProj);
         } else if (fx.type === 'combatTravel') {
             drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap);
         } else if (fx.type === 'hit') {
-            drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap);
-            drawDamageImpactAccent(ctx, fx, t, enemyPosMap);
+            drawLegacyHitFeedback(ctx, fx, t, playerPos, enemyPosMap);
         } else if (fx.type === 'levelUp') {
             drawLevelUpFx(ctx, fx, t, playerPos);
         } else if (fx.type === 'playerHit') {
@@ -2741,7 +2756,28 @@ function resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap) {
 }
 
 // ACT 배경의 9x8 직교 그리드. 유닛 점유 칸과 플레이어의 현재 공격 칸을 함께 표시한다.
+function drawCosmosGravityField(ctx, proj) {
+    const field = cosmosRouteRuntime.gravityView();
+    if (!field) return;
+    const center = proj.cellToScreen(field.gx,field.gy);
+    const radius = proj.tileW*(2.8-field.progress*2);
+    ctx.save();
+    ctx.strokeStyle = '#bba2ef';
+    ctx.fillStyle = '#29203f';
+    ctx.globalAlpha = .3+field.progress*.4;
+    ctx.beginPath();
+    ctx.ellipse(center.x,center.y,radius,radius*.65,0,0,Math.PI*2);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(center.x,center.y,proj.tileW*.35,proj.tileH*.25,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+}
+
 function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells, backdropActive) {
+    drawCosmosGravityField(ctx,proj);
     const halfW = proj.tileW / 2;
     const halfH = proj.tileH / 2;
     const tilePath = (gx, gy) => {

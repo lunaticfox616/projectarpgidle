@@ -18,7 +18,11 @@ const PROJECTILE_PATTERN_MODE_DB = Object.freeze({
     return: { label: '귀환 궤도', kind: 'line', targetMode: 'pierce', damageMultiplier: 0.9, combatPattern: { kind: 'boomerang', returnDelayMs: 160 } }
 });
 
-/** An authored combatPattern owns a fixed cast aim and ordered phases (milliseconds).
+/** Basic projectile travel is straight. Optional projectilePattern.trajectory='stages'
+ * preserves each hit stage's source/target route for custom bouncing or branching skills.
+ * Chain, fan, return and authored combatPattern.stages retain separate routes automatically.
+ * This changes presentation only; combatPattern owns hit geometry, timing and damage.
+ * An authored combatPattern owns a fixed cast aim and ordered phases (milliseconds).
  * Each stage defines label, delayMs, damagePct and optional grid overrides, element or skipGridControl.
  * Grid overrides are merged with SKILL_GRID_DB before calculating BOTH collision and visual footprints.
  * Phases replay once; each phase's damagePct is a percentage of the existing base hit coefficient.
@@ -159,6 +163,7 @@ safeExposeData({ SKILL_GEM_VFX_PROFILES });
 
 // Skill effect textures are data, shared by the runtime manifest and the asset editor.
 const SKILL_AREA_VFX_ASSETS = Object.freeze({
+    skillFxWorldTree: 'assets/effects/world-tree-skills.webp',
     skillFxBasicSlash: 'assets/effects/basic-slash-sheet.png',
     skillFxFenrirFang: 'assets/effects/fenrir-fang-sheet.png',
     skillFxDoubleSlash: 'assets/effects/double-slash-sheet.png',

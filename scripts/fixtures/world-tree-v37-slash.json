@@ -1,0 +1,151 @@
+{
+  "source": "v3.7/index.html?skill=1 default gallery sequence, not consumeBattleFx",
+  "sha256": "90d97f3696f08d67067d56253f56c5011e71f3af1a42bdcb68ffb0af5f8aa470",
+  "events": [
+    {
+      "skillName": "연속 베기",
+      "sourceCell": {
+        "gx": 2,
+        "gy": 4
+      },
+      "targetCells": [
+        {
+          "gx": 3,
+          "gy": 4
+        }
+      ],
+      "stageIndex": 0,
+      "element": "phys",
+      "kind": "windup",
+      "at": 0,
+      "duration": 360
+    },
+    {
+      "skillName": "연속 베기",
+      "sourceCell": {
+        "gx": 2,
+        "gy": 4
+      },
+      "targetCells": [
+        {
+          "gx": 3,
+          "gy": 4
+        }
+      ],
+      "stageIndex": 0,
+      "element": "phys",
+      "kind": "stage",
+      "at": 360,
+      "duration": 260,
+      "footprint": {
+        "cells": [
+          {
+            "gx": 3,
+            "gy": 4
+          },
+          {
+            "gx": 2,
+            "gy": 3
+          },
+          {
+            "gx": 2,
+            "gy": 5
+          }
+        ],
+        "cone": null,
+        "center": {
+          "gx": 3,
+          "gy": 4
+        }
+      }
+    },
+    {
+      "skillName": "연속 베기",
+      "sourceCell": {
+        "gx": 2,
+        "gy": 4
+      },
+      "targetCells": [
+        {
+          "id": 39,
+          "gx": 3,
+          "gy": 4,
+          "hp": 100,
+          "maxHp": 100
+        }
+      ],
+      "stageIndex": 0,
+      "element": "phys",
+      "kind": "hit",
+      "at": 360,
+      "duration": 180,
+      "repeatIndex": 0
+    },
+    {
+      "skillName": "연속 베기",
+      "sourceCell": {
+        "gx": 2,
+        "gy": 4
+      },
+      "targetCells": [
+        {
+          "id": 30,
+          "gx": 2,
+          "gy": 3,
+          "hp": 100,
+          "maxHp": 100
+        }
+      ],
+      "stageIndex": 0,
+      "element": "phys",
+      "kind": "hit",
+      "at": 360,
+      "duration": 180,
+      "repeatIndex": 0
+    },
+    {
+      "skillName": "연속 베기",
+      "sourceCell": {
+        "gx": 2,
+        "gy": 4
+      },
+      "targetCells": [
+        {
+          "id": 39,
+          "gx": 3,
+          "gy": 4,
+          "hp": 100,
+          "maxHp": 100
+        }
+      ],
+      "stageIndex": 0,
+      "element": "phys",
+      "kind": "hit",
+      "at": 360,
+      "duration": 180,
+      "repeatIndex": 1
+    },
+    {
+      "skillName": "연속 베기",
+      "sourceCell": {
+        "gx": 2,
+        "gy": 4
+      },
+      "targetCells": [
+        {
+          "id": 30,
+          "gx": 2,
+          "gy": 3,
+          "hp": 100,
+          "maxHp": 100
+        }
+      ],
+      "stageIndex": 0,
+      "element": "phys",
+      "kind": "hit",
+      "at": 360,
+      "duration": 180,
+      "repeatIndex": 1
+    }
+  ]
+}

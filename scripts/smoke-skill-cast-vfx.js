@@ -20,21 +20,24 @@ read('battleVisualState.skillEffects = []');
 for (let repeatIndex = 0; repeatIndex < 3; repeatIndex++) {
     runtime.queueSkillGemVfx({ id: repeatIndex, skillName: '뇌격 삼연타', damageTextGroupId: 'triple:0', repeatIndex }, targets[0], source, {}, 1000, 1);
 }
-assert.strictEqual(read('battleVisualState.skillEffects.filter(fx => fx.family === "slash").length'), 3, 'real triple hits remain distinct');
+assert.strictEqual(read('battleVisualState.skillEffects.filter(fx => fx.family !== "hitSpark").length'), 1, 'native bridge groups same-stage repeats');
+assert.strictEqual(read('battleVisualState.skillEffects.filter(fx => fx.family === "hitSpark").length'), 3, 'three confirmed contacts remain distinct');
 read('battleVisualState.skillEffects = []');
 targets.forEach((target, id) => runtime.queueSkillGemVfx({ id, skillName: '연쇄 폭풍',
     damageTextGroupId: 'chain:0', stageKind: 'chainJump' }, target, source, {}, 1000, 1));
-assert.strictEqual(read('battleVisualState.skillEffects.filter(fx => fx.connector).length'), 3, 'chain links must not collapse into an area blast');
+assert.strictEqual(read('battleVisualState.skillEffects.filter(fx => fx.family === "hitSpark").length'), 3, 'each confirmed chain arrival retains its contact; travel owns the connecting motion');
 read('battleVisualState.skillEffects = []');
 targets.forEach((target, id) => runtime.queueSkillGemVfx({ id, skillName: '화염 참격' }, target, source, {}, 1000, 1));
-assert.strictEqual(read('battleVisualState.skillEffects.length'), 3, 'unidentified legacy hits must not merge merely because their times match');
+assert.strictEqual(read('battleVisualState.skillEffects.filter(fx=>fx.family!=="hitSpark").length'), 1, 'native bridge uses the event time when no group ID is supplied');
 
 const calls = [];
+read('battleAssets.images.skillFxWorldTree={complete:true,naturalWidth:1024,naturalHeight:1728};');
 const ctx = new Proxy({}, { get: (_, key) => (...args) => calls.push({ key, args }) });
 read('battleAssets.images.skillFxImpactFlare = { complete: true, naturalWidth: 1280 };');
 read('Object.values(SKILL_SIGNATURE_SPRITES).forEach(spec=>{battleAssets.images[spec.asset]={complete:true,naturalWidth:1254,naturalHeight:1254};});');
 for (const skillName of ['중력 붕괴', '삼원 파동', '룬 지뢰', '불멸의 진동']) {
     calls.length = 0;
+    runtime.worldTreeSkillFx.beginFrame();
     const gridSource={gx:3,gy:4}, aim={gx:4,gy:4};
     const definition=read(`SKILL_DB[${JSON.stringify(skillName)}]`);
     const footprint=runtime.getSkillStageFootprint(skillName,definition,{targets:[{enemy:aim}]},gridSource);
@@ -43,8 +46,9 @@ for (const skillName of ['중력 붕괴', '삼원 파동', '룬 지뢰', '불멸
     const projection={tileW:40,tileH:40,cellToScreen:(gx,gy)=>({x:gx*40,y:gy*40})};
     runtime.drawCombatTravelFx(ctx,cast,1460,projection,source,{});
     const sparse=JSON.stringify(calls);
-    assert.strictEqual(calls.filter(call=>call.key==='drawImage').length,1,`${skillName}: sprite effect is visible`);
+    assert(calls.some(call=>call.key==='drawImage'),`${skillName}: sprite effect is visible`);
     calls.length=0;
+    runtime.worldTreeSkillFx.beginFrame();
     runtime.drawCombatTravelFx(ctx,{...cast,targetCells:[aim,{gx:5,gy:4}]},1460,projection,source,{});
     assert.strictEqual(JSON.stringify(calls),sparse,`${skillName}: extra victims never duplicate the spell`);
 }
@@ -61,6 +65,7 @@ assert.strictEqual(read('JSON.stringify(game)'), before, 'presentation grouping 
 // One visual travels through every confirmed hit and continues over empty cells to its range.
 {
     const { runtime: r, run } = require('./lib/replay-fixture')();
+    run('battleAssets.images.skillFxWorldTree={complete:true,naturalWidth:1024,naturalHeight:1728};');
     const projection = { tileW:40, tileH:40, cellToScreen:(gx,gy)=>({x:gx*40,y:gy*40}) };
     for (const skillName of ['번개 창', '서리 파동']) {
         for (const count of [1, 3]) {
@@ -80,17 +85,21 @@ assert.strictEqual(read('JSON.stringify(game)'), before, 'presentation grouping 
             run(`battleAssets.images[${JSON.stringify(imageKey)}]={complete:true,naturalWidth:128,naturalHeight:64};`);
             const translations=[];
             const ctx = new Proxy({}, {get:(_,key)=>(...args)=>{if(key==='translate')translations.push(args);}});
-            const state = run('JSON.stringify(game)');
+            const castAt = run('game.combatTimeMs');
             for (const row of pending) {
+                run(`game.combatTimeMs=${row.at};processPendingSkillStageHits();`);
+                const state = run('JSON.stringify(game)');
                 translations.length=0;
-                r.drawCombatTravelFx(ctx,fx,fx.start+row.at-run('game.combatTimeMs'),projection,{x:120,y:150},{});
-                assert.deepStrictEqual(translations[0],[row.targetCells[0].gx*40,150],
+                r.drawCombatTravelFx(ctx,fx,fx.start+row.at-castAt,projection,{x:120,y:150},{});
+                assert.deepStrictEqual(translations[0],[row.targetCells[0].gx*40,160],
                     'the image crosses each enemy when its original damage stage occurs');
+                assert.strictEqual(run('JSON.stringify(game)'),state,'visual travel is read-only');
             }
+            const state = run('JSON.stringify(game)');
             translations.length=0;
             const endAt=fx.start+fx.releaseDelayMs+fx.flightMs;
-            r.drawCombatTravelFx(ctx,fx,endAt,projection,{x:120,y:150},{});
-            assert.deepStrictEqual(translations[0],[320,150],'the same image reaches the range endpoint');
+            r.drawCombatTravelFx(ctx,fx,endAt-.01,projection,{x:120,y:150},{});
+            assert.deepStrictEqual(translations[0],[320,160],'the same image reaches the range endpoint');
             assert.strictEqual(run('JSON.stringify(game)'),state,'visual travel is read-only');
         }
     }

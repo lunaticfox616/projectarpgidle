@@ -33,6 +33,7 @@ test('a new warrior earns and equips the first gem through visible controls', as
         throw error;
     });
     await page.locator('.starter-gem-tutorial-target').click();
+    await page.locator('#gem-selection').getByRole('button', { name: '장착', exact: true }).click();
     await expect(page.locator('#tutorial-action-card')).toBeHidden();
     await expect(page.locator('#game-toast-region')).toContainText('스킬 젬 장착 완료');
     expect(await page.evaluate(() => game.activeSkill)).toBe('연속 베기');

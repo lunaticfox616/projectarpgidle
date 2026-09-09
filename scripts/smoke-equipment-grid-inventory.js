@@ -263,24 +263,8 @@ const gridHtml = context.renderEquipmentInventoryGrid(context.equipmentInventory
 assert(gridHtml.includes('data-grid-column="9"'), 'the renderer must expose clickable destination cells');
 assert(gridHtml.includes('equipmentInventoryInteraction.moveFocusedTo'), 'empty cells must support click-to-move');
 
-const inspector = { innerHTML: '' };
-const cards = [{
-    dataset: { equipmentGridKey: 'grid-bow' },
-    classList: { toggle(name, enabled) { this[name] = enabled; } },
-    setAttribute(name, value) { this[name] = value; }
-}];
-context.document.getElementById = id => id === 'ui-equipment-inventory-inspector' ? inspector : null;
-context.document.querySelectorAll = selector => selector === '[data-equipment-grid-key]' ? cards : [];
-context.equipmentInventoryInteraction.setFocusedKey(null);
-context.renderEquipmentInventoryInspector(vm.runInContext('game.inventory.map((item, idx) => ({ item, idx }))', context));
-assert.strictEqual(context.equipmentInventoryInteraction.getFocusedKey(), null, 'rendering the grid must not select its first item automatically');
-assert(inspector.innerHTML.includes('장비를 선택하면'), 'an unfocused grid must show a neutral selection prompt');
-context.equipmentInventoryInteraction.focus('grid-bow');
-assert.strictEqual(cards[0].classList.selected, true, 'clicking a grid item must focus its cell');
-assert.strictEqual(cards[0]['aria-pressed'], 'true', 'the focused cell must expose its selected state');
-assert(inspector.innerHTML.includes('검증용 장궁'), 'the inspector must show the focused item');
-assert(inspector.innerHTML.includes('equipItemById(7001)'), 'the focused item must keep an accessible equip action');
-assert(inspector.innerHTML.includes('salvageItemById(7001)'), 'the focused item must keep an accessible salvage action');
+// Selection, popover placement and actions run in equipment-selection-flow.spec.js
+// against the real DOM (desktop and touch), including equipped gear and loot refresh.
 
 const paperdoll = { innerHTML: '' };
 context.document.getElementById = id => id === 'paperdoll-test' ? paperdoll : null;
@@ -318,7 +302,10 @@ const pointerHideInfoTooltip = context.hideInfoTooltip;
 const pointerHideItemTooltip = context.hideItemTooltip;
 const pointerShowGameToast = context.showGameToast;
 const originalSafeExposeGlobals = context.safeExposeGlobals;
-context.document.addEventListener = (type, handler) => { pointerHandlers[type] = handler; };
+context.document.addEventListener = (type, handler) => {
+    const previous = pointerHandlers[type];
+    pointerHandlers[type] = event => { if (previous) previous(event); handler(event); };
+};
 context.document.querySelectorAll = selector => selector === '[data-equipment-grid-key]' ? interactionCards : [];
 context.hideInfoTooltip = () => {};
 context.hideItemTooltip = () => {};

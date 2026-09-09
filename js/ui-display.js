@@ -40,7 +40,8 @@ const uiDisplay = (() => {
     function registerStyles() {
         for (const sheet of Array.from(document.styleSheets)) {
             if (visitedSheets.has(sheet)) continue;
-            if (sheet.href && new URL(sheet.href).origin !== location.origin) continue;
+            // srcdoc previews inherit the parent's security origin, while location.origin is "null".
+            if (sheet.href && new URL(sheet.href).origin !== window.origin) continue;
             adaptRules(sheet.cssRules);
             visitedSheets.add(sheet);
         }

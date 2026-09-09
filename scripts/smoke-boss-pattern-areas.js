@@ -56,7 +56,10 @@ function bossFixture(mode = 'slam') {
     state.conditionGemUnlocked = true;
     state.conditionGemPool = ['긴급 회피'];
     state.skillAutoRules = [{enabled:true,priority:1,triggerType:'boss_warning',actionType:'condition_gem',skillName:'긴급 회피'}];
+    r.conditionGemFeedback.observe(state);
     r.runConditionGemAutoRules(stats);
+    assert.strictEqual(r.conditionGemFeedback.status(state.skillAutoRules[0]), 'cast');
+    assert.strictEqual(r.conditionGemFeedback.castAt(state.skillAutoRules[0]), r.getCombatTime());
     assert(!area.cells.some(cell => cell.gx === state.gridPlayer.gx && cell.gy === state.gridPlayer.gy),
         'the equipped condition gem must move outside the warned area');
     assert(state.conditionGemCooldowns['긴급 회피'] > r.getCombatTime(), 'successful escape starts cooldown');
@@ -117,9 +120,25 @@ for (const blockedBy of ['missing', 'disabled', 'cooldown', 'freeze', 'no-route'
     if (blockedBy === 'cooldown') state.conditionGemCooldowns['긴급 회피'] = r.getCombatTime() + 5000;
     if (blockedBy === 'no-route') enemy.patternArea.cells = Array.from({length:72},(_,i)=>({gx:i%9,gy:Math.floor(i/9)}));
     const before = JSON.stringify([state.gridPlayer,state.playerHp,state.conditionGemCooldowns]);
+    r.conditionGemFeedback.observe(state);
     r.runConditionGemAutoRules(stats);
+    const reasons = {missing:'missing',cooldown:'cooldown',freeze:'immobilized','no-route':'no-route'};
+    if (reasons[blockedBy]) assert.strictEqual(r.conditionGemFeedback.status(state.skillAutoRules[0]), reasons[blockedBy]);
     run('updateCombatHazardEvasion(getPlayerStats())');
     assert.strictEqual(JSON.stringify([state.gridPlayer,state.playerHp,state.conditionGemCooldowns]), before,
         `${blockedBy}: failed or unavailable evasion cannot move or spend cooldown`);
+}
+{
+    const {runtime:r, state, stats} = bossFixture();
+    state.season=2;state.conditionGemUnlocked=true;state.conditionGemPool=['철의 맹세'];
+    state.skillAutoRules=[{enabled:true,priority:1,triggerType:'hp_above',triggerValue:1,actionType:'condition_gem',skillName:'철의 맹세'}];
+    r.conditionGemFeedback.observe(null);
+    r.runConditionGemAutoRules(stats);
+    assert(state.conditionGemCooldowns['철의 맹세'] > r.getCombatTime(), 'closed UI must not change casting');
+    assert.strictEqual(r.conditionGemFeedback.castAt(state.skillAutoRules[0]), 0, 'closed UI stores no observation');
+    r.conditionGemFeedback.observe(state);
+    r.conditionGemFeedback.begin({...state}, r.getCombatTime());
+    r.conditionGemFeedback.record(state.skillAutoRules[0], 'cast');
+    assert.strictEqual(r.conditionGemFeedback.castAt(state.skillAutoRules[0]), 0, 'a replay clone must not write into foreground observations');
 }
 console.log('smoke-boss-pattern-areas passed');

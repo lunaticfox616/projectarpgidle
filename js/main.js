@@ -207,6 +207,7 @@ function runGameTick() {
 }
 
 function refreshCombatTickUi() {
+    cosmosRouteUi.updateVitals();
     let recentStats = game.lastCombatStats && (getCombatTime() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
     updateCombatUI(recentStats);
 }

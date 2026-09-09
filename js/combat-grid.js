@@ -156,8 +156,18 @@ function assignEnemyGridSpawn(enemy, blocked) {
 
 /**
  * 적의 근접/원거리 유형과 사거리를 배정한다. 보스는 항상 원거리(사실상 무제한 사거리),
- * 일반/정예는 스폰 시 확률(meleeEnemyChance)로 근접형이 되고 나머지는 3~5칸 사거리 원거리형이 된다.
+ * 일반/정예는 같은 외형 종류에 같은 유형을 배정한다. 외형 정보 없는 이전 적은 기존 확률을 사용한다.
  */
+function rollEnemyGridCombatProfile(enemy) {
+    const cfg = COMBAT_GRID_CONFIG;
+    if (enemy.monsterArchetype === 'wisp') return {melee:false,range:cfg.rangedEnemyMinRange};
+    const identity = enemy.monsterVisualId || enemy.spriteVariantId;
+    const random = identity ? createSeededRng('enemy-attack:' + identity) : Math.random;
+    const melee = random() < cfg.meleeEnemyChance;
+    return {melee,range:melee ? cfg.meleeAttackRange
+        : cfg.rangedEnemyMinRange+Math.floor(random()*(cfg.rangedEnemyMaxRange-cfg.rangedEnemyMinRange+1))};
+}
+
 function assignEnemyGridCombatProfile(enemy) {
     let cfg = COMBAT_GRID_CONFIG;
     if (enemy.isBoss) {
@@ -165,11 +175,13 @@ function assignEnemyGridCombatProfile(enemy) {
         enemy.attackRange = cfg.bossAttackRange;
         return;
     }
-    let melee = Math.random() < cfg.meleeEnemyChance;
+    const {melee,range} = rollEnemyGridCombatProfile(enemy);
     enemy.attackKind = melee ? 'melee' : 'ranged';
-    enemy.attackRange = melee
-        ? cfg.meleeAttackRange
-        : cfg.rangedEnemyMinRange + Math.floor(Math.random() * (cfg.rangedEnemyMaxRange - cfg.rangedEnemyMinRange + 1));
+    enemy.attackRange = range;
+    enemy.attackDelivery = melee ? 'instantTarget' : (enemy.attackRange === cfg.rangedEnemyMinRange ? 'projectileTarget' : 'projectileCell');
+    enemy.projectileToEdge = !melee && enemy.attackRange === cfg.rangedEnemyMaxRange;
+    enemy.attackCastMs = enemy.isElite && enemy.projectileToEdge ? 900 : 0;
+    if (enemy.attackCastMs) enemy.attackLabel = '관통 사격';
 }
 
 /** 플레이어를 스폰 칸으로 되돌린다(조우 시작/전장 리셋 시). */

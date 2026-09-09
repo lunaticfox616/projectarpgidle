@@ -56,21 +56,23 @@ assert.strictEqual(JSON.stringify(hit.attackFootprint), snapshot, 'confirmed hit
 assert.strictEqual(hit.sourceCell.gx, 3, 'the visual direction starts at the original caster cell');
 const renderState = run('JSON.stringify(game)');
 run('battleAssets.images.skillFxGravitySheet={complete:true,naturalWidth:1254,naturalHeight:1254};');
-let path = [], clips = [], images = [];
+run('battleAssets.images.skillFxWorldTree={complete:true,naturalWidth:1024,naturalHeight:1728};');
+let path = [], clips = [], images = [], imageScales = [], drawScale = [1,1];
 const ctx = new Proxy({ globalAlpha: 1 }, { get: (object, key) => key in object ? object[key] : (...args) => {
     if (key === 'beginPath') path = [];
     if (key === 'rect' || key === 'ellipse') path.push(args);
     if (key === 'clip') clips.push(args[0]?.commands || path.slice());
-    if (key === 'drawImage') images.push(args);
+    if (key === 'scale') drawScale = args;
+    if (key === 'drawImage') { images.push(args); imageScales.push(drawScale); }
 } });
 const cast = { owner:'player', skillName:'중력 붕괴', delivery:'magicCell', start:1000, duration:800,
     flightMs:100, sourceCell:source, aimCell:victim, targetCells:[victim], attackFootprint:area, element:'phys' };
 r.drawCombatTravelFx(ctx, cast, 1170, projection, {x:120,y:160}, {});
 assert.strictEqual(clips.length,0,'sprite artwork can extend beyond the battlefield boundary');
-assert(images[0][7]>200,'the full area sprite has a small visual margin beyond the damage footprint');
+assert(images[0][7]*imageScales[0][0]>200,'the full area sprite has a small visual margin beyond the damage footprint');
 assert.strictEqual(images.length,1,'one image frame is drawn for the full spell footprint');
 const sparseClips=JSON.stringify(clips);
-images=[]; clips=[];
+images=[]; imageScales=[]; clips=[];
 r.drawCombatTravelFx(ctx, {...cast,targetCells:[victim,{gx:6,gy:4}]}, 1170, projection, {x:120,y:160}, {});
 assert.strictEqual(JSON.stringify(clips),sparseClips,'more victims cannot resize the rendered spell');
 assert.strictEqual(run('JSON.stringify(game)'),renderState,'rendering cannot mutate combat state');
@@ -102,12 +104,13 @@ for (const aim of [{gx:4,gy:4},{gx:4,gy:5},{gx:2,gy:4},{gx:3,gy:1}]) {
     }
 }
 run('battleAssets.images.skillFxDragonBreath = {complete:true,naturalWidth:512};');
-images=[];
+images=[]; imageScales=[];
 r.drawCombatTravelFx(ctx, {owner:'player',skillName:'용화 숨결',delivery:'magicCell',patternKind:'channel',
     start:1000,duration:900,flightMs:100,sourceCell:source,aimCell:victim,targetCells:[victim],
     attackFootprint:breathArea,element:'fire'}, 1170, projection, {x:120,y:160}, {});
-assert.strictEqual(images.length, 1, 'one continuous breath, even when its footprint covers many cells');
-assert.strictEqual(images[0][3], 180);
-assert.strictEqual(images[0][4], 216);
+assert.strictEqual(images.length, breathArea.cells.length, 'native breath stamps occupy each confirmed footprint cell');
+assert.strictEqual(images[0][3], 64, 'sample one supplied frame');
+assert.strictEqual(images[0][4], 64);
+assert.strictEqual(images[0][7],64,'each breath piece retains the original square sprite size');
 assert.strictEqual(run('JSON.stringify(game)'), renderState, 'rendering cannot alter combat');
 console.log('smoke-skill-footprint passed');

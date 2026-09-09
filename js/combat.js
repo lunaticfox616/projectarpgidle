@@ -67,6 +67,7 @@ function resetCombatTacticsRuntime() {
 }
 
 function resetCombatChannelRuntime() {
+    cancelCombatChannelVisuals();
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
     combatChannelResumeSkillName = '';
     pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
@@ -80,12 +81,19 @@ function hasPlayerChannelBreakingAilment() {
 
 function cancelCombatChannel(reason) {
     if (!combatChannelRuntime.id) return false;
+    cancelCombatChannelVisuals();
     pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
     combatChannelResumeSkillName = '';
     game.passiveChannelPath = null;
     if (reason) addBattleFx('statusText', { text: `집중 취소 · ${reason}`, color: '#d7b8ff', duration: 480 });
     return true;
+}
+
+// Combat and animation have different clocks; mark cancellation without mixing their timestamps.
+function cancelCombatChannelVisuals() {
+    if (!combatChannelRuntime.id) return;
+    for (const fx of battleFx) if (fx.channelId===combatChannelRuntime.id) fx.cancelled=true;
 }
 
 function updateCombatChannelRuntime(now) {
@@ -947,11 +955,11 @@ function applyConditionPhysicalReductionEffects(pStats, conditionEffects) {
 }
 
 /** A successful condition-gem cast moves once; failed escapes spend no cooldown. */
-function tryConditionGemEvasion(entry, now) {
-    if (hasPlayerChannelBreakingAilment()) return false;
+function tryConditionGemEvasion(entry, now, rule) {
+    if (hasPlayerChannelBreakingAilment()) return conditionGemFeedback.record(rule, 'immobilized');
     const cells = getBossWarningCells(game, pendingEnemyCombatAttacks);
     const route = findNearestSafeGridRoute(game.gridPlayer, cells);
-    if (!route || !route.distance || route.distance > entry.evadeRange) return false;
+    if (!route || !route.distance || route.distance > entry.evadeRange) return conditionGemFeedback.record(rule, 'no-route');
     const from = { gx: game.gridPlayer.gx, gy: game.gridPlayer.gy };
     Object.assign(game.gridPlayer, route.destination, { gridMoveTimer: 0 });
     cancelCombatChannel(entry.name);
@@ -992,6 +1000,18 @@ function applyConditionGemCurse(entry, target, pStats, now) {
     }
 }
 
+function getConditionGemForRule(rule, pStats, now) {
+    normalizeConditionPatternRule(rule);
+    if (rule.actionType !== 'condition_gem') return null;
+    if (!evaluateConditionPatternRule(rule, pStats, game, now)) return conditionGemFeedback.record(rule, 'unmatched');
+    const name = (rule.skillName || '').trim();
+    if (!(game.conditionGemPool || []).includes(name)) return conditionGemFeedback.record(rule, 'missing');
+    const entry = getAllConditionGemEntriesForCombat().find(row => row.name === name);
+    if (!entry) return conditionGemFeedback.record(rule, 'missing');
+    if (now < (game.conditionGemCooldowns[name] || 0)) return conditionGemFeedback.record(rule, 'cooldown');
+    return entry;
+}
+
 function runConditionGemAutoRules(pStats) {
     let now = getCombatTime();
     cleanupConditionGemStates(now);
@@ -1003,23 +1023,18 @@ function runConditionGemAutoRules(pStats) {
     game.conditionGemCooldowns = game.conditionGemCooldowns || {};
     game.enemyConditionDebuffs = game.enemyConditionDebuffs || {};
     game.playerConditionBuffs = Array.isArray(game.playerConditionBuffs) ? game.playerConditionBuffs : [];
+    conditionGemFeedback.begin(game, now);
     let rules = game.skillAutoRules.filter(r => r && r.enabled).sort((a,b)=>(a.priority||0)-(b.priority||0));
     for (let rule of rules) {
-        normalizeConditionPatternRule(rule);
-        if (rule.actionType !== 'condition_gem') continue;
-        if (!evaluateConditionPatternRule(rule, pStats, game, now)) continue;
-        let gemName = (rule.skillName || '').trim();
-        if (!gemName || !(game.conditionGemPool || []).includes(gemName)) continue;
-        let entry = getAllConditionGemEntriesForCombat().find(e => e.name === gemName);
+        let entry = getConditionGemForRule(rule, pStats, now);
         if (!entry) continue;
-        let until = game.conditionGemCooldowns[gemName] || 0;
-        if (now < until) continue;
-        if (entry.evadeRange && !tryConditionGemEvasion(entry, now)) continue;
+        let gemName = entry.name;
+        if (entry.evadeRange && !tryConditionGemEvasion(entry, now, rule)) continue;
         let castTargetId = null;
         if (entry.type === 'curse') {
             let bypassCurseImmunity = typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero3__warlock');
             let target = (game.enemies || []).find(e => e && e.hp > 0 && (!e.curseImmune || bypassCurseImmunity));
-            if (!target) continue;
+            if (!target) { conditionGemFeedback.record(rule, 'no-target'); continue; }
             castTargetId = target.id;
             applyConditionGemCurse(entry, target, pStats, now);
         } else if (!entry.evadeRange) {
@@ -1047,7 +1062,8 @@ function runConditionGemAutoRules(pStats) {
         if (entry.type === 'curse' && typeof getPreciseTalentLevel === 'function' && getPreciseTalentLevel('hero10__warlock')) castDelayMs = 0;
         game.playerCastDelayUntil = Math.max(now, Math.floor(game.playerCastDelayUntil || 0), now + castDelayMs);
         let triggerSummary = formatConditionPatternTriggerSummary(rule);
-        game.lastConditionGemCast = { name: gemName, type: entry.type, targetId: castTargetId, triggerSummary, expiresAt: now + 1100 };
+        game.lastConditionGemCast = { name: gemName, type: entry.type, targetId: castTargetId, triggerSummary, ruleId: rule.id, expiresAt: now + 1100 };
+        conditionGemFeedback.record(rule, 'cast');
         addBattleFx('statusText', {
             enemyId: castTargetId,
             text: `${triggerSummary} → ${gemName}`,
@@ -1309,8 +1325,8 @@ function hasEmptyThroneSoloBonus() {
 }
 
 /** resolvedStats, when supplied, belongs to the current synchronous equipment evaluation only. */
-function getTargetGemBonusSources(target, fallbackSources, resolvedStats) {
-    let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(target, resolvedStats) : fallbackSources;
+function getTargetGemBonusSources(target, fallbackSources, resolvedStats, evaluation) {
+    let sources = (typeof getGemBonusSources === 'function') ? getGemBonusSources(target, resolvedStats, evaluation) : fallbackSources;
     sources = sources ? { ...sources } : { gear: 0, passive: 0, reward: 0, total: 0 };
     let jewelGemLevel = getEquippedJewelGemLevelBonusSources(target);
     sources.gear = Number(sources.gear || 0) + jewelGemLevel;
@@ -1339,12 +1355,12 @@ function getTargetGemBonusSources(target, fallbackSources, resolvedStats) {
     return sources;
 }
 
-function getSummonGemLevel(gemName, source, pStats) {
+function getSummonGemLevel(gemName, source, pStats, evaluation) {
     let isSupport = source === 'support';
     let records = isSupport ? (game.supportGemData || {}) : (game.gemData || {});
     let record = records[gemName] || {};
     let baseLevel = Math.max(1, record.level || 1);
-    let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources);
+    let sources = getTargetGemBonusSources(gemName, pStats && pStats.gemBonusSources, undefined, evaluation);
     let bonus = Math.max(0, Math.floor((sources && sources.total) || 0));
     let engraveBonus = typeof getGemSkyEnhanceGemLevelBonus === 'function' ? getGemSkyEnhanceGemLevelBonus(gemName) : 0;
     // getGemPresentation()의 활성 스킬 젬 totalLevel/finalLevel과 동일한 materialBonus 구성
@@ -1384,14 +1400,14 @@ function getSummonScaledBaseDamage(profile, gemLv, pStats) {
 // Used by Soulbinder '상호 보완'(sb7) so the player/summon share each other's *attack power* rather
 // than the raw %damage stat. Computed from summon-only stats, so it never depends on the player's
 // complement bonus — keeping the cross-share free of any feedback loop.
-function getRepresentativeSummonAttackPower(summonStats) {
+function getRepresentativeSummonAttackPower(summonStats, evaluation) {
     let names = (Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [])
         .filter(name => SKILL_DB[name] && Array.isArray(SKILL_DB[name].tags) && SKILL_DB[name].tags.includes('summon_attack'));
     let best = 0;
     names.forEach(name => {
         let profile = getSummonProfile(name);
         if (profile.role === 'guard') return;
-        let gemLv = getSummonGemLevel(name, 'skill', summonStats);
+        let gemLv = getSummonGemLevel(name, 'skill', summonStats, evaluation);
         let base = getSummonScaledBaseDamage(profile, gemLv, summonStats);
         let sharedInc = getSummonSharedDamageIncreasePct({ gemName: name }, summonStats);
         let arcanaPct = getSummonArcanaGemDamagePct({ gemName: name }, summonStats);
@@ -1695,82 +1711,104 @@ function applySummonAilmentFromHit(target, pStats, hitElement, hitDamage, isCrit
     });
 }
 
-function resolveActiveSummonGemLevels(pStats) {
+function resolveActiveSummonGemLevels(pStats, evaluation) {
     // A refresh owns this cache; no stale gem/gear values can survive into another tick.
     const levels = new Map();
     return buildActiveSummonRuntimeDefs(pStats).map(row => {
         const key = `${row.source}:${row.name}`;
-        if (!levels.has(key)) levels.set(key, getSummonGemLevel(row.name, row.source, pStats));
+        if (!levels.has(key)) levels.set(key, getSummonGemLevel(row.name, row.source, pStats, evaluation));
         return { ...row, gemLevel: levels.get(key) };
     });
 }
 
-function estimateSummonDps(pStats) {
+function calculateSummonDpsRow(row, pStats, target) {
+    const profile = getSummonProfile(row.name);
+    let gemLv = row.gemLevel;
+    let s = {
+        gemName: row.name,
+        ele: profile.ele || 'phys',
+        baseDamage: getSummonScaledBaseDamage(profile, gemLv, pStats),
+        attackSpeedMul: Math.max(0.1, Number(profile.attackSpeedMul || 1)),
+        resPenBonus: Math.max(0, Number(profile.resPenBonus || 0)),
+        physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
+        crit: Math.max(0, profile.baseCrit || 0),
+        critDmg: Math.max(100, profile.baseCritDmg || 140),
+        dmgRollMinPct: Math.max(1, Math.min(100, Math.floor(profile.dmgRollMinPct || 40)))
+    };
+    let intervalSec = getSummonAttackIntervalMs(pStats, s) / 1000;
+    let hit = getSummonHitDamageInfo(s, pStats, target, { expected: true });
+    let dps = hit.damage / intervalSec;
+    return { s, hit, dps };
+}
+
+/** Numeric consumers skip presentation; repeated identical summons share work within this call only. */
+function estimateSummonDps(pStats, includeBreakdowns = true, evaluation) {
     if (game.ascendClass === 'soulbinder' && hasKeystone('sb5')) {
-        return { total: 0, activeCount: 0, lines: ['홀로서기 각인: 소환수 직접 공격 비활성화'] };
+        return { total: 0, activeCount: 0, lines: includeBreakdowns ? ['홀로서기 각인: 소환수 직접 공격 비활성화'] : [] };
     }
-    let target = (game.enemies || []).find(e => e && e.hp > 0) || null;
-    let rows = resolveActiveSummonGemLevels(pStats);
+    const target = (game.enemies || []).find(e => e && e.hp > 0) || null;
+    const rows = resolveActiveSummonGemLevels(pStats, evaluation);
+    const estimates = new Map();
     let total = 0;
     let activeCount = 0;
-    let lines = [];
-    let groups = new Map();
-    let sbActive = game.ascendClass === 'soulbinder' && hasKeystone('sb7');
-    let sbShare = (sbActive && !hasKeystone('sb5')) ? 0.5 * Math.max(0, Number((pStats && pStats.sbPlayerAttackPower) || 0)) : 0;
-    let eleLabel = (ele) => typeof getDamageElementLabel === 'function' ? getDamageElementLabel(ele) : (ele || 'phys');
     rows.forEach(row => {
-        let profile = getSummonProfile(row.name);
-        if (profile.role === 'guard') return;
-        let gemLv = row.gemLevel;
-        let s = {
-            gemName: row.name,
-            ele: profile.ele || 'phys',
-            baseDamage: getSummonScaledBaseDamage(profile, gemLv, pStats),
-            attackSpeedMul: Math.max(0.1, Number(profile.attackSpeedMul || 1)),
-            resPenBonus: Math.max(0, Number(profile.resPenBonus || 0)),
-            physIgnoreBonus: Math.max(0, Number(profile.physIgnoreBonus || 0)),
-            crit: Math.max(0, profile.baseCrit || 0),
-            critDmg: Math.max(100, profile.baseCritDmg || 140),
-            dmgRollMinPct: Math.max(1, Math.min(100, Math.floor(profile.dmgRollMinPct || 40)))
-        };
-        let intervalSec = getSummonAttackIntervalMs(pStats, s) / 1000;
-        let hit = getSummonHitDamageInfo(s, pStats, target, { expected: true });
-        let dps = hit.damage / intervalSec;
-        total += dps;
+        if (getSummonProfile(row.name).role === 'guard') return;
+        const key = `${row.gemLevel}:${row.name}`;
+        if (!estimates.has(key)) estimates.set(key, calculateSummonDpsRow(row, pStats, target));
+        // Keep repeated addition (rather than multiplying by count) to preserve rounding.
+        total += estimates.get(key).dps;
         activeCount++;
-        if (!groups.has(row.name)) {
-            let flat = Math.max(0, (pStats && pStats.summonFlatDmg) || 0);
-            let sharedInc = getSummonSharedDamageIncreasePct(s, pStats);
-            let arcanaPct = getSummonArcanaGemDamagePct(s, pStats);
-            let dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc + arcanaPct) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
-            let ownAttackPower = (s.baseDamage * dmgMul) + sbShare;
-            let critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
-            let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
-            let aps = 1000 / getSummonAttackIntervalMs(pStats, s);
-            let penResPen = getLimitedSummonPenetrationStats(pStats, s).resPen;
-            groups.set(row.name, { profile, gemLv, s, flat, sharedInc, arcanaPct, dmgMul, ownAttackPower, critChance, critMul, aps, penResPen, hit, dps, count: 0 });
-        }
+    });
+    const lines = includeBreakdowns ? describeSummonDps(rows, estimates, pStats, activeCount) : [];
+    return { total: Math.max(0, total), activeCount, lines };
+}
+
+function buildSummonDpsDescriptionGroup(row, pStats, estimate, sbShare) {
+    const { s, hit, dps } = estimate;
+    const sharedInc = getSummonSharedDamageIncreasePct(s, pStats);
+    const arcanaPct = getSummonArcanaGemDamagePct(s, pStats);
+    const dmgMul = (1 + (((pStats.summonPctDmg || 0) + sharedInc + arcanaPct) / 100)) * (1 + ((pStats.summonEfficiency || 0) / 100));
+    const ownAttackPower = (s.baseDamage * dmgMul) + sbShare;
+    const critChance = Math.max(0.05, Math.min(0.95, ((s.crit || 0) + (pStats.summonCrit || 0)) / 100));
+    const critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
+    const aps = 1000 / getSummonAttackIntervalMs(pStats, s);
+    const penResPen = getLimitedSummonPenetrationStats(pStats, s).resPen;
+    return { gemLv: row.gemLevel, s, sharedInc, arcanaPct, dmgMul, ownAttackPower, critChance, critMul, aps, penResPen, hit, dps, count: 0 };
+}
+
+function describeSummonDps(rows, estimates, pStats, activeCount) {
+    const groups = new Map();
+    const sbActive = game.ascendClass === 'soulbinder' && hasKeystone('sb7');
+    const sbShare = sbActive ? 0.5 * Math.max(0, Number(pStats.sbPlayerAttackPower || 0)) : 0;
+    rows.forEach(row => {
+        const estimate = estimates.get(`${row.gemLevel}:${row.name}`);
+        if (!estimate) return;
+        if (!groups.has(row.name)) groups.set(row.name, buildSummonDpsDescriptionGroup(row, pStats, estimate, sbShare));
         groups.get(row.name).count++;
     });
-    lines.push(`공격 소환수 ${activeCount}기 · 소환수별 공격 주기로 합산`);
-    groups.forEach((g, name) => {
-        let mute = (txt) => `<span style="color:var(--copy-muted);">${txt}</span>`;
-        lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span> · 젬 Lv.${g.gemLv} · ${eleLabel(g.s.ele)}`);
-        lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
-        let arcanaText = g.arcanaPct > 0 ? ` + 별 아르카나 ${Math.floor(g.arcanaPct)}%` : '';
-        lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc + g.arcanaPct)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%${arcanaText}) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
-        lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}% · 공속 ${g.aps.toFixed(2)}/초 · 저항 관통 ${Math.floor(g.penResPen)}%`));
-        lines.push(mute(`&nbsp;&nbsp;기대 타격 ${Math.floor(g.hit.damage)} → 1기당 ${Math.floor(g.dps)} DPS (적 저항·제한 계수 반영)`));
-    });
+    const lines = [`공격 소환수 ${activeCount}기 · 소환수별 공격 주기로 합산`];
+    groups.forEach((group, name) => lines.push(...describeSummonDpsGroup(name, group, pStats, sbShare)));
     if (sbActive && sbShare > 0) {
         lines.push(`상호 보완: 내 공격력 ${Math.floor(pStats.sbPlayerAttackPower)}의 50%(+${Math.floor(sbShare)})가 소환수 타격마다 가산`);
     }
     if (rows.length > activeCount) lines.push(`방어/보조 소환수 ${rows.length - activeCount}기는 DPS에서 제외`);
     lines.push('소환수 공격력은 피해 증가가 적용된 값이며, 적 저항·최종 피해·보스 피해·관통은 소환수 제한 계수로 반영됩니다.');
     if (rows.some(row => row.duplicateIndex > 0)) lines.push('남는 소환수 한도는 공격 소환수 중복 소환으로 사용');
-    return { total: Math.max(0, total), activeCount: activeCount, lines: lines };
+    return lines;
 }
 
+function describeSummonDpsGroup(name, g, pStats, sbShare) {
+    const lines = [];
+    const eleLabel = ele => typeof getDamageElementLabel === 'function' ? getDamageElementLabel(ele) : (ele || 'phys');
+    let mute = (txt) => `<span style="color:var(--copy-muted);">${txt}</span>`;
+    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span> · 젬 Lv.${g.gemLv} · ${eleLabel(g.s.ele)}`);
+    lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? ` + 상호보완 ${Math.floor(sbShare)}` : ''}`));
+    let arcanaText = g.arcanaPct > 0 ? ` + 별 아르카나 ${Math.floor(g.arcanaPct)}%` : '';
+    lines.push(mute(`&nbsp;&nbsp;피해 증가 ${Math.floor((pStats.summonPctDmg || 0) + g.sharedInc + g.arcanaPct)}% (소환수 피해 ${Math.floor(pStats.summonPctDmg || 0)}% + 공유 ${Math.floor(g.sharedInc)}%${arcanaText}) × 효율 +${Math.floor(pStats.summonEfficiency || 0)}% = ×${g.dmgMul.toFixed(2)}`));
+    lines.push(mute(`&nbsp;&nbsp;치명타 ${(g.critChance * 100).toFixed(1)}% × 피해 ${Math.floor(g.critMul * 100)}% · 공속 ${g.aps.toFixed(2)}/초 · 저항 관통 ${Math.floor(g.penResPen)}%`));
+    lines.push(mute(`&nbsp;&nbsp;기대 타격 ${Math.floor(g.hit.damage)} → 1기당 ${Math.floor(g.dps)} DPS (적 저항·제한 계수 반영)`));
+    return lines;
+}
 function getSummonTooltipPreview(gemName, pStats) {
     let stats = pStats || (typeof getPlayerStats === 'function' ? getPlayerStats() : null) || {};
     let profile = getSummonProfile(gemName);
@@ -2497,13 +2535,19 @@ function prepareCombatTick(nowMs) {
     ensureSummonRuntime(pStats);
     tickSummonRecovery();
     tickFlaskAutoUse(pStats);
+    cosmosRouteRuntime.tickGravity();
     return pStats;
 }
 
 
 
+function isCombatDecisionPending(state) {
+    return state.pendingLoopHeroSelection || state.pendingLoopDecision || state.pendingLoopReady
+        || cosmosRouteRuntime.waiting(state);
+}
+
 function coreLoop(nowMs) {
-    if (game.pendingLoopHeroSelection || game.pendingLoopDecision || game.pendingLoopReady) return;
+    if (isCombatDecisionPending(game)) return;
     const pStats = prepareCombatTick(nowMs);
     // Guard against malformed stat payloads from legacy saves/runtime merges.
     // If ASPD becomes NaN/<=0, pTimer never advances and combat appears frozen.
@@ -2905,13 +2949,14 @@ function addPendingSkillTravelFx(row, attackContext, now) {
         visualTargetIds = boomerangReturn ? [] : visualTargetIds.slice(-1);
     }
     let fx = {
-        owner: 'player',
+        owner: 'player', channelId: row.channelId,
         delivery: row.delivery,
         patternKind: row.patternKind, stageKind: row.options.stageKind, stageIndex: row.options.stageIndex, stageDelayMs: row.options.stageDelayMs,
         sourceCell: row.sourceCell,
         aimCell: copyCombatGridCell(row.aimCell) || copyCombatGridCell((game.enemies || []).find(enemy => enemy
             && row.targetEntries[0] && String(enemy.id) === String(row.targetEntries[0].enemyId))) || visualTargetCells[0],
         targetCells: visualTargetCells, travelPath: row.travelPath,
+        contactSchedule: row.contactSchedule,
         attackFootprint: row.options.attackFootprint,
         targetIds: visualTargetIds,
         skillName: attackContext.skillName,
@@ -2936,7 +2981,7 @@ function buildRadialBurstVisualRow(rows, now) {
     };
 }
 
-/** Preserve hit times as visual waypoints, then cross empty cells to the cast's range.
+/** Preserve hit times on one straight visual ray, then cross empty cells to the cast's range.
  * @param {Readonly<typeof pendingSkillStageHits>} rows Scheduled rows; never mutated.
  * @returns {(typeof pendingSkillStageHits)[number] & {travelPath:Array<{gx:number,gy:number,offsetMs:number}>}}
  */
@@ -2946,8 +2991,13 @@ function buildLinearSkillVisualRow(rows) {
     const distance = cell => gridChebyshevDist(source.gx, source.gy, cell.gx, cell.gy);
     const end = first.options.attackFootprint.cells.reduce((a, b) => distance(b) > distance(a) ? b : a);
     const path = [{ ...source, offsetMs: 0 }];
-    rows.forEach(row => path.push({ ...row.targetCells[0],
-        offsetMs: Math.max(path[path.length - 1].offsetMs, row.at - first.launchAt) }));
+    const dx = end.gx-source.gx, dy = end.gy-source.gy, lengthSq = dx*dx+dy*dy;
+    rows.forEach(row => {
+        const cell = row.targetCells[0];
+        const progress = lengthSq ? clampNumber(((cell.gx-source.gx)*dx+(cell.gy-source.gy)*dy)/lengthSq,0,1) : 0;
+        path.push({gx:source.gx+dx*progress,gy:source.gy+dy*progress,
+            offsetMs:Math.max(path[path.length-1].offsetMs,row.at-first.launchAt)});
+    });
     const tip = path[path.length - 1];
     const remaining = gridChebyshevDist(tip.gx, tip.gy, end.gx, end.gy);
     if (remaining > 0) {
@@ -2958,7 +3008,15 @@ function buildLinearSkillVisualRow(rows) {
         path.push({ ...end, offsetMs: tip.offsetMs + Math.max(1, tailMs) });
     }
     return { ...first, at: first.launchAt + path[path.length - 1].offsetMs,
+        contactSchedule: rows.map(row => ({offsetMs: row.at - first.launchAt, state: row.contactState})),
         targetCells: [{ ...end }], targetEntries: last.targetEntries, travelPath: path };
+}
+
+/** Only a simple pierce/moving wave shares one ray; authored phases own their routes. */
+function groupsSkillTravelOnRay(row) {
+    const skill = row.pStats.sSkill;
+    if (skill.projectilePattern?.trajectory === 'stages' || skill.combatPattern?.stages) return false;
+    return row.patternKind === 'moving' || (row.delivery === 'projectileCell' && !row.patternKind);
 }
 
 function addPendingSkillTravelFxRows(rows, attackContext, now) {
@@ -2977,8 +3035,7 @@ function addPendingSkillTravelFxRows(rows, attackContext, now) {
         addPendingSkillTravelFx(buildRadialBurstVisualRow(queuedRows, now), attackContext, now);
         return;
     }
-    let straightPierce = firstRow.delivery === 'projectileCell' && firstRow.patternKind !== 'boomerang';
-    if (!straightPierce && firstRow.patternKind !== 'moving') {
+    if (!groupsSkillTravelOnRay(firstRow)) {
         queuedRows.forEach(row => addPendingSkillTravelFx(row, attackContext, now));
         return;
     }
@@ -3007,7 +3064,7 @@ function queuePlayerAttackSequence(pStats, stages, context) {
         color: getElementColor(context.forcedElement), element: context.forcedElement,
         crit: context.forcedCrit, projectile: tags.includes('projectile'),
         combatTravel: getSkillCombatDelivery(pStats.sSkill) !== 'instantTarget',
-        skillName: context.skillName, duration, impactDelayMs: Math.max(0, delayMs)
+        skillName: context.skillName, sourceCell:copyCombatGridCell(game.gridPlayer), duration, impactDelayMs: Math.max(0, delayMs)
     });
     queuePendingSkillStageHits(isChannel ? createContinuousChannelStages(stages, cycleMs) : stages, pStats, {
         ...context, channelId, channelCycleMs: cycleMs, baseDelayMs: delayMs, damageTextGroupId
@@ -3043,13 +3100,14 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             at: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt + travelMs : now + baseDelay + stageDelay,
             launchAt: (stageDelivery.startsWith('projectile') || stageDelivery === 'magicMoving') ? launchAt : now,
             zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
+            contactState: {resolved: false},
             aimCell: copyCombatGridCell(stage.aimCell),
             waveDurationMs: Math.max(0, Number(stage.waveDurationMs) || 0),
             channelId: Math.max(0, Math.floor(Number(attackContext.channelId) || 0)),
             fieldDurationMs: patternKind === 'channel' ? baseDelay + channelDurationMs + 120
                 : (['field', 'meteor'].includes(patternKind) ? baseDelay + finalStageDelayMs + 320 : 0),
             options: {
-                stageReplay: true, skipSlamEcho: true, skillName: attackContext.skillName,
+                sourceCell, stageReplay: true, skipSlamEcho: true, skillName: attackContext.skillName, channelId: attackContext.channelId,
                 forcedCrit: !!attackContext.forcedCrit, forcedElement: stage.element || attackContext.forcedElement,
                 talentAttackMultiplier: Number.isFinite(Number(attackContext.talentAttackMultiplier)) ? Math.max(0, Number(attackContext.talentAttackMultiplier)) : 1,
                 stageKind: stage.kind, stageLabel: stage.label, stageIndex: stageOffset, stageDelayMs: stageDelay, targetLimit: stage.targetLimit,
@@ -3067,7 +3125,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
             }
         };
         row.options.attackFootprint = getSkillStageFootprint(attackContext.skillName, pStats.sSkill, stage, sourceCell);
-        row.options.sourceCell = sourceCell;
+        row.contactSchedule = [{offsetMs: row.at - row.launchAt, state: row.contactState}];
         pendingSkillStageHits.push(row);
         queuedRows.push(row);
     });
@@ -3085,6 +3143,7 @@ function processPendingSkillStageHits() {
     });
     pendingSkillStageHits = next;
     ready.sort((a, b) => a.at - b.at).forEach(row => {
+        if (row && row.contactState) row.contactState.resolved = true;
         if (!row || row.zoneId !== game.currentZoneId || !row.pStats) return;
         let targets = getPendingSkillImpactTargets(row);
         if (targets.length <= 0) return;
@@ -3605,66 +3664,16 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
         addStatToBucket(passive, mut.currentStat, mut.currentVal);
     });
 
-    let seasonNodeLevels = (game && game.seasonNodeLevels && typeof game.seasonNodeLevels === 'object') ? game.seasonNodeLevels : {};
-    safeSeasonNodes.forEach(id => {
-        let node = getSeasonPassiveNodeDef(id);
-        if (!node) return;
-        let lv = Math.max(1, Math.floor(seasonNodeLevels[id] || 1));
-        let scaled = Number((node.val * (1 + Math.max(0, lv - 1) * 0.2)).toFixed(4));
-        addStatToBucket(season, node.stat, scaled);
-    });
-
-    if (game.ascendClass) {
-        let tree = getClassTreeDef(game.ascendClass);
-        safeAscendNodes.forEach(id => {
-            let node = tree[id];
-            if (!node) return;
-            if (Array.isArray(node.stats)) {
-                node.stats.forEach(statLine => addStatToBucket(ascend, statLine.stat, statLine.val));
-                return;
-            }
-            addStatToBucket(ascend, node.stat, node.val);
-        });
-    }
+    accumulateCombatSeasonStats(season, safeSeasonNodes, game.seasonNodeLevels);
+    accumulateCombatAscendStats(ascend, safeAscendNodes, game.ascendClass);
     safeRewardBonuses.forEach(entry => {
         if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
     });
-    let loop10Bonus = game.loop10BonusStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 };
-    let loopDeep = game.loopDeepStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
-    addStatToBucket(reward, 'flatHp', (loop10Bonus.flatHp || 0) * 12);
-    addStatToBucket(reward, 'flatDmg', (loop10Bonus.flatDmg || 0) * 3);
-    addStatToBucket(reward, 'aspd', (loop10Bonus.aspd || 0) * 1.5);
-    addStatToBucket(reward, 'move', (loop10Bonus.move || 0) * 1.0);
-    addStatToBucket(reward, 'flatHp', (loopDeep.flatHp || 0) * 10);
-    addStatToBucket(reward, 'flatDmg', (loopDeep.flatDmg || 0) * 2);
-    addStatToBucket(reward, 'aspd', (loopDeep.aspd || 0) * 1.2);
-    addStatToBucket(reward, 'move', (loopDeep.move || 0) * 0.8);
-    addStatToBucket(reward, 'dr', (loopDeep.dr || 0) * 0.5);
-    addStatToBucket(reward, 'crit', (loopDeep.crit || 0) * 0.6);
+    accumulateCombatLoopStats(reward, game.loop10BonusStats, game.loopDeepStats);
     let chaosRealmBonus = (ensureChaosRealmState().permanentBonuses || {});
     Object.keys(chaosRealmBonus).forEach(statKey => addStatToBucket(reward, statKey, chaosRealmBonus[statKey] || 0));
-    let runeCorpseExplodeChance = 0;
-    let runeCorpseExplodeLifePct = 0;
-    let runeResonancePower = 0;
-    if (Array.isArray(UNDERWORLD_RUNE_DB)) {
-        let runeState = game.underworldRunes || {};
-        let cap = Math.max(0, Math.min(6, Math.floor(runeState.unlockedSlots || 0)));
-        let equipped = Array.isArray(runeState.equippedRunes) ? runeState.equippedRunes.slice(0, cap) : [];
-        equipped.forEach(no => {
-            let n = Math.floor(Number(no) || 0);
-            if (n <= 0) return;
-            let rune = UNDERWORLD_RUNE_DB.find(row => row.no === n);
-            if (!rune) return;
-            let lv = Math.max(0, Math.floor((runeState.enhanceLvByNo && runeState.enhanceLvByNo[n]) || 0));
-            let boosted = Number(rune.val || 0) * (1 + lv * 0.01);
-            if (rune.stat === 'corpseExplodeChance') runeCorpseExplodeChance += boosted;
-            else if (rune.stat === 'corpseExplodeLifePct') runeCorpseExplodeLifePct += boosted;
-            else if (rune.stat === 'resonancePower') runeResonancePower += boosted;
-            else addStatToBucket(reward, rune.stat, boosted);
-            let bonusLines = (runeState.bonusLinesByNo && Array.isArray(runeState.bonusLinesByNo[n])) ? runeState.bonusLinesByNo[n] : [];
-            bonusLines.forEach(line => { if (line && line.stat) addStatToBucket(reward, line.stat, Number(line.val || 0)); });
-        });
-    }
+    const { runeCorpseExplodeChance, runeCorpseExplodeLifePct, runeResonancePower } =
+        accumulateCombatRuneStats(reward, game.underworldRunes);
     applyEliteTraitBuffStats(game.uniqueEliteTraitBuff, reward);
     if (typeof getCoreCubeActiveStats === 'function') {
         getCoreCubeActiveStats().forEach(stat => { if (stat && stat.id) addStatToBucket(reward, stat.id, stat.val); });
@@ -3698,14 +3707,16 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
             + season[statId] + ascend[statId] + reward[statId] + (starBlessing[statId] || 0);
     }
 
-    let gemSources = getTargetGemBonusSources(game.activeSkill, undefined, resolvedStats);
+    // Offline replay already owns a build memo. Foreground inputs live only through this call.
+    const gemEvaluation = getBackgroundBuildMemo(game) ? undefined : createGemBonusEvaluation(resolvedStats);
+    let gemSources = getTargetGemBonusSources(game.activeSkill, undefined, resolvedStats, gemEvaluation);
     safeEquippedSupports.forEach(name => {
         let gem = normalizeGemRecord((game.supportGemData || {})[name]);
         let db = SUPPORT_GEM_DB[name];
         if (!db) return;
         let activeTier = typeof getSupportActiveTier === 'function' ? getSupportActiveTier(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
         let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-        let supportGemSources = getTargetGemBonusSources(name, undefined, resolvedStats);
+        let supportGemSources = getTargetGemBonusSources(name, undefined, resolvedStats, gemEvaluation);
         let effectiveLevel = Math.max(1, gem.level + supportGemSources.total);
         let val;
         if (db.scaleWithOwnStat) {
@@ -4655,7 +4666,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
                 summonArcanaGemDamagePctByName: summonArcanaGemDamagePctByName,
                 summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId))]))
             };
-            sbSummonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare);
+            sbSummonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare, gemEvaluation);
             if (!hasKeystone('sb5')) {
                 sbSummonShareToPlayer = Math.floor(0.75 * sbSummonAttackPower);
                 finalBaseDmg += sbSummonShareToPlayer;
@@ -4813,7 +4824,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
     let finalPlayerSkillDps = finalDpsWithProjectileShots * skillSequenceDpsMultiplier + estimatedSkillDotDps;
     let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
     let flameDecayDpsLines = [];
-    if (skill.flameDecayDebuff) {
+    if (includeBreakdowns && skill.flameDecayDebuff) {
         flameDecayDpsLines = [
             `화염 부패 기대 지속 DPS ${Math.floor(estimatedSkillDotDps)} (생명력/초과 화염 저항/지속 피해 배율 적용, 적 저항 적용 전)`,
             `생명력 계수: 최대 생명력 ${Math.floor(finalMaxHp)} → 내장 피해 +${Math.floor(hpFlatBonus)}`,
@@ -5641,7 +5652,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
         ? Math.max(0, enemy.summonCap - 1) : 0;
     enemy.talentSourceStats = talentSourceStats;
     if (typeof applyTalentPrecisePostStats === 'function') applyTalentPrecisePostStats(enemy);
-    let summonEstimate = estimateSummonDps(enemy);
+    let summonEstimate = estimateSummonDps(enemy, includeBreakdowns, gemEvaluation);
     enemy.summonDps = Math.max(0, summonEstimate.total || 0);
     enemy.directDps = Math.max(0, enemy.dps || 0);
     enemy.totalDps = enemy.directDps + enemy.summonDps;
@@ -6078,12 +6089,11 @@ function getZoneElementWardProfile(zone) {
 
 function getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, seed) {
     if (!zone || zone.type !== 'cosmos') return null;
-    const tag = String(zone.cosmosTag || '').trim() || 'stellar';
     const sizeClass = Math.max(1, Math.min(5, Math.floor(zone.sizeClass || 1)));
     const gravity = Math.max(1, Number(zone.gravity || 1));
     const rankPower = isBoss ? 1.45 : (isElite ? 1 : 0.72);
     const power = rankPower * (1 + Math.max(0, sizeClass - 1) * 0.06 + Math.max(0, gravity - 1) * 0.04);
-    const mechanic = typeof resolveCosmosMechanic === 'function' ? resolveCosmosMechanic(tag, seed) : null;
+    const mechanic = cosmosRouteRuntime.mechanic(zone, isBoss, seed);
     if (!mechanic) return null;
     const archetype = mechanic.id;
     const trait = {
@@ -6402,7 +6412,7 @@ function getCosmosEnemyModifiers(zone, isElite, isBoss) {
         mod.patternMode = 'cosmosBoss';
         mod.traitName = `은하 보스: ${galaxyBossMechanic.name}`;
     }
-    return applyCosmosDirectiveModifiers(mod, zone);
+    return applyCosmosDirectiveModifiers(cosmosRouteRuntime.modifyEncounter(mod, zone, isBoss), zone);
 }
 
 // 루프 20 이후 적 강화(특히 생명력) 곡선을 완만하게 만든다.
@@ -6595,6 +6605,7 @@ function createEnemy(zone, marker, groupIndex) {
     }
     let enemyElePool = zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos'];
     let enemyEle = hasOceanCurrent(zone, 'cold_current') ? 'cold' : (hasOceanCurrent(zone, 'warm_current') ? 'fire' : rndChoice(enemyElePool));
+    enemyEle = cosmosRouteRuntime.enemyElement(zone, isBoss, enemyEle);
     let name = `${zone.name.split(':')[0]} 추종자`;
     if (zone.type === 'outsideChaos') {
         isBoss = true;
@@ -6852,7 +6863,7 @@ function getZoneEncounterProfile(zone) {
         let markerCount = Math.max(4, Math.min(12, 4 + sizeClass + Math.floor((gravity - 1) * 4)));
         let minPack = Math.max(2, Math.min(6, 2 + Math.floor(sizeClass / 2)));
         let maxPack = Math.max(minPack, Math.min(9, minPack + 2 + Math.floor((gravity - 1) * 2)));
-        return { markerCount, minPack, maxPack, eliteChance: Math.min(0.75, 0.16 + sizeClass * 0.05), bossAdds: 2 + Math.floor(sizeClass / 2), label: zone.name || '우주계' };
+        return cosmosRouteRuntime.encounterProfile(zone, { markerCount, minPack, maxPack, eliteChance: Math.min(0.75, 0.16 + sizeClass * 0.05), bossAdds: 2 + Math.floor(sizeClass / 2), label: zone.name || '우주계' });
     }
     if (zone.type === 'chaosRealm') return getChaosRealmEncounterProfile(zone);
     if (zone.type === 'skyTower') {
@@ -7486,7 +7497,7 @@ function spreadSkillAilmentOnHit(source, skill, pStats) {
 }
 
 const SKILL_PERIODIC_CHAIN_CAP = 12;
-function queueSkillPeriodicHit(enemy, config, damage, ele) {
+function queueSkillPeriodicHit(enemy, config, damage, ele, visual) {
     if (!config || enemy.hp <= 0 || Math.random() >= Math.max(0, Math.min(1, Number(config.chance) || 0))) return;
     enemy.skillPeriodics = Array.isArray(enemy.skillPeriodics) ? enemy.skillPeriodics : [];
     let queuedHits = enemy.skillPeriodics.reduce((sum, fx) => sum + Math.max(0, fx.hitsLeft || 0), 0);
@@ -7495,7 +7506,7 @@ function queueSkillPeriodicHit(enemy, config, damage, ele) {
     let hits = Math.min(Math.max(1, Math.floor(config.hits || 1)), allowedHits);
     let interval = Math.max(0.05, Number(config.interval) || 1);
     enemy.skillPeriodics.push({
-        hitsLeft: hits,
+        hitsLeft: hits, visual,
         interval: interval,
         timer: interval,
         damage: Math.max(1, Math.floor(damage * Math.max(0, Number(config.damagePct) || 0) / 100)),
@@ -7503,8 +7514,16 @@ function queueSkillPeriodicHit(enemy, config, damage, ele) {
     });
 }
 
-function applySkillPeriodicOnHit(enemy, skill, damage) {
-    queueSkillPeriodicHit(enemy, skill.periodicOnHit, damage, skill.ele);
+function applySkillPeriodicOnHit(enemy, skill, damage, skillName) {
+    queueSkillPeriodicHit(enemy, skill.periodicOnHit, damage, skill.ele, {skillName,sourceCell:copyCombatGridCell(game.gridPlayer)});
+}
+
+/** Native confirmedPeriodic/confirmedTransfer contract; only called after a real resolution. */
+function addConfirmedSkillEffect(kind, visual, target, element) {
+    if (!visual?.skillName || !hasGridCell(target) || !hasGridCell(visual.sourceCell)) return;
+    addBattleFx('combatTravel', {owner:'player',delivery:kind,skillName:visual.skillName,
+        sourceCell:visual.sourceCell,targetCells:[copyCombatGridCell(target)],element,
+        duration:kind==='confirmedPeriodic' ? 180 : 220});
 }
 
 function applySupportEchoOnHit(enemy, pStats, damage) {
@@ -7900,6 +7919,7 @@ function tickEnemyAilments(pStats, dt) {
         if (zone && zone.id === 'colony_run' && Number(enemy.colonyDist || 0) > 8) return;
         enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
         if (enemy.ailments.length <= 0) return;
+        enemyAttackRules.interrupt(enemy,getCombatTime());
         let next = [];
         enemy.ailments.forEach(ail => {
             let previousAilmentTime = Math.max(0, Number(ail.time) || 0);
@@ -7953,6 +7973,7 @@ function tickEnemySkillPeriodicEffects(pStats, dt) {
                 effect.hitsLeft--;
                 let mitigation = getEffectiveEnemyMitigation(effect.ele, zoneTier, enemy, pStats);
                 applyDamageToEnemyResource(enemy, Math.max(1, Math.floor(effect.damage * (1 - mitigation / 100))));
+                addConfirmedSkillEffect('confirmedPeriodic',effect.visual,enemy,effect.ele);
             }
         });
         enemy.skillPeriodics = effects.filter(fx => fx.hitsLeft > 0 && enemy.hp > 0);
@@ -8154,6 +8175,7 @@ function startEncounterRun() {
 }
 
 function startMoving(isTown) {
+    cosmosRouteRuntime.reconcileDeparture(game);
     let returnDepartureCell = isTown && hasGridCell(game.gridPlayer)
         ? copyCombatGridCell(game.gridPlayer)
         : null;
@@ -8217,6 +8239,7 @@ function finishTownReturnAction() {
 
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
+    cosmosRouteRuntime.leave(game);
     let pStats = getPlayerStats();
     game.playerHp = getPlayerHpCap(pStats);
     game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
@@ -9048,6 +9071,7 @@ function transferSkillDotOnDeath(enemy) {
     let transferred = { ...dotState, rawTickDamage: Math.max(1, Math.floor(dotState.rawTickDamage * scale)) };
     if (!target.dotState || transferred.rawTickDamage >= target.dotState.rawTickDamage) target.dotState = transferred;
     target.dotStacks = Math.max(target.dotStacks || 0, transferred.stacks || 1);
+    addConfirmedSkillEffect('confirmedTransfer',{skillName:dotState.skillName,sourceCell:copyCombatGridCell(enemy)},target,dotState.ele);
     addBattleFx('statusText', {
         enemyId: target.id,
         text: '지속 피해 이전',
@@ -9910,7 +9934,7 @@ function getPassiveKeystoneHitMultiplier(pStats, target, hitIndex, targetIndex, 
 function addPlayerHitVisualFx(pStats, options, targetEnemy, hit) {
     let { stageKind, stageLabel, stageCount, skillName, hitCrit, hitIdx, hitElement, dealtToEnemy, dmg, isStageReplay } = hit;
     addBattleFx('hit', {
-        enemyId: targetEnemy.id, color: getElementColor(hitElement), crit: hitCrit,
+        enemyId: targetEnemy.id, targetCell: copyCombatGridCell(targetEnemy), channelId: options.channelId, color: getElementColor(hitElement), crit: hitCrit,
         projectile: (pStats.sSkill.tags || []).includes('projectile'),
         pierce: pStats.sSkill.targetMode === 'pierce' || stageKind === 'piercePrimary' || stageKind === 'pierceThrough',
         chain: pStats.sSkill.targetMode === 'chain' || stageKind === 'chainJump',
@@ -9919,7 +9943,7 @@ function addPlayerHitVisualFx(pStats, options, targetEnemy, hit) {
         repeatIndex: hitIdx, stageCount, chainFromEnemyId: options.chainFromEnemyId,
         skillName: pStats.sSkill.visualName || skillName, damage: dealtToEnemy, rawDamage: dmg,
         damageTextGroupId: options.damageTextGroupId || '', attackFootprint: options.attackFootprint, sourceCell: options.sourceCell,
-        duration: 320, element: hitElement, syncToSwing: !isStageReplay
+        duration: 320, element: hitElement, syncToSwing: !isStageReplay, resolvedSkillContact: isStageReplay
     });
 }
 
@@ -10906,7 +10930,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 ailmentDamageMorePct: fenrirEffect ? { poison: fenrirEffect.poisonDamageMorePct } : null
             });
             spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill, pStats);
-            applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy);
+            applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy, pStats.sSkill.visualName || skillName);
             applySkillGridControlOnHit(targetEnemy, pStats.sSkill, options);
             applySupportEchoOnHit(targetEnemy, pStats, dealtToEnemy);
             applySupportChaosErosionOnHit(targetEnemy, pStats, hitElement);
@@ -10990,6 +11014,7 @@ function getDefeatRecoveryZoneId() {
 }
 
 function recordPlayerDefeatStart(zone, options) {
+    cosmosRouteRuntime.leave(game, 'failed');
     resetHiddenJournalBossRun();
     refillAllFlaskCharges();
     addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
@@ -11443,28 +11468,29 @@ function dispatchMonsterHitTargets(targets, damage, enemy, pStats) {
 }
 
 function getEnemyCombatDelivery(enemy, bossPattern) {
-    if (bossPattern && bossPattern.area) return 'patternArea';
-    if (enemy && enemy.isSeveredWanderer && enemy.wandererDelivery) return enemy.wandererDelivery;
-    if (!enemy || enemy.attackKind !== 'ranged') return 'instantTarget';
-    return bossPattern && bossPattern.isSpecial ? 'magicCell' : 'projectileCell';
+    return enemyAttackRules.delivery(enemy, bossPattern);
 }
 
 function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     let sourceCell = copyCombatGridCell(enemy);
     let targetCell = copyCombatGridCell(target);
+    if (enemy.attackCast) targetCell = enemy.attackCast.targetCell;
     if (!sourceCell || !targetCell) return false;
     let now = getCombatTime();
     let travelMs = enemy.isBoss ? BOSS_ATTACK_IMPACT_DELAY_MS : getCombatTravelMs(sourceCell, targetCell);
     let targetType = target === game.gridPlayer ? 'player' : 'summon';
-    pendingEnemyCombatAttacks.push({
-        at: now + travelMs, enemyId: enemy.id, source: enemy, sourceCell, targetType,
+    const attack = {
+        at: now + travelMs, castStartAt: now, enemyId: enemy.id, source: enemy, sourceCell, targetType,
         targetId: targetType === 'summon' ? target.id : null,
         targetCell, bossPattern: bossPattern || null, delivery
-    });
+    };
+    const flight = enemyAttackRules.trajectory(attack,enemy,travelMs);
+    travelMs = flight.duration;
+    pendingEnemyCombatAttacks.push(attack);
     if (delivery === 'patternArea') return true;
     addBattleFx('combatTravel', {
-        owner: 'enemy', sourceId: enemy.id, sourceCell, targetCells: [targetCell],
-        targetType, targetId: targetType === 'summon' ? target.id : null,
+        owner: 'enemy', sourceId: enemy.id, sourceCell, targetCells: [attack.targetCell], travelPath:flight.path, enemyFlight:attack,
+        targetType, targetId: attack.targetId,
         delivery, element: enemy.ele || 'phys', releaseDelayMs: 0,
         flightMs: travelMs, duration: travelMs + 260
     });
@@ -11473,9 +11499,14 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
 
 function takePendingEnemyCombatAttack(enemyId, now) {
     let index = pendingEnemyCombatAttacks.findIndex(row => row && row.enemyId === enemyId);
-    if (index < 0 || pendingEnemyCombatAttacks[index].at > now) return null;
-    let attack = pendingEnemyCombatAttacks.splice(index, 1)[0];
+    if (index < 0) return null;
+    let attack = pendingEnemyCombatAttacks[index];
+    if (enemyAttackRules.cancelPending(attack,now)) { pendingEnemyCombatAttacks.splice(index,1); return null; }
+    if (attack.at > now) return null;
+    if (attack.path && !enemyAttackRules.advanceFlight(attack,game,now)) return null;
+    pendingEnemyCombatAttacks.splice(index, 1);
     if (attack.delivery === 'patternArea') {
+        attack.source.attackCast = null;
         addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, duration: 240 });
     }
     return attack;
@@ -11483,25 +11514,7 @@ function takePendingEnemyCombatAttack(enemyId, now) {
 
 /** Resolve current occupants of the released attack, never its original victim's id. */
 function getEnemyCombatImpactTargets(pendingAttack) {
-    if (!pendingAttack || !pendingAttack.sourceCell || !pendingAttack.targetCell) return [];
-    let units = game.playerHp > 0 ? [game.gridPlayer] : [];
-    units.push(...game.summons.filter(row => row && row.alive && !row.isGhost && row.hp > 0));
-    if (pendingAttack.delivery === 'patternArea') {
-        let keys = new Set(pendingAttack.bossPattern.area.cells.map(cell => gridCellKey(cell.gx, cell.gy)));
-        return units.filter(unit => hasGridCell(unit) && isGridUnitInCellSet(unit, keys));
-    }
-    let source = pendingAttack.sourceCell, target = pendingAttack.targetCell;
-    let path = [target];
-    if (pendingAttack.delivery === 'projectileCell') {
-        let maxLen = Math.max(1, gridChebyshevDist(source.gx, source.gy, target.gx, target.gy));
-        path = gridLineCells(source.gx, source.gy, target.gx, target.gy, maxLen);
-        if (path.length <= 0) path = [target];
-    }
-    for (let cell of path) {
-        let unit = units.find(row => hasGridCell(row) && row.gx === cell.gx && row.gy === cell.gy);
-        if (unit) return [unit];
-    }
-    return [];
+    return enemyAttackRules.impactTargets(pendingAttack,game);
 }
 
 /** Base hit before the enemy's own modifiers and the victim's defenses. */
@@ -11532,11 +11545,7 @@ function performMonsterAttacks(pStats) {
         if (enemy.noAttack && !pendingAttack) continue;
         let ailMap = {};
         (enemy.ailments || []).forEach(ail => { if ((ail.time || 0) > 0) ailMap[ail.type] = Math.max(ailMap[ail.type] || 0, ail.power || 0); });
-        if (ailMap.freeze && !pendingAttack) {
-            enemy.patternTelegraphKey = null;
-            enemy.patternArea = null;
-            continue;
-        }
+        if (!pendingAttack && enemyAttackRules.interrupt(enemy,getCombatTime())) continue;
         if (enemy.forcedDefeatBoss) {
             let now = performance.now();
             if (now >= (enemy.nextForcedRegenAt || 0)) {
@@ -11587,6 +11596,7 @@ function performMonsterAttacks(pStats) {
         let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
         chillSlow += Math.max(0, Math.min(0.5, Number(enemy.skillSlowPct || 0) / 100));
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
+        if (!pendingAttack && pendingEnemyCombatAttacks.some(row => row.enemyId === enemy.id)) continue;
         let impactTargets = pendingAttack ? getEnemyCombatImpactTargets(pendingAttack) : [getEnemyPreferredGridTarget(enemy)];
         let attackTarget = impactTargets[0];
         if (!attackTarget) continue;
@@ -11606,15 +11616,15 @@ function performMonsterAttacks(pStats) {
         if (!Number.isFinite(enemy.attackTimer) || enemy.attackTimer < 0) enemy.attackTimer = 0;
         if (!pendingAttack) enemy.attackTimer += 0.1 * atkRate;
         if (enemy.isBoss && typeof refreshBossPatternPreview === 'function') refreshBossPatternPreview(enemy);
-        let bossPatternTelegraphReady = !!pendingAttack || !enemy.isBoss || typeof updateBossPatternTelegraph !== 'function'
-            || updateBossPatternTelegraph(enemy, getCombatTime(), attackTarget);
+        let bossPatternTelegraphReady = !!pendingAttack || (enemy.isBoss
+            ? updateBossPatternTelegraph(enemy, getCombatTime(), attackTarget) : enemyAttackRules.ready(enemy,getCombatTime(),attackTarget));
         let bossAttacksThisTick = 0;
         while (pendingAttack || enemy.attackTimer >= 1) {
             if (enemy.isBoss && bossAttacksThisTick >= 1) {
                 enemy.attackTimer = Math.min(enemy.attackTimer, 1);
                 break;
             }
-            if (enemy.isBoss && !bossPatternTelegraphReady) {
+            if (!bossPatternTelegraphReady) {
                 enemy.attackTimer = Math.min(enemy.attackTimer, 1);
                 break;
             }

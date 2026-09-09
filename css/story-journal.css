@@ -1,0 +1,17 @@
+body #tutorial-overlay.is-story-scene { inset:0; width:auto; padding:16px; background:rgba(4,7,12,.86); pointer-events:auto; }
+body #tutorial-overlay.is-story-scene.active { display:flex; align-items:center; justify-content:center; }
+body #tutorial-overlay.is-story-scene .tutorial-card { width:min(920px,100%); max-height:92dvh; margin:0; padding:22px; overflow:auto; }
+body #tutorial-overlay.is-story-scene .tutorial-body { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:22px; align-items:center; white-space:normal; }
+.story-scene-art { display:block; width:100%; height:auto; max-height:65dvh; object-fit:contain; border:1px solid var(--ui-line); border-radius:4px; }
+.story-scene-copy { line-height:1.9; font-size:15px; color:var(--ui-text); word-break:keep-all; }
+.story-scene-copy p { margin:0 0 12px; }
+.journal-illustration { display:block; width:100%; padding:0; margin:0 0 12px; background:transparent; border:1px solid var(--ui-line); border-radius:4px; overflow:hidden; cursor:zoom-in; }
+.journal-illustration img { display:block; width:100%; height:auto; aspect-ratio:1; object-fit:contain; }
+.journal-illustration:focus-visible { outline:2px solid var(--ui-accent); outline-offset:3px; }
+@media(max-width:700px) {
+    body #tutorial-overlay.is-story-scene { padding:12px; }
+    body #tutorial-overlay.is-story-scene .tutorial-card { padding:16px; }
+    body #tutorial-overlay.is-story-scene .tutorial-body { grid-template-columns:1fr; gap:12px; }
+    .story-scene-art { max-height:43dvh; }
+    .story-scene-copy { font-size:13px; line-height:1.7; }
+}

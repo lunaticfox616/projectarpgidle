@@ -580,7 +580,8 @@ function renderPaperdoll(targetId, forCrafting) {
                 : `<button class="equipment-slot-action" onclick="event.stopPropagation(); unequipItem('${slot}')">장착 해제</button>`;
             let sourceMeta = getDropOnlyItemSourceMeta(item);
             let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
-            html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="showItemTooltip(event, '${slot}', true)" onmousemove="showItemTooltip(event, '${slot}', true)" onmouseleave="hideItemTooltip(event)">
+            let preview = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${slot}', true)`;
+            html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
                 <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false"></div>
                 <div class="item-title equipment-slot-name ${item.rarity}">${hi(item.name)}</div>
                 ${footer}
@@ -614,12 +615,13 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
     if (triageResult && triageResult.ehpGainPct >= 1) badges += `<span>생존 +${triageResult.ehpGainPct}%</span>`;
     if (triageResult && triageResult.special) badges += '<span>특수</span>';
     let label = `${rarityLabel} ${item.name || item.baseName || '장비'} · ${footprint.columns}×${footprint.rows}`;
+    let preview = `if(window.matchMedia('(hover: hover)').matches&&!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)`;
     return `<button type="button" class="equipment-grid-item rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${carried ? 'is-carried' : ''} ${filterClass} ${sourceMeta ? sourceMeta.toneClass : ''}"
         style="grid-column:${footprint.column + 1}/span ${footprint.columns};grid-row:${footprint.row + 1}/span ${footprint.rows};--item-grid-columns:${footprint.columns};--item-grid-rows:${footprint.rows};" data-equipment-grid-key="${escapeHTML(itemKey)}"
         aria-pressed="${selected ? 'true' : 'false'}" aria-label="${escapeHTML(label)}"
         onclick="equipmentInventoryInteraction.handleItemClick(event,this.dataset.equipmentGridKey,${idx})"
         ondblclick="equipmentInventoryInteraction.handleItemDoubleClick(event,this.dataset.equipmentGridKey,${item.id})"
-        onmouseenter="if(!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)" onmousemove="if(!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)" onmouseleave="hideItemTooltip(event)">
+        onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
         <img src="${asset}" alt="" aria-hidden="true" draggable="false"><span class="equipment-grid-slot-label">${escapeHTML(item.slot)}</span><span class="equipment-grid-item-name">${escapeHTML(item.name || item.baseName || '장비')}</span>
         <span class="equipment-grid-item-badges">${badges}</span>
     </button>`;
@@ -655,12 +657,29 @@ function renderEquipmentInventoryGrid(layout, rows) {
     return renderEquipmentGridCells(layout, visibleKeys) + itemHtml;
 }
 
+function renderEquipmentInspectorActions(item, slot, presetProtected) {
+    let primaryAction = slot ? `equipmentInventoryInteraction.focus(null);unequipItem('${slot}')` : `equipmentInventoryInteraction.cancelCarry();equipItemById(${item.id})`;
+    let craftAction = slot ? `equipmentInventoryInteraction.focus(null);switchItemSubtab('item-tab-craft');selectForCrafting('${slot}',true)` : `equipmentInventoryInteraction.focus(null);craftSelectInventoryItemById(${item.id})`;
+    return `<button class="equipment-card-primary" onclick="${primaryAction}">${slot ? '장착 해제' : '장착'}</button>
+        ${contentProgression.canOpen('item-tab-craft') ? `<button data-content-action="craft" onclick="${craftAction}">제작</button>` : ''}
+        ${slot ? '' : renderEquipmentInventoryProtectionActions(item, presetProtected)}`;
+}
+
+function renderEquipmentInventoryProtectionActions(item, presetProtected) {
+    let salvageTitle = presetProtected ? '장비 세팅 프리셋에서 제거한 뒤 해체할 수 있습니다.' : '장비를 해체합니다.';
+    return `<button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})">${item.locked ? '잠금해제' : '잠금'}</button>
+        <button class="equipment-card-danger" title="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${item.locked || presetProtected ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button>`;
+}
+
 function renderEquipmentInventoryInspector(rows) {
+    equipmentInspectionUi.decorateLoadout();
     let root = document.getElementById('ui-equipment-inventory-inspector');
     if (!root) return;
     let visibleItems = (Array.isArray(rows) ? rows : []).map(row => row.item).filter(Boolean);
     let focusedKey = equipmentInventoryInteraction.getFocusedKey();
-    let item = visibleItems.find(row => equipmentInventoryGridRuntime.getItemKey(row) === focusedKey) || null;
+    let slot = equipmentInventoryInteraction.getFocusedEquipmentSlot();
+    let item = slot ? game.equipment[slot] : visibleItems.find(row => equipmentInventoryGridRuntime.getItemKey(row) === focusedKey);
+    if (item && equipmentInventoryGridRuntime.getItemKey(item) !== focusedKey) item = null;
     if (!item) {
         equipmentInventoryInteraction.setFocusedKey(null);
         let message = visibleItems.length ? '장비를 선택하면 세부 작업을 할 수 있습니다.' : '표시할 장비가 없습니다.';
@@ -671,19 +690,16 @@ function renderEquipmentInventoryInspector(rows) {
     equipmentInventoryInteraction.setFocusedKey(equipmentInventoryGridRuntime.getItemKey(item));
     let footprint = getEquipmentInventoryFootprint(item);
     let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item);
-    let salvageDisabled = item.locked || presetProtected;
-    let salvageTitle = presetProtected ? '장비 세팅 프리셋에서 제거한 뒤 해체할 수 있습니다.' : '장비를 해체합니다.';
     let rarityLabel = ({ normal: '일반', magic: '매직', rare: '레어', unique: '고유' })[item.rarity] || '일반';
     let html = `<div class="equipment-grid-inspector-copy rarity-${item.rarity || 'normal'}">
-        <img src="${getEquipmentGridVisualAsset(item)}" alt=""><div><span>${rarityLabel} · ${escapeHTML(item.slot || '장비')} · ${footprint.columns}×${footprint.rows}칸</span>
+        <img src="${getEquipmentGridVisualAsset(item)}" alt=""><div><span>${slot ? '장착 중' : rarityLabel} · ${escapeHTML(item.slot || '장비')} · ${footprint.columns}×${footprint.rows}칸</span>
         <strong class="${item.rarity || 'normal'}">${escapeHTML(item.name || item.baseName || '장비')}</strong><small>${escapeHTML(item.baseName || '')}${presetProtected ? ' · 세팅 보호' : ''}${item.locked ? ' · 잠금' : ''}</small></div>
     </div><div class="equipment-grid-inspector-actions">
-        <button class="equipment-card-primary" onclick="equipmentInventoryInteraction.cancelCarry();equipItemById(${item.id})">장착</button>
-        <button data-content-action="craft" onclick="craftSelectInventoryItemById(${item.id})">제작</button>
-        <button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})">${item.locked ? '잠금해제' : '잠금'}</button>
-        <button class="equipment-card-danger" title="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button>
-    </div>`;
+        ${renderEquipmentInspectorActions(item, slot, presetProtected)}
+    </div><div class="equipment-inspection-details"></div><button type="button" class="equipment-grid-inspector-close" aria-label="선택 닫기" onclick="equipmentInventoryInteraction.focus(null)">×</button>`;
     if (root.__lastHtml !== html) root.innerHTML = root.__lastHtml = html;
+    equipmentInspectionUi.render(root, item, slot);
+    equipmentInventoryInteraction.positionInspector();
 }
 
 safeExposeGlobals({ renderEquipmentInventoryGrid, renderEquipmentInventoryInspector });

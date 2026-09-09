@@ -918,35 +918,59 @@ function getPassiveGemLevelEffects(node, mutation) {
 }
 
 /**
+ * One synchronous stat evaluation owns this context. Never store it on game or a UI cache.
+ * Keeps equipment groups and effect order so fractional gem levels retain their rounding.
+ * @param {Array<ReturnType<typeof getResolvedEquipmentStatLists>>} [resolvedStats]
+ */
+function createGemBonusEvaluation(resolvedStats) {
+    let sources = resolvedStats;
+    if (!sources) {
+        const growthSnapshot = getGrowthEffectSnapshot();
+        sources = getPlayerStatSourceItemEntries().map(([slotKey, item]) =>
+            getResolvedEquipmentStatLists(slotKey, item, game, true, growthSnapshot));
+    }
+    const ids = new Set(['gemLevel', ...GEM_LEVEL_TAG_RULES.map(rule => rule.stat)]);
+    const gearLines = sources.map(resolved => collectGemLevelStatLines([...resolved.baseStats, ...resolved.explicitStats], ids));
+    const passiveEffects = (game.passives || []).flatMap(id => {
+        if (game.starWedge?.disabledNodeEffects?.[String(id)]) return [];
+        return getPassiveGemLevelEffects(PASSIVE_TREE.nodes[id], game.starWedge?.nodeMutations?.[id])
+            .filter(effect => ids.has(effect.stat));
+    });
+    return { gearLines, passiveEffects, memo: new Map() };
+}
+
+function collectGemLevelStatLines(stats, ids) {
+    const lines = [];
+    const visit = stat => {
+        if (!stat || typeof stat !== 'object') return;
+        if (ids.has(stat.id)) lines.push({ id: stat.id, val: stat.val });
+        (stat.extraStats || []).forEach(visit);
+    };
+    stats.forEach(visit);
+    return lines;
+}
+
+/**
  * @param {string|string[]} target Gem name or tags.
  * @param {Array<ReturnType<typeof getResolvedEquipmentStatLists>>} [resolvedStats] Read-only, from this same stat evaluation.
+ * @param {ReturnType<typeof createGemBonusEvaluation>} [evaluation] Discard after this synchronous evaluation.
  */
-function getGemBonusSources(target, resolvedStats) {
+function getGemBonusSources(target, resolvedStats, evaluation) {
     let gear = 0;
     let passive = 0;
     let reward = 0;
     let activeTags = getGemLevelTargetTags(target);
-    const memo = getBackgroundBuildMemo(game);
+    const memo = getBackgroundBuildMemo(game) || evaluation?.memo;
     const memoKey = `gem-bonus:${activeTags.join(',')}`;
     if (memo?.has(memoKey)) return memo.get(memoKey);
-    let statLists = resolvedStats;
-    if (!statLists) {
-        let growthSnapshot = getGrowthEffectSnapshot();
-        statLists = getPlayerStatSourceItemEntries().map(([slotKey, item]) =>
-            getResolvedEquipmentStatLists(slotKey, item, game, true, growthSnapshot));
-    }
-    statLists.forEach(resolved => {
-        gear += getGemLevelValueFromStatLines([...resolved.baseStats, ...resolved.explicitStats], activeTags);
+    const inputs = evaluation || createGemBonusEvaluation(resolvedStats);
+    inputs.gearLines.forEach(lines => {
+        gear += getGemLevelValueFromStatLines(lines, activeTags);
     });
-    (game.passives || []).forEach(id => {
-        let node = PASSIVE_TREE.nodes[id];
-        if (game.starWedge && game.starWedge.disabledNodeEffects && game.starWedge.disabledNodeEffects[String(id)]) return;
-        let mut = game.starWedge && game.starWedge.nodeMutations ? game.starWedge.nodeMutations[id] : null;
-        getPassiveGemLevelEffects(node, mut).forEach(effect => {
-            if (effect.stat === 'gemLevel') passive += Number(effect.val) || 0;
-            GEM_LEVEL_TAG_RULES.forEach(rule => {
-                if (effect.stat === rule.stat && activeTags.includes(rule.tag)) passive += Number(effect.val) || 0;
-            });
+    inputs.passiveEffects.forEach(effect => {
+        if (effect.stat === 'gemLevel') passive += Number(effect.val) || 0;
+        GEM_LEVEL_TAG_RULES.forEach(rule => {
+            if (effect.stat === rule.stat && activeTags.includes(rule.tag)) passive += Number(effect.val) || 0;
         });
     });
     (game.actRewardBonuses || []).forEach(entry => {

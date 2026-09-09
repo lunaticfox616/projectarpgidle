@@ -2,6 +2,7 @@
     'use strict';
 
     let focusedItemKey = null;
+    let focusedEquipmentSlot = null;
     let carryState = null;
     let pointerState = null;
     let suppressClickUntil = 0;
@@ -20,19 +21,65 @@
         button.textContent = touchArrange ? '배치 완료' : '배치 모드';
     }
 
-    function toggleManagement(button) {
-        const open = button.getAttribute('aria-expanded') !== 'true';
-        button.setAttribute('aria-expanded', String(open));
-        button.closest('.inventory-management-row').classList.toggle('management-open', open);
-    }
-
     function getFocusedKey() {
         return focusedItemKey;
     }
 
     function setFocusedKey(itemKey) {
         focusedItemKey = itemKey || null;
+        if (!focusedItemKey) {
+            focusedEquipmentSlot = null;
+            const inspector = document.getElementById('ui-equipment-inventory-inspector');
+            if (inspector?.matches(':popover-open')) inspector.hidePopover();
+        }
         return focusedItemKey;
+    }
+
+    function getFocusedEquipmentSlot() { return focusedEquipmentSlot; }
+
+    // Top-layer placement uses viewport rectangles and the existing display-scale adapter.
+    function positionInspector() {
+        const inspector = document.getElementById('ui-equipment-inventory-inspector');
+        if (!focusedItemKey || !inspector) return;
+        const selector = focusedEquipmentSlot
+            ? `#ui-equip-list .equipment-slot[data-slot="${CSS.escape(focusedEquipmentSlot)}"]`
+            : `[data-equipment-grid-key="${CSS.escape(focusedItemKey)}"]`;
+        const anchor = document.querySelector(selector);
+        if (!anchor?.getClientRects().length) { focus(null); return; }
+        anchor.classList.toggle('is-menu-selected', !!focusedEquipmentSlot);
+        const rect = anchor.getBoundingClientRect();
+        if (!inspector.matches(':popover-open')) inspector.showPopover();
+        const bottom = fitInspector(inspector, rect);
+        const position = getInspectorPosition(rect, inspector.getBoundingClientRect(), bottom);
+        if (!position) { focus(null); return; }
+        inspector.style.left = `${position.x / uiDisplay.factor}px`;
+        inspector.style.top = `${position.y / uiDisplay.factor}px`;
+    }
+
+    function fitInspector(inspector, rect) {
+        const nav = document.getElementById('tab-header-bottom');
+        const bottom = nav?.getClientRects().length ? nav.getBoundingClientRect().top : innerHeight;
+        const sideSpace = Math.max(rect.left - 16, innerWidth - rect.right - 16);
+        let height = bottom - 16;
+        if (inspector.getBoundingClientRect().width > sideSpace) height = Math.max(rect.top - 16, bottom - rect.bottom - 16);
+        inspector.style.maxHeight = `${Math.max(160, height) / uiDisplay.factor}px`;
+        return bottom;
+    }
+
+    function getInspectorPosition(rect, size, bottom) {
+        if (rect.bottom <= 0 || rect.top >= bottom) return null;
+        const gap = 8, maxX = Math.max(gap, innerWidth - size.width - gap);
+        const maxY = Math.max(gap, bottom - size.height - gap);
+        let x = rect.right + gap, y = rect.top;
+        if (x > maxX) {
+            x = rect.left - size.width - gap;
+            if (x < gap) {
+                x = rect.left;
+                y = rect.bottom + gap;
+                if (y > maxY) y = rect.top - size.height - gap;
+            }
+        }
+        return { x: Math.max(gap, Math.min(maxX, x)), y: Math.max(gap, Math.min(maxY, y)) };
     }
 
     function isCarryingKey(itemKey) {
@@ -150,12 +197,18 @@
         return true;
     }
 
-    function focus(itemKey) {
+    function focus(itemKey, equippedSlot = null) {
+        const sameSelection = focusedItemKey === itemKey && focusedEquipmentSlot === equippedSlot;
         setFocusedKey(itemKey);
+        focusedEquipmentSlot = focusedItemKey ? equippedSlot : null;
+        if (!sameSelection) hideItemTooltip();
         document.querySelectorAll('[data-equipment-grid-key]').forEach(card => {
             let selected = card.dataset.equipmentGridKey === focusedItemKey;
             card.classList.toggle('selected', selected);
             card.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        });
+        document.querySelectorAll('#ui-equip-list .equipment-slot').forEach(card => {
+            card.classList.toggle('is-menu-selected', card.dataset.slot === focusedEquipmentSlot);
         });
         if (typeof renderEquipmentInventoryInspector === 'function') {
             renderEquipmentInventoryInspector(game.inventory.map((item, idx) => ({ item, idx })));
@@ -373,6 +426,7 @@
         };
         itemElement.classList.add('is-carried');
         grid.classList.add('is-drag-active');
+        setFocusedKey(null);
         if (typeof hideInfoTooltip === 'function') hideInfoTooltip();
         updateCarry({ clientX, clientY });
         return true;
@@ -481,12 +535,11 @@
         return commitCarry(column, globalRow);
     }
 
-    function handleItemClick(event, itemKey, inventoryIndex) {
+    function handleItemClick(event, itemKey) {
         if (event) event.stopPropagation();
         if (Date.now() < suppressClickUntil || carryState) return;
         doubleClickCandidateKey = itemKey;
         focus(itemKey);
-        if (typeof showItemTooltip === 'function') showItemTooltip(event, inventoryIndex, false);
     }
 
     function handleItemDoubleClick(event, itemKey, itemId) {
@@ -517,7 +570,10 @@
             if (carryState.mode === 'inventory') return equipCarriedItemToSlot(slot);
             return false;
         }
-        return false;
+        const item = game.equipment[slot];
+        if (!item || event?.target.closest('button')) return false;
+        focus(equipmentLoadoutRuntime.ensureItemIdentity(item), slot);
+        return true;
     }
 
     function autoArrange() {
@@ -609,12 +665,41 @@
         focus(null);
     }
 
+    function hoverEquipment(event) {
+        if (event.pointerType !== 'mouse' || focusedItemKey || carryState || pointerState) return;
+        const card = event.target.closest?.('.equipment-grid-item,#ui-equip-list .equipment-slot');
+        if (!card) return;
+        if (card.dataset.slot) {
+            showItemTooltip(event, card.dataset.slot, true);
+            return;
+        }
+        const index = game.inventory.findIndex(item => equipmentInventoryGridRuntime.getItemKey(item) === card.dataset.equipmentGridKey);
+        if (index >= 0) showItemTooltip(event, index, false);
+    }
+
+    function leaveEquipment(event) {
+        if (focusedItemKey) return;
+        const card = event.target.closest?.('.equipment-grid-item,#ui-equip-list .equipment-slot');
+        if (card && !card.contains(event.relatedTarget)) dismissItemTooltipNow();
+    }
+
     function bindPointerEvents() {
+        document.addEventListener('pointerover', hoverEquipment);
+        document.addEventListener('pointermove', hoverEquipment, { passive: true });
+        document.addEventListener('pointerout', leaveEquipment);
         document.addEventListener('pointerdown', startPointer);
         document.addEventListener('pointermove', updatePointer, { passive: false });
         document.addEventListener('pointerup', finishPointer);
         document.addEventListener('pointercancel', cancelPointer);
         document.addEventListener('keydown', handleKeydown, true);
+        document.addEventListener('pointerdown', event => {
+            if (event.target.closest?.('.equipment-grid-item,#ui-equip-list .equipment-slot')) dismissItemTooltipNow();
+            if (focusedItemKey && !event.target.closest('#ui-equipment-inventory-inspector,.equipment-grid-item,#ui-equip-list .equipment-slot')) focus(null);
+        }, true);
+        document.addEventListener('scroll', event => {
+            if (focusedItemKey && !event.target.closest?.('#ui-equipment-inventory-inspector')) positionInspector();
+        }, true);
+        window.addEventListener('resize', positionInspector);
         document.addEventListener('dragstart', event => {
             if (event.target.closest && event.target.closest('.equipment-slot,.equipment-grid-item')) event.preventDefault();
         });
@@ -622,6 +707,8 @@
 
     const equipmentInventoryInteraction = Object.freeze({
         getFocusedKey,
+        getFocusedEquipmentSlot,
+        positionInspector,
         setFocusedKey,
         isCarrying,
         isCarryingKey,
@@ -637,8 +724,7 @@
         handleEquippedItemClick,
         cancelCarry,
         autoArrange,
-        toggleTouchArrange,
-        toggleManagement
+        toggleTouchArrange
     });
 
     safeExposeGlobals({ equipmentInventoryInteraction });

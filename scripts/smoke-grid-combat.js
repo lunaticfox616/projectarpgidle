@@ -10,6 +10,7 @@ const files = [
   'data/shrines.js',
   'data/bounties.js',
   'data/maps.js',
+  'data/cosmos-route.js',
   'data/skills.js',
   'data/endgame-progression.js',
   'data/severed-wanderers.js',
@@ -45,9 +46,10 @@ const files = [
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
-  'js/combat-patterns.js',
+  'js/enemy-attack-rules.js', 'js/combat-patterns.js',
   'js/cosmos-rules.js',
   'js/combat-build-stats.js',
+  'js/cosmos-route.js',
   'js/combat.js',
   'js/combat-ehp.js',
   'js/talent-cards.js',
@@ -1008,7 +1010,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
       resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
     };
     context.performMonsterAttacks(stats);
-    vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+    vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
     context.performMonsterAttacks(stats);
     return 100000 - context.game.playerHp;
   }
@@ -1770,7 +1772,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   resetGame();
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
-  const ranged = makeEnemy(64, 4, 6, { attackKind: 'ranged', attackRange: 5, attackTimer: 1, ele: 'fire' });
+  const ranged = makeEnemy(64, 4, 6, { attackKind: 'ranged', attackDelivery:'projectileCell', attackRange: 5, attackTimer: 1, ele: 'fire' });
   context.game.enemies = [ranged];
   context.game.playerHp = 1000;
   const defenseStats = {
@@ -1781,7 +1783,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.game.playerHp, 1000, '적 원거리 공격은 발사 순간 피해를 주면 안 된다');
   const pathSummon = { id: 640, gx: 2, gy: 6, hp: 100, maxHp: 100, alive: true, evasion: 0, armor: 0 };
   context.game.summons = [pathSummon];
-  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
   context.performMonsterAttacks(defenseStats);
   assert.strictEqual(context.game.playerHp, 1000, '소환수가 중간 경로에 들어오면 뒤의 플레이어가 맞으면 안 된다');
   assert.ok(pathSummon.hp < pathSummon.maxHp, '적 투사체는 이동 경로의 소환수에게 가로막혀야 한다');
@@ -1790,13 +1792,13 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   ranged.attackTimer = 1;
   context.performMonsterAttacks(defenseStats);
   context.game.gridPlayer.gy = 5;
-  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
   context.performMonsterAttacks(defenseStats);
   assert.strictEqual(context.game.playerHp, 1000, '투사체 도착 전에 목표 칸을 벗어나면 회피해야 한다');
   context.game.gridPlayer.gy = 6;
   ranged.attackTimer = 1;
   context.performMonsterAttacks(defenseStats);
-  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
   context.performMonsterAttacks(defenseStats);
   assert.ok(context.game.playerHp < 1000, '목표 칸에 남은 플레이어는 도착한 적 투사체 피해를 받아야 한다');
 
@@ -1806,7 +1808,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.performMonsterAttacks(defenseStats);
   ranged.hp = 0;
   context.game.enemies = [];
-  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
   context.performMonsterAttacks(defenseStats);
   assert.ok(context.game.playerHp < 1000, '이미 발사된 투사체는 발사한 적이 죽어도 사라지면 안 된다');
 }
@@ -1849,7 +1851,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     resF: 0, resC: 0, resL: 0, resChaos: 0, chillEffectReducePct: 0, physTakenAs: {},
   };
   context.performMonsterAttacks(defenseStats);
-  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
   context.performMonsterAttacks(defenseStats);
   assert.ok(logs.some(message => /^[🩸🔥❄️⚡☠️✦]+ \d[\d,]* 피해$/u.test(message)), '기본 피격 로그도 주요 속성 표식과 받은 피해만 표시해야 한다');
 
@@ -1857,7 +1859,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.settings.showDetailedDamageLog = true;
   ranged.attackTimer = 1;
   context.performMonsterAttacks(defenseStats);
-  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
   context.performMonsterAttacks(defenseStats);
   assert.ok(logs.some(message => message.includes('피격') && message.includes('화염')), '상세 피격 로그는 속성별 피해 분해를 표시해야 한다');
   context.addLog = () => {};
@@ -1876,14 +1878,14 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const random = context.Math.random;
   context.Math.random = () => .5;
   context.performMonsterAttacks(stats);
-  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
   context.performMonsterAttacks(stats);
   assert(context.game.playerEnergyShield < 1000, 'normal monster damage must reduce ES');
   assert.strictEqual(context.game.playerHp, 1000, 'absorbed damage must not reduce HP');
   context.game.playerEnergyShield = 1;
   attacker.attackTimer = 1;
   context.performMonsterAttacks(stats);
-  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
   context.performMonsterAttacks(stats);
   assert.strictEqual(context.game.playerEnergyShield, 0, 'the last shield point must be consumed');
   assert(context.game.playerHp < 1000, 'damage beyond the remaining shield must reduce HP');
@@ -1891,7 +1893,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.settings.showDeathNotice = false;
   attacker.attackTimer = 1; stats.cosmosEnergyShieldBypassPct = 100;
   context.performMonsterAttacks(stats);
-  vm.runInContext('pendingEnemyCombatAttacks.forEach(row => { row.at = 0; });', context);
+  vm.runInContext('game.combatTimeMs = Math.max(getCombatTime(), ...pendingEnemyCombatAttacks.map(row => row.path ? row.launchedAt + row.path.at(-1).offsetMs : row.at));', context);
   context.performMonsterAttacks(stats);
   assert.strictEqual(context.game.loopDeaths, 1, 'explicit shield bypass can kill at zero HP even with ES remaining');
   context.Math.random = random;

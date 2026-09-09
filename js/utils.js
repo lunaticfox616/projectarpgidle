@@ -5,7 +5,7 @@ function normalizeUiSkin(skin) {
 /** Stored user scale in percent, independent of the current monitor's pixel ratio. */
 function normalizeUiScale(value) {
     const number = Number(value);
-    return [80, 90, 100, 110, 125, 150].includes(number) ? number : 100;
+    return [80, 90, 100, 110, 125, 150, 175, 200, 225, 250].includes(number) ? number : 100;
 }
 
 
