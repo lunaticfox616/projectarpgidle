@@ -10,7 +10,7 @@ const contentUnlockUi = {
         game.unlocks.skills = true;
         game.noti.skills = true;
         queueTutorialNotice('tutorial_starter_gem_equip', '첫 스킬 젬 장착',
-            `[${name}] 젬을 획득했습니다.\n스킬 젬 탭을 열고 빛나는 젬 카드를 클릭해 장착하세요.`, 'tab-skills');
+            `[${name}] 젬을 획득했습니다.\n스킬 젬 탭에서 빛나는 젬을 선택하고 ‘장착’을 누르세요.`, 'tab-skills');
     },
     announceLoop() {
         if (game.contentProgression && contentProgression.points().complete) return;

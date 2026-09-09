@@ -18,46 +18,12 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 18px 50px rgba(0,0,0,.30);
 }
 
-.cosmos-header {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-  padding: 9px 12px;
-  border: 1px solid var(--ui-line);
-  border-radius: 6px;
-  background: var(--ui-surface-2);
-}
-
-.cosmos-brand {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-  padding: 0;
-}
-
 .cosmos-kicker {
   color: var(--ui-text-2);
   font-size: .72em;
   letter-spacing: .14em;
   text-transform: uppercase;
   margin-bottom: 4px;
-}
-
-.cosmos-title {
-  color: var(--copy-bright);
-  font-size: 1.3em;
-  font-weight: 900;
-  letter-spacing: -.02em;
-}
-
-.cosmos-desc {
-  margin-top: 2px;
-  color: var(--copy-muted);
-  font-size: .76em;
-  line-height: 1.35;
 }
 
 .cosmos-legend {
@@ -392,16 +358,9 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   white-space: normal;
 }
 
-.cosmos-layout {
-  display: grid;
-  grid-template-columns: minmax(240px, .8fr) minmax(0, 1.2fr);
-  gap: 12px;
-  align-items: start;
-}
-
 .cosmos-mode-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 230px));
+  grid-template-columns: repeat(2, minmax(0, 120px));
   gap: 7px;
   margin: 0;
 }
@@ -434,173 +393,6 @@ body:not(.light-mode) .cosmos-tab-btn.active {
   margin-top: 2px;
   color: var(--copy-muted);
   font-size: 12px;
-}
-
-.cosmos-mode-icon {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-  border: 1px solid var(--ui-line);
-  border-radius: 50%;
-  color: var(--ui-text-2);
-  background: var(--ui-surface-2);
-}
-
-.cosmos-roadmap {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--ui-line);
-  border-radius: 6px;
-  background: var(--ui-surface-2);
-}
-
-.cosmos-roadmap-current,
-.cosmos-roadmap-actions {
-  display: grid;
-  gap: 3px;
-}
-
-.cosmos-roadmap-current span {
-  color: var(--ui-text-2);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: .14em;
-}
-
-.cosmos-roadmap-current strong {
-  color: var(--ui-text);
-  font-size: 13px;
-}
-
-.cosmos-roadmap-current small,
-.cosmos-roadmap-actions span {
-  color: var(--copy-muted);
-  font-size: 12px;
-}
-
-.cosmos-roadmap-steps {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
-}
-
-.cosmos-roadmap-steps span {
-  padding: 6px 4px;
-  border: 1px solid var(--ui-line);
-  border-radius: 7px;
-  color: var(--ui-text-2);
-  background: var(--ui-surface-2);
-  font-size: 12px;
-  text-align: center;
-}
-
-.cosmos-roadmap-steps span.complete {
-  border-color: var(--ui-line-strong);
-  color: var(--ui-text-2);
-}
-
-.cosmos-roadmap-steps span.active {
-  border-color: var(--ui-line-strong);
-  color: var(--ui-text-2);
-  background: var(--ui-surface-2);
-}
-
-.cosmos-roadmap-actions {
-  justify-items: end;
-}
-
-.cosmos-roadmap-actions b {
-  color: var(--ui-text-2);
-  font-size: 12px;
-}
-
-.cosmos-roadmap-actions button {
-  padding: 6px 9px;
-  border-color: var(--ui-line-strong);
-  color: var(--ui-text);
-  background: var(--ui-surface-2);
-  white-space: nowrap;
-}
-
-.cosmos-map-column {
-  min-width: 0;
-  border: 1px solid var(--ui-line);
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--ui-surface-2);
-}
-
-.cosmos-map-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 46px;
-  padding: 7px 9px 7px 13px;
-  border-bottom: 1px solid var(--ui-line);
-  background: var(--ui-surface-2);
-}
-
-.cosmos-map-legend {
-  justify-content: center;
-  margin: 0;
-}
-
-.cosmos-map-toolbar strong,
-.cosmos-map-toolbar span {
-  display: block;
-}
-
-.cosmos-map-toolbar strong {
-  color: var(--copy-bright);
-  font-size: 12px;
-}
-
-.cosmos-map-toolbar span {
-  margin-top: 2px;
-  color: var(--copy-muted);
-  font-size: 12px;
-}
-
-.cosmos-map-controls {
-  display: flex;
-  gap: 4px;
-  flex: 0 0 auto;
-}
-
-.cosmos-map-controls button {
-  min-width: 30px;
-  padding: 5px 8px;
-  border-color: var(--ui-line-strong);
-  color: var(--ui-text-2);
-  background: var(--ui-surface-2);
-}
-
-.cosmos-canvas-wrap {
-  position: relative;
-  min-height: 280px;
-  height: 340px;
-  overflow: hidden;
-  background: var(--ui-surface-2);
-  box-shadow: inset 0 0 36px rgba(0,0,0,.58);
-}
-
-#cosmos-atlas-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
-  cursor: grab;
-  touch-action: none;
-}
-
-#cosmos-atlas-canvas:active {
-  cursor: grabbing;
 }
 
 .cosmos-stone-overlay {
@@ -653,7 +445,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 .cosmos-stone-panel { grid-column: 1 / -1; margin-top: 8px; }
 .cosmos-stone-panel > header { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 9px; color: var(--ui-text-2); }
 .cosmos-stone-panel > header span { color: var(--ui-text-2); font-size: .78em; }
-.cosmos-stone-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.cosmos-stone-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
 .cosmos-stone-card {
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr);
@@ -697,35 +489,6 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 
 @media (max-width: 700px) {
   .cosmos-stone-grid { grid-template-columns: 1fr; }
-}
-
-.cosmos-atlas-tooltip {
-  display: none;
-  position: absolute;
-  z-index: 6;
-  max-width: 260px;
-  padding: 8px 10px;
-  border: 1px solid var(--ui-line);
-  border-radius: 6px;
-  background: var(--ui-surface-2);
-  color: var(--ui-text);
-  font-size: .78em;
-  line-height: 1.45;
-  pointer-events: none;
-  box-shadow: 0 10px 30px rgba(0,0,0,.46), 0 0 18px rgba(127, 201, 255, .12);
-}
-
-.cosmos-atlas-tooltip strong {
-  color: var(--ui-text-2);
-}
-
-.cosmos-atlas-tooltip span {
-  color: var(--ui-text-2);
-}
-
-.cosmos-atlas-tooltip em {
-  color: var(--ui-text-2);
-  font-style: normal;
 }
 
 .cosmos-detail {
@@ -1078,7 +841,7 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 
 .cosmos-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 12px;
 }
@@ -1243,7 +1006,6 @@ body:not(.light-mode) .cosmos-tab-btn.active {
 
 body.light-mode .cosmos-panel,
 body.light-mode .cosmos-detail,
-body.light-mode .cosmos-header,
 body.light-mode .cosmos-summary,
 body.light-mode .cosmos-detail-section,
 body.light-mode .cosmos-node-facts span,
@@ -1256,14 +1018,10 @@ body.light-mode .cosmos-mastery-card {
   border-color: var(--ui-line-strong);
   color: var(--ui-text-2);
 }
-
-body.light-mode .cosmos-title,
 body.light-mode .cosmos-detail-title,
 body.light-mode .cosmos-node-facts strong {
   color: var(--ui-text-2);
 }
-
-body.light-mode .cosmos-desc,
 body.light-mode .cosmos-detail-source,
 body.light-mode .cosmos-directive-desc,
 body.light-mode .cosmos-help {
@@ -1281,10 +1039,6 @@ body.light-mode .cosmos-directive-card.rare {
 }
 
 @media (max-width: 1080px) {
-  .cosmos-layout {
-    grid-template-columns: 1fr;
-    display: grid;
-  }
 
   .cosmos-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1295,21 +1049,8 @@ body.light-mode .cosmos-directive-card.rare {
     grid-column: 1 / -1;
   }
 
-  .cosmos-roadmap {
-    grid-template-columns: 1fr;
-  }
-
-  .cosmos-roadmap-actions {
-    justify-items: start;
-  }
-
   .cosmos-mastery-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .cosmos-canvas-wrap {
-    min-height: 280px;
-    height: 340px;
   }
 
   .cosmos-detail {
@@ -1320,16 +1061,6 @@ body.light-mode .cosmos-directive-card.rare {
 @media (max-width: 720px) {
   .cosmos-panel {
     padding: 8px;
-  }
-
-  .cosmos-canvas-wrap {
-    min-height: 260px;
-    height: 320px;
-  }
-
-  .cosmos-header {
-    grid-template-columns: 1fr;
-    padding: 10px;
   }
 
   .cosmos-summary,
@@ -1354,20 +1085,10 @@ body.light-mode .cosmos-directive-card.rare {
   .cosmos-mode-tabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .cosmos-map-toolbar,
   .cosmos-mastery-header,
   .cosmos-resource-line {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .cosmos-map-controls {
-    width: 100%;
-  }
-
-  .cosmos-map-controls button {
-    flex: 1;
   }
 
   .cosmos-mastery-points {
@@ -1381,28 +1102,10 @@ body.light-mode .cosmos-directive-card.rare {
   .cosmos-capstone-bosses {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-
-/* Destination selection is primary; the spatial atlas is available on demand. */
-.cosmos-directory-filters { display:flex; gap:8px; padding:12px; }
-.cosmos-directory-filters label { display:grid; gap:5px; flex:1; min-width:0; color:var(--ui-text-2); font-size:12px; }
-.cosmos-directory-filters select { min-width:0; width:100%; min-height:36px; background:var(--ui-surface-1); color:var(--ui-text); border-color:var(--ui-line); }
-.cosmos-destination-list { display:grid; align-content:start; gap:6px; max-height:360px; overflow:auto; padding:0 12px 12px; scrollbar-gutter:stable; }
-.cosmos-destination { display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%; text-align:left; min-height:60px; padding:10px; }
-.cosmos-destination > span:first-child { display:grid; gap:4px; }
-.cosmos-destination small, .cosmos-destination > span:last-child { font-size:12px; color:var(--ui-text-2); }
-.cosmos-destination[aria-pressed="true"] { border-color:var(--ui-accent); box-shadow:inset 3px 0 var(--ui-accent); }
-.cosmos-destination.locked { border-style:dashed; }
-.cosmos-directory-empty { padding:12px; color:var(--ui-text-2); line-height:1.6; }
-.cosmos-map-disclosure, .cosmos-records-disclosure, .cosmos-environment { border:1px solid var(--ui-line); border-radius:6px; margin-top:10px; }
-.cosmos-map-disclosure > summary, .cosmos-records-disclosure > summary, .cosmos-environment > summary { cursor:pointer; padding:12px; color:var(--ui-text-2); }
+} .cosmos-records-disclosure, .cosmos-environment { border:1px solid var(--ui-line); border-radius:6px; margin-top:10px; } .cosmos-records-disclosure > summary, .cosmos-environment > summary { cursor:pointer; padding:12px; color:var(--ui-text-2); }
 .cosmos-environment .cosmos-node-facts { padding:0 12px 12px; }
-.cosmos-directory-return { display:none; }
 @media (max-width:1080px) {
-  .cosmos-destination-list { max-height:280px; }
-  .cosmos-detail, .cosmos-directory-filters { scroll-margin-top:70px; }
-  .cosmos-directory-filters select { min-height:44px; font-size:14px; }
-  .cosmos-directory-return { display:block; width:100%; min-height:44px; margin-bottom:12px; }
+  .cosmos-detail{ scroll-margin-top:70px; }
   .cosmos-mastery-card-foot button { min-height:44px; min-width:88px; font-size:14px; }
   .cosmos-mastery-grid { grid-template-columns:1fr; }
 }

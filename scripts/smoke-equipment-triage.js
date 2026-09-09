@@ -94,4 +94,107 @@ vm.runInContext('game.inventory = []', runtime);
 assert.strictEqual(runtime.equipmentTriage.start(), true, 'an empty inventory must complete analysis without an ambiguous return');
 assert(triageHost.innerHTML.includes('0개 완료'), 'empty-inventory analysis must report a completed zero state');
 
+// Controlled browser timers with real stat providers: interleave combat/build edits.
+const frozen = require('./lib/replay-fixture')(17);
+const tasks = new Map();
+let taskId = 0;
+const frozenHost = { innerHTML: '', dataset: {} };
+const notices = [];
+frozen.runtime.showGameToast = message => notices.push(message);
+frozen.runtime.document.getElementById = id => id === 'ui-equipment-triage' ? frozenHost : null;
+frozen.runtime.updateStaticUI = () => {};
+frozen.runtime.setTimeout = callback => { const id = ++taskId; tasks.set(id, callback); return id; };
+frozen.runtime.clearTimeout = id => tasks.delete(id);
+const analysis = frozen.runtime.equipmentTriage;
+function step() {
+    const [id, callback] = tasks.entries().next().value;
+    tasks.delete(id); callback();
+}
+function complete() { while (tasks.size) step(); }
+frozen.run(`
+    game.inventory = Array.from({length:7}, (_,i) => ({id:800+i, slot:'목걸이', name:'동일 조건 후보',
+        rarity:'rare', baseStats:[], stats:[{id:'flatDmg',val:250}]}));
+    game.uniqueEliteTraitBuff = {expiresAt:getCombatTime()+200, trait:{attackSpeedVarMul:1.8}};
+    game.ascendClass = 'guardian'; game.ascendKeystones = ['gd7'];
+    game.playerHp = 1; game.playerAilments = [{type:'poison',time:10}];
+`);
+const liveGame = frozen.run('game');
+const beforeAnalysis = frozen.run('JSON.stringify(game)');
+assert.equal(analysis.start(), true);
+assert.equal(frozen.run('game'), liveGame, 'baseline restores live state identity');
+assert.equal(frozen.run('JSON.stringify(game)'), beforeAnalysis, 'baseline cannot cleanse live ailments or normalize live data');
+assert(frozenHost.innerHTML.includes('분석 중단'));
+step();
+frozen.run('game.combatTimeMs += 1000; game.playerHp = 140; game.enemies = [];');
+analysis.sync(true);
+const afterCombat = frozen.run('JSON.stringify(game)');
+complete();
+const expected = JSON.stringify(analysis.getResult(liveGame.inventory[0]));
+assert.notEqual(expected, 'null');
+for (const item of liveGame.inventory) assert.equal(JSON.stringify(analysis.getResult(item)), expected,
+    'all candidates use the same starting buff, HP and enemy state across chunks');
+assert.equal(frozen.run('game'), liveGame);
+assert.equal(frozen.run('JSON.stringify(game)'), afterCombat, 'candidate evaluation leaves all live state unchanged');
+
+analysis.start();
+const lateCallback = tasks.values().next().value;
+step();
+assert.equal(analysis.cancel(), true);
+assert.equal(tasks.size, 0);
+assert.equal(analysis.getResult(liveGame.inventory[0]), null, 'cancel discards partial results');
+assert(frozenHost.innerHTML.includes('분석을 중단'));
+assert.equal(analysis.cancel(), false);
+analysis.start();
+const restartHtml = frozenHost.innerHTML;
+lateCallback();
+assert.equal(frozenHost.innerHTML, restartHtml, 'abandoned callback cannot advance the restarted job');
+complete();
+
+for (const mutation of [
+    "game.equippedSupports = ['공격 속도 증가']",
+    "game.activeSkill = '연속 베기'",
+    "game.gemData['연속 베기'] = {level:2,exp:0}",
+    "game.supportGemData['공격 속도 증가'] = {level:3,exp:0}",
+    "game.skillAutoRules.push({skillName:'함성',enabled:true})",
+    "game.conditionGemLevels['함성'] = 2",
+    "game.skyTower.gemBoosts['연속 베기'] = 2",
+    "game.passives.push('test-passive-change')",
+    "game.passiveSpecialization.keystoneChoices.wisdom_leap_element = 'cold'",
+    "game.loop10BonusStats.flatDmg += 1",
+    "game.underworldRunes.enhanceLvByNo[1] = 2",
+    "game.talentCardLoadout[0] = 'hero1__warrior'",
+    "game.coreCube.powers.test = 1",
+    "game.growthBoard.activeLoadout = 1",
+    "game.pruningTree.nodeRanks.test = 1",
+    "game.cosmosAtlas = {mastery:{resonanceDrive:1}}",
+    "game.ocean.permanentUpgrades.pressureResist = 1",
+    "game.flasks.utils = [{key:'quicksilver',charges:1}]"
+]) {
+    const saved = frozen.run('JSON.stringify(game)');
+    analysis.start(); complete();
+    frozen.run(mutation);
+    assert.equal(analysis.setFilter('damage'), false, `${mutation}: stale actions are rejected immediately`);
+    assert.equal(analysis.getResult(liveGame.inventory[0]), null);
+    frozen.run(`game = ${saved};`);
+}
+analysis.start();
+frozen.run('game.level += 1');
+complete();
+assert(frozenHost.innerHTML.includes('세팅이 변경'), 'build changes during analysis cannot publish results');
+analysis.start(); complete();
+frozen.run("game.inventory[0].locked = true; game.gemData['기본 공격'].exp += 1;");
+analysis.sync(true);
+assert(analysis.getResult(liveGame.inventory[0]), 'locks and experience accumulation preserve results');
+frozen.run('game.level += 1');
+assert.equal(analysis.equipRecommended(), false, 'stale recommendations cannot equip gear');
+frozen.run('game.inventory[3].baseStats = {};');
+const beforeFailure = frozen.run('JSON.stringify(game)');
+const identityBeforeFailure = frozen.run('game');
+assert.equal(analysis.start(), true);
+complete();
+assert(frozenHost.innerHTML.includes('오류가 발생'), 'malformed candidate reports a retryable error');
+assert.equal(notices.length, 1, 'failure emits one user notification');
+assert.equal(analysis.getResult(liveGame.inventory[0]), null, 'failed batches cannot publish partial recommendations');
+assert.equal(frozen.run('game'), identityBeforeFailure, 'failed candidate restores live identity');
+assert.equal(frozen.run('JSON.stringify(game)'), beforeFailure, 'failed candidate leaves live state unchanged');
 console.log('smoke-equipment-triage passed');

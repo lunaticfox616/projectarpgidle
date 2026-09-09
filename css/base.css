@@ -76,13 +76,14 @@
         body.light-mode .item-base-line { color: #6c829a; }
         body.light-mode .item-stats { color: #3f5670; }
         #left-pane { width: 620px; min-width: 620px; display: flex; flex-direction: column; gap: 15px; margin-right: 0; min-height: 0; height: 100%; overflow: hidden; transition: width 160ms ease, min-width 160ms ease, margin 160ms ease; }
-        body.left-pane-collapsed { gap: 4px; }
-        #left-pane.collapsed { width: 0; min-width: 0; margin: 0; overflow: hidden; }
-        #left-pane.collapsed #battle-column { display: none; }
+        /* 창형 PC 배치는 펼치기 버튼이 없으므로 이전 패널 접힘 설정을 적용하지 않는다. */
+        body.left-pane-collapsed:not(.desktop-windowed-ui) { gap: 4px; }
+        body:not(.desktop-windowed-ui) #left-pane.collapsed { width: 0; min-width: 0; margin: 0; overflow: hidden; }
+        body:not(.desktop-windowed-ui) #left-pane.collapsed #battle-column { display: none; }
         #battle-column { display: flex; flex-direction: column; gap: 15px; flex: 1; min-height: 0; }
         #left-pane-collapse-toggle, #left-pane-floating-toggle { position: absolute; top: 8px; right: 8px; width: 28px; min-width: 28px; min-height: 28px; border-radius: 999px; background: #16263a; border: 1px solid #304b66; color: #ffffff; font-size: 0.9em; padding: 0; z-index: 3; }
         #left-pane-expand-fab { display: none; position: absolute; top: 10px; left: 10px; width: 28px; min-width: 28px; min-height: 28px; border-radius: 999px; background: #16263a; border: 1px solid #304b66; color: #ffffff; font-size: 0.9em; padding: 0; z-index: 30; }
-        body.left-pane-collapsed #left-pane-expand-fab { display: inline-flex; align-items: center; justify-content: center; }
+        body.left-pane-collapsed:not(.desktop-windowed-ui) #left-pane-expand-fab { display: inline-flex; align-items: center; justify-content: center; }
         body.light-mode #left-pane-collapse-toggle, body.light-mode #left-pane-floating-toggle, body.light-mode #left-pane-expand-fab { background: #edf4fc; border-color: #bcd1e8; color: #2a5178; }
         #right-pane { flex: 1; display: flex; flex-direction: column; background-color: #121216; border: 1px solid #2a2a35; border-radius: 8px; min-width: 0; min-height: 0; height: 100%; overflow: hidden; position: relative; }
         .panel { background-color: #16161d; border: 1px solid #2a2a35; padding: 15px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }

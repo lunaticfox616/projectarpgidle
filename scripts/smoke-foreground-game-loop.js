@@ -9,7 +9,7 @@ const activeClasses = new Set();
 let pauseToggleListener = null;
 let importantSaveCount = 0;
 const elements = {
-  'tutorial-overlay': { classList: { add: name => activeClasses.add(name), remove: name => activeClasses.delete(name), contains: name => activeClasses.has(name) } },
+  'tutorial-overlay': { classList: { add: name => activeClasses.add(name), remove: name => activeClasses.delete(name), contains: name => activeClasses.has(name), toggle: (name, enabled) => enabled ? activeClasses.add(name) : activeClasses.delete(name) } },
   'tutorial-kicker': { innerText: '' }, 'tutorial-title': { innerText: '' }, 'tutorial-body': { innerHTML: '' },
   'tutorial-open-btn': { style: {}, innerText: '' }, 'tutorial-dismiss-btn': { style: {}, innerText: '' },
   'tutorial-pause-overlay-toggle': { checked: false, addEventListener: (type, listener) => { if (type === 'change') pauseToggleListener = listener; } },

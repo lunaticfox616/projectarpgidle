@@ -1,0 +1,53 @@
+.cosmos-star-chart { color:var(--ui-text); border:1px solid var(--ui-line); border-radius:8px; background:var(--ui-surface-1); overflow:hidden; container-type:inline-size; }
+#ui-cosmos-route-progress { flex:0 0 auto; white-space:nowrap; color:var(--ui-text-2); font-size:11px; padding:3px 7px; border:1px solid var(--ui-line); border-radius:4px; background:var(--ui-surface-2); }
+#ui-cosmos-route-progress[hidden] { display:none; }
+body.desktop-windowed-ui .map-progress-row:has(#ui-cosmos-route-progress:not([hidden])) { grid-template-columns:auto auto minmax(100px,1fr); }
+.cosmos-star-header { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; gap:12px; }
+.cosmos-star-header label { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--copy-muted); }
+#cosmos-inner-route button { font:inherit; font-size:12px; cursor:pointer; color:var(--ui-text-2); background:var(--ui-surface-2); border:1px solid var(--ui-line); border-radius:4px; padding:8px 12px; }
+#cosmos-inner-route button:focus-visible { outline:2px solid #d6bd80; outline-offset:2px; }
+#cosmos-inner-route select { max-width:100%; color:var(--ui-text-2); background:var(--ui-surface-2); border:1px solid var(--ui-line); border-radius:4px; padding:7px; font:inherit; }
+.cosmos-route-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; font-size:12px; }
+.cosmos-route-footer>div { display:flex; gap:6px; }
+#cosmos-inner-route .primary { border-color:#b79b63; padding-inline:24px; }
+.cosmos-route-notice,.cosmos-route-outcome { margin:0; padding:12px 14px; font-size:12px; color:var(--copy-muted); }
+.cosmos-route-outcome { padding-top:0; }
+#cosmos-node-detail { margin-top:10px; border:1px solid var(--ui-line); border-radius:6px; }
+#cosmos-node-detail>summary { padding:10px 14px; color:var(--ui-text-2); font-size:12px; cursor:pointer; }
+#cosmos-node-detail:not([open]) { display:none; }
+#cosmos-node-detail .cosmos-detail { border:0; padding:12px 14px; }
+.cosmos-unified-map { position:relative; }
+.cosmos-unified-map .cosmos-stone-overlay { position:absolute; inset:0; z-index:10; overflow:auto; }
+
+
+.cosmos-journey-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 16px; padding:14px 18px 20px; }
+.cosmos-journey-heading>small { flex-basis:100%; color:var(--copy-muted); }
+.cosmos-journey-heading strong { font-size:20px; font-weight:600; }
+.cosmos-journey-heading strong span { color:#bca575; margin-inline:8px; }
+.cosmos-journey-heading>span { font-size:12px; color:var(--copy-muted); margin-left:auto; }
+.cosmos-expedition-map { display:grid; gap:10px; padding:0 14px 16px; }
+.cosmos-expedition-stage { border:1px solid var(--ui-line); border-radius:6px; overflow:hidden; background:var(--ui-surface-2); }
+.cosmos-expedition-stage.current { border-color:#b49e6b; }
+.cosmos-expedition-stage.done { border-color:#638373; }
+.cosmos-expedition-stage summary { display:flex; align-items:center; gap:12px; padding:12px 14px; cursor:pointer; list-style:none; font-size:13px; }
+.cosmos-expedition-stage summary:after { content:'＋'; color:var(--copy-muted); }
+.cosmos-expedition-stage[open] summary:after { content:'−'; }
+.cosmos-expedition-stage summary::-webkit-details-marker { display:none; }
+.cosmos-expedition-stage summary span { font-size:11px; color:var(--copy-muted); }
+.cosmos-expedition-stage summary small { margin-left:auto; font-size:12px; color:var(--copy-muted); }
+.cosmos-planet-path { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:12px; list-style:none; margin:0; padding:18px 14px; border-top:1px solid #3b434b; background:radial-gradient(ellipse at 10% 0%,#203847,transparent 80%),#121a23; }
+.cosmos-planet-stop { position:relative; display:flex; flex-direction:column; align-items:center; gap:8px; min-width:0; color:#dddacb; text-align:center; }
+.cosmos-planet-stop:not(:last-child):after { content:''; position:absolute; top:22px; left:calc(50% + 24px); width:calc(100% - 36px); border-top:1px solid #6e7b85; }
+.cosmos-planet-stop i { display:block; width:42px; height:42px; border-radius:50%; border:1px solid #7496a9; background:radial-gradient(circle at 30% 25%,#d9e3cf,#668797 30%,#1d344a 80%); }
+.cosmos-planet-stop.guard i { border-color:#b1a08b; background:radial-gradient(circle at 30% 25%,#e6d6b4,#887653 35%,#352f2b 80%); box-shadow:0 0 0 3px #7faebb40; }
+.cosmos-planet-stop.storm i { border-color:#a8a3dc; background:repeating-linear-gradient(155deg,transparent 0 8px,#aaa7e433 9px 12px),radial-gradient(circle at 30% 25%,#b7c2e0,#65558f 35%,#27213f 80%); }
+.cosmos-planet-stop.asteroid i { border-radius:32% 55% 35% 45%; transform:rotate(-16deg); }
+.cosmos-planet-stop.boss i { border-color:#e2b975; background:radial-gradient(circle at 30% 25%,#efd390,#926443 35%,#32223b 80%); box-shadow:0 0 18px #d4a96633; }
+.cosmos-planet-stop b { font-size:11px; font-weight:500; overflow-wrap:anywhere; line-height:1.45; }
+.cosmos-planet-stop small { min-height:14px; font-size:10px; color:#bfaf84; }
+.cosmos-planet-stop.current i { outline:2px solid #ebcf82; outline-offset:4px; }
+.cosmos-planet-stop.current small { color:#f3d690; }
+.cosmos-planet-stop.done { opacity:.65; }
+.cosmos-planet-stop.done small { color:#b4d4c1; }
+@container(max-width:740px) { .cosmos-planet-path { grid-template-columns:repeat(4,minmax(0,1fr)); row-gap:20px; } .cosmos-planet-stop:nth-child(4n):after { display:none; } .cosmos-route-footer { flex-wrap:wrap; } }
+@container(max-width:390px) { .cosmos-journey-heading strong { font-size:16px; } .cosmos-planet-path { column-gap:6px; padding-inline:9px; } .cosmos-planet-stop i { width:34px; height:34px; } .cosmos-planet-stop:after { top:18px; } }

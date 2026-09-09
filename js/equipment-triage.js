@@ -2,6 +2,33 @@
     'use strict';
 
     const FILTER_IDS = Object.freeze(['all', 'balanced', 'damage', 'defense', 'special', 'keep']);
+    // Editable stat inputs. Combat timers, HP, buffs and enemies belong to the frozen
+    // analysis snapshot, not invalidation. Add new growth systems here with their tests.
+    const BUILD_FIELDS = [
+        'inventory', 'equipment', 'level', 'season', 'loopCount', 'maxZoneId',
+        'selectedHeroId', 'selectedClassId', 'ascendClass', 'ascendNodes', 'ascendKeystones',
+        'passives', 'voidPassives', 'passiveAttributePreference', 'passiveAttributeChoices',
+        'passiveStarEvolution', 'seasonNodes', 'seasonNodeLevels', 'loop10BonusStats', 'loopDeepStats',
+        'actRewardBonuses', 'journalBonuses', 'journalEntries', 'activeSkill', 'skills', 'supports',
+        'equippedSupports', 'equippedSummonSkills', 'summonSkillCounts', 'gemData', 'supportGemData',
+        'skillAutoRules', 'conditionGemLevels', 'conditionGemPool',
+        'sealedSkills', 'sealedSupports', 'resonancePower', 'skyGemEnhancements',
+        'jewelSlots', 'jewelSlotAmplify', 'growthBoard', 'growthInventory',
+        'talismanBoard', 'talismanPlacements', 'talismanBoardUnlock', 'talismanUnlockedCells',
+        'underworldRunes', 'talentCards', 'talentCardLoadout', 'bloomedClasses',
+        'bloomedClassThisLoop', 'bloomedTalentThisLoop', 'uniqueCodex', 'contentProgression'
+    ];
+    const BUILD_PARTS = {
+        passiveSpecialization: ['revelation', 'keystoneChoices'],
+        starWedge: ['wedges', 'sockets', 'nodeMutations', 'disabledNodeEffects'],
+        coreCube: ['unlocked', 'powers', 'faces', 'completed', 'revealedOptions', 'optionMechanism'],
+        arcana: ['unlocked', 'cards', 'deckSlots', 'equipmentSlots'],
+        pruningTree: ['unlocked', 'nodeRanks', 'prunedPenaltyRanks'],
+        beyondBoundary: ['seals'], colony: ['wardEquipped', 'wardSlots'],
+        cosmosAtlas: ['mastery', 'equippedStones', 'equippedStoneGalaxy', 'bossStoneOptions'],
+        skyTower: ['skyStone', 'gemBoosts'], ocean: ['permanentUpgrades'],
+        expertise: ['levels', 'nodes', 'favors'], flasks: ['healTier', 'qualityByKey']
+    };
     /**
      * @typedef {Object} EquipmentTriageResult
      * @property {'balanced'|'damage'|'defense'|'keep'} kind
@@ -13,14 +40,16 @@
      */
     const state = {
         status: 'idle', filter: 'all', results: new Map(), signature: '', token: 0, work: null,
-        lastSyncAt: 0
+        lastSyncAt: 0, timer: null
     };
 
-    function getInventorySignature() {
-        return JSON.stringify([
-            Array.isArray(game.inventory) ? game.inventory : [],
-            game.equipment && typeof game.equipment === 'object' ? game.equipment : {}
-        ], (key, value) => key === 'locked' ? undefined : value);
+    function getBuildSignature() {
+        const inputs = BUILD_FIELDS.map(key => game[key]);
+        Object.entries(BUILD_PARTS).forEach(([key, fields]) => {
+            inputs.push(fields.map(field => game[key]?.[field]));
+        });
+        inputs.push((game.flasks?.utils || []).map(flask => flask && flask.key));
+        return JSON.stringify(inputs, (key, value) => ['locked', 'exp', 'xp'].includes(key) ? undefined : value);
     }
 
     function getDamageScore(stats) {
@@ -44,25 +73,42 @@
         return Array.from(new Set(slots.filter(Boolean)));
     }
 
-    function evaluateCandidateSlot(item, slot, baseline) {
-        const equipment = game.equipment || (game.equipment = {});
-        const hadSlot = Object.prototype.hasOwnProperty.call(equipment, slot);
-        const backup = equipment[slot];
-        const twinBackup = Array.isArray(game.cosmosTwinKeystones)
-            ? game.cosmosTwinKeystones.slice() : game.cosmosTwinKeystones;
+    // A fresh copy per slot also isolates normalization and stat-provider side effects.
+    // The live game is restored synchronously before rendering or scheduling another job.
+    function readSnapshotStats(snapshot, item, slot) {
+        const liveGame = game;
         try {
-            equipment[slot] = item;
-            const after = getPlayerStats();
-            return {
-                slot,
-                dpsRatio: getDamageScore(after) / baseline.dps,
-                ehpRatio: getEhpScore(after) / baseline.ehp
-            };
+            game = JSON.parse(snapshot.gameJson);
+            game.inventory = snapshot.inventory;
+            if (item) game.equipment[slot] = JSON.parse(JSON.stringify(item));
+            return getPlayerStats(false);
         } finally {
-            if (hadSlot) equipment[slot] = backup;
-            else delete equipment[slot];
-            game.cosmosTwinKeystones = twinBackup;
+            game = liveGame;
         }
+    }
+
+    function evaluateCandidateSlot(item, slot, work) {
+        const after = readSnapshotStats(work.snapshot, item, slot);
+        return { slot, dpsRatio: getDamageScore(after) / work.baseline.dps,
+            ehpRatio: getEhpScore(after) / work.baseline.ehp };
+    }
+
+    function freezeInventoryRecord(value) {
+        if (!value || typeof value !== 'object') return value;
+        Object.values(value).forEach(freezeInventoryRecord);
+        return Object.freeze(value);
+    }
+
+    function createAnalysisWork() {
+        // Stat providers only read inventory (e.g. the old-box jewel's rarity bonus).
+        // Share its isolated, immutable copy; reparsing hundreds of full items per slot
+        // would cost more than the numeric-only evaluation saves.
+        const inventory = freezeInventoryRecord(JSON.parse(JSON.stringify(game.inventory)));
+        const snapshot = { inventory, gameJson: JSON.stringify({ ...game,
+            inventory: undefined, combatTimeMs: getCombatTime() }) };
+        const items = inventory.filter(item => item && item.id !== undefined)
+            .map(item => ({ item, slots: getCandidateSlots(item) }));
+        return { items, index: 0, snapshot, baseline: createBaseline(snapshot) };
     }
 
     function isSpecialCandidate(item) {
@@ -75,8 +121,9 @@
     }
 
     /** @returns {EquipmentTriageResult} */
-    function classifyCandidate(item, baseline) {
-        const rows = getCandidateSlots(item).map(slot => evaluateCandidateSlot(item, slot, baseline));
+    function classifyCandidate(candidate, work) {
+        const { item, slots } = candidate;
+        const rows = slots.map(slot => evaluateCandidateSlot(item, slot, work));
         const bestDps = rows.reduce((best, row) => row.dpsRatio > best.dpsRatio ? row : best,
             { slot: '', dpsRatio: 1, ehpRatio: 1 });
         const bestEhp = rows.reduce((best, row) => row.ehpRatio > best.ehpRatio ? row : best,
@@ -93,8 +140,8 @@
         };
     }
 
-    function createBaseline() {
-        const stats = getPlayerStats();
+    function createBaseline(snapshot) {
+        const stats = readSnapshotStats(snapshot);
         return { dps: Math.max(1, getDamageScore(stats)), ehp: Math.max(1, getEhpScore(stats)) };
     }
 
@@ -117,8 +164,9 @@
             return `${counts.all}개 완료 · 균형 ${counts.balanced} · 공격 ${counts.damage} · 생존 ${counts.defense}`;
         }
         if (state.status === 'error') return '분석 중 오류가 발생했습니다. 다시 시도하세요.';
-        if (state.status === 'stale') return '장비가 변경되어 결과를 비웠습니다.';
-        return '호버 대신 현재 세팅과 한 번에 비교합니다.';
+        if (state.status === 'stale') return '세팅이 변경되어 결과를 비웠습니다.';
+        if (state.status === 'cancelled') return '분석을 중단했습니다.';
+        return '분석 시작 시점의 세팅·전투 상태로 비교합니다.';
     }
 
     function getFilterOptionsHtml(counts) {
@@ -160,10 +208,10 @@
         const recommendation = getRecommendedCandidate();
         const autoSalvageButton = isInventoryNearFull() && typeof openAutoSalvageConfigOverlay === 'function'
             ? '<button type="button" onclick="openAutoSalvageConfigOverlay()">자동 해체 설정</button>' : '';
-        const html = `<div class="equipment-triage-copy"><strong>현재 세팅 분석</strong><small>${getStatusCopy()}</small></div>
+        const html = `<div class="equipment-triage-copy" title="분석 시작 시점의 세팅·전투 상태를 기준으로 비교합니다."><strong>현재 세팅 분석</strong><small>${getStatusCopy()}</small></div>
             <div class="equipment-triage-controls">
                 <label>판단 <select onchange="equipmentTriage.setFilter(this.value)" ${ready ? '' : 'disabled'}>${getFilterOptionsHtml(counts)}</select></label>
-                <button type="button" onclick="equipmentTriage.start()" ${running ? 'disabled' : ''}>${running ? '분석 중' : (ready || state.status === 'stale' || state.status === 'error' ? '다시 분석' : '일괄 분석')}</button>
+                <button type="button" onclick="equipmentTriage.${running ? 'cancel' : 'start'}()">${running ? '분석 중단' : (state.status === 'idle' ? '일괄 분석' : '다시 분석')}</button>
                 <button type="button" onclick="equipmentTriage.equipRecommended()" ${recommendation ? '' : 'disabled'} title="${state.filter === 'all' ? '공격과 생존이 함께 오르는 장비만 추천합니다.' : '현재 판단 기준에서 가장 높은 장비를 추천합니다.'}">추천 교체</button>
                 ${autoSalvageButton}
             </div>`;
@@ -174,6 +222,8 @@
     }
 
     function clearResults(status) {
+        clearTimeout(state.timer);
+        state.timer = null;
         state.token += 1;
         state.status = status;
         state.filter = 'all';
@@ -189,7 +239,7 @@
         let now = Date.now();
         if (!force && now - state.lastSyncAt < 500) return;
         state.lastSyncAt = now;
-        if (getInventorySignature() === state.signature) return;
+        if (getBuildSignature() === state.signature) return;
         clearResults('stale');
     }
 
@@ -203,7 +253,7 @@
 
     function finishAnalysis(token) {
         if (token !== state.token || !state.work) return;
-        if (getInventorySignature() !== state.signature) {
+        if (getBuildSignature() !== state.signature) {
             clearResults('stale');
             return;
         }
@@ -216,11 +266,14 @@
 
     function runChunk(token) {
         if (token !== state.token || !state.work) return;
+        state.timer = null;
         const end = Math.min(state.work.items.length, state.work.index + 3);
         try {
+            sync();
+            if (!state.work) return;
             while (state.work.index < end) {
-                const item = state.work.items[state.work.index++];
-                if (item && item.id !== undefined) state.results.set(String(item.id), classifyCandidate(item, state.work.baseline));
+                const candidate = state.work.items[state.work.index++];
+                state.results.set(String(candidate.item.id), classifyCandidate(candidate, state.work));
             }
         } catch (error) {
             failAnalysis(error);
@@ -228,33 +281,41 @@
         }
         render();
         if (state.work.index >= state.work.items.length) return finishAnalysis(token);
-        setTimeout(() => runChunk(token), 0);
+        state.timer = setTimeout(() => runChunk(token), 0);
+    }
+
+    function cancel() {
+        if (state.status !== 'running') return false;
+        clearResults('cancelled');
+        return true;
     }
 
     function start() {
         if (state.status === 'running') return false;
-        const items = (Array.isArray(game.inventory) ? game.inventory : []).slice();
         state.token += 1;
         state.status = 'running';
         state.filter = 'all';
         state.results = new Map();
         try {
-            state.signature = getInventorySignature();
-            state.work = { items, index: 0, baseline: createBaseline() };
+            state.signature = getBuildSignature();
+            state.work = createAnalysisWork();
+            state.lastSyncAt = Date.now();
         } catch (error) {
             failAnalysis(error);
             return false;
         }
         render();
-        if (items.length === 0) {
+        if (state.work.items.length === 0) {
             finishAnalysis(state.token);
             return true;
         }
-        setTimeout(() => runChunk(state.token), 0);
+        const token = state.token;
+        state.timer = setTimeout(() => runChunk(token), 0);
         return true;
     }
 
     function setFilter(filterId) {
+        sync(true);
         if (state.status !== 'ready' || !FILTER_IDS.includes(filterId)) return false;
         state.filter = filterId;
         render();
@@ -284,6 +345,7 @@
     }
 
     function equipRecommended() {
+        sync(true);
         const recommendation = getRecommendedCandidate();
         if (!recommendation || typeof equipItemById !== 'function') return false;
         const equipped = equipItemById(recommendation.item.id, recommendation.slot);
@@ -295,6 +357,6 @@
         return true;
     }
 
-    const equipmentTriage = Object.freeze({ sync, render, start, setFilter, filterRows, getResult, equipRecommended });
+    const equipmentTriage = Object.freeze({ sync, render, start, cancel, setFilter, filterRows, getResult, equipRecommended });
     safeExposeGlobals({ equipmentTriage });
 }());

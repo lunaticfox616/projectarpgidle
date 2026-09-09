@@ -36,13 +36,15 @@ test('touch browsing scrolls inventory without moving gear, and explicit equip r
         game.inventory = Array.from({ length: 16 }, () => createItemFromBase(BASE_ITEM_DB.find(b => b.id === 'war_helm'), 'rare', 1));
         switchTab('tab-items'); updateStaticUI();
     });
-    const management = page.locator('.equipment-mobile-management');
-    await expect(management).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.locator('#ui-equipment-triage')).toBeHidden();
-    await management.tap();
+    const management = page.locator('.equipment-bulk-menu > summary');
     await expect(page.locator('#ui-equipment-triage')).toBeVisible();
+    await expect(page.locator('#btn-salvage-recovery')).toBeHidden();
     await management.tap();
-    const first = page.locator('.equipment-grid-item').first();
+    await expect(page.locator('#btn-salvage-recovery')).toBeVisible();
+    await management.tap();
+    // DOM order is reversed: the first record is in the bottom row behind the fixed dock.
+    // Start the browse gesture on an unobscured upper-row item.
+    const first = page.locator('.equipment-grid-item').last();
     await first.scrollIntoViewIfNeeded();
     const before = await page.evaluate(() => JSON.stringify(game.equipmentInventoryPlacements));
     const scrollBefore = await first.evaluate(el => {
@@ -61,11 +63,12 @@ test('touch browsing scrolls inventory without moving gear, and explicit equip r
     }
     await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await page.waitForTimeout(500); // Let native inertial scrolling end before the next deliberate tap.
-    expect(await first.evaluate(el => {
+    const scrollAfter = await first.evaluate(el => {
         let offset = 0;
         for (let node = el; node; node = node.parentElement) offset += node.scrollTop;
         return offset;
-    })).toBeGreaterThan(scrollBefore);
+    });
+    expect(scrollAfter).toBeGreaterThan(scrollBefore);
     expect(await page.evaluate(() => equipmentInventoryInteraction.isCarrying())).toBe(false);
     expect(await page.evaluate(() => JSON.stringify(game.equipmentInventoryPlacements))).toBe(before);
     await first.tap();

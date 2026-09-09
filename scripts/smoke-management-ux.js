@@ -45,17 +45,22 @@ assert.strictEqual(vm.runInContext("translateSkillTag('curse')", runtime), '저�
 assert.strictEqual(vm.runInContext("translateSkillTag('warcry')", runtime), '함성', 'warcry tags must be localized');
 assert.strictEqual(vm.runInContext("translateSkillTag('guard')", runtime), '수호', 'guard tags must be localized');
 assert.strictEqual(vm.runInContext("translateSkillTag('utility')", runtime), '기능', 'utility tags must be localized');
+vm.runInContext("addSkillAutoRule('긴급 회피');", runtime);
+assert.strictEqual(vm.runInContext('game.skillAutoRules[0].enabled', runtime), false, 'gem-first rule must stay inactive until reviewed');
+assert.strictEqual(vm.runInContext('game.skillAutoRules[0].triggerType', runtime), 'boss_warning', 'evasion draft must use the boss threat trigger');
+vm.runInContext("addSkillAutoRule('보유하지 않은 젬');", runtime);
+assert.strictEqual(vm.runInContext('game.skillAutoRules.length', runtime), 1, 'unknown gem must not create a partial rule');
+vm.runInContext("game.activeSkill='연속 베기'; game.equippedSummonSkills=[];", runtime);
+assert.strictEqual(vm.runInContext("gemSelectionUi.application('근접 물리 피해', getPlayerStats())", runtime), '적용: 주 공격');
+assert.strictEqual(vm.runInContext("gemSelectionUi.application('투사체 강화', getPlayerStats())", runtime), '현재 주 공격·소환 젬에 적용되지 않음');
+vm.runInContext("game.activeSkill='기본 공격'; game.skills.push('서리늑대 소환'); game.equippedSummonSkills=['서리늑대 소환'];", runtime);
+assert(vm.runInContext("gemSelectionUi.application('원소 집중', getPlayerStats()).includes('서리늑대 소환')", runtime), 'support must include an eligible equipped summon even when the main attack is physical');
 const favorHtml = vm.runInContext("game.expertise.levels.mycologist=10; game.expertise.favors.mycologist=getExpertFavorOptions('mycologist')[0].id; getExpertiseCardHtml('mycologist')", runtime);
 assert(favorHtml.includes('현재 선택') && favorHtml.includes('✓ 선택됨'), 'expert favor must name and badge the active choice');
 
 const equipmentCardHtml = runtime.renderInventoryCard({ id: 9910, slot: 'weapon', name: 'Test Sword', baseName: 'Test Sword', rarity: 'normal', baseStats: [], stats: [] }, 0, 'equip');
 assert(!equipmentCardHtml.includes('<details'), 'equipment card actions must not be split behind a management disclosure');
-const equipmentInspector = { innerHTML: '' };
-runtime.document.getElementById = id => id === 'ui-equipment-inventory-inspector' ? equipmentInspector : null;
-runtime.renderEquipmentInventoryInspector([{ item: { id: 9910, slot: 'weapon', name: 'Test Sword', baseName: 'Test Sword', rarity: 'normal', baseStats: [], stats: [] } }]);
-['equipItemById(9910)', 'craftSelectInventoryItemById(9910)', 'toggleItemLockById(9910)', 'salvageItemById(9910)'].forEach(action => {
-    assert(equipmentInspector.innerHTML.includes(action), `the focused equipment inspector must expose ${action} directly`);
-});
+// Equipment action behavior is covered by tests/browser/equipment-selection-flow.spec.js.
 
 const starWedgeDrawer = { hidden: false, open: true };
 const starWedgePanel = { innerHTML: '' };

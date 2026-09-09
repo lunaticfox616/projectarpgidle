@@ -155,7 +155,43 @@ function resolveConditionalCombatTactics(baseTactics, pStats, state, now) {
     return resolved;
 }
 
+// Optional, transient observation of the existing cast loop. Never serialized or used for combat decisions.
+// The UI watches only its visible state; offline replay clones cannot write into that observation.
+const conditionGemFeedback = (() => {
+    let watched = null, active = false, tick = 0;
+    let rows = new WeakMap();
+    function observe(state) {
+        if (watched === state) return;
+        watched = state;
+        active = false;
+        tick = 0;
+        rows = new WeakMap();
+    }
+    function begin(state, now) {
+        active = watched === state;
+        if (active) tick = now;
+    }
+    /** Records one result per rule, without retaining a history. Always returns null for rejected casts. */
+    function record(rule, code) {
+        if (!active) return null;
+        let row = rows.get(rule);
+        if (!row) { row = { code, checkedAt: tick, castAt: 0 }; rows.set(rule, row); }
+        row.code = code;
+        row.checkedAt = tick;
+        if (code === 'cast') row.castAt = tick;
+        return null;
+    }
+    function status(rule) {
+        const row = rows.get(rule);
+        if (!row) return tick ? 'priority' : 'waiting';
+        return row.checkedAt === tick ? row.code : 'priority';
+    }
+    function castAt(rule) { return rows.get(rule)?.castAt || 0; }
+    return Object.freeze({ observe, begin, record, status, castAt });
+})();
+
 safeExposeGlobals({
+    conditionGemFeedback,
     getConditionPatternProgressLoop, isConditionPatternRequirementMet, getConditionPatternRequirementLabel,
     getConditionPatternTriggers, getConditionPatternActions, normalizeConditionPatternRule,
     formatConditionPatternTriggerSummary, getConditionPatternContext, doesConditionPatternMatch,

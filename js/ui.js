@@ -250,9 +250,9 @@ function callUiProvider(name, provider, args = []) {
     }
 }
 
-function getUiPlayerStats(fallback = {}) {
+function getUiPlayerStats(fallback = {}, includeBreakdowns) {
     let provider = getUiGlobalFunction('getPlayerStats');
-    if (provider) return normalizeUiPlayerStats(callUiProvider('getPlayerStats', provider), fallback);
+    if (provider) return normalizeUiPlayerStats(callUiProvider('getPlayerStats', provider, [includeBreakdowns]), fallback);
     if (cachedTooltipStats && cachedTooltipStats.__uiFallbackStats !== true) return normalizeUiPlayerStats(cachedTooltipStats, fallback);
     return normalizeUiPlayerStats(Object.assign({}, fallback || {}, { __uiFallbackStats: true }), fallback);
 }
@@ -2054,12 +2054,18 @@ function getDefaultSkillAutoRule() {
     };
 }
 
-function addSkillAutoRule() {
+function addSkillAutoRule(name = '') {
     if (!game.conditionGemUnlocked) return addLog('루프 탭에서 위기 대응을 해금하면 컨디션 젬을 사용할 수 있습니다.', 'attack-monster');
+    if (name && !(game.conditionGemPool || []).includes(name)) return;
     game.skillAutoRules = Array.isArray(game.skillAutoRules) ? game.skillAutoRules : [];
-
-    game.skillAutoRules.push(getDefaultSkillAutoRule());
+    const rule = getDefaultSkillAutoRule();
+    rule.skillName = name;
+    // Choosing a gem creates a draft: the player reviews its condition before enabling it.
+    if (name) rule.enabled = false;
+    if (name === '긴급 회피') rule.triggerType = 'boss_warning';
+    game.skillAutoRules.push(rule);
     renderSkillAutoRulePanel();
+    document.querySelector('#ui-skill-rules-panel .condition-pattern-rule:last-child')?.scrollIntoView({ block: 'nearest' });
 }
 
 function sortSkillAutoRules() {
@@ -2191,7 +2197,7 @@ function renderConditionGemIdentity(entry, options) {
 function renderOwnedConditionGemCard(entry) {
     let safeName = String(entry.name || '').replace(/'/g, "\\'");
     let presentation = getConditionGemTypePresentation(entry);
-    return `<article class="condition-gem-card condition-gem-${presentation.type}" style="--condition-tone:${presentation.visual.color};" data-info-tooltip-anchor="1" onmouseenter="showConditionGemTooltip(event,'${safeName}')" onmousemove="showConditionGemTooltip(event,'${safeName}')" onmouseleave="hideInfoTooltip()">${renderConditionGemIdentity(entry)}</article>`;
+    return `<button type="button" class="condition-gem-card condition-gem-${presentation.type}" style="--condition-tone:${presentation.visual.color};" aria-label="${escapeHTML(entry.name)} 규칙 만들기" data-condition-gem="${escapeHTML(entry.name)}" data-info-tooltip-anchor="1" onclick="hideInfoTooltip(); addSkillAutoRule('${safeName}')" onmouseenter="showConditionGemTooltip(event,'${safeName}')" onmousemove="showConditionGemTooltip(event,'${safeName}')" onmouseleave="hideInfoTooltip()">${renderConditionGemIdentity(entry)}<span class="condition-gem-cooldown" hidden></span></button>`;
 }
 
 function renderConditionGemChoice(entry) {
@@ -2377,6 +2383,44 @@ function pickConditionGem(name) {
     renderSkillAutoRulePanel();
 }
 
+function renderConditionRuleStatus(rule, owned) {
+    let html = '';
+    if (rule.actionType === 'condition_gem' && !owned.includes(rule.skillName)) {
+        html += '<div class="condition-rule-warning">사용할 젬이 선택되지 않아 이 규칙은 실행되지 않습니다.</div>';
+    }
+    if (!rule.enabled) html += '<div class="condition-rule-draft">사용 중지 · 조건을 확인한 뒤 ‘사용’을 켜세요.</div>';
+    return html;
+}
+
+function renderConditionPatternRule(rule, idx, options) {
+    const { triggers, actions, ownedEntries, owned } = options;
+    let trigger = triggers.find(row => row.id === rule.triggerType) || triggers[0];
+    let action = actions.find(row => row.id === rule.actionType) || actions[0];
+    return `
+    <div class="condition-pattern-rule">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked; renderSkillAutoRulePanel();"> 사용</label>
+            <span>우선순위 ${idx + 1}</span>
+            ${rule.actionType === 'condition_gem' ? conditionFeedbackUi.markup(idx) : ''}
+            <button aria-label="규칙 위로 이동" onclick="moveSkillAutoRule(${idx},-1)" ${idx === 0 ? 'disabled' : ''}>↑</button>
+            <button aria-label="규칙 아래로 이동" onclick="moveSkillAutoRule(${idx},1)" ${idx === game.skillAutoRules.length - 1 ? 'disabled' : ''}>↓</button>
+            <button onclick="game.skillAutoRules.splice(${idx},1); renderSkillAutoRulePanel();">삭제</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; color:var(--copy-bright);">
+            <span>이때</span>
+            <select aria-label="발동 조건" onchange="setConditionPatternTrigger(${idx},this.value);">${triggers.map(row => `<option value="${row.id}" ${trigger && trigger.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('')}</select>
+            ${renderConditionPatternValueControl(rule, idx, trigger)}
+            <span>실행</span>
+            <select aria-label="실행 행동" onchange="setConditionPatternAction(${idx},this.value);">${actions.map(row => `<option value="${row.id}" ${action && action.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('')}</select>
+            ${rule.actionType === 'condition_gem' ? `<select aria-label="사용할 컨디션 젬" onchange="game.skillAutoRules[${idx}].skillName=this.value; renderSkillAutoRulePanel();">
+                <option value="">사용할 젬 선택</option>
+                ${ownedEntries.map(entry => `<option value="${entry.name}" title="${escapeHTML(getConditionGemTooltip(entry))}" ${rule.skillName===entry.name?'selected':''}>${entry.name} · ${translateSkillTag(entry.type)}</option>`).join('')}
+            </select>` : ''}
+        </div>
+        ${renderConditionRuleStatus(rule, owned)}
+    </div>`;
+}
+
 function renderSkillAutoRulePanel() {
     let panel = document.getElementById('ui-skill-rules-panel');
     if (!panel) return;
@@ -2402,7 +2446,7 @@ function renderSkillAutoRulePanel() {
     let ownedHtml = ownedEntries.length > 0 ? `<details class="progression-workbench" open><summary>보유 컨디션 젬 ${ownedEntries.length}개</summary><div class="condition-gem-grid">${ownedEntries.map(renderOwnedConditionGemCard).join('')}</div></details>` : '';
 
     if (game.skillAutoRules.length === 0) {
-        let html = summary + choiceHtml + ownedHtml + `<div style="color:var(--copy-muted); border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">아직 규칙이 없습니다. 규칙 추가 버튼으로 시작하세요.</div>`;
+        let html = summary + choiceHtml + ownedHtml + `<div style="color:var(--copy-muted); border:1px dashed #39506c; border-radius:8px; padding:12px; margin-top:8px;">보유 젬을 선택하면 규칙을 만들 수 있습니다.</div>`;
         if (panel.__lastHtml !== html) {
             panel.innerHTML = html;
             panel.__lastHtml = html;
@@ -2411,32 +2455,8 @@ function renderSkillAutoRulePanel() {
     }
     let triggers = getConditionPatternTriggers(game, false);
     let actions = getConditionPatternActions(game, false);
-    let html = summary + choiceHtml + ownedHtml + game.skillAutoRules.map((rule, idx) => {
-        let trigger = triggers.find(row => row.id === rule.triggerType) || triggers[0];
-        let action = actions.find(row => row.id === rule.actionType) || actions[0];
-        return `
-        <div class="condition-pattern-rule">
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked;"> 사용</label>
-                <span>우선순위 ${idx + 1}</span>
-                <button aria-label="규칙 위로 이동" onclick="moveSkillAutoRule(${idx},-1)" ${idx === 0 ? 'disabled' : ''}>↑</button>
-                <button aria-label="규칙 아래로 이동" onclick="moveSkillAutoRule(${idx},1)" ${idx === game.skillAutoRules.length - 1 ? 'disabled' : ''}>↓</button>
-                <button onclick="game.skillAutoRules.splice(${idx},1); renderSkillAutoRulePanel();">삭제</button>
-            </div>
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; color:var(--copy-bright);">
-                <span>IF</span>
-                <select onchange="setConditionPatternTrigger(${idx},this.value);">${triggers.map(row => `<option value="${row.id}" ${trigger && trigger.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('')}</select>
-                ${renderConditionPatternValueControl(rule, idx, trigger)}
-                <span>THEN</span>
-                <select onchange="setConditionPatternAction(${idx},this.value);">${actions.map(row => `<option value="${row.id}" ${action && action.id === row.id ? 'selected' : ''}>${row.label}</option>`).join('')}</select>
-                ${rule.actionType === 'condition_gem' ? `<select onchange="game.skillAutoRules[${idx}].skillName=this.value;" style="min-width:180px;">
-                    <option value="">사용할 젬 선택</option>
-                    ${ownedEntries.map(entry => `<option value="${entry.name}" title="${escapeHTML(getConditionGemTooltip(entry))}" ${rule.skillName===entry.name?'selected':''}>${entry.name} (${entry.type})</option>`).join('')}
-                </select>` : ''}
-            </div>
-            ${rule.actionType !== 'condition_gem' || (rule.skillName && owned.includes(rule.skillName)) ? '' : '<div class="condition-rule-warning">사용할 젬이 선택되지 않아 이 규칙은 실행되지 않습니다.</div>'}
-        </div>`;
-    }).join('');
+    const options = { triggers, actions, ownedEntries, owned };
+    let html = summary + choiceHtml + game.skillAutoRules.map((rule, idx) => renderConditionPatternRule(rule, idx, options)).join('') + ownedHtml;
     if (panel.__lastHtml === html) return;
     panel.innerHTML = html;
     panel.__lastHtml = html;
@@ -4951,12 +4971,12 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let active = name === game.activeSkill || summonEquipped;
     let equipmentReady = typeof canUseSkillWithCurrentEquipment !== 'function' || canUseSkillWithCurrentEquipment(name);
     let tutorialTarget = getStarterGemTutorialTarget() === name && !active;
-    let usageLabel = !equipmentReady ? '방패 필요' : (active ? '클릭하여 강화 · 각인' : '클릭하여 장착');
+    let usageLabel = !equipmentReady ? '방패 필요 · 상세 보기' : (active ? '장착 중 · 상세 보기' : '상세 보기');
     let summonControls = summonEquipped ? `<span class="summon-gem-controls"><button class="summon-gem-count-btn" title="소환 해제" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', -1)">−</button><span class="summon-gem-count">${getSummonSkillCount(name)}기</span><button class="summon-gem-count-btn" title="추가 소환" onclick="event.stopPropagation(); changeSummonSkillCount('${name}', 1)">+</button></span>` : '';
     let sealButton = active || name === '기본 공격' ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSkillGem('${name}')">봉인</button>`;
-    let tutorialGuide = tutorialTarget ? '<div class="starter-gem-equip-guide">첫 스킬 젬 · 클릭하여 장착</div>' : '';
-    let action = active ? `openEquippedGemManagement('${name}')` : `changeSkill('${name}')`;
-    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${!equipmentReady ? 'equipment-blocked' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}${!equipmentReady ? ', 방패 필요' : ''}" aria-disabled="${equipmentReady ? 'false' : 'true'}" onmouseenter="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
+    let tutorialGuide = tutorialTarget ? '<div class="starter-gem-equip-guide">첫 스킬 젬 · 선택 후 장착</div>' : '';
+    let action = `gemSelectionUi.open(this,'active','${name}')`;
+    return `<article class="skill-gem gem-library-card element-${meta.className} ${active ? 'active' : ''} ${!equipmentReady ? 'equipment-blocked' : ''} ${tutorialTarget ? 'starter-gem-tutorial-target' : ''}" role="group" tabindex="0" onclick="${action}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${action};}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : ''}${!equipmentReady ? ', 방패 필요' : ''}" onmouseenter="showGemTooltip(event,'active','${name}')" onmouseleave="hideInfoTooltip()">
         ${tutorialGuide}
         <div class="gem-card-head">${renderSkillGemArt(name, 'gem-card-sigil gem-card-art')}<div><small>${meta.elementLabel} · ${meta.typeLabel}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${escapeHTML(def.desc || '공격 스킬 젬')}</p>
@@ -4987,12 +5007,13 @@ function renderSupportGemCard(name, highlightedName, stats) {
     } else if (!active && availableResonance < cost) failureReason = `공명력 부족 (${availableResonance}/${cost})`;
     let resonanceStatus = active ? `장착 중 · 공명 ${cost}`
         : (failureReason || `장착 후 공명 ${Math.max(0, availableResonance - cost)}`);
-    let usageState = active ? '● 장착 중' : (failureReason || '클릭하여 장착');
+    let usageState = active ? '● 장착 중 · 상세 보기' : (failureReason || '상세 보기');
     let tierButtons = tierCap <= 1 ? '' : [1, 2, 3].map(tier => `<button class="${tier === activeTier ? 'active' : ''}" title="${tier <= unlockedTier ? `${tier}등급 사용` : '미해금 등급'}" onclick="event.stopPropagation(); setSupportActiveTier('${name}', ${tier})" ${tier <= unlockedTier ? '' : 'disabled'}>${tier}</button>`).join('');
     let sealButton = active ? '' : `<button class="gem-card-utility" onclick="event.stopPropagation(); sealSupportGem('${name}')">봉인</button>`;
-    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''} ${failureReason ? 'equipment-blocked' : ''}" role="group" tabindex="0" onclick="toggleSupport('${name}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();toggleSupport('${name}');}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failureReason ? `, ${escapeHTML(failureReason)}` : '')}" onmouseenter="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()">
+    return `<article class="skill-gem support-gem gem-library-card ${active ? 'active' : ''} ${failureReason ? 'equipment-blocked' : ''}" role="group" tabindex="0" onclick="gemSelectionUi.open(this,'support','${name}')" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();gemSelectionUi.open(this,'support','${name}');}" aria-label="${escapeHTML(name)}${active ? ', 장착 중' : (failureReason ? `, ${escapeHTML(failureReason)}` : '')}" onmouseenter="showGemTooltip(event,'support','${name}')" onmouseleave="hideInfoTooltip()">
         <div class="gem-card-head"><span class="gem-card-sigil">✚</span><div><small>${tierLabel} 보조 · 공명 ${cost}</small><strong>${highlightedName}</strong></div><span class="gem-level-badge ${gemInfo.totalLevel > gemInfo.baseLevel ? 'effective' : ''}">Lv.${gemInfo.totalLevel}</span></div>
         <p>${escapeHTML(def.desc || '보조 젬 효과')}</p>
+        <div class="gem-application-note">${escapeHTML(gemSelectionUi.application(name, stats))}</div>
         <div class="gem-card-tags"><span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || ''))}</span><span class="gem-tag gem-tag--resonance">${escapeHTML(resonanceStatus)}</span></div>
         <div class="gem-card-footer"><span class="gem-usage-state">${escapeHTML(usageState)}</span>${tierButtons ? `<span class="support-tier-switch" aria-label="보조 젬 등급">${tierButtons}</span>` : ''}${sealButton}</div>
     </article>`;
@@ -5012,7 +5033,7 @@ function renderSkillLoadoutSummary(pStats, resonanceCap) {
     let usedResonance = (game.equippedSupports || []).reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
     let summonCount = getEquippedSummonCount();
     let summonCap = getSummonEquipCapFromStats(pStats);
-    root.innerHTML = `<div><span>주 공격</span><strong>${escapeHTML(activeName)}</strong><small>Lv.${activeInfo.totalLevel || 1}</small></div><div><span>보조 젬</span><strong>${(game.equippedSupports || []).length}/${Math.max(0, Math.floor(pStats.suppCap || 0))}</strong><small>장착 수</small></div><div><span>공명력</span><strong>${Math.max(0, resonanceCap - usedResonance)}</strong><small>${usedResonance}/${resonanceCap} 사용</small></div><div><span>소환 한도</span><strong>${summonCount}/${summonCap}</strong><small>현재 소환</small></div>`;
+    root.innerHTML = `<div><span>주 공격</span><strong>${escapeHTML(activeName)}</strong><small>Lv.${activeInfo.totalLevel || 1}</small></div><div><span>보조 젬</span><strong>${(game.equippedSupports || []).length}/${Math.max(0, Math.floor(pStats.suppCap || 0))}</strong><small title="${escapeHTML(game.equippedSupports.join(' · '))}">${escapeHTML(game.equippedSupports.join(' · ') || '장착 없음')}</small></div><div><span>남은 공명력</span><strong>${Math.max(0, resonanceCap - usedResonance)}</strong><small>${usedResonance}/${resonanceCap} 사용</small></div><div><span>소환 한도</span><strong>${summonCount}/${summonCap}</strong><small>현재 소환</small></div>`;
 }
 
 function renderGemResearchCandidate(kind, name, cost, availableFragments) {
@@ -5699,7 +5720,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
             if (getEquippedSummonCount() >= cap) return addLog(`소환수 한도(${cap})로 인해 [${name}]은(는) 장착할 수 없습니다.`, 'attack-monster', { toast: true });
         }
         let used = game.equippedSupports.reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-        let remain = Math.max(0, getEffectiveResonanceCap() - used);
+        let remain = Math.max(0, getEffectiveResonanceCap(stats) - used);
         let activeTier = getSupportActiveTier(name);
         let cost = getSupportTierResonanceCost(name);
         if (remain < cost) return addLog(`공명력 부족 (${remain}/${cost})`, 'attack-monster', { toast: true });
@@ -6961,11 +6982,20 @@ function showEnemyAilmentTooltip(event, payload) {
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ffcf88');
 }
 
-function showGemTooltip(event, type, name) {
+function getGemTargetSummaryHtml(skill) {
+    const label = { all: '광역', whirl: '광역 회전', cleave: '전방 다중', chain: '연쇄', pierce: '관통' }[skill.targetMode] || '단일';
+    let maxTargets = Math.max(1, skill.targets || 1);
+    if (skill.targetMode === 'all') maxTargets = Math.min(8, Math.max(6, skill.targets || 6));
+    return `<div class="tooltip-line">타겟 방식: ${label}</div><div class="tooltip-line">최대 타겟 수: ${maxTargets}</div>`;
+}
+
+function showGemTooltip(event, type, name, target = null) {
+    if (!target && document.getElementById('gem-selection')?.matches(':popover-open')) return;
     let cacheKey = `${type || 'active'}:${name}`;
-    if (reuseInfoTooltip(event, cacheKey)) return;
+    if (!target && reuseInfoTooltip(event, cacheKey)) return;
     let stats = cachedTooltipStats || getUiPlayerStats();
     if (gemTooltipCache && gemTooltipCache.key === cacheKey && gemTooltipCache.stats === stats) {
+        if (target) { target.innerHTML = gemTooltipCache.html; return; }
         showInfoTooltipHtml(event.clientX, event.clientY, gemTooltipCache.html, gemTooltipCache.border, cacheKey);
         return;
     }
@@ -7058,12 +7088,7 @@ function showGemTooltip(event, type, name) {
         if (skill.periodicOnHit) html += `<div class="tooltip-line">반복 타격: ${skill.periodicOnHit.interval}초 간격 · ${skill.periodicOnHit.hits}회 · 적중 피해의 ${skill.periodicOnHit.damagePct}%</div>`;
         if (skill.dotStackCap) html += `<div class="tooltip-line">누적: 최대 ${skill.dotStackCap}중첩 · 중첩당 피해 +${skill.dotStackDamagePct}% / 둔화 +${skill.dotStackSlowPct}%</div>`;
         if (skill.dotTransferOnDeath) html += `<div class="tooltip-line">처치 전파: 남은 지속 피해의 ${skill.dotTransferOnDeath.remainingDamagePct}%를 다른 적 ${skill.dotTransferOnDeath.targets}기에게 이전</div>`;
-        if (!isSummonAttackTooltip) {
-            html += `<div class="tooltip-line">타겟 방식: ${skill.targetMode === 'all' ? '광역' : skill.targetMode === 'whirl' ? '광역 회전' : skill.targetMode === 'cleave' ? '전방 다중' : skill.targetMode === 'chain' ? '연쇄' : skill.targetMode === 'pierce' ? '관통' : '단일'}</div>`;
-            let maxTargetsView = Math.max(1, skill.targets || 1);
-            if (skill.targetMode === 'all') maxTargetsView = Math.min(8, Math.max(6, skill.targets || 6));
-            html += `<div class="tooltip-line">최대 타겟 수: ${maxTargetsView}</div>`;
-        }
+        if (!isSummonAttackTooltip) html += getGemTargetSummaryHtml(skill);
         if ((info.tags || []).length > 0) html += `<div class="tooltip-line">태그: <span class="gem-card-tags gem-tooltip-tags">${renderGemTagChips(info, info.tags.length)}</span></div>`;
         if (skill.crit) html += `<div class="tooltip-line">추가 치명타 +${Number(skill.crit).toFixed(Number.isInteger(skill.crit) ? 0 : 1)}%</div>`;
         if (skill.critScale) html += `<div class="tooltip-line">치명타 성장: 젬 레벨당 +${skill.critScale}%</div>`;
@@ -7097,6 +7122,7 @@ function showGemTooltip(event, type, name) {
     }
     let border = type === 'support' ? '#2bcbba' : '#ff5252';
     gemTooltipCache = { key: cacheKey, html: html, border: border, stats: stats };
+    if (target) { target.innerHTML = html; return; }
     showInfoTooltipHtml(event.clientX, event.clientY, html, border, cacheKey);
 }
 
@@ -7236,17 +7262,14 @@ function getPlayerStatComparisonLines(before, after) {
 let itemTooltipHideTimer = null;
 
 const itemTooltipComparisonScheduler = (() => {
-const delayMs = 100;
-const cacheLimit = 80;
 let activeJob = null;
-let cache = new Map();
 let pointer = { x: 0, y: 0 };
 
 function cancel() {
     let job = activeJob;
     activeJob = null;
     if (!job) return;
-    if (job.delayHandle !== null) clearTimeout(job.delayHandle);
+    if (job.delayHandle !== null) cancelAnimationFrame(job.delayHandle);
     if (job.workHandle === null) return;
     if (job.workKind === 'idle' && typeof cancelIdleCallback === 'function') cancelIdleCallback(job.workHandle);
     else clearTimeout(job.workHandle);
@@ -7261,33 +7284,14 @@ function setPointer(event) {
 
 function getComparisonSlots(item) {
     let slots = getEquipCandidateSlots(item).filter(slotKey => !!game.equipment[slotKey]);
-    if (slots.length === 0 && item.slot !== '반지') slots = getEquipCandidateSlots(item);
+    if (slots.length === 0) slots = getEquipCandidateSlots(item);
     return slots;
 }
 
-function getCacheKey(item, before, slots) {
-    return JSON.stringify([before, game.equipment || {}, item, slots], (key, value) => {
-        return key === 'breakdowns' ? undefined : value;
-    });
-}
-
-function readCache(cacheKey) {
-    if (!cache.has(cacheKey)) return null;
-    let result = cache.get(cacheKey);
-    cache.delete(cacheKey);
-    cache.set(cacheKey, result);
-    return result;
-}
-
-function storeCache(cacheKey, result) {
-    cache.set(cacheKey, result);
-    while (cache.size > cacheLimit) {
-        cache.delete(cache.keys().next().value);
-    }
-}
-
 function isActive(job) {
-    if (activeJob !== job || activeItemTooltipToken !== job.tooltipToken) return false;
+    if (activeJob !== job) return false;
+    if (job.receiver) return job.receiver.isActive();
+    if (activeItemTooltipToken !== job.tooltipToken) return false;
     return !(typeof equipmentInventoryInteraction !== 'undefined'
         && equipmentInventoryInteraction && typeof equipmentInventoryInteraction.isCarrying === 'function'
         && equipmentInventoryInteraction.isCarrying());
@@ -7299,7 +7303,8 @@ function keepActive(job) {
     return false;
 }
 
-function buildSlotPanel(item, targetSlot, before) {
+function buildSlotPanel(item, targetSlot) {
+    const before = getUiPlayerStats({}, false);
     let equipment = game.equipment;
     let hadSlot = Object.prototype.hasOwnProperty.call(equipment, targetSlot);
     let backup = equipment[targetSlot];
@@ -7308,7 +7313,7 @@ function buildSlotPanel(item, targetSlot, before) {
     let after = before;
     try {
         equipment[targetSlot] = item;
-        after = getUiPlayerStats();
+        after = getUiPlayerStats({}, false);
     } finally {
         if (hadSlot) equipment[targetSlot] = backup;
         else delete equipment[targetSlot];
@@ -7328,6 +7333,7 @@ function buildSlotPanel(item, targetSlot, before) {
 
 function apply(job, result) {
     if (!keepActive(job)) return;
+    if (job.receiver) { job.receiver.apply(result); return; }
     let tt = document.getElementById('item-tooltip-box');
     if (!tt) return;
     tt.classList.toggle('item-compare-tooltip', result.hasSections);
@@ -7345,7 +7351,6 @@ function finish(job) {
         hasSections: sections.length > 0,
         markup: sections.length > 0 ? `<div class="${layoutClass}">${sections.join('')}</div>` : ''
     };
-    storeCache(job.cacheKey, result);
     apply(job, result);
     if (activeJob === job) activeJob = null;
 }
@@ -7367,7 +7372,7 @@ function queueWork(job) {
         if (!keepActive(job)) return;
         let slot = job.slots[job.index++];
         try {
-            job.sections.push(buildSlotPanel(job.item, slot, job.before));
+            job.sections.push(buildSlotPanel(job.item, slot));
         } catch (error) {
             fail(job, error);
             return;
@@ -7384,60 +7389,68 @@ function queueWork(job) {
     }
 }
 
-function begin(job) {
-    job.delayHandle = null;
-    if (!keepActive(job)) return;
-    job.before = cachedTooltipStats || getUiPlayerStats();
-    job.cacheKey = getCacheKey(job.item, job.before, job.slots);
-    let cached = readCache(job.cacheKey);
-    if (cached) {
-        apply(job, cached);
-        activeJob = null;
-        return;
-    }
-    queueWork(job);
-}
-
-function schedule(item, tooltipToken, mainHtml) {
+/** @param {{isActive: () => boolean, apply: (result: {hasSections: boolean, markup: string}) => void} | null} receiver */
+function schedule(item, tooltipToken, mainHtml, receiver = null) {
+    cancel();
     let slots = getComparisonSlots(item);
     if (slots.length === 0) return;
     let job = {
-        item, tooltipToken, mainHtml, slots, sections: [], index: 0,
-        before: null, cacheKey: '', delayHandle: null, workHandle: null, workKind: ''
+        item, tooltipToken, mainHtml, receiver, slots, sections: [], index: 0,
+        delayHandle: null, workHandle: null, workKind: ''
     };
     activeJob = job;
-    if (cachedTooltipStats) {
-        job.cacheKey = getCacheKey(item, cachedTooltipStats, slots);
-        let cached = readCache(job.cacheKey);
-        if (cached) {
-            apply(job, cached);
-            activeJob = null;
-            return;
-        }
-    }
-    job.delayHandle = setTimeout(() => begin(job), delayMs);
+    // Paint details first; each idle slice compares one slot against fresh stats.
+    job.delayHandle = requestAnimationFrame(() => {
+        job.delayHandle = null;
+        queueWork(job);
+    });
 }
 
 return Object.freeze({ cancel, schedule, setPointer });
 })();
 
-function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
-    let item = itemOverride || (isEquip ? game.equipment[idx] : game.inventory[idx]);
-    let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
-    if (!item) return;
+function prepareItemTooltip(event, item, idx, isEquip, options) {
+    if (options.target) return { target: options.target, inline: true };
+    if (equipmentInventoryInteraction.getFocusedKey()) return null;
     if (itemTooltipHideTimer) {
         clearTimeout(itemTooltipHideTimer);
         itemTooltipHideTimer = null;
     }
-    let nextTooltipToken = tokenOverride || (isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`);
+    let nextTooltipToken = options.token || (isEquip ? `equip:${idx}:${item.id}` : `inv:${idx}:${item.id}`);
     let tt = document.getElementById('item-tooltip-box');
     itemTooltipComparisonScheduler.setPointer(event);
     if (activeItemTooltipToken === nextTooltipToken && tt.style.display === 'block' && tt.innerHTML) {
         positionTooltipElement(tt, event.clientX, event.clientY);
-        return;
+        return null;
     }
     itemTooltipComparisonScheduler.cancel();
     activeItemTooltipToken = nextTooltipToken;
+    return { target: tt, token: nextTooltipToken, inline: false };
+}
+
+function presentItemTooltip(context, event, item, html, isEquip) {
+    let tt = context.target;
+    tt.innerHTML = html;
+    if (context.inline) return;
+    tt.classList.toggle('item-compare-tooltip', false);
+    tt.classList.toggle('dual-compare-tooltip', false);
+    invalidateTooltipSize(tt);
+    tt.style.display = 'block';
+    positionTooltipElement(tt, event.clientX, event.clientY);
+    setActiveTooltip('item-tooltip-box');
+    if (!isEquip) itemTooltipComparisonScheduler.schedule(item, context.token, html);
+}
+
+/**
+ * Renders complete equipment details, either in the hover tooltip or an inline comparison column.
+ * @param {{token?: string, target?: HTMLElement}} options Inline targets do not change hover state.
+ */
+function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
+    let item = itemOverride || (isEquip ? game.equipment[idx] : game.inventory[idx]);
+    let resolveItemStatTone = (statId) => getItemStatToneColor(statId);
+    if (!item) return;
+    let context = prepareItemTooltip(event, item, idx, isEquip, options);
+    if (!context) return;
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
     if (item.hallReplica) html += `<div class="tooltip-line" style="color:#d2b878;">🏛️ 전당 소장품 · 전시자 ${escapeHTML(item.hallCuratorName || '익명')} · 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()} · 제작/재등록 불가</div>`;
@@ -7578,20 +7591,13 @@ function showItemTooltip(event, idx, isEquip, itemOverride, tokenOverride) {
         }
     }
 
-    tt.classList.toggle('item-compare-tooltip', false);
-    tt.classList.toggle('dual-compare-tooltip', false);
-    tt.innerHTML = html;
-    invalidateTooltipSize(tt);
-    tt.style.display = 'block';
-    positionTooltipElement(tt, event.clientX, event.clientY);
-    setActiveTooltip('item-tooltip-box');
-    if (!isEquip) itemTooltipComparisonScheduler.schedule(item, nextTooltipToken, html);
+    presentItemTooltip(context, event, item, html, isEquip);
 }
 
 function showCombatLogItemTooltip(event, token) {
     let item = combatLogItemSnapshots.get(Number(token));
     if (!item) return;
-    showItemTooltip(event, null, false, item, `log:${token}:snapshot`);
+    showItemTooltip(event, null, false, item, { token: `log:${token}:snapshot` });
 }
 
 function openCombatLogItemEquipment(event) {
@@ -7618,6 +7624,7 @@ function dismissItemTooltipNow() {
 }
 
 function hideItemTooltip(event) {
+    if (event && equipmentInventoryInteraction.getFocusedKey()) return;
     if (itemTooltipHideTimer) clearTimeout(itemTooltipHideTimer);
     itemTooltipHideTimer = null;
     if (!event || !Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) {
@@ -9608,6 +9615,7 @@ function updateCombatUI(pStats) {
     hpBar.classList.toggle('player-danger', hpPct > 0 && hpPct <= 25);
     renderCombatFlaskHud();
     renderCombatSkillHud();
+    conditionFeedbackUi.refresh();
     let hpWrap = hpBar.parentElement;
     let hpGhostBar = document.getElementById('ui-hp-damage-ghost-bar');
     if (!hpGhostBar && hpWrap) {
@@ -9684,6 +9692,7 @@ function updateCombatUI(pStats) {
     setTextById('ui-combat-zone', compactZoneText);
     // 레벨·직업은 경험치바 왼쪽(ui-exp-level-label)으로 이동했으므로 여기는 지역 이름만 표기한다.
     setTextById('ui-combat-zone-inline', compactZoneText);
+    cosmosRouteUi.updateHud();
     setTextById('btn-combat-return', '귀환');
     let pendingWoodsmanEntrance = !!game.woodsmanEntrancePending && zone && zone.type === 'outsideChaos';
     if (pendingWoodsmanEntrance) {
@@ -9744,7 +9753,7 @@ function updateCombatUI(pStats) {
             if (!ail || (ail.time || 0) <= 0) return sum;
             if (ail.type === 'flameDecay') return sum + Math.floor(Math.max(0, ail.flameDecayDps || 0) * Math.max(0, ail.time || 0));
             if (!isUiDamageAilmentType(ail.type)) return sum;
-            let dps = getUiEnemyDamageAilmentDps(ail, cachedTooltipStats || getUiPlayerStats());
+            let dps = getUiEnemyDamageAilmentDps(ail, pStats);
             let stacks = Math.max(1, Math.floor(ail.stacks || 1));
             return sum + Math.floor(dps * stacks * Math.max(0, ail.time || 0));
         }, 0);
@@ -12357,6 +12366,7 @@ function buildCraftActionButtons(item) {
                     let lockedHint = getJournalLockedHint(availability, id);
                     return `<article class="journal-card ${isUnlocked ? 'is-unlocked' : 'is-locked'} is-${availability} ${def.hidden ? 'is-hidden' : ''}">
                         <div class="journal-card-head"><strong>${displayTitle}</strong><span>${stateLabel}</span></div>
+                        ${isUnlocked ? storyJournalUi.illustrations(id) : ''}
                         <div class="journal-card-body">${isUnlocked
                             ? (def.lines || []).map(line => `<p>${line}</p>`).join('')
                             : (available ? `<p class="journal-hint">${getJournalHint(id, def)}</p>` : `<p class="journal-hint">${lockedHint}</p>`)}</div>
@@ -15683,6 +15693,7 @@ function syncDerivedTabUnlock(tabId) {
 }
 
 function checkUnlocks() {
+    storyJournalUi.sync();
     let u = game.unlocks;
     let starterTutorialGem = getStarterGemTutorialTarget();
     if (typeof syncGrowthBoardUnlocks === 'function') syncGrowthBoardUnlocks();

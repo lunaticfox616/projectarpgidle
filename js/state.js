@@ -656,7 +656,8 @@ function createCosmosChallengeZone(state) {
         recommendedEhp: Math.max(0, Math.floor(Number(challenge.recommendedEhp) || 0)),
         gravity: Math.max(1, Number(challenge.gravity || 1)),
         sizeClass: Math.max(1, Math.floor(challenge.sizeClass || 1)), theme: challenge.theme || '',
-        cosmosDirective: normalizeCosmosDirectiveSnapshot(challenge.directive)
+        cosmosDirective: normalizeCosmosDirectiveSnapshot(challenge.directive),
+        cosmosHabitat: challenge.habitat
     };
 }
 
@@ -2249,7 +2250,17 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
  * paidCosts records actual prices, preserving 1P purchases made before version 6.
  * @typedef {{version:number, highestLoop:number, unlocked:string[], paidCosts:Record<string, number>, inherited:string[], automatic:string[], grandfathered:string[], legacy?:boolean}} ContentProgressionState
  */
+/**
+ * G1 expedition ledger. Rewards in history are already in the wallet, never claimable again.
+ * @typedef {{version:number,galaxy?:number,loop:number,phase:string,stage:number,goal:string,legSize:number,signal:string,seed:number,plan:string[][],queue:string[],history:Array<{id:string,dust:number,stage:number}>,dust:number,decisions:Record<string,string>,habitats?:string[],failedNode?:string}} CosmosRouteState
+ * Board seed fixes the route across reloads; retryAt is a wall-clock UTC timestamp in ms. Older routes have no galaxy (G1).
+ * @typedef {{seed:number,selected:number,goal:string,decisions:Record<string,string>,habitats:string[],retryAt:number}} CosmosRouteBoard
+ */
 const defaultGame = {
+    cosmosRoute: null,
+    // Transient gravity pulse: {nextPulseAt: combat ms, steps: 0..2}; reset at load/exit.
+    cosmosGravity: null,
+    cosmosRouteBoard: { seed: 1, selected: 0, goal: 'dust', decisions: { 1: 'survey', 3: 'survey' }, habitats: ['swarm', 'guard', 'storm'], retryAt: 0 },
     combatTimeMs: 0,
     saveVersion: 18,
     // Permanent ledger: income follows CONTENT_UNLOCK_POINTS_PER_LOOP, starting at loop two.

@@ -1,15 +1,5 @@
 const {test, expect} = require('@playwright/test');
 
-async function countCosmosFrames(page) {
-    return page.evaluate(async()=>{
-        const nextFrame=()=>new Promise(resolve=>requestAnimationFrame(resolve));
-        await nextFrame();
-        const before=window.cosmosDraws;
-        for(let i=0;i<8;i++)await nextFrame();
-        return window.cosmosDraws-before;
-    });
-}
-
 async function openRealms(page) {
     await page.route('https://**', route=>route.fulfill({status:204,body:''}));
     await page.goto('/');
@@ -17,6 +7,7 @@ async function openRealms(page) {
     await page.locator('#loop-hero-select-overlay [data-class-id]').first().click();
     await expect(page.locator('#loading-overlay')).not.toHaveClass(/active/);
     await page.evaluate(()=>{
+        clearInterval(gameTickHandle);gameTickHandle=null;
         game.level=100; game.season=50; game.combatHalted=true;
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id); contentProgression.sync();
         Object.keys(game.unlocks).forEach(key=>game.unlocks[key]=true);
@@ -27,6 +18,7 @@ async function openRealms(page) {
         game.underworldRunes.unlockedSlots=3; game.underworldRunes.unlockedRunesMaxNumber=9;
         game.underworldRunes.obtainedRunes=[1,2,2]; game.underworldRunes.equippedRunes=[1,null,2,null,null,null];
         reconcileMapPrimaryContentUnlocks(game); updateStaticUI(); switchTab('tab-map');
+        switchCosmosInnerTab('route');
     });
     await page.waitForFunction(()=>{
         if(uiRefreshQueued||uiRefreshRunning)return false;
@@ -34,56 +26,76 @@ async function openRealms(page) {
     });
 }
 
-test('cosmos destination directory reaches selection, map and battle without traversing the map', async ({page},info)=>{
-    const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+
+test('expeditions preserve all planets and galaxy gates without individual exploration',async({page},info)=>{
+    const errors=[];page.on('pageerror',error=>errors.push(error.message));
     await openRealms(page);
     await page.evaluate(()=>switchMapSubtab('map-tab-cosmos'));
-    await expect(page.locator('#cosmos-atlas-canvas')).toBeHidden();
-    await expect(page.locator('.cosmos-destination')).toHaveCount(1);
-    await page.locator('#cosmos-directory-status').selectOption('boss');
-    await expect(page.locator('.cosmos-destination')).toHaveCount(6);
-    await page.locator('.cosmos-destination').last().scrollIntoViewIfNeeded();
-    const directoryScroll=await page.locator('#cosmos-destination-list').evaluate(el=>el.scrollTop);
-    await page.locator('.cosmos-destination').last().click();
-    await expect(page.locator('#ui-cosmos-detail .primary')).toBeDisabled();
-    if(info.project.use.isMobile){
-        await page.getByRole('button',{name:'목적지 목록으로',exact:true}).click();
-        await expect(page.locator('#cosmos-directory-status')).toBeInViewport();
-        await expect(page.locator('.cosmos-destination[aria-pressed="true"]')).toBeFocused();
+    await expect(page.locator('#cosmos-atlas-canvas')).toHaveCount(0);
+    await expect(page.locator('#btn-cosmos-sub-atlas')).toHaveCount(0);
+    await expect(page.getByText('개별 천체 탐사',{exact:true})).toHaveCount(0);
+    await expect(page.locator('[data-route-action="node"]')).toHaveCount(0);
+    await expect(page.locator('#ui-cosmos-detail')).toBeHidden();
+    const displayed = new Set(await page.locator('[data-planned-node]').evaluateAll(nodes=>nodes.map(node=>node.dataset.plannedNode)));
+    for(const galaxy of [2,3,4,5]){
+        await page.locator('#cosmos-galaxy').selectOption(String(galaxy));
+        for(const id of await page.locator('[data-planned-node]').evaluateAll(nodes=>nodes.map(node=>node.dataset.plannedNode)))displayed.add(id);
+        await expect(page.locator('[data-route-action="start"]')).toHaveCount(0);
+        await expect(page.locator('.cosmos-route-notice')).toContainText(`${galaxy-1}은하 보스 격파`);
+        await expect(page.locator('[data-route-action="node"]')).toHaveCount(0);
     }
-    await expect(page.locator('#cosmos-directory-status')).toHaveValue('boss');
-    expect(await page.locator('#cosmos-destination-list').evaluate(el=>el.scrollTop)).toBe(directoryScroll);
-    await page.locator('#cosmos-directory-status').selectOption('available');
-    await page.locator('.cosmos-destination').first().click();
-    await expect(page.locator('#ui-cosmos-detail')).toContainText('시리온');
-    await expect(page.locator('#ui-cosmos-detail .primary')).toBeEnabled();
-    await page.screenshot({path:info.outputPath('cosmos-directory.png')});
-    await page.locator('#ui-cosmos-detail').getByRole('button',{name:'별지도 보기',exact:true}).click();
-    await expect(page.locator('#cosmos-atlas-canvas')).toBeVisible();
-    await page.evaluate(()=>{
-        const ctx=document.getElementById('cosmos-atlas-canvas').getContext('2d');
-        const clear=ctx.clearRect.bind(ctx);window.cosmosDraws=0;
-        ctx.clearRect=(...args)=>{window.cosmosDraws++;return clear(...args);};
-        game.cosmosAtlas.bossStones={'1':'test stone'};
-        renderCosmosAtlas();
+    const existingIds=await page.evaluate(()=>[...COSMOS_PLANETS.map((_,i)=>'planet-'+i),...COSMOS_ASTEROID_NUMBERS.map(n=>'asteroid-'+n)]);
+    expect([...displayed].sort()).toEqual(existingIds.sort());
+    await page.locator('#cosmos-galaxy').selectOption('1');
+    const selectedPlan=await page.evaluate(()=>cosmosRouteRuntime.preview(game).plan.flat());
+    expect(await page.locator('[data-planned-node]').evaluateAll(nodes=>nodes.map(n=>n.dataset.plannedNode))).toEqual(selectedPlan);
+    await page.screenshot({path:info.outputPath('star-map.png'),scale:'css'});
+    await page.locator('[data-route-action="start"]').click();
+    expect(await page.evaluate(()=>game.cosmosAtlas.activeChallenge.nodeId)).toBe('planet-0');
+    await page.evaluate(()=>{for(let i=0;i<26;i++)finishEncounterRun();renderCosmosAtlas();});
+    expect(await page.evaluate(()=>game.cosmosAtlas.bossClears)).toContain('planet-46');
+    await page.waitForFunction(()=>{
+        if(uiRefreshQueued||uiRefreshRunning)return false;
+        tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;
     });
-    expect(await countCosmosFrames(page)).toBeGreaterThan(0);
-    await page.locator('#cosmos-map-disclosure > summary').click();
-    expect(await countCosmosFrames(page)).toBe(0);
-    await page.locator('#cosmos-map-disclosure > summary').click();
-    expect(await countCosmosFrames(page)).toBeGreaterThan(0);
-    await page.locator('#btn-cosmos-sub-mastery').click();
-    await expect(page.locator('#cosmos-inner-mastery')).toBeVisible();
-    expect(await countCosmosFrames(page)).toBe(0);
-    await page.locator('#btn-cosmos-sub-atlas').click();
-    expect(await countCosmosFrames(page)).toBeGreaterThan(0);
-    await page.evaluate(()=>switchTab('tab-items'));
-    expect(await countCosmosFrames(page)).toBe(0);
-    await page.evaluate(()=>switchTab('tab-map'));
-    expect(await countCosmosFrames(page)).toBeGreaterThan(0);
-    await page.locator('#ui-cosmos-detail .primary').click();
-    await expect.poll(()=>page.evaluate(()=>game.currentZoneId)).toBe('cosmos_challenge');
+    await page.locator('#cosmos-galaxy').selectOption('2');
+    await page.locator('[data-route-action="start"]').click();
+    expect(await page.evaluate(()=>game.currentZoneId)).toBe('cosmos_challenge');
+    expect(await page.evaluate(()=>game.cosmosAtlas.activeChallenge.nodeId)).not.toBe('planet-0');
+    await expect(page.locator('.cosmos-planet-stop.current')).toHaveCount(1);
+    await expect(page.locator('[data-route-action="battle"]')).toBeVisible();
     expect(errors).toEqual([]);
+});
+
+test('expedition controls work at UI scales and do not redraw while idle',async({page},info)=>{
+    await openRealms(page);
+    if(!info.project.use.isMobile)await page.setViewportSize({width:3200,height:1800});
+    await page.evaluate(()=>switchMapSubtab('map-tab-cosmos'));
+    await page.locator('#cosmos-galaxy').selectOption('2');
+    for(const scale of [100,175,250]){
+        await page.evaluate(value=>uiDisplay.apply(value),scale);
+        await page.locator('[data-route-disclosure="leg-3"] summary').click();
+        await expect(page.locator('[data-planned-node="planet-47"]')).toBeVisible();
+        await page.locator('[data-route-disclosure="leg-3"] summary').click();
+        await expect(page.locator('[data-planned-node="planet-47"]')).toBeHidden();
+    }
+    await page.evaluate(()=>uiDisplay.apply(100));
+    if(!info.project.use.isMobile)await page.setViewportSize({width:1440,height:900});
+    await page.locator('[data-route-action="stones"]').click();
+    await expect(page.locator('#cosmos-stone-overlay')).toBeVisible();
+    await page.locator('.cosmos-stone-overlay-close').click();
+    await expect(page.locator('#cosmos-stone-overlay')).toBeHidden();
+    const changes=await page.evaluate(async()=>{
+        let count=0;const host=document.getElementById('cosmos-inner-route');
+        const observer=new MutationObserver(rows=>count+=rows.length);
+        observer.observe(host,{childList:true,subtree:true,attributes:true});
+        renderCosmosAtlas();renderCosmosAtlas();
+        await new Promise(resolve=>requestAnimationFrame(resolve));
+        observer.disconnect();return count;
+    });
+    expect(changes).toBe(0);
+    await page.locator('.cosmos-star-header').scrollIntoViewIfNeeded();
+    await page.screenshot({path:info.outputPath('star-map-scale.png'),scale:'css'});
 });
 
 test('cosmos mastery preserves controls and reveals the next investment at its prerequisite',async({page},info)=>{
@@ -117,7 +129,7 @@ test('cosmos mastery preserves controls and reveals the next investment at its p
     expect(await page.evaluate(()=>game.cosmosAtlas.masteryPointsSpent)).toBe(8);
     await expect(first.getByRole('button')).toBeDisabled();
     await page.evaluate(()=>{
-        switchCosmosInnerTab('atlas');masteryMutations=0;
+        switchCosmosInnerTab('route');masteryMutations=0;
         game.cosmosAtlas.cleared.push('planet-8');renderCosmosAtlas();
     });
     expect(await page.evaluate(()=>masteryMutations)).toBe(0);

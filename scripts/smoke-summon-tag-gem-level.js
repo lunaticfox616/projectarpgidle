@@ -159,4 +159,41 @@ const growthResult = vm.runInContext(`(() => {
 assert.strictEqual(growthResult.placed, 1, 'the real growth board must expose the placed item');
 assert.strictEqual(growthResult.gear, 3, 'a placed growth item gem-level affix must affect the actual gem level');
 
+const evaluationResult = vm.runInContext(`(() => {
+  const nodes = Object.entries(PASSIVE_TREE.nodes).filter(([, node]) =>
+    (node.effects || []).some(effect => effect.stat === 'gemLevel' || effect.stat === 'chaosGemLevel'));
+  game.passives = nodes.map(([id]) => id);
+  game.starWedge = { disabledNodeEffects: { [nodes[0][0]]: true }, nodeMutations: {} };
+  const lists = [{ baseStats: [{id:'flatHp', val:9, extraStats:[{id:'gemLevel', val:0.1},
+    {id:'chaosGemLevel',val:0.2,extraStats:[{id:'gemLevel',val:0.3}]}]}],
+    explicitStats: [{id:'gemLevel',val:-0.2}, {id:'gemLevel',val:Infinity}] },
+    {baseStats: [{id:'gemLevel',val:0.7}], explicitStats: GEM_LEVEL_TAG_RULES.map(rule => ({id:rule.stat,val:0.1}))}];
+  const input = JSON.stringify(lists);
+  const evaluation = createGemBonusEvaluation(lists);
+  const targets = ['불곰 소환','공허 유충 소환','서리늑대 소환','연속 베기', ...Object.keys(SUPPORT_GEM_DB).slice(0,12)];
+  const pairs = targets.map(name => [getTargetGemBonusSources(name, undefined, lists),
+    getTargetGemBonusSources(name, undefined, lists, evaluation)]);
+  const gearPairs = targets.map(name => [getGemBonusSources(name, lists, evaluation).gear,
+    lists.reduce((total, row) => total + getGemLevelValueFromStatLines([...row.baseStats, ...row.explicitStats], getGemLevelTargetTags(name)), 0)]);
+  const first = getTargetGemBonusSources(targets[0], undefined, lists, evaluation);
+  const original = first.total;
+  first.total = -999;
+  const isolated = getTargetGemBonusSources(targets[0], undefined, lists, evaluation).total === original;
+  game.starWedge.disabledNodeEffects = {};
+  game.actRewardBonuses.push({stat:'gemLevel',value:2});
+  const fresh = createGemBonusEvaluation(lists);
+  const changed = getTargetGemBonusSources(targets[0], undefined, lists, fresh);
+  const direct = getTargetGemBonusSources(targets[0], undefined, lists);
+  return { pairs, gearPairs, isolated, unchanged: input === JSON.stringify(lists),
+    changed, direct, original, empty: createGemBonusEvaluation([]).gearLines.length };
+})()`, runtime);
+evaluationResult.pairs.forEach(([direct, shared]) => assert.deepStrictEqual(shared, direct,
+  'shared inputs preserve recursive extra stats, fractional order, tags and disabled passives'));
+evaluationResult.gearPairs.forEach(([filtered, recursive]) => assert.strictEqual(filtered, recursive,
+  'filtered gear must equal the original recursive evaluator, including item grouping and non-finite values'));
+assert.deepStrictEqual(evaluationResult.changed, evaluationResult.direct);
+assert(evaluationResult.changed.total > evaluationResult.original, 'the next evaluation observes passive and reward changes');
+assert(evaluationResult.isolated, 'target-specific additions cannot mutate the shared gem result');
+assert(evaluationResult.unchanged, 'filtering gem lines cannot modify equipment inputs');
+assert.strictEqual(evaluationResult.empty, 0);
 console.log('smoke-summon-tag-gem-level passed');

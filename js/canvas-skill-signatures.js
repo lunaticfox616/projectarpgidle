@@ -147,18 +147,4 @@ function drawSkillSignatureImpact(ctx, effect, progress) {
     return true;
 }
 
-/** One charge sprite or two teleport sprites; no generated particles or strokes. */
-function drawSkillMobilitySignature(ctx, view) {
-    let {from,to,blink,progress,tile}=view;
-    let spec=SKILL_SIGNATURE_SPRITES[blink ? 'blink' : 'charge'], image=getSkillGemVfxImage(spec.asset);
-    if (!image) return;
-    let points=blink ? [from,to] : [{x:from.x+(to.x-from.x)*progress,y:from.y+(to.y-from.y)*progress}];
-    points.forEach(point=> {
-        ctx.save(); ctx.globalAlpha=(1-progress)*0.65; ctx.imageSmoothingEnabled=false;
-        drawSkillSpriteFrame(ctx,image,Math.min(7,Math.floor(progress*8)),{x:point.x,y:point.y-tile*0.25,
-            width:tile*1.1,height:tile*1.1,angle:blink ? 0 : Math.atan2(to.y-from.y,to.x-from.x)});
-        ctx.restore();
-    });
-}
-
-safeExposeGlobals({drawSkillSpriteFrame,drawSkillSignatureTravel,drawSkillSignatureImpact,drawSkillMobilitySignature});
+safeExposeGlobals({drawSkillSpriteFrame,drawSkillSignatureTravel,drawSkillSignatureImpact});

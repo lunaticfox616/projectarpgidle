@@ -65,10 +65,10 @@ test('inventory prioritizes equipment while keeping search and management usable
     await page.locator('#btn-auto-salvage').click();
     await expect(page.locator('#auto-salvage-config-overlay')).toBeVisible();
     await page.locator('#auto-salvage-config-overlay').getByRole('button', { name: '닫기', exact: true }).click();
-    if (await page.locator('.equipment-mobile-management').isVisible()) {
-        await page.locator('.equipment-mobile-management').click();
-    }
+    await page.locator('.equipment-bulk-menu summary').click();
     await expect(page.getByRole('button', { name: '전체 해체', exact: true })).toBeVisible();
+    await page.locator('.equipment-bulk-menu summary').click();
+    await expect(page.getByRole('button', { name: '전체 해체', exact: true })).toBeHidden();
     await expect(page.locator('#ui-equipment-triage')).toBeVisible();
     await page.locator('#ui-equipment-triage').getByRole('button', {name:'일괄 분석',exact:true}).click();
     await expect(page.locator('#ui-equipment-triage').getByRole('button', {name:'다시 분석',exact:true})).toBeVisible();

@@ -98,7 +98,7 @@ function restoreSalvageRecoveryEntry(entryId) {
 
 function showSalvageRecoveryTooltip(event, entryId) {
     let entry = salvageRecoveryRuntime.getEntries().find(row => row.id === Number(entryId));
-    if (entry) showItemTooltip(event, null, false, entry.item, `salvage-recovery:${entry.id}`);
+    if (entry) showItemTooltip(event, null, false, entry.item, { token: `salvage-recovery:${entry.id}` });
 }
 
 function hideSalvageRecoveryTooltip(event) {

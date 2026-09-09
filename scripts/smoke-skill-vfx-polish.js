@@ -23,10 +23,12 @@ read(`Object.values(SKILL_GEM_VFX_IMAGE_KEYS).forEach(key => {
     battleAssets.images[key] = { complete: true, naturalWidth: 512, naturalHeight: 512 };
 });`);
 const before = read('JSON.stringify(game)');
+read('battleAssets.images.skillFxWorldTree={complete:true,naturalWidth:1024,naturalHeight:1728};');
 const source = { x: 100, y: 180 };
 const target = { x: 180, y: 180 };
 const profiles = read('SKILL_GEM_VFX_PROFILES');
 for (const [name, profile] of Object.entries(profiles)) {
+    runtime.worldTreeSkillFx.beginFrame();
     read('battleVisualState.skillEffects = []');
     calls.length = 0;
     runtime.queueSkillGemVfx({ id: 1, skillName: name, element: 'cold',
@@ -38,8 +40,8 @@ for (const [name, profile] of Object.entries(profiles)) {
         assert(calls.some(call => ['drawImage', 'stroke', 'fill'].includes(call.key)), `${name}: visible impact`);
     }
     if (['iai', 'stormStrike', 'charge'].includes(profile.family)) {
-        assert(!calls.some(call => call.key === 'drawImage'), `${name}: loaded generic slash must not hide dedicated effects`);
-        assert(calls.some(call => call.key === 'stroke'), `${name}: dedicated geometry must render`);
+        assert(calls.some(call => call.key === 'drawImage' && call.args[0] === read('battleAssets.images.skillFxWorldTree')),
+            `${name}: the supplied skill art must replace procedural geometry`);
     }
     calls.length = 0;
     runtime.drawSkillGemVfxLayer(ctx, 3000);
@@ -75,9 +77,10 @@ fixture.run(`game.activeSkill = '뇌격 삼연타';
 const stats = fixture.runtime.getPlayerStats();
 stats.sSkill = { ...stats.sSkill, ...fixture.run('SKILL_DB["뇌격 삼연타"]') };
 fixture.runtime.performPlayerAttack(stats, { stageReplay: true, skillName: '뇌격 삼연타', forcedCrit: false,
-    targetEntries: [{ enemyId: fixture.run('game.enemies[0].id'), mult: 1 }] });
+    damageTextGroupId:'polish-triple:0',targetEntries: [{ enemyId: fixture.run('game.enemies[0].id'), mult: 1 }] });
 const hits = fixture.run('battleFx.filter(fx => fx.type === "hit")');
 assert.strictEqual(hits.length, 3, 'the skill must retain its three real damage resolutions');
 hits.forEach(hit => fixture.runtime.queueSkillGemVfx(hit, target, source, {}, 1000, 1));
-assert.strictEqual(fixture.run('battleVisualState.skillEffects.length'), 3, 'three hits must produce three arcs, never nine');
+assert.strictEqual(fixture.run('battleVisualState.skillEffects.filter(fx=>fx.family!=="hitSpark").length'), 1, 'native same-stage repeats share their main effect');
+assert.strictEqual(fixture.run('battleVisualState.skillEffects.filter(fx=>fx.family==="hitSpark").length'), 0, 'confirmed hits keep damage feedback without replaying three extra skill images');
 console.log(`smoke-skill-vfx-polish passed: ${Object.keys(profiles).length} profiles and loaded-asset routing`);

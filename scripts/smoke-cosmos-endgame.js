@@ -5,6 +5,11 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 
 const context = buildGameRuntime();
 context.document.readyState = 'loading';
+// Platform boundary: navigation now opens the unified map instead of only changing camera state.
+const cosmosElements = new Map(['cosmos-unified-map', 'cosmos-inner-route', 'cosmos-inner-mastery',
+    'btn-cosmos-sub-route', 'btn-cosmos-sub-mastery', 'cosmos-node-detail'].map(id => [id,
+    { style: {}, classList: { toggle() {} }, open: false }]));
+context.document.getElementById = id => cosmosElements.get(id) || null;
 context.__cosmosTestGame = {
         season: 31,
         loopCount: 30,

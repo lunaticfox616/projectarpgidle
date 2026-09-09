@@ -52,6 +52,114 @@ test('same physical area keeps identical UI size at Windows 100, 125 and 150 per
     }
 });
 
+test('battle survives repeated large-scale and viewport mode transitions', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chromium');
+    await start(page);
+    await page.evaluate(() => { game.settings.leftPaneCollapsed = true; applyPanelLayoutSettings(); });
+    for (const percent of ['175', '200', '225', '250']) {
+        await page.evaluate(() => { closeAllWindows(); switchTab('tab-settings'); });
+        await page.locator('#sel-ui-scale').selectOption(percent);
+        await expect(page.locator('body')).not.toHaveClass(/desktop-windowed-ui/);
+        await page.locator('#sel-ui-scale').selectOption('100');
+        await page.evaluate(() => closeAllWindows());
+        await expect(page.locator('body')).toHaveClass(/desktop-windowed-ui/);
+        await expect(page.locator('#left-pane #battle-column')).toBeVisible();
+        await expect(page.locator('#battlefield-canvas')).toBeVisible();
+    }
+    await page.setViewportSize({ width: 800, height: 700 });
+    await page.evaluate(() => switchTab('tab-skills'));
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => closeAllWindows());
+    await expect(page.locator('#left-pane #battle-column')).toBeVisible();
+});
+
+test('desktop battle uses viewport height and reclaims collapsed log space', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chromium');
+    await start(page);
+    for (const percent of ['80', '100', '175', '200', '225', '250']) {
+        const height = 900 * Number(percent) / 100;
+        await page.setViewportSize({ width: 1400 * Number(percent) / 100, height });
+        await page.evaluate(() => { closeAllWindows(); switchTab('tab-settings'); });
+        await page.locator('#sel-ui-scale').selectOption(percent);
+        await page.evaluate(() => {
+            closeAllWindows();
+            game.settings.combatLogCollapsed = false; applyPanelLayoutSettings();
+        });
+        const bounds = await page.locator('#left-pane').boundingBox();
+        expect(Math.abs(bounds.y + bounds.height - height)).toBeLessThan(3);
+        const expanded = await page.locator('#battlefield-wrap').boundingBox();
+        await page.locator('#btn-combat-log-toggle').click();
+        const collapsed = await page.locator('#battlefield-wrap').boundingBox();
+        expect(collapsed.width).toBeGreaterThan(expanded.width);
+        await expect(page.locator('.player-hud')).toBeVisible();
+    }
+});
+
+test('embedded previews apply the same viewport scaling to external styles', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop-chromium');
+    await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
+    await page.goto('/');
+    await page.evaluate(() => {
+        const frame = document.createElement('iframe');
+        frame.id = 'scale-preview';
+        frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;z-index:999999';
+        frame.srcdoc = `<base href="${location.origin}/"><link rel="stylesheet" href="css/ui-windows.css">
+            <body class="desktop-windowed-ui"><div id="left-pane"></div><select id="sel-ui-scale"></select>
+            <script src="js/utils.js"><\/script><script src="js/ui-display.js"><\/script></body>`;
+        document.body.appendChild(frame);
+    });
+    const frame = page.frameLocator('#scale-preview');
+    await expect(frame.locator('#left-pane')).toBeAttached();
+    await expect.poll(async () => frame.locator('body').evaluate(() => typeof uiDisplay)).toBe('object');
+    const bounds = await frame.locator('body').evaluate(() => {
+        uiDisplay.apply(80);
+        return { height: document.getElementById('left-pane').getBoundingClientRect().height, viewport: innerHeight };
+    });
+    expect(Math.abs(bounds.height - bounds.viewport)).toBeLessThan(3);
+});
+
+test('4K display keeps large scales in desktop layout with accessible controls', async ({ browser, baseURL }, info) => {
+    test.skip(info.project.name !== 'desktop-chromium');
+    const context = await browser.newContext({ baseURL, viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 2, serviceWorkers: 'block' });
+    const page = await context.newPage();
+    await start(page);
+    const select = page.locator('#sel-ui-scale');
+    const baseHeight = (await select.boundingBox()).height;
+    for (const percent of ['175', '200', '225', '250']) {
+        await select.selectOption(percent);
+        await select.scrollIntoViewIfNeeded();
+        await select.click({ trial: true });
+        await expect(page.locator('body')).toHaveClass(/desktop-windowed-ui/);
+        expect((await select.boundingBox()).height / baseHeight).toBeCloseTo(Number(percent) / 100, 1);
+        await page.screenshot({ path: info.outputPath(`4k-scale-${percent}.png`), scale: 'device' });
+    }
+    await page.evaluate(() => closeAllWindows());
+    await expect(page.locator('#left-pane #battle-column')).toBeVisible();
+    await context.close();
+});
+
+test('large UI scales apply, survive reload, and allow returning to normal size', async ({ page }, info) => {
+    await start(page);
+    const select = page.locator('#sel-ui-scale');
+    const baseFactor = await page.evaluate(() => uiDisplay.factor);
+    for (const percent of ['175', '200', '225', '250']) {
+        await select.selectOption(percent);
+        await expect(select).toHaveValue(percent);
+        expect(await page.evaluate(() => uiDisplay.factor)).toBeCloseTo(baseFactor * Number(percent) / 100, 5);
+    }
+    await select.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await select.click({ trial: true });
+    await page.screenshot({ path: info.outputPath('ui-scale-250.png') });
+    await page.reload();
+    await page.locator('#btn-startup-guest').click();
+    await page.waitForFunction(() => !isStartupOverlayOpen() && !isLoadingOverlayOpen());
+    expect(await page.evaluate(() => game.settings.uiScale)).toBe(250);
+    await page.evaluate(() => { closeAllWindows(); switchTab('tab-settings'); });
+    await select.selectOption('100');
+    expect(await page.evaluate(() => uiDisplay.factor)).toBeCloseTo(baseFactor, 5);
+});
+
 for (const percent of ['80', '125']) test(`manual scale ${percent} keeps canvas hit targets and window dragging aligned`, async ({ page }, info) => {
     await start(page);
     await page.locator('#sel-ui-scale').selectOption(percent);

@@ -1,27 +1,39 @@
 .equipment-grid-inspector {
+    position: fixed;
+    inset: auto;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) 32px;
     gap: 10px;
     align-items: center;
-    min-height: 74px;
-    margin: 8px 0;
+    width: 600px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 90px);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+    box-sizing: border-box;
+    margin: 0;
     padding: 8px;
     border: 1px solid var(--ui-line);
     border-radius: var(--ui-radius-sm);
     background: var(--ui-surface-1);
+    box-shadow: 0 8px 24px #0008;
 }
+.equipment-grid-inspector[popover]:not(:popover-open) { display: none; }
+.equipment-slot.is-menu-selected { outline: 1px solid var(--ui-gold); outline-offset: -1px; }
 
 .equipment-grid-inspector-copy {
+    grid-column: 1;
+    grid-row: 1;
     display: grid;
-    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-columns: 38px minmax(0, 1fr);
     gap: 9px;
     align-items: center;
     min-width: 0;
 }
 
 .equipment-grid-inspector-copy img {
-    width: 58px;
-    height: 58px;
+    width: 38px;
+    height: 38px;
     object-fit: contain;
 }
 
@@ -35,13 +47,30 @@
 
 .equipment-grid-inspector-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(66px, 1fr));
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 5px;
 }
 
-.equipment-grid-inspector-actions button { min-height: 28px; padding: 4px 7px; font-size: 9px; }
+.equipment-grid-inspector-actions button { min-height: 34px; padding: 4px 7px; font-size: 12px; }
+.equipment-grid-inspector-close { grid-column: 2; grid-row: 1; align-self: start; min-height: 32px; padding: 4px; font-size: 16px; }
 .equipment-grid-inspector-empty { grid-column: 1 / -1; color: #91a3b5; font-size: 10px; text-align: center; }
 .equipment-grid-inspector:has(.equipment-grid-inspector-empty) { display: none; }
+.equipment-grid-inspector:has(.equipment-inspection-columns > :only-child) { width: 360px; }
+.equipment-inspection-details { grid-column: 1 / -1; grid-row: 3; align-self: stretch; min-height: 0; overflow: auto; overscroll-behavior: contain; font-size: 12px; line-height: 1.55; }
+.equipment-inspection-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.equipment-inspection-column { min-width: 0; padding: 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); }
+.equipment-inspection-column h3 { margin: 0 0 8px; color: var(--ui-gold); font-size: 12px; }
+.equipment-inspection-column .tooltip-title { border-color: var(--ui-line); }
+.equipment-inspection-changes { margin-bottom: 10px; padding: 10px; border-left: 2px solid var(--ui-gold); background: var(--ui-surface-2); color: var(--ui-text-2); }
+.equipment-inspection-changes :is(.item-compare-grid, .item-compare-single, .item-compare-panel) { width: auto; max-width: none; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+.equipment-inspection-changes .item-compare-grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.equipment-inspection-changes .item-compare-title { color: var(--ui-text-1); margin-bottom: 6px; }
+.equipment-just-equipped { animation: equipment-equipped-pulse 1s ease-out; }
+@keyframes equipment-equipped-pulse { from { box-shadow: inset 0 0 0 2px var(--ui-gold), 0 0 14px #c6a46580; } to { box-shadow: inset 0 0 0 0 transparent; } }
+@media (prefers-reduced-motion: reduce) { .equipment-just-equipped { animation: none; outline: 2px solid var(--ui-gold); } }
 .inventory-search-status { margin: 8px 0 0; color: var(--ui-text-2); font-size: 11px; }
 
 .equipment-inventory-panel .inventory-browse-toolbar { flex-wrap: wrap; align-items: center; }
@@ -54,12 +83,17 @@ body #item-tab-equip .equipment-inventory-panel .inventory-browse-toolbar { posi
 #item-tab-equip #btn-auto-salvage { border-color: #977440; color: #efdbb0; background: linear-gradient(#34291a, #211b13); }
 #btn-auto-salvage::after { content: '자동해체 OFF'; display: block; margin-top: 2px; font-size: 9px; color: #b5aa96; }
 #btn-auto-salvage[data-enabled="true"]::after { content: '자동해체 ON'; color: #a8d5a7; }
-#item-tab-equip .inventory-management-row { display: grid; gap: 6px; margin: 0 0 10px; padding: 0 0 10px; border-bottom: 1px solid var(--ui-line); }
-#item-tab-equip .inventory-management-row .bulk-salvage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; padding: 6px 0; background: transparent; border: 0; }
-#item-tab-equip .inventory-management-row .equipment-salvage-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+#item-tab-equip .inventory-management-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; margin: 0 0 8px; padding: 0 0 8px; border-bottom: 1px solid var(--ui-line); }
+#item-tab-equip .equipment-bulk-menu { position: relative; }
+#item-tab-equip .equipment-bulk-menu summary { cursor: pointer; padding: 7px 10px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-2); font-size: 12px; white-space: nowrap; }
+#item-tab-equip .equipment-salvage-actions { position: absolute; z-index: 8; top: calc(100% + 5px); right: 0; width: 170px; display: grid; gap: 5px; padding: 8px; border: 1px solid var(--ui-line); border-radius: var(--ui-radius-sm); background: var(--ui-surface-1); box-shadow: 0 6px 20px #0008; }
+.inventory-rarity-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
 #item-tab-equip .inventory-management-row :where(button, select) { min-height: 32px; font-size: 11px; font-weight: 500; }
-.inventory-management-row .equipment-triage-host { width: auto; margin: 0; padding: 0; border: 0; }
-.equipment-mobile-management, #equipment-touch-arrange { display: none; }
+.inventory-management-row .equipment-triage-host { display: grid; gap: 4px; width: auto; margin: 0; padding: 0; border: 0; }
+#item-tab-equip .equipment-triage-controls { grid-row: 1; justify-content: flex-start; gap: 5px; }
+#item-tab-equip .equipment-triage-copy strong { display: none; }
+#item-tab-equip .equipment-triage-copy small { font-size: 10px; }
+#equipment-touch-arrange { display: none; }
 
 @media (pointer: coarse) {
     #equipment-touch-arrange { display: block; }
@@ -495,8 +529,8 @@ body.light-mode .equipment-grid-item { background: radial-gradient(circle at 50%
 .equipment-temporary-item.rarity-unique { --item-rarity: #ff9f43; }
 
 @media (max-width: 640px) {
-    #item-tab-equip .equipment-mobile-management { display: block; width: 100%; min-height: 44px; }
-    #item-tab-equip .inventory-management-row:not(.management-open) > :not(.equipment-mobile-management) { display: none; }
+    #item-tab-equip .equipment-bulk-menu summary { min-height: 44px; box-sizing: border-box; display: flex; align-items: center; }
+    .equipment-inspection-columns { grid-template-columns: 1fr; }
     #item-tab-equip .inventory-browse-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; padding: 0; }
     #item-tab-equip .inventory-browse-toolbar label { display: flex; align-items: center; width: auto; min-width: 0; gap: 4px; }
     #item-tab-equip .inventory-browse-toolbar select { width: 100%; min-width: 0; min-height: 44px; }
@@ -527,9 +561,9 @@ body.light-mode .equipment-grid-item { background: radial-gradient(circle at 50%
         padding: 3px 7px;
     }
     .equipment-inventory-pages button.active { transform: none; }
-    .equipment-grid-inspector { grid-template-columns: minmax(0, 1fr); }
-    .equipment-grid-inspector-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .equipment-grid-inspector-actions button { min-width: 0; min-height: 38px; padding-inline: 3px; }
+    .equipment-grid-inspector { grid-template-columns: minmax(0, 1fr) 44px; gap: 6px; }
+    .equipment-grid-inspector-actions button { min-width: 0; min-height: 44px; padding-inline: 3px; font-size: 12px; }
+    .equipment-grid-inspector-close { grid-column: 2; grid-row: 1; min-height: 44px; }
     .equipment-grid-item-badges span { padding-inline: 2px; font-size: 5px; }
 }
 

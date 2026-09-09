@@ -90,7 +90,7 @@ function createCombatReplay(elapsedMs, snapshot, startNowMs) {
 
 function shouldStopBackgroundReplay(state) {
     if (!state || state.playerHp <= 0 || state.combatHalted) return true;
-    return !!(state.pendingLoopDecision || state.pendingLoopReady || state.pendingLoopHeroSelection);
+    return !!isCombatDecisionPending(state);
 }
 
 /** Execute at most budgetMs of CPU work; restore all shared state before yielding or throwing. */
