@@ -133,7 +133,7 @@ function getEquipmentLoadoutInspection(slotIndex, targetGame = game) {
         count++;
         let item = savedIdentity ? owned.get(savedIdentity) : null;
         if (!item) missing.push({ slot, name: saved.name });
-        else if (typeof getEquipCandidateSlots === 'function' && !getEquipCandidateSlots(item).includes(slot)) {
+        else if (typeof getEquipCandidateSlots === 'function' && !getEquipCandidateSlots(item, targetGame).includes(slot)) {
             incompatible.push({ slot, name: saved.name });
         }
     });
@@ -174,6 +174,8 @@ function buildEquipmentLoadoutSwap(preset, slotIndex, targetGame) {
         nextEquipment[slot] = saved ? owned.items.get(getEquipmentLoadoutSavedIdentity(saved)) : null;
     });
     let nextInventory = (targetGame.inventory || []).filter(item => item && !desiredIdentities.has(getEquipmentLoadoutItemIdentity(item)));
+    const eligibility = combatEquipmentStats.validateLoadout(nextEquipment, targetGame);
+    if (!eligibility.ok) return eligibility;
     let inventoryItems = new Set(nextInventory);
     let inventoryIdentities = new Set(nextInventory.map(getEquipmentLoadoutItemIdentity).filter(Boolean));
     Object.values(targetGame.equipment || {}).forEach(item => {
@@ -195,6 +197,9 @@ function applyEquipmentLoadoutPreset(slotIndex, targetGame = game) {
     state.selectedSlot = index;
     let swap = buildEquipmentLoadoutSwap(preset, index, targetGame);
     if (!swap.ok) return swap;
+    const kept = new Set(Object.values(targetGame.equipment));
+    Object.values(swap.equipment).forEach(item => { if (item && !kept.has(item)) delete item.legacyRequirementGrace; });
+    swap.inventory.forEach(item => { if (kept.has(item)) delete item.legacyRequirementGrace; });
     targetGame.equipment = swap.equipment;
     targetGame.inventory = swap.inventory;
     return { ok: true, preset, count: swap.inspection.count };

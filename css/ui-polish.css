@@ -594,6 +594,7 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
   min-height: 0;
   padding: 8px 10px;
   text-align: center;
+  word-break: keep-all;
   justify-items: center;
 }
 .map-explore-layout .vertical-tab-btn span {
@@ -694,6 +695,40 @@ body:has(:is(#loop-ready-overlay, #loop-decision-overlay).active) :is(#mobile-to
 .map-explore-layout .vertical-tab-panels h2,
 .codex-vertical-layout .vertical-tab-panels h2 {
   margin-top: 0;
+}
+
+/* Map navigation uses the same surfaces in both themes; keep the layout identical. */
+body.light-mode #tab-map .vertical-tab-panels,
+body.light-mode #tab-map .vertical-tab-sidebar {
+  background: var(--ui-surface-1);
+  border-color: var(--ui-line);
+  box-shadow: none;
+}
+body.light-mode #tab-map .vertical-tab-panel > h2,
+body.light-mode #tab-map .map-zone-group-header,
+body.light-mode #tab-map .vertical-tab-btn {
+  background: var(--ui-surface-2);
+  border-color: var(--ui-line);
+  color: var(--ui-text);
+  text-shadow: none;
+  box-shadow: none;
+}
+body.light-mode #tab-map .vertical-tab-btn span { color: var(--ui-text); text-shadow: none; }
+body.light-mode #tab-map .vertical-tab-btn.active,
+body.light-mode #tab-map .map-zone-group:not(.collapsed) .map-zone-group-header {
+  background: color-mix(in srgb, var(--ui-accent) 12%, var(--ui-surface-1));
+  border-color: var(--ui-accent);
+  color: var(--ui-text);
+}
+body.light-mode #tab-map .map-state-badge {
+  color: var(--ui-text-2);
+  border-color: var(--ui-line-strong);
+  background: var(--ui-surface-2);
+}
+body.light-mode #tab-map .map-state-badge.current,
+body.light-mode #tab-map .map-state-badge.recommended {
+  color: var(--ui-accent-strong);
+  border-color: var(--ui-accent);
 }
 
 @media (max-width: 820px) {

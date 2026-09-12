@@ -389,23 +389,25 @@ const craftingResultLedger = (() => {
     return { begin, commit, getForItem, clear };
 })();
 
-function getEquipCandidateSlots(item) {
-    if (!item) return [];
-    if (item.slot === '반지') return (typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger') > 0) ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
+function getEquipCandidateSlots(item, targetGame = game) {
+    if (!item || getPassiveEquipmentRestriction(item, targetGame)) return [];
+    if (item.slot === '반지') return getTranscendentVoidPassiveCount('thirdFinger', targetGame) > 0 ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
     if (item.slot === '장갑') return ['장갑1', '장갑2'];
-    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    let warriorDualTrain = targetGame.ascendClass === 'warrior' && hasKeystone('w3', targetGame);
     if (item.slot === '무기') return warriorDualTrain ? ['무기', '방패'] : ['무기'];
     return [item.slot];
 }
 
 function canEquipItemToSlot(item, preferredSlot) {
-    return !!preferredSlot && getEquipCandidateSlots(item).includes(preferredSlot);
+    return !!preferredSlot && getEquipCandidateSlots(item).includes(preferredSlot)
+        && combatEquipmentStats.inspect(item, preferredSlot).ok;
 }
 
 function tryAutoEquipEmptySlot(item) {
     if (!item || !game.settings || game.settings.autoEquipEmptySlots === false) return null;
     let slot = getEquipCandidateSlots(item).find(candidate => candidate && Object.prototype.hasOwnProperty.call(game.equipment, candidate) && !game.equipment[candidate]);
-    if (!slot) return null;
+    if (!slot || !combatEquipmentStats.inspect(item, slot).ok) return null;
+    delete item.legacyRequirementGrace;
     game.equipment[slot] = item;
     if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(true);
     return slot;
@@ -468,6 +470,8 @@ function findInventoryIndexById(itemId) {
 function equipItem(idx, preferredSlot) {
     let item = game.inventory[idx];
     if (!item) return;
+    const restriction = getPassiveEquipmentRestriction(item);
+    if (restriction) return addLog(restriction, 'attack-monster');
     let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
     if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
         openWeaponSlotOverlayByItemId(item.id);
@@ -483,11 +487,11 @@ function equipItem(idx, preferredSlot) {
     }
     let targetSlot = pickEquipSlot(item, preferredSlot);
     if (!targetSlot) return;
-    if (targetSlot === '방패' && item.slot === '무기' && !warriorDualTrain) {
-        addLog('워리어 키스톤 [쌍수 훈련]이 있어야 방패 슬롯에 무기를 장착할 수 있습니다.', 'attack-monster');
-        return;
-    }
+    const eligibility = combatEquipmentStats.inspect(item, targetSlot);
+    if (!eligibility.ok) return addLog(eligibility.reason, 'attack-monster');
+    delete item.legacyRequirementGrace;
     let old = game.equipment[targetSlot];
+    if (old) delete old.legacyRequirementGrace;
     let movedId = item.id;
     game.equipment[targetSlot] = item;
     if (old) game.inventory[idx] = old;
@@ -503,10 +507,11 @@ function equipItem(idx, preferredSlot) {
 
 function equipItemById(itemId, preferredSlot) {
     let idx = findInventoryIndexById(itemId);
-    if (idx < 0) return false;
+    if (idx < 0 || getPassiveEquipmentRestriction(game.inventory[idx])) return false;
     if (preferredSlot && !canEquipItemToSlot(game.inventory[idx], preferredSlot)) return false;
+    const targetItem = game.inventory[idx];
     equipItem(idx, preferredSlot);
-    return true;
+    return Object.values(game.equipment).includes(targetItem);
 }
 
 function equipSelectedCraftInventoryItem() {
@@ -528,6 +533,7 @@ function unequipItemToGrid(slot, column, row) {
         return false;
     }
     let itemKey = equipmentLoadoutRuntime.ensureItemIdentity(item);
+    delete item.legacyRequirementGrace;
     game.inventory.push(item);
     game.equipment[slot] = null;
     game.equipmentInventoryPlacements = {
@@ -1094,13 +1100,13 @@ function upgradeSelectedItemBase() {
         bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:var(--copy-muted);">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule > 0 ? ` + 황금률 ${cost.goldenRule}` : ''}<br><span style="color:var(--copy-muted);">총 이슬 가치 ${cost.totalDewValue}</span>`;
     }
     let overlay = document.getElementById('base-upgrade-overlay');
-    if (overlay) overlay.classList.add('active');
+    if (overlay) overlay.showModal();
 }
 
 function closeBaseUpgradeOverlay() {
     game.pendingBaseUpgrade = null;
     let overlay = document.getElementById('base-upgrade-overlay');
-    if (overlay) overlay.classList.remove('active');
+    if (overlay) overlay.close();
 }
 
 function confirmSelectedItemBaseUpgrade() {

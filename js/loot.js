@@ -56,7 +56,7 @@ function getEnemyLootDropMultiplier(zone, enemy) {
 
 /** Independent base chances share bonuses without deriving growth drops from equipment. */
 function getEquipmentDropChances(zone, enemy) {
-    let multiplier = getEnemyLootDropMultiplier(zone, enemy);
+    let multiplier = getEnemyLootDropMultiplier(zone, enemy) * levelProgression.rewardMultiplier(zone, enemy, game.level);
     if (zone.type === 'labyrinth') {
         let floor = Math.max(1, Math.floor(Number(zone.floor) || 1));
         let progress = Math.min(1, Math.max(0, (floor - 30) / 170));
@@ -77,7 +77,7 @@ function getEquipmentDropChances(zone, enemy) {
  */
 function rollEquipmentDrop(zone, enemy, chance) {
     let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
-    let progress = game.equipmentDropProgress + EQUIPMENT_DROUGHT_RULES.credit[rank] * getContentDropRateMultiplier(zone);
+    let progress = game.equipmentDropProgress + EQUIPMENT_DROUGHT_RULES.credit[rank] * getContentDropRateMultiplier(zone) * levelProgression.rewardMultiplier(zone, enemy, game.level);
     let guaranteed = progress >= EQUIPMENT_DROUGHT_RULES.threshold;
     let dropped = guaranteed || Math.random() < chance;
     let minimumRarity = guaranteed ? 'rare' : null;
@@ -209,7 +209,8 @@ function getCurrencyDrops(enemy) {
     }
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
     if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
-    return drops.filter(([key]) => contentProgression.canDropCurrency(key));
+    return levelProgression.filterCurrencyDrops(drops, levelProgression.rewardMultiplier(zone, enemy, game.level))
+        .filter(([key]) => contentProgression.canDropCurrency(key));
 }
 
 safeExposeGlobals({ getCurrencyDrops });

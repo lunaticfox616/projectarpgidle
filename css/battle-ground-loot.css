@@ -1,0 +1,30 @@
+/* Bounded ground loot presentation, below actors. No continuously animated light pillars. */
+.battle-loot-layer{position:absolute;z-index:12;pointer-events:none;overflow:hidden}
+.battle-loot-foreground{position:absolute;z-index:13;pointer-events:none;max-width:none}
+.battle-loot-air{position:absolute;z-index:14;pointer-events:none;overflow:hidden}
+.battle-loot-drop{position:absolute;width:0;height:0;color:var(--loot-color);opacity:.82;transition:opacity 140ms}
+.battle-loot-drop::before{content:'';position:absolute;width:30px;height:9px;left:-15px;top:0;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.65),transparent 72%);opacity:0}
+.battle-loot-drop.landed::before{opacity:1}
+.battle-loot-flight{position:absolute;left:0;top:0;width:0;height:0;z-index:1}
+.battle-loot-item{position:absolute;width:28px;height:26px;max-width:none;object-fit:contain;left:-14px;top:-14px;filter:drop-shadow(1px 2px 1px #14130f);transform:rotate(var(--rest-angle,-15deg))}
+.battle-loot-item.weapon{width:38px;height:38px;left:-19px;top:-19px;transform:rotate(var(--rest-angle,58deg)) scaleY(.8)}
+.battle-loot-name{position:absolute;left:0;bottom:23px;transform:translateX(-50%);white-space:nowrap;max-width:min(220px,calc(var(--loot-width) - 16px));overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;border:1px solid rgba(176,164,140,.22);background:rgba(8,10,12,.88);padding:2px 7px;color:var(--loot-color);font:500 12px/1.4 sans-serif;text-shadow:0 1px 2px #000;z-index:4;opacity:0;transition:opacity 220ms 90ms}
+.battle-loot-drop.landed .battle-loot-name{opacity:1}
+.battle-loot-drop[data-rarity="unique"] .battle-loot-name{border-color:#996337;background:rgba(25,18,13,.95);font-weight:600;color:#ecad6b}
+.battle-loot-beam{position:absolute;left:-24px;bottom:0;width:48px;height:var(--beam-height,145px);pointer-events:none;opacity:0;transform-origin:center bottom;background:radial-gradient(ellipse at 50% 90%,color-mix(in srgb,var(--beam-color,#f4b76c) 40%,transparent),transparent 62%);transition:opacity 450ms;mask-image:linear-gradient(transparent,#000 22%,#000 96%,transparent)}
+.battle-loot-beam::before{content:'';position:absolute;inset:0 10px;background:radial-gradient(ellipse at center,color-mix(in srgb,var(--beam-color,#f4b76c) 68%,transparent),transparent 66%);filter:blur(2px)}
+.battle-loot-beam::after{content:'';position:absolute;inset:0 22px;background:radial-gradient(ellipse at center,var(--beam-core,#fff1d2),color-mix(in srgb,var(--beam-core,#fff1d2) 50%,transparent) 30%,transparent 70%);box-shadow:0 0 7px color-mix(in srgb,var(--beam-color,#f4b76c) 16%,transparent)}
+.battle-loot-drop.landed .battle-loot-beam{opacity:1;animation:loot-beam-arrival 950ms ease-out}
+.battle-loot-drop[data-beam="true"].landed::before{width:56px;height:18px;left:-28px;top:-7px;background:radial-gradient(ellipse,color-mix(in srgb,var(--beam-core,#ffe2ac) 70%,transparent),color-mix(in srgb,var(--beam-color,#f4b76c) 35%,transparent) 30%,transparent 72%)}
+.battle-loot-drop[data-currency="goldenRule"] .battle-loot-name{font-weight:400;border:0;background:none;padding:0;box-shadow:none}
+.battle-loot-drop[data-kind="currency"] .battle-loot-item{width:23px;height:23px;left:-11.5px;top:-13px;transform:rotate(var(--rest-angle,-8deg)) scaleY(.86)}
+.battle-loot-contact{position:absolute;left:-23px;top:-9px;width:46px;height:18px;border-radius:50%;background:radial-gradient(ellipse,color-mix(in srgb,var(--loot-color) 50%,transparent),transparent 70%);animation:loot-contact 450ms ease-out both}
+.battle-loot-drop[data-beam="true"] .battle-loot-contact{width:64px;height:25px;left:-32px;top:-12px;--loot-color:var(--beam-core,#fff1d2)}
+.battle-loot-drop.collected{opacity:0;transition:opacity 100ms}
+.battle-loot-mote{position:absolute;z-index:5;width:25px;height:4px;margin:-2px 0 0 -12.5px;border-radius:50%;background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--loot-color) 70%,transparent) 55%,#fff 91%,transparent);filter:drop-shadow(0 0 3px var(--loot-color));pointer-events:none}
+.battle-loot-mote::after{content:'';position:absolute;right:2px;top:0;width:4px;height:4px;border-radius:50%;background:#fff;box-shadow:0 0 5px var(--loot-color)}
+.battle-loot-receive{position:absolute;z-index:5;width:30px;height:30px;margin:-15px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.9),color-mix(in srgb,var(--loot-color) 32%,transparent) 24%,transparent 65%);animation:loot-receive 280ms ease-out both}
+@keyframes loot-contact{0%{opacity:0;transform:scale(.4)}20%{opacity:.8}100%{opacity:0;transform:scale(1.45)}}
+@keyframes loot-beam-arrival{0%{transform:scale(.7,.25)}30%{transform:scale(1.1,1.03)}100%{transform:scale(1)}}
+@keyframes loot-receive{0%{opacity:0;transform:scale(.3)}22%{opacity:.75}100%{opacity:0;transform:scale(1.25)}}
+@media(prefers-reduced-motion:reduce){.battle-loot-drop,.battle-loot-name,.battle-loot-beam{transition:none;animation:none}.battle-loot-contact,.battle-loot-receive{display:none}}

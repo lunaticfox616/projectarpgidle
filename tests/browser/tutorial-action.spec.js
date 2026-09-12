@@ -13,7 +13,7 @@ test('equipment guidance follows a real equip and can be skipped without spendin
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         game.level = 1; game.unlocks.items = true;
         game.settings.autoEquipEmptySlots = false;
-        game.inventory = [createItemFromBase(BASE_ITEM_DB.find(row => row.id === 'war_helm'), 'normal', 1)];
+        game.inventory = [createItemFromBase(BASE_ITEM_DB.find(row => row.id === 'cloth_hood'), 'normal', 1)];
         game.seenTutorials = game.seenTutorials.filter(key => !['unlock_items', 'unlock_char'].includes(key));
         queueTutorialNotice('unlock_items', '장비 장착', '장비를 장착해 보세요.', 'tab-items');
     });
@@ -28,7 +28,7 @@ test('equipment guidance follows a real equip and can be skipped without spendin
     await expect(page.locator('#tutorial-overlay')).not.toHaveClass(/active/);
     await page.screenshot({ path: testInfo.outputPath('equip-guide.png'), animations: 'disabled' });
     await page.locator('#ui-inventory-list .equipment-grid-item').dblclick();
-    await expect.poll(() => page.evaluate(() => game.equipment['투구']?.baseId)).toBe('war_helm');
+    await expect.poll(() => page.evaluate(() => game.equipment['투구']?.baseId)).toBe('cloth_hood');
     await expect(coach).toBeHidden();
     await expect(page.locator('#tutorial-title')).toHaveText('다음 안내');
     await page.locator('#tutorial-dismiss-btn').click();

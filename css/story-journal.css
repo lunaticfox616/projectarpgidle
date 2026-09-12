@@ -5,13 +5,29 @@ body #tutorial-overlay.is-story-scene .tutorial-body { display:grid; grid-templa
 .story-scene-art { display:block; width:100%; height:auto; max-height:65dvh; object-fit:contain; border:1px solid var(--ui-line); border-radius:4px; }
 .story-scene-copy { line-height:1.9; font-size:15px; color:var(--ui-text); word-break:keep-all; }
 .story-scene-copy p { margin:0 0 12px; }
-.journal-illustration { display:block; width:100%; padding:0; margin:0 0 12px; background:transparent; border:1px solid var(--ui-line); border-radius:4px; overflow:hidden; cursor:zoom-in; }
-.journal-illustration img { display:block; width:100%; height:auto; aspect-ratio:1; object-fit:contain; }
-.journal-illustration:focus-visible { outline:2px solid var(--ui-accent); outline-offset:3px; }
+.journal-entry-open { width:100%; padding:4px 0; background:transparent; border:0; text-align:left; font:inherit; cursor:pointer; }
+.journal-entry-open:hover strong { text-decoration:underline; text-underline-offset:4px; }
+.journal-entry-open:focus-visible { outline:2px solid var(--ui-gold); outline-offset:3px; }
+.journal-card-body:empty { display:none; }
+body #journal-reader { box-sizing:border-box; width:min(920px,calc((100vw - 24px) / var(--ui-display-factor,1))); max-width:none; max-height:calc((100dvh - 32px) / var(--ui-display-factor,1)); padding:0; border:1px solid var(--ui-gold); border-radius:8px; background:var(--ui-surface-1); color:var(--ui-text); box-shadow:0 16px 60px #0009; overflow:auto; overscroll-behavior:contain; }
+#journal-reader::backdrop { background:rgba(4,7,12,.8); }
+.journal-reader-head { position:sticky; top:0; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px; background:var(--ui-surface-1); border-bottom:1px solid var(--ui-line); }
+.journal-reader-head h2 { margin:0; color:var(--ui-gold); font-size:16px; line-height:1.5; }
+.journal-reader-head form { flex:none; margin:0; }
+.journal-reader-head button { padding:8px 14px; font:inherit; }
+.journal-reader-pages { padding:20px; }
+.journal-reader-page { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:24px; align-items:center; }
+.journal-reader-page + .journal-reader-page { margin-top:24px; padding-top:24px; border-top:1px solid var(--ui-line); }
+.journal-reader-page.is-text-only { grid-template-columns:minmax(0,1fr); max-width:38em; margin-inline:auto; }
+.journal-reader-page .story-scene-copy { min-width:0; overflow-wrap:anywhere; }
+.journal-reader-page h3 { font-size:15px; color:var(--ui-gold); margin:0 0 16px; }
 @media(max-width:700px) {
     body #tutorial-overlay.is-story-scene { padding:12px; }
     body #tutorial-overlay.is-story-scene .tutorial-card { padding:16px; }
     body #tutorial-overlay.is-story-scene .tutorial-body { grid-template-columns:1fr; gap:12px; }
     .story-scene-art { max-height:43dvh; }
     .story-scene-copy { font-size:13px; line-height:1.7; }
+    .journal-reader-head { padding:12px; }
+    .journal-reader-pages { padding:12px; }
+    .journal-reader-page { grid-template-columns:minmax(0,1fr); gap:16px; }
 }

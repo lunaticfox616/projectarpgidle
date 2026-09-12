@@ -1,0 +1,71 @@
+/* User-defined attack gem. Catalogue 45 is not a database Skill ID. */
+(function(G){
+ 'use strict';
+ const spec={slug:'radiant-lance',name:'광창 강림',gemNumber:53,effectNumber:45,category:'attack',element:'light',elementLabel:'번개',
+  castRange:3,targetRadius:3,targeting:'all-enemies-around-caster',distanceMetric:'chebyshev',spearCount:'one-per-target',spearCells:1,impactRadius:0,impactShape:'cell',hitCountPerEnemy:1,targetLimit:null,
+  balance:{damage:null,cooldown:null,crit:null,stun:null},
+  targetingProposal:{lock:'occupied-cells-at-cast-start',resolve:'living-occupants-at-landing',casterPosition:'cast-start'},
+  visualProposal:{windupMs:180,fallMs:260,landingFadeMs:144,spearOnly:true,groundShockwave:false,simultaneous:true,mergeOverlappingSpears:true}};
+ if(!G.WT_CATALOG.some(s=>s.id===45))G.WT_CATALOG.push({id:45,name:spec.name,slug:spec.slug,
+  skill:{isGem:true,category:'attack',ele:'light',baseSpd:null,desc:'캐릭터 반경 3칸 안의 모든 몬스터 위치에 빛의 창이 동시에 떨어집니다. 각 창은 착지한 1칸만 타격하며, 적마다 번개 피해를 한 번씩 주는 공격 스킬입니다.',tags:['attack','lightning','aoe'],targetMode:'all-enemies-around-caster',combatPattern:{kind:'radiantLance',hits:1}},
+  grid:{kind:'nova',range:3,radius:3,shape:'square',impactRadius:0},previewDefaults:{speed:1},profile:{family:'radiantLance',scale:1}});
+ const cell=c=>({gx:c.gx,gy:c.gy}),key=c=>c.gx+','+c.gy;
+ const valid=c=>!!(c&&Number.isInteger(c.gx)&&Number.isInteger(c.gy)&&c.gx>=0&&c.gx<9&&c.gy>=0&&c.gy<8);
+ const distance=(a,b)=>Math.max(Math.abs(a.gx-b.gx),Math.abs(a.gy-b.gy));
+ const canCast=source=>valid(source);
+ const inRange=(source,target)=>valid(source)&&valid(target)&&distance(source,target)<=3;
+ function living(enemies){if(!Array.isArray(enemies))return [];const seen=new Set();return enemies.filter(e=>{
+  if(!valid(e)||e.id==null||e.alive===false||(e.hp!=null&&e.hp<=0)||seen.has(e.id))return false;seen.add(e.id);return true;
+ });}
+ function footprint(target){return valid(target)?[cell(target)]:[];}
+ function rangeCells(source){const cells=[];if(valid(source))for(let gy=0;gy<8;gy++)for(let gx=0;gx<9;gx++)if(inRange(source,{gx,gy}))cells.push({gx,gy});return cells;}
+ function targetsAt(target,enemies){return valid(target)?living(enemies).filter(e=>distance(target,e)===0):[];}
+ function targetsInRange(source,enemies){return valid(source)?living(enemies).filter(e=>inRange(source,e)):[];}
+ const uniqueCells=enemies=>[...new Map(enemies.map(e=>[key(e),cell(e)])).values()];
+ // Ground positions are reserved at cast start. Damage is one deduplicated batch at landing.
+ // Visual cells are bounded by the 9x8 board; damage targets are never capped by the sprite pool.
+ function createCast({source,getEnemies,emit,onImpact=()=>{},startAt=0,speed=1,channelId='radiant-lance'}={}){
+  if(!canCast(source))return {ok:false,reason:'invalid-source',done:true,update(){},cancel(){}};
+  if(typeof getEnemies!=='function'||typeof emit!=='function'||typeof onImpact!=='function'||!Number.isFinite(startAt))throw Error('Invalid lance cast arguments');
+  const from=cell(source);
+  speed=Number.isFinite(speed)?Math.max(.5,Math.min(2.5,speed)):1;
+  const windup=180/speed,fall=260/speed,at=startAt+windup+fall,fade=144/speed;let started=false,done=false,cells=[],reserved=new Set(),selectedCount=0;
+  const area=()=>({center:cell(from),radius:3,shape:'occupied-cells',impactRadius:0,cells:cells.map(cell)});
+  const send=(kind,phase,when,duration,points=cells)=>{if(points.length)emit({skillName:spec.name,kind,lancePhase:phase,at:when,duration,sourceCell:from,targetCells:points.map(cell),element:'light',damageCategory:'attack',stageIndex:0,footprint:area(),channelId});};
+  return {ok:true,impactAt:at,get done(){return done;},get impactCells(){return cells.map(cell);},get selectedCount(){return selectedCount;},cancel(){done=true;},update(now){
+   if(done||!Number.isFinite(now)||now<startAt)return;
+   if(!started){started=true;const targets=targetsInRange(from,getEnemies());selectedCount=targets.length;cells=uniqueCells(targets);reserved=new Set(cells.map(key));send('travel','fall',startAt+windup,fall);}
+   if(now<at)return;done=true;
+   const targets=living(getEnemies()).filter(e=>reserved.has(key(e)));send('stage','land',at,fade);
+   send('hit','confirmed',at,160/speed,uniqueCells(targets));
+   onImpact({at,category:'attack',element:'light',center:cell(from),targetRadius:3,cells:cells.map(cell),targets,hitCountPerEnemy:1,selectedCount});
+  }};
+ }
+ function previewEnemies(source,mode='multi'){
+  if(mode==='empty')return [];
+  const occupied=c=>valid(c)&&(c.gx!==source.gx||c.gy!==source.gy);
+  let cells;
+  if(mode==='dense')cells=Array.from({length:72},(_,i)=>({gx:i%9,gy:Math.floor(i/9)})).filter(occupied);
+  else if(mode==='single')cells=[{gx:source.gx===8?7:source.gx+1,gy:source.gy}];
+  else cells=[[1,1],[4,1],[7,1],[2,2],[6,2],[1,4],[3,4],[5,4],[7,4],[2,6],[6,6],[4,7],[0,0],[8,0],[8,7]].map(([gx,gy])=>({gx,gy})).filter(occupied);
+  return cells.map((c,i)=>({id:'L'+i,...c,hp:100}));
+ }
+ const previous=G.buildWTPreview;
+ G.buildWTPreview=function(item,options={}){
+  if(item.id!==45)return previous(item,options);
+  const source=options.source||{gx:4,gy:4},target=cell(source),events=[],rows=[],timeline=[];
+  const enemies=options.enemies||previewEnemies(source,options.lanceMode);
+  const speed=Number.isFinite(options.attackSpeed)?options.attackSpeed:1;
+  const cast=createCast({source,getEnemies:()=>enemies,speed,emit:e=>events.push(e),onImpact:hit=>{
+   if(!hit.cells.length)return;
+   const impact=uniqueCells(hit.targets),area={center:cell(source),radius:3,shape:'occupied-cells',impactRadius:0,cells:hit.cells};
+   rows.push({index:0,at:hit.at,from:source,impact,footprint:area,element:'light',stage:{label:'광창 일제 낙하 · 대상별 1회 적중',targets:hit.targets.map(enemy=>({enemy}))}});
+   timeline.push({at:hit.at,label:'공격 · 번개 · 반경 3칸 '+hit.targets.length+'명 동시 적중',element:'light'});
+  }});
+  cast.update(0);cast.update(10000);
+  const count=cast.selectedCount||0;
+  return {events,rows,timeline,duration:Math.max(1200,...events.map(e=>e.at+e.duration))+200,source,target,targets:enemies.map(enemy=>({enemy})),profile:{kind:'nova',range:3,radius:3,shape:'square',impactRadius:0},attackSpeed:speed,channelInterval:null,motion:180/speed,
+   lance:true,lanceMode:options.lanceMode||'multi',castable:cast.ok,targetCount:count,castCells:rangeCells(source),impactCells:cast.impactCells||[],castMessage:!cast.ok?'시전자 위치를 확인하세요.':count?'반경 3칸 · '+count+'명에게 창 낙하 · 각 착지 1칸 타격':'반경 3칸 안에 대상이 없습니다.'};
+ };
+ G.WT_RADIANT_LANCE={spec,canCast,inRange,footprint,rangeCells,targetsAt,targetsInRange,createCast};
+})(globalThis);

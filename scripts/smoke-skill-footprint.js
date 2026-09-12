@@ -69,7 +69,7 @@ const cast = { owner:'player', skillName:'중력 붕괴', delivery:'magicCell', 
     flightMs:100, sourceCell:source, aimCell:victim, targetCells:[victim], attackFootprint:area, element:'phys' };
 r.drawCombatTravelFx(ctx, cast, 1170, projection, {x:120,y:160}, {});
 assert.strictEqual(clips.length,0,'sprite artwork can extend beyond the battlefield boundary');
-assert(images[0][7]*imageScales[0][0]>200,'the full area sprite has a small visual margin beyond the damage footprint');
+assert.strictEqual(images[0][7]*imageScales[0][0],160,'gravity uses the supplied three-times native ground artwork');
 assert.strictEqual(images.length,1,'one image frame is drawn for the full spell footprint');
 const sparseClips=JSON.stringify(clips);
 images=[]; imageScales=[]; clips=[];
@@ -108,9 +108,9 @@ images=[]; imageScales=[];
 r.drawCombatTravelFx(ctx, {owner:'player',skillName:'용화 숨결',delivery:'magicCell',patternKind:'channel',
     start:1000,duration:900,flightMs:100,sourceCell:source,aimCell:victim,targetCells:[victim],
     attackFootprint:breathArea,element:'fire'}, 1170, projection, {x:120,y:160}, {});
-assert.strictEqual(images.length, breathArea.cells.length, 'native breath stamps occupy each confirmed footprint cell');
-assert.strictEqual(images[0][3], 64, 'sample one supplied frame');
+assert.strictEqual(images.length, 2, 'the opening breath reveals the left pair of its four authored tiles');
+assert(images[0][3]>0&&images[0][3]<=64, 'reveal crops the supplied tile instead of stretching it');
 assert.strictEqual(images[0][4], 64);
-assert.strictEqual(images[0][7],64,'each breath piece retains the original square sprite size');
+assert.strictEqual(images[0][7]/images[0][3],2*breathArea.cone.length/3.5,'breath tile scale follows the actual cone reach without counting the half-cell margin twice');
 assert.strictEqual(run('JSON.stringify(game)'), renderState, 'rendering cannot alter combat');
 console.log('smoke-skill-footprint passed');

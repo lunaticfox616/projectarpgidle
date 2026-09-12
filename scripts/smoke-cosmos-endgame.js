@@ -142,9 +142,9 @@ assert.strictEqual(context.game.cosmosAtlas.activeChallenge.directive.id,
     '재탐사는 증가한 신호 주기의 선택지를 전투 계약에 고정해야 한다');
 
 const cosmosSource = fs.readFileSync('js/cosmos-atlas.js', 'utf8');
-assert(cosmosSource.includes('예상 DPS<strong class="map-power-grade grade-${ready.dps.id}">${ready.dps.label}')
-    && cosmosSource.includes('권장 EHP<strong class="map-power-grade grade-${ready.ehp.id}">${ready.ehp.label}'),
-    '우주계 노드도 원시 수치 대신 낮음·적정·높음 준비도만 표시해야 한다');
+assert(cosmosSource.includes('화력<strong class="map-power-grade grade-${ready.dps.id}">${ready.dps.label}')
+    && cosmosSource.includes('생존력<strong class="map-power-grade grade-${ready.ehp.id}">${ready.ehp.label}'),
+    '우주계 노드도 원시 수치 대신 부족·적정·여유 준비도만 표시해야 한다');
 assert(!cosmosSource.includes('약 ${model.target.clearTimeSec}초 클리어')
     && !cosmosSource.includes('renderCosmosMechanicSection(node)'),
     '우주계 상세 화면은 클리어 시간이나 기믹 공략을 미리 노출하지 않아야 한다');

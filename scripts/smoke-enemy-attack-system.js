@@ -34,7 +34,7 @@ function finish(env) {
         r.assignEnemyGridCombatProfile(one);r.assignEnemyGridCombatProfile(two);
         assert.deepStrictEqual(one,two,'same monster species retains its attack role across spawns');
         profiles.add(one.attackDelivery);
-        assert.strictEqual(!!one.attackCastMs,!!one.projectileToEdge,'only elite edge shots have a normal-monster cast bar');
+        assert.strictEqual(!!one.attackCastMs,!!one.projectileToEdge,'elite edge shots retain their windup timing');
     }
     assert.strictEqual(profiles.size,3);
     const wisp={monsterArchetype:'wisp',spriteVariantId:'wisp-fire'};r.assignEnemyGridCombatProfile(wisp);
@@ -75,6 +75,20 @@ for(const delivery of ['instantTarget','projectileTarget','projectileCell','patt
 {
     const env=fixture(),r=env.runtime;
     assert.strictEqual(r.enemyAttackRules.castBar(env.enemy,r.getCombatTime()),null,'ordinary attacks have no cast bar');
+    env.enemy.attackCastMs=900;
+    r.enemyAttackRules.ready(env.enemy,r.getCombatTime(),env.state.gridPlayer);
+    assert.strictEqual(r.enemyAttackRules.castBar(env.enemy,r.getCombatTime()),null,'a normal shot windup alone must not show a cast bar');
+    env.enemy.ailments=[{type:'stun',time:1}];
+    r.enemyAttackRules.interrupt(env.enemy,r.getCombatTime());
+    assert.strictEqual(r.enemyAttackRules.castBar(env.enemy,r.getCombatTime()),null,'interrupting a normal windup must not create a cast-cancelled label');
+    env.enemy.ailments=[];env.enemy.attackTimer=1;
+    env.enemy.attackCast=null;env.enemy.attackCastSpecial=true;
+    r.enemyAttackRules.ready(env.enemy,r.getCombatTime(),env.state.gridPlayer);
+    assert(r.enemyAttackRules.castBar(env.enemy,r.getCombatTime()),'an explicitly authored special shot shows its cast');
+    env.enemy.hp=0;
+    assert.strictEqual(r.enemyAttackRules.castBar(env.enemy,r.getCombatTime()),null,'dead enemies never retain cast labels');
+    env.enemy.hp=100;
+    env.enemy.attackCast=null;env.enemy.attackCastMs=0;
     Object.assign(env.enemy,{isBoss:true,patternMode:'slam',patternAttackCount:0,attackTimer:.5});
     r.performMonsterAttacks(env.stats);
     assert.strictEqual(r.enemyAttackRules.castBar(env.enemy,r.getCombatTime()),null,'ordinary boss strikes have no cast bar');

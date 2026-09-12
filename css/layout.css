@@ -74,7 +74,7 @@
         #item-tooltip-box, #canvas-tooltip, #info-tooltip { display: none; position: fixed; left: 0; top: 0; z-index: 9999; background: rgba(10,10,15,0.97); border: 1px solid #777; padding: 12px; border-radius: 6px; pointer-events: none; color: #eee; box-shadow: 0 5px 15px rgba(0,0,0,0.8); min-width: 200px; font-family: var(--game-font-body, 'Galmuri14', 'Malgun Gothic', sans-serif); font-size: 0.9em; line-height: 1.5; -webkit-font-smoothing: auto; text-rendering: optimizeLegibility; }
         #item-tooltip-box { max-width: min(720px, calc(100vw - 20px)); max-height: calc(100vh - 20px); overflow: hidden auto; overscroll-behavior: contain; }
         #item-tooltip-box.item-compare-tooltip, #info-tooltip.item-compare-tooltip { width: fit-content; max-width: min(680px, calc(100vw - 20px)); min-width: 0; padding: 0; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
-        #canvas-tooltip { z-index: 9999; border-color: #f39c12; min-width: 180px; }
+        #canvas-tooltip { z-index: 9999; border-color: #f39c12; min-width: 0; width: max-content; max-width: min(390px, calc((100vw - 24px) / var(--ui-display-factor, 1))); box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; word-break: keep-all; }
         #info-tooltip { z-index: 13050; max-width: 340px; }
         .item-compare-tooltip .item-tooltip-main { width: fit-content; max-width: min(420px, calc(100vw - 20px)); margin: 0 auto; padding: 12px; border: 1px solid #4d6584; border-radius: 6px; background: rgba(10,10,15,0.97); box-shadow: 0 5px 15px rgba(0,0,0,0.8); }
         .item-compare-single, .item-compare-grid { width: fit-content; max-width: 100%; margin: 5px auto 0; padding: 8px; border: 1px solid #4d6584; border-radius: 6px; background: rgba(10,10,15,0.97); box-shadow: 0 5px 15px rgba(0,0,0,0.8); }
@@ -244,8 +244,9 @@
         .map-item.map-unlock-reveal { animation: mapUnlockReveal 0.8s ease-out 1; border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241,196,15,0.45), 0 0 16px rgba(241,196,15,0.35); }
         .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked { flex-direction: column; gap: 2px; border-color: rgba(230, 169, 107, .62); }
         .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked::after { content: attr(data-entry-condition); display: block; color: #ffcf8a; font-size: .66em; font-weight: 800; line-height: 1.1; letter-spacing: 0; text-transform: none; }
-        .map-primary-tabs .subtab-btn.map-primary-tab-unlock-reveal { animation: mapPrimaryTabUnlockReveal .9s cubic-bezier(.2,.85,.25,1) 1; border-color: #f1c40f; box-shadow: 0 0 0 1px rgba(241,196,15,.48), 0 0 18px rgba(241,196,15,.38); }
-        .map-explore-layout .vertical-tab-btn.map-explore-tab-unlock-reveal { animation: mapPrimaryTabUnlockReveal .9s cubic-bezier(.2,.85,.25,1) 1; border-color: #c395ff; box-shadow: 0 0 0 1px rgba(195,149,255,.45), 0 0 18px rgba(137,82,204,.4); }
+        body.light-mode .map-primary-tabs .subtab-btn.map-primary-tab--entry-locked::after { color: #77551c; }
+        .map-primary-tabs .subtab-btn.map-primary-tab-unlock-reveal { animation: mapPrimaryTabUnlockReveal .6s ease-out 1; }
+        .map-explore-layout .vertical-tab-btn.map-explore-tab-unlock-reveal { animation: mapPrimaryTabUnlockReveal .6s ease-out 1; }
         @keyframes mapUnlockReveal {
             0% { opacity: 0; transform: scale(0.95); filter: brightness(1.5); }
             45% { opacity: 1; transform: scale(1.03); filter: brightness(1.25); }

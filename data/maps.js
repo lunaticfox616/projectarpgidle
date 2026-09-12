@@ -1,16 +1,16 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/maps.js');
 
 const ACT_BATTLE_MAP_SOURCES = Object.freeze({
-    bgAct1: 'assets/background/world-tree/act01-sanctuary.webp',
-    bgAct2: 'assets/background/world-tree/act02-filled-v1.webp',
-    bgAct3: 'assets/background/world-tree/act03-filled-v1.webp',
-    bgAct4: 'assets/background/world-tree/act04-sanctuary.webp',
-    bgAct5: 'assets/background/world-tree/act05-filled-v1.webp',
-    bgAct6: 'assets/background/world-tree/act06-filled-v1.webp',
-    bgAct7: 'assets/background/world-tree/act07-filled-v1.webp',
-    bgAct8: 'assets/background/world-tree/act08-filled-v1.webp',
-    bgAct9: 'assets/background/world-tree/act09-filled-v1.webp',
-    bgAct10: 'assets/background/world-tree/act10-filled-v1.webp'
+    bgAct1: 'assets/background/refined-20260910/bgAct1.webp',
+    bgAct2: 'assets/background/refined-20260910/bgAct2.webp',
+    bgAct3: 'assets/background/refined-20260910/bgAct3.webp',
+    bgAct4: 'assets/background/refined-20260910/bgAct4.webp',
+    bgAct5: 'assets/background/refined-20260910/bgAct5.webp',
+    bgAct6: 'assets/background/refined-20260910/bgAct6.webp',
+    bgAct7: 'assets/background/refined-20260910/bgAct7.webp',
+    bgAct8: 'assets/background/refined-20260910/bgAct8.webp',
+    bgAct9: 'assets/background/refined-20260910/bgAct9.webp',
+    bgAct10: 'assets/background/refined-20260910/bgAct10.webp'
 });
 
 const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
@@ -62,6 +62,11 @@ const TRIAL_ZONES = [
 ];
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
+const GRAND_BREACH_ENCOUNTER = Object.freeze({
+    durationSeconds: 35, intervalMs: 1400, openingPack: 16, refillPack: 8, eliteLimit: 4,
+    portals: Object.freeze([{gx:0,gy:1}, {gx:8,gy:1}, {gx:4,gy:7}]),
+    capacities: Object.freeze([16,24,32])
+});
 
 const MAX_STAR_WEDGES = 3;
 

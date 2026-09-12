@@ -12,17 +12,17 @@ const vm = require('vm');
 
 // index.html의 <script src> 순서와 같아야 한다. 이 목록 자체가 로드 순서 계약이다.
 const LOAD_ORDER = [
-    'data/constants.js', 'data/shrines.js', 'data/bounties.js', 'data/maps.js', 'data/story-journal.js', 'data/cosmos-route.js', 'data/skills.js', 'data/skill-fx-atlas.js', 'data/endgame-progression.js', 'data/severed-wanderers.js', 'data/items.js', 'data/offline-progress.js',
+    'data/constants.js', 'data/level-progression.js', 'data/build-stat-inputs.js', 'data/shrines.js', 'data/bounties.js', 'data/maps.js', 'data/story-journal.js', 'data/cosmos-route.js', 'data/skills.js', 'data/skill-fx-atlas.js', 'data/endgame-progression.js', 'data/severed-wanderers.js', 'data/items.js', 'data/offline-progress.js',
     'data/growth-items.js', 'data/passives.js', 'data/passive-node-id-migrations.js', 'data/passive-tree-v22.js', 'data/bosses.js', 'data/rewards.js',
     'data/talent-cards.js', 'data/content-progression.js',
-    'js/utils.js', 'js/ui-feedback.js', 'js/state.js', 'js/ui-display.js', 'js/combat-clock.js', 'js/content-progression.js', 'js/endgame-progression.js', 'js/salvage-recovery.js', 'js/unique-hunt.js', 'js/offline-progress.js', 'js/records.js', 'js/save.js', 'js/items.js', 'js/equipment-loadouts.js', 'js/equipment-inventory-grid.js',
-    'js/crafting-payment.js', 'js/passives.js', 'js/loot.js', 'js/battle-backdrops.js', 'js/battle-asset-loading.js', 'js/shrines.js', 'js/growth-board.js', 'js/background-build-cache.js', 'js/growth-effects.js',
-    'js/growth-generation.js', 'js/equipment-stat-resolution.js', 'js/skills.js', 'js/bounties.js', 'js/core-cube.js', 'js/combat-grid.js', 'js/condition-patterns.js', 'js/hidden-journal.js', 'js/severed-wanderers.js',
-    'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/combat-build-stats.js', 'js/cosmos-route.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-slash-vfx.js', 'js/canvas-skill-footprint.js', 'js/canvas-earth-spikes.js', 'js/canvas-skill-signatures.js', 'js/canvas-world-tree-fx.js', 'js/canvas-enemy-projectiles.js', 'js/canvas-battlefield.js',
-'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/equipment-inventory-grid-ui.js', 'js/equipment-inspection-ui.js', 'js/crafting-result-ui.js', 'js/bounty-ui.js', 'js/loop-ui.js', 'js/flask-ui.js', 'js/passive-selection-ui.js', 'js/arcana-mobile-ui.js', 'js/endgame-progression-ui.js', 'js/tutorial-ui.js', 'js/story-journal-ui.js', 'js/inventory-search-ui.js', 'js/tab-layout-ui.js', 'js/fossil-workbench-ui.js', 'js/chaos-infuser-ui.js', 'js/ocean-collection-ui.js', 'js/sea-gift-ui.js', 'js/ui.js', 'js/market-ui.js', 'js/equipment-loot-ui.js', 'js/content-progression-ui.js', 'js/salvage-recovery-ui.js', 'js/unique-hunt-ui.js', 'js/equipment-loadouts-ui.js', 'js/growth-ui.js',
+    'js/utils.js', 'js/ui-feedback.js', 'js/level-progression.js', 'js/state.js', 'js/ui-display.js', 'js/combat-clock.js', 'js/content-progression.js', 'js/endgame-progression.js', 'js/salvage-recovery.js', 'js/unique-hunt.js', 'js/offline-progress.js', 'js/records.js', 'js/save.js', 'js/items.js', 'js/equipment-loadouts.js', 'js/equipment-inventory-grid.js',
+    'js/crafting-payment.js', 'js/equipment-crafting.js', 'js/passives.js', 'js/loot.js', 'js/battle-backdrops.js', 'js/battle-asset-loading.js', 'js/shrines.js', 'js/growth-board.js', 'js/background-build-cache.js', 'js/growth-effects.js',
+    'js/growth-generation.js', 'js/equipment-stat-resolution.js', 'js/skills.js', 'js/bounties.js', 'js/core-cube.js', 'js/combat-grid.js', 'js/skill-gem-casts.js', 'js/condition-patterns.js', 'js/hidden-journal.js', 'js/severed-wanderers.js',
+    'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/combat-build-stats.js', 'js/combat-equipment-stats.js', 'js/cosmos-route.js', 'js/combat.js', 'js/combat-ehp.js', 'js/equipment-triage.js', 'js/canvas-slash-vfx.js', 'js/canvas-skill-footprint.js', 'js/canvas-earth-spikes.js', 'js/canvas-skill-signatures.js', 'js/canvas-world-tree-native.js', 'js/canvas-world-tree-fx.js', 'js/canvas-enemy-projectiles.js', 'js/battle-ground-loot-ui.js', 'js/canvas-battlefield.js',
+'js/canvas-attack-fx.js', 'js/canvas-passive-tree.js', 'js/equipment-inventory-grid-ui.js', 'js/equipment-inspection-ui.js', 'js/crafting-result-ui.js', 'js/bounty-ui.js', 'js/loop-ui.js', 'js/flask-ui.js', 'js/passive-selection-ui.js', 'js/arcana-mobile-ui.js', 'js/endgame-progression-ui.js', 'js/tutorial-ui.js', 'js/story-journal-ui.js', 'js/inventory-search-ui.js', 'js/tab-layout-ui.js', 'js/fossil-workbench-ui.js', 'js/chaos-infuser-ui.js', 'js/ocean-collection-ui.js', 'js/sea-gift-ui.js', 'js/level-progression-ui.js', 'js/ui.js', 'js/market-ui.js', 'js/equipment-loot-ui.js', 'js/content-progression-ui.js', 'js/salvage-recovery-ui.js', 'js/unique-hunt-ui.js', 'js/equipment-loadouts-ui.js', 'js/growth-ui.js',
     'js/gem-selection-ui.js', 'js/condition-feedback-ui.js', 'js/skills-ui.js', 'js/growth-workspace-ui.js', 'js/inventory-library-ui.js', 'js/offline-progress-ui.js', 'js/records-ui.js',
     'js/talent-cards.js', 'js/talent-precise.js', 'js/talent-hit-effects.js', 'js/talent-recovery.js',
-    'js/cosmos-route-ui.js', 'js/save-migrations.js', 'js/build-feedback-ui.js', 'js/combat-replay.js', 'js/main.js'
+    'js/cosmos-route-ui.js', 'js/canvas-side-encounters.js', 'js/side-encounter-ui.js', 'js/save-migrations.js', 'js/build-feedback-ui.js', 'js/combat-replay.js', 'js/main.js'
 ];
 // main의 실제 스케줄러까지 읽지만 setTimeout/DOM 이벤트 shim은 자동 부팅을 실행하지 않는다.
 // UI-window-manager·goal-system 등 DOM 조립 모듈은 실제 브라우저 검사에서 검증한다.
@@ -54,7 +54,7 @@ function buildGameRuntime(sourceOverrides = {}) {
         console: { log: noop, warn: noop, error: noop, info: noop },
         setTimeout: () => 0, clearTimeout: noop, setInterval: () => 0, clearInterval: noop,
         requestAnimationFrame: () => 0, cancelAnimationFrame: noop,
-        Math, JSON, Date, Number, String, Boolean, Array, Object, Set, Map, WeakMap, Promise,
+        Math, JSON, Date, Number, String, Boolean, Array, Object, Set, Map, WeakMap, Promise, structuredClone,
         isNaN, parseInt, parseFloat, Infinity, NaN,
         performance: { now: () => Date.now() },
         localStorage: { getItem: () => null, setItem: noop, removeItem: noop, clear: noop, length: 0 },

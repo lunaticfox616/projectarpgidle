@@ -7,6 +7,7 @@ const files = [
   'js/bootstrap.js',
   'cloud-save-config.js',
   'data/constants.js',
+  'data/level-progression.js', 'data/build-stat-inputs.js',
   'data/shrines.js',
   'data/bounties.js',
   'data/maps.js',
@@ -25,11 +26,13 @@ const files = [
   'data/offline-progress.js',
   'js/utils.js',
   'js/state.js',
+  'js/level-progression.js', 'js/combat-equipment-stats.js',
   'js/content-progression.js',
   'js/offline-progress.js',
   'js/endgame-progression.js',
   'js/save.js',
   'js/items.js',
+  'js/equipment-crafting.js',
   'js/passives.js',
   'js/loot.js',
   'js/unique-hunt.js',
@@ -697,7 +700,11 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const earlyHive = context.estimateMapZonePowerRequirements(context.getZone('beehive_run'));
   context.game.beehive.branchStep = 10;
   const lateHive = context.estimateMapZonePowerRequirements(context.getZone('beehive_run'));
-  assert.ok(lateHive.dps > earlyHive.dps, '벌집 후반 갈림길은 초반보다 예상 DPS가 높아야 한다');
+  assert.strictEqual(lateHive.dps, earlyHive.dps, '벌집 입장 전부터 최종 여왕 기준의 예상 DPS를 알려야 한다');
+  context.game.beehive.enemyEmpower = 10;
+  const empoweredHive = context.estimateMapZonePowerRequirements(context.getZone('beehive_run'));
+  assert.ok(empoweredHive.dps > lateHive.dps && empoweredHive.ehp > lateHive.ehp, '군체 강화 선택은 여왕의 권장 공격·방어 기준에도 반영되어야 한다');
+  context.game.beehive.enemyEmpower = 0;
 
   const breachRewards = context.getGrandBreachRewardSummary(31);
   assert.strictEqual(breachRewards.kills, 31, '대균열 정산은 실제 생존 구간 처치 수를 사용해야 한다');
@@ -807,7 +814,7 @@ assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKI
 const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile'));
 assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 젬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
 assert.ok(projectileGems.every(([name, skill]) => context.describeSkillGridProfile(name, skill).startsWith('발사 방식:')), '모든 투사체 젬 툴팁은 공격 범위 대신 발사 방식을 표시해야 한다');
-assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= 8, '스킬 최대 사거리는 9x8 전장의 긴 축을 넘지 않아야 한다');
+assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= Math.hypot(8,7), '스킬 최대 사거리는 9x8 전장의 대각선 길이를 넘지 않아야 한다');
 const radiusOneCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 1 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
 const radiusTwoCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 2 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
 assert.strictEqual(radiusOneCells.length, 5, '반경 1은 중심과 상하좌우 4칸만 덮어야 한다');
@@ -2626,17 +2633,20 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '스프라이트는 칸 이동 진행도로 걷기 프레임을 골라 도착 시 마지막 프레임에 맞춰야 한다');
   assert.ok(!battlefield.includes('isPlayerWalkingForAnimation') && !ui.includes('isPlayerWalkingForAnimation'),
     '진행도나 접근 플래그만으로 제자리 걷기를 켜는 이전 판정은 남지 않아야 한다');
-  assert.ok(ui.includes('estimateMapZonePowerRequirements(zone)') && ui.includes('예상 DPS ${model.dps.label} · 권장 EHP ${model.ehp.label}'),
+  assert.ok(ui.includes('estimateMapZonePowerRequirements(zone)') && ui.includes('화력 ${model.dps.label} · 생존력 ${model.ehp.label}'),
     '지도 지역 카드는 원시 수치 대신 개인화된 DPS/EHP 등급을 표시해야 한다');
   assert.ok((ui.match(/buildMapPowerEstimateHtml\(/g) || []).length >= 14, '특수 지도 패널도 예상 DPS/EHP 표시를 공유해야 한다');
   const estimateStart = ui.indexOf('function formatApproximateMapPower(');
   const estimateEnd = ui.indexOf('function buildTrialMapItemHtml(', estimateStart);
+  const rewardRuntime = buildGameRuntime();
   const estimateContext = {
+    escapeHTML: rewardRuntime.escapeHTML,
+    levelProgressionUi: vm.runInContext('levelProgressionUi', rewardRuntime),
     cachedTooltipStats: {},
     estimateMapZonePowerRequirements() { return { dps: 413210, ehp: 692474, element: 'fire' }; },
     getMapPowerReadiness() {
       return {
-        dps: { id: 'fit', label: '적정' }, ehp: { id: 'low', label: '낮음' }, element: 'fire',
+        dps: { id: 'fit', label: '적정' }, ehp: { id: 'low', label: '부족' }, element: 'fire',
         playerDps: 400000, recommendedDps: 413210, playerEhp: 500000, recommendedEhp: 692474
       };
     }
@@ -2645,10 +2655,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 require('./lib/load-combat-clock')(estimateContext);
   vm.runInContext(ui.slice(estimateStart, estimateEnd), estimateContext, { filename: 'map-power-estimate.js' });
   const estimateHtml = estimateContext.buildMapPowerEstimateHtml({ id: 1 });
-  assert.ok(estimateHtml.includes('예상 DPS <b class="map-power-grade grade-fit">적정</b>')
-      && estimateHtml.includes('권장 EHP <b class="map-power-grade grade-low">낮음</b>')
+  assert.ok(estimateHtml.includes('화력 <b class="map-power-grade grade-fit">적정</b>')
+      && estimateHtml.includes('생존력 <b class="map-power-grade grade-low">부족</b>')
       && !estimateHtml.includes('413,210'),
-    '지도 카드는 원시 수치를 숨기고 낮음·적정·높음 등급만 렌더링해야 한다');
+    '지도 카드는 원시 수치를 숨기고 부족·적정·여유 등급만 렌더링해야 한다');
 }
 
 console.log('smoke-grid-combat passed');

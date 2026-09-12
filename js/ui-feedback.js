@@ -22,20 +22,30 @@
         root = document.createElement('div');
         root.id = 'game-feedback-root';
         root.innerHTML = `
-            <div id="game-dialog-overlay" class="game-dialog-overlay" aria-hidden="true" inert>
-                <section id="game-dialog-card" class="game-dialog-card" role="dialog" aria-modal="true" aria-labelledby="game-dialog-title">
+            <dialog id="game-dialog-overlay" class="game-dialog-overlay" aria-labelledby="game-dialog-title" aria-hidden="true" inert>
+                <section id="game-dialog-card" class="game-dialog-card">
                     <div class="game-dialog-kicker" id="game-dialog-kicker"></div>
                     <h2 class="game-dialog-title" id="game-dialog-title"></h2>
-                    <div class="game-dialog-message" id="game-dialog-message"></div>
-                    <div class="game-dialog-control" id="game-dialog-control"></div>
+                    <div class="game-dialog-body">
+                        <div class="game-dialog-message" id="game-dialog-message"></div>
+                        <div class="game-dialog-control" id="game-dialog-control"></div>
+                        <div class="game-dialog-error" id="game-dialog-error" role="alert" hidden></div>
+                    </div>
                     <div class="game-dialog-actions">
                         <button type="button" class="game-dialog-btn game-dialog-btn-secondary" id="game-dialog-cancel">취소</button>
                         <button type="button" class="game-dialog-btn game-dialog-btn-primary" id="game-dialog-confirm">확인</button>
                     </div>
                 </section>
-            </div>
+            </dialog>
             <div id="game-toast-region" class="game-toast-region" role="status" aria-live="polite" aria-atomic="false"></div>`;
         document.body.appendChild(root);
+        root.querySelector('#game-dialog-overlay').addEventListener('cancel', event => {
+            event.preventDefault();
+            finishDialog(null, false);
+        });
+        root.querySelector('#game-dialog-overlay').addEventListener('close', event => {
+            if (!event.target.open) finishDialog(null, false);
+        });
         root.querySelector('#game-dialog-overlay').addEventListener('pointerdown', event => {
             if (event.target === event.currentTarget && activeDialog && activeDialog.dismissOnBackdrop !== false) finishDialog(null, false);
         });
@@ -91,7 +101,7 @@
             type: source.type || 'confirm',
             tone: source.tone || 'default',
             title: source.title || (source.type === 'number' ? '수량 선택' : source.type === 'choice' ? '대상 선택' : source.type === 'text' ? '입력' : '확인'),
-            kicker: source.kicker || (source.tone === 'danger' ? '주의가 필요한 작업' : 'ROOTBOUND SYSTEM'),
+            kicker: source.kicker || (source.tone === 'danger' ? '주의가 필요한 작업' : ''),
             message: source.message || '',
             confirmLabel: source.confirmLabel || '확인',
             cancelLabel: source.cancelLabel || '취소',
@@ -151,10 +161,12 @@
         cancel.style.display = activeDialog.type === 'notice' ? 'none' : '';
         confirm.style.display = activeDialog.type === 'choice' && activeDialog.submitOnChoice ? 'none' : '';
         control.innerHTML = buildDialogControl(activeDialog);
+        document.getElementById('game-dialog-error').hidden = true;
         bindDialogControl(activeDialog, control);
         overlay.inert = false;
         overlay.classList.add('active');
         overlay.setAttribute('aria-hidden', 'false');
+        overlay.showModal();
         document.body.classList.add('game-dialog-open');
         playUiFeedbackSound(activeDialog.tone === 'danger' ? 'danger' : 'open');
         requestAnimationFrame(() => {
@@ -249,7 +261,10 @@
         let value = getActiveDialogValue();
         let validation = activeDialog.validate ? activeDialog.validate(value) : true;
         if (validation !== true) {
-            showGameToast(typeof validation === 'string' ? validation : '입력값을 확인해주세요.', { tone: 'danger' });
+            let error = document.getElementById('game-dialog-error');
+            error.textContent = typeof validation === 'string' ? validation : '입력값을 확인해주세요.';
+            error.hidden = false;
+            error.scrollIntoView({ block: 'nearest' });
             playUiFeedbackSound('danger');
             return;
         }
@@ -263,6 +278,7 @@
         let overlay = document.getElementById('game-dialog-overlay');
         let focused = document.activeElement;
         let restoreTarget = previousFocus && previousFocus.focus && !overlay.contains(previousFocus) ? previousFocus : null;
+        overlay.close();
         if (restoreTarget) restoreTarget.focus({ preventScroll: true });
         else if (focused && overlay.contains(focused) && focused.blur) focused.blur();
         previousFocus = null;
@@ -276,22 +292,20 @@
     }
 
     function handleDialogKeydown(event) {
-        if (!activeDialog) return;
-        if (event.key === 'Escape') {
+        if (!activeDialog || !event.target.closest?.('#game-dialog-overlay')) return;
+        if (event.key === 'Enter' && !event.shiftKey && !event.target.closest('button')) {
             event.preventDefault();
-            event.stopPropagation();
-            finishDialog(null, false);
-            return;
-        }
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            event.stopPropagation();
+            event.stopImmediatePropagation();
             submitActiveDialog();
             return;
         }
         if (event.key !== 'Tab') return;
+        cycleDialogFocus(event);
+    }
+
+    function cycleDialogFocus(event) {
         let card = document.getElementById('game-dialog-card');
-        let focusable = [...card.querySelectorAll('button:not([disabled]),input:not([disabled])')];
+        let focusable = [...card.querySelectorAll('button:not([disabled]),input:not([disabled])')].filter(element => element.getClientRects().length);
         if (focusable.length <= 0) return;
         let current = focusable.indexOf(document.activeElement);
         let next = event.shiftKey ? current - 1 : current + 1;

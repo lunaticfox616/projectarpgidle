@@ -16,6 +16,11 @@ test('treasure shows the minimum boss tier and preserves it when the player post
         for(let kill=0;kill<9;kill++) bountyRuntime.advanceAfterBossKill(getZone(kill===3?0:8),{isBoss:true});
         switchTab('tab-battle');updateStaticUI();bountyUi.renderHud();
     });
+    await page.waitForFunction(()=>{
+        if(uiRefreshRunning||uiRefreshQueued)return false;
+        tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
+        return true;
+    });
     await expect(page.locator('#ui-bounty-box')).toContainText('1 · 기준 T1');
     await page.evaluate(()=>{
         bountyRuntime.advanceAfterBossKill(getZone(8),{isBoss:true});
@@ -24,19 +29,19 @@ test('treasure shows the minimum boss tier and preserves it when the player post
     const offer=page.locator('#ui-bounty-box button');
     await expect(offer).toContainText('보물사냥 · 기준 T1');
     await offer.click();
-    await expect(page.locator('.game-dialog-message')).toContainText('10마리 중 최저 보스 T1 기준 · 일반 재료 ×1');
+    await expect(page.locator('#game-dialog-message')).toContainText('10마리 중 최저 보스 T1 기준 · 일반 재료 ×1');
     await expect(page.locator('.game-choice-option')).toHaveCount(3);
     const targets=await page.locator('.game-choice-option').evaluateAll(buttons=>buttons.map(button=>button.dataset.choiceValue));
     expect(new Set(targets).size).toBe(3);
     await page.screenshot({path:testInfo.outputPath('bounty-minimum-tier.png')});
     await page.getByRole('button',{name:'나중에',exact:true}).click();
-    await expect(page.locator('.game-dialog-card')).toBeHidden();
+    await expect(page.locator('#game-dialog-card')).toBeHidden();
     await page.evaluate(()=>{
         game=mergeDefaults(JSON.parse(JSON.stringify(game)));
         bountyUi.renderHud();
     });
     await offer.click();
-    await expect(page.locator('.game-dialog-message')).toContainText('최저 보스 T1 기준');
+    await expect(page.locator('#game-dialog-message')).toContainText('최저 보스 T1 기준');
     expect(await page.locator('.game-choice-option').evaluateAll(buttons=>buttons.map(button=>button.dataset.choiceValue))).toEqual(targets);
     const before=await page.evaluate(()=>({zone:game.currentZoneId,progress:game.runProgress,hp:game.playerHp,
         enemies:JSON.stringify(game.enemies),plan:JSON.stringify(game.encounterPlan),moveTimer:game.moveTimer}));

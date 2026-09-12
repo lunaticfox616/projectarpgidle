@@ -158,6 +158,7 @@ const SKILL_TAG_LABELS = {
     utility: '기능'
 };
 const TAGGED_DAMAGE_STAT_BY_TAG = {
+    attack: 'attackPctDmg',
     melee: 'meleePctDmg',
     projectile: 'projectilePctDmg',
     physical: 'physPctDmg',
@@ -202,7 +203,8 @@ const COMPARE_STAT_META = {
     resL: { label: '번개 저항', format: value => `${Math.floor(value)}%` },
     resChaos: { label: '카오스 저항', format: value => `${Math.floor(value)}%` },
     regen: { label: '초당 재생', format: value => `${formatValue('regen', value)}%` },
-    leech: { label: '흡혈', format: value => `${formatValue('leech', value)}%` },
+    leech: { label: '공격 피해 흡수', format: value => `${formatValue('leech', value)}%` },
+    spellLeech: { label: '주문 피해 흡수', format: value => `${formatValue('spellLeech', value)}%` },
     leechRateCap: { label: '흡혈 회복 속도', format: value => `+${formatValue('leechRateCap', value)}%p` },
     leechTotalCap: { label: '흡혈 총 회복량', format: value => `+${formatValue('leechTotalCap', value)}%p` },
     leechInstanceCap: { label: '흡혈 타격당 회복량', format: value => `+${formatValue('leechInstanceCap', value)}%p` },
@@ -256,8 +258,8 @@ function formatSupportGemEffectValue(value) {
 function formatValue(statId, value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return '0';
-    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
-        return numeric.toFixed(1);
+    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+        return numeric.toFixed(2).replace(/0$/, '');
     }
     const rounded = Math.round(numeric * 100) / 100;
     return Number.isInteger(rounded) ? rounded : String(rounded);
@@ -271,8 +273,7 @@ function translateSkillTag(tag) {
 function getSkillTagList(skill) {
     return (skill.tags || []).map(translateSkillTag);
 }
-function getStatName(statId) {
-    const names = {
+const STAT_DISPLAY_NAMES = {
         bossDamagePct: '보스 처치 피해(%)',
         eliteDamagePct: '정예 처치 피해(%)',
         firstStrikeDamagePct: '선제 타격 피해(%)',
@@ -292,6 +293,8 @@ function getStatName(statId) {
         slamPctDmg: '강타 피해(%)',
         projectilePctDmg: '투사체 피해(%)',
         projectileExtraShots: '투사체 추가 발사',
+        projectileExtraChance: '투사체 추가 발사 확률(%)',
+        attackPctDmg: '공격 피해 증가(%)',
         spellFlatDmg: '주문 내장 피해',
         spellFlatPct: '주문 내장 피해 증가(%)',
         spellPctDmg: '주문 피해(%)',
@@ -318,7 +321,7 @@ function getStatName(statId) {
         move: '이동 속도(%)',
         crit: '치명타 확률(%)',
         critDmg: '치명타 피해(%)',
-        leech: '생명력 흡수(%)',
+        leech: '공격 피해의 생명력 흡수(%)',
         leechRateCap: '흡혈 회복 속도 캡(최대 생명력 %/초)',
         leechTotalCap: '흡혈 총 회복량 캡(최대 생명력 %)',
         leechInstanceCap: '흡혈 타격당 회복량 캡(최대 생명력 %)',
@@ -378,7 +381,7 @@ function getStatName(statId) {
         energyShieldRechargeFaster: '보호막 재생 준비시간 감소(초)',
         targetCount: '스킬 타겟 수',
         spellCritDmg: '주문 치명타 피해 배율(%)',
-        spellLeech: '주문 흡혈(%)',
+        spellLeech: '주문 피해의 생명력 흡수(%)',
         shockEffectReducePct: '감전 효과 감소(%)',
         dotTakenDamageReducePct: '받는 지속 피해 감소(%)',
         genericTakenDamageReducePct: '받는 피해 감소(%)',
@@ -412,7 +415,8 @@ function getStatName(statId) {
         doubleDamageChance: '확률로 2배의 피해를 줌(%)',
         slamEchoDamagePct: '여진 피해량(%)'
     };
-    return names[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
+function getStatName(statId) {
+    return STAT_DISPLAY_NAMES[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
 }
 function getRarityColor(rarity) {
     if (rarity === 'unique') return '#ff9f43';
@@ -438,7 +442,8 @@ function createEmptyStatBucket() {
         addedFireDamagePct: 0, addedColdDamagePct: 0, addedLightDamagePct: 0, addedChaosDamagePct: 0, addedPhysDamagePct: 0,
         fireFlatDmg: 0, coldFlatDmg: 0, lightFlatDmg: 0, chaosFlatDmg: 0, physFlatDmg: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellPctDmg: 0, shieldPctDmg: 0, minePctDmg: 0, potionPctDmg: 0, mobilityPctDmg: 0, channelingPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, shockChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
-        targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0,
+        targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0, projectileExtraChance: 0,
+        attackPctDmg: 0, spellLeech: 0, spellCritDmg: 0,
         strength: 0, dexterity: 0, intelligence: 0, accuracy: 0,
         mystique: 0, devotion: 0, cycle: 0, ailmentDamagePct: 0, ailmentPotencyPct: 0,
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0, deflectChance: 0, deflectDamageReduce: 0, blockChance: 0, blockChancePct: 0,
@@ -463,7 +468,7 @@ const COMPOSITE_STAT_BUCKET_LINES = Object.freeze({
     aspdMove: [['aspd', 1, 0], ['move', 1, 0]],
     chaosResElemPenalty: [['resChaos', 1, 0], ['resF', -1, 0], ['resC', -1, 0], ['resL', -1, 0]],
     deflectMajor: [['deflectChance', 1, 0], ['deflectDamageReduce', 0, 3]],
-    targetCount: [['targetAny', 1, 0]], spellCritDmg: [['critDmg', 1, 0]], spellLeech: [['leech', 1, 0]]
+    targetCount: [['targetAny', 1, 0]]
 });
 function addStatToBucket(bucket, statId, value) {
     value = Number(value);

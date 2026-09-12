@@ -80,8 +80,8 @@ function buildMapPowerEstimateHtml(zone) {
     if (!estimate) return '';
     let model = getMapPowerReadinessModel(estimate);
     if (!model) return '';
-    let label = `예상 DPS ${model.dps.label} · 권장 EHP ${model.ehp.label}`;
-    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span>예상 DPS <b class="map-power-grade grade-${model.dps.id}">${model.dps.label}</b></span><span>권장 EHP <b class="map-power-grade grade-${model.ehp.id}">${model.ehp.label}</b></span></span>`;
+    let label = `화력 ${model.dps.label} · 생존력 ${model.ehp.label}`;
+    return `<span class="map-zone-status map-power-estimate" tabindex="0" aria-label="${label}" data-info-tooltip-anchor="1" data-level-detail="${escapeHTML(levelProgressionUi.rewardHint(zone))}" data-player-dps="${Math.round(model.playerDps)}" data-recommended-dps="${Math.round(model.recommendedDps)}" data-player-ehp="${Math.round(model.playerEhp)}" data-recommended-ehp="${Math.round(model.recommendedEhp)}" data-limiting-element="${model.element}" onmouseenter="showMapPowerEstimateTooltip(event)" onmousemove="showMapPowerEstimateTooltip(event)" onfocus="showMapPowerEstimateTooltip(event)" ontouchstart="event.stopPropagation(); showMapPowerEstimateTooltip(event)" onclick="event.stopPropagation(); this.focus(); showMapPowerEstimateTooltip(event)" onblur="hideInfoTooltip()" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()"><span>화력 <b class="map-power-grade grade-${model.dps.id}">${model.dps.label}</b></span><span>생존력 <b class="map-power-grade grade-${model.ehp.id}">${model.ehp.label}</b></span><span style="color:var(--gold)">${levelProgressionUi.rewardHint(zone, true)}</span></span>`;
 }
 
 function showMapPowerEstimateTooltip(event) {
@@ -92,6 +92,7 @@ function showMapPowerEstimateTooltip(event) {
     let data = target ? target.dataset : {};
     let elementLabel = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' }[data.limitingElement] || '취약 속성';
     let html = `<div class="tooltip-title">권장 전투력</div>
+        <div class="tooltip-line">${escapeHTML(data.levelDetail)}</div>
         <div class="tooltip-line">내 DPS 약 ${formatApproximateMapPower(data.playerDps)} / 권장 약 ${formatApproximateMapPower(data.recommendedDps)}</div>
         <div class="tooltip-line">내 EHP 약 ${formatApproximateMapPower(data.playerEhp)} / 권장 약 ${formatApproximateMapPower(data.recommendedEhp)}</div>
         <div class="tooltip-line tooltip-muted">${elementLabel} 기준 · 회피 주기와 직격 생존 하한 반영</div>`;
@@ -152,14 +153,14 @@ function buildMapRouteSummaryHtml(currentZone, recommendedZone) {
     let recommendedName = escapeHTML(recommendedZone.name);
     let sameZone = currentZone && Number(currentZone.id) === Number(recommendedZone.id);
     let action = sameZone ? "switchTab('tab-battle')" : `changeZone(${Number(recommendedZone.id)})`;
-    let actionLabel = sameZone ? '전투로 돌아가기' : '추천 지역 사냥';
-    return `<div class="map-route-copy"><span class="map-route-kicker">NEXT HUNT</span><strong>${recommendedName}</strong><small>현재 지역 · ${currentName}</small></div><button type="button" class="map-route-action" onclick="${action}">${actionLabel}</button>`;
+    let actionLabel = sameZone ? '전투로 돌아가기' : '이 지역 사냥';
+    return `<div class="map-route-copy"><span class="map-route-kicker">${sameZone ? '현재 사냥터' : '다음 진행 지역'}</span><strong>${recommendedName}</strong><small>현재 · ${currentName}</small></div><button type="button" class="map-route-action" onclick="${action}">${actionLabel}</button>`;
 }
 
 function getMapCardState(isCurrent, cleared, recommended) {
     if (isCurrent) return { label: '현재', className: 'current' };
     if (cleared) return { label: '완료', className: 'cleared' };
-    if (recommended) return { label: '추천', className: 'recommended' };
+    if (recommended) return { label: '다음', className: 'recommended' };
     return { label: '도전', className: 'available' };
 }
 
@@ -981,7 +982,7 @@ function syncMobileMenuFocus(header, more, wasOpen, nextOpen) {
 
 function handleMobileMenuKey(event) {
     if (!document.body.classList.contains('mobile-tab-drawer-open') || !['Tab', 'Escape'].includes(event.key)) return;
-    if (document.querySelector('.game-dialog-overlay[aria-hidden="false"]')) return;
+    if (document.querySelector('dialog:modal')) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     if (event.key === 'Escape') { setMobileTabDrawerOpen(false); return; }
@@ -2482,7 +2483,11 @@ function switchSkillSubtab(subtabId) {
 
 
 
-function closeBeehiveChoiceOverlay() {
+// A dismissal belongs to this pending choice only; the next branch can prompt again.
+const dismissedBeehiveChoices = new WeakSet();
+
+function closeBeehiveChoiceOverlay(dismiss = false) {
+    if (dismiss && game.beehive.pendingChoice) dismissedBeehiveChoices.add(game.beehive.pendingChoice);
     let el = document.getElementById('beehive-choice-overlay');
     if (el) el.remove();
 }
@@ -2496,16 +2501,23 @@ function getBeehiveChoiceButtonsHtml(c) {
 }
 
 function openBeehiveChoiceOverlay(reasonText) {
-    let b = game.beehive || {};
+    // The visible map panel already offers the same choices and run controls.
+    if (document.querySelector('#tab-map.active:not(.ui-window-minimized) #map-tab-zones.active #map-explore-beehive.active')) {
+        closeBeehiveChoiceOverlay();
+        return;
+    }
+    let b = game.beehive;
+    if (dismissedBeehiveChoices.has(b.pendingChoice)) return;
     let alive = (game.enemies || []).filter(e => e && e.hp > 0).length;
     if (!b.inRun || !b.pendingChoice || b.awaitingClear || alive > 0 || document.getElementById('beehive-choice-overlay')) return;
-    let next = Math.min(10, Math.max(1, Math.floor((b.branchStep || 0) + 1)));
-    let html = `<div id="beehive-choice-overlay" style="position:fixed;inset:0;background:rgba(8,8,5,.76);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px;">
-        <div style="width:min(920px,calc(95vw / var(--ui-display-factor, 1)));background:#17130b;border:1px solid #9b7a30;border-radius:14px;padding:14px;box-shadow:0 18px 60px rgba(0,0,0,.45);">
-            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;"><strong style="color:#ffd978;font-size:18px;">🐝 벌떼 웨이브 처치 완료</strong><button onclick="closeBeehiveChoiceOverlay()">닫기</button></div>
-            <div style="color:#d9c08a;margin-bottom:10px;line-height:1.45;">${reasonText || '다음 갈림길을 선택하세요.'}<br>갈림길 ${next}/10 · 선택 즉시 다음 벌떼 웨이브가 시작됩니다.</div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">${getBeehiveChoiceButtonsHtml(b.pendingChoice)}</div>
-            <div style="color:#95835d;font-size:.82em;margin-top:10px;">닫아도 벌집 패널에서 다시 선택할 수 있습니다.</div>
+    let next = Math.min(10, Math.max(1, Math.floor(b.branchStep + 1)));
+    let html = `<div id="beehive-choice-overlay" class="beehive-choice-overlay" role="dialog" aria-modal="true" aria-label="벌집 갈림길">
+        <div class="beehive-choice-card">
+            <div class="beehive-choice-heading"><strong>벌집 갈림길 ${next}/10</strong><button onclick="closeBeehiveChoiceOverlay(true)">닫기</button></div>
+            <p>${escapeHTML(reasonText || '다음 갈림길을 선택하세요.')} · 선택하면 전투가 시작됩니다.</p>
+            ${sideEncounterUi.hiveSummary(b)}
+            <div class="beehive-choice-actions">${getBeehiveChoiceButtonsHtml(b.pendingChoice)}</div>
+            <p>닫아도 벌집 패널에서 다시 선택할 수 있습니다.</p>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
@@ -2527,28 +2539,17 @@ function renderLoop8BeehivePanel(shouldRenderPanel = true) {
     let aliveBeeEnemies = (game.enemies || []).filter(e => e && e.hp > 0).length;
     if (b.inRun && b.pendingChoice && !b.awaitingClear && aliveBeeEnemies <= 0) {
         openBeehiveChoiceOverlay();
-        let c = b.pendingChoice;
-        if (c.a && c.b && c.c) {
-            choiceHtml = `<div style="margin-top:8px; display:grid; gap:6px;"><div style="color:#ffd978; font-weight:700;">갈림길 선택 (${Math.min(10, (b.branchStep || 0) + 1)}/10) · 선택 즉시 벌떼 웨이브가 시작됩니다.</div><button onclick="resolveBeehiveChoice('a')">${c.a.text}</button><button onclick="resolveBeehiveChoice('b')">${c.b.text}</button><button onclick="resolveBeehiveChoice('c')">${c.c.text}</button></div>`;
-        } else {
-            // Legacy save compatibility: old shape used now/later keys.
-            choiceHtml = `<div style="margin-top:8px; display:grid; gap:6px;"><div style="color:#ffd978; font-weight:700;">갈림길 선택 (${Math.min(10, (b.branchStep || 0) + 1)}/10)</div><button onclick="resolveBeehiveChoice('legacy_now')">${c.nowText || '즉시 보상'}</button><button onclick="resolveBeehiveChoice('legacy_later')">${c.laterText || '지연 보상'}</button></div>`;
-        }
+        choiceHtml = `<div class="map-hive-choices"><strong>갈림길 선택 (${Math.min(10, (b.branchStep || 0) + 1)}/10) · 선택하면 전투가 시작됩니다.</strong>${getBeehiveChoiceButtonsHtml(b.pendingChoice)}</div>`;
     } else if (b.inRun && b.awaitingClear) {
         choiceHtml = `<div style="margin-top:8px; color:#f3d28a;">${b.queenActive ? '여왕벌 전투 진행 중' : `벌떼 웨이브 진행 중 (${Math.max(0, Math.floor(b.branchStep || 0))}/10)`} · 남은 적 <strong>${aliveBeeEnemies}</strong>마리를 모두 처치해야 진행할 수 있습니다.</div>`;
     }
     if (!shouldRenderPanel || !panel) return;
-    let beekeeperLv = getBeekeeperLevelForHive();
-    let hiveUnlockText = `양봉업자 Lv.${beekeeperLv} · 카오스 ${beekeeperLv >= 3 ? '해금' : 'Lv.3'} · 신성한오브 ${beekeeperLv >= 5 ? '해금' : 'Lv.5'}`;
-    let powerEstimate = buildMapPowerEstimateHtml(getZone('beehive_run'));
-    let recentRewards = (Array.isArray(b.rewardLedger) ? b.rewardLedger : []).slice(-3).join(' · ') || '아직 없음';
-    let pendingQueenRewards = Array.isArray(b.pendingQueenRewards) ? b.pendingQueenRewards.length : 0;
-    panel.innerHTML = `<div style="color:#f6d68e; margin-bottom:6px;">벌집 열쇠: <strong>${game.currencies.hiveKey||0}</strong> · 꽃가루: <strong>${game.currencies.pollen||0}</strong> · 독벌침: <strong>${game.currencies.venomStinger||0}</strong> · 벌꿀: <strong>${game.currencies.enchantedHoney||0}</strong> · 밀랍: <strong>${game.currencies.beeswax||0}</strong></div>
-    <div style="color:var(--copy-bright); font-size:0.82em; margin-bottom:8px;">자동 맵 진행 없이 갈림길 선택 → 벌떼 웨이브 → 전멸 확인 순서로 진행됩니다. 선택마다 진행도 10%가 오르고, 10개 갈림길 완료 후 여왕벌이 등장합니다.<br>${hiveUnlockText}</div>
-    <div style="margin-bottom:8px;">${powerEstimate}</div>
-    <div style="color:#f6d68e; margin-bottom:8px;">진행도: <strong>${Math.min(100, Math.max(0, Math.floor(b.branchStep || 0) * 10))}%</strong> · 완료한 갈림길: <strong>${Math.min(10, Math.max(0, Math.floor(b.branchStep || 0)))}/10</strong>${b.queenActive ? ' · <strong>여왕벌 등장</strong>' : ''}</div>
-    <div style="color:var(--copy-bright); font-size:.82em; margin-bottom:8px;">군체 강화 <strong>${Math.max(0, Math.floor(b.enemyEmpower || 0))}</strong> · 여왕 보류 보상 <strong>${pendingQueenRewards}</strong>개 · 최근 획득: ${recentRewards}</div>
-    <div style="display:flex; gap:6px; flex-wrap:wrap;"><button onclick="startBeehiveRun()" ${(game.currencies.hiveKey||0)<=0 || b.inRun ? 'disabled':''}>벌집 입장</button><button onclick="forfeitBeehiveRun()" ${b.inRun ? '':'disabled'}>던전 포기</button></div>${choiceHtml}`;
+    const html = sideEncounterUi.hivePanel(b, choiceHtml, buildMapPowerEstimateHtml(getZone('beehive_run')));
+    if (panel.__lastHtml === html) return;
+    captureUiDisclosureState(panel);
+    panel.innerHTML = html;
+    panel.__lastHtml = html;
+    restoreUiDisclosureState(panel);
 }
 
 const COLONY_WARD_MAX_SLOTS = 4;
@@ -2952,40 +2953,30 @@ function renderLoop9VoidRiftPanel(){
         g.timeLeft = 0;
         v.grandRun = g;
     }
-    let progress = v.active ? `${Math.max(0, Math.floor(v.activeKills || 0))}/${Math.max(1, Math.floor(v.requiredKills || 0))}` : '-';
-    let phase = g.phase === 'survival' ? '생존전' : '보스전';
-    let grandText = (g.inRun && game.currentZoneId === 'grand_breach_run') ? ` · 대균열: <strong>${phase}</strong> · 남은시간: <strong>${Math.max(0, Math.ceil(g.timeLeft || 0))}초</strong> · 처치: <strong>${Math.floor(g.kills || 0)}</strong>` : '';
-    let grandRewards = typeof getGrandBreachRewardSummary === 'function' ? getGrandBreachRewardSummary(g.kills || 0) : { voidChisel: 2 };
-    let canEnter = v.grandBreachUnlock && !g.inRun;
-    let powerEstimate = buildMapPowerEstimateHtml(getZone('grand_breach_run'));
-    panel.innerHTML = `<div style="color:var(--copy-bright);">활성 균열: <strong>${v.active ? '진행중' : '없음'}</strong> · 균열 진행: <strong>${progress}</strong> · 대균열 해금: <strong>${v.grandBreachUnlock ? '가능' : '잠김'}</strong>${grandText}</div><div style="margin-top:5px; color:#cdb8e8; font-size:.82em;">35초 생존 후 균열 군주 출현 · 더 많이 처치할수록 격파 보상 증가 · 현재 예상 공허의 끌 ${grandRewards.voidChisel}</div><div style="margin-top:6px;">${powerEstimate}</div><div style="display:flex; gap:6px; margin-top:8px;"><button class="ominous-entry-btn" onclick="enterGrandBreach()" ${canEnter ? '' : 'disabled'}>대균열 진입</button></div>`;
+    panel.innerHTML = sideEncounterUi.grandPanel(v, buildMapPowerEstimateHtml(getZone('grand_breach_run')));
 }
 
 function spawnBeehiveWave(isBoss){
     let b = game.beehive || {};
     let zone = getZone('beehive_run') || getZone(0);
     let step = Math.max(1, Math.floor(b.branchStep || 1));
-    let count = isBoss ? 1 : Math.min(10, 5 + Math.floor(step / 2) + Math.floor(Math.random() * 2));
+    let count = isBoss ? 1 : Math.min(8, 6 + Math.floor((step - 1) / 4));
+    let eliteCount = step >= 6 ? 3 : 2;
     game.enemies = [];
     game.encounterPlan = [];
     game.encounterIndex = 0;
     game.moveTimer = 0;
     for (let i = 0; i < count; i++) {
-        let marker = { elite: !isBoss && Math.random() < 0.78, boss: isBoss };
+        let marker = { elite: !isBoss && i < eliteCount, boss: isBoss };
         let enemy = createEnemy(zone, marker, i);
-        let depthScale = 1 + Math.max(0, step) * 0.16 + Math.max(0, Math.floor(b.enemyEmpower || 0)) * 0.22;
-        enemy.maxHp = Math.floor(enemy.maxHp * depthScale);
-        enemy.hp = enemy.maxHp;
-        enemy.atkMul *= (1 + Math.max(0, Math.floor(b.enemyEmpower || 0)) * 0.12);
         if (isBoss) {
             enemy.name = '👑 벌집 여왕';
-            enemy.maxHp = Math.floor(enemy.maxHp * 2.4);
-            enemy.hp = enemy.maxHp;
-            enemy.atkMul *= 1.75;
-            enemy.critChance = (enemy.critChance || 0) + 14;
-            enemy.penetration = (enemy.penetration || 0) + 18;
             enemy.traitName = `분노한 군체 (강화 ${Math.floor(b.enemyEmpower || 0)})`;
         } else {
+            enemy.maxHp = Math.floor(enemy.maxHp * zone.waveHpMul);
+            enemy.hp = enemy.maxHp;
+            enemy.atkMul *= zone.waveAttackRateMul;
+            enemy.damageMul *= zone.waveDamageMul;
             enemy.name = `${enemy.isElite ? '정예 ' : ''}🐝 벌집 전투벌`;
             enemy.traitName = enemy.traitName || '벌떼 돌격';
         }
@@ -3321,7 +3312,7 @@ function enterGrandBreach(options){
     }
     if (v.grandRun && v.grandRun.inRun) return;
     v.grandBreachUnlock = false;
-    v.grandRun = { inRun: true, phase: 'survival', timeLeft: 35, kills: 0, nextRefillAt: 0, lastTickAt: getCombatTime(), returnZoneId: game.currentZoneId };
+    v.grandRun = { inRun: true, phase: 'survival', timeLeft: GRAND_BREACH_ENCOUNTER.durationSeconds, kills: 0, nextRefillAt: 0, lastTickAt: getCombatTime(), returnZoneId: game.currentZoneId };
     game.currentZoneId = 'grand_breach_run';
     game.enemies = [];
     game.encounterPlan = [];
@@ -3329,7 +3320,7 @@ function enterGrandBreach(options){
     game.runProgress = 0;
     game.moveTimer = 0;
     game.combatHalted = false;
-    if (!options || !options.automatic) addLog('🌌 대균열 진입! 제한 시간 동안 몬스터가 계속 리필됩니다.', 'season-up');
+    if (!options || !options.automatic) addLog('🌌 대균열 진입! 35초 동안 무리가 점차 늘어납니다. 많이 처치할수록 군주 격파 보상이 증가합니다.', 'season-up');
     updateStaticUI();
 }
 
@@ -7441,6 +7432,13 @@ function presentItemTooltip(context, event, item, html, isEquip) {
     if (!isEquip) itemTooltipComparisonScheduler.schedule(item, context.token, html);
 }
 
+function getItemAffixTierHtml(stat) {
+    const tier = isFixedEquipmentAffix(stat) ? ' <span class="tier-badge tier-badge-fixed">[T0]</span>'
+        : (stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '');
+    const source = equipmentCrafting.getLabel(stat);
+    return `${tier}${source ? ` <span class="equipment-craft-source">· ${source}</span>` : ''}`;
+}
+
 /**
  * Renders complete equipment details, either in the hover tooltip or an inline comparison column.
  * @param {{token?: string, target?: HTMLElement}} options Inline targets do not change hover state.
@@ -7451,6 +7449,8 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     if (!item) return;
     let context = prepareItemTooltip(event, item, idx, isEquip, options);
     if (!context) return;
+    const inactiveAffixes = equipmentInspectionUi.getInactiveAffixIds(cachedTooltipStats, game.equippedSummonSkills);
+    const affixClass = statId => inactiveAffixes.has(statId) ? ' class="equipment-affix-inactive"' : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</div>`;
     if (item.hallReplica) html += `<div class="tooltip-line" style="color:#d2b878;">🏛️ 전당 소장품 · 전시자 ${escapeHTML(item.hallCuratorName || '익명')} · 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()} · 제작/재등록 불가</div>`;
@@ -7460,7 +7460,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${baseChainInfo.step}/${baseChainInfo.total}]</span>`
         : '';
     html += `<div class="tooltip-line" style="color:var(--copy-muted);">베이스: ${item.baseName}${baseChainBadge}</div>`;
-    html += `<div class="tooltip-line" style="color:var(--copy-bright);">숨겨진 티어 ${getTierBadgeHtml(item.hiddenTier || item.itemTier || 1, 'T')}</div>`;
+    html += `<div class="tooltip-line" style="color:var(--copy-bright);">아이템 Lv.${item.itemLevel || levelProgression.tierLevel(item.hiddenTier || item.itemTier)} · 옵션 상한 ${getTierBadgeHtml(getItemCraftTier(item), 'T')}</div>${levelProgressionUi.item(item, isEquip, idx)}`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';
         html += `<div class="tooltip-line" style="margin-top:6px;"><span style="${uniqueGlow}">✨ 고유 효과: ${escapeHTML(item.uniqueEffect)}</span></div>`;
@@ -7510,7 +7510,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             let label = stat.statName || getStatName(statKey) || statKey;
             let valueColor = stat.exceptional ? '#ffb454' : resolveItemStatTone(statKey);
             let exMark = stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '';
-            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} </span><span style="color:${valueColor};">+${formatValue(statKey, cur)}</span>${rangeText}${exMark}</div>`;
+            html += `<div class="tooltip-line"><span${affixClass(statKey)}><span style="color:${resolveItemStatTone(statKey)};">${label} </span><span style="color:${valueColor};">+${formatValue(statKey, cur)}</span></span>${rangeText}${exMark}</div>`;
         });
         ['armor','evasion','energyShield'].forEach(id => {
             let label = getStatName(id);
@@ -7556,16 +7556,16 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         html += `<div class="tooltip-line" style="margin-top:6px; color:var(--ui-accent); font-weight:800;">추가 옵션 (${explicitStats.length}/6)</div>`;
         explicitStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
-            let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
+            let tierText = getItemAffixTierHtml(stat);
             let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
             let honeyLockText = getHoneyLockBadgeHtml(stat);
             let label = stat.statName || getStatName(statKey) || statKey;
             // 복합 옵션은 한 줄에 두 스탯까지 표기하고, 듀얼+복합처럼 길어지는 경우 다음 줄로 넘긴다.
             if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {
-                let parts = [`<span style="color:${resolveItemStatTone(statKey)};">${getStatName(statKey)} +${formatValue(statKey, stat.val)}</span>`];
+                let parts = [`<span${affixClass(statKey)} style="color:${resolveItemStatTone(statKey)};">${getStatName(statKey)} +${formatValue(statKey, stat.val)}</span>`];
                 stat.extraStats.forEach(extra => {
                     let exKey = extra && (extra.id || extra.stat);
-                    parts.push(`<span style="color:${resolveItemStatTone(exKey)};">${getStatName(exKey)} +${formatValue(exKey, extra.val)}</span>`);
+                    parts.push(`<span${affixClass(exKey)} style="color:${resolveItemStatTone(exKey)};">${getStatName(exKey)} +${formatValue(exKey, extra.val)}</span>`);
                 });
                 for (let i = 0; i < parts.length; i += 2) {
                     let chunk = parts.slice(i, i + 2).join(' <span style="color:var(--copy-muted);">·</span> ');
@@ -7576,7 +7576,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
                 }
                 return;
             }
-            html += `<div class="tooltip-line"><span style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}${honeyLockText}</div>`;
+            html += `<div class="tooltip-line"><span${affixClass(statKey)} style="color:${resolveItemStatTone(statKey)};">${label} +${formatValue(statKey, stat.val)}</span>${rangeText}${honeyLockText}</div>`;
         });
     } else {
         html += `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">노멀 아이템: 추가 옵션 없음</div>`;
@@ -7740,7 +7740,7 @@ function getBattleLayout(enemies, width, height, projection) {
 
 function drawPixelShadow(ctx, x, y, w, h, alpha) {
     ctx.save();
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = getBattleActorDrawAlpha(ctx,alpha);
     ctx.fillStyle = '#000';
     ctx.beginPath();
     ctx.ellipse(x, y, w, h, 0, 0, Math.PI * 2);
@@ -7891,12 +7891,12 @@ function isActBattleMapBackdropKey(key) {
     return /^bgAct(?:[1-9]|10)$/.test(String(key || ''));
 }
 
-// ACT 맵은 현재 투영과 동일한 변환으로 그려 이미지의 48px 칸과 판정을 정확히 맞춘다.
-// 지하계는 생성 원본의 타일 경계를 보정하고, 나머지 엔드게임 배경은 cover로 채운다.
+// ACT·지하계·운석 맵은 816×624 자산의 48px 칸과 판정에 동일한 변환을 적용한다.
+// 나머지 정사각형 엔드게임 배경은 기존 cover 표시를 유지한다.
 function drawGridAlignedBackdrop(ctx, width, height, image, gridProj, backdropKey) {
     let srcW = image.width || width;
     let srcH = image.height || height;
-    let actMap = isActBattleMapBackdropKey(backdropKey) && gridProj;
+    let actMap = (isActBattleMapBackdropKey(backdropKey) || ['bgUnderworld','bgMeteor'].includes(backdropKey)) && gridProj;
     let coverScale = Math.max(width / srcW, height / srcH);
     let drawW = srcW * coverScale;
     let drawH = srcH * coverScale;
@@ -7905,19 +7905,10 @@ function drawGridAlignedBackdrop(ctx, width, height, image, gridProj, backdropKe
     if (actMap) {
         ({ mapWidth: drawW, mapHeight: drawH, mapX: drawX, mapY: drawY } = gridProj);
     }
-    const underworldMap = backdropKey === 'bgUnderworld' && gridProj;
-    if (underworldMap) {
-        // Original 1434×1097 art: nine-by-eight floor bounds (298,256)-(1134,950).
-        const firstCell = gridProj.cellToScreen(0, 0);
-        drawW = gridProj.tileW * 9 * 1434 / 836;
-        drawH = gridProj.tileH * 8 * 1097 / 694;
-        drawX = firstCell.x - gridProj.tileW / 2 - drawW * 298 / 1434;
-        drawY = firstCell.y - gridProj.tileH / 2 - drawH * 256 / 1097;
-    }
     ctx.fillStyle = '#070b12';
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(image, drawX, drawY, drawW, drawH);
-    ctx.fillStyle = actMap || underworldMap ? 'rgba(4, 8, 14, 0.16)' : 'rgba(4, 8, 14, 0.42)';
+    ctx.fillStyle = actMap ? 'rgba(4, 8, 14, 0.16)' : 'rgba(4, 8, 14, 0.42)';
     ctx.fillRect(0, 0, width, height);
 }
 
@@ -9726,6 +9717,7 @@ function updateCombatUI(pStats) {
         setCombatProgressGaugePercent(game.runProgress);
     }
 
+    sideEncounterUi.updateHud(zone);
     if (getRenderingUiTabIds().has('tab-character')) renderCharacterStats(pStats);
 
     let enemies = (game.enemies || []).filter(enemy => enemy && (enemy.hp || 0) > 0);
@@ -9798,7 +9790,7 @@ function updateCombatUI(pStats) {
         let hpTextEl = enemyListEl.querySelector('.hp-text');
         let ailmentEl = enemyListEl.querySelector('.enemy-ailments');
         let traitEl = enemyListEl.querySelector('.enemy-traits');
-        if (nameEl) nameEl.innerText = getEnemyDisplayName(focusedEnemy);
+        if (nameEl) nameEl.innerText = `${getEnemyDisplayName(focusedEnemy)} · Lv.${levelProgression.monsterLevel(zone, focusedEnemy)}`;
         if (ghostEl) {
             ghostEl.style.left = `${pct}%`;
             ghostEl.style.width = `${ghostTrailPct}%`;
@@ -10956,15 +10948,7 @@ function getCraftActionValidators(item) {
 function getCraftOrbUseState(key, item) {
     if (!item) return { enabled: false, reason: '아이템 미선택' };
     if ((game.currencies[key] || 0) <= 0) return { enabled: false, reason: '재화 부족' };
-    let actionKey = key;
-    if (key === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'alteration';
-    if (key === 'sapBud') actionKey = item.rarity === 'magic' ? 'regal' : 'exalted';
-    if (key === 'formlessDew') actionKey = item.rarity === 'normal' ? 'alchemy' : 'chaos';
-    if (key === 'goldenRule') actionKey = 'divine';
-    if (key === 'fairyRing') actionKey = 'chance';
-    if (key === 'pruningShears') actionKey = 'annulment';
-    if (key === 'blightSpore') actionKey = 'scour';
-    if (key === 'emberBranch') actionKey = 'tainted';
+    let actionKey = equipmentCrafting.resolveAction(key, item.rarity);
     if (item.corrupted && actionKey !== 'tainted') return { enabled: false, reason: '타락 아이템은 일반 제작 불가' };
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(actionKey)) return { enabled: false, reason: '융합 유물: 황금률/잿불가지/축복만 사용 가능' };
     let ok = false;
@@ -10983,7 +10967,9 @@ function getCraftOrbUseState(key, item) {
     else if (key === 'blessing') ok = Array.isArray(item.baseStats) && item.baseStats.length > 0;
     else if (key === 'abyssCatalyst') ok = Math.max(0, Math.floor(item.quality || 0)) > 0 && Array.isArray(item.stats) && item.stats.length > 0;
     if (!ok) return { enabled: false, reason: '현재 아이템 조건 불일치' };
-    let sporeMode = game.sporeCraftModes && game.sporeCraftModes[key] || 'none';
+    let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[key] || 'none') : 'none';
+    const sporeBlock = equipmentCrafting.getSporeBlockReason(item, actionKey, sporeMode);
+    if (sporeBlock) return { enabled: false, reason: sporeBlock };
     if (['magicBud','sapBud','formlessDew'].includes(key)
         && typeof isSporeCraftEquipment === 'function'
         && isSporeCraftEquipment(item)
@@ -11430,9 +11416,10 @@ function renderMobileCraftCurrencyPicker(item) {
 }
 
 function buildSporeSummaryHtml() {
-    let item = typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null;
-    let equipmentSelected = !item || (typeof isSporeCraftEquipment === 'function' && isSporeCraftEquipment(item));
-    let targetDisabled = equipmentSelected ? '' : 'disabled';
+    const item = getSelectedCraftItem();
+    const targetDisabled = !item || !isSporeCraftEquipment(item);
+    const level = getMycologistLevelForCrafting();
+    const riftBlock = item ? equipmentCrafting.getBlockReason(item, 'fossil') : '';
     return `<div class="craft-spores">
             <div class="craft-spores-title">홀씨 보유량</div>
             <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px;">
@@ -11441,8 +11428,8 @@ function buildSporeSummaryHtml() {
                 <div class="orb-tone" style="padding:5px; border:1px solid #7a6a2a; border-radius:8px; --orb-tone:#ffe08a; font-size:0.86em;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
             </div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
-                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${targetDisabled || (typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 7 ? '' : 'disabled')}>부패 홀씨 (각 8)</button>
-                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'rift')" onmousemove="showSporeCraftTooltip(event,'rift')" onmouseleave="hideInfoTooltip()" onclick="applyRiftSporeToSelectedItem()" ${targetDisabled || (typeof getExpertLevel === 'function' && getExpertLevel('mycologist') >= 9 ? '' : 'disabled')}>균열 홀씨 (화석1+각5)</button>
+                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${targetDisabled || level < 7 ? 'disabled' : ''}>부패 홀씨 (각 8)</button>
+                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'rift')" onmousemove="showSporeCraftTooltip(event,'rift')" onmouseleave="hideInfoTooltip()" onclick="applyRiftSporeToSelectedItem()" ${targetDisabled || level < 9 || riftBlock ? 'disabled' : ''}>균열 홀씨 (화석1+각5)</button>
             </div>
         </div>`;
 }
@@ -11580,6 +11567,8 @@ function exposeUiRenderHelpersOnce() {
     let helpers = {
         getStyledOrbName,
         getItemStatToneColor,
+        // Alternate crafting views reuse the same admission rules as the live currency buttons.
+        getCraftOrbUseState,
         updateSearchFilter,
         resetSearchFilter,
         toggleInventoryRarityFilter,
@@ -11675,7 +11664,7 @@ function buildCraftActionButtons(item) {
         let selectedExplicitStats = (selectedItem.stats || []).slice();
         if (selectedItem.chaosInfusion) selectedExplicitStats.push({ ...selectedItem.chaosInfusion, statName: `[주입] ${selectedItem.chaosInfusion.statName || getStatName(selectedItem.chaosInfusion.id)}` });
         selectedExplicitStats.forEach(stat => {
-            let tierText = stat.tier !== undefined ? ` ${getTierBadgeHtml(stat.tier, 'T')}` : '';
+            let tierText = getItemAffixTierHtml(stat);
             let honeyTag = getHoneyLockBadgeHtml(stat);
             let stingerTag = stat.venomStingerBonus ? ` <span style="color:#9bff9e;">[독벌침]</span>` : '';
             let rangeText = getItemStatRollRangeHtml(stat);
@@ -11926,8 +11915,6 @@ function buildCraftActionButtons(item) {
     if (game.mapExploreSubtab === 'map-explore-deep-chaos') switchMapExploreSubtab('map-explore-hunting');
 
     let meteorUnlocked = !!(game.starWedge && game.starWedge.unlocked);
-    let meteorReady = !!(game.starWedge && game.starWedge.skyRiftReady);
-    let meteorGauge = Math.floor((game.starWedge && game.starWedge.skyRiftGauge) || 0);
     document.getElementById('ui-meteor-header').style.display = meteorUnlocked ? 'block' : 'none';
     setExploreSubtabAvailable('map-explore-meteor', meteorUnlocked);
 
@@ -11937,11 +11924,7 @@ function buildCraftActionButtons(item) {
         meteorAutoBtn.innerText = `자동입장 ${game.settings.autoEnterMeteor ? 'ON' : 'OFF'}`;
     }
 
-    let meteorPowerEstimate = buildMapPowerEstimateHtml(getZone(METEOR_FALL_ZONE_ID));
-    document.getElementById('ui-meteor-list').innerHTML = meteorUnlocked ? `<div class="map-item ${game.currentZoneId === METEOR_FALL_ZONE_ID ? 'current' : ''}" ${meteorReady ? `onclick="changeZone('${METEOR_FALL_ZONE_ID}')"` : ''}>
-        <div class="map-item-main"><span>☄️</span><span>운석 낙하 지점<br><span class="map-zone-status">하늘의 균열 ${meteorGauge}% ${meteorReady ? '· 입장 가능' : '· 충전 중'} · 충전 중 기록한 최저 티어 기준 1회 원정</span><br><span class="map-zone-status">별쐐기 해금 전: 희귀 이상 장비 1개 · 해금 후: 운석 파편·별쐐기</span><br>${meteorPowerEstimate}</span></div>
-        <div class="map-item-actions" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="map-zone-status">난이도: 티어 ${getZone(METEOR_FALL_ZONE_ID).tier}</span></div>
-    </div>` : '';
+    document.getElementById('ui-meteor-list').innerHTML = meteorUnlocked ? sideEncounterUi.meteorPanel(buildMapPowerEstimateHtml(getZone(METEOR_FALL_ZONE_ID))) : '';
 
     renderChaosRealmMapPanel();
     renderSkyTowerMapPanel();
@@ -11961,6 +11944,7 @@ function buildCraftActionButtons(item) {
     });
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
     setExploreSubtabAvailable('map-explore-trials', availTrials.length > 0);
+    sideEncounterUi.refreshDestinations();
     renderMapExploreNotiDots();
 
     renderLoop9VoidRiftPanel();
@@ -12365,10 +12349,9 @@ function buildCraftActionButtons(item) {
                     let stateLabel = isUnlocked ? '해금' : '해금 필요';
                     let lockedHint = getJournalLockedHint(availability, id);
                     return `<article class="journal-card ${isUnlocked ? 'is-unlocked' : 'is-locked'} is-${availability} ${def.hidden ? 'is-hidden' : ''}">
-                        <div class="journal-card-head"><strong>${displayTitle}</strong><span>${stateLabel}</span></div>
-                        ${isUnlocked ? storyJournalUi.illustrations(id) : ''}
+                        ${isUnlocked ? `<button type="button" class="journal-card-head journal-entry-open" data-journal-entry="${id}" onclick="storyJournalUi.openEntry('${id}')"><strong>${displayTitle}</strong><span>읽기 ›</span></button>` : `<div class="journal-card-head"><strong>${displayTitle}</strong><span>${stateLabel}</span></div>`}
                         <div class="journal-card-body">${isUnlocked
-                            ? (def.lines || []).map(line => `<p>${line}</p>`).join('')
+                            ? ''
                             : (available ? `<p class="journal-hint">${getJournalHint(id, def)}</p>` : `<p class="journal-hint">${lockedHint}</p>`)}</div>
                         ${rewardText ? `<div class="journal-reward ${isUnlocked ? '' : 'is-preview'}">${isUnlocked ? '영구 효과' : '기록 보상'} · ${rewardText}</div>` : ''}
                         ${action ? `<button type="button" class="journal-card-action" onclick="openJournalEntryAction('${id}')">${action.label}</button>` : ''}
@@ -16223,7 +16206,7 @@ async function applyUnderworldEnchant(){
     let slot = await pickEquippedSlotByPrompt(['무기','갑옷','투구']); if(!slot) return;
     let item = game.equipment && game.equipment[slot]; if(!item) return addLog('해당 부위 장비가 없습니다.','attack-monster');
     let pools = {
-      '무기':[ ['pctDmg',8,24,2], ['spellFlatPct',6,18,2], ['projectileExtraShots',1,1,3], ['resPen',5,14,2], ['physIgnore',5,14,2], ['flatDmg',12,38,1] ],
+      '무기':[ ['pctDmg',8,24,2], ['spellFlatPct',6,18,2], ['projectileExtraChance',50,50,3], ['resPen',5,14,2], ['physIgnore',5,14,2], ['flatDmg',12,38,1] ],
       '갑옷':[ ['pctHp',4,12,1], ['flatHp',45,140,1], ['armorPct',8,24,1], ['evasionPct',8,24,1], ['energyShieldPct',8,24,1], ['maxResF',1,2,3], ['maxResC',1,2,3], ['maxResL',1,2,3], ['resChaos',4,10,2] ],
       '투구':[ ['targetAny',1,1,3], ['critDmg',18,25,2], ['armor',40,120,1], ['evasion',40,120,1], ['energyShield',35,105,1], ['crit',2,6,2] ]
     };

@@ -29,7 +29,7 @@ const PASSIVE_KEYSTONE_CONTRACTS = Object.freeze([
     contract('npqq5m7h2ri', '순환의 원석',
         '힘 30당 순환 1을 얻습니다.\n순환 1당 주는 물리 피해의 3%를 추가 화염 피해로 가합니다.\n순환 5당 방어도가 5% 증가합니다.'),
     contract('n39ip40yc3d', '야만',
-        '무기를 장착할 수 없습니다.\n레벨 1당 공격력이 5 증가합니다.\n힘 10당 공격력이 1 증가합니다.\n' +
+        '무기를 장착할 수 없습니다.\n레벨 1당 기본 피해가 5 증가합니다.\n힘 10당 기본 피해가 1 증가합니다.\n' +
         '민첩과 지능이 힘으로 전환됩니다.\n공격이 항상 명중합니다.'),
     contract('nv67fzprmet', '헌신의 서약',
         '연결된 능력치 노드 1개당 계시 1을 획득합니다.\n능력치 노드에서는 헌신의 서약을 할당할 수 없습니다.'),
@@ -40,7 +40,9 @@ const PASSIVE_KEYSTONE_CONTRACTS = Object.freeze([
         '투사체 주력 스킬 사용 시 가능한 경우 적과 3칸 거리를 유지합니다.\n3칸 이상 떨어진 적에게 주는 투사체 피해가 25% 증폭됩니다.\n' +
         '인접한 적에게 주는 투사체 피해가 25% 감폭됩니다.'),
     contract('n2c51dapljo', '결투의 규율',
-        '근접 피해가 30% 증폭됩니다.'),
+        '주문 피해 증가 옵션이 공격 피해에도 적용됩니다.'),
+    contract('pt_warrior_blood_cradle', '피빛 요람',
+        '이제 출혈 피해가 중첩될 수 있습니다(최대 5회).\n출혈 확률 및 출혈 피해가 30% 감폭됩니다.'),
     contract('nkf64engb6m', '지혜의 도약',
         '선택한 속성의 스킬 피해가 20% 증폭됩니다(공허 선택 시 카오스).\n선택하지 않은 속성의 스킬은 피해를 줄 수 없습니다.'),
     contract('backbone_branch_occultist_cleric_center_occultist_cleric_channel_guard_keystone', '혼의 성소',

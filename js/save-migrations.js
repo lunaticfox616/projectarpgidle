@@ -33,6 +33,13 @@ function normalizeContentProgressionSave(merged, save) {
     return merged;
 }
 
+// Only already-equipped pre-level-system items receive grace, until their next removal.
+function markLegacyEquipmentGrace(equipment) {
+    Object.values(equipment).forEach(item => {
+        if (item && !item.requirementsVersion) item.legacyRequirementGrace = true;
+    });
+}
+
 function mergeDefaults(save) {
     function clampFiniteNumber(value, fallback, min, max) {
         let num = Number(value);
@@ -397,14 +404,13 @@ function mergeDefaults(save) {
         merged.currencies.magicBud += Math.floor(save.materials / 2) + Math.floor(save.materials / 4);
         merged.currencies.formlessDew += Math.floor(save.materials / 10);
     }
-    let normalizedEquipment = { ...defaultGame.equipment };
-    Object.keys(normalizedEquipment).forEach(slot => {
-        normalizedEquipment[slot] = merged.equipment[slot] || null;
-    });
+    let normalizedEquipment = Object.fromEntries(Object.keys(defaultGame.equipment)
+        .map(slot => [slot, merged.equipment[slot] || null]));
     if (save && save.equipment && save.equipment['장갑'] && !save.equipment['장갑1'] && !save.equipment['장갑2']) {
         normalizedEquipment['장갑1'] = save.equipment['장갑'];
     }
     merged.equipment = normalizedEquipment;
+    markLegacyEquipmentGrace(merged.equipment);
     if (window.equipmentLoadoutRuntime) window.equipmentLoadoutRuntime.ensureState(merged);
     merged.inventory = (merged.inventory || []).map(normalizeItem);
     merged.equipmentTemporaryStorage = Array.isArray(merged.equipmentTemporaryStorage)
@@ -1076,6 +1082,7 @@ function mergeDefaults(save) {
     // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.
     if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     shrineRuntime.ensureState(merged);
+    enforcePassiveEquipmentRestrictions(merged);
     return normalizeContentProgressionSave(normalizeSavedCombatRuntime(merged), save);
 }
 

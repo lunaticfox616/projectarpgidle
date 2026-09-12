@@ -1,0 +1,104 @@
+{
+  "version": "3.38",
+  "status": "playable",
+  "atlas": "assets/effects/world-tree-skills-v338.webp",
+  "skills": [
+    {
+      "id": 44,
+      "name": "탄성 플라스크",
+      "path": "assets/gems/world-tree/bouncing-flask.png",
+      "playable": true
+    },
+    {
+      "id": 45,
+      "name": "광창 강림",
+      "path": "assets/gems/world-tree/radiant-lance.png",
+      "playable": true
+    },
+    {
+      "id": 46,
+      "name": "시간 가속",
+      "path": "assets/gems/world-tree/time-acceleration.png",
+      "playable": true
+    },
+    {
+      "id": 47,
+      "name": "폭발 혼합물",
+      "path": "assets/gems/world-tree/explosive-mixture.png",
+      "playable": true
+    },
+    {
+      "id": 48,
+      "name": "과냉각 혼합물",
+      "path": "assets/gems/world-tree/supercooled-mixture.png",
+      "playable": true
+    },
+    {
+      "id": 49,
+      "name": "빈 플라스크",
+      "path": "assets/gems/world-tree/empty-flask.png",
+      "playable": true
+    },
+    {
+      "id": 50,
+      "name": "신성한 안개",
+      "path": "assets/gems/world-tree/holy-mist.png",
+      "playable": true
+    },
+    {
+      "id": 51,
+      "name": "파문심판",
+      "path": "assets/gems/world-tree/ripple-judgment.png",
+      "playable": true
+    },
+    {
+      "id": 52,
+      "name": "암살",
+      "path": "assets/gems/world-tree/assassination.png",
+      "playable": true
+    },
+    {
+      "id": 53,
+      "name": "인과",
+      "path": "assets/gems/world-tree/causality.png",
+      "playable": true
+    }
+  ],
+  "sourceSha256": {
+    "BOUNCING-FLASK-SPEC.md": "855751118bc08f6d2e05ed6bd0cab502a61f1d410288f359b5cfe2c2c37ab7d4",
+    "bouncing-flask.js": "c834d7864df336cc0ce9a0d589897d80317c77638ba8062679ae38473a7fc78f",
+    "RADIANT-LANCE-SPEC.md": "2a3da9e20e8be61f39be9b8ad81fef354ada6be24e1883704065adcc37131212",
+    "radiant-lance.js": "45f02bdb6314c2437d3d5d63f8a85d8b5c1f1ea3e6c89eb5049484dff5df5cba",
+    "TIME-ACCELERATION-SPEC.md": "50f81821e8035d71244252d07fc8f5af2128067eb1dc54579471f33dc585f004",
+    "time-acceleration.js": "ea6a527d546c48799d76af8c7232029f78c84e04f1231ce378781b7f14b08c83",
+    "EXPLOSIVE-MIXTURE-SPEC.md": "a70614081fffcb2ae68144e5964687539aea546c15eaa259fc1d7ea430f0c512",
+    "explosive-mixture.js": "5e4b71e30bda11f47e492f32bb5f16cdd60f9684218d6f02222e6cbfe778e7c6",
+    "SUPERCOOLED-MIXTURE-SPEC.md": "ad5beb5185d7d8a7ca2633a75d020eb523b2d8fe44e4a7c6ddc2313911f1c55c",
+    "supercooled-mixture.js": "cdfe7280b66bba8cf9e302d8108b681880c3e50acb8889e7ec6c10de04968bf5",
+    "EMPTY-FLASK-SPEC.md": "eb27c62e02aa35a74b58b4d8714256ad650f77cd3071354b039866924499c588",
+    "empty-flask.js": "db001d05aee691dbe51234f0ec7edbbadd6138b0213f87ca73ad71fa72af608d",
+    "HOLY-MIST-SPEC.md": "019fb2c931fcdae1b65fc4c8100924cc9fb16400910d2738e76ff2cbc6202790",
+    "holy-mist.js": "20268888764b38252e40a90b6eff43fee6cd5e692dc75747b7d751f066b9b882",
+    "RIPPLE-JUDGMENT-SPEC.md": "1bfc32ed760ac15a3d4c6d067e370c0c01c7e8e9870ce6844debf9224bc3eab8",
+    "ripple-judgment.js": "c50eaeead7e6fede38d04c11cabcb80eaab0fc36391c5fc77649b43414d813af",
+    "ASSASSINATION-SPEC.md": "08e813925c8146e3591668f64ee675a61a447386476ec39cb049d0edaddc25ee",
+    "assassination.js": "264a183782bda17140a258c881c89d6edfeab09c6619625a7e434deeb11808be",
+    "CAUSALITY-SPEC.md": "f4783945fee2b9437e20cf04544ea6189ddb20f4f59c9b0ac7da47e931774a42",
+    "causality.js": "fe327f2560575bf53909b382181982f70c1586b545800f19850209641069ed65",
+    "CLOUD-FROST-RING-SPEC.md": "06e61e836542ff81abb431f1f8f0a2c62556d78905806003ee74982c7e0c293b",
+    "EMPTY-FLASK-ARCS-SPEC.md": "af493b09a1c3c8c7658f0eaf66d1b73f4a2f25a757e98863813f63764f8ed958",
+    "SILVER-CENSER-SPEC.md": "1e5436fe6da439d7655bf13935f129e4fe51d0afc9fb6843c7b7e4a1232c2ea8",
+    "JUDGMENT-LIGHTNING-SPEC.md": "81dbb523636f938d8428c5a65fb836cd395cac22eb27d587d1829d60b52605e0",
+    "delivery-manifest.json": "34b0f61701b486a9be7d5849d8595d30bdce2b9826c009720dbb4a8bc529e6f7",
+    "bouncing-flask-showcase.gif": "76976d5cf9e3a7bbe25df97625c510c18a53385c82085fb88f6e27950518c7b3",
+    "radiant-lance-showcase.gif": "2fad8e91442f69d0ff7ef66ce805fb1b95ebe14f62f90d9c8bc0b85b226fc93c",
+    "motions/46.webp": "6de90cfd410a3b5742b6053b4b6d17ce055a7e0d455c2180e93bc915bddcf188",
+    "motions/47.webp": "7ec0fd674912292f7e2a21516db0fdc48168f4d4fd75aef1379f9355bed36e21",
+    "motions/48.webp": "13eed486a8b1cda87e4e11cf511c329983f0b776b18d137e14f5ebdf429610f4",
+    "motions/49.webp": "e89aa6b00639bdeb0c7bf54c26b8678bb33c0bf8b61f636918c8c400c9684b19",
+    "motions/50.webp": "faef4dd0fed3f62fed528845be189009efb1eb5cc89477f305dad627095cf37e",
+    "motions/51.webp": "6f071b04433663114803ae751b84c10cb9d90ac634844d7f95ea0a5f459deada",
+    "motions/52.webp": "4df82bba3fb0a2bf3ed324605f6057c17dcbc06665397eb36600437905193783",
+    "motions/53.webp": "ede6098625ee5e12158923f58d3f934fca4b3cd5e4e3ec0ad793fcfc12c5c010"
+  }
+}

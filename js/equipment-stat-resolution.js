@@ -8,7 +8,7 @@ function getPlayerStatSourceItemEntries() {
     if (memo?.has('equipment-sources')) return memo.get('equipment-sources');
     let entries = [];
     getPlacedGrowthEntries().forEach(entry => entries.push([`growth:${entry.item.id}`, entry.item]));
-    Object.entries(game.equipment || {}).forEach(([slotKey, item]) => {
+    Object.entries(combatEquipmentStats.activeEquipment(game) || {}).forEach(([slotKey, item]) => {
         if (item) entries.push([slotKey, item]);
     });
     memo?.set('equipment-sources', entries);
@@ -18,28 +18,34 @@ function getPlayerStatSourceItemEntries() {
 function getEquipmentMirrorSource(slotKey, item, ownerState) {
     if (!item || item.uniqueEffectKey !== 'mirrorOppositeRing') return { slot: null, item: null };
     let oppositeSlot = slotKey === '반지1' ? '반지2' : slotKey === '반지2' ? '반지1' : null;
-    let oppositeItem = oppositeSlot && ownerState.equipment ? ownerState.equipment[oppositeSlot] : null;
+    let equipment = combatEquipmentStats.activeEquipment(ownerState);
+    let oppositeItem = oppositeSlot && equipment ? equipment[oppositeSlot] : null;
     if (!oppositeItem || oppositeItem.uniqueEffectKey === 'mirrorOppositeRing') return { slot: null, item: null };
     return { slot: oppositeSlot, item: oppositeItem };
 }
 
 function scaleEquipmentStatLines(stats, multiplier, growthItem) {
-    return (Array.isArray(stats) ? stats : []).filter(Boolean).map(stat => {
+    const scaleLine = stat => {
         let value = Number(stat.val);
         if (!Number.isFinite(value)) return { ...stat };
         let scaled = value * multiplier;
         return { ...stat, val: growthItem ? roundGrowthStatValue(stat.id, scaled) : scaled };
+    };
+    return (Array.isArray(stats) ? stats : []).filter(Boolean).map(stat => {
+        const result = scaleLine(stat);
+        if (stat.extraStats) result.extraStats = stat.extraStats.map(scaleLine);
+        return result;
     });
 }
 
 function getEquipmentStatMultiplier(item, ownerState, growthItem, growthSnapshot) {
-    let offhand = ownerState.equipment && ownerState.equipment['방패'];
-    let dualWielding = !!(ownerState.equipment && ownerState.equipment['무기'] && offhand && offhand.slot === '무기');
+    if (growthItem) return getGrowthItemStatMultiplier(item.id, growthSnapshot);
+    let equipment = combatEquipmentStats.activeEquipment(ownerState);
+    let offhand = equipment && equipment['방패'];
+    let dualWielding = !!(equipment && equipment['무기'] && offhand && offhand.slot === '무기');
     let warriorKeystone = ownerState.ascendClass === 'warrior'
         && ((ownerState.ascendKeystones || []).includes('w6') || (ownerState.cosmosTwinKeystones || []).includes('w6'));
-    let weaponMultiplier = !growthItem && item.slot === '무기' && dualWielding && warriorKeystone ? 1.5 : 1;
-    let growthMultiplier = growthItem ? getGrowthItemStatMultiplier(item.id, growthSnapshot) : 1;
-    return weaponMultiplier * growthMultiplier;
+    return item.slot === '무기' && dualWielding && warriorKeystone ? 1.5 : 1;
 }
 
 function resolveEquipmentBaseStats(item, mirrorItem, itemMultiplier, growthItem, growthSnapshot) {
@@ -57,6 +63,17 @@ function resolveEquipmentBaseStats(item, mirrorItem, itemMultiplier, growthItem,
     return { stats: scaleEquipmentStatLines(scaled, itemMultiplier, growthItem), qualityMode, qualityMultiplier };
 }
 
+function scaleExplicitEquipmentStat(stat, modifiers) {
+    const {qualityMode, qualityMultiplier, riftMultiplier, kaleidoscopeMultiplier} = modifiers;
+    const qualityScale = qualityMode !== 'base' && isQualityAttributeStat(qualityMode, stat.id) ? qualityMultiplier : 1;
+    const excluded = stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp';
+    const result = { ...stat };
+    if (!excluded && Number.isFinite(Number(stat.val))) {
+        result.val = Number((Number(stat.val) * riftMultiplier * qualityScale * kaleidoscopeMultiplier).toFixed(2));
+    }
+    return result;
+}
+
 function resolveEquipmentExplicitStats(item, mirrorItem, itemMultiplier, qualityMode, qualityMultiplier) {
     let growthItem = isGrowthItem(item);
     let riftRow = (item.stats || []).find(stat => stat && stat.id === 'fossilRiftAmp');
@@ -64,13 +81,11 @@ function resolveEquipmentExplicitStats(item, mirrorItem, itemMultiplier, quality
     let kaleidoscopeMultiplier = item.uniqueEffectKey === 'kaleidoscopeShield'
         ? Math.max(1, Number((item.uniqueEffectParams || {}).explicitStatMultiplier) || 2) : 1;
     let source = [...(item.stats || []), ...((mirrorItem && mirrorItem.stats) || [])];
+    const modifiers = {qualityMode, qualityMultiplier, riftMultiplier, kaleidoscopeMultiplier};
     let stats = source.filter(Boolean).map(stat => {
-        let qualityScale = qualityMode !== 'base' && isQualityAttributeStat(qualityMode, stat.id) ? qualityMultiplier : 1;
-        let excluded = stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp';
-        return excluded || !Number.isFinite(Number(stat.val)) ? { ...stat } : {
-            ...stat,
-            val: Number((Number(stat.val) * riftMultiplier * qualityScale * kaleidoscopeMultiplier).toFixed(2))
-        };
+        const result = scaleExplicitEquipmentStat(stat, modifiers);
+        if (stat.extraStats) result.extraStats = stat.extraStats.map(extra => scaleExplicitEquipmentStat(extra, modifiers));
+        return result;
     });
     let copiedSpecials = mirrorItem ? [mirrorItem.underEnchant, mirrorItem.chaosInfusion].filter(Boolean) : [];
     let immutableStats = getImmutableItemSpecialStats(item);

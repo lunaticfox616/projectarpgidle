@@ -1,4 +1,6 @@
 // TODO: phased extraction target. Kept for load-order compatibility in phase 1.
+// Stable calculator entry for isolated requirement views, independent of public instrumentation wrappers.
+const equipmentStatCalculator = getPlayerStats;
 
 const LEECH_SOFTCAP_START = 1.2;
 const LEECH_SOFTCAP_MID = 2.5;
@@ -39,17 +41,18 @@ let combatChannelResumeSkillName = '';
 let nextCombatChannelId = 1;
 let nextPlayerDamageTextGroupId = 1;
 let trialHazardRuntime = { nextAt: 0, active: null };
+let skillGemCombatRuntime = null;
 
 // Legacy runtime state that must follow the game snapshot during offline calculation.
 function captureCombatRuntime() {
     return { pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
         pendingEnemyCombatAttacks, combatTacticsRuntime, combatChannelRuntime,
-        combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime };
+        combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime };
 }
 function restoreCombatRuntime(snapshot) {
     ({ pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
         pendingEnemyCombatAttacks, combatTacticsRuntime, combatChannelRuntime,
-        combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime } = snapshot);
+        combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime } = snapshot);
 }
 safeExposeGlobals({ captureCombatRuntime, restoreCombatRuntime });
 
@@ -64,9 +67,11 @@ function createCombatTacticsRuntime(now) {
 
 function resetCombatTacticsRuntime() {
     combatTacticsRuntime = createCombatTacticsRuntime();
+    skillGemCombatRuntime = null;
 }
 
 function resetCombatChannelRuntime() {
+    if (skillGemCombatRuntime) skillGemCombatRuntime.channel = null;
     cancelCombatChannelVisuals();
     combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
     combatChannelResumeSkillName = '';
@@ -80,6 +85,7 @@ function hasPlayerChannelBreakingAilment() {
 }
 
 function cancelCombatChannel(reason) {
+    if (skillGemCombatRuntime) skillGemCombatRuntime.channel = null;
     if (!combatChannelRuntime.id) return false;
     cancelCombatChannelVisuals();
     pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
@@ -286,6 +292,33 @@ function applyLeechSoftcap(rawLeech) {
     let midSpan = Math.max(0, Math.min(raw, LEECH_SOFTCAP_MID) - LEECH_SOFTCAP_START);
     let highSpan = Math.max(0, raw - LEECH_SOFTCAP_MID);
     return LEECH_SOFTCAP_START + midSpan * LEECH_SOFTCAP_MID_EFF + highSpan * LEECH_SOFTCAP_HIGH_EFF;
+}
+
+function getPlayerHitLeechPercent(pStats) {
+    const tags = pStats.sSkill?.tags || [];
+    if (tags.includes('spell')) return Math.max(0, pStats.spellLeech || 0);
+    if (pStats.passiveKeystoneFlags?.soulSanctuary) return 0;
+    return tags.includes('attack') ? Math.max(0, pStats.leech || 0) : 0;
+}
+
+function getPlayerHitLeechTarget(pStats) {
+    let target = game.ascendClass === 'warlock' && hasKeystone('wlk3') && pStats.energyShield > 0 ? 'energyShield' : 'life';
+    if (pStats.passiveKeystoneFlags?.soulSanctuary && pStats.sSkill.tags.includes('spell')) target = 'energyShield';
+    return typeof getTalentPlayerLeechTarget === 'function' ? getTalentPlayerLeechTarget(target) : target;
+}
+
+/** Only direct hit damage enters leech; spell and attack sources are independent. Returns immediate recovery. */
+function applyPlayerHitLeech(pStats, hitDamage, chaosDamage) {
+    const target = getPlayerHitLeechTarget(pStats);
+    const attackAllowed = pStats.sSkill.tags.includes('attack') && !pStats.passiveKeystoneFlags?.soulSanctuary;
+    const chaosPct = attackAllowed ? pStats.uniqueChaosDamageInstantLeechPct : 0;
+    let recovered = applyInstantPlayerLeech(chaosDamage * chaosPct / 100, pStats, target);
+    const amount = hitDamage * getPlayerHitLeechPercent(pStats) / 100;
+    if (!(amount > 0)) return recovered;
+    recovered += applyInstantPlayerLeech(amount * pStats.uniqueInstantLeechPct / 100, pStats, target);
+    if (pStats.sSkill.instantLeech) recovered += applyInstantPlayerLeech(amount, pStats, target);
+    else addPlayerLeechInstance(amount, pStats, target);
+    return recovered;
 }
 
 function getLeechCaps(pStats, target) {
@@ -497,10 +530,10 @@ function getAscendKeystoneOwnerClass(id) {
     ) || null;
 }
 
-function hasKeystone(id) {
+function hasKeystone(id, owner = game) {
     let ownerClass = getAscendKeystoneOwnerClass(id);
-    if (ownerClass === game.ascendClass && Array.isArray(game.ascendKeystones) && game.ascendKeystones.includes(id)) return true;
-    if (Array.isArray(game.cosmosTwinKeystones) && game.cosmosTwinKeystones.includes(id)) return true;
+    if (ownerClass === owner.ascendClass && Array.isArray(owner.ascendKeystones) && owner.ascendKeystones.includes(id)) return true;
+    if (Array.isArray(owner.cosmosTwinKeystones) && owner.cosmosTwinKeystones.includes(id)) return true;
     return false;
 }
 
@@ -707,8 +740,9 @@ function getPlayerEnergyShieldRecoveryCap(pStats) {
 }
 
 function isDualWielding() {
-    let mainWeapon = game.equipment && game.equipment['무기'];
-    let shieldWeapon = game.equipment && game.equipment['방패'];
+    let equipment = combatEquipmentStats.activeEquipment(game);
+    let mainWeapon = equipment && equipment['무기'];
+    let shieldWeapon = equipment && equipment['방패'];
     return !!(mainWeapon && shieldWeapon && shieldWeapon.slot === '무기');
 }
 
@@ -722,10 +756,9 @@ function rollGrowthItemDrop(enemy, growthDropChance) {
     if (Math.random() >= Math.max(0, Number(growthDropChance) || 0)) return;
     let item = generateGrowthDrop(enemy);
     if (!item || !addDroppedGrowthItem(item)) return;
-    if (!game.settings.showLootLog) return;
     let growthDropColor = item.growthChase ? '#d7a7ff' : (item.rarity === 'unique' ? '#ffb05a' : '#8fe6a8');
-    addBattleFx('lootPickup', { enemyId: enemy.id, color: growthDropColor, duration: item.growthChase ? 1200 : 780 });
-    if (item.rarity === 'unique') addBattleFx('lootCelebration', { enemyId: enemy.id, color: growthDropColor, duration: item.growthChase ? 2200 : 1200 });
+    queueEnemyGroundLoot(enemy, { item, itemKind: 'growth', color: growthDropColor });
+    if (!game.settings.showLootLog) return;
     let chaseLabel = item.growthChase ? ' <span style="color:#d7a7ff;font-weight:900;">✦ 체이싱</span>' : '';
     addLog(`🌱 <span class='loot-${item.rarity}'>[${item.name}]</span>${chaseLabel}${item.exceptionalBase ? ' <span style="color:#ffb454;">(특출)</span>' : ''} 획득!`, '', { item, itemKind:'growth' });
 }
@@ -1293,7 +1326,7 @@ function getEquippedJewelGemLevelBonusSources(target) {
             if (stat.id === 'summonGemLevel' && activeTags.includes('summon_attack')) gear += value;
         });
     };
-    Object.values(game.equipment || {}).forEach(item => {
+    Object.values(combatEquipmentStats.activeEquipment(game) || {}).forEach(item => {
         if (!item) return;
         if (item.voidSocket && item.voidSocket.open) addJewelGemLevels(item.voidSocket.jewel, 1);
         let abyssAmp = 1;
@@ -2024,7 +2057,7 @@ function getUtilityFlaskTriggerLabel(trigger) {
 
 function getMaxFlaskUtilitySlotCount() {
     if (!contentProgression.isUnlocked('flaskUtility')) return 0;
-    let belt = game.equipment?.['허리띠'];
+    let belt = combatEquipmentStats.activeEquipment(game)?.['허리띠'];
     if (!belt) return 0;
     let bonus = 0;
     let stat = (belt.baseStats || []).find(s => s && s.id === 'flaskUtilSlots');
@@ -2040,7 +2073,7 @@ function getMaxFlaskSlotCount() {
 }
 // 허리띠의 특수 효과(예: '천 개의 유리병')로 얻는 플라스크 충전 속도 보너스(%).
 function getFlaskChargeRateBonusPct() {
-    let belt = (game && game.equipment) ? game.equipment['허리띠'] : null;
+    let belt = combatEquipmentStats.activeEquipment(game)?.['허리띠'];
     if (!belt || belt.rarity !== 'unique' || belt.uniqueEffectKey !== 'extraFlaskUtilitySlots') return 0;
     let ep = belt.uniqueEffectParams || {};
     return Math.max(0, Number(ep.chargeRatePct) || 0);
@@ -2564,6 +2597,7 @@ function coreLoop(nowMs) {
     } else {
         runConditionGemAutoRules(pStats);
     }
+    updateSkillGemCombat(pStats);
     updateCombatChannelRuntime(getCombatTime());
     processPendingSkillStageHits();
     processPendingSlamEchoHits();
@@ -2817,19 +2851,8 @@ function coreLoop(nowMs) {
             v.totalToSpawn = Math.max(3, Math.floor(v.totalToSpawn || (6 + Math.floor(Math.random() * 4))));
             v.spawnedCount = Math.max(0, Math.floor(v.spawnedCount || 0));
             v.spawnTick = Math.max(0, Math.floor(v.spawnTick || 0));
-            if (v.pendingWave && v.spawnedCount < v.totalToSpawn) {
-                v.spawnTick++;
-                if (v.spawnTick >= 4) {
-                    v.spawnTick = 0;
-                    let idx = v.spawnedCount;
-                    let marker = { at: Math.max(5, Math.min(95, 10 + idx * 8)), elite: Math.random() < 0.18, boss: false };
-                    let riftEnemy = createEnemy(zoneNow, marker, idx + 1);
-                    riftEnemy.fromVoidRift = true;
-                    applyVoidRiftMobTuning(riftEnemy);
-                    game.enemies.push(riftEnemy);
-                    v.spawnedCount++;
-                    if (game.settings.showSpawnLog !== false) addLog(`🕳️ 균열 출현 ${v.spawnedCount}/${v.totalToSpawn}`, 'attack-monster', { noToast: true });
-                }
+            if (spawnVoidBreachReinforcement(zoneNow, v) && game.settings.showSpawnLog !== false) {
+                addLog(`🕳️ 균열 출현 ${v.spawnedCount}/${v.totalToSpawn}`, 'attack-monster', { noToast: true });
             }
             if (v.spawnedCount >= v.totalToSpawn && (v.defeatedCount || 0) >= v.totalToSpawn && (game.enemies || []).filter(e => e.hp > 0 && e.fromVoidRift).length === 0) {
                 v.active = false;
@@ -2936,11 +2959,26 @@ function getPendingSkillImpactTargets(row) {
     }).filter(Boolean).slice(0, maxTargets);
 }
 
+/** Visual anchors are independent of integer collision cells and contact times. */
+function getSkillTravelVisualEndpoints(row) {
+    if (row.delivery !== 'projectileTarget' || row.travelPath || row.patternKind === 'boomerang') {
+        return { sourceCell: row.sourceCell, targetCells: row.targetCells };
+    }
+    const enemies = game.enemies || [];
+    const source = enemies.find(enemy => enemy.id === row.options.chainFromEnemyId);
+    const targetCells = row.targetCells.map((cell, index) => {
+        const target = enemies.find(enemy => enemy.id === row.targetEntries[index]?.enemyId);
+        return hasGridCell(target) ? getGridUnitCenter(target) : cell;
+    });
+    return { sourceCell: hasGridCell(source) ? getGridUnitCenter(source) : row.sourceCell, targetCells };
+}
+
 function addPendingSkillTravelFx(row, attackContext, now) {
     if (!row || row.delivery === 'instantTarget') return;
     if (['field', 'channel', 'meteor'].includes(row.patternKind) && row.options.stageIndex > 0) return;
     let boomerangReturn = row.patternKind === 'boomerang' && row.options.stageKind === 'boomerangReturn';
-    let visualTargetCells = row.targetCells;
+    const visual = getSkillTravelVisualEndpoints(row);
+    let visualTargetCells = visual.targetCells;
     let visualTargetIds = row.targetEntries.map(entry => entry.enemyId);
     if (row.patternKind === 'boomerang') {
         visualTargetCells = boomerangReturn
@@ -2952,7 +2990,7 @@ function addPendingSkillTravelFx(row, attackContext, now) {
         owner: 'player', channelId: row.channelId,
         delivery: row.delivery,
         patternKind: row.patternKind, stageKind: row.options.stageKind, stageIndex: row.options.stageIndex, stageDelayMs: row.options.stageDelayMs,
-        sourceCell: row.sourceCell,
+        sourceCell: visual.sourceCell,
         aimCell: copyCombatGridCell(row.aimCell) || copyCombatGridCell((game.enemies || []).find(enemy => enemy
             && row.targetEntries[0] && String(enemy.id) === String(row.targetEntries[0].enemyId))) || visualTargetCells[0],
         targetCells: visualTargetCells, travelPath: row.travelPath,
@@ -3049,6 +3087,7 @@ function addPendingSkillTravelFxRows(rows, attackContext, now) {
  * @param {{skillName:string,forcedCrit:boolean,forcedElement:string,stageCount:number,talentAttackMultiplier:number,attackDamageMultiplier:number,channelContinuation:boolean,repeatChannelCast:boolean}} context
  */
 function queuePlayerAttackSequence(pStats, stages, context) {
+    if (pStats.sSkill.nativeCastId) return startSkillGemCombat(pStats, context);
     let tags = pStats.sSkill.tags || [], now = getCombatTime();
     let motionMs = tags.includes('slam') ? 460 : (tags.includes('projectile') ? 400 : 360);
     motionMs = Math.min(motionMs, Math.max(80, 800 / Math.max(0.01, pStats.aspd)));
@@ -3268,7 +3307,7 @@ function getEquippedUniqueJewels() {
     (game.jewelSlots || []).slice(0, getMaxJewelSlotCount()).forEach((jewel, idx) => {
         if (jewel && jewel.rarity === 'unique' && jewel.uniqueId) equipped.push({ jewel, slot: idx, source: 'slot' });
     });
-    Object.values(game.equipment || {}).forEach(item => {
+    Object.values(combatEquipmentStats.activeEquipment(game) || {}).forEach(item => {
         let j = item && item.voidSocket && item.voidSocket.open ? item.voidSocket.jewel : null;
         if (j && j.rarity === 'unique' && j.uniqueId) equipped.push({ jewel: j, slot: -1, source: 'void' });
         if (Array.isArray(item && item.abyssSockets)) {
@@ -3370,7 +3409,8 @@ const getPassiveSpecialStatBreakdowns = function(rules) {
 };
 
 /** @param {boolean} includeBreakdowns Build tooltip text for visible stats; replay only needs numeric results. */
-function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
+function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attributesOnly = false, equipmentView = false) {
+    if (!equipmentView) return combatEquipmentStats.read(includeBreakdowns);
     recomputeCosmosTwinKeystones();
     const safePassives = Array.isArray(game.passives) ? game.passives : [];
     const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
@@ -3763,6 +3803,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
     let totalStrength = Math.max(0, sumStatAcrossBuckets('strength'));
     let totalDexterity = Math.max(0, sumStatAcrossBuckets('dexterity'));
     let totalIntelligence = Math.max(0, sumStatAcrossBuckets('intelligence'));
+    if (attributesOnly) return { strength: totalStrength, dexterity: totalDexterity, intelligence: totalIntelligence };
     if (totalStrength > 0) { addStatToBucket(reward, 'flatHp', totalStrength * 2); addStatToBucket(reward, 'physPctDmg', Math.floor(totalStrength / 5)); }
     if (totalDexterity > 0) { addStatToBucket(reward, 'evasion', totalDexterity * 3); addStatToBucket(reward, 'projectilePctDmg', Math.floor(totalDexterity / 5)); }
     if (totalIntelligence > 0) { addStatToBucket(reward, 'energyShield', totalIntelligence * 2); addStatToBucket(reward, 'spellPctDmg', Math.floor(totalIntelligence / 5)); }
@@ -3788,7 +3829,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
         });
     }
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
-    let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots;
+    let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots + sumStatAcrossBuckets('projectileExtraChance') / 100;
     if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
     if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
     if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
@@ -3804,14 +3845,15 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
     if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses());
     let talentLine = function (stat, suffix) { let v = talentStatMap[stat]; return v ? `🌸 재능 개화 +${Math.round(v * 100) / 100}${suffix || '%'} (위 합계에 포함)` : null; };
 
-    let gearTagged = getTaggedDamageBreakdown(gearBase, skill);
-    let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, skill);
-    let passiveTagged = getTaggedDamageBreakdown(passive, skill);
-    let seasonTagged = getTaggedDamageBreakdown(season, skill);
-    let ascendTagged = getTaggedDamageBreakdown(ascend, skill);
-    let supportTagged = getTaggedDamageBreakdown(support, skill);
-    let rewardTagged = getTaggedDamageBreakdown(reward, skill);
-    let starTagged = getTaggedDamageBreakdown(starBlessing, skill);
+    const damageSkill = authoredPassiveRules.flags.duel ? { ...skill, tags: [...skill.tags, 'spell'] } : skill;
+    let gearTagged = getTaggedDamageBreakdown(gearBase, damageSkill);
+    let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, damageSkill);
+    let passiveTagged = getTaggedDamageBreakdown(passive, damageSkill);
+    let seasonTagged = getTaggedDamageBreakdown(season, damageSkill);
+    let ascendTagged = getTaggedDamageBreakdown(ascend, damageSkill);
+    let supportTagged = getTaggedDamageBreakdown(support, damageSkill);
+    let rewardTagged = getTaggedDamageBreakdown(reward, damageSkill);
+    let starTagged = getTaggedDamageBreakdown(starBlessing, damageSkill);
 
     let taggedTotal = gearTagged.total + gearExplicitTagged.total + passiveTagged.total + seasonTagged.total + ascendTagged.total + supportTagged.total + rewardTagged.total + starTagged.total;
     let taggedParts = [].concat(gearTagged.parts, gearExplicitTagged.parts, passiveTagged.parts, seasonTagged.parts, ascendTagged.parts, supportTagged.parts, rewardTagged.parts, starTagged.parts);
@@ -3907,6 +3949,9 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
     let finalPoisonChance = sumAilmentChanceStat('poisonChance');
     let finalBleedChance = sumAilmentChanceStat('bleedChance');
     let ailmentCritChance = { ignite: 25, chill: 25, freeze: 25, shock: 25, poison: 25, bleed: 25 };
+    const bleedChanceMultiplier = authoredPassiveRules.flags.bloodCradle ? 0.7 : 1;
+    finalBleedChance *= bleedChanceMultiplier;
+    ailmentCritChance.bleed *= bleedChanceMultiplier;
     let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
     let isDotSkill = Array.isArray(skill.tags) && skill.tags.includes('dot');
     let spellFlatDmg = 0;
@@ -4109,8 +4154,11 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
     let wildnessLeech = game.ascendClass === 'soulbinder' && hasKeystone('sb3') ? 3.5 : 0;
     rawLeech += wildnessLeech;
     let finalLeech = applyLeechSoftcap(rawLeech - wildnessLeech) + wildnessLeech;
+    let finalSpellLeech = applyLeechSoftcap(sumStatAcrossBuckets('spellLeech') + (skill.spellLeech || 0));
+    if (isSpellSkill) finalCritDmg += sumStatAcrossBuckets('spellCritDmg');
     if (uniqueLeechEfficiencyOnKill && game.uniqueLeechEfficiencyUntil && getCombatTime() < game.uniqueLeechEfficiencyUntil) {
         finalLeech *= (1 + Math.max(0, uniqueLeechEfficiencyOnKill.efficiencyPct || 0) / 100);
+        finalSpellLeech *= (1 + Math.max(0, uniqueLeechEfficiencyOnKill.efficiencyPct || 0) / 100);
     }
     let finalLeechRateCap = gearBase.leechRateCap + gearExplicit.leechRateCap + passive.leechRateCap + season.leechRateCap + ascend.leechRateCap + support.leechRateCap + reward.leechRateCap;
     let finalLeechTotalCap = gearBase.leechTotalCap + gearExplicit.leechTotalCap + passive.leechTotalCap + season.leechTotalCap + ascend.leechTotalCap + support.leechTotalCap + reward.leechTotalCap;
@@ -4118,6 +4166,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
     let finalLeechKeepFullLife = gearBase.leechKeepFullLife + gearExplicit.leechKeepFullLife + passive.leechKeepFullLife + season.leechKeepFullLife + ascend.leechKeepFullLife + support.leechKeepFullLife + reward.leechKeepFullLife;
     if (cosmosDeepSeaLeechCaps) {
         finalLeech *= Math.max(0, 1 - Math.max(0, cosmosDeepSeaLeechCaps.rateLessPct || 20) / 100);
+        finalSpellLeech *= Math.max(0, 1 - Math.max(0, cosmosDeepSeaLeechCaps.rateLessPct || 20) / 100);
         finalLeechRateCap += LEECH_BASE_RATE_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
         finalLeechTotalCap += LEECH_BASE_TOTAL_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
         finalLeechInstanceCap += LEECH_BASE_INSTANCE_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
@@ -4565,6 +4614,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
         if (hasKeystone('wlk8')) {
             chaosDamageMultiplier *= 1.25;
             finalLeech *= 0.5;
+            finalSpellLeech *= 0.5;
             finalRegen *= 0.5;
         }
         if (hasKeystone('wlk5')) {
@@ -4597,6 +4647,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
             guardianHitCapPct = 35;
             finalRegen *= 0.65;
             finalLeech *= 0.65;
+            finalSpellLeech *= 0.65;
         }
         if (hasKeystone('gd7') && (game.playerHp / Math.max(1, finalMaxHp)) <= 0.5) {
             genericTakenDamageMultiplier *= 0.8;
@@ -4798,9 +4849,9 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
     finalDpsAdjusted += flatElementAverage * (avgHit / Math.max(1, finalBaseDmg)) * finalAspd * avgRollMultiplier
         * expectedDoubleStrikeMultiplier * finalDamageMultiplier;
     let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
-    let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, Math.floor(totalProjectileExtraShots || 0)) : 0;
+    let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, totalProjectileExtraShots || 0) : 0;
     let projectileBonusShotDamagePct = Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT);
-    let projectileExtraShotDpsMul = 1 + projectileExtraShotsForDps * projectileBonusShotDamagePct / 100;
+    let projectileExtraShotDpsMul = getProjectileExtraShotDpsMultiplier(skill, projectileExtraShotsForDps);
     let finalDpsWithProjectileShots = finalDpsAdjusted * projectileExtraShotDpsMul;
     let estimatedSkillDotDps = 0;
     if (isDotSkill) {
@@ -5119,7 +5170,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
             final: `${formatValue('regenSuppress', finalRegenSuppress)}%`
         },
         leech: {
-            title: '흡혈',
+            title: '공격 피해의 생명력 흡수',
             lines: [
                 makeSourceLine('스킬', skill.leech || 0, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
@@ -5132,6 +5183,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
                 `적용 전 ${formatValue('leech', rawLeech)}% → 적용 후 ${formatValue('leech', finalLeech)}%`
             ].filter(Boolean),
             final: `${formatValue('leech', finalLeech)}%`
+        },
+        spellLeech: {
+            title: '주문 피해의 생명력 흡수',
+            lines: [makeSourceLine('스킬', skill.spellLeech || 0, '%', value => `${formatValue('spellLeech', value)}%`),
+                makeSourceLine('장비', gearBase.spellLeech + gearExplicit.spellLeech, '%', value => `${formatValue('spellLeech', value)}%`),
+                makeSourceLine('기타 성장', passive.spellLeech + season.spellLeech + ascend.spellLeech + support.spellLeech + reward.spellLeech, '%', value => `${formatValue('spellLeech', value)}%`),
+                '주문 타격 피해에만 적용됩니다. 지속 피해에는 적용되지 않습니다.'].filter(Boolean),
+            final: `${formatValue('spellLeech', finalSpellLeech)}%`
         },
         ds: {
             title: '연속 타격',
@@ -5368,7 +5427,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
                 `피해 보정 기대값 x${avgRollMultiplier.toFixed(2)} (${Math.floor(finalMinDmgRoll)}~${Math.floor(finalMaxDmgRoll)}%)`,
                 `연속 타격 기대값 x${expectedDoubleStrikeMultiplier.toFixed(2)} (${Math.floor(finalDs)}%)`,
                 coreCubeAddedDamageTotalPct > 0 ? `코어 큐브 추가 피해 x${expectedAddedDamageMultiplier.toFixed(2)} (총 피해의 ${Math.floor(coreCubeAddedDamageTotalPct)}% → ${coreCubeAddedDamageParts.join(' / ')})` : null,
-                isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 발사 +${projectileExtraShotsForDps}, 발당 ${Math.round(projectileBonusShotDamagePct)}% 피해)` : null,
+                isProjectileSkillForDps && projectileExtraShotsForDps > 0 ? `투사체 추가 발사 기대값 x${projectileExtraShotDpsMul.toFixed(2)} (추가 확률 ${formatValue('projectileExtraChance', projectileExtraShotsForDps * 100)}%, 발사 상한 반영, 발당 ${Math.round(projectileBonusShotDamagePct)}% 피해)` : null,
                 skillSequenceDpsMultiplier > 1 ? `강타 여진 기대값 x${skillSequenceDpsMultiplier.toFixed(2)} (본 타격 후 독립 여진)` : null,
                 estimatedSkillDotDps > 0 ? `지속 피해 기대값 +${Math.floor(estimatedSkillDotDps)} DPS (틱 ${DOT_TICK_FROM_HIT_RATIO * 100}% / ${Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2)}초, 예상 중첩 ${Math.floor((damageScales.estimatedDotStacks || 1))}/${DOT_STACK_MAX})` : null,
                 warriorPhysicalDpsMultiplier > 1 ? `격노 순환 x${warriorPhysicalDpsMultiplier.toFixed(2)} (${getWarriorRageStacks(getCombatTime())}/${WARRIOR_RAGE_STACK_MAX}중첩)` : null,
@@ -5422,6 +5481,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
         regen: finalRegen,
         regenSuppress: finalRegenSuppress,
         leech: finalLeech,
+        spellLeech: finalSpellLeech,
         leechRateCap: finalLeechRateCap,
         leechTotalCap: finalLeechTotalCap,
         leechInstanceCap: finalLeechInstanceCap,
@@ -5546,7 +5606,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation) {
         intelligence: totalIntelligence,
         energyShieldRegenRate: finalEnergyShieldRegenRate,
         energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
-        projectileExtraShots: Math.max(0, Math.floor(totalProjectileExtraShots)),
+        projectileExtraShots: Math.max(0, totalProjectileExtraShots),
         breakdowns: breakdowns,
         uniqueClosedEyes: uniqueClosedEyes,
         uniqueShockInvertTaken: uniqueShockInvertTaken,
@@ -5767,12 +5827,17 @@ function getSkillTargets(pStats) {
         targetPriority: tactics.targetPriority,
         preferredEnemyId: now < combatTacticsRuntime.targetLockedUntil ? combatTacticsRuntime.targetId : null
     } : null;
-    let targets = selectGridSkillTargets(game.activeSkill, skill, game.gridPlayer, chargeTarget ? [chargeTarget] : alive, options);
+    let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, chargeTarget ? [chargeTarget] : alive, options);
     if (tactics && !chargeTarget && targets.length > 0 && String(targets[0].enemy.id) !== String(combatTacticsRuntime.targetId)) {
         combatTacticsRuntime.targetId = targets[0].enemy.id;
         combatTacticsRuntime.targetLockedUntil = now + COMBAT_TACTIC_TARGET_LOCK_MS;
     }
     return targets;
+}
+
+function selectCombatGemTargets(name,skill,source,enemies,options) {
+    if (skill.nativeCastId) return skillGemCasts.targets(skill.nativeCastId,source,enemies).map(enemy=>({enemy,mult:1}));
+    return selectGridSkillTargets(name,skill,source,enemies,options);
 }
 
 function getPlayerTacticalMovePlan(pStats, target) {
@@ -6043,11 +6108,16 @@ function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
         if (effective > 0) effective = Math.min(cap, effective);
         // 절대 관통(엘리멘탈리스트 e9): 원소 저항 관통 하한을 -300%까지 확장
         let minPen = ((skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light') && game.ascendClass === 'elementalist' && hasKeystone('e9')) ? -300 : MIN_PENETRATED_RESISTANCE;
-        return Math.max(minPen, effective);
+        const resistance = Math.max(minPen, effective);
+        return applyHolyMistMitigation(skillEle,enemy,resistance);
     }
     return Math.min(80, rawMitigation);
 }
 
+
+function applyHolyMistMitigation(element,enemy,resistance) {
+    return element==='fire' && enemy?.holyMistUntil>getCombatTime() ? 100-(100-resistance)*1.2 : resistance;
+}
 
 function getTierDropMulWithCaps(tier, zone) {
     let t = Math.max(1, Math.floor(Number(tier) || 1));
@@ -6286,6 +6356,7 @@ function applyCosmosPlayerDebuffsToStats(pStats) {
             pStats.energyShieldRegenRate = Math.max(0, (pStats.energyShieldRegenRate || 0) * (1 - value / 100));
         } else if (d.type === 'cosmos_leech_down') {
             pStats.leech = Math.max(0, (pStats.leech || 0) * (1 - value / 100));
+            pStats.spellLeech = Math.max(0, (pStats.spellLeech || 0) * (1 - value / 100));
         } else if (d.type === 'cosmos_res_down') {
             pStats.resF -= value;
             pStats.resC -= value;
@@ -6548,6 +6619,8 @@ function getWispEnemyDefenseBonuses(monsterVariant) {
 }
 
 function createEnemy(zone, marker, groupIndex) {
+    const level = levelProgression.monsterLevel(zone, marker);
+    zone = levelProgression.combatZone(zone);
     let loopInputs = getLoopDifficultyInputs(zone);
     let loopScaleExempt = loopInputs.exempt;
     let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
@@ -6599,10 +6672,6 @@ function createEnemy(zone, marker, groupIndex) {
     hp = Math.floor(hp * (abyssScale.hpMul || 1) * (isBoss ? (abyssScale.bossMul || 1) : 1));
     hp = Math.floor(hp * 0.92);
     if (isBoss && zone.type === 'trial' && zone.id === 'trial_3') hp = Math.floor(hp * 0.85);
-    if (typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun)) {
-        let empower = Math.max(0, Math.floor(game.beehive.enemyEmpower || 0));
-        if (empower > 0) hp = Math.floor(hp * (1 + empower * 0.08));
-    }
     let enemyElePool = zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos'];
     let enemyEle = hasOceanCurrent(zone, 'cold_current') ? 'cold' : (hasOceanCurrent(zone, 'warm_current') ? 'fire' : rndChoice(enemyElePool));
     enemyEle = cosmosRouteRuntime.enemyElement(zone, isBoss, enemyEle);
@@ -6671,6 +6740,7 @@ function createEnemy(zone, marker, groupIndex) {
     let isDeepChaos = zone.type === 'abyss';
     let enemy = {
         id: game.nextEnemyId++,
+        level,
         hp: hp,
         maxHp: hp,
         name: name,
@@ -6873,7 +6943,7 @@ function getZoneEncounterProfile(zone) {
         return { markerCount: 40 + Math.floor(floor / 3), minPack: minPack, maxPack: Math.max(minPack, maxPack), eliteChance: Math.min(0.5, 0.18 + floor * 0.006), bossAdds: 2 + Math.floor(floor / 12), label: `창공의 탑 ${floor}층` };
     }
     if (zone.type === 'underworld') return getUnderworldEncounterProfile(zone);
-    if (zone.type === 'meteor') return { markerCount: 2, minPack: 2, maxPack: 3, eliteChance: 1, bossAdds: 2, label: '운석' };
+    if (zone.type === 'meteor') return { markerCount: 2, minPack: 2, maxPack: 3, eliteChance: 0.5, bossAdds: 0, label: '운석' };
     if (zone.type === 'trial') return { markerCount: 3, minPack: 1, maxPack: 2, eliteChance: 1, bossAdds: 2, label: '시련' };
     if (zone.type === 'timeRift') {
         let pressure = Math.max(1, Math.floor(zone.pressure || 1));
@@ -6927,18 +6997,12 @@ function resolveMapEstimateContentScale(zone) {
     }
     if (zone.type === 'oceanDepth') scale.hp = 5 * (1 + Math.max(0, Math.floor(zone.depthTier || 0)) * 0.05);
     if (zone.type === 'timeRift' || zone.type === 'seasonBoss') scale.clearTimeSec = 30;
-    if (zone.type === 'beehive') {
-        let hive = game.beehive || {};
-        scale.hp = (1 + Math.max(0, Math.floor(hive.branchStep || 1)) * 0.16
-            + Math.max(0, Math.floor(hive.enemyEmpower || 0)) * 0.22) * 2.4;
-        scale.damage = 1.75 * (1 + Math.max(0, Math.floor(hive.enemyEmpower || 0)) * 0.12);
-        scale.clearTimeSec = 30;
-    }
+    if (zone.type === 'beehive') scale.clearTimeSec = 30;
     if (zone.type === 'colony') {
         scale.hp = 3.4;
         scale.damage = 1.45;
     }
-    if (zone.type === 'grandBreach') Object.assign(scale, {hp:3.2, damage:1.4, clearTimeSec:35});
+    if (zone.type === 'grandBreach') scale.clearTimeSec = 35;
     if (zone.type === 'cosmos') {
         const galaxyBoss = typeof getCosmosGalaxyBossMechanic === 'function'
             && !!getCosmosGalaxyBossMechanic(zone.cosmosNodeId);
@@ -7030,7 +7094,7 @@ const getMapBossRequiredDps = function (bossHp, clearTimeSec, regenRate) {
 function estimateMapZonePowerRequirements(zone) {
     const supportedTypes = ['act', 'abyss', 'labyrinth', 'underworld', 'chaosRealm', 'oceanDepth', 'skyTower', 'seasonBoss', 'timeRift', 'meteor', 'beehive', 'colony', 'grandBreach', 'trial', 'cosmos', 'beyondBoundary'];
     if (!zone || !supportedTypes.includes(zone.type)) return null;
-    let tier = Math.max(1, Number(zone.tier) || 1);
+    let tier = Math.max(1, Number(levelProgression.combatZone(zone).tier) || 1);
     let loopInputs = getLoopDifficultyInputs(zone);
     let seasonDepth = getSoftenedLoopDepth(loopInputs.seasonLoops);
     let tierProgress = clampNumber((tier - 1) / 18, 0, 1);
@@ -7141,7 +7205,7 @@ function generateEncounterPlan(zone) {
         plan.push({ at: 100, count: 1, boss: true });
         return plan;
     }
-    if (zone.type === 'meteor') return [{ at: 36, count: 2, elite: true }, { at: 76, count: 3, elite: true }, { at: 100, count: 2, boss: true }];
+    if (zone.type === 'meteor') return [{ at: 36, count: 3 }, { at: 76, count: 2, elite: true }, { at: 100, count: 1, boss: true }];
     if (zone.type === 'trial') return [{ at: 18, count: 1, elite: true }, { at: 54, count: 2, elite: true }, { at: 100, count: 2, boss: true }];
     if (zone.id === 's6_beast_cerberus') {
         return [
@@ -7371,7 +7435,7 @@ function getSkillAilmentStats(pStats, hitElement, curseFx) {
         freezeChance: (pStats.freezeChance || 0) + (bonus.freeze || 0) + ((curseChance.freeze || 0) * 100),
         shockChance: (pStats.shockChance || 0) + (bonus.shock || 0) + ((curseChance.shock || 0) * 100),
         poisonChance: (pStats.poisonChance || 0) + (bonus.poison || 0) + ((curseChance.poison || 0) * 100),
-        bleedChance: (pStats.bleedChance || 0) + (bonus.bleed || 0) + ((curseChance.bleed || 0) * 100),
+        bleedChance: (pStats.bleedChance || 0) + ((bonus.bleed || 0) + ((curseChance.bleed || 0) * 100)) * getPassiveBleedMultiplier(pStats),
         sSkill: { ...skill, ele: hitElement }
     };
 }
@@ -7522,7 +7586,7 @@ function applySkillPeriodicOnHit(enemy, skill, damage, skillName) {
 function addConfirmedSkillEffect(kind, visual, target, element) {
     if (!visual?.skillName || !hasGridCell(target) || !hasGridCell(visual.sourceCell)) return;
     addBattleFx('combatTravel', {owner:'player',delivery:kind,skillName:visual.skillName,
-        sourceCell:visual.sourceCell,targetCells:[copyCombatGridCell(target)],element,
+        sourceCell:visual.sourceCell,targetCells:[getGridUnitCenter(target)],element,
         duration:kind==='confirmedPeriodic' ? 180 : 220});
 }
 
@@ -7571,6 +7635,16 @@ function getPlayerAilmentChance(pStats, type) {
     else if (type === 'poison') base = pStats.poisonChance || 0;
     else if (type === 'bleed') base = pStats.bleedChance || 0;
     return Math.max(0, Math.min(1, base / 100));
+}
+
+function getPassiveBleedMultiplier(pStats) {
+    return pStats?.passiveKeystoneFlags?.bloodCradle ? 0.7 : 1;
+}
+
+function getPlayerAilmentProcChance(pStats, type, isCrit, forcedChance) {
+    const multiplier = type === 'bleed' ? getPassiveBleedMultiplier(pStats) : 1;
+    const base = Number.isFinite(forcedChance) ? forcedChance * multiplier : getPlayerAilmentChance(pStats, type);
+    return Math.max(0, Math.min(1, base + (isCrit ? 0.25 * multiplier : 0)));
 }
 
 function getFreezeApplyChanceFromHitRatio(hitRatio, enemyMaxHp) {
@@ -7640,17 +7714,19 @@ function getDamageAilmentScore(sourceDamage, critDotBonusPct, scale, critDotBonu
 function getEnemyDamageAilmentDps(ail, pStats, enemy) {
     let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
     let dps = getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
-    if (ail && ail.type === 'ignite') dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.igniteDamageMultiplierPct) || 0) / 100));
-    if (ail && ail.type === 'poison') dps = Math.floor(dps * (1 + Math.max(0, Number(pStats && pStats.poisonDamageMultiplierPct) || 0) / 100));
+    const damageStat = { ignite: 'igniteDamageMultiplierPct', poison: 'poisonDamageMultiplierPct' }[ail?.type];
+    dps = Math.floor(dps * (1 + Math.max(0, Number(pStats?.[damageStat]) || 0) / 100));
     if (ail && pStats && ail.type === pStats.mystiqueAilmentType) {
         dps = Math.floor(dps * (1 + Math.max(0, Number(pStats.mystiqueAilmentDamagePct) || 0) / 100));
     }
     if (ail && (ail.talentDamageMorePct || 0) > 0) dps = Math.floor(dps * (1 + ail.talentDamageMorePct / 100));
     if (typeof getTalentDotDamageMultiplier === 'function') dps = Math.floor(dps * getTalentDotDamageMultiplier(enemy));
+    if (ail && ail.type === 'bleed') dps = Math.floor(dps * getPassiveBleedMultiplier(pStats));
     return dps;
 }
 
 function getEnemyDamageAilmentMaxStacks(type, pStats) {
+    if (type === 'bleed' && getPassiveBleedMultiplier(pStats) < 1) return 5;
     let cap = 1;
     if (game.ascendClass === 'catalyst' && hasKeystone('ct6')) cap += 1;
     if (game.ascendClass === 'catalyst' && hasKeystone('ct8')) cap += 2;
@@ -7804,8 +7880,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
         if (passiveFlags.singleMystique && appliedType !== pStats.mystiqueAilmentType) return false;
         if (passiveFlags.blackDistill && ['ignite', 'chill', 'freeze', 'shock'].includes(appliedType)) return false;
         if (typeof canTalentCardApplyEnemyAilment === 'function' && !canTalentCardApplyEnemyAilment(appliedType)) return false;
-        let baseChance = (Number.isFinite(forceChance) ? forceChance : getPlayerAilmentChance(pStats, sourceType));
-        let tryProc = Math.max(0, Math.min(1, baseChance + (isCrit ? 0.25 : 0)));
+        let tryProc = getPlayerAilmentProcChance(pStats, sourceType, isCrit, forceChance);
         if (Math.random() >= tryProc) return false;
         let resKey = 'ailRes' + sourceType.charAt(0).toUpperCase() + sourceType.slice(1);
         let ailResPen = (pStats && pStats.ailmentResistPenPct) || 0;
@@ -8426,6 +8501,62 @@ function tickWoodsmanEchoRun() {
     if (target) run.totalDamage = Math.max(0, Math.floor((target.echoStartHp || target.maxHp || 0) - Math.max(0, target.hp || 0)));
     if (run.timeLeft <= 0) finishWoodsmanEchoRun();
 }
+/** Append at most one reinforcement; capacity pauses the queue without consuming it.
+ * @param {ReturnType<typeof getZone>} zone
+ * @param {{pendingWave:boolean,spawnedCount:number,totalToSpawn:number,spawnTick:number}} rift Active run, mutated in place.
+ * @returns {boolean} Whether an enemy was appended.
+ */
+function spawnVoidBreachReinforcement(zone, rift) {
+    const alive = game.enemies.filter(e => e.hp > 0);
+    if (!rift.pendingWave || rift.spawnedCount >= rift.totalToSpawn || alive.length >= 8
+        || alive.filter(e => e.fromVoidRift).length >= 4) return false;
+    rift.spawnTick++;
+    if (rift.spawnTick < 4) return false;
+    rift.spawnTick = 0;
+    const index = rift.spawnedCount;
+    const marker = { at: Math.max(5, Math.min(95, 10 + index * 8)), elite: Math.random() < 0.18, boss: false };
+    const enemy = createEnemy(zone, marker, index + 1);
+    enemy.fromVoidRift = true;
+    applyVoidRiftMobTuning(enemy);
+    game.enemies.push(enemy);
+    rift.spawnedCount++;
+    return true;
+}
+
+/** Spawn in the nearest unoccupied portal cell; a full board must never overlap its occupants. */
+function spawnGrandBreachEnemy(zone, portal, blocked, elite, index) {
+    const cell = findFreeGridCell(blocked, portal);
+    if (!cell) return false;
+    const enemy = createEnemy(zone, {elite,boss:false}, index);
+    Object.assign(enemy, cell, {gridMoveTimer:0.25,attackTimer:0});
+    blocked.add(gridCellKey(cell.gx,cell.gy));
+    game.enemies.push(enemy);
+    return true;
+}
+
+/** Append one bounded pack. Missed refill intervals are not replayed as a burst.
+ * @param {ReturnType<typeof getZone>} zone
+ * @param {{timeLeft:number,nextRefillAt?:number}} run Remaining seconds and next combat-clock refill time; mutated in place.
+ * @param {number} now Combat clock milliseconds.
+ */
+function refillGrandBreachWave(zone, run, now) {
+    if (run.timeLeft <= 0 || now < (run.nextRefillAt || 0)) return;
+    const config = GRAND_BREACH_ENCOUNTER;
+    const alive = game.enemies.filter(e => e.hp > 0);
+    const stage = Number(run.timeLeft <= 25) + Number(run.timeLeft <= 12);
+    const count = Math.min(alive.length === 0 ? config.openingPack : config.refillPack, config.capacities[stage] - alive.length);
+    if (count <= 0) return;
+    run.nextRefillAt = now + config.intervalMs;
+    const blocked = getGridBlockedCells();
+    let elites = alive.filter(e => e.isElite).length;
+    for (let i = 0; i < count; i++) {
+        const elite = elites < config.eliteLimit && i % 4 === 0;
+        elites += Number(elite);
+        const portal = config.portals[i % config.portals.length];
+        if (!spawnGrandBreachEnemy(zone,portal,blocked,elite,i)) break;
+    }
+}
+
 function tickGrandBreachRun(zone) {
     let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
     let g = v.grandRun;
@@ -8437,20 +8568,12 @@ function tickGrandBreachRun(zone) {
     g.lastTickAt = now;
     if (g.phase === 'survival') {
         g.timeLeft = Math.max(0, (g.timeLeft || 0) - dt);
-        let alive = (game.enemies || []).filter(e => e.hp > 0).length;
-        if (alive < 7 && now >= (g.nextRefillAt || 0)) {
-            g.nextRefillAt = now + 700;
-            let add = 4 + Math.floor(Math.random() * 3);
-            for (let i = 0; i < add; i++) game.enemies.push(createEnemy(zone, { elite: Math.random() < 0.55, boss: false }, i));
-        }
+        refillGrandBreachWave(zone, g, now);
         if (g.timeLeft <= 0) {
             g.phase = 'boss';
             let boss = createEnemy(zone, { boss: true, count: 1 }, 0);
             let soul = Math.max(0, Math.floor(g.kills || 0));
             boss.name = '👿 균열 군주';
-            boss.maxHp = Math.floor(boss.maxHp * 3.2);
-            boss.hp = boss.maxHp;
-            boss.atkMul *= 1.4;
             boss.traitName = `생존 구간 ${soul}처치 · 처치 수에 따라 격파 보상 증가`;
             game.enemies = [boss];
             addLog(`🕳️ 생존 종료! 균열 군주가 출현합니다. ${soul}처치만큼 격파 보상이 증가합니다.`, 'loot-unique');
@@ -8462,16 +8585,18 @@ function getEnemyExperienceReward(enemy, pStats) {
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
     let abyssDepth = zone.type === 'abyss' ? Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1)) : 0;
-    let exp = Math.floor((14 + zone.tier * 10) * (1 + game.season * 0.35));
+    const level = levelProgression.monsterLevel(zone, enemy);
+    let exp = Math.floor(Math.max(24, getExpReq(level) * LEVEL_PROGRESSION.experiencePerKill)
+        * levelProgression.loopExperienceMultiplier(game.season, game.level, level));
     if (enemy.isElite) exp = Math.floor(exp * 1.8);
-    if (enemy.isBoss) exp = Math.floor(exp * Math.max(3, zone.tier * 1.5));
+    if (enemy.isBoss) exp = Math.floor(exp * 6);
     exp = Math.floor(exp * (enemy.expMul || 1));
     exp = Math.floor(exp * (1 + (pStats.expGain / 100)) * (abyssScale.expMul || 1));
     if (abyssDepth > 1) {
         let depthExpDampen = Math.max(0.68, 1 - (abyssDepth - 1) * 0.012);
         exp = Math.floor(exp * depthExpDampen);
     }
-    return Math.max(0, exp);
+    return Math.max(0, Math.floor(exp * levelProgression.rewardMultiplier(zone, enemy, game.level, 'experience')));
 }
 
 function grantExpAndGem(enemy, pStats) {
@@ -8556,14 +8681,16 @@ function applyGrandBreachMobTuning(zone, enemy) {
     enemy.maxHp = Math.max(1, Math.floor((enemy.maxHp || 1) * 5));
     enemy.hp = enemy.maxHp;
     enemy.atkMul = (enemy.atkMul || 1) * 1.25;
+    enemy.damageMul = (enemy.damageMul || 1) * 1.25;
 }
 
-// 공허의 구멍에서 출현하는 몹 보정: 경험치 2배, 생명력 2배, 피해량 1.5배.
+// 공허 증원: 경험치·생명력 2배, 공격 속도 1.25배, 피해 1.3배.
 function applyVoidRiftMobTuning(enemy) {
     if (!enemy || enemy.isBoss) return;
     enemy.maxHp = Math.max(1, Math.floor((enemy.maxHp || 1) * 2));
     enemy.hp = enemy.maxHp;
-    enemy.atkMul = (enemy.atkMul || 1) * 1.5;
+    enemy.atkMul = (enemy.atkMul || 1) * 1.25;
+    enemy.damageMul = (enemy.damageMul || 1) * 1.3;
     enemy.expMul = (enemy.expMul || 1) * 2;
 }
 
@@ -8596,6 +8723,18 @@ function maybeTriggerBeeMappingEvent(beeLv, enemy) {
     }
 }
 
+/** Read-only visual receipt; rewards are already committed. Never replay grants from presentation. */
+function queueEnemyGroundLoot(enemy, receipt) {
+    if (game.isBackgroundCalculation || battleFxSuppressed) return;
+    const item = receipt.item;
+    const loot = { ...receipt, zoneId: game.currentZoneId, sourceCell: { gx: enemy.gx, gy: enemy.gy } };
+    if (item) loot.item = { name: item.name, baseId: item.baseId, slot: item.slot,
+        rarity: item.rarity, growthCategory: item.growthCategory, slabType: item.slabType };
+    addBattleFx('lootPickup', { enemyId: enemy.id, loot, duration: 1200 });
+    if (receipt.highlight) addBattleFx('lootCelebration', { enemyId: enemy.id, ...receipt.highlight,
+        itemName: item.name, tier: item.rarity, groundLoot: true, duration: 1800 });
+}
+
 const rollEquipmentLoot = function (enemy, zone, itemChance) {
     const roll = rollEquipmentDrop(zone, enemy, itemChance);
     if (!roll.dropped) {
@@ -8606,8 +8745,7 @@ const rollEquipmentLoot = function (enemy, zone, itemChance) {
     const highlight = equipmentLootPolicy.highlight(item, game);
     const accepted = addItemToInventory(item);
     if (accepted) {
-        addBattleFx('lootPickup', { enemyId: enemy.id, color: getRarityColor(item.rarity), tier: item.rarity, duration: 760 });
-        if (highlight) addBattleFx('lootCelebration', { enemyId: enemy.id, ...highlight, itemName: item.name, tier: item.rarity, duration: 1800 });
+        queueEnemyGroundLoot(enemy, { item, itemKind: 'equipment', highlight });
     }
     game.equipmentDropProgress = roll.nextProgress;
     return accepted ? item : null;
@@ -8708,17 +8846,15 @@ function rollLootForEnemy(enemy) {
         if (!drop || !drop[0]) return;
         if (drop[0] === 'blurred45') {
             let gain = typeof addCoreCubeBlurred45 === 'function' ? addCoreCubeBlurred45(drop[1]) : 0;
-            addBattleFx('lootPickup', { enemyId: enemy.id, color: '#9de8ff', duration: 760 });
+            if (gain > 0) queueEnemyGroundLoot(enemy, { currency: drop[0], count: gain });
             if (game.settings.showLootLog) addLog(`🧊 흐릿한 45면체 +${gain || drop[1]}`, 'loot-unique');
             return;
         }
-        awardCurrency(drop[0], drop[1]);
-        const premiumCurrency = ['goldenRule', 'sapBud', 'ouroboros', 'pruningShears', 'abyssCatalyst'].includes(drop[0]);
-        const rareCurrency = premiumCurrency || ['formlessDew', 'fairyRing', 'blessing', 'skyEssence', 'emberBranch'].includes(drop[0]);
-        addBattleFx('lootPickup', { enemyId: enemy.id, color: premiumCurrency ? '#ffd166' : (rareCurrency ? '#d8a8ff' : '#9ad1ff'), tier: premiumCurrency ? 'unique' : (rareCurrency ? 'rare' : 'normal'), duration: premiumCurrency ? 980 : 760 });
-        if (rareCurrency) addBattleFx('lootCelebration', { enemyId: enemy.id, color: premiumCurrency ? '#ffcf6b' : '#caa2ff', tier: premiumCurrency ? 'unique' : 'rare', duration: premiumCurrency ? 1320 : 960 });
+        const gain = awardCurrency(drop[0], drop[1], 'drop');
+        if (gain <= 0) return;
+        queueEnemyGroundLoot(enemy, { currency: drop[0], count: gain });
         let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(drop[0]) : ((ORB_DB[drop[0]] && ORB_DB[drop[0]].name) || drop[0]);
-        if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${drop[1]}`, drop[0] === 'goldenRule' || drop[0] === 'sapBud' ? 'loot-unique' : 'loot-magic');
+        if (game.settings.showLootLog) addLog(`🪙 ${currencyName} +${gain}`, drop[0] === 'goldenRule' || drop[0] === 'sapBud' ? 'loot-unique' : 'loot-magic');
     });
 
     let arcanaDrop = tryDropSealedArcanaCard(zone, enemy, game);
@@ -8752,8 +8888,7 @@ function rollLootForEnemy(enemy) {
             game.noti = game.noti || {};
             game.noti.jewel = true;
             const jewelTier = jewel.rarity === 'unique' ? 'unique' : (jewel.rarity === 'rare' ? 'rare' : jewel.rarity);
-            addBattleFx('lootPickup', { enemyId: enemy.id, color: jewelTier === 'unique' ? '#dca6ff' : '#78cfff', tier: jewelTier, duration: jewelTier === 'unique' ? 1040 : 820 });
-            if (jewelTier === 'unique' || jewelTier === 'rare') addBattleFx('lootCelebration', { enemyId: enemy.id, color: jewelTier === 'unique' ? '#dca6ff' : '#78cfff', tier: jewelTier, duration: jewelTier === 'unique' ? 1360 : 940 });
+            queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: jewelTier === 'unique' ? '#dca6ff' : '#78cfff' });
             let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
             if (game.settings.showLootLog) addLog(`💠 ${getJewelRarityLabel(jewel.rarity)} 주얼 [${jewel.name}] 획득!${protectOverflow ? ' <span style="color:#ffb86b;">(공간 부족 보호)</span>' : ''} (${lineText || '미가공'})`, protectOverflow ? 'loot-unique' : 'loot-rare', { item:jewel, itemKind:'jewel' });
         }
@@ -9908,7 +10043,6 @@ function getPassiveKeystoneHitMultiplier(pStats, target, hitIndex, targetIndex, 
         let distance = getGridUnitDistance(game.gridPlayer, target);
         multiplier *= distance >= 3 ? 1.25 : (distance <= 1 ? 0.75 : 1);
     }
-    if (flags.duel) multiplier *= 1.3;
     if (flags.projectileFormation && targetIndex > 0) multiplier *= 0.6;
     if (flags.explosiveDistill) multiplier *= 0.75;
     if (flags.erosionLegacy && pStats.sSkill.ele === 'chaos') multiplier *= 0.85;
@@ -9934,7 +10068,7 @@ function getPassiveKeystoneHitMultiplier(pStats, target, hitIndex, targetIndex, 
 function addPlayerHitVisualFx(pStats, options, targetEnemy, hit) {
     let { stageKind, stageLabel, stageCount, skillName, hitCrit, hitIdx, hitElement, dealtToEnemy, dmg, isStageReplay } = hit;
     addBattleFx('hit', {
-        enemyId: targetEnemy.id, targetCell: copyCombatGridCell(targetEnemy), channelId: options.channelId, color: getElementColor(hitElement), crit: hitCrit,
+        enemyId: targetEnemy.id, targetCell: hasGridCell(targetEnemy) ? getGridUnitCenter(targetEnemy) : null, channelId: options.channelId, color: getElementColor(hitElement), crit: hitCrit,
         projectile: (pStats.sSkill.tags || []).includes('projectile'),
         pierce: pStats.sSkill.targetMode === 'pierce' || stageKind === 'piercePrimary' || stageKind === 'pierceThrough',
         chain: pStats.sSkill.targetMode === 'chain' || stageKind === 'chainJump',
@@ -9947,11 +10081,118 @@ function addPlayerHitVisualFx(pStats, options, targetEnemy, hit) {
     });
 }
 
+/** Combat owns damage and movement; gem controllers only return scheduled commands. */
+function startSkillGemCombat(stats, options) {
+    skillGemCombatRuntime ??= skillGemCasts.createState();
+    const name=options.skillName || game.activeSkill;
+    initializeSkillGemFacing();
+    if (skillGemRuntimeChanged(name)) skillGemCombatRuntime=skillGemCasts.createState();
+    if (name==='인과' && skillGemCombatRuntime.channel) return;
+    const started=skillGemCasts.start(skillGemCombatRuntime,{id:stats.sSkill.nativeCastId,name,stats,
+        source:game.gridPlayer,enemies:game.enemies,now:getCombatTime(),visuals:!game.isBackgroundCalculation,
+        attackOptions:{forcedCrit:options.forcedCrit,forcedElement:options.forcedElement,
+            attackDamageMultiplier:options.attackDamageMultiplier,talentAttackMultiplier:options.talentAttackMultiplier,
+            passiveKarmaContext:options.passiveKarmaContext}});
+    if (!started) return;
+    noteCombatTacticAttack(300);
+    if (name==='인과') beginCombatChannel(name,0,5000,{repeatChannelCast:false,channelContinuation:false});
+}
+
+function shouldDeferNativeGemCast(stats,options) {
+    if (options.stageReplay || !stats.sSkill.nativeCastId) return false;
+    if (hasPlayerChannelBreakingAilment() || game.combatHalted) return true;
+    if (!skillGemCombatRuntime) return false;
+    if (stats.sSkill.nativeCastId===53) return !!skillGemCombatRuntime.channel;
+    return [46,52].includes(stats.sSkill.nativeCastId) && skillGemCombatRuntime.casts.some(c=>c.id===stats.sSkill.nativeCastId);
+}
+
+function getAttackProjectileShots(stats) {
+    return stats.sSkill.nativeCastId ? stats.projectileExtraShots : rollProjectileExtraShots(stats.projectileExtraShots);
+}
+
+function updateSkillGemCombat(stats) {
+    const runtime=skillGemCombatRuntime;
+    if (!runtime) return;
+    if (game.combatHalted || game.playerHp<=0 || skillGemRuntimeChanged(game.activeSkill)) {
+        skillGemCombatRuntime=null;cancelCombatChannel();return;
+    }
+    syncSkillGemChannel(runtime);
+    const commands=skillGemCasts.update(runtime,{source:game.gridPlayer,enemies:game.enemies,now:getCombatTime()});
+    for (const command of commands) applySkillGemCommand(command,stats);
+}
+
+function skillGemRuntimeChanged(name) {
+    return !!skillGemCombatRuntime.lastSkill && skillGemCombatRuntime.lastSkill!==name;
+}
+
+function initializeSkillGemFacing() {
+    for (const enemy of game.enemies) if (!enemy.facingDirection) enemy.facingDirection=skillGemCasts.facing(enemy,game.gridPlayer);
+}
+
+function syncSkillGemChannel(runtime) {
+    if (!runtime.channel) return;
+    const c=runtime.channel.source,p=game.gridPlayer;
+    const valid=game.activeSkill==='인과' && c.gx===p.gx && c.gy===p.gy && !hasPlayerChannelBreakingAilment();
+    if (!valid || !combatChannelRuntime.id) cancelCombatChannel();
+    else combatChannelRuntime.endAt=getCombatTime()+5000;
+}
+
+function applySkillGemCommand(command,stats) {
+    if (command.type==='teleport') {
+        if (!skillGemCasts.free(command.to,game.enemies.filter(e=>e.hp>0))) return;
+        Object.assign(game.gridPlayer,command.to);
+        addBattleFx('playerMobility',{skillName:'암살',fromCell:command.from,toCell:command.to,instant:true,duration:180});
+        return;
+    }
+    const targets=game.enemies.filter(e=>e.hp>0 && command.targets.includes(e.id));
+    if (command.type==='mist') {
+        for (const enemy of targets) enemy.holyMistUntil=command.at+4000;
+        return;
+    }
+    if (command.type==='dot') return applySkillGemDot(command,targets);
+    if (!targets.length) return;
+    applySkillGemContact(command,targets,stats);
+}
+
+function applySkillGemDot(command,targets) {
+    for (const enemy of targets) {
+        const stats=command.stats,mitigation=getEffectiveEnemyMitigation('chaos',getZone(game.currentZoneId).tier,enemy,stats);
+        const damage=applyDamageToEnemyResource(enemy,Math.max(1,Math.floor(stats.baseDmg*stats.dotDamageScale*(1-mitigation/100))));
+        addBattleFx('hit',{enemyId:enemy.id,damage,element:'chaos',color:getElementColor('chaos'),duration:240,
+            noLine:true,dot:true,resolvedSkillContact:true});
+        if (enemy.hp<=0) handleEnemyDeath(enemy,stats);
+    }
+}
+
+function applySkillGemContact(command,targets) {
+    const stats=command.stats;
+    const before=targets.map(e=>e.hp+(e.energyShield||0));
+    performPlayerAttack({...stats,projectileExtraShots:0},{...command.attackOptions,stageReplay:true,skillName:command.name,
+        sourceCell:command.sourceCell,targetEntries:targets.map(e=>({enemyId:e.id,mult:1})),stageRepeatOnce:true,
+        restrictRandomTargets:true,skipSlamEcho:true,skipGridControl:true,
+        hitDamageMultiplier:command.bonus?PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100:1,damageTextGroupId:command.key});
+    if (!command.ailment) return;
+    targets.forEach((enemy,i)=>{
+        if (enemy.hp<=0 || enemy.hp+(enemy.energyShield||0)>=before[i]) return;
+        const ele=command.ailment==='poison'?'chaos':'phys';
+        applyEnemyAilmentFromHit(enemy,{...stats,sSkill:{...stats.sSkill,ele}},stats.baseDmg,false,{primaryAilmentChance:1});
+    });
+}
+
+function receiveSkillGemPlayerHit(damage,stats) {
+    if (!skillGemCombatRuntime?.channel || hasPlayerChannelBreakingAilment()) return;
+    const commands=skillGemCasts.receiveHit(skillGemCombatRuntime,{damage,alive:game.playerHp>0,
+        source:game.gridPlayer,enemies:game.enemies,stats,now:getCombatTime()});
+    for (const command of commands) applySkillGemCommand(command,stats);
+}
+
 function performPlayerAttack(pStats, attackOptions) {
     let options = attackOptions || {};
+    if (shouldDeferNativeGemCast(pStats, options)) return;
     // 예약된 시간차 타격은 같은 카운터를 공유하되, 다음 공격은 항상 새 카운터로 시작한다.
     let attackHitGuardCounts = options.attackHitGuardCounts instanceof Map ? options.attackHitGuardCounts : new Map();
     let isStageReplay = !!options.stageReplay;
+    if (!isStageReplay) pStats = { ...pStats, projectileExtraShots: getAttackProjectileShots(pStats) };
     if (!isStageReplay && typeof isTalentPlayerAttackDisabled === 'function' && isTalentPlayerAttackDisabled()) return;
     let skillName = options.skillName || game.activeSkill;
     let channelContinuationRequested = !isStageReplay && consumeCombatChannelContinuation(skillName);
@@ -10947,22 +11188,7 @@ function performPlayerAttack(pStats, attackOptions) {
             }
         });
     }
-    let instantLeechRecovered = 0;
-    let playerLeechTarget = (game.ascendClass === 'warlock' && hasKeystone('wlk3') && (pStats.energyShield || 0) > 0)
-        ? 'energyShield' : 'life';
-    let soulSanctuaryLeech = pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.soulSanctuary;
-    let soulSanctuarySpell = soulSanctuaryLeech && (pStats.sSkill.tags || []).includes('spell');
-    if (soulSanctuarySpell) playerLeechTarget = 'energyShield';
-    if (typeof getTalentPlayerLeechTarget === 'function') playerLeechTarget = getTalentPlayerLeechTarget(playerLeechTarget);
-    if ((pStats.uniqueChaosDamageInstantLeechPct || 0) > 0 && totalChaosDamage > 0) {
-        instantLeechRecovered += applyInstantPlayerLeech(totalChaosDamage * Math.max(0, Number(pStats.uniqueChaosDamageInstantLeechPct) || 0) / 100, pStats, playerLeechTarget);
-    }
-    if (pStats.leech > 0 && totalLeechableDamage > 0 && (!soulSanctuaryLeech || soulSanctuarySpell)) {
-        let leechAmount = (totalLeechableDamage * (pStats.leech / 100));
-        if ((pStats.uniqueInstantLeechPct || 0) > 0) instantLeechRecovered += applyInstantPlayerLeech(leechAmount * ((pStats.uniqueInstantLeechPct || 0) / 100), pStats, playerLeechTarget);
-        if (pStats.sSkill && pStats.sSkill.instantLeech) instantLeechRecovered += applyInstantPlayerLeech(leechAmount, pStats, playerLeechTarget);
-        else addPlayerLeechInstance(leechAmount, pStats, playerLeechTarget);
-    }
+    const instantLeechRecovered = applyPlayerHitLeech(pStats, totalLeechableDamage, totalChaosDamage);
 
     if (!isStageReplay && isCrit && (pStats.uniqueEsRecoverOnCritPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
         let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * ((pStats.uniqueEsRecoverOnCritPct || 0) / 100)));
@@ -11655,6 +11881,7 @@ function performMonsterAttacks(pStats) {
                 if (delivery !== 'instantTarget' && queueEnemyCombatAttack(enemy, attackTarget, bossPattern, delivery)) break;
             } else pendingAttack = null;
             if (attackTarget === game.gridPlayer) {
+                if (skillGemCombatRuntime) enemy.facingDirection=skillGemCasts.facing(enemy,game.gridPlayer);
                 addBattleFx('enemyAttack', { enemyId: enemy.id, duration: 220 });
             }
             let dmg = getMonsterBaseHitDamage(zone, seasonDepth, tierPressure, benchmarkProfile);
@@ -12110,6 +12337,7 @@ function performMonsterAttacks(pStats) {
                 sourceName: enemy.name
             }));
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected });
+            receiveSkillGemPlayerHit(dmg,pStats);
             if (game.settings.showCombatLog) {
                 let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${formatNumberKR(dmg)} 피해`;
                 if (game.settings.showDetailedDamageLog === true) {
@@ -12642,8 +12870,8 @@ function triggerSeasonReset(options) {
     if (typeof resetOfflineStashForLoop === 'function') resetOfflineStashForLoop(game);
     if (typeof syncOfflineProgressEntitlement === 'function') syncOfflineProgressEntitlement(game);
     // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
-    Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = preservedSealedEquipment[slot]; });
-    if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory);
+    Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = Object.assign(preservedSealedEquipment[slot], { inheritedLevelExempt: true }); });
+    if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory.map(item => Object.assign(item, { inheritedLevelExempt: true })));
     // 생장판 초기화: 배치는 비우되 해금 칸(영구 성장)과 봉인 아이템은 유지한다.
     if (typeof resetGrowthBoardForLoop === 'function') resetGrowthBoardForLoop(preservedGrowthUnlockedCells);
     game.recentGrowthDrops = [];

@@ -18,6 +18,9 @@ async function openInventory(page) {
                 item.id=99500+i;game.inventory.push(item);
             }
         }finally{Math.random=random;}
+        // Selection tests need a usable body item, independent of the random drop pool order.
+        game.inventory[0]=createItemFromBase(BASE_ITEM_DB.find(base=>base.slot==='갑옷'&&base.reqTier===1),'rare',1);
+        game.inventory[0].id=99500;
         switchTab('tab-items');
         if(matchMedia('(max-width:1080px)').matches)setEquipmentMobilePane('inventory');
         updateStaticUI();

@@ -1,10 +1,12 @@
 const SPECIAL_BATTLE_BACKDROP_SOURCES = Object.freeze({
-    bgSkyTower: 'assets/background/sky-tower-v1.webp',
-    bgUnderworld: 'assets/background/underworld-sanctuary.webp',
-    bgOceanDepth: 'assets/background/ocean-depth-v1.webp',
-    bgCosmos: 'assets/background/cosmos-v1.webp'
+    bgMeteor: 'assets/background/refined-20260910/bgMeteor.webp',
+    bgSkyTower: 'assets/background/refined-20260910/bgSkyTower.webp',
+    bgUnderworld: 'assets/background/refined-20260910/bgUnderworld.webp',
+    bgOceanDepth: 'assets/background/refined-20260910/bgOceanDepth.webp',
+    bgCosmos: 'assets/background/refined-20260910/bgCosmos.webp'
 });
 const SPECIAL_BATTLE_BACKDROP_RETRY_MS = 5000;
+const FIXED_BATTLE_BACKDROP_KEYS = Object.freeze({labyrinth:'bgAct5',meteor:'bgMeteor'});
 
 const specialBattleBackdropLoads = new Map();
 
@@ -19,7 +21,7 @@ function getBattleBackdropKeyForZone(zone) {
         return floor % 20 === 0 ? 'bgChaos18' : `bgChaos${(floor - 1) % 18}`;
     }
     if (zone.type === 'act') return `bgAct${Math.max(1, Math.min(10, (Number(zone.id) || 0) + 1))}`;
-    if (zone.type === 'labyrinth') return 'bgAct5';
+    if (FIXED_BATTLE_BACKDROP_KEYS[zone.type]) return FIXED_BATTLE_BACKDROP_KEYS[zone.type];
     if (zone.type === 'abyss' || zone.type === 'seasonBoss') return 'bgAct10';
     if (zone.ele === 'fire') return 'bgAct2';
     if (zone.ele === 'cold') return 'bgAct3';

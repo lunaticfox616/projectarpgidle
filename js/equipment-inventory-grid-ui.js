@@ -39,6 +39,8 @@
 
     // Top-layer placement uses viewport rectangles and the existing display-scale adapter.
     function positionInspector() {
+        // Child dialogs own the top layer until closed, including late comparison updates.
+        if (document.querySelector('dialog:modal')) return;
         const inspector = document.getElementById('ui-equipment-inventory-inspector');
         if (!focusedItemKey || !inspector) return;
         const selector = focusedEquipmentSlot
@@ -654,6 +656,7 @@
 
     function handleKeydown(event) {
         if (event.key !== 'Escape') return;
+        if (document.querySelector('dialog:modal')) return;
         if (!carryState && (!focusedItemKey || !document.getElementById('ui-equipment-inventory-inspector')?.getClientRects().length)) return;
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -693,6 +696,7 @@
         document.addEventListener('pointercancel', cancelPointer);
         document.addEventListener('keydown', handleKeydown, true);
         document.addEventListener('pointerdown', event => {
+            if (document.querySelector('dialog:modal')) return;
             if (event.target.closest?.('.equipment-grid-item,#ui-equip-list .equipment-slot')) dismissItemTooltipNow();
             if (focusedItemKey && !event.target.closest('#ui-equipment-inventory-inspector,.equipment-grid-item,#ui-equip-list .equipment-slot')) focus(null);
         }, true);

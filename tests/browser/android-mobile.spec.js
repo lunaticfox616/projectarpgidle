@@ -33,7 +33,7 @@ test('touch browsing scrolls inventory without moving gear, and explicit equip r
     await openMobile(page);
     await page.evaluate(() => {
         game.settings.autoEquipEmptySlots = false;
-        game.inventory = Array.from({ length: 16 }, () => createItemFromBase(BASE_ITEM_DB.find(b => b.id === 'war_helm'), 'rare', 1));
+        game.inventory = Array.from({ length: 16 }, () => createItemFromBase(BASE_ITEM_DB.find(b => b.id === 'cloth_hood'), 'rare', 1));
         switchTab('tab-items'); updateStaticUI();
     });
     const management = page.locator('.equipment-bulk-menu > summary');

@@ -25,7 +25,8 @@ function compare(fx,expected,label){
  for(const now of times){
   actual.rows.length=0;reference.rows.length=0;r.worldTreeSkillFx.beginFrame();
   if(fx.type==='combatTravel')r.worldTreeSkillFx.travel(actual.ctx,historicalFx,now,projection);
-  else r.worldTreeSkillFx.drawQueued(actual.ctx,run('battleVisualState.skillEffects'),now);
+  // Native v3.38 visual tails outlive bridge records; their lifecycle is checked separately.
+  else r.worldTreeSkillFx.drawQueued(actual.ctx,run('battleVisualState.skillEffects.filter(row=>!row.tailEvent)'),now);
   r.worldTreeSkillFx.beginFrame();
   for(const event of expected.filter(e=>e.kind!=='hit').concat(expected.filter(e=>e.kind==='hit')))r.worldTreeSkillFx.renderEvent(reference.ctx,event,now,projection);
   assert.deepStrictEqual(actual.rows,reference.rows,`${label} at ${now-fx.start}ms`);
@@ -75,7 +76,8 @@ function verifySlashGallery(){
  assert.strictEqual(run('JSON.stringify(game)'),before);
 }
 verifySlashGallery();
-const names=run('Object.keys(SKILL_FX_ATLAS).filter(name=>SKILL_DB[name])');
+// v3.7 bridge applies to the original 43 skills; new controllers have their own contact tests.
+const names=run('Object.keys(SKILL_FX_ATLAS).filter(name=>SKILL_DB[name] && !SKILL_DB[name].nativeCastId)');
 for(const name of names){
  const events=cast(name),bridge=new NativeBridge();
  const before=run('JSON.stringify(game)');
@@ -149,4 +151,23 @@ const transfer=run('battleFx.find(fx=>fx.delivery==="confirmedTransfer")');
 assert(transfer);assert.strictEqual(transfer.skillName,'심연 전염');
 compare(transfer,[{skillName:'심연 전염',kind:'transfer',sourceCell:transfer.sourceCell,targetCells:transfer.targetCells,
  element:transfer.element,at:transfer.start,duration:220}],'confirmed transfer');
-console.log(`world-tree combat bridge: ${names.length} real skills, ${travels} travel events, ${hits} hit events, fan and cancellation passed`);
+// A short combat event keeps its authored visual tail without delaying damage.
+run('clearBattleVisualBacklog();');
+const frost={type:'combatTravel',owner:'player',skillName:'서리 폭발',delivery:'magicCell',
+ start:4000000,duration:260,flightMs:80,sourceCell:{gx:2,gy:4},targetCells:[{gx:4,gy:4}],
+ attackFootprint:{center:{gx:4,gy:4},radius:2,cells:[{gx:4,gy:4}]}};
+const tailArt=recorder();r.worldTreeSkillFx.beginFrame();
+r.worldTreeSkillFx.travel(tailArt.ctx,frost,frost.start+120,projection);
+assert.strictEqual(frost.duration,260,'presentation cannot lengthen the combat record');
+const tails=run('battleVisualState.skillEffects');
+assert.strictEqual(tails.length,1);assert(tails[0].tailGround);
+tailArt.rows.length=0;r.worldTreeSkillFx.beginFrame();
+r.worldTreeSkillFx.drawQueued(tailArt.ctx,tails,frost.start+350,'ground');
+assert(tailArt.rows.length>0,'the final ice shards remain visible after the combat record expires');
+tailArt.rows.length=0;r.worldTreeSkillFx.drawQueued(tailArt.ctx,tails,frost.start+350,'foreground');
+assert.strictEqual(tailArt.rows.length,0,'ground tails are not duplicated above actors');
+frost.cancelled=true;r.worldTreeSkillFx.drawQueued(tailArt.ctx,tails,frost.start+360,'ground');
+assert.strictEqual(tailArt.rows.length,0,'channel/source cancellation also removes its tail');
+r.cleanupBattleVisualState(frost.start+700);
+assert.strictEqual(run('battleVisualState.skillEffects.length'),0,'visual tails expire');
+console.log(`world-tree combat bridge: ${names.length} real skills, ${travels} travel events, ${hits} hit events, cancellation and visual tails passed`);

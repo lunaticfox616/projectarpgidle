@@ -1,0 +1,68 @@
+/* Gem 58 / effect 50. Host resolves numeric spell damage; this module owns timing and debuff records. */
+(function(G){
+ 'use strict';
+ const spec={slug:'holy-mist',name:'신성한 안개',gemNumber:58,effectNumber:50,category:'spell',element:'fire',radius:1,distanceMetric:'chebyshev',excludeCasterCell:true,hits:1,debuff:{key:'holy-mist-fire-taken',increasedFireDamageTakenPercent:20,durationMs:4000,stacking:'refresh-no-stack',status:'working-default'},balance:{damage:null,cooldown:null,cost:null},visualProposal:{swingMs:520,impactMs:330,mistMs:700}};
+ const validCell=c=>!!(c&&Number.isInteger(c.gx)&&Number.isInteger(c.gy)&&c.gx>=0&&c.gx<9&&c.gy>=0&&c.gy<8),validId=id=>typeof id==='string'?id.length>0:typeof id==='number'&&Number.isFinite(id),cell=c=>({gx:c.gx,gy:c.gy}),same=(a,b)=>a.gx===b.gx&&a.gy===b.gy;
+ function living(enemies){const ids=new Set();return(Array.isArray(enemies)?enemies:[]).filter(e=>{if(!validCell(e)||!validId(e.id)||ids.has(e.id)||e.alive===false||e.dead===true||e.isDead===true||e.hp!=null&&(!Number.isFinite(e.hp)||e.hp<=0))return false;ids.add(e.id);return true;});}
+ const inRange=(a,b)=>validCell(a)&&validCell(b)&&!same(a,b)&&Math.max(Math.abs(a.gx-b.gx),Math.abs(a.gy-b.gy))===1;
+ function cellsAround(c){const out=[];if(validCell(c))for(let y=c.gy-1;y<=c.gy+1;y++)for(let x=c.gx-1;x<=c.gx+1;x++)if(inRange(c,{gx:x,gy:y}))out.push({gx:x,gy:y});return out;}
+ const speedOf=n=>Number.isFinite(n)?Math.max(.5,Math.min(2.5,n)):1;
+ function createDebuffStore(){
+  const records=new Map();let lastNow=-Infinity,handles=[],eventEnd=-Infinity,binding=null,lastVisualError=null;
+  const copy=r=>r?{...r}:null;
+  function visual(fn){try{return fn();}catch(e){lastVisualError=e;try{binding?.onVisualError?.(e);}catch(_){}return null;}}
+  const api={
+   apply(targets,{at,increasePercent=20,durationMs=4000,sourceId=null}={}){
+    if(!Number.isFinite(at)||!Number.isFinite(increasePercent)||increasePercent<0||!Number.isFinite(durationMs)||durationMs<=0||!Number.isFinite(at+durationMs)||at+durationMs<=at)throw Error('Invalid holy mist debuff');
+    const result=[];for(const e of living(targets)){const old=records.get(e.id),r={id:e.id,key:spec.debuff.key,appliedAt:at,expiresAt:at+durationMs,increasedFireDamageTakenPercent:increasePercent,sourceId,gx:e.gx,gy:e.gy};if(old&&old.appliedAt>at)continue;records.set(e.id,r);result.push(copy(r));}return result;
+   },
+   get(id,at){if(!Number.isFinite(at))throw Error('Invalid debuff clock');const r=records.get(id);return r&&at>=r.appliedAt&&at<r.expiresAt?copy(r):null;},
+   getFireTakenIncreasePercent(id,at){return api.get(id,at)?.increasedFireDamageTakenPercent??0;},
+   remove(id){return records.delete(id);},
+   clear(){records.clear();for(const h of handles)h.holyTargets.length=0;},
+   snapshot(at){return [...records.values()].filter(r=>at>=r.appliedAt&&at<r.expiresAt).map(copy);},
+   get lastVisualError(){return lastVisualError;},
+   // One shared status batch per store. Call each host frame, also after a cast is interrupted.
+   update(now,options){
+    if(!Number.isFinite(now)||now<lastNow)return 0;
+    if(options){if(typeof options.getEnemies!=='function'||typeof options.emit!=='function')throw Error('Invalid debuff visual binding');binding=options;}
+    lastNow=now;const live=binding?new Map(living(binding.getEnemies(now)).map(e=>[e.id,e])):null;
+    for(const[id,r]of records){const e=live?.get(id);if(now>=r.expiresAt||live&&!e)records.delete(id);else if(e){r.gx=e.gx;r.gy=e.gy;}}
+    const active=[...records.values()].filter(r=>now>=r.appliedAt),end=active.reduce((n,r)=>Math.max(n,r.expiresAt),now);
+    if(binding&&active.length&&(!handles.length||now>=eventEnd)){
+     const e={skillName:spec.name,kind:'hit',holyMistPhase:'debuff',at:now,duration:end-now,sourceCell:cell(active[0]),targetCells:[cell(active[0])],holyTargets:[],stageIndex:0,element:'fire',damageCategory:'spell',channelId:null,visualOnly:true,renderLayer:'foreground'};
+     handles=[e];const h=visual(()=>binding.emit(e));if(h&&typeof h==='object'&&h!==e)handles.push(h);
+    }
+    for(const h of handles){h.duration=Math.max(1,end-h.at);const targets=h.holyTargets;for(let i=0;i<active.length;i++){const r=active[i];if(!targets[i])targets[i]={};Object.assign(targets[i],{id:r.id,gx:r.gx,gy:r.gy,expiresAt:r.expiresAt,appliedAt:r.appliedAt});}targets.length=active.length;}
+    eventEnd=end;return active.length;
+   }
+  };return api;
+ }
+ const reject=reason=>({ok:false,reason,done:true,impacts:0,update(){return 0;},cancel(){return false;}});
+ function createCast({source,getSource=null,getEnemies,emit=()=>null,onImpact=()=>{},onDebuff=()=>{},onVisualError=()=>{},onCancel=()=>{},debuffStore=createDebuffStore(),startAt=0,speed=1,channelId='holy-mist',increasePercent=20,debuffDurationMs=4000}={}){
+  if(!validCell(source))return reject('invalid-source');
+  if([getEnemies,emit,onImpact,onDebuff,onVisualError,onCancel].some(f=>typeof f!=='function')||getSource!==null&&typeof getSource!=='function'||!Number.isFinite(startAt)||!validId(channelId)||!Number.isFinite(increasePercent)||increasePercent<0||!Number.isFinite(debuffDurationMs)||debuffDurationMs<=0)throw Error('Invalid holy mist cast');
+  speed=speedOf(speed);const impactAt=startAt+Math.round(330/speed),swingMs=Math.round(520/speed),mistMs=Math.round(700/speed),endAt=Math.max(startAt+swingMs,impactAt+mistMs,impactAt+debuffDurationMs);
+  if(!Number.isFinite(endAt)||impactAt<=startAt||endAt<=impactAt)throw Error('Invalid clock precision');
+  let current=cell(source),started=false,hit=false,applied=false,cancelled=false,updating=false,lastNow=-Infinity,hitIds=[],lastVisualError=null;const handles=[];
+  function visual(fn){try{return fn();}catch(e){lastVisualError=e;try{onVisualError(e);}catch(_){}return null;}}
+  function send(phase,at,duration,layer){const e={skillName:spec.name,kind:'stage',holyMistPhase:phase,at,duration,sourceCell:cell(current),holySource:cell(current),targetCells:[cell(current)],footprint:{cells:cellsAround(current)},stageIndex:0,element:'fire',damageCategory:'spell',channelId,visualOnly:true,renderLayer:layer};handles.push(e);const h=visual(()=>emit(e));if(h&&typeof h==='object'&&h!==e)handles.push(h);if(cancelled)for(const h of handles)h.holyMistCancelledAt=lastNow;}
+  const cast={ok:true,startAt,impactAt,endAt,debuffStore,get done(){return(cancelled||hit&&applied)&&lastNow>=endAt;},get impacts(){return hit?1:0;},get cancelled(){return cancelled;},get lastVisualError(){return lastVisualError;},
+   cancel(at=Number.isFinite(lastNow)?lastNow:startAt){if(cancelled||lastNow>=endAt)return false;if(!Number.isFinite(at))throw Error('Invalid cancellation');cancelled=true;const when=Math.max(startAt,lastNow,at);for(const h of handles)h.holyMistCancelledAt=when;visual(()=>onCancel(channelId,when));return true;},
+   update(now){if(updating||!Number.isFinite(now)||now<startAt||now<lastNow)return 0;lastNow=now;updating=true;let count=0;try{
+    if(!cancelled&&!started){started=true;send('censer',startAt,swingMs,'foreground');}
+    if(!cancelled&&!hit){const c=getSource?getSource(Math.min(now,impactAt)):current;if(!validCell(c)){cast.cancel(now);return 0;}current=cell(c);for(const h of handles)Object.assign(h.holySource,current);
+     if(now>=impactAt){const targets=living(getEnemies(impactAt)).filter(e=>inRange(current,e));if(cancelled)return 0;hit=true;count=1;hitIds=targets.map(e=>e.id);send('mist',impactAt,mistMs,'ground');
+      onImpact({at:impactAt,category:'spell',element:'fire',damageType:'hit',damage:null,sourceCell:cell(current),cells:targets.map(cell),targets,targetIds:[...hitIds],channelId});
+     }
+    }
+    // Consumed before callbacks, so a throwing/reentrant host cannot repeat damage or the debuff.
+    return count;
+   }finally{try{if(hit&&!applied){const survivors=living(getEnemies(impactAt)).filter(e=>hitIds.includes(e.id));applied=true;const records=debuffStore.apply(survivors,{at:impactAt,increasePercent,durationMs:debuffDurationMs,sourceId:channelId});onDebuff({at:impactAt,records,stacking:'refresh-no-stack',channelId});}}finally{updating=false;debuffStore.update(now,{getEnemies,emit,onVisualError});}}}
+  };return cast;
+ }
+ if(!Array.isArray(G.WT_CATALOG))throw Error('Load catalog first');if(!G.WT_CATALOG.some(s=>s.id===50))G.WT_CATALOG.push({id:50,name:spec.name,slug:spec.slug,skill:{isGem:true,category:'spell',ele:'fire',baseSpd:null,damage:null,desc:'향로를 휘둘러 플레이어 주위 1칸의 몬스터들에게 화염 주문 피해를 가하고 받는 화염 피해 증가 디버프를 부여합니다. 적용 기본안: 인접 8칸 1회 타격, 화염 피해 증가 20%·4초, 중첩 없이 갱신.',tags:['spell','fire','area','debuff'],targetMode:'self-adjacent',combatPattern:{kind:'holyMist',radius:1,hits:1}},grid:{kind:'area',range:1},previewDefaults:{speed:1},profile:{family:'holyMist',scale:1}});
+ function previewEnemies(source,mode){return cellsAround(source).filter((c,i)=>mode!=='empty'&&(mode!=='single'||i===0)).map((c,i)=>({id:'H'+i,...c,hp:100})).concat(mode==='empty'?[]:[{id:'OUT',gx:source.gx<6?source.gx+2:source.gx-2,gy:source.gy,hp:100}]);}
+ const previous=G.buildWTPreview;G.buildWTPreview=function(item,options={}){if(item.id!==50)return previous(item,options);const source=options.source||{gx:4,gy:4},enemies=options.enemies||previewEnemies(source,options.holyMode),events=[],rows=[],timeline=[{at:0,label:'향로 휘두르기',element:'fire'}];const cast=createCast({source,speed:options.attackSpeed,startAt:0,getEnemies:()=>enemies,emit:e=>{events.push(e);return e;},onImpact:h=>{rows.push({index:0,at:h.at,from:cell(source),impact:h.cells,footprint:{cells:cellsAround(source)},element:'fire',stage:{kind:'holyMist',label:'신성한 안개 · 화염 주문 타격',damageMultiplier:null,targets:h.targets.map(enemy=>({enemy}))}});timeline.push({at:h.at,label:'화염 타격 → 받는 화염 피해 +20%',element:'fire'});}});cast.update(0);cast.update(cast.impactAt);timeline.push({at:cast.impactAt+4000,label:'화염 취약 디버프 종료',element:'fire'});return{events,rows,timeline,duration:cast.endAt+180,source:cell(source),target:cell(source),impactAt:cast.impactAt,debuffExpiresAt:cast.impactAt+4000,targets:living(enemies).map(enemy=>({enemy})),profile:{kind:'area',range:1},attackSpeed:speedOf(options.attackSpeed),channelInterval:null,motion:0,holyMist:true,castCells:cellsAround(source),targetCount:rows[0].stage.targets.length,castMessage:'화염 주문 · 주변 8칸 · 받는 화염 피해 +20% / 4초'};};
+ G.WT_HOLY_MIST={spec,validCell,living,inRange,cellsAround,createDebuffStore,createCast,previewEnemies};
+})(globalThis);
