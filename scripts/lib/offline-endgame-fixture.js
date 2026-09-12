@@ -4,6 +4,8 @@ module.exports = function configureOfflineEndgameFixture() {
     game.season = 100;
     game.loopCount = 99;
     game.level = 100;
+    // This fixture measures a fully equipped build, not attribute-gate failures.
+    game.actRewardBonuses = ['strength','dexterity','intelligence'].map(stat => ({stat,value:200}));
     game.maxZoneId = 100;
     game.contentProgression.inherited = CONTENT_UNLOCK_CATALOG.map(def => def.id);
     game.settings.mapCompleteAction = 'repeatZone';

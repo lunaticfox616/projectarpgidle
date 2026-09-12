@@ -12,6 +12,8 @@ test('generated equipment art fits the grid and the equipped preview', async ({ 
         clearInterval(gameTickHandle); gameTickHandle = null;
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         game.unlocks.items = true;
+        game.level = 100;
+        game.actRewardBonuses = ['strength', 'dexterity', 'intelligence'].map(stat => ({ stat, value: 1000 }));
         game.inventory = Object.keys(ITEM_VISUAL_ASSET_DB.equipmentGrid.baseAssets).map((id, index) => {
             const base = BASE_ITEM_DB.find(item => item.id === id);
             return { id: 99900 + index, instanceId: 'art-' + id, baseId: id,

@@ -239,6 +239,11 @@ test('craft entry opens branches and loop progress works without a normal item o
         return [contentProgression.balance(), contentProgression.isUnlocked('craft'), game.currencies.magicBud];
     })).toEqual([1, true, buds + 1]);
     await page.evaluate(() => triggerSeasonReset());
+    await page.waitForFunction(() => {
+        if (uiRefreshRunning || uiRefreshQueued) return false;
+        tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
+        return true;
+    });
     await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
     await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
     expect(await page.evaluate(() => game.season)).toBe(3);

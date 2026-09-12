@@ -115,7 +115,7 @@ for(const name of styles) {
 assert.strictEqual(JSON.stringify(state),before,'all nineteen renderers leave game state unchanged');
 const ground={type:'combatTravel',delivery:'magicCell',skillName:'빙결 침식'};
 assert(r.isGroundSkillCast(ground),'frost is drawn under actors');
-assert(!r.isGroundSkillCast({...ground,skillName:'화염 폭풍핵'}),'fire columns retain foreground depth');
+assert(r.isGroundSkillCast({...ground,skillName:'화염 폭풍핵'}),'the supplied quiet fire field is drawn under actors');
 assert(!r.isGroundSkillCast({...ground,type:'hit'}),'contact hits retain foreground depth');
 // One frozen atlas crop fades across a real attack cycle; damage still has three stages.
 state.activeSkill='빙결 침식';

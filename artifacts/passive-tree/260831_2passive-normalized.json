@@ -6817,7 +6817,7 @@
       "y": 1130,
       "type": "keystone",
       "name": "야만",
-      "desc": "무기를 장착할 수 없습니다.\n레벨 1당 공격력이 5 증가합니다.\n힘 10당 공격력이 1 증가합니다.\n민첩과 지능이 힘으로 전환됩니다.\n공격이 항상 명중합니다.",
+      "desc": "무기를 장착할 수 없습니다.\n레벨 1당 기본 피해가 5 증가합니다.\n힘 10당 기본 피해가 1 증가합니다.\n민첩과 지능이 힘으로 전환됩니다.\n공격이 항상 명중합니다.",
       "mods": [],
       "runtimeEffects": [],
       "statAutoName": false,
@@ -23067,7 +23067,7 @@
       "y": 880,
       "type": "keystone",
       "name": "결투의 규율",
-      "desc": "근접 피해가 30% 증폭됩니다.",
+      "desc": "주문 피해 증가 옵션이 공격 피해에도 적용됩니다.",
       "mods": [],
       "statAutoName": false,
       "runtimeEffects": [],
@@ -57738,6 +57738,19 @@
       ],
       "statAutoName": true,
       "archetype": "strength"
+    },
+    {
+      "id": "pt_warrior_blood_cradle",
+      "x": -580,
+      "y": 1510,
+      "type": "keystone",
+      "cat": "off",
+      "name": "피빛 요람",
+      "desc": "이제 출혈 피해가 중첩될 수 있습니다(최대 5회).\n출혈 확률 및 출혈 피해가 30% 감폭됩니다.",
+      "mods": [],
+      "runtimeEffects": [],
+      "iconFamily": "notableBleed",
+      "keystoneEffectId": "keystone:pt_warrior_blood_cradle"
     }
   ],
   "edges": [
@@ -67552,6 +67565,10 @@
     {
       "a": "backbone_branch_wanderer_archer_center_t1_n01",
       "b": "backbone_branch_wanderer_archer_center_t3_n03"
+    },
+    {
+      "a": "pt_spine_warrior_left_07",
+      "b": "pt_warrior_blood_cradle"
     }
   ],
   "allocated": [],

@@ -2066,6 +2066,7 @@ const PASSIVE_KEYSTONE_NODE_ID_BY_TITLE = Object.freeze({
     '몰아의 통로': 'nkr7zwrymol',
     '최후방 사격': 'nxsxdk1yr2y',
     '결투의 규율': 'n2c51dapljo',
+    '피빛 요람': 'pt_warrior_blood_cradle',
     '지혜의 도약': 'nkf64engb6m',
     '혼의 성소': 'backbone_branch_occultist_cleric_center_occultist_cleric_channel_guard_keystone',
     '움직이는 성벽': 'backbone_branch_cleric_warrior_center_cleric_warrior_guard_regen_keystone',
@@ -2451,7 +2452,8 @@ function getPassiveKeystoneCombatFlags(skillTags) {
     const tags = new Set(Array.isArray(skillTags) ? skillTags : []);
     return {
         farshot: tags.has('projectile') && !!findAllocatedPassiveKeystone('최후방 사격'),
-        duel: tags.has('melee') && !!findAllocatedPassiveKeystone('결투의 규율'),
+        duel: tags.has('attack') && !!findAllocatedPassiveKeystone('결투의 규율'),
+        bloodCradle: !!findAllocatedPassiveKeystone('피빛 요람'),
         channelPath: !!findAllocatedPassiveKeystone('몰아의 통로'),
         erosionLegacy: !!findAllocatedPassiveKeystone('남겨진 잠식'),
         proxyCovenant: !!findAllocatedPassiveKeystone('대리 성약'),
@@ -2823,8 +2825,8 @@ function rerollTranscendentVoidPassive(entry) {
     return { id: def.id, value: roll(def.min, def.max), value2: roll(def.min2, def.max2, def.step2) };
 }
 
-function getTranscendentVoidPassiveCount(id) {
-    let state = ensureVoidPassiveState();
+function getTranscendentVoidPassiveCount(id, owner = game) {
+    let state = owner === game ? ensureVoidPassiveState() : (owner.voidPassives || {});
     return Object.values(state).filter(entry => entry && entry.transcendent && entry.transcendent.id === id).length;
 }
 
@@ -4231,6 +4233,7 @@ function activatePassivePath(targetNodeId, options) {
         revealAroundNode(nodeId, { forcePulse: !options || options.forcePulseNodeId === nodeId });
     });
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) - path.length);
+    enforcePassiveEquipmentRestrictions();
     return { activated: true, cost: path.length, path: path.slice() };
 }
 
@@ -5128,6 +5131,7 @@ function addBattleFx(type, data) {
 
 function clearBattleVisualBacklog() {
     battleFx = [];
+    battleVisualState.lootEpoch = (battleVisualState.lootEpoch || 0) + 1;
     latestPlayerSwingImpactAt = 0;
     battleVisualState.projectiles = [];
     battleVisualState.damageTexts = [];
@@ -5873,19 +5877,19 @@ function openRingSlotOverlay(invIdx) {
     let item = game.inventory[invIdx];
     pendingRingEquipItemId = item && item.id ? item.id : null;
     let overlay = document.getElementById('ring-slot-overlay');
-    if (overlay) overlay.classList.add('active');
+    if (overlay && !overlay.open) overlay.showModal();
 }
 
 function openRingSlotOverlayByItemId(itemId) {
     pendingRingEquipItemId = Number.isFinite(itemId) ? itemId : null;
     let overlay = document.getElementById('ring-slot-overlay');
-    if (overlay) overlay.classList.add('active');
+    if (overlay && !overlay.open) overlay.showModal();
 }
 
 function closeRingSlotOverlay() {
     pendingRingEquipItemId = null;
     let overlay = document.getElementById('ring-slot-overlay');
-    if (overlay) overlay.classList.remove('active');
+    if (overlay) overlay.close();
 }
 
 function selectRingSlotFromOverlay(slot) {
@@ -5899,19 +5903,19 @@ function openGloveSlotOverlay(invIdx) {
     let item = game.inventory[invIdx];
     pendingGloveEquipItemId = item && item.id ? item.id : null;
     let overlay = document.getElementById('glove-slot-overlay');
-    if (overlay) overlay.classList.add('active');
+    if (overlay && !overlay.open) overlay.showModal();
 }
 
 function openGloveSlotOverlayByItemId(itemId) {
     pendingGloveEquipItemId = Number.isFinite(itemId) ? itemId : null;
     let overlay = document.getElementById('glove-slot-overlay');
-    if (overlay) overlay.classList.add('active');
+    if (overlay && !overlay.open) overlay.showModal();
 }
 
 function closeGloveSlotOverlay() {
     pendingGloveEquipItemId = null;
     let overlay = document.getElementById('glove-slot-overlay');
-    if (overlay) overlay.classList.remove('active');
+    if (overlay) overlay.close();
 }
 
 function selectGloveSlotFromOverlay(slot) {
@@ -5924,13 +5928,13 @@ function selectGloveSlotFromOverlay(slot) {
 function openWeaponSlotOverlayByItemId(itemId) {
     pendingWeaponEquipItemId = Number.isFinite(itemId) ? itemId : null;
     let overlay = document.getElementById('weapon-slot-overlay');
-    if (overlay) overlay.classList.add('active');
+    if (overlay && !overlay.open) overlay.showModal();
 }
 
 function closeWeaponSlotOverlay() {
     pendingWeaponEquipItemId = null;
     let overlay = document.getElementById('weapon-slot-overlay');
-    if (overlay) overlay.classList.remove('active');
+    if (overlay) overlay.close();
 }
 
 function selectWeaponSlotFromOverlay(slot) {
@@ -6790,25 +6794,25 @@ function initBattleAssets() {
         backdropAct9_10: 'assets/battlefield-act9-10.png',
 
         ...ACT_BATTLE_MAP_SOURCES,
-        bgChaos0: 'assets/background/chaos/endgame-0.png',
-        bgChaos1: 'assets/background/chaos/endgame-1.png',
-        bgChaos2: 'assets/background/chaos/endgame-2.png',
-        bgChaos3: 'assets/background/chaos/endgame-3.png',
-        bgChaos4: 'assets/background/chaos/endgame-4.png',
-        bgChaos5: 'assets/background/chaos/endgame-5.png',
-        bgChaos6: 'assets/background/chaos/endgame-6.png',
-        bgChaos7: 'assets/background/chaos/endgame-7.png',
-        bgChaos8: 'assets/background/chaos/endgame-8.png',
-        bgChaos9: 'assets/background/chaos/endgame-9.png',
-        bgChaos10: 'assets/background/chaos/endgame-10.png',
-        bgChaos11: 'assets/background/chaos/endgame-11.png',
-        bgChaos12: 'assets/background/chaos/endgame-12.png',
-        bgChaos13: 'assets/background/chaos/endgame-13.png',
-        bgChaos14: 'assets/background/chaos/endgame-14.png',
-        bgChaos15: 'assets/background/chaos/endgame-15.png',
-        bgChaos16: 'assets/background/chaos/endgame-16.png',
-        bgChaos17: 'assets/background/chaos/endgame-17.png',
-        bgChaos18: 'assets/background/chaos/loop-final.png',
+        bgChaos0: 'assets/background/refined-20260910/bgChaos0.webp',
+        bgChaos1: 'assets/background/refined-20260910/bgChaos1.webp',
+        bgChaos2: 'assets/background/refined-20260910/bgChaos2.webp',
+        bgChaos3: 'assets/background/refined-20260910/bgChaos3.webp',
+        bgChaos4: 'assets/background/refined-20260910/bgChaos4.webp',
+        bgChaos5: 'assets/background/refined-20260910/bgChaos5.webp',
+        bgChaos6: 'assets/background/refined-20260910/bgChaos6.webp',
+        bgChaos7: 'assets/background/refined-20260910/bgChaos7.webp',
+        bgChaos8: 'assets/background/refined-20260910/bgChaos8.webp',
+        bgChaos9: 'assets/background/refined-20260910/bgChaos9.webp',
+        bgChaos10: 'assets/background/refined-20260910/bgChaos10.webp',
+        bgChaos11: 'assets/background/refined-20260910/bgChaos11.webp',
+        bgChaos12: 'assets/background/refined-20260910/bgChaos12.webp',
+        bgChaos13: 'assets/background/refined-20260910/bgChaos13.webp',
+        bgChaos14: 'assets/background/refined-20260910/bgChaos11.webp',
+        bgChaos15: 'assets/background/refined-20260910/bgChaos10.webp',
+        bgChaos16: 'assets/background/refined-20260910/bgChaos9.webp',
+        bgChaos17: 'assets/background/refined-20260910/bgChaos1.webp',
+        bgChaos18: 'assets/background/refined-20260910/bgChaos18.webp',
         summon1: 'assets/summon/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
@@ -8491,6 +8495,10 @@ function snapCanvasRectToDevicePixels(ctx, x, y, width, height) {
     return { x: left, y: top, width: Math.max(1 / Math.abs(scaleX), right - left), height: Math.max(1 / Math.abs(scaleY), bottom - top) };
 }
 
+function getBattleActorDrawAlpha(ctx,alpha) {
+    return (alpha ?? 1)*(ctx.battleActorAlpha ?? 1);
+}
+
 function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     if (!rect) return;
     options = options || {};
@@ -8517,7 +8525,7 @@ function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     let dx = Math.round(x - sourceAnchorX * scale + drawOffsetX);
     let dy = Math.round(y - sourceAnchorY * scale + drawOffsetY);
     ctx.save();
-    ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
+    ctx.globalAlpha = getBattleActorDrawAlpha(ctx,options.alpha);
     if (options.smoothing === 'high') {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
@@ -8580,6 +8588,99 @@ function drawBattleTile(ctx, image, rect, x, y, size, options) {
     ctx.drawImage(image, sx, sy, sw, sh, dx, dy, dw, dh);
 }
 
+/** Save boundary: convert old projectile counts once; stat id records the new percent unit. */
+function migrateEquipmentProjectileOption(stat) {
+    if (!stat) return;
+    if (stat.id === 'projectileExtraShots') {
+        stat.id = 'projectileExtraChance';
+        for (const key of ['val', 'valMin', 'valMax', 'baseRollMin', 'baseRollMax', 'originalVal']) {
+            if (stat[key] !== null && Number.isFinite(Number(stat[key]))) stat[key] = Number(stat[key]) * 50;
+        }
+        stat.statName = getStatName(stat.id);
+    }
+    (stat.extraStats || []).forEach(migrateEquipmentProjectileOption);
+}
+
+function migrateEquipmentAffixValue(stat, mod, preserveValue = stat.affixBalanceVersion >= 1) {
+    const tier = Math.max(1, Math.min(mod.tierValues.length, stat.tier || 1));
+    const range = mod.tierValues[tier - 1];
+    const [min, max] = Array.isArray(range) ? range : [range, range];
+    const oldWidth = stat.valMax - stat.valMin;
+    const rank = oldWidth > 0 ? Math.max(0, Math.min(1, (stat.val - stat.valMin) / oldWidth)) : 0.5;
+    const step = mod.valueStep || (Number.isInteger(min) && Number.isInteger(max) ? 1 : 0.01);
+    // Version 2 only widens tier ranges downwards: keep existing rolls, including crafting bonuses.
+    if (!preserveValue) stat.val = Number((min + Math.round(rank * (max - min) / step) * step).toFixed(2));
+    Object.assign(stat, {valMin:min, valMax:max, tier, valueStep:step, fixedValue:!!mod.fixedValue,
+        sourceModId:mod.id, affixBalanceVersion:mod.affixBalanceVersion, statName:mod.statName || getStatName(stat.id)});
+}
+
+function findStoredEquipmentAffix(item, stat) {
+    const candidates = MOD_DB.filter(mod => mod.slots.includes(item.slot) && (mod.statId || mod.id) === stat.id)
+        .map(mod => makeDualDefenseAffixMod(item, mod));
+    const extraIds = (stat.extraStats || []).map(extra => extra.id);
+    return candidates.find(row => row.id === stat.sourceModId)
+        || candidates.find(row => getExplicitModStatIds(row).filter(id => id !== stat.id)
+            .every(id => extraIds.includes(id)) && (row.compound || []).length === extraIds.length);
+}
+
+function migrateEquipmentAffixBalance(item) {
+    [...item.baseStats, ...item.stats, item.underEnchant, item.chaosInfusion].forEach(migrateEquipmentProjectileOption);
+    if (item.rarity === 'unique' || isGrowthItem(item)) return;
+    for (const stat of item.stats) {
+        if (stat.affixBalanceVersion >= 2 || !stat.tier || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore) continue;
+        const mod = findStoredEquipmentAffix(item, stat);
+        if (!mod) continue;
+        const preserveValue = stat.affixBalanceVersion >= 1;
+        migrateEquipmentAffixValue(stat, mod);
+        (stat.extraStats || []).forEach(extra => {
+            const sub = mod.compound.find(row => (row.statId || row.id) === extra.id);
+            if (sub) migrateEquipmentAffixValue(extra, sub, preserveValue);
+        });
+    }
+}
+
+function syncStoredUniqueEffect(item) {
+    if (item.rarity !== 'unique') return;
+    const source = UNIQUE_DB.find(unique => unique.syncEffectOnLoad && unique.name === item.name);
+    if (!source) return;
+    item.uniqueEffect = source.uniqueEffect || '';
+    item.uniqueEffectKey = source.uniqueEffectKey || '';
+    item.uniqueEffectParams = source.uniqueEffectParams ? JSON.parse(JSON.stringify(source.uniqueEffectParams)) : null;
+}
+
+// legacyDamageBase is the pre-2026-09-11 definition. Keep rolled rank and exceptional overflow,
+// and mark each base stat once; hidden/affix tiers never determine weapon base strength.
+function migrateWeaponBaseDamage(item) {
+    if (item.slot !== '무기') return;
+    if (item.baseStats.every(stat => stat.baseDamageBalanceVersion >= 1
+        || !['flatDmg', 'spellFlatDmg'].includes(stat.id))) return;
+    const base = BASE_ITEM_DB.find(row => row.id === item.baseId)
+        || BASE_ITEM_DB.find(row => row.slot === '무기' && row.name === item.baseName);
+    if (!base || base.slot !== '무기') return;
+    for (const stat of item.baseStats) {
+        if (stat.baseDamageBalanceVersion >= 1) continue;
+        const definition = base.baseStats.find(row => row.id === stat.id && row.legacyDamageBase > 0);
+        if (definition) migrateWeaponBaseDamageStat(stat, definition);
+    }
+}
+
+function migrateWeaponBaseDamageStat(stat, definition) {
+    const oldMin = Math.max(1, Math.floor(definition.legacyDamageBase * 0.8));
+    const oldMax = Math.max(oldMin, Math.floor(definition.legacyDamageBase * 1.2));
+    const nextMin = Math.max(1, Math.floor(definition.base * 0.8));
+    const nextMax = Math.max(nextMin, Math.floor(definition.base * 1.2));
+    const convert = value => {
+        if (value > oldMax) return Math.floor(value * nextMax / oldMax);
+        if (value < oldMin) return Math.floor(value * nextMin / oldMin);
+        const rank = oldMax > oldMin ? (value - oldMin) / (oldMax - oldMin) : 0.5;
+        return nextMin + Math.round(rank * (nextMax - nextMin));
+    };
+    stat.val = convert(stat.val);
+    if (Number.isFinite(stat.originalVal)) stat.originalVal = convert(stat.originalVal);
+    Object.assign(stat, {valMin:nextMin, valMax:nextMax, baseRollMin:nextMin, baseRollMax:nextMax,
+        baseDamageBalanceVersion:1});
+}
+
 function normalizeItem(item) {
     if (!item) return null;
     function coerceFiniteNumber(value, fallback) {
@@ -8608,6 +8709,7 @@ function normalizeItem(item) {
             statName: stat.statName || getStatName(stat.id),
             originalVal: coerceFiniteNumber(stat.originalVal ?? NaN, null)
         };
+        normalized.craftSource = equipmentCrafting.getSource(stat);
         // 복합 옵션의 추가 스탯도 정규화한다.
         if (Array.isArray(stat.extraStats)) {
             normalized.extraStats = stat.extraStats.map(normalizeStatRecord).filter(Boolean);
@@ -8672,17 +8774,10 @@ function normalizeItem(item) {
     }
     item.baseName = item.baseName || item.name || '알 수 없는 장비';
     item.name = item.name || item.baseName;
-    let syncedUnique = item.rarity === 'unique'
-        ? UNIQUE_DB.find(unique => unique && unique.syncEffectOnLoad && unique.name === item.name)
-        : null;
-    if (syncedUnique) {
-        item.uniqueEffect = syncedUnique.uniqueEffect || '';
-        item.uniqueEffectKey = syncedUnique.uniqueEffectKey || '';
-        item.uniqueEffectParams = syncedUnique.uniqueEffectParams
-            ? JSON.parse(JSON.stringify(syncedUnique.uniqueEffectParams))
-            : null;
-    }
+    syncStoredUniqueEffect(item);
     item.locked = !!item.locked;
+    migrateWeaponBaseDamage(item);
+    migrateEquipmentAffixBalance(item);
     item.hallReplica = !!item.hallReplica;
     item.hallRelistBlocked = !!item.hallRelistBlocked;
     if (item.hallReplica) {
@@ -8693,7 +8788,7 @@ function normalizeItem(item) {
         item.hallCuratorName = String(item.hallCuratorName || '').slice(0, 24);
     }
     if (!item.id) item.id = ++itemIdCounter;
-    return item;
+    return levelProgression.stampItem(item);
 }
 
 function getItemCraftTier(item) {
@@ -8756,6 +8851,14 @@ function getCraftTierRangeForItem(item, source) {
     let maxTier = getItemCraftTier(item);
     if (maxTier < 11) return { min: 1, max: maxTier };
     return { min: source === 'spore' ? 9 : 10, max: maxTier };
+}
+
+/** Includes legacy special rolls that predate fixedValue metadata. Does not change their values. */
+function isFixedEquipmentAffix(stat) {
+    if (stat.fixedValue) return true;
+    if (!stat.fossilExclusive && !stat.fossilExclusiveDrop && !stat.fossilExclusiveSpore) return false;
+    if (stat.fossilExclusive && !stat.tier) return true;
+    return FOSSIL_EXCLUSIVE_MODS.some(mod => (mod.statId || mod.id) === stat.id && mod.step === 0);
 }
 
 function getTierVisualLevel(tierValue) {
@@ -8850,48 +8953,56 @@ function getBeltFlaskUtilSlotRollRange(zoneTier) {
     return null;
 }
 
+function getBaseStatRollRange(stat) {
+    let minBase = Number.isFinite(stat.baseMin) ? stat.baseMin : ((stat.base || 0) * 0.8);
+    let maxBase = Number.isFinite(stat.baseMax) ? stat.baseMax : ((stat.base || 0) * 1.2);
+    let scale = (stat.id === 'energyShield') ? 1.5 : 1;
+    let scaledMin = minBase * scale;
+    let scaledMax = maxBase * scale;
+    let usesDecimalRoll = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+    if (scaledMax > 0) {
+        let positiveMinimum = usesDecimalRoll ? 0.1 : 1;
+        scaledMin = Math.max(positiveMinimum, scaledMin);
+        scaledMax = Math.max(scaledMin, scaledMax);
+    }
+    return { scaledMin, scaledMax, usesDecimalRoll };
+}
+
+function rollBaseStat(stat) {
+    let { scaledMin, scaledMax, usesDecimalRoll } = getBaseStatRollRange(stat);
+    let val;
+    if (usesDecimalRoll) {
+        let minStep = Math.round(scaledMin * 10);
+        let maxStep = Math.round(scaledMax * 10);
+        val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
+        scaledMin = minStep / 10;
+        scaledMax = maxStep / 10;
+    } else {
+        scaledMin = Math.floor(scaledMin);
+        scaledMax = Math.floor(scaledMax);
+        if (scaledMax > 0) scaledMin = Math.max(1, scaledMin);
+        val = scaledMin + Math.floor(Math.random() * (scaledMax - scaledMin + 1));
+    }
+    if (stat.id === 'flatDmg') {
+        scaledMin = Math.max(1, scaledMin);
+        scaledMax = Math.max(scaledMin, scaledMax);
+        val = Math.max(1, val);
+    }
+    return {
+        id: stat.id,
+        val: val,
+        valMin: scaledMin,
+        valMax: scaledMax,
+        baseRollMin: scaledMin,
+        baseRollMax: scaledMax,
+        ...(stat.legacyDamageBase > 0 ? { baseDamageBalanceVersion: 1 } : {}),
+        tier: 0,
+        statName: getStatName(stat.id)
+    };
+}
+
 function rollBaseStats(base, zoneTier) {
-    let rolled = base.baseStats.map(stat => {
-        let minBase = Number.isFinite(stat.baseMin) ? stat.baseMin : ((stat.base || 0) * 0.8);
-        let maxBase = Number.isFinite(stat.baseMax) ? stat.baseMax : ((stat.base || 0) * 1.2);
-        let scale = (stat.id === 'energyShield') ? 1.5 : 1;
-        let scaledMin = minBase * scale;
-        let scaledMax = maxBase * scale;
-        let usesDecimalRoll = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
-        if (scaledMax > 0) {
-            let positiveMinimum = usesDecimalRoll ? 0.1 : 1;
-            scaledMin = Math.max(positiveMinimum, scaledMin);
-            scaledMax = Math.max(scaledMin, scaledMax);
-        }
-        let val;
-        if (usesDecimalRoll) {
-            let minStep = Math.round(scaledMin * 10);
-            let maxStep = Math.round(scaledMax * 10);
-            val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
-            scaledMin = minStep / 10;
-            scaledMax = maxStep / 10;
-        } else {
-            scaledMin = Math.floor(scaledMin);
-            scaledMax = Math.floor(scaledMax);
-            if (scaledMax > 0) scaledMin = Math.max(1, scaledMin);
-            val = scaledMin + Math.floor(Math.random() * (scaledMax - scaledMin + 1));
-        }
-        if (stat.id === 'flatDmg') {
-            scaledMin = Math.max(1, scaledMin);
-            scaledMax = Math.max(scaledMin, scaledMax);
-            val = Math.max(1, val);
-        }
-        return {
-            id: stat.id,
-            val: val,
-            valMin: scaledMin,
-            valMax: scaledMax,
-            baseRollMin: scaledMin,
-            baseRollMax: scaledMax,
-            tier: 0,
-            statName: getStatName(stat.id)
-        };
-    });
+    let rolled = base.baseStats.map(rollBaseStat);
     if (base.slot === '허리띠') {
         let range = getBeltFlaskUtilSlotRollRange(zoneTier);
         if (range) {
@@ -8919,9 +9030,11 @@ function rollTierValueAffix(mod, statId, tier) {
     let max = Array.isArray(range) ? Number(range[1]) : min;
     if (!Number.isFinite(min)) min = Number(mod.base) || 0;
     if (!Number.isFinite(max)) max = min;
-    if (max < min) { let tmp = min; min = max; max = tmp; }
-    let val = min + Math.floor(Math.random() * (Math.floor(max) - Math.floor(min) + 1));
-    return { id: statId, val: val, valMin: Math.floor(min), valMax: Math.floor(max), tier: effectiveTier, statName: mod.statName };
+    [min, max] = [Math.min(min, max), Math.max(min, max)];
+    const valueStep = mod.valueStep || (Number.isInteger(min) && Number.isInteger(max) ? 1 : 0.01);
+    const val = Number((min + Math.floor(Math.random() * (Math.round((max - min) / valueStep) + 1)) * valueStep).toFixed(2));
+    return { id: statId, val, valMin: min, valMax: max, tier: effectiveTier, statName: mod.statName,
+        valueStep, fixedValue: !!mod.fixedValue, sourceModId: mod.id, affixBalanceVersion: mod.affixBalanceVersion };
 }
 
 function rerollStoredAffixValue(stat, growthItem) {
@@ -8933,7 +9046,11 @@ function rerollStoredAffixValue(stat, growthItem) {
         stat.val = rollGrowthAffixNumber(stat.id, min, max).val;
         return;
     }
-    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
+    if (stat.valueStep) {
+        stat.val = Number((min + Math.floor(Math.random() * (Math.round((max - min) / stat.valueStep) + 1)) * stat.valueStep).toFixed(2));
+        return;
+    }
+    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
         stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -8958,7 +9075,7 @@ function rollCompoundExtraStats(mod, tier, roundInteger) {
             val = rolled.val;
             min = rolled.min;
             max = rolled.max;
-        } else if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(subId)) {
+        } else if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(subId)) {
             let minStep = Math.round(min * 10);
             let maxStep = Math.round(max * 10);
             val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -8994,7 +9111,7 @@ function rollAffixValue(mod, maxTier, opts) {
             val = rolled.val;
             min = rolled.min;
             max = rolled.max;
-        } else if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+        } else if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
             let minStep = Math.round(min * 10);
             let maxStep = Math.round(max * 10);
             val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -9007,7 +9124,7 @@ function rollAffixValue(mod, maxTier, opts) {
             if (max > 0) min = Math.max(1, min);
             val = min + Math.floor(Math.random() * (max - min + 1));
         }
-        result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
+        result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName, fixedValue: !!mod.fixedValue };
     }
     let extras = rollCompoundExtraStats(mod, result.tier, roundInteger);
     if (extras) result.extraStats = extras;
@@ -9060,7 +9177,7 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
             val = rolled.val;
             min = rolled.min;
             max = rolled.max;
-        } else if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
+        } else if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(statId)) {
             let minStep = Math.round(min * 10);
             let maxStep = Math.round(max * 10);
             val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -9072,7 +9189,7 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
             if (max > 0) min = Math.max(1, min);
             val = min + Math.floor(Math.random() * (max - min + 1));
         }
-        result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName };
+        result = { id: statId, val: val, valMin: min, valMax: max, tier: tier, statName: mod.statName, fixedValue: !!mod.fixedValue };
     }
     let extras = rollCompoundExtraStats(mod, result.tier, false);
     if (extras) result.extraStats = extras;
@@ -9239,11 +9356,18 @@ function getDefenseTypeForAffixStat(statId) {
 }
 
 function scaleDefenseCompoundStat(source, statId) {
+    const scaledRanges = source.tierValues?.map(range => (Array.isArray(range) ? range : [range, range])
+        .map(value => Number((value * DUAL_DEFENSE_AFFIX_RATIO).toFixed(2))));
+    const valueStep = scaledRanges?.flat().every(Number.isInteger) ? 1 : 0.01;
     return {
         statId: statId,
         statName: getStatName(statId),
         base: (Number(source && source.base) || 0) * DUAL_DEFENSE_AFFIX_RATIO,
-        step: (Number(source && source.step) || 0) * DUAL_DEFENSE_AFFIX_RATIO
+        step: (Number(source && source.step) || 0) * DUAL_DEFENSE_AFFIX_RATIO,
+        affixBalanceVersion: source.affixBalanceVersion,
+        valueStep,
+        tierValues: scaledRanges?.map((range, index) => index === 0 ? range
+            : [Number((scaledRanges[index - 1][1] + valueStep).toFixed(2)), range[1]])
     };
 }
 
@@ -9301,6 +9425,10 @@ function getAvailableModSlotsForItem(item) {
     return [item && item.slot].filter(Boolean);
 }
 
+function getExplicitModStatIds(mod) {
+    return [mod.statId || mod.id, ...(mod.compound || []).map(sub => sub.statId || sub.id)];
+}
+
 function getAvailableMods(item) {
     let existing = getItemOccupiedExplicitModIds(item);
     let growthItem = typeof isGrowthItem === 'function' && isGrowthItem(item);
@@ -9322,11 +9450,14 @@ function getAvailableMods(item) {
         if (item.slot === '무기' && summonOnlyModIds.has(statId) && !isSummonBaseWeapon) return false;
         if (item.slot === '반지' && summonOnlyModIds.has(statId) && !isSummonBaseRing) return false;
         if (!isPrimaryDualDefenseAffixMod(item, mod)) return false;
-        return allowedSlots.some(slot => mod.slots.includes(slot)) && !existing.has(statId);
+        return allowedSlots.some(slot => mod.slots.includes(slot))
+            && !getExplicitModStatIds(makeDualDefenseAffixMod(item, mod)).some(id => existing.has(id));
     }).map(mod => {
         if (!growthItem) return makeDualDefenseAffixMod(item, mod);
         let growthValues = getGrowthAffixValueDef(mod.id);
         let growthMod = { ...mod, ...growthValues, growthAffix: true };
+        delete growthMod.tierValues;
+        delete growthMod.affixBalanceVersion;
         if (growthValues.compound) growthMod.compound = growthValues.compound.map(stat => ({ ...stat }));
         return makeDualDefenseAffixMod(item, growthMod);
     });
@@ -9445,7 +9576,7 @@ function rollChaosInfusionOption(option) {
     if (!Number.isFinite(max)) max = min;
     if (max < min) { let tmp = min; min = max; max = tmp; }
     let val;
-    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(option.id)) {
+    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(option.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
         val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;
@@ -9759,6 +9890,7 @@ function createItemFromBase(base, rarity, zoneTier, origin) {
         itemTier: zoneTier,
         hiddenTier: Math.max(1, Math.floor(Number(zoneTier) || 1)),
         affixTierCap: affixTierCap,
+        itemLevel: levelProgression.tierLevel(zoneTier), requirementsVersion: 1,
         dropRealm: dropRealm,
         baseStats: rollBaseStats(base, zoneTier),
         stats: []
@@ -9790,8 +9922,8 @@ function pickRandomMods(mods, count) {
         let picked = pickWeightedMod(pool);
         if (!picked) break;
         picks.push(picked);
-        let idx = pool.findIndex(mod => mod.id === picked.id);
-        if (idx >= 0) pool.splice(idx, 1);
+        const occupied = new Set(getExplicitModStatIds(picked));
+        pool = pool.filter(mod => !getExplicitModStatIds(mod).some(id => occupied.has(id)));
     }
     return picks;
 }
@@ -9801,7 +9933,7 @@ function rollUniqueStatValue(stat) {
     let max = stat.max !== undefined ? stat.max : stat.base;
     if (max < min) max = min;
     let val;
-    if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
+    if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
         let minStep = Math.round(min * 10);
         let maxStep = Math.round(max * 10);
         let roll = minStep + Math.floor(Math.random() * (maxStep - minStep + 1));
@@ -9947,9 +10079,9 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
     unique.stats.forEach(stat => {
         let rolled = rollUniqueStatValue(stat);
         let boost = 1;
-        let val = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
-        let min = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
-        let max = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
+        let val = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.val * boost * 10) / 10 : Math.floor(rolled.val * boost);
+        let min = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.min * boost * 10) / 10 : Math.floor(rolled.min * boost);
+        let max = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id) ? Math.round(rolled.max * boost * 10) / 10 : Math.floor(rolled.max * boost);
         item.stats.push({ id: stat.id, val: val, valMin: min, valMax: max, tier: 0, statName: getStatName(stat.id) });
     });
     if (unique.ultraRare && canRollChase) {
@@ -9959,7 +10091,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName) {
         addLog(`🌠 체이싱 유니크 발견! [${unique.name}]`, 'loot-unique');
     }
     maybeApplyExceptionalBase(item);
-    return item;
+    return levelProgression.stampItem(item);
 }
 
 function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
@@ -9990,14 +10122,15 @@ function getEquipmentDropSlot(options) {
 
 function generateEquipmentDrop(enemy, options) {
     let zone = options && options.zone ? options.zone : (getZone(game.currentZoneId) || {});
-    let hiddenTierCap = getRealmEquipmentHiddenTierCap(zone);
-    let dropTier = rollRealmItemDropTier(zone, enemy);
-    let affixTierCap = getRealmEquipmentAffixTierCap(zone, dropTier);
+    const itemLevel = levelProgression.monsterLevel(zone, enemy);
+    let hiddenTierCap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
+    let dropTier = Math.min(rollRealmItemDropTier(zone, enemy), levelProgression.maxDropTier(itemLevel));
+    let affixTierCap = Math.min(levelProgression.affixCap(itemLevel), getRealmEquipmentAffixTierCap(zone, dropTier));
     let affixTierRange = getDroppedAffixTierRange(affixTierCap);
     let slot = getEquipmentDropSlot(options);
     let base = chooseItemBase(slot, dropTier);
     let rarity = getEquipmentDropRarity(enemy, Math.random());
-    if (rarity === 'unique') return generateUniqueItem(hiddenTierCap, slot);
+    if (rarity === 'unique') return levelProgression.stampItem(generateUniqueItem(hiddenTierCap, slot), itemLevel);
     let minimumRarity = options && ['normal', 'magic', 'rare'].includes(options.minimumRarity) ? options.minimumRarity : null;
     if (minimumRarity && getRarityRank(rarity) < getRarityRank(minimumRarity)) rarity = minimumRarity;
     let item = createItemFromBase(base, rarity, dropTier, {
@@ -10008,7 +10141,7 @@ function generateEquipmentDrop(enemy, options) {
     });
     maybeApplyExceptionalBase(item);
     item = maybeApplyDroppedFossilExclusiveAffix(item, enemy, dropTier);
-    return maybeApplyChaosRealmEncroachment(item, enemy, zone);
+    return levelProgression.stampItem(maybeApplyChaosRealmEncroachment(item, enemy, zone), itemLevel);
 }
 
 // 장비 드랍 시, 각 베이스 옵션 줄마다 독립적으로 1% 확률로 '특출'해진다(최대 롤 +20%).
@@ -10021,7 +10154,7 @@ function maybeApplyExceptionalBase(item) {
         let max = Number.isFinite(stat.baseRollMax) ? stat.baseRollMax
             : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
         let boosted = max * 1.2;
-        let usesDecimal = ['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
+        let usesDecimal = ['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id);
         if (usesDecimal) boosted = Math.round(boosted * 10) / 10;
         else boosted = Math.max(1, Math.floor(boosted));
         stat.val = boosted;
@@ -10634,7 +10767,7 @@ function generateJewelDrop(zoneOrTier) {
         let row = (canRollUltra && Math.random() < 0.08) ? rndChoice(ultraPool) : baseRow;
         // 고유 주얼: 구성은 그대로 두고 파워만 약간(+10%) 상승
         let uniquePower = 1.1;
-        let decimalIds = new Set(['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap']);
+        let decimalIds = new Set(['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap']);
         let stats = (row.stats || []).map(st => {
             let boosted = decimalIds.has(st.id) ? Math.round(st.val * uniquePower * 10) / 10 : Math.round(st.val * uniquePower);
             return makeFixedJewelStat(st.id, boosted);
@@ -11680,7 +11813,7 @@ function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return 
     if (item.corrupted) return addLog('타락한 아이템에는 사용할 수 없습니다.', 'attack-monster');
     let cost = 8;
     if ((game.currencies.sporeFire || 0) < cost || (game.currencies.sporeCold || 0) < cost || (game.currencies.sporeLight || 0) < cost) return addLog(`부패 홀씨에는 각 속성 홀씨 ${cost}개가 필요합니다.`, 'attack-monster');
-    let ids = new Set(['firePctDmg','coldPctDmg','lightPctDmg','elementalPctDmg','resF','resC','resL']);
+    let ids = new Set(['fireFlatDmg','coldFlatDmg','lightFlatDmg','firePctDmg','coldPctDmg','lightPctDmg','elementalPctDmg','resF','resC','resL']);
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     let candidates = item.stats.map((stat, idx) => ({ stat, idx })).filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift && ids.has(row.stat.id));
     if (candidates.length <= 0) return addLog('제거할 원소 계열 옵션이 없습니다.', 'attack-monster');
@@ -11701,7 +11834,8 @@ function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return add
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
-    if (item.corrupted) return addLog('타락한 아이템에는 사용할 수 없습니다.', 'attack-monster');
+    const craftBlock = equipmentCrafting.getBlockReason(item, 'fossil');
+    if (craftBlock) return addLog(craftBlock, 'attack-monster');
     if ((game.currencies.fossil || 0) < 1 || (game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return addLog('균열 홀씨에는 미궁 화석 1개와 각 속성 홀씨 5개가 필요합니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     if (item.stats.length >= 6) return addLog('옵션이 가득 차 있습니다.', 'attack-monster');
@@ -11713,6 +11847,7 @@ function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return add
     game.currencies.sporeLight -= 5;
     let roll = rollAffixValue(pickWeightedMod(pool), getItemCraftTier(item));
     roll.fossilExclusiveSpore = true;
+    roll.craftSource = 'fossil';
     item.stats.push(roll);
     item.rarity = item.rarity === 'normal' ? 'magic' : item.rarity;
     updateItemName(item);
@@ -11872,15 +12007,7 @@ async function useCurrency(currencyKey, paymentSource) {
     if (!payment?.affordable) return addLog("제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.", "attack-monster");
     // 석판은 정체성이 곧 효과라 제작 재화를 받지 않는다.
     if (item.growthCategory === 'slab') return addLog("석판은 제작할 수 없습니다.", "attack-monster");
-    let actionKey = currencyKey;
-    if (currencyKey === 'magicBud') actionKey = item.rarity === 'normal' ? 'transmute' : 'alteration';
-    if (currencyKey === 'sapBud') actionKey = item.rarity === 'magic' ? 'regal' : 'exalted';
-    if (currencyKey === 'formlessDew') actionKey = item.rarity === 'normal' ? 'alchemy' : 'chaos';
-    if (currencyKey === 'goldenRule') actionKey = 'divine';
-    if (currencyKey === 'fairyRing') actionKey = 'chance';
-    if (currencyKey === 'pruningShears') actionKey = 'annulment';
-    if (currencyKey === 'blightSpore') actionKey = 'scour';
-    if (currencyKey === 'emberBranch') actionKey = 'tainted';
+    let actionKey = equipmentCrafting.resolveAction(currencyKey, item.rarity);
     if (item.corrupted && actionKey !== 'tainted') return addLog("타락한 아이템은 더 이상 제작할 수 없습니다.", "attack-monster");
     if (item.fusedRelic && !['divine', 'tainted', 'blessing'].includes(currencyKey)) return addLog("융합 유물은 시간에 굳어, 신성한/타락/축복의 오브만 받아들입니다.", "attack-monster");
 
@@ -11930,6 +12057,8 @@ async function useCurrency(currencyKey, paymentSource) {
     // 홀씨 태그 보장은 장비 제작 전용이다. 생장판 제작대가 이 함수를
     // 재사용하더라도 장비 화면에 남은 모드를 적용하거나 홀씨를 소모하지 않는다.
     let sporeMode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
+    const sporeBlock = equipmentCrafting.getSporeBlockReason(item, actionKey, sporeMode);
+    if (sporeBlock) return addLog(sporeBlock, 'attack-monster');
     function consumeSpore(mode) {
         if (mode === 'none') return true;
         if (!hasSporeCraftCost(mode)) return false;
@@ -11941,29 +12070,19 @@ async function useCurrency(currencyKey, paymentSource) {
     }
     function getSporeGuaranteedMod(allowReplacement) {
         if (sporeMode === 'none') return null;
-        let poolMap = {
-            fire: ['firePctDmg','resF','aspd','crit','critDmg','resPen','ds','targetAny','targetProjectile'],
-            cold: ['coldPctDmg','resC','crit','critDmg','aspd','ds','targetAny','targetProjectile'],
-            light: ['lightPctDmg','resL','aspd','ds','crit','critDmg','targetAny','targetProjectile'],
-            chaos: ['chaosPctDmg','resChaos','dotPctDmg','resPen','leech','regenSuppress','targetAny','targetProjectile'],
-            damage: ['firePctDmg','coldPctDmg','lightPctDmg','chaosPctDmg','pctDmg','dotPctDmg','critDmg','dr']
-        };
-        let ids = new Set(poolMap[sporeMode] || []);
         let rerollItem = allowReplacement ? {
             ...item,
             stats: (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift))
         } : item;
         let source = getAvailableMods(rerollItem);
-        let avail = source.filter(mod => ids.has(mod.statId || mod.id));
+        let avail = equipmentCrafting.filterSporeMods(source, sporeMode);
         return pickWeightedMod(avail);
     }
     function rollSporeGuaranteedValue(mod) {
         if (!mod) return null;
         let range = getCraftTierRangeForItem(item, 'spore');
-        // 일반 드랍 대비 약 +2티어 보정. 숨겨진 11티어 이상 장비는 홀씨 전용 범위(9~숨은 티어)를 사용한다.
-        let boostedTier = Math.min(range.max, Math.max(range.min, getItemCraftTier(item)) + 2);
-        let minTier = Math.max(range.min, boostedTier - 1);
-        return rollAffixValueInTierRange(mod, minTier, boostedTier);
+        // 계열을 보장하되 최상위 두 티어를 확정하지 않는다. 정의된 홀씨 티어 범위 전체에서 굴린다.
+        return { ...rollAffixValueInTierRange(mod, range.min, range.max), craftSource: 'spore' };
     }
     function applyGuaranteedToNonLocked(modOverride) {
         let modToApply = modOverride || guaranteedMod || getSporeGuaranteedMod();
@@ -12126,7 +12245,7 @@ async function useCurrency(currencyKey, paymentSource) {
                 baseMin = baseMax;
                 baseMax = tmp;
             }
-            if (['leech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
+            if (['leech', 'spellLeech', 'regen', 'regenSuppress', 'leechRateCap', 'leechTotalCap', 'leechInstanceCap'].includes(stat.id)) {
                 let minStep = Math.round(baseMin * 10);
                 let maxStep = Math.round(baseMax * 10);
                 stat.val = (minStep + Math.floor(Math.random() * (maxStep - minStep + 1))) / 10;

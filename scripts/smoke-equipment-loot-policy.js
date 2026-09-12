@@ -64,7 +64,7 @@ assert.strictEqual(policy.collectHighlights(before,after).total,12);
 assert.strictEqual(policy.collectHighlights(before,after).items.length,5,'return summary caps visual detail without losing the total');
 assert.strictEqual(policy.highlight(item(900),state),null,'ordinary rare drops do not all receive a major celebration');
 
-state.offlineProgress.stashLevel=0;state.inventory=[];state.settings.itemFilterEnabled=false;
+state.offlineProgress.stashLevel=0;state.inventory=[];state.settings.itemFilterEnabled=false;state.isBackgroundCalculation=false;
 r.Math.random=()=>0.5;
 const probe=r.generateEquipmentDrop({isBoss:true});
 const option=probe.stats[0];

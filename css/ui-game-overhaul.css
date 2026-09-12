@@ -1631,31 +1631,33 @@ body.light-mode #item-tab-equip .equipment-inventory-grid {
 }
 }
 
-/* First-flow map hierarchy: location, recommendation, then one explicit action. */
+/* First-flow map hierarchy: current location, next progression, explicit action. */
 .map-route-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  margin: 0 0 12px;
-  padding: 12px 14px;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
   border: 1px solid rgba(211, 176, 97, .55);
   border-radius: 11px;
-  background: linear-gradient(135deg, rgba(73, 51, 18, .76), rgba(16, 39, 58, .92) 68%);
+  background: var(--ui-surface-2);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 8px 22px rgba(0,0,0,.2);
 }
 
 .map-route-copy { display: grid; min-width: 0; gap: 2px; }
-.map-route-kicker { color: #e4bd67; font-size: 9px; font-weight: 900; letter-spacing: .18em; }
-.map-route-copy strong { overflow: hidden; color: #fff3c5; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
-.map-route-copy small { color: #d6e0ea; font-size: 10px; }
+.map-route-kicker { color: var(--ui-text-2); font-size: 11px; font-weight: 500; letter-spacing: 0; }
+.map-route-copy strong { overflow: hidden; color: var(--ui-text); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.map-route-copy small { color: var(--ui-text-2); font-size: 11px; }
 .map-route-action,
 .map-enter-btn { border-color: #5489af; color: #fff; background: linear-gradient(180deg, #2e6d95, #17425f); font-weight: 900; }
 .map-route-action { flex: 0 0 auto; min-height: 38px; }
-.map-item[role="group"] { cursor: default; }
-.map-item[role="group"].is-cleared:not(.current) { border-color: rgba(76, 103, 128, .64); background: rgba(17, 27, 39, .82); }
+.map-item[role="group"] { cursor: default; flex-direction: column; align-items: stretch; gap: 12px; }
+.map-item[role="group"].is-cleared:not(.current) { border-color: var(--ui-line); background: var(--ui-surface-1); }
 .map-item[role="group"].is-recommended { border-color: #d8b45d; box-shadow: 0 0 0 1px rgba(216,180,93,.22), 0 8px 20px rgba(0,0,0,.22); }
-.map-item[role="group"] .map-item-actions { justify-content: flex-end; flex-wrap: wrap; }
+.map-item[role="group"] .map-item-actions { justify-content: flex-end; flex-wrap: wrap; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--ui-line); }
+.map-item[role="group"] .map-item-main { align-items: flex-start; font-size: 14px; line-height: 1.5; }
+.map-item[role="group"] .map-state-badge { margin-right: auto; }
 .map-state-badge { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 7px; border: 1px solid #4c6177; border-radius: 999px; color: #e4edf5; background: #1a2837; font-size: 9px; font-weight: 900; }
 .map-state-badge.current { border-color: #73b8e8; color: #d9f2ff; background: #173d58; }
 .map-state-badge.cleared { border-color: #506779; color: #afbfcc; background: #18232d; }

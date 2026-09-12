@@ -64,6 +64,71 @@ async function inspectCenteredPassive(page, mobile) {
     return tooltip;
 }
 
+
+test('equipment affix chance and attack spell leech remain readable', async ({page},testInfo) => {
+    const failures=watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle=null; game.combatHalted=true;
+        const base=BASE_ITEM_DB.find(row=>row.slot==='무기');
+        const weapon=createItemFromBase(base,'rare',20);
+        weapon.name='옵션 검증 무기';
+        weapon.stats=[
+            {id:'projectileExtraChance',val:550,valMin:550,valMax:575,tier:10},
+            {id:'leech',val:1.25,valMin:1.2,valMax:1.3,tier:10},
+            {id:'spellLeech',val:1.68,valMin:1.68,valMax:1.68,tier:20},
+            {id:'suppCap',val:1,tier:1,fixedValue:true},
+            {id:'attackPctDmg',val:100,tier:20},
+            {id:'spellPctDmg',val:100,tier:20}
+        ];
+        weapon.stats.forEach(stat=>stat.affixBalanceVersion=1);
+        game.equipment['무기']=weapon;
+        game.inventory=[{...structuredClone(weapon),id:weapon.id+10000}];
+        switchTab('tab-items');switchItemSubtab('item-tab-equip');updateStaticUI();
+    });
+    await dismissVisibleTutorials(page);
+    const mobileInventory=page.locator('#btn-equipment-mobile-inventory');
+    if(await mobileInventory.isVisible()) await mobileInventory.click();
+    await page.locator('#ui-inventory-list .equipment-grid-item').first().click();
+    const details=page.locator('#ui-equipment-inventory-inspector');
+    await expect(details).toContainText('투사체 추가 발사 확률');
+    await expect(details).toContainText('550');
+    await expect(details).toContainText('공격 피해의 생명력 흡수');
+    await expect(details).toContainText('주문 피해의 생명력 흡수');
+    await expect(details).toContainText('[T0]');
+    await expect(details.locator('.equipment-affix-inactive').filter({hasText:'주문 피해의 생명력 흡수'}).first()).toBeVisible();
+    await expect(details.locator('.equipment-affix-inactive').filter({hasText:'주문 피해(%)'}).first()).toBeVisible();
+    await page.screenshot({path:testInfo.outputPath('affix-equipment.png')});
+    await page.evaluate(()=>{ game.passives=['n2c51dapljo']; updateStaticUI(); });
+    await expect(details.locator('.equipment-affix-inactive').filter({hasText:'주문 피해(%)'})).toHaveCount(0);
+    await expect(details.locator('.equipment-affix-inactive').filter({hasText:'주문 피해의 생명력 흡수'}).first()).toBeVisible();
+    await page.evaluate(()=>{
+        game.passives=[];
+        game.activeSkill=Object.keys(SKILL_DB).find(name=>SKILL_DB[name].tags.includes('spell'));
+        game.skills.push(game.activeSkill); updateStaticUI();
+    });
+    await expect(details.locator('.equipment-affix-inactive').filter({hasText:'공격 피해 증가(%)'}).first()).toBeVisible();
+    await expect(details.locator('.equipment-affix-inactive').filter({hasText:'주문 피해(%)'})).toHaveCount(0);
+    await page.screenshot({path:testInfo.outputPath('affix-spell.png')});
+    await page.evaluate(()=>{game.activeSkill='기본 공격';updateStaticUI();});
+    await page.keyboard.press('Escape');
+    await page.evaluate(()=>{switchTab('tab-character');updateStaticUI();document.querySelectorAll('#tab-character details').forEach(row=>row.open=true);});
+    await dismissVisibleTutorials(page);
+    if(testInfo.project.use.isMobile) await page.locator('#tab-character').getByRole('tab',{name:'방어 · 회복'}).tap();
+    for(const [id,value] of [['leech','1.23'],['spell-leech','1.49']]) {
+        const row=page.locator('#row-'+id);
+        await row.scrollIntoViewIfNeeded();
+        await expect(row).toBeVisible();
+        await expect(page.locator('#ui-'+id)).toHaveText(value);
+        await page.mouse.move(0,0);
+        if(testInfo.project.use.isMobile) await row.tap();
+        else await row.hover();
+        await expect(page.locator('#info-tooltip')).toContainText(id==='leech'?'공격 피해의 생명력 흡수':'주문 피해의 생명력 흡수');
+    }
+    await page.screenshot({path:testInfo.outputPath('affix-leech.png')});
+    expect(failures).toEqual([]);
+});
+
 test('login preloads bounded battle assets without frame polling and resumes after entry', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     const battleRequests = [];
@@ -194,7 +259,78 @@ test('tutorial buttons stay reachable on small and landscape screens', async ({ 
     expect(failures).toEqual([]);
 });
 
-test('duel keystone tooltip displays the current melee-only contract', async ({ page }, testInfo) => {
+test('journal entries open illustrated reading without inline artwork or duplicate rewards', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    const before = await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null;
+        game.season = 2;
+        game.journalEntries = ['prologue', 'act_9', 'woodsman'];
+        switchTab('tab-journal');
+        updateStaticUI();
+        return JSON.stringify(game.journalBonuses);
+    });
+    await dismissVisibleTutorials(page);
+    await page.screenshot({ path: testInfo.outputPath('journal-list.png'), scale: 'css' });
+    await expect(page.locator('#ui-journal-list img')).toHaveCount(0);
+    await page.locator('[data-journal-entry="act_9"]').click();
+    const reader = page.locator('#journal-reader');
+    await expect(reader).toBeVisible();
+    await expect(reader.locator('img')).toHaveCount(2);
+    await expect(reader).toContainText('고치에서 태어난 존재');
+    await expect(reader).toContainText('그녀가 품고 있던 고치가 열렸습니다.');
+    await expect.poll(() => reader.locator('img').evaluateAll(images => images.every(img => img.complete && img.naturalWidth === 1254))).toBe(true);
+    expect(await reader.locator('img').evaluateAll(images => images.every(img => img.src.includes('/unified-20260910/')))).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('journal-reader.png'), scale: 'css' });
+    expect(await reader.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await page.evaluate(() => document.body.classList.add('light-mode'));
+    await page.screenshot({ path: testInfo.outputPath('journal-reader-light.png'), scale: 'css' });
+    await reader.getByRole('button', { name: '닫기', exact: true }).click();
+    await expect(reader).not.toBeVisible();
+    await expect(page.locator('[data-journal-entry="act_9"]')).toBeFocused();
+    await page.locator('[data-journal-entry="woodsman"]').click();
+    await expect(reader.locator('img')).toHaveCount(0);
+    await expect(reader.locator('.story-scene-copy')).not.toBeEmpty();
+    await page.keyboard.press('Escape');
+    await expect(reader).not.toBeVisible();
+    await expect(page.locator('#tab-journal')).toBeVisible();
+    await page.evaluate(() => storyJournalUi.openEntry('act_10'));
+    await expect(reader).not.toBeVisible();
+    expect(await page.evaluate(() => JSON.stringify(game.journalBonuses))).toBe(before);
+    expect(failures).toEqual([]);
+});
+
+test('long keystone descriptions wrap within a readable viewport width', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => switchTab('tab-char'));
+    await expect(page.locator('#tab-char')).toHaveClass(/active/);
+    await dismissVisibleTutorials(page);
+    const name = await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null;
+        const node = Object.values(PASSIVE_TREE.nodes).filter(row => row.kind === 'keystone')
+            .sort((a, b) => (b.desc || '').length - (a.desc || '').length)[0];
+        discoveredPassiveNodes = new Set(Object.keys(PASSIVE_TREE.nodes));
+        camZoom = 1; camX = -node.x; camY = -node.y;
+        drawPassiveTree();
+        return getPassiveNodeDisplayName(node);
+    });
+    const tooltip = await inspectCenteredPassive(page, testInfo.project.use.isMobile);
+    await expect(tooltip).toContainText(name);
+    const sizes = await tooltip.evaluate(el => ({
+        width:el.getBoundingClientRect().width, right:el.getBoundingClientRect().right,
+        viewport:window.innerWidth, factor:uiDisplay.factor, overflow:el.scrollWidth > el.clientWidth,
+        wrapped:[...el.querySelectorAll('.tooltip-line')].some(line => line.clientHeight > parseFloat(getComputedStyle(line).lineHeight) * 3)
+    }));
+    expect(sizes.overflow).toBe(false);
+    expect(sizes.right).toBeLessThanOrEqual(sizes.viewport);
+    expect(sizes.wrapped).toBe(true);
+    if (!testInfo.project.use.isMobile) expect(sizes.width).toBeLessThanOrEqual(391 * sizes.factor);
+    await page.screenshot({ path:testInfo.outputPath('long-keystone.png'), scale:'css' });
+    expect(failures).toEqual([]);
+});
+
+test('duel keystone tooltip displays spell increase sharing with attacks', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
     await page.evaluate(() => switchTab('tab-char'));
@@ -206,13 +342,49 @@ test('duel keystone tooltip displays the current melee-only contract', async ({ 
         camY = -node.y;
         drawPassiveTree();
     });
-    const bounds = await page.locator('#tree-canvas').boundingBox();
-    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-    const tooltip = page.locator('#canvas-tooltip');
+    const tooltip = await inspectCenteredPassive(page, testInfo.project.use.isMobile);
     await expect(tooltip).toContainText('결투의 규율');
-    await expect(tooltip).toContainText('근접 피해가 30% 증폭됩니다.');
+    await expect(tooltip).toContainText('주문 피해 증가 옵션이 공격 피해에도 적용됩니다.');
     await expect(tooltip).not.toContainText('받는 피해');
     await page.screenshot({ path: testInfo.outputPath('duel-tooltip.png'), scale: 'css' });
+    expect(failures).toEqual([]);
+});
+
+test('blood cradle can be inspected and allocated from the warrior route', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null;
+        game.passivePoints = 100; game.passives = []; game.startNode = 'pt_start_warrior';
+        game.discoveredPassives = Object.keys(PASSIVE_TREE.nodes);
+        switchTab('tab-char'); calculateReachableNodes(); refreshPassiveVisibility();
+    });
+    await dismissVisibleTutorials(page);
+    await page.evaluate(() => {
+        const node = PASSIVE_TREE.nodes.pt_warrior_blood_cradle;
+        camZoom = 1.2; camX = -node.x * camZoom; camY = -node.y * camZoom; drawPassiveTree();
+    });
+    const tooltip = await inspectCenteredPassive(page, testInfo.project.use.isMobile);
+    await expect(tooltip).toContainText('피빛 요람');
+    await expect(tooltip).toContainText('최대 5회');
+    await expect(tooltip).toContainText('30% 감폭');
+    expect(await page.evaluate(() => game.passives.includes('pt_warrior_blood_cradle'))).toBe(false);
+    await page.screenshot({path:testInfo.outputPath('blood-cradle-route.png'), scale:'css'});
+    if (testInfo.project.use.isMobile) await tooltip.locator('[data-passive-confirm]').click();
+    else {
+        const rect = await page.locator('#tree-canvas').boundingBox();
+        await page.mouse.click(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    }
+    await page.getByRole('button', {name:/^\d+포인트 사용$/}).click();
+    await expect.poll(() => page.evaluate(() => game.passives.includes('pt_warrior_blood_cradle'))).toBe(true);
+    expect(await page.evaluate(() => getPlayerStats().passiveKeystoneFlags.bloodCradle)).toBe(true);
+    await page.evaluate(() => {
+        const node = PASSIVE_TREE.nodes.n39ip40yc3d;
+        camX = -node.x * camZoom; camY = -node.y * camZoom; drawPassiveTree();
+    });
+    const barbarism = await inspectCenteredPassive(page, testInfo.project.use.isMobile);
+    await expect(barbarism).toContainText('기본 피해가 5 증가');
+    await expect(barbarism).not.toContainText('공격력이');
     expect(failures).toEqual([]);
 });
 
@@ -1330,6 +1502,55 @@ test('equipment crafting shows the exact last change and repeats without losing 
     expect(failures).toEqual([]);
 });
 
+test('special crafting sources block additions but allow rerolls', async ({page},testInfo) => {
+    const failures=watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(()=>{
+        clearInterval(gameTickHandle);gameTickHandle=null;game.combatHalted=true;
+        game.season=20;game.level=200;
+        game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
+        game.expertise.levels.mycologist=15;
+        const item=createItemFromBase(BASE_ITEM_DB.find(row=>row.slot==='무기'),'rare',20);
+        item.stats=[];game.inventory=[item];
+        Object.assign(game.currencies,{sapBud:4,formlessDew:4,sporeFire:100,sporeCold:100,sporeLight:100,fossilJagged:3,fossil:3});
+        game.sporeCraftModes.sapBud='fire';game.sporeCraftModes.formlessDew='fire';
+        switchTab('tab-items');switchItemSubtab('item-tab-craft');selectForCrafting(item.id,false);
+    });
+    await dismissVisibleTutorials(page);
+    await page.evaluate(()=>useCurrency('sapBud'));
+    await expect(page.locator('[data-repeat-craft="sapBud"]')).toBeDisabled();
+    await expect(page.locator('[data-repeat-craft="sapBud"]')).toContainText('이미 홀씨 옵션');
+    await expect(page.locator('#forge-item-display .equipment-craft-source')).toContainText('홀씨');
+    if(testInfo.project.use.isMobile) {
+        await page.evaluate(()=>selectMobileCraftCurrency('sapBud'));
+        await expect(page.locator('#ui-mobile-craft-currency-picker button').last()).toBeDisabled();
+        await page.evaluate(()=>selectMobileCraftCurrency('formlessDew'));
+        await page.locator('#ui-mobile-craft-currency-picker button').last().click();
+    } else {
+        await expect(page.locator(`#ui-currency-grid button[onclick="useCurrency('sapBud')"]`)).toBeDisabled();
+        await page.locator(`#ui-currency-grid button[onclick="useCurrency('formlessDew')"]`).click();
+    }
+    await expect(page.locator('[data-repeat-craft="formlessDew"]')).toBeEnabled();
+    await page.locator('[data-repeat-craft="formlessDew"]').click();
+    expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(s=>equipmentCrafting.getSource(s)==='spore').length)).toBe(1);
+    await page.screenshot({path:testInfo.outputPath('spore-reroll.png')});
+    await page.evaluate(()=>{
+        getSelectedCraftItem().stats=[{id:'resF',val:20,statName:'화염 저항',craftSource:'spore',lockedByHoney:true}];
+        switchItemSubtab('item-tab-fossil');updateStaticUI();
+    });
+    const fossil=page.locator(`#ui-fossil-actions button[onclick="applyFossilChaosCraft('fossilJagged')"]`);
+    await dismissVisibleTutorials(page);
+    await expect(fossil).toBeEnabled();await fossil.click();await fossil.click();
+    expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(s=>equipmentCrafting.getSource(s)==='fossil').length)).toBe(1);
+    expect(await page.evaluate(()=>getSelectedCraftItem().stats.filter(s=>equipmentCrafting.getSource(s)==='spore').length)).toBe(1);
+    await page.evaluate(()=>{getSelectedCraftItem().stats.find(s=>s.craftSource==='fossil').lockedByHoney=true;updateStaticUI();});
+    await expect(fossil).toBeDisabled();await expect(fossil).toContainText('잠긴 화석 옵션');
+    await page.screenshot({path:testInfo.outputPath('fossil-locked.png')});
+    await page.evaluate(()=>{switchItemSubtab('item-tab-craft');updateStaticUI();});
+    await expect(page.locator(`button[onclick="applyRiftSporeToSelectedItem()"]`).first()).toBeDisabled();
+    expect(failures).toEqual([]);
+});
+
 test('salvaged equipment can be recovered for its exact reward on desktop and mobile', async ({ page }) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
@@ -1482,12 +1703,13 @@ test('unused backgrounds load once on destination access and retain a visible fa
     page.on('request',request=>{if(request.url().includes('/assets/background/'))requests.push(request.url());});
     await openLocalGame(page);
     await page.evaluate(()=>{clearInterval(gameTickHandle);gameTickHandle=null;});
-    expect(requests.some(url=>url.includes('act02'))).toBe(false);
+    const source=await page.evaluate(()=>ACT_BATTLE_MAP_SOURCES.bgAct2);
+    expect(requests.some(url=>url.endsWith(source))).toBe(false);
     await page.evaluate(()=>{for(let i=0;i<20;i++)getBattleBackdropForZone(getZone(1));});
-    await expect.poll(()=>requests.filter(url=>url.includes('act02')).length).toBe(1);
+    await expect.poll(()=>requests.filter(url=>url.endsWith(source)).length).toBe(1);
     await expect.poll(()=>page.evaluate(()=>battleAssets.backdrops.bgAct2?.naturalWidth || 0)).toBeGreaterThan(0);
     expect(await page.evaluate(()=>getBattleBackdropForZone(getZone(1)).image===battleAssets.backdrops.bgAct2)).toBe(true);
-    expect(requests.some(url=>/act0[3-9]|chaos/.test(url))).toBe(false);
+    expect(requests.some(url=>/bgAct[3-9]|bgChaos|act0[3-9]|chaos/.test(url))).toBe(false);
 });
 
 test('data saving skips login preloading but still prepares assets on entry', async ({page}) => {
@@ -1689,6 +1911,33 @@ test('side encounters retain difficulty and active state on save restoration', a
     });
     expect(result).toEqual({colony:{depth:21,count:12},meteor:35,zone:'grand_breach_run',active:true});
     await dismissVisibleTutorials(page);
+    await page.evaluate(() => { tickGrandBreachRun(getZone(game.currentZoneId)); game.combatHalted=true; updateStaticUI(); });
+    expect(await page.evaluate(()=>game.enemies.length)).toBe(16);
+    await expect(page.locator('#side-encounter-hud')).toContainText('다음 보상까지 10마리');
+    await expect(page.locator('#ui-progress-label')).toHaveText('남은 시간');
+    await page.screenshot({path:testInfo.outputPath('grand-swarm.png')});
+    const renderTimings=await page.evaluate(() => {
+        for(const elapsed of [10000,13000]) { game.combatTimeMs=getCombatTime()+elapsed; tickGrandBreachRun(getZone(game.currentZoneId)); }
+        const swarm=game.enemies.slice();
+        const results=[];
+        for(const count of [8,32]) {
+            game.enemies=swarm.slice(0,count);
+            for(let i=0;i<10;i++) renderBattlefield();
+            const samples=[];
+            for(let i=0;i<60;i++) { const start=performance.now();renderBattlefield();samples.push(performance.now()-start); }
+            samples.sort((a,b)=>a-b);
+            results.push({count,medianMs:samples[30],p95Ms:samples[57]});
+        }
+        game.enemies=swarm;updateStaticUI();
+        return results;
+    });
+    await testInfo.attach('swarm-render-timings',{body:JSON.stringify(renderTimings),contentType:'application/json'});
+    console.log(testInfo.project.name,'swarm-render-timings',JSON.stringify(renderTimings));
+    expect(await page.evaluate(()=>game.enemies.length)).toBe(32);
+    await page.screenshot({path:testInfo.outputPath('grand-swarm-full.png')});
+    const hudBounds=await page.locator('#side-encounter-hud').boundingBox();
+    const fieldBounds=await page.locator('#battlefield-wrap').boundingBox();
+    expect(hudBounds.y).toBeGreaterThanOrEqual(fieldBounds.y+fieldBounds.height-1);
     await page.evaluate(() => {
         game.combatTimeMs=getCombatTime()+35000;
         tickGrandBreachRun(getZone('grand_breach_run'));
@@ -1698,6 +1947,62 @@ test('side encounters retain difficulty and active state on save restoration', a
     expect(await page.evaluate(()=>game.enemies.some(enemy=>enemy.isBoss && enemy.hp>0))).toBe(true);
     await dismissVisibleTutorials(page);
     await page.screenshot({path:testInfo.outputPath('side-encounter.png')});
+    await page.evaluate(() => {
+        game.voidRift.grandRun.inRun=false;game.currentZoneId=8;game.currencies.hiveKey=1;
+        startBeehiveRun();resolveBeehiveChoice('b');
+        closeBeehiveChoiceOverlay();game.combatHalted=true;updateStaticUI();
+    });
+    await dismissVisibleTutorials(page);
+    await expect(page.locator('#battlefield-canvas')).toBeVisible();
+    expect(await page.evaluate(()=>game.enemies.filter(e=>e.isElite).length)).toBe(2);
+    await page.screenshot({path:testInfo.outputPath('hive-wave.png')});
+    await page.evaluate(() => {
+        game.enemies=[];onBeehiveWaveCleared();
+        game.beehive.rewardLedger=['생장 파편 3개'];
+        game.beehive.penaltyLedger=['몬스터 공격력 증가'];
+        game.beehive.pendingQueenRewards=[{effect:'hiveKey',amount:1,chance:0.5,text:'[여왕벌 보상] 벌집 열쇠 50%'}];
+        closeBeehiveChoiceOverlay();
+        openBeehiveChoiceOverlay('갈림길');
+    });
+    const ledger=page.locator('.beehive-choice-card .expedition-ledger');
+    await expect(ledger).toContainText('누적 위험');
+    await expect(ledger).toContainText('확보 보상');
+    await expect(ledger).toContainText('여왕 처치 시');
+    await expect(ledger).toContainText('벌집 열쇠 50%');
+    await page.screenshot({path:testInfo.outputPath('hive-choice.png')});
+    await page.locator('.beehive-choice-heading button').click();
+    await expect(page.locator('.beehive-choice-card')).toHaveCount(0);
+    await page.evaluate(() => {
+        forfeitBeehiveRun();prepareMeteorEncounterEntry(8);game.currentZoneId=METEOR_FALL_ZONE_ID;
+        const plan=generateEncounterPlan(getZone(game.currentZoneId));
+        game.enemies=[];spawnEncounterMarker(plan[plan.length-1]);
+        game.enemies[0].patternAttackCount=2;refreshBossPatternPreview(game.enemies[0]);
+        game.enemies[0].attackTimer=0.6;
+        updateBossPatternTelegraph(game.enemies[0],getCombatTime(),game.gridPlayer);
+        game.combatHalted=true;updateStaticUI();
+    });
+    await dismissVisibleTutorials(page);
+    await expect(page.locator('#battlefield-canvas')).toBeVisible();
+    expect(await page.evaluate(()=>game.enemies.length)).toBe(1);
+    expect(await page.evaluate(()=>game.enemies[0].nextPatternState.isSpecial)).toBe(true);
+    await page.evaluate(async () => { await requestSpecialBattleBackdrop('bgMeteor'); renderBattlefield(); });
+    await page.screenshot({path:testInfo.outputPath('meteor-boss.png')});
+    await page.evaluate(() => {
+        const enemy=game.enemies[0];
+        const pattern={...enemy.nextPatternState,area:enemy.patternArea};
+        queueEnemyCombatAttack(enemy,game.gridPlayer,pattern,'patternArea');
+        const pending=pendingEnemyCombatAttacks[pendingEnemyCombatAttacks.length-1];
+        game.combatTimeMs=pending.castStartAt+(pending.at-pending.castStartAt)*0.65;
+        renderBattlefield();
+    });
+    await page.screenshot({path:testInfo.outputPath('meteor-descent.png')});
+    const interrupted=await page.evaluate(() => {
+        const enemy=game.enemies[0];enemy.ailments=[{type:'stun',time:1}];
+        enemyAttackRules.interrupt(enemy,getCombatTime());
+        const result=takePendingEnemyCombatAttack(enemy.id,getCombatTime());renderBattlefield();
+        return {hit:!!result,pending:pendingEnemyCombatAttacks.length};
+    });
+    expect(interrupted).toEqual({hit:false,pending:0});
     expect(failures).toEqual([]);
 });
 
@@ -1844,7 +2149,7 @@ test('global UI keeps native font smoothing and compact HUD text at full scale',
     }
     await openLocalGame(page);
     await page.evaluate(() => { requestGameConfirmation('장비와 스킬 설명을 확인하세요.', { title: '안내' }); });
-    await expect(page.locator('.game-dialog-card')).toBeVisible();
+    await expect(page.locator('#game-dialog-card')).toBeVisible();
     const rendering = await page.evaluate(() => {
         const scaleOf = selector => {
             const transform = getComputedStyle(document.querySelector(selector)).transform;
@@ -1853,9 +2158,9 @@ test('global UI keeps native font smoothing and compact HUD text at full scale',
         };
         return {
             smoothing: getComputedStyle(document.body).getPropertyValue('-webkit-font-smoothing'),
-            readingFonts: ['body', '#log', '.game-dialog-title', '.game-dialog-message'].map(selector =>
+            readingFonts: ['body', '#log', '#game-dialog-title', '#game-dialog-message'].map(selector =>
                 getComputedStyle(document.querySelector(selector)).fontFamily),
-            messageSize: parseFloat(getComputedStyle(document.querySelector('.game-dialog-message')).fontSize),
+            messageSize: parseFloat(getComputedStyle(document.querySelector('#game-dialog-message')).fontSize),
             enemyScale: scaleOf('#enemy-area'),
             playerScale: scaleOf('.player-hud')
         };
@@ -3056,6 +3361,125 @@ test('mobile chat stays within the content area and returns to battle', async ({
     expect(failures).toEqual([]);
 });
 
+test('map destinations show entry requirements before spending and run summaries after entry', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null;
+        game.combatHalted = true;
+        game.season = 10; game.loopCount = 9; game.currentZoneId = 8; game.maxZoneId = 9;
+        game.contentProgression.inherited = CONTENT_UNLOCK_CATALOG.map(row => row.id);
+        game.currencies.hiveKey = 0;
+        game.starWedge.unlocked = true; game.starWedge.skyRiftReady = false;
+        game.voidRift.grandBreachUnlock = false;
+        contentProgression.sync();
+        switchTab('tab-map'); switchMapSubtab('map-tab-zones');
+        switchMapExploreSubtab('map-explore-beehive'); performUpdateStaticUI();
+    });
+    await dismissVisibleTutorials(page);
+    const hive = page.locator('#ui-beehive-panel');
+    const ready = page.locator('#map-ready-destinations');
+    await expect(hive.getByRole('button', {name:'벌집 입장', exact:true})).toBeDisabled();
+    await expect(hive).toContainText('벌집 열쇠가 필요합니다.');
+    await expect(hive.locator('.expedition-ledger')).toHaveCount(0);
+    await expect(hive.getByRole('button', {name:'원정 포기'})).toHaveCount(0);
+    await expect(ready).not.toContainText('입장 가능');
+    await page.evaluate(() => { game.currencies.hiveKey = 1; performUpdateStaticUI(); });
+    await ready.getByRole('button', {name:'입장 가능 벌집 원정'}).click();
+    expect(await page.evaluate(() => [game.currencies.hiveKey, game.beehive.inRun])).toEqual([1, false]);
+    await page.screenshot({path:testInfo.outputPath('map-hive-entry.png')});
+    await hive.getByRole('button', {name:'벌집 입장', exact:true}).click();
+    await expect(hive.locator('.expedition-ledger')).toBeVisible();
+    await expect(page.getByRole('dialog', {name:'벌집 갈림길'})).toHaveCount(0);
+    await expect(hive).toContainText('누적 위험');
+    await expect(hive).toContainText('여왕 처치 시');
+    expect(await page.evaluate(() => [game.currencies.hiveKey, game.beehive.inRun])).toEqual([0, true]);
+    await expect(ready).toContainText('진행 중');
+    await page.evaluate(() => performUpdateStaticUI());
+    await expect(page.getByRole('dialog', {name:'벌집 갈림길'})).toHaveCount(0);
+    await hive.getByRole('button', {name:'원정 포기'}).click();
+    expect(await page.evaluate(() => [game.currencies.hiveKey, game.beehive.inRun])).toEqual([0, false]);
+    await page.evaluate(() => { switchMapExploreSubtab('map-explore-voidrift'); performUpdateStaticUI(); });
+    const grand = page.locator('#ui-voidrift-panel');
+    await expect(grand.getByRole('button', {name:'대균열 입장'})).toBeDisabled();
+    await expect(grand).toContainText('공허 균열을 완료하면 입장할 수 있습니다.');
+    await page.evaluate(() => { game.voidRift.grandBreachUnlock = true; performUpdateStaticUI(); });
+    await grand.getByRole('button', {name:'대균열 입장'}).click();
+    await page.evaluate(() => { game.voidRift.grandRun.kills = 9; performUpdateStaticUI(); });
+    const grandSummary = grand.locator('.map-grand-summary');
+    await expect(grandSummary).toContainText('공허의 끌 2');
+    await expect(grandSummary).toContainText('다음 보상까지 1마리');
+    await page.evaluate(() => { game.voidRift.grandRun.kills = 10; performUpdateStaticUI(); });
+    await expect(grandSummary).toContainText('공허의 끌 3');
+    await page.screenshot({path:testInfo.outputPath('map-grand-active.png')});
+    await page.evaluate(() => { game.voidRift.grandRun.phase = 'boss'; performUpdateStaticUI(); });
+    await expect(grandSummary).toContainText('군주 처치 시 지급');
+    await expect(grandSummary).not.toContainText('다음 보상까지');
+    await page.evaluate(() => changeZone(8));
+    await page.evaluate(() => { switchMapExploreSubtab('map-explore-meteor'); performUpdateStaticUI(); });
+    const meteor = page.locator('#ui-meteor-list');
+    await expect(meteor.getByRole('button', {name:'운석 원정 입장'})).toBeDisabled();
+    await page.evaluate(() => { game.starWedge.skyRiftReady = true; performUpdateStaticUI(); });
+    await ready.getByRole('button', {name:'입장 가능 운석 낙하'}).click();
+    expect(await page.evaluate(() => game.starWedge.skyRiftReady)).toBe(true);
+    for (const light of [false, true]) {
+        await page.evaluate(light => document.body.classList.toggle('light-mode', light), light);
+        const grid = await meteor.boundingBox();
+        const panel = await meteor.locator('.map-expedition-intro').boundingBox();
+        expect(panel.width).toBeGreaterThan(grid.width - 3);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+        await page.screenshot({path:testInfo.outputPath('map-meteor-' + (light?'light':'dark') + '.png')});
+    }
+    await meteor.getByRole('button', {name:'운석 원정 입장'}).click();
+    expect(await page.evaluate(() => [game.currentZoneId, game.starWedge.skyRiftReady])).toEqual(['meteor_fall_site', false]);
+    expect(failures).toEqual([]);
+});
+
+test('hive choices preserve interaction and closing a prompt lasts until the next branch', async ({ page }, testInfo) => {
+    const failures = watchRuntimeFailures(page);
+    await openLocalGame(page);
+    await page.evaluate(() => {
+        clearInterval(gameTickHandle); gameTickHandle = null;
+        game.season = 10; game.loopCount = 9; game.currentZoneId = 8;
+        game.contentProgression.inherited = CONTENT_UNLOCK_CATALOG.map(row => row.id);
+        contentProgression.sync(); game.currencies.hiveKey = 1;
+        switchTab('tab-map'); switchMapSubtab('map-tab-zones');
+        switchMapExploreSubtab('map-explore-beehive'); startBeehiveRun();
+    });
+    await dismissVisibleTutorials(page);
+    const hive = page.locator('#ui-beehive-panel');
+    const firstChoice = hive.locator('button[onclick="resolveBeehiveChoice(\'a\')"]');
+    await firstChoice.focus();
+    await page.evaluate(() => updateStaticUI());
+    await page.waitForFunction(() => !uiRefreshQueued && !uiRefreshRunning);
+    await expect.soft(firstChoice).toBeFocused();
+    await hive.locator('summary').click();
+    await page.evaluate(() => { switchMapExploreSubtab('map-explore-voidrift'); switchMapExploreSubtab('map-explore-beehive'); });
+    await expect.soft(hive.locator('details')).toHaveAttribute('open', '');
+    await hive.getByRole('button', {name:'전투 보기', exact:true}).click();
+    const prompt = page.getByRole('dialog', {name:'벌집 갈림길'});
+    await expect(prompt).toBeVisible();
+    await prompt.getByRole('button', {name:'닫기', exact:true}).click();
+    await page.evaluate(() => updateStaticUI());
+    await page.waitForFunction(() => !uiRefreshQueued && !uiRefreshRunning);
+    await expect(prompt).toHaveCount(0);
+    expect(await page.evaluate(() => [game.beehive.branchStep, !!game.beehive.pendingChoice, game.combatHalted])).toEqual([0, true, true]);
+    if (testInfo.project.use.isMobile) await page.locator('#btn-mobile-nav-more').click();
+    await page.locator('#btn-tab-map').click();
+    await page.evaluate(() => switchMapExploreSubtab('map-explore-beehive'));
+    await firstChoice.click();
+    expect(await page.evaluate(() => [game.beehive.branchStep, game.beehive.awaitingClear, game.currencies.hiveKey])).toEqual([1, true, 0]);
+    await page.evaluate(() => {
+        switchTab('tab-battle');
+        game.enemies.forEach(enemy => { enemy.hp = 0; });
+        onBeehiveWaveCleared();
+    });
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText('갈림길 2/10');
+    await page.screenshot({path:testInfo.outputPath('hive-next-branch.png')});
+    expect(failures).toEqual([]);
+});
+
 test('map cards show readiness grades and keep approximate numbers in the tooltip', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await openLocalGame(page);
@@ -3075,9 +3499,9 @@ test('map cards show readiness grades and keep approximate numbers in the toolti
     });
     const power = page.locator('#map-explore-hunting .map-power-estimate').first();
     await expect(power).toBeVisible();
-    await expect(power).toContainText('예상 DPS');
-    await expect(power).toContainText('권장 EHP');
-    await expect(power).toContainText(/낮음|적정|높음/);
+    await expect(power).toContainText('화력');
+    await expect(power).toContainText('생존력');
+    await expect(power).toContainText(/부족|적정|여유/);
     if (testInfo.project.name.startsWith('mobile')) await power.focus();
     else await power.hover();
     await expect(page.locator('#info-tooltip')).toContainText('내 DPS 약');
@@ -3192,12 +3616,12 @@ test('cosmos boss detail keeps readiness compact and reveals approximate values 
     const detail = page.locator('#ui-cosmos-detail');
     await expect(detail).toBeVisible();
     await expect(detail).toContainText('하말리스');
-    await expect(detail).toContainText('예상 DPS');
-    await expect(detail).toContainText('권장 EHP');
+    await expect(detail).toContainText('화력');
+    await expect(detail).toContainText('생존력');
     await expect(detail).not.toContainText('예상 적 특성');
     await expect(detail).not.toContainText('대응:');
     const readiness = detail.locator('.map-power-estimate');
-    await expect(readiness).toContainText(/낮음|적정|높음/);
+    await expect(readiness).toContainText(/부족|적정|여유/);
     if (testInfo.project.name.startsWith('mobile')) await readiness.focus();
     else await readiness.hover();
     await expect(page.locator('#info-tooltip')).toContainText('내 DPS 약');

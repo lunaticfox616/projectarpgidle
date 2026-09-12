@@ -1,0 +1,58 @@
+const assert = require('assert');
+const { prepare } = require('./audit-combat-20260905');
+const { runtime: r, state, run, enemy } = prepare();
+state.settings.autoEquipEmptySlots = false;
+state.settings.showLootLog = false;
+state.settings.autoSalvageEnabled = false;
+state.settings.itemFilterEnabled = false;
+r.Math.random = () => .5;
+run('clearBattleVisualBacklog()');
+const originalCurrency = JSON.stringify(state.currencies);
+const kept = run('rollEquipmentLoot(game.enemies[0],getZone(1),1)');
+const fx = run('battleFx.find(fx=>fx.loot)');
+assert(kept && state.inventory.some(item => item.id === kept.id));
+assert.strictEqual(fx.loot.item.name, kept.name);
+assert.strictEqual(fx.loot.sourceCell.gx, enemy.gx);
+assert.strictEqual(fx.loot.zoneId, state.currentZoneId);
+assert.strictEqual(fx.loot.item.stats, undefined, 'receipt does not retain full affixes or mutable item objects');
+kept.name = 'Changed after receipt';
+assert.notStrictEqual(fx.loot.item.name, kept.name);
+assert.strictEqual(JSON.stringify(state.currencies), originalCurrency, 'render receipt cannot grant currency');
+
+state.settings.itemFilterEnabled = true;
+state.settings.itemFilterRarities = { normal: false, magic: false, rare: false, unique: false };
+run('clearBattleVisualBacklog();rollEquipmentLoot(game.enemies[0],getZone(1),1)');
+assert.strictEqual(run('battleFx.some(fx=>fx.loot)'), false, 'rejected equipment has no pickup receipt');
+state.settings.itemFilterEnabled = false;
+state.settings.autoSalvageEnabled = true;
+state.settings.autoSalvageRarities = { normal: true, magic: true, rare: true, unique: true };
+run('clearBattleVisualBacklog();rollEquipmentLoot(game.enemies[0],getZone(1),1)');
+assert.strictEqual(run('battleFx.some(fx=>fx.loot)'), false, 'salvaged equipment is not visually awarded');
+
+state.settings.autoSalvageEnabled = false;
+state.isBackgroundCalculation = true;
+run('clearBattleVisualBacklog()');
+const before = state.inventory.length;
+run('rollEquipmentLoot(game.enemies[0],getZone(1),1)');
+assert.strictEqual(state.inventory.length, before + 1, 'background rewards still arrive');
+assert.strictEqual(run('battleFx.length'), 0, 'background awards create no visual receipts');
+state.isBackgroundCalculation = false;
+run("setBattleFxSuppressed(true);queueEnemyGroundLoot(game.enemies[0],{currency:'goldenRule',count:1})");
+assert.strictEqual(run('battleFx.length'), 0);
+run('setBattleFxSuppressed(false)');
+
+// The real kill boundary issues receipts once, using the actual awarded currency amounts.
+const actual = prepare();
+actual.state.season = 2;
+actual.state.contentProgression.unlocked.push('craft');
+actual.runtime.Math.random = () => 0;
+actual.enemy.hp = 0;
+actual.run('clearBattleVisualBacklog();handleEnemyDeath(game.enemies[0],getPlayerStats())');
+const gold = actual.run("battleFx.find(fx=>fx.loot?.currency==='goldenRule')");
+assert(gold);
+assert.strictEqual(gold.loot.count, actual.state.currencies.goldenRule);
+const receiptCount = actual.run('battleFx.filter(fx=>fx.loot).length');
+actual.runtime.handleEnemyDeath(actual.enemy, actual.runtime.getPlayerStats());
+assert.strictEqual(actual.run('battleFx.filter(fx=>fx.loot).length'), receiptCount, 'a handled death cannot duplicate receipts');
+assert.strictEqual(actual.state.currencies.goldenRule, gold.loot.count);
+console.log('smoke-ground-loot-receipts passed');

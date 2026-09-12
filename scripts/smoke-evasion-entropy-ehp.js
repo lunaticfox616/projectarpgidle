@@ -36,8 +36,8 @@ try {
     assert.strictEqual(run('calculatePlayerAccuracy(100, 0, 200, 25)'), 725,
         'accuracy bonus percent must affect the final value');
     assert.deepStrictEqual(
-        JSON.parse(run('JSON.stringify(MOD_DB.find(mod => mod.id === "accuracy"))')),
-        { id: 'accuracy', type: 'suffix', statName: '정확도', slots: ['무기', '장갑', '반지', '목걸이'], base: 90, step: 60 },
+        JSON.parse(run('JSON.stringify([1,20].map(tier => rollAffixValueInTierRange(MOD_DB.find(mod => mod.id === "accuracy"), tier, tier)).map(stat => stat.valMin))')),
+        [150, 1267],
         'the item affix source values must be raised directly instead of using a hidden multiplier'
     );
     assert.ok(run('getEnemyTotalEvadeChance({ evasion: 1200 }, 1200)')
@@ -68,19 +68,19 @@ try {
     };
     const readiness = JSON.parse(run('JSON.stringify(getMapPowerReadiness(__simpleStats, __mapEstimate))'));
     assert.strictEqual(readiness.dps.label, '적정', '권장 DPS와 같은 빌드는 적정으로 표시해야 한다');
-    assert.strictEqual(readiness.ehp.label, '낮음',
+    assert.strictEqual(readiness.ehp.label, '부족',
         '엔트로피 EHP가 높아도 관통된 보스 강공격에 직격사하면 낮음으로 표시해야 한다');
     assert.ok(readiness.recommendedEhp > context.__mapEstimate.ehp,
         '권장 EHP는 저항 관통과 직격 생존 하한을 반영해야 한다');
     context.__mapEstimate = { ...context.__mapEstimate, ehp: 3000, peakHit: 1500, resistancePressure: 0 };
-    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).ehp.label'), '높음',
+    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).ehp.label'), '여유',
         '직격 하한을 만족하는 엔트로피 회피 빌드는 반복 공격 생존력을 인정해야 한다');
     context.__mapEstimate = { ...context.__mapEstimate, dps: 600, oceanPressureDepthTier: 10 };
     context.__simpleStats.oceanPressureResist = 0;
-    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).dps.label'), '낮음',
+    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).dps.label'), '부족',
         '심해 최종 관문 준비도는 진입 전 수압 공격 속도 저하를 포함해야 한다');
     context.__simpleStats.oceanPressureResist = 80;
-    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).dps.label'), '높음',
+    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).dps.label'), '여유',
         '수압 저항을 확보한 빌드는 심해 공격 속도 손실을 완화해야 한다');
 
     context.__mapEstimate = {
@@ -88,7 +88,7 @@ try {
         underworldGravityFloor: 30, zoneId: 'pinnacle_underking'
     };
     context.__simpleStats.underworldGravityReductionPct = 0;
-    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).dps.label'), '낮음',
+    assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).dps.label'), '부족',
         '진입 전 지하계 준비도는 해당 층의 중력 공격 속도 저하를 포함해야 한다');
     context.__simpleStats.underworldGravityReductionPct = 75;
     assert.strictEqual(run('getMapPowerReadiness(__simpleStats, __mapEstimate).dps.label'), '적정',

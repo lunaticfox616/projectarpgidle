@@ -14,9 +14,13 @@ function cast() {
  return {fx:run('battleFx.find(fx=>fx.type==="combatTravel")'),rows:Array.from(run('pendingSkillStageHits'))};
 }
 function positions(fx,time) {
- const points=[],stack=[];let position;
- const ctx={save(){stack.push(position);},restore(){position=stack.pop();},translate(x,y){position={x,y};},
-  scale(){},rotate(){},drawImage(){points.push(position);}};
+ const points=[],stack=[];let position,angle=0;
+ const art=run('SKILL_FX_ATLAS["얼음 창"].remake.main');
+ const ctx={save(){stack.push({position,angle});},restore(){({position,angle}=stack.pop());},translate(x,y){position={x,y};},
+  scale(){},rotate(value){angle=value;},drawImage(image,sx,sy,sw,sh,x,y,w,h){
+   const ax=(art.anchor.x+art.width/2)*w/sw,ay=art.anchor.y*h/sh;
+   points.push({x:position.x+ax*Math.cos(angle)-ay*Math.sin(angle),y:position.y+ax*Math.sin(angle)+ay*Math.cos(angle)});
+  }};
  r.worldTreeSkillFx.beginFrame();r.worldTreeSkillFx.travel(ctx,fx,time,projection);
  return points;
 }
@@ -27,7 +31,7 @@ const before=run('JSON.stringify(game)');
 const late=fx.start+fx.releaseDelayMs+fx.flightMs+80;
 const held=positions(fx,late);
 assert(held.length>0,'the projectile must not disappear while its contact is pending');
-assert(held[0].x<=projection.cellToScreen(3,4).x,'no visual overshoot before the first resolved victim');
+assert(held[0].x<=projection.cellToScreen(3,4).x+1,'native tip cannot overshoot a pending victim beyond pixel rounding');
 assert.strictEqual(run('JSON.stringify(game)'),before,'drawing cannot deal damage');
 run(`game.combatTimeMs=${rows[0].at-1};processPendingSkillStageHits();`);
 assert.strictEqual(run('game.enemies[0].hp'),1000000);
@@ -36,7 +40,7 @@ run(`game.combatTimeMs=${rows[0].at};processPendingSkillStageHits();`);
 assert(run('game.enemies[0].hp<1000000 && game.enemies[1].hp===1000000'));
 assert.strictEqual(rows[0].contactState.resolved,true);
 const contact=positions(fx,fx.start+fx.releaseDelayMs);
-assert.strictEqual(contact[0].x,projection.cellToScreen(3,4).x,'confirmed damage advances the projectile even under visual hit stop');
+assert(Math.abs(contact[0].x-projection.cellToScreen(3,4).x)<1,'confirmed damage advances the native projectile tip under visual hit stop');
 const hit=run('battleFx.find(fx=>fx.type==="hit")');
 assert.strictEqual(hit.syncToSwing,false,'no second wait for the next player animation');
 assert.strictEqual(hit.start,clock,'damage feedback is emitted with the confirmed hit');
@@ -123,3 +127,34 @@ assert.strictEqual(phased.effects.length,2,'authored phases remain separate even
 assert(phased.effects.every(effect=>!effect.travelPath),'authored spread is never folded into the outbound ray');
 assert.notDeepStrictEqual(phased.effects[0].attackFootprint.cells,phased.effects[1].attackFootprint.cells);
 console.log('custom stage routes, chain, return and fan preserve their paths and damage');
+
+run(`game.enemies=[{id:801,gx:5,gy:3,isBoss:true,hp:100},{id:802,gx:2,gy:3,hp:100}];`);
+const bossRow={delivery:'projectileTarget',patternKind:'chain',sourceCell:{gx:5,gy:3},
+ targetCells:[{gx:5,gy:3},{gx:2,gy:3}],targetEntries:[{enemyId:801},{enemyId:802}],
+ options:{chainFromEnemyId:801},at:11000,launchAt:10000};
+const rowBefore=JSON.stringify(bossRow), gameBefore=run('JSON.stringify(game)');
+const endpoints=r.getSkillTravelVisualEndpoints(bossRow);
+assert.equal(JSON.stringify(endpoints),JSON.stringify({sourceCell:{gx:5.5,gy:3.5},
+ targetCells:[{gx:5.5,gy:3.5},{gx:2,gy:3}]}),'boss aims and chain origins use the body center; small enemies unchanged');
+assert.equal(JSON.stringify(bossRow),rowBefore,'collision cells and contact times are immutable');
+assert.equal(run('JSON.stringify(game)'),gameBefore);
+r.addPendingSkillTravelFx(bossRow,{skillName:'연쇄 폭풍'},10000);
+const centeredFx=run('battleFx[battleFx.length-1]');
+assert.equal(JSON.stringify(centeredFx.targetCells),JSON.stringify(endpoints.targetCells),'travel effect carries centered snapshots');
+assert.equal(JSON.stringify(centeredFx.sourceCell),JSON.stringify(endpoints.sourceCell));
+assert.equal(centeredFx.flightMs,1000,'visual centering preserves flight duration');
+for(const override of [{delivery:'projectileCell'},{delivery:'magicCell'},{patternKind:'boomerang'},
+ {travelPath:[{gx:0,gy:0,offsetMs:0},{gx:5,gy:3,offsetMs:500}]}]) {
+ const row={...bossRow,...override}, points=r.getSkillTravelVisualEndpoints(row);
+ assert.strictEqual(points.sourceCell,row.sourceCell);
+ assert.strictEqual(points.targetCells,row.targetCells,'ground areas and authored rays preserve their geometry');
+}
+const missing=r.getSkillTravelVisualEndpoints({...bossRow,targetEntries:[{enemyId:-1}],options:{}});
+assert.strictEqual(missing.targetCells[0],bossRow.targetCells[0],'missing victim retains its snapshot');
+console.log('large enemy visual centers preserve collision, range, rays and scheduled timing');
+const potion=run('SKILL_DB["원소 포션 투척"]');
+const source={gx:1,gy:4}, destination={gx:5,gy:4};
+const priorFlight=r.getCombatTravelMs(source,destination,{...potion,projectileTravelTimeMultiplier:1});
+const quickerFlight=r.getCombatTravelMs(source,destination,potion);
+assert(Math.abs(quickerFlight-priorFlight/1.8)<=1,'existing elemental potion flight is also 1.8x faster');
+assert.strictEqual(potion.combatPattern.intervalMs,240,'elemental field tick spacing is unchanged');

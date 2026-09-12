@@ -2,6 +2,8 @@
  * Transient flight: path cells carry offsetMs from launch; pathIndex is the next unchecked cell.
  * Collision cells are sampled on the exact ray; canvas interpolates only its two endpoints.
  * Only the combat tick advances collision, never the renderer.
+ * attackCastMs is windup timing, not attack strength. Authored non-boss specials opt in with
+ * attackCastSpecial; transient attackCast.isSpecial shares the boss-pattern distinction.
  */
 const enemyAttackRules = (() => {
     function controls(enemy) {
@@ -89,7 +91,8 @@ const enemyAttackRules = (() => {
 
     function trajectory(attack, enemy, duration) {
         if (Number.isFinite(attack.bossPattern?.castStartedAt)) attack.castStartAt = attack.bossPattern.castStartedAt;
-        enemy.attackCast = attack.delivery === 'patternArea' ? {startAt:attack.castStartAt,finishAt:attack.at} : null;
+        enemy.attackCast = attack.delivery === 'patternArea' ? {startAt:attack.castStartAt,finishAt:attack.at,
+            isSpecial:attack.bossPattern.isSpecial !== false,label:attack.bossPattern.label} : null;
         if (attack.delivery !== 'projectileCell') return {duration};
         attack.targetCell = flightEnd(attack.sourceCell,attack.targetCell,enemy.projectileToEdge);
         let cells = flightCells(attack.sourceCell,attack.targetCell);
@@ -121,15 +124,19 @@ const enemyAttackRules = (() => {
         const special = enemy.nextPatternState?.isSpecial || enemy.attackCast || enemy.attackCastMs > 0;
         if (!cc.hard && !(cc.silence && special)) return false;
         enemy.castInterruptedAt = now;
+        clearInterruptedCast(enemy, now);
+        return true;
+    }
+
+    function clearInterruptedCast(enemy, now) {
         if (enemy.patternTelegraphKey || enemy.attackCast) {
-            enemy.castInterruptedUntil = now + 650;
+            enemy.castInterruptedUntil = enemy.nextPatternState?.isSpecial || enemy.attackCast?.isSpecial ? now + 650 : 0;
             enemy.attackTimer = 0;
         }
         enemy.attackCast = null;
         enemy.patternTelegraphKey = null;
         enemy.patternTelegraphStartedAt = 0;
         enemy.patternArea = null;
-        return true;
     }
 
     function cancelPending(attack, now) {
@@ -137,7 +144,7 @@ const enemyAttackRules = (() => {
         const cc = controls(attack.source);
         const interrupted = Number.isFinite(attack.source.castInterruptedAt) && attack.source.castInterruptedAt >= attack.castStartAt;
         if (!cc.hard && !cc.silence && !interrupted && attack.source.hp > 0) return false;
-        attack.source.castInterruptedUntil = now + 650;
+        attack.source.castInterruptedUntil = attack.bossPattern.isSpecial !== false ? now + 650 : 0;
         attack.source.attackTimer = 0;
         attack.source.attackCast = null;
         return true;
@@ -147,24 +154,33 @@ const enemyAttackRules = (() => {
         if (!enemy.attackCastMs || enemy.isBoss) return true;
         if (!enemy.attackCast && enemy.attackTimer >= 1) {
             enemy.attackCast = {startAt:now, finishAt:now+enemy.attackCastMs,
+                isSpecial:enemy.attackCastSpecial === true,
                 targetCell:{gx:target.gx,gy:target.gy}};
         }
         return !!enemy.attackCast && now >= enemy.attackCast.finishAt;
     }
 
+    function activeCast(enemy, pending) {
+        if (pending?.delivery === 'patternArea' && pending.bossPattern.isSpecial !== false) {
+            return {label:pending.bossPattern.label,startAt:pending.castStartAt,finishAt:pending.at};
+        }
+        if (!enemy.attackCast?.isSpecial) return null;
+        return {...enemy.attackCast,label:enemy.attackCast.label || enemy.attackLabel || '강력한 공격'};
+    }
+
     function castBar(enemy, now, pending) {
+        if (enemy.hp <= 0) return null;
         if (enemy.castInterruptedUntil > now) return {label:'시전 취소',progress:0,cancelled:true};
         const cc = controls(enemy);
         if (cc.hard || cc.silence) return null;
-        if (pending?.delivery === 'patternArea') return {label:pending.bossPattern.label,
-            progress:clampNumber((now-pending.castStartAt)/(pending.at-pending.castStartAt),0,1)};
-        if (enemy.attackCast) return {label:enemy.attackLabel || '강력한 공격',
-            progress:clampNumber((now-enemy.attackCast.startAt)/(enemy.attackCast.finishAt-enemy.attackCast.startAt),0,1)};
+        const cast = activeCast(enemy,pending);
+        if (cast && now < cast.finishAt) return {label:cast.label,
+            progress:clampNumber((now-cast.startAt)/Math.max(1,cast.finishAt-cast.startAt),0,1)};
         return warningBar(enemy,now);
     }
 
     function warningBar(enemy,now) {
-        if (!enemy.patternTelegraphKey || !enemy.patternArea) return null;
+        if (!enemy.nextPatternState?.isSpecial || !enemy.patternTelegraphKey || !enemy.patternArea) return null;
         return {label:enemy.nextPatternState?.label || '강력한 공격',
             progress:clampNumber(Math.min(enemy.attackTimer,(now-enemy.patternTelegraphStartedAt)/(COMBAT_GRID_CONFIG.bossPatternWarningMs+BOSS_ATTACK_IMPACT_DELAY_MS)),0,1)};
     }

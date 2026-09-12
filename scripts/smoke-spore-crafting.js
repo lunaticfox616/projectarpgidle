@@ -74,10 +74,136 @@ function makeGrowthFlower(id) {
     };
 }
 
+function craftSnapshot() {
+    return run('JSON.stringify({item:game.inventory[0],currencies:game.currencies,expertise:game.expertise})');
+}
+
+async function verifySporeSourceLimits() {
+    setCraftItem({...makeBoots(980200),slot:'무기'},'fire');
+    run("game.currencies.sapBud=5; game.sporeCraftModes.sapBud='fire'; game.expertise.levels.mycologist=15;");
+    await run("useCurrency('sapBud')");
+    assert.strictEqual(run("game.inventory[0].stats.filter(stat=>equipmentCrafting.getSource(stat)==='spore').length"),1);
+    let before=craftSnapshot();
+    assert.strictEqual(run("getCraftOrbUseState('sapBud',game.inventory[0]).enabled"),false);
+    await run("useCurrency('sapBud')");
+    assert.strictEqual(craftSnapshot(),before,'repeat additive spores must not spend or mutate anything');
+    run("game.sporeCraftModes.sapBud='none';");
+    await run("useCurrency('sapBud')");
+    assert.strictEqual(run('game.inventory[0].stats.length'),2,'ordinary addition remains available');
+    run('game.currencies.formlessDew=3;');
+    for(let i=0;i<2;i++) {
+        assert.strictEqual(run("getCraftOrbUseState('formlessDew',game.inventory[0]).enabled"),true);
+        await run("useCurrency('formlessDew')");
+        assert.strictEqual(run("game.inventory[0].stats.filter(stat=>equipmentCrafting.getSource(stat)==='spore').length"),1);
+    }
+    run("game.inventory[0].stats.find(stat=>stat.craftSource==='spore').lockedByHoney=true;");
+    before=craftSnapshot();
+    await run("useCurrency('formlessDew')");
+    assert.strictEqual(craftSnapshot(),before,'a locked spore affix must not be duplicated by a reroll');
+    setCraftItem({...makeBoots(980201),slot:'무기',stats:[{id:'resF',val:20,craftSource:'spore'}]},'none');
+    run('game.currencies.fossil=3; applyRiftSporeToSelectedItem();');
+    assert.strictEqual(run("game.inventory[0].stats.filter(stat=>equipmentCrafting.getSource(stat)==='spore').length"),1);
+    assert.strictEqual(run("game.inventory[0].stats.filter(stat=>equipmentCrafting.getSource(stat)==='fossil').length"),1);
+    before=craftSnapshot();
+    run('applyRiftSporeToSelectedItem()');
+    assert.strictEqual(craftSnapshot(),before,'rift spores add a fossil effect and cannot add a second one');
+    setCraftItem({...makeBoots(980202),stats:Array.from({length:6},(_,i)=>({id:'locked'+i,val:1,lockedByHoney:true}))},'fire');
+    before=craftSnapshot();
+    await run("useCurrency('formlessDew')");
+    assert.strictEqual(craftSnapshot(),before,'full locked items must not spend spores or receive a seventh affix');
+}
+
+function verifyFossilSourceLimits() {
+    setCraftItem({...makeBoots(980210),slot:'무기',stats:[{id:'resF',val:20,craftSource:'spore',lockedByHoney:true}]},'none');
+    run('game.season=3; game.currencies.fossilJagged=4;');
+    for(let i=0;i<2;i++) {
+        run("applyFossilChaosCraft('fossilJagged')");
+        assert.strictEqual(run("game.inventory[0].stats.filter(stat=>equipmentCrafting.getSource(stat)==='fossil').length"),1);
+        assert.strictEqual(run("game.inventory[0].stats.filter(stat=>equipmentCrafting.getSource(stat)==='spore').length"),1);
+        assert(run('game.inventory[0].stats.length<=6'));
+    }
+    let before=craftSnapshot();
+    run('applyRiftSporeToSelectedItem()');
+    assert.strictEqual(craftSnapshot(),before,'a standard fossil effect also blocks additive rift spores');
+    run("game.inventory[0].stats.find(stat=>stat.craftSource==='fossil').lockedByHoney=true;");
+    before=craftSnapshot();
+    run("applyFossilChaosCraft('fossilJagged')");
+    assert.strictEqual(craftSnapshot(),before,'locked fossil effects cannot survive alongside a second fossil guarantee');
+    setCraftItem({...makeBoots(980211),slot:'무기'},'none');
+    run('game.currencies.fossilRift=4;');
+    for(let i=0;i<2;i++) {
+        run("applyFossilChaosCraft('fossilRift')");
+        assert.strictEqual(run("game.inventory[0].stats.filter(stat=>stat.id==='fossilRiftBlank').length"),1);
+        assert.strictEqual(run("game.inventory[0].stats.filter(stat=>stat.id==='fossilRiftAmp').length"),1);
+        assert(run('game.inventory[0].stats.length<=6'));
+        if(i===0) run("game.inventory[0].stats.find(stat=>stat.id==='fossilRiftBlank').lockedByHoney=true;");
+    }
+    assert.strictEqual(run("game.inventory[0].stats.find(stat=>stat.id==='fossilRiftBlank').lockedByHoney"),true,'same rift reroll preserves the existing marker and its lock');
+    before=craftSnapshot();
+    run("applyFossilChaosCraft('fossilJagged')");
+    assert.strictEqual(craftSnapshot(),before,'a permanent rift marker prevents adding a different fossil effect');
+    run("game.inventory[0].stats.find(stat=>stat.id==='fossilRiftAmp').lockedByHoney=true;");
+    before=craftSnapshot();
+    run("applyFossilChaosCraft('fossilRift')");
+    assert.strictEqual(craftSnapshot(),before,'rift rerolls must respect a honey-locked amplifier');
+}
+
+function verifyCraftSourceSaveCompatibility() {
+    const legacy={...makeBoots(980220),stats:[
+        {id:'gemLevel',val:1,tier:20,fossilExclusiveSpore:true},
+        {id:'move',val:35,fossilExclusive:true},
+        {id:'resF',val:10,tier:19,affixBalanceVersion:1},
+        {id:'resC',val:10,tier:19,affixBalanceVersion:1,craftSource:'unknown'}
+    ]};
+    context.legacyCraft=legacy;
+    run('normalizeItem(legacyCraft);');
+    assert.strictEqual(run('legacyCraft.stats[0].craftSource'),'fossil');
+    assert.strictEqual(run('legacyCraft.stats[1].craftSource'),'fossil');
+    assert.strictEqual(run('legacyCraft.stats[2].craftSource'),undefined,'high tier alone never proves spore origin');
+    assert.strictEqual(run('legacyCraft.stats[3].craftSource'),undefined);
+    assert(run("getItemAffixTierHtml(legacyCraft.stats[1]).includes('[T0]')"));
+    const saved=run('JSON.stringify(legacyCraft)');
+    run('legacyCraft=JSON.parse(JSON.stringify(legacyCraft));normalizeItem(legacyCraft);');
+    assert.strictEqual(run('JSON.stringify(legacyCraft)'),saved);
+    assert(run("equipmentCrafting.getBlockReason({stats:[{id:'resF',craftSource:'transplant'}]},'transplant',true).length>0"));
+    assert.strictEqual(run("equipmentCrafting.getBlockReason({stats:[{id:'resF',craftSource:'spore'}]},'transplant')"),'');
+}
+
 (async () => {
     const originalRandom = context.Math.random;
     try {
         loadUiFunction('getCraftOrbUseState');
+        await verifySporeSourceLimits();
+        verifyFossilSourceLimits();
+        verifyCraftSourceSaveCompatibility();
+        // Actual crafts: added flat damage must be selectable, and T20 spores must no longer force T19+.
+        let seed = 91026;
+        context.Math.random = () => ((seed = (Math.imul(seed,1664525) + 1013904223) >>> 0) / 4294967296);
+        for (const [mode,id] of [['fire','fireFlatDmg'],['cold','coldFlatDmg'],['light','lightFlatDmg'],['chaos','chaosFlatDmg'],['damage','spellFlatDmg']]) {
+            let found = false;
+            let foundLowerTier = false;
+            for (let attempt = 0; attempt < 150; attempt++) {
+                const weapon = {...makeBoots(980100), slot:'무기', hiddenTier:20, itemTier:20, affixTierCap:20};
+                setCraftItem(weapon,mode);
+                await run("useCurrency('formlessDew')");
+                context.expectedFlatId=id;
+                found ||= run(`window.__sporeCraftLogs.some(message => message.includes('홀씨 보장: '+getStatName(expectedFlatId)))`);
+                const guaranteed = JSON.parse(run(`JSON.stringify((()=>{
+                    const name=window.__sporeCraftLogs.find(message=>message.includes('홀씨 보장: ')).split('홀씨 보장: ')[1];
+                    return game.inventory[0].stats.find(stat=>stat.statName===name);
+                })())`));
+                assert(guaranteed.fixedValue || (guaranteed.tier>=9 && guaranteed.tier<=20));
+                foundLowerTier ||= !guaranteed.fixedValue && guaranteed.tier<19;
+            }
+            assert(found, `${mode} spores must guarantee ${id} in actual crafting outcomes`);
+            assert(foundLowerTier, `${mode} spores must allow the full configured tier range`);
+        }
+        const flatOnlyBoots = makeBoots(980101);
+        flatOnlyBoots.stats = [{id:'fireFlatDmg',val:100},{id:'resC',val:10,lockedByHoney:true}];
+        setCraftItem(flatOnlyBoots,'none');
+        run('game.expertise.levels.mycologist=15; applyCorruptSporeToSelectedItem()');
+        assert.strictEqual(run('game.inventory[0].stats.length'),1);
+        assert.strictEqual(run('game.inventory[0].stats[0].id'),'resC');
         run(`game.currencies.magicBud = 1;`);
         const fullMagicUseState = JSON.parse(run(`JSON.stringify(getCraftOrbUseState('magicBud', {
             rarity: 'magic', stats: [{ id: 'flatHp' }, { id: 'resF' }]

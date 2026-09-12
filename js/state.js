@@ -1,4 +1,23 @@
 // Central runtime namespace/state bridge (phase 2).
+function getPassiveEquipmentRestriction(item, state = game) {
+    if (!item) return '';
+    const rule = PASSIVE_EQUIPMENT_RESTRICTIONS.find(entry =>
+        entry.slot === item.slot && (state.passives || []).includes(entry.nodeId));
+    return rule ? rule.reason : '';
+}
+
+/** Return prohibited equipment to owned inventory, including overflow recovery, without discarding items. */
+function enforcePassiveEquipmentRestrictions(state = game) {
+    let moved = 0;
+    Object.entries(state.equipment).forEach(([slot, item]) => {
+        if (!getPassiveEquipmentRestriction(item, state)) return;
+        if (!state.inventory.includes(item)) state.inventory.push(item);
+        state.equipment[slot] = null;
+        moved++;
+    });
+    return moved;
+}
+
 // Keeps global compatibility while giving each module a stable anchor.
 window.GameModules = window.GameModules || {};
 window.GameState = window.GameState || {
@@ -711,24 +730,44 @@ function createBeyondBoundaryZone(state) {
     };
 }
 
+/** Queen spawning and the map preview share this profile; wave scaling applies once.
+ * @param {typeof defaultGame} state Normalized game state; read only.
+ */
+function createBeehiveZone(state) {
+    const hive = state.beehive;
+    const step = Math.max(1, Math.min(10, Math.floor(hive.branchStep || 1)));
+    const entryDepth = Math.max(21, Math.floor(hive.entryDeepChaosDepth || 21));
+    const empower = Math.max(0, Math.min(30, Math.floor(hive.enemyEmpower || 0)));
+    const waveHpMul = 1.4 + (step - 1) * 0.16 + empower * 0.16;
+    const waveAttackRateMul = 1.1 + empower * 0.025;
+    const waveDamageMul = 1.2 + empower * 0.02;
+    // Entry recommendations must already cover the final queen, not the current wave.
+    const queenHpMul = (1 + 9 * 0.16 + empower * 0.22) * 2.6;
+    return {
+        id: 'beehive_run', name: `벌집 심층 ${step}갈래`, type: 'beehive', tier: entryDepth,
+        maxKills: 1, ele: 'chaos', entryDeepChaosDepth: entryDepth, waveHpMul, waveAttackRateMul, waveDamageMul,
+        bossMods: { hpMul: queenHpMul, atkMul: 1.35 + empower * 0.02,
+            damageMul: 1.35 + empower * 0.025, critChanceBonus: 6, penetration: 8, patternMode: 'burst' }
+    };
+}
+
 function getZone(id) {
     if (id === 'cosmos_challenge') {
         const challengeZone = createCosmosChallengeZone(game);
         if (challengeZone) return challengeZone;
     }
     if (id === BEYOND_BOUNDARY_ZONE_ID) return createBeyondBoundaryZone(game);
-    if (id === 'beehive_run') {
-        let step = Math.max(1, Math.floor((game && game.beehive && game.beehive.branchStep) || 1));
-        let entryDepth = Math.max(21, Math.floor((game && game.beehive && game.beehive.entryDeepChaosDepth) || 21));
-        return { id: 'beehive_run', name: `벌집 심층 ${step}갈래`, type: 'beehive', tier: entryDepth, maxKills: 1, ele: 'chaos', entryDeepChaosDepth: entryDepth };
-    }
+    if (id === 'beehive_run') return createBeehiveZone(game);
     if (id === 'colony_run') {
         let wave = Math.max(1, Math.floor((game && game.colony && game.colony.wave) || 1));
         let depth = Math.max(21, Math.floor((game && game.colony && game.colony.entryDeepChaosDepth) || 21));
         return { id: 'colony_run', name: `군락지 방어 ${wave}웨이브`, type: 'colony', tier: depth + Math.floor(wave / 2), maxKills: 1, ele: 'chaos', entryDeepChaosDepth: depth };
     }
     if (id === 'grand_breach_run') {
-        return { id: 'grand_breach_run', name: '대균열', type: 'grandBreach', tier: 14, maxKills: 9999, ele: 'chaos' };
+        return {
+            id: 'grand_breach_run', name: '대균열', type: 'grandBreach', tier: 14, maxKills: 9999, ele: 'chaos',
+            bossMods: { hpMul: 4, atkMul: 1.25, damageMul: 1.5, patternMode: 'intro' }
+        };
     }
     if (id === OUTSIDE_CHAOS_ZONE_ID) return { id: OUTSIDE_CHAOS_ZONE_ID, name: '혼돈 밖', type: 'outsideChaos', tier: 25, maxKills: 1, ele: 'chaos', fixedDifficultyMul: 1 };
     if (id === CHAOS_REALM_ZONE_ID) {
@@ -774,7 +813,8 @@ function getZone(id) {
             type: 'meteor',
             tier: tier,
             maxKills: 1,
-            ele: 'chaos'
+            ele: 'chaos',
+            bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' }
         };
     }
     if (id === OCEAN_ZONE_ID) {
@@ -1529,128 +1569,134 @@ const SUPPORT_GEM_DB = {
 };
 
 const MOD_DB = [
-    { id: 'flatDmg', type: 'prefix', statName: '기본 피해', slots: ['무기', '반지', '목걸이', '허리띠', '장갑'], base: 3, step: 3 },
-    { id: 'weaponFlatDmgPct', type: 'prefix', statName: '무기의 기본 피해 증가(%)', slots: ['무기'], base: 6, step: 4 },
-    { id: 'pctDmg', type: 'prefix', statName: '피해 증가(%)', slots: ['무기', '반지', '목걸이'], base: 5, step: 4 },
-    { id: 'meleePctDmg', type: 'prefix', statName: '근접 피해(%)', slots: ['무기', '장갑', '목걸이', '허리띠'], base: 5, step: 4 },
-    { id: 'projectilePctDmg', type: 'prefix', statName: '투사체 피해(%)', slots: ['무기', '반지', '장갑', '목걸이'], base: 5, step: 4 },
-    { id: 'physPctDmg', type: 'prefix', statName: '물리 피해(%)', slots: ['무기', '허리띠', '반지', '방패'], base: 5, step: 4 },
-    { id: 'elementalPctDmg', type: 'prefix', statName: '원소 피해(%)', slots: ['무기', '반지', '목걸이'], base: 5, step: 4 },
-    { id: 'firePctDmg', type: 'prefix', statName: '화염 피해(%)', slots: ['무기', '반지', '목걸이', '방패'], base: 4, step: 3 },
-    { id: 'coldPctDmg', type: 'prefix', statName: '냉기 피해(%)', slots: ['무기', '반지', '목걸이', '방패'], base: 4, step: 3 },
-    { id: 'lightPctDmg', type: 'prefix', statName: '번개 피해(%)', slots: ['무기', '반지', '목걸이', '방패'], base: 4, step: 3 },
-    { id: 'chaosPctDmg', type: 'prefix', statName: '카오스 피해(%)', slots: ['무기', '반지', '목걸이', '장갑', '방패'], base: 4, step: 3 },
-    { id: 'aoePctDmg', type: 'prefix', statName: '범위 피해(%)', slots: ['무기', '투구', '목걸이', '갑옷'], base: 4, step: 3 },
-    { id: 'dotPctDmg', type: 'prefix', statName: '지속 피해 배율(%)', slots: ['무기', '반지', '목걸이'], base: 4, step: 3 },
-    { id: 'summonFlatDmg', type: 'prefix', statName: '소환수 기본 피해', slots: ['무기'], base: 4, step: 4 },
-    { id: 'summonPctDmg', type: 'prefix', statName: '소환수 피해(%)', slots: ['무기', '반지'], base: 6, step: 4 },
-    { id: 'summonHpPct', type: 'prefix', statName: '소환수 생명력(%)', slots: ['무기', '반지'], base: 6, step: 4 },
-    { id: 'summonAspd', type: 'suffix', statName: '소환수 공격 속도(%)', slots: ['무기'], base: 3, step: 2 },
-    { id: 'summonCrit', type: 'suffix', statName: '소환수 치명타 확률(%)', slots: ['무기', '반지'], base: 1, step: 1 },
-    { id: 'summonCritDmg', type: 'suffix', statName: '소환수 치명타 피해 배율(%)', slots: ['무기', '반지'], base: 8, step: 4 },
-    { id: 'summonEfficiency', type: 'suffix', statName: '소환수 효율(%)', slots: ['무기', '반지'], base: 4, step: 3 },
-    { id: 'summonCap', type: 'special', statName: '소환수 최대 한도', slots: ['반지'], base: 1, step: 0, weight: 0.35 },
-    { id: 'summonResPen', type: 'suffix', statName: '소환수 저항 관통(%)', slots: ['무기'], base: 2, step: 2, weight: 0.7 },
-    { id: 'summonWeaponGemLevel', statId: 'summonGemLevel', type: 'special', statName: '소환수 공격 스킬 젬 레벨', slots: ['무기'], tierValues: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5], weight: 0.15 },
-    { id: 'summonRingGemLevel', statId: 'summonGemLevel', type: 'special', statName: '소환수 공격 스킬 젬 레벨', slots: ['반지'], tierValues: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], weight: 0.15 },
-    { id: 'spellFlatDmg', type: 'prefix', statName: '주문 내장 피해', slots: ['무기', '목걸이'], base: 8, step: 6 },
-    { id: 'spellFlatPct', type: 'suffix', statName: '주문 내장 피해 증가(%)', slots: ['무기', '목걸이', '방패'], base: 6, step: 4 },
-    { id: 'flatHp', type: 'prefix', statName: '최대 생명력', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 15, step: 10 },
-    { id: 'strength', type: 'suffix', statName: '힘', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
-    { id: 'dexterity', type: 'suffix', statName: '민첩', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
-    { id: 'intelligence', type: 'suffix', statName: '지능', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 8, step: 6 },
-    { id: 'accuracy', type: 'suffix', statName: '정확도', slots: ['무기', '장갑', '반지', '목걸이'], base: 90, step: 60 },
-    { id: 'armor', type: 'prefix', statName: '방어도', slots: ['투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 12, step: 10 },
-    { id: 'evasion', type: 'prefix', statName: '회피', slots: ['투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'], base: 12, step: 10 },
-    { id: 'energyShield', type: 'prefix', statName: '에너지 보호막', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 9, step: 8 },
-    { id: 'armorPct', type: 'suffix', statName: '방어도 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 6, step: 4 },
-    { id: 'evasionPct', type: 'suffix', statName: '회피 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 6, step: 4 },
-    { id: 'deflectChance', type: 'suffix', statName: '비껴내기 확률(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 1, step: 1 },
-    { id: 'energyShieldPct', type: 'suffix', statName: '에너지 보호막 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 6, step: 4 },
-    { id: 'pctHp', type: 'suffix', statName: '생명력 증가(%)', slots: ['갑옷', '허리띠'], base: 4, step: 3 },
-    { id: 'aspd', type: 'suffix', statName: '공격 속도(%)', slots: ['무기', '반지', '목걸이', '허리띠', '장갑'], base: 2, step: 2 },
-    { id: 'crit', type: 'suffix', statName: '치명타 확률(%)', slots: ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'], base: 0.5, step: 0.5 },
-    { id: 'move', type: 'suffix', statName: '이동 속도(%)', slots: ['신발'], base: 4, step: 2 },
-    { id: 'gemLevel', type: 'special', statName: '모든 스킬 젬 레벨', slots: ['목걸이'], base: 1, step: 0 },
-    { id: 'physIgnore', type: 'suffix', statName: '물리 피해 감소 무시(%)', slots: ['무기', '장갑', '목걸이'], base: 1, step: 0.9 },
-    { id: 'resF', type: 'suffix', statName: '화염 저항(%)', slots: ['반지', '목걸이', '갑옷', '투구', '신발', '장갑', '허리띠', '방패'], base: 5, step: 3 },
-    { id: 'resC', type: 'suffix', statName: '냉기 저항(%)', slots: ['반지', '목걸이', '갑옷', '투구', '신발', '장갑', '허리띠', '방패'], base: 5, step: 3 },
-    { id: 'resL', type: 'suffix', statName: '번개 저항(%)', slots: ['반지', '목걸이', '갑옷', '투구', '신발', '장갑', '허리띠', '방패'], base: 5, step: 3 },
-    { id: 'resAll', type: 'suffix', statName: '모든 원소 저항(%)', slots: ['반지', '목걸이', '갑옷', '방패'], base: 3, step: 2 },
-    { id: 'resChaos', type: 'suffix', statName: '카오스 저항(%)', slots: ['반지', '방패'], base: 2, step: 1.4 },
-    { id: 'resPen', type: 'suffix', statName: '저항 관통(%)', slots: ['무기', '반지', '목걸이'], base: 0, step: 0.8 },
-    { id: 'regen', type: 'suffix', statName: '초당 재생(%)', slots: ['갑옷', '허리띠', '목걸이', '방패'], base: 0.2, step: 0.1 },
-    { id: 'regenFlat', type: 'suffix', statName: '생명력 재생(고정)', slots: ['갑옷', '목걸이', '반지', '허리띠', '방패'], base: 20, step: 12 },
-    { id: 'regenSuppress', type: 'suffix', statName: '재생 억제(%)', slots: ['허리띠'], base: 0.3, step: 0.06 },
-    { id: 'regenSuppressGloves', statId: 'regenSuppress', type: 'suffix', statName: '재생 억제(%)', slots: ['장갑'], base: 0.05, step: 0.07 },
-    { id: 'regenSuppressAmulet', statId: 'regenSuppress', type: 'suffix', statName: '재생 억제(%)', slots: ['목걸이'], base: 0.1, step: 0 },
-    { id: 'targetAny', type: 'special', statName: '스킬 타겟 수', slots: ['장갑'], base: 1, step: 0, weight: 0.45 },
-    { id: 'targetProjectile', type: 'special', statName: '투사체 스킬 타겟 수', slots: ['무기'], base: 1, step: 0, weight: 0.45 },
-    { id: 'projectileExtraShots', type: 'special', statName: '투사체 추가 발사', slots: ['무기'], base: 1, step: 1, weight: 0.4 },
-    { id: 'targetSlam', type: 'special', statName: '강타 스킬 타겟 수', slots: ['무기'], base: 1, step: 0, weight: 0.45 },
-    { id: 'leech', type: 'suffix', statName: '생명력 흡수(%)', slots: ['무기', '장갑', '반지'], base: 0.08, step: 0.08 },
-    { id: 'leechRateCap', type: 'suffix', statName: '흡혈 회복 속도 캡(%)', slots: ['무기', '장갑', '목걸이'], base: 0.4, step: 0.2 },
-    { id: 'leechTotalCap', type: 'suffix', statName: '흡혈 총 회복량 캡(%)', slots: ['갑옷', '허리띠', '목걸이'], base: 2, step: 1 },
-    { id: 'leechInstanceCap', type: 'suffix', statName: '흡혈 타격당 회복량 캡(%)', slots: ['무기', '반지', '장갑'], base: 1, step: 0.5 },
-    { id: 'dr', type: 'suffix', statName: '물리 피해 감소(%)', slots: ['갑옷', '허리띠', '투구'], base: 2, step: 2 },
-    { id: 'critDmg', type: 'suffix', statName: '치명타 피해 배율(%)', slots: ['무기', '목걸이', '투구'], base: 10, step: 6 },
-    { id: 'ds', type: 'suffix', statName: '연속 타격(%)', slots: ['장갑', '무기'], base: 5, step: 3 },
-    { id: 'minDmgRollWeapon', statId: 'minDmgRoll', type: 'suffix', statName: '최소 피해 보정(%)', slots: ['무기'], base: 4, step: 2 },
-    { id: 'maxDmgRollWeapon', statId: 'maxDmgRoll', type: 'suffix', statName: '최대 피해 보정(%)', slots: ['무기'], base: 4, step: 2 },
-    { id: 'suppCap', type: 'special', statName: '보조 스킬 젬 한도', slots: ['목걸이'], base: 1, step: 0 },
-    { id: 'shieldBlockPct', statId: 'blockChancePct', type: 'suffix', statName: '막기 확률(%) 증가', slots: ['방패'], base: 12, step: 8 },
-    { id: 'shieldBlockFlat', statId: 'blockChance', type: 'suffix', statName: '막기 확률(+%p)', slots: ['방패'], base: 1, step: 0.8 },
-    { id: 'shieldMaxResF', statId: 'maxResF', type: 'special', statName: '최대 화염 저항(%)', slots: ['방패'], base: 1, step: 0.3, weight: 0.35 },
-    { id: 'shieldMaxResC', statId: 'maxResC', type: 'special', statName: '최대 냉기 저항(%)', slots: ['방패'], base: 1, step: 0.3, weight: 0.35 },
-    { id: 'shieldMaxResL', statId: 'maxResL', type: 'special', statName: '최대 번개 저항(%)', slots: ['방패'], base: 1, step: 0.3, weight: 0.35 },
-    { id: 'shieldMaxResChaos', statId: 'maxResChaos', type: 'special', statName: '최대 카오스 저항(%)', slots: ['방패'], base: 1, step: 0.15, weight: 0.25 },
-    { id: 'shieldMaxResAll', statId: 'maxResAll', type: 'special', statName: '모든 원소 최대 저항(%)', slots: ['방패'], tierValues: [[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,2]], weight: 0.15 },
-    { id: 'shieldSpellGemLevel', statId: 'spellGemLevel', type: 'special', statName: '모든 주문 스킬 젬 레벨', slots: ['방패'], base: 1, step: 0.7, weight: 0.3 },
-    // --- 무기 속성별 기본 피해(flat). 속성 타입이 실제로 적용되어 해당 저항으로 경감되고 해당 속성 피해% 증가의 영향을 받는다. ---
-    { id: 'weaponPhysFlatDmg', statId: 'physFlatDmg', type: 'prefix', statName: '물리 기본 피해', slots: ['무기'], base: 3, step: 3 },
-    { id: 'weaponFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['무기'], base: 6, step: 6 },
-    { id: 'weaponColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['무기'], base: 6, step: 6 },
-    { id: 'weaponLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['무기'], base: 6, step: 6 },
-    { id: 'weaponChaosFlatDmg', statId: 'chaosFlatDmg', type: 'prefix', statName: '카오스 기본 피해', slots: ['무기'], base: 3, step: 3 },
-    // --- 반지 속성별 기본 피해(flat). 반지 전용 저수치 계열. ---
-    { id: 'ringPhysFlatDmg', statId: 'physFlatDmg', type: 'prefix', statName: '물리 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
-    { id: 'ringFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
-    { id: 'ringColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
-    { id: 'ringLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
-    { id: 'ringChaosFlatDmg', statId: 'chaosFlatDmg', type: 'prefix', statName: '카오스 기본 피해', slots: ['반지'], base: 0.6, step: 0.6 },
-    // --- 장갑 속성별 기본 피해(flat). 원소 계열은 공격 장갑의 가치를 위해 별도 상향. ---
-    { id: 'glovePhysFlatDmg', statId: 'physFlatDmg', type: 'prefix', statName: '물리 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
-    { id: 'gloveFireFlatDmg', statId: 'fireFlatDmg', type: 'prefix', statName: '화염 기본 피해', slots: ['장갑'], base: 1.8, step: 1.8 },
-    { id: 'gloveColdFlatDmg', statId: 'coldFlatDmg', type: 'prefix', statName: '냉기 기본 피해', slots: ['장갑'], base: 1.8, step: 1.8 },
-    { id: 'gloveLightFlatDmg', statId: 'lightFlatDmg', type: 'prefix', statName: '번개 기본 피해', slots: ['장갑'], base: 1.8, step: 1.8 },
-    { id: 'gloveChaosFlatDmg', statId: 'chaosFlatDmg', type: 'prefix', statName: '카오스 기본 피해', slots: ['장갑'], base: 0.6, step: 0.6 },
-    // --- 한 줄에 방어(flat) + 방어 증가(%)를 동시에 가지는 복합 옵션. 각 수치는 단일 옵션의 30% 수준. 베이스 방어 타입에 맞는 것만 등장. ---
-    { id: 'compoundArmor', statId: 'armor', type: 'prefix', statName: '방어도 + 방어도 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 3.6, step: 3, compound: [{ statId: 'armorPct', statName: '방어도 증가(%)', base: 1.8, step: 1.2 }] },
-    { id: 'compoundEvasion', statId: 'evasion', type: 'prefix', statName: '회피 + 회피 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 3.6, step: 3, compound: [{ statId: 'evasionPct', statName: '회피 증가(%)', base: 1.8, step: 1.2 }] },
-    { id: 'compoundEnergyShield', statId: 'energyShield', type: 'prefix', statName: '에너지 보호막 + 보호막 증가(%)', slots: ['투구', '갑옷', '장갑', '신발', '방패'], base: 2.7, step: 2.4, compound: [{ statId: 'energyShieldPct', statName: '에너지 보호막 증가(%)', base: 1.8, step: 1.2 }] },
-    // --- 한 줄에 무기 기본 피해(flat) + 무기 피해(%)를 동시에 가지는 복합 옵션. 각 수치는 단일 옵션의 30% 수준. ---
-    { id: 'compoundWeaponDmg', statId: 'flatDmg', type: 'prefix', statName: '기본 피해 + 무기의 기본 피해 증가(%)', slots: ['무기'], base: 0.9, step: 0.9, compound: [{ statId: 'weaponFlatDmgPct', statName: '무기의 기본 피해 증가(%)', base: 1.8, step: 1.2 }] }
+    {"id":"flatDmg","type":"prefix","statName":"기본 피해","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[7,8],[9,11],[12,15],[16,20],[21,25],[26,32],[33,38],[39,45],[46,52],[53,60],[61,68],[69,77],[78,86],[87,95],[96,104],[105,114],[115,124],[125,134],[135,144],[145,155]],"valueStep":1},
+    {"id":"weaponFlatDmgPct","type":"prefix","statName":"무기의 기본 피해 증가(%)","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
+    {"id":"pctDmg","type":"prefix","statName":"피해 증가(%)","slots":["무기","반지","목걸이"],"affixBalanceVersion":2,"tierValues":[[9,11],[12,15],[16,19],[20,24],[25,28],[29,32],[33,36],[37,40],[41,45],[46,49],[50,53],[54,57],[58,62],[63,66],[67,70],[71,74],[75,78],[79,83],[84,87],[88,91]],"valueStep":1},
+    {"id":"meleePctDmg","type":"prefix","statName":"근접 피해(%)","slots":["무기","장갑","목걸이","허리띠"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"valueStep":1},
+    {"id":"projectilePctDmg","type":"prefix","statName":"투사체 피해(%)","slots":["무기","반지","장갑","목걸이"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"valueStep":1},
+    {"id":"physPctDmg","type":"prefix","statName":"물리 피해(%)","slots":["무기","허리띠","반지","방패"],"affixBalanceVersion":2,"tierValues":[[11,13],[14,19],[20,24],[25,30],[31,36],[37,41],[42,47],[48,52],[53,58],[59,64],[65,69],[70,75],[76,81],[82,86],[87,92],[93,97],[98,103],[104,109],[110,114],[115,120]],"valueStep":1},
+    {"id":"elementalPctDmg","type":"prefix","statName":"원소 피해(%)","slots":["무기","반지","목걸이"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,22],[23,27],[28,33],[34,38],[39,43],[44,48],[49,53],[54,58],[59,64],[65,69],[70,74],[75,79],[80,84],[85,89],[90,94],[95,99],[100,104],[105,110]],"valueStep":1},
+    {"id":"firePctDmg","type":"prefix","statName":"화염 피해(%)","slots":["무기","반지","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,20],[21,26],[27,32],[33,38],[39,45],[46,51],[52,57],[58,63],[64,69],[70,75],[76,81],[82,87],[88,93],[94,99],[100,106],[107,112],[113,118],[119,124],[125,130]],"valueStep":1},
+    {"id":"coldPctDmg","type":"prefix","statName":"냉기 피해(%)","slots":["무기","반지","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,20],[21,26],[27,32],[33,38],[39,45],[46,51],[52,57],[58,63],[64,69],[70,75],[76,81],[82,87],[88,93],[94,99],[100,106],[107,112],[113,118],[119,124],[125,130]],"valueStep":1},
+    {"id":"lightPctDmg","type":"prefix","statName":"번개 피해(%)","slots":["무기","반지","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,20],[21,26],[27,32],[33,38],[39,45],[46,51],[52,57],[58,63],[64,69],[70,75],[76,81],[82,87],[88,93],[94,99],[100,106],[107,112],[113,118],[119,124],[125,130]],"valueStep":1},
+    {"id":"chaosPctDmg","type":"prefix","statName":"카오스 피해(%)","slots":["무기","반지","목걸이","장갑","방패"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,20],[21,26],[27,32],[33,38],[39,45],[46,51],[52,57],[58,63],[64,69],[70,75],[76,81],[82,87],[88,93],[94,99],[100,106],[107,112],[113,118],[119,124],[125,130]],"valueStep":1},
+    {"id":"aoePctDmg","type":"prefix","statName":"범위 피해(%)","slots":["무기","투구","목걸이","갑옷"],"affixBalanceVersion":2,"tierValues":[[11,13],[14,19],[20,24],[25,30],[31,36],[37,41],[42,47],[48,52],[53,58],[59,64],[65,69],[70,75],[76,81],[82,86],[87,92],[93,97],[98,103],[104,109],[110,114],[115,120]],"valueStep":1},
+    {"id":"dotPctDmg","type":"prefix","statName":"지속 피해 배율(%)","slots":["무기","반지","목걸이"],"affixBalanceVersion":2,"tierValues":[[7,8],[9,11],[12,14],[15,17],[18,20],[21,23],[24,26],[27,29],[30,32],[33,35],[36,38],[39,41],[42,44],[45,47],[48,50],[51,53],[54,56],[57,59],[60,62],[63,65]],"valueStep":1},
+    {"id":"summonFlatDmg","type":"prefix","statName":"소환수 기본 피해","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[8,10],[11,14],[15,18],[19,22],[23,26],[27,30],[31,34],[35,38],[39,42],[43,46],[47,50],[51,54],[55,58],[59,62],[63,66],[67,70],[71,74],[75,78],[79,82],[83,86]],"valueStep":1},
+    {"id":"summonPctDmg","type":"prefix","statName":"소환수 피해(%)","slots":["무기","반지"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
+    {"id":"summonHpPct","type":"prefix","statName":"소환수 생명력(%)","slots":["무기","반지"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
+    {"id":"summonAspd","type":"suffix","statName":"소환수 공격 속도(%)","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[5,6],[7,8],[9,10],[11,12],[13,14],[15,16],[17,18],[19,20],[21,22],[23,24],[25,26],[27,28],[29,30],[31,32],[33,34],[35,36],[37,38],[39,40],[41,42],[43,44]],"valueStep":1},
+    {"id":"summonCrit","type":"suffix","statName":"소환수 치명타 확률(%)","slots":["무기","반지"],"affixBalanceVersion":2,"tierValues":[[2,2],[3,3],[4,4],[5,5],[6,6],[7,7],[8,8],[9,9],[10,10],[11,11],[12,12],[13,13],[14,14],[15,15],[16,16],[17,17],[18,18],[19,19],[20,20],[21,21]],"valueStep":1},
+    {"id":"summonCritDmg","type":"suffix","statName":"소환수 치명타 피해 배율(%)","slots":["무기","반지"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,18],[19,22],[23,26],[27,30],[31,34],[35,38],[39,42],[43,46],[47,50],[51,54],[55,58],[59,62],[63,66],[67,70],[71,74],[75,78],[79,82],[83,86],[87,90]],"valueStep":1},
+    {"id":"summonEfficiency","type":"suffix","statName":"소환수 효율(%)","slots":["무기","반지"],"affixBalanceVersion":2,"tierValues":[[7,8],[9,11],[12,14],[15,17],[18,20],[21,23],[24,26],[27,29],[30,32],[33,35],[36,38],[39,41],[42,44],[45,47],[48,50],[51,53],[54,56],[57,59],[60,62],[63,65]],"valueStep":1},
+    {"id":"summonCap","type":"special","statName":"소환수 최대 한도","slots":["반지"],"weight":0.35,"affixBalanceVersion":2,"tierValues":[[1,1]],"fixedValue":true,"valueStep":1},
+    {"id":"summonResPen","type":"suffix","statName":"소환수 저항 관통(%)","slots":["무기"],"weight":0.7,"affixBalanceVersion":2,"tierValues":[[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[36,37],[38,39],[40,41],[42,43]],"valueStep":1},
+    {"id":"summonWeaponGemLevel","statId":"summonGemLevel","type":"special","statName":"소환수 공격 스킬 젬 레벨","slots":["무기"],"tierValues":[1,1,2,2,3,3,4,4,5,5],"weight":0.15,"affixBalanceVersion":2,"valueStep":1},
+    {"id":"summonRingGemLevel","statId":"summonGemLevel","type":"special","statName":"소환수 공격 스킬 젬 레벨","slots":["반지"],"tierValues":[1],"weight":0.15,"affixBalanceVersion":2,"fixedValue":true,"valueStep":1},
+    {"id":"spellFlatDmg","type":"prefix","statName":"주문 내장 피해","slots":["무기","목걸이"],"affixBalanceVersion":2,"tierValues":[[16,20],[21,25],[26,34],[35,44],[45,56],[57,69],[70,84],[85,99],[100,115],[116,132],[133,150],[151,169],[170,188],[189,208],[209,229],[230,250],[251,272],[273,294],[295,317],[318,340]],"valueStep":1},
+    {"id":"spellFlatPct","type":"suffix","statName":"주문 내장 피해 증가(%)","slots":["무기","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
+    {"id":"flatHp","type":"prefix","statName":"최대 생명력","slots":["무기","투구","갑옷","장갑","신발","목걸이","반지","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[25,31],[32,41],[42,51],[52,61],[62,71],[72,81],[82,91],[92,101],[102,111],[112,121],[122,131],[132,141],[142,151],[152,161],[162,171],[172,181],[182,191],[192,201],[202,211],[212,221]],"valueStep":1},
+    {"id":"strength","type":"suffix","statName":"힘","slots":["무기","투구","갑옷","장갑","신발","목걸이","반지","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[14,17],[18,23],[24,29],[30,35],[36,41],[42,47],[48,53],[54,59],[60,65],[66,71],[72,77],[78,83],[84,89],[90,95],[96,101],[102,107],[108,113],[114,119],[120,125],[126,131]],"valueStep":1},
+    {"id":"dexterity","type":"suffix","statName":"민첩","slots":["무기","투구","갑옷","장갑","신발","목걸이","반지","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[14,17],[18,23],[24,29],[30,35],[36,41],[42,47],[48,53],[54,59],[60,65],[66,71],[72,77],[78,83],[84,89],[90,95],[96,101],[102,107],[108,113],[114,119],[120,125],[126,131]],"valueStep":1},
+    {"id":"intelligence","type":"suffix","statName":"지능","slots":["무기","투구","갑옷","장갑","신발","목걸이","반지","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[14,17],[18,23],[24,29],[30,35],[36,41],[42,47],[48,53],[54,59],[60,65],[66,71],[72,77],[78,83],[84,89],[90,95],[96,101],[102,107],[108,113],[114,119],[120,125],[126,131]],"valueStep":1},
+    {"id":"accuracy","type":"suffix","statName":"정확도","slots":["무기","장갑","반지","목걸이"],"affixBalanceVersion":2,"tierValues":[[150,186],[187,246],[247,306],[307,366],[367,426],[427,486],[487,546],[547,606],[607,666],[667,726],[727,786],[787,846],[847,906],[907,966],[967,1026],[1027,1086],[1087,1146],[1147,1206],[1207,1266],[1267,1326]],"valueStep":1},
+    {"id":"armor","type":"prefix","statName":"방어도","slots":["투구","갑옷","장갑","신발","목걸이","반지","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[22,28],[29,38],[39,48],[49,58],[59,68],[69,78],[79,88],[89,98],[99,108],[109,118],[119,128],[129,138],[139,148],[149,158],[159,168],[169,178],[179,188],[189,198],[199,208],[209,218]],"valueStep":1},
+    {"id":"evasion","type":"prefix","statName":"회피","slots":["투구","갑옷","장갑","신발","목걸이","반지","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[22,28],[29,38],[39,48],[49,58],[59,68],[69,78],[79,88],[89,98],[99,108],[109,118],[119,128],[129,138],[139,148],[149,158],[159,168],[169,178],[179,188],[189,198],[199,208],[209,218]],"valueStep":1},
+    {"id":"energyShield","type":"prefix","statName":"에너지 보호막","slots":["투구","갑옷","장갑","신발","방패"],"affixBalanceVersion":2,"tierValues":[[17,21],[22,29],[30,37],[38,45],[46,53],[54,61],[62,69],[70,77],[78,85],[86,93],[94,101],[102,109],[110,117],[118,125],[126,133],[134,141],[142,149],[150,157],[158,165],[166,173]],"valueStep":1},
+    {"id":"armorPct","type":"suffix","statName":"방어도 증가(%)","slots":["투구","갑옷","장갑","신발","방패"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
+    {"id":"evasionPct","type":"suffix","statName":"회피 증가(%)","slots":["투구","갑옷","장갑","신발","방패"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
+    {"id":"deflectChance","type":"suffix","statName":"비껴내기 확률(%)","slots":["투구","갑옷","장갑","신발","방패"],"affixBalanceVersion":2,"tierValues":[[2,2],[3,3],[4,4],[5,5],[6,6],[7,7],[8,8],[9,9],[10,10],[11,11],[12,12],[13,13],[14,14],[15,15],[16,16],[17,17],[18,18],[19,19],[20,20],[21,21]],"valueStep":1},
+    {"id":"energyShieldPct","type":"suffix","statName":"에너지 보호막 증가(%)","slots":["투구","갑옷","장갑","신발","방패"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
+    {"id":"pctHp","type":"suffix","statName":"생명력 증가(%)","slots":["갑옷","허리띠"],"affixBalanceVersion":2,"tierValues":[[7,8],[9,11],[12,14],[15,17],[18,20],[21,23],[24,26],[27,29],[30,32],[33,35],[36,38],[39,41],[42,44],[45,47],[48,50],[51,53],[54,56],[57,59],[60,62],[63,65]],"valueStep":1},
+    {"id":"aspd","type":"suffix","statName":"공격 속도(%)","slots":["무기","반지","목걸이","허리띠","장갑"],"affixBalanceVersion":2,"tierValues":[[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[36,37],[38,39],[40,41],[42,43]],"valueStep":1},
+    {"id":"crit","type":"suffix","statName":"치명타 확률(%)","slots":["무기","투구","갑옷","장갑","신발","목걸이","반지","허리띠"],"affixBalanceVersion":2,"tierValues":[[1,1.3],[1.31,1.8],[1.81,2.2],[2.21,2.7],[2.71,3.2],[3.21,3.7],[3.71,4.2],[4.21,4.7],[4.71,5.2],[5.21,5.7],[5.71,6.2],[6.21,6.8],[6.81,7.3],[7.31,7.8],[7.81,8.3],[8.31,8.8],[8.81,9.3],[9.31,9.8],[9.81,10.3],[10.31,10.8]],"valueStep":0.01},
+    {"id":"move","type":"suffix","statName":"이동 속도(%)","slots":["신발"],"affixBalanceVersion":2,"tierValues":[[6,7],[8,9],[10,11],[12,13],[14,15],[16,17],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[36,37],[38,39],[40,41],[42,43],[44,45]],"valueStep":1},
+    {"id":"gemLevel","type":"special","statName":"모든 스킬 젬 레벨","slots":["목걸이"],"affixBalanceVersion":2,"tierValues":[[1,1]],"fixedValue":true,"valueStep":1},
+    {"id":"physIgnore","type":"suffix","statName":"물리 피해 감소 무시(%)","slots":["무기","장갑","목걸이"],"affixBalanceVersion":2,"tierValues":[[1.9,2.4],[2.41,3.3],[3.31,4.2],[4.21,5.1],[5.11,6],[6.01,6.9],[6.91,7.8],[7.81,8.7],[8.71,9.6],[9.61,10.5],[10.51,11.4],[11.41,12.3],[12.31,13.2],[13.21,14.1],[14.11,15],[15.01,15.9],[15.91,16.8],[16.81,17.7],[17.71,18.6],[18.61,19.5]],"valueStep":0.01},
+    {"id":"resF","type":"suffix","statName":"화염 저항(%)","slots":["반지","목걸이","갑옷","투구","신발","장갑","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[3,4],[5,6],[7,9],[10,11],[12,13],[14,16],[17,18],[19,20],[21,22],[23,25],[26,27],[28,29],[30,31],[32,34],[35,36],[37,38],[39,40],[41,43],[44,45],[46,48]],"valueStep":1},
+    {"id":"resC","type":"suffix","statName":"냉기 저항(%)","slots":["반지","목걸이","갑옷","투구","신발","장갑","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[3,4],[5,6],[7,9],[10,11],[12,13],[14,16],[17,18],[19,20],[21,22],[23,25],[26,27],[28,29],[30,31],[32,34],[35,36],[37,38],[39,40],[41,43],[44,45],[46,48]],"valueStep":1},
+    {"id":"resL","type":"suffix","statName":"번개 저항(%)","slots":["반지","목걸이","갑옷","투구","신발","장갑","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[3,4],[5,6],[7,9],[10,11],[12,13],[14,16],[17,18],[19,20],[21,22],[23,25],[26,27],[28,29],[30,31],[32,34],[35,36],[37,38],[39,40],[41,43],[44,45],[46,48]],"valueStep":1},
+    {"id":"resAll","type":"suffix","statName":"모든 원소 저항(%)","slots":["반지","목걸이","갑옷","방패"],"affixBalanceVersion":2,"tierValues":[[1,1],[2,3],[4,4],[5,6],[7,8],[9,9],[10,11],[12,12],[13,14],[15,15],[16,17],[18,18],[19,20],[21,21],[22,23],[24,24],[25,26],[27,27],[28,29],[30,32]],"valueStep":1},
+    {"id":"resChaos","type":"suffix","statName":"카오스 저항(%)","slots":["반지","방패"],"affixBalanceVersion":2,"tierValues":[[1,1],[2,3],[4,4],[5,6],[7,7],[8,9],[10,10],[11,11],[12,13],[14,14],[15,16],[17,17],[18,18],[19,20],[21,21],[22,23],[24,24],[25,26],[27,27],[28,30]],"valueStep":1},
+    {"id":"resPen","type":"suffix","statName":"저항 관통(%)","slots":["무기","반지","목걸이"],"affixBalanceVersion":2,"tierValues":[[0.8,1.2],[1.21,2],[2.01,2.8],[2.81,3.6],[3.61,4.4],[4.41,5.2],[5.21,6],[6.01,6.8],[6.81,7.6],[7.61,8.4],[8.41,9.2],[9.21,10],[10.01,10.8],[10.81,11.6],[11.61,12.4],[12.41,13.2],[13.21,14],[14.01,14.8],[14.81,15.6],[15.61,16.4]],"valueStep":0.01},
+    {"id":"regen","type":"suffix","statName":"초당 재생(%)","slots":["갑옷","허리띠","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[0.3,0.3],[0.31,0.4],[0.41,0.5],[0.51,0.6],[0.61,0.7],[0.71,0.8],[0.81,0.9],[0.91,1],[1.01,1.1],[1.11,1.2],[1.21,1.3],[1.31,1.4],[1.41,1.5],[1.51,1.6],[1.61,1.7],[1.71,1.8],[1.81,1.9],[1.91,2],[2.01,2.1],[2.11,2.2]],"valueStep":0.01},
+    {"id":"regenFlat","type":"suffix","statName":"생명력 재생(고정)","slots":["갑옷","목걸이","반지","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[32,39],[40,51],[52,63],[64,75],[76,87],[88,99],[100,111],[112,123],[124,135],[136,147],[148,159],[160,171],[172,183],[184,195],[196,207],[208,219],[220,231],[232,243],[244,255],[256,267]],"valueStep":1},
+    {"id":"regenSuppress","type":"suffix","statName":"재생 억제(%)","slots":["허리띠"],"affixBalanceVersion":2,"tierValues":[[0.36,0.39],[0.4,0.45],[0.46,0.51],[0.52,0.57],[0.58,0.63],[0.64,0.69],[0.7,0.75],[0.76,0.81],[0.82,0.87],[0.88,0.93],[0.94,0.99],[1,1.05],[1.06,1.11],[1.12,1.17],[1.18,1.23],[1.24,1.29],[1.3,1.35],[1.36,1.41],[1.42,1.47],[1.48,1.53]],"valueStep":0.01},
+    {"id":"regenSuppressGloves","statId":"regenSuppress","type":"suffix","statName":"재생 억제(%)","slots":["장갑"],"affixBalanceVersion":2,"tierValues":[[0.12,0.16],[0.17,0.23],[0.24,0.3],[0.31,0.37],[0.38,0.44],[0.45,0.51],[0.52,0.58],[0.59,0.65],[0.66,0.72],[0.73,0.79],[0.8,0.86],[0.87,0.93],[0.94,1],[1.01,1.07],[1.08,1.14],[1.15,1.21],[1.22,1.28],[1.29,1.35],[1.36,1.42],[1.43,1.49]],"valueStep":0.01},
+    {"id":"regenSuppressAmulet","statId":"regenSuppress","type":"suffix","statName":"재생 억제(%)","slots":["목걸이"],"affixBalanceVersion":2,"tierValues":[[0.1,0.1]],"fixedValue":true,"valueStep":0.01},
+    {"id":"targetAny","type":"special","statName":"스킬 타겟 수","slots":["장갑"],"weight":0.45,"affixBalanceVersion":2,"tierValues":[[1,1]],"fixedValue":true,"valueStep":1},
+    {"id":"targetProjectile","type":"special","statName":"투사체 스킬 타겟 수","slots":["무기"],"weight":0.45,"affixBalanceVersion":2,"tierValues":[[1,1]],"fixedValue":true,"valueStep":1},
+    {"id":"projectileExtraShots","type":"special","statName":"투사체 추가 발사 확률(%)","slots":["무기"],"weight":0.4,"affixBalanceVersion":2,"tierValues":[[100,125],[126,175],[176,225],[226,275],[276,325],[326,375],[376,425],[426,475],[476,525],[526,575],[576,625],[626,675],[676,725],[726,775],[776,825],[826,875],[876,925],[926,975],[976,1025],[1026,1100]],"statId":"projectileExtraChance","valueStep":1},
+    {"id":"targetSlam","type":"special","statName":"강타 스킬 타겟 수","slots":["무기"],"weight":0.45,"affixBalanceVersion":2,"tierValues":[[1,1]],"fixedValue":true,"valueStep":1},
+    {"id":"leech","type":"suffix","statName":"공격 피해의 생명력 흡수(%)","slots":["무기","장갑","반지"],"affixBalanceVersion":2,"tierValues":[[0.16,0.2],[0.21,0.28],[0.29,0.36],[0.37,0.44],[0.45,0.52],[0.53,0.6],[0.61,0.68],[0.69,0.76],[0.77,0.84],[0.85,0.92],[0.93,1],[1.01,1.08],[1.09,1.16],[1.17,1.24],[1.25,1.32],[1.33,1.4],[1.41,1.48],[1.49,1.56],[1.57,1.64],[1.65,1.72]],"valueStep":0.01},
+    {"id":"leechRateCap","type":"suffix","statName":"흡혈 회복 속도 캡(%)","slots":["무기","장갑","목걸이"],"affixBalanceVersion":2,"tierValues":[[0.6,0.7],[0.71,0.9],[0.91,1.1],[1.11,1.3],[1.31,1.5],[1.51,1.7],[1.71,1.9],[1.91,2.1],[2.11,2.3],[2.31,2.5],[2.51,2.7],[2.71,2.9],[2.91,3.1],[3.11,3.3],[3.31,3.5],[3.51,3.7],[3.71,3.9],[3.91,4.1],[4.11,4.3],[4.31,4.5]],"valueStep":0.01},
+    {"id":"leechTotalCap","type":"suffix","statName":"흡혈 총 회복량 캡(%)","slots":["갑옷","허리띠","목걸이"],"affixBalanceVersion":2,"tierValues":[[3,3],[4,4],[5,5],[6,6],[7,7],[8,8],[9,9],[10,10],[11,11],[12,12],[13,13],[14,14],[15,15],[16,16],[17,17],[18,18],[19,19],[20,20],[21,21],[22,22]],"valueStep":1},
+    {"id":"leechInstanceCap","type":"suffix","statName":"흡혈 타격당 회복량 캡(%)","slots":["무기","반지","장갑"],"affixBalanceVersion":2,"tierValues":[[1.5,1.8],[1.81,2.2],[2.21,2.7],[2.71,3.2],[3.21,3.7],[3.71,4.2],[4.21,4.7],[4.71,5.2],[5.21,5.7],[5.71,6.2],[6.21,6.8],[6.81,7.3],[7.31,7.8],[7.81,8.3],[8.31,8.8],[8.81,9.3],[9.31,9.8],[9.81,10.3],[10.31,10.8],[10.81,11.3]],"valueStep":0.01},
+    {"id":"dr","type":"suffix","statName":"물리 피해 감소(%)","slots":["갑옷","허리띠","투구"],"affixBalanceVersion":2,"tierValues":[[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[36,37],[38,39],[40,41],[42,43]],"valueStep":1},
+    {"id":"critDmg","type":"suffix","statName":"치명타 피해 배율(%)","slots":["무기","목걸이","투구"],"affixBalanceVersion":2,"tierValues":[[16,19],[20,25],[26,31],[32,37],[38,43],[44,49],[50,55],[56,61],[62,67],[68,73],[74,79],[80,85],[86,91],[92,97],[98,103],[104,109],[110,115],[116,121],[122,127],[128,133]],"valueStep":1},
+    {"id":"ds","type":"suffix","statName":"연속 타격(%)","slots":["장갑","무기"],"affixBalanceVersion":2,"tierValues":[[8,9],[10,12],[13,15],[16,18],[19,21],[22,24],[25,27],[28,30],[31,33],[34,36],[37,39],[40,42],[43,45],[46,48],[49,51],[52,54],[55,57],[58,60],[61,63],[64,66]],"valueStep":1},
+    {"id":"minDmgRollWeapon","statId":"minDmgRoll","type":"suffix","statName":"최소 피해 보정(%)","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[6,7],[8,9],[10,11],[12,13],[14,15],[16,17],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[36,37],[38,39],[40,41],[42,43],[44,45]],"valueStep":1},
+    {"id":"maxDmgRollWeapon","statId":"maxDmgRoll","type":"suffix","statName":"최대 피해 보정(%)","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[6,7],[8,9],[10,11],[12,13],[14,15],[16,17],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[36,37],[38,39],[40,41],[42,43],[44,45]],"valueStep":1},
+    {"id":"suppCap","type":"special","statName":"보조 스킬 젬 한도","slots":["목걸이"],"affixBalanceVersion":2,"tierValues":[[1,1]],"fixedValue":true,"valueStep":1},
+    {"id":"shieldBlockPct","statId":"blockChancePct","type":"suffix","statName":"막기 확률(%) 증가","slots":["방패"],"affixBalanceVersion":2,"tierValues":[[20,24],[25,32],[33,40],[41,48],[49,56],[57,64],[65,72],[73,80],[81,88],[89,96],[97,104],[105,112],[113,120],[121,128],[129,136],[137,144],[145,152],[153,160],[161,168],[169,176]],"valueStep":1},
+    {"id":"shieldBlockFlat","statId":"blockChance","type":"suffix","statName":"막기 확률(+%p)","slots":["방패"],"affixBalanceVersion":2,"tierValues":[[1.8,2.2],[2.21,3],[3.01,3.8],[3.81,4.6],[4.61,5.4],[5.41,6.2],[6.21,7],[7.01,7.8],[7.81,8.6],[8.61,9.4],[9.41,10.2],[10.21,11],[11.01,11.8],[11.81,12.6],[12.61,13.4],[13.41,14.2],[14.21,15],[15.01,15.8],[15.81,16.6],[16.61,17.4]],"valueStep":0.01},
+    {"id":"shieldMaxResF","statId":"maxResF","type":"special","statName":"최대 화염 저항(%)","slots":["방패"],"weight":0.35,"affixBalanceVersion":2,"tierValues":[[1.3,1.4],[1.41,1.7],[1.71,2],[2.01,2.3],[2.31,2.6],[2.61,2.9],[2.91,3.2],[3.21,3.5],[3.51,3.8],[3.81,4.1],[4.11,4.4],[4.41,4.7],[4.71,5],[5.01,5.3],[5.31,5.6],[5.61,5.9],[5.91,6.2],[6.21,6.5],[6.51,6.8],[6.81,7.1]],"valueStep":0.01},
+    {"id":"shieldMaxResC","statId":"maxResC","type":"special","statName":"최대 냉기 저항(%)","slots":["방패"],"weight":0.35,"affixBalanceVersion":2,"tierValues":[[1.3,1.4],[1.41,1.7],[1.71,2],[2.01,2.3],[2.31,2.6],[2.61,2.9],[2.91,3.2],[3.21,3.5],[3.51,3.8],[3.81,4.1],[4.11,4.4],[4.41,4.7],[4.71,5],[5.01,5.3],[5.31,5.6],[5.61,5.9],[5.91,6.2],[6.21,6.5],[6.51,6.8],[6.81,7.1]],"valueStep":0.01},
+    {"id":"shieldMaxResL","statId":"maxResL","type":"special","statName":"최대 번개 저항(%)","slots":["방패"],"weight":0.35,"affixBalanceVersion":2,"tierValues":[[1.3,1.4],[1.41,1.7],[1.71,2],[2.01,2.3],[2.31,2.6],[2.61,2.9],[2.91,3.2],[3.21,3.5],[3.51,3.8],[3.81,4.1],[4.11,4.4],[4.41,4.7],[4.71,5],[5.01,5.3],[5.31,5.6],[5.61,5.9],[5.91,6.2],[6.21,6.5],[6.51,6.8],[6.81,7.1]],"valueStep":0.01},
+    {"id":"shieldMaxResChaos","statId":"maxResChaos","type":"special","statName":"최대 카오스 저항(%)","slots":["방패"],"weight":0.25,"affixBalanceVersion":2,"tierValues":[[1.1,1.1],[1.11,1.3],[1.31,1.4],[1.41,1.6],[1.61,1.8],[1.81,1.9],[1.91,2],[2.01,2.2],[2.21,2.3],[2.31,2.5],[2.51,2.6],[2.61,2.8],[2.81,3],[3.01,3.1],[3.11,3.3],[3.31,3.4],[3.41,3.5],[3.51,3.7],[3.71,3.9],[3.91,4]],"valueStep":0.01},
+    {"id":"shieldMaxResAll","statId":"maxResAll","type":"special","statName":"모든 원소 최대 저항(%)","slots":["방패"],"tierValues":[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,2]],"weight":0.15,"affixBalanceVersion":2,"valueStep":1},
+    {"id":"shieldSpellGemLevel","statId":"spellGemLevel","type":"special","statName":"모든 주문 스킬 젬 레벨","slots":["방패"],"weight":0.3,"affixBalanceVersion":2,"tierValues":[[1.7,2.1],[2.11,2.8],[2.81,3.5],[3.51,4.2],[4.21,4.9],[4.91,5.6],[5.61,6.3],[6.31,7],[7.01,7.7],[7.71,8.4],[8.41,9.1],[9.11,9.8],[9.81,10.5],[10.51,11.2],[11.21,11.9],[11.91,12.6],[12.61,13.3],[13.31,14],[14.01,14.7],[14.71,15.4]],"valueStep":0.01},
+    {"id":"weaponPhysFlatDmg","statId":"physFlatDmg","type":"prefix","statName":"물리 기본 피해","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[8,9],[10,13],[14,17],[18,22],[23,27],[28,34],[35,41],[42,48],[49,56],[57,64],[65,73],[74,82],[83,91],[92,101],[102,111],[112,121],[122,132],[133,143],[144,154],[155,165]],"valueStep":1},
+    {"id":"weaponFireFlatDmg","statId":"fireFlatDmg","type":"prefix","statName":"화염 기본 피해","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[14,18],[19,23],[24,31],[32,41],[42,52],[53,65],[66,78],[79,93],[94,108],[109,124],[125,141],[142,159],[160,177],[178,196],[197,215],[216,235],[236,255],[256,276],[277,298],[299,320]],"valueStep":1},
+    {"id":"weaponColdFlatDmg","statId":"coldFlatDmg","type":"prefix","statName":"냉기 기본 피해","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[14,18],[19,23],[24,31],[32,41],[42,52],[53,65],[66,78],[79,93],[94,108],[109,124],[125,141],[142,159],[160,177],[178,196],[197,215],[216,235],[236,255],[256,276],[277,298],[299,320]],"valueStep":1},
+    {"id":"weaponLightFlatDmg","statId":"lightFlatDmg","type":"prefix","statName":"번개 기본 피해","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[14,18],[19,23],[24,31],[32,41],[42,52],[53,65],[66,78],[79,93],[94,108],[109,124],[125,141],[142,159],[160,177],[178,196],[197,215],[216,235],[236,255],[256,276],[277,298],[299,320]],"valueStep":1},
+    {"id":"weaponChaosFlatDmg","statId":"chaosFlatDmg","type":"prefix","statName":"카오스 기본 피해","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[14,18],[19,23],[24,31],[32,41],[42,52],[53,65],[66,78],[79,93],[94,108],[109,124],[125,141],[142,159],[160,177],[178,196],[197,215],[216,235],[236,255],[256,276],[277,298],[299,320]],"valueStep":1},
+    {"id":"ringPhysFlatDmg","statId":"physFlatDmg","type":"prefix","statName":"물리 기본 피해","slots":["반지"],"affixBalanceVersion":2,"tierValues":[[7,7],[8,9],[10,11],[12,14],[15,17],[18,20],[21,23],[24,27],[28,31],[32,35],[36,39],[40,44],[45,48],[49,53],[54,58],[59,63],[64,68],[69,74],[75,79],[80,85]],"valueStep":1},
+    {"id":"ringFireFlatDmg","statId":"fireFlatDmg","type":"prefix","statName":"화염 기본 피해","slots":["반지"],"affixBalanceVersion":2,"tierValues":[[10,11],[12,13],[14,17],[18,20],[21,24],[25,29],[30,34],[35,39],[40,44],[45,50],[51,56],[57,62],[63,68],[69,74],[75,81],[82,88],[89,95],[96,102],[103,109],[110,120]],"valueStep":1},
+    {"id":"ringColdFlatDmg","statId":"coldFlatDmg","type":"prefix","statName":"냉기 기본 피해","slots":["반지"],"affixBalanceVersion":2,"tierValues":[[10,11],[12,13],[14,17],[18,20],[21,24],[25,29],[30,34],[35,39],[40,44],[45,50],[51,56],[57,62],[63,68],[69,74],[75,81],[82,88],[89,95],[96,102],[103,109],[110,120]],"valueStep":1},
+    {"id":"ringLightFlatDmg","statId":"lightFlatDmg","type":"prefix","statName":"번개 기본 피해","slots":["반지"],"affixBalanceVersion":2,"tierValues":[[10,11],[12,13],[14,17],[18,20],[21,24],[25,29],[30,34],[35,39],[40,44],[45,50],[51,56],[57,62],[63,68],[69,74],[75,81],[82,88],[89,95],[96,102],[103,109],[110,120]],"valueStep":1},
+    {"id":"ringChaosFlatDmg","statId":"chaosFlatDmg","type":"prefix","statName":"카오스 기본 피해","slots":["반지"],"affixBalanceVersion":2,"tierValues":[[10,11],[12,13],[14,17],[18,20],[21,24],[25,29],[30,34],[35,39],[40,44],[45,50],[51,56],[57,62],[63,68],[69,74],[75,81],[82,88],[89,95],[96,102],[103,109],[110,120]],"valueStep":1},
+    {"id":"glovePhysFlatDmg","statId":"physFlatDmg","type":"prefix","statName":"물리 기본 피해","slots":["장갑"],"affixBalanceVersion":2,"tierValues":[[8,8],[9,11],[12,13],[14,16],[17,20],[21,24],[25,28],[29,33],[34,38],[39,43],[44,48],[49,54],[55,59],[60,65],[66,72],[73,78],[79,84],[85,91],[92,98],[99,105]],"valueStep":1},
+    {"id":"gloveFireFlatDmg","statId":"fireFlatDmg","type":"prefix","statName":"화염 기본 피해","slots":["장갑"],"affixBalanceVersion":2,"tierValues":[[12,13],[14,16],[17,20],[21,25],[26,30],[31,37],[38,43],[44,50],[51,57],[58,65],[66,73],[74,82],[83,91],[92,100],[101,109],[110,119],[120,129],[130,139],[140,149],[150,160]],"valueStep":1},
+    {"id":"gloveColdFlatDmg","statId":"coldFlatDmg","type":"prefix","statName":"냉기 기본 피해","slots":["장갑"],"affixBalanceVersion":2,"tierValues":[[12,13],[14,16],[17,20],[21,25],[26,30],[31,37],[38,43],[44,50],[51,57],[58,65],[66,73],[74,82],[83,91],[92,100],[101,109],[110,119],[120,129],[130,139],[140,149],[150,160]],"valueStep":1},
+    {"id":"gloveLightFlatDmg","statId":"lightFlatDmg","type":"prefix","statName":"번개 기본 피해","slots":["장갑"],"affixBalanceVersion":2,"tierValues":[[12,13],[14,16],[17,20],[21,25],[26,30],[31,37],[38,43],[44,50],[51,57],[58,65],[66,73],[74,82],[83,91],[92,100],[101,109],[110,119],[120,129],[130,139],[140,149],[150,160]],"valueStep":1},
+    {"id":"gloveChaosFlatDmg","statId":"chaosFlatDmg","type":"prefix","statName":"카오스 기본 피해","slots":["장갑"],"affixBalanceVersion":2,"tierValues":[[12,13],[14,16],[17,20],[21,25],[26,30],[31,37],[38,43],[44,50],[51,57],[58,65],[66,73],[74,82],[83,91],[92,100],[101,109],[110,119],[120,129],[130,139],[140,149],[150,160]],"valueStep":1},
+    {"id":"compoundArmor","statId":"armor","type":"prefix","statName":"방어도 + 방어도 증가(%)","slots":["투구","갑옷","장갑","신발","방패"],"compound":[{"statId":"armorPct","statName":"방어도 증가(%)","tierValues":[[3,3.7],[3.71,4.9],[4.91,6.1],[6.11,7.3],[7.31,8.5],[8.51,9.7],[9.71,10.9],[10.91,12.1],[12.11,13.3],[13.31,14.5],[14.51,15.7],[15.71,16.9],[16.91,18.1],[18.11,19.3],[19.31,20.5],[20.51,21.7],[21.71,22.9],[22.91,24.1],[24.11,25.3],[25.31,26.5]],"affixBalanceVersion":2,"valueStep":0.01}],"affixBalanceVersion":2,"tierValues":[[7,8],[9,11],[12,14],[15,17],[18,20],[21,23],[24,26],[27,29],[30,32],[33,35],[36,38],[39,41],[42,44],[45,47],[48,50],[51,53],[54,56],[57,59],[60,62],[63,65]],"valueStep":1},
+    {"id":"compoundEvasion","statId":"evasion","type":"prefix","statName":"회피 + 회피 증가(%)","slots":["투구","갑옷","장갑","신발","방패"],"compound":[{"statId":"evasionPct","statName":"회피 증가(%)","tierValues":[[3,3.7],[3.71,4.9],[4.91,6.1],[6.11,7.3],[7.31,8.5],[8.51,9.7],[9.71,10.9],[10.91,12.1],[12.11,13.3],[13.31,14.5],[14.51,15.7],[15.71,16.9],[16.91,18.1],[18.11,19.3],[19.31,20.5],[20.51,21.7],[21.71,22.9],[22.91,24.1],[24.11,25.3],[25.31,26.5]],"affixBalanceVersion":2,"valueStep":0.01}],"affixBalanceVersion":2,"tierValues":[[7,8],[9,11],[12,14],[15,17],[18,20],[21,23],[24,26],[27,29],[30,32],[33,35],[36,38],[39,41],[42,44],[45,47],[48,50],[51,53],[54,56],[57,59],[60,62],[63,65]],"valueStep":1},
+    {"id":"compoundEnergyShield","statId":"energyShield","type":"prefix","statName":"에너지 보호막 + 보호막 증가(%)","slots":["투구","갑옷","장갑","신발","방패"],"compound":[{"statId":"energyShieldPct","statName":"에너지 보호막 증가(%)","tierValues":[[3,3.7],[3.71,4.9],[4.91,6.1],[6.11,7.3],[7.31,8.5],[8.51,9.7],[9.71,10.9],[10.91,12.1],[12.11,13.3],[13.31,14.5],[14.51,15.7],[15.71,16.9],[16.91,18.1],[18.11,19.3],[19.31,20.5],[20.51,21.7],[21.71,22.9],[22.91,24.1],[24.11,25.3],[25.31,26.5]],"affixBalanceVersion":2,"valueStep":0.01}],"affixBalanceVersion":2,"tierValues":[[5.1,6.5],[6.51,8.9],[8.91,11.3],[11.31,13.7],[13.71,16.1],[16.11,18.5],[18.51,20.9],[20.91,23.3],[23.31,25.7],[25.71,28.1],[28.11,30.5],[30.51,32.9],[32.91,35.3],[35.31,37.7],[37.71,40.1],[40.11,42.5],[42.51,44.9],[44.91,47.3],[47.31,49.7],[49.71,52.1]],"valueStep":0.01},
+    {"id":"compoundWeaponDmg","statId":"flatDmg","type":"prefix","statName":"기본 피해 + 무기의 기본 피해 증가(%)","slots":["무기"],"compound":[{"statId":"weaponFlatDmgPct","statName":"무기의 기본 피해 증가(%)","tierValues":[[3,3.7],[3.71,4.9],[4.91,6.1],[6.11,7.3],[7.31,8.5],[8.51,9.7],[9.71,10.9],[10.91,12.1],[12.11,13.3],[13.31,14.5],[14.51,15.7],[15.71,16.9],[16.91,18.1],[18.11,19.3],[19.31,20.5],[20.51,21.7],[21.71,22.9],[22.91,24.1],[24.11,25.3],[25.31,26.5]],"affixBalanceVersion":2,"valueStep":0.01}],"affixBalanceVersion":2,"tierValues":[[4,4],[5,6],[7,9],[10,12],[13,15],[16,19],[20,22],[23,27],[28,31],[32,36],[37,40],[41,46],[47,51],[52,57],[58,62],[63,68],[69,74],[75,80],[81,86],[87,93]],"valueStep":1},
+    {"id":"ringFlatDmg","statId":"flatDmg","type":"prefix","statName":"기본 피해","slots":["반지"],"tierValues":[[6,6],[7,8],[9,10],[11,13],[14,16],[17,19],[20,22],[23,26],[27,29],[30,33],[34,37],[38,41],[42,46],[47,50],[51,55],[56,59],[60,64],[65,69],[70,74],[75,80]],"affixBalanceVersion":2,"valueStep":1},
+    {"id":"gloveFlatDmg","statId":"flatDmg","type":"prefix","statName":"기본 피해","slots":["장갑"],"tierValues":[[6,6],[7,9],[10,12],[13,15],[16,18],[19,22],[23,26],[27,31],[32,35],[36,40],[41,45],[46,51],[52,56],[57,62],[63,68],[69,74],[75,80],[81,87],[88,93],[94,100]],"affixBalanceVersion":2,"valueStep":1},
+    {"id":"accessoryFlatDmg","statId":"flatDmg","type":"prefix","statName":"기본 피해","slots":["목걸이","허리띠"],"tierValues":[[6,6],[7,8],[9,11],[12,14],[15,17],[18,21],[22,24],[25,28],[29,32],[33,37],[38,41],[42,46],[47,51],[52,56],[57,61],[62,67],[68,72],[73,78],[79,84],[85,90]],"affixBalanceVersion":2,"valueStep":1},
+    {"id":"attackPctDmg","type":"prefix","statName":"공격 피해 증가(%)","slots":["무기","장갑","목걸이"],"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"affixBalanceVersion":2,"valueStep":1},
+    {"id":"spellPctDmg","type":"prefix","statName":"주문 피해 증가(%)","slots":["무기","목걸이","방패"],"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"affixBalanceVersion":2,"valueStep":1},
+    {"id":"spellLeech","type":"suffix","statName":"주문 피해의 생명력 흡수(%)","slots":["무기","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[0.16,0.16],[0.17,0.24],[0.25,0.32],[0.33,0.4],[0.41,0.48],[0.49,0.56],[0.57,0.64],[0.65,0.72],[0.73,0.8],[0.81,0.88],[0.89,0.96],[0.97,1.04],[1.05,1.12],[1.13,1.2],[1.21,1.28],[1.29,1.36],[1.37,1.44],[1.45,1.52],[1.53,1.6],[1.61,1.72]],"valueStep":0.01}
 ];
 
 const FOSSIL_DB = [
-    { key: 'fossilJagged', name: '톱니 화석', desc: '카오스 재련 + 물리/근접 계열 옵션 1개 확정', guaranteedStats: ['physPctDmg', 'meleePctDmg', 'flatDmg', 'physIgnore'] },
-    { key: 'fossilBound', name: '속박 화석', desc: '카오스 재련 + 생명/방어 계열 옵션 1개 확정', guaranteedStats: ['flatHp', 'pctHp', 'dr', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct'] },
-    { key: 'fossilGale', name: '돌풍 화석', desc: '카오스 재련 + 속도/치명 계열 옵션 1개 확정', guaranteedStats: ['aspd', 'crit', 'move'] },
-    { key: 'fossilPrismatic', name: '프리즘 화석', desc: '카오스 재련 + 저항/원소 계열 옵션 1개 확정', guaranteedStats: ['resAll', 'resF', 'resC', 'resL', 'elementalPctDmg', 'resPen'] },
-    { key: 'fossilAbyssal', name: '심연 화석', desc: '카오스 재련 + 카오스/흡혈/재생 계열 옵션 1개 확정', guaranteedStats: ['chaosPctDmg', 'leech', 'regen'] },
-    { key: 'fossilPrimordial', name: '태고 화석', desc: '원시 고대 화석 복원 전용 + 관통/카오스 계열 옵션 1개 확정', guaranteedStats: ['physIgnore', 'resPen', 'chaosPctDmg', 'critDmg'], ancientPrimalOnly: true },
-    { key: 'fossilBulwark', name: '🛡️ 방패 화석', desc: '카오스 재련 + 최대 화염/냉기/번개 저항 계열 1개 확정 (모든 방어구: 투구/갑옷/장갑/신발/방패)', guaranteedStats: ['maxResF', 'maxResC', 'maxResL'] },
-    { key: 'fossilWedge', name: '🗡️ 쐐기 화석', desc: '카오스 재련 + 투사체/치명 계열 1개 확정', guaranteedStats: ['projectileExtraShots', 'projectilePctDmg', 'crit'] },
-    { key: 'fossilOld', name: '📜 오래된 화석', desc: '카오스 재련 + 화석 전용 옵션 1개 확정', guaranteedStats: [] },
-    { key: 'fossilRift', name: '🌀 균열 화석', desc: '카오스 재련 + 균열 표식(제거 불가) + 나머지 추가 옵션 50% 증폭', guaranteedStats: [] }
+    { key: 'fossilJagged', name: '톱니 화석', desc: '물리/근접 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['physPctDmg', 'meleePctDmg', 'flatDmg', 'physIgnore'] },
+    { key: 'fossilBound', name: '속박 화석', desc: '생명/방어 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['flatHp', 'pctHp', 'dr', 'armor', 'armorPct', 'evasion', 'evasionPct', 'energyShield', 'energyShieldPct'] },
+    { key: 'fossilGale', name: '돌풍 화석', desc: '속도/치명 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['aspd', 'crit', 'move'] },
+    { key: 'fossilPrismatic', name: '프리즘 화석', desc: '저항/원소 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['resAll', 'resF', 'resC', 'resL', 'elementalPctDmg', 'resPen'] },
+    { key: 'fossilAbyssal', name: '심연 화석', desc: '카오스/흡혈/재생 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['chaosPctDmg', 'leech', 'regen'] },
+    { key: 'fossilPrimordial', name: '태고 화석', desc: '원시 고대 화석 복원으로 얻습니다. 관통/카오스 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['physIgnore', 'resPen', 'chaosPctDmg', 'critDmg'], ancientPrimalOnly: true },
+    { key: 'fossilBulwark', name: '방패 화석', desc: '최대 화염/냉기/번개 저항 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다. 방어구 전용: 투구/갑옷/장갑/신발/방패.', guaranteedStats: ['maxResF', 'maxResC', 'maxResL'] },
+    { key: 'fossilWedge', name: '쐐기 화석', desc: '투사체/치명 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: ['projectileExtraChance', 'projectilePctDmg', 'crit'] },
+    { key: 'fossilOld', name: '오래된 화석', desc: '화석 전용 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.', guaranteedStats: [] },
+    { key: 'fossilRift', name: '균열 화석', desc: '희귀 아이템의 옵션을 다시 굴리고, 제거할 수 없는 균열 표식과 나머지 추가 옵션 50% 증폭 효과를 부여합니다.', guaranteedStats: [] }
 ];
 
+/**
+ * @typedef {'spore'|'fossil'|'transplant'} EquipmentCraftSource
+ * Explicit equipment affixes may store craftSource. Missing means ordinary/unknown legacy origin.
+ * Compound substats belong to the parent affix. Rift fossil's blank+amplifier form one effect.
+ */
 const FOSSIL_EXCLUSIVE_MODS = [
     { id: 'fossilVoidHeart', statId: 'chaosPctDmg', type: 'special', statName: '심연 맥동 (카오스 피해%)', slots: ['무기', '목걸이', '반지'], base: 6, step: 2.5, fixedVal: 55, fossilExclusive: true },
     { id: 'fossilWarMarch', statId: 'move', type: 'special', statName: '군단 진군 (이동 속도%)', slots: ['신발', '허리띠'], base: 4, step: 1.5, fixedVal: 35, fossilExclusive: true },
     { id: 'fossilSoulWard', statId: 'resAll', type: 'special', statName: '영혼 수호 (모든 원소 저항%)', slots: ['갑옷', '투구', '허리띠'], base: 4, step: 1.5, fixedVal: 35, fossilExclusive: true },
-    { id: 'fossilGemPulse', statId: 'gemLevel', type: 'special', statName: '룬 맥동 (스킬 젬 레벨)', slots: ['목걸이'], base: 1, step: 0, fixedVal: 1, fossilExclusive: true },
-    { id: 'fossilSupportLink', statId: 'suppCap', type: 'special', statName: '결속 잔향 (보조 젬 한도)', slots: ['목걸이'], base: 1, step: 0, fixedVal: 1, fossilExclusive: true },
+    { id: 'fossilGemPulse', statId: 'gemLevel', type: 'special', statName: '룬 맥동 (스킬 젬 레벨)', slots: ['목걸이'], base: 1, step: 0, fixedVal: 1, fixedValue: true, fossilExclusive: true },
+    { id: 'fossilSupportLink', statId: 'suppCap', type: 'special', statName: '결속 잔향 (보조 젬 한도)', slots: ['목걸이'], base: 1, step: 0, fixedVal: 1, fixedValue: true, fossilExclusive: true },
     { id: 'fossilArmorRift', statId: 'physIgnore', type: 'special', statName: '전쟁 균열 (물피감 무시%)', slots: ['무기', '장갑', '목걸이'], base: 2, step: 0.8, fixedVal: 18.4, fossilExclusive: true },
     { id: 'fossilPrismNeedle', statId: 'resPen', type: 'special', statName: '프리즘 송곳 (저항 관통%)', slots: ['무기', '목걸이', '반지'], base: 2, step: 0.7, fixedVal: 16.6, fossilExclusive: true },
     { id: 'fossilBoundFloor', statId: 'minDmgRoll', type: 'special', statName: '결속 하한 (최소 피해 보정%)', slots: ['무기', '장갑'], base: 2, step: 0.6, fixedVal: 13.8, fossilExclusive: true },
@@ -1689,37 +1735,39 @@ const UNDERWORLD_RUNE_DB = [
     { no: 30, id: 'uw_rune_30', name: '고조', stat: 'maxDmgRoll', val: 2 }
 ];
 
+// Weapon flat damage was rebased on 2026-09-11: +20% at T1, rising to +140% at T20.
+// Values are baked into definitions; legacyDamageBase exists only for old-save conversion.
 const BASE_ITEM_DB = [
-    { id: 'rusted_blade', slot: '무기', name: '녹슨 검', reqTier: 1, baseStats: [{ id: 'flatDmg', base: 4 }] },
-    { id: 'apprentice_familiar_wand', slot: '무기', name: '견습 사역봉', reqTier: 1, baseStats: [{ id: 'flatDmg', base: 5 }, { id: 'summonPctDmg', base: 10 }, { id: 'summonEfficiency', base: 4 }] },
-    { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 도끼', reqTier: 3, baseStats: [{ id: 'flatDmg', base: 9 }, { id: 'crit', base: 3 }] },
-    { id: 'pact_familiar_wand', slot: '무기', name: '계약 사역봉', reqTier: 4, baseStats: [{ id: 'flatDmg', base: 9 }, { id: 'summonPctDmg', base: 14 }, { id: 'summonEfficiency', base: 6 }] },
-    { id: 'abyss_spear', slot: '무기', name: '심연의 창', reqTier: 7, baseStats: [{ id: 'flatDmg', base: 14 }, { id: 'aspd', base: 6 }] },
-    { id: 'bloodletter_blade', slot: '무기', name: '혈각 검', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'crit', base: 5 }] },
-    { id: 'gale_fang_spear', slot: '무기', name: '질풍 송곳창', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'aspd', base: 8 }] },
-    { id: 'executioner_blade', slot: '무기', name: '처형자의 검', reqTier: 14, baseStats: [{ id: 'flatDmg', base: 38 }, { id: 'crit', base: 8 }] },
-    { id: 'tempest_pike', slot: '무기', name: '폭풍 장창', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 42 }, { id: 'aspd', base: 10 }] },
-    { id: 'windlash_bow', slot: '무기', name: '돌풍 장궁', reqTier: 5, baseStats: [{ id: 'flatDmg', base: 11 }, { id: 'projectilePctDmg', base: 10 }] },
-    { id: 'stormbolt_launcher', slot: '무기', name: '폭전 발사기', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 22 }, { id: 'projectilePctDmg', base: 18 }, { id: 'projectileExtraShots', base: 1 }] },
-    { id: 'starfall_ballista', slot: '무기', name: '유성 발리스타', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 37 }, { id: 'projectilePctDmg', base: 26 }, { id: 'projectileExtraShots', base: 2 }] },
-    { id: 'needle_recurve', slot: '무기', name: '바늘 리커브', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 18 }, { id: 'projectilePctDmg', base: 14 }] },
-    { id: 'spiritbound_wand', slot: '무기', name: '영혼 결속봉', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 16 }, { id: 'summonPctDmg', base: 22 }, { id: 'summonEfficiency', base: 10 }] },
-    { id: 'seeker_railgun', slot: '무기', name: '추적 레일건', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 28 }, { id: 'projectilePctDmg', base: 22 }, { id: 'projectileExtraShots', base: 2 }] },
-    { id: 'tempest_volley', slot: '무기', name: '폭풍 연사궁', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 35 }, { id: 'projectilePctDmg', base: 30 }, { id: 'projectileExtraShots', base: 3 }] },
-    { id: 'nova_rod', slot: '무기', name: '노바 로드', reqTier: 5, baseStats: [{ id: 'flatDmg', base: 7 }, { id: 'spellFlatDmg', base: 20 }] },
-    { id: 'rift_scepter', slot: '무기', name: '균열 홀', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 14 }, { id: 'spellFlatDmg', base: 38 }, { id: 'spellFlatPct', base: 12 }] },
-    { id: 'void_archon_staff', slot: '무기', name: '공허 대현자 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'spellFlatDmg', base: 58 }, { id: 'spellFlatPct', base: 22 }] },
-    { id: 'ember_wand', slot: '무기', name: '잿불 완드', reqTier: 8, baseStats: [{ id: 'flatDmg', base: 11 }, { id: 'spellFlatDmg', base: 30 }] },
-    { id: 'echo_focus', slot: '무기', name: '메아리 초점봉', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 17 }, { id: 'spellFlatDmg', base: 46 }, { id: 'spellFlatPct', base: 16 }] },
-    { id: 'ritual_familiar_staff', slot: '무기', name: '의식 사역마 지팡이', reqTier: 12, baseStats: [{ id: 'flatDmg', base: 24 }, { id: 'summonPctDmg', base: 30 }, { id: 'summonEfficiency', base: 14 }] },
-    { id: 'abyss_chant_staff', slot: '무기', name: '심연 창가 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 20 }, { id: 'spellFlatDmg', base: 64 }, { id: 'spellFlatPct', base: 26 }] },
-    { id: 'archon_familiar_staff', slot: '무기', name: '아콘 사역마 지팡이', reqTier: 20, baseStats: [{ id: 'flatDmg', base: 42 }, { id: 'summonPctDmg', base: 40 }, { id: 'summonEfficiency', base: 18 }] },
-    { id: 'doomcleaver_blade', slot: '무기', name: '파멸 대검', reqTier: 17, baseStats: [{ id: 'flatDmg', base: 53 }, { id: 'crit', base: 11 }] },
-    { id: 'apocalypse_greatblade', slot: '무기', name: '멸세 대검', reqTier: 20, baseStats: [{ id: 'flatDmg', base: 64 }, { id: 'crit', base: 14 }] },
-    { id: 'cyclone_glaive', slot: '무기', name: '회오리 글레이브', reqTier: 17, baseStats: [{ id: 'flatDmg', base: 55 }, { id: 'aspd', base: 13 }] },
-    { id: 'tempestlord_lance', slot: '무기', name: '태풍군주 창', reqTier: 20, baseStats: [{ id: 'flatDmg', base: 66 }, { id: 'aspd', base: 16 }] },
-    { id: 'meteor_repeater', slot: '무기', name: '유성 연사 발리스타', reqTier: 20, baseStats: [{ id: 'flatDmg', base: 55 }, { id: 'projectilePctDmg', base: 34 }, { id: 'projectileExtraShots', base: 3 }] },
-    { id: 'genesis_void_staff', slot: '무기', name: '창세 공허 지팡이', reqTier: 20, baseStats: [{ id: 'flatDmg', base: 34 }, { id: 'spellFlatDmg', base: 78 }, { id: 'spellFlatPct', base: 30 }] },
+    { id: 'rusted_blade', slot: '무기', name: '녹슨 검', reqTier: 1, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 5, legacyDamageBase: 4 }] },
+    { id: 'apprentice_familiar_wand', slot: '무기', name: '견습 사역봉', reqTier: 1, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 6, legacyDamageBase: 5 }, { id: 'summonPctDmg', base: 10 }, { id: 'summonEfficiency', base: 4 }] },
+    { id: 'hunter_axe', slot: '무기', name: '사냥꾼의 도끼', reqTier: 3, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'crit', base: 3 }] },
+    { id: 'pact_familiar_wand', slot: '무기', name: '계약 사역봉', reqTier: 4, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 11, legacyDamageBase: 9 }, { id: 'summonPctDmg', base: 14 }, { id: 'summonEfficiency', base: 6 }] },
+    { id: 'abyss_spear', slot: '무기', name: '심연의 창', reqTier: 7, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 20, legacyDamageBase: 14 }, { id: 'aspd', base: 6 }] },
+    { id: 'bloodletter_blade', slot: '무기', name: '혈각 검', reqTier: 10, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'crit', base: 5 }] },
+    { id: 'gale_fang_spear', slot: '무기', name: '질풍 송곳창', reqTier: 10, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 38, legacyDamageBase: 24 }, { id: 'aspd', base: 8 }] },
+    { id: 'executioner_blade', slot: '무기', name: '처형자의 검', reqTier: 14, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 71, legacyDamageBase: 38 }, { id: 'crit', base: 8 }] },
+    { id: 'tempest_pike', slot: '무기', name: '폭풍 장창', reqTier: 15, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 82, legacyDamageBase: 42 }, { id: 'aspd', base: 10 }] },
+    { id: 'windlash_bow', slot: '무기', name: '돌풍 장궁', reqTier: 5, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 14, legacyDamageBase: 11 }, { id: 'projectilePctDmg', base: 10 }] },
+    { id: 'stormbolt_launcher', slot: '무기', name: '폭전 발사기', reqTier: 10, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 35, legacyDamageBase: 22 }, { id: 'projectilePctDmg', base: 18 }, { id: 'projectileExtraChance', base: 50 }] },
+    { id: 'starfall_ballista', slot: '무기', name: '유성 발리스타', reqTier: 15, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 72, legacyDamageBase: 37 }, { id: 'projectilePctDmg', base: 26 }, { id: 'projectileExtraChance', base: 100 }] },
+    { id: 'needle_recurve', slot: '무기', name: '바늘 리커브', reqTier: 8, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 26, legacyDamageBase: 18 }, { id: 'projectilePctDmg', base: 14 }] },
+    { id: 'spiritbound_wand', slot: '무기', name: '영혼 결속봉', reqTier: 8, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 23, legacyDamageBase: 16 }, { id: 'summonPctDmg', base: 22 }, { id: 'summonEfficiency', base: 10 }] },
+    { id: 'seeker_railgun', slot: '무기', name: '추적 레일건', reqTier: 12, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 48, legacyDamageBase: 28 }, { id: 'projectilePctDmg', base: 22 }, { id: 'projectileExtraChance', base: 100 }] },
+    { id: 'tempest_volley', slot: '무기', name: '폭풍 연사궁', reqTier: 15, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 69, legacyDamageBase: 35 }, { id: 'projectilePctDmg', base: 30 }, { id: 'projectileExtraChance', base: 150 }] },
+    { id: 'nova_rod', slot: '무기', name: '노바 로드', reqTier: 5, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 9, legacyDamageBase: 7 }, { id: 'spellFlatDmg', base: 26, legacyDamageBase: 20 }] },
+    { id: 'rift_scepter', slot: '무기', name: '균열 홀', reqTier: 10, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 22, legacyDamageBase: 14 }, { id: 'spellFlatDmg', base: 60, legacyDamageBase: 38 }, { id: 'spellFlatPct', base: 12 }] },
+    { id: 'void_archon_staff', slot: '무기', name: '공허 대현자 지팡이', reqTier: 15, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 47, legacyDamageBase: 24 }, { id: 'spellFlatDmg', base: 114, legacyDamageBase: 58 }, { id: 'spellFlatPct', base: 22 }] },
+    { id: 'ember_wand', slot: '무기', name: '잿불 완드', reqTier: 8, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 16, legacyDamageBase: 11 }, { id: 'spellFlatDmg', base: 44, legacyDamageBase: 30 }] },
+    { id: 'echo_focus', slot: '무기', name: '메아리 초점봉', reqTier: 12, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 29, legacyDamageBase: 17 }, { id: 'spellFlatDmg', base: 80, legacyDamageBase: 46 }, { id: 'spellFlatPct', base: 16 }] },
+    { id: 'ritual_familiar_staff', slot: '무기', name: '의식 사역마 지팡이', reqTier: 12, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 41, legacyDamageBase: 24 }, { id: 'summonPctDmg', base: 30 }, { id: 'summonEfficiency', base: 14 }] },
+    { id: 'abyss_chant_staff', slot: '무기', name: '심연 창가 지팡이', reqTier: 15, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 39, legacyDamageBase: 20 }, { id: 'spellFlatDmg', base: 125, legacyDamageBase: 64 }, { id: 'spellFlatPct', base: 26 }] },
+    { id: 'archon_familiar_staff', slot: '무기', name: '아콘 사역마 지팡이', reqTier: 20, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 101, legacyDamageBase: 42 }, { id: 'summonPctDmg', base: 40 }, { id: 'summonEfficiency', base: 18 }] },
+    { id: 'doomcleaver_blade', slot: '무기', name: '파멸 대검', reqTier: 17, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 113, legacyDamageBase: 53 }, { id: 'crit', base: 11 }] },
+    { id: 'apocalypse_greatblade', slot: '무기', name: '멸세 대검', reqTier: 20, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 154, legacyDamageBase: 64 }, { id: 'crit', base: 14 }] },
+    { id: 'cyclone_glaive', slot: '무기', name: '회오리 글레이브', reqTier: 17, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 117, legacyDamageBase: 55 }, { id: 'aspd', base: 13 }] },
+    { id: 'tempestlord_lance', slot: '무기', name: '태풍군주 창', reqTier: 20, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 158, legacyDamageBase: 66 }, { id: 'aspd', base: 16 }] },
+    { id: 'meteor_repeater', slot: '무기', name: '유성 연사 발리스타', reqTier: 20, requirementWeights: { dexterity: 1 }, baseStats: [{ id: 'flatDmg', base: 132, legacyDamageBase: 55 }, { id: 'projectilePctDmg', base: 34 }, { id: 'projectileExtraChance', base: 150 }] },
+    { id: 'genesis_void_staff', slot: '무기', name: '창세 공허 지팡이', reqTier: 20, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 82, legacyDamageBase: 34 }, { id: 'spellFlatDmg', base: 187, legacyDamageBase: 78 }, { id: 'spellFlatPct', base: 30 }] },
     { id: 'cloth_hood', slot: '투구', name: '천 후드', reqTier: 1, baseStats: [{ id: 'flatHp', base: 12 }, { id: 'energyShield', base: 36 }] },
     { id: 'war_helm', slot: '투구', name: '전투 투구', reqTier: 4, baseStats: [{ id: 'flatHp', base: 28 }, { id: 'armor', base: 105 }, { id: 'dr', base: 2 }] },
     { id: 'bastion_helm', slot: '투구', name: '보루 투구', reqTier: 8, baseStats: [{ id: 'flatHp', base: 44 }, { id: 'armor', base: 170 }, { id: 'dr', base: 3 }] },
@@ -1819,7 +1867,7 @@ const BASE_ITEM_DB = [
     { id: 'blood_girdle', slot: '허리띠', name: '혈석 허리띠', reqTier: 12, baseStats: [{ id: 'flatHp', base: 72 }, { id: 'dr', base: 3 }, { id: 'resChaos', base: 10 }] },
     { id: 'warlord_girdle', slot: '허리띠', name: '장군의 허리띠', reqTier: 15, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'dr', base: 4 }, { id: 'resChaos', base: 12 }] },
     { id: 'nightmare_bind', slot: '허리띠', name: '악몽 결속대', reqTier: 15, baseStats: [{ id: 'flatHp', base: 92 }, { id: 'resAll', base: 7 }, { id: 'resChaos', base: 12 }] },
-    { id: 'root_blade_fang', slot: '무기', name: '뿌리 송곳', reqTier: 6, dropOnly: { type: 'act' }, baseStats: [{ id: 'flatDmg', base: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
+    { id: 'root_blade_fang', slot: '무기', name: '뿌리 송곳', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
     { id: 'beehive_stinger_mail', slot: '갑옷', name: '벌침 갑피', reqTier: 12, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'resChaos', base: 10 }, { id: 'evasion', base: 295 }, { id: 'venomStingerBonus', base: 10 }] },
     { id: 'grand_breach_shard_helm', slot: '투구', name: '대균열 파편투구', reqTier: 16, dropOnly: { id: 'grand_breach_run' }, baseStats: [{ id: 'flatHp', base: 95 }, { id: 'resAll', base: 9 }, { id: 'dr', base: 4 }, { id: 'energyShield', base: 96 }, { id: 'resPen', base: 6 }] },
     { id: 'laby_1_greaves', slot: '신발', name: '미궁 수호 각반', reqTier: 8, dropOnly: { type: 'labyrinth', minFloor: 1 }, baseStats: [{ id: 'move', base: 14 }, { id: 'armor', base: 130 }, { id: 'dr', base: 2 }] },
@@ -1844,10 +1892,10 @@ const BASE_ITEM_DB = [
     { id: 'beastcall_band', slot: '반지', name: '야수 부름 반지', reqTier: 11, baseStats: [{ id: 'summonEfficiency', base: 12 }, { id: 'summonCrit', base: 4 }] },
     { id: 'overlord_ring', slot: '반지', name: '군주 반지', reqTier: 15, baseStats: [{ id: 'summonPctDmg', base: 18 }, { id: 'summonCap', base: 1 }] },
     { id: 'graveknot_belt', slot: '허리띠', name: '묘결 속박대', reqTier: 10, baseStats: [{ id: 'flatHp', base: 60 }, { id: 'resChaos', base: 9 }] },
-    { id: 'echo_lance', slot: '무기', name: '메아리 창', reqTier: 11, baseStats: [{ id: 'flatDmg', base: 28 }, { id: 'aspd', base: 7 }] },
-    { id: 'spirit_call_wand', slot: '무기', name: '정령 소환봉', reqTier: 6, baseStats: [{ id: 'flatDmg', base: 12 }, { id: 'summonPctDmg', base: 18 }, { id: 'summonEfficiency', base: 8 }] },
-    { id: 'gravebind_scepter', slot: '무기', name: '묘지 결속 홀', reqTier: 10, baseStats: [{ id: 'flatDmg', base: 16 }, { id: 'summonPctDmg', base: 26 }, { id: 'summonHpPct', base: 18 }] },
-    { id: 'astral_familiar_staff', slot: '무기', name: '성운 사역마 지팡이', reqTier: 15, baseStats: [{ id: 'flatDmg', base: 22 }, { id: 'summonPctDmg', base: 36 }, { id: 'summonCritDmg', base: 24 }] },
+    { id: 'echo_lance', slot: '무기', name: '메아리 창', reqTier: 11, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 46, legacyDamageBase: 28 }, { id: 'aspd', base: 7 }] },
+    { id: 'spirit_call_wand', slot: '무기', name: '정령 소환봉', reqTier: 6, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 16, legacyDamageBase: 12 }, { id: 'summonPctDmg', base: 18 }, { id: 'summonEfficiency', base: 8 }] },
+    { id: 'gravebind_scepter', slot: '무기', name: '묘지 결속 홀', reqTier: 10, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 25, legacyDamageBase: 16 }, { id: 'summonPctDmg', base: 26 }, { id: 'summonHpPct', base: 18 }] },
+    { id: 'astral_familiar_staff', slot: '무기', name: '성운 사역마 지팡이', reqTier: 15, requirementWeights: { intelligence: 1 }, baseStats: [{ id: 'flatDmg', base: 43, legacyDamageBase: 22 }, { id: 'summonPctDmg', base: 36 }, { id: 'summonCritDmg', base: 24 }] },
     { id: 'ember_circlet', slot: '투구', name: '잿불 서클릿', reqTier: 12, baseStats: [{ id: 'energyShield', base: 126 }, { id: 'resF', base: 10 }] },
     { id: 'tidal_vest', slot: '갑옷', name: '조류의 흉갑', reqTier: 12, baseStats: [{ id: 'flatHp', base: 66 }, { id: 'resC', base: 10 }, { id: 'armor', base: 145 }, { id: 'evasion', base: 150 }] },
     { id: 'gale_treads', slot: '신발', name: '질풍 발굽', reqTier: 12, baseStats: [{ id: 'move', base: 16 }, { id: 'evasion', base: 94 }] },
@@ -1882,11 +1930,11 @@ const BASE_ITEM_DB = [
     { id: 'parry_sentinel_t12', slot: '방패', name: '감시자의 방패', reqTier: 12, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 76 }, { id: 'baseBlockChance', base: 13 }] },
     { id: 'parry_seraph_t16', slot: '방패', name: '세라프 방패', reqTier: 16, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 102 }, { id: 'baseBlockChance', base: 14 }] },
     { id: 'parry_astral_t20', slot: '방패', name: '성계 응수방패', reqTier: 20, shieldStyle: 'parry', baseStats: [{ id: 'armor', base: 132 }, { id: 'baseBlockChance', base: 15 }, { id: 'resAll', base: 3 }] },
-    { id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 송곳', reqTier: 18, realmBase: 'chaos', baseStats: [{ id: 'flatDmg', base: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] },
+    { id: 'chaos_realm_fang', slot: '무기', name: '혼돈계 균열 송곳', reqTier: 18, realmBase: 'chaos', requirementWeights: { strength: 1 }, baseStats: [{ id: 'flatDmg', base: 93, legacyDamageBase: 42 }, { id: 'chaosPctDmg', base: 24 }, { id: 'resChaos', base: 8 }] },
     { id: 'chaos_realm_coil', slot: '반지', name: '혼돈계 소용돌이 반지', reqTier: 18, realmBase: 'chaos', baseStats: [{ id: 'chaosPctDmg', base: 18 }, { id: 'resChaos', base: 10 }] },
     { id: 'underworld_bastion', slot: '갑옷', name: '지하계 철벽 흉갑', reqTier: 20, realmBase: 'underworld', baseStats: [{ id: 'flatHp', base: 120 }, { id: 'armor', base: 260 }, { id: 'dr', base: 8 }] },
     { id: 'underworld_chain', slot: '허리띠', name: '지하계 결속 허리띠', reqTier: 20, realmBase: 'underworld', baseStats: [{ id: 'flatHp', base: 110 }, { id: 'resAll', base: 10 }, { id: 'resChaos', base: 12 }] },
-    { id: 'cosmos_prism_lance', slot: '무기', name: '우주계 프리즘 랜스', reqTier: 22, realmBase: 'cosmos', baseStats: [{ id: 'flatDmg', base: 52 }, { id: 'elementalPctDmg', base: 28 }, { id: 'resPen', base: 9 }] },
+    { id: 'cosmos_prism_lance', slot: '무기', name: '우주계 프리즘 랜스', reqTier: 22, realmBase: 'cosmos', requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 125, legacyDamageBase: 52 }, { id: 'elementalPctDmg', base: 28 }, { id: 'resPen', base: 9 }] },
     { id: 'cosmos_core_amulet', slot: '목걸이', name: '우주계 핵성 목걸이', reqTier: 22, realmBase: 'cosmos', baseStats: [{ id: 'gemLevel', base: 1 }, { id: 'suppCap', base: 1 }, { id: 'resAll', base: 10 }] },
     { id: 'gen__armor_t1', slot: '투구', name: '무쇠 투구', reqTier: 1, baseStats: [{ id: 'flatHp', base: 7 }, { id: 'armor', base: 26 }] },
     { id: 'gen__armor_t16', slot: '투구', name: '금강 투구', reqTier: 16, baseStats: [{ id: 'flatHp', base: 83 }, { id: 'armor', base: 307 }, { id: 'resAll', base: 6 }] },
@@ -2606,9 +2654,8 @@ safeExposeGlobals({
 // Phase-4 extracted progression math helpers.
 function getExpReq(level) {
     let lv = Math.max(1, Math.floor(level || 1));
-    if (lv <= 10) return Math.floor((24 + Math.pow(lv, 1.34) * 14) * 4);
     if (lv <= 20) return Math.floor((24 + Math.pow(lv, 1.34) * 14) * 2);
-    let base20 = Math.floor(24 + Math.pow(20, 1.34) * 14);
+    let base20 = Math.floor((24 + Math.pow(20, 1.34) * 14) * 2);
     if (lv <= 50) return Math.floor(base20 + 90 * Math.pow(lv - 20, 1.42));
     let base50 = Math.floor(base20 + 90 * Math.pow(30, 1.42));
     if (lv <= 100) return Math.floor(base50 + 252 * Math.pow(lv - 50, 1.55));

@@ -1,0 +1,73 @@
+/* New skill gem 55 / effect catalogue 47. Catalogue IDs are not MZ database IDs.
+ * One aimed flask, one impact batch. The host owns numeric damage. */
+(function(G){
+ 'use strict';
+ const spec={slug:'explosive-mixture',name:'폭발 혼합물',gemNumber:55,effectNumber:47,category:'attack',element:'fire',
+  range:4,distanceMetric:'euclidean',radius:1,areaShape:'square',impactCount:1,homing:false,
+  balance:{damage:null,cooldown:null,cost:null},visualProposal:{minimumFlightMs:420,flightMsPerCell:50,burstMs:540,bottleScale:1,blastScale:2},
+  catchUpPolicy:'one scheduled impact; target provider receives landing deadline; historical positions are not invented'};
+ const validCell=c=>!!(c&&Number.isInteger(c.gx)&&Number.isInteger(c.gy)&&c.gx>=0&&c.gx<9&&c.gy>=0&&c.gy<8),cell=c=>({gx:c.gx,gy:c.gy});
+ const validId=id=>typeof id==='string'?id.length>0:typeof id==='number'&&Number.isFinite(id);
+ const inCastRange=(a,b)=>validCell(a)&&validCell(b)&&(a.gx-b.gx)**2+(a.gy-b.gy)**2<=spec.range**2;
+ function castCells(source){const result=[];if(validCell(source))for(let gy=0;gy<8;gy++)for(let gx=0;gx<9;gx++)if(inCastRange(source,{gx,gy}))result.push({gx,gy});return result;}
+ function clampAim(source,aim){
+  if(!validCell(source)||!aim||!Number.isFinite(aim.gx)||!Number.isFinite(aim.gy))return null;
+  if(inCastRange(source,aim))return cell(aim);
+  // Bound extreme input before squaring, then search the at-most72 legal cells.
+  const ax=Math.max(-1e6,Math.min(1e6,aim.gx)),ay=Math.max(-1e6,Math.min(1e6,aim.gy));let best=null,bestDistance=Infinity,bestSourceDistance=Infinity;
+  for(const c of castCells(source)){const distance=(c.gx-ax)**2+(c.gy-ay)**2,sourceDistance=(c.gx-source.gx)**2+(c.gy-source.gy)**2;if(distance<bestDistance||distance===bestDistance&&sourceDistance<bestSourceDistance){best=c;bestDistance=distance;bestSourceDistance=sourceDistance;}}
+  return best;
+ }
+ const inBlast=(center,target)=>validCell(center)&&validCell(target)&&Math.max(Math.abs(center.gx-target.gx),Math.abs(center.gy-target.gy))<=spec.radius;
+ function areaCells(center){const result=[];if(validCell(center))for(let gy=Math.max(0,center.gy-spec.radius);gy<=Math.min(7,center.gy+spec.radius);gy++)for(let gx=Math.max(0,center.gx-spec.radius);gx<=Math.min(8,center.gx+spec.radius);gx++)result.push({gx,gy});return result;}
+ function living(enemies){if(!Array.isArray(enemies))return [];const seen=new Set();return enemies.filter(e=>{if(!validCell(e)||!validId(e.id)||e.alive===false||e.dead===true||e.isDead===true||e.hp!=null&&(!Number.isFinite(e.hp)||e.hp<=0)||seen.has(e.id))return false;seen.add(e.id);return true;});}
+ const targetsInArea=(landing,enemies)=>living(enemies).filter(e=>inBlast(landing,e));
+ const visualSpeed=n=>Number.isFinite(n)?Math.max(.5,Math.min(2.5,n)):1;
+ const flightMs=(source,target,speed=1)=>Math.round((spec.visualProposal.minimumFlightMs+Math.hypot(target.gx-source.gx,target.gy-source.gy)*spec.visualProposal.flightMsPerCell)/visualSpeed(speed));
+ const rejected=reason=>({ok:false,reason,done:true,impacts:0,update(){return 0;},cancel(){return false;}});
+ function createCast({source,aim,getEnemies,emit=()=>null,onImpact=()=>{},onCancel=()=>{},onVisualError=()=>{},startAt=0,speed=1,channelId='explosive-mixture'}={}){
+  if(!validCell(source))return rejected('invalid-source');const landing=clampAim(source,aim);if(!landing)return rejected('invalid-aim');
+  if(typeof getEnemies!=='function'||typeof emit!=='function'||typeof onImpact!=='function'||typeof onCancel!=='function'||typeof onVisualError!=='function'||!Number.isFinite(startAt)||!validId(channelId))throw Error('Invalid explosive mixture cast arguments');
+  speed=visualSpeed(speed);const from=cell(source),flightDuration=flightMs(from,landing,speed),impactAt=startAt+flightDuration,burstDuration=Math.round(spec.visualProposal.burstMs/speed);
+  if(!Number.isFinite(impactAt)||impactAt<=startAt)throw Error('Explosive mixture deadline exceeds finite clock precision');
+  let done=false,cancelled=false,started=false,updating=false,lastNow=-Infinity,impacts=0,lastVisualError=null,cancelledAt=null;const visualEvents=[];
+  function visualCall(fn){try{return fn();}catch(error){lastVisualError=error;try{onVisualError(error);}catch(_){}return null;}}
+  const send=(phase,at,duration,extra={})=>{const event={skillName:spec.name,kind:phase==='flight'?'travel':'stage',mixturePhase:phase,at,duration,
+   sourceCell:cell(from),targetCells:[cell(landing)],landingCell:cell(landing),stageIndex:0,element:spec.element,damageCategory:spec.category,channelId,
+   visualOnly:true,footprint:{center:cell(landing),radius:spec.radius,shape:spec.areaShape,cells:areaCells(landing)},...extra};visualEvents.push(event);const handle=visualCall(()=>emit(event));if(handle&&typeof handle==='object'&&handle!==event)visualEvents.push(handle);if(cancelled)for(const e of visualEvents)e.mixtureCancelledAt=cancelledAt;return handle;};
+  const cast={ok:true,startAt,impactAt,flightDuration,burstDuration,source:cell(from),landingCell:cell(landing),get done(){return done;},get cancelled(){return cancelled;},get impacts(){return impacts;},get lastVisualError(){return lastVisualError;},
+   cancel(at=Number.isFinite(lastNow)?lastNow:startAt){if(done||cancelled)return false;if(!Number.isFinite(at))throw Error('Invalid cancellation timestamp');cancelled=true;done=true;cancelledAt=Math.max(startAt,Number.isFinite(lastNow)?lastNow:startAt,at);for(const e of visualEvents)e.mixtureCancelledAt=cancelledAt;visualCall(()=>onCancel(channelId,cancelledAt));return true;},
+   update(now){
+    if(done||updating||!Number.isFinite(now)||now<startAt||now<lastNow)return 0;lastNow=now;updating=true;
+    try{if(!started){started=true;send('flight',startAt,flightDuration);}if(done||now<impactAt)return 0;
+     // Consume the only impact before any callback to prevent re-entrant or repeated damage.
+     done=true;impacts=1;const targets=targetsInArea(landing,getEnemies(impactAt)),cells=[...new Map(targets.map(e=>[e.gx+','+e.gy,cell(e)])).values()];
+     send('burst',impactAt,burstDuration,{hitCells:cells.map(cell)});
+     onImpact({at:impactAt,index:0,totalImpacts:1,category:spec.category,element:spec.element,damageType:'hit',isHit:true,damage:null,
+      sourceCell:cell(from),landingCell:cell(landing),radius:spec.radius,shape:spec.areaShape,targets,targetIds:targets.map(e=>e.id),cells,channelId});return 1;
+    }finally{updating=false;}
+   }
+  };return cast;
+ }
+ if(!Array.isArray(G.WT_CATALOG))throw Error('Load catalog.js before explosive-mixture.js');
+ if(!G.WT_CATALOG.some(s=>s.id===47))G.WT_CATALOG.push({id:47,name:spec.name,slug:spec.slug,
+  skill:{isGem:true,category:spec.category,ele:spec.element,baseSpd:null,damage:null,
+   desc:'폭발성 포션 한 병을 최대 4칸 거리의 지정한 칸에 포물선으로 던집니다. 착지하면 폭발하여 착지 칸과 인접 8칸의 모든 적에게 한 번 화염 피해를 주는 공격 스킬입니다.',
+   tags:['attack','projectile','fire','aoe'],targetMode:'aimed-cell',combatPattern:{kind:'explosiveMixture',impacts:1,homing:false}},
+  grid:{kind:'blast',range:4,radius:1,shape:'square',distanceMetric:'euclidean'},previewDefaults:{speed:1},profile:{family:'explosiveMixture',scale:1}});
+ function previewEnemies(landing,source){const used=new Set(),out=[];for(const [dx,dy] of [[0,0],[-1,-1],[1,-1],[-1,1],[1,1],[2,0],[0,2],[-2,0]]){const c={gx:landing.gx+dx,gy:landing.gy+dy},key=c.gx+','+c.gy;if(validCell(c)&&!used.has(key)&&(c.gx!==source.gx||c.gy!==source.gy)){used.add(key);out.push({id:'X'+out.length,...c,hp:100});}}return out;}
+ const previous=G.buildWTPreview;
+ G.buildWTPreview=function(item,options={}){
+  if(item.id!==47)return previous(item,options);
+  const source=options.source||{gx:2,gy:5},aim=options.aim||{gx:5,gy:3},landing=clampAim(source,aim);if(!landing)throw Error('Invalid explosive mixture preview coordinates');
+  const enemies=options.enemies||previewEnemies(landing,source),events=[],rows=[],timeline=[],speed=visualSpeed(options.attackSpeed),cast=createCast({source,aim,getEnemies:()=>enemies,speed,emit:e=>{events.push(e);return e;},onImpact:hit=>{
+   rows.push({index:0,at:hit.at,from:cell(source),impact:hit.cells,footprint:{center:cell(landing),radius:spec.radius,shape:spec.areaShape,cells:areaCells(landing)},element:spec.element,stage:{kind:'explosiveImpact',label:'착지 폭발 · 1회 타격',damageMultiplier:null,targets:hit.targets.map(enemy=>({enemy}))}});
+   timeline.push({at:hit.at,stage:0,label:`착지 폭발 · ${hit.targets.length}명에게 1회 화염 타격`,element:spec.element});
+  }});timeline.push({at:0,stage:0,label:'폭발 포션 1병 투척 · 지정 칸으로 포물선 이동',element:spec.element});cast.update(0);cast.update(cast.impactAt);
+  return {events,rows,timeline,duration:cast.impactAt+cast.burstDuration+420,source:cell(source),target:cell(landing),landingCell:cell(landing),impactAt:cast.impactAt,flightDuration:cast.flightDuration,
+   targets:living(enemies).map(enemy=>({enemy})),profile:{kind:'blast',range:spec.range,radius:spec.radius,shape:spec.areaShape},attackSpeed:speed,channelInterval:null,motion:0,
+   explosiveMixture:true,castable:true,castCells:castCells(source),impactCells:areaCells(landing),targetCount:rows[0]?.stage.targets.length||0,
+   castMessage:'최대 4칸 조준 · 착지 주변 3×3칸 · 단일 폭발 타격'};
+ };
+ G.WT_EXPLOSIVE_MIXTURE={spec,validCell,living,inCastRange,castCells,clampAim,inBlast,areaCells,targetsInArea,flightMs,createCast};
+})(globalThis);

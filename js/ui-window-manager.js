@@ -927,7 +927,11 @@
         if (originalSwitchTab || typeof window.switchTab !== 'function') return;
         originalSwitchTab = window.switchTab;
         window.switchTab = function windowedSwitchTab(tabId, options = {}) {
-            if (!isDesktopWindowed() || tabId === 'tab-battle') return originalSwitchTab(tabId);
+            if (!isDesktopWindowed()) return originalSwitchTab(tabId);
+            if (tabId === 'tab-battle') {
+                closeAllWindows();
+                return originalSwitchTab(tabId);
+            }
             if (tabId === 'tab-social') {
                 openCommunityDock();
                 return;
@@ -1040,6 +1044,7 @@
 
     function closeTopWindowOnEscape(event) {
         if (event.key !== 'Escape' || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
+        if (document.querySelector('dialog:modal')) return;
         if (document.querySelector('.tutorial-overlay.active:not(#tutorial-overlay),.social-modal-overlay[style*="display: block"]')) return;
         if (document.body.classList.contains('community-overlay-open') || document.body.classList.contains('community-dock-open')) {
             closeCommunityDock();

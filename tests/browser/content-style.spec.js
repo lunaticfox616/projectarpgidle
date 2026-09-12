@@ -52,6 +52,11 @@ async function verifyWorkspaceActions(page, target) {
         await expect(page.locator('.craft-result-ledger')).toContainText('품질 0% → 1%');
         await page.locator('[data-repeat-craft="rootIron"]').click();
         await expect.poll(() => page.evaluate(() => getSelectedCraftItem().quality)).toBe(2);
+        await page.waitForFunction(() => {
+            if (uiRefreshRunning || uiRefreshQueued) return false;
+            tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
+            return true;
+        });
         await page.locator('.craft-target-library > summary').click();
         await expect(page.locator('#ui-craft-inventory-list')).toBeVisible();
         await page.locator('.craft-target-library > summary').click();

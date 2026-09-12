@@ -9,8 +9,10 @@ test('jewel pages search the full inventory and keep original item actions',asyn
         game.contentProgression.inherited.push('jewel');contentProgression.sync();
         game.jewelInventory=Array.from({length:60},(_,i)=>({id:1000+i,name:`보석-${i}`,rarity:'normal',stats:[]}));
         game.jewelInventory[59].stats=[{id:'crit',val:3,tier:1}];game.jewelSlots=[null,null];
-        openTabPane('tab-jewel');updateStaticUI();
+        announceMapPrimaryContentUnlocks();openTabPane('tab-jewel');updateStaticUI();
     });
+    // This returning-player fixture has already read map notices unlocked by its forced loop.
+    await page.evaluate(()=>game.seenTutorials.push(...MAP_PRIMARY_CONTENTS.map(row=>row.noticeKey).filter(Boolean)));
     await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
     const cards=page.locator('.jewel-inventory-card');
     const top=page.getByRole('navigation',{name:'주얼 목록 페이지',exact:true});

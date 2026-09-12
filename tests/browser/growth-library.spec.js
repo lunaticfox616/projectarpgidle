@@ -10,8 +10,10 @@ test('growth search covers all items and pages preserve target identities and bo
         const base=GROWTH_BASE_DB.find(row=>row.category==='flower');
         game.growthInventory=Array.from({length:13},(_,i)=>({...createGrowthItemFromBase(base,'normal',12),name:i===12?'끝 조각':'생장 꽃 '+i}));
         game.growthInventory[12].baseStats=[{id:'flatHp',statName:'최대 생명력',val:777}];
-        openTabPane('tab-growthboard');updateStaticUI();return game.growthInventory.map(item=>item.id);
+        announceMapPrimaryContentUnlocks();openTabPane('tab-growthboard');updateStaticUI();return game.growthInventory.map(item=>item.id);
     });
+    // This returning-player fixture has already read map notices unlocked by its forced loop.
+    await page.evaluate(()=>game.seenTutorials.push(...MAP_PRIMARY_CONTENTS.map(row=>row.noticeKey).filter(Boolean)));
     await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
     if(info.project.use.isMobile)await page.getByRole('tab',{name:'보관함',exact:true}).click();
     const cards=page.locator('#ui-growth-inventory .growth-item-card'), nav=page.getByRole('navigation',{name:'생장 보관함 페이지',exact:true});

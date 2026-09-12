@@ -340,7 +340,7 @@ const generatedAtlasContract = JSON.parse(vm.runInContext(`JSON.stringify((() =>
     battleAssets.images.passiveTreeKeystoneIcons = { complete: true, naturalWidth: 768, naturalHeight: 640 };
     battleAssets.images.passiveTreeNotableIcons = { complete: true, naturalWidth: 512, naturalHeight: 384 };
     const keystones = Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'keystone');
-    const cells = keystones.map(node => getPassiveNodeAtlasArt(node)).map(art => art && art.cell.join(','));
+    const cells = keystones.map(node => getPassiveNodeAtlasArt(node)).map(art => art && [art.columns,art.rows,...art.cell].join(','));
     return {
         keystoneCount: keystones.length,
         mappedCount: cells.filter(Boolean).length,
@@ -365,7 +365,7 @@ assert.deepStrictEqual({
     keystoneCount: generatedAtlasContract.keystoneCount,
     mappedCount: generatedAtlasContract.mappedCount,
     uniqueCells: generatedAtlasContract.uniqueCells
-}, { keystoneCount: 30, mappedCount: 30, uniqueCells: 30 },
+}, { keystoneCount: 31, mappedCount: 31, uniqueCells: 31 },
 'all keystones should resolve to different generated atlas cells');
 assert.strictEqual(generatedAtlasContract.notableFamilies.evasionBaseFamily, 'wind',
     'evasion should retain its existing feather/wind icon family');

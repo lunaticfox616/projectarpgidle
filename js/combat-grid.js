@@ -915,7 +915,51 @@ function getConfiguredSkillDpsMultiplier(pattern) {
     return null;
 }
 
+/** Expected extra count: 5.5 means five guaranteed shots and a 50% sixth shot. */
+function rollProjectileExtraShots(expectedShots) {
+    const value = Math.max(0, Number(expectedShots) || 0);
+    const whole = Math.floor(value);
+    const fraction = value - whole;
+    return whole + Number(fraction > 0 && Math.random() < fraction);
+}
+
+function getProjectileExtraShotDpsMultiplier(skill, expectedShots) {
+    if (skill.nativeCastId) return getNativeGemProjectileDpsMultiplier(skill.nativeCastId, expectedShots);
+    if (!(skill.tags || []).includes('projectile')) return 1;
+    const pct = Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT) / 100;
+    const extra = Math.max(0, Number(expectedShots) || 0);
+    if (skill.projectilePattern?.kind === 'fan') {
+        return getFanProjectileDpsMultiplier(skill.projectilePattern, extra, pct);
+    }
+    const native = Math.max(1, Math.min(12, Math.floor(skill.multiHit || 1)));
+    const baseMultiplier = Number.isFinite(skill.repeatHitDamagePct) ? 1 + (native - 1) * skill.repeatHitDamagePct / 100 : native;
+    return 1 + Math.min(extra, 12 - native) * pct / Math.max(0.01, baseMultiplier);
+}
+
+function getFanProjectileDpsMultiplier(pattern,extra,pct) {
+    const baseRays=Math.max(1,Math.min(8,pattern.rays || 1));
+    return (1+(Math.min(8,baseRays+extra)-1)*pct)/(1+(baseRays-1)*pct);
+}
+
+// Empty-flask shards roll the fractional bonus independently, with eleven total shards.
+function getNativeGemProjectileDpsMultiplier(id, expectedShots) {
+    if (id!==49) return 1;
+    const extra=Math.max(0,Number(expectedShots)||0),whole=Math.floor(extra),fraction=extra-whole;
+    let sum=0;
+    for(let base=1;base<=4;base++) {
+        let probabilities=[1];
+        for(let i=0;i<base;i++) {
+            const next=Array(probabilities.length+1).fill(0);
+            probabilities.forEach((p,k)=>{next[k]+=p*(1-fraction);next[k+1]+=p*fraction;});
+            probabilities=next;
+        }
+        sum+=probabilities.reduce((value,p,k)=>value+p*Math.min(11-base,base*whole+k),0);
+    }
+    return 1+(sum/4)*(PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100)/3.5;
+}
+
 function getSkillHitSequenceDpsMultiplier(skillName, skill) {
+    if (skill?.nativeCastId) return ({44:4,49:3.5})[skill.nativeCastId] || 1;
     let configured = getConfiguredSkillDpsMultiplier(skill && skill.combatPattern);
     if (configured !== null) return configured;
     let profile = getSkillHitSequenceProfile(skillName, skill || {});
@@ -962,7 +1006,11 @@ function describeSkillGridProfile(skillName, skillDef) {
     if (profile.kind === 'chain') parts.push(`연쇄 ${Math.max(1, profile.jump || COMBAT_GRID_CONFIG.chainJumpRange)}칸`);
     if (profile.kind === 'fan') parts.push(`${Math.max(1, Math.min(8, Math.floor(Number(profile.rays) || 1)))}방향`);
     if (tags.includes('projectile')) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
-    return parts.join(' · ');
+    return getSkillGridDescriptionText(skillDef,parts);
+}
+
+function getSkillGridDescriptionText(skill,parts) {
+    return skill?.rangeText || parts.join(' · ');
 }
 
 /**

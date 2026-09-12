@@ -1,6 +1,9 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/passives.js');
 
 // Phase-1 extracted data block.
+const PASSIVE_EQUIPMENT_RESTRICTIONS = Object.freeze([
+    { nodeId: 'n39ip40yc3d', slot: '무기', reason: '야만을 할당한 동안 무기를 장착할 수 없습니다.' }
+]);
 const GEM_SKY_ENHANCEMENTS = {
     sky_fury: { id: 'sky_fury', name: '폭풍 충전', desc: '스킬 피해 +8%', stat: 'pctDmg', val: 8 },
     sky_swiftness: { id: 'sky_swiftness', name: '질풍 각인', desc: '스킬 공격속도 +8%', stat: 'aspd', val: 8 },

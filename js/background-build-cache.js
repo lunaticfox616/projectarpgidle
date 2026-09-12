@@ -1,5 +1,12 @@
 const backgroundBuildMemos = new WeakMap();
 
+function getPersistentBuildSignature(owner, includeInventory = false) {
+    const inputs = BUILD_STAT_FIELDS.filter(key => includeInventory || key !== 'inventory').map(key => owner[key]);
+    Object.entries(BUILD_STAT_PARTS).forEach(([key, fields]) => inputs.push(fields.map(field => owner[key]?.[field])));
+    inputs.push((owner.flasks?.utils || []).map(flask => flask && flask.key));
+    return JSON.stringify(inputs, (key, value) => ['locked', 'exp', 'xp'].includes(key) ? undefined : value);
+}
+
 /**
  * Replay owns an isolated snapshot: equipment/board/passive selections cannot be edited between
  * kills, level-ups, defeats and map transitions. Only static build inputs are cached.

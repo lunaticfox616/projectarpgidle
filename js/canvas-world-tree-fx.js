@@ -1,142 +1,111 @@
-/** PixelLab v3.7 layout port. Original 48px-cell coordinates, camera-scaled at draw time.
- * @typedef {{gx:number,gy:number,offsetMs?:number}} WorldTreeFxCell
- * @typedef {{skillName:string,kind:string,sourceCell:WorldTreeFxCell,targetCells:WorldTreeFxCell[],at:number,duration:number,element?:string,stageIndex?:number,footprint?:{cells:WorldTreeFxCell[],center?:WorldTreeFxCell,radius?:number,cone?:{length:number}},travelPath?:WorldTreeFxCell[]}} WorldTreeFxEvent
+/** Supplied PixelLab v3.38 motion, adapted to confirmed game events.
+ * The renderer reads combat snapshots and never applies damage.
  */
 const worldTreeSkillFx = (() => {
     let remaining=48;
     const layouts=new WeakMap(),adapters=new WeakMap(),stageKeys=new Map();
-    const point=cell=>({x:cell.gx*48+24,y:cell.gy*48+24});
-    const direction=(a,b)=>Math.atan2(b.y-a.y,b.x-a.x);
-    const lerp=(a,b,p)=>({x:a.x+(b.x-a.x)*p,y:a.y+(b.y-a.y)*p});
+    let castTick=null,castAnchor=0,castNow=0;
     function beginFrame() {remaining=48;}
 
-    function rainLayout(event,target) {
-        const cells=event.footprint?.cells?.length ? event.footprint.cells : event.targetCells;
-        const unique=[...new Map(cells.map(cell=>[cell.gx+','+cell.gy,cell])).values()];
-        let seed=(Math.floor(event.at)*31+((event.stageIndex || 0)+1)*977+target.x*17+target.y)>>>0;
-        const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
-        for(let i=unique.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[unique[i],unique[j]]=[unique[j],unique[i]];}
-        const life=Math.min(210,event.duration*.72),count=Math.min(6,unique.length),rain=[];
-        for(let i=0;i<count;i++) {
-            const p=point(unique[i]);
-            rain.push({x:p.x+Math.floor(random()*13)-6,y:p.y+Math.floor(random()*13)-6,
-                start:i/Math.max(1,count-1)*(event.duration-life),life,fall:life*.62,height:68+Math.floor(random()*17)});
-        }
-        return rain;
+    function actorState(state) {
+        const c=skillGemCombatRuntime?.pose,at=castNow;
+        if(!assassinPoseActive(c,at,state))return state;
+        const moved=!!c.destination && game.gridPlayer.gx===c.destination.gx && game.gridPlayer.gy===c.destination.gy;
+        const direction=({2:'south',4:'west',6:'east',8:'north'})[c.direction] || state.motionState.facingDirection;
+        const alpha=moved?Math.min(1,(at-c.at-100)/70):Math.max(0,(c.at+100-at)/100);
+        const point=state.gridProj.cellToScreen(game.gridPlayer.gx,game.gridPlayer.gy);
+        point.y+=state.gridProj.actorGroundOffsetY || 0;
+        const strikeAt=c.contact?at:Math.min(at,c.at+239);
+        const thrust=moved?Math.max(0,Math.min(1,(strikeAt-c.at-160)/80))*Math.max(0,1-(at-c.at-240)/120):0;
+        const [dx,dy]=({west:[-1,0],east:[1,0],north:[0,-1],south:[0,1]})[direction];
+        return {...state,playerPos:{x:point.x+dx*thrust*4*state.gridUnitScale,y:point.y+dy*thrust*4*state.gridUnitScale},
+            actorAlpha:alpha,swingPower:0,motionState:{...state.motionState,advanceBlend:0,attackBlend:0,attackActive:false,
+                attackProgress:0,facingDirection:direction,attackDirection:direction}};
+    }
+    function assassinPoseActive(c,at,state) {
+        return c && !c.failed && game.playerHp>0 && game.activeSkill==='암살' && at<=c.at+360 && !state.returnWarp && !state.returnDeparture;
     }
 
-    function stageLayout(event,view) {
-        const {spec,source,target}=view;
-        if(spec.id===35){view.rain=rainLayout(event,target);return;}
-        if(spec.layout==='area')return areaLayout(event,view);
-        if(spec.layout==='midpoint'){view.points=[lerp(source,target,.5)];view.orient=true;return;}
-        if(spec.layout==='triad')return triadLayout(event,view);
-        if(spec.layout==='chain') {
-            const count=Math.max(1,Math.ceil(Math.hypot(target.x-source.x,target.y-source.y)/40));
-            view.points=Array.from({length:count},(_,i)=>lerp(source,target,(i+.5)/count));view.orient=true;return;
-        }
-        cellLayout(event,view);
+    function castFrame(ctx,projection,layer) {
+        const clock=getCombatTime(),wall=performance.now();
+        if(clock!==castTick){castTick=clock;castAnchor=wall;}
+        if(game.combatHalted || document.hidden)castAnchor=wall;
+        castNow=clock+Math.max(0,Math.min(100,wall-castAnchor));
+        for(const event of skillGemCombatRuntime?.events || []) if(event.renderLayer===layer)paintCast(ctx,event,projection,clock);
+    }
+    function paintCast(ctx,event,projection,clock) {
+        const renderer=layouts.get(event) || prepareNative(event,projection);
+        const native=renderer.effects[0];
+        if(event.timeCenter)native.timeCenter=event.timeCenter;
+        if(event.holySource)native.holySource=event.holySource;
+        if(event.holyTargets){native.holyTargets=event.holyTargets;native.duration=event.duration;}
+        let at=castNow;
+        if(event.kind==='travel' && clock<event.at+event.duration)at=Math.min(at,event.at+event.duration-.001);
+        renderer.layout(at,sample=>paint(ctx,sample,projection));
     }
 
-    function areaLayout(event,view) {
-        view.points=[point(event.footprint?.center || event.targetCells[0])];
-        view.scale=clampNumber(Math.round((event.footprint?.radius ?? 0)*2+1),1,5);
+    function beamGeometry(input,cells) {
+        const source=input.sourceCell;
+        const distance=cell=>Math.hypot(cell.gx-source.gx,cell.gy-source.gy);
+        const end=cells.reduce((a,b)=>distance(b)>distance(a)?b:a,source);
+        input.focusBeamRay={sourceCell:source,endCell:end,cells,
+            direction:{angle:Math.atan2(end.gy-source.gy,end.gx-source.gx)}};
     }
 
-    function triadLayout(event,view) {
-        const reach=event.footprint?.cone?.length || 1,angle=view.angle;
-        view.points=[{x:view.source.x+Math.cos(angle)*reach*30,y:view.source.y+Math.sin(angle)*reach*30}];
-        view.scale=clampNumber(Math.round(reach),1,3);view.orient=true;
+    function coneGeometry(input,cells,angle) {
+        const reach=input.footprint.cone?.length;
+        input.dragonBreathCone={sourceCell:input.sourceCell,cells,direction:{angle},
+            range:reach ? reach-.5 : SKILL_GRID_DB[input.skillName].range};
     }
 
-    function cellLayout(event,view) {
-        if(!event.footprint?.cells?.length)return;
-        const cells=[...new Map(event.footprint.cells.map(cell=>[cell.gx+','+cell.gy,cell])).values()];
-        view.points=cells.filter(cell=>view.spec.id!==12 || cell.gx!==event.sourceCell.gx || cell.gy!==event.sourceCell.gy).map(point);
-        view.orient=view.spec.oriented;
+    function adaptFootprint(input) {
+        const source=input.sourceCell,target=input.targetCells.at(-1),cells=input.footprint?.cells;
+        const dx=target.gx-source.gx,dy=target.gy-source.gy,angle=Math.atan2(dy,dx);
+        if(input.skillName==='집중 광선' && cells?.length)beamGeometry(input,cells);
+        if(input.skillName==='용화 숨결' && cells?.length)coneGeometry(input,cells,angle);
     }
 
-    function pathLayout(event,view) {
-        if(!event.travelPath || event.travelPath.length<2)return;
-        view.segments=[];let angle=view.angle;
-        for(let i=1;i<event.travelPath.length;i++) {
-            const from=event.travelPath[i-1],to=event.travelPath[i],a=point(from),b=point(to);
-            if(a.x!==b.x || a.y!==b.y)angle=direction(a,b);
-            view.segments.push({a,b,angle,start:from.offsetMs,end:to.offsetMs,span:Math.max(1,to.offsetMs-from.offsetMs)});
-        }
+    function nativeEvent(event) {
+        const input={...event};
+        adaptFootprint(input);
+        // Native lightning's first contact owns the melee blow. It is an immediate
+        // visual event, not a second damage callback or a delayed duplicate.
+        if(event.skillName==='번개 타격' && event.kind==='stage' && !event.stageIndex)input.kind='hit';
+        return input;
     }
 
-    function prepare(event) {
-        if(layouts.has(event))return layouts.get(event);
-        const spec=SKILL_FX_ATLAS[event.skillName],source=point(event.sourceCell),target=point(event.targetCells.at(-1));
-        const view={spec,source,target,points:[point(event.targetCells[0])],scale:1,orient:false,angle:direction(source,target)};
-        if(event.kind==='stage')stageLayout(event,view);
-        eventStyle(event,view);
-        pathLayout(event,view);layouts.set(event,view);return view;
-    }
-
-    function eventStyle(event,view) {
-        const {spec,source}=view;
-        if(event.kind==='hit'){view.scale=.5;view.orient=(!!spec.heading || spec.id===41) && !spec.grounded;}
-        if(event.kind==='windup') {
-            view.points=[source];view.scale=.5;
-            if(spec.id===34){view.points=[point(event.targetCells[0])];view.scale=1;}
-        }
-        view.moving=['travel','transfer','mobility'].includes(event.kind);
-        if(view.moving)view.orient=true;
-        if(spec.radial || (event.kind==='stage' && spec.grounded))view.orient=false;
-    }
-
-    function paint(ctx,sample,view,projection) {
+    function paint(ctx,sample,projection) {
+        if(remaining<=0)return;
         const image=getSkillGemVfxImage('skillFxWorldTree');
-        if(!image || remaining<=0)return;
+        if(!image)return;
         remaining--;
         const origin=projection.cellToScreen(0,0),sx=projection.tileW/48,sy=projection.tileH/48;
+        const frame=sample.frame,width=frame.w*sample.scale,height=frame.h*sample.scaleY;
         ctx.save();ctx.filter='none';ctx.shadowBlur=0;ctx.imageSmoothingEnabled=false;
-        ctx.globalCompositeOperation='source-over';ctx.globalAlpha=.85;
-        ctx.translate(origin.x+(Math.round(sample.x)-24)*sx,origin.y+(Math.round(sample.y)-24)*sy);
+        ctx.globalCompositeOperation='source-over';ctx.globalAlpha=.85*sample.alpha;
+        ctx.translate(origin.x+(sample.x-24)*sx,origin.y+(sample.y-24)*sy);
         ctx.scale(sx,sy);ctx.rotate(sample.angle);
-        const frames=view.spec.variants[sample.element] || view.spec.frames;
-        const frame=sample.frame || frames[Math.min(frames.length-1,sample.index)],size=64*sample.scale;
-        ctx.drawImage(image,frame.x,frame.y,64,64,-size/2,-size/2,size,size);ctx.restore();
+        if(height<0)ctx.scale(1,-1);
+        ctx.drawImage(image,frame.x,frame.y,frame.w,frame.h,-width/2,-Math.abs(height)/2,width,Math.abs(height));
+        ctx.restore();
     }
 
-    function renderRain(ctx,event,view,frame) {
-        const age=frame.now-event.at;
-        for(const rain of view.rain) {
-            const local=age-rain.start;
-            if(local<0 || local>=rain.life)continue;
-            const falling=local<rain.fall;
-            paint(ctx,{x:rain.x,y:falling ? rain.y-rain.height*(1-local/rain.fall)-14 : rain.y,
-                scale:.5,angle:0,element:event.element,frame:falling ? view.spec.rainFrame : null,
-                index:falling ? 0 : Math.min(8,Math.floor((local-rain.fall)/(rain.life-rain.fall)*9))},view,frame.projection);
-        }
+    function prepareNative(event,projection,owner) {
+        const renderer=worldTreeNativeFx.create(nativeEvent(event));
+        layouts.set(event,renderer);
+        const duration=renderer.effects[0]?.duration;
+        if(!owner || !(duration>event.duration))return renderer;
+        const list=battleVisualState.skillEffects;
+        if(list.filter(row=>row.family==='worldTreeTail').length>=128)return renderer;
+        list.push({family:'worldTreeTail',skillName:event.skillName,startAt:event.at,duration,
+            tailEvent:event,tailProjection:projection,tailGround:renderer.effects[0].renderLayer==='ground',combatFx:owner});
+        return renderer;
     }
 
-    function renderMoving(ctx,event,view,frame) {
-        let pos=lerp(view.source,view.target,frame.progress),angle=view.angle;
-        if(view.segments?.length) {
-            const age=frame.now-event.at,segment=view.segments.find(row=>row.end>age) || view.segments.at(-1);
-            pos=lerp(segment.a,segment.b,clampNumber((age-segment.start)/segment.span,0,1));angle=segment.angle;
-        }
-        if(view.spec.id===38)pos.y-=Math.sin(Math.PI*frame.progress)*62;
-        if(event.kind==='mobility' && view.spec.id===40) {
-            for(const p of [view.source,view.target])paint(ctx,{...frame.sample,...p,scale:1,angle:0},view,frame.projection);
-            return;
-        }
-        paint(ctx,{...frame.sample,...pos,scale:1,angle:view.orient ? angle-view.spec.heading*Math.PI/180 : 0},view,frame.projection);
-    }
-
-    /** @param {WorldTreeFxEvent} event Confirmed visual event, with no damage callbacks. */
-    function renderEvent(ctx,event,now,projection) {
-        if(now<event.at || now>=event.at+event.duration)return;
-        const view=prepare(event),progress=clampNumber((now-event.at)/event.duration,0,.999999);
-        const sample={scale:view.scale,index:Math.floor(progress*9),element:event.element,
-            angle:view.orient ? view.angle-view.spec.heading*Math.PI/180 : 0};
-        const frame={now,progress,sample,projection};
-        if(view.rain)return renderRain(ctx,event,view,frame);
-        if(view.moving)return renderMoving(ctx,event,view,frame);
-        for(const pos of view.points)paint(ctx,{...sample,...pos},view,projection);
+    function renderEvent(ctx,event,now,projection,owner) {
+        if(!SKILL_FX_ATLAS[event.skillName] || remaining<=0)return;
+        const renderer=layouts.get(event) || prepareNative(event,projection,owner);
+        renderer.layout(now,sample=>paint(ctx,sample,projection));
     }
 
     function visualEventBase(fx) {
@@ -183,7 +152,7 @@ const worldTreeSkillFx = (() => {
         if(fx.owner!=='player' || !SKILL_FX_ATLAS[fx.skillName])return false;
         if(fx.cancelled)return true;
         if(!adapters.has(fx))adapters.set(fx,travelEvents(fx));
-        for(const event of adapters.get(fx))renderEvent(ctx,event,contactPlaybackTime(event,now),projection);
+        for(const event of adapters.get(fx))renderEvent(ctx,event,contactPlaybackTime(event,now),projection,fx);
         return true;
     }
 
@@ -216,7 +185,7 @@ const worldTreeSkillFx = (() => {
 
     function impactFootprint(fp,cell) {
         return {cells:fp.points,center:cell(fp.centerPoint),radius:fp.round ? (fp.width/fp.tileW-1)/2 : 0,
-            cone:fp.cone ? {length:fp.cone.length/fp.tileW} : undefined};
+            cone:fp.cone ? {length:fp.cone.length/fp.tileW,dx:Math.cos(fp.cone.angle),dy:Math.sin(fp.cone.angle)} : undefined};
     }
 
     function impactEvent(effect) {
@@ -234,15 +203,27 @@ const worldTreeSkillFx = (() => {
 
     function impact(ctx,effect,progress) {
         if(!SKILL_FX_ATLAS[effect.skillName])return false;
+        if(SKILL_DB[effect.skillName]?.nativeCastId)return true;
         if(effect.combatFx?.cancelled)return true;
+        if(effect.tailEvent) {
+            const now=effect.startAt+progress*effect.duration,event=effect.tailEvent;
+            if(now>=event.at+event.duration)renderEvent(ctx,event,now,effect.tailProjection);
+            return true;
+        }
         if(!adapters.has(effect))adapters.set(effect,impactEvent(effect));
         const {event,projection}=adapters.get(effect);
-        renderEvent(ctx,event,event.at+progress*event.duration,projection);return true;
+        renderEvent(ctx,event,event.at+progress*event.duration,projection,effect.combatFx || effect);return true;
     }
 
-    function drawQueued(ctx,list,now) {
+    function matchesLayer(effect,layer,pass) {
+        if(!SKILL_FX_ATLAS[effect.skillName])return false;
+        const actualLayer=effect.tailGround?'ground':'foreground';
+        return (layer==='all' || layer===actualLayer) && (effect.family==='hitSpark'?1:0)===pass;
+    }
+
+    function drawQueued(ctx,list,now,layer='all') {
         for(let pass=0;pass<2;pass++)for(const effect of list) {
-            if(!SKILL_FX_ATLAS[effect.skillName] || (effect.family==='hitSpark' ? 1 : 0)!==pass)continue;
+            if(!matchesLayer(effect,layer,pass))continue;
             const progress=(now-effect.startAt)/effect.duration;
             if(progress<0 || progress>=1)continue;
             impact(ctx,effect,progress);
@@ -291,6 +272,6 @@ const worldTreeSkillFx = (() => {
         renderEvent(ctx,adapters.get(fx),progress,projection);
     }
 
-    return {beginFrame,renderEvent,travel,impact,mobility,queueHit,drawQueued,swing};
+    return {beginFrame,renderEvent,travel,impact,mobility,queueHit,drawQueued,swing,castFrame,actorState};
 })();
 safeExposeGlobals({ worldTreeSkillFx });

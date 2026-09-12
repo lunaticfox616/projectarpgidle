@@ -32,17 +32,28 @@ const storyJournalUi = (() => {
         document.getElementById('tutorial-dismiss-btn').textContent = '계속';
         return true;
     }
-    function illustrations(entryId) {
-        return STORY_JOURNAL_SCENES.filter(scene => scene.journal === entryId).map(scene =>
-            `<button type="button" class="journal-illustration" onclick="storyJournalUi.replay('${scene.id}')" aria-label="${escapeHTML(scene.title)} 다시 보기">
-            <img src="${scene.image}" alt="${escapeHTML(scene.title)}" loading="lazy" decoding="async" width="1254" height="1254"></button>`).join('');
+    /** Reading an unlocked entry never queues notices or changes progression/rewards. */
+    function openEntry(id) {
+        const entry = JOURNAL_DB[id];
+        if (!entry || !game.journalEntries.includes(id) || document.getElementById('journal-reader')) return;
+        const scenes = STORY_JOURNAL_SCENES.filter(scene => scene.journal === id);
+        const pages = scenes.length ? scenes : [{title:entry.title, lines:entry.lines || []}];
+        const reader = document.createElement('dialog');
+        reader.id = 'journal-reader';
+        reader.setAttribute('aria-labelledby', 'journal-reader-title');
+        reader.innerHTML = `<header class="journal-reader-head"><h2 id="journal-reader-title">${escapeHTML(entry.title)}</h2>
+            <form method="dialog"><button type="submit" autofocus>닫기</button></form></header>
+            <div class="journal-reader-pages">${pages.map(scene => `<section class="journal-reader-page ${scene.image ? '' : 'is-text-only'}">
+                ${scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(scene.title)}" decoding="async" loading="lazy" width="1254" height="1254">` : ''}
+                <div class="story-scene-copy">${pages.length > 1 ? `<h3>${escapeHTML(scene.title)}</h3>` : ''}${scene.lines.map(line => `<p>${escapeHTML(line)}</p>`).join('')}</div>
+            </section>`).join('')}</div>`;
+        reader.addEventListener('close', () => reader.remove(), {once:true});
+        reader.addEventListener('keydown', event => {
+            if (event.key === 'Escape') event.stopPropagation();
+        });
+        document.body.appendChild(reader);
+        reader.showModal();
     }
-    function replay(id) {
-        const scene = STORY_JOURNAL_SCENES.find(row => row.id === id);
-        if (!scene || !available(scene) || activeTutorial) return;
-        tutorialQueue.unshift({key:'story_'+id,title:scene.title,body:scene.lines.join('\n\n'),tabId:null,subtabId:null});
-        showNextTutorial();
-    }
-    return {sync,renderTutorial,illustrations,replay};
+    return {sync,renderTutorial,openEntry};
 })();
 safeExposeGlobals({ storyJournalUi });

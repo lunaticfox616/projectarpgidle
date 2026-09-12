@@ -108,9 +108,9 @@ function calculatePlayerEhpProfile(stats) {
 
 function getMapReadinessGrade(ratio) {
     const value = Math.max(0, Number(ratio) || 0);
-    if (value < 0.85) return { id: 'low', label: '낮음' };
+    if (value < 0.85) return { id: 'low', label: '부족' };
     if (value < 1.30) return { id: 'fit', label: '적정' };
-    return { id: 'high', label: '높음' };
+    return { id: 'high', label: '여유' };
 }
 
 function getMapEstimateElements(estimate) {

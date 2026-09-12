@@ -292,8 +292,8 @@
   #ui-fossil-inventory-list,
   #ui-infuser-inventory-list,
   body:not(.light-mode) #item-tab-equip .equipment-inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 7px; }
-  .map-route-summary { align-items: stretch; padding: 10px; }
-  .map-route-action { min-width: 118px; }
+  .map-route-summary { align-items: center; padding: 9px; text-align: left; }
+  .map-route-action { min-width: 80px; padding: 8px; min-height: 44px; }
   .map-item[role="group"] .map-item-actions { display: grid; grid-template-columns: auto minmax(0, 1fr); width: 100%; }
   .map-item[role="group"] .map-state-badge { grid-column: 1; grid-row: 1; }
   .map-item[role="group"] .map-enter-btn { grid-column: 2; grid-row: 1; }
@@ -341,8 +341,8 @@
 }
 
 @media (max-width: 480px) {
-  .map-route-summary { flex-direction: column; }
-  .map-route-action { width: 100%; }
+  .map-route-summary { flex-direction: row; }
+  .map-route-action { width: auto; max-width: 108px; white-space: normal; }
   .gem-engrave-orbit { padding: 7px 4px 9px; }
   .gem-orbit-stage { --gem-orbit-slot-size: 50px; width: min(100%, 260px); }
   .gem-orbit-rings { inset: 30px; }

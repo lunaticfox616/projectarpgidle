@@ -235,6 +235,7 @@ function getSkyProjectilePatternMode(skillName) {
 
 function isSkyEnhancementCompatibleWithSkill(enhanceId, skillName) {
     let enhancement = GEM_SKY_ENHANCEMENTS[enhanceId];
+    if (enhancement?.projectilePatternMode && SKILL_DB[skillName]?.projectilePattern?.fixed) return false;
     if (!enhancement || !enhancement.requiredTag) return !!enhancement;
     let tags = (SKILL_DB[skillName] && SKILL_DB[skillName].tags) || [];
     return tags.includes(enhancement.requiredTag);
@@ -242,8 +243,7 @@ function isSkyEnhancementCompatibleWithSkill(enhanceId, skillName) {
 
 function applyProjectilePatternMode(skill, mode, source, damageMultiplierOverride) {
     let config = PROJECTILE_PATTERN_MODE_DB[mode];
-    let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
-    if (!config || !tags.includes('projectile') || !config.kind) return skill;
+    if (!canChangeProjectilePattern(skill, config)) return skill;
     let hasDamageMultiplierOverride = damageMultiplierOverride !== null
         && damageMultiplierOverride !== undefined
         && Number.isFinite(Number(damageMultiplierOverride));
@@ -260,6 +260,10 @@ function applyProjectilePatternMode(skill, mode, source, damageMultiplierOverrid
     if (config.combatPattern) next.combatPattern = { ...config.combatPattern };
     if (Number.isFinite(next.dmg) && Number.isFinite(damageMultiplier)) next.dmg *= damageMultiplier;
     return next;
+}
+
+function canChangeProjectilePattern(skill,config) {
+    return !!config?.kind && !!skill?.tags?.includes('projectile') && !skill.projectilePattern?.fixed;
 }
 
 function getSelectedGemEngraveSlot() {
@@ -576,28 +580,26 @@ function getFossilExclusivePool(item) {
         }));
 }
 
+// Shared by crafting and its preview; preserve the armor exception and immutable options.
+function getFossilGuaranteedPool(item, fossil) {
+    const immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
+    const candidate = { ...item, stats: (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift)), chaosInfusion: null };
+    const pool = getAvailableMods(candidate).filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id));
+    if (fossil.key === 'fossilBulwark' && pool.length === 0 && ['투구', '갑옷', '장갑', '신발', '방패'].includes(item.slot)) {
+        return MOD_DB.filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id) && !immutableIds.has(mod.statId || mod.id));
+    }
+    return pool;
+}
+
 function applyFossilChaosCraft(fossilKey) {
-    if ((game.season || 1) < 3) return addLog('미궁 제작은 루프3부터 사용할 수 있습니다.', 'attack-monster');
     let fossil = FOSSIL_DB.find(entry => entry.key === fossilKey);
-    if (!fossil) return;
-    if ((game.currencies[fossilKey] || 0) <= 0) return addLog(`${fossil.name}이 부족합니다.`, 'attack-monster');
     let item = getSelectedCraftItem();
-    if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
-    if (item.corrupted) return addLog('타락한 아이템은 제작할 수 없습니다.', 'attack-monster');
+    const craftBlock = equipmentCrafting.getFossilUseReason(item, fossil, game.season, game.currencies);
+    if (craftBlock) return addLog(craftBlock, 'attack-monster');
     let immutableIds = new Set(typeof getImmutableItemSpecialStats === 'function' ? getImmutableItemSpecialStats(item).map(stat => stat && stat.id).filter(Boolean) : []);
     let lockedStats = (item.stats || []).filter(stat => stat && (stat.lockedByHoney || stat.lockedByRift));
     let rerollCandidate = { ...item, stats: lockedStats, chaosInfusion: null };
-    // guaranteedStats는 실제 스탯 id(예: maxResF)로 적혀 있으므로 모드의 statId(없으면 id)로 비교해야 한다.
-    // 방패 화석의 최대 저항 모드는 id가 'shieldMaxResF'이고 statId가 'maxResF'라서, mod.id로 비교하면 방패에서도 매칭되지 않던 버그가 있었다.
-    // 전체 재련에서는 사라질 기존 옵션을 후보 점유로 세지 않는다. 잠긴 옵션과 고유 고정 옵션만 유지한다.
-    let guaranteedPool = getAvailableMods(rerollCandidate)
-        .filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id));
-    // 🛡️ 방패 화석의 최대 저항(최대 화염/냉기/번개) 확정 옵션은 원래 방패 전용 모드라 다른 방어구에는 슬롯상 매칭되지 않는다.
-    // 방패뿐 아니라 모든 방어구(투구/갑옷/장갑/신발/방패)에 부여할 수 있도록 슬롯 제한을 완화한다.
-    let ARMOR_DEFENSE_SLOTS = new Set(['투구', '갑옷', '장갑', '신발', '방패']);
-    if (fossilKey === 'fossilBulwark' && guaranteedPool.length === 0 && ARMOR_DEFENSE_SLOTS.has(item.slot)) {
-        guaranteedPool = MOD_DB.filter(mod => fossil.guaranteedStats.includes(mod.statId || mod.id) && !immutableIds.has(mod.statId || mod.id));
-    }
+    let guaranteedPool = getFossilGuaranteedPool(item, fossil);
     let specialFossil = ['fossilOld', 'fossilRift'].includes(fossilKey);
     if (!specialFossil && guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
     let fossilExclusivePool = fossilKey === 'fossilOld' ? getFossilExclusivePool(rerollCandidate) : null;
@@ -616,6 +618,7 @@ function applyFossilChaosCraft(fossilKey) {
     let blockedIds = new Set([...immutableIds, ...newStats.map(stat => stat.id)]);
     if (guaranteed) {
         let guaranteedRoll = rollAffixValueInTierRange(guaranteed, guaranteedMinTier, guaranteedMaxTier);
+        guaranteedRoll.craftSource = 'fossil';
         if (!blockedIds.has(guaranteedRoll.id) && (newStats.length + reservedInfusionCount) < 6) {
             newStats.push(guaranteedRoll);
             blockedIds.add(guaranteedRoll.id);
@@ -624,7 +627,7 @@ function applyFossilChaosCraft(fossilKey) {
         let row = rndChoice(fossilExclusivePool);
         let fixedVal = Number.isFinite(Number(row.fixedVal)) ? Number(row.fixedVal) : Number((row.base + Math.max(0, hiddenTier - 1) * row.step).toFixed(2));
         let rolled = Number(fixedVal.toFixed(2));
-        newStats.push({ id: row.id, statName: row.statName, val: rolled, valMin: rolled, valMax: rolled, fossilExclusive: true });
+        newStats.push({ id: row.id, statName: row.statName, val: rolled, valMin: rolled, valMax: rolled, fossilExclusive: true, craftSource: 'fossil' });
     }
 
     let count = 4 + Math.floor(Math.random() * 2);
@@ -638,8 +641,8 @@ function applyFossilChaosCraft(fossilKey) {
         blockedIds.add(roll.id);
     }
     if (fossilKey === 'fossilRift') {
-        let riftMarker = { id: 'fossilRiftBlank', statName: '균열 옵션: 균열 표식 (제거/변경 불가)', val: 0, lockedByRift: true };
-        let ampMarker = { id: 'fossilRiftAmp', statName: '균열 옵션: 추가 옵션 효과 50% 증폭', val: 50 };
+        let riftMarker = lockedStats.find(stat => stat.id === 'fossilRiftBlank') || { id: 'fossilRiftBlank', statName: '균열 옵션: 균열 표식 (제거/변경 불가)', val: 0, lockedByRift: true, craftSource: 'fossil' };
+        let ampMarker = { id: 'fossilRiftAmp', statName: '균열 옵션: 추가 옵션 효과 50% 증폭', val: 50, craftSource: 'fossil' };
         let markerIds = new Set(['fossilRiftBlank', 'fossilRiftAmp']);
         newStats = newStats.filter(stat => !(stat && markerIds.has(stat.id)));
         let ensureMarker = (marker) => {
@@ -986,7 +989,7 @@ function getGemBonusSources(target, resolvedStats, evaluation) {
 }
 
 function hasEquippedShield() {
-    let shield = game.equipment && game.equipment['방패'];
+    let shield = combatEquipmentStats.activeEquipment(game)['방패'];
     return !!(shield && shield.slot === '방패');
 }
 
@@ -1077,7 +1080,7 @@ safeExposeGlobals({
 });
 
 
-safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
+safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockLevel, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, getFossilGuaranteedPool, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
 
 
 function sealSkillGem(name){ if(!name||name===game.activeSkill) return addLog('활성 스킬은 봉인할 수 없습니다.','attack-monster'); if(name==='기본 공격') return addLog('기본 공격은 봉인할 수 없습니다.','attack-monster'); if((game.equippedSummonSkills||[]).includes(name)) return addLog('장착 중 소환수 젬은 봉인할 수 없습니다.','attack-monster'); game.skills=dedupeList(game.skills); game.sealedSkills=dedupeList(game.sealedSkills).filter(v=>!game.skills.includes(v)); if(!game.skills.includes(name)) return; game.skills=game.skills.filter(v=>v!==name); if(game.summonSkillCounts&&typeof game.summonSkillCounts==='object') delete game.summonSkillCounts[name]; if(!game.sealedSkills.includes(name)) game.sealedSkills.push(name); game.resonancePower=(game.resonancePower||10)+1; addLog(`🔒 공격 젬 봉인: ${name} (공명력 +1)`,'loot-magic'); updateStaticUI(); }

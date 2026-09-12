@@ -129,9 +129,9 @@ const equipmentResult = vm.runInContext(`(() => {
 
 assert.strictEqual(equipmentResult.rawTotal, 22.5,
   'the shared equipment resolver must apply quality and Rift amplification before Arcana');
-assert(Math.abs(equipmentResult.fireGemGear - 23.5) < 1e-9,
-  'the Star must no longer turn integer gem levels into fractional gem levels');
-assert.strictEqual(equipmentResult.arcanaDamage.gemLevels, 23.5,
+assert(Math.abs(equipmentResult.fireGemGear - 24) < 1e-9,
+  'compound gem levels receive Rift amplification, but the Star must not amplify them again');
+assert.strictEqual(equipmentResult.arcanaDamage.gemLevels, 24,
   'the Star must count the same resolved and compound gem-level lines used by combat');
 assert.strictEqual(equipmentResult.arcanaDamage.pct, 15,
   'the Star damage bonus must respect its global 15% cap');
