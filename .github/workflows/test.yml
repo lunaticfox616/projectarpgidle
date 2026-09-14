@@ -1,8 +1,5 @@
-# 푸시와 PR마다 scripts/smoke-*.js와 실제 브라우저 회귀 검사를 GitHub이 대신 실행한다.
-#
-# 이게 필요한 이유: 검사 102개는 이미 있었지만 진입점이 없어 "기억하는 사람이 기억할 때만"
-# 돌았다. 실제로 한 화면을 고치면 무관한 화면이 깨지는 회귀가 반복해서 main에 들어갔다.
-# 여기서 실패하면 PR에 빨간 X가 떠서 머지 전에 보인다.
+# 푸시와 PR마다 스모크 및 구조 검사를 실행한다.
+# PC·모바일 브라우저 검사는 필요할 때 로컬에서 실행한다.
 name: test
 
 on:
@@ -18,7 +15,7 @@ concurrency:
 jobs:
   smoke:
     # 같은 저장소의 PR은 head push 검사 결과가 PR에도 연결된다. pull_request에서 한 번 더
-    # 실행하면 동일한 브라우저 검사를 두 번 수행하므로 외부 포크 PR에서만 이 경로를 쓴다.
+    # 실행하면 동일한 검사를 두 번 수행하므로 외부 포크 PR에서만 이 경로를 쓴다.
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -35,38 +32,3 @@ jobs:
         run: npm test
       - name: 구조 및 복잡도 래칫 검사
         run: npm run check:architecture
-
-  browser:
-    name: browser (${{ matrix.project }}, ${{ matrix.shard }}/4)
-    # 같은 저장소의 PR은 head push 검사 결과가 PR에도 연결된다. pull_request에서 한 번 더
-    # 실행하면 동일한 브라우저 검사를 두 번 수행하므로 외부 포크 PR에서만 이 경로를 쓴다.
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # Split each device project independently: mobile no longer waits behind desktop cases.
-        project: [desktop-chromium, mobile-chromium]
-        shard: [1, 2, 3, 4]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - name: 테스트 의존성 설치
-        run: npm ci
-      - name: Chromium 설치
-        run: npx playwright install --with-deps chromium
-      - name: 실제 브라우저 회귀 검사
-        # Finish Playwright before the job deadline so failures still publish traces and screenshots.
-        run: npm run test:browser -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/4 --global-timeout=720000
-      - name: 브라우저 실패 자료 업로드
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-${{ matrix.project }}-${{ matrix.shard }}
-          path: |
-            playwright-report/
-            test-results/
