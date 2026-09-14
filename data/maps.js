@@ -1,16 +1,16 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/maps.js');
 
 const ACT_BATTLE_MAP_SOURCES = Object.freeze({
-    bgAct1: 'assets/background/world-tree/act01-sanctuary.webp',
-    bgAct2: 'assets/background/world-tree/act02-filled-v1.webp',
-    bgAct3: 'assets/background/world-tree/act03-filled-v1.webp',
-    bgAct4: 'assets/background/world-tree/act04-sanctuary.webp',
-    bgAct5: 'assets/background/world-tree/act05-filled-v1.webp',
-    bgAct6: 'assets/background/world-tree/act06-filled-v1.webp',
-    bgAct7: 'assets/background/world-tree/act07-filled-v1.webp',
-    bgAct8: 'assets/background/world-tree/act08-filled-v1.webp',
-    bgAct9: 'assets/background/world-tree/act09-filled-v1.webp',
-    bgAct10: 'assets/background/world-tree/act10-filled-v1.webp'
+    bgAct1: 'assets/background/refined-20260910/bgAct1.webp',
+    bgAct2: 'assets/background/refined-20260910/bgAct2.webp',
+    bgAct3: 'assets/background/refined-20260910/bgAct3.webp',
+    bgAct4: 'assets/background/refined-20260910/bgAct4.webp',
+    bgAct5: 'assets/background/refined-20260910/bgAct5.webp',
+    bgAct6: 'assets/background/refined-20260910/bgAct6.webp',
+    bgAct7: 'assets/background/refined-20260910/bgAct7.webp',
+    bgAct8: 'assets/background/refined-20260910/bgAct8.webp',
+    bgAct9: 'assets/background/refined-20260910/bgAct9.webp',
+    bgAct10: 'assets/background/refined-20260910/bgAct10.webp'
 });
 
 const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
@@ -28,15 +28,15 @@ const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
 // Phase-1 extracted map/season/journal data.
 const STORY_ACTS = [
     { id: 'root_tip_sanctuary', order: 1, displayAct: '1', title: '뿌리끝 성소', subtitle: '썩은 잔뿌리를 베며 중간계로 돌아갈 길을 연다.', description: '뿌리없는 자는 뿌리끝의 드루이드에게 거두어져 뿌리길을 되살릴 사냥을 시작한다.', areaTheme: '축축한 뿌리, 곰팡이, 죽은 수액, 지하 성소', bossId: 'rotten_mane_rootlet', bossName: '썩은갈기의 잔뿌리', clearText: '썩은 잔뿌리가 잘려나가자, 오래 막혀 있던 뿌리길이 다시 열린다.', unlockText: '뿌리길의 봉인이 열리며 가지치기의 중정이 드러난다.', specialType: 'normal', tier: 1, maxKills: 1, ele: 'phys' },
-    { id: 'pruning_courtyard_fall', order: 2, displayAct: '2', title: '가지치기의 중정', subtitle: '불멸의 정원사 앞에서 패배가 담금질로 기록된다.', description: '중간계로 돌아온 뿌리없는 자는 정원사의 불멸성 앞에 패배하고 다시 추방된다.', areaTheme: '정돈된 중정, 냉혹한 가위, 추방의 의식', bossId: 'gardener_immortal', bossName: '정원사', clearText: '정원사의 가위는 뿌리없는 자를 다시 뿌리끝으로 떨어뜨렸다. 그러나 절단의 개념은 조금 더 차가워졌다.', unlockText: '이 패배는 담금질로 기록된다. 허공뿌리로 향하는 길이 열린다.', specialType: 'normal', tier: 2, maxKills: 1, ele: 'fire' },
-    { id: 'suspended_aerial_roots', order: 3, displayAct: '3', title: '허공뿌리 현수림', subtitle: '굶주림의 지배자를 벨수록 정원사의 불멸성에 균열이 간다.', description: '공기뿌리 세계에서 기근의 맹수를 처치해 정원사의 권능을 약화시킨다.', areaTheme: '허공에 매달린 뿌리, 굶주림, 바람, 추락감', bossId: 'famine_beast', bossName: '기근의 맹수', clearText: '허공뿌리의 굶주림이 끊어지자, 정원사의 불멸성에 첫 균열이 생겼다.', unlockText: '갈림뿌리 미궁으로 이어지는 분기점이 열린다.', specialType: 'normal', tier: 2, maxKills: 1, ele: 'cold' },
-    { id: 'forked_root_maze', order: 4, displayAct: '4', title: '갈림뿌리 미궁', subtitle: '끝없이 갈라지는 곁뿌리 미궁을 돌파한다.', description: '갈림길마다 분기하는 뿌리 속에서 측근의 기사를 추적해 처치한다.', areaTheme: '분기하는 길, 미궁, 가지처럼 갈라지는 뿌리', bossId: 'retainer_knight', bossName: '측근의 기사', clearText: '갈림뿌리의 길목이 무너지며 측근의 기사는 침묵했다.', unlockText: '지주근의 침묵 성소가 열린다.', specialType: 'normal', tier: 3, maxKills: 2, ele: 'light' },
-    { id: 'taproot_silent_sanctum', order: 5, displayAct: '5', title: '지주근의 침묵 성소', subtitle: '드루이드의 배신과 뿌리없는 자의 기원을 확인한다.', description: '지주근의 드루이드를 쓰러뜨리며 뿌리없는 자가 절단의 개념임을 드러낸다.', areaTheme: '침묵, 거대한 받침뿌리, 배신, 성소의 붕괴', bossId: 'taproot_druid', bossName: '지주근의 드루이드', clearText: '드루이드는 죽기 직전 깨달았다. 뿌리없는 자는 생명이 아니라, 아직 벼려지지 않은 절단이었다.', unlockText: '불멸이 벗겨진 정원사에게 다시 도전할 수 있다.', specialType: 'normal', tier: 4, maxKills: 1, ele: 'fire' },
-    { id: 'pruning_courtyard_revenge', order: 6, displayAct: '6', title: '가지치기의 중정', subtitle: '이번에는 정원사의 불멸성이 사라졌다.', description: '같은 이름의 정원사지만 이번에는 처치 가능한 결전이다.', areaTheme: '무너진 중정, 깨진 가위, 복수의 결투', bossId: 'gardener_mortal', bossName: '정원사', clearText: '이번에는 가위가 부러졌다. 정원사의 질서는 뿌리없는 칼날 앞에서 무너졌다.', unlockText: '말라가는 큰 줄기의 경고가 시작된다.', specialType: 'normal', tier: 4, maxKills: 1, ele: 'cold' },
-    { id: 'withering_great_trunk', order: 7, displayAct: '7', title: '말라가는 큰 줄기', subtitle: '뿌리가 꺾이자 줄기가 먼저 비명을 올린다.', description: '줄기의 전령을 쓰러뜨리고 수관 이변의 근본 원인을 추적한다.', areaTheme: '말라가는 수액, 갈라진 줄기, 위쪽에서 내려오는 경고', bossId: 'trunk_herald', bossName: '줄기의 전령', clearText: '전령은 무너지는 줄기 위에서 말했다. ‘뿌리를 벤 것은 너지만, 나무를 버린 것은 수관이다.’', unlockText: '끝없는 장막의 줄기로 향하는 문이 열린다.', specialType: 'normal', tier: 5, maxKills: 1, ele: 'light' },
-    { id: 'endless_veil_trunk', order: 8, displayAct: '8', title: '끝없는 장막의 줄기', subtitle: '반복되는 장막 속에서 루프의 기시감이 짙어진다.', description: '끝없는 줄기의 순례자를 처치하며 반복의 흔적을 맞닥뜨린다.', areaTheme: '반복되는 장막, 죽은 수액, 데자뷰, 루프 암시', bossId: 'endless_pilgrim', bossName: '끝없는 줄기의 순례자', clearText: '순례자는 뿌리없는 자를 처음 본 듯, 또 오래 기다린 듯 바라보았다.', unlockText: '비탄의 교차가 모습을 드러낸다.', specialType: 'normal', tier: 5, maxKills: 1, ele: 'chaos' },
-    { id: 'crossroad_of_lament', order: 9, displayAct: '9', title: '비탄의 교차', subtitle: '삽목들의 생존 본능이 수관을 비극으로 가른다.', description: '울부짖는 교차의 성가대를 처치하며 수관 진입부를 돌파한다.', areaTheme: '가지들의 충돌, 생존 본능, 비극적 합창, 수관 입구', bossId: 'wailing_chorus', bossName: '울부짖는 교차의 성가대', clearText: '성가대의 울음은 배신의 노래가 아니었다. 그것은 살아남으려는 가지들의 기도였다.', unlockText: '합일의 차륜으로 올라갈 길이 열린다.', specialType: 'normal', tier: 6, maxKills: 1, ele: 'chaos' },
-    { id: 'wheel_of_unity', order: 10, displayAct: '10', title: '합일의 차륜', subtitle: '아홉 삽목의 의지가 하나의 왕관으로 응집한다.', description: '합일의 왕관을 쓰러뜨리지만 세계수는 이미 말라가고 있다.', areaTheme: '최상층 수관, 아홉 삽목의 합체, 새 세계 직전', bossId: 'crown_of_unity', bossName: '합일의 왕관', clearText: '왕관은 부서졌다. 그러나 말라버린 세계수는 더 이상 스스로를 지탱하지 못했다.', unlockText: '혼돈 층계로 내려갈 길이 열린다.', specialType: 'normal', tier: 7, maxKills: 1, ele: 'chaos' }
+    { id: 'pruning_courtyard_fall', order: 2, displayAct: '2', title: '가지치기의 중정', subtitle: '정원사의 중정을 지키는 부제녀와 맞선다.', description: '중정에 도착한 뿌리없는 자는 부제녀에게 가로막혀 다시 추락한다.', areaTheme: '정돈된 중정, 냉혹한 가위, 추방의 의식', bossId: 'gardener_immortal', bossName: '부정한 은총의 부제녀', clearText: '중정의 부제녀는 뿌리없는 자를 다시 아래로 떨어뜨렸다. 복수로 향하는 다른 길을 찾아야 한다.', unlockText: '이 패배는 담금질로 기록된다. 허공뿌리로 향하는 길이 열린다.', specialType: 'normal', tier: 2, maxKills: 1, ele: 'fire' },
+    { id: 'suspended_aerial_roots', order: 3, displayAct: '3', title: '허공뿌리 현수림', subtitle: '허공뿌리를 건너 중정에 힘을 보내는 자들을 추적한다.', description: '기근의 맹수를 뚫고 황금 길의 운반자와 부제녀가 있는 갈림뿌리로 향한다.', areaTheme: '허공에 매달린 뿌리, 굶주림, 바람, 추락감', bossId: 'famine_beast', bossName: '기근의 맹수', clearText: '허공뿌리의 맹수가 쓰러졌다. 중정에 영원의 힘을 보내는 두 존재를 향한 길이 열린다.', unlockText: '갈림뿌리 미궁으로 이어지는 분기점이 열린다.', specialType: 'normal', tier: 2, maxKills: 1, ele: 'cold' },
+    { id: 'forked_root_maze', order: 4, displayAct: '4', title: '갈림뿌리 미궁', subtitle: '황금 길의 운반자와 부제녀를 차례로 쓰러뜨린다.', description: '황금 길의 마지막 운반자를 돌파한 뒤 부정한 은총의 부제녀와 결전을 벌인다.', areaTheme: '분기하는 길, 미궁, 가지처럼 갈라지는 뿌리', bossId: 'retainer_knight', bossStages: [{ name: '황금 길의 마지막 운반자', assetKey: 'bossAct4_1' }, { name: '부정한 은총의 부제녀', assetKey: 'bossAct4_2' }], bossName: '부정한 은총의 부제녀', clearText: '운반자와 부제녀가 쓰러지며 중정에 깃든 영원의 힘이 사라졌다. 부제녀가 조력자의 정체를 밝힌다.', unlockText: '지주근의 침묵 성소가 열린다.', specialType: 'normal', tier: 3, maxKills: 2, ele: 'light' },
+    { id: 'taproot_silent_sanctum', order: 5, displayAct: '5', title: '지주근의 침묵 성소', subtitle: '지주근의 조력자를 찾아 중정으로 돌아갈 길을 연다.', description: '지주근의 드루이드와 맞선 뒤, 그가 마지막 힘으로 열어 주는 뿌리길을 따라간다.', areaTheme: '침묵, 거대한 받침뿌리, 배신, 성소의 붕괴', bossId: 'taproot_druid', bossName: '지주근의 드루이드', clearText: '드루이드의 손끝에서 뻗어난 뿌리가 맞물리며 중정으로 돌아가는 길이 열렸다.', unlockText: '불멸이 벗겨진 정원사에게 다시 도전할 수 있다.', specialType: 'normal', tier: 4, maxKills: 1, ele: 'fire' },
+    { id: 'pruning_courtyard_revenge', order: 6, displayAct: '6', title: '가지치기의 중정', subtitle: '이번에는 정원사의 불멸성이 사라졌다.', description: '같은 이름의 정원사지만 이번에는 처치 가능한 결전이다.', areaTheme: '무너진 중정, 깨진 가위, 복수의 결투', bossId: 'gardener_mortal', bossName: '정원사', clearText: '마침내 정원사를 쓰러뜨렸다. 세계수의 수액이 위로 솟구치고, 익숙한 보랏빛이 다음 길을 비춘다.', unlockText: '말라가는 큰 줄기의 경고가 시작된다.', specialType: 'normal', tier: 4, maxKills: 1, ele: 'cold' },
+    { id: 'withering_great_trunk', order: 7, displayAct: '7', title: '말라가는 큰 줄기', subtitle: '속 빈 줄기를 따라 위로 솟구치는 수액의 행방을 쫓는다.', description: '익숙한 보랏빛을 따라 시든 도시를 지나고 줄기의 전령을 돌파한다.', areaTheme: '말라가는 수액, 갈라진 줄기, 위쪽에서 내려오는 경고', bossId: 'trunk_herald', bossName: '줄기의 전령', clearText: '줄기의 전령이 쓰러졌다. 위로 흐르는 수액과 보랏빛은 장막 너머로 이어졌다.', unlockText: '끝없는 장막의 줄기로 향하는 문이 열린다.', specialType: 'normal', tier: 5, maxKills: 1, ele: 'light' },
+    { id: 'endless_veil_trunk', order: 8, displayAct: '8', title: '끝없는 장막의 줄기', subtitle: '장막의 성소를 지나 황금빛 수관으로 향한다.', description: '살아 있는 장막 사이의 순례자를 쓰러뜨리고 수관으로 향하는 길을 연다.', areaTheme: '반복되는 장막, 죽은 수액, 데자뷰, 루프 암시', bossId: 'endless_pilgrim', bossName: '끝없는 줄기의 순례자', clearText: '순례자가 쓰러지자 겹겹의 장막이 빛을 잃었다. 그 너머 황금빛 수관이 드러났다.', unlockText: '비탄의 교차가 모습을 드러낸다.', specialType: 'normal', tier: 5, maxKills: 1, ele: 'chaos' },
+    { id: 'crossroad_of_lament', order: 9, displayAct: '9', title: '비탄의 교차', subtitle: '고치를 품은 접목의 어머니와 맞선다.', description: '황금빛 꽃과 가지 사이에서 비탄하는 접목의 어머니를 찾아간다.', areaTheme: '가지들의 충돌, 생존 본능, 비극적 합창, 수관 입구', bossId: 'wailing_chorus', bossName: '비탄하는 접목의 어머니', clearText: '접목의 어머니가 쓰러지자 고치가 열렸다. 옅은 금빛 후광에 둘러싸인 존재가 세계수의 끝으로 올라간다.', unlockText: '합일의 차륜으로 올라갈 길이 열린다.', specialType: 'normal', tier: 6, maxKills: 1, ele: 'chaos' },
+    { id: 'wheel_of_unity', order: 10, displayAct: '10', title: '합일의 차륜', subtitle: '고치에서 태어난 존재를 따라 세계수의 끝에 도달한다.', description: '세계수의 끝에서 금빛 후광을 두른 존재와 마지막으로 맞선다.', areaTheme: '최상층 수관, 아홉 삽목의 합체, 새 세계 직전', bossId: 'crown_of_unity', bossName: '고치에서 태어난 존재', clearText: '쓰러진 존재가 손을 뻗었다. 뿌리없는 자도 손을 내밀었지만, 두 손끝 사이에는 아직 작은 틈이 남았다.', unlockText: '혼돈 층계로 내려갈 길이 열린다.', specialType: 'normal', tier: 7, maxKills: 1, ele: 'chaos' }
 ];
 
 const WORLD_MAP_HOTSPOTS = [
@@ -62,6 +62,12 @@ const TRIAL_ZONES = [
 ];
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
+const GRAND_BREACH_ENCOUNTER = Object.freeze({
+    unlockChance: 0.08,
+    durationSeconds: 35, intervalMs: 1400, openingPack: 16, refillPack: 8, eliteLimit: 4,
+    portals: Object.freeze([{gx:0,gy:1}, {gx:8,gy:1}, {gx:4,gy:7}]),
+    capacities: Object.freeze([16,24,32])
+});
 
 const MAX_STAR_WEDGES = 3;
 

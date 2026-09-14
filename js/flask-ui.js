@@ -35,6 +35,29 @@ const flaskUi = (() => {
         const refresh = () => { cards.replaceChildren(); render(cards, FLASK_UTILITY_CATEGORIES.filter(category => category.category === select.value)); };
         select.onchange = refresh; refresh();
     }
+    // The picker owns keyboard focus; Escape must not close the equipment window underneath.
+    function bindPicker(overlay, returnSelector) {
+        return bindGamePicker(overlay, {titleId:'flask-picker-title', closeSelector:'#flask-picker-close', returnSelector});
+    }
+    function renderHealChoices(body, makeOptionButton) {
+        const st = ensureFlaskState(), found = ensureFlaskFoundKeys();
+        const current = getFlaskEffectiveHealPct(getFlaskHealDef(st.healTier));
+        const grid = document.createElement('div'); grid.className = 'selection-overlay-grid';
+        FLASK_HEAL_TIERS.forEach(def => {
+            const levelLocked = game.level < def.reqLevel, undiscovered = !found.includes(def.key);
+            const heal = getFlaskEffectiveHealPct(def), delta = heal - current;
+            grid.appendChild(makeOptionButton({
+                name: def.name,
+                desc: `총 ${heal.toFixed(1)}% / ${Math.round(def.durationMs / 1000)}초 · ${def.maxCharges}회 · 충전 ${getFlaskEffectiveChargesPerKills(def.chargesPerKills)}처치`,
+                locked: levelLocked || undiscovered,
+                lockLabel: levelLocked ? `Lv.${def.reqLevel} 필요` : (undiscovered ? '미발견' : ''),
+                selected: st.healTier === def.key,
+                compare: st.healTier === def.key ? '현재 장착' : `총 회복 ${current.toFixed(1)}% → ${heal.toFixed(1)}% (${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%p)`,
+                onSelect: () => selectHealFlaskTier(def.key)
+            }));
+        });
+        body.appendChild(grid);
+    }
     function renderUtilityChoices(body, idx, makeOptionButton, categories) {
         const st = ensureFlaskState();
         const lvl = Math.max(1, Math.floor(game.level || 1));
@@ -65,6 +88,6 @@ const flaskUi = (() => {
             body.appendChild(grid);
         });
     }
-    return { bind, picker, renderUtilityChoices };
+    return { bind, picker, bindPicker, renderHealChoices, renderUtilityChoices };
 })();
 safeExposeGlobals({ flaskUi });

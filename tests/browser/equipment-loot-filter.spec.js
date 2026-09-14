@@ -38,7 +38,7 @@ test('equipment dialog owns pickup, target protection and automatic salvage', as
     await expect(page.locator('#btn-auto-salvage')).toHaveAttribute('aria-label', '드랍 필터 · 자동해체 ON');
     const result = await page.evaluate(() => {
         const item = (id, value, rarity = 'rare') => ({ id, name: '생명력 시험 반지', slot: '반지', rarity,
-            tier: 8, hiddenTier: 8, baseStats: [], stats: [{ id: 'flatHp', val: value, tier: 8 }] });
+            tier: 8, hiddenTier: 8, baseStats: [], stats: [{ id: 'flatHp', val: value, tier: 8, affixBalanceVersion: 2 }] });
         const currency = game.currencies.magicBud;
         const desired = addItemToInventory(item(98101, 80));
         const weak = addItemToInventory(item(98102, 49));

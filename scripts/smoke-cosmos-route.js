@@ -11,6 +11,9 @@ for (const file of ['js/cosmos-rules.js', 'js/cosmos-atlas.js']) {
 const run = code => vm.runInContext(code, context);
 run(`game=cloneDefaultGame();window.game=game;game.season=50;game.level=100;
     game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
+    game.actRewardBonuses=[{stat:'strength',value:52}];
+    game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='bloodletter_blade'),'normal',10);
+    const expeditionWeaponId=game.equipment['무기'].id;
     game.journalEntries.push('woodsman');game.underworldProgress.highestFloor=30;
     reconcileMapPrimaryContentUnlocks(game);getCosmosMasteryValue('combatFocus');`);
 
@@ -26,6 +29,8 @@ run("exploreSelectedCosmosNode('planet-0');");
 assert.strictEqual(run('game.currencies.starDust'),firstDust);
 run('const snapshot=JSON.parse(JSON.stringify(game));game=mergeDefaults(snapshot);window.game=game;');
 assert.strictEqual(run('game.cosmosRoute.version'),5);
+assert.strictEqual(run("game.equipment['무기'].id"),run('expeditionWeaponId'));
+assert.strictEqual(run("getPlayerStats(false).disabledEquipment['무기']"),undefined);
 assert.strictEqual(run('JSON.stringify(game.cosmosRoute.plan)'),planned);
 run("const tamperedHabitat=JSON.parse(JSON.stringify(game));tamperedHabitat.cosmosAtlas.activeChallenge.habitat='storm';");
 assert.strictEqual(run('mergeDefaults(tamperedHabitat).cosmosAtlas.activeChallenge.habitat'),run('COSMOS_ROUTE_G1.habitatByNode[game.cosmosRoute.queue[0]]'));
@@ -113,6 +118,9 @@ run(`for(let seed=1;seed<=30;seed++){
 console.log('smoke-cosmos-route passed');
 run(`game=cloneDefaultGame();window.game=game;game.season=50;game.level=100;
     game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);
+    game.actRewardBonuses=[{stat:'strength',value:52}];
+    game.equipment['무기']=createItemFromBase(BASE_ITEM_DB.find(base=>base.id==='bloodletter_blade'),'normal',10);
+    const galaxyWeaponId=game.equipment['무기'].id;
     game.journalEntries.push('woodsman');game.underworldProgress.highestFloor=30;
     reconcileMapPrimaryContentUnlocks(game);getCosmosMasteryValue('combatFocus');
     if(cosmosRouteRuntime.start(game,2)||cosmosRouteRuntime.start(game,5))throw new Error('locked galaxy started');
@@ -125,7 +133,8 @@ run(`game=cloneDefaultGame();window.game=game;game.season=50;game.level=100;
             if(getZone(game.currentZoneId).cosmosGalaxy>0 && getZone(game.currentZoneId).cosmosGalaxy!==galaxy)throw new Error('wrong galaxy');
             allVisited.add(game.cosmosRoute.queue[0]);finishEncounterRun();
             if(i===1){game=mergeDefaults(JSON.parse(JSON.stringify(game)));window.game=game;
-                if(game.cosmosRoute.galaxy!==galaxy||game.cosmosRoute.phase!=='fighting')throw new Error('galaxy reload');}
+                if(game.cosmosRoute.galaxy!==galaxy||game.cosmosRoute.phase!=='fighting')throw new Error('galaxy reload');
+                if(game.equipment['무기'].id!==galaxyWeaponId||getPlayerStats(false).disabledEquipment['무기'])throw new Error('legal equipment lost during expedition');}
         }
         if(game.cosmosRoute.phase!=='complete'||!game.cosmosAtlas.bossClears.includes(definition.boss))throw new Error('boss gate '+galaxy);
         const malformed=JSON.parse(JSON.stringify(game));malformed.cosmosRoute.galaxy=6;

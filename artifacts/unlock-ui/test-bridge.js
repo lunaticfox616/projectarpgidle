@@ -15,6 +15,8 @@
     }
     Object.defineProperty(window, 'localStorage', { value:memoryStorage(), configurable:false });
     Object.defineProperty(window, 'sessionStorage', { value:memoryStorage(), configurable:false });
+    // Manual first-journey review shares storage isolation but keeps the real startup flow.
+    if (document.currentScript?.dataset.manualStart === 'true') return;
     let ready = false;
     function report(message) { parent.postMessage({ type:'unlock-lab-status', ready, message }, labOrigin); }
     function skipNotices() {

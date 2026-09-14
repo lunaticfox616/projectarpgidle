@@ -185,12 +185,12 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     const g = merge({ inventory: [], equipment: {}, currencies: {}, unlocks: {}, settings: {} });
     ctx.__loadedRevelationGame = g;
     const lockedHtml = vm.runInContext('game = __loadedRevelationGame; renderPassiveSpecializationControls();', ctx);
-    assert.ok(/<select[^>]*disabled/.test(lockedHtml), '헌신이 0이면 계시 선택 상자를 비활성화해야 한다');
-    assert.ok(lockedHtml.includes('헌신 1 이상부터 계시 선택 가능'), '계시 잠금 이유를 화면에 표시해야 한다');
+    assert.strictEqual(lockedHtml, '', '헌신과 관련 키스톤이 없는 저장에는 미사용 계시 조작을 표시하지 않는다');
     const devotionId = vm.runInContext(`Object.values(PASSIVE_TREE.nodes)
         .find(node => (node.effects || []).some(effect => effect.stat === 'devotion')).id`, ctx);
     g.passives = [devotionId];
     const unlockedHtml = vm.runInContext('renderPassiveSpecializationControls();', ctx);
+    assert.ok(unlockedHtml.includes('<select'), '헌신을 투자한 저장에는 계시 선택이 제공되어야 한다');
     assert.ok(!/<select[^>]*disabled/.test(unlockedHtml), '헌신이 1 이상이면 계시 선택 상자를 활성화해야 한다');
 }
 

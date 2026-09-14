@@ -11,6 +11,8 @@ test('infusion compares before spending and rejects stale targets',async({page},
         for(const key of Object.keys(game.currencies))game.currencies[key]=100;
         selectForCrafting(game.inventory[0].id,false);openTabPane('tab-items');switchItemSubtab('item-tab-infuser');updateStaticUI();
     });
+    // This returning-player fixture has already read map notices unlocked by its forced loop.
+    await page.evaluate(()=>game.seenTutorials.push(...MAP_PRIMARY_CONTENTS.map(row=>row.noticeKey).filter(Boolean)));
     await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
     const choices=page.locator('#ui-chaos-infuser-panel button[onclick^="previewChaosInfusion"]');
     const snapshot=()=>page.evaluate(()=>JSON.stringify([game.inventory,game.currencies]));

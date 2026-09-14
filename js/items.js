@@ -211,14 +211,9 @@ function getBlackMarketBaseTooltipOptionLines(baseStats) {
     }).join('');
 }
 
-function getBlackMarketUniqueBase(unique, hiddenTier) {
+function getBlackMarketUniqueBase(unique) {
     if (!unique || !Array.isArray(unique.slots) || unique.slots.length <= 0) return null;
-    let fixedBaseId = typeof UNIQUE_FIXED_BASE_BY_NAME === 'object' ? UNIQUE_FIXED_BASE_BY_NAME[unique.name] : null;
-    let fixedBase = fixedBaseId ? BASE_ITEM_DB.find(row => row && row.id === fixedBaseId) : null;
-    if (fixedBase && fixedBase.slot === unique.slots[0]) return fixedBase;
-    let tier = Math.max(1, Math.floor(Number(hiddenTier || unique.reqTier) || 1));
-    let candidates = BASE_ITEM_DB.filter(base => isBaseEligibleForBlackMarket(base) && base.slot === unique.slots[0] && (base.reqTier || 1) <= tier);
-    return candidates.length > 0 ? rndChoice(candidates) : null;
+    return BASE_ITEM_DB.find(base => base.id === UNIQUE_EQUIPMENT_RULES[unique.name].baseId);
 }
 
 function rollBlackMarketChaseUniquePrice(reqTier) {
@@ -238,11 +233,24 @@ function isBlackMarketUniqueRegistered(unique) {
     return !!(key && game.uniqueCodex && game.uniqueCodex[key]);
 }
 
+/** Saved offers keep their price and lock; their displayed base follows the fixed unique identity. */
+function migrateUniqueMarketOffer(offer) {
+    const rule = offer.type === 'unique' && UNIQUE_EQUIPMENT_RULES[offer.name];
+    if (!rule) return;
+    const base = BASE_ITEM_DB.find(row => row.id === rule.baseId);
+    if (offer.baseId === base.id && offer.slot === base.slot) return;
+    offer.baseId = base.id;
+    offer.baseName = base.name;
+    offer.slot = base.slot;
+    offer.baseStats = base.baseStats.map(stat => ({ ...stat }));
+}
+
 function normalizeBlackMarketState() {
     game.blackMarket = (game.blackMarket && typeof game.blackMarket === 'object') ? game.blackMarket : { nextRefreshAt: 0, extraSlots: 0, offers: [], lockedOffers: {} };
     game.blackMarket.extraSlots = Math.max(0, Math.min(BLACK_MARKET_MAX_EXTRA_SLOTS, Math.floor(Number(game.blackMarket.extraSlots) || 0)));
     game.blackMarket.offers = Array.isArray(game.blackMarket.offers) ? game.blackMarket.offers.slice(0, BLACK_MARKET_MAX_SLOT_COUNT).map(offer => {
         if (!offer) return offer;
+        migrateUniqueMarketOffer(offer);
         if (offer.type === 'baseItem') {
             let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId)
                 || (row.name === String(offer.name || '').replace(' 베이스', '') && row.slot === offer.slot)));
@@ -389,23 +397,25 @@ const craftingResultLedger = (() => {
     return { begin, commit, getForItem, clear };
 })();
 
-function getEquipCandidateSlots(item) {
-    if (!item) return [];
-    if (item.slot === '반지') return (typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger') > 0) ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
+function getEquipCandidateSlots(item, targetGame = game) {
+    if (!item || getPassiveEquipmentRestriction(item, targetGame)) return [];
+    if (item.slot === '반지') return getTranscendentVoidPassiveCount('thirdFinger', targetGame) > 0 ? ['반지1', '반지2', '반지3'] : ['반지1', '반지2'];
     if (item.slot === '장갑') return ['장갑1', '장갑2'];
-    let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
+    let warriorDualTrain = targetGame.ascendClass === 'warrior' && hasKeystone('w3', targetGame);
     if (item.slot === '무기') return warriorDualTrain ? ['무기', '방패'] : ['무기'];
     return [item.slot];
 }
 
 function canEquipItemToSlot(item, preferredSlot) {
-    return !!preferredSlot && getEquipCandidateSlots(item).includes(preferredSlot);
+    return !!preferredSlot && getEquipCandidateSlots(item).includes(preferredSlot)
+        && combatEquipmentStats.inspect(item, preferredSlot).ok;
 }
 
 function tryAutoEquipEmptySlot(item) {
     if (!item || !game.settings || game.settings.autoEquipEmptySlots === false) return null;
     let slot = getEquipCandidateSlots(item).find(candidate => candidate && Object.prototype.hasOwnProperty.call(game.equipment, candidate) && !game.equipment[candidate]);
-    if (!slot) return null;
+    if (!slot || !combatEquipmentStats.inspect(item, slot).ok) return null;
+    delete item.legacyRequirementGrace;
     game.equipment[slot] = item;
     if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(true);
     return slot;
@@ -468,6 +478,8 @@ function findInventoryIndexById(itemId) {
 function equipItem(idx, preferredSlot) {
     let item = game.inventory[idx];
     if (!item) return;
+    const restriction = getPassiveEquipmentRestriction(item);
+    if (restriction) return addLog(restriction, 'attack-monster', { toast: true });
     let warriorDualTrain = game.ascendClass === 'warrior' && typeof hasKeystone === 'function' && hasKeystone('w3');
     if (item.slot === '무기' && warriorDualTrain && !preferredSlot && game.equipment['무기'] && game.equipment['방패']) {
         openWeaponSlotOverlayByItemId(item.id);
@@ -483,11 +495,11 @@ function equipItem(idx, preferredSlot) {
     }
     let targetSlot = pickEquipSlot(item, preferredSlot);
     if (!targetSlot) return;
-    if (targetSlot === '방패' && item.slot === '무기' && !warriorDualTrain) {
-        addLog('워리어 키스톤 [쌍수 훈련]이 있어야 방패 슬롯에 무기를 장착할 수 있습니다.', 'attack-monster');
-        return;
-    }
+    const eligibility = combatEquipmentStats.inspect(item, targetSlot);
+    if (!eligibility.ok) return addLog('장착 실패 · ' + eligibility.reason, 'attack-monster', { toast: true });
+    delete item.legacyRequirementGrace;
     let old = game.equipment[targetSlot];
+    if (old) delete old.legacyRequirementGrace;
     let movedId = item.id;
     game.equipment[targetSlot] = item;
     if (old) game.inventory[idx] = old;
@@ -504,9 +516,10 @@ function equipItem(idx, preferredSlot) {
 function equipItemById(itemId, preferredSlot) {
     let idx = findInventoryIndexById(itemId);
     if (idx < 0) return false;
-    if (preferredSlot && !canEquipItemToSlot(game.inventory[idx], preferredSlot)) return false;
+    if (preferredSlot && !getEquipCandidateSlots(game.inventory[idx]).includes(preferredSlot)) return false;
+    const targetItem = game.inventory[idx];
     equipItem(idx, preferredSlot);
-    return true;
+    return Object.values(game.equipment).includes(targetItem);
 }
 
 function equipSelectedCraftInventoryItem() {
@@ -528,6 +541,7 @@ function unequipItemToGrid(slot, column, row) {
         return false;
     }
     let itemKey = equipmentLoadoutRuntime.ensureItemIdentity(item);
+    delete item.legacyRequirementGrace;
     game.inventory.push(item);
     game.equipment[slot] = null;
     game.equipmentInventoryPlacements = {
@@ -638,30 +652,40 @@ function setTimeRiftPressure(delta) {
 
 /** @returns {string|null} 시간의 균열 장비 융합 불가 사유. 가능하면 null. */
 function getTimeRiftFusionMismatchReason(altarItem, candidate) {
+    if (!altarItem || !candidate) return '제단에 고유 1개·희귀 1개가 필요합니다.';
     if (String(altarItem.slot || '') !== String(candidate.slot || '')) {
-        return `두 아이템은 같은 부위여야 융합됩니다. (제단: ${altarItem.slot} / 선택: ${candidate.slot})`;
+        return `부위 불일치 (${altarItem.slot} / ${candidate.slot}) · 같은 부위로 맞춰주세요.`;
     }
     return null;
 }
 
+/** Shared admission for inventory candidates and the final altar action; null means eligible. */
+function getTimeAltarItemIssue(item, rift = ensureTimeRiftState()) {
+    if (!rift.altarOpen) return '먼저 과거를 클리어해 제단을 열어야 합니다.';
+    if (!item) return '제단에 올릴 장비를 고르세요.';
+    if (isGrowthItem(item)) return '생장판과 석판은 제단에 올릴 수 없습니다.';
+    if (item.hallReplica) return '전당 소장품은 제단에 올릴 수 없습니다.';
+    if (item.fusedRelic) return '이미 융합된 유물은 다시 시간을 건널 수 없습니다.';
+    if (item.corrupted) return '타락한 장비는 제단에 올릴 수 없습니다.';
+    if (item.loopSealed) return '봉인된 장비는 제단에 올릴 수 없습니다.';
+    return getTimeAltarSlotIssue(item, rift);
+}
+
+function getTimeAltarSlotIssue(item, rift) {
+    if (!['unique','rare'].includes(item.rarity)) return '고유 또는 희귀 장비만 올릴 수 있습니다.';
+    const unique = item.rarity === 'unique';
+    if (rift[unique ? 'altarUnique' : 'altarRare']) return '해당 제단 자리가 차 있습니다. 회수 후 다시 올려주세요.';
+    const other = unique ? rift.altarRare : rift.altarUnique;
+    return other ? getTimeRiftFusionMismatchReason(other, item) : null;
+}
+
 function placeItemOnTimeAltar() {
     let rift = ensureTimeRiftState();
-    if (!rift.altarOpen) return addLog('먼저 시간의 균열(과거)을 클리어해 제단을 열어야 합니다.', 'attack-monster');
     let item = getSelectedCraftItem();
-    if (!item) return addLog('제단에 올릴 아이템을 인벤토리에서 먼저 선택하세요.', 'attack-monster');
-    if (typeof isGrowthItem === 'function' && isGrowthItem(item)) {
-        return addLog('생장판과 석판은 시간의 균열 제단에 올릴 수 없습니다.', 'attack-monster');
-    }
     if (isCraftSelectionEquip()) return addLog('장착 중인 장비는 제단에 올릴 수 없습니다. 해제 후 올려주세요.', 'attack-monster');
-    if (item.fusedRelic) return addLog('이미 융합된 유물은 다시 시간을 건널 수 없습니다.', 'attack-monster');
-    if (item.corrupted) return addLog('타락한 아이템은 시간의 흐름을 거부합니다.', 'attack-monster');
-    if (item.loopSealed) return addLog('봉인된 장비는 제단에 올릴 수 없습니다.', 'attack-monster');
-    if (item.rarity !== 'unique' && item.rarity !== 'rare') return addLog('고유 또는 희귀 아이템만 제단에 올릴 수 있습니다.', 'attack-monster');
+    const issue = getTimeAltarItemIssue(item, rift);
+    if (issue) return addLog(issue, 'attack-monster');
     let slotKey = item.rarity === 'unique' ? 'altarUnique' : 'altarRare';
-    if (rift[slotKey]) return addLog(`제단의 ${item.rarity === 'unique' ? '고유' : '희귀'} 자리가 이미 차 있습니다. 회수 후 다시 올려주세요.`, 'attack-monster');
-    let other = item.rarity === 'unique' ? rift.altarRare : rift.altarUnique;
-    let mismatch = other ? getTimeRiftFusionMismatchReason(other, item) : null;
-    if (mismatch) return addLog(mismatch, 'attack-monster');
     if (typeof purgeGrowthItemFromAllLoadouts === 'function') purgeGrowthItemFromAllLoadouts(item.id);
     game.inventory = (game.inventory || []).filter(row => row && row.id !== item.id);
     rift[slotKey] = item;
@@ -685,8 +709,8 @@ function retrieveTimeAltarItems() {
     let altarItems = [rift.altarUnique, rift.altarRare].filter(Boolean);
     if (!canStoreEquipmentItems(altarItems, game)) return addLog('인벤토리 공간이 부족합니다.', 'attack-monster');
     // guaranteedKeep: 회수 아이템이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
-    if (rift.altarUnique) { addItemToInventory(rift.altarUnique, { guaranteedKeep: true }); rift.altarUnique = null; }
-    if (rift.altarRare) { addItemToInventory(rift.altarRare, { guaranteedKeep: true }); rift.altarRare = null; }
+    if (rift.altarUnique) { addItemToInventory(rift.altarUnique, { guaranteedKeep: true, skipAutoEquip: true }); rift.altarUnique = null; }
+    if (rift.altarRare) { addItemToInventory(rift.altarRare, { guaranteedKeep: true, skipAutoEquip: true }); rift.altarRare = null; }
     rift.altarOpen = false;
     rift.activePressure = null;
     addLog('⏳ 제단의 아이템을 회수했습니다.', 'season-up');
@@ -697,7 +721,8 @@ function retrieveTimeAltarItems() {
 // 미래 클리어 시 호출: 등급 판정 → 희귀의 추가 옵션을 (유실분 제외하고) 고유에 이식.
 function resolveTimeRiftFusion() {
     let rift = ensureTimeRiftState();
-    if (!rift.altarUnique || !rift.altarRare) return null;
+    const mismatch = getTimeRiftFusionMismatchReason(rift.altarUnique, rift.altarRare);
+    if (mismatch) { addLog(mismatch, 'attack-monster'); return null; }
     // 제단을 비우기 전에 결과물이 들어갈 공간부터 확보한다 — 실패 시 제단을 그대로 유지하고
     // 재도전(공간 확보 후 미래 재클리어)할 수 있게 한다.
     if (!canStoreEquipmentItems([rift.altarUnique], game)) {
@@ -723,11 +748,13 @@ function resolveTimeRiftFusion() {
     rift.altarOpen = false;
     rift.activePressure = null;
     // guaranteedKeep: 융합 결과물이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
-    addItemToInventory(fused, { guaranteedKeep: true });
+    addItemToInventory(fused, { guaranteedKeep: true, skipAutoEquip: true });
     return { fused: fused, grade: grade, lost: lost, inherited: rareStats.length };
 }
 
-function prepareMeteorEncounterEntry(returnZoneId) {
+// Manual entry returns to the chosen act/abyss. Ticket encounters are not resumable for free.
+// Automatic interruptions pass their own explicit return destination.
+function prepareMeteorEncounterEntry(returnZoneId = Number.isInteger(game.currentZoneId) ? game.currentZoneId : null) {
     let st = ensureStarWedgeState();
     st.activeMeteorTier = Math.max(8, getSkyRiftGaugeEffectiveTier({tier:st.skyRiftMinTier || 13}, st));
     st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;
@@ -738,6 +765,10 @@ function prepareMeteorEncounterEntry(returnZoneId) {
 }
 
 function getZoneTravelBlockReason(id) {
+    if (typeof id === 'string' && id.startsWith('worldtree_')) {
+        const reason = worldTreeJourney.lockReason(game, id);
+        if (reason) return reason;
+    }
     if (getZone(id)?.type === 'trial' && !contentProgression.isUnlocked('battleTrials')) {
         return '루프 3부터 직업 전직을 해금한 뒤 시련에 도전할 수 있습니다.';
     }
@@ -762,7 +793,7 @@ function changeZone(id) {
         let st = ensureStarWedgeState();
         if (!st.unlocked) return addLog('운석 낙하 지점은 아직 잠겨 있습니다.', 'attack-monster');
         if (!st.skyRiftReady) return addLog('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.', 'attack-monster');
-        prepareMeteorEncounterEntry(null);
+        prepareMeteorEncounterEntry();
     }
     let zone = getZone(id);
     if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');
@@ -783,7 +814,8 @@ function changeZone(id) {
     if (zone.type === 'timeRift') {
         let rift = ensureTimeRiftState();
         if ((game.season || 1) < TIME_RIFT_UNLOCK_LOOP) return addLog(`시간의 균열은 루프 ${TIME_RIFT_UNLOCK_LOOP}부터 열립니다.`, 'attack-monster');
-        if (zone.riftPhase === 'future' && (!rift.altarUnique || !rift.altarRare)) return addLog('미래로 건너가려면 먼저 과거의 제단에 고유 1개·희귀 1개를 올려야 합니다.', 'attack-monster');
+        const mismatch = zone.riftPhase === 'future' ? getTimeRiftFusionMismatchReason(rift.altarUnique, rift.altarRare) : null;
+        if (mismatch) return addLog(mismatch, 'attack-monster');
         rift.activePressure = rift.pressure;
     }
     if (id === CHAOS_REALM_ZONE_ID) {
@@ -803,7 +835,7 @@ function changeZone(id) {
         game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
         if (depth >= 20 && !game.abyssUnlockedDepths.includes(depth)) game.abyssUnlockedDepths.push(depth);
     }
-    game.currentZoneId = id;
+    worldTreeJourney.onTravel(game, zone);
     game.killsInZone = 0;
     addLog(`🗺️ ${zone.name} 이동`, "season-up");
     // 지도 선택은 귀환 완료가 아니라 새 전투로 출발하는 이동이다.
@@ -812,7 +844,7 @@ function changeZone(id) {
 }
 
 
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, canEquipItemToSlot, equipSelectedCraftInventoryItem, unequipItem, unequipItemToGrid, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason, craftingResultLedger });
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, canEquipItemToSlot, equipSelectedCraftInventoryItem, unequipItem, unequipItemToGrid, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason, getTimeAltarItemIssue, craftingResultLedger });
 
 // Phase-3 extracted market/crafting service handlers.
 async function marketResetPassiveTreeByDivine() {
@@ -1094,13 +1126,13 @@ function upgradeSelectedItemBase() {
         bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:var(--copy-muted);">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule > 0 ? ` + 황금률 ${cost.goldenRule}` : ''}<br><span style="color:var(--copy-muted);">총 이슬 가치 ${cost.totalDewValue}</span>`;
     }
     let overlay = document.getElementById('base-upgrade-overlay');
-    if (overlay) overlay.classList.add('active');
+    if (overlay) overlay.showModal();
 }
 
 function closeBaseUpgradeOverlay() {
     game.pendingBaseUpgrade = null;
     let overlay = document.getElementById('base-upgrade-overlay');
-    if (overlay) overlay.classList.remove('active');
+    if (overlay) overlay.close();
 }
 
 function confirmSelectedItemBaseUpgrade() {
@@ -1133,7 +1165,7 @@ function confirmSelectedItemBaseUpgrade() {
 function createBlackMarketUniqueOffer(unique, tier, options) {
     if (!unique) return null;
     let req = unique.reqTier || tier;
-    let uniqueBase = getBlackMarketUniqueBase(unique, req);
+    let uniqueBase = getBlackMarketUniqueBase(unique);
     let price;
     if (unique.ultraRare) {
         price = rollBlackMarketChaseUniquePrice(req);

@@ -215,6 +215,7 @@ function addCoreCubeBlurred45(amount = 1) {
     let st = ensureCoreCubeState();
     let gain = Math.max(1, Math.floor(Number(amount) || 1));
     st.blurred45 += gain;
+    combatLootReceipts.currency(game,'blurred45',gain);
     if (st.everUnlocked && !st.unlocked) {
         st.unlocked = true;
         st.relockUntilDrop = false;

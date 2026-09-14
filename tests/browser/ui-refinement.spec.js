@@ -19,8 +19,8 @@ test('combat feedback, content discovery and passive dragging remain clear', asy
         game.enemies = Array.from({length:21}, (_,id)=>({...createEnemy(getZone(1), {boss:false}, id),id,hp:100,maxHp:100}));
         updateStaticUI();
     });
-    await expect(page.locator('#ui-move-time-text')).toHaveText('진행불가');
-    await expect(page.locator('#ui-progress-label')).toHaveText('진행도');
+    await expect(page.locator('#ui-move-time-text')).toHaveText('43%');
+    await expect(page.locator('#ui-progress-label')).toHaveText('적 정리 중');
     await page.evaluate(() => {
         game.enemies = []; updateStaticUI();
         document.querySelectorAll('.game-toast').forEach(el=>el.remove());
@@ -42,9 +42,7 @@ test('combat feedback, content discovery and passive dragging remain clear', asy
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);
         return true;
     });
-    if (testInfo.project.use.isMobile) {
-        await expect(page.locator('#mobile-map-destination option[value="btn-map-tab-pvp"]')).toHaveCount(1);
-    } else await expect(page.locator('#btn-map-tab-pvp')).toBeVisible();
+    await expect(page.locator('#mobile-map-destination option[value="btn-map-tab-pvp"]')).toHaveCount(1);
     await page.evaluate(() => switchTab('tab-flask'));
     await expect(page.getByRole('button',{name:/생장판/})).toHaveCount(0);
     await page.evaluate(() => { game.uniqueCodex={}; game.codexSubtab='realm'; switchTab('tab-codex'); renderUniqueCodexUI(); });

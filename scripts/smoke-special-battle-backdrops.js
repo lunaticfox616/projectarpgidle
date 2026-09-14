@@ -4,10 +4,11 @@ const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
 const assets = [
-  'assets/background/sky-tower-v1.webp',
-  'assets/background/underworld-sanctuary.webp',
-  'assets/background/ocean-depth-v1.webp',
-  'assets/background/cosmos-v1.webp'
+  'assets/background/refined-20260910/bgMeteor.webp',
+  'assets/background/refined-20260910/bgSkyTower.webp',
+  'assets/background/refined-20260910/bgUnderworld.webp',
+  'assets/background/refined-20260910/bgOceanDepth.webp',
+  'assets/background/refined-20260910/bgCosmos.webp'
 ];
 
 function readLossyWebpDimensions(file) {
@@ -28,12 +29,14 @@ function readLossyWebpDimensions(file) {
 let totalBytes = 0;
 assets.forEach(file => {
   const dimensions = readLossyWebpDimensions(file);
-  const underworld = file.includes('underworld-sanctuary');
+  const underworld = /bgUnderworld|bgMeteor/.test(file);
   assert.strictEqual(dimensions.width, underworld ? 816 : 627, `${file} width must match its projection`);
   assert.strictEqual(dimensions.height, underworld ? 624 : 627, `${file} height must match its projection`);
   totalBytes += dimensions.bytes;
 });
-assert(totalBytes < 512 * 1024, 'the four special backdrops must stay below 512 KiB combined');
+const meteorBytes = fs.statSync(assets[0]).size;
+assert(totalBytes - meteorBytes < 512 * 1024, 'the four existing special backdrops retain their 512 KiB budget');
+assert(meteorBytes < 160 * 1024, 'the additional on-demand meteor backdrop must stay below 160 KiB');
 const createdImages = [];
 let renderCount = 0;
 let now = 1000;
@@ -72,13 +75,14 @@ async function run() {
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'underworld' }), 'bgUnderworld');
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'oceanDepth' }), 'bgOceanDepth');
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'cosmos' }), 'bgCosmos');
+  assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'meteor',ele:'chaos' }), 'bgMeteor');
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'seasonBoss', pinnacleTrack:'ocean' }), 'bgOceanDepth');
   assert.strictEqual(context.getBattleBackdropKeyForZone({ type:'seasonBoss', cosmosCapstone:true }), 'bgCosmos');
   assert.strictEqual(context.requestSpecialBattleBackdrop('bgAct1'), null, 'ordinary backgrounds stay in the eager manifest');
 
   const loaded = await context.requestSpecialBattleBackdrop('bgCosmos');
   assert.strictEqual(createdImages.length, 1, 'the requested special backdrop loads on demand');
-  assert.strictEqual(loaded.resolvedSrc, 'assets/background/cosmos-v1.webp');
+  assert.strictEqual(loaded.resolvedSrc, 'assets/background/refined-20260910/bgCosmos.webp');
   assert.strictEqual(context.battleAssets.backdrops.bgCosmos, loaded);
   assert.strictEqual(renderCount, 1, 'the battlefield redraws once after the backdrop becomes ready');
 
@@ -96,7 +100,7 @@ async function run() {
   assert.strictEqual(createdImages.length, 2, 'failure backoff must not allocate another image immediately');
   now += 5000;
   const retried = await context.requestSpecialBattleBackdrop('bgOceanDepth');
-  assert(retried && retried.resolvedSrc.endsWith('ocean-depth-v1.webp'), 'a temporary image failure becomes retryable');
+  assert(retried && retried.resolvedSrc.endsWith('bgOceanDepth.webp'), 'a temporary image failure becomes retryable');
   assert.strictEqual(createdImages.length, 3);
   const eagerManifest = fs.readFileSync('js/passives.js', 'utf8');
   assets.forEach(file => assert(!eagerManifest.includes(file), `${file} must not return to the eager battle manifest`));
@@ -118,16 +122,18 @@ async function run() {
     'a special background must cover the rectangular battlefield without diamond calibration');
   for (const [width, height] of [[1000,700], [360,420]]) {
     const grid = renderRuntime.getBattleGridProjection(width, height, 'grid-contain');
-    const draws = [];
-    const ctx = { fillStyle:'', fillRect() {}, drawImage(...args) { draws.push(args); } };
-    renderRuntime.drawGridAlignedBackdrop(ctx, width, height, {width:816,height:624}, grid, 'bgUnderworld');
-    const [,x,y,w,h] = draws[0];
-    const first = grid.cellToScreen(0,0);
-    assert(Math.abs(x + w * 298 / 1434 - (first.x - grid.tileW / 2)) < 0.001);
-    assert(Math.abs(y + h * 256 / 1097 - (first.y - grid.tileH / 2)) < 0.001);
-    assert(Math.abs(w * 836 / 1434 - grid.tileW * 9) < 0.001);
-    assert(Math.abs(h * 694 / 1097 - grid.tileH * 8) < 0.001);
-    assert.strictEqual(draws.length, 1);
+    for (const backdropKey of ['bgAct1','bgMeteor','bgUnderworld']) {
+      const draws = [];
+      const ctx = { fillStyle:'', fillRect() {}, drawImage(...args) { draws.push(args); } };
+      renderRuntime.drawGridAlignedBackdrop(ctx, width, height, {width:816,height:624}, grid, backdropKey);
+      const [,x,y,w,h] = draws[0];
+      const first = grid.cellToScreen(0,0);
+      assert(Math.abs(x + w * 192 / 816 - (first.x - grid.tileW / 2)) < 0.001);
+      assert(Math.abs(y + h * 144 / 624 - (first.y - grid.tileH / 2)) < 0.001);
+      assert(Math.abs(w * 432 / 816 - grid.tileW * 9) < 0.001);
+      assert(Math.abs(h * 384 / 624 - grid.tileH * 8) < 0.001);
+      assert.strictEqual(draws.length, 1);
+    }
   }
   const processor = fs.readFileSync('scripts/process-battle-background.ps1', 'utf8');
   assert(processor.includes("$outputExtension -eq '.webp'") && processor.includes('cwebp'), 'the backdrop processor must encode real WebP files when requested');

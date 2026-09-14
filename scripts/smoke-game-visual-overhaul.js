@@ -94,6 +94,7 @@ context.Path2D = require('./lib/canvas-path');
 vm.runInContext(fs.readFileSync('js/canvas-skill-signatures.js', 'utf8'), context, { filename: 'js/canvas-skill-signatures.js' });
 vm.runInContext(fs.readFileSync('data/skill-fx-atlas.js', 'utf8'), context, { filename: 'data/skill-fx-atlas.js' });
 vm.runInContext(fs.readFileSync('js/combat-clock.js', 'utf8'), context, { filename: 'js/combat-clock.js' });
+vm.runInContext(fs.readFileSync('js/combat-grid.js', 'utf8'), context, { filename: 'js/combat-grid.js' });
 vm.runInContext(fs.readFileSync('js/combat.js', 'utf8'), context, { filename: 'js/combat.js' });
 vm.runInContext(fs.readFileSync('js/canvas-world-tree-fx.js', 'utf8'), context, { filename: 'js/canvas-world-tree-fx.js' });
 vm.runInContext(fs.readFileSync('js/canvas-enemy-projectiles.js', 'utf8'), context, { filename: 'js/canvas-enemy-projectiles.js' });
@@ -134,6 +135,21 @@ assert.deepStrictEqual(playerGridMotion.directions, { east: 'east', west: 'west'
   '상하좌우 칸 이동은 해당 방향의 걷기 스트립을 선택해야 한다');
 assert.strictEqual(playerGridMotion.heldDirection, 'south',
   '이동이 끝난 뒤에도 마지막 이동 방향을 대기·피격 자세에 유지해야 한다');
+const teleportMotion = JSON.parse(vm.runInContext(`JSON.stringify((() => {
+  const projection={cellToScreen:(gx,gy)=>({x:gx*50,y:gy*50})};
+  const from={gx:1,gy:4},to={gx:6,gy:4};
+  const previous=battleFx;
+  battleVisualState.playerGridMotion=null;
+  updatePlayerGridVisualMotion(projection,from,3000,100);
+  battleFx=[{type:'playerMobility',instant:true,fromCell:from,toCell:to,start:3010,duration:180}];
+  const arrival=updatePlayerGridVisualMotion(projection,to,3010,100);
+  const walk=updatePlayerGridVisualMotion(projection,{gx:5,gy:4},3020,100);
+  battleFx=previous;
+  return {arrival,walk};
+})())`,context));
+assert.deepStrictEqual(teleportMotion.arrival.position,{x:300,y:200},'teleport renders at destination on its first frame');
+assert.strictEqual(teleportMotion.arrival.animating,false,'teleport never selects walking frames');
+assert.strictEqual(teleportMotion.walk.animating,true,'ordinary walking still interpolates after teleport');
 const playerReturnWarp = JSON.parse(vm.runInContext(`JSON.stringify({
   start: getPlayerReturnWarpPresentation([{ type: 'playerReturnWarp', start: 1000, duration: 500 }], 1000),
   reveal: getPlayerReturnWarpPresentation([{ type: 'playerReturnWarp', start: 1000, duration: 500 }], 1170),
@@ -552,9 +568,9 @@ assert.ok(!battlefieldSource.includes('ctx.translate(enemy.x, enemy.y - t *'), '
 assert.ok(!battlefieldSource.includes('let driftX = Math.sin((now / 240)'), 'living monsters should not drift around their assigned grid cell');
 assert.ok(!battlefieldSource.includes('drawBossTelegraphDecal'), 'boss telegraphs should not use the coarse generated decal assets');
 assert.ok(battlefieldSource.includes('function queueSkillGemVfx('), 'resolved skill hits should enqueue generated image effects');
-assert.ok(battlefieldSource.includes('drawSkillGemVfxLayer(ctx, now);'), 'skill VFX should render through the battlefield effect layer');
-assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') > battlefieldSource.indexOf('drawBattleActorLayer(ctx, dynamicLayout'), 'translucent skill VFX should remain visible over depth-sorted actors');
-assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now);') < battlefieldSource.lastIndexOf('drawBattlefieldEnemyHealthBars(ctx'), 'health bars and combat text should remain above skill VFX');
+assert.ok(battlefieldSource.includes('drawSkillGemVfxLayer(ctx, now, gridProj);'), 'skill VFX should render through the battlefield effect layer');
+assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now, gridProj);') > battlefieldSource.indexOf('drawBattleActorLayer(ctx, dynamicLayout'), 'translucent skill VFX should remain visible over depth-sorted actors');
+assert.ok(battlefieldSource.indexOf('drawSkillGemVfxLayer(ctx, now, gridProj);') < battlefieldSource.lastIndexOf('drawBattlefieldEnemyHealthBars(ctx'), 'health bars and combat text should remain above skill VFX');
 assert.ok(battlefieldSource.includes('function queueSkillGemProjectileLaunch('), 'projectile gems should enqueue a pre-impact travelling projectile');
 assert.ok(battlefieldSource.includes('if (effect.travel)'), 'projectiles should travel as discrete images rather than stretching across the full distance');
 assert.ok(battlefieldSource.includes("let isPiercePath = skill.targetMode === 'pierce';"), 'piercing skills should resolve as one shared projectile path');

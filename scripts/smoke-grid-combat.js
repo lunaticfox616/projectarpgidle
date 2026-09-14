@@ -7,14 +7,17 @@ const files = [
   'js/bootstrap.js',
   'cloud-save-config.js',
   'data/constants.js',
+  'data/level-progression.js', 'data/build-stat-inputs.js',
   'data/shrines.js',
   'data/bounties.js',
   'data/maps.js',
   'data/cosmos-route.js',
+  'data/world-tree-journey.js',
   'data/skills.js',
   'data/endgame-progression.js',
   'data/severed-wanderers.js',
   'data/items.js',
+  'data/unique-equipment.js',
   'data/growth-items.js',
   'data/passives.js',
   'data/passive-tree-v22.js',
@@ -25,11 +28,14 @@ const files = [
   'data/offline-progress.js',
   'js/utils.js',
   'js/state.js',
+  'js/combat-loot-receipts.js',
+  'js/level-progression.js', 'js/combat-equipment-stats.js',
   'js/content-progression.js',
   'js/offline-progress.js',
   'js/endgame-progression.js',
   'js/save.js',
   'js/items.js',
+  'js/equipment-crafting.js',
   'js/passives.js',
   'js/loot.js',
   'js/unique-hunt.js',
@@ -43,6 +49,7 @@ const files = [
   'js/bounties.js',
   'js/core-cube.js',
   'js/combat-grid.js',
+  'js/world-tree-journey.js',
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
@@ -697,7 +704,11 @@ const cfg = context.COMBAT_GRID_CONFIG;
   const earlyHive = context.estimateMapZonePowerRequirements(context.getZone('beehive_run'));
   context.game.beehive.branchStep = 10;
   const lateHive = context.estimateMapZonePowerRequirements(context.getZone('beehive_run'));
-  assert.ok(lateHive.dps > earlyHive.dps, '벌집 후반 갈림길은 초반보다 예상 DPS가 높아야 한다');
+  assert.strictEqual(lateHive.dps, earlyHive.dps, '벌집 입장 전부터 최종 여왕 기준의 예상 DPS를 알려야 한다');
+  context.game.beehive.enemyEmpower = 10;
+  const empoweredHive = context.estimateMapZonePowerRequirements(context.getZone('beehive_run'));
+  assert.ok(empoweredHive.dps > lateHive.dps && empoweredHive.ehp > lateHive.ehp, '군체 강화 선택은 여왕의 권장 공격·방어 기준에도 반영되어야 한다');
+  context.game.beehive.enemyEmpower = 0;
 
   const breachRewards = context.getGrandBreachRewardSummary(31);
   assert.strictEqual(breachRewards.kills, 31, '대균열 정산은 실제 생존 구간 처치 수를 사용해야 한다');
@@ -807,7 +818,7 @@ assert.strictEqual(context.describeSkillGridProfile('연발 사격', context.SKI
 const projectileGems = Object.entries(context.SKILL_DB).filter(([, skill]) => skill.isGem && skill.tags.includes('projectile'));
 assert.ok(projectileGems.every(([, skill]) => skill.projectilePattern && skill.projectilePattern.mode), '모든 투사체 젬은 툴팁에 표시할 기본 발사 방식을 가져야 한다');
 assert.ok(projectileGems.every(([name, skill]) => context.describeSkillGridProfile(name, skill).startsWith('발사 방식:')), '모든 투사체 젬 툴팁은 공격 범위 대신 발사 방식을 표시해야 한다');
-assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= 8, '스킬 최대 사거리는 9x8 전장의 긴 축을 넘지 않아야 한다');
+assert.ok(Math.max(...Object.values(context.SKILL_GRID_DB).map(profile => profile.range)) <= Math.hypot(8,7), '스킬 최대 사거리는 9x8 전장의 대각선 길이를 넘지 않아야 한다');
 const radiusOneCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 1 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
 const radiusTwoCells = context.getGridAttackAreaCells({ kind: 'blast', range: 4, radius: 2 }, { gx: 0, gy: 0 }, { gx: 3, gy: 3 });
 assert.strictEqual(radiusOneCells.length, 5, '반경 1은 중심과 상하좌우 4칸만 덮어야 한다');
@@ -1243,6 +1254,9 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(context.game.currencies.skyEssence, 1, '발사 방식 교체는 각인 비용을 한 번만 소모해야 한다');
 
   const makeUniqueItem = (name, withEffect = true) => {
+    // These effect scenarios use a character qualified to equip every unique under test.
+    context.game.level = 100;
+    context.game.actRewardBonuses = ['strength', 'dexterity', 'intelligence'].map(stat => ({ stat, value: 200 }));
     const def = context.UNIQUE_DB.find(row => row.name === name);
     assert.ok(def, `${name} 고유 장비 정의가 있어야 한다`);
     return {
@@ -2626,29 +2640,70 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '스프라이트는 칸 이동 진행도로 걷기 프레임을 골라 도착 시 마지막 프레임에 맞춰야 한다');
   assert.ok(!battlefield.includes('isPlayerWalkingForAnimation') && !ui.includes('isPlayerWalkingForAnimation'),
     '진행도나 접근 플래그만으로 제자리 걷기를 켜는 이전 판정은 남지 않아야 한다');
-  assert.ok(ui.includes('estimateMapZonePowerRequirements(zone)') && ui.includes('예상 DPS ${model.dps.label} · 권장 EHP ${model.ehp.label}'),
-    '지도 지역 카드는 원시 수치 대신 개인화된 DPS/EHP 등급을 표시해야 한다');
-  assert.ok((ui.match(/buildMapPowerEstimateHtml\(/g) || []).length >= 14, '특수 지도 패널도 예상 DPS/EHP 표시를 공유해야 한다');
   const estimateStart = ui.indexOf('function formatApproximateMapPower(');
   const estimateEnd = ui.indexOf('function buildTrialMapItemHtml(', estimateStart);
-  const estimateContext = {
-    cachedTooltipStats: {},
-    estimateMapZonePowerRequirements() { return { dps: 413210, ehp: 692474, element: 'fire' }; },
-    getMapPowerReadiness() {
-      return {
-        dps: { id: 'fit', label: '적정' }, ehp: { id: 'low', label: '낮음' }, element: 'fire',
-        playerDps: 400000, recommendedDps: 413210, playerEhp: 500000, recommendedEhp: 692474
-      };
+  const rewardRuntime = buildGameRuntime();
+  vm.runInContext(ui.slice(estimateStart, estimateEnd), rewardRuntime, { filename: 'map-power-estimate.js' });
+  for (const [dps, hp, expected] of [[1,1,'미달성'],[1e12,1,'미달성'],[1,1e12,'미달성'],[1e12,1e12,'달성']]) {
+    rewardRuntime.readinessFixture = { ...rewardRuntime.getPlayerStats(), totalDps:dps, maxHp:hp, regen:100, energyShield:0 };
+    vm.runInContext('cachedTooltipStats = readinessFixture',rewardRuntime);
+    const html = rewardRuntime.buildMapPowerEstimateHtml(rewardRuntime.getZone(1));
+    assert(html.includes(`grade-${expected === '달성' ? 'high' : 'low'}">권장 전투력 ${expected}</span>`),
+      '화력과 생존력 모두 충족해야 달성으로 표시한다');
+  }
+}
+
+{
+  const runtime = buildGameRuntime();
+  runtime.game.season = 10;
+  for (const id of ['meteor_fall_site', 'grand_breach_run', 'beehive_run', 'trial_1']) {
+    const enemy = runtime.createEnemy(runtime.getZone(id), {boss:true}, 0);
+    assert(!String(enemy.traitName).includes('undefined'), `${id}: unnamed modifiers must not become a displayed trait`);
+    assert(Number.isFinite(enemy.maxHp) && enemy.maxHp > 0, `${id}: combat modifiers must still apply`);
+  }
+}
+
+// Equally close targets used to alternate on every step and trap melee between two cells.
+{
+  const runtime = buildGameRuntime();
+  const check = vm.runInContext(`(() => {
+    game=mergeDefaults({});window.game=game;game.selectedClassId='warrior';
+    game.gridPlayer={gx:4,gy:3,gridMoveTimer:0};game.combatTacticsUnlocked=false;
+    const cells=[[6,1],[5,1],[5,6],[1,6],[1,3],[4,1],[2,5],[6,6],[7,2],[4,6],[6,2],[3,6],[6,3]];
+    game.enemies=cells.map(([gx,gy],id)=>({id:id+1,gx,gy,hp:100,maxHp:100,isBoss:false}));
+    const stats=getPlayerStats();
+    for(let tick=0;tick<150;tick++) {
+      if(updatePlayerGridEngagement(stats))return true;
     }
-  };
-  vm.createContext(estimateContext);
-require('./lib/load-combat-clock')(estimateContext);
-  vm.runInContext(ui.slice(estimateStart, estimateEnd), estimateContext, { filename: 'map-power-estimate.js' });
-  const estimateHtml = estimateContext.buildMapPowerEstimateHtml({ id: 1 });
-  assert.ok(estimateHtml.includes('예상 DPS <b class="map-power-grade grade-fit">적정</b>')
-      && estimateHtml.includes('권장 EHP <b class="map-power-grade grade-low">낮음</b>')
-      && !estimateHtml.includes('413,210'),
-    '지도 카드는 원시 수치를 숨기고 낮음·적정·높음 등급만 렌더링해야 한다');
+    return false;
+  })()`,runtime);
+  assert.strictEqual(check,true,'melee must reach an attackable enemy instead of alternating equally close chase targets');
+}
+
+{
+  const runtime = buildGameRuntime();
+  const result = vm.runInContext(`(() => {
+    game=mergeDefaults({});window.game=game;game.selectedClassId='warrior';
+    game.gridPlayer={gx:4,gy:3,gridMoveTimer:0};game.combatTacticsUnlocked=false;
+    game.enemies=[{id:1,gx:7,gy:1,hp:100},{id:2,gx:0,gy:3,hp:100}];
+    const stats=getPlayerStats();
+    updatePlayerGridEngagement(stats);
+    game.enemies[0].hp=0;
+    let reachesSurvivor=false;
+    for(let tick=0;tick<150;tick++) {
+      if(updatePlayerGridEngagement(stats)){reachesSurvivor=getSkillTargets(stats)[0].enemy.id===2;break;}
+    }
+    resetCombatTacticsRuntime();game.gridPlayer={gx:4,gy:3,gridMoveTimer:0};
+    game.enemies=[{id:3,gx:7,gy:1,hp:100}];updatePlayerGridEngagement(stats);
+    game.enemies.push({id:4,gx:game.gridPlayer.gx,gy:game.gridPlayer.gy+1,hp:100});
+    const before=JSON.stringify(game.gridPlayer);
+    const attacksNearby=updatePlayerGridEngagement(stats)&&getSkillTargets(stats)[0].enemy.id===4;
+    const stayed=before===JSON.stringify(game.gridPlayer);
+    game.enemies=[{id:5,gx:0,gy:0,hp:100}];
+    const held=!updatePlayerGridEngagement(stats,{holdPosition:true})&&before===JSON.stringify(game.gridPlayer);
+    return {reachesSurvivor,attacksNearby,stayed,held};
+  })()`,runtime);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(result)),{reachesSurvivor:true,attacksNearby:true,stayed:true,held:true});
 }
 
 console.log('smoke-grid-combat passed');

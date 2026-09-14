@@ -83,23 +83,38 @@ assert.strictEqual(read('JSON.stringify(game)'), before, 'presentation grouping 
             assert.strictEqual(fx.targetCells[0].gx,8,'the visual reaches the empty end of its range');
             const imageKey = r.getCombatTravelImageKey(fx);
             run(`battleAssets.images[${JSON.stringify(imageKey)}]={complete:true,naturalWidth:128,naturalHeight:64};`);
-            const translations=[];
-            const ctx = new Proxy({}, {get:(_,key)=>(...args)=>{if(key==='translate')translations.push(args);}});
+            const contacts=[],stack=[];
+            let position,angle=0,scaleX=1,scaleY=1;
+            const art=run(`SKILL_FX_ATLAS[${JSON.stringify(skillName)}]`);
+            const anchor=skillName==='번개 창' ? art.description.main.tip : art.remake.main.anchor;
+            const ctx={save(){stack.push({position,angle,scaleX,scaleY});},
+                restore(){({position,angle,scaleX,scaleY}=stack.pop());},
+                translate(x,y){position={x,y};},rotate(value){angle=value;},
+                scale(x,y){scaleX*=x;scaleY*=y;},
+                drawImage(image,sx,sy,sw,sh,x,y,w,h){
+                    const ax=anchor.x*w/sw,ay=anchor.y*h/sh;
+                    contacts.push([position.x+(ax*Math.cos(angle)-ay*Math.sin(angle))*scaleX,
+                        position.y+(ax*Math.sin(angle)+ay*Math.cos(angle))*scaleY]);
+                }};
+            const assertContact=(expected,message)=>assert(contacts.length &&
+                Math.hypot(contacts[0][0]-expected[0],contacts[0][1]-expected[1])<1,message);
             const castAt = run('game.combatTimeMs');
             for (const row of pending) {
                 run(`game.combatTimeMs=${row.at};processPendingSkillStageHits();`);
                 const state = run('JSON.stringify(game)');
-                translations.length=0;
+                contacts.length=0;
+                r.worldTreeSkillFx.beginFrame();
                 r.drawCombatTravelFx(ctx,fx,fx.start+row.at-castAt,projection,{x:120,y:150},{});
-                assert.deepStrictEqual(translations[0],[row.targetCells[0].gx*40,160],
-                    'the image crosses each enemy when its original damage stage occurs');
+                assertContact([row.targetCells[0].gx*40,160],
+                    'the native contact anchor crosses each enemy when its original damage stage occurs');
                 assert.strictEqual(run('JSON.stringify(game)'),state,'visual travel is read-only');
             }
             const state = run('JSON.stringify(game)');
-            translations.length=0;
+            contacts.length=0;
+            r.worldTreeSkillFx.beginFrame();
             const endAt=fx.start+fx.releaseDelayMs+fx.flightMs;
             r.drawCombatTravelFx(ctx,fx,endAt-.01,projection,{x:120,y:150},{});
-            assert.deepStrictEqual(translations[0],[320,160],'the same image reaches the range endpoint');
+            assertContact([320,160],'the same native contact anchor reaches the range endpoint');
             assert.strictEqual(run('JSON.stringify(game)'),state,'visual travel is read-only');
         }
     }

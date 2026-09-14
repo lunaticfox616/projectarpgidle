@@ -194,15 +194,14 @@ assert.strictEqual(hitMultiplier({ farshot: true }, { id: 1, gx: 3, gy: 0 }), 1.
     '최후방 사격은 3칸 거리 피해를 25% 증폭해야 합니다.');
 assert.strictEqual(hitMultiplier({ farshot: true }, { id: 1, gx: 1, gy: 0 }), 0.75,
     '최후방 사격은 인접 피해를 25% 감폭해야 합니다.');
-assert.strictEqual(hitMultiplier({ duel: true }, { id: 1 }), 1.3,
-    '결투의 규율은 단일 적 근접 피해를 30% 증폭해야 합니다.');
+assert.strictEqual(hitMultiplier({ duel: true }, { id: 1 }), 1,
+    '결투의 규율에 이전 근접 피해 증폭이 남으면 안 됩니다.');
 run('game.enemies = [{ id:1, hp:10 }, { id:2, hp:10 }];');
-assert.strictEqual(hitMultiplier({ duel: true }, { id: 1 }), 1.3,
-    '결투의 규율은 적 수와 무관하게 근접 피해를 30% 증폭해야 합니다.');
+assert.strictEqual(hitMultiplier({ duel: true }, { id: 1 }), 1);
 setPassives([]);
 const baseDuelDefense = run('getPlayerStats().takenDamageReduceWhen1EnemyPct');
 setPassives(['결투의 규율']);
-assert.strictEqual(run('getPassiveKeystoneCombatFlags(["melee"]).duel'), true);
+assert.strictEqual(run('getPassiveKeystoneCombatFlags(["attack", "melee"]).duel'), true);
 assert.strictEqual(run('getPassiveKeystoneCombatFlags(["spell", "projectile"]).duel'), false);
 assert.strictEqual(run('getPlayerStats().takenDamageReduceWhen1EnemyPct'), baseDuelDefense,
     '결투의 규율에 이전의 단일 적 피해 감소 보너스가 남으면 안 됩니다.');

@@ -243,10 +243,9 @@ function normalizeLocalRuntimeAfterLoad() {
     if (!zone && typeof getAutoProgressZoneId === 'function') {
         game.currentZoneId = getAutoProgressZoneId(Math.max(0, Math.floor(game.maxZoneId || 0)));
     }
-    if (!Array.isArray(game.enemies)) game.enemies = [];
-    if (!Array.isArray(game.encounterPlan)) game.encounterPlan = [];
+    // loadGame supplies cloneDefaultGame or mergeDefaults; both own these array shapes.
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
-    if (game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
+    if (game.settings.mapCompleteAction !== 'stop' && game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
     if (!game.realmDeathWard || typeof game.realmDeathWard !== 'object') game.realmDeathWard = null;
     else {
         game.realmDeathWard.amount = Math.max(0, Math.floor(Number(game.realmDeathWard.amount) || 0));

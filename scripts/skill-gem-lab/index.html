@@ -1,0 +1,57 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>신규 스킬 젬 · 실제 전투 체험</title>
+<style>
+*{box-sizing:border-box}body{margin:0;height:100dvh;display:flex;flex-direction:column;background:#111313;color:#e2dccb;font:13px system-ui,sans-serif}
+header{padding:10px 14px;border-bottom:1px solid #65543a;background:#1a1b19;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+strong{color:#e7c784}small{color:#b9b2a2}button,select{font:inherit;color:inherit;background:#252723;border:1px solid #6d6048;border-radius:5px;padding:7px 10px;cursor:pointer}button:disabled{opacity:.5;cursor:wait}
+button:hover{border-color:#d0b77e}label{display:flex;gap:5px;align-items:center}#status{margin-left:auto}#hint{margin:0;padding:7px 14px;color:#c8bea8;border-bottom:1px solid #393830;min-height:32px}
+iframe{width:100%;flex:1;min-height:0;border:0;display:block}input{accent-color:#c6a467}
+@media(max-width:620px){header{padding:8px;gap:6px}#status{width:100%;margin:0}#hint{font-size:12px}}
+</style></head><body>
+<header><strong>신규 젬 10종</strong><select id="skill" aria-label="체험할 스킬" disabled></select>
+<button id="equip" disabled>장착·전투</button><button id="gems" disabled>젬 창</button><button id="reset" disabled>전장 재시작</button>
+<select id="encounter" aria-label="체험할 적" disabled><option value="normal">일반 적</option><option value="boss">2×2 보스</option></select>
+<span id="channel" hidden>인과 · <span id="counter">집중 대기</span></span>
+<small id="status">게임 준비 중 · 실제 저장과 분리</small></header>
+<p id="hint">원본 모션·범위 · 피해량과 재사용 간격은 테스트용입니다.</p>
+<iframe id="game" title="신규 젬 실전 테스트" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+<script>
+const frame = document.getElementById('game');
+const send = (action, skill) => frame.contentWindow.postMessage({type:'new-skill-lab', action, skill}, location.origin);
+window.addEventListener('message', event => {
+    if(event.source !== frame.contentWindow || event.origin !== location.origin || event.data?.type !== 'new-skill-lab-state') return;
+    const state = event.data;
+    if(state.skills) {
+        document.getElementById('skill').replaceChildren(...state.skills.map(s => new Option(s.name, s.name)));
+        document.querySelectorAll('button,select,input').forEach(el => el.disabled = false);
+    }
+    if(state.active) {document.getElementById('skill').value = state.active; document.getElementById('channel').hidden = state.active !== '인과';}
+    if(state.hint) document.getElementById('hint').textContent = state.hint;
+    document.getElementById('status').textContent = state.error || '본편 전투 · 저장 분리';
+    if(state.count !== undefined) document.getElementById('counter').textContent = state.equipped ? '집중 중 ' + state.count + '/5' : '집중 대기';
+});
+document.getElementById('equip').onclick = () => send('equip', document.getElementById('skill').value);
+document.getElementById('gems').onclick = () => send('gems');
+document.getElementById('reset').onclick = () => send('reset');
+document.getElementById('encounter').onchange = event => send('encounter', event.target.value);
+(async () => {
+    const response = await fetch('/index.html', {cache:'no-store'});
+    if(!response.ok) throw Error('게임 로딩 실패: ' + response.status);
+    const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+    doc.querySelector('#app-update-registration')?.remove();
+    doc.querySelectorAll('script[src]').forEach(s => {
+        if(new URL(s.getAttribute('src'), location.origin).origin !== location.origin) s.remove();
+    });
+    const base = doc.createElement('base'); base.href = location.origin + '/';
+    const csp = doc.createElement('meta'); csp.httpEquiv = 'Content-Security-Policy';
+    csp.content = "connect-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; worker-src 'none'; frame-src 'none'; form-action 'none'; object-src 'none'";
+    const storage = doc.createElement('script'); storage.src = '/artifacts/new-skill-gems/storage.js';
+    doc.head.prepend(base, csp, storage);
+    const reference=new URLSearchParams(location.search).has('reference');
+    for(const file of reference?['native', 'runtime', 'targeting', 'combat', 'drawing', 'assassination']:['production']) {
+        const script = doc.createElement('script'); script.defer = true;
+        script.src = '/artifacts/new-skill-gems/' + file + '.js'; doc.body.append(script);
+    }
+    frame.srcdoc = '<!doctype html>' + doc.documentElement.outerHTML;
+})().catch(error => {console.error(error); document.getElementById('status').textContent = error.message;});
+</script></body></html>

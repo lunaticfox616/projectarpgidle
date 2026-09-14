@@ -24,7 +24,7 @@ test('mobile destination selector preserves available routes and returns from se
     });
     const select = page.locator('#mobile-map-destination');
     await page.evaluate(()=>{
-        switchMapSubtab('map-tab-zones');updateStaticUI();
+        switchMapSubtab('map-tab-zones');switchMapExploreSubtab('map-explore-hunting');updateStaticUI();
     });
     await page.waitForFunction(()=>!uiRefreshRunning&&!uiRefreshQueued);
     await page.evaluate(()=>{
@@ -87,16 +87,11 @@ test('mobile destination selector preserves available routes and returns from se
         await expect(page.locator('#ui-fishing-collection')).toContainText('심해 도감');
     }
     await page.evaluate(()=>{switchMapSubtab('map-tab-zones');updateStaticUI();});
-    if (!info.project.use.isMobile) {
-        await expect(page.locator('.map-primary-tabs')).toBeVisible();
-        await expect(page.locator('#mobile-map-navigation')).toBeHidden();
-        return;
-    }
     await expect(select).toBeVisible();
     await expect(page.locator('.map-primary-tabs')).toBeHidden();
     const routes = await select.locator('option:not([disabled])').evaluateAll(nodes => nodes.map(node => node.value));
     expect(routes.length).toBeGreaterThan(8);
-    const initialZone = await page.evaluate(() => game.zoneId);
+    const initialZone = await page.evaluate(() => game.currentZoneId);
     for (const id of routes) {
         await select.selectOption(id);
         await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
@@ -105,7 +100,7 @@ test('mobile destination selector preserves available routes and returns from se
     }
     await select.selectOption('btn-map-explore-hunting');
     await expect(page.locator('#map-explore-hunting')).toBeVisible();
-    expect(await page.evaluate(() => game.zoneId)).toBe(initialZone);
+    expect(await page.evaluate(() => game.currentZoneId)).toBe(initialZone);
     expect(errors).toEqual([]);
     await expect(page.locator('#mobile-toast-root > div')).toHaveCount(0);
     await page.screenshot({ path: info.outputPath('map-navigation.png'), scale: 'css' });

@@ -11,10 +11,8 @@ function renderSearchSection(containerId, key, placeholder, rowsHtml, emptyHtml,
         list = root.querySelector('.search-result-list');
     }
     let actionRow = root.querySelector('.search-action-row');
-    if (actionRow) {
-        actionRow.style.flexWrap = 'nowrap';
-        actionRow.style.overflowX = 'auto';
-        actionRow.style.webkitOverflowScrolling = 'touch';
+    if (actionRow && actionRow.__lastActions !== actionButtonsHtml) {
+        actionRow.__lastActions = actionButtonsHtml;
         actionRow.innerHTML = `<button onclick="resetSearchFilter('${key}')" style="padding:4px 8px; font-size:12px; flex:0 0 auto; white-space:nowrap;">검색어 리셋</button>${actionButtonsHtml || ''}`;
         actionRow.querySelectorAll('button').forEach(btn => {
             btn.style.flex = '0 0 auto';
@@ -24,13 +22,13 @@ function renderSearchSection(containerId, key, placeholder, rowsHtml, emptyHtml,
     if (input && input.value !== String(sf[key] || '')) input.value = String(sf[key] || '');
     // 내용이 같으면 innerHTML 재작성(파싱+리플로우)을 생략한다. 탭 전환·주기 갱신마다
     // 동일한 목록을 다시 그리는 비용을 없애 끊김을 줄인다.
-    if (list) { let v = rowsHtml || emptyHtml || ''; if (list.__lastHtml !== v) { list.innerHTML = v; list.__lastHtml = v; } }
+    let v = rowsHtml || emptyHtml || ''; if (list.__lastHtml !== v) { list.innerHTML = v; list.__lastHtml = v; }
 }
 function getSearchFilterState() {
     game.settings = game.settings || {};
     game.settings.searchFilters = (game.settings.searchFilters && typeof game.settings.searchFilters === 'object') ? game.settings.searchFilters : {};
     const d = game.settings.searchFilters;
-    for (const key of ['equip', 'jewel', 'talisman', 'growth', 'colonyWard', 'skill', 'support']) {
+    for (const key of ['equip', 'jewel', 'talisman', 'growth', 'colonyWard', 'skill', 'support', 'gemResearch']) {
         d[key] = String(d[key] || '');
     }
     return d;

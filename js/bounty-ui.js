@@ -1,5 +1,19 @@
 // The modal owns presentation; an unopened or postponed reward stays in the saved treasure state.
 let treasureDialogOpen=false;
+function bountyTargetChoice(id) {
+    const target=BOUNTY_TARGET_DB[id], steps=target.risk-1, config=BOUNTY_HUNT_CONFIG;
+    let reward=escapeHTML(bountyRuntime.targetRewardLabel(id));
+    reward=reward.replace('희귀 이상 장비',`<b style="color:${getRarityColor('rare')}">희귀 이상 장비</b>`);
+    for (const key of Object.keys(target.reward.currencies || {})) {
+        reward=reward.split(escapeHTML(ORB_DB[key].name)).join(window.getStyledOrbName(key));
+    }
+    const riskTitle=`생명력 +${Math.round(steps*config.riskHpStep*100)}% · 피해 +${Math.round(steps*config.riskDamageStep*100)}%`;
+    const bonus=steps ? `<small class="bounty-reward-bonus">보상 기대량 +${Math.round(steps*config.riskRewardStep*100)}% · 희귀 보물 확률 +${Math.round(steps*config.riskRareStep*100)}%</small>` : '';
+    return {value:id,label:target.name,detailHtml:
+        `<span class="bounty-choice-row"><small>특성</small><span>${escapeHTML(target.danger)}</span></span>
+        <span class="bounty-choice-row"><small>위험도</small><b class="bounty-risk bounty-risk-${target.risk}" title="${riskTitle}">${['','낮음','보통','높음'][target.risk]}</b></span>
+        <span class="bounty-choice-reward"><small>보상</small><span>${reward}</span>${bonus}</span>`};
+}
 function getBountyRewardBasis(state) {
     const source=state.source;
     if (!source?.zone) return '';
@@ -20,10 +34,9 @@ async function openTreasureDialog() {
             return;
         }
         if (pending.status!=='reward') {
-            const selected=await requestGameChoice({title:'보물사냥 · 표적 선택',kicker:'보물사냥',tone:'gold',
-                message:`선택한 표적은 다음 사냥 지역에 등장합니다.\n${basis}\n\n공통 추가 보물: ${bountyRuntime.rewardLabel(pending)}`,
-                choices:pending.offerIds.map(id=>({value:id,label:BOUNTY_TARGET_DB[id].name,
-                    detail:`${BOUNTY_TARGET_DB[id].danger} / ${bountyRuntime.targetRewardLabel(id)}`})),
+            const selected=await requestGameChoice({title:'보물사냥',tone:'bounty',
+                message:`선택한 표적은 다음 사냥 지역에 등장합니다.\n${basis}`,
+                choices:pending.offerIds.map(bountyTargetChoice),
                 confirmLabel:'다음 지역에 예약',cancelLabel:'나중에'});
             if (selected && bountyRuntime.startHunt(selected)) {
                 saveGame({skipCloudSync:false});
@@ -54,7 +67,7 @@ function getBountyHudState() {
     const status=state.pending?.status;
     if (status==='queued') return getQueuedBountyHudState(state,tier,basis);
     if (state.remaining===0) return {key:(status || 'ready')+tier,
-        html:`<button class="bounty-hud-offer" title="${basis}" onclick="bountyUi.openTreasure()"><strong>보물사냥${tier}</strong><span>${status==='reward' ? '발견한 보물 받기' : '표적 확인'}</span></button>`};
+        html:`<button class="bounty-hud-offer" title="${basis}" onclick="bountyUi.openTreasure()"><strong>보물사냥</strong></button>`};
     return {key:'count:'+state.remaining+tier,html:`<div class="bounty-hud-progress" title="${basis}"><strong>다음 보물사냥까지</strong><span>${state.remaining}${tier}</span></div>`};
 }
 function renderBountyHud() {

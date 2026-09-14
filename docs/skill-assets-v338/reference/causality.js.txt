@@ -1,0 +1,53 @@
+/* Gem 61 / effect 53. Passive retaliation: five received hits, physical blast, no direct cast. */
+(function(G){
+ 'use strict';
+ const spec={slug:'causality',name:'인과',gemNumber:61,effectNumber:53,category:'reaction',element:'phys',manualCast:false,blocksOtherAttacks:false,threshold:5,resetAfterExplosion:true,radius:4,distanceMetric:'euclidean',hitsPerEnemy:1,balance:{damage:null,cooldown:null,cost:null},workingRules:{positiveDirectDamageOnly:true,excludeSelfAndReflected:true,deathResets:true,unequipResets:true},visualProposal:{sigilMs:1000,waveMs:580}};
+ const validCell=c=>!!(c&&Number.isInteger(c.gx)&&Number.isInteger(c.gy)&&c.gx>=0&&c.gx<9&&c.gy>=0&&c.gy<8),copy=c=>({gx:c.gx,gy:c.gy}),validId=id=>typeof id==='string'?id.length>0:typeof id==='number'&&Number.isFinite(id);
+ const inBlast=(a,b)=>validCell(a)&&validCell(b)&&(a.gx-b.gx)**2+(a.gy-b.gy)**2<=16;
+ function blastCells(source){const out=[];if(validCell(source))for(let gy=0;gy<8;gy++)for(let gx=0;gx<9;gx++)if(inBlast(source,{gx,gy}))out.push({gx,gy});return out;}
+ function living(enemies){const ids=new Set();return(Array.isArray(enemies)?enemies:[]).filter(e=>{if(!validId(e.id)||ids.has(e.id)||!validCell(e)||e.alive===false||e.dead===true||e.isDead===true||e.hp!=null&&(!Number.isFinite(e.hp)||e.hp<=0))return false;ids.add(e.id);return true;});}
+ // Feed the post-mitigation hit stream in order. A monotone sequence rejects duplicates with constant memory.
+ function createReactor({ownerId,getSource,getEnemies,emit=()=>null,onExplosion=()=>{},onVisualError=()=>{},channelId='causality'}={}){
+  if(!validId(ownerId)||!validId(channelId)||[getSource,getEnemies,emit,onExplosion,onVisualError].some(f=>typeof f!=='function'))throw Error('Invalid causality binding');
+  let count=0,explosions=0,lastSequence=-1,lastAt=-Infinity,equipped=true,alive=true,busy=false,lastVisualError=null,epoch=0;
+  function visual(event){try{return emit(event);}catch(e){lastVisualError=e;try{onVisualError(e);}catch(_){}return null;}}
+  const state=()=>({count,threshold:5,explosions,equipped,alive,manualCast:false,blocksOtherAttacks:false,lastSequence,lastAt});
+  const ignored=reason=>({accepted:false,triggered:false,reason,...state()});
+  const api={
+   get count(){return count;},get explosions(){return explosions;},get lastVisualError(){return lastVisualError;},snapshot:state,
+   canCast(){return false;},cast(){return{ok:false,reason:'automatic-on-received-hit-only'};},
+   reset(){count=0;epoch++;return state();},
+   setEquipped(value){if(typeof value!=='boolean')throw Error('Invalid equipped flag');if(value!==equipped){equipped=value;count=0;epoch++;}return state();},
+   setAlive(value){if(typeof value!=='boolean')throw Error('Invalid alive flag');if(value!==alive){alive=value;count=0;epoch++;}return state();},
+   receiveHit(hit){
+    if(busy)return ignored('reentrant-call');
+    if(!hit||!Number.isSafeInteger(hit.sequence)||hit.sequence<0||!Number.isFinite(hit.at)||!validId(hit.targetId))return ignored('invalid-hit');
+    if(hit.targetId!==ownerId)return ignored('different-target');
+    if(hit.sequence<=lastSequence||hit.at<lastAt)return ignored('duplicate-or-out-of-order');
+    lastSequence=hit.sequence;lastAt=hit.at;
+    if(!equipped||!alive)return ignored(!equipped?'unequipped':'dead');
+    if(hit.kind!=='hit'||!Number.isFinite(hit.damageTaken)||hit.damageTaken<=0||hit.missed||hit.evaded||hit.blocked||hit.reflected||hit.selfInflicted||hit.sourceId===ownerId||hit.originSkill===spec.slug)return ignored('not-eligible-direct-damage');
+    if(hit.targetAliveAfter===false){api.setAlive(false);return ignored('lethal-hit');}
+    busy=true;const savedEpoch=epoch;
+    try{
+     const source=getSource(hit.at);if(!validCell(source))return ignored('invalid-source');
+     if(!equipped||!alive||savedEpoch!==epoch)return ignored('state-changed');
+     const next=count+1;if(next<5){count=next;return{accepted:true,triggered:false,...state()};}
+     const targets=living(getEnemies(hit.at)).filter(e=>e.id!==ownerId&&inBlast(source,e));
+     if(!equipped||!alive||savedEpoch!==epoch)return ignored('state-changed');
+     // Consume before callbacks: visual failures or host reentry cannot duplicate an explosion.
+     count=0;explosions++;const center=copy(source),cells=blastCells(center),channel=channelId+':'+explosions,batch={at:hit.at,category:'reaction',element:'phys',damageType:'hit',damage:null,sourceCell:copy(center),cells:cells.map(copy),targets:targets.map(e=>({...e})),targetIds:targets.map(e=>e.id),hitsPerEnemy:1,triggerSequence:hit.sequence,channelId:channel};
+     for(const phase of ['sigil','wave'])visual({skillName:spec.name,kind:'stage',causalityPhase:phase,at:hit.at,duration:phase==='sigil'?1000:580,sourceCell:copy(center),targetCells:[copy(center)],footprint:{cells:cells.map(copy)},stageIndex:0,element:'phys',damageCategory:'reaction',channelId:channel,visualOnly:true,renderLayer:'ground'});
+     onExplosion(batch);return{accepted:true,triggered:true,...state(),impact:batch};
+    }finally{busy=false;}
+   }
+  };return api;
+ }
+ function previewEnemies(source,mode){if(mode==='empty')return[];if(mode==='single')return[{id:'C0',gx:source.gx===8?7:source.gx+1,gy:source.gy,hp:100}];const coords=[[0,-4],[3,-2],[4,0],[3,3],[0,3],[-3,2],[-4,0],[-3,-3],[1,-1],[-1,1]];return coords.map(([x,y],i)=>({id:'C'+i,gx:source.gx+x,gy:source.gy+y,hp:100})).filter(validCell);}
+ if(!G.WT_CATALOG.some(s=>s.id===53))G.WT_CATALOG.push({id:53,name:spec.name,slug:spec.slug,skill:{isGem:true,category:'reaction',ele:'phys',baseSpd:null,damage:null,desc:'직접 시전할 수 없는 반응형 젬입니다. 5회 피격하면 누적을 초기화하고 캐릭터 반경 4타일에 물리 피해 폭발을 일으킵니다. 폭발 순간 켈트 트리플 매듭 마법진이 나타납니다. 다른 공격은 계속 사용할 수 있습니다.',tags:['reaction','phys','area','on-received-hit'],targetMode:'self-on-received-hit',combatPattern:{kind:'causality',threshold:5,radius:4}},grid:{kind:'area',range:4},previewDefaults:{speed:1},profile:{family:'causality',scale:1}});
+ const previous=G.buildWTPreview;
+ G.buildWTPreview=function(item,options={}){if(item.id!==53)return previous(item,options);const source=options.source||{gx:4,gy:4},enemies=options.enemies||previewEnemies(source,options.causalityMode),events=[],rows=[],timeline=[{at:0,label:'인과 · 피격 대기 0/5',element:'phys'}],hits=options.receivedHits||Array.from({length:5},(_,i)=>({sequence:i,at:400+i*450,targetId:'player',kind:'hit',damageTaken:1})),reactor=createReactor({ownerId:'player',getSource:()=>source,getEnemies:()=>enemies,emit:e=>{events.push(e);},onExplosion:h=>{rows.push({index:rows.length,at:h.at,from:copy(source),impact:h.cells,footprint:{cells:h.cells},element:'phys',stage:{kind:'causality',label:'인과 · 반경 4타일 물리 폭발',damageMultiplier:null,targets:h.targets.map(enemy=>({enemy}))}});}});
+ for(const hit of hits){const result=reactor.receiveHit(hit);timeline.push({at:hit.at,label:result.triggered?'5회 피격 → 물리 폭발 · 누적 초기화':result.accepted?'피격 누적 '+result.count+'/5':'누적 제외: '+result.reason,element:'phys'});}
+ const impactAt=rows[0]?.at??null,duration=Math.max(1000,...hits.map(h=>h.at+400),...events.map(e=>e.at+e.duration+180));return{events,rows,timeline,duration,source:copy(source),target:copy(source),impactAt,targets:living(enemies).map(enemy=>({enemy})),profile:{kind:'area',range:4},attackSpeed:1,channelInterval:null,motion:0,causality:true,receivedHits:hits.map(h=>({...h})),castCells:blastCells(source),targetCount:rows[0]?.stage.targets.length??0,manualCast:false,castMessage:'직접 시전 불가 · 5회 피격 시 물리 폭발 · 원형 반경 4타일',state:reactor.snapshot()};};
+ G.WT_CAUSALITY={spec,validCell,inBlast,blastCells,living,createReactor,previewEnemies};
+})(globalThis);

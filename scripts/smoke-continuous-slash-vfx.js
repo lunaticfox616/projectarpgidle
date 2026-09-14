@@ -34,16 +34,16 @@ read('battleAssets.images.skillFxWorldTree = { complete:true,naturalWidth:1024,n
 runtime.drawSkillGemVfxLayer(ctx, 999);
 assert.strictEqual(calls.length, 0, 'no image may appear before the impact');
 runtime.drawSkillGemVfxLayer(ctx, 1040);
-assert.strictEqual(calls.filter(call => call.key === 'drawImage').length, 4,
-    'one cast stage and three native contacts render without duplicated sweeps');
+assert.strictEqual(calls.filter(call => call.key === 'drawImage').length, 1,
+    'the native slash paints its swing without replaying the blade for contact accents');
 assert(calls.some(call => call.key === 'drawImage' && call.alpha > 0.7), 'impact must be immediately legible');
-assert.deepStrictEqual(calls.find(call => call.key === 'drawImage').args.slice(1, 5), [64, 0, 64, 64],
-    'the peak must sample just the second cell, never shrink the entire atlas into one effect');
-for (const [at, crop] of [[1010, [0, 0]], [1100, [192, 0]], [1150, [320, 0]]]) {
+assert.deepStrictEqual(calls.find(call => call.key === 'drawImage').args.slice(1, 5), [0, 0, 64, 64],
+    'native slash motion uses the authored pose and transforms, never the full atlas');
+for (const [at, crop] of [[1010, [0, 0]], [1100, [0, 0]], [1150, [0, 0]]]) {
     calls.length = 0;
     runtime.worldTreeSkillFx.impact(ctx, first, (at - 1000) / first.duration);
     assert.deepStrictEqual(calls.find(call => call.key === 'drawImage').args.slice(1, 3), crop,
-        'onset, trailing and dissipating art must advance in order');
+        'native slash retains its source pose across its two moving cuts');
     assert.strictEqual(calls.filter(call => call.key === 'drawImage').length, 1, 'one image draw per sweep');
 }
 calls.length = 0;

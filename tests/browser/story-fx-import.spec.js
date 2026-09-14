@@ -62,6 +62,42 @@ test('enemy cast bar progresses and silence cancels its warning and damage',asyn
     expect(errors).toEqual([]);
 });
 
+test('ordinary windups stay unlabelled and special casts stay above health at canvas edges',async({page})=>{
+    await openGame(page);
+    const result=await page.evaluate(()=>{
+        clearInterval(gameTickHandle);gameTickHandle=null;game.combatHalted=true;
+        tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);closeAllWindows();
+        pendingEnemyCombatAttacks=[];game.combatTimeMs=getCombatTime();
+        const canvas=document.createElement('canvas');canvas.width=320;canvas.height=240;
+        const ctx=canvas.getContext('2d'),labels=[],frames=[];
+        const fillText=ctx.fillText.bind(ctx),roundRect=ctx.roundRect.bind(ctx);
+        ctx.fillText=(text,...args)=>{labels.push(text);fillText(text,...args);};
+        ctx.roundRect=(...args)=>{frames.push(args);roundRect(...args);};
+        const enemy=Object.assign(createEnemy(getZone(1),{at:20,count:1},0),
+            {isBoss:false,hp:100,attackTimer:1,attackCastMs:900,attackLabel:'집중 관통',ailments:[]});
+        enemyAttackRules.ready(enemy,getCombatTime(),game.gridPlayer);
+        drawBossPatternLabel(ctx,{x:310,y:120},enemy);
+        const ordinaryLabels=labels.slice();
+        const ordinaryFrames=frames.length;
+        enemy.attackCast=null;enemy.attackCastSpecial=true;
+        enemyAttackRules.ready(enemy,getCombatTime(),game.gridPlayer);
+        game.combatTimeMs+=450;
+        drawBossPatternLabel(ctx,{x:310,y:120},enemy);
+        drawBossPatternLabel(ctx,{x:5,y:120},enemy);
+        return {ordinaryLabels,ordinaryFrames,labels,frames};
+    });
+    expect(result.ordinaryLabels).toEqual([]);
+    expect(result.ordinaryFrames).toBe(0);
+    expect(result.labels).toEqual([]);
+    expect(result.frames).toHaveLength(4);
+    for(const [x,y,width,height] of result.frames){
+        expect(x).toBeGreaterThanOrEqual(0);
+        expect(x+width).toBeLessThanOrEqual(320);
+        expect(y).toBeGreaterThanOrEqual(0);
+        expect(y+height).toBeLessThan(120-56);
+    }
+});
+
 test('a confirmed projectile contact shows damage without replaying the skill on its victim',async({page},info)=>{
     await openGame(page);
     const result=await page.evaluate(async()=>{
@@ -106,10 +142,11 @@ test('new journey shows supplied prologue and unlocked journal illustrations rep
         game.seenTutorials.push(...STORY_JOURNAL_SCENES.map(scene=>'story_'+scene.id));
         updateStaticUI();switchTab('tab-journal');
     });
-    await expect(page.locator('.journal-illustration')).toHaveCount(11);
-    await page.locator('.journal-illustration').last().click();
-    await expect(page.locator('.story-scene-copy')).toContainText('두 손 사이에는 아직 작은 틈이 남아 있었습니다.');
-    await page.waitForFunction(()=>document.querySelector('.story-scene-art')?.naturalWidth>0);
+    await expect(page.locator('#ui-journal-list img')).toHaveCount(0);
+    await page.locator('[data-journal-entry="act_10"]').click();
+    await expect(page.locator('#journal-reader')).toContainText('두 손 사이에는 아직 작은 틈이 남아 있었습니다.');
+    await page.locator('#journal-reader .story-scene-art').evaluate(image=>image.decode());
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     await page.screenshot({path:info.outputPath('journal-ending.png'),scale:'css'});
     expect(errors).toEqual([]);
 });
@@ -128,7 +165,7 @@ test('all mapped skill art uses shared atlas and real footprint without changing
         const source={gx:3,gy:4},enemy={id:1,gx:4,gy:4,hp:1000,maxHp:1000};
         const before=JSON.stringify(game),rows=[];
         for(const [name,spec] of Object.entries(SKILL_FX_ATLAS)) {
-            if(!SKILL_DB[name])continue;
+            if(!SKILL_DB[name] || SKILL_DB[name].nativeCastId)continue;
             worldTreeSkillFx.beginFrame();calls.length=0;transforms.length=0;
             const area=getSkillStageFootprint(name,SKILL_DB[name],{targets:[{enemy}]},source);
             const footprint=projectSkillFootprint(area,projection,source);
@@ -136,12 +173,12 @@ test('all mapped skill art uses shared atlas and real footprint without changing
                 x:360,y:360,fromX:280,fromY:360,toX:360,toY:360,size:80},.3);
             let direction=true;
             if(name==='용화 숨결'){
-                const h=spec.heading*Math.PI/180,m=transforms[0];
+                const h=0,m=transforms[0];
                 const dx=m.a*Math.cos(h)+m.c*Math.sin(h),dy=m.b*Math.cos(h)+m.d*Math.sin(h);
                 direction=Math.abs(Math.atan2(dy,dx)-footprint.cone.angle)<.001;
             }
             rows.push({name,count:calls.length,direction,shared:calls.every(args=>args[0]===atlas),
-                crops:calls.every(args=>args[3]===64&&args[4]===64),finite:calls.every(args=>args.slice(1).every(Number.isFinite))});
+                crops:calls.every(args=>args[1]>=0&&args[2]>=0&&args[3]>0&&args[4]>0&&args[1]+args[3]<=1024&&args[2]+args[4]<=1920),finite:calls.every(args=>args.slice(1).every(Number.isFinite))});
         }
         return {rows,unchanged:JSON.stringify(game)===before};
     });

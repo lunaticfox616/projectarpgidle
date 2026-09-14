@@ -17,9 +17,10 @@ function renderFossilWorkbench(selectedItem) {
         materialButtons.push(`<button onclick="refineFossilSurplus('${fossilKey}')" ${mycologistLv < 4 || owned < surplusCost ? 'disabled' : ''}>${sourceName} 잉여 정제 (${owned}/${surplusCost})</button>`);
     });
     document.getElementById('ui-fossil-material-actions').innerHTML = materialButtons.join('') || '<p>정제할 화석이 없습니다.</p>';
-    document.getElementById('ui-fossil-actions').innerHTML = FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil =>
-        `<article class="fossil-recipe"><strong>${escapeHTML(fossil.name)}</strong><p>${escapeHTML(fossil.desc)}</p><button type="button" onclick="applyFossilChaosCraft('${fossil.key}')" ${!selectedItem || selectedItem.corrupted ? 'disabled' : ''}>사용 · 1개 / 보유 ${game.currencies[fossil.key]}</button></article>`
-    ).join('') || '<p>보유 중인 타입 화석이 없습니다.</p>';
+    document.getElementById('ui-fossil-actions').innerHTML = FOSSIL_DB.filter(fossil => (game.currencies[fossil.key] || 0) > 0).map(fossil => {
+        const reason = equipmentCrafting.getFossilUseReason(selectedItem, fossil, game.season, game.currencies);
+        return `<article class="fossil-recipe"><strong>${escapeHTML(fossil.name)}</strong><p>${escapeHTML(fossil.desc)}</p><button type="button" onclick="applyFossilChaosCraft('${fossil.key}')" ${reason ? 'disabled' : ''}>${reason ? escapeHTML(reason) : `사용 · 1개 / 보유 ${game.currencies[fossil.key]}`}</button></article>`;
+    }).join('') || '<p>보유 중인 타입 화석이 없습니다.</p>';
 }
 
 safeExposeGlobals({ renderFossilWorkbench });

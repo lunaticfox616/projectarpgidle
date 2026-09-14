@@ -6,6 +6,7 @@
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
+const espree = require('espree');
 const { LOAD_ORDER } = require('./lib/game-runtime');
 
 const html = fs.readFileSync('index.html', 'utf8');
@@ -62,10 +63,9 @@ assert.ok(!/\b(?:alert|confirm|prompt)\s*\(/.test(productionUiSource),
 const functionOwners = new Map();
 for (const src of sources) {
     const code = fs.readFileSync(src, 'utf8');
-    const topLevelFunction = /^function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
-    let functionMatch;
-    while ((functionMatch = topLevelFunction.exec(code)) !== null) {
-        const name = functionMatch[1];
+    const topLevelFunctions = espree.parse(code,{ecmaVersion:'latest'}).body.filter(node=>node.type==='FunctionDeclaration');
+    for (const declaration of topLevelFunctions) {
+        const name = declaration.id.name;
         const previousOwner = functionOwners.get(name);
         assert(!previousOwner, `전역 함수 '${name}' 중복 선언: ${previousOwner}, ${src}`);
         functionOwners.set(name, src);

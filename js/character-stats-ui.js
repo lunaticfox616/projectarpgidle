@@ -60,12 +60,13 @@
         setTextById('ui-loop-deaths', Math.max(0, Math.floor(game.loopDeaths || 0)));
         setTextById('ui-loop-kills', Math.max(0, Math.floor(game.loopKills || 0)));
         const rows = [['phys-ignore', 'physIgnore'], ['res-pen', 'resPen'], ['regen', 'regen'],
-            ['regen-suppress', 'regenSuppress'], ['leech', 'leech'], ['ds', 'ds'], ['gemlv', 'gemLv']];
+            ['regen-suppress', 'regenSuppress'], ['leech', 'leech'], ['spell-leech', 'spellLeech'], ['ds', 'ds'], ['gemlv', 'gemLv']];
         rows.forEach(([id, key]) => { document.getElementById('row-' + id).style.display = pStats[key] > 0 ? 'grid' : 'none'; });
         const values = [
             ['regen', 'regen', value => formatValue('regen', value)],
             ['regen-suppress', 'regenSuppress', value => formatValue('regenSuppress', value)],
             ['leech', 'leech', value => formatValue('leech', value)],
+            ['spell-leech', 'spellLeech', value => formatValue('spellLeech', value)],
             ['ds', 'ds', value => formatSettingNumber(value, 'showCharacterComma')],
             ['gemlv', 'gemLv', value => '+' + value]
         ];

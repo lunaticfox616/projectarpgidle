@@ -3,7 +3,7 @@ const contentProgression = (() => {
     const definitions = new Map(CONTENT_UNLOCK_CATALOG.map(row => [row.id, row]));
     const routes = new Map(CONTENT_UNLOCK_CATALOG.flatMap(row => (row.routes || []).map(route => [route, row.id])));
     const coreRoutes = new Set(['tab-character', 'tab-char', 'tab-items', 'tab-skills', 'tab-battle', 'tab-settings', 'tab-social',
-        'item-tab-equip', 'skill-tab-equip', 'map-tab-zones', 'map-explore-hunting', 'map-explore-chaos',
+        'item-tab-equip', 'skill-tab-equip', 'map-tab-zones', 'map-explore-atlas', 'map-explore-hunting', 'map-explore-chaos',
         'map-explore-root-boss']);
 
     // Predicates only read normalized save state; unlocking a menu never grants world progress.

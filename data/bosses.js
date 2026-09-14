@@ -135,8 +135,27 @@ function getRealmMonsterVisualDefinitionById(id) {
     return null;
 }
 
-function getBossAssetKeyForZone(zone, variantSeed) {
+/** Explicit story stages preserve actor identity; other encounters retain visual variants. */
+function getStoryBossStage(zone, stageIndex) {
+    if (zone?.type !== 'act' || !Number.isInteger(stageIndex)) return null;
+    const stages = STORY_ACTS[zone.id]?.bossStages;
+    return stages?.[Math.max(0, Math.min(stageIndex, stages.length - 1))] || null;
+}
+
+function getBossNameForZone(zone, stageIndex = 0) {
+    const stage = getStoryBossStage(zone, stageIndex);
+    if (stage) return stage.name;
+    const names = {
+        outsideChaos: '혼돈 밖의 나무꾼', trial: `${zone.name} 수호자`, seasonBoss: zone.name,
+        meteor: '검은 별의 심장', oceanDepth: `심해 가디언 ${Math.floor(zone.depthM || 0)}m`
+    };
+    return names[zone.type] || ACT_BOSS_NAMES[zone.id] || `${zone.name.split(':')[0]} 지배자`;
+}
+
+function getBossAssetKeyForZone(zone, variantSeed, stageIndex) {
     if (!zone || (zone.type && zone.type !== 'act') || !Number.isInteger(Number(zone.id))) return null;
+    const stage = getStoryBossStage(zone, stageIndex);
+    if (stage) return stage.assetKey;
     const actNumber = Number(zone.id) + 1;
     const variants = BOSS_ASSET_VARIANTS_BY_ACT[actNumber];
     if (variants && variants.length > 0) {
@@ -210,7 +229,7 @@ function getMonsterVariantDefinition(variantSeed, element) {
 
 safeExposeData({
     ACT_BOSS_NAMES, ACT_BOSS_ASSET_KEYS, BOSS_ASSET_MANIFEST, BOSS_ASSET_VARIANTS_BY_ACT,
-    getBossAssetKeyForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
+    getBossAssetKeyForZone, getBossNameForZone, ENEMY_TRAIT_POOL, MONSTER_VARIANT_DEFS, getMonsterVariantDefinition,
     WISP_MONSTER_ASSET_MANIFEST, WISP_MONSTER_VISUALS, getWispMonsterVisualDefinition,
     REALM_MONSTER_VISUAL_SETS, getRealmMonsterVisualSet, getRealmMonsterVisualDefinition,
     getRealmMonsterVisualDefinitionById

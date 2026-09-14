@@ -8,6 +8,7 @@ async function openLibrary(page) {
     await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
     const owned = await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
+        game.seenTutorials.push(...MAP_PRIMARY_CONTENTS.map(row => row.noticeKey).filter(Boolean));
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         game.level = 100; game.season = 100;
         game.contentProgression.inherited = CONTENT_UNLOCK_CATALOG.map(row => row.id);
@@ -16,7 +17,7 @@ async function openLibrary(page) {
         game.supports = Object.keys(SUPPORT_GEM_DB);
         game.sealedSkills = []; game.sealedSupports = [];
         game.gemFoldInactiveAttack = false; game.gemFoldInactiveSupport = false;
-        updateTabUnlockButtons(); applyTabHeaderOrder(); switchTab('tab-skills'); updateStaticUI();
+        announceMapPrimaryContentUnlocks(); updateTabUnlockButtons(); applyTabHeaderOrder(); switchTab('tab-skills'); updateStaticUI();
         return { skills: game.skills, supports: game.supports };
     });
     await page.waitForFunction(() => {

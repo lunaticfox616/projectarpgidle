@@ -24,7 +24,7 @@ if (hasDependencies) assert.ok(/run:\s*npm ci/.test(workflow), '의존성이 있
 assert.ok(/on:\s*[\s\S]*push:/.test(workflow), 'CI는 푸시에서 실행되어야 한다');
 assert.ok(/pull_request:/.test(workflow), 'CI는 PR에서 실행되어야 한다');
 assert.ok(/run:\s*npm test/.test(workflow), 'CI는 로컬과 같은 npm test를 실행해야 한다');
-if (pkg.scripts['test:browser']) assert.ok(/run:\s*npm run test:browser/.test(workflow), 'CI는 실제 브라우저 검사도 실행해야 한다');
+assert.ok(!/run:\s*(?:npm run test:browser|npx playwright)/.test(workflow), '브라우저 검사는 GitHub CI에서 실행하지 않는다');
 assert.ok(/timeout-minutes:/.test(workflow), '매달린 실행이 러너를 붙잡지 않도록 타임아웃이 있어야 한다');
 
 const engines = (pkg.engines && pkg.engines.node) || '';

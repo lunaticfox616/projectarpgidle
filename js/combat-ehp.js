@@ -108,9 +108,9 @@ function calculatePlayerEhpProfile(stats) {
 
 function getMapReadinessGrade(ratio) {
     const value = Math.max(0, Number(ratio) || 0);
-    if (value < 0.85) return { id: 'low', label: '낮음' };
+    if (value < 0.85) return { id: 'low', label: '부족' };
     if (value < 1.30) return { id: 'fit', label: '적정' };
-    return { id: 'high', label: '높음' };
+    return { id: 'high', label: '여유' };
 }
 
 function getMapEstimateElements(estimate) {
@@ -157,7 +157,7 @@ function getBossEquivalentEhpTarget(stats, profile, estimate, element) {
 }
 
 function getMapEstimateDpsMultiplier(stats, estimate, alreadyInZone) {
-    if (alreadyInZone) return 1;
+    if (alreadyInZone) return getMapUnderworldFloorDpsRatio(stats, estimate);
     let multiplier = Math.max(0.1, Number(estimate && estimate.playerDpsMultiplier) || 1);
     const gravityFloor = Math.max(0, Math.floor(Number(estimate && estimate.underworldGravityFloor) || 0));
     if (gravityFloor > 0) {
@@ -173,10 +173,30 @@ function getMapEstimateDpsMultiplier(stats, estimate, alreadyInZone) {
     return multiplier * Math.max(0.1, 1 - pressureSlow);
 }
 
+/** Sustained baseline only: conditional leech, flasks, talents and temporary shields are excluded. */
+function getMapEnvironmentReadiness(stats, estimate) {
+    const floor = Number(estimate?.underworldLifeDrainFloor) || 0;
+    if (floor < 15) return null;
+    const maxHp = Math.max(1, Number(stats?.maxHp) || 1);
+    const loss = getUnderworldLifeDrainPerTick(maxHp, floor, stats?.underworldGravityReductionPct) * 10;
+    const lossPct = loss / maxHp * 100;
+    const regenPct = Math.max(0, Number(stats?.regen) || 0);
+    return { lossPct, regenPct, deficitPct: Math.max(0, lossPct - regenPct) };
+}
+
+function getMapUnderworldFloorDpsRatio(stats, estimate) {
+    const activeFloor = Number(stats.activeUnderworldFloor) || 0;
+    const targetFloor = Number(estimate.underworldLifeDrainFloor) || 0;
+    if (!activeFloor || !targetFloor || activeFloor === targetFloor) return 1;
+    const reduction = stats.underworldGravityReductionPct;
+    return getUnderworldGravityActionMultiplier(targetFloor, reduction)
+        / getUnderworldGravityActionMultiplier(activeFloor, reduction);
+}
+
 /**
  * @param {Readonly<object>} stats
  * @param {Readonly<object>} estimate
- * @returns {{dps:object,ehp:object,element:string,playerDps:number,playerEhp:number,recommendedDps:number,recommendedEhp:number}}
+ * @returns {{dps:object,ehp:object,element:string,playerDps:number,playerEhp:number,recommendedDps:number,recommendedEhp:number,meetsRecommendation:boolean}}
  */
 function getMapPowerReadiness(stats, estimate) {
     const profile = calculatePlayerEhpProfile(stats || {});
@@ -198,15 +218,22 @@ function getMapPowerReadiness(stats, estimate) {
     const effectivePlayerDps = playerDps * zoneDpsMultiplier;
     const recommendedDps = Math.max(1, Number(estimate && estimate.dps) || 1);
     const dpsRatio = effectivePlayerDps / recommendedDps;
+    const environment = getMapEnvironmentReadiness(stats, estimate);
     return {
+        meetsRecommendation: meetsMapRecommendation(dpsRatio, limiting.ratio, environment),
         dps: { ...getMapReadinessGrade(dpsRatio), ratio: dpsRatio },
         ehp: { ...getMapReadinessGrade(limiting.ratio), ratio: limiting.ratio },
+        environment,
         element: limiting.element,
         playerDps: effectivePlayerDps,
         playerEhp: limiting.player,
         recommendedDps,
         recommendedEhp: limiting.recommended
     };
+}
+
+function meetsMapRecommendation(dpsRatio, ehpRatio, environment) {
+    return dpsRatio >= 1 && ehpRatio >= 1 && !(environment?.deficitPct > 0);
 }
 
 safeExposeGlobals({ calculatePlayerRawHitTaken, calculatePlayerEhpProfile, getMapPowerReadiness });

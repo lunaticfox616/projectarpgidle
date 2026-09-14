@@ -24,6 +24,7 @@ test('craft target libraries render only when open and refresh after inventory c
     await expect(page.locator('#ui-fossil-inventory-list > *')).toHaveCount(0);
     await expect(page.locator('#ui-infuser-inventory-list > *')).toHaveCount(0);
     await page.locator('#btn-item-tab-craft').click();
+    await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
     await expect(craft.locator(':scope > *')).toHaveCount(0);
     const summary=page.locator('.craft-target-library > summary');
     await summary.click();

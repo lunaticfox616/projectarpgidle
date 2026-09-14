@@ -33,6 +33,62 @@ function normalizeContentProgressionSave(merged, save) {
     return merged;
 }
 
+// Only already-equipped pre-level-system items receive grace, until their next removal.
+function markLegacyEquipmentGrace(equipment) {
+    Object.values(equipment).forEach(item => {
+        if (item && !item.requirementsVersion) item.legacyRequirementGrace = true;
+    });
+}
+
+/** Slot corrections preserve ownership, even when the inventory is already full. */
+function reconcileUniqueEquipmentSave(state) {
+    for (const [slot, item] of Object.entries(state.equipment)) {
+        if (!item?.uniqueBaseLegacy || getEquipCandidateSlots(item, state).includes(slot)) continue;
+        delete item.legacyRequirementGrace;
+        state.inventory.push(item);
+        state.equipment[slot] = null;
+    }
+    state.offlineProgress.stash = state.offlineProgress.stash.map(normalizeItem);
+    state.inventory.forEach(item => { if (item?.rarity === 'unique') normalizeItem(item); });
+    state.timeRift.altarUnique = normalizeItem(state.timeRift.altarUnique);
+    migrateUniqueCodexKeys(state.uniqueCodex);
+    migrateUniqueCodexKeys(state.codexNewlyRegistered);
+    equipmentInventoryGridRuntime.ensureState(state);
+}
+
+function migrateUniqueCodexKeys(records) {
+    for (const [key, found] of Object.entries(records)) {
+        const next = migrateUniqueCodexKey(key);
+        if (found && typeof found === 'object' && found.rarity === 'unique') normalizeItem(found);
+        if (next === key) continue;
+        if (found && typeof found === 'object') found.slot = next.split('|')[0];
+        records[next] ||= found;
+        delete records[key];
+    }
+}
+
+function migrateUniqueCodexKey(key) {
+    const name = String(key).slice(String(key).indexOf('|') + 1);
+    const slot = UNIQUE_EQUIPMENT_RULES[name]?.slot;
+    return slot ? `${slot}|${name}` : key;
+}
+
+function normalizeUniqueHuntSave(state) {
+    state.uniqueHuntTargets = Array.isArray(state.uniqueHuntTargets)
+        ? state.uniqueHuntTargets.map(migrateUniqueCodexKey) : [];
+    if (typeof uniqueHuntRuntime !== 'undefined') uniqueHuntRuntime.ensureState(state);
+}
+
+/** Save boundary: an absent/invalid old receipt is unknown, never an inferred payout. */
+function normalizeVoidRiftSave(state) {
+    state.voidRift = (state.voidRift && typeof state.voidRift === 'object') ? state.voidRift : {};
+    state.voidRift.grandBreachCleared = !!state.voidRift.grandBreachCleared;
+    const run = state.voidRift.grandRun;
+    if (!run || typeof run !== 'object') return;
+    const paid = run.rewardVoidChisel;
+    run.rewardVoidChisel = Number.isFinite(paid) && paid >= 0 ? Math.floor(paid) : null;
+}
+
 function mergeDefaults(save) {
     function clampFiniteNumber(value, fallback, min, max) {
         let num = Number(value);
@@ -274,6 +330,7 @@ function mergeDefaults(save) {
         }).filter(Boolean) : [];
         return {
             primaryElement: primaryElement,
+            fatalElement: Object.keys(DAMAGE_ELEMENT_LABELS).find(ele => ele === log.fatalElement) ?? null,
             reasonText: typeof log.reasonText === 'string' && log.reasonText.trim() ? log.reasonText : (DEATH_REASON_TEXT[primaryElement] || DEATH_REASON_TEXT.phys),
             expLost: Math.max(0, Math.floor(clampFiniteNumber(log.expLost, 0, 0))),
             damageSummary: damageSummary,
@@ -397,14 +454,13 @@ function mergeDefaults(save) {
         merged.currencies.magicBud += Math.floor(save.materials / 2) + Math.floor(save.materials / 4);
         merged.currencies.formlessDew += Math.floor(save.materials / 10);
     }
-    let normalizedEquipment = { ...defaultGame.equipment };
-    Object.keys(normalizedEquipment).forEach(slot => {
-        normalizedEquipment[slot] = merged.equipment[slot] || null;
-    });
+    let normalizedEquipment = Object.fromEntries(Object.keys(defaultGame.equipment)
+        .map(slot => [slot, merged.equipment[slot] || null]));
     if (save && save.equipment && save.equipment['장갑'] && !save.equipment['장갑1'] && !save.equipment['장갑2']) {
         normalizedEquipment['장갑1'] = save.equipment['장갑'];
     }
     merged.equipment = normalizedEquipment;
+    markLegacyEquipmentGrace(merged.equipment);
     if (window.equipmentLoadoutRuntime) window.equipmentLoadoutRuntime.ensureState(merged);
     merged.inventory = (merged.inventory || []).map(normalizeItem);
     merged.equipmentTemporaryStorage = Array.isArray(merged.equipmentTemporaryStorage)
@@ -649,7 +705,7 @@ function mergeDefaults(save) {
     // 뿌리 보스를 한 번이라도 클리어한 적이 있다면 영구 해금 처리한다.
     if (!merged.conditionGemUnlocked && merged.clearedRootBosses.length > 0) merged.conditionGemUnlocked = true;
     merged.mapSubtab = ['map-tab-zones', 'map-tab-chaos-realm', 'map-tab-sky', 'map-tab-underworld', 'map-tab-cosmos', 'map-tab-ocean', 'map-tab-fishing', 'map-tab-pvp'].includes(merged.mapSubtab) ? merged.mapSubtab : 'map-tab-zones';
-    merged.mapExploreSubtab = ['map-explore-hunting', 'map-explore-chaos', 'map-explore-root-boss', 'map-explore-beyond', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-timerift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-hunting';
+    merged.mapExploreSubtab = ['map-explore-atlas', 'map-explore-worldtree', 'map-explore-hunting', 'map-explore-chaos', 'map-explore-root-boss', 'map-explore-beyond', 'map-explore-labyrinth', 'map-explore-deep-chaos', 'map-explore-meteor', 'map-explore-beehive', 'map-explore-colony', 'map-explore-voidrift', 'map-explore-timerift', 'map-explore-trials'].includes(merged.mapExploreSubtab) ? merged.mapExploreSubtab : 'map-explore-atlas';
     merged.coreCube = (typeof normalizeCoreCubeState === 'function') ? normalizeCoreCubeState(merged.coreCube) : (merged.coreCube || (defaultGame.coreCube || {}));
     if (merged.coreCube && merged.coreCube.unlocked) merged.unlocks.cube = true;
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
@@ -700,7 +756,7 @@ function mergeDefaults(save) {
     merged.gemEngraveSelectedSlot = Math.max(0, Math.min(4, Math.floor(clampFiniteNumber(merged.gemEngraveSelectedSlot, 0, 0, 4))));
     merged.gemEnhanceTargetSkill = (typeof merged.gemEnhanceTargetSkill === 'string' && SKILL_DB[merged.gemEnhanceTargetSkill] && SKILL_DB[merged.gemEnhanceTargetSkill].isGem && Array.isArray(merged.skills) && merged.skills.includes(merged.gemEnhanceTargetSkill)) ? merged.gemEnhanceTargetSkill : null;
     merged.uniqueCodex = (merged.uniqueCodex && typeof merged.uniqueCodex === 'object') ? merged.uniqueCodex : {};
-    if (typeof uniqueHuntRuntime !== 'undefined') uniqueHuntRuntime.ensureState(merged);
+    normalizeUniqueHuntSave(merged);
     merged.codexNewlyRegistered = (merged.codexNewlyRegistered && typeof merged.codexNewlyRegistered === 'object') ? merged.codexNewlyRegistered : {};
     merged.codexCollapsedSlots = (merged.codexCollapsedSlots && typeof merged.codexCollapsedSlots === 'object') ? merged.codexCollapsedSlots : {};
     merged.codexSubtab = (merged.codexSubtab === 'realm') ? 'realm' : 'main';
@@ -753,8 +809,7 @@ function mergeDefaults(save) {
     // 전적: 기존 세이브에는 과거 시간 데이터가 없다. 지어내지 않고 지금부터 기록을 시작하며,
     // startedAt이 남으므로 화면이 "언제부터의 기록인지"를 그대로 밝힐 수 있다.
     if (typeof ensureRecordsState === 'function') ensureRecordsState(merged);
-    merged.voidRift = (merged.voidRift && typeof merged.voidRift === 'object') ? merged.voidRift : {};
-    merged.voidRift.grandBreachCleared = !!merged.voidRift.grandBreachCleared;
+    normalizeVoidRiftSave(merged);
     merged.timeRift = (merged.timeRift && typeof merged.timeRift === 'object') ? { ...defaultGame.timeRift, ...merged.timeRift } : { ...defaultGame.timeRift };
     merged.timeRift.fusionCount = Math.max(0, Math.floor(clampFiniteNumber(merged.timeRift.fusionCount, 0, 0)));
     repairJournalEntriesFromProgress(merged);
@@ -962,7 +1017,7 @@ function mergeDefaults(save) {
     merged.woodsmanEchoRun.totalDamage = Math.max(0, Math.floor(Number(merged.woodsmanEchoRun.totalDamage || 0)));
     merged.woodsmanEchoRun.bestDps = Math.max(0, Number(merged.woodsmanEchoRun.bestDps || 0));
     merged.loopProgressBase = { ...(defaultGame.loopProgressBase || {}), ...(merged.loopProgressBase || {}) };
-    merged.loopProgressCurrent = { ...(defaultGame.loopProgressCurrent || {}), ...(merged.loopProgressCurrent || {}) };
+    merged.loopProgressCurrent = { ...(defaultGame.loopProgressCurrent || {}), ...(merged.loopProgressCurrent || {}), ...Object.fromEntries(['bestSkyFloor','bestUnderworldFloor'].map(key => [key, Number.isFinite(save?.loopProgressCurrent?.[key]) ? Math.max(0,Math.floor(save.loopProgressCurrent[key])) : null])) };
     merged.loopProgressBase.specialBosses = Array.isArray(merged.loopProgressBase.specialBosses) ? merged.loopProgressBase.specialBosses : [];
     merged.loopProgressCurrent.specialBosses = Array.isArray(merged.loopProgressCurrent.specialBosses) ? merged.loopProgressCurrent.specialBosses : [];
     merged.loopProgressCurrent.cosmosPlanets = Array.isArray(merged.loopProgressCurrent.cosmosPlanets) ? Array.from(new Set(merged.loopProgressCurrent.cosmosPlanets.filter(Boolean))) : [];
@@ -1039,7 +1094,7 @@ function mergeDefaults(save) {
         let maxDeepZoneId = getAbyssZoneIdForDepth(Math.max(20, savedDepth));
         merged.currentZoneId = clampNumber(numericZoneId, 0, Math.max(MAP_ZONES.length - 1, maxDeepZoneId));
     }
-    if (typeof merged.currentZoneId === 'string' && !merged.currentZoneId.startsWith('trial_') && !merged.currentZoneId.includes('_boss_') && !['beehive_run', 'colony_run', 'grand_breach_run', 'cosmos_challenge', LABYRINTH_ZONE_ID, METEOR_FALL_ZONE_ID, OUTSIDE_CHAOS_ZONE_ID, CHAOS_REALM_ZONE_ID, SKY_TOWER_ZONE_ID, UNDERWORLD_ZONE_ID, BEYOND_BOUNDARY_ZONE_ID].includes(merged.currentZoneId)) merged.currentZoneId = 0;
+    worldTreeJourney.normalize(merged);
     if (typeof merged.currentZoneId === 'string' && !getSavedZoneForValidation(merged)) merged.currentZoneId = 0;
     if (merged.currentZoneId === BEYOND_BOUNDARY_ZONE_ID && !merged.beyondBoundary.activeRun) merged.currentZoneId = getAutoProgressZoneId(merged.maxZoneId);
     if (merged.currentZoneId === 'beehive_run' && !(merged.beehive && merged.beehive.inRun)) merged.currentZoneId = merged.beehive && merged.beehive.returnZoneId !== undefined && merged.beehive.returnZoneId !== null ? merged.beehive.returnZoneId : merged.maxZoneId;
@@ -1076,10 +1131,13 @@ function mergeDefaults(save) {
     // 비우지 않으면 다른 기기의 저장을 불러온 뒤에도 이전 판의 보너스가 그대로 적용된다.
     if (typeof invalidateGrowthEffects === 'function') invalidateGrowthEffects();
     shrineRuntime.ensureState(merged);
+    reconcileUniqueEquipmentSave(merged);
+    enforcePassiveEquipmentRestrictions(merged);
     return normalizeContentProgressionSave(normalizeSavedCombatRuntime(merged), save);
 }
 
 function normalizeSavedCombatRuntime(state) {
+    combatLootReceipts.normalize(state);
     state.cosmosGravity = null;
     restoreCosmosRouteSave(state);
     const challenge = state.cosmosAtlas.activeChallenge;
@@ -1094,9 +1152,12 @@ function normalizeSavedCombatRuntime(state) {
 }
 
 function getSavedZoneForValidation(state) {
+    if (typeof state.currentZoneId === 'string' && state.currentZoneId.startsWith('worldtree_')) return createWorldTreeJourneyZone(state.currentZoneId, state);
     // During boot the current game has no challenge yet; validate the incoming snapshot instead.
     if (state.currentZoneId === 'cosmos_challenge') return createCosmosChallengeZone(state);
-    return getZone(state.currentZoneId);
+    const zone = getZone(state.currentZoneId);
+    // The zone registry owns valid IDs; array properties such as "constructor" are not zones.
+    return zone?.id === state.currentZoneId ? zone : null;
 }
 
 /** Restore the additive route ledger; invalid routes never grant rewards or change exploration records. */

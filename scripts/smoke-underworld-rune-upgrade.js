@@ -19,25 +19,13 @@ function readFunctionSource(name) {
 }
 
 function runUpgrade(state) {
-    const context = {
-        Math,
-        Number,
-        Array,
-        game: state,
-        UNDERWORLD_RUNE_DB: [],
-        addLog() {},
-        closeUnderworldRuneOverlay() {},
-        updateStaticUI() {}
-    };
-    vm.createContext(context);
-    vm.runInContext([
-        readFunctionSource('ensureUnderworldRuneState'),
-        readFunctionSource('getUnderworldRuneDef'),
-        readFunctionSource('getUnderworldRuneCountMap'),
-        readFunctionSource('autoEquipUnderworldRune'),
-        readFunctionSource('upgradeUnderworldRune')
-    ].join('\n'), context, { filename: 'underworld-rune-upgrade.js' });
+    const context = require('./lib/game-runtime').buildGameRuntime();
+    context.runeFixture = state;
+    vm.runInContext('game=mergeDefaults(runeFixture);window.game=game;', context);
+    const lookup = context.document.getElementById;
+    context.document.getElementById = id => id === 'info-tooltip' ? {style:{}} : lookup(id);
     context.upgradeUnderworldRune(1);
+    Object.assign(state, JSON.parse(vm.runInContext('JSON.stringify(game)', context)));
 }
 
 {

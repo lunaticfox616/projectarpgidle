@@ -176,8 +176,8 @@ ctx.GROWTH_UNIQUE_DB.forEach(unique => {
             growthHasExtraShots: getAvailableMods(growth).some(mod => mod.id === 'projectileExtraShots')
         };
     })())`));
-    assert.deepStrictEqual([pools.gearFlat.base, pools.gearFlat.step], [3, 3],
-        '일반 장비의 추가 옵션 원본 수치는 바뀌면 안 된다');
+    assert.deepStrictEqual(pools.gearFlat.tierValues[19], [145, 155],
+        '일반 장비의 티어 표와 생장판의 별도 수치는 독립적이어야 한다');
     assert.deepStrictEqual([pools.growthFlat.base, pools.growthFlat.step], [1.2, 1.2],
         '생장판은 별도의 낮은 base/step 원본 수치를 사용해야 한다');
     assert.ok(pools.growthCritRoll.val > 0 && pools.growthCritRoll.val < 1,
@@ -188,8 +188,9 @@ ctx.GROWTH_UNIQUE_DB.forEach(unique => {
     const precisionRolls = JSON.parse(run(`JSON.stringify((function () {
         Math.random = function () { return 0.37; };
         let roll = function (id) {
-            let source = MOD_DB.find(function (mod) { return mod.id === id; });
-            return rollAffixValue({ ...source, ...GROWTH_AFFIX_VALUE_DB[id], growthAffix: true }, 8);
+            let source = { ...MOD_DB.find(mod => mod.id === id), ...GROWTH_AFFIX_VALUE_DB[id], growthAffix:true };
+            delete source.tierValues;
+            return rollAffixValue(source, 8);
         };
         return { integer: roll('pctDmg'), half: roll('crit'), tenth: roll('regen') };
     })())`));
@@ -242,16 +243,17 @@ ctx.GROWTH_UNIQUE_DB.forEach(unique => {
         Math.random = () => 0;
         let roll = id => rollAffixValue(MOD_DB.find(mod => mod.id === id), 1);
         let growthRoll = id => {
-            let source = MOD_DB.find(mod => mod.id === id);
-            return rollAffixValue({ ...source, ...GROWTH_AFFIX_VALUE_DB[id], growthAffix: true }, 1);
+            let source = { ...MOD_DB.find(mod => mod.id === id), ...GROWTH_AFFIX_VALUE_DB[id], growthAffix:true };
+            delete source.tierValues;
+            return rollAffixValue(source, 1);
         };
         let lowGrowthIds = Object.keys(GROWTH_AFFIX_VALUE_DB)
             .filter(id => /^(ring|glove).+FlatDmg$/.test(id));
         return {
             weaponDefs: ['weaponFireFlatDmg', 'weaponColdFlatDmg', 'weaponLightFlatDmg']
-                .map(id => MOD_DB.find(mod => mod.id === id)).map(mod => [mod.base, mod.step]),
+                .map(id => MOD_DB.find(mod => mod.id === id)).map(mod => mod.tierValues[19]),
             gloveDefs: ['gloveFireFlatDmg', 'gloveColdFlatDmg', 'gloveLightFlatDmg']
-                .map(id => MOD_DB.find(mod => mod.id === id)).map(mod => [mod.base, mod.step]),
+                .map(id => MOD_DB.find(mod => mod.id === id)).map(mod => mod.tierValues[19]),
             weaponRolls: ['weaponFireFlatDmg', 'weaponColdFlatDmg', 'weaponLightFlatDmg'].map(roll),
             gloveRolls: ['gloveFireFlatDmg', 'gloveColdFlatDmg', 'gloveLightFlatDmg'].map(roll),
             growthWeaponDefs: ['weaponFireFlatDmg', 'weaponColdFlatDmg', 'weaponLightFlatDmg']
@@ -259,12 +261,12 @@ ctx.GROWTH_UNIQUE_DB.forEach(unique => {
             growthLowRolls: lowGrowthIds.map(id => ({ id, roll: growthRoll(id) }))
         };
     })())`, runtime));
-    assert.deepStrictEqual(rolls.weaponDefs, [[6, 6], [6, 6], [6, 6]],
-        '무기 원소 기본 피해는 원본 base/step을 기존의 2배로 올려야 한다');
-    assert.deepStrictEqual(rolls.gloveDefs, [[1.8, 1.8], [1.8, 1.8], [1.8, 1.8]],
-        '장갑 원소 기본 피해는 원본 base/step을 기존의 3배로 올려야 한다');
-    assert.ok(rolls.weaponRolls.every(stat => stat.valMin === 12), 'T1 무기 원소 기본 피해 최소값은 12여야 한다');
-    assert.ok(rolls.gloveRolls.every(stat => stat.valMin === 3), 'T1 장갑 원소 기본 피해 최소값은 정수 3이어야 한다');
+    assert.deepStrictEqual(rolls.weaponDefs, [[299, 320], [299, 320], [299, 320]],
+        'T20 무기 원소 기본 피해는 실제 롤 범위를 사용한다');
+    assert.deepStrictEqual(rolls.gloveDefs, [[150, 160], [150, 160], [150, 160]],
+        'T20 장갑 원소 기본 피해는 부위별 실제 롤 범위를 사용한다');
+    assert.ok(rolls.weaponRolls.every(stat => stat.valMin === 14), 'T1 무기 원소 기본 피해 최소값은 14여야 한다');
+    assert.ok(rolls.gloveRolls.every(stat => stat.valMin === 12), 'T1 장갑 원소 기본 피해 최소값은 12여야 한다');
     assert.deepStrictEqual(rolls.growthWeaponDefs, [[1.3, 1.3], [1.3, 1.3], [1.3, 1.3]],
         '생장판 무기 원소 기본 피해는 별도 원본 수치로 소폭 상향해야 한다');
     assert.ok(rolls.growthLowRolls.length > 0 && rolls.growthLowRolls.every(row => row.roll.valMin >= 1),

@@ -42,7 +42,7 @@ vm.createContext(context);
 files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
 vm.runInContext('game = JSON.parse(JSON.stringify(defaultGame)); window.game = game;', context);
 
-assert.strictEqual(PASSIVE_KEYSTONE_CONTRACTS.length, 30, '패시브 트리 키스톤 계약은 30개여야 합니다.');
+assert.strictEqual(PASSIVE_KEYSTONE_CONTRACTS.length, 31, '피빛 요람을 포함해 키스톤 계약은 31개여야 합니다.');
 PASSIVE_KEYSTONE_CONTRACTS.forEach(contract => {
   const node = context.PASSIVE_TREE.nodes[contract.id];
   assert.ok(node && node.kind === 'keystone', `키스톤 노드가 런타임 트리에 없습니다: ${contract.id}`);

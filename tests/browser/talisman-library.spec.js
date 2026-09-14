@@ -11,6 +11,8 @@ test('talisman pages retain identity through rotation, full search and board pla
         game.talismanBoard=Array(64).fill(null);game.talismanPlacements={};
         openTabPane('tab-talisman');updateStaticUI();
     });
+    // This returning-player fixture has already read map notices unlocked by its forced loop.
+    await page.evaluate(()=>game.seenTutorials.push(...MAP_PRIMARY_CONTENTS.map(row=>row.noticeKey).filter(Boolean)));
     await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
     const navigation=page.getByRole('tablist',{name:'부적 작업'});
     if(info.project.use.isMobile)await navigation.getByRole('tab',{name:'보관함',exact:true}).click();

@@ -45,7 +45,7 @@ body:not(.light-mode) button:not(.market-shell button):not(.tab-btn):not(.tab-ca
   filter: brightness(.9);
   box-shadow: 0 0 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.25);
 }
-body:not(.light-mode) button:disabled:not(.gem-engrave-option) {
+body:not(.light-mode) button:disabled:not(.gem-engrave-option):not(.ocean-strategy-card) {
   background: color-mix(in srgb, var(--skin-canvas), #000 18%) !important;
   border-color: color-mix(in srgb, var(--skin-line), #000 24%) !important;
   color: var(--ui-text-3) !important;

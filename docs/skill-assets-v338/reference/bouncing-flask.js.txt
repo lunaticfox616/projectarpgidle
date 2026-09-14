@@ -1,0 +1,70 @@
+/* New skill 52 / effect catalogue 44. Catalogue numbers are NOT MZ database IDs. */
+(function(G){
+ 'use strict';
+ const spec={slug:'bouncing-flask',name:'탄성 플라스크',gemNumber:52,effectNumber:44,
+  element:'chaos',bounces:4,targetRule:'random-other-living-enemy-else-same',
+  balance:{damage:null,poisonStacks:null,poisonDuration:null,cooldown:null,range:null},
+  visualProposal:{minFlightMs:340,maxFlightMs:520,settleMs:80,splashMs:280}};
+ if(!G.WT_CATALOG.some(s=>s.id===44))G.WT_CATALOG.push({id:44,name:spec.name,slug:spec.slug,
+  skill:{isGem:true,ele:'chaos',baseSpd:null,desc:'독성 플라스크가 포물선을 그리며 총 4회 적중합니다. 다른 적 중 무작위로 튕기고, 다른 적이 없으면 같은 적에게 다시 적용됩니다.',tags:['spell','projectile','chaos'],combatPattern:{kind:'bouncingFlask',hits:4}},
+  grid:{kind:'chain',range:9},previewDefaults:{speed:1,rangeIsPreviewOnly:true},profile:{family:'potion',scale:1}});
+ const cell=e=>({gx:e.gx,gy:e.gy});
+ const valid=e=>e&&e.id!=null&&Number.isInteger(e.gx)&&Number.isInteger(e.gy)&&e.gx>=0&&e.gx<9&&e.gy>=0&&e.gy<8&&e.alive!==false&&(e.hp==null||e.hp>0);
+ function chooseTarget(enemies,previousId,rng=Math.random){
+  const seen=new Set(),live=enemies.filter(e=>{if(!valid(e)||seen.has(e.id))return false;seen.add(e.id);return true;});
+  const others=live.filter(e=>e.id!==previousId),pool=others.length?others:live;
+  if(!pool.length)return null;
+  const random=Number(rng()),unit=Number.isFinite(random)?Math.max(0,Math.min(.999999999,random)):0;
+  return pool[Math.floor(unit*pool.length)];
+ }
+ function flightMs(a,b,speed=1){return Math.round(Math.max(340,Math.min(520,300+Math.hypot(b.gx-a.gx,b.gy-a.gy)*45))/Math.max(.5,Math.min(2.5,speed)));}
+ // Opt-in controller: the host owns combat/damage. onImpact is a notification, never a damage formula.
+ function createCast({source,getEnemies,emit,onImpact=()=>{},rng=Math.random,startAt=0,speed=1,channelId='flask'}={}){
+  if(!source||!Number.isFinite(source.gx)||!Number.isFinite(source.gy)||typeof getEnemies!=='function'||typeof emit!=='function'||!Number.isFinite(startAt))throw Error('Invalid flask cast arguments');
+  speed=Number.isFinite(speed)?Math.max(.5,Math.min(2.5,speed)):1;
+  let origin=cell(source),previousId=null,pending=null,count=0,done=false,cancelled=false,nextAt=startAt;
+  const settle=80/speed;
+  const send=(kind,at,duration,from,to,index,extra={})=>emit({skillName:spec.name,kind,at,duration,sourceCell:cell(from),targetCells:[cell(to)],stageIndex:index,element:'chaos',channelId,...extra});
+  function launch(at){
+   const target=chooseTarget(getEnemies(),previousId,rng);if(!target){done=true;return;}
+   const end=cell(target),duration=flightMs(origin,end,speed);
+   pending={id:target.id,from:cell(origin),cell:end,index:count,at:at+duration};
+   send('travel',at,duration,origin,end,count,{flaskPhase:'flight'});
+  }
+  return {get done(){return done;},get impacts(){return count;},cancel(){cancelled=true;done=true;pending=null;},
+   update(now){
+    if(done||cancelled||!Number.isFinite(now)||now<nextAt)return;
+    // At most four iterations even when the host catches up after a long frame.
+    for(let guard=0;guard<4&&!done;guard++){
+     if(!pending)launch(nextAt);if(done||now<pending.at)return;
+     const landed=pending;pending=null;count++;
+     const live=getEnemies().find(e=>e.id===landed.id&&valid(e));
+     send('hit',landed.at,280/speed,landed.from,landed.cell,landed.index,{flaskPhase:'splash'});
+     if(live)onImpact({enemy:live,enemyId:live.id,landingCell:cell(landed.cell),at:landed.at,index:landed.index,element:'chaos'});
+     previousId=landed.id;origin=landed.cell;
+     if(count>=4){done=true;return;}
+     nextAt=landed.at+settle;
+     send('stage',landed.at,settle,origin,origin,count,{flaskPhase:'settle'});
+     if(now<nextAt)return;
+    }
+   }
+  };
+ }
+ function seeded(seed){let n=seed>>>0;return()=>((n=(Math.imul(n,1664525)+1013904223)>>>0)/4294967296);}
+ const original=G.buildWTPreview;
+ G.buildWTPreview=function(item,options={}){
+  if(item.id!==44)return original(item,options);
+  const source=options.source||{gx:2,gy:5},aim=options.aim||{gx:5,gy:3};
+  const extras=[{gx:7,gy:5},{gx:4,gy:6},{gx:6,gy:4},{gx:3,gy:3}].filter(c=>(c.gx!==aim.gx||c.gy!==aim.gy)&&(c.gx!==source.gx||c.gy!==source.gy)).slice(0,2);
+  const enemies=options.enemies|| (options.flaskMode==='single'?[{id:'A',...aim,hp:100}]:[{id:'A',...aim,hp:100},...extras.map((c,i)=>({id:i?'C':'B',...c,hp:100}))]);
+  const speed=Number.isFinite(options.attackSpeed)?options.attackSpeed:1,events=[],rows=[],timeline=[];
+  const cast=createCast({source,getEnemies:()=>enemies,emit:e=>events.push(e),rng:seeded(options.seed??44),speed,
+   onImpact:hit=>{const event=events.at(-1),impact=[hit.landingCell],footprint={cells:impact};
+    rows.push({index:hit.index,at:hit.at,from:event.sourceCell,impact,footprint,element:'chaos',stage:{label:`${hit.index+1} / 4회 적중`,targets:[{enemy:hit.enemy}]}});
+    timeline.push({at:hit.at,label:`${hit.index+1} / 4회 · ${hit.enemyId} 대상 착지`,element:'chaos',enemyId:hit.enemyId});}});
+  cast.update(0);cast.update(10000);
+  const targets=enemies.filter(valid).map(enemy=>({enemy})),target=events[0]?.targetCells[0]||aim;
+  return {events,rows,timeline,duration:Math.max(1200,...events.map(e=>e.at+e.duration))+420,source,target,targets,profile:{kind:'chain',range:9},attackSpeed:speed,channelInterval:null,motion:120,flask:true};
+ };
+ G.WT_BOUNCING_FLASK={spec,chooseTarget,createCast,flightMs,seeded};
+})(globalThis);

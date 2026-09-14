@@ -114,33 +114,33 @@
   margin-top: 9px;
 }
 
-.ocean-strategy-card {
+#ui-fishing-panel .ocean-strategy-card {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr;
   gap: 3px 8px;
   min-height: 100px;
   padding: 10px;
   border: 1px solid var(--ui-line);
-  border-radius: 11px;
+  border-radius: 5px;
   background: var(--ui-surface-2);
   color: var(--ui-text-2);
   text-align: left;
 }
 
-.ocean-strategy-card:hover:not(:disabled),
-.ocean-strategy-card:focus-visible,
-.ocean-strategy-card.selected {
+#ui-fishing-panel .ocean-strategy-card:hover:not(:disabled),
+#ui-fishing-panel .ocean-strategy-card:focus-visible,
+#ui-fishing-panel .ocean-strategy-card.selected {
   border-color: var(--ui-accent);
   box-shadow: inset 3px 0 var(--ui-accent);
 }
 
-.ocean-strategy-card.selected { background: var(--ui-surface-2); }
+#ui-fishing-panel .ocean-strategy-card.selected { background: var(--ui-surface-3); }
+#ui-fishing-panel .ocean-strategy-card:disabled { opacity:1; cursor:default; }
 .ocean-strategy-card > strong { align-self: center; }
 .ocean-strategy-card > span:not(.ocean-strategy-icon),
 .ocean-strategy-card > small { grid-column: 1 / -1; color: var(--ui-text-2); line-height: 1.35; }
-.ocean-strategy-card > span:not(.ocean-strategy-icon) { font-size: .78em; }
-.ocean-strategy-card > small { color: var(--ui-text-2); font-size: .72em; }
-.ocean-strategy-icon { font-size: 1.2em; }
+.ocean-strategy-card > span:not(.ocean-strategy-icon) { font-size: 13px; }
+.ocean-strategy-card > small { color: var(--ui-text-2); font-size: 12px; }
 .ocean-reef-action { margin-top: 8px; }
 
 .ocean-milestone-grid,
@@ -170,7 +170,7 @@
 
 .ocean-fish-card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
   min-height: 70px;
@@ -182,8 +182,7 @@
 .ocean-fish-card > div { display: grid; gap: 2px; min-width: 0; }
 .ocean-fish-card small { color: var(--ui-text-2); font-size: .69em; }
 .ocean-fish-card strong { color: var(--ui-text); }
-.ocean-fish-card span { overflow: hidden; color: var(--ui-text-2); font-size: .74em; text-overflow: ellipsis; white-space: nowrap; }
-.ocean-fish-mark { color: #7bdcf6 !important; font-size: 1.25em !important; }
+.ocean-fish-card span { color: var(--ui-text-2); font-size: .82em; line-height: 1.4; overflow-wrap: anywhere; }
 .ocean-fish-count { text-align: right; }
 .ocean-fish-count b { color: var(--ui-text-2); font-size: 1.12em; }
 .ocean-fish-card.undiscovered { filter: saturate(.35); opacity: .6; }
@@ -243,14 +242,17 @@
 @media (max-width: 480px) {
   .ocean-meter-grid { grid-template-columns: 1fr; }
   .ocean-fish-grid { grid-template-columns: 1fr; }
-  .ocean-milestone { align-items: stretch; flex-direction: column; }
-  .ocean-milestone button { width: 100%; }
+  .ocean-milestone button { flex: 0 0 auto; min-width: 64px; min-height: 44px; }
 }
 
 .ocean-upgrade-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr)); gap:10px; margin-top:12px; }
 .ocean-upgrade-card { padding:12px; border:1px solid var(--ui-line); border-radius:6px; background:var(--ui-surface-1); display:grid; gap:8px; }
 .ocean-upgrade-card > div { display:flex; justify-content:space-between; gap:10px; align-items:center; }
 .ocean-upgrade-card small { color:var(--ui-text-2); line-height:1.5; }
+.ocean-upgrade-card .ocean-upgrade-cost { display:grid; gap:4px; font-size:13px; }
+.ocean-upgrade-cost > span { display:flex; justify-content:space-between; gap:8px; color:var(--ui-text-2); }
+.ocean-upgrade-cost .short b { color:var(--ui-accent); }
+.ocean-upgrade-cost .ready b { color:var(--ui-text); }
 .ocean-dive-status { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
 .ocean-dive-status > span { display:grid; gap:5px; padding:10px 14px; border-left:2px solid var(--ui-line-strong); color:var(--ui-text-2); }
 .ocean-dive-status b { color:var(--ui-text); font-size:18px; }
@@ -261,4 +263,9 @@
 .ocean-help { margin-top:12px; padding:10px; border-top:1px solid var(--ui-line); color:var(--ui-text-2); }
 .ocean-help summary { cursor:pointer; }
 .ocean-collection-disclosure > summary { padding:12px 0; cursor:pointer; color:var(--ui-accent); }
+.ocean-collection-group { margin-top:12px; border-top:1px solid var(--ui-line); }
+.ocean-collection-group > summary { display:flex; justify-content:space-between; gap:12px; padding:12px 0; cursor:pointer; color:var(--ui-text); }
+.ocean-collection-group > summary b { color:var(--ui-accent); font-size:.86em; }
+.ocean-collection-group[open] > summary { border-bottom:1px solid var(--ui-line); }
+.ocean-collection-empty { margin:0; padding:16px 0; color:var(--ui-text-2); }
 .ocean-section .ocean-milestone-grid { grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr)); }

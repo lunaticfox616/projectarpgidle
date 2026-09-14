@@ -56,7 +56,7 @@ function getEnemyLootDropMultiplier(zone, enemy) {
 
 /** Independent base chances share bonuses without deriving growth drops from equipment. */
 function getEquipmentDropChances(zone, enemy) {
-    let multiplier = getEnemyLootDropMultiplier(zone, enemy);
+    let multiplier = getEnemyLootDropMultiplier(zone, enemy) * levelProgression.rewardMultiplier(zone, enemy, game.level);
     if (zone.type === 'labyrinth') {
         let floor = Math.max(1, Math.floor(Number(zone.floor) || 1));
         let progress = Math.min(1, Math.max(0, (floor - 30) / 170));
@@ -77,7 +77,7 @@ function getEquipmentDropChances(zone, enemy) {
  */
 function rollEquipmentDrop(zone, enemy, chance) {
     let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
-    let progress = game.equipmentDropProgress + EQUIPMENT_DROUGHT_RULES.credit[rank] * getContentDropRateMultiplier(zone);
+    let progress = game.equipmentDropProgress + EQUIPMENT_DROUGHT_RULES.credit[rank] * getContentDropRateMultiplier(zone) * levelProgression.rewardMultiplier(zone, enemy, game.level);
     let guaranteed = progress >= EQUIPMENT_DROUGHT_RULES.threshold;
     let dropped = guaranteed || Math.random() < chance;
     let minimumRarity = guaranteed ? 'rare' : null;
@@ -89,6 +89,23 @@ function getEquipmentDropRarity(enemy, roll) {
     let rank = enemy.isBoss ? 'boss' : (enemy.isElite ? 'elite' : 'regular');
     let thresholds = EQUIPMENT_DROP_RARITY_THRESHOLDS[rank];
     return ['unique', 'rare', 'magic'].find(rarity => roll < thresholds[rarity]) || 'normal';
+}
+
+/** Extra realm-boss reward. Generate only; combat commits pickup, codex and visual feedback. */
+function generateRealmBossUniqueDrop(zone, enemy) {
+    if (!enemy.isBoss || !['chaosRealm', 'underworld', 'cosmos'].includes(zone.type)) return null;
+    const chance = REALM_BOSS_UNIQUE_DROP_RULES.chance * levelProgression.rewardMultiplier(zone, enemy, game.level);
+    if (Math.random() >= chance) return null;
+    const itemLevel = levelProgression.monsterLevel(zone, enemy);
+    const cap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
+    const eligible = UNIQUE_DB.filter(unique => unique.dropOnly?.type === zone.type
+        && cap >= (unique.dropOnly.minTier || unique.reqTier || 1));
+    const chase = eligible.filter(unique => unique.ultraRare);
+    const useChase = chase.length > 0 && Math.random() < REALM_BOSS_UNIQUE_DROP_RULES.ultraRareShare;
+    const pool = useChase ? chase : eligible.filter(unique => !unique.ultraRare);
+    if (!pool.length) return null;
+    const item = generateUniqueItem(cap, null, rndChoice(pool).name, zone);
+    return levelProgression.stampItem(item, itemLevel);
 }
 
 function getMappingTicketDrops(enemy, zone, mappingOpened) {
@@ -209,7 +226,8 @@ function getCurrencyDrops(enemy) {
     }
     if (enemy.isBoss && zone.type === 'abyss' && Math.random() < (abyssScale.bossExtraCurrencyChance || 0)) drops.push(['jewelShard', 2]);
     if ((game.season || 1) >= 2 && zone.type === 'seasonBoss' && enemy.isBoss && Math.random() < 0.22) drops.push(['bossCore', 1]);
-    return drops.filter(([key]) => contentProgression.canDropCurrency(key));
+    return levelProgression.filterCurrencyDrops(drops, levelProgression.rewardMultiplier(zone, enemy, game.level))
+        .filter(([key]) => contentProgression.canDropCurrency(key));
 }
 
 safeExposeGlobals({ getCurrencyDrops });

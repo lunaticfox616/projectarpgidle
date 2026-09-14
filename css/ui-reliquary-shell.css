@@ -248,6 +248,8 @@ body #death-overlay :is(.deathlog-tab, .tutorial-actions button) {
 }
 body #death-overlay .deathlog-tab.active { color: var(--ui-gold); border-color: var(--ui-line-strong); box-shadow: inset 0 -2px var(--ui-gold); }
 body #death-overlay :is(.deathlog-ratio, .deathlog-other) { color: var(--ui-text-2); }
+/* Damage bars retain element colors; bright element-colored numbers need contrast on paper. */
+body.light-mode #death-overlay .deathlog-monster-value { color: var(--ui-text) !important; }
 body #death-overlay .tutorial-actions { border-color: var(--ui-line); }
 body #death-overlay .deathlog-bar { background: var(--ui-surface-3); border-color: var(--ui-line); }
 
@@ -2702,6 +2704,16 @@ body:not(.light-mode) .selection-overlay-panel {
 body:not(.light-mode) .time-rift-panel {
   margin-bottom: 10px;
   padding: 10px;
+}
+
+.time-rift-panel .map-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.time-rift-panel .map-item-actions {
+  justify-content: flex-start;
 }
 
 body:not(.light-mode) .equipment-preset-panel,

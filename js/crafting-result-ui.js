@@ -78,7 +78,10 @@ const craftingResultUi = (() => {
         if (!payment) return '';
         const name = ORB_DB[payment.key].name;
         const label = payment.key === 'growthEssence' ? `${name} ${payment.cost}개로 다시 제작 · 보유 ${payment.have}` : `${name} 다시 사용 · ${payment.have}`;
-        return `<button type="button" data-repeat-craft="${result.meta.currencyKey}" onclick="craftingResultUi.repeat(${Number(item.id)})" ${payment.affordable ? '' : 'disabled'}>${escapeHTML(label)}</button>`;
+        const mode = isSporeCraftEquipment(item) ? (game.sporeCraftModes[result.meta.currencyKey] || 'none') : 'none';
+        const action = equipmentCrafting.resolveAction(result.meta.currencyKey, item.rarity);
+        const reason = equipmentCrafting.getSporeBlockReason(item, action, mode);
+        return `<button type="button" data-repeat-craft="${result.meta.currencyKey}" onclick="craftingResultUi.repeat(${Number(item.id)})" ${payment.affordable && !reason ? '' : 'disabled'}>${escapeHTML(reason || label)}</button>`;
     }
 
     function getLedgerHtml(item) {

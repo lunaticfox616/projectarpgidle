@@ -68,6 +68,13 @@ function ensureRecordsState(state) {
 }
 
 // ── 최고 기록 적립 ──────────────────────────────────────────────────
+// Starting floors represent unopened progress, including in pre-fix saved records.
+// Filter a copy so reading a legacy record never rewrites the save.
+function getAchievedRecordBests(best) {
+    const baselines = { abyssDepth: 20, labyrinthFloor: 1, skyFloor: 1, underworldFloor: 1 };
+    return Object.fromEntries(Object.entries(best).filter(([key, value]) => toPositiveInt(value) > (baselines[key] || 0)));
+}
+
 // 루프 정산이 초기화하는 값(군락지 파도 등)이 있으므로, 현재값을 주기적으로 훑어
 // 역대 최고를 단조 증가로 남긴다. 값을 읽기만 하고 원본은 건드리지 않는다.
 function getRecordBestSources(g) {
@@ -76,7 +83,7 @@ function getRecordBestSources(g) {
     let underworld = (g.underworldProgress && typeof g.underworldProgress === 'object') ? g.underworldProgress : {};
     let ocean = (g.ocean && typeof g.ocean === 'object') ? g.ocean : {};
     let colony = (g.colony && typeof g.colony === 'object') ? g.colony : {};
-    return {
+    return getAchievedRecordBests({
         actZone: toPositiveInt(g.maxZoneId),
         level: toPositiveInt(g.level),
         loop: Math.max(1, Math.floor(g.season || 1)),
@@ -87,7 +94,7 @@ function getRecordBestSources(g) {
         underworldFloor: toPositiveInt(underworld.highestFloor),
         oceanBoundary: toPositiveInt(ocean.highestBoundary || ocean.bestBoundary || ocean.highestDepth),
         colonyWave: Math.max(toPositiveInt(colony.highestWave), toPositiveInt(colony.wave))
-    };
+    });
 }
 
 // 실제 경과(벽시계)와 활동 시간을 나눠 센다.
@@ -213,7 +220,7 @@ function getRecordsView(state) {
         },
         actBest: { ...r.actBest },
         echo: { ...r.echo },
-        best: { ...r.best }
+        best: getAchievedRecordBests(r.best)
     };
 }
 

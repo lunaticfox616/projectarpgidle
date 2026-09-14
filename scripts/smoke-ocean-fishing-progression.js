@@ -36,10 +36,28 @@ run(`(function () {
     gainOceanFishingGaugeFromCombat({ depthTier: 0, currents: [] });
     window.__shoalGauge = game.ocean.fishingGauge;
 })()`);
-assert(Math.abs(run('window.__balancedGauge') - 1) < 0.0001,
-    'balanced fishing must preserve the baseline gauge gain');
-assert(Math.abs(run('window.__shoalGauge') - 1.35) < 0.0001,
+assert(Math.abs(run('window.__balancedGauge') - 20) < 0.0001,
+    'baseline fishing must reach a catch within five completed shallow encounters');
+assert(Math.abs(run('window.__shoalGauge') - 27) < 0.0001,
     'shoal fishing must apply its faster gauge gain');
+
+run(`game.ocean.fishingStrategy='balanced';game.ocean.fishingGauge=0;
+    game.ocean.depthM=0;game.ocean.pressureLevel=0;game.ocean.fishStock={};game.ocean.fishCaughtTotal={};
+    for(let clear=0;clear<4;clear++)gainOceanFishingGaugeFromCombat({depthTier:0,currents:[]});`);
+assert.strictEqual(run('game.ocean.fishStock.shallowSilverfin||0'),0);
+run('gainOceanFishingGaugeFromCombat({depthTier:0,currents:[]})');
+assert.strictEqual(run('game.ocean.fishStock.shallowSilverfin'),1);
+assert.strictEqual(run('game.ocean.fishingGauge'),0);
+run('game.ocean.fishingGauge=30;game.ocean.diving=false;gainOceanFishingGaugeFromCombat({depthTier:0,currents:[]})');
+assert.strictEqual(run('game.ocean.fishingGauge'),30,'surfaced characters must not gain fishing progress');
+run(`game.ocean.diving=true;game.ocean.depthM=1600;game.ocean.fishingGauge=0;
+    gainOceanFishingGaugeFromCombat({depthTier:0,currents:[]});`);
+assert.strictEqual(run('game.ocean.fishingGauge'),20,'the completed shallow encounter keeps its own depth bonus');
+run(`game.ocean.reefInstalled=10;game.ocean.fishingStrategy='shoal';game.ocean.fishingGauge=30;
+    gainOceanFishingGaugeFromCombat({depthTier:1000,currents:[]});`);
+assert.strictEqual(run('game.ocean.fishingGauge'),30,'a completed encounter grants at most one catch and preserves carry');
+assert.strictEqual(run('game.ocean.fishStock.shallowSilverfin'),2);
+run('game.ocean.reefInstalled=0;game.ocean.depthM=0;game.ocean.fishingGauge=0;');
 
 run(`(function () {
     game.currentZoneId = OCEAN_ZONE_ID;
@@ -206,21 +224,15 @@ assert.strictEqual(run('getSelectedSeaGiftEquipmentTarget()'), null,
     'the shared crafting selection must not expose a growth item as a sea-gift equipment target');
 
 const elements = {
-    'fishing-collection': { open: true, dataset: { mobileSelected: 'true' } },
-    'ui-fishing-collection': { innerHTML: '' },
-    'ui-fishing-collection-summary': { textContent: '' },
-    'ui-fishing-panel': { innerHTML: '' },
     'ui-sea-gift-panel': { innerHTML: '', querySelectorAll: () => [] }
 };
 context.document.getElementById = id => elements[id] || null;
-run('renderFishingPanel(); renderSeaGiftPanel();');
-assert(elements['ui-fishing-panel'].innerHTML.includes('ocean-strategy-card')
-    && elements['ui-fishing-panel'].innerHTML.includes('희귀 조짐')
-    && elements['ui-fishing-collection'].innerHTML.includes('무광해 도감 완성'),
-'the fishing UI must expose strategy, omen, and collection progression');
+// Fishing controls and collection disclosure run against a real DOM
+// in tests/browser/ocean-workflow.spec.js and mobile-map-navigation.spec.js.
+run('renderSeaGiftPanel();');
 assert(elements['ui-sea-gift-panel'].innerHTML.includes('현재 제작 대상')
     && elements['ui-sea-gift-panel'].innerHTML.includes('일반 장비가 아님')
-    && elements['ui-sea-gift-panel'].innerHTML.includes('대상 선택 필요'),
+    && elements['ui-sea-gift-panel'].innerHTML.includes('일반 장비만 가공 가능'),
 'the sea-gift UI must explain an incompatible shared crafting target');
 assert(!elements['ui-sea-gift-panel'].innerHTML.includes('테스트 중인 컨텐츠'),
     'finished sea-gift presentation must not retain the prototype warning');

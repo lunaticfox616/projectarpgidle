@@ -9,8 +9,10 @@ test('jewel selection and fusion follow materials after equipment swaps and reor
         game.contentProgression.inherited.push('jewel');contentProgression.sync();
         game.jewelInventory=['A','B','C','D'].map((name,id)=>({id,name:`선택 ${name}`,rarity:'magic',stats:[{id:'crit',val:2,tier:1}]}));
         game.jewelSlots=[null,null];game.currencies.jewelShard=20;
-        openTabPane('tab-jewel');updateStaticUI();
+        announceMapPrimaryContentUnlocks();openTabPane('tab-jewel');updateStaticUI();
     });
+    // This returning-player fixture has already read map notices unlocked by its forced loop.
+    await page.evaluate(()=>game.seenTutorials.push(...MAP_PRIMARY_CONTENTS.map(row=>row.noticeKey).filter(Boolean)));
     await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
     const card=name=>page.locator('.jewel-inventory-card').filter({hasText:`선택 ${name}`});
     for(const name of ['B','D'])await card(name).getByRole('button',{name:'융합선택',exact:true}).click();

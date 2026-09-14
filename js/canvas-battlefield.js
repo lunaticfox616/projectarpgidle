@@ -1039,12 +1039,16 @@ function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
 /** Ground spells belong below actors; vertical fire remains in the foreground. */
 function isGroundSkillCast(fx) {
     if (fx.type !== 'combatTravel' || fx.delivery !== 'magicCell') return false;
+    if ([10, 28, 29, 32].includes(SKILL_FX_ATLAS[fx.skillName]?.id)) return true;
     let profile = getSkillGemVfxProfile(fx.skillName);
     return ['gravity', 'erosion', 'decay', 'resonance', 'mine'].includes(profile?.signature);
 }
 
 /** Paint ground spells first and summons above them, before the main actor layer. */
 function drawBattleGroundLayer(ctx, effects, view) {
+    worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
+    sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
+    worldTreeSkillFx.drawQueued(ctx, battleVisualState.skillEffects || [], view.now, 'ground');
     for (let fx of effects) {
         if (!isGroundSkillCast(fx)) continue;
         drawCombatTravelFx(ctx, fx, view.now, view.gridProj, view.playerPos, view.enemyPosMap);
@@ -1318,9 +1322,10 @@ function drawFootprintSkillImpact(ctx, effect, image, progress) {
     return true;
 }
 
-function drawSkillGemVfxLayer(ctx, now) {
+function drawSkillGemVfxLayer(ctx, now, gridProj) {
+    worldTreeSkillFx.castFrame(ctx,gridProj,'foreground');
     let list = battleVisualState.skillEffects || [];
-    worldTreeSkillFx.drawQueued(ctx, list, now);
+    worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
     const spriteRenderers = {continuousSlash:drawSwordSlashVfx, bite:drawFenrirBiteVfx};
     list.forEach(effect => {
         let image = getSkillGemVfxImage(effect.imageKey);
@@ -1408,31 +1413,32 @@ function getEnemyTelegraphColor(enemy) {
     return { edge: '#ffb26b', fill: 'rgba(255,135,59,0.16)' };
 }
 
-function drawBossPatternLabel(ctx, entry, enemy, gridUnitScale) {
+function drawBossPatternLabel(ctx, entry, enemy) {
     if (!enemy.patternTelegraphKey && !enemy.attackCast && !(enemy.castInterruptedUntil > getCombatTime())) return;
     const cast = enemyAttackRules.castBar(enemy,getCombatTime(),pendingEnemyCombatAttacks.find(attack => attack.enemyId === enemy.id));
     if (!cast) return;
-    let palette = getEnemyTelegraphColor(enemy);
-    let label = String(cast.label);
-    let labelY = entry.y - 102 * gridUnitScale;
     ctx.save();
-    ctx.font = '700 11px "Noto Sans KR", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    let textWidth = Math.ceil(ctx.measureText(label).width);
-    ctx.globalAlpha = 0.88;
-    ctx.fillStyle = 'rgba(7, 10, 16, 0.82)';
-    ctx.fillRect(entry.x - textWidth / 2 - 6, labelY - 9, textWidth + 12, 18);
-    ctx.globalAlpha = 0.98;
-    ctx.fillStyle = palette.edge;
-    ctx.fillText(label, entry.x, labelY);
-    const barWidth = Math.max(76, textWidth + 12);
-    ctx.fillStyle = '#080b10';
-    ctx.fillRect(entry.x-barWidth/2-1,labelY+10,barWidth+2,7);
-    ctx.fillStyle = cast.cancelled ? '#b85851' : '#544a37';
-    ctx.fillRect(entry.x-barWidth/2,labelY+11,barWidth,5);
-    ctx.fillStyle = palette.edge;
-    ctx.fillRect(entry.x-barWidth/2,labelY+11,barWidth*cast.progress,5);
+    const width = enemy.isBoss ? 84 : 60;
+    const viewWidth = ctx.canvas.width / ctx.getTransform().a;
+    const x = Math.round(clampNumber(entry.x-width/2,6,Math.max(6,viewWidth-width-6)));
+    const y = Math.round(Math.max(6,entry.y-(enemy.isBoss ? 106 : 56)-13));
+    const edge = cast.cancelled ? '#a8706a' : '#8e7951';
+    ctx.globalAlpha = 0.96;
+    ctx.fillStyle = '#111310';
+    ctx.beginPath();
+    ctx.roundRect(x+0.5,y+0.5,width-1,7,3.5);
+    ctx.fill();
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.roundRect(x+2,y+2,width-4,4,2);
+    ctx.clip();
+    const progressWidth = Math.round((width-4)*cast.progress);
+    ctx.fillStyle = '#b69a60';
+    ctx.fillRect(x+2,y+2,progressWidth,4);
+    ctx.fillStyle = '#ead8a7';
+    ctx.fillRect(x+2,y+2,progressWidth,1);
     ctx.restore();
 }
 
@@ -1444,12 +1450,10 @@ function drawBossPatternArea(ctx, area, projection, alpha = 3) {
 }
 
 function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendingAttacks) {
-    pendingAttacks.filter(attack => attack.delivery === 'patternArea')
-        .forEach(attack => drawBossPatternArea(ctx, attack.bossPattern.area, projection));
+    sideEncounterCanvas.pendingWarnings(ctx, projection, pendingAttacks);
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
-        drawBossPatternLabel(ctx, entry, enemy, gridUnitScale);
         let frozen = (enemy.ailments || []).some(ailment => ['freeze','stun','silence'].includes(ailment.type) && ailment.time > 0);
         if (frozen) return;
         if (enemy.isBoss) {
@@ -1530,6 +1534,7 @@ function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds) {
         ctx.lineWidth = 1;
         ctx.strokeRect(x - 0.5, y - 0.5, width + 1, 7);
         ctx.restore();
+        drawBossPatternLabel(ctx, entry, enemy);
     });
 }
 
@@ -1720,7 +1725,13 @@ function updatePlayerGridVisualMotion(gridProj, playerCell, now, moveSpeed) {
             Math.abs(currentCell.gx - state.lastCell.gx),
             Math.abs(currentCell.gy - state.lastCell.gy)
         );
-        let durationMs = getPlayerGridMoveDurationMs(moveSpeed, distance);
+        const teleport = battleFx.some(fx => {
+            if(fx.type !== 'playerMobility' || !fx.instant || !fx.fromCell || !fx.toCell) return false;
+            return now >= fx.start && now < fx.start + fx.duration
+                && gridCellKey(fx.fromCell.gx,fx.fromCell.gy) === gridCellKey(state.lastCell.gx,state.lastCell.gy)
+                && gridCellKey(fx.toCell.gx,fx.toCell.gy) === gridCellKey(currentCell.gx,currentCell.gy);
+        });
+        let durationMs = teleport ? 0 : getPlayerGridMoveDurationMs(moveSpeed, distance);
         state = {
             lastCell: currentCell,
             fromCell: state.lastCell,
@@ -1933,6 +1944,7 @@ function drawPlayerReturnWhiteShroud(ctx, position, strength, frontLayer) {
 }
 
 function drawBattlePlayerActor(ctx, state) {
+    state = worldTreeSkillFx.actorState(state);
     let position = state.playerPos;
     let returnWarp = state.returnWarp;
     let returnDeparture = state.returnDeparture;
@@ -1953,13 +1965,21 @@ function drawBattlePlayerActor(ctx, state) {
         ctx.scale(-1, 1);
     }
     drawSkillWeaponLayer(ctx, position, state.now, 'back');
-    drawPlayerSprite(ctx, position.x, position.y, 2.15 * state.gridUnitScale, state.playerFlash,
-        state.swingPower, state.currentSkillVisual, state.now, state.motionState);
+    drawBattlePlayerBody(ctx,state,position);
     drawSkillWeaponLayer(ctx, position, state.now, 'front');
     ctx.restore();
     drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, true);
     drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, true);
     drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, true);
+}
+
+function drawBattlePlayerBody(ctx,state,position) {
+    const previous=ctx.battleActorAlpha;
+    ctx.battleActorAlpha=state.actorAlpha;
+    try {
+        drawPlayerSprite(ctx,position.x,position.y,2.15*state.gridUnitScale,state.playerFlash,
+            state.swingPower,state.currentSkillVisual,state.now,state.motionState);
+    } finally {ctx.battleActorAlpha=previous;}
 }
 
 function getEnemyAttackMotion(fx, enemyPos, playerPos, now, distance) {
@@ -1989,6 +2009,7 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now) {
 }
 
 function resolveEnemyFacingDirection(enemyPos, playerPos) {
+    if (game.activeSkill==='암살' && enemyPos.enemy?.facingDirection) return ({2:'south',4:'west',6:'east',8:'north'})[enemyPos.enemy.facingDirection];
     if (!enemyPos || !playerPos) return 'south';
     const dx = Number(playerPos.x) - Number(enemyPos.x);
     const dy = Number(playerPos.y) - Number(enemyPos.y);
@@ -2085,7 +2106,7 @@ function renderBattlefield(forceWhenHidden) {
     const expectedWidth = Math.max(1, Math.round(baseWidth * expectedScale));
     const expectedHeight = Math.max(1, Math.round(baseHeight * expectedScale));
     if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) resizeBattlefieldCanvas();
-    const ctx = canvas.getContext('2d');
+    let ctx = canvas.getContext('2d');
     if (!ctx) return;
     const renderScale = clampNumber(Number(canvas.dataset.renderScale) || 1, 1, 2);
     const width = Math.max(1, canvas.clientWidth || Math.round(canvas.width / renderScale) || canvas.width);
@@ -2343,6 +2364,7 @@ function renderBattlefield(forceWhenHidden) {
         if (handled) battleVisualState.processedFxIds.add(fx.id);
     });
     cleanupBattleVisualState(now);
+    ctx = battleGroundLoot.actorContext(canvas, ctx, now, gridProj);
     (battleVisualState.projectiles || []).forEach(projectile => drawVisualProjectile(ctx, projectile, now));
     drawEnemyAttackTelegraphs(ctx, dynamicLayout, gridUnitScale, gridProj, pendingEnemyCombatAttacks);
     let enemyAttackMotions = buildEnemyAttackMotionMap(battleFx, enemyPosMap, playerPos, now);
@@ -2357,7 +2379,7 @@ function renderBattlefield(forceWhenHidden) {
     let returnDeparture = attachGridEffectPosition(getPlayerReturnDeparturePresentation(battleFx, now));
 
     drawBattleActorLayer(ctx, dynamicLayout, {
-        now, gridUnitScale, flashingEnemyIds, enemyCount: dynamicLayout.length,
+        now, gridProj, gridUnitScale, flashingEnemyIds, enemyCount: dynamicLayout.length,
         playerPos, currentTargets, enemyPosMap,
         playerFlash, swingPower, currentSkillVisual, motionState: playerMotionState,
         enemyAttackMotions, returnWarp, returnDeparture
@@ -2374,7 +2396,7 @@ function renderBattlefield(forceWhenHidden) {
 
     // 반투명 스킬 이미지는 몬스터 위에 표시해 투사체 이동과 적중점을 읽기 쉽게 한다.
     // 생명력 바와 피해 숫자는 뒤에서 그려지므로 항상 스킬 이미지보다 위에 남는다.
-    drawSkillGemVfxLayer(ctx, now);
+    drawSkillGemVfxLayer(ctx, now, gridProj);
     if (typeof attackFxDraw === 'function') attackFxDraw(ctx);
 
     let pStatsNow = framePlayerStats;
@@ -2427,7 +2449,7 @@ function renderBattlefield(forceWhenHidden) {
     }
     currentTargets = currentTargets.map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
 
-    battleFx.filter(fx => !isGroundSkillCast(fx)).forEach(fx => {
+    battleFx.filter(fx => !isGroundSkillCast(fx) && !fx.loot && !fx.groundLoot).forEach(fx => {
         if (now < fx.start) return;
         let t = clampNumber((now - fx.start) / fx.duration, 0, 1);
         let ghostEnemy = (fx.enemyId && !enemyPosMap[fx.enemyId]) ? battleVisualState.enemyGhostPos[fx.enemyId] : null;

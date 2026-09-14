@@ -64,6 +64,7 @@ function init() {
     document.getElementById('chk-log-loot').checked = game.settings.showLootLog !== false;
     document.getElementById('chk-log-crowd').checked = game.settings.showCrowdPauseLog !== false;
     document.getElementById('chk-death-notice').checked = game.settings.showDeathNotice !== false;
+    document.getElementById('chk-act-journal').checked = game.settings.showActJournal !== false;
     document.getElementById('chk-mobile-battle-pip').checked = game.settings.showMobileBattlePip !== false;
     let tabNotiCheckboxInit = document.getElementById('chk-tab-noti');
     if (tabNotiCheckboxInit) tabNotiCheckboxInit.checked = game.settings.tabNotiEnabled !== false;

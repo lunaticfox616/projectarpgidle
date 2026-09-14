@@ -8,8 +8,10 @@ test('jewel workspaces keep equipment and crafting targets connected',async({pag
         clearInterval(gameTickHandle);gameTickHandle=null;game.season=20;contentProgression.sync();
         game.contentProgression.inherited.push('jewel');contentProgression.sync();
         game.jewelInventory=[{id:9001,name:'검증 주얼',rarity:'normal',stats:[]}];game.jewelSlots=[null,null];
-        openTabPane('tab-jewel');updateStaticUI();
+        announceMapPrimaryContentUnlocks();openTabPane('tab-jewel');updateStaticUI();
     });
+    // This returning-player fixture has already read map notices unlocked by its forced loop.
+    await page.evaluate(()=>game.seenTutorials.push(...MAP_PRIMARY_CONTENTS.map(row=>row.noticeKey).filter(Boolean)));
     await page.waitForFunction(()=>{if(uiRefreshRunning||uiRefreshQueued)return false;tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;});
     const navigation=page.getByRole('tablist',{name:'주얼 작업'});
     const library=page.locator('#ui-jewel-library');

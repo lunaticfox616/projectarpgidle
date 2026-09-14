@@ -1,9 +1,9 @@
-// Mobile navigation projects the existing buttons, which remain the owners of access and routing.
+// Shared compact navigation projects existing buttons, which own access and routing.
 (function () {
     'use strict';
     function collectDestinations(selector) {
         return Array.from(document.querySelectorAll(selector))
-            .filter(button => button.style.display !== 'none' && !button.hidden && button.id !== 'btn-map-tab-zones')
+            .filter(button => button.style.display !== 'none' && !button.hidden && !['btn-map-tab-zones','btn-map-explore-atlas'].includes(button.id))
             .map(button => ({
                 id: button.id,
                 label: button.textContent.trim().replace(/^[^가-힣a-zA-Z0-9]+/, ''),
@@ -20,7 +20,6 @@
     }
 
     function renderMobileMapNavigation() {
-        if (!uiDisplay.matches('(max-width: 1080px)')) return;
         const root = document.getElementById('mobile-map-navigation');
         let select = root.querySelector('select');
         if (!select) {

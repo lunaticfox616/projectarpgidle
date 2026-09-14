@@ -39,8 +39,12 @@
     }
 
     function closeVisibleOverlay() {
-        const dialog = [...document.querySelectorAll('dialog[open]')].at(-1);
-        if (dialog) { dialog.close(); return true; }
+        const dialog = document.activeElement?.closest('dialog[open]') || [...document.querySelectorAll('dialog[open]')].at(-1);
+        if (dialog) {
+            const cancel = new Event('cancel', { cancelable: true });
+            if (dialog.dispatchEvent(cancel)) dialog.close();
+            return true;
+        }
         const overlays = [...document.querySelectorAll('[id$="-overlay"]:not(#startup-overlay), [role="dialog"], .social-modal-overlay')]
             .filter(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
         const overlay = overlays.at(-1);

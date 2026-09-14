@@ -3,32 +3,6 @@
 
     const FILTER_IDS = Object.freeze(['all', 'balanced', 'damage', 'defense', 'special', 'keep']);
     // Editable stat inputs. Combat timers, HP, buffs and enemies belong to the frozen
-    // analysis snapshot, not invalidation. Add new growth systems here with their tests.
-    const BUILD_FIELDS = [
-        'inventory', 'equipment', 'level', 'season', 'loopCount', 'maxZoneId',
-        'selectedHeroId', 'selectedClassId', 'ascendClass', 'ascendNodes', 'ascendKeystones',
-        'passives', 'voidPassives', 'passiveAttributePreference', 'passiveAttributeChoices',
-        'passiveStarEvolution', 'seasonNodes', 'seasonNodeLevels', 'loop10BonusStats', 'loopDeepStats',
-        'actRewardBonuses', 'journalBonuses', 'journalEntries', 'activeSkill', 'skills', 'supports',
-        'equippedSupports', 'equippedSummonSkills', 'summonSkillCounts', 'gemData', 'supportGemData',
-        'skillAutoRules', 'conditionGemLevels', 'conditionGemPool',
-        'sealedSkills', 'sealedSupports', 'resonancePower', 'skyGemEnhancements',
-        'jewelSlots', 'jewelSlotAmplify', 'growthBoard', 'growthInventory',
-        'talismanBoard', 'talismanPlacements', 'talismanBoardUnlock', 'talismanUnlockedCells',
-        'underworldRunes', 'talentCards', 'talentCardLoadout', 'bloomedClasses',
-        'bloomedClassThisLoop', 'bloomedTalentThisLoop', 'uniqueCodex', 'contentProgression'
-    ];
-    const BUILD_PARTS = {
-        passiveSpecialization: ['revelation', 'keystoneChoices'],
-        starWedge: ['wedges', 'sockets', 'nodeMutations', 'disabledNodeEffects'],
-        coreCube: ['unlocked', 'powers', 'faces', 'completed', 'revealedOptions', 'optionMechanism'],
-        arcana: ['unlocked', 'cards', 'deckSlots', 'equipmentSlots'],
-        pruningTree: ['unlocked', 'nodeRanks', 'prunedPenaltyRanks'],
-        beyondBoundary: ['seals'], colony: ['wardEquipped', 'wardSlots'],
-        cosmosAtlas: ['mastery', 'equippedStones', 'equippedStoneGalaxy', 'bossStoneOptions'],
-        skyTower: ['skyStone', 'gemBoosts'], ocean: ['permanentUpgrades'],
-        expertise: ['levels', 'nodes', 'favors'], flasks: ['healTier', 'qualityByKey']
-    };
     /**
      * @typedef {Object} EquipmentTriageResult
      * @property {'balanced'|'damage'|'defense'|'keep'} kind
@@ -44,12 +18,7 @@
     };
 
     function getBuildSignature() {
-        const inputs = BUILD_FIELDS.map(key => game[key]);
-        Object.entries(BUILD_PARTS).forEach(([key, fields]) => {
-            inputs.push(fields.map(field => game[key]?.[field]));
-        });
-        inputs.push((game.flasks?.utils || []).map(flask => flask && flask.key));
-        return JSON.stringify(inputs, (key, value) => ['locked', 'exp', 'xp'].includes(key) ? undefined : value);
+        return getPersistentBuildSignature(game, true);
     }
 
     function getDamageScore(stats) {

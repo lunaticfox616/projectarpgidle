@@ -17,7 +17,7 @@
     const BEST_ROWS = [
         { key: 'loop', label: '최고 루프', unit: '' },
         { key: 'level', label: '최고 레벨', unit: '' },
-        { key: 'actZone', label: '최고 도달 사냥터', unit: '', format: value => `구역 ${value}` },
+        { key: 'actZone', label: '최고 개방 사냥터', unit: '', format: getZoneLabel },
         { key: 'abyssDepth', label: '혼돈 심화', unit: '층' },
         { key: 'chaosRealmFloor', label: '혼돈계', unit: '층' },
         { key: 'labyrinthFloor', label: '고대 미궁', unit: '층' },
@@ -78,10 +78,10 @@
             <div class="records-stat-row">
                 ${statCard('', '현재 루프', `루프 ${formatCount(view.currentLoop.loop)}`, '')}
                 ${statCard('', '이번 루프 진행', formatDuration(view.currentLoop.activeMs), `실제 경과 ${formatDuration(view.currentLoop.elapsedMs)}`)}
-                ${statCard('', '기록 시작', formatDate(view.startedAt), `${formatDuration(view.trackedForMs)} 동안 기록`)}
             </div>
-            <p class="records-note">시간 기록은 이 기능이 추가된 시점부터 쌓입니다. 그 전의 루프는 남아 있지 않습니다.<br>
-            <strong>진행</strong>은 게임이 실제로 굴러간 시간이고, <strong>실제 경과</strong>는 자리를 비운 시간까지 포함한 벽시계 시간입니다. 루프 비교는 진행 시간으로 합니다.</p>
+            <details class="records-time-note"><summary>시간 기록 안내</summary>
+            <p class="records-note">기록 시작 ${escape(formatDate(view.startedAt))} · ${escape(formatDuration(view.trackedForMs))} 동안 기록<br>
+            시간 기록은 이 기능이 추가된 시점부터 쌓입니다. 진행 시간은 실제 게임 계산 시간이며, 실제 경과는 자리를 비운 시간도 포함합니다.</p></details>
         </section>`;
     }
 
@@ -96,7 +96,6 @@
         if (!view.loops.length) {
             return `<section class="records-section">
                 <div class="records-section-title">최근 루프</div>
-                ${summaryRow}
                 <p class="records-empty">아직 완료한 루프가 없습니다. 루프를 한 번 넘기면 여기에 소요 시간이 남습니다.</p>
             </section>`;
         }
@@ -171,19 +170,14 @@
             </section>`;
         }
         return `<section class="records-section">
-            <div class="records-section-title">최고 도달<span>루프를 넘겨도 유지됩니다</span></div>
+            <div class="records-section-title">최고 진행<span>루프를 넘겨도 유지됩니다 · 층수는 개방 기준</span></div>
             <div class="records-stat-row">${cards}</div>
         </section>`;
     }
 
     function renderEchoSection(view) {
         let echo = view.echo;
-        if (!echo.runs) {
-            return `<section class="records-section">
-                <div class="records-section-title">나무꾼의 잔상</div>
-                <p class="records-empty">아직 전투력을 측정하지 않았습니다. 혼돈 밖 나무꾼을 완전히 격파하면 지도에서 도전할 수 있습니다.</p>
-            </section>`;
-        }
+        if (!echo.runs) return '';
         return `<section class="records-section">
             <div class="records-section-title">나무꾼의 잔상<span>30초 허수아비 측정</span></div>
             <div class="records-stat-row">
@@ -197,11 +191,11 @@
     function buildRecordsHtml(view) {
         let offlineHtml = typeof buildOfflineProgressHtml === 'function' && typeof getOfflineProgressView === 'function'
             ? buildOfflineProgressHtml(getOfflineProgressView()) : '';
-        return offlineHtml
-            + renderHeader(view)
-            + renderLoopSection(view)
+        return renderHeader(view)
             + renderActSection(view)
             + renderBestSection(view)
+            + renderLoopSection(view)
+            + `<details class="records-offline"><summary>영구 방치 성장<span>강화 · 방치 지시 · 보관함</span></summary>${offlineHtml}</details>`
             + renderEchoSection(view);
     }
 
@@ -213,9 +207,7 @@
         let view = typeof getRecordsView === 'function' ? getRecordsView() : null;
         if (!view) return;
         let html = buildRecordsHtml(view);
-        if (root.__lastHtml === html) return;
-        root.innerHTML = html;
-        root.__lastHtml = html;
+        updateGamePanelMarkup(root, html);
     }
 
     safeExposeGlobals({ renderRecordsTab, buildRecordsHtml, formatRecordDuration: formatDuration });

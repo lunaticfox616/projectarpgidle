@@ -122,7 +122,7 @@ body:not(.light-mode) .startup-summary-item:hover {
 }
 
 body:not(.light-mode) .startup-form input,
-body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']),
+body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:where(.game-dialog-overlay input)),
 body:not(.light-mode) select,
 body:not(.light-mode) textarea {
   color: #ffffff;
@@ -133,7 +133,7 @@ body:not(.light-mode) textarea {
 }
 
 body:not(.light-mode) .startup-form input:focus,
-body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+body:not(.light-mode) input:not([type='checkbox']):not([type='radio']):not([type='range']):not(:where(.game-dialog-overlay input)):focus,
 body:not(.light-mode) select:focus,
 body:not(.light-mode) textarea:focus {
   border-color: rgba(107, 192, 252, 0.9);
