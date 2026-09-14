@@ -19,6 +19,33 @@ function cast(extra=0) {
 function tick(ms) {r.tickMs=ms;run('game.combatTimeMs=100000+tickMs;updateSkillGemCombat(castStats);');}
 const names=json('Object.keys(SKILL_DB).filter(n=>SKILL_DB[n].nativeCastId)');
 assert.equal(names.length,10);
+setup('시간 가속');cast();
+assert.equal(run('castStats.dps'),run('castStats.baseDmg*castStats.dotDamageScale'),
+    'clock DPS is one native tick per second, without hit crits or generic DoT stacks');
+tick(999);assert.equal(run('game.enemies[0].hp'),1e7,'clock has no initial hit');
+const clockMitigation=run('getEffectiveEnemyMitigation("chaos",getZone(game.currentZoneId).tier,game.enemies[0],castStats)');
+const clockTick=run('castStats.dps');
+for(let ms=1000;ms<=5000;ms+=1000)tick(ms);
+assert.equal(run('1e7-game.enemies[0].hp'),5*Math.max(1,Math.floor(clockTick*(1-clockMitigation/100))),
+    'displayed DPS agrees with all five production contacts after target mitigation');
+assert.equal(run('skillGemCombatRuntime.casts.length'),0);
+run(`globalThis.clockEquipment=game.equipment;
+ game.equipment={};globalThis.clockBaseline=getPlayerStats();
+ game.equipment['투구']={id:99101,slot:'투구',rarity:'rare',baseStats:[],
+   stats:[{id:'aspd',val:200},{id:'crit',val:100},{id:'critDmg',val:200}]};`);
+assert.ok(run('getPlayerStats().aspd>clockBaseline.aspd'));
+assert.equal(run('getPlayerStats(false).dps'),run('clockBaseline.dps'),
+    'equipment comparison cannot claim faster clock ticks or crits');
+run(`game.equipment['투구'].stats=[{id:'dotPctDmg',val:100}];`);
+assert.ok(run('getPlayerStats(false).dps>clockBaseline.dps'),'DoT investment improves clock DPS');
+run(`game.equipment={};globalThis.clockBaseSpeed=SKILL_DB['시간 가속'].baseSpd;
+ SKILL_DB['시간 가속'].baseSpd=.1;`);
+assert.ok(run('getPlayerStats().aspd<.2'));
+assert.equal(run('getPlayerStats().dps'),run('getPlayerStats().baseDmg*getPlayerStats().dotDamageScale*5*getPlayerStats().aspd'),
+    'slower than five-second cast rate includes downtime');
+run(`SKILL_DB['시간 가속'].baseSpd=clockBaseSpeed;game.equipment=clockEquipment;`);
+setup('화염 부패');
+assert.ok(run('getPlayerStats().damageScales.estimatedSkillDotDps>0'),'generic stacking DoT remains estimated');
 for(const name of names) {
     setup(name);cast();
     for(let ms=0;ms<=7000;ms+=50) {

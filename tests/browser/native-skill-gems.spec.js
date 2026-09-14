@@ -33,6 +33,8 @@ test('new gems use production acquisition, contacts, art, explicit equip and sav
                     }
                 }
                 rows.push({name,damage:1e7-boss.hp,draws:art.length,
+                    dps:stats.dps,clockDps:stats.baseDmg*stats.dotDamageScale,
+                    dpsLines:stats.breakdowns.directDps.lines,
                     finite:art.every(s=>[s.x,s.y,s.scale,s.scaleY,s.angle,s.alpha].every(Number.isFinite))});
             }
         }finally{Math.random=random;}
@@ -42,6 +44,10 @@ test('new gems use production acquisition, contacts, art, explicit equip and sav
     });
     expect(result.rows).toHaveLength(10);expect(result.spent).toBe(result.cost*10);expect(result.doubleSpent).toBe(result.spent);
     for(const row of result.rows){expect(row.damage,row.name).toBeGreaterThan(0);expect(row.draws,row.name).toBeGreaterThan(0);expect(row.finite,row.name).toBe(true);}
+    const clock=result.rows.find(row=>row.name==='시간 가속');
+    expect(clock.dps).toBeCloseTo(clock.clockDps,8);
+    expect(clock.dpsLines).toContain('1초마다 5회');
+    expect(clock.dpsLines.join(' ')).not.toContain('예상 중첩');
     await page.waitForFunction(()=>{
         if(uiRefreshRunning||uiRefreshQueued)return false;
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;

@@ -106,9 +106,10 @@ const skillGemCasts = (() => {
         visual(state,c,'fall',c.at+180/c.speed,260/c.speed,{targetCells:c.points});
     }
     function launchClock(state,c) {
-        c.nextAt=c.at+1000;
-        c.event=visual(state,c,'clock',c.at,5200,{timeCenter:cell(c.source),timeRadius:3,
-            timeTickTimes:[1,2,3,4,5].map(i=>c.at+i*1000),timeTickTargets:[],sourcePath:[]});
+        const pattern=c.stats.sSkill.combatPattern;
+        c.nextAt=c.at+pattern.intervalMs;
+        c.event=visual(state,c,'clock',c.at,pattern.durationMs+200,{timeCenter:cell(c.source),timeRadius:3,
+            timeTickTimes:Array.from({length:pattern.ticks},(_,i)=>c.at+(i+1)*pattern.intervalMs),timeTickTargets:[],sourcePath:[]});
     }
     function launchMist(state,c) {
         c.nextAt=c.at+Math.round(330/c.speed);
@@ -155,7 +156,7 @@ const skillGemCasts = (() => {
         c.source=cell(input.source);c.event.timeCenter=cell(input.source);
         const hit=area(input.enemies,c.source,'circle',3),at=c.nextAt;
         c.event.timeTickTargets.push({at,cells:hit.map(getGridUnitCenter)});
-        c.nextAt+=1000;c.done=++c.index===5;
+        c.nextAt+=c.stats.sSkill.combatPattern.intervalMs;c.done=++c.index===c.stats.sSkill.combatPattern.ticks;
         return [contact(c,hit,at,{type:'dot'})];
     }
     function stepExplosion(state,c,input) {

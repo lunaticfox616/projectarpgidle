@@ -4850,7 +4850,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let projectileExtraShotDpsMul = getProjectileExtraShotDpsMultiplier(skill, projectileExtraShotsForDps);
     let finalDpsWithProjectileShots = finalDpsAdjusted * projectileExtraShotDpsMul;
     let estimatedSkillDotDps = 0;
-    if (isDotSkill) {
+    const nativeDotPattern = skill.nativeCastId === 46 ? skill.combatPattern : null;
+    if (isDotSkill && !nativeDotPattern) {
         let dotTickInterval = DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier);
         let dotDuration = DOT_EFFECT_DURATION * Math.max(0.05, dotDurationMultiplier);
         let expectedDotStackRate = finalAspd * expectedDoubleStrikeMultiplier;
@@ -4868,7 +4869,12 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         ? Math.max(1, Number(getSkillHitSequenceDpsMultiplier(game.activeSkill, skill)) || 1)
         : 1;
     if (skillSequenceDpsMultiplier > 1) damageScales.skillSequenceMultiplier = skillSequenceDpsMultiplier;
-    let finalPlayerSkillDps = finalDpsWithProjectileShots * skillSequenceDpsMultiplier + estimatedSkillDotDps;
+    // Native clock contacts use baseDmg * dotDamageScale, without generic hit/stack effects.
+    // The active clock cannot overlap another cast; speed cannot accelerate its ticks.
+    let finalPlayerSkillDps = nativeDotPattern
+        ? finalBaseDmg * totalDotDamageMultiplier * nativeDotPattern.ticks
+            / Math.max(nativeDotPattern.ticks * nativeDotPattern.intervalMs / 1000, 1 / finalAspd)
+        : finalDpsWithProjectileShots * skillSequenceDpsMultiplier + estimatedSkillDotDps;
     let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
     let flameDecayDpsLines = [];
     if (includeBreakdowns && skill.flameDecayDebuff) {
@@ -5414,7 +5420,11 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         bleedChance: makeAilmentChanceBreakdown('출혈 확률', 'bleedChance', finalBleedChance, ailmentCritChance.bleed, null, makeDamageAilmentEffectLines('출혈 전용 피해 증가', 0)),
         dps: {
             title: 'DPS',
-            lines: [
+            lines: nativeDotPattern ? [
+                `지속 피해 1회 ${Math.floor(finalBaseDmg * totalDotDamageMultiplier)}`,
+                `${nativeDotPattern.intervalMs / 1000}초마다 ${nativeDotPattern.ticks}회`,
+                `중복 시전 불가`
+            ] : [
                 `평균 한 방 ${Math.floor(avgHit)}`,
                 `공격 속도 ${finalAspd.toFixed(2)}`,
                 `치명 기대값 반영`,
